@@ -25,7 +25,10 @@ const loadXLSX = () => {
   });
 };
 
-const yieldFrame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+// yields control to the browser so it can paint / handle input.
+// setTimeout(0) is more aggressive than rAF — rAF can pile up when the next chunk
+// of JS is already queued, which is exactly when we *want* the UI to breathe.
+const yieldFrame = () => new Promise(r => setTimeout(r, 0));
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const ICONS = {
@@ -746,7 +749,9 @@ const DAYS_FILTER = [
           return cell ? cell.v : "";
       };
 
-      const CHUNK = 3000;
+      // smaller chunks = smoother UI. 3000 was ~300ms/chunk on big files
+      // and caused visible freezes between yields. 500 keeps each chunk under ~50ms.
+      const CHUNK = 500;
       const parsed = [];
       const finalLineCitiesMap = new Map();
 
@@ -936,8 +941,14 @@ const DAYS_FILTER = [
       setFileMessage(`מאחד נסיעות כפולות...`);
       await yieldFrame();
 
+      // chunked dedup — used to be a single tight loop over `parsed`,
+      // which on big files added 1–2 seconds of unbroken main-thread work
+      // right after the parse loop finished. yielding every 2000 rows keeps
+      // the progress bar moving and prevents the "page froze" feeling.
       const dedupMap = new Map();
-      for (const t of parsed) {
+      const DEDUP_CHUNK = 2000;
+      for (let i = 0; i < parsed.length; i++) {
+        const t = parsed[i];
         const key = `${t.lineNum}_${t.origin}_${t.dest}_${t.timeMins}_${t.days}`;
         if (dedupMap.has(key)) {
             const existing = dedupMap.get(key);
@@ -954,14 +965,30 @@ const DAYS_FILTER = [
             t._mergeCount = 1;
             dedupMap.set(key, t);
         }
+
+        if ((i & (DEDUP_CHUNK - 1)) === DEDUP_CHUNK - 1) {
+          setFileProgress(Math.min(97 + Math.round((i / parsed.length) * 2), 99));
+          await yieldFrame();
+        }
       }
 
-      const finalParsed = Array.from(dedupMap.values()).map(t => {
-          t.ridership = Number(t.ridership.toFixed(2));
-          t.peakLoad = Number(t.peakLoad.toFixed(2));
-          delete t._mergeCount;
-          return t;
-      });
+      setFileMessage(`מסיים...`);
+      await yieldFrame();
+
+      // also chunk the final pass — it's lighter but on 50k+ rows it's still noticeable
+      const dedupValues = Array.from(dedupMap.values());
+      const finalParsed = new Array(dedupValues.length);
+      const FINAL_CHUNK = 5000;
+      for (let i = 0; i < dedupValues.length; i++) {
+        const t = dedupValues[i];
+        t.ridership = Number(t.ridership.toFixed(2));
+        t.peakLoad = Number(t.peakLoad.toFixed(2));
+        delete t._mergeCount;
+        finalParsed[i] = t;
+        if ((i & (FINAL_CHUNK - 1)) === FINAL_CHUNK - 1) {
+          await yieldFrame();
+        }
+      }
 
       setLineCitiesMap(finalLineCitiesMap);
       setTrips(finalParsed);
