@@ -48,7 +48,8 @@ const ICONS = {
   settings: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
   chart: "M18 20V10 M12 20V4 M6 20V16",
-  mapPin: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+  mapPin: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
+  copy: "M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M16 3h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"
 };
 
 const Ic = ({ n, size = 18, cls = "", animate = false, strokeWidth = "2.5" }) => (
@@ -94,6 +95,87 @@ const getLineCategory = (typeStr) => {
   if (t.includes('בין') || t.includes('בינעירוני')) return 'intercity';
   return 'urban';
 };
+
+// ── סיווג קווים ל-8 קטגוריות לפי משרד התחבורה ───────────────────────────
+// הסיווג מבוסס קודם כל על השדה "קבוצת יעילות תפעולית" (opGroup) אם הוא
+// זמין, ואחרת נגזר ממאפיינים: ייחודיות (תלמידים/לילה/מזין), אורך מסלול,
+// סוג שירות, ותדירות יומית.
+const CATEGORIES = [
+  'אזורי',
+  'בינעירוני ארוך',
+  'בינעירוני קצר',
+  'עירוני תדירות גבוהה',
+  'עירוני תדירות נמוכה',
+  'לילה',
+  'קווים מזינים',
+  'תלמידים',
+];
+
+// ממוצעים ארציים רשמיים — עלות תפעולית לנוסע (ש"ח)
+const COST_BENCHMARK = {
+  'אזורי': 31.8,
+  'בינעירוני ארוך': 34.0,
+  'בינעירוני קצר': 23.1,
+  'לילה': 46.9,
+  'עירוני תדירות גבוהה': 9.4,
+  'עירוני תדירות נמוכה': 15.4,
+  'קווים מזינים': 17.4,
+  'תלמידים': 9.7,
+};
+
+// סף נוסעים לנסיעת שפל לכל קטגוריה
+const LOW_RIDER_THRESHOLD = {
+  'אזורי': 5,
+  'לילה': 5,
+  'בינעירוני קצר': 8,
+  'קווים מזינים': 8,
+  'בינעירוני ארוך': 10,
+  'עירוני תדירות נמוכה': 10,
+  'עירוני תדירות גבוהה': 15,
+  'תלמידים': 15,
+};
+
+// מסווג קו לאחת מ-8 הקטגוריות. מקבל אובייקט עם השדות שצריך.
+const classifyLine = ({ opGroup, uniqueness, lineType, distance, trips, isNight, isFeeding }) => {
+  const og = (opGroup || '').trim();
+  const u = (uniqueness || '').trim();
+
+  // 1. הקטגוריות הברורות מ-uniqueness — ייחודיות גוברת
+  if (u.includes('תלמיד')) return 'תלמידים';
+  if (isNight || u.includes('לילה')) return 'לילה';
+  if (isFeeding || u.includes('מזין')) return 'קווים מזינים';
+
+  // 2. opGroup ישיר אם קיים בקטגוריות שלנו
+  for (const c of CATEGORIES) {
+    if (og === c) return c;
+    // התאמה רכה — opGroup לעיתים מכיל את שם הקטגוריה כתת-מחרוזת
+    if (og && og.includes(c)) return c;
+  }
+
+  // 3. נגזרים מ-lineType
+  const lt = (lineType || '').trim();
+  if (lt.includes('אזורי') || lt.includes('מועצה') || lt.includes('כפרי')) return 'אזורי';
+
+  // 4. בינעירוני לפי אורך מסלול
+  if (lt.includes('בינעירוני') || lt.includes('בין-עירוני') || lt.includes('בין עירוני')) {
+    return (distance && distance > 45) ? 'בינעירוני ארוך' : 'בינעירוני קצר';
+  }
+
+  // 5. עירוני — תדירות גבוהה/נמוכה לפי נסיעות שבועיות (מקירוב ליום ג')
+  //    100 נסיעות ביום ג' ≈ ~600 נסיעות שבועיות (יום-ג' הוא ~17% מהשבוע)
+  if (trips && trips >= 600) return 'עירוני תדירות גבוהה';
+  return 'עירוני תדירות נמוכה';
+};
+
+// תווית סטטוס לפי ציון (5 רמות)
+const STATUS_TIERS = [
+  { min: 80, label: 'חמור - דורש התערבות', color: 'text-rose-700', bg: 'bg-rose-100 border-rose-300', dot: 'bg-rose-600' },
+  { min: 65, label: 'לא יעיל',              color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200',  dot: 'bg-rose-500' },
+  { min: 45, label: 'טעון בדיקה',           color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', dot: 'bg-orange-500' },
+  { min: 25, label: 'סטייה קלה',            color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
+  { min: 0,  label: 'תקין',                color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
+];
+const getStatusTier = (score) => STATUS_TIERS.find(t => score >= t.min) || STATUS_TIERS[STATUS_TIERS.length - 1];
 
 const getCapacity = (sizeStr) => {
   if (!sizeStr) return 50;
@@ -186,6 +268,7 @@ function KavPach() {
   const [tab, setTab] = useState("redundant"); 
   const [searchCity, setSearchCity] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
   const [redundantSortBy, setRedundantSortBy] = useState("score"); 
   const [showCrowded, setShowCrowded] = useState(false);
   const [visibleTripsCount, setVisibleTripsCount] = useState(300);
@@ -194,6 +277,13 @@ function KavPach() {
   // ── אזורים חלשים State ──
   const [areaViewMode, setAreaViewMode] = useState("city");
   const [areaSortBy, setAreaSortBy] = useState("wastedKm");
+
+  // ── קווים תאומים State ──
+  const [twinSortBy, setTwinSortBy] = useState("score");
+  const [twinFilterDistrict, setTwinFilterDistrict] = useState("all");
+  const [twinSearch, setTwinSearch] = useState("");
+  const [visibleTwinCount, setVisibleTwinCount] = useState(30);
+  const [expandedTwin, setExpandedTwin] = useState(null);
   
   const [optLine, setOptLine] = useState("");
   const [optCity, setOptCity] = useState("all");
@@ -211,6 +301,12 @@ function KavPach() {
 
   const [activeExplainId, setActiveExplainId] = useState(null);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  // popup לטאב "קווים תאומים" — מוצג בלחיצה על הטאב, פעם אחת בלבד
+  const [showTwinsBeta, setShowTwinsBeta] = useState(false);
+  const dismissTwinsBeta = () => {
+    try { localStorage.setItem('kavpach_twins_beta_seen_v2', '1'); } catch (e) {}
+    setShowTwinsBeta(false);
+  };
   const explainRef = useRef(null);
 
   // ── מצב מפה ──────────────────────────────────────────────────────────────
@@ -426,6 +522,9 @@ const DAYS_FILTER = [
             isNightLine: uniqueness.includes("לילה"),
             isEilatPrebooked: origin.includes("אילת") || dest.includes("אילת"),
             isFeedingLine: uniqueness.includes("מזין"),
+            opGroup: "",
+            uniquenessVal: uniqueness || "",
+            exclusiveStops: 0,
             tripCount
           });
         }
@@ -647,7 +746,8 @@ const DAYS_FILTER = [
         tripCount: matchCol(headers1, ["כמות נסיעות שבועיות", "מספר נסיעות בשבוע", "מספר נסיעות שבועיות", "נסיעות בשבוע", "מספר נסיעות"], ["מירבי", "לנסיעה"]),
         cost:      matchCol(headers1, ["עלות תפעולית לנוסע", "עלות לנוסע", "עלות", "סובסידיה"]),
         weeklyKm:  matchCol(headers1, ["ק\"מ שבועי", "קילומטר שבועי", "קמ שבועי", "נסועה"]),
-        busSize:   matchCol(headers1, ["גודל אוטובוס", "גודל", "סוג רכב", "סוג אוטובוס", "תקן מינימלי לרכב"])
+        busSize:   matchCol(headers1, ["גודל אוטובוס", "גודל", "סוג רכב", "סוג אוטובוס", "תקן מינימלי לרכב"]),
+        exclusive: matchCol(headers1, ["תחנות שקו זה משרת בבלעדיות", "תחנות בבלעדיות", "תחנות יחודיות", "תחנות ייחודיות", "בלעדיות"])
       };
 
       const cv1 = (r, cidx) => {
@@ -736,6 +836,8 @@ const DAYS_FILTER = [
                     isNightLine: existing.isNightLine || String(cv1(r, C1.uniqueness) || "").includes("לילה"),
                     isFeedingLine: existing.isFeedingLine || String(cv1(r, C1.uniqueness) || "").includes("מזין"),
                     opGroupVal: existing.opGroupVal || String(cv1(r, C1.opGroup) || "").trim(),
+                    uniquenessVal: existing.uniquenessVal || String(cv1(r, C1.uniqueness) || "").trim(),
+                    exclusiveStops: existing.exclusiveStops || (C1.exclusive >= 0 ? (parseInt(String(cv1(r, C1.exclusive) || "0").replace(/,/g,"")) || 0) : 0),
                     busSize: existing.busSize || (C1.busSize >= 0 ? String(cv1(r, C1.busSize) || "").trim() : "") || "אוטובוס"
                 });
             }
@@ -792,6 +894,9 @@ const DAYS_FILTER = [
               isEilat = (origin.includes("אילת") || dest.includes("אילת")) && data1.opGroupVal.includes("בינעירוני ארוך");
               isFeeding = data1.isFeedingLine;
               busSize = data1.busSize || "אוטובוס";
+              var opGroupValOut = data1.opGroupVal || "";
+              var uniquenessValOut = data1.uniquenessVal || "";
+              var exclusiveStopsOut = data1.exclusiveStops || 0;
               
               if (scheduleC.tripCount >= 0) {
                  const tRaw = Math.round(parseFloat(tcStr.replace(/,/g, "").split('[')[0]));
@@ -853,6 +958,9 @@ const DAYS_FILTER = [
               const opGroupVal = String(cv1(r, C1.opGroup) || "").trim();
               isEilat = (origin.includes("אילת") || dest.includes("אילת")) && opGroupVal.includes("בינעירוני ארוך");
               busSize = C1.busSize >= 0 ? String(cv1(r, C1.busSize) || "אוטובוס").trim() : "אוטובוס";
+              var opGroupValOut = opGroupVal;
+              var uniquenessValOut = uniquenessVal;
+              var exclusiveStopsOut = C1.exclusive >= 0 ? (parseInt(String(cv1(r, C1.exclusive) || "0").replace(/,/g,"")) || 0) : 0;
 
               if (C1.tripCount >= 0) {
                  const tRaw = Math.round(parseFloat(String(cv1(r, C1.tripCount)).replace(/,/g, "")));
@@ -919,6 +1027,9 @@ const DAYS_FILTER = [
             isNightLine: isNight,
             isEilatPrebooked: isEilat,
             isFeedingLine: isFeeding,
+            opGroup: opGroupValOut,
+            uniquenessVal: uniquenessValOut,
+            exclusiveStops: exclusiveStopsOut,
             tripCount
           });
 
@@ -949,7 +1060,11 @@ const DAYS_FILTER = [
       const DEDUP_CHUNK = 2000;
       for (let i = 0; i < parsed.length; i++) {
         const t = parsed[i];
-        const key = `${t.lineNum}_${t.origin}_${t.dest}_${t.timeMins}_${t.days}`;
+        // dedup key כולל כיוון — חשוב: כשבקובץ יש עמודת "מוצא_יעד מאוחד",
+        // שני הכיוונים נפרסים לאותו origin/dest. בלי direction במפתח, הם
+        // היו נמזגים לשורה אחת ו-tripCount היה Math.max → הצגנו רק את
+        // הכיוון בעל הערך הגבוה והפסדנו את הכיוון השני.
+        const key = `${t.lineNum}_${t.direction}_${t.origin}_${t.dest}_${t.timeMins}_${t.days}`;
         if (dedupMap.has(key)) {
             const existing = dedupMap.get(key);
             existing.ridership = ((existing.ridership * existing._mergeCount) + t.ridership) / (existing._mergeCount + 1);
@@ -1004,34 +1119,67 @@ const DAYS_FILTER = [
     }
   };
 
+  // ── קווים לא יעילים — ניקוד מבוסס קטגוריה ──────────────────────────────
+  // 4 רכיבי ניקוד:
+  //   1) נסיעות שפל (עד 30) — סף לפי קטגוריה
+  //   2) ק"מ מבוזבז (עד 20)
+  //   3) עלות תפעולית (עד 20) — יחס לממוצע הקטגוריה
+  //   4) ממוצע נוסעים ועומס שיא (עד 30)
+  // הגנות (מופחתות אחרי החיבור):
+  //   - תחנות בלעדיות / קו עובר: עד 15 נקודות
+  //   - מותאם רכבת (uniqueness מכיל "רכבת"): 10 נקודות
+  //   - תלמידים בשעות בית ספר: 10 נקודות
   const redundantLines = useMemo(() => {
+    // שלב 1: ספירת כמה קווים מגיעים לכל יעד (לזיהוי "תחנת קצה ייחודית")
+    const destLineCount = new Map();
+    {
+      const seen = new Set();
+      for (let i = 0; i < trips.length; i++) {
+        const t = trips[i];
+        const dKey = String(t.dest || '').trim().toLowerCase();
+        if (!dKey || dKey === 'לא ידוע' || dKey === 'כללי') continue;
+        const pairKey = `${t.lineNum}__${dKey}`;
+        if (seen.has(pairKey)) continue;
+        seen.add(pairKey);
+        destLineCount.set(dKey, (destLineCount.get(dKey) || 0) + 1);
+      }
+    }
+
     const groups = {};
+    const cityOnlyStr = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
     for (let i = 0; i < trips.length; i++) {
       const t = trips[i];
-      
-      const cityOnlyStr = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
       const o = cityOnlyStr(t.origin);
       const d = cityOnlyStr(t.dest);
       const cityPair = [o, d].sort().join('-');
-      
       const groupKey = `${t.lineNum}_${cityPair}`;
-      
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push(t);
     }
 
     return Object.entries(groups).map(([groupKey, data]) => {
-      const lineNum = data[0].lineNum; 
-      
-      const totalTrips = data.reduce((s, t) => s + t.tripCount, 0); 
-      
+      const lineNum = data[0].lineNum;
+      const totalTrips = data.reduce((s, t) => s + t.tripCount, 0);
       const totalRiders = data.reduce((s, t) => s + (t.ridership * t.tripCount), 0);
       const avgRiders = totalTrips > 0 ? (totalRiders / totalTrips) : 0;
-      
       const totalPeaks = data.reduce((s, t) => s + (t.peakLoad * t.tripCount), 0);
       const avgPeak = totalTrips > 0 ? (totalPeaks / totalTrips) : 0;
 
-      const lowTrips  = data.filter(t => t.ridership < 10);
+      // סיווג הקו
+      const category = classifyLine({
+        opGroup: data[0].opGroup,
+        uniqueness: data[0].uniquenessVal,
+        lineType: data[0].lineType,
+        distance: data[0].distance,
+        trips: totalTrips,
+        isNight: data[0].isNightLine,
+        isFeeding: data[0].isFeedingLine,
+      });
+      const lowRiderTh = LOW_RIDER_THRESHOLD[category] || 10;
+      const costBenchmark = COST_BENCHMARK[category] || 20;
+
+      // נסיעות שפל לפי סף הקטגוריה
+      const lowTrips  = data.filter(t => t.ridership < lowRiderTh);
       const lowCount  = lowTrips.reduce((s, t) => s + t.tripCount, 0);
       const percentLow = totalTrips > 0 ? (lowCount / totalTrips) * 100 : 0;
 
@@ -1047,42 +1195,87 @@ const DAYS_FILTER = [
 
       const validCosts = data.filter(t => t.cost > 0);
       const avgCost = validCosts.length > 0 ? validCosts.reduce((s, t) => s + t.cost, 0) / validCosts.length : 0;
-      
+      const costRatio = costBenchmark > 0 && avgCost > 0 ? avgCost / costBenchmark : 0;
+
       let totalKm = Math.round(data.reduce((s, t) => s + ((t.distance || 0) * t.tripCount), 0));
       if (data[0].weeklyKm > 0 && totalKm === 0) totalKm = Math.round(data[0].weeklyKm);
-
       const nonWastedKm = Math.max(0, totalKm - wastedKm);
 
+      // ── ניקוד ──
       let score = 0;
-      
-      // 1. אחוז נסיעות שפל (עד 30 נקודות)
-      score += percentLow * 0.3; 
-      
-      // 2. ק"מ מבוזבז (עד 20 נקודות)
+      const componentScores = {};
+
+      // 1. נסיעות שפל (עד 30 נק')
+      componentScores.lowTrips = Math.min(30, percentLow * 0.3);
+      score += componentScores.lowTrips;
+
+      // 2. ק"מ מבוזבז (עד 20 נק')
       const wastedRatio = totalKm > 0 ? (wastedKm / totalKm) : 0;
-      score += (wastedRatio * 10);
-      if (wastedKm > 100) score += 10; // קנס מחמיר על מעל 100 ק"מ מבוזבזים
+      let wastedScore = wastedRatio * 10;
+      if (wastedKm > 100) wastedScore += 10;
+      componentScores.wastedKm = Math.min(20, wastedScore);
+      score += componentScores.wastedKm;
 
-      // 3. עלות תפעולית לנוסע (עד 20 נקודות)
-      if (avgCost > 100) score += 20;
-      else if (avgCost > 50) score += 10;
-      else if (avgCost > 25) score += 5;
+      // 3. עלות תפעולית — יחס לממוצע קטגוריה (עד 20 נק')
+      let costScore = 0;
+      if (costRatio === 0) costScore = 0;
+      else if (costRatio <= 0.7) costScore = 0;
+      else if (costRatio <= 1.3) costScore = 5;
+      else if (costRatio <= 1.7) costScore = 8;
+      else if (costRatio <= 2.5) costScore = 12;
+      else if (costRatio <= 4)   costScore = 16;
+      else if (costRatio <= 6)   costScore = 18;
+      else                       costScore = 20;
+      componentScores.cost = costScore;
+      score += costScore;
 
-      // 4. ממוצע ועומס שיא - מותאם לסוג רכב (עד 30 נקודות)
-      if (avgRiders < (6 * scale)) score += 15;
-      else if (avgRiders < (12 * scale)) score += 7;
-      
-      if (avgPeak < (15 * scale)) score += 15;
+      // 4. נוסעים ועומס שיא (עד 30 נק') — תלוי בקיבולת
+      let ridersScore = 0;
+      if (avgRiders < (lowRiderTh * 0.6 * scale)) ridersScore += 15;
+      else if (avgRiders < (lowRiderTh * 1.2 * scale)) ridersScore += 7;
+      if (avgPeak < (15 * scale)) ridersScore += 15;
+      componentScores.riders = Math.min(30, ridersScore);
+      score += componentScores.riders;
 
-      // תוספות במקרים של שעות מתות ונסיעות מעטות
-      if (totalTrips < 6 && avgRiders < (10 * scale)) score += 10;
-      if (avgDeadHours !== null && avgDeadHours < 5) score += 10;
+      const rawScore = Math.min(100, Math.round(score));
 
-      score = Math.min(100, Math.round(score));
-      
-      let status = "קו תקין";
-      if (score >= 80) status = "קו חשוד כמיותר";
-      else if (score >= 50) status = "קו חלש";
+      // ── הגנות (deductions) ──
+      const protections = [];
+      let totalDeduction = 0;
+
+      // הגנה 1: תחנות בלעדיות / יעד ייחודי
+      const exclusiveStops = data[0].exclusiveStops || 0;
+      const destKey = String(data[0].dest || '').trim().toLowerCase();
+      const isExclusiveDest = destKey && (destLineCount.get(destKey) || 0) <= 1;
+      if (exclusiveStops > 0 || isExclusiveDest) {
+        protections.push({ name: 'תחנות ייחודיות', value: 15, detail: exclusiveStops > 0 ? `${exclusiveStops} תחנות בלעדיות` : 'יעד יחיד באזור' });
+        totalDeduction += 15;
+      }
+
+      // הגנה 2: מותאם רכבת — רק אם השדה "ייחודיות" מכיל במפורש "רכבת".
+      // לא לבלבל עם Eilat prebooked — זה מושג שונה לגמרי (הזמנה מראש, לא לוז רכבת).
+      const isTrainCoord = (data[0].uniquenessVal || '').includes('רכבת');
+      if (isTrainCoord) {
+        protections.push({ name: 'מותאם רכבת', value: 10, detail: 'יוצא בתיאום עם לוז רכבת' });
+        totalDeduction += 10;
+      }
+
+      // הגנה 3: תלמידים בשעות בית ספר
+      if (category === 'תלמידים') {
+        // בית ספר: 7:00-8:30, 13:00-15:30
+        const schoolHourTrips = data.filter(t =>
+          (t.timeMins >= 420 && t.timeMins <= 510) ||
+          (t.timeMins >= 780 && t.timeMins <= 930)
+        ).reduce((s, t) => s + t.tripCount, 0);
+        const schoolRatio = totalTrips > 0 ? schoolHourTrips / totalTrips : 0;
+        if (schoolRatio >= 0.6) {
+          protections.push({ name: 'תלמידים בשעות בי"ס', value: 10, detail: `${Math.round(schoolRatio * 100)}% מהנסיעות` });
+          totalDeduction += 10;
+        }
+      }
+
+      const finalScore = Math.max(0, rawScore - totalDeduction);
+      const tier = getStatusTier(finalScore);
 
       const sortedData = [...data].sort((a, b) => {
         const dirA = String(a.direction).replace(/\D/g, '');
@@ -1090,17 +1283,26 @@ const DAYS_FILTER = [
         return Number(dirA) - Number(dirB);
       });
 
-      return { 
-        lineNum, 
-        avg: avgRiders.toFixed(1), 
-        count: totalTrips, 
+      return {
+        lineNum,
+        avg: avgRiders.toFixed(1),
+        count: totalTrips,
         totalRiders,
-        score,
+        score: finalScore,
+        rawScore,
+        componentScores,
+        protections,
+        totalDeduction,
+        category,
+        costBenchmark,
+        costRatio: Number(costRatio.toFixed(2)),
+        lowRiderTh,
         origin: sortedData[0].origin,
         dest: sortedData[0].dest,
         district: sortedData[0].district,
         makat: sortedData[0].makat,
-        status,
+        status: tier.label,
+        statusTier: tier,
         percentLow: Math.round(percentLow),
         avgPeak: Math.round(avgPeak),
         wastedKm,
@@ -1110,15 +1312,320 @@ const DAYS_FILTER = [
         groupKey,
         isNightLine: sortedData[0].isNightLine,
         isEilatPrebooked: sortedData[0].isEilatPrebooked,
-        isFeedingLine: sortedData[0].isFeedingLine
+        isFeedingLine: sortedData[0].isFeedingLine,
+        exclusiveStops,
       };
-    }).filter(l => l.score >= 50).sort((a,b) => b.score - a.score);
+    }).filter(l => l.score >= 25).sort((a,b) => b.score - a.score);
   }, [trips]);
+
+  // ── קווים תאומים ──────────────────────────────────────────────────────
+  // איתור קווים שעושים בעצם את אותו מסלול. השוואה לפי המסלול המלא של
+  // התחנות (ולא רק מוצא/יעד) באמצעות Jaccard similarity. רק קווים עם
+  // חפיפת תחנות גבוהה ייחשבו תאומים. דורש את גיליון התחנות.
+  const TWIN_SIM_THRESHOLD = 0.7; // 70% חפיפת תחנות
+  const TWIN_MIN_CITIES = 3;      // קו חייב 3+ תחנות כדי להישפט (אחרת רעש)
+  const twinLines = useMemo(() => {
+    if (!trips.length || !lineCitiesMap || !lineCitiesMap.size) return [];
+
+    const cityOnlyStr = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
+
+    // ── שלב 1: אגרגציה לפי lineNum ──
+    // כל "קו" הוא lineNum בודד, כולל כל הכיוונים והנסיעות. שולפים גם
+    // את סט התחנות המלא שלו מ-lineCitiesMap.
+    const lineAgg = new Map();
+    for (let i = 0; i < trips.length; i++) {
+      const t = trips[i];
+      if (!t.lineNum) continue;
+      const lineKey = String(t.lineNum).replace(/^0+/, '').trim();
+      if (!lineKey) continue;
+
+      let agg = lineAgg.get(lineKey);
+      if (!agg) {
+        const cleanMakat = String(t.makat || '').replace(/^0+/, '').trim();
+        const citiesSet = lineCitiesMap.get(cleanMakat) || lineCitiesMap.get(lineKey);
+        agg = {
+          lineNum: t.lineNum,
+          makat: t.makat,
+          district: t.district,
+          lineType: t.lineType,
+          cities: citiesSet || null,
+          endpointPairs: new Map(), // pair-key -> count
+          tripCount: 0,
+          riderTripSum: 0,
+          peakTripSum: 0,
+          distanceKm: 0,         // סכום distance × tripCount לכל השורות (דירקציונלי)
+          weeklyKmByDir: new Map(), // direction -> max(weeklyKm)
+          costSum: 0,            // סכום cost × ridership × tripCount (משקלול)
+          capacity: t.capacity || 50,
+          isNightLine: t.isNightLine,
+          isFeedingLine: t.isFeedingLine,
+          timeBuckets: new Set(),
+          directions: new Set(),
+          mainOrigin: t.origin,
+          mainDest: t.dest,
+        };
+        lineAgg.set(lineKey, agg);
+      }
+      const tc = t.tripCount || 1;
+      agg.tripCount += tc;
+      agg.riderTripSum += (t.ridership || 0) * tc;
+      agg.peakTripSum += (t.peakLoad || 0) * tc;
+      agg.distanceKm += (t.distance || 0) * tc;
+      // השדה weeklyKm במקור הוא לרוב סה"כ שבועי לכל הקו — לא לכיוון.
+      // לכן, כדי לכבד כהכפילות, נשמור מוסגרת לכיוון: מקסימום שורה עם אותו כיוון.
+      const dirKey = String(t.direction || '').trim() || '0';
+      agg.directions.add(dirKey);
+      const prevWk = agg.weeklyKmByDir.get(dirKey) || 0;
+      if ((t.weeklyKm || 0) > prevWk) agg.weeklyKmByDir.set(dirKey, t.weeklyKm || 0);
+      // עלות לנוסע — משקללת בתפוסה האמיתית (ridership × tripCount)
+      agg.costSum += (t.cost || 0) * (t.ridership || 0) * tc;
+      if (t.timeMins) agg.timeBuckets.add(Math.floor(t.timeMins / 30));
+
+      const o = cityOnlyStr(t.origin);
+      const d = cityOnlyStr(t.dest);
+      if (o && d && o !== d) {
+        const ep = [o.toLowerCase(), d.toLowerCase()].sort().join('|');
+        agg.endpointPairs.set(ep, (agg.endpointPairs.get(ep) || 0) + tc);
+      }
+    }
+
+    // רק קווים עם מסלול תחנות מספיק גדול
+    const lineList = [];
+    for (const l of lineAgg.values()) {
+      if (l.cities && l.cities.size >= TWIN_MIN_CITIES) lineList.push(l);
+    }
+    if (lineList.length < 2) return [];
+
+    // ── שלב 2: בקטים לפי תחנת קצה (אופטימיזציה) ──
+    // לפני שמשווים כל קו לכל קו (O(N²)), קודם מקבצים לפי זוג ערי קצה
+    // נפוץ של כל קו — שני קווים תאומים חייבים לחלוק לפחות זוג כזה.
+    const endpointBuckets = new Map();
+    for (const l of lineList) {
+      for (const ep of l.endpointPairs.keys()) {
+        if (!endpointBuckets.has(ep)) endpointBuckets.set(ep, []);
+        endpointBuckets.get(ep).push(l);
+      }
+    }
+
+    // ── שלב 3: השוואת Jaccard בתוך כל בקט ──
+    // Jaccard = |A ∩ B| / |A ∪ B|. רק מעל הסף נחשב תאום.
+    const adj = new Map(); // lineKey -> Map(neighbor -> similarity)
+    const seenPairs = new Set();
+    for (const lines of endpointBuckets.values()) {
+      if (lines.length < 2) continue;
+      for (let i = 0; i < lines.length; i++) {
+        for (let j = i + 1; j < lines.length; j++) {
+          const a = lines[i], b = lines[j];
+          if (a.lineNum === b.lineNum) continue;
+          const aKey = String(a.lineNum).replace(/^0+/, '').trim();
+          const bKey = String(b.lineNum).replace(/^0+/, '').trim();
+          const pairKey = [aKey, bKey].sort().join('||');
+          if (seenPairs.has(pairKey)) continue;
+          seenPairs.add(pairKey);
+
+          let inter = 0;
+          const small = a.cities.size <= b.cities.size ? a.cities : b.cities;
+          const big = small === a.cities ? b.cities : a.cities;
+          for (const c of small) if (big.has(c)) inter++;
+          const union = a.cities.size + b.cities.size - inter;
+          const sim = union > 0 ? inter / union : 0;
+
+          if (sim >= TWIN_SIM_THRESHOLD) {
+            if (!adj.has(aKey)) adj.set(aKey, new Map());
+            if (!adj.has(bKey)) adj.set(bKey, new Map());
+            adj.get(aKey).set(bKey, sim);
+            adj.get(bKey).set(aKey, sim);
+          }
+        }
+      }
+    }
+    if (!adj.size) return [];
+
+    // ── שלב 4: connected components → קבוצות תאומים ──
+    const visited = new Set();
+    const groups = [];
+    for (const startLine of adj.keys()) {
+      if (visited.has(startLine)) continue;
+      const group = [];
+      const queue = [startLine];
+      while (queue.length) {
+        const cur = queue.shift();
+        if (visited.has(cur)) continue;
+        visited.add(cur);
+        group.push(cur);
+        const neighbors = adj.get(cur);
+        if (neighbors) for (const n of neighbors.keys()) if (!visited.has(n)) queue.push(n);
+      }
+      if (group.length >= 2) groups.push(group);
+    }
+
+    // ── שלב 5: בניית תוצאה לכל קבוצה ──
+    const result = [];
+    for (const group of groups) {
+      const groupLines = group.map(lineKey => {
+        const agg = lineAgg.get(lineKey);
+        const avgRiders = agg.tripCount > 0 ? agg.riderTripSum / agg.tripCount : 0;
+        // ק"מ שבועי משולב: בקובץ המקור weeklyKm לעיתים מוצג כסך לכל הקו ולעיתים לכיוון.
+        // לכן: לכל כיוון לוקחים את הערך הגבוה (כדי לא לכפול), ואז סוכמים על פני הכיוונים.
+        // אם השדה ריק לחלוטין, fallback ל-sum של distance × tripCount.
+        let weeklyKmCombined = 0;
+        for (const v of agg.weeklyKmByDir.values()) weeklyKmCombined += v;
+        if (weeklyKmCombined <= 0) weeklyKmCombined = agg.distanceKm;
+        // אם sum של distance × tripCount גדול יותר מ-weeklyKm field — סימן שה-field היה directional וצריך לסכום
+        if (agg.distanceKm > weeklyKmCombined) weeklyKmCombined = agg.distanceKm;
+        const costPerRider = agg.riderTripSum > 0 ? agg.costSum / agg.riderTripSum : 0;
+        return {
+          lineNum: agg.lineNum,
+          makat: agg.makat,
+          district: agg.district,
+          lineType: agg.lineType,
+          tripCount: agg.tripCount,
+          directionCount: agg.directions.size,
+          avgRiders: Number(avgRiders.toFixed(1)),
+          avgPeak: agg.tripCount > 0 ? Number((agg.peakTripSum / agg.tripCount).toFixed(1)) : 0,
+          weeklyKm: Math.round(weeklyKmCombined),
+          costPerRider: Number(costPerRider.toFixed(2)),
+          capacity: agg.capacity,
+          cities: agg.cities,
+          timeBuckets: agg.timeBuckets,
+          isNightLine: agg.isNightLine,
+          isFeedingLine: agg.isFeedingLine,
+          mainOrigin: agg.mainOrigin,
+          mainDest: agg.mainDest,
+          _lineKey: lineKey,
+        };
+      }).sort((a, b) => b.tripCount - a.tripCount);
+
+      const mainLine = groupLines[0];
+
+      // ממוצע דמיון בקבוצה
+      let simSum = 0, simCount = 0;
+      for (let i = 0; i < group.length; i++) {
+        const ai = adj.get(group[i]);
+        if (!ai) continue;
+        for (let j = i + 1; j < group.length; j++) {
+          if (ai.has(group[j])) { simSum += ai.get(group[j]); simCount++; }
+        }
+      }
+      const avgSimilarity = simCount > 0 ? Math.round((simSum / simCount) * 100) : 0;
+
+      // תחנות משותפות לכל הקווים בקבוצה
+      const commonCities = new Set(groupLines[0].cities);
+      for (let i = 1; i < groupLines.length; i++) {
+        for (const c of Array.from(commonCities)) {
+          if (!groupLines[i].cities.has(c)) commonCities.delete(c);
+        }
+      }
+
+      // חפיפת שעות
+      const bucketCount = new Map();
+      const allBuckets = new Set();
+      groupLines.forEach(l => l.timeBuckets.forEach(b => {
+        allBuckets.add(b);
+        bucketCount.set(b, (bucketCount.get(b) || 0) + 1);
+      }));
+      let overlapBuckets = 0;
+      for (const c of bucketCount.values()) if (c >= 2) overlapBuckets++;
+      const timeOverlapPct = allBuckets.size > 0 ? Math.round((overlapBuckets / allBuckets.size) * 100) : 0;
+
+      const totalTrips = groupLines.reduce((s, l) => s + l.tripCount, 0);
+      const totalKm = groupLines.reduce((s, l) => s + l.weeklyKm, 0);
+      const totalRiderTrips = groupLines.reduce((s, l) => s + l.avgRiders * l.tripCount, 0);
+      const combinedAvgRiders = totalTrips > 0 ? totalRiderTrips / totalTrips : 0;
+      const maxCapacity = Math.max(...groupLines.map(l => l.capacity));
+      const utilization = combinedAvgRiders / maxCapacity;
+
+      // ניקוד מתוקן ומחמיר: דמיון מסלול הוא העוגן, נדרשת חפיפת שעות אמיתית
+      // וניצולת נמוכה כדי להגיע לציון גבוה. סף הסינון נקבע ל-60.
+      let score = 0;
+      // 1. דמיון מסלול (עד 50 נק') — מתחיל לצבור רק מ-75% ומעלה
+      if (avgSimilarity >= 75) score += Math.min(50, (avgSimilarity - 75) * 2);
+      // 2. חפיפת שעות (עד 25 נק') — דורש חפיפה ממשית
+      if (timeOverlapPct >= 25) score += Math.min(25, (timeOverlapPct - 25) * 0.4);
+      // 3. ניצולת נמוכה (עד 20 נק') — קווים עמוסים אינם מועמדים לאיחוד
+      if (utilization < 0.25) score += 20;
+      else if (utilization < 0.4) score += 12;
+      else if (utilization < 0.6) score += 5;
+      // 4. שני הקווים חלשים בנפרד (5 נק' בונוס)
+      if (groupLines.every(l => l.avgRiders < 12)) score += 5;
+      // קנס: אם חפיפת השעות זניחה, גם דמיון מסלול לא מצדיק איחוד
+      if (timeOverlapPct < 15) score = Math.min(score, 50);
+      score = Math.round(Math.max(0, Math.min(100, score)));
+
+      // חיסכון פוטנציאלי משמרני: ק"מ של הקווים המשניים × 5 ש"ח/ק"מ
+      const secondaryKm = groupLines.slice(1).reduce((s, l) => s + l.weeklyKm, 0);
+      const potentialSavings = Math.round(secondaryKm * 5);
+
+      // הצגת ערי קצה: המוצא/יעד הנפוצים של הקו הראשי
+      const mainAggData = lineAgg.get(mainLine._lineKey);
+      let cityA = cityOnlyStr(mainAggData.mainOrigin) || '';
+      let cityB = cityOnlyStr(mainAggData.mainDest) || '';
+      if (!cityA || !cityB) {
+        const arr = Array.from(commonCities);
+        cityA = cityA || arr[0] || '';
+        cityB = cityB || arr[1] || '';
+      }
+      const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
+      result.push({
+        cityPair: group.slice().sort().join('-'),
+        cityA: cap(cityA),
+        cityB: cap(cityB),
+        lines: groupLines.map(l => {
+          const { cities, timeBuckets, _lineKey, mainOrigin, mainDest, ...rest } = l;
+          return rest;
+        }),
+        lineCount: groupLines.length,
+        totalTrips,
+        totalKm,
+        combinedAvgRiders: Number(combinedAvgRiders.toFixed(1)),
+        utilization: Number((utilization * 100).toFixed(0)),
+        timeOverlapPct,
+        avgSimilarity,
+        commonCityCount: commonCities.size,
+        commonCities: Array.from(commonCities).slice(0, 8).map(cap),
+        score,
+        potentialSavings,
+        district: mainLine.district,
+        lineNumbers: groupLines.map(l => l.lineNum).join(', '),
+      });
+    }
+
+    // סינון: רק קבוצות עם ציון 60 ומעלה מוצגות (סף ההמלצה לאיחוד)
+    return result
+      .filter(t => t.score >= 60)
+      .sort((a, b) => b.score - a.score || b.potentialSavings - a.potentialSavings);
+  }, [trips, lineCitiesMap]);
+
+  const filteredTwins = useMemo(() => {
+    let result = twinLines;
+    if (twinFilterDistrict !== "all") {
+      result = result.filter(t => t.district === twinFilterDistrict);
+    }
+    if (twinSearch) {
+      const s = twinSearch.toLowerCase();
+      result = result.filter(t =>
+        t.cityA.toLowerCase().includes(s) ||
+        t.cityB.toLowerCase().includes(s) ||
+        t.lineNumbers.includes(s)
+      );
+    }
+    const sorted = [...result];
+    if (twinSortBy === "savings") sorted.sort((a, b) => b.potentialSavings - a.potentialSavings);
+    else if (twinSortBy === "score") sorted.sort((a, b) => b.score - a.score);
+    else if (twinSortBy === "trips") sorted.sort((a, b) => b.totalTrips - a.totalTrips);
+    else if (twinSortBy === "overlap") sorted.sort((a, b) => b.timeOverlapPct - a.timeOverlapPct);
+    else if (twinSortBy === "lineCount") sorted.sort((a, b) => b.lineCount - a.lineCount);
+    return sorted;
+  }, [twinLines, twinFilterDistrict, twinSearch, twinSortBy]);
 
   const filteredRedundant = useMemo(() => {
     let result = [...redundantLines];
     if (filterDistrict !== "all") {
       result = result.filter(r => r.district === filterDistrict);
+    }
+    if (filterCategory !== "all") {
+      result = result.filter(r => r.category === filterCategory);
     }
     if (debouncedSearch) {
       const sCity = debouncedSearch.toLowerCase();
@@ -1141,7 +1648,7 @@ const DAYS_FILTER = [
     });
 
     return result;
-  }, [redundantLines, debouncedSearch, filterDistrict, lineCitiesMap, redundantSortBy]);
+  }, [redundantLines, debouncedSearch, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy]);
 
   const areaStats = useMemo(() => {
     const map = new Map();
@@ -1436,6 +1943,12 @@ const DAYS_FILTER = [
 
             if ((totalTripsBothDirs - currentCancelledBoth) <= minRequired) { allowCancel = false; }
 
+            // הגנה חדשה: אסור לבטל נסיעה ראשונה או אחרונה ביום של הקו והכיוון.
+            // ביטול קצוות יומיים פוגע פגיעה לא פרופורציונלית בנוסעים שתלויים בקו.
+            const isFirstOfDay = i === 0;
+            const isLastOfDay  = i === group.length - 1;
+            if (isFirstOfDay || isLastOfDay) { allowCancel = false; }
+
             if (allowCancel) {
               let hasAlternative = false; 
               const prev = i > 0 ? group[i-1] : null; const next = t2;
@@ -1635,7 +2148,7 @@ const DAYS_FILTER = [
                   onClick={() => setShowWhatsNew(v => !v)}
                   className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
                 >
-                  עדכון גרסה — מאי 2026
+                  עדכון גרסה 3.0.0
                 </button>
                 <span className="text-xs font-bold text-slate-400">נבנה על ידי שלמה הרטמן</span>
               </div>
@@ -1644,22 +2157,107 @@ const DAYS_FILTER = [
           </div>
         </header>
 
+        {showTwinsBeta && (
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[60] p-4" onClick={dismissTwinsBeta}>
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-slate-100 text-right" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-purple-100 text-purple-700 rounded-2xl p-3">
+                  <Ic n="copy" size={24} />
+                </div>
+                <div className="flex-1">
+                  <div className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[11px] font-black inline-block mb-1">בבנייה</div>
+                  <h3 className="font-black text-xl text-slate-900">טאב "קווים תאומים"</h3>
+                </div>
+              </div>
+              <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                הטאב החדש לזיהוי קווים תאומים נמצא בשלבי פיתוח ועדיין לא מוכן לשימוש מלא. ייתכן שהתוצאות חלקיות, לא מדויקות או מציגות קווים שלא באמת תאומים.
+              </p>
+              <button
+                onClick={dismissTwinsBeta}
+                className="w-full bg-slate-900 hover:bg-black text-white py-3 rounded-2xl font-black transition-colors"
+              >
+                הבנתי
+              </button>
+            </div>
+          </div>
+        )}
+
         {showWhatsNew && (
           <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4" onClick={() => setShowWhatsNew(false)}>
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
-                <h3 className="font-black text-2xl text-slate-800">מה חדש בעדכון האחרון?</h3>
+                <div>
+                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.0.0</h3>
+                  <p className="text-slate-400 font-bold text-xs mt-1">שדרוג מתודולוגיה</p>
+                </div>
                 <button onClick={() => setShowWhatsNew(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
                   &times;
                 </button>
               </div>
-              <div className="space-y-4 text-slate-700 text-sm leading-relaxed">
-                <ul className="list-disc list-inside space-y-3 marker:text-teal-400 pr-2">
-                  <li><strong>התאמה לסוג הרכב:</strong> יעילות ורף הביטול מחושבים כעת במדויק לפי גודל האוטובוס (מפרקי, מידיבוס, מיניבוס וכו&apos;).</li>
-                  <li><strong>מדדים כלכליים ומיון חכם:</strong> נוספו נתוני עלות תפעולית לנוסע, חישוב קילומטר שימושי מול קילומטר סרק, ואפשרות למיין את הכרטיסיות לפי מדדים אלו.</li>
-                  <li><strong>ניתוח אזורי משופר:</strong> נוספה תצוגה המרכזת את מדדי אי-היעילות ונסיעות הסרק בחלוקה לערים ומחוזות, כולל חישוב מדד חומרה מיוחד.</li>
-                  <li><strong>תיקון באג קיבוץ קווים:</strong> תוקן מצב שבו המערכת ערבבה את כל הנתונים של קו (למשל קו 258) תחת קובייה אחת, גם כשהיו לו מסלולים שונים. כעת כל מסלול (מוצא-יעד) מנותח ומוצג בנפרד.</li>
-                </ul>
+              <div className="space-y-6 text-slate-700 text-sm leading-relaxed">
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
+                    שיטת ניתוח חדשה לקווים לא יעילים
+                  </h4>
+                  <p className="text-slate-600 mb-3">המתודולוגיה שופצה מהיסוד והותאמה למסמכי משרד התחבורה. כל קו מסווג לאחת מ-8 קטגוריות, ולכל קטגוריה ספים ומדדים משלה.</p>
+                  <ul className="list-disc list-inside space-y-2 marker:text-rose-400 pr-2">
+                    <li><strong>סיווג ל-8 קטגוריות:</strong> אזורי / בינעירוני ארוך / בינעירוני קצר / עירוני תדירות גבוהה / עירוני תדירות נמוכה / לילה / קווים מזינים / תלמידים.</li>
+                    <li><strong>בנצ&apos;מרק עלות לפי קטגוריה:</strong> במקום סף שרירותי של "מעל ₪50/100 לנוסע", הניקוד מבוסס על יחס הקו לממוצע הארצי של הקטגוריה שלו (למשל ₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה).</li>
+                    <li><strong>סף נסיעות שפל מותאם:</strong> 5 נוסעים באזורי/לילה, 8 בקצר/מזין, 10 בארוך/תדירות נמוכה, 15 בתדירות גבוהה/תלמידים — במקום סף אחיד של 10.</li>
+                    <li><strong>מערכת הגנות:</strong> קווים עם תחנות בלעדיות (-15), מותאמים לרכבת (-10), או תלמידים בשעות בית ספר (-10) מקבלים הפחתה מהציון הסופי — כדי לא להעניש קווים חיוניים שאין להם תחליף.</li>
+                    <li><strong>תיוג ב-5 רמות במקום 2:</strong> "תקין" (ירוק), "סטייה קלה" (צהוב), "טעון בדיקה" (כתום), "לא יעיל" (אדום), "חמור - דורש התערבות" (אדום כהה).</li>
+                    <li><strong>שקיפות בכרטיס:</strong> כל קו מציג את הקטגוריה שלו, ציון גולמי מול סופי, הגנות שהופעלו, ויחס העלות לממוצע הקטגוריה.</li>
+                    <li><strong>פילטר קטגוריה:</strong> אפשר לסנן את התצוגה לקטגוריה אחת בלבד — השוואת תפוחים לתפוחים.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
+                    טאב "קווים תאומים"
+                  </h4>
+                  <p className="text-slate-600 mb-3">זיהוי אוטומטי של קבוצות קווים שעושים בעצם את אותו מסלול — מועמדים לאיחוד.</p>
+                  <ul className="list-disc list-inside space-y-2 marker:text-purple-400 pr-2">
+                    <li>השוואת <strong>מסלול תחנות מלא</strong> בין קווים (Jaccard similarity, סף 70%), לא רק תחנות הקצה.</li>
+                    <li>חישוב <strong>חפיפת שעות פעילות</strong> וניצולת מצטברת — כדי לא לאחד קווים שמשלימים זה את זה.</li>
+                    <li>הערכת <strong>חיסכון פוטנציאלי שבועי</strong> מאיחוד הקבוצה לקו אחד.</li>
+                    <li>קיבוץ ל-3 רמות: <strong>תאומים מובהקים</strong> (85+), <strong>כמעט תאומים</strong> (70+), <strong>חפיפה משמעותית</strong> (60+).</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
+                    סימולטור ייעול
+                  </h4>
+                  <ul className="list-disc list-inside space-y-2 marker:text-amber-400 pr-2">
+                    <li><strong>הגנה על נסיעה ראשונה/אחרונה ביום:</strong> האלגוריתם לא יציע לבטל אותן יותר — גם אם הן ריקות. ביטולן פוגע פגיעה לא פרופורציונלית בנוסעים שתלויים בקו.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
+                    טעינת קבצים גדולים
+                  </h4>
+                  <ul className="list-disc list-inside space-y-2 marker:text-emerald-400 pr-2">
+                    <li>טעינת קבצי אקסל גדולים (אלפי קווים) לא תוקיע יותר את הממשק. עיבוד הקובץ מחולק לחלקים קטנים עם שחרור thread בין כל פעולה.</li>
+                    <li>שלב איחוד הנסיעות הכפולות פוצל גם הוא ל-chunks — הצמצום של 1-2 שניות של קיפאון אחרי קריאת הקובץ.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
+                    אגרגציה דו-כיוונית
+                  </h4>
+                  <ul className="list-disc list-inside space-y-2 marker:text-slate-400 pr-2">
+                    <li>תוקנה בעיה בטאב "קווים תאומים" שבה הוצגו נתונים של כיוון אחד בלבד (נסיעות שבועיות, ק"מ/שבוע, עלות לנוסע). כעת הסיכומים משלבים נכון את שני הכיוונים, וכל כיוון נשמר בנפרד בפירוט.</li>
+                  </ul>
+                </section>
+
               </div>
             </div>
           </div>
@@ -1717,19 +2315,27 @@ const DAYS_FILTER = [
         ) : (
           <main>
             <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
-              {["redundant", "areas", "allTrips", "simulator", "about"].map(tabName => {
+              {["redundant", "twins", "areas", "allTrips", "simulator", "about"].map(tabName => {
                 const isSelected = tab === tabName;
                 let colorClass = "text-slate-500";
                 let iconName = "";
                 let label = "";
                 if (tabName === "redundant") { colorClass = isSelected ? "bg-white text-rose-600 shadow-md" : "text-slate-500 hover:text-slate-700"; iconName = "trash"; label = "קווים לא יעילים"; }
+                if (tabName === "twins") { colorClass = isSelected ? "bg-white text-purple-600 shadow-md" : "text-slate-500 hover:text-slate-700"; iconName = "copy"; label = "קווים תאומים"; }
                 if (tabName === "areas") { colorClass = isSelected ? "bg-white text-amber-600 shadow-md" : "text-slate-500 hover:text-slate-700"; iconName = "chart"; label = "ניתוח אזורי"; }
                 if (tabName === "allTrips") { colorClass = isSelected ? "bg-white text-indigo-600 shadow-md" : "text-slate-500 hover:text-slate-700"; iconName = "list"; label = "כל הנסיעות"; }
                 if (tabName === "simulator") { colorClass = isSelected ? "bg-white text-slate-900 shadow-md" : "text-slate-500 hover:text-slate-700"; iconName = "zap"; label = "אלגוריתם ייעול"; }
                 if (tabName === "about") { colorClass = isSelected ? "bg-white text-indigo-600 shadow-md" : "text-slate-500 hover:text-slate-700"; iconName = "info"; label = "על המערכת"; }
 
                 return (
-                  <button key={`nav-${tabName}`} onClick={() => setTab(tabName)} className={`flex-1 min-w-[120px] py-3.5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-2 ${colorClass}`}>
+                  <button key={`nav-${tabName}`} onClick={() => {
+                    if (tabName === "twins") {
+                      let seen = false;
+                      try { seen = !!localStorage.getItem('kavpach_twins_beta_seen_v2'); } catch (e) {}
+                      if (!seen) setShowTwinsBeta(true);
+                    }
+                    setTab(tabName);
+                  }} className={`flex-1 min-w-[120px] py-3.5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-2 ${colorClass}`}>
                     <Ic n={iconName} size={16} /> {label}
                   </button>
                 )
@@ -1762,6 +2368,14 @@ const DAYS_FILTER = [
                       <option value="all">כל המחוזות</option>
                       {allDistricts.map(d => <option key={`dist-${d}`} value={d}>{d}</option>)}
                     </select>
+                    <select
+                      value={filterCategory}
+                      onChange={e => setFilterCategory(e.target.value)}
+                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-56 appearance-none cursor-pointer"
+                    >
+                      <option value="all">כל הקטגוריות</option>
+                      {CATEGORIES.map(c => <option key={`cat-${c}`} value={c}>{c}</option>)}
+                    </select>
                     <div className="flex relative w-full xl:w-64">
                       <input 
                         type="text" 
@@ -1780,9 +2394,12 @@ const DAYS_FILTER = [
                     <div key={`red-${res.groupKey}-${i}`} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group relative">
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex flex-col gap-2 items-start text-right">
-                          <div className="flex items-center gap-2">
-                            <div className={`px-4 py-1.5 rounded-full text-[11px] font-black border ${res.score >= 80 ? "bg-rose-50 border-rose-200 text-rose-600" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className={`px-4 py-1.5 rounded-full text-[11px] font-black border ${res.statusTier.bg} ${res.statusTier.color}`}>
                               {res.status}
+                            </div>
+                            <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                              {res.category}
                             </div>
                             {res.isNightLine && (
                               <span className="text-indigo-400 bg-indigo-50 p-1 rounded-full" title="קו לילה">
@@ -1832,9 +2449,28 @@ const DAYS_FILTER = [
                           })()}
                         </div>
 
-                        <div className="text-xs font-bold text-slate-400 mb-4">
-                          ציון אי-יעילות: <span className={res.score >= 80 ? "text-rose-600" : "text-amber-600"}>{res.score}/100</span>
+                        <div className="text-xs font-bold text-slate-400 mb-4 flex items-center gap-2 flex-wrap">
+                          <span>ציון אי-יעילות:</span>
+                          <span className={`font-black ${res.statusTier.color}`}>{res.score}/100</span>
+                          {res.totalDeduction > 0 && (
+                            <span className="text-slate-400 font-bold">
+                              (גולמי {res.rawScore}, הופחתו {res.totalDeduction} בגין הגנות)
+                            </span>
+                          )}
                         </div>
+
+                        {res.protections.length > 0 && (
+                          <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-3 py-2">
+                            <div className="text-[10px] font-black text-emerald-700 mb-1">הגנות פעילות</div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {res.protections.map((p, k) => (
+                                <span key={`prot-${i}-${k}`} className="bg-white border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={p.detail}>
+                                  {p.name} −{p.value}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         <div className="space-y-2.5 pt-4 border-t border-slate-100">
                           <div className="flex items-center justify-between text-sm">
@@ -1849,9 +2485,19 @@ const DAYS_FILTER = [
                             <span className="text-slate-600 font-bold">נסיעות בשבוע</span>
                             <span className="font-black text-slate-900">{res.count}</span>
                           </div>
-                          <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center justify-between text-sm gap-2">
                             <span className="text-slate-600 font-bold">עלות תפעולית לנוסע</span>
-                            <span className="font-black text-slate-900">{res.cost > 0 ? `₪${res.cost.toFixed(2)}` : 'לא זמין'}</span>
+                            <span className="text-right">
+                              <span className="font-black text-slate-900">{res.cost > 0 ? `₪${res.cost.toFixed(2)}` : 'לא זמין'}</span>
+                              {res.cost > 0 && res.costBenchmark > 0 && (
+                                <div className="text-[10px] font-bold text-slate-400">
+                                  ממוצע {res.category}: ₪{res.costBenchmark}
+                                  {res.costRatio > 1 && (
+                                    <span className="text-rose-500 mr-1">(×{res.costRatio.toFixed(2)})</span>
+                                  )}
+                                </div>
+                              )}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-slate-600 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
@@ -1869,6 +2515,216 @@ const DAYS_FILTER = [
                     <div className="col-span-full text-center py-20 text-slate-400 font-bold">לא נמצאו קווים לסינון המבוקש.</div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {tab === "twins" && (
+              <div className="space-y-8 transition-opacity duration-300 opacity-100">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">קווים תאומים</h2>
+                    <p className="text-slate-500 font-bold">קבוצות קווים שהמסלול שלהם זהה ב‏70% ומעלה — מועמדים לאיחוד</p>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
+                    <select
+                      value={twinSortBy}
+                      onChange={e => setTwinSortBy(e.target.value)}
+                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-56 appearance-none cursor-pointer"
+                    >
+                      <option value="score">מיון: ציון כפילות (גבוה לנמוך)</option>
+                      <option value="savings">מיון: חיסכון פוטנציאלי</option>
+                      <option value="overlap">מיון: חפיפת שעות</option>
+                      <option value="trips">מיון: סך נסיעות שבועיות</option>
+                      <option value="lineCount">מיון: מספר קווים בקבוצה</option>
+                    </select>
+                    <select
+                      value={twinFilterDistrict}
+                      onChange={e => setTwinFilterDistrict(e.target.value)}
+                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-48 appearance-none cursor-pointer"
+                    >
+                      <option value="all">כל המחוזות</option>
+                      {allDistricts.map(d => <option key={`twin-dist-${d}`} value={d}>{d}</option>)}
+                    </select>
+                    <div className="flex relative w-full xl:w-64">
+                      <input
+                        type="text"
+                        value={twinSearch}
+                        onChange={e => setTwinSearch(e.target.value)}
+                        placeholder="חיפוש עיר או מספר קו..."
+                        className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5 text-right">
+                    <div className="text-slate-400 font-black text-xs mb-1">קבוצות תאומים</div>
+                    <div className="text-3xl font-black text-purple-600">{filteredTwins.length.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5 text-right">
+                    <div className="text-slate-400 font-black text-xs mb-1">קווים מעורבים</div>
+                    <div className="text-3xl font-black text-indigo-600">
+                      {filteredTwins.reduce((s,t) => s + t.lineCount, 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5 text-right">
+                    <div className="text-slate-400 font-black text-xs mb-1">נסיעות שבועיות מצטברות</div>
+                    <div className="text-3xl font-black text-slate-900">
+                      {filteredTwins.reduce((s,t) => s + t.totalTrips, 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5 text-right">
+                    <div className="text-slate-400 font-black text-xs mb-1">חיסכון פוטנציאלי שבועי</div>
+                    <div className="text-3xl font-black text-emerald-600">
+                      ₪{filteredTwins.reduce((s,t) => s + t.potentialSavings, 0).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {filteredTwins.length === 0 ? (
+                  <div className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-16 text-center">
+                    <div className="text-slate-400 font-black text-lg mb-2">לא נמצאו קווים תאומים בקריטריונים שנבחרו</div>
+                    {(!lineCitiesMap || !lineCitiesMap.size) && (
+                      <div className="text-slate-500 font-bold text-sm max-w-md mx-auto">זיהוי תאומים דורש גיליון תחנות בקובץ — לא נמצא גיליון כזה.</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {filteredTwins.slice(0, visibleTwinCount).map((twin, i) => {
+                      const isExpanded = expandedTwin === twin.cityPair;
+                      return (
+                        <div key={`twin-${twin.cityPair}-${i}`} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-purple-300 transition-all text-right">
+                          <div className="flex items-start justify-between mb-5">
+                            <div className="flex flex-col gap-2 items-start text-right">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className={`px-4 py-1.5 rounded-full text-[11px] font-black border ${twin.score >= 85 ? "bg-purple-50 border-purple-200 text-purple-700" : twin.score >= 70 ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}>
+                                  {twin.score >= 85 ? "תאומים מובהקים" : twin.score >= 70 ? "כמעט תאומים" : "חפיפה משמעותית"}
+                                </div>
+                                <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-600">
+                                  {twin.lineCount} קווים
+                                </div>
+                              </div>
+                              <div className="text-slate-400 font-bold text-xs">{twin.district}</div>
+                            </div>
+                            <div className="bg-purple-600 text-white px-3 py-2 rounded-2xl font-black text-sm shadow-lg shrink-0 flex flex-col items-center min-w-[64px]">
+                              <div className="text-[10px] opacity-80 leading-none">ציון</div>
+                              <div className="text-2xl leading-none mt-0.5">{twin.score}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-start gap-3 mb-5 min-w-0">
+                            <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityA}>{twin.cityA}</div>
+                            <div className="text-slate-300 text-xl font-black shrink-0 leading-none">↔</div>
+                            <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityB}>{twin.cityB}</div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 mb-5">
+                            {twin.lines.map((l, j) => (
+                              <div key={`twin-line-${j}`} className={`flex items-center gap-2 px-3 py-2 rounded-2xl border-2 ${j === 0 ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 border-slate-200"}`}>
+                                <div className={`font-black text-sm ${j === 0 ? "text-white" : "text-slate-900"}`}>{l.lineNum}</div>
+                                <div className={`text-[11px] font-bold ${j === 0 ? "text-slate-300" : "text-slate-500"}`}>
+                                  {l.tripCount} נסיעות · ~{l.avgRiders} נוסעים
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                            <div className="bg-purple-50 rounded-2xl p-3 text-right">
+                              <div className="text-purple-500 font-black text-[10px]">דמיון מסלול</div>
+                              <div className="text-lg font-black text-purple-700">{twin.avgSimilarity}%</div>
+                            </div>
+                            <div className="bg-slate-50 rounded-2xl p-3 text-right">
+                              <div className="text-slate-400 font-black text-[10px]">חפיפת שעות</div>
+                              <div className="text-lg font-black text-slate-900">{twin.timeOverlapPct}%</div>
+                            </div>
+                            <div className="bg-slate-50 rounded-2xl p-3 text-right">
+                              <div className="text-slate-400 font-black text-[10px]">תפוסה מצטברת</div>
+                              <div className="text-lg font-black text-slate-900">{twin.utilization}%</div>
+                            </div>
+                            <div className="bg-emerald-50 rounded-2xl p-3 text-right">
+                              <div className="text-emerald-600 font-black text-[10px]">חיסכון שבועי</div>
+                              <div className="text-lg font-black text-emerald-700">₪{twin.potentialSavings.toLocaleString()}</div>
+                            </div>
+                          </div>
+
+                          {twin.commonCities && twin.commonCities.length > 0 && (
+                            <div className="bg-slate-50 rounded-2xl p-3 mb-3">
+                              <div className="text-slate-400 font-black text-[10px] mb-1.5">תחנות משותפות ({twin.commonCityCount})</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {twin.commonCities.map((c, k) => (
+                                  <span key={`cc-${k}`} className="bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-full text-[11px] font-bold">{c}</span>
+                                ))}
+                                {twin.commonCityCount > twin.commonCities.length && (
+                                  <span className="text-slate-400 px-2.5 py-1 text-[11px] font-bold">+ {twin.commonCityCount - twin.commonCities.length} עוד</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {isExpanded && (
+                            <div className="border-t-2 border-slate-100 pt-4 mt-4 space-y-2">
+                              <div className="text-slate-500 font-black text-xs mb-2">פירוט קווים</div>
+                              {twin.lines.map((l, j) => (
+                                <div key={`twin-detail-${j}`} className="flex items-center justify-between gap-3 bg-slate-50 rounded-2xl px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm">{l.lineNum}</div>
+                                    <div className="text-right">
+                                      <div className="text-slate-900 font-black text-sm">
+                                        {l.lineType || "—"}
+                                        {l.directionCount > 1 && <span className="text-slate-400 font-bold text-[10px] mr-2">({l.directionCount} כיוונים)</span>}
+                                      </div>
+                                      <div className="text-slate-400 font-bold text-[11px]">מק"ט {l.makat || "—"}</div>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-4 text-right">
+                                    <div>
+                                      <div className="text-slate-400 font-black text-[10px]">נסיעות</div>
+                                      <div className="text-sm font-black text-slate-900">{l.tripCount}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-slate-400 font-black text-[10px]">ממוצע</div>
+                                      <div className="text-sm font-black text-slate-900">{l.avgRiders}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-slate-400 font-black text-[10px]">ק"מ/שבוע</div>
+                                      <div className="text-sm font-black text-slate-900">{l.weeklyKm.toLocaleString()}</div>
+                                    </div>
+                                    {l.costPerRider > 0 && (
+                                      <div>
+                                        <div className="text-slate-400 font-black text-[10px]">₪/נוסע</div>
+                                        <div className="text-sm font-black text-slate-900">{l.costPerRider}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <button
+                            onClick={() => setExpandedTwin(isExpanded ? null : twin.cityPair)}
+                            className="w-full mt-2 py-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-black text-sm transition-colors"
+                          >
+                            {isExpanded ? "הסתר פירוט" : "הצג פירוט קווים"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {filteredTwins.length > visibleTwinCount && (
+                  <div className="text-center">
+                    <button
+                      onClick={() => setVisibleTwinCount(c => c + 30)}
+                      className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black shadow-lg hover:bg-slate-700 transition-colors"
+                    >
+                      הצג עוד 30 ({filteredTwins.length - visibleTwinCount} נוספים)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2424,26 +3280,87 @@ const DAYS_FILTER = [
 
                 <div className="space-y-10">
                   <section className="bg-indigo-50 rounded-[2rem] p-6 border border-indigo-100">
-                    <h3 className="text-xl font-black text-indigo-700 mb-4">העדכון האחרון</h3>
-                    <div className="space-y-3 text-slate-700 font-medium leading-relaxed text-sm">
-                      <ul className="list-none space-y-2 pr-2">
-                        <li>• <strong>התאמה לסוג הרכב:</strong> יעילות ורף הביטול מחושבים לפי גודל האוטובוס.</li>
-                        <li>• <strong>מדדים כלכליים:</strong> הצגת עלות לנוסע, קילומטר שימושי וקילומטר מבוזבז.</li>
-                        <li>• <strong>ניתוח אזורי משופר:</strong> נוספה יכולת לנתח אי-יעילות ברמת העיר והמחוז, תוך שקלול קילומטרז&apos; מבוזבז למדד חומרה אזורי.</li>
-                        <li>• <strong>תיקון באג קיבוץ קווים:</strong> אלגוריתם הדירוג תוקן וכעת מפריד ומנתח בנפרד מסלולים שונים (מוצא-יעד) של אותו מספר קו (למשל 258), במקום לערבב את כל הנתונים יחד.</li>
-                      </ul>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.0.0</span>
+                      <h3 className="text-xl font-black text-indigo-700">העדכון האחרון — מאי 2026</h3>
+                    </div>
+                    <div className="space-y-5 text-slate-700 font-medium leading-relaxed text-sm">
+
+                      <div>
+                        <h4 className="font-black text-indigo-900 text-sm mb-2">🔴 שיטת ניתוח חדשה לקווים לא יעילים</h4>
+                        <ul className="list-none space-y-1.5 pr-2">
+                          <li>• <strong>סיווג ל-8 קטגוריות לפי משרד התחבורה:</strong> אזורי, בינעירוני ארוך, בינעירוני קצר, עירוני תדירות גבוהה, עירוני תדירות נמוכה, לילה, קווים מזינים, תלמידים.</li>
+                          <li>• <strong>בנצ&apos;מרק עלות לפי קטגוריה:</strong> במקום סף קבוע, יחס לממוצע הארצי של הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה וכו&apos;).</li>
+                          <li>• <strong>סף שפל מותאם:</strong> 5 נוסעים באזורי/לילה, 8 בקצר/מזין, 10 בארוך/תדירות נמוכה, 15 בתדירות גבוהה/תלמידים.</li>
+                          <li>• <strong>מערכת הגנות:</strong> תחנות בלעדיות (−15), מותאם רכבת (−10), תלמידים בשעות בי&quot;ס (−10).</li>
+                          <li>• <strong>תיוג ב-5 רמות:</strong> תקין → סטייה קלה → טעון בדיקה → לא יעיל → חמור.</li>
+                          <li>• <strong>פילטר קטגוריה:</strong> השוואת תפוחים לתפוחים.</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4 className="font-black text-purple-900 text-sm mb-2">🟣 טאב חדש: קווים תאומים</h4>
+                        <ul className="list-none space-y-1.5 pr-2">
+                          <li>• זיהוי קבוצות קווים שעושים בעצם את אותו מסלול — מועמדים לאיחוד.</li>
+                          <li>• השוואת מסלול תחנות מלא ב-Jaccard similarity (סף 70%), לא רק מוצא/יעד.</li>
+                          <li>• חישוב חפיפת שעות, תפוסה מצטברת, וחיסכון פוטנציאלי שבועי.</li>
+                          <li>• 3 רמות: תאומים מובהקים (85+), כמעט תאומים (70+), חפיפה משמעותית (60+).</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4 className="font-black text-amber-900 text-sm mb-2">🟡 שיפור בסימולטור</h4>
+                        <ul className="list-none space-y-1.5 pr-2">
+                          <li>• <strong>הגנה על נסיעה ראשונה/אחרונה ביום:</strong> האלגוריתם לא יציע לבטל אותן יותר, גם אם הן ריקות. ביטולן פוגע פגיעה לא פרופורציונלית בנוסעים.</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4 className="font-black text-emerald-900 text-sm mb-2">🟢 ביצועים ותיקוני באגים</h4>
+                        <ul className="list-none space-y-1.5 pr-2">
+                          <li>• טעינת קבצי אקסל גדולים (אלפי קווים) לא מקפיאה את הממשק יותר.</li>
+                          <li>• תיקון אגרגציה דו-כיוונית: נסיעות שבועיות, ק&quot;מ שבועי ועלות לנוסע מציגים כעת את הסיכום של שני הכיוונים, לא רק אחד.</li>
+                          <li>• כל כיוון נשמר בנפרד גם בטאב התאומים — ספירה מדויקת של הכיוונים.</li>
+                        </ul>
+                      </div>
                     </div>
                   </section>
 
                   <section>
-                    <h3 className="text-xl font-black text-indigo-700 mb-3 flex items-center gap-2"><Ic n="trash" size={20} /> דירוג הקווים הלא יעילים</h3>
-                    <p className="text-slate-600 font-medium mb-3 leading-relaxed">הציון של כל קו מורכב משקלול מספר פרמטרים ומוצג בסולם של 0 עד 100:</p>
+                    <h3 className="text-xl font-black text-indigo-700 mb-3 flex items-center gap-2"><Ic n="trash" size={20} /> דירוג הקווים הלא יעילים (גרסה 3.0.0)</h3>
+                    <p className="text-slate-600 font-medium mb-3 leading-relaxed">הציון של כל קו מורכב מ-4 רכיבי ניקוד וממערכת הגנות, ומוצג בסולם של 0 עד 100. הסף לכל רכיב מותאם לקטגוריה של הקו.</p>
+
+                    <div className="mb-4 bg-slate-50 rounded-2xl border border-slate-100 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">סיווג הקו לקטגוריה</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed">הקו מסווג לאחת מ-8 הקטגוריות הרשמיות לפי: שדה &quot;ייחודיות&quot; (לילה/תלמידים/מזין), שדה &quot;קבוצת יעילות תפעולית&quot;, סוג שירות, אורך מסלול (סף 45 ק&quot;מ לבינעירוני ארוך/קצר), ותדירות שבועית (סף 600 לעירוני גבוה/נמוך).</p>
+                    </div>
+
                     <ul className="list-disc list-inside text-slate-600 font-medium space-y-2 pr-2">
-                      <li><strong>אחוז נסיעות שפל:</strong> משקל של עד 30 נקודות לקווים שרוב הנסיעות בהם ריקות (פחות מ-10 נוסעים).</li>
-                      <li><strong>קילומטר מבוזבז:</strong> משקל של עד 20 נקודות המחושב לפי אחוז &quot;קילומטר הסרק&quot;, בתוספת קנס מחמיר לקווים ששורפים מעל 100 ק&quot;מ סרק.</li>
-                      <li><strong>עלות תפעולית לנוסע:</strong> משקל של עד 20 נקודות לקווים יקרים שעלות ההפעלה שלהם פר-נוסע חורגת משמעותית מהנורמה (מעל 50 או 100 שקלים לנוסע).</li>
-                      <li><strong>ממוצע ועומס שיא (מותאם רכב):</strong> משקל של עד 30 נקודות. נבחנת יעילות הנסיעה בהתאם <strong>לקיבולת סוג הרכב</strong> (מיניבוס=19, רגיל=50, מפרקי=90). אם היעילות נמוכה ביחס לגודל האוטובוס שהוקצה – הציון עולה.</li>
+                      <li><strong>נסיעות שפל (עד 30 נק&apos;):</strong> אחוז הנסיעות מתחת לסף הנוסעים של הקטגוריה (למשל 5 לאזורי, 15 לעירוני תדירות גבוהה).</li>
+                      <li><strong>קילומטר מבוזבז (עד 20 נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק ומספר ק&quot;מ אבסולוטי.</li>
+                      <li><strong>עלות תפעולית לנוסע (עד 20 נק&apos;):</strong> יחס לממוצע הקטגוריה. ≤0.7×=0 נק&apos;, 1.0-1.3×=5, 1.7-2.5×=12, 2.5-4×=16, 4-6×=18, מעל 6×=20.</li>
+                      <li><strong>ממוצע ועומס שיא (עד 30 נק&apos;):</strong> נוסעים בפועל ועומס שיא ביחס לקיבולת הרכב (מיניבוס=19, רגיל=50, מפרקי=90) ולסף הקטגוריה.</li>
                     </ul>
+
+                    <div className="mt-4 bg-emerald-50 rounded-2xl border border-emerald-100 p-4">
+                      <h4 className="font-black text-emerald-800 text-sm mb-2">הגנות (מופחתות אחרי החיבור)</h4>
+                      <ul className="list-disc list-inside text-emerald-700 text-sm font-medium space-y-1 pr-2">
+                        <li><strong>תחנות בלעדיות / יעד ייחודי (−15 נק&apos;):</strong> אם הקו משרת תחנות שאין אליהן קו אחר.</li>
+                        <li><strong>מותאם רכבת (−10 נק&apos;):</strong> קו שיוצא בתיאום עם לוז רכבת ישראל (מצוין במפורש בעמודת ייחודיות).</li>
+                        <li><strong>תלמידים בשעות בי&quot;ס (−10 נק&apos;):</strong> אם 60%+ מהנסיעות בקטגוריית "תלמידים" חלות ב-7:00-8:30 או 13:00-15:30.</li>
+                      </ul>
+                    </div>
+
+                    <div className="mt-4 bg-slate-50 rounded-2xl border border-slate-100 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">5 רמות סטטוס לפי הציון הסופי</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs font-black">
+                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-2 text-center">0-24 תקין</div>
+                        <div className="bg-amber-50 border border-amber-200 text-amber-600 rounded-xl p-2 text-center">25-44 סטייה קלה</div>
+                        <div className="bg-orange-50 border border-orange-200 text-orange-600 rounded-xl p-2 text-center">45-64 טעון בדיקה</div>
+                        <div className="bg-rose-50 border border-rose-200 text-rose-600 rounded-xl p-2 text-center">65-79 לא יעיל</div>
+                        <div className="bg-rose-100 border border-rose-300 text-rose-700 rounded-xl p-2 text-center">80+ חמור</div>
+                      </div>
+                    </div>
                   </section>
 
                   <section>
