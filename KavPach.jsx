@@ -257,6 +257,7 @@ const RouteFormat = ({ val }) => {
 function KavPach() {
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
+  const [lineStopsMap, setLineStopsMap] = useState(new Map());
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -626,7 +627,9 @@ const DAYS_FILTER = [
         } else if (msg.type === 'done') {
           // lineCitiesMap מגיע כ-Map עם Set-ים בזכות structured clone
           const lcm = msg.lineCitiesMap instanceof Map ? msg.lineCitiesMap : new Map();
+          const lsm = msg.lineStopsMap instanceof Map ? msg.lineStopsMap : new Map();
           setLineCitiesMap(lcm);
+          setLineStopsMap(lsm);
           setTrips(msg.trips || []);
           setFileProgress(100);
           setFileMessage(`נטענו ${(msg.trips || []).length.toLocaleString()} נסיעות ✓`);
@@ -862,13 +865,19 @@ const DAYS_FILTER = [
   }, [trips]);
 
   // ── קווים תאומים ──────────────────────────────────────────────────────
-  // איתור קווים שעושים בעצם את אותו מסלול. השוואה לפי המסלול המלא של
-  // התחנות (ולא רק מוצא/יעד) באמצעות Jaccard similarity. רק קווים עם
-  // חפיפת תחנות גבוהה ייחשבו תאומים. דורש את גיליון התחנות.
-  const TWIN_SIM_THRESHOLD = 0.7; // 70% חפיפת תחנות
-  const TWIN_MIN_CITIES = 3;      // קו חייב 3+ תחנות כדי להישפט (אחרת רעש)
+  // איתור קווים שעושים בעצם את אותו מסלול. השוואה לפי מסלול התחנות המלא (Stop_id)
+  // בשני מדדים:
+  //   Jaccard = |A ∩ B| / |A ∪ B|  — תופס קווים זהים לגמרי
+  //   Overlap  = |A ∩ B| / min(|A|, |B|)  — תופס מצב שקו אחד הוא תת-מסלול של השני
+  // מסמן תאום אם אחד מהשניים עובר את הסף (70%).
+  const TWIN_JACCARD_THRESHOLD = 0.7;
+  const TWIN_OVERLAP_THRESHOLD = 0.7;
+  const TWIN_MIN_STOPS = 5;
   const twinLines = useMemo(() => {
-    if (!trips.length || !lineCitiesMap || !lineCitiesMap.size) return [];
+    if (!trips.length) return [];
+    const useStops = lineStopsMap && lineStopsMap.size > 0;
+    const useCities = lineCitiesMap && lineCitiesMap.size > 0;
+    if (!useStops && !useCities) return [];
 
     const cityOnlyStr = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
 
@@ -885,12 +894,16 @@ const DAYS_FILTER = [
       let agg = lineAgg.get(lineKey);
       if (!agg) {
         const cleanMakat = String(t.makat || '').replace(/^0+/, '').trim();
-        const citiesSet = lineCitiesMap.get(cleanMakat) || lineCitiesMap.get(lineKey);
+        // מעדיפים תחנות מלאות (Stop_id) על ערים. stops ספציפי יותר מקבוצה גדולה
+        // של נקודות מדויקות להשוואת Jaccard/Overlap מהימנות.
+        const stopsSet = useStops ? (lineStopsMap.get(cleanMakat) || lineStopsMap.get(lineKey)) : null;
+        const citiesSet = useCities ? (lineCitiesMap.get(cleanMakat) || lineCitiesMap.get(lineKey)) : null;
         agg = {
           lineNum: t.lineNum,
           makat: t.makat,
           district: t.district,
           lineType: t.lineType,
+          stops: stopsSet || null,
           cities: citiesSet || null,
           endpointPairs: new Map(), // pair-key -> count
           tripCount: 0,
@@ -933,9 +946,14 @@ const DAYS_FILTER = [
     }
 
     // רק קווים עם מסלול תחנות מספיק גדול
+    // (מעדיפים stops על cities — stops מדויק יותר כי שתי ערים זהה הן 100% גם לקווים במסלולים שונים)
     const lineList = [];
     for (const l of lineAgg.values()) {
-      if (l.cities && l.cities.size >= TWIN_MIN_CITIES) lineList.push(l);
+      const referenceSet = l.stops || l.cities;
+      if (referenceSet && referenceSet.size >= TWIN_MIN_STOPS) {
+        l.refSet = referenceSet;
+        lineList.push(l);
+      }
     }
     if (lineList.length < 2) return [];
 
@@ -967,13 +985,19 @@ const DAYS_FILTER = [
           seenPairs.add(pairKey);
 
           let inter = 0;
-          const small = a.cities.size <= b.cities.size ? a.cities : b.cities;
-          const big = small === a.cities ? b.cities : a.cities;
+          const aSet = a.refSet, bSet = b.refSet;
+          const small = aSet.size <= bSet.size ? aSet : bSet;
+          const big = small === aSet ? bSet : aSet;
           for (const c of small) if (big.has(c)) inter++;
-          const union = a.cities.size + b.cities.size - inter;
-          const sim = union > 0 ? inter / union : 0;
+          const union = aSet.size + bSet.size - inter;
+          const jaccard = union > 0 ? inter / union : 0;
+          const overlap = small.size > 0 ? inter / small.size : 0;
+          // מסמן כתאום אם אחד מהשניים עובר את הסף שלו.
+          // למיון נשתמש במיטב מהשניים (משקף עד כמה הקווים דומים אמיתית).
+          const isTwin = jaccard >= TWIN_JACCARD_THRESHOLD || overlap >= TWIN_OVERLAP_THRESHOLD;
+          const sim = Math.max(jaccard, overlap);
 
-          if (sim >= TWIN_SIM_THRESHOLD) {
+          if (isTwin) {
             if (!adj.has(aKey)) adj.set(aKey, new Map());
             if (!adj.has(bKey)) adj.set(bKey, new Map());
             adj.get(aKey).set(bKey, sim);
@@ -1052,11 +1076,14 @@ const DAYS_FILTER = [
       }
       const avgSimilarity = simCount > 0 ? Math.round((simSum / simCount) * 100) : 0;
 
-      // תחנות משותפות לכל הקווים בקבוצה
-      const commonCities = new Set(groupLines[0].cities);
+      // תחנות משותפות לכל הקווים בקבוצה — לתצוגה בלבד (מראה ערים ידידותיות, לא stop_id)
+      const firstCities = groupLines[0].cities;
+      const commonCities = firstCities ? new Set(firstCities) : new Set();
       for (let i = 1; i < groupLines.length; i++) {
+        const otherCities = groupLines[i].cities;
+        if (!otherCities) { commonCities.clear(); break; }
         for (const c of Array.from(commonCities)) {
-          if (!groupLines[i].cities.has(c)) commonCities.delete(c);
+          if (!otherCities.has(c)) commonCities.delete(c);
         }
       }
 
@@ -1115,7 +1142,7 @@ const DAYS_FILTER = [
         cityA: cap(cityA),
         cityB: cap(cityB),
         lines: groupLines.map(l => {
-          const { cities, timeBuckets, _lineKey, mainOrigin, mainDest, ...rest } = l;
+          const { cities, stops, refSet, timeBuckets, _lineKey, mainOrigin, mainDest, ...rest } = l;
           return rest;
         }),
         lineCount: groupLines.length,
@@ -1138,7 +1165,7 @@ const DAYS_FILTER = [
     return result
       .filter(t => t.score >= 60)
       .sort((a, b) => b.score - a.score || b.potentialSavings - a.potentialSavings);
-  }, [trips, lineCitiesMap]);
+  }, [trips, lineCitiesMap, lineStopsMap]);
 
   const filteredTwins = useMemo(() => {
     let result = twinLines;
@@ -1691,7 +1718,7 @@ const DAYS_FILTER = [
                   onClick={() => setShowWhatsNew(v => !v)}
                   className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
                 >
-                  עדכון גרסה 3.0.0
+                  עדכון גרסה 3.1
                 </button>
                 <span className="text-xs font-bold text-slate-400">נבנה על ידי שלמה הרטמן</span>
               </div>
@@ -1730,8 +1757,8 @@ const DAYS_FILTER = [
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.0.0</h3>
-                  <p className="text-slate-400 font-bold text-xs mt-1">שדרוג מתודולוגיה</p>
+                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.1</h3>
+                  <p className="text-slate-400 font-bold text-xs mt-1">שיפורים בזיהוי קווים תאומים, ביצועים ותיקוני באגים</p>
                 </div>
                 <button onClick={() => setShowWhatsNew(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
                   &times;
@@ -1741,63 +1768,33 @@ const DAYS_FILTER = [
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
-                    שיטת ניתוח חדשה לקווים לא יעילים
+                    <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
+                    זיהוי קווים תאומים — מדויק הרבה יותר
                   </h4>
-                  <p className="text-slate-600 mb-3">המתודולוגיה שופצה מהיסוד והותאמה למסמכי משרד התחבורה. כל קו מסווג לאחת מ-8 קטגוריות, ולכל קטגוריה ספים ומדדים משלה.</p>
-                  <ul className="list-disc list-inside space-y-2 marker:text-rose-400 pr-2">
-                    <li><strong>סיווג ל-8 קטגוריות:</strong> אזורי / בינעירוני ארוך / בינעירוני קצר / עירוני תדירות גבוהה / עירוני תדירות נמוכה / לילה / קווים מזינים / תלמידים.</li>
-                    <li><strong>בנצ&apos;מרק עלות לפי קטגוריה:</strong> במקום סף שרירותי של "מעל ₪50/100 לנוסע", הניקוד מבוסס על יחס הקו לממוצע הארצי של הקטגוריה שלו (למשל ₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה).</li>
-                    <li><strong>סף נסיעות שפל מותאם:</strong> 5 נוסעים באזורי/לילה, 8 בקצר/מזין, 10 בארוך/תדירות נמוכה, 15 בתדירות גבוהה/תלמידים — במקום סף אחיד של 10.</li>
-                    <li><strong>מערכת הגנות:</strong> קווים עם תחנות בלעדיות (-15), מותאמים לרכבת (-10), או תלמידים בשעות בית ספר (-10) מקבלים הפחתה מהציון הסופי — כדי לא להעניש קווים חיוניים שאין להם תחליף.</li>
-                    <li><strong>תיוג ב-5 רמות במקום 2:</strong> "תקין" (ירוק), "סטייה קלה" (צהוב), "טעון בדיקה" (כתום), "לא יעיל" (אדום), "חמור - דורש התערבות" (אדום כהה).</li>
-                    <li><strong>שקיפות בכרטיס:</strong> כל קו מציג את הקטגוריה שלו, ציון גולמי מול סופי, הגנות שהופעלו, ויחס העלות לממוצע הקטגוריה.</li>
-                    <li><strong>פילטר קטגוריה:</strong> אפשר לסנן את התצוגה לקטגוריה אחת בלבד — השוואת תפוחים לתפוחים.</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
-                    טאב "קווים תאומים"
-                  </h4>
-                  <p className="text-slate-600 mb-3">זיהוי אוטומטי של קבוצות קווים שעושים בעצם את אותו מסלול — מועמדים לאיחוד.</p>
+                  <p className="text-slate-600 mb-3">האלגוריתם משווה עכשיו את התחנות הבודדות של כל קו (Stop_id) במקום רק את הערים שבהן הוא עובר. בנוסף, נוסף מדד חדש לזיהוי קווים שמסלולם הוא תת-מסלול של קו אחר.</p>
                   <ul className="list-disc list-inside space-y-2 marker:text-purple-400 pr-2">
-                    <li>השוואת <strong>מסלול תחנות מלא</strong> בין קווים (Jaccard similarity, סף 70%), לא רק תחנות הקצה.</li>
-                    <li>חישוב <strong>חפיפת שעות פעילות</strong> וניצולת מצטברת — כדי לא לאחד קווים שמשלימים זה את זה.</li>
-                    <li>הערכת <strong>חיסכון פוטנציאלי שבועי</strong> מאיחוד הקבוצה לקו אחד.</li>
-                    <li>קיבוץ ל-3 רמות: <strong>תאומים מובהקים</strong> (85+), <strong>כמעט תאומים</strong> (70+), <strong>חפיפה משמעותית</strong> (60+).</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                    סימולטור ייעול
-                  </h4>
-                  <ul className="list-disc list-inside space-y-2 marker:text-amber-400 pr-2">
-                    <li><strong>הגנה על נסיעה ראשונה/אחרונה ביום:</strong> האלגוריתם לא יציע לבטל אותן יותר — גם אם הן ריקות. ביטולן פוגע פגיעה לא פרופורציונלית בנוסעים שתלויים בקו.</li>
+                    <li><strong>השוואת תחנות אמיתיות:</strong> שני קווים שעוברים באותן ערים אבל בנתיבים שונים לא ייתפסו כתאומים. שני קווים שעוברים באותן <em>תחנות בפועל</em> כן.</li>
+                    <li><strong>זיהוי תת-מסלולים:</strong> אם קו קצר (16 תחנות) הוא חלק מקו ארוך (58 תחנות) שעובר באותן תחנות — הם ייזוהו כתאומים, גם אם הקו הארוך ממשיך לעוד יעדים.</li>
+                    <li><strong>סף מינימלי ירד</strong> מ-3 ערים ל-5 תחנות — תופס יותר קווים קצרים.</li>
                   </ul>
                 </section>
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
                     <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
-                    טעינת קבצים גדולים
+                    טעינת קבצים — בלי קפיאת ממשק
                   </h4>
-                  <ul className="list-disc list-inside space-y-2 marker:text-emerald-400 pr-2">
-                    <li>טעינת קבצי אקסל גדולים (אלפי קווים) לא תוקיע יותר את הממשק. עיבוד הקובץ מחולק לחלקים קטנים עם שחרור thread בין כל פעולה.</li>
-                    <li>שלב איחוד הנסיעות הכפולות פוצל גם הוא ל-chunks — הצמצום של 1-2 שניות של קיפאון אחרי קריאת הקובץ.</li>
-                  </ul>
+                  <p className="text-slate-600 mb-3">עיבוד הקובץ עבר ל-thread נפרד. הממשק נשאר חי ומגיב לחלוטין במהלך הטעינה — אפשר לגלול, ללחוץ, לעבור טאבים. ה-progress bar נע חלק במקום לקפוץ.</p>
                 </section>
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
                     <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
-                    אגרגציה דו-כיוונית
+                    באגים שתוקנו
                   </h4>
                   <ul className="list-disc list-inside space-y-2 marker:text-slate-400 pr-2">
-                    <li>תוקנה בעיה בטאב "קווים תאומים" שבה הוצגו נתונים של כיוון אחד בלבד (נסיעות שבועיות, ק"מ/שבוע, עלות לנוסע). כעת הסיכומים משלבים נכון את שני הכיוונים, וכל כיוון נשמר בנפרד בפירוט.</li>
+                    <li><strong>נתונים דו-כיווניים בקווים לא יעילים:</strong> מספר הנסיעות השבועיות, הק"מ והעלות לנוסע הציגו רק כיוון אחד מהקו. כעת מוצג הסכום הנכון לשני הכיוונים.</li>
+                    <li><strong>קווים לאילת בהזמנה מראש סווגו כ"מותאמי רכבת":</strong> בלבול בין הזמנה מראש לתיאום עם רכבת. כעת הגנת "מותאם רכבת" מופעלת רק אם השדה ייחודיות הקו מציין במפורש "רכבת".</li>
                   </ul>
                 </section>
 
