@@ -580,6 +580,12 @@ const DAYS_FILTER = [
     })();
   }, [loadFromXLSX, loadFromCSV]);
 
+  // טוען את ספריית XLSX ברקע (לצרכי ייצוא לאקסל בלבד — הפרסור עצמו רץ ב-worker).
+  // קריאה לא חוסמת — אם הפרסור מסתיים לפני שה-XLSX הסתיים, אין בעיה.
+  useEffect(() => {
+    loadXLSX().catch(() => { /* swallow */ });
+  }, []);
+
   const onFile = async (e) => {
     let buffer;
     if (e instanceof ArrayBuffer) {
@@ -597,526 +603,63 @@ const DAYS_FILTER = [
     setFileProgress(2);
     setFileMessage("קורא קובץ...");
 
-    try {
-      // buffer is ready
-      setFileProgress(8);
-      setFileMessage("טוען ספריה...");
-      await new Promise(r => setTimeout(r, 80));
+    // העברת הפרסור ל-Web Worker — ה-UI נשאר רספונסיבי לחלוטין.
+    // הספרייה הכבדה (xlsx) נטענת בתוך ה-worker דרך importScripts.
+    return new Promise((resolve) => {
+      let worker;
+      try {
+        worker = new Worker('xlsx-worker.js');
+      } catch (err) {
+        console.error('Worker creation failed:', err);
+        alert('שגיאה ביצירת thread עיבוד: ' + err.message);
+        setFileLoading(false);
+        resolve();
+        return;
+      }
 
-      await loadXLSX();
-      setFileProgress(14);
-      setFileMessage("מנתח את הקובץ...");
-      await new Promise(r => setTimeout(r, 250));
-
-      const wb = window.XLSX.read(new Uint8Array(buffer), {
-        type: "array", raw: true, cellDates: false
-      });
-
-      const enc = window.XLSX.utils.encode_cell;
-
-      const findHeaderRow = (sheet) => {
-        const range = window.XLSX.utils.decode_range(sheet['!ref'] || "A1");
-        let bestRow = 0;
-        let maxMatches = -1;
-        let bestHeaders = [];
-
-        for (let r = 0; r <= Math.min(range.e.r, 15); r++) {
-            const headers = [];
-            for (let c = range.s.c; c <= range.e.c; c++) {
-                const cell = sheet[enc({ r, c })];
-                headers.push(cell ? String(cell.v ?? "").replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() : "");
-            }
-            
-            let matchCount = 0;
-            if (headers.some(h => h.includes("מספר קו") || h === "קו")) matchCount++;
-            if (headers.some(h => h.includes("שם יישוב מוצא") || h.includes("מוצא_יעד מאוחד") || h.includes("ישוב מוצא"))) matchCount += 2;
-            if (headers.some(h => h.includes("ממוצע תיקופים") || h.includes("נוסעים") || h.includes("אומדן"))) matchCount++;
-            if (headers.some(h => h.includes("מקט") || h.includes("מק\"ט") || h.includes("Route_Id"))) matchCount++;
-            if (headers.some(h => h.includes("שעת רישוי") || h.includes("Departure_Time") || h.includes("תקופת נסיעה"))) matchCount++;
-            
-            if (matchCount > maxMatches) {
-                maxMatches = matchCount;
-                bestRow = r;
-                bestHeaders = headers;
-            }
+      worker.onmessage = (ev) => {
+        const msg = ev.data;
+        if (!msg) return;
+        if (msg.type === 'progress') {
+          setFileProgress(msg.percent);
+          setFileMessage(msg.message);
+        } else if (msg.type === 'done') {
+          // lineCitiesMap מגיע כ-Map עם Set-ים בזכות structured clone
+          const lcm = msg.lineCitiesMap instanceof Map ? msg.lineCitiesMap : new Map();
+          setLineCitiesMap(lcm);
+          setTrips(msg.trips || []);
+          setFileProgress(100);
+          setFileMessage(`נטענו ${(msg.trips || []).length.toLocaleString()} נסיעות ✓`);
+          setFileLoading(false);
+          setInitialLoading(false);
+          worker.terminate();
+          resolve();
+        } else if (msg.type === 'error') {
+          console.error('Worker error:', msg.message);
+          alert('שגיאה: ' + msg.message);
+          setFileLoading(false);
+          worker.terminate();
+          resolve();
         }
-        return { rowIdx: bestRow, headers: bestHeaders, matchCount: maxMatches };
       };
 
-      const stopsSheetName = wb.SheetNames.find(n => 
-        n === "ריידרשיפ תחנות" || n.includes("תחנ") || n.toLowerCase().includes("stop") ||
-        n.includes("גיליון2") || n.includes("גיליון 2") || n.toLowerCase() === "sheet2"
-      );
-
-      let scheduleWsName = wb.SheetNames.find(n => 
-        n.replace(/\s/g,'') === "גיליון4" || n.toLowerCase() === "sheet4" ||
-        n.replace(/\s/g,'') === "גיליון3" || n.toLowerCase() === "sheet3"
-      );
-      if (!scheduleWsName && wb.SheetNames.length >= 4) scheduleWsName = wb.SheetNames[3];
-      if (!scheduleWsName && wb.SheetNames.length >= 3) scheduleWsName = wb.SheetNames[2];
-
-      let mainWs = null;
-      let maxColsMatch = -1;
-      let headers1 = [];
-      let mainHeaderRow = 0;
-
-      for (const sheetName of wb.SheetNames) {
-        if (sheetName === scheduleWsName || sheetName === stopsSheetName) continue;
-        
-        const sheet = wb.Sheets[sheetName];
-        if (!sheet['!ref']) continue;
-        
-        const { rowIdx, headers, matchCount } = findHeaderRow(sheet);
-        
-        if (matchCount > maxColsMatch) {
-           maxColsMatch = matchCount;
-           mainWs = sheet;
-           headers1 = headers;
-           mainHeaderRow = rowIdx;
-        }
-      }
-
-      if (!mainWs) {
-        const fallbackName = wb.SheetNames.find(n => n !== scheduleWsName && n !== stopsSheetName);
-        mainWs = wb.Sheets[fallbackName || wb.SheetNames[0]];
-        const fallbackRes = findHeaderRow(mainWs);
-        headers1 = fallbackRes.headers;
-        mainHeaderRow = fallbackRes.rowIdx;
-      }
-
-      const ws = mainWs;
-      const schedWs = scheduleWsName ? wb.Sheets[scheduleWsName] : null;
-      const totalRows = window.XLSX.utils.decode_range(ws['!ref'] || "A1").e.r;
-
-      const tempMakatCitiesMap = new Map();
-      if (stopsSheetName) {
-        const stopsRows = window.XLSX.utils.sheet_to_json(wb.Sheets[stopsSheetName], { defval: "" });
-        for (const row of stopsRows) {
-          const routeId = String(
-            row['Route_Full_Id'] || row['route_full_id'] || row['מקט-כיוון'] ||
-            row['Route_Id']      || row['route_id']      || row['route']      || ""
-          ).trim();
-          if (!routeId || routeId === "undefined") continue;
-
-          const stopName = String(row['Stop_name'] || row['stop_name'] || row['שם תחנה'] || "").trim();
-          const city = parseCity(stopName);
-          if (!city) continue;
-
-          const cityLc = city.toLowerCase();
-          const makat  = routeId.split('-')[0].replace(/^0+/, '').trim();
-          if (!makat) continue;
-          if (!tempMakatCitiesMap.has(makat)) tempMakatCitiesMap.set(makat, new Set());
-          tempMakatCitiesMap.get(makat).add(cityLc);
-        }
-      }
-
-      setFileProgress(48);
-      setFileMessage(`מעבד שורות...`);
-      await new Promise(r => setTimeout(r, 30));
-
-      const matchCol = (headersArr, inc, exc = []) => {
-        for (let k of inc) {
-          const exact = headersArr.findIndex(h => h === k);
-          if (exact !== -1) return exact;
-        }
-        for (let k of inc) {
-          const idx = headersArr.findIndex(h => h.includes(k) && !exc.some(e => h.includes(e)));
-          if (idx !== -1) return idx;
-        }
-        return -1;
+      worker.onerror = (err) => {
+        console.error('Worker exception:', err);
+        alert('שגיאה בעיבוד הקובץ: ' + (err.message || 'unknown'));
+        setFileLoading(false);
+        worker.terminate();
+        resolve();
       };
 
-      const C1 = {
-        line:      matchCol(headers1, ["מספר קו", "קו"]),
-        direction: matchCol(headers1, ["כיוון"]),
-        origin:    matchCol(headers1, ["שם יישוב מוצא", "יישוב מוצא", "ישוב מוצא", "מוצא"], ["קוד", "תחנת"]),
-        dest:      matchCol(headers1, ["שם יישוב יעד", "יישוב יעד", "ישוב יעד", "יעד"], ["קוד", "תחנת"]),
-        unifiedOD: matchCol(headers1, ["מוצא_יעד מאוחד", "מוצא_יעד", "מוצא יעד", "מוצא-יעד"], ["קוד", "מקט", "מק\"ט"]),
-        time:      matchCol(headers1, ["תקופת נסיעה", "שעת רישוי", "שעה"]),
-        days:      matchCol(headers1, ["תקופת נסיעה", "ימי פעילות", "ימים"]),
-        ridership: matchCol(headers1, ["ממוצע תיקופים לנסיעה", "ממוצע נוסעים לנסיעה", "נוסעים לנסיעה", "ממוצע תיקופים", "תיקופים", "נוסעים", "אומדן נוסעים"], ["קילומטר", "ק\"מ", "אומדן", "מירבי", "סך", "אחוז", "למרחק"]),
-        peak:      matchCol(headers1, ["אומדן נוסעים (אחוזון 80)", "אומדן נוסעים", "עומס שיא", "אומדן ממשיכים בתחנת שיא", "אומדן ממשיכים", "עומס", "נוסעים בשיא"], ["לנסיעה", "ממוצע", "לקילומטר"]),
-        district:  matchCol(headers1, ["מחוז"]),
-        cluster:   matchCol(headers1, ["אשכול", "שם אשכול"]),
-        lineType:  matchCol(headers1, ["סוג שירות", "סוג קו", "אופי שירות"]),
-        uniqueness: matchCol(headers1, ["ייחודיות הקו", "ייחודיות קו", "ייחודיות", "סוג מסלול"]),
-        makat:     matchCol(headers1, ["מק\"ט", "מקט", "מק''ט", "Route_Id", "route_id", "Route_Full_Id"]),
-        opGroup:   matchCol(headers1, ["קבוצת יעילות תפעולית", "קבוצת יעילות"]),
-        distance:  matchCol(headers1, ["אורך מסלול", "אורך", "מרחק"]),
-        tripCount: matchCol(headers1, ["כמות נסיעות שבועיות", "מספר נסיעות בשבוע", "מספר נסיעות שבועיות", "נסיעות בשבוע", "מספר נסיעות"], ["מירבי", "לנסיעה"]),
-        cost:      matchCol(headers1, ["עלות תפעולית לנוסע", "עלות לנוסע", "עלות", "סובסידיה"]),
-        weeklyKm:  matchCol(headers1, ["ק\"מ שבועי", "קילומטר שבועי", "קמ שבועי", "נסועה"]),
-        busSize:   matchCol(headers1, ["גודל אוטובוס", "גודל", "סוג רכב", "סוג אוטובוס", "תקן מינימלי לרכב"]),
-        exclusive: matchCol(headers1, ["תחנות שקו זה משרת בבלעדיות", "תחנות בבלעדיות", "תחנות יחודיות", "תחנות ייחודיות", "בלעדיות"])
-      };
-
-      const cv1 = (r, cidx) => {
-        if (cidx < 0) return "";
-        const cell = ws[enc({ r, c: cidx })];
-        return cell ? cell.v : "";
-      };
-
-      let isJoinMode = false;
-      let scheduleWs = ws;
-      let scheduleC = { ...C1 };
-      let ws1MakatMap = new Map();
-      let schedHeaderRow = mainHeaderRow;
-
-      if (schedWs && schedWs !== ws) {
-        const { rowIdx, headers: headersSched } = findHeaderRow(schedWs);
-        schedHeaderRow = rowIdx;
-        
-        const CSched = {
-            makat: matchCol(headersSched, ["מק\"ט", "מקט", "מק''ט", "Route_Id", "route_id", "Route_Full_Id"]),
-            time: matchCol(headersSched, ["שעת רישוי", "שעה", "תקופת נסיעה", "Departure_Time"]),
-            days: matchCol(headersSched, ["ימי פעילות", "ימים", "תקופת נסיעה", "Days"]),
-            direction: matchCol(headersSched, ["כיוון", "Direction"]),
-            ridership: matchCol(headersSched, ["אומדן נוסעים (ממוצע", "ממוצע תיקופים", "נוסעים", "אומדן נוסעים"], ["קילומטר", "ק\"מ", "למרחק"]),
-            peak: matchCol(headersSched, ["אומדן ממשיכים", "עומס שיא", "עומס"]),
-            tripCount: matchCol(headersSched, ["מספר נסיעות בשבוע", "מספר נסיעות", "כמות נסיעות"])
-        };
-
-        if (CSched.makat >= 0 && CSched.time >= 0) {
-            isJoinMode = true;
-            scheduleWs = schedWs;
-            scheduleC = CSched;
-
-            for (let r = mainHeaderRow + 1; r <= totalRows; r++) {
-                const tempCluster = C1.cluster >= 0 ? String(cv1(r, C1.cluster) || "").trim() : "";
-                if (tempCluster.includes("נתיב מהיר") || tempCluster.includes("נתיבים מהירים")) continue;
-
-                const mRaw = String(cv1(r, C1.makat) || "").trim();
-                if (!mRaw) continue;
-                const mClean = mRaw.replace(/^0+/, '');
-
-                let origin1 = String(cv1(r, C1.origin) || "").trim();
-                let dest1 = String(cv1(r, C1.dest) || "").trim();
-                const unifiedOD1 = C1.unifiedOD >= 0 ? String(cv1(r, C1.unifiedOD) || "").trim() : "";
-                
-                if (unifiedOD1) {
-                    if (unifiedOD1.includes('_')) {
-                        const parts = unifiedOD1.split('_');
-                        origin1 = parts[0].trim();
-                        dest1 = parts[1] ? parts[1].trim() : origin1;
-                    } else if (unifiedOD1.includes('-')) {
-                        const parts = unifiedOD1.split('-');
-                        origin1 = parts[0].trim();
-                        dest1 = parts[1] ? parts[1].trim() : origin1;
-                    } else {
-                        origin1 = unifiedOD1;
-                        dest1 = unifiedOD1;
-                    }
-                }
-
-                const validText = (t) => t && t !== "לא ידוע" && t !== "0";
-                const existing = ws1MakatMap.get(mClean) || {};
-                
-                const finalOrigin = validText(origin1) ? origin1 : (validText(existing.origin) ? existing.origin : "לא ידוע");
-                const finalDest = validText(dest1) ? dest1 : (validText(existing.dest) ? existing.dest : "לא ידוע");
-
-                const rideRaw = parseFloat(String(cv1(r, C1.ridership)).replace(/,/g, ""));
-                const peakRaw = parseFloat(String(cv1(r, C1.peak)).replace(/,/g, ""));
-                const distRaw = parseFloat(String(cv1(r, C1.distance)).replace(/,/g, ""));
-                const costRaw = parseFloat(String(cv1(r, C1.cost)).replace(/,/g, ""));
-                const weeklyKmRaw = parseFloat(String(cv1(r, C1.weeklyKm)).replace(/,/g, ""));
-                
-                ws1MakatMap.set(mClean, {
-                    lineNum: existing.lineNum || String(cv1(r, C1.line) || "").trim(),
-                    origin: finalOrigin,
-                    dest: finalDest,
-                    district: (existing.district && existing.district !== "כללי") ? existing.district : String(cv1(r, C1.district) || "כללי").trim(),
-                    lineType: (existing.lineType && existing.lineType !== "עירוני") ? existing.lineType : String(cv1(r, C1.lineType) || "עירוני").trim(),
-                    clusterVal: existing.clusterVal || String(cv1(r, C1.cluster) || "").trim(),
-                    direction: existing.direction || String(cv1(r, C1.direction) || "").trim(),
-                    ridership: isNaN(rideRaw) ? (existing.ridership || 0) : rideRaw,
-                    peakLoad: isNaN(peakRaw) ? (existing.peakLoad || 0) : peakRaw,
-                    distance: isNaN(distRaw) || distRaw === 0 ? (existing.distance || 0) : distRaw,
-                    cost: isNaN(costRaw) || costRaw === 0 ? (existing.cost || 0) : costRaw,
-                    weeklyKm: isNaN(weeklyKmRaw) || weeklyKmRaw === 0 ? (existing.weeklyKm || 0) : weeklyKmRaw,
-                    isNightLine: existing.isNightLine || String(cv1(r, C1.uniqueness) || "").includes("לילה"),
-                    isFeedingLine: existing.isFeedingLine || String(cv1(r, C1.uniqueness) || "").includes("מזין"),
-                    opGroupVal: existing.opGroupVal || String(cv1(r, C1.opGroup) || "").trim(),
-                    uniquenessVal: existing.uniquenessVal || String(cv1(r, C1.uniqueness) || "").trim(),
-                    exclusiveStops: existing.exclusiveStops || (C1.exclusive >= 0 ? (parseInt(String(cv1(r, C1.exclusive) || "0").replace(/,/g,"")) || 0) : 0),
-                    busSize: existing.busSize || (C1.busSize >= 0 ? String(cv1(r, C1.busSize) || "").trim() : "") || "אוטובוס"
-                });
-            }
-        }
+      // העברה ב-transfer: ה-buffer עובר למחזיק ה-worker בלי copy.
+      // זה חוסך חצי שנייה על קבצי 10MB+.
+      try {
+        worker.postMessage({ type: 'parse', buffer }, [buffer]);
+      } catch (err) {
+        // fallback אם הדפדפן לא תומך ב-transferable
+        worker.postMessage({ type: 'parse', buffer });
       }
-
-      const totalRowsSched = isJoinMode ? window.XLSX.utils.decode_range(scheduleWs['!ref']).e.r : totalRows;
-      const cvSched = (r, cidx) => {
-          if (cidx < 0) return "";
-          const cell = scheduleWs[enc({ r, c: cidx })];
-          return cell ? cell.v : "";
-      };
-
-      // smaller chunks = smoother UI. 3000 was ~300ms/chunk on big files
-      // and caused visible freezes between yields. 500 keeps each chunk under ~50ms.
-      const CHUNK = 500;
-      const parsed = [];
-      const finalLineCitiesMap = new Map();
-
-      for (let start = schedHeaderRow + 1; start <= totalRowsSched; start += CHUNK) {
-        const end = Math.min(start + CHUNK - 1, totalRowsSched);
-
-        for (let r = start; r <= end; r++) {
-          let makatVal = String(cvSched(r, scheduleC.makat) || "").trim();
-          const mClean = makatVal.replace(/^0+/, '');
-          
-          let clusterVal, lineNum, direction, origin, dest, district, lineType, ridership, peakLoad, distance, cost, weeklyKm, isNight, isEilat, isFeeding, tripCount, busSize;
-
-          let tcStr = scheduleC.tripCount >= 0 ? String(cvSched(r, scheduleC.tripCount) || "") : "";
-
-          if (isJoinMode) {
-              if (!mClean || !ws1MakatMap.has(mClean)) continue;
-              const data1 = ws1MakatMap.get(mClean);
-              
-              clusterVal = data1.clusterVal;
-              if (clusterVal && (clusterVal.includes("נתיב מהיר") || clusterVal.includes("נתיבים מהירים"))) continue;
-
-              lineNum = data1.lineNum;
-              direction = scheduleC.direction >= 0 ? String(cvSched(r, scheduleC.direction) || "").trim() : data1.direction;
-              origin = data1.origin;
-              dest = data1.dest;
-              district = data1.district;
-              lineType = data1.lineType;
-
-              const rideRaw = parseFloat(String(cvSched(r, scheduleC.ridership)).replace(/,/g, ""));
-              const peakRaw = parseFloat(String(cvSched(r, scheduleC.peak)).replace(/,/g, ""));
-              ridership = isNaN(rideRaw) ? 0 : rideRaw;
-              peakLoad = isNaN(peakRaw) ? 0 : peakRaw;
-
-              distance = data1.distance;
-              cost = data1.cost;
-              weeklyKm = data1.weeklyKm;
-              isNight = data1.isNightLine;
-              isEilat = (origin.includes("אילת") || dest.includes("אילת")) && data1.opGroupVal.includes("בינעירוני ארוך");
-              isFeeding = data1.isFeedingLine;
-              busSize = data1.busSize || "אוטובוס";
-              var opGroupValOut = data1.opGroupVal || "";
-              var uniquenessValOut = data1.uniquenessVal || "";
-              var exclusiveStopsOut = data1.exclusiveStops || 0;
-              
-              if (scheduleC.tripCount >= 0) {
-                 const tRaw = Math.round(parseFloat(tcStr.replace(/,/g, "").split('[')[0]));
-                 tripCount = (!isNaN(tRaw) && tRaw > 0) ? tRaw : 1;
-              } else {
-                 tripCount = 1; 
-              }
-          } else {
-              clusterVal = String(cv1(r, C1.cluster) || "").trim();
-              if (clusterVal.includes("נתיב מהיר") || clusterVal.includes("נתיבים מהירים")) continue;
-
-              lineNum = String(cv1(r, C1.line) || "").trim();
-              if (!lineNum || lineNum === "undefined") continue;
-
-              direction = String(cv1(r, C1.direction) || "").trim();
-              
-              let originVal = String(cv1(r, C1.origin) || "").trim();
-              let destVal = String(cv1(r, C1.dest) || "").trim();
-              const unifiedODVal = C1.unifiedOD >= 0 ? String(cv1(r, C1.unifiedOD) || "").trim() : "";
-              
-              if (unifiedODVal) {
-                  if (unifiedODVal.includes('_')) {
-                      const parts = unifiedODVal.split('_');
-                      originVal = parts[0].trim();
-                      destVal = parts[1] ? parts[1].trim() : originVal;
-                  } else if (unifiedODVal.includes('-')) {
-                      const parts = unifiedODVal.split('-');
-                      originVal = parts[0].trim();
-                      destVal = parts[1] ? parts[1].trim() : originVal;
-                  } else {
-                      originVal = unifiedODVal;
-                      destVal = unifiedODVal;
-                  }
-              }
-              
-              origin = originVal || "לא ידוע";
-              dest = destVal || "לא ידוע";
-              
-              district = String(cv1(r, C1.district) || "כללי").trim();
-              lineType = String(cv1(r, C1.lineType) || "עירוני").trim();
-
-              const rideRaw = parseFloat(String(cv1(r, C1.ridership)).replace(/,/g, ""));
-              const peakRaw = parseFloat(String(cv1(r, C1.peak)).replace(/,/g, ""));
-              ridership = isNaN(rideRaw) ? 0 : rideRaw;
-              peakLoad = isNaN(peakRaw) ? 0 : peakRaw;
-
-              const distanceRaw = parseFloat(String(cv1(r, C1.distance)).replace(/,/g, ""));
-              distance = isNaN(distanceRaw) ? 0 : distanceRaw;
-
-              const costRaw = parseFloat(String(cv1(r, C1.cost)).replace(/,/g, ""));
-              cost = isNaN(costRaw) ? 0 : costRaw;
-
-              const weeklyKmRaw = parseFloat(String(cv1(r, C1.weeklyKm)).replace(/,/g, ""));
-              weeklyKm = isNaN(weeklyKmRaw) ? 0 : weeklyKmRaw;
-
-              const uniquenessVal = String(cv1(r, C1.uniqueness) || "");
-              isNight = uniquenessVal.includes("לילה");
-              isFeeding = uniquenessVal.includes("קווים מזינים") || uniquenessVal.includes("מזין");
-              const opGroupVal = String(cv1(r, C1.opGroup) || "").trim();
-              isEilat = (origin.includes("אילת") || dest.includes("אילת")) && opGroupVal.includes("בינעירוני ארוך");
-              busSize = C1.busSize >= 0 ? String(cv1(r, C1.busSize) || "אוטובוס").trim() : "אוטובוס";
-              var opGroupValOut = opGroupVal;
-              var uniquenessValOut = uniquenessVal;
-              var exclusiveStopsOut = C1.exclusive >= 0 ? (parseInt(String(cv1(r, C1.exclusive) || "0").replace(/,/g,"")) || 0) : 0;
-
-              if (C1.tripCount >= 0) {
-                 const tRaw = Math.round(parseFloat(String(cv1(r, C1.tripCount)).replace(/,/g, "")));
-                 if (!isNaN(tRaw) && tRaw > 0) tripCount = tRaw;
-                 else tripCount = 1;
-              } else {
-                 tripCount = 1;
-              }
-          }
-
-          let timeRaw = cvSched(r, scheduleC.time);
-          let parsedTime = "";
-          let daysRaw = String(cvSched(r, scheduleC.days) || "").trim();
-
-          if (tcStr.includes('[')) {
-              const match = tcStr.match(/\[(.*?)\]/);
-              if (match) daysRaw = match[1];
-          }
-
-          if (typeof timeRaw === 'string' && timeRaw.includes(',') && (timeRaw.includes('יום') || timeRaw.includes('מוצ'))) {
-              const parts = timeRaw.split(',');
-              daysRaw = parts[0].trim();
-              parsedTime = fmtTime(parts[1].split('-')[0].trim()); 
-          } else {
-              parsedTime = fmtTime(timeRaw);
-          }
-
-          const daysInfo = parseDays(daysRaw);
-          const parsedDaysText = daysInfo.text;
-          const parsedDaysList = daysInfo.list;
-
-          if (!isJoinMode && C1.tripCount < 0 && parsedDaysList.length > 0) {
-              tripCount = parsedDaysList.length;
-          }
-
-          const mins = timeToMins(parsedTime);
-          const timeMins = mins !== null ? mins : 0;
-          const finalTimeStr = mins !== null ? parsedTime : "כללי";
-
-          const capacity = getCapacity(busSize);
-
-          parsed.push({
-            id: r,
-            lineNum,
-            makat: makatVal,
-            direction,
-            origin,
-            dest,
-            time: finalTimeStr, 
-            timeMins: timeMins, 
-            period: getPeriod(timeMins),
-            days: parsedDaysText, 
-            daysList: parsedDaysList,
-            district,
-            lineType,
-            ridership: Number(ridership.toFixed(2)),
-            peakLoad:  Number(peakLoad.toFixed(2)),
-            busSize,
-            capacity,
-            efficiency: Number((Math.max(ridership, peakLoad) / capacity).toFixed(2)), 
-            distance,
-            cost,
-            weeklyKm,
-            isNightLine: isNight,
-            isEilatPrebooked: isEilat,
-            isFeedingLine: isFeeding,
-            opGroup: opGroupValOut,
-            uniquenessVal: uniquenessValOut,
-            exclusiveStops: exclusiveStopsOut,
-            tripCount
-          });
-
-          if (mClean) {
-            const citiesSet = tempMakatCitiesMap.get(mClean);
-            if (citiesSet) {
-              finalLineCitiesMap.set(mClean, citiesSet);
-              const cleanLine  = lineNum.replace(/^0+/, '');
-              if (cleanLine) finalLineCitiesMap.set(cleanLine, citiesSet);
-            }
-          }
-        }
-
-        const pct = 48 + Math.round((end / totalRowsSched) * 49);
-        setFileProgress(Math.min(pct, 97));
-        setFileMessage(`נמצאו ${parsed.length.toLocaleString()} נסיעות...`);
-        await yieldFrame();
-      }
-
-      setFileMessage(`מאחד נסיעות כפולות...`);
-      await yieldFrame();
-
-      // chunked dedup — used to be a single tight loop over `parsed`,
-      // which on big files added 1–2 seconds of unbroken main-thread work
-      // right after the parse loop finished. yielding every 2000 rows keeps
-      // the progress bar moving and prevents the "page froze" feeling.
-      const dedupMap = new Map();
-      const DEDUP_CHUNK = 2000;
-      for (let i = 0; i < parsed.length; i++) {
-        const t = parsed[i];
-        // dedup key כולל כיוון — חשוב: כשבקובץ יש עמודת "מוצא_יעד מאוחד",
-        // שני הכיוונים נפרסים לאותו origin/dest. בלי direction במפתח, הם
-        // היו נמזגים לשורה אחת ו-tripCount היה Math.max → הצגנו רק את
-        // הכיוון בעל הערך הגבוה והפסדנו את הכיוון השני.
-        const key = `${t.lineNum}_${t.direction}_${t.origin}_${t.dest}_${t.timeMins}_${t.days}`;
-        if (dedupMap.has(key)) {
-            const existing = dedupMap.get(key);
-            existing.ridership = ((existing.ridership * existing._mergeCount) + t.ridership) / (existing._mergeCount + 1);
-            existing.peakLoad = ((existing.peakLoad * existing._mergeCount) + t.peakLoad) / (existing._mergeCount + 1);
-            existing.efficiency = Number((Math.max(existing.ridership, existing.peakLoad) / existing.capacity).toFixed(2));
-            
-            if (!String(existing.direction).includes(String(t.direction))) {
-                existing.direction = `${existing.direction}, ${t.direction}`;
-            }
-            existing.tripCount = Math.max(existing.tripCount, t.tripCount);
-            existing._mergeCount += 1;
-        } else {
-            t._mergeCount = 1;
-            dedupMap.set(key, t);
-        }
-
-        if ((i & (DEDUP_CHUNK - 1)) === DEDUP_CHUNK - 1) {
-          setFileProgress(Math.min(97 + Math.round((i / parsed.length) * 2), 99));
-          await yieldFrame();
-        }
-      }
-
-      setFileMessage(`מסיים...`);
-      await yieldFrame();
-
-      // also chunk the final pass — it's lighter but on 50k+ rows it's still noticeable
-      const dedupValues = Array.from(dedupMap.values());
-      const finalParsed = new Array(dedupValues.length);
-      const FINAL_CHUNK = 5000;
-      for (let i = 0; i < dedupValues.length; i++) {
-        const t = dedupValues[i];
-        t.ridership = Number(t.ridership.toFixed(2));
-        t.peakLoad = Number(t.peakLoad.toFixed(2));
-        delete t._mergeCount;
-        finalParsed[i] = t;
-        if ((i & (FINAL_CHUNK - 1)) === FINAL_CHUNK - 1) {
-          await yieldFrame();
-        }
-      }
-
-      setLineCitiesMap(finalLineCitiesMap);
-      setTrips(finalParsed);
-      setFileProgress(100);
-      setFileMessage(`נטענו ${finalParsed.length.toLocaleString()} נסיעות ✓`);
-      await yieldFrame();
-      setFileLoading(false);
-
-    } catch (err) {
-      console.error("שגיאת טעינה:", err);
-      alert("שגיאה: " + err.message);
-      setFileLoading(false);
-    }
+    });
   };
 
   // ── קווים לא יעילים — ניקוד מבוסס קטגוריה ──────────────────────────────
