@@ -28,6 +28,20 @@
   @keyframes slide-in-from-right { from { opacity:0; transform: translateX(12px); } to { opacity:1; transform: translateX(0); } }
   .slide-in-from-right-4 { animation: slide-in-from-right .3s ease forwards; }
   .fade-in { animation: animate-in .5s ease forwards; }
+
+  /* כרטיסים כבדים — הדפדפן מדלג על רינדור של כרטיסים מחוץ למסך
+     ומחזיק עבורם רק "מקום שמור" עד שהם מתקרבים לתצוגה.
+     contain-intrinsic-size נותן לדפדפן הערכת גובה כדי שהגלילה לא תקפוץ. */
+  .vcard {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 320px;
+    contain: layout style paint;
+  }
+  .vrow {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 120px;
+    contain: layout style paint;
+  }
   #boot-loader { position: fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#F8FAFC; z-index: 9999; gap: 16px; }
   #boot-loader .ring { width: 44px; height: 44px; border: 3px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; }
   #boot-loader .label { font-size: 14px; color: #64748b; }

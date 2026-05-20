@@ -30,6 +30,161 @@ const loadXLSX = () => {
 // of JS is already queued, which is exactly when we *want* the UI to breathe.
 const yieldFrame = () => new Promise(r => setTimeout(r, 0));
 
+const CitiesDatalist = React.memo(function CitiesDatalist({ cities }) {
+  return (
+    <datalist id="cities-list">
+      {cities.map(c => <option key={`dl-city-${c}`} value={c} />)}
+    </datalist>
+  );
+});
+
+// ── SearchInput ─────────────────────────────────────────────
+// אינפוט חיפוש שמופעל בלחיצה / Enter בלבד — בלי דיבאונס, בלי עדכון אוטומטי.
+// state פנימי לטקסט; הסינון בהורה רץ רק כשהמשתמש לוחץ "חפש" או Enter,
+// או מנקה את השדה (clear -> ריקון מיידי כדי לחזור לתצוגה המלאה).
+//
+// הערה — לא מצרפים datalist בשלב הזה: על קבצי נתונים עם מאות ערים, הדפדפן
+// סורק את כל ה-<option>-ים בכל הקלדה ויוצר לאג מורגש (בעיקר בנייד), אפילו
+// ש-state הריאקטי נשאר מקומי. עדיף UX של חיפוש חופשי.
+const SearchInput = React.memo(function SearchInput({ value, onSubmit, placeholder, className }) {
+  const [local, setLocal] = React.useState(value || '');
+  const lastExternal = React.useRef(value);
+  React.useEffect(() => {
+    if (value !== lastExternal.current) {
+      lastExternal.current = value;
+      setLocal(value || '');
+    }
+  }, [value]);
+  const submit = (v) => {
+    const trimmed = (v ?? local).trim();
+    lastExternal.current = trimmed;
+    if (React.startTransition) {
+      React.startTransition(() => onSubmit(trimmed));
+    } else {
+      onSubmit(trimmed);
+    }
+  };
+  const clear = () => {
+    setLocal('');
+    submit('');
+  };
+  const handleKey = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') { e.preventDefault(); clear(); }
+  };
+  const isDirty = local !== (value || '');
+  return (
+    <div className="relative w-full">
+      <input
+        type="text"
+        value={local}
+        onChange={e => setLocal(e.target.value)}
+        onKeyDown={handleKey}
+        placeholder={placeholder}
+        className={className}
+      />
+      {local && (
+        <button
+          type="button"
+          onClick={clear}
+          className="absolute top-1/2 -translate-y-1/2 left-3 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-black text-sm flex items-center justify-center transition-colors"
+          title="נקה"
+          aria-label="נקה"
+        >×</button>
+      )}
+      {isDirty && (
+        <div className="absolute -bottom-5 right-2 text-[10px] font-bold text-slate-400">הקש Enter לחיפוש</div>
+      )}
+    </div>
+  );
+});
+
+// ── IndexedDB cache ─────────────────────────────────────────────
+// שומרים את התוצאה המעובדת של data.xlsx (trips + שני המאפים) ב-IndexedDB,
+// תחת מפתח שמורכב מ-last-modified+content-length של הקובץ. בכניסה הבאה,
+// אם הקובץ לא השתנה, מדלגים על ההורדה ועל הפרסור (~50-80% מזמן הטעינה).
+// Maps ו-Sets נשמרים native בזכות structured clone של IDB.
+const IDB_NAME = 'kavpach-cache';
+const IDB_STORE = 'parsed';
+const IDB_KEY = 'data-v1';
+
+const openCacheDB = () => new Promise((resolve, reject) => {
+  if (typeof indexedDB === 'undefined') { reject(new Error('no idb')); return; }
+  const req = indexedDB.open(IDB_NAME, 1);
+  req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+
+const idbGetCache = async (key) => {
+  try {
+    const db = await openCacheDB();
+    return await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  } catch (e) {
+    return null;
+  }
+};
+
+const idbSetCache = async (key, value) => {
+  try {
+    const db = await openCacheDB();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch (e) { /* silent — cache is best-effort */ }
+};
+
+// מפיק מפתח קאש מהכותרות של תגובת HTTP. last-modified יציב, content-length
+// תופס שינוי גם אם השרת מחזיר תאריכי last-modified זהים בטעות.
+const fileKeyFromHeaders = (res) => {
+  if (!res) return null;
+  const lm = res.headers.get('last-modified') || '';
+  const cl = res.headers.get('content-length') || '';
+  const et = res.headers.get('etag') || '';
+  if (!lm && !cl && !et) return null;
+  return `${lm}|${cl}|${et}`;
+};
+
+// ── DebouncedInput ────────────────────────────────────────────────────────
+// אינפוט חיפוש שלא מ-re-render-ר את כל העץ בכל הקלדה.
+// state פנימי מקומי לטקסט; הפרנט מקבל את הערך רק אחרי debounce.
+// אם value מבחוץ משתנה (e.g. setSearchCity(areaName) מטאב אחר) — מסונכרן.
+const DebouncedInput = React.memo(function DebouncedInput({ value, onDebouncedChange, debounceMs = 250, ...rest }) {
+  const [local, setLocal] = React.useState(value || '');
+  const lastExternal = React.useRef(value);
+  const timerRef = React.useRef(null);
+  React.useEffect(() => {
+    if (value !== lastExternal.current) {
+      lastExternal.current = value;
+      setLocal(value || '');
+    }
+  }, [value]);
+  const handleChange = (e) => {
+    const v = e.target.value;
+    setLocal(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      lastExternal.current = v;
+      // startTransition מסמן את העדכון הזה כעדיפות נמוכה — React רשאי לקטוע
+      // אותו אם המשתמש ממשיך להקליד. ככה הסינון הכבד לא חוסם את ה-input.
+      if (React.startTransition) {
+        React.startTransition(() => onDebouncedChange(v));
+      } else {
+        onDebouncedChange(v);
+      }
+    }, debounceMs);
+  };
+  return <input {...rest} value={local} onChange={handleChange} />;
+});
+
 // ── Icons ────────────────────────────────────────────────────────────────────
 const ICONS = {
   trash: "M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6",
@@ -272,7 +427,7 @@ function KavPach() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [redundantSortBy, setRedundantSortBy] = useState("score"); 
   const [showCrowded, setShowCrowded] = useState(false);
-  const [visibleTripsCount, setVisibleTripsCount] = useState(300);
+  const [visibleTripsCount, setVisibleTripsCount] = useState(60);
   const [filterLineType, setFilterLineType] = useState("all");
   
   // ── אזורים חלשים State ──
@@ -328,15 +483,12 @@ function KavPach() {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const tooltipRef = useRef(null);
 
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchCity), 250);
-    return () => clearTimeout(t);
-  }, [searchCity]);
+  // searchCity מתעדכן רק אחרי debounce (מתוך DebouncedInput) —
+  // לכן ניתן להשתמש בו ישירות לסינון בלי לדחוף עוד מממואיזציה נוספת.
 
   useEffect(() => {
-    setVisibleTripsCount(300);
-  }, [debouncedSearch, showCrowded, sortConfig, tab, filterLineType]);
+    setVisibleTripsCount(60);
+  }, [searchCity, showCrowded, sortConfig, tab, filterLineType]);
 
   useEffect(() => {
     if (!activeTooltip) return;
@@ -556,14 +708,50 @@ const DAYS_FILTER = [
     }
   }, []);
 
+  // מפתח הקובץ הנוכחי — נשמר ב-ref כדי שלא יגרור re-render, ומועבר לתוך
+  // ה-onmessage של ה-worker בלי להיתפס closure ישן.
+  const fileKeyRef = useRef(null);
+
   // ── טעינה אוטומטית בעליית הקומפוננטה ──────────────────────────────────────
   const loadFromXLSX = useCallback(async () => {
     try {
+      // שלב 1: HEAD מהיר כדי לקבל את חתימת הקובץ (לא מוריד את כל ה-MB).
+      let fileKey = null;
+      try {
+        const headRes = await fetch('data.xlsx', { method: 'HEAD' });
+        if (headRes.ok) fileKey = fileKeyFromHeaders(headRes);
+      } catch (e) { /* HEAD נכשל — נמשיך בלי קאש */ }
+
+      // שלב 2: אם יש מפתח, נסה לטעון מ-IndexedDB. אם תואם — שימוש מיידי.
+      if (fileKey) {
+        const cached = await idbGetCache(IDB_KEY);
+        if (cached && cached.fileKey === fileKey && cached.trips && cached.trips.length > 0) {
+          setFileLoading(true);
+          setFileMessage('טוען מקאש מקומי...');
+          setFileProgress(50);
+          // yield קצר כדי שה-UI יציג את הודעת הקאש לפני הצפת ה-render הגדול
+          await yieldFrame();
+          setLineCitiesMap(cached.lineCitiesMap instanceof Map ? cached.lineCitiesMap : new Map());
+          setLineStopsMap(cached.lineStopsMap instanceof Map ? cached.lineStopsMap : new Map());
+          setTrips(cached.trips);
+          setFileProgress(100);
+          setFileMessage(`נטענו ${cached.trips.length.toLocaleString()} נסיעות (מקאש) ✓`);
+          setFileLoading(false);
+          setInitialLoading(false);
+          fileKeyRef.current = fileKey;
+          return true;
+        }
+      }
+
+      // שלב 3: אין קאש מתאים — הורדה + פרסור רגיל.
       setFileLoading(true);
       setFileProgress(3);
-      setFileMessage("טוען קובץ Excel...");
+      setFileMessage('טוען קובץ Excel...');
       const res = await fetch('data.xlsx');
       if (!res.ok) throw new Error('xlsx missing');
+      // ניקח שוב את הכותרות מהתגובה — אם HEAD נכשל קודם, יתפס כאן.
+      if (!fileKey) fileKey = fileKeyFromHeaders(res);
+      fileKeyRef.current = fileKey;
       const buf = await res.arrayBuffer();
       setInitialLoading(false);
       await onFile(buf);
@@ -635,6 +823,16 @@ const DAYS_FILTER = [
           setFileMessage(`נטענו ${(msg.trips || []).length.toLocaleString()} נסיעות ✓`);
           setFileLoading(false);
           setInitialLoading(false);
+          // שמירה בקאש (best-effort, רץ ברקע) — יעיל לטעינה הבאה
+          if (fileKeyRef.current) {
+            idbSetCache(IDB_KEY, {
+              fileKey: fileKeyRef.current,
+              trips: msg.trips || [],
+              lineCitiesMap: lcm,
+              lineStopsMap: lsm,
+              savedAt: Date.now(),
+            });
+          }
           worker.terminate();
           resolve();
         } else if (msg.type === 'error') {
@@ -939,9 +1137,14 @@ const DAYS_FILTER = [
 
       const o = cityOnlyStr(t.origin);
       const d = cityOnlyStr(t.dest);
-      if (o && d && o !== d) {
-        const ep = [o.toLowerCase(), d.toLowerCase()].sort().join('|');
+      if (o && d) {
+        // קווים מעגליים (מוצא = יעד) מקבלים קידומת loop| כדי שיקובצו
+        // בבאקט נפרד משלהם, ויושוו רק מול קווים מעגליים אחרים באותה עיר.
+        const ep = o.toLowerCase() === d.toLowerCase()
+          ? `loop|${o.toLowerCase()}`
+          : [o.toLowerCase(), d.toLowerCase()].sort().join('|');
         agg.endpointPairs.set(ep, (agg.endpointPairs.get(ep) || 0) + tc);
+        if (o.toLowerCase() === d.toLowerCase()) agg.isCircular = true;
       }
     }
 
@@ -1057,6 +1260,7 @@ const DAYS_FILTER = [
           timeBuckets: agg.timeBuckets,
           isNightLine: agg.isNightLine,
           isFeedingLine: agg.isFeedingLine,
+          isCircular: !!agg.isCircular,
           mainOrigin: agg.mainOrigin,
           mainDest: agg.mainDest,
           _lineKey: lineKey,
@@ -1137,10 +1341,13 @@ const DAYS_FILTER = [
       }
       const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
+      // קבוצה נחשבת מעגלית אם כל הקווים בה מעגליים
+      const isCircularGroup = groupLines.every(l => l.isCircular);
       result.push({
         cityPair: group.slice().sort().join('-'),
         cityA: cap(cityA),
         cityB: cap(cityB),
+        isCircular: isCircularGroup,
         lines: groupLines.map(l => {
           const { cities, stops, refSet, timeBuckets, _lineKey, mainOrigin, mainDest, ...rest } = l;
           return rest;
@@ -1197,8 +1404,8 @@ const DAYS_FILTER = [
     if (filterCategory !== "all") {
       result = result.filter(r => r.category === filterCategory);
     }
-    if (debouncedSearch) {
-      const sCity = debouncedSearch.toLowerCase();
+    if (searchCity) {
+      const sCity = searchCity.toLowerCase();
       result = result.filter(r => {
         const isOriginDest = r.origin.toLowerCase().includes(sCity) || r.dest.toLowerCase().includes(sCity);
         if (isOriginDest) return true;
@@ -1218,7 +1425,7 @@ const DAYS_FILTER = [
     });
 
     return result;
-  }, [redundantLines, debouncedSearch, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy]);
+  }, [redundantLines, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy]);
 
   const areaStats = useMemo(() => {
     const map = new Map();
@@ -1319,7 +1526,7 @@ const DAYS_FILTER = [
   };
 
   const tableTrips = useMemo(() => {
-    const sCity = debouncedSearch.toLowerCase();
+    const sCity = searchCity.toLowerCase();
     let filtered = trips.filter(t => {
       if (filterLineType !== "all" && t.lineType !== filterLineType) return false;
       if (sCity) {
@@ -1346,7 +1553,7 @@ const DAYS_FILTER = [
     }
 
     return filtered;
-  }, [trips, debouncedSearch, showCrowded, sortConfig, lineCitiesMap, filterLineType]);
+  }, [trips, searchCity, showCrowded, sortConfig, lineCitiesMap, filterLineType]);
 
   const runOptimization = async (overrideLine, overrideCity, overrideDirection, overrideDays) => {
     const lineToUse = typeof overrideLine === 'string' ? overrideLine : optLine;
@@ -1655,8 +1862,8 @@ const DAYS_FILTER = [
         {showExplain && (
           <div 
              ref={explainRef} 
-             className="absolute top-8 left-0 sm:right-0 sm:left-auto w-56 sm:w-64 p-3 sm:p-4 bg-white text-slate-800 text-xs sm:text-sm rounded-xl shadow-2xl z-[9999] leading-relaxed font-normal text-right normal-case border border-slate-200 ring-1 ring-slate-900/5"
-             style={{ position: 'absolute' }}
+             className="absolute top-8 right-0 left-auto p-3 sm:p-4 bg-white text-slate-800 text-xs sm:text-sm rounded-xl shadow-2xl z-[9999] leading-relaxed font-normal text-right normal-case border border-slate-200 ring-1 ring-slate-900/5"
+             style={{ position: 'absolute', width: 'min(16rem, calc(100vw - 3rem))' }}
           >
             <strong className="block mb-2 text-slate-900 text-base">קו בהזמנה מראש</strong>
             בגלל שנוסעים רוכשים כרטיס מראש, חלקם לא מתקפים שוב בעלייה לאוטובוס. לכן, נתוני התיקופים כאן חלקיים ועלולים להציג עומס נמוך ממה שקורה בפועל.
@@ -1679,8 +1886,8 @@ const DAYS_FILTER = [
         {showExplain && (
           <div 
              ref={explainRef} 
-             className="absolute top-8 left-0 sm:right-0 sm:left-auto w-56 sm:w-64 p-3 sm:p-4 bg-white text-slate-800 text-xs sm:text-sm rounded-xl shadow-2xl z-[9999] leading-relaxed font-normal text-right normal-case border border-slate-200 ring-1 ring-slate-900/5"
-             style={{ position: 'absolute' }}
+             className="absolute top-8 right-0 left-auto p-3 sm:p-4 bg-white text-slate-800 text-xs sm:text-sm rounded-xl shadow-2xl z-[9999] leading-relaxed font-normal text-right normal-case border border-slate-200 ring-1 ring-slate-900/5"
+             style={{ position: 'absolute', width: 'min(16rem, calc(100vw - 3rem))' }}
           >
             <strong className="block mb-2 text-slate-900 text-base">קו מזין רכבת</strong>
             מטרת קו זה היא לאסוף או לפזר נוסעים מתחנת הרכבת. לכן, לפני קבלת החלטה על ביטול נסיעות או שינוי שעות הפעילות שלו, מומלץ לבדוק ולהצליב את המידע עם לוח הזמנים המעודכן של הרכבת.
@@ -1701,9 +1908,7 @@ const DAYS_FILTER = [
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
-      <datalist id="cities-list">
-        {allCities.map(c => <option key={`dl-city-${c}`} value={c} />)}
-      </datalist>
+      <CitiesDatalist cities={allCities} />
 
       <div className="max-w-6xl mx-auto">
         <header className="mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -1718,7 +1923,7 @@ const DAYS_FILTER = [
                   onClick={() => setShowWhatsNew(v => !v)}
                   className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
                 >
-                  עדכון גרסה 3.1
+                  עדכון גרסה 3.2
                 </button>
                 <span className="text-xs font-bold text-slate-400">נבנה על ידי שלמה הרטמן</span>
               </div>
@@ -1757,8 +1962,8 @@ const DAYS_FILTER = [
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.1</h3>
-                  <p className="text-slate-400 font-bold text-xs mt-1">שיפורים בזיהוי קווים תאומים, ביצועים ותיקוני באגים</p>
+                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.2</h3>
+                  <p className="text-slate-400 font-bold text-xs mt-1">חיפוש מהיר, קאש מקומי, וזיהוי קווים מעגליים</p>
                 </div>
                 <button onClick={() => setShowWhatsNew(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
                   &times;
@@ -1768,23 +1973,34 @@ const DAYS_FILTER = [
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                    זיהוי קווים תאומים — מדויק הרבה יותר
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
+                    טעינה מיידית בכניסות חוזרות
                   </h4>
-                  <p className="text-slate-600 mb-3">האלגוריתם משווה עכשיו את התחנות הבודדות של כל קו (Stop_id) במקום רק את הערים שבהן הוא עובר. בנוסף, נוסף מדד חדש לזיהוי קווים שמסלולם הוא תת-מסלול של קו אחר.</p>
-                  <ul className="list-disc list-inside space-y-2 marker:text-purple-400 pr-2">
-                    <li><strong>השוואת תחנות אמיתיות:</strong> שני קווים שעוברים באותן ערים אבל בנתיבים שונים לא ייתפסו כתאומים. שני קווים שעוברים באותן <em>תחנות בפועל</em> כן.</li>
-                    <li><strong>זיהוי תת-מסלולים:</strong> אם קו קצר (16 תחנות) הוא חלק מקו ארוך (58 תחנות) שעובר באותן תחנות — הם ייזוהו כתאומים, גם אם הקו הארוך ממשיך לעוד יעדים.</li>
-                    <li><strong>סף מינימלי ירד</strong> מ-3 ערים ל-5 תחנות — תופס יותר קווים קצרים.</li>
+                  <p className="text-slate-600 mb-3">המערכת שומרת את הנתונים המעובדים בקאש מקומי בדפדפן. בכניסה הבאה, כל עוד קובץ המקור לא השתנה, הטעינה נמשכת פחות משנייה — בלי הורדה, בלי פרסור.</p>
+                  <ul className="list-disc list-inside space-y-2 marker:text-emerald-400 pr-2">
+                    <li><strong>HEAD request זריז</strong> בודק אם הקובץ השתנה. אם כן — הקאש מתעדכן אוטומטית.</li>
+                    <li><strong>הקאש פר-משתמש</strong>, נשמר ב-IndexedDB ולא פוגע בהגדרות הדפדפן.</li>
                   </ul>
                 </section>
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
-                    טעינת קבצים — בלי קפיאת ממשק
+                    <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
+                    חיפוש חלק וללא לאגים
                   </h4>
-                  <p className="text-slate-600 mb-3">עיבוד הקובץ עבר ל-thread נפרד. הממשק נשאר חי ומגיב לחלוטין במהלך הטעינה — אפשר לגלול, ללחוץ, לעבור טאבים. ה-progress bar נע חלק במקום לקפוץ.</p>
+                  <p className="text-slate-600 mb-3">החיפוש שודרג כך שההקלדה והמחיקה מיידיות גם בנייד. הסינון מתבצע רק בהקשה על <strong>Enter</strong> או בלחיצה על ה-× כדי לנקות — בלי עיבוד מיותר ברקע בכל מקש.</p>
+                  <ul className="list-disc list-inside space-y-2 marker:text-sky-400 pr-2">
+                    <li><strong>רינדור מותנה (content-visibility):</strong> הדפדפן מציג רק את הכרטיסים שעל המסך, ומדלג על כל מה שמחוץ לתצוגה. גלילה ברשימות גדולות הפכה חלקה.</li>
+                    <li><strong>פחות DOM, יותר FPS:</strong> טעינת הטבלה התחלתית קטנה משמעותית — הכפתור "טען עוד" עדיין זמין.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
+                    זיהוי קווים מעגליים בתאומים
+                  </h4>
+                  <p className="text-slate-600 mb-3">קווים שהמוצא והיעד שלהם זהים (קווים מעגליים, למשל בתוך עיר אחת) נכנסים עכשיו לחישוב התאומים — באג ידוע שמנע מקבוצות כאלה להופיע. כרטיס תאומים מעגלי מסומן בתווית <span dir="ltr" className="font-bold">↻ מעגלי</span>.</p>
                 </section>
 
                 <section>
@@ -1793,8 +2009,8 @@ const DAYS_FILTER = [
                     באגים שתוקנו
                   </h4>
                   <ul className="list-disc list-inside space-y-2 marker:text-slate-400 pr-2">
-                    <li><strong>נתונים דו-כיווניים בקווים לא יעילים:</strong> מספר הנסיעות השבועיות, הק"מ והעלות לנוסע הציגו רק כיוון אחד מהקו. כעת מוצג הסכום הנכון לשני הכיוונים.</li>
-                    <li><strong>קווים לאילת בהזמנה מראש סווגו כ"מותאמי רכבת":</strong> בלבול בין הזמנה מראש לתיאום עם רכבת. כעת הגנת "מותאם רכבת" מופעלת רק אם השדה ייחודיות הקו מציין במפורש "רכבת".</li>
+                    <li><strong>טולטיפ "הזמנה מראש" בנייד:</strong> הטולטיפ חרג מהמסך במכשירים צרים. עכשיו הוא מעוגן לימין וברוחב מותאם לרוחב המסך.</li>
+                    <li><strong>שאריות JSX מתצוגה:</strong> טקסט קוד מסוים הופיע בטעות מעל שדות חיפוש — נוקה.</li>
                   </ul>
                 </section>
 
@@ -1917,13 +2133,11 @@ const DAYS_FILTER = [
                       {CATEGORIES.map(c => <option key={`cat-${c}`} value={c}>{c}</option>)}
                     </select>
                     <div className="flex relative w-full xl:w-64">
-                      <input 
-                        type="text" 
-                        list="cities-list"
+                      <SearchInput
                         value={searchCity} 
-                        onChange={e => setSearchCity(e.target.value)} 
-                        placeholder="הקלד עיר לחיפוש..."
-                        className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
+                        onSubmit={setSearchCity} 
+                        placeholder="הקלד עיר ולחץ Enter..."
+                        className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
                       />
                     </div>
                   </div>
@@ -1931,7 +2145,7 @@ const DAYS_FILTER = [
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredRedundant.length > 0 ? filteredRedundant.map((res, i) => (
-                    <div key={`red-${res.groupKey}-${i}`} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group relative">
+                    <div key={`red-${res.groupKey}-${i}`} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group relative">
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex flex-col gap-2 items-start text-right">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1966,8 +2180,8 @@ const DAYS_FILTER = [
                         <div className="flex flex-wrap items-center gap-2 mb-4">
                           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md shrink-0">{res.district}</span>
                           {(() => {
-                            if (!debouncedSearch) return null;
-                            const sCity = debouncedSearch.toLowerCase();
+                            if (!searchCity) return null;
+                            const sCity = searchCity.toLowerCase();
                             const isOriginDest = res.origin.toLowerCase().includes(sCity) || res.dest.toLowerCase().includes(sCity);
                             if (isOriginDest) return null;
 
@@ -2086,12 +2300,11 @@ const DAYS_FILTER = [
                       {allDistricts.map(d => <option key={`twin-dist-${d}`} value={d}>{d}</option>)}
                     </select>
                     <div className="flex relative w-full xl:w-64">
-                      <input
-                        type="text"
+                      <SearchInput
                         value={twinSearch}
-                        onChange={e => setTwinSearch(e.target.value)}
-                        placeholder="חיפוש עיר או מספר קו..."
-                        className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
+                        onSubmit={setTwinSearch}
+                        placeholder="חיפוש עיר או מספר קו — Enter"
+                        className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
                       />
                     </div>
                   </div>
@@ -2134,7 +2347,7 @@ const DAYS_FILTER = [
                     {filteredTwins.slice(0, visibleTwinCount).map((twin, i) => {
                       const isExpanded = expandedTwin === twin.cityPair;
                       return (
-                        <div key={`twin-${twin.cityPair}-${i}`} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-purple-300 transition-all text-right">
+                        <div key={`twin-${twin.cityPair}-${i}`} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-purple-300 transition-all text-right">
                           <div className="flex items-start justify-between mb-5">
                             <div className="flex flex-col gap-2 items-start text-right">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -2144,6 +2357,12 @@ const DAYS_FILTER = [
                                 <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-600">
                                   {twin.lineCount} קווים
                                 </div>
+                                {twin.isCircular && (
+                                  <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-cyan-50 border border-cyan-200 text-cyan-700 flex items-center gap-1">
+                                    <span className="text-base leading-none">↻</span>
+                                    מעגלי
+                                  </div>
+                                )}
                               </div>
                               <div className="text-slate-400 font-bold text-xs">{twin.district}</div>
                             </div>
@@ -2154,9 +2373,19 @@ const DAYS_FILTER = [
                           </div>
 
                           <div className="flex items-center justify-start gap-3 mb-5 min-w-0">
-                            <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityA}>{twin.cityA}</div>
-                            <div className="text-slate-300 text-xl font-black shrink-0 leading-none">↔</div>
-                            <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityB}>{twin.cityB}</div>
+                            {twin.isCircular ? (
+                              <>
+                                <div className="text-cyan-600 text-xl font-black shrink-0 leading-none" title="קו מעגלי">↻</div>
+                                <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityA}>{twin.cityA}</div>
+                                <div className="text-slate-400 font-bold text-xs shrink-0">(מעגלי)</div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityA}>{twin.cityA}</div>
+                                <div className="text-slate-300 text-xl font-black shrink-0 leading-none">↔</div>
+                                <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityB}>{twin.cityB}</div>
+                              </>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap gap-2 mb-5">
@@ -2339,13 +2568,12 @@ const DAYS_FILTER = [
                       הצג רק נסיעות עמוסות
                     </label>
                     <div className="flex relative w-full md:w-auto">
-                      <input 
-                        type="text" 
-                        list="cities-list"
+                      <SearchInput
                         value={searchCity} 
-                        onChange={e => setSearchCity(e.target.value)} 
-                        placeholder="חיפוש עיר (מוצא או יעד)..."
-                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm"
+                        onSubmit={setSearchCity} 
+                        placeholder="חיפוש עיר (מוצא או יעד) — Enter"
+                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm"
+                      />
                       />
                     </div>
                   </div>
@@ -2415,7 +2643,7 @@ const DAYS_FILTER = [
                     </thead>
                     <tbody className="text-sm font-bold text-slate-700">
                       {tableTrips.slice(0, visibleTripsCount).map((t, i) => (
-                        <tr key={`trip-${t.id || i}`} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                        <tr key={`trip-${t.id || i}`} className="vrow border-t border-slate-100 hover:bg-slate-50 transition-colors">
                           <td className="p-5 font-black">
                             <div className="flex flex-col items-start gap-1 relative">
                               <div className="flex items-center gap-2 justify-start">
@@ -2429,8 +2657,8 @@ const DAYS_FILTER = [
                                 <span className="bg-slate-900 text-white px-3 py-1.5 rounded-xl">{t.lineNum}</span>
                               </div>
                               {(() => {
-                                if (!debouncedSearch) return null;
-                                const sCity = debouncedSearch.toLowerCase();
+                                if (!searchCity) return null;
+                                const sCity = searchCity.toLowerCase();
                                 const isOriginDest = t.origin.toLowerCase().includes(sCity) || t.dest.toLowerCase().includes(sCity);
                                 if (isOriginDest) return null;
 
