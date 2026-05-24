@@ -106,7 +106,7 @@ const SearchInput = React.memo(function SearchInput({ value, onSubmit, placehold
 // Maps ו-Sets נשמרים native בזכות structured clone של IDB.
 const IDB_NAME = 'kavpach-cache';
 const IDB_STORE = 'parsed';
-const IDB_KEY = 'data-v1';
+const IDB_KEY = 'data-v2';
 
 const openCacheDB = () => new Promise((resolve, reject) => {
   if (typeof indexedDB === 'undefined') { reject(new Error('no idb')); return; }
@@ -413,6 +413,7 @@ function KavPach() {
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
+  const [lineNormStopsMap, setLineNormStopsMap] = useState(new Map());
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -440,6 +441,46 @@ function KavPach() {
   const [twinSearch, setTwinSearch] = useState("");
   const [visibleTwinCount, setVisibleTwinCount] = useState(30);
   const [expandedTwin, setExpandedTwin] = useState(null);
+  const [debugLine, setDebugLine] = useState("");
+  const [debugResult, setDebugResult] = useState(null);
+
+  const runLineDebug = (line) => {
+    const ln = String(line).replace(/^0+/, '').trim();
+    if (!ln) { setDebugResult(null); return; }
+    const matches = trips.filter(x => String(x.lineNum).replace(/^0+/, '') === ln);
+    if (!matches.length) {
+      setDebugResult({ line: ln, found: false, msg: 'לא נמצא בנתונים' });
+      return;
+    }
+    // קיבוץ לפי מק"ט — כל מק"ט הוא קו שונה גם אם מספר הקו זהה
+    const byMakat = new Map();
+    for (const t of matches) {
+      const m = String(t.makat || '').replace(/^0+/, '');
+      if (!byMakat.has(m)) byMakat.set(m, []);
+      byMakat.get(m).push(t);
+    }
+    const variants = [];
+    for (const [m, arr] of byMakat) {
+      const stopsSet = lineStopsMap.get(m) || lineStopsMap.get(ln);
+      const citiesSet = lineCitiesMap.get(m) || lineCitiesMap.get(ln);
+      const normSet = lineNormStopsMap.get(m) || lineNormStopsMap.get(ln);
+      const origins = [...new Set(arr.map(x => x.origin))];
+      const dests = [...new Set(arr.map(x => x.dest))];
+      variants.push({
+        makat: m,
+        tripCount: arr.length,
+        district: arr[0].district,
+        origins,
+        dests,
+        stopCount: stopsSet?.size || 0,
+        cityCount: citiesSet?.size || 0,
+        normStopCount: normSet?.size || 0,
+        cities: citiesSet ? [...citiesSet] : [],
+        stopsFirst: stopsSet ? [...stopsSet].slice(0, 10) : [],
+      });
+    }
+    setDebugResult({ line: ln, found: true, variants });
+  };
   
   const [optLine, setOptLine] = useState("");
   const [optCity, setOptCity] = useState("all");
@@ -733,6 +774,16 @@ const DAYS_FILTER = [
           await yieldFrame();
           setLineCitiesMap(cached.lineCitiesMap instanceof Map ? cached.lineCitiesMap : new Map());
           setLineStopsMap(cached.lineStopsMap instanceof Map ? cached.lineStopsMap : new Map());
+          setLineNormStopsMap(cached.lineNormStopsMap instanceof Map ? cached.lineNormStopsMap : new Map());
+          // DEBUG: חשיפה ל-window גם בטעינה מהקאש
+          if (typeof window !== 'undefined') {
+            window.__kp_trips = cached.trips;
+            window.__kp_maps = {
+              cities: cached.lineCitiesMap || new Map(),
+              stops: cached.lineStopsMap || new Map(),
+              normStops: cached.lineNormStopsMap || new Map(),
+            };
+          }
           setTrips(cached.trips);
           setFileProgress(100);
           setFileMessage(`נטענו ${cached.trips.length.toLocaleString()} נסיעות (מקאש) ✓`);
@@ -816,8 +867,15 @@ const DAYS_FILTER = [
           // lineCitiesMap מגיע כ-Map עם Set-ים בזכות structured clone
           const lcm = msg.lineCitiesMap instanceof Map ? msg.lineCitiesMap : new Map();
           const lsm = msg.lineStopsMap instanceof Map ? msg.lineStopsMap : new Map();
+          const lnsm = msg.lineNormStopsMap instanceof Map ? msg.lineNormStopsMap : new Map();
           setLineCitiesMap(lcm);
           setLineStopsMap(lsm);
+          setLineNormStopsMap(lnsm);
+          // DEBUG: חשיפה זמנית ל-window לטובת איתור באגים מהקונסול
+          if (typeof window !== 'undefined') {
+            window.__kp_trips = msg.trips || [];
+            window.__kp_maps = { cities: lcm, stops: lsm, normStops: lnsm };
+          }
           setTrips(msg.trips || []);
           setFileProgress(100);
           setFileMessage(`נטענו ${(msg.trips || []).length.toLocaleString()} נסיעות ✓`);
@@ -830,6 +888,7 @@ const DAYS_FILTER = [
               trips: msg.trips || [],
               lineCitiesMap: lcm,
               lineStopsMap: lsm,
+              lineNormStopsMap: lnsm,
               savedAt: Date.now(),
             });
           }
@@ -1070,31 +1129,33 @@ const DAYS_FILTER = [
   // מסמן תאום אם אחד מהשניים עובר את הסף (70%).
   const TWIN_JACCARD_THRESHOLD = 0.7;
   const TWIN_OVERLAP_THRESHOLD = 0.7;
-  const TWIN_MIN_STOPS = 5;
+  const TWIN_MIN_STOPS = 3;
   const twinLines = useMemo(() => {
     if (!trips.length) return [];
     const useStops = lineStopsMap && lineStopsMap.size > 0;
+    const useNormStops = lineNormStopsMap && lineNormStopsMap.size > 0;
     const useCities = lineCitiesMap && lineCitiesMap.size > 0;
-    if (!useStops && !useCities) return [];
+    if (!useStops && !useNormStops && !useCities) return [];
 
     const cityOnlyStr = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
 
-    // ── שלב 1: אגרגציה לפי lineNum ──
-    // כל "קו" הוא lineNum בודד, כולל כל הכיוונים והנסיעות. שולפים גם
-    // את סט התחנות המלא שלו מ-lineCitiesMap.
+    // ── שלב 1: אגרגציה לפי makat ──
+    // חשוב: לא לפי lineNum! מספר קו ("7", "70") חוזר בעשרות חברות באזורים שונים
+    // — קו 7 בחיפה ≠ קו 7 בחדרה ≠ קו 7 באשדוד. ה-makat (Route_Id ב-GTFS)
+    // הוא המזהה הייחודי האמיתי. כל הכיוונים של אותו makat מתאחדים יחד.
     const lineAgg = new Map();
     for (let i = 0; i < trips.length; i++) {
       const t = trips[i];
-      if (!t.lineNum) continue;
-      const lineKey = String(t.lineNum).replace(/^0+/, '').trim();
-      if (!lineKey) continue;
+      if (!t.makat) continue;
+      const aggKey = String(t.makat).replace(/^0+/, '').trim();
+      if (!aggKey) continue;
 
-      let agg = lineAgg.get(lineKey);
+      let agg = lineAgg.get(aggKey);
       if (!agg) {
-        const cleanMakat = String(t.makat || '').replace(/^0+/, '').trim();
-        // מעדיפים תחנות מלאות (Stop_id) על ערים. stops ספציפי יותר מקבוצה גדולה
-        // של נקודות מדויקות להשוואת Jaccard/Overlap מהימנות.
+        const cleanMakat = aggKey;
+        const lineKey = String(t.lineNum || '').replace(/^0+/, '').trim();
         const stopsSet = useStops ? (lineStopsMap.get(cleanMakat) || lineStopsMap.get(lineKey)) : null;
+        const normStopsSet = useNormStops ? (lineNormStopsMap.get(cleanMakat) || lineNormStopsMap.get(lineKey)) : null;
         const citiesSet = useCities ? (lineCitiesMap.get(cleanMakat) || lineCitiesMap.get(lineKey)) : null;
         agg = {
           lineNum: t.lineNum,
@@ -1102,6 +1163,7 @@ const DAYS_FILTER = [
           district: t.district,
           lineType: t.lineType,
           stops: stopsSet || null,
+          normStops: normStopsSet || null,
           cities: citiesSet || null,
           endpointPairs: new Map(), // pair-key -> count
           tripCount: 0,
@@ -1118,7 +1180,7 @@ const DAYS_FILTER = [
           mainOrigin: t.origin,
           mainDest: t.dest,
         };
-        lineAgg.set(lineKey, agg);
+        lineAgg.set(aggKey, agg);
       }
       const tc = t.tripCount || 1;
       agg.tripCount += tc;
@@ -1152,34 +1214,58 @@ const DAYS_FILTER = [
     // (מעדיפים stops על cities — stops מדויק יותר כי שתי ערים זהה הן 100% גם לקווים במסלולים שונים)
     const lineList = [];
     for (const l of lineAgg.values()) {
-      const referenceSet = l.stops || l.cities;
-      if (referenceSet && referenceSet.size >= TWIN_MIN_STOPS) {
-        l.refSet = referenceSet;
+      // מקבלים גם stops, גם normStops, גם cities — מתחשבים ל-bucketing וגם לבדיקת סף מינימום.
+      // השוואה בפועל תחשב המיטב מהשתיים (Stop_id ושם-תחנה מנורמל).
+      const refSet = l.stops || l.normStops || l.cities;
+      if (refSet && refSet.size >= TWIN_MIN_STOPS) {
+        l.refSet = refSet;
         lineList.push(l);
       }
     }
     if (lineList.length < 2) return [];
 
-    // ── שלב 2: בקטים לפי תחנת קצה (אופטימיזציה) ──
-    // לפני שמשווים כל קו לכל קו (O(N²)), קודם מקבצים לפי זוג ערי קצה
-    // נפוץ של כל קו — שני קווים תאומים חייבים לחלוק לפחות זוג כזה.
+    // ── שלב 2: בקטים לפי זוגות ערים שהקו עובר בהן ──
+    // לפני שמשווים כל קו לכל קו (O(N²)), קודם מקבצים. הבאקט הוא זוג ערים
+    // (תוויה אחת לכל זוג עיר-A/עיר-B שהקו עובר בשתיהן). שני קווים תאומים
+    // אמיתיים יחלקו בהכרח לפחות זוג ערים אחד — אחרת אין דרך שהם יחלקו
+    // 70% מהתחנות שלהם. הוסף גם את endpointPairs המקוריות (לערים שלא
+    // הופיעו ב-lineCitiesMap), כ-fallback.
     const endpointBuckets = new Map();
+    const addToBucket = (key, line) => {
+      let bucket = endpointBuckets.get(key);
+      if (!bucket) { bucket = new Set(); endpointBuckets.set(key, bucket); }
+      bucket.add(line);
+    };
     for (const l of lineList) {
+      // זוגות ערים שהקו עובר בהן
+      const lineCities = l.cities ? Array.from(l.cities) : [];
+      if (lineCities.length >= 2) {
+        for (let i = 0; i < lineCities.length; i++) {
+          for (let j = i + 1; j < lineCities.length; j++) {
+            const pair = [lineCities[i], lineCities[j]].sort().join('|');
+            addToBucket(pair, l);
+          }
+        }
+      } else if (lineCities.length === 1) {
+        // קו פנים-עירוני בעיר אחת — באקט לפי loop|<city>
+        addToBucket(`loop|${lineCities[0]}`, l);
+      }
+      // גם endpointPairs המקוריות (לכל מקרה — אם cities ריק)
       for (const ep of l.endpointPairs.keys()) {
-        if (!endpointBuckets.has(ep)) endpointBuckets.set(ep, []);
-        endpointBuckets.get(ep).push(l);
+        addToBucket(ep, l);
       }
     }
 
     // ── שלב 3: השוואת Jaccard בתוך כל בקט ──
     // Jaccard = |A ∩ B| / |A ∪ B|. רק מעל הסף נחשב תאום.
-    const adj = new Map(); // lineKey -> Map(neighbor -> similarity)
+    const adj = new Map(); // makatKey -> Map(neighbor -> similarity)
     const seenPairs = new Set();
     for (const lines of endpointBuckets.values()) {
-      if (lines.length < 2) continue;
-      for (let i = 0; i < lines.length; i++) {
-        for (let j = i + 1; j < lines.length; j++) {
-          const a = lines[i], b = lines[j];
+      if (lines.size < 2) continue;
+      const arr = Array.from(lines);
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          const a = arr[i], b = arr[j];
           if (a.lineNum === b.lineNum) continue;
           const aKey = String(a.lineNum).replace(/^0+/, '').trim();
           const bKey = String(b.lineNum).replace(/^0+/, '').trim();
@@ -1193,8 +1279,24 @@ const DAYS_FILTER = [
           const big = small === aSet ? bSet : aSet;
           for (const c of small) if (big.has(c)) inter++;
           const union = aSet.size + bSet.size - inter;
-          const jaccard = union > 0 ? inter / union : 0;
-          const overlap = small.size > 0 ? inter / small.size : 0;
+          let jaccard = union > 0 ? inter / union : 0;
+          let overlap = small.size > 0 ? inter / small.size : 0;
+
+          // השוואה מקבילה על שמות תחנות מנורמלים (ללא סיומת כיוון) —
+          // להלימה במקרה ששני קווים עוברים באותה תחנה פיזית אך ב-Stop_id שוני
+          // (בגלל מיקום מקור שונה בתוך נתוני GTFS). לוקחים את ההתאמה הגבוהה מבין השני.
+          if (a.normStops && b.normStops && a.normStops.size >= TWIN_MIN_STOPS && b.normStops.size >= TWIN_MIN_STOPS) {
+            const aN = a.normStops, bN = b.normStops;
+            const smallN = aN.size <= bN.size ? aN : bN;
+            const bigN = smallN === aN ? bN : aN;
+            let interN = 0;
+            for (const c of smallN) if (bigN.has(c)) interN++;
+            const unionN = aN.size + bN.size - interN;
+            const jaccardN = unionN > 0 ? interN / unionN : 0;
+            const overlapN = smallN.size > 0 ? interN / smallN.size : 0;
+            if (jaccardN > jaccard) jaccard = jaccardN;
+            if (overlapN > overlap) overlap = overlapN;
+          }
           // מסמן כתאום אם אחד מהשניים עובר את הסף שלו.
           // למיון נשתמש במיטב מהשניים (משקף עד כמה הקווים דומים אמיתית).
           const isTwin = jaccard >= TWIN_JACCARD_THRESHOLD || overlap >= TWIN_OVERLAP_THRESHOLD;
@@ -1323,7 +1425,7 @@ const DAYS_FILTER = [
       // 4. שני הקווים חלשים בנפרד (5 נק' בונוס)
       if (groupLines.every(l => l.avgRiders < 12)) score += 5;
       // קנס: אם חפיפת השעות זניחה, גם דמיון מסלול לא מצדיק איחוד
-      if (timeOverlapPct < 15) score = Math.min(score, 50);
+      if (timeOverlapPct < 5) score = Math.min(score, 50);
       score = Math.round(Math.max(0, Math.min(100, score)));
 
       // חיסכון פוטנציאלי משמרני: ק"מ של הקווים המשניים × 5 ש"ח/ק"מ
@@ -1368,11 +1470,11 @@ const DAYS_FILTER = [
       });
     }
 
-    // סינון: רק קבוצות עם ציון 60 ומעלה מוצגות (סף ההמלצה לאיחוד)
+    // סינון: רק קבוצות עם ציון 50 ומעלה מוצגות
     return result
-      .filter(t => t.score >= 60)
+      .filter(t => t.score >= 50)
       .sort((a, b) => b.score - a.score || b.potentialSavings - a.potentialSavings);
-  }, [trips, lineCitiesMap, lineStopsMap]);
+  }, [trips, lineCitiesMap, lineStopsMap, lineNormStopsMap]);
 
   const filteredTwins = useMemo(() => {
     let result = twinLines;
@@ -2310,6 +2412,47 @@ const DAYS_FILTER = [
                   </div>
                 </div>
 
+                {/* DEBUG: בדיקת קו ספציפי */}
+                <details className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4">
+                  <summary className="font-black text-amber-800 cursor-pointer text-sm select-none">🔍 בדיקת קו ספציפי (Debug)</summary>
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs text-amber-700 font-medium">הקלד מספר קו ולחץ Enter — תראה מה המערכת קלטה עליו.</div>
+                    <input
+                      type="text"
+                      value={debugLine}
+                      onChange={e => setDebugLine(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') runLineDebug(debugLine); }}
+                      placeholder="לדוגמה: 7 או 70"
+                      className="w-full bg-white border border-amber-300 rounded-xl px-4 py-2 font-black outline-none focus:border-amber-500 text-right"
+                    />
+                    {debugResult && (
+                      <div className="bg-white rounded-xl p-3 text-xs font-mono text-slate-700 leading-relaxed border border-amber-100 max-h-96 overflow-auto" dir="ltr">
+                        {!debugResult.found ? (
+                          <div className="text-rose-600 font-bold">❌ Line {debugResult.line}: {debugResult.msg}</div>
+                        ) : (
+                          <>
+                            <div className="font-bold text-amber-700 mb-2">Line {debugResult.line}: found {debugResult.variants.length} variant(s)</div>
+                            {debugResult.variants.map((v, i) => (
+                              <div key={i} className="border-t border-slate-200 pt-2 mt-2 first:border-0 first:pt-0 first:mt-0">
+                                <div className="font-bold text-slate-900">Variant #{i+1} — Makat: {v.makat}</div>
+                                <div><strong>District:</strong> {v.district}</div>
+                                <div><strong>Trips:</strong> {v.tripCount}</div>
+                                <div><strong>Origins:</strong> {v.origins.join(', ')}</div>
+                                <div><strong>Dests:</strong> {v.dests.join(', ')}</div>
+                                <div><strong>Stop_id count:</strong> {v.stopCount} {v.stopCount < 3 ? '⚠️' : '✓'}</div>
+                                <div><strong>City count:</strong> {v.cityCount}</div>
+                                <div><strong>NormStop count:</strong> {v.normStopCount}</div>
+                                {v.cities.length > 0 && <div><strong>Cities:</strong> {v.cities.join(' | ')}</div>}
+                                {v.stopsFirst.length > 0 && <div><strong>First stops:</strong> {v.stopsFirst.join(', ')}</div>}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </details>
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white border-2 border-slate-100 rounded-[2rem] p-5 text-right">
                     <div className="text-slate-400 font-black text-xs mb-1">קבוצות תאומים</div>
@@ -2573,7 +2716,6 @@ const DAYS_FILTER = [
                         onSubmit={setSearchCity} 
                         placeholder="חיפוש עיר (מוצא או יעד) — Enter"
                         className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm"
-                      />
                       />
                     </div>
                   </div>
@@ -3046,122 +3188,241 @@ const DAYS_FILTER = [
                   </p>
                 </header>
 
-                <div className="space-y-10">
-                  <section className="bg-indigo-50 rounded-[2rem] p-6 border border-indigo-100">
+                <div className="space-y-6">
+
+                  {/* מה חדש בגרסה הנוכחית — תמיד בהתחלה */}
+                  <section className="bg-gradient-to-bl from-indigo-50 to-white rounded-[2rem] p-6 border-2 border-indigo-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.0.0</span>
-                      <h3 className="text-xl font-black text-indigo-700">העדכון האחרון — מאי 2026</h3>
+                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.2</span>
+                      <h3 className="text-xl font-black text-indigo-700">מה חדש בעדכון הנוכחי</h3>
                     </div>
-                    <div className="space-y-5 text-slate-700 font-medium leading-relaxed text-sm">
+                    <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
 
-                      <div>
-                        <h4 className="font-black text-indigo-900 text-sm mb-2">🔴 שיטת ניתוח חדשה לקווים לא יעילים</h4>
-                        <ul className="list-none space-y-1.5 pr-2">
-                          <li>• <strong>סיווג ל-8 קטגוריות לפי משרד התחבורה:</strong> אזורי, בינעירוני ארוך, בינעירוני קצר, עירוני תדירות גבוהה, עירוני תדירות נמוכה, לילה, קווים מזינים, תלמידים.</li>
-                          <li>• <strong>בנצ&apos;מרק עלות לפי קטגוריה:</strong> במקום סף קבוע, יחס לממוצע הארצי של הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה וכו&apos;).</li>
-                          <li>• <strong>סף שפל מותאם:</strong> 5 נוסעים באזורי/לילה, 8 בקצר/מזין, 10 בארוך/תדירות נמוכה, 15 בתדירות גבוהה/תלמידים.</li>
-                          <li>• <strong>מערכת הגנות:</strong> תחנות בלעדיות (−15), מותאם רכבת (−10), תלמידים בשעות בי&quot;ס (−10).</li>
-                          <li>• <strong>תיוג ב-5 רמות:</strong> תקין → סטייה קלה → טעון בדיקה → לא יעיל → חמור.</li>
-                          <li>• <strong>פילטר קטגוריה:</strong> השוואת תפוחים לתפוחים.</li>
+                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
+                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
+                          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
+                          טעינה מיידית בכניסות חוזרות
+                        </h4>
+                        <p className="text-slate-600 mb-2">המערכת שומרת את הנתונים המעובדים בקאש מקומי בדפדפן. בכניסה הבאה, כל עוד קובץ המקור לא השתנה, הטעינה נמשכת פחות משנייה — בלי הורדה, בלי פרסור.</p>
+                        <ul className="list-disc list-inside space-y-1 marker:text-emerald-400 pr-2 text-xs">
+                          <li>HEAD request זריז בודק אם הקובץ השתנה — אם כן, הקאש מתעדכן אוטומטית.</li>
+                          <li>הקאש פר-משתמש, נשמר ב-IndexedDB ולא פוגע בהגדרות הדפדפן.</li>
                         </ul>
                       </div>
 
-                      <div>
-                        <h4 className="font-black text-purple-900 text-sm mb-2">🟣 טאב חדש: קווים תאומים</h4>
-                        <ul className="list-none space-y-1.5 pr-2">
-                          <li>• זיהוי קבוצות קווים שעושים בעצם את אותו מסלול — מועמדים לאיחוד.</li>
-                          <li>• השוואת מסלול תחנות מלא ב-Jaccard similarity (סף 70%), לא רק מוצא/יעד.</li>
-                          <li>• חישוב חפיפת שעות, תפוסה מצטברת, וחיסכון פוטנציאלי שבועי.</li>
-                          <li>• 3 רמות: תאומים מובהקים (85+), כמעט תאומים (70+), חפיפה משמעותית (60+).</li>
+                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
+                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
+                          <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
+                          חיפוש חלק וללא לאגים
+                        </h4>
+                        <p className="text-slate-600 mb-2">החיפוש שודרג כך שההקלדה והמחיקה מיידיות גם בנייד. הסינון מתבצע רק בהקשה על <strong>Enter</strong> או בלחיצה על ה-× כדי לנקות — בלי עיבוד מיותר ברקע בכל מקש.</p>
+                        <ul className="list-disc list-inside space-y-1 marker:text-sky-400 pr-2 text-xs">
+                          <li><strong>רינדור מותנה (content-visibility):</strong> הדפדפן מציג רק כרטיסים שעל המסך. גלילה ברשימות גדולות הפכה חלקה.</li>
+                          <li>טעינת טבלה התחלתית קטנה משמעותית — הכפתור "טען עוד" עדיין זמין.</li>
                         </ul>
                       </div>
 
-                      <div>
-                        <h4 className="font-black text-amber-900 text-sm mb-2">🟡 שיפור בסימולטור</h4>
-                        <ul className="list-none space-y-1.5 pr-2">
-                          <li>• <strong>הגנה על נסיעה ראשונה/אחרונה ביום:</strong> האלגוריתם לא יציע לבטל אותן יותר, גם אם הן ריקות. ביטולן פוגע פגיעה לא פרופורציונלית בנוסעים.</li>
+                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
+                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
+                          <span className="bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
+                          זיהוי קווים מעגליים בתאומים
+                        </h4>
+                        <p className="text-slate-600">קווים שהמוצא והיעד שלהם זהים (מעגליים, בתוך עיר אחת) נכנסים עכשיו לחישוב התאומים — באג ידוע שמנע מקבוצות כאלה להופיע. כרטיס תאומים מעגלי מסומן בתווית <span dir="ltr" className="font-bold">↻ מעגלי</span>.</p>
+                      </div>
+
+                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
+                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
+                          <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
+                          באגים שתוקנו
+                        </h4>
+                        <ul className="list-disc list-inside space-y-1 marker:text-slate-400 pr-2 text-xs">
+                          <li><strong>טולטיפ "הזמנה מראש" בנייד:</strong> חרג מהמסך במכשירים צרים. עכשיו מעוגן לימין וברוחב מותאם.</li>
+                          <li><strong>שאריות קוד מתצוגה:</strong> טקסט className הופיע בטעות מעל שדות החיפוש — נוקה.</li>
                         </ul>
                       </div>
 
-                      <div>
-                        <h4 className="font-black text-emerald-900 text-sm mb-2">🟢 ביצועים ותיקוני באגים</h4>
-                        <ul className="list-none space-y-1.5 pr-2">
-                          <li>• טעינת קבצי אקסל גדולים (אלפי קווים) לא מקפיאה את הממשק יותר.</li>
-                          <li>• תיקון אגרגציה דו-כיוונית: נסיעות שבועיות, ק&quot;מ שבועי ועלות לנוסע מציגים כעת את הסיכום של שני הכיוונים, לא רק אחד.</li>
-                          <li>• כל כיוון נשמר בנפרד גם בטאב התאומים — ספירה מדויקת של הכיוונים.</li>
-                        </ul>
-                      </div>
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-xl font-black text-indigo-700 mb-3 flex items-center gap-2"><Ic n="trash" size={20} /> דירוג הקווים הלא יעילים (גרסה 3.0.0)</h3>
-                    <p className="text-slate-600 font-medium mb-3 leading-relaxed">הציון של כל קו מורכב מ-4 רכיבי ניקוד וממערכת הגנות, ומוצג בסולם של 0 עד 100. הסף לכל רכיב מותאם לקטגוריה של הקו.</p>
+                  <div className="border-t border-slate-100 pt-2">
+                    <h3 className="text-2xl font-black text-slate-900 mb-2">איך המערכת עובדת</h3>
+                    <p className="text-slate-500 font-medium text-sm">הסבר על כל אחד מ-5 הכלים: מה הוא מציג, איך החישוב עובד, ומתי כדאי להשתמש בו.</p>
+                  </div>
 
-                    <div className="mb-4 bg-slate-50 rounded-2xl border border-slate-100 p-4">
-                      <h4 className="font-black text-slate-800 text-sm mb-2">סיווג הקו לקטגוריה</h4>
-                      <p className="text-slate-600 text-sm leading-relaxed">הקו מסווג לאחת מ-8 הקטגוריות הרשמיות לפי: שדה &quot;ייחודיות&quot; (לילה/תלמידים/מזין), שדה &quot;קבוצת יעילות תפעולית&quot;, סוג שירות, אורך מסלול (סף 45 ק&quot;מ לבינעירוני ארוך/קצר), ותדירות שבועית (סף 600 לעירוני גבוה/נמוך).</p>
+                  {/* טאב: קווים מיותרים */}
+                  <section className="bg-rose-50/40 rounded-[2rem] p-6 border border-rose-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-rose-600 text-white p-2 rounded-xl"><Ic n="trash" size={18} /></div>
+                      <h3 className="text-xl font-black text-rose-700">קווים לא יעילים</h3>
+                    </div>
+                    <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
+                      <strong>מה הוא עושה:</strong> מדרג כל קו בסולם 0–100 לפי רמת אי-היעילות שלו, ומציג רק קווים עם ציון 25+. כל קו מקבל גם תווית סטטוס בולטת (חמור / לא יעיל / טעון בדיקה / סטייה קלה / תקין) וצבע מתאים.
+                    </p>
+
+                    <div className="bg-white rounded-2xl border border-rose-100 p-4 mb-3">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">שלב 1: סיווג ל-8 קטגוריות</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">לפני שמחשבים ציון, הקו מסווג לאחת מ-8 הקטגוריות הרשמיות של משרד התחבורה — לפי שדה "ייחודיות", "קבוצת יעילות תפעולית", סוג שירות, אורך מסלול (סף 45 ק"מ) ותדירות שבועית (סף 600).</p>
+                      <div className="flex flex-wrap gap-1.5 text-[11px] font-black">
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">אזורי</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">בינעירוני ארוך</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">בינעירוני קצר</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">עירוני תדירות גבוהה</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">עירוני תדירות נמוכה</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">לילה</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">קווים מזינים</span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md">תלמידים</span>
+                      </div>
                     </div>
 
-                    <ul className="list-disc list-inside text-slate-600 font-medium space-y-2 pr-2">
-                      <li><strong>נסיעות שפל (עד 30 נק&apos;):</strong> אחוז הנסיעות מתחת לסף הנוסעים של הקטגוריה (למשל 5 לאזורי, 15 לעירוני תדירות גבוהה).</li>
-                      <li><strong>קילומטר מבוזבז (עד 20 נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק ומספר ק&quot;מ אבסולוטי.</li>
-                      <li><strong>עלות תפעולית לנוסע (עד 20 נק&apos;):</strong> יחס לממוצע הקטגוריה. ≤0.7×=0 נק&apos;, 1.0-1.3×=5, 1.7-2.5×=12, 2.5-4×=16, 4-6×=18, מעל 6×=20.</li>
-                      <li><strong>ממוצע ועומס שיא (עד 30 נק&apos;):</strong> נוסעים בפועל ועומס שיא ביחס לקיבולת הרכב (מיניבוס=19, רגיל=50, מפרקי=90) ולסף הקטגוריה.</li>
-                    </ul>
-
-                    <div className="mt-4 bg-emerald-50 rounded-2xl border border-emerald-100 p-4">
-                      <h4 className="font-black text-emerald-800 text-sm mb-2">הגנות (מופחתות אחרי החיבור)</h4>
-                      <ul className="list-disc list-inside text-emerald-700 text-sm font-medium space-y-1 pr-2">
-                        <li><strong>תחנות בלעדיות / יעד ייחודי (−15 נק&apos;):</strong> אם הקו משרת תחנות שאין אליהן קו אחר.</li>
-                        <li><strong>מותאם רכבת (−10 נק&apos;):</strong> קו שיוצא בתיאום עם לוז רכבת ישראל (מצוין במפורש בעמודת ייחודיות).</li>
-                        <li><strong>תלמידים בשעות בי&quot;ס (−10 נק&apos;):</strong> אם 60%+ מהנסיעות בקטגוריית "תלמידים" חלות ב-7:00-8:30 או 13:00-15:30.</li>
+                    <div className="bg-white rounded-2xl border border-rose-100 p-4 mb-3">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">שלב 2: ניקוד (0–100)</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">ארבעה רכיבים, סף הנוסעים בכל אחד מהם מותאם לקטגוריה (5 לאזורי/לילה, 8 לקצר/מזין, 10 לארוך/תדירות נמוכה, 15 לתדירות גבוהה/תלמידים):</p>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
+                        <li><strong>נסיעות שפל (עד 30 נק&apos;):</strong> אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה.</li>
+                        <li><strong>קילומטר מבוזבז (עד 20 נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק וכמות מוחלטת.</li>
+                        <li><strong>עלות תפעולית לנוסע (עד 20 נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
+                        <li><strong>ממוצע נוסעים ועומס שיא (עד 30 נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
                       </ul>
                     </div>
 
-                    <div className="mt-4 bg-slate-50 rounded-2xl border border-slate-100 p-4">
-                      <h4 className="font-black text-slate-800 text-sm mb-2">5 רמות סטטוס לפי הציון הסופי</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs font-black">
-                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-2 text-center">0-24 תקין</div>
-                        <div className="bg-amber-50 border border-amber-200 text-amber-600 rounded-xl p-2 text-center">25-44 סטייה קלה</div>
-                        <div className="bg-orange-50 border border-orange-200 text-orange-600 rounded-xl p-2 text-center">45-64 טעון בדיקה</div>
-                        <div className="bg-rose-50 border border-rose-200 text-rose-600 rounded-xl p-2 text-center">65-79 לא יעיל</div>
+                    <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-4 mb-3">
+                      <h4 className="font-black text-emerald-800 text-sm mb-2">שלב 3: הגנות (מופחתות מהציון)</h4>
+                      <ul className="list-disc list-inside text-emerald-700 text-sm font-medium space-y-1 pr-2">
+                        <li><strong>תחנות בלעדיות / יעד ייחודי (−15):</strong> הקו משרת תחנות שאין אליהן קו אחר.</li>
+                        <li><strong>מותאם רכבת (−10):</strong> עמודת "ייחודיות" מציינת זאת במפורש.</li>
+                        <li><strong>תלמידים בשעות בי&quot;ס (−10):</strong> 60%+ מהנסיעות ב-7:00–8:30 או 13:00–15:30.</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-rose-100 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">שלב 4: תיוג סטטוס</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[11px] font-black">
+                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl p-2 text-center">0–24 תקין</div>
+                        <div className="bg-amber-50 border border-amber-200 text-amber-600 rounded-xl p-2 text-center">25–44 סטייה קלה</div>
+                        <div className="bg-orange-50 border border-orange-200 text-orange-600 rounded-xl p-2 text-center">45–64 טעון בדיקה</div>
+                        <div className="bg-rose-50 border border-rose-200 text-rose-600 rounded-xl p-2 text-center">65–79 לא יעיל</div>
                         <div className="bg-rose-100 border border-rose-300 text-rose-700 rounded-xl p-2 text-center">80+ חמור</div>
                       </div>
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-xl font-black text-indigo-700 mb-3 flex items-center gap-2"><Ic n="zap" size={20} /> אלגוריתם הסימולטור</h3>
-                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                      <div className="mb-4">
-                        <h4 className="font-black text-slate-800 text-sm mb-2">תנאי איחוד (התאמה דינמית לסוג רכב):</h4>
-                        <ul className="list-disc list-inside text-slate-600 text-sm space-y-2 pr-2">
-                          <li>
-                            <strong>עירוני ובין-עירוני:</strong> המערכת מחפשת נסיעות צמודות (עד 30 דקות פער בעירוני, עד שעה בבין-עירוני) שניתן לאחד מבלי לגרום לעומס על הרכב.
-                          </li>
-                          <li>
-                            <strong className="text-slate-800">רף הנוסעים המקסימלי לאיחוד שתי נסיעות:</strong>
-                            <ul className="list-none pr-6 mt-1 space-y-1 text-slate-500">
-                              <li>• <strong>מיניבוס (19 מקומות):</strong> יאוחדו אם סך הנוסעים יחד הוא עד ~7.</li>
-                              <li>• <strong>מידיבוס (35 מקומות):</strong> יאוחדו אם סך הנוסעים יחד הוא עד ~13.</li>
-                              <li>• <strong>אוטובוס רגיל (50 מקומות):</strong> יאוחדו אם סך הנוסעים יחד הוא עד ~18-20.</li>
-                              <li>• <strong>מפרקי (90 מקומות):</strong> יאוחדו אם סך הנוסעים יחד הוא עד ~32-36.</li>
-                            </ul>
-                          </li>
-                          <li><strong>אזורי:</strong> פער רחב של עד 3 שעות (או לפי זמן המתנה ידני). חלים אותם תנאי קיבולת נוסעים לפי גודל הרכב.</li>
-                        </ul>
-                      </div>
-                      <div className="pt-4 border-t border-slate-200">
-                        <h4 className="font-black text-slate-800 text-sm mb-2">תנאי ביטול (מחיקת נסיעות סרק):</h4>
-                        <ul className="list-disc list-inside text-slate-600 text-sm space-y-2 pr-2">
-                          <li>נסיעות שנופלות מתחת ל&quot;רף ביטול&quot; – כ-5 נוסעים באוטובוס רגיל לעירוני, כ-3 לאזורי. <strong>באוטובוסים קטנים (כמו מיניבוס) הרף יורד כדי לא לבטל נסיעות שמתאימות לקיבולת הקטנה, ובמפרקיות הרף עולה.</strong></li>
-                          <li><strong>חלופה זמינה:</strong> חובה שתהיה נסיעה חלופית קרובה בזמן (עד 15 דק&apos; בעירוני, שעה בבין-עירוני, או עד 4 שעות באזורי).</li>
-                          <li><strong>הגנת רשת (קווים אזוריים):</strong> אלגוריתם הביטול נעצר אם כמות הנסיעות בקו יורדת מתחת ל-3 ביום, כדי לשמור על קו חיים בסיסי.</li>
-                        </ul>
+                  {/* טאב: קווים תאומים */}
+                  <section className="bg-purple-50/40 rounded-[2rem] p-6 border border-purple-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-purple-600 text-white p-2 rounded-xl"><Ic n="copy" size={18} /></div>
+                      <h3 className="text-xl font-black text-purple-700">קווים תאומים</h3>
+                    </div>
+                    <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
+                      <strong>מה הוא עושה:</strong> מאתר קבוצות קווים שעושים בעצם את אותו מסלול, ומציע אותם כמועמדים לאיחוד. לכל קבוצה מחושב חיסכון פוטנציאלי שבועי משוער.
+                    </p>
+
+                    <div className="bg-white rounded-2xl border border-purple-100 p-4 mb-3">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">איך מחושב הדמיון</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">לכל קו נשמר סט התחנות הבודדות שלו (Stop_id). שני קווים נחשבים תאומים אם אחד משני המדדים עובר את סף 70%:</p>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 pr-2">
+                        <li><strong>Jaccard:</strong> תחנות משותפות חלקי איחוד התחנות — תופס קווים זהים לחלוטין.</li>
+                        <li><strong>Overlap:</strong> תחנות משותפות חלקי התחנות של הקו הקצר — תופס מצב שקו קצר הוא תת-מסלול של קו ארוך.</li>
+                      </ul>
+                      <p className="text-slate-500 text-xs leading-relaxed mt-2">קווים מעגליים (מוצא = יעד) מושווים בנפרד זה לזה ומסומנים בתווית <span dir="ltr" className="font-bold">↻ מעגלי</span>.</p>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-purple-100 p-4 mb-3">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">ציון התאומים (0–100)</h4>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 pr-2">
+                        <li><strong>דמיון מסלול (עד 50 נק&apos;):</strong> מתחיל לצבור רק מ-75% ומעלה.</li>
+                        <li><strong>חפיפת שעות (עד 25 נק&apos;):</strong> דורש חפיפה ממשית — לא רק אותו מסלול אלא גם באותן שעות.</li>
+                        <li><strong>ניצולת נמוכה (עד 20 נק&apos;):</strong> קווים עמוסים אינם מועמדים לאיחוד.</li>
+                        <li><strong>שני הקווים חלשים (5 נק&apos; בונוס):</strong> שניהם פחות מ-12 נוסעים בממוצע.</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-purple-100 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">3 רמות תאומים</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] font-black">
+                        <div className="bg-purple-50 border border-purple-200 text-purple-700 rounded-xl p-2 text-center">85+ תאומים מובהקים</div>
+                        <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-xl p-2 text-center">70+ כמעט תאומים</div>
+                        <div className="bg-slate-50 border border-slate-200 text-slate-600 rounded-xl p-2 text-center">60+ חפיפה משמעותית</div>
                       </div>
                     </div>
                   </section>
+
+                  {/* טאב: ניתוח אזורי */}
+                  <section className="bg-amber-50/40 rounded-[2rem] p-6 border border-amber-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-amber-600 text-white p-2 rounded-xl"><Ic n="chart" size={18} /></div>
+                      <h3 className="text-xl font-black text-amber-700">ניתוח אזורי</h3>
+                    </div>
+                    <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
+                      <strong>מה הוא עושה:</strong> מציג מפת חום אזורית של בעיות יעילות — לפי עיר או לפי מחוז. עוזר לזהות אזורים גיאוגרפיים עם ריכוז גבוה של קווים בעייתיים.
+                    </p>
+                    <div className="bg-white rounded-2xl border border-amber-100 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">איך החישוב עובד</h4>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
+                        <li>הניתוח מתייחס <strong>רק לקווים עם ציון 80+</strong> (סטטוס "חמור — דורש התערבות"), כדי לזקק את התמונה.</li>
+                        <li>לכל עיר/מחוז נסכמים: מספר הקווים החמורים, סך הנסיעות, סך ק"מ מבוזבז, וממוצע עלות תפעולית.</li>
+                        <li>לחיצה על אזור מעבירה ישירות לטאב "קווים לא יעילים" עם פילטר מתאים.</li>
+                      </ul>
+                    </div>
+                  </section>
+
+                  {/* טאב: כל הנסיעות */}
+                  <section className="bg-indigo-50/40 rounded-[2rem] p-6 border border-indigo-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-indigo-600 text-white p-2 rounded-xl"><Ic n="list" size={18} /></div>
+                      <h3 className="text-xl font-black text-indigo-700">כל הנסיעות במערכת</h3>
+                    </div>
+                    <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
+                      <strong>מה הוא עושה:</strong> טבלה מלאה של כל הנסיעות במערכת, עם אפשרות לסינון, חיפוש ומיון. שימושי לאיתור נקודתי של נסיעה ספציפית או לבחינת עומס בעיר מסוימת.
+                    </p>
+                    <div className="bg-white rounded-2xl border border-indigo-100 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">פילטרים זמינים</h4>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
+                        <li><strong>חיפוש עיר:</strong> מסנן נסיעות שעוברות דרך עיר מסוימת (מוצא, יעד, או דרך). הסינון מתבצע בהקשת Enter.</li>
+                        <li><strong>נסיעות עמוסות:</strong> טוגל שמסנן רק נסיעות עם ניצולת מעל 80% מקיבולת הרכב.</li>
+                        <li><strong>סוג קו:</strong> סינון לפי קטגוריית הקו (עירוני / בינעירוני / אזורי וכו&apos;).</li>
+                        <li><strong>מיון:</strong> לפי נוסעים או עומס שיא — עולה או יורד.</li>
+                      </ul>
+                    </div>
+                  </section>
+
+                  {/* טאב: סימולטור */}
+                  <section className="bg-slate-50 rounded-[2rem] p-6 border border-slate-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-slate-900 text-white p-2 rounded-xl"><Ic n="zap" size={18} /></div>
+                      <h3 className="text-xl font-black text-slate-900">אלגוריתם ייעול (סימולטור)</h3>
+                    </div>
+                    <p className="text-slate-700 font-medium text-sm mb-4 leading-relaxed">
+                      <strong>מה הוא עושה:</strong> מקבל קו מסוים ומציג המלצות פעולה לכל נסיעה: <strong>איחוד</strong> שתי נסיעות צמודות, <strong>ביטול</strong> נסיעת סרק, או <strong>השארה</strong>. כל המלצה כוללת נימוק והשפעה צפויה.
+                    </p>
+
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-3">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">תנאי איחוד</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">המערכת מחפשת נסיעות צמודות שניתן לאחד בלי לגרום לעומס. הסף הזמני:</p>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 pr-2 mb-3">
+                        <li><strong>עירוני:</strong> עד 30 דקות פער.</li>
+                        <li><strong>בין-עירוני:</strong> עד שעה.</li>
+                        <li><strong>אזורי:</strong> עד 3 שעות (או לפי זמן המתנה ידני).</li>
+                      </ul>
+                      <p className="text-slate-700 font-bold text-sm mb-1">סף סך נוסעים לאיחוד (מתאים לקיבולת הרכב):</p>
+                      <ul className="list-none text-slate-600 text-sm space-y-1 pr-2">
+                        <li>• <strong>מיניבוס (19):</strong> עד ~7 נוסעים יחד.</li>
+                        <li>• <strong>מידיבוס (35):</strong> עד ~13.</li>
+                        <li>• <strong>רגיל (50):</strong> עד ~18–20.</li>
+                        <li>• <strong>מפרקי (90):</strong> עד ~32–36.</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-2">תנאי ביטול</h4>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-2 pr-2">
+                        <li><strong>רף נוסעים נמוך:</strong> ~5 נוסעים באוטובוס רגיל לעירוני, ~3 לאזורי. ברכבים קטנים הרף יורד, במפרקי הוא עולה.</li>
+                        <li><strong>חלופה זמינה חובה:</strong> עד 15 דק&apos; בעירוני, שעה בבין-עירוני, או עד 4 שעות באזורי.</li>
+                        <li><strong>הגנת רשת (אזוריים):</strong> אלגוריתם הביטול נעצר אם תרד מתחת ל-3 נסיעות ביום — לשמור על קו חיים בסיסי.</li>
+                        <li><strong>הגנה על נסיעה ראשונה/אחרונה ביום:</strong> לעולם לא תוצע לביטול, גם אם ריקה.</li>
+                      </ul>
+                    </div>
+                  </section>
+
                 </div>
 
                 <div className="mt-12 bg-indigo-50/50 p-6 md:p-8 rounded-[2rem] border border-indigo-100 flex flex-col items-center text-center">
