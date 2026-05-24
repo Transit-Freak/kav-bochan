@@ -88,6 +88,20 @@ const parseCity = (stopName) => {
   return idx > 0 ? s.slice(0, idx).trim() : s.split('/')[0].trim();
 };
 
+// מנרמל שם תחנה ללא סיומת כיוון, כדי ששתי תחנות משני צדי הכביש
+// יתפסו לאותה נקודה פיזית. משמש כמפתח השוואה בזיהוי תאומים.
+const normalizeStopName = (stopName) => {
+  if (!stopName) return "";
+  return String(stopName)
+    .trim()
+    .replace(/\s*[-\u2013\u2014]\s*\u05dc\u05db\u05d9\u05d5\u05d5\u05df\s+.*$/, '')
+    .replace(/\s*[-\u2013\u2014]\s*\u05de\u05db\u05d9\u05d5\u05d5\u05df\s+.*$/, '')
+    .replace(/\s*\((?:\u05d4\u05dc\u05d5\u05da|\u05d7\u05d6\u05d5\u05e8)\)\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+};
+
 // ── parseXLSX — הלוגיקה המלאה ─────────────────────────────────────────
 function parseXLSX(buffer) {
   progress(8, "טוען ספריה...");
@@ -168,6 +182,8 @@ function parseXLSX(buffer) {
   const totalRows = XLSX.utils.decode_range(ws['!ref'] || "A1").e.r;
 
   const tempMakatCitiesMap = new Map();
+  const tempMakatStopsMap = new Map();
+  const tempMakatNormStopsMap = new Map(); // makat -> Set of normalized stop names (לזיהוי תאומים גם במקרה שצדי הכביש מקבלים Stop_id שונה)
   if (stopsSheetName) {
     const stopsRows = XLSX.utils.sheet_to_json(wb.Sheets[stopsSheetName], { defval: "" });
     for (const row of stopsRows) {
@@ -177,13 +193,25 @@ function parseXLSX(buffer) {
       ).trim();
       if (!routeId || routeId === "undefined") continue;
       const stopName = String(row['Stop_name'] || row['stop_name'] || row['שם תחנה'] || "").trim();
+      const stopId = String(row['Stop_id'] || row['stop_id'] || row['מס' + "'" + ' תחנה'] || "").trim();
       const city = parseCity(stopName);
-      if (!city) continue;
-      const cityLc = city.toLowerCase();
+      const normName = normalizeStopName(stopName);
       const makat = routeId.split('-')[0].replace(/^0+/, '').trim();
       if (!makat) continue;
-      if (!tempMakatCitiesMap.has(makat)) tempMakatCitiesMap.set(makat, new Set());
-      tempMakatCitiesMap.get(makat).add(cityLc);
+
+      if (city) {
+        const cityLc = city.toLowerCase();
+        if (!tempMakatCitiesMap.has(makat)) tempMakatCitiesMap.set(makat, new Set());
+        tempMakatCitiesMap.get(makat).add(cityLc);
+      }
+      if (stopId) {
+        if (!tempMakatStopsMap.has(makat)) tempMakatStopsMap.set(makat, new Set());
+        tempMakatStopsMap.get(makat).add(stopId);
+      }
+      if (normName) {
+        if (!tempMakatNormStopsMap.has(makat)) tempMakatNormStopsMap.set(makat, new Set());
+        tempMakatNormStopsMap.get(makat).add(normName);
+      }
     }
   }
 
@@ -329,6 +357,8 @@ function parseXLSX(buffer) {
   const CHUNK = 2000;  // ב-worker אפשר chunks גדולים יותר כי לא חוסם UI
   const parsed = [];
   const finalLineCitiesMap = new Map();
+  const finalLineStopsMap = new Map();
+  const finalLineNormStopsMap = new Map();
 
   for (let start = schedHeaderRow + 1; start <= totalRowsSched; start += CHUNK) {
     const end = Math.min(start + CHUNK - 1, totalRowsSched);
@@ -514,6 +544,18 @@ function parseXLSX(buffer) {
           const cleanLine = lineNum.replace(/^0+/, '');
           if (cleanLine) finalLineCitiesMap.set(cleanLine, citiesSet);
         }
+        const stopsSet = tempMakatStopsMap.get(mClean);
+        if (stopsSet) {
+          finalLineStopsMap.set(mClean, stopsSet);
+          const cleanLine = lineNum.replace(/^0+/, '');
+          if (cleanLine) finalLineStopsMap.set(cleanLine, stopsSet);
+        }
+        const normSet = tempMakatNormStopsMap.get(mClean);
+        if (normSet) {
+          finalLineNormStopsMap.set(mClean, normSet);
+          const cleanLine = lineNum.replace(/^0+/, '');
+          if (cleanLine) finalLineNormStopsMap.set(cleanLine, normSet);
+        }
       }
     }
 
@@ -552,7 +594,7 @@ function parseXLSX(buffer) {
     return t;
   });
 
-  return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap };
+  return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap, lineStopsMap: finalLineStopsMap, lineNormStopsMap: finalLineNormStopsMap };
 }
 
 // ── message handler ───────────────────────────────────────────────────
@@ -560,8 +602,8 @@ self.onmessage = (e) => {
   const { type, buffer } = e.data || {};
   if (type !== 'parse') return;
   try {
-    const { trips, lineCitiesMap } = parseXLSX(buffer);
-    post({ type: 'done', trips, lineCitiesMap });
+    const { trips, lineCitiesMap, lineStopsMap, lineNormStopsMap } = parseXLSX(buffer);
+    post({ type: 'done', trips, lineCitiesMap, lineStopsMap, lineNormStopsMap });
   } catch (err) {
     post({ type: 'error', message: err && err.message ? err.message : String(err) });
   }
