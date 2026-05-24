@@ -1266,9 +1266,9 @@ const DAYS_FILTER = [
       for (let i = 0; i < arr.length; i++) {
         for (let j = i + 1; j < arr.length; j++) {
           const a = arr[i], b = arr[j];
-          if (a.lineNum === b.lineNum) continue;
-          const aKey = String(a.lineNum).replace(/^0+/, '').trim();
-          const bKey = String(b.lineNum).replace(/^0+/, '').trim();
+          const aKey = String(a.makat || '').replace(/^0+/, '').trim();
+          const bKey = String(b.makat || '').replace(/^0+/, '').trim();
+          if (!aKey || !bKey || aKey === bKey) continue;
           const pairKey = [aKey, bKey].sort().join('||');
           if (seenPairs.has(pairKey)) continue;
           seenPairs.add(pairKey);
