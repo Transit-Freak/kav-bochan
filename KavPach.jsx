@@ -1594,7 +1594,9 @@ const DAYS_FILTER = [
         cityB: cap(cityB),
         isCircular: isCircularGroup,
         lines: groupLines.map(l => {
+          const refSetSize = l.refSet ? l.refSet.size : 0;
           const { cities, stops, refSet, timeBuckets, _lineKey, ...rest } = l;
+          rest.refSetSize = refSetSize;
           // directTwins: רק קווים שנמצאים בכרטיס הנוכחי (groupLines), מחוברים ישירות ב-adj,
           // ואינם הקו עצמו (לא לפי key ולא לפי מספר קו — מונע self-reference גם אם שני מק"טים חולקים lineNum).
           const myKey = l._lineKey;
@@ -2184,7 +2186,7 @@ const DAYS_FILTER = [
                   onClick={() => setShowWhatsNew(v => !v)}
                   className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
                 >
-                  עדכון גרסה 3.2
+                  עדכון גרסה 3.3
                 </button>
                 <span className="text-xs font-bold text-slate-400">נבנה על ידי שלמה הרטמן</span>
               </div>
@@ -2223,8 +2225,8 @@ const DAYS_FILTER = [
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.2</h3>
-                  <p className="text-slate-400 font-bold text-xs mt-1">חיפוש מהיר, קאש מקומי, וזיהוי קווים מעגליים</p>
+                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.3</h3>
+                  <p className="text-slate-400 font-bold text-xs mt-1">זיהוי תאומים מדויק, אלגוריתם חפיפה חדש, ועיצוב כרטיסים משודרג</p>
                 </div>
                 <button onClick={() => setShowWhatsNew(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
                   &times;
@@ -2234,44 +2236,73 @@ const DAYS_FILTER = [
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
-                    טעינה מיידית בכניסות חוזרות
-                  </h4>
-                  <p className="text-slate-600 mb-3">המערכת שומרת את הנתונים המעובדים בקאש מקומי בדפדפן. בכניסה הבאה, כל עוד קובץ המקור לא השתנה, הטעינה נמשכת פחות משנייה — בלי הורדה, בלי פרסור.</p>
-                  <ul className="list-disc list-inside space-y-2 marker:text-emerald-400 pr-2">
-                    <li><strong>HEAD request זריז</strong> בודק אם הקובץ השתנה. אם כן — הקאש מתעדכן אוטומטית.</li>
-                    <li><strong>הקאש פר-משתמש</strong>, נשמר ב-IndexedDB ולא פוגע בהגדרות הדפדפן.</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                    חיפוש חלק וללא לאגים
-                  </h4>
-                  <p className="text-slate-600 mb-3">החיפוש שודרג כך שההקלדה והמחיקה מיידיות גם בנייד. הסינון מתבצע רק בהקשה על <strong>Enter</strong> או בלחיצה על ה-× כדי לנקות — בלי עיבוד מיותר ברקע בכל מקש.</p>
-                  <ul className="list-disc list-inside space-y-2 marker:text-sky-400 pr-2">
-                    <li><strong>רינדור מותנה (content-visibility):</strong> הדפדפן מציג רק את הכרטיסים שעל המסך, ומדלג על כל מה שמחוץ לתצוגה. גלילה ברשימות גדולות הפכה חלקה.</li>
-                    <li><strong>פחות DOM, יותר FPS:</strong> טעינת הטבלה התחלתית קטנה משמעותית — הכפתור "טען עוד" עדיין זמין.</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
                     <span className="bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
-                    זיהוי קווים מעגליים בתאומים
+                    אלגוריתם longestContig לחפיפת מסלול אמיתית
                   </h4>
-                  <p className="text-slate-600 mb-3">קווים שהמוצא והיעד שלהם זהים (קווים מעגליים, למשל בתוך עיר אחת) נכנסים עכשיו לחישוב התאומים — באג ידוע שמנע מקבוצות כאלה להופיע. כרטיס תאומים מעגלי מסומן בתווית <span dir="ltr" className="font-bold">↻ מעגלי</span>.</p>
+                  <p className="text-slate-600 mb-2">במקום להשוות תחנות בצורה לא-מסודרת, המערכת מוצאת עכשיו את <strong>המקטע הרצוף הארוך ביותר</strong> שמשותף לשני קווים — בדיוק כמו שנוסע חווה בשטח. האלגוריתם מבוסס DP (תכנות דינמי) ורץ ב-O(n×m).</p>
+                  <ul className="list-disc list-inside space-y-1 marker:text-cyan-400 pr-2">
+                    <li><strong>תמיכה בקווים מעגליים:</strong> המסלול מוכפל פנימית כדי לזהות חפיפות שחוצות את נקודת ההתחלה.</li>
+                    <li><strong>מניעת ספירה כפולה:</strong> אורך המקטע מוגבל לאורך מסלול הקו הקצר.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
+                    Bron-Kerbosch במקום BFS לזיהוי קבוצות תאומים
+                  </h4>
+                  <p className="text-slate-600 mb-2">האלגוריתם הישן חיבר קווים באופן טרנזיטיבי (קו A דומה ל-B, קו B דומה ל-C — לכן A וC בכרטיס אחד גם בלי קשר ביניהם). גרסה 3.3 מפעילה <strong>Bron-Kerbosch עם אופטימיזציית ציר (pivot)</strong> שמוצא קליקות מקסימליות בלבד — כל קו בכרטיס חייב להיות דומה לכל קו אחר.</p>
+                  <ul className="list-disc list-inside space-y-1 marker:text-violet-400 pr-2">
+                    <li><strong>פיצול קליקות גדולות (4+ קווים)</strong> לתתי-קבוצות של עד 3 קווים באמצעות matching חמדני לפי משקל.</li>
+                    <li><strong>ממוצע דמיון (avgSimilarity)</strong> במקום מקסימום — מונע הצגת "100%" כאשר לא כולם זהים.</li>
+                  </ul>
                 </section>
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
                     <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
-                    באגים שתוקנו
+                    מניעת קיבוץ שגוי של קווים קצרים עם ארוכים
                   </h4>
-                  <ul className="list-disc list-inside space-y-2 marker:text-slate-400 pr-2">
-                    <li><strong>טולטיפ "הזמנה מראש" בנייד:</strong> הטולטיפ חרג מהמסך במכשירים צרים. עכשיו הוא מעוגן לימין וברוחב מותאם לרוחב המסך.</li>
-                    <li><strong>שאריות JSX מתצוגה:</strong> טקסט קוד מסוים הופיע בטעות מעל שדות חיפוש — נוקה.</li>
+                  <p className="text-slate-600">נוסף תנאי <strong>overlapReverse ≥ 25%</strong>: שני קווים יוכרו כתאומים רק אם לפחות רבע מהמסלול של כל אחד מהם נכלל במקטע המשותף. מונע מקו עם 16 תחנות להצטרף לקבוצה עם קו בן 153 תחנות.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
+                    ציון מבוסס מסלול בלבד
+                  </h4>
+                  <p className="text-slate-600">הציון מחושב לפי דמיון מסלול (עד 75 נק') ותפוסה נמוכה (עד 20 נק') בלבד. גורם חפיפת שעות הוסר — הוא לא מדד לכפילות אמיתית.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
+                    מקטע משותף = חיתוך כל קווי הקבוצה
+                  </h4>
+                  <p className="text-slate-600">ה"מקטע המשותף" שמוצג בכרטיס תאומים מחושב כחיתוך של <strong>כל</strong> הקווים בקבוצה (ולא רק הזוג הדומה ביותר) — מה שמבטיח שהתחנות המוצגות אכן משותפות לכולם.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">עיצוב</span>
+                    כרטיס תאומים מעוצב מחדש
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 marker:text-sky-400 pr-2">
+                    <li><strong>גבול צבעוני בצד ימין</strong> לפי סוג הכפילות: ורוד = זהים, ענבר = כיסוי מלא, ירוק = חלקי, סגול = מעגלי.</li>
+                    <li><strong>2 עמודות</strong> של פאנלי קו, כל אחד עם % כיסוי אינדיבידואלי ומסלול מקוצר.</li>
+                    <li><strong>מקטע משותף</strong> מוצג בקטע מסוגנן עם שמות תחנת ההתחלה והסוף.</li>
+                    <li><strong>קו X תאום עם קווים: Y, Z</strong> — מוצג בתוך כל פאנל קו בנפרד.</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
+                    <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
+                    תיקון "קו תאום עם" — הצגה נכונה
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 marker:text-slate-400 pr-2">
+                    <li>directTwins כולל רק קווים מאותו כרטיס (לא כל הגרף).</li>
+                    <li>קו לא יופיע כתאום של עצמו גם אם שני מק"טים שונים חולקים מספר קו.</li>
                   </ul>
                 </section>
 
@@ -2648,158 +2679,119 @@ const DAYS_FILTER = [
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {filteredTwins.slice(0, visibleTwinCount).map((twin, i) => {
                       const isExpanded = expandedTwin === twin.cityPair;
+
+                      // classify: קובע סגנון גבול ותווית לפי סוג הכפילות
+                      const classify = () => {
+                        if (twin.isCircular) return { label: 'לולאה מעגלית', cls: 'bg-purple-100 text-purple-700', border: 'border-r-purple-400' };
+                        const allFull = twin.lines.every(l => l.refSetSize > 0 && twin.overlapCount >= l.refSetSize);
+                        if (allFull) return { label: 'קווים זהים לחלוטין', cls: 'bg-rose-100 text-rose-700', border: 'border-r-rose-400' };
+                        const someContained = twin.lines.some(l => l.refSetSize > 0 && twin.overlapCount >= l.refSetSize);
+                        if (someContained) return { label: 'כיסוי מלא של קו אחד', cls: 'bg-amber-100 text-amber-700', border: 'border-r-amber-400' };
+                        return { label: 'חפיפה חלקית', cls: 'bg-teal-50 text-teal-700', border: 'border-r-teal-400' };
+                      };
+                      const { label, cls, border } = classify();
+
                       return (
-                        <div key={`twin-${twin.cityPair}-${i}`} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-purple-300 transition-all text-right">
-                          <div className="flex items-start justify-between mb-5">
-                            <div className="flex flex-col gap-2 items-start text-right">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <div className={`px-4 py-1.5 rounded-full text-[11px] font-black border ${twin.score >= 85 ? "bg-purple-50 border-purple-200 text-purple-700" : twin.score >= 70 ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}>
-                                  {twin.score >= 85 ? "תאומים מובהקים" : twin.score >= 70 ? "כמעט תאומים" : "חפיפה משמעותית"}
-                                </div>
-                                <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-600">
-                                  {twin.lineCount} קווים
-                                </div>
-                                {twin.isCircular && (
-                                  <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-cyan-50 border border-cyan-200 text-cyan-700 flex items-center gap-1">
-                                    <span className="text-base leading-none">↻</span>
-                                    מעגלי
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-slate-400 font-bold text-xs">{twin.district}</div>
+                        <div key={`twin-${twin.cityPair}-${i}`} className={`vcard bg-white border border-slate-100 border-r-4 ${border} rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow text-right`}>
+
+                          {/* כותרת: תווית + ציון */}
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-3 py-1 rounded-full text-xs font-black ${cls}`}>{label}</span>
+                              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">{twin.lineCount} קווים</span>
+                              {twin.district && <span className="text-slate-400 font-bold text-xs">{twin.district}</span>}
                             </div>
-                            <div className="bg-purple-600 text-white px-3 py-2 rounded-2xl font-black text-sm shadow-lg shrink-0 flex flex-col items-center min-w-[64px]">
+                            <div className="bg-purple-600 text-white px-3 py-2 rounded-2xl font-black text-sm shadow-lg shrink-0 flex flex-col items-center min-w-[56px]">
                               <div className="text-[10px] opacity-80 leading-none">ציון</div>
-                              <div className="text-2xl leading-none mt-0.5">{twin.score}</div>
+                              <div className="text-xl leading-none mt-0.5">{twin.score}</div>
                             </div>
                           </div>
 
+                          {/* לוח קווים: 2 עמודות */}
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            {twin.lines.map((l, j) => {
+                              const lineCovPct = (l.refSetSize > 0 && twin.overlapCount > 0)
+                                ? Math.round((twin.overlapCount / l.refSetSize) * 100)
+                                : null;
+                              const covFull = lineCovPct !== null && lineCovPct >= 100;
+                              return (
+                                <div key={`twin-line-${j}`} className="bg-slate-50 rounded-xl p-3">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span className="bg-slate-900 text-white px-2.5 py-0.5 rounded-lg text-sm font-black">{l.lineNum}</span>
+                                    {lineCovPct !== null && (
+                                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${covFull ? 'bg-rose-100 text-rose-700' : 'bg-teal-50 text-teal-700'}`}>{lineCovPct}%</span>
+                                    )}
+                                  </div>
+                                  <div className="text-slate-700 font-bold text-xs truncate">
+                                    {l.mainOrigin && l.mainDest ? `${l.mainOrigin} ← ${l.mainDest}` : (twin.isCircular ? `${twin.cityA} (מעגלי)` : `${twin.cityA} ↔ ${twin.cityB}`)}
+                                  </div>
+                                  {l.makat && <div className="text-slate-400 text-[10px] font-bold mt-0.5">מק"ט {l.makat}</div>}
+                                  {l.directTwins && l.directTwins.length > 0 && (
+                                    <div className="text-teal-600 text-[10px] font-black mt-1">תאום עם: {l.directTwins.join(', ')}</div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
                           {/* מקטע משותף */}
-                          {twin.overlapCount > 0 && twin.overlapFrom ? (
-                            <div className="bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3 mb-4">
-                              <div className="text-purple-500 font-black text-[10px] mb-1.5">מקטע משותף · {twin.overlapCount} תחנות</div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-black text-slate-900 text-sm">{twin.overlapFrom}</span>
-                                <span className="text-purple-400 font-black">↔</span>
-                                <span className="font-black text-slate-900 text-sm">{twin.overlapTo}</span>
+                          {twin.overlapCount > 0 && (
+                            <div className="bg-slate-50 rounded-xl p-3 mb-4">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-slate-500 font-black text-[11px]">מקטע משותף — {twin.overlapCount} תחנות ברצף</span>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-3 mb-4 min-w-0">
-                              {twin.isCircular ? (
-                                <>
-                                  <div className="text-cyan-600 text-xl font-black shrink-0">↻</div>
-                                  <div className="text-slate-900 font-black text-lg truncate">{twin.cityA}</div>
-                                  <div className="text-slate-400 font-bold text-xs">(מעגלי)</div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="text-slate-900 font-black text-lg truncate">{twin.cityA}</div>
-                                  <div className="text-slate-300 text-xl font-black shrink-0">↔</div>
-                                  <div className="text-slate-900 font-black text-lg truncate">{twin.cityB}</div>
-                                </>
+                              {twin.overlapFrom && twin.overlapTo && (
+                                <div className="text-[#0f7b6c] font-black text-sm">{twin.overlapFrom} —→ {twin.overlapTo}</div>
                               )}
                             </div>
                           )}
 
-                          {/* שורות קווים עם מסלול מלא */}
-                          <div className="space-y-2 mb-5">
-                            {twin.lines.map((l, j) => (
-                              <div key={`twin-line-${j}`} className={`rounded-2xl px-4 py-2.5 ${j === 0 ? "bg-slate-900" : "bg-slate-50 border border-slate-200"}`}>
-                                <div className="flex items-center gap-3">
-                                  <div className={`font-black text-sm shrink-0 w-8 text-center ${j === 0 ? "text-white" : "text-slate-900"}`}>{l.lineNum}</div>
-                                  <div className="flex-1 min-w-0">
-                                    {l.mainOrigin && l.mainDest ? (
-                                      <div className={`flex items-center gap-1.5 text-[12px] font-bold truncate ${j === 0 ? "text-slate-200" : "text-slate-600"}`}>
-                                        <span className="truncate">{l.mainOrigin}</span>
-                                        <span className={`shrink-0 ${j === 0 ? "text-slate-500" : "text-slate-300"}`}>→</span>
-                                        <span className="truncate">{l.mainDest}</span>
-                                      </div>
-                                    ) : (
-                                      <div className={`text-[12px] font-bold ${j === 0 ? "text-slate-300" : "text-slate-500"}`}>{twin.cityA} ↔ {twin.cityB}</div>
-                                    )}
-                                  </div>
-                                  <div className={`text-[11px] font-bold shrink-0 text-left ${j === 0 ? "text-slate-400" : "text-slate-400"}`}>
-                                    {l.tripCount} נסיעות · ~{l.avgRiders} נוסעים
-                                  </div>
-                                </div>
-                                {l.directTwins && l.directTwins.length > 0 && (
-                                  <div className={`mt-1.5 pr-11 text-[11px] font-bold ${j === 0 ? "text-slate-400" : "text-purple-600"}`}>
-                                    קו {l.lineNum} תאום עם קווים: {l.directTwins.join(', ')}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                            <div className="bg-purple-50 rounded-2xl p-3 text-right">
+                          {/* סטטיסטיקות */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                            <div className="bg-purple-50 rounded-xl p-2.5 text-right">
                               <div className="text-purple-500 font-black text-[10px]">דמיון מסלול</div>
-                              <div className="text-lg font-black text-purple-700">{twin.avgSimilarity}%</div>
+                              <div className="text-base font-black text-purple-700">{twin.avgSimilarity}%</div>
                             </div>
-                            <div className="bg-slate-50 rounded-2xl p-3 text-right">
-                              <div className="text-slate-400 font-black text-[10px]">חפיפת שעות</div>
-                              <div className="text-lg font-black text-slate-900">{twin.timeOverlapPct}%</div>
+                            <div className="bg-slate-50 rounded-xl p-2.5 text-right border border-slate-100">
+                              <div className="text-slate-400 font-black text-[10px]">תפוסה</div>
+                              <div className="text-base font-black text-slate-900">{twin.utilization}%</div>
                             </div>
-                            <div className="bg-slate-50 rounded-2xl p-3 text-right">
-                              <div className="text-slate-400 font-black text-[10px]">תפוסה מצטברת</div>
-                              <div className="text-lg font-black text-slate-900">{twin.utilization}%</div>
+                            <div className="bg-slate-50 rounded-xl p-2.5 text-right border border-slate-100">
+                              <div className="text-slate-400 font-black text-[10px]">נסיעות/שבוע</div>
+                              <div className="text-base font-black text-slate-900">{twin.totalTrips}</div>
                             </div>
-                            <div className="bg-emerald-50 rounded-2xl p-3 text-right">
+                            <div className="bg-emerald-50 rounded-xl p-2.5 text-right">
                               <div className="text-emerald-600 font-black text-[10px]">חיסכון שבועי</div>
-                              <div className="text-lg font-black text-emerald-700">₪{twin.potentialSavings.toLocaleString()}</div>
+                              <div className="text-base font-black text-emerald-700">₪{twin.potentialSavings.toLocaleString()}</div>
                             </div>
                           </div>
 
-                          {twin.commonCities && twin.commonCities.length > 0 && (
-                            <div className="bg-slate-50 rounded-2xl p-3 mb-3">
-                              <div className="text-slate-400 font-black text-[10px] mb-1.5">תחנות משותפות ({twin.commonCityCount})</div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {twin.commonCities.map((c, k) => (
-                                  <span key={`cc-${k}`} className="bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-full text-[11px] font-bold">{c}</span>
-                                ))}
-                                {twin.commonCityCount > twin.commonCities.length && (
-                                  <span className="text-slate-400 px-2.5 py-1 text-[11px] font-bold">+ {twin.commonCityCount - twin.commonCities.length} עוד</span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-
+                          {/* פירוט מורחב */}
                           {isExpanded && (
-                            <div className="border-t-2 border-slate-100 pt-4 mt-4 space-y-2">
-                              <div className="text-slate-500 font-black text-xs mb-2">פירוט קווים</div>
+                            <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
+                              <div className="text-slate-400 font-black text-[10px] mb-1">פירוט נוסף</div>
                               {twin.lines.map((l, j) => (
-                                <div key={`twin-detail-${j}`} className="flex items-center justify-between gap-3 bg-slate-50 rounded-2xl px-4 py-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm">{l.lineNum}</div>
+                                <div key={`twin-detail-${j}`} className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-3 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="bg-slate-900 text-white w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm">{l.lineNum}</div>
                                     <div className="text-right">
-                                      <div className="text-slate-900 font-black text-sm">
-                                        {l.lineType || "—"}
-                                        {l.directionCount > 1 && <span className="text-slate-400 font-bold text-[10px] mr-2">({l.directionCount} כיוונים)</span>}
-                                      </div>
-                                      <div className="text-slate-400 font-bold text-[11px]">מק"ט {l.makat || "—"}</div>
+                                      <div className="text-slate-700 font-black text-xs">{l.lineType || "—"}</div>
+                                      <div className="text-slate-400 font-bold text-[10px]">מק"ט {l.makat || "—"}</div>
                                     </div>
                                   </div>
-                                  <div className="flex gap-4 text-right">
+                                  <div className="flex gap-3 text-right">
                                     <div>
                                       <div className="text-slate-400 font-black text-[10px]">נסיעות</div>
                                       <div className="text-sm font-black text-slate-900">{l.tripCount}</div>
                                     </div>
                                     <div>
-                                      <div className="text-slate-400 font-black text-[10px]">ממוצע</div>
-                                      <div className="text-sm font-black text-slate-900">{l.avgRiders}</div>
+                                      <div className="text-slate-400 font-black text-[10px]">נוסעים</div>
+                                      <div className="text-sm font-black text-slate-900">~{l.avgRiders}</div>
                                     </div>
                                     <div>
                                       <div className="text-slate-400 font-black text-[10px]">ק"מ/שבוע</div>
                                       <div className="text-sm font-black text-slate-900">{l.weeklyKm.toLocaleString()}</div>
                                     </div>
-                                    {l.costPerRider > 0 && (
-                                      <div>
-                                        <div className="text-slate-400 font-black text-[10px]">₪/נוסע</div>
-                                        <div className="text-sm font-black text-slate-900">{l.costPerRider}</div>
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
                               ))}
@@ -2808,7 +2800,7 @@ const DAYS_FILTER = [
 
                           <button
                             onClick={() => setExpandedTwin(isExpanded ? null : twin.cityPair)}
-                            className="w-full mt-2 py-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-black text-sm transition-colors"
+                            className="w-full mt-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 font-black text-sm transition-colors border border-slate-100"
                           >
                             {isExpanded ? "הסתר פירוט" : "הצג פירוט קווים"}
                           </button>
@@ -3384,7 +3376,7 @@ const DAYS_FILTER = [
                   {/* מה חדש בגרסה הנוכחית — תמיד בהתחלה */}
                   <section className="bg-gradient-to-bl from-indigo-50 to-white rounded-[2rem] p-6 border-2 border-indigo-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.2</span>
+                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.3</span>
                       <h3 className="text-xl font-black text-indigo-700">מה חדש בעדכון הנוכחי</h3>
                     </div>
                     <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
