@@ -8,7 +8,7 @@
 //   OUT: { type: 'error', message: '...' }
 // ─────────────────────────────────────────────────────────────────────
 
-self.importScripts("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+self.importScripts("vendor/xlsx.full.min.js");
 
 const post = (msg) => self.postMessage(msg);
 const progress = (pct, message) => post({ type: 'progress', percent: pct, message });
