@@ -1566,67 +1566,31 @@ const DAYS_FILTER = [
       // compute overlap range from the pair with highest similarity
       let overlapFrom = '', overlapTo = '', overlapCount = 0;
       {
-        const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
-
-        // נסה גזע לפי normStops (שמות מנורמלים) — עמיד לפני שמק"טים שונים לאותה תחנה פיזית
-        const normalize = s => !s ? '' : String(s).trim()
-          .replace(/\s*[-–—]\s*לכיוון\s+.*$/, '')
-          .replace(/\s*[-–—]\s*מכיוון\s+.*$/, '')
-          .replace(/\s*\((?:הלוך|חזור)\)\s*$/, '')
-          .replace(/\s+/g, ' ').trim().toLowerCase();
-
-        let trunkNormSet = null;
-        let refNmMap = null;
-        let smallestNormSize = Infinity;
+        // גזע משותף = חיתוך של כל תחנות כל הקווים בקבוצה (לא רק הזוג הכי דומה)
+        let trunkSet = null;
+        let trunkNm = null; // מפת שמות עבור הקו הקצר ביותר (סדר תחנות שמור)
+        let smallestSize = Infinity;
         for (const lineKey of group) {
-          const agg = lineAgg.get(lineKey);
-          const ns = agg && agg.normStops;
-          const nm = lineStopNamesMap.get(lineKey);
-          if (!ns || ns.size === 0) continue;
-          if (!trunkNormSet) {
-            trunkNormSet = new Set(ns);
-            refNmMap = nm;
-            smallestNormSize = ns.size;
+          const s = lineStopsMap.get(lineKey) || lineStopsMap.get((lineAgg.get(lineKey)||{}).lineNum||'');
+          if (!s || s.size === 0) continue;
+          if (!trunkSet) {
+            trunkSet = new Set(s);
+            trunkNm = lineStopNamesMap.get(lineKey);
+            smallestSize = s.size;
           } else {
-            for (const n of Array.from(trunkNormSet)) if (!ns.has(n)) trunkNormSet.delete(n);
-            if (ns.size < smallestNormSize) { smallestNormSize = ns.size; refNmMap = nm; }
+            for (const id of Array.from(trunkSet)) if (!s.has(id)) trunkSet.delete(id);
+            // שמור את מפת השמות של הקו הקצר ביותר — מייצגת את סדר התחנות בגזע
+            if (s.size < smallestSize) { smallestSize = s.size; trunkNm = lineStopNamesMap.get(lineKey); }
           }
         }
-
-        if (trunkNormSet && trunkNormSet.size > 0 && refNmMap) {
-          // מסדר לפי ההופעה הראשונה של כל שם מנורמלי בקו ייחוס
-          const seen = new Set();
-          const orderedNames = [];
-          for (const [, name] of refNmMap) {
-            const norm = normalize(name);
-            if (trunkNormSet.has(norm) && !seen.has(norm)) { seen.add(norm); orderedNames.push(name); }
-          }
-          overlapCount = trunkNormSet.size;
-          if (orderedNames.length > 0) {
-            overlapFrom = stripCity(orderedNames[0]);
-            overlapTo   = stripCity(orderedNames[orderedNames.length - 1]);
-          }
-        } else {
-          // fallback: חיתוך לפי stop IDs
-          let trunkSet = null;
-          let trunkNm = null;
-          let smallestSize = Infinity;
-          for (const lineKey of group) {
-            const s = lineStopsMap.get(lineKey) || lineStopsMap.get((lineAgg.get(lineKey)||{}).lineNum||'');
-            if (!s || s.size === 0) continue;
-            if (!trunkSet) { trunkSet = new Set(s); trunkNm = lineStopNamesMap.get(lineKey); smallestSize = s.size; }
-            else {
-              for (const id of Array.from(trunkSet)) if (!s.has(id)) trunkSet.delete(id);
-              if (s.size < smallestSize) { smallestSize = s.size; trunkNm = lineStopNamesMap.get(lineKey); }
-            }
-          }
-          if (trunkSet && trunkSet.size > 0 && trunkNm) {
-            const ordered = Array.from(trunkNm.keys()).filter(id => trunkSet.has(id));
-            overlapCount = trunkSet.size;
-            if (ordered.length > 0) {
-              overlapFrom = stripCity(trunkNm.get(ordered[0]) || '');
-              overlapTo   = stripCity(trunkNm.get(ordered[ordered.length - 1]) || '');
-            }
+        if (trunkSet && trunkSet.size > 0 && trunkNm) {
+          // מסדר את תחנות הגזע לפי סדר ההופעה בקו הקצר ביותר
+          const ordered = Array.from(trunkNm.keys()).filter(id => trunkSet.has(id));
+          overlapCount = trunkSet.size;
+          if (ordered.length > 0) {
+            const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
+            overlapFrom = stripCity(trunkNm.get(ordered[0]) || '');
+            overlapTo   = stripCity(trunkNm.get(ordered[ordered.length - 1]) || '');
           }
         }
       }
@@ -2783,9 +2747,14 @@ const DAYS_FILTER = [
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-slate-500 font-black text-[11px]">מקטע משותף — {twin.overlapCount} תחנות ברצף</span>
                               </div>
-                              {twin.overlapFrom && twin.overlapTo && (
-                                <div className="text-[#0f7b6c] font-black text-sm">{twin.overlapFrom} —→ {twin.overlapTo}</div>
-                              )}
+                              {twin.overlapFrom && twin.overlapTo && (() => {
+                                // אם שתי נקודות הגזע שייכות לאותו מקום פיזי — הצג שם אחד
+                                const sameLocation = twin.overlapFrom === twin.overlapTo ||
+                                  twin.overlapFrom.replace(/[/\\|,].*$/, '').trim() === twin.overlapTo.replace(/[/\\|,].*$/, '').trim();
+                                return sameLocation
+                                  ? <div className="text-[#0f7b6c] font-black text-sm">{twin.overlapFrom.replace(/[/\\|,].*$/, '').trim()}</div>
+                                  : <div className="text-[#0f7b6c] font-black text-sm">{twin.overlapFrom} —→ {twin.overlapTo}</div>;
+                              })()}
                             </div>
                           )}
 
