@@ -1467,34 +1467,31 @@ const DAYS_FILTER = [
       // compute overlap range from the pair with highest similarity
       let overlapFrom = '', overlapTo = '', overlapCount = 0;
       {
-        let bestA = null, bestB = null, bestSim = -1;
-        for (let i = 0; i < group.length; i++) {
-          const ai = adj.get(group[i]);
-          if (!ai) continue;
-          for (let j = i + 1; j < group.length; j++) {
-            if (ai.has(group[j])) {
-              const s = ai.get(group[j]);
-              if (s > bestSim) { bestSim = s; bestA = group[i]; bestB = group[j]; }
-            }
+        // גזע משותף = חיתוך של כל תחנות כל הקווים בקבוצה (לא רק הזוג הכי דומה)
+        let trunkSet = null;
+        let trunkNm = null; // מפת שמות עבור הקו הקצר ביותר (סדר תחנות שמור)
+        let smallestSize = Infinity;
+        for (const lineKey of group) {
+          const s = lineStopsMap.get(lineKey) || lineStopsMap.get((lineAgg.get(lineKey)||{}).lineNum||'');
+          if (!s || s.size === 0) continue;
+          if (!trunkSet) {
+            trunkSet = new Set(s);
+            trunkNm = lineStopNamesMap.get(lineKey);
+            smallestSize = s.size;
+          } else {
+            for (const id of Array.from(trunkSet)) if (!s.has(id)) trunkSet.delete(id);
+            // שמור את מפת השמות של הקו הקצר ביותר — מייצגת את סדר התחנות בגזע
+            if (s.size < smallestSize) { smallestSize = s.size; trunkNm = lineStopNamesMap.get(lineKey); }
           }
         }
-        if (bestA && bestB) {
-          const aSet = lineStopsMap.get(bestA) || lineStopsMap.get((lineAgg.get(bestA)||{}).lineNum||'');
-          const bSet = lineStopsMap.get(bestB) || lineStopsMap.get((lineAgg.get(bestB)||{}).lineNum||'');
-          const aNm = lineStopNamesMap.get(bestA);
-          const bNm = lineStopNamesMap.get(bestB);
-          if (aSet && bSet) {
-            const [small, big, nm] = aSet.size <= bSet.size ? [aSet, bSet, aNm] : [bSet, aSet, bNm];
-            const inter = Array.from(small).filter(id => big.has(id));
-            overlapCount = inter.length;
-            if (inter.length > 0 && nm) {
-              const rawFrom = nm.get(inter[0]) || '';
-              const rawTo = nm.get(inter[inter.length - 1]) || '';
-              // strip city prefix "עיר - " to keep only the stop local name
-              const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
-              overlapFrom = stripCity(rawFrom);
-              overlapTo = stripCity(rawTo);
-            }
+        if (trunkSet && trunkSet.size > 0 && trunkNm) {
+          // מסדר את תחנות הגזע לפי סדר ההופעה בקו הקצר ביותר
+          const ordered = Array.from(trunkNm.keys()).filter(id => trunkSet.has(id));
+          overlapCount = trunkSet.size;
+          if (ordered.length > 0) {
+            const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
+            overlapFrom = stripCity(trunkNm.get(ordered[0]) || '');
+            overlapTo   = stripCity(trunkNm.get(ordered[ordered.length - 1]) || '');
           }
         }
       }
@@ -1506,6 +1503,13 @@ const DAYS_FILTER = [
         isCircular: isCircularGroup,
         lines: groupLines.map(l => {
           const { cities, stops, refSet, timeBuckets, _lineKey, ...rest } = l;
+          // קווים שעמם יש קשר ישיר (קצה ב-adj) — לתצוגת "תאום ישיר"
+          const myKey = l._lineKey;
+          const myAdj = adj.get(myKey);
+          rest.directTwins = myAdj
+            ? group.filter(k => k !== myKey && myAdj.has(k))
+                .map(k => (lineAgg.get(k)||{}).lineNum).filter(Boolean)
+            : [];
           return rest;
         }),
         lineCount: groupLines.length,
@@ -2605,22 +2609,32 @@ const DAYS_FILTER = [
                           {/* שורות קווים עם מסלול מלא */}
                           <div className="space-y-2 mb-5">
                             {twin.lines.map((l, j) => (
-                              <div key={`twin-line-${j}`} className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 ${j === 0 ? "bg-slate-900" : "bg-slate-50 border border-slate-200"}`}>
-                                <div className={`font-black text-sm shrink-0 w-8 text-center ${j === 0 ? "text-white" : "text-slate-900"}`}>{l.lineNum}</div>
-                                <div className="flex-1 min-w-0">
-                                  {l.mainOrigin && l.mainDest ? (
-                                    <div className={`flex items-center gap-1.5 text-[12px] font-bold truncate ${j === 0 ? "text-slate-200" : "text-slate-600"}`}>
-                                      <span className="truncate">{l.mainOrigin}</span>
-                                      <span className={`shrink-0 ${j === 0 ? "text-slate-500" : "text-slate-300"}`}>→</span>
-                                      <span className="truncate">{l.mainDest}</span>
-                                    </div>
-                                  ) : (
-                                    <div className={`text-[12px] font-bold ${j === 0 ? "text-slate-300" : "text-slate-500"}`}>{twin.cityA} ↔ {twin.cityB}</div>
-                                  )}
+                              <div key={`twin-line-${j}`} className={`rounded-2xl px-4 py-2.5 ${j === 0 ? "bg-slate-900" : "bg-slate-50 border border-slate-200"}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className={`font-black text-sm shrink-0 w-8 text-center ${j === 0 ? "text-white" : "text-slate-900"}`}>{l.lineNum}</div>
+                                  <div className="flex-1 min-w-0">
+                                    {l.mainOrigin && l.mainDest ? (
+                                      <div className={`flex items-center gap-1.5 text-[12px] font-bold truncate ${j === 0 ? "text-slate-200" : "text-slate-600"}`}>
+                                        <span className="truncate">{l.mainOrigin}</span>
+                                        <span className={`shrink-0 ${j === 0 ? "text-slate-500" : "text-slate-300"}`}>→</span>
+                                        <span className="truncate">{l.mainDest}</span>
+                                      </div>
+                                    ) : (
+                                      <div className={`text-[12px] font-bold ${j === 0 ? "text-slate-300" : "text-slate-500"}`}>{twin.cityA} ↔ {twin.cityB}</div>
+                                    )}
+                                  </div>
+                                  <div className={`text-[11px] font-bold shrink-0 text-left ${j === 0 ? "text-slate-400" : "text-slate-400"}`}>
+                                    {l.tripCount} נסיעות · ~{l.avgRiders} נוסעים
+                                  </div>
                                 </div>
-                                <div className={`text-[11px] font-bold shrink-0 text-left ${j === 0 ? "text-slate-400" : "text-slate-400"}`}>
-                                  {l.tripCount} נסיעות · ~{l.avgRiders} נוסעים
-                                </div>
+                                {l.directTwins && l.directTwins.length > 0 && (
+                                  <div className={`flex items-center gap-1.5 mt-1.5 flex-wrap ${j === 0 ? "pr-11" : "pr-11"}`}>
+                                    <span className={`text-[10px] font-bold ${j === 0 ? "text-slate-500" : "text-slate-400"}`}>חופף ישירות עם:</span>
+                                    {l.directTwins.map((dn, di) => (
+                                      <span key={di} className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${j === 0 ? "bg-slate-700 text-slate-200" : "bg-purple-100 text-purple-700"}`}>{dn}</span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
