@@ -1286,6 +1286,9 @@ const DAYS_FILTER = [
           const union = aSet.size + bSet.size - inter;
           let jaccard = union > 0 ? inter / union : 0;
           let overlap = small.size > 0 ? inter / small.size : 0;
+          // overlapReverse: how much of the *larger* line is covered — prevents a tiny line
+          // from being falsely linked to a huge line that merely passes through the same stops.
+          let overlapReverse = big.size > 0 ? inter / big.size : 0;
 
           // השוואה מקבילה על שמות תחנות מנורמלים (ללא סיומת כיוון) —
           // להלימה במקרה ששני קווים עוברים באותה תחנה פיזית אך ב-Stop_id שוני
@@ -1299,12 +1302,17 @@ const DAYS_FILTER = [
             const unionN = aN.size + bN.size - interN;
             const jaccardN = unionN > 0 ? interN / unionN : 0;
             const overlapN = smallN.size > 0 ? interN / smallN.size : 0;
+            const overlapRevN = bigN.size > 0 ? interN / bigN.size : 0;
             if (jaccardN > jaccard) jaccard = jaccardN;
             if (overlapN > overlap) overlap = overlapN;
+            if (overlapRevN > overlapReverse) overlapReverse = overlapRevN;
           }
-          // מסמן כתאום אם אחד מהשניים עובר את הסף שלו.
-          // למיון נשתמש במיטב מהשניים (משקף עד כמה הקווים דומים אמיתית).
-          const isTwin = jaccard >= TWIN_JACCARD_THRESHOLD || overlap >= TWIN_OVERLAP_THRESHOLD;
+          // קו תאום: Jaccard גבוה (קווים דומים בגודל) OR overlap גבוה מצד הקו הקצר יותר
+          // AND overlapReverse מינימלי מצד הקו הארוך — מונע חיבור שגוי בין קו קצר
+          // לקו ארוך מאוד שרק עובר דרך אותן תחנות (כגון: קו עירוני עם 150+ תחנות).
+          const TWIN_OVERLAP_REVERSE_MIN = 0.25;
+          const isTwin = jaccard >= TWIN_JACCARD_THRESHOLD ||
+            (overlap >= TWIN_OVERLAP_THRESHOLD && overlapReverse >= TWIN_OVERLAP_REVERSE_MIN);
           const sim = Math.max(jaccard, overlap);
 
           if (isTwin) {
