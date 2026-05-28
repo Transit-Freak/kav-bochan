@@ -184,6 +184,7 @@ function parseXLSX(buffer) {
   const tempMakatCitiesMap = new Map();
   const tempMakatStopsMap = new Map();
   const tempMakatNormStopsMap = new Map(); // makat -> Set of normalized stop names (לזיהוי תאומים גם במקרה שצדי הכביש מקבלים Stop_id שונה)
+  const tempMakatStopNamesMap = new Map(); // makat -> Map<stopId, stopName>
   if (stopsSheetName) {
     const stopsRows = XLSX.utils.sheet_to_json(wb.Sheets[stopsSheetName], { defval: "" });
     for (const row of stopsRows) {
@@ -211,6 +212,11 @@ function parseXLSX(buffer) {
       if (normName) {
         if (!tempMakatNormStopsMap.has(makat)) tempMakatNormStopsMap.set(makat, new Set());
         tempMakatNormStopsMap.get(makat).add(normName);
+      }
+      if (stopId && stopName) {
+        if (!tempMakatStopNamesMap.has(makat)) tempMakatStopNamesMap.set(makat, new Map());
+        if (!tempMakatStopNamesMap.get(makat).has(stopId)) // only first occurrence (preserves direction-1 order)
+          tempMakatStopNamesMap.get(makat).set(stopId, stopName);
       }
     }
   }
@@ -359,6 +365,7 @@ function parseXLSX(buffer) {
   const finalLineCitiesMap = new Map();
   const finalLineStopsMap = new Map();
   const finalLineNormStopsMap = new Map();
+  const finalLineStopNamesMap = new Map();
 
   for (let start = schedHeaderRow + 1; start <= totalRowsSched; start += CHUNK) {
     const end = Math.min(start + CHUNK - 1, totalRowsSched);
@@ -556,6 +563,12 @@ function parseXLSX(buffer) {
           const cleanLine = lineNum.replace(/^0+/, '');
           if (cleanLine) finalLineNormStopsMap.set(cleanLine, normSet);
         }
+        const stopNamesSet = tempMakatStopNamesMap.get(mClean);
+        if (stopNamesSet) {
+          finalLineStopNamesMap.set(mClean, stopNamesSet);
+          const cleanLineSnm = lineNum.replace(/^0+/, '');
+          if (cleanLineSnm) finalLineStopNamesMap.set(cleanLineSnm, stopNamesSet);
+        }
       }
     }
 
@@ -594,7 +607,7 @@ function parseXLSX(buffer) {
     return t;
   });
 
-  return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap, lineStopsMap: finalLineStopsMap, lineNormStopsMap: finalLineNormStopsMap };
+  return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap, lineStopsMap: finalLineStopsMap, lineNormStopsMap: finalLineNormStopsMap, lineStopNamesMap: finalLineStopNamesMap };
 }
 
 // ── message handler ───────────────────────────────────────────────────
@@ -602,8 +615,8 @@ self.onmessage = (e) => {
   const { type, buffer } = e.data || {};
   if (type !== 'parse') return;
   try {
-    const { trips, lineCitiesMap, lineStopsMap, lineNormStopsMap } = parseXLSX(buffer);
-    post({ type: 'done', trips, lineCitiesMap, lineStopsMap, lineNormStopsMap });
+    const { trips, lineCitiesMap, lineStopsMap, lineNormStopsMap, lineStopNamesMap } = parseXLSX(buffer);
+    post({ type: 'done', trips, lineCitiesMap, lineStopsMap, lineNormStopsMap, lineStopNamesMap });
   } catch (err) {
     post({ type: 'error', message: err && err.message ? err.message : String(err) });
   }

@@ -414,6 +414,7 @@ function KavPach() {
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
   const [lineNormStopsMap, setLineNormStopsMap] = useState(new Map());
+  const [lineStopNamesMap, setLineStopNamesMap] = useState(new Map());
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -775,6 +776,7 @@ const DAYS_FILTER = [
           setLineCitiesMap(cached.lineCitiesMap instanceof Map ? cached.lineCitiesMap : new Map());
           setLineStopsMap(cached.lineStopsMap instanceof Map ? cached.lineStopsMap : new Map());
           setLineNormStopsMap(cached.lineNormStopsMap instanceof Map ? cached.lineNormStopsMap : new Map());
+          setLineStopNamesMap(cached.lineStopNamesMap instanceof Map ? cached.lineStopNamesMap : new Map());
           // DEBUG: חשיפה ל-window גם בטעינה מהקאש
           if (typeof window !== 'undefined') {
             window.__kp_trips = cached.trips;
@@ -868,9 +870,11 @@ const DAYS_FILTER = [
           const lcm = msg.lineCitiesMap instanceof Map ? msg.lineCitiesMap : new Map();
           const lsm = msg.lineStopsMap instanceof Map ? msg.lineStopsMap : new Map();
           const lnsm = msg.lineNormStopsMap instanceof Map ? msg.lineNormStopsMap : new Map();
+          const lsnm2 = msg.lineStopNamesMap instanceof Map ? msg.lineStopNamesMap : new Map();
           setLineCitiesMap(lcm);
           setLineStopsMap(lsm);
           setLineNormStopsMap(lnsm);
+          setLineStopNamesMap(lsnm2);
           // DEBUG: חשיפה זמנית ל-window לטובת איתור באגים מהקונסול
           if (typeof window !== 'undefined') {
             window.__kp_trips = msg.trips || [];
@@ -889,6 +893,7 @@ const DAYS_FILTER = [
               lineCitiesMap: lcm,
               lineStopsMap: lsm,
               lineNormStopsMap: lnsm,
+              lineStopNamesMap: lsnm2,
               savedAt: Date.now(),
             });
           }
@@ -1454,6 +1459,42 @@ const DAYS_FILTER = [
 
       // קבוצה נחשבת מעגלית אם כל הקווים בה מעגליים
       const isCircularGroup = groupLines.every(l => l.isCircular);
+
+      // compute overlap range from the pair with highest similarity
+      let overlapFrom = '', overlapTo = '', overlapCount = 0;
+      {
+        let bestA = null, bestB = null, bestSim = -1;
+        for (let i = 0; i < group.length; i++) {
+          const ai = adj.get(group[i]);
+          if (!ai) continue;
+          for (let j = i + 1; j < group.length; j++) {
+            if (ai.has(group[j])) {
+              const s = ai.get(group[j]);
+              if (s > bestSim) { bestSim = s; bestA = group[i]; bestB = group[j]; }
+            }
+          }
+        }
+        if (bestA && bestB) {
+          const aSet = lineStopsMap.get(bestA) || lineStopsMap.get((lineAgg.get(bestA)||{}).lineNum||'');
+          const bSet = lineStopsMap.get(bestB) || lineStopsMap.get((lineAgg.get(bestB)||{}).lineNum||'');
+          const aNm = lineStopNamesMap.get(bestA);
+          const bNm = lineStopNamesMap.get(bestB);
+          if (aSet && bSet) {
+            const [small, big, nm] = aSet.size <= bSet.size ? [aSet, bSet, aNm] : [bSet, aSet, bNm];
+            const inter = Array.from(small).filter(id => big.has(id));
+            overlapCount = inter.length;
+            if (inter.length > 0 && nm) {
+              const rawFrom = nm.get(inter[0]) || '';
+              const rawTo = nm.get(inter[inter.length - 1]) || '';
+              // strip city prefix "עיר - " to keep only the stop local name
+              const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
+              overlapFrom = stripCity(rawFrom);
+              overlapTo = stripCity(rawTo);
+            }
+          }
+        }
+      }
+
       result.push({
         cityPair: group.slice().sort().join('-'),
         cityA: cap(cityA),
@@ -1478,6 +1519,9 @@ const DAYS_FILTER = [
         district: mainLine.district,
         districts: new Set(groupLines.map(l => l.district).filter(Boolean)),
         lineNumbers: groupLines.map(l => l.lineNum).join(', '),
+        overlapFrom,
+        overlapTo,
+        overlapCount,
       });
     }
 
@@ -1485,7 +1529,7 @@ const DAYS_FILTER = [
     return result
       .filter(t => t.score >= 50)
       .sort((a, b) => b.score - a.score || b.potentialSavings - a.potentialSavings);
-  }, [trips, lineCitiesMap, lineStopsMap, lineNormStopsMap]);
+  }, [trips, lineCitiesMap, lineStopsMap, lineNormStopsMap, lineStopNamesMap]);
 
   const filteredTwins = useMemo(() => {
     let result = twinLines;
@@ -2582,6 +2626,18 @@ const DAYS_FILTER = [
                                 {twin.commonCityCount > twin.commonCities.length && (
                                   <span className="text-slate-400 px-2.5 py-1 text-[11px] font-bold">+ {twin.commonCityCount - twin.commonCities.length} עוד</span>
                                 )}
+                              </div>
+                            </div>
+                          )}
+
+                          {twin.overlapCount > 0 && twin.overlapFrom && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 text-right">
+                              <div className="text-[11px] font-bold text-slate-400 mb-1">טווח חפיפה</div>
+                              <div className="text-sm text-slate-700 font-medium">
+                                <span className="font-bold">{twin.overlapFrom}</span>
+                                <span className="mx-2 text-slate-400">←</span>
+                                <span className="font-bold">{twin.overlapTo}</span>
+                                <span className="ml-2 text-xs text-slate-400">({twin.overlapCount} תחנות)</span>
                               </div>
                             </div>
                           )}
