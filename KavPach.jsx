@@ -1326,22 +1326,37 @@ const DAYS_FILTER = [
     }
     if (!adj.size) return [];
 
-    // ── שלב 4: connected components → קבוצות תאומים ──
-    const visited = new Set();
+    // ── שלב 4: Bron-Kerbosch maximal cliques → קבוצות תאומים ──
+    // כל קבוצה היא clique מקסימלי: כל זוג קווים בה מחובר ישירות ב-adj.
+    // מונע קבוצות גדולות שנוצרות מחיבור עקיף (A-B-C ב-BFS אפילו ש-A ו-C אינם תאומים).
     const groups = [];
-    for (const startLine of adj.keys()) {
-      if (visited.has(startLine)) continue;
-      const group = [];
-      const queue = [startLine];
-      while (queue.length) {
-        const cur = queue.shift();
-        if (visited.has(cur)) continue;
-        visited.add(cur);
-        group.push(cur);
-        const neighbors = adj.get(cur);
-        if (neighbors) for (const n of neighbors.keys()) if (!visited.has(n)) queue.push(n);
+    {
+      const allNodes = Array.from(adj.keys());
+      // BK with pivot (Tomita variant) for performance
+      function bk(R, P, X) {
+        if (P.length === 0 && X.length === 0) {
+          if (R.length >= 2) groups.push([...R]);
+          return;
+        }
+        // בחירת pivot — הצומת עם הכי הרבה שכנים ב-P (מקטין ענפים)
+        let pivot = P[0] || X[0];
+        let pivotScore = -1;
+        for (const u of [...P, ...X]) {
+          const uN = adj.get(u);
+          const score = uN ? P.filter(p => uN.has(p)).length : 0;
+          if (score > pivotScore) { pivotScore = score; pivot = u; }
+        }
+        const pivotN = adj.get(pivot) || new Map();
+        const candidates = P.filter(v => !pivotN.has(v));
+        let P2 = [...P], X2 = [...X];
+        for (const v of candidates) {
+          const vN = adj.get(v) || new Map();
+          bk([...R, v], P2.filter(p => vN.has(p)), X2.filter(x => vN.has(x)));
+          P2 = P2.filter(p => p !== v);
+          X2 = [...X2, v];
+        }
       }
-      if (group.length >= 2) groups.push(group);
+      bk([], allNodes, []);
     }
 
     // ── שלב 5: בניית תוצאה לכל קבוצה ──
@@ -1435,8 +1450,8 @@ const DAYS_FILTER = [
       // ניקוד מבוסס מסלול בלבד: דמיון מסלול הוא העוגן (75 נק'), ניצולת נמוכה (20 נק'), בונוס (5 נק').
       // חפיפת שעות אינה חלק מהניקוד — מוצגת לידוע בלבד.
       let score = 0;
-      // 1. דמיון מסלול (עד 75 נק') — משתמש במקסימום הזוגות כדי לא לקנוס קבוצות שבהן קו קצר מוכל בקו ארוך
-      const routeSim = Math.max(avgSimilarity, maxSimilarity);
+      // 1. דמיון מסלול (עד 75 נק') — עם cliques כל זוג מחובר ישירות, ממוצע מייצג את הקבוצה
+      const routeSim = avgSimilarity;
       if (routeSim >= 70) score += Math.min(75, (routeSim - 70) * 3);
       // 2. ניצולת נמוכה (עד 20 נק') — קווים עמוסים אינם מועמדים לאיחוד
       if (utilization < 0.25) score += 20;
@@ -2642,7 +2657,7 @@ const DAYS_FILTER = [
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                             <div className="bg-purple-50 rounded-2xl p-3 text-right">
                               <div className="text-purple-500 font-black text-[10px]">דמיון מסלול</div>
-                              <div className="text-lg font-black text-purple-700">{twin.maxSimilarity ?? twin.avgSimilarity}%</div>
+                              <div className="text-lg font-black text-purple-700">{twin.avgSimilarity}%</div>
                             </div>
                             <div className="bg-slate-50 rounded-2xl p-3 text-right">
                               <div className="text-slate-400 font-black text-[10px]">חפיפת שעות</div>
