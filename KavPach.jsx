@@ -1359,6 +1359,61 @@ const DAYS_FILTER = [
       bk([], allNodes, []);
     }
 
+    // ── שלב 4b: פיצול cliques גדולים לתת-קבוצות (עד 3 קווים כל אחת) ──
+    // clique של 4+ קווים מפוצל לזוגות/שלישיות עצמאיות עם חישוב נפרד לכל אחת.
+    // אלגוריתם: Greedy maximum-weight matching — מתאים תחילה את הזוגות הכי דומים,
+    // ואחר כך מנסה להוסיף קו שלישי שמחובר לשניהם.
+    {
+      const MAX_GROUP = 3;
+      const toSplit = groups.splice(0, groups.length); // drain groups array
+      for (const group of toSplit) {
+        if (group.length <= MAX_GROUP) { groups.push(group); continue; }
+
+        // אסוף את כל הזוגות הישירים ממוינים לפי דמיון יורד
+        const pairs = [];
+        for (let i = 0; i < group.length; i++) {
+          const ai = adj.get(group[i]);
+          if (!ai) continue;
+          for (let j = i + 1; j < group.length; j++) {
+            if (ai.has(group[j])) pairs.push([i, j, ai.get(group[j])]);
+          }
+        }
+        pairs.sort((a, b) => b[2] - a[2]);
+
+        const assigned = new Set();
+        const subgroups = [];
+
+        for (const [i, j] of pairs) {
+          if (assigned.has(i) || assigned.has(j)) continue;
+          const sg = [group[i], group[j]];
+          assigned.add(i); assigned.add(j);
+          // נסה להוסיף קו שלישי שמחובר לשניהם
+          for (let k = 0; k < group.length; k++) {
+            if (assigned.has(k)) continue;
+            const kAdj = adj.get(group[k]);
+            if (kAdj && kAdj.has(group[i]) && kAdj.has(group[j])) {
+              sg.push(group[k]); assigned.add(k); break;
+            }
+          }
+          subgroups.push(sg);
+        }
+
+        // קווים שלא שובצו (נדיר ב-clique מלא) — הוסף לתת-קבוצה הכי מתאימה
+        for (let i = 0; i < group.length; i++) {
+          if (assigned.has(i)) continue;
+          const ai = adj.get(group[i]) || new Map();
+          let bestSg = null, bestSim = -1;
+          for (const sg of subgroups) {
+            if (sg.length >= MAX_GROUP) continue;
+            for (const m of sg) { const s = ai.get(m) || 0; if (s > bestSim) { bestSim = s; bestSg = sg; } }
+          }
+          if (bestSg) bestSg.push(group[i]); else subgroups.push([group[i]]);
+        }
+
+        for (const sg of subgroups) if (sg.length >= 2) groups.push(sg);
+      }
+    }
+
     // ── שלב 5: בניית תוצאה לכל קבוצה ──
     const result = [];
     for (const group of groups) {
