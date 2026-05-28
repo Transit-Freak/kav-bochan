@@ -1573,12 +1573,16 @@ const DAYS_FILTER = [
         isCircular: isCircularGroup,
         lines: groupLines.map(l => {
           const { cities, stops, refSet, timeBuckets, _lineKey, ...rest } = l;
-          // קווים שעמם יש קשר ישיר (קצה ב-adj) — לתצוגת "תאום ישיר"
+          // directTwins: רק קווים שנמצאים בכרטיס הנוכחי (groupLines), מחוברים ישירות ב-adj,
+          // ואינם הקו עצמו (לא לפי key ולא לפי מספר קו — מונע self-reference גם אם שני מק"טים חולקים lineNum).
           const myKey = l._lineKey;
+          const groupKeySet = new Set(groupLines.map(gl => gl._lineKey));
           const myAdj = adj.get(myKey);
           rest.directTwins = myAdj
-            ? group.filter(k => k !== myKey && myAdj.has(k))
-                .map(k => (lineAgg.get(k)||{}).lineNum).filter(Boolean)
+            ? Array.from(groupKeySet)
+                .filter(k => k !== myKey && myAdj.has(k))
+                .map(k => (lineAgg.get(k)||{}).lineNum)
+                .filter(n => Boolean(n) && String(n) !== String(rest.lineNum))
             : [];
           return rest;
         }),
