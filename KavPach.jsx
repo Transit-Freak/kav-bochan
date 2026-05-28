@@ -1466,6 +1466,7 @@ const DAYS_FILTER = [
         score,
         potentialSavings,
         district: mainLine.district,
+        districts: new Set(groupLines.map(l => l.district).filter(Boolean)),
         lineNumbers: groupLines.map(l => l.lineNum).join(', '),
       });
     }
@@ -1479,7 +1480,7 @@ const DAYS_FILTER = [
   const filteredTwins = useMemo(() => {
     let result = twinLines;
     if (twinFilterDistrict !== "all") {
-      result = result.filter(t => t.district === twinFilterDistrict);
+      result = result.filter(t => t.districts ? t.districts.has(twinFilterDistrict) : t.district === twinFilterDistrict);
     }
     if (twinSearch) {
       const s = twinSearch.toLowerCase();
