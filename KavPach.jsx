@@ -1278,38 +1278,52 @@ const DAYS_FILTER = [
           if (seenPairs.has(pairKey)) continue;
           seenPairs.add(pairKey);
 
-          let inter = 0;
-          const aSet = a.refSet, bSet = b.refSet;
-          const small = aSet.size <= bSet.size ? aSet : bSet;
-          const big = small === aSet ? bSet : aSet;
-          for (const c of small) if (big.has(c)) inter++;
-          const union = aSet.size + bSet.size - inter;
-          let jaccard = union > 0 ? inter / union : 0;
-          let overlap = small.size > 0 ? inter / small.size : 0;
-          // overlapReverse: how much of the *larger* line is covered — prevents a tiny line
-          // from being falsely linked to a huge line that merely passes through the same stops.
-          let overlapReverse = big.size > 0 ? inter / big.size : 0;
+          // longestContig: המקטע הרצוף הארוך ביותר (DP עם rolling rows, מקוד הישן).
+          // שומר על סדר התחנות — מדויק יותר מ-intersection רגיל שמתעלם מהסדר.
+          const longestContig = (a, b) => {
+            const n = a.length, m = b.length;
+            if (!n || !m) return 0;
+            let prev = new Int32Array(m + 1);
+            let curr = new Int32Array(m + 1);
+            let best = 0;
+            for (let i = 1; i <= n; i++) {
+              for (let j = 1; j <= m; j++) {
+                curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : 0;
+                if (curr[j] > best) best = curr[j];
+              }
+              [prev, curr] = [curr, prev];
+            }
+            return best;
+          };
 
-          // השוואה מקבילה על שמות תחנות מנורמלים (ללא סיומת כיוון) —
-          // להלימה במקרה ששני קווים עוברים באותה תחנה פיזית אך ב-Stop_id שוני
-          // (בגלל מיקום מקור שונה בתוך נתוני GTFS). לוקחים את ההתאמה הגבוהה מבין השני.
+          const aArr = Array.from(a.refSet);
+          const bArr = Array.from(b.refSet);
+          let segLen = longestContig(aArr, bArr);
+          let coverageA = aArr.length > 0 ? segLen / aArr.length : 0;
+          let coverageB = bArr.length > 0 ? segLen / bArr.length : 0;
+          let overlap = Math.max(coverageA, coverageB);
+          let overlapReverse = Math.min(coverageA, coverageB);
+          const unionLen = aArr.length + bArr.length - segLen;
+          let jaccard = unionLen > 0 ? segLen / unionLen : 0;
+
+          // normStops: fallback לשמות מנורמלים — ל-Stop_id שונה על אותה תחנה פיזית
           if (a.normStops && b.normStops && a.normStops.size >= TWIN_MIN_STOPS && b.normStops.size >= TWIN_MIN_STOPS) {
-            const aN = a.normStops, bN = b.normStops;
-            const smallN = aN.size <= bN.size ? aN : bN;
-            const bigN = smallN === aN ? bN : aN;
-            let interN = 0;
-            for (const c of smallN) if (bigN.has(c)) interN++;
-            const unionN = aN.size + bN.size - interN;
-            const jaccardN = unionN > 0 ? interN / unionN : 0;
-            const overlapN = smallN.size > 0 ? interN / smallN.size : 0;
-            const overlapRevN = bigN.size > 0 ? interN / bigN.size : 0;
+            const aNArr = Array.from(a.normStops);
+            const bNArr = Array.from(b.normStops);
+            const segLenN = longestContig(aNArr, bNArr);
+            const covAN = aNArr.length > 0 ? segLenN / aNArr.length : 0;
+            const covBN = bNArr.length > 0 ? segLenN / bNArr.length : 0;
+            const overlapN = Math.max(covAN, covBN);
+            const overlapRevN = Math.min(covAN, covBN);
+            const unionLenN = aNArr.length + bNArr.length - segLenN;
+            const jaccardN = unionLenN > 0 ? segLenN / unionLenN : 0;
             if (jaccardN > jaccard) jaccard = jaccardN;
             if (overlapN > overlap) overlap = overlapN;
             if (overlapRevN > overlapReverse) overlapReverse = overlapRevN;
           }
-          // קו תאום: Jaccard גבוה (קווים דומים בגודל) OR overlap גבוה מצד הקו הקצר יותר
-          // AND overlapReverse מינימלי מצד הקו הארוך — מונע חיבור שגוי בין קו קצר
-          // לקו ארוך מאוד שרק עובר דרך אותן תחנות (כגון: קו עירוני עם 150+ תחנות).
+
+          // קו תאום: Jaccard גבוה OR מקטע רצוף מכסה ≥70% מהקו הקצר
+          // AND מינימום כיסוי מהקו הארוך (מונע חיבור קו קצר לקו ענק)
           const TWIN_OVERLAP_REVERSE_MIN = 0.25;
           const isTwin = jaccard >= TWIN_JACCARD_THRESHOLD ||
             (overlap >= TWIN_OVERLAP_THRESHOLD && overlapReverse >= TWIN_OVERLAP_REVERSE_MIN);
