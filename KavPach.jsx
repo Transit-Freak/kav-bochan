@@ -1291,8 +1291,8 @@ const DAYS_FILTER = [
       return best;
     };
 
-    // MAX_BUCKET: דלג על בקטים גדולים מדי — יותר מ-80 קווים = צמד ערים גנרי מדי.
-    const MAX_BUCKET = 80;
+    // MAX_BUCKET: דלג על בקטים גדולים מאוד — הפרה-פילטר יחסית גודל מגן על רוב המקרים.
+    const MAX_BUCKET = 300;
     for (const lines of endpointBuckets.values()) {
       if (lines.size < 2 || lines.size > MAX_BUCKET) continue;
       const arr = Array.from(lines);
@@ -1563,34 +1563,54 @@ const DAYS_FILTER = [
       // קבוצה נחשבת מעגלית אם כל הקווים בה מעגליים
       const isCircularGroup = groupLines.every(l => l.isCircular);
 
-      // compute overlap range from the pair with highest similarity
+      // מקטע גזע: מוצא את הזוג עם הדמיון הגבוה ביותר בקבוצה, מריץ longestContig עליהם,
+      // ומחלץ את שמות תחנות תחילת וסוף המקטע הרצוף.
       let overlapFrom = '', overlapTo = '', overlapCount = 0;
       {
-        // גזע משותף = חיתוך של כל תחנות כל הקווים בקבוצה (לא רק הזוג הכי דומה)
-        let trunkSet = null;
-        let trunkNm = null; // מפת שמות עבור הקו הקצר ביותר (סדר תחנות שמור)
-        let smallestSize = Infinity;
-        for (const lineKey of group) {
-          const s = lineStopsMap.get(lineKey) || lineStopsMap.get((lineAgg.get(lineKey)||{}).lineNum||'');
-          if (!s || s.size === 0) continue;
-          if (!trunkSet) {
-            trunkSet = new Set(s);
-            trunkNm = lineStopNamesMap.get(lineKey);
-            smallestSize = s.size;
-          } else {
-            for (const id of Array.from(trunkSet)) if (!s.has(id)) trunkSet.delete(id);
-            // שמור את מפת השמות של הקו הקצר ביותר — מייצגת את סדר התחנות בגזע
-            if (s.size < smallestSize) { smallestSize = s.size; trunkNm = lineStopNamesMap.get(lineKey); }
+        const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
+
+        // מחפש את הזוג עם הציון הגבוה ביותר ב-adj
+        let bestSim = -1, bestKeyA = null, bestKeyB = null;
+        for (const keyA of group) {
+          const neighbors = adj.get(keyA);
+          if (!neighbors) continue;
+          for (const keyB of group) {
+            if (keyA >= keyB) continue;
+            if (neighbors.has(keyB) && neighbors.get(keyB) > bestSim) {
+              bestSim = neighbors.get(keyB); bestKeyA = keyA; bestKeyB = keyB;
+            }
           }
         }
-        if (trunkSet && trunkSet.size > 0 && trunkNm) {
-          // מסדר את תחנות הגזע לפי סדר ההופעה בקו הקצר ביותר
-          const ordered = Array.from(trunkNm.keys()).filter(id => trunkSet.has(id));
-          overlapCount = trunkSet.size;
-          if (ordered.length > 0) {
-            const stripCity = s => { const i = s.indexOf(' - '); return i > 0 ? s.slice(i + 3).trim() : s; };
-            overlapFrom = stripCity(trunkNm.get(ordered[0]) || '');
-            overlapTo   = stripCity(trunkNm.get(ordered[ordered.length - 1]) || '');
+
+        if (bestKeyA && bestKeyB) {
+          const nmA = lineStopNamesMap.get(bestKeyA);
+          const nmB = lineStopNamesMap.get(bestKeyB);
+          if (nmA && nmB) {
+            const aArr = Array.from(nmA.keys());
+            const bArr = Array.from(nmB.keys());
+            const n = aArr.length, m = bArr.length;
+            if (n > 0 && m > 0) {
+              // DP: מוצא את תחילת המקטע הרצוף הארוך ביותר ב-A
+              const extB = bArr.concat(bArr);
+              const mExt = extB.length;
+              let prev = new Uint16Array(mExt + 1);
+              let curr = new Uint16Array(mExt + 1);
+              let bestLen = 0, bestEndI = 0;
+              for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= mExt; j++) {
+                  curr[j] = (aArr[i - 1] === extB[j - 1]) ? Math.min(prev[j - 1] + 1, n) : 0;
+                  if (curr[j] > bestLen) { bestLen = curr[j]; bestEndI = i; }
+                }
+                [prev, curr] = [curr, prev];
+                curr.fill(0);
+              }
+              overlapCount = bestLen;
+              if (bestLen > 0) {
+                const startI = bestEndI - bestLen; // 0-based index in aArr
+                overlapFrom = stripCity(nmA.get(aArr[startI]) || '');
+                overlapTo   = stripCity(nmA.get(aArr[bestEndI - 1]) || '');
+              }
+            }
           }
         }
       }
@@ -2747,14 +2767,11 @@ const DAYS_FILTER = [
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-slate-500 font-black text-[11px]">מקטע משותף — {twin.overlapCount} תחנות ברצף</span>
                               </div>
-                              {twin.overlapFrom && twin.overlapTo && (() => {
-                                // אם שתי נקודות הגזע שייכות לאותו מקום פיזי — הצג שם אחד
-                                const sameLocation = twin.overlapFrom === twin.overlapTo ||
-                                  twin.overlapFrom.replace(/[/\\|,].*$/, '').trim() === twin.overlapTo.replace(/[/\\|,].*$/, '').trim();
-                                return sameLocation
-                                  ? <div className="text-[#0f7b6c] font-black text-sm">{twin.overlapFrom.replace(/[/\\|,].*$/, '').trim()}</div>
-                                  : <div className="text-[#0f7b6c] font-black text-sm">{twin.overlapFrom} —→ {twin.overlapTo}</div>;
-                              })()}
+                              {twin.overlapFrom && twin.overlapTo && (
+                                <div className="text-[#0f7b6c] font-black text-sm">
+                                  {twin.overlapFrom === twin.overlapTo ? twin.overlapFrom : `${twin.overlapFrom} —→ ${twin.overlapTo}`}
+                                </div>
+                              )}
                             </div>
                           )}
 
