@@ -1505,7 +1505,7 @@ const DAYS_FILTER = [
         cityB: cap(cityB),
         isCircular: isCircularGroup,
         lines: groupLines.map(l => {
-          const { cities, stops, refSet, timeBuckets, _lineKey, mainOrigin, mainDest, ...rest } = l;
+          const { cities, stops, refSet, timeBuckets, _lineKey, ...rest } = l;
           return rest;
         }),
         lineCount: groupLines.length,
@@ -2574,27 +2574,51 @@ const DAYS_FILTER = [
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-start gap-3 mb-5 min-w-0">
-                            {twin.isCircular ? (
-                              <>
-                                <div className="text-cyan-600 text-xl font-black shrink-0 leading-none" title="קו מעגלי">↻</div>
-                                <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityA}>{twin.cityA}</div>
-                                <div className="text-slate-400 font-bold text-xs shrink-0">(מעגלי)</div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityA}>{twin.cityA}</div>
-                                <div className="text-slate-300 text-xl font-black shrink-0 leading-none">↔</div>
-                                <div className="text-slate-900 font-black text-lg truncate leading-tight" title={twin.cityB}>{twin.cityB}</div>
-                              </>
-                            )}
-                          </div>
+                          {/* מקטע משותף */}
+                          {twin.overlapCount > 0 && twin.overlapFrom ? (
+                            <div className="bg-purple-50 border border-purple-200 rounded-2xl px-4 py-3 mb-4">
+                              <div className="text-purple-500 font-black text-[10px] mb-1.5">מקטע משותף · {twin.overlapCount} תחנות</div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-black text-slate-900 text-sm">{twin.overlapFrom}</span>
+                                <span className="text-purple-400 font-black">↔</span>
+                                <span className="font-black text-slate-900 text-sm">{twin.overlapTo}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 mb-4 min-w-0">
+                              {twin.isCircular ? (
+                                <>
+                                  <div className="text-cyan-600 text-xl font-black shrink-0">↻</div>
+                                  <div className="text-slate-900 font-black text-lg truncate">{twin.cityA}</div>
+                                  <div className="text-slate-400 font-bold text-xs">(מעגלי)</div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-slate-900 font-black text-lg truncate">{twin.cityA}</div>
+                                  <div className="text-slate-300 text-xl font-black shrink-0">↔</div>
+                                  <div className="text-slate-900 font-black text-lg truncate">{twin.cityB}</div>
+                                </>
+                              )}
+                            </div>
+                          )}
 
-                          <div className="flex flex-wrap gap-2 mb-5">
+                          {/* שורות קווים עם מסלול מלא */}
+                          <div className="space-y-2 mb-5">
                             {twin.lines.map((l, j) => (
-                              <div key={`twin-line-${j}`} className={`flex items-center gap-2 px-3 py-2 rounded-2xl border-2 ${j === 0 ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 border-slate-200"}`}>
-                                <div className={`font-black text-sm ${j === 0 ? "text-white" : "text-slate-900"}`}>{l.lineNum}</div>
-                                <div className={`text-[11px] font-bold ${j === 0 ? "text-slate-300" : "text-slate-500"}`}>
+                              <div key={`twin-line-${j}`} className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 ${j === 0 ? "bg-slate-900" : "bg-slate-50 border border-slate-200"}`}>
+                                <div className={`font-black text-sm shrink-0 w-8 text-center ${j === 0 ? "text-white" : "text-slate-900"}`}>{l.lineNum}</div>
+                                <div className="flex-1 min-w-0">
+                                  {l.mainOrigin && l.mainDest ? (
+                                    <div className={`flex items-center gap-1.5 text-[12px] font-bold truncate ${j === 0 ? "text-slate-200" : "text-slate-600"}`}>
+                                      <span className="truncate">{l.mainOrigin}</span>
+                                      <span className={`shrink-0 ${j === 0 ? "text-slate-500" : "text-slate-300"}`}>→</span>
+                                      <span className="truncate">{l.mainDest}</span>
+                                    </div>
+                                  ) : (
+                                    <div className={`text-[12px] font-bold ${j === 0 ? "text-slate-300" : "text-slate-500"}`}>{twin.cityA} ↔ {twin.cityB}</div>
+                                  )}
+                                </div>
+                                <div className={`text-[11px] font-bold shrink-0 text-left ${j === 0 ? "text-slate-400" : "text-slate-400"}`}>
                                   {l.tripCount} נסיעות · ~{l.avgRiders} נוסעים
                                 </div>
                               </div>
@@ -2634,17 +2658,6 @@ const DAYS_FILTER = [
                             </div>
                           )}
 
-                          {twin.overlapCount > 0 && twin.overlapFrom && (
-                            <div className="mt-3 pt-3 border-t border-slate-100 text-right">
-                              <div className="text-[11px] font-bold text-slate-400 mb-1">טווח חפיפה</div>
-                              <div className="text-sm text-slate-700 font-medium">
-                                <span className="font-bold">{twin.overlapFrom}</span>
-                                <span className="mx-2 text-slate-400">←</span>
-                                <span className="font-bold">{twin.overlapTo}</span>
-                                <span className="ml-2 text-xs text-slate-400">({twin.overlapCount} תחנות)</span>
-                              </div>
-                            </div>
-                          )}
 
                           {isExpanded && (
                             <div className="border-t-2 border-slate-100 pt-4 mt-4 space-y-2">
