@@ -1371,16 +1371,24 @@ const DAYS_FILTER = [
 
       const mainLine = groupLines[0];
 
-      // ממוצע דמיון בקבוצה
-      let simSum = 0, simCount = 0;
+      // ממוצע ומקסימום דמיון בקבוצה
+      let simSum = 0, simCount = 0, maxSim = 0;
       for (let i = 0; i < group.length; i++) {
         const ai = adj.get(group[i]);
         if (!ai) continue;
         for (let j = i + 1; j < group.length; j++) {
-          if (ai.has(group[j])) { simSum += ai.get(group[j]); simCount++; }
+          if (ai.has(group[j])) {
+            const s = ai.get(group[j]);
+            simSum += s;
+            simCount++;
+            if (s > maxSim) maxSim = s;
+          }
         }
       }
       const avgSimilarity = simCount > 0 ? Math.round((simSum / simCount) * 100) : 0;
+      // כאשר קו אחד מוכל לחלוטין בקו אחר (overlap=100%), הממוצע מוריד ציון בגלל זוגות אחרים בקבוצה.
+      // לכן משתמשים ב-maxSimilarity לניקוד — אם לפחות זוג אחד בקבוצה דומה מאוד, הקבוצה רלוונטית.
+      const maxSimilarity = Math.round(maxSim * 100);
 
       // תחנות משותפות לכל הקווים בקבוצה — לתצוגה בלבד (מראה ערים ידידותיות, לא stop_id)
       const firstCities = groupLines[0].cities;
@@ -1414,8 +1422,9 @@ const DAYS_FILTER = [
       // ניקוד מתוקן ומחמיר: דמיון מסלול הוא העוגן, נדרשת חפיפת שעות אמיתית
       // וניצולת נמוכה כדי להגיע לציון גבוה. סף הסינון נקבע ל-60.
       let score = 0;
-      // 1. דמיון מסלול (עד 50 נק') — מתחיל לצבור רק מ-75% ומעלה
-      if (avgSimilarity >= 75) score += Math.min(50, (avgSimilarity - 75) * 2);
+      // 1. דמיון מסלול (עד 50 נק') — משתמש במקסימום הזוגות כדי לא לקנוס קבוצות שבהן קו קצר מוכל בקו ארוך
+      const routeSim = Math.max(avgSimilarity, maxSimilarity);
+      if (routeSim >= 75) score += Math.min(50, (routeSim - 75) * 2);
       // 2. חפיפת שעות (עד 25 נק') — דורש חפיפה ממשית
       if (timeOverlapPct >= 25) score += Math.min(25, (timeOverlapPct - 25) * 0.4);
       // 3. ניצולת נמוכה (עד 20 נק') — קווים עמוסים אינם מועמדים לאיחוד
@@ -1461,6 +1470,7 @@ const DAYS_FILTER = [
         utilization: Number((utilization * 100).toFixed(0)),
         timeOverlapPct,
         avgSimilarity,
+        maxSimilarity,
         commonCityCount: commonCities.size,
         commonCities: Array.from(commonCities).slice(0, 8).map(cap),
         score,
@@ -2546,7 +2556,7 @@ const DAYS_FILTER = [
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                             <div className="bg-purple-50 rounded-2xl p-3 text-right">
                               <div className="text-purple-500 font-black text-[10px]">דמיון מסלול</div>
-                              <div className="text-lg font-black text-purple-700">{twin.avgSimilarity}%</div>
+                              <div className="text-lg font-black text-purple-700">{twin.maxSimilarity ?? twin.avgSimilarity}%</div>
                             </div>
                             <div className="bg-slate-50 rounded-2xl p-3 text-right">
                               <div className="text-slate-400 font-black text-[10px]">חפיפת שעות</div>
