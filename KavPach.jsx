@@ -1432,22 +1432,18 @@ const DAYS_FILTER = [
       const maxCapacity = Math.max(...groupLines.map(l => l.capacity));
       const utilization = combinedAvgRiders / maxCapacity;
 
-      // ניקוד מתוקן ומחמיר: דמיון מסלול הוא העוגן, נדרשת חפיפת שעות אמיתית
-      // וניצולת נמוכה כדי להגיע לציון גבוה. סף הסינון נקבע ל-60.
+      // ניקוד מבוסס מסלול בלבד: דמיון מסלול הוא העוגן (75 נק'), ניצולת נמוכה (20 נק'), בונוס (5 נק').
+      // חפיפת שעות אינה חלק מהניקוד — מוצגת לידוע בלבד.
       let score = 0;
-      // 1. דמיון מסלול (עד 50 נק') — משתמש במקסימום הזוגות כדי לא לקנוס קבוצות שבהן קו קצר מוכל בקו ארוך
+      // 1. דמיון מסלול (עד 75 נק') — משתמש במקסימום הזוגות כדי לא לקנוס קבוצות שבהן קו קצר מוכל בקו ארוך
       const routeSim = Math.max(avgSimilarity, maxSimilarity);
-      if (routeSim >= 75) score += Math.min(50, (routeSim - 75) * 2);
-      // 2. חפיפת שעות (עד 25 נק') — דורש חפיפה ממשית
-      if (timeOverlapPct >= 25) score += Math.min(25, (timeOverlapPct - 25) * 0.4);
-      // 3. ניצולת נמוכה (עד 20 נק') — קווים עמוסים אינם מועמדים לאיחוד
+      if (routeSim >= 70) score += Math.min(75, (routeSim - 70) * 3);
+      // 2. ניצולת נמוכה (עד 20 נק') — קווים עמוסים אינם מועמדים לאיחוד
       if (utilization < 0.25) score += 20;
       else if (utilization < 0.4) score += 12;
       else if (utilization < 0.6) score += 5;
-      // 4. שני הקווים חלשים בנפרד (5 נק' בונוס)
+      // 3. שני הקווים חלשים בנפרד (5 נק' בונוס)
       if (groupLines.every(l => l.avgRiders < 12)) score += 5;
-      // קנס: אם חפיפת השעות זניחה, גם דמיון מסלול לא מצדיק איחוד
-      if (timeOverlapPct < 5) score = Math.min(score, 50);
       score = Math.round(Math.max(0, Math.min(100, score)));
 
       // חיסכון פוטנציאלי משמרני: ק"מ של הקווים המשניים × 5 ש"ח/ק"מ
@@ -3405,7 +3401,7 @@ const DAYS_FILTER = [
                       <h4 className="font-black text-slate-800 text-sm mb-2">ציון התאומים (0–100)</h4>
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 pr-2">
                         <li><strong>דמיון מסלול (עד 50 נק&apos;):</strong> מתחיל לצבור רק מ-75% ומעלה.</li>
-                        <li><strong>חפיפת שעות (עד 25 נק&apos;):</strong> דורש חפיפה ממשית — לא רק אותו מסלול אלא גם באותן שעות.</li>
+                        <li><strong>חפיפת שעות:</strong> מוצגת לידוע בלבד — אינה משפיעה על הניקוד.</li>
                         <li><strong>ניצולת נמוכה (עד 20 נק&apos;):</strong> קווים עמוסים אינם מועמדים לאיחוד.</li>
                         <li><strong>שני הקווים חלשים (5 נק&apos; בונוס):</strong> שניהם פחות מ-12 נוסעים בממוצע.</li>
                       </ul>
