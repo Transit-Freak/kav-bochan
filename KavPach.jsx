@@ -1265,8 +1265,36 @@ const DAYS_FILTER = [
     // Jaccard = |A ∩ B| / |A ∪ B|. רק מעל הסף נחשב תאום.
     const adj = new Map(); // makatKey -> Map(neighbor -> similarity)
     const seenPairs = new Set();
+
+    // longestContig מוגדר פעם אחת — DP עם rolling rows.
+    // extB = b.concat(b) לתמיכה בקווים מעגליים.
+    const longestContig = (a, b) => {
+      const n = a.length, m = b.length;
+      if (!n || !m) return 0;
+      const extB = b.concat(b);
+      const mExt = extB.length;
+      let prev = new Uint16Array(mExt + 1);
+      let curr = new Uint16Array(mExt + 1);
+      let best = 0;
+      for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= mExt; j++) {
+          if (a[i - 1] === extB[j - 1]) {
+            curr[j] = Math.min(prev[j - 1] + 1, n);
+            if (curr[j] > best) best = curr[j];
+          } else {
+            curr[j] = 0;
+          }
+        }
+        [prev, curr] = [curr, prev];
+        curr.fill(0);
+      }
+      return best;
+    };
+
+    // MAX_BUCKET: דלג על בקטים גדולים מדי — יותר מ-80 קווים = צמד ערים גנרי מדי.
+    const MAX_BUCKET = 80;
     for (const lines of endpointBuckets.values()) {
-      if (lines.size < 2) continue;
+      if (lines.size < 2 || lines.size > MAX_BUCKET) continue;
       const arr = Array.from(lines);
       for (let i = 0; i < arr.length; i++) {
         for (let j = i + 1; j < arr.length; j++) {
@@ -1278,34 +1306,13 @@ const DAYS_FILTER = [
           if (seenPairs.has(pairKey)) continue;
           seenPairs.add(pairKey);
 
-          // longestContig: המקטע הרצוף הארוך ביותר — DP עם rolling rows (מקוד הישן).
-          // extB = b.concat(b): תמיכה בקווים מעגליים שנקודת הפתיחה שלהם שונה.
-          // Math.min(..., n): מגביל את אורך המקטע ל-n למניעת חריגה בלולאה.
-          const longestContig = (a, b) => {
-            const n = a.length, m = b.length;
-            if (!n || !m) return 0;
-            const extB = b.concat(b); // תמיכה בקווים מעגליים
-            const mExt = extB.length;
-            let prev = new Uint16Array(mExt + 1);
-            let curr = new Uint16Array(mExt + 1);
-            let best = 0;
-            for (let i = 1; i <= n; i++) {
-              for (let j = 1; j <= mExt; j++) {
-                if (a[i - 1] === extB[j - 1]) {
-                  curr[j] = Math.min(prev[j - 1] + 1, n); // מגביל ל-n
-                  if (curr[j] > best) best = curr[j];
-                } else {
-                  curr[j] = 0;
-                }
-              }
-              [prev, curr] = [curr, prev];
-              curr.fill(0); // מנקה ערכים ישנים
-            }
-            return best;
-          };
-
           const aArr = Array.from(a.refSet);
           const bArr = Array.from(b.refSet);
+          // פרה-פילטר: אם אחד הקווים ארוך פי 4 מהשני, overlapReverse < 0.25 בכל מקרה — דלג.
+          if (aArr.length > 0 && bArr.length > 0) {
+            const sizeRatio = Math.max(aArr.length, bArr.length) / Math.min(aArr.length, bArr.length);
+            if (sizeRatio > 4) continue;
+          }
           let segLen = longestContig(aArr, bArr);
           let coverageA = aArr.length > 0 ? segLen / aArr.length : 0;
           let coverageB = bArr.length > 0 ? segLen / bArr.length : 0;
