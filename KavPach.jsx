@@ -2643,11 +2643,8 @@ const DAYS_FILTER = [
                                   </div>
                                 </div>
                                 {l.directTwins && l.directTwins.length > 0 && (
-                                  <div className={`flex items-center gap-1.5 mt-1.5 flex-wrap ${j === 0 ? "pr-11" : "pr-11"}`}>
-                                    <span className={`text-[10px] font-bold ${j === 0 ? "text-slate-500" : "text-slate-400"}`}>חופף ישירות עם:</span>
-                                    {l.directTwins.map((dn, di) => (
-                                      <span key={di} className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${j === 0 ? "bg-slate-700 text-slate-200" : "bg-purple-100 text-purple-700"}`}>{dn}</span>
-                                    ))}
+                                  <div className={`mt-1.5 pr-11 text-[11px] font-bold ${j === 0 ? "text-slate-400" : "text-purple-600"}`}>
+                                    קו {l.lineNum} תאום עם קווים: {l.directTwins.join(', ')}
                                   </div>
                                 )}
                               </div>
