@@ -1278,20 +1278,28 @@ const DAYS_FILTER = [
           if (seenPairs.has(pairKey)) continue;
           seenPairs.add(pairKey);
 
-          // longestContig: המקטע הרצוף הארוך ביותר (DP עם rolling rows, מקוד הישן).
-          // שומר על סדר התחנות — מדויק יותר מ-intersection רגיל שמתעלם מהסדר.
+          // longestContig: המקטע הרצוף הארוך ביותר — DP עם rolling rows (מקוד הישן).
+          // extB = b.concat(b): תמיכה בקווים מעגליים שנקודת הפתיחה שלהם שונה.
+          // Math.min(..., n): מגביל את אורך המקטע ל-n למניעת חריגה בלולאה.
           const longestContig = (a, b) => {
             const n = a.length, m = b.length;
             if (!n || !m) return 0;
-            let prev = new Int32Array(m + 1);
-            let curr = new Int32Array(m + 1);
+            const extB = b.concat(b); // תמיכה בקווים מעגליים
+            const mExt = extB.length;
+            let prev = new Uint16Array(mExt + 1);
+            let curr = new Uint16Array(mExt + 1);
             let best = 0;
             for (let i = 1; i <= n; i++) {
-              for (let j = 1; j <= m; j++) {
-                curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : 0;
-                if (curr[j] > best) best = curr[j];
+              for (let j = 1; j <= mExt; j++) {
+                if (a[i - 1] === extB[j - 1]) {
+                  curr[j] = Math.min(prev[j - 1] + 1, n); // מגביל ל-n
+                  if (curr[j] > best) best = curr[j];
+                } else {
+                  curr[j] = 0;
+                }
               }
               [prev, curr] = [curr, prev];
+              curr.fill(0); // מנקה ערכים ישנים
             }
             return best;
           };
