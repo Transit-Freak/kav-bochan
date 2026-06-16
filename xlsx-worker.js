@@ -102,16 +102,43 @@ const normalizeStopName = (stopName) => {
     .toLowerCase();
 };
 
+// ── parseBenchmark — טבלת "עלות לנוסע": קבוצת יעילות × מחוז → עלות לנוסע ─
+// קוראת רק את הטבלה העליונה (8 קבוצות יעילות), עד "סכום כולל" / כותרת חוזרת.
+// מחזירה אובייקט: { 'אזורי': { 'כל הארץ': 34.9, 'גוש דן': 23.9, ... }, ... }
+function parseBenchmark(XLSX, sheet) {
+  if (!sheet || !sheet['!ref']) return null;
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if (!rows.length) return null;
+  const header = (rows[0] || []).map(h => String(h).trim());
+  const KNOWN = ['אזורי', 'בינעירוני ארוך', 'בינעירוני קצר', 'לילה', 'מזינים', 'עירוני תדירות גבוהה', 'עירוני תדירות נמוכה', 'תלמידים'];
+  const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const g = String(row[0] || '').trim();
+    if (!g) continue;
+    if (g === 'סכום כולל' || g === 'קבוצת יעילות תפעולית') break; // סוף הטבלה העליונה
+    if (KNOWN.indexOf(g) === -1) continue;
+    const rec = {};
+    for (let c = 1; c < header.length; c++) {
+      const col = header[c];
+      const v = parseFloat(String(row[c]).replace(/,/g, ''));
+      if (col && !isNaN(v) && v > 0) rec[col] = Number(v.toFixed(2));
+    }
+    out[g] = rec;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 // ── parseXLSX — הלוגיקה המלאה ─────────────────────────────────────────
-function parseXLSX(buffer) {
+// payload יכול להיות:
+//   { buffer }                                  — קובץ יחיד (העלאה ידנית / legacy)
+//   { main, schedule, stops, benchmark }        — מספר קבצים נפרדים (טעינה אוטומטית)
+function parseXLSX(payload) {
   progress(8, "טוען ספריה...");
 
   const XLSX = self.XLSX;
-  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", raw: true, cellDates: false });
-
-  progress(14, "מנתח את הקובץ...");
-
   const enc = XLSX.utils.encode_cell;
+  const readWB = (buf) => XLSX.read(new Uint8Array(buf), { type: "array", raw: true, cellDates: false });
 
   const findHeaderRow = (sheet) => {
     const range = XLSX.utils.decode_range(sheet['!ref'] || "A1");
@@ -139,54 +166,102 @@ function parseXLSX(buffer) {
     return { rowIdx: bestRow, headers: bestHeaders, matchCount: maxMatches };
   };
 
-  const stopsSheetName = wb.SheetNames.find(n =>
-    n === "ריידרשיפ תחנות" || n.includes("תחנ") || n.toLowerCase().includes("stop") ||
-    n.includes("גיליון2") || n.includes("גיליון 2") || n.toLowerCase() === "sheet2"
-  );
-
-  let scheduleWsName = wb.SheetNames.find(n =>
-    n.replace(/\s/g,'') === "גיליון4" || n.toLowerCase() === "sheet4" ||
-    n.replace(/\s/g,'') === "גיליון3" || n.toLowerCase() === "sheet3"
-  );
-  if (!scheduleWsName && wb.SheetNames.length >= 4) scheduleWsName = wb.SheetNames[3];
-  if (!scheduleWsName && wb.SheetNames.length >= 3) scheduleWsName = wb.SheetNames[2];
-
-  let mainWs = null;
-  let maxColsMatch = -1;
+  let ws = null;          // גיליון ראשי
+  let schedWs = null;     // גיליון לוז (אופציונלי)
+  let stopsSheet = null;  // גיליון תחנות (אופציונלי)
   let headers1 = [];
   let mainHeaderRow = 0;
+  let costBenchmark = null;
 
-  for (const sheetName of wb.SheetNames) {
-    if (sheetName === scheduleWsName || sheetName === stopsSheetName) continue;
-    const sheet = wb.Sheets[sheetName];
-    if (!sheet['!ref']) continue;
-    const { rowIdx, headers, matchCount } = findHeaderRow(sheet);
-    if (matchCount > maxColsMatch) {
-      maxColsMatch = matchCount;
-      mainWs = sheet;
-      headers1 = headers;
-      mainHeaderRow = rowIdx;
+  if (payload.buffer) {
+    // ===== מצב קובץ-יחיד (העלאה ידנית / legacy) =====
+    const wb = readWB(payload.buffer);
+    progress(14, "מנתח את הקובץ...");
+
+    const stopsSheetName = wb.SheetNames.find(n =>
+      n === "ריידרשיפ תחנות" || n.includes("תחנ") || n.toLowerCase().includes("stop") ||
+      n.includes("גיליון2") || n.includes("גיליון 2") || n.toLowerCase() === "sheet2"
+    );
+
+    let scheduleWsName = wb.SheetNames.find(n =>
+      n.replace(/\s/g,'') === "גיליון4" || n.toLowerCase() === "sheet4" ||
+      n.replace(/\s/g,'') === "גיליון3" || n.toLowerCase() === "sheet3"
+    );
+    if (!scheduleWsName && wb.SheetNames.length >= 4) scheduleWsName = wb.SheetNames[3];
+    if (!scheduleWsName && wb.SheetNames.length >= 3) scheduleWsName = wb.SheetNames[2];
+
+    let mainWs = null;
+    let maxColsMatch = -1;
+    for (const sheetName of wb.SheetNames) {
+      if (sheetName === scheduleWsName || sheetName === stopsSheetName) continue;
+      const sheet = wb.Sheets[sheetName];
+      if (!sheet['!ref']) continue;
+      const { rowIdx, headers, matchCount } = findHeaderRow(sheet);
+      if (matchCount > maxColsMatch) {
+        maxColsMatch = matchCount;
+        mainWs = sheet;
+        headers1 = headers;
+        mainHeaderRow = rowIdx;
+      }
+    }
+    if (!mainWs) {
+      const fallbackName = wb.SheetNames.find(n => n !== scheduleWsName && n !== stopsSheetName);
+      mainWs = wb.Sheets[fallbackName || wb.SheetNames[0]];
+      const fallbackRes = findHeaderRow(mainWs);
+      headers1 = fallbackRes.headers;
+      mainHeaderRow = fallbackRes.rowIdx;
+    }
+    ws = mainWs;
+    schedWs = scheduleWsName ? wb.Sheets[scheduleWsName] : null;
+    stopsSheet = stopsSheetName ? wb.Sheets[stopsSheetName] : null;
+  } else {
+    // ===== מצב רב-קבצים: מצומצם(ראשי) + data.xlsx(לוז) + תחנות + עלות לנוסע =====
+    progress(12, "קורא נתוני קווים...");
+    const wbMain = readWB(payload.main);
+    ws = wbMain.Sheets[wbMain.SheetNames[0]];
+    const mh = findHeaderRow(ws);
+    headers1 = mh.headers;
+    mainHeaderRow = mh.rowIdx;
+
+    // לוז — בוחר את הגיליון עם שעות יציאה פרטניות (שעת רישוי / שעה עגולה)
+    if (payload.schedule) {
+      progress(16, "קורא לוח זמנים...");
+      const wbS = readWB(payload.schedule);
+      let bestName = null, bestScore = -1;
+      for (const n of wbS.SheetNames) {
+        const s = wbS.Sheets[n];
+        if (!s || !s['!ref']) continue;
+        const { headers, matchCount } = findHeaderRow(s);
+        const hasTime = headers.some(h => h.includes("שעת רישוי") || h.includes("שעה עגולה") || h.toLowerCase().includes("departure"));
+        const score = (hasTime ? 100 : 0) + matchCount;
+        if (score > bestScore) { bestScore = score; bestName = n; }
+      }
+      schedWs = bestName ? wbS.Sheets[bestName] : null;
+    }
+
+    // תחנות — גיליון יחיד
+    if (payload.stops) {
+      progress(20, "קורא תחנות...");
+      const wbT = readWB(payload.stops);
+      stopsSheet = wbT.Sheets[wbT.SheetNames[0]];
+    }
+
+    // עלות לנוסע — טבלת בנצ'מרק
+    if (payload.benchmark) {
+      const wbB = readWB(payload.benchmark);
+      costBenchmark = parseBenchmark(XLSX, wbB.Sheets[wbB.SheetNames[0]]);
     }
   }
 
-  if (!mainWs) {
-    const fallbackName = wb.SheetNames.find(n => n !== scheduleWsName && n !== stopsSheetName);
-    mainWs = wb.Sheets[fallbackName || wb.SheetNames[0]];
-    const fallbackRes = findHeaderRow(mainWs);
-    headers1 = fallbackRes.headers;
-    mainHeaderRow = fallbackRes.rowIdx;
-  }
-
-  const ws = mainWs;
-  const schedWs = scheduleWsName ? wb.Sheets[scheduleWsName] : null;
+  progress(24, "מנתח את הקובץ...");
   const totalRows = XLSX.utils.decode_range(ws['!ref'] || "A1").e.r;
 
   const tempMakatCitiesMap = new Map();
   const tempMakatStopsMap = new Map();
   const tempMakatNormStopsMap = new Map(); // makat -> Set of normalized stop names (לזיהוי תאומים גם במקרה שצדי הכביש מקבלים Stop_id שונה)
   const tempMakatStopNamesMap = new Map(); // makat -> Map<stopId, stopName>
-  if (stopsSheetName) {
-    const stopsRows = XLSX.utils.sheet_to_json(wb.Sheets[stopsSheetName], { defval: "" });
+  if (stopsSheet) {
+    const stopsRows = XLSX.utils.sheet_to_json(stopsSheet, { defval: "" });
     for (const row of stopsRows) {
       const routeId = String(
         row['Route_Full_Id'] || row['route_full_id'] || row['מקט-כיוון'] ||
@@ -607,16 +682,16 @@ function parseXLSX(buffer) {
     return t;
   });
 
-  return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap, lineStopsMap: finalLineStopsMap, lineNormStopsMap: finalLineNormStopsMap, lineStopNamesMap: finalLineStopNamesMap };
+  return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap, lineStopsMap: finalLineStopsMap, lineNormStopsMap: finalLineNormStopsMap, lineStopNamesMap: finalLineStopNamesMap, costBenchmark };
 }
 
 // ── message handler ───────────────────────────────────────────────────
 self.onmessage = (e) => {
-  const { type, buffer } = e.data || {};
-  if (type !== 'parse') return;
+  const d = e.data || {};
+  if (d.type !== 'parse') return;
   try {
-    const { trips, lineCitiesMap, lineStopsMap, lineNormStopsMap, lineStopNamesMap } = parseXLSX(buffer);
-    post({ type: 'done', trips, lineCitiesMap, lineStopsMap, lineNormStopsMap, lineStopNamesMap });
+    const r = parseXLSX(d);
+    post({ type: 'done', trips: r.trips, lineCitiesMap: r.lineCitiesMap, lineStopsMap: r.lineStopsMap, lineNormStopsMap: r.lineNormStopsMap, lineStopNamesMap: r.lineStopNamesMap, costBenchmark: r.costBenchmark });
   } catch (err) {
     post({ type: 'error', message: err && err.message ? err.message : String(err) });
   }

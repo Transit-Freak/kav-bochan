@@ -100,13 +100,13 @@ const SearchInput = React.memo(function SearchInput({ value, onSubmit, placehold
 });
 
 // ── IndexedDB cache ─────────────────────────────────────────────
-// שומרים את התוצאה המעובדת של data.xlsx (trips + שני המאפים) ב-IndexedDB,
-// תחת מפתח שמורכב מ-last-modified+content-length של הקובץ. בכניסה הבאה,
-// אם הקובץ לא השתנה, מדלגים על ההורדה ועל הפרסור (~50-80% מזמן הטעינה).
+// שומרים את התוצאה המעובדת (trips + מאפים + טבלת בנצ'מרק) ב-IndexedDB,
+// תחת מפתח משולב מ-last-modified+content-length של כל קבצי המקור. בכניסה
+// הבאה, אם אף קובץ לא השתנה, מדלגים על ההורדה ועל הפרסור (~50-80% מזמן הטעינה).
 // Maps ו-Sets נשמרים native בזכות structured clone של IDB.
 const IDB_NAME = 'kavpach-cache';
 const IDB_STORE = 'parsed';
-const IDB_KEY = 'data-v2';
+const IDB_KEY = 'data-v3';
 
 const openCacheDB = () => new Promise((resolve, reject) => {
   if (typeof indexedDB === 'undefined') { reject(new Error('no idb')); return; }
@@ -278,6 +278,28 @@ const COST_BENCHMARK = {
   'תלמידים': 9.7,
 };
 
+// מיפוי שמות מקובץ "מצומצם" → לשמות בטבלת "עלות לנוסע" (הבדלי איות קלים)
+const BENCHMARK_DISTRICT_ALIAS = {
+  'גולן גליל ועמקים': 'גולן גליל עמקים',
+  'מזרח ירושלים': 'מזרח י-ם',
+};
+const BENCHMARK_GROUP_ALIAS = {
+  'קווים מזינים': 'מזינים',
+};
+
+// מחזיר בנצ'מרק עלות-לנוסע לפי קטגוריה+מחוז מטבלת "עלות לנוסע" הנטענת.
+// נופל ל"כל הארץ" ואז לקבועים הארציים אם אין נתון מחוזי.
+const lookupCostBenchmark = (table, category, district) => {
+  const cat = BENCHMARK_GROUP_ALIAS[category] || category;
+  if (table && table[cat]) {
+    const row = table[cat];
+    const dist = BENCHMARK_DISTRICT_ALIAS[district] || district;
+    if (dist && row[dist] != null) return row[dist];
+    if (row['כל הארץ'] != null) return row['כל הארץ'];
+  }
+  return COST_BENCHMARK[category] || 20;
+};
+
 // סף נוסעים לנסיעת שפל לכל קטגוריה
 const LOW_RIDER_THRESHOLD = {
   'אזורי': 5,
@@ -414,6 +436,7 @@ function KavPach() {
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
   const [lineNormStopsMap, setLineNormStopsMap] = useState(new Map());
+  const [costBenchmarkTable, setCostBenchmarkTable] = useState(null);
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -754,13 +777,25 @@ const DAYS_FILTER = [
   const fileKeyRef = useRef(null);
 
   // ── טעינה אוטומטית בעליית הקומפוננטה ──────────────────────────────────────
+  // 4 קבצי מקור: מצומצם(ראשי) · data.xlsx(לוז/שעות) · תחנות · עלות לנוסע(בנצ'מרק)
   const loadFromXLSX = useCallback(async () => {
+    const FILES = {
+      main: 'מצומצם.xlsx',
+      schedule: 'data.xlsx',
+      stops: 'תחנות.xlsx',
+      benchmark: 'עלות לנוסע.xlsx',
+    };
     try {
-      // שלב 1: HEAD מהיר כדי לקבל את חתימת הקובץ (לא מוריד את כל ה-MB).
+      // שלב 1: HEAD מקביל לכל הקבצים → מפתח קאש משולב.
       let fileKey = null;
       try {
-        const headRes = await fetch('data.xlsx', { method: 'HEAD' });
-        if (headRes.ok) fileKey = fileKeyFromHeaders(headRes);
+        const sigs = await Promise.all(
+          Object.values(FILES).map(f =>
+            fetch(f, { method: 'HEAD' }).then(r => (r.ok ? (fileKeyFromHeaders(r) || '') : '')).catch(() => '')
+          )
+        );
+        const combined = sigs.filter(Boolean).join('|');
+        if (combined) fileKey = combined;
       } catch (e) { /* HEAD נכשל — נמשיך בלי קאש */ }
 
       // שלב 2: אם יש מפתח, נסה לטעון מ-IndexedDB. אם תואם — שימוש מיידי.
@@ -775,6 +810,7 @@ const DAYS_FILTER = [
           setLineCitiesMap(cached.lineCitiesMap instanceof Map ? cached.lineCitiesMap : new Map());
           setLineStopsMap(cached.lineStopsMap instanceof Map ? cached.lineStopsMap : new Map());
           setLineNormStopsMap(cached.lineNormStopsMap instanceof Map ? cached.lineNormStopsMap : new Map());
+          setCostBenchmarkTable(cached.costBenchmark || null);
           // DEBUG: חשיפה ל-window גם בטעינה מהקאש
           if (typeof window !== 'undefined') {
             window.__kp_trips = cached.trips;
@@ -783,6 +819,7 @@ const DAYS_FILTER = [
               stops: cached.lineStopsMap || new Map(),
               normStops: cached.lineNormStopsMap || new Map(),
             };
+            window.__kp_bench = cached.costBenchmark || null;
           }
           setTrips(cached.trips);
           setFileProgress(100);
@@ -794,18 +831,24 @@ const DAYS_FILTER = [
         }
       }
 
-      // שלב 3: אין קאש מתאים — הורדה + פרסור רגיל.
+      // שלב 3: אין קאש מתאים — הורדה מקבילה + פרסור.
       setFileLoading(true);
       setFileProgress(3);
-      setFileMessage('טוען קובץ Excel...');
-      const res = await fetch('data.xlsx');
-      if (!res.ok) throw new Error('xlsx missing');
-      // ניקח שוב את הכותרות מהתגובה — אם HEAD נכשל קודם, יתפס כאן.
-      if (!fileKey) fileKey = fileKeyFromHeaders(res);
+      setFileMessage('טוען קבצי נתונים...');
       fileKeyRef.current = fileKey;
-      const buf = await res.arrayBuffer();
+      const grab = (f, required) => fetch(f).then(r => {
+        if (!r.ok) { if (required) throw new Error(f + ' missing'); return null; }
+        return r.arrayBuffer();
+      }).catch(err => { if (required) throw err; return null; });
+
+      const [main, schedule, stops, benchmark] = await Promise.all([
+        grab(FILES.main, true),
+        grab(FILES.schedule, false),
+        grab(FILES.stops, false),
+        grab(FILES.benchmark, false),
+      ]);
       setInitialLoading(false);
-      await onFile(buf);
+      await runWorker({ main, schedule, stops, benchmark });
       return true;
     } catch (err) {
       console.log('xlsx auto-load failed:', err.message);
@@ -826,25 +869,9 @@ const DAYS_FILTER = [
     loadXLSX().catch(() => { /* swallow */ });
   }, []);
 
-  const onFile = async (e) => {
-    let buffer;
-    if (e instanceof ArrayBuffer) {
-      buffer = e;
-    } else {
-      const f = e.target.files[0];
-      if (!f) return;
-      e.target.value = '';
-      setFileLoading(true);
-      setFileProgress(2);
-      setFileMessage("קורא קובץ...");
-      buffer = await f.arrayBuffer();
-    }
-    setFileLoading(true);
-    setFileProgress(2);
-    setFileMessage("קורא קובץ...");
-
-    // העברת הפרסור ל-Web Worker — ה-UI נשאר רספונסיבי לחלוטין.
-    // הספרייה הכבדה (xlsx) נטענת בתוך ה-worker דרך importScripts.
+  // ── runWorker — שולח payload ל-Web Worker ומטמיע את התוצאה ──────────────
+  // payload: { buffer } (קובץ יחיד/ידני) או { main, schedule, stops, benchmark }.
+  const runWorker = (payload) => {
     return new Promise((resolve) => {
       let worker;
       try {
@@ -868,13 +895,16 @@ const DAYS_FILTER = [
           const lcm = msg.lineCitiesMap instanceof Map ? msg.lineCitiesMap : new Map();
           const lsm = msg.lineStopsMap instanceof Map ? msg.lineStopsMap : new Map();
           const lnsm = msg.lineNormStopsMap instanceof Map ? msg.lineNormStopsMap : new Map();
+          const bench = msg.costBenchmark || null;
           setLineCitiesMap(lcm);
           setLineStopsMap(lsm);
           setLineNormStopsMap(lnsm);
+          setCostBenchmarkTable(bench);
           // DEBUG: חשיפה זמנית ל-window לטובת איתור באגים מהקונסול
           if (typeof window !== 'undefined') {
             window.__kp_trips = msg.trips || [];
             window.__kp_maps = { cities: lcm, stops: lsm, normStops: lnsm };
+            window.__kp_bench = bench;
           }
           setTrips(msg.trips || []);
           setFileProgress(100);
@@ -889,6 +919,7 @@ const DAYS_FILTER = [
               lineCitiesMap: lcm,
               lineStopsMap: lsm,
               lineNormStopsMap: lnsm,
+              costBenchmark: bench,
               savedAt: Date.now(),
             });
           }
@@ -911,15 +942,37 @@ const DAYS_FILTER = [
         resolve();
       };
 
-      // העברה ב-transfer: ה-buffer עובר למחזיק ה-worker בלי copy.
-      // זה חוסך חצי שנייה על קבצי 10MB+.
+      // העברה ב-transfer: ה-buffers עוברים למחזיק ה-worker בלי copy.
+      const buffers = payload.buffer
+        ? [payload.buffer]
+        : ['main', 'schedule', 'stops', 'benchmark'].map(k => payload[k]).filter(Boolean);
       try {
-        worker.postMessage({ type: 'parse', buffer }, [buffer]);
+        worker.postMessage({ type: 'parse', ...payload }, buffers);
       } catch (err) {
         // fallback אם הדפדפן לא תומך ב-transferable
-        worker.postMessage({ type: 'parse', buffer });
+        worker.postMessage({ type: 'parse', ...payload });
       }
     });
+  };
+
+  // העלאה ידנית של קובץ יחיד (זרימת legacy — workbook עם כל הגיליונות).
+  const onFile = async (e) => {
+    let buffer;
+    if (e instanceof ArrayBuffer) {
+      buffer = e;
+    } else {
+      const f = e.target.files[0];
+      if (!f) return;
+      e.target.value = '';
+      setFileLoading(true);
+      setFileProgress(2);
+      setFileMessage("קורא קובץ...");
+      buffer = await f.arrayBuffer();
+    }
+    setFileLoading(true);
+    setFileProgress(2);
+    setFileMessage("קורא קובץ...");
+    return runWorker({ buffer });
   };
 
   // ── קווים לא יעילים — ניקוד מבוסס קטגוריה ──────────────────────────────
@@ -979,7 +1032,7 @@ const DAYS_FILTER = [
         isFeeding: data[0].isFeedingLine,
       });
       const lowRiderTh = LOW_RIDER_THRESHOLD[category] || 10;
-      const costBenchmark = COST_BENCHMARK[category] || 20;
+      const costBenchmark = lookupCostBenchmark(costBenchmarkTable, category, data[0].district);
 
       // נסיעות שפל לפי סף הקטגוריה
       const lowTrips  = data.filter(t => t.ridership < lowRiderTh);
@@ -1119,7 +1172,7 @@ const DAYS_FILTER = [
         exclusiveStops,
       };
     }).filter(l => l.score >= 25).sort((a,b) => b.score - a.score);
-  }, [trips]);
+  }, [trips, costBenchmarkTable]);
 
   // ── קווים תאומים ──────────────────────────────────────────────────────
   // איתור קווים שעושים בעצם את אותו מסלול. השוואה לפי מסלול התחנות המלא (Stop_id)
