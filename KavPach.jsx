@@ -431,7 +431,149 @@ const RouteFormat = ({ val }) => {
   );
 };
 
+// ── BusArt — אוטובוס SVG. variant: 'scrap' (לבן, לפח) או 'gold' (מוזהב) ──
+const BusArt = ({ variant = 'scrap', className = '' }) => {
+  const gold = variant === 'gold';
+  const gid = gold ? 'busGold' : 'busScrap';
+  const winFill = gold ? '#fffbeb' : '#dbeafe';
+  const winStroke = gold ? '#92400e' : '#bfdbfe';
+  return (
+    <svg viewBox="0 0 170 96" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          {gold ? (
+            <>
+              <stop offset="0%" stopColor="#fef3c7" />
+              <stop offset="45%" stopColor="#fbbf24" />
+              <stop offset="100%" stopColor="#d97706" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="100%" stopColor="#eef2f6" />
+            </>
+          )}
+        </linearGradient>
+      </defs>
+      {/* גוף */}
+      <rect x="8" y="20" width="154" height="50" rx="12" fill={`url(#${gid})`} stroke={gold ? '#b45309' : '#cbd5e1'} strokeWidth="3.5" />
+      {/* פס צד */}
+      <rect x="8" y="47" width="154" height="7" fill={gold ? '#b45309' : '#e2e8f0'} opacity="0.6" />
+      {/* חלונות */}
+      {[26, 54, 82, 110].map((x, i) => (
+        <rect key={i} x={x} y="27" width="22" height="15" rx="3" fill={winFill} stroke={winStroke} strokeWidth="1.5" />
+      ))}
+      {/* דלת */}
+      <rect x="138" y="27" width="16" height="30" rx="3" fill={winFill} stroke={winStroke} strokeWidth="1.5" />
+      {/* פנס */}
+      <circle cx="158" cy="63" r="3" fill={gold ? '#fde68a' : '#fbbf24'} />
+      {/* גלגלים */}
+      <circle cx="44" cy="72" r="11" fill="#0f172a" />
+      <circle cx="44" cy="72" r="4.5" fill={gold ? '#fbbf24' : '#94a3b8'} />
+      <circle cx="124" cy="72" r="11" fill="#0f172a" />
+      <circle cx="124" cy="72" r="4.5" fill={gold ? '#fbbf24' : '#94a3b8'} />
+      {gold && <circle cx="30" cy="31" r="3" fill="#ffffff" opacity="0.85" />}
+    </svg>
+  );
+};
+
+// ── TrashBin — פח אשפה ────────────────────────────────────────────────
+const TrashBin = ({ className = '' }) => (
+  <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="52" y="18" width="16" height="10" rx="2" fill="#1e293b" />
+    <rect x="18" y="26" width="84" height="12" rx="3" fill="#334155" />
+    <path d="M26 40 L94 40 L86 112 Q85 116 81 116 L39 116 Q35 116 34 112 Z" fill="#475569" />
+    <path d="M46 48 L51 108" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+    <path d="M60 48 L60 108" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+    <path d="M74 48 L69 108" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+  </svg>
+);
+
+// ── ChoiceScreen — מסך פתיחה: בחירה בין קו פח להקו המוזהב ──────────────
+function ChoiceScreen({ onPick }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
+      <div className="max-w-4xl w-full">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">מערכת ניתוח התחבורה</h1>
+          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שני כלים, מאגר נתונים אחד — במה לבחור?</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* קו פח */}
+          <button
+            onClick={() => onPick('kavpach')}
+            className="group relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 bg-slate-800 rounded-full opacity-50" />
+            <div className="relative">
+              <div className="flex items-end justify-between mb-6 h-28">
+                <TrashBin className="w-24 h-24 drop-shadow-md" />
+                <BusArt variant="scrap" className="w-36 -rotate-[18deg] drop-shadow-xl transition-transform duration-300 group-hover:-rotate-[24deg] group-hover:translate-y-1" />
+              </div>
+              <h2 className="text-3xl font-[900] text-white">קו פח</h2>
+              <p className="text-slate-300 font-bold mt-2 text-sm leading-relaxed">קווים ריקים ובזבזניים — מועמדים לביטול או צמצום</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-white text-slate-900 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </button>
+
+          {/* הקו המוזהב */}
+          <button
+            onClick={() => onPick('golden')}
+            className="group relative overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#1f2937 0%,#3b2f12 52%,#92400e 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#fbbf24' }} />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6 h-28">
+                <span className="bg-amber-400 text-amber-950 px-3 py-1 rounded-full text-[11px] font-black self-start">בקרוב</span>
+                <BusArt variant="gold" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-2" />
+              </div>
+              <h2 className="text-3xl font-[900] text-amber-300">הקו המוזהב</h2>
+              <p className="text-amber-100/80 font-bold mt-2 text-sm leading-relaxed">הקווים המצטיינים — הסטנדרט שאליו כדאי לשאוף</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-amber-400 text-amber-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </button>
+        </div>
+
+        <p className="text-center text-slate-400 font-bold text-xs mt-8">נבנה על ידי שלמה הרטמן</p>
+      </div>
+    </div>
+  );
+}
+
+// ── GoldenComingSoon — מסך זמני לכלי "הקו המוזהב" ─────────────────────
+function GoldenComingSoon({ onBack }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif", background: 'linear-gradient(155deg,#1f2937,#3b2f12 52%,#92400e)' }}>
+      <div className="max-w-lg w-full text-center">
+        <BusArt variant="gold" className="w-56 mx-auto drop-shadow-2xl mb-8" />
+        <h1 className="text-4xl font-[900] text-amber-300">הקו המוזהב</h1>
+        <p className="text-amber-100/80 font-bold mt-3 text-base md:text-lg">הכלי שמאיר את הקווים המצטיינים של המערכת</p>
+        <div className="bg-amber-400 text-amber-950 inline-block px-4 py-1.5 rounded-full font-black text-sm mt-5">בבנייה — בקרוב</div>
+        <div className="mt-8">
+          <button onClick={onBack} className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black transition-colors border border-white/20">→ חזרה לבחירה</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KavPach() {
+  // appMode: 'choice' (מסך בחירה) · 'kavpach' (קו פח) · 'golden' (הקו המוזהב)
+  // מאותחל מה-hash כדי שלינקים ישירים ורענון דף יישמרו (אותה כתובת בסיס).
+  const [appMode, setAppMode] = useState(() => {
+    if (typeof window === 'undefined') return 'choice';
+    const h = decodeURIComponent((window.location.hash || '').replace('#', '').trim());
+    if (h === 'golden' || h === 'מוזהב') return 'golden';
+    if (h === 'kavpach' || h === 'פח') return 'kavpach';
+    return 'choice';
+  });
+  const pickMode = useCallback((m) => {
+    try { window.location.hash = m === 'choice' ? '' : m; } catch (e) { /* ignore */ }
+    setAppMode(m);
+  }, []);
+
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
@@ -865,7 +1007,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260616c'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260616d'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -1674,6 +1816,10 @@ const DAYS_FILTER = [
     runOptimization(lineNum, city || "all", "all", []);
   };
 
+  // מסכי-על: מסך בחירה והכלי המוזהב מוצגים במקום אפליקציית קו פח
+  if (appMode === 'choice') return <ChoiceScreen onPick={pickMode} />;
+  if (appMode === 'golden') return <GoldenComingSoon onBack={() => pickMode('choice')} />;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
       <CitiesDatalist cities={allCities} />
@@ -1698,6 +1844,13 @@ const DAYS_FILTER = [
             </div>
             <p className="text-slate-500 text-sm font-bold mt-2 pr-1">מאתרים קווים ריקים • מייעלים את הלו&quot;ז</p>
           </div>
+          <button
+            onClick={() => pickMode('choice')}
+            className="shrink-0 flex items-center gap-2 bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 px-4 py-2.5 rounded-2xl font-black text-sm shadow-sm transition-colors"
+            title="חזרה למסך הבחירה"
+          >
+            <span className="text-base leading-none">⇄</span> החלף כלי
+          </button>
         </header>
 
         {showWhatsNew && (
