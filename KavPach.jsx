@@ -507,9 +507,18 @@ function ChoiceScreen({ onPick }) {
           >
             <div className="absolute -left-8 -top-8 w-44 h-44 bg-slate-800 rounded-full opacity-50" />
             <div className="relative">
-              <div className="flex items-end justify-between mb-6 h-28">
-                <TrashBin className="w-24 h-24 drop-shadow-md" />
-                <BusArt variant="scrap" className="w-36 -rotate-[18deg] drop-shadow-xl transition-transform duration-300 group-hover:-rotate-[24deg] group-hover:translate-y-1" />
+              <div className="relative h-32 mb-5">
+                {/* אוטובוס לבן צולל לתוך הפח (מאחור) */}
+                <BusArt
+                  variant="scrap"
+                  className="w-32 absolute z-0 drop-shadow-xl transition-transform duration-300 group-hover:translate-y-1.5"
+                  style={{ right: '50px', top: '4px', transform: 'rotate(48deg)' }}
+                />
+                {/* פח אשפה מקדימה — מסתיר את חרטום האוטובוס שנכנס פנימה */}
+                <TrashBin
+                  className="w-24 h-24 absolute bottom-0 z-10 drop-shadow-md"
+                  style={{ right: '20px' }}
+                />
               </div>
               <h2 className="text-3xl font-[900] text-white">קו פח</h2>
               <p className="text-slate-300 font-bold mt-2 text-sm leading-relaxed">קווים ריקים ובזבזניים — מועמדים לביטול או צמצום</p>
@@ -1007,7 +1016,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260616d'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260616e'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
