@@ -791,7 +791,9 @@ const DAYS_FILTER = [
       try {
         const sigs = await Promise.all(
           Object.values(FILES).map(f =>
-            fetch(f, { method: 'HEAD' }).then(r => (r.ok ? (fileKeyFromHeaders(r) || '') : '')).catch(() => '')
+            // cache: 'no-cache' מאלץ אימות-מחדש מול השרת (304 אם לא השתנה) —
+            // כך חתימת הקובץ תמיד עדכנית והקאש המקומי מתעדכן כשהנתונים משתנים.
+            fetch(f, { method: 'HEAD', cache: 'no-cache' }).then(r => (r.ok ? (fileKeyFromHeaders(r) || '') : '')).catch(() => '')
           )
         );
         const combined = sigs.filter(Boolean).join('|');
@@ -836,7 +838,7 @@ const DAYS_FILTER = [
       setFileProgress(3);
       setFileMessage('טוען קבצי נתונים...');
       fileKeyRef.current = fileKey;
-      const grab = (f, required) => fetch(f).then(r => {
+      const grab = (f, required) => fetch(f, { cache: 'no-cache' }).then(r => {
         if (!r.ok) { if (required) throw new Error(f + ' missing'); return null; }
         return r.arrayBuffer();
       }).catch(err => { if (required) throw err; return null; });
@@ -875,7 +877,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js');
+        worker = new Worker('xlsx-worker.js?v=20260616a'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
