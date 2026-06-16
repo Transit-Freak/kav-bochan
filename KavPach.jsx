@@ -777,11 +777,11 @@ const DAYS_FILTER = [
   const fileKeyRef = useRef(null);
 
   // ── טעינה אוטומטית בעליית הקומפוננטה ──────────────────────────────────────
-  // 4 קבצי מקור: מצומצם(ראשי) · data.xlsx(לוז/שעות) · תחנות · עלות לנוסע(בנצ'מרק)
+  // 4 קבצי מקור: מצומצם(ראשי) · מרחוב(לוז/שעות) · תחנות · עלות לנוסע(בנצ'מרק)
   const loadFromXLSX = useCallback(async () => {
     const FILES = {
       main: 'מצומצם.xlsx',
-      schedule: 'data.xlsx',
+      schedule: 'מרחוב.xlsx',
       stops: 'תחנות.xlsx',
       benchmark: 'עלות לנוסע.xlsx',
     };
