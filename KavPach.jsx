@@ -877,7 +877,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260616a'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260616b'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -2080,7 +2080,7 @@ const DAYS_FILTER = [
                   onClick={() => setShowWhatsNew(v => !v)}
                   className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
                 >
-                  עדכון גרסה 3.2
+                  עדכון גרסה 3.3
                 </button>
                 <span className="text-xs font-bold text-slate-400">נבנה על ידי שלמה הרטמן</span>
               </div>
@@ -2119,8 +2119,8 @@ const DAYS_FILTER = [
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.2</h3>
-                  <p className="text-slate-400 font-bold text-xs mt-1">חיפוש מהיר, קאש מקומי, וזיהוי קווים מעגליים</p>
+                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.3</h3>
+                  <p className="text-slate-400 font-bold text-xs mt-1">עדכון מידע — נתונים עדכניים ועלות תפעולית מדויקת לפי מחוז</p>
                 </div>
                 <button onClick={() => setShowWhatsNew(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
                   &times;
@@ -2130,45 +2130,34 @@ const DAYS_FILTER = [
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
-                    טעינה מיידית בכניסות חוזרות
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">עדכון מידע</span>
+                    נתונים עדכניים ממקורות חדשים
                   </h4>
-                  <p className="text-slate-600 mb-3">המערכת שומרת את הנתונים המעובדים בקאש מקומי בדפדפן. בכניסה הבאה, כל עוד קובץ המקור לא השתנה, הטעינה נמשכת פחות משנייה — בלי הורדה, בלי פרסור.</p>
+                  <p className="text-slate-600 mb-3">כל הנתונים במערכת עודכנו והוחלפו במקורות החדשים והעדכניים של משרד התחבורה. המידע מאורגן כעת בארבעה קבצים נפרדים — נתוני קווים, לוז נסיעות, תחנות, וטבלת עלויות — לדיוק ועדכון פשוט יותר.</p>
                   <ul className="list-disc list-inside space-y-2 marker:text-emerald-400 pr-2">
-                    <li><strong>HEAD request זריז</strong> בודק אם הקובץ השתנה. אם כן — הקאש מתעדכן אוטומטית.</li>
-                    <li><strong>הקאש פר-משתמש</strong>, נשמר ב-IndexedDB ולא פוגע בהגדרות הדפדפן.</li>
+                    <li><strong>לוז מורחב:</strong> מעל 205,000 יציאות מתוזמנות עם נתוני נוסעים ועומס מעודכנים.</li>
+                    <li><strong>נתוני תחנות מלאים:</strong> כולל שם תחנה, עיר ומיקום לכל קו.</li>
                   </ul>
                 </section>
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
                     <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                    חיפוש חלק וללא לאגים
+                    עלות תפעולית מדויקת לפי מחוז
                   </h4>
-                  <p className="text-slate-600 mb-3">החיפוש שודרג כך שההקלדה והמחיקה מיידיות גם בנייד. הסינון מתבצע רק בהקשה על <strong>Enter</strong> או בלחיצה על ה-× כדי לנקות — בלי עיבוד מיותר ברקע בכל מקש.</p>
+                  <p className="text-slate-600 mb-3">עד כה כל קו הושווה לממוצע <strong>ארצי</strong> אחד לקטגוריה שלו. כעת ההשוואה מתבצעת מול בנצ'מרק <strong>מחוזי</strong> — כל קו נמדד מול העלות הממוצעת לנוסע בקטגוריה שלו <strong>ובמחוז שלו</strong> בפועל.</p>
                   <ul className="list-disc list-inside space-y-2 marker:text-sky-400 pr-2">
-                    <li><strong>רינדור מותנה (content-visibility):</strong> הדפדפן מציג רק את הכרטיסים שעל המסך, ומדלג על כל מה שמחוץ לתצוגה. גלילה ברשימות גדולות הפכה חלקה.</li>
-                    <li><strong>פחות DOM, יותר FPS:</strong> טעינת הטבלה התחלתית קטנה משמעותית — הכפתור "טען עוד" עדיין זמין.</li>
+                    <li>זיהוי הוגן יותר של קווים יקרים — קו בפריפריה נמדד מול הפריפריה, לא מול גוש דן.</li>
+                    <li>טבלת בנצ'מרק רשמית של 8 קטגוריות × 8 מחוזות.</li>
                   </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
-                    זיהוי קווים מעגליים בתאומים
-                  </h4>
-                  <p className="text-slate-600 mb-3">קווים שהמוצא והיעד שלהם זהים (קווים מעגליים, למשל בתוך עיר אחת) נכנסים עכשיו לחישוב התאומים — באג ידוע שמנע מקבוצות כאלה להופיע. כרטיס תאומים מעגלי מסומן בתווית <span dir="ltr" className="font-bold">↻ מעגלי</span>.</p>
                 </section>
 
                 <section>
                   <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
                     <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
-                    באגים שתוקנו
+                    עדכונים מופיעים מיד
                   </h4>
-                  <ul className="list-disc list-inside space-y-2 marker:text-slate-400 pr-2">
-                    <li><strong>טולטיפ "הזמנה מראש" בנייד:</strong> הטולטיפ חרג מהמסך במכשירים צרים. עכשיו הוא מעוגן לימין וברוחב מותאם לרוחב המסך.</li>
-                    <li><strong>שאריות JSX מתצוגה:</strong> טקסט קוד מסוים הופיע בטעות מעל שדות חיפוש — נוקה.</li>
-                  </ul>
+                  <p className="text-slate-600 mb-3">תוקנה בעיה שבה הדפדפן הציג גרסה ישנה מהזיכרון המקומי (cache) ולא את העדכון האחרון. כעת המערכת בודקת מול השרת בכל טעינה ומציגה תמיד את הנתונים והקוד העדכניים ביותר.</p>
                 </section>
 
               </div>
@@ -3248,52 +3237,41 @@ const DAYS_FILTER = [
                   {/* מה חדש בגרסה הנוכחית — תמיד בהתחלה */}
                   <section className="bg-gradient-to-bl from-indigo-50 to-white rounded-[2rem] p-6 border-2 border-indigo-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.2</span>
+                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.3</span>
                       <h3 className="text-xl font-black text-indigo-700">מה חדש בעדכון הנוכחי</h3>
                     </div>
                     <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
 
                       <div className="bg-white rounded-2xl p-4 border border-indigo-100">
                         <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
-                          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">ביצועים</span>
-                          טעינה מיידית בכניסות חוזרות
+                          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">עדכון מידע</span>
+                          נתונים עדכניים ממקורות חדשים
                         </h4>
-                        <p className="text-slate-600 mb-2">המערכת שומרת את הנתונים המעובדים בקאש מקומי בדפדפן. בכניסה הבאה, כל עוד קובץ המקור לא השתנה, הטעינה נמשכת פחות משנייה — בלי הורדה, בלי פרסור.</p>
+                        <p className="text-slate-600 mb-2">כל הנתונים במערכת עודכנו והוחלפו במקורות החדשים והעדכניים של משרד התחבורה. המידע מאורגן כעת בארבעה קבצים נפרדים — נתוני קווים, לוז נסיעות, תחנות, וטבלת עלויות.</p>
                         <ul className="list-disc list-inside space-y-1 marker:text-emerald-400 pr-2 text-xs">
-                          <li>HEAD request זריז בודק אם הקובץ השתנה — אם כן, הקאש מתעדכן אוטומטית.</li>
-                          <li>הקאש פר-משתמש, נשמר ב-IndexedDB ולא פוגע בהגדרות הדפדפן.</li>
+                          <li>לוז מורחב: מעל 205,000 יציאות מתוזמנות עם נתוני נוסעים ועומס מעודכנים.</li>
+                          <li>נתוני תחנות מלאים: שם תחנה, עיר ומיקום לכל קו.</li>
                         </ul>
                       </div>
 
                       <div className="bg-white rounded-2xl p-4 border border-indigo-100">
                         <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
                           <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                          חיפוש חלק וללא לאגים
+                          עלות תפעולית מדויקת לפי מחוז
                         </h4>
-                        <p className="text-slate-600 mb-2">החיפוש שודרג כך שההקלדה והמחיקה מיידיות גם בנייד. הסינון מתבצע רק בהקשה על <strong>Enter</strong> או בלחיצה על ה-× כדי לנקות — בלי עיבוד מיותר ברקע בכל מקש.</p>
+                        <p className="text-slate-600 mb-2">עד כה כל קו הושווה לממוצע <strong>ארצי</strong> אחד לקטגוריה שלו. כעת ההשוואה מתבצעת מול בנצ'מרק <strong>מחוזי</strong> — כל קו נמדד מול העלות הממוצעת לנוסע בקטגוריה שלו ובמחוז שלו בפועל.</p>
                         <ul className="list-disc list-inside space-y-1 marker:text-sky-400 pr-2 text-xs">
-                          <li><strong>רינדור מותנה (content-visibility):</strong> הדפדפן מציג רק כרטיסים שעל המסך. גלילה ברשימות גדולות הפכה חלקה.</li>
-                          <li>טעינת טבלה התחלתית קטנה משמעותית — הכפתור "טען עוד" עדיין זמין.</li>
+                          <li>זיהוי הוגן יותר — קו בפריפריה נמדד מול הפריפריה, לא מול גוש דן.</li>
+                          <li>טבלת בנצ'מרק רשמית של 8 קטגוריות × 8 מחוזות.</li>
                         </ul>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
-                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
-                          <span className="bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md text-[10px]">חדש</span>
-                          זיהוי קווים מעגליים בתאומים
-                        </h4>
-                        <p className="text-slate-600">קווים שהמוצא והיעד שלהם זהים (מעגליים, בתוך עיר אחת) נכנסים עכשיו לחישוב התאומים — באג ידוע שמנע מקבוצות כאלה להופיע. כרטיס תאומים מעגלי מסומן בתווית <span dir="ltr" className="font-bold">↻ מעגלי</span>.</p>
                       </div>
 
                       <div className="bg-white rounded-2xl p-4 border border-indigo-100">
                         <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
                           <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
-                          באגים שתוקנו
+                          עדכונים מופיעים מיד
                         </h4>
-                        <ul className="list-disc list-inside space-y-1 marker:text-slate-400 pr-2 text-xs">
-                          <li><strong>טולטיפ "הזמנה מראש" בנייד:</strong> חרג מהמסך במכשירים צרים. עכשיו מעוגן לימין וברוחב מותאם.</li>
-                          <li><strong>שאריות קוד מתצוגה:</strong> טקסט className הופיע בטעות מעל שדות החיפוש — נוקה.</li>
-                        </ul>
+                        <p className="text-slate-600">תוקנה בעיה שבה הדפדפן הציג גרסה ישנה מהזיכרון המקומי (cache) ולא את העדכון האחרון. כעת המערכת בודקת מול השרת בכל טעינה ומציגה תמיד את הנתונים והקוד העדכניים ביותר.</p>
                       </div>
 
                     </div>
