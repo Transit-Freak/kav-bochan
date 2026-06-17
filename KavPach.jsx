@@ -732,21 +732,31 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
   const selectCls = "bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-auto appearance-none cursor-pointer";
 
-  const exportCSV = () => {
-    const cols = ['מספר קו','מק"ט','מוצא','יעד','מחוז','קטגוריה','ניקוד','ממוצע נוסעים','עומס שיא','נסיעות בשבוע','עלות לנוסע','ק"מ שבועי כולל','ק"מ סרק'];
-    const rows = filtered.map(l => [
-      l.lineNum, l.makat || '', l.origin || '', l.dest || '', l.district || '', l.category || '',
-      l.score, l.avg, l.avgPeak, l.count,
-      l.cost > 0 ? l.cost.toFixed(2) : '',
-      (l.totalKm || 0).toFixed(0),
-      (l.wastedKm || 0).toFixed(0),
-    ]);
-    const BOM = '﻿';
-    const csv = BOM + [cols, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    a.download = `קו-מוזהב-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
+  const exportAreaToExcel = async (areaKey) => {
+    await loadXLSX();
+    const lines = goldenLines.filter(l => l.district === areaKey);
+    if (!lines.length) return;
+    const data = lines.map(l => ({
+      'מספר קו': l.lineNum,
+      'מק"ט': l.makat || '',
+      'מוצא': l.origin || '',
+      'יעד': l.dest || '',
+      'מחוז': l.district || '',
+      'קטגוריה': l.category || '',
+      'ניקוד מוזהב': l.score,
+      'ממוצע נוסעים לנסיעה': parseFloat(l.avg),
+      'עומס שיא ממוצע': l.avgPeak,
+      'נסיעות בשבוע': l.count,
+      'עלות לנוסע': l.cost > 0 ? `₪${l.cost.toFixed(2)}` : 'לא זמין',
+      'ק"מ שבועי כולל': Math.round(l.totalKm || 0),
+      'ק"מ סרק': Math.round(l.wastedKm || 0),
+    }));
+    const ws = window.XLSX.utils.json_to_sheet(data);
+    if (!ws['!views']) ws['!views'] = [];
+    ws['!views'].push({ rightToLeft: true });
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, 'קווים_מצטיינים');
+    window.XLSX.writeFile(wb, `קו_מוזהב_${areaKey.replace(/\s+/g, '_')}.xlsx`);
   };
 
   return (
@@ -789,9 +799,6 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                 <p className="text-slate-500 font-bold">דירוג המציג את הקווים החזקים ביותר במערכת — ביקוש גבוה, יעילות גבוהה ועלות נמוכה</p>
               </div>
               <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
-                <button onClick={exportCSV} className="flex items-center gap-2 bg-amber-400 hover:bg-amber-500 text-amber-950 px-5 py-3 rounded-2xl font-black text-sm transition-colors shadow-sm shrink-0">
-                  <Ic n="download" size={16} /> ייצוא CSV ({filtered.length})
-                </button>
                 <select value={sortBy} onChange={e => { setSortBy(e.target.value); setVisibleCount(60); }} className={selectCls}>
                   <option value="score">מיון: לפי ניקוד מוזהב</option>
                   <option value="riders">מיון: ממוצע נוסעים (גבוה לנמוך)</option>
@@ -946,7 +953,12 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                       <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ נסיעות שבועיות</span><span className="font-black text-slate-900">{area.totalTrips.toLocaleString()}</span></div>
                       <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ ק"מ שבועיים</span><span className="font-black text-slate-900">{area.totalKm.toLocaleString()} ק"מ</span></div>
                     </div>
-                    <div className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-black text-center group-hover:bg-black transition-colors">צפה בקווים אלו</div>
+                    <div className="flex gap-2">
+                      <div className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black text-center group-hover:bg-black transition-colors">צפה בקווים אלו</div>
+                      <button onClick={e => { e.stopPropagation(); exportAreaToExcel(area.key); }} className="py-3 px-4 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-2xl text-xs font-black transition-colors shrink-0" title="הורד Excel">
+                        <Ic n="download" size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {areaStats.length === 0 && (
