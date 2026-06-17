@@ -984,14 +984,28 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
             const idx = periodRange.findIndex(([a,b]) => mins >= a && mins < b);
             if (idx >= 0) { const key = Object.keys(periods)[idx]; periods[key].push(t); }
           });
+          // יעד עומס נוח = 85% מקיבולת האוטובוס. מעבר לזה — האוטובוס צפוף וצריך נסיעות נוספות.
+          // נסיעות להוספה = נסיעות שיביאו את העומס הממוצע חזרה ליעד הנוח.
+          const TARGET_LOAD = 0.85;
           const periodStats = Object.entries(periods).map(([label, pts]) => {
-            if (pts.length === 0) return { label, count: 0, avgRiders: 0, avgPeak: 0 };
+            if (pts.length === 0) return { label, count: 0, avgRiders: 0, avgPeak: 0, capacity: 0, occupancy: 0, tripsToAdd: 0 };
             const totalTrips = pts.reduce((s,t) => s + t.tripCount, 0);
             const avgRiders = totalTrips > 0 ? pts.reduce((s,t) => s + t.ridership * t.tripCount, 0) / totalTrips : 0;
             const avgPeak = totalTrips > 0 ? pts.reduce((s,t) => s + t.peakLoad * t.tripCount, 0) / totalTrips : 0;
-            return { label, count: totalTrips, avgRiders: avgRiders.toFixed(1), avgPeak: Math.round(avgPeak) };
+            // קיבולת מייצגת לחלון — הקיבולת הגדולה ביותר בין נסיעות החלון
+            const capacity = Math.max(...pts.map(t => t.capacity || 50), 50);
+            const target = capacity * TARGET_LOAD;
+            const occupancy = capacity > 0 ? avgPeak / capacity : 0;
+            let tripsToAdd = 0;
+            if (avgPeak > target && totalTrips > 0) {
+              const needed = Math.ceil(totalTrips * avgPeak / target);
+              tripsToAdd = Math.max(0, needed - totalTrips);
+            }
+            return { label, count: totalTrips, avgRiders: avgRiders.toFixed(1), avgPeak: Math.round(avgPeak), capacity, occupancy, tripsToAdd };
           }).filter(p => p.count > 0);
           const maxRiders = Math.max(...periodStats.map(p => Number(p.avgRiders)), 1);
+          const totalTripsToAdd = periodStats.reduce((s,p) => s + p.tripsToAdd, 0);
+          const crowdedWindows = periodStats.filter(p => p.tripsToAdd > 0).sort((a,b) => b.tripsToAdd - a.tripsToAdd);
 
           return (
             <div className="space-y-8 transition-opacity duration-300 opacity-100">
@@ -1004,50 +1018,74 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                       <p className="text-slate-500 font-bold">{selectedLine.origin} ← {selectedLine.dest} · {selectedLine.district}</p>
                     </div>
                   </div>
-                  <p className="text-slate-500 font-bold text-sm mt-2">הקו פועל ביעילות גבוהה — זהו הרגע הנכון לשקול הוספת נסיעות בשעות השיא</p>
+                  <p className="text-slate-500 font-bold text-sm mt-2">חישוב כמה נסיעות כדאי להוסיף כדי להוריד את העומס לרמה נוחה (עד 85% מקיבולת האוטובוס)</p>
                 </div>
                 <button onClick={() => setGoldenTab('top')} className="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימה</button>
               </div>
 
+              {/* סיכום: סך נסיעות להוספה */}
+              <div className={`rounded-[2.5rem] p-8 shadow-sm border-2 ${totalTripsToAdd > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="text-center md:text-right">
+                    <p className={`font-bold text-sm ${totalTripsToAdd > 0 ? 'text-emerald-700' : 'text-slate-500'}`}>סך נסיעות מומלצות להוספה (שבועי)</p>
+                    <p className={`text-5xl font-[900] mt-1 ${totalTripsToAdd > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>{totalTripsToAdd > 0 ? `+${totalTripsToAdd}` : '0'}</p>
+                  </div>
+                  <div className="text-center md:text-left max-w-sm">
+                    <p className="text-slate-600 font-bold text-sm leading-relaxed">
+                      {totalTripsToAdd > 0
+                        ? `הקו עמוס ב-${crowdedWindows.length} חלונות זמן. הוספת ${totalTripsToAdd} נסיעות שבועיות תוריד את העומס הממוצע לרמה נוחה ותקצר המתנה.`
+                        : 'בכל חלונות הזמן העומס מתחת ל-85% מהקיבולת — אין צורך בהוספת נסיעות כרגע. הקו פועל ביעילות מיטבית.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ניתוח לפי תקופה */}
+                {/* ניתוח עומס לפי שעה */}
                 <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
-                  <h3 className="text-lg font-black text-slate-900 mb-5">עומס נוסעים לפי שעה</h3>
+                  <h3 className="text-lg font-black text-slate-900 mb-5">עומס שיא לפי שעה</h3>
                   <div className="space-y-3">
-                    {periodStats.map(p => (
-                      <div key={p.label}>
-                        <div className="flex justify-between text-sm font-bold mb-1">
-                          <span className="text-slate-700">{p.label}</span>
-                          <span className="text-slate-900 font-black">{p.avgRiders} נוסעים · {p.count} נסיעות</span>
+                    {periodStats.map(p => {
+                      const occPct = Math.round(p.occupancy * 100);
+                      const over = p.tripsToAdd > 0;
+                      return (
+                        <div key={p.label}>
+                          <div className="flex justify-between text-sm font-bold mb-1">
+                            <span className="text-slate-700">{p.label}</span>
+                            <span className={over ? 'text-emerald-700 font-black' : 'text-slate-900 font-black'}>{occPct}% תפוסה · {p.count} נסיעות</span>
+                          </div>
+                          <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${over ? 'bg-emerald-500' : 'bg-slate-900'}`} style={{ width: `${Math.min(100, p.occupancy * 100)}%` }} />
+                          </div>
                         </div>
-                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-slate-900 transition-all" style={{ width: `${(Number(p.avgRiders) / maxRiders) * 100}%` }} />
+                      );
+                    })}
+                    {periodStats.length === 0 && <p className="text-slate-400 font-bold text-sm">אין נתוני זמן לקו זה</p>}
+                  </div>
+                  <p className="text-slate-400 text-xs font-bold mt-4 pt-3 border-t border-slate-100">קו ירוק = העומס עובר 85% מהקיבולת — חלון מועמד להוספת נסיעות</p>
+                </div>
+
+                {/* נסיעות להוספה לפי חלון */}
+                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
+                  <h3 className="text-lg font-black text-slate-900 mb-5">נסיעות להוספה לפי חלון</h3>
+                  <div className="space-y-4">
+                    {crowdedWindows.length === 0 && (
+                      <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 text-slate-600">
+                        <div className="font-black text-sm mb-1">אין צורך בהוספת נסיעות</div>
+                        <div className="text-xs font-bold opacity-80">העומס בכל החלונות מתחת ל-85% מהקיבולת.</div>
+                      </div>
+                    )}
+                    {crowdedWindows.map(p => (
+                      <div key={p.label} className="p-4 rounded-2xl border bg-emerald-50 border-emerald-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-black text-sm text-emerald-800">{p.label}</div>
+                          <div className="font-[900] text-emerald-600 text-lg">+{p.tripsToAdd} נסיעות</div>
+                        </div>
+                        <div className="text-xs font-bold text-emerald-700/80">
+                          עומס שיא ממוצע {p.avgPeak} נוסעים על קיבולת {p.capacity} ({Math.round(p.occupancy*100)}% תפוסה). כיום {p.count} נסיעות — הוספת {p.tripsToAdd} תוריד את התפוסה לכ-85%.
                         </div>
                       </div>
                     ))}
-                    {periodStats.length === 0 && <p className="text-slate-400 font-bold text-sm">אין נתוני זמן לקו זה</p>}
-                  </div>
-                </div>
-
-                {/* המלצות */}
-                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
-                  <h3 className="text-lg font-black text-slate-900 mb-5">המלצות להרחבה</h3>
-                  <div className="space-y-4">
-                    {(() => {
-                      const recs = [];
-                      const peak = periodStats.filter(p => p.label.includes('שיא')).sort((a,b) => Number(b.avgRiders)-Number(a.avgRiders));
-                      if (peak.length > 0) recs.push({ title: `הוסף נסיעות ב${peak[0].label}`, desc: `ממוצע ${peak[0].avgRiders} נוסעים — זמן השיא של הקו. נסיעות נוספות ישפרו זמינות ויקצרו המתנה.`, color: 'bg-emerald-50 border-emerald-200 text-emerald-700' });
-                      if (selectedLine.avgPeak > 30) recs.push({ title: 'שקול כלי קיבולת גבוהה יותר', desc: `עומס שיא ממוצע ${selectedLine.avgPeak} — האוטובוס מלא. שידרוג לאוטובוס ארוך יכול להגדיל קיבולת ללא עלות תפעולית גבוהה.`, color: 'bg-sky-50 border-sky-200 text-sky-700' });
-                      if (Number(selectedLine.avg) > 20) recs.push({ title: 'קו מועמד לתדירות גבוהה יותר', desc: `ממוצע ${selectedLine.avg} נוסעים לנסיעה מצדיק בחינת קיצור מרווח הנסיעות.`, color: 'bg-indigo-50 border-indigo-200 text-indigo-700' });
-                      if (selectedLine.cost > 0 && selectedLine.costRatio < 0.8) recs.push({ title: 'עלות נמוכה — יש מרחב תקציבי', desc: `עלות ₪${selectedLine.cost.toFixed(2)} לנוסע — ${Math.round(selectedLine.costRatio*100)}% מהממוצע. הרחבת השירות משתלמת כלכלית.`, color: 'bg-amber-50 border-amber-200 text-amber-700' });
-                      if (recs.length === 0) recs.push({ title: 'קו יעיל — בחן הרחבה עתידית', desc: 'הקו פועל ביעילות גבוהה. מומלץ לעקוב אחר מגמות הביקוש לאורך זמן.', color: 'bg-slate-50 border-slate-200 text-slate-700' });
-                      return recs.map((r, i) => (
-                        <div key={i} className={`p-4 rounded-2xl border ${r.color}`}>
-                          <div className="font-black text-sm mb-1">{r.title}</div>
-                          <div className="text-xs font-bold opacity-80">{r.desc}</div>
-                        </div>
-                      ));
-                    })()}
                   </div>
                 </div>
               </div>
@@ -1649,7 +1687,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617p'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617q'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
