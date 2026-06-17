@@ -955,7 +955,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                       <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ נסיעות שבועיות</span><span className="font-black text-slate-900">{area.totalTrips.toLocaleString()}</span></div>
                       <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ ק"מ שבועיים</span><span className="font-black text-slate-900">{area.totalKm.toLocaleString()} ק"מ</span></div>
                     </div>
-                    <div className="mt-auto w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black text-center group-hover:bg-black transition-all shadow-md">צפה בקווים אלו</div>
+                    <button className="mt-auto w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black hover:bg-black transition-all shadow-md">צפה בקווים אלו</button>
                   </div>
                 ))}
                 {areaStats.length === 0 && (
