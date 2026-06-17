@@ -993,8 +993,29 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
           // יעד עומס נוח = 85% מקיבולת האוטובוס. מעבר לזה — האוטובוס צפוף וצריך נסיעות נוספות.
           // נסיעות להוספה = נסיעות שיביאו את העומס הממוצע חזרה ליעד הנוח.
           const TARGET_LOAD = 0.85;
+          const minsToStr = (m) => `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(Math.round(m)%60).padStart(2,'0')}`;
+          // מציע שעות יציאה קונקרטיות להוספה: מאתר את המרווחים הארוכים בצורה חריגה
+          // בלוח (יותר מ-1.5× מהמרווח החציוני) ומשתל נסיעה במרווחים האלה — שם
+          // ההמתנה הכי ארוכה ולכן ההוספה הכי מורגשת. מחזיר עד 8 שעות מוצעות.
+          const suggestTimes = (pts) => {
+            const times = [...new Set(pts.map(t => t.timeMins).filter(m => m != null && m > 0))].sort((a,b) => a-b);
+            if (times.length < 2) return [];
+            const rawGaps = [];
+            for (let i=0; i<times.length-1; i++) rawGaps.push({ start: times[i], end: times[i+1], gap: times[i+1]-times[i] });
+            const sortedGaps = [...rawGaps].map(g => g.gap).sort((a,b) => a-b);
+            const median = sortedGaps[Math.floor(sortedGaps.length/2)] || 0;
+            const threshold = Math.max(median * 1.5, 15); // מרווח נחשב "ארוך" רק אם עובר סף
+            const picks = [];
+            for (const g of rawGaps) {
+              if (g.gap < threshold) continue;
+              // כמה נסיעות לשתול במרווח כדי לקרבו למרווח החציוני
+              const inserts = Math.max(1, Math.round(g.gap / Math.max(median, 1)) - 1);
+              for (let k=1; k<=inserts; k++) picks.push(Math.round(g.start + (g.gap * k) / (inserts + 1)));
+            }
+            return picks.sort((a,b) => a-b).slice(0, 8).map(minsToStr);
+          };
           const periodStats = Object.entries(periods).map(([label, pts]) => {
-            if (pts.length === 0) return { label, count: 0, avgRiders: 0, avgPeak: 0, capacity: 0, occupancy: 0, tripsToAdd: 0 };
+            if (pts.length === 0) return { label, count: 0, avgRiders: 0, avgPeak: 0, capacity: 0, occupancy: 0, tripsToAdd: 0, suggestedTimes: [] };
             const totalTrips = pts.reduce((s,t) => s + t.tripCount, 0);
             const avgRiders = totalTrips > 0 ? pts.reduce((s,t) => s + t.ridership * t.tripCount, 0) / totalTrips : 0;
             const avgPeak = totalTrips > 0 ? pts.reduce((s,t) => s + t.peakLoad * t.tripCount, 0) / totalTrips : 0;
@@ -1007,7 +1028,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               const needed = Math.ceil(totalTrips * avgPeak / target);
               tripsToAdd = Math.max(0, needed - totalTrips);
             }
-            return { label, count: totalTrips, avgRiders: avgRiders.toFixed(1), avgPeak: Math.round(avgPeak), capacity, occupancy, tripsToAdd };
+            const suggestedTimes = tripsToAdd > 0 ? suggestTimes(pts) : [];
+            return { label, count: totalTrips, avgRiders: avgRiders.toFixed(1), avgPeak: Math.round(avgPeak), capacity, occupancy, tripsToAdd, suggestedTimes };
           }).filter(p => p.count > 0);
           const maxRiders = Math.max(...periodStats.map(p => Number(p.avgRiders)), 1);
           const totalTripsToAdd = periodStats.reduce((s,p) => s + p.tripsToAdd, 0);
@@ -1114,10 +1136,24 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                             <span className="font-bold text-slate-500">נסיעות שבועיות כיום:</span>
                             <span className="font-black text-slate-700">{p.count}</span>
                           </div>
-                          <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                          <div className="pt-3 border-t border-slate-200 flex justify-between items-center mb-3">
                             <span className="font-black text-emerald-700">מומלץ להוסיף:</span>
                             <span className="font-black text-2xl text-emerald-600 bg-white px-3 py-1 rounded-xl shadow-sm">+{p.tripsToAdd} נסיעות</span>
                           </div>
+                          {p.suggestedTimes.length > 0 ? (
+                            <div>
+                              <div className="text-xs font-bold text-slate-500 mb-2">שעות מוצעות למילוי מרווחים ארוכים:</div>
+                              <div className="flex flex-wrap gap-2">
+                                {p.suggestedTimes.map((t, ti) => (
+                                  <span key={ti} className="font-black text-sm text-emerald-700 bg-white border border-emerald-200 px-3 py-1.5 rounded-xl shadow-sm">{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                              הלוח כבר צפוף ואין מרווחים ארוכים — עדיף לשדרג ל{p.capacity < 90 ? 'אוטובוס מפרקי (90 מקומות)' : 'תוספת קיבולת'} מאשר להוסיף נסיעות.
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -1721,7 +1757,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617s'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617t'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
