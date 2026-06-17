@@ -1332,11 +1332,11 @@ const DAYS_FILTER = [
         grab(FILES.stops, false),
         grab(FILES.benchmark, false),
       ]);
-      setInitialLoading(false);
       await runWorker({ main, schedule, stops, benchmark });
       return true;
     } catch (err) {
       console.log('xlsx auto-load failed:', err.message);
+      setInitialLoading(false);
       return false;
     }
   }, []);
