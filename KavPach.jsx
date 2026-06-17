@@ -1529,19 +1529,48 @@ const DAYS_FILTER = [
       // שלב 3: אין קאש מתאים — הורדה מקבילה + פרסור.
       setFileLoading(true);
       setFileProgress(3);
-      setFileMessage('טוען קבצי נתונים...');
+      setFileMessage('מוריד קבצי נתונים…');
       fileKeyRef.current = fileKey;
-      const grab = (f, required) => fetch(f, { cache: 'no-cache' }).then(r => {
-        if (!r.ok) { if (required) throw new Error(f + ' missing'); return null; }
-        return r.arrayBuffer();
-      }).catch(err => { if (required) throw err; return null; });
+
+      // הורדה עם מעקב progress לכל קובץ
+      const grabWithProgress = async (f, required, onBytes) => {
+        let res;
+        try { res = await fetch(f, { cache: 'no-cache' }); } catch(e) { if (required) throw e; return null; }
+        if (!res.ok) { if (required) throw new Error(f + ' missing'); return null; }
+        const total = Number(res.headers.get('content-length') || 0);
+        const reader = res.body.getReader();
+        const chunks = [];
+        let received = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (total > 0 && onBytes) onBytes(received, total);
+        }
+        const buf = new Uint8Array(received);
+        let pos = 0;
+        for (const c of chunks) { buf.set(c, pos); pos += c.length; }
+        return buf.buffer;
+      };
+
+      // גדלי קבצים משוערים (בבייטים) לחישוב progress כולל
+      const EST = { main: 1_200_000, schedule: 24_000_000, stops: 22_000_000, benchmark: 20_000 };
+      const totalEst = Object.values(EST).reduce((a, b) => a + b, 0);
+      const received = { main: 0, schedule: 0, stops: 0, benchmark: 0 };
+      const updateProgress = () => {
+        const done = Object.entries(received).reduce((s, [k, v]) => s + Math.min(v, EST[k]), 0);
+        const pct = Math.min(42, 3 + Math.round((done / totalEst) * 39));
+        setFileProgress(pct);
+      };
 
       const [main, schedule, stops, benchmark] = await Promise.all([
-        grab(FILES.main, true),
-        grab(FILES.schedule, false),
-        grab(FILES.stops, false),
-        grab(FILES.benchmark, false),
+        grabWithProgress(FILES.main,      true,  (b) => { received.main      = b; updateProgress(); setFileMessage('מוריד נתוני קווים…'); }),
+        grabWithProgress(FILES.schedule,  false, (b) => { received.schedule  = b; updateProgress(); setFileMessage('מוריד לוח זמנים…'); }),
+        grabWithProgress(FILES.stops,     false, (b) => { received.stops     = b; updateProgress(); setFileMessage('מוריד נתוני תחנות…'); }),
+        grabWithProgress(FILES.benchmark, false, (b) => { received.benchmark = b; updateProgress(); }),
       ]);
+      setFileMessage('מנתח נתונים…');
       await runWorker({ main, schedule, stops, benchmark });
       return true;
     } catch (err) {
@@ -2381,12 +2410,29 @@ const DAYS_FILTER = [
 
   // מסכי-על: ממתינים לטעינת הנתונים לפני הצגת מסך הבחירה
   if (initialLoading) return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-5" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      <div className="w-14 h-14 rounded-full bg-slate-900 flex items-center justify-center">
-        <Ic n="loader" size={28} cls="text-white" animate={true} />
-      </div>
-      <p className="text-slate-700 font-black text-lg">טוען נתונים…</p>
-      <p className="text-slate-400 text-sm font-bold">יקח כמה שניות</p>
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-6 px-6" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
+      {fileLoad.progress < 10 ? (
+        <>
+          <div className="w-14 h-14 rounded-full bg-slate-900 flex items-center justify-center">
+            <Ic n="loader" size={28} cls="text-white" animate={true} />
+          </div>
+          <div className="text-center">
+            <p className="text-slate-700 font-black text-lg">{fileLoad.message || 'טוען נתונים…'}</p>
+            <p className="text-slate-400 text-sm font-bold mt-1">יכול לקחת כחצי דקה בחיבור סלולרי</p>
+          </div>
+        </>
+      ) : (
+        <>
+          <Ic n="loader" size={56} cls="text-slate-900" animate={true} />
+          <div className="text-center w-full max-w-xs">
+            <p className="text-slate-800 font-black text-lg mb-3">{fileLoad.message}</p>
+            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+              <div className="h-3 rounded-full bg-slate-900 transition-all duration-300" style={{ width: `${fileLoad.progress}%` }} />
+            </div>
+            <p className="text-slate-500 font-black text-sm mt-2">{fileLoad.progress}%</p>
+          </div>
+        </>
+      )}
     </div>
   );
   if (appMode === 'choice') return <ChoiceScreen onPick={pickMode} />;
