@@ -723,16 +723,16 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
     </div>
   );
 
-  const inputCls = "bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full appearance-none cursor-pointer";
+  const selectCls = "bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-auto appearance-none cursor-pointer";
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
       <div className="max-w-6xl mx-auto">
-        {/* כותרת — זהה למבנה קו פח */}
+
         <header className="mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-center md:text-right">
             <div className="flex items-center gap-3 justify-center md:justify-end">
-              <div className="bg-amber-400 text-amber-950 p-2.5 rounded-2xl rotate-3 shadow-lg">
+              <div className="bg-slate-900 text-white p-2.5 rounded-2xl rotate-3 shadow-lg">
                 <Ic n="star" size={28} strokeWidth="2" />
               </div>
               <h1 className="text-4xl font-[900] text-slate-900 tracking-tighter leading-none">הקו המוזהב</h1>
@@ -747,134 +747,133 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
           </button>
         </header>
 
-        {/* טאבים */}
-        <div className="flex gap-2 mb-8 flex-wrap">
-          {[['top', 'הקווים המצטיינים'], ['areas', 'לפי מחוז'], ['about', 'אודות']].map(([id, label]) => (
+        <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
+          {[['top', 'star', 'הקווים המצטיינים', 'bg-white text-amber-600 shadow-md'], ['areas', 'chart', 'ניתוח אזורי', 'bg-white text-amber-600 shadow-md'], ['about', 'info', 'על המערכת', 'bg-white text-indigo-600 shadow-md']].map(([id, icon, label, activeCls]) => (
             <button key={id} onClick={() => setGoldenTab(id)}
-              className={`px-5 py-2.5 rounded-2xl font-black text-sm transition-all shadow-sm ${goldenTab === id ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300'}`}>
-              {label}
+              className={`flex-1 min-w-[120px] py-3.5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-2 ${goldenTab === id ? activeCls : 'text-slate-500 hover:text-slate-700'}`}>
+              <Ic n={icon} size={16} /> {label}
             </button>
           ))}
-        </div>
+        </nav>
 
         {/* ── טאב: קווים מצטיינים ── */}
         {goldenTab === 'top' && (
-          <div>
-            <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-center gap-4">
+          <div className="space-y-8 transition-opacity duration-300 opacity-100">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
               <div>
-                <h2 className="text-2xl font-black text-slate-900">הקווים המצטיינים</h2>
-                <p className="text-slate-500 font-bold">קווים עם ביקוש גבוה, יעילות גבוהה ועלות נמוכה לנוסע</p>
+                <h2 className="text-2xl font-black text-slate-900">הקווים הכי מצטיינים</h2>
+                <p className="text-slate-500 font-bold">דירוג המציג את הקווים החזקים ביותר במערכת — ביקוש גבוה, יעילות גבוהה ועלות נמוכה</p>
               </div>
-              <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-                <div className="relative flex-1 min-w-[160px]">
-                  <input
-                    type="text"
-                    placeholder="חיפוש לפי עיר, קו..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { setSubmittedSearch(searchQuery); setVisibleCount(60); } if (e.key === 'Escape') { setSearchQuery(''); setSubmittedSearch(''); } }}
-                    className={inputCls}
-                  />
-                  {searchQuery && (
-                    <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-black text-sm flex items-center justify-center">×</button>
-                  )}
-                </div>
-                <select value={filterDistrict} onChange={e => { setFilterDistrict(e.target.value); setVisibleCount(60); }} className={inputCls} style={{ width: 'auto' }}>
+              <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
+                <select value={sortBy} onChange={e => { setSortBy(e.target.value); setVisibleCount(60); }} className={selectCls}>
+                  <option value="score">מיון: לפי ניקוד מוזהב</option>
+                  <option value="riders">מיון: ממוצע נוסעים (גבוה לנמוך)</option>
+                  <option value="cost">מיון: עלות לנוסע (נמוך לגבוה)</option>
+                  <option value="km">מיון: ק"מ שבועי</option>
+                </select>
+                <select value={filterDistrict} onChange={e => { setFilterDistrict(e.target.value); setVisibleCount(60); }} className={selectCls}>
                   <option value="all">כל המחוזות</option>
                   {allDistricts.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <select value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setVisibleCount(60); }} className={inputCls} style={{ width: 'auto' }}>
+                <select value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setVisibleCount(60); }} className={selectCls}>
                   <option value="all">כל הקטגוריות</option>
                   {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <select value={sortBy} onChange={e => { setSortBy(e.target.value); setVisibleCount(60); }} className={inputCls} style={{ width: 'auto' }}>
-                  <option value="score">מיון: ניקוד מוזהב</option>
-                  <option value="riders">מיון: ממוצע נוסעים</option>
-                  <option value="cost">מיון: עלות לנוסע</option>
-                  <option value="km">מיון: ק"מ שבועי</option>
-                </select>
+                <div className="relative w-full md:w-64">
+                  <input
+                    type="text"
+                    placeholder="הקלד עיר ולחץ Enter..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { setSubmittedSearch(searchQuery); setVisibleCount(60); } if (e.key === 'Escape') { setSearchQuery(''); setSubmittedSearch(''); } }}
+                    className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-black text-sm flex items-center justify-center transition-colors">×</button>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="text-slate-400 text-xs font-bold mb-4 pr-2">{filtered.length.toLocaleString()} קווים מצטיינים{filterDistrict !== 'all' ? ` במחוז ${filterDistrict}` : ''}</div>
-
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.slice(0, visibleCount).map((line, idx) => (
-                <div key={line.groupKey} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-6 shadow-sm hover:border-amber-300 hover:shadow-md transition-all">
-                  <div className="flex gap-4 items-start">
-                    <div className="text-slate-300 font-black text-xl w-8 text-center flex-shrink-0 pt-1">#{idx + 1}</div>
-                    {/* ניקוד */}
-                    <div className="flex items-center justify-center w-14 h-14 rounded-2xl flex-shrink-0 font-black text-xl border-2 border-amber-200 bg-amber-50 text-amber-700">
-                      {line.score}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="text-2xl font-[900] text-slate-900">קו {line.lineNum}</span>
-                        <span className="bg-slate-100 text-slate-600 text-xs font-black px-2 py-0.5 rounded-full">{line.category}</span>
-                        <span className="text-slate-400 text-xs font-bold">{line.district}</span>
+                <div key={line.groupKey} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex flex-col gap-2 items-start">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          ניקוד {line.score}/100
+                        </div>
+                        <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                          {line.category}
+                        </div>
                       </div>
-                      <div className="text-slate-500 text-sm font-bold truncate">{line.origin} ← {line.dest}</div>
-                      <div className="flex flex-wrap gap-4 mt-3 text-xs font-bold text-slate-500">
-                        <span>ממוצע <span className="text-slate-800 font-black">{line.avg}</span> נוסעים</span>
-                        <span>עומס שיא <span className="text-slate-800 font-black">{line.avgPeak}</span></span>
-                        <span>נסיעות שפל <span className="text-slate-800 font-black">{line.percentLow}%</span></span>
-                        {line.costRatio > 0 && <span>עלות <span className={`font-black ${line.costRatio <= 1 ? 'text-emerald-600' : 'text-slate-800'}`}>{(line.costRatio * 100).toFixed(0)}%</span> מהממוצע</span>}
-                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">{line.district}</span>
                     </div>
-                    {/* סרגלי רכיבים */}
-                    <div className="hidden md:flex flex-col gap-1.5 text-[11px] font-bold text-slate-400 w-32 flex-shrink-0">
-                      {[
-                        ['נסיעות', line.componentScores.highTrips, 30],
-                        ['יעילות', line.componentScores.efficientKm, 20],
-                        ['עלות', line.componentScores.cost, 20],
-                        ['נוסעים', line.componentScores.riders, 30],
-                      ].map(([label, val, max]) => (
-                        <div key={label}>
-                          <div className="flex justify-between mb-0.5"><span>{label}</span><span className="text-slate-600">{val}/{max}</span></div>
-                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full bg-amber-400" style={{ width: `${(val / max) * 100}%` }} />
-                          </div>
+                    <div className="bg-slate-900 text-white w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-lg shrink-0">{line.lineNum}</div>
+                  </div>
+
+                  <div className="flex-1 mb-5">
+                    <div className="flex items-center justify-start gap-3 mb-4 min-w-0">
+                      <div className="text-slate-900 font-black text-lg truncate leading-tight">{line.origin}</div>
+                      <div className="text-slate-300 text-2xl font-black shrink-0 leading-none">←</div>
+                      <div className="text-slate-900 font-black text-lg truncate leading-tight">{line.dest}</div>
+                    </div>
+                    <div className="space-y-2 text-sm border-t border-slate-100 pt-4">
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">ממוצע נוסעים</span><span className="font-black text-slate-900">{line.avg}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">עומס שיא</span><span className="font-black text-slate-900">{line.avgPeak}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500 font-bold">נסיעות שפל</span><span className="font-black text-slate-900">{line.percentLow}%</span></div>
+                      {line.costRatio > 0 && <div className="flex justify-between"><span className="text-slate-500 font-bold">עלות מהממוצע</span><span className={`font-black ${line.costRatio <= 1 ? 'text-emerald-600' : 'text-slate-900'}`}>{(line.costRatio * 100).toFixed(0)}%</span></div>}
+                    </div>
+                    <div className="mt-4 space-y-1.5">
+                      {[['נסיעות', line.componentScores.highTrips, 30], ['יעילות', line.componentScores.efficientKm, 20], ['עלות', line.componentScores.cost, 20], ['נוסעים', line.componentScores.riders, 30]].map(([lbl, val, max]) => (
+                        <div key={lbl} className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
+                          <span className="w-10 shrink-0">{lbl}</span>
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full rounded-full bg-slate-900" style={{ width: `${(val / max) * 100}%` }} /></div>
+                          <span className="text-slate-500 w-8 text-left">{val}/{max}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
               ))}
+              {filtered.length === 0 && (
+                <div className="col-span-full text-center py-20 text-slate-400 font-bold">לא נמצאו קווים מצטיינים בסינון הנוכחי.</div>
+              )}
             </div>
             {filtered.length > visibleCount && (
-              <button onClick={() => setVisibleCount(v => v + 60)} className="w-full mt-6 py-4 rounded-[2rem] border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+              <button onClick={() => setVisibleCount(v => v + 60)} className="w-full py-4 rounded-[2rem] border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
                 טען עוד ({filtered.length - visibleCount} נותרו)
               </button>
-            )}
-            {filtered.length === 0 && (
-              <div className="bg-white rounded-[2.5rem] border-2 border-slate-100 p-16 text-center text-slate-400 font-bold">לא נמצאו קווים מצטיינים בסינון הנוכחי</div>
             )}
           </div>
         )}
 
-        {/* ── טאב: לפי מחוז ── */}
+        {/* ── טאב: ניתוח אזורי ── */}
         {goldenTab === 'areas' && (
-          <div>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm mb-8">
-              <h2 className="text-2xl font-black text-slate-900">ניתוח לפי מחוז</h2>
-              <p className="text-slate-500 font-bold">מחוזות עם ריכוז גבוה של קווים מצטיינים</p>
+          <div className="space-y-8">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">האזורים הכי חזקים</h2>
+                <p className="text-slate-500 font-bold">ריכוז של הקווים המצטיינים לפי מחוז</p>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {areaStats.map((area, idx) => (
-                <div key={area.key} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-amber-300 transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-black">ניקוד: {area.avgScore}</div>
+                <div key={area.key} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 border-emerald-200 text-emerald-700">ניקוד ממוצע: {area.avgScore}</div>
                     <div className="text-slate-300 font-black text-lg">#{idx + 1}</div>
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-3">{area.key}</h3>
-                  <div className="space-y-2 text-sm border-t border-slate-100 pt-4">
-                    <div className="flex justify-between"><span className="text-slate-500 font-bold">קווים מצטיינים</span><span className="font-black">{area.count} קווים</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500 font-bold">ממוצע נוסעים</span><span className="font-black">{area.avgRiders}</span></div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-4">{area.key}</h3>
+                  <div className="space-y-3 pt-4 border-t border-slate-100 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-600 font-bold">קווים מצטיינים</span><span className="font-black text-slate-900">{area.count} קווים</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600 font-bold">ממוצע נוסעים</span><span className="font-black text-slate-900">{area.avgRiders}</span></div>
                   </div>
                 </div>
               ))}
               {areaStats.length === 0 && (
-                <div className="col-span-full text-center py-20 text-slate-400 font-bold">אין נתונים</div>
+                <div className="col-span-full text-center py-20 text-slate-400 font-bold">אין נתונים.</div>
               )}
             </div>
           </div>
@@ -882,31 +881,32 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
         {/* ── טאב: אודות ── */}
         {goldenTab === 'about' && (
-          <div className="max-w-2xl">
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-5">
-              <h2 className="text-2xl font-[900] text-slate-900">מה זה הקו המוזהב?</h2>
-              <p className="text-slate-600 leading-relaxed font-bold">הקו המוזהב הוא ההפך המדויק של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
-              <div className="space-y-3 pt-2">
-                <h3 className="text-slate-700 font-black text-lg">ניקוד מוזהב (0-100):</h3>
+          <div className="space-y-8">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-900 mb-4">מה זה הקו המוזהב?</h2>
+              <p className="text-slate-600 leading-relaxed font-bold mb-6">הקו המוזהב הוא ההפך המדויק של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
+              <h3 className="font-black text-slate-900 text-lg mb-4">ניקוד מוזהב (0–100)</h3>
+              <div className="space-y-3">
                 {[
                   ['נסיעות בביקוש גבוה', 'עד 30 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
                   ['יעילות ק"מ', 'עד 20 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
                   ['עלות לנוסע', 'עד 20 נקודות', 'עלות מתחת לממוצע הקטגוריה = ניקוד גבוה'],
                   ['ממוצע נוסעים ועומס שיא', 'עד 30 נקודות', 'ממוצע נוסעים גבוה ועומס שיא גבוה'],
                 ].map(([title, pts, desc]) => (
-                  <div key={title} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-black text-slate-800 text-sm">{title}</span>
-                      <span className="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full">{pts}</span>
+                  <div key={title} className="flex items-start justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div>
+                      <div className="font-black text-slate-800 text-sm">{title}</div>
+                      <div className="text-slate-400 text-xs font-bold mt-1">{desc}</div>
                     </div>
-                    <div className="text-slate-400 text-xs font-bold">{desc}</div>
+                    <span className="shrink-0 ml-4 px-3 py-1 rounded-full text-[11px] font-black bg-slate-200 text-slate-700">{pts}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-slate-400 text-xs font-bold border-t border-slate-100 pt-4">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
+              <p className="text-slate-400 text-xs font-bold mt-6 pt-4 border-t border-slate-100">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
