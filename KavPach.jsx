@@ -722,20 +722,20 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
     </div>
   );
 
-  const selectCls = "bg-amber-950/40 border border-amber-700/50 text-amber-100 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400";
+  const selectCls = "bg-white border border-slate-200 text-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-sm";
 
   return (
-    <div className="min-h-screen text-amber-100 pb-20" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif", background: 'linear-gradient(160deg,#0f172a 0%,#1c1407 50%,#2d1a00 100%)' }}>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-20" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
       {/* כותרת */}
-      <header className="border-b border-amber-800/40 px-4 md:px-8 py-5 flex items-center justify-between gap-4">
+      <header className="bg-white border-b border-slate-100 shadow-sm px-4 md:px-8 py-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <BusArt variant="gold" className="w-20 flex-shrink-0" />
           <div>
-            <h1 className="text-3xl md:text-4xl font-[900] text-amber-300 leading-none">הקו המוזהב</h1>
-            <p className="text-amber-500 text-sm font-bold mt-1">הקווים המצטיינים — יעילות גבוהה, נוסעים רבים</p>
+            <h1 className="text-3xl md:text-4xl font-[900] text-slate-900 leading-none">הקו המוזהב</h1>
+            <p className="text-amber-600 text-sm font-bold mt-1">הקווים המצטיינים — יעילות גבוהה, נוסעים רבים</p>
           </div>
         </div>
-        <button onClick={onBack} className="flex items-center gap-2 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-700/50 text-amber-300 px-4 py-2.5 rounded-xl font-black text-sm transition-colors">
+        <button onClick={onBack} className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-black text-sm transition-colors">
           ← החלף כלי
         </button>
       </header>
@@ -745,18 +745,14 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         <div className="flex gap-2 mb-6 flex-wrap">
           {[['top', 'הקווים המצטיינים'], ['areas', 'לפי מחוז'], ['about', 'אודות']].map(([id, label]) => (
             <button key={id} onClick={() => setGoldenTab(id)}
-              className={`px-5 py-2.5 rounded-xl font-black text-sm transition-all ${goldenTab === id ? 'bg-amber-400 text-amber-950 shadow-lg' : 'bg-amber-950/30 text-amber-400 border border-amber-700/40 hover:bg-amber-900/40'}`}>
+              className={`px-5 py-2.5 rounded-xl font-black text-sm transition-all ${goldenTab === id ? 'bg-amber-400 text-amber-950 shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:border-amber-300 hover:text-amber-700 shadow-sm'}`}>
               {label}
             </button>
           ))}
         </div>
 
-        {isLoading && (
-          <div className="text-center py-20 text-amber-400 font-bold">טוען נתונים...</div>
-        )}
-
         {/* ── טאב: קווים מצטיינים ── */}
-        {!isLoading && goldenTab === 'top' && (
+        {goldenTab === 'top' && (
           <div>
             {/* סינון */}
             <div className="flex flex-wrap gap-3 mb-5 items-center">
@@ -767,10 +763,10 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { setSubmittedSearch(searchQuery); setVisibleCount(60); } if (e.key === 'Escape') { setSearchQuery(''); setSubmittedSearch(''); } }}
-                  className="w-full bg-amber-950/40 border border-amber-700/50 text-amber-100 placeholder-amber-700 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full bg-white border border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-sm"
                 />
                 {searchQuery && (
-                  <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-5 h-5 rounded-full bg-amber-800 text-amber-200 text-xs flex items-center justify-center">×</button>
+                  <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-xs flex items-center justify-center hover:bg-slate-300">×</button>
                 )}
               </div>
               <select value={filterDistrict} onChange={e => { setFilterDistrict(e.target.value); setVisibleCount(60); }} className={selectCls}>
@@ -789,31 +785,30 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               </select>
             </div>
 
-            <div className="text-amber-500 text-xs font-bold mb-4">{filtered.length.toLocaleString()} קווים מצטיינים{filterDistrict !== 'all' ? ` במחוז ${filterDistrict}` : ''}</div>
+            <div className="text-slate-400 text-xs font-bold mb-4">{filtered.length.toLocaleString()} קווים מצטיינים{filterDistrict !== 'all' ? ` במחוז ${filterDistrict}` : ''}</div>
 
             <div className="space-y-3">
               {filtered.slice(0, visibleCount).map((line, idx) => (
-                <div key={line.groupKey} className="vcard rounded-2xl border border-amber-800/40 overflow-hidden"
-                  style={{ background: 'linear-gradient(135deg,rgba(120,53,15,0.25) 0%,rgba(30,20,5,0.6) 100%)' }}>
+                <div key={line.groupKey} className="vcard bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   <div className="p-4 flex gap-4 items-start">
-                    <div className="text-amber-600 font-black text-2xl w-8 text-center flex-shrink-0 pt-1">#{idx + 1}</div>
+                    <div className="text-amber-400 font-black text-2xl w-8 text-center flex-shrink-0 pt-1">#{idx + 1}</div>
                     <GoldBadge score={line.score} />
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="text-2xl font-[900] text-amber-200">קו {line.lineNum}</span>
-                        <span className="bg-amber-900/60 text-amber-300 text-xs font-black px-2 py-0.5 rounded-full border border-amber-700/40">{line.category}</span>
-                        <span className="text-amber-600 text-xs font-bold">{line.district}</span>
+                        <span className="text-2xl font-[900] text-slate-900">קו {line.lineNum}</span>
+                        <span className="bg-amber-50 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full border border-amber-200">{line.category}</span>
+                        <span className="text-slate-400 text-xs font-bold">{line.district}</span>
                       </div>
-                      <div className="text-amber-400 text-sm font-bold truncate">{line.origin} ← {line.dest}</div>
+                      <div className="text-slate-500 text-sm font-bold truncate">{line.origin} ← {line.dest}</div>
                       <div className="flex flex-wrap gap-4 mt-3 text-xs font-bold">
-                        <span className="text-amber-300">✦ ממוצע <span className="text-amber-100 font-black">{line.avg}</span> נוסעים</span>
-                        <span className="text-amber-300">⚡ עומס שיא <span className="text-amber-100 font-black">{line.avgPeak}</span></span>
-                        <span className="text-amber-300">🚫 שפל <span className="text-amber-100 font-black">{line.percentLow}%</span> מהנסיעות</span>
-                        {line.costRatio > 0 && <span className="text-amber-300">₪ עלות <span className={`font-black ${line.costRatio <= 1 ? 'text-green-400' : 'text-amber-100'}`}>{(line.costRatio * 100).toFixed(0)}%</span> מהממוצע</span>}
+                        <span className="text-slate-500">✦ ממוצע <span className="text-slate-800 font-black">{line.avg}</span> נוסעים</span>
+                        <span className="text-slate-500">⚡ עומס שיא <span className="text-slate-800 font-black">{line.avgPeak}</span></span>
+                        <span className="text-slate-500">🚫 שפל <span className="text-slate-800 font-black">{line.percentLow}%</span> מהנסיעות</span>
+                        {line.costRatio > 0 && <span className="text-slate-500">₪ עלות <span className={`font-black ${line.costRatio <= 1 ? 'text-green-600' : 'text-slate-800'}`}>{(line.costRatio * 100).toFixed(0)}%</span> מהממוצע</span>}
                       </div>
                     </div>
                     {/* עמודת רכיבי ניקוד */}
-                    <div className="hidden md:flex flex-col gap-1 text-[11px] font-bold text-amber-600 w-32 flex-shrink-0">
+                    <div className="hidden md:flex flex-col gap-1 text-[11px] font-bold text-slate-400 w-32 flex-shrink-0">
                       {[
                         ['נסיעות', line.componentScores.highTrips, 30],
                         ['יעילות', line.componentScores.efficientKm, 20],
@@ -821,9 +816,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                         ['נוסעים', line.componentScores.riders, 30],
                       ].map(([label, val, max]) => (
                         <div key={label}>
-                          <div className="flex justify-between mb-0.5"><span>{label}</span><span className="text-amber-400">{val}/{max}</span></div>
-                          <div className="h-1.5 bg-amber-950/60 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${(val / max) * 100}%`, background: 'linear-gradient(90deg,#b45309,#fbbf24)' }} />
+                          <div className="flex justify-between mb-0.5"><span>{label}</span><span className="text-amber-600">{val}/{max}</span></div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${(val / max) * 100}%`, background: 'linear-gradient(90deg,#f59e0b,#fbbf24)' }} />
                           </div>
                         </div>
                       ))}
@@ -833,32 +828,31 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               ))}
             </div>
             {filtered.length > visibleCount && (
-              <button onClick={() => setVisibleCount(v => v + 60)} className="w-full mt-4 py-3 rounded-xl border border-amber-700/50 text-amber-400 font-black text-sm hover:bg-amber-900/30 transition-colors">
+              <button onClick={() => setVisibleCount(v => v + 60)} className="w-full mt-4 py-3 rounded-xl border border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 transition-colors">
                 טען עוד ({filtered.length - visibleCount} נותרו)
               </button>
             )}
-            {filtered.length === 0 && !isLoading && (
-              <div className="text-center py-16 text-amber-600 font-bold">לא נמצאו קווים מצטיינים בסינון הנוכחי</div>
+            {filtered.length === 0 && (
+              <div className="text-center py-16 text-slate-400 font-bold">לא נמצאו קווים מצטיינים בסינון הנוכחי</div>
             )}
           </div>
         )}
 
         {/* ── טאב: ניתוח אזורי ── */}
-        {!isLoading && goldenTab === 'areas' && (
+        {goldenTab === 'areas' && (
           <div>
-            <p className="text-amber-500 text-sm font-bold mb-5">מחוזות עם ריכוז גבוה של קווים מצטיינים</p>
+            <p className="text-slate-400 text-sm font-bold mb-5">מחוזות עם ריכוז גבוה של קווים מצטיינים</p>
             <div className="space-y-3">
               {areaStats.map((area, idx) => (
-                <div key={area.key} className="rounded-2xl border border-amber-800/40 p-4 flex items-center gap-4"
-                  style={{ background: 'linear-gradient(135deg,rgba(120,53,15,0.2),rgba(15,10,0,0.5))' }}>
-                  <div className="text-amber-600 font-black text-xl w-8 text-center">#{idx + 1}</div>
+                <div key={area.key} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+                  <div className="text-amber-400 font-black text-xl w-8 text-center">#{idx + 1}</div>
                   <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl flex-shrink-0"
                     style={{ background: 'linear-gradient(145deg,#fef3c7,#fbbf24)', color: '#92400e' }}>
                     {area.avgScore}
                   </div>
                   <div className="flex-1">
-                    <div className="text-lg font-[900] text-amber-200">{area.key}</div>
-                    <div className="text-amber-500 text-sm font-bold">{area.count} קווים מצטיינים · ממוצע נוסעים {area.avgRiders}</div>
+                    <div className="text-lg font-[900] text-slate-900">{area.key}</div>
+                    <div className="text-slate-400 text-sm font-bold">{area.count} קווים מצטיינים · ממוצע נוסעים {area.avgRiders}</div>
                   </div>
                 </div>
               ))}
@@ -869,26 +863,26 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         {/* ── טאב: אודות ── */}
         {goldenTab === 'about' && (
           <div className="max-w-2xl">
-            <div className="rounded-2xl border border-amber-800/40 p-6 space-y-5" style={{ background: 'rgba(120,53,15,0.15)' }}>
-              <h2 className="text-2xl font-[900] text-amber-300">מה זה הקו המוזהב?</h2>
-              <p className="text-amber-200 leading-relaxed">הקו המוזהב הוא ההפך המדויק של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
+              <h2 className="text-2xl font-[900] text-slate-900">מה זה הקו המוזהב?</h2>
+              <p className="text-slate-600 leading-relaxed">הקו המוזהב הוא ההפך המדויק של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
               <div className="space-y-3">
-                <h3 className="text-amber-400 font-black">ניקוד מוזהב (0-100):</h3>
+                <h3 className="text-slate-700 font-black">ניקוד מוזהב (0-100):</h3>
                 {[
                   ['✦ נסיעות בביקוש גבוה', 'עד 30 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
                   ['⚡ יעילות ק"מ', 'עד 20 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
                   ['₪ עלות לנוסע', 'עד 20 נקודות', 'עלות מתחת לממוצע הקטגוריה = ניקוד גבוה'],
                   ['👥 ממוצע נוסעים ועומס שיא', 'עד 30 נקודות', 'ממוצע נוסעים גבוה ועומס שיא גבוה'],
                 ].map(([title, pts, desc]) => (
-                  <div key={title} className="flex gap-3 p-3 rounded-xl bg-amber-950/30 border border-amber-800/30">
+                  <div key={title} className="flex gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
                     <div className="flex-1">
-                      <div className="font-black text-amber-300 text-sm">{title}</div>
+                      <div className="font-black text-amber-800 text-sm">{title}</div>
                       <div className="text-amber-600 text-xs font-bold">{pts} · {desc}</div>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-amber-600 text-xs font-bold">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
+              <p className="text-slate-400 text-xs font-bold">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
             </div>
           </div>
         )}
@@ -2154,7 +2148,16 @@ const DAYS_FILTER = [
     runOptimization(lineNum, city || "all", "all", []);
   };
 
-  // מסכי-על: מסך בחירה והכלי המוזהב מוצגים במקום אפליקציית קו פח
+  // מסכי-על: ממתינים לטעינת הנתונים לפני הצגת מסך הבחירה
+  if (initialLoading) return (
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-5" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
+      <div className="w-14 h-14 rounded-full bg-slate-900 flex items-center justify-center">
+        <Ic n="loader" size={28} cls="text-white" animate={true} />
+      </div>
+      <p className="text-slate-700 font-black text-lg">טוען נתונים…</p>
+      <p className="text-slate-400 text-sm font-bold">יקח כמה שניות</p>
+    </div>
+  );
   if (appMode === 'choice') return <ChoiceScreen onPick={pickMode} />;
   if (appMode === 'golden') return <GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} />;
 
