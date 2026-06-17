@@ -204,7 +204,8 @@ const ICONS = {
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
   chart: "M18 20V10 M12 20V4 M6 20V16",
   mapPin: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
-  copy: "M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M16 3h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"
+  copy: "M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M16 3h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2",
+  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
 };
 
 const Ic = ({ n, size = 18, cls = "", animate = false, strokeWidth = "2.5" }) => (
@@ -722,30 +723,35 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
     </div>
   );
 
-  const selectCls = "bg-white border border-slate-200 text-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-sm";
+  const inputCls = "bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full appearance-none cursor-pointer";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-20" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      {/* כותרת */}
-      <header className="bg-white border-b border-slate-100 shadow-sm px-4 md:px-8 py-5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <BusArt variant="gold" className="w-20 flex-shrink-0" />
-          <div>
-            <h1 className="text-3xl md:text-4xl font-[900] text-slate-900 leading-none">הקו המוזהב</h1>
-            <p className="text-amber-600 text-sm font-bold mt-1">הקווים המצטיינים — יעילות גבוהה, נוסעים רבים</p>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
+      <div className="max-w-6xl mx-auto">
+        {/* כותרת — זהה למבנה קו פח */}
+        <header className="mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-right">
+            <div className="flex items-center gap-3 justify-center md:justify-end">
+              <div className="bg-amber-400 text-amber-950 p-2.5 rounded-2xl rotate-3 shadow-lg">
+                <Ic n="star" size={28} strokeWidth="2" />
+              </div>
+              <h1 className="text-4xl font-[900] text-slate-900 tracking-tighter leading-none">הקו המוזהב</h1>
+            </div>
+            <p className="text-slate-500 text-sm font-bold mt-2 pr-1">מאתרים קווים מצטיינים • יעילות גבוהה, נוסעים רבים</p>
           </div>
-        </div>
-        <button onClick={onBack} className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-black text-sm transition-colors">
-          ← החלף כלי
-        </button>
-      </header>
+          <button
+            onClick={onBack}
+            className="shrink-0 flex items-center gap-2 bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 px-4 py-2.5 rounded-2xl font-black text-sm shadow-sm transition-colors"
+          >
+            <span className="text-base leading-none">⇄</span> החלף כלי
+          </button>
+        </header>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6">
         {/* טאבים */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        <div className="flex gap-2 mb-8 flex-wrap">
           {[['top', 'הקווים המצטיינים'], ['areas', 'לפי מחוז'], ['about', 'אודות']].map(([id, label]) => (
             <button key={id} onClick={() => setGoldenTab(id)}
-              className={`px-5 py-2.5 rounded-xl font-black text-sm transition-all ${goldenTab === id ? 'bg-amber-400 text-amber-950 shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:border-amber-300 hover:text-amber-700 shadow-sm'}`}>
+              className={`px-5 py-2.5 rounded-2xl font-black text-sm transition-all shadow-sm ${goldenTab === id ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300'}`}>
               {label}
             </button>
           ))}
@@ -754,61 +760,69 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         {/* ── טאב: קווים מצטיינים ── */}
         {goldenTab === 'top' && (
           <div>
-            {/* סינון */}
-            <div className="flex flex-wrap gap-3 mb-5 items-center">
-              <div className="relative flex-1 min-w-[180px]">
-                <input
-                  type="text"
-                  placeholder="חיפוש לפי עיר, קו..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { setSubmittedSearch(searchQuery); setVisibleCount(60); } if (e.key === 'Escape') { setSearchQuery(''); setSubmittedSearch(''); } }}
-                  className="w-full bg-white border border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-sm"
-                />
-                {searchQuery && (
-                  <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-xs flex items-center justify-center hover:bg-slate-300">×</button>
-                )}
+            <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">הקווים המצטיינים</h2>
+                <p className="text-slate-500 font-bold">קווים עם ביקוש גבוה, יעילות גבוהה ועלות נמוכה לנוסע</p>
               </div>
-              <select value={filterDistrict} onChange={e => { setFilterDistrict(e.target.value); setVisibleCount(60); }} className={selectCls}>
-                <option value="all">כל המחוזות</option>
-                {allDistricts.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <select value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setVisibleCount(60); }} className={selectCls}>
-                <option value="all">כל הקטגוריות</option>
-                {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select value={sortBy} onChange={e => { setSortBy(e.target.value); setVisibleCount(60); }} className={selectCls}>
-                <option value="score">מיון: ניקוד</option>
-                <option value="riders">מיון: נוסעים</option>
-                <option value="cost">מיון: עלות</option>
-                <option value="km">מיון: ק"מ</option>
-              </select>
+              <div className="flex flex-wrap gap-3 w-full xl:w-auto">
+                <div className="relative flex-1 min-w-[160px]">
+                  <input
+                    type="text"
+                    placeholder="חיפוש לפי עיר, קו..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { setSubmittedSearch(searchQuery); setVisibleCount(60); } if (e.key === 'Escape') { setSearchQuery(''); setSubmittedSearch(''); } }}
+                    className={inputCls}
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(''); setSubmittedSearch(''); }} className="absolute top-1/2 -translate-y-1/2 left-3 w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-black text-sm flex items-center justify-center">×</button>
+                  )}
+                </div>
+                <select value={filterDistrict} onChange={e => { setFilterDistrict(e.target.value); setVisibleCount(60); }} className={inputCls} style={{ width: 'auto' }}>
+                  <option value="all">כל המחוזות</option>
+                  {allDistricts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <select value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setVisibleCount(60); }} className={inputCls} style={{ width: 'auto' }}>
+                  <option value="all">כל הקטגוריות</option>
+                  {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={sortBy} onChange={e => { setSortBy(e.target.value); setVisibleCount(60); }} className={inputCls} style={{ width: 'auto' }}>
+                  <option value="score">מיון: ניקוד מוזהב</option>
+                  <option value="riders">מיון: ממוצע נוסעים</option>
+                  <option value="cost">מיון: עלות לנוסע</option>
+                  <option value="km">מיון: ק"מ שבועי</option>
+                </select>
+              </div>
             </div>
 
-            <div className="text-slate-400 text-xs font-bold mb-4">{filtered.length.toLocaleString()} קווים מצטיינים{filterDistrict !== 'all' ? ` במחוז ${filterDistrict}` : ''}</div>
+            <div className="text-slate-400 text-xs font-bold mb-4 pr-2">{filtered.length.toLocaleString()} קווים מצטיינים{filterDistrict !== 'all' ? ` במחוז ${filterDistrict}` : ''}</div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {filtered.slice(0, visibleCount).map((line, idx) => (
-                <div key={line.groupKey} className="vcard bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="p-4 flex gap-4 items-start">
-                    <div className="text-amber-400 font-black text-2xl w-8 text-center flex-shrink-0 pt-1">#{idx + 1}</div>
-                    <GoldBadge score={line.score} />
+                <div key={line.groupKey} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-6 shadow-sm hover:border-amber-300 hover:shadow-md transition-all">
+                  <div className="flex gap-4 items-start">
+                    <div className="text-slate-300 font-black text-xl w-8 text-center flex-shrink-0 pt-1">#{idx + 1}</div>
+                    {/* ניקוד */}
+                    <div className="flex items-center justify-center w-14 h-14 rounded-2xl flex-shrink-0 font-black text-xl border-2 border-amber-200 bg-amber-50 text-amber-700">
+                      {line.score}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className="text-2xl font-[900] text-slate-900">קו {line.lineNum}</span>
-                        <span className="bg-amber-50 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full border border-amber-200">{line.category}</span>
+                        <span className="bg-slate-100 text-slate-600 text-xs font-black px-2 py-0.5 rounded-full">{line.category}</span>
                         <span className="text-slate-400 text-xs font-bold">{line.district}</span>
                       </div>
                       <div className="text-slate-500 text-sm font-bold truncate">{line.origin} ← {line.dest}</div>
-                      <div className="flex flex-wrap gap-4 mt-3 text-xs font-bold">
-                        <span className="text-slate-500">✦ ממוצע <span className="text-slate-800 font-black">{line.avg}</span> נוסעים</span>
-                        <span className="text-slate-500">⚡ עומס שיא <span className="text-slate-800 font-black">{line.avgPeak}</span></span>
-                        <span className="text-slate-500">🚫 שפל <span className="text-slate-800 font-black">{line.percentLow}%</span> מהנסיעות</span>
-                        {line.costRatio > 0 && <span className="text-slate-500">₪ עלות <span className={`font-black ${line.costRatio <= 1 ? 'text-green-600' : 'text-slate-800'}`}>{(line.costRatio * 100).toFixed(0)}%</span> מהממוצע</span>}
+                      <div className="flex flex-wrap gap-4 mt-3 text-xs font-bold text-slate-500">
+                        <span>ממוצע <span className="text-slate-800 font-black">{line.avg}</span> נוסעים</span>
+                        <span>עומס שיא <span className="text-slate-800 font-black">{line.avgPeak}</span></span>
+                        <span>נסיעות שפל <span className="text-slate-800 font-black">{line.percentLow}%</span></span>
+                        {line.costRatio > 0 && <span>עלות <span className={`font-black ${line.costRatio <= 1 ? 'text-emerald-600' : 'text-slate-800'}`}>{(line.costRatio * 100).toFixed(0)}%</span> מהממוצע</span>}
                       </div>
                     </div>
-                    {/* עמודת רכיבי ניקוד */}
-                    <div className="hidden md:flex flex-col gap-1 text-[11px] font-bold text-slate-400 w-32 flex-shrink-0">
+                    {/* סרגלי רכיבים */}
+                    <div className="hidden md:flex flex-col gap-1.5 text-[11px] font-bold text-slate-400 w-32 flex-shrink-0">
                       {[
                         ['נסיעות', line.componentScores.highTrips, 30],
                         ['יעילות', line.componentScores.efficientKm, 20],
@@ -816,9 +830,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                         ['נוסעים', line.componentScores.riders, 30],
                       ].map(([label, val, max]) => (
                         <div key={label}>
-                          <div className="flex justify-between mb-0.5"><span>{label}</span><span className="text-amber-600">{val}/{max}</span></div>
+                          <div className="flex justify-between mb-0.5"><span>{label}</span><span className="text-slate-600">{val}/{max}</span></div>
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${(val / max) * 100}%`, background: 'linear-gradient(90deg,#f59e0b,#fbbf24)' }} />
+                            <div className="h-full rounded-full bg-amber-400" style={{ width: `${(val / max) * 100}%` }} />
                           </div>
                         </div>
                       ))}
@@ -828,34 +842,40 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               ))}
             </div>
             {filtered.length > visibleCount && (
-              <button onClick={() => setVisibleCount(v => v + 60)} className="w-full mt-4 py-3 rounded-xl border border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 transition-colors">
+              <button onClick={() => setVisibleCount(v => v + 60)} className="w-full mt-6 py-4 rounded-[2rem] border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
                 טען עוד ({filtered.length - visibleCount} נותרו)
               </button>
             )}
             {filtered.length === 0 && (
-              <div className="text-center py-16 text-slate-400 font-bold">לא נמצאו קווים מצטיינים בסינון הנוכחי</div>
+              <div className="bg-white rounded-[2.5rem] border-2 border-slate-100 p-16 text-center text-slate-400 font-bold">לא נמצאו קווים מצטיינים בסינון הנוכחי</div>
             )}
           </div>
         )}
 
-        {/* ── טאב: ניתוח אזורי ── */}
+        {/* ── טאב: לפי מחוז ── */}
         {goldenTab === 'areas' && (
           <div>
-            <p className="text-slate-400 text-sm font-bold mb-5">מחוזות עם ריכוז גבוה של קווים מצטיינים</p>
-            <div className="space-y-3">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm mb-8">
+              <h2 className="text-2xl font-black text-slate-900">ניתוח לפי מחוז</h2>
+              <p className="text-slate-500 font-bold">מחוזות עם ריכוז גבוה של קווים מצטיינים</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {areaStats.map((area, idx) => (
-                <div key={area.key} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
-                  <div className="text-amber-400 font-black text-xl w-8 text-center">#{idx + 1}</div>
-                  <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-xl flex-shrink-0"
-                    style={{ background: 'linear-gradient(145deg,#fef3c7,#fbbf24)', color: '#92400e' }}>
-                    {area.avgScore}
+                <div key={area.key} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-amber-300 transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-black">ניקוד: {area.avgScore}</div>
+                    <div className="text-slate-300 font-black text-lg">#{idx + 1}</div>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-lg font-[900] text-slate-900">{area.key}</div>
-                    <div className="text-slate-400 text-sm font-bold">{area.count} קווים מצטיינים · ממוצע נוסעים {area.avgRiders}</div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-3">{area.key}</h3>
+                  <div className="space-y-2 text-sm border-t border-slate-100 pt-4">
+                    <div className="flex justify-between"><span className="text-slate-500 font-bold">קווים מצטיינים</span><span className="font-black">{area.count} קווים</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500 font-bold">ממוצע נוסעים</span><span className="font-black">{area.avgRiders}</span></div>
                   </div>
                 </div>
               ))}
+              {areaStats.length === 0 && (
+                <div className="col-span-full text-center py-20 text-slate-400 font-bold">אין נתונים</div>
+              )}
             </div>
           </div>
         )}
@@ -863,26 +883,27 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         {/* ── טאב: אודות ── */}
         {goldenTab === 'about' && (
           <div className="max-w-2xl">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 space-y-5">
               <h2 className="text-2xl font-[900] text-slate-900">מה זה הקו המוזהב?</h2>
-              <p className="text-slate-600 leading-relaxed">הקו המוזהב הוא ההפך המדויק של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
-              <div className="space-y-3">
-                <h3 className="text-slate-700 font-black">ניקוד מוזהב (0-100):</h3>
+              <p className="text-slate-600 leading-relaxed font-bold">הקו המוזהב הוא ההפך המדויק של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
+              <div className="space-y-3 pt-2">
+                <h3 className="text-slate-700 font-black text-lg">ניקוד מוזהב (0-100):</h3>
                 {[
-                  ['✦ נסיעות בביקוש גבוה', 'עד 30 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
-                  ['⚡ יעילות ק"מ', 'עד 20 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
-                  ['₪ עלות לנוסע', 'עד 20 נקודות', 'עלות מתחת לממוצע הקטגוריה = ניקוד גבוה'],
-                  ['👥 ממוצע נוסעים ועומס שיא', 'עד 30 נקודות', 'ממוצע נוסעים גבוה ועומס שיא גבוה'],
+                  ['נסיעות בביקוש גבוה', 'עד 30 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
+                  ['יעילות ק"מ', 'עד 20 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
+                  ['עלות לנוסע', 'עד 20 נקודות', 'עלות מתחת לממוצע הקטגוריה = ניקוד גבוה'],
+                  ['ממוצע נוסעים ועומס שיא', 'עד 30 נקודות', 'ממוצע נוסעים גבוה ועומס שיא גבוה'],
                 ].map(([title, pts, desc]) => (
-                  <div key={title} className="flex gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
-                    <div className="flex-1">
-                      <div className="font-black text-amber-800 text-sm">{title}</div>
-                      <div className="text-amber-600 text-xs font-bold">{pts} · {desc}</div>
+                  <div key={title} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-black text-slate-800 text-sm">{title}</span>
+                      <span className="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full">{pts}</span>
                     </div>
+                    <div className="text-slate-400 text-xs font-bold">{desc}</div>
                   </div>
                 ))}
               </div>
-              <p className="text-slate-400 text-xs font-bold">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
+              <p className="text-slate-400 text-xs font-bold border-t border-slate-100 pt-4">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
             </div>
           </div>
         )}
