@@ -1149,6 +1149,8 @@ function KavPach() {
   const setFileLoading = (active) => setFileLoad(s => ({ ...s, active }));
   const setFileProgress = (progress) => setFileLoad(s => ({ ...s, progress }));
   const setFileMessage = (message) => setFileLoad(s => ({ ...s, message }));
+  const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const [tab, setTab] = useState("redundant"); 
   const [searchCity, setSearchCity] = useState("");
@@ -1557,7 +1559,10 @@ const DAYS_FILTER = [
       // ── מסלול מהיר: JSON (אם קיים) ──────────────────────────────────────
       // קבצי JSON נוצרים מראש ע"י convert-to-json.js (~12MB במקום 46MB XLSX).
       // JSON.parse מהיר 50× מ-SheetJS — ~5 שניות במובייל במקום ~2 דקות.
-      const jsonMainRes = await fetch('data-main.json', { cache: 'no-cache' }).catch(() => null);
+      const jsonProbeCtl = new AbortController();
+      const jsonProbeTimer = setTimeout(() => jsonProbeCtl.abort(), 3000);
+      const jsonMainRes = await fetch('data-main.json', { cache: 'no-cache', signal: jsonProbeCtl.signal }).catch(() => null);
+      clearTimeout(jsonProbeTimer);
       if (jsonMainRes && jsonMainRes.ok) {
         setFileMessage('מוריד נתונים (JSON)…');
         const JSON_EST = { main: 500_000, schedule: 8_000_000, stops: 3_000_000, benchmark: 3_000 };
@@ -1616,16 +1621,21 @@ const DAYS_FILTER = [
     } catch (err) {
       console.log('xlsx auto-load failed:', err.message);
       setInitialLoading(false);
+      setLoadError(true);
       return false;
     }
   }, []);
 
   useEffect(() => {
+    setLoadError(false);
+    setInitialLoading(true);
+    setFileProgress(0);
+    setFileMessage('טוען נתונים…');
     (async () => {
       const ok = await loadFromXLSX();
       if (!ok) loadFromCSV();
     })();
-  }, [loadFromXLSX, loadFromCSV]);
+  }, [loadFromXLSX, loadFromCSV, retryCount]);
 
   // טוען את ספריית XLSX ברקע (לצרכי ייצוא לאקסל בלבד — הפרסור עצמו רץ ב-worker).
   // קריאה לא חוסמת — אם הפרסור מסתיים לפני שה-XLSX הסתיים, אין בעיה.
@@ -1639,7 +1649,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617n'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617o'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -2454,15 +2464,32 @@ const DAYS_FILTER = [
   // מסך טעינה מלא — מוצג רק כשנכנסים לכלי לפני שהנתונים מוכנים
   const fullLoadingScreen = (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-6 px-6" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      <Ic n="loader" size={48} cls="text-slate-900" animate={true} />
-      <div className="text-center w-full max-w-xs">
-        <p className="text-slate-800 font-black text-lg mb-3">{fileLoad.message || 'טוען נתונים…'}</p>
-        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-          <div className="h-3 rounded-full bg-slate-900 transition-all duration-500" style={{ width: `${fileLoad.progress || 2}%` }} />
-        </div>
-        <p className="text-slate-500 font-black text-sm mt-2">{fileLoad.progress || 0}%</p>
-      </div>
-      <button onClick={() => pickMode('choice')} className="text-slate-400 font-bold text-sm underline mt-2">חזור למסך הבחירה</button>
+      {loadError ? (
+        <>
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <span style={{ fontSize: 28 }}>⚠️</span>
+          </div>
+          <div className="text-center">
+            <p className="text-slate-900 font-black text-lg">הטעינה נכשלה</p>
+            <p className="text-slate-500 font-bold text-sm mt-1">בדוק חיבור לאינטרנט ונסה שוב</p>
+          </div>
+          <button
+            onClick={() => setRetryCount(c => c + 1)}
+            className="bg-slate-900 text-white font-black px-8 py-3.5 rounded-2xl shadow-md hover:bg-slate-700 transition-colors"
+          >נסה שוב</button>
+        </>
+      ) : (
+        <>
+          <Ic n="loader" size={48} cls="text-slate-900" animate={true} />
+          <div className="text-center w-full max-w-xs">
+            <p className="text-slate-800 font-black text-lg mb-3">{fileLoad.message || 'טוען נתונים…'}</p>
+            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+              <div className="h-3 rounded-full bg-slate-900 transition-all duration-500" style={{ width: `${fileLoad.progress || 2}%` }} />
+            </div>
+            <p className="text-slate-500 font-black text-sm mt-2">{fileLoad.progress || 0}%</p>
+          </div>
+        </>
+      )}
     </div>
   );
 
