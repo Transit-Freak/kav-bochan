@@ -943,8 +943,10 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                   <div key={area.key} onClick={() => setAreaFilter(area.key)}
                     className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col cursor-pointer group">
                     <div className="flex justify-between items-start mb-6">
+                      <button onClick={e => { e.stopPropagation(); exportAreaToExcel(area.key); }} className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-all shrink-0" title="ייצוא נתוני האזור לאקסל">
+                        <Ic n="download" size={20} />
+                      </button>
                       <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 border-emerald-200 text-emerald-700">ניקוד ממוצע: {area.avgScore}</div>
-                      <div className="text-slate-300 font-black text-lg">#{idx + 1}</div>
                     </div>
                     <h3 className="text-2xl font-black text-slate-900 mb-4">{area.key}</h3>
                     <div className="space-y-3 pt-4 border-t border-slate-100 text-sm mb-5 flex-1">
@@ -953,12 +955,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                       <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ נסיעות שבועיות</span><span className="font-black text-slate-900">{area.totalTrips.toLocaleString()}</span></div>
                       <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ ק"מ שבועיים</span><span className="font-black text-slate-900">{area.totalKm.toLocaleString()} ק"מ</span></div>
                     </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black text-center group-hover:bg-black transition-colors">צפה בקווים אלו</div>
-                      <button onClick={e => { e.stopPropagation(); exportAreaToExcel(area.key); }} className="py-3 px-4 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-2xl text-xs font-black transition-colors shrink-0" title="הורד Excel">
-                        <Ic n="download" size={14} />
-                      </button>
-                    </div>
+                    <div className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-black text-center group-hover:bg-black transition-colors">צפה בקווים אלו</div>
                   </div>
                 ))}
                 {areaStats.length === 0 && (
