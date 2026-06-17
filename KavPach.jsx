@@ -975,7 +975,13 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
             </div>
           );
 
-          const lineTrips = trips.filter(t => String(t.lineNum) === String(selectedLine.lineNum));
+          // מסננים לפי אותו groupKey שבו מקובצים הקווים המצטיינים (lineNum + צמד ערים),
+          // אחרת "קו 1" יאסוף את כל הקווים שמספרם 1 בכל הארץ וידלל את העומס
+          const cityOnly = (s) => s ? (s.indexOf(' - ') > 0 ? s.slice(0, s.indexOf(' - ')).trim() : s.split('/')[0].trim()) : '';
+          const lineTrips = trips.filter(t => {
+            const pair = [cityOnly(t.origin), cityOnly(t.dest)].sort().join('-');
+            return `${t.lineNum}_${pair}` === selectedLine.groupKey;
+          });
           const periods = { 'לילה (00-06)': [], 'בוקר שיא (06-09)': [], 'בוקר (09-12)': [], 'צהריים (12-15)': [], 'אחה"צ שיא (15-18)': [], 'ערב (18-22)': [], 'לילה מאוחר (22-24)': [] };
           const periodRange = [[0,360],[360,540],[540,720],[720,900],[900,1080],[1080,1320],[1320,1440]];
           lineTrips.forEach(t => {
@@ -1687,7 +1693,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617q'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617r'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
