@@ -732,6 +732,23 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
   const selectCls = "bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-auto appearance-none cursor-pointer";
 
+  const exportCSV = () => {
+    const cols = ['מספר קו','מק"ט','מוצא','יעד','מחוז','קטגוריה','ניקוד','ממוצע נוסעים','עומס שיא','נסיעות בשבוע','עלות לנוסע','ק"מ שבועי כולל','ק"מ סרק'];
+    const rows = filtered.map(l => [
+      l.lineNum, l.makat || '', l.origin || '', l.dest || '', l.district || '', l.category || '',
+      l.score, l.avg, l.avgPeak, l.count,
+      l.cost > 0 ? l.cost.toFixed(2) : '',
+      (l.totalKm || 0).toFixed(0),
+      (l.wastedKm || 0).toFixed(0),
+    ]);
+    const BOM = '﻿';
+    const csv = BOM + [cols, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    a.download = `קו-מוזהב-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
       <div className="max-w-6xl mx-auto">
@@ -772,6 +789,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                 <p className="text-slate-500 font-bold">דירוג המציג את הקווים החזקים ביותר במערכת — ביקוש גבוה, יעילות גבוהה ועלות נמוכה</p>
               </div>
               <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
+                <button onClick={exportCSV} className="flex items-center gap-2 bg-amber-400 hover:bg-amber-500 text-amber-950 px-5 py-3 rounded-2xl font-black text-sm transition-colors shadow-sm shrink-0">
+                  <Ic n="download" size={16} /> ייצוא CSV ({filtered.length})
+                </button>
                 <select value={sortBy} onChange={e => { setSortBy(e.target.value); setVisibleCount(60); }} className={selectCls}>
                   <option value="score">מיון: לפי ניקוד מוזהב</option>
                   <option value="riders">מיון: ממוצע נוסעים (גבוה לנמוך)</option>
@@ -1677,7 +1697,7 @@ const DAYS_FILTER = [
         const jsonReceived = { main: 0, schedule: 0, stops: 0, benchmark: 0 };
         const updateJsonProgress = () => {
           const done = Object.entries(jsonReceived).reduce((s, [k, v]) => s + Math.min(v, JSON_EST[k]), 0);
-          setFileProgress(Math.min(42, 3 + Math.round((done / jsonTotalEst) * 39)));
+          setFileProgress(Math.min(20, 2 + Math.round((done / jsonTotalEst) * 18)));
         };
         // הקובץ הראשי כבר נטען — נמשוך ממנו את הנתונים
         const jsonMainReader = jsonMainRes.body.getReader();
@@ -1709,7 +1729,7 @@ const DAYS_FILTER = [
       const received = { main: 0, schedule: 0, stops: 0, benchmark: 0 };
       const updateProgress = () => {
         const done = Object.entries(received).reduce((s, [k, v]) => s + Math.min(v, EST[k]), 0);
-        const pct = Math.min(42, 3 + Math.round((done / totalEst) * 39));
+        const pct = Math.min(20, 2 + Math.round((done / totalEst) * 18));
         const mb = (done / 1_000_000).toFixed(1);
         const totalMb = (totalEst / 1_000_000).toFixed(0);
         setFileProgress(pct);
@@ -1771,7 +1791,7 @@ const DAYS_FILTER = [
         if (msg.type === 'progress') {
           // הורדה מסתיימת ב-42%; ממירים את אחוזי ה-Worker (0-100) לטווח 42-100
           // כך שהסרגל ממשיך קדימה ולא קופץ אחורה בעת מעבר משלב הורדה לשלב פרסור
-          const remapped = 42 + Math.round((msg.percent / 100) * 58);
+          const remapped = 20 + Math.round((msg.percent / 100) * 79);
           setFileProgress(Math.min(remapped, 99));
           setFileMessage(msg.message);
         } else if (msg.type === 'done') {
