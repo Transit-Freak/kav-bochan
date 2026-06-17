@@ -976,6 +976,18 @@ function KavPach() {
     setAppMode(m);
   }, []);
 
+  // סנכרון כפתור Back/Forward של הדפדפן עם appMode
+  useEffect(() => {
+    const onHash = () => {
+      const h = decodeURIComponent((window.location.hash || '').replace('#', '').trim());
+      if (h === 'golden' || h === 'מוזהב') setAppMode('golden');
+      else if (h === 'kavpach' || h === 'פח') setAppMode('kavpach');
+      else setAppMode('choice');
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
