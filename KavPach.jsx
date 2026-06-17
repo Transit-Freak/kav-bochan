@@ -867,15 +867,6 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                       </div>
                     </div>
 
-                    <div className="mt-4 space-y-1.5">
-                      {[['נסיעות', line.componentScores.highTrips, 30], ['יעילות', line.componentScores.efficientKm, 20], ['עלות', line.componentScores.cost, 20], ['נוסעים', line.componentScores.riders, 30]].map(([lbl, val, max]) => (
-                        <div key={lbl} className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
-                          <span className="w-10 shrink-0">{lbl}</span>
-                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full rounded-full bg-slate-900" style={{ width: `${(val / max) * 100}%` }} /></div>
-                          <span className="text-slate-500 w-8 text-left">{val}/{max}</span>
-                        </div>
-                      ))}
-                    </div>
                   </div>
 
                   <button
