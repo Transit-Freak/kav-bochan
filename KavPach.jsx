@@ -659,6 +659,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         percentLow: Math.round(percentLow),
         wastedKm,
         totalKm,
+        nonWastedKm: Math.max(0, totalKm - wastedKm),
         cost: avgCost,
         costRatio: Number(costRatio.toFixed(2)),
         costBenchmark,
@@ -797,9 +798,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.slice(0, visibleCount).map((line, idx) => (
-                <div key={line.groupKey} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col">
+                <div key={line.groupKey} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group relative">
                   <div className="flex items-start justify-between mb-6">
-                    <div className="flex flex-col gap-2 items-start">
+                    <div className="flex flex-col gap-2 items-start text-right">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 text-emerald-700 border-emerald-200">
                           ניקוד {line.score}/100
@@ -808,23 +809,64 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                           {line.category}
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">{line.district}</span>
+                      <div className="text-[10px] font-bold text-slate-400">מק&quot;ט: {String(line.makat || '').replace(/^0+/, '') || '—'}</div>
                     </div>
                     <div className="bg-slate-900 text-white w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-lg shrink-0">{line.lineNum}</div>
                   </div>
 
                   <div className="flex-1 mb-5">
-                    <div className="flex items-center justify-start gap-3 mb-4 min-w-0">
+                    <div className="flex items-center justify-start gap-3 mb-2 min-w-0">
                       <div className="text-slate-900 font-black text-lg truncate leading-tight">{line.origin}</div>
                       <div className="text-slate-300 text-2xl font-black shrink-0 leading-none">←</div>
                       <div className="text-slate-900 font-black text-lg truncate leading-tight">{line.dest}</div>
                     </div>
-                    <div className="space-y-2 text-sm border-t border-slate-100 pt-4">
-                      <div className="flex justify-between"><span className="text-slate-500 font-bold">ממוצע נוסעים</span><span className="font-black text-slate-900">{line.avg}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-500 font-bold">עומס שיא</span><span className="font-black text-slate-900">{line.avgPeak}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-500 font-bold">נסיעות שפל</span><span className="font-black text-slate-900">{line.percentLow}%</span></div>
-                      {line.costRatio > 0 && <div className="flex justify-between"><span className="text-slate-500 font-bold">עלות מהממוצע</span><span className={`font-black ${line.costRatio <= 1 ? 'text-emerald-600' : 'text-slate-900'}`}>{(line.costRatio * 100).toFixed(0)}%</span></div>}
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{line.district}</span>
+
+                    <div className="text-xs font-bold text-slate-400 mt-4 mb-4 flex items-center gap-2">
+                      <span>ניקוד מוזהב:</span>
+                      <span className="font-black text-emerald-600">{line.score}/100</span>
                     </div>
+
+                    <div className="space-y-2.5 pt-4 border-t border-slate-100">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 font-bold">ממוצע נוסעים לנסיעה</span>
+                        <span className="font-black text-slate-900">{line.avg}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 font-bold">עומס שיא ממוצע</span>
+                        <span className="font-black text-slate-900">{line.avgPeak}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 font-bold">נסיעות בשבוע</span>
+                        <span className="font-black text-slate-900">{line.count}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm gap-2">
+                        <span className="text-slate-600 font-bold">עלות תפעולית לנוסע</span>
+                        <span className="text-right">
+                          <span className="font-black text-slate-900">{line.cost > 0 ? `₪${line.cost.toFixed(2)}` : 'לא זמין'}</span>
+                          {line.cost > 0 && line.costBenchmark > 0 && (
+                            <div className="text-[10px] font-bold text-slate-400">
+                              ממוצע {line.category}: ₪{line.costBenchmark}
+                              {line.costRatio < 1 && (
+                                <span className="text-emerald-500 mr-1">(×{line.costRatio.toFixed(2)})</span>
+                              )}
+                              {line.costRatio >= 1 && (
+                                <span className="text-slate-500 mr-1">(×{line.costRatio.toFixed(2)})</span>
+                              )}
+                            </div>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
+                        <span className="font-black text-emerald-600">{(line.nonWastedKm || 0).toLocaleString()} ק&quot;מ</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 font-bold">ק&quot;מ מבוזבז (נסיעות סרק)</span>
+                        <span className="font-black text-rose-600">{line.wastedKm.toLocaleString()} ק&quot;מ</span>
+                      </div>
+                    </div>
+
                     <div className="mt-4 space-y-1.5">
                       {[['נסיעות', line.componentScores.highTrips, 30], ['יעילות', line.componentScores.efficientKm, 20], ['עלות', line.componentScores.cost, 20], ['נוסעים', line.componentScores.riders, 30]].map(([lbl, val, max]) => (
                         <div key={lbl} className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
@@ -835,6 +877,13 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                       ))}
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => alert(`קו ${line.lineNum} — ${line.origin} ← ${line.dest}`)}
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black hover:bg-black transition-all shadow-md"
+                  >
+                    פרטי הקו המצטיין
+                  </button>
                 </div>
               ))}
               {filtered.length === 0 && (
