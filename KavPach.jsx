@@ -1639,7 +1639,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617m'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617n'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -2451,21 +2451,26 @@ const DAYS_FILTER = [
     runOptimization(lineNum, city || "all", "all", []);
   };
 
-  // פס טעינה מינימלי בתחתית המסך — מוצג בכל מסך כל עוד הנתונים טוענים
-  const LoadingBar = () => initialLoading ? (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9000 }}>
-      <div style={{ height: '3px', background: '#e2e8f0' }}>
-        <div style={{ height: '3px', background: '#1e293b', transition: 'width .4s', width: `${fileLoad.progress || 2}%` }} />
+  // מסך טעינה מלא — מוצג רק כשנכנסים לכלי לפני שהנתונים מוכנים
+  const fullLoadingScreen = (
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-6 px-6" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
+      <Ic n="loader" size={48} cls="text-slate-900" animate={true} />
+      <div className="text-center w-full max-w-xs">
+        <p className="text-slate-800 font-black text-lg mb-3">{fileLoad.message || 'טוען נתונים…'}</p>
+        <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+          <div className="h-3 rounded-full bg-slate-900 transition-all duration-500" style={{ width: `${fileLoad.progress || 2}%` }} />
+        </div>
+        <p className="text-slate-500 font-black text-sm mt-2">{fileLoad.progress || 0}%</p>
       </div>
-      <div style={{ background: '#1e293b', color: '#fff', fontSize: '11px', fontWeight: 900, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Heebo,sans-serif' }}>
-        <span style={{ display: 'inline-block', width: '10px', height: '10px', border: '2px solid #ffffff44', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-        {fileLoad.message || 'טוען נתונים…'} — {fileLoad.progress || 0}%
-      </div>
+      <button onClick={() => pickMode('choice')} className="text-slate-400 font-bold text-sm underline mt-2">חזור למסך הבחירה</button>
     </div>
-  ) : null;
+  );
 
-  if (appMode === 'choice') return <><ChoiceScreen onPick={pickMode} /><LoadingBar /></>;
-  if (appMode === 'golden') return <><GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} /><LoadingBar /></>;
+  // מסך בחירה — תמיד נגיש מיד (לא מחכה לנתונים)
+  if (appMode === 'choice') return <ChoiceScreen onPick={pickMode} />;
+  // כלים — מחכים לנתונים; מראים טעינה עד שהם מוכנים
+  if (initialLoading || trips.length === 0) return fullLoadingScreen;
+  if (appMode === 'golden') return <GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} />;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
