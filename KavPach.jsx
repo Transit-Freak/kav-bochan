@@ -561,6 +561,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [visibleCount, setVisibleCount] = useState(60);
+  const [selectedLine, setSelectedLine] = useState(null);
+  const [areaFilter, setAreaFilter] = useState(null);
 
   // ניקוד מוזהב (0-100, גבוה יותר = טוב יותר) — ההפך המדויק מניקוד קו פח
   const goldenLines = useMemo(() => {
@@ -701,16 +703,20 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
   const areaStats = useMemo(() => {
     const map = new Map();
     goldenLines.forEach(line => {
-      [line.district].filter(Boolean).forEach(key => {
-        if (!map.has(key)) map.set(key, { key, count: 0, totalScore: 0, totalRiders: 0 });
-        const s = map.get(key);
-        s.count++;
-        s.totalScore += line.score;
-        s.totalRiders += Number(line.avg);
-      });
+      if (!line.district) return;
+      if (!map.has(line.district)) map.set(line.district, { key: line.district, count: 0, totalScore: 0, totalRiders: 0, totalTrips: 0, totalKm: 0 });
+      const s = map.get(line.district);
+      s.count++;
+      s.totalScore += line.score;
+      s.totalRiders += Number(line.avg);
+      s.totalTrips += line.count;
+      s.totalKm += line.totalKm;
     });
-    return [...map.values()].map(s => ({ ...s, avgScore: Math.round(s.totalScore / s.count), avgRiders: (s.totalRiders / s.count).toFixed(1) }))
-      .sort((a, b) => b.avgScore - a.avgScore);
+    return [...map.values()].map(s => ({
+      ...s,
+      avgScore: Math.round(s.totalScore / s.count),
+      avgRiders: (s.totalRiders / s.count).toFixed(1),
+    })).sort((a, b) => b.count - a.count);
   }, [goldenLines]);
 
   const isLoading = !trips || trips.length === 0;
@@ -749,7 +755,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         </header>
 
         <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
-          {[['top', 'star', 'הקווים המצטיינים', 'bg-white text-amber-600 shadow-md'], ['areas', 'chart', 'ניתוח אזורי', 'bg-white text-amber-600 shadow-md'], ['about', 'info', 'על המערכת', 'bg-white text-indigo-600 shadow-md']].map(([id, icon, label, activeCls]) => (
+          {[['top', 'star', 'הקווים המצטיינים', 'bg-white text-amber-600 shadow-md'], ['areas', 'chart', 'ניתוח אזורי', 'bg-white text-amber-600 shadow-md'], ['expand', 'zap', 'הזדמנויות הרחבה', 'bg-white text-emerald-600 shadow-md'], ['about', 'info', 'על המערכת', 'bg-white text-indigo-600 shadow-md']].map(([id, icon, label, activeCls]) => (
             <button key={id} onClick={() => setGoldenTab(id)}
               className={`flex-1 min-w-[120px] py-3.5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-2 ${goldenTab === id ? activeCls : 'text-slate-500 hover:text-slate-700'}`}>
               <Ic n={icon} size={16} /> {label}
@@ -870,10 +876,10 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                   </div>
 
                   <button
-                    onClick={() => alert(`קו ${line.lineNum} — ${line.origin} ← ${line.dest}`)}
+                    onClick={() => { setSelectedLine(line); setGoldenTab('expand'); }}
                     className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black hover:bg-black transition-all shadow-md"
                   >
-                    פרטי הקו המצטיין
+                    חפש הזדמנויות הרחבה
                   </button>
                 </div>
               ))}
@@ -891,33 +897,185 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
         {/* ── טאב: ניתוח אזורי ── */}
         {goldenTab === 'areas' && (
-          <div className="space-y-8">
+          <div className="space-y-8 transition-opacity duration-300 opacity-100">
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
               <div>
                 <h2 className="text-2xl font-black text-slate-900">האזורים הכי חזקים</h2>
-                <p className="text-slate-500 font-bold">ריכוז של הקווים המצטיינים לפי מחוז</p>
+                <p className="text-slate-500 font-bold">ריכוז הקווים המצטיינים לפי מחוז — לחץ על מחוז לצפייה בקוויו</p>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {areaStats.map((area, idx) => (
-                <div key={area.key} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 border-emerald-200 text-emerald-700">ניקוד ממוצע: {area.avgScore}</div>
-                    <div className="text-slate-300 font-black text-lg">#{idx + 1}</div>
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-4">{area.key}</h3>
-                  <div className="space-y-3 pt-4 border-t border-slate-100 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-600 font-bold">קווים מצטיינים</span><span className="font-black text-slate-900">{area.count} קווים</span></div>
-                    <div className="flex justify-between"><span className="text-slate-600 font-bold">ממוצע נוסעים</span><span className="font-black text-slate-900">{area.avgRiders}</span></div>
-                  </div>
-                </div>
-              ))}
-              {areaStats.length === 0 && (
-                <div className="col-span-full text-center py-20 text-slate-400 font-bold">אין נתונים.</div>
+              {areaFilter && (
+                <button onClick={() => setAreaFilter(null)} className="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-2xl font-black text-sm transition-colors">
+                  ✕ נקה סינון: {areaFilter}
+                </button>
               )}
             </div>
+
+            {!areaFilter && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {areaStats.map((area, idx) => (
+                  <div key={area.key} onClick={() => setAreaFilter(area.key)}
+                    className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col cursor-pointer group">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 border-emerald-200 text-emerald-700">ניקוד ממוצע: {area.avgScore}</div>
+                      <div className="text-slate-300 font-black text-lg">#{idx + 1}</div>
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900 mb-4">{area.key}</h3>
+                    <div className="space-y-3 pt-4 border-t border-slate-100 text-sm mb-5 flex-1">
+                      <div className="flex justify-between"><span className="text-slate-600 font-bold">קווים מצטיינים</span><span className="font-black text-slate-900">{area.count} קווים</span></div>
+                      <div className="flex justify-between"><span className="text-slate-600 font-bold">ממוצע נוסעים</span><span className="font-black text-slate-900">{area.avgRiders}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ נסיעות שבועיות</span><span className="font-black text-slate-900">{area.totalTrips.toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-600 font-bold">סה"כ ק"מ שבועיים</span><span className="font-black text-slate-900">{area.totalKm.toLocaleString()} ק"מ</span></div>
+                    </div>
+                    <div className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-black text-center group-hover:bg-black transition-colors">צפה בקווים אלו</div>
+                  </div>
+                ))}
+                {areaStats.length === 0 && (
+                  <div className="col-span-full text-center py-20 text-slate-400 font-bold">אין נתונים.</div>
+                )}
+              </div>
+            )}
+
+            {areaFilter && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {goldenLines.filter(l => l.district === areaFilter).map(line => (
+                    <div key={line.groupKey} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex flex-col gap-2 items-start">
+                          <div className="px-4 py-1.5 rounded-full text-[11px] font-black border bg-emerald-50 text-emerald-700 border-emerald-200">ניקוד {line.score}/100</div>
+                          <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">{line.category}</div>
+                        </div>
+                        <div className="bg-slate-900 text-white w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-lg shrink-0">{line.lineNum}</div>
+                      </div>
+                      <div className="flex items-center gap-3 mb-3 min-w-0">
+                        <div className="text-slate-900 font-black text-lg truncate leading-tight">{line.origin}</div>
+                        <div className="text-slate-300 text-2xl font-black shrink-0">←</div>
+                        <div className="text-slate-900 font-black text-lg truncate leading-tight">{line.dest}</div>
+                      </div>
+                      <div className="space-y-2 text-sm border-t border-slate-100 pt-3 mb-5 flex-1">
+                        <div className="flex justify-between"><span className="text-slate-600 font-bold">ממוצע נוסעים</span><span className="font-black">{line.avg}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-600 font-bold">עומס שיא</span><span className="font-black">{line.avgPeak}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-600 font-bold">עלות לנוסע</span><span className="font-black">{line.cost > 0 ? `₪${line.cost.toFixed(2)}` : '—'}</span></div>
+                      </div>
+                      <button onClick={() => { setSelectedLine(line); setGoldenTab('expand'); }} className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-black hover:bg-black transition-all shadow-md">חפש הזדמנויות הרחבה</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* ── טאב: הזדמנויות הרחבה ── */}
+        {goldenTab === 'expand' && (() => {
+          if (!selectedLine) return (
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-16 text-center">
+              <p className="text-slate-400 font-bold text-lg mb-4">בחר קו מצטיין כדי לראות הזדמנויות הרחבה</p>
+              <button onClick={() => setGoldenTab('top')} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-sm hover:bg-black transition-colors">חזרה לרשימה</button>
+            </div>
+          );
+
+          const lineTrips = trips.filter(t => String(t.lineNum) === String(selectedLine.lineNum));
+          const periods = { 'לילה (00-06)': [], 'בוקר שיא (06-09)': [], 'בוקר (09-12)': [], 'צהריים (12-15)': [], 'אחה"צ שיא (15-18)': [], 'ערב (18-22)': [], 'לילה מאוחר (22-24)': [] };
+          const periodRange = [[0,360],[360,540],[540,720],[720,900],[900,1080],[1080,1320],[1320,1440]];
+          lineTrips.forEach(t => {
+            const mins = t.timeMins;
+            if (mins == null) return;
+            const idx = periodRange.findIndex(([a,b]) => mins >= a && mins < b);
+            if (idx >= 0) { const key = Object.keys(periods)[idx]; periods[key].push(t); }
+          });
+          const periodStats = Object.entries(periods).map(([label, pts]) => {
+            if (pts.length === 0) return { label, count: 0, avgRiders: 0, avgPeak: 0 };
+            const totalTrips = pts.reduce((s,t) => s + t.tripCount, 0);
+            const avgRiders = totalTrips > 0 ? pts.reduce((s,t) => s + t.ridership * t.tripCount, 0) / totalTrips : 0;
+            const avgPeak = totalTrips > 0 ? pts.reduce((s,t) => s + t.peakLoad * t.tripCount, 0) / totalTrips : 0;
+            return { label, count: totalTrips, avgRiders: avgRiders.toFixed(1), avgPeak: Math.round(avgPeak) };
+          }).filter(p => p.count > 0);
+          const maxRiders = Math.max(...periodStats.map(p => Number(p.avgRiders)), 1);
+
+          return (
+            <div className="space-y-8 transition-opacity duration-300 opacity-100">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-start gap-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <div className="bg-slate-900 text-white w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-md">{selectedLine.lineNum}</div>
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900">הזדמנויות הרחבה — קו {selectedLine.lineNum}</h2>
+                      <p className="text-slate-500 font-bold">{selectedLine.origin} ← {selectedLine.dest} · {selectedLine.district}</p>
+                    </div>
+                  </div>
+                  <p className="text-slate-500 font-bold text-sm mt-2">הקו פועל ביעילות גבוהה — זהו הרגע הנכון לשקול הוספת נסיעות בשעות השיא</p>
+                </div>
+                <button onClick={() => setGoldenTab('top')} className="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימה</button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* ניתוח לפי תקופה */}
+                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
+                  <h3 className="text-lg font-black text-slate-900 mb-5">עומס נוסעים לפי שעה</h3>
+                  <div className="space-y-3">
+                    {periodStats.map(p => (
+                      <div key={p.label}>
+                        <div className="flex justify-between text-sm font-bold mb-1">
+                          <span className="text-slate-700">{p.label}</span>
+                          <span className="text-slate-900 font-black">{p.avgRiders} נוסעים · {p.count} נסיעות</span>
+                        </div>
+                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-slate-900 transition-all" style={{ width: `${(Number(p.avgRiders) / maxRiders) * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    {periodStats.length === 0 && <p className="text-slate-400 font-bold text-sm">אין נתוני זמן לקו זה</p>}
+                  </div>
+                </div>
+
+                {/* המלצות */}
+                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
+                  <h3 className="text-lg font-black text-slate-900 mb-5">המלצות להרחבה</h3>
+                  <div className="space-y-4">
+                    {(() => {
+                      const recs = [];
+                      const peak = periodStats.filter(p => p.label.includes('שיא')).sort((a,b) => Number(b.avgRiders)-Number(a.avgRiders));
+                      if (peak.length > 0) recs.push({ title: `הוסף נסיעות ב${peak[0].label}`, desc: `ממוצע ${peak[0].avgRiders} נוסעים — זמן השיא של הקו. נסיעות נוספות ישפרו זמינות ויקצרו המתנה.`, color: 'bg-emerald-50 border-emerald-200 text-emerald-700' });
+                      if (selectedLine.avgPeak > 30) recs.push({ title: 'שקול כלי קיבולת גבוהה יותר', desc: `עומס שיא ממוצע ${selectedLine.avgPeak} — האוטובוס מלא. שידרוג לאוטובוס ארוך יכול להגדיל קיבולת ללא עלות תפעולית גבוהה.`, color: 'bg-sky-50 border-sky-200 text-sky-700' });
+                      if (Number(selectedLine.avg) > 20) recs.push({ title: 'קו מועמד לתדירות גבוהה יותר', desc: `ממוצע ${selectedLine.avg} נוסעים לנסיעה מצדיק בחינת קיצור מרווח הנסיעות.`, color: 'bg-indigo-50 border-indigo-200 text-indigo-700' });
+                      if (selectedLine.cost > 0 && selectedLine.costRatio < 0.8) recs.push({ title: 'עלות נמוכה — יש מרחב תקציבי', desc: `עלות ₪${selectedLine.cost.toFixed(2)} לנוסע — ${Math.round(selectedLine.costRatio*100)}% מהממוצע. הרחבת השירות משתלמת כלכלית.`, color: 'bg-amber-50 border-amber-200 text-amber-700' });
+                      if (recs.length === 0) recs.push({ title: 'קו יעיל — בחן הרחבה עתידית', desc: 'הקו פועל ביעילות גבוהה. מומלץ לעקוב אחר מגמות הביקוש לאורך זמן.', color: 'bg-slate-50 border-slate-200 text-slate-700' });
+                      return recs.map((r, i) => (
+                        <div key={i} className={`p-4 rounded-2xl border ${r.color}`}>
+                          <div className="font-black text-sm mb-1">{r.title}</div>
+                          <div className="text-xs font-bold opacity-80">{r.desc}</div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* נתוני קו */}
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
+                <h3 className="text-lg font-black text-slate-900 mb-5">נתוני הקו המצטיין</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    ['ניקוד מוזהב', `${selectedLine.score}/100`],
+                    ['ממוצע נוסעים', selectedLine.avg],
+                    ['עומס שיא', selectedLine.avgPeak],
+                    ['נסיעות בשבוע', selectedLine.count],
+                    ['עלות לנוסע', selectedLine.cost > 0 ? `₪${selectedLine.cost.toFixed(2)}` : '—'],
+                    ['ק"מ שימושי', `${(selectedLine.nonWastedKm||0).toLocaleString()} ק"מ`],
+                    ['ק"מ סרק', `${selectedLine.wastedKm.toLocaleString()} ק"מ`],
+                    ['קטגוריה', selectedLine.category],
+                  ].map(([label, val]) => (
+                    <div key={label} className="bg-slate-50 rounded-2xl p-4 text-right">
+                      <div className="text-slate-400 text-xs font-bold mb-1">{label}</div>
+                      <div className="font-black text-slate-900 text-lg">{val}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── טאב: אודות ── */}
         {goldenTab === 'about' && (
