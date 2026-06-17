@@ -1554,6 +1554,43 @@ const DAYS_FILTER = [
         return buf.buffer;
       };
 
+      // ── מסלול מהיר: JSON (אם קיים) ──────────────────────────────────────
+      // קבצי JSON נוצרים מראש ע"י convert-to-json.js (~12MB במקום 46MB XLSX).
+      // JSON.parse מהיר 50× מ-SheetJS — ~5 שניות במובייל במקום ~2 דקות.
+      const jsonMainRes = await fetch('data-main.json', { cache: 'no-cache' }).catch(() => null);
+      if (jsonMainRes && jsonMainRes.ok) {
+        setFileMessage('מוריד נתונים (JSON)…');
+        const JSON_EST = { main: 500_000, schedule: 8_000_000, stops: 3_000_000, benchmark: 3_000 };
+        const jsonTotalEst = Object.values(JSON_EST).reduce((a, b) => a + b, 0);
+        const jsonReceived = { main: 0, schedule: 0, stops: 0, benchmark: 0 };
+        const updateJsonProgress = () => {
+          const done = Object.entries(jsonReceived).reduce((s, [k, v]) => s + Math.min(v, JSON_EST[k]), 0);
+          setFileProgress(Math.min(42, 3 + Math.round((done / jsonTotalEst) * 39)));
+        };
+        // הקובץ הראשי כבר נטען — נמשוך ממנו את הנתונים
+        const jsonMainReader = jsonMainRes.body.getReader();
+        const jsonMainChunks = []; let jmRec = 0;
+        while (true) {
+          const { done, value } = await jsonMainReader.read();
+          if (done) break;
+          jsonMainChunks.push(value); jmRec += value.length;
+          jsonReceived.main = jmRec; updateJsonProgress(); setFileMessage('מוריד נתוני קווים…');
+        }
+        const jmBuf = new Uint8Array(jmRec); let jmPos = 0;
+        for (const c of jsonMainChunks) { jmBuf.set(c, jmPos); jmPos += c.length; }
+
+        const [jsonScheduleBuf, jsonStopsBuf, jsonBenchmarkBuf] = await Promise.all([
+          grabWithProgress('data-schedule.json', false, (b) => { jsonReceived.schedule = b; updateJsonProgress(); setFileMessage('מוריד לוח זמנים…'); }),
+          grabWithProgress('data-stops.json',    false, (b) => { jsonReceived.stops    = b; updateJsonProgress(); setFileMessage('מוריד נתוני תחנות…'); }),
+          grabWithProgress('data-benchmark.json',false, (b) => { jsonReceived.benchmark = b; updateJsonProgress(); }),
+        ]);
+
+        setFileMessage('מנתח נתונים…');
+        await runWorker({ jsonMainBuf: jmBuf.buffer, jsonScheduleBuf, jsonStopsBuf, jsonBenchmarkBuf });
+        return true;
+      }
+
+      // ── מסלול רגיל: XLSX ─────────────────────────────────────────────────
       // גדלי קבצים משוערים (בבייטים) לחישוב progress כולל
       const EST = { main: 1_200_000, schedule: 24_000_000, stops: 22_000_000, benchmark: 20_000 };
       const totalEst = Object.values(EST).reduce((a, b) => a + b, 0);
@@ -1599,7 +1636,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260616e'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617k'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);

@@ -685,12 +685,208 @@ function parseXLSX(payload) {
   return { trips: finalParsed, lineCitiesMap: finalLineCitiesMap, lineStopsMap: finalLineStopsMap, lineNormStopsMap: finalLineNormStopsMap, lineStopNamesMap: finalLineStopNamesMap, costBenchmark };
 }
 
+// ── parseJSON — מסלול מהיר: JSON במקום XLSX ───────────────────────────
+// payload: { jsonMainBuf, jsonScheduleBuf, jsonStopsBuf, jsonBenchmarkBuf }
+// כל buf הוא ArrayBuffer של קובץ JSON (UTF-8).
+// זמן עיבוד: ~5 שניות במובייל במקום ~2 דקות עם SheetJS.
+function parseJSON(payload) {
+  progress(5, "מפענח JSON…");
+  const dec = new TextDecoder();
+
+  const mainRows     = JSON.parse(dec.decode(payload.jsonMainBuf));
+  progress(12, "קרא נתוני קווים…");
+  const schedRows    = JSON.parse(dec.decode(payload.jsonScheduleBuf));
+  progress(22, "קרא לוח זמנים…");
+  const stopsRows    = JSON.parse(dec.decode(payload.jsonStopsBuf));
+  progress(28, "קרא תחנות…");
+  const costBenchmark = payload.jsonBenchmarkBuf
+    ? JSON.parse(dec.decode(payload.jsonBenchmarkBuf))
+    : null;
+
+  // ── בניית מפת קווים מ-main ──
+  // [0]=makat [1]=lineNum [2]=direction [3]=origin [4]=dest [5]=district
+  // [6]=lineType [7]=uniqueness [8]=opGroup [9]=distance [10]=tripCount
+  // [11]=cost [12]=weeklyKm [13]=busSize [14]=exclusiveStops [15]=ridership [16]=peakLoad
+  progress(32, "בונה מפת קווים…");
+  const ws1MakatMap = new Map();
+  for (const row of mainRows) {
+    const makat = row[0];
+    if (!makat) continue;
+    const ex = ws1MakatMap.get(makat) || {};
+    const uniq = row[7] || '';
+    ws1MakatMap.set(makat, {
+      lineNum:       ex.lineNum       || row[1] || '',
+      direction:     ex.direction     || row[2] || '',
+      origin:        row[3]           || ex.origin || 'לא ידוע',
+      dest:          row[4]           || ex.dest   || 'לא ידוע',
+      district:      (ex.district && ex.district !== 'כללי') ? ex.district : (row[5] || 'כללי'),
+      lineType:      ex.lineType      || row[6] || 'עירוני',
+      uniquenessVal: ex.uniquenessVal || uniq,
+      opGroupVal:    ex.opGroupVal    || row[8] || '',
+      distance:      row[9]  || ex.distance  || 0,
+      cost:          row[11] || ex.cost      || 0,
+      weeklyKm:      row[12] || ex.weeklyKm  || 0,
+      busSize:       ex.busSize       || row[13] || 'אוטובוס',
+      exclusiveStops:ex.exclusiveStops|| row[14] || 0,
+      isNightLine:   ex.isNightLine   || uniq.includes('לילה'),
+      isFeedingLine: ex.isFeedingLine || uniq.includes('מזין'),
+    });
+  }
+
+  // ── בניית מפות תחנות ──
+  // [0]=makat [1]=stopId [2]=city(lowercase) [3]=normName
+  progress(38, "בונה מפת תחנות…");
+  const tempCitiesMap   = new Map();
+  const tempStopsMap    = new Map();
+  const tempNormStopsMap = new Map();
+  for (const row of stopsRows) {
+    const makat = row[0];
+    if (!makat) continue;
+    const stopId   = row[1];
+    const city     = row[2];
+    const normName = row[3];
+    if (city) {
+      if (!tempCitiesMap.has(makat)) tempCitiesMap.set(makat, new Set());
+      tempCitiesMap.get(makat).add(city);
+    }
+    if (stopId) {
+      if (!tempStopsMap.has(makat)) tempStopsMap.set(makat, new Set());
+      tempStopsMap.get(makat).add(stopId);
+    }
+    if (normName) {
+      if (!tempNormStopsMap.has(makat)) tempNormStopsMap.set(makat, new Set());
+      tempNormStopsMap.get(makat).add(normName);
+    }
+  }
+
+  // ── עיבוד שורות לוח זמנים ──
+  // [0]=makat [1]=direction [2]=time [3]=timeMins [4]=days [5]=ridership [6]=peakLoad [7]=tripCount
+  progress(44, "מעבד נסיעות…");
+  const parsed = [];
+  const finalLineCitiesMap  = new Map();
+  const finalLineStopsMap   = new Map();
+  const finalLineNormStopsMap = new Map();
+
+  const total = schedRows.length;
+  for (let i = 0; i < total; i++) {
+    const row = schedRows[i];
+    const makat = row[0];
+    if (!makat || !ws1MakatMap.has(makat)) continue;
+    const d1 = ws1MakatMap.get(makat);
+
+    const direction  = row[1] || d1.direction || '';
+    const timeStr    = row[2] || 'כללי';
+    const timeMins   = (row[3] !== null && row[3] !== undefined) ? row[3] : 0;
+    const finalTime  = (row[3] !== null && row[3] !== undefined) ? timeStr : 'כללי';
+    const daysRaw    = row[4] || '';
+    const ridership  = row[5] || 0;
+    const peakLoad   = row[6] || 0;
+    const tripCount  = row[7] || 1;
+
+    const daysInfo = parseDays(daysRaw);
+    const capacity = getCapacity(d1.busSize);
+    const origin   = d1.origin || 'לא ידוע';
+    const dest     = d1.dest   || 'לא ידוע';
+    const isEilat  = (origin.includes('אילת') || dest.includes('אילת')) && (d1.opGroupVal || '').includes('בינעירוני ארוך');
+
+    parsed.push({
+      id: i,
+      lineNum:       d1.lineNum,
+      makat,
+      direction,
+      origin,
+      dest,
+      time:          finalTime,
+      timeMins,
+      period:        getPeriod(timeMins),
+      days:          daysInfo.text,
+      daysList:      daysInfo.list,
+      district:      d1.district,
+      lineType:      d1.lineType,
+      ridership:     Number(ridership),
+      peakLoad:      Number(peakLoad),
+      busSize:       d1.busSize || 'אוטובוס',
+      capacity,
+      efficiency:    Number((Math.max(ridership, peakLoad) / capacity).toFixed(2)),
+      distance:      d1.distance,
+      cost:          d1.cost,
+      weeklyKm:      d1.weeklyKm,
+      isNightLine:   d1.isNightLine,
+      isEilatPrebooked: isEilat,
+      isFeedingLine: d1.isFeedingLine,
+      opGroup:       d1.opGroupVal || '',
+      uniquenessVal: d1.uniquenessVal || '',
+      exclusiveStops:d1.exclusiveStops || 0,
+      tripCount,
+    });
+
+    const citiesSet = tempCitiesMap.get(makat);
+    if (citiesSet) {
+      finalLineCitiesMap.set(makat, citiesSet);
+      const cl = d1.lineNum.replace(/^0+/, '');
+      if (cl) finalLineCitiesMap.set(cl, citiesSet);
+    }
+    const stopsSet = tempStopsMap.get(makat);
+    if (stopsSet) {
+      finalLineStopsMap.set(makat, stopsSet);
+      const cl = d1.lineNum.replace(/^0+/, '');
+      if (cl) finalLineStopsMap.set(cl, stopsSet);
+    }
+    const normSet = tempNormStopsMap.get(makat);
+    if (normSet) {
+      finalLineNormStopsMap.set(makat, normSet);
+      const cl = d1.lineNum.replace(/^0+/, '');
+      if (cl) finalLineNormStopsMap.set(cl, normSet);
+    }
+
+    if (i % 20000 === 0 && i > 0) {
+      const pct = 44 + Math.round((i / total) * 50);
+      progress(Math.min(pct, 94), `נמצאו ${parsed.length.toLocaleString()} נסיעות…`);
+    }
+  }
+
+  progress(95, "מאחד נסיעות כפולות…");
+
+  const dedupMap = new Map();
+  for (const t of parsed) {
+    const key = `${t.lineNum}_${t.direction}_${t.origin}_${t.dest}_${t.timeMins}_${t.days}`;
+    if (dedupMap.has(key)) {
+      const ex = dedupMap.get(key);
+      ex.ridership  = ((ex.ridership  * ex._mc) + t.ridership)  / (ex._mc + 1);
+      ex.peakLoad   = ((ex.peakLoad   * ex._mc) + t.peakLoad)   / (ex._mc + 1);
+      ex.efficiency = Number((Math.max(ex.ridership, ex.peakLoad) / ex.capacity).toFixed(2));
+      ex.tripCount  = Math.max(ex.tripCount, t.tripCount);
+      ex._mc += 1;
+    } else {
+      t._mc = 1;
+      dedupMap.set(key, t);
+    }
+  }
+
+  progress(99, "מסיים…");
+  const finalParsed = Array.from(dedupMap.values()).map(t => {
+    t.ridership = Number(t.ridership.toFixed(2));
+    t.peakLoad  = Number(t.peakLoad.toFixed(2));
+    delete t._mc;
+    return t;
+  });
+
+  return {
+    trips: finalParsed,
+    lineCitiesMap:    finalLineCitiesMap,
+    lineStopsMap:     finalLineStopsMap,
+    lineNormStopsMap: finalLineNormStopsMap,
+    lineStopNamesMap: new Map(),
+    costBenchmark,
+  };
+}
+
 // ── message handler ───────────────────────────────────────────────────
 self.onmessage = (e) => {
   const d = e.data || {};
   if (d.type !== 'parse') return;
   try {
-    const r = parseXLSX(d);
+    const r = d.jsonMainBuf ? parseJSON(d) : parseXLSX(d);
     post({ type: 'done', trips: r.trips, lineCitiesMap: r.lineCitiesMap, lineStopsMap: r.lineStopsMap, lineNormStopsMap: r.lineNormStopsMap, lineStopNamesMap: r.lineStopNamesMap, costBenchmark: r.costBenchmark });
   } catch (err) {
     post({ type: 'error', message: err && err.message ? err.message : String(err) });
