@@ -1598,7 +1598,10 @@ const DAYS_FILTER = [
       const updateProgress = () => {
         const done = Object.entries(received).reduce((s, [k, v]) => s + Math.min(v, EST[k]), 0);
         const pct = Math.min(42, 3 + Math.round((done / totalEst) * 39));
+        const mb = (done / 1_000_000).toFixed(1);
+        const totalMb = (totalEst / 1_000_000).toFixed(0);
         setFileProgress(pct);
+        setFileMessage(`מוריד נתונים… ${mb} / ${totalMb} MB`);
       };
 
       const [main, schedule, stops, benchmark] = await Promise.all([
@@ -1636,7 +1639,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617l'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617m'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -1649,7 +1652,10 @@ const DAYS_FILTER = [
         const msg = ev.data;
         if (!msg) return;
         if (msg.type === 'progress') {
-          setFileProgress(msg.percent);
+          // הורדה מסתיימת ב-42%; ממירים את אחוזי ה-Worker (0-100) לטווח 42-100
+          // כך שהסרגל ממשיך קדימה ולא קופץ אחורה בעת מעבר משלב הורדה לשלב פרסור
+          const remapped = 42 + Math.round((msg.percent / 100) * 58);
+          setFileProgress(Math.min(remapped, 99));
           setFileMessage(msg.message);
         } else if (msg.type === 'done') {
           // lineCitiesMap מגיע כ-Map עם Set-ים בזכות structured clone
