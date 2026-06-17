@@ -1580,8 +1580,8 @@ const DAYS_FILTER = [
         for (const c of jsonMainChunks) { jmBuf.set(c, jmPos); jmPos += c.length; }
 
         const [jsonScheduleBuf, jsonStopsBuf, jsonBenchmarkBuf] = await Promise.all([
-          grabWithProgress('data-schedule.json', false, (b) => { jsonReceived.schedule = b; updateJsonProgress(); setFileMessage('מוריד לוח זמנים…'); }),
-          grabWithProgress('data-stops.json',    false, (b) => { jsonReceived.stops    = b; updateJsonProgress(); setFileMessage('מוריד נתוני תחנות…'); }),
+          grabWithProgress('data-schedule.json', false, (b) => { jsonReceived.schedule = b; updateJsonProgress(); }),
+          grabWithProgress('data-stops.json',    false, (b) => { jsonReceived.stops    = b; updateJsonProgress(); }),
           grabWithProgress('data-benchmark.json',false, (b) => { jsonReceived.benchmark = b; updateJsonProgress(); }),
         ]);
 
@@ -1602,9 +1602,9 @@ const DAYS_FILTER = [
       };
 
       const [main, schedule, stops, benchmark] = await Promise.all([
-        grabWithProgress(FILES.main,      true,  (b) => { received.main      = b; updateProgress(); setFileMessage('מוריד נתוני קווים…'); }),
-        grabWithProgress(FILES.schedule,  false, (b) => { received.schedule  = b; updateProgress(); setFileMessage('מוריד לוח זמנים…'); }),
-        grabWithProgress(FILES.stops,     false, (b) => { received.stops     = b; updateProgress(); setFileMessage('מוריד נתוני תחנות…'); }),
+        grabWithProgress(FILES.main,      true,  (b) => { received.main      = b; updateProgress(); }),
+        grabWithProgress(FILES.schedule,  false, (b) => { received.schedule  = b; updateProgress(); }),
+        grabWithProgress(FILES.stops,     false, (b) => { received.stops     = b; updateProgress(); }),
         grabWithProgress(FILES.benchmark, false, (b) => { received.benchmark = b; updateProgress(); }),
       ]);
       setFileMessage('מנתח נתונים…');
@@ -1636,7 +1636,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617k'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617l'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -2445,35 +2445,21 @@ const DAYS_FILTER = [
     runOptimization(lineNum, city || "all", "all", []);
   };
 
-  // מסכי-על: ממתינים לטעינת הנתונים לפני הצגת מסך הבחירה
-  if (initialLoading) return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-6 px-6" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      {fileLoad.progress < 10 ? (
-        <>
-          <div className="w-14 h-14 rounded-full bg-slate-900 flex items-center justify-center">
-            <Ic n="loader" size={28} cls="text-white" animate={true} />
-          </div>
-          <div className="text-center">
-            <p className="text-slate-700 font-black text-lg">{fileLoad.message || 'טוען נתונים…'}</p>
-            <p className="text-slate-400 text-sm font-bold mt-1">יכול לקחת כחצי דקה בחיבור סלולרי</p>
-          </div>
-        </>
-      ) : (
-        <>
-          <Ic n="loader" size={56} cls="text-slate-900" animate={true} />
-          <div className="text-center w-full max-w-xs">
-            <p className="text-slate-800 font-black text-lg mb-3">{fileLoad.message}</p>
-            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-              <div className="h-3 rounded-full bg-slate-900 transition-all duration-300" style={{ width: `${fileLoad.progress}%` }} />
-            </div>
-            <p className="text-slate-500 font-black text-sm mt-2">{fileLoad.progress}%</p>
-          </div>
-        </>
-      )}
+  // פס טעינה מינימלי בתחתית המסך — מוצג בכל מסך כל עוד הנתונים טוענים
+  const LoadingBar = () => initialLoading ? (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9000 }}>
+      <div style={{ height: '3px', background: '#e2e8f0' }}>
+        <div style={{ height: '3px', background: '#1e293b', transition: 'width .4s', width: `${fileLoad.progress || 2}%` }} />
+      </div>
+      <div style={{ background: '#1e293b', color: '#fff', fontSize: '11px', fontWeight: 900, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Heebo,sans-serif' }}>
+        <span style={{ display: 'inline-block', width: '10px', height: '10px', border: '2px solid #ffffff44', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+        {fileLoad.message || 'טוען נתונים…'} — {fileLoad.progress || 0}%
+      </div>
     </div>
-  );
-  if (appMode === 'choice') return <ChoiceScreen onPick={pickMode} />;
-  if (appMode === 'golden') return <GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} />;
+  ) : null;
+
+  if (appMode === 'choice') return <><ChoiceScreen onPick={pickMode} /><LoadingBar /></>;
+  if (appMode === 'golden') return <><GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} /><LoadingBar /></>;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
