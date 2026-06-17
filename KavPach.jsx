@@ -1565,7 +1565,7 @@ const DAYS_FILTER = [
       clearTimeout(jsonProbeTimer);
       if (jsonMainRes && jsonMainRes.ok) {
         setFileMessage('מוריד נתונים (JSON)…');
-        const JSON_EST = { main: 500_000, schedule: 8_000_000, stops: 3_000_000, benchmark: 3_000 };
+        const JSON_EST = { main: 965_000, schedule: 9_840_000, stops: 16_980_000, benchmark: 3_000 };
         const jsonTotalEst = Object.values(JSON_EST).reduce((a, b) => a + b, 0);
         const jsonReceived = { main: 0, schedule: 0, stops: 0, benchmark: 0 };
         const updateJsonProgress = () => {
@@ -1649,7 +1649,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617o'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617p'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
