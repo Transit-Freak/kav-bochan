@@ -1046,53 +1046,82 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ניתוח עומס לפי שעה */}
-                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
-                  <h3 className="text-lg font-black text-slate-900 mb-5">עומס שיא לפי שעה</h3>
-                  <div className="space-y-3">
-                    {periodStats.map(p => {
-                      const occPct = Math.round(p.occupancy * 100);
-                      const over = p.tripsToAdd > 0;
-                      return (
-                        <div key={p.label}>
-                          <div className="flex justify-between text-sm font-bold mb-1">
-                            <span className="text-slate-700">{p.label}</span>
-                            <span className={over ? 'text-emerald-700 font-black' : 'text-slate-900 font-black'}>{occPct}% תפוסה · {p.count} נסיעות</span>
-                          </div>
-                          <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${over ? 'bg-emerald-500' : 'bg-slate-900'}`} style={{ width: `${Math.min(100, p.occupancy * 100)}%` }} />
-                          </div>
+              {/* ניתוח עומס לפי שעה */}
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
+                <h3 className="text-lg font-black text-slate-900 mb-5">עומס שיא לפי שעה</h3>
+                <div className="space-y-3">
+                  {periodStats.map(p => {
+                    const occPct = Math.round(p.occupancy * 100);
+                    const over = p.tripsToAdd > 0;
+                    return (
+                      <div key={p.label}>
+                        <div className="flex justify-between text-sm font-bold mb-1">
+                          <span className="text-slate-700">{p.label}</span>
+                          <span className={over ? 'text-emerald-700 font-black' : 'text-slate-900 font-black'}>{occPct}% תפוסה · {p.count} נסיעות</span>
                         </div>
-                      );
-                    })}
-                    {periodStats.length === 0 && <p className="text-slate-400 font-bold text-sm">אין נתוני זמן לקו זה</p>}
-                  </div>
-                  <p className="text-slate-400 text-xs font-bold mt-4 pt-3 border-t border-slate-100">קו ירוק = העומס עובר 85% מהקיבולת — חלון מועמד להוספת נסיעות</p>
+                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${over ? 'bg-emerald-500' : 'bg-slate-900'}`} style={{ width: `${Math.min(100, p.occupancy * 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {periodStats.length === 0 && <p className="text-slate-400 font-bold text-sm">אין נתוני זמן לקו זה</p>}
                 </div>
+                <p className="text-slate-400 text-xs font-bold mt-4 pt-3 border-t border-slate-100">קו ירוק = העומס עובר 85% מהקיבולת — חלון מועמד להוספת נסיעות</p>
+              </div>
 
-                {/* נסיעות להוספה לפי חלון */}
-                <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-7">
-                  <h3 className="text-lg font-black text-slate-900 mb-5">נסיעות להוספה לפי חלון</h3>
-                  <div className="space-y-4">
-                    {crowdedWindows.length === 0 && (
-                      <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 text-slate-600">
-                        <div className="font-black text-sm mb-1">אין צורך בהוספת נסיעות</div>
-                        <div className="text-xs font-bold opacity-80">העומס בכל החלונות מתחת ל-85% מהקיבולת.</div>
-                      </div>
-                    )}
-                    {crowdedWindows.map(p => (
-                      <div key={p.label} className="p-4 rounded-2xl border bg-emerald-50 border-emerald-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-black text-sm text-emerald-800">{p.label}</div>
-                          <div className="font-[900] text-emerald-600 text-lg">+{p.tripsToAdd} נסיעות</div>
+              {/* המלצות להוספה — כרטיסים בסגנון קו פח, מראים איפה צריך להוסיף */}
+              <div>
+                <div className="flex items-center gap-2 mb-4 px-1">
+                  <Ic n="zap" size={20} cls="text-emerald-600" />
+                  <h3 className="text-lg font-black text-slate-900">
+                    {crowdedWindows.length > 0 ? `נמצאו ${crowdedWindows.length} חלונות שמומלץ להוסיף בהם נסיעות` : 'אין חלונות שדורשים הוספת נסיעות'}
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {crowdedWindows.length === 0 && (
+                    <div className="bg-slate-50/50 border-2 border-slate-100 p-6 rounded-[2rem] text-center">
+                      <p className="text-slate-500 font-bold">העומס בכל חלונות הזמן מתחת ל-85% מהקיבולת — הקו פועל ביעילות מיטבית.</p>
+                    </div>
+                  )}
+                  {crowdedWindows.map((p, i) => {
+                    const occPct = Math.round(p.occupancy * 100);
+                    const busLabel = p.capacity >= 90 ? 'מפרקי' : p.capacity >= 50 ? 'אוטובוס' : p.capacity >= 35 ? 'מידי' : 'מיני';
+                    return (
+                      <div key={p.label} className="bg-white border-2 border-slate-50 p-6 rounded-[2rem] flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-lg transition-all border-r-4 border-r-emerald-500">
+                        <div className="flex items-start gap-4">
+                          <div className="bg-emerald-50 text-emerald-600 p-3.5 rounded-2xl mt-1"><Ic n="zap" size={24} /></div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                              <span className="font-black text-slate-900 text-lg">קו {selectedLine.lineNum}</span>
+                              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">{selectedLine.category}</span>
+                            </div>
+                            <div className="text-sm font-bold text-slate-500 mb-3">{selectedLine.origin} ← {selectedLine.dest} · {selectedLine.district}</div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="text-[11px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md">{p.label}</span>
+                              <span className="text-[11px] font-black bg-rose-100 text-rose-700 px-2 py-1 rounded-md">{occPct}% תפוסה</span>
+                              <span className="text-[11px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md">{p.count} נסיעות כיום</span>
+                              <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{busLabel}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs font-bold text-emerald-700/80">
-                          עומס שיא ממוצע {p.avgPeak} נוסעים על קיבולת {p.capacity} ({Math.round(p.occupancy*100)}% תפוסה). כיום {p.count} נסיעות — הוספת {p.tripsToAdd} תוריד את התפוסה לכ-85%.
+                        <div className="bg-slate-50/80 px-6 py-4 rounded-2xl flex-1 max-w-md w-full">
+                          <div className="flex justify-between items-center mb-3 text-sm">
+                            <span className="font-bold text-slate-500">עומס שיא ממוצע:</span>
+                            <span className="font-black text-slate-700">{p.avgPeak} <span className="text-xs text-slate-400 font-normal">על קיבולת {p.capacity}</span></span>
+                          </div>
+                          <div className="flex justify-between items-center mb-4 text-sm">
+                            <span className="font-bold text-slate-500">נסיעות שבועיות כיום:</span>
+                            <span className="font-black text-slate-700">{p.count}</span>
+                          </div>
+                          <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                            <span className="font-black text-emerald-700">מומלץ להוסיף:</span>
+                            <span className="font-black text-2xl text-emerald-600 bg-white px-3 py-1 rounded-xl shadow-sm">+{p.tripsToAdd} נסיעות</span>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1107,7 +1136,6 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                     ['נסיעות בשבוע', selectedLine.count],
                     ['עלות לנוסע', selectedLine.cost > 0 ? `₪${selectedLine.cost.toFixed(2)}` : '—'],
                     ['ק"מ שימושי', `${(selectedLine.nonWastedKm||0).toLocaleString()} ק"מ`],
-                    ['ק"מ סרק', `${selectedLine.wastedKm.toLocaleString()} ק"מ`],
                     ['קטגוריה', selectedLine.category],
                   ].map(([label, val]) => (
                     <div key={label} className="bg-slate-50 rounded-2xl p-4 text-right">
@@ -1693,7 +1721,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617r'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260617s'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
