@@ -617,30 +617,33 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
       const avgCost = validCosts.length > 0 ? validCosts.reduce((s, t) => s + t.cost, 0) / validCosts.length : 0;
       const costRatio = costBenchmark > 0 && avgCost > 0 ? avgCost / costBenchmark : 0;
 
-      // ── ניקוד מוזהב — הפוך מניקוד קו פח ──
-      // 1. אחוז נסיעות שאינן שפל (עד 30 נק')
-      const highTripsScore = Math.min(30, (100 - percentLow) * 0.3);
+      // ── ניקוד מוזהב — הפוך מדויק מניקוד קו פח, עם הפרדה בין עמוס נוסעים לעמוס שיא ──
+      // 1. נסיעות ברמה גבוהה (עד 25 נק') — הפוך מ"נסיעות שפל" בקו פח
+      const highTripsScore = Math.min(25, (100 - percentLow) * 0.25);
 
-      // 2. יעילות ק"מ (עד 20 נק') — פחות בזבוז = יותר נקודות
+      // 2. יעילות ק"מ (עד 20 נק') — הפוך מ"ק"מ מבוזבז" בקו פח
       const efficientKmScore = Math.min(20, (1 - wastedRatio) * 20);
 
-      // 3. עלות לנוסע ביחס לבנצ'מרק (עד 20 נק')
+      // 3. עלות לנוסע ביחס לבנצ'מרק (עד 20 נק') — הפוך מ"עלות" בקו פח
       let costScore = 0;
-      if (costRatio === 0) costScore = 10; // אין נתון — ניטרלי
+      if (costRatio === 0) costScore = 10;
       else if (costRatio <= 0.7) costScore = 20;
       else if (costRatio <= 1.0) costScore = 15;
       else if (costRatio <= 1.3) costScore = 10;
       else if (costRatio <= 1.7) costScore = 5;
       else costScore = 0;
 
-      // 4. ממוצע נוסעים ועומס שיא (עד 30 נק')
-      let ridersScore = 0;
-      if (avgRiders >= (lowRiderTh * 2 * scale)) ridersScore += 15;
-      else if (avgRiders >= (lowRiderTh * 1.2 * scale)) ridersScore += 7;
-      if (avgPeak >= (30 * scale)) ridersScore += 15;
-      else if (avgPeak >= (15 * scale)) ridersScore += 7;
+      // 4. עמוס נוסעים בלבד (עד 20 נק') — הפוך מרכיב הנוסעים בקו פח
+      let avgRidersScore = 0;
+      if (avgRiders >= (lowRiderTh * 2 * scale)) avgRidersScore = 20;
+      else if (avgRiders >= (lowRiderTh * 1.2 * scale)) avgRidersScore = 10;
 
-      const rawScore = Math.min(100, Math.round(highTripsScore + efficientKmScore + costScore + ridersScore));
+      // 5. עמוס שיא בלבד (עד 15 נק') — עד 20 = לא עמוס, הפוך מסף 15 בקו פח
+      let peakScore = 0;
+      if (avgPeak >= (30 * scale)) peakScore = 15;
+      else if (avgPeak >= (20 * scale)) peakScore = 8;
+
+      const rawScore = Math.min(100, Math.round(highTripsScore + efficientKmScore + costScore + avgRidersScore + peakScore));
 
       // קו מזהב דורש ניקוד 60 ומעלה
       if (rawScore < 60) return null;
@@ -669,7 +672,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
           highTrips: Math.round(highTripsScore),
           efficientKm: Math.round(efficientKmScore),
           cost: costScore,
-          riders: Math.round(ridersScore),
+          avgRiders: avgRidersScore,
+          peak: peakScore,
         },
       };
     }).filter(Boolean).sort((a, b) => b.score - a.score);
