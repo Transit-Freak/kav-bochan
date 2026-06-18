@@ -599,7 +599,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         isNight: data[0].isNightLine,
         isFeeding: data[0].isFeedingLine,
       });
-      const lowRiderTh = LOW_RIDER_THRESHOLD[category] || 10;
+      // בקו המוזהב הסף לקווי לילה מחמיר יותר (15) — קו לילה צריך ביקוש אמיתי
+      // כדי להיחשב מצטיין, בניגוד לקו פח שמשתמש בסף המקל (5).
+      const lowRiderTh = category === 'לילה' ? 15 : (LOW_RIDER_THRESHOLD[category] || 10);
       const costBenchmark = lookupCostBenchmark(costBenchmarkTable, category, data[0].district);
 
       const lowTrips = data.filter(t => t.ridership < lowRiderTh);
