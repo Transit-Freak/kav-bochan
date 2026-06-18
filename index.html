@@ -106,15 +106,19 @@
         <p style="text-align:center;color:#94a3b8;font-weight:700;font-size:.75rem;margin-top:32px;">נבנה על ידי שלמה הרטמן</p>
       </div>
     </div>
+    <!-- חוסם קליקים בזמן שBabel מקמפל — מוסר אוטומטית כשReact עולה -->
+    <div id="click-guard" style="position:fixed;inset:0;z-index:9998;cursor:wait;"></div>
   </div>
   <!-- ?v= חותמת גרסה: עדכן בכל פריסת קוד כדי לאלץ הורדה מחדש (cache-busting) -->
-  <script type="text/babel" src="KavPach.jsx?v=20260618a"></script>
+  <script type="text/babel" src="KavPach.jsx?v=20260618b"></script>
   <script type="text/babel">
     (function mount(){
       function go(){
         if (typeof KavPach === 'undefined') { return setTimeout(go, 50); }
         const boot = document.getElementById('boot-loader');
         if (boot) boot.remove();
+        const guard = document.getElementById('click-guard');
+        if (guard) guard.remove();
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<KavPach />);
       }
