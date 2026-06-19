@@ -1229,11 +1229,11 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               <h3 className="font-black text-slate-900 text-lg mb-4">ניקוד מוזהב (0–100)</h3>
               <div className="space-y-3">
                 {[
-                  ['נסיעות בביקוש גבוה', 'עד 25 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
+                  ['נסיעות בביקוש גבוה', 'עד 25 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה (הסף גבוה ב-15 מקו פח, לילה ב-20)'],
                   ['יעילות ק"מ', 'עד 20 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
-                  ['עלות לנוסע', 'עד 20 נקודות', 'עלות מתחת לממוצע הקטגוריה = ניקוד גבוה'],
-                  ['עומס נוסעים ממוצע', 'עד 20 נקודות', 'ממוצע הנוסעים לנסיעה ביחס לסף הקטגוריה'],
-                  ['עומס שיא', 'עד 15 נקודות', 'כמה אנשים בקטע העמוס ביותר — מתחת ל-20 נחשב לא עמוס'],
+                  ['עלות לנוסע', 'עד 20 נקודות', 'עירוני: חייב להיות 10% מתחת לממוצע הקטגוריה — כל השאר: 20% מתחת'],
+                  ['עומס נוסעים ממוצע', 'עד 20 נקודות', 'ממוצע הנוסעים לנסיעה ביחס לסף המחמיר של הקטגוריה'],
+                  ['עומס שיא', 'עד 15 נקודות', 'כמה אנשים בקטע העמוס ביותר — מתחת ל-20 = לא עמוס, מקבל 0 נקודות'],
                 ].map(([title, pts, desc]) => (
                   <div key={title} className="flex items-start justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100">
                     <div>
@@ -1244,7 +1244,18 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
                   </div>
                 ))}
               </div>
-              <p className="text-slate-400 text-xs font-bold mt-6 pt-4 border-t border-slate-100">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <h4 className="font-black text-slate-700 text-sm mb-3">סף נוסעים מינימלי לקטגוריה (קו מוזהב)</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {[['עירוני תדירות גבוהה','30'],['עירוני תדירות נמוכה','25'],['תלמידים','30'],['בינעירוני ארוך','25'],['בינעירוני קצר','23'],['קווים מזינים','23'],['אזורי','20'],['לילה','25']].map(([cat,th]) => (
+                    <div key={cat} className="bg-slate-50 rounded-xl p-2.5 text-right border border-slate-100">
+                      <div className="text-slate-400 text-[10px] font-bold">{cat}</div>
+                      <div className="font-black text-slate-900 text-sm">{th} נוסעים</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-slate-400 text-xs font-bold mt-4">* מוצגים רק קווים עם ניקוד 60 ומעלה</p>
+              </div>
             </div>
           </div>
         )}
