@@ -704,8 +704,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         if (l.origin.toLowerCase().includes(q) || l.dest.toLowerCase().includes(q)) return true;
         if (String(l.lineNum).includes(q)) return true;
         const cleanMakat = String(l.makat || '').replace(/^0+/, '').trim();
-        const cleanLine = String(l.lineNum || '').replace(/^0+/, '').trim();
-        const cities = lineCitiesMap.get(cleanMakat) || lineCitiesMap.get(cleanLine);
+        const cities = lineCitiesMap.get(cleanMakat);
         return cities ? [...cities].some(c => c.toLowerCase().includes(q)) : false;
       });
     }
