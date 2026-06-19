@@ -599,10 +599,19 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         isNight: data[0].isNightLine,
         isFeeding: data[0].isFeedingLine,
       });
-      // בקו המוזהב הסף מחמיר: כל קטגוריה + 15, לילה + 20
+      // בקו המוזהב: סף = ממוצע ארצי × 1.5 לפי קטגוריה; לילה נשאר 25 כפי שנקבע
       const isUrban = category === 'עירוני תדירות גבוהה' || category === 'עירוני תדירות נמוכה';
-      const baseRiderTh = LOW_RIDER_THRESHOLD[category] || 10;
-      const lowRiderTh = baseRiderTh + (category === 'לילה' ? 20 : 15);
+      const GOLDEN_RIDER_THRESHOLD = {
+        'עירוני תדירות גבוהה': 44,
+        'עירוני תדירות נמוכה': 21,
+        'בינעירוני ארוך':       26,
+        'בינעירוני קצר':        22,
+        'תלמידים':              23,
+        'אזורי':                12,
+        'קווים מזינים':         12,
+        'לילה':                 25,
+      };
+      const lowRiderTh = GOLDEN_RIDER_THRESHOLD[category] ?? (LOW_RIDER_THRESHOLD[category] || 10);
       const costBenchmark = lookupCostBenchmark(costBenchmarkTable, category, data[0].district);
 
       const lowTrips = data.filter(t => t.ridership < lowRiderTh);
@@ -1247,7 +1256,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               <div className="mt-6 pt-4 border-t border-slate-100">
                 <h4 className="font-black text-slate-700 text-sm mb-3">סף נוסעים מינימלי לקטגוריה (קו מוזהב)</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {[['עירוני תדירות גבוהה','30'],['עירוני תדירות נמוכה','25'],['תלמידים','30'],['בינעירוני ארוך','25'],['בינעירוני קצר','23'],['קווים מזינים','23'],['אזורי','20'],['לילה','25']].map(([cat,th]) => (
+                  {[['עירוני תדירות גבוהה','44'],['עירוני תדירות נמוכה','21'],['תלמידים','23'],['בינעירוני ארוך','26'],['בינעירוני קצר','22'],['קווים מזינים','12'],['אזורי','12'],['לילה','25']].map(([cat,th]) => (
                     <div key={cat} className="bg-slate-50 rounded-xl p-2.5 text-right border border-slate-100">
                       <div className="text-slate-400 text-[10px] font-bold">{cat}</div>
                       <div className="font-black text-slate-900 text-sm">{th} נוסעים</div>
