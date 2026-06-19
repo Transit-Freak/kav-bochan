@@ -599,9 +599,10 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
         isNight: data[0].isNightLine,
         isFeeding: data[0].isFeedingLine,
       });
-      // בקו המוזהב הסף לקווי לילה מחמיר יותר (15) — קו לילה צריך ביקוש אמיתי
-      // כדי להיחשב מצטיין, בניגוד לקו פח שמשתמש בסף המקל (5).
-      const lowRiderTh = category === 'לילה' ? 15 : (LOW_RIDER_THRESHOLD[category] || 10);
+      // בקו המוזהב הסף מחמיר: כל קטגוריה + 15, לילה + 20
+      const isUrban = category === 'עירוני תדירות גבוהה' || category === 'עירוני תדירות נמוכה';
+      const baseRiderTh = LOW_RIDER_THRESHOLD[category] || 10;
+      const lowRiderTh = baseRiderTh + (category === 'לילה' ? 20 : 15);
       const costBenchmark = lookupCostBenchmark(costBenchmarkTable, category, data[0].district);
 
       const lowTrips = data.filter(t => t.ridership < lowRiderTh);
@@ -626,21 +627,21 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
       // 2. יעילות ק"מ (עד 20 נק') — הפוך מ"ק"מ מבוזבז" בקו פח
       const efficientKmScore = Math.min(20, (1 - wastedRatio) * 20);
 
-      // 3. עלות לנוסע ביחס לבנצ'מרק (עד 20 נק') — הפוך מ"עלות" בקו פח
+      // 3. עלות לנוסע (עד 20 נק') — עירוני: חייב 10% מתחת לממוצע; שאר: 20% מתחת
+      const fullCostTh = isUrban ? 0.90 : 0.80;
       let costScore = 0;
       if (costRatio === 0) costScore = 10;
-      else if (costRatio <= 0.7) costScore = 20;
-      else if (costRatio <= 1.0) costScore = 15;
-      else if (costRatio <= 1.3) costScore = 10;
-      else if (costRatio <= 1.7) costScore = 5;
+      else if (costRatio <= fullCostTh) costScore = 20;
+      else if (costRatio <= 1.0) costScore = 12;
+      else if (costRatio <= 1.3) costScore = 6;
       else costScore = 0;
 
-      // 4. עמוס נוסעים בלבד (עד 20 נק') — הפוך מרכיב הנוסעים בקו פח
+      // 4. עמוס נוסעים בלבד (עד 20 נק')
       let avgRidersScore = 0;
       if (avgRiders >= (lowRiderTh * 2 * scale)) avgRidersScore = 20;
       else if (avgRiders >= (lowRiderTh * 1.2 * scale)) avgRidersScore = 10;
 
-      // 5. עמוס שיא בלבד (עד 15 נק') — עד 20 = לא עמוס, הפוך מסף 15 בקו פח
+      // 5. עמוס שיא בלבד (עד 15 נק') — פחות מ-20 = לא עמוס
       let peakScore = 0;
       if (avgPeak >= (30 * scale)) peakScore = 15;
       else if (avgPeak >= (20 * scale)) peakScore = 8;
