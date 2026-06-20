@@ -244,7 +244,7 @@ function convertStops() {
     if (!routeId || routeId === 'undefined') continue;
     const stopName = String(row['Stop_name'] || row['stop_name'] || row['שם תחנה'] || '').trim();
     const stopId   = String(row['Stop_id']   || row['stop_id']   || '').trim();
-    const city = parseCity(stopName);
+    const city = String(row['City'] || row['city'] || '').trim() || parseCity(stopName);
     const norm = normStop(stopName);
     const makat = routeId.split('-')[0].replace(/^0+/, '').trim();
     if (!makat) continue;

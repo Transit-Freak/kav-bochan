@@ -703,7 +703,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
       r = r.filter(l => {
         if (l.origin.toLowerCase().includes(q) || l.dest.toLowerCase().includes(q)) return true;
         if (String(l.lineNum).includes(q)) return true;
-        return false;
+        const cleanMakat = String(l.makat || '').replace(/^0+/, '').trim();
+        const citiesSet = lineCitiesMap.get(cleanMakat);
+        return citiesSet ? Array.from(citiesSet).some(c => c.includes(q)) : false;
       });
     }
     if (sortBy === 'riders') r.sort((a, b) => Number(b.avg) - Number(a.avg));
