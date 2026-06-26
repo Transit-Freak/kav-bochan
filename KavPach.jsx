@@ -496,7 +496,7 @@ function ChoiceScreen({ onPick }) {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
       <div className="max-w-4xl w-full">
         <div className="text-center mb-10">
-          <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">מערכת ניתוח התחבורה</h1>
+          <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">הקו הבוחן</h1>
           <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שני כלים, מאגר נתונים אחד — במה לבחור?</p>
         </div>
 
