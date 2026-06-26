@@ -14,8 +14,8 @@ Copyright © 2026 שלמה הרטמן (Shlomo Hartman). All rights reserved. —
 
 החרגות — חומרים של צד שלישי שאינם מכוסים בזכויות היוצרים שלעיל:
   • נתוני התחבורה הציבורית, נתוני GTFS ונתונים ממשלתיים פתוחים אחרים
-    המעובדים או מוצגים בפלטפורמה — נותרים בבעלות בעליהם בהתאמה וכפופים
-    לרישיונות ולתנאי השימוש שלהם.
+    המעובדים או מוצגים בפלטפורמה — הם של משרד התחבורה (ומקורות ממשלתיים
+    אחרים), אינם בבעלות בעל האתר, וכפופים לרישיונות ולתנאי השימוש של בעליהם.
   • ספריות קוד פתוח של צד שלישי הנטענות או נכללות באתר (לדוגמה React,
     Leaflet, Babel, Tailwind) — נותרות תחת הרישיונות שלהן בהתאמה.
 
@@ -35,8 +35,9 @@ permission of the copyright holder.
 
 EXCLUSIONS — third-party material not covered by the copyright above:
   • Public-transit data, GTFS data, and other governmental open data that is
-    processed or displayed by the platform remains the property of its
-    respective owners and is subject to its own licenses and terms of use.
+    processed or displayed by the platform belongs to the Israel Ministry of
+    Transport (and other governmental sources), is not owned by the site
+    owner, and remains subject to its owners' licenses and terms of use.
   • Third-party open-source libraries loaded or bundled by the site (e.g.
     React, Leaflet, Babel, Tailwind) remain under their own respective
     licenses.
