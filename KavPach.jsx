@@ -692,7 +692,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
   }, [trips, costBenchmarkTable]);
 
   const allDistricts = useMemo(() => [...new Set(goldenLines.map(l => l.district).filter(Boolean))].sort(), [goldenLines]);
-  const allCategories = useMemo(() => [...new Set(goldenLines.map(l => l.category).filter(Boolean))].sort(), [goldenLines]);
+  const allCategories = useMemo(() => [...CATEGORIES], []);
 
   const filtered = useMemo(() => {
     let r = [...goldenLines];
@@ -719,6 +719,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
     const map = new Map();
     goldenLines.forEach(line => {
       if (!line.district) return;
+      if (line.score < 80) return;
       if (!map.has(line.district)) map.set(line.district, { key: line.district, count: 0, totalScore: 0, totalRiders: 0, totalTrips: 0, totalKm: 0 });
       const s = map.get(line.district);
       s.count++;
@@ -749,7 +750,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
   const exportAreaToExcel = async (areaKey) => {
     await loadXLSX();
-    const lines = goldenLines.filter(l => l.district === areaKey);
+    const lines = goldenLines.filter(l => l.district === areaKey && l.score >= 80);
     if (!lines.length) return;
     const data = lines.map(l => ({
       'מספר קו': l.lineNum,
@@ -982,7 +983,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
             {areaFilter && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {goldenLines.filter(l => l.district === areaFilter).map(line => (
+                  {goldenLines.filter(l => l.district === areaFilter && l.score >= 80).map(line => (
                     <div key={line.groupKey} className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex flex-col gap-2 items-start">
