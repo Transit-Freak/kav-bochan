@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>קו באג · רכבות</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='8' fill='%234646c8'/%3E%3Cg transform='translate(17 18.5) scale(0.155) translate(-70 -50)'%3E%3Cline x1='18' y1='64' x2='122' y2='64' stroke='%231f9d57' stroke-width='10' stroke-linecap='round'/%3E%3Cpolyline points='18,64 44,18 70,64 96,18 122,64' fill='none' stroke='%23ef8a17' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='18' cy='64' r='10' fill='white'/%3E%3Ccircle cx='122' cy='64' r='10' fill='white'/%3E%3C/g%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&family=Heebo:wght@400;500;700;800;900&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --brand:#4646c8; --brand-soft:#ececfb; --brand-ink:#2e2e9e;
+      --ink:#1b1b2b; --ink-soft:#5b5b73; --ink-faint:#8a8aa0;
+      --bg:#f6f6fb; --surface:#fff; --line:#e6e6ef;
+      --rail:#c0392b; --gtfs:#ef8a17; --ok:#1f9d57;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:"Assistant",sans-serif;line-height:1.5;}
+    .wrap{max-width:760px;margin:0 auto;padding:18px 16px 60px;}
+    header{display:flex;align-items:center;gap:12px;padding:14px 0 6px;}
+    .glyph{width:42px;height:42px;border-radius:11px;background:var(--brand);display:grid;place-items:center;flex-shrink:0;box-shadow:0 2px 6px rgba(70,70,200,.25);}
+    h1{font-family:"Heebo",sans-serif;font-size:26px;font-weight:800;margin:0;}
+    h1 .b{display:inline-block;background:var(--brand-soft);color:var(--brand-ink);font-size:13px;font-weight:700;border-radius:999px;padding:2px 10px;vertical-align:middle;margin-inline-start:6px;}
+    .tag{color:var(--ink-soft);font-size:14px;font-weight:600;margin:2px 0 0;}
+    .stats{display:flex;gap:10px;margin:18px 0;flex-wrap:wrap;}
+    .stat{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+    .stat .v{font-family:"Spline Sans Mono",monospace;font-size:30px;font-weight:600;}
+    .stat .v.alert{color:var(--rail);}
+    .stat .k{font-size:13px;color:var(--ink-soft);font-weight:600;}
+    .note{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:14px;color:var(--ink-soft);font-weight:500;margin-bottom:18px;}
+    .note b{color:var(--ink);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
+    .card-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+    .train{font-family:"Heebo",sans-serif;font-size:22px;font-weight:800;}
+    .route{font-size:14px;color:var(--ink-soft);font-weight:600;}
+    .diff{display:flex;gap:8px;align-items:flex-start;font-size:14.5px;font-weight:600;margin-top:6px;line-height:1.5;}
+    .diff .dot{width:10px;height:10px;border-radius:50%;margin-top:6px;flex-shrink:0;}
+    .diff.rail .dot{background:var(--rail);} .diff.gtfs .dot{background:var(--gtfs);}
+    .diff .lbl{color:var(--ink-soft);font-weight:600;}
+    .diff b{color:var(--ink);}
+    .empty{text-align:center;padding:40px;color:var(--ink-soft);}
+    .foot{margin-top:26px;font-size:13px;color:var(--ink-faint);text-align:center;line-height:1.7;}
+    .foot a{color:var(--brand-ink);text-decoration:none;font-weight:700;}
+    .err{background:#fdecea;border:1px solid #f5c6c0;color:#a3271b;border-radius:12px;padding:14px;font-weight:600;}
+    .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);font-weight:600;margin-bottom:14px;}
+    .legend span{display:inline-flex;align-items:center;gap:6px;}
+    .legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="glyph">
+        <svg viewBox="0 0 140 90" width="26" height="26" aria-hidden="true">
+          <line x1="18" y1="64" x2="122" y2="64" stroke="#1f9d57" stroke-width="9" stroke-linecap="round" />
+          <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#ef8a17" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="18" cy="64" r="9" fill="#fff" /><circle cx="122" cy="64" r="9" fill="#fff" />
+        </svg>
+      </div>
+      <div>
+        <h1>קו באג <span class="b">רכבות</span></h1>
+        <p class="tag">פערים בין לוח-הזמנים הרשמי (GTFS) לבין אתר רכבת ישראל</p>
+      </div>
+    </header>
+
+    <div id="content"><p class="tag">טוען…</p></div>
+
+    <p class="foot">
+      הנתונים מושווים בין <b>GTFS</b> של משרד התחבורה לבין ה-API החי של <b>רכבת ישראל</b>.
+      מתעדכן אוטומטית.<br>
+      <a href="./index.html">← לקו באג (אוטובוסים)</a> &nbsp;·&nbsp;
+      <a href="https://www.rail.co.il/?page=routePlan&step=origin" target="_blank" rel="noopener">מתכנן הנסיעות של רכבת ישראל ↗</a>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var C = document.getElementById("content");
+      function esc(s){return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+      fetch("rail-gaps.json?v=" + Date.now())
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function (d) { render(d); })
+        .catch(function (e) {
+          C.innerHTML = '<div class="err">לא הצלחתי לטעון את הדוח (' + esc(e.message) + '). ייתכן שטרם נוצר.</div>';
+        });
+
+      function render(d) {
+        var html = "";
+        html += '<div class="stats">' +
+          '<div class="stat"><div class="v">' + (d.trainsChecked||0).toLocaleString("he-IL") + '</div><div class="k">רכבות נבדקו</div></div>' +
+          '<div class="stat"><div class="v ' + (d.gapsCount?"alert":"") + '">' + (d.gapsCount||0) + '</div><div class="k">רכבות עם פער</div></div>' +
+          '</div>';
+
+        html += '<div class="note">כל רכבת נבדקת לפי <b>רצף-העצירות המלא</b> שלה: מה שמופיע באתר רכבת ישראל מול מה שמופיע ב-GTFS. ' +
+          'פער = תחנה שמופיעה במקור אחד אך לא בשני. המקור הסמכותי הוא רכבת ישראל; פער כזה הוא חוסר-סנכרון בין המערכות שלהם — ' +
+          'נוסעים שמשתמשים באפליקציות שונות עלולים לקבל מידע שונה.</div>';
+
+        html += '<div class="legend">' +
+          '<span><i style="background:var(--rail)"></i> מופיע באתר רכבת ישראל, חסר ב-GTFS</span>' +
+          '<span><i style="background:var(--gtfs)"></i> מופיע ב-GTFS, חסר באתר</span></div>';
+
+        var gaps = d.gaps || [];
+        if (!gaps.length) {
+          html += '<div class="empty">לא נמצאו פערים בסריקה האחרונה. 🎉</div>';
+        } else {
+          gaps.forEach(function (g) {
+            html += '<div class="card"><div class="card-h">' +
+              '<span class="train">רכבת ' + esc(g.train) + '</span>' +
+              '<span class="route">' + esc(g.from) + ' → ' + esc(g.to) + '</span></div>';
+            if (g.railOnly && g.railOnly.length)
+              html += '<div class="diff rail"><span class="dot"></span><span><span class="lbl">עוצרת באתר אך חסרה ב-GTFS:</span> <b>' + g.railOnly.map(esc).join("، ") + '</b></span></div>';
+            if (g.gtfsOnly && g.gtfsOnly.length)
+              html += '<div class="diff gtfs"><span class="dot"></span><span><span class="lbl">קיימת ב-GTFS אך לא באתר:</span> <b>' + g.gtfsOnly.map(esc).join("، ") + '</b></span></div>';
+            html += '</div>';
+          });
+        }
+
+        if (d.date) html += '<p class="tag" style="text-align:center;margin-top:16px">נסרק לתאריך ' + esc(d.date) + '</p>';
+        C.innerHTML = html;
+      }
+    })();
+  </script>
+</body>
+</html>

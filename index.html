@@ -55,7 +55,7 @@
   <div id="root">
     <!-- static placeholder — replaced by React on mount -->
     <div id="static-choice" style="min-height:100vh;background:linear-gradient(to bottom,#f8fafc,#f1f5f9);display:flex;align-items:center;justify-content:center;padding:16px;font-family:'Heebo',system-ui,sans-serif;" dir="rtl">
-      <div style="max-width:896px;width:100%;">
+      <div style="max-width:1152px;width:100%;">
         <div style="text-align:center;margin-bottom:40px;">
           <h1 style="font-size:clamp(2rem,6vw,3rem);font-weight:900;color:#0f172a;margin:0;letter-spacing:-0.03em;">הקו הבוחן</h1>
           <p style="color:#64748b;font-weight:700;margin-top:12px;font-size:clamp(0.9rem,2.5vw,1.1rem);">פלטפורמה לניתוח התחבורה הציבורית בישראל</p>
@@ -103,6 +103,23 @@
               <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#fbbf24;color:#451a03;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
             </div>
           </div>
+          <!-- קו באג -->
+          <div style="background:linear-gradient(155deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 40px rgba(0,0,0,.25);position:relative;overflow:hidden;">
+            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#6366f1;border-radius:50%;opacity:.25;"></div>
+            <div style="position:relative;">
+              <div style="height:128px;margin-bottom:24px;display:flex;align-items:center;justify-content:flex-end;">
+                <svg viewBox="0 0 140 90" style="width:160px" xmlns="http://www.w3.org/2000/svg">
+                  <line x1="18" y1="64" x2="122" y2="64" stroke="#34d399" stroke-width="10" stroke-linecap="round"/>
+                  <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#fbbf24" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="18" cy="64" r="9" fill="#fff"/>
+                  <circle cx="122" cy="64" r="9" fill="#fff"/>
+                </svg>
+              </div>
+              <h2 style="font-size:1.875rem;font-weight:900;color:#c7d2fe;margin:0;">קו באג</h2>
+              <p style="color:rgba(224,231,255,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.6;">תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים</p>
+              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#818cf8;color:#1e1b4b;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
+            </div>
+          </div>
         </div>
         <p style="text-align:center;color:#94a3b8;font-weight:700;font-size:.75rem;margin-top:32px;">נבנה על ידי שלמה הרטמן</p>
       </div>
@@ -111,7 +128,7 @@
     <div id="click-guard" style="position:fixed;inset:0;z-index:9998;cursor:wait;"></div>
   </div>
   <!-- ?v= חותמת גרסה: עדכן בכל פריסת קוד כדי לאלץ הורדה מחדש (cache-busting) -->
-  <script type="text/babel" src="KavPach.jsx?v=20260620e"></script>
+  <script type="text/babel" src="KavPach.jsx?v=20260626a"></script>
   <script type="text/babel">
     (function mount(){
       function go(){

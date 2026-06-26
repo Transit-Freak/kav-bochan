@@ -494,13 +494,13 @@ const TrashBin = ({ className = '' }) => (
 function ChoiceScreen({ onPick }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      <div className="max-w-4xl w-full">
+      <div className="max-w-6xl w-full">
         <div className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">הקו הבוחן</h1>
-          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שני כלים, מאגר נתונים אחד — במה לבחור?</p>
+          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שלושה כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {/* קו פח */}
           <button
             onClick={() => onPick('kavpach')}
@@ -535,8 +535,7 @@ function ChoiceScreen({ onPick }) {
           >
             <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#fbbf24' }} />
             <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                <span className="bg-amber-400 text-amber-950 px-3 py-1 rounded-full text-[11px] font-black self-start">חדש</span>
+              <div className="flex items-center justify-end mb-6 h-28">
                 <BusArt variant="gold" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-2" />
               </div>
               <h2 className="text-3xl font-[900] text-amber-300">הקו המוזהב</h2>
@@ -544,6 +543,30 @@ function ChoiceScreen({ onPick }) {
               <span className="inline-flex items-center gap-2 mt-5 bg-amber-400 text-amber-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </button>
+
+          {/* קו באג — כלי נפרד (אפליקציה עצמאית בתיקיית kavbug/) */}
+          <a
+            href="kavbug/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#6366f1' }} />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6 h-28">
+                <span className="bg-indigo-400 text-indigo-950 px-3 py-1 rounded-full text-[11px] font-black self-start">חדש</span>
+                {/* מוטיב המסלול של "קו באג": קו-ייחוס ירוק וזיגזג הסטייה הכתום */}
+                <svg viewBox="0 0 140 90" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
+                  <line x1="18" y1="64" x2="122" y2="64" stroke="#34d399" strokeWidth="10" strokeLinecap="round" />
+                  <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#fbbf24" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="18" cy="64" r="9" fill="#fff" />
+                  <circle cx="122" cy="64" r="9" fill="#fff" />
+                </svg>
+              </div>
+              <h2 className="text-3xl font-[900] text-indigo-200">קו באג</h2>
+              <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-indigo-400 text-indigo-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
         </div>
 
         <p className="text-center text-slate-400 font-bold text-xs mt-8">נבנה על ידי שלמה הרטמן</p>
