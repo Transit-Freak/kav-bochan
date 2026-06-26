@@ -556,8 +556,8 @@ function ChoiceScreen({ onPick }) {
                 <span className="bg-indigo-400 text-indigo-950 px-3 py-1 rounded-full text-[11px] font-black self-start">חדש</span>
                 {/* מוטיב המסלול של "קו באג": קו-ייחוס ירוק וזיגזג הסטייה הכתום */}
                 <svg viewBox="0 0 140 90" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="64" x2="122" y2="64" stroke="#34d399" strokeWidth="10" strokeLinecap="round" />
-                  <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#fbbf24" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="18" y1="64" x2="122" y2="64" stroke="#1f9d57" strokeWidth="10" strokeLinecap="round" />
+                  <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#ef8a17" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
                   <circle cx="18" cy="64" r="9" fill="#fff" />
                   <circle cx="122" cy="64" r="9" fill="#fff" />
                 </svg>
