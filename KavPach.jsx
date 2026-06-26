@@ -509,16 +509,14 @@ function ChoiceScreen({ onPick }) {
             <div className="absolute -left-8 -top-8 w-44 h-44 bg-slate-800 rounded-full opacity-50" />
             <div className="relative">
               <div className="relative h-32 mb-5">
-                {/* אוטובוס לבן צולל לתוך הפח (מאחור) */}
+                {/* אוטובוס "גרוטאה" (מאחור) */}
                 <BusArt
                   variant="scrap"
                   className="w-32 absolute z-0 drop-shadow-xl transition-transform duration-300 group-hover:translate-y-1.5"
-                  style={{ right: '50px', top: '4px', transform: 'rotate(48deg)' }}
                 />
-                {/* פח אשפה מקדימה — מסתיר את חרטום האוטובוס שנכנס פנימה */}
+                {/* פח אשפה (מקדימה) */}
                 <TrashBin
                   className="w-24 h-24 absolute bottom-0 z-10 drop-shadow-md"
-                  style={{ right: '20px' }}
                 />
               </div>
               <h2 className="text-3xl font-[900] text-white">קו פח</h2>
@@ -614,6 +612,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
       const avgRiders = totalTrips > 0 ? (totalRiders / totalTrips) : 0;
       const totalPeaks = data.reduce((s, t) => s + (t.peakLoad * t.tripCount), 0);
       const avgPeak = totalTrips > 0 ? (totalPeaks / totalTrips) : 0;
+
+      // דרישת סף לקו מוזהב: גם ממוצע הנוסעים וגם השיא חייבים להיות מעל 30
+      if (avgRiders <= 30 || avgPeak <= 30) return null;
 
       const category = classifyLine({
         opGroup: data[0].opGroup,
