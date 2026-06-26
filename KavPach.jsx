@@ -569,7 +569,7 @@ function ChoiceScreen({ onPick }) {
           </a>
         </div>
 
-        <p className="text-center text-slate-400 font-bold text-xs mt-8">© 2026 שלמה הרטמן · כל הזכויות שמורות</p>
+        <p className="text-center text-slate-400 font-bold text-xs mt-8">נבנה על ידי שלמה הרטמן</p>
       </div>
     </div>
   );
