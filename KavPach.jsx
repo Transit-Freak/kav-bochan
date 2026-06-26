@@ -562,6 +562,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
   const [sortBy, setSortBy] = useState('score');
   const [visibleCount, setVisibleCount] = useState(60);
   const [selectedLine, setSelectedLine] = useState(null);
+  const [expandSearch, setExpandSearch] = useState('');
+  const [expandMatches, setExpandMatches] = useState([]);
   const [areaFilter, setAreaFilter] = useState(null);
 
   // ניקוד מוזהב (0-100, גבוה יותר = טוב יותר) — ההפך המדויק מניקוד קו פח
@@ -1013,12 +1015,47 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
 
         {/* ── טאב: הזדמנויות הרחבה ── */}
         {goldenTab === 'expand' && (() => {
-          if (!selectedLine) return (
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-16 text-center">
-              <p className="text-slate-400 font-bold text-lg mb-4">בחר קו מצטיין כדי לראות הזדמנויות הרחבה</p>
-              <button onClick={() => setGoldenTab('top')} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-sm hover:bg-black transition-colors">חזרה לרשימה</button>
-            </div>
-          );
+          if (!selectedLine) {
+            const doExpandSearch = () => {
+              const q = expandSearch.trim();
+              if (!q) return;
+              const matches = goldenLines.filter(l => String(l.lineNum) === q || String(l.makat) === q);
+              if (matches.length === 1) { setSelectedLine(matches[0]); setExpandMatches([]); }
+              else setExpandMatches(matches);
+            };
+            return (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-10 max-w-lg mx-auto">
+                <h2 className="text-xl font-black text-slate-900 mb-2 text-right">הזדמנויות הרחבה</h2>
+                <p className="text-slate-400 font-bold text-sm mb-6 text-right">הקלד מספר קו לניתוח, או חזור לרשימה לבחירה מהקווים המצטיינים</p>
+                <div className="flex gap-3 mb-4">
+                  <button onClick={doExpandSearch} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-black transition-colors shrink-0">חפש</button>
+                  <input
+                    type="text"
+                    value={expandSearch}
+                    onChange={e => { setExpandSearch(e.target.value); setExpandMatches([]); }}
+                    onKeyDown={e => e.key === 'Enter' && doExpandSearch()}
+                    placeholder="מספר קו..."
+                    className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-3 font-black text-sm outline-none focus:border-slate-900 text-right"
+                  />
+                </div>
+                {expandMatches.length > 1 && (
+                  <div className="space-y-2 mb-4">
+                    <p className="text-xs font-black text-slate-500 text-right">נמצאו מספר מסלולים — בחר:</p>
+                    {expandMatches.map(l => (
+                      <button key={l.groupKey} onClick={() => { setSelectedLine(l); setExpandMatches([]); }}
+                        className="w-full text-right bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl px-5 py-3 font-black text-sm transition-colors">
+                        קו {l.lineNum} · {l.origin} ← {l.dest} · {l.district}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {expandMatches.length === 0 && expandSearch && (
+                  <p className="text-xs font-bold text-rose-500 text-right">קו {expandSearch} לא נמצא בקווים המצטיינים</p>
+                )}
+                <button onClick={() => setGoldenTab('top')} className="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימה</button>
+              </div>
+            );
+          }
 
           // מסננים לפי אותו groupKey שבו מקובצים הקווים המצטיינים (lineNum + צמד ערים),
           // אחרת "קו 1" יאסוף את כל הקווים שמספרם 1 בכל הארץ וידלל את העומס
