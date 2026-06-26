@@ -631,14 +631,14 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
       const avgCost = validCosts.length > 0 ? validCosts.reduce((s, t) => s + t.cost, 0) / validCosts.length : 0;
       const costRatio = costBenchmark > 0 && avgCost > 0 ? avgCost / costBenchmark : 0;
 
-      // ── ניקוד מוזהב — הפוך מדויק מניקוד קו פח, עם הפרדה בין עמוס נוסעים לעמוס שיא ──
-      // 1. נסיעות ברמה גבוהה (עד 25 נק') — הפוך מ"נסיעות שפל" בקו פח
-      const highTripsScore = Math.min(25, (100 - percentLow) * 0.25);
+      // ── ניקוד מוזהב — הפוך מדויק מניקוד קו פח ──
+      // 1. נסיעות ברמה גבוהה (עד 20 נק')
+      const highTripsScore = Math.min(20, (100 - percentLow) * 0.20);
 
-      // 2. יעילות ק"מ (עד 20 נק') — הפוך מ"ק"מ מבוזבז" בקו פח
-      const efficientKmScore = Math.min(20, (1 - wastedRatio) * 20);
+      // 2. יעילות ק"מ (עד 15 נק')
+      const efficientKmScore = Math.min(15, (1 - wastedRatio) * 15);
 
-      // 3. עלות לנוסע (עד 20 נק') — עירוני: חייב 10% מתחת לממוצע; שאר: 20% מתחת
+      // 3. עלות לנוסע (עד 20 נק')
       const fullCostTh = isUrban ? 0.90 : 0.80;
       let costScore = 0;
       if (costRatio === 0) costScore = 10;
@@ -647,17 +647,26 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
       else if (costRatio <= 1.3) costScore = 6;
       else costScore = 0;
 
-      // 4. עמוס נוסעים בלבד (עד 20 נק')
+      // 4. עמוס נוסעים (עד 15 נק')
       let avgRidersScore = 0;
-      if (avgRiders >= (lowRiderTh * 2 * scale)) avgRidersScore = 20;
-      else if (avgRiders >= (lowRiderTh * 1.2 * scale)) avgRidersScore = 10;
+      if (avgRiders >= (lowRiderTh * 2 * scale)) avgRidersScore = 15;
+      else if (avgRiders >= (lowRiderTh * 1.2 * scale)) avgRidersScore = 8;
 
-      // 5. עמוס שיא בלבד (עד 15 נק') — פחות מ-20 = לא עמוס
+      // 5. עמוס שיא (עד 10 נק')
       let peakScore = 0;
-      if (avgPeak >= (30 * scale)) peakScore = 15;
-      else if (avgPeak >= (20 * scale)) peakScore = 8;
+      if (avgPeak >= (30 * scale)) peakScore = 10;
+      else if (avgPeak >= (20 * scale)) peakScore = 5;
 
-      const rawScore = Math.min(100, Math.round(highTripsScore + efficientKmScore + costScore + avgRidersScore + peakScore));
+      // 6. נפח שבועי = ממוצע נוסעים × נסיעות שבועיות (עד 20 נק')
+      // מתגמל קווים שגם עמוסים וגם תדירים — קו פעם/יום לא יוכל להגיע ל-100
+      const weeklyVolume = avgRiders * totalTrips;
+      const volHalf = lowRiderTh * 20;  // סף תחתון: סף נוסעים × 20 נסיעות/שבוע
+      const volFull = lowRiderTh * 50;  // סף עליון:  סף נוסעים × 50 נסיעות/שבוע
+      let volumeScore = 0;
+      if (weeklyVolume >= volFull) volumeScore = 20;
+      else if (weeklyVolume >= volHalf) volumeScore = 10;
+
+      const rawScore = Math.min(100, Math.round(highTripsScore + efficientKmScore + costScore + avgRidersScore + peakScore + volumeScore));
 
       // קו מזהב דורש ניקוד 60 ומעלה
       if (rawScore < 60) return null;
@@ -1275,11 +1284,12 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap }) {
               <h3 className="font-black text-slate-900 text-lg mb-4">ניקוד מוזהב (0–100)</h3>
               <div className="space-y-3">
                 {[
-                  ['נסיעות בביקוש גבוה', 'עד 25 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה (הסף גבוה ב-15 מקו פח, לילה ב-20)'],
-                  ['יעילות ק"מ', 'עד 20 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
+                  ['נסיעות בביקוש גבוה', 'עד 20 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
+                  ['יעילות ק"מ', 'עד 15 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
                   ['עלות לנוסע', 'עד 20 נקודות', 'עירוני: חייב להיות 10% מתחת לממוצע הקטגוריה — כל השאר: 20% מתחת'],
-                  ['עומס נוסעים ממוצע', 'עד 20 נקודות', 'ממוצע הנוסעים לנסיעה ביחס לסף המחמיר של הקטגוריה'],
-                  ['עומס שיא', 'עד 15 נקודות', 'כמה אנשים בקטע העמוס ביותר — מתחת ל-20 = לא עמוס, מקבל 0 נקודות'],
+                  ['עומס נוסעים ממוצע', 'עד 15 נקודות', 'ממוצע הנוסעים לנסיעה ביחס לסף המחמיר של הקטגוריה'],
+                  ['עומס שיא', 'עד 10 נקודות', 'כמה אנשים בקטע העמוס ביותר — מתחת ל-20 = לא עמוס, מקבל 0 נקודות'],
+                  ['נפח שבועי', 'עד 20 נקודות', 'ממוצע נוסעים × נסיעות שבועיות — מונע מקווי תלמידים וקווי פעם ביום להגיע ל-100'],
                 ].map(([title, pts, desc]) => (
                   <div key={title} className="flex items-start justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100">
                     <div>
