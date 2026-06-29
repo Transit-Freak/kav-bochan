@@ -48,20 +48,21 @@
   #boot-loader .ring { width: 44px; height: 44px; border: 3px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; }
   #boot-loader .label { font-size: 14px; color: #64748b; }
   /* רשת הכרטיסים בפלייסהולדר — חייבת להיות זהה ל-ChoiceScreen של React
-     (Tailwind: grid grid-cols-1 md:grid-cols-3 gap-6) כדי שרוחב הכרטיסים
-     זהה ולא תהיה "קפיצת" מיקום של האיורים בעת עליית React. */
+     (Tailwind: grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6) כדי
+     שרוחב הכרטיסים זהה ולא תהיה "קפיצת" מיקום של האיורים בעת עליית React. */
   .choice-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
-  @media (min-width: 768px) { .choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 768px) { .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1280px) { .choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
   <div id="root">
     <!-- static placeholder — replaced by React on mount -->
     <div id="static-choice" style="min-height:100vh;background:linear-gradient(to bottom,#f8fafc,#f1f5f9);display:flex;align-items:center;justify-content:center;padding:16px;font-family:'Heebo',system-ui,sans-serif;" dir="rtl">
-      <div style="max-width:1152px;width:100%;">
+      <div style="max-width:1280px;width:100%;">
         <div style="text-align:center;margin-bottom:40px;">
           <h1 style="font-size:clamp(2rem,6vw,3rem);font-weight:900;color:#0f172a;margin:0;letter-spacing:-0.03em;">הקו הבוחן</h1>
-          <p style="color:#64748b;font-weight:700;margin-top:12px;font-size:1.125rem;">שלושה כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
+          <p style="color:#64748b;font-weight:700;margin-top:12px;font-size:1.125rem;">ארבעה כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
         </div>
         <div class="choice-grid">
           <!-- קו פח -->
@@ -125,8 +126,7 @@
           <div style="background:linear-gradient(155deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
             <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#6366f1;border-radius:50%;opacity:.25;"></div>
             <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                <span style="background:#818cf8;color:#1e1b4b;padding:4px 12px;border-radius:9999px;font-size:11px;font-weight:900;align-self:flex-start;">חדש</span>
+              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:flex-end;">
                 <svg viewBox="0 0 140 90" style="width:160px;filter:drop-shadow(0 20px 13px rgba(0,0,0,.03)) drop-shadow(0 8px 5px rgba(0,0,0,.08));" xmlns="http://www.w3.org/2000/svg">
                   <line x1="18" y1="64" x2="122" y2="64" stroke="#1f9d57" stroke-width="10" stroke-linecap="round"/>
                   <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#ef8a17" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
@@ -139,6 +139,28 @@
               <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#818cf8;color:#1e1b4b;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
             </div>
           </div>
+          <!-- התחנה הבאה -->
+          <div style="background:linear-gradient(155deg,#0b2545 0%,#13386e 52%,#2563eb 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
+            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#60a5fa;border-radius:50%;opacity:.25;"></div>
+            <div style="position:relative;">
+              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="background:#38bdf8;color:#082f49;padding:4px 12px;border-radius:9999px;font-size:11px;font-weight:900;align-self:flex-start;">חדש</span>
+                <svg viewBox="0 0 140 96" style="width:160px;filter:drop-shadow(0 20px 13px rgba(0,0,0,.03)) drop-shadow(0 8px 5px rgba(0,0,0,.08));" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="66" y="58" width="5" height="34" rx="2.5" fill="#cbd5e1"/>
+                  <rect x="26" y="12" width="86" height="52" rx="13" fill="#ffffff"/>
+                  <rect x="34" y="20" width="70" height="20" rx="5" fill="#2563eb"/>
+                  <rect x="56" y="20" width="2.5" height="20" fill="#bfdbfe"/>
+                  <rect x="78" y="20" width="2.5" height="20" fill="#bfdbfe"/>
+                  <circle cx="106" cy="50" r="3" fill="#fde68a"/>
+                  <circle cx="46" cy="64" r="9" fill="#0f172a"/><circle cx="46" cy="64" r="3.5" fill="#fff"/>
+                  <circle cx="92" cy="64" r="9" fill="#0f172a"/><circle cx="92" cy="64" r="3.5" fill="#fff"/>
+                </svg>
+              </div>
+              <h2 style="font-size:1.875rem;font-weight:900;color:#bae6fd;margin:0;">התחנה הבאה</h2>
+              <p style="color:rgba(224,242,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">תחנות ששמן אינו תואם לרחוב שבכתובת</p>
+              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#38bdf8;color:#082f49;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
+            </div>
+          </div>
         </div>
         <p style="text-align:center;color:#94a3b8;font-weight:700;font-size:.75rem;margin-top:32px;">נבנה על ידי שלמה הרטמן</p>
       </div>
@@ -147,7 +169,7 @@
     <div id="click-guard" style="position:fixed;inset:0;z-index:9998;cursor:wait;"></div>
   </div>
   <!-- ?v= חותמת גרסה: עדכן בכל פריסת קוד כדי לאלץ הורדה מחדש (cache-busting) -->
-  <script type="text/babel" src="KavPach.jsx?v=20260626d"></script>
+  <script type="text/babel" src="KavPach.jsx?v=20260629a"></script>
   <script type="text/babel">
     (function mount(){
       function go(){

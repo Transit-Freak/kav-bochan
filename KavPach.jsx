@@ -494,13 +494,13 @@ const TrashBin = ({ className = '' }) => (
 function ChoiceScreen({ onPick }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      <div className="max-w-6xl w-full">
+      <div className="max-w-7xl w-full">
         <div className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">הקו הבוחן</h1>
-          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שלושה כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
+          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">ארבעה כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* קו פח */}
           <button
             onClick={() => onPick('kavpach')}
@@ -550,8 +550,7 @@ function ChoiceScreen({ onPick }) {
           >
             <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#6366f1' }} />
             <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                <span className="bg-indigo-400 text-indigo-950 px-3 py-1 rounded-full text-[11px] font-black self-start">חדש</span>
+              <div className="flex items-center justify-end mb-6 h-28">
                 {/* מוטיב המסלול של "קו באג": קו-ייחוס ירוק וזיגזג הסטייה הכתום */}
                 <svg viewBox="0 0 140 90" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
                   <line x1="18" y1="64" x2="122" y2="64" stroke="#1f9d57" strokeWidth="10" strokeLinecap="round" />
@@ -563,6 +562,34 @@ function ChoiceScreen({ onPick }) {
               <h2 className="text-3xl font-[900] text-indigo-200">קו באג</h2>
               <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-indigo-400 text-indigo-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
+
+          {/* התחנה הבאה — כלי נפרד (אפליקציה עצמאית בתיקיית next-station/) */}
+          <a
+            href="next-station/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#0b2545 0%,#13386e 52%,#2563eb 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#60a5fa' }} />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6 h-28">
+                <span className="bg-sky-400 text-sky-950 px-3 py-1 rounded-full text-[11px] font-black self-start">חדש</span>
+                {/* תחנת אוטובוס על עמוד — הסמל של "התחנה הבאה" */}
+                <svg viewBox="0 0 140 96" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="66" y="58" width="5" height="34" rx="2.5" fill="#cbd5e1" />
+                  <rect x="26" y="12" width="86" height="52" rx="13" fill="#ffffff" />
+                  <rect x="34" y="20" width="70" height="20" rx="5" fill="#2563eb" />
+                  <rect x="56" y="20" width="2.5" height="20" fill="#bfdbfe" />
+                  <rect x="78" y="20" width="2.5" height="20" fill="#bfdbfe" />
+                  <circle cx="106" cy="50" r="3" fill="#fde68a" />
+                  <circle cx="46" cy="64" r="9" fill="#0f172a" /><circle cx="46" cy="64" r="3.5" fill="#fff" />
+                  <circle cx="92" cy="64" r="9" fill="#0f172a" /><circle cx="92" cy="64" r="3.5" fill="#fff" />
+                </svg>
+              </div>
+              <h2 className="text-3xl font-[900] text-sky-200">התחנה הבאה</h2>
+              <p className="text-sky-100/80 font-bold mt-2 text-sm leading-relaxed">תחנות ששמן אינו תואם לרחוב שבכתובת</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-sky-400 text-sky-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </a>
         </div>
