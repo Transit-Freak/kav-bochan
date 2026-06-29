@@ -1,0 +1,60 @@
+name: fetch-mot-guidelines
+
+# מושך את מסמך "שירות תחבורה ציבורית באוטובוסים — הנחיות לתכנון ותפעול" (משרד התחבורה)
+# מ-gov.il (נגיש רק מ-Action, לא מהסביבה החסומה), מחלץ טקסט, ודוחף לענף mot-guidelines-out
+# כדי שאוכל לקרוא את הסטנדרטים הרשמיים (מרחק הליכה לתחנה, מרווחי שירות, כיסוי) ולעגן בהם את המתכנן.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fetch-mot-guidelines.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-mot-guidelines
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PDF tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      - name: Download + extract the guidelines PDF
+        run: |
+          set +e
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          URL="https://www.gov.il/BlobFolder/policy/guidelines_for_public_transport_planning/he/%D7%94%D7%A0%D7%97%D7%99%D7%95%D7%AA%20%D7%9C%D7%AA%D7%9B%D7%A0%D7%95%D7%9F%20%D7%AA%D7%97%D7%91%D7%95%D7%A8%D7%94%20%D7%A6%D7%99%D7%91%D7%95%D7%A8%D7%99%D7%AA.pdf"
+          ok=
+          for n in 1 2 3 4 5; do
+            echo "attempt $n…"
+            if curl -fSL --connect-timeout 30 --max-time 300 --retry 3 --retry-delay 6 --retry-all-errors \
+                 -A "$UA" -H "Referer: https://www.gov.il/" -o mot.pdf "$URL" \
+               && [ "$(head -c4 mot.pdf)" = "%PDF" ]; then ok=1; break; fi
+            echo "  -> failed (head: $(head -c8 mot.pdf | tr -d '\0'))"; sleep $((n*6))
+          done
+          if [ -z "$ok" ]; then echo "DOWNLOAD FAILED" > mot-guidelines.txt; ls -la mot.pdf 2>/dev/null; exit 0; fi
+          ls -la mot.pdf
+          pdfinfo mot.pdf > mot-info.txt 2>&1 || true
+          cat mot-info.txt
+          # layout-preserving text extraction (tables/figures keep some structure)
+          pdftotext -layout -enc UTF-8 mot.pdf mot-guidelines.txt || pdftotext -enc UTF-8 mot.pdf mot-guidelines.txt
+          wc -l mot-guidelines.txt; echo "chars: $(wc -c < mot-guidelines.txt)"
+          echo "==== first 60 lines ===="; sed -n '1,60p' mot-guidelines.txt
+      - name: Push extracted text
+        run: |
+          set -euo pipefail
+          cp mot-guidelines.txt /tmp/g.txt 2>/dev/null || echo "no text">/tmp/g.txt
+          cp mot.pdf /tmp/g.pdf 2>/dev/null || true
+          cp mot-info.txt /tmp/g-info.txt 2>/dev/null || true
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan mot-out; git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/g.txt mot-guidelines.txt; cp /tmp/g-info.txt mot-info.txt 2>/dev/null || true; cp /tmp/g.pdf mot.pdf 2>/dev/null || true
+          git add -A; git commit -m "MOT public-transport planning guidelines (extracted text + pdf)"
+          git push -f origin mot-out:mot-guidelines-out
