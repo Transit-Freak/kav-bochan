@@ -19,7 +19,7 @@ const POI_ICON = {
 
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
-function StopDetails({ s, inList, onRoute, routeBusy }) {
+function StopDetails({ s, inList, onRoute, routeBusy, times }) {
   return (
     <>
       {!inList && <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>}
@@ -42,17 +42,24 @@ function StopDetails({ s, inList, onRoute, routeBusy }) {
       {s.p && s.p.length > 0 && (
         <div className="d-poi">
           <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
-          {s.p.map((x, i) => (
-            <div className="d-poi-row" key={i}>
-              <span className="d-poi-n">{POI_ICON[x.k] || "•"} {x.n}</span>
-              <span className="d-poi-d">{x.d} מ׳ · {walkMin(x.d)} 🚶</span>
-              {onRoute && x.la != null && (
-                <button className="d-route-btn" disabled={routeBusy} onClick={() => onRoute(s, x)} title="הצג מסלול הליכה על המפה">
-                  {routeBusy ? "…" : "מסלול ›"}
-                </button>
-              )}
-            </div>
-          ))}
+          {s.p.map((x, i) => {
+            const rt = times && times[i];
+            return (
+              <div className="d-poi-row" key={i}>
+                <span className="d-poi-n">{POI_ICON[x.k] || "•"} {x.n}</span>
+                <span className="d-poi-d">
+                  {rt
+                    ? <span className="d-walk-real">🚶 {rt.min} דק׳{rt.d != null ? " · " + rt.d + " מ׳" : ""}</span>
+                    : <span>{x.d} מ׳ · {walkMin(x.d)} 🚶</span>}
+                </span>
+                {onRoute && x.la != null && (
+                  <button className="d-route-btn" disabled={routeBusy} onClick={() => onRoute(s, x)} title="הצג מסלול הליכה על המפה">
+                    {routeBusy ? "…" : "מסלול ›"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
       {s.la != null && (
@@ -71,9 +78,12 @@ function App() {
   const [sel, setSel] = useState(null);
   const [activeOnly, setActiveOnly] = useState(false);
   const [route, setRoute] = useState(null); // {loading|err|ok, to, d, min}
+  const [poiTimes, setPoiTimes] = useState(null); // זמני הליכה אמיתיים לנקודות, מיושרים ל-sel.p
   const mapRef = useRef(null);
   const markRef = useRef(null);
   const routeRef = useRef(null);
+  const poiLayerRef = useRef(null);
+  const OSRM = "https://routing.openstreetmap.de/routed-foot";
 
   // מסלול הליכה אמיתי מהתחנה לנקודת העניין — ניתוב חי בדפדפן (OSRM foot, FOSSGIS)
   function showRoute(from, poi) {
@@ -119,16 +129,55 @@ function App() {
     mapRef.current = m;
   }, [data]);
 
-  // מעבר לתחנה הנבחרת
+  // מעבר לתחנה הנבחרת — מסמן את התחנה ואת המקומות הסמוכים, ומחשב זמני הליכה אמיתיים
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !sel || sel.la == null) return;
-    m.flyTo([sel.la, sel.lo], 17, { duration: 0.6 });
+    // ניקוי שכבות קודמות
+    if (routeRef.current) { routeRef.current.remove(); routeRef.current = null; }
+    setRoute(null);
+    if (poiLayerRef.current) { poiLayerRef.current.remove(); poiLayerRef.current = null; }
+    setPoiTimes(null);
+    // סמן התחנה
     if (markRef.current) markRef.current.remove();
     markRef.current = L.marker([sel.la, sel.lo])
       .addTo(m)
-      .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t))
-      .openPopup();
+      .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t));
+    // סמן את נקודות העניין הסמוכות
+    const withC = (sel.p || []).filter((x) => x.la != null);
+    if (withC.length) {
+      const grp = L.layerGroup();
+      withC.forEach((x) => {
+        L.marker([x.la, x.lo], {
+          icon: L.divIcon({ className: "poi-pin", html: "<div class='poi-pin-i'>" + (POI_ICON[x.k] || "📍") + "</div>", iconSize: [28, 28], iconAnchor: [14, 14] }),
+        }).addTo(grp).bindPopup("<b>" + esc(x.n) + "</b><br>" + x.d + " מ׳ (קו אווירי)");
+      });
+      grp.addTo(m);
+      poiLayerRef.current = grp;
+      const b = L.latLngBounds([[sel.la, sel.lo], ...withC.map((x) => [x.la, x.lo])]);
+      m.fitBounds(b, { padding: [60, 60], maxZoom: 17 });
+      // זמני הליכה אמיתיים בבת-אחת (OSRM table)
+      const pts = [[sel.lo, sel.la], ...withC.map((x) => [x.lo, x.la])];
+      fetch(OSRM + "/table/v1/foot/" + pts.map((c) => c.join(",")).join(";") + "?sources=0&annotations=duration,distance")
+        .then((r) => r.json())
+        .then((j) => {
+          if (!j.durations || !j.durations[0]) return;
+          const dur = j.durations[0], dis = (j.distances && j.distances[0]) || [];
+          const res = (sel.p || []).map(() => null);
+          let k = 1;
+          (sel.p || []).forEach((x, idx) => {
+            if (x.la != null) {
+              if (dur[k] != null) res[idx] = { min: Math.max(1, Math.round(dur[k] / 60)), d: dis[k] != null ? Math.round(dis[k]) : null };
+              k++;
+            }
+          });
+          setPoiTimes(res);
+        })
+        .catch(() => {});
+    } else {
+      m.flyTo([sel.la, sel.lo], 17, { duration: 0.6 });
+    }
+    markRef.current.openPopup();
   }, [sel]);
 
   // סדר חומרה לקטגוריות — "ספק" תמיד אחרון
@@ -220,7 +269,7 @@ function App() {
                     </div>
                   </button>
                   <div className="it-detail">
-                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} />
+                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} times={sel && sel.c === s.c ? poiTimes : null} />
                   </div>
                 </div>
               );
@@ -243,7 +292,7 @@ function App() {
             <div className="detail">
               <button className="d-x" onClick={() => setSel(null)}>×</button>
               <div className="d-name">{sel.n}</div>
-              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} />
+              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} />
             </div>
           )}
         </div>
