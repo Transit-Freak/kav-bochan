@@ -17,9 +17,20 @@ const POI_ICON = {
   shop: "🏪", fuel: "⛽", bank: "🏦", junction: "🛣️",
 };
 
+// מציגים ב"ליד התחנה" רק מקומות עד ~5–6 דק׳ הליכה אמיתית
+const NEARBY_MAX_MIN = 6;
+// זמן הליכה אפקטיבי לסינון: אמיתי (אם סביר) אחרת הערכה אווירית
+function effWalkMin(x) {
+  if (x.rt && x.rt.d != null && x.rt.d <= 4 * x.d + 300) return x.rt.min;
+  return x.d < 80 ? 1 : Math.round(x.d / 80);
+}
+// החלק בשם התחנה שאמור להיות הרחוב (לפני ה-/)
+function primName(n) { return String(n || "").split(/[\\/]/)[0].trim(); }
+
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
 function StopDetails({ s, inList, onRoute, routeBusy, times }) {
+  const nearPois = (s.p || []).map((x, i) => ({ x, i })).filter((o) => effWalkMin(o.x) <= NEARBY_MAX_MIN);
   return (
     <>
       {!inList && <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>}
@@ -31,6 +42,9 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
       <div className="d-cat" style={{ color: CATS[s.k].color }}>
         {CATS[s.k].label} — {CATS[s.k].desc}
       </div>
+      {(s.k === "spelling" || s.k === "uncertain") && (
+        <div className="d-diff">💬 בשם התחנה: «<b>{primName(s.n)}</b>» · בכתובת: «<b>{s.s}</b>»</div>
+      )}
       {s.sv && (
         <div className="d-sv">
           🛣️ ברחוב זה <b>{s.sv.n}</b> תחנות כותבות «<b>{s.sv.maj}</b>» — וכאן כתוב «<b>{s.sv.use}</b>»
@@ -39,10 +53,10 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
       {s.sug && (
         <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{s.sug}</b></div>
       )}
-      {s.p && s.p.length > 0 && (
+      {nearPois.length > 0 && (
         <div className="d-poi">
-          <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
-          {s.p.map((x, i) => {
+          <div className="d-poi-h">📍 ליד התחנה (OSM) — עד ~5 דק׳ הליכה:</div>
+          {nearPois.map(({ x, i }) => {
             let rt = (times && times[i]) || x.rt; // חי בבחירה > צרוב מראש > הערכה
             // אם המסלול ארוך בצורה לא-סבירה מהמרחק האווירי (מחסום/חוסר שביל ב-OSM) — חזרה להערכה
             if (rt && rt.d != null && rt.d > 4 * x.d + 300) rt = null;
@@ -146,33 +160,30 @@ function App() {
     markRef.current = L.marker([sel.la, sel.lo])
       .addTo(m)
       .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t));
-    // סמן את נקודות העניין הסמוכות
-    const withC = (sel.p || []).filter((x) => x.la != null);
+    // סמן רק את נקודות העניין הקרובות (עד ~5 דק׳ הליכה)
+    const withC = (sel.p || []).map((x, idx) => ({ x, idx })).filter((o) => o.x.la != null && effWalkMin(o.x) <= NEARBY_MAX_MIN);
     if (withC.length) {
       const grp = L.layerGroup();
-      withC.forEach((x) => {
+      withC.forEach(({ x }) => {
         L.marker([x.la, x.lo], {
           icon: L.divIcon({ className: "poi-pin", html: "<div class='poi-pin-i'>" + (POI_ICON[x.k] || "📍") + "</div>", iconSize: [28, 28], iconAnchor: [14, 14] }),
         }).addTo(grp).bindPopup("<b>" + esc(x.n) + "</b><br>" + x.d + " מ׳ (קו אווירי)");
       });
       grp.addTo(m);
       poiLayerRef.current = grp;
-      const b = L.latLngBounds([[sel.la, sel.lo], ...withC.map((x) => [x.la, x.lo])]);
+      const b = L.latLngBounds([[sel.la, sel.lo], ...withC.map(({ x }) => [x.la, x.lo])]);
       m.fitBounds(b, { padding: [60, 60], maxZoom: 17 });
-      // זמני הליכה אמיתיים בבת-אחת (OSRM table)
-      const pts = [[sel.lo, sel.la], ...withC.map((x) => [x.lo, x.la])];
+      // זמני הליכה אמיתיים בבת-אחת (OSRM table) — מרענן את הזמן הצרוב
+      const pts = [[sel.lo, sel.la], ...withC.map(({ x }) => [x.lo, x.la])];
       fetch(OSRM + "/table/v1/foot/" + pts.map((c) => c.join(",")).join(";") + "?sources=0&annotations=duration,distance")
         .then((r) => r.json())
         .then((j) => {
           if (!j.durations || !j.durations[0]) return;
           const dur = j.durations[0], dis = (j.distances && j.distances[0]) || [];
           const res = (sel.p || []).map(() => null);
-          let k = 1;
-          (sel.p || []).forEach((x, idx) => {
-            if (x.la != null) {
-              if (dur[k] != null) res[idx] = { min: Math.max(1, Math.round(dur[k] / 60)), d: dis[k] != null ? Math.round(dis[k]) : null };
-              k++;
-            }
+          withC.forEach(({ idx }, k0) => {
+            const k = k0 + 1;
+            if (dur[k] != null) res[idx] = { min: Math.max(1, Math.round(dur[k] / 60)), d: dis[k] != null ? Math.round(dis[k]) : null };
           });
           setPoiTimes(res);
         })
