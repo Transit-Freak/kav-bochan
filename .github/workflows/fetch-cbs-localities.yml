@@ -1,0 +1,95 @@
+name: fetch-cbs-localities
+
+# מושך את עמוד הפרסום של הלמ"ס "אוכלוסייה ביישובים ובמועצות אזוריות 2025-2026" (חסום מהסביבה,
+# נגיש רק מ-Action), מאתר את קובצי ה-Excel/CSV המקושרים, מוריד אותם ומדפיס מבנה (גליונות/עמודות/דוגמה).
+# דוחף הכל לענף cbs-localities-out כדי שאוכל לראות מה זמין ובאיזו רזולוציה.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fetch-cbs-localities.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-cbs-localities
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Excel reader
+        run: pip install --quiet openpyxl xlrd
+      - name: Fetch CBS page + linked data files
+        run: |
+          set +e
+          python3 - <<'PY'
+          import re, os, json, urllib.request, urllib.parse
+          out=[]
+          def log(s): print(s); out.append(str(s))
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+          PAGE="https://www.cbs.gov.il/he/publications/Pages/2026/%D7%90%D7%95%D7%9B%D7%9C%D7%95%D7%A1%D7%99%D7%99%D7%94-%D7%91%D7%99%D7%99%D7%A9%D7%95%D7%91%D7%99%D7%9D-%D7%95%D7%91%D7%9E%D7%95%D7%A2%D7%A6%D7%95%D7%AA-%D7%90%D7%96%D7%95%D7%A8%D7%99%D7%95%D7%AA-%D7%90%D7%95%D7%9E%D7%93%D7%A0%D7%99%D7%9D-%D7%90%D7%A8%D7%A2%D7%99%D7%99%D7%9D-2026-2025.aspx"
+          def fetch(url, timeout=90):
+              req=urllib.request.Request(url, headers={"user-agent":UA,"accept":"*/*","referer":"https://www.cbs.gov.il/"})
+              return urllib.request.urlopen(req, timeout=timeout)
+          log("== fetching publication page ==")
+          html=""
+          try:
+              html=fetch(PAGE).read().decode("utf-8","ignore")
+              log("page bytes: %d"%len(html))
+          except Exception as e:
+              log("page fetch failed: %r"%e)
+          # find links to data files
+          links=re.findall(r'href=["\']([^"\']+\.(?:xlsx|xls|csv|zip))["\']', html, re.I)
+          links=list(dict.fromkeys(links))
+          log("data-file links found: %d"%len(links))
+          for l in links[:25]: log("   "+l)
+          # also dump any /DocLib/ or download links for visibility
+          dl=re.findall(r'href=["\']([^"\']*(?:DocLib|download|filed|getfile)[^"\']*)["\']', html, re.I)
+          for l in list(dict.fromkeys(dl))[:15]: log("   (dl) "+l)
+
+          saved=[]
+          for i,l in enumerate(links[:6]):
+              url=l if l.startswith("http") else urllib.parse.urljoin(PAGE, l)
+              try:
+                  b=fetch(url,120).read()
+                  name="cbs_%d_%s"%(i, os.path.basename(urllib.parse.urlparse(url).path)[:50] or "file")
+                  open(name,"wb").write(b); saved.append(name)
+                  log("downloaded %s (%d bytes) <- %s"%(name,len(b),url[:90]))
+              except Exception as e:
+                  log("  download fail %s : %r"%(url[:80],e))
+
+          # report structure of each xlsx
+          for name in saved:
+              if name.lower().endswith((".xlsx",".xls")):
+                  try:
+                      import openpyxl
+                      wb=openpyxl.load_workbook(name, read_only=True, data_only=True)
+                      log("\n=== %s : sheets %s ==="%(name, wb.sheetnames))
+                      for sn in wb.sheetnames[:4]:
+                          ws=wb[sn]; rows=[]
+                          for r in ws.iter_rows(min_row=1, max_row=8, values_only=True):
+                              rows.append([str(c)[:22] if c is not None else "" for c in r][:12])
+                          log("  -- sheet %r (dims %s) first rows:"%(sn, ws.dimensions))
+                          for r in rows: log("     "+" | ".join(r))
+                  except Exception as e:
+                      log("  xlsx read fail %s : %r"%(name,e))
+          open("cbs-report.txt","w",encoding="utf-8").write("\n".join(out))
+          PY
+          ls -la cbs_* cbs-report.txt 2>/dev/null || true
+      - name: Push results
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cbs; cp cbs-report.txt /tmp/cbs/ 2>/dev/null || echo "no report">/tmp/cbs/cbs-report.txt
+          cp cbs_* /tmp/cbs/ 2>/dev/null || true
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan cbs-out; git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/cbs/* . 2>/dev/null || true
+          git add -A; git commit -m "CBS localities population page — linked data files + structure"
+          git push -f origin cbs-out:cbs-localities-out
