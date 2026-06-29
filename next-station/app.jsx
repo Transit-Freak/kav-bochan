@@ -139,6 +139,9 @@ function App() {
               <div className="d-name">{sel.n}</div>
               <div className="d-row">מס׳ תחנה: <b>{sel.c}</b></div>
               <div className="d-row">רחוב בכתובת: <b>{sel.s}</b></div>
+              {sel.ms && (
+                <div className="d-row">🗺️ רחוב לפי המפה: <b>{sel.ms}</b> <span className="d-poi-d">{sel.md} מ׳</span></div>
+              )}
               {sel.t && <div className="d-row">עיר: {sel.t}</div>}
               <div className="d-cat" style={{ color: CATS[sel.k].color }}>
                 {CATS[sel.k].label} — {CATS[sel.k].desc}
