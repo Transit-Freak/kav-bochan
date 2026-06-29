@@ -1,0 +1,64 @@
+name: update-weekly
+
+# שבועי: רענון שמות התחנות והסיווג מ-GTFS. משתמש ב-POI/כבישים הקיימים
+# ושומר את זמני ההליכה שכבר חושבו (rt) — בלי בניית OSRM הכבדה.
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'   # כל יום ראשון 02:00 UTC
+  push:
+    paths:
+      - '.github/workflows/update-weekly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-weekly
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch fresh GTFS stops + active set
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+          URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          curl -fSL --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 10 -A "$UA" -o gtfs.zip "$URL"
+          unzip -o gtfs.zip stops.txt
+          unzip -o gtfs.zip stop_times.txt
+          SID=$(head -1 stop_times.txt | tr -d '\r' | tr ',' '\n' | grep -n -x 'stop_id' | cut -d: -f1)
+          awk -F, -v c="$SID" 'NR>1{gsub(/\r/,"",$c); if($c!="") a[$c]=1} END{for(k in a) print k}' stop_times.txt | sort > active_stops.txt
+          wc -l stops.txt active_stops.txt
+
+      - name: Reuse existing POI + roads from data branches
+        run: |
+          set -euo pipefail
+          git fetch origin osm-poi && git show FETCH_HEAD:poi.json > poi.json
+          git fetch origin osm-roads && git show FETCH_HEAD:roads.json > roads.json
+          ls -la poi.json roads.json
+
+      - name: Classify (carry forward walking times from current data.json)
+        run: |
+          set -euo pipefail
+          cp next-station/data.json prev.json 2>/dev/null || echo '{}' > prev.json
+          STOPS=stops.txt POI=poi.json ROADS=roads.json ACTIVE=active_stops.txt \
+            PREV=prev.json OUT=next-station/data.json python3 tools/classify.py
+
+      - name: Commit refreshed data.json to main
+        run: |
+          set -euo pipefail
+          rm -f gtfs.zip stops.txt stop_times.txt active_stops.txt poi.json roads.json prev.json
+          if git diff --quiet -- next-station/data.json; then
+            echo "data.json unchanged — nothing to commit"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add next-station/data.json
+          git commit -m "weekly: refresh stop names & classification from GTFS"
+          git push origin HEAD:main
