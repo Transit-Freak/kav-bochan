@@ -1,0 +1,40 @@
+name: fetch-gtfs-stops
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch GTFS, extract stops.txt, push to gtfs-data branch
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+          URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          echo "== HEAD =="
+          curl -sIL -A "$UA" "$URL" | head -20 || true
+          echo "== Download =="
+          curl -fSL --retry 3 --retry-delay 5 -A "$UA" -o gtfs.zip "$URL"
+          ls -la gtfs.zip
+          echo "== Extract stops.txt =="
+          unzip -o gtfs.zip stops.txt
+          ls -la stops.txt
+          echo "lines:"; wc -l stops.txt
+          echo "head:"; head -3 stops.txt
+          cp stops.txt /tmp/stops.txt
+          echo "== Push stops.txt to gtfs-data branch =="
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan gtfs-data
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'stops.txt' -exec rm -rf {} +
+          cp /tmp/stops.txt ./stops.txt
+          git add -A
+          git commit -m "GTFS stops.txt from MOT"
+          git push -f origin gtfs-data
