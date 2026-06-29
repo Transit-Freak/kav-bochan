@@ -1,0 +1,75 @@
+name: fetch-population
+
+# מאתר ומושך נתוני אוכלוסייה (אזורים סטטיסטיים / יישובים) של למ"ס דרך data.gov.il.
+# שלב discovery: מדפיס אילו דאטהסטים זמינים + דוגמאות. דוחף ל-population-out.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fetch-population.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-population
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover + fetch population datasets
+        run: |
+          set +e
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse
+          out=[]
+          def log(s): print(s); out.append(str(s))
+          UA="Mozilla/5.0"
+          def get(url):
+              req=urllib.request.Request(url, headers={"user-agent":UA,"accept":"application/json"})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return json.load(r)
+
+          log("================ data.gov.il CKAN search ================")
+          for q in ["אזורים סטטיסטיים","אוכלוסייה אזור סטטיסטי","אוכלוסייה ביישובים","סטטיסטי","population statistical"]:
+              try:
+                  j=get("https://data.gov.il/api/3/action/package_search?rows=8&q="+urllib.parse.quote(q))
+                  res=j.get("result",{}); packs=res.get("results",[])
+                  log("q=%r -> %d packages"%(q,res.get("count",0)))
+                  for p in packs[:6]:
+                      ress=p.get("resources",[])
+                      log("   PKG %s | %s"%(p.get("name"),p.get("title","")[:60]))
+                      for rr in ress[:4]:
+                          log("      RES %s [%s] id=%s"%(rr.get("name","")[:40],rr.get("format"),rr.get("id")))
+              except Exception as e:
+                  log("q=%r FAILED: %r"%(q,e))
+              log("")
+
+          log("================ try datastore on promising resources ================")
+          # we will print resource ids above; here also try a couple of known CBS statistical-area dataset names
+          for name in ["statistical-areas-2022","lamas-population","cbs-localities","population-locality"]:
+              try:
+                  j=get("https://data.gov.il/api/3/action/package_show?id="+name)
+                  if j.get("success"):
+                      log("FOUND package %s with %d resources"%(name,len(j["result"].get("resources",[]))))
+              except Exception as e:
+                  pass
+
+          open("population-report.txt","w").write("\n".join(out))
+          PY
+          ls -la population-report.txt 2>/dev/null || true
+      - name: Push report
+        run: |
+          set -euo pipefail
+          cp population-report.txt /tmp/p.txt 2>/dev/null || echo "no report">/tmp/p.txt
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan pop-out; git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/p.txt population-report.txt
+          git add -A; git commit -m "population dataset discovery"
+          git push -f origin pop-out:population-out
