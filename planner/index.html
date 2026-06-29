@@ -26,7 +26,7 @@
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29g";
+const BUILD = "2026-06-29h";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -115,10 +115,16 @@ function App() {
   const [nl, setNl] = useState(null); // new-line layer (lazy)
   const [nlErr, setNlErr] = useState(null);
   const [pop, setPop] = useState(null); // city population (CBS, Jan 2026)
+  const [coords, setCoords] = useState(null); // stopId -> [lat,lon] (lazy, for the consolidation map)
 
   useEffect(() => {
     fetch("city-population.json?v=" + BUILD).then((r) => r.ok ? r.json() : null).then(setPop).catch(() => {});
   }, []);
+  // load stop coordinates once the user looks at the consolidation tab (it's ~600KB)
+  useEffect(() => {
+    if (tab !== "consolidate" || coords) return;
+    fetch("stop-coords.json?v=" + BUILD).then((r) => r.ok ? r.json() : null).then(setCoords).catch(() => {});
+  }, [tab, coords]);
 
   useEffect(() => {
     if (tab !== "newlines" || nl || nlErr) return;
@@ -325,7 +331,7 @@ function App() {
           </div>
 
           <div className="p-4 overflow-y-auto scroll" style={{ maxHeight: "calc(100vh - 220px)" }}>
-            {tab === "consolidate" && <Consolidate fams={families} tau={tau} ss={data.stopSets} scenario={scenario} toggle={toggle} conflict={conflict} mergeChange={mergeChange} />}
+            {tab === "consolidate" && <Consolidate fams={families} tau={tau} ss={data.stopSets} coords={coords} scenario={scenario} toggle={toggle} conflict={conflict} mergeChange={mergeChange} />}
             {tab === "cut" && <CutTable rows={cutLines} sort={sortCut} setSort={setSortCut} natl={data.nationalCpp} byKey={byKey}
               scenario={scenario} toggle={toggle} conflict={conflict} cutFullChange={cutFullChange} cutPartialChange={cutPartialChange} />}
             {tab === "freq" && <FreqView rows={freqLines} all={lines} scenario={scenario} toggle={toggle} conflict={conflict} freqChange={freqChange} />}
@@ -384,30 +390,69 @@ function App() {
 }
 
 // ---------- Consolidate ----------
-function Consolidate({ fams, tau, ss, scenario, toggle, conflict, mergeChange }) {
+function Consolidate({ fams, tau, ss, coords, scenario, toggle, conflict, mergeChange }) {
   if (!fams.length) return <div className="text-slate-400 text-sm">אין משפחות קווים חופפות בעיר זו בסף הנוכחי (τ={tau.toFixed(2)}). הורד את הסף כדי לראות חפיפות רכות יותר.</div>;
   return (
     <div className="space-y-3">
       <div className="text-[12px] text-slate-400">{fams.length} משפחות · {fams.reduce((s, f) => s + f.folds.length, 0)} קווים ניתנים לקיפול (בסף τ={tau.toFixed(2)}). חפיפה = מקדם הכלה (אסימטרי): "קו קצר מוכל בארוך", לא "זהים".</div>
-      {fams.map((fam, fi) => <Family key={fi} fam={fam} tau={tau} ss={ss} scenario={scenario} toggle={toggle} conflict={conflict} mergeChange={mergeChange} />)}
+      {fams.map((fam, fi) => <Family key={fi} fam={fam} tau={tau} ss={ss} coords={coords} scenario={scenario} toggle={toggle} conflict={conflict} mergeChange={mergeChange} />)}
     </div>
   );
 }
-function Family({ fam, tau, ss, scenario, toggle, conflict, mergeChange }) {
+function Family({ fam, tau, ss, coords, scenario, toggle, conflict, mergeChange }) {
   const ch = mergeChange(fam);
   const on = !!scenario[ch.key];
   const bad = fam.min < tau - 1e-9; // hard fail: not a real clique at current tau
   const n = fam.mem.length;
+  const [showMap, setShowMap] = useState(false);
+  const mapRef = useRef(null), elRef = useRef(null);
+  useEffect(() => {
+    if (!showMap || !elRef.current || !window.L || !coords) return;
+    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+    const m = L.map(elRef.current, { scrollWheelZoom: true });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap", maxZoom: 19 }).addTo(m);
+    mapRef.current = m;
+    const keepStops = new Set();
+    for (const k of fam.keeps) for (const s of (ss[k] || [])) keepStops.add(s);
+    const pts = [];
+    fam.mem.forEach((mem, idx) => {
+      const col = ROUTE_PAL[idx % ROUTE_PAL.length];
+      const keep = fam.keepSet.has(mem.mk);
+      for (const sid of (ss[mem.mk] || [])) {
+        const c = coords[sid]; if (!c) continue;
+        const lost = !keep && !keepStops.has(sid);
+        L.circleMarker([c[0], c[1]], { radius: lost ? 6 : keep ? 5 : 3.5, color: lost ? "#ef4444" : col, weight: lost ? 2 : 1, fillColor: col, fillOpacity: keep ? 0.9 : 0.55 })
+          .bindPopup(`קו <b>${mem.ln}</b>${keep ? " · ★ נשאר" : " · יקופל"}${lost ? "<br><b style='color:#ef4444'>⚠ תחנה שתאבד שירות אם מקפלים</b>" : ""}`).addTo(m);
+        pts.push([c[0], c[1]]);
+      }
+    });
+    if (pts.length) m.fitBounds(pts, { padding: [25, 25] });
+    setTimeout(() => m.invalidateSize(), 80);
+    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
+  }, [showMap, coords, fam]);
   return (
     <div className={cls("rounded-xl border p-3", bad ? "border-red-700 bg-red-950/30" : "border-slate-700 bg-slate-800/50")}>
       <div className="flex items-center gap-2 flex-wrap">
         <div className="font-bold text-sm">{n} קווים חופפים ({fam.lt}) · חפיפה מינימלית במשפחה: <span className="font-mono" style={{ color: bad ? "#f87171" : "#4ade80" }}>{(fam.min * 100).toFixed(0)}%</span></div>
         <div className="flex-1" />
+        <button onClick={() => setShowMap((v) => !v)} className="text-xs font-bold rounded-lg px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-sky-200">{showMap ? "הסתר מפה" : "🗺️ מפה"}</button>
         {bad ? <span className="text-[11px] font-bold text-red-300 bg-red-900/50 px-2 py-1 rounded">⚠ לא "קליק" בסף זה — לבדיקה ידנית</span>
           : <button onClick={() => toggle(ch)} disabled={conflict(ch)}
             className={cls("text-xs font-bold rounded-lg px-3 py-1.5", on ? "bg-emerald-600 text-white" : conflict(ch) ? "bg-slate-700 text-slate-500" : "bg-slate-700 hover:bg-slate-600 text-slate-200")}>
             {on ? "✓ בתרחיש" : conflict(ch) ? "מתנגש" : "הוסף לתרחיש"}</button>}
       </div>
+      {showMap && (
+        <div className="mt-2">
+          <div className="text-[11px] text-slate-400 mb-1 flex flex-wrap gap-x-3 gap-y-0.5">
+            {fam.mem.map((mem, idx) => (
+              <span key={mem.mk} style={{ color: ROUTE_PAL[idx % ROUTE_PAL.length] }} className="font-bold">● קו {mem.ln}{fam.keepSet.has(mem.mk) ? " ★" : ""}</span>
+            ))}
+            <span className="text-red-400 font-bold">● תחנה שתאבד שירות בקיפול</span>
+          </div>
+          {!coords ? <div className="text-slate-500 text-[12px] py-3">טוען קואורדינטות תחנות…</div>
+            : <div ref={elRef} style={{ height: "300px", borderRadius: "10px", overflow: "hidden", border: "1px solid #334155" }} />}
+        </div>
+      )}
       {(fam.spacingMismatch || fam.egMixed) && (
         <div className="text-[11.5px] text-amber-200 bg-amber-950/50 border border-amber-700 rounded px-2 py-1.5 mt-1.5 leading-relaxed">
           ⚠ <b>סוגי שירות שונים במשפחה</b>{fam.spMin && fam.spMax ? ` (מרווח תחנות ${fam.spMin}–${fam.spMax} מ׳)` : ""} — ייתכן שקו אחד <b>ישיר/מהיר</b> והשני <b>מאסף/מקומי</b>. חפיפת תחנות ≠ חפיפת שירות: מיזוג עלול לבטל את השירות המהיר ולפגוע בזמני הנסיעה (הנחיות משרד התחבורה). בדיקה ידנית לפני מיזוג.

@@ -106,6 +106,10 @@ jobs:
               if sid in coord:
                   lat,lon=coord[sid]; stops.append((sid,lat,lon,len(mks),city_of.get(sid,"")))
           log("stops with coords + line counts: %d"%len(stops))
+          # emit stopId -> lat/lon for ALL served stops, so the consolidation tab can draw line maps
+          sc={sid:[round(lat,5),round(lon,5)] for sid,lat,lon,n,c in stops}
+          json.dump(sc, open("stop-coords.json","w"), separators=(",",":"))
+          log("wrote stop-coords.json: %d stops"%len(sc))
           lp_sorted=sorted((s[3] for s in stops))
           med_lp=lp_sorted[len(lp_sorted)//2] if lp_sorted else 0
           hub_cut=lp_sorted[int(len(lp_sorted)*0.99)] if lp_sorted else 0
@@ -431,16 +435,18 @@ jobs:
           set -euo pipefail
           cp newlines-report.txt /tmp/r.txt 2>/dev/null || echo "no report">/tmp/r.txt
           cp planner-newlines.json /tmp/n.json 2>/dev/null || echo '{}'>/tmp/n.json
+          cp stop-coords.json /tmp/sc.json 2>/dev/null || true
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # 1) commit the refreshed layer into planner/ on main (only if it changed)
+          # 1) commit the refreshed layer + stop coords into planner/ on main (only if changed)
           git fetch origin main; git checkout main; git reset --hard origin/main
           mkdir -p planner; cp /tmp/n.json planner/planner-newlines.json
-          if ! git diff --quiet -- planner/planner-newlines.json; then
-            git add planner/planner-newlines.json
-            git commit -m "data: refresh new-line coverage layer (planner-newlines.json)"
+          [ -f /tmp/sc.json ] && cp /tmp/sc.json planner/stop-coords.json || true
+          if ! git diff --quiet -- planner/planner-newlines.json planner/stop-coords.json; then
+            git add planner/planner-newlines.json planner/stop-coords.json
+            git commit -m "data: refresh new-line coverage layer + stop coordinates"
             for n in 1 2 3 4; do git push origin main && break || sleep $((n*2)); done
           else
-            echo "no change in planner-newlines.json — skipping commit"
+            echo "no change — skipping commit"
           fi
           # 2) keep the discovery report on a debug branch
           git checkout --orphan nl-out; git reset
