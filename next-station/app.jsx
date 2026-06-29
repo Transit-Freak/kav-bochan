@@ -9,8 +9,9 @@ const CATS = {
 
 // אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
 const POI_ICON = {
-  school: "🏫", worship: "🕍", health: "🏥", mall: "🛒",
-  academia: "🎓", townhall: "🏛️", train: "🚉",
+  school: "🏫", academia: "🎓", health: "🏥", mall: "🛒", train: "🚉",
+  worship: "🕍", police: "🚓", fire: "🚒", library: "📚", community: "🏘️",
+  gov: "🏛️", culture: "🎭", busstation: "🚌", park: "🌳", sport: "⚽",
 };
 
 function App() {
