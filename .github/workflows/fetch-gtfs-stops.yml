@@ -1,6 +1,9 @@
 name: fetch-gtfs-stops
 
 on:
+  push:
+    paths:
+      - '.github/workflows/fetch-gtfs-stops.yml'
   workflow_dispatch:
 
 permissions:
