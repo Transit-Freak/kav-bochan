@@ -115,7 +115,8 @@ function App() {
   }
 
   useEffect(() => {
-    fetch("data.json?v=" + window.NS_BUILD)
+    // טוקן יומי כדי שעדכוני-הנתונים האוטומטיים יגיעו למשתמשים תוך יום (ולא יישארו ב-cache)
+    fetch("data.json?v=" + window.NS_BUILD + "-" + new Date().toISOString().slice(0, 10))
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData({ counts: {}, stops: [] }));
