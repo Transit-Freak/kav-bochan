@@ -441,8 +441,9 @@ jobs:
           git fetch origin main; git checkout main; git reset --hard origin/main
           mkdir -p planner; cp /tmp/n.json planner/planner-newlines.json
           [ -f /tmp/sc.json ] && cp /tmp/sc.json planner/stop-coords.json || true
-          if ! git diff --quiet -- planner/planner-newlines.json planner/stop-coords.json; then
-            git add planner/planner-newlines.json planner/stop-coords.json
+          git add planner/planner-newlines.json planner/stop-coords.json
+          # use --cached so NEW (untracked) files like stop-coords.json are detected too
+          if ! git diff --cached --quiet; then
             git commit -m "data: refresh new-line coverage layer + stop coordinates"
             for n in 1 2 3 4; do git push origin main && break || sleep $((n*2)); done
           else
