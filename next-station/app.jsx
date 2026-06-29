@@ -19,7 +19,7 @@ const POI_ICON = {
 
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
-function StopDetails({ s, inList }) {
+function StopDetails({ s, inList, onRoute, routeBusy }) {
   return (
     <>
       {!inList && <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>}
@@ -44,8 +44,13 @@ function StopDetails({ s, inList }) {
           <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
           {s.p.map((x, i) => (
             <div className="d-poi-row" key={i}>
-              <span>{POI_ICON[x.k] || "•"} {x.n}</span>
-              <span className="d-poi-d">{x.d} מ׳</span>
+              <span className="d-poi-n">{POI_ICON[x.k] || "•"} {x.n}</span>
+              <span className="d-poi-d">{x.d} מ׳ · {walkMin(x.d)} 🚶</span>
+              {onRoute && x.la != null && (
+                <button className="d-route-btn" disabled={routeBusy} onClick={() => onRoute(s, x)} title="הצג מסלול הליכה על המפה">
+                  {routeBusy ? "…" : "מסלול ›"}
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -65,8 +70,37 @@ function App() {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
   const [activeOnly, setActiveOnly] = useState(false);
+  const [route, setRoute] = useState(null); // {loading|err|ok, to, d, min}
   const mapRef = useRef(null);
   const markRef = useRef(null);
+  const routeRef = useRef(null);
+
+  // מסלול הליכה אמיתי מהתחנה לנקודת העניין — ניתוב חי בדפדפן (OSRM foot, FOSSGIS)
+  function showRoute(from, poi) {
+    const m = mapRef.current;
+    if (!m || from.la == null || poi.la == null) return;
+    setSel(from);
+    setRoute({ loading: true, to: poi.n });
+    const url =
+      "https://routing.openstreetmap.de/routed-foot/route/v1/foot/" +
+      from.lo + "," + from.la + ";" + poi.lo + "," + poi.la +
+      "?overview=full&geometries=geojson";
+    fetch(url)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.routes || !j.routes[0]) throw new Error("no route");
+        const rt = j.routes[0];
+        if (routeRef.current) routeRef.current.remove();
+        routeRef.current = L.geoJSON(rt.geometry, { style: { color: "#0891b2", weight: 5, opacity: 0.85, dashArray: "1 8", lineCap: "round" } }).addTo(m);
+        m.fitBounds(routeRef.current.getBounds(), { padding: [50, 50], maxZoom: 17 });
+        setRoute({ ok: true, to: poi.n, d: Math.round(rt.distance), min: Math.max(1, Math.round(rt.duration / 60)) });
+      })
+      .catch(() => setRoute({ err: true, to: poi.n }));
+  }
+  function clearRoute() {
+    if (routeRef.current) { routeRef.current.remove(); routeRef.current = null; }
+    setRoute(null);
+  }
 
   useEffect(() => {
     fetch("data.json?v=" + window.NS_BUILD)
@@ -186,7 +220,7 @@ function App() {
                     </div>
                   </button>
                   <div className="it-detail">
-                    <StopDetails s={s} inList />
+                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} />
                   </div>
                 </div>
               );
@@ -197,17 +231,32 @@ function App() {
 
         <div className="map-wrap">
           <div id="map"></div>
+          {route && (
+            <div className={"route-info" + (route.err ? " err" : "")}>
+              <button className="d-x" onClick={clearRoute}>×</button>
+              {route.loading && <span>🚶 מחשב מסלול הליכה ל«{route.to}»…</span>}
+              {route.ok && <span>🚶 מסלול הליכה ל«<b>{route.to}</b>»: <b>{route.d} מ׳</b> · <b>{route.min} דק׳</b> (לאורך הרחובות)</span>}
+              {route.err && <span>לא נמצא מסלול הליכה ל«{route.to}» (שירות הניתוב לא זמין כרגע)</span>}
+            </div>
+          )}
           {sel && (
             <div className="detail">
               <button className="d-x" onClick={() => setSel(null)}>×</button>
               <div className="d-name">{sel.n}</div>
-              <StopDetails s={sel} />
+              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} />
             </div>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+// הערכת זמן הליכה ממרחק אווירי (~80 מ׳ לדקה ≈ 4.8 קמ"ש, כמו kavnav)
+function walkMin(m) {
+  if (m == null) return "";
+  if (m < 80) return "פחות מדקה";
+  return "~" + Math.round(m / 80) + " דק׳";
 }
 
 function esc(s) {
