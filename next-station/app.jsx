@@ -2,9 +2,10 @@ const { useState, useEffect, useRef, useMemo } = React;
 
 // קטגוריות הזיהוי — צבע, תווית והסבר
 const CATS = {
-  spelling: { label: "טעות כתיב", color: "#d97706", desc: "אותו רחוב, מאוית אחרת" },
-  reversal: { label: "היפוך / ציון-דרך", color: "#7c3aed", desc: "הרחוב האמיתי מופיע שני בשם" },
   mismatch: { label: "אי-התאמה מלאה", color: "#dc2626", desc: "הרחוב לא מופיע בשם כלל" },
+  reversal: { label: "היפוך / ציון-דרך", color: "#7c3aed", desc: "הרחוב האמיתי מופיע שני בשם" },
+  spelling: { label: "טעות כתיב", color: "#d97706", desc: "אותו רחוב, אות שונה — כנראה שגיאה" },
+  uncertain: { label: "ספק / כתיב חלופי", color: "#64748b", desc: "כנראה אותו רחוב — הבדל כתיב מלא/חסר בלבד" },
 };
 
 // אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
