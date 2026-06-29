@@ -288,8 +288,19 @@ jobs:
                       return {"path":path,"km":round(j["routes"][0]["distance"]/1000,1)}
               except Exception: return None
               return None
+          def road_dist(lat,lon):
+              # metres from the point to the nearest DRIVABLE road (OSRM snap distance).
+              if not OSRM_UP: return None
+              try:
+                  u="http://localhost:5000/nearest/v1/driving/%f,%f?number=1"%(lon,lat)
+                  j=json.load(urllib.request.urlopen(u,timeout=8))
+                  if j.get("code")=="Ok" and j.get("waypoints"):
+                      return j["waypoints"][0].get("distance")
+              except Exception: return None
+              return None
+          ROAD_MAX=100  # a bus needs a drivable road within ~100m of the homes — else no service is possible
 
-          snapped=dropped=routed=0
+          snapped=dropped=routed=noroad=0
           for c,v in cities_out.items():
               ng=[]
               for g in v["gaps"]:
@@ -304,12 +315,17 @@ jobs:
                   if tree is not None:
                       sn=snap(s["lat"],s["lon"],350)
                       if sn: s["lat"],s["lon"]=sn[0],sn[1]
+                  # no drivable road within ~100m of the homes -> a bus cannot serve here; drop it
+                  rd=road_dist(s["lat"],s["lon"])
+                  if OSRM_UP and rd is not None and rd>ROAD_MAX:
+                      noroad+=1; continue
+                  s["roadDist"]=round(rd) if rd is not None else None
                   r=route(s["lat"],s["lon"],s["hubLat"],s["hubLon"])
                   if r: s["path"]=r["path"]; s["roadKm"]=r["km"]; routed+=1
                   kept.append(s)
               v["stubs"]=kept
               if v["gaps"]: v["maxGapM"]=max(g["m"] for g in v["gaps"])
-          log("snap: %d gaps on buildings, %d dropped (no building<200m); corridors routed on road: %d"%(snapped,dropped,routed))
+          log("snap: %d gaps on buildings, %d dropped (no building<200m); %d corridors dropped (no road<%dm); routed: %d"%(snapped,dropped,noroad,ROAD_MAX,routed))
 
           # ---------- 4. CBS population (best-effort enrichment; never blocks) ----------
           log("\n==== best-effort CBS population (enrichment only) ====")

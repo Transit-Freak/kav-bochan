@@ -26,7 +26,7 @@
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29f";
+const BUILD = "2026-06-29g";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -604,7 +604,7 @@ function NewLines({ nl, err, city }) {
         L.polyline(line, { color: col, weight: 4, dashArray: s.path ? null : "7 6", opacity: 0.92 }).addTo(m);
         L.circleMarker([s.lat, s.lon], { radius: 8, color: "#0f172a", weight: 2, fillColor: col, fillOpacity: 0.97 })
           .bindTooltip(String(i + 1), { permanent: true, direction: "center", className: "rt-lbl" })
-          .bindPopup(`<b style="color:${col}">מועמד #${i + 1} לקו חדש</b>${s.homes != null ? ` · ~${nf(s.homes)} מבני מגורים בטווח 400 מ׳` : ""} · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
+          .bindPopup(`<b style="color:${col}">מועמד #${i + 1} לקו חדש</b>${s.homes != null ? ` · ~${nf(s.homes)} מבני מגורים בטווח 400 מ׳` : ""} · עד ${s.maxM} מ׳ מתחנה${s.roadDist != null ? ` · כביש במרחק ${s.roadDist} מ׳` : ""}${s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
         L.circleMarker([s.hubLat, s.hubLon], { radius: 6, color: col, weight: 3, fillColor: "#0f172a", fillOpacity: 0.95 })
           .bindPopup(`קו-על ${s.hubSid} · ${s.hubCity} · ${s.hubLines} קווים`).addTo(m);
         pts.push([s.lat, s.lon], [s.hubLat, s.hubLon]);
@@ -625,7 +625,7 @@ function NewLines({ nl, err, city }) {
   return (
     <div>
       <div className="bg-amber-950/40 border border-amber-800 rounded-lg px-3 py-2 text-[12px] text-amber-200 mb-2 leading-relaxed">
-        ⚠ <b>טיוטה.</b> "מועמד לקו חדש" = שטח <b>בנוי-מגורים</b> (מוקף בתים, מחוץ לאזורי תעשייה/מסחר/פארק/חקלאות ב-OSM) שחורג מ<b>תקן ההליכה של משרד התחבורה (400 מ׳ לתחנה</b>, 2016) ועד 1100 מ׳, ומוקף בתחנות. הנקודה מוצמדת לבית והמסלול מנותב על כבישים.
+        ⚠ <b>טיוטה.</b> "מועמד לקו חדש" = שטח <b>בנוי-מגורים</b> (מוקף בתים, מחוץ לאזורי תעשייה/מסחר/פארק/חקלאות ב-OSM) שחורג מ<b>תקן ההליכה של משרד התחבורה (400 מ׳ לתחנה</b>, 2016) ועד 1100 מ׳, מוקף בתחנות, ויש <b>כביש נסיע בקרבת הבתים</b> (אחרת אוטובוס לא יכול לשרת). הנקודה מוצמדת לבית והמסלול מנותב על כבישים.
         המועמדים מדורגים לפי <b>מספר מבני המגורים בטווח 400 מ׳</b> (פרוקסי ל"כמה בתי-אב יֵהנו"). אין כאן נתוני ביקוש מוצא-יעד{nl.hasPopulation ? "" : " ולא ספירת תושבים מדויקת (תבוא מנתוני הלמ\"ס)"}. כל מועמד הוא טיוטה לבדיקת מתכנן, לא המלצה.
       </div>
       {!C && <div className="text-slate-400 text-sm mb-2">אין נתוני כיסוי לעיר {city} (מעט תחנות או ללא פערים). מוצגים קווי-העל הארציים.</div>}
