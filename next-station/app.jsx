@@ -103,9 +103,9 @@ function App() {
             {filtered.length > CAP ? " — צמצמו בחיפוש כדי לראות את השאר" : ""}
           </div>
           <div className="list">
-            {shown.map((s) => (
+            {shown.map((s, i) => (
               <button
-                key={s.c}
+                key={s.c + "_" + i}
                 className={"item" + (sel && sel.c === s.c ? " on" : "")}
                 onClick={() => setSel(s)}
               >
