@@ -26,8 +26,14 @@ jobs:
       - name: Download GTFS pieces
         run: |
           set -euo pipefail
-          curl -fSL --max-time 900 --retry 2 -A "Mozilla/5.0" -o gtfs.zip \
-            "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          for a in 1 2 3 4 5 6; do
+            echo "GTFS download attempt $a"
+            curl -fSL --connect-timeout 60 --max-time 900 --retry 3 --retry-all-errors --retry-delay 15 \
+              -A "Mozilla/5.0" -o gtfs.zip \
+              "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip" && break
+            echo "attempt $a failed, waiting…"; sleep 30
+          done
+          test -s gtfs.zip
           unzip -o gtfs.zip routes.txt trips.txt stops.txt
 
       - name: Match live rail to schedule and compute delay
