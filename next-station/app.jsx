@@ -15,16 +15,17 @@ const POI_ICON = {
   gov: "🏛️", culture: "🎭", busstation: "🚌", park: "🌳", sport: "⚽",
 };
 
-// כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה
-function StopDetails({ s }) {
+// כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
+// inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
+function StopDetails({ s, inList }) {
   return (
     <>
-      <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>
-      <div className="d-row">רחוב בכתובת: <b>{s.s}</b></div>
+      {!inList && <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>}
+      {!inList && <div className="d-row">רחוב בכתובת: <b>{s.s}</b></div>}
       {s.ms && (
         <div className="d-row">🗺️ רחוב לפי המפה: <b>{s.ms}</b> <span className="d-poi-d">{s.md} מ׳</span></div>
       )}
-      {s.t && <div className="d-row">עיר: {s.t}</div>}
+      {!inList && s.t && <div className="d-row">עיר: {s.t}</div>}
       <div className="d-cat" style={{ color: CATS[s.k].color }}>
         {CATS[s.k].label} — {CATS[s.k].desc}
       </div>
@@ -151,7 +152,7 @@ function App() {
               const on = sel && sel.c === s.c;
               return (
                 <div className={"item" + (on ? " on" : "")} key={s.c + "_" + i}>
-                  <button className="it-head" onClick={() => setSel(on ? null : s)}>
+                  <button className="it-head" onClick={() => setSel(s)}>
                     <div className="it-top">
                       <span className="badge" style={{ background: CATS[s.k].color }}>{CATS[s.k].label}</span>
                       <span className="code">{s.c}</span>
@@ -162,11 +163,9 @@ function App() {
                       {s.t ? " · " + s.t : ""}
                     </div>
                   </button>
-                  {on && (
-                    <div className="it-detail">
-                      <StopDetails s={s} />
-                    </div>
-                  )}
+                  <div className="it-detail">
+                    <StopDetails s={s} inList />
+                  </div>
                 </div>
               );
             })}
