@@ -35,7 +35,15 @@ jobs:
           set -euo pipefail
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
           URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
-          curl -fSL --connect-timeout 30 --max-time 900 --retry 3 --retry-delay 10 -A "$UA" -o gtfs.zip "$URL"
+          # the MOT host is flaky; retry the whole download up to 5 times before giving up
+          ok=
+          for n in 1 2 3 4 5; do
+            echo "GTFS download attempt $n…"
+            if curl -fSL --connect-timeout 30 --max-time 1200 --retry 4 --retry-delay 8 --retry-all-errors -A "$UA" -o gtfs.zip "$URL" \
+               && unzip -t gtfs.zip stops.txt >/dev/null 2>&1; then ok=1; break; fi
+            echo "attempt $n failed; backing off"; sleep $((n*15))
+          done
+          [ -n "$ok" ] || { echo "GTFS unreachable after retries"; exit 1; }
           unzip -o gtfs.zip stops.txt
           wc -l stops.txt
 
