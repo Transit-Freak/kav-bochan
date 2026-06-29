@@ -1,0 +1,93 @@
+name: compute-walk-times
+
+on:
+  push:
+    paths:
+      - '.github/workflows/compute-walk-times.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: walk-times
+  cancel-in-progress: true
+
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Israel/Palestine OSM extract
+        run: |
+          set -euo pipefail
+          curl -fSL --connect-timeout 30 --max-time 1200 --retry 3 --retry-delay 10 \
+            -o region.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          ls -la region.osm.pbf
+
+      - name: Build OSRM (foot profile) and start the routing server
+        run: |
+          set -euo pipefail
+          IMG=ghcr.io/project-osrm/osrm-backend
+          docker run --rm -v "$PWD:/data" $IMG osrm-extract -p /opt/foot.lua /data/region.osm.pbf
+          docker run --rm -v "$PWD:/data" $IMG osrm-partition /data/region.osrm
+          docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/region.osrm
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" $IMG \
+            osrm-routed --algorithm mld --max-table-size 1000 /data/region.osrm
+          echo "waiting for server…"
+          for i in $(seq 1 30); do
+            if curl -fs "http://localhost:5000/route/v1/foot/34.78,32.07;34.79,32.08?overview=false" >/dev/null; then
+              echo "server up"; break; fi
+            sleep 2
+          done
+          curl -s "http://localhost:5000/route/v1/foot/34.78,32.07;34.79,32.08?overview=false" | head -c 200; echo
+
+      - name: Compute real walking times into next-station/data.json
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, urllib.request, time
+          d=json.load(open('next-station/data.json'))
+          base='http://localhost:5000/table/v1/foot/'
+          enriched=0; failed=0
+          for s in d['stops']:
+            ps=[p for p in s.get('p',[]) if p.get('la') is not None]
+            if not ps or s.get('la') is None: continue
+            coords="%s,%s;" % (s['lo'],s['la']) + ";".join("%s,%s"%(p['lo'],p['la']) for p in ps)
+            url=base+coords+"?sources=0&annotations=duration,distance"
+            try:
+              with urllib.request.urlopen(url, timeout=15) as r:
+                j=json.load(r)
+              dur=j['durations'][0]; dis=(j.get('distances') or [[None]*(len(ps)+1)])[0]
+              k=1
+              for p in s['p']:
+                if p.get('la') is None: continue
+                sec=dur[k]; dm=dis[k] if k<len(dis) else None
+                if sec is not None:
+                  p['rt']={'min':max(1,round(sec/60)),'d':round(dm) if dm is not None else None}
+                k+=1
+              enriched+=1
+            except Exception:
+              failed+=1
+          json.dump(d, open('next-station/data.json','w'), ensure_ascii=False, separators=(',',':'))
+          print('stops enriched:',enriched,'| failed:',failed)
+          PY
+          ls -la next-station/data.json
+
+      - name: Push enriched data.json to walk-times-data branch
+        run: |
+          set -euo pipefail
+          docker rm -f osrm || true
+          cp next-station/data.json /tmp/data.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan walk-times-data
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          mkdir -p next-station
+          cp /tmp/data.json next-station/data.json
+          git add -A
+          git commit -m "data.json with real walking times (OSRM foot)"
+          git push -f origin walk-times-data

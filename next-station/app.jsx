@@ -43,7 +43,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
         <div className="d-poi">
           <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
           {s.p.map((x, i) => {
-            const rt = times && times[i];
+            const rt = (times && times[i]) || x.rt; // חי בבחירה > צרוב מראש > הערכה
             return (
               <div className="d-poi-row" key={i}>
                 <span className="d-poi-n">{POI_ICON[x.k] || "•"} {x.n}</span>
