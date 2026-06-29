@@ -1,13 +1,15 @@
 name: build-newlines
 
-# בונה את שכבת "תכנון קווים חדשים" למתכנן הרפורמה:
+# בונה את שכבת "תכנון קווים חדשים" למתכנן הרפורמה (חודשי):
 #  1. מושך קואורדינטות תחנות מ-GTFS (stop_code -> lat/lon).
-#  2. מושך את שכבת האזורים הסטטיסטיים של למ"ס (מרכז + אוכלוסייה) דרך data.gov.il.
-#  3. מחשב פערי כיסוי משוקללי-אוכלוסייה (כמה אנשים רחוקים מתחנה) + מועמדי קו חדש
-#     (מרכז אזור תת-משורת -> ה-hub הקרוב). שום ביקוש מוצא-יעד לא מומצא — הכל מסומן כטיוטה.
-# דוחף דוח + planner-newlines.json לענף newlines-out לבדיקה לפני חיווט ה-UI.
+#  2. לכל עיר: מאתר חורי-כיסוי פנימיים (נקודה 350-1100 מ׳ מתחנה אך מוקפת ב>=8 תחנות ברדיוס
+#     1.2 ק"מ) ומסדרונות מועמדים לקו חדש -> ה-hub הקרוב. גאומטריה בלבד, בלי ביקוש מוצא-יעד.
+#  3. אוכלוסיית למ"ס נמשכת best-effort כשכבת-העשרה (כרגע הקובץ מוגש כדף HTML — ממתין).
+# מקבע את planner/planner-newlines.json ל-main (אם השתנה) + דוח אבחון לענף newlines-out.
 
 on:
+  schedule:
+    - cron: '0 3 5 * *'   # ה-5 בכל חודש 03:00 UTC — רענון שכבת הכיסוי/קווים חדשים
   push:
     paths:
       - '.github/workflows/build-newlines.yml'
@@ -278,14 +280,25 @@ jobs:
           PY
           ls -la planner-newlines.json newlines-report.txt 2>/dev/null || true
 
-      - name: Push results
+      - name: Commit fresh layer to main + debug report to branch
         run: |
           set -euo pipefail
           cp newlines-report.txt /tmp/r.txt 2>/dev/null || echo "no report">/tmp/r.txt
           cp planner-newlines.json /tmp/n.json 2>/dev/null || echo '{}'>/tmp/n.json
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # 1) commit the refreshed layer into planner/ on main (only if it changed)
+          git fetch origin main; git checkout main; git reset --hard origin/main
+          mkdir -p planner; cp /tmp/n.json planner/planner-newlines.json
+          if ! git diff --quiet -- planner/planner-newlines.json; then
+            git add planner/planner-newlines.json
+            git commit -m "data: refresh new-line coverage layer (planner-newlines.json)"
+            for n in 1 2 3 4; do git push origin main && break || sleep $((n*2)); done
+          else
+            echo "no change in planner-newlines.json — skipping commit"
+          fi
+          # 2) keep the discovery report on a debug branch
           git checkout --orphan nl-out; git reset
           find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
           cp /tmp/r.txt newlines-report.txt; cp /tmp/n.json planner-newlines.json
-          git add -A; git commit -m "new-line layer: per-city geometry coverage gaps + candidate corridors (CBS pop best-effort)"
+          git add -A; git commit -m "new-line layer debug report"
           git push -f origin nl-out:newlines-out
