@@ -26,7 +26,7 @@
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29e";
+const BUILD = "2026-06-29f";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -73,6 +73,14 @@ const VERDICT_COLOR = {
 };
 // distinct colours so each candidate corridor is visually separable on the map
 const ROUTE_PAL = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#14b8a6", "#eab308", "#f97316", "#06b6d4", "#8b5cf6", "#84cc16"];
+// service pattern from avg stop spacing, per MOT 2016 ranges (urban 250–500m; arterial/BRT 500–800m)
+function spacingPattern(sp) {
+  if (sp == null) return null;
+  if (sp < 250) return { t: "מאסף צפוף", c: "#60a5fa" };
+  if (sp <= 500) return { t: "עירוני תקני", c: "#4ade80" };
+  if (sp <= 800) return { t: "עורקי/מהיר", c: "#fbbf24" };
+  return { t: "ישיר/בינעירוני", c: "#f472b6" };
+}
 
 // ---------- tiny UI atoms ----------
 function Stat({ label, value, color, sub }) {
@@ -143,6 +151,12 @@ function App() {
   const families = useMemo(() => {
     if (!C || !data) return [];
     const ss = data.stopSets;
+    // makat -> route distance + efficiency group, for the direct-vs-local guard
+    const mkInfo = {};
+    for (const l of lines) {
+      if (!mkInfo[l.mk]) mkInfo[l.mk] = { dist: l.dist || 0, eg: l.eg };
+      else if ((l.dist || 0) > mkInfo[l.mk].dist) mkInfo[l.mk].dist = l.dist;
+    }
     const adj = {};
     for (const [a, b, v] of C.edges) { adj[a + "|" + b] = v; adj[b + "|" + a] = v; }
     const byLt = {};
@@ -156,12 +170,20 @@ function App() {
       for (const clq of cliqueCover([...byLt[lt]], adj, tau)) {
         if (clq.length < 2) continue;
         const mem = clq.map((mk) => ({ mk, ...C.makats[mk], stops: (ss[mk] || []).length }));
-        // within-family unique stops (from stop sets, NOT col14)
+        // within-family unique stops (from stop sets, NOT col14) + directness (avg stop spacing)
         for (const m of mem) {
           const others = new Set();
           for (const o of mem) if (o.mk !== m.mk) for (const s of (ss[o.mk] || [])) others.add(s);
           m.uniq = (ss[m.mk] || []).filter((s) => !others.has(s)).length;
+          const info = mkInfo[m.mk];
+          m.spacing = info && info.dist && m.stops ? Math.round(info.dist * 1000 / m.stops) : null;
+          m.eg = info ? info.eg : null;
         }
+        // direct-vs-local guard: same stops can hide an express line and a stopping line —
+        // merging them would scrap the faster service (MOT travel-time standard)
+        const sps = mem.map((m) => m.spacing).filter((x) => x);
+        const spacingMismatch = sps.length >= 2 && Math.max(...sps) / Math.min(...sps) >= 1.6;
+        const egMixed = new Set(mem.map((m) => m.eg).filter(Boolean)).size > 1;
         // pair overlaps + min
         let mn = 1; const pairs = [];
         for (let i = 0; i < clq.length; i++) for (let j = i + 1; j < clq.length; j++) {
@@ -173,6 +195,12 @@ function App() {
         const maxCov = mem.reduce((p, c) => c.stops > p.stops ? c : p, mem[0]);
         if (maxCov.mk !== ranked[0].mk) keeps.push(maxCov.mk); // never fold higher-coverage into lower
         if (mem.length >= 5 && keeps.length < 2) keeps.push(ranked[1].mk);
+        // if the family mixes service types, also KEEP the most-direct line so a merge never
+        // silently scraps the faster/express service (MOT travel-time goal)
+        if (spacingMismatch) {
+          const direct = mem.reduce((p, c) => (c.spacing || 0) > (p.spacing || 0) ? c : p, mem[0]);
+          if (!keeps.includes(direct.mk)) keeps.push(direct.mk);
+        }
         const keepSet = new Set(keeps);
         const keepStops = new Set(); for (const k of keeps) for (const s of (ss[k] || [])) keepStops.add(s);
         const folds = mem.filter((m) => !keepSet.has(m.mk)).map((m) => {
@@ -181,7 +209,7 @@ function App() {
           for (const k of keeps) { const v = adj[m.mk + "|" + k] || 0; if (v > bestv) { bestv = v; into = k; } }
           return { mk: m.mk, ln: m.ln, into, intoLn: C.makats[into]?.ln, lost: lost.length, trips: m.trips, wkm: m.wkm };
         });
-        fams.push({ lt, mem, pairs, min: mn, keeps, keepSet, folds, foldKm: folds.reduce((s, f) => s + f.wkm, 0), foldTrips: folds.reduce((s, f) => s + f.trips, 0), lostStops: folds.reduce((s, f) => s + f.lost, 0) });
+        fams.push({ lt, mem, pairs, min: mn, keeps, keepSet, folds, spacingMismatch, egMixed, spMin: sps.length ? Math.min(...sps) : null, spMax: sps.length ? Math.max(...sps) : null, foldKm: folds.reduce((s, f) => s + f.wkm, 0), foldTrips: folds.reduce((s, f) => s + f.trips, 0), lostStops: folds.reduce((s, f) => s + f.lost, 0) });
       }
     }
     fams.sort((a, b) => b.mem.length - a.mem.length || b.foldKm - a.foldKm);
@@ -380,6 +408,11 @@ function Family({ fam, tau, ss, scenario, toggle, conflict, mergeChange }) {
             className={cls("text-xs font-bold rounded-lg px-3 py-1.5", on ? "bg-emerald-600 text-white" : conflict(ch) ? "bg-slate-700 text-slate-500" : "bg-slate-700 hover:bg-slate-600 text-slate-200")}>
             {on ? "✓ בתרחיש" : conflict(ch) ? "מתנגש" : "הוסף לתרחיש"}</button>}
       </div>
+      {(fam.spacingMismatch || fam.egMixed) && (
+        <div className="text-[11.5px] text-amber-200 bg-amber-950/50 border border-amber-700 rounded px-2 py-1.5 mt-1.5 leading-relaxed">
+          ⚠ <b>סוגי שירות שונים במשפחה</b>{fam.spMin && fam.spMax ? ` (מרווח תחנות ${fam.spMin}–${fam.spMax} מ׳)` : ""} — ייתכן שקו אחד <b>ישיר/מהיר</b> והשני <b>מאסף/מקומי</b>. חפיפת תחנות ≠ חפיפת שירות: מיזוג עלול לבטל את השירות המהיר ולפגוע בזמני הנסיעה (הנחיות משרד התחבורה). בדיקה ידנית לפני מיזוג.
+        </div>
+      )}
       {/* heatmap */}
       <div className="my-2 inline-block">
         <table className="border-collapse">
@@ -413,6 +446,7 @@ function Family({ fam, tau, ss, scenario, toggle, conflict, mergeChange }) {
               {keep ? <span className="text-emerald-400 font-bold">★ נשאר</span>
                 : <span className="text-slate-400">↳ קפל לקו {fold?.intoLn}</span>}
               <span className="text-slate-400">{m.stops} תח׳</span>
+              {m.spacing && (() => { const pt = spacingPattern(m.spacing); return <span className="font-bold" style={{ color: pt.c }} title="מרווח ממוצע בין תחנות → סוג שירות">{m.spacing}מ׳ {pt.t}</span>; })()}
               <span className="text-slate-500">· {nf(m.trips)} נסיעות</span>
               <span className="text-slate-500">· ₪{nf(m.cpp, 1)}/נוסע</span>
               {m.uniq > 0 && <span className="text-amber-400" title="תחנות שאף קו אחר במשפחה לא משרת">ייחודי: {m.uniq} תח׳</span>}
