@@ -26,7 +26,7 @@
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29d";
+const BUILD = "2026-06-29e";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -549,7 +549,10 @@ function NewLines({ nl, err, city }) {
   const mapRef = useRef(null);
   const elRef = useRef(null);
   const [sel, setSel] = useState(null);
+  const [minHomes, setMinHomes] = useState(40);
   const C = nl && nl.cities ? nl.cities[city] : null;
+  // only candidates serving at least `minHomes` residential buildings — a line for 3 houses is noise
+  const stubs = C ? C.stubs.filter((s) => s.homes == null || s.homes >= minHomes) : [];
 
   useEffect(() => {
     if (!nl || !elRef.current || !window.L) return;
@@ -560,9 +563,7 @@ function NewLines({ nl, err, city }) {
     const pts = [];
     if (C) {
       // each candidate corridor gets its own colour: route polyline + origin + hub all match.
-      // (the raw gap-cell dots are intentionally not drawn — they are grid noise; the routes
-      //  are the actionable output. Real neighbourhood placement awaits the CBS layer.)
-      C.stubs.forEach((s, i) => {
+      stubs.forEach((s, i) => {
         const col = ROUTE_PAL[i % ROUTE_PAL.length];
         const km = s.roadKm != null ? s.roadKm : s.km;
         const line = s.path && s.path.length > 1 ? s.path : [[s.lat, s.lon], [s.hubLat, s.hubLon]];
@@ -582,7 +583,7 @@ function NewLines({ nl, err, city }) {
     }
     setTimeout(() => m.invalidateSize(), 100);
     return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
-  }, [nl, city]);
+  }, [nl, city, minHomes]);
 
   if (err) return <div className="text-amber-300 text-sm p-2">שכבת הקווים החדשים עדיין לא זמינה ({err}). היא נבנית ב-GitHub Action (נדרשות קואורדינטות GTFS) ותופיע לאחר ההרצה.</div>;
   if (!nl) return <div className="text-slate-400 text-sm p-2">טוען שכבת כיסוי…</div>;
@@ -595,18 +596,27 @@ function NewLines({ nl, err, city }) {
       </div>
       {!C && <div className="text-slate-400 text-sm mb-2">אין נתוני כיסוי לעיר {city} (מעט תחנות או ללא פערים). מוצגים קווי-העל הארציים.</div>}
       {C && (
-        <div className="flex gap-2 flex-wrap mb-2">
-          <Stat label="פערי כיסוי בעיר" value={nf(C.gaps.length)} color="#fbbf24" />
+        <div className="flex gap-2 flex-wrap mb-2 items-stretch">
+          <Stat label="מועמדים לקו חדש" value={nf(stubs.length)} color={stubs.length ? "#f87171" : "#4ade80"} sub={`מתוך ${C.stubs.length} שזוהו`} />
           <Stat label="מרחק הליכה מקסימלי לתחנה" value={nf(C.maxGapM) + " מ׳"} />
-          <Stat label="מועמדים לקו חדש" value={nf(C.stubs.length)} color="#f87171" />
           <Stat label="תחנות בעיר" value={nf(C.stopCount)} />
+          <div className="bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2 flex flex-col justify-center" style={{ minWidth: "200px", flex: 1 }}>
+            <div className="text-[12px] text-slate-300 font-bold mb-1">מינימום מבני מגורים: <span className="font-mono text-emerald-300">{minHomes}</span></div>
+            <input type="range" min="0" max="150" step="5" value={minHomes} onChange={(e) => setMinHomes(+e.target.value)} className="w-full" />
+            <div className="text-[10.5px] text-slate-500 mt-0.5">סנן מועמדים זניחים (קו לא נבנה בשביל 3 בתים)</div>
+          </div>
+        </div>
+      )}
+      {C && stubs.length === 0 && (
+        <div className="bg-emerald-950/40 border border-emerald-800 rounded-lg px-3 py-2 text-[12.5px] text-emerald-200 mb-2">
+          ✓ אין מועמד לקו חדש מעל הסף ({minHomes} מבני מגורים) ב{city}. למעשה זו תוצאה תקינה — רוב הערים בישראל מכוסות היטב באוטובוסים, ופערי הכיסוי המשמעותיים מעטים. הורד את הסף כדי לראות גם מועמדים קטנים יותר.
         </div>
       )}
       <div ref={elRef} style={{ height: "52vh", minHeight: "320px", borderRadius: "12px", overflow: "hidden", border: "1px solid #334155" }} />
-      {C && C.stubs.length > 0 && (
+      {C && stubs.length > 0 && (
         <div className="mt-2 space-y-1">
           <div className="text-[12px] text-slate-400 font-bold">מועמדים לקו חדש — מדורגים לפי מבני מגורים (לחיצה תמרכז במפה):</div>
-          {C.stubs.map((s, i) => (
+          {stubs.map((s, i) => (
             <div key={i} onClick={() => mapRef.current && mapRef.current.setView([s.lat, s.lon], 14)}
               className="flex items-center gap-2 text-[12px] bg-slate-800/60 rounded-lg px-2 py-1 cursor-pointer hover:bg-slate-700/60">
               <span className="font-black text-white rounded-full w-5 h-5 flex items-center justify-center" style={{ background: ROUTE_PAL[i % ROUTE_PAL.length], fontSize: "11px" }}>{i + 1}</span>
