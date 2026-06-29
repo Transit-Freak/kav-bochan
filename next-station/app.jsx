@@ -57,6 +57,7 @@ function App() {
   const [cat, setCat] = useState("all");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
+  const [activeOnly, setActiveOnly] = useState(false);
   const mapRef = useRef(null);
   const markRef = useRef(null);
 
@@ -89,15 +90,23 @@ function App() {
       .openPopup();
   }, [sel]);
 
+  // סדר חומרה לקטגוריות — "ספק" תמיד אחרון
+  const RANK = { mismatch: 0, reversal: 1, spelling: 2, uncertain: 3 };
+
   const filtered = useMemo(() => {
     if (!data) return [];
     const qn = q.trim();
-    return data.stops.filter(
-      (s) =>
-        (cat === "all" || s.k === cat) &&
-        (!qn || (s.t && s.t.indexOf(qn) >= 0) || s.n.indexOf(qn) >= 0 || s.c.indexOf(qn) >= 0 || s.s.indexOf(qn) >= 0)
-    );
-  }, [data, cat, q]);
+    return data.stops
+      .filter(
+        (s) =>
+          (cat === "all" || s.k === cat) &&
+          (!activeOnly || s.act !== false) &&
+          (!qn || (s.t && s.t.indexOf(qn) >= 0) || s.n.indexOf(qn) >= 0 || s.c.indexOf(qn) >= 0 || s.s.indexOf(qn) >= 0)
+      )
+      .sort((a, b) => (RANK[a.k] - RANK[b.k]) || (Number(a.c) - Number(b.c)));
+  }, [data, cat, q, activeOnly]);
+
+  const hasActiveInfo = !!(data && data.stops.some((s) => s.act === false));
 
   if (!data) return <div className="boot">טוען נתונים…</div>;
   const CAP = 600;
@@ -143,6 +152,12 @@ function App() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          {hasActiveInfo && (
+            <label className="toggle">
+              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
+              <span>הסתר תחנות לא פעילות (שאינן בקו פעיל)</span>
+            </label>
+          )}
           <div className="count">
             מציג {shown.length.toLocaleString()} מתוך {filtered.length.toLocaleString()}
             {filtered.length > CAP ? " — צמצמו בחיפוש כדי לראות את השאר" : ""}
