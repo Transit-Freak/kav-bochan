@@ -1,0 +1,217 @@
+name: build-newlines
+
+# בונה את שכבת "תכנון קווים חדשים" למתכנן הרפורמה:
+#  1. מושך קואורדינטות תחנות מ-GTFS (stop_code -> lat/lon).
+#  2. מושך את שכבת האזורים הסטטיסטיים של למ"ס (מרכז + אוכלוסייה) דרך data.gov.il.
+#  3. מחשב פערי כיסוי משוקללי-אוכלוסייה (כמה אנשים רחוקים מתחנה) + מועמדי קו חדש
+#     (מרכז אזור תת-משורת -> ה-hub הקרוב). שום ביקוש מוצא-יעד לא מומצא — הכל מסומן כטיוטה.
+# דוחף דוח + planner-newlines.json לענף newlines-out לבדיקה לפני חיווט ה-UI.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-newlines.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-newlines
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install geo libs
+        run: pip install --quiet pyshp pyproj
+
+      - name: Fetch GTFS stop coordinates
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+          URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          curl -fSL --connect-timeout 30 --max-time 900 --retry 3 --retry-delay 10 -A "$UA" -o gtfs.zip "$URL"
+          unzip -o gtfs.zip stops.txt
+          wc -l stops.txt
+
+      - name: Discover + compute new-line layer
+        run: |
+          set +e
+          python3 - <<'PY'
+          import json, csv, io, os, zipfile, urllib.request, urllib.parse, math, struct
+          out=[]
+          def log(s): print(s); out.append(str(s))
+          UA="Mozilla/5.0"
+          def get(url, timeout=120):
+              req=urllib.request.Request(url, headers={"user-agent":UA,"accept":"*/*"})
+              return urllib.request.urlopen(req, timeout=timeout)
+
+          # ---------- 1. GTFS stop coords (stop_code -> lat/lon) ----------
+          coord={}
+          rows=list(csv.reader(open("stops.txt", encoding="utf-8-sig")))
+          h={c:i for i,c in enumerate(rows[0])}
+          sc,la,lo=h["stop_code"],h["stop_lat"],h["stop_lon"]
+          for r in rows[1:]:
+              try: coord[r[sc].strip()]=(float(r[la]),float(r[lo]))
+              except: pass
+          log("GTFS stop coords: %d"%len(coord))
+
+          # ---------- 2. data-stops -> linesPerStop + city (hubs) ----------
+          ds=json.load(open("data-stops.json"))
+          from collections import defaultdict
+          lines_per=defaultdict(set); city_of={}
+          for makat,sid,city,name in ds:
+              lines_per[sid].add(makat); city_of[sid]=city
+          stops=[]
+          for sid,mks in lines_per.items():
+              if sid in coord:
+                  lat,lon=coord[sid]; stops.append((sid,lat,lon,len(mks),city_of.get(sid,"")))
+          log("stops with coords + line counts: %d"%len(stops))
+          lp_sorted=sorted((s[3] for s in stops))
+          med_lp=lp_sorted[len(lp_sorted)//2] if lp_sorted else 0
+          hub_cut=lp_sorted[int(len(lp_sorted)*0.99)] if lp_sorted else 0
+          hubs=[s for s in stops if s[3]>=max(hub_cut,20)]
+          hubs.sort(key=lambda s:-s[3])
+          log("median linesPerStop=%d ; hub cutoff(>=p99 & >=20)=%d ; hubs=%d"%(med_lp,max(hub_cut,20),len(hubs)))
+          log("top hubs: %s"%[(s[0],s[3],s[4]) for s in hubs[:6]])
+
+          # spatial grid over stops for fast nearest-stop queries (~0.01deg ~ 1.1km cells)
+          CELL=0.01
+          grid=defaultdict(list)
+          for sid,lat,lon,n,c in stops:
+              grid[(round(lat/CELL),round(lon/CELL))].append((lat,lon))
+          def hav(a,b,c,d):
+              R=6371000; p=math.pi/180
+              dla=(c-a)*p; dlo=(d-b)*p
+              x=math.sin(dla/2)**2+math.cos(a*p)*math.cos(c*p)*math.sin(dlo/2)**2
+              return 2*R*math.asin(min(1,math.sqrt(x)))
+          def nearest_stop(lat,lon):
+              gi,gj=round(lat/CELL),round(lon/CELL); best=1e12
+              for di in range(-2,3):
+                  for dj in range(-2,3):
+                      for (sla,slo) in grid.get((gi+di,gj+dj),()):
+                          d=hav(lat,lon,sla,slo)
+                          if d<best: best=d
+              return best
+          def nearest_hub(lat,lon):
+              best=None; bd=1e12
+              for sid,hla,hlo,n,c in hubs:
+                  d=hav(lat,lon,hla,hlo)
+                  if d<bd: bd=d; best=(sid,hla,hlo,n,c,d)
+              return best
+
+          # ---------- 3. CBS statistical areas (centroid + population) ----------
+          log("\n==== locate CBS statistical-area resource ====")
+          PKG="https://data.gov.il/api/3/action/package_show?id=statistical-area-2008"
+          zurl=None
+          try:
+              j=json.load(get(PKG))
+              for rr in j["result"]["resources"]:
+                  log("  RES %s [%s] %s"%(rr.get("name","")[:40],rr.get("format"),rr.get("url","")[:90]))
+                  if (rr.get("format","").lower() in ("zip","shp","shapefile")) or rr.get("url","").lower().endswith(".zip"):
+                      zurl=zurl or rr.get("url")
+          except Exception as e:
+              log("package_show failed: %r"%e)
+          # fallback: direct datastore download by known resource id (statistical-area-2008)
+          if not zurl:
+              zurl="https://data.gov.il/dataset/statistical-area-2008/resource/3b88cb58-62cd-43ea-9156-7b81ead557b1/download"
+          log("zip url: %s"%zurl)
+
+          stat=[]   # (code, lat, lon, population)
+          try:
+              data=get(zurl, timeout=180).read()
+              log("downloaded zip: %d bytes"%len(data))
+              zf=zipfile.ZipFile(io.BytesIO(data))
+              names=zf.namelist(); log("zip members: %s"%names[:12])
+              shp=[n for n in names if n.lower().endswith(".shp")]
+              prj=[n for n in names if n.lower().endswith(".prj")]
+              if prj: log("PRJ: %s"%zf.read(prj[0]).decode("latin-1")[:200])
+              import shapefile  # pyshp
+              # write members to /tmp so pyshp can open the set
+              base=shp[0][:-4]
+              tmp="/tmp/sa"
+              os.makedirs(tmp,exist_ok=True)
+              for ext in (".shp",".dbf",".shx"):
+                  m=[n for n in names if n.lower()==base.lower()+ext]
+                  if m: open(os.path.join(tmp,"sa"+ext),"wb").write(zf.read(m[0]))
+              sf=shapefile.Reader(os.path.join(tmp,"sa"))
+              flds=[f[0] for f in sf.fields[1:]]
+              log("DBF fields: %s"%flds)
+              from pyproj import Transformer
+              tf=Transformer.from_crs("EPSG:2039","EPSG:4326",always_xy=True)
+              # guess population + code fields
+              popf=next((f for f in flds if f.upper() in ("POP_TOTAL","POP","POPULATION","TOSHAVIM","SUM_POP","T_POP")), None)
+              codef=next((f for f in flds if "STAT" in f.upper() or "SHEET" in f.upper() or f.upper() in ("YISHUV_STA","STAT08","STATAREA")), None)
+              log("pop field guess: %s ; code field guess: %s"%(popf,codef))
+              rec0=sf.record(0).as_dict() if sf.numRecords else {}
+              log("sample record: %s"%json.dumps({k:str(v)[:18] for k,v in list(rec0.items())[:10]}, ensure_ascii=False))
+              cnt=0
+              for sr in sf.iterShapeRecords():
+                  pts=sr.shape.points
+                  if not pts: continue
+                  cx=sum(p[0] for p in pts)/len(pts); cy=sum(p[1] for p in pts)/len(pts)
+                  lon,lat=tf.transform(cx,cy)
+                  if not (29<lat<34 and 34<lon<36): continue
+                  rec=sr.record.as_dict()
+                  pop=0
+                  if popf:
+                      try: pop=int(float(rec.get(popf) or 0))
+                      except: pop=0
+                  code=str(rec.get(codef)) if codef else str(cnt)
+                  stat.append((code,round(lat,5),round(lon,5),pop)); cnt+=1
+              log("statistical-area centroids in Israel bbox: %d ; with pop>0: %d ; total pop: %s"%(
+                  len(stat), sum(1 for s in stat if s[3]>0), f"{sum(s[3] for s in stat):,}"))
+              log("centroid sample: %s"%stat[:3])
+          except Exception as e:
+              import traceback; log("CBS parse failed: %r"%e); log(traceback.format_exc()[:800])
+
+          # ---------- 4. coverage gaps + candidate stubs ----------
+          result={"generatedAt":None,"stopsWithCoords":len(stops),"hubs":[
+                    {"sid":s[0],"lat":round(s[1],5),"lon":round(s[2],5),"lines":s[3],"city":s[4]} for s in hubs[:120]],
+                  "statAreas":[],"stubs":[],"notes":"draft — geometry+population only, no OD demand"}
+          if stat:
+              areas=[]
+              for code,lat,lon,pop in stat:
+                  nd=nearest_stop(lat,lon)
+                  areas.append({"code":code,"lat":lat,"lon":lon,"pop":pop,"nearM":round(nd)})
+              areas.sort(key=lambda a:-(a["pop"]*(1 if a["nearM"]>400 else 0)))
+              result["statAreas"]=areas
+              # underserved = far from any stop AND has people; build candidate stub to nearest hub
+              under=[a for a in areas if a["nearM"]>400 and a["pop"]>=200]
+              under.sort(key=lambda a:-(a["pop"]*a["nearM"]))
+              for a in under[:60]:
+                  nh=nearest_hub(a["lat"],a["lon"])
+                  if not nh: continue
+                  result["stubs"].append({"lat":a["lat"],"lon":a["lon"],"pop":a["pop"],"nearM":a["nearM"],
+                      "hubSid":nh[0],"hubLat":round(nh[1],5),"hubLon":round(nh[2],5),"hubLines":nh[3],
+                      "hubCity":nh[4],"km":round(nh[5]/1000,1)})
+              log("\nunderserved areas (>400m, pop>=200): %d ; candidate stubs: %d"%(len(under),len(result["stubs"])))
+              cov={"u400":sum(a["pop"] for a in areas if a["nearM"]>400),
+                   "u800":sum(a["pop"] for a in areas if a["nearM"]>800),
+                   "totalPop":sum(a["pop"] for a in areas)}
+              result["coverage"]=cov
+              log("population >400m from any stop: %s ; >800m: %s ; total: %s"%(
+                  f"{cov['u400']:,}",f"{cov['u800']:,}",f"{cov['totalPop']:,}"))
+
+          json.dump(result, open("planner-newlines.json","w"), ensure_ascii=False, separators=(",",":"))
+          log("\nwrote planner-newlines.json (%.0f KB)"%(os.path.getsize('planner-newlines.json')/1024))
+          open("newlines-report.txt","w",encoding="utf-8").write("\n".join(out))
+          PY
+          ls -la planner-newlines.json newlines-report.txt 2>/dev/null || true
+
+      - name: Push results
+        run: |
+          set -euo pipefail
+          cp newlines-report.txt /tmp/r.txt 2>/dev/null || echo "no report">/tmp/r.txt
+          cp planner-newlines.json /tmp/n.json 2>/dev/null || echo '{}'>/tmp/n.json
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan nl-out; git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/r.txt newlines-report.txt; cp /tmp/n.json planner-newlines.json
+          git add -A; git commit -m "new-line layer: GTFS coords + CBS statistical-area gaps + candidate stubs"
+          git push -f origin nl-out:newlines-out
