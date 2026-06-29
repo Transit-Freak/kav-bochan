@@ -43,7 +43,9 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
         <div className="d-poi">
           <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
           {s.p.map((x, i) => {
-            const rt = (times && times[i]) || x.rt; // חי בבחירה > צרוב מראש > הערכה
+            let rt = (times && times[i]) || x.rt; // חי בבחירה > צרוב מראש > הערכה
+            // אם המסלול ארוך בצורה לא-סבירה מהמרחק האווירי (מחסום/חוסר שביל ב-OSM) — חזרה להערכה
+            if (rt && rt.d != null && rt.d > 4 * x.d + 300) rt = null;
             return (
               <div className="d-poi-row" key={i}>
                 <span className="d-poi-n">{POI_ICON[x.k] || "•"} {x.n}</span>
