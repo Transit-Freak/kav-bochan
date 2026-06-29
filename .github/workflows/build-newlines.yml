@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install geo libs
-        run: pip install --quiet pyshp pyproj py7zr osmium scipy
+        run: pip install --quiet pyshp pyproj py7zr osmium scipy shapely
 
       - name: Fetch GTFS stop coordinates
         run: |
@@ -142,6 +142,57 @@ jobs:
                   if d<bd: bd=d; best=(sid,hla,hlo,n,c,d)
               return best
 
+          # ---------- 2b. OSM residential geometry: keep candidates ONLY inside neighbourhoods ----------
+          # landuse=residential polygons mark where homes are (vs industry/commerce/fields/roads), and
+          # building centroids are where to place a point. A candidate is kept only if it falls inside
+          # residential land, then snapped onto the nearest building — this is what stops points landing
+          # on random non-residential spots. Best-effort: if OSM is missing, the filter is simply off.
+          tree=None; B_lat=B_lon=None; res_tree=None; res_polys=None; cosf=math.cos(31.5*math.pi/180)
+          try:
+              if os.path.exists("region.osm.pbf"):
+                  import osmium, numpy as np
+                  from scipy.spatial import cKDTree
+                  from shapely.geometry import Polygon, Point
+                  from shapely.strtree import STRtree
+                  class OH(osmium.SimpleHandler):
+                      def __init__(s): osmium.SimpleHandler.__init__(s); s.bla=[]; s.blo=[]; s.polys=[]
+                      def way(s,w):
+                          t=w.tags
+                          if 'building' in t:
+                              xs=[]; ys=[]
+                              for n in w.nodes:
+                                  if n.location.valid(): xs.append(n.location.lat); ys.append(n.location.lon)
+                              if xs: s.bla.append(sum(xs)/len(xs)); s.blo.append(sum(ys)/len(ys))
+                          if t.get('landuse')=='residential' and w.is_closed():
+                              pp=[(n.location.lon,n.location.lat) for n in w.nodes if n.location.valid()]
+                              if len(pp)>=4:
+                                  try: s.polys.append(Polygon(pp))
+                                  except Exception: pass
+                  oh=OH(); oh.apply_file("region.osm.pbf", locations=True)
+                  if oh.bla:
+                      B_lat=np.array(oh.bla); B_lon=np.array(oh.blo)
+                      tree=cKDTree(np.column_stack([B_lat, B_lon*cosf]))
+                  res_polys=oh.polys
+                  if res_polys: res_tree=STRtree(res_polys)
+                  log("buildings indexed: %d ; residential-landuse polygons: %d"%(len(oh.bla),len(res_polys)))
+          except Exception as e:
+              import traceback; log("OSM residential index failed (filter off): %r"%e); log(traceback.format_exc()[:400])
+
+          def is_residential(lat,lon):
+              if res_tree is None: return True   # no OSM data -> do not filter (fallback)
+              from shapely.geometry import Point
+              p=Point(lon,lat)
+              try: cand=res_tree.query(p)
+              except Exception: return True
+              for x in cand:
+                  poly = x if hasattr(x,"contains") else res_polys[int(x)]
+                  if poly.contains(p): return True
+              return False
+          def snap(lat,lon,maxm=200):
+              if tree is None: return None
+              d,i=tree.query([lat,lon*cosf]); dm=d*111320
+              return (round(float(B_lat[i]),5),round(float(B_lon[i]),5)) if dm<=maxm else None
+
           # ---------- 3. per-city coverage gaps + candidate corridor stubs ----------
           # PRIMARY (reliable, geometry only): for each city, find spots INSIDE the urban
           # stop-cloud that are far from any stop (a local coverage gap, not empty desert),
@@ -172,10 +223,10 @@ jobs:
                   lo=lo0
                   while lo<=lo1:
                       d,dens=probe(la,lo)
-                      # interior urban hole: far from the nearest stop, yet embedded in the
-                      # stop cloud (>=8 stops within 1.2km). This rejects rural/edge cells where
-                      # everything is "far" — without population that is the only honest guard.
-                      if GAP_MIN<d<GAP_MAX and dens>=8:
+                      # interior urban hole: far from the nearest stop, embedded in the stop cloud
+                      # (>=8 stops within 1.2km), AND inside an OSM residential neighbourhood — so we
+                      # never flag industry/commerce/parks/roads/fields as a "gap".
+                      if GAP_MIN<d<GAP_MAX and dens>=8 and is_residential(la,lo):
                           gaps.append((round(la,5),round(lo,5),round(d)))
                       lo+=stepLon
                   la+=STEP
@@ -205,35 +256,9 @@ jobs:
           top=sorted(cities_out.items(), key=lambda kv:-len(kv[1]["stubs"]))[:6]
           log("top cities by corridors: %s"%[(c,len(v["stubs"]),v["maxGapM"]) for c,v in top])
 
-          # ---------- 3b. snap points onto buildings + route corridors along roads ----------
-          # Fixes two map problems: (1) blind-grid points landing on roads/open land -> snap each
-          # to the nearest OSM building (drop if none within 200m = it was on a road/field);
-          # (2) straight diagonal corridors -> route origin->hub on the road network via OSRM (car).
-          tree=None; B_lat=B_lon=None; cosf=math.cos(31.5*math.pi/180)
-          try:
-              if os.path.exists("region.osm.pbf"):
-                  import osmium, numpy as np
-                  from scipy.spatial import cKDTree
-                  class BH(osmium.SimpleHandler):
-                      def __init__(s): osmium.SimpleHandler.__init__(s); s.la=[]; s.lo=[]
-                      def way(s,w):
-                          if 'building' in w.tags:
-                              xs=[]; ys=[]
-                              for n in w.nodes:
-                                  if n.location.valid(): xs.append(n.location.lat); ys.append(n.location.lon)
-                              if xs: s.la.append(sum(xs)/len(xs)); s.lo.append(sum(ys)/len(ys))
-                  bh=BH(); bh.apply_file("region.osm.pbf", locations=True)
-                  B_lat=np.array(bh.la); B_lon=np.array(bh.lo)
-                  tree=cKDTree(np.column_stack([B_lat, B_lon*cosf]))
-                  log("building centroids indexed: %d"%len(B_lat))
-          except Exception as e:
-              import traceback; log("building index failed (snap skipped): %r"%e); log(traceback.format_exc()[:400])
-
-          def snap(lat,lon,maxm=200):
-              if tree is None: return None
-              d,i=tree.query([lat,lon*cosf]); dm=d*111320
-              return (round(float(B_lat[i]),5),round(float(B_lon[i]),5)) if dm<=maxm else None
-
+          # ---------- 3b. snap points onto homes + route corridors along roads ----------
+          # Points are snapped to the nearest OSM building (they already passed the residential gate);
+          # corridors are routed origin->hub on the road network via OSRM (car). Best-effort.
           OSRM_UP = os.environ.get("OSRM_UP")=="1"
           def route(la1,lo1,la2,lo2):
               if not OSRM_UP: return None
