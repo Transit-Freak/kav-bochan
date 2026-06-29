@@ -1,0 +1,17 @@
+GTFS stop coords: 34048
+stops with coords + line counts: 29656
+wrote stop-coords.json: 29656 stops
+median linesPerStop=3 ; hub cutoff(>=p99 & >=20)=33 ; hubs=302
+top hubs: [('21472', 109, 'תל אביב יפו'), ('13907', 85, 'באר שבע'), ('15657', 84, 'באר שבע'), ('4009', 84, 'ירושלים'), ('25071', 83, 'תל אביב יפו'), ('22942', 79, 'בני ברק')]
+buildings indexed: 1067620 ; non-residential exclude polygons: 102624
+
+coverage: 209 cities analysed ; 4574 gap cells ; 928 candidate corridors
+top cities by corridors: [('בני שמעון', 12, 1017), ('חוף אשקלון', 12, 973), ('יואב', 12, 999), ('מטה בנימין', 12, 1054), ('מטה יהודה', 12, 1093), ('ירושלים', 12, 960)]
+snap: 701 gaps on buildings, 2331 dropped (no building<200m); 297 corridors dropped (no road<100m); routed: 290
+
+==== best-effort CBS population (enrichment only) ====
+  try https://e.data.gov.il/dataset/6b729165-dc9c-49b3-afc6-eceabd8fef70/res -> 933801 bytes magic=b'<!doct'
+  try https://data.gov.il/dataset/6b729165-dc9c-49b3-afc6-eceabd8fef70/resou -> 42702 bytes magic=b'<html>'
+CBS archive not retrievable in this run — shipping geometry-only coverage (population pending).
+
+wrote planner-newlines.json (369 KB)
