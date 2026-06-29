@@ -1,0 +1,177 @@
+name: update-monthly
+
+# חודשי: רענון מלא — GTFS + נקודות עניין (OSM) + רשת כבישים + סיווג +
+# חישוב זמני הליכה אמיתיים (OSRM). מעדכן את ענפי המטמון osm-poi/osm-roads
+# ודוחף data.json מועשר ל-main.
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'   # ה-1 בכל חודש 03:00 UTC
+  push:
+    paths:
+      - '.github/workflows/update-monthly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-monthly
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch fresh GTFS stops + active set
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+          curl -fSL --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 10 -A "$UA" \
+            -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          unzip -o gtfs.zip stops.txt
+          unzip -o gtfs.zip stop_times.txt
+          SID=$(head -1 stop_times.txt | tr -d '\r' | tr ',' '\n' | grep -n -x 'stop_id' | cut -d: -f1)
+          awk -F, -v c="$SID" 'NR>1{gsub(/\r/,"",$c); if($c!="") a[$c]=1} END{for(k in a) print k}' stop_times.txt | sort > active_stops.txt
+          wc -l stops.txt active_stops.txt
+
+      - name: Overpass — points of interest
+        run: |
+          set -euo pipefail
+          Q='[out:json][timeout:700];area["ISO3166-1"="IL"][admin_level=2]->.il;(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace|fuel|bank|place_of_worship)$"]["name"](area.il);nwr["shop"~"^(mall|department_store|supermarket|convenience)$"]["name"](area.il);nwr["railway"="station"]["name"](area.il);nwr["leisure"~"^(park|sports_centre|stadium|pitch)$"]["name"](area.il);nwr["tourism"~"^(museum|attraction)$"]["name"](area.il);nwr["office"="government"]["name"](area.il);nwr["public_transport"="station"]["name"](area.il);nwr["highway"="motorway_junction"]["name"](area.il);nwr["junction"="yes"]["name"](area.il););out center tags;'
+          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            if curl -fsS --max-time 800 --data-urlencode "data=$Q" "$ep" -o poi_raw.json; then echo "got $(wc -c < poi_raw.json) bytes"; break; fi
+            echo "endpoint failed, next"; sleep 5
+          done
+          python3 - <<'PY'
+          import json
+          d=json.load(open('poi_raw.json'))
+          def cat(t):
+            sh=t.get('shop'); am=t.get('amenity'); rw=t.get('railway')
+            le=t.get('leisure'); to=t.get('tourism'); of=t.get('office'); pt=t.get('public_transport')
+            hw=t.get('highway'); jn=t.get('junction')
+            if hw=='motorway_junction' or jn=='yes': return 'junction'
+            if sh in ('mall','department_store'): return 'mall'
+            if sh in ('supermarket','convenience'): return 'shop'
+            if am=='fuel': return 'fuel'
+            if am=='bank': return 'bank'
+            if rw=='station': return 'train'
+            if am=='place_of_worship': return 'worship'
+            if am in ('school','kindergarten'): return 'school'
+            if am in ('university','college'): return 'academia'
+            if am in ('hospital','clinic'): return 'health'
+            if am=='police': return 'police'
+            if am=='fire_station': return 'fire'
+            if am=='library': return 'library'
+            if am=='community_centre': return 'community'
+            if am in ('townhall','courthouse') or of=='government': return 'gov'
+            if am in ('theatre','cinema') or to in ('museum','attraction'): return 'culture'
+            if am=='bus_station' or pt=='station': return 'busstation'
+            if am=='marketplace': return 'mall'
+            if le=='park': return 'park'
+            if le in ('sports_centre','stadium','pitch'): return 'sport'
+            return 'other'
+          out=[]
+          for e in d.get('elements',[]):
+            t=e.get('tags',{}); name=t.get('name')
+            if not name: continue
+            lat=e.get('lat'); lon=e.get('lon')
+            if lat is None:
+              c=e.get('center') or {}; lat=c.get('lat'); lon=c.get('lon')
+            if lat is None or lon is None: continue
+            out.append({'n':name,'la':round(float(lat),5),'lo':round(float(lon),5),'k':cat(t)})
+          json.dump({'count':len(out),'poi':out}, open('poi.json','w'), ensure_ascii=False, separators=(',',':'))
+          print('POIs:', len(out))
+          PY
+          cp poi.json /tmp/poi.json
+
+      - name: Overpass — named roads
+        run: |
+          set -euo pipefail
+          Q='[out:json][timeout:900];area["ISO3166-1"="IL"][admin_level=2]->.il;way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|road)$"]["name"](area.il);out geom;'
+          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            if curl -fsS --max-time 1000 --data-urlencode "data=$Q" "$ep" -o roads_raw.json; then echo "got $(wc -c < roads_raw.json) bytes"; break; fi
+            echo "endpoint failed, next"; sleep 5
+          done
+          python3 - <<'PY'
+          import json
+          d=json.load(open('roads_raw.json')); out=[]
+          for e in d.get('elements',[]):
+            if e.get('type')!='way': continue
+            name=e.get('tags',{}).get('name'); geom=e.get('geometry')
+            if not name or not geom: continue
+            pts=[[round(p['lat'],5),round(p['lon'],5)] for p in geom]
+            if len(pts)>=2: out.append({'n':name,'g':pts})
+          json.dump({'count':len(out),'roads':out}, open('roads.json','w'), ensure_ascii=False, separators=(',',':'))
+          print('named roads:', len(out))
+          PY
+          cp roads.json /tmp/roads.json
+
+      - name: Classify
+        run: |
+          set -euo pipefail
+          STOPS=stops.txt POI=poi.json ROADS=roads.json ACTIVE=active_stops.txt \
+            OUT=next-station/data.json python3 tools/classify.py
+
+      - name: Build OSRM (foot) and compute real walking times
+        run: |
+          set -euo pipefail
+          curl -fSL --connect-timeout 30 --max-time 1200 --retry 3 --retry-delay 10 \
+            -o region.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          IMG=ghcr.io/project-osrm/osrm-backend
+          docker run --rm -v "$PWD:/data" $IMG osrm-extract -p /opt/foot.lua /data/region.osm.pbf
+          docker run --rm -v "$PWD:/data" $IMG osrm-partition /data/region.osrm
+          docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/region.osrm
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" $IMG osrm-routed --algorithm mld --max-table-size 1000 /data/region.osrm
+          for i in $(seq 1 30); do curl -fs "http://localhost:5000/route/v1/foot/34.78,32.07;34.79,32.08?overview=false" >/dev/null && break; sleep 2; done
+          python3 - <<'PY'
+          import json, urllib.request
+          d=json.load(open('next-station/data.json')); base='http://localhost:5000/table/v1/foot/'; en=0
+          for s in d['stops']:
+            ps=[p for p in s.get('p',[]) if p.get('la') is not None]
+            if not ps or s.get('la') is None: continue
+            coords="%s,%s;"%(s['lo'],s['la'])+";".join("%s,%s"%(p['lo'],p['la']) for p in ps)
+            try:
+              with urllib.request.urlopen(base+coords+"?sources=0&annotations=duration,distance",timeout=15) as r:
+                j=json.load(r)
+              dur=j['durations'][0]; dis=(j.get('distances') or [[None]*(len(ps)+1)])[0]; k=1
+              for p in s['p']:
+                if p.get('la') is None: continue
+                if dur[k] is not None: p['rt']={'min':max(1,round(dur[k]/60)),'d':round(dis[k]) if k<len(dis) and dis[k] is not None else None}
+                k+=1
+              en+=1
+            except Exception: pass
+          json.dump(d, open('next-station/data.json','w'), ensure_ascii=False, separators=(',',':'))
+          print('stops enriched with walking times:', en)
+          PY
+          docker rm -f osrm || true
+
+      - name: Commit data.json to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add next-station/data.json
+          git commit -m "monthly: full refresh (GTFS + OSM POI/roads + walking times)" || echo "no change"
+          git push origin HEAD:main
+
+      - name: Refresh osm-poi and osm-roads cache branches
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan osm-poi-tmp
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/poi.json ./poi.json
+          git add -A && git commit -m "OSM POI for Israel (monthly)"
+          git push -f origin osm-poi-tmp:osm-poi
+          git checkout --orphan osm-roads-tmp
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/roads.json ./roads.json
+          git add -A && git commit -m "OSM named roads for Israel (monthly)"
+          git push -f origin osm-roads-tmp:osm-roads
