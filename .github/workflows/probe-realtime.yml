@@ -1,0 +1,147 @@
+name: probe-realtime
+
+# בדיקה חד-פעמית: מה זמין בפועל לגבי עיכובי-רכבת בזמן אמת —
+# (1) התגובה המלאה של rail.co.il searchTrain (חיפוש שדות עיכוב נסתרים)
+# (2) GTFS-Realtime של משרד התחבורה — קיום, גודל, כיסוי לרכבות, עיכובים.
+# התוצאה נדחפת לענף probe-realtime-out.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-realtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: probe-realtime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GTFS-RT parser
+        run: pip install --quiet gtfs-realtime-bindings protobuf
+
+      - name: Probe rail.co.il + MOT realtime
+        run: |
+          set +e
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error, datetime
+          out=[]
+          def log(s):
+              print(s); out.append(str(s))
+          def get(url, data=None, headers=None, timeout=40):
+              req=urllib.request.Request(url, data=data, headers=headers or {})
+              return urllib.request.urlopen(req, timeout=timeout)
+
+          # ---------- 1) rail.co.il searchTrain — full response + field inventory ----------
+          log("================ 1) rail.co.il searchTrain ================")
+          codeName={}
+          try:
+              u="https://data.gov.il/api/3/action/datastore_search?resource_id=b6685ecf-2f87-4602-823e-af9790fd6aba&limit=200"
+              j=json.load(get(u, headers={'user-agent':'probe'}))
+              for rec in j['result']['records']:
+                  if rec.get('ASSET_NO') and rec.get('NAME'): codeName[str(rec['ASSET_NO'])]=rec['NAME']
+              log("stations from data.gov.il: %d"%len(codeName))
+          except Exception as e:
+              log("data.gov.il failed: %r"%e)
+          codes=list(codeName.keys())
+          frm, to = (codes[0], codes[-1]) if len(codes)>=2 else ("3700","2300")
+          log("querying train search %s(%s) -> %s(%s)"%(frm,codeName.get(frm,'?'),to,codeName.get(to,'?')))
+          RAIL_KEY="5e64d66cf03f4547bcac5de2de06b566"
+          body=json.dumps({"methodName":"searchTrainLuzForDateTime","fromStation":int(frm),"toStation":int(to),
+              "date":datetime.date.today().isoformat(),"hour":"08:00","systemType":"2","scheduleType":"ByDeparture",
+              "languageId":"Hebrew","requestLocation":'{"latitude":"0.0","longitude":"0.0"}',"requestIP":"0.0.0.0",
+              "userAgent":"probe","screenResolution":'{"height":768,"width":1360}',"searchFromFavorites":False}).encode()
+          try:
+              r=get("https://rail-api.rail.co.il/rjpa/api/v1/timetable/searchTrain", data=body,
+                    headers={"content-type":"application/json","ocp-apim-subscription-key":RAIL_KEY,
+                             "origin":"https://www.rail.co.il","referer":"https://www.rail.co.il/"})
+              resp=json.load(r)
+              json.dump(resp, open("rail_sample.json","w"), ensure_ascii=False, indent=1)
+              travels=(resp.get('result') or {}).get('travels') or []
+              log("travels returned: %d"%len(travels))
+              keys=set()
+              def collect(o,prefix=""):
+                  if isinstance(o,dict):
+                      for k,v in o.items():
+                          keys.add(prefix+k)
+                          if isinstance(v,(dict,list)): collect(v,prefix+k+".")
+                  elif isinstance(o,list):
+                      for v in o[:2]: collect(v,prefix)
+              collect(travels[0] if travels else {})
+              log("ALL fields in a travel object:")
+              for k in sorted(keys): log("   "+k)
+              hot=[k for k in keys if any(w in k.lower() for w in ('delay','late','actual','realtime','real_time','status','platform','prog','estim'))]
+              log("** delay/real-time candidate fields: %s"%(hot or "NONE FOUND"))
+          except Exception as e:
+              log("rail searchTrain failed: %r"%e)
+
+          # ---------- 2) MOT GTFS-Realtime candidates ----------
+          log("")
+          log("================ 2) MOT GTFS-Realtime ================")
+          from google.transit import gtfs_realtime_pb2
+          candidates=[
+              "https://gtfs.mot.gov.il/gtfsrt/TripUpdates.pb",
+              "https://gtfs.mot.gov.il/gtfsrt/VehiclePositions.pb",
+              "https://gtfs.mot.gov.il/gtfsrt/ServiceAlerts.pb",
+              "https://gtfs.mot.gov.il/realtime/TripUpdates.pb",
+              "https://gtfs.mot.gov.il/gtfsfiles/TripUpdates.pb",
+          ]
+          tripupdates_bytes=None
+          for url in candidates:
+              try:
+                  r=get(url, headers={'user-agent':'probe'}, timeout=60)
+                  b=r.read(); ct=r.headers.get('content-type')
+                  log("OK  %s  -> %d bytes, content-type=%s"%(url,len(b),ct))
+                  if 'TripUpdates' in url and tripupdates_bytes is None and len(b)>50: tripupdates_bytes=b
+              except urllib.error.HTTPError as e:
+                  log("HTTP %s  %s"%(e.code,url))
+              except Exception as e:
+                  log("ERR %s  %s"%(url, e))
+
+          if tripupdates_bytes:
+              try:
+                  feed=gtfs_realtime_pb2.FeedMessage(); feed.ParseFromString(tripupdates_bytes)
+                  ents=feed.entity
+                  log("TripUpdates parsed: %d entities"%len(ents))
+                  delayed=0; samples=[]
+                  for e in ents:
+                      tu=e.trip_update
+                      for stu in tu.stop_time_update:
+                          d=stu.arrival.delay or stu.departure.delay
+                          if d: delayed+=1
+                      if len(samples)<3:
+                          samples.append({'trip':tu.trip.trip_id,'route':tu.trip.route_id,'stops':len(tu.stop_time_update)})
+                  log("stop-updates with a delay value: %d"%delayed)
+                  log("samples: %s"%json.dumps(samples,ensure_ascii=False))
+              except Exception as e:
+                  log("parse TripUpdates failed: %r"%e)
+          else:
+              log("No TripUpdates feed reachable at the tried URLs.")
+
+          open("probe-report.txt","w").write("\n".join(out))
+          PY
+          ls -la rail_sample.json probe-report.txt 2>/dev/null || true
+
+      - name: Push results to probe-realtime-out branch
+        run: |
+          set -euo pipefail
+          cp probe-report.txt /tmp/probe-report.txt 2>/dev/null || echo "no report" > /tmp/probe-report.txt
+          cp rail_sample.json /tmp/rail_sample.json 2>/dev/null || echo '{}' > /tmp/rail_sample.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan probe-out
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
+          cp /tmp/probe-report.txt ./probe-report.txt
+          cp /tmp/rail_sample.json ./rail_sample.json
+          git add -A
+          git commit -m "realtime probe results"
+          git push -f origin probe-out:probe-realtime-out
