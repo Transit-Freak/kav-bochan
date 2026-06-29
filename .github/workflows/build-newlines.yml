@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install geo libs
-        run: pip install --quiet pyshp pyproj
+        run: pip install --quiet pyshp pyproj py7zr
 
       - name: Fetch GTFS stop coordinates
         run: |
@@ -125,21 +125,27 @@ jobs:
           stat=[]   # (code, lat, lon, population)
           try:
               data=get(zurl, timeout=180).read()
-              log("downloaded zip: %d bytes"%len(data))
-              zf=zipfile.ZipFile(io.BytesIO(data))
-              names=zf.namelist(); log("zip members: %s"%names[:12])
-              shp=[n for n in names if n.lower().endswith(".shp")]
-              prj=[n for n in names if n.lower().endswith(".prj")]
-              if prj: log("PRJ: %s"%zf.read(prj[0]).decode("latin-1")[:200])
+              log("downloaded archive: %d bytes ; magic=%r"%(len(data), data[:6]))
+              tmp="/tmp/sa"; os.makedirs(tmp,exist_ok=True)
+              # CBS ships this layer as .7z; older mirrors as .zip — handle both
+              if data[:2]==b"PK":
+                  zf=zipfile.ZipFile(io.BytesIO(data)); zf.extractall(tmp)
+                  log("zip members: %s"%zf.namelist()[:12])
+              else:
+                  import py7zr
+                  with py7zr.SevenZipFile(io.BytesIO(data)) as z:
+                      log("7z members: %s"%z.getnames()[:12]); z.extractall(path=tmp)
+              # locate the .shp recursively
+              shpath=None
+              for root,_,files in os.walk(tmp):
+                  for fn in files:
+                      if fn.lower().endswith(".shp"): shpath=os.path.join(root,fn)
+                      if fn.lower().endswith(".prj"):
+                          try: log("PRJ: %s"%open(os.path.join(root,fn),encoding="latin-1").read()[:200])
+                          except: pass
+              log("shapefile: %s"%shpath)
               import shapefile  # pyshp
-              # write members to /tmp so pyshp can open the set
-              base=shp[0][:-4]
-              tmp="/tmp/sa"
-              os.makedirs(tmp,exist_ok=True)
-              for ext in (".shp",".dbf",".shx"):
-                  m=[n for n in names if n.lower()==base.lower()+ext]
-                  if m: open(os.path.join(tmp,"sa"+ext),"wb").write(zf.read(m[0]))
-              sf=shapefile.Reader(os.path.join(tmp,"sa"))
+              sf=shapefile.Reader(shpath[:-4])
               flds=[f[0] for f in sf.fields[1:]]
               log("DBF fields: %s"%flds)
               from pyproj import Transformer
