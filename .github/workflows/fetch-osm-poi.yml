@@ -23,7 +23,7 @@ jobs:
       - name: Query Overpass for Israel POIs
         run: |
           set -euo pipefail
-          Q='[out:json][timeout:600];area["ISO3166-1"="IL"][admin_level=2]->.il;(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall)$"]["name"](area.il);nwr["shop"~"^(mall|department_store)$"]["name"](area.il);nwr["railway"="station"]["name"](area.il);nwr["amenity"="place_of_worship"]["name"](area.il););out center tags;'
+          Q='[out:json][timeout:700];area["ISO3166-1"="IL"][admin_level=2]->.il;(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace)$"]["name"](area.il);nwr["shop"~"^(mall|department_store)$"]["name"](area.il);nwr["railway"="station"]["name"](area.il);nwr["amenity"="place_of_worship"]["name"](area.il);nwr["leisure"~"^(park|sports_centre|stadium)$"]["name"](area.il);nwr["tourism"="museum"]["name"](area.il);nwr["office"="government"]["name"](area.il);nwr["public_transport"="station"]["name"](area.il););out center tags;'
           ok=0
           for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
             echo "== trying $ep =="
@@ -38,6 +38,26 @@ jobs:
           python3 - <<'PY'
           import json
           d=json.load(open('raw.json'))
+          def cat(t):
+            sh=t.get('shop'); am=t.get('amenity'); rw=t.get('railway')
+            le=t.get('leisure'); to=t.get('tourism'); of=t.get('office'); pt=t.get('public_transport')
+            if sh in ('mall','department_store'): return 'mall'
+            if rw=='station': return 'train'
+            if am=='place_of_worship': return 'worship'
+            if am in ('school','kindergarten'): return 'school'
+            if am in ('university','college'): return 'academia'
+            if am in ('hospital','clinic'): return 'health'
+            if am=='police': return 'police'
+            if am=='fire_station': return 'fire'
+            if am=='library': return 'library'
+            if am=='community_centre': return 'community'
+            if am in ('townhall','courthouse') or of=='government': return 'gov'
+            if am in ('theatre','cinema') or to=='museum': return 'culture'
+            if am=='bus_station' or pt=='station': return 'busstation'
+            if am=='marketplace': return 'mall'
+            if le=='park': return 'park'
+            if le in ('sports_centre','stadium'): return 'sport'
+            return 'other'
           out=[]
           for e in d.get('elements',[]):
             t=e.get('tags',{}); name=t.get('name')
@@ -46,16 +66,7 @@ jobs:
             if lat is None:
               c=e.get('center') or {}; lat=c.get('lat'); lon=c.get('lon')
             if lat is None or lon is None: continue
-            sh=t.get('shop'); am=t.get('amenity'); rw=t.get('railway')
-            if sh in ('mall','department_store'): cat='mall'
-            elif rw=='station': cat='train'
-            elif am=='place_of_worship': cat='worship'
-            elif am in ('school','kindergarten'): cat='school'
-            elif am in ('university','college'): cat='academia'
-            elif am in ('hospital','clinic'): cat='health'
-            elif am=='townhall': cat='townhall'
-            else: cat='other'
-            out.append({'n':name,'la':round(float(lat),5),'lo':round(float(lon),5),'k':cat})
+            out.append({'n':name,'la':round(float(lat),5),'lo':round(float(lon),5),'k':cat(t)})
           json.dump({'count':len(out),'poi':out}, open('poi.json','w'), ensure_ascii=False, separators=(',',':'))
           print('POIs:', len(out))
           PY
@@ -72,5 +83,5 @@ jobs:
           find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'poi.json' -exec rm -rf {} +
           cp /tmp/poi.json ./poi.json
           git add -A
-          git commit -m "OSM POI for Israel"
+          git commit -m "OSM POI for Israel (broad)"
           git push -f origin osm-poi
