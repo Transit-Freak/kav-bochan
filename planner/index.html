@@ -26,7 +26,7 @@
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29c";
+const BUILD = "2026-06-29d";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -106,6 +106,11 @@ function App() {
   const [sortCut, setSortCut] = useState("ratio");
   const [nl, setNl] = useState(null); // new-line layer (lazy)
   const [nlErr, setNlErr] = useState(null);
+  const [pop, setPop] = useState(null); // city population (CBS, Jan 2026)
+
+  useEffect(() => {
+    fetch("city-population.json?v=" + BUILD).then((r) => r.ok ? r.json() : null).then(setPop).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (tab !== "newlines" || nl || nlErr) return;
@@ -263,9 +268,10 @@ function App() {
 
       {/* baseline strip */}
       <div className="px-4 py-3 bg-slate-900/60 border-b border-slate-800 grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))" }}>
+        {pop && pop.pop[city] != null && <Stat label="אוכלוסייה (למ״ס 1/2026)" value={nf(pop.pop[city])} color="#a7f3d0" />}
         <Stat label="קווים בעיר" value={nf(base.lines)} />
         <Stat label='ק"מ שבועיים (סהכ)' value={nf(base.weeklyKm)} sub="עמודה מקורית — מדויק" />
-        <Stat label="נסיעות שבועיות" value={nf(base.trips)} />
+        {pop && pop.pop[city] ? <Stat label='ק"מ שבועי לתושב' value={nf(base.weeklyKm / pop.pop[city], 1)} sub="כיסוי יחסית לאוכלוסייה" /> : <Stat label="נסיעות שבועיות" value={nf(base.trips)} />}
         <Stat label="יקרים מהסטנדרט" value={nf(base.posture.worse)} color="#f87171" sub={`${base.posture.eff} יעילים · ${base.posture.par} בסטנדרט`} />
         <Stat label="מדד נוסעים (יחסי)" value={nf(base.ridersIndex)} sub="יחידות לא ודאיות" />
       </div>
