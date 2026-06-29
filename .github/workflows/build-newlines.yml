@@ -25,12 +25,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - name: Install geo libs
-        run: pip install --quiet pyshp pyproj py7zr
+        run: pip install --quiet pyshp pyproj py7zr osmium scipy
 
       - name: Fetch GTFS stop coordinates
         run: |
@@ -49,7 +49,31 @@ jobs:
           unzip -o gtfs.zip stops.txt
           wc -l stops.txt
 
+      - name: Download OSM extract + build OSRM (car) for corridor routing & building snap
+        id: osrm
+        run: |
+          set +e
+          echo "osrm=0" >> "$GITHUB_OUTPUT"
+          curl -fSL --connect-timeout 30 --max-time 1200 --retry 4 --retry-delay 8 --retry-all-errors \
+            -o region.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          [ -s region.osm.pbf ] || { echo "pbf download failed — corridors will fall back to straight lines"; exit 0; }
+          ls -la region.osm.pbf
+          IMG=ghcr.io/project-osrm/osrm-backend
+          docker run --rm -v "$PWD:/data" $IMG osrm-extract -p /opt/car.lua /data/region.osm.pbf || { echo "extract failed"; exit 0; }
+          docker run --rm -v "$PWD:/data" $IMG osrm-partition /data/region.osrm || exit 0
+          docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/region.osrm || exit 0
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" $IMG \
+            osrm-routed --algorithm mld --max-table-size 8000 /data/region.osrm
+          up=
+          for i in $(seq 1 40); do
+            if curl -fs "http://localhost:5000/route/v1/driving/34.78,32.07;34.79,32.08?overview=false" >/dev/null; then up=1; break; fi
+            sleep 2
+          done
+          if [ -n "$up" ]; then echo "OSRM car ready"; sed -i 's/^osrm=0/osrm=1/' "$GITHUB_OUTPUT"; else echo "OSRM did not come up"; fi
+
       - name: Discover + compute new-line layer
+        env:
+          OSRM_UP: ${{ steps.osrm.outputs.osrm }}
         run: |
           set +e
           python3 - <<'PY'
@@ -180,6 +204,73 @@ jobs:
               len(cities_out), tot_gaps, tot_stubs))
           top=sorted(cities_out.items(), key=lambda kv:-len(kv[1]["stubs"]))[:6]
           log("top cities by corridors: %s"%[(c,len(v["stubs"]),v["maxGapM"]) for c,v in top])
+
+          # ---------- 3b. snap points onto buildings + route corridors along roads ----------
+          # Fixes two map problems: (1) blind-grid points landing on roads/open land -> snap each
+          # to the nearest OSM building (drop if none within 200m = it was on a road/field);
+          # (2) straight diagonal corridors -> route origin->hub on the road network via OSRM (car).
+          tree=None; B_lat=B_lon=None; cosf=math.cos(31.5*math.pi/180)
+          try:
+              if os.path.exists("region.osm.pbf"):
+                  import osmium, numpy as np
+                  from scipy.spatial import cKDTree
+                  class BH(osmium.SimpleHandler):
+                      def __init__(s): osmium.SimpleHandler.__init__(s); s.la=[]; s.lo=[]
+                      def way(s,w):
+                          if 'building' in w.tags:
+                              xs=[]; ys=[]
+                              for n in w.nodes:
+                                  if n.location.valid(): xs.append(n.location.lat); ys.append(n.location.lon)
+                              if xs: s.la.append(sum(xs)/len(xs)); s.lo.append(sum(ys)/len(ys))
+                  bh=BH(); bh.apply_file("region.osm.pbf", locations=True)
+                  B_lat=np.array(bh.la); B_lon=np.array(bh.lo)
+                  tree=cKDTree(np.column_stack([B_lat, B_lon*cosf]))
+                  log("building centroids indexed: %d"%len(B_lat))
+          except Exception as e:
+              import traceback; log("building index failed (snap skipped): %r"%e); log(traceback.format_exc()[:400])
+
+          def snap(lat,lon,maxm=200):
+              if tree is None: return None
+              d,i=tree.query([lat,lon*cosf]); dm=d*111320
+              return (round(float(B_lat[i]),5),round(float(B_lon[i]),5)) if dm<=maxm else None
+
+          OSRM_UP = os.environ.get("OSRM_UP")=="1"
+          def route(la1,lo1,la2,lo2):
+              if not OSRM_UP: return None
+              try:
+                  u=("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=full&geometries=geojson"%(lo1,la1,lo2,la2))
+                  j=json.load(urllib.request.urlopen(u,timeout=12))
+                  if j.get("code")=="Ok" and j.get("routes"):
+                      co=j["routes"][0]["geometry"]["coordinates"]
+                      st=max(1,len(co)//40)
+                      path=[[round(c[1],5),round(c[0],5)] for c in co[::st]]
+                      last=[round(co[-1][1],5),round(co[-1][0],5)]
+                      if path[-1]!=last: path.append(last)
+                      return {"path":path,"km":round(j["routes"][0]["distance"]/1000,1)}
+              except Exception: return None
+              return None
+
+          snapped=dropped=routed=0
+          for c,v in cities_out.items():
+              ng=[]
+              for g in v["gaps"]:
+                  if tree is not None:
+                      s=snap(g["lat"],g["lon"],200)
+                      if s is None: dropped+=1; continue
+                      g={"lat":s[0],"lon":s[1],"m":g["m"]}; snapped+=1
+                  ng.append(g)
+              v["gaps"]=ng
+              kept=[]
+              for s in v["stubs"]:
+                  if tree is not None:
+                      sn=snap(s["lat"],s["lon"],350)
+                      if sn: s["lat"],s["lon"]=sn[0],sn[1]
+                  r=route(s["lat"],s["lon"],s["hubLat"],s["hubLon"])
+                  if r: s["path"]=r["path"]; s["roadKm"]=r["km"]; routed+=1
+                  kept.append(s)
+              v["stubs"]=kept
+              if v["gaps"]: v["maxGapM"]=max(g["m"] for g in v["gaps"])
+          log("snap: %d gaps on buildings, %d dropped (no building<200m); corridors routed on road: %d"%(snapped,dropped,routed))
 
           # ---------- 4. CBS population (best-effort enrichment; never blocks) ----------
           log("\n==== best-effort CBS population (enrichment only) ====")

@@ -558,9 +558,11 @@ function NewLines({ nl, err, city }) {
       }
       // candidate corridors + hubs
       for (const s of C.stubs) {
-        L.polyline([[s.lat, s.lon], [s.hubLat, s.hubLon]], { color: "#38bdf8", weight: 3, dashArray: "7 6", opacity: 0.85 }).addTo(m);
+        const km = s.roadKm != null ? s.roadKm : s.km;
+        const line = s.path && s.path.length > 1 ? s.path : [[s.lat, s.lon], [s.hubLat, s.hubLon]];
+        L.polyline(line, { color: "#38bdf8", weight: 4, dashArray: s.path ? null : "7 6", opacity: 0.9 }).addTo(m);
         L.circleMarker([s.lat, s.lon], { radius: 7, color: "#fff", weight: 2, fillColor: "#ef4444", fillOpacity: 0.95 })
-          .bindPopup(`מועמד לקו חדש · ~${s.cells} תאי פער · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים בקרבת מקום` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ~${s.km} ק"מ`).addTo(m);
+          .bindPopup(`מועמד לקו חדש · ~${s.cells} תאי פער · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים בקרבת מקום` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
         L.circleMarker([s.hubLat, s.hubLon], { radius: 6, color: "#fff", weight: 2, fillColor: "#2563eb", fillOpacity: 0.95 })
           .bindPopup(`קו-על: ${s.hubSid} · ${s.hubCity} · ${s.hubLines} קווים`).addTo(m);
         pts.push([s.lat, s.lon], [s.hubLat, s.hubLon]);
@@ -581,8 +583,8 @@ function NewLines({ nl, err, city }) {
   return (
     <div>
       <div className="bg-amber-950/40 border border-amber-800 rounded-lg px-3 py-2 text-[12px] text-amber-200 mb-2 leading-relaxed">
-        ⚠ <b>טיוטה — גאומטריה מול תקן רשמי.</b> "פער כיסוי" = נקודה בתוך מרקם התחנות של העיר שחורגת מ<b>תקן ההליכה של משרד התחבורה (400 מ׳ לתחנה</b>, הנחיות 2016) ועד 1100 מ׳ — מוקפת בתחנות, כך שאינה שדה ריק.
-        אין כאן נתוני ביקוש מוצא-יעד{nl.hasPopulation ? "" : " ולא נתוני אוכלוסייה"} — פער עשוי להיות פארק/אזור תעשייה. כל "מועמד לקו חדש" הוא קו מקווקו לבדיקת מתכנן, לא המלצה.
+        ⚠ <b>טיוטה — גאומטריה מול תקן רשמי.</b> "פער כיסוי" = מבנה ב<b>מרחק החורג מתקן ההליכה של משרד התחבורה (400 מ׳ לתחנה</b>, הנחיות 2016) ועד 1100 מ׳, מוקף בתחנות (לא שדה ריק). הנקודות מוצמדות לבניינים אמיתיים והמסלול המוצע עובר על כבישים.
+        אין כאן נתוני ביקוש מוצא-יעד{nl.hasPopulation ? "" : " ולא נתוני אוכלוסייה — בניין עשוי להיות מסחרי/תעשייתי"}. כל "מועמד לקו חדש" הוא טיוטה לבדיקת מתכנן, לא המלצה.
       </div>
       {!C && <div className="text-slate-400 text-sm mb-2">אין נתוני כיסוי לעיר {city} (מעט תחנות או ללא פערים). מוצגים קווי-העל הארציים.</div>}
       {C && (
@@ -603,7 +605,7 @@ function NewLines({ nl, err, city }) {
               <span className="text-red-400 font-black">●</span>
               <span className="text-slate-300 flex-1">פער של ~{s.cells} תאים · עד {s.maxM} מ׳ מתחנה{s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}</span>
               <span className="text-sky-300">→ קו-על {s.hubSid} ({s.hubCity})</span>
-              <span className="text-slate-400 font-mono">~{s.km} ק"מ</span>
+              <span className="text-slate-400 font-mono" title={s.roadKm != null ? "אורך מסלול על כבישים" : "מרחק אווירי"}>~{s.roadKm != null ? s.roadKm : s.km} ק"מ{s.roadKm != null ? " 🛣️" : ""}</span>
             </div>
           ))}
         </div>
