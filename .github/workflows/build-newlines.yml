@@ -142,12 +142,18 @@ jobs:
                   if d<bd: bd=d; best=(sid,hla,hlo,n,c,d)
               return best
 
-          # ---------- 2b. OSM residential geometry: keep candidates ONLY inside neighbourhoods ----------
-          # landuse=residential polygons mark where homes are (vs industry/commerce/fields/roads), and
-          # building centroids are where to place a point. A candidate is kept only if it falls inside
-          # residential land, then snapped onto the nearest building — this is what stops points landing
-          # on random non-residential spots. Best-effort: if OSM is missing, the filter is simply off.
-          tree=None; B_lat=B_lon=None; res_tree=None; res_polys=None; cosf=math.cos(31.5*math.pi/180)
+          # ---------- 2b. OSM geometry: drop NON-residential zones; snap to homes ----------
+          # OSM landuse=residential is too sparse in Israel to require (only ~4k polygons), so instead
+          # we EXCLUDE the zones OSM *does* tag reliably — industry/commerce/retail/parks/forest/farm/
+          # parking/institutions — and let the building-snap (drop if no building within 200m) handle
+          # roads/open land. Net: candidates stay in built-up residential fabric. Best-effort.
+          EXC_LU={"industrial","commercial","retail","farmland","farmyard","orchard","vineyard","forest",
+                  "meadow","grass","cemetery","quarry","landfill","military","railway","construction",
+                  "brownfield","greenfield","recreation_ground","plant_nursery","allotments","depot"}
+          EXC_LEIS={"park","garden","pitch","golf_course","sports_centre","stadium","nature_reserve","playground","track"}
+          EXC_NAT={"wood","scrub","water","wetland","beach","sand","bare_rock","grassland","heath"}
+          EXC_AMEN={"parking","school","university","college","hospital","grave_yard"}
+          tree=None; B_lat=B_lon=None; exc_tree=None; exc_polys=None; cosf=math.cos(31.5*math.pi/180)
           try:
               if os.path.exists("region.osm.pbf"):
                   import osmium, numpy as np
@@ -163,7 +169,9 @@ jobs:
                               for n in w.nodes:
                                   if n.location.valid(): xs.append(n.location.lat); ys.append(n.location.lon)
                               if xs: s.bla.append(sum(xs)/len(xs)); s.blo.append(sum(ys)/len(ys))
-                          if t.get('landuse')=='residential' and w.is_closed():
+                          exc=(t.get('landuse') in EXC_LU or t.get('leisure') in EXC_LEIS
+                               or t.get('natural') in EXC_NAT or t.get('amenity') in EXC_AMEN)
+                          if exc and w.is_closed():
                               pp=[(n.location.lon,n.location.lat) for n in w.nodes if n.location.valid()]
                               if len(pp)>=4:
                                   try: s.polys.append(Polygon(pp))
@@ -172,22 +180,23 @@ jobs:
                   if oh.bla:
                       B_lat=np.array(oh.bla); B_lon=np.array(oh.blo)
                       tree=cKDTree(np.column_stack([B_lat, B_lon*cosf]))
-                  res_polys=oh.polys
-                  if res_polys: res_tree=STRtree(res_polys)
-                  log("buildings indexed: %d ; residential-landuse polygons: %d"%(len(oh.bla),len(res_polys)))
+                  exc_polys=oh.polys
+                  if exc_polys: exc_tree=STRtree(exc_polys)
+                  log("buildings indexed: %d ; non-residential exclude polygons: %d"%(len(oh.bla),len(exc_polys)))
           except Exception as e:
-              import traceback; log("OSM residential index failed (filter off): %r"%e); log(traceback.format_exc()[:400])
+              import traceback; log("OSM index failed (filter off): %r"%e); log(traceback.format_exc()[:400])
 
           def is_residential(lat,lon):
-              if res_tree is None: return True   # no OSM data -> do not filter (fallback)
+              # residential := built-up (snap handles that) AND not inside an excluded non-residential zone
+              if exc_tree is None: return True
               from shapely.geometry import Point
               p=Point(lon,lat)
-              try: cand=res_tree.query(p)
+              try: cand=exc_tree.query(p)
               except Exception: return True
               for x in cand:
-                  poly = x if hasattr(x,"contains") else res_polys[int(x)]
-                  if poly.contains(p): return True
-              return False
+                  poly = x if hasattr(x,"contains") else exc_polys[int(x)]
+                  if poly.contains(p): return False
+              return True
           def snap(lat,lon,maxm=200):
               if tree is None: return None
               d,i=tree.query([lat,lon*cosf]); dm=d*111320
@@ -224,8 +233,8 @@ jobs:
                   while lo<=lo1:
                       d,dens=probe(la,lo)
                       # interior urban hole: far from the nearest stop, embedded in the stop cloud
-                      # (>=8 stops within 1.2km), AND inside an OSM residential neighbourhood — so we
-                      # never flag industry/commerce/parks/roads/fields as a "gap".
+                      # (>=8 stops within 1.2km), and NOT inside a non-residential zone (industry/
+                      # commerce/park/forest/farm/parking/institution). Snap below drops open-land/roads.
                       if GAP_MIN<d<GAP_MAX and dens>=8 and is_residential(la,lo):
                           gaps.append((round(la,5),round(lo,5),round(d)))
                       lo+=stepLon
