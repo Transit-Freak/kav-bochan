@@ -18,13 +18,15 @@
   .scroll::-webkit-scrollbar{width:8px;height:8px}
   .scroll::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}
   input[type=range]{accent-color:#38bdf8}
+  .rt-lbl{background:transparent;border:0;box-shadow:none;color:#fff;font-weight:900;font-size:10px;text-shadow:0 0 3px #000,0 0 3px #000}
+  .rt-lbl::before{display:none}
 </style>
 </head>
 <body>
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29a";
+const BUILD = "2026-06-29b";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -69,6 +71,8 @@ const VERDICT_HE = {
 const VERDICT_COLOR = {
   "ADD": "#f87171", "CUT": "#60a5fa", "RIGHT-SIZE-UP": "#c084fc", "RIGHT-SIZE-DOWN": "#a78bfa", "HOLD": "#64748b",
 };
+// distinct colours so each candidate corridor is visually separable on the map
+const ROUTE_PAL = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#14b8a6", "#eab308", "#f97316", "#06b6d4", "#8b5cf6", "#84cc16"];
 
 // ---------- tiny UI atoms ----------
 function Stat({ label, value, color, sub }) {
@@ -549,24 +553,21 @@ function NewLines({ nl, err, city }) {
     mapRef.current = m;
     const pts = [];
     if (C) {
-      // gap cells
-      for (const g of C.gaps) {
-        const t = Math.min(1, (g.m - 350) / 750);
-        L.circleMarker([g.lat, g.lon], { radius: 4 + 3 * t, color: "#f59e0b", weight: 1, fillColor: `rgb(${200 + 55 * t},${120 - 100 * t},40)`, fillOpacity: 0.7 })
-          .bindPopup(`פער כיסוי: ~${g.m} מ׳ מהתחנה הקרובה`).addTo(m);
-        pts.push([g.lat, g.lon]);
-      }
-      // candidate corridors + hubs
-      for (const s of C.stubs) {
+      // each candidate corridor gets its own colour: route polyline + origin + hub all match.
+      // (the raw gap-cell dots are intentionally not drawn — they are grid noise; the routes
+      //  are the actionable output. Real neighbourhood placement awaits the CBS layer.)
+      C.stubs.forEach((s, i) => {
+        const col = ROUTE_PAL[i % ROUTE_PAL.length];
         const km = s.roadKm != null ? s.roadKm : s.km;
         const line = s.path && s.path.length > 1 ? s.path : [[s.lat, s.lon], [s.hubLat, s.hubLon]];
-        L.polyline(line, { color: "#38bdf8", weight: 4, dashArray: s.path ? null : "7 6", opacity: 0.9 }).addTo(m);
-        L.circleMarker([s.lat, s.lon], { radius: 7, color: "#fff", weight: 2, fillColor: "#ef4444", fillOpacity: 0.95 })
-          .bindPopup(`מועמד לקו חדש · ~${s.cells} תאי פער · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים בקרבת מקום` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
-        L.circleMarker([s.hubLat, s.hubLon], { radius: 6, color: "#fff", weight: 2, fillColor: "#2563eb", fillOpacity: 0.95 })
-          .bindPopup(`קו-על: ${s.hubSid} · ${s.hubCity} · ${s.hubLines} קווים`).addTo(m);
+        L.polyline(line, { color: col, weight: 4, dashArray: s.path ? null : "7 6", opacity: 0.92 }).addTo(m);
+        L.circleMarker([s.lat, s.lon], { radius: 8, color: "#0f172a", weight: 2, fillColor: col, fillOpacity: 0.97 })
+          .bindTooltip(String(i + 1), { permanent: true, direction: "center", className: "rt-lbl" })
+          .bindPopup(`<b style="color:${col}">מועמד #${i + 1} לקו חדש</b> · ~${s.cells} מוקדי פער · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים בקרבת מקום` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
+        L.circleMarker([s.hubLat, s.hubLon], { radius: 6, color: col, weight: 3, fillColor: "#0f172a", fillOpacity: 0.95 })
+          .bindPopup(`קו-על ${s.hubSid} · ${s.hubCity} · ${s.hubLines} קווים`).addTo(m);
         pts.push([s.lat, s.lon], [s.hubLat, s.hubLon]);
-      }
+      });
     }
     if (pts.length) m.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
     else { // national hubs fallback
@@ -602,8 +603,8 @@ function NewLines({ nl, err, city }) {
           {C.stubs.map((s, i) => (
             <div key={i} onClick={() => mapRef.current && mapRef.current.setView([s.lat, s.lon], 14)}
               className="flex items-center gap-2 text-[12px] bg-slate-800/60 rounded-lg px-2 py-1 cursor-pointer hover:bg-slate-700/60">
-              <span className="text-red-400 font-black">●</span>
-              <span className="text-slate-300 flex-1">פער של ~{s.cells} תאים · עד {s.maxM} מ׳ מתחנה{s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}</span>
+              <span className="font-black text-white rounded-full w-5 h-5 flex items-center justify-center" style={{ background: ROUTE_PAL[i % ROUTE_PAL.length], fontSize: "11px" }}>{i + 1}</span>
+              <span className="text-slate-300 flex-1">מועמד לקו · עד {s.maxM} מ׳ מתחנה{s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}</span>
               <span className="text-sky-300">→ קו-על {s.hubSid} ({s.hubCity})</span>
               <span className="text-slate-400 font-mono" title={s.roadKm != null ? "אורך מסלול על כבישים" : "מרחק אווירי"}>~{s.roadKm != null ? s.roadKm : s.km} ק"מ{s.roadKm != null ? " 🛣️" : ""}</span>
             </div>
