@@ -127,7 +127,7 @@ jobs:
           city_stops=defaultdict(list)
           for sid,lat,lon,n,c in stops:
               city_stops[c].append((lat,lon,n))
-          GAP_MIN, GAP_MAX = 350, 1100   # metres: in-fabric local gap band (excludes desert)
+          GAP_MIN, GAP_MAX = 400, 1100   # 400m = official MOT walking-distance-to-stop standard (2016 guidelines); 1100 upper bound excludes desert
           cities_out={}
           tot_gaps=tot_stubs=0
           for c, pts in city_stops.items():
