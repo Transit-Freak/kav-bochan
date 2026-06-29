@@ -161,7 +161,17 @@ body {
   .stat { min-width: calc(50% - 4px); padding: 9px 11px; }
   .stat b { font-size: 20px; }
   .body { flex-direction: column; }
-  .map-wrap { order: -1; height: 300px; flex: none; }
   .panel { width: 100%; border-left: none; border-top: 1px solid var(--line); }
   .list { overflow: visible; }
+  /* המפה והפרטים זורמים אנכית במקום חפיפה: מפה → סרגל מסלול → כרטיס פרטים */
+  .map-wrap { order: -1; height: auto; flex: none; display: flex; flex-direction: column; }
+  #map { position: relative; inset: auto; height: 260px; flex: none; }
+  .route-info { position: relative; top: auto; left: auto; right: auto; margin: 8px 10px 0; border-radius: 12px; }
+  .detail {
+    position: static; width: 100%; max-width: 100%; margin: 0;
+    border: none; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 14px 16px 18px;
+  }
+  .detail .d-x { top: 10px; left: 10px; }
+  .d-poi-row { flex-wrap: wrap; }
+  .d-poi-n { flex: 1 1 100%; }
 }
