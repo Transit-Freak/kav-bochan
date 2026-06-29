@@ -15,6 +15,42 @@ const POI_ICON = {
   gov: "🏛️", culture: "🎭", busstation: "🚌", park: "🌳", sport: "⚽",
 };
 
+// כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה
+function StopDetails({ s }) {
+  return (
+    <>
+      <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>
+      <div className="d-row">רחוב בכתובת: <b>{s.s}</b></div>
+      {s.ms && (
+        <div className="d-row">🗺️ רחוב לפי המפה: <b>{s.ms}</b> <span className="d-poi-d">{s.md} מ׳</span></div>
+      )}
+      {s.t && <div className="d-row">עיר: {s.t}</div>}
+      <div className="d-cat" style={{ color: CATS[s.k].color }}>
+        {CATS[s.k].label} — {CATS[s.k].desc}
+      </div>
+      {s.sug && (
+        <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{s.sug}</b></div>
+      )}
+      {s.p && s.p.length > 0 && (
+        <div className="d-poi">
+          <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
+          {s.p.map((x, i) => (
+            <div className="d-poi-row" key={i}>
+              <span>{POI_ICON[x.k] || "•"} {x.n}</span>
+              <span className="d-poi-d">{x.d} מ׳</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {s.la != null && (
+        <a className="gmap" href={"https://www.google.com/maps?q=" + s.la + "," + s.lo} target="_blank" rel="noopener noreferrer">
+          פתח במפות Google ↗
+        </a>
+      )}
+    </>
+  );
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [cat, setCat] = useState("all");
@@ -111,23 +147,29 @@ function App() {
             {filtered.length > CAP ? " — צמצמו בחיפוש כדי לראות את השאר" : ""}
           </div>
           <div className="list">
-            {shown.map((s, i) => (
-              <button
-                key={s.c + "_" + i}
-                className={"item" + (sel && sel.c === s.c ? " on" : "")}
-                onClick={() => setSel(s)}
-              >
-                <div className="it-top">
-                  <span className="badge" style={{ background: CATS[s.k].color }}>{CATS[s.k].label}</span>
-                  <span className="code">{s.c}</span>
+            {shown.map((s, i) => {
+              const on = sel && sel.c === s.c;
+              return (
+                <div className={"item" + (on ? " on" : "")} key={s.c + "_" + i}>
+                  <button className="it-head" onClick={() => setSel(on ? null : s)}>
+                    <div className="it-top">
+                      <span className="badge" style={{ background: CATS[s.k].color }}>{CATS[s.k].label}</span>
+                      <span className="code">{s.c}</span>
+                    </div>
+                    <div className="it-name">{s.n}</div>
+                    <div className="it-street">
+                      רחוב בכתובת: <b>{s.s}</b>
+                      {s.t ? " · " + s.t : ""}
+                    </div>
+                  </button>
+                  {on && (
+                    <div className="it-detail">
+                      <StopDetails s={s} />
+                    </div>
+                  )}
                 </div>
-                <div className="it-name">{s.n}</div>
-                <div className="it-street">
-                  רחוב בכתובת: <b>{s.s}</b>
-                  {s.t ? " · " + s.t : ""}
-                </div>
-              </button>
-            ))}
+              );
+            })}
             {shown.length === 0 && <div className="empty">לא נמצאו תחנות בסינון הנוכחי.</div>}
           </div>
         </div>
@@ -138,34 +180,7 @@ function App() {
             <div className="detail">
               <button className="d-x" onClick={() => setSel(null)}>×</button>
               <div className="d-name">{sel.n}</div>
-              <div className="d-row">מס׳ תחנה: <b>{sel.c}</b></div>
-              <div className="d-row">רחוב בכתובת: <b>{sel.s}</b></div>
-              {sel.ms && (
-                <div className="d-row">🗺️ רחוב לפי המפה: <b>{sel.ms}</b> <span className="d-poi-d">{sel.md} מ׳</span></div>
-              )}
-              {sel.t && <div className="d-row">עיר: {sel.t}</div>}
-              <div className="d-cat" style={{ color: CATS[sel.k].color }}>
-                {CATS[sel.k].label} — {CATS[sel.k].desc}
-              </div>
-              {sel.sug && (
-                <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{sel.sug}</b></div>
-              )}
-              {sel.p && sel.p.length > 0 && (
-                <div className="d-poi">
-                  <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
-                  {sel.p.map((x, i) => (
-                    <div className="d-poi-row" key={i}>
-                      <span>{POI_ICON[x.k] || "•"} {x.n}</span>
-                      <span className="d-poi-d">{x.d} מ׳</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {sel.la != null && (
-                <a className="gmap" href={"https://www.google.com/maps?q=" + sel.la + "," + sel.lo} target="_blank" rel="noopener noreferrer">
-                  פתח במפות Google ↗
-                </a>
-              )}
+              <StopDetails s={sel} />
             </div>
           )}
         </div>
