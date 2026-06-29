@@ -146,6 +146,9 @@ function App() {
               <div className="d-cat" style={{ color: CATS[sel.k].color }}>
                 {CATS[sel.k].label} — {CATS[sel.k].desc}
               </div>
+              {sel.sug && (
+                <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{sel.sug}</b></div>
+              )}
               {sel.p && sel.p.length > 0 && (
                 <div className="d-poi">
                   <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
