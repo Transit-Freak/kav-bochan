@@ -7,6 +7,12 @@ const CATS = {
   mismatch: { label: "אי-התאמה מלאה", color: "#dc2626", desc: "הרחוב לא מופיע בשם כלל" },
 };
 
+// אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
+const POI_ICON = {
+  school: "🏫", worship: "🕍", health: "🏥", mall: "🛒",
+  academia: "🎓", townhall: "🏛️", train: "🚉",
+};
+
 function App() {
   const [data, setData] = useState(null);
   const [cat, setCat] = useState("all");
@@ -136,6 +142,17 @@ function App() {
               <div className="d-cat" style={{ color: CATS[sel.k].color }}>
                 {CATS[sel.k].label} — {CATS[sel.k].desc}
               </div>
+              {sel.p && sel.p.length > 0 && (
+                <div className="d-poi">
+                  <div className="d-poi-h">📍 ליד התחנה (OSM):</div>
+                  {sel.p.map((x, i) => (
+                    <div className="d-poi-row" key={i}>
+                      <span>{POI_ICON[x.k] || "•"} {x.n}</span>
+                      <span className="d-poi-d">{x.d} מ׳</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {sel.la != null && (
                 <a className="gmap" href={"https://www.google.com/maps?q=" + sel.la + "," + sel.lo} target="_blank" rel="noopener noreferrer">
                   פתח במפות Google ↗
