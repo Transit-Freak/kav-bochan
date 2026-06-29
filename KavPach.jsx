@@ -575,17 +575,8 @@ function ChoiceScreen({ onPick }) {
             <div className="relative">
               <div className="flex items-center justify-between mb-6 h-28">
                 <span className="bg-sky-400 text-sky-950 px-3 py-1 rounded-full text-[11px] font-black self-start">חדש</span>
-                {/* תחנת אוטובוס על עמוד — הסמל של "התחנה הבאה" */}
-                <svg viewBox="0 0 140 96" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="66" y="58" width="5" height="34" rx="2.5" fill="#cbd5e1" />
-                  <rect x="26" y="12" width="86" height="52" rx="13" fill="#ffffff" />
-                  <rect x="34" y="20" width="70" height="20" rx="5" fill="#2563eb" />
-                  <rect x="56" y="20" width="2.5" height="20" fill="#bfdbfe" />
-                  <rect x="78" y="20" width="2.5" height="20" fill="#bfdbfe" />
-                  <circle cx="106" cy="50" r="3" fill="#fde68a" />
-                  <circle cx="46" cy="64" r="9" fill="#0f172a" /><circle cx="46" cy="64" r="3.5" fill="#fff" />
-                  <circle cx="92" cy="64" r="9" fill="#0f172a" /><circle cx="92" cy="64" r="3.5" fill="#fff" />
-                </svg>
+                {/* הסמל של "התחנה הבאה" — זהה לאתר עצמו (אמוג'י תחנת אוטובוס 🚏) */}
+                <span className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" style={{ fontSize: '90px', lineHeight: 1 }}>🚏</span>
               </div>
               <h2 className="text-3xl font-[900] text-sky-200">התחנה הבאה</h2>
               <p className="text-sky-100/80 font-bold mt-2 text-sm leading-relaxed">תחנות ששמן אינו תואם לרחוב שבכתובת</p>
