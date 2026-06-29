@@ -373,7 +373,6 @@ function WhatsNewModal({ open, onClose }) {
           {CHANGELOG.map((rel) => (
             <div className="cl-rel" key={rel.version}>
               <div className="cl-head">
-                <span className="cl-ver">v{rel.version}</span>
                 {rel.date && <span className="cl-date">{rel.date}</span>}
               </div>
               <ul>
