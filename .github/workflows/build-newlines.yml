@@ -98,14 +98,17 @@ jobs:
               dla=(c-a)*p; dlo=(d-b)*p
               x=math.sin(dla/2)**2+math.cos(a*p)*math.cos(c*p)*math.sin(dlo/2)**2
               return 2*R*math.asin(min(1,math.sqrt(x)))
-          def nearest_stop(lat,lon):
-              gi,gj=round(lat/CELL),round(lon/CELL); best=1e12
+          def probe(lat,lon,R=1200):
+              # nearest-stop distance AND how many stops sit within R (urban-fabric density)
+              gi,gj=round(lat/CELL),round(lon/CELL); best=1e12; cnt=0
               for di in range(-2,3):
                   for dj in range(-2,3):
                       for (sla,slo) in grid.get((gi+di,gj+dj),()):
                           d=hav(lat,lon,sla,slo)
                           if d<best: best=d
-              return best
+                          if d<=R: cnt+=1
+              return best,cnt
+          def nearest_stop(lat,lon): return probe(lat,lon)[0]
           def nearest_hub(lat,lon):
               best=None; bd=1e12
               for sid,hla,hlo,n,c in hubs:
@@ -142,8 +145,12 @@ jobs:
               while la<=la1:
                   lo=lo0
                   while lo<=lo1:
-                      d=nearest_stop(la,lo)
-                      if GAP_MIN<d<GAP_MAX: gaps.append((round(la,5),round(lo,5),round(d)))
+                      d,dens=probe(la,lo)
+                      # interior urban hole: far from the nearest stop, yet embedded in the
+                      # stop cloud (>=8 stops within 1.2km). This rejects rural/edge cells where
+                      # everything is "far" — without population that is the only honest guard.
+                      if GAP_MIN<d<GAP_MAX and dens>=8:
+                          gaps.append((round(la,5),round(lo,5),round(d)))
                       lo+=stepLon
                   la+=STEP
               if not gaps: continue
