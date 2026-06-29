@@ -9,9 +9,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: fetch-gtfs
+  cancel-in-progress: true
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -20,10 +25,8 @@ jobs:
           set -euo pipefail
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
           URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
-          echo "== HEAD =="
-          curl -sIL -A "$UA" "$URL" | head -20 || true
-          echo "== Download =="
-          curl -fSL --retry 3 --retry-delay 5 -A "$UA" -o gtfs.zip "$URL"
+          echo "== Download (timeouts on) =="
+          curl -fSL --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 10 -A "$UA" -o gtfs.zip "$URL"
           ls -la gtfs.zip
           echo "== Extract stops.txt =="
           unzip -o gtfs.zip stops.txt
