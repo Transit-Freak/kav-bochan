@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch GTFS, extract stops.txt, push to gtfs-data branch
+      - name: Fetch GTFS, extract stops.txt + active stop_ids, push to gtfs-data branch
         run: |
           set -euo pipefail
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -34,13 +34,26 @@ jobs:
           echo "lines:"; wc -l stops.txt
           echo "head:"; head -3 stops.txt
           cp stops.txt /tmp/stops.txt
-          echo "== Push stops.txt to gtfs-data branch =="
+          echo "== Extract stop_times.txt and derive active (served) stop_ids =="
+          unzip -o gtfs.zip stop_times.txt
+          ls -la stop_times.txt
+          # find the stop_id column index from the header (robust to column order), strip CR
+          SID=$(head -1 stop_times.txt | tr -d '\r' | tr ',' '\n' | grep -n -x 'stop_id' | cut -d: -f1)
+          echo "stop_id column index: $SID"
+          # collect the unique set of stop_ids that appear in any trip
+          awk -F, -v c="$SID" 'NR>1{gsub(/\r/,"",$c); if($c!="") a[$c]=1} END{for(k in a) print k}' stop_times.txt \
+            | sort > active_stops.txt
+          echo "active stop_ids:"; wc -l active_stops.txt
+          head -3 active_stops.txt
+          cp active_stops.txt /tmp/active_stops.txt
+          echo "== Push stops.txt + active_stops.txt to gtfs-data branch =="
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan gtfs-data
           git reset
-          find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'stops.txt' -exec rm -rf {} +
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'stops.txt' -not -name 'active_stops.txt' -exec rm -rf {} +
           cp /tmp/stops.txt ./stops.txt
+          cp /tmp/active_stops.txt ./active_stops.txt
           git add -A
-          git commit -m "GTFS stops.txt from MOT"
+          git commit -m "GTFS stops.txt + active stop_ids from MOT"
           git push -f origin gtfs-data
