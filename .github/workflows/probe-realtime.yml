@@ -1,7 +1,7 @@
 name: probe-realtime
 
-# בדיקה ממוקדת לרכבת 172: לוח-זמנים מ-GTFS + מיקום חי מ-SIRI (Open Bus) + חישוב איחור.
-# התוצאה נדחפת לענף probe-realtime-out.
+# בדיקת-מידע בלבד (לא נוגע באתר): מתאים רכבות חיות (SIRI) ל-GTFS לפי מסלול+שעת-יציאה,
+# ומחשב איחור אמיתי. מתמקד ברכבת 172, ומדגים גם על רכבות חיות אחרות.
 
 on:
   push:
@@ -23,123 +23,116 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download GTFS (routes/trips/stops)
+      - name: Download GTFS pieces
         run: |
           set -euo pipefail
-          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-          curl -fSL --connect-timeout 30 --max-time 900 --retry 2 -A "$UA" -o gtfs.zip \
+          curl -fSL --max-time 900 --retry 2 -A "Mozilla/5.0" -o gtfs.zip \
             "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
           unzip -o gtfs.zip routes.txt trips.txt stops.txt
-          ls -la routes.txt trips.txt stops.txt
 
-      - name: Analyze train 172 vs live SIRI
+      - name: Match live rail to schedule and compute delay
         run: |
           set +e
           python3 - <<'PY'
           import csv, json, urllib.request, urllib.parse, datetime, subprocess, io, math
-          out=[]
+          out=[];
           def log(s): print(s); out.append(str(s))
           TRAIN="172"
-
-          # ---- rail routes ----
-          rail=set()
-          for r in csv.DictReader(open('routes.txt',encoding='utf-8-sig')):
-              if r.get('route_type')=='2': rail.add(r['route_id'])
-          log("rail routes: %d"%len(rail))
-
-          # ---- trips with headsign == 172 ----
-          trips={}
+          rail=set(r['route_id'] for r in csv.DictReader(open('routes.txt',encoding='utf-8-sig')) if r.get('route_type')=='2')
+          railtrip={}; headsign={}
           for r in csv.DictReader(open('trips.txt',encoding='utf-8-sig')):
-              if r['route_id'] in rail and (r.get('trip_headsign') or '').strip()==TRAIN:
-                  trips[r['trip_id']]=r['route_id']
-          log("rail trips with headsign %s: %d  (ids: %s)"%(TRAIN,len(trips),list(trips)[:6]))
-
-          # ---- stops ----
+              if r['route_id'] in rail:
+                  railtrip[r['trip_id']]=r['route_id']; headsign[r['trip_id']]=(r.get('trip_headsign') or '').strip()
+          log("rail trips: %d"%len(railtrip))
           stopinfo={}
           for r in csv.DictReader(open('stops.txt',encoding='utf-8-sig')):
               try: stopinfo[r['stop_id']]=(r['stop_name'],float(r['stop_lat']),float(r['stop_lon']))
               except: pass
-
-          # ---- scheduled stop_times for those trips (stream the huge file) ----
-          tset=set(trips); sched={}
+          # schedules for all rail trips
+          sched={}
           p=subprocess.Popen('unzip -p gtfs.zip stop_times.txt',shell=True,stdout=subprocess.PIPE)
-          rdr=io.TextIOWrapper(p.stdout,encoding='utf-8-sig'); head=None; idx={}
+          rdr=io.TextIOWrapper(p.stdout,encoding='utf-8-sig'); head=None; ix={}
           for raw in rdr:
-              if head is None:
-                  head=raw.strip().split(','); idx={h:i for i,h in enumerate(head)}; continue
+              if head is None: head=raw.strip().split(','); ix={h:i for i,h in enumerate(head)}; continue
               f=raw.rstrip('\n').split(',')
-              tid=f[idx['trip_id']]
-              if tid in tset:
-                  t=(f[idx['departure_time']] or f[idx['arrival_time']] or '')[:5]
-                  sched.setdefault(tid,[]).append((int(f[idx['stop_sequence']]),f[idx['stop_id']],t))
+              tid=f[ix['trip_id']]
+              if tid in railtrip:
+                  t=(f[ix['departure_time']] or f[ix['arrival_time']] or '')[:5]
+                  sched.setdefault(tid,[]).append((int(f[ix['stop_sequence']]),f[ix['stop_id']],t))
           p.wait()
           for tid in sched: sched[tid].sort()
-          for tid,arr in list(sched.items())[:3]:
-              line=" → ".join((stopinfo.get(s[1],('?',0,0))[0])+"@"+s[2] for s in arr)
-              log("SCHEDULE trip %s: %s"%(tid,line))
+          # index: (route_id, first_dep HH:MM) -> trip_id
+          idx={}
+          for tid,arr in sched.items():
+              if arr: idx[(railtrip[tid],arr[0][2])]=tid
+          tid172=next((t for t in railtrip if headsign[t]==TRAIN), None)
+          log("train 172 trip_id: %s, route: %s, dep: %s"%(tid172, railtrip.get(tid172), sched.get(tid172,[['','','?']])[0][2]))
 
-          # ---- live SIRI (operator_ref 2 = רכבת ישראל) ----
+          # live SIRI rail
           B="https://open-bus-stride-api.hasadna.org.il"
-          def get(path):
-              return json.load(urllib.request.urlopen(urllib.request.Request(B+path,headers={'user-agent':'probe'}),timeout=120))
+          def get(path): return json.load(urllib.request.urlopen(urllib.request.Request(B+path,headers={'user-agent':'probe'}),timeout=120))
           now=datetime.datetime.utcnow()
-          frm=(now-datetime.timedelta(hours=4)).strftime('%Y-%m-%dT%H:%M:%SZ')
-          q="/siri_vehicle_locations/list?"+urllib.parse.urlencode({
-              'siri_routes__operator_refs':'2','recorded_at_time_from':frm,
-              'limit':3000,'order_by':'recorded_at_time desc'})
-          try: vl=get(q)
-          except Exception as e: vl=[]; log("SIRI query failed: %r"%e)
-          log("")
-          log("live RAIL vehicle locations (last 4h): %d"%len(vl))
-          jrs={}
+          frm=(now-datetime.timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
+          vl=get("/siri_vehicle_locations/list?"+urllib.parse.urlencode({'siri_routes__operator_refs':'2','recorded_at_time_from':frm,'limit':5000,'order_by':'recorded_at_time desc'}))
+          log("live rail locations (5h): %d"%len(vl))
+          # group by ride, keep latest location per ride
+          rides={}
           for v in vl:
-              j=v.get('siri_ride__journey_ref'); jrs[j]=jrs.get(j,0)+1
-          log("distinct rail journey_refs live now: %d"%len(jrs))
-          log("sample journey_refs: %s"%json.dumps(list(jrs.items())[:15],ensure_ascii=False))
+              rid=v.get('siri_ride__id')
+              if rid not in rides or (v.get('recorded_at_time') or '')>(rides[rid].get('recorded_at_time') or ''):
+                  rides[rid]=v
+          log("distinct live rail rides: %d"%len(rides))
+          # sample line_ref vs route membership
+          smp=list(rides.values())[:1]
+          if smp: log("sample ride: line_ref=%s scheduled_start=%s"%(smp[0].get('siri_route__line_ref'),smp[0].get('siri_ride__scheduled_start_time')))
 
-          # ---- match train 172 ----
-          match=[v for v in vl if v.get('siri_ride__journey_ref') in tset]
-          how="journey_ref==trip_id"
-          if not match:
-              match=[v for v in vl if TRAIN in str(v.get('siri_ride__journey_ref') or '')]; how="journey_ref contains 172"
-          log("")
-          log("matches for train 172 (%s): %d"%(how,len(match)))
-
+          IL=datetime.timezone(datetime.timedelta(hours=3))
           def hav(a,b,c,d):
               R=6371000;p=math.pi/180
               return 2*R*math.asin(math.sqrt(math.sin((c-a)*p/2)**2+math.cos(a*p)*math.cos(c*p)*math.sin((d-b)*p/2)**2))
-
-          if match:
-              match.sort(key=lambda v:v.get('recorded_at_time') or '', reverse=True)
-              v=match[0]
-              json.dump(v, open('match.json','w'), ensure_ascii=False, indent=1)
-              lat,lon=v['lat'],v['lon']; rec=v.get('recorded_at_time')
-              log("LATEST live point: lat=%s lon=%s recorded=%s vel=%s"%(lat,lon,rec,v.get('velocity')))
-              # nearest scheduled stop of train 172
-              tid=v.get('siri_ride__journey_ref')
-              arr=sched.get(tid) or (list(sched.values())[0] if sched else [])
+          def delay_for(v):
+              # map ride -> trip via (line_ref, scheduled_start HH:MM)
+              ss=v.get('siri_ride__scheduled_start_time') or ''
+              hhmm=ss[11:16] if len(ss)>=16 else ''
+              lr=str(v.get('siri_route__line_ref'))
+              tid=idx.get((lr,hhmm))
+              if not tid:  # fallback: any rail trip starting at that minute
+                  tid=next((t for (r,h),t in idx.items() if h==hhmm), None)
+              if not tid or not v.get('recorded_at_time'): return None
+              arr=sched[tid]
               best=None
               for seq,sid,t in arr:
-                  nm,sla,slo=stopinfo.get(sid,('?',0,0))
-                  if sla:
-                      d=hav(lat,lon,sla,slo)
+                  nm,la,lo=stopinfo.get(sid,('?',0,0))
+                  if la:
+                      d=hav(v['lat'],v['lon'],la,lo)
                       if best is None or d<best[0]: best=(d,nm,t)
-              if best and rec:
-                  # recorded is UTC; Israel = UTC+3 (June/IDT)
-                  try: ru=datetime.datetime.fromisoformat(rec.replace('Z','+00:00'))
-                  except: ru=now.replace(tzinfo=datetime.timezone.utc)
-                  local=ru.astimezone(datetime.timezone(datetime.timedelta(hours=3)))
-                  hh,mm=best[2].split(':'); sched_dt=local.replace(hour=int(hh),minute=int(mm),second=0,microsecond=0)
-                  delay=(local-sched_dt).total_seconds()/60
-                  log("")
-                  log("=== רכבת 172 — חישוב איחור ===")
-                  log("התחנה הקרובה לרכבת כעת: %s (%dמ' מהמיקום החי)"%(best[1],best[0]))
-                  log("מתוכננת שם בשעה: %s | בפועל (לפי המדידה החיה): %s"%(best[2],local.strftime('%H:%M')))
-                  log("** איחור משוער: %.0f דקות **"%delay)
-          else:
-              log("רכבת 172 לא נמצאה בזרם החי כעת — כנראה לא נוסעת ברגע זה.")
-              log("רכבות אחרות שחיות עכשיו (journey_refs): %s"%json.dumps(list(jrs.keys())[:10],ensure_ascii=False))
+              if not best: return None
+              ru=datetime.datetime.fromisoformat(v['recorded_at_time'].replace('Z','+00:00')).astimezone(IL)
+              hh,mm=best[2].split(':'); sd=ru.replace(hour=int(hh)%24,minute=int(mm),second=0,microsecond=0)
+              dly=round((ru-sd).total_seconds()/60)
+              return {'train':headsign.get(tid),'tid':tid,'near':best[1],'dist':round(best[0]),'sched':best[2],'actual':ru.strftime('%H:%M'),'delay':dly}
 
+          # train 172 specifically
+          found172=None
+          for v in rides.values():
+              r=delay_for(v)
+              if r and r['train']==TRAIN: found172=(v,r); break
+          log("")
+          if found172:
+              v,r=found172
+              json.dump(v,open('match.json','w'),ensure_ascii=False,indent=1)
+              log("=== רכבת 172 — חיה עכשיו! ===")
+              log("ליד תחנת %s | מתוכננת שם %s | בפועל %s | איחור: %s דק'"%(r['near'],r['sched'],r['actual'],r['delay']))
+          else:
+              log("רכבת 172 לא נוסעת ברגע זה (לוח: 15:48–18:13). מדגים על רכבות חיות אחרות:")
+              shown=0
+              for v in rides.values():
+                  r=delay_for(v)
+                  if r and r['train']:
+                      log("  רכבת %s | ליד %s | מתוכנן %s בפועל %s | איחור %s דק'"%(r['train'],r['near'],r['sched'],r['actual'],r['delay']))
+                      shown+=1
+                  if shown>=8: break
+              if not shown: log("  (לא הצלחתי למפות אף רכבת חיה לטריפ — צריך לבדוק את התאמת line_ref)")
           open("probe-report.txt","w").write("\n".join(out))
           PY
           ls -la probe-report.txt match.json 2>/dev/null || true
@@ -147,15 +140,11 @@ jobs:
       - name: Push results
         run: |
           set -euo pipefail
-          cp probe-report.txt /tmp/probe-report.txt 2>/dev/null || echo "no report" > /tmp/probe-report.txt
-          cp match.json /tmp/match.json 2>/dev/null || echo '{}' > /tmp/match.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan probe-out3
-          git reset
+          cp probe-report.txt /tmp/r.txt 2>/dev/null || echo "no report">/tmp/r.txt
+          cp match.json /tmp/m.json 2>/dev/null || echo '{}'>/tmp/m.json
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan probe-out4; git reset
           find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
-          cp /tmp/probe-report.txt ./probe-report.txt
-          cp /tmp/match.json ./match.json
-          git add -A
-          git commit -m "train 172 realtime probe"
-          git push -f origin probe-out3:probe-realtime-out
+          cp /tmp/r.txt probe-report.txt; cp /tmp/m.json match.json
+          git add -A; git commit -m "train 172 realtime probe v2"
+          git push -f origin probe-out4:probe-realtime-out
