@@ -105,105 +105,158 @@ jobs:
                   if d<bd: bd=d; best=(sid,hla,hlo,n,c,d)
               return best
 
-          # ---------- 3. CBS statistical areas (centroid + population) ----------
-          log("\n==== locate CBS statistical-area resource ====")
-          PKG="https://data.gov.il/api/3/action/package_show?id=statistical-area-2008"
-          zurl=None
+          # ---------- 3. per-city coverage gaps + candidate corridor stubs ----------
+          # PRIMARY (reliable, geometry only): for each city, find spots INSIDE the urban
+          # stop-cloud that are far from any stop (a local coverage gap, not empty desert),
+          # cluster them, and draw a candidate corridor to the nearest hub. No population
+          # needed — labelled a draft; population (below) only enriches if it loads.
+          from math import cos, pi
+          city_stops=defaultdict(list)
+          for sid,lat,lon,n,c in stops:
+              city_stops[c].append((lat,lon,n))
+          GAP_MIN, GAP_MAX = 350, 1100   # metres: in-fabric local gap band (excludes desert)
+          cities_out={}
+          tot_gaps=tot_stubs=0
+          for c, pts in city_stops.items():
+              if len(pts) < 12: continue
+              lats=sorted(p[0] for p in pts); lons=sorted(p[1] for p in pts)
+              # clamp bbox to the 2-98 percentile so a single outlier stop can't blow up the grid
+              def pc(a,f): return a[min(len(a)-1,max(0,int(len(a)*f)))]
+              la0,la1,lo0,lo1=pc(lats,.02),pc(lats,.98),pc(lons,.02),pc(lons,.98)
+              clat=(la0+la1)/2; STEP=0.0035  # ~390m
+              stepLon=STEP/max(0.3,cos(clat*pi/180))
+              # coarsen if the grid would exceed ~12k cells
+              ncell=((la1-la0)/STEP+1)*((lo1-lo0)/stepLon+1)
+              if ncell>12000:
+                  f=(ncell/12000)**0.5; STEP*=f; stepLon*=f
+              gaps=[]
+              la=la0
+              while la<=la1:
+                  lo=lo0
+                  while lo<=lo1:
+                      d=nearest_stop(la,lo)
+                      if GAP_MIN<d<GAP_MAX: gaps.append((round(la,5),round(lo,5),round(d)))
+                      lo+=stepLon
+                  la+=STEP
+              if not gaps: continue
+              # cluster gap cells (snap to ~700m grid) -> corridor candidates to nearest hub
+              clusters=defaultdict(list)
+              for gl,go,gd in gaps:
+                  clusters[(round(gl/0.006),round(go/0.006))].append((gl,go,gd))
+              stubs=[]
+              for cl in clusters.values():
+                  if len(cl)<2: continue
+                  ml=sum(x[0] for x in cl)/len(cl); mo=sum(x[1] for x in cl)/len(cl)
+                  nh=nearest_hub(ml,mo)
+                  if not nh: continue
+                  stubs.append({"lat":round(ml,5),"lon":round(mo,5),"cells":len(cl),
+                                "maxM":max(x[2] for x in cl),"hubSid":nh[0],
+                                "hubLat":round(nh[1],5),"hubLon":round(nh[2],5),
+                                "hubLines":nh[3],"hubCity":nh[4],"km":round(nh[5]/1000,1)})
+              stubs.sort(key=lambda s:-(s["cells"]*s["maxM"]))
+              gaps.sort(key=lambda g:-g[2])
+              cities_out[c]={"gaps":[{"lat":g[0],"lon":g[1],"m":g[2]} for g in gaps[:60]],
+                             "stubs":stubs[:12], "maxGapM":max(g[2] for g in gaps),
+                             "stopCount":len(pts)}
+              tot_gaps+=len(gaps); tot_stubs+=len(stubs)
+          log("\ncoverage: %d cities analysed ; %d gap cells ; %d candidate corridors"%(
+              len(cities_out), tot_gaps, tot_stubs))
+          top=sorted(cities_out.items(), key=lambda kv:-len(kv[1]["stubs"]))[:6]
+          log("top cities by corridors: %s"%[(c,len(v["stubs"]),v["maxGapM"]) for c,v in top])
+
+          # ---------- 4. CBS population (best-effort enrichment; never blocks) ----------
+          log("\n==== best-effort CBS population (enrichment only) ====")
+          import re
+          hasPop=False; pop_total=0
+          def fetch_bytes(url, ref="https://data.gov.il/"):
+              req=urllib.request.Request(url, headers={"user-agent":
+                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                  "accept":"*/*","referer":ref})
+              return urllib.request.urlopen(req, timeout=120).read()
+          cand_urls=[]
           try:
-              j=json.load(get(PKG))
+              j=json.load(get("https://data.gov.il/api/3/action/package_show?id=statistical-area-2008"))
               for rr in j["result"]["resources"]:
-                  log("  RES %s [%s] %s"%(rr.get("name","")[:40],rr.get("format"),rr.get("url","")[:90]))
-                  if (rr.get("format","").lower() in ("zip","shp","shapefile")) or rr.get("url","").lower().endswith(".zip"):
-                      zurl=zurl or rr.get("url")
+                  if rr.get("url"): cand_urls.append(rr["url"])
           except Exception as e:
               log("package_show failed: %r"%e)
-          # fallback: direct datastore download by known resource id (statistical-area-2008)
-          if not zurl:
-              zurl="https://data.gov.il/dataset/statistical-area-2008/resource/3b88cb58-62cd-43ea-9156-7b81ead557b1/download"
-          log("zip url: %s"%zurl)
+          archive=None
+          for u in list(cand_urls)+[u.replace("e.data.gov.il","data.gov.il") for u in cand_urls]:
+              try:
+                  b=fetch_bytes(u); log("  try %s -> %d bytes magic=%r"%(u[:70],len(b),b[:6]))
+                  if b[:2]==b"PK" or b[:2]==b"7z" or b[:6]==b"\x37\x7a\xbc\xaf\x27\x1c":
+                      archive=b; break
+                  if b[:6].lower()==b"<!doct" or b[:5].lower()==b"<html":
+                      # scan the portal page for a real archive link
+                      m=re.findall(r'href=["\\\']([^"\\\']+\.(?:7z|zip))["\\\']', b.decode("utf-8","ignore"), re.I)
+                      for link in m[:4]:
+                          lu=link if link.startswith("http") else urllib.parse.urljoin(u, link)
+                          try:
+                              bb=fetch_bytes(lu); log("    link %s -> %d magic=%r"%(lu[:70],len(bb),bb[:6]))
+                              if bb[:2]in(b"PK",b"7z") or bb[:6]==b"\x37\x7a\xbc\xaf\x27\x1c": archive=bb; break
+                          except Exception as e: log("    link fail %r"%e)
+                  if archive: break
+              except Exception as e:
+                  log("  fetch fail %r"%e)
+          if archive:
+              try:
+                  tmp="/tmp/sa"; os.makedirs(tmp,exist_ok=True)
+                  if archive[:2]==b"PK": zipfile.ZipFile(io.BytesIO(archive)).extractall(tmp)
+                  else:
+                      import py7zr
+                      with py7zr.SevenZipFile(io.BytesIO(archive)) as z: z.extractall(path=tmp)
+                  shp=None
+                  for root,_,files in os.walk(tmp):
+                      for fn in files:
+                          if fn.lower().endswith(".shp"): shp=os.path.join(root,fn)
+                  log("CBS shapefile extracted: %s"%shp)
+                  if shp:
+                      import shapefile
+                      from pyproj import Transformer
+                      sf=shapefile.Reader(shp[:-4]); flds=[f[0] for f in sf.fields[1:]]
+                      log("DBF fields: %s"%flds)
+                      tf=Transformer.from_crs("EPSG:2039","EPSG:4326",always_xy=True)
+                      popf=next((f for f in flds if f.upper() in ("POP_TOTAL","POP","POPULATION","TOSHAVIM","SUM_POP","T_POP","SUM_2008")),None)
+                      log("pop field: %s ; sample: %s"%(popf, sf.record(0).as_dict() if sf.numRecords else {}))
+                      cents=[]
+                      for sr in sf.iterShapeRecords():
+                          pp=sr.shape.points
+                          if not pp: continue
+                          cx=sum(p[0] for p in pp)/len(pp); cy=sum(p[1] for p in pp)/len(pp)
+                          lon,lat=tf.transform(cx,cy)
+                          if not (29<lat<34 and 34<lon<36): continue
+                          pv=0
+                          if popf:
+                              try: pv=int(float(sr.record.as_dict().get(popf) or 0))
+                              except: pv=0
+                          cents.append((round(lat,5),round(lon,5),pv))
+                      pop_total=sum(c[2] for c in cents)
+                      hasPop = pop_total>0
+                      log("CBS centroids: %d ; total pop: %s"%(len(cents), f"{pop_total:,}"))
+                      if hasPop:
+                          # attach population to each city's gap centroids (nearest centroid within 600m)
+                          cg=defaultdict(list)
+                          for la,lo,pv in cents: cg[(round(la/0.006),round(lo/0.006))].append((la,lo,pv))
+                          covered=0
+                          for c,v in cities_out.items():
+                              for s in v["stubs"]:
+                                  best=0
+                                  for di in(-1,0,1):
+                                      for dj in(-1,0,1):
+                                          for la,lo,pv in cg.get((round(s["lat"]/0.006)+di,round(s["lon"]/0.006)+dj),()):
+                                              if hav(s["lat"],s["lon"],la,lo)<600 and pv>best: best=pv
+                                  s["pop"]=best; covered+=best
+                          log("population near candidate corridors: %s"%f"{covered:,}")
+              except Exception as e:
+                  import traceback; log("CBS parse failed: %r"%e); log(traceback.format_exc()[:500])
+          else:
+              log("CBS archive not retrievable in this run — shipping geometry-only coverage (population pending).")
 
-          stat=[]   # (code, lat, lon, population)
-          try:
-              data=get(zurl, timeout=180).read()
-              log("downloaded archive: %d bytes ; magic=%r"%(len(data), data[:6]))
-              tmp="/tmp/sa"; os.makedirs(tmp,exist_ok=True)
-              # CBS ships this layer as .7z; older mirrors as .zip — handle both
-              if data[:2]==b"PK":
-                  zf=zipfile.ZipFile(io.BytesIO(data)); zf.extractall(tmp)
-                  log("zip members: %s"%zf.namelist()[:12])
-              else:
-                  import py7zr
-                  with py7zr.SevenZipFile(io.BytesIO(data)) as z:
-                      log("7z members: %s"%z.getnames()[:12]); z.extractall(path=tmp)
-              # locate the .shp recursively
-              shpath=None
-              for root,_,files in os.walk(tmp):
-                  for fn in files:
-                      if fn.lower().endswith(".shp"): shpath=os.path.join(root,fn)
-                      if fn.lower().endswith(".prj"):
-                          try: log("PRJ: %s"%open(os.path.join(root,fn),encoding="latin-1").read()[:200])
-                          except: pass
-              log("shapefile: %s"%shpath)
-              import shapefile  # pyshp
-              sf=shapefile.Reader(shpath[:-4])
-              flds=[f[0] for f in sf.fields[1:]]
-              log("DBF fields: %s"%flds)
-              from pyproj import Transformer
-              tf=Transformer.from_crs("EPSG:2039","EPSG:4326",always_xy=True)
-              # guess population + code fields
-              popf=next((f for f in flds if f.upper() in ("POP_TOTAL","POP","POPULATION","TOSHAVIM","SUM_POP","T_POP")), None)
-              codef=next((f for f in flds if "STAT" in f.upper() or "SHEET" in f.upper() or f.upper() in ("YISHUV_STA","STAT08","STATAREA")), None)
-              log("pop field guess: %s ; code field guess: %s"%(popf,codef))
-              rec0=sf.record(0).as_dict() if sf.numRecords else {}
-              log("sample record: %s"%json.dumps({k:str(v)[:18] for k,v in list(rec0.items())[:10]}, ensure_ascii=False))
-              cnt=0
-              for sr in sf.iterShapeRecords():
-                  pts=sr.shape.points
-                  if not pts: continue
-                  cx=sum(p[0] for p in pts)/len(pts); cy=sum(p[1] for p in pts)/len(pts)
-                  lon,lat=tf.transform(cx,cy)
-                  if not (29<lat<34 and 34<lon<36): continue
-                  rec=sr.record.as_dict()
-                  pop=0
-                  if popf:
-                      try: pop=int(float(rec.get(popf) or 0))
-                      except: pop=0
-                  code=str(rec.get(codef)) if codef else str(cnt)
-                  stat.append((code,round(lat,5),round(lon,5),pop)); cnt+=1
-              log("statistical-area centroids in Israel bbox: %d ; with pop>0: %d ; total pop: %s"%(
-                  len(stat), sum(1 for s in stat if s[3]>0), f"{sum(s[3] for s in stat):,}"))
-              log("centroid sample: %s"%stat[:3])
-          except Exception as e:
-              import traceback; log("CBS parse failed: %r"%e); log(traceback.format_exc()[:800])
-
-          # ---------- 4. coverage gaps + candidate stubs ----------
-          result={"generatedAt":None,"stopsWithCoords":len(stops),"hubs":[
-                    {"sid":s[0],"lat":round(s[1],5),"lon":round(s[2],5),"lines":s[3],"city":s[4]} for s in hubs[:120]],
-                  "statAreas":[],"stubs":[],"notes":"draft — geometry+population only, no OD demand"}
-          if stat:
-              areas=[]
-              for code,lat,lon,pop in stat:
-                  nd=nearest_stop(lat,lon)
-                  areas.append({"code":code,"lat":lat,"lon":lon,"pop":pop,"nearM":round(nd)})
-              areas.sort(key=lambda a:-(a["pop"]*(1 if a["nearM"]>400 else 0)))
-              result["statAreas"]=areas
-              # underserved = far from any stop AND has people; build candidate stub to nearest hub
-              under=[a for a in areas if a["nearM"]>400 and a["pop"]>=200]
-              under.sort(key=lambda a:-(a["pop"]*a["nearM"]))
-              for a in under[:60]:
-                  nh=nearest_hub(a["lat"],a["lon"])
-                  if not nh: continue
-                  result["stubs"].append({"lat":a["lat"],"lon":a["lon"],"pop":a["pop"],"nearM":a["nearM"],
-                      "hubSid":nh[0],"hubLat":round(nh[1],5),"hubLon":round(nh[2],5),"hubLines":nh[3],
-                      "hubCity":nh[4],"km":round(nh[5]/1000,1)})
-              log("\nunderserved areas (>400m, pop>=200): %d ; candidate stubs: %d"%(len(under),len(result["stubs"])))
-              cov={"u400":sum(a["pop"] for a in areas if a["nearM"]>400),
-                   "u800":sum(a["pop"] for a in areas if a["nearM"]>800),
-                   "totalPop":sum(a["pop"] for a in areas)}
-              result["coverage"]=cov
-              log("population >400m from any stop: %s ; >800m: %s ; total: %s"%(
-                  f"{cov['u400']:,}",f"{cov['u800']:,}",f"{cov['totalPop']:,}"))
-
+          result={"generatedAt":None,"stopsWithCoords":len(stops),"hasPopulation":hasPop,
+                  "popTotal":pop_total,
+                  "hubs":[{"sid":s[0],"lat":round(s[1],5),"lon":round(s[2],5),"lines":s[3],"city":s[4]} for s in hubs[:200]],
+                  "cities":cities_out,
+                  "notes":"draft — local coverage gaps are geometry-only (no origin-destination demand). A gap may be a park/industrial zone. Corridors are drafts for a human planner."}
           json.dump(result, open("planner-newlines.json","w"), ensure_ascii=False, separators=(",",":"))
           log("\nwrote planner-newlines.json (%.0f KB)"%(os.path.getsize('planner-newlines.json')/1024))
           open("newlines-report.txt","w",encoding="utf-8").write("\n".join(out))
@@ -219,5 +272,5 @@ jobs:
           git checkout --orphan nl-out; git reset
           find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
           cp /tmp/r.txt newlines-report.txt; cp /tmp/n.json planner-newlines.json
-          git add -A; git commit -m "new-line layer: GTFS coords + CBS statistical-area gaps + candidate stubs"
+          git add -A; git commit -m "new-line layer: per-city geometry coverage gaps + candidate corridors (CBS pop best-effort)"
           git push -f origin nl-out:newlines-out
