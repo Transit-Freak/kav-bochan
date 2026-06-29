@@ -13,6 +13,7 @@ const POI_ICON = {
   school: "🏫", academia: "🎓", health: "🏥", mall: "🛒", train: "🚉",
   worship: "🕍", police: "🚓", fire: "🚒", library: "📚", community: "🏘️",
   gov: "🏛️", culture: "🎭", busstation: "🚌", park: "🌳", sport: "⚽",
+  shop: "🏪", fuel: "⛽", bank: "🏦",
 };
 
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
