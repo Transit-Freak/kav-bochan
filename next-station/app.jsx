@@ -5,6 +5,7 @@ const CATS = {
   mismatch: { label: "אי-התאמה מלאה", color: "#dc2626", desc: "הרחוב לא מופיע בשם כלל" },
   reversal: { label: "היפוך / ציון-דרך", color: "#7c3aed", desc: "הרחוב האמיתי מופיע שני בשם" },
   spelling: { label: "טעות כתיב", color: "#d97706", desc: "אותו רחוב, אות שונה — כנראה שגיאה" },
+  streetvar: { label: "אי-התאמה ברחוב", color: "#0891b2", desc: "הרחוב נכתב כאן אחרת מרוב התחנות באותו רחוב" },
   uncertain: { label: "ספק / כתיב חלופי", color: "#64748b", desc: "כנראה אותו רחוב — הבדל כתיב מלא/חסר בלבד" },
 };
 
@@ -30,6 +31,11 @@ function StopDetails({ s, inList }) {
       <div className="d-cat" style={{ color: CATS[s.k].color }}>
         {CATS[s.k].label} — {CATS[s.k].desc}
       </div>
+      {s.sv && (
+        <div className="d-sv">
+          🛣️ ברחוב זה <b>{s.sv.n}</b> תחנות כותבות «<b>{s.sv.maj}</b>» — וכאן כתוב «<b>{s.sv.use}</b>»
+        </div>
+      )}
       {s.sug && (
         <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{s.sug}</b></div>
       )}
@@ -92,7 +98,7 @@ function App() {
   }, [sel]);
 
   // סדר חומרה לקטגוריות — "ספק" תמיד אחרון
-  const RANK = { mismatch: 0, reversal: 1, spelling: 2, uncertain: 3 };
+  const RANK = { mismatch: 0, reversal: 1, spelling: 2, streetvar: 3, uncertain: 4 };
 
   const filtered = useMemo(() => {
     if (!data) return [];
