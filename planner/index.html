@@ -26,7 +26,7 @@
 <div id="root" class="min-h-screen"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = "2026-06-29b";
+const BUILD = "2026-06-29c";
 
 // ---------- helpers ----------
 const nf = (n, d = 0) => n == null ? "—" : Number(n).toLocaleString("he-IL", { maximumFractionDigits: d });
@@ -563,7 +563,7 @@ function NewLines({ nl, err, city }) {
         L.polyline(line, { color: col, weight: 4, dashArray: s.path ? null : "7 6", opacity: 0.92 }).addTo(m);
         L.circleMarker([s.lat, s.lon], { radius: 8, color: "#0f172a", weight: 2, fillColor: col, fillOpacity: 0.97 })
           .bindTooltip(String(i + 1), { permanent: true, direction: "center", className: "rt-lbl" })
-          .bindPopup(`<b style="color:${col}">מועמד #${i + 1} לקו חדש</b> · ~${s.cells} מוקדי פער · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים בקרבת מקום` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
+          .bindPopup(`<b style="color:${col}">מועמד #${i + 1} לקו חדש</b>${s.homes != null ? ` · ~${nf(s.homes)} מבני מגורים בטווח 400 מ׳` : ""} · עד ${s.maxM} מ׳ מתחנה${s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}<br>חיבור לקו-על ${s.hubSid} (${s.hubCity}, ${s.hubLines} קווים) · ${s.roadKm != null ? "כביש" : "קו אווירי"} ~${km} ק"מ`).addTo(m);
         L.circleMarker([s.hubLat, s.hubLon], { radius: 6, color: col, weight: 3, fillColor: "#0f172a", fillOpacity: 0.95 })
           .bindPopup(`קו-על ${s.hubSid} · ${s.hubCity} · ${s.hubLines} קווים`).addTo(m);
         pts.push([s.lat, s.lon], [s.hubLat, s.hubLon]);
@@ -585,7 +585,7 @@ function NewLines({ nl, err, city }) {
     <div>
       <div className="bg-amber-950/40 border border-amber-800 rounded-lg px-3 py-2 text-[12px] text-amber-200 mb-2 leading-relaxed">
         ⚠ <b>טיוטה.</b> "מועמד לקו חדש" = שטח <b>בנוי-מגורים</b> (מוקף בתים, מחוץ לאזורי תעשייה/מסחר/פארק/חקלאות ב-OSM) שחורג מ<b>תקן ההליכה של משרד התחבורה (400 מ׳ לתחנה</b>, 2016) ועד 1100 מ׳, ומוקף בתחנות. הנקודה מוצמדת לבית והמסלול מנותב על כבישים.
-        אין כאן נתוני ביקוש מוצא-יעד{nl.hasPopulation ? "" : " ולא ספירת תושבים (תבוא מנתוני הלמ\"ס)"}. כל מועמד הוא טיוטה לבדיקת מתכנן, לא המלצה.
+        המועמדים מדורגים לפי <b>מספר מבני המגורים בטווח 400 מ׳</b> (פרוקסי ל"כמה בתי-אב יֵהנו"). אין כאן נתוני ביקוש מוצא-יעד{nl.hasPopulation ? "" : " ולא ספירת תושבים מדויקת (תבוא מנתוני הלמ\"ס)"}. כל מועמד הוא טיוטה לבדיקת מתכנן, לא המלצה.
       </div>
       {!C && <div className="text-slate-400 text-sm mb-2">אין נתוני כיסוי לעיר {city} (מעט תחנות או ללא פערים). מוצגים קווי-העל הארציים.</div>}
       {C && (
@@ -599,12 +599,12 @@ function NewLines({ nl, err, city }) {
       <div ref={elRef} style={{ height: "52vh", minHeight: "320px", borderRadius: "12px", overflow: "hidden", border: "1px solid #334155" }} />
       {C && C.stubs.length > 0 && (
         <div className="mt-2 space-y-1">
-          <div className="text-[12px] text-slate-400 font-bold">מועמדים לקו חדש (לחיצה תמרכז במפה):</div>
+          <div className="text-[12px] text-slate-400 font-bold">מועמדים לקו חדש — מדורגים לפי מבני מגורים (לחיצה תמרכז במפה):</div>
           {C.stubs.map((s, i) => (
             <div key={i} onClick={() => mapRef.current && mapRef.current.setView([s.lat, s.lon], 14)}
               className="flex items-center gap-2 text-[12px] bg-slate-800/60 rounded-lg px-2 py-1 cursor-pointer hover:bg-slate-700/60">
               <span className="font-black text-white rounded-full w-5 h-5 flex items-center justify-center" style={{ background: ROUTE_PAL[i % ROUTE_PAL.length], fontSize: "11px" }}>{i + 1}</span>
-              <span className="text-slate-300 flex-1">מועמד לקו · עד {s.maxM} מ׳ מתחנה{s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}</span>
+              <span className="text-slate-300 flex-1">{s.homes != null ? <b className="text-emerald-300">~{nf(s.homes)} מבני מגורים</b> : "מועמד לקו"} · עד {s.maxM} מ׳ מתחנה{s.pop ? ` · ~${nf(s.pop)} תושבים` : ""}</span>
               <span className="text-sky-300">→ קו-על {s.hubSid} ({s.hubCity})</span>
               <span className="text-slate-400 font-mono" title={s.roadKm != null ? "אורך מסלול על כבישים" : "מרחק אווירי"}>~{s.roadKm != null ? s.roadKm : s.km} ק"מ{s.roadKm != null ? " 🛣️" : ""}</span>
             </div>

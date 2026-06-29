@@ -250,11 +250,16 @@ jobs:
                   ml=sum(x[0] for x in cl)/len(cl); mo=sum(x[1] for x in cl)/len(cl)
                   nh=nearest_hub(ml,mo)
                   if not nh: continue
+                  # "homes served" proxy: residential buildings within ~400m walk of the gap
+                  homes=None
+                  if tree is not None:
+                      homes=int(len(tree.query_ball_point([ml, mo*cosf], 400.0/111320.0)))
                   stubs.append({"lat":round(ml,5),"lon":round(mo,5),"cells":len(cl),
-                                "maxM":max(x[2] for x in cl),"hubSid":nh[0],
+                                "maxM":max(x[2] for x in cl),"homes":homes,"hubSid":nh[0],
                                 "hubLat":round(nh[1],5),"hubLon":round(nh[2],5),
                                 "hubLines":nh[3],"hubCity":nh[4],"km":round(nh[5]/1000,1)})
-              stubs.sort(key=lambda s:-(s["cells"]*s["maxM"]))
+              # rank by homes served (fall back to gap size where buildings weren't indexed)
+              stubs.sort(key=lambda s:-((s["homes"] if s["homes"] is not None else s["cells"]*s["maxM"])))
               gaps.sort(key=lambda g:-g[2])
               cities_out[c]={"gaps":[{"lat":g[0],"lon":g[1],"m":g[2]} for g in gaps[:60]],
                              "stubs":stubs[:12], "maxGapM":max(g[2] for g in gaps),
