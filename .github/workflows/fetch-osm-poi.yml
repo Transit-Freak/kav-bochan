@@ -1,0 +1,76 @@
+name: fetch-osm-poi
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fetch-osm-poi.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-osm-poi
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Query Overpass for Israel POIs
+        run: |
+          set -euo pipefail
+          Q='[out:json][timeout:600];area["ISO3166-1"="IL"][admin_level=2]->.il;(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall)$"]["name"](area.il);nwr["shop"~"^(mall|department_store)$"]["name"](area.il);nwr["railway"="station"]["name"](area.il);nwr["amenity"="place_of_worship"]["name"](area.il););out center tags;'
+          ok=0
+          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            echo "== trying $ep =="
+            if curl -fsS --max-time 800 --data-urlencode "data=$Q" "$ep" -o raw.json; then ok=1; echo "got $(wc -c < raw.json) bytes"; break; fi
+            echo "failed, next endpoint"; sleep 5
+          done
+          [ "$ok" = "1" ] || { echo "all overpass endpoints failed"; exit 1; }
+
+      - name: Process to compact poi.json
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          d=json.load(open('raw.json'))
+          out=[]
+          for e in d.get('elements',[]):
+            t=e.get('tags',{}); name=t.get('name')
+            if not name: continue
+            lat=e.get('lat'); lon=e.get('lon')
+            if lat is None:
+              c=e.get('center') or {}; lat=c.get('lat'); lon=c.get('lon')
+            if lat is None or lon is None: continue
+            sh=t.get('shop'); am=t.get('amenity'); rw=t.get('railway')
+            if sh in ('mall','department_store'): cat='mall'
+            elif rw=='station': cat='train'
+            elif am=='place_of_worship': cat='worship'
+            elif am in ('school','kindergarten'): cat='school'
+            elif am in ('university','college'): cat='academia'
+            elif am in ('hospital','clinic'): cat='health'
+            elif am=='townhall': cat='townhall'
+            else: cat='other'
+            out.append({'n':name,'la':round(float(lat),5),'lo':round(float(lon),5),'k':cat})
+          json.dump({'count':len(out),'poi':out}, open('poi.json','w'), ensure_ascii=False, separators=(',',':'))
+          print('POIs:', len(out))
+          PY
+          ls -la poi.json
+
+      - name: Push poi.json to osm-poi branch
+        run: |
+          set -euo pipefail
+          cp poi.json /tmp/poi.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan osm-poi
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'poi.json' -exec rm -rf {} +
+          cp /tmp/poi.json ./poi.json
+          git add -A
+          git commit -m "OSM POI for Israel"
+          git push -f origin osm-poi
