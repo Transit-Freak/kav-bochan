@@ -1,0 +1,65 @@
+name: fetch-osm-roads
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fetch-osm-roads.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-osm-roads
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Query Overpass for named roads (with geometry)
+        run: |
+          set -euo pipefail
+          Q='[out:json][timeout:900];area["ISO3166-1"="IL"][admin_level=2]->.il;way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|road)$"]["name"](area.il);out geom;'
+          ok=0
+          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            echo "== trying $ep =="
+            if curl -fsS --max-time 1000 --data-urlencode "data=$Q" "$ep" -o raw.json; then ok=1; echo "got $(wc -c < raw.json) bytes"; break; fi
+            echo "failed, next endpoint"; sleep 5
+          done
+          [ "$ok" = "1" ] || { echo "all overpass endpoints failed"; exit 1; }
+
+      - name: Process to compact roads.json
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          d=json.load(open('raw.json'))
+          out=[]
+          for e in d.get('elements',[]):
+            if e.get('type')!='way': continue
+            name=e.get('tags',{}).get('name'); geom=e.get('geometry')
+            if not name or not geom: continue
+            pts=[[round(p['lat'],5),round(p['lon'],5)] for p in geom]
+            if len(pts)>=2: out.append({'n':name,'g':pts})
+          json.dump({'count':len(out),'roads':out}, open('roads.json','w'), ensure_ascii=False, separators=(',',':'))
+          print('named roads:', len(out))
+          PY
+          ls -la roads.json
+
+      - name: Push roads.json to osm-roads branch
+        run: |
+          set -euo pipefail
+          cp roads.json /tmp/roads.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan osm-roads
+          git reset
+          find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'roads.json' -exec rm -rf {} +
+          cp /tmp/roads.json ./roads.json
+          git add -A
+          git commit -m "OSM named roads for Israel"
+          git push -f origin osm-roads
