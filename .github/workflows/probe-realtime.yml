@@ -1,7 +1,6 @@
 name: probe-realtime
 
-# בדיקת-מידע: מאשר שנתוני האיחורים של rail.co.il נמצאים ב-etaDiffTimes באותו
-# endpoint שכבר השתמשנו בו, ובודק נגישות + מקור-גיבוי (MOT GTFS-RT). דוחף ל-probe-realtime-out.
+# שולף את האיחור האמיתי (etaDiffTimes/difMin) של רכבת 172 מ-rail.co.il. דוחף ל-probe-realtime-out.
 
 on:
   push:
@@ -19,12 +18,10 @@ concurrency:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Install GTFS-RT parser
-        run: pip install --quiet gtfs-realtime-bindings protobuf
-      - name: Probe rail.co.il real-time + MOT GTFS-RT
+      - name: Pull train 172 live delay from rail.co.il
         run: |
           set +e
           python3 - <<'PY'
@@ -33,53 +30,75 @@ jobs:
           def log(s): print(s); out.append(str(s))
           KEY="5e64d66cf03f4547bcac5de2de06b566"
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          URL="https://rail-api.rail.co.il/rjpa/api/v1/timetable/searchTrain"
           today=datetime.date.today().isoformat()
-          body={"fromStation":"3700","toStation":"4600","date":today,"hour":"08:00",
-                "scheduleType":"ByDeparture","systemType":"2","languageId":"English"}
-          def call(url, method="POST"):
-              try:
-                  if method=="POST":
-                      req=urllib.request.Request(url, data=json.dumps(body).encode(), headers={
-                          "content-type":"application/json","ocp-apim-subscription-key":KEY,
-                          "origin":"https://www.rail.co.il","referer":"https://www.rail.co.il/",
-                          "user-agent":UA,"accept":"application/json","accept-language":"he,en"})
-                  else:
-                      req=urllib.request.Request(url, headers={"ocp-apim-subscription-key":KEY,"user-agent":UA,
-                          "origin":"https://www.rail.co.il","referer":"https://www.rail.co.il/"})
-                  with urllib.request.urlopen(req,timeout=40) as r:
-                      return r.status, r.read().decode("utf-8","replace")
-              except urllib.error.HTTPError as e:
-                  return e.code, e.read().decode("utf-8","replace")
-              except Exception as e:
-                  return None, repr(e)
 
-          log("================ rail.co.il (Israel Railways own API) ================")
-          for url,m in [
-              ("https://rail-api.rail.co.il/rjpa/api/v1/timetable/searchTrainForMobile","POST"),
-              ("https://rail-api.rail.co.il/rjpa/api/v1/timetable/searchTrain","POST"),
-              ("https://israelrail.azurefd.net/rjpa-prod/api/v1/timetable/searchTrainForMobile","POST"),
-          ]:
-              st,bd=call(url,m)
-              log("%s %s -> status=%s"%(m,url,st))
-              log("   has etaDiffTimes field: %s | difMin: %s"%("etaDiffTimes" in (bd or ""), "difMin" in (bd or "")))
-              log("   body[:300]: %s"%((bd or "")[:300].replace(chr(10)," ")))
+          # station name map (best effort)
+          names={}
+          for u in ["https://rail-api.rail.co.il/common/api/v1/stations",
+                    "https://rail-api.rail.co.il/rjpa/api/v1/stations"]:
+              try:
+                  req=urllib.request.Request(u, headers={"ocp-apim-subscription-key":KEY,"user-agent":UA,
+                      "origin":"https://www.rail.co.il","referer":"https://www.rail.co.il/"})
+                  j=json.load(urllib.request.urlopen(req,timeout=30))
+                  recs=j.get("result") or j
+                  if isinstance(recs,list):
+                      for s in recs:
+                          sid=s.get("stationId") or s.get("id"); nm=s.get("stationName") or s.get("name")
+                          if sid and nm: names[str(sid)]=nm
+                  if names: log("stations map: %d (from %s)"%(len(names),u)); break
+              except Exception as e:
+                  log("stations %s -> %r"%(u,e))
+
+          def search(frm,to,hour):
+              body={"fromStation":str(frm),"toStation":str(to),"date":today,"hour":hour,
+                    "scheduleType":"ByDeparture","systemType":"2","languageId":"Hebrew"}
+              req=urllib.request.Request(URL, data=json.dumps(body).encode(), headers={
+                  "content-type":"application/json","ocp-apim-subscription-key":KEY,
+                  "origin":"https://www.rail.co.il","referer":"https://www.rail.co.il/",
+                  "user-agent":UA,"accept":"application/json"})
+              with urllib.request.urlopen(req,timeout=40) as r: return json.load(r)
+
+          # try station pairs that train 172 (Modiin Merkaz -> Nahariya, dep 15:48) passes
+          pairs=[("4600","700","15:00"),("4600","700","15:30"),("3700","700","15:30"),("680","700","15:00")]
+          found=None
+          for frm,to,hr in pairs:
+              try:
+                  j=search(frm,to,hr)
+                  travels=(j.get("result") or {}).get("travels") or []
+                  log("query %s->%s @%s : %d travels"%(frm,to,hr,len(travels)))
+                  for t in travels:
+                      for x in (t.get("trains") or []):
+                          if str(x.get("trainNumber"))=="172":
+                              found=x; break
+                      if found: break
+                  if found: log("  >>> found train 172 via %s->%s"%(frm,to)); break
+              except Exception as e:
+                  log("query %s->%s -> %r"%(frm,to,e))
+          log("")
+          if found:
+              log("=== רכבת 172 — נתון חי מ-rail.co.il ===")
+              log("orign=%s dest=%s dep=%s arr=%s"%(found.get("orignStation"),found.get("destinationStation"),
+                                                    found.get("departureTime"),found.get("arrivalTime")))
+              eta=found.get("etaDiffTimes") or []
+              log("etaDiffTimes (%d ערכים):"%len(eta))
+              maxd=0
+              for e in eta:
+                  sid=str(e.get("stationId")); dm=e.get("difMin")
+                  log("   תחנה %s (%s): איחור %s דק'"%(sid, names.get(sid,"?"), dm))
+                  try: maxd=max(maxd,int(dm))
+                  except: pass
               log("")
-
-          log("================ MOT GTFS-Realtime (no auth fallback) ================")
-          from google.transit import gtfs_realtime_pb2
-          for url in ["https://gtfs.mot.gov.il/gtfsfiles/TripUpdates.pb",
-                      "https://gtfs.mot.gov.il/gtfsfiles/VehiclePositions.pb"]:
+              log("** האיחור הנוכחי של רכבת 172: %d דקות **"%maxd)
+              json.dump(found, open("train172.json","w"), ensure_ascii=False, indent=1)
+          else:
+              log("לא נמצאה רכבת 172 בשאילתות. דוגמת trainNumbers שכן נמצאו:")
               try:
-                  with urllib.request.urlopen(urllib.request.Request(url,headers={"user-agent":UA}),timeout=60) as r:
-                      b=r.read(); ct=r.headers.get("content-type")
-                  log("GET %s -> %d bytes, content-type=%s"%(url,len(b),ct))
-                  feed=gtfs_realtime_pb2.FeedMessage(); feed.ParseFromString(b)
-                  log("   parsed GTFS-RT OK: %d entities"%len(feed.entity))
-              except urllib.error.HTTPError as e:
-                  log("GET %s -> HTTP %s"%(url,e.code))
-              except Exception as e:
-                  log("GET %s -> %r"%(url,e))
-
+                  j=search("4600","700","15:00"); tv=(j.get("result") or {}).get("travels") or []
+                  nums=[str(x.get("trainNumber")) for t in tv for x in (t.get("trains") or [])]
+                  log("   %s"%nums[:20])
+                  json.dump(j, open("train172.json","w"), ensure_ascii=False, indent=1)
+              except Exception as e: log("   %r"%e)
           open("probe-report.txt","w").write("\n".join(out))
           PY
           ls -la probe-report.txt 2>/dev/null || true
@@ -87,9 +106,10 @@ jobs:
         run: |
           set -euo pipefail
           cp probe-report.txt /tmp/r.txt 2>/dev/null || echo "no report">/tmp/r.txt
+          cp train172.json /tmp/t.json 2>/dev/null || echo '{}'>/tmp/t.json
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan probe-out5; git reset
+          git checkout --orphan probe-out6; git reset
           find . -maxdepth 1 -mindepth 1 -not -name '.git' -exec rm -rf {} +
-          cp /tmp/r.txt probe-report.txt
-          git add -A; git commit -m "rail.co.il etaDiffTimes + MOT GTFS-RT probe"
-          git push -f origin probe-out5:probe-realtime-out
+          cp /tmp/r.txt probe-report.txt; cp /tmp/t.json train172.json
+          git add -A; git commit -m "train 172 live etaDiffTimes from rail.co.il"
+          git push -f origin probe-out6:probe-realtime-out
