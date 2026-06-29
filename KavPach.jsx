@@ -2769,7 +2769,7 @@ const DAYS_FILTER = [
                   onClick={() => setShowWhatsNew(v => !v)}
                   className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
                 >
-                  עדכון גרסה 3.3
+                  מה חדש
                 </button>
                 <span className="text-xs font-bold text-slate-400">נבנה על ידי שלמה הרטמן</span>
               </div>
@@ -2790,7 +2790,7 @@ const DAYS_FILTER = [
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="font-black text-2xl text-slate-800">מה חדש בגרסה 3.3</h3>
+                  <h3 className="font-black text-2xl text-slate-800">מה חדש</h3>
                   <p className="text-slate-400 font-bold text-xs mt-1">עדכון מידע — נתונים עדכניים ועלות תפעולית מדויקת לפי מחוז</p>
                 </div>
                 <button onClick={() => setShowWhatsNew(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
@@ -3636,7 +3636,6 @@ const DAYS_FILTER = [
                   {/* מה חדש בגרסה הנוכחית — תמיד בהתחלה */}
                   <section className="bg-gradient-to-bl from-indigo-50 to-white rounded-[2rem] p-6 border-2 border-indigo-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">גרסה 3.3</span>
                       <h3 className="text-xl font-black text-indigo-700">מה חדש בעדכון הנוכחי</h3>
                     </div>
                     <div className="space-y-4 text-sm text-slate-700 leading-relaxed">

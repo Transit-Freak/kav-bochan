@@ -300,10 +300,10 @@ function TopBar({ query, setQuery, onSelect, cityNames, onUpload, onInfo, onRepo
         </a>
         <div>
           <h1>קו באג <span className="beta">בטא</span> <span
-            className="ver" role="button" tabIndex={0} title="מה חדש בגרסה זו"
+            className="ver" role="button" tabIndex={0} title="מה חדש"
             onClick={() => setWhatsNew(true)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setWhatsNew(true); } }}
-          >v{KAVBUG_VERSION}</span></h1>
+          >מה חדש</span></h1>
           <p className="tag">איתור קטעים מיותרים בקווי תחבורה · כלי בבדיקה — אמתו כל התראה על המפה</p>
         </div>
       </div>
