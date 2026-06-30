@@ -48,7 +48,7 @@ function lcsMark(a, b, which) {
 
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
-function StopDetails({ s, inList, onRoute, routeBusy, times }) {
+function StopDetails({ s, inList, onRoute, routeBusy, times, roadWalk }) {
   const nearPois = (s.p || []).map((x, i) => ({ x, i })).filter((o) => effWalkMin(o.x) <= NEARBY_MAX_MIN);
   return (
     <>
@@ -75,7 +75,18 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
             ? <>📍 הרחוב המצטלב שבשם («<b>{s.cur}</b>»{s.curd != null ? " — כ-" + s.curd + " מ׳ מהתחנה" : " — אינו ליד התחנה"}) רחוק יותר מהרחוב <b>{s.ms}</b> (<b>{s.md}</b> מ׳), שעובר ממש לידה.</>
             : <>📍 הרחוב <b>{s.ms}</b> עובר ממש ליד התחנה (<b>{s.md}</b> מ׳) ואינו מופיע בשם.</>}
           <div className="d-sug-name">💡 שם מוצע: <b>{s.sug}</b></div>
-          <div className="d-map-legend"><span className="lg cur">▬ בשם כיום</span> <span className="lg sug">▬ מוצע</span> — מסומנים על המפה</div>
+          {roadWalk && (roadWalk.cur || roadWalk.sug) && (
+            <div className="d-walk-cmp">
+              🚶 הליכה אמיתית מהתחנה:
+              {roadWalk.cur && <> <span className="lg cur">{s.cur}</span> <b>{roadWalk.cur.d} מ׳</b> ({roadWalk.cur.min} דק׳)</>}
+              {roadWalk.cur && roadWalk.sug && " · "}
+              {roadWalk.sug && <> <span className="lg sug">{s.ms}</span> <b>{roadWalk.sug.d} מ׳</b> ({roadWalk.sug.min} דק׳)</>}
+              {roadWalk.cur && roadWalk.sug && (
+                <div className="d-walk-verdict">{roadWalk.sug.d <= roadWalk.cur.d ? "✓ הרחוב המוצע אכן קרוב יותר גם בהליכה" : "↺ דווקא הרחוב שבשם קרוב יותר בהליכה — ייתכן שההצעה אינה נחוצה"}</div>
+              )}
+            </div>
+          )}
+          <div className="d-map-legend"><span className="lg cur">● בשם כיום</span> <span className="lg sug">● מוצע</span> — מסומנים על המפה</div>
         </div>
       )}
       {s.sug && s.k !== "closer" && (
@@ -126,6 +137,7 @@ function App() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [route, setRoute] = useState(null); // {loading|err|ok, to, d, min}
   const [poiTimes, setPoiTimes] = useState(null); // זמני הליכה אמיתיים לנקודות, מיושרים ל-sel.p
+  const [roadWalk, setRoadWalk] = useState(null);  // הליכה אמיתית מהתחנה לרחובות (prim/cur/sug)
   const mapRef = useRef(null);
   const markRef = useRef(null);
   const routeRef = useRef(null);
@@ -189,28 +201,41 @@ function App() {
     if (markRef.current) { markRef.current.remove(); markRef.current = null; }
     setRoute(null);
     setPoiTimes(null);
+    setRoadWalk(null);
     if (!sel || sel.la == null) return;
     // סמן התחנה
     markRef.current = L.marker([sel.la, sel.lo])
       .addTo(m)
       .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t));
-    // "הצעות כלליות": סמן את הרחובות בנקודה מדויקת על הרחוב — אדום=בשם כיום, ירוק=מוצע
+    // "הצעות כלליות": נקודה מדויקת על כל רחוב — אדום=בשם כיום, ירוק=מוצע, אפור=ראשי
     if (sel.k === "closer" && sel.roads) {
       const rg = L.layerGroup();
       const draw = (road, color, cls) => {
         if (!road || !road.pt) return;
-        if (road.g && road.g.length >= 2) {
-          L.polyline(road.g, { color, weight: 3, opacity: 0.55, lineCap: "round" }).addTo(rg);
-        }
-        L.circleMarker(road.pt, { radius: 6, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 })
+        L.circleMarker(road.pt, { radius: 7, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 })
           .addTo(rg)
-          .bindTooltip(esc(road.n), { permanent: true, direction: "top", offset: [0, -4], className: "road-lbl " + cls });
+          .bindTooltip(esc(road.n), { permanent: true, direction: "top", offset: [0, -5], className: "road-lbl " + cls });
       };
-      draw(sel.roads.prim, "#64748b", "prim");  // אפור — הרחוב הראשי
-      draw(sel.roads.cur, "#dc2626", "cur");     // אדום — המצטלב שבשם כיום
-      draw(sel.roads.sug, "#16a34a", "sug");     // ירוק — הרחוב המוצע
+      draw(sel.roads.prim, "#64748b", "prim");
+      draw(sel.roads.cur, "#dc2626", "cur");
+      draw(sel.roads.sug, "#16a34a", "sug");
       rg.addTo(m);
       roadsLayerRef.current = rg;
+      // זמן/מרחק הליכה אמיתי מהתחנה לכל רחוב (OSRM) — כדי לבדוק איזה באמת קרוב יותר
+      const keys = ["prim", "cur", "sug"].filter((k) => sel.roads[k] && sel.roads[k].pt);
+      if (keys.length) {
+        const pts = [[sel.lo, sel.la], ...keys.map((k) => [sel.roads[k].pt[1], sel.roads[k].pt[0]])];
+        fetch(OSRM + "/table/v1/foot/" + pts.map((c) => c.join(",")).join(";") + "?sources=0&annotations=duration,distance")
+          .then((r) => r.json())
+          .then((j) => {
+            if (!j.durations || !j.durations[0]) return;
+            const dur = j.durations[0], dis = (j.distances && j.distances[0]) || [];
+            const rw = {};
+            keys.forEach((k, i) => { const x = i + 1; if (dur[x] != null) rw[k] = { min: Math.max(1, Math.round(dur[x] / 60)), d: dis[x] != null ? Math.round(dis[x]) : null }; });
+            setRoadWalk(rw);
+          })
+          .catch(() => {});
+      }
     }
     // סמן רק את נקודות העניין הקרובות (עד ~5 דק׳ הליכה)
     const withC = (sel.p || []).map((x, idx) => ({ x, idx })).filter((o) => o.x.la != null && effWalkMin(o.x) <= NEARBY_MAX_MIN);
@@ -355,7 +380,7 @@ function App() {
                     </div>
                   </button>
                   <div className="it-detail">
-                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} times={sel && sel.c === s.c ? poiTimes : null} />
+                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} times={sel && sel.c === s.c ? poiTimes : null} roadWalk={sel && sel.c === s.c ? roadWalk : null} />
                   </div>
                 </div>
               );
@@ -378,7 +403,7 @@ function App() {
             <div className="detail">
               <button className="d-x" onClick={() => setSel(null)}>×</button>
               <div className="d-name">{sel.n}</div>
-              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} />
+              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} roadWalk={roadWalk} />
             </div>
           )}
         </div>

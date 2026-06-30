@@ -202,3 +202,10 @@ body {
 .road-lbl.prim { background:#64748b; }
 .road-lbl.cur  { background:#dc2626; }
 .road-lbl.sug  { background:#16a34a; }
+
+/* השוואת הליכה אמיתית בין הרחובות ("הצעות כלליות") */
+.d-walk-cmp { margin-top:4px; font-size:13px; color:#334155; line-height:1.6; }
+.d-walk-cmp .lg { font-weight:800; }
+.d-walk-cmp .lg.cur { color:#dc2626; }
+.d-walk-cmp .lg.sug { color:#16a34a; }
+.d-walk-verdict { margin-top:2px; font-weight:700; color:#0f766e; }
