@@ -19,7 +19,7 @@ def walk_table(la,lo,pts):
     url=OSRM_BASE+"/table/v1/foot/"+coords+"?sources=0&annotations=duration,distance"
     try:
         req=urllib.request.Request(url,headers={'User-Agent':'kav-bochan/1.0 (transit data quality)'})
-        with urllib.request.urlopen(req,timeout=20) as rr: j=json.load(rr)
+        with urllib.request.urlopen(req,timeout=12) as rr: j=json.load(rr)
         dur=j['durations'][0]; dis=(j.get('distances') or [[None]*(len(pts)+1)])[0]
         out=[]
         for i in range(1,len(pts)+1):
@@ -322,22 +322,28 @@ for r in rows[1:]:
 
 # הצעות כלליות — אימות לפי הליכה אמיתית (OSRM): המרחק לרחוב נמדד לאורך המדרכות,
 # לא בקו אווירי. אם הרחוב המצטלב שבשם קרוב יותר בהליכה מהמוצע — מבטלים את ההצעה.
-walked=dropped=0
+# תקציב-זמן גלובלי + ספירת-כשלים: לעולם לא תוקעים את ה-job אם ה-OSRM איטי/לא זמין.
+OSRM_BUDGET=float(os.environ.get('OSRM_BUDGET','420'))  # שניות
+walked=dropped=0; t_osrm=time.time(); osrm_fail=0; osrm_off=not OSRM_WALK
 for rec in closer_cands:
     rds=rec.get('roads',{})
-    if OSRM_WALK and rec['la'] is not None:
+    if not osrm_off and rec['la'] is not None and (time.time()-t_osrm)<OSRM_BUDGET and osrm_fail<8:
         keys=[k for k in ('prim','cur','sug') if rds.get(k) and rds[k].get('pt')]
         if keys:
             res=walk_table(rec['la'],rec['lo'],[rds[k]['pt'] for k in keys])
-            time.sleep(0.12)  # קצב מנומס מול שרת ה-OSRM הציבורי
+            time.sleep(0.1)  # קצב מנומס מול שרת ה-OSRM הציבורי
             if res:
+                osrm_fail=0
                 rw={k:wv for k,wv in zip(keys,res) if wv}
                 if rw: rec['rw']=rw; walked+=1
                 cw=rw.get('cur'); sw=rw.get('sug')
                 if cw and sw and sw['d']>cw['d']:
                     dropped+=1; cnt['exact']+=1; continue  # המצטלב שבשם קרוב יותר בהליכה
+            else:
+                osrm_fail+=1
+                if osrm_fail>=8: print('OSRM unavailable — falling back to straight-line for the rest')
     suspects.append(rec); cnt['closer']+=1
-print('closer: %d walked, %d dropped by walking, %d kept'%(walked,dropped,cnt['closer']))
+print('closer: %d walked, %d dropped by walking, %d kept (%.0fs)'%(walked,dropped,cnt['closer'],time.time()-t_osrm))
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
