@@ -27,6 +27,24 @@ function effWalkMin(x) {
 // החלק בשם התחנה שאמור להיות הרחוב (לפני ה-/)
 function primName(n) { return String(n || "").split(/[\\/]/)[0].trim(); }
 
+// משווה שתי מחרוזות ברמת התו ומסמן בצבע את האותיות השונות (LCS).
+function lcsMark(a, b, which) {
+  a = String(a || ""); b = String(b || "");
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--)
+    dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < m && j < n) {
+    if (a[i] === b[j]) { out.push([a[i], false, i]); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { if (which === "a") out.push([a[i], true, i]); i++; }
+    else { if (which === "b") out.push([b[j], true, j]); j++; }
+  }
+  while (i < m) { if (which === "a") out.push([a[i], true, i]); i++; }
+  while (j < n) { if (which === "b") out.push([b[j], true, j]); j++; }
+  return out.map(([ch, d, k]) => d ? <span className="d-hl" key={k}>{ch}</span> : <span key={k}>{ch}</span>);
+}
+
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
 function StopDetails({ s, inList, onRoute, routeBusy, times }) {
@@ -43,7 +61,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
         {CATS[s.k].label} — {CATS[s.k].desc}
       </div>
       {(s.k === "spelling" || s.k === "uncertain") && (
-        <div className="d-diff">💬 בשם התחנה: «<b>{primName(s.n)}</b>» · בכתובת: «<b>{s.s}</b>»</div>
+        <div className="d-diff">💬 בשם התחנה: «<b>{lcsMark(primName(s.n), s.s, "a")}</b>» · בכתובת: «<b>{lcsMark(primName(s.n), s.s, "b")}</b>»</div>
       )}
       {s.sv && (
         <div className="d-sv">
@@ -52,6 +70,9 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
       )}
       {s.sug && (
         <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{s.sug}</b></div>
+      )}
+      {s.psug && (
+        <div className="d-sug">🏛️ מוקד מרכזי סמוך (עד 100 מ׳): <b>{s.psug}</b> <span className="d-poi-d">{s.psugd} מ׳</span></div>
       )}
       {nearPois.length > 0 && (
         <div className="d-poi">
@@ -212,6 +233,19 @@ function App() {
 
   const hasActiveInfo = !!(data && data.stops.some((s) => s.act === false));
 
+  // הורדת התצוגה הנוכחית כקובץ אקסל (CSV עם BOM כדי שעברית תיפתח נכון ב-Excel)
+  function downloadCSV() {
+    const cols = ["מס׳ תחנה", "שם התחנה", "רחוב בכתובת", "עיר", "סוג", "רחוב לפי המפה", "מרחק (מ׳)", "שם מוצע"];
+    const esc = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const rows = filtered.map((s) => [s.c, s.n, s.s, s.t || "", (CATS[s.k] && CATS[s.k].label) || s.k, s.ms || "", s.md == null ? "" : s.md, s.sug || ""].map(esc).join(","));
+    const csv = "﻿" + cols.map(esc).join(",") + "\n" + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "תחנות-" + (cat === "all" ? "הכל" : (CATS[cat] ? CATS[cat].label : cat)) + ".csv";
+    a.click();
+  }
+
   if (!data) return <div className="boot">טוען נתונים…</div>;
   const CAP = 600;
   const shown = filtered.slice(0, CAP);
@@ -265,6 +299,7 @@ function App() {
           <div className="count">
             מציג {shown.length.toLocaleString()} מתוך {filtered.length.toLocaleString()}
             {filtered.length > CAP ? " — צמצמו בחיפוש כדי לראות את השאר" : ""}
+            <button className="dl-btn" onClick={downloadCSV} disabled={!filtered.length} title="הורדת התצוגה הנוכחית כקובץ אקסל">⬇ אקסל ({filtered.length.toLocaleString()})</button>
           </div>
           <div className="list">
             {shown.map((s, i) => {

@@ -177,3 +177,10 @@ body {
   .d-poi-row { flex-wrap: wrap; }
   .d-poi-n { flex: 1 1 100%; }
 }
+
+/* הדגשת האות/ות השונות בין שם התחנה לרחוב */
+.d-hl { background: #fde047; color: #b91c1c; font-weight: 900; border-radius: 3px; padding: 0 1px; box-decoration-break: clone; }
+/* כפתור הורדת אקסל */
+.dl-btn { margin-inline-start: 10px; background: #065f46; color: #fff; border: 0; border-radius: 8px; padding: 4px 10px; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.dl-btn:hover { background: #047857; }
+.dl-btn:disabled { opacity: .5; cursor: default; }

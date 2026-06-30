@@ -11,6 +11,8 @@ ROADS=os.environ.get('ROADS','roads.json'); ACTIVE_PATH=os.environ.get('ACTIVE',
 PREV=os.environ.get('PREV',''); OUT=os.environ.get('OUT','next-station/data.json')
 PREF=['שדרות','שדרת',"שד'",'שד','רחוב',"רח'",'רח','דרך','סמטת','סמטה',"סמ'",'שכונת',"שכ'",'כיכר','ככר','מחלף','כביש']
 TITLES={'הרב','רב','דר','דוקטור','פרופ','השר','ראל','אלוף','סרן','הנשיא','מר','גנרל','בי"ס','ביה"ס','בית','ספר','גן','קניון'}
+# מוקדים "מרכזיים" שראויים לשמש שם תחנה (עד 100 מ׳)
+MAJOR_POI={'train','busstation','mall','health','academia','gov','culture'}
 def sp(t):
     t=t.strip()
     for p in PREF:
@@ -181,6 +183,12 @@ for r in rows[1:]:
             if dd<=60 and nf(nm2)!=nf(s1): s2=nm2; break
         cand=(s1+'/'+s2) if s2 else s1
         if nf(cand)!=nf(name): sug=cand
+    # שם מוצע לפי מוקד מרכזי (POI גדול) עד 100 מ׳ — תחנות נקראות לעיתים ע"ש מוסד סמוך
+    psug=psugd=None
+    for dist,p in nb:
+        if dist>100: break  # nb ממויין לפי מרחק
+        if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name):
+            psug=p['n']; psugd=dist; break
     pois=[]
     for dist,p in nb:
         if dist>300: continue
@@ -191,6 +199,7 @@ for r in rows[1:]:
         pois.append(pr)
     rec={'c':code,'n':name,'s':st,'t':c,'la':la,'lo':lo,'k':cat,'p':pois,'ms':ms,'md':md}
     if sug: rec['sug']=sug
+    if psug: rec['psug']=psug; rec['psugd']=psugd
     if sv: rec['sv']={'use':sv[0],'maj':sv[1],'n':sv[2]}
     if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
     suspects.append(rec)
