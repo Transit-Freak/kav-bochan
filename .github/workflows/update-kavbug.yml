@@ -53,8 +53,16 @@ jobs:
       - name: Rail gaps — schedule vs live rail API (best-effort)
         continue-on-error: true
         run: |
-          set -euo pipefail
-          node kavbug/rail-gaps.js gtfs.zip kavbug/rail-gaps
+          set -uo pipefail
+          node kavbug/rail-gaps.js gtfs.zip kavbug/rail-gaps || echo "rail-gaps.js failed (non-fatal)"
+          # אם הסריקה יצאה ריקה (0 רכבות — בד"כ data.gov.il/API של רכבת ישראל לא זמין),
+          # משחזרים את הדוח הקודם הטוב במקום לדרוס אותו בדוח ריק.
+          TC=$(python3 -c "import json;print(json.load(open('kavbug/rail-gaps.json')).get('trainsChecked',0))" 2>/dev/null || echo 0)
+          echo "rail trainsChecked=$TC"
+          if [ "${TC:-0}" -lt 1 ]; then
+            echo "rail scan empty — keeping previous rail-gaps report"
+            git checkout -- kavbug/rail-gaps.json kavbug/rail-gaps.csv || true
+          fi
           ls -la kavbug/rail-gaps.json kavbug/rail-gaps.csv
 
       - name: Commit refreshed KavBug reports to main
