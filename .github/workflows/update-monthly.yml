@@ -192,3 +192,5 @@ jobs:
           cp /tmp/roads.json ./roads.json
           git add -A && git commit -m "OSM named roads for Israel (monthly)"
           git push -f origin osm-roads-tmp:osm-roads
+
+# trigger: full monthly refresh — populate real OSRM walking distance for "הצעות כלליות"
