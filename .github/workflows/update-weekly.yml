@@ -72,3 +72,5 @@ jobs:
 # reclassify: 'הצעות כלליות' now suggests a closer cross-street + emits road geometry for the map
 
 # reclassify: tighten closer cross-rule (named cross must be far >=45m, alt <=30m) to cut noise
+
+# reclassify: stricter closer gap to further cut noise
