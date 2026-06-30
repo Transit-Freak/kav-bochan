@@ -59,6 +59,7 @@ def same_street(a,b):
 def ktiv_only(a,b):
     sa=re.sub('[יו]','',nf(a)); sb=re.sub('[יו]','',nf(b))
     return sa==sb and len(sa)>=3
+def cn(s): return re.sub(r'\s*/\s*',' / ',re.sub(r'\s+',' ',(s or '').strip()))  # שם-תחנה מנורמל להשוואה
 # השוואת רחובות עמידה למקפים/גרשיים/כתיב מלא (לזיהוי "הצעות כלליות" בלבד)
 def streets_match(a,b):
     a=(a or '').replace('-',' '); b=(b or '').replace('-',' ')
@@ -190,9 +191,11 @@ for key,lst in _grp.items():
 print('street-variance flags:',len(STREETVAR))
 cnt={'exact':0,'settlement':0,'spelling':0,'streetvar':0,'uncertain':0,'reversal':0,'mismatch':0,'landmark':0,'mapok':0,'noaddr':0,'closer':0}
 suspects=[]; closer_cands=[]
+EXIST=defaultdict(set)  # שמות-תחנות קיימים לכל עיר — לבדיקת התנגשות שמות מוצעים
 for r in rows[1:]:
     if len(r)<=SD: continue
     name,desc,code=r[SN],r[SD],r[SC]; st=street(desc); c=city(desc)
+    if c: EXIST[c].add(cn(name))
     try: la=round(float(r[LA]),5); lo=round(float(r[LO]),5)
     except: la=lo=None
     realstreet=st and not re.fullmatch(r'[\d ]+',st)
@@ -302,14 +305,19 @@ for r in rows[1:]:
     if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
     suspects.append(rec)
 
-# הצעות כלליות: שומרים את נתוני ההליכה האמיתיים (rw) שחושבו בריצה החודשית (OSRM מקומי)
-# וקדימה מ-data.json הקודם — המרחק לרחוב נמדד לאורך המדרכות, לא בקו אווירי.
-carried=0
+# שם תחנה חייב להיות ייחודי: מדלגים על הצעה ששם-המוצע שלה מתנגש — חוזר על הצעה
+# אחרת באותה עיר, או זהה לשם תחנה קיים — שכן הוא אינו מבדיל בין התחנות (כמו בתפרח).
+sugc=Counter((rec['t'],cn(rec['sug'])) for rec in closer_cands)
+carried=dupdrop=0
 for rec in closer_cands:
+    s_cn=cn(rec['sug'])
+    # מתנגש אם חוזר על הצעה אחרת באותה עיר, או זהה לשם תחנה קיים (sug תמיד שונה משם התחנה עצמה)
+    if sugc[(rec['t'],s_cn)]>1 or s_cn in EXIST.get(rec['t'],()):
+        dupdrop+=1; cnt['exact']+=1; continue
     rw=PREVRW.get(rec['c'])
     if rw: rec['rw']=rw; carried+=1
     suspects.append(rec); cnt['closer']+=1
-print('closer kept:',cnt['closer'],'| walking carried forward:',carried)
+print('closer: dropped %d non-unique suggestions; kept %d (rw carried %d)'%(dupdrop,cnt['closer'],carried))
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)

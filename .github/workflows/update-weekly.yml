@@ -80,3 +80,5 @@ jobs:
 # reclassify: bound OSRM walking with time-budget + circuit-breaker (never hang the job)
 
 # reclassify: walking moved to monthly local-OSRM; weekly carries rw forward (fast, no public OSRM)
+
+# reclassify: drop non-unique "הצעות כלליות" suggestions (same name for multiple stops, e.g. Tifrah)
