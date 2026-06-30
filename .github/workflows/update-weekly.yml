@@ -74,3 +74,5 @@ jobs:
 # reclassify: tighten closer cross-rule (named cross must be far >=45m, alt <=30m) to cut noise
 
 # reclassify: stricter closer gap to further cut noise
+
+# reclassify: closer decision now verified by real OSRM walking distance (+rw stored); labels centered on-street

@@ -4,11 +4,30 @@
 #   STOPS=stops.txt  POI=poi.json  ROADS=roads.json  ACTIVE=active_stops.txt
 #   PREV=<data.json קודם> — אם קיים, מעתיק ממנו זמני-הליכה (rt) כדי לא לאבד אותם בריצה שבועית
 #   OUT=next-station/data.json
-import csv, re, json, math, time, os, datetime
+import csv, re, json, math, time, os, datetime, urllib.request
 t0=time.time()
 STOPS=os.environ.get('STOPS','stops.txt'); POI=os.environ.get('POI','poi.json')
 ROADS=os.environ.get('ROADS','roads.json'); ACTIVE_PATH=os.environ.get('ACTIVE','active_stops.txt')
 PREV=os.environ.get('PREV',''); OUT=os.environ.get('OUT','next-station/data.json')
+# שירות ניתוב הליכה (OSRM ציבורי, FOSSGIS) — לחישוב מרחק הליכה אמיתי לרחובות.
+# OSRM_WALK=0 משבית (חוזרים להחלטה לפי קו אווירי).
+OSRM_BASE=os.environ.get('OSRM_BASE','https://routing.openstreetmap.de/routed-foot')
+OSRM_WALK=os.environ.get('OSRM_WALK','1')!='0'
+def walk_table(la,lo,pts):
+    # מרחק/זמן הליכה אמיתי מהתחנה לכל נקודה ב-pts ([lat,lon]); מחזיר רשימה מיושרת או None
+    coords=("%f,%f;"%(lo,la))+";".join("%f,%f"%(p[1],p[0]) for p in pts)
+    url=OSRM_BASE+"/table/v1/foot/"+coords+"?sources=0&annotations=duration,distance"
+    try:
+        req=urllib.request.Request(url,headers={'User-Agent':'kav-bochan/1.0 (transit data quality)'})
+        with urllib.request.urlopen(req,timeout=20) as rr: j=json.load(rr)
+        dur=j['durations'][0]; dis=(j.get('distances') or [[None]*(len(pts)+1)])[0]
+        out=[]
+        for i in range(1,len(pts)+1):
+            if i<len(dur) and dur[i] is not None:
+                out.append({'min':max(1,round(dur[i]/60)),'d':round(dis[i]) if i<len(dis) and dis[i] is not None else None})
+            else: out.append(None)
+        return out
+    except Exception: return None
 PREF=['שדרות','שדרת',"שד'",'שד','רחוב',"רח'",'רח','דרך','סמטת','סמטה',"סמ'",'שכונת',"שכ'",'כיכר','ככר','מחלף','כביש']
 TITLES={'הרב','רב','דר','דוקטור','פרופ','השר','ראל','אלוף','סרן','הנשיא','מר','גנרל','בי"ס','ביה"ס','בית','ספר','גן','קניון'}
 # מוקדים "מרכזיים" שראויים לשמש שם תחנה (עד 100 מ׳)
@@ -188,7 +207,7 @@ for key,lst in _grp.items():
         if abs(len(ref.split())-tt)<=1 or nf(ref)==nf(top): STREETVAR[code2]=(raw,maj_raw,topn)
 print('street-variance flags:',len(STREETVAR))
 cnt={'exact':0,'settlement':0,'spelling':0,'streetvar':0,'uncertain':0,'reversal':0,'mismatch':0,'landmark':0,'mapok':0,'noaddr':0,'closer':0}
-suspects=[]
+suspects=[]; closer_cands=[]
 for r in rows[1:]:
     if len(r)<=SD: continue
     name,desc,code=r[SN],r[SD],r[SC]; st=street(desc); c=city(desc)
@@ -257,7 +276,8 @@ for r in rows[1:]:
                      'cur':(parts[1].strip() if cross else None),'curd':cross_d,'roads':roads}
                 if psug: rec['psug']=psug; rec['psugd']=psugd
                 if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
-                suspects.append(rec); cnt['closer']+=1; continue
+                # מאומת לפי הליכה אמיתית בשלב שאחרי הלולאה (לא חוסם את הסיווg)
+                closer_cands.append(rec); continue
         cnt['exact']+=1; continue
     if samestreet: cat='streetvar'
     elif rel(prim,st)=='spelling': cat='uncertain' if ktiv_only(prim,st) else 'spelling'
@@ -299,6 +319,25 @@ for r in rows[1:]:
     if sv: rec['sv']={'use':sv[0],'maj':sv[1],'n':sv[2]}
     if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
     suspects.append(rec)
+
+# הצעות כלליות — אימות לפי הליכה אמיתית (OSRM): המרחק לרחוב נמדד לאורך המדרכות,
+# לא בקו אווירי. אם הרחוב המצטלב שבשם קרוב יותר בהליכה מהמוצע — מבטלים את ההצעה.
+walked=dropped=0
+for rec in closer_cands:
+    rds=rec.get('roads',{})
+    if OSRM_WALK and rec['la'] is not None:
+        keys=[k for k in ('prim','cur','sug') if rds.get(k) and rds[k].get('pt')]
+        if keys:
+            res=walk_table(rec['la'],rec['lo'],[rds[k]['pt'] for k in keys])
+            time.sleep(0.12)  # קצב מנומס מול שרת ה-OSRM הציבורי
+            if res:
+                rw={k:wv for k,wv in zip(keys,res) if wv}
+                if rw: rec['rw']=rw; walked+=1
+                cw=rw.get('cur'); sw=rw.get('sug')
+                if cw and sw and sw['d']>cw['d']:
+                    dropped+=1; cnt['exact']+=1; continue  # המצטלב שבשם קרוב יותר בהליכה
+    suspects.append(rec); cnt['closer']+=1
+print('closer: %d walked, %d dropped by walking, %d kept'%(walked,dropped,cnt['closer']))
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
