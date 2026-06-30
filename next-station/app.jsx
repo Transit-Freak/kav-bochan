@@ -50,7 +50,7 @@ function lcsMark(a, b, which) {
 
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
-function StopDetails({ s, inList, onRoute, routeBusy, times }) {
+function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
   const nearPois = (s.p || []).map((x, i) => ({ x, i })).filter((o) => effWalkMin(o.x) <= NEARBY_MAX_MIN);
   return (
     <>
@@ -127,6 +127,9 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
           פתח במפות Google ↗
         </a>
       )}
+      {onReport && (
+        <button className="rep-trigger" onClick={(e) => { e.stopPropagation(); onReport(s); }}>🚩 דווח על תחנה זו</button>
+      )}
     </>
   );
 }
@@ -139,6 +142,7 @@ function App() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [route, setRoute] = useState(null); // {loading|err|ok, to, d, min}
   const [poiTimes, setPoiTimes] = useState(null); // זמני הליכה אמיתיים לנקודות, מיושרים ל-sel.p
+  const [reportStop, setReportStop] = useState(null); // תחנה שמדווחים עליה
   const mapRef = useRef(null);
   const markRef = useRef(null);
   const routeRef = useRef(null);
@@ -368,7 +372,7 @@ function App() {
                     </div>
                   </button>
                   <div className="it-detail">
-                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} times={sel && sel.c === s.c ? poiTimes : null} />
+                    <StopDetails s={s} inList onRoute={showRoute} routeBusy={route && route.loading} times={sel && sel.c === s.c ? poiTimes : null} onReport={setReportStop} />
                   </div>
                 </div>
               );
@@ -391,11 +395,12 @@ function App() {
             <div className="detail">
               <button className="d-x" onClick={() => setSel(null)}>×</button>
               <div className="d-name">{sel.n}</div>
-              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} />
+              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} onReport={setReportStop} />
             </div>
           )}
         </div>
       </div>
+      {reportStop && <ReportModal s={reportStop} onClose={() => setReportStop(null)} />}
     </div>
   );
 }
@@ -409,6 +414,103 @@ function walkMin(m) {
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// ===== דיווח משתמשים =====
+const REPORT_TO = "shlomihartman@gmail.com"; // יעד ברירת-מחדל (mailto). אפשר לשדרג לטופס ע"י window.NS_REPORT_ENDPOINT
+
+// "בדיקה אוטומטית" — הערכת המערכת את עצמה, להצגה למדווח ולצירוף לדיווח
+function autoCheck(s) {
+  if (s.k === "closer") {
+    const w = s.rw;
+    if (w && w.cur && w.sug) {
+      if (w.sug.d <= w.cur.d)
+        return { tone: "ok", text: "בדיקה אוטומטית: גם בהליכה אמיתית הרחוב המוצע («" + s.ms + "» " + w.sug.d + " מ׳) קרוב יותר מהרחוב שבשם («" + s.cur + "» " + w.cur.d + " מ׳) — ההצעה כנראה מוצדקת." };
+      return { tone: "warn", text: "בדיקה אוטומטית: בהליכה אמיתית דווקא הרחוב שבשם קרוב יותר — ייתכן שאין כאן צורך בשינוי." };
+    }
+    return { tone: "neutral", text: "בדיקה אוטומטית: ההצעה מבוססת על מרחק אווירי (אין נתוני הליכה לרחוב זה)." };
+  }
+  if (s.k === "spelling" || s.k === "uncertain")
+    return { tone: "warn", text: "בדיקה אוטומטית: ההבדל בין השם לכתובת הוא ברמת אות/כתיב — ייתכן שזו אותה מילה." };
+  if (s.ms) return { tone: "neutral", text: "בדיקה אוטומטית: לפי המפה הרחוב הקרוב לתחנה הוא «" + s.ms + "» (" + s.md + " מ׳); בכתובת רשום «" + s.s + "»." };
+  return { tone: "neutral", text: "בדיקה אוטומטית: הרחוב בכתובת («" + s.s + "») אינו מופיע בשם התחנה." };
+}
+
+function reportText(s, reason, note) {
+  const cat = (CATS[s.k] && CATS[s.k].label) || s.k;
+  return [
+    "דיווח על תחנה — התחנה הבאה",
+    "מספר תחנה: " + s.c,
+    "שם: " + s.n,
+    "עיר: " + (s.t || ""),
+    "קטגוריה: " + cat,
+    "רחוב בכתובת: " + s.s,
+    s.ms ? "רחוב לפי המפה: " + s.ms + " (" + s.md + " מ׳)" : null,
+    s.k === "closer" && s.sug ? "שם מוצע: " + s.sug : null,
+    "",
+    "סיבת הדיווח: " + reason,
+    note ? "הערה: " + note : null,
+    "",
+    autoCheck(s).text,
+    s.la != null ? "\nמפה: https://www.google.com/maps?q=" + s.la + "," + s.lo : null,
+  ].filter((x) => x != null).join("\n");
+}
+
+function mailtoUrl(subject, body) {
+  return "mailto:" + REPORT_TO + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+}
+
+function ReportModal({ s, onClose }) {
+  const [reason, setReason] = useState("זו לא תקלה — השם/הרחוב תקין");
+  const [note, setNote] = useState("");
+  const [done, setDone] = useState(false);
+  const ac = autoCheck(s);
+  function submit() {
+    const body = reportText(s, reason, note);
+    const subject = "דיווח: תחנה " + s.c + " — " + s.n;
+    const endpoint = typeof window !== "undefined" && window.NS_REPORT_ENDPOINT;
+    if (endpoint) {
+      fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ subject, code: s.c, name: s.n, city: s.t, category: s.k, addr: s.s, mapStreet: s.ms, suggested: s.sug, reason, note, autoCheck: ac.text, message: body }),
+      }).then(() => setDone(true)).catch(() => { window.location.href = mailtoUrl(subject, body); setDone(true); });
+    } else {
+      window.location.href = mailtoUrl(subject, body);
+      setDone(true);
+    }
+  }
+  return (
+    <div className="rep-overlay" onClick={onClose}>
+      <div className="rep-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="d-x" onClick={onClose}>×</button>
+        {done ? (
+          <div className="rep-done">
+            <div className="rep-done-h">תודה! הדיווח נרשם 🙏</div>
+            <div className="rep-sub">אם נפתחה תוכנת המייל — יש לשלוח את ההודעה כדי להשלים את הדיווח.</div>
+            <button className="rep-btn" onClick={onClose}>סגירה</button>
+          </div>
+        ) : (
+          <>
+            <div className="rep-h">דיווח על התחנה</div>
+            <div className="rep-stop"><b>{s.n}</b> · {s.t} · מס׳ {s.c}</div>
+            <div className={"rep-auto " + ac.tone}>🤖 {ac.text}</div>
+            <label className="rep-l">מה הבעיה?</label>
+            <select className="rep-sel" value={reason} onChange={(e) => setReason(e.target.value)}>
+              <option>זו לא תקלה — השם/הרחוב תקין</option>
+              <option>ההצעה שגויה / השם המוצע לא מתאים</option>
+              <option>טעות אחרת בפרטי התחנה</option>
+              <option>אחר</option>
+            </select>
+            <label className="rep-l">פרטים (לא חובה):</label>
+            <textarea className="rep-txt" value={note} onChange={(e) => setNote(e.target.value)} placeholder="כל מה שיעזור לי לבדוק…" />
+            <button className="rep-btn" onClick={submit}>שליחת הדיווח</button>
+            <div className="rep-foot">הדיווח נשלח לבדיקה ידנית של מנהל האתר.</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);

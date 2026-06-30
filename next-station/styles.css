@@ -209,3 +209,29 @@ body {
 .d-walk-cmp .lg.cur { color:#dc2626; }
 .d-walk-cmp .lg.sug { color:#16a34a; }
 .d-walk-verdict { margin-top:2px; font-weight:700; color:#0f766e; }
+
+/* ===== דיווח משתמשים ===== */
+.rep-trigger { margin-top:10px; width:100%; padding:8px; border:1px solid #fecaca; background:#fff1f2;
+  color:#b91c1c; font-weight:700; font-size:13px; border-radius:8px; cursor:pointer; }
+.rep-trigger:hover { background:#ffe4e6; }
+.rep-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center;
+  justify-content:center; z-index:1000; padding:16px; }
+.rep-modal { position:relative; background:#fff; border-radius:14px; padding:20px; width:min(440px,100%);
+  max-height:90vh; overflow:auto; box-shadow:0 20px 50px rgba(0,0,0,.3); }
+.rep-h { font-size:18px; font-weight:800; margin-bottom:4px; }
+.rep-stop { color:#475569; font-size:13px; margin-bottom:10px; }
+.rep-auto { font-size:13px; border-radius:8px; padding:8px 10px; margin-bottom:12px; line-height:1.5;
+  background:#f1f5f9; color:#334155; }
+.rep-auto.ok { background:#ecfdf5; color:#065f46; }
+.rep-auto.warn { background:#fffbeb; color:#92400e; }
+.rep-l { display:block; font-size:13px; font-weight:700; margin:8px 0 4px; }
+.rep-sel, .rep-txt { width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:8px;
+  padding:8px; font:inherit; font-size:14px; }
+.rep-txt { min-height:70px; resize:vertical; }
+.rep-btn { margin-top:14px; width:100%; padding:11px; border:0; border-radius:9px; background:#4f46e5;
+  color:#fff; font-weight:800; font-size:15px; cursor:pointer; }
+.rep-btn:hover { background:#4338ca; }
+.rep-foot { margin-top:8px; font-size:11px; color:#94a3b8; text-align:center; }
+.rep-done { text-align:center; padding:14px 4px; }
+.rep-done-h { font-size:18px; font-weight:800; margin-bottom:6px; }
+.rep-sub { color:#64748b; font-size:13px; margin-bottom:14px; line-height:1.5; }
