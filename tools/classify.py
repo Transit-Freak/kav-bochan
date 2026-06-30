@@ -17,7 +17,6 @@ MAJOR_POI={'train','busstation','mall','health','academia','gov','culture'}
 # יותר מהרחוב שבכתובת לפחות ב-CLOSER_MARGIN מ׳ (או שהכתובת אינה בקרבת התחנה כלל).
 CLOSER_CAP=40
 CLOSER_MARGIN=10
-WATCH={'38064'}  # DEBUG זמני — לכיול סף "הצעות כלליות"
 def sp(t):
     t=t.strip()
     for p in PREF:
@@ -202,8 +201,6 @@ for r in rows[1:]:
                         and not streets_match(nm2,prim)
                         and not (cross and streets_match(nm2,cross))):
                     cand=(nm2,dd); break
-            if code in WATCH:
-                print('WATCH',code,'name=',name,'st=',st,'addr_dist=',dst,'nearest=',nr8[:5],'cand=',cand)
             if cand and cand[1]<=CLOSER_CAP and (dst is None or cand[1]<=dst-CLOSER_MARGIN):
                 near_name,near_d=cand
                 nb=nearby(la,lo)

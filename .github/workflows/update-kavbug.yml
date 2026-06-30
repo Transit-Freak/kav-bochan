@@ -68,3 +68,5 @@ jobs:
             echo "KavBug reports unchanged — nothing to commit"; exit 0; fi
           git commit -m "weekly: refresh KavBug country scan & rail gaps from GTFS"
           git push origin HEAD:main
+
+# retry: MOT recovered ~08:10Z — re-run KavBug country scan & rail gaps
