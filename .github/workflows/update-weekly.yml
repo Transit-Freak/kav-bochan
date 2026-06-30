@@ -82,3 +82,5 @@ jobs:
 # reclassify: walking moved to monthly local-OSRM; weekly carries rw forward (fast, no public OSRM)
 
 # reclassify: drop non-unique "הצעות כלליות" suggestions (same name for multiple stops, e.g. Tifrah)
+
+# reclassify: de-dup suggested names across ALL categories (e.g. רמב"ם ×5 in Tifrah reversal/mismatch)

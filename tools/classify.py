@@ -305,19 +305,27 @@ for r in rows[1:]:
     if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
     suspects.append(rec)
 
-# שם תחנה חייב להיות ייחודי: מדלגים על הצעה ששם-המוצע שלה מתנגש — חוזר על הצעה
-# אחרת באותה עיר, או זהה לשם תחנה קיים — שכן הוא אינו מבדיל בין התחנות (כמו בתפרח).
-sugc=Counter((rec['t'],cn(rec['sug'])) for rec in closer_cands)
-carried=dupdrop=0
+# הצעות כלליות: מצרפים את כולן + נתוני הליכה (rw); סינון-הכפילות נעשה גלובלית בהמשך.
+carried=0
 for rec in closer_cands:
-    s_cn=cn(rec['sug'])
-    # מתנגש אם חוזר על הצעה אחרת באותה עיר, או זהה לשם תחנה קיים (sug תמיד שונה משם התחנה עצמה)
-    if sugc[(rec['t'],s_cn)]>1 or s_cn in EXIST.get(rec['t'],()):
-        dupdrop+=1; cnt['exact']+=1; continue
     rw=PREVRW.get(rec['c'])
     if rw: rec['rw']=rw; carried+=1
     suspects.append(rec); cnt['closer']+=1
-print('closer: dropped %d non-unique suggestions; kept %d (rw carried %d)'%(dupdrop,cnt['closer'],carried))
+
+# שם מוצע חייב להיות ייחודי בעיר: הצעה שחוזרת על תחנה אחרת (כמו "רמב''ם" ×5 בתפרח),
+# או שזהה לשם תחנה קיים — אינה מבדילה בין התחנות. ב"הצעות כלליות" ההצעה היא כל
+# הסיבה לרשומה ולכן מסירים אותה; בקטגוריות שגיאה משאירים את התחנה ומבטלים רק את ההצעה.
+sugcnt=Counter((s['t'],cn(s['sug'])) for s in suspects if s.get('sug'))
+kept=[]; dropcloser=blanked=0
+for s in suspects:
+    sg=s.get('sug')
+    if sg and (sugcnt[(s['t'],cn(sg))]>1 or cn(sg) in EXIST.get(s['t'],())):
+        if s['k']=='closer':
+            cnt['closer']-=1; cnt['exact']+=1; dropcloser+=1; continue
+        del s['sug']; blanked+=1
+    kept.append(s)
+suspects=kept
+print('dedup suggested names: dropped %d closer, blanked %d in error categories (rw carried %d)'%(dropcloser,blanked,carried))
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
