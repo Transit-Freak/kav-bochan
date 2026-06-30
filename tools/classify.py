@@ -127,6 +127,21 @@ def nearest_roads(la,lo,topn=4):
                 seen.add((ri,i)); g=RD[ri]['g']; d=segdist(la,lo,g[i],g[i+1]); nm=RD[ri]['n']; key=nf(nm)
                 if key not in cands or d<cands[key][0]: cands[key]=(d,nm)
     return [(nm,round(d)) for d,nm in sorted(cands.values())[:topn]]
+def road_near(la,lo,name,rad=150):
+    # גאומטריית הרחוב (קטע סמוך לתחנה) + הנקודה הקרובה ביותר — לסימון על המפה
+    key=nf(name); best=None; ck=(int(la/CELL),int(lo/CELL))
+    for dx in(-1,0,1):
+        for dy in(-1,0,1):
+            for ri,i in GR.get((ck[0]+dx,ck[1]+dy),[]):
+                if nf(RD[ri]['n'])!=key: continue
+                g=RD[ri]['g']; d=segdist(la,lo,g[i],g[i+1])
+                if best is None or d<best[1]: best=(ri,d)
+    if best is None: return None
+    ri,d=best; g=RD[ri]['g']
+    pts=[[round(p[0],5),round(p[1],5)] for p in g if hav(la,lo,p[0],p[1])<=rad]
+    npt=min(g,key=lambda p:hav(la,lo,p[0],p[1]))
+    if len(pts)<2: pts=[[round(npt[0],5),round(npt[1],5)]]
+    return {'n':RD[ri]['n'],'d':round(d),'pt':[round(npt[0],5),round(npt[1],5)],'g':pts}
 print('indexes built %.1fs'%(time.time()-t0))
 rows=list(csv.reader(open(STOPS,encoding='utf-8-sig')))
 ix={h:i for i,h in enumerate(rows[0])}
@@ -185,24 +200,34 @@ for r in rows[1:]:
     sv=STREETVAR.get(code)
     samestreet=rel(prim,st)=='exact' or same_street(prim,st) or (cross and same_street(cross,st))
     if samestreet and not sv:
-        # הצעות כלליות: התחנה תקינה, אך יש רחוב *אחר* שעובר קרוב יותר אליה מהרחוב שבכתובת.
+        # הצעות כלליות: הרחוב המצטלב בשם התחנה ("ראשי/מצטלב") אינו הרחוב הקרוב ביותר —
+        # יש רחוב אחר שעובר קרוב יותר לתחנה, וכדאי שהוא יופיע בשם במקומו.
         nr8=nearest_roads(la,lo,8)
         if (la is not None and nr8 and not any(w in st for w in LANDMARKISH)
                 and not acronymish(st) and not arabic_translit(st)):
-            # מרחק הרחוב שבכתובת מנקודת התחנה (None אם אינו בין הרחובות הסמוכים)
-            dst=None
-            for nm2,dd in nr8:
-                if streets_match(nm2,st): dst=dd; break
-            # הרחוב האמיתי הקרוב ביותר שהוא *רחוב אחר* — לא אותו רחוב, לא שם התחנה, ולא רעש
-            cand=None
+            # הרחוב הקרוב ביותר שאינו הרחוב הראשי (prim) ואינו רעש (ערבית/מספרי)
+            best=None
             for nm2,dd in nr8:
                 if (not odd_road(nm2) and not arabic_translit(nm2)
-                        and not streets_match(nm2,st)
-                        and not streets_match(nm2,prim)
-                        and not (cross and streets_match(nm2,cross))):
-                    cand=(nm2,dd); break
-            if cand and cand[1]<=CLOSER_CAP and (dst is None or cand[1]<=dst-CLOSER_MARGIN):
-                near_name,near_d=cand
+                        and not streets_match(nm2,prim)):
+                    best=(nm2,dd); break
+            # מרחק הרחוב המצטלב שבשם (None אם אין בשם / אינו בין הרחובות הסמוכים)
+            cross_d=None
+            if cross and not arabic_translit(cross):
+                for nm2,dd in nr8:
+                    if streets_match(nm2,cross): cross_d=dd; break
+            flag=False
+            if best and best[1]<=CLOSER_CAP and not (cross and streets_match(best[0],cross)):
+                if cross:
+                    # יש רחוב מצטלב בשם — מציעים רק אם נמצא רחוב קרוב יותר ממנו במרווח מוחשי
+                    flag=(cross_d is not None and best[1]<=cross_d-CLOSER_MARGIN) or (cross_d is None)
+                else:
+                    # אין רחוב מצטלב בשם — מציעים רק אם רחוב אחר ממש צמוד לתחנה
+                    flag=best[1]<=25
+            if flag:
+                near_name,near_d=best
+                primc=parts[0].strip()
+                sugname=primc+' / '+near_name
                 nb=nearby(la,lo)
                 pois=[]
                 for dist,p in nb:
@@ -212,8 +237,25 @@ for r in rows[1:]:
                     rt=PREVRT.get((code,p['n']))
                     if rt: pr['rt']=rt
                     pois.append(pr)
+                # שם מוצע לפי מבנה ציבור מרכזי סמוך (עד 100 מ׳)
+                psug=psugd=None
+                for dist,p in nb:
+                    if dist>100: break
+                    if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name):
+                        psug=p['n']; psugd=dist; break
+                # גאומטריית הרחובות לסימון על המפה: ראשי, מצטלב נוכחי, ומוצע
+                roads={}
+                rp=road_near(la,lo,primc)
+                if rp: roads['prim']=rp
+                if cross:
+                    rc=road_near(la,lo,parts[1].strip())
+                    if rc: roads['cur']=rc
+                rsug=road_near(la,lo,near_name)
+                if rsug: roads['sug']=rsug
                 rec={'c':code,'n':name,'s':st,'t':c,'la':la,'lo':lo,'k':'closer',
-                     'p':pois,'ms':near_name,'md':near_d,'sug':near_name,'cd':dst}
+                     'p':pois,'ms':near_name,'md':near_d,'sug':sugname,
+                     'cur':(parts[1].strip() if cross else None),'curd':cross_d,'roads':roads}
+                if psug: rec['psug']=psug; rec['psugd']=psugd
                 if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
                 suspects.append(rec); cnt['closer']+=1; continue
         cnt['exact']+=1; continue

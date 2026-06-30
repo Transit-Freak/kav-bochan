@@ -184,3 +184,13 @@ body {
 .dl-btn { margin-inline-start: 10px; background: #065f46; color: #fff; border: 0; border-radius: 8px; padding: 4px 10px; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer; }
 .dl-btn:hover { background: #047857; }
 .dl-btn:disabled { opacity: .5; cursor: default; }
+
+/* "הצעות כלליות": תווית-רחוב על המפה + שם מוצע + מקרא */
+.road-tag-i { display:inline-block; transform:translate(-50%,-130%); white-space:nowrap;
+  color:#fff; font-weight:800; font-size:11px; padding:1px 6px; border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,.35); }
+.d-sug-name { margin-top:4px; font-size:14px; }
+.d-map-legend { margin-top:3px; font-size:12px; color:#475569; }
+.d-map-legend .lg { font-weight:800; margin-inline-end:8px; }
+.d-map-legend .lg.cur { color:#dc2626; }
+.d-map-legend .lg.sug { color:#16a34a; }

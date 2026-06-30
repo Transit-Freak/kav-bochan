@@ -71,8 +71,11 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
       )}
       {s.k === "closer" && (
         <div className="d-sug">
-          📍 הרחוב שבכתובת («<b>{s.s}</b>»){s.cd != null ? " נמצא במרחק כ-" + s.cd + " מ׳ מנקודת התחנה" : " אינו בין הרחובות הסמוכים"};
-          {" "}הרחוב <b>{s.ms}</b> קרוב יותר (<b>{s.md}</b> מ׳) — אולי כדאי לשקול אותו ככתובת.
+          {s.cur
+            ? <>📍 הרחוב המצטלב שבשם («<b>{s.cur}</b>»{s.curd != null ? " — כ-" + s.curd + " מ׳ מהתחנה" : " — אינו ליד התחנה"}) רחוק יותר מהרחוב <b>{s.ms}</b> (<b>{s.md}</b> מ׳), שעובר ממש לידה.</>
+            : <>📍 הרחוב <b>{s.ms}</b> עובר ממש ליד התחנה (<b>{s.md}</b> מ׳) ואינו מופיע בשם.</>}
+          <div className="d-sug-name">💡 שם מוצע: <b>{s.sug}</b></div>
+          <div className="d-map-legend"><span className="lg cur">▬ בשם כיום</span> <span className="lg sug">▬ מוצע</span> — מסומנים על המפה</div>
         </div>
       )}
       {s.sug && s.k !== "closer" && (
@@ -127,6 +130,7 @@ function App() {
   const markRef = useRef(null);
   const routeRef = useRef(null);
   const poiLayerRef = useRef(null);
+  const roadsLayerRef = useRef(null);
   const OSRM = "https://routing.openstreetmap.de/routed-foot";
 
   // מסלול הליכה אמיתי מהתחנה לנקודת העניין — ניתוב חי בדפדפן (OSRM foot, FOSSGIS)
@@ -182,12 +186,34 @@ function App() {
     if (routeRef.current) { routeRef.current.remove(); routeRef.current = null; }
     setRoute(null);
     if (poiLayerRef.current) { poiLayerRef.current.remove(); poiLayerRef.current = null; }
+    if (roadsLayerRef.current) { roadsLayerRef.current.remove(); roadsLayerRef.current = null; }
     setPoiTimes(null);
     // סמן התחנה
     if (markRef.current) markRef.current.remove();
     markRef.current = L.marker([sel.la, sel.lo])
       .addTo(m)
       .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t));
+    // "הצעות כלליות": סמן על המפה את הרחוב שבשם כיום (אדום) ואת הרחוב המוצע (ירוק)
+    if (sel.k === "closer" && sel.roads) {
+      const rg = L.layerGroup();
+      const draw = (road, color, label, dash) => {
+        if (!road) return;
+        if (road.g && road.g.length >= 2) {
+          L.polyline(road.g, { color, weight: 6, opacity: 0.9, dashArray: dash, lineCap: "round" })
+            .addTo(rg).bindTooltip(label + ": " + esc(road.n), { sticky: true });
+        }
+        if (road.pt) {
+          L.marker(road.pt, {
+            icon: L.divIcon({ className: "road-tag", html: "<div class='road-tag-i' style='background:" + color + "'>" + esc(road.n) + "</div>", iconSize: [0, 0] }),
+          }).addTo(rg);
+        }
+      };
+      draw(sel.roads.prim, "#64748b", "ראשי", null);     // אפור — הרחוב הראשי
+      draw(sel.roads.cur, "#dc2626", "בשם כיום", "6 6");  // אדום מקווקו — המצטלב הנוכחי
+      draw(sel.roads.sug, "#16a34a", "מוצע", null);        // ירוק — הרחוב המוצע
+      rg.addTo(m);
+      roadsLayerRef.current = rg;
+    }
     // סמן רק את נקודות העניין הקרובות (עד ~5 דק׳ הליכה)
     const withC = (sel.p || []).map((x, idx) => ({ x, idx })).filter((o) => o.x.la != null && effWalkMin(o.x) <= NEARBY_MAX_MIN);
     if (withC.length) {

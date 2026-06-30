@@ -69,3 +69,4 @@ jobs:
 # rerun: GTFS fetch timeout was transient (0723Z)
 
 # retry: MOT GTFS endpoint outage (sustained 07:36-07:57Z) — re-run when it recovers
+# reclassify: 'הצעות כלליות' now suggests a closer cross-street + emits road geometry for the map
