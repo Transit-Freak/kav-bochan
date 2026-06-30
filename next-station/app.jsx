@@ -7,6 +7,7 @@ const CATS = {
   spelling: { label: "טעות כתיב", color: "#d97706", desc: "אותו רחוב, אות שונה — כנראה שגיאה" },
   streetvar: { label: "אי-התאמה ברחוב", color: "#0891b2", desc: "הרחוב נכתב כאן אחרת מרוב התחנות באותו רחוב" },
   uncertain: { label: "ספק / כתיב חלופי", color: "#64748b", desc: "כנראה אותו רחוב — הבדל כתיב מלא/חסר בלבד" },
+  closer: { label: "הצעות כלליות", color: "#16a34a", desc: "התחנה תקינה — אך ייתכן שיש רחוב קרוב יותר מהרחוב שבכתובת" },
 };
 
 // אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
@@ -68,7 +69,13 @@ function StopDetails({ s, inList, onRoute, routeBusy, times }) {
           🛣️ ברחוב זה <b>{s.sv.n}</b> תחנות כותבות «<b>{s.sv.maj}</b>» — וכאן כתוב «<b>{s.sv.use}</b>»
         </div>
       )}
-      {s.sug && (
+      {s.k === "closer" && (
+        <div className="d-sug">
+          📍 הרחוב שבכתובת («<b>{s.s}</b>»){s.cd != null ? " רחוק כ-" + s.cd + " מ׳ מנקודת התחנה" : " אינו בין הרחובות הסמוכים"};
+          {" "}הרחוב <b>{s.ms}</b> קרוב יותר (<b>{s.md}</b> מ׳) — אולי כדאי לשקול אותו ככתובת.
+        </div>
+      )}
+      {s.sug && s.k !== "closer" && (
         <div className="d-sug">💡 שם מוצע (לפי הרחובות במפה): <b>{s.sug}</b></div>
       )}
       {s.psug && (
@@ -216,7 +223,7 @@ function App() {
   }, [sel]);
 
   // סדר חומרה לקטגוריות — "ספק" תמיד אחרון
-  const RANK = { mismatch: 0, reversal: 1, spelling: 2, streetvar: 3, uncertain: 4 };
+  const RANK = { mismatch: 0, reversal: 1, spelling: 2, streetvar: 3, uncertain: 4, closer: 5 };
 
   const filtered = useMemo(() => {
     if (!data) return [];

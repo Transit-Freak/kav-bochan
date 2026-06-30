@@ -149,7 +149,7 @@ for key,lst in _grp.items():
         if ref==top or seg_diff(ref,top): continue
         if abs(len(ref.split())-tt)<=1 or nf(ref)==nf(top): STREETVAR[code2]=(raw,maj_raw,topn)
 print('street-variance flags:',len(STREETVAR))
-cnt={'exact':0,'settlement':0,'spelling':0,'streetvar':0,'uncertain':0,'reversal':0,'mismatch':0,'landmark':0,'mapok':0,'noaddr':0}
+cnt={'exact':0,'settlement':0,'spelling':0,'streetvar':0,'uncertain':0,'reversal':0,'mismatch':0,'landmark':0,'mapok':0,'noaddr':0,'closer':0}
 suspects=[]
 for r in rows[1:]:
     if len(r)<=SD: continue
@@ -162,7 +162,31 @@ for r in rows[1:]:
     parts=re.split(r'[\\/]',name); prim,cross=parts[0],(parts[1] if len(parts)>1 else '')
     sv=STREETVAR.get(code)
     samestreet=rel(prim,st)=='exact' or same_street(prim,st) or (cross and same_street(cross,st))
-    if samestreet and not sv: cnt['exact']+=1; continue
+    if samestreet and not sv:
+        # הצעות כלליות: התחנה תקינה, אך אולי יש רחוב קרוב יותר מהרחוב שבכתובת.
+        # מסמנים רק כשהרחוב שבכתובת רחוק משמעותית (>=120 מ׳ / לא נמצא) ויש רחוב אחר קרוב מאוד (<=35 מ׳).
+        nr8=nearest_roads(la,lo,8)
+        if la is not None and nr8:
+            near_name,near_d=nr8[0]
+            dst=None
+            for nm2,dd in nr8:
+                if rel(nm2,st)=='exact' or same_street(nm2,st): dst=dd; break
+            if (near_d<=35 and nf(near_name)!=nf(st) and rel(near_name,st)!='exact'
+                    and not same_street(near_name,st) and (dst is None or dst>=120)):
+                nb=nearby(la,lo)
+                pois=[]
+                for dist,p in nb:
+                    if dist>300: continue
+                    if len(pois)>=3: break
+                    pr={'n':p['n'],'k':p['k'],'d':dist,'la':p['la'],'lo':p['lo']}
+                    rt=PREVRT.get((code,p['n']))
+                    if rt: pr['rt']=rt
+                    pois.append(pr)
+                rec={'c':code,'n':name,'s':st,'t':c,'la':la,'lo':lo,'k':'closer',
+                     'p':pois,'ms':near_name,'md':near_d,'sug':near_name,'cd':dst}
+                if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
+                suspects.append(rec); cnt['closer']+=1; continue
+        cnt['exact']+=1; continue
     if samestreet: cat='streetvar'
     elif rel(prim,st)=='spelling': cat='uncertain' if ktiv_only(prim,st) else 'spelling'
     elif cross and rel(cross,st) in ('exact','spelling'):
