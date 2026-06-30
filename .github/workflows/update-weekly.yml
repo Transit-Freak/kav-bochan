@@ -67,3 +67,5 @@ jobs:
           git push origin HEAD:main
 
 # rerun: GTFS fetch timeout was transient (0723Z)
+
+# retry: MOT GTFS endpoint outage (sustained 07:36-07:57Z) — re-run when it recovers
