@@ -1,0 +1,70 @@
+name: update-kavbug
+
+# שבועי: רענון הדוחות הארציים של "קו באג" מ-GTFS של משרד התחבורה.
+#   • country-scan.json/csv — כל העיקופים/הפערים בקווי האוטובוס בארץ
+#     (kavbug/scan-country.js, אותו מנוע-זיהוי כמו האתר).
+#   • rail-gaps.json/csv — פערים בין לוח-הזמנים לרכבות לבין ה-API החי של רכבת ישראל
+#     (kavbug/rail-gaps.js — מיטבי; אם ה-API לא זמין הצעד מדלג והסריקה הארצית עדיין נשמרת).
+# רץ יום ראשון 04:00 UTC — שעתיים אחרי update-weekly, כדי לא להעמיס על שרת ה-GTFS בו-זמנית.
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # כל יום ראשון 04:00 UTC
+  push:
+    paths:
+      - '.github/workflows/update-kavbug.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-kavbug
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch fresh national GTFS
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+          URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          curl -fSL --connect-timeout 30 --max-time 900 --retry 3 --retry-delay 10 -A "$UA" -o gtfs.zip "$URL"
+          ls -la gtfs.zip
+
+      - name: Install fflate (ZIP reader)
+        run: npm install fflate --no-save
+
+      - name: Scan country — bus-route detours & gaps
+        run: |
+          set -euo pipefail
+          node --max-old-space-size=4096 kavbug/scan-country.js gtfs.zip kavbug/country-scan
+          ls -la kavbug/country-scan.json kavbug/country-scan.csv
+
+      - name: Rail gaps — schedule vs live rail API (best-effort)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          node kavbug/rail-gaps.js gtfs.zip kavbug/rail-gaps
+          ls -la kavbug/rail-gaps.json kavbug/rail-gaps.csv
+
+      - name: Commit refreshed KavBug reports to main
+        run: |
+          set -euo pipefail
+          rm -rf gtfs.zip node_modules package-lock.json package.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add kavbug/country-scan.json kavbug/country-scan.csv kavbug/rail-gaps.json kavbug/rail-gaps.csv
+          if git diff --cached --quiet; then
+            echo "KavBug reports unchanged — nothing to commit"; exit 0; fi
+          git commit -m "weekly: refresh KavBug country scan & rail gaps from GTFS"
+          git push origin HEAD:main
