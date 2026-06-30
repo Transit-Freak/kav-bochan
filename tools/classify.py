@@ -54,6 +54,15 @@ def same_street(a,b):
 def ktiv_only(a,b):
     sa=re.sub('[יו]','',nf(a)); sb=re.sub('[יו]','',nf(b))
     return sa==sb and len(sa)>=3
+# השוואת רחובות עמידה למקפים/גרשיים/כתיב מלא (לזיהוי "הצעות כלליות" בלבד)
+def streets_match(a,b):
+    a=(a or '').replace('-',' '); b=(b or '').replace('-',' ')
+    return rel(a,b) in ('exact','spelling') or same_street(a,b) or ktiv_only(a,b)
+# כתובות תיאוריות (מחלף/יציאה/מסוף…) אינן רחוב — לא מציעים להן רחוב חלופי
+LANDMARKISH=('מחלף','יציאה','כניסה','מסוף','צומת','כביש ','מגרש','מיתחם','מתחם','פארק','פאתי','תחנת','ת. ')
+_AR=re.compile(r'[؀-ۿ]')  # שם רחוב בכתב ערבי — לא ניתן להשוות מול שם עברי ב-GTFS
+def odd_road(nm): return bool(_AR.search(nm or '')) or bool(re.fullmatch(r'[\d/ ]+',(nm or '').strip()))
+def acronymish(s): return bool(re.search(r'["׳״]|\x27\x27', s or ''))  # ר"ת (קק"ל) ש-OSM נוטה לפענח
 def street(d):
     m=re.search(r'רחוב:\s*(.*?)\s*עיר:', d or ''); return re.sub(r'\s+\d+[א-ת]?$','',m.group(1).strip()).strip() if m else ''
 def city(d):
@@ -166,13 +175,16 @@ for r in rows[1:]:
         # הצעות כלליות: התחנה תקינה, אך אולי יש רחוב קרוב יותר מהרחוב שבכתובת.
         # מסמנים רק כשהרחוב שבכתובת רחוק משמעותית (>=120 מ׳ / לא נמצא) ויש רחוב אחר קרוב מאוד (<=35 מ׳).
         nr8=nearest_roads(la,lo,8)
-        if la is not None and nr8:
+        if (la is not None and nr8 and not any(w in st for w in LANDMARKISH)
+                and not acronymish(st)):
             near_name,near_d=nr8[0]
             dst=None
             for nm2,dd in nr8:
-                if rel(nm2,st)=='exact' or same_street(nm2,st): dst=dd; break
-            if (near_d<=35 and nf(near_name)!=nf(st) and rel(near_name,st)!='exact'
-                    and not same_street(near_name,st) and (dst is None or dst>=120)):
+                if streets_match(nm2,st): dst=dd; break
+            if (near_d<=35 and (dst is None or dst>=120) and not odd_road(near_name)
+                    and not streets_match(near_name,st)
+                    and not streets_match(near_name,prim)
+                    and not (cross and streets_match(near_name,cross))):
                 nb=nearby(la,lo)
                 pois=[]
                 for dist,p in nb:
