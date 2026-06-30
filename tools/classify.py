@@ -14,9 +14,10 @@ TITLES={'הרב','רב','דר','דוקטור','פרופ','השר','ראל','אל
 # מוקדים "מרכזיים" שראויים לשמש שם תחנה (עד 100 מ׳)
 MAJOR_POI={'train','busstation','mall','health','academia','gov','culture'}
 # "הצעות כלליות": הרחוב המצטלב בשם רחוק מהתחנה (>=CLOSER_FAR מ׳ / לא נמצא בקרבת מקום),
-# בעוד רחוב אחר עובר ממש לידה (<=CLOSER_CAP מ׳) — כדאי שהוא יחליף אותו בשם.
-CLOSER_CAP=30
+# בעוד רחוב אחר עובר ממש לידה (<=CLOSER_CAP מ׳) ובהפרש מוחשי (>=CLOSER_GAP מ׳).
+CLOSER_CAP=24
 CLOSER_FAR=45
+CLOSER_GAP=30
 def sp(t):
     t=t.strip()
     for p in PREF:
@@ -216,11 +217,13 @@ for r in rows[1:]:
             if cross and not arabic_translit(cross):
                 for nm2,dd in nr8:
                     if streets_match(nm2,cross): cross_d=dd; break
-            # מציעים רק כשיש רחוב מצטלב בשם, הוא רחוק מהתחנה (>=CLOSER_FAR / לא נמצא),
-            # ויש רחוב אחר שעובר ממש לידה (<=CLOSER_CAP) — אות חזק שהמצטלב בשם שגוי.
-            flag=(cross and best and best[1]<=CLOSER_CAP
-                  and not streets_match(best[0],cross)
-                  and (cross_d is None or cross_d>=CLOSER_FAR))
+            # מציעים רק כשיש רחוב מצטלב בשם והוא שגוי באופן מובהק: רחוב אחר עובר ממש
+            # ליד התחנה (<=CLOSER_CAP), בעוד המצטלב שבשם רחוק (לא נמצא, או >=CLOSER_FAR
+            # ובהפרש >=CLOSER_GAP מהרחוב הקרוב).
+            flag=False
+            if cross and best and best[1]<=CLOSER_CAP and not streets_match(best[0],cross):
+                if cross_d is None: flag=best[1]<=20
+                else: flag=cross_d>=CLOSER_FAR and (cross_d-best[1])>=CLOSER_GAP
             if flag:
                 near_name,near_d=best
                 primc=parts[0].strip()
