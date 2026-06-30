@@ -78,3 +78,5 @@ jobs:
 # reclassify: closer decision now verified by real OSRM walking distance (+rw stored); labels centered on-street
 
 # reclassify: bound OSRM walking with time-budget + circuit-breaker (never hang the job)
+
+# reclassify: walking moved to monthly local-OSRM; weekly carries rw forward (fast, no public OSRM)

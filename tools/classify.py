@@ -4,30 +4,11 @@
 #   STOPS=stops.txt  POI=poi.json  ROADS=roads.json  ACTIVE=active_stops.txt
 #   PREV=<data.json קודם> — אם קיים, מעתיק ממנו זמני-הליכה (rt) כדי לא לאבד אותם בריצה שבועית
 #   OUT=next-station/data.json
-import csv, re, json, math, time, os, datetime, urllib.request
+import csv, re, json, math, time, os, datetime
 t0=time.time()
 STOPS=os.environ.get('STOPS','stops.txt'); POI=os.environ.get('POI','poi.json')
 ROADS=os.environ.get('ROADS','roads.json'); ACTIVE_PATH=os.environ.get('ACTIVE','active_stops.txt')
 PREV=os.environ.get('PREV',''); OUT=os.environ.get('OUT','next-station/data.json')
-# שירות ניתוב הליכה (OSRM ציבורי, FOSSGIS) — לחישוב מרחק הליכה אמיתי לרחובות.
-# OSRM_WALK=0 משבית (חוזרים להחלטה לפי קו אווירי).
-OSRM_BASE=os.environ.get('OSRM_BASE','https://routing.openstreetmap.de/routed-foot')
-OSRM_WALK=os.environ.get('OSRM_WALK','1')!='0'
-def walk_table(la,lo,pts):
-    # מרחק/זמן הליכה אמיתי מהתחנה לכל נקודה ב-pts ([lat,lon]); מחזיר רשימה מיושרת או None
-    coords=("%f,%f;"%(lo,la))+";".join("%f,%f"%(p[1],p[0]) for p in pts)
-    url=OSRM_BASE+"/table/v1/foot/"+coords+"?sources=0&annotations=duration,distance"
-    try:
-        req=urllib.request.Request(url,headers={'User-Agent':'kav-bochan/1.0 (transit data quality)'})
-        with urllib.request.urlopen(req,timeout=12) as rr: j=json.load(rr)
-        dur=j['durations'][0]; dis=(j.get('distances') or [[None]*(len(pts)+1)])[0]
-        out=[]
-        for i in range(1,len(pts)+1):
-            if i<len(dur) and dur[i] is not None:
-                out.append({'min':max(1,round(dur[i]/60)),'d':round(dis[i]) if i<len(dis) and dis[i] is not None else None})
-            else: out.append(None)
-        return out
-    except Exception: return None
 PREF=['שדרות','שדרת',"שד'",'שד','רחוב',"רח'",'רח','דרך','סמטת','סמטה',"סמ'",'שכונת',"שכ'",'כיכר','ככר','מחלף','כביש']
 TITLES={'הרב','רב','דר','דוקטור','פרופ','השר','ראל','אלוף','סרן','הנשיא','מר','גנרל','בי"ס','ביה"ס','בית','ספר','גן','קניון'}
 # מוקדים "מרכזיים" שראויים לשמש שם תחנה (עד 100 מ׳)
@@ -169,14 +150,15 @@ SN,SD,SC,LA,LO,SI=ix['stop_name'],ix['stop_desc'],ix['stop_code'],ix['stop_lat']
 ACTIVE=None
 if os.path.exists(ACTIVE_PATH):
     ACTIVE=set(l.strip() for l in open(ACTIVE_PATH) if l.strip()); print('active stop_ids:',len(ACTIVE))
-PREVRT={}
+PREVRT={}; PREVRW={}
 if PREV and os.path.exists(PREV):
     try:
         pd=json.load(open(PREV))
         for s in pd.get('stops',[]):
             for p in s.get('p',[]):
                 if p.get('rt'): PREVRT[(s['c'],p['n'])]=p['rt']
-        print('carried-forward rt:',len(PREVRT))
+            if s.get('k')=='closer' and s.get('rw'): PREVRW[s['c']]=s['rw']
+        print('carried-forward rt:',len(PREVRT),'| closer rw:',len(PREVRW))
     except Exception as e: print('prev load failed:',e)
 from collections import defaultdict, Counter
 def norm_ref(part):
@@ -320,30 +302,14 @@ for r in rows[1:]:
     if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
     suspects.append(rec)
 
-# הצעות כלליות — אימות לפי הליכה אמיתית (OSRM): המרחק לרחוב נמדד לאורך המדרכות,
-# לא בקו אווירי. אם הרחוב המצטלב שבשם קרוב יותר בהליכה מהמוצע — מבטלים את ההצעה.
-# תקציב-זמן גלובלי + ספירת-כשלים: לעולם לא תוקעים את ה-job אם ה-OSRM איטי/לא זמין.
-OSRM_BUDGET=float(os.environ.get('OSRM_BUDGET','420'))  # שניות
-walked=dropped=0; t_osrm=time.time(); osrm_fail=0; osrm_off=not OSRM_WALK
+# הצעות כלליות: שומרים את נתוני ההליכה האמיתיים (rw) שחושבו בריצה החודשית (OSRM מקומי)
+# וקדימה מ-data.json הקודם — המרחק לרחוב נמדד לאורך המדרכות, לא בקו אווירי.
+carried=0
 for rec in closer_cands:
-    rds=rec.get('roads',{})
-    if not osrm_off and rec['la'] is not None and (time.time()-t_osrm)<OSRM_BUDGET and osrm_fail<8:
-        keys=[k for k in ('prim','cur','sug') if rds.get(k) and rds[k].get('pt')]
-        if keys:
-            res=walk_table(rec['la'],rec['lo'],[rds[k]['pt'] for k in keys])
-            time.sleep(0.1)  # קצב מנומס מול שרת ה-OSRM הציבורי
-            if res:
-                osrm_fail=0
-                rw={k:wv for k,wv in zip(keys,res) if wv}
-                if rw: rec['rw']=rw; walked+=1
-                cw=rw.get('cur'); sw=rw.get('sug')
-                if cw and sw and sw['d']>cw['d']:
-                    dropped+=1; cnt['exact']+=1; continue  # המצטלב שבשם קרוב יותר בהליכה
-            else:
-                osrm_fail+=1
-                if osrm_fail>=8: print('OSRM unavailable — falling back to straight-line for the rest')
+    rw=PREVRW.get(rec['c'])
+    if rw: rec['rw']=rw; carried+=1
     suspects.append(rec); cnt['closer']+=1
-print('closer: %d walked, %d dropped by walking, %d kept (%.0fs)'%(walked,dropped,cnt['closer'],time.time()-t_osrm))
+print('closer kept:',cnt['closer'],'| walking carried forward:',carried)
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)

@@ -144,8 +144,25 @@ jobs:
                 k+=1
               en+=1
             except Exception: pass
+          # "הצעות כלליות": מרחק הליכה אמיתי מהתחנה לרחובות (ראשי/מצטלב-נוכחי/מוצע)
+          # כדי לקבוע איזה רחוב באמת קרוב יותר בהליכה (לא בקו אווירי).
+          walked=0
+          for s in d['stops']:
+            if s.get('k')!='closer' or s.get('la') is None: continue
+            rds=s.get('roads',{}); keys=[k for k in ('prim','cur','sug') if rds.get(k) and rds[k].get('pt')]
+            if not keys: continue
+            coords="%s,%s;"%(s['lo'],s['la'])+";".join("%s,%s"%(rds[k]['pt'][1],rds[k]['pt'][0]) for k in keys)
+            try:
+              with urllib.request.urlopen(base+coords+"?sources=0&annotations=duration,distance",timeout=15) as r:
+                j=json.load(r)
+              dur=j['durations'][0]; dis=(j.get('distances') or [[None]*(len(keys)+1)])[0]
+              rw={}
+              for i,k in enumerate(keys,1):
+                if dur[i] is not None: rw[k]={'min':max(1,round(dur[i]/60)),'d':round(dis[i]) if i<len(dis) and dis[i] is not None else None}
+              if rw: s['rw']=rw; walked+=1
+            except Exception: pass
           json.dump(d, open('next-station/data.json','w'), ensure_ascii=False, separators=(',',':'))
-          print('stops enriched with walking times:', en)
+          print('stops enriched with walking times:', en, '| closer streets walked:', walked)
           PY
           docker rm -f osrm || true
 
