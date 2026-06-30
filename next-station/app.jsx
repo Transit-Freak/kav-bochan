@@ -27,6 +27,8 @@ function effWalkMin(x) {
 }
 // החלק בשם התחנה שאמור להיות הרחוב (לפני ה-/)
 function primName(n) { return String(n || "").split(/[\\/]/)[0].trim(); }
+// "הצעה מופרכת בהליכה": לפי OSRM הרחוב המצטלב שבשם דווקא קרוב יותר מהמוצע — מסתירים
+function walkBad(s) { const w = s.rw; return !!(w && w.cur && w.sug && w.sug.d > w.cur.d); }
 
 // משווה שתי מחרוזות ברמת התו ומסמן בצבע את האותיות השונות (LCS).
 function lcsMark(a, b, which) {
@@ -266,6 +268,7 @@ function App() {
         (s) =>
           // "הכל" מציג רק קטגוריות-שגיאה; "הצעות כלליות" נפרדות ונבחרות בצ'יפ שלהן
           (cat === "all" ? s.k !== "closer" : s.k === cat) &&
+          !(s.k === "closer" && walkBad(s)) && // מסתירים הצעות שההליכה הפריכה
           (!activeOnly || s.act !== false) &&
           (!qn || (s.t && s.t.indexOf(qn) >= 0) || s.n.indexOf(qn) >= 0 || s.c.indexOf(qn) >= 0 || s.s.indexOf(qn) >= 0)
       )
@@ -294,6 +297,8 @@ function App() {
   if (!data) return <div className="boot">טוען נתונים…</div>;
   const CAP = 600;
   const shown = filtered.slice(0, CAP);
+  // מספר "הצעות כלליות" שמוצגות בפועל = אלה שההליכה לא הפריכה
+  const closerValid = data.stops.reduce((a, s) => a + (s.k === "closer" && !walkBad(s) ? 1 : 0), 0);
 
   return (
     <div className="app">
@@ -321,7 +326,7 @@ function App() {
             onClick={() => setCat(cat === k ? "all" : k)}
             title={CATS[k].desc}
           >
-            <b style={{ color: CATS[k].color }}>{(data.counts[k] || 0).toLocaleString()}</b>
+            <b style={{ color: CATS[k].color }}>{((k === "closer" ? closerValid : data.counts[k]) || 0).toLocaleString()}</b>
             <span>{CATS[k].label}</span>
           </button>
         ))}
