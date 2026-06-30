@@ -7,7 +7,7 @@ const CATS = {
   spelling: { label: "טעות כתיב", color: "#d97706", desc: "אותו רחוב, אות שונה — כנראה שגיאה" },
   streetvar: { label: "אי-התאמה ברחוב", color: "#0891b2", desc: "הרחוב נכתב כאן אחרת מרוב התחנות באותו רחוב" },
   uncertain: { label: "ספק / כתיב חלופי", color: "#64748b", desc: "כנראה אותו רחוב — הבדל כתיב מלא/חסר בלבד" },
-  closer: { label: "הצעות כלליות", color: "#16a34a", desc: "התחנה תקינה — אך ייתכן שיש רחוב קרוב יותר מהרחוב שבכתובת" },
+  closer: { label: "הצעות כלליות", color: "#16a34a", desc: "הרחוב המצטלב בשם רחוק מהתחנה — יש רחוב אחר קרוב יותר שכדאי שיופיע בשם" },
 };
 
 // אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
@@ -181,36 +181,34 @@ function App() {
   // מעבר לתחנה הנבחרת — מסמן את התחנה ואת המקומות הסמוכים, ומחשב זמני הליכה אמיתיים
   useEffect(() => {
     const m = mapRef.current;
-    if (!m || !sel || sel.la == null) return;
-    // ניקוי שכבות קודמות
+    if (!m) return;
+    // ניקוי כל השכבות הקודמות — תמיד, גם במעבר בין תחנות וגם בביטול בחירה (מונע "שאריות")
     if (routeRef.current) { routeRef.current.remove(); routeRef.current = null; }
-    setRoute(null);
     if (poiLayerRef.current) { poiLayerRef.current.remove(); poiLayerRef.current = null; }
     if (roadsLayerRef.current) { roadsLayerRef.current.remove(); roadsLayerRef.current = null; }
+    if (markRef.current) { markRef.current.remove(); markRef.current = null; }
+    setRoute(null);
     setPoiTimes(null);
+    if (!sel || sel.la == null) return;
     // סמן התחנה
-    if (markRef.current) markRef.current.remove();
     markRef.current = L.marker([sel.la, sel.lo])
       .addTo(m)
       .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t));
-    // "הצעות כלליות": סמן על המפה את הרחוב שבשם כיום (אדום) ואת הרחוב המוצע (ירוק)
+    // "הצעות כלליות": סמן את הרחובות בנקודה מדויקת על הרחוב — אדום=בשם כיום, ירוק=מוצע
     if (sel.k === "closer" && sel.roads) {
       const rg = L.layerGroup();
-      const draw = (road, color, label, dash) => {
-        if (!road) return;
+      const draw = (road, color, cls) => {
+        if (!road || !road.pt) return;
         if (road.g && road.g.length >= 2) {
-          L.polyline(road.g, { color, weight: 6, opacity: 0.9, dashArray: dash, lineCap: "round" })
-            .addTo(rg).bindTooltip(label + ": " + esc(road.n), { sticky: true });
+          L.polyline(road.g, { color, weight: 3, opacity: 0.55, lineCap: "round" }).addTo(rg);
         }
-        if (road.pt) {
-          L.marker(road.pt, {
-            icon: L.divIcon({ className: "road-tag", html: "<div class='road-tag-i' style='background:" + color + "'>" + esc(road.n) + "</div>", iconSize: [0, 0] }),
-          }).addTo(rg);
-        }
+        L.circleMarker(road.pt, { radius: 6, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 })
+          .addTo(rg)
+          .bindTooltip(esc(road.n), { permanent: true, direction: "top", offset: [0, -4], className: "road-lbl " + cls });
       };
-      draw(sel.roads.prim, "#64748b", "ראשי", null);     // אפור — הרחוב הראשי
-      draw(sel.roads.cur, "#dc2626", "בשם כיום", "6 6");  // אדום מקווקו — המצטלב הנוכחי
-      draw(sel.roads.sug, "#16a34a", "מוצע", null);        // ירוק — הרחוב המוצע
+      draw(sel.roads.prim, "#64748b", "prim");  // אפור — הרחוב הראשי
+      draw(sel.roads.cur, "#dc2626", "cur");     // אדום — המצטלב שבשם כיום
+      draw(sel.roads.sug, "#16a34a", "sug");     // ירוק — הרחוב המוצע
       rg.addTo(m);
       roadsLayerRef.current = rg;
     }
@@ -254,14 +252,20 @@ function App() {
   const filtered = useMemo(() => {
     if (!data) return [];
     const qn = q.trim();
+    const farness = (s) => (s.curd == null ? 1e9 : s.curd); // מצטלב לא-נמצא = הכי רחוק
     return data.stops
       .filter(
         (s) =>
-          (cat === "all" || s.k === cat) &&
+          // "הכל" מציג רק קטגוריות-שגיאה; "הצעות כלליות" נפרדות ונבחרות בצ'יפ שלהן
+          (cat === "all" ? s.k !== "closer" : s.k === cat) &&
           (!activeOnly || s.act !== false) &&
           (!qn || (s.t && s.t.indexOf(qn) >= 0) || s.n.indexOf(qn) >= 0 || s.c.indexOf(qn) >= 0 || s.s.indexOf(qn) >= 0)
       )
-      .sort((a, b) => (RANK[a.k] - RANK[b.k]) || (Number(a.c) - Number(b.c)));
+      .sort((a, b) =>
+        (RANK[a.k] - RANK[b.k]) ||
+        // בהצעות כלליות: מהרחוב המצטלב הרחוק ביותר אל הקרוב
+        (a.k === "closer" ? farness(b) - farness(a) : Number(a.c) - Number(b.c))
+      );
   }, [data, cat, q, activeOnly]);
 
   const hasActiveInfo = !!(data && data.stops.some((s) => s.act === false));
@@ -298,7 +302,7 @@ function App() {
 
       <div className="stats">
         <button className={"stat" + (cat === "all" ? " on" : "")} onClick={() => setCat("all")}>
-          <b>{data.stops.length.toLocaleString()}</b>
+          <b>{(data.stops.length - (data.counts.closer || 0)).toLocaleString()}</b>
           <span>סה"כ חשודות</span>
         </button>
         {Object.keys(CATS).map((k) => (

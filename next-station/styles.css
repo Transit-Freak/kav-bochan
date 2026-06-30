@@ -194,3 +194,11 @@ body {
 .d-map-legend .lg { font-weight:800; margin-inline-end:8px; }
 .d-map-legend .lg.cur { color:#dc2626; }
 .d-map-legend .lg.sug { color:#16a34a; }
+
+/* תוויות-רחוב על המפה (נקודה מדויקת על הרחוב) */
+.road-lbl { font-weight:800; font-size:11px; padding:1px 6px; border:0; border-radius:6px;
+  color:#fff; box-shadow:0 1px 3px rgba(0,0,0,.35); }
+.road-lbl::before { display:none; } /* בלי החץ הקטן של ה-tooltip */
+.road-lbl.prim { background:#64748b; }
+.road-lbl.cur  { background:#dc2626; }
+.road-lbl.sug  { background:#16a34a; }
