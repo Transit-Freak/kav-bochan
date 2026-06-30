@@ -38,7 +38,7 @@ jobs:
           set -euo pipefail
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
           URL="https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
-          curl -fSL --connect-timeout 30 --max-time 900 --retry 3 --retry-delay 10 -A "$UA" -o gtfs.zip "$URL"
+          curl -fSL --connect-timeout 20 --max-time 1200 --retry 6 --retry-all-errors --retry-delay 15 -A "$UA" -o gtfs.zip "$URL"
           ls -la gtfs.zip
 
       - name: Install fflate (ZIP reader)
