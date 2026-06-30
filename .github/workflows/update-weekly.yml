@@ -84,3 +84,5 @@ jobs:
 # reclassify: drop non-unique "הצעות כלליות" suggestions (same name for multiple stops, e.g. Tifrah)
 
 # reclassify: de-dup suggested names across ALL categories (e.g. רמב"ם ×5 in Tifrah reversal/mismatch)
+
+# reclassify: institution/landmark names (מרפאה, הישיבה/רחוב…) -> ספק, no reversed suggestion; revert error-category de-dup

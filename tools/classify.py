@@ -60,6 +60,15 @@ def ktiv_only(a,b):
     sa=re.sub('[יו]','',nf(a)); sb=re.sub('[יו]','',nf(b))
     return sa==sb and len(sa)>=3
 def cn(s): return re.sub(r'\s*/\s*',' / ',re.sub(r'\s+',' ',(s or '').strip()))  # שם-תחנה מנורמל להשוואה
+# שם על-שם מוסד/ציון-דרך (מרפאה, בית ספר, הישיבה...) — שם תחנה תקין, לא טעות "היפוך".
+LANDMARK_WORDS=('מרכז','בית ספר','ביהס','ביס','גן ','גן ילדים','מרפאה','קופח','קופת חולים',
+  'מקווה','מקוה','בית כנסת','בית הכנסת','ביהכנס','ביכ','בית מדרש','ביהמד','ישיבה','הישיבה','ישיבת',
+  'תלמוד תורה','תת ','חיידר','כולל','מתנס','מתנ','צרכני','מכולת','מועצה','קניון',
+  'תחנה מרכזית','ת מרכזית','בית חולים','ביהח','אולפנה','סמינר','מסגד','כנסי','היכל',
+  'בריכה','אצטדיון','מוזיאון','תיכון','חטב','בית אבות','מעון','פנימי','אולם ספורט')
+def landmark_name(s):
+    s=re.sub(r'\s+',' ',re.sub('[\"׳״.\\-]','',(s or '')).replace("'",'')).strip()
+    return any(s==w.strip() or s.startswith(w) or (' '+w) in (' '+s) for w in LANDMARK_WORDS)
 # השוואת רחובות עמידה למקפים/גרשיים/כתיב מלא (לזיהוי "הצעות כלליות" בלבד)
 def streets_match(a,b):
     a=(a or '').replace('-',' '); b=(b or '').replace('-',' ')
@@ -270,6 +279,8 @@ for r in rows[1:]:
         cat='uncertain' if rel(cross,st)=='spelling' and ktiv_only(cross,st) else 'reversal'
     elif named_after_city(name,c): cnt['settlement']+=1; continue
     else: cat='mismatch'
+    # שם על-שם מוסד/ציון-דרך ("מרפאה", "הישיבה/רמב''ם") אינו טעות — לספק, בלי הצעת-שינוי
+    if cat in ('reversal','mismatch') and landmark_name(prim): cat='uncertain'
     if sv and cat in ('spelling','uncertain'): cat='streetvar'
     nr=nearest_roads(la,lo,4); ms,md=(nr[0] if nr else (None,None))
     if cat in ('reversal','mismatch') and ms and rel(prim,ms) in ('exact','spelling'):
@@ -305,27 +316,18 @@ for r in rows[1:]:
     if ACTIVE is not None and r[SI] not in ACTIVE: rec['act']=False
     suspects.append(rec)
 
-# הצעות כלליות: מצרפים את כולן + נתוני הליכה (rw); סינון-הכפילות נעשה גלובלית בהמשך.
+# הצעות כלליות: שם מוצע חדש שחוזר על עצמו (כמו 12 תחנות → אותו שם) הוא חסר-תועלת,
+# כי הוא לא מבדיל בין התחנות — לכן בקטגוריה הזו בלבד מסירים הצעה כפולה. בקטגוריות
+# השגיאה משאירים הכל כפי שהוא (זה בסדר ששתי תחנות חולקות שם).
+csug=Counter((rec['t'],cn(rec['sug'])) for rec in closer_cands)
 carried=0
 for rec in closer_cands:
+    if csug[(rec['t'],cn(rec['sug']))]>1 or cn(rec['sug']) in EXIST.get(rec['t'],()):
+        cnt['exact']+=1; continue
     rw=PREVRW.get(rec['c'])
     if rw: rec['rw']=rw; carried+=1
     suspects.append(rec); cnt['closer']+=1
-
-# שם מוצע חייב להיות ייחודי בעיר: הצעה שחוזרת על תחנה אחרת (כמו "רמב''ם" ×5 בתפרח),
-# או שזהה לשם תחנה קיים — אינה מבדילה בין התחנות. ב"הצעות כלליות" ההצעה היא כל
-# הסיבה לרשומה ולכן מסירים אותה; בקטגוריות שגיאה משאירים את התחנה ומבטלים רק את ההצעה.
-sugcnt=Counter((s['t'],cn(s['sug'])) for s in suspects if s.get('sug'))
-kept=[]; dropcloser=blanked=0
-for s in suspects:
-    sg=s.get('sug')
-    if sg and (sugcnt[(s['t'],cn(sg))]>1 or cn(sg) in EXIST.get(s['t'],())):
-        if s['k']=='closer':
-            cnt['closer']-=1; cnt['exact']+=1; dropcloser+=1; continue
-        del s['sug']; blanked+=1
-    kept.append(s)
-suspects=kept
-print('dedup suggested names: dropped %d closer, blanked %d in error categories (rw carried %d)'%(dropcloser,blanked,carried))
+print('closer kept:',cnt['closer'],'| rw carried:',carried)
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
