@@ -36,6 +36,8 @@ def rel(tok,act):
     if any(len(t)>=3 for t in set(tk(nl(tok)))&set(tk(nl(act)))): return 'exact'
     if nl(tok) in nl(act) or nl(act) in nl(tok): return 'exact'
     a2,b2=tk(nf(tok)),tk(nf(act))
+    # definite article ה ("מעפילים" vs "המעפילים") is a grammatical variant, not a spelling error
+    if a2 and b2 and (a2[-1]=='ה'+b2[-1] or b2[-1]=='ה'+a2[-1]): return 'exact'
     if a2 and b2 and lev(a2[-1],b2[-1])<=2 and max(len(a2[-1]),len(b2[-1]))>=4: return 'spelling'
     return None
 def fuzzy_in(t,toks):

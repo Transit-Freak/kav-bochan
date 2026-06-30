@@ -14,7 +14,7 @@ const POI_ICON = {
   school: "🏫", academia: "🎓", health: "🏥", mall: "🛒", train: "🚉",
   worship: "🕍", police: "🚓", fire: "🚒", library: "📚", community: "🏘️",
   gov: "🏛️", culture: "🎭", busstation: "🚌", park: "🌳", sport: "⚽",
-  shop: "🏪", fuel: "⛽", bank: "🏦", junction: "🛣️",
+  shop: "🏪", fuel: "⛽", bank: "🏦", junction: "🛣️", post: "📮",
 };
 
 // מציגים ב"ליד התחנה" רק מקומות עד ~5–6 דק׳ הליכה אמיתית
@@ -226,7 +226,7 @@ function App() {
             <p>תחנות אוטובוס ששמן אינו תואם לרחוב שבכתובת הרשמית</p>
           </div>
         </div>
-        <div className="src">נתונים: משרד התחבורה (GTFS) · נבנה ע"י שלמה הרטמן</div>
+        <div className="src">נתונים: משרד התחבורה (GTFS){data.generated ? " · עודכן לאחרונה: " + data.generated.split("-").reverse().join(".") : ""} · נבנה ע"י שלמה הרטמן</div>
       </header>
 
       <div className="stats">
