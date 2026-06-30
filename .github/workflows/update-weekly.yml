@@ -86,3 +86,5 @@ jobs:
 # reclassify: de-dup suggested names across ALL categories (e.g. רמב"ם ×5 in Tifrah reversal/mismatch)
 
 # reclassify: institution/landmark names (מרפאה, הישיבה/רחוב…) -> ספק, no reversed suggestion; revert error-category de-dup
+
+# reclassify: expand institution/landmark words (שכונה/צומת/מסוף/פארק/חוף/מלון/אזור/קריית/מגדל...) -> ספק; ככר stays spelling
