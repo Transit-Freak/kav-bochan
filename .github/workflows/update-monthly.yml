@@ -114,6 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           STOPS=stops.txt POI=poi.json ROADS=roads.json ACTIVE=active_stops.txt \
+            HISTORY=next-station/history.json \
             OUT=next-station/data.json python3 tools/classify.py
 
       - name: Build OSRM (foot) and compute real walking times
@@ -171,7 +172,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add next-station/data.json
+          git add next-station/data.json next-station/history.json
           git commit -m "monthly: full refresh (GTFS + OSM POI/roads + walking times)" || echo "no change"
           git push origin HEAD:main
 

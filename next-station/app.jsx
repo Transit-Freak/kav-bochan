@@ -27,6 +27,8 @@ function effWalkMin(x) {
 }
 // החלק בשם התחנה שאמור להיות הרחוב (לפני ה-/)
 function primName(n) { return String(n || "").split(/[\\/]/)[0].trim(); }
+// נורמליזציה לחיפוש: מתעלם מגרשיים/גרש/מקפים ורווחים כפולים ("בן-גוריון" ≡ "בן גוריון", קק"ל ≡ קקל)
+function nq(s) { return String(s || "").replace(/["'׳״]/g, "").replace(/[-–]/g, " ").replace(/\s+/g, " ").trim(); }
 // "הצעה מופרכת בהליכה": לפי OSRM הרחוב המצטלב שבשם דווקא קרוב יותר מהמוצע — מסתירים
 function walkBad(s) { const w = s.rw; return !!(w && w.cur && w.sug && w.sug.d > w.cur.d); }
 
@@ -143,6 +145,7 @@ function App() {
   const [route, setRoute] = useState(null); // {loading|err|ok, to, d, min}
   const [poiTimes, setPoiTimes] = useState(null); // זמני הליכה אמיתיים לנקודות, מיושרים ל-sel.p
   const [reportStop, setReportStop] = useState(null); // תחנה שמדווחים עליה
+  const [hist, setHist] = useState(null); // היסטוריית ספירות למגמות
   const mapRef = useRef(null);
   const markRef = useRef(null);
   const routeRef = useRef(null);
@@ -183,6 +186,11 @@ function App() {
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData({ counts: {}, stops: [] }));
+    // היסטוריית ספירות (רשומה ליום) — להצגת מגמה מאז הריצה הקודמת
+    fetch("history.json?v=" + window.NS_BUILD + "-" + new Date().toISOString().slice(0, 10))
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setHist)
+      .catch(() => {});
   }, []);
 
   // אתחול מפה
@@ -265,7 +273,7 @@ function App() {
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    const qn = q.trim();
+    const qn = nq(q);
     const farness = (s) => (s.curd == null ? 1e9 : s.curd); // מצטלב לא-נמצא = הכי רחוק
     return data.stops
       .filter(
@@ -274,7 +282,7 @@ function App() {
           (cat === "all" ? s.k !== "closer" : s.k === cat) &&
           !(s.k === "closer" && walkBad(s)) && // מסתירים הצעות שההליכה הפריכה
           (!activeOnly || s.act !== false) &&
-          (!qn || (s.t && s.t.indexOf(qn) >= 0) || s.n.indexOf(qn) >= 0 || s.c.indexOf(qn) >= 0 || s.s.indexOf(qn) >= 0)
+          (!qn || nq(s.t).indexOf(qn) >= 0 || nq(s.n).indexOf(qn) >= 0 || nq(s.c).indexOf(qn) >= 0 || nq(s.s).indexOf(qn) >= 0)
       )
       .sort((a, b) =>
         (RANK[a.k] - RANK[b.k]) ||
@@ -315,6 +323,27 @@ function App() {
           </div>
         </div>
         <div className="src">נתונים: משרד התחבורה (GTFS){data.generated ? " · עודכן לאחרונה: " + data.generated.split("-").reverse().join(".") : ""} · נבנה ע"י שלמה הרטמן</div>
+        {(() => {
+          if (!hist || hist.length < 2) return null;
+          const cur = hist[hist.length - 1], prev = hist[hist.length - 2];
+          const diffs = Object.keys(CATS)
+            .map((k) => ({ k, d: (cur.c[k] || 0) - (prev.c[k] || 0) }))
+            .filter((x) => x.d !== 0);
+          return (
+            <div className="trend">
+              📈 מאז {prev.d.split("-").reverse().join(".")}:{" "}
+              {diffs.length === 0
+                ? "ללא שינוי"
+                : diffs.map((x, i) => (
+                    <span key={x.k}>
+                      {i > 0 && " · "}
+                      {CATS[x.k].label}{" "}
+                      <b className={x.d < 0 ? "down" : "up"}>{x.d < 0 ? "▼" : "▲"}{Math.abs(x.d).toLocaleString()}</b>
+                    </span>
+                  ))}
+            </div>
+          );
+        })()}
       </header>
 
       <div className="stats">

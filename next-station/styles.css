@@ -235,3 +235,8 @@ body {
 .rep-done { text-align:center; padding:14px 4px; }
 .rep-done-h { font-size:18px; font-weight:800; margin-bottom:6px; }
 .rep-sub { color:#64748b; font-size:13px; margin-bottom:14px; line-height:1.5; }
+
+/* שורת מגמה — שינוי מאז הריצה הקודמת */
+.trend { font-size:12px; color:#64748b; margin-top:4px; line-height:1.6; }
+.trend .down { color:#16a34a; }  /* ירידה בשגיאות = טוב */
+.trend .up { color:#dc2626; }

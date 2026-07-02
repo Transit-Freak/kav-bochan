@@ -67,7 +67,7 @@ LANDMARK_WORDS=('מרכז','בית ','בית ספר','ביהס','ביס','גן '
   'קניון','תחנה מרכזית','ת מרכזית','תחנת','בית חולים','ביהח','אולפנה','סמינר','מסגד','כנסי','היכל',
   'בריכה','אצטדיון','מוזיאון','תיכון','חטב','בית אבות','מעון','פנימי','אולם ספורט',
   'שכונה','שכונת','צומת','מסוף','מסעף','פארק','חוף','מועדון','מלון','מפעל','אזור','קרית','קריית','מגדל',
-  'מגרש','מכון','מחנה','תמרכזית')
+  'מגרש','מכון','מחנה','תמרכזית','עיריה','עירייה','עירית','עיריית','שוק','רמת','גבעת')
 def landmark_name(s):
     s=re.sub(r'\s+',' ',re.sub('[\"׳״.\\-]','',(s or '')).replace("'",'')).strip()
     return any(s==w.strip() or s.startswith(w) or (' '+w) in (' '+s) for w in LANDMARK_WORDS)
@@ -336,3 +336,13 @@ os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
 json.dump({'generated':datetime.date.today().isoformat(),'counts':cnt,'stops':suspects},
   open(OUT,'w'), ensure_ascii=False, separators=(',',':'))
 print('wrote',OUT)
+# היסטוריית ספירות — רשומה אחת ליום (ריצה אחרונה באותו יום גוברת), למעקב מגמות באתר
+HIST=os.environ.get('HISTORY','')
+if HIST:
+    try: hist=json.load(open(HIST))
+    except Exception: hist=[]
+    today=datetime.date.today().isoformat()
+    hist=[h for h in hist if h.get('d')!=today]
+    hist.append({'d':today,'c':cnt})
+    json.dump(hist,open(HIST,'w'),ensure_ascii=False,separators=(',',':'))
+    print('history entries:',len(hist))
