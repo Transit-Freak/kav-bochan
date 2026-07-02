@@ -107,3 +107,5 @@ jobs:
 # reclassify: acronym matching now skips the definite article (קק"ל = הקרן הקיימת לישראל)
 
 # reclassify: never suggest non-Hebrew names (Arabic-script roads/POIs) in any category
+
+# reclassify: numbered highways (1,286 roads as כביש N) now in the map data
