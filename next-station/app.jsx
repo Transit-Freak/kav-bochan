@@ -50,16 +50,32 @@ function lcsMark(a, b, which) {
   return out.map(([ch, d, k]) => d ? <span className="d-hl" key={k}>{ch}</span> : <span key={k}>{ch}</span>);
 }
 
-// כפתור העתקת קישור ישיר לתחנה (#stop=<מספר>) — לשיתוף בוואטסאפ ובדיווחים
-function ShareLink({ code }) {
+// כפתור העתקה כללי — מעתיק טקסט ללוח עם משוב "הועתק"
+function CopyBtn({ label, make }) {
   const [ok, setOk] = useState(false);
   function copy(e) {
     e.stopPropagation();
-    const u = window.location.origin + window.location.pathname + "#stop=" + code;
     const done = () => { setOk(true); setTimeout(() => setOk(false), 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(u).then(done).catch(done);
+    if (navigator.clipboard) navigator.clipboard.writeText(make()).then(done).catch(done);
   }
-  return <button className="share-btn" onClick={copy}>{ok ? "✓ הקישור הועתק!" : "🔗 העתקת קישור לתחנה"}</button>;
+  return <button className="share-btn" onClick={copy}>{ok ? "✓ הועתק!" : label}</button>;
+}
+function ShareLink({ code }) {
+  return <CopyBtn label="🔗 העתקת קישור לתחנה" make={() => window.location.origin + window.location.pathname + "#stop=" + code} />;
+}
+// טקסט מסכם של התחנה — להדבקה בוואטסאפ/מייל/פנייה
+function stopText(s) {
+  return [
+    s.n,
+    "מס׳ תחנה: " + s.c,
+    s.t ? "עיר: " + s.t : null,
+    "רחוב בכתובת: " + s.s,
+    s.ms ? "רחוב לפי המפה: " + s.ms + " (" + s.md + " מ׳)" : null,
+    "סוג: " + ((CATS[s.k] && CATS[s.k].label) || s.k),
+    s.sug ? "שם מוצע: " + s.sug : null,
+    s.la != null ? "מפה: https://www.google.com/maps?q=" + s.la + "," + s.lo : null,
+    "קישור לתחנה: " + window.location.origin + window.location.pathname + "#stop=" + s.c,
+  ].filter(Boolean).join("\n");
 }
 
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
@@ -144,6 +160,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
         </a>
       )}
       <ShareLink code={s.c} />
+      <CopyBtn label="📋 העתקת פרטי התחנה" make={() => stopText(s)} />
       {onReport && (
         <button className="rep-trigger" onClick={(e) => { e.stopPropagation(); onReport(s); }}>🚩 דווח על תחנה זו</button>
       )}
