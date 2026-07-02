@@ -100,10 +100,7 @@ def streets_match(a,b):
 # כתובות תיאוריות (מחלף/יציאה/מסוף…) אינן רחוב — לא מציעים להן רחוב חלופי
 LANDMARKISH=('מחלף','יציאה','כניסה','מסוף','צומת','כביש ','מגרש','מיתחם','מתחם','פארק','פאתי','תחנת','ת. ')
 _AR=re.compile(r'[؀-ۿ]')  # שם רחוב בכתב ערבי — לא ניתן להשוות מול שם עברי ב-GTFS
-def odd_road(nm):
-    nm=(nm or '').strip()
-    # כתב ערבי / שם מספרי / כביש מסופרר — עובדת מפה לתצוגה, לא הצעת-שם
-    return bool(_AR.search(nm)) or bool(re.fullmatch(r'[\d/ ]+',nm)) or bool(re.fullmatch(r'כביש ?\d+[א-ת]?',nm))
+def odd_road(nm): return bool(_AR.search(nm or '')) or bool(re.fullmatch(r'[\d/ ]+',(nm or '').strip()))
 def acronymish(s): return bool(re.search(r'["׳״]|\x27\x27', s or ''))  # ר"ת (קק"ל) ש-OSM נוטה לפענח
 # שם רחוב ערבי בתעתיק עברי (אל-/אבו/ואדי…): אותו רחוב מתועתק אחרת ב-GTFS ובמפה,
 # ולכן השוואת רחובות אינה אמינה — לא מציעים "רחוב קרוב יותר" במקרים אלה.

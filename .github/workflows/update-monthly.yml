@@ -94,7 +94,7 @@ jobs:
       - name: Overpass — named roads
         run: |
           set -euo pipefail
-          Q='[out:json][timeout:900][bbox:29.4,34.2,33.35,35.95];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|road)$"]["name"];way["highway"~"^(motorway|trunk|primary|secondary|motorway_link|trunk_link|primary_link|secondary_link)$"]["ref"][!"name"];);out geom;'
+          Q='[out:json][timeout:900][bbox:29.4,34.2,33.35,35.95];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|road)$"]["name"];out geom;'
           for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
             if curl -fsS --max-time 1000 --data-urlencode "data=$Q" "$ep" -o roads_raw.json; then echo "got $(wc -c < roads_raw.json) bytes"; break; fi
             echo "endpoint failed, next"; sleep 5
@@ -104,8 +104,7 @@ jobs:
           d=json.load(open('roads_raw.json')); out=[]
           for e in d.get('elements',[]):
             if e.get('type')!='way': continue
-            t=e.get('tags',{}); geom=e.get('geometry')
-            name=t.get('name') or (('כביש '+t.get('ref','').split(';')[0]) if t.get('ref') else None)
+            name=e.get('tags',{}).get('name'); geom=e.get('geometry')
             if not name or not geom: continue
             pts=[[round(p['lat'],5),round(p['lon'],5)] for p in geom]
             if len(pts)>=2: out.append({'n':name,'g':pts})
