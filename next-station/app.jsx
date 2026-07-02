@@ -387,27 +387,28 @@ function App() {
         {(() => {
           if (!hist || hist.length < 2) return null;
           const cur = hist[hist.length - 1];
-          // משווים רק לריצה קודמת עם אותה גרסת-כללים (v) — כדי ששינויי סיווג שלנו
-          // לא יוצגו כאילו משרד התחבורה תיקן/קלקל. אין כזו? המעקב מתאפס.
+          // תיקוני-מקור מאומתים (שינוי טקסט ב-GTFS) — מוצגים תמיד, גם כשהכללים השתנו
+          const lastChg = chg && chg.length ? chg[chg.length - 1] : null;
+          const fixedN = lastChg && lastChg.d === cur.d ? (lastChg.fixed || []).length : 0;
+          // השוואת ספירות-קטגוריה — רק מול ריצה קודמת עם אותה גרסת-כללים (v),
+          // כדי ששינויי סיווג שלנו לא יוצגו כאילו משרד התחבורה תיקן/קלקל.
           const prev = hist.slice(0, -1).reverse().find((e) => e.v && cur.v && e.v === cur.v);
-          if (!prev) return (
-            <div className="trend">📈 כללי הזיהוי עודכנו — מעקב המגמה מתאפס ויתחדש בריצה הבאה.</div>
-          );
-          const diffs = Object.keys(CATS)
-            .map((k) => ({ k, d: (cur.c[k] || 0) - (prev.c[k] || 0) }))
-            .filter((x) => x.d !== 0);
+          const diffs = prev
+            ? Object.keys(CATS).map((k) => ({ k, d: (cur.c[k] || 0) - (prev.c[k] || 0) })).filter((x) => x.d !== 0)
+            : null;
           return (
             <div className="trend">
-              📈 מאז {prev.d.split("-").reverse().join(".")}:{" "}
-              {diffs.length === 0
-                ? "ללא שינוי"
+              📈 מאז הריצה הקודמת: <b>{fixedN.toLocaleString()}</b> תחנות תוקנו במקור (מאומת מול הטקסט ב-GTFS)
+              {!prev && <span> · השוואת הקטגוריות תתחדש בריצה הבאה (כללי הזיהוי עודכנו)</span>}
+              {prev && (diffs.length === 0
+                ? " · ללא שינוי בקטגוריות"
                 : diffs.map((x, i) => (
                     <span key={x.k}>
-                      {i > 0 && " · "}
+                      {" · "}
                       {CATS[x.k].label}{" "}
                       <b className={x.d < 0 ? "down" : "up"}>{x.d < 0 ? "▼" : "▲"}{Math.abs(x.d).toLocaleString()}</b>
                     </span>
-                  ))}
+                  )))}
             </div>
           );
         })()}
