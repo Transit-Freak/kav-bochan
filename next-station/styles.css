@@ -105,11 +105,15 @@ body {
   position: absolute; bottom: 16px; right: 16px; z-index: 600;
   background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
   box-shadow: 0 12px 32px rgba(0,0,0,.16); padding: 14px 16px; width: 280px; max-width: calc(100% - 32px);
+  /* התוכן גדל — הפאנל נגלל בפנים ולא בורח מעבר לראש המפה (וה-X נשאר נגיש) */
+  max-height: calc(100% - 32px); overflow-y: auto; overscroll-behavior: contain;
 }
 .d-x {
   position: absolute; top: 8px; left: 8px; border: 0; background: #f1f5f9;
   width: 26px; height: 26px; border-radius: 8px; font-size: 18px; line-height: 1; color: var(--ink-soft); cursor: pointer;
 }
+/* בתוך פאנל התחנה הנגלל — ה-X "דביק" ותמיד גלוי בזמן גלילה */
+.detail .d-x { position: sticky; top: 2px; float: left; margin: 0 0 4px -6px; z-index: 5; }
 .d-name { font-family: "Heebo", sans-serif; font-size: 16px; font-weight: 900; margin-bottom: 8px; padding-left: 28px; }
 .d-row { font-size: 13px; color: var(--ink-soft); font-weight: 600; margin: 3px 0; }
 .d-row b { color: var(--ink); font-weight: 800; }
@@ -173,7 +177,7 @@ body {
     position: static; width: 100%; max-width: 100%; margin: 0;
     border: none; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 14px 16px 18px;
   }
-  .detail .d-x { top: 10px; left: 10px; }
+  .detail .d-x { position: absolute; top: 10px; left: 10px; float: none; margin: 0; }
   .d-poi-row { flex-wrap: wrap; }
   .d-poi-n { flex: 1 1 100%; }
 }
