@@ -113,7 +113,7 @@ def city(d):
 def named_after_city(name,c):
     if not c or len(c)<3: return False
     return nl(c).replace('-',' ') in nl(name).replace('-',' ')
-poi=json.load(open(POI))['poi']; GP={}
+_poisrc=json.load(open(POI)); poi=_poisrc['poi']; GP={}
 for p in poi: GP.setdefault((round(p['la']/0.001),round(p['lo']/0.001)),[]).append(p)
 def hav(a,b,c,d):
     Rr=6371000; pr=math.pi/180
@@ -135,7 +135,7 @@ def name_matches_poi(name,plist):
             for b in [t for t in tk(nf(p['n'])) if len(t)>=3]:
                 if a==b or (max(len(a),len(b))>=4 and lev(a,b)<=1): return p
     return None
-RD=json.load(open(ROADS))['roads']; CELL=0.003; GR={}
+_rdsrc=json.load(open(ROADS)); RD=_rdsrc['roads']; CELL=0.003; GR={}
 for ri,rd in enumerate(RD):
     g=rd['g']
     for i in range(len(g)-1):
@@ -359,7 +359,9 @@ print('closer kept:',cnt['closer'],'| rw carried:',carried)
 print('classification:',cnt)
 print('suspects:',len(suspects),'| %.1fs'%(time.time()-t0))
 os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
-json.dump({'generated':datetime.date.today().isoformat(),'counts':cnt,'stops':suspects},
+json.dump({'generated':datetime.date.today().isoformat(),
+  'osm':{'poi':_poisrc.get('generated'),'roads':_rdsrc.get('generated')},
+  'counts':cnt,'stops':suspects},
   open(OUT,'w'), ensure_ascii=False, separators=(',',':'))
 print('wrote',OUT)
 # מעקב "תוקן!": תחנה שסומנה כשגיאה, יצאה מהרשימה, *והטקסט שלה השתנה ב-GTFS* —

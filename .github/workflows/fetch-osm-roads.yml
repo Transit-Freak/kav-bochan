@@ -45,7 +45,8 @@ jobs:
             if not name or not geom: continue
             pts=[[round(p['lat'],5),round(p['lon'],5)] for p in geom]
             if len(pts)>=2: out.append({'n':name,'g':pts})
-          json.dump({'count':len(out),'roads':out}, open('roads.json','w'), ensure_ascii=False, separators=(',',':'))
+          import datetime
+          json.dump({'generated':datetime.date.today().isoformat(),'count':len(out),'roads':out}, open('roads.json','w'), ensure_ascii=False, separators=(',',':'))
           print('named roads:', len(out))
           PY
           ls -la roads.json

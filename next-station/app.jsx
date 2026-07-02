@@ -374,7 +374,16 @@ function App() {
             <p>תחנות אוטובוס ששמן אינו תואם לרחוב שבכתובת הרשמית</p>
           </div>
         </div>
-        <div className="src">נתונים: משרד התחבורה (GTFS){data.generated ? " · עודכן לאחרונה: " + data.generated.split("-").reverse().join(".") : ""} · נבנה ע"י שלמה הרטמן</div>
+        <div className="src">
+          נתונים: משרד התחבורה (GTFS){data.generated ? " · עודכן לאחרונה: " + data.generated.split("-").reverse().join(".") : ""}
+          {(() => {
+            // תאריך עדכון נתוני המפה (OSM) — מציגים את הישן מבין POI/כבישים (הערבות הזהירה)
+            const o = data.osm; if (!o) return "";
+            const ds = [o.poi, o.roads].filter(Boolean).sort();
+            return ds.length ? " · מפה (OpenStreetMap): עודכנה " + ds[0].split("-").reverse().join(".") : "";
+          })()}
+          {" "}· נבנה ע"י שלמה הרטמן
+        </div>
         {(() => {
           if (!hist || hist.length < 2) return null;
           const cur = hist[hist.length - 1], prev = hist[hist.length - 2];

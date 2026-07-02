@@ -74,7 +74,8 @@ jobs:
               c=e.get('center') or {}; lat=c.get('lat'); lon=c.get('lon')
             if lat is None or lon is None: continue
             out.append({'n':name,'la':round(float(lat),5),'lo':round(float(lon),5),'k':cat(t)})
-          json.dump({'count':len(out),'poi':out}, open('poi.json','w'), ensure_ascii=False, separators=(',',':'))
+          import datetime
+          json.dump({'generated':datetime.date.today().isoformat(),'count':len(out),'poi':out}, open('poi.json','w'), ensure_ascii=False, separators=(',',':'))
           print('POIs:', len(out))
           PY
           ls -la poi.json
