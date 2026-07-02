@@ -23,7 +23,7 @@ jobs:
       - name: Query Overpass for Israel POIs
         run: |
           set -euo pipefail
-          Q='[out:json][timeout:700];area["ISO3166-1"="IL"][admin_level=2]->.il;(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace|fuel|bank|place_of_worship|post_office)$"]["name"](area.il);nwr["shop"~"^(mall|department_store|supermarket|convenience)$"]["name"](area.il);nwr["railway"="station"]["name"](area.il);nwr["leisure"~"^(park|sports_centre|stadium|pitch)$"]["name"](area.il);nwr["tourism"~"^(museum|attraction)$"]["name"](area.il);nwr["office"="government"]["name"](area.il);nwr["public_transport"="station"]["name"](area.il);nwr["highway"="motorway_junction"]["name"](area.il);nwr["junction"="yes"]["name"](area.il););out center tags;'
+          Q='[out:json][timeout:700];area["ISO3166-1"="IL"][admin_level=2]->.il;(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace|fuel|bank|place_of_worship|post_office|grave_yard)$"]["name"](area.il);nwr["landuse"="cemetery"]["name"](area.il);nwr["shop"~"^(mall|department_store|supermarket|convenience)$"]["name"](area.il);nwr["railway"="station"]["name"](area.il);nwr["leisure"~"^(park|sports_centre|stadium|pitch)$"]["name"](area.il);nwr["tourism"~"^(museum|attraction)$"]["name"](area.il);nwr["office"="government"]["name"](area.il);nwr["public_transport"="station"]["name"](area.il);nwr["highway"="motorway_junction"]["name"](area.il);nwr["junction"="yes"]["name"](area.il););out center tags;'
           ok=0
           for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
             echo "== trying $ep =="
@@ -48,6 +48,7 @@ jobs:
             if am=='fuel': return 'fuel'
             if am=='bank': return 'bank'
             if am=='post_office': return 'post'
+            if am=='grave_yard' or t.get('landuse')=='cemetery': return 'cemetery'
             if rw=='station': return 'train'
             if am=='place_of_worship': return 'worship'
             if am in ('school','kindergarten'): return 'school'
