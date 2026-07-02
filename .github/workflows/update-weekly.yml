@@ -105,3 +105,5 @@ jobs:
 # reclassify: unified — WB+Golan roads/POIs (113,985 roads, 30,326 POIs), 942 cemeteries, OSM date stamps, versioned history
 
 # reclassify: acronym matching now skips the definite article (קק"ל = הקרן הקיימת לישראל)
+
+# reclassify: never suggest non-Hebrew names (Arabic-script roads/POIs) in any category

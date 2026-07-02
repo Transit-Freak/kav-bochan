@@ -277,11 +277,11 @@ for r in rows[1:]:
                     rt=PREVRT.get((code,p['n']))
                     if rt: pr['rt']=rt
                     pois.append(pr)
-                # שם מוצע לפי מבנה ציבור מרכזי סמוך (עד 100 מ׳)
+                # שם מוצע לפי מבנה ציבור מרכזי סמוך (עד 100 מ׳); לא מציעים שם בכתב ערבי
                 psug=psugd=None
                 for dist,p in nb:
                     if dist>100: break
-                    if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name):
+                    if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name) and not _AR.search(p['n']):
                         psug=p['n']; psugd=dist; break
                 # גאומטריית הרחובות לסימון על המפה: ראשי, מצטלב נוכחי, ומוצע
                 roads={}
@@ -319,17 +319,18 @@ for r in rows[1:]:
     if cat in ('reversal','mismatch') and landmark_name(prim): cat='uncertain'; lm=True
     cnt[cat]+=1
     sug=None
-    if nr and cat not in ('uncertain','streetvar'):
+    # לא מציעים שם שאינו עברית (כתב ערבי/מספרי): אם הרחוב הקרוב ביותר כזה — אין הצעה
+    if nr and cat not in ('uncertain','streetvar') and not odd_road(nr[0][0]):
         s1=nr[0][0]; s2=None
         for nm2,dd in nr[1:]:
-            if dd<=60 and nf(nm2)!=nf(s1): s2=nm2; break
+            if dd<=60 and nf(nm2)!=nf(s1) and not odd_road(nm2): s2=nm2; break
         cand=(s1+'/'+s2) if s2 else s1
         if nf(cand)!=nf(name): sug=cand
     # שם מוצע לפי מוקד מרכזי (POI גדול) עד 100 מ׳ — תחנות נקראות לעיתים ע"ש מוסד סמוך
     psug=psugd=None
     for dist,p in nb:
         if dist>100: break  # nb ממויין לפי מרחק
-        if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name):
+        if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name) and not _AR.search(p['n']):
             psug=p['n']; psugd=dist; break
     pois=[]
     for dist,p in nb:
