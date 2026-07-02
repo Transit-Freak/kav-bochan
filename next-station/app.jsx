@@ -386,7 +386,13 @@ function App() {
         </div>
         {(() => {
           if (!hist || hist.length < 2) return null;
-          const cur = hist[hist.length - 1], prev = hist[hist.length - 2];
+          const cur = hist[hist.length - 1];
+          // משווים רק לריצה קודמת עם אותה גרסת-כללים (v) — כדי ששינויי סיווג שלנו
+          // לא יוצגו כאילו משרד התחבורה תיקן/קלקל. אין כזו? המעקב מתאפס.
+          const prev = hist.slice(0, -1).reverse().find((e) => e.v && cur.v && e.v === cur.v);
+          if (!prev) return (
+            <div className="trend">📈 כללי הזיהוי עודכנו — מעקב המגמה מתאפס ויתחדש בריצה הבאה.</div>
+          );
           const diffs = Object.keys(CATS)
             .map((k) => ({ k, d: (cur.c[k] || 0) - (prev.c[k] || 0) }))
             .filter((x) => x.d !== 0);

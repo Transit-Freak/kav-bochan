@@ -4,7 +4,7 @@
 #   STOPS=stops.txt  POI=poi.json  ROADS=roads.json  ACTIVE=active_stops.txt
 #   PREV=<data.json קודם> — אם קיים, מעתיק ממנו זמני-הליכה (rt) כדי לא לאבד אותם בריצה שבועית
 #   OUT=next-station/data.json
-import csv, re, json, math, time, os, datetime
+import csv, re, json, math, time, os, datetime, hashlib
 t0=time.time()
 STOPS=os.environ.get('STOPS','stops.txt'); POI=os.environ.get('POI','poi.json')
 ROADS=os.environ.get('ROADS','roads.json'); ACTIVE_PATH=os.environ.get('ACTIVE','active_stops.txt')
@@ -392,6 +392,9 @@ if HIST:
     except Exception: hist=[]
     today=datetime.date.today().isoformat()
     hist=[h for h in hist if h.get('d')!=today]
-    hist.append({'d':today,'c':cnt})
+    # v = טביעת-אצבע של קובץ זה; המגמה באתר מושווית רק בין ריצות עם אותם כללים,
+    # כדי ששינויי-סיווג שלנו לא ייראו כאילו משרד התחבורה תיקן/קלקל.
+    rv=hashlib.sha1(open(__file__,'rb').read()).hexdigest()[:8]
+    hist.append({'d':today,'c':cnt,'v':rv})
     json.dump(hist,open(HIST,'w'),ensure_ascii=False,separators=(',',':'))
     print('history entries:',len(hist))
