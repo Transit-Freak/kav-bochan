@@ -259,3 +259,8 @@ body {
 .letter-txt { min-height:220px; font-size:12.5px; direction:rtl; }
 .letter-actions { display:flex; gap:8px; }
 .letter-actions .rep-btn { margin-top:10px; }
+
+/* קישור ישיר לתחנה */
+.share-btn { margin-top:8px; width:100%; padding:7px; border:1px solid #c7d2fe; background:#eef2ff;
+  color:#4338ca; font-weight:700; font-size:13px; border-radius:8px; cursor:pointer; }
+.share-btn:hover { background:#e0e7ff; }

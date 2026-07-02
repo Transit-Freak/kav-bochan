@@ -50,6 +50,18 @@ function lcsMark(a, b, which) {
   return out.map(([ch, d, k]) => d ? <span className="d-hl" key={k}>{ch}</span> : <span key={k}>{ch}</span>);
 }
 
+// כפתור העתקת קישור ישיר לתחנה (#stop=<מספר>) — לשיתוף בוואטסאפ ובדיווחים
+function ShareLink({ code }) {
+  const [ok, setOk] = useState(false);
+  function copy(e) {
+    e.stopPropagation();
+    const u = window.location.origin + window.location.pathname + "#stop=" + code;
+    const done = () => { setOk(true); setTimeout(() => setOk(false), 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(u).then(done).catch(done);
+  }
+  return <button className="share-btn" onClick={copy}>{ok ? "✓ הקישור הועתק!" : "🔗 העתקת קישור לתחנה"}</button>;
+}
+
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
 function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
@@ -65,7 +77,9 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
       <div className="d-cat" style={{ color: CATS[s.k].color }}>
         {CATS[s.k].label} — {CATS[s.k].desc}
       </div>
-      {(s.k === "spelling" || s.k === "uncertain") && (
+      {s.lm ? (
+        <div className="d-diff">🏛️ התחנה קרויה על-שם מוסד או מקום (לא על-שם רחוב) — ככל הנראה שם תקין.</div>
+      ) : (s.k === "spelling" || s.k === "uncertain") && (
         <div className="d-diff">💬 בשם התחנה: «<b>{lcsMark(primName(s.n), s.s, "a")}</b>» · בכתובת: «<b>{lcsMark(primName(s.n), s.s, "b")}</b>»</div>
       )}
       {s.sv && (
@@ -129,6 +143,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
           פתח במפות Google ↗
         </a>
       )}
+      <ShareLink code={s.c} />
       {onReport && (
         <button className="rep-trigger" onClick={(e) => { e.stopPropagation(); onReport(s); }}>🚩 דווח על תחנה זו</button>
       )}
@@ -200,6 +215,18 @@ function App() {
       .then(setChg)
       .catch(() => {});
   }, []);
+
+  // קישור ישיר לתחנה: פתיחה עם #stop=<מספר> בוחרת אותה אוטומטית
+  useEffect(() => {
+    if (!data) return;
+    const m = /#stop=(\d+)/.exec(window.location.hash || "");
+    if (m) { const s = data.stops.find((x) => x.c === m[1]); if (s) setSel(s); }
+  }, [data]);
+  // שומר את התחנה הנבחרת בכתובת — כך שאפשר להעתיק/לשתף את הקישור מסרגל הדפדפן
+  useEffect(() => {
+    if (sel) history.replaceState(null, "", "#stop=" + sel.c);
+    else if (window.location.hash) history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, [sel]);
 
   // אתחול מפה
   useEffect(() => {

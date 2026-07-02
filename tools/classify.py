@@ -301,14 +301,17 @@ for r in rows[1:]:
         cat='uncertain' if rel(cross,st)=='spelling' and ktiv_only(cross,st) else 'reversal'
     elif named_after_city(name,c): cnt['settlement']+=1; continue
     else: cat='mismatch'
-    # שם על-שם מוסד/ציון-דרך ("מרפאה", "הישיבה/רמב''ם") אינו טעות — לספק, בלי הצעת-שינוי
-    if cat in ('reversal','mismatch') and landmark_name(prim): cat='uncertain'
     if sv and cat in ('spelling','uncertain'): cat='streetvar'
     nr=nearest_roads(la,lo,4); ms,md=(nr[0] if nr else (None,None))
     if cat in ('reversal','mismatch') and ms and rel(prim,ms) in ('exact','spelling'):
         cnt['mapok']+=1; continue
     nb=nearby(la,lo)
+    # קרויה על-שם מקום אמיתי סמוך (POI) — שם תקין, לא מוצגת כלל
     if cat in ('reversal','mismatch') and name_matches_poi(prim,nb): cnt['landmark']+=1; continue
+    # שם על-שם מוסד/ציון-דרך ("מרפאה", "הישיבה/רמב''ם") בלי POI תואם — לספק, בלי הצעת-שינוי.
+    # רץ אחרי בדיקת ה-POI, כדי ש"מרכז ביג קסטינה" ליד הקניון ייעלם ולא יסומן בכלל.
+    lm=False
+    if cat in ('reversal','mismatch') and landmark_name(prim): cat='uncertain'; lm=True
     cnt[cat]+=1
     sug=None
     if nr and cat not in ('uncertain','streetvar'):
@@ -332,6 +335,7 @@ for r in rows[1:]:
         if rt: pr['rt']=rt
         pois.append(pr)
     rec={'c':code,'n':name,'s':st,'t':c,'la':la,'lo':lo,'k':cat,'p':pois,'ms':ms,'md':md}
+    if lm: rec['lm']=1  # ספק מסוג "שם-מוסד" — לתצוגה מותאמת (בלי השוואת אותיות)
     if sug: rec['sug']=sug
     if psug: rec['psug']=psug; rec['psugd']=psugd
     if sv: rec['sv']={'use':sv[0],'maj':sv[1],'n':sv[2]}

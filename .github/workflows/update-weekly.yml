@@ -99,3 +99,5 @@ jobs:
 # reclassify: source-fix tracking (changes.json) — flagged stop whose GTFS text changed and is no longer flagged = real fix
 
 # reclassify: generic acronym matching (קק"ל = קרן קיימת לישראל) — token letters == word initials
+
+# reclassify: POI-match check now runs before institution->ספק (Big Kastina hidden as landmark); lm flag for tailored UI text
