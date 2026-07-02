@@ -97,3 +97,5 @@ jobs:
 # reclassify: עירייה/שוק/רמת/גבעת -> ספק + counts history for trends
 
 # reclassify: source-fix tracking (changes.json) — flagged stop whose GTFS text changed and is no longer flagged = real fix
+
+# reclassify: generic acronym matching (קק"ל = קרן קיימת לישראל) — token letters == word initials

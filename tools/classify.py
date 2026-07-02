@@ -36,9 +36,24 @@ def lev(a,b):
         for j,cb in enumerate(b,1): cur.append(min(pv[j]+1,cur[-1]+1,pv[j-1]+(ca!=cb)))
         pv=cur
     return pv[-1]
+# ראשי-תיבות: קק"ל ↔ קרן קיימת לישראל — הטוקן (עם גרשיים במקור) שווה לראשי המילים.
+# זיהוי גנרי, בלי מילון: אותיות הר"ת (בנרמול סופיות) == אות ראשונה של כל מילה בביטוי.
+_FIN=str.maketrans('םןץףך','מנצפכ')
+def _initials(phrase):
+    ws=[w for w in re.sub('[\"׳״\'-]',' ',phrase).split() if len(w)>=2]
+    return ''.join(w[0] for w in ws).translate(_FIN) if len(ws)>=2 else None
+def acr_same(a,b):
+    for t in re.split(r'[\s/]+',a or ''):
+        if not re.search('[\"׳״\']',t): continue  # ר"ת אמיתי מכיל גרשיים/גרש
+        t2=re.sub('[\"׳״\']','',t).translate(_FIN)
+        if 3<=len(t2)<=5:
+            ini=_initials(b or '')
+            if ini and t2==ini: return True
+    return False
 def rel(tok,act):
     if not tok or not act: return None
     if nl(tok)==nl(act): return 'exact'
+    if acr_same(tok,act) or acr_same(act,tok): return 'exact'
     if nf(tok)==nf(act): return 'spelling'
     if any(len(t)>=3 for t in set(tk(nl(tok)))&set(tk(nl(act)))): return 'exact'
     if nl(tok) in nl(act) or nl(act) in nl(tok): return 'exact'
