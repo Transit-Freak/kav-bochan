@@ -162,7 +162,8 @@ SN,SD,SC,LA,LO,SI=ix['stop_name'],ix['stop_desc'],ix['stop_code'],ix['stop_lat']
 ACTIVE=None
 if os.path.exists(ACTIVE_PATH):
     ACTIVE=set(l.strip() for l in open(ACTIVE_PATH) if l.strip()); print('active stop_ids:',len(ACTIVE))
-PREVRT={}; PREVRW={}
+PREVRT={}; PREVRW={}; PREVERR={}
+ERRCATS=('mismatch','reversal','spelling','streetvar')
 if PREV and os.path.exists(PREV):
     try:
         pd=json.load(open(PREV))
@@ -170,7 +171,9 @@ if PREV and os.path.exists(PREV):
             for p in s.get('p',[]):
                 if p.get('rt'): PREVRT[(s['c'],p['n'])]=p['rt']
             if s.get('k')=='closer' and s.get('rw'): PREVRW[s['c']]=s['rw']
-        print('carried-forward rt:',len(PREVRT),'| closer rw:',len(PREVRW))
+            # תחנות שסומנו כשגיאה בריצה הקודמת — לזיהוי תיקונים אמיתיים במקור
+            if s.get('k') in ERRCATS: PREVERR[s['c']]={'n':s['n'],'s':s['s'],'t':s.get('t',''),'k':s['k']}
+        print('carried-forward rt:',len(PREVRT),'| closer rw:',len(PREVRW),'| prev errors:',len(PREVERR))
     except Exception as e: print('prev load failed:',e)
 from collections import defaultdict, Counter
 def norm_ref(part):
@@ -203,9 +206,11 @@ print('street-variance flags:',len(STREETVAR))
 cnt={'exact':0,'settlement':0,'spelling':0,'streetvar':0,'uncertain':0,'reversal':0,'mismatch':0,'landmark':0,'mapok':0,'noaddr':0,'closer':0}
 suspects=[]; closer_cands=[]
 EXIST=defaultdict(set)  # שמות-תחנות קיימים לכל עיר — לבדיקת התנגשות שמות מוצעים
+CURINFO={}  # code -> (name, street) נוכחיים — לזיהוי תיקונים אמיתיים מול הריצה הקודמת
 for r in rows[1:]:
     if len(r)<=SD: continue
     name,desc,code=r[SN],r[SD],r[SC]; st=street(desc); c=city(desc)
+    CURINFO[code]=(name,st)
     if c: EXIST[c].add(cn(name))
     try: la=round(float(r[LA]),5); lo=round(float(r[LO]),5)
     except: la=lo=None
@@ -336,6 +341,27 @@ os.makedirs(os.path.dirname(OUT) or '.',exist_ok=True)
 json.dump({'generated':datetime.date.today().isoformat(),'counts':cnt,'stops':suspects},
   open(OUT,'w'), ensure_ascii=False, separators=(',',':'))
 print('wrote',OUT)
+# מעקב "תוקן!": תחנה שסומנה כשגיאה, יצאה מהרשימה, *והטקסט שלה השתנה ב-GTFS* —
+# תוקנה באמת במקור (שינוי כללי-סיווג אצלנו לא נספר, כי הטקסט נשאר זהה).
+CHANGES=os.environ.get('CHANGES','')
+if CHANGES and PREVERR:
+    curflag={s['c'] for s in suspects if s['k'] in ERRCATS}
+    fixed=[]
+    for c0,pv in PREVERR.items():
+        if c0 in curflag: continue
+        ci=CURINFO.get(c0)
+        if not ci: continue  # התחנה הוסרה מה-GTFS — לא "תיקון"
+        nm2,st2=ci
+        if nm2!=pv['n'] or st2!=pv['s']:
+            fixed.append({'c':c0,'t':pv['t'],'k':pv['k'],'on':pv['n'],'os':pv['s'],'nn':nm2,'ns':st2})
+    try: ch=json.load(open(CHANGES))
+    except Exception: ch=[]
+    today=datetime.date.today().isoformat()
+    ch=[e for e in ch if e.get('d')!=today]
+    if fixed: ch.append({'d':today,'fixed':fixed})
+    json.dump(ch[-60:],open(CHANGES,'w'),ensure_ascii=False,separators=(',',':'))
+    print('source fixes detected:',len(fixed))
+
 # היסטוריית ספירות — רשומה אחת ליום (ריצה אחרונה באותו יום גוברת), למעקב מגמות באתר
 HIST=os.environ.get('HISTORY','')
 if HIST:

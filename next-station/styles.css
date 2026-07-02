@@ -240,3 +240,22 @@ body {
 .trend { font-size:12px; color:#64748b; margin-top:4px; line-height:1.6; }
 .trend .down { color:#16a34a; }  /* ירידה בשגיאות = טוב */
 .trend .up { color:#dc2626; }
+
+/* "תוקן!" — תחנות שתוקנו במקור */
+.fixedbar { margin:6px 14px 0; }
+.fixedbar-h { width:100%; text-align:right; padding:8px 12px; border:1px solid #bbf7d0;
+  background:#f0fdf4; color:#166534; border-radius:10px; font:inherit; font-size:13px; cursor:pointer; }
+.fixedbar-h:hover { background:#dcfce7; }
+.fixed-list { border:1px solid #e2e8f0; border-top:0; border-radius:0 0 10px 10px;
+  background:#fff; padding:8px 12px; max-height:260px; overflow:auto; font-size:13px; }
+.fixed-date { font-weight:800; color:#334155; margin:6px 0 2px; }
+.fixed-row { padding:2px 0; color:#475569; }
+.fixed-row s { color:#b91c1c; }
+.fixed-row b { color:#166534; }
+.fixed-street { color:#94a3b8; font-size:12px; }
+
+/* מחולל מכתב */
+.letter-btn { background:#4f46e5; }
+.letter-txt { min-height:220px; font-size:12.5px; direction:rtl; }
+.letter-actions { display:flex; gap:8px; }
+.letter-actions .rep-btn { margin-top:10px; }

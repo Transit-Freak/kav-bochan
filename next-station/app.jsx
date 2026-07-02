@@ -146,6 +146,9 @@ function App() {
   const [poiTimes, setPoiTimes] = useState(null); // זמני הליכה אמיתיים לנקודות, מיושרים ל-sel.p
   const [reportStop, setReportStop] = useState(null); // תחנה שמדווחים עליה
   const [hist, setHist] = useState(null); // היסטוריית ספירות למגמות
+  const [chg, setChg] = useState(null); // יומן "תוקן!" — תחנות שתוקנו במקור
+  const [showFixed, setShowFixed] = useState(false);
+  const [letterCity, setLetterCity] = useState(null); // מחולל מכתב לרשות (null=סגור)
   const mapRef = useRef(null);
   const markRef = useRef(null);
   const routeRef = useRef(null);
@@ -190,6 +193,11 @@ function App() {
     fetch("history.json?v=" + window.NS_BUILD + "-" + new Date().toISOString().slice(0, 10))
       .then((r) => (r.ok ? r.json() : null))
       .then(setHist)
+      .catch(() => {});
+    // יומן תיקונים במקור — תחנות ששמן/כתובתן שונו ב-GTFS ויצאו מרשימת השגיאות
+    fetch("changes.json?v=" + window.NS_BUILD + "-" + new Date().toISOString().slice(0, 10))
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setChg)
       .catch(() => {});
   }, []);
 
@@ -365,6 +373,33 @@ function App() {
         ))}
       </div>
 
+      {chg && chg.length > 0 && (() => {
+        const total = chg.reduce((a, e) => a + (e.fixed || []).length, 0);
+        if (!total) return null;
+        return (
+          <div className="fixedbar">
+            <button className="fixedbar-h" onClick={() => setShowFixed(!showFixed)}>
+              🔧 <b>{total.toLocaleString()}</b> תחנות תוקנו במקור (שם/כתובת שונו ב-GTFS) מאז {chg[0].d.split("-").reverse().join(".")} {showFixed ? "▲" : "▼"}
+            </button>
+            {showFixed && (
+              <div className="fixed-list">
+                {chg.slice().reverse().map((e) => (
+                  <div key={e.d}>
+                    <div className="fixed-date">{e.d.split("-").reverse().join(".")} — {e.fixed.length} תיקונים</div>
+                    {e.fixed.map((f, i) => (
+                      <div className="fixed-row" key={f.c + "_" + i}>
+                        <span className="code">{f.c}</span> {f.t} · <s>{f.on}</s> ← <b>{f.nn}</b>
+                        {f.os !== f.ns && <span className="fixed-street"> (כתובת: {f.os} ← {f.ns})</span>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="body">
         <div className="panel">
           <input
@@ -383,6 +418,7 @@ function App() {
             מציג {shown.length.toLocaleString()} מתוך {filtered.length.toLocaleString()}
             {filtered.length > CAP ? " — צמצמו בחיפוש כדי לראות את השאר" : ""}
             <button className="dl-btn" onClick={downloadCSV} disabled={!filtered.length} title="הורדת התצוגה הנוכחית כקובץ אקסל">⬇ אקסל ({filtered.length.toLocaleString()})</button>
+            <button className="dl-btn letter-btn" onClick={() => setLetterCity("")} title="יצירת מכתב פנייה לעירייה/משרד התחבורה עם רשימת הליקויים בעיר">📨 מכתב לרשות</button>
           </div>
           <div className="list">
             {shown.map((s, i) => {
@@ -430,6 +466,70 @@ function App() {
         </div>
       </div>
       {reportStop && <ReportModal s={reportStop} onClose={() => setReportStop(null)} />}
+      {letterCity !== null && <LetterModal data={data} initial={q.trim()} onClose={() => setLetterCity(null)} />}
+    </div>
+  );
+}
+
+// מחולל מכתב פנייה לרשות — רשימת הליקויים בעיר, מוכן להעתקה/הורדה
+function LetterModal({ data, initial, onClose }) {
+  const ERR = ["mismatch", "reversal", "spelling", "streetvar"];
+  const cities = useMemo(() => {
+    const m = new Map();
+    data.stops.forEach((s) => { if (ERR.includes(s.k) && s.t) m.set(s.t, (m.get(s.t) || 0) + 1); });
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [data]);
+  const [city, setCity] = useState(() => (cities.some(([t]) => t === initial) ? initial : ""));
+  const rows = city ? data.stops.filter((s) => ERR.includes(s.k) && s.t === city) : [];
+  const MAX = 30;
+  const letter = city ? [
+    "לכבוד: עיריית/מועצת " + city + " · משרד התחבורה",
+    "הנדון: ליקויים בשמות תחנות אוטובוס ב" + city,
+    "",
+    "שלום רב,",
+    "בבדיקה שנערכה באמצעות האתר \"התחנה הבאה\" נמצאו ב" + city + " " + rows.length +
+      " תחנות שבהן שם התחנה אינו תואם את הרחוב שבכתובת הרשמית (מקור: נתוני GTFS של משרד התחבורה" +
+      (data.generated ? ", עדכון " + data.generated.split("-").reverse().join(".") : "") + "):",
+    "",
+    ...rows.slice(0, MAX).map((s) =>
+      "• תחנה " + s.c + " — \"" + s.n + "\" (רחוב בכתובת: " + s.s + ", " + ((CATS[s.k] && CATS[s.k].label) || s.k) + ")" +
+      (s.sug ? " — שם מוצע: " + s.sug : "")),
+    ...(rows.length > MAX ? ["…ועוד " + (rows.length - MAX) + " תחנות. הרשימה המלאה זמינה באתר."] : []),
+    "",
+    "שמות תחנות מדויקים חיוניים להתמצאות הנוסעים. נודה לבדיקת הליקויים ולתיקונם מול מפעילי התחבורה הציבורית.",
+    "",
+    "נוצר באמצעות \"התחנה הבאה\": https://transit-freak.github.io/kav-bochan/next-station/",
+    "בברכה,",
+  ].join("\n") : "";
+  function copyLetter() { navigator.clipboard && navigator.clipboard.writeText(letter); }
+  function downloadLetter() {
+    const blob = new Blob(["﻿" + letter], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "מכתב-תחנות-" + city + ".txt";
+    a.click();
+  }
+  return (
+    <div className="rep-overlay" onClick={onClose}>
+      <div className="rep-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="d-x" onClick={onClose}>×</button>
+        <div className="rep-h">📨 מכתב לרשות</div>
+        <label className="rep-l">בחרו עיר:</label>
+        <select className="rep-sel" value={city} onChange={(e) => setCity(e.target.value)}>
+          <option value="">— בחרו עיר —</option>
+          {cities.map(([t, n]) => <option key={t} value={t}>{t} ({n})</option>)}
+        </select>
+        {city && (
+          <>
+            <label className="rep-l">המכתב ({rows.length} תחנות):</label>
+            <textarea className="rep-txt letter-txt" readOnly value={letter} />
+            <div className="letter-actions">
+              <button className="rep-btn" onClick={copyLetter}>📋 העתקה</button>
+              <button className="rep-btn" onClick={downloadLetter}>⬇ הורדה</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

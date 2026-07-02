@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           cp next-station/data.json prev.json 2>/dev/null || echo '{}' > prev.json
           STOPS=stops.txt POI=poi.json ROADS=roads.json ACTIVE=active_stops.txt \
-            PREV=prev.json HISTORY=next-station/history.json \
+            PREV=prev.json HISTORY=next-station/history.json CHANGES=next-station/changes.json \
             OUT=next-station/data.json python3 tools/classify.py
 
       - name: Commit refreshed data.json to main
@@ -61,8 +61,9 @@ jobs:
           rm -f gtfs.zip stops.txt stop_times.txt active_stops.txt poi.json roads.json prev.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # git add + diff --cached כדי לתפוס גם קבצים חדשים (history.json בריצה הראשונה)
+          # git add + diff --cached כדי לתפוס גם קבצים חדשים (history/changes בריצה הראשונה)
           git add next-station/data.json next-station/history.json
+          git add next-station/changes.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "data unchanged — nothing to commit"; exit 0; fi
           git commit -m "weekly: refresh stop names & classification from GTFS"
@@ -94,3 +95,5 @@ jobs:
 # reclassify: also route מגרש/מכון/מחנה/ת.מרכזית to ספק
 
 # reclassify: עירייה/שוק/רמת/גבעת -> ספק + counts history for trends
+
+# reclassify: source-fix tracking (changes.json) — flagged stop whose GTFS text changed and is no longer flagged = real fix
