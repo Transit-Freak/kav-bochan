@@ -111,3 +111,5 @@ jobs:
 # reclassify: numbered highways (1,286 roads as כביש N) now in the map data
 
 # reclassify: hyphen ≡ space in name normalization (גיסר א-נסף ↔ גסר א נסף) — 41 false mismatches become exact/spelling
+
+# reclassify: unified — named-only roads (road-90 revert), building POIs (ישיבת הרי יהודה), Latin-name filter
