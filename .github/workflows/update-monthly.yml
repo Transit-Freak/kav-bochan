@@ -41,7 +41,7 @@ jobs:
       - name: Overpass — points of interest
         run: |
           set -euo pipefail
-          Q='[out:json][timeout:700][bbox:29.4,34.2,33.35,35.95];(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace|fuel|bank|place_of_worship|post_office|grave_yard)$"]["name"];nwr["landuse"="cemetery"]["name"];nwr["shop"~"^(mall|department_store|supermarket|convenience)$"]["name"];nwr["railway"="station"]["name"];nwr["leisure"~"^(park|sports_centre|stadium|pitch)$"]["name"];nwr["tourism"~"^(museum|attraction)$"]["name"];nwr["office"="government"]["name"];nwr["public_transport"="station"]["name"];nwr["highway"="motorway_junction"]["name"];nwr["junction"="yes"]["name"];);out center tags;'
+          Q='[out:json][timeout:700][bbox:29.4,34.2,33.35,35.95];(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace|fuel|bank|place_of_worship|post_office|grave_yard)$"]["name"];nwr["landuse"="cemetery"]["name"];nwr["shop"~"^(mall|department_store|supermarket|convenience)$"]["name"];nwr["railway"="station"]["name"];nwr["leisure"~"^(park|sports_centre|stadium|pitch)$"]["name"];nwr["tourism"~"^(museum|attraction)$"]["name"];nwr["office"="government"]["name"];nwr["public_transport"="station"]["name"];nwr["highway"="motorway_junction"]["name"];nwr["junction"="yes"]["name"];nwr["building"~"^(synagogue|mosque|church|chapel|temple|religious|school|university|college|kindergarten|civic|public|hospital|government)$"]["name"];);out center tags;'
           for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
             if curl -fsS --max-time 800 --data-urlencode "data=$Q" "$ep" -o poi_raw.json; then echo "got $(wc -c < poi_raw.json) bytes"; break; fi
             echo "endpoint failed, next"; sleep 5
@@ -75,6 +75,12 @@ jobs:
             if am=='marketplace': return 'mall'
             if le=='park': return 'park'
             if le in ('sports_centre','stadium','pitch'): return 'sport'
+            bl=t.get('building')
+            if bl in ('synagogue','mosque','church','chapel','temple','religious'): return 'worship'
+            if bl in ('school','kindergarten'): return 'school'
+            if bl in ('university','college'): return 'academia'
+            if bl=='hospital': return 'health'
+            if bl in ('civic','public','government'): return 'gov'
             return 'other'
           out=[]
           for e in d.get('elements',[]):
