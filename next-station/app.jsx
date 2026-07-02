@@ -503,10 +503,12 @@ function ReportModal({ s, onClose }) {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ subject, code: s.c, name: s.n, city: s.t, category: s.k, addr: s.s, mapStreet: s.ms, suggested: s.sug, reason, note, autoCheck: ac.text, message: body }),
-      }).then(() => setDone(true)).catch(() => { window.location.href = mailtoUrl(subject, body); setDone(true); });
+      })
+        .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); setDone("sent"); })
+        .catch(() => { window.location.href = mailtoUrl(subject, body); setDone("mail"); });
     } else {
       window.location.href = mailtoUrl(subject, body);
-      setDone(true);
+      setDone("mail");
     }
   }
   return (
@@ -515,8 +517,12 @@ function ReportModal({ s, onClose }) {
         <button className="d-x" onClick={onClose}>×</button>
         {done ? (
           <div className="rep-done">
-            <div className="rep-done-h">תודה! הדיווח נרשם 🙏</div>
-            <div className="rep-sub">אם נפתחה תוכנת המייל — יש לשלוח את ההודעה כדי להשלים את הדיווח.</div>
+            <div className="rep-done-h">תודה! הדיווח נשלח 🙏</div>
+            <div className="rep-sub">
+              {done === "sent"
+                ? "הדיווח הגיע למנהל האתר וייבדק בהקדם."
+                : "אם נפתחה תוכנת המייל — יש לשלוח את ההודעה כדי להשלים את הדיווח."}
+            </div>
             <button className="rep-btn" onClick={onClose}>סגירה</button>
           </div>
         ) : (
