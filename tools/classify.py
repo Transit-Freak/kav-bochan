@@ -24,7 +24,9 @@ def sp(t):
         if t.startswith(p+' '): return t[len(p):].strip()
     return t
 def nl(t):
-    t=sp((t or '').strip()).replace('׳',"'").replace('״','"').replace("'",'').replace('"','')
+    # מקף ≡ רווח ("ג'יסר א-נסף" ↔ "ג'סר א נסף") — אחרת ההשוואה מתפרקת על המקף
+    t=(t or '').strip().replace('-',' ').replace('–',' ')
+    t=sp(t).replace('׳',"'").replace('״','"').replace("'",'').replace('"','')
     return re.sub(r'\s+',' ',t).strip()
 def nf(t): return nl(t).replace('יי','י').replace('וו','ו')
 def tk(s): return [w for w in s.split() if w not in TITLES and len(w)>1]
