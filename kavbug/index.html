@@ -1,79 +1,15 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>קו באג</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='8' fill='%234646c8'/%3E%3Cg transform='translate(17 18.5) scale(0.155) translate(-70 -50)'%3E%3Cline x1='18' y1='64' x2='122' y2='64' stroke='%231f9d57' stroke-width='10' stroke-linecap='round'/%3E%3Cpolyline points='18,64 44,18 70,64 96,18 122,64' fill='none' stroke='%23ef8a17' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='18' cy='64' r='10' fill='white'/%3E%3Ccircle cx='122' cy='64' r='10' fill='white'/%3E%3C/g%3E%3C/svg%3E" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&family=Heebo:wght@400;500;700;800;900&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <!-- חותם-גרסה (cache-busting) — מקור-אמת יחיד. הגדל בכל גרסה כדי שכל מכשיר
-       (כולל נייד) ייטען מיד את הקבצים החדשים, בלי לנקות cache ובלי רענון-קשיח. -->
-  <script>window.KAVBUG_BUILD = "4.2.19";</script>
-  <script>
-    document.write('<link rel="stylesheet" href="styles.css?v=' + window.KAVBUG_BUILD + '" />');
-  </script>
+  <meta charset="UTF-8">
+  <!-- קו באג עבר לריפו עצמאי (kav-bug) — שם הגרסה החיה והמתעדכנת.
+       הדף הזה נשאר רק כהפניה עבור קישורים ישנים. -->
+  <meta http-equiv="refresh" content="0; url=https://transit-freak.github.io/kav-bug/">
+  <link rel="canonical" href="https://transit-freak.github.io/kav-bug/">
+  <title>קו באג — עברנו כתובת</title>
 </head>
-<body>
-  <div id="root"></div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-
-  <!-- ניתוח AI באתר החי: לאחר פריסת ה-Cloudflare Worker (ראו proxy/README.md),
-       בטלו את ההערה והכניסו את כתובת ה-Worker שלכם (עם הנתיב /api/claude).
-       כל עוד זה מושבת, האפליקציה נופלת ל"⚡ אבחון מהיר" הדטרמיניסטי. -->
-  <!-- <script>window.KAVBUG_AI_ENDPOINT = "https://kavbug-ai.<your-subdomain>.workers.dev/api/claude";</script> -->
-
-  <!-- טעינה עם חותם-גרסה: כל קובץ נטען מכתובת ?v=<גרסה>, כך שגרסה חדשה תמיד
-       מורידה מחדש. קובצי ה-JSX עוברים טרנספילציה ידנית עם Babel (במקום
-       type="text/babel"), כי כך אפשר לצרף את חותם-הגרסה לכתובת. הסדר נשמר:
-       data.js (גלובלים) → components.jsx → app.jsx. -->
-  <script>
-    (function () {
-      var build = window.KAVBUG_BUILD;
-      var files = [
-        { src: "data.js", jsx: false },
-        { src: "components.jsx", jsx: true },
-        { src: "app.jsx", jsx: true },
-      ];
-      function fail(src, e) {
-        document.getElementById("root").innerHTML =
-          '<div style="padding:2rem;font-family:sans-serif;direction:rtl">שגיאת טעינה (' +
-          src + "). נסו לרענן את הדף.</div>";
-        console.error("KavBug load error:", src, e);
-      }
-      function run(code, src) {
-        var s = document.createElement("script");
-        s.textContent = code;
-        document.body.appendChild(s);
-      }
-      function loadNext(i) {
-        if (i >= files.length) return;
-        var f = files[i];
-        var url = f.src + "?v=" + build;
-        if (!f.jsx) {
-          var s = document.createElement("script");
-          s.src = url;
-          s.onload = function () { loadNext(i + 1); };
-          s.onerror = function (e) { fail(f.src, e); };
-          document.body.appendChild(s);
-          return;
-        }
-        fetch(url)
-          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-          .then(function (code) {
-            run(Babel.transform(code, { presets: ["react"], filename: f.src }).code, f.src);
-            loadNext(i + 1);
-          })
-          .catch(function (e) { fail(f.src, e); });
-      }
-      loadNext(0);
-    })();
-  </script>
+<body style="font-family:sans-serif;direction:rtl;text-align:center;padding:3rem">
+  <p>קו באג עבר לכתובת חדשה. מעבירים אותך…</p>
+  <p><a href="https://transit-freak.github.io/kav-bug/">לחצו כאן אם לא הועברתם אוטומטית</a></p>
 </body>
 </html>

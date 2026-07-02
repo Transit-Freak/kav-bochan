@@ -542,9 +542,9 @@ function ChoiceScreen({ onPick }) {
             </div>
           </button>
 
-          {/* קו באג — כלי נפרד (אפליקציה עצמאית בתיקיית kavbug/) */}
+          {/* קו באג — פרויקט עצמאי בריפו נפרד (kav-bug); שם הגרסה החיה והמתעדכנת */}
           <a
-            href="kavbug/"
+            href="https://transit-freak.github.io/kav-bug/"
             className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
             style={{ background: 'linear-gradient(155deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%)' }}
           >
