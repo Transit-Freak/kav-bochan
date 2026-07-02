@@ -40,15 +40,18 @@ def lev(a,b):
 # זיהוי גנרי, בלי מילון: אותיות הר"ת (בנרמול סופיות) == אות ראשונה של כל מילה בביטוי.
 _FIN=str.maketrans('םןץףך','מנצפכ')
 def _initials(phrase):
+    # שתי גרסאות: כמו-שהוא, וגם בדילוג על ה' הידיעה בראש מילה
+    # (קק"ל ↔ "הקרן הקיימת לישראל": ק-ק-ל אחרי הסרת ה-ה)
     ws=[w for w in re.sub('[\"׳״\'-]',' ',phrase).split() if len(w)>=2]
-    return ''.join(w[0] for w in ws).translate(_FIN) if len(ws)>=2 else None
+    if len(ws)<2: return ()
+    strict=''.join(w[0] for w in ws)
+    noart=''.join((w[1] if w[0]=='ה' and len(w)>=3 else w[0]) for w in ws)
+    return {strict.translate(_FIN),noart.translate(_FIN)}
 def acr_same(a,b):
     for t in re.split(r'[\s/]+',a or ''):
         if not re.search('[\"׳״\']',t): continue  # ר"ת אמיתי מכיל גרשיים/גרש
         t2=re.sub('[\"׳״\']','',t).translate(_FIN)
-        if 3<=len(t2)<=5:
-            ini=_initials(b or '')
-            if ini and t2==ini: return True
+        if 3<=len(t2)<=5 and t2 in _initials(b or ''): return True
     return False
 def rel(tok,act):
     if not tok or not act: return None
