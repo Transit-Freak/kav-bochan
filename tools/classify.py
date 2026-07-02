@@ -100,7 +100,8 @@ def streets_match(a,b):
 # כתובות תיאוריות (מחלף/יציאה/מסוף…) אינן רחוב — לא מציעים להן רחוב חלופי
 LANDMARKISH=('מחלף','יציאה','כניסה','מסוף','צומת','כביש ','מגרש','מיתחם','מתחם','פארק','פאתי','תחנת','ת. ')
 _AR=re.compile(r'[؀-ۿ]')  # שם רחוב בכתב ערבי — לא ניתן להשוות מול שם עברי ב-GTFS
-def odd_road(nm): return bool(_AR.search(nm or '')) or bool(re.fullmatch(r'[\d/ ]+',(nm or '').strip()))
+# שם שאינו עברית שמישה (כתב ערבי / לטיני / מספרי) — לא מציעים אותו כשם תחנה
+def odd_road(nm): return bool(_AR.search(nm or '')) or bool(re.search(r'[A-Za-z]',nm or '')) or bool(re.fullmatch(r'[\d/ ]+',(nm or '').strip()))
 def acronymish(s): return bool(re.search(r'["׳״]|\x27\x27', s or ''))  # ר"ת (קק"ל) ש-OSM נוטה לפענח
 # שם רחוב ערבי בתעתיק עברי (אל-/אבו/ואדי…): אותו רחוב מתועתק אחרת ב-GTFS ובמפה,
 # ולכן השוואת רחובות אינה אמינה — לא מציעים "רחוב קרוב יותר" במקרים אלה.
@@ -283,7 +284,7 @@ for r in rows[1:]:
                 psug=psugd=None
                 for dist,p in nb:
                     if dist>100: break
-                    if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name) and not _AR.search(p['n']):
+                    if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name) and not odd_road(p['n']):
                         psug=p['n']; psugd=dist; break
                 # גאומטריית הרחובות לסימון על המפה: ראשי, מצטלב נוכחי, ומוצע
                 roads={}
@@ -332,7 +333,7 @@ for r in rows[1:]:
     psug=psugd=None
     for dist,p in nb:
         if dist>100: break  # nb ממויין לפי מרחק
-        if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name) and not _AR.search(p['n']):
+        if p['k'] in MAJOR_POI and nf(p['n']) not in nf(name) and not odd_road(p['n']):
             psug=p['n']; psugd=dist; break
     pois=[]
     for dist,p in nb:
