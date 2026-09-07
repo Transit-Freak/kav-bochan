@@ -24,6 +24,10 @@ on:
         description: 'סיכום חד-פעמי לכל הנרשמים: כמה ימים אחורה (ריק = לא)'
         required: false
         default: ''
+      digest_since:
+        description: 'עם digest_all: רק למי שנכנס לאתר אחרי זמן זה (ISO, למשל 2026-09-07T15:00:00Z)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -81,4 +85,5 @@ jobs:
           DATE='${{ github.event.inputs.date || '' }}' \
           DRY='${{ github.event.inputs.dry || '0' }}' \
           DIGEST_ALL='${{ github.event.inputs.digest_all || '' }}' \
+          DIGEST_SINCE='${{ github.event.inputs.digest_since || '' }}' \
           python3 tools/send_push.py

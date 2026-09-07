@@ -236,15 +236,21 @@ def send_digest_all(days):
     rev = city_rev()
     players = list_players()
     by_city, by_mk = collect_range(days), collect_range_mk(days)
+    # DIGEST_SINCE (ISO): רק מנויים שנכנסו לאתר אחרי הזמן הזה — לשליחה חוזרת למי שעדכן
+    # הרשמה אחרי הסבב הקודם, בלי לשלוח שוב לכל השאר
+    since = os.environ.get('DIGEST_SINCE') or ''
+    since_ts = datetime.datetime.fromisoformat(since.replace('Z', '+00:00')).timestamp() if since else 0
     sent = skipped = 0
     for p in players:
         tags = p.get('tags') or {}
         if p.get('invalid_identifier'):
             continue
+        if since_ts and (p.get('last_active') or 0) < since_ts:
+            continue
         ucities = [rev[t] for t, val in tags.items() if t in rev and val == '1']
         ulines = [t[1:] for t, val in tags.items() if t[:1] == 'l' and t[1:].isdigit() and val == '1']
         ugroups = {g for g in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident') if tags.get(g) == '1'} or set(KIND_GROUP.values())
-        mks, kinds = set(), set()
+        mks, kinds, hit = set(), set(), []
         for ct in ucities:
             e = by_city.get(ct)
             if not e:
@@ -253,6 +259,8 @@ def send_digest_all(days):
                 if KIND_GROUP.get(k) in ugroups:
                     kinds.add(k)
                     mks |= kmks
+                    if ct not in hit:
+                        hit.append(ct)
         for mk in ulines:
             e = by_mk.get(mk)
             if not e:
@@ -265,7 +273,7 @@ def send_digest_all(days):
             skipped += 1
             print(f'  מנוי בלי שינויים מתאימים: ערים {ucities or "—"} · קווים {ulines or "—"}')
             continue
-        where = ucities[:3] or [f'קו {by_mk[m]["line"]}' for m in sorted(mks)[:3] if m in by_mk]
+        where = hit[:3] or [f'קו {by_mk[m]["line"]}' for m in sorted(mks)[:3] if m in by_mk]
         title = f'🔔 סיכום: {len(mks)} קווים השתנו ב-{days} הימים האחרונים'
         body = ', '.join(where) + ': ' + ' · '.join(sorted({KIND_LBL.get(k, k) for k in kinds})[:4])
         if ucities:
@@ -285,7 +293,8 @@ def send_digest_all(days):
             except Exception as ex:
                 print(f'שגיאת סיכום לנרשם: {ex}', file=sys.stderr)
         sent += 1
-    print(f'סיכום {days} ימים לכל הנרשמים: {sent} קיבלו הודעה · {skipped} בלי שינויים מתאימים · {len(players)} מנויים')
+    print(f'סיכום {days} ימים לכל הנרשמים{" (מאז " + since + ")" if since else ""}: '
+          f'{sent} קיבלו הודעה · {skipped} בלי שינויים מתאימים · {len(players)} מנויים')
 
 
 def send_digests():
