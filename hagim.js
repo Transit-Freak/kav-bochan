@@ -94,15 +94,17 @@
   // ---------- שמות וברכות ----------
   var years = gy - 1948 + (nowG.month > "05" ? 0 : 0);   // יום העצמאות של אותה שנה לועזית
   var N = {
-    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "רימון כפול", fleet: "צי הרימונים", rail: "הרכבת המתוקה", bus: "דיוק בדבש" },
-    sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על הסוכה", fares: "מחיר האתרוג", ratzif: "סוכה כפולה", fleet: "צי הלולבים", rail: "רכבת האושפיזין", bus: "האוטובוס בסוכה" },
-    hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על נר", fares: "מחיר הסופגנייה", ratzif: "סביבון כפול", fleet: "צי הסביבונים", rail: "רכבת האורים", bus: "נס גדול היה פה" },
-    tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על העץ", fares: "מחיר השקדים", ratzif: "עץ כפול", fleet: "צי השתילים", rail: "רכבת השקדייה", bus: "האוטובוס הפורח" },
-    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "המדלג המחופש", fares: "מחיר אוזני המן", ratzif: "רעשן כפול", fleet: "צי המסכות", rail: "רכבת ונהפוך הוא", bus: "האוטובוס המחופש" },
-    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המצה", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "האוטובוס שלא הספיק להחמיץ" },
-    atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על המנגל", fares: "מחיר הבשר למנגל", ratzif: "מטס כפול", fleet: "צי כחול-לבן", rail: "רכבת העצמאות", bus: "אוטובוס כחול-לבן" },
-    lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המדורה", fares: "מחיר המרשמלו", ratzif: "מדורה כפולה", fleet: "צי הקשתות", rail: "רכבת המדורות", bus: "אוטובוס על האש" },
-    shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על הגבינה", fares: "מחיר הגבינה", ratzif: "גבינה כפולה", fleet: "צי הביכורים", rail: "רכבת הביכורים", bus: "אוטובוס עוגת גבינה" },
+  // לכל חג — כל כלי מקבל סמל אחר של החג, ואף מילה לא חוזרת בשני שמות
+  // (שלמה 07.09: "חצי מהסמלים הם מסכות", "יש כבר אתר עם אושפיזין")
+    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך" },
+    sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים" },
+    hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה" },
+    tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק" },
+    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש" },
+    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות" },
+    atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על הטקס", fares: "מחיר הקבב", ratzif: "דגל כפול", fleet: "צי חיל הים", rail: "רכבת העצמאות", bus: "האוטובוס עם הפטיש" },
+    lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המרשמלו", fares: "מחיר תפוח האדמה", ratzif: "חץ כפול", fleet: "צי הזרדים", rail: "רכבת מירון", bus: "אוטובוס על האש" },
+    shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על התיקון", fares: "מחיר החלב", ratzif: "בלינצ'ס כפול", fleet: "צי הפרחים", rail: "רכבת הר סיני", bus: "אוטובוס מגילת רות" },
     yerushalayim: { greet: "יום ירושלים שמח", ico: "🏙️" },
     // ימים שקטים — בלי שמות, בלי אפקטים
     gedaliah: { quiet: true, greet: "צום קל ומועיל — צום גדליה", ico: "🕯️" },
@@ -142,7 +144,9 @@
   var rings = S + "<circle cx='60' cy='60' r='50' fill='#b45309' stroke='#78350f' stroke-width='2'/><circle cx='60' cy='60' r='42' fill='#d6a054' stroke='#78350f' stroke-width='2'/><circle cx='60' cy='60' r='34' fill='#b45309' stroke='#78350f' stroke-width='2'/><circle cx='60' cy='60' r='26' fill='#d6a054' stroke='#78350f' stroke-width='2'/><circle cx='60' cy='60' r='18' fill='#b45309' stroke='#78350f' stroke-width='2'/><circle cx='60' cy='60' r='10' fill='#d6a054' stroke='#78350f' stroke-width='2'/><circle cx='60' cy='60' r='4' fill='#451a03'/>" + E;
   var gragger = S + "<g transform='rotate(-20 60 60)'><rect x='26' y='26' width='60' height='40' rx='6' fill='#dc2626' stroke='#7f1d1d' stroke-width='3'/><rect x='34' y='34' width='44' height='24' rx='3' fill='#fca5a5' opacity='.5'/><rect x='52' y='66' width='10' height='40' rx='3' fill='#78350f'/><circle cx='90' cy='46' r='7' fill='#fbbf24'/></g>" + E;
   var basket = S + "<path d='M24 58 h72 l-8 46 h-56 Z' fill='#d97706' stroke='#78350f' stroke-width='3'/><path d='M30 70 h60 M32 84 h56' stroke='#78350f' stroke-width='2' opacity='.6'/><path d='M40 58 Q60 14 80 58' fill='none' stroke='#78350f' stroke-width='6'/><text x='30' y='60' font-size='22'>🍷</text><text x='60' y='58' font-size='22'>🍪</text><rect x='20' y='52' width='80' height='8' rx='3' fill='#fbbf24'/>" + E;
-  var flipped = W + "<line x1='18' y1='24' x2='122' y2='24' stroke='#1f9d57' stroke-width='10' stroke-linecap='round'/><polyline points='18,24 44,70 70,24 96,70 122,24' fill='none' stroke='#ef8a17' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/><circle cx='18' cy='24' r='9' fill='#fff'/><circle cx='122' cy='24' r='9' fill='#fff'/><text x='52' y='88' font-size='16'>🎭</text>" + E;
+  var flipped = W + "<line x1='18' y1='24' x2='122' y2='24' stroke='#1f9d57' stroke-width='10' stroke-linecap='round'/><polyline points='18,24 44,70 70,24 96,70 122,24' fill='none' stroke='#ef8a17' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/><circle cx='18' cy='24' r='9' fill='#fff'/><circle cx='122' cy='24' r='9' fill='#fff'/>" + E;
+  // אוזן המן: משולש בצק זהוב, מילוי פרג באמצע, קפלים בצדדים
+  var oznei = S + "<g transform='rotate(-8 60 66)'><path d='M60 14 Q98 46 110 96 Q60 112 10 96 Q22 46 60 14 Z' fill='#e9a23b' stroke='#a15c07' stroke-width='3' stroke-linejoin='round'/><path d='M60 36 Q84 58 92 84 Q60 94 28 84 Q36 58 60 36 Z' fill='#2b1105'/><path d='M60 30 Q88 56 98 88 M60 30 Q32 56 22 88 M20 92 Q60 102 100 92' fill='none' stroke='#fbd37a' stroke-width='4' stroke-linecap='round' opacity='.8'/><g fill='#0f0603'><circle cx='50' cy='62' r='2'/><circle cx='66' cy='58' r='2'/><circle cx='58' cy='76' r='2'/><circle cx='74' cy='78' r='2'/><circle cx='44' cy='78' r='2'/></g></g>" + E;
   var scroll = S + "<rect x='18' y='26' width='84' height='66' fill='#fef3c7' stroke='#92400e' stroke-width='3'/><rect x='10' y='18' width='14' height='82' rx='6' fill='#92400e'/><rect x='96' y='18' width='14' height='82' rx='6' fill='#92400e'/><g stroke='#78350f' stroke-width='3' stroke-linecap='round'><line x1='34' y1='42' x2='86' y2='42'/><line x1='34' y1='54' x2='80' y2='54'/><line x1='34' y1='66' x2='86' y2='66'/><line x1='34' y1='78' x2='70' y2='78'/></g>" + E;
   var matzah = S + "<g transform='rotate(-8 60 60)'><path d='M22 30 h76 v44 l-40 6 l-36 -6 Z' fill='#fde68a' stroke='#b45309' stroke-width='3'/><g fill='#b45309' opacity='.7'><circle cx='34' cy='42' r='2.5'/><circle cx='50' cy='40' r='2.5'/><circle cx='66' cy='42' r='2.5'/><circle cx='82' cy='44' r='2.5'/><circle cx='30' cy='56' r='2.5'/><circle cx='46' cy='54' r='2.5'/><circle cx='62' cy='56' r='2.5'/><circle cx='78' cy='58' r='2.5'/><circle cx='40' cy='68' r='2.5'/><circle cx='56' cy='70' r='2.5'/><circle cx='72' cy='68' r='2.5'/></g></g><text x='74' y='110' font-size='20'>✨</text>" + E;
   var desert = W + "<path d='M0 76 Q35 56 70 76 T140 76 V90 H0 Z' fill='#f59e0b' opacity='.7'/><path d='M18 62 C 30 30, 40 80, 56 44 C 70 12, 84 70, 100 34 C 110 14, 118 56, 122 62' fill='none' stroke='#ef8a17' stroke-width='9' stroke-linecap='round' stroke-dasharray='1 14'/><circle cx='18' cy='62' r='9' fill='#fff'/><circle cx='122' cy='62' r='9' fill='#fff'/><text x='100' y='30' font-size='22'>🌴</text><text x='40' y='26' font-size='14' font-weight='900' fill='#fde68a'>40 שנה</text>" + E;
@@ -157,29 +161,31 @@
   function em(e, badge) { return "<span class='hag-em'>" + e + "</span>" + (badge ? "<span class='hag-badge'>" + badge + "</span>" : ""); }
   // דבש נוזל על השעון (ראש השנה, הקו בזמן — שלמה 07.09)
   var honeyClock = "<span class='hag-honey'><span class='hag-em'>🕰️</span><span class='hag-jar'>🍯</span><i class='hag-drop d1'></i><i class='hag-drop d2'></i><i class='hag-drop d3'></i></span>";
+  // "כפול" = שניים, "צי" = שלושה — אימוג'י או ציור (שלמה 07.09: "בצי המצות שיהיה מצה")
+  function two(e) { return "<span class='hag-em hag-two'>" + e + e + "</span>"; }
+  function three(e) { return "<span class='hag-em hag-three'>" + e + e + e + "</span>"; }
+  function multi(svg, n) { var s = ""; for (var i = 0; i < n; i++) s += svg; return "<span class='hag-multi n" + n + "'>" + s + "</span>"; }
+  // כל כלי — סמל אחר של החג (שלמה 07.09: "חצי מהסמלים הם מסכות")
   var ART = {
-    rosh:      { pach: pomRot, gold: pomGold, bug: shofar, next: em("🍎", "🍯"), time: honeyClock },
-    sukkot:    { pach: sukkah, gold: etrog, bug: lulav, next: em("🚏", "🌿"), time: em("🕰️", "🍋") },
-    hanukkah:  { pach: sufg, gold: jug, bug: dreidel, next: em("🚏", "🕯️"), time: menorah() },
-    tubishvat: { pach: dryTree, gold: blossom, bug: root, next: em("🚏", "🌳"), time: rings },
-    purim:     { pach: gragger, gold: basket, bug: flipped, next: em("🎭"), time: scroll },
-    pesach:    { pach: em("🍞"), gold: matzah, bug: desert, next: em("🚏", "❓"), time: em("📖", "🍷") },
-    atzmaut:   { pach: grill, gold: flyover, bug: fwZig, next: em("🇮🇱"), time: em("🕰️", "🇮🇱") },
-    lagbaomer: { pach: fireOut, gold: fireBig, bug: bow, next: em("🔥"), time: em("🕰️", "🏹") },
-    shavuot:   { pach: cheese, gold: em("🍰", "✨"), bug: bikkurim, next: em("🚏", "🌾"), time: em("🕰️", "🧀") }
+    rosh:      { pach: pomRot, gold: pomGold, bug: shofar, next: em("🍎", "🍯"), time: honeyClock,
+                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: em("🚆", "📯"), bus: em("🚌", "🐟") },
+    sukkot:    { pach: sukkah, gold: etrog, bug: lulav, next: em("🚏", "🛖"), time: em("🕰️", "🍂"),
+                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: em("🚆", "📜"), bus: em("🚌", "🍋") },
+    hanukkah:  { pach: sufg, gold: jug, bug: dreidel, next: em("🚏", "🕯️"), time: menorah(),
+                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: em("🚆", "✨"), bus: em("🚌", "🪔") },
+    tubishvat: { pach: dryTree, gold: blossom, bug: root, next: em("🚏", "🌳"), time: rings,
+                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: em("🚆", "🌾"), bus: em("🚌", "🍃") },
+    purim:     { pach: gragger, gold: basket, bug: flipped, next: em("🎭"), time: scroll,
+                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: em("🚆", "🏰"), bus: em("🚌", "🐎") },
+    pesach:    { pach: em("🍞"), gold: matzah, bug: desert, next: em("🚏", "❓"), time: em("📖", "🍷"),
+                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: em("🚆", "🌊"), bus: em("🚌", "🐸") },
+    atzmaut:   { pach: grill, gold: flyover, bug: fwZig, next: em("🇮🇱"), time: em("🕰️", "🎂"),
+                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: em("🚆", "🎆"), bus: em("🚌", "🔨") },
+    lagbaomer: { pach: fireOut, gold: fireBig, bug: bow, next: em("🔥"), time: em("🕰️", "🌙"),
+                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: em("🚆", "⛰️"), bus: em("🚌", "🍖") },
+    shavuot:   { pach: cheese, gold: em("🍰", "✨"), bug: bikkurim, next: em("🚏", "🌾"), time: em("🕰️", "🧀"),
+                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: em("🚆", "⛰️"), bus: em("🚌", "📜") }
   };
-  // הכלים הנוספים (הקו המדלג, המחירון, רציף כפול, צי הרכבים, מדדי האמינות — שלמה 07.09):
-  // סמל החג במקום הסמל של הכלי; "כפול" = שניים, "צי" = שלושה, רכבת/אוטובוס/כרטיס עם תג
-  var HE = { rosh: "🍎", sukkot: "🍋", hanukkah: "🕎", tubishvat: "🌳", purim: "🎭", pesach: "🍷", atzmaut: "🇮🇱", lagbaomer: "🔥", shavuot: "🧀" };
-  Object.keys(ART).forEach(function (id) {
-    var e = HE[id];
-    ART[id].skip = em(e, "⏭️");
-    ART[id].fares = em("🎫", e);
-    ART[id].ratzif = "<span class='hag-em hag-two'>" + e + e + "</span>";
-    ART[id].fleet = "<span class='hag-em hag-three'>" + e + e + e + "</span>";
-    ART[id].rail = em("🚆", e);
-    ART[id].bus = em("🚌", e);
-  });
   // העין של "הקו הבוחן" בכל חג
   function eye(pupil, extra, stroke) {
     stroke = stroke || "#38bdf8";
@@ -203,6 +209,7 @@
     ".hag-svg{width:130px;height:130px;filter:drop-shadow(0 8px 10px rgba(0,0,0,.35))}.hag-svg.wide{width:178px;height:auto}",
     ".hag-art{position:relative;height:100%;width:100%;display:flex;align-items:flex-end;justify-content:flex-end}",
     ".hag-em{font-size:90px;line-height:1;filter:drop-shadow(0 8px 10px rgba(0,0,0,.35))}.hag-two{font-size:64px;letter-spacing:-6px}.hag-three{font-size:48px;letter-spacing:-4px}",
+    ".hag-multi{display:flex;align-items:flex-end;direction:ltr}.hag-multi .hag-svg{margin-right:-18px}.hag-multi.n2 .hag-svg{width:86px;height:86px}.hag-multi.n3 .hag-svg{width:78px;height:78px}.hag-multi .hag-svg:last-child{margin-right:0}",
     ".hag-badge{position:absolute;right:0;top:-4px;font-size:36px;line-height:1;filter:drop-shadow(0 3px 4px rgba(0,0,0,.4))}",
     ".hag-honey{position:relative;display:inline-block}.hag-jar{position:absolute;right:-22px;top:-30px;font-size:38px;line-height:1;transform:rotate(-35deg)}",
     ".hag-drop{position:absolute;right:16px;top:8px;width:10px;height:16px;border-radius:50% 50% 50% 50%/40% 40% 60% 60%;background:linear-gradient(#fde68a,#f59e0b);opacity:0;animation:hag-drip 2.4s ease-in infinite}",
