@@ -2,7 +2,7 @@
 
    בכל חג שמות הכלים משתנים ("קו פח" → "הרימון הרקוב" בראש השנה), הסמלים
    בכרטיסי דף הבית מתחלפים בסמל של החג, "הקו הבוחן" עצמו מקבל שם ועין
-   חגיגיים, ויש פייביקון ושורת ברכה. השם האמיתי נשאר קטן מתחת לשם החגיגי.
+   חגיגיים, ויש פייביקון ושורת ברכה. השם האמיתי לא מוצג (רק כטולטיפ).
    בימים עצובים (צומות, יום כיפור, יום השואה, יום הזיכרון, תשעה באב) אין
    שמות מצחיקים ואין אפקטים — רק ברכה שקטה ("צום קל", "יזכור").
 
@@ -198,7 +198,6 @@
     "@keyframes hag-drip{0%{transform:translateY(0) scaleY(.6);opacity:0}15%{opacity:1}80%{transform:translateY(64px) scaleY(1.1);opacity:1}100%{transform:translateY(74px);opacity:0}}",
     ".hag-flame{transform-origin:center 26px;animation:hag-flick 1.4s ease-in-out infinite alternate}@keyframes hag-flick{from{transform:scaleY(1)}to{transform:scaleY(.86) translateX(1px)}}",
     "html.a11y-nomotion .hag-drop,html.a11y-nomotion .hag-flame{animation:none}",
-    ".hag-orig{display:block;font-size:.42em;font-weight:800;opacity:.72;margin-top:2px;letter-spacing:0}",
     ".hag-eye{width:44px;height:44px;flex:none}@media (min-width:768px){.hag-eye{width:56px;height:56px}}",
     "#hag-pill{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99996;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:999px;padding:6px 14px 6px 10px;font:800 13px/1.2 'Heebo',system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;align-items:center;gap:8px;direction:rtl;max-width:92vw}",
     "#hag-pill.quiet{background:#f1f5f9;color:#334155;border-color:#cbd5e1}",
@@ -214,7 +213,8 @@
     h.setAttribute("data-hag", "1");
     var w = document.createTreeWalker(h, NodeFilter.SHOW_TEXT), n;
     while ((n = w.nextNode())) { if (n.nodeValue.indexOf(orig) >= 0) { n.nodeValue = n.nodeValue.split(orig).join(name); break; } }
-    h.appendChild(el("small", { "class": "hag-orig" }, orig));
+    // בלי השם האמיתי מתחת (שלמה 07.09: "תמחק שמגיע החג את השם של האתרים") — נשאר רק כטולטיפ
+    if (!h.getAttribute("title")) h.setAttribute("title", orig);
   }
   function apply() {
     try {
