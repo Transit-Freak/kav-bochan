@@ -57,6 +57,10 @@
     "#kbb-canvas{position:fixed;inset:0;z-index:2147483001;pointer-events:none;width:100%;height:100%}",
     "#kbb-fab{position:fixed;bottom:18px;inset-inline-end:14px;z-index:99998;width:48px;height:48px;border-radius:50%;border:2px solid #fff;background:#f59e0b;font-size:24px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:0}",
     // קישוטים קטנים: כובע מסיבה על כפתור הנגישות, בלונים בצידי המסך
+    ".kbb-logo{display:inline-flex;align-items:center;justify-content:center;font-size:42px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:kbb-wiggle 2.4s ease-in-out infinite}",
+    "@media (min-width:768px){.kbb-logo{font-size:54px}}",
+    "@keyframes kbb-wiggle{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}",
+    "html.a11y-nomotion .kbb-logo,html.a11y-nomotion .kbb-balloon{animation:none}",
     "html.kbb-day #kb-a11y-btn::after{content:'🥳';position:absolute;top:-16px;inset-inline-end:-8px;font-size:20px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}",
     ".kbb-balloon{position:fixed;bottom:-80px;z-index:99997;font-size:34px;pointer-events:none;animation:kbb-rise linear infinite;opacity:.9;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}",
     "@keyframes kbb-rise{0%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-55vh) rotate(6deg)}100%{transform:translateY(-115vh) rotate(-6deg)}}",
@@ -156,16 +160,28 @@
   // הכותרת "הקו הבוחן" הופכת ל"מזל טוב לי" (שלמה 07.09) — בכותרות הדף (h1–h3)
   // ובשם הלשונית. הכותרת בדף הבית מצוירת מחדש ע"י React אחרי הטעינה, ולכן
   // צופה שינויים מחיל את ההחלפה שוב; ההחלפה לא מחזירה את המקור, אז אין לולאה.
-  var SITE = "הקו הבוחן", GREET = "מזל טוב לי 🎂";
+  // סמל האתר (העין, SVG לפני הכותרת בדף הבית) נעלם באותו יום ובמקומו עוגה
+  // (שלמה 07.09). מסומן כדי לא להחליף פעמיים כשהצופה רץ שוב.
+  var SITE = "הקו הבוחן", GREET = "מזל טוב לי";
+  function swapLogo(h) {
+    var s = h.previousElementSibling;
+    if (!s || s.tagName.toLowerCase() !== "svg" || s.getAttribute("data-kbb") === "1") return;
+    s.setAttribute("data-kbb", "1");
+    s.style.display = "none";
+    var cake = el("span", { "class": "kbb-logo " + (s.getAttribute("class") || ""), "aria-hidden": "true", title: "יום הולדת!" }, "🎂");
+    s.parentNode.insertBefore(cake, h);
+  }
   function rename() {
     try {
       if (document.title.indexOf(SITE) >= 0) document.title = document.title.split(SITE).join(GREET);
       var hs = document.querySelectorAll("h1, h2, h3");
       Array.prototype.forEach.call(hs, function (h) {
-        var w = document.createTreeWalker(h, NodeFilter.SHOW_TEXT), n;
+        var w = document.createTreeWalker(h, NodeFilter.SHOW_TEXT), n, hit = false;
         while ((n = w.nextNode())) {
-          if (n.nodeValue.indexOf(SITE) >= 0) n.nodeValue = n.nodeValue.split(SITE).join(GREET);
+          if (n.nodeValue.indexOf(SITE) >= 0) { n.nodeValue = n.nodeValue.split(SITE).join(GREET); hit = true; }
+          else if (n.nodeValue.indexOf(GREET) >= 0) hit = true;
         }
+        if (hit && h.tagName.toLowerCase() === "h1") swapLogo(h);
       });
     } catch (e) { /* ignore */ }
   }
