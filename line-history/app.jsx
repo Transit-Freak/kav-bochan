@@ -1880,11 +1880,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           const lv = vs[li];
           return lv.k === "removed" && (
           <div className="facts" style={{ color: lineGone ? (KINDS[dispKind(lv, li, vs)] || {}).color : "#c2410c", fontWeight: 700 }}>
-            {/* ביטול שתוארך בקירוב (close_vanished_variants.py): הווריאנט נבנה מהארכיון
-                ונעלם מתישהו אחרי הגרסה האחרונה — לא "מאז" תאריך שאיננו יודעים */}
             {lineGone
-              ? <>❌ הקו בוטל — אין חלופות פעילות — {lv.approx ? <>נעלם מהרישום אחרי {fmtD(lv.after || lv.d)} (התאריך המדויק לא תועד)</> : <>מאז {fmtD(lv.d)}</>}</>
-              : <>⚠️ החלופה הזו מבוטלת {lv.approx ? <>— נעלמה מהרישום אחרי {fmtD(lv.after || lv.d)} (התאריך המדויק לא תועד)</> : <>מאז {fmtD(lv.d)}</>} (לקו יש חלופות פעילות)</>}
+              ? <>❌ הקו בוטל — אין חלופות פעילות — מאז {fmtD(lv.d)}</>
+              : <>⚠️ החלופה הזו מבוטלת מאז {fmtD(lv.d)} (לקו יש חלופות פעילות)</>}
             {dispKind(lv, li, vs) === "removed-year" ? " — מעל שנה ולא חזרה" : ""}
           </div>);
         })()}

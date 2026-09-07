@@ -176,9 +176,6 @@ jobs:
             # שברי תחנות: קישור לתחנה טוען כמאתיים ק"ב במקום 4.5 מגה
             OUTDIR=line-history/data python3 tools/build_stop_shards.py
             OUTDIR=line-history/data python3 tools/compact_lines.py
-            # וריאנט מהארכיון שנעלם מהרישום בלי אירוע ביטול (קו 203 עצר "היום"
-            # בתחנה לפי צילום מ-2022 — שלמה 07.09): נסגר בקירוב, בלי להפיל את הריצה
-            OUTDIR=line-history/data python3 tools/close_vanished_variants.py || echo "סגירת וריאנטים שנעלמו נכשלה — ממשיכים"
             OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
             # היסטוריה לפי תחנה: אילו קווים עצרו בכל תחנה ומתי זה השתנה
             OUTDIR=line-history/data python3 tools/build_stop_history.py
