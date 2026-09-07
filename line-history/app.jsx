@@ -1139,8 +1139,49 @@ async function ensurePush(OS) {
   if (!(ps && ps.id)) return { ok: false, why: "הדפדפן לא יצר מנוי להתראות (בברייב: להדליק \"Use Google services for push messaging\" בהגדרות)" };
   return { ok: true, id: ps.id };
 }
-// מצב לתצוגה: {loading, ok, why, id}. כשהכול תקין — התגים מהדפדפן הזה נשלחים
-// שוב לספק (resync), כי נמצא מנוי עם עיר אחת מתוך חמש שנשמרו (שלמה 07.09)
+// אימות מול השרת של ספק ההתראות ותיקון ישיר — בלי לסמוך על תור הפעולות של
+// ה-SDK בדפדפן. אצל שלמה (07.09) המנוי נוצר, הדף הראה "✓ נשמר — 5 ערים",
+// ובשרת לא נרשם אף תג. הנתיבים כאן הם אותם נתיבים שה-SDK עצמו קורא מהדפדפן
+// (מזהה האפליקציה בלבד, בלי מפתח). מחזיר {have, fixed, ok} או {err}.
+const TAG_RE = /^(c[0-9a-z]+|l\d+|freq|kg_\w+)$/;
+async function syncServer(OS, want) {
+  const sub = OS.User && OS.User.PushSubscription && OS.User.PushSubscription.id;
+  if (!sub) return { err: "אין מנוי בדפדפן הזה" };
+  const api = "https://api.onesignal.com/apps/" + window.KB_ONESIGNAL_APP_ID;
+  const j = async (path, opt, hdr) => {
+    const r = await fetch(api + path, { ...(opt || {}), headers: { "content-type": "application/json", ...(hdr ? { "OneSignal-Subscription-Id": sub } : {}) } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  };
+  const jj = async (path, opt) => { try { return await j(path, opt, true); } catch (e) { return j(path, opt, false); } };
+  const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  try {
+    let idn = null;
+    for (let i = 0; i < 3 && !(idn && idn.identity && idn.identity.onesignal_id); i++) {
+      if (i) await wait(3000);
+      try { idn = await jj("/subscriptions/" + sub + "/user/identity"); } catch (e) { idn = null; }
+    }
+    const oid = idn && idn.identity && idn.identity.onesignal_id;
+    if (!oid) return { err: "המנוי עדיין לא מוכר בשרת — נסו שוב בעוד רגע" };
+    const tagsOf = (u) => ((u && u.properties && u.properties.tags) || {});
+    const diff = (h) => {
+      const d = {};
+      for (const k in want) if (h[k] !== want[k]) d[k] = want[k];
+      for (const k in h) if (h[k] !== "" && !(k in want) && TAG_RE.test(k)) d[k] = "";   // "" = מחיקת תג
+      return d;
+    };
+    let have = tagsOf(await jj("/users/by/onesignal_id/" + oid));
+    let d = diff(have), fixed = false;
+    if (Object.keys(d).length) {
+      await jj("/users/by/onesignal_id/" + oid, { method: "PATCH", body: JSON.stringify({ properties: { tags: d } }) });
+      have = tagsOf(await jj("/users/by/onesignal_id/" + oid));
+      fixed = true; d = diff(have);
+    }
+    return { have, fixed, ok: !Object.keys(d).length };
+  } catch (e) { return { err: (e && e.message) || String(e) }; }
+}
+// מצב לתצוגה: {loading, ok, why, id, srv}. כשהכול תקין — התגים מהדפדפן הזה
+// נשלחים שוב לספק (resync) ומאומתים מול השרת (שלמה 07.09)
 function readPushState(cb, resync) {
   const sup = pushSupport();
   if (!sup.ok) { cb({ ...sup, loading: false }); return; }
@@ -1163,7 +1204,9 @@ function readPushState(cb, resync) {
           OS.User.addTags(resync);
         } catch (e) { /* ignore */ }
       }
-      cb({ loading: false, ok, id: ps && ps.id, why: ok ? "" : (!OS.Notifications.permission ? "עוד לא אושרה הרשאה להתראות בדפדפן הזה — לחצו \"הפעלת התראות\" ואשרו" : "המנוי כבוי — לחצו \"הפעלת התראות\"") });
+      const st = { loading: false, ok, id: ps && ps.id, why: ok ? "" : (!OS.Notifications.permission ? "עוד לא אושרה הרשאה להתראות בדפדפן הזה — לחצו \"הפעלת התראות\" ואשרו" : "המנוי כבוי — לחצו \"הפעלת התראות\"") };
+      cb(st);
+      if (ps && ps.id && resync && Object.keys(resync).length) cb({ ...st, srv: await syncServer(OS, resync) });
     } catch (e) { cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות?)" }); }
   });
   setTimeout(() => { if (!got) cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות או חוסם תוכן בדפדפן)" }); }, 8000);
@@ -1188,7 +1231,7 @@ function FollowBtn({ tag, label, title }) {
   const toggle = () => {
     const n = !on; setOn(n); setSt("");
     try { const m = JSON.parse(localStorage.kbFollow || "{}"); if (n) m[tag] = label || "מעקב"; else delete m[tag]; localStorage.kbFollow = JSON.stringify(m); } catch (e) {}
-    osTag(tag, n ? "1" : null, (r) => setSt(n ? (r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why) : ""));
+    osTag(tag, n ? "1" : null, (r) => setSt(n ? (r.ok ? (r.srv ? (r.srv.ok ? "✓ עוקב — רשום אצל ספק ההתראות" : "✗ לא נרשם אצל ספק ההתראות" + (r.srv.err ? ": " + r.srv.err : "")) : "✓ ההתראות פעילות בדפדפן הזה") : "✗ " + r.why) : ""));
   };
   return <><button className="sharebtn" title={title || "התראת דפדפן כשנרשם שינוי מהותי (מסלול, תחנות, ביטול — לא לו\u05f4ז)"}
     onClick={toggle}>{on ? "🔔 עוקב ✓" : "🔔 " + (label || "קבל התראות")}</button>
@@ -1227,6 +1270,8 @@ const osTags = (map, done) => {
       if (rem.length) OS.User.removeTags(rem);
     } catch (e) { r = { ok: false, why: "שגיאה בהרשמה: " + (e && e.message ? e.message : e) }; }
     if (done) done(r);
+    // אימות מול השרת ותיקון ישיר: מה שנשמר בדפדפן הזה הוא האמת
+    if (r && r.id) { try { const srv = await syncServer(OS, savedTags()); if (done) done({ ...r, srv }); } catch (e) { /* ignore */ } }
   });
 };
 // שם עיר כפי שהוא בקבצי הקווים — "קריית מלאכי" שהוקלד הופך ל"קרית מלאכי" של
@@ -1326,14 +1371,26 @@ function NotifyCenter({ cities: allCities }) {
     KIND_GROUPS_N.forEach((g) => { tags[g.tag] = gs.has(g.tag) ? "1" : null; });
     setMsg("שומר…");
     osTags(tags, (r) => {
-      setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id });
+      setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv });
       setMsg(r.ok ? `✓ נשמר — ${list.length} ערים, ההתראות פעילות בדפדפן הזה. בסיכום תגיע הודעה אחת שמאחדת את כולן` : `✗ נשמר, אבל ההתראות לא יגיעו: ${r.why}`);
     });
     try { localStorage.kbNotify = JSON.stringify({ cities: list, freq, gs: [...gs] }); } catch (e) {}
     setCities(list); setCity(""); setSaved(true);
   };
   // "הפעלת התראות" שולח גם את כל מה שנשמר בדפדפן הזה — לא רק מבקש הרשאה
-  const enable = () => { setMsg("…"); osTags(savedTags(), (r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
+  const enable = () => { setMsg("…"); osTags(savedTags(), (r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
+  // מה באמת רשום אצל ספק ההתראות (מהשרת) — בשמות ערים, לא בתגים
+  const srvText = (s) => {
+    if (s.err) return "לא הצלחתי לבדוק מה רשום אצל ספק ההתראות: " + s.err;
+    const rev = {}; (allCities || []).forEach((c) => { rev[cityTag(c)] = c; });
+    const h = s.have || {};
+    const cs = Object.keys(h).filter((k) => /^c[0-9a-z]+$/.test(k) && h[k] === "1").map((k) => rev[k] || "עיר לא מזוהה");
+    const ls = Object.keys(h).filter((k) => /^l\d+$/.test(k) && h[k] === "1").length;
+    const fq = { 1: "כל יום שיש שינוי", 3: "סיכום כל 3 ימים", 7: "סיכום שבועי" }[h.freq] || "";
+    const what = (cs.length ? cs.join(", ") : "אין ערים") + (ls ? ` · ${ls} קווים במעקב` : "") + (fq ? " · " + fq : "");
+    if (!s.ok) return "✗ אצל ספק ההתראות רשום: " + what + " — לא זהה למה שנשמר כאן. נסו לשמור שוב";
+    return (s.fixed ? "✓ אצל הספק היה חסר — תוקן עכשיו. רשום שם: " : "✓ רשום אצל ספק ההתראות: ") + what;
+  };
   const cancel = () => {
     const tags = { freq: null };
     [...cities, ...(st0.cities || [])].forEach((ct) => { tags[cityTag(ct)] = null; });
@@ -1354,6 +1411,8 @@ function NotifyCenter({ cities: allCities }) {
             {ps.loading ? "בודק את מצב ההתראות בדפדפן הזה…" : ps.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ ההתראות לא פעילות בדפדפן הזה: " + ps.why}
             {!ps.loading && ps.id && <small style={{ fontWeight: 400, color: "var(--muted, #64748b)", direction: "ltr" }} title="מזהה המנוי אצל ספק ההתראות — לבירור תקלות">#{String(ps.id).slice(0, 8)}</small>}
             {!ps.loading && !ps.ok && !/אייפון|לא תומך/.test(ps.why || "") && <button className="kathead" style={{ width: "auto", padding: "5px 12px" }} onClick={enable}>הפעלת התראות</button>}
+            {!ps.loading && ps.ok && !ps.srv && <small style={{ width: "100%", fontWeight: 400, color: "var(--muted, #64748b)" }}>בודק מול השרת מה רשום שם…</small>}
+            {!ps.loading && ps.srv && <div style={{ width: "100%", fontWeight: 600, fontSize: 13, color: ps.srv.ok ? "#166534" : "#b91c1c" }}>{srvText(ps.srv)}</div>}
           </div>
           <label style={{ fontWeight: 700 }}>ערים (אפשר כמה):
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>

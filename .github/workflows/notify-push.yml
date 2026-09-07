@@ -28,6 +28,14 @@ on:
         description: 'עם digest_all: רק למי שנכנס לאתר אחרי זמן זה (ISO, למשל 2026-09-07T15:00:00Z)'
         required: false
         default: ''
+      repair_sub:
+        description: 'עם debug=1: תחילת מזהה מנוי לתיקון תגים (ריק = רק אבחון)'
+        required: false
+        default: ''
+      repair_tags:
+        description: 'עם repair_sub: התגים לכתיבה (JSON)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -66,6 +74,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ '${{ github.event.inputs.debug }}' = '1' ]; then
+            REPAIR_SUB='${{ github.event.inputs.repair_sub || '' }}' \
+            REPAIR_TAGS='${{ github.event.inputs.repair_tags || '' }}' \
             python3 tools/push_debug.py
             exit 0
           fi
