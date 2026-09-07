@@ -34,6 +34,7 @@ const KINDS = {
   vehicle:     { label: "שינוי סוג הרכב", color: "#7c3aed" },
   returned:    { label: "בוטל וחזר", color: "#f59e0b" },
   board:       { label: "שינוי עלייה/ירידה", color: "#854d0e" },
+  platform:    { label: "שינוי רציף", color: "#0e7490" },
   "planned-dropped": { label: "תוכנן ולא נכנס לפעול", color: "#9f1239" },
   "planned-new": { label: "קו שפורסם ולא נכנס לפעול", color: "#9f1239" },
   "planned-route": { label: "שינוי תחנות שפורסם ולא נכנס לפעול", color: "#7f1d1d" },
@@ -164,7 +165,7 @@ const CAT_GROUPS = [
   { title: "שינויי מסלול", items: ["route", "endpoint"] },
   { title: "שינויי תחנות", items: ["stops", "stops-add", "stops-del"] },
   { title: "תדירות ולוח זמנים", items: ["freq", "sched"] },
-  { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "vehicle"] },
+  { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "platform", "vehicle"] },
   { title: "שינויים שלא נכנסו לפעול", items: ["planned-new", "planned-route"] },
   { title: "שינויים טכניים", items: ["redraw"] },
 ];
@@ -183,6 +184,7 @@ const CAT_LABELS = {
   dest: "שינוי יעד",
   renum: "שינוי מספר קו",
   mode: "שינוי סוג הקו (למשל רגיל ↔ לפי דרישה)",
+  platform: "שינוי רציף — הקו עבר לרציף אחר במסוף",
   vehicle: "שינוי סוג הרכב",
   // ניסוח קצר (שלמה 05.09: "זה ארוך ומסורבל"). הכלל המלא כתוב על האירוע עצמו.
   "planned-dropped": "תוכנן ולא נכנס לפעול — ירד מהרישום לפני תאריך ההתחלה",
@@ -226,13 +228,12 @@ function evInCat(x, i, vs, k) {
   return dk === k;
 }
 const REMOVAL_CATS = new Set(["removed-year", "removed-now", "removed-past"]);
-/* אירועי "שינוי רציף" (k=platform, בקווים ובתחנות) לא מוצגים (שלמה 07.09: "שינוי
-   ברציף התחנה אמור להיות רק כאשר נוסף או בוטל לחלוטין רציף בתחנה"). מה שיש
-   ברישום המשרד הוא מספר רציף אחד לכל מק"ט תחנה — ובמסוף שכל הרציפים שלו
-   הם מק"ט אחד ("ת. מרכזית ראשל''צ/רציפים") המספר קפץ 12→17→8→16→3 בתוך
-   שלושה חודשים. זה לא "רציף נוסף/בוטל" ולא מספר הרציפים, ולכן מוסתר עד
-   שיהיה מקור אמיתי. הנתונים נשארים בקבצים; הסורק היומי מושתק (PLAT_EVENTS). */
-const HIDE_KINDS = new Set(["platform"]);
+/* אירועי "שינוי רציף" ישנים (k=platform בלי pv) מוסתרים: עד 07.09 הסורק קרס
+   את כל שורות הרציפים של מסוף (בקובץ המשרד יש שורה לכל רציף, אותו מק"ט)
+   למספר אחד, והמספר "קפץ" 12→17→8→16→3 בראשל"צ בלי שרציף נוסף או בוטל.
+   האירועים החדשים (pv=2, tools/platforms.py) נבנים מהשורות עצמן — רציף
+   שקיבל קווים / נשאר בלי קווים בתחנה, וקו שעבר רציף — ומוצגים. */
+const hiddenEv = (e) => e && e.k === "platform" && !e.pv;
 const SKINDS = {
   new:     { label: "חדשה", color: "#15803d" },
   del:     { label: "בוטלה", color: "#dc2626" },
@@ -240,6 +241,7 @@ const SKINDS = {
   moved:   { label: "הזזת מיקום", color: "#2563eb" },
   city:    { label: "שינוי עיר", color: "#b91c1c" },
   pubdest: { label: "תחנת יעד לפרסום", color: "#7e22ce" },
+  platform: { label: "רציף נוסף/בוטל", color: "#0e7490" },
 };
 
 // פענוח polyline (precision 5)
@@ -248,9 +250,11 @@ const SKINDS = {
 // לצורה המלאה — שאר הקוד לא יודע שהקובץ היה דחוס. תאום-לאחור לקבצים ישנים.
 function materializeLf(lf) {
   if (!lf) return lf;
-  // גרסאות "שינוי רציף" (מספר הרציף ברישום השתנה) יורדות מציר הזמן — ראו HIDE_KINDS
-  if (lf.versions && lf.versions.some((v) => HIDE_KINDS.has(v.k)))
-    lf.versions = lf.versions.filter((v) => !HIDE_KINDS.has(v.k));
+  // גרסאות "שינוי רציף" הישנות מסומנות מוסתרות (hid) אבל נשארות במערך: הן
+  // נושאות את רצף התחנות של זמנן, והמפה משווה לגרסה הקודמת — הסרתן מהמערך
+  // שינתה את ההשוואה, ותחנות שנוספו (קו 38 רחובות, 15.02.2024) איבדו את
+  // הסימון הירוק (שלמה 07.09). הסינון נעשה רק בתצוגה (ראו hiddenEv).
+  (lf.versions || []).forEach((v) => { if (hiddenEv(v)) v.hid = true; });
   const pool = lf.pool, spool = lf.spool;
   (lf.versions || []).forEach((v) => {
     if (pool && Array.isArray(v.stops) && v.stops.length && typeof v.stops[0] === "number")
@@ -1375,7 +1379,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         const cats = String(initCats || "").split(",").filter(Boolean);
         if (cats.length) {
           const vs2 = m.versions || [], keep = new Set(), all = new Set();
-          vs2.forEach((x, i) => { const dk = dispKind(x, i, vs2); all.add(dk); if (cats.some((c) => evInCat(x, i, vs2, c))) keep.add(dk); });
+          vs2.forEach((x, i) => { if (x.hid) return; const dk = dispKind(x, i, vs2); all.add(dk); if (cats.some((c) => evInCat(x, i, vs2, c))) keep.add(dk); });
           if (keep.size && keep.size < all.size) setOffK(new Set([...all].filter((k) => !keep.has(k))));
         } })
       .catch((e) => { if (ok) setErr(e); });
@@ -1395,9 +1399,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   // מספר הנסיעות מגיע מהאינדקס ולא מקובץ הקו: הוא משתנה מיום ליום, ובקובץ
   // הקו הוא היה משנה את כל 13,000 הקבצים בכל ריצה יומית
   const ntr = ((sibs || []).find((x) => x.rd === rd) || {}).ntr || 0;
-  const months = [...new Set(vs.map((v) => v.d.slice(0, 7)))].reverse();
+  const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
   const shown = vs.map((v, i) => ({ v, i }))
-    .filter((x) => (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
+    .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
   // הקטגוריות שקיימות בקו הזה בפועל, לפי שכיחות — סרגל כיבוי/הדלקה.
   // שלוש קבוצות מאוחדות כאן ולא בתווית שעל האירוע: בסרגל הן שאלה אחת
   // ("להציג שינויי תחנות?") ואילו על האירוע עצמו ההבחנה כן נושאת מידע.
@@ -1407,6 +1411,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
     // "שינוי לו״ז". הסינון והתוויות חייבים לדבר באותה שפה.
     const c = new Map();
     vs.forEach((x, i) => {
+      if (x.hid) return;
       const dk = dispKind(x, i, vs), g = KGROUP[dk] || dk;
       const e = c.get(g) || { n: 0, kinds: new Set() };
       e.n += 1; e.kinds.add(dk); c.set(g, e);
@@ -2427,7 +2432,7 @@ function DayFeed({ idx, openLine, open12, onBack }) {
     setChs(null); setChErr(false);
     dfetch("data/changes/" + mon + ".json")
       .then((r) => (r.ok ? r.json() : { changes: [] }))
-      .then((d) => { if (ok) setChs((d.changes || []).filter((c) => !HIDE_KINDS.has(c.k))); })
+      .then((d) => { if (ok) setChs((d.changes || []).filter((c) => !hiddenEv(c))); })
       .catch(() => { if (ok) { setChErr(true); setChs([]); } });
     return () => { ok = false; };
   }, [mon, rty]);
@@ -2603,7 +2608,7 @@ function RecentChanges({ idx, openLine, onAll }) {
         if (!ms.length) { if (ok) setRows([]); return; }
         const get = (m) => dfetch("data/changes/" + m + ".json")
           .then((r) => (r.ok ? r.json() : { changes: [] }))
-          .then((d) => ({ changes: (d.changes || []).filter((c) => !HIDE_KINDS.has(c.k)) }));
+          .then((d) => ({ changes: (d.changes || []).filter((c) => !hiddenEv(c)) }));
         let list = (await get(ms[ms.length - 1])).changes || [];
         // ב-1 בחודש הקובץ החדש כמעט ריק, והמסך הראשי נראה כאילו האתר מת —
         // כשחסרים ימים משלימים מהחודש הקודם כדי שתמיד יוצגו הימים האחרונים
@@ -2700,44 +2705,29 @@ function LinesAtStop({ code, onClose }) {
   const baseByDate = {};
   ev.forEach((e) => { if (e[3] === "base" && e[1]) (baseByDate[e[0]] = baseByDate[e[0]] || new Map()).set(e[1], e[2]); });
   Object.entries(baseByDate).forEach(([dte, lines]) => rows.push({ d: dte, k: "base", lines: [...lines.entries()] }));
-  // מעבר רציף (mvin/mvout, מזוהה בצינור: אותו קו הפסיק בתחנה אחת והתחיל
-  // בתחנה אחרת של אותו מסוף באותו יום) — זו מהות השינוי, לא "בוטל ונוסף"
-  // (שלמה 07.09: "עבר מרציף 2 ל-1"). מספר הרציף נלקח רק משם התחנה ("…/רציף 2")
-  // — הרישום של היום אומר איפה הרציף עכשיו, לא איפה הוא היה ב-2021, ולכן
-  // כשאין מספר בשם מוצג שם התחנה השנייה.
-  const platOf = (name) => {
-    const m = /רציף\s*(\d+)/.exec(name || "");
-    return m ? "רציף " + m[1] : null;
-  };
-  const herePlat = platOf(d.n);
+  // mvin/mvout (הצינור מזהה קו שהפסיק בתחנה אחת והתחיל בתחנה שכנה באותו יום)
+  // מוצגים כמו in/out רגילים: "קו 38 הפסיק לעצור בתחנה" — הניסוח "עבר לעצור
+  // ב…" לא התבקש (שלמה 07.09). מעבר רציף אמיתי (רציף 2 ← רציף 1) מגיע
+  // מנתוני הרציפים (platforms.json), לא מניחוש לפי שמות.
   const seen = new Set();
   ev.forEach((e) => {
     if (e[3] === "base") return;
-    const key = e[0] + "|" + e[1] + "|" + e[3] + "|" + (e[4] || "");
+    const k = e[3] === "mvin" ? "in" : e[3] === "mvout" ? "out" : e[3];
+    const key = e[0] + "|" + e[1] + "|" + k;
     if (seen.has(key)) return;
     seen.add(key);
-    rows.push({ d: e[0], k: e[3], line: e[1] || "—", rd: e[2], pc: e[4], pn: e[5] });
+    rows.push({ d: e[0], k, line: e[1] || "—", rd: e[2] });
   });
   rows.sort((a, b) => b.d.localeCompare(a.d));
-  // אותו תאריך, אותו סוג ואותה תחנה שנייה — שורה אחת עם כל הקווים, במקום
-  // עשר שורות זהות (שלמה 07.09)
+  // אותו תאריך ואותו סוג — שורה אחת עם כל הקווים, במקום עשר שורות זהות (שלמה 07.09)
   const grouped = [], gk = {};
   rows.forEach((r) => {
     if (r.k === "base") { grouped.push(r); return; }
-    const key = r.d + "|" + r.k + "|" + (r.pc || "");
+    const key = r.d + "|" + r.k;
     if (gk[key]) { gk[key].items.push([r.line, r.rd]); return; }
-    gk[key] = { d: r.d, k: r.k, pc: r.pc, pn: r.pn, items: [[r.line, r.rd]] };
+    gk[key] = { d: r.d, k: r.k, items: [[r.line, r.rd]] };
     grouped.push(gk[key]);
   });
-  // "עבר מרציף 2 לרציף 1" כשיש מספרי רציפים; אחרת בשמות התחנות
-  const moveTxt = (r, plural) => {
-    const there = platOf(r.pn);
-    const from = r.k === "mvin", here = herePlat;
-    if (from && there && here) return (plural ? "עברו" : "עבר") + ` מ${there} ל${here}`;
-    if (!from && there && here) return (plural ? "עברו" : "עבר") + ` מ${here} ל${there}`;
-    const other = <a href={"#stop=" + r.pc} title="לתחנה השנייה">{r.pn || r.pc}</a>;
-    return from ? <>{plural ? "עברו" : "עבר"} לעצור כאן במקום ב{other}</> : <>{plural ? "עברו" : "עבר"} מכאן ל{other}</>;
-  };
   const shown = all ? grouped : grouped.slice(0, 30);
   return (
     <div className="lat">
@@ -2758,10 +2748,8 @@ function LinesAtStop({ code, onClose }) {
           : r.items.length === 1
             ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in"
                 ? <>🆕 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> התחיל לעצור בתחנה</>
-                : r.k === "out"
-                ? <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>
-                : <>🔁 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> {moveTxt(r, false)}</>}</div>
-            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : r.k === "out" ? "➖" : "🔁"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : r.k === "out" ? "הפסיקו לעצור בתחנה" : moveTxt(r, true)}: {r.items.map(([l, rd2], j) =>
+                : <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>}</div>
+            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : "הפסיקו לעצור בתחנה"}: {r.items.map(([l, rd2], j) =>
                 <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</div>)}
       </div>
       {grouped.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {grouped.length.toLocaleString()} האירועים</button>}
@@ -2915,7 +2903,7 @@ function StopsTab({ sel, selN }) {
     // נועדו לפיד החודשי, ובתחנה מסוימת הם הסתירו גם את מה שביקשו לראות:
     // ‎#stop=48‎ הראה מסך ריק, כי שני האירועים שלה נחשבים "חוזרים".
     return raw === null ? null
-      : raw.filter((c) => !HIDE_KINDS.has(c.k) && ((sel && c.c === sel) || keepEvent(c)));
+      : raw.filter((c) => !hiddenEv(c) && ((sel && c.c === sel) || keepEvent(c)));
   }, [mon, hist, chs, sel]);
   const counts = useMemo(() => {
     const cn = {};
