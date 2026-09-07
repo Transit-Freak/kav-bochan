@@ -355,67 +355,6 @@ const STATUS_TIERS = [
 ];
 const getStatusTier = (score) => STATUS_TIERS.find(t => score >= t.min) || STATUS_TIERS[STATUS_TIERS.length - 1];
 
-// ── 1 באפריל: טקס פרסי הפח (בחירת שלמה 07.09) ──────────────────────────────
-// באותו יום הכרטיסייה "קווים לא יעילים" הופכת לטקס פרסים: פודיום לשלושת
-// הראשונים בדירוג (לפי המיון והסינון שהמשתמש בחר), ציטוט מהנתונים האמיתיים
-// ונאום תודה. הגביעים והקונפטי לא אמיתיים. תצוגה מקדימה: ‎?april=1‎.
-// השאלון של דף הבית באותו יום — april.js.
-const APRIL_FOOLS = (() => {
-  try {
-    if (/[?&]april/.test(location.search)) return true;
-    const o = {};
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).forEach(p => { o[p.type] = p.value; });
-    return o.month === '04' && o.day === '01';
-  } catch (e) { return false; }
-})();
-const APRIL_YEAR = (() => { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric' }).format(new Date()); } catch (e) { return String(new Date().getFullYear()); } })();
-const APRIL_SPEECH = [
-  'אני רוצה להודות לנהג, למפקח, ולנוסע. כן, לנוסע. לא הייתי מגיע לכאן בלעדיו. בעיקר בלעדיו.',
-  'זה כבוד גדול לעמוד כאן. בדרך כלל אני עומד בתחנה. ריק.',
-  'לא הכנתי נאום. גם לא הכנתי נוסעים.',
-];
-function AprilPodium({ rows }) {
-  const top = rows.slice(0, 3);
-  if (!top.length) return null;
-  const medals = [
-    { cup: '🏆', title: 'פרס הקו הכי ריק', cls: 'bg-amber-100 border-amber-400', ord: 'md:order-2', mt: 'md:mt-0' },
-    { cup: '🥈', title: 'סגן הקו הכי ריק', cls: 'bg-slate-100 border-slate-300', ord: 'md:order-1', mt: 'md:mt-10' },
-    { cup: '🥉', title: 'הקו הכי ריק, מקום שלישי', cls: 'bg-orange-100 border-orange-300', ord: 'md:order-3', mt: 'md:mt-16' },
-  ];
-  const n0 = v => (Number(v) || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
-  const citation = r => `על ${n0(r.count)} נסיעות בשבוע עם ממוצע של ${r.avg} נוסעים, ${n0(r.wastedKm)} ק״מ של שקט מוחלט, ו-${n0(r.cost)} ₪ לכל נוסע. שווה כל שקל.`;
-  const conf = Array.from({ length: 26 }, (_, i) => (
-    <i key={i} className="kbap-conf" style={{ left: ((i * 3.9) % 100) + '%', animationDelay: ((i % 9) * 0.4) + 's', animationDuration: (3 + (i % 4) * 0.6) + 's', background: ['#f59e0b', '#e11d48', '#2563eb', '#16a34a', '#a855f7'][i % 5] }} />
-  ));
-  return (
-    <div className="relative overflow-hidden bg-gradient-to-b from-amber-50 to-white border-2 border-amber-300 rounded-[2.5rem] p-6 md:p-8 shadow-sm" data-april="podium">
-      <style>{'.kbap-conf{position:absolute;top:-14px;width:9px;height:14px;border-radius:2px;opacity:.9;animation:kbap-fall 3.6s linear infinite;pointer-events:none}@keyframes kbap-fall{to{transform:translateY(520px) rotate(540deg);opacity:.15}}@media (prefers-reduced-motion:reduce){.kbap-conf{display:none}}html.a11y-nomotion .kbap-conf{display:none}'}</style>
-      {conf}
-      <div className="relative text-center mb-6">
-        <div className="text-xs font-black text-rose-600">1 באפריל · שידור חי מהטקס</div>
-        <h3 className="text-2xl md:text-3xl font-black text-slate-900 mt-1">🏆 טקס פרסי הפח {APRIL_YEAR}</h3>
-        <p className="text-slate-600 font-bold mt-1 max-w-2xl mx-auto">הערב אנחנו מכבדים את הקווים ששמרו על המושבים פנויים. הנתונים אמיתיים, הגביעים לא. הזוכים נקבעים לפי המיון והסינון שבחרתם למעלה.</p>
-      </div>
-      <div className="relative grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-        {top.map((r, i) => { const m = medals[i]; return (
-          <div key={`podium-${r.groupKey}-${i}`} className={`${m.ord} ${m.mt} border-2 ${m.cls} rounded-3xl p-5 text-right bg-opacity-80`}>
-            <div className="text-5xl text-center leading-none">{m.cup}</div>
-            <div className="text-[11px] font-black text-slate-500 text-center mt-2">{m.title}</div>
-            <div className="flex items-center justify-center gap-3 mt-3 min-w-0">
-              <div className="bg-slate-900 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shrink-0">{r.lineNum}</div>
-              <div className="text-sm font-black text-slate-900 truncate" title={`${r.origin} ← ${r.dest}`}>{r.origin} ← {r.dest}</div>
-            </div>
-            <div className="text-[11px] font-black text-slate-500 text-center mt-1">{r.category}{r.district ? ' · ' + r.district : ''}</div>
-            <div className="text-xs font-bold text-slate-700 mt-3 leading-relaxed">{citation(r)}</div>
-            <div className="mt-3 bg-white/80 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-600 leading-relaxed">״{APRIL_SPEECH[i]}״</div>
-          </div>
-        ); })}
-      </div>
-      <div className="relative text-center text-[11px] font-bold text-slate-500 mt-5">הטקס מסתיים ב-2 באפריל. הקווים, לצערנו, ממשיכים.</div>
-    </div>
-  );
-}
-
 // ── הגדרות ניקוד לבחירת המשתמש (שלמה 07.09: "שהמשתמש יוכל לבחור מה כמה כל
 //    דבר נותן ציון, כמה אנשים בציון 10") ────────────────────────────────────
 // כל רכיב ניקוד: דלוק/כבוי, כמה נקודות לכל היותר, וסף מספרי כשיש כזה
@@ -3850,7 +3789,7 @@ const DAYS_FILTER = [
                 let colorClass = "text-slate-500";
                 let iconName = "";
                 let label = "";
-                if (tabName === "redundant") { colorClass = isSelected ? "bg-white text-rose-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "trash"; label = APRIL_FOOLS ? "🏆 פרסי הפח" : "קווים לא יעילים"; }
+                if (tabName === "redundant") { colorClass = isSelected ? "bg-white text-rose-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "trash"; label = "קווים לא יעילים"; }
                 if (tabName === "areas") { colorClass = isSelected ? "bg-white text-amber-700 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "chart"; label = "ניתוח אזורי"; }
                 if (tabName === "allTrips") { colorClass = isSelected ? "bg-white text-indigo-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "list"; label = "כל הנסיעות"; }
                 if (tabName === "simulator") { colorClass = isSelected ? "bg-white text-slate-900 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "zap"; label = "אלגוריתם ייעול"; }
@@ -3870,8 +3809,8 @@ const DAYS_FILTER = [
               <div className="space-y-8 transition-opacity duration-300 opacity-100">
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-center gap-4">
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900">{APRIL_FOOLS ? '🏆 המועמדים לפרסי הפח' : 'הקווים הכי לא יעילים'}</h2>
-                    <p className="text-slate-500 font-bold">{APRIL_FOOLS ? 'אותו דירוג, אותם נתונים. רק שהיום הם זוכים בפרסים' : 'דירוג המציג את הקווים החלשים ביותר במערכת, לצורך בחינה וייעול'}</p>
+                    <h2 className="text-2xl font-black text-slate-900">הקווים הכי לא יעילים</h2>
+                    <p className="text-slate-500 font-bold">דירוג המציג את הקווים החלשים ביותר במערכת, לצורך בחינה וייעול</p>
                   </div>
                   <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
                     <select aria-label="סינון לפי מחוז" 
@@ -3910,8 +3849,6 @@ const DAYS_FILTER = [
                     </div>
                   </div>
                 </div>
-
-                {APRIL_FOOLS && <AprilPodium rows={filteredRedundant} />}
 
                 {/* מה נחשב קו לא יעיל — לבחירת המשתמש (שלמה 07.09) */}
                 <ScoreSettingsPanel
