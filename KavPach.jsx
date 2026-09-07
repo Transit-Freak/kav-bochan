@@ -355,6 +355,151 @@ const STATUS_TIERS = [
 ];
 const getStatusTier = (score) => STATUS_TIERS.find(t => score >= t.min) || STATUS_TIERS[STATUS_TIERS.length - 1];
 
+// ── הגדרות ניקוד לבחירת המשתמש (שלמה 07.09: "שהמשתמש יוכל לבחור מה כמה כל
+//    דבר נותן ציון, כמה אנשים בציון 10") ────────────────────────────────────
+// כל רכיב ניקוד: דלוק/כבוי, כמה נקודות לכל היותר, וסף מספרי כשיש כזה
+// (ריק = הסף האוטומטי של האתר, לפי קטגוריית הקו). הציון תמיד מנורמל
+// ל-100 לפי סכום הנקודות של הרכיבים הדלוקים, כך שאפשר לשחק במשקלים בלי
+// לחשב שהם מסתכמים ל-100. ההגדרות נשמרות בדפדפן הזה בלבד.
+const numOrNull = (v) => { if (v === '' || v == null) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
+const mergeSettings = (dflt, saved) => {
+  if (!saved || typeof saved !== 'object') return dflt;
+  const out = { ...dflt };
+  Object.keys(dflt).forEach(k => {
+    const d = dflt[k], s = saved[k];
+    if (d && typeof d === 'object' && !Array.isArray(d)) out[k] = mergeSettings(d, s);
+    else if (s !== undefined && (typeof s === typeof d || s === null || d === null)) out[k] = s;
+  });
+  return out;
+};
+function useStoredSettings(key, defaults) {
+  const [s, setS] = useState(() => {
+    try { const raw = localStorage.getItem(key); if (raw) return mergeSettings(defaults, JSON.parse(raw)); } catch (e) { /* אין אחסון */ }
+    return defaults;
+  });
+  const update = useCallback((fn) => setS(prev => {
+    const next = fn(prev);
+    try { localStorage.setItem(key, JSON.stringify(next)); } catch (e) { /* אין אחסון */ }
+    return next;
+  }), [key]);
+  const reset = useCallback(() => { try { localStorage.removeItem(key); } catch (e) { /* אין אחסון */ } setS(defaults); }, [key, defaults]);
+  const isDefault = JSON.stringify(s) === JSON.stringify(defaults);
+  return [s, update, reset, isDefault];
+}
+// סכום הנקודות האפשריות של הרכיבים הדלוקים — לנרמול הציון ל-100
+const maxSumOf = (comps) => Object.values(comps).reduce((s, c) => s + (c.on ? (Number(c.max) || 0) : 0), 0);
+const normScore = (total, maxSum) => (maxSum > 0 ? Math.min(100, Math.round(total * 100 / maxSum)) : 0);
+
+// שדה מספר קטן; ריק = אוטומטי
+const NumField = ({ value, onChange, placeholder, min, max, step, width, suffix, title }) => (
+  <span className="inline-flex items-center gap-1 whitespace-nowrap" title={title}>
+    <input type="number" inputMode="decimal" value={value == null ? '' : value} placeholder={placeholder || ''}
+      min={min} max={max} step={step || 1}
+      onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))}
+      className={`bg-white border-2 border-slate-200 rounded-xl px-2 py-1.5 font-black text-sm text-center outline-none focus:border-amber-500 ${width || 'w-20'}`} />
+    {suffix ? <span className="text-[11px] font-bold text-slate-500">{suffix}</span> : null}
+  </span>
+);
+
+// ברירות המחדל — בדיוק הניקוד שהאתר עבד איתו עד עכשיו
+const GOLD_DEFAULTS = {
+  entryRiders: 30, minScore: 60,
+  c: {
+    highTrips:   { on: true, max: 20 },
+    efficientKm: { on: true, max: 15 },
+    cost:        { on: true, max: 20, full: null },
+    avgRiders:   { on: true, max: 15, full: null, half: null },
+    peak:        { on: true, max: 10, full: null, half: null },
+    volume:      { on: true, max: 20, full: null, half: null },
+  },
+};
+const PACH_DEFAULTS = {
+  minScore: 25,
+  c: {
+    lowTrips: { on: true, max: 30 },
+    wastedKm: { on: true, max: 20 },
+    cost:     { on: true, max: 20 },
+    riders:   { on: true, max: 30, low: null, peak: null },
+  },
+  // הגנות — נקודות שמופחתות מהציון; 0 = ההגנה כבויה
+  p: { exclusive: 15, train: 10, school: 10, prebook: 20, weekend: 10, newLine: 10, reduced: 10, noAlt: 10 },
+};
+
+// לוח ההגדרות — משותף לשני הכלים. rows: [{ key, label, hint, params: [{ k, label, auto, unit, min, max, step }] }]
+function ScoreSettingsPanel({ title, intro, settings, update, reset, isDefault, rows, extras, footnote, accent }) {
+  const [open, setOpen] = useState(false);
+  const maxSum = maxSumOf(settings.c);
+  const ac = accent || 'amber';
+  const setC = (key, k, v) => update(s => ({ ...s, c: { ...s.c, [key]: { ...s.c[key], [k]: v } } }));
+  return (
+    <div className={`bg-white border-2 border-${ac}-200 rounded-[2rem] shadow-sm overflow-hidden`}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-right">
+        <span className="font-black text-slate-900 text-base">⚙️ {title}{!isDefault && <span className={`mr-2 text-[11px] font-black bg-${ac}-100 text-${ac}-800 border border-${ac}-300 rounded-full px-2 py-0.5`}>הגדרות שלך</span>}</span>
+        <span className="text-slate-500 font-black text-sm shrink-0">{open ? '▲ סגירה' : '▼ פתיחה'}</span>
+      </button>
+      {open && (
+        <div className="px-6 pb-6 space-y-4">
+          <p className="text-slate-600 font-bold text-sm leading-relaxed">{intro}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[11px] font-black text-slate-500 border-b border-slate-200">
+                  <th className="text-right py-2 pl-2">נספר?</th>
+                  <th className="text-right py-2">מה נמדד</th>
+                  <th className="text-right py-2">כמה נקודות לכל היותר</th>
+                  <th className="text-right py-2">הסף (ריק = אוטומטי)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => {
+                  const c = settings.c[r.key];
+                  return (
+                    <tr key={r.key} className={`border-b border-slate-100 align-top ${c.on ? '' : 'opacity-50'}`}>
+                      <td className="py-2.5 pl-2"><input type="checkbox" checked={!!c.on} onChange={e => setC(r.key, 'on', e.target.checked)} className="w-4 h-4 accent-amber-600" aria-label={`לספור: ${r.label}`} /></td>
+                      <td className="py-2.5 pl-3">
+                        <div className="font-black text-slate-900">{r.label}</div>
+                        {r.hint && <div className="text-[11px] font-bold text-slate-500 leading-snug max-w-xs">{r.hint}</div>}
+                      </td>
+                      <td className="py-2.5 pl-3">
+                        <NumField value={c.max} onChange={v => setC(r.key, 'max', v == null ? 0 : Math.max(0, Math.min(100, v)))} min={0} max={100} suffix="נק׳" title="כמה נקודות הרכיב הזה נותן כשהוא במלואו" />
+                      </td>
+                      <td className="py-2.5">
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                          {(r.params || []).map(p => (
+                            <label key={p.k} className="inline-flex items-center gap-2 text-[12px] font-bold text-slate-700">
+                              <span>{p.label}</span>
+                              <NumField value={c[p.k]} onChange={v => setC(r.key, p.k, v)} placeholder={p.auto || 'אוטו'} min={p.min} max={p.max} step={p.step} suffix={p.unit} width={p.width} title={p.title} />
+                            </label>
+                          ))}
+                          {!(r.params || []).length && <span className="text-[11px] font-bold text-slate-400">—</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {extras}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div className="text-[12px] font-bold text-slate-600">
+              סה"כ נקודות אפשריות: <b className="text-slate-900">{maxSum}</b>
+              {maxSum !== 100 && maxSum > 0 && <span> · הציון מנורמל ל-100 (כל רכיב שווה {Math.round(100 / maxSum * 100) / 100} מנקודותיו)</span>}
+              {maxSum === 0 && <span className="text-rose-600"> · כל הרכיבים כבויים — אין ציון</span>}
+            </div>
+            <button type="button" onClick={reset} disabled={isDefault}
+              className={`px-4 py-2 rounded-xl text-xs font-black border-2 ${isDefault ? 'border-slate-200 text-slate-400' : 'border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white'}`}>
+              ↺ חזרה לברירת המחדל של האתר
+            </button>
+          </div>
+          {footnote && <p className="text-[11px] font-bold text-slate-500 leading-relaxed">{footnote}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const getCapacity = (sizeStr) => {
   if (!sizeStr) return 50;
   const s = String(sizeStr).replace(/\s/g, '');
@@ -814,6 +959,10 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
   const [gTripsSort, setGTripsSort] = useState({ key: 'peakLoad', direction: 'desc' });
   const [gTripsVisible, setGTripsVisible] = useState(80);
   const [areaFilter, setAreaFilter] = useState(null);
+  // הגדרות הניקוד של המשתמש (שלמה 07.09) + סינון מספרי על הרשימה
+  const [gset, updGset, resetGset, gsetDefault] = useStoredSettings('kb-golden-score', GOLD_DEFAULTS);
+  const [gFilt, setGFilt] = useState({ minRiders: null, minTrips: null, maxCost: null, minPeak: null });
+  const gFiltOn = Object.values(gFilt).some(v => v != null);
 
   // ניקוד מוזהב (0-100, גבוה יותר = טוב יותר) — ברוח הפוכה לניקוד קו פח,
   // אבל עם רכיבים ומשקולות משלו — לא "הפוך מדויק"
@@ -861,7 +1010,9 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
       // (30) חסם פיזית קווי מיניבוס — קיבולת 19 לא מגיעה לשיא 30 לעולם,
       // ומצוינות בפריפריה נשארה בלתי-נראית. עכשיו מיניבוס מלא נמדד כמו
       // אוטובוס מלא: 30 × (קיבולת/50).
-      if (avgRiders <= 30 * scale || avgPeak <= 30 * scale) return null;
+      // סף הכניסה (30) ניתן לשינוי בהגדרות הניקוד של המשתמש
+      const entryTh = (Number(gset.entryRiders) || 0) * scale;
+      if (avgRiders <= entryTh || avgPeak <= entryTh) return null;
 
       const category = classifyLine({
         opGroup: data[0].opGroup,
@@ -900,44 +1051,61 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
       const costRatio = costBenchmark > 0 && avgCost > 0 ? avgCost / costBenchmark : 0;
 
       // ── ניקוד מוזהב ──
-      // 1. נסיעות ברמה גבוהה (עד 20 נק')
-      const highTripsScore = Math.min(20, (100 - percentLow) * 0.20);
+      // כל רכיב מחושב כשבר (0–1) ומוכפל בנקודות שהמשתמש קבע לו (ברירת
+      // המחדל: 20/15/20/15/10/20). סף ריק = הסף האוטומטי לפי הקטגוריה;
+      // סף שהמשתמש הקליד הוא מספר נוסעים מוחלט (לא לפי קיבולת הרכב).
+      const G = gset.c;
+      // 1. נסיעות ברמה גבוהה — חלק הנסיעות שמעל סף הנוסעים של הקטגוריה
+      const fHighTrips = Math.max(0, Math.min(1, (100 - percentLow) / 100));
 
-      // 2. יעילות ק"מ (עד 15 נק')
-      const efficientKmScore = Math.min(15, (1 - wastedRatio) * 15);
+      // 2. יעילות ק"מ — חלק הק"מ שנסוע על נסיעות מאוכלסות
+      const fEfficientKm = Math.max(0, Math.min(1, 1 - wastedRatio));
 
-      // 3. עלות לנוסע (עד 20 נק')
-      const fullCostTh = isUrban ? 0.90 : 0.80;
-      let costScore = 0;
-      if (costRatio === 0) costScore = 10;
-      else if (costRatio <= fullCostTh) costScore = 20;
-      else if (costRatio <= 1.0) costScore = 12;
-      else if (costRatio <= 1.3) costScore = 6;
-      else costScore = 0;
+      // 3. עלות לנוסע — מתחת ל-90% (עירוני) / 80% (שאר) מהממוצע = מלוא הנקודות
+      const fullCostTh = G.cost.full != null ? G.cost.full / 100 : (isUrban ? 0.90 : 0.80);
+      let fCost = 0;
+      if (costRatio === 0) fCost = 0.5;
+      else if (costRatio <= fullCostTh) fCost = 1;
+      else if (costRatio <= 1.0) fCost = 0.6;
+      else if (costRatio <= 1.3) fCost = 0.3;
+      else fCost = 0;
 
-      // 4. עמוס נוסעים (עד 15 נק')
-      let avgRidersScore = 0;
-      if (avgRiders >= (lowRiderTh * 2 * scale)) avgRidersScore = 15;
-      else if (avgRiders >= (lowRiderTh * 1.2 * scale)) avgRidersScore = 8;
+      // 4. עמוס נוסעים — ממוצע נוסעים לנסיעה: מלוא הנקודות מ-2×סף הקטגוריה,
+      //    חצי (בקירוב) מ-1.2×; המשתמש יכול לקבוע "כמה אנשים = מלוא הנקודות"
+      const rFull = G.avgRiders.full != null ? G.avgRiders.full : lowRiderTh * 2 * scale;
+      const rHalf = G.avgRiders.half != null ? G.avgRiders.half : (G.avgRiders.full != null ? G.avgRiders.full * 0.6 : lowRiderTh * 1.2 * scale);
+      let fAvgRiders = 0;
+      if (avgRiders >= rFull) fAvgRiders = 1;
+      else if (avgRiders >= rHalf) fAvgRiders = 8 / 15;
 
-      // 5. עמוס שיא (עד 10 נק')
-      let peakScore = 0;
-      if (avgPeak >= (30 * scale)) peakScore = 10;
-      else if (avgPeak >= (20 * scale)) peakScore = 5;
+      // 5. עמוס שיא — 30 נוסעים בקטע העמוס (לפי קיבולת) = מלוא הנקודות, 20 = חצי
+      const pFull = G.peak.full != null ? G.peak.full : 30 * scale;
+      const pHalf = G.peak.half != null ? G.peak.half : (G.peak.full != null ? G.peak.full * 2 / 3 : 20 * scale);
+      let fPeak = 0;
+      if (avgPeak >= pFull) fPeak = 1;
+      else if (avgPeak >= pHalf) fPeak = 0.5;
 
-      // 6. נפח שבועי = ממוצע נוסעים × נסיעות שבועיות (עד 20 נק')
-      // מתגמל קווים שגם עמוסים וגם תדירים — קו פעם/יום לא יוכל להגיע ל-100
+      // 6. נפח שבועי = ממוצע נוסעים × נסיעות שבועיות — מתגמל קווים שגם
+      //    עמוסים וגם תדירים; קו פעם/יום לא יוכל להגיע ל-100
       const weeklyVolume = avgRiders * totalTrips;
-      const volHalf = lowRiderTh * 20;  // סף תחתון: סף נוסעים × 20 נסיעות/שבוע
-      const volFull = lowRiderTh * 50;  // סף עליון:  סף נוסעים × 50 נסיעות/שבוע
-      let volumeScore = 0;
-      if (weeklyVolume >= volFull) volumeScore = 20;
-      else if (weeklyVolume >= volHalf) volumeScore = 10;
+      const volHalf = G.volume.half != null ? G.volume.half : (G.volume.full != null ? G.volume.full * 0.4 : lowRiderTh * 20);
+      const volFull = G.volume.full != null ? G.volume.full : lowRiderTh * 50;
+      let fVolume = 0;
+      if (weeklyVolume >= volFull) fVolume = 1;
+      else if (weeklyVolume >= volHalf) fVolume = 0.5;
 
-      const rawScore = Math.min(100, Math.round(highTripsScore + efficientKmScore + costScore + avgRidersScore + peakScore + volumeScore));
+      const pts = (k, f) => (G[k].on ? f * (Number(G[k].max) || 0) : 0);
+      const highTripsScore = pts('highTrips', fHighTrips);
+      const efficientKmScore = pts('efficientKm', fEfficientKm);
+      const costScore = pts('cost', fCost);
+      const avgRidersScore = pts('avgRiders', fAvgRiders);
+      const peakScore = pts('peak', fPeak);
+      const volumeScore = pts('volume', fVolume);
+      const maxSum = maxSumOf(G);
+      const rawScore = normScore(highTripsScore + efficientKmScore + costScore + avgRidersScore + peakScore + volumeScore, maxSum);
 
-      // קו מזהב דורש ניקוד 60 ומעלה
-      if (rawScore < 60) return null;
+      // קו מוזהב דורש ניקוד 60 ומעלה (ניתן לשינוי בהגדרות)
+      if (rawScore < (Number(gset.minScore) || 0)) return null;
 
       const sortedData = [...data].sort((a, b) => Number(String(a.direction).replace(/\D/g, '')) - Number(String(b.direction).replace(/\D/g, '')));
       return {
@@ -965,14 +1133,15 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
         componentScores: {
           highTrips: Math.round(highTripsScore),
           efficientKm: Math.round(efficientKmScore),
-          cost: costScore,
-          avgRiders: avgRidersScore,
-          peak: peakScore,
-          volume: volumeScore,
+          cost: Math.round(costScore),
+          avgRiders: Math.round(avgRidersScore),
+          peak: Math.round(peakScore),
+          volume: Math.round(volumeScore),
         },
+        maxSum,
       };
     }).filter(Boolean).sort((a, b) => b.score - a.score);
-  }, [trips, costBenchmarkTable, liveOf]);
+  }, [trips, costBenchmarkTable, liveOf, gset]);
 
   const allDistricts = useMemo(() => [...new Set(goldenLines.map(l => l.district).filter(Boolean))].sort(), [goldenLines]);
   const allCategories = useMemo(() => [...CATEGORIES], []);
@@ -986,6 +1155,11 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
     }
     if (filterDistrict !== 'all') r = r.filter(l => l.district === filterDistrict);
     if (filterCategory !== 'all') r = r.filter(l => l.category === filterCategory);
+    // סינון מספרי (שלמה 07.09: "גם בקו המוזהב אפשרות לעשות סינון")
+    if (gFilt.minRiders != null) r = r.filter(l => Number(l.avg) >= gFilt.minRiders);
+    if (gFilt.minPeak != null) r = r.filter(l => l.avgPeak >= gFilt.minPeak);
+    if (gFilt.minTrips != null) r = r.filter(l => l.count >= gFilt.minTrips);
+    if (gFilt.maxCost != null) r = r.filter(l => l.costRatio > 0 && l.costRatio <= gFilt.maxCost / 100);
     if (submittedSearch) {
       const q = submittedSearch.toLowerCase();
       r = r.filter(l => {
@@ -1001,7 +1175,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
     else if (sortBy === 'km') r.sort((a, b) => b.totalKm - a.totalKm);
     else r.sort((a, b) => b.score - a.score);
     return r;
-  }, [goldenLines, filterDistrict, filterCategory, submittedSearch, sortBy, lineCitiesMap, focusMakat]);
+  }, [goldenLines, filterDistrict, filterCategory, submittedSearch, sortBy, lineCitiesMap, focusMakat, gFilt]);
 
   const areaStats = useMemo(() => {
     const map = new Map();
@@ -1137,6 +1311,43 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* מה נחשב קו מוזהב — לבחירת המשתמש (שלמה 07.09) */}
+            <ScoreSettingsPanel
+              title="מה נחשב קו מוזהב? כאן קובעים את הניקוד"
+              accent="amber"
+              settings={gset} update={updGset} reset={resetGset} isDefault={gsetDefault}
+              intro='לכל דבר שנמדד אפשר לקבוע כמה נקודות הוא נותן, ולכמה נוסעים מגיעות מלוא הנקודות. שדה סף ריק = הסף האוטומטי של האתר לפי קטגוריית הקו (עירוני, בינעירוני וכו׳). הרשימה מתעדכנת מיד.'
+              rows={[
+                { key: 'highTrips', label: 'נסיעות בביקוש גבוה', hint: 'איזה חלק מהנסיעות עובר את סף הנוסעים של הקטגוריה' },
+                { key: 'efficientKm', label: 'יעילות ק"מ', hint: 'איזה חלק מהקילומטרים נסוע על נסיעות מאוכלסות' },
+                { key: 'cost', label: 'עלות לנוסע', hint: 'ביחס לממוצע הקטגוריה', params: [{ k: 'full', label: 'מלוא הנקודות עד', auto: '90/80', unit: '% מהממוצע', min: 10, max: 300, width: 'w-20', title: 'ברירת המחדל: עירוני 90%, שאר הקווים 80%' }] },
+                { key: 'avgRiders', label: 'ממוצע נוסעים לנסיעה', hint: 'כמה אנשים בממוצע בנסיעה', params: [{ k: 'full', label: 'מלוא הנקודות מ-', auto: 'אוטו', unit: 'נוסעים', min: 1, max: 500, title: 'ברירת המחדל: פי 2 מסף הקטגוריה, לפי קיבולת הרכב' }, { k: 'half', label: 'חצי מ-', auto: 'אוטו', unit: 'נוסעים', min: 1, max: 500 }] },
+                { key: 'peak', label: 'עומס שיא', hint: 'כמה אנשים בקטע העמוס ביותר', params: [{ k: 'full', label: 'מלוא הנקודות מ-', auto: '30', unit: 'נוסעים', min: 1, max: 300 }, { k: 'half', label: 'חצי מ-', auto: '20', unit: 'נוסעים', min: 1, max: 300 }] },
+                { key: 'volume', label: 'נפח שבועי', hint: 'ממוצע נוסעים × נסיעות בשבוע', params: [{ k: 'full', label: 'מלוא הנקודות מ-', auto: 'אוטו', unit: 'נוסעים בשבוע', min: 1, max: 999999, width: 'w-24' }, { k: 'half', label: 'חצי מ-', auto: 'אוטו', unit: 'נוסעים בשבוע', min: 1, max: 999999, width: 'w-24' }] },
+              ]}
+              extras={
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                  <label className="inline-flex items-center gap-2">סף כניסה: ממוצע נוסעים וגם עומס שיא מעל
+                    <NumField value={gset.entryRiders} onChange={v => updGset(s => ({ ...s, entryRiders: v == null ? 0 : Math.max(0, v) }))} min={0} max={300} suffix="נוסעים (לפי קיבולת)" title="קו שלא עובר את שני הספים לא נכנס לרשימה בכלל" />
+                  </label>
+                  <label className="inline-flex items-center gap-2">קו מוזהב = ציון של לפחות
+                    <NumField value={gset.minScore} onChange={v => updGset(s => ({ ...s, minScore: v == null ? 0 : Math.max(0, Math.min(100, v)) }))} min={0} max={100} suffix="מתוך 100" />
+                  </label>
+                </div>
+              }
+              footnote='ההגדרות נשמרות בדפדפן הזה בלבד. הניתוח האזורי ממשיך לספור קווים עם ציון 80 ומעלה לפי הניקוד שקבעתם.'
+            />
+            {/* סינון מספרי על הרשימה */}
+            <div className="bg-white border-2 border-slate-100 rounded-[2rem] px-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-[12px] font-bold text-slate-700">
+              <span className="font-black text-slate-900 text-sm">🔎 סינון:</span>
+              <label className="inline-flex items-center gap-2">ממוצע נוסעים מ-<NumField value={gFilt.minRiders} onChange={v => { setGFilt(f => ({ ...f, minRiders: v })); setVisibleCount(60); }} min={0} max={500} width="w-16" /></label>
+              <label className="inline-flex items-center gap-2">עומס שיא מ-<NumField value={gFilt.minPeak} onChange={v => { setGFilt(f => ({ ...f, minPeak: v })); setVisibleCount(60); }} min={0} max={300} width="w-16" /></label>
+              <label className="inline-flex items-center gap-2">נסיעות בשבוע מ-<NumField value={gFilt.minTrips} onChange={v => { setGFilt(f => ({ ...f, minTrips: v })); setVisibleCount(60); }} min={0} max={5000} width="w-16" /></label>
+              <label className="inline-flex items-center gap-2">עלות לנוסע עד<NumField value={gFilt.maxCost} onChange={v => { setGFilt(f => ({ ...f, maxCost: v })); setVisibleCount(60); }} min={1} max={500} width="w-16" suffix="% מהממוצע" /></label>
+              {gFiltOn && <button type="button" onClick={() => setGFilt({ minRiders: null, minTrips: null, maxCost: null, minPeak: null })} className="text-xs font-black text-amber-700 hover:text-amber-900 underline">✕ נקה סינון</button>}
+              <span className="text-slate-500 mr-auto">{filtered.length.toLocaleString()} קווים</span>
             </div>
 
             {focusMakat && (
@@ -1798,14 +2009,15 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
               <h2 className="text-2xl font-black text-slate-900 mb-4">מה זה הקו המוזהב?</h2>
               <p className="text-slate-600 leading-relaxed font-bold mb-6">הקו המוזהב הוא תמונת הראי של קו פח — הוא מאתר את הקווים שעושים את העבודה הכי טוב. קווים עם ביקוש גבוה, עלות לנוסע נמוכה, ורוב הנסיעות מלאות.</p>
               <h3 className="font-black text-slate-900 text-lg mb-4">ניקוד מוזהב (0–100)</h3>
+              <p className="text-slate-600 leading-relaxed font-bold mb-4 text-sm">אלה ברירות המחדל של האתר. בטאב "הקווים המצטיינים" יש לוח ⚙️ שבו כל אחד קובע לעצמו כמה נקודות כל דבר נותן ולכמה נוסעים מגיעות מלוא הנקודות{gsetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}.</p>
               <div className="space-y-3">
                 {[
-                  ['נסיעות בביקוש גבוה', 'עד 20 נקודות', 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
-                  ['יעילות ק"מ', 'עד 15 נקודות', 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
-                  ['עלות לנוסע', 'עד 20 נקודות', 'עירוני: חייב להיות 10% מתחת לממוצע הקטגוריה — כל השאר: 20% מתחת'],
-                  ['עומס נוסעים ממוצע', 'עד 15 נקודות', 'ממוצע הנוסעים לנסיעה ביחס לסף המחמיר של הקטגוריה'],
-                  ['עומס שיא', 'עד 10 נקודות', 'כמה אנשים בקטע העמוס ביותר — מתחת ל-20 = לא עמוס, מקבל 0 נקודות'],
-                  ['נפח שבועי', 'עד 20 נקודות', 'ממוצע נוסעים × נסיעות שבועיות — מונע מקווי תלמידים וקווי פעם ביום להגיע ל-100'],
+                  ['נסיעות בביקוש גבוה', `עד ${gset.c.highTrips.on ? gset.c.highTrips.max : 0} נקודות`, 'כמה מהנסיעות עוברות את סף הנוסעים לקטגוריה'],
+                  ['יעילות ק"מ', `עד ${gset.c.efficientKm.on ? gset.c.efficientKm.max : 0} נקודות`, 'כמה מהקילומטרים נסועים על נסיעות מאוכלסות'],
+                  ['עלות לנוסע', `עד ${gset.c.cost.on ? gset.c.cost.max : 0} נקודות`, 'עירוני: חייב להיות 10% מתחת לממוצע הקטגוריה — כל השאר: 20% מתחת'],
+                  ['עומס נוסעים ממוצע', `עד ${gset.c.avgRiders.on ? gset.c.avgRiders.max : 0} נקודות`, 'ממוצע הנוסעים לנסיעה ביחס לסף המחמיר של הקטגוריה'],
+                  ['עומס שיא', `עד ${gset.c.peak.on ? gset.c.peak.max : 0} נקודות`, 'כמה אנשים בקטע העמוס ביותר — מתחת ל-20 = לא עמוס, מקבל 0 נקודות'],
+                  ['נפח שבועי', `עד ${gset.c.volume.on ? gset.c.volume.max : 0} נקודות`, 'ממוצע נוסעים × נסיעות שבועיות — מונע מקווי תלמידים וקווי פעם ביום להגיע ל-100'],
                 ].map(([title, pts, desc]) => (
                   <div key={title} className="flex items-start justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100">
                     <div>
@@ -1915,7 +2127,11 @@ function KavPach() {
   }, [liveMap]);
   const [filterDistrict, setFilterDistrict] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
-  const [redundantSortBy, setRedundantSortBy] = useState("score"); 
+  const [redundantSortBy, setRedundantSortBy] = useState("score");
+  // הגדרות הניקוד של המשתמש (שלמה 07.09: "לבחור מה זה קו טוב") + סינון מספרי
+  const [pset, updPset, resetPset, psetDefault] = useStoredSettings('kb-pach-score', PACH_DEFAULTS);
+  const [pFilt, setPFilt] = useState({ minScore: null, minWasted: null, maxRiders: null, minTrips: null });
+  const pFiltOn = Object.values(pFilt).some(v => v != null);
   const [showCrowded, setShowCrowded] = useState(false);
   const [visibleTripsCount, setVisibleTripsCount] = useState(60);
   const [filterLineType, setFilterLineType] = useState("all");
@@ -2615,44 +2831,48 @@ const DAYS_FILTER = [
       const nonWastedKm = Math.max(0, totalKm - wastedKm);
 
       // ── ניקוד ──
-      let score = 0;
+      // כל רכיב מחושב כשבר (0–1) ומוכפל בנקודות שהמשתמש קבע לו (ברירת המחדל:
+      // 30/20/20/30). הציון מנורמל ל-100 לפי סכום הרכיבים הדלוקים.
+      const PC = pset.c;
       const componentScores = {};
+      const ptsOf = (k, f) => (PC[k].on ? Math.max(0, Math.min(1, f)) * (Number(PC[k].max) || 0) : 0);
 
-      // 1. נסיעות שפל (עד 30 נק')
-      componentScores.lowTrips = Math.min(30, percentLow * 0.3);
-      score += componentScores.lowTrips;
+      // 1. נסיעות שפל — אחוז הנסיעות שמתחת לסף הנוסעים של הקטגוריה
+      componentScores.lowTrips = ptsOf('lowTrips', percentLow / 100);
 
-      // 2. ק"מ מבוזבז (עד 20 נק')
+      // 2. ק"מ מבוזבז — חצי לפי החלק המבוזבז, חצי אם יש מעל 100 ק"מ סרק בשבוע
       const wastedRatio = totalKm > 0 ? (wastedKm / totalKm) : 0;
-      let wastedScore = wastedRatio * 10;
-      if (wastedKm > 100) wastedScore += 10;
-      componentScores.wastedKm = Math.min(20, wastedScore);
-      score += componentScores.wastedKm;
+      componentScores.wastedKm = ptsOf('wastedKm', (wastedRatio * 10 + (wastedKm > 100 ? 10 : 0)) / 20);
 
-      // 3. עלות תפעולית — יחס לממוצע קטגוריה (עד 20 נק')
-      let costScore = 0;
-      if (costRatio === 0) costScore = 0;
-      else if (costRatio <= 0.7) costScore = 0;
-      else if (costRatio <= 1.3) costScore = 5;
-      else if (costRatio <= 1.7) costScore = 8;
-      else if (costRatio <= 2.5) costScore = 12;
-      else if (costRatio <= 4)   costScore = 16;
-      else if (costRatio <= 6)   costScore = 18;
-      else                       costScore = 20;
-      componentScores.cost = costScore;
-      score += costScore;
+      // 3. עלות תפעולית — יחס לממוצע קטגוריה (מדרגות)
+      let fCost = 0;
+      if (costRatio === 0) fCost = 0;
+      else if (costRatio <= 0.7) fCost = 0;
+      else if (costRatio <= 1.3) fCost = 0.25;
+      else if (costRatio <= 1.7) fCost = 0.4;
+      else if (costRatio <= 2.5) fCost = 0.6;
+      else if (costRatio <= 4)   fCost = 0.8;
+      else if (costRatio <= 6)   fCost = 0.9;
+      else                       fCost = 1;
+      componentScores.cost = ptsOf('cost', fCost);
 
-      // 4. נוסעים ועומס שיא (עד 30 נק') — תלוי בקיבולת
-      let ridersScore = 0;
-      if (avgRiders < (lowRiderTh * 0.6 * scale)) ridersScore += 15;
-      else if (avgRiders < (lowRiderTh * 1.2 * scale)) ridersScore += 7;
-      if (avgPeak < (15 * scale)) ridersScore += 15;
-      componentScores.riders = Math.min(30, ridersScore);
-      score += componentScores.riders;
+      // 4. נוסעים ועומס שיא — תלוי בקיבולת; המשתמש יכול לקבוע "מתחת לכמה
+      //    אנשים הקו ריק" (מספר מוחלט) ומהו עומס שיא נמוך
+      const lowFull = PC.riders.low != null ? PC.riders.low : lowRiderTh * 0.6 * scale;
+      const lowHalf = PC.riders.low != null ? PC.riders.low * 2 : lowRiderTh * 1.2 * scale;
+      const peakTh = PC.riders.peak != null ? PC.riders.peak : 15 * scale;
+      let fRiders = 0;
+      if (avgRiders < lowFull) fRiders += 0.5;
+      else if (avgRiders < lowHalf) fRiders += 7 / 30;
+      if (avgPeak < peakTh) fRiders += 0.5;
+      componentScores.riders = ptsOf('riders', fRiders);
 
-      const rawScore = Math.min(100, Math.round(score));
+      const maxSum = maxSumOf(PC);
+      const rawScore = normScore(componentScores.lowTrips + componentScores.wastedKm + componentScores.cost + componentScores.riders, maxSum);
+      Object.keys(componentScores).forEach(k => { componentScores[k] = Math.round(componentScores[k]); });
 
-      // ── הגנות (deductions) ──
+      // ── הגנות (deductions) — הנקודות לכל הגנה לבחירת המשתמש; 0 = כבויה ──
+      const PP = pset.p;
       const protections = [];
       let totalDeduction = 0;
 
@@ -2660,21 +2880,21 @@ const DAYS_FILTER = [
       const exclusiveStops = data[0].exclusiveStops || 0;
       const destKey = String(data[0].dest || '').trim().toLowerCase();
       const isExclusiveDest = destKey && (destLineCount.get(destKey) || 0) <= 1;
-      if (exclusiveStops > 0 || isExclusiveDest) {
-        protections.push({ name: 'תחנות ייחודיות', value: 15, detail: exclusiveStops > 0 ? `${exclusiveStops} תחנות בלעדיות` : 'יעד יחיד באזור' });
-        totalDeduction += 15;
+      if (PP.exclusive > 0 && (exclusiveStops > 0 || isExclusiveDest)) {
+        protections.push({ name: 'תחנות ייחודיות', value: PP.exclusive, detail: exclusiveStops > 0 ? `${exclusiveStops} תחנות בלעדיות` : 'יעד יחיד באזור' });
+        totalDeduction += PP.exclusive;
       }
 
       // הגנה 2: מותאם רכבת — רק אם השדה "ייחודיות" מכיל במפורש "רכבת".
       // לא לבלבל עם Eilat prebooked — זה מושג שונה לגמרי (הזמנה מראש, לא לוז רכבת).
       const isTrainCoord = (data[0].uniquenessVal || '').includes('רכבת');
-      if (isTrainCoord) {
-        protections.push({ name: 'מותאם רכבת', value: 10, detail: 'יוצא בתיאום עם לוז רכבת' });
-        totalDeduction += 10;
+      if (PP.train > 0 && isTrainCoord) {
+        protections.push({ name: 'מותאם רכבת', value: PP.train, detail: 'יוצא בתיאום עם לוז רכבת' });
+        totalDeduction += PP.train;
       }
 
       // הגנה 3: תלמידים בשעות בית ספר
-      if (category === 'תלמידים') {
+      if (PP.school > 0 && category === 'תלמידים') {
         // בית ספר: 7:00-8:30, 13:00-15:30
         const schoolHourTrips = data.filter(t =>
           (t.timeMins >= 420 && t.timeMins <= 510) ||
@@ -2682,17 +2902,17 @@ const DAYS_FILTER = [
         ).reduce((s, t) => s + t.tripCount, 0);
         const schoolRatio = totalTrips > 0 ? schoolHourTrips / totalTrips : 0;
         if (schoolRatio >= 0.6) {
-          protections.push({ name: 'תלמידים בשעות בי"ס', value: 10, detail: `${Math.round(schoolRatio * 100)}% מהנסיעות` });
-          totalDeduction += 10;
+          protections.push({ name: 'תלמידים בשעות בי"ס', value: PP.school, detail: `${Math.round(schoolRatio * 100)}% מהנסיעות` });
+          totalDeduction += PP.school;
         }
       }
 
       // הגנה 4: הזמנה מראש (קווי אילת) — התיקופים חלקיים בהגדרה, והציון
       // שנבנה עליהם מנופח. עד עכשיו זה היה רק פופאפ הסבר, והקווים האלה
       // צפו לראש רשימת הביטול על סמך נתון שהאתר עצמו מודה שהוא חסר.
-      if (data[0].isEilatPrebooked) {
-        protections.push({ name: 'הזמנה מראש', value: 20, detail: 'התיקופים חלקיים — העומס בפועל גבוה מהנמדד' });
-        totalDeduction += 20;
+      if (PP.prebook > 0 && data[0].isEilatPrebooked) {
+        protections.push({ name: 'הזמנה מראש', value: PP.prebook, detail: 'התיקופים חלקיים — העומס בפועל גבוה מהנמדד' });
+        totalDeduction += PP.prebook;
       }
 
       // הגנה 5: קו סופ"ש — רוב הנסיעות בשישי-שבת, שבהם דפוס הביקוש הפוך
@@ -2702,9 +2922,9 @@ const DAYS_FILTER = [
         const dl = t.daysList || [];
         return dl.length > 0 && dl.every(d => d === '6' || d === '7');
       }).reduce((s, t) => s + t.tripCount, 0);
-      if (totalTrips > 0 && wkndTrips / totalTrips >= 0.6) {
-        protections.push({ name: 'קו סופ"ש', value: 10, detail: `${Math.round(100 * wkndTrips / totalTrips)}% מהנסיעות בשישי-שבת` });
-        totalDeduction += 10;
+      if (PP.weekend > 0 && totalTrips > 0 && wkndTrips / totalTrips >= 0.6) {
+        protections.push({ name: 'קו סופ"ש', value: PP.weekend, detail: `${Math.round(100 * wkndTrips / totalTrips)}% מהנסיעות בשישי-שבת` });
+        totalDeduction += PP.weekend;
       }
 
       // הגנות מהארכיון של "הקו בזמן" (kavpach-live.json, מתעדכן לילית):
@@ -2717,28 +2937,28 @@ const DAYS_FILTER = [
         // קו שנפתח בשנה האחרונה נמצא בתקופת הרצה — מעט נוסעים זה השלב
         // הטבעי של בניית ביקוש, לא בזבוז. קו שהושבת וחזר אינו חדש —
         // תאריך ההופעה-מחדש שלו רק נראה כמו תאריך לידה.
-        if (live.newd && !live.gap) {
-          protections.push({ name: 'קו חדש בהרצה', value: 10, detail: `הופיע לראשונה ב-${String(live.newd).split('-').reverse().join('.')}` });
-          totalDeduction += 10;
+        if (PP.newLine > 0 && live.newd && !live.gap) {
+          protections.push({ name: 'קו חדש בהרצה', value: PP.newLine, detail: `הופיע לראשונה ב-${String(live.newd).split('-').reverse().join('.')}` });
+          totalDeduction += PP.newLine;
         }
         // קו שהשירות בו כבר צומצם פעמיים ומעלה בשנה האחרונה — הצמצום כבר
         // קרה, והנוסעים המעטים הם גם תוצאה שלו
-        if ((live.red || 0) >= 2) {
-          protections.push({ name: 'כבר צומצם', value: 10, detail: `${live.red} צמצומי שירות בשנה האחרונה` });
-          totalDeduction += 10;
+        if (PP.reduced > 0 && (live.red || 0) >= 2) {
+          protections.push({ name: 'כבר צומצם', value: PP.reduced, detail: `${live.red} צמצומי שירות בשנה האחרונה` });
+          totalDeduction += PP.reduced;
         }
       }
 
       // הגנה: אין קו חלופי. "האם לנוסעים יש חלופה?" היא השאלה המקדימה של
       // כל המלצת ביטול, וחפיפת המסלולים (kavpach-overlap.json, מחושב
       // לילית) הוצגה עד עכשיו רק כצ'יפ תצוגתי בלי להשפיע על הציון.
-      if (overlapMap) {
+      if (PP.noAlt > 0 && overlapMap) {
         const ovl = overlapMap[String(data[0].makat || '').replace(/^0+/, '').trim()];
         const strong = (ovl || []).some(o => (o[3] || 0) >= 40);
         if (!strong) {
-          protections.push({ name: 'אין קו חלופי', value: 10,
+          protections.push({ name: 'אין קו חלופי', value: PP.noAlt,
             detail: ovl && ovl.length ? 'החפיפה הקיימת חלקית (מתחת ל-40%)' : 'לא נמצא קו עם מסלול חופף' });
-          totalDeduction += 10;
+          totalDeduction += PP.noAlt;
         }
       }
 
@@ -2790,8 +3010,8 @@ const DAYS_FILTER = [
         annualExcess,
         live,
       };
-    }).filter(l => l.score >= 25).sort((a,b) => b.score - a.score);
-  }, [trips, costBenchmarkTable, liveOf, overlapMap]);
+    }).filter(l => l.score >= (Number(pset.minScore) || 0)).sort((a,b) => b.score - a.score);
+  }, [trips, costBenchmarkTable, liveOf, overlapMap, pset]);
 
   const filteredRedundant = useMemo(() => {
     let result = [...redundantLines];
@@ -2806,19 +3026,24 @@ const DAYS_FILTER = [
     if (filterCategory !== "all") {
       result = result.filter(r => r.category === filterCategory);
     }
+    // סינון מספרי (שלמה 07.09)
+    if (pFilt.minScore != null) result = result.filter(r => r.score >= pFilt.minScore);
+    if (pFilt.minWasted != null) result = result.filter(r => r.wastedKm >= pFilt.minWasted);
+    if (pFilt.maxRiders != null) result = result.filter(r => Number(r.avg) <= pFilt.maxRiders);
+    if (pFilt.minTrips != null) result = result.filter(r => r.count >= pFilt.minTrips);
     if (searchCity) {
       const sCity = searchCity.toLowerCase();
       result = result.filter(r => {
         const isOriginDest = r.origin.toLowerCase().includes(sCity) || r.dest.toLowerCase().includes(sCity);
         if (isOriginDest) return true;
-        
+
         const cleanMakat = String(r.makat || '').replace(/^0+/, '').trim();
         const cleanLine = String(r.lineNum || '').replace(/^0+/, '').trim();
         const citiesSet = lineCitiesMap.get(cleanMakat) || lineCitiesMap.get(cleanLine);
         return citiesSet ? Array.from(citiesSet).some(c => c.includes(sCity)) : false;
       });
     }
-    
+
     result.sort((a, b) => {
       if (redundantSortBy === "wastedKm") return b.wastedKm - a.wastedKm;
       if (redundantSortBy === "cost") return b.cost - a.cost;
@@ -2827,7 +3052,7 @@ const DAYS_FILTER = [
     });
 
     return result;
-  }, [redundantLines, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat]);
+  }, [redundantLines, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt]);
 
   const areaStats = useMemo(() => {
     const map = new Map();
@@ -3623,6 +3848,46 @@ const DAYS_FILTER = [
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* מה נחשב קו לא יעיל — לבחירת המשתמש (שלמה 07.09) */}
+                <ScoreSettingsPanel
+                  title="מה נחשב קו לא יעיל? כאן קובעים את הניקוד"
+                  accent="rose"
+                  settings={pset} update={updPset} reset={resetPset} isDefault={psetDefault}
+                  intro='לכל דבר שנמדד אפשר לקבוע כמה נקודות אי-יעילות הוא נותן, ומתחת לכמה נוסעים קו נחשב ריק. שדה סף ריק = הסף האוטומטי של האתר לפי קטגוריית הקו. גם ההגנות (הנקודות שמופחתות מהציון) לבחירתכם. הרשימה מתעדכנת מיד.'
+                  rows={[
+                    { key: 'lowTrips', label: 'נסיעות שפל', hint: 'אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה' },
+                    { key: 'wastedKm', label: 'קילומטר מבוזבז', hint: 'חלק הק"מ בנסיעות ריקות, ועוד תוספת אם יש מעל 100 ק"מ סרק בשבוע' },
+                    { key: 'cost', label: 'עלות תפעולית לנוסע', hint: 'ביחס לממוצע הקטגוריה — מדרגות מפי 1.3 ועד פי 6' },
+                    { key: 'riders', label: 'ממוצע נוסעים ועומס שיא', hint: 'חצי מהנקודות על ממוצע נמוך, חצי על שיא נמוך', params: [{ k: 'low', label: 'קו ריק = ממוצע מתחת ל-', auto: 'אוטו', unit: 'נוסעים', min: 1, max: 300, title: 'ברירת המחדל: 60% מסף הקטגוריה, לפי קיבולת הרכב' }, { k: 'peak', label: 'שיא נמוך = מתחת ל-', auto: '15', unit: 'נוסעים', min: 1, max: 300 }] },
+                  ]}
+                  extras={
+                    <div className="space-y-3">
+                      <div className="text-[12px] font-black text-slate-900">הגנות — נקודות שמופחתות מהציון (0 = בלי הגנה):</div>
+                      <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-slate-700 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+                        {[['exclusive', 'תחנות ייחודיות'], ['train', 'מותאם רכבת'], ['school', 'תלמידים בשעות בי"ס'], ['prebook', 'הזמנה מראש (אילת)'], ['weekend', 'קו סופ"ש'], ['newLine', 'קו חדש בהרצה'], ['reduced', 'כבר צומצם'], ['noAlt', 'אין קו חלופי']].map(([k, lbl]) => (
+                          <label key={k} className="inline-flex items-center gap-2">{lbl}
+                            <NumField value={pset.p[k]} onChange={v => updPset(s => ({ ...s, p: { ...s.p, [k]: v == null ? 0 : Math.max(0, Math.min(100, v)) } }))} min={0} max={100} width="w-16" suffix="נק׳" />
+                          </label>
+                        ))}
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-[12px] font-bold text-slate-700 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3">נכנס לרשימה מציון של לפחות
+                        <NumField value={pset.minScore} onChange={v => updPset(s => ({ ...s, minScore: v == null ? 0 : Math.max(0, Math.min(100, v)) }))} min={0} max={100} suffix="מתוך 100" />
+                      </label>
+                    </div>
+                  }
+                  footnote='ההגדרות נשמרות בדפדפן הזה בלבד. תוויות הסטטוס (חמור / לא יעיל / טעון בדיקה) והניתוח האזורי (ציון 80+) פועלים על הציון שקבעתם.'
+                />
+                {/* סינון מספרי על הרשימה */}
+                <div className="bg-white border-2 border-slate-100 rounded-[2rem] px-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-[12px] font-bold text-slate-700">
+                  <span className="font-black text-slate-900 text-sm">🔎 סינון:</span>
+                  <label className="inline-flex items-center gap-2">ציון מ-<NumField value={pFilt.minScore} onChange={v => setPFilt(f => ({ ...f, minScore: v }))} min={0} max={100} width="w-16" /></label>
+                  <label className="inline-flex items-center gap-2">ק"מ מבוזבז בשבוע מ-<NumField value={pFilt.minWasted} onChange={v => setPFilt(f => ({ ...f, minWasted: v }))} min={0} max={99999} width="w-20" /></label>
+                  <label className="inline-flex items-center gap-2">ממוצע נוסעים עד<NumField value={pFilt.maxRiders} onChange={v => setPFilt(f => ({ ...f, maxRiders: v }))} min={0} max={500} width="w-16" /></label>
+                  <label className="inline-flex items-center gap-2">נסיעות בשבוע מ-<NumField value={pFilt.minTrips} onChange={v => setPFilt(f => ({ ...f, minTrips: v }))} min={0} max={5000} width="w-16" /></label>
+                  {pFiltOn && <button type="button" onClick={() => setPFilt({ minScore: null, minWasted: null, maxRiders: null, minTrips: null })} className="text-xs font-black text-rose-700 hover:text-rose-900 underline">✕ נקה סינון</button>}
+                  <span className="text-slate-500 mr-auto">{filteredRedundant.length.toLocaleString()} קווים</span>
                 </div>
 
                 {focusMakat && (
@@ -4529,10 +4794,11 @@ const DAYS_FILTER = [
                       <h4 className="font-black text-slate-800 text-sm mb-2">שלב 2: ניקוד (0–100)</h4>
                       <p className="text-slate-600 text-sm leading-relaxed mb-2">ארבעה רכיבים, סף הנוסעים בכל אחד מהם מותאם לקטגוריה (5 לאזורי/לילה, 8 לקצר/מזין, 10 לארוך/תדירות נמוכה, 15 לתדירות גבוהה/תלמידים):</p>
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
-                        <li><strong>נסיעות שפל (עד 30 נק&apos;):</strong> אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה.</li>
-                        <li><strong>קילומטר מבוזבז (עד 20 נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק וכמות מוחלטת.</li>
-                        <li><strong>עלות תפעולית לנוסע (עד 20 נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
-                        <li><strong>ממוצע נוסעים ועומס שיא (עד 30 נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
+                        <li><strong>נסיעות שפל (עד {pset.c.lowTrips.on ? pset.c.lowTrips.max : 0} נק&apos;):</strong> אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה.</li>
+                        <li><strong>קילומטר מבוזבז (עד {pset.c.wastedKm.on ? pset.c.wastedKm.max : 0} נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק וכמות מוחלטת.</li>
+                        <li><strong>עלות תפעולית לנוסע (עד {pset.c.cost.on ? pset.c.cost.max : 0} נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
+                        <li><strong>ממוצע נוסעים ועומס שיא (עד {pset.c.riders.on ? pset.c.riders.max : 0} נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
+                        <li className="text-slate-500">אלה ברירות המחדל{psetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}. בטאב &quot;קווים לא יעילים&quot; יש לוח ⚙️ שבו כל אחד קובע לעצמו כמה נקודות כל דבר נותן, מתחת לכמה נוסעים קו נחשב ריק, ואילו הגנות פועלות.</li>
                       </ul>
                     </div>
 
