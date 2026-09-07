@@ -124,6 +124,40 @@ def load_gtfs(path, day):
     return {'routes': routes, 'trips': trips, 'stops': stops, 'zip': z}
 
 
+def load_clusters(path):
+    """ClusterToLine של משרד התחבורה (txt או zip; בארכיון היומי של דאטאבוס לצד
+    ה-GTFS): מק"ט → [אשכול, סוג קו, תת-אזור]. 73 אשכולות מכרז ("חשמונאים",
+    "הגליל", "שרון"…), כל קו באשכול אחד; סוג: עירוני / אזורי / בינעירוני.
+    (משוב שהגיע לשלמה 07.09: "אין נתונים לפי עיר או אשכול".)"""
+    if not path:
+        return {}
+    if path.lower().endswith('.zip'):
+        with zipfile.ZipFile(path) as z:
+            name = next(n for n in z.namelist() if n.lower().endswith('.txt'))
+            txt = z.read(name).decode('utf-8-sig')
+    else:
+        txt = open(path, encoding='utf-8-sig').read()
+    out = {}
+    for r in csv.DictReader(io.StringIO(txt)):
+        mkt = (r.get('OfficeLineId') or '').strip()
+        if mkt:
+            out[mkt] = [(r.get('ClusterName') or '').strip(), (r.get('LineTypeDesc') or '').strip(), (r.get('ClusterSubDesc') or '').strip()]
+    return out
+
+
+def apply_clusters(catalog, clusters):
+    """מצרף לכל שורת קטלוג [8]=אשכול [9]=סוג קו [10]=תת-אזור; שומר ערך ישן כשאין חדש."""
+    n = 0
+    for row in catalog.values():
+        while len(row) < 11:
+            row.append('')
+        cl = clusters.get(row[0])
+        if cl:
+            row[8:11] = cl
+            n += 1
+    return n
+
+
 def load_stop_times(g, want_trips):
     """רצף התחנות של הנסיעות המבוקשות (כל הנסיעות הפעילות היום — ~4 מיליון
     שורות מתוך קובץ של ~800MB): trip_id → רשימה לפי stop_sequence של
@@ -484,15 +518,27 @@ def passages(recs, seq, codes=None):
 # ---------------------------------------------------------------- ריצה
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--day', required=True)
-    ap.add_argument('--gtfs', required=True)
-    ap.add_argument('--siri', required=True, help='תיקייה עם HH/MM.br (היום + תחילת מחר)')
+    ap.add_argument('--day', default='')
+    ap.add_argument('--gtfs', default='')
+    ap.add_argument('--siri', default='', help='תיקייה עם HH/MM.br (היום + תחילת מחר)')
     ap.add_argument('--out', default='bus/data')
     ap.add_argument('--workers', type=int, default=4)
     ap.add_argument('--site', default='.', help='שורש האתר — לקובצי סוגי הרכב (data-main.json, fleet/data)')
     ap.add_argument('--no-rishui', action='store_true', help='בלי מאגר הרישוי של המשרד (data.gov.il) לסוג הרכב שנקבע לקו')
     ap.add_argument('--dump-rides', default='', help='קובץ JSON עם שורה לכל נסיעה שנמדדה (להשוואה מול נתוני המשרד)')
+    ap.add_argument('--clusters', default='', help='ClusterToLine (txt/zip) של המשרד — אשכול וסוג לכל קו בקטלוג')
+    ap.add_argument('--clusters-only', action='store_true', help='רק לעדכן את האשכולות בקטלוג הקיים (בלי יום, בלי SIRI)')
     a = ap.parse_args()
+    if a.clusters_only:
+        catalog_path = f'{a.out}/routes.json'
+        catalog = json.load(open(catalog_path, encoding='utf-8'))
+        n = apply_clusters(catalog, load_clusters(a.clusters))
+        json.dump(catalog, open(catalog_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        print(f'אשכולות: {n:,} מתוך {len(catalog):,} מסלולים בקטלוג קיבלו אשכול')
+        return
+    for k in ('day', 'gtfs', 'siri'):
+        if not getattr(a, k):
+            ap.error(f'--{k} נדרש')
     day = a.day
     t0 = datetime.datetime.now()
 
@@ -777,11 +823,22 @@ def main():
         catalog = {}
     out_routes = []
     profiles = {}       # route_id → [[מק"ט, הגעות, איחור ממוצע בעשיריות דקה, בזמן]] לאורך הקו
+    city_routes = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0.0]))   # עיר → route_id → [הגעות, בזמן, סכום איחור שנ׳]
     stop_names = {}     # מק"ט → שם (קטלוג לתצוגה)
     for rid, r in R.items():
         info = routes.get(rid, {})
         # [מק"ט, מספר קו, שם, מפעיל, כיוון, חלופה, סוג, מזהה מפעיל (לקישור לדאטאבוס)]
-        catalog[rid] = [info.get('mkt', ''), info.get('short', ''), info.get('long', ''), info.get('agency', ''), info.get('dir', ''), info.get('alt', ''), info.get('type', ''), info.get('agency_id', '')]
+        old = catalog.get(rid) or []
+        catalog[rid] = [info.get('mkt', ''), info.get('short', ''), info.get('long', ''), info.get('agency', ''), info.get('dir', ''), info.get('alt', ''), info.get('type', ''), info.get('agency_id', '')] + (old[8:11] if len(old) >= 11 else ['', '', ''])
+        # לפי עיר, לכל קו: הגעות, בזמן, סכום איחור (עשיריות דקה) — לפירוט "אילו קווים
+        # בעיר ואיך הם מדייקים" (שלמה 07.09: "לפי עיר זה כללי מדי")
+        for sid, v in r['stops'].items():
+            city = stops.get(sid, ('', '', 0, 0, ''))[4]
+            if city:
+                cr = city_routes[city][rid]
+                cr[0] += v[0]
+                cr[1] += v[2]
+                cr[2] += v[1]
         # שלוש התחנות עם האיחור הממוצע הגבוה (לפחות 3 הגעות, אחרת מדידה בודדת מטה)
         ws = sorted([kv for kv in r['stops'].items() if kv[1][0] >= 3], key=lambda kv: -(kv[1][1] / kv[1][0]))[:3]
         vt = VT.get(rid)
@@ -820,10 +877,16 @@ def main():
                  'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]'], 'cities': ['city', 'meas', 'cats', 'stats'],
                  'worst': ['route_id', 'trip', 'max delay min', 'stop', 'sched sec', 'passages[[code,sched sec,actual sec]]'],
                  'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip',
-                 'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n]] along the route}; stops.json = {code: name}'},
+                 'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n]] along the route}; stops.json = {code: name}',
+                 'cities file': 'days/D.cities.json = {city: [[route_id, n, on-time n, sum delay (tenths of min)]]}; routes.json[rid][8:11] = cluster, line type, sub-area (ClusterToLine)'},
     }
     json.dump(day_obj, open(f'{a.out}/days/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(profiles, open(f'{a.out}/days/{day}.stops.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    json.dump({c: sorted([[rid, v[0], v[1], round(v[2] / 6)] for rid, v in rr.items()], key=lambda x: -x[1]) for c, rr in city_routes.items()},
+              open(f'{a.out}/days/{day}.cities.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    if a.clusters:
+        n_cl = apply_clusters(catalog, load_clusters(a.clusters))
+        print(f'אשכולות: {n_cl:,} מסלולים בקטלוג עם אשכול', flush=True)
     json.dump(catalog, open(catalog_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     # קטלוג שמות תחנות — מצטבר (תחנות שנעלמו נשארות לימים ישנים)
     names_path = f'{a.out}/stops.json'

@@ -126,3 +126,5 @@ button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(
   .rs{grid-template-columns:20px 1fr 52px 52px 70px;gap:5px}
   .rs .rt,.rs .ra,.rs .rd{font-size:12.5px}
 }
+/* שורת העיר הפתוחה בטבלת הערים */
+.tblbox tr.on td{background:var(--panel2)}

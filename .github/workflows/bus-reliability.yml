@@ -74,10 +74,17 @@ jobs:
             mkdir -p siri/{00..23} siri/24 siri/25 siri/26
             cat list.txt | xargs -P 16 -n 2 sh -c 'curl -fsS --retry 3 -o "$1" "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/$0" || true'
             echo "קבצי SIRI: $(find siri -name '*.br' | wc -l) · $(du -sh siri | cut -f1)"
-            python3 tools/bus_reliability.py --day "$d" --gtfs gtfs.zip --siri siri --out bus/data --workers 4 --site .
+            # אשכולות המכרז של המשרד (ClusterToLine) — מהארכיון של אותו יום, אחרת מ-gov.il, אחרת בלי
+            CL=""
+            if curl -fsS -o clusters.zip "$B/gtfs_archive/$Y/$M/$D/ClusterToLine.zip" || curl -fsSL -A "Mozilla/5.0" --retry 3 -o clusters.zip "https://gtfs.mot.gov.il/gtfsfiles/ClusterToLine.zip"; then
+              CL="--clusters clusters.zip"
+            else
+              echo "אין ClusterToLine — האשכולות נשארים מהריצה הקודמת"
+            fi
+            python3 tools/bus_reliability.py --day "$d" --gtfs gtfs.zip --siri siri --out bus/data --workers 4 --site . $CL
             d=$(date -u -d "$d + 1 day" +%F)
           done
-          rm -rf siri gtfs.zip list.txt
+          rm -rf siri gtfs.zip clusters.zip list.txt
 
       - name: commit
         run: |
