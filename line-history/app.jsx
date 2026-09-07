@@ -1091,25 +1091,82 @@ const PUSH_ON = typeof window !== "undefined" && !!window.KB_ONESIGNAL_APP_ID;
 // תג עיר: מפתחות תגים חייבים להיות ASCII — האש יציב של שם העיר (djb2→base36),
 // זהה לחישוב בצד השולח (tools/send_push.py)
 const cityTag = (name) => { let h = 5381; const s = String(name || "").trim(); for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return "c" + h.toString(36); };
-const osTag = (key, val) => {
+// מצב ההתראות בדפדפן הזה (שלמה 07.09: "כל פעם שואל אישור ולא מגיעה הודעה"):
+// באייפון התראות עובדות רק מהאתר שנוסף למסך הבית; דפדפן שחסם — צריך לפתוח
+// בהגדרות האתר. ההרשאה מתבקשת רק כשאין, והמנוי מופעל אם כבה.
+const pushSupport = () => {
+  try {
+    const ua = navigator.userAgent || "";
+    const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+    if (ios && !standalone) return { ok: false, why: "באייפון ובאייפד התראות עובדות רק אחרי שמוסיפים את האתר למסך הבית (כפתור השיתוף ← \"הוסף למסך הבית\"), פותחים אותו משם ונרשמים שוב" };
+    if (!("Notification" in window) || !("PushManager" in window)) return { ok: false, why: "הדפדפן הזה לא תומך בהתראות. בכרום, סמסונג אינטרנט או פיירפוקס זה עובד" };
+    if (Notification.permission === "denied") return { ok: false, why: "הדפדפן חוסם התראות מהאתר. לאפשר: לחיצה על סמל המנעול ליד הכתובת ← התראות ← אפשר, ואז להירשם שוב" };
+  } catch (e) { /* ignore */ }
+  return { ok: true };
+};
+async function ensurePush(OS) {
+  const sup = pushSupport();
+  if (!sup.ok) return sup;
+  if (!OS.Notifications.permission) await OS.Notifications.requestPermission();
+  if (!OS.Notifications.permission) return { ok: false, why: "ההרשאה להתראות לא אושרה. כשהדפדפן שואל — \"אפשר\", לא לסגור את השאלה" };
+  const ps = OS.User.PushSubscription;
+  if (ps && ps.optedIn === false) await ps.optIn();
+  if (!(ps && ps.id)) return { ok: false, why: "הדפדפן לא יצר מנוי להתראות (בברייב: להדליק \"Use Google services for push messaging\" בהגדרות)" };
+  return { ok: true, id: ps.id };
+}
+// מצב לתצוגה: {loading, ok, why, id}. כשהכול תקין — התגים מהדפדפן הזה נשלחים
+// שוב לספק (resync), כי נמצא מנוי עם עיר אחת מתוך חמש שנשמרו (שלמה 07.09)
+function readPushState(cb, resync) {
+  const sup = pushSupport();
+  if (!sup.ok) { cb({ ...sup, loading: false }); return; }
+  let got = false;
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async (OS) => {
+    got = true;
     try {
-      await OS.Notifications.requestPermission();
-      if (val == null) OS.User.removeTag(key); else OS.User.addTag(key, val);
-    } catch (e) { /* המשתמש סירב — הכפתור נשאר, אפשר לנסות שוב */ }
+      const ps = OS.User.PushSubscription;
+      const ok = !!OS.Notifications.permission && !!(ps && ps.optedIn !== false && ps.id);
+      if (ok && resync && Object.keys(resync).length) {
+        try {
+          // הספק ישקף בדיוק את מה שנשמר בדפדפן הזה: תגים ישנים (עיר שהוסרה,
+          // תדירות קודמת) נמחקים, כל השאר נשלחים שוב
+          const cur = (await OS.User.getTags()) || {};
+          const stale = Object.keys(cur).filter((k) => !(k in resync) && /^(c[0-9a-z]+|l\d+|freq|kg_\w+)$/.test(k));
+          if (stale.length) OS.User.removeTags(stale);
+          OS.User.addTags(resync);
+        } catch (e) { /* ignore */ }
+      }
+      cb({ loading: false, ok, id: ps && ps.id, why: ok ? "" : (!OS.Notifications.permission ? "עוד לא אושרה הרשאה להתראות בדפדפן הזה — לחצו \"הפעלת התראות\" ואשרו" : "המנוי כבוי — לחצו \"הפעלת התראות\"") });
+    } catch (e) { cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות?)" }); }
   });
-};
+  setTimeout(() => { if (!got) cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות או חוסם תוכן בדפדפן)" }); }, 8000);
+}
+// כל התגים שנשמרו בדפדפן הזה (המרכז + כפתורי "עקוב") — לסנכרון מחדש
+function savedTags() {
+  const t = {};
+  try {
+    const n = JSON.parse(localStorage.kbNotify || "{}");
+    const cl = n.cities || (n.city ? [n.city] : []);
+    cl.forEach((c) => { t[cityTag(c)] = "1"; });
+    if (cl.length) { t.freq = n.freq || "1"; (n.gs || KIND_GROUPS_N.map((g) => g.tag)).forEach((g) => { t[g] = "1"; }); }
+  } catch (e) { /* ignore */ }
+  try { const m = JSON.parse(localStorage.kbFollow || "{}"); for (const k in m) t[k] = "1"; } catch (e) { /* ignore */ }
+  return t;
+}
+const osTag = (key, val, done) => osTags({ [key]: val }, done);
 function FollowBtn({ tag, label, title }) {
   const [on, setOn] = useState(() => { try { return !!JSON.parse(localStorage.kbFollow || "{}")[tag]; } catch (e) { return false; } });
+  const [st, setSt] = useState("");
   if (!PUSH_ON) return null;
   const toggle = () => {
-    const n = !on; setOn(n);
+    const n = !on; setOn(n); setSt("");
     try { const m = JSON.parse(localStorage.kbFollow || "{}"); if (n) m[tag] = label || "מעקב"; else delete m[tag]; localStorage.kbFollow = JSON.stringify(m); } catch (e) {}
-    osTag(tag, n ? "1" : null);
+    osTag(tag, n ? "1" : null, (r) => setSt(n ? (r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why) : ""));
   };
-  return <button className="sharebtn" title={title || "התראת דפדפן כשנרשם שינוי מהותי (מסלול, תחנות, ביטול — לא לו\u05f4ז)"}
-    onClick={toggle}>{on ? "🔔 עוקב ✓" : "🔔 " + (label || "קבל התראות")}</button>;
+  return <><button className="sharebtn" title={title || "התראת דפדפן כשנרשם שינוי מהותי (מסלול, תחנות, ביטול — לא לו\u05f4ז)"}
+    onClick={toggle}>{on ? "🔔 עוקב ✓" : "🔔 " + (label || "קבל התראות")}</button>
+    {st && <small style={{ color: st[0] === "✓" ? "#166534" : "#b91c1c", fontWeight: 700, maxWidth: 380, display: "inline-block", marginInlineStart: 6 }}>{st}</small>}</>;
 }
 // ערי הקצה מהיעד ("מוצא-עיר<->יעד-עיר") — למעקב ברמת עיר
 const destCities = (dest) => {
@@ -1128,16 +1185,28 @@ const destCities = (dest) => {
   return out.slice(0, 2);
 };
 
-// הגדרת תגים בבת אחת — בקשת הרשאה אחת לכל השמירה
-const osTags = (map) => {
+// הגדרת תגים בבת אחת — הרשאה מתבקשת רק אם אין; done(r) מקבל {ok, why, id}
+const osTags = (map, done) => {
+  const sup = pushSupport();
+  if (!sup.ok) { if (done) done(sup); return; }
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async (OS) => {
+    let r;
     try {
-      await OS.Notifications.requestPermission();
-      for (const k in map) { if (map[k] == null) OS.User.removeTag(k); else OS.User.addTag(k, map[k]); }
-    } catch (e) {}
+      r = await ensurePush(OS);
+      // התגים נשמרים גם בלי מנוי פעיל — כדי שיחזיקו כשההרשאה תאושר
+      const add = {}, rem = [];
+      for (const k in map) { if (map[k] == null) rem.push(k); else add[k] = map[k]; }
+      if (Object.keys(add).length) OS.User.addTags(add);
+      if (rem.length) OS.User.removeTags(rem);
+    } catch (e) { r = { ok: false, why: "שגיאה בהרשמה: " + (e && e.message ? e.message : e) }; }
+    if (done) done(r);
   });
 };
+// שם עיר כפי שהוא בקבצי הקווים — "קריית מלאכי" שהוקלד הופך ל"קרית מלאכי" של
+// הרישום, אחרת התג לא יתאים לשום קו והתראה לא תגיע (שלמה 07.09)
+const normCity = (s) => String(s || "").trim().replace(/["'׳״]/g, "").replace(/[-–]/g, " ").replace(/\s+/g, " ").replace(/יי/g, "י").replace(/וו/g, "ו");
+const canonCity = (name, all) => { const n = normCity(name); if (!n) return null; return (all || []).find((c) => c === name.trim()) || (all || []).find((c) => normCity(c) === n) || null; };
 // קבוצות סוגי-שינוי להרשמה (בקשת שלמה) — התג בצד השולח זהה
 const KIND_GROUPS_N = [
   { tag: "kg_rem", label: "ביטולי קווים", kinds: ["removed"] },
@@ -1145,6 +1214,9 @@ const KIND_GROUPS_N = [
   { tag: "kg_route", label: "מסלול ותחנות", kinds: ["route", "redraw", "extend", "shorten", "terminal", "stops", "stops-add", "stops-del"] },
   { tag: "kg_ident", label: "יעד, מספר ומפעיל", kinds: ["dest", "renum", "renamed", "operator", "mode"] },
 ];
+// בכל כניסה לאתר: ההרשמות שנשמרו בדפדפן הזה נשלחות שוב לספק (שלמה 07.09: אצל
+// הספק נמצא תג עיר אחד מתוך חמש). בלי בקשת הרשאה — רק אם כבר אושרה.
+if (PUSH_ON) { try { const t0 = savedTags(); if (Object.keys(t0).length) readPushState(() => {}, t0); } catch (e) { /* ignore */ } }
 // "ההרשמות שלי": כל מה שנרשם מהדפדפן הזה (צ'יפים + המרכז), עם ✖ להסרה
 function MyFollows({ bump }) {
   const read = () => {
@@ -1204,13 +1276,21 @@ function NotifyCenter({ cities: allCities }) {
   const [gs, setGs] = useState(() => new Set(st0.gs || KIND_GROUPS_N.map((g) => g.tag)));
   const [saved, setSaved] = useState(!!(st0.cities || []).length);
   const [msg, setMsg] = useState("");
+  const [ps, setPs] = useState({ loading: true });
+  useEffect(() => { if (open && PUSH_ON) { setPs({ loading: true }); readPushState((s) => setPs((p) => (typeof s === "function" ? s(p) : s))); } }, [open]);
   if (!PUSH_ON) return null;
   const toggleG = (t) => setGs((p) => { const n = new Set(p); if (n.has(t)) n.delete(t); else n.add(t); return n; });
-  const addCity = () => { const c = city.trim(); if (!c) return; if (!cities.includes(c)) setCities([...cities, c]); setCity(""); };
+  // רק שמות ערים כפי שהם ברישום (אחרת התג לא יתאים לשום קו)
+  const pick = (raw) => {
+    const c = raw.trim(); if (!c) return null;
+    const canon = canonCity(c, allCities);
+    if (!canon) { setMsg(`"${c}" לא נמצאה בין ערי הקצה של הקווים — בחרו שם מהרשימה שנפתחת בהקלדה`); return null; }
+    return canon;
+  };
+  const addCity = () => { const c = pick(city); if (!c) return; if (!cities.includes(c)) setCities([...cities, c]); setCity(""); setMsg(""); };
   const save = () => {
     const list = [...cities];
-    const c = city.trim();
-    if (c && !list.includes(c)) list.push(c);   // מה שהוקלד ולא נלחץ "הוסף"
+    if (city.trim()) { const c = pick(city); if (!c) return; if (!list.includes(c)) list.push(c); }   // מה שהוקלד ולא נלחץ "הוסף"
     if (!list.length) { setMsg("הוסיפו לפחות עיר אחת"); return; }
     if (!gs.size) { setMsg("סמנו לפחות סוג שינוי אחד"); return; }
     const tags = {};
@@ -1218,11 +1298,15 @@ function NotifyCenter({ cities: allCities }) {
     list.forEach((ct) => { tags[cityTag(ct)] = "1"; });
     tags.freq = freq;
     KIND_GROUPS_N.forEach((g) => { tags[g.tag] = gs.has(g.tag) ? "1" : null; });
-    osTags(tags);
+    setMsg("שומר…");
+    osTags(tags, (r) => {
+      setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id });
+      setMsg(r.ok ? `✓ נשמר — ${list.length} ערים, ההתראות פעילות בדפדפן הזה. בסיכום תגיע הודעה אחת שמאחדת את כולן` : `✗ נשמר, אבל ההתראות לא יגיעו: ${r.why}`);
+    });
     try { localStorage.kbNotify = JSON.stringify({ cities: list, freq, gs: [...gs] }); } catch (e) {}
     setCities(list); setCity(""); setSaved(true);
-    setMsg(`✓ נשמר — ${list.length} ערים. בסיכום תגיע הודעה אחת שמאחדת את כולן`);
   };
+  const enable = () => { setMsg("…"); osTags({}, (r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
   const cancel = () => {
     const tags = { freq: null };
     [...cities, ...(st0.cities || [])].forEach((ct) => { tags[cityTag(ct)] = null; });
@@ -1238,6 +1322,11 @@ function NotifyCenter({ cities: allCities }) {
       </button>
       {open && (
         <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* מצב ההתראות בדפדפן הזה — בלי זה ההרשמה נשמרת אבל שום הודעה לא מגיעה */}
+          <div style={{ border: "1px solid " + (ps.loading ? "#e2e8f0" : ps.ok ? "#bbf7d0" : "#fecaca"), background: ps.loading ? "#f8fafc" : ps.ok ? "#f0fdf4" : "#fef2f2", borderRadius: 10, padding: "8px 12px", fontWeight: 700, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {ps.loading ? "בודק את מצב ההתראות בדפדפן הזה…" : ps.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ ההתראות לא פעילות בדפדפן הזה: " + ps.why}
+            {!ps.loading && !ps.ok && !/אייפון|לא תומך/.test(ps.why || "") && <button className="kathead" style={{ width: "auto", padding: "5px 12px" }} onClick={enable}>הפעלת התראות</button>}
+          </div>
           <label style={{ fontWeight: 700 }}>ערים (אפשר כמה):
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
               <input list="kbcities" dir="rtl" value={city} onChange={(e) => setCity(e.target.value)}

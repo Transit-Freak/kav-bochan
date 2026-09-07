@@ -146,8 +146,9 @@ def main():
             try:
                 res = send(payload)
                 rec = res.get('recipients', 0)
-                if rec:
-                    print(f'נשלח: קו {e["line"]} → {rec} נמענים')
+                # גם 0 נמענים נרשם — כך רואים בלוג שהתראה "נשלחה" אבל אף מנוי לא התאים
+                # (שלמה 07.09: קו 11 קרית מלאכי, 06.09 — 25 שליחות, 0 נמענים)
+                print(f'קו {e["line"]} ({", ".join(dest_cities(e["dest"])) or "—"}): {rec} נמענים' + (f' · {res.get("errors")}' if res.get('errors') else ''))
             except Exception as ex:
                 print(f'שגיאת שליחה לקו {e["line"]}: {ex}', file=sys.stderr)
         sent += 1
