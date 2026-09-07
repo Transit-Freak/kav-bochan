@@ -358,6 +358,12 @@ for _s in stops.values():
             plat_state[_c]=[_stable,_pend]
     else:
         plat_state[_c]=[_stable,[_cur,TODAY]]            # מועמד חדש
+# אירועי "שינוי רציף" מושתקים (שלמה 07.09: שינוי רציף אמור להיות רק כשרציף נוסף
+# או בוטל לחלוטין בתחנה). מה שהרישום נותן הוא מספר רציף אחד למק"ט — ובמסוף
+# שכל רציפיו מק"ט אחד ("ת. מרכזית ראשל''צ/רציפים") המספר קפץ 12→17→8→16→3
+# בשלושה חודשים, כלומר לא רציף שנוסף/בוטל. המעקב אחרי המספר נמשך (מצב התחנות
+# ו-platforms.json), אבל לא נרשם אירוע — לא לקו ולא לתחנה — אלא אם PLAT_EVENTS=1.
+if os.environ.get('PLAT_EVENTS')!='1': plat_confirmed={}
 
 def dist_m(a_la,a_lo,b_la,b_lo):
     cl=math.cos(math.radians((a_la+b_la)/2))
@@ -1027,8 +1033,9 @@ state_out.update(carry)   # רשומים ללא נסיעות פעילות — נ
 json.dump(state_out,
           open(f'{OUTDIR}/state-routes.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 json.dump(cur_stops,open(f'{OUTDIR}/stops-state.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
-# הרציף הנוכחי של כל תחנה שיש לה רציף מוגדר — קובץ קטן אחד שהאתר טוען, כך
-# שהמספר ליד שם התחנה מתעדכן בכל ריצה יומית (בקשת שלמה 03.09: "בעדכון חי")
+# מספר הרציף ברישום של כל תחנה שיש לה כזה — קובץ קטן אחד. האתר כבר לא מציג
+# אותו (שלמה 07.09: זה לא מספר הרציפים ולא הרציפים הפעילים), אבל הוא נשמר
+# כתיעוד של מה שהרישום אומר בכל יום.
 json.dump({'updated':TODAY,'p':{s['c']:s['p'] for s in stops.values() if s.get('p')}},   # הערך של היום, לא המאושר
           open(f'{OUTDIR}/platforms.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 # מספר הנסיעות משתנה מיום ליום, ולכן הוא יושב בקובץ צדדי אחד ולא בתוך

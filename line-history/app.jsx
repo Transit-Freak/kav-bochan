@@ -34,7 +34,6 @@ const KINDS = {
   vehicle:     { label: "שינוי סוג הרכב", color: "#7c3aed" },
   returned:    { label: "בוטל וחזר", color: "#f59e0b" },
   board:       { label: "שינוי עלייה/ירידה", color: "#854d0e" },
-  platform:    { label: "שינוי רציף", color: "#0e7490" },
   "planned-dropped": { label: "תוכנן ולא נכנס לפעול", color: "#9f1239" },
   "planned-new": { label: "קו שפורסם ולא נכנס לפעול", color: "#9f1239" },
   "planned-route": { label: "שינוי תחנות שפורסם ולא נכנס לפעול", color: "#7f1d1d" },
@@ -165,7 +164,7 @@ const CAT_GROUPS = [
   { title: "שינויי מסלול", items: ["route", "endpoint"] },
   { title: "שינויי תחנות", items: ["stops", "stops-add", "stops-del"] },
   { title: "תדירות ולוח זמנים", items: ["freq", "sched"] },
-  { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "platform", "vehicle"] },
+  { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "vehicle"] },
   { title: "שינויים שלא נכנסו לפעול", items: ["planned-new", "planned-route"] },
   { title: "שינויים טכניים", items: ["redraw"] },
 ];
@@ -184,7 +183,6 @@ const CAT_LABELS = {
   dest: "שינוי יעד",
   renum: "שינוי מספר קו",
   mode: "שינוי סוג הקו (למשל רגיל ↔ לפי דרישה)",
-  platform: "שינוי רציף — הקו עוצר ברציף אחר",
   vehicle: "שינוי סוג הרכב",
   // ניסוח קצר (שלמה 05.09: "זה ארוך ומסורבל"). הכלל המלא כתוב על האירוע עצמו.
   "planned-dropped": "תוכנן ולא נכנס לפעול — ירד מהרישום לפני תאריך ההתחלה",
@@ -228,6 +226,13 @@ function evInCat(x, i, vs, k) {
   return dk === k;
 }
 const REMOVAL_CATS = new Set(["removed-year", "removed-now", "removed-past"]);
+/* אירועי "שינוי רציף" (k=platform, בקווים ובתחנות) לא מוצגים (שלמה 07.09: "שינוי
+   ברציף התחנה אמור להיות רק כאשר נוסף או בוטל לחלוטין רציף בתחנה"). מה שיש
+   ברישום המשרד הוא מספר רציף אחד לכל מק"ט תחנה — ובמסוף שכל הרציפים שלו
+   הם מק"ט אחד ("ת. מרכזית ראשל''צ/רציפים") המספר קפץ 12→17→8→16→3 בתוך
+   שלושה חודשים. זה לא "רציף נוסף/בוטל" ולא מספר הרציפים, ולכן מוסתר עד
+   שיהיה מקור אמיתי. הנתונים נשארים בקבצים; הסורק היומי מושתק (PLAT_EVENTS). */
+const HIDE_KINDS = new Set(["platform"]);
 const SKINDS = {
   new:     { label: "חדשה", color: "#15803d" },
   del:     { label: "בוטלה", color: "#dc2626" },
@@ -235,7 +240,6 @@ const SKINDS = {
   moved:   { label: "הזזת מיקום", color: "#2563eb" },
   city:    { label: "שינוי עיר", color: "#b91c1c" },
   pubdest: { label: "תחנת יעד לפרסום", color: "#7e22ce" },
-  platform: { label: "שינוי רציף", color: "#0e7490" },
 };
 
 // פענוח polyline (precision 5)
@@ -244,6 +248,9 @@ const SKINDS = {
 // לצורה המלאה — שאר הקוד לא יודע שהקובץ היה דחוס. תאום-לאחור לקבצים ישנים.
 function materializeLf(lf) {
   if (!lf) return lf;
+  // גרסאות "שינוי רציף" (מספר הרציף ברישום השתנה) יורדות מציר הזמן — ראו HIDE_KINDS
+  if (lf.versions && lf.versions.some((v) => HIDE_KINDS.has(v.k)))
+    lf.versions = lf.versions.filter((v) => !HIDE_KINDS.has(v.k));
   const pool = lf.pool, spool = lf.spool;
   (lf.versions || []).forEach((v) => {
     if (pool && Array.isArray(v.stops) && v.stops.length && typeof v.stops[0] === "number")
@@ -867,24 +874,9 @@ const getMonths = () => MONTHS_P || (MONTHS_P = dfetch("data/months.json")
   .then((r) => r.json())
   .catch((e) => { MONTHS_P = null; throw e; }));
 
-/* הרציף הנוכחי של כל תחנה (platforms.json, נכתב בכל ריצה יומית) — נטען פעם
-   אחת; ליד שם תחנה מוצג "רציף N" כשיש כזה (בקשת שלמה 03.09: המספר בעדכון חי).
-   כשל = בלי רציפים, בלי לשבור את הדף. */
-let PLAT_P = null;
-const getPlatforms = () => PLAT_P || (PLAT_P = dfetch("data/platforms.json")
-  .then((r) => (r.ok ? r.json() : { p: {} }))
-  .then((d) => d.p || {})
-  .catch(() => ({})));
-function usePlatforms() {
-  const [p, setP] = useState({});
-  useEffect(() => { let on = true; getPlatforms().then((d) => { if (on) setP(d); }); return () => { on = false; }; }, []);
-  return p;
-}
-const PlatBadge = ({ code, plats }) => {
-  const n = plats && code != null ? plats[String(code)] : null;
-  // "רציף 5" לבד לא הובן (שלמה 07.09) — זה הרציף שבו התחנה נמצאת במסוף היום
-  return n ? <span className="plat" title="מספר הרציף של התחנה במסוף, לפי רישום התחנות של היום — מתעדכן מדי יום">הרציף היום: {n}</span> : null;
-};
+/* "רציף N" / "הרציף היום: N" ליד תחנה הוסר (שלמה 07.09): המספר מ-platforms.json הוא
+   מספר הרציף של המק"ט ברישום המשרד, לא מספר הרציפים בתחנה ולא הרציפים
+   הפעילים — ובמסופים גדולים הוא שרירותי (ראו HIDE_KINDS). */
 
 const getAnchors2012 = () =>
   ANC2012 || (ANC2012 = dfetch("data/anchor-2012.json")
@@ -1007,10 +999,16 @@ function SchedBox({ rd, vs, selD, isLast }) {
     <details className="schedbox">
       <summary>🕐 {past ? `הלו"ז כפי שהיה בגרסת ${selD.split("-").reverse().join(".")}` : 'הלו"ז המלא של החלופה — כל שעות היציאה'}{hasTb ? " · יש תגבורים" : ""}</summary>
       <div className="schednote">
-        {past ? <>
-          משוחזר אחורה מאירועי הלו"ז המתועדים של הקו. ימים שסומנו ✱ הם
-          ימים ששוחזרו משינוי מתועד; לימים בלי שינוי מתועד מוצג הלו"ז של היום.
+        {/* ההערה על השחזור לא הובנה (שלמה 07.09: "מה ההערה המוזרה הזו?") — עכשיו
+            במילים פשוטות, ובלי לדבר על ✱ כשאין אף יום כזה בטבלה */}
+        {past ? (touched.size ? <>
+          לא נשמר לו"ז מאותה תקופה. מה שמוצג הוא הלו"ז של היום, מוחזר אחורה:
+          בימים עם ✱ תועד שינוי לו"ז אחרי הגרסה הזו, ולכן מוצגות השעות שהיו לפני
+          השינוי. בשאר הימים לא תועד שינוי מאז, ולכן השעות של היום הן כנראה גם מה שהיה אז.
         </> : <>
+          לא נשמר לו"ז מאותה תקופה, ולא תועד שינוי לו"ז מאז הגרסה הזו — לכן מוצג
+          הלו"ז של היום, שכנראה זה גם מה שהיה אז.
+        </>) : <>
           מפרסום הרישוי ל-10 הימים הקרובים (נכון ל-{d.g.split("-").reverse().join(".")}) —
           זה הלו"ז הנוכחי.
           {/* ההסבר על ×N רק כשיש באמת שעה כזאת בלו"ז (שלמה 06.09) */}
@@ -1298,8 +1296,7 @@ function DigestPage({ city, days, onBack, openLine }) {
 }
 
 function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) {
-  const plats = usePlatforms();   // "רציף N" ליד תחנה במסוף — מתעדכן מדי יום (שלמה 03.09)
-  const withPlat = (str, c) => (c != null && plats[String(c)]) ? `${str} · רציף ${plats[String(c)]}` : str;
+  const withPlat = (str) => str;   // "· רציף N" ליד תחנה הוסר (שלמה 07.09) — ראו HIDE_KINDS
   const [lf, setLf] = useState(null);
   const [err, setErr] = useState(null);
   const [sel, setSel] = useState(null);   // אינדקס גרסה נבחרת
@@ -2430,7 +2427,7 @@ function DayFeed({ idx, openLine, open12, onBack }) {
     setChs(null); setChErr(false);
     dfetch("data/changes/" + mon + ".json")
       .then((r) => (r.ok ? r.json() : { changes: [] }))
-      .then((d) => { if (ok) setChs(d.changes || []); })
+      .then((d) => { if (ok) setChs((d.changes || []).filter((c) => !HIDE_KINDS.has(c.k))); })
       .catch(() => { if (ok) { setChErr(true); setChs([]); } });
     return () => { ok = false; };
   }, [mon, rty]);
@@ -2580,14 +2577,10 @@ function StopCode({ code }) {
     try { document.execCommand("copy"); done(); } catch (err) { /* אין לוח — הקישור עדיין ב-href */ }
     document.body.removeChild(ta);
   };
-  const plats = usePlatforms();
   return (
-    <>
-      <a className={"code slink" + (ok ? " copied" : "")} href={stopHref(code)} onClick={copy}
-        title="לחיצה מעתיקה את הקישור לתחנה הזו — כל השינויים שלה, מכל השנים">
-        {" "}({code}) {ok ? "✓ הועתק" : "🔗"}</a>
-      <PlatBadge code={code} plats={plats} />
-    </>
+    <a className={"code slink" + (ok ? " copied" : "")} href={stopHref(code)} onClick={copy}
+      title="לחיצה מעתיקה את הקישור לתחנה הזו — כל השינויים שלה, מכל השנים">
+      {" "}({code}) {ok ? "✓ הועתק" : "🔗"}</a>
   );
 }
 
@@ -2609,7 +2602,8 @@ function RecentChanges({ idx, openLine, onAll }) {
         const ms = (d.months || []).slice().sort();
         if (!ms.length) { if (ok) setRows([]); return; }
         const get = (m) => dfetch("data/changes/" + m + ".json")
-          .then((r) => (r.ok ? r.json() : { changes: [] }));
+          .then((r) => (r.ok ? r.json() : { changes: [] }))
+          .then((d) => ({ changes: (d.changes || []).filter((c) => !HIDE_KINDS.has(c.k)) }));
         let list = (await get(ms[ms.length - 1])).changes || [];
         // ב-1 בחודש הקובץ החדש כמעט ריק, והמסך הראשי נראה כאילו האתר מת —
         // כשחסרים ימים משלימים מהחודש הקודם כדי שתמיד יוצגו הימים האחרונים
@@ -2678,7 +2672,6 @@ function RecentChanges({ idx, openLine, onAll }) {
 // (בקשת המשתמש). הנתונים: data/stopev/XX.json — נגזרים יומית מקובצי
 // הקווים, כך ששינוי אצל קו נרשם אוטומטית גם אצל כל תחנה שהושפעה.
 function LinesAtStop({ code, onClose }) {
-  const plats = usePlatforms();   // הרציף הנוכחי של התחנה, מתעדכן מדי יום
   const [d, setD] = useState(null);
   const [err, setErr] = useState(false);
   const [all, setAll] = useState(false);
@@ -2749,7 +2742,6 @@ function LinesAtStop({ code, onClose }) {
   return (
     <div className="lat">
       <div className="lathead">🚌 הקווים בתחנה הזו לאורך זמן
-        <PlatBadge code={code} plats={plats} />
         {onClose && <button className="latx" title="סגירת ציר הקווים" onClick={onClose}>✕</button>}
       </div>
       {now.length > 0 && (
@@ -2923,7 +2915,7 @@ function StopsTab({ sel, selN }) {
     // נועדו לפיד החודשי, ובתחנה מסוימת הם הסתירו גם את מה שביקשו לראות:
     // ‎#stop=48‎ הראה מסך ריק, כי שני האירועים שלה נחשבים "חוזרים".
     return raw === null ? null
-      : raw.filter((c) => (sel && c.c === sel) || keepEvent(c));
+      : raw.filter((c) => !HIDE_KINDS.has(c.k) && ((sel && c.c === sel) || keepEvent(c)));
   }, [mon, hist, chs, sel]);
   const counts = useMemo(() => {
     const cn = {};
@@ -3044,10 +3036,6 @@ function StopsTab({ sel, selN }) {
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
                         מקבלים כיוון RTL וסדר lat/lon התהפך ויזואלית */}
                     {c.k === "city" && <> · <s>{c.oc}</s> ← <b>{c.nc}</b></>}
-                    {/* רציף (שלמה 03.09): מ"לא מוגדר" — "עוצר מעכשיו ברציף N"; אחרת מרציף ← לרציף */}
-                    {c.k === "platform" && (c.op
-                      ? <> · <s>רציף {c.op}</s> ← <b>רציף {c.np}</b></>
-                      : <> · הקווים עוצרים מעכשיו ב<b>רציף {c.np}</b></>)}
     {/* ניסוח פשוט (בקשת שלמה): "השם הישן היה… השם החדש הוא…". אירועי
                         "הפכה/חדלה להיות תחנת יעד" הוסרו כליל — רק שינויי שם */}
                     {c.k === "pubdest" && c.st === "ren" &&

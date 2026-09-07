@@ -22,7 +22,8 @@ DRY = os.environ.get('DRY') == '1'
 BASE_URL = 'https://transit-freak.github.io/kav-bochan/line-history/'
 MAX_SENDS = int(os.environ.get('MAX_SENDS', '200'))
 
-SKIP_KINDS = {'freq', 'sched', 'times', 'baseline', 'snapshot'}
+# platform: אירועי "מספר הרציף ברישום השתנה" לא מוצגים באתר (שלמה 07.09) — ולא נשלחים
+SKIP_KINDS = {'freq', 'sched', 'times', 'baseline', 'snapshot', 'platform'}
 # קבוצות ההרשמה במרכז ההתראות (זהה ל-KIND_GROUPS_N שבאתר)
 KIND_GROUP = {}
 for _tag, _kinds in (('kg_rem', ['removed']), ('kg_new', ['new']),
