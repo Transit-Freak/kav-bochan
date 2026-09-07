@@ -1127,10 +1127,12 @@ function readPushState(cb, resync) {
     try {
       const ps = OS.User.PushSubscription;
       const ok = !!OS.Notifications.permission && !!(ps && ps.optedIn !== false && ps.id);
-      if (ok && resync && Object.keys(resync).length) {
+      if (resync && Object.keys(resync).length) {
         try {
           // הספק ישקף בדיוק את מה שנשמר בדפדפן הזה: תגים ישנים (עיר שהוסרה,
-          // תדירות קודמת) נמחקים, כל השאר נשלחים שוב
+          // תדירות קודמת) נמחקים, כל השאר נשלחים שוב. גם כשההרשאה עוד לא
+          // אושרה — התגים מחכים אצל הספק ותופסים ברגע שהמנוי נפתח (שלמה 07.09:
+          // נמצא מנוי בלי שום תג למרות חמש ערים שמורות)
           const cur = (await OS.User.getTags()) || {};
           const stale = Object.keys(cur).filter((k) => !(k in resync) && /^(c[0-9a-z]+|l\d+|freq|kg_\w+)$/.test(k));
           if (stale.length) OS.User.removeTags(stale);
@@ -1306,7 +1308,8 @@ function NotifyCenter({ cities: allCities }) {
     try { localStorage.kbNotify = JSON.stringify({ cities: list, freq, gs: [...gs] }); } catch (e) {}
     setCities(list); setCity(""); setSaved(true);
   };
-  const enable = () => { setMsg("…"); osTags({}, (r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
+  // "הפעלת התראות" שולח גם את כל מה שנשמר בדפדפן הזה — לא רק מבקש הרשאה
+  const enable = () => { setMsg("…"); osTags(savedTags(), (r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
   const cancel = () => {
     const tags = { freq: null };
     [...cities, ...(st0.cities || [])].forEach((ct) => { tags[cityTag(ct)] = null; });
