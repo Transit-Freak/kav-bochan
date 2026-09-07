@@ -882,7 +882,8 @@ function usePlatforms() {
 }
 const PlatBadge = ({ code, plats }) => {
   const n = plats && code != null ? plats[String(code)] : null;
-  return n ? <span className="plat" title="הרציף הנוכחי לפי רישום התחנות, מתעדכן מדי יום">רציף {n}</span> : null;
+  // "רציף 5" לבד לא הובן (שלמה 07.09) — זה הרציף שבו התחנה נמצאת במסוף היום
+  return n ? <span className="plat" title="מספר הרציף של התחנה במסוף, לפי רישום התחנות של היום — מתעדכן מדי יום">הרציף היום: {n}</span> : null;
 };
 
 const getAnchors2012 = () =>
@@ -1879,9 +1880,11 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           const lv = vs[li];
           return lv.k === "removed" && (
           <div className="facts" style={{ color: lineGone ? (KINDS[dispKind(lv, li, vs)] || {}).color : "#c2410c", fontWeight: 700 }}>
+            {/* ביטול שתוארך בקירוב (close_vanished_variants.py): הווריאנט נבנה מהארכיון
+                ונעלם מתישהו אחרי הגרסה האחרונה — לא "מאז" תאריך שאיננו יודעים */}
             {lineGone
-              ? <>❌ הקו בוטל — אין חלופות פעילות — מאז {fmtD(lv.d)}</>
-              : <>⚠️ החלופה הזו מבוטלת מאז {fmtD(lv.d)} (לקו יש חלופות פעילות)</>}
+              ? <>❌ הקו בוטל — אין חלופות פעילות — {lv.approx ? <>נעלם מהרישום אחרי {fmtD(lv.after || lv.d)} (התאריך המדויק לא תועד)</> : <>מאז {fmtD(lv.d)}</>}</>
+              : <>⚠️ החלופה הזו מבוטלת {lv.approx ? <>— נעלמה מהרישום אחרי {fmtD(lv.after || lv.d)} (התאריך המדויק לא תועד)</> : <>מאז {fmtD(lv.d)}</>} (לקו יש חלופות פעילות)</>}
             {dispKind(lv, li, vs) === "removed-year" ? " — מעל שנה ולא חזרה" : ""}
           </div>);
         })()}
@@ -2706,7 +2709,17 @@ function LinesAtStop({ code, onClose }) {
     rows.push({ d: e[0], k: e[3], line: e[1] || "—", rd: e[2] });
   });
   rows.sort((a, b) => b.d.localeCompare(a.d));
-  const shown = all ? rows : rows.slice(0, 30);
+  // אותו תאריך ואותו סוג (התחילו / הפסיקו) — שורה אחת עם כל הקווים, במקום
+  // עשר שורות זהות (שלמה 07.09)
+  const grouped = [], gk = {};
+  rows.forEach((r) => {
+    if (r.k === "base") { grouped.push(r); return; }
+    const key = r.d + "|" + r.k;
+    if (gk[key]) { gk[key].items.push([r.line, r.rd]); return; }
+    gk[key] = { d: r.d, k: r.k, items: [[r.line, r.rd]] };
+    grouped.push(gk[key]);
+  });
+  const shown = all ? grouped : grouped.slice(0, 30);
   return (
     <div className="lat">
       <div className="lathead">🚌 הקווים בתחנה הזו לאורך זמן
@@ -2714,7 +2727,7 @@ function LinesAtStop({ code, onClose }) {
         {onClose && <button className="latx" title="סגירת ציר הקווים" onClick={onClose}>✕</button>}
       </div>
       {now.length > 0 && (
-        <div className="latnow">עוצרים בה כיום לפי התיעוד:{" "}
+        <div className="latnow">עוצרים בה היום, לפי התיעוד שלנו:{" "}
           {now.slice(0, 40).map(([l, rd2]) => <a key={l} className="badge sm latb" href={lineHref(rd2)}>{l}</a>)}
         </div>
       )}
@@ -2724,11 +2737,14 @@ function LinesAtStop({ code, onClose }) {
               ? <>🚏 קו <a href={lineHref(r.lines[0][1]) + "@" + r.d}><b>{r.lines[0][0]}</b></a> תועד בתחנה לראשונה</>
               : <>🚏 בתיעוד הראשון עצרו כאן {r.lines.length} קווים: {r.lines.slice(0, 25).map(([l, rd2], j) =>
                   <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}{r.lines.length > 25 ? "…" : ""}</>}</div>
-          : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in"
-              ? <>🆕 קו <a href={lineHref(r.rd) + "@" + r.d}><b>{r.line}</b></a> התחיל לעצור בתחנה</>
-              : <>➖ קו <a href={lineHref(r.rd) + "@" + r.d}><b>{r.line}</b></a> הפסיק לעצור בתחנה</>}</div>)}
+          : r.items.length === 1
+            ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in"
+                ? <>🆕 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> התחיל לעצור בתחנה</>
+                : <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>}</div>
+            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו" : "הפסיקו"} לעצור בתחנה: {r.items.map(([l, rd2], j) =>
+                <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</div>)}
       </div>
-      {rows.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {rows.length.toLocaleString()} האירועים</button>}
+      {grouped.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {grouped.length.toLocaleString()} האירועים</button>}
       <div className="latnote">מחושב מהשוואת רצפי התחנות של כל הקווים לאורך התקופה. מעבר רציף נראה כאן כקו שירד — ועלה באותו תאריך ברציף השכן.</div>
     </div>
   );
