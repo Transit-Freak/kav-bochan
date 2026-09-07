@@ -19,7 +19,8 @@
   stations.json        — קוד תחנה → שם ומיקום
   state.json           — כמה ימים נותרו בטווח שהתבקש (לשרשור ריצות)
 
-FROM/TO (YYYY-MM-DD; ברירת מחדל: אתמול, שעון ישראל) · MAX_MIN — עצירה
+FROM/TO (YYYY-MM-DD; ברירת מחדל: משלושה ימים אחורה עד אתמול, שעון ישראל;
+ימים שכבר קיימים מדולגים) · MAX_MIN — עצירה
 נקייה אחרי X דקות (0 = בלי מגבלה) · DRY=1 — ניתוח והדפסה בלי כתיבה ·
 REDO=1 — חישוב מחדש גם לימים שכבר קיימים.
 """
@@ -54,7 +55,9 @@ DRY = os.environ.get('DRY') == '1'
 REDO = os.environ.get('REDO') == '1'
 NOW_IL = datetime.datetime.now(IL)
 YESTERDAY = (NOW_IL - datetime.timedelta(days=1)).date()
-FROM = datetime.date.fromisoformat(os.environ.get('FROM') or YESTERDAY.isoformat())
+# ברירת המחדל מתחילה שלושה ימים אחורה: יום שנכשל או יצא ריק (דאטאבוס עדיין לא
+# קלט אותו, כמו 06.09) מושלם בריצה הבאה; ימים שכבר קיימים מדולגים (needs)
+FROM = datetime.date.fromisoformat(os.environ.get('FROM') or (YESTERDAY - datetime.timedelta(days=3)).isoformat())
 TO = datetime.date.fromisoformat(os.environ.get('TO') or YESTERDAY.isoformat())
 
 # כללי ההצמדה
@@ -189,6 +192,10 @@ def fetch_day(d):
     stops = [s for s in stops if (ts(s.get('gtfs_ride__start_time')) or 0) >= s0 - 1
              and (ts(s.get('gtfs_ride__start_time')) or 0) < s1]
     log(f'  לו"ז: {len(stops)} תחנות-נסיעה ({elapsed_min():.1f} דק׳)')
+    if not stops:
+        # 06.09: 685 מסלולים אבל 0 תחנות-נסיעה — דאטאבוס עדיין לא קלט את היום.
+        # לא כותבים יום ריק; הריצה הבאה תנסה שוב
+        raise ValueError('אין תחנות-נסיעה בלו"ז — דאטאבוס עדיין לא קלט את היום, ננסה שוב בריצה הבאה')
 
     # השידורים: קודם רשימת נסיעות ה-SIRI של היום (בקשה אחת), ואז השידורים
     # בקבוצות של 25 נסיעות — כ-30 בקשות במקום אחת לכל רכבת (שלמה 04.09:
@@ -501,7 +508,9 @@ def main():
             return True
         try:
             with open(p, encoding='utf-8') as f:
-                return f'"fmt":{FMT},' not in f.read(80)   # 'fmt' נכתב בראש הקובץ
+                head = f.read(120)
+                # 'fmt' נכתב בראש הקובץ; יום ריק (בלי נסיעות) מחושב מחדש
+                return f'"fmt":{FMT},' not in head or '"rides":[]' in head
         except OSError:
             return True
 
