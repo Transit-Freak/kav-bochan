@@ -1143,7 +1143,7 @@ async function ensurePush(OS) {
 // ה-SDK בדפדפן. אצל שלמה (07.09) המנוי נוצר, הדף הראה "✓ נשמר — 5 ערים",
 // ובשרת לא נרשם אף תג. הנתיבים כאן הם אותם נתיבים שה-SDK עצמו קורא מהדפדפן
 // (מזהה האפליקציה בלבד, בלי מפתח). מחזיר {have, fixed, ok} או {err}.
-const TAG_RE = /^(c[0-9a-z]+|l\d+|freq|kg_\w+)$/;
+const TAG_RE = /^(kb|c[0-9a-z]+|l\d+|freq|kg_\w+)$/;
 async function syncServer(OS, want) {
   const sub = OS.User && OS.User.PushSubscription && OS.User.PushSubscription.id;
   if (!sub) return { err: "אין מנוי בדפדפן הזה" };
@@ -1199,7 +1199,7 @@ function readPushState(cb, resync) {
           // אושרה — התגים מחכים אצל הספק ותופסים ברגע שהמנוי נפתח (שלמה 07.09:
           // נמצא מנוי בלי שום תג למרות חמש ערים שמורות)
           const cur = (await OS.User.getTags()) || {};
-          const stale = Object.keys(cur).filter((k) => !(k in resync) && /^(c[0-9a-z]+|l\d+|freq|kg_\w+)$/.test(k));
+          const stale = Object.keys(cur).filter((k) => !(k in resync) && TAG_RE.test(k));
           if (stale.length) OS.User.removeTags(stale);
           OS.User.addTags(resync);
         } catch (e) { /* ignore */ }
@@ -1211,19 +1211,32 @@ function readPushState(cb, resync) {
   });
   setTimeout(() => { if (!got) cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות או חוסם תוכן בדפדפן)" }); }, 8000);
 }
-// כל התגים שנשמרו בדפדפן הזה (המרכז + כפתורי "עקוב") — לסנכרון מחדש
+// כל ההרשמה של הדפדפן הזה בתג אחד. ספק ההתראות מגביל את מספר התגים למשתמש,
+// ועם תג לכל עיר ההרשמה של שלמה (5 ערים + תדירות + 4 סוגים = 10 תגים) נדחתה
+// ב-409 בלי שנשמר כלום (07.09). kb = "f=<תדירות>|g=<סוגים>|c=<ערי המרכז>|
+// w=<ערים מכפתור עקוב>|l=<מק"טים>" — הערים כתגים מגובבים כמו קודם; הצד השולח
+// (tools/send_push.py, parse_sub) קורא את אותו מבנה.
 function savedTags() {
-  const t = {};
+  const parts = [];
   try {
     const n = JSON.parse(localStorage.kbNotify || "{}");
     const cl = n.cities || (n.city ? [n.city] : []);
-    cl.forEach((c) => { t[cityTag(c)] = "1"; });
-    if (cl.length) { t.freq = n.freq || "1"; (n.gs || KIND_GROUPS_N.map((g) => g.tag)).forEach((g) => { t[g] = "1"; }); }
+    if (cl.length) {
+      parts.push("f=" + (n.freq || "1"));
+      parts.push("g=" + (n.gs || KIND_GROUPS_N.map((g) => g.tag)).map((g) => String(g).replace(/^kg_/, "")).join(","));
+      parts.push("c=" + cl.slice(0, 40).map(cityTag).join(","));
+    }
   } catch (e) { /* ignore */ }
-  try { const m = JSON.parse(localStorage.kbFollow || "{}"); for (const k in m) t[k] = "1"; } catch (e) { /* ignore */ }
-  return t;
+  try {
+    const m = JSON.parse(localStorage.kbFollow || "{}");
+    const w = Object.keys(m).filter((k) => /^c[0-9a-z]+$/.test(k)), l = Object.keys(m).filter((k) => /^l\d+$/.test(k)).map((k) => k.slice(1));
+    if (w.length) parts.push("w=" + w.slice(0, 40).join(","));
+    if (l.length) parts.push("l=" + l.slice(0, 60).join(","));
+  } catch (e) { /* ignore */ }
+  return parts.length ? { kb: parts.join("|") } : {};
 }
-const osTag = (key, val, done) => osTags({ [key]: val }, done);
+// שולח לספק את מה שנשמר בדפדפן הזה, או מוחק את התג כשאין הרשמה
+const pushTags = (done) => { const t = savedTags(); osTags(Object.keys(t).length ? t : { kb: null }, done); };
 function FollowBtn({ tag, label, title }) {
   const [on, setOn] = useState(() => { try { return !!JSON.parse(localStorage.kbFollow || "{}")[tag]; } catch (e) { return false; } });
   const [st, setSt] = useState("");
@@ -1231,7 +1244,7 @@ function FollowBtn({ tag, label, title }) {
   const toggle = () => {
     const n = !on; setOn(n); setSt("");
     try { const m = JSON.parse(localStorage.kbFollow || "{}"); if (n) m[tag] = label || "מעקב"; else delete m[tag]; localStorage.kbFollow = JSON.stringify(m); } catch (e) {}
-    osTag(tag, n ? "1" : null, (r) => setSt(n ? (r.ok ? (r.srv ? (r.srv.ok ? "✓ עוקב — רשום אצל ספק ההתראות" : "✗ לא נרשם אצל ספק ההתראות" + (r.srv.err ? ": " + r.srv.err : "")) : "✓ ההתראות פעילות בדפדפן הזה") : "✗ " + r.why) : ""));
+    pushTags((r) => setSt(n ? (r.ok ? (r.srv ? (r.srv.ok ? "✓ עוקב — רשום אצל ספק ההתראות" : "✗ לא נרשם אצל ספק ההתראות" + (r.srv.err ? ": " + r.srv.err : "")) : "✓ ההתראות פעילות בדפדפן הזה") : "✗ " + r.why) : ""));
   };
   return <><button className="sharebtn" title={title || "התראת דפדפן כשנרשם שינוי מהותי (מסלול, תחנות, ביטול — לא לו\u05f4ז)"}
     onClick={toggle}>{on ? "🔔 עוקב ✓" : "🔔 " + (label || "קבל התראות")}</button>
@@ -1311,15 +1324,13 @@ function MyFollows({ bump }) {
       try {
         const n = JSON.parse(localStorage.kbNotify || "{}");
         const cl = (n.cities || (n.city ? [n.city] : [])).filter((c) => c !== it.cityName);
-        const tags = { [cityTag(it.cityName)]: null };
-        if (!cl.length) { tags.freq = null; tags.kg_rem = tags.kg_new = tags.kg_route = tags.kg_ident = null; delete localStorage.kbNotify; }
+        if (!cl.length) delete localStorage.kbNotify;
         else localStorage.kbNotify = JSON.stringify({ ...n, cities: cl, city: undefined });
-        osTags(tags);
       } catch (e) {}
     } else {
-      osTags({ [it.tag]: null });
       try { const m = JSON.parse(localStorage.kbFollow || "{}"); delete m[it.tag]; localStorage.kbFollow = JSON.stringify(m); } catch (e) {}
     }
+    pushTags();
     setItems(read());
   };
   if (!items.length) return null;
@@ -1364,45 +1375,41 @@ function NotifyCenter({ cities: allCities }) {
     if (city.trim()) { const c = pick(city); if (!c) return; if (!list.includes(c)) list.push(c); }   // מה שהוקלד ולא נלחץ "הוסף"
     if (!list.length) { setMsg("הוסיפו לפחות עיר אחת"); return; }
     if (!gs.size) { setMsg("סמנו לפחות סוג שינוי אחד"); return; }
-    const tags = {};
-    (st0.cities || []).forEach((old2) => { if (!list.includes(old2)) tags[cityTag(old2)] = null; });
-    list.forEach((ct) => { tags[cityTag(ct)] = "1"; });
-    tags.freq = freq;
-    KIND_GROUPS_N.forEach((g) => { tags[g.tag] = gs.has(g.tag) ? "1" : null; });
     setMsg("שומר…");
-    osTags(tags, (r) => {
+    try { localStorage.kbNotify = JSON.stringify({ cities: list, freq, gs: [...gs] }); } catch (e) {}
+    pushTags((r) => {
       setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv });
       setMsg(r.ok ? `✓ נשמר — ${list.length} ערים, ההתראות פעילות בדפדפן הזה. בסיכום תגיע הודעה אחת שמאחדת את כולן` : `✗ נשמר, אבל ההתראות לא יגיעו: ${r.why}`);
     });
-    try { localStorage.kbNotify = JSON.stringify({ cities: list, freq, gs: [...gs] }); } catch (e) {}
     setCities(list); setCity(""); setSaved(true);
   };
   // "הפעלת התראות" שולח גם את כל מה שנשמר בדפדפן הזה — לא רק מבקש הרשאה
-  const enable = () => { setMsg("…"); osTags(savedTags(), (r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
+  const enable = () => { setMsg("…"); pushTags((r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
   // מה באמת רשום אצל ספק ההתראות (מהשרת) — בשמות ערים, לא בתגים
   const srvText = (s) => {
     if (s.err) return "לא הצלחתי לבדוק מה רשום אצל ספק ההתראות: " + s.err;
     const rev = {}; (allCities || []).forEach((c) => { rev[cityTag(c)] = c; });
     const h = s.have || {};
-    const cs = Object.keys(h).filter((k) => /^c[0-9a-z]+$/.test(k) && h[k] === "1").map((k) => rev[k] || "עיר לא מזוהה");
-    const ls = Object.keys(h).filter((k) => /^l\d+$/.test(k) && h[k] === "1").length;
-    const fq = { 1: "כל יום שיש שינוי", 3: "סיכום כל 3 ימים", 7: "סיכום שבועי" }[h.freq] || "";
-    const what = (cs.length ? cs.join(", ") : "אין ערים") + (ls ? ` · ${ls} קווים במעקב` : "") + (fq ? " · " + fq : "");
+    // המבנה החדש (תג kb אחד), ואם אין — התגים הישנים
+    const kb = {}; String(h.kb || "").split("|").forEach((p) => { const i = p.indexOf("="); if (i > 0) kb[p.slice(0, i)] = p.slice(i + 1); });
+    const name = (k) => rev[k] || "עיר לא מזוהה";
+    const cs = (kb.c ? kb.c.split(",") : Object.keys(h).filter((k) => /^c[0-9a-z]+$/.test(k) && h[k] === "1")).filter(Boolean).map(name);
+    const ws = (kb.w ? kb.w.split(",") : []).filter(Boolean).map(name);
+    const ls = kb.l ? kb.l.split(",").filter(Boolean).length : Object.keys(h).filter((k) => /^l\d+$/.test(k) && h[k] === "1").length;
+    const fq = { 1: "כל יום שיש שינוי", 3: "סיכום כל 3 ימים", 7: "סיכום שבועי" }[kb.f || h.freq] || "";
+    const what = (cs.length ? cs.join(", ") : "אין ערים") + (fq ? " · " + fq : "") + (ws.length ? " · מעקב יומי: " + ws.join(", ") : "") + (ls ? ` · ${ls} קווים במעקב` : "");
     if (!s.ok) return "✗ אצל ספק ההתראות רשום: " + what + " — לא זהה למה שנשמר כאן. נסו לשמור שוב";
     return (s.fixed ? "✓ אצל הספק היה חסר — תוקן עכשיו. רשום שם: " : "✓ רשום אצל ספק ההתראות: ") + what;
   };
   const cancel = () => {
-    const tags = { freq: null };
-    [...cities, ...(st0.cities || [])].forEach((ct) => { tags[cityTag(ct)] = null; });
-    KIND_GROUPS_N.forEach((g) => { tags[g.tag] = null; });
-    osTags(tags);
     try { delete localStorage.kbNotify; } catch (e) {}
+    pushTags();
     setCities([]); setSaved(false); setMsg("ההרשמה בוטלה");
   };
   return (
     <div className="katbox" style={{ marginTop: 8 }}>
       <button className="kathead" style={{ fontWeight: 800 }} aria-expanded={open} onClick={() => setOpen(!open)}>
-        🔔 הרשמה להתראות על שינויים{saved ? ` — רשומים ל${st0.city || city}` : " — עיר, סוגי שינויים ותדירות"}
+        🔔 הרשמה להתראות על שינויים{saved ? (() => { const cl = (st0.cities || [st0.city]).filter(Boolean); return cl.length > 2 ? ` — רשומים ל-${cl.length} ערים` : ` — רשומים ל${cl.join(" ו")}`; })() : " — עיר, סוגי שינויים ותדירות"}
       </button>
       {open && (
         <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>

@@ -110,6 +110,11 @@ def main():
               f'פעיל {ts(p.get("last_active"))} | כניסות {p.get("session_count")} | לא תקין: {p.get("invalid_identifier")}')
         print(f'  תגים ברשומת המנוי: {p.get("tags") or {}}')
         try:
+            from send_push import parse_sub
+            print(f'  מפוענח: {parse_sub(p.get("tags"))}')
+        except Exception:
+            pass
+        try:
             ident = get(f'https://api.onesignal.com/apps/{APP}/subscriptions/{pid}/user/identity')
             oid = (ident.get('identity') or {}).get('onesignal_id')
             print(f'  משתמש: {str(oid)[:8]}…')

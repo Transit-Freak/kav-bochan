@@ -73,6 +73,43 @@ def dest_cities(dest):
     return out[:2]
 
 
+def parse_sub(tags):
+    """ההרשמה של מנוי מהתגים שלו: {'cities','watch','lines','freq','groups'}.
+    cities/watch = תגי עיר מגובבים (מרכז ההתראות / כפתור "עקוב" — יומי, כל הסוגים);
+    groups = None כשלא סומן כלום (= הכל).
+    מבנה חדש (07.09): תג אחד kb="f=3|g=rem,new|c=…|w=…|l=…" — ספק ההתראות מגביל
+    את מספר התגים למשתמש (ההרשמה של שלמה, 10 תגים, נדחתה ב-409 בלי שנשמר כלום).
+    מבנה ישן: תג לכל עיר/קו — נתמך עד שהמנוי ייכנס שוב לאתר ויעבור למבנה החדש."""
+    import re
+    tags = tags or {}
+    s = {'cities': set(), 'watch': set(), 'lines': set(), 'freq': None, 'groups': None}
+    if tags.get('kb'):
+        for part in str(tags['kb']).split('|'):
+            k, _, v = part.partition('=')
+            vals = {x for x in v.split(',') if x}
+            if k == 'f':
+                s['freq'] = v or None
+            elif k == 'g':
+                s['groups'] = {'kg_' + x for x in vals}
+            elif k == 'c':
+                s['cities'] = vals
+            elif k == 'w':
+                s['watch'] = vals
+            elif k == 'l':
+                s['lines'] = vals
+        return s
+    s['freq'] = tags.get('freq') or None
+    cs = {t for t, v in tags.items() if v == '1' and re.match(r'^c[0-9a-z]+$', t)}
+    if s['freq']:
+        s['cities'] = cs
+    else:
+        s['watch'] = cs
+    s['lines'] = {t[1:] for t, v in tags.items() if v == '1' and re.match(r'^l\d+$', t)}
+    g = {t for t in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident') if tags.get(t) == '1'}
+    s['groups'] = g or None
+    return s
+
+
 def collect_changes():
     """{makat: {'line','dest','kinds':set,'rd'}} לשינויים המהותיים של DATE."""
     idx = {}
@@ -118,6 +155,13 @@ def main():
     if not (APP_ID and API_KEY) and not DRY:
         print('אין מפתחות OneSignal — יציאה שקטה (הפיצ׳ר עוד לא הופעל)')
         return
+    # הנמענים נבחרים כאן ולא בסינון תגים אצל הספק — ההרשמה כולה בתג אחד (parse_sub)
+    try:
+        players = list_players() if (APP_ID and API_KEY) else []
+    except Exception as ex:
+        print(f'רשימת הנרשמים נכשלה ({ex})', file=sys.stderr)
+        return
+    subs = [(p['id'], parse_sub(p.get('tags'))) for p in players if p.get('id') and not p.get('invalid_identifier')]
     sent = 0
     for mk, e in sorted(changes.items()):
         if sent >= MAX_SENDS:
@@ -127,24 +171,20 @@ def main():
         title = f'קו {e["line"]}' if e['line'] else 'קו'
         body = f'{kinds} — {e["dest"][:90]}' if e['dest'] else kinds
         url = f'{BASE_URL}#{e["rd"]}@{DATE}'
-        groups = sorted({KIND_GROUP.get(k) for k in e['kinds']} - {None})
-        filters = [{'field': 'tag', 'key': f'l{mk}', 'relation': '=', 'value': '1'}]
-        for ct in dest_cities(e['dest']):
-            ctag = {'field': 'tag', 'key': city_tag(ct), 'relation': '=', 'value': '1'}
-            # עוקבי-עיר מהכפתור הפשוט (בלי תדירות) — מקבלים הכל יומית
-            filters += [{'operator': 'OR'}, ctag,
-                        {'field': 'tag', 'key': 'freq', 'relation': 'not_exists'}]
-            # נרשמי מרכז ההתראות במצב יומי — רק בסוגים שסימנו
-            for g in groups:
-                filters += [{'operator': 'OR'}, ctag,
-                            {'field': 'tag', 'key': 'freq', 'relation': '=', 'value': '1'},
-                            {'field': 'tag', 'key': g, 'relation': '=', 'value': '1'}]
+        groups = {KIND_GROUP.get(k) for k in e['kinds']} - {None}
+        ctags = {city_tag(ct) for ct in dest_cities(e['dest'])}
+        # עוקבי קו; עוקבי-עיר מהכפתור הפשוט (הכל, יומית); נרשמי המרכז במצב יומי — בסוגים שסימנו
+        ids = [pid for pid, s in subs if mk in s['lines'] or (ctags & s['watch'])
+               or ((ctags & s['cities']) and s['freq'] in (None, '1') and (s['groups'] is None or (groups & s['groups'])))]
         payload = {'app_id': APP_ID,
                    'headings': {'en': title, 'he': title},
                    'contents': {'en': body, 'he': body},
-                   'url': url, 'filters': filters}
+                   'url': url, 'include_subscription_ids': ids}
         if DRY:
-            print('DRY:', title, '|', body, '|', url, '|', [f.get('key') for f in filters if 'key' in f])
+            print('DRY:', title, '|', body, '|', url, '|', f'{len(ids)} נמענים')
+        elif not ids:
+            print(f'קו {e["line"]} ({", ".join(dest_cities(e["dest"])) or "—"}): 0 נמענים')
+            continue
         else:
             try:
                 res = send(payload)
@@ -247,16 +287,18 @@ def send_digest_all(days):
             continue
         if since_ts and (p.get('last_active') or 0) < since_ts:
             continue
-        ucities = [rev[t] for t, val in tags.items() if t in rev and val == '1']
-        ulines = [t[1:] for t, val in tags.items() if t[:1] == 'l' and t[1:].isdigit() and val == '1']
-        ugroups = {g for g in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident') if tags.get(g) == '1'} or set(KIND_GROUP.values())
+        s = parse_sub(tags)
+        ucities = [rev[t] for t in sorted(s['cities'] | s['watch']) if t in rev]
+        watch_names = {rev[t] for t in s['watch'] if t in rev}   # כפתור "עקוב" — כל הסוגים
+        ulines = sorted(s['lines'])
+        ugroups = s['groups'] or set(KIND_GROUP.values())
         mks, kinds, hit = set(), set(), []
         for ct in ucities:
             e = by_city.get(ct)
             if not e:
                 continue
             for k, kmks in e['bykind'].items():
-                if KIND_GROUP.get(k) in ugroups:
+                if ct in watch_names or KIND_GROUP.get(k) in ugroups:
                     kinds.add(k)
                     mks |= kmks
                     if ct not in hit:
@@ -328,11 +370,11 @@ def send_digests():
         by_city = collect_range(days)
         sent = 0
         for p in players:
-            tags = p.get('tags') or {}
-            if tags.get('freq') != freq or p.get('invalid_identifier'):
+            s = parse_sub(p.get('tags'))
+            if s['freq'] != freq or p.get('invalid_identifier'):
                 continue
-            ucities = [rev[t] for t, val in tags.items() if t in rev and val == '1']
-            ugroups = {g for g in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident') if tags.get(g) == '1'}
+            ucities = [rev[t] for t in sorted(s['cities']) if t in rev]
+            ugroups = s['groups'] or set(KIND_GROUP.values())
             mks, kinds = set(), set()
             for ct in ucities:
                 e = by_city.get(ct)
