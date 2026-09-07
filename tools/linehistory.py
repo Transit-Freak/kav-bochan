@@ -1033,11 +1033,9 @@ state_out.update(carry)   # רשומים ללא נסיעות פעילות — נ
 json.dump(state_out,
           open(f'{OUTDIR}/state-routes.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 json.dump(cur_stops,open(f'{OUTDIR}/stops-state.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
-# מספר הרציף ברישום של כל תחנה שיש לה כזה — קובץ קטן אחד. האתר כבר לא מציג
-# אותו (שלמה 07.09: זה לא מספר הרציפים ולא הרציפים הפעילים), אבל הוא נשמר
-# כתיעוד של מה שהרישום אומר בכל יום.
-json.dump({'updated':TODAY,'p':{s['c']:s['p'] for s in stops.values() if s.get('p')}},   # הערך של היום, לא המאושר
-          open(f'{OUTDIR}/platforms.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
+# platforms.json נכתב עכשיו ב-tools/platforms.py לפי שורות הרציפים עצמן (שורה
+# לכל רציף באותו מק"ט) — כאן 'p' של מק"ט הוא רק השורה האחרונה שנקראה, ולכן
+# הוא לא נכתב לאתר (שלמה 07.09).
 # מספר הנסיעות משתנה מיום ליום, ולכן הוא יושב בקובץ צדדי אחד ולא בתוך
 # 13,000 קובצי הקווים — אחרת כל ריצה יומית הייתה משנה את כולם.
 json.dump({k:v for k,v in sorted(_ntr.items()) if k.count('-')>=2},

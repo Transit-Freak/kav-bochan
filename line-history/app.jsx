@@ -649,7 +649,7 @@ const dedupCount = (arr) => {
   (arr || []).forEach((x) => { const k = typeof x === "string" ? x : x[0] + "|" + x[1]; const e = m.get(k); if (e) e.n += 1; else m.set(k, { x, n: 1 }); });
   return [...m.values()];
 };
-function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned }) {
+function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   // קטעי-שינוי ששולפו מהארכיון (v.sg) — הגאומטריה האמיתית של מה שירד
@@ -749,6 +749,8 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
     const popHtml = (s, status) =>
       `<b>${esc(s[1])}</b>${status ? `<br><span class="pst">${status}</span>` : ""}` +
       (PD[s[4]] ? `<br><span class="pst">⛔ ${PD[s[4]]}</span>` : "") +
+      // הרציף של הווריאנט בתחנה הזו היום (platforms.json) — רק במסופים עם רציפים
+      (plats && plats[String(s[0])] ? `<br><span class="pst">🛤️ רציף ${esc(String(plats[String(s[0])]))}</span>` : "") +
       `<br><span class="pcode">מק״ט תחנה ${esc(s[0])}</span>`;
     (curStops || []).forEach((s) => {
       // הגרסה הקודמת עשויה להיות שינוי תדירות בלי רצף תחנות, ואז אין מול מה
@@ -778,7 +780,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
         .bindPopup(popHtml([p[0], p[1]], "🔴 תחנה שירדה מהקו בגרסה זו"), { className: "lh-pop", offset: [0, -4] });
     });
     return () => { mapRef.current = null; map.remove(); };
-  }, [cur, prev, curStops, prevStops, addedCodes, focus, diff, chStops, focusPts, canFocus, stops12, shape12, remPins, sgO, sgN]);
+  }, [cur, prev, curStops, prevStops, addedCodes, focus, diff, chStops, focusPts, canFocus, stops12, shape12, remPins, sgO, sgN, plats]);
   // סיכום טקסטואלי למי שלא רואה את המפה — המספרים כבר מחושבים ממילא
   const nAdd = (curStops || []).filter((s) => addedCodes && addedCodes.has(s[0])).length;
   const curC = new Set((curStops || []).map((s) => s[0]));
@@ -878,9 +880,22 @@ const getMonths = () => MONTHS_P || (MONTHS_P = dfetch("data/months.json")
   .then((r) => r.json())
   .catch((e) => { MONTHS_P = null; throw e; }));
 
-/* "רציף N" / "הרציף היום: N" ליד תחנה הוסר (שלמה 07.09): המספר מ-platforms.json הוא
-   מספר הרציף של המק"ט ברישום המשרד, לא מספר הרציפים בתחנה ולא הרציפים
-   הפעילים — ובמסופים גדולים הוא שרירותי (ראו HIDE_KINDS). */
+/* רציפים (platforms.json v2, tools/platforms.py — נכתב בכל ריצה יומית מהשורות
+   של הרציפים בקובץ התחנות של המשרד): st — לכל מק"ט הרציפים שיש בהם נסיעות
+   בתוקף ומי עוצר בכל אחד; rd — לכל וריאנט הרציף שלו בכל תחנה. נטען פעם אחת;
+   כשל או קובץ ישן = בלי רציפים, בלי לשבור את הדף. */
+let PLAT_P = null;
+const getPlatforms = () => PLAT_P || (PLAT_P = dfetch("data/platforms.json")
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => (d && d.v === 2 ? d : { st: {}, rd: {} }))
+  .catch(() => ({ st: {}, rd: {} })));
+function usePlatforms() {
+  const [p, setP] = useState(null);
+  useEffect(() => { let on = true; getPlatforms().then((d) => { if (on) setP(d); }); return () => { on = false; }; }, []);
+  return p;
+}
+const platKey = (p) => (/^\d+$/.test(p) ? [0, parseInt(p, 10)] : [1, p]);
+const platSort = (a, b) => { const x = platKey(a), y = platKey(b); return x[0] - y[0] || (x[0] === 0 ? x[1] - y[1] : String(x[1]).localeCompare(String(y[1]))); };
 
 const getAnchors2012 = () =>
   ANC2012 || (ANC2012 = dfetch("data/anchor-2012.json")
@@ -1300,7 +1315,11 @@ function DigestPage({ city, days, onBack, openLine }) {
 }
 
 function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) {
-  const withPlat = (str) => str;   // "· רציף N" ליד תחנה הוסר (שלמה 07.09) — ראו HIDE_KINDS
+  // "· רציף N" ליד תחנה במסוף — הרציף של הווריאנט הזה לפי שורת הרציף בקובץ
+  // התחנות (platforms.json rd), מתעדכן מדי יום
+  const plats = usePlatforms();
+  const rdPlat = (plats && plats.rd && plats.rd[rd]) || {};
+  const withPlat = (str, c) => (c != null && rdPlat[String(c)]) ? `${str} · רציף ${rdPlat[String(c)]}` : str;
   const [lf, setLf] = useState(null);
   const [err, setErr] = useState(null);
   const [sel, setSel] = useState(null);   // אינדקס גרסה נבחרת
@@ -1757,6 +1776,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         </div>
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         <div className="facts">{lf.op}{lf.ty && !(lf.vt && lf.vt.startsWith(lf.ty)) ? " · " + lf.ty : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
+          {/* רציף המוצא של היום — משורת הרציף בקובץ התחנות (שלמה 07.09) */}
+          {(() => {
+            const lv = [...vs].reverse().find((v) => (v.stops || []).length);
+            const s0 = lv && lv.stops[0];
+            const pp = s0 && rdPlat[String(s0[0])];
+            return pp ? <span className="vsz" title={"הרציף שממנו הקו יוצא היום ב" + s0[1] + ", לפי שורת הרציף בקובץ התחנות של משרד התחבורה (נסיעות בתוקף) — מתעדכן מדי יום"}> · 🛤️ יוצא מרציף {pp}</span> : null;
+          })()}
           {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
               אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
               נגישות, התג מציין מאיזה תאריך המצב הנוכחי; שינוי שקרה יחד עם
@@ -2129,6 +2155,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             ? new Set((v.add || []).map((n, j) => (v.ac && v.ac[j] != null ? String(v.ac[j]) : codeOf(n, vi, true))).filter(Boolean)) : null}
           stops12={onlyCur ? null : stops12} shape12={onlyCur ? null : shape12}
           sg={onlyCur || cmpOn || m12only ? null : (v.sg || null)}
+          plats={m12only ? null : rdPlat}
           remPins={onlyCur || cmpOn || m12only ? null : remPinsOf(v, vi, gv).pins} />
         {/* תחנה שירדה ואין לה מיקום באף מקור — נאמרת במפורש, לא נעלמת */}
         {!cmpOn && !onlyCur && !m12only && (() => {
@@ -2677,6 +2704,7 @@ function RecentChanges({ idx, openLine, onAll }) {
 // (בקשת המשתמש). הנתונים: data/stopev/XX.json — נגזרים יומית מקובצי
 // הקווים, כך ששינוי אצל קו נרשם אוטומטית גם אצל כל תחנה שהושפעה.
 function LinesAtStop({ code, onClose }) {
+  const plats = usePlatforms();   // הרציפים הפעילים בתחנה ומי עוצר בכל אחד (שלמה 07.09)
   const [d, setD] = useState(null);
   const [err, setErr] = useState(false);
   const [all, setAll] = useState(false);
@@ -2729,11 +2757,39 @@ function LinesAtStop({ code, onClose }) {
     grouped.push(gk[key]);
   });
   const shown = all ? grouped : grouped.slice(0, 30);
+  // רציפים פעילים = רציפים (שורות בקובץ התחנות של המשרד, אותו מק"ט) שיש בהם
+  // נסיעות בלוח הזמנים שבתוקף — לא כל הרציפים הבנויים (שלמה 07.09: "בתחנה זו
+  // יש 16 רציפים פעילים"; במרכזית ראשל"צ יש גם רציפים בלי קווים)
+  const pst = plats && plats.st && plats.st[code];
+  const platNos = pst ? Object.keys(pst.p || {}).sort(platSort) : [];
   return (
     <div className="lat">
       <div className="lathead">🚌 הקווים בתחנה הזו לאורך זמן
         {onClose && <button className="latx" title="סגירת ציר הקווים" onClick={onClose}>✕</button>}
       </div>
+      {platNos.length > 0 && (
+        <details className="latplat">
+          <summary title="לפי שורות הרציפים בקובץ התחנות של משרד התחבורה: רציף נחשב פעיל כשיש בו נסיעות בלוח הזמנים שבתוקף — מתעדכן מדי יום">
+            🛤️ {platNos.length === 1
+              ? <>בתחנה זו רציף פעיל אחד: <b>רציף {platNos[0]}</b></>
+              : <>בתחנה זו יש <b>{platNos.length} רציפים פעילים</b> (רציפים שיש בהם קווים היום)</>}
+          </summary>
+          <div className="platlist">
+            {platNos.map((p) => {
+              // כמה חלופות של אותו קו באותו רציף — מספר הקו פעם אחת
+              const seenL = new Set();
+              const items = (pst.p[p] || []).filter(([rd2, l]) => { const k = l || rd2; if (seenL.has(k)) return false; seenL.add(k); return true; });
+              return (
+                <div key={p} className="platrow"><b>רציף {p}</b>:{" "}
+                  {items.map(([rd2, l], j) => (
+                    <React.Fragment key={rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2)} title={rd2}>{l || rd2}</a></React.Fragment>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
       {now.length > 0 && (
         <div className="latnow" title="קווים שעוצרים בתחנה לפי התיעוד ויש להם לו״ז לשבוע הקרוב (פרסום הרישוי ל-10 הימים)">עוצרים בה היום (יש להם לו״ז לשבוע הקרוב):{" "}
           {now.slice(0, 40).map(([l, rd2]) => <a key={l} className="badge sm latb" href={lineHref(rd2)}>{l}</a>)}
@@ -2999,7 +3055,7 @@ function StopsTab({ sel, selN }) {
                     סמל המפה בסופה — בלי כפתור-בתוך-כפתור (הביקורת) */}
                 <div className={"srow" + (one ? "" : " sub") + (c.la != null ? " clk" : "")}
                   onClick={() => { if (c.la != null) setOpenKey(openKey === k0 ? null : k0); }}>
-                  <span className="k" style={{ background: (SKINDS[c.k] || {}).color }}>{(SKINDS[c.k] || { label: c.k }).label}</span>
+                  <span className="k" style={{ background: (SKINDS[c.k] || {}).color }}>{c.k === "platform" && c.pv ? (c.st === "add" ? "רציף נוסף" : "רציף בוטל") : (SKINDS[c.k] || { label: c.k }).label}</span>
                   {one ? (
                     <span className="nm">
                       {c.k === "renamed" ? <><s>{c.on}</s> ← <b>{c.nn}</b></> : <b>{c.n}</b>}
@@ -3024,6 +3080,11 @@ function StopsTab({ sel, selN }) {
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
                         מקבלים כיוון RTL וסדר lat/lon התהפך ויזואלית */}
                     {c.k === "city" && <> · <s>{c.oc}</s> ← <b>{c.nc}</b></>}
+                    {/* רציף (pv=2, tools/platforms.py): רציף במסוף שקיבל קווים / נשאר בלי קווים —
+                        רק זה "שינוי ברציף התחנה" (שלמה 07.09), לא קפיצה של מספר ברישום */}
+                    {c.k === "platform" && c.pv && (c.st === "add"
+                      ? <> · 🆕 <b>רציף {c.pl}</b> נוסף — עוצרים בו: {(c.lines || []).join(", ") || "—"}</>
+                      : <> · ➖ <b>רציף {c.pl}</b> בוטל (נשאר בלי קווים) — עצרו בו: {(c.lines || []).join(", ") || "—"}</>)}
     {/* ניסוח פשוט (בקשת שלמה): "השם הישן היה… השם החדש הוא…". אירועי
                         "הפכה/חדלה להיות תחנת יעד" הוסרו כליל — רק שינויי שם */}
                     {c.k === "pubdest" && c.st === "ren" &&
@@ -3031,7 +3092,7 @@ function StopsTab({ sel, selN }) {
                     {c.k === "moved" && (c.ola != null
                       ? <> · הוזזה <b>{c.dist || c.m} מ׳</b> · <s dir="ltr">({c.ola}, {c.olo})</s> ← <b dir="ltr">({c.la}, {c.lo})</b></>
                       : <> · הוזזה <b>{c.dist || c.m} מ׳</b> · אל <b dir="ltr">({c.la}, {c.lo})</b></>)}
-                    {c.lines && c.lines.length > 0 && <> · {c.k === "new" ? "קווים שעצרו בה מהפתיחה" : "קווים שעצרו בה אז"}: {c.lines.slice(0, 10).join(", ")}</>}
+                    {c.lines && c.lines.length > 0 && c.k !== "platform" && <> · {c.k === "new" ? "קווים שעצרו בה מהפתיחה" : "קווים שעצרו בה אז"}: {c.lines.slice(0, 10).join(", ")}</>}
                     {c.la != null && <> · <button className="mapbtn" aria-expanded={openKey === k0}
                       aria-label={"מפת התחנה " + (c.n || c.nn || c.c)}
                       onClick={(e) => { e.stopPropagation(); setOpenKey(openKey === k0 ? null : k0); }}>🗺️</button></>}

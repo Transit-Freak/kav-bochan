@@ -11,6 +11,7 @@ on:
     paths:
       - '.github/workflows/line-history.yml'
       - 'tools/linehistory.py'
+      - 'tools/platforms.py'
       - 'tools/rebuild_lines_index.py'
       - 'tools/enrich_stop_diffs.py'
       - 'tools/fix_dest_kind.py'
@@ -63,6 +64,10 @@ jobs:
             SHAPES=shapes.txt AGENCY=agency.txt CALENDAR=calendar.txt MAIN=data-main.json \
             OUTDIR=line-history/data REBASE=$REBASE python3 tools/linehistory.py
           rm -f line-history/data/.rebase
+          # רציפים לפי שורות הרציפים בקובץ התחנות (שורה לכל רציף באותו מק"ט):
+          # רציפים פעילים בתחנה, רציף לכל קו, ואירועי רציף נוסף/בוטל (שלמה 07.09)
+          STOPS=stops.txt STOP_TIMES=stop_times.txt TRIPS=trips.txt ROUTES=routes.txt CALENDAR=calendar.txt \
+            OUTDIR=line-history/data python3 tools/platforms.py || echo "רציפים — נשלים בריצה הבאה"
           # ניקוי עצמי: זוג אירועים שסוגר את עצמו (רפרוף רישום סביב הפסקה)
           # נמחק — תנודת-נייר איננה שינוי (הלקח מקו 80 כפר חב"ד)
           OUTDIR=line-history/data python3 tools/collapse_wobbles.py
