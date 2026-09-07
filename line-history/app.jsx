@@ -326,7 +326,13 @@ function fmtM(d) { const p = (d || "").split("-"); return p[1] + "." + p[0]; }
 function gapDays(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5); }
 // חיפוש סלחני לגרשיים: בנתונים כתוב רשל''צ (שני גרשים) והמשתמש מקליד
 // רשל"צ או רשל״צ — כל סימני הגרש/גרשיים מוסרים משני צידי ההשוואה
-const sQ = (t) => String(t || "").replace(/[׳״'"]+/g, "");
+// מק"ט כמו 21011-1-# מתהפך בטקסט עברי ל-"#-21011-1", כי '#' בסוף רצף ספרות
+// נחשב תו ניטרלי ומקבל את כיוון הפסקה (שלמה 07.09). בתצוגה עוזר dir=ltr, אבל
+// טקסט שמעתיקים לוואטסאפ מאבד אותו — לכן בתוך הטקסט עצמו יש תווי כיוון
+// בלתי-נראים (LRE…PDF) שנוסעים יחד עם ההעתקה ומחזיקים את הסדר בכל מקום.
+const rdTxt = (rd) => "\u202A" + String(rd || "") + "\u202C";
+// חיפוש: מק"ט שהודבק עם תווי הכיוון האלה חייב עדיין להתאים
+const sQ = (t) => String(t || "").replace(/[׳״'"\u200e\u200f\u202a-\u202e\u2066-\u2069]+/g, "");
 // קובצי הנתונים מתעדכנים יומית תחת אותה כתובת. חותמת-יום בכתובת החטיאה
 // את המטמון פעם ביום גם לקבצים היסטוריים שלא השתנו, ובחלק מהקבצים
 // (?v=BUILD בלבד) הוגשה גרסה של אתמול. cache:no-cache מאלץ בדיקת
@@ -1775,7 +1781,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
               {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
           )}
-          {" · מק״ט "}<span className="rdnum" dir="ltr">{lf.rd}</span> · {vs.length} גרסאות מתועדות</div>
+          {" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span> · {vs.length} גרסאות מתועדות</div>
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}
@@ -2507,8 +2513,8 @@ function DayFeed({ idx, openLine, open12, onBack }) {
                     onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
                     <span className="badge sm">{c.line || TT_ICON[m.tt] || "—"}</span>
                     <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
-                    <span className="ldest">{m.dest || c.rd}</span>
-                    <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{c.rd}</span></span>
+                    <span className="ldest">{m.dest || rdTxt(c.rd)}</span>
+                    <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
                     {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
@@ -2626,8 +2632,8 @@ function RecentChanges({ idx, openLine, onAll }) {
                 onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
                 <span className="badge sm">{c.line}</span>
                 <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
-                <span className="ldest">{m.dest || c.rd}</span>
-                <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{c.rd}</span></span>
+                <span className="ldest">{m.dest || rdTxt(c.rd)}</span>
+                <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
                 {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
@@ -3155,7 +3161,7 @@ function ModesTab({ idx, openLine, spec }) {
               </span>
             )}
             <span className="ldest">{l.dest}</span>
-            <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{l.rd}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
+            <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
           </a>
         ))}
         {list.length === 0 && <div className="empty">לא נמצא קו תואם.</div>}
@@ -3468,7 +3474,7 @@ function App() {
                     </span>
                   ))}
                   <span className="ldest">{l.dest}</span>
-                  <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{l.rd}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
+                  <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.lk === "removed" && <> · מבוטל מאז {fmtD(l.ld)}</>}</span>
                 </a>
               ))}
