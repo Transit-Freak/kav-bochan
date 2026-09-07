@@ -2699,7 +2699,7 @@ function LinesAtStop({ code, onClose }) {
   // וריאנט שהתיעוד אומר שהוא עוצר כאן אבל אין לו לו"ז אינו פעיל (שלמה 07.09)
   const active = Array.isArray(d.a) ? new Set(d.a) : null;
   const nowMap = new Map();
-  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
+  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
   const now = [...nowMap.entries()].sort((a, b) => (parseInt(a[0]) || 9e9) - (parseInt(b[0]) || 9e9) || String(a[0]).localeCompare(b[0]));
   // ציר הזמן: אירועי "התיעוד הראשון" של אותו תאריך מקובצים לשורה אחת,
   // וחלופות של אותו קו באותו יום לא מוצגות פעמיים
@@ -2707,42 +2707,44 @@ function LinesAtStop({ code, onClose }) {
   const baseByDate = {};
   ev.forEach((e) => { if (e[3] === "base" && e[1]) (baseByDate[e[0]] = baseByDate[e[0]] || new Map()).set(e[1], e[2]); });
   Object.entries(baseByDate).forEach(([dte, lines]) => rows.push({ d: dte, k: "base", lines: [...lines.entries()] }));
+  // מעבר רציף (mvin/mvout, מזוהה בצינור: אותו קו הפסיק בתחנה אחת והתחיל
+  // בתחנה אחרת של אותו מסוף באותו יום) — זו מהות השינוי, לא "בוטל ונוסף"
+  // (שלמה 07.09: "עבר מרציף 2 ל-1"). מספר הרציף נלקח רק משם התחנה ("…/רציף 2")
+  // — הרישום של היום אומר איפה הרציף עכשיו, לא איפה הוא היה ב-2021, ולכן
+  // כשאין מספר בשם מוצג שם התחנה השנייה.
+  const platOf = (name) => {
+    const m = /רציף\s*(\d+)/.exec(name || "");
+    return m ? "רציף " + m[1] : null;
+  };
+  const herePlat = platOf(d.n);
   const seen = new Set();
   ev.forEach((e) => {
     if (e[3] === "base") return;
-    const key = e[0] + "|" + e[1] + "|" + e[3];
+    const key = e[0] + "|" + e[1] + "|" + e[3] + "|" + (e[4] || "");
     if (seen.has(key)) return;
     seen.add(key);
-    rows.push({ d: e[0], k: e[3], line: e[1] || "—", rd: e[2] });
+    rows.push({ d: e[0], k: e[3], line: e[1] || "—", rd: e[2], pc: e[4], pn: e[5] });
   });
   rows.sort((a, b) => b.d.localeCompare(a.d));
-  // קו ש"התחיל" ו"הפסיק" לעצור כאן באותו יום (שלמה 07.09: "איך נוסף ונכנס באותו
-  // יום?") — זה לא סתירה: התחנה עברה מווריאנט אחד של הקו לאחר, כמעט תמיד
-  // מכיוון אחד לכיוון השני (מסוף שהוחלף, לולאה שהתהפכה). במקום שתי שורות
-  // סותרות — שורה אחת שאומרת את זה.
-  const dirOf = (rd2) => String(rd2 || "").split("-")[1] || "";
-  const byDL = {};
-  rows.forEach((r) => { if (r.k !== "base") (byDL[r.d + "|" + r.line] = byDL[r.d + "|" + r.line] || []).push(r); });
-  const swapRows = [], swapped = new Set();
-  Object.entries(byDL).forEach(([key, rs]) => {
-    const ins = rs.filter((r) => r.k === "in"), outs = rs.filter((r) => r.k === "out");
-    if (!ins.length || !outs.length) return;
-    const od = new Set(outs.map((r) => dirOf(r.rd)));
-    const other = ins.some((r) => !od.has(dirOf(r.rd)));
-    rs.forEach((r) => swapped.add(r));
-    swapRows.push({ d: rs[0].d, k: "swap", line: rs[0].line, rd: ins[0].rd, other });
-  });
-  const rows2 = rows.filter((r) => !swapped.has(r)).concat(swapRows).sort((a, b) => b.d.localeCompare(a.d));
-  // אותו תאריך ואותו סוג (התחילו / הפסיקו / עברו) — שורה אחת עם כל הקווים,
-  // במקום עשר שורות זהות (שלמה 07.09)
+  // אותו תאריך, אותו סוג ואותה תחנה שנייה — שורה אחת עם כל הקווים, במקום
+  // עשר שורות זהות (שלמה 07.09)
   const grouped = [], gk = {};
-  rows2.forEach((r) => {
+  rows.forEach((r) => {
     if (r.k === "base") { grouped.push(r); return; }
-    const key = r.d + "|" + r.k + (r.k === "swap" ? "|" + (r.other ? "d" : "a") : "");
+    const key = r.d + "|" + r.k + "|" + (r.pc || "");
     if (gk[key]) { gk[key].items.push([r.line, r.rd]); return; }
-    gk[key] = { d: r.d, k: r.k, other: r.other, items: [[r.line, r.rd]] };
+    gk[key] = { d: r.d, k: r.k, pc: r.pc, pn: r.pn, items: [[r.line, r.rd]] };
     grouped.push(gk[key]);
   });
+  // "עבר מרציף 2 לרציף 1" כשיש מספרי רציפים; אחרת בשמות התחנות
+  const moveTxt = (r, plural) => {
+    const there = platOf(r.pn);
+    const from = r.k === "mvin", here = herePlat;
+    if (from && there && here) return (plural ? "עברו" : "עבר") + ` מ${there} ל${here}`;
+    if (!from && there && here) return (plural ? "עברו" : "עבר") + ` מ${here} ל${there}`;
+    const other = <a href={"#stop=" + r.pc} title="לתחנה השנייה">{r.pn || r.pc}</a>;
+    return from ? <>{plural ? "עברו" : "עבר"} לעצור כאן במקום ב{other}</> : <>{plural ? "עברו" : "עבר"} מכאן ל{other}</>;
+  };
   const shown = all ? grouped : grouped.slice(0, 30);
   return (
     <div className="lat">
@@ -2766,8 +2768,8 @@ function LinesAtStop({ code, onClose }) {
                 ? <>🆕 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> התחיל לעצור בתחנה</>
                 : r.k === "out"
                 ? <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>
-                : <>🔁 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> עבר לעצור בתחנה {r.other ? "בכיוון השני" : "בחלופה אחרת של הקו"}</>}</div>
-            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : r.k === "out" ? "➖" : "🔁"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : r.k === "out" ? "הפסיקו לעצור בתחנה" : "עברו לעצור בתחנה " + (r.other ? "בכיוון השני" : "בחלופה אחרת")}: {r.items.map(([l, rd2], j) =>
+                : <>🔁 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> {moveTxt(r, false)}</>}</div>
+            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : r.k === "out" ? "➖" : "🔁"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : r.k === "out" ? "הפסיקו לעצור בתחנה" : moveTxt(r, true)}: {r.items.map(([l, rd2], j) =>
                 <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</div>)}
       </div>
       {grouped.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {grouped.length.toLocaleString()} האירועים</button>}

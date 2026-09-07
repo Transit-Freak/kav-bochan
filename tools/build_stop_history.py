@@ -25,12 +25,19 @@ OUTDIR = os.environ.get('OUTDIR', 'line-history/data')
 
 def main():
     stops = {}   # code → {'n': name, 'ev': [...]}
+    coord = {}   # code → (lat, lon) — לזיהוי מעבר בין רציפים של אותו מסוף
+    ref = {}     # (date, rd, kind, code) → האירוע עצמו, כדי להפוך in/out למעבר
+    moves = {}   # (date, rd) → {'in': [codes], 'out': [codes]}
 
     def emit(code, name, date, line, rd, kind):
         s = stops.setdefault(code, {'n': '', 'ev': []})
         if name:
             s['n'] = name       # השם האחרון שנראה — עדכני יותר
-        s['ev'].append([date, line, rd, kind])
+        e = [date, line, rd, kind]
+        s['ev'].append(e)
+        if kind in ('in', 'out'):
+            ref[(date, rd, kind, code)] = e
+            moves.setdefault((date, rd), {'in': [], 'out': []})[kind].append(code)
 
     n_files = 0
     for p in sorted(glob.glob(f'{OUTDIR}/lines/*.json')):
@@ -55,6 +62,8 @@ def main():
                 c = str(s[0])
                 codes.add(c)
                 names[c] = s[1]
+                if len(s) >= 4 and s[2] is not None and s[3] is not None:
+                    coord[c] = (s[2], s[3])
             if prev_codes is None:
                 for c in codes:
                     emit(c, names.get(c), d, line, rd, 'base')
@@ -69,6 +78,39 @@ def main():
         if last.get('k') == 'removed' and prev_codes:
             for c in prev_codes:
                 emit(c, prev_names.get(c), last.get('d', ''), line, rd, 'out')
+
+    # מעבר בין רציפים: קו ש"הפסיק" לעצור בתחנה א' ו"התחיל" לעצור בתחנה ב' באותו
+    # יום, כשהשתיים הן אותו מסוף (עד 300 מ' זו מזו, או אותו שם לפני ה-"/") —
+    # זה לא ביטול ותוספת אלא מעבר רציף (שלמה 07.09: "עבר מרציף 2 ל-1"). שני
+    # האירועים הופכים ל-mvout/mvin עם התחנה השנייה: [תאריך, קו, וריאנט, סוג,
+    # מק"ט התחנה השנייה, שמה].
+    def base(name):
+        return (name or '').split('/')[0].strip()
+
+    def near(a, b):
+        ca, cb = coord.get(a), coord.get(b)
+        if ca and cb:
+            dy = (ca[0] - cb[0]) * 111_000
+            dx = (ca[1] - cb[1]) * 111_000 * 0.845
+            return (dx * dx + dy * dy) ** 0.5 <= 300
+        return bool(base(stops[a]['n'])) and base(stops[a]['n']) == base(stops[b]['n'])
+
+    n_moves = 0
+    for (date, rd), io in moves.items():
+        if not io['in'] or not io['out']:
+            continue
+        used = set()
+        for a in io['out']:
+            for b in io['in']:
+                if b in used or a == b or not near(a, b):
+                    continue
+                used.add(b)
+                eo, ei = ref[(date, rd, 'out', a)], ref[(date, rd, 'in', b)]
+                eo[3] = 'mvout'; eo += [b, stops[b]['n']]
+                ei[3] = 'mvin'; ei += [a, stops[a]['n']]
+                n_moves += 1
+                break
+    print(f'מעברי רציף שזוהו: {n_moves}')
 
     # "עוצרים בה היום" = רק וריאנטים שיש להם לו"ז לשבוע הקרוב (פרסום הרישוי
     # ל-10 הימים, sched/XX.json; ובנוסף מי שיש לו נסיעות היום). וריאנט שהתיעוד
@@ -94,7 +136,7 @@ def main():
             last = {}
             for e in s['ev']:
                 last[e[2]] = e
-            s['a'] = sorted(rd for rd, e in last.items() if e[3] != 'out' and rd in active)
+            s['a'] = sorted(rd for rd, e in last.items() if e[3] not in ('out', 'mvout') and rd in active)
         shards.setdefault((c[:2] if len(c) >= 2 else '0x'), {})[c] = s
     outdir = f'{OUTDIR}/stopev'
     os.makedirs(outdir, exist_ok=True)
