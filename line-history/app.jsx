@@ -274,8 +274,9 @@ function materializeLf(lf) {
     for (let i = 1; i < veh.length; i++) {
       const [d, t, s] = veh[i], [, pt, ps] = veh[i - 1];
       let note;
-      if (s === UND && ps !== UND) note = `ברישוי לא נקבע עוד סוג רכב לקו (היה: ${desc(ps, pt)})`;
-      else if (ps === UND && s !== UND) note = `ברישוי נקבע לקו סוג רכב: ${desc(s, t)} (קודם לא היה מוגדר)`;
+      // תבנית אחת — "היה ← נהיה" — גם כשצד אחד "לא מוגדר" (שלמה 07.09, קו 292)
+      if (s === UND && ps !== UND) note = `סוג הרכב ברישוי שונה: ${desc(ps, pt)} ← לא מוגדר (המשרד כבר לא קובע לקו סוג רכב)`;
+      else if (ps === UND && s !== UND) note = `סוג הרכב ברישוי שונה: לא מוגדר ← ${desc(s, t)} (עד עכשיו המשרד לא קבע לקו סוג רכב)`;
       else if (ps !== s) note = `סוג הרכב ברישוי שונה: ${desc(ps, pt)} ← ${desc(s, t)}`;
       else note = `סוג הקו ברישוי שונה: ${pt || UND} ← ${t || UND} (הרכב: ${desc(s, "")})`;
       evs.push({ d, k: "vehicle", syn: true, stops: [], shp: "", note });
@@ -2251,6 +2252,17 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
         <span className="badge">{d.no}</span>
         <span className="dest">{d.dest}</span>
         <span className="k" style={{ background: "#78350f" }}>צילום 2012</span>
+        {/* שיתוף כמו בעמוד קו של היום: דף-שיתוף ייעודי (s/k-*.html) שמציג בוואטסאפ
+            את מספר הקו ואת סמל האתר — לקווי 2012 לא היה כזה (שלמה 07.09) */}
+        <button className="sharebtn" title="שיתוף הקישור לקו הזה כפי שהיה ב-2012"
+          onClick={(e) => {
+            const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/k-" + fsafe(k12) + ".html";
+            const b = e.currentTarget;
+            if (navigator.share) { navigator.share({ title: "הקו בזמן — קו " + (d.no || k12) + " (2012)", url }).catch(() => {}); return; }
+            const t = b.textContent;
+            const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
+          }}>🔗 שיתוף</button>
       </div>
       <div className="facts">{d.an} · {stops.length} תחנות · {(d.routes || []).length} מסלולים ·
         {" "}{matched} תחנות הוצלבו למק"ט של היום

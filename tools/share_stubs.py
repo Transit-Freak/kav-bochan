@@ -81,6 +81,27 @@ def main():
                         f'{BASE}/line-history/icon-180.png', img)
         n += 1
 
+    # --- הקו בזמן: קווי צילום 2012 (שלמה 07.09: לשיתוף שלהם לא היה דף, והכרטיס
+    #     בוואטסאפ יצא גנרי בלי מספר הקו) ---
+    try:
+        l12 = json.load(open('magihim-2012/data/index.json', encoding='utf-8')).get('lines') or []
+        for e in l12:
+            k, no = str(e.get('k') or ''), str(e.get('no') or '')
+            if not k:
+                continue
+            dest = str(e.get('dest') or '')[:40]
+            title = f'קו {no} (2012) — הקו בזמן' if no else f'{k} (2012) — הקו בזמן'
+            desc = (f'הקו כפי שהיה ב-2012: קו {no}' + (f' אל {dest}' if dest else '')
+                    + f' · {e.get("an") or ""} · באתר הקו הבוחן').strip(' ·')
+            url = f'{BASE}/line-history/#2012/{k}'
+            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{no.encode().hex()}.png'
+                   if no and no in rendered else f'{BASE}/line-history/og-image.png')
+            w += write_stub(f'k-{fsafe(k)}.html', title, desc, url,
+                            f'{BASE}/line-history/icon-180.png', img)
+            n += 1
+    except Exception as e:
+        print('2012: דילוג —', type(e).__name__, e, file=sys.stderr)
+
     # --- צי הרכבים: כל רכב ---
     try:
         d = json.load(open('fleet/data/fleet.json', encoding='utf-8'))
