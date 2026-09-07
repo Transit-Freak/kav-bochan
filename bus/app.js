@@ -34,7 +34,7 @@ const partial = d => d.sched > 0 && d.obs < d.sched * 0.3;
 function emptyAgg() { return {sched: 0, obs: 0, meas: 0, c: [0, 0, 0, 0, 0], o: [0, 0, 0, 0, 0], sum: 0, s: null, far: 0, extra: 0, vt: [0, 0, 0]}; }
 // גודל הרכב במילים של האתר: "אוטובוס" אצל המשרד הוא קטגוריית גודל (לא מיניבוס,
 // לא מידיבוס, לא מפרקי) — אותו ניסוח כמו ב"הקו בזמן" (שלמה 06.09)
-const VNAMES = {'מיניבוס': 'מיניבוס', 'מידיבוס': 'מידיבוס', 'אוטובוס': 'אוטובוס בגודל מלא', 'מפרקי': 'אוטובוס מפרקי'};
+const VNAMES = {'מיניבוס': 'מיניבוס', 'מידיבוס': 'מידיבוס', 'אוטובוס': 'אוטובוס', 'מפרקי': 'אוטובוס מפרקי'};
 const vname = v => VNAMES[v] || v || '';
 function addAgg(t, x) {
   const sched = x.sched != null ? x.sched : x[0], obs = x.obs != null ? x.obs : x[1], meas = x.meas != null ? x.meas : x[2], c = x.c || x[3], s = x.s || x[4];
@@ -241,7 +241,7 @@ function render() {
     <div class="panel"><div class="ptitle">לפי קו</div><p class="pdesc">כל כיוון של כל קו בנפרד. אפשר לבחור מפעיל, לדרג ("הכי לא מדייקים") או לחפש מספר קו. לחיצה על מספר הקו פותחת פירוט: באיזה קטע לאורך הקו נצבר האיחור.</p>
       <div class="filters" id="lfilters"></div>
       <div id="line-detail"></div><div id="t-lines"></div></div>
-    <div class="panel"><div class="ptitle">סוג הרכב מול מה שנקבע לקו</div><p class="pdesc">לכל קו משרד התחבורה קובע גודל רכב: מיניבוס, מידיבוס, אוטובוס בגודל מלא או מפרקי. כאן משווים אותו לרכב שהגיע בפועל בכל נסיעה, לפי מספר הרכב בשידור ומאגר ציי הרכב של המשרד. "רכב קטן יותר" הוא למשל מיניבוס בקו שנקבע לו אוטובוס בגודל מלא.</p><div id="vt-sum"></div><div class="filters" id="vt-filters"></div><div id="t-vt"></div></div>
+    <div class="panel"><div class="ptitle">סוג הרכב מול מה שנקבע לקו</div><p class="pdesc">לכל קו משרד התחבורה קובע גודל רכב: מיניבוס, מידיבוס, אוטובוס או אוטובוס מפרקי. כאן משווים אותו לרכב שהגיע בפועל בכל נסיעה, לפי מספר הרכב בשידור ומאגר ציי הרכב של המשרד. "רכב קטן יותר" הוא למשל מיניבוס בקו שנקבע לו אוטובוס.</p><div id="vt-sum"></div><div class="filters" id="vt-filters"></div><div id="t-vt"></div></div>
     <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>
     <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">כל ההגעות לתחנות שנמצאות בעיר, מכל הקווים שעוברים בה.</p><div id="t-city"></div></div>`;
   lineChart($('#c-trend'), trend, {color: C.line, min: 0, max: 100, unit: '%'});
