@@ -3,6 +3,30 @@
 const { useState, useEffect, useMemo, useRef } = React;
 const BUILD = window.LH_BUILD || "0";
 
+// כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
+// שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
+// בלי טעינה. לכן המצב האחרון נשמר ללשונית (sessionStorage) ומשוחזר כשטעינה
+// מחדש נוחתת על אחת הכתובות המקוריות (שלמה 07.09: "מחזיר אותך לדף הקודם").
+(function () {
+  try {
+    const K = "kbNav", now = location.href, base = (u) => String(u).split("#")[0];
+    let s = null; try { s = JSON.parse(sessionStorage[K] || "null"); } catch (e) { /* ignore */ }
+    const nav = performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
+    const reload = nav ? nav.type === "reload" : !!(performance.navigation && performance.navigation.type === 1);
+    const origs = ((s && Array.isArray(s.origs)) ? s.origs : []).filter((u) => base(u) === base(now));
+    if (reload && s && s.url && s.url !== now && base(s.url) === base(now) && origs.includes(now)) history.replaceState(history.state, "", s.url);
+    const note = () => { if (!origs.includes(location.href)) origs.push(location.href); if (origs.length > 30) origs.splice(0, origs.length - 30); };
+    const save = () => { try { sessionStorage[K] = JSON.stringify({ origs, url: location.href }); } catch (e) { /* ignore */ } };
+    note();
+    const push0 = history.pushState.bind(history), rep0 = history.replaceState.bind(history);
+    history.pushState = function (st, t, u) { push0(st, t, u); note(); save(); };
+    history.replaceState = function (st, t, u) { rep0(st, t, u); save(); };
+    window.addEventListener("popstate", save);
+    window.addEventListener("hashchange", () => { note(); save(); });
+    save();
+  } catch (e) { /* ignore */ }
+})();
+
 // איחוד לצורך הסרגל בלבד: שלוש דרגות של שינוי תחנות הן שאלה אחת, וכך גם
 // הארכה/קיצור/החלפת קצה. "תיעוד ראשון" ו"צילום מהארכיון" אינם שינויים אלא
 // נקודות פתיחה, ולכן הם יחד.
