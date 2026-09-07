@@ -7,38 +7,34 @@
 מה מושווה, לשנים 2026–2027 (תשפ"ז ותחילת תשפ"ח):
   · ICU — לוח השנה העברי המובנה בדפדפן (Intl.DateTimeFormat, ca=hebrew): זה
     מה שהאתר ישתמש בו. מודפס בצעד נפרד ב-node.
-  · ספריות בלתי-תלויות: convertdate, pyluach.
-  · אתרים: hebcal.com (API), timeanddate.com, ויקיפדיה (אנגלית ועברית), chabad.org.
+  · ספריות בלתי-תלויות: convertdate, pyluach (מספור חודשים מניסן: 1=ניסן, 7=תשרי).
+  · אתרים: hebcal.com (API), ויקיפדיה אנגלית (תיבת המידע של כל חג), ויקיפדיה
+    עברית (דף השנה), jewfaq.org, myjewishlearning.com, jewishvirtuallibrary.org,
+    ou.org, aish.com. timeanddate ו-chabad חוסמים שרתים (403) — נרשם.
 """
-import datetime
 import html
 import json
 import re
-import sys
 import urllib.request
 
 UA = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-      'Accept-Language': 'he,en;q=0.8'}
+      'Accept-Language': 'he,en;q=0.8', 'Accept': 'text/html,application/json;q=0.9,*/*;q=0.8'}
 YEARS = (2026, 2027)
-# (שם, חודש עברי לפי מספור ICU/ספריות: 1=תשרי … 7=ניסן, 12/13=אדר, יום)
+# (שם, חודש עברי במספור-מניסן של הספריות: 1=ניסן … 7=תשרי, 12/13=אדר, יום)
 HOLIDAYS = [
-    ('ראש השנה', 1, 1), ('צום גדליה', 1, 3), ('יום כיפור', 1, 10), ('סוכות', 1, 15), ('שמיני עצרת/שמחת תורה', 1, 22),
-    ('חנוכה (כ"ה בכסלו)', 3, 25), ('עשרה בטבת', 4, 10), ('ט"ו בשבט', 5, 15),
-    ('פורים (י"ד באדר/אדר ב)', 'adar', 14), ('תענית אסתר', 'adar', 13),
-    ('פסח', 7, 15), ('שביעי של פסח', 7, 21), ('יום השואה (כ"ז בניסן)', 7, 27),
-    ('יום הזיכרון (ד באייר)', 8, 4), ('יום העצמאות (ה באייר)', 8, 5), ('ל"ג בעומר', 8, 18), ('יום ירושלים', 8, 28),
-    ('שבועות', 9, 6), ('י"ז בתמוז', 10, 17), ('תשעה באב', 11, 9),
+    ('ראש השנה', 7, 1), ('צום גדליה', 7, 3), ('יום כיפור', 7, 10), ('סוכות', 7, 15), ('שמיני עצרת/שמחת תורה', 7, 22),
+    ('חנוכה (כ"ה בכסלו)', 9, 25), ('עשרה בטבת', 10, 10), ('ט"ו בשבט', 11, 15),
+    ('תענית אסתר', 'adar', 13), ('פורים (י"ד באדר/אדר ב)', 'adar', 14),
+    ('פסח', 1, 15), ('שביעי של פסח', 1, 21), ('יום השואה (כ"ז בניסן)', 1, 27),
+    ('יום הזיכרון (ד באייר)', 2, 4), ('יום העצמאות (ה באייר)', 2, 5), ('ל"ג בעומר', 2, 18), ('יום ירושלים', 2, 28),
+    ('שבועות', 3, 6), ('י"ז בתמוז', 4, 17), ('תשעה באב', 5, 9),
 ]
-KEYWORDS = {
-    'ראש השנה': ['Rosh Hashana', 'ראש השנה'], 'צום גדליה': ['Gedaliah', 'צום גדליה'], 'יום כיפור': ['Yom Kippur', 'יום כיפור', 'יום הכיפורים'],
-    'סוכות': ['Sukkot', 'סוכות'], 'שמיני עצרת/שמחת תורה': ['Shmini Atzeret', 'Shemini Atzeret', 'Simchat Torah', 'שמחת תורה'],
-    'חנוכה (כ"ה בכסלו)': ['Chanukah', 'Hanukkah', 'חנוכה'], 'עשרה בטבת': ['Tevet', 'עשרה בטבת'], 'ט"ו בשבט': ["Tu BiShvat", "Tu B'Shevat", 'Tu Bishvat', 'ט"ו בשבט', 'טו בשבט'],
-    'פורים (י"ד באדר/אדר ב)': ['Purim', 'פורים'], 'תענית אסתר': ['Esther', 'תענית אסתר'], 'פסח': ['Pesach', 'Passover', 'פסח'],
-    'שביעי של פסח': ['Pesach VII', 'Last day of Passover', 'שביעי של פסח'], 'יום השואה (כ"ז בניסן)': ['HaShoah', 'Holocaust', 'יום השואה'],
-    'יום הזיכרון (ד באייר)': ['HaZikaron', 'Memorial Day', 'יום הזיכרון'], 'יום העצמאות (ה באייר)': ["HaAtzma", 'Independence', 'יום העצמאות'],
-    'ל"ג בעומר': ['Lag B', 'Lag Ba', 'ל"ג בעומר', 'לג בעומר'], 'יום ירושלים': ['Yerushalayim', 'Jerusalem Day', 'יום ירושלים'],
-    'שבועות': ['Shavuot', 'שבועות'], 'י"ז בתמוז': ['Tammuz', 'י"ז בתמוז', 'שבעה עשר בתמוז'], 'תשעה באב': ["Tish'a B'Av", 'Tisha B', 'תשעה באב'],
-}
+EN_KEYS = ['Rosh Hashana', 'Gedaliah', 'Yom Kippur', 'Sukkot', 'Shmini Atzeret', 'Simchat Torah', 'Chanukah', 'Hanukkah', 'Tevet',
+           'Tu BiShvat', "Tu B'Shevat", 'Purim', 'Esther', 'Pesach', 'Passover', 'HaShoah', 'HaZikaron', "HaAtzma", 'Independence',
+           'Lag BaOmer', 'Lag B', 'Yerushalayim', 'Jerusalem Day', 'Shavuot', 'Tammuz', 'Tamuz', 'Tish', 'Tisha']
+HE_MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'במרס', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר']
+EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December',
+             'Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Sept', 'Oct', 'Nov', 'Dec']
 
 
 def log(*a):
@@ -53,21 +49,28 @@ def get(url, timeout=60):
 
 def text_of(h):
     h = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', h, flags=re.S | re.I)
-    h = re.sub(r'<br\s*/?>|</(p|div|tr|li|h\d|td|th)>', '\n', h, flags=re.I)
+    h = re.sub(r'<br\s*/?>|</(p|div|tr|li|h\d|td|th|dd|dt)>', '\n', h, flags=re.I)
     h = re.sub(r'<[^>]+>', ' ', h)
     h = html.unescape(h)
     return re.sub(r'[ \t\xa0]+', ' ', h)
 
 
-def snippets(txt, words, n=4, w=70):
+def date_lines(txt, years=('2026', '2027'), limit=40, must=None):
+    """שורות שמכילות שנה + שם חודש (לועזי או עברי) — שם מופיעים התאריכים."""
     out = []
-    for word in words:
-        for m in re.finditer(re.escape(word), txt):
-            s = txt[max(0, m.start() - w):m.end() + w].replace('\n', ' ⏎ ')
-            if any(y in s for y in ('2026', '2027', 'Sep', 'Oct', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'ב-20', 'בספטמבר', 'באוקטובר', 'בדצמבר', 'בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי')):
-                out.append(s.strip())
-            if len(out) >= n:
-                return out
+    for ln in txt.split('\n'):
+        s = ln.strip()
+        if not s or len(s) > 400:
+            continue
+        if not any(y in s for y in years):
+            continue
+        if not (any(m in s for m in EN_MONTHS) or any(m in s for m in HE_MONTHS)):
+            continue
+        if must and not any(k in s for k in must):
+            continue
+        out.append(s)
+        if len(out) >= limit:
+            break
     return out
 
 
@@ -90,11 +93,9 @@ def lib_dates():
     try:
         from pyluach import dates as pl
         for hy in (5787, 5788):
-            leap = pl.HebrewDate(hy, 1, 1).year_leap if hasattr(pl.HebrewDate(hy, 1, 1), 'year_leap') else None
             for name, m, d in HOLIDAYS:
                 mm = m
                 if m == 'adar':
-                    # pyluach: 12=אדר (או אדר א'), 13=אדר ב' בשנה מעוברת
                     try:
                         pl.HebrewDate(hy, 13, 1)
                         mm = 13
@@ -111,28 +112,56 @@ def lib_dates():
 
 def main():
     log('=== ספריות (5787 = תשפ"ז, 5788 = תשפ"ח) ===')
-    rows = lib_dates()
-    for name, cols in rows.items():
+    for name, cols in lib_dates().items():
         log(f'  {name}: ' + ' · '.join(f'{k}: {v}' for k, v in cols.items()))
 
-    log('\n=== hebcal.com (API, ישראל) ===')
+    log('\n=== hebcal.com (API, ישראל, כולל צומות) ===')
     for y in YEARS:
         try:
-            j = json.loads(get(f'https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&year={y}&month=x&ss=off&mf=off&c=off&geo=none&i=on'))
+            j = json.loads(get(f'https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&mf=on&year={y}&month=x&ss=off&c=off&geo=none&i=on'))
             for it in j.get('items', []):
                 t = it.get('title', '')
-                if any(k in t for ks in KEYWORDS.values() for k in ks if not re.search(r'[א-ת]', k)):
+                if any(k in t for k in EN_KEYS) and 'CH’’M' not in t and 'Rosh Chodesh' not in t and 'LaBehemot' not in t and 'Sheni' not in t and 'Rabin' not in t:
                     log(f'  {it.get("date")}  {t}  ({it.get("hebrew", "")})')
         except Exception as e:  # noqa: BLE001
             log(f'  {y}: שגיאה {e}')
 
+    log('\n=== ויקיפדיה אנגלית — תיבת המידע של כל חג (שורות עם 2026/2027) ===')
+    for art in ['Rosh_Hashanah', 'Yom_Kippur', 'Sukkot', 'Shemini_Atzeret', 'Hanukkah', 'Tenth_of_Tevet', 'Tu_BiShvat', 'Purim', 'Passover',
+                'Yom_HaShoah', 'Yom_HaZikaron', 'Independence_Day_(Israel)', 'Lag_BaOmer', 'Jerusalem_Day', 'Shavuot', 'Seventeenth_of_Tammuz', "Tisha_B'Av", 'Fast_of_Gedalia', 'Fast_of_Esther']:
+        try:
+            txt = text_of(get(f'https://en.wikipedia.org/wiki/{art}'))
+            ls = date_lines(txt, limit=6)
+            log(f'  {art}: ' + (' | '.join(ls) if ls else '(לא נמצאו שורות תאריך)'))
+        except Exception as e:  # noqa: BLE001
+            log(f'  {art}: שגיאה {e}')
+
+    log('\n=== ויקיפדיה עברית — דף השנה ה\'תשפ"ז ===')
+    for url in ['https://he.wikipedia.org/wiki/%D7%94%27%D7%AA%D7%A9%D7%A4%22%D7%96', 'https://he.wikipedia.org/wiki/%D7%AA%D7%A9%D7%A4%22%D7%96']:
+        try:
+            txt = text_of(get(url))
+            log(f'  {url}: {len(txt):,} תווים')
+            for s in date_lines(txt, limit=60):
+                log('   ', s[:220])
+            # גם השורות עם שמות החגים בלי תאריך לועזי
+            for ln in txt.split('\n'):
+                s = ln.strip()
+                if any(k in s for k in ['ראש השנה', 'יום כיפור', 'יום הכיפורים', 'סוכות', 'חנוכה', 'פורים', 'פסח', 'שבועות', 'יום העצמאות', 'ט"ו בשבט', 'ל"ג בעומר', 'תשעה באב']) and len(s) < 200:
+                    log('    ·', s)
+            break
+        except Exception as e:  # noqa: BLE001
+            log(f'  {url}: שגיאה {e}')
+
     sites = [
-        ('timeanddate.com 2026', 'https://www.timeanddate.com/holidays/israel/2026'),
+        ('jewfaq.org (Judaism 101) — לוח נוכחי', 'https://www.jewfaq.org/current_calendar'),
+        ('jewfaq.org — 5787', 'https://www.jewfaq.org/jewish_calendar_5787'),
+        ('myjewishlearning.com 2026-2027', 'https://www.myjewishlearning.com/article/jewish-holidays-2026-2027/'),
+        ('jewishvirtuallibrary.org', 'https://www.jewishvirtuallibrary.org/jewish-holidays-calendar'),
+        ('ou.org', 'https://www.ou.org/holidays/'),
+        ('aish.com', 'https://aish.com/jewish-calendar/'),
+        ('hebcal.com — דף HTML 2027', 'https://www.hebcal.com/holidays/2027?i=on'),
         ('timeanddate.com 2027', 'https://www.timeanddate.com/holidays/israel/2027'),
-        ('ויקיפדיה (en) 2000–2050', 'https://en.wikipedia.org/wiki/Jewish_and_Israeli_holidays_2000%E2%80%932050'),
-        ('ויקיפדיה (he) תשפ"ז', 'https://he.wikipedia.org/wiki/%D7%94%27%D7%AA%D7%A9%D7%A4%22%D7%96'),
         ('chabad.org', 'https://www.chabad.org/holidays/default_cdo/jewish/holidays.htm'),
-        ('chabad.org 5787 calendar', 'https://www.chabad.org/calendar/view/year.htm?tdate=5787'),
     ]
     for label, url in sites:
         log(f'\n=== {label} — {url} ===')
@@ -141,28 +170,10 @@ def main():
         except Exception as e:  # noqa: BLE001
             log(f'  שגיאה: {e}')
             continue
-        log(f'  ({len(txt):,} תווים)')
-        if 'timeanddate' in url:
-            # טבלת החגים: "Sep 12 Saturday Rosh Hashana National holiday" — שורות עם חודש+יום
-            for ln in txt.split('\n'):
-                s = ln.strip()
-                if re.match(r'^[A-Z][a-z]{2} \d{1,2}\b', s) and any(k in s for ks in KEYWORDS.values() for k in ks):
-                    log('  ' + s[:120])
-            continue
-        if 'en.wikipedia' in url:
-            # שורות טבלה שמכילות 2026/2027
-            for ln in txt.split('\n'):
-                s = ln.strip()
-                if ('2026' in s or '2027' in s) and any(k in s for ks in KEYWORDS.values() for k in ks):
-                    log('  ' + s[:200])
-            # וגם הטבלאות עצמן (שורות של שנת 5787)
-            for ln in txt.split('\n'):
-                if '5787' in ln:
-                    log('  [5787] ' + ln.strip()[:300])
-            continue
-        for name, words in KEYWORDS.items():
-            for s in snippets(txt, words, n=3):
-                log(f'  {name}: …{s}…')
+        ls = date_lines(txt, limit=45, must=EN_KEYS + ['Fast', 'Memorial', 'Holocaust'])
+        log(f'  ({len(txt):,} תווים · {len(ls)} שורות תאריך)')
+        for s in ls:
+            log('   ', s[:200])
 
 
 if __name__ == '__main__':
