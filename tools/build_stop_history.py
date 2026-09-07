@@ -70,10 +70,31 @@ def main():
             for c in prev_codes:
                 emit(c, prev_names.get(c), last.get('d', ''), line, rd, 'out')
 
+    # "עוצרים בה היום" = רק וריאנטים שיש להם לו"ז לשבוע הקרוב (פרסום הרישוי
+    # ל-10 הימים, sched/XX.json; ובנוסף מי שיש לו נסיעות היום). וריאנט שהתיעוד
+    # שלו אומר שהוא עוצר כאן אבל אין לו שום לו"ז אינו פעיל (שלמה 07.09: קו 203
+    # בראשל"צ, שהצילום האחרון שלו מ-2022, הוצג כעוצר "היום").
+    active = set()
+    for p in glob.glob(f'{OUTDIR}/sched/*.json'):
+        try:
+            for rd, days in (json.load(open(p, encoding='utf-8')).get('lines') or {}).items():
+                if any(len(v) for v in (days or {}).values()):
+                    active.add(rd)
+        except Exception:
+            continue
+    try:
+        active |= set(json.load(open(f'{OUTDIR}/line-trips.json', encoding='utf-8')).keys())
+    except Exception:
+        pass
     # פיצול לקבצים לפי קידומת המק"ט + מיון אירועים לפי תאריך
     shards = {}
     for c, s in stops.items():
         s['ev'].sort(key=lambda e: e[0])
+        if active:
+            last = {}
+            for e in s['ev']:
+                last[e[2]] = e
+            s['a'] = sorted(rd for rd, e in last.items() if e[3] != 'out' and rd in active)
         shards.setdefault((c[:2] if len(c) >= 2 else '0x'), {})[c] = s
     outdir = f'{OUTDIR}/stopev'
     os.makedirs(outdir, exist_ok=True)

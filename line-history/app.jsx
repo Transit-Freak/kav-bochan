@@ -979,7 +979,13 @@ function SchedBox({ rd, vs, selD, isLast }) {
       .catch(() => { if (ok) setD(false); });
     return () => { ok = false; };
   }, [rd]);
-  // אין נתונים — קו שאינו פעיל היום, או שקובצי הלו"ז טרם נבנו: שקט
+  // אין לו"ז לשבוע הקרוב = החלופה אינה פעילה כרגע — וזה נאמר, לא נשתק (שלמה 07.09:
+  // "פעיל" הוא רק מי שיש לו לו"ז לשבוע הקרוב). קו שכבר מסומן מבוטל לא צריך את זה.
+  if (d === false) {
+    const real = (vs || []).filter((v) => !v.syn && v.k !== "planned-dropped");
+    if (real.length && real[real.length - 1].k === "removed") return null;
+    return <div className="gapwarn">⏸️ אין לחלופה הזו לו״ז לשבוע הקרוב (לפי פרסום הרישוי ל-10 הימים הקרובים) — היא אינה פעילה כרגע.</div>;
+  }
   if (!d) return null;
   // הלו"ז של אז (בקשת שלמה): כשנבחרה גרסה ישנה משחזרים אחורה מהלו"ז של
   // היום — כל אירוע לו"ז שמאוחר מהגרסה מוחזר לשעות הישנות שלו (tl).
@@ -2689,8 +2695,11 @@ function LinesAtStop({ code, onClose }) {
   // מצב נוכחי: האירוע האחרון של כל וריאנט קובע אם הוא עוצר כאן היום
   const lastByRd = {};
   ev.forEach((e) => { lastByRd[e[2]] = e; });
+  // "היום" = יש לו"ז לשבוע הקרוב (d.a, מפרסום הרישוי ל-10 הימים; נבנה בצינור).
+  // וריאנט שהתיעוד אומר שהוא עוצר כאן אבל אין לו לו"ז אינו פעיל (שלמה 07.09)
+  const active = Array.isArray(d.a) ? new Set(d.a) : null;
   const nowMap = new Map();
-  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[1]) nowMap.set(e[1], e[2]); });
+  Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
   const now = [...nowMap.entries()].sort((a, b) => (parseInt(a[0]) || 9e9) - (parseInt(b[0]) || 9e9) || String(a[0]).localeCompare(b[0]));
   // ציר הזמן: אירועי "התיעוד הראשון" של אותו תאריך מקובצים לשורה אחת,
   // וחלופות של אותו קו באותו יום לא מוצגות פעמיים
@@ -2707,14 +2716,31 @@ function LinesAtStop({ code, onClose }) {
     rows.push({ d: e[0], k: e[3], line: e[1] || "—", rd: e[2] });
   });
   rows.sort((a, b) => b.d.localeCompare(a.d));
-  // אותו תאריך ואותו סוג (התחילו / הפסיקו) — שורה אחת עם כל הקווים, במקום
-  // עשר שורות זהות (שלמה 07.09)
+  // קו ש"התחיל" ו"הפסיק" לעצור כאן באותו יום (שלמה 07.09: "איך נוסף ונכנס באותו
+  // יום?") — זה לא סתירה: התחנה עברה מווריאנט אחד של הקו לאחר, כמעט תמיד
+  // מכיוון אחד לכיוון השני (מסוף שהוחלף, לולאה שהתהפכה). במקום שתי שורות
+  // סותרות — שורה אחת שאומרת את זה.
+  const dirOf = (rd2) => String(rd2 || "").split("-")[1] || "";
+  const byDL = {};
+  rows.forEach((r) => { if (r.k !== "base") (byDL[r.d + "|" + r.line] = byDL[r.d + "|" + r.line] || []).push(r); });
+  const swapRows = [], swapped = new Set();
+  Object.entries(byDL).forEach(([key, rs]) => {
+    const ins = rs.filter((r) => r.k === "in"), outs = rs.filter((r) => r.k === "out");
+    if (!ins.length || !outs.length) return;
+    const od = new Set(outs.map((r) => dirOf(r.rd)));
+    const other = ins.some((r) => !od.has(dirOf(r.rd)));
+    rs.forEach((r) => swapped.add(r));
+    swapRows.push({ d: rs[0].d, k: "swap", line: rs[0].line, rd: ins[0].rd, other });
+  });
+  const rows2 = rows.filter((r) => !swapped.has(r)).concat(swapRows).sort((a, b) => b.d.localeCompare(a.d));
+  // אותו תאריך ואותו סוג (התחילו / הפסיקו / עברו) — שורה אחת עם כל הקווים,
+  // במקום עשר שורות זהות (שלמה 07.09)
   const grouped = [], gk = {};
-  rows.forEach((r) => {
+  rows2.forEach((r) => {
     if (r.k === "base") { grouped.push(r); return; }
-    const key = r.d + "|" + r.k;
+    const key = r.d + "|" + r.k + (r.k === "swap" ? "|" + (r.other ? "d" : "a") : "");
     if (gk[key]) { gk[key].items.push([r.line, r.rd]); return; }
-    gk[key] = { d: r.d, k: r.k, items: [[r.line, r.rd]] };
+    gk[key] = { d: r.d, k: r.k, other: r.other, items: [[r.line, r.rd]] };
     grouped.push(gk[key]);
   });
   const shown = all ? grouped : grouped.slice(0, 30);
@@ -2725,7 +2751,7 @@ function LinesAtStop({ code, onClose }) {
         {onClose && <button className="latx" title="סגירת ציר הקווים" onClick={onClose}>✕</button>}
       </div>
       {now.length > 0 && (
-        <div className="latnow">עוצרים בה היום, לפי התיעוד שלנו:{" "}
+        <div className="latnow" title="קווים שעוצרים בתחנה לפי התיעוד ויש להם לו״ז לשבוע הקרוב (פרסום הרישוי ל-10 הימים)">עוצרים בה היום (יש להם לו״ז לשבוע הקרוב):{" "}
           {now.slice(0, 40).map(([l, rd2]) => <a key={l} className="badge sm latb" href={lineHref(rd2)}>{l}</a>)}
         </div>
       )}
@@ -2738,8 +2764,10 @@ function LinesAtStop({ code, onClose }) {
           : r.items.length === 1
             ? <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in"
                 ? <>🆕 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> התחיל לעצור בתחנה</>
-                : <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>}</div>
-            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : "➖"} {r.items.length} קווים {r.k === "in" ? "התחילו" : "הפסיקו"} לעצור בתחנה: {r.items.map(([l, rd2], j) =>
+                : r.k === "out"
+                ? <>➖ קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> הפסיק לעצור בתחנה</>
+                : <>🔁 קו <a href={lineHref(r.items[0][1]) + "@" + r.d}><b>{r.items[0][0]}</b></a> עבר לעצור בתחנה {r.other ? "בכיוון השני" : "בחלופה אחרת של הקו"}</>}</div>
+            : <div className="latrow" key={i}><span className="latd">{fmtD(r.d)}</span> {r.k === "in" ? "🆕" : r.k === "out" ? "➖" : "🔁"} {r.items.length} קווים {r.k === "in" ? "התחילו לעצור בתחנה" : r.k === "out" ? "הפסיקו לעצור בתחנה" : "עברו לעצור בתחנה " + (r.other ? "בכיוון השני" : "בחלופה אחרת")}: {r.items.map(([l, rd2], j) =>
                 <React.Fragment key={l + rd2}>{j > 0 ? ", " : ""}<a href={lineHref(rd2) + "@" + r.d}><b>{l}</b></a></React.Fragment>)}</div>)}
       </div>
       {grouped.length > shown.length && <button className="morebtn" onClick={() => setAll(true)}>⌄ כל {grouped.length.toLocaleString()} האירועים</button>}
