@@ -73,6 +73,38 @@ def dest_cities(dest):
     return out[:2]
 
 
+def route_words(dest):
+    """"מקרית מלאכי לאשדוד" / "בפרדס חנה כרכור" — מאיזו עיר לאיזו עיר הקו נוסע
+    (בקשת שלמה 07.09: כשנרשמים לכמה ערים, שההודעה תגיד את זה)."""
+    cs = dest_cities(dest)
+    if len(cs) == 2 and cs[0] != cs[1]:
+        return f'מ{cs[0]} ל{cs[1]}'
+    if cs:
+        return f'ב{cs[0]}'
+    return ''
+
+
+def terminals(dest):
+    """שמות תחנות הקצה בלי סיומת העיר: "מסוף רכבת קיסריה – המייסדים/השמינית"."""
+    out = []
+    for side in str(dest or '').split('<->'):
+        parts = [p.strip() for p in side.strip().split('-')]
+        cs = dest_cities(side)
+        if cs and cs[0] in parts:
+            parts = parts[:parts.index(cs[0])]
+        name = '-'.join(p for p in parts if p and not p.isdigit())
+        if name:
+            out.append(name)
+    return ' – '.join(out[:2])
+
+
+def line_key(s):
+    """מיון קווים לפי המספר: 1, 2, 10, 10א, 100."""
+    import re
+    m = re.match(r'(\d+)', str(s or ''))
+    return (int(m.group(1)) if m else 10 ** 9, str(s or ''))
+
+
 def parse_sub(tags):
     """ההרשמה של מנוי מהתגים שלו: {'cities','watch','lines','freq','groups'}.
     cities/watch = תגי עיר מגובבים (מרכז ההתראות / כפתור "עקוב" — יומי, כל הסוגים);
@@ -168,8 +200,9 @@ def main():
             print(f'הגעת לתקרת {MAX_SENDS} שליחות — היתר יחכו למחר')
             break
         kinds = ' · '.join(KIND_LBL.get(k, k) for k in sorted(e['kinds']))
-        title = f'קו {e["line"]}' if e['line'] else 'קו'
-        body = f'{kinds} — {e["dest"][:90]}' if e['dest'] else kinds
+        # "קו 11 מקרית מלאכי לאשדוד" — מאיזו עיר לאיזו עיר (שלמה 07.09), ותחנות הקצה בגוף
+        title = f'קו {e["line"]} {route_words(e["dest"])}'.strip() if e['line'] else 'קו'
+        body = f'{kinds} — {terminals(e["dest"])[:90]}' if e['dest'] else kinds
         url = f'{BASE_URL}#{e["rd"]}@{DATE}'
         groups = {KIND_GROUP.get(k) for k in e['kinds']} - {None}
         ctags = {city_tag(ct) for ct in dest_cities(e['dest'])}
@@ -248,8 +281,12 @@ def city_rev():
 
 
 def collect_range_mk(days):
-    """מק"ט → {'kinds', 'line', 'rd'} לשינויים המהותיים ב-DAYS הימים האחרונים (לעוקבי קו)."""
+    """מק"ט → {'kinds', 'line', 'rd', 'dest'} לשינויים המהותיים ב-DAYS הימים האחרונים."""
     since = (datetime.date.fromisoformat(DATE) - datetime.timedelta(days=days)).isoformat()
+    try:
+        cat = {x['rd']: x for x in json.load(open(f'{OUTDIR}/lines.json'))['lines']}
+    except Exception:
+        cat = {}
     by_mk = {}
     for f in os.listdir(f'{OUTDIR}/lines'):
         try:
@@ -261,9 +298,26 @@ def collect_range_mk(days):
             dd = str(v.get('d', ''))[:10]
             if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot'):
                 continue
-            e = by_mk.setdefault(rd.split('-')[0], {'kinds': set(), 'line': d.get('line') or '', 'rd': rd})
+            e = by_mk.setdefault(rd.split('-')[0], {'kinds': set(), 'line': d.get('line') or (cat.get(rd) or {}).get('line', ''),
+                                                    'dest': d.get('dest') or (cat.get(rd) or {}).get('dest', ''), 'rd': rd})
             e['kinds'].add(v.get('k'))
     return by_mk
+
+
+def digest_body(mks, by_mk, lead=''):
+    """גוף הסיכום: שורה לכל קו — "קו 11 מקרית מלאכי לאשדוד: שינוי מסלול", עד 4
+    קווים ו"ועוד N" (בקשת שלמה 07.09 אחרי הסיכום הראשון: שיהיה כתוב מאיזו עיר
+    לאיזו עיר הקו נוסע). מסודר לפי מספר הקו."""
+    rows = []
+    for mk in sorted(mks, key=lambda m: line_key((by_mk.get(m) or {}).get('line'))):
+        e = by_mk.get(mk)
+        if not e:
+            continue
+        labels = ' · '.join(sorted({KIND_LBL.get(k, k) for k in e['kinds']})[:2])
+        rows.append(f'קו {e["line"] or "?"} {route_words(e["dest"])}: {labels}'.replace('  ', ' '))
+    more = len(rows) - 4
+    body = '\n'.join(rows[:4]) + (f'\nועוד {more} קווים' if more > 0 else '')
+    return (lead + '\n' + body) if lead else body
 
 
 def send_digest_all(days):
@@ -315,9 +369,8 @@ def send_digest_all(days):
             skipped += 1
             print(f'  מנוי בלי שינויים מתאימים: ערים {ucities or "—"} · קווים {ulines or "—"}')
             continue
-        where = hit[:3] or [f'קו {by_mk[m]["line"]}' for m in sorted(mks)[:3] if m in by_mk]
         title = f'🔔 סיכום: {len(mks)} קווים השתנו ב-{days} הימים האחרונים'
-        body = ', '.join(where) + ': ' + ' · '.join(sorted({KIND_LBL.get(k, k) for k in kinds})[:4])
+        body = digest_body(mks, by_mk)
         if ucities:
             url = f'{BASE_URL}#digest={",".join(ucities)}@{days}'
         else:
@@ -367,7 +420,7 @@ def send_digests():
         print(f'סיכומים: רשימת הנרשמים נכשלה ({ex})', file=sys.stderr)
         return
     for freq, days in jobs:
-        by_city = collect_range(days)
+        by_city, by_mk = collect_range(days), collect_range_mk(days)
         sent = 0
         for p in players:
             s = parse_sub(p.get('tags'))
@@ -387,8 +440,7 @@ def send_digests():
             if not mks:
                 continue
             title = f'🔔 {len(mks)} קווים השתנו ב{"ערים שלך" if len(ucities) > 1 else (ucities[0] if ucities else "")}'
-            body = ('סיכום ' + ('שבועי' if days == 7 else f'{days} ימים') + f' — {", ".join(ucities[:4])}: ' +
-                    ' · '.join(sorted({KIND_LBL.get(k, k) for k in kinds})[:4]))
+            body = digest_body(mks, by_mk, 'סיכום ' + ('שבועי' if days == 7 else f'{days} ימים') + ':')
             url = f'{BASE_URL}#digest={",".join(ucities)}@{days}'
             payload = {'app_id': APP_ID, 'headings': {'en': title, 'he': title},
                        'contents': {'en': body, 'he': body}, 'url': url,

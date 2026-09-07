@@ -1302,7 +1302,7 @@ const KIND_GROUPS_N = [
 // הספק נמצא תג עיר אחד מתוך חמש). בלי בקשת הרשאה — רק אם כבר אושרה.
 if (PUSH_ON) { try { const t0 = savedTags(); if (Object.keys(t0).length) readPushState(() => {}, t0); } catch (e) { /* ignore */ } }
 // "ההרשמות שלי": כל מה שנרשם מהדפדפן הזה (צ'יפים + המרכז), עם ✖ להסרה
-function MyFollows({ bump }) {
+function MyFollows({ bump, onChange }) {
   const read = () => {
     const out = [];
     try {
@@ -1332,6 +1332,9 @@ function MyFollows({ bump }) {
     }
     pushTags();
     setItems(read());
+    // המרכז שמעל מחזיק את רשימת הערים במצב משלו — בלי עדכון, "שמירה" הבאה הייתה
+    // מחזירה את העיר שהוסרה כאן (שלמה 07.09: "במקום להוריד הוא מחזיר את העיר")
+    if (onChange) onChange();
   };
   if (!items.length) return null;
   return (
@@ -1382,6 +1385,16 @@ function NotifyCenter({ cities: allCities }) {
       setMsg(r.ok ? `✓ נשמר — ${list.length} ערים, ההתראות פעילות בדפדפן הזה. בסיכום תגיע הודעה אחת שמאחדת את כולן` : `✗ נשמר, אבל ההתראות לא יגיעו: ${r.why}`);
     });
     setCities(list); setCity(""); setSaved(true);
+  };
+  // קריאה מחדש של מה ששמור בדפדפן — אחרי הסרה מרשימת "ההרשמות הפעילות" שמתחת
+  const reload = () => {
+    try {
+      const s = JSON.parse(localStorage.kbNotify || "{}");
+      const cl = s.cities || (s.city ? [s.city] : []);
+      setCities(cl); setSaved(!!cl.length); setCity("");
+      if (s.freq) setFreq(s.freq);
+      if (s.gs) setGs(new Set(s.gs));
+    } catch (e) { setCities([]); setSaved(false); }
   };
   // "הפעלת התראות" שולח גם את כל מה שנשמר בדפדפן הזה — לא רק מבקש הרשאה
   const enable = () => { setMsg("…"); pushTags((r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
@@ -1465,7 +1478,7 @@ function NotifyCenter({ cities: allCities }) {
             {saved && <button className="kathead" style={{ width: "auto", padding: "8px 14px" }} onClick={cancel}>ביטול ההרשמה</button>}
             {msg && <span style={{ fontWeight: 700 }}>{msg}</span>}
           </div>
-          <MyFollows bump={msg} />
+          <MyFollows bump={msg} onChange={reload} />
         </div>
       )}
     </div>
