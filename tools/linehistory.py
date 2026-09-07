@@ -935,6 +935,10 @@ def idx_entry(rdesc, line, dest, op, ty, tt=None):
     if _lf.get('vt'): e['vt'] = _lf['vt']   # סוג הרכב ברישוי (linehistory_rishui.py)
     ks = {v['k'] for v in vs if v['k'] != 'baseline'}
     if len(_lf.get('veh') or []) >= 2: ks.add('vehicle')
+    # סוג הקו / ייחודיות (linehistory_ltype.py): שינוי — קטגוריה; ייחודיות לא-סדירה — לסינון
+    lt = _lf.get('lt') or []
+    if any((lt[i][1] and lt[i - 1][1] and lt[i][1] != lt[i - 1][1]) or (lt[i][2] and lt[i - 1][2] and lt[i][2] != lt[i - 1][2]) for i in range(1, len(lt))): ks.add('ltype')
+    if _lf.get('un') and _lf['un'] != 'סדיר': e['un'] = _lf['un']
     # גרסאות ארכיון שהועשרו בהפרשי תחנות (enrich_stop_diffs) נספרות גם
     # בקטגוריות התחנות — אחרת ההיסטוריה של 2022–2026 לא מופיעה שם בכלל
     for v in vs:

@@ -32,6 +32,7 @@ const KINDS = {
   mode:        { label: "שינוי סוג הקו", color: "#0369a1" },
   access:      { label: "שינוי נגישות", color: "#0f766e" },
   vehicle:     { label: "שינוי סוג הרכב", color: "#7c3aed" },
+  ltype:       { label: "שינוי סוג הקו", color: "#0e7490" },
   returned:    { label: "בוטל וחזר", color: "#f59e0b" },
   board:       { label: "שינוי עלייה/ירידה", color: "#854d0e" },
   platform:    { label: "שינוי רציף", color: "#0e7490" },
@@ -165,7 +166,7 @@ const CAT_GROUPS = [
   { title: "שינויי מסלול", items: ["route", "endpoint"] },
   { title: "שינויי תחנות", items: ["stops", "stops-add", "stops-del"] },
   { title: "תדירות ולוח זמנים", items: ["freq", "sched"] },
-  { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "platform", "vehicle"] },
+  { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "platform", "vehicle", "ltype"] },
   { title: "שינויים שלא נכנסו לפעול", items: ["planned-new", "planned-route"] },
   { title: "שינויים טכניים", items: ["redraw"] },
 ];
@@ -186,6 +187,7 @@ const CAT_LABELS = {
   mode: "שינוי סוג הקו (למשל רגיל ↔ לפי דרישה)",
   platform: "שינוי רציף — הקו עבר לרציף אחר במסוף",
   vehicle: "שינוי סוג הרכב",
+  ltype: "שינוי סוג הקו — עירוני / אזורי / בינעירוני, או ייחודיות: תלמידים / לילה / מזין",
   // ניסוח קצר (שלמה 05.09: "זה ארוך ומסורבל"). הכלל המלא כתוב על האירוע עצמו.
   "planned-dropped": "תוכנן ולא נכנס לפעול — ירד מהרישום לפני תאריך ההתחלה",
   "planned-new": "קו שפורסם ולא נכנס לפעול — ירד מהרישום לפני שהתחיל",
@@ -291,6 +293,18 @@ function materializeLf(lf) {
       else if (ps !== s) note = `סוג הרכב ברישוי שונה: ${desc(ps, pt)} ← ${desc(s, t)}`;
       else note = `סוג הקו ברישוי שונה: ${pt || UND} ← ${t || UND} (הרכב: ${desc(s, "")})`;
       evs.push({ d, k: "vehicle", syn: true, stops: [], shp: "", note });
+    }
+    // · "שינוי סוג הקו" — סוג הקו מרשימת האשכולות של משרד התחבורה (עירוני/אזורי/
+    //   בינעירוני) וייחודיות מקובץ הנוסעים (סדיר/תלמידים/לילה/מזינים); lt =
+    //   [[תאריך, סוג, ייחודיות, אשכול], …] (tools/linehistory_ltype.py, שלמה 07.09).
+    //   ייחודיות ריקה = לא הייתה ידועה אז — לא משווים.
+    const UNN = { "קווים מזינים": "מזין" };
+    const lt = lf.lt || [];
+    for (let i = 1; i < lt.length; i++) {
+      const [d, t, u] = lt[i], [, pt, pu] = lt[i - 1], parts = [];
+      if (t && pt && t !== pt) parts.push(`סוג הקו ברשימת האשכולות של משרד התחבורה שונה: ${pt} ← ${t}`);
+      if (u && pu && u !== pu) parts.push(`ייחודיות הקו בקובץ הנוסעים של המשרד שונתה: ${UNN[pu] || pu} ← ${UNN[u] || u}`);
+      if (parts.length) evs.push({ d, k: "ltype", syn: true, stops: [], shp: "", note: parts.join(" · ") });
     }
     // התקופה נגמרת בגרסה הבאה מכל סוג, לא רק ב"וריאנט חדש" (דיווח שלמה 03.09,
     // קו 6 רהט: הסריקה רשמה חזרה כ"שינוי מסלול" בלי אירוע new)
@@ -1775,7 +1789,11 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           ))}
         </div>
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
-        <div className="facts">{lf.op}{lf.ty && !(lf.vt && lf.vt.startsWith(lf.ty)) ? " · " + lf.ty : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
+        {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
+            (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
+        <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
+          {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
+          {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
           {/* רציף המוצא של היום — משורת הרציף בקובץ התחנות (שלמה 07.09) */}
           {(() => {
             const lv = [...vs].reverse().find((v) => (v.stops || []).length);
@@ -2016,7 +2034,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
-              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
+              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
                   התחנות (שלמה 05.09) */}
@@ -3171,6 +3189,7 @@ const SRC_LABEL = {
   v10: "מקור: קובץ הרישוי היומי Gtfs_10_days של משרד התחבורה — הפורמט שמייצג כמה רכבים באותה יציאה",
   _daily: "מקור: הסריקה היומית שלנו — השוואת הפיד הארצי, יום מול יום",
   rishui: "מקור: מאגר \"רישוי מערך האוטובוסים\" של משרד התחבורה (data.gov.il) — סוג וגודל הרכב שנקבעו לקו, שורה לכל מק\"ט לכל יום מ-2022",
+  ctl: "מקור: רשימת האשכולות (ClusterToLine) שמשרד התחבורה מפרסם לצד לוח הזמנים — סוג הקו ואשכול המכרז, צילום יומי מ-03.2022 בארכיון הסדנא לידע ציבורי; הייחודיות (תלמידים/לילה/מזינים) — קובץ הנוסעים של המשרד",
 };
 
 // רשימת המקורות המלאה. היא מוצגת למשתמש ולא רק מתועדת בקוד: מי שקורא

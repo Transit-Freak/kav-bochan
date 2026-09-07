@@ -53,6 +53,11 @@ jobs:
           curl -fSL --connect-timeout 20 --max-time 1200 --retry 15 --retry-all-errors --retry-delay 60 -A "$UA" \
             -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
           unzip -o gtfs.zip stops.txt stop_times.txt trips.txt routes.txt shapes.txt agency.txt calendar.txt
+          # רשימת האשכולות של המשרד (סוג הקו + אשכול) — מהארכיון היומי של דאטאבוס, אחרת מ-gov.il
+          D=$(TZ=Asia/Jerusalem date +%Y/%m/%d)
+          curl -fsS -o clusters.zip "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/$D/ClusterToLine.zip" \
+            || curl -fsSL -A "$UA" --retry 3 -o clusters.zip "https://gtfs.mot.gov.il/gtfsfiles/ClusterToLine.zip" \
+            || echo "אין ClusterToLine היום"
 
       - name: Diff line & stop history
         run: |
@@ -86,6 +91,13 @@ jobs:
       - name: סוג הרכב ברישוי (משרד התחבורה)
         run: |
           OUTDIR=line-history/data python3 tools/linehistory_rishui.py --day "$(TZ=Asia/Jerusalem date +%F)" || echo "מאגר הרישוי לא זמין — נשלים בריצה הבאה"
+
+      # סוג הקו (עירוני/אזורי/בינעירוני) ואשכול המכרז מרשימת האשכולות של המשרד,
+      # ייחודיות (תלמידים/לילה/מזינים) מקובץ הנוסעים — שינוי נרשם בקובץ הקו (lt)
+      # ובפיד כקטגוריה "שינוי סוג הקו" (שלמה 07.09)
+      - name: סוג הקו ואשכול (ClusterToLine) וייחודיות (קובץ הנוסעים)
+        run: |
+          [ -f clusters.zip ] && OUTDIR=line-history/data python3 tools/linehistory_ltype.py --day "$(TZ=Asia/Jerusalem date +%F)" --clusters clusters.zip --main data-main.json || echo "סוג קו — נשלים בריצה הבאה"
 
       # קו שבוטל ומלאה שנה לביטולו (ולא נותר ממנו שום לו"ז) — המנגנון שואב
       # לבד מהארכיון את שעות-היציאה מיום פעילותו האחרון, ספציפית לכל קו.
