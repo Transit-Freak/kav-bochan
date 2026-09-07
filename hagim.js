@@ -8,7 +8,10 @@
 
    התאריך העברי מגיע מלוח השנה המובנה בדפדפן (Intl, ca=hebrew) — נבדק מול
    hebcal, ויקיפדיה (en+he) ושתי ספריות לשנים 2026–2028 (tools/probe_holidays.py).
-   החג מתחיל בערב: מ-17:00 ביום שלפני. חגי המדינה זזים לפי יום השבוע כמו
+   לפי ימים, לא לפי שעה (שלמה 07.09): החג מוצג מתחילת היום שבערבו הוא נכנס
+   (ערב חג, מ-00:00) ועד סוף היום האחרון שלו. בלי ערב: יום העצמאות (ערבו הוא
+   יום הזיכרון) והצומות הקלים שמתחילים בבוקר. בתענית אסתר, שהיא ערב פורים,
+   מוצג פורים והברכה מזכירה גם את הצום. חגי המדינה זזים לפי יום השבוע כמו
    בחוק (יום העצמאות שיוצא בשישי/שבת → חמישי, בשני → שלישי; יום השואה
    בשישי → חמישי, בראשון → שני; צום שיוצא בשבת → ראשון, תענית אסתר → חמישי).
 
@@ -29,9 +32,8 @@
   function heb(t) { var o = {}; FMT.formatToParts(new Date(t)).forEach(function (p) { o[p.type] = p.value; }); return { y: +o.year, m: o.month, d: +o.day }; }
   function greg(t) { var o = {}; GREG.formatToParts(new Date(t)).forEach(function (p) { o[p.type] = p.value; }); return o; }
   var nowG = greg(Date.now());
-  // עוגן: צהריים (UTC) של היום הישראלי; מ-17:00 בישראל — כבר "מחר" (ערב חג)
+  // עוגן: צהריים (UTC) של היום הישראלי — היום האזרחי כולו, בלי תלות בשעה
   var anchor = Date.UTC(+nowG.year, +nowG.month - 1, +nowG.day, 12);
-  if (+nowG.hour >= 17 && +nowG.hour < 24) anchor += DAY;
   var WD = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   var win = {};       // k (ימים מהיום) → תאריך עברי
   for (var k = -50; k <= 50; k++) win[k] = heb(anchor + k * DAY);
@@ -50,45 +52,50 @@
 
   // ---------- החגים ----------
   // start: (חודש, יום) · len ימים · shift: תזוזה לפי יום השבוע של היום הנומינלי
+  // quiet: יום עצוב (ברכה בלבד) · noEve: בלי יום הערב שלפני
   var SPECS = [
     { id: "rosh", m: "Tishri", d: 1, len: 2 },
-    { id: "gedaliah", m: "Tishri", d: 3, len: 1, shift: function (w) { return w === 6 ? 1 : 0; } },
-    { id: "kippur", m: "Tishri", d: 10, len: 1 },
+    { id: "gedaliah", m: "Tishri", d: 3, len: 1, quiet: true, noEve: true, shift: function (w) { return w === 6 ? 1 : 0; } },
+    { id: "kippur", m: "Tishri", d: 10, len: 1, quiet: true },
     { id: "sukkot", m: "Tishri", d: 15, len: 8 },        // כולל הושענא רבה ושמחת תורה
     { id: "hanukkah", m: "Kislev", d: 25, len: 8 },
-    { id: "tevet10", m: "Tevet", d: 10, len: 1 },
+    { id: "tevet10", m: "Tevet", d: 10, len: 1, quiet: true, noEve: true },
     { id: "tubishvat", m: "Shevat", d: 15, len: 1 },
-    { id: "esther", m: "Adar", d: 13, len: 1, shift: function (w) { return w === 6 ? -2 : 0; } },
+    { id: "esther", m: "Adar", d: 13, len: 1, quiet: true, noEve: true, shift: function (w) { return w === 6 ? -2 : 0; } },
     { id: "purim", m: "Adar", d: 14, len: 2 },           // י"ד + שושן פורים
     { id: "pesach", m: "Nisan", d: 15, len: 7 },
-    { id: "shoah", m: "Nisan", d: 27, len: 1, shift: function (w) { return w === 5 ? -1 : (w === 0 ? 1 : 0); } },
-    { id: "zikaron", m: "Iyar", d: 4, len: 1, shift: function (w, k0) { var a = wday(k0 + 1); return a === 5 ? -1 : (a === 6 ? -2 : (a === 1 ? 1 : 0)); } },
-    { id: "atzmaut", m: "Iyar", d: 5, len: 1, shift: function (w) { return w === 5 ? -1 : (w === 6 ? -2 : (w === 1 ? 1 : 0)); } },
+    { id: "shoah", m: "Nisan", d: 27, len: 1, quiet: true, shift: function (w) { return w === 5 ? -1 : (w === 0 ? 1 : 0); } },
+    { id: "zikaron", m: "Iyar", d: 4, len: 1, quiet: true, shift: function (w, k0) { var a = wday(k0 + 1); return a === 5 ? -1 : (a === 6 ? -2 : (a === 1 ? 1 : 0)); } },
+    { id: "atzmaut", m: "Iyar", d: 5, len: 1, noEve: true, shift: function (w) { return w === 5 ? -1 : (w === 6 ? -2 : (w === 1 ? 1 : 0)); } },
     { id: "lagbaomer", m: "Iyar", d: 18, len: 1 },
     { id: "yerushalayim", m: "Iyar", d: 28, len: 1 },
     { id: "shavuot", m: "Sivan", d: 6, len: 1 },
-    { id: "tammuz17", m: "Tamuz", d: 17, len: 1, shift: function (w) { return w === 6 ? 1 : 0; } },
-    { id: "av9", m: "Av", d: 9, len: 1, shift: function (w) { return w === 6 ? 1 : 0; } }
+    { id: "tammuz17", m: "Tamuz", d: 17, len: 1, quiet: true, noEve: true, shift: function (w) { return w === 6 ? 1 : 0; } },
+    { id: "av9", m: "Av", d: 9, len: 1, quiet: true, shift: function (w) { return w === 6 ? 1 : 0; } }
   ];
   var ALIAS = { "ראש השנה": "rosh", "צום גדליה": "gedaliah", "יום כיפור": "kippur", "סוכות": "sukkot", "חנוכה": "hanukkah", "עשרה בטבת": "tevet10",
     "טו בשבט": "tubishvat", "ט\"ו בשבט": "tubishvat", "תענית אסתר": "esther", "פורים": "purim", "פסח": "pesach", "יום השואה": "shoah",
     "יום הזיכרון": "zikaron", "יום העצמאות": "atzmaut", "לג בעומר": "lagbaomer", "ל\"ג בעומר": "lagbaomer", "יום ירושלים": "yerushalayim",
     "שבועות": "shavuot", "יז בתמוז": "tammuz17", "י\"ז בתמוז": "tammuz17", "תשעה באב": "av9" };
 
-  var active = null, dayNo = 1;
+  var active = null, alsoQuiet = null;   // alsoQuiet: יום שקט שחל באותו יום עם ערב חג (תענית אסתר ← פורים)
   if (preview) {
     var pid = ALIAS[preview] || preview;
     SPECS.forEach(function (s) { if (s.id === pid) active = s; });
     if (!active) return;
   } else {
+    var fest = null, qt = null;
     SPECS.forEach(function (s) {
-      if (active) return;
-      var k0 = find(s.m, s.d);
+      var k0 = find(s.m, s.d);           // ימים עד היום הראשון של החג (0 = היום)
       if (k0 === null) return;
       if (s.shift) k0 += s.shift(wday(k0), k0);
-      if (k0 <= 0 && -k0 < s.len) { active = s; dayNo = -k0 + 1; }
+      var on = (k0 <= 0 && -k0 < s.len) || (k0 === 1 && !s.noEve);   // ימי החג, או ערב החג
+      if (!on) return;
+      if (s.quiet) { if (!qt) qt = s; } else if (!fest) fest = s;
     });
+    active = fest || qt;
     if (!active) return;
+    if (fest && qt) alsoQuiet = qt;
   }
 
   // ---------- שמות וברכות ----------
@@ -282,7 +289,9 @@
   function pill() {
     var key = "kb-hag-" + active.id + "-" + gy;
     try { if (!preview && localStorage.getItem(key)) return; } catch (e) { /* ignore */ }
-    var p = el("div", { id: "hag-pill", role: "status" }, "<span>" + H.ico + "</span><span>" + H.greet + "</span>");
+    var greet = H.greet;
+    if (alsoQuiet && N[alsoQuiet.id]) greet = N[alsoQuiet.id].greet + " · " + greet;   // "צום קל — תענית אסתר · פורים שמח"
+    var p = el("div", { id: "hag-pill", role: "status" }, "<span>" + H.ico + "</span><span>" + greet + "</span>");
     if (H.quiet) p.className = "quiet";
     var x = el("button", { type: "button", "aria-label": "סגירה" }, "×");
     x.addEventListener("click", function () { p.remove(); try { localStorage.setItem(key, "1"); } catch (e) { /* ignore */ } });
