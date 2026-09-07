@@ -863,6 +863,10 @@ def main():
     for code in list(stop_names):
         if not stop_names[code]:
             stop_names[code] = by_code.get(code, '')
+    # אי ביצוע לפי עיר (משוב אלעזר פינדר 07.09: "אין התייחסות לאי ביצוע, רק
+    # לאיחורים"): לכל עיר — נסיעות בלו"ז ונסיעות שנצפו של הקווים שעוברים בה
+    # (כל קו נספר פעם אחת). נסיעה שלא נצפתה = לא בוצעה או בוצעה בלי שידור.
+    city_trips = {c: [sum(sched_per_route.get(rid, 0) for rid in rr), sum(R[rid]['obs'] for rid in rr)] for c, rr in city_routes.items()}
     day_obj = {
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
         'minutes': len(files), 'records': n_rec,
@@ -870,11 +874,11 @@ def main():
                 'far': far, 'extra': unmatched.get('no_trip', 0), 'vt': vt_tot},
         'hours': [[h, v[0], v[1]] for h, v in sorted(H.items())],
         'agencies': sorted([[ag, v['sched'], v['obs'], v['meas'], v['c'], stats(v['d']), v['o'], VA.get(ag, [0, 0, 0])] for ag, v in A.items()], key=lambda x: -x[3]),
-        'cities': sorted([[c, v['meas'], v['c'], stats(v['d'])] for c, v in C.items() if v['meas'] >= 50], key=lambda x: -x[1]),
+        'cities': sorted([[c, v['meas'], v['c'], stats(v['d'])] + city_trips.get(c, [0, 0]) for c, v in C.items() if v['meas'] >= 50], key=lambda x: -x[1]),
         'routes': out_routes,
         'worst': [[rid, tid.split('_')[0], round(dl / 60), stops.get(sid, ('', ''))[1], sched, ps] for dl, rid, tid, sid, sched, ps in worst[:40]],
         'cols': {'routes': ['route_id', 'sched', 'obs', 'meas', 'cats[early,ontime,5-10,10-20,20+]', 'stats[avg,med,p90 min]', 'origin cats', 'hours[[h,n,on]]', 'worst stops[[code,name,n,avg]]', 'vehicle[planned class, rides with known vehicle, smaller, larger, most common actual]'],
-                 'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]'], 'cities': ['city', 'meas', 'cats', 'stats'],
+                 'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]'], 'cities': ['city', 'meas', 'cats', 'stats', 'sched trips of lines through the city', 'observed trips'],
                  'worst': ['route_id', 'trip', 'max delay min', 'stop', 'sched sec', 'passages[[code,sched sec,actual sec]]'],
                  'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip',
                  'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n]] along the route}; stops.json = {code: name}',

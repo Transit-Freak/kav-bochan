@@ -185,6 +185,8 @@ function distHtml(a) {
 function sortRows(rows, s) { return rows.sort((x, y) => { const a = x[s.k], b = y[s.k]; if (a == null && b == null) return 0; if (a == null) return 1; if (b == null) return -1; return (a < b ? -1 : a > b ? 1 : 0) * s.dir; }); }
 function th(label, k, s) { return `<th data-k="${k}" class="${s.k === k ? 'on' : ''}">${label}${s.k === k ? (s.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`; }
 const onCell = on => `${on == null ? '—' : Math.round(on * 100) + '%'}<span class="bar"><i style="width:${Math.round((on || 0) * 100)}%"></i></span>`;
+// צבע לאחוז "לא נצפו" (אי ביצוע משוער): עד 5% רגיל, עד 15% כתום, מעל — אדום
+const missCls = m => m == null ? '' : m > .15 ? 'd4' : m > .05 ? 'd2' : '';
 
 function mergeDays(days) {
   const tot = emptyAgg(), A = {}, Cc = {}, H = {}, Rr = {}, worst = [];
@@ -194,7 +196,8 @@ function mergeDays(days) {
     if (days.length === 1) tot.s = d.tot.s;
     for (const [nm, sched, obs, meas, c, s, o, va] of d.agencies) { const x = A[nm] || (A[nm] = emptyAgg()); addAgg(x, {sched, obs, meas, c, s}); (o || []).forEach((v, i) => x.o[i] += v); (va || []).forEach((v, i) => x.vt[i] += v); }
     (d.tot.vt || []).forEach((v, i) => tot.vt[i] += v);
-    for (const [nm, meas, c, s] of d.cities) addAgg(Cc[nm] || (Cc[nm] = emptyAgg()), {meas, c, s});
+    // לעיר גם נסיעות בלו״ז/נצפו של הקווים שעוברים בה — אי ביצוע (משוב אלעזר פינדר 07.09)
+    for (const [nm, meas, c, s, sched, obs] of d.cities) { const x = Cc[nm] || (Cc[nm] = emptyAgg()); addAgg(x, {meas, c, s}); x.sched += sched || 0; x.obs += obs || 0; }
     for (const [h, n, on] of d.hours) { const x = H[h] || (H[h] = [0, 0]); x[0] += n; x[1] += on; }
     for (const r of d.routes) {
       const [rid, sched, obs, meas, c, s, o, hours, ws, vt] = r;
@@ -255,7 +258,7 @@ function render() {
     </div>
     <div class="panel"><div class="ptitle">לפי מפעיל</div><p class="pdesc">אותם מדדים לכל חברת אוטובוסים. לחיצה על כותרת עמודה ממיינת, לחיצה על שם המפעיל מציגה את הקווים שלו.</p><div id="t-ag"></div></div>
     <div class="panel"><div class="ptitle">לפי אשכול</div><p class="pdesc">משרד התחבורה מחלק את קווי האוטובוס לאשכולות (למשל "חשמונאים", "הגליל", "שרון"), וכל אשכול יוצא למכרז ומופעל על ידי חברה אחת. כאן אותם מדדים לכל אשכול, ולמעלה לפי סוג הקו: עירוני, אזורי או בינעירוני. לחיצה על שם האשכול מציגה את הקווים שלו.</p><div id="lt-sum"></div><div id="t-cl"></div></div>
-    <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">כל ההגעות לתחנות שבתחומי העיר, מכל הקווים שעוברים בה. לחיצה על שם העיר פותחת פירוט: אילו קווים עוברים בה, איזה מפעילים, ואיך כל קו מדייק בתוך העיר.</p><div class="filters" id="cfilters"></div><div id="city-detail"></div><div id="t-city"></div></div>
+    <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">כל ההגעות לתחנות שבתחומי העיר, מכל הקווים שעוברים בה, וגם כמה מהנסיעות של הקווים האלה לא נצפו בכלל (אי ביצוע משוער). לחיצה על שם העיר פותחת פירוט: אילו קווים עוברים בה, איזה מפעילים, כמה נסיעות לא בוצעו, ואיך כל קו מדייק בתוך העיר.</p><div class="filters" id="cfilters"></div><div id="city-detail"></div><div id="t-city"></div></div>
     <div class="panel"><div class="ptitle">לפי קו</div><p class="pdesc">כל כיוון של כל קו בנפרד. אפשר לבחור מפעיל או אשכול, לדרג ("הכי לא מדייקים") או לחפש מספר קו. לחיצה על מספר הקו פותחת פירוט: באיזה קטע לאורך הקו נצבר האיחור.</p>
       <div class="filters" id="lfilters"></div>
       <div id="line-detail"></div><div id="t-lines"></div></div>
@@ -328,15 +331,15 @@ function renderCities() {
     $('#cq').oninput = e => { cq = e.target.value; showAllC = false; renderCities(); };
   }
   const q = cq.trim();
-  let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}));
+  let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, sched: s.sched || null, miss: s.sched ? 1 - s.obs / s.sched : null}));
   if (q) rows = rows.filter(r => r.nm.includes(q));
   sortRows(rows, sortC);
   const total = rows.length;
   if (!showAllC) rows = rows.slice(0, 40);
-  box.innerHTML = `<div class="tblbox"><table id="tc"><thead><tr>${th('עיר', 'nm', sortC)}${th('הגעות נמדדו', 'meas', sortC)}${th('בזמן', 'on', sortC)}${th('מוקדם', 'early', sortC)}${th('איחור ממוצע', 'avg', sortC)}${th('מעל 20 דק׳', 'b4', sortC)}</tr></thead><tbody>` +
-    rows.map(r => `<tr class="${r.nm === openCity ? 'on' : ''}"><td class="nm"><button class="linebtn" data-city="${esc(r.nm)}" title="הקווים שעוברים בעיר">${esc(r.nm)}</button></td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.early == null ? '—' : Math.round(r.early * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
+  box.innerHTML = `<div class="tblbox"><table id="tc"><thead><tr>${th('עיר', 'nm', sortC)}${th('נסיעות בלו״ז', 'sched', sortC)}${th('לא נצפו', 'miss', sortC)}${th('הגעות נמדדו', 'meas', sortC)}${th('בזמן', 'on', sortC)}${th('מוקדם', 'early', sortC)}${th('איחור ממוצע', 'avg', sortC)}${th('מעל 20 דק׳', 'b4', sortC)}</tr></thead><tbody>` +
+    rows.map(r => `<tr class="${r.nm === openCity ? 'on' : ''}"><td class="nm"><button class="linebtn" data-city="${esc(r.nm)}" title="הקווים שעוברים בעיר">${esc(r.nm)}</button></td><td>${num(r.sched)}</td><td class="${missCls(r.miss)}" title="נסיעות בלו״ז של הקווים שעוברים בעיר שלא שידרו מיקום בכלל — לא בוצעו, או בוצעו בלי שידור">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.early == null ? '—' : Math.round(r.early * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
     (total > rows.length ? `<button class="more" id="more-c">הצגת כל ${num(total)} הערים</button>` : '') +
-    `<div class="mut" style="margin-top:6px">${num(total)} ערים ויישובים עם 50 הגעות לפחות · העיר של כל תחנה לפי קובץ התחנות של משרד התחבורה</div>`;
+    `<div class="mut" style="margin-top:6px">${num(total)} ערים ויישובים עם 50 הגעות לפחות · העיר של כל תחנה לפי קובץ התחנות של משרד התחבורה · "נסיעות בלו״ז" ו"לא נצפו": כל הנסיעות של הקווים שעוברים בעיר, לאורך כל המסלול</div>`;
   $('#tc thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortC = {k, dir: sortC.k === k ? -sortC.dir : (k === 'nm' ? 1 : -1)}; renderCities(); };
   box.querySelectorAll('.linebtn').forEach(b => b.onclick = () => { openCity = b.dataset.city; cAgency = ''; showAllCL = false; renderCityDetail(); renderCities(); $('#city-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   const mb = $('#more-c'); if (mb) mb.onclick = () => { showAllC = true; renderCities(); };
@@ -354,14 +357,16 @@ function renderCityDetail() {
   if (el.dataset.city === openCity && el.dataset.days === M.days.join(',')) return;
   el.dataset.city = openCity; el.dataset.days = M.days.join(',');
   el.innerHTML = `<div class="ldetail">
-    <div class="lhead"><span class="badge">${esc(openCity)}</span><span class="ldest">כל ההגעות לתחנות שבתחומי ${esc(openCity)}</span><button class="closebtn" id="close-c">✕ סגירה</button></div>
+    <div class="lhead"><span class="badge">${esc(openCity)}</span><span class="ldest">כל ההגעות לתחנות שבתחומי ${esc(openCity)}, וכל הנסיעות של הקווים שעוברים בה</span><button class="closebtn" id="close-c">✕ סגירה</button></div>
     <div class="stat-row">
       <div><b>${s.meas ? pct(s.c[1], s.meas) : '—'}</b><span>בזמן, בתחנות שבעיר</span></div>
       <div><b>${s.meas ? pct(s.c[0], s.meas) : '—'}</b><span>הגיעו מוקדם מדי</span></div>
       <div><b>${s.avg == null ? '—' : fmt1(s.avg)}<i>דק׳</i></b><span>איחור ממוצע</span></div>
       <div><b>${s.meas ? pct(s.c[4], s.meas) : '—'}</b><span>איחור מעל 20 דקות</span></div>
       <div><b>${num(s.meas)}</b><span>הגעות נמדדו</span></div>
+      <div><b class="${missCls(s.sched ? 1 - s.obs / s.sched : null)}">${s.sched ? pct(s.sched - s.obs, s.sched) : '—'}</b><span>לא נצפו: אי ביצוע משוער</span></div>
     </div>
+    ${s.sched ? `<p class="pdesc">מתוך ${num(s.sched)} נסיעות בלו״ז של הקווים שעוברים ב${esc(openCity)}, ${num(s.sched - s.obs)} (${pct(s.sched - s.obs, s.sched)}) לא שידרו מיקום בכלל: לא בוצעו, או בוצעו בלי שידור. אי אפשר להבחין בין השניים, ולכן זה מוצג לצד הדיוק ולא בתוכו. הנסיעות נספרות לאורך כל המסלול, לא רק בקטע שבעיר.</p>` : ''}
     ${distHtml(s)}
     <div id="c-ags" style="margin-top:10px"></div>
     <div class="ptitle" style="margin-top:12px">הקווים שעוברים ב${esc(openCity)}</div><p class="pdesc">לכל קו: כמה הגעות נמדדו בתחנות שבתוך העיר, איזה חלק מהן בזמן, והאיחור הממוצע שם. קו שעובר בכמה ערים נמדד כאן רק בקטע שבתוך העיר. לחיצה על מספר הקו פותחת את הפירוט המלא של הקו.</p>
@@ -378,28 +383,30 @@ function renderCityLines() {
     rows.forEach(([rid, n, on, sum10]) => { const x = acc.get(rid) || {rid, n: 0, on: 0, sum: 0}; x.n += n; x.on += on; x.sum += sum10 / 10; acc.set(rid, x); });
   }
   if (!acc.size) { box.innerHTML = '<div class="empty">אין עדיין פירוט קווים לעיר הזו ליום הזה (מחושב מהריצה הבאה)</div>'; $('#clfilters').innerHTML = ''; $('#c-ags').innerHTML = ''; return; }
-  const all = [...acc.values()].map(x => { const l = lineLabel(x.rid); return {rid: x.rid, short: l.short, long: l.long, agency: l.agency, cluster: l.cluster, n: x.n, on: x.on / x.n, avg: x.sum / x.n}; });
+  // לכל קו גם נסיעות בלו״ז/נצפו (של כל המסלול) — אי ביצוע משוער
+  const all = [...acc.values()].map(x => { const l = lineLabel(x.rid), rr = M.Rr[x.rid]; const sched = rr ? rr.sched : 0, obs = rr ? rr.obs : 0; return {rid: x.rid, short: l.short, long: l.long, agency: l.agency, cluster: l.cluster, n: x.n, on: x.on / x.n, avg: x.sum / x.n, sched, obs, miss: sched ? 1 - obs / sched : null}; });
   // המפעילים בעיר — מהקווים שלהם, רק הקטע שבתוך העיר
-  const ag = {}; all.forEach(r => { const a = ag[r.agency] || (ag[r.agency] = {n: 0, on: 0, sum: 0, lines: 0}); a.n += r.n; a.on += r.on * r.n; a.sum += r.avg * r.n; a.lines++; });
+  const ag = {}; all.forEach(r => { const a = ag[r.agency] || (ag[r.agency] = {n: 0, on: 0, sum: 0, lines: 0, sched: 0, obs: 0}); a.n += r.n; a.on += r.on * r.n; a.sum += r.avg * r.n; a.lines++; a.sched += r.sched; a.obs += r.obs; });
   const agRows = Object.entries(ag).sort((a, b) => b[1].n - a[1].n);
-  $('#c-ags').innerHTML = `<div class="ptitle">המפעילים ב${esc(openCity)}</div><div class="tblbox"><table><thead><tr><th>מפעיל</th><th>מסלולים בעיר</th><th>הגעות בעיר</th><th>בזמן</th><th>איחור ממוצע</th></tr></thead><tbody>` +
-    agRows.map(([nm, a]) => `<tr><td class="nm"><button class="linebtn" data-cag="${esc(nm)}" title="רק הקווים של המפעיל הזה בעיר">${esc(nm)}</button></td><td>${num(a.lines)}</td><td>${num(a.n)}</td><td>${onCell(a.on / a.n)}</td><td class="${dcls(a.sum / a.n)}">${fmt1(a.sum / a.n)} דק׳</td></tr>`).join('') + '</tbody></table></div>';
+  $('#c-ags').innerHTML = `<div class="ptitle">המפעילים ב${esc(openCity)}</div><div class="tblbox"><table><thead><tr><th>מפעיל</th><th>מסלולים בעיר</th><th>נסיעות בלו״ז</th><th>לא נצפו</th><th>הגעות בעיר</th><th>בזמן</th><th>איחור ממוצע</th></tr></thead><tbody>` +
+    agRows.map(([nm, a]) => `<tr><td class="nm"><button class="linebtn" data-cag="${esc(nm)}" title="רק הקווים של המפעיל הזה בעיר">${esc(nm)}</button></td><td>${num(a.lines)}</td><td>${num(a.sched)}</td><td class="${missCls(a.sched ? 1 - a.obs / a.sched : null)}">${a.sched ? pct(a.sched - a.obs, a.sched) : '—'}</td><td>${num(a.n)}</td><td>${onCell(a.on / a.n)}</td><td class="${dcls(a.sum / a.n)}">${fmt1(a.sum / a.n)} דק׳</td></tr>`).join('') + '</tbody></table></div>';
   $('#c-ags').querySelectorAll('.linebtn').forEach(b => b.onclick = () => { cAgency = b.dataset.cag; showAllCL = false; renderCityLines(); });
-  const chips = [['meas', 'הכי הרבה הגעות'], ['worst', 'הכי לא מדייקים'], ['best', 'הכי מדייקים']];
+  const chips = [['meas', 'הכי הרבה הגעות'], ['worst', 'הכי לא מדייקים'], ['best', 'הכי מדייקים'], ['miss', 'הכי הרבה אי ביצוע']];
   $('#clfilters').innerHTML = `<select id="cagsel" title="מפעיל"><option value="">כל המפעילים</option>${agRows.map(([a]) => `<option value="${esc(a)}"${a === cAgency ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select>` +
     chips.map(([k, t]) => `<button class="fchip${cRank === k ? ' on' : ''}" data-r="${k}">${t}</button>`).join('');
   $('#cagsel').onchange = e => { cAgency = e.target.value; showAllCL = false; renderCityLines(); };
-  $('#clfilters').querySelectorAll('.fchip').forEach(b => b.onclick = () => { cRank = b.dataset.r; sortCL = cRank === 'worst' ? {k: 'on', dir: 1} : cRank === 'best' ? {k: 'on', dir: -1} : {k: 'n', dir: -1}; showAllCL = false; renderCityLines(); });
+  $('#clfilters').querySelectorAll('.fchip').forEach(b => b.onclick = () => { cRank = b.dataset.r; sortCL = cRank === 'worst' ? {k: 'on', dir: 1} : cRank === 'best' ? {k: 'on', dir: -1} : cRank === 'miss' ? {k: 'miss', dir: -1} : {k: 'n', dir: -1}; showAllCL = false; renderCityLines(); });
   let rows = all;
   if (cAgency) rows = rows.filter(r => r.agency === cAgency);
-  if (cRank !== 'meas') rows = rows.filter(r => r.n >= MIN_CITY);
+  if (cRank === 'miss') rows = rows.filter(r => r.sched >= MIN_RIDES);
+  else if (cRank !== 'meas') rows = rows.filter(r => r.n >= MIN_CITY);
   sortRows(rows, sortCL);
   const total = rows.length;
   if (!showAllCL) rows = rows.slice(0, 30);
-  box.innerHTML = `<div class="tblbox"><table id="tcl"><thead><tr>${th('קו', 'short', sortCL)}${th('מסלול', 'long', sortCL)}${th('מפעיל', 'agency', sortCL)}${th('אשכול', 'cluster', sortCL)}${th('הגעות בעיר', 'n', sortCL)}${th('בזמן', 'on', sortCL)}${th('איחור ממוצע', 'avg', sortCL)}</tr></thead><tbody>` +
-    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px">${esc(r.cluster)}</td><td>${num(r.n)}</td><td>${onCell(r.on)}</td><td class="${dcls(r.avg)}">${delayTxt(r.avg)} דק׳</td></tr>`).join('') + '</tbody></table></div>' +
+  box.innerHTML = `<div class="tblbox"><table id="tcl"><thead><tr>${th('קו', 'short', sortCL)}${th('מסלול', 'long', sortCL)}${th('מפעיל', 'agency', sortCL)}${th('אשכול', 'cluster', sortCL)}${th('נסיעות בלו״ז', 'sched', sortCL)}${th('לא נצפו', 'miss', sortCL)}${th('הגעות בעיר', 'n', sortCL)}${th('בזמן', 'on', sortCL)}${th('איחור ממוצע', 'avg', sortCL)}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px">${esc(r.cluster)}</td><td>${num(r.sched)}</td><td class="${missCls(r.miss)}" title="${num(r.sched - r.obs)} מתוך ${num(r.sched)} נסיעות לא שידרו מיקום בכלל">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${num(r.n)}</td><td>${onCell(r.on)}</td><td class="${dcls(r.avg)}">${delayTxt(r.avg)} דק׳</td></tr>`).join('') + '</tbody></table></div>' +
     (total > rows.length ? `<button class="more" id="more-cl">הצגת כל ${num(total)} הקווים</button>` : '') +
-    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים ב${esc(openCity)}${cAgency ? ' של ' + esc(cAgency) : ''} (כיוון וחלופה נספרים בנפרד)${cRank !== 'meas' ? ` · בדירוג רק קווים עם לפחות ${MIN_CITY} הגעות שנמדדו בעיר` : ''}</div>`;
+    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים ב${esc(openCity)}${cAgency ? ' של ' + esc(cAgency) : ''} (כיוון וחלופה נספרים בנפרד)${cRank === 'miss' ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות בלו״ז` : cRank !== 'meas' ? ` · בדירוג רק קווים עם לפחות ${MIN_CITY} הגעות שנמדדו בעיר` : ''} · "נסיעות בלו״ז" ו"לא נצפו" — של כל המסלול, לא רק הקטע שבעיר</div>`;
   $('#tcl thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortCL = {k, dir: sortCL.k === k ? -sortCL.dir : (['short', 'long', 'agency', 'cluster'].includes(k) ? 1 : -1)}; renderCityLines(); };
   box.querySelectorAll('.linebtn').forEach(b => b.onclick = () => { openLine = b.dataset.rid; renderLineDetail(); $('#line-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   const mb = $('#more-cl'); if (mb) mb.onclick = () => { showAllCL = true; renderCityLines(); };
@@ -537,6 +544,7 @@ const METHOD = `<div class="ptitle">איך זה נמדד</div>
 <li><b>קטגוריות:</b> מוקדם = יותר מ-2 דקות לפני הלו״ז (בעיה לנוסע שמגיע בזמן); בזמן = עד 5 דקות איחור; ואז 5–10, 10–20, ומעל 20 דקות. "בזמן" נספר לכל הגעה לתחנה, לא לנסיעה.</li>
 <li><b>מה לא נספר:</b> נסיעות שלא שידרו בכלל (מופיעות כ"לא נצפו"); נסיעה ששודרה יותר משעה וחצי רחוק מהלו״ז שלה (כנראה רכב שהוסב לנסיעה אחרת); מדידה בודדת שקופצת ב-20 דקות משתי שכנותיה (תקלת שיערוך); רכבת ורכבת קלה; ויום שבו נצפו פחות מ-30% מהנסיעות (שידור חלקי, מוצג בנפרד). נסיעות ששודרו ואין להן נסיעה בלו״ז (תגבורים) נספרות בנפרד.</li>
 <li><b>אשכול ועיר:</b> האשכול של כל קו לפי רשימת ClusterToLine שמשרד התחבורה מפרסם לצד לוח הזמנים (73 אשכולות מכרז, וסוג הקו: עירוני, אזורי, בינעירוני). העיר של כל תחנה לפי קובץ התחנות של המשרד, כך ש"לפי עיר" סופר את ההגעות לתחנות שבתחומי העיר בלבד, וקו שעובר בכמה ערים נמדד בכל עיר בנפרד.</li>
+<li><b>אי ביצוע:</b> נסיעה שבלוח הזמנים ולא שידרה מיקום בכלל נספרת "לא נצפתה". זה אי ביצוע משוער: או שהנסיעה לא יצאה, או שיצאה בלי שידור. אי אפשר להבחין בין השניים מהשידורים, ולכן זה מוצג לצד מדדי הדיוק ולא בתוכם, בסך הארצי, לפי מפעיל, אשכול, קו ועיר. בעיר נספרות כל הנסיעות של הקווים שעוברים בה, לאורך כל המסלול.</li>
 <li><b>העומס על דאטאבוס:</b> אפס קריאות ל-API. הקבצים היומיים יורדים מאחסון S3 שנועד לזה, פעם אחת בלילה.</li>
 </ul>`;
 
