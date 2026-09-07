@@ -1352,6 +1352,7 @@ function NotifyCenter({ cities: allCities }) {
           {/* מצב ההתראות בדפדפן הזה — בלי זה ההרשמה נשמרת אבל שום הודעה לא מגיעה */}
           <div style={{ border: "1px solid " + (ps.loading ? "#e2e8f0" : ps.ok ? "#bbf7d0" : "#fecaca"), background: ps.loading ? "#f8fafc" : ps.ok ? "#f0fdf4" : "#fef2f2", borderRadius: 10, padding: "8px 12px", fontWeight: 700, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {ps.loading ? "בודק את מצב ההתראות בדפדפן הזה…" : ps.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ ההתראות לא פעילות בדפדפן הזה: " + ps.why}
+            {!ps.loading && ps.id && <small style={{ fontWeight: 400, color: "var(--muted, #64748b)", direction: "ltr" }} title="מזהה המנוי אצל ספק ההתראות — לבירור תקלות">#{String(ps.id).slice(0, 8)}</small>}
             {!ps.loading && !ps.ok && !/אייפון|לא תומך/.test(ps.why || "") && <button className="kathead" style={{ width: "auto", padding: "5px 12px" }} onClick={enable}>הפעלת התראות</button>}
           </div>
           <label style={{ fontWeight: 700 }}>ערים (אפשר כמה):

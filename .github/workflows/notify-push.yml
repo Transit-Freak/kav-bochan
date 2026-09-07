@@ -66,20 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ '${{ github.event.inputs.debug }}' = '1' ]; then
-            python3 - <<'PY'
-          import json, os, urllib.request
-          app=os.environ['ONESIGNAL_APP_ID']; key=os.environ['ONESIGNAL_API_KEY']
-          req=urllib.request.Request(f'https://api.onesignal.com/players?app_id={app}&limit=10',
-              headers={'Authorization': f'Key {key}'})
-          try:
-              d=json.load(urllib.request.urlopen(req, timeout=30))
-              print('total subscriptions:', d.get('total_count'))
-              for p in d.get('players', [])[:10]:
-                  print(' device:', p.get('device_os'), '| last_active:', p.get('last_active'),
-                        '| tags:', p.get('tags'), '| invalid:', p.get('invalid_identifier'))
-          except Exception as e:
-              print('players API error:', e)
-          PY
+            python3 tools/push_debug.py
             exit 0
           fi
           DATE='${{ github.event.inputs.date || '' }}' \
