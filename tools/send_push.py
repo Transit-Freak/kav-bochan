@@ -108,6 +108,9 @@ def send(payload):
 
 
 def main():
+    if os.environ.get('DIGEST_ALL'):
+        send_digest_all(int(os.environ['DIGEST_ALL']))
+        return
     changes = collect_changes()
     print(f'{DATE}: {len(changes)} קווים עם שינוי מהותי')
     if not changes:
@@ -190,6 +193,99 @@ def list_players():
         if len(ps) < 300:
             return out
         offset += 300
+
+
+def city_rev():
+    """מפה מהתג המגובב חזרה לשם העיר — מערי הקצה של כל הקטלוג."""
+    rev = {}
+    try:
+        for x in json.load(open(f'{OUTDIR}/lines.json'))['lines']:
+            for ct in dest_cities(x.get('dest') or ''):
+                rev[city_tag(ct)] = ct
+    except Exception:
+        pass
+    return rev
+
+
+def collect_range_mk(days):
+    """מק"ט → {'kinds', 'line', 'rd'} לשינויים המהותיים ב-DAYS הימים האחרונים (לעוקבי קו)."""
+    since = (datetime.date.fromisoformat(DATE) - datetime.timedelta(days=days)).isoformat()
+    by_mk = {}
+    for f in os.listdir(f'{OUTDIR}/lines'):
+        try:
+            d = json.load(open(f'{OUTDIR}/lines/{f}', encoding='utf-8'))
+        except Exception:
+            continue
+        rd = d.get('rd') or f.rsplit('.', 1)[0]
+        for v in d.get('versions') or []:
+            dd = str(v.get('d', ''))[:10]
+            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot'):
+                continue
+            e = by_mk.setdefault(rd.split('-')[0], {'kinds': set(), 'line': d.get('line') or '', 'rd': rd})
+            e['kinds'].add(v.get('k'))
+    return by_mk
+
+
+def send_digest_all(days):
+    """סיכום חד-פעמי לכל הנרשמים (בקשת שלמה 07.09), בלי קשר לתדירות שבחרו:
+    לכל מנוי — הערים שלו (תגי עיר) והקווים שהוא עוקב אחריהם (תגי l…), השינויים
+    המהותיים ב-DAYS הימים האחרונים, הודעה אחת. מי שסימן סוגי שינוי — רק הם."""
+    if not (APP_ID and API_KEY):
+        print('סיכום לכולם: אין מפתחות — דילוג')
+        return
+    rev = city_rev()
+    players = list_players()
+    by_city, by_mk = collect_range(days), collect_range_mk(days)
+    sent = skipped = 0
+    for p in players:
+        tags = p.get('tags') or {}
+        if p.get('invalid_identifier'):
+            continue
+        ucities = [rev[t] for t, val in tags.items() if t in rev and val == '1']
+        ulines = [t[1:] for t, val in tags.items() if t[:1] == 'l' and t[1:].isdigit() and val == '1']
+        ugroups = {g for g in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident') if tags.get(g) == '1'} or set(KIND_GROUP.values())
+        mks, kinds = set(), set()
+        for ct in ucities:
+            e = by_city.get(ct)
+            if not e:
+                continue
+            for k, kmks in e['bykind'].items():
+                if KIND_GROUP.get(k) in ugroups:
+                    kinds.add(k)
+                    mks |= kmks
+        for mk in ulines:
+            e = by_mk.get(mk)
+            if not e:
+                continue
+            for k in e['kinds']:
+                if KIND_GROUP.get(k) in ugroups:
+                    kinds.add(k)
+                    mks.add(mk)
+        if not mks:
+            skipped += 1
+            print(f'  מנוי בלי שינויים מתאימים: ערים {ucities or "—"} · קווים {ulines or "—"}')
+            continue
+        where = ucities[:3] or [f'קו {by_mk[m]["line"]}' for m in sorted(mks)[:3] if m in by_mk]
+        title = f'🔔 סיכום: {len(mks)} קווים השתנו ב-{days} הימים האחרונים'
+        body = ', '.join(where) + ': ' + ' · '.join(sorted({KIND_LBL.get(k, k) for k in kinds})[:4])
+        if ucities:
+            url = f'{BASE_URL}#digest={",".join(ucities)}@{days}'
+        else:
+            first = next((by_mk[m]['rd'] for m in sorted(mks) if m in by_mk), '')
+            url = f'{BASE_URL}#{first}' if first else BASE_URL
+        payload = {'app_id': APP_ID, 'headings': {'en': title, 'he': title},
+                   'contents': {'en': body, 'he': body}, 'url': url,
+                   'include_subscription_ids': [p.get('id')]}
+        if DRY:
+            print('DRY-DIGEST-ALL:', title, '|', body, '|', url)
+        else:
+            try:
+                res = send(payload)
+                print(f'  נשלח ({res.get("recipients", "?")} נמענים): {body[:80]}')
+            except Exception as ex:
+                print(f'שגיאת סיכום לנרשם: {ex}', file=sys.stderr)
+        sent += 1
+    print(f'סיכום {days} ימים לכל הנרשמים: {sent} קיבלו הודעה · {skipped} בלי שינויים מתאימים · {len(players)} מנויים')
 
 
 def send_digests():

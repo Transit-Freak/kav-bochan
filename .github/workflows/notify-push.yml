@@ -20,6 +20,10 @@ on:
         description: 'אבחון: הצגת הנרשמים והתגים (1 = כן)'
         required: false
         default: '0'
+      digest_all:
+        description: 'סיכום חד-פעמי לכל הנרשמים: כמה ימים אחורה (ריק = לא)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -76,4 +80,5 @@ jobs:
           fi
           DATE='${{ github.event.inputs.date || '' }}' \
           DRY='${{ github.event.inputs.dry || '0' }}' \
+          DIGEST_ALL='${{ github.event.inputs.digest_all || '' }}' \
           python3 tools/send_push.py
