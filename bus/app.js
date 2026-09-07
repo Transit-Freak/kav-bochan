@@ -322,8 +322,11 @@ function renderAgencies() {
 }
 function renderCities() {
   const box = $('#t-city'); if (!box) return;
-  $('#cfilters').innerHTML = `<input class="search" id="cq" placeholder="חיפוש עיר או יישוב…" value="${esc(cq)}">`;
-  $('#cq').oninput = e => { cq = e.target.value; showAllC = false; renderCities(); };
+  // תיבת החיפוש נבנית פעם אחת — בנייה מחדש בכל אות מאבדת את הפוקוס והמקלדת נסגרת (שלמה 07.09)
+  if (!$('#cq')) {
+    $('#cfilters').innerHTML = `<input class="search" id="cq" placeholder="חיפוש עיר או יישוב…" value="${esc(cq)}">`;
+    $('#cq').oninput = e => { cq = e.target.value; showAllC = false; renderCities(); };
+  }
   const q = cq.trim();
   let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}));
   if (q) rows = rows.filter(r => r.nm.includes(q));
