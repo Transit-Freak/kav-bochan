@@ -552,7 +552,8 @@ function init() {
   $('#method').innerHTML = METHOD;
   Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({}))]).then(([idx, cat]) => {
     IDX = idx; CAT = cat || {};
-    DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d);
+    // רק ימים אמיתיים (YYYY-MM-DD): קובץ ערים שנכנס בטעות לאינדקס הפיל את העמוד (08.09)
+    DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d && /^\d{4}-\d{2}-\d{2}$/.test(d.d));
     if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין ימים מחושבים.</div>'; $('#sub').textContent = ''; return; }
     const h = decodeURIComponent((location.hash || '').slice(1));
     dayD = DAYS.some(d => d.d === h) ? h : DAYS[DAYS.length - 1].d;

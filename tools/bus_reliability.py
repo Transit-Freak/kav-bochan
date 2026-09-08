@@ -34,6 +34,7 @@ import io
 import json
 import math
 import os
+import re
 import statistics
 import sys
 import zipfile
@@ -904,7 +905,9 @@ def main():
     # בלי להוריד את קובצי הימים (1–3MB כל אחד)
     days = []
     for f in sorted(os.listdir(f'{a.out}/days')):
-        if not f.endswith('.json') or f.endswith('.stops.json'):
+        # רק קובצי יום (YYYY-MM-DD.json) — לא .stops.json ולא .cities.json: קובץ
+        # הערים נכנס לאינדקס כ"יום" והפיל את העמוד (שלמה 08.09, "reading 'sched'")
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}\.json', f):
             continue
         try:
             dj = json.load(open(f'{a.out}/days/{f}', encoding='utf-8'))
