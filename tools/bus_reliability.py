@@ -50,6 +50,7 @@ EARLY, ONTIME, L5, L10, L20 = range(5)          # אינדקסים בקטגור�
 BUCKETS = [(-120, 'early'), (300, 'ontime'), (600, 'l5'), (1200, 'l10'), (10 ** 9, 'l20')]
 MAX_ABS = 150 * 60                               # איחור/הקדמה מעבר לשעתיים וחצי — זו לא הנסיעה שבלו"ז (רכב שהוסב לנסיעה אחרת)
 SPIKE = 20 * 60                                  # מדידה בודדת שרחוקה מזה משתי שכנותיה — תקלה, לא איחור
+RELABEL_MIN = 45 * 60                            # יציאה מאוחרת מזה, כשיש נסיעה אחרת בלו"ז באותו זמן — הנסיעה האחרת
 ARRIVE_M = 25                                    # DistanceFromStop עד כאן = הגעה
 MIN_STOPS_RIDE = 2
 BUS_TYPES = {'3'}                                # route_type של אוטובוס (רכבת=2, רכבת קלה=0 — לא כאן)
@@ -481,6 +482,14 @@ def passages(recs, seq, codes=None):
         if prev is not None:
             t1, p1, o1 = prev
             if 1 <= o1 < o and t > t1:
+                # קפיצת Order לא סבירה — יותר משתי תחנות בלי שהמרחק התקדם, או מהירות
+                # משתמעת מעל 30 מ׳/שנ׳: לא מעבר אמיתי אלא תקלת שידור (שלמה 08.09:
+                # 20 תחנות ב"17:52" ואז זמנים שהולכים אחורה). התחנות שבקפיצה לא נמדדות.
+                span = cum[min(o, n) - 1] - cum[o1 - 1]
+                if o - o1 > 2 and ((has_dist and p <= p1 + 30) or span / max(t - t1, 1) > 30):
+                    FRAC['implausible'] += 1
+                    prev = (t, p, o)
+                    continue
                 for k in range(o1 + 1, min(o, n) + 1):
                     frac = 0.5
                     if has_dist and p > p1:
@@ -495,7 +504,13 @@ def passages(recs, seq, codes=None):
         t1, p1 = (dep, 0.0) if dep is not None else (None, None)
         for j in range(start_i, len(samples)):
             t, p, o = samples[j]
-            if t1 is not None and p > p1 and t > t1:
+            if t1 is not None and p > p1 and t > t1 and p - p1 > 500 and (p - p1) / (t - t1) > 30:
+                # קפיצת מרחק לא סבירה (מעל 30 מ׳/שנ׳): לא נסיעה אלא איפוס/תקלה — התחנות
+                # שבקטע לא נמדדות, והקטע הבא מתחיל מהמיקום החדש (שלמה 08.09)
+                FRAC['implausible'] += 1
+                while k <= n and cum[k - 1] <= p:
+                    k += 1
+            elif t1 is not None and p > p1 and t > t1:
                 while k <= n and cum[k - 1] <= p:
                     if cum[k - 1] >= p1 and sufmax[max(j - 1, 0)] >= k:
                         tc = int(t1 + (t - t1) * (cum[k - 1] - p1) / (p - p1))
@@ -513,6 +528,15 @@ def passages(recs, seq, codes=None):
         if k not in out and (not has_dist or k > pre_o):
             out[k] = to
             FRAC['order'] += 1
+    # הזמן לאורך המסלול לא הולך אחורה: מעבר שמוקדם ביותר מדקה מהמעבר שלפניו —
+    # שני מקורות שיערוך שהסתכסכו — מושמט (הדוגמה של שלמה 08.09: 17:52 ואז 17:47)
+    last = None
+    for k in sorted(out):
+        if last is not None and out[k] < last - 60:
+            del out[k]
+            FRAC['nonmono'] += 1
+        else:
+            last = out[k]
     return out
 
 
@@ -654,6 +678,7 @@ def main():
     rides_dump = []                      # --dump-rides: [מק"ט, כיוון, חלופה, trip, יציאה מתוכננת, איחור במוצא, איחור אחרון, תחנה אחרונה, מדידות, רכב, זמן יציאה, זמן אחרון]
     diag_raw, diag_raw2, diag_raw3 = [], [], []   # רשומות גולמיות לאבחון המוצא, ונסיעות טיפוסיות
     spikes = 0
+    relabeled = 0       # נסיעות שסומנו בשעת יציאה ישנה — בפועל נסיעה אחרת בלו"ז
     n_rides = 0
     hms_ = lambda s: f'{s // 3600:02d}:{s % 3600 // 60:02d}'  # noqa: E731
     worst = []
@@ -685,6 +710,16 @@ def main():
             far += 1
             continue
         beyond += n_beyond
+        # יצאה 45+ דק׳ אחרי הלו"ז, ובדיוק אז (±3 דק׳) יש נסיעה אחרת בלו"ז של אותו
+        # מסלול — זו הנסיעה האחרת, שהמפעיל דיווח עליה עם שעת יציאה ישנה (שלמה 08.09:
+        # "יציאה 15:30", בפועל 17:22, +112 דק׳ לאורך כל הדרך). לא נמדדת.
+        meas.sort()
+        d0 = meas[0][3]
+        if d0 >= RELABEL_MIN:
+            est = seq[0][3] + d0
+            if any(abs(sec - est) <= 180 and t2 != tid for sec, t2 in deps_by_route.get(rid, [])):
+                relabeled += 1
+                continue
         # מדידה בודדת שקופצת ביותר מ-20 דק׳ משתי שכנותיה (שדומות זו לזו) — תקלת
         # מק"ט/שיערוך ולא איחור; מושמטת (דוגמה 06.09: +7, +56, +5)
         meas.sort()
@@ -795,7 +830,7 @@ def main():
                     # דוגמאות: יצאה בזמן והגיעה ל-55+ דק׳ — איפה הקפיצה?
                     diag_ex.append(f'{rid}/{tid} רשומות={len(recs)} {hms_(recs[0][0])}–{hms_(recs[-1][0])} יציאה מתוכננת {hms_(seq[0][3])} n={len(seq)} מעברים: '
                                    + ' '.join(f'{k}:{d // 60:+d}' for k, s, sc, d in sorted(meas)))
-    print(f'מדידות: {tot["meas"]:,} · נסיעות נצפו: {tot["obs"]:,} מתוך {tot["sched"]:,} · רחוקות מהלו"ז (הושמטו): {far:,} · מדידות בודדות מעבר לסף: {beyond:,} · קפיצות בודדות שהושמטו: {spikes:,} · מעברים לפי מרחק/לפי Order: {dict(FRAC)} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
+    print(f'מדידות: {tot["meas"]:,} · נסיעות נצפו: {tot["obs"]:,} מתוך {tot["sched"]:,} · רחוקות מהלו"ז (הושמטו): {far:,} · מדידות בודדות מעבר לסף: {beyond:,} · קפיצות בודדות שהושמטו: {spikes:,} · נסיעה אחרת שסומנה בשעה ישנה (הושמטו): {relabeled:,} · מעברים לפי מרחק/לפי Order: {dict(FRAC)} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
     if a.dump_rides:
         os.makedirs(os.path.dirname(a.dump_rides) or '.', exist_ok=True)
         json.dump({'d': day, 'cols': ['mkt', 'dir', 'alt', 'trip', 'sched dep sec', 'origin delay sec', 'last delay sec', 'last stop k', 'n meas', 'vehicle', 'dep sec', 'last pass sec'],
