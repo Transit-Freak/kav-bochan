@@ -679,6 +679,7 @@ def main():
     diag_raw, diag_raw2, diag_raw3 = [], [], []   # רשומות גולמיות לאבחון המוצא, ונסיעות טיפוסיות
     spikes = 0
     relabeled = 0       # נסיעות שסומנו בשעת יציאה ישנה — בפועל נסיעה אחרת בלו"ז
+    cut = 0             # נסיעות שנחתכו בקפיצת איחור (המשך = סיבוב הבא של הרכב)
     n_rides = 0
     hms_ = lambda s: f'{s // 3600:02d}:{s % 3600 // 60:02d}'  # noqa: E731
     worst = []
@@ -743,6 +744,15 @@ def main():
                     continue
                 keep.append(m)
             meas = keep
+        # עלייה של יותר מ-20 דק׳ באיחור בין שתי תחנות עוקבות (מעבר לזמן הלו"ז ביניהן):
+        # רכב לא עומד 20 דק׳ בין תחנות — אלה מדידות מהסיבוב הבא של אותו רכב, שדווח
+        # תחת שעת היציאה הישנה (שלמה 08.09; ביומן: -1 ואז +28, +55, +111 בקפיצות של
+        # סיבוב). הנסיעה נחתכת בקפיצה: החלק הראשון נמדד, ההמשך לא.
+        for i in range(1, len(meas)):
+            if meas[i][3] - meas[i - 1][3] > SPIKE + max(0, meas[i][2] - meas[i - 1][2]):
+                cut += 1
+                meas = meas[:i]
+                break
         if len(meas) < MIN_STOPS_RIDE:
             far += 1
             continue
@@ -830,7 +840,7 @@ def main():
                     # דוגמאות: יצאה בזמן והגיעה ל-55+ דק׳ — איפה הקפיצה?
                     diag_ex.append(f'{rid}/{tid} רשומות={len(recs)} {hms_(recs[0][0])}–{hms_(recs[-1][0])} יציאה מתוכננת {hms_(seq[0][3])} n={len(seq)} מעברים: '
                                    + ' '.join(f'{k}:{d // 60:+d}' for k, s, sc, d in sorted(meas)))
-    print(f'מדידות: {tot["meas"]:,} · נסיעות נצפו: {tot["obs"]:,} מתוך {tot["sched"]:,} · רחוקות מהלו"ז (הושמטו): {far:,} · מדידות בודדות מעבר לסף: {beyond:,} · קפיצות בודדות שהושמטו: {spikes:,} · נסיעה אחרת שסומנה בשעה ישנה (הושמטו): {relabeled:,} · מעברים לפי מרחק/לפי Order: {dict(FRAC)} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
+    print(f'מדידות: {tot["meas"]:,} · נסיעות נצפו: {tot["obs"]:,} מתוך {tot["sched"]:,} · רחוקות מהלו"ז (הושמטו): {far:,} · מדידות בודדות מעבר לסף: {beyond:,} · קפיצות בודדות שהושמטו: {spikes:,} · נסיעה אחרת שסומנה בשעה ישנה (הושמטו): {relabeled:,} · נחתכו בקפיצת איחור (סיבוב הבא): {cut:,} · מעברים לפי מרחק/לפי Order: {dict(FRAC)} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
     if a.dump_rides:
         os.makedirs(os.path.dirname(a.dump_rides) or '.', exist_ok=True)
         json.dump({'d': day, 'cols': ['mkt', 'dir', 'alt', 'trip', 'sched dep sec', 'origin delay sec', 'last delay sec', 'last stop k', 'n meas', 'vehicle', 'dep sec', 'last pass sec'],
