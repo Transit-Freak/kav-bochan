@@ -485,7 +485,7 @@ def passages(recs, seq, codes=None):
                 # קפיצת Order לא סבירה — יותר משתי תחנות בלי שהמרחק התקדם, או מהירות
                 # משתמעת מעל 30 מ׳/שנ׳: לא מעבר אמיתי אלא תקלת שידור (שלמה 08.09:
                 # 20 תחנות ב"17:52" ואז זמנים שהולכים אחורה). התחנות שבקפיצה לא נמדדות.
-                span = cum[min(o, n) - 1] - cum[o1 - 1]
+                span = cum[min(o, n) - 1] - cum[min(o1, n) - 1]   # Order של SIRI יכול לחרוג מאורך הרצף
                 if o - o1 > 2 and ((has_dist and p <= p1 + 30) or span / max(t - t1, 1) > 30):
                     FRAC['implausible'] += 1
                     prev = (t, p, o)
