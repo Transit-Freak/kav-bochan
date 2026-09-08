@@ -9,6 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from compact_lines import materialize  # noqa: E402
+from ltype_index import apply_ltype  # noqa: E402
 
 OUTDIR = os.environ.get('OUTDIR', 'line-history/data')
 
@@ -110,6 +111,8 @@ for fn in os.listdir(f'{OUTDIR}/lines'):
         e['vt'] = lf['vt']
     else:
         e.pop('vt', None)
+    # שינוי סוג הקו / ייחודיות (linehistory_ltype.py) — אותו כלל כמו בריצה היומית
+    apply_ltype(e, ks, lf)
     ks = sorted(ks)
     e['v'] = len(vs)
     if ks:

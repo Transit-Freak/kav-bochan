@@ -213,6 +213,13 @@ if idx.get('lines') is not None:
                 if a and rr: ks.add('stops')
                 elif a: ks.add('stops-add')
                 elif rr: ks.add('stops-del')
+        # שינוי סוג הקו / ייחודיות — אותו כלל כמו בריצה היומית (tools/ltype_index.py)
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from ltype_index import apply_ltype
+            apply_ltype(e, ks, lf)
+        except Exception as _ex:
+            print('ltype באינדקס נכשל:', _ex)
         ks = sorted(ks)
         e['v'] = len(vs)
         if ks: e['ks'] = ks
