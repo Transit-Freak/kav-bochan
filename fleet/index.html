@@ -387,6 +387,8 @@ function typeHome(f){
   const agg={};
   for(const o of DATA.operators) for(const v of o.vehicles){
     const t=gM(v); if(!t) continue;
+    // "הכי מקולקלים" — בלי רכבי קבלן (הסעות פרטיות): הם נעלמים וחוזרים לפי עבודה, לא לפי תקלה (שלמה 13.09)
+    if(TSORT==='g'&&isKab(v)) continue;
     const g=agg[t]||(agg[t]={n:0,act:0,gp:0,ops:new Set(),types:new Set()});
     g.n++; if(isActive(v))g.act++; if(v._gp)g.gp++; g.ops.add(o.ref);
     const bt=gT(v); if(bt)g.types.add(bt);
@@ -487,9 +489,15 @@ function table(vs,opsArr){
         // "בינעירוני" (המאגר הרשמי) — בלי זה הופיעו שניהם זה ליד זה (שלמה 04.09)
         const nz=s=>String(s||'').replace(/[\s\-]/g,'').replace(/ך/g,'כ').replace(/ם/g,'מ').replace(/ן/g,'נ').replace(/ף/g,'פ').replace(/ץ/g,'צ');
         const gN=nz(gT(v));
-        const tags=[gT(v)&&`<span class="tg">${esc(gT(v))}</span>`, v._bt&&!gN.includes(nz(v._bt))&&`<span class="tg" style="opacity:.8">${esc(v._bt)}</span>`,
-          v._bs&&v._bs!==v._bt&&!gN.includes(nz(v._bs))&&`<span class="tg" style="opacity:.8">${esc(v._bs)}</span>`, v._ar&&`<span class="tg" style="background:#fef3c7;color:#92400e">${arLbl(v._ar)}</span>`].filter(Boolean);
-        return tags.length?tags.join(' '):'—';})()}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}
+        // ביטוי אחד במקום שלושה-ארבעה תגים (שלמה 13.09): "מיניבוס בין-עירוני",
+        // "בין-עירוני ממוגן אבנים" — גודל הגוף מהמאגר הרשמי בא במקום "אוטובוס", והמיגון בסוף
+        const base=gT(v)||'', kind=base.replace(/^אוטובוס /,'');
+        const size=(v._bs&&!gN.includes(nz(v._bs)))?v._bs:(v._bt&&!gN.includes(nz(v._bt))?v._bt:'');
+        const arm=v._ar?arLbl(v._ar):'';
+        const words=size?[size,kind]:(arm&&/^אוטובוס /.test(base)?[kind]:[base]);
+        if(arm)words.push(arm);
+        const one=words.filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+        return one?`<span class="tg"${arm?' style="background:#fef3c7;color:#92400e"':''}>${esc(one)}</span>`:'—';})()}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}
     ${OFF?`<td>${gR(v)!=null?gR(v):'—'}</td>`:''}
     ${KMOK?`<td>${v._kd!=null?fmt(v._kd):'—'}</td><td>${v._kt!=null?fmt(v._kt):'—'}</td>`:''}${OFCOK?`<td>${v._ok!=null?fmt(v._ok):'—'}</td>`:''}
     <td>${fd(v[1])}</td><td>${fd(v[2])}</td>

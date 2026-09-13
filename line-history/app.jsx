@@ -1050,7 +1050,11 @@ function SchedBox({ rd, vs, selD, isLast }) {
         const L = schedDayOf(v.note);
         if (L) { days[L] = String(v.tl || "").split(",").map((s) => s.trim()).filter(Boolean); touched.add(L); }
       });
+    // רק מה שתועד באמת: ימים שלא תועד בהם שינוי לו"ז מאז — אין מידע על אותה תקופה,
+    // ולא "כנראה כמו היום" (שלמה 13.09). כשאין שום יום כזה — הלו"ז לא מוצג בכלל.
+    for (const b of SCHED_DAYS) if (!touched.has(b)) days[b] = [];
   }
+  if (past && !touched.size) return null;
   const hasTb = !past && SCHED_DAYS.some((b) => (days[b] || []).some((t) => Array.isArray(t)));
   return (
     <details className="schedbox">
@@ -1058,14 +1062,11 @@ function SchedBox({ rd, vs, selD, isLast }) {
       <div className="schednote">
         {/* ההערה על השחזור לא הובנה (שלמה 07.09: "מה ההערה המוזרה הזו?") — עכשיו
             במילים פשוטות, ובלי לדבר על ✱ כשאין אף יום כזה בטבלה */}
-        {past ? (touched.size ? <>
-          לא נשמר לו"ז מאותה תקופה. מה שמוצג הוא הלו"ז של היום, מוחזר אחורה:
-          בימים עם ✱ תועד שינוי לו"ז אחרי הגרסה הזו, ולכן מוצגות השעות שהיו לפני
-          השינוי. בשאר הימים לא תועד שינוי מאז, ולכן השעות של היום הן כנראה גם מה שהיה אז.
+        {past ? <>
+          מוצגות רק השעות שתועדו: בימים עם ✱ נרשם שינוי לו"ז אחרי הגרסה הזו, ולכן
+          אלה השעות שהיו לפני השינוי.
+          {SCHED_DAYS.some((b) => !touched.has(b)) ? " בשאר הימים אין מידע על הלו\"ז בתאריך המבוקש." : ""}
         </> : <>
-          לא נשמר לו"ז מאותה תקופה, ולא תועד שינוי לו"ז מאז הגרסה הזו — לכן מוצג
-          הלו"ז של היום, שכנראה זה גם מה שהיה אז.
-        </>) : <>
           מפרסום הרישוי ל-10 הימים הקרובים (נכון ל-{d.g.split("-").reverse().join(".")}) —
           זה הלו"ז הנוכחי.
           {/* ההסבר על ×N רק כשיש באמת שעה כזאת בלו"ז (שלמה 06.09) */}
@@ -1206,7 +1207,8 @@ function readPushState(cb, resync) {
       }
       const st = { loading: false, ok, id: ps && ps.id, why: ok ? "" : (!OS.Notifications.permission ? "עוד לא אושרה הרשאה להתראות בדפדפן הזה — לחצו \"הפעלת התראות\" ואשרו" : "המנוי כבוי — לחצו \"הפעלת התראות\"") };
       cb(st);
-      if (ps && ps.id && resync && Object.keys(resync).length) cb({ ...st, srv: await syncServer(OS, resync) });
+      // גם בפתיחת המרכז (לא רק בשמירה): "בודק מול השרת…" נשאר תקוע עד ששמרו (שלמה 13.09)
+      if (ps && ps.id && resync) cb({ ...st, srv: Object.keys(resync).length ? await syncServer(OS, resync) : { have: {}, ok: true, fixed: false, empty: true } });
     } catch (e) { cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות?)" }); }
   });
   setTimeout(() => { if (!got) cb({ loading: false, ok: false, why: "שירות ההתראות לא נטען (חוסם פרסומות או חוסם תוכן בדפדפן)" }); }, 8000);
@@ -1304,13 +1306,9 @@ if (PUSH_ON) { try { const t0 = savedTags(); if (Object.keys(t0).length) readPus
 // "ההרשמות שלי": כל מה שנרשם מהדפדפן הזה (צ'יפים + המרכז), עם ✖ להסרה
 function MyFollows({ bump, onChange }) {
   const read = () => {
+    // ערי המרכז לא כאן — הן כבר מוצגות כצ'יפים מעל (הופיעו שלוש פעמים; שלמה 13.09).
+    // נשארו רק מעקבים ישנים מכפתור "עקוב" — כדי שאפשר יהיה להסיר אותם
     const out = [];
-    try {
-      const n = JSON.parse(localStorage.kbNotify || "{}");
-      const cl = n.cities || (n.city ? [n.city] : []);
-      const fl = n.freq === "7" ? "סיכום שבועי" : n.freq === "3" ? "סיכום כל 3 ימים" : "יומי";
-      cl.forEach((c) => out.push({ tag: cityTag(c), label: `${c} (${fl})`, center: true, cityName: c }));
-    } catch (e) {}
     try {
       const m = JSON.parse(localStorage.kbFollow || "{}");
       for (const t in m) out.push({ tag: t, label: typeof m[t] === "string" ? m[t] : (t[0] === "l" ? "קו (מקט " + t.slice(1) + ")" : "מעקב ישן") });
@@ -1352,6 +1350,60 @@ function MyFollows({ bump, onChange }) {
     </div>
   );
 }
+// הרשמה מדף הקו (שלמה 13.09): לוחצים על עיר, בוחרים סוגי שינוי ותדירות, ונרשמים —
+// זו אותה הרשמה כמו במרכז ההתראות בעמוד הראשי: העיר מצטרפת לרשימת הערים שם,
+// והתדירות וסוגי השינוי משותפים לכל הערים.
+function LineFollow({ cities }) {
+  const readN = () => { try { const n = JSON.parse(localStorage.kbNotify || "{}"); if (n.city && !n.cities) n.cities = [n.city]; return n; } catch (e) { return {}; } };
+  const [openC, setOpenC] = useState(null);
+  const [gs, setGs] = useState(() => new Set(readN().gs || KIND_GROUPS_N.map((g) => g.tag)));
+  const [freq, setFreq] = useState(() => readN().freq || "1");
+  const [st, setSt] = useState("");
+  const [, setBump] = useState(0);
+  if (!PUSH_ON || !cities.length) return null;
+  const isOn = (c) => (readN().cities || []).includes(c);
+  const save = (c) => {
+    if (!gs.size) { setSt("✗ סמנו לפחות סוג שינוי אחד"); return; }
+    try { const n = readN(); const cl = n.cities || []; if (!cl.includes(c)) cl.push(c); localStorage.kbNotify = JSON.stringify({ cities: cl, freq, gs: [...gs] }); } catch (e) { /* ignore */ }
+    setSt("שומר…"); setOpenC(null);
+    pushTags((r) => { setSt(r.ok ? (r.srv ? (r.srv.ok ? "✓ נרשמתם בהצלחה" : "✗ ההרשמה לא נקלטה בשרת ההתראות — נסו שוב") : "✓ נרשמתם — ההתראות פעילות בדפדפן הזה") : "✗ " + r.why); setBump((b) => b + 1); });
+  };
+  const remove = (c) => {
+    try { const n = readN(); const cl = (n.cities || []).filter((x) => x !== c); if (cl.length) localStorage.kbNotify = JSON.stringify({ ...n, cities: cl, city: undefined }); else delete localStorage.kbNotify; } catch (e) { /* ignore */ }
+    pushTags(); setSt("ההרשמה ל" + c + " הוסרה"); setBump((b) => b + 1);
+  };
+  const pill = { display: "flex", alignItems: "center", gap: 5, border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontWeight: 400 };
+  return <>
+    {cities.map((c) => isOn(c)
+      ? <button key={c} className="sharebtn" title={"רשומים להתראות על קווי " + c + " — לחיצה מסירה את העיר מההרשמה"} onClick={() => remove(c)}>🔔 רשומים: {c} ✓</button>
+      : <button key={c} className="sharebtn" title={"הרשמה להתראות על כל שינוי מהותי בקווים של " + c} aria-expanded={openC === c} onClick={() => setOpenC(openC === c ? null : c)}>🔔 הרשמה: {c}</button>)}
+    {st && <small style={{ color: st[0] === "✓" ? "#166534" : "#b91c1c", fontWeight: 700, display: "inline-block", marginInlineStart: 6 }}>{st}</small>}
+    {openC && (
+      <div style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 12px", marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
+        <b>הרשמה להתראות על קווי {openC}</b>
+        <div style={{ fontWeight: 700 }}>אילו שינויים:
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+            {KIND_GROUPS_N.map((g) => (
+              <label key={g.tag} style={pill}><input type="checkbox" checked={gs.has(g.tag)} onChange={() => setGs((p) => { const n = new Set(p); if (n.has(g.tag)) n.delete(g.tag); else n.add(g.tag); return n; })} /> {g.label}</label>
+            ))}
+          </div>
+        </div>
+        <div style={{ fontWeight: 700 }}>באיזו תדירות:
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+            {[["1", "כל יום שיש שינוי"], ["3", "סיכום כל 3 ימים"], ["7", "סיכום שבועי"]].map(([v, l]) => (
+              <label key={v} style={pill}><input type="radio" name="lffreq" checked={freq === v} onChange={() => setFreq(v)} /> {l}</label>
+            ))}
+          </div>
+        </div>
+        <div className="mut">סוגי השינוי והתדירות משותפים לכל הערים שנרשמתם אליהן — אפשר לשנות במרכז ההתראות בעמוד הראשי.</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="kathead" style={{ width: "auto", padding: "6px 14px" }} onClick={() => save(openC)}>שמירה והרשמה</button>
+          <button className="sharebtn" onClick={() => setOpenC(null)}>ביטול</button>
+        </div>
+      </div>
+    )}
+  </>;
+}
 function NotifyCenter({ cities: allCities }) {
   const st0 = (() => { try { const s = JSON.parse(localStorage.kbNotify || "{}"); if (s.city && !s.cities) s.cities = [s.city]; return s; } catch (e) { return {}; } })();
   const [open, setOpen] = useState(false);
@@ -1362,7 +1414,7 @@ function NotifyCenter({ cities: allCities }) {
   const [saved, setSaved] = useState(!!(st0.cities || []).length);
   const [msg, setMsg] = useState("");
   const [ps, setPs] = useState({ loading: true });
-  useEffect(() => { if (open && PUSH_ON) { setPs({ loading: true }); readPushState((s) => setPs((p) => (typeof s === "function" ? s(p) : s))); } }, [open]);
+  useEffect(() => { if (open && PUSH_ON) { setPs({ loading: true }); readPushState((s) => setPs((p) => (typeof s === "function" ? s(p) : s)), savedTags()); } }, [open]);
   if (!PUSH_ON) return null;
   const toggleG = (t) => setGs((p) => { const n = new Set(p); if (n.has(t)) n.delete(t); else n.add(t); return n; });
   // רק שמות ערים כפי שהם ברישום (אחרת התג לא יתאים לשום קו)
@@ -1382,7 +1434,7 @@ function NotifyCenter({ cities: allCities }) {
     try { localStorage.kbNotify = JSON.stringify({ cities: list, freq, gs: [...gs] }); } catch (e) {}
     pushTags((r) => {
       setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv });
-      setMsg(r.ok ? `✓ נשמר — ${list.length} ערים, ההתראות פעילות בדפדפן הזה. בסיכום תגיע הודעה אחת שמאחדת את כולן` : `✗ נשמר, אבל ההתראות לא יגיעו: ${r.why}`);
+      setMsg(r.ok ? "✓ נרשמתם בהצלחה. ההתראות פעילות בדפדפן הזה" : `✗ נשמר, אבל ההתראות לא יגיעו: ${r.why}`);
     });
     setCities(list); setCity(""); setSaved(true);
   };
@@ -1398,21 +1450,12 @@ function NotifyCenter({ cities: allCities }) {
   };
   // "הפעלת התראות" שולח גם את כל מה שנשמר בדפדפן הזה — לא רק מבקש הרשאה
   const enable = () => { setMsg("…"); pushTags((r) => { setPs({ loading: false, ok: !!r.ok, why: r.why || "", id: r.id, srv: r.srv }); setMsg(r.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ " + r.why); }); };
-  // מה באמת רשום אצל ספק ההתראות (מהשרת) — בשמות ערים, לא בתגים
+  // מצב הסנכרון מול שרת ההתראות — בלי לחזור על שמות הערים (הן כבר בצ'יפים; שלמה 13.09)
   const srvText = (s) => {
-    if (s.err) return "לא הצלחתי לבדוק מה רשום אצל ספק ההתראות: " + s.err;
-    const rev = {}; (allCities || []).forEach((c) => { rev[cityTag(c)] = c; });
-    const h = s.have || {};
-    // המבנה החדש (תג kb אחד), ואם אין — התגים הישנים
-    const kb = {}; String(h.kb || "").split("|").forEach((p) => { const i = p.indexOf("="); if (i > 0) kb[p.slice(0, i)] = p.slice(i + 1); });
-    const name = (k) => rev[k] || "עיר לא מזוהה";
-    const cs = (kb.c ? kb.c.split(",") : Object.keys(h).filter((k) => /^c[0-9a-z]+$/.test(k) && h[k] === "1")).filter(Boolean).map(name);
-    const ws = (kb.w ? kb.w.split(",") : []).filter(Boolean).map(name);
-    const ls = kb.l ? kb.l.split(",").filter(Boolean).length : Object.keys(h).filter((k) => /^l\d+$/.test(k) && h[k] === "1").length;
-    const fq = { 1: "כל יום שיש שינוי", 3: "סיכום כל 3 ימים", 7: "סיכום שבועי" }[kb.f || h.freq] || "";
-    const what = (cs.length ? cs.join(", ") : "אין ערים") + (fq ? " · " + fq : "") + (ws.length ? " · מעקב יומי: " + ws.join(", ") : "") + (ls ? ` · ${ls} קווים במעקב` : "");
-    if (!s.ok) return "✗ אצל ספק ההתראות רשום: " + what + " — לא זהה למה שנשמר כאן. נסו לשמור שוב";
-    return (s.fixed ? "✓ אצל הספק היה חסר — תוקן עכשיו. רשום שם: " : "✓ רשום אצל ספק ההתראות: ") + what;
+    if (s.err) return "לא הצלחתי לבדוק מול שרת ההתראות: " + s.err;
+    if (s.empty) return "אין עדיין הרשמה בדפדפן הזה";
+    if (!s.ok) return "✗ ההרשמה לא נקלטה בשרת ההתראות — נסו לשמור שוב";
+    return s.fixed ? "✓ ההרשמה סונכרנה עכשיו עם שרת ההתראות" : "✓ ההרשמה רשומה בשרת ההתראות";
   };
   const cancel = () => {
     try { delete localStorage.kbNotify; } catch (e) {}
@@ -1429,7 +1472,6 @@ function NotifyCenter({ cities: allCities }) {
           {/* מצב ההתראות בדפדפן הזה — בלי זה ההרשמה נשמרת אבל שום הודעה לא מגיעה */}
           <div style={{ border: "1px solid " + (ps.loading ? "#e2e8f0" : ps.ok ? "#bbf7d0" : "#fecaca"), background: ps.loading ? "#f8fafc" : ps.ok ? "#f0fdf4" : "#fef2f2", borderRadius: 10, padding: "8px 12px", fontWeight: 700, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {ps.loading ? "בודק את מצב ההתראות בדפדפן הזה…" : ps.ok ? "✓ ההתראות פעילות בדפדפן הזה" : "✗ ההתראות לא פעילות בדפדפן הזה: " + ps.why}
-            {!ps.loading && ps.id && <small style={{ fontWeight: 400, color: "var(--muted, #64748b)", direction: "ltr" }} title="מזהה המנוי אצל ספק ההתראות — לבירור תקלות">#{String(ps.id).slice(0, 8)}</small>}
             {!ps.loading && !ps.ok && !/אייפון|לא תומך/.test(ps.why || "") && <button className="kathead" style={{ width: "auto", padding: "5px 12px" }} onClick={enable}>הפעלת התראות</button>}
             {!ps.loading && ps.ok && !ps.srv && <small style={{ width: "100%", fontWeight: 400, color: "var(--muted, #64748b)" }}>בודק מול השרת מה רשום שם…</small>}
             {!ps.loading && ps.srv && <div style={{ width: "100%", fontWeight: 600, fontSize: 13, color: ps.srv.ok ? "#166534" : "#b91c1c" }}>{srvText(ps.srv)}</div>}
@@ -1978,11 +2020,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
               if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
             }}>🔗 שיתוף</button>
-          {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד */}
-          {destCities(lf.dest).map((ct) => (
-            <FollowBtn key={ct} tag={cityTag(ct)} label={"עקוב: " + ct}
-              title={"התראה על כל שינוי מהותי בקווים של " + ct} />
-          ))}
+          {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
+              מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
+          <LineFollow cities={destCities(lf.dest)} />
         </div>
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
@@ -1990,13 +2030,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
           {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
           {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
-          {/* רציף המוצא של היום — משורת הרציף בקובץ התחנות (שלמה 07.09) */}
-          {(() => {
-            const lv = [...vs].reverse().find((v) => (v.stops || []).length);
-            const s0 = lv && lv.stops[0];
-            const pp = s0 && rdPlat[String(s0[0])];
-            return pp ? <span className="vsz" title={"הרציף שממנו הקו יוצא היום ב" + s0[1] + ", לפי שורת הרציף בקובץ התחנות של משרד התחבורה (נסיעות בתוקף) — מתעדכן מדי יום"}> · 🛤️ יוצא מרציף {pp}</span> : null;
-          })()}
+          {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
           {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
               אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
               נגישות, התג מציין מאיזה תאריך המצב הנוכחי; שינוי שקרה יחד עם
@@ -2613,10 +2647,12 @@ function Res2012({ needle, onOpen }) {
 // קטגוריה: מי שמסמן "מבוטל" מצפה לרשימת הקווים הרגילה, כמו בכל קטגוריה
 // אחרת, ולא למסך אחר עם חוקים אחרים. הביטולים מוצגים ברשימה הרגילה.
 
-function DayFeed({ idx, openLine, open12, onBack }) {
+function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
   const [months, setMonths] = useState(null);
-  const [yr, setYr] = useState("");
-  const [mon, setMon] = useState("");
+  // השנה והחודש שנבחרו נשמרים ללשונית: פתיחת קו וחזרה החזירו ל-2026 (שלמה 13.09)
+  const [yr, setYr] = useState(() => { try { return sessionStorage.getItem("lh-day-yr") || ""; } catch (e) { return ""; } });
+  const [mon, setMon] = useState(() => { try { return sessionStorage.getItem("lh-day-mon") || ""; } catch (e) { return ""; } });
+  useEffect(() => { try { sessionStorage.setItem("lh-day-yr", yr); sessionStorage.setItem("lh-day-mon", mon); } catch (e) { /* ignore */ } }, [yr, mon]);
   const [chs, setChs] = useState(null);
   const [q, setQ] = usePersistedQ("lh-q-day");
   const [lim, setLim] = useState(300);
@@ -2677,14 +2713,20 @@ function DayFeed({ idx, openLine, open12, onBack }) {
       .catch(() => { if (ok) { setChErr(true); setChs([]); } });
     return () => { ok = false; };
   }, [mon, rty]);
-  if (months === null) return <div className="card">טוען…</div>;
-  if (mErr) return <div className="card"><NetErr onRetry={() => { setMonths(null); setRty((n) => n + 1); }} /></div>;
+  const wrap = embedded ? "" : "card";
+  if (months === null) return <div className={wrap}>טוען…</div>;
+  if (mErr) return <div className={wrap}><NetErr onRetry={() => { setMonths(null); setRty((n) => n + 1); }} /></div>;
   const needle = q.trim();
   // הפיד יושב בטאב "קווים", שהוא טאב האוטובוסים. רכבת ומוניות שירות הן
   // טאבים משלהן, וכשהן הופיעו כאן הן גם הגיעו בלי מספר קו — תג ריק.
+  // סינון לפי הקטגוריות המסומנות בעמוד (שלמה 13.09: "שינויים לפי יום" באותו עמוד)
+  const inKats = (c) => !kats || !kats.size || kats.has(c.k) ||
+    (kats.has("stops") && /^stops/.test(c.k)) || (kats.has("terminal") && (c.k === "extend" || c.k === "shorten")) ||
+    (kats.has("removed") && c.k === "removed");
   const list = (chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (m.tt && m.tt !== "demand") return false;
+    if (!inKats(c)) return false;
     return !needle || c.line.includes(needle) || sQ(m.dest).includes(sQ(needle)) ||
       sQ(m.op).includes(sQ(needle)) || c.rd.includes(needle);
   });
@@ -2694,8 +2736,8 @@ function DayFeed({ idx, openLine, open12, onBack }) {
   const WD = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
   let shown = 0;
   return (
-    <div className="card">
-      <button className="back" title="חזרה למסך החיפוש הראשי — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש הקווים</button>
+    <div className={wrap}>
+      {!embedded && <button className="back" title="חזרה למסך החיפוש הראשי — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש הקווים</button>}
       <div className="months">
         {/* מהחדשה לישנה, כמו החודשים בתוך כל שנה. 2012 אינה מגיעה
             מ-months.json אלא מצילום נפרד, ולכן היא נכתבת בנפרד — ובסדר
@@ -3718,16 +3760,16 @@ function App() {
           sibs={((idx && idx.lines) || []).filter((x) => x.rd.split("-")[0] === rd.split("-")[0])}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate}
           initCats={[...kats].sort().join(",")} />
-      ) : byDay ? (
-        <DayFeed idx={idx} openLine={openLine} open12={open12} onBack={() => setByDay(false)} />
       ) : (
         <div className="card">
-          <input className="search" type="search" dir="rtl" autoFocus
+          {/* "שינויים לפי יום" באותו עמוד, מתחת לקטגוריות, והקטגוריות המסומנות
+              מסננות גם אותו (שלמה 13.09) */}
+          {!byDay && <input className="search" type="search" dir="rtl" autoFocus
             placeholder="חיפוש קו: מספר קו, מק״ט, יעד או מפעיל…"
-            value={q} onChange={(e) => setQ(e.target.value)} />
+            value={q} onChange={(e) => setQ(e.target.value)} />}
           <div className="katbox">
-            <button className="kathead" title="פיד כרונולוגי: בחירת שנה וחודש ורואים כל שינוי שקרה, בכל קו בארץ, לפי תאריך" onClick={() => setByDay(true)}>
-              🗓️ שינויים לפי יום — מה השתנה בכל תאריך, בכל הקווים
+            <button className="kathead" aria-pressed={byDay} title={byDay ? "חזרה לחיפוש הקווים" : "פיד כרונולוגי: בחירת שנה וחודש ורואים כל שינוי שקרה, בכל קו בארץ, לפי תאריך"} onClick={() => setByDay(!byDay)}>
+              {byDay ? "🔎 חזרה לחיפוש הקווים" : "🗓️ שינויים לפי יום — מה השתנה בכל תאריך, בכל הקווים"}
             </button>
           </div>
           <div className="katbox">
@@ -3763,7 +3805,9 @@ function App() {
               </div>
             )}
           </div>
-          {(needle || kats.size > 0) && !idx ? (
+          {byDay ? (
+            <DayFeed idx={idx} openLine={openLine} open12={open12} kats={kats} embedded onBack={() => setByDay(false)} />
+          ) : (needle || kats.size > 0) && !idx ? (
             <div className="empty">טוען את רשימת הקווים — החיפוש יעבוד בעוד רגע…</div>
           ) : (needle || kats.size > 0) ? (
             <div className="llist">

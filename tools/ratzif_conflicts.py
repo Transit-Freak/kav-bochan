@@ -110,6 +110,7 @@ def main():
         delta = (i - (day.weekday() + 1) % 7) % 7
         targets.append((day + datetime.timedelta(days=delta)).strftime('%Y%m%d'))
     svc_days = {}
+    svc_single = {}   # שירות של יום אחד (לוח מיוחד לתאריך: ערב חג, מוצאי חג)
     dcols = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     for r in rows:
         m = 0
@@ -118,6 +119,17 @@ def main():
             if r[c[d0]] == '1' and sd <= targets[i] <= ed:
                 m |= 1 << i
         svc_days[r[c['service_id']]] = m
+        svc_single[r[c['service_id']]] = (sd == ed)
+
+    def valid_on(ents, dayi):
+        """הנסיעות של קו אחד שבתוקף ביום נתון. לוח של יום אחד (14,632 שירותים כאלה
+        בפיד של 08.09, אחד מכל חמישה) מחליף את הלוח הרגיל באותו יום ולא מתווסף
+        אליו: כשהמשרד פרסם גם וגם — קו 8 בבאר שבע נספר "2 אוטובוסים" ב-01:00 בימי
+        ב׳ על יציאה אחת (שלמה 13.09). תגבור אמיתי הוא שתי נסיעות באותו שירות."""
+        v = [e for e in ents if svc_days.get(e[1], 0) >> dayi & 1]
+        if any(svc_single.get(e[1]) for e in v) and any(not svc_single.get(e[1]) for e in v):
+            v = [e for e in v if svc_single.get(e[1])]
+        return v
 
     c, rows = load_small(url, cd, 'stops.txt')
     stops = {}
@@ -152,11 +164,12 @@ def main():
         # קו מתוגבר ב-4 נסיעות באותה דקה תופס 4 מקומות — גם לבדו זו
         # התנגשות. סופרים אוטובוסים לכל יום-שבוע ולוקחים את היום העמוס.
         per_day = [0] * 7
-        for rid, svc, th, ro in entries:
-            m = svc_days.get(svc, 0)
-            for i in range(7):
-                if m >> i & 1:
-                    per_day[i] += 1
+        by_route = {}
+        for e in entries:
+            by_route.setdefault(e[3]['mk'] + '|' + e[3]['dir'], []).append(e)
+        day_ents = [sum((valid_on(g, i) for g in by_route.values()), []) for i in range(7)]
+        for i in range(7):
+            per_day[i] = len(day_ents[i])
         peak = max(per_day)
         wk = max(per_day[:5]) if per_day[:5] else 0
         if wk or per_day[5] or per_day[6]:
@@ -164,8 +177,8 @@ def main():
             # "2 אוטובוסים — קו 64" נראה כסתירה (דיווח שלמה)
             def _lnstr(dayi):
                 cnt = {}
-                for _rid, _svc, _th, _ro in entries:
-                    if svc_days.get(_svc, 0) >> dayi & 1 and _ro['n']:
+                for _rid, _svc, _th, _ro in day_ents[dayi]:
+                    if _ro['n']:
                         cnt[_ro['n']] = cnt.get(_ro['n'], 0) + 1
                 return ','.join((f'{n}×{c}' if c > 1 else n)
                                 for n, c in sorted(cnt.items())[:6])
@@ -177,11 +190,10 @@ def main():
         peak_day = per_day.index(peak)
         qdays = [i for i in range(7) if per_day[i] >= 2]
         by_line = {}
-        for rid, svc, th, ro in entries:
+        for rid, svc, th, ro in day_ents[peak_day]:
             key = ro['mk'] + '|' + ro['dir']
             e = by_line.setdefault(key, {'ro': ro, 'th': th, 'cnt': 0})
-            if svc_days.get(svc, 0) >> peak_day & 1:
-                e['cnt'] += 1
+            e['cnt'] += 1
         st = stops.get(sid, {})
         lines_out = []
         for key, e in sorted(by_line.items(), key=lambda x: -x[1]['cnt']):
