@@ -33,9 +33,22 @@ def sp(t):
     for p in PREF:
         if t.startswith(p+' '): return t[len(p):].strip()
     return t
+# קיצורים מקובלים בשמות תחנות של המשרד — לא אי-התאמה ולא טעות כתיב (דיווח 13.09,
+# נתיבות: "שד.ים/חי טייב" מול הרחוב "שדרות ירושלים" סווג "אי-התאמה מלאה")
+ABBR=[(re.compile(r'(^|[\s/])שד\.?\s?י[-]?ם(?=$|[\s/])'),r'\1שדרות ירושלים'),
+      (re.compile(r'(^|[\s/])י-ם(?=$|[\s/])'),r'\1ירושלים'),
+      (re.compile(r'(^|[\s/])שד\.\s?'),r'\1שדרות '),
+      (re.compile(r'(^|[\s/])רח\.\s?'),r'\1רחוב '),
+      (re.compile(r'(^|[\s/])ת\.\s?מרכזית'),r'\1תחנה מרכזית'),
+      (re.compile(r'(^|[\s/])ת\.\s?רכבת'),r'\1תחנת רכבת'),
+      (re.compile(r'(^|[\s/])ק\.\s?(?=[א-ת])'),r'\1קרית ')]
+def expand(t):
+    t=t or ''
+    for rx,rep in ABBR: t=rx.sub(rep,t)
+    return t
 def nl(t):
     # מקף ≡ רווח ("ג'יסר א-נסף" ↔ "ג'סר א נסף") — אחרת ההשוואה מתפרקת על המקף
-    t=(t or '').strip().replace('-',' ').replace('–',' ')
+    t=expand((t or '').strip()).replace('-',' ').replace('–',' ')
     t=sp(t).replace('׳',"'").replace('״','"').replace("'",'').replace('"','')
     return re.sub(r'\s+',' ',t).strip()
 def nf(t): return nl(t).replace('יי','י').replace('וו','ו')

@@ -288,11 +288,13 @@
           <a href="parks/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0c1e4a 0%,#1e3a8a 52%,#2563eb 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
             <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#93c5fd;border-radius:50%;opacity:.25;"></div>
             <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <!-- הלוגואים נשברים לשורה משלהם כשהכרטיס צר (4 עמודות במחשב): עם גובה קבוע
+                   ובלי שבירה הם נחתכו בקצה הכרטיס (שלמה 13.09) -->
+              <div style="min-height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                 <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🏭</span>
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" loading="lazy" style="height:56px;background:#fff;border-radius:12px;padding:6px 10px;">
-                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" loading="lazy" style="height:56px;background:#fff;border-radius:12px;padding:4px 8px;">
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;flex:1 1 170px;">
+                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" loading="lazy" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:6px 10px;box-sizing:border-box;">
+                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" loading="lazy" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:4px 8px;box-sizing:border-box;">
                 </div>
               </div>
               <h2 style="font-size:1.875rem;font-weight:900;color:#dbeafe;margin:0;">נגישות אזורי תעשייה</h2>
