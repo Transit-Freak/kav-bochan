@@ -307,7 +307,11 @@ for rid,(t,sh) in rep.items():
                                  for s in sq if s in stops],
                      'sh_h':h12(json.dumps(pts)),'st_h':h12('|'.join(codes)),
                      'pd_h':h12('|'.join(f"{stops[s]['c']}:{pdm.get(s,0)}" for s in sq
-                                        if s in stops and pdm.get(s,0)))}
+                                        if s in stops and pdm.get(s,0))),
+                     # המגבלות עצמן (רק תחנות מוגבלות, "מק"ט:ערך") — כדי שניסוח
+                     # ההפרש מחר יושווה למצב של היום ולא לגרסה ישנה בקובץ הקו
+                     'pd':','.join(f"{stops[s]['c']}:{pdm.get(s,0)}" for s in sq
+                                   if s in stops and pdm.get(s,0))}
 print('וריאנטים תקינים:',len(cur))
 
 # ---- טעינת מצב קודם ----
@@ -517,7 +521,7 @@ for rdesc,c in cur.items():
     # כתבה "השתנו מאיסוף והורדה להורדה בלבד" על מגבלות שקיימות מזמן (שלמה 08.09,
     # קו 11 אשכול: ההגבלה בפיד לפחות מ-25.07, האתר דיווח "שינוי" ב-06.09).
     # בלי אירוע; הגרסה שתיכתב היום (אם יש שינוי אחר) כבר תכלול את המגבלות.
-    if pd_changed and pv.get('pd_h') and not prev_pd_of(rdesc):
+    if pd_changed and 'pd' not in pv and pv.get('pd_h') and not prev_pd_of(rdesc):
         pd_changed=False
     # תחנת היעד לפרסום (שלט האוטובוס) ועיר המוצא/יעד — שניהם בלתי נראים
     # בתחנות ובשרטוט; נבדקים רק כששני הצדדים קיימים (שדה חדש במצב ישן)
@@ -664,7 +668,13 @@ for rdesc,c in cur.items():
         # וכשכמה תחנות עברו אותו שינוי — רשימה אחת ומשפט אחד
         PDT={0:'איסוף והורדה',1:'איסוף בלבד',2:'הורדה בלבד',3:'ללא עצירה לנוסעים'}
         now={x[0]:x[4] for x in c['stopinfo'] if len(x)>4}
-        was=prev_pd_of(rdesc)
+        # המצב של אתמול מהמצב היומי (מדויק); רק כשאין — מהגרסה האחרונה בקובץ הקו,
+        # שיכולה להיות ישנה מהשינוי האמיתי (אימות מול הארכיון, 13.09: 256 מתוך 285
+        # אירועים תיארו מגבלות שכבר היו קיימות יום קודם)
+        if 'pd' in pv:
+            was={k:int(v) for k,v in (x.split(':') for x in (pv.get('pd') or '').split(',') if ':' in x)}
+        else:
+            was=prev_pd_of(rdesc)
         groups={}
         for k,v in sorted(now.items()):
             o=was.get(k,0)
@@ -1037,7 +1047,7 @@ json.dump(shist,open(f'{OUTDIR}/stops-hist.json','w',encoding='utf-8'),ensure_as
 # 'tt' נשמר כדי שאפשר יהיה לזהות שינוי בסוג הקו. במצב שנוצר לפני השדה הזה
 # הוא פשוט חסר, ולכן ההשוואה מדלגת בשקט בריצה הראשונה ולא ממציאה אירוע.
 state_out={rdesc:{'sh_h':c['sh_h'],'st_h':c['st_h'],'codes':c['codes'],'line':c['line'],
-                  'op':c['op'],'tt':c.get('tt'),'ty':c.get('ty',''),'wa':c.get('wa',''),'pd_h':c.get('pd_h',''),
+                  'op':c['op'],'tt':c.get('tt'),'ty':c.get('ty',''),'wa':c.get('wa',''),'pd_h':c.get('pd_h',''),'pd':c.get('pd',''),
                   'hs':c.get('hs',''),'ct':c.get('ct','')}
            for rdesc,c in cur.items()}
 state_out.update(carry)   # רשומים ללא נסיעות פעילות — נגררים קדימה
