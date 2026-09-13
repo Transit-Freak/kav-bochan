@@ -31,6 +31,7 @@ import time
 import urllib.request
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from nahagim_roundabouts import recover as recover_roundabouts
 
 ROUTE_TYPE = {'0': 'רכבת קלה', '1': 'מטרו', '2': 'רכבת', '3': 'אוטובוס', '4': 'מעבורת', '5': 'קרונית', '6': 'רכבל',
               '7': 'פוניקולר', '11': 'טרוליבוס', '12': 'מונורייל', '715': 'שירות'}
@@ -232,7 +233,8 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
     ratio = round(matched_m / pl.total, 3) if pl.total else None
     status = 'none' if not chunks or failed == len(chunks) else \
         ('ok' if failed == 0 and ratio and 0.95 <= ratio <= 1.06 and min(conf or [0]) >= 0.3 else 'weak')
-    return dedup, {'status': status, 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed}
+    dedup, recovery = recover_roundabouts(osrm, pl, dedup, match_chunk, classify)
+    return dedup, {'status': status, 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
 
 
 # ── בנייה ───────────────────────────────────────────────────────────────────
@@ -352,6 +354,8 @@ def main():
                 s['f'] = round(i / (len(st) - 1), 5) if len(st) > 1 else 0.5
         r['nav'] = nav['status']
         stats['nav_' + nav['status']] += 1
+        for key, value in nav.get('roundaboutRecovery', {}).items():
+            stats['roundabouts_' + key] += value
         headsign = t['headsign'] or (st[-1]['name'] if st else r['longName'])
         doc = {'id': r['id'], 'shortName': r['shortName'], 'longName': r['longName'], 'makat': r['makat'], 'agency': r['agency'],
                'type': r['type'], 'gtfs_date': gtfs_date,

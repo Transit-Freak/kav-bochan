@@ -6,6 +6,13 @@ name: nahagim-data
 # ומוגש מ-raw.githubusercontent.com. ראה tools/nahagim_build.py.
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/nahagim_build.py'
+      - 'tools/nahagim_roundabouts.py'
+      - 'tools/test_nahagim_roundabouts.py'
+      - '.github/workflows/nahagim-data.yml'
   schedule:
     - cron: '0 8 * * 0'   # ראשון 08:00 UTC (11:00 ישראל בקיץ) — שעה אחרי הבנייה השבועית של האזורים
   workflow_dispatch:
@@ -23,6 +30,9 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+
+      - name: Roundabout recovery regression tests
+        run: python3 -m unittest discover -s tools -p test_nahagim_roundabouts.py -v
 
       - name: Fetch GTFS
         run: |
@@ -62,6 +72,25 @@ jobs:
 
       - name: בנייה
         run: python3 tools/nahagim_build.py gtfs.zip --osrm http://localhost:5000 --out nahagim-out --workers 6
+
+      - name: Recovery counts
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          stats = json.loads(Path('nahagim-out/stats.json').read_text())
+          keys = ('before', 'duplicates', 'recovered', 'remaining', 'requests')
+          assert stats.get('roundabouts_before', 0) == sum(stats.get('roundabouts_' + k, 0) for k in ('duplicates', 'recovered', 'remaining'))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('## Roundabout exits\n\n')
+              for key in keys:
+                  out.write(f"- {key}: {stats.get('roundabouts_' + key, 0)}\n")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nahagim-recovery-stats
+          path: nahagim-out/stats.json
 
       - name: פרסום לענף nahagim-data
         env:
