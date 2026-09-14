@@ -1,3 +1,16 @@
+function kavPachOverlapScore(row) {
+  const stops = row?.[3], shape = row?.[5], route = shape?.selfPct;
+  if (shape?.status !== 'estimated' || !Number.isFinite(stops) || !Number.isFinite(route) ||
+      stops < 0 || stops > 100 || route < 0 || route > 100) return null;
+  return (stops + route) / 2;
+}
+function kavPachVisibleOverlaps(rows) {
+  return (rows || []).filter(row => {
+    const score = kavPachOverlapScore(row);
+    return score !== null && score >= 50;
+  }).sort((a,b) => kavPachOverlapScore(b) - kavPachOverlapScore(a));
+}
+
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
 // ── Google Fonts - Heebo ──────────────────────────────────────────────────
@@ -3994,7 +4007,7 @@ const DAYS_FILTER = [
                         </div>
 
                         {(() => {
-                          const ov = overlapMap && overlapMap[String(res.makat || '').replace(/^0+/, '').trim()];
+                          const ov = kavPachVisibleOverlaps(overlapMap && overlapMap[String(res.makat || '').replace(/^0+/, '').trim()]);
                           if (!ov || !ov.length) return null;
                           return (
                             <div className="mb-4 bg-sky-50 border border-sky-200 rounded-2xl px-3 py-2">
@@ -4002,7 +4015,8 @@ const DAYS_FILTER = [
                               <div className="space-y-2">
                                 {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
                                   <div key={mk2} className="text-xs bg-white border border-sky-200 text-sky-900 px-3 py-2 rounded-xl">
-                                    <div className="font-black">קו {num2} · {shared} תחנות משותפות · {pct}% במדד התחנות</div>
+                                    <div className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}% חפיפה משולבת</div>
+                                    <div>{shared} תחנות משותפות · {pct}% במדד התחנות</div>
                                     <div className="mt-1 break-words">{shape?.otherRouteName || long2}</div>
                                     <div className="mt-1 text-slate-600">מק״ט {mk2}</div>
                                     {shape?.status === 'estimated' ? <div className="mt-2 pt-2 border-t border-sky-100 leading-relaxed">
@@ -4018,7 +4032,7 @@ const DAYS_FILTER = [
                                 ))}
                               </div>
                               <div className="text-xs text-sky-900 leading-relaxed mt-2">
-                                אחוז התחנות מחושב ביחס למסלול הנבחר שבו פחות תחנות. אחוז התוואי מחושב בנפרד מתוך אורכו של כל מסלול.
+                                הציון המשולב הוא ממוצע של מדד התחנות ואחוז התוואי המשותף מתוך הקו הנבדק, במשקל שווה. מוצגים רק ציונים של 50% ומעלה; כשחסר אחד המדדים, הקו אינו מוצג ברשימה. ציון זה נפרד מציון אי־היעילות.
                                 נבחרת חלופה אחת לכל מק״ט. אומדן התוואי מבוסס על קרבה עד 20 מטר, כיוון נסיעה דומה ומקטעים רציפים של לפחות 100 מטר ב־GTFS; נתוני תוואי לא מדויקים עלולים להשפיע עליו. לא נבדקו ימי ושעות הפעילות או מגבלות איסוף והורדה.
                                 תחנות משותפות אינן מוכיחות שאפשר להגיע לאותו יעד. זה אינו תכנון לאיחוד הקווים או המלצה לבטל אחד מהם.
                               </div>
