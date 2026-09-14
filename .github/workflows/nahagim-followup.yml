@@ -1,0 +1,80 @@
+name: nahagim-followup
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/nahagim_followup.py'
+      - 'tools/test_nahagim_followup.py'
+      - '.github/workflows/nahagim-followup.yml'
+  workflow_dispatch:
+  workflow_run:
+    workflows: [nahagim-data]
+    types: [completed]
+permissions:
+  contents: write
+concurrency:
+  group: nahagim-data
+  cancel-in-progress: false
+jobs:
+  repair:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regression tests
+        run: python3 -m unittest discover -s tools -p 'test_nahagim*.py' -v
+      - uses: actions/checkout@v4
+        with:
+          ref: nahagim-data
+          path: feed
+      - name: OSRM — פרופיל אוטובוס, מפת ישראל
+        run: |
+          set -euo pipefail
+          mkdir -p osrm && cd osrm
+          curl -fSL --connect-timeout 20 --max-time 600 --retry 15 --retry-all-errors --retry-delay 60 \
+            -o map.osm.pbf "https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf"
+          IMG=osrm/osrm-backend:latest
+          docker pull "$IMG" >/dev/null
+          cp ../tools/osrm/bus-il.lua ./bus-il.lua
+          docker run --rm -v "$PWD:/data" "$IMG" osrm-extract   -p /data/bus-il.lua /data/map.osm.pbf >/dev/null
+          docker run --rm -v "$PWD:/data" "$IMG" osrm-partition  /data/map.osrm >/dev/null
+          docker run --rm -v "$PWD:/data" "$IMG" osrm-customize  /data/map.osrm >/dev/null
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" "$IMG" \
+            osrm-routed --algorithm mld --max-matching-size 2000 /data/map.osrm
+          up=0
+          for i in $(seq 1 40); do
+            if curl -fsS "http://localhost:5000/nearest/v1/driving/34.78,32.08" >/dev/null 2>&1; then up=1; break; fi
+            sleep 2
+          done
+          [ "$up" = "1" ] || { echo "OSRM failed"; docker logs osrm || true; exit 1; }
+
+      - name: Repair only unresolved exits
+        run: python3 tools/nahagim_followup.py feed --osrm http://localhost:5000 --report evidence --workers 6
+      - name: Publish verified completions
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          s=json.loads(Path('evidence/summary.json').read_text())
+          assert s['before'] == s['recovered'] + s['remaining']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              for k in ('before','recovered','remaining'):
+                  f.write(f"- {k}: {s[k]}\n")
+          PY
+          cd feed
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add routes stats.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Verified follow-up roundabout completions"
+            git push origin HEAD:nahagim-data
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: roundabout-followup-evidence
+          path: evidence/
+          retention-days: 30
+
