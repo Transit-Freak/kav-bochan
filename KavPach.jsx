@@ -2958,8 +2958,8 @@ const DAYS_FILTER = [
         const ovl = overlapMap[String(data[0].makat || '').replace(/^0+/, '').trim()];
         const strong = (ovl || []).some(o => (o[3] || 0) >= 40);
         if (!strong) {
-          protections.push({ name: 'אין קו חלופי', value: PP.noAlt,
-            detail: ovl && ovl.length ? 'החפיפה הקיימת חלקית (מתחת ל-40%)' : 'לא נמצא קו עם מסלול חופף' });
+          protections.push({ name: 'אין חפיפת תחנות משמעותית', value: PP.noAlt,
+            detail: ovl && ovl.length ? 'החפיפה הקיימת חלקית (מתחת ל-40%)' : 'לא נמצאה חפיפת תחנות מעל סף המדד' });
           totalDeduction += PP.noAlt;
         }
       }
@@ -3868,7 +3868,7 @@ const DAYS_FILTER = [
                     <div className="space-y-3">
                       <div className="text-[12px] font-black text-slate-900">הגנות — נקודות שמופחתות מהציון (0 = בלי הגנה):</div>
                       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-slate-700 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
-                        {[['exclusive', 'תחנות ייחודיות'], ['train', 'מותאם רכבת'], ['school', 'תלמידים בשעות בי"ס'], ['prebook', 'הזמנה מראש (אילת)'], ['weekend', 'קו סופ"ש'], ['newLine', 'קו חדש בהרצה'], ['reduced', 'כבר צומצם'], ['noAlt', 'אין קו חלופי']].map(([k, lbl]) => (
+                        {[['exclusive', 'תחנות ייחודיות'], ['train', 'מותאם רכבת'], ['school', 'תלמידים בשעות בי"ס'], ['prebook', 'הזמנה מראש (אילת)'], ['weekend', 'קו סופ"ש'], ['newLine', 'קו חדש בהרצה'], ['reduced', 'כבר צומצם'], ['noAlt', 'אין חפיפת תחנות משמעותית']].map(([k, lbl]) => (
                           <label key={k} className="inline-flex items-center gap-2">{lbl}
                             <NumField value={pset.p[k]} onChange={v => updPset(s => ({ ...s, p: { ...s.p, [k]: v == null ? 0 : Math.max(0, Math.min(100, v)) } }))} min={0} max={100} width="w-16" suffix="נק׳" />
                           </label>
@@ -3998,14 +3998,20 @@ const DAYS_FILTER = [
                           if (!ov || !ov.length) return null;
                           return (
                             <div className="mb-4 bg-sky-50 border border-sky-200 rounded-2xl px-3 py-2">
-                              <div className="text-[10px] font-black text-sky-700 mb-1">🔀 חפיפת מסלול — לנוסעים יש חלופות</div>
-                              <div className="flex flex-wrap gap-1.5">
+                              <div className="text-xs font-black text-sky-700 mb-2">🔀 תחנות משותפות — נדרשת בדיקת חלופה</div>
+                              <div className="space-y-2">
                                 {ov.map(([mk2, num2, long2, pct, shared]) => (
-                                  <span key={mk2} title={`${long2} · ${shared} תחנות משותפות`}
-                                    className="text-[10px] font-black bg-white border border-sky-200 text-sky-800 px-2 py-0.5 rounded-full cursor-help">
-                                    קו {num2} · {pct}%
-                                  </span>
+                                  <div key={mk2} className="text-xs bg-white border border-sky-200 text-sky-900 px-3 py-2 rounded-xl">
+                                    <div className="font-black">קו {num2} · {shared} תחנות משותפות · {pct}% במדד החפיפה</div>
+                                    <div className="mt-1 break-words">{long2}</div>
+                                    <div className="mt-1 text-slate-600">מק״ט {mk2}</div>
+                                  </div>
                                 ))}
+                              </div>
+                              <div className="text-xs text-sky-900 leading-relaxed mt-2">
+                                האחוז מחושב ממספר התחנות המשותפות ביחס למסלול הנבחר שבו פחות תחנות, ולא מאורך הנסיעה או מאחוז הנוסעים שיש להם חלופה.
+                                נבחרת חלופה אחת לכל מק״ט. לא נבדקו רצף התחנות, ימי ושעות הפעילות או מגבלות איסוף והורדה.
+                                תחנות משותפות אינן מוכיחות שאפשר להגיע לאותו יעד. זה אינו תכנון לאיחוד הקווים או המלצה לבטל אחד מהם.
                               </div>
                             </div>
                           );
@@ -4814,7 +4820,7 @@ const DAYS_FILTER = [
                         <li><strong>קו סופ&quot;ש (−10):</strong> 60%+ מהנסיעות בשישי-שבת, שבהם דפוס הביקוש שונה מקווי חול.</li>
                         <li><strong>קו חדש בהרצה (−10):</strong> הקו הופיע לראשונה בשנה האחרונה — מעט נוסעים זה שלב בניית הביקוש, לא בזבוז. מזוהה מארכיון "הקו בזמן".</li>
                         <li><strong>כבר צומצם (−10):</strong> שני צמצומי שירות ומעלה בשנה האחרונה — הצמצום כבר קרה. מזוהה מהארכיון.</li>
-                        <li><strong>אין קו חלופי (−10):</strong> לא נמצא קו עם מסלול חופף (40%+) — ביטול ישאיר את הנוסעים בלי שירות.</li>
+                        <li><strong>אין חפיפת תחנות משמעותית (−10):</strong> לא נמצאה חפיפת תחנות מעל סף המדד. זו הגנה סטטיסטית; גם כשנמצאה חפיפה, לא אומתה חלופה שימושית לנוסעים.</li>
                       </ul>
                     </div>
 
