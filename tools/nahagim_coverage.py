@@ -10,7 +10,7 @@ def merge_ranges(rows):
             result.append(dict(row))
     return result
 
-def assess(pl, reply, start, end):
+def assess(pl, reply, start, end, source_fractions=None):
     """Compare every 10 m of source segments with matched roads, not just vertices.
     A mismatch does not establish which source is wrong. Confidence is only a
     screening gate and never presented as a probability of route correctness.
@@ -26,8 +26,31 @@ def assess(pl, reply, start, end):
     if len(matches) != 1 or min(m.get('confidence', 0) for m in matches) < .8:
         return whole('matching-uncertain')
     # Missing tracepoints mean the matcher discarded part of the source.
-    if not reply.get('tracepoints') or any(p is None for p in reply['tracepoints']):
+    trace = reply.get('tracepoints')
+    if not trace:
         return whole('source-points-unmatched')
+    dropped = []
+    if any(p is None for p in trace):
+        # A discarded sample invalidates its local neighbourhood, not the
+        # entire matching chunk. Keep geometry verification below for all
+        # remaining source segments; never certify a gap from confidence alone.
+        fs = source_fractions
+        if (fs is None or len(fs) != len(trace) or
+            any(not math.isfinite(f) for f in fs) or
+            any(a > b for a,b in zip(fs, fs[1:]))):
+            return whole('source-points-unmatched')
+        for i,p in enumerate(trace):
+            if p is not None:
+                continue
+            left = i-1
+            while left >= 0 and trace[left] is None: left -= 1
+            right = i+1
+            while right < len(trace) and trace[right] is None: right += 1
+            lo = fs[left] if left >= 0 else start
+            hi = fs[right] if right < len(trace) else end
+            lo,hi = max(start,lo-30/pl.total),min(end,hi+30/pl.total)
+            if hi > lo:
+                dropped.append({'from':lo,'to':hi,'reason':'source-points-unmatched'})
     coords = matches[0].get('geometry', {}).get('coordinates', [])
     if len(coords) < 2:
         return whole('matched-geometry-unavailable')
@@ -45,7 +68,7 @@ def assess(pl, reply, start, end):
             if math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy) <= limit:
                 return True
         return False
-    bad=[]
+    bad=list(dropped)
     for i,(a,b) in enumerate(zip(pl.xy,pl.xy[1:])):
         lo,hi=max(start*pl.total,pl.cum[i]),min(end*pl.total,pl.cum[i+1])
         if hi<=lo:continue

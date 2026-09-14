@@ -177,7 +177,7 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
         j = min(len(pts), i + chunk_pts)
         lo_f = fpts[i + margin] if i > 0 and i + margin < j else -1.0
         hi_f = fpts[j - 1 - margin] if j < len(pts) and j - 1 - margin > i else 2.0
-        chunks.append((pts[i:j], lo_f, hi_f, (fpts[j-1]-fpts[i])*pl.total))
+        chunks.append((pts[i:j], lo_f, hi_f, (fpts[j-1]-fpts[i])*pl.total, fpts[i:j]))
         if j >= len(pts):
             break
         i += chunk_pts - overlap
@@ -185,7 +185,7 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
     compared_m, chunk_ratios = 0.0, []
     uncertain_segments = []
     cursor = 0.0     # ההוראות מונוטוניות לאורך הקו: כל אחת נמצאת אחרי הקודמת (עד 60 מ׳ אחורה, לחפיפת החתיכות)
-    for ch, lo_f, hi_f, source_m in chunks:
+    for ch, lo_f, hi_f, source_m, source_fractions in chunks:
         if len(ch) < 2:
             continue
         j = None
@@ -196,7 +196,7 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
                 j = None
             if j and j.get('code') == 'Ok':
                 break
-        uncertain_segments.extend(assess_coverage(pl, j, max(0, lo_f), min(1, hi_f)))
+        uncertain_segments.extend(assess_coverage(pl, j, max(0, lo_f), min(1, hi_f), source_fractions))
         if not j or j.get('code') != 'Ok':
             failed += 1
             continue
@@ -245,7 +245,7 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
     uncertain_segments = merge_ranges(uncertain_segments)
     if (recovery['remaining'] or uncertain_segments) and status == 'ok':
         status = 'weak'
-    return dedup, {'status': status, 'uncertainSegments': uncertain_segments, 'coverageVersion': 1, 'ratioBasis': 'matching-chunks-including-overlap', 'chunkRatios': [round(r, 3) for r in chunk_ratios], 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
+    return dedup, {'status': status, 'uncertainSegments': uncertain_segments, 'coverageVersion': 2, 'ratioBasis': 'matching-chunks-including-overlap', 'chunkRatios': [round(r, 3) for r in chunk_ratios], 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
 
 
 # ── בנייה ───────────────────────────────────────────────────────────────────

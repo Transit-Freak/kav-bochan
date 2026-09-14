@@ -23,3 +23,19 @@ class CoverageTests(unittest.TestCase):
     def test_gaps_merge_without_crossing_verified_interval(self):
         x=merge_ranges([{'from':.1,'to':.3},{'from':.2,'to':.4},{'from':.6,'to':.8}])
         self.assertEqual(x,[{'from':.1,'to':.4},{'from':.6,'to':.8}])
+
+    def test_dropped_sample_only_blocks_its_neighbours(self):
+        pts=[(32,34+i*.001) for i in range(11)]
+        p=Polyline(pts);r=self.reply(pts);r['tracepoints'][5]=None
+        bad=assess(p,r,0,1,[i/10 for i in range(11)])
+        self.assertEqual(len(bad),1)
+        self.assertGreater(bad[0]['from'],.3)
+        self.assertLess(bad[0]['to'],.7)
+        self.assertTrue(bad[0]['from'] < .5 < bad[0]['to'])
+    def test_all_samples_dropped_still_blocks_whole_route(self):
+        p=Polyline([(32,34),(32,34.01)])
+        r=self.reply(p.pts);r['tracepoints']=[None,None]
+        self.assertEqual(assess(p,r,0,1,[0,1]),[{'from':0,'to':1,'reason':'source-points-unmatched'}])
+    def test_invalid_fraction_mapping_fails_closed(self):
+        p=Polyline([(32,34),(32,34.01)]);r=self.reply(p.pts);r['tracepoints'][0]=None
+        self.assertEqual(assess(p,r,0,1,[1,0])[0]['to'],1)
