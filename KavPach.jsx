@@ -2107,7 +2107,7 @@ function KavPach() {
   const [searchCity, setSearchCity] = useState("");
   const [overlapMap, setOverlapMap] = useState(null); // חפיפת מסלולים בין קווים (kavpach-overlap.json, מתעדכן לילית)
   useEffect(() => {
-    fetch('kavpach-overlap.json').then(r => (r.ok ? r.json() : null)).then(d => d && setOverlapMap(d.lines || null)).catch(() => {});
+    fetch('kavpach-overlap.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setOverlapMap(d.lines || null)).catch(() => {});
   }, []);
   // הדלתא מהארכיון של "הקו בזמן" (kavpach-live.json, נבנה לילית): קווים
   // שכבר בוטלו, נסיעות עדכניות, צמצומים, קווים חדשים והשבתות. נתוני
@@ -3998,19 +3998,28 @@ const DAYS_FILTER = [
                           if (!ov || !ov.length) return null;
                           return (
                             <div className="mb-4 bg-sky-50 border border-sky-200 rounded-2xl px-3 py-2">
-                              <div className="text-xs font-black text-sky-700 mb-2">🔀 תחנות משותפות — נדרשת בדיקת חלופה</div>
+                              <div className="text-xs font-black text-sky-700 mb-2">🔀 תחנות ותוואי משותפים · נדרשת בדיקת חלופה</div>
                               <div className="space-y-2">
-                                {ov.map(([mk2, num2, long2, pct, shared]) => (
+                                {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
                                   <div key={mk2} className="text-xs bg-white border border-sky-200 text-sky-900 px-3 py-2 rounded-xl">
-                                    <div className="font-black">קו {num2} · {shared} תחנות משותפות · {pct}% במדד החפיפה</div>
-                                    <div className="mt-1 break-words">{long2}</div>
+                                    <div className="font-black">קו {num2} · {shared} תחנות משותפות · {pct}% במדד התחנות</div>
+                                    <div className="mt-1 break-words">{shape?.otherRouteName || long2}</div>
                                     <div className="mt-1 text-slate-600">מק״ט {mk2}</div>
+                                    {shape?.status === 'estimated' ? <div className="mt-2 pt-2 border-t border-sky-100 leading-relaxed">
+                                      <div className="font-bold">אומדן תוואי משותף באותו כיוון: {shape.sharedKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ</div>
+                                      <div>{shape.selfPct}% מהחלופה שנבדקה בקו {res.lineNum} · {shape.otherPct}% מהחלופה בקו {num2}</div>
+                                      <div>המקטע הרציף הארוך ביותר: {shape.longestKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ</div>
+                                      <details className="mt-1"><summary className="cursor-pointer">החלופות שנבדקו</summary>
+                                        <div className="mt-1">קו {res.lineNum}: {shape.selfRouteName} · {shape.selfKm} ק״מ</div>
+                                        <div>קו {num2}: {shape.otherRouteName} · {shape.otherKm} ק״מ</div>
+                                      </details>
+                                    </div> : <div className="mt-2 text-slate-600">אומדן התוואי המשותף אינו זמין</div>}
                                   </div>
                                 ))}
                               </div>
                               <div className="text-xs text-sky-900 leading-relaxed mt-2">
-                                האחוז מחושב ממספר התחנות המשותפות ביחס למסלול הנבחר שבו פחות תחנות, ולא מאורך הנסיעה או מאחוז הנוסעים שיש להם חלופה.
-                                נבחרת חלופה אחת לכל מק״ט. לא נבדקו רצף התחנות, ימי ושעות הפעילות או מגבלות איסוף והורדה.
+                                אחוז התחנות מחושב ביחס למסלול הנבחר שבו פחות תחנות. אחוז התוואי מחושב בנפרד מתוך אורכו של כל מסלול.
+                                נבחרת חלופה אחת לכל מק״ט. אומדן התוואי מבוסס על קרבה עד 20 מטר, כיוון נסיעה דומה ומקטעים רציפים של לפחות 100 מטר ב־GTFS; נתוני תוואי לא מדויקים עלולים להשפיע עליו. לא נבדקו ימי ושעות הפעילות או מגבלות איסוף והורדה.
                                 תחנות משותפות אינן מוכיחות שאפשר להגיע לאותו יעד. זה אינו תכנון לאיחוד הקווים או המלצה לבטל אחד מהם.
                               </div>
                             </div>
@@ -4951,3 +4960,4 @@ const DAYS_FILTER = [
     </div>
   );
 }
+
