@@ -1,0 +1,15 @@
+{
+ "built": "14.09.2026 18:42",
+ "gtfs_date": "2026-09-13",
+ "routes": 7763,
+ "seconds": 2653,
+ "bytes": 56416752,
+ "nav_weak": 6644,
+ "roundabouts_before": 2874,
+ "roundabouts_duplicates": 412,
+ "roundabouts_recovered": 1954,
+ "roundabouts_requests": 4433,
+ "roundabouts_remaining": 508,
+ "nav_ok": 16,
+ "nav_none": 1103
+}
