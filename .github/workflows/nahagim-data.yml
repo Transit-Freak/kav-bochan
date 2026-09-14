@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - 'tools/nahagim_build.py'
+      - 'tools/nahagim_coverage.py'
+      - 'tools/test_nahagim_coverage.py'
       - 'tools/nahagim_roundabouts.py'
       - 'tools/test_nahagim_roundabouts.py'
       - 'tools/test_nahagim_quality.py'

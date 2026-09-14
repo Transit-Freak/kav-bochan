@@ -32,6 +32,7 @@ import urllib.request
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from nahagim_roundabouts import recover as recover_roundabouts
+from nahagim_coverage import assess as assess_coverage, merge_ranges
 
 ROUTE_TYPE = {'0': 'רכבת קלה', '1': 'מטרו', '2': 'רכבת', '3': 'אוטובוס', '4': 'מעבורת', '5': 'קרונית', '6': 'רכבל',
               '7': 'פוניקולר', '11': 'טרוליבוס', '12': 'מונורייל', '715': 'שירות'}
@@ -155,7 +156,7 @@ def http_json(url, timeout=120):
 
 def match_chunk(osrm, pts, radius=25, tidy=True):
     coords = ';'.join(f'{lo:.6f},{la:.6f}' for la, lo in pts)
-    url = (f'{osrm}/match/v1/driving/{coords}?steps=true&overview=false&gaps=ignore'
+    url = (f'{osrm}/match/v1/driving/{coords}?steps=true&overview=full&geometries=geojson&gaps=ignore'
            f'&radiuses={";".join([str(radius)] * len(pts))}&waypoints=0;{len(pts) - 1}' + ('&tidy=true' if tidy else ''))
     return http_json(url)
 
@@ -182,6 +183,7 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
         i += chunk_pts - overlap
     out, matched_m, conf, failed = [], 0.0, [], 0
     compared_m, chunk_ratios = 0.0, []
+    uncertain_segments = []
     cursor = 0.0     # ההוראות מונוטוניות לאורך הקו: כל אחת נמצאת אחרי הקודמת (עד 60 מ׳ אחורה, לחפיפת החתיכות)
     for ch, lo_f, hi_f, source_m in chunks:
         if len(ch) < 2:
@@ -194,6 +196,7 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
                 j = None
             if j and j.get('code') == 'Ok':
                 break
+        uncertain_segments.extend(assess_coverage(pl, j, max(0, lo_f), min(1, hi_f)))
         if not j or j.get('code') != 'Ok':
             failed += 1
             continue
@@ -239,9 +242,10 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
     status = 'none' if not chunks or failed == len(chunks) else \
         ('ok' if failed == 0 and ratio and 0.95 <= ratio <= 1.06 and min(conf or [0]) >= 0.3 and all(.9 <= r <= 1.1 for r in chunk_ratios) else 'weak')
     dedup, recovery = recover_roundabouts(osrm, pl, dedup, match_chunk, classify)
-    if recovery['remaining'] and status == 'ok':
+    uncertain_segments = merge_ranges(uncertain_segments)
+    if (recovery['remaining'] or uncertain_segments) and status == 'ok':
         status = 'weak'
-    return dedup, {'status': status, 'ratioBasis': 'matching-chunks-including-overlap', 'chunkRatios': [round(r, 3) for r in chunk_ratios], 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
+    return dedup, {'status': status, 'uncertainSegments': uncertain_segments, 'coverageVersion': 1, 'ratioBasis': 'matching-chunks-including-overlap', 'chunkRatios': [round(r, 3) for r in chunk_ratios], 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
 
 
 # ── בנייה ───────────────────────────────────────────────────────────────────
