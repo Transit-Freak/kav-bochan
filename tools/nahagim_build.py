@@ -168,20 +168,22 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
     בקו 17 גן יבנה→אשדוד ישבו כולן בתוך 50 מ׳ מהתפר של החתיכה הרביעית (שלמה 02.09,
     הבדיקה: shots/nah/seam-23.png). הפנים של חתיכות שכנות עדיין חופפים ב-2 נקודות."""
     n = int(max(2, min(len(pl.pts), round(pl.total / spacing_m))))
-    pts = thin(pl.pts, n)
-    fpts = [pl.locate(la, lo)[0] for la, lo in pts]     # מיקום כל נקודה מדוללת על הקו
+    indices = [round(k * (len(pl.pts)-1) / (n-1)) for k in range(n)]
+    pts = [pl.pts[k] for k in indices]
+    fpts = [pl.cum[k] / pl.total for k in indices]     # מיקום כל נקודה מדוללת על הקו
     chunks, i = [], 0
     while i < len(pts) - 1:
         j = min(len(pts), i + chunk_pts)
         lo_f = fpts[i + margin] if i > 0 and i + margin < j else -1.0
         hi_f = fpts[j - 1 - margin] if j < len(pts) and j - 1 - margin > i else 2.0
-        chunks.append((pts[i:j], lo_f, hi_f))
+        chunks.append((pts[i:j], lo_f, hi_f, (fpts[j-1]-fpts[i])*pl.total))
         if j >= len(pts):
             break
         i += chunk_pts - overlap
     out, matched_m, conf, failed = [], 0.0, [], 0
+    compared_m, chunk_ratios = 0.0, []
     cursor = 0.0     # ההוראות מונוטוניות לאורך הקו: כל אחת נמצאת אחרי הקודמת (עד 60 מ׳ אחורה, לחפיפת החתיכות)
-    for ch, lo_f, hi_f in chunks:
+    for ch, lo_f, hi_f, source_m in chunks:
         if len(ch) < 2:
             continue
         j = None
@@ -195,6 +197,8 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
         if not j or j.get('code') != 'Ok':
             failed += 1
             continue
+        compared_m += source_m
+        chunk_ratios.append(sum(m.get('distance', 0) for m in j['matchings']) / (source_m or 1))
         for m in j['matchings']:
             matched_m += m.get('distance', 0)
             conf.append(m.get('confidence', 0))
@@ -230,11 +234,14 @@ def maneuvers_for(osrm, pl, chunk_pts=90, spacing_m=70, overlap=12, margin=5):
             last['then'] = mv['kind']
             continue
         dedup.append(mv)
-    ratio = round(matched_m / pl.total, 3) if pl.total else None
+    # Compare the same chunk coverage on both sides, including shared overlaps.
+    ratio = round(matched_m / compared_m, 3) if compared_m else None
     status = 'none' if not chunks or failed == len(chunks) else \
-        ('ok' if failed == 0 and ratio and 0.95 <= ratio <= 1.06 and min(conf or [0]) >= 0.3 else 'weak')
+        ('ok' if failed == 0 and ratio and 0.95 <= ratio <= 1.06 and min(conf or [0]) >= 0.3 and all(.9 <= r <= 1.1 for r in chunk_ratios) else 'weak')
     dedup, recovery = recover_roundabouts(osrm, pl, dedup, match_chunk, classify)
-    return dedup, {'status': status, 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
+    if recovery['remaining'] and status == 'ok':
+        status = 'weak'
+    return dedup, {'status': status, 'ratioBasis': 'matching-chunks-including-overlap', 'chunkRatios': [round(r, 3) for r in chunk_ratios], 'ratio': ratio, 'confidence': round(min(conf), 3) if conf else None, 'chunks': len(chunks), 'failed': failed, 'roundaboutRecovery': recovery}
 
 
 # ── בנייה ───────────────────────────────────────────────────────────────────
@@ -397,3 +404,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

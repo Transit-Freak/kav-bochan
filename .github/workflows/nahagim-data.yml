@@ -12,6 +12,7 @@ on:
       - 'tools/nahagim_build.py'
       - 'tools/nahagim_roundabouts.py'
       - 'tools/test_nahagim_roundabouts.py'
+      - 'tools/test_nahagim_quality.py'
       - '.github/workflows/nahagim-data.yml'
   schedule:
     - cron: '0 8 * * 0'   # ראשון 08:00 UTC (11:00 ישראל בקיץ) — שעה אחרי הבנייה השבועית של האזורים
@@ -22,7 +23,7 @@ permissions:
 
 concurrency:
   group: nahagim-data
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -32,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Roundabout recovery regression tests
-        run: python3 -m unittest discover -s tools -p test_nahagim_roundabouts.py -v
+        run: python3 -m unittest discover -s tools -p 'test_nahagim*.py' -v
 
       - name: Fetch GTFS
         run: |
