@@ -4010,16 +4010,16 @@ const DAYS_FILTER = [
                           const ov = kavPachVisibleOverlaps(overlapMap && overlapMap[String(res.makat || '').replace(/^0+/, '').trim()]);
                           if (!ov || !ov.length) return null;
                           return (
-                            <div className="mb-4 bg-sky-50 border border-sky-200 rounded-2xl px-3 py-2">
-                              <div className="text-xs font-black text-sky-700 mb-2">🔀 חפיפת קווים</div>
-                              <div className="space-y-2">
+                            <div className="mb-3">
+                              
+                              <div className="flex flex-wrap items-start gap-1.5">
                                 {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
-                                  <details key={mk2} className="text-xs bg-white border border-sky-200 text-sky-900 px-3 py-2 rounded-xl">
-                                    <summary className="cursor-pointer flex items-center justify-between gap-3 list-none" style={{listStyle:'none'}}>
-                                      <span className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}% חפיפה</span>
-                                      <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{minWidth:32,minHeight:32}}>?</span>
+                                  <details key={mk2} className="text-sky-900 bg-sky-50 rounded-lg" style={{fontSize:11,maxWidth:'100%'}}>
+                                    <summary className="cursor-pointer flex items-center gap-1 list-none" style={{listStyle:'none',padding:'3px 7px',minHeight:28}}>
+                                      <span className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}%</span>
+                                      <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{width:16,height:16,fontSize:10}}>?</span>
                                     </summary>
-                                    <div className="mt-2 pt-2 border-t border-sky-100 leading-relaxed">
+                                    <div className="border-t border-sky-100 leading-relaxed" style={{padding:10,maxWidth:380,fontSize:12}}>
                                       <div>{shared} תחנות משותפות · {pct}% במדד התחנות.</div>
                                       <div>{shape.selfPct}% מתוואי קו {res.lineNum} משותף לקו {num2}, באותו כיוון נסיעה.</div>
                                       <div className="mt-2">אחוז החפיפה הוא ממוצע של שני המדדים במשקל שווה. מוצגים רק קווים עם 50% ומעלה. כשחסר מדד, הקו אינו מוצג ברשימה.</div>
