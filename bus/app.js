@@ -39,6 +39,34 @@ function emptyAgg() { return {sched: 0, obs: 0, meas: 0, c: [0, 0, 0, 0, 0], o: 
 // לא מידיבוס, לא מפרקי) — אותו ניסוח כמו ב"הקו בזמן" (שלמה 06.09)
 const VNAMES = {'מיניבוס': 'מיניבוס', 'מידיבוס': 'מידיבוס', 'אוטובוס': 'אוטובוס', 'מפרקי': 'אוטובוס מפרקי'};
 const vname = v => VNAMES[v] || v || '';
+function addVehicleData(x, vt) {
+  if (!vt) return;
+  x.vplan = vt[0]; x.vt[0] += vt[1]; x.vt[1] += vt[2]; x.vt[2] += vt[3];
+  // Old files contain only a daily mode, not counts. Do not turn it into a distribution.
+  if (vt[5]) for (const [kind, n] of Object.entries(vt[5])) x.vact[kind] = (x.vact[kind] || 0) + n;
+  const detail = vt[6];
+  if (!detail) return;
+  x.vehicleDetail ||= {actual: {}, observed: 0, plans: new Set(), dates: new Set(), fleetDates: new Set()};
+  const d = x.vehicleDetail;
+  d.observed += detail.observed || 0;
+  for (const [kind, n] of Object.entries(detail.actual || {})) d.actual[kind] = (d.actual[kind] || 0) + n;
+  for (const label of detail.plan?.labels || []) d.plans.add(label);
+  if (detail.plan?.date) d.dates.add(detail.plan.date);
+  if (detail.fleetDate) d.fleetDates.add(detail.fleetDate);
+}
+function vehicleDetails(s) {
+  const d = s.vehicleDetail;
+  if (!d) return '<p class="pdesc">בנתונים הישנים נשמר רק גודל הרכב הנפוץ. אין בהם פירוט נסיעות שמאפשר לחשב אחוז אוטובוסים עירוניים ובינעירוניים.</p>';
+  const entries = Object.entries(d.actual).sort((a, b) => b[1] - a[1]);
+  const known = entries.reduce((n, [, count]) => n + count, 0);
+  const plan = d.plans.size ? [...d.plans].map(esc).join(' / ') : 'פרטי רישוי הקו לא זמינים';
+  return `<div class="pdesc"><b>הרכב שנקבע ברישוי הקו:</b> ${plan}${d.dates.size ? ` (נתוני ${[...d.dates].sort().map(esc).join(', ')})` : ''}.<br>
+    <b>הרכבים בנסיעות שנצפו:</b> סוג הרכב זוהה ב-${num(known)} מתוך ${num(d.observed)} נסיעות שנבדקו.
+    ${known ? `<br>מתוך הנסיעות עם סוג רכב מזוהה: ${entries.map(([kind, n]) => `${esc(kind)} — ${num(n)} נסיעות (${pct(n, known)})`).join(' · ')}.` : ''}
+    <br>ב-${num(Math.max(0, d.observed - known))} נסיעות סוג הרכב אינו ידוע.
+    ${s.obs > d.observed ? `<br>${num(s.obs - d.observed)} נסיעות נוספות בתקופה הן מנתונים ישנים ללא הפירוט הזה.` : ''}
+    <br><small>לפי מספר הרכב ששודר ומאגר ציי הרכב של משרד התחבורה${d.fleetDates.size ? `, מתאריך ${[...d.fleetDates].sort().map(esc).join(', ')}` : ''}. הספירה היא לפי נסיעות; רכב שביצע כמה נסיעות נספר בכל אחת מהן.</small></div>`;
+}
 function addAgg(t, x) {
   const sched = x.sched != null ? x.sched : x[0], obs = x.obs != null ? x.obs : x[1], meas = x.meas != null ? x.meas : x[2], c = x.c || x[3], s = x.s || x[4];
   t.sched += sched || 0; t.obs += obs || 0; t.meas += meas || 0;
@@ -204,7 +232,7 @@ function mergeDays(days) {
       const x = Rr[rid] || (Rr[rid] = Object.assign(emptyAgg(), {rid, hours: {}, ws: [], vplan: '', vact: {}}));
       addAgg(x, {sched, obs, meas, c, s}); o.forEach((v, i) => { x.o[i] += v; tot.o[i] += v; });
       for (const [h, n, on] of hours) { const y = x.hours[h] || (x.hours[h] = [0, 0]); y[0] += n; y[1] += on; }
-      if (vt) { x.vplan = vt[0]; x.vt[0] += vt[1]; x.vt[1] += vt[2]; x.vt[2] += vt[3]; x.vact[vt[4]] = (x.vact[vt[4]] || 0) + vt[1]; }
+      addVehicleData(x, vt);
       if (days.length === 1) { x.s = s; x.ws = ws; }
     }
     for (const w of d.worst) worst.push([d.d, ...w]);
@@ -480,7 +508,7 @@ function renderLineDetail() {
       <div><b>${s.avg == null ? '—' : fmt1(s.avg)}<i>דק׳</i></b><span>איחור ממוצע${s.s && s.s[2] != null ? ` · 90% עד ${fmt1(s.s[2])}` : ''}</span></div>
       <div><b>${num(s.obs)}</b><span>נסיעות נצפו מתוך ${num(s.sched)}</span></div>
     </div>
-    ${s.vt[0] ? `<p class="pdesc">גודל הרכב: נקבע לקו <b>${esc(vname(s.vplan))}</b>. ב-${num(s.vt[0])} נסיעות הרכב מזוהה: ${Object.entries(s.vact).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(vname(t))} ${pct(n, s.vt[0])}`).join(', ')}${s.vt[1] ? ` · <b class="d4">רכב קטן ממה שנקבע ב-${pct(s.vt[1], s.vt[0])}</b>` : ''}${s.vt[2] ? ` · רכב גדול ממה שנקבע ב-${pct(s.vt[2], s.vt[0])}` : ''}.</p>` : ''}
+    ${vehicleDetails(s)}
     ${distHtml(s)}
     <div class="cols2" style="margin-top:10px"><div><div class="ptitle">אחוז בזמן לפי השעה ביום</div><p class="pdesc">לפי השעה שבה האוטובוס היה אמור להגיע לתחנה.</p><div class="chart" id="c-lh"></div></div>
     <div><div class="ptitle">האיחור הממוצע לאורך הקו</div><p class="pdesc">עמודה לכל תחנה, מהמוצא (ימין) ליעד. איפה שהעמודות קופצות, שם הקו מאבד זמן.</p><div class="chart" id="c-lp"><div class="empty">טוען…</div></div></div></div>

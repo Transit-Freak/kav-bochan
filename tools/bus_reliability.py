@@ -215,7 +215,7 @@ def norm_size(t):
     return None
 
 
-def load_rishui_sizes(day):
+def load_rishui_sizes(day, details=None):
     """גודל הרכב שנקבע לכל מק"ט ליום נתון, ממאגר "רישוי מערך האוטובוסים" של משרד
     התחבורה ב-data.gov.il (שורה לכל מק"ט לכל יום: VehicleSize_nm, trips_count).
     המקור הרשמי היומי (שלמה 06.09) במקום העמודה בקובץ הידני. אם אין שורות ליום —
@@ -257,17 +257,25 @@ def load_rishui_sizes(day):
             break
         offset += 32000
     sizes = {}
+    labels = collections.defaultdict(set)
+    size_options = collections.defaultdict(set)
     raw = collections.Counter()
     for r in rows:
         raw[str(r.get('VehicleSize_nm'))] += 1
         s = norm_size(r.get('VehicleSize_nm'))
         if s and r.get('office_line_id') is not None:
-            sizes[str(r['office_line_id'])] = s
+            mkt = str(r['office_line_id'])
+            size_options[mkt].add(s)
+            kind = str(r.get('VehicleType_nm') or '').strip()
+            labels[mkt].add(s + (' ' + kind if kind and kind not in ('לא ידוע', 'לא מוגדר') else ' · סוג לא ידוע'))
+    sizes = {mkt: next(iter(options)) for mkt, options in size_options.items() if len(options) == 1}
+    if details is not None:
+        details.update({mkt: {'labels': sorted(values), 'date': used, 'source': 'רישוי מערך האוטובוסים'} for mkt, values in labels.items()})
     print(f'רישוי {used}: {len(rows):,} שורות · גדלי רכב במקור: {dict(raw.most_common(8))}', flush=True)
     return sizes, used
 
 
-def load_vehicle_classes(site, day=None):
+def load_vehicle_classes(site, day=None, details=None):
     """הסוג שנקבע לכל קו (מק"ט → מיניבוס/מידיבוס/אוטובוס/מפרקי): קודם המקור הרשמי
     היומי (רישוי מערך האוטובוסים ב-data.gov.il), ובהיעדרו קובץ הקווים של האתר
     (data-main.json עמודה 13). הסוג של כל רכב לפי מספרו: קודם מאגר "ציי רכב
@@ -277,7 +285,7 @@ def load_vehicle_classes(site, day=None):
     src_date = None
     if day:
         try:
-            plan, src_date = load_rishui_sizes(day)
+            plan, src_date = load_rishui_sizes(day, details)
         except Exception as e:  # noqa: BLE001
             print(f'אזהרה: מאגר הרישוי לא נטען ({e}) — נופלים לקובץ הקווים של האתר', flush=True)
     if not plan:
@@ -310,6 +318,22 @@ def load_vehicle_classes(site, day=None):
     except Exception as e:  # noqa: BLE001
         print(f'אזהרה: fleet-official.json לא נטען ({e})', flush=True)
     return plan, veh
+
+
+def load_vehicle_types(site):
+    """Keep the official urban/interurban classification; never infer it from size."""
+    try:
+        data = json.load(open(os.path.join(site, 'fleet/data/fleet-official.json'), encoding='utf-8'))
+        types = {}
+        for plate, row in data.get('of', {}).items():
+            size = norm_size(row[5]) if len(row) > 5 else None
+            kind = row[4] if len(row) > 4 else None
+            if size and kind in ('עירוני', 'בינעירוני'):
+                types[str(plate)] = size + ' ' + kind
+        return types, data.get('gov_updated') or data.get('updated')
+    except (OSError, ValueError, TypeError) as e:
+        print(f'אין פירוט סוגי רכב רשמי: {e}', flush=True)
+        return {}, None
 
 
 # ---------------------------------------------------------------- SIRI
@@ -592,7 +616,9 @@ def main():
 
     g = load_gtfs(a.gtfs, day)
     print(f'GTFS: {len(g["trips"]):,} נסיעות פעילות · {len(g["routes"]):,} מסלולים · {len(g["stops"]):,} תחנות', flush=True)
-    plan_cls, veh_cls = load_vehicle_classes(a.site, None if a.no_rishui else day)
+    plan_details = {}
+    plan_cls, veh_cls = load_vehicle_classes(a.site, None if a.no_rishui else day, plan_details)
+    vehicle_types, vehicle_types_date = load_vehicle_types(a.site)
     print(f'סוגי רכב: {len(plan_cls):,} מק"טים עם סוג שנקבע · {len(veh_cls):,} רכבים עם סוג ידוע', flush=True)
     # רצפי התחנות של כל הנסיעות הפעילות היום — נדרש גם להצמדה (שעת היציאה
     # של התחנה הראשונה) וגם למדידה
@@ -667,6 +693,7 @@ def main():
     tot = {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5}
     # סוג הרכב מול מה שנקבע לקו: [נסיעות עם רכב וקו מזוהים, רכב קטן יותר, רכב גדול יותר]
     VT = collections.defaultdict(lambda: [0, 0, 0, collections.Counter()])   # route_id
+    actual_types = collections.defaultdict(collections.Counter)
     VA = collections.defaultdict(lambda: [0, 0, 0])                          # מפעיל
     vt_tot = [0, 0, 0]
     far = 0             # נסיעות ששודרו אך רוב מדידותיהן רחוקות מהלו"ז ביותר משעה
@@ -773,6 +800,8 @@ def main():
         # סוג הרכב שהגיע (לפי מספר הרכב בשידור) מול הסוג שנקבע לקו (לפי המק"ט)
         planned = plan_cls.get(routes.get(rid, {}).get('mkt', ''))
         actual = veh_cls.get(key[2])
+        if key[2] in vehicle_types:
+            actual_types[rid][vehicle_types[key[2]]] += 1
         if planned and actual:
             vt = VT[rid]
             vt[0] += 1
@@ -888,7 +917,12 @@ def main():
         # שלוש התחנות עם האיחור הממוצע הגבוה (לפחות 3 הגעות, אחרת מדידה בודדת מטה)
         ws = sorted([kv for kv in r['stops'].items() if kv[1][0] >= 3], key=lambda kv: -(kv[1][1] / kv[1][0]))[:3]
         vt = VT.get(rid)
-        vt_row = [plan_cls.get(info.get('mkt', ''), ''), vt[0], vt[1], vt[2], vt[3].most_common(1)[0][0]] if vt else None
+        vt = vt or [0, 0, 0, collections.Counter()]
+        vt_row = [plan_cls.get(info.get('mkt', ''), ''), vt[0], vt[1], vt[2],
+                  vt[3].most_common(1)[0][0] if vt[3] else '', dict(vt[3]),
+                  {'plan': plan_details.get(info.get('mkt', '')),
+                   'actual': dict(actual_types[rid]), 'fleetDate': vehicle_types_date,
+                   'observed': r['obs']}]
         out_routes.append([rid, sched_per_route.get(rid, 0), r['obs'], r['meas'], r['c'], stats(r['d']), r['o'],
                            [[h, v[0], v[1]] for h, v in sorted(r['hours'].items())],
                            [[stops.get(sid, ('',))[0], stops.get(sid, ('', ''))[1], v[0], round(v[1] / v[0] / 60, 1)] for sid, v in ws],
@@ -923,7 +957,7 @@ def main():
         'cities': sorted([[c, v['meas'], v['c'], stats(v['d'])] + city_trips.get(c, [0, 0]) for c, v in C.items() if v['meas'] >= 50], key=lambda x: -x[1]),
         'routes': out_routes,
         'worst': [[rid, tid.split('_')[0], round(dl / 60), stops.get(sid, ('', ''))[1], sched, ps] for dl, rid, tid, sid, sched, ps in worst[:40]],
-        'cols': {'routes': ['route_id', 'sched', 'obs', 'meas', 'cats[early,ontime,5-10,10-20,20+]', 'stats[avg,med,p90 min]', 'origin cats', 'hours[[h,n,on]]', 'worst stops[[code,name,n,avg]]', 'vehicle[planned class, rides with known vehicle, smaller, larger, most common actual]'],
+        'cols': {'routes': ['route_id', 'sched', 'obs', 'meas', 'cats[early,ontime,5-10,10-20,20+]', 'stats[avg,med,p90 min]', 'origin cats', 'hours[[h,n,on]]', 'worst stops[[code,name,n,avg]]', 'vehicle[planned size, comparable rides, smaller, larger, daily mode, actual size counts, detail{plan,actual type counts,fleetDate,observed}]'],
                  'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]'], 'cities': ['city', 'meas', 'cats', 'stats', 'sched trips of lines through the city', 'observed trips'],
                  'worst': ['route_id', 'trip', 'max delay min', 'stop', 'sched sec', 'passages[[code,sched sec,actual sec]]'],
                  'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip',
