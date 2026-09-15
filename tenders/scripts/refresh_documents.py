@@ -39,4 +39,8 @@ def main():
   failures=prior.get('failures',0)+1;entry.update(error=str(e),failures=failures,nextCheckAt=next_retry(failures,now))
  state['tenders'][chosen['id']]=entry;state['checkedAt']=stamp
  tmp=STATE.with_suffix('.tmp');tmp.write_text(json.dumps(state,ensure_ascii=False,indent=2));tmp.replace(STATE);print('Checked tender',chosen['id'],'error:',entry.get('error'))
-if __name__=='__main__':main()
+if __name__=='__main__':
+ main()
+ # Content extraction has its own fair queue; run it even if no link checks were due.
+ from extract_documents import main as extract_main
+ extract_main([])

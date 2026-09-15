@@ -1357,5 +1357,1769 @@
       "status": "verified_conditional",
       "value": null
     }
+  },
+  "4000582393": {
+    "identity.number": {
+      "label": "מספר מכרז",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "03/2023",
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "identity.number",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.issuer": {
+      "label": "מפרסם",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "משרד התחבורה והבטיחות בדרכים",
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "identity.issuer",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.cluster": {
+      "label": "אשכול",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "דרום גוש דן",
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "identity.cluster",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.mode": {
+      "label": "סוג שירות",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "אוטובוסים",
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "identity.mode",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "dates.publication": {
+      "label": "פרסום",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.submission": {
+      "label": "הגשת הצעות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.questions": {
+      "label": "שאלות הבהרה",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.service_start": {
+      "label": "תחילת שירות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.base": {
+      "label": "תקופת התקשרות בסיסית",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.extension": {
+      "label": "אפשרויות הארכה",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.turnover": {
+      "label": "מחזור כספי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.equity": {
+      "label": "הון עצמי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.experience": {
+      "label": "ניסיון נדרש",
+      "kind": "duration",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.licenses": {
+      "label": "רישיונות נדרשים",
+      "kind": "text",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.fleet": {
+      "label": "צי כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.drivers": {
+      "label": "נהגים כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "guarantee.bid": {
+      "label": "ערבות הצעה",
+      "kind": "money",
+      "scope": "bid",
+      "status": "verified",
+      "value": 2000000,
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "guarantee.bid",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=29",
+          "locator": "עמוד PDF 29, סעיף 14.1",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות להצעה"
+    },
+    "guarantee.performance": {
+      "label": "ערבות ביצוע",
+      "kind": "money",
+      "scope": "execution",
+      "status": "verified",
+      "value": 20000000,
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "guarantee.performance",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=31",
+          "locator": "עמוד PDF 31, סעיף 15.1",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות לקיום ההסכם"
+    },
+    "fleet.operating": {
+      "label": "כלי רכב להפעלה",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.reserve": {
+      "label": "רכב רזרבי",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.seats": {
+      "label": "מושבים לרכב",
+      "kind": "count",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.electric_share": {
+      "label": "שיעור צי חשמלי",
+      "kind": "percent",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.max_age": {
+      "label": "גיל רכב מרבי",
+      "kind": "duration",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.accessibility": {
+      "label": "נגישות כלי הרכב",
+      "kind": "text",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.routes": {
+      "label": "קווים",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.variants": {
+      "label": "חלופות מסלול",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.weekly_trips": {
+      "label": "נסיעות בשבוע",
+      "kind": "count",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.annual_km": {
+      "label": "קילומטרים בשנה",
+      "kind": "distance",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.operating_hours": {
+      "label": "שעות פעילות",
+      "kind": "text",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.frequency": {
+      "label": "תדירות שירות",
+      "kind": "duration",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.per_km": {
+      "label": "תמורה לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.ceiling_per_km": {
+      "label": "תקרת מחיר לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.fixed_payment": {
+      "label": "תשלום קבוע",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.indexation": {
+      "label": "הצמדת תמורה",
+      "kind": "text",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.price_weight": {
+      "label": "משקל המחיר בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "verified",
+      "value": 52,
+      "sources": [
+        {
+          "tenderId": "4000582393",
+          "fieldKey": "scoring.price_weight",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=52",
+          "locator": "עמוד PDF 52, סעיף 28.2",
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "unit": "percent"
+    },
+    "scoring.quality_weight": {
+      "label": "משקל האיכות בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.minimum_quality": {
+      "label": "סף ניקוד איכות",
+      "kind": "points",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "penalties.amount": {
+      "label": "פיצוי מוסכם",
+      "kind": "money",
+      "scope": "penalties",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.winner": {
+      "label": "זוכה",
+      "kind": "text",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.awarded_price": {
+      "label": "מחיר זכייה",
+      "kind": "money",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    }
+  },
+  "4000589849": {
+    "identity.number": {
+      "label": "מספר מכרז",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "3/24",
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "identity.number",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.issuer": {
+      "label": "מפרסם",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "משרד התחבורה והבטיחות בדרכים",
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "identity.issuer",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.cluster": {
+      "label": "אשכול",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "מטה בנימין ומעלה אדומים",
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "identity.cluster",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.mode": {
+      "label": "סוג שירות",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "אוטובוסים",
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "identity.mode",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "dates.publication": {
+      "label": "פרסום",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.submission": {
+      "label": "הגשת הצעות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.questions": {
+      "label": "שאלות הבהרה",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.service_start": {
+      "label": "תחילת שירות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.base": {
+      "label": "תקופת התקשרות בסיסית",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.extension": {
+      "label": "אפשרויות הארכה",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.turnover": {
+      "label": "מחזור כספי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.equity": {
+      "label": "הון עצמי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.experience": {
+      "label": "ניסיון נדרש",
+      "kind": "duration",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.licenses": {
+      "label": "רישיונות נדרשים",
+      "kind": "text",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.fleet": {
+      "label": "צי כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.drivers": {
+      "label": "נהגים כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "guarantee.bid": {
+      "label": "ערבות הצעה",
+      "kind": "money",
+      "scope": "bid",
+      "status": "verified",
+      "value": 2000000,
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "guarantee.bid",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=29",
+          "locator": "עמוד PDF 29, סעיף 14.1",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות להצעה"
+    },
+    "guarantee.performance": {
+      "label": "ערבות ביצוע",
+      "kind": "money",
+      "scope": "execution",
+      "status": "verified",
+      "value": 20000000,
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "guarantee.performance",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=31",
+          "locator": "עמוד PDF 31, סעיף 15.1",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות לקיום ההסכם"
+    },
+    "fleet.operating": {
+      "label": "כלי רכב להפעלה",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.reserve": {
+      "label": "רכב רזרבי",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.seats": {
+      "label": "מושבים לרכב",
+      "kind": "count",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.electric_share": {
+      "label": "שיעור צי חשמלי",
+      "kind": "percent",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.max_age": {
+      "label": "גיל רכב מרבי",
+      "kind": "duration",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.accessibility": {
+      "label": "נגישות כלי הרכב",
+      "kind": "text",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.routes": {
+      "label": "קווים",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.variants": {
+      "label": "חלופות מסלול",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.weekly_trips": {
+      "label": "נסיעות בשבוע",
+      "kind": "count",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.annual_km": {
+      "label": "קילומטרים בשנה",
+      "kind": "distance",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.operating_hours": {
+      "label": "שעות פעילות",
+      "kind": "text",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.frequency": {
+      "label": "תדירות שירות",
+      "kind": "duration",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.per_km": {
+      "label": "תמורה לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.ceiling_per_km": {
+      "label": "תקרת מחיר לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.fixed_payment": {
+      "label": "תשלום קבוע",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.indexation": {
+      "label": "הצמדת תמורה",
+      "kind": "text",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.price_weight": {
+      "label": "משקל המחיר בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "verified",
+      "value": 52,
+      "sources": [
+        {
+          "tenderId": "4000589849",
+          "fieldKey": "scoring.price_weight",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=53",
+          "locator": "עמוד PDF 53, סעיף 28.2",
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "unit": "percent"
+    },
+    "scoring.quality_weight": {
+      "label": "משקל האיכות בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.minimum_quality": {
+      "label": "סף ניקוד איכות",
+      "kind": "points",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "penalties.amount": {
+      "label": "פיצוי מוסכם",
+      "kind": "money",
+      "scope": "penalties",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.winner": {
+      "label": "זוכה",
+      "kind": "text",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.awarded_price": {
+      "label": "מחיר זכייה",
+      "kind": "money",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    }
+  },
+  "4000611926": {
+    "identity.number": {
+      "label": "מספר מכרז",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "02/25",
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "identity.number",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.issuer": {
+      "label": "מפרסם",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "משרד התחבורה והבטיחות בדרכים",
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "identity.issuer",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.cluster": {
+      "label": "אשכול",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "חיפה עירוני מזרח",
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "identity.cluster",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.mode": {
+      "label": "סוג שירות",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "אוטובוסים",
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "identity.mode",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "dates.publication": {
+      "label": "פרסום",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.submission": {
+      "label": "הגשת הצעות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.questions": {
+      "label": "שאלות הבהרה",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.service_start": {
+      "label": "תחילת שירות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.base": {
+      "label": "תקופת התקשרות בסיסית",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.extension": {
+      "label": "אפשרויות הארכה",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.turnover": {
+      "label": "מחזור כספי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.equity": {
+      "label": "הון עצמי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.experience": {
+      "label": "ניסיון נדרש",
+      "kind": "duration",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.licenses": {
+      "label": "רישיונות נדרשים",
+      "kind": "text",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.fleet": {
+      "label": "צי כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.drivers": {
+      "label": "נהגים כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "guarantee.bid": {
+      "label": "ערבות הצעה",
+      "kind": "money",
+      "scope": "bid",
+      "status": "verified",
+      "value": 2000000,
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "guarantee.bid",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=29",
+          "locator": "עמוד PDF 29, סעיף 14.1",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות להצעה"
+    },
+    "guarantee.performance": {
+      "label": "ערבות ביצוע",
+      "kind": "money",
+      "scope": "execution",
+      "status": "verified",
+      "value": 20000000,
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "guarantee.performance",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=31",
+          "locator": "עמוד PDF 31, סעיף 15.1",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות לקיום ההסכם"
+    },
+    "fleet.operating": {
+      "label": "כלי רכב להפעלה",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.reserve": {
+      "label": "רכב רזרבי",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.seats": {
+      "label": "מושבים לרכב",
+      "kind": "count",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.electric_share": {
+      "label": "שיעור צי חשמלי",
+      "kind": "percent",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.max_age": {
+      "label": "גיל רכב מרבי",
+      "kind": "duration",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.accessibility": {
+      "label": "נגישות כלי הרכב",
+      "kind": "text",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.routes": {
+      "label": "קווים",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.variants": {
+      "label": "חלופות מסלול",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.weekly_trips": {
+      "label": "נסיעות בשבוע",
+      "kind": "count",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.annual_km": {
+      "label": "קילומטרים בשנה",
+      "kind": "distance",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.operating_hours": {
+      "label": "שעות פעילות",
+      "kind": "text",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.frequency": {
+      "label": "תדירות שירות",
+      "kind": "duration",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.per_km": {
+      "label": "תמורה לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.ceiling_per_km": {
+      "label": "תקרת מחיר לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.fixed_payment": {
+      "label": "תשלום קבוע",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.indexation": {
+      "label": "הצמדת תמורה",
+      "kind": "text",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.price_weight": {
+      "label": "משקל המחיר בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "verified",
+      "value": 35,
+      "sources": [
+        {
+          "tenderId": "4000611926",
+          "fieldKey": "scoring.price_weight",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=53",
+          "locator": "עמוד PDF 53, סעיף 28.2",
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "unit": "percent"
+    },
+    "scoring.quality_weight": {
+      "label": "משקל האיכות בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.minimum_quality": {
+      "label": "סף ניקוד איכות",
+      "kind": "points",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "penalties.amount": {
+      "label": "פיצוי מוסכם",
+      "kind": "money",
+      "scope": "penalties",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.winner": {
+      "label": "זוכה",
+      "kind": "text",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.awarded_price": {
+      "label": "מחיר זכייה",
+      "kind": "money",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    }
+  },
+  "4000538622": {
+    "identity.number": {
+      "label": "מספר מכרז",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "05/2021",
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "identity.number",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.issuer": {
+      "label": "מפרסם",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "משרד התחבורה והבטיחות בדרכים",
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "identity.issuer",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.cluster": {
+      "label": "אשכול",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "קווי אונו אלעד",
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "identity.cluster",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "identity.mode": {
+      "label": "סוג שירות",
+      "kind": "text",
+      "scope": "identity",
+      "status": "verified",
+      "value": "אוטובוסים",
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "identity.mode",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=1",
+          "locator": "עמוד PDF 1",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+    },
+    "dates.publication": {
+      "label": "פרסום",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.submission": {
+      "label": "הגשת הצעות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.questions": {
+      "label": "שאלות הבהרה",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "dates.service_start": {
+      "label": "תחילת שירות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.base": {
+      "label": "תקופת התקשרות בסיסית",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "term.extension": {
+      "label": "אפשרויות הארכה",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.turnover": {
+      "label": "מחזור כספי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.equity": {
+      "label": "הון עצמי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.experience": {
+      "label": "ניסיון נדרש",
+      "kind": "duration",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.licenses": {
+      "label": "רישיונות נדרשים",
+      "kind": "text",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.fleet": {
+      "label": "צי כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "eligibility.drivers": {
+      "label": "נהגים כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "guarantee.bid": {
+      "label": "ערבות הצעה",
+      "kind": "money",
+      "scope": "bid",
+      "status": "verified",
+      "value": 2000000,
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "guarantee.bid",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=28",
+          "locator": "עמוד PDF 28, סעיף 14.1",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות להצעה"
+    },
+    "guarantee.performance": {
+      "label": "ערבות ביצוע",
+      "kind": "money",
+      "scope": "execution",
+      "status": "verified",
+      "value": 20000000,
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "guarantee.performance",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=29",
+          "locator": "עמוד PDF 29, סעיף 15.1",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "currency": "ILS",
+      "unit": "total",
+      "vat": "not_applicable",
+      "period": "ערבות לקיום ההסכם"
+    },
+    "fleet.operating": {
+      "label": "כלי רכב להפעלה",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.reserve": {
+      "label": "רכב רזרבי",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.seats": {
+      "label": "מושבים לרכב",
+      "kind": "count",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.electric_share": {
+      "label": "שיעור צי חשמלי",
+      "kind": "percent",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.max_age": {
+      "label": "גיל רכב מרבי",
+      "kind": "duration",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "fleet.accessibility": {
+      "label": "נגישות כלי הרכב",
+      "kind": "text",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.routes": {
+      "label": "קווים",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.variants": {
+      "label": "חלופות מסלול",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.weekly_trips": {
+      "label": "נסיעות בשבוע",
+      "kind": "count",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.annual_km": {
+      "label": "קילומטרים בשנה",
+      "kind": "distance",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.operating_hours": {
+      "label": "שעות פעילות",
+      "kind": "text",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "service.frequency": {
+      "label": "תדירות שירות",
+      "kind": "duration",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.per_km": {
+      "label": "תמורה לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.ceiling_per_km": {
+      "label": "תקרת מחיר לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.fixed_payment": {
+      "label": "תשלום קבוע",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "price.indexation": {
+      "label": "הצמדת תמורה",
+      "kind": "text",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.price_weight": {
+      "label": "משקל המחיר בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "verified",
+      "value": 52,
+      "sources": [
+        {
+          "tenderId": "4000538622",
+          "fieldKey": "scoring.price_weight",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=50",
+          "locator": "עמוד PDF 50, סעיף 28.2",
+          "sha256": "74a0d75f8114171f0c5d7fcca7074e5b2a8084f8e7c846d13a96abeda5dc1ce7",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "reason": null,
+      "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+      "unit": "percent"
+    },
+    "scoring.quality_weight": {
+      "label": "משקל האיכות בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "scoring.minimum_quality": {
+      "label": "סף ניקוד איכות",
+      "kind": "points",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "penalties.amount": {
+      "label": "פיצוי מוסכם",
+      "kind": "money",
+      "scope": "penalties",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.winner": {
+      "label": "זוכה",
+      "kind": "text",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    },
+    "award.awarded_price": {
+      "label": "מחיר זכייה",
+      "kind": "money",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": [],
+      "reason": "המסמך נקרא, אך השדה הזה עדיין דורש בדיקה של הסעיף וההבהרות."
+    }
   }
 }

@@ -1,6 +1,8 @@
 {
   "enabled": true,
-  "cadence": "hourly",
+  "cadence": "daily",
+  "timezone": "Asia/Jerusalem",
+  "time": "08:30",
   "runner": "ChatGPT scheduled task",
   "firstScheduledRunVerified": false
 }

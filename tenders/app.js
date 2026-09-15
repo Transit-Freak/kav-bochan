@@ -30,7 +30,7 @@ fetch('access-check.json').then(r=>{if(!r.ok)throw new Error('audit unavailable'
 function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const all=portalItems.filter(t=>(filter==='all'||t.type===filter)&&tokens.every(q=>[t.title,t.number,t.id].join(' ').toLowerCase().includes(q)));const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>`<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום נוסף · עדיין בבדיקה'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p>${t.discoveryNote?`<details class="discovery-note"><summary>מה בדקנו עד עכשיו?</summary><p>${esc(t.discoveryNote)}</p></details>`:''}${renderFields(t)}${renderDocumentReview(t)}</div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';$('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
 $('feed-more').onclick=()=>{feedExpanded=!feedExpanded;renderFeed()};
 fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. הרשימה עדיין חלקית: החיפוש בפורטל מוגבל למשרד התחבורה ולמילה ״קווי״.`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. סיכומי הדוגמה זמינים בהמשך.'});
-fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?'המערכת מחפשת עדכונים מדי שעה. פרסום חדש עשוי להופיע באיחור אם יש תקלה באתר המקור או בעדכון האתר.':'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
+fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?'המערכת מחפשת פרסומים חדשים ושינויים פעם ביום. תנאים שעדיין לא נבדקו יישארו מסומנים כך עד להשלמת הבדיקה.':'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
 function isVerified(f){return ['verified','verified_conditional'].includes(f?.status);}
 function renderSources(sources){
  return (sources||[]).filter(s=>/^https:\/\//.test(s.url||'')).map(s=>`<a target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.locator)}</a>`).join(' · ');
@@ -41,13 +41,21 @@ function renderVerifiedField(key,f){
  const unique=[...new Map(sources.map(source=>[source.url,source])).values()];
  return `<section class="verified-field" data-field="${esc(key)}"><h4>${esc(fieldLabel(key,f))}</h4>${value}<details class="source-details"><summary>הסבר ומסמך המקור</summary>${f.notes?`<p>${esc(f.notes)}</p>`:''}<p>${renderSources(unique)}</p></details></section>`;
 }
+let extractionState={};
+fetch('extraction-state.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(r=>{extractionState=r.tenders||{};renderFeed()}).catch(()=>{});
+function extractionSummary(id){
+ const s=extractionState[id];if(!s)return '';
+ const count=Object.values(structuredFields[id]||{}).filter(isVerified).length;
+ const message=s.status==='retry_pending'?'הורדת המסמך לא הצליחה בבדיקה האחרונה. המערכת תנסה שוב.':s.status==='source_missing'?'לא נמצא מסמך מכרז ראשי זמין.':s.status==='needs_review'?(s.reason||'המסמך דורש בדיקה נוספת.'):'חלק מהפרטים נקראו; יתר התנאים וההבהרות עדיין בבדיקה.';
+ return `<p class="muted">${count?`${count} פרטים שנבדקו נשמרו. `:''}${esc(message)}</p>`;
+}
 function renderFields(t){
  if(fieldsState==='loading')return '<p class="muted" role="status">טוען פרטים…</p>';
  if(fieldsState==='error'||!Object.keys(fieldCatalog).length)return '<p role="status">טעינת התנאים נכשלה. <button data-retry-fields>ניסיון חוזר</button></p>';
  const fields=structuredFields[t.id]||{},all=Object.entries(fieldCatalog).map(([k,d])=>[k,fields[k]||d]);
  const verified=all.filter(([,f])=>isVerified(f)),pending=all.filter(([,f])=>!isVerified(f));
  const labels={unverified:'עדיין לא בדקנו',source_missing:'לא מצאנו מסמך מתאים',unrecognized_wording:'הניסוח במסמך אינו ברור',conflict:'המקורות מציגים מידע שונה',not_applicable:'לא רלוונטי למכרז הזה'};
- return `<details class="fielddetails tender-conditions"><summary>${verified.length?`${verified.length} פרטים שנבדקו`:'עדיין לא בדקנו את התנאים'}</summary>${verified.length?`<p class="muted">הפרטים נבדקו במסמך המקושר. ייתכן שיש עדכונים מאוחרים יותר שעדיין לא בדקנו.</p><div class="verified-grid">${verified.map(([k,f])=>renderVerifiedField(k,f)).join('')}</div>`:''}<details class="pending-fields"><summary>מה עדיין חסר? ${pending.length} פרטים</summary>${pending.map(([k,f])=>`<div class="pending-row"><strong>${esc(fieldLabel(k,f))}</strong><span>${labels[f.status]||'ממתין לבדיקה'}</span>${f.reason?`<p>${esc(f.reason)}</p>`:''}${f.sources?.length?`<p>${renderSources(f.sources)}</p>`:''}</div>`).join('')}</details></details>`;
+ return `${extractionSummary(t.id)}<details class="fielddetails tender-conditions"><summary>${verified.length?`${verified.length} פרטים שנבדקו`:'עדיין לא בדקנו את התנאים'}</summary>${verified.length?`<p class="muted">הפרטים נבדקו במסמך המקושר. ייתכן שיש עדכונים מאוחרים יותר שעדיין לא בדקנו.</p><div class="verified-grid">${verified.map(([k,f])=>renderVerifiedField(k,f)).join('')}</div>`:''}<details class="pending-fields"><summary>מה עדיין חסר? ${pending.length} פרטים</summary>${pending.map(([k,f])=>`<div class="pending-row"><strong>${esc(fieldLabel(k,f))}</strong><span>${labels[f.status]||'ממתין לבדיקה'}</span>${f.reason?`<p>${esc(f.reason)}</p>`:''}${f.sources?.length?`<p>${renderSources(f.sources)}</p>`:''}</div>`).join('')}</details></details>`;
 }
 async function loadFields(){
  fieldsState='loading';renderFeed();
