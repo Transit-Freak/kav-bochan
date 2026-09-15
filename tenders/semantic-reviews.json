@@ -42,6 +42,65 @@
                   "unit": 7
                 }
               ]
+            },
+            {
+              "title": "עלות ההפעלה",
+              "text": "במסמך הבסיס נקבעה עלות הפעלה שנתית של 123.6 מיליון ש״ח לפני מע״מ, בתוספת רכיב ההצעה הכספית ובכפוף למנגנוני ההתחשבנות. זה אינו מחיר זכייה. ההצעה חייבת לעמוד לפחות ברמת השירות שנדרשה. טרם הושלמה בדיקת ההבהרות המאוחרות.",
+              "unitIndices": [
+                18,
+                19
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=19",
+                  "locator": "עמוד PDF 19",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 18
+                },
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=20",
+                  "locator": "עמוד PDF 20",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 19
+                }
+              ]
+            },
+            {
+              "title": "נהגים והכשרה",
+              "text": "הנהגים יועסקו ישירות בידי המפעיל. המציע מתחייב לשכר יסוד ולשיעור מתמריץ איסוף הנוסעים שיועבר לנהגים. נקבע מענק הכשרה של 30 אלף ש״ח לנהג, עד 45 נהגים, בכפוף בין היתר להכשרת לפחות 25 נהגים בתוך 18 חודשים ולתקופת העסקה נדרשת. נוסח מגבלת 36 החודשים מחייב בדיקה נוספת מול ההבהרות.",
+              "unitIndices": [
+                20,
+                21
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=21",
+                  "locator": "עמוד PDF 21",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 20
+                },
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=22",
+                  "locator": "עמוד PDF 22",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 21
+                }
+              ]
+            },
+            {
+              "title": "אישורים נלווים",
+              "text": "נדרשים אישורי מס וניהול ספרים, תצהירים והתחייבויות בנושאי העסקת עובדים, תנאים סוציאליים, תוכנות מקור ודרישות אוויר נקי. תנאי הסף המלאים מופיעים גם בסעיפים הקודמים.",
+              "unitIndices": [
+                18
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=19",
+                  "locator": "עמוד PDF 19",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 18
+                }
+              ]
             }
           ],
           "routes": [],

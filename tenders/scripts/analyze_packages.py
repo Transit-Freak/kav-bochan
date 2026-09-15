@@ -1,11 +1,17 @@
 """Analyze all decoded document units. Rules produce sourced facts, never a full-read claim."""
 import datetime
+import hashlib
 import json
 import pathlib
 import re
 from extract_documents import ROOT, read, write, extract, clean
 from package_pipeline import CACHE, STATE
 from tender_fields import blank, validate
+ANALYSIS_VERSION = 2
+
+
+def fingerprint(units,item):
+    return hashlib.sha256((str(item.get('number',''))+'\n'+'\n'.join(u['text'] for u in units)).encode()).hexdigest()
 
 TOPICS = {
  'identity.number':r'מכרז|הליך תחרותי', 'identity.issuer':r'משרד התחבורה',
@@ -53,7 +59,7 @@ def route_rows(unit, url, digest):
                        'originStop':cells[columns['שם תחנת מוצא']] if 'שם תחנת מוצא' in columns else None,
                        'destinationStop':cells[columns['שם תחנת יעד']] if 'שם תחנת יעד' in columns else None,
                        'weeklyTrips':cells[columns['כמות נסיעות שבועיות']] if 'כמות נסיעות שבועיות' in columns else None,
-                       'sheet':unit.get('sheet'), 'member':unit.get('member',''), 'row':index+1,
+                       'sheet':unit.get('sheet'), 'member':unit.get('member',''), 'row':unit.get('rowNumbers',list(range(1,len(rows)+1)))[index],
                        'url':url,'sha256':digest,'coverage':'טבלת המקור; כיוונים וחלופות דורשים בדיקה'})
     return result
 
@@ -82,15 +88,21 @@ def main():
     output=read(ROOT/'automatic-summaries.json',{'tenders':{}})
     for tid,tender in state['tenders'].items():
         documents={}
+        previous=output['tenders'].get(tid,{})
         for key,doc in tender['documents'].items():
             if not doc.get('sha256'):continue
             cache=CACHE/doc['sha256']/'units.json'
             if not cache.exists():continue
             units=json.loads(cache.read_text())['units']
+            text_hash=fingerprint(units,items[tid])
+            old=previous.get('documents',{}).get(key,{})
+            if old.get('sha256')==doc['sha256'] and old.get('analysisVersion')==ANALYSIS_VERSION and old.get('textFingerprint')==text_hash:
+                documents[key]=old
+                continue
             documents[key]=analyze_document(tid,items[tid],doc,units)
+            documents[key].update(analysisVersion=ANALYSIS_VERSION,textFingerprint=text_hash)
             locations=documents[key].pop('fieldLocations')
             (cache.parent/'field-locations.json').write_text(json.dumps(locations,ensure_ascii=False))
-        previous=output['tenders'].get(tid,{})
         # Preserve prior successful results when a document could not be re-downloaded.
         merged={**previous.get('documents',{}),**documents}
         metadata={}
@@ -104,6 +116,7 @@ def main():
                              'sources':[{'tenderId':tid,'fieldKey':field,'url':items[tid]['url'],
                                          'locator':'פרטי הפרסום בפורטל','checkedAt':datetime.date.today().isoformat()}]}
         output['tenders'][tid]={'documents':merged,'metadataFields':metadata}
+        write(ROOT/'automatic-summaries.json',output)
     output['checkedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat()
     write(ROOT/'automatic-summaries.json',output)
     print('Analyzed packages:',len(output['tenders']))

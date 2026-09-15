@@ -115,7 +115,8 @@ def main():
             groups=collections.defaultdict(list)
             for unit in json.loads(path.read_text())['units']:
                 if not unit.get('sheet') or not unit.get('rows'):continue
-                rows=[(n,{i:str(value).strip() for i,value in enumerate(row)}) for n,row in enumerate(unit['rows'],1)]
+                numbers=unit.get('rowNumbers',range(1,len(unit['rows'])+1))
+                rows=[(n,{i:str(value).strip() for i,value in enumerate(row)}) for n,row in zip(numbers,unit['rows'])]
                 groups[unit.get('member','')].append((unit['sheet'],rows))
             for member,workbook in groups.items():
                 routes=parse_sheets(workbook)

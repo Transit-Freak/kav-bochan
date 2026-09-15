@@ -23,7 +23,7 @@ from check_portal import get
 from extract_documents import clean, extract, read, write, ROOT
 from tender_fields import blank, validate
 
-VERSION = 1
+VERSION = 2
 HOSTS = {'mr.gov.il', 'www.gov.il', 'gov.il', 'www.golan.org.il', 'golan.org.il'}
 STATE = ROOT / 'packages-state.json'
 CACHE = pathlib.Path(tempfile.gettempdir()) / 'tender-packages'
@@ -97,13 +97,18 @@ def decode_file(body, cache_path, member='', depth=0):
                 raise ValueError('הארכיון חורג ממגבלת העיבוד; נדרשת חלוקה')
             names = set(archive.namelist())
             if 'xl/workbook.xml' in names:
-                import openpyxl
-                workbook = openpyxl.load_workbook(io.BytesIO(body), data_only=True, read_only=True)
-                for sheet in workbook:
-                    rows = [[str(c) if c is not None else '' for c in row] for row in sheet.iter_rows(values_only=True)]
-                    units.append({'member': member, 'sheet': sheet.title, 'page': len(units)+1, 'rows': rows,
-                                  'text': '\n'.join('\t'.join(row) for row in rows), 'status': 'text_extracted'})
-                workbook.close()
+                from extract_route_tables import sheets
+                for title, sparse_rows in sheets(body):
+                    rows=[];row_numbers=[]
+                    for number,cells in sparse_rows:
+                        values={i:value for i,value in cells.items() if str(value).strip()}
+                        if not values:continue
+                        row_numbers.append(number)
+                        rows.append([values.get(i,'') for i in range(max(values)+1)])
+                    units.append({'member': member, 'sheet': title, 'page': len(units)+1,
+                                  'rows': rows, 'rowNumbers':row_numbers,
+                                  'text': '\n'.join(str(n)+':\t'+'\t'.join(row) for n,row in zip(row_numbers,rows)),
+                                  'status': 'text_extracted'})
             elif 'word/document.xml' in names:
                 from docx import Document
                 doc = Document(io.BytesIO(body))

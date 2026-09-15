@@ -29,6 +29,7 @@ function renderVerifiedField(key,f){
 let extractionState={};
 fetch('extraction-state.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(r=>{extractionState=r.tenders||{};renderFeed()}).catch(()=>{});
 function extractionSummary(id){
+ if(packageState[id])return '';
  const s=extractionState[id];if(!s)return '';
  const count=Object.values(combinedFields(id)).filter(isVerified).length;
  const message=s.status==='retry_pending'?'הורדת המסמך לא הצליחה בבדיקה האחרונה. המערכת תנסה שוב.':s.status==='source_missing'?'לא נמצא מסמך מכרז ראשי זמין.':s.status==='needs_review'?(s.reason||'המסמך דורש בדיקה נוספת.'):'חלק מהפרטים נקראו; יתר התנאים וההבהרות עדיין בבדיקה.';

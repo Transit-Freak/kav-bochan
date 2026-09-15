@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-15T19:39:20.363688+00:00",
+  "checkedAt": "2026-09-15T20:00:58.794212+00:00",
   "tenders": {
     "4000589849": {
       "listedRows": 116,
@@ -69,10 +69,10 @@
       ]
     },
     "4000552742": {
-      "listedRows": 203,
+      "listedRows": 406,
       "publishedMaps": 0,
-      "annexRows": 203,
-      "annexVersions": 1,
+      "annexRows": 406,
+      "annexVersions": 2,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -82,7 +82,7 @@
       ]
     },
     "4000538622": {
-      "listedRows": 212,
+      "listedRows": 634,
       "publishedMaps": 0,
       "annexRows": 0,
       "annexVersions": 0,
@@ -96,7 +96,7 @@
       ]
     },
     "627142": {
-      "listedRows": 0,
+      "listedRows": 743,
       "publishedMaps": 0,
       "annexRows": 0,
       "annexVersions": 0,
@@ -104,13 +104,12 @@
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
-        "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]
     },
     "4000521518": {
-      "listedRows": 136,
+      "listedRows": 340,
       "publishedMaps": 0,
       "annexRows": 0,
       "annexVersions": 0,
@@ -177,7 +176,7 @@
       ]
     },
     "633258": {
-      "listedRows": 0,
+      "listedRows": 58,
       "publishedMaps": 0,
       "annexRows": 0,
       "annexVersions": 0,
@@ -185,7 +184,6 @@
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
-        "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]

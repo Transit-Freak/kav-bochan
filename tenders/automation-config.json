@@ -4,5 +4,13 @@
   "timezone": "Asia/Jerusalem",
   "time": "08:30",
   "runner": "ChatGPT scheduled task",
-  "firstScheduledRunVerified": false
+  "firstScheduledRunVerified": false,
+  "pipeline": "scripts/run_daily.py",
+  "lineCountMode": "per_source_version",
+  "manualChecks": {
+    "sourceChangeUpdatesCounts": true,
+    "directionsCountedSeparately": true,
+    "testsPassed": 19,
+    "scheduledRunVerified": false
+  }
 }

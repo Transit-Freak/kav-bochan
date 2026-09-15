@@ -13,6 +13,19 @@ from package_pipeline import make_queue
 
 
 class PackageTests(unittest.TestCase):
+    def test_formatted_empty_excel_area_does_not_expand_or_shift_source_rows(self):
+        import openpyxl
+        from openpyxl.styles import Font
+        w=openpyxl.Workbook();s=w.active
+        s.append(['קו','מוצא','יעד']);s.cell(12,1,7);s.cell(12,2,'א');s.cell(12,3,'ב')
+        s.cell(10000,500).font=Font(bold=True)
+        stream=io.BytesIO();w.save(stream)
+        with tempfile.TemporaryDirectory() as tmp:
+            units,_=decode_file(stream.getvalue(),Path(tmp)/'source.bin')
+        self.assertEqual(units[0]['rowNumbers'],[1,12])
+        self.assertEqual(len(units[0]['rows']),2)
+        self.assertEqual(route_rows(units[0],'https://mr.gov.il/a','hash')[0]['row'],12)
+
     def test_stale_review_is_rejected_before_reading_cache(self):
         with self.assertRaisesRegex(ValueError,'Document changed'):
             prepare({'tenderId':'a','documentKey':'x','sha256':'old'},
