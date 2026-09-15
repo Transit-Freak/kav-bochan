@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "cadence": "hourly",
+  "runner": "ChatGPT scheduled task",
+  "firstScheduledRunVerified": false
+}

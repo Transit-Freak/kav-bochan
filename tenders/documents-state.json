@@ -1,0 +1,314 @@
+{
+  "tenders": {
+    "4000589849": {
+      "sourceUrl": "https://mr.gov.il/ilgstorefront/he/p/4000589849",
+      "attemptedAt": "2026-09-15T11:33:59.337304+00:00",
+      "documents": [
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A78A96A30356E15A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:33:59.337304+00:00",
+          "status": "retry_pending",
+          "failures": 1,
+          "error": "HTTP Error 404: Not Found",
+          "nextCheckAt": "2026-09-15T12:33:59.337304+00:00"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A78A8002EDCD215A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:33:59.337304+00:00",
+          "status": "download_verified",
+          "sha256": "b89d4ce096d7ff79aadc93167741151e3ad2e9528f577b11b081317a67e0d70b",
+          "lastSuccessAt": "2026-09-15T11:33:59.337304+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T11:33:59.337304+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A5903E32E15A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:33:59.337304+00:00",
+          "status": "download_verified",
+          "sha256": "872eae58c39a20a2dc49078dad795a505492fab8350bab7a05e0c35545ad6c65",
+          "lastSuccessAt": "2026-09-15T11:33:59.337304+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T11:33:59.337304+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A3DC5740E15A/נספח למכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:33:59.337304+00:00",
+          "status": "retry_pending",
+          "failures": 1,
+          "error": "The read operation timed out",
+          "nextCheckAt": "2026-09-15T12:33:59.337304+00:00"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A2560F6A415A/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A10FCCAB015A/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A2989EEE757FA15A/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A2989D2712BC615A/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A2989ADBE67B415A/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A29897039FC1215A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD19583FD7CF7A1A15A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1FE190F3EECE0111B2F6/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1FE190F3ED231285F2F6/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1FE190F3E736C871D2F6/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1FE190F3E24495F992F6/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFB2A143EC2F3DE14C/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C95660EDE14C/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2CB0D83ED014C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C46E2F02214C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C73107CA814C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2BEE7D408214C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C12FCBD8E14C/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C2F77B8F214C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2BDA9743DA14C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2B707378DA14C/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2BA232183A14C/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF98ED6710E9E2A14B/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9EC5D881212E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9E681BC7E32E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9E90FF20F32E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9E1471E4DF2E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9E3D85FAFF2E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DEEABB6732E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DA01A95E72E5/מודעה לעיתונות בערבית",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9D7698E1892E5/מודעה לעיתונות בעברית",
+          "presentInLatestListing": true,
+          "status": "pending"
+        }
+      ],
+      "sourceUpdated": "20/08/2026",
+      "error": null,
+      "linkCheckSucceededAt": "2026-09-15T11:33:59.337304+00:00",
+      "nextCheckAt": "2026-09-15T12:33:59.337304+00:00"
+    },
+    "4000611926": {
+      "sourceUrl": "https://mr.gov.il/ilgstorefront/he/p/4000611926",
+      "attemptedAt": "2026-09-15T11:42:22.675892+00:00",
+      "sourceVersionAttempted": "20/08/2026",
+      "documents": [
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A78A67B7E31A815A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:42:22.675892+00:00",
+          "status": "retry_pending",
+          "failures": 1,
+          "error": "The read operation timed out",
+          "nextCheckAt": "2026-09-15T12:42:22.675892+00:00"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD19EF07598AD9F615A/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:42:22.675892+00:00",
+          "status": "download_verified",
+          "sha256": "e23f61a09cab006d29ebb7d0bd0803abab089a83de668393ba141f496284855e",
+          "lastSuccessAt": "2026-09-15T11:42:22.675892+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T11:42:22.675892+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1FE197B52DF5653492F7/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:42:22.675892+00:00",
+          "status": "retry_pending",
+          "failures": 1,
+          "error": "The read operation timed out",
+          "nextCheckAt": "2026-09-15T12:42:22.675892+00:00"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1FE190A78CA546EEB2F5/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T11:42:22.675892+00:00",
+          "status": "retry_pending",
+          "failures": 1,
+          "error": "HTTP Error 404: Not Found",
+          "nextCheckAt": "2026-09-15T12:42:22.675892+00:00"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD185E555E6A85EC158/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0BDD2BF2AECD5A156/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C6E7AC6E36156/מודעה לעיתונות בעברית",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C700734866156/מודעה לעיתונות בערבית",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C69532646A156/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C64C8FC96E156/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C669AC6916156/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C677CF553E156/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C6264DA4F0156/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך",
+          "presentInLatestListing": true,
+          "status": "pending"
+        }
+      ],
+      "sourceUpdated": "20/08/2026",
+      "error": null,
+      "linkCheckSucceededAt": "2026-09-15T11:42:22.675892+00:00",
+      "nextCheckAt": "2026-09-15T12:42:22.675892+00:00"
+    }
+  },
+  "checkedAt": "2026-09-15T11:42:22.675892+00:00"
+}

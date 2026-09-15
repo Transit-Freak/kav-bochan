@@ -1,0 +1,341 @@
+{
+  "checkedAt": "2026-09-15T11:22:53.430967+00:00",
+  "scheduled": false,
+  "query": "מוניות",
+  "pages": [
+    {
+      "page": 0,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=0",
+      "ids": [
+        "4000611649",
+        "4000594348",
+        "4000598840",
+        "4000596015",
+        "4000580883",
+        "4000580737",
+        "4000576994",
+        "4000575175",
+        "4000575136",
+        "4000571501",
+        "4000563981",
+        "4000556293",
+        "4000551303",
+        "4000545625",
+        "4000545039",
+        "4000535355",
+        "4000539155",
+        "4000533080",
+        "4000534104",
+        "4000527985"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 0,
+      "ok": true
+    },
+    {
+      "page": 1,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=1",
+      "ids": [
+        "653175",
+        "651341",
+        "650250",
+        "645465",
+        "647262",
+        "641827",
+        "641049",
+        "636078",
+        "631745",
+        "631740",
+        "632739",
+        "631737",
+        "630262",
+        "628114",
+        "627261",
+        "620704",
+        "622125",
+        "618396",
+        "621939",
+        "611882"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 1,
+      "ok": true
+    },
+    {
+      "page": 2,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=2",
+      "ids": [
+        "612440",
+        "612144",
+        "610029",
+        "610583",
+        "609562",
+        "609176",
+        "608085",
+        "602245",
+        "602242",
+        "594342",
+        "590977",
+        "584471",
+        "581496",
+        "578786",
+        "573485",
+        "575510",
+        "571360",
+        "570743",
+        "567576",
+        "568184"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 2,
+      "ok": true
+    },
+    {
+      "page": 3,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=3",
+      "ids": [
+        "567055",
+        "563442",
+        "563041",
+        "562087",
+        "562654",
+        "559880",
+        "558847",
+        "558087",
+        "557472",
+        "551505",
+        "548292",
+        "547966",
+        "547089",
+        "544956",
+        "544155",
+        "543626",
+        "543625",
+        "543606",
+        "542111",
+        "541822"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 3,
+      "ok": true
+    },
+    {
+      "page": 4,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=4",
+      "ids": [
+        "541818",
+        "541813",
+        "539121",
+        "537190",
+        "538550",
+        "538142",
+        "536895",
+        "535247",
+        "533864",
+        "533527",
+        "533530",
+        "533536",
+        "533518",
+        "529986",
+        "529632",
+        "528671",
+        "528974",
+        "528650",
+        "528368",
+        "528331"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 4,
+      "ok": true
+    },
+    {
+      "page": 5,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=5",
+      "ids": [
+        "528093",
+        "527341",
+        "524067",
+        "524064",
+        "523977",
+        "523528",
+        "522435",
+        "520180",
+        "515990",
+        "515913",
+        "515487",
+        "512267",
+        "514444",
+        "501873",
+        "507292",
+        "508278",
+        "506677",
+        "502018",
+        "501997",
+        "501999"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 5,
+      "ok": true
+    },
+    {
+      "page": 6,
+      "url": "https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?q=%D7%9E%D7%95%D7%A0%D7%99%D7%95%D7%AA%3AupdateDate&page=6",
+      "ids": [
+        "33623",
+        "501014",
+        "500972",
+        "500992",
+        "500955",
+        "500792",
+        "500773",
+        "29867",
+        "20521",
+        "14252",
+        "9743"
+      ],
+      "total": 131,
+      "pages": 7,
+      "returnedPage": 6,
+      "ok": true
+    }
+  ],
+  "records": 131,
+  "uniqueRecords": 131,
+  "duplicates": 0,
+  "matchesPortalTotal": true,
+  "allPagesValidated": true,
+  "documents": [
+    {
+      "tenderId": "632739",
+      "url": "https://mr.gov.il/ilgstorefront/he/p/632739",
+      "attachmentsFound": 4,
+      "attachments": [
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D122E121/מסמכי הליך",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1220121/מודעה לעיתונות בערבית",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1204121/מודעה לעיתונות בעברית",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/מסמכי הליך",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        }
+      ]
+    },
+    {
+      "tenderId": "4000611926",
+      "url": "https://mr.gov.il/ilgstorefront/he/p/4000611926",
+      "attachmentsFound": 14,
+      "attachments": [
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A78A67B7E31A815A/מסמך הבהרת עורך המכרז",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD19EF07598AD9F615A/מסמך הבהרת עורך המכרז",
+          "error": "The read operation timed out",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1FE197B52DF5653492F7/מסמך הבהרת עורך המכרז",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1FE190A78CA546EEB2F5/מסמך הבהרת עורך המכרז",
+          "httpStatus": 200,
+          "bytesRead": 131982,
+          "complete": true,
+          "format": "pdf",
+          "sha256": "59750d84dab54c35b5cd61c064dcfde2a0ecc58546f0facb4ba3371c4afea0a6"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD185E555E6A85EC158/מסמך הבהרת עורך המכרז",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0BDD2BF2AECD5A156/מסמך הבהרת עורך המכרז",
+          "error": "The read operation timed out",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C6E7AC6E36156/מודעה לעיתונות בעברית",
+          "httpStatus": 200,
+          "bytesRead": 152016,
+          "complete": true,
+          "format": "pdf",
+          "sha256": "831b260e50ef4b3117909e49dbee702096dfbcc0362af2ed2b54ae3a9140c965"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C700734866156/מודעה לעיתונות בערבית",
+          "httpStatus": 200,
+          "bytesRead": 272782,
+          "complete": true,
+          "format": "pdf",
+          "sha256": "2608d3a03f9f12db853746a0e93c3148cf1ea6ef485ff8dd1e25a30193ab06cc"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C69532646A156/נספח למכרז",
+          "httpStatus": 200,
+          "bytesRead": 753998,
+          "complete": true,
+          "format": "zip_or_office",
+          "sha256": "d2c6a4fc16d15daa4fb7655fadbc005cc9d5e5222c9c375cfcbe8386616bf39a"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C64C8FC96E156/נספח למכרז",
+          "httpStatus": 200,
+          "bytesRead": 21996,
+          "complete": true,
+          "format": "zip_or_office",
+          "sha256": "c7159ea88d288a25613f2c5c6388a238115e532a5545ed87577a461c1a00e143"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C669AC6916156/נספח למכרז",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C677CF553E156/נספח למכרז",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C6264DA4F0156/נספח למכרז",
+          "error": "The read operation timed out",
+          "complete": false
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך",
+          "error": "HTTP Error 404: Not Found",
+          "complete": false
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Keyword search includes unrelated results; eligibility classification is separate.",
+    "Successful retrieval does not prove all annexes were published.",
+    "No automatic schedule is configured.",
+    "This audit does not claim nationwide tender coverage."
+  ],
+  "lastRetryAt": "2026-09-15T11:27:10.419385+00:00"
+}

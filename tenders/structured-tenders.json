@@ -1,0 +1,346 @@
+{
+  "632739": {
+    "identity.number": {
+      "label": "מספר מכרז",
+      "kind": "text",
+      "scope": "identity",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "identity.issuer": {
+      "label": "מפרסם",
+      "kind": "text",
+      "scope": "identity",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "identity.cluster": {
+      "label": "אשכול",
+      "kind": "text",
+      "scope": "identity",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "identity.mode": {
+      "label": "סוג שירות",
+      "kind": "text",
+      "scope": "identity",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "dates.publication": {
+      "label": "פרסום",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "dates.submission": {
+      "label": "הגשת הצעות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "dates.questions": {
+      "label": "שאלות הבהרה",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "dates.service_start": {
+      "label": "תחילת שירות",
+      "kind": "date",
+      "scope": "dates",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "term.base": {
+      "label": "תקופת התקשרות בסיסית",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "term.extension": {
+      "label": "אפשרויות הארכה",
+      "kind": "duration",
+      "scope": "term",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "eligibility.turnover": {
+      "label": "מחזור כספי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "eligibility.equity": {
+      "label": "הון עצמי נדרש",
+      "kind": "money",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "eligibility.experience": {
+      "label": "ניסיון נדרש",
+      "kind": "duration",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "eligibility.licenses": {
+      "label": "רישיונות נדרשים",
+      "kind": "text",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "eligibility.fleet": {
+      "label": "צי כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "eligibility.drivers": {
+      "label": "נהגים כתנאי סף",
+      "kind": "count",
+      "scope": "eligibility",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "guarantee.bid": {
+      "label": "ערבות הצעה",
+      "kind": "money",
+      "scope": "bid",
+      "status": "verified",
+      "value": 50000,
+      "sources": [
+        {
+          "tenderId": "632739",
+          "fieldKey": "guarantee.bid",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A#page=54",
+          "locator": "עמוד 54"
+        }
+      ],
+      "currency": "ILS",
+      "unit": "one_time",
+      "vat": "not_specified",
+      "period": "bid_validity"
+    },
+    "guarantee.performance": {
+      "label": "ערבות ביצוע",
+      "kind": "money",
+      "scope": "execution",
+      "status": "verified",
+      "value": 225000,
+      "sources": [
+        {
+          "tenderId": "632739",
+          "fieldKey": "guarantee.performance",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A#page=56",
+          "locator": "עמוד 56"
+        }
+      ],
+      "currency": "ILS",
+      "unit": "one_time",
+      "vat": "not_specified",
+      "period": "contract_validity"
+    },
+    "fleet.operating": {
+      "label": "כלי רכב להפעלה",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "fleet.reserve": {
+      "label": "רכב רזרבי",
+      "kind": "count",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "fleet.seats": {
+      "label": "מושבים לרכב",
+      "kind": "count",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "fleet.electric_share": {
+      "label": "שיעור צי חשמלי",
+      "kind": "percent",
+      "scope": "execution",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "fleet.max_age": {
+      "label": "גיל רכב מרבי",
+      "kind": "duration",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "fleet.accessibility": {
+      "label": "נגישות כלי הרכב",
+      "kind": "text",
+      "scope": "vehicle",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "service.routes": {
+      "label": "קווים",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "service.variants": {
+      "label": "חלופות מסלול",
+      "kind": "list",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "service.weekly_trips": {
+      "label": "נסיעות בשבוע",
+      "kind": "count",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "service.annual_km": {
+      "label": "קילומטרים בשנה",
+      "kind": "distance",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "service.operating_hours": {
+      "label": "שעות פעילות",
+      "kind": "text",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "service.frequency": {
+      "label": "תדירות שירות",
+      "kind": "duration",
+      "scope": "service",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "price.per_km": {
+      "label": "תמורה לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "price.ceiling_per_km": {
+      "label": "תקרת מחיר לקילומטר",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "price.fixed_payment": {
+      "label": "תשלום קבוע",
+      "kind": "money",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "price.indexation": {
+      "label": "הצמדת תמורה",
+      "kind": "text",
+      "scope": "pricing",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "scoring.price_weight": {
+      "label": "משקל המחיר בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "scoring.quality_weight": {
+      "label": "משקל האיכות בניקוד",
+      "kind": "percent",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "scoring.minimum_quality": {
+      "label": "סף ניקוד איכות",
+      "kind": "points",
+      "scope": "scoring",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "penalties.amount": {
+      "label": "פיצוי מוסכם",
+      "kind": "money",
+      "scope": "penalties",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "award.winner": {
+      "label": "זוכה",
+      "kind": "text",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    },
+    "award.awarded_price": {
+      "label": "מחיר זכייה",
+      "kind": "money",
+      "scope": "award",
+      "status": "unverified",
+      "value": null,
+      "sources": []
+    }
+  }
+}
