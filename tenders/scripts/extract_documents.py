@@ -22,7 +22,7 @@ from tender_fields import blank, validate
 
 STATE = ROOT / 'extraction-state.json'
 FIELDS = ROOT / 'structured-tenders.json'
-VERSION = 2
+VERSION = 3
 NOTE = 'לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.'
 
 
@@ -101,6 +101,8 @@ def extract(pages, item, url, digest):
         if weight and re.search(r'100\s+סה', table):
             put('scoring.price_weight', int(weight[1]), page, '28.2', unit='percent')
         break
+    from eligibility_fields import add_eligibility
+    add_eligibility(fields, pages, item, url, digest)
     errors = validate(item['id'], fields)
     if errors:
         raise ValueError('; '.join(errors))
@@ -129,10 +131,10 @@ def process(item, previous, link_state, cache):
     if not main:
         result.update(status='source_missing', reason='לא אותר קישור למסמך המכרז הראשי; פרטי הפרסום נשמרו.', nextCheckAt=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=6)).isoformat())
         return item['id'], result, None
-    # Multiple base documents need version reconciliation; don't pick arbitrarily.
+    # Read each version separately; disagreements must not select an arbitrary winner.
     if len(main) != 1:
-        result.update(status='needs_review', reason='נמצאו כמה מסמכי הליך; נדרשת בחירת גרסה מאומתת.')
-        return item['id'], result, None
+        from document_versions import process_versions
+        return process_versions(item, previous, result, main, cache)
     url = main[0]
     try:
         pdf = cache / (item['id'] + '.pdf')
@@ -173,6 +175,7 @@ def is_due(item, previous, now):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=40)
+    parser.add_argument('--all', action='store_true', help='Check every collected operating tender, including those in backoff')
     parser.add_argument('--cache', default=str(pathlib.Path(tempfile.gettempdir()) / 'tender-extract'))
     args = parser.parse_args(argv)
     cache = pathlib.Path(args.cache); cache.mkdir(parents=True, exist_ok=True)
@@ -182,7 +185,7 @@ def main(argv=None):
     items = list({i['id']: i for i in collected if i['classification']=='operating_tender'}.values())
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     items.sort(key=lambda i: (state['tenders'].get(i['id'], {}).get('sourceFingerprint') == fingerprint(i), state['tenders'].get(i['id'], {}).get('attemptedAt', '')))
-    due = [i for i in items if is_due(i, state['tenders'].get(i['id'], {}), now)][:max(1, min(args.limit, 40))]
+    due = items if args.all else [i for i in items if is_due(i, state['tenders'].get(i['id'], {}), now)][:max(1, min(args.limit, 40))]
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         jobs = [pool.submit(process, i, state['tenders'].get(i['id'], {}), links.get(i['id'], {}), cache) for i in due]
         for job in concurrent.futures.as_completed(jobs):
@@ -192,12 +195,22 @@ def main(argv=None):
                 old = fields.setdefault(id, blank())
                 for key, value in incoming.items():
                     prior = old[key]
-                    if value['status']=='verified' and prior['status'] not in ('verified', 'verified_conditional', 'conflict'):
+                    if value['status'] in ('verified','verified_conditional') and prior['status'] not in ('verified', 'verified_conditional', 'conflict'):
                         old[key] = value
-                    elif value['status']=='verified' and prior['status']=='verified' and prior['value'] != value['value']:
-                        old[key] = {**prior, 'status':'conflict', 'value':None, 'reason':'המסמך שנקרא מציג ערך שונה מהערך שנבדק קודם.', 'sources':prior['sources']+value['sources']}
+                    elif value['status'] in ('verified','verified_conditional') and prior['status'] in ('verified','verified_conditional'):
+                        from document_versions import reconcile
+                        old[key] = reconcile([{**blank(),key:prior},{**blank(),key:value}])[key]
+                    elif value['status']=='conflict':
+                        old[key] = {**value, 'sources':prior.get('sources', [])+value.get('sources', [])}
                     elif prior['status']=='unverified':
                         old[key].setdefault('reason', value.get('reason'))
+            # Persist completed tenders immediately, even if a later download stalls.
+            for field_id, field_data in fields.items():
+                errors = validate(field_id, field_data)
+                if errors:
+                    raise ValueError(field_id + ': ' + '; '.join(errors))
+            state['checkedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            write(FIELDS, fields); write(STATE, state)
             print(id, result['status'], result.get('verifiedFields', 0), flush=True)
     for id, data in fields.items():
         errors = validate(id, data)

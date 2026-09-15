@@ -29,7 +29,7 @@ def validate(tender_id,fields):
    for condition in conditions:
     if not isinstance(condition,dict):errors.append(key+': invalid condition');continue
     if not condition.get('label'):errors.append(key+': missing condition scope')
-    if condition.get('comparison') not in {'eq','lt','lte'}:errors.append(key+': missing or invalid comparison')
+    if condition.get('comparison') not in {'eq','lt','lte','gte'}:errors.append(key+': missing or invalid comparison')
     if kind=='duration' and condition.get('unit') not in {'years','months','days'}:errors.append(key+': invalid duration unit')
     errors.extend(validate(tender_id,{key:{**condition,'kind':kind,'scope':scope,'status':'verified'}}))
    continue

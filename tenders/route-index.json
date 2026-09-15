@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-09-15T15:23:15.775619+00:00",
+  "tenders": {
+    "4000589849": {
+      "versions": 2,
+      "rows": 231,
+      "uniqueRoutes": 122,
+      "files": [
+        "route-data/4000589849-1.json",
+        "route-data/4000589849-2.json"
+      ]
+    },
+    "4000582393": {
+      "file": "route-data/4000582393.json",
+      "versions": 3,
+      "rows": 111,
+      "uniqueRoutes": 37
+    },
+    "4000560703": {
+      "file": "route-data/4000560703.json",
+      "versions": 1,
+      "rows": 72,
+      "uniqueRoutes": 72
+    }
+  }
+}

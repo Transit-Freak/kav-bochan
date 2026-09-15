@@ -7,6 +7,7 @@ def main():
     items = read(ROOT/'tenders-feed.json', {'items': []})['items'] + read(ROOT/'archive-feed.json', {'items': []})['items']
     reviews = read(ROOT/'document-reviews.json', {})
     extraction = read(ROOT/'extraction-state.json', {'tenders': {}})['tenders']
+    route_index = read(ROOT/'route-index.json', {'tenders': {}})['tenders']
     result = {}
     for item in items:
         if item['classification'] != 'operating_tender':
@@ -14,7 +15,8 @@ def main():
         id = item['id']; review = reviews.get(id, {}); routes = review.get('routes', [])
         identities = [(r.get('area'), r.get('number'), r.get('description')) for r in routes]
         gaps = []
-        if not routes:
+        annex = route_index.get(id, {})
+        if not routes and not annex.get('rows'):
             gaps.append('עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.')
         if len(set(identities)) != len(identities):
             gaps.append('נמצאו שורות כפולות ברשימת הקווים; נדרשת בדיקה.')
@@ -30,7 +32,7 @@ def main():
             gaps.append('שלמות רשימת הקווים עדיין לא אומתה.')
         # No geometry is inferred from route numbers or today's GTFS.
         gaps.append('לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה.')
-        result[id] = {'listedRows': len(routes), 'tableChecked': table_checked,
+        result[id] = {'listedRows': len(routes), 'annexRows':annex.get('rows',0), 'annexVersions':annex.get('versions',0), 'tableChecked': table_checked,
                       'routesComplete': False, 'mapsComplete': False, 'gaps': gaps}
     write(ROOT/'route-audit.json', {'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'tenders': result})
     print('Route coverage checked for', len(result), 'tenders; verified tables:', sum(x['tableChecked'] for x in result.values()))

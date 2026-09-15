@@ -4,6 +4,23 @@ from tender_fields import validate
 
 
 class ExtractionTests(unittest.TestCase):
+    def test_versions_keep_disagreements_null(self):
+        from document_versions import reconcile
+        a,_=extract(['מכרז מספר 03/2024','14.1 המציע יצרף ערבות בסכום של 2,000 ש"ח 14.2 אחר'],{'id':'sample','number':'3/2024'},'https://mr.gov.il/a','a')
+        b,_=extract(['מכרז מספר 03/2024','14.1 המציע יצרף ערבות בסכום של 3,000 ש"ח 14.2 אחר'],{'id':'sample','number':'3/2024'},'https://mr.gov.il/b','b')
+        result=reconcile([a,b]);self.assertIsNone(result['guarantee.bid']['value']);self.assertEqual(result['guarantee.bid']['status'],'conflict')
+        self.assertEqual(len(result['guarantee.bid']['sources']),2)
+        self.assertEqual(reconcile([a,a])['guarantee.bid']['value'],2000)
+
+    def test_alternative_qualification_is_not_universal(self):
+        text='4.1.1.3 בעל שליטה 30% מחזור מכירות שנתי ממוצע בשלוש השנים האחרונות (2023-2021) של לפחות 300 מיליון ₪ לשנה וההון העצמי בשנת 2023 הוא לפחות 60 מיליון ₪ בנוסף לפחות 80 אוטובוסים שהינם בעלי 34 מקומות ישיבה לפחות שירותי הסעות במהלך 5 השנים האחרונות 4.1.2 אחר'
+        fields,error=extract(['מכרז מספר 03/2024',text],{'id':'sample','number':'3/2024'},'https://mr.gov.il/a','a')
+        f=fields['eligibility.turnover'];self.assertIsNone(f['value']);self.assertEqual(f['status'],'verified_conditional')
+        self.assertEqual(f['conditions'][0]['value'],300000000);self.assertEqual(f['conditions'][0]['comparison'],'gte')
+        self.assertEqual(validate('sample',fields),[])
+        untouched,_=extract(['מכרז מספר 03/2024',text.replace('4.1.1.3','9.9.9')],{'id':'sample','number':'3/2024'},'https://mr.gov.il/a','a')
+        self.assertIsNone(untouched['eligibility.turnover']['value']);self.assertEqual(untouched['eligibility.turnover']['status'],'unverified')
+
     def test_daily_queue_and_publication_changes(self):
         item = {'id': 'sample', 'number': '3/24', 'updated': '2026-09-15', 'deadline': '2026-10-01'}
         previous = {'sourceVersion': item['updated'], 'sourceFingerprint': fingerprint(item), 'parserVersion': VERSION, 'nextCheckAt': '2026-09-16T00:00:00'}

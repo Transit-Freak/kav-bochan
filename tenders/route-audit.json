@@ -1,19 +1,22 @@
 {
-  "checkedAt": "2026-09-15T14:46:55.785287+00:00",
+  "checkedAt": "2026-09-15T15:23:15.896608+00:00",
   "tenders": {
     "4000589849": {
       "listedRows": 0,
+      "annexRows": 231,
+      "annexVersions": 2,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
-        "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]
     },
     "4000611926": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -25,39 +28,46 @@
     },
     "4000594348": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
         "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
+        "נקראה גרסת מסמך אחרת; יש לבדוק מחדש את התאמת רשימת הקווים.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]
     },
     "4000582393": {
       "listedRows": 0,
+      "annexRows": 111,
+      "annexVersions": 3,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
-        "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]
     },
     "4000560703": {
       "listedRows": 0,
+      "annexRows": 72,
+      "annexVersions": 1,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
-        "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]
     },
     "4000552742": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -69,6 +79,8 @@
     },
     "4000538622": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -81,6 +93,8 @@
     },
     "627142": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -92,6 +106,8 @@
     },
     "4000521518": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -103,6 +119,8 @@
     },
     "627143": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -114,6 +132,8 @@
     },
     "631731": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -125,6 +145,8 @@
     },
     "624510": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -136,6 +158,8 @@
     },
     "613802": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -147,6 +171,8 @@
     },
     "633258": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -158,6 +184,8 @@
     },
     "633259": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -169,6 +197,8 @@
     },
     "636078": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -180,6 +210,8 @@
     },
     "631745": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -191,6 +223,8 @@
     },
     "631740": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -202,6 +236,8 @@
     },
     "632739": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -213,6 +249,8 @@
     },
     "631737": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -224,6 +262,8 @@
     },
     "618396": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -235,6 +275,8 @@
     },
     "609098": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -247,6 +289,8 @@
     },
     "609100": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -259,17 +303,22 @@
     },
     "581458": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
       "gaps": [
         "עדיין אין רשימת קווים שנבדקה מול מסמכי המכרז.",
+        "נקראה גרסת מסמך אחרת; יש לבדוק מחדש את התאמת רשימת הקווים.",
         "שלמות רשימת הקווים עדיין לא אומתה.",
         "לא חוברו מפות מסלול מאומתות מנספחי המכרז. מספר קו ומוצא־יעד אינם מספיקים לשרטוט מפה."
       ]
     },
     "570024": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -281,6 +330,8 @@
     },
     "15660": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -292,6 +343,8 @@
     },
     "archive-northern-negev": {
       "listedRows": 128,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": true,
       "routesComplete": false,
       "mapsComplete": false,
@@ -301,6 +354,8 @@
     },
     "archive-hadera-netanya": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,
@@ -312,6 +367,8 @@
     },
     "archive-sharon-holon": {
       "listedRows": 0,
+      "annexRows": 0,
+      "annexVersions": 0,
       "tableChecked": false,
       "routesComplete": false,
       "mapsComplete": false,

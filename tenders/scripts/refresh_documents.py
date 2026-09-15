@@ -45,4 +45,8 @@ if __name__=='__main__':
  from extract_documents import main as extract_main
  extract_main([])
  from audit_routes import main as audit_routes
+ from scan_annexes import main as scan_annexes
+ scan_annexes()
+ from extract_route_tables import main as extract_route_tables
+ extract_route_tables()
  audit_routes()
