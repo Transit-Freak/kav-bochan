@@ -1,0 +1,625 @@
+{
+  "version": 1,
+  "tenders": {
+    "archive-northern-negev": {
+      "baseDocumentSha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+      "coverage": "סיכום סעיפי שינויי המסלול בעמודים המודפסים 78–79, שנבדקו בצילומים שצורפו. קריאת יתר ההופעות וההבהרות טרם הושלמה.",
+      "notes": [
+        {
+          "id": "negev-1",
+          "targets": [
+            {
+              "area": "שדרות",
+              "number": "3"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "בסעיף השינויים מצוין שינוי במסלול קו 3 בשדרות. הפסקה המצולמת אינה מפרטת את רחובות המסלול.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-2",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "2"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו יוארך מערבה לתוך שכונת ברנע ויסתיים במסוף חופית.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-3",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "1א"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "החלופה המכונה במסמך ״חלופת בית העלמין״ תוארך מערבה לשכונת ברנע ותסתיים במסוף חופית.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-4",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "4"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "מסלולי 4 ו־N4 יאוחדו לחלופה אחת לפי מסלול קו 4, עם כניסה גם לתחנת רכבת אשקלון.",
+          "relatedNumbers": [
+            "N4"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-5",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "5"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו יוארך מזרחה לשכונת ברנע, וסיומו יהיה במסוף חופית.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-6",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "18"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "לקווים 18 ו־N18 תישאר חלופה אחת, המבוססת על מסלול N18.",
+          "relatedNumbers": [
+            "N18"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-7",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "12"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו יוארך לשכונת ברנע ממזרח וייסע עד מסוף חופית.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.1",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-8",
+          "targets": [
+            {
+              "area": "מועצה אזורית אשכול",
+              "number": "11"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הכניסה למגן תבוטל בקו זה; השירות למגן יינתן בקו 14. החלופות יאוחדו למסלול יחיד.",
+          "relatedNumbers": [
+            "14"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.2",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-9",
+          "targets": [
+            {
+              "area": "מועצה אזורית אשכול",
+              "number": "10"
+            },
+            {
+              "area": "מועצה אזורית אשכול",
+              "number": "12"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "קו 12 הקודם יפוצל לקווים 10 ו־12. אחד מהם יספק שירות לשלומית, שלפי המסמך לא קיבלה שירות קודם; הפסקה אינה קובעת מי מהם.",
+          "relatedNumbers": [
+            "12",
+            "10"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.2",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-10",
+          "targets": [
+            {
+              "area": "מועצה אזורית אשכול",
+              "number": "13"
+            },
+            {
+              "area": "מועצה אזורית אשכול",
+              "number": "14"
+            },
+            {
+              "area": "מועצה אזורית אשכול",
+              "number": "15"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "לא מתוכנן שינוי במסלול, מלבד איחוד החלופות לחלופה אחת.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.2",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-11",
+          "targets": [
+            {
+              "area": "קריית גת",
+              "number": "62"
+            },
+            {
+              "area": "קריית גת",
+              "number": "64"
+            },
+            {
+              "area": "קריית גת",
+              "number": "66"
+            },
+            {
+              "area": "קריית גת",
+              "number": "164"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "קווים אלה מיועדים להחליף את קו 11 מקריית גת ליישובי לכיש, שיבוטל. מדובר בקו האזורי הישן, ולא בקו העירוני 11 שבטבלת קריית גת.",
+          "relatedNumbers": [
+            "11"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.2",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-12",
+          "targets": [
+            {
+              "area": "קריית גת",
+              "number": "65"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "קו 15 לזבדיאל ימוספר מחדש כ־65 ויוארך עד תחנת רכבת קריית גת.",
+          "relatedNumbers": [
+            "15"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=84",
+              "locator": "עמוד PDF 84 · עמוד מודפס 78 · סעיף 34.1.2",
+              "page": 84,
+              "printedPage": 78,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "94f783dfb1ade54ccffd86f4103856f6249a9bab67687b748d3cd0e04dfff26f"
+            }
+          ]
+        },
+        {
+          "id": "negev-13",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "16"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "תתווסף כניסה להרחבה בגיאה ולתחנת רכבת אשקלון. החלופות יאוחדו, וכל הנסיעות ייכנסו לבית הדר עד הכיכר, בהתאם לבקשת המועצה.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-14",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "19"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "המסלול יעבור בזיקים, כרמיה, מבקיעים ובת הדר, וימשיך לאשקלון עם כניסה לרכבת. השירות לארז, נתיב העשרה, יד מרדכי וגברעם יועבר לקו 20 החדש.",
+          "relatedNumbers": [
+            "20"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-15",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "20"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו החדש ייתן שירות לארז, נתיב העשרה, יד מרדכי וגברעם, במקום השירות שניתן דרך קו 19.",
+          "relatedNumbers": [
+            "19"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-16",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "21"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "המסלול יסתיים בשחר ויבוטל הקטע לשדרות. בדרך לאשקלון יינתן שירות לנוהר, ניר ח״ן ועוצם, ותתווסף כניסה לרכבת אשקלון.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-17",
+          "targets": [
+            {
+              "area": "אשקלון",
+              "number": "22"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו יחבר בין שדרות לאשקלון דרך חלץ, כוכב מיכאל ומשען. בשדרות הוא יצא ממכללת ספיר וייכנס למרכז העיר; באשקלון ימשיך דרך תחנת הרכבת לתחנה המרכזית.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-18",
+          "targets": [
+            {
+              "area": "שדרות",
+              "number": "240"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "קו 24 ימוספר מחדש כ־240 ויהפוך לקו מהיר בין שדרות לקריית גת. היישובים לאורך הציר יקבלו שירות בקווים החדשים 26 ו־61.",
+          "relatedNumbers": [
+            "24",
+            "26",
+            "61"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-19",
+          "targets": [
+            {
+              "area": "קריית גת",
+              "number": "250"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "קו 25 ימוספר מחדש כ־250 ויהפוך לקו מהיר בין קריית גת לאשקלון. את השירות ליישובים לאורך התוואי יספקו הקווים האזוריים החדשים 251 ו־252.",
+          "relatedNumbers": [
+            "25",
+            "251",
+            "252"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-20",
+          "targets": [
+            {
+              "area": "שדרות",
+              "number": "28"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו יתמקד בחיבור בין שדרות לנחל עוז.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-21",
+          "targets": [
+            {
+              "area": "אופקים",
+              "number": "330"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "קו 33 ימוספר מחדש כ־330. לצדו יופעל קו 332, שיחבר את אופקים לבית החולים סורוקה.",
+          "relatedNumbers": [
+            "33",
+            "332"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-22",
+          "targets": [
+            {
+              "area": "אופקים",
+              "number": "332"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו הנוסף יחבר את אופקים לבית החולים סורוקה, במקביל לקו 330.",
+          "relatedNumbers": [
+            "330"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-23",
+          "targets": [
+            {
+              "area": "באר שבע",
+              "number": "43"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "הקו יתמקד בניר משה–באר שבע. שירות נוסף ליישובים לאורך כביש 293 יינתן בקווים החדשים 51, 52 ו־53.",
+          "relatedNumbers": [
+            "51",
+            "52",
+            "53"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-24",
+          "targets": [
+            {
+              "area": "באר שבע",
+              "number": "47"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "החלופות הסיבוביות והחלופות הממשיכות למחנה שומריה יבוטלו.",
+          "relatedNumbers": [],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.2",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        },
+        {
+          "id": "negev-25",
+          "targets": [
+            {
+              "area": "אופקים",
+              "number": "30"
+            },
+            {
+              "area": "באר שבע",
+              "number": "130"
+            }
+          ],
+          "title": "שינויים במסלול ובשירות",
+          "text": "החלופות ירוכזו בשירות לצאלים: קו 30 מאופקים דרך תחנת הרכבת, וקו 130 מבאר שבע. קו 130 ייכנס לתחנת רכבת אופקים בלי הסיבוב בתוך העיר. הסעיף מתייחס גם לקו 35, שיש לאמת בנפרד את זהותו.",
+          "relatedNumbers": [
+            "35"
+          ],
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=85",
+              "locator": "עמוד PDF 85 · עמוד מודפס 79 · סעיף 34.1.3",
+              "page": 85,
+              "printedPage": 79,
+              "evidenceType": "user_screenshot",
+              "evidenceSha256": "38b4e51de6bf7293e18c5a0bcea2b40e0971d8a64ef35f4c3f7be16db0c2fb94"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

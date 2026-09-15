@@ -162,6 +162,7 @@ def process(item, key, prior, cache, force=False):
         if changed:
             result['previousSha256'] = prior.get('sha256')
             result['reviewedUnits'] = []
+            result['routeReviewedUnits'] = []
         result.update(sha256=digest, units=len(units), textUnits=sum(u['status'] in ('text_extracted','ocr_extracted') for u in units),
                       visualUnits=sum(u['status']=='visual_review_needed' for u in units),
                       memberErrors=parsed['errors'], parserVersion=VERSION, status='extracted', error=None,

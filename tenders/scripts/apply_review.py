@@ -37,7 +37,14 @@ def prepare(payload,state):
             if u.get('member'):loc=u['member']+', '+loc
             out.append({'url':doc['url']+('' if u.get('sheet') or u.get('block') or u.get('member') else '#page='+str(u['page'])), 'locator':loc,'sha256':digest,'unit':n})
         return out
-    result={'sha256':digest,'url':doc['url'],'sections':[],'routes':[],'maps':[],'fields':{}}
+    result={'sha256':digest,'url':doc['url'],'sections':[],'routes':[],'maps':[],'fields':{},'routeNotes':[]}
+    for note in payload.get('routeNotes',[]):
+        if not note.get('text') or not note.get('targets'):raise ValueError('Route note needs text and explicit scoped targets')
+        for target in note['targets']:
+            if not target.get('area') or not re.fullmatch(r'(?:N)?\d{1,4}[א-ת]?',str(target.get('number',''))):raise ValueError('Route targets require area and number; number alone is ambiguous')
+        result['routeNotes'].append({**note,'sources':evidence(note['unitIndices'])})
+    for n in payload.get('routeReviewedUnits',[]):
+        if n not in checked or checked[n]['disposition']=='unreadable':raise ValueError('Route review requires full readable unit review')
     for section in payload.get('sections',[]):
         if not section.get('title') or not section.get('text'):raise ValueError('Empty summary')
         result['sections'].append({**section,'sources':evidence(section['unitIndices'])})
@@ -95,13 +102,14 @@ def main():
     tender=out['tenders'].setdefault(tid,{'documents':{}})
     old=tender['documents'].get(key,{})
     if old.get('sha256')!=result['sha256']:old={}
-    for part in ('sections','routes','maps'):
+    for part in ('sections','routes','maps','routeNotes'):
         combined=old.get(part,[])+result[part]
         result[part]=list({json.dumps(x,sort_keys=True,ensure_ascii=False):x for x in combined}.values())
     result['fields']={**old.get('fields',{}),**result['fields']}
     tender['documents'][key]=result
     doc=state['tenders'][tid]['documents'][key]
     doc['reviewedUnits']=sorted(set(doc.get('reviewedUnits',[]))|{n for n,e in checked.items() if e['disposition']!='unreadable'})
+    doc['routeReviewedUnits']=sorted(set(doc.get('routeReviewedUnits',[]))|set(payload.get('routeReviewedUnits',[])))
     doc['reviewNotes']={**doc.get('reviewNotes',{}),**{str(n):e for n,e in checked.items()}}
     write(ROOT/'semantic-reviews.json',out);write(STATE,state)
     print('Applied review',tid,key,len(checked),'units')

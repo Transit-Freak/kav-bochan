@@ -71,3 +71,40 @@ publication, never from a manual test. Existing schedule: daily 08:30 Asia/Jerus
 16. Eligibility alternative 4.1.1.3 uses verified_conditional values and gte comparisons. Preserve the year range, ownership conditions and alternative scope. Run test_extraction.py and test_route_tables.py before publishing.
 
 Line-count verification: `test_route_tables.py` includes an end-to-end local source-change test. It adds and removes lines, retains historical versions separately, and proves directions do not inflate line counts. Keep this test and recompute per-version `counts` on each run. Never present summed historical rows as the current line count.
+
+
+## Cross-page route interpretation (required for every tender)
+
+Route rows are an inventory, not a route summary. `run_daily.py` now runs
+`route_mentions.py` across ALL available document units and creates
+`/tmp/tender-packages/route-review-queue.json`, fairly interleaved across tenders.
+The index deliberately accepts varied wording and PDF reading order. Numeric
+candidates and change-language matches are discovery hints, never verified facts.
+The general full-document review queue remains mandatory: the index is not proof
+that every relevant passage was found.
+
+In the same scheduled ChatGPT run, read the full candidate unit AND surrounding
+units; follow section headings across page breaks and inspect tables visually when
+needed. Interpret route changes, renumbering, splits/merges, cancellations, stops,
+operating times, frequencies, directions and variants. Distinguish existing versus
+planned service and conditional future changes. Read later amendments before
+claiming a final version. Resolve a route using tender + catalog ID when supplied,
+otherwise area + number; number alone is insufficient. Never infer that an old and
+new number identify the same line without explicit evidence. Keep uncertain joins
+queued rather than inventing a summary or erasing existing facts.
+
+Persist paraphrased `routeNotes` through apply_review.py, each with `text`,
+`targets` (number, area, optional catalogNumber/direction/variant), and exact
+`unitIndices`. Multiple notes and pages must accumulate on the same route card.
+Only set `routeReviewedUnits` after every route-related statement in those units
+has been resolved, summarized, or explicitly logged as unresolved. General field
+review is not a route-context review. A changed SHA invalidates this coverage.
+The renderer consumes these notes automatically for table, package and annex
+routes. Never rewrite the route inventory from narrative mentions or add cancelled
+lines to the operating count. Test with `node --test
+ tenders/scripts/test_route_details.cjs` in addition to all Python tests.
+
+The scheduled ChatGPT reader supplies semantic interpretation; the standalone
+Python acquisition scripts do not call a language model. Do not describe a regex
+scan as complete semantic analysis. The Northern Negev screenshot notes are
+sourced seed reviews, not a special extraction rule or evidence of full coverage.

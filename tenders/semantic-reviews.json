@@ -101,11 +101,186 @@
                   "unit": 18
                 }
               ]
+            },
+            {
+              "title": "שינויים בקווי חיפה",
+              "text": "במסמך הבסיס אין קווים חדשים. נקבעו שינויים במסלולים ובתדירויות וביטול הקווים 19, 217 ו־224. הביטולים אינם סיבה להוסיף קווים אלה למצבת ההפעלה.",
+              "unitIndices": [
+                70
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=71",
+                  "locator": "עמוד PDF 71",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 70
+                }
+              ]
             }
           ],
           "routes": [],
           "maps": [],
-          "fields": {}
+          "fields": {},
+          "routeNotes": [
+            {
+              "targets": [
+                {
+                  "number": "6",
+                  "catalogNumber": "10006",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "13",
+                  "catalogNumber": "11013",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "14",
+                  "catalogNumber": "10014",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "16",
+                  "catalogNumber": "10016",
+                  "area": "חיפה"
+                }
+              ],
+              "text": "מתוכנן שינוי בתדירות בלבד. שיעור השינוי וזמני הנסיעות דורשים קריאה במפרט הקו.",
+              "unitIndices": [
+                70
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=71",
+                  "locator": "עמוד PDF 71",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 70
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "10",
+                  "catalogNumber": "10010",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "41",
+                  "catalogNumber": "25041",
+                  "area": "חיפה"
+                }
+              ],
+              "text": "מתוכנן שינוי במסלול בלבד. הפסקה אינה מפרטת את הרחובות שהשתנו.",
+              "unitIndices": [
+                70
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=71",
+                  "locator": "עמוד PDF 71",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 70
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "9",
+                  "catalogNumber": "11009",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "17",
+                  "catalogNumber": "10017",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "18",
+                  "catalogNumber": "10018",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "20",
+                  "catalogNumber": "10020",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "24",
+                  "catalogNumber": "10024",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "36",
+                  "catalogNumber": "10036",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "38",
+                  "catalogNumber": "10038",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "40",
+                  "catalogNumber": "10040",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "42",
+                  "catalogNumber": "10042",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "76",
+                  "catalogNumber": "10076",
+                  "area": "חיפה"
+                }
+              ],
+              "text": "מתוכננים שינויים גם במסלול וגם בתדירות; את התוואי והתדירות המדויקים יש להשלים ממפרט הקו.",
+              "unitIndices": [
+                70
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=71",
+                  "locator": "עמוד PDF 71",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 70
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "6",
+                  "catalogNumber": "10006",
+                  "area": "חיפה"
+                },
+                {
+                  "number": "9",
+                  "catalogNumber": "11009",
+                  "area": "חיפה"
+                }
+              ],
+              "text": "בנוסף לשירות הסדיר, חלופה ת׳ של הקו מוגדרת במכרז כחלופת תלמידים.",
+              "unitIndices": [
+                71
+              ],
+              "title": "חלופת תלמידים",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=72",
+                  "locator": "עמוד PDF 72",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 71
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -155,7 +330,322 @@
           ],
           "routes": [],
           "maps": [],
-          "fields": {}
+          "fields": {},
+          "routeNotes": [
+            {
+              "targets": [
+                {
+                  "number": "199",
+                  "catalogNumber": "99199",
+                  "area": "בת ים"
+                }
+              ],
+              "text": "קו חדש בין בת ים לחולון, שנועד לקשר במהירות את מרכז בת ים עם אזור התעשייה בדרום־מזרח חולון ומרכז עזריאלי, וגם את חולון עם אזור התעשייה בבת ים.",
+              "unitIndices": [
+                66
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=67",
+                  "locator": "עמוד PDF 67",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 66
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "13",
+                  "catalogNumber": "99913",
+                  "area": "אזור"
+                }
+              ],
+              "text": "קו חדש מבאר יעקב לכיוון אזור התעשייה בחולון, דרך מרכז ראשון לציון. במסמך הוא מתואר כשירות מקדים לקו הסגול של הרכבת הקלה.",
+              "unitIndices": [
+                66
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=67",
+                  "locator": "עמוד PDF 67",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 66
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "144",
+                  "catalogNumber": "10144",
+                  "area": "חולון"
+                }
+              ],
+              "text": "המסלול המרכזי ישתנה לחולון–נתב״ג דרך בת ים ורמלה, עם תגבור התדירות. המסלול הקודם דרך רמלה ולוד לבסיס בן עמי יישמר כחלופה. עד הקמת תחנת רכבת תעופה, תחנת הקצה המתוכננת היא בטרמינל 2; בהמשך היא מיועדת לעבור לתחנת הרכבת.",
+              "unitIndices": [
+                67
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=68",
+                  "locator": "עמוד PDF 68",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 67
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "19",
+                  "catalogNumber": "18019",
+                  "area": "ראשון לציון"
+                }
+              ],
+              "text": "במסמך המכרז לא נקבע שינוי לקו, אך מתואר שינוי צפוי עקב סגירת אלנבי. המסלול בהפעלה אמור להיות מותאם לציר שייקבע. אין כאן תיאור סופי של אותו ציר.",
+              "unitIndices": [
+                67
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=68",
+                  "locator": "עמוד PDF 68",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 67
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "4000589849": {
+      "documents": {
+        "4f0c74d0b6b20ee97d75": {
+          "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך",
+          "sections": [],
+          "routes": [],
+          "maps": [],
+          "fields": {},
+          "routeNotes": [
+            {
+              "targets": [
+                {
+                  "number": "172",
+                  "catalogNumber": "99172",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "קו חדש ממעלה אדומים לתחנה המרכזית בירושלים, שנועד לרכז שירות תדיר במקום כמה קווים מבוטלים מסדרת 170 ומעלה.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "28",
+                  "catalogNumber": "28028",
+                  "area": "מעלה אדומים"
+                },
+                {
+                  "number": "146",
+                  "catalogNumber": "12146",
+                  "area": "מטה בנימין"
+                },
+                {
+                  "number": "149",
+                  "catalogNumber": "15149",
+                  "area": "ירושלים"
+                },
+                {
+                  "number": "209",
+                  "catalogNumber": "11209",
+                  "area": "ירושלים"
+                },
+                {
+                  "number": "211",
+                  "catalogNumber": "13211",
+                  "area": "ירושלים"
+                },
+                {
+                  "number": "468",
+                  "catalogNumber": "10468",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "מתוכננת הפחתה במספר הנסיעות; הכמות המדויקת אינה מפורטת בפסקה זו.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "47",
+                  "catalogNumber": "43047",
+                  "area": "שילה"
+                }
+              ],
+              "text": "מתוכנן קיצור המסלול בין מעלה לבונה לשילה; נקודות הקיצור אינן מפורטות בפסקה זו.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "122",
+                  "catalogNumber": "10122",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "המסלול בתוך מעלה אדומים ייעשה ישיר יותר, ובירושלים הוא יסתיים בקריית הממשלה במקום ההגעה להר נוף.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "123",
+                  "catalogNumber": "11123",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "מתוכנן להפוך את המסלול במעלה אדומים לישיר יותר. פרטי הרחובות אינם מופיעים בפסקה זו.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "124",
+                  "catalogNumber": "10124",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "השירות יאוחד עם קו 125, המיועד לביטול.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "164",
+                  "catalogNumber": "17164",
+                  "area": "ירושלים"
+                },
+                {
+                  "number": "166",
+                  "catalogNumber": "15166",
+                  "area": "ירושלים"
+                },
+                {
+                  "number": "167",
+                  "catalogNumber": "13167",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "המסלול במעלה אדומים ייעשה ישיר יותר, ותתווספנה נסיעות.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            },
+            {
+              "targets": [
+                {
+                  "number": "165",
+                  "catalogNumber": "17165",
+                  "area": "ירושלים"
+                }
+              ],
+              "text": "המסלול במעלה אדומים ייעשה ישיר יותר, ומספר הנסיעות יופחת.",
+              "unitIndices": [
+                69
+              ],
+              "title": "פרטי המסלול והשירות",
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=70",
+                  "locator": "עמוד PDF 70",
+                  "sha256": "a6f0b9b1bfe3365720b63ba0ad27a7f164931695fbfa131847699182c8530710",
+                  "unit": 69
+                }
+              ]
+            }
+          ]
         }
       }
     }
