@@ -2755,6 +2755,7 @@ const DAYS_FILTER = [
   //   - מותאם רכבת (uniqueness מכיל "רכבת"): 10 נקודות
   //   - תלמידים בשעות בית ספר: 10 נקודות
   const redundantLines = useMemo(() => {
+    if (appMode !== 'kavpach') return [];
     // שלב 1: ספירת כמה קווים מגיעים לכל יעד (לזיהוי "תחנת קצה ייחודית")
     const destLineCount = new Map();
     {
@@ -3027,7 +3028,7 @@ const DAYS_FILTER = [
         live,
       };
     }).filter(l => l.score >= (Number(pset.minScore) || 0)).sort((a,b) => b.score - a.score);
-  }, [trips, costBenchmarkTable, liveOf, overlapMap, pset]);
+  }, [trips, costBenchmarkTable, liveOf, overlapMap, pset, appMode]);
 
   const filteredRedundant = useMemo(() => {
     let result = [...redundantLines];
@@ -3181,6 +3182,7 @@ const DAYS_FILTER = [
   };
 
   const tableTrips = useMemo(() => {
+    if (appMode !== 'kavpach' || tab !== 'allTrips') return [];
     const sCity = searchCity.toLowerCase();
     // חיפוש אחיד עם הטאב המקביל במוזהב (סעיף 35): גם מספר קו/מק"ט, לא רק עיר
     const sLine = searchCity.trim().replace(/^0+/, '');
@@ -3218,7 +3220,7 @@ const DAYS_FILTER = [
     }
 
     return filtered;
-  }, [trips, searchCity, showCrowded, sortConfig, lineCitiesMap, filterLineType]);
+  }, [trips, searchCity, showCrowded, sortConfig, lineCitiesMap, filterLineType, appMode, tab]);
 
   const runOptimization = async (overrideLine, overrideCity, overrideDirection, overrideDays) => {
     const lineToUse = typeof overrideLine === 'string' ? overrideLine : optLine;
