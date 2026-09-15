@@ -4011,30 +4011,27 @@ const DAYS_FILTER = [
                           if (!ov || !ov.length) return null;
                           return (
                             <div className="mb-4 bg-sky-50 border border-sky-200 rounded-2xl px-3 py-2">
-                              <div className="text-xs font-black text-sky-700 mb-2">🔀 תחנות ותוואי משותפים · נדרשת בדיקת חלופה</div>
+                              <div className="text-xs font-black text-sky-700 mb-2">🔀 חפיפת קווים</div>
                               <div className="space-y-2">
                                 {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
-                                  <div key={mk2} className="text-xs bg-white border border-sky-200 text-sky-900 px-3 py-2 rounded-xl">
-                                    <div className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}% חפיפה משולבת</div>
-                                    <div>{shared} תחנות משותפות · {pct}% במדד התחנות</div>
-                                    <div className="mt-1 break-words">{shape?.otherRouteName || long2}</div>
-                                    <div className="mt-1 text-slate-600">מק״ט {mk2}</div>
-                                    {shape?.status === 'estimated' ? <div className="mt-2 pt-2 border-t border-sky-100 leading-relaxed">
-                                      <div className="font-bold">אומדן תוואי משותף באותו כיוון: {shape.sharedKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ</div>
-                                      <div>{shape.selfPct}% מהחלופה שנבדקה בקו {res.lineNum} · {shape.otherPct}% מהחלופה בקו {num2}</div>
-                                      <div>המקטע הרציף הארוך ביותר: {shape.longestKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ</div>
-                                      <details className="mt-1"><summary className="cursor-pointer">החלופות שנבדקו</summary>
-                                        <div className="mt-1">קו {res.lineNum}: {shape.selfRouteName} · {shape.selfKm} ק״מ</div>
-                                        <div>קו {num2}: {shape.otherRouteName} · {shape.otherKm} ק״מ</div>
-                                      </details>
-                                    </div> : <div className="mt-2 text-slate-600">אומדן התוואי המשותף אינו זמין</div>}
-                                  </div>
+                                  <details key={mk2} className="text-xs bg-white border border-sky-200 text-sky-900 px-3 py-2 rounded-xl">
+                                    <summary className="cursor-pointer flex items-center justify-between gap-3 list-none" style={{listStyle:'none'}}>
+                                      <span className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}% חפיפה</span>
+                                      <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{minWidth:32,minHeight:32}}>?</span>
+                                    </summary>
+                                    <div className="mt-2 pt-2 border-t border-sky-100 leading-relaxed">
+                                      <div>{shared} תחנות משותפות · {pct}% במדד התחנות.</div>
+                                      <div>{shape.selfPct}% מתוואי קו {res.lineNum} משותף לקו {num2}, באותו כיוון נסיעה.</div>
+                                      <div className="mt-2">אחוז החפיפה הוא ממוצע של שני המדדים במשקל שווה. מוצגים רק קווים עם 50% ומעלה. כשחסר מדד, הקו אינו מוצג ברשימה.</div>
+                                      <div className="mt-2">תוואי משותף באומדן: {shape.sharedKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ · המקטע הרציף הארוך ביותר: {shape.longestKm.toLocaleString('he-IL', {maximumFractionDigits:2})} ק״מ.</div>
+                                      <div className="mt-2">המסלולים שנבדקו:</div>
+                                      <div>קו {res.lineNum}: {shape.selfRouteName} · {shape.selfKm} ק״מ.</div>
+                                      <div>קו {num2}: {shape.otherRouteName || long2} · {shape.otherKm} ק״מ · מק״ט {mk2}.</div>
+                                      <div className="mt-2">מדד התחנות מחושב ביחס למסלול שבו פחות תחנות. התוואי נבדק לפי קרבה וכיוון בנתוני GTFS ועלול להיות מושפע מאי־דיוק בנתונים. לא נבדקו ימי ושעות הפעילות או מגבלות איסוף והורדה.</div>
+                                      <div className="mt-2">החפיפה אינה מוכיחה שהקו הוא חלופה מלאה, ואינה המלצה לביטול או לאיחוד קווים. החישוב נפרד מציון אי־היעילות.</div>
+                                    </div>
+                                  </details>
                                 ))}
-                              </div>
-                              <div className="text-xs text-sky-900 leading-relaxed mt-2">
-                                הציון המשולב הוא ממוצע של מדד התחנות ואחוז התוואי המשותף מתוך הקו הנבדק, במשקל שווה. מוצגים רק ציונים של 50% ומעלה; כשחסר אחד המדדים, הקו אינו מוצג ברשימה. ציון זה נפרד מציון אי־היעילות.
-                                נבחרת חלופה אחת לכל מק״ט. אומדן התוואי מבוסס על קרבה עד 20 מטר, כיוון נסיעה דומה ומקטעים רציפים של לפחות 100 מטר ב־GTFS; נתוני תוואי לא מדויקים עלולים להשפיע עליו. לא נבדקו ימי ושעות הפעילות או מגבלות איסוף והורדה.
-                                תחנות משותפות אינן מוכיחות שאפשר להגיע לאותו יעד. זה אינו תכנון לאיחוד הקווים או המלצה לבטל אחד מהם.
                               </div>
                             </div>
                           );
