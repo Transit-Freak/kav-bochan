@@ -2149,6 +2149,7 @@ function KavPach() {
   const pFiltOn = Object.values(pFilt).some(v => v != null);
   const [showCrowded, setShowCrowded] = useState(false);
   const [visibleTripsCount, setVisibleTripsCount] = useState(60);
+  const [visibleLineCount, setVisibleLineCount] = useState(30);
   const [filterLineType, setFilterLineType] = useState("all");
   
   // ── אזורים חלשים State ──
@@ -3069,6 +3070,8 @@ const DAYS_FILTER = [
     return result;
   }, [redundantLines, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt]);
 
+  useEffect(() => { setVisibleLineCount(30); }, [filteredRedundant]);
+
   const areaStats = useMemo(() => {
     const map = new Map();
     redundantLines.forEach(line => {
@@ -3915,7 +3918,7 @@ const DAYS_FILTER = [
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredRedundant.length > 0 ? filteredRedundant.map((res, i) => (
+                  {filteredRedundant.length > 0 ? filteredRedundant.slice(0, visibleLineCount).map((res, i) => (
                     <div key={`red-${res.groupKey}-${i}`} className="vcard bg-white border-2 border-slate-100 rounded-[2.5rem] p-7 shadow-sm hover:border-slate-900 transition-all text-right flex flex-col group relative">
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex flex-col gap-2 items-start text-right">
@@ -4155,6 +4158,14 @@ const DAYS_FILTER = [
                     )
                   )}
                 </div>
+                {filteredRedundant.length > visibleLineCount && (
+                  <div className="text-center pt-6">
+                    <button type="button" onClick={() => setVisibleLineCount(n => n + 30)}
+                      className="bg-slate-900 text-white font-black px-6 py-3 rounded-2xl">
+                      הצג עוד קווים ({visibleLineCount} מתוך {filteredRedundant.length.toLocaleString()})
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
