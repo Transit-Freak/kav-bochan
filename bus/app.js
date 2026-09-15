@@ -359,7 +359,7 @@ function renderCities() {
     $('#cq').oninput = e => { cq = e.target.value; showAllC = false; renderCities(); };
   }
   const q = cq.trim();
-  let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, miss: s.sched > 0 ? Math.max(0, 1 - s.obs / s.sched) : null, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, sched: s.sched || null, miss: s.sched ? 1 - s.obs / s.sched : null}));
+  let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, sched: s.sched || null, miss: s.sched ? 1 - s.obs / s.sched : null}));
   if (q) rows = rows.filter(r => r.nm.includes(q));
   sortRows(rows, sortC);
   const total = rows.length;
@@ -454,7 +454,7 @@ function renderFilters() {
 }
 function renderLines() {
   const q = lq.trim();
-  let rows = Object.values(M.Rr).map(s => { const l = lineLabel(s.rid); const oT = s.o.reduce((x, y) => x + y, 0); return Object.assign({short: l.short, long: l.long, agency: l.agency, cluster: l.cluster || 'ללא אשכול', dir: l.dir, on: s.on, early: s.meas ? s.c[0] / s.meas : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}, s); });
+  let rows = Object.values(M.Rr).map(s => { const l = lineLabel(s.rid); const oT = s.o.reduce((x, y) => x + y, 0); return Object.assign({short: l.short, long: l.long, agency: l.agency, cluster: l.cluster || 'ללא אשכול', dir: l.dir, on: s.on, miss: s.sched > 0 ? Math.max(0, 1 - s.obs / s.sched) : null, early: s.meas ? s.c[0] / s.meas : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}, s); });
   if (agency) rows = rows.filter(r => r.agency === agency);
   if (cluster) rows = rows.filter(r => r.cluster === cluster);
   if (rank === 'miss') rows = rows.filter(r => r.sched >= MIN_RIDES);
