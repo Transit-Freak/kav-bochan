@@ -44,3 +44,5 @@ if __name__=='__main__':
  # Content extraction has its own fair queue; run it even if no link checks were due.
  from extract_documents import main as extract_main
  extract_main([])
+ from audit_routes import main as audit_routes
+ audit_routes()
