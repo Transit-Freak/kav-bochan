@@ -1,20 +1,21 @@
 'use strict';
 let documentReviews={};
+let packageState={},automaticSummaries={},semanticReviews={};
 let governmentItems=[],archiveItems=[],portalItems=[],feedExpanded=false,fieldCatalog={},structuredFields={},fieldsState='loading';
 let filter='all';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function matches(){const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);return portalItems.filter(t=>(filter==='all'||t.type===filter)&&tokens.every(q=>[t.title,t.number,t.id,...(documentReviews[t.id]?.routes||[]).flatMap(r=>[r.number,r.area])].join(' ').toLowerCase().includes(q)));}
+function matches(){const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);return portalItems.filter(t=>(filter==='all'||t.type===filter)&&tokens.every(q=>[t.title,t.number,t.id,...allPackageRoutes(t.id).flatMap(r=>[r.number,r.area,r.destination,r.description]),...(documentReviews[t.id]?.routes||[]).flatMap(r=>[r.number,r.area])].join(' ').toLowerCase().includes(q)));}
 function render(){document.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filter===filter)));renderFeed();}
 $('search').addEventListener('input',render);$('reset').onclick=()=>{$('search').value='';filter='all';render();$('search').focus()};document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;render()});render();
 if(document.modelContext?.registerTool){
  try{Promise.resolve(document.modelContext.registerTool({name:'search_tenders',description:'Filter the visible tender list by query and transport type. This changes the displayed search.',inputSchema:{type:'object',properties:{query:{type:'string'},type:{enum:['all','bus','taxi']}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!input||typeof input.query!=='string'||(input.type&&!['all','bus','taxi'].includes(input.type)))throw new Error('Invalid search');$('search').value=input.query;filter=input.type||'all';render();return matches().map(t=>({id:t.id,title:t.title,number:t.number,coverage:'partial'}));}})).catch(()=>{});}catch{}
 }
 fetch('access-check.json').then(r=>{if(!r.ok)throw new Error('audit unavailable');return r.json()}).then(r=>{$('audit-summary').textContent=`בדיקת חיפוש מוניות: ${r.uniqueRecords} רשומות ייחודיות מתוך ${r.pages[0].total} בתוצאות הפורטל. ${r.allPagesValidated&&r.matchesPortalTotal?'כל עמודי החיפוש נקראו.':'האיסוף חלקי; חלק מהבקשות נכשלו.'} החיפוש כולל גם תוצאות שאינן מכרזי קווי שירות.`}).catch(()=>{$('audit-summary').textContent='דוח הבדיקה אינו זמין כרגע.'});
-function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const all=matches();const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>`<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום נוסף · עדיין בבדיקה'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p>${t.discoveryNote?`<details class="discovery-note"><summary>מה בדקנו עד עכשיו?</summary><p>${esc(t.discoveryNote)}</p></details>`:''}${renderFields(t)}${renderDocumentReview(t)}${typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}</div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';$('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
+function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const all=matches();const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>`<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום נוסף · עדיין בבדיקה'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p>${t.discoveryNote?`<details class="discovery-note"><summary>מה בדקנו עד עכשיו?</summary><p>${esc(t.discoveryNote)}</p></details>`:''}${renderPackage(t)}${renderFields(t)}${renderDocumentReview(t)}${typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}</div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';$('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
 $('feed-more').onclick=()=>{feedExpanded=!feedExpanded;renderFeed()};
-fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. הרשימה עדיין חלקית: החיפוש בפורטל מוגבל למשרד התחבורה ולמילה ״קווי״.`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. אפשר לנסות לרענן את הדף.'});
-fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?'המערכת מחפשת פרסומים חדשים ושינויים פעם ביום. תנאים שעדיין לא נבדקו יישארו מסומנים כך עד להשלמת הבדיקה.':'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
+fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. ${r.queries?.length?`נערכו ${r.queries.length} חיפושים במפרסם משרד התחבורה. הכיסוי עדיין אינו מובטח כמלא.`:'הרשימה עדיין חלקית: החיפוש בפורטל מוגבל למשרד התחבורה ולמילה ״קווי״.'}`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. אפשר לנסות לרענן את הדף.'});
+fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?(r.firstScheduledRunVerified?'העדכון היומי הופעל ונבדקה הרצה מתוזמנת.':'הוגדר עדכון יומי ל־08:30. הצלחת ההרצה המתוזמנת הראשונה עדיין לא אומתה.'):'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
 function isVerified(f){return ['verified','verified_conditional'].includes(f?.status);}
 function renderSources(sources){
  return (sources||[]).filter(s=>/^https:\/\//.test(s.url||'')).map(s=>`<a target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.locator)}</a>`).join(' · ');
@@ -29,14 +30,14 @@ let extractionState={};
 fetch('extraction-state.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(r=>{extractionState=r.tenders||{};renderFeed()}).catch(()=>{});
 function extractionSummary(id){
  const s=extractionState[id];if(!s)return '';
- const count=Object.values(structuredFields[id]||{}).filter(isVerified).length;
+ const count=Object.values(combinedFields(id)).filter(isVerified).length;
  const message=s.status==='retry_pending'?'הורדת המסמך לא הצליחה בבדיקה האחרונה. המערכת תנסה שוב.':s.status==='source_missing'?'לא נמצא מסמך מכרז ראשי זמין.':s.status==='needs_review'?(s.reason||'המסמך דורש בדיקה נוספת.'):'חלק מהפרטים נקראו; יתר התנאים וההבהרות עדיין בבדיקה.';
  return `<p class="muted">${count?`${count} פרטים שנבדקו נשמרו. `:''}${esc(message)}</p>`;
 }
 function renderFields(t){
  if(fieldsState==='loading')return '<p class="muted" role="status">טוען פרטים…</p>';
  if(fieldsState==='error'||!Object.keys(fieldCatalog).length)return '<p role="status">טעינת התנאים נכשלה. <button data-retry-fields>ניסיון חוזר</button></p>';
- const fields=structuredFields[t.id]||{},all=Object.entries(fieldCatalog).map(([k,d])=>[k,fields[k]||d]);
+ const fields=combinedFields(t.id),all=Object.entries(fieldCatalog).map(([k,d])=>[k,fields[k]||d]);
  const verified=all.filter(([,f])=>isVerified(f)),pending=all.filter(([,f])=>!isVerified(f));
  const labels={unverified:'עדיין לא בדקנו',source_missing:'לא מצאנו מסמך מתאים',unrecognized_wording:'הניסוח במסמך אינו ברור',conflict:'המקורות מציגים מידע שונה',not_applicable:'לא רלוונטי למכרז הזה'};
  return `${extractionSummary(t.id)}<details class="fielddetails tender-conditions"><summary>${verified.length?`${verified.length} פרטים שנבדקו`:'עדיין לא בדקנו את התנאים'}</summary>${verified.length?`<p class="muted">הפרטים נבדקו במסמך המקושר. ייתכן שיש עדכונים מאוחרים יותר שעדיין לא בדקנו.</p><div class="verified-grid">${verified.map(([k,f])=>renderVerifiedField(k,f)).join('')}</div>`:''}<details class="pending-fields"><summary>מה עדיין חסר? ${pending.length} פרטים</summary>${pending.map(([k,f])=>`<div class="pending-row"><strong>${esc(fieldLabel(k,f))}</strong><span>${labels[f.status]||'ממתין לבדיקה'}</span>${f.reason?`<p>${esc(f.reason)}</p>`:''}${f.sources?.length?`<p>${renderSources(f.sources)}</p>`:''}</div>`).join('')}</details></details>`;
@@ -93,7 +94,7 @@ let routeAudit={};
 fetch('route-audit.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(r=>{routeAudit=r.tenders||{};renderFeed()}).catch(()=>{});
 function routeGaps(id){return (routeAudit[id]?.gaps||[]).map(g=>`<li>${esc(g)}</li>`).join('');}
 function renderDocumentReview(t){
- const r=documentReviews[t.id];if(!r)return t.classification==='operating_tender'?`<details class="fielddetails"><summary>קווים ומסלולים · בדיקת שלמות</summary><ul>${routeGaps(t.id)||'<li>רשימת הקווים והמפות עדיין לא נבדקו מול נספחי המכרז.</li>'}</ul></details>`:'';
+ const r=documentReviews[t.id];if(!r)return t.classification==='operating_tender'?`<details class="fielddetails"><summary>קווים ומסלולים · בדיקת שלמות הרשימה</summary><ul>${routeGaps(t.id)||'<li>רשימת הקווים והמפות עדיין לא נבדקו מול נספחי המכרז.</li>'}</ul></details>`:'';
  return `<details class="fielddetails review-details"><summary>קווים ותיאור השירות</summary><p class="warning">${esc(r.coverage)}</p>${r.sections.filter(section=>!['הפעלה ותקופת בסיס','אפשרויות הארכה','גיל הרכב'].includes(section.title)).map(section=>`<h4>${esc(section.title)}</h4><p>${esc(section.text)}</p><p>${[section.page,...(section.alsoPages||[])].map(page=>reviewSource(r,page)).join(' · ')}</p>`).join('')}<h4>קווים בתכנון המכרז</h4><p class="muted">${esc(r.routesCoverage)}</p><div class="routechips">${r.routes.map((route,i)=>`<button data-reviewed-tender="${esc(t.id)}" data-reviewed-route="${i}" aria-haspopup="dialog">${esc(route.number)} · ${esc(route.area)}</button>`).join('')}</div><h4>מה עדיין לא ידוע?</h4><ul>${r.gaps.map(gap=>`<li>${esc(gap)}</li>`).join('')}${routeGaps(t.id)}</ul></details>`;
 }
 fetch('document-reviews.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('Review unavailable');return r.json()}).then(r=>{documentReviews=r;renderFeed()}).catch(()=>{});
@@ -103,3 +104,47 @@ document.addEventListener('click',event=>{
  routeDialog.innerHTML=`<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">קו ${esc(route.number)} · ${esc(route.area)}</h2><p>${esc(route.description)}</p><p class="warning">תכנון לפי מסמך המכרז; אין לראות בו מסלול נוכחי. תחנות, כיוונים וחלופות עדיין לא נבדקו.</p>${[route.page,...(route.alsoPages||[])].map(page=>reviewSource(review,page)).join(' · ')}`;
  routeDialog.showModal();
 });
+
+function currentPackageDocuments(id, collection){
+ return Object.entries(collection[id]?.documents||{}).filter(([key,d])=>packageState[id]?.documents?.[key]?.sha256===d.sha256).map(([,d])=>d);
+}
+function allPackageRoutes(id){
+ const routes=[...currentPackageDocuments(id,semanticReviews).flatMap(d=>d.routes||[]),...currentPackageDocuments(id,automaticSummaries).flatMap(d=>d.routes||[])];
+ return [...new Map(routes.map(r=>[JSON.stringify([r.number,r.area,r.destination,r.direction,r.variant,r.member,r.row,r.sha256||r.sources?.[0]?.sha256]),r])).values()];
+}
+function packageSource(r){
+ return r.sources||[{url:r.url+(r.sheet||r.member?'':'#page='+r.page),locator:[r.member,r.sheet?`גיליון ${r.sheet}, שורה ${r.row}`:`עמוד PDF ${r.page}`].filter(Boolean).join(' · ')}];
+}
+function renderPackage(t){
+ const p=packageState[t.id];if(!p)return '';
+ const docs=Object.values(p.documents||{}),downloaded=docs.filter(d=>d.sha256),failed=docs.filter(d=>d.status==='retry_pending');
+ const total=downloaded.reduce((n,d)=>n+(d.units||0),0),reviewed=downloaded.reduce((n,d)=>n+(d.reviewedUnits?.length||0),0);
+ const semantic=currentPackageDocuments(t.id,semanticReviews),automatic=currentPackageDocuments(t.id,automaticSummaries);
+ const sections=semantic.flatMap(d=>d.sections||[]),routes=allPackageRoutes(t.id);
+ const versions=automatic.filter(d=>Object.keys(d.fields||{}).length);
+ return `<section class="package-summary"><h4>סיכום מסמכי המכרז</h4>${sections.length?sections.map(s=>`<p><strong>${esc(s.title)}:</strong> ${esc(s.text)} <small>${renderSources(s.sources)}</small></p>`).join(''):'<p class="muted">סיכום התנאים המלא עדיין לא הושלם.</p>'}
+ ${versions.map(d=>{const keys=['identity.cluster','guarantee.bid','guarantee.performance','scoring.price_weight'];return `<p>${keys.filter(k=>d.fields[k]).map(k=>`${esc(fieldLabel(k,d.fields[k]))}: <strong>${formatFieldValue(d.fields[k])}</strong>`).join(' · ')} <small>${renderSources([{url:d.url,locator:'מסמך המקור'}])}</small></p>`;}).join('')}
+ ${routes.length?`<details class="fielddetails"><summary>קווים מתוך מסמכי המכרז · ${routes.length} רשומות</summary><p class="muted">הרשימה מבוססת על המסמכים המקושרים. השלמת כל הכיוונים, החלופות וההבהרות עדיין בבדיקה.</p><div class="routechips">${routes.map((r,i)=>`<button data-package-tender="${esc(t.id)}" data-package-route="${i}" aria-haspopup="dialog">${esc(r.number)} · ${esc(r.area)}</button>`).join('')}</div></details>`:''}
+ <details class="source-details"><summary>המסמכים והיקף הבדיקה</summary><p>${docs.length} מסמכים אותרו; ${downloaded.length} נקראו לקובצי טקסט. סוכמו ונבדקו ${reviewed} מתוך ${total} עמודים או יחידות תוכן שחולצו.${failed.length?` הורדת ${failed.length} מסמכים נכשלה ותיבדק שוב.`:''}</p>${!p.listingOk?'<p>לא ניתן היה לעדכן את רשימת המסמכים מהמקור בבדיקה האחרונה.</p>':''}<ul>${docs.map(d=>`<li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(decodeURIComponent(d.url.split('/').pop()))}</a> · ${d.status==='extracted'?`${d.units} עמודים או יחידות תוכן`:d.status==='retry_pending'?'הורדה לא הצליחה':'ממתין להורדה'}</li>`).join('')}</ul></details></section>`;
+}
+Promise.all(['packages-state.json','automatic-summaries.json','semantic-reviews.json'].map(async name=>{const r=await fetch(name,{cache:'no-cache'});if(!r.ok)throw new Error(name);return r.json();})).then(([p,a,s])=>{packageState=p.tenders||{};automaticSummaries=a.tenders||{};semanticReviews=s.tenders||{};renderFeed();}).catch(()=>{});
+document.addEventListener('click',event=>{
+ const b=event.target.closest('[data-package-route]');if(!b)return;
+ const id=b.dataset.packageTender,r=allPackageRoutes(id)[Number(b.dataset.packageRoute)];if(!r)return;
+ const maps=currentPackageDocuments(id,semanticReviews).flatMap(d=>d.maps||[]).filter(m=>String(m.number)===String(r.number)&&m.area===r.area&&(!r.variant||m.variant===r.variant)&&(!r.direction||m.direction===r.direction));
+ routeDialog.innerHTML=`<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">קו ${esc(r.number)} · ${esc(r.area)}</h2><p>${esc(r.description)}</p><p class="muted">${r.catalogNumber?`מק״ט ${esc(r.catalogNumber)} · `:''}${r.direction?`כיוון ${esc(r.direction)} · `:''}${r.variant?`חלופה ${esc(r.variant)}`:''}</p><p>${r.originStop?`מוצא: ${esc(r.originStop)} · `:''}${r.destinationStop?`יעד: ${esc(r.destinationStop)}`:''}</p><p>${renderSources(packageSource(r))}</p>${maps.map(m=>`<figure>${/^maps\/[a-zA-Z0-9_-]+\.webp$/.test(m.image||'')?`<a href="${esc(m.image)}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(m.image)}" alt="${esc(m.description)}"></a>`:''}<figcaption>${esc(m.description)} · ${renderSources(m.sources)}</figcaption></figure>`).join('')||'<p class="muted">עדיין לא פורסם צילום מפה מאומת לקו זה.</p>'}<p class="muted">לפי תכנון המכרז וגרסת המקור המקושרת.</p>`;
+ routeDialog.showModal();
+});
+
+function combinedFields(id){
+ const fields={...(structuredFields[id]||{})};
+ const docs=[{fields:automaticSummaries[id]?.metadataFields||{}},...currentPackageDocuments(id,automaticSummaries),...currentPackageDocuments(id,semanticReviews)];
+ for(const d of docs){for(const [key,f] of Object.entries(d.fields||{})){
+  if(!isVerified(f))continue;
+  const old=fields[key];
+  if(!isVerified(old)){if(old?.status!=='conflict')fields[key]=f;continue;}
+  if(JSON.stringify(old.value)!==JSON.stringify(f.value)&&old.status==='verified'&&f.status==='verified'){
+   fields[key]={...old,status:'conflict',value:null,reason:'בגרסאות המסמכים מופיעים ערכים שונים. יש לבדוק את ההבהרות ואת תחולת השינוי.',sources:[...(old.sources||[]),...(f.sources||[])]};
+  }
+ }}return fields;
+}

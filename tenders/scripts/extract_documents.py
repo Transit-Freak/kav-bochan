@@ -58,7 +58,11 @@ def extract(pages, item, url, digest):
     head = ' '.join(pages[:2])
     number = re.search(r'(?:הליך תחרותי|מכרז)\s*(?:מספר|מס[\'׳.]*)?\s*(\d{1,3}/(?:20)?\d{2})(?!\d)', head)
     expected = str(item.get('number') or '').strip()
-    normalize_number = lambda n: tuple(int(part) for part in re.split(r'[/\.]', n)) if re.fullmatch(r'\d{1,3}[/\.]\d{2,4}', n) else (n,)
+    def normalize_number(n):
+        if not re.fullmatch(r'\d{1,3}[/\.]\d{2,4}', n):
+            return (n,)
+        serial, year = map(int, re.split(r'[/\.]', n))
+        return serial, year + 2000 if year < 100 else year
     if not number or (expected and normalize_number(expected) != normalize_number(number[1])):
         return fields, 'לא אומתה התאמה בין מספר המכרז במסמך לבין הפרסום.'
     def put(key, value, page, clause='', **extra):
@@ -101,6 +105,21 @@ def extract(pages, item, url, digest):
         if weight and re.search(r'100\s+סה', table):
             put('scoring.price_weight', int(weight[1]), page, '28.2', unit='percent')
         break
+    # Explicit phase durations: never collapse preparation and operation into one
+    # unqualified value, or assume every tender follows the Northern Negev numbers.
+    phases = []
+    for page, text in enumerate(pages, 1):
+        for m in re.finditer(r"(\d{1,2})\s*[:.]?\s*שנים\s+ו\s*[–-]?\s*(\d{1,2})\s*-?\s*חודשים\s+עבור\s+קווי\s+השירות\s+בשלב\s+([אב])", text):
+            if 'תקופת ההכנות' not in text or '1.6.2' not in text:
+                continue
+            phases.append({'label': 'שלב ' + m[3] + ' כולל הכנות',
+                           'value': int(m[1])*12+int(m[2]), 'unit':'months', 'comparison':'eq',
+                           'sources':[{'tenderId':item['id'],'fieldKey':'term.base',
+                                       'url':url+'#page='+str(page),'locator':f'עמוד PDF {page}, סעיף 1.6.2',
+                                       'sha256':digest,'checkedAt':datetime.date.today().isoformat()}]})
+    if len(phases)==2 and len({c['label'] for c in phases})==2:
+        fields['term.base'].update(status='verified_conditional',value=None,conditions=phases,
+            reason=None,notes='התקופות כוללות הכנות. כפוף לתנאי תחילת ההתקשרות, אפשרויות קיצור והבהרות במסמכי המקור.')
     from eligibility_fields import add_eligibility
     add_eligibility(fields, pages, item, url, digest)
     errors = validate(item['id'], fields)

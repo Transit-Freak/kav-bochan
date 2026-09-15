@@ -44,8 +44,12 @@ def sheets(data):
 
 
 def parse(data):
+    return parse_sheets(sheets(data) or [])
+
+
+def parse_sheets(workbook):
     routes=[];stops=collections.defaultdict(list)
-    for sheet,rows in sheets(data) or []:
+    for sheet,rows in workbook:
         if not rows:continue
         columns=rows[0][1];header={v:k for k,v in columns.items() if v}
         if not {'מקט','קו','כיוון','חלופה'}<=set(header):continue
@@ -76,6 +80,13 @@ def parse(data):
     return routes
 
 
+def route_counts(routes):
+    # A direction/variant is not another line; catalogue ID separates reused numbers.
+    return {'lines':len({(r['key'][0],r['key'][1]) for r in routes}),
+            'directionVariants':len({tuple(r['key']) for r in routes}),
+            'rows':len(routes)}
+
+
 def main():
     state=read(ROOT/'annex-state.json',{'tenders':{}})
     index=read(ROOT/'route-index.json',{'tenders':{}})
@@ -92,9 +103,34 @@ def main():
                 versions[digest]={'sha256':digest,'url':url,'routes':routes,
                                  'scope':'קווים כפי שמופיעים בנספח המקושר. טרם הוכרע אם זו הגרסה הקובעת ואם כל השורות מתארות שירות מתוכנן.'}
         if versions:prior['tenders'][id]=list(versions.values())
+    # Reuse every workbook already acquired by the package pipeline, including
+    # workbooks inside ZIPs. Never join stops across source members or versions.
+    from package_pipeline import CACHE, STATE
+    packages=read(STATE,{'tenders':{}})
+    for id,tender in packages['tenders'].items():
+        versions={(v['sha256'],v.get('member','')):v for v in prior['tenders'].get(id,[])}
+        for doc in tender['documents'].values():
+            digest=doc.get('sha256');path=CACHE/str(digest)/'units.json'
+            if not digest or not path.exists():continue
+            groups=collections.defaultdict(list)
+            for unit in json.loads(path.read_text())['units']:
+                if not unit.get('sheet') or not unit.get('rows'):continue
+                rows=[(n,{i:str(value).strip() for i,value in enumerate(row)}) for n,row in enumerate(unit['rows'],1)]
+                groups[unit.get('member','')].append((unit['sheet'],rows))
+            for member,workbook in groups.items():
+                routes=parse_sheets(workbook)
+                if routes:
+                    versions[(digest,member)]={'sha256':digest,'url':doc['url'],'member':member,'routes':routes,
+                        'scope':'קווים ותחנות מתוך נספח המקור המקושר. תחולת הגרסה וההבהרות עדיין בבדיקה.'}
+        if versions:prior['tenders'][id]=list(versions.values())
     (ROOT/'route-data').mkdir(exist_ok=True)
     index={'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'tenders':{}}
     for id,versions in prior['tenders'].items():
+        current={d['url']:d.get('sha256') for d in packages['tenders'].get(id,{}).get('documents',{}).values()}
+        for version in versions:
+            version['counts']=route_counts(version['routes'])
+            digest=current.get(version['url'])
+            version['sourceStatus']='current_download' if digest==version['sha256'] else 'superseded' if digest else 'untracked'
         filename='route-data/'+id+'.json'
         encoded=json.dumps(versions,ensure_ascii=False,separators=(',',':'))+'\n'
         parts=[]

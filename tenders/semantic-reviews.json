@@ -1,0 +1,104 @@
+{
+  "tenders": {
+    "4000611926": {
+      "documents": {
+        "e4037c010a5e822bdea4": {
+          "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך",
+          "sections": [
+            {
+              "title": "שלבי ההפעלה",
+              "text": "בגרסת המסמך: שלב א׳ בתוך 12 חודשים מהודעת הזכייה, ושלב ב׳ בתוך 18 חודשים. היישום כפוף לתשתיות, לתנאי המכרז ולאישורי הוועדה.",
+              "unitIndices": [
+                6,
+                7
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=7",
+                  "locator": "עמוד PDF 7",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 6
+                },
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=8",
+                  "locator": "עמוד PDF 8",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 7
+                }
+              ]
+            },
+            {
+              "title": "משך ההתקשרות",
+              "text": "תקופת הבסיס כוללת עשר שנות הפעלה ותקופת הכנות: 132 חודשים לשלב א׳ ו־138 חודשים לשלב ב׳. איחור עשוי לקצר את תקופת ההפעלה ולהוביל לפיצויים, בהתאם לתנאים. ההבהרות המאוחרות עדיין בבדיקה.",
+              "unitIndices": [
+                7
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=8",
+                  "locator": "עמוד PDF 8",
+                  "sha256": "1d42aa65dd2b57d8e39777c46068338109d7a8dcad08df811a5ff1f5e92dd1bb",
+                  "unit": 7
+                }
+              ]
+            }
+          ],
+          "routes": [],
+          "maps": [],
+          "fields": {}
+        }
+      }
+    },
+    "4000582393": {
+      "documents": {
+        "9be4da5dde719b06a2fa": {
+          "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך",
+          "sections": [
+            {
+              "title": "שלבי ההפעלה",
+              "text": "בגרסת המסמך: שלב א׳ בתוך 9 חודשים מהודעת הזכייה, ושלב ב׳ בתוך 21 חודשים. היישום כפוף לתשתיות, לתנאי המכרז ולאישורי הוועדה.",
+              "unitIndices": [
+                6,
+                7
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=7",
+                  "locator": "עמוד PDF 7",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 6
+                },
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=8",
+                  "locator": "עמוד PDF 8",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 7
+                }
+              ]
+            },
+            {
+              "title": "משך ההתקשרות",
+              "text": "תקופת הבסיס כוללת עשר שנות הפעלה ותקופת הכנות: 129 חודשים לשלב א׳ ו־141 חודשים לשלב ב׳. איחור עשוי לקצר את תקופת ההפעלה ולהוביל לפיצויים, בהתאם לתנאים. ההבהרות המאוחרות עדיין בבדיקה.",
+              "unitIndices": [
+                7
+              ],
+              "sources": [
+                {
+                  "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=8",
+                  "locator": "עמוד PDF 8",
+                  "sha256": "7fcb8d3a691e672a9456850b5804ad35226d374ca72ea042d74a4b0bfee64df9",
+                  "unit": 7
+                }
+              ]
+            }
+          ],
+          "routes": [],
+          "maps": [],
+          "fields": {}
+        }
+      }
+    }
+  }
+}
