@@ -1,65 +1,66 @@
 [
   {
-    "id": "archive-northern-negev",
-    "title": "מכרז להפעלת אוטובוסים באשכול צפון הנגב",
-    "number": "07/2014",
-    "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
-    "type": "bus",
     "classification": "operating_tender",
-    "status": "ארכיון · מסמך מלא טרם נבדק",
-    "published": null,
-    "updated": null,
     "deadline": null,
-    "winner": null,
-    "summaryStatus": "pending",
-    "discovery": "official_document_search_index",
+    "discovery": "official_document",
+    "discoveryNote": "מסמך המכרז המלא נקרא בחלקו. הפרטים מתייחסים לגרסה זו; כל ההבהרות ותוצאות הזכייה טרם אומתו.",
     "evidence": {
       "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
-      "locator": "כותרת ותמצית המסמך הרשמי באינדקס החיפוש; הקובץ המלא לא נקרא",
+      "locator": "עמודים מפורטים בכל שדה ובסיכום",
+      "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
       "checkedAt": "2026-09-15"
     },
-    "discoveryNote": "פרטי הזיהוי אותרו באינדקס החיפוש של מסמך ממשלתי. תנאים, מסלולים וזכייה טרם אומתו."
+    "id": "archive-northern-negev",
+    "number": "07/2014",
+    "published": null,
+    "status": "ארכיון · פרטים אומתו חלקית",
+    "summaryStatus": "partial",
+    "title": "מכרז להפעלת אוטובוסים באשכול צפון הנגב",
+    "type": "bus",
+    "updated": null,
+    "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
+    "winner": null
   },
   {
+    "classification": "operating_tender",
+    "deadline": null,
+    "discovery": "official_document_search_index",
+    "discoveryNote": "פרטי הזיהוי אותרו באינדקס החיפוש של מסמך ממשלתי. תנאים, מסלולים וזכייה טרם אומתו.",
+    "evidence": {
+      "checkedAt": "2026-09-15",
+      "locator": "כותרת ותמצית המסמך הרשמי באינדקס החיפוש; הקובץ המלא לא נקרא",
+      "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf"
+    },
     "id": "archive-hadera-netanya",
-    "title": "מכרז להפעלת אוטובוסים באשכול חדרה נתניה",
     "number": "22/2011",
-    "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf",
-    "type": "bus",
-    "classification": "operating_tender",
-    "status": "ארכיון · מסמך מלא טרם נבדק",
     "published": null,
-    "updated": null,
-    "deadline": null,
-    "winner": null,
+    "status": "ארכיון · מסמך מלא טרם נבדק",
     "summaryStatus": "pending",
-    "discovery": "official_document_search_index",
-    "evidence": {
-      "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf",
-      "locator": "כותרת ותמצית המסמך הרשמי באינדקס החיפוש; הקובץ המלא לא נקרא",
-      "checkedAt": "2026-09-15"
-    },
-    "discoveryNote": "פרטי הזיהוי אותרו באינדקס החיפוש של מסמך ממשלתי. תנאים, מסלולים וזכייה טרם אומתו."
+    "title": "מכרז להפעלת אוטובוסים באשכול חדרה נתניה",
+    "type": "bus",
+    "updated": null,
+    "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf",
+    "winner": null
   },
   {
-    "id": "archive-sharon-holon",
-    "title": "מכרז להפעלת אוטובוסים באשכול שרון חולון מרחבי",
-    "number": "24/2015",
-    "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
-    "type": "bus",
     "classification": "operating_tender",
-    "status": "ארכיון · מסמך מלא טרם נבדק",
-    "published": null,
-    "updated": null,
     "deadline": null,
-    "winner": null,
-    "summaryStatus": "pending",
     "discovery": "official_document_search_index",
+    "discoveryNote": "פרטי הזיהוי אותרו באינדקס החיפוש של מסמך ממשלתי. תנאים, מסלולים וזכייה טרם אומתו.",
     "evidence": {
-      "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
+      "checkedAt": "2026-09-15",
       "locator": "כותרת ותמצית המסמך הרשמי באינדקס החיפוש; הקובץ המלא לא נקרא",
-      "checkedAt": "2026-09-15"
+      "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf"
     },
-    "discoveryNote": "פרטי הזיהוי אותרו באינדקס החיפוש של מסמך ממשלתי. תנאים, מסלולים וזכייה טרם אומתו."
+    "id": "archive-sharon-holon",
+    "number": "24/2015",
+    "published": null,
+    "status": "ארכיון · מסמך מלא טרם נבדק",
+    "summaryStatus": "pending",
+    "title": "מכרז להפעלת אוטובוסים באשכול שרון חולון מרחבי",
+    "type": "bus",
+    "updated": null,
+    "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
+    "winner": null
   }
 ]

@@ -1,346 +1,812 @@
 {
   "632739": {
-    "identity.number": {
-      "label": "מספר מכרז",
-      "kind": "text",
-      "scope": "identity",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "identity.issuer": {
-      "label": "מפרסם",
-      "kind": "text",
-      "scope": "identity",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "identity.cluster": {
-      "label": "אשכול",
-      "kind": "text",
-      "scope": "identity",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "identity.mode": {
-      "label": "סוג שירות",
-      "kind": "text",
-      "scope": "identity",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "dates.publication": {
-      "label": "פרסום",
-      "kind": "date",
-      "scope": "dates",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "dates.submission": {
-      "label": "הגשת הצעות",
-      "kind": "date",
-      "scope": "dates",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "dates.questions": {
-      "label": "שאלות הבהרה",
-      "kind": "date",
-      "scope": "dates",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "dates.service_start": {
-      "label": "תחילת שירות",
-      "kind": "date",
-      "scope": "dates",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "term.base": {
-      "label": "תקופת התקשרות בסיסית",
-      "kind": "duration",
-      "scope": "term",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "term.extension": {
-      "label": "אפשרויות הארכה",
-      "kind": "duration",
-      "scope": "term",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "eligibility.turnover": {
-      "label": "מחזור כספי נדרש",
+    "award.awarded_price": {
       "kind": "money",
-      "scope": "eligibility",
+      "label": "מחיר זכייה",
+      "scope": "award",
+      "sources": [],
       "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "eligibility.equity": {
-      "label": "הון עצמי נדרש",
-      "kind": "money",
-      "scope": "eligibility",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "eligibility.experience": {
-      "label": "ניסיון נדרש",
-      "kind": "duration",
-      "scope": "eligibility",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "eligibility.licenses": {
-      "label": "רישיונות נדרשים",
-      "kind": "text",
-      "scope": "eligibility",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "eligibility.fleet": {
-      "label": "צי כתנאי סף",
-      "kind": "count",
-      "scope": "eligibility",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "eligibility.drivers": {
-      "label": "נהגים כתנאי סף",
-      "kind": "count",
-      "scope": "eligibility",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "guarantee.bid": {
-      "label": "ערבות הצעה",
-      "kind": "money",
-      "scope": "bid",
-      "status": "verified",
-      "value": 50000,
-      "sources": [
-        {
-          "tenderId": "632739",
-          "fieldKey": "guarantee.bid",
-          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A#page=54",
-          "locator": "עמוד 54"
-        }
-      ],
-      "currency": "ILS",
-      "unit": "one_time",
-      "vat": "not_specified",
-      "period": "bid_validity"
-    },
-    "guarantee.performance": {
-      "label": "ערבות ביצוע",
-      "kind": "money",
-      "scope": "execution",
-      "status": "verified",
-      "value": 225000,
-      "sources": [
-        {
-          "tenderId": "632739",
-          "fieldKey": "guarantee.performance",
-          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A#page=56",
-          "locator": "עמוד 56"
-        }
-      ],
-      "currency": "ILS",
-      "unit": "one_time",
-      "vat": "not_specified",
-      "period": "contract_validity"
-    },
-    "fleet.operating": {
-      "label": "כלי רכב להפעלה",
-      "kind": "count",
-      "scope": "execution",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "fleet.reserve": {
-      "label": "רכב רזרבי",
-      "kind": "count",
-      "scope": "execution",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "fleet.seats": {
-      "label": "מושבים לרכב",
-      "kind": "count",
-      "scope": "vehicle",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "fleet.electric_share": {
-      "label": "שיעור צי חשמלי",
-      "kind": "percent",
-      "scope": "execution",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "fleet.max_age": {
-      "label": "גיל רכב מרבי",
-      "kind": "duration",
-      "scope": "vehicle",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "fleet.accessibility": {
-      "label": "נגישות כלי הרכב",
-      "kind": "text",
-      "scope": "vehicle",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "service.routes": {
-      "label": "קווים",
-      "kind": "list",
-      "scope": "service",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "service.variants": {
-      "label": "חלופות מסלול",
-      "kind": "list",
-      "scope": "service",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "service.weekly_trips": {
-      "label": "נסיעות בשבוע",
-      "kind": "count",
-      "scope": "service",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "service.annual_km": {
-      "label": "קילומטרים בשנה",
-      "kind": "distance",
-      "scope": "service",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "service.operating_hours": {
-      "label": "שעות פעילות",
-      "kind": "text",
-      "scope": "service",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "service.frequency": {
-      "label": "תדירות שירות",
-      "kind": "duration",
-      "scope": "service",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "price.per_km": {
-      "label": "תמורה לקילומטר",
-      "kind": "money",
-      "scope": "pricing",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "price.ceiling_per_km": {
-      "label": "תקרת מחיר לקילומטר",
-      "kind": "money",
-      "scope": "pricing",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "price.fixed_payment": {
-      "label": "תשלום קבוע",
-      "kind": "money",
-      "scope": "pricing",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "price.indexation": {
-      "label": "הצמדת תמורה",
-      "kind": "text",
-      "scope": "pricing",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "scoring.price_weight": {
-      "label": "משקל המחיר בניקוד",
-      "kind": "percent",
-      "scope": "scoring",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "scoring.quality_weight": {
-      "label": "משקל האיכות בניקוד",
-      "kind": "percent",
-      "scope": "scoring",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "scoring.minimum_quality": {
-      "label": "סף ניקוד איכות",
-      "kind": "points",
-      "scope": "scoring",
-      "status": "unverified",
-      "value": null,
-      "sources": []
-    },
-    "penalties.amount": {
-      "label": "פיצוי מוסכם",
-      "kind": "money",
-      "scope": "penalties",
-      "status": "unverified",
-      "value": null,
-      "sources": []
+      "value": null
     },
     "award.winner": {
-      "label": "זוכה",
       "kind": "text",
+      "label": "זוכה",
       "scope": "award",
+      "sources": [],
       "status": "unverified",
-      "value": null,
-      "sources": []
+      "value": null
     },
-    "award.awarded_price": {
-      "label": "מחיר זכייה",
+    "dates.publication": {
+      "kind": "date",
+      "label": "פרסום",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "dates.questions": {
+      "kind": "date",
+      "label": "שאלות הבהרה",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "dates.service_start": {
+      "kind": "date",
+      "label": "תחילת שירות",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "dates.submission": {
+      "kind": "date",
+      "label": "הגשת הצעות",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.drivers": {
+      "kind": "count",
+      "label": "נהגים כתנאי סף",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.equity": {
       "kind": "money",
+      "label": "הון עצמי נדרש",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.experience": {
+      "kind": "duration",
+      "label": "ניסיון נדרש",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.fleet": {
+      "kind": "count",
+      "label": "צי כתנאי סף",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.licenses": {
+      "kind": "text",
+      "label": "רישיונות נדרשים",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.turnover": {
+      "kind": "money",
+      "label": "מחזור כספי נדרש",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.accessibility": {
+      "kind": "text",
+      "label": "נגישות כלי הרכב",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.electric_share": {
+      "kind": "percent",
+      "label": "שיעור צי חשמלי",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.max_age": {
+      "kind": "duration",
+      "label": "גיל רכב מרבי",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.operating": {
+      "kind": "count",
+      "label": "כלי רכב להפעלה",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.reserve": {
+      "kind": "count",
+      "label": "רכב רזרבי",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.seats": {
+      "kind": "count",
+      "label": "מושבים לרכב",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "guarantee.bid": {
+      "currency": "ILS",
+      "kind": "money",
+      "label": "ערבות הצעה",
+      "period": "bid_validity",
+      "scope": "bid",
+      "sources": [
+        {
+          "fieldKey": "guarantee.bid",
+          "locator": "עמוד 54",
+          "tenderId": "632739",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A#page=54"
+        }
+      ],
+      "status": "verified",
+      "unit": "one_time",
+      "value": 50000,
+      "vat": "not_specified"
+    },
+    "guarantee.performance": {
+      "currency": "ILS",
+      "kind": "money",
+      "label": "ערבות ביצוע",
+      "period": "contract_validity",
+      "scope": "execution",
+      "sources": [
+        {
+          "fieldKey": "guarantee.performance",
+          "locator": "עמוד 56",
+          "tenderId": "632739",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A#page=56"
+        }
+      ],
+      "status": "verified",
+      "unit": "one_time",
+      "value": 225000,
+      "vat": "not_specified"
+    },
+    "identity.cluster": {
+      "kind": "text",
+      "label": "אשכול",
+      "scope": "identity",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "identity.issuer": {
+      "kind": "text",
+      "label": "מפרסם",
+      "scope": "identity",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "identity.mode": {
+      "kind": "text",
+      "label": "סוג שירות",
+      "scope": "identity",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "identity.number": {
+      "kind": "text",
+      "label": "מספר מכרז",
+      "scope": "identity",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "penalties.amount": {
+      "kind": "money",
+      "label": "פיצוי מוסכם",
+      "scope": "penalties",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.ceiling_per_km": {
+      "kind": "money",
+      "label": "תקרת מחיר לקילומטר",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.fixed_payment": {
+      "kind": "money",
+      "label": "תשלום קבוע",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.indexation": {
+      "kind": "text",
+      "label": "הצמדת תמורה",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.per_km": {
+      "kind": "money",
+      "label": "תמורה לקילומטר",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "scoring.minimum_quality": {
+      "kind": "points",
+      "label": "סף ניקוד איכות",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "scoring.price_weight": {
+      "kind": "percent",
+      "label": "משקל המחיר בניקוד",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "scoring.quality_weight": {
+      "kind": "percent",
+      "label": "משקל האיכות בניקוד",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.annual_km": {
+      "kind": "distance",
+      "label": "קילומטרים בשנה",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.frequency": {
+      "kind": "duration",
+      "label": "תדירות שירות",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.operating_hours": {
+      "kind": "text",
+      "label": "שעות פעילות",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.routes": {
+      "kind": "list",
+      "label": "קווים",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.variants": {
+      "kind": "list",
+      "label": "חלופות מסלול",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.weekly_trips": {
+      "kind": "count",
+      "label": "נסיעות בשבוע",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "term.base": {
+      "kind": "duration",
+      "label": "תקופת התקשרות בסיסית",
+      "scope": "term",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "term.extension": {
+      "kind": "duration",
+      "label": "אפשרויות הארכה",
+      "scope": "term",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    }
+  },
+  "archive-northern-negev": {
+    "award.awarded_price": {
+      "kind": "money",
+      "label": "מחיר זכייה",
       "scope": "award",
+      "sources": [],
+      "status": "source_missing",
+      "value": null,
+      "reason": "לא נקרא מקור רשמי המאמת את ההצעה הזוכה."
+    },
+    "award.winner": {
+      "kind": "text",
+      "label": "זוכה",
+      "scope": "award",
+      "sources": [],
+      "status": "source_missing",
+      "value": null,
+      "reason": "מסמך המכרז אינו הודעת זכייה או הסכם חתום; פרטי הזוכה טרם אומתו מול מקור כזה."
+    },
+    "dates.publication": {
+      "kind": "date",
+      "label": "פרסום",
+      "scope": "dates",
+      "sources": [],
       "status": "unverified",
       "value": null,
-      "sources": []
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "dates.questions": {
+      "kind": "date",
+      "label": "שאלות הבהרה",
+      "scope": "dates",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "dates.questions",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=22",
+          "locator": "עמוד PDF 22, סעיף 8.2",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "2014-07-30",
+      "reason": null,
+      "notes": "לפי גרסת המסמך שנקראה; לא אומתו כל ההבהרות המאוחרות."
+    },
+    "dates.service_start": {
+      "kind": "date",
+      "label": "תחילת שירות",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "dates.submission": {
+      "kind": "date",
+      "label": "הגשת הצעות",
+      "scope": "dates",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "dates.submission",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=25",
+          "locator": "עמוד PDF 25, סעיף 10",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "2014-11-19",
+      "reason": null,
+      "notes": "בשעה 12:00, לפי גרסת המסמך שנקראה; לא אומתו כל ההבהרות המאוחרות."
+    },
+    "eligibility.drivers": {
+      "kind": "count",
+      "label": "נהגים כתנאי סף",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "eligibility.equity": {
+      "kind": "money",
+      "label": "הון עצמי נדרש",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "eligibility.experience": {
+      "kind": "duration",
+      "label": "ניסיון נדרש",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "eligibility.fleet": {
+      "kind": "count",
+      "label": "צי כתנאי סף",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "eligibility.licenses": {
+      "kind": "text",
+      "label": "רישיונות נדרשים",
+      "scope": "eligibility",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "eligibility.licenses",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=16",
+          "locator": "עמוד PDF 16, סעיפים 4.2–4.3",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "השתתפות מותנית בזכאות במיון מוקדם 06/2010 ובהמשך עמידה בתנאיו.",
+      "reason": null,
+      "notes": "אין להסיק מכאן סף כספי או גודל צי ללא מסמכי המיון המוקדם."
+    },
+    "eligibility.turnover": {
+      "kind": "money",
+      "label": "מחזור כספי נדרש",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "fleet.accessibility": {
+      "kind": "text",
+      "label": "נגישות כלי הרכב",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "fleet.electric_share": {
+      "kind": "percent",
+      "label": "שיעור צי חשמלי",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "fleet.max_age": {
+      "kind": "duration",
+      "label": "גיל רכב מרבי",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "תנאים שונים לפי סוג רכב: אוטובוסים מתחת ל־10 שנים, מיניבוסים מתחת ל־6; ממוצע הצי עד 7 שנים (עמוד PDF 125). לא הוצג גיל יחיד מטעה."
+    },
+    "fleet.operating": {
+      "kind": "count",
+      "label": "כלי רכב להפעלה",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "fleet.reserve": {
+      "kind": "count",
+      "label": "רכב רזרבי",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "fleet.seats": {
+      "kind": "count",
+      "label": "מושבים לרכב",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "guarantee.bid": {
+      "kind": "money",
+      "label": "ערבות הצעה",
+      "scope": "bid",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "guarantee.bid",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=26",
+          "locator": "עמוד PDF 26, סעיף 14.1",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": 2000000,
+      "reason": null,
+      "currency": "ILS",
+      "unit": "ערבות הצעה",
+      "vat": "לא צוין בסעיף",
+      "period": "180 ימים מהמועד להגשת ההצעות",
+      "notes": "סכום ערבות, לא מחיר ההצעה ולא עלות ההפעלה."
+    },
+    "guarantee.performance": {
+      "kind": "money",
+      "label": "ערבות ביצוע",
+      "scope": "execution",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "guarantee.performance",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=29",
+          "locator": "עמוד PDF 29, סעיף 15.1",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": 20000000,
+      "reason": null,
+      "currency": "ILS",
+      "unit": "ערבות ביצוע והכנות",
+      "vat": "לא צוין בסעיף",
+      "period": "להבטחת ההכנות וביצוע השירות",
+      "notes": "צמודה למדד המחירים לצרכן הידוע במועד הודעת הזכייה; מסירה בתוך 7 ימים מההודעה."
+    },
+    "identity.cluster": {
+      "kind": "text",
+      "label": "אשכול",
+      "scope": "identity",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "identity.cluster",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "צפון הנגב",
+      "reason": null
+    },
+    "identity.issuer": {
+      "kind": "text",
+      "label": "מפרסם",
+      "scope": "identity",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "identity.issuer",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "משרד התחבורה והבטיחות בדרכים",
+      "reason": null
+    },
+    "identity.mode": {
+      "kind": "text",
+      "label": "סוג שירות",
+      "scope": "identity",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "identity.mode",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "אוטובוסים",
+      "reason": null
+    },
+    "identity.number": {
+      "kind": "text",
+      "label": "מספר מכרז",
+      "scope": "identity",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "identity.number",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": "07/2014",
+      "reason": null
+    },
+    "penalties.amount": {
+      "kind": "money",
+      "label": "פיצוי מוסכם",
+      "scope": "penalties",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "price.ceiling_per_km": {
+      "kind": "money",
+      "label": "תקרת מחיר לקילומטר",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "price.fixed_payment": {
+      "kind": "money",
+      "label": "תשלום קבוע",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "price.indexation": {
+      "kind": "text",
+      "label": "הצמדת תמורה",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "price.per_km": {
+      "kind": "money",
+      "label": "תמורה לקילומטר",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "scoring.minimum_quality": {
+      "kind": "points",
+      "label": "סף ניקוד איכות",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "scoring.price_weight": {
+      "kind": "percent",
+      "label": "משקל המחיר בניקוד",
+      "scope": "scoring",
+      "sources": [
+        {
+          "tenderId": "archive-northern-negev",
+          "fieldKey": "scoring.price_weight",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=51",
+          "locator": "עמוד PDF 51, סעיף 28.2",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "checkedAt": "2026-09-15"
+        }
+      ],
+      "status": "verified",
+      "value": 56,
+      "reason": null,
+      "notes": "56 מתוך 100 נקודות. יתר הרכיבים מפורטים בסיכום; זו אינה תקרת מחיר."
+    },
+    "scoring.quality_weight": {
+      "kind": "percent",
+      "label": "משקל האיכות בניקוד",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "service.annual_km": {
+      "kind": "distance",
+      "label": "קילומטרים בשנה",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "service.frequency": {
+      "kind": "duration",
+      "label": "תדירות שירות",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "service.operating_hours": {
+      "kind": "text",
+      "label": "שעות פעילות",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "service.routes": {
+      "kind": "list",
+      "label": "קווים",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "אומתו בשלב זה 7 רשומות מקריית מלאכי בלבד, מתוך רשימה ארוכה יותר. הן מופיעות בסיכום החלקי; רשימת האשכול המלאה עדיין בבדיקה."
+    },
+    "service.variants": {
+      "kind": "list",
+      "label": "חלופות מסלול",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "service.weekly_trips": {
+      "kind": "count",
+      "label": "נסיעות בשבוע",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+    },
+    "term.base": {
+      "kind": "duration",
+      "label": "תקופת התקשרות בסיסית",
+      "scope": "term",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "נדרשת הבחנה בין שלבים: 81 חודשים לשלב א׳ ו־84 לשלב ב׳, כולל ההכנות ממועד הודעת הזכייה (עמודי PDF 7–8). אין תקופה יחידה לכל האשכול."
+    },
+    "term.extension": {
+      "kind": "duration",
+      "label": "אפשרויות הארכה",
+      "scope": "term",
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "שתי אפשרויות של 3 שנים בכפוף לתנאים (סעיף 1.7), ועוד סמכות להארכה של 12 חודשים (1.10). אין לחברן לתקופת בסיס אוטומטית."
     }
   }
 }

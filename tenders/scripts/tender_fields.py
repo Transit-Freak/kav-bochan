@@ -14,6 +14,7 @@ CATALOG={
 STATUSES={'unverified','verified','source_missing','unrecognized_wording','conflict','not_applicable'}
 def blank():return {k:{'label':v[0],'kind':v[1],'scope':v[2],'status':'unverified','value':None,'sources':[]} for k,v in CATALOG.items()}
 def validate(tender_id,fields):
+ import datetime,math,urllib.parse
  errors=[]
  for key,f in fields.items():
   if key not in CATALOG:errors.append(key+': unknown field');continue
@@ -29,11 +30,18 @@ def validate(tender_id,fields):
   for source in sources:
    if source.get('tenderId')!=tender_id or source.get('fieldKey')!=key:errors.append(key+': evidence belongs to another tender or field')
    if not source.get('url') or not source.get('locator'):errors.append(key+': source location missing')
+   parsed=urllib.parse.urlsplit(source.get('url',''))
+   if parsed.scheme!='https' or parsed.hostname not in {'www.gov.il','gov.il','mr.gov.il','www.golan.org.il','golan.org.il'}:errors.append(key+': source is not an approved official host')
   if kind=='money':
    if not all(f.get(k) for k in ['currency','unit','vat','period']):errors.append(key+': incomplete monetary context')
    if key.endswith('per_km') and f.get('unit')!='per_km':errors.append(key+': expected per-km unit')
   if kind in {'money','count','duration','percent','points','distance'}:
-   if type(value) not in (int,float) or value<0:errors.append(key+': expected nonnegative number')
+   if type(value) not in (int,float) or not math.isfinite(value) or value<0:errors.append(key+': expected finite nonnegative number')
+  if kind=='count' and (type(value)!=int):errors.append(key+': expected integer count')
+  if kind=='text' and (not isinstance(value,str) or not value.strip()):errors.append(key+': expected nonempty text')
+  if kind=='date':
+   try:datetime.date.fromisoformat(value)
+   except (ValueError,TypeError):errors.append(key+': expected ISO calendar date')
   if kind=='percent' and isinstance(value,(float,int)) and not 0<=value<=100:errors.append(key+': invalid percentage')
   if kind in {'duration','distance'} and not f.get('unit'):errors.append(key+': unit missing')
   if kind=='list' and not isinstance(value,list):errors.append(key+': expected list')
