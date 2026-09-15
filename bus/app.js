@@ -359,7 +359,7 @@ function renderCities() {
     $('#cq').oninput = e => { cq = e.target.value; showAllC = false; renderCities(); };
   }
   const q = cq.trim();
-  let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, sched: s.sched || null, miss: s.sched ? 1 - s.obs / s.sched : null}));
+  let rows = Object.entries(M.Cc).map(([nm, s]) => ({nm, meas: s.meas, on: s.on, miss: s.sched > 0 ? Math.max(0, 1 - s.obs / s.sched) : null, early: s.meas ? s.c[0] / s.meas : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, sched: s.sched || null, miss: s.sched ? 1 - s.obs / s.sched : null}));
   if (q) rows = rows.filter(r => r.nm.includes(q));
   sortRows(rows, sortC);
   const total = rows.length;
@@ -441,7 +441,7 @@ function renderCityLines() {
 }
 function renderFilters() {
   const ags = Object.keys(M.A).sort((a, b) => M.A[b].meas - M.A[a].meas);
-  const chips = [['worst', 'הכי לא מדייקים'], ['best', 'הכי מדייקים'], ['early', 'הכי הרבה יציאות מוקדמות'], ['', 'הכי הרבה נסיעות']];
+  const chips = [['worst', 'הכי לא מדייקים'], ['best', 'הכי מדייקים'], ['early', 'הכי הרבה יציאות מוקדמות'], ['miss', 'הכי הרבה לא נצפו'], ['', 'הכי הרבה נסיעות']];
   const cls = Object.keys(M.K || {}).sort((a, b) => M.K[b].meas - M.K[a].meas);
   $('#lfilters').innerHTML = `<select id="agsel" title="מפעיל"><option value="">כל המפעילים</option>${ags.map(a => `<option value="${esc(a)}"${a === agency ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select>` +
     (cls.length > 1 ? `<select id="clsel" title="אשכול"><option value="">כל האשכולות</option>${cls.map(a => `<option value="${esc(a)}"${a === cluster ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select>` : '') +
@@ -449,7 +449,7 @@ function renderFilters() {
     `<input class="search" id="lq" placeholder="חיפוש קו: מספר, יעד…" value="${esc(lq)}">`;
   $('#agsel').onchange = e => { agency = e.target.value; showAllL = false; renderLines(); renderWorst(); };
   const cs = $('#clsel'); if (cs) cs.onchange = e => { cluster = e.target.value; showAllL = false; renderLines(); renderWorst(); };
-  $('#lfilters').querySelectorAll('.fchip').forEach(b => b.onclick = () => { rank = b.dataset.r; showAllL = false; sortL = rank === 'worst' ? {k: 'on', dir: 1} : rank === 'best' ? {k: 'on', dir: -1} : rank === 'early' ? {k: 'oearly', dir: -1} : {k: 'meas', dir: -1}; renderFilters(); renderLines(); });
+  $('#lfilters').querySelectorAll('.fchip').forEach(b => b.onclick = () => { rank = b.dataset.r; showAllL = false; sortL = rank === 'worst' ? {k: 'on', dir: 1} : rank === 'best' ? {k: 'on', dir: -1} : rank === 'early' ? {k: 'oearly', dir: -1} : rank === 'miss' ? {k: 'miss', dir: -1} : {k: 'meas', dir: -1}; renderFilters(); renderLines(); });
   $('#lq').oninput = e => { lq = e.target.value; showAllL = false; renderLines(); };
 }
 function renderLines() {
@@ -457,7 +457,8 @@ function renderLines() {
   let rows = Object.values(M.Rr).map(s => { const l = lineLabel(s.rid); const oT = s.o.reduce((x, y) => x + y, 0); return Object.assign({short: l.short, long: l.long, agency: l.agency, cluster: l.cluster || 'ללא אשכול', dir: l.dir, on: s.on, early: s.meas ? s.c[0] / s.meas : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}, s); });
   if (agency) rows = rows.filter(r => r.agency === agency);
   if (cluster) rows = rows.filter(r => r.cluster === cluster);
-  if (rank) rows = rows.filter(r => r.obs >= MIN_RIDES);
+  if (rank === 'miss') rows = rows.filter(r => r.sched >= MIN_RIDES);
+  else if (rank) rows = rows.filter(r => r.obs >= MIN_RIDES);
   if (q) {
     const tok = q.split(/\s+/);
     const numTok = tok.find(t => /^\d/.test(t)), txt = tok.filter(t => t !== numTok).join(' ');
@@ -466,10 +467,10 @@ function renderLines() {
   sortRows(rows, sortL);
   const total = rows.length;
   if (!showAllL) rows = rows.slice(0, q ? 60 : 40);
-  $('#t-lines').innerHTML = `<div class="tblbox"><table id="tlines"><thead><tr>${th('קו', 'short', sortL)}${th('מסלול', 'long', sortL)}${th('מפעיל', 'agency', sortL)}${th('אשכול', 'cluster', sortL)}${th('נסיעות', 'sched', sortL)}${th('נצפו', 'obs', sortL)}${th('הגעות', 'meas', sortL)}${th('בזמן', 'on', sortL)}${th('יצאו מוקדם', 'oearly', sortL)}${th('איחור ממוצע', 'avg', sortL)}${th('מעל 20 דק׳', 'b4', sortL)}</tr></thead><tbody>` +
-    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px;color:var(--mut)">${esc(r.cluster)}</td><td>${num(r.sched)}</td><td>${num(r.obs)}</td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
+  $('#t-lines').innerHTML = `<div class="tblbox"><table id="tlines"><thead><tr>${th('קו', 'short', sortL)}${th('מסלול', 'long', sortL)}${th('מפעיל', 'agency', sortL)}${th('אשכול', 'cluster', sortL)}${th('נסיעות', 'sched', sortL)}${th('נצפו', 'obs', sortL)}${th('לא נצפו', 'miss', sortL)}${th('הגעות', 'meas', sortL)}${th('בזמן', 'on', sortL)}${th('יצאו מוקדם', 'oearly', sortL)}${th('איחור ממוצע', 'avg', sortL)}${th('מעל 20 דק׳', 'b4', sortL)}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px;color:var(--mut)">${esc(r.cluster)}</td><td>${num(r.sched)}</td><td>${num(r.obs)}</td><td class="${missCls(r.miss)}" title="${r.sched > 0 ? num(Math.max(0, r.sched - r.obs)) + ' מתוך ' + num(r.sched) + ' נסיעות מתוכננות לא נצפו' : 'אין נסיעות מתוכננות לחישוב'}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
     (total > rows.length ? `<button class="more" id="more-l">הצגת כל ${num(total)} הקווים</button>` : '') +
-    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים${agency ? ' של ' + esc(agency) : ''}${cluster ? ' באשכול ' + esc(cluster) : ''} (כיוון וחלופה נספרים בנפרד)${rank ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות שנצפו` : ''}</div>`;
+    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים${agency ? ' של ' + esc(agency) : ''}${cluster ? ' באשכול ' + esc(cluster) : ''} (כיוון וחלופה נספרים בנפרד)${rank === 'miss' ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות בלו״ז` : rank ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות שנצפו` : ''}</div><p class="pdesc">״לא נצפו״: נסיעות מתוכננות שלא זוהו בנתונים. ייתכן שלא בוצעו או שבוצעו ללא שידור שנקלט. האחוז מחושב מתוך הנסיעות המתוכננות.</p>`;
   $('#tlines thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortL = {k, dir: sortL.k === k ? -sortL.dir : (['short', 'long', 'agency', 'cluster'].includes(k) ? 1 : -1)}; renderLines(); };
   $('#t-lines').querySelectorAll('.linebtn').forEach(b => b.onclick = () => { openLine = b.dataset.rid; renderLineDetail(); $('#line-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   const mb = $('#more-l'); if (mb) mb.onclick = () => { showAllL = true; renderLines(); };
