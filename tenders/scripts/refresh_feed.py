@@ -71,4 +71,8 @@ def main():
   # Existing feed remains unchanged; separate health state records the failure.
   (ROOT/'collection-health.json').write_text(json.dumps({'ok':False,'attemptedAt':now,'error':str(e)},ensure_ascii=False,indent=2));print('Collection failed; previous feed preserved:',str(e));return 1
  (ROOT/'collection-health.json').write_text(json.dumps({'ok':True,'attemptedAt':now},indent=2));return 0
-if __name__=='__main__':raise SystemExit(main())
+if __name__=='__main__':
+ portal_status = main()
+ from refresh_archive import main as refresh_archive
+ archive_status = refresh_archive()
+ raise SystemExit(portal_status or archive_status)
