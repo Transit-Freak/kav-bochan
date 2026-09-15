@@ -4010,14 +4010,14 @@ const DAYS_FILTER = [
                           const ov = kavPachVisibleOverlaps(overlapMap && overlapMap[String(res.makat || '').replace(/^0+/, '').trim()]);
                           if (!ov || !ov.length) return null;
                           return (
-                            <div className="mb-3">
-                              
-                              <div className="flex flex-wrap items-start gap-1.5">
+                            <div className="mb-4 bg-sky-50 border border-sky-200 rounded-2xl px-3 py-2">
+                              <div className="text-[10px] font-black text-sky-700 mb-1">🔀 חפיפת מסלול</div>
+                              <div className="flex flex-wrap gap-1.5">
                                 {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
-                                  <details key={mk2} className="text-sky-900 bg-sky-50 rounded-lg" style={{fontSize:11,maxWidth:'100%'}}>
-                                    <summary className="cursor-pointer flex items-center gap-1 list-none" style={{listStyle:'none',padding:'3px 7px',minHeight:28}}>
+                                  <details key={mk2} className="text-[10px] font-black bg-white border border-sky-200 text-sky-800 rounded-full" style={{maxWidth:'100%'}}>
+                                    <summary className="cursor-pointer flex items-center gap-1 list-none" style={{listStyle:'none',padding:'2px 8px'}}>
                                       <span className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}%</span>
-                                      <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{width:16,height:16,fontSize:10}}>?</span>
+                                      <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{width:14,height:14,fontSize:10}}>?</span>
                                     </summary>
                                     <div className="border-t border-sky-100 leading-relaxed" style={{padding:10,maxWidth:380,fontSize:12}}>
                                       <div>{shared} תחנות משותפות · {pct}% במדד התחנות.</div>
