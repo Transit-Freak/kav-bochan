@@ -1,5 +1,5 @@
 'use strict';
-let portalItems=[],feedExpanded=false,fieldCatalog={},structuredFields={};
+let portalItems=[],feedExpanded=false,fieldCatalog={},structuredFields={},fieldsState='loading';
 const busPdf='https://www.golan.org.il/uploads/n/bid_72.pdf';
 const taxiPage='https://mr.gov.il/ilgstorefront/he/p/632739';
 const taxiPdf='https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/%D7%9E%D7%A1%D7%9E%D7%9B%D7%99%20%D7%94%D7%9C%D7%99%D7%9A';
@@ -17,7 +17,7 @@ function render(){const list=matches();if(!list.some(t=>t.id===selected))selecte
  document.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{selected=b.dataset.id;tab='routes';render()});document.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filter===filter)));renderDetail();renderFeed();}
 function renderDetail(){const t=tenders.find(t=>t.id===selected);if(!t){$('detail').innerHTML='<h2>אין תוצאות להצגה</h2><p>גרסת הניסיון כוללת שני מכרזים בלבד. רשימות הקווים טרם הושלמו.</p>';return;}
  let content='';if(tab==='routes')content=`<h3>הקווים במכרז</h3><p class="warning">${esc(t.routeNote)}</p><a class="external" target="_blank" rel="noopener" href="${t.source}#page=${t.routePage}">פתיחת המקור בעמוד ${t.routePage} ↗</a>`;
- if(tab==='routes'&&t.routes.length)content+=`<div class="routechips">${t.routes.map(([n,p])=>`<a class="routechip" href="${t.source}#page=${p[0]}" target="_blank" rel="noopener" aria-label="קו ${n}, מקור בעמוד ${p[0]}">${n}</a>`).join('')}</div><p class="muted">לחיצה על מספר קו פותחת את העמוד שבו הוא מופיע.</p>`;
+ if(tab==='routes'&&t.routes.length)content+=`<div class="routechips">${t.routes.map(([n,p])=>`<button class="routechip" data-route="${n}" aria-haspopup="dialog" aria-label="פתיחת פרטי קו ${n}">${n}</button>`).join('')}</div><p class="muted">לחיצה על מספר קו פותחת את פרטיו כאן באתר.</p>`;
  if(tab==='conditions')content=`<h3>תנאים עיקריים שנבדקו</h3><p class="muted">סיכום חלקי. יש לבדוק את מלוא התנאים ומסמכי ההבהרות לפני הסתמכות.</p><ul>${t.conditions.map(([s,p])=>`<li>${esc(s)} <a href="${t.source}#page=${p}" target="_blank" rel="noopener">עמ׳ ${p}</a></li>`).join('')}</ul>`;
  if(tab==='sources')content=`<h3>פרסומים ומסמכי מקור</h3>${t.events.map(([d,s,u])=>`<div class="sourceitem"><bdi>${d}</bdi><p>${esc(s)}</p><a href="${u}" target="_blank" rel="noopener">למקור הרשמי ↗</a></div>`).join('')}<p class="muted">סיכום זה נבדק חלקית ב־15.9.2026. זמן סריקת הפורטל האחרונה מופיע ברשימת הפרסומים; סריקה חדשה אינה מעידה שכל המסמכים והתנאים נבדקו מחדש.</p>`;
  $('detail').innerHTML=`<span class="tag">${esc(t.status)}</span><h2>${esc(t.title)}</h2><p class="muted">${esc(t.publisher)} · מכרז <bdi>${t.number}</bdi></p><p>${esc(t.description)}</p><div class="facts"><div><span>פרסום המסמך</span><bdi>${t.date}</bdi></div><div><span>מועד הגשה</span><bdi>${t.deadline}</bdi></div><div><span>זוכה</span><b>${t.winner}</b></div><div><span>שלמות הסיכום</span><b>חלקית · נספחי קווים בבדיקה</b></div></div><nav class="tabs" aria-label="פרטי המכרז">${[['routes','קווים'],['conditions','תנאים עיקריים'],['sources','עדכונים ומקורות']].map(([id,title])=>`<button data-tab="${id}" aria-pressed="${tab===id}">${title}</button>`).join('')}</nav>${content}`;document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;renderDetail()});}
@@ -30,5 +30,26 @@ function renderFeed(){const host=$('live-results');if(!host)return;const tokens=
 $('feed-more').onclick=()=>{feedExpanded=!feedExpanded;renderFeed()};
 fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{portalItems=r.items;$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. החיפוש מכסה את מפרסם משרד התחבורה ואת המונח ״קווי״; אין עדיין כיסוי מלא לכל ניסוח ומפרסם.`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. סיכומי הדוגמה זמינים בהמשך.'});
 fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?'הוגדרה בדיקה מדי שעה דרך המשימות המתוזמנות בחשבון. זמן הופעת העדכון תלוי גם בזמינות המקור ובהצלחת הפרסום.':'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
-function renderFields(t){const fields=structuredFields[t.id]||{};const labels={unverified:'טרם נבדק',source_missing:'מסמך המקור חסר',unrecognized_wording:'הניסוח לא זוהה',conflict:'סתירה בין מקורות',not_applicable:'לא חל',verified:'אומת מול המקור'};const entries=Object.entries(fieldCatalog);if(!entries.length)return '';const verified=entries.filter(([k])=>fields[k]?.status==='verified').length;return `<details class="fielddetails"><summary>תנאי המכרז: ${verified} מתוך ${entries.length} שדות אפשריים אומתו</summary><p class="muted">פרסום המכרז זוהה. תנאים שלא פוענחו אינם מוצגים כהנחות או כאפס. ״הניסוח לא זוהה״ יסומן רק לאחר ניסיון פענוח.</p>${entries.map(([k,definition])=>{const f=fields[k]||definition;const v=f.status==='verified'?`${esc(Array.isArray(f.value)?f.value.join(', '):f.value)}${f.currency?' '+esc(f.currency):''}`:labels[f.status]||'טרם נבדק';return `<div class="fieldrow"><strong>${esc(definition.label)}</strong><span>${v}</span>${(f.sources||[]).filter(source=>/^https:\/\//.test(source.url||'')).map(source=>`<a target="_blank" rel="noopener" href="${esc(source.url)}">${esc(source.locator)}</a>`).join('')}</div>`}).join('')}</details>`;}
-Promise.all([fetch('field-catalog.json').then(r=>r.json()),fetch('structured-tenders.json').then(r=>r.ok?r.json():{})]).then(([catalog,values])=>{fieldCatalog=catalog.fields;structuredFields=values;renderFeed()}).catch(()=>{});
+function renderFields(t){const fields=structuredFields[t.id]||{};const labels={unverified:'טרם נבדק',source_missing:'מסמך המקור חסר',unrecognized_wording:'הניסוח לא זוהה',conflict:'סתירה בין מקורות',not_applicable:'לא חל',verified:'אומת מול המקור'};const entries=Object.entries(fieldCatalog);if(fieldsState==='loading')return '<p class="muted" role="status">טוען את פרטי התנאים…</p>';if(fieldsState==='error'||!entries.length)return '<p role="status">לא ניתן לטעון את פרטי התנאים. <button data-retry-fields>ניסיון חוזר</button></p>';const verified=entries.filter(([k])=>fields[k]?.status==='verified').length;return `<details class="fielddetails"><summary>${verified?`תנאי המכרז: ${verified} שדות אומתו מול המקור`:'תנאי המכרז טרם פוענחו'}</summary><p class="muted">פרסום המכרז זוהה. תנאים שלא פוענחו אינם מוצגים כהנחות או כאפס. ״הניסוח לא זוהה״ יסומן רק לאחר ניסיון פענוח.</p>${entries.map(([k,definition])=>{const f=fields[k]||definition;const v=f.status==='verified'?`${esc(Array.isArray(f.value)?f.value.join(', '):f.value)}${f.currency?' '+esc(f.currency):''}`:labels[f.status]||'טרם נבדק';return `<div class="fieldrow"><strong>${esc(definition.label)}</strong><span>${v}</span>${(f.sources||[]).filter(source=>/^https:\/\//.test(source.url||'')).map(source=>`<a target="_blank" rel="noopener" href="${esc(source.url)}">${esc(source.locator)}</a>`).join('')}</div>`}).join('')}</details>`;}
+async function loadFields(){
+ fieldsState='loading';renderFeed();
+ try{
+  const responses=await Promise.all(['field-catalog.json','structured-tenders.json'].map(url=>fetch(url,{cache:'no-cache'})));
+  if(responses.some(r=>!r.ok))throw new Error('Fields unavailable');
+  const [catalog,values]=await Promise.all(responses.map(r=>r.json()));
+  if(!catalog.fields||Array.isArray(catalog.fields)||!Object.keys(catalog.fields).length||!values||typeof values!=='object'||Array.isArray(values))throw new Error('Invalid fields');
+  fieldCatalog=catalog.fields;structuredFields=values;fieldsState='ready';
+ }catch{fieldsState='error';}
+ renderFeed();
+}
+document.addEventListener('click',event=>{if(event.target.closest('[data-retry-fields]'))loadFields();});
+loadFields();
+const routeDialog=document.createElement('dialog');
+routeDialog.className='route-dialog';routeDialog.setAttribute('aria-labelledby','route-title');document.body.append(routeDialog);
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-route]');if(!button)return;
+ const tender=tenders.find(t=>t.id===selected),route=tender?.routes.find(([n])=>n===button.dataset.route);if(!route)return;
+ const [number,pages]=route;
+ routeDialog.innerHTML=`<form method="dialog"><button aria-label="סגירת פרטי הקו">סגירה ✕</button></form><h2 id="route-title">קו ${esc(number)}</h2><p>${esc(tender.title)} · מכרז ${esc(tender.number)}</p><p>מספר הקו מופיע בנספח המכרז בעמודים ${pages.join(', ')}.</p><p class="warning">נקודות המוצא והיעד, התחנות וחלופות המסלול עדיין לא פוענחו. מספר הקו לבדו אינו מזהה מסלול, ולכן עדיין לא מוצגת מפה.</p><h3>מסמך המקור</h3><p>${pages.map(page=>`<a href="${tender.source}#page=${page}" target="_blank" rel="noopener">עמוד ${page} ↗</a>`).join(' · ')}</p>`;
+ routeDialog.showModal();
+});
