@@ -11,7 +11,7 @@ CATALOG={
  'service.routes':('קווים','list','service'), 'service.variants':('חלופות מסלול','list','service'), 'service.weekly_trips':('נסיעות בשבוע','count','service'), 'service.annual_km':('קילומטרים בשנה','distance','service'), 'service.operating_hours':('שעות פעילות','text','service'), 'service.frequency':('תדירות שירות','duration','service'),
  'price.per_km':('תמורה לקילומטר','money','pricing'), 'price.ceiling_per_km':('תקרת מחיר לקילומטר','money','pricing'), 'price.fixed_payment':('תשלום קבוע','money','pricing'), 'price.indexation':('הצמדת תמורה','text','pricing'),
  'scoring.price_weight':('משקל המחיר בניקוד','percent','scoring'), 'scoring.quality_weight':('משקל האיכות בניקוד','percent','scoring'), 'scoring.minimum_quality':('סף ניקוד איכות','points','scoring'), 'penalties.amount':('פיצוי מוסכם','money','penalties'), 'award.winner':('זוכה','text','award'), 'award.awarded_price':('מחיר זכייה','money','award')}
-STATUSES={'unverified','verified','source_missing','unrecognized_wording','conflict','not_applicable'}
+STATUSES={'unverified','verified','verified_conditional','source_missing','unrecognized_wording','conflict','not_applicable'}
 def blank():return {k:{'label':v[0],'kind':v[1],'scope':v[2],'status':'unverified','value':None,'sources':[]} for k,v in CATALOG.items()}
 def validate(tender_id,fields):
  import datetime,math,urllib.parse
@@ -21,6 +21,18 @@ def validate(tender_id,fields):
   _,kind,scope=CATALOG[key]
   if f.get('kind')!=kind or f.get('scope')!=scope:errors.append(key+': wrong type or scope')
   if f.get('status') not in STATUSES:errors.append(key+': unknown status')
+  if f.get('status')=='verified_conditional':
+   if f.get('value') is not None:errors.append(key+': conditional field cannot have a single value')
+   conditions=f.get('conditions',[])
+   if not isinstance(conditions,list) or not conditions:
+    errors.append(key+': missing verified conditions');continue
+   for condition in conditions:
+    if not isinstance(condition,dict):errors.append(key+': invalid condition');continue
+    if not condition.get('label'):errors.append(key+': missing condition scope')
+    if condition.get('comparison') not in {'eq','lt','lte'}:errors.append(key+': missing or invalid comparison')
+    if kind=='duration' and condition.get('unit') not in {'years','months','days'}:errors.append(key+': invalid duration unit')
+    errors.extend(validate(tender_id,{key:{**condition,'kind':kind,'scope':scope,'status':'verified'}}))
+   continue
   if f.get('status')!='verified':
    if f.get('value') is not None:errors.append(key+': uncertain value must remain null')
    continue

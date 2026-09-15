@@ -505,9 +505,60 @@
       "label": "גיל רכב מרבי",
       "scope": "vehicle",
       "sources": [],
-      "status": "unverified",
+      "status": "verified_conditional",
       "value": null,
-      "reason": "תנאים שונים לפי סוג רכב: אוטובוסים מתחת ל־10 שנים, מיניבוסים מתחת ל־6; ממוצע הצי עד 7 שנים (עמוד PDF 125). לא הוצג גיל יחיד מטעה."
+      "reason": null,
+      "conditions": [
+        {
+          "label": "אוטובוסים",
+          "value": 10,
+          "unit": "years",
+          "comparison": "lt",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125",
+              "locator": "עמוד PDF 125, סעיף 40.2.5",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "fleet.max_age",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        },
+        {
+          "label": "מיניבוסים",
+          "value": 6,
+          "unit": "years",
+          "comparison": "lt",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125",
+              "locator": "עמוד PDF 125, סעיף 40.2.5",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "fleet.max_age",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        },
+        {
+          "label": "ממוצע כלל הצי",
+          "value": 7,
+          "unit": "years",
+          "comparison": "lte",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125",
+              "locator": "עמוד PDF 125, סעיף 40.2.5",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "fleet.max_age",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        }
+      ],
+      "notes": "הגיל מחושב מהרישום הראשון. מגבלת קילומטראז׳ נפרדת חלה על אוטובוסים בינעירוניים לפי סעיף 40.2.6."
     },
     "fleet.operating": {
       "kind": "count",
@@ -795,18 +846,104 @@
       "label": "תקופת התקשרות בסיסית",
       "scope": "term",
       "sources": [],
-      "status": "unverified",
+      "status": "verified_conditional",
       "value": null,
-      "reason": "נדרשת הבחנה בין שלבים: 81 חודשים לשלב א׳ ו־84 לשלב ב׳, כולל ההכנות ממועד הודעת הזכייה (עמודי PDF 7–8). אין תקופה יחידה לכל האשכול."
+      "reason": null,
+      "conditions": [
+        {
+          "label": "שלב א׳",
+          "value": 81,
+          "unit": "months",
+          "comparison": "eq",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=7",
+              "locator": "עמוד PDF 7, סעיף 1.6.2",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "term.base",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        },
+        {
+          "label": "שלב ב׳: עירוני אשקלון",
+          "value": 84,
+          "unit": "months",
+          "comparison": "eq",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8",
+              "locator": "עמוד PDF 8, סעיף 1.6.2",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "term.base",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        }
+      ],
+      "notes": "כולל תקופת ההכנות, ממועד הודעת הזכייה. תחילת שירות בתוך 9 חודשים בשלב א׳ ובתוך 12 חודשים בשלב ב׳."
     },
     "term.extension": {
       "kind": "duration",
       "label": "אפשרויות הארכה",
       "scope": "term",
       "sources": [],
-      "status": "unverified",
+      "status": "verified_conditional",
       "value": null,
-      "reason": "שתי אפשרויות של 3 שנים בכפוף לתנאים (סעיף 1.7), ועוד סמכות להארכה של 12 חודשים (1.10). אין לחברן לתקופת בסיס אוטומטית."
+      "reason": null,
+      "conditions": [
+        {
+          "label": "אפשרות הארכה ראשונה",
+          "value": 3,
+          "unit": "years",
+          "comparison": "eq",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8",
+              "locator": "עמוד PDF 8, סעיף 1.7",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "term.extension",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        },
+        {
+          "label": "אפשרות הארכה שנייה",
+          "value": 3,
+          "unit": "years",
+          "comparison": "eq",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8",
+              "locator": "עמוד PDF 8, סעיף 1.7",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "term.extension",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        },
+        {
+          "label": "סמכות הארכה נוספת ונפרדת",
+          "value": 12,
+          "unit": "months",
+          "comparison": "eq",
+          "sources": [
+            {
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=9",
+              "locator": "עמוד PDF 9, סעיף 1.10",
+              "tenderId": "archive-northern-negev",
+              "fieldKey": "term.extension",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "checkedAt": "2026-09-15"
+            }
+          ]
+        }
+      ],
+      "notes": "שתי האפשרויות כפופות להסכמת המפעיל ולעמידה בתנאים; הסמכות הנוספת נתונה לשיקול דעת הממשלה. הארכה אינה אוטומטית."
     }
   }
 }

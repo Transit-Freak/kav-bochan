@@ -328,6 +328,7 @@
     "source_missing",
     "unrecognized_wording",
     "unverified",
-    "verified"
+    "verified",
+    "verified_conditional"
   ]
 }
