@@ -1,4 +1,13 @@
 {
+  "schemaVersion": 1,
+  "source": "https://www.gov.il/he/departments/guides/agreements_for_operating_service_lines_in_public_transportation",
+  "lastRun": {
+    "attemptedAt": "2026-09-15T12:56:57.793183+00:00",
+    "ok": false,
+    "sourceUrl": "https://www.gov.il/he/departments/guides/agreements_for_operating_service_lines_in_public_transportation",
+    "coverage": "partial",
+    "error": "HTTP Error 403: Forbidden"
+  },
   "items": [
     {
       "classification": "operating_tender",
@@ -64,14 +73,5 @@
       "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
       "winner": null
     }
-  ],
-  "lastRun": {
-    "attemptedAt": "2026-09-15T12:31:35.438505+00:00",
-    "coverage": "partial",
-    "error": "HTTP Error 403: Forbidden",
-    "ok": false,
-    "sourceUrl": "https://www.gov.il/he/departments/guides/agreements_for_operating_service_lines_in_public_transportation"
-  },
-  "schemaVersion": 1,
-  "source": "https://www.gov.il/he/departments/guides/agreements_for_operating_service_lines_in_public_transportation"
+  ]
 }

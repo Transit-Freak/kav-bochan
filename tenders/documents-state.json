@@ -381,7 +381,192 @@
       "error": null,
       "linkCheckSucceededAt": "2026-09-15T12:08:05.399736+00:00",
       "nextCheckAt": "2026-09-15T13:08:05.399736+00:00"
+    },
+    "4000582393": {
+      "sourceUrl": "https://mr.gov.il/ilgstorefront/he/p/4000582393",
+      "attemptedAt": "2026-09-15T12:57:43.584330+00:00",
+      "sourceVersionAttempted": "14/10/2024",
+      "documents": [
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA2A6E1AF4FC0414C/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T12:57:43.584330+00:00",
+          "status": "download_verified",
+          "sha256": "2569d1c05d8ebbec32908beb42d01da99dca7ca850656a0157f624d5109780ed",
+          "lastSuccessAt": "2026-09-15T12:57:43.584330+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T12:57:43.584330+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF9FE05EDAFEB9814C/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T12:57:43.584330+00:00",
+          "status": "download_verified",
+          "sha256": "8ce0df477bcfe2ce11390c0e7aa007eb49fa19e4eb5a25fa25008349c5958f4f",
+          "lastSuccessAt": "2026-09-15T12:57:43.584330+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T12:57:43.584330+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1EEF99A41BC5501832E5/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T12:57:43.584330+00:00",
+          "status": "download_verified",
+          "sha256": "3417d407b29b7b7bb97522e5b719c4c495bf2bc636d7bf8aa240ee6656aee7b7",
+          "lastSuccessAt": "2026-09-15T12:57:43.584330+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T12:57:43.584330+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF9286F6B041B1814B/נספח למכרז",
+          "presentInLatestListing": true,
+          "attemptedAt": "2026-09-15T12:57:43.584330+00:00",
+          "status": "download_verified",
+          "sha256": "e34aa0cb2847a80067733715b3c472d56d55de389a5d67e2b9e8b84c53d26400",
+          "lastSuccessAt": "2026-09-15T12:57:43.584330+00:00",
+          "failures": 0,
+          "nextCheckAt": "2026-09-22T12:57:43.584330+00:00",
+          "error": null
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF9286F39C3EE9614B/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1EEF8EA190CC8545D2E4/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF8E90D1BFDC35814B/מענה לשאלות הבהרה",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF8E90CAAB9589014B/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF89E08999AA22414B/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF89E087868369414B/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFD1C2E04392E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFCC547D64D2E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFCEDC1E7C92E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFC7E87EAC12E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFC9AFB51CF2E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFC5A5F88152E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFBF1CE5E3B2E5/מסמך הבהרת עורך המכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFC2D559FAF2E5/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDEBFB0828F9D7AC14A/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDEBFB074871815414A/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEBC97C6042C6652E3/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDEB3E2EBA55084C14A/הודעה על עדכון מועדים",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8F9C35EA652DE/מודעה לעיתונות בערבית",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8C1B5349EB2DE/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8C42DF295B2DE/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8BDAB816E92DE/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8BFB587CB92DE/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8BA64FBD332DE/נספח למכרז",
+          "presentInLatestListing": true,
+          "status": "pending"
+        },
+        {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B188EBE932DE/מודעה לעיתונות בעברית",
+          "presentInLatestListing": true,
+          "status": "pending"
+        }
+      ],
+      "sourceUpdated": "14/10/2024",
+      "error": null,
+      "linkCheckSucceededAt": "2026-09-15T12:57:43.584330+00:00",
+      "nextCheckAt": "2026-09-15T13:57:43.584330+00:00"
     }
   },
-  "checkedAt": "2026-09-15T12:08:05.399736+00:00"
+  "checkedAt": "2026-09-15T12:57:43.584330+00:00"
 }

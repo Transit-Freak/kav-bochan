@@ -343,24 +343,24 @@
       "value": null
     }
   },
-  "archive-northern-negev": {
+  "4000594348": {
     "award.awarded_price": {
       "kind": "money",
       "label": "מחיר זכייה",
       "scope": "award",
       "sources": [],
-      "status": "source_missing",
+      "status": "unverified",
       "value": null,
-      "reason": "לא נקרא מקור רשמי המאמת את ההצעה הזוכה."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "award.winner": {
       "kind": "text",
       "label": "זוכה",
       "scope": "award",
       "sources": [],
-      "status": "source_missing",
+      "status": "unverified",
       "value": null,
-      "reason": "מסמך המכרז אינו הודעת זכייה או הסכם חתום; פרטי הזוכה טרם אומתו מול מקור כזה."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "dates.publication": {
       "kind": "date",
@@ -369,26 +369,16 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "dates.questions": {
       "kind": "date",
       "label": "שאלות הבהרה",
       "scope": "dates",
-      "sources": [
-        {
-          "tenderId": "archive-northern-negev",
-          "fieldKey": "dates.questions",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=22",
-          "locator": "עמוד PDF 22, סעיף 8.2",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-          "checkedAt": "2026-09-15"
-        }
-      ],
-      "status": "verified",
-      "value": "2014-07-30",
-      "reason": null,
-      "notes": "לפי גרסת המסמך שנקראה; לא אומתו כל ההבהרות המאוחרות."
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "הודעת העדכון מציינת 19.1.2025, אך לא הושלמה בדיקת עדכונים מאוחרים יותר."
     },
     "dates.service_start": {
       "kind": "date",
@@ -397,7 +387,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "dates.submission": {
       "kind": "date",
@@ -405,18 +395,22 @@
       "scope": "dates",
       "sources": [
         {
-          "tenderId": "archive-northern-negev",
+          "tenderId": "4000594348",
           "fieldKey": "dates.submission",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=25",
-          "locator": "עמוד PDF 25, סעיף 10",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-          "checkedAt": "2026-09-15"
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFB28332E9F7E792E6/הודעה על עדכון מועדים#page=1",
+          "locator": "עמוד PDF 1, סעיף 2.1",
+          "sha256": "4692a36d464e9b1b125013dd3ccedc4a23b34facd07a7858ce611d6dbda57a5d"
+        },
+        {
+          "tenderId": "4000594348",
+          "fieldKey": "dates.submission",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/4000594348",
+          "locator": "מועד אחרון להגשה ברשימת הפרסומים, סריקה 15.9.2026"
         }
       ],
-      "status": "verified",
-      "value": "2014-11-19",
-      "reason": null,
-      "notes": "בשעה 12:00, לפי גרסת המסמך שנקראה; לא אומתו כל ההבהרות המאוחרות."
+      "status": "conflict",
+      "value": null,
+      "reason": "בהודעה שנקראה: 5.3.2025, 10:00–12:00. בפורטל: 9.4.2025, 12:00. ייתכן עדכון מאוחר יותר; שרשרת ההבהרות טרם אומתה ולכן לא נבחר מועד יחיד."
     },
     "eligibility.drivers": {
       "kind": "count",
@@ -425,7 +419,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "eligibility.equity": {
       "kind": "money",
@@ -434,7 +428,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "eligibility.experience": {
       "kind": "duration",
@@ -443,7 +437,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "eligibility.fleet": {
       "kind": "count",
@@ -452,26 +446,16 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "eligibility.licenses": {
       "kind": "text",
       "label": "רישיונות נדרשים",
       "scope": "eligibility",
-      "sources": [
-        {
-          "tenderId": "archive-northern-negev",
-          "fieldKey": "eligibility.licenses",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=16",
-          "locator": "עמוד PDF 16, סעיפים 4.2–4.3",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-          "checkedAt": "2026-09-15"
-        }
-      ],
-      "status": "verified",
-      "value": "השתתפות מותנית בזכאות במיון מוקדם 06/2010 ובהמשך עמידה בתנאיו.",
-      "reason": null,
-      "notes": "אין להסיק מכאן סף כספי או גודל צי ללא מסמכי המיון המוקדם."
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "eligibility.turnover": {
       "kind": "money",
@@ -480,7 +464,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "fleet.accessibility": {
       "kind": "text",
@@ -489,7 +473,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "fleet.electric_share": {
       "kind": "percent",
@@ -498,67 +482,16 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "fleet.max_age": {
       "kind": "duration",
       "label": "גיל רכב מרבי",
       "scope": "vehicle",
       "sources": [],
-      "status": "verified_conditional",
+      "status": "unverified",
       "value": null,
-      "reason": null,
-      "conditions": [
-        {
-          "label": "אוטובוסים",
-          "value": 10,
-          "unit": "years",
-          "comparison": "lt",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125",
-              "locator": "עמוד PDF 125, סעיף 40.2.5",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "fleet.max_age",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        },
-        {
-          "label": "מיניבוסים",
-          "value": 6,
-          "unit": "years",
-          "comparison": "lt",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125",
-              "locator": "עמוד PDF 125, סעיף 40.2.5",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "fleet.max_age",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        },
-        {
-          "label": "ממוצע כלל הצי",
-          "value": 7,
-          "unit": "years",
-          "comparison": "lte",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125",
-              "locator": "עמוד PDF 125, סעיף 40.2.5",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "fleet.max_age",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        }
-      ],
-      "notes": "הגיל מחושב מהרישום הראשון. מגבלת קילומטראז׳ נפרדת חלה על אוטובוסים בינעירוניים לפי סעיף 40.2.6."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "fleet.operating": {
       "kind": "count",
@@ -567,7 +500,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "fleet.reserve": {
       "kind": "count",
@@ -576,7 +509,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "fleet.seats": {
       "kind": "count",
@@ -585,53 +518,25 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "guarantee.bid": {
       "kind": "money",
       "label": "ערבות הצעה",
       "scope": "bid",
-      "sources": [
-        {
-          "tenderId": "archive-northern-negev",
-          "fieldKey": "guarantee.bid",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=26",
-          "locator": "עמוד PDF 26, סעיף 14.1",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-          "checkedAt": "2026-09-15"
-        }
-      ],
-      "status": "verified",
-      "value": 2000000,
-      "reason": null,
-      "currency": "ILS",
-      "unit": "ערבות הצעה",
-      "vat": "לא צוין בסעיף",
-      "period": "180 ימים מהמועד להגשת ההצעות",
-      "notes": "סכום ערבות, לא מחיר ההצעה ולא עלות ההפעלה."
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "guarantee.performance": {
       "kind": "money",
       "label": "ערבות ביצוע",
       "scope": "execution",
-      "sources": [
-        {
-          "tenderId": "archive-northern-negev",
-          "fieldKey": "guarantee.performance",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=29",
-          "locator": "עמוד PDF 29, סעיף 15.1",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-          "checkedAt": "2026-09-15"
-        }
-      ],
-      "status": "verified",
-      "value": 20000000,
-      "reason": null,
-      "currency": "ILS",
-      "unit": "ערבות ביצוע והכנות",
-      "vat": "לא צוין בסעיף",
-      "period": "להבטחת ההכנות וביצוע השירות",
-      "notes": "צמודה למדד המחירים לצרכן הידוע במועד הודעת הזכייה; מסירה בתוך 7 ימים מההודעה."
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "identity.cluster": {
       "kind": "text",
@@ -639,16 +544,16 @@
       "scope": "identity",
       "sources": [
         {
-          "tenderId": "archive-northern-negev",
+          "tenderId": "4000594348",
           "fieldKey": "identity.cluster",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
-          "locator": "עמוד PDF 1, שער",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFB28332E9F7E792E6/הודעה על עדכון מועדים#page=1",
+          "locator": "עמוד PDF 1, כותרת",
+          "sha256": "4692a36d464e9b1b125013dd3ccedc4a23b34facd07a7858ce611d6dbda57a5d",
           "checkedAt": "2026-09-15"
         }
       ],
       "status": "verified",
-      "value": "צפון הנגב",
+      "value": "עיר נתניה",
       "reason": null
     },
     "identity.issuer": {
@@ -657,11 +562,11 @@
       "scope": "identity",
       "sources": [
         {
-          "tenderId": "archive-northern-negev",
+          "tenderId": "4000594348",
           "fieldKey": "identity.issuer",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
-          "locator": "עמוד PDF 1, שער",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFB28332E9F7E792E6/הודעה על עדכון מועדים#page=1",
+          "locator": "עמוד PDF 1, סעיף 1",
+          "sha256": "4692a36d464e9b1b125013dd3ccedc4a23b34facd07a7858ce611d6dbda57a5d",
           "checkedAt": "2026-09-15"
         }
       ],
@@ -675,16 +580,16 @@
       "scope": "identity",
       "sources": [
         {
-          "tenderId": "archive-northern-negev",
+          "tenderId": "4000594348",
           "fieldKey": "identity.mode",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
-          "locator": "עמוד PDF 1, שער",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFB28332E9F7E792E6/הודעה על עדכון מועדים#page=1",
+          "locator": "עמוד PDF 1, כותרת",
+          "sha256": "4692a36d464e9b1b125013dd3ccedc4a23b34facd07a7858ce611d6dbda57a5d",
           "checkedAt": "2026-09-15"
         }
       ],
       "status": "verified",
-      "value": "אוטובוסים",
+      "value": "מוניות שירות",
       "reason": null
     },
     "identity.number": {
@@ -693,16 +598,16 @@
       "scope": "identity",
       "sources": [
         {
-          "tenderId": "archive-northern-negev",
+          "tenderId": "4000594348",
           "fieldKey": "identity.number",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
-          "locator": "עמוד PDF 1, שער",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFB28332E9F7E792E6/הודעה על עדכון מועדים#page=1",
+          "locator": "עמוד PDF 1, כותרת",
+          "sha256": "4692a36d464e9b1b125013dd3ccedc4a23b34facd07a7858ce611d6dbda57a5d",
           "checkedAt": "2026-09-15"
         }
       ],
       "status": "verified",
-      "value": "07/2014",
+      "value": "01/2024",
       "reason": null
     },
     "penalties.amount": {
@@ -712,7 +617,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "price.ceiling_per_km": {
       "kind": "money",
@@ -721,7 +626,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "price.fixed_payment": {
       "kind": "money",
@@ -730,7 +635,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "price.indexation": {
       "kind": "text",
@@ -739,7 +644,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "price.per_km": {
       "kind": "money",
@@ -748,7 +653,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "scoring.minimum_quality": {
       "kind": "points",
@@ -757,26 +662,16 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "scoring.price_weight": {
       "kind": "percent",
       "label": "משקל המחיר בניקוד",
       "scope": "scoring",
-      "sources": [
-        {
-          "tenderId": "archive-northern-negev",
-          "fieldKey": "scoring.price_weight",
-          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=51",
-          "locator": "עמוד PDF 51, סעיף 28.2",
-          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-          "checkedAt": "2026-09-15"
-        }
-      ],
-      "status": "verified",
-      "value": 56,
-      "reason": null,
-      "notes": "56 מתוך 100 נקודות. יתר הרכיבים מפורטים בסיכום; זו אינה תקרת מחיר."
+      "sources": [],
+      "status": "unverified",
+      "value": null,
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "scoring.quality_weight": {
       "kind": "percent",
@@ -785,7 +680,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "service.annual_km": {
       "kind": "distance",
@@ -794,7 +689,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "service.frequency": {
       "kind": "duration",
@@ -803,7 +698,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "service.operating_hours": {
       "kind": "text",
@@ -812,7 +707,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "service.routes": {
       "kind": "list",
@@ -821,7 +716,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "אומתו בשלב זה 7 רשומות מקריית מלאכי בלבד, מתוך רשימה ארוכה יותר. הן מופיעות בסיכום החלקי; רשימת האשכול המלאה עדיין בבדיקה."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "service.variants": {
       "kind": "list",
@@ -830,7 +725,7 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "service.weekly_trips": {
       "kind": "count",
@@ -839,111 +734,628 @@
       "sources": [],
       "status": "unverified",
       "value": null,
-      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "term.base": {
       "kind": "duration",
       "label": "תקופת התקשרות בסיסית",
       "scope": "term",
       "sources": [],
-      "status": "verified_conditional",
+      "status": "unverified",
       "value": null,
-      "reason": null,
-      "conditions": [
-        {
-          "label": "שלב א׳",
-          "value": 81,
-          "unit": "months",
-          "comparison": "eq",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=7",
-              "locator": "עמוד PDF 7, סעיף 1.6.2",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "term.base",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        },
-        {
-          "label": "שלב ב׳: עירוני אשקלון",
-          "value": 84,
-          "unit": "months",
-          "comparison": "eq",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8",
-              "locator": "עמוד PDF 8, סעיף 1.6.2",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "term.base",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        }
-      ],
-      "notes": "כולל תקופת ההכנות, ממועד הודעת הזכייה. תחילת שירות בתוך 9 חודשים בשלב א׳ ובתוך 12 חודשים בשלב ב׳."
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
     },
     "term.extension": {
       "kind": "duration",
       "label": "אפשרויות הארכה",
       "scope": "term",
       "sources": [],
-      "status": "verified_conditional",
+      "status": "unverified",
       "value": null,
+      "reason": "טרם נבדק במסמכי ההליך המלאים; נקראה הודעת עדכון מועדים בלבד."
+    }
+  },
+  "archive-northern-negev": {
+    "award.awarded_price": {
+      "kind": "money",
+      "label": "מחיר זכייה",
+      "reason": "לא נקרא מקור רשמי המאמת את ההצעה הזוכה.",
+      "scope": "award",
+      "sources": [],
+      "status": "source_missing",
+      "value": null
+    },
+    "award.winner": {
+      "kind": "text",
+      "label": "זוכה",
+      "reason": "מסמך המכרז אינו הודעת זכייה או הסכם חתום; פרטי הזוכה טרם אומתו מול מקור כזה.",
+      "scope": "award",
+      "sources": [],
+      "status": "source_missing",
+      "value": null
+    },
+    "dates.publication": {
+      "kind": "date",
+      "label": "פרסום",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "dates.questions": {
+      "kind": "date",
+      "label": "שאלות הבהרה",
+      "notes": "לפי גרסת המסמך שנקראה; לא אומתו כל ההבהרות המאוחרות.",
       "reason": null,
-      "conditions": [
+      "scope": "dates",
+      "sources": [
         {
-          "label": "אפשרות הארכה ראשונה",
-          "value": 3,
-          "unit": "years",
-          "comparison": "eq",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8",
-              "locator": "עמוד PDF 8, סעיף 1.7",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "term.extension",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        },
-        {
-          "label": "אפשרות הארכה שנייה",
-          "value": 3,
-          "unit": "years",
-          "comparison": "eq",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8",
-              "locator": "עמוד PDF 8, סעיף 1.7",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "term.extension",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
-        },
-        {
-          "label": "סמכות הארכה נוספת ונפרדת",
-          "value": 12,
-          "unit": "months",
-          "comparison": "eq",
-          "sources": [
-            {
-              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=9",
-              "locator": "עמוד PDF 9, סעיף 1.10",
-              "tenderId": "archive-northern-negev",
-              "fieldKey": "term.extension",
-              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
-              "checkedAt": "2026-09-15"
-            }
-          ]
+          "checkedAt": "2026-09-15",
+          "fieldKey": "dates.questions",
+          "locator": "עמוד PDF 22, סעיף 8.2",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=22"
         }
       ],
-      "notes": "שתי האפשרויות כפופות להסכמת המפעיל ולעמידה בתנאים; הסמכות הנוספת נתונה לשיקול דעת הממשלה. הארכה אינה אוטומטית."
+      "status": "verified",
+      "value": "2014-07-30"
+    },
+    "dates.service_start": {
+      "kind": "date",
+      "label": "תחילת שירות",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "dates",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "dates.submission": {
+      "kind": "date",
+      "label": "הגשת הצעות",
+      "notes": "בשעה 12:00, לפי גרסת המסמך שנקראה; לא אומתו כל ההבהרות המאוחרות.",
+      "reason": null,
+      "scope": "dates",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "dates.submission",
+          "locator": "עמוד PDF 25, סעיף 10",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=25"
+        }
+      ],
+      "status": "verified",
+      "value": "2014-11-19"
+    },
+    "eligibility.drivers": {
+      "kind": "count",
+      "label": "נהגים כתנאי סף",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.equity": {
+      "kind": "money",
+      "label": "הון עצמי נדרש",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.experience": {
+      "kind": "duration",
+      "label": "ניסיון נדרש",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.fleet": {
+      "kind": "count",
+      "label": "צי כתנאי סף",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "eligibility.licenses": {
+      "kind": "text",
+      "label": "רישיונות נדרשים",
+      "notes": "אין להסיק מכאן סף כספי או גודל צי ללא מסמכי המיון המוקדם.",
+      "reason": null,
+      "scope": "eligibility",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "eligibility.licenses",
+          "locator": "עמוד PDF 16, סעיפים 4.2–4.3",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=16"
+        }
+      ],
+      "status": "verified",
+      "value": "השתתפות מותנית בזכאות במיון מוקדם 06/2010 ובהמשך עמידה בתנאיו."
+    },
+    "eligibility.turnover": {
+      "kind": "money",
+      "label": "מחזור כספי נדרש",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "eligibility",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.accessibility": {
+      "kind": "text",
+      "label": "נגישות כלי הרכב",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.electric_share": {
+      "kind": "percent",
+      "label": "שיעור צי חשמלי",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.max_age": {
+      "conditions": [
+        {
+          "comparison": "lt",
+          "label": "אוטובוסים",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "fleet.max_age",
+              "locator": "עמוד PDF 125, סעיף 40.2.5",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125"
+            }
+          ],
+          "unit": "years",
+          "value": 10
+        },
+        {
+          "comparison": "lt",
+          "label": "מיניבוסים",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "fleet.max_age",
+              "locator": "עמוד PDF 125, סעיף 40.2.5",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125"
+            }
+          ],
+          "unit": "years",
+          "value": 6
+        },
+        {
+          "comparison": "lte",
+          "label": "ממוצע כלל הצי",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "fleet.max_age",
+              "locator": "עמוד PDF 125, סעיף 40.2.5",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=125"
+            }
+          ],
+          "unit": "years",
+          "value": 7
+        }
+      ],
+      "kind": "duration",
+      "label": "גיל רכב מרבי",
+      "notes": "הגיל מחושב מהרישום הראשון. מגבלת קילומטראז׳ נפרדת חלה על אוטובוסים בינעירוניים לפי סעיף 40.2.6.",
+      "reason": null,
+      "scope": "vehicle",
+      "sources": [],
+      "status": "verified_conditional",
+      "value": null
+    },
+    "fleet.operating": {
+      "kind": "count",
+      "label": "כלי רכב להפעלה",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.reserve": {
+      "kind": "count",
+      "label": "רכב רזרבי",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "execution",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "fleet.seats": {
+      "kind": "count",
+      "label": "מושבים לרכב",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "vehicle",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "guarantee.bid": {
+      "currency": "ILS",
+      "kind": "money",
+      "label": "ערבות הצעה",
+      "notes": "סכום ערבות, לא מחיר ההצעה ולא עלות ההפעלה.",
+      "period": "180 ימים מהמועד להגשת ההצעות",
+      "reason": null,
+      "scope": "bid",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "guarantee.bid",
+          "locator": "עמוד PDF 26, סעיף 14.1",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=26"
+        }
+      ],
+      "status": "verified",
+      "unit": "ערבות הצעה",
+      "value": 2000000,
+      "vat": "לא צוין בסעיף"
+    },
+    "guarantee.performance": {
+      "currency": "ILS",
+      "kind": "money",
+      "label": "ערבות ביצוע",
+      "notes": "צמודה למדד המחירים לצרכן הידוע במועד הודעת הזכייה; מסירה בתוך 7 ימים מההודעה.",
+      "period": "להבטחת ההכנות וביצוע השירות",
+      "reason": null,
+      "scope": "execution",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "guarantee.performance",
+          "locator": "עמוד PDF 29, סעיף 15.1",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=29"
+        }
+      ],
+      "status": "verified",
+      "unit": "ערבות ביצוע והכנות",
+      "value": 20000000,
+      "vat": "לא צוין בסעיף"
+    },
+    "identity.cluster": {
+      "kind": "text",
+      "label": "אשכול",
+      "reason": null,
+      "scope": "identity",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "identity.cluster",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1"
+        }
+      ],
+      "status": "verified",
+      "value": "צפון הנגב"
+    },
+    "identity.issuer": {
+      "kind": "text",
+      "label": "מפרסם",
+      "reason": null,
+      "scope": "identity",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "identity.issuer",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1"
+        }
+      ],
+      "status": "verified",
+      "value": "משרד התחבורה והבטיחות בדרכים"
+    },
+    "identity.mode": {
+      "kind": "text",
+      "label": "סוג שירות",
+      "reason": null,
+      "scope": "identity",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "identity.mode",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1"
+        }
+      ],
+      "status": "verified",
+      "value": "אוטובוסים"
+    },
+    "identity.number": {
+      "kind": "text",
+      "label": "מספר מכרז",
+      "reason": null,
+      "scope": "identity",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "identity.number",
+          "locator": "עמוד PDF 1, שער",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1"
+        }
+      ],
+      "status": "verified",
+      "value": "07/2014"
+    },
+    "penalties.amount": {
+      "kind": "money",
+      "label": "פיצוי מוסכם",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "penalties",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.ceiling_per_km": {
+      "kind": "money",
+      "label": "תקרת מחיר לקילומטר",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.fixed_payment": {
+      "kind": "money",
+      "label": "תשלום קבוע",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.indexation": {
+      "kind": "text",
+      "label": "הצמדת תמורה",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "price.per_km": {
+      "kind": "money",
+      "label": "תמורה לקילומטר",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "pricing",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "scoring.minimum_quality": {
+      "kind": "points",
+      "label": "סף ניקוד איכות",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "scoring.price_weight": {
+      "kind": "percent",
+      "label": "משקל המחיר בניקוד",
+      "notes": "56 מתוך 100 נקודות. יתר הרכיבים מפורטים בסיכום; זו אינה תקרת מחיר.",
+      "reason": null,
+      "scope": "scoring",
+      "sources": [
+        {
+          "checkedAt": "2026-09-15",
+          "fieldKey": "scoring.price_weight",
+          "locator": "עמוד PDF 51, סעיף 28.2",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "tenderId": "archive-northern-negev",
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=51"
+        }
+      ],
+      "status": "verified",
+      "value": 56
+    },
+    "scoring.quality_weight": {
+      "kind": "percent",
+      "label": "משקל האיכות בניקוד",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "scoring",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.annual_km": {
+      "kind": "distance",
+      "label": "קילומטרים בשנה",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.frequency": {
+      "kind": "duration",
+      "label": "תדירות שירות",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.operating_hours": {
+      "kind": "text",
+      "label": "שעות פעילות",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.routes": {
+      "kind": "list",
+      "label": "קווים",
+      "reason": "אומתו בשלב זה 7 רשומות מקריית מלאכי בלבד, מתוך רשימה ארוכה יותר. הן מופיעות בסיכום החלקי; רשימת האשכול המלאה עדיין בבדיקה.",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.variants": {
+      "kind": "list",
+      "label": "חלופות מסלול",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "service.weekly_trips": {
+      "kind": "count",
+      "label": "נסיעות בשבוע",
+      "reason": "טרם הושלמה בדיקת השדה מול כל הסעיפים וההבהרות.",
+      "scope": "service",
+      "sources": [],
+      "status": "unverified",
+      "value": null
+    },
+    "term.base": {
+      "conditions": [
+        {
+          "comparison": "eq",
+          "label": "שלב א׳",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "term.base",
+              "locator": "עמוד PDF 7, סעיף 1.6.2",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=7"
+            }
+          ],
+          "unit": "months",
+          "value": 81
+        },
+        {
+          "comparison": "eq",
+          "label": "שלב ב׳: עירוני אשקלון",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "term.base",
+              "locator": "עמוד PDF 8, סעיף 1.6.2",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8"
+            }
+          ],
+          "unit": "months",
+          "value": 84
+        }
+      ],
+      "kind": "duration",
+      "label": "תקופת התקשרות בסיסית",
+      "notes": "כולל תקופת ההכנות, ממועד הודעת הזכייה. תחילת שירות בתוך 9 חודשים בשלב א׳ ובתוך 12 חודשים בשלב ב׳.",
+      "reason": null,
+      "scope": "term",
+      "sources": [],
+      "status": "verified_conditional",
+      "value": null
+    },
+    "term.extension": {
+      "conditions": [
+        {
+          "comparison": "eq",
+          "label": "אפשרות הארכה ראשונה",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "term.extension",
+              "locator": "עמוד PDF 8, סעיף 1.7",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8"
+            }
+          ],
+          "unit": "years",
+          "value": 3
+        },
+        {
+          "comparison": "eq",
+          "label": "אפשרות הארכה שנייה",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "term.extension",
+              "locator": "עמוד PDF 8, סעיף 1.7",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=8"
+            }
+          ],
+          "unit": "years",
+          "value": 3
+        },
+        {
+          "comparison": "eq",
+          "label": "סמכות הארכה נוספת ונפרדת",
+          "sources": [
+            {
+              "checkedAt": "2026-09-15",
+              "fieldKey": "term.extension",
+              "locator": "עמוד PDF 9, סעיף 1.10",
+              "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+              "tenderId": "archive-northern-negev",
+              "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=9"
+            }
+          ],
+          "unit": "months",
+          "value": 12
+        }
+      ],
+      "kind": "duration",
+      "label": "אפשרויות הארכה",
+      "notes": "שתי האפשרויות כפופות להסכמת המפעיל ולעמידה בתנאים; הסמכות הנוספת נתונה לשיקול דעת הממשלה. הארכה אינה אוטומטית.",
+      "reason": null,
+      "scope": "term",
+      "sources": [],
+      "status": "verified_conditional",
+      "value": null
     }
   }
 }
