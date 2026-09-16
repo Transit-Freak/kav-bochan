@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 17
+VERSION = 18
 
 
 def read(path, default):
@@ -259,6 +259,14 @@ def number_groups(pg, words, f):
             y, m = divmod(n, 12)
             ry = phrase_rects(words, str(y), 'שנים')
             rm = phrase_rects(words, str(m), 'חודשים') if m else []
+            if not ry and not rm and y >= 1:
+                # 132 חודשים שהמסמך כותב "10 שנים ו-12 חודשים"
+                ry = phrase_rects(words, str(y - 1), 'שנים')
+                rm = phrase_rects(words, str(m + 12), 'חודשים') if ry else []
+                if ry and rm:
+                    y, m = y - 1, m + 12
+                else:
+                    ry, rm = [], []
             if ry:
                 out.append((f'{y} שנים', ry[:4]))
             if rm:
@@ -269,7 +277,7 @@ def number_groups(pg, words, f):
                 for unit in ('שנים', 'השנים', 'שנות', 'חודשים', 'אוטובוסים', 'מוניות', 'ימים', 'עמודים'):
                     r += find_rects(pg, f'{w} {unit}', words) + find_rects(pg, f'ב{w} {unit}', words)
                 if r:
-                    out.append((f'{w} …', r[:6])); break
+                    out.append((f'{w} …', merge_by_row(r)[:6])); break       # "בחמש השנים" — מלבן אחד לביטוי
     return out
 
 

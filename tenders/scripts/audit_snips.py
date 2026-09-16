@@ -73,14 +73,17 @@ def check(key, f, s):
             y, m = divmod(n, 12)
             out |= {str(y), str(m), str(y - 1), '12'}
         return out
+    from snip_fields import HEB_NUM
+    heb = lambda n: set(HEB_NUM.get(n, []))      # "חמש שנים" במקום "5"
+    words_in = lambda ms: {re.sub(r'^[בלמוה]', '', w) for m in ms for w in m.split()} | {w for m in ms for w in m.split()}
     if v is None and f.get('conditions'):
         wants = [int(c['value']) for c in f['conditions'] if isinstance(c.get('value'), (int, float))]
-        if wants and not any(forms(w) & set(nums) for w in wants):
+        if wants and not any(forms(w) & set(nums) or heb(w) & words_in(marks) for w in wants):
             probs.append(f'תנאי {wants}: סומן {marks[:3]}')
         return probs
     if isinstance(v, (int, float)) and v:
         want = str(int(v))
-        bad = [m for m in marks if not (forms(int(v)) & set(numbers_in([m])))]
+        bad = [m for m in marks if not (forms(int(v)) & set(numbers_in([m])) or heb(int(v)) & words_in([m]))]
         if bad:
             probs.append(f'ערך {want}: סומן גם {bad[:4]}')
         if len(marks) > 6:
