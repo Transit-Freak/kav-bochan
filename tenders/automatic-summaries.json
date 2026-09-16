@@ -20198,7 +20198,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "1005e8d238cb659b7fd204573cc99f2a8eacd5038ebdaca8adbe55e3687a0e7e"
+          "textFingerprint": "02e16c21bd7c9d8edc3886ba4a490bb42c74c8335dd10f0067d9aec20c852984"
         },
         "70783ac752efcc68e426": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDDADD42FB3D7CBC142/נספח ערבות",
@@ -23503,7 +23503,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "155cbae8380a260753f8baee0192edc615b6ba601657d60be610d3a2384366fe"
+          "textFingerprint": "1f424b76eb49c6efb6ece15c7552e6d2095107d915be931c2dd3550c129e7a45"
         },
         "f40fed3d08880d9e08ef": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF9FE05EDAFEB9814C/הודעה על עדכון מועדים",
@@ -24240,7 +24240,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "c6f7b1eaec033b646591a652df2e847bbd8178b3bfe441c6edaaea58a309d51b"
+          "textFingerprint": "dc00acbeb697405eafccb9a94953aea47c6a4bca8a8a2c417c98aea13c6da073"
         },
         "3b64cfd74f2f25db30a1": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF9286F39C3EE9614B/מסמך הבהרת עורך המכרז",
@@ -54726,7 +54726,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "9e2ef310726700b18c70f22020f0d91b78b17b01d66aa46e97ef832594a75a32"
+          "textFingerprint": "b644e9f1f16948ac2ee259841e40359886c5297350abe0018325e28f2020c427"
         },
         "eafb1bbee9adfee9fe8a": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB83D8F5D755C86121/מסמכי הליך",
@@ -54748,7 +54748,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "63828d8d90e014680c7512d84ab5e93ec4a0059237af5d091e54e7c106dbc2a4"
+          "textFingerprint": "fc6e537fb784bd7a6659bb1d745644e50b1026ecbaa6474c83eb9de05018b2fc"
         },
         "ca14f10f8269509355c8": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB83D8F01885C10121/מסמכי הליך",
@@ -78414,5 +78414,5 @@
       "metadataFields": {}
     }
   },
-  "checkedAt": "2026-09-16T09:02:29.182147+00:00"
+  "checkedAt": "2026-09-16T10:10:04.856961+00:00"
 }
