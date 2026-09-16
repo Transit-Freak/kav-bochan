@@ -16,7 +16,6 @@
 .stops{padding-right:22px;columns:2;column-gap:24px;font-size:14px}@media(max-width:700px){.stops{columns:1}}.stops li{margin-bottom:4px;break-inside:avoid}
 .vdot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-inline-end:4px}
 .route-dialog{width:min(920px,96vw)}
-.stopnum span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#fff;border:2.5px solid #126977;font:bold 10px Arial,sans-serif;color:#172b42;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 
 /* התנאים במכרז (conditions.js) */
 .cond-topics{flex-wrap:wrap;gap:6px;margin:8px 0 8px}.cond-search{margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.cond-search input{flex:1 1 260px;max-width:480px;padding:8px 12px;border:1px solid #cfd8de;border-radius:10px;font:inherit}.tchip{border-radius:999px;padding:6px 12px;font-size:13px}.tchip.on{background:#163b39;border-color:#163b39;color:#fff}

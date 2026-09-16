@@ -176,18 +176,8 @@ function renderQuote(q) {
   return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}${q.city ? ` · ${esc(q.city)}` : ''}</span>${quoteBody(q)}<small>${quoteLinks(q)}</small></blockquote>`;
 }
 
-/* Leaflet נטען רק כשפותחים קו */
-let leafletReady = null;
-function ensureLeaflet() {
-  if (window.L) return Promise.resolve();
-  if (leafletReady) return leafletReady;
-  leafletReady = new Promise((ok, bad) => {
-    const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.append(l);
-    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = ok; s.onerror = bad; document.head.append(s);
-  });
-  return leafletReady;
-}
-
+/* אין מפה מצוירת בשום מקום (שלמה 16.09: "אמרתי להסיר את המפה"). מה שמוצג לקו: הציטוטים מהמסמך,
+   מפה שהמסמך עצמו מכיל (צילום מהעמוד), ורשימת התחנות מהנספח כטקסט. */
 const VARIANT_COLORS = ['#126977', '#b45309', '#7c3aed', '#be185d', '#15803d', '#1d4ed8', '#a16207', '#0f766e'];
 async function showLine(id, index) {
   const lines = linesOf(routeFiles[id] || []), l = lines[index]; if (!l) return;
@@ -195,7 +185,6 @@ async function showLine(id, index) {
   const v = l.version;
   const routeChange = qs.some(q => (q.tags || []).some(t => ROUTE_TAGS.has(t)));
   const sure = hasChangeSection(id);
-  const located = routeChange && l.rows.some(r => (r.stops || []).some(s => Number.isFinite(s[3]) && Number.isFinite(s[4])));
   const first = l.rows[0];
   routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form>
     <h2 id="route-title">קו ${esc(l.number)} · ${esc(l.area || '')}</h2>
@@ -203,29 +192,9 @@ async function showLine(id, index) {
     ${today ? `<p class="todaybox">${today.today ? `<span class="today on">רץ היום</span> אצל <b>${esc(today.operator || '')}</b>${today.number ? ` כקו <b>${esc(today.number)}</b>` : ''}${today.name ? ` · ${esc(today.name)}` : ''} · ${today.directions?.length || 0} כיוונים/חלופות בלוח הזמנים${today.byNumber ? ' · לפי מספר הקו באשכול' : ''}` : `<span class="today off">לא רץ היום</span> · ${today.byNumber ? 'אין קו במספר הזה באשכול בלוח הזמנים הרשמי' : 'אין קו עם מק״ט זה בלוח הזמנים הרשמי'}`} <small class="muted">(${fdDate(todayData.gtfsDate)})</small></p>` : ''}
     ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : l.pdf && l.isNew ? `<p class="plainline">בטבלת הקווים של המכרז קו ${esc(l.number)} מסומן ״קו חדש״.</p>` : sure ? `<p class="plainline">המכרז לא מזכיר שינוי בקו ${esc(l.number)}. לפי המסמך הוא ממשיך כמו היום.</p>` : '<p class="muted">במסמכים שנקראו אין סעיף שינויים לקווים, ולכן אי אפשר לומר מהמסמך אם הקו משתנה.</p>'}
     ${typeof mapsFor === 'function' && mapsFor(id, l.number).length ? `<h3>מפה מהמסמך</h3><div class="tmaps">${mapsFor(id, l.number).map(renderMap).join('')}</div>` : ''}
-    ${l.pdf ? '' : located ? `<h3>התחנות לפי נספח המכרז</h3>
-    <div id="line-map" style="height:340px;border-radius:12px;background:#eef5f6"></div>
-    <p class="muted">על המפה מסומנות רק התחנות שרשומות בנספח, לפי הסדר. במסמכי המכרז אין שרטוט של הדרך בין התחנות, ולכן היא לא מצוירת.</p>` : routeChange ? '<h3>התחנות לפי נספח המכרז</h3><p class="muted">בנספח אין רשימת תחנות עם מיקומים לקו הזה, ולכן אין מפה. מה שכתוב במסמך על המסלול מופיע בציטוטים למעלה.</p>' : '<h3>התחנות לפי נספח המכרז</h3>'}
-    ${l.rows.map((r, i) => `<details class="fielddetails" ${i === 0 && routeChange ? 'open' : ''}><summary><span class="vdot" style="background:${VARIANT_COLORS[i % VARIANT_COLORS.length]}"></span> כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)} · ${r.stops.length} תחנות</summary><ol class="stops">${r.stops.map(s => `<li>${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])}</small></li>`).join('') || '<li class="muted">רשימת התחנות לא מופיעה בנספח הזה.</li>'}</ol><p class="muted">גיליון ${esc(r.sheet)}, שורה ${r.row}</p></details>`).join('')}`;
+    ${l.pdf || !l.rows.length ? '' : '<h3>התחנות לפי נספח המכרז</h3>'}
+    ${l.pdf ? '' : l.rows.map((r, i) => `<details class="fielddetails" ${i === 0 && routeChange ? 'open' : ''}><summary><span class="vdot" style="background:${VARIANT_COLORS[i % VARIANT_COLORS.length]}"></span> כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)} · ${(r.stops || []).length} תחנות</summary><ol class="stops">${(r.stops || []).map(s => `<li>${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])}</small></li>`).join('') || '<li class="muted">רשימת התחנות לא מופיעה בנספח הזה.</li>'}</ol><p class="muted">גיליון ${esc(r.sheet)}, שורה ${r.row}</p></details>`).join('')}`;
   if (!routeDialog.open) routeDialog.showModal();
-  if (!located) return;
-  try {
-    await ensureLeaflet();
-    const el = document.getElementById('line-map'); if (!el) return;
-    const map = L.map(el, { scrollWheelZoom: false });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
-    // רק נקודות התחנות מהנספח, ממוספרות לפי הסדר — בלי קווים מחברים, כדי לא לצייר דרך שהמסמך לא מתאר
-    const all = [];
-    l.rows.forEach((r, i) => {
-      const color = VARIANT_COLORS[i % VARIANT_COLORS.length];
-      r.stops.forEach(s => {
-        if (!(Number.isFinite(s[3]) && Number.isFinite(s[4]))) return;
-        const pt = [s[4], s[3]]; all.push(pt);
-        L.marker(pt, { icon: L.divIcon({ className: 'stopnum', html: `<span style="border-color:${color}">${s[0]}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }) }).bindTooltip(`${s[0]}. ${s[2]} · כיוון ${r.key[2]} חלופה ${r.key[3]}`).addTo(map);
-      });
-    });
-    if (all.length) map.fitBounds(all, { padding: [20, 20] });
-  } catch { const el = document.getElementById('line-map'); if (el) el.innerHTML = '<p class="muted" style="padding:20px">המפה לא נטענה.</p>'; }
 }
 
 document.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details.lines-section') && d.open) fillLines(d); }, true);
