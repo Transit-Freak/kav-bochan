@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 2
+VERSION = 3
 
 
 def read(path, default):
@@ -30,6 +30,10 @@ def read(path, default):
 def needles_for(key, f):
     """מה לחפש בעמוד: קודם המספר (יציב גם בעברית הפוכה), אחר כך מילים קצרות מהכותרת."""
     out = []
+    if key == 'penalties.amount':
+        # עמוד טבלת הקנסות: מסמנים את הכותרת של הפיצויים, לא מספר עמוד/סעיף מהערך ולא מילים מכותרת סעיף אחר
+        # (בחיפה סומן "מוקד טלפוני" שבמקרה היה באותו עמוד)
+        return ['סכום הפיצוי', 'פיצויים מוסכמים', 'טבלת פיצויים', 'פיצוי מוסכם', 'קנסות', 'פיצוי', 'קנס']
     v = f.get('value')
     if isinstance(v, (int, float)) and v:
         n = int(v)
