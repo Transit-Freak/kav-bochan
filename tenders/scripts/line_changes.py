@@ -224,7 +224,8 @@ def analyze_item(item):
     first = split_glued(item['lines'][0])
     text = clean(' '.join(item['lines']))
     if item['kind'] == 'category':
-        nums, makats = numbers_in(first)
+        # רשימת קטגוריה היא מספרים בלבד, גם בשורות ההמשך ("… 36 (10036), 38 (10038) ו-76 (10076)")
+        nums, makats = numbers_in(split_glued(' '.join(item['lines'])))
         base = tags_in(item['category']) or tags_in(first)
     else:
         m = HEAD_TAIL.search(first)

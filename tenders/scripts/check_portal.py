@@ -4,9 +4,13 @@ Run manually: python scripts/check_portal.py. Not a scheduled service.
 import concurrent.futures, datetime, hashlib, html, json, pathlib, re, urllib.parse, urllib.request
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 BASE='https://mr.gov.il'
+# www.gov.il מחזיר 403 לבקשות בלי כותרות של דפדפן (ריצה מגיטהאב); הכותרות האלה הן של דפדפן רגיל
+HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36',
+ 'Accept':'text/html,application/xhtml+xml,application/pdf,application/xml;q=0.9,*/*;q=0.8','Accept-Language':'he-IL,he;q=0.9,en;q=0.7'}
 def get(url,limit=15000000):
  url=urllib.parse.quote(url,safe=':/?=&%')
- with urllib.request.urlopen(url,timeout=18) as r:
+ req=urllib.request.Request(url,headers={**HEADERS,'Referer':'https://www.gov.il/' if 'www.gov.il' in url else 'https://mr.gov.il/'})
+ with urllib.request.urlopen(req,timeout=30) as r:
   b=r.read(limit+1)
   return b[:limit],len(b)>limit,r.status,r.headers.get('Content-Type','')
 def page(n):
