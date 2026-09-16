@@ -1,0 +1,33 @@
+name: tenders-diag
+
+# אבחון עמוד ב-PDF של מכרז: הערות (annotations), טקסט, ומה רואים — כי מהמחשב שלנו אתר המכרזים חסום.
+# הפלט ביומן הריצה בלבד; לא נכתב כלום למאגר.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'sha256 של המסמך (או תחילתו) מתוך tenders/text/index.json'
+        required: true
+      pages:
+        description: 'עמודים, מופרדים ברווח (למשל "8 17")'
+        required: true
+        default: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: כלים
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils >/dev/null
+          python3 -m pip install -q -r tenders/scripts/requirements.txt
+      - name: אבחון
+        run: python3 tenders/scripts/pdf_diag.py "${{ github.event.inputs.sha }}" ${{ github.event.inputs.pages }}

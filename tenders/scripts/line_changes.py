@@ -119,7 +119,61 @@ def fix_parens(s):
     s = re.sub(r'([,.;])(?=[א-ת(])', r'\1 ', s)                          # "בנוסף,קו" → "בנוסף, קו"
     # "468ממודיעין" → "468 ממודיעין"; "11מ"א" → "11 מ"א"; "50009ו(" → "50009 ו("; אבל סיומת קו ("6א", "6ו'") נשארת דבוקה
     s = re.sub(r"(\d)(?=[א-ת](?![\s,;.)'׳]|$))", r'\1 ', s)
-    return tidy_quote(s)
+    return rebuild_line_list(fix_makat_pairs(tidy_quote(s)))
+
+
+def fix_makat_pairs(s):
+    """pdftotext הופך "80 (12080)" ל-"(12080) 80". מחזירים לסדר של המסמך — מספר הקו ואחריו המק"ט בסוגריים —
+    רק כשהמק"ט באמת שייך למספר (3 הספרות האחרונות של המק"ט הן מספר הקו: 12080 → 80, 10787 → 787)."""
+    def fits(mk, num):
+        digits = re.sub(r'\D', '', num)
+        return bool(digits) and int(mk[2:]) == int(digits)
+
+    def swap_punct(m):
+        # "של קו, (10006) 6 חלופה" — הפסיק שאחרי מילה שייך לסוף הזוג: "של קו 6 (10006), חלופה"
+        punct, mk, num = m.group(1), m.group(2), m.group(3)
+        return f' {num} ({mk}){punct} ' if fits(mk, num) else m.group(0)
+
+    def swap(m):
+        mk, num = m.group(1), m.group(2)
+        return f'{num} ({mk})' if fits(mk, num) else m.group(0)
+    s = re.sub(r'(?<=[א-ת])\s*([,.;])\s*\(\s*(\d{5})\s*\)\s*(N?\d{1,3}[א-ת]?)(?![\d(])', swap_punct, s)
+    s = re.sub(r'\(\s*(\d{5})\s*\)\s*,?\s*(N?\d{1,3}[א-ת]?)(?![\d(])', swap, s)
+    return re.sub(r'\s+([,.;])', r'\1', re.sub(r'\s{2,}', ' ', s)).strip()
+
+
+LIST_CHARS = re.compile(r'^(?:[\d\s(),.:;\-–]|(?<=\d)[א-ת]|ו(?=[\-–]))*$')
+
+
+def rebuild_line_list(s):
+    """רשימת קווים עם מק"טים שיצאה הפוכה ושבורה מ-pdftotext (חיפה, סעיף 34.5):
+    "קווי תלמידים86, (24085) 85, … 80 : (, (10787) 787, … 87,)43086. (10789) 789, (10788) 788"
+    → "קווי תלמידים: 80 (12080), 81 (11081), …, 788 (10788) ו-789 (10789)."
+    רק כשהטקסט הוא כותרת קצרה ואחריה רשימה בלבד, וכל מק"ט מתאים למספר קו ברשימה; אחרת לא נוגעים."""
+    m = re.match(r'^\s*(?P<pre>[^\d()]*[א-ת][^\d()]*?)\s*:?\s*(?P<rest>[\d(].*)$', s, re.S)
+    if not m or not LIST_CHARS.match(m.group('rest')):
+        return s
+    rest = m.group('rest')
+    makats = re.findall(r'(?<!\d)(\d{5})(?!\d)', rest)
+    nums = re.findall(r'(?<![\d(])(N?\d{1,3}[א-ת]?)(?![\d)])', re.sub(r'\d{5}', ' ', rest))
+    if len(makats) < 2 or len(makats) != len(nums):
+        return s
+    by_num = {}
+    for n in nums:
+        by_num.setdefault(int(re.sub(r'\D', '', n)), []).append(n)
+    pairs = []
+    for mk in makats:
+        key = int(mk[2:])
+        if not by_num.get(key):
+            return s
+        pairs.append((key, by_num[key].pop(0), mk))
+    if any(v for v in by_num.values()):
+        return s
+    items = [f'{n} ({mk})' for _, n, mk in sorted(set(pairs))]
+    pre = m.group('pre').strip(' :')
+    sep = ' ' if re.search(r'קו(?:וים)?$', pre) else ': '
+    body = ', '.join(items[:-1]) + ' ו-' + items[-1] if len(items) > 1 else items[0]
+    return f'{pre}{sep}{body}.'
 
 
 BULLETS = '•▪●◦■□➢➤►'

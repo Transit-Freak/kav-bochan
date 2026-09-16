@@ -20,11 +20,28 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 5
+VERSION = 6
 
 
 def read(path, default):
     return json.loads(path.read_text(encoding='utf-8')) if path.exists() else default
+
+
+UNIT = r'(?:חודשים|חודש|ימים|יום|שנים|שנה|שבועות|אחוז|%|₪|ש"ח|נקודות|מושבים|אוטובוסים)'
+
+
+def phrases_for(f):
+    """ערך טקסטואלי עם כמה מספרים ("עד 9 חודשים … שלב ב' עד 15 חודשים") — מסמנים את כולם, כל אחד עם היחידה
+    שלו ("9 חודשים", "15 חודשים"), לא רק את הראשון שנמצא (שלמה 16.09: "סימן רק את ה-15 ולא את ה-6")."""
+    v = f.get('value')
+    if not isinstance(v, str):
+        return []
+    out = []
+    for m in re.finditer(r'(\d[\d,.]*)\s*(' + UNIT + ')', v):
+        num = m.group(1).rstrip('.,')
+        out.append(f'{num} {m.group(2)}')
+        out.append(num)
+    return list(dict.fromkeys(out))
 
 
 def needles_for(key, f):
@@ -41,7 +58,14 @@ def needles_for(key, f):
         if n >= 1000 and n % 1000 == 0:
             out.append(f'{n // 1000:,}')       # "2,000" בתוך "2,000,000"
     elif isinstance(v, str):
-        out += [x.group(0) for x in re.finditer(r'\d[\d,.]*', v)][:3]
+        # ערך טקסטואלי ("רישיון תקף להסעת נוסעים בקווי שירות"): מחפשים את המשפט עצמו — קודם רצפים של 3 מילים,
+        # אחר כך 2, אחר כך מילים בודדות של 4 אותיות ומעלה. לא מילים מכותרת הסעיף (שלמה 16.09: סומן רק "יובהר")
+        words = [w for w in re.findall(r'[א-ת"\']{2,}', v) if w not in STOP]
+        for size in (3, 2):
+            out += [' '.join(words[i:i + size]) for i in range(len(words) - size + 1)]
+        out += [w for w in words if len(w) >= 4]
+        out += [x.group(0) for x in re.finditer(r'\d[\d,.]*', v) if len(x.group(0)) >= 2][:3]
+        return list(dict.fromkeys(n for n in out if len(n) >= 2))
     for c in f.get('conditions') or []:
         cv = c.get('value')
         if isinstance(cv, (int, float)) and cv:
@@ -217,11 +241,27 @@ def main():
             except Exception:
                 continue
             hit, needle = None, None
-            for n in needles_for(key, f):
-                rects = pg.search_for(n)
-                if rects:
-                    hit, needle = rects[:12], n
-                    break
+            # ערך עם כמה מספרים: כל מספר עם היחידה שלו, וכולם מסומנים (בלי היחידה — רק כשלמספר 2 ספרות ומעלה)
+            phrases = phrases_for(f)
+            if phrases:
+                found, used = [], []
+                for n in phrases:
+                    if ' ' not in n and len(n) < 2:
+                        continue
+                    if any(n == u.split(' ')[0] for u in used):
+                        continue                      # המספר לבדו — רק אם הביטוי עם היחידה לא נמצא
+                    rects = pg.search_for(n)
+                    if rects:
+                        found += rects[:6]
+                        used.append(n)
+                if found:
+                    hit, needle = found[:24], ' · '.join(used)
+            if not hit:
+                for n in needles_for(key, f):
+                    rects = pg.search_for(n)
+                    if rects:
+                        hit, needle = rects[:12], n
+                        break
             if not hit:
                 continue
             for r in hit:
