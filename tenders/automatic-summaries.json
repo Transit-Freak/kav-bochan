@@ -11548,6 +11548,39 @@
           "baseIdentityVerified": false,
           "analysisVersion": 2,
           "textFingerprint": "759e05243ec2c2235f3523b8ee1f7f380f497389bd6a86f6a1b834c333f893bf"
+        },
+        "50c579062d4d83816a2f": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A3DC5740E15A/נספח למכרז",
+          "sha256": "baef1376ca6126070725b627b8ede2aca9d8d052af37adc34b915b92c34f1fc9",
+          "units": 1,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "40e201810c02b2e08bdbee6554d7ab0e78e05cf986f2357dac7b40dc7048653a"
+        },
+        "9064deb7179f009b3977": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1FE190F3E24495F992F6/מסמך הבהרת עורך המכרז",
+          "sha256": "47789a058f15d1acec4e3fef4c7c21a1f7de13927f43a705f5833068462ee3a3",
+          "units": 26,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "c9637ada299dbdc948e1731dc6c907d9f2bf7297446f14ae051674dd3d9b3905"
+        },
+        "6d8a635389eb869989ac": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C46E2F02214C/נספח למכרז",
+          "sha256": "6b326807d61bc4d3d99a8a66c79d969cfb5342859a37ee52b62b111ad63b650e",
+          "units": 7,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "bb022b0f5eba6f37fbd4eecb56d5498bdea802398d8be372c2802903156d4971"
         }
       },
       "metadataFields": {
@@ -23453,6 +23486,28 @@
           "baseIdentityVerified": false,
           "analysisVersion": 2,
           "textFingerprint": "8a5801e915c527cec72c5d68ccb1490a61ccb2cc43c74f12fa220cc92657ef29"
+        },
+        "089da42f8c8eb6f0aec8": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDDA790D03648F20149/נספח למכרז",
+          "sha256": "fdf66771b2cc4b366a24c6d82f07a3997d0c12f01212975833c28eed3dce95b0",
+          "units": 19,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "e583574cf2a5aa16a8123435431481d3c86f0c212d59288111e6dc738f22324b"
+        },
+        "28a4ba9860d71962e33a": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDDA790CCBD4BF64149/מסמך הבהרת עורך המכרז",
+          "sha256": "0f38097ba8aba4e160c8d7154264114bd16c5f22e6e548cd82af86e69f41fcec",
+          "units": 40,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "78d2620407c35d52e8c61e6509dd49c384b5f19b0101cfba29fef12221d2011d"
         }
       },
       "metadataFields": {
@@ -71157,6 +71212,39 @@
           "baseIdentityVerified": false,
           "analysisVersion": 2,
           "textFingerprint": "267bcfe2dfd59d62ba9ee1dd9f03d1b8e74f657ad7eb2fb38a31fcba4e5a10f0"
+        },
+        "7cb8fed5ce3dde929928": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937DF443FD812A/מסמכי הליך",
+          "sha256": "77dce7ec6a9b61296d46df87badaf1f5f27a1221b55fd448e32937824f969e91",
+          "units": 8,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "c9318be6c7e5677f7d5f952e8a81f8f6bae8dfed0523f14347dedf624da03081"
+        },
+        "38ae9cd14d98f4129d75": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937EB95770012A/מסמכי הליך",
+          "sha256": "5cd1798c851839c966b37cdde0a7eb1f81aa051464d2b83ca7867b36c7f937ba",
+          "units": 8,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "c9318be6c7e5677f7d5f952e8a81f8f6bae8dfed0523f14347dedf624da03081"
+        },
+        "08f0a33db84bb804de5f": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937EB95774612A/מסמכי הליך",
+          "sha256": "a3fc9dd9334c18113f51caf07d1246478d2efcf53a0a9916fdb4450188f687a1",
+          "units": 16,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "c647155c0c65e867c69e3f0a6ebfa88f5aa59b244fae7a5d49d7c5e26f76e425"
         }
       },
       "metadataFields": {
@@ -74872,6 +74960,17 @@
           "baseIdentityVerified": false,
           "analysisVersion": 2,
           "textFingerprint": "0d0877fa5c72d795245de64e424535fba148126ee877b35c58d00ec42161c792"
+        },
+        "3ef0c3d1687a038f7630": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819377ACA758C12A/מסמכי הליך",
+          "sha256": "7a2519aabeecdc84cb77be7dbf5d8c612af196ce53c8545a1bc45d5a41d5fe04",
+          "units": 29,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "4e0010e26d7ea9c2ae9d1154c12d7e450089526526a8bb29d8369c1592bbdae1"
         }
       },
       "metadataFields": {
@@ -76620,6 +76719,39 @@
           "baseIdentityVerified": false,
           "analysisVersion": 2,
           "textFingerprint": "e97771d6362207c54ad5dad759ffeddec72a0f1c4dbb3ffdb710885cc2671518"
+        },
+        "2485c7f150c78f20bbfa": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81938045F465412A/מודעה לעיתונות בעברית",
+          "sha256": "eee54d557dd8237bf0f8e9c53078acb413d3cfd2cec2fb6270d3f3e6879405b0",
+          "units": 2,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "e1ce016dcb5c558997d9e672914c9f008ad6486f1d937d5882fa4cdafd3cc556"
+        },
+        "8f74bd765eda2f1d8462": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB8193810A6809012A/מסמכי הליך",
+          "sha256": "5cd1798c851839c966b37cdde0a7eb1f81aa051464d2b83ca7867b36c7f937ba",
+          "units": 8,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "b62c6c8bde14fa11c2df4ff81b73991e76cdf0cd867f12f9aa737e5318dbd6d7"
+        },
+        "81f8224bd309ab616006": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB8193810A6807412A/מסמכי הליך",
+          "sha256": "7a2519aabeecdc84cb77be7dbf5d8c612af196ce53c8545a1bc45d5a41d5fe04",
+          "units": 29,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "f16763d4faea9fda1572bbf9a0df0593d8696a69d305413b18406821e2c8913b"
         }
       },
       "metadataFields": {
@@ -78030,15 +78162,377 @@
       }
     },
     "archive-northern-negev": {
-      "documents": {},
+      "documents": {
+        "4d502ded247a93157af1": {
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
+          "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+          "units": 437,
+          "fields": {
+            "identity.number": {
+              "label": "מספר מכרז",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "07/2014",
+              "sources": [
+                {
+                  "tenderId": "archive-northern-negev",
+                  "fieldKey": "identity.number",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.issuer": {
+              "label": "מפרסם",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "משרד התחבורה והבטיחות בדרכים",
+              "sources": [
+                {
+                  "tenderId": "archive-northern-negev",
+                  "fieldKey": "identity.issuer",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.cluster": {
+              "label": "אשכול",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "צפון הנגב",
+              "sources": [
+                {
+                  "tenderId": "archive-northern-negev",
+                  "fieldKey": "identity.cluster",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.mode": {
+              "label": "סוג שירות",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "אוטובוסים",
+              "sources": [
+                {
+                  "tenderId": "archive-northern-negev",
+                  "fieldKey": "identity.mode",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "guarantee.bid": {
+              "label": "ערבות הצעה",
+              "kind": "money",
+              "scope": "bid",
+              "status": "verified",
+              "value": 2000000,
+              "sources": [
+                {
+                  "tenderId": "archive-northern-negev",
+                  "fieldKey": "guarantee.bid",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=26",
+                  "locator": "עמוד PDF 26, סעיף 14.1",
+                  "sha256": "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+              "currency": "ILS",
+              "unit": "total",
+              "vat": "not_applicable",
+              "period": "ערבות להצעה"
+            }
+          },
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": true,
+          "analysisVersion": 2,
+          "textFingerprint": "77ce3e505e4b54a1c5cda69aaa9c20b36446259f99b4eb16734aa340fbb443c0"
+        }
+      },
       "metadataFields": {}
     },
     "archive-hadera-netanya": {
-      "documents": {},
+      "documents": {
+        "cee2de9ac8edc2df9c0d": {
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf",
+          "sha256": "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed",
+          "units": 368,
+          "fields": {
+            "identity.number": {
+              "label": "מספר מכרז",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "22/2011",
+              "sources": [
+                {
+                  "tenderId": "archive-hadera-netanya",
+                  "fieldKey": "identity.number",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.issuer": {
+              "label": "מפרסם",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "משרד התחבורה והבטיחות בדרכים",
+              "sources": [
+                {
+                  "tenderId": "archive-hadera-netanya",
+                  "fieldKey": "identity.issuer",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.cluster": {
+              "label": "אשכול",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "חדרה נתניה 2011",
+              "sources": [
+                {
+                  "tenderId": "archive-hadera-netanya",
+                  "fieldKey": "identity.cluster",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.mode": {
+              "label": "סוג שירות",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "אוטובוסים",
+              "sources": [
+                {
+                  "tenderId": "archive-hadera-netanya",
+                  "fieldKey": "identity.mode",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "guarantee.bid": {
+              "label": "ערבות הצעה",
+              "kind": "money",
+              "scope": "bid",
+              "status": "verified",
+              "value": 2000000,
+              "sources": [
+                {
+                  "tenderId": "archive-hadera-netanya",
+                  "fieldKey": "guarantee.bid",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=20",
+                  "locator": "עמוד PDF 20, סעיף 14.1",
+                  "sha256": "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+              "currency": "ILS",
+              "unit": "total",
+              "vat": "not_applicable",
+              "period": "ערבות להצעה"
+            }
+          },
+          "routes": [],
+          "mapCandidates": [
+            32,
+            52
+          ],
+          "baseIdentityVerified": true,
+          "analysisVersion": 2,
+          "textFingerprint": "cf2c2efbe57d9493b991eba870dea45bb542798c5697ac901ea751faa318850f"
+        }
+      },
       "metadataFields": {}
     },
     "archive-sharon-holon": {
-      "documents": {},
+      "documents": {
+        "1a7a746236d9d3885031": {
+          "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
+          "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+          "units": 381,
+          "fields": {
+            "identity.number": {
+              "label": "מספר מכרז",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "24/2015",
+              "sources": [
+                {
+                  "tenderId": "archive-sharon-holon",
+                  "fieldKey": "identity.number",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.issuer": {
+              "label": "מפרסם",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "משרד התחבורה והבטיחות בדרכים",
+              "sources": [
+                {
+                  "tenderId": "archive-sharon-holon",
+                  "fieldKey": "identity.issuer",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.cluster": {
+              "label": "אשכול",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "שרון-חולון מרחבי",
+              "sources": [
+                {
+                  "tenderId": "archive-sharon-holon",
+                  "fieldKey": "identity.cluster",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "identity.mode": {
+              "label": "סוג שירות",
+              "kind": "text",
+              "scope": "identity",
+              "status": "verified",
+              "value": "אוטובוסים",
+              "sources": [
+                {
+                  "tenderId": "archive-sharon-holon",
+                  "fieldKey": "identity.mode",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=1",
+                  "locator": "עמוד PDF 1",
+                  "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים."
+            },
+            "guarantee.bid": {
+              "label": "ערבות הצעה",
+              "kind": "money",
+              "scope": "bid",
+              "status": "verified",
+              "value": 2000000,
+              "sources": [
+                {
+                  "tenderId": "archive-sharon-holon",
+                  "fieldKey": "guarantee.bid",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=26",
+                  "locator": "עמוד PDF 26, סעיף 14.1",
+                  "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+              "currency": "ILS",
+              "unit": "total",
+              "vat": "not_applicable",
+              "period": "ערבות להצעה"
+            },
+            "guarantee.performance": {
+              "label": "ערבות ביצוע",
+              "kind": "money",
+              "scope": "execution",
+              "status": "verified",
+              "value": 20000000,
+              "sources": [
+                {
+                  "tenderId": "archive-sharon-holon",
+                  "fieldKey": "guarantee.performance",
+                  "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=28",
+                  "locator": "עמוד PDF 28, סעיף 15.1",
+                  "sha256": "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5",
+                  "checkedAt": "2026-09-16"
+                }
+              ],
+              "reason": null,
+              "notes": "לפי גרסת מסמך המכרז המקושרת. ההבהרות המאוחרות עדיין דורשות בדיקה ועשויות לשנות את התנאים.",
+              "currency": "ILS",
+              "unit": "total",
+              "vat": "not_applicable",
+              "period": "ערבות לקיום ההסכם"
+            }
+          },
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": true,
+          "analysisVersion": 2,
+          "textFingerprint": "8406291b0dfb16e8404ade3f5a2c896872efb923d01ca15c93d47bd4aa255820"
+        }
+      },
       "metadataFields": {}
     },
     "570024": {
@@ -78418,5 +78912,5 @@
       "metadataFields": {}
     }
   },
-  "checkedAt": "2026-09-16T12:20:58.869376+00:00"
+  "checkedAt": "2026-09-16T12:44:01.690745+00:00"
 }

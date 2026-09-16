@@ -6000,6 +6000,591 @@
 "status": "later",
 "reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
 }
+},
+"archive-hadera-netanya": {
+"fleet.operating": {
+"status": "verified",
+"value": 170,
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=104",
+"locator": "סעיף 38.2.2, עמוד PDF 104"
+}
+],
+"sec": {
+"n": "38.2.2",
+"t": "המציע יחשב את מספר האוטובוסים הנדרש בכל קו ואת מספר",
+"brief": "המציע יחשב את מספר האוטובוסים הנדרש בכל קו ואת מספר האוטובוסים הנדרש להפעלה של כל הקווים יחדיו, כולל רזרבה תפעולית, כאשר המספר הכולל של האוטובוסים באשכול יהיה לפחות 170…",
+"p": 104
+},
+"notes": "\"מצבת האוטובוסים הבסיסית\", כולל רזרבה תפעולית."
+},
+"fleet.max_age": {
+"status": "verified",
+"value": 6,
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=104",
+"locator": "סעיף 38.2.2, עמוד PDF 104"
+}
+],
+"sec": {
+"n": "38.2.2",
+"t": "המציע יחשב את מספר האוטובוסים הנדרש בכל קו ואת מספר",
+"brief": "המציע יחשב את מספר האוטובוסים הנדרש בכל קו ואת מספר האוטובוסים הנדרש להפעלה של כל הקווים יחדיו, כולל רזרבה תפעולית, כאשר המספר הכולל של האוטובוסים באשכול יהיה לפחות 170…",
+"p": 104
+},
+"unit": "years",
+"notes": "לכלי רכב משומשים במועד הפעלת האשכול."
+},
+"fleet.accessibility": {
+"status": "verified",
+"value": "כל האוטובוסים נגישים",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=106",
+"locator": "סעיף 38.2.12, עמוד PDF 106"
+}
+],
+"sec": {
+"n": "38.2.12",
+"t": "כל אוטובוס עירוני שיופעל על ידי מפעיל השירות באמצעות ליסינג מימוני",
+"brief": "כל אוטובוס עירוני שיופעל על ידי המפעיל באמצעות ליסינג מימוני או ליסינג תפעולי, יהיה אוטובוס נגיש, בהוראות תקנות שוויון זכויות לאנשים עם מגבלות, התשס\"ג 2003 והוראות הדין.",
+"p": 106
+},
+"notes": "לפי תקנות שוויון זכויות לאנשים עם מוגבלות (הסדרת נגישות לשירותי תחבורה ציבורית)."
+},
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=63",
+"locator": "סעיף 4, עמוד PDF 63"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"price.fixed_payment": {
+"status": "not_applicable",
+"reason": "התשלום למפעיל הוא סובסידיה שוטפת שמחושבת מעלות ההפעלה השנתית והכנסות בפועל, לא תשלום קבוע.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=13",
+"locator": "סעיף 3.3.2, עמוד PDF 13"
+}
+]
+},
+"price.indexation": {
+"status": "verified",
+"value": "מדד מחירי התשומות",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=123",
+"locator": "סעיף 49.1, עמוד PDF 123"
+}
+],
+"sec": {
+"n": "49.1",
+"t": "הגדרות",
+"brief": "\"סובסידיה שוטפת\" – הסכום המשולם ע\"פ המנגנון הקבוע בסעיף זה. 117 \"הכנסה מינימאלית\" 52 - מליון ₪ בשנה, צמוד למדד התעריפים כהגדרתו.",
+"p": 123
+},
+"notes": "הרכב המדד והמשקולות מפורטים בסעיף שבו הוא מוגדר."
+},
+"scoring.minimum_quality": {
+"status": "not_found",
+"reason": "בסעיף הקריטריונים (28) לא נמצא ציון איכות מזערי.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=45",
+"locator": "סעיף 28.4, עמוד PDF 45"
+}
+]
+},
+"penalties.amount": {
+"status": "verified",
+"value": "טבלת הקנסות בעמוד 299, 8 סעיפים",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=299",
+"locator": "טבלת הקנסות: עמוד PDF 299"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "17",
+"t": "פיצויים מוסכמים",
+"brief": "פיצויים מוסכמים: על הפרת התחייבויות המפעיל כמפורט בנספח זה יחולו הפיצויים המוסכמים בסעיפים:",
+"p": 299
+}
+},
+"facts.driver_wage": {
+"status": "verified",
+"value": "כל חברה שמתמודדת צריכה לכתוב בהצעה כמה שכר לשעה היא תשלם לנהגים, ולעמוד בזה כל תקופת המכרז.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=13",
+"locator": "סעיף 3.3.2, עמוד PDF 13"
+}
+],
+"sec": {
+"n": "3.3.2",
+"t": "קבלה של מידע כאמור או החלפתו בצורה אחרת ,פרסומו או גילויו לאדם או גוף",
+"brief": "קבלה של מידע או החלפתו בצורה אחרת, פרסומו או גילויו לאדם או גוף כלשהו, אשר הם בעל עניין או נושא משרה או שלוח או עובד במציע אחר או באגד או דן או בכל מפעיל קיים.",
+"p": 13
+}
+},
+"facts.payment_model": {
+"status": "verified",
+"value": "המדינה משלמת לחברה סובסידיה: עלות ההפעלה השנתית שנקבעה, פחות מה שנכנס מהנוסעים.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf#page=13",
+"locator": "סעיף 3.3.2, עמוד PDF 13"
+}
+],
+"sec": {
+"n": "3.3.2",
+"t": "קבלה של מידע כאמור או החלפתו בצורה אחרת ,פרסומו או גילויו לאדם או גוף",
+"brief": "קבלה של מידע או החלפתו בצורה אחרת, פרסומו או גילויו לאדם או גוף כלשהו, אשר הם בעל עניין או נושא משרה או שלוח או עובד במציע אחר או באגד או דן או בכל מפעיל קיים.",
+"p": 13
+}
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
+},
+"archive-northern-negev": {
+"fleet.accessibility": {
+"status": "verified",
+"value": "כל האוטובוסים נגישים",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=126",
+"locator": "סעיף 40.2.10, עמוד PDF 126"
+}
+],
+"sec": {
+"n": "40.2.10",
+"t": "כל אוטובוס עירוני שיופעל על ידי מפעיל השירות באמצעות ליסינג מימוני או",
+"brief": "כל אוטובוס עירוני שיופעל על ידי המפעיל באמצעות ליסינג מימוני או ליסינג תפעולי, יהיה אוטובוס נגיש, בהוראות תקנות שוויון זכויות לאנשים עם מגבלות ) הסדרת נגישות לשירותי…",
+"p": 126
+},
+"notes": "לפי תקנות שוויון זכויות לאנשים עם מוגבלות (הסדרת נגישות לשירותי תחבורה ציבורית)."
+},
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=66",
+"locator": "סעיף 4, עמוד PDF 66"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"price.per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=46",
+"locator": "סעיף 21.3.2, עמוד PDF 46"
+}
+]
+},
+"price.ceiling_per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=46",
+"locator": "סעיף 21.3.2, עמוד PDF 46"
+}
+]
+},
+"price.fixed_payment": {
+"status": "not_applicable",
+"reason": "התשלום למפעיל הוא סובסידיה שוטפת שמחושבת מעלות ההפעלה השנתית והכנסות בפועל, לא תשלום קבוע.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=144",
+"locator": "סעיף 48, עמוד PDF 144"
+}
+]
+},
+"price.indexation": {
+"status": "verified",
+"value": "מדד מחירי התשומות",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=146",
+"locator": "סעיף 49, עמוד PDF 146"
+}
+],
+"sec": {
+"n": "49",
+"t": "עדכון עלות ההפעלה השנתיתU",
+"brief": "במועד ההודעה על הזכייה תעודכן עלות ההפעלה השנתית כך: • בשיעור השינוי במדד מחירי התשומות הידוע ביום בו יקבע שער היורו, שישמש להתחשבנות כמפורט בסעיף זה לעומת מדד מחירי…",
+"p": 146
+},
+"notes": "הרכב המדד והמשקולות מפורטים בסעיף שבו הוא מוגדר."
+},
+"scoring.quality_weight": {
+"status": "verified",
+"value": 44,
+"kind": "percent",
+"notes": "משלים ל-100 את משקל המחיר. רכיבים שנמצאו: הצעה תפעולית 26, שכר יסוד לשעת עבודה של נהג ותכנית השתלמו 3, תכנית עסקית 5.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=54",
+"locator": "סעיף 28.5, עמוד PDF 54"
+},
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=58",
+"locator": "סעיף 28.6, עמוד PDF 58"
+},
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=58",
+"locator": "סעיף 28.7, עמוד PDF 58"
+}
+]
+},
+"scoring.minimum_quality": {
+"status": "not_found",
+"reason": "בסעיף הקריטריונים (28) לא נמצא ציון איכות מזערי.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=52",
+"locator": "סעיף 28.3, עמוד PDF 52"
+}
+]
+},
+"penalties.amount": {
+"status": "verified",
+"value": "טבלת הקנסות בעמוד 383, 22 סעיפים",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=383",
+"locator": "טבלת הקנסות: עמוד PDF 383"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "8",
+"t": "תנאי שירות ופיצויים מוסכמים מראש",
+"brief": "",
+"p": 383
+}
+},
+"facts.driver_wage": {
+"status": "verified",
+"value": "כל חברה שמתמודדת צריכה לכתוב בהצעה כמה שכר לשעה היא תשלם לנהגים, ולעמוד בזה כל תקופת המכרז.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=47",
+"locator": "סעיף 21.3.4, עמוד PDF 47"
+}
+],
+"sec": {
+"n": "21.3.4",
+"t": "לאורך כל תקופת ההפעלה לא יפחת שכר היסוד לשעה אותו משלם",
+"brief": "לאורך כל תקופת ההפעלה לא יפחת שכר היסוד לשעה אותו משלם המפעיל לכל אחד מהנהגים באשכול משכר היסוד לשעה בהצעה המעודכן לפי שינויים במדד המחירים לצרכן.",
+"p": 47
+}
+},
+"facts.payment_model": {
+"status": "verified",
+"value": "המדינה משלמת לחברה סובסידיה: עלות ההפעלה השנתית שנקבעה, פחות מה שנכנס מהנוסעים.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=144",
+"locator": "סעיף 48, עמוד PDF 144"
+}
+],
+"sec": {
+"n": "48",
+"t": "הגדרות לעניין חישובי סובסידיה",
+"brief": "U \"סובסידיה שוטפת\" – הסכום המשולם ע\"פ המנגנון הקבוע בסעיף זה. 138 \"הכנסה מינימאלית\" 88 - מיליון ₪ בשנה, צמוד למדד התעריפים כהגדרתו, לא כולל מע\"מ.",
+"p": 144
+}
+},
+"facts.bid_type": {
+"status": "verified",
+"value": "כל חברה אומרת כמה תוספת היא רוצה מעל עלות ההפעלה, או כמה קילומטרים היא מוכנה לתת בחינם. מי שזול יותר למדינה מקבל יותר נקודות.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=46",
+"locator": "סעיף 21.3.2, עמוד PDF 46"
+}
+],
+"sec": {
+"n": "21.3.2",
+"t": "ההצעה הכספית – תכלול את הצעת המציע לתוספת לעלות ההפעלה",
+"brief": "ההצעה הכספית – תכלול את הצעת המציע לתוספת לעלות ההפעלה השנתית כהגדרתה בסעיף",
+"p": 46
+}
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
+},
+"archive-sharon-holon": {
+"term.extension": {
+"status": "verified",
+"value": 12,
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=10",
+"locator": "סעיף 1.10, עמוד PDF 10"
+}
+],
+"sec": {
+"n": "1.10",
+"t": "מבלי לגרוע מכלליות האמור בסעיפים 1.9–1.7לעיל ,רשאית הממשלה ,לפי שיקול",
+"brief": "יכולה המדינה, לפי שיקול דעתה המוחלט, להאריך את תקופת ההפעלה לתקופה נוספת של 12 חודשים (: \"תקופת ההפעלה הנוספת\").",
+"p": 10
+},
+"unit": "months",
+"notes": "לפי שיקול דעת הממשלה (\"תקופת ההפעלה הנוספת\")."
+},
+"fleet.operating": {
+"status": "verified",
+"value": 415,
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=75",
+"locator": "סעיף 38.2.2, עמוד PDF 75"
+}
+],
+"sec": {
+"n": "38.2.2",
+"t": "המציע יחשב את מספר האוטובוסים הנדרש בכל קו ואת מספר האוטובוסים",
+"brief": "המציע יחשב את מספר האוטובוסים הנדרש בכל קו ואת מספר האוטובוסים הנדרש להפעלה של כל הקווים יחדיו, כולל רזרבה תפעולית, כאשר המספר הכולל של הרכבים באשכול יהיה לפחות 415…",
+"p": 75
+},
+"notes": "\"מצבת האוטובוסים הבסיסית\", כולל רזרבה תפעולית."
+},
+"fleet.max_age": {
+"status": "verified",
+"value": 10,
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=76",
+"locator": "סעיף 38.2.5, עמוד PDF 76"
+}
+],
+"sec": {
+"n": "38.2.5",
+"t": "המספר הכולל של האוטובוסים שיפעיל הזוכה בקווי המכרז יענה בכל נקודת זמן",
+"brief": "המספר הכולל של האוטובוסים שיפעיל הזוכה בקווי המכרז יענה בכל נקודת זמן לאורך כל תקופת ההפעלה על הדרישות כך: כל האוטובוסים יהיו בגיל נמוך מ 10 - שנים והגיל הממוצע של כל…",
+"p": 76
+},
+"unit": "years",
+"notes": "כלי רכב משומשים בתחילת ההפעלה: עד 6 שנים (סעיף 38.2.2)."
+},
+"fleet.accessibility": {
+"status": "verified",
+"value": "כל האוטובוסים נגישים",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=77",
+"locator": "סעיף 38.2.10, עמוד PDF 77"
+}
+],
+"sec": {
+"n": "38.2.10",
+"t": "כל אוטובוס עירוני שיופעל על ידי מפעיל השירות באמצעות ליסינג מימוני או",
+"brief": "כל אוטובוס עירוני שיופעל על ידי המפעיל באמצעות ליסינג מימוני או ליסינג תפעולי, יהיה אוטובוס נגיש, בהוראות תקנות שוויון זכויות לאנשים עם מגבלות, תשס\"ג 2003 והוראות הדין…",
+"p": 77
+},
+"notes": "לפי תקנות שוויון זכויות לאנשים עם מוגבלות (הסדרת נגישות לשירותי תחבורה ציבורית)."
+},
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=145",
+"locator": "סעיף 4, עמוד PDF 145"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"price.per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=16",
+"locator": "סעיף 3.7.5, עמוד PDF 16"
+}
+]
+},
+"price.ceiling_per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=16",
+"locator": "סעיף 3.7.5, עמוד PDF 16"
+}
+]
+},
+"price.fixed_payment": {
+"status": "not_applicable",
+"reason": "התשלום למפעיל הוא סובסידיה שוטפת שמחושבת מעלות ההפעלה השנתית והכנסות בפועל, לא תשלום קבוע.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=113",
+"locator": "סעיף 49, עמוד PDF 113"
+}
+]
+},
+"price.indexation": {
+"status": "verified",
+"value": "מדד מחירי התשומות",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=113",
+"locator": "סעיף 49, עמוד PDF 113"
+}
+],
+"sec": {
+"n": "49",
+"t": "הגדרות לעניין חישובי סובסידיה",
+"brief": "\"סובסידיה שוטפת\" – הסכום המשולם ע\"פ המנגנון. \"סובסידיה ייעודית\" – השלמת המדינה למחירי הכרטיסים, כפי ש. 107 \"הכנסה מינימאלית\" 140 - מיליון ₪ בשנה, צמוד למדד התעריפים…",
+"p": 113
+},
+"notes": "הרכב המדד והמשקולות מפורטים בסעיף שבו הוא מוגדר."
+},
+"scoring.minimum_quality": {
+"status": "not_found",
+"reason": "בסעיף הקריטריונים (28) לא נמצא ציון איכות מזערי.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=52",
+"locator": "סעיף 28.4.3, עמוד PDF 52"
+}
+]
+},
+"penalties.amount": {
+"status": "verified",
+"value": "טבלת הקנסות בעמוד 249, 12 סעיפים",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=249",
+"locator": "טבלת הקנסות: עמוד PDF 249"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "17",
+"t": "פיצויים מוסכמים",
+"brief": "פיצויים מוסכמים: על הפרת התחייבויות המפעיל כמפורט בנספח זה יחולו הפיצויים המוסכמים בסעיפים:",
+"p": 249
+}
+},
+"facts.driver_wage": {
+"status": "verified",
+"value": "כל חברה שמתמודדת צריכה לכתוב בהצעה כמה שכר לשעה היא תשלם לנהגים, ולעמוד בזה כל תקופת המכרז.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=46",
+"locator": "סעיף 21.3.4, עמוד PDF 46"
+}
+],
+"sec": {
+"n": "21.3.4",
+"t": "לאורך כל תקופת ההפעלה לא יפחת שכר היסוד לשעה אותו משלם",
+"brief": "לאורך כל תקופת ההפעלה לא יפחת שכר היסוד לשעה אותו משלם המפעיל לכל אחד מהנהגים באשכול משכר היסוד לשעה בהצעה, המעודכן לפי שינויים במדד המחירים לצרכן.",
+"p": 46
+}
+},
+"facts.payment_model": {
+"status": "verified",
+"value": "המדינה משלמת לחברה סובסידיה: עלות ההפעלה השנתית שנקבעה, פחות מה שנכנס מהנוסעים.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=113",
+"locator": "סעיף 49, עמוד PDF 113"
+}
+],
+"sec": {
+"n": "49",
+"t": "הגדרות לעניין חישובי סובסידיה",
+"brief": "\"סובסידיה שוטפת\" – הסכום המשולם ע\"פ המנגנון. \"סובסידיה ייעודית\" – השלמת המדינה למחירי הכרטיסים, כפי ש. 107 \"הכנסה מינימאלית\" 140 - מיליון ₪ בשנה, צמוד למדד התעריפים…",
+"p": 113
+}
+},
+"facts.bid_type": {
+"status": "verified",
+"value": "כל חברה אומרת כמה תוספת היא רוצה מעל עלות ההפעלה, או כמה קילומטרים היא מוכנה לתת בחינם. מי שזול יותר למדינה מקבל יותר נקודות.",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf#page=16",
+"locator": "סעיף 3.7.5, עמוד PDF 16"
+}
+],
+"sec": {
+"n": "3.7.5",
+"t": "המציע יצרף להצעתו טיוטה של התקנון המוצע להתקבל כתקנון התאגיד",
+"brief": "החברה המתמודדת תוסיף להצעה טיוטה של התקנון המוצע להתקבל כתקנון התאגיד הנפרד לכשיתאגד התאגיד הנפרד.",
+"p": 16
+}
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
 }
 }
 }

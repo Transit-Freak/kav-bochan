@@ -966,8 +966,8 @@
    "units": 7
   },
   "eee54d557dd8237bf0f8e9c53078acb413d3cfd2cec2fb6270d3f3e6879405b0": {
-   "tender": "613802",
-   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819376E0D34CC12A/מודעה לעיתונות בעברית",
+   "tender": "633259",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81938045F465412A/מודעה לעיתונות בעברית",
    "units": 2
   },
   "b11c49fcbbb16441a9c0d99b567a95a0b51cc71ccd6a7aebdb99b861d93413e9": {
@@ -991,8 +991,8 @@
    "units": 20
   },
   "7a2519aabeecdc84cb77be7dbf5d8c612af196ce53c8545a1bc45d5a41d5fe04": {
-   "tender": "633258",
-   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937EB9576E412A/מסמכי הליך",
+   "tender": "633259",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB8193810A6807412A/מסמכי הליך",
    "units": 29
   },
   "2249577da5cbc393aa4f7c68cc96efd2dd06b11440924e909c38c20a2fefcbcf": {
@@ -1001,8 +1001,8 @@
    "units": 29
   },
   "5cd1798c851839c966b37cdde0a7eb1f81aa051464d2b83ca7867b36c7f937ba": {
-   "tender": "613802",
-   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819377ACA75A812A/מסמכי הליך",
+   "tender": "633259",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB8193810A6809012A/מסמכי הליך",
    "units": 8
   },
   "7e50f99c16fb21c64765eee5dc3a2c70f86ff941775c2307abb06c81e295183e": {
@@ -2234,6 +2234,51 @@
    "tender": "570024",
    "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA96DCE0102EE30121/מסמכי הליך",
    "units": 390
+  },
+  "baef1376ca6126070725b627b8ede2aca9d8d052af37adc34b915b92c34f1fc9": {
+   "tender": "4000589849",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A3DC5740E15A/נספח למכרז",
+   "units": 1
+  },
+  "47789a058f15d1acec4e3fef4c7c21a1f7de13927f43a705f5833068462ee3a3": {
+   "tender": "4000589849",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1FE190F3E24495F992F6/מסמך הבהרת עורך המכרז",
+   "units": 26
+  },
+  "6b326807d61bc4d3d99a8a66c79d969cfb5342859a37ee52b62b111ad63b650e": {
+   "tender": "4000589849",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C46E2F02214C/נספח למכרז",
+   "units": 7
+  },
+  "fdf66771b2cc4b366a24c6d82f07a3997d0c12f01212975833c28eed3dce95b0": {
+   "tender": "4000560703",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDDA790D03648F20149/נספח למכרז",
+   "units": 19
+  },
+  "0f38097ba8aba4e160c8d7154264114bd16c5f22e6e548cd82af86e69f41fcec": {
+   "tender": "4000560703",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDDA790CCBD4BF64149/מסמך הבהרת עורך המכרז",
+   "units": 40
+  },
+  "77dce7ec6a9b61296d46df87badaf1f5f27a1221b55fd448e32937824f969e91": {
+   "tender": "633258",
+   "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937DF443FD812A/מסמכי הליך",
+   "units": 8
+  },
+  "6cc5c005a99df7a156059824c23299f65b751d08688d8264a39b48c1ad085a85": {
+   "tender": "archive-northern-negev",
+   "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
+   "units": 437
+  },
+  "d444cdd6cca5a958b5b37635ab560ab798904bf6ce467a6d73e68b2c0349c8ed": {
+   "tender": "archive-hadera-netanya",
+   "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf",
+   "units": 368
+  },
+  "9b4bacc6094d6702fc457c276827929d9e3b6234529b450752956ad635806ef5": {
+   "tender": "archive-sharon-holon",
+   "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
+   "units": 381
   }
  }
 }
