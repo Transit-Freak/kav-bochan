@@ -4427,7 +4427,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "89701aae09e56ee3735258bb2e6af14bb1186aaa5bfbb42383dce72dee167912"
+          "textFingerprint": "25ed506970258a2447556ef8b0df871bb2ce6f8f32cd6d9e99f4939a9d1d515c"
         },
         "a588c3cf4cb0e679e45e": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA8B2C12FCBD8E14C/מסמך הבהרת עורך המכרז",
@@ -21699,7 +21699,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "903cc00d4c3370bc351be2d17114df0b200f3de518c062a60d42a0408432f004"
+          "textFingerprint": "af5cd792c37041d720adeba98191582b9f876376a1a65483f677db31446740a3"
         },
         "44b857e1dc26a7716c18": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB44F2CB62C15C/נספח למכרז",
@@ -25747,7 +25747,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "31e19a2a602b7677fc62d4cd3917b346b9b3c38573a666fd122a9689deb65650"
+          "textFingerprint": "12094041e173e94db8377de487eab409753b8e8f132b30c4d247e6e7e6afc294"
         },
         "bb7ce16aaaab718f5c74": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFC7E87EAC12E5/נספח למכרז",
@@ -25769,7 +25769,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "17914f39361f4da00041f3ec703543ea59f5f1e66f7ebaa7f022a27d8d931988"
+          "textFingerprint": "0bb149d1b8dfec475ff78d51673847571f122173c1ed420ce68e631a4cb3df75"
         },
         "2e582a5e70bc71635048": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF87CFC5A5F88152E5/נספח למכרז",
@@ -57684,7 +57684,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "f47a8d4a7eb7ac0f7b32033d67d86d2311f947a7ae04b38e8f85cf8ab68f0b60"
+          "textFingerprint": "c50396d6408656204abbd821daa325046e4e96b00dd99792398fea58be1a878c"
         },
         "dae036650abeb63d4453": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB98FBF114C9314122/נספח למכרז",
@@ -58988,7 +58988,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "8f50bb2943df36330cc4f338f6e23a47c0ecea64c6a297cddbdc745432411228"
+          "textFingerprint": "ace84989710f4937aa857218b4bec3e66c5b79ac2c3875a2a6c6385e1b0adf88"
         },
         "280bf9ad23fa8c8a3f72": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB97F74583AAC88122/נספח למכרז",
@@ -78414,5 +78414,5 @@
       "metadataFields": {}
     }
   },
-  "checkedAt": "2026-09-16T10:10:04.856961+00:00"
+  "checkedAt": "2026-09-16T10:39:29.396233+00:00"
 }
