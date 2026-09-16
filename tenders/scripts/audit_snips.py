@@ -62,6 +62,11 @@ def check(key, f, s):
         if not any(y in m or y[2:] in m for m in marks) or not any(str(int(d)) in numbers_in([m]) or v.replace('-', '') in num_core(m.replace('/', '').replace('.', '')) or re.search(rf'\b0?{int(d)}\b', m) for m in marks):
             probs.append(f'תאריך {v}: סומן {marks[:3]}')
         return probs
+    if v is None and f.get('conditions'):
+        wants = [str(int(c['value'])) for c in f['conditions'] if isinstance(c.get('value'), (int, float))]
+        if wants and not any(w in nums or (int(w) >= 1000000 and str(int(w) // 1000000) in nums) or (int(w) >= 1000 and str(int(w) // 1000) in nums) for w in wants):
+            probs.append(f'תנאי {wants}: סומן {marks[:3]}')
+        return probs
     if isinstance(v, (int, float)) and v:
         want = str(int(v))
         bad = [m for m in marks if want not in numbers_in([m]) and (want if int(v) < 1000 or int(v) % 1000 else str(int(v) // 1000)) not in numbers_in([m])]
@@ -83,10 +88,12 @@ def check(key, f, s):
 
 
 def missing_reason(f, url_sha):
-    loc = f['sources'][0].get('locator', '')
+    from fields_merge import source_of
+    src = source_of(f) or (f.get('sources') or [{}])[0]
+    loc = src.get('locator', '')
     if 'נספח הקווים' in loc or 'טבלת הקווים' in loc:
         return 'המקור הוא טבלת קווים, לא עמוד במסמך'
-    url = (f['sources'][0].get('url') or '').partition('#page=')[0]
+    url = (src.get('url') or '').partition('#page=')[0]
     if url not in url_sha:
         return 'המסמך לא ירד (חסום להורדה)'
     return 'הערך לא נמצא בעמוד ולא משפט המפתח'
@@ -94,7 +101,9 @@ def missing_reason(f, url_sha):
 
 def main():
     import datetime
-    rules = json.loads((ROOT / 'fields-rules.json').read_text(encoding='utf-8'))['tenders']
+    from fields_merge import load as load_fields, combined_fields, all_tender_ids, is_verified, source_of
+    data = load_fields()
+    rules = {tid: {k: f for k, f in combined_fields(data, tid).items() if is_verified(f) and source_of(f)} for tid in all_tender_ids(data)}
     snips = json.loads((ROOT / 'snips.json').read_text(encoding='utf-8'))
     index = json.loads((ROOT / 'text' / 'index.json').read_text(encoding='utf-8'))['documents'] if (ROOT / 'text' / 'index.json').exists() else {}
     url_sha = {m['url']: sha for sha, m in index.items()}
@@ -102,15 +111,13 @@ def main():
     out = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
     for tid, fields in rules.items():
         for key, f in fields.items():
-            if f.get('status') != 'verified' or not f.get('sources'):
-                continue
             total += 1
             s = snips['tenders'].get(tid, {}).get(key)
             if not s:
                 missing += 1
                 reason = missing_reason(f, url_sha)
                 out['tenders'].setdefault(tid, {})[key] = {'status': 'missing', 'reason': reason}
-                print(f'[אין צילום] {tid} {key}: {str(f.get("value"))[:50]} ({f["sources"][0].get("locator", "")}) — {reason}')
+                print(f'[אין צילום] {tid} {key}: {str(f.get("value"))[:50]} ({(source_of(f) or {}).get("locator", "")}) — {reason}')
                 continue
             probs = check(key, f, s)
             out['tenders'].setdefault(tid, {})[key] = {'status': 'bad' if probs else 'ok', 'problems': probs}

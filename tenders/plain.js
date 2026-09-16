@@ -97,7 +97,7 @@ const GROUPS = [
   ]],
   ['לכמה זמן?', f => [
     ok(f['term.base']) && [f['term.base'].status === 'verified_conditional' ? `אורך החוזה — ${condText(f['term.base'])}.` : `החוזה הוא ל-${months(f['term.base'].value)}.`, f['term.base']],
-    ok(f['term.extension']) && valOf(f['term.extension'], months) && [`המדינה יכולה להאריך אותו: ${valOf(f['term.extension'], months)}.`, f['term.extension']],
+    ok(f['term.extension']) && valOf(f['term.extension'], months) && [(v => `המדינה יכולה להאריך את החוזה ב${/^\d/.test(v) ? '-' : ''}${v} ${v === 'שנה' ? 'נוספת' : /חודשים/.test(v) ? 'נוספים' : 'נוספות'}.`)(valOf(f['term.extension'], months)), f['term.extension']],
   ]],
   ['מי יכול להתמודד?', f => [
     ok(f['eligibility.licenses']) && [licenseLine(f['eligibility.licenses'].value), f['eligibility.licenses']],

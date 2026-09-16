@@ -113,6 +113,8 @@ def fix_parens(s):
     """pdftotext מוציא סוגריים הפוכים סביב מספרים: ")10014( 14" → "(10014) 14";
     ברשימות: "מעלה אדומים ( ,)209בית אל (,)269" → "מעלה אדומים (209), בית אל (269),"."""
     s = re.sub(r'\)\s*(\d{4,6})\s*\(', r'(\1)', s)
+    # "קו ( 2 מק"ט )45002 ברעננה" (השרון) → "קו 2 (מק"ט 45002) ברעננה" — הסוגריים נפתחו לפני המספר ונסגרו לפני המק"ט
+    s = re.sub(r'\(\s*(\d{1,4}[א-ת]?)\s+(מק"ט)\s*,?\s*\)\s*(\d{5,6})', r'\1 (\2 \3)', s)
     s = fix_paren_lists(s)
     s = re.sub(r'\(\s*([,.;]?)\s*\)(\d+)(?=[\sא-ת]|$)', r'(\2)\1 ', s)
     s = re.sub(r'\s+([,.;])', r'\1', re.sub(r'\s{2,}', ' ', s))       # "בנוסף ,קו" → "בנוסף,קו"
@@ -377,6 +379,7 @@ def analyze_item(item):
         m = HEAD_TAIL.search(first)
         nums, makats = numbers_in(m['nums']) if m else ([], [])
         base = tags_in(text)
+    nums = list(dict.fromkeys(nums))           # "666,666,66,661,666,666,66" במסמך → כל מספר פעם אחת
     sec_tag = SECTION_TAG.get(item['section'])
     tags = list(dict.fromkeys(base + ([sec_tag] if sec_tag and sec_tag not in ('כללי', 'שינוי') and sec_tag not in base else [])))
     if sec_tag == 'שינוי' and not tags:

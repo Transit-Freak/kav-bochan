@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 12
+VERSION = 14
 
 
 def read(path, default):
@@ -141,6 +141,8 @@ def needles_for(key, f):
         if f.get('kind') == 'percent':
             out.append(f'{n}%')
         out += [f'{n:,}', str(n)]
+        if n >= 1000000 and n % 1000000 == 0:
+            out.append(f'{n // 1000000} מיליון')   # "300 מיליון ₪"
         if n >= 1000 and n % 1000 == 0:
             out.append(f'{n // 1000:,}')       # "2,000" בתוך "2,000,000"
     elif isinstance(v, str) and date_needles(v):
@@ -241,8 +243,21 @@ def find_value(pg, words, key, f):
     for n in needles_for(key, f):
         rects = find_rects(pg, n, words)
         if rects:
+            if not re.match(r'^[\d,./-]', n) and ' ' in n:
+                rects = merge_by_row(rects)          # "רישיון תקף להסעת" — מלבן אחד לביטוי, לא רק למילה הראשונה
             return [(n, rects[:12])]
     return []
+
+
+def merge_by_row(rects):
+    """search_for לביטוי בעברית מחזיר מלבן לכל מילה; מאחדים מלבנים שבאותה שורה וצמודים למלבן אחד."""
+    out = []
+    for r in sorted(rects, key=lambda r: (round(r.y0 / 4), r.x0)):
+        if out and abs(out[-1].y0 - r.y0) < 4 and r.x0 - out[-1].x1 < 40 and out[-1].x0 - r.x1 < 40:
+            out[-1] = out[-1] | r
+        else:
+            out.append(r)
+    return out
 
 
 def _prefer(groups, y0, y1, tol=0):
@@ -296,6 +311,14 @@ def locate(fitz, pdf, pno, key, f):
         if sent:
             groups = _prefer(groups, sent[0], sent[1], tol=3)
         hit = [r for _, rects in groups for r in rects][:24]
+        generic = isinstance(f.get('value'), str) and not date_needles(f['value']) and not phrases_for(f) and len(hit) > 2
+        if generic:
+            # ביטוי כללי מהערך ("עלות ההפעלה" ×4 בעמוד ההגדרות) — עדיף משפט המפתח של הסעיף, ואם אין — 3 המופעים העליונים
+            if sent:
+                rows = [fitz.Rect(*b) for b in rows_between(pg, sent[0], sent[1])]
+                if rows:
+                    return pg, p, rows, 'משפט המפתח של הסעיף', 'sentence', span
+            hit = sorted(hit, key=lambda r: r.y0)[:3]
         return pg, p, hit, ' · '.join(n for n, _ in groups), 'value', span
     brief = sec.get('brief') or ''
     if len(brief) >= 20:
@@ -393,7 +416,10 @@ def main():
     except ImportError:
         print('אין PyMuPDF/Pillow — מדלגים על הצילומים', flush=True)
         return
-    rules = read(ROOT / 'fields-rules.json', {'tenders': {}})['tenders']
+    # כל השדות שהאתר מציג (מובנים + סיכומים + חוקים), לא רק החוקים — גם לערבויות ולתנאי הסף יש עמוד במסמך
+    from fields_merge import load as load_fields, combined_fields, all_tender_ids, is_verified, source_of
+    data = load_fields()
+    rules = {tid: {k: f for k, f in combined_fields(data, tid).items() if is_verified(f)} for tid in all_tender_ids(data)}
     index = read(ROOT / 'text' / 'index.json', {'documents': {}})['documents']
     url_sha = {m['url']: sha for sha, m in index.items()}
     prev_all = read(OUT, {'tenders': {}})
@@ -404,9 +430,9 @@ def main():
     pdfs = {}
     for tid, fields in rules.items():
         for key, f in fields.items():
-            if f.get('status') != 'verified' or not f.get('sources'):
+            src = source_of(f)
+            if not src:
                 continue
-            src = f['sources'][0]
             url, _, page = (src.get('url') or '').partition('#page=')
             sha = url_sha.get(url)
             if not sha or not page.isdigit():

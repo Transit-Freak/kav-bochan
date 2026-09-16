@@ -52,6 +52,26 @@ const TEMPLATE_WORDS = new Set(`המדינה מחפשת חברה שתפעיל ת
 למשל איחור בתחילת ההפעלה עולה לכל שבוע החברה המתמודדת צריכה ניקוד מינימלי שנים חודשים שנה ימים אלף מיליון עד`.split(/\s+/));
 
 const rules = read('fields-rules.json', { tenders: {} }).tenders;
+/* האתר ממזג כמה מקורות לשדות (app.js → combinedFields): השדות המובנים, סיכומים אוטומטיים, סקירות — ורק אחריהם
+   החוקים מסעיפי המסמך (fields-rules). כאן אותו מיזוג, כדי לבדוק את המשפטים כפי שהם באמת מוצגים. */
+const packages = read('packages-state.json', { tenders: {} }).tenders || {};
+const structured = read('structured-tenders.json', {});
+const auto = read('automatic-summaries.json', { tenders: {} }).tenders || {};
+const sem = read('semantic-reviews.json', { tenders: {} }).tenders || {};
+const isVerified = f => ['verified', 'verified_conditional'].includes(f?.status);
+const currentDocs = (id, coll) => Object.entries(coll[id]?.documents || {}).filter(([k, d]) => packages[id]?.documents?.[k]?.sha256 === d.sha256).map(([, d]) => d);
+function combinedFields(id) {
+  const fields = { ...(structured[id] || {}) };
+  const docs = [{ fields: auto[id]?.metadataFields || {} }, ...currentDocs(id, auto), ...currentDocs(id, sem)];
+  for (const d of docs) for (const [key, f] of Object.entries(d.fields || {})) {
+    if (!isVerified(f)) continue;
+    const old = fields[key];
+    if (!isVerified(old)) { if (old?.status !== 'conflict') fields[key] = f; continue; }
+    if (JSON.stringify(old.value) !== JSON.stringify(f.value) && old.status === 'verified' && f.status === 'verified') fields[key] = { ...old, status: 'conflict', value: null };
+  }
+  for (const [key, f] of Object.entries(rules[id] || {})) if (!isVerified(fields[key]) && fields[key]?.status !== 'conflict') fields[key] = f;
+  return fields;
+}
 const snips = read('snips.json', { tenders: {}, quotes: {} });
 const audit = read('audit.json', { tenders: {} }).tenders || {};
 const lines = read('line-changes.json', { tenders: {}, sections: {} });
@@ -74,8 +94,10 @@ function allowedNumbers(fld, snip, all) {
 const report = { updated: new Date().toISOString().slice(0, 10), tenders: {} };
 const flagged = [];
 let noSnip = 0;
-for (const [tid, f] of Object.entries(rules)) {
+const allIds = [...new Set([...Object.keys(rules), ...Object.keys(structured), ...Object.keys(auto), ...Object.keys(sem)])].sort();
+for (const tid of allIds) {
   if (ONLY && tid !== ONLY) continue;
+  const f = combinedFields(tid);
   const tSn = snips.tenders?.[tid] || {}, tAu = audit[tid] || {};
   const rows = [];
   const covered = new Set();
@@ -85,8 +107,14 @@ for (const [tid, f] of Object.entries(rules)) {
     for (const [html, fld] of items) {
       const key = keyOf(f, fld); covered.add(key);
       const sentence = strip(html);
-      const sn = tSn[key], au = tAu[key];
+      const fromRules = rules[tid]?.[key] && rules[tid][key] === fld;
+      const sn = tSn[key], au = tAu[key];   // הצילום והביקורת נעשים על אותו מיזוג שדות כמו כאן
       const probs = [...(au?.problems || [])];
+      if (!fromRules) {
+        const r = rules[tid]?.[key];
+        if (r && isVerified(r) && JSON.stringify(r.value) !== JSON.stringify(fld.value)) probs.push(`המשפט מציג ערך ממקור אחר (${fld.status}); בקריאת המסמך יצא ערך שונה: ${JSON.stringify(r.value).slice(0, 60)} (סעיף ${r.sec?.n || '?'})`);
+        else if (!r && !(fld.sources || []).some(x => /#page=/.test(x.url || '')) && !(fld.conditions || []).some(c => (c.sources || []).some(x => /#page=/.test(x.url || ''))) && !/פורטל/.test(fld.sources?.[0]?.locator || '')) probs.push('ערך ממקור מובנה בלי עמוד במסמך — אין צילום ואין משפט מקור');
+      }
       // בלי צילום כי המסמך חסום להורדה או שהמקור הוא טבלה — אין מה לבדוק בעין; נספר בנפרד
       const unfixable = au?.status === 'missing' && /חסום|טבלת קווים/.test(au.reason || '');
       if (au?.status === 'missing' && !unfixable) probs.push('אין צילום: ' + (au.reason || ''));
