@@ -192,9 +192,21 @@ async function showLine(id, index) {
     ${today ? `<p class="todaybox">${today.today ? `<span class="today on">רץ היום</span> אצל <b>${esc(today.operator || '')}</b>${today.number ? ` כקו <b>${esc(today.number)}</b>` : ''}${today.name ? ` · ${esc(today.name)}` : ''} · ${today.directions?.length || 0} כיוונים/חלופות בלוח הזמנים${today.byNumber ? ' · לפי מספר הקו באשכול' : ''}` : `<span class="today off">לא רץ היום</span> · ${today.byNumber ? 'אין קו במספר הזה באשכול בלוח הזמנים הרשמי' : 'אין קו עם מק״ט זה בלוח הזמנים הרשמי'}`} <small class="muted">(${fdDate(todayData.gtfsDate)})</small></p>` : ''}
     ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : l.pdf && l.isNew ? `<p class="plainline">בטבלת הקווים של המכרז קו ${esc(l.number)} מסומן ״קו חדש״.</p>` : sure ? `<p class="plainline">המכרז לא מזכיר שינוי בקו ${esc(l.number)}. לפי המסמך הוא ממשיך כמו היום.</p>` : '<p class="muted">במסמכים שנקראו אין סעיף שינויים לקווים, ולכן אי אפשר לומר מהמסמך אם הקו משתנה.</p>'}
     ${typeof mapsFor === 'function' && mapsFor(id, l.number).length ? `<h3>מפה מהמסמך</h3><div class="tmaps">${mapsFor(id, l.number).map(renderMap).join('')}</div>` : ''}
-    ${l.pdf || !l.rows.length ? '' : '<h3>התחנות לפי נספח המכרז</h3>'}
-    ${l.pdf ? '' : l.rows.map((r, i) => `<details class="fielddetails" ${i === 0 && routeChange ? 'open' : ''}><summary><span class="vdot" style="background:${VARIANT_COLORS[i % VARIANT_COLORS.length]}"></span> כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)} · ${(r.stops || []).length} תחנות</summary><ol class="stops">${(r.stops || []).map(s => `<li>${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])}</small></li>`).join('') || '<li class="muted">רשימת התחנות לא מופיעה בנספח הזה.</li>'}</ol><p class="muted">גיליון ${esc(r.sheet)}, שורה ${r.row}</p></details>`).join('')}`;
+    ${mentionedStopsHtml(l, qs)}`;
   if (!routeDialog.open) routeDialog.showModal();
+}
+
+/* תחנות מהנספח — רק אלה שהמכרז עצמו מזכיר בציטוטים על הקו (שלמה 16.09: "להסיר את התחנות, אלא אם
+   הן מוזכרות במכרז"). שם תחנה כמו "חסן שוקרי/הנביאים" נחשב מוזכר אם אחד מחלקיו (4 אותיות ומעלה)
+   מופיע בציטוט. כשאין כאלה — אין קטע תחנות בכלל. */
+const normTxt = s => String(s || '').replace(/["'׳״.]/g, '').replace(/\s+/g, ' ').trim();
+function mentionedStopsHtml(l, qs) {
+  if (l.pdf || !qs.length) return '';
+  const qtext = normTxt(qs.map(q => q.quote).join(' '));
+  const isMentioned = name => normTxt(name).split(/\s*[\/–-]\s*/).some(part => part.length >= 4 && qtext.includes(part));
+  const rows = l.rows.map(r => ({ r, stops: (r.stops || []).filter(s => isMentioned(s[2])) })).filter(x => x.stops.length);
+  if (!rows.length) return '';
+  return `<h3>תחנות מהנספח שהמכרז מזכיר</h3>${rows.map(({ r, stops }) => `<p class="muted">כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)}</p><ol class="stops">${stops.map(s => `<li value="${Number(s[0]) || ''}">${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])} · תחנה ${esc(s[0])} מתוך ${(r.stops || []).length}</small></li>`).join('')}</ol>`).join('')}`;
 }
 
 document.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details.lines-section') && d.open) fillLines(d); }, true);
