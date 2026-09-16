@@ -60,6 +60,7 @@ async function fillLines(details) {
   if (details.dataset.filled) return;
   details.dataset.filled = '1';
   await linesReady;
+  if (!details.isConnected) return;   // הרשימה נבנתה מחדש בזמן הטעינה — האלמנט הזה כבר לא בדף
   const meta = routeIndex[id], td = todayData.tenders?.[id], quotes = lineChanges.tenders?.[id] || [];
   let versions = [];
   if (meta) {
@@ -140,5 +141,25 @@ async function showLine(id, index) {
 }
 
 document.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details.lines-section') && d.open) fillLines(d); }, true);
+
+/* קישור ישיר: tenders/#q=4000589849 פותח את החיפוש הזה ואת טבלת הקווים של התוצאה הראשונה;
+   החיפוש שמקלידים נשמר בכתובת כדי שאפשר יהיה לשתף אותה */
+(function () {
+  let autoOpened = false;
+  const hashQuery = () => { try { return new URLSearchParams(location.hash.slice(1)).get('q') || ''; } catch { return ''; } };
+  const q = hashQuery();
+  if (q) { $('search').value = q; render(); }
+  $('search').addEventListener('input', () => { const v = $('search').value.trim(); history.replaceState(null, '', v ? '#q=' + encodeURIComponent(v) : location.pathname + location.search); });
+  const original = renderFeed;
+  renderFeed = function () {
+    // הרינדור בונה את הרשימה מחדש ומאבד את "פתוח/סגור" — שומרים אילו טבלאות קווים היו פתוחות ומחזירים
+    const openIds = [...document.querySelectorAll('details.lines-section[open]')].map(d => d.dataset.linesTender);
+    original();
+    for (const id of openIds) { const d = document.querySelector(`details.lines-section[data-lines-tender="${id}"]`); if (d) d.open = true; }
+    if (autoOpened || !hashQuery()) return;
+    const d = document.querySelector('details.lines-section');
+    if (d) { autoOpened = true; d.open = true; }
+  };
+})();
 document.addEventListener('click', e => { const row = e.target.closest('tr.lineRow'); if (row) showLine(row.dataset.lineTender, Number(row.dataset.lineIndex)); });
 document.addEventListener('keydown', e => { if (e.key !== 'Enter') return; const row = e.target.closest && e.target.closest('tr.lineRow'); if (row) showLine(row.dataset.lineTender, Number(row.dataset.lineIndex)); });
