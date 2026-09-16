@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 3
+VERSION = 4
 
 
 def read(path, default):
@@ -70,19 +70,35 @@ STOP = set('''של את על עם בין דרך הקו קו קווים לקו ל
 יש בכל בתוך עד מן ממנו זה זו זאת הזה אחד אחת שני שתי כדי לצורך בגין ידי חדש חדשים הקווים שינוי במסלול מסלול ביטול'''.split())
 
 
-def quote_words(quote):
-    """המילים שמחפשים בעמוד: מילים בעברית של 3 אותיות ומעלה ומספרים — בלי מילות קישור, בלי כפילויות."""
+def quote_words(quote, strict=True):
+    """המילים שמחפשים בעמוד: מילים בעברית של 3 אותיות ומעלה ומספרים — בלי מילות קישור, בלי כפילויות.
+    ציטוט קצר שכולו מילים כלליות ("קו 3 – שינוי במסלול") — מחפשים גם אותן (strict=False)."""
     words = re.findall(r'[א-ת]{3,}|\d{2,}', quote)
-    return [w for w in dict.fromkeys(words) if w not in STOP][:40]
+    return [w for w in dict.fromkeys(words) if not strict or w not in STOP][:40]
+
+
+def line_rects(pg, ys, tol=5):
+    """מלבן לכל שורה שנבחרה — כל המילים בעמוד שנמצאות בגובה הזה — כדי שהסימון יהיה פס רציף על המשפט
+    ולא כתמים על מילים בודדות."""
+    out = []
+    words = pg.get_text('words')
+    for y in ys:
+        row = [w for w in words if abs((w[1] + w[3]) / 2 - y) <= tol]
+        if row:
+            out.append((min(w[0] for w in row), min(w[1] for w in row), max(w[2] for w in row), max(w[3] for w in row)))
+    return out
 
 
 def find_quote(pg, quote):
     """המקום בעמוד שבו כתוב הציטוט: מחפשים את מילות הציטוט, מקבצים לפי שורות, ובוחרים את רצף השורות
-    (לפי אורך הציטוט) שבו נמצאו הכי הרבה מילים שונות. מחזיר את המלבנים להדגשה, או [] כשלא בטוחים."""
+    (לפי אורך הציטוט) שבו נמצאו הכי הרבה מילים שונות. מחזיר את מלבני השורות להדגשה, או [] כשלא בטוחים."""
     hits = []
-    for w in quote_words(quote):
-        for r in pg.search_for(w)[:20]:
-            hits.append((w, r))
+    for strict in (True, False):
+        for w in quote_words(quote, strict):
+            for r in pg.search_for(w)[:20]:
+                hits.append((w, r))
+        if hits:
+            break
     if not hits:
         return []
     lines = {}
@@ -102,7 +118,9 @@ def find_quote(pg, quote):
     distinct = len({w for w, _ in hits})
     if best is None or best[0] < min(3, distinct):
         return []
-    return [r for y in best[1] for r in lines[y]['rects']]
+    import fitz
+    centers = [sum((r.y0 + r.y1) / 2 for r in lines[y]['rects']) / len(lines[y]['rects']) for y in best[1]]
+    return [fitz.Rect(*box) for box in line_rects(pg, centers)] or [r for y in best[1] for r in lines[y]['rects']]
 
 
 def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
