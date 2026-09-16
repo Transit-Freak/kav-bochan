@@ -111,7 +111,12 @@ def parse_pages(pages):
             if m:
                 prev_group = group
                 if m.group('grp'):
-                    group = {'text': m.group('grp').strip()}
+                    g = m.group('grp').strip()
+                    # שם קבוצה שנשבר לשתי שורות והשורה השנייה ("אזוריים") נחתה על שורת הקו הבאה — המשך, לא קבוצה חדשה
+                    if group is not None and re.fullmatch(r'(?:קווים\s+)?(?:עירוניים|אזוריים|בינעירוניים|בין-עירוניים|אחרים|לילה|תלמידים)', g):
+                        group['text'] = clean(group['text'] + ' ' + g)
+                    else:
+                        group = {'text': g}
                 row = {'svc': m.group('svc'), 'mid': m.group('mid'), 'num': m.group('num'), 'num_col': m.start('num'),
                        'group': group, 'page': page, 'line': i + 1}
             else:
