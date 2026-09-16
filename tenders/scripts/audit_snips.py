@@ -44,6 +44,11 @@ def check(key, f, s):
         if not any(re.search(r'פיצוי|קנס', m) for m in marks):
             probs.append(f'טבלת הקנסות: סומן {marks[:3]} ולא כותרת הפיצויים')
         return probs
+    if s.get('how') == 'heading':
+        n = str((f.get('sec') or {}).get('n'))
+        if not any(n in m for m in marks):
+            probs.append(f'סומנה כותרת שאינה סעיף {n}: {marks[:2]}')
+        return probs
     if s.get('how') == 'sentence':
         # הערך לא נמצא בעמוד — סומן משפט המפתח של הסעיף; בודקים שהסימון באמת על המשפט הזה
         brief = (f.get('sec') or {}).get('brief') or ''
@@ -71,7 +76,8 @@ def check(key, f, s):
             probs.append(f'מספרים מהערך שלא סומנו: {missing} (סומן: {marks[:4]})')
         if not vnums:
             words = {w for w in re.findall(r'[א-ת"\']{4,}', v) if w not in STOP}
-            if not any(any(w in m for w in words) for m in marks):
+            vn = [x.group(0) for x in re.finditer(r'\d[\d,.]*', v) if len(x.group(0)) >= 3]
+            if not any(any(w in m for w in words) for m in marks) and not any(n.replace(',', '') in nums for n in vn):
                 probs.append(f'הסימון {marks[:3]} לא מכיל מילה מהערך "{v[:40]}"')
     return probs
 

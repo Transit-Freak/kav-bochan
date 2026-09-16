@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 9
+VERSION = 10
 
 
 def read(path, default):
@@ -91,7 +91,7 @@ def section_span(pg, words, sec_n):
     return (head[1] - 2, y1)
 
 
-UNIT = r'(?:חודשים|חודש|ימים|יום|שנים|שנה|שבועות|אחוז|%|₪|ש"ח|נקודות|מושבים|אוטובוסים)'
+UNIT = r'(?:חודשים|חודש|ימים|יום|שנים|שנה|שבועות|אחוז|%|₪|ש"ח|נקודות|מושבים|אוטובוסים|אלף|מיליון)'
 
 
 def phrases_for(f):
@@ -220,10 +220,11 @@ def find_quote(pg, quote):
 
 
 def find_value(pg, words, key, f):
-    """הערך עצמו בעמוד: קודם "מספר יחידה" לכל מספר בערך, אחר כך המספר/התאריך/משפט מהערך. (מלבנים, מה נמצא) או (None, None)."""
+    """הערך עצמו בעמוד: קודם "מספר יחידה" לכל מספר בערך, אחר כך המספר/התאריך/משפט מהערך.
+    מחזיר קבוצות [(מה נמצא, מלבנים)] — קבוצה לכל ביטוי, כדי שסינון לפי סעיף או משפט לא יעלים ביטוי שלם."""
     phrases = phrases_for(f)
     if phrases:
-        found, used = [], []
+        groups, used = [], []
         for n in phrases:
             if ' ' not in n and len(n) < 2:
                 continue
@@ -233,40 +234,50 @@ def find_value(pg, words, key, f):
             rects = phrase_rects(words, pm.group(1), pm.group(2)) if pm else []
             rects = rects or find_rects(pg, n, words)
             if rects:
-                found += rects[:6]
+                groups.append((n, rects[:6]))
                 used.append(n)
-        if found:
-            return found[:24], ' · '.join(used)
+        if groups:
+            return groups
     for n in needles_for(key, f):
         rects = find_rects(pg, n, words)
         if rects:
-            return rects[:12], n
-    return None, None
+            return [(n, rects[:12])]
+    return []
+
+
+def _prefer(groups, y0, y1, tol=0):
+    """בכל קבוצה: אם יש מופעים בתוך הטווח — רק הם; אחרת הקבוצה נשארת (כדי ש"18 חודשים" שבשורה שאחרי המשפט לא ייעלם)."""
+    out = []
+    for n, rects in groups:
+        inside = [r for r in rects if y0 - tol <= (r.y0 + r.y1) / 2 <= y1 + tol]
+        out.append((n, inside or rects))
+    return out
 
 
 def locate(fitz, pdf, pno, key, f):
     """איפה לסמן: הערך בעמוד המקור, ואם אין — בעמוד הבא (סעיף שנמשך; "185 אוטובוסים" היה בעמוד 73 כשהסעיף
-    התחיל ב-72); ואם גם שם אין — משפט המפתח של הסעיף (brief), כפס על השורות שלו, כמו בציטוטי הקווים.
-    מחזיר (עמוד, מספרו, מלבנים, מה נמצא, איך, טווח הסעיף) או None."""
+    התחיל ב-72); ואם גם שם אין — משפט המפתח של הסעיף (brief) כפס על השורות שלו, כמו בציטוטי הקווים;
+    ואם גם הוא לא — שורת הכותרת של הסעיף (מספר הסעיף בשוליים). טבלת הקנסות: גם שני עמודים אחורה, כי הכותרת
+    "פיצויים מוסכמים" קודמת לסעיף הראשון בטבלה. מחזיר (עמוד, מספרו, מלבנים, מה נמצא, איך, טווח הסעיף) או None."""
     sec = f.get('sec') or {}
-    pages = [p for p in (pno, pno + 1) if 1 <= p <= pdf.page_count]
+    back = 2 if key == 'penalties.amount' else 0
+    pages = [p for p in list(range(pno, pno + 2)) + list(range(pno - 1, pno - back - 1, -1)) if 1 <= p <= pdf.page_count]
     for p in pages:
         pg = pdf[p - 1]
         words = pg.get_text('words')
-        hit, needle = find_value(pg, words, key, f)
-        if not hit:
+        groups = find_value(pg, words, key, f)
+        if not groups:
             continue
         # רק בתוך הסעיף עצמו, כשכותרתו בעמוד (אותו מספר יכול להופיע גם בסעיף השכן)
         span = section_span(pg, words, sec.get('n'))
         if span:
-            inside = [r for r in hit if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
-            hit = inside or hit
+            groups = _prefer(groups, *span)
         # ואם משפט המפתח נמצא בעמוד — עדיף המופע שבתוכו ("12 חודשים" של מועד ההתחלה, לא של אורך החוזה)
         sent = find_quote(pg, sec['brief']) if len(sec.get('brief') or '') >= 20 else None
         if sent:
-            inside = [r for r in hit if sent[0] - 3 <= (r.y0 + r.y1) / 2 <= sent[1] + 3]
-            hit = inside or hit
-        return pg, p, hit, needle, 'value', span
+            groups = _prefer(groups, sent[0], sent[1], tol=3)
+        hit = [r for _, rects in groups for r in rects][:24]
+        return pg, p, hit, ' · '.join(n for n, _ in groups), 'value', span
     brief = sec.get('brief') or ''
     if len(brief) >= 20:
         for p in pages:
@@ -276,6 +287,15 @@ def locate(fitz, pdf, pno, key, f):
                 rows = [fitz.Rect(*b) for b in rows_between(pg, sent[0], sent[1])]
                 if rows:
                     return pg, p, rows, 'משפט המפתח של הסעיף', 'sentence', None
+    for p in pages:
+        pg = pdf[p - 1]
+        words = pg.get_text('words')
+        heads = [w for w in words if sec.get('n') and '.' in str(sec['n']) and w[4].rstrip('.') == str(sec['n'])]
+        if heads:
+            head = max(heads, key=lambda w: w[2])
+            rows = [fitz.Rect(*b) for b in rows_between(pg, head[1], head[3])]
+            if rows:
+                return pg, p, rows, f'כותרת סעיף {sec["n"]}', 'heading', None
     return None
 
 

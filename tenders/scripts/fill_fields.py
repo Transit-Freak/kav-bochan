@@ -107,10 +107,13 @@ def num(s):
     return float(s.replace(',', ''))
 
 
+def sec_of(s):
+    return {'n': s['n'], 't': s['t'][:90], 'brief': (s.get('brief') or '')[:220], 'p': s['p'], **({'d': s['d']} if s.get('d') else {})}
+
+
 def V(value, doc, s, **kw):
     # sec: הסעיף שממנו נלקח הערך — כדי שהאתר יציג "הסעיפים העיקריים שמצאנו" בלי לטעון את כל המסמך
-    f = {'status': 'verified', 'value': value, 'sources': [src(doc, s)],
-         'sec': {'n': s['n'], 't': s['t'][:90], 'brief': (s.get('brief') or '')[:220], 'p': s['p'], **({'d': s['d']} if s.get('d') else {})}}
+    f = {'status': 'verified', 'value': value, 'sources': [src(doc, s)], 'sec': sec_of(s)}
     f.update({k: v for k, v in kw.items() if v is not None})
     return f
 
@@ -250,9 +253,9 @@ def rules(doc, secs, today, route_meta, known):
         others = [c for c in comps if 'כספית' not in c[0]]
         total = sum(c[1] for c in others)
         if others and total + pw['value'] == 100:
-            out['scoring.quality_weight'] = {'status': 'verified', 'value': 100 - pw['value'], 'kind': 'percent', 'notes': 'משלים ל-100 את משקל המחיר: ' + ', '.join(f'{c[0]} {c[1]}' for c in others) + '.', 'sources': [src(doc, c[2]) for c in others]}
+            out['scoring.quality_weight'] = {'status': 'verified', 'value': 100 - pw['value'], 'kind': 'percent', 'notes': 'משלים ל-100 את משקל המחיר: ' + ', '.join(f'{c[0]} {c[1]}' for c in others) + '.', 'sources': [src(doc, c[2]) for c in others], 'sec': sec_of(others[0][2])}
         elif others:
-            out['scoring.quality_weight'] = {'status': 'verified', 'value': 100 - pw['value'], 'kind': 'percent', 'notes': 'משלים ל-100 את משקל המחיר. רכיבים שנמצאו: ' + ', '.join(f'{c[0]} {c[1]}' for c in others) + '.', 'sources': [src(doc, c[2]) for c in others]}
+            out['scoring.quality_weight'] = {'status': 'verified', 'value': 100 - pw['value'], 'kind': 'percent', 'notes': 'משלים ל-100 את משקל המחיר. רכיבים שנמצאו: ' + ', '.join(f'{c[0]} {c[1]}' for c in others) + '.', 'sources': [src(doc, c[2]) for c in others], 'sec': sec_of(others[0][2])}
     s, m = find(secs, r'ציון (?:איכות )?(?:מזערי|מינימלי|מינימאלי|סף)(?: נדרש)?|ניקוד (?:איכות )?(?:מינימלי|מינימאלי)|סף איכות|ציון סף')
     if s:
         out['scoring.minimum_quality'] = V(ts.simplify(sentence_around(full(s), m.start()))[:220], doc, s)
