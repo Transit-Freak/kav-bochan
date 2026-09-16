@@ -1,10 +1,10 @@
 {
   "tenders": {
     "4000594348": {
-      "listingAttemptedAt": "2026-09-16T12:41:12.540127+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:42.057943+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:13.776354+00:00",
+      "listedAt": "2026-09-16T13:05:44.619961+00:00",
       "documents": {
         "c048a3bb9a959600f618": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BFAF4C1FE082E5D213CFF592E9/מענה לשאלות הבהרה",
@@ -135,7 +135,7 @@
         "684ca2e47248749a15e1": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFA8CBCD68E630F2E6/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:04:07.567048+00:00",
+          "attemptedAt": "2026-09-16T13:05:59.843793+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "bd87d330afee655d5103af08456db08b004cc2e2b8003267b52bd5d1dee63711",
@@ -147,16 +147,16 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:04:11.458569+00:00",
-          "nextCheckAt": "2026-09-17T07:04:11.458583+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:04.151270+00:00",
+          "nextCheckAt": "2026-09-17T09:06:04.151284+00:00"
         }
       }
     },
     "4000611926": {
-      "listingAttemptedAt": "2026-09-16T12:41:12.539740+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:42.057415+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:13.956445+00:00",
+      "listedAt": "2026-09-16T13:05:44.799211+00:00",
       "documents": {
         "c997743e53f84fb33e53": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A78A67B7E31A815A/מסמך הבהרת עורך המכרז",
@@ -342,7 +342,7 @@
         "a985f5e21d9c9e2e7074": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C669AC6916156/נספח למכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:03:11.989503+00:00",
+          "attemptedAt": "2026-09-16T13:05:59.843374+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "8cbe8778e8a1724cffdc5667d9b09d4e9783e5f23a54200824b7dcb069492ae0",
@@ -354,13 +354,13 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:03:13.071899+00:00",
-          "nextCheckAt": "2026-09-17T07:03:13.071913+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:00.969399+00:00",
+          "nextCheckAt": "2026-09-17T09:06:00.969409+00:00"
         },
         "7bfc02e47392e17fb296": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C677CF553E156/נספח למכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:03:28.816211+00:00",
+          "attemptedAt": "2026-09-16T13:06:29.715431+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "5cc440ba23ca861d8d185942b5fe2278407861519cd8e0ffcaacc348ef785bda",
@@ -372,8 +372,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:03:29.958453+00:00",
-          "nextCheckAt": "2026-09-17T07:03:29.958465+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:30.856917+00:00",
+          "nextCheckAt": "2026-09-17T09:06:30.856931+00:00"
         },
         "b8da2bc3542637b02f5c": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C6264DA4F0156/נספח למכרז",
@@ -502,10 +502,10 @@
       }
     },
     "4000589849": {
-      "listingAttemptedAt": "2026-09-16T12:41:12.539144+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:42.056636+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:14.127175+00:00",
+      "listedAt": "2026-09-16T13:05:45.381989+00:00",
       "documents": {
         "f1cccf156d277ffb257a": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A78A96A30356E15A/מסמך הבהרת עורך המכרז",
@@ -549,11 +549,11 @@
         "4a729c56f54377de2576": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A5903E32E15A/מסמך הבהרת עורך המכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:02:45.883184+00:00",
+          "attemptedAt": "2026-09-16T13:05:59.843171+00:00",
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "nextCheckAt": "2026-09-17T06:02:47.021928+00:00",
+          "nextCheckAt": "2026-09-17T09:06:01.476995+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "routeReviewedUnits": [],
@@ -563,7 +563,7 @@
           "visualUnits": 0,
           "memberErrors": [],
           "parserVersion": 2,
-          "lastSuccessAt": "2026-09-16T10:02:47.021913+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:01.476956+00:00"
         },
         "50c579062d4d83816a2f": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A3DC5740E15A/נספח למכרז",
@@ -587,11 +587,11 @@
         "97f82e19d2887cfe2fdf": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A2560F6A415A/נספח למכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:02:58.938105+00:00",
+          "attemptedAt": "2026-09-16T13:06:28.233221+00:00",
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "nextCheckAt": "2026-09-17T06:03:00.097879+00:00",
+          "nextCheckAt": "2026-09-17T09:06:29.715378+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "routeReviewedUnits": [],
@@ -601,7 +601,7 @@
           "visualUnits": 0,
           "memberErrors": [],
           "parserVersion": 2,
-          "lastSuccessAt": "2026-09-16T10:03:00.097865+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:29.715365+00:00"
         },
         "46e444de99db7d06f1fa": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD1A298A10FCCAB015A/נספח למכרז",
@@ -1194,10 +1194,10 @@
       }
     },
     "4000552742": {
-      "listingAttemptedAt": "2026-09-16T12:41:14.127223+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:45.382098+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:15.720722+00:00",
+      "listedAt": "2026-09-16T13:05:47.636764+00:00",
       "documents": {
         "fdfaeec0abf06256d688": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDD8ECDB21BA894C13B/נספח למכרז",
@@ -1238,7 +1238,7 @@
         "f1a842c8bd4ae92d1498": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDD8BB6BB1201654144/מסמך הבהרת עורך המכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:02:48.091098+00:00",
+          "attemptedAt": "2026-09-16T13:06:03.461247+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "07163bea2c3dd717eb3eaf3ffd53b304f358cf01b37dac030b31f8a270c38f67",
@@ -1250,8 +1250,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T10:02:50.252639+00:00",
-          "nextCheckAt": "2026-09-17T06:02:50.252652+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:06.194727+00:00",
+          "nextCheckAt": "2026-09-17T09:06:06.194738+00:00"
         },
         "ff11babe63e7d13f6596": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDD88F54423003E613B/נספח ערבות",
@@ -1816,10 +1816,10 @@
       }
     },
     "4000560703": {
-      "listingAttemptedAt": "2026-09-16T12:41:13.956510+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:44.799265+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:15.364556+00:00",
+      "listedAt": "2026-09-16T13:05:47.372020+00:00",
       "documents": {
         "ca87aa694af2463ffb53": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDDAF98C13960BB0142/מסמך הבהרת עורך המכרז",
@@ -2133,7 +2133,7 @@
         "68ff679686d43e7e91b9": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB3EC6C77DC15C/נספח למכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:37:39.307945+00:00",
+          "attemptedAt": "2026-09-16T13:06:01.477046+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "f84a12b8d9cbbbe4b83cc27508728f6c2cc9ca7f92a7f47f8e65c807e4e19093",
@@ -2145,8 +2145,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T10:37:46.062524+00:00",
-          "nextCheckAt": "2026-09-17T06:37:46.062542+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:06.013994+00:00",
+          "nextCheckAt": "2026-09-17T09:06:06.014008+00:00"
         },
         "2372fb5c9bd16202443e": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB4018D238015C/נספח למכרז",
@@ -2223,10 +2223,10 @@
       }
     },
     "4000582393": {
-      "listingAttemptedAt": "2026-09-16T12:41:13.776420+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:44.620042+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:15.483670+00:00",
+      "listedAt": "2026-09-16T13:05:47.573983+00:00",
       "documents": {
         "18f7226bd08db3845591": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDFA2A6E1AF4FC0414C/מסמך הבהרת עורך המכרז",
@@ -2357,7 +2357,7 @@
         "d8a4e8d8f34d6472252f": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF8E90CAAB9589014B/מסמך הבהרת עורך המכרז",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:06:27.908573+00:00",
+          "attemptedAt": "2026-09-16T13:06:00.969456+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "75dfa314947cf15572d61c0e022296385fd5f7367f5d31d3b84f914bd9f61534",
@@ -2369,8 +2369,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T10:06:30.359648+00:00",
-          "nextCheckAt": "2026-09-17T06:06:30.359658+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:03.461182+00:00",
+          "nextCheckAt": "2026-09-17T09:06:03.461194+00:00"
         },
         "aae57640ba3cdce31f0e": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDF89E08999AA22414B/נספח למכרז",
@@ -2799,10 +2799,10 @@
       }
     },
     "4000538622": {
-      "listingAttemptedAt": "2026-09-16T12:41:15.364617+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:47.372067+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:17.054098+00:00",
+      "listedAt": "2026-09-16T13:05:49.503067+00:00",
       "documents": {
         "03ed9f22a139343d9de4": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC97D0AF74332CA143/נספח למכרז",
@@ -3465,7 +3465,7 @@
         "4293977ae302e593c16b": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B05FFA1CB9213A/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T09:00:53.198159+00:00",
+          "attemptedAt": "2026-09-16T13:06:04.151494+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "e34c497812fe80b1ae0fc1917f933ba689d28cb90d66911cffa8460a12b0eda2",
@@ -3477,8 +3477,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T09:00:54.648246+00:00",
-          "nextCheckAt": "2026-09-17T05:00:54.648259+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:05.776183+00:00",
+          "nextCheckAt": "2026-09-17T09:06:05.776195+00:00"
         },
         "485089f19c5a846710f6": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B062F0B18BE13A/מודעה לעיתונות בערבית",
@@ -3501,10 +3501,10 @@
       }
     },
     "627142": {
-      "listingAttemptedAt": "2026-09-16T12:41:15.483723+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:47.574027+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:17.318924+00:00",
+      "listedAt": "2026-09-16T13:05:50.120925+00:00",
       "documents": {
         "a9ed97d3acde2a7c79ca": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB9DE9688037AD812F/נספח למכרז",
@@ -3869,7 +3869,7 @@
         "d5f08837eecee778f571": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937A29BADF612A/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:02:49.071709+00:00",
+          "attemptedAt": "2026-09-16T13:06:05.776242+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "b11c49fcbbb16441a9c0d99b567a95a0b51cc71ccd6a7aebdb99b861d93413e9",
@@ -3881,8 +3881,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T10:02:50.082564+00:00",
-          "nextCheckAt": "2026-09-17T06:02:50.082577+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:06.997187+00:00",
+          "nextCheckAt": "2026-09-17T09:06:06.997197+00:00"
         },
         "38fac068880bc954e313": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937A29BAE0412A/מודעה לעיתונות בעברית",
@@ -4139,10 +4139,10 @@
       }
     },
     "4000521518": {
-      "listingAttemptedAt": "2026-09-16T12:41:15.720947+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:47.637005+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:17.366110+00:00",
+      "listedAt": "2026-09-16T13:05:49.468856+00:00",
       "documents": {
         "cd7b0f8df430d326dec6": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB9ABB40CC3B13012C/נספח למכרז",
@@ -4607,7 +4607,7 @@
         "8cc0027419d8cbd5f86b": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB83D8F7639E118121/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:02:13.942551+00:00",
+          "attemptedAt": "2026-09-16T13:06:06.025750+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "a9638f37c1365e6b8062c56bd2c41693014fb70c1140300901e9729b04b58bbc",
@@ -4619,8 +4619,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T10:02:14.762324+00:00",
-          "nextCheckAt": "2026-09-17T06:02:14.762338+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:06.975693+00:00",
+          "nextCheckAt": "2026-09-17T09:06:06.975708+00:00"
         },
         "eafb1bbee9adfee9fe8a": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB83D8F5D755C86121/מסמכי הליך",
@@ -4751,10 +4751,10 @@
       }
     },
     "631731": {
-      "listingAttemptedAt": "2026-09-16T12:41:17.318985+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:49.503115+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:19.255738+00:00",
+      "listedAt": "2026-09-16T13:05:51.682928+00:00",
       "documents": {
         "6a8b00c3601bb25aa0ee": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB8B94845E4BF52127/הודעה על עדכון מועדים",
@@ -5327,7 +5327,7 @@
         "3352fd506cfce4f3fbf2": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD85F2F76DE123/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T09:00:42.503585+00:00",
+          "attemptedAt": "2026-09-16T13:06:06.975761+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "5058092d7f414578a2cdb775debf8d0c24e5034475894961c0fc1a1511110275",
@@ -5339,8 +5339,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T09:00:44.072447+00:00",
-          "nextCheckAt": "2026-09-17T05:00:44.072464+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:09.402796+00:00",
+          "nextCheckAt": "2026-09-17T09:06:09.402807+00:00"
         },
         "0f41b84d425e7234eb0a": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD85F2F76D2123/מודעה לעיתונות בערבית",
@@ -5436,10 +5436,10 @@
       }
     },
     "624510": {
-      "listingAttemptedAt": "2026-09-16T12:41:17.366172+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:50.120991+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:19.189772+00:00",
+      "listedAt": "2026-09-16T13:05:51.854040+00:00",
       "documents": {
         "297a8f72f153d9847aa8": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB83E1CEA163378121/מסמכי הליך",
@@ -5661,7 +5661,7 @@
         "4dfb9d48c3fbeb92759a": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD82DF4092C123/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:32:33.556732+00:00",
+          "attemptedAt": "2026-09-16T13:06:06.997239+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "b11c49fcbbb16441a9c0d99b567a95a0b51cc71ccd6a7aebdb99b861d93413e9",
@@ -5670,11 +5670,11 @@
           "visualUnits": 1,
           "memberErrors": [],
           "parserVersion": 2,
-          "status": "retry_pending",
-          "error": "HTTP Error 404: Not Found",
-          "failures": 1,
-          "lastSuccessAt": "2026-09-16T08:53:14.718395+00:00",
-          "nextCheckAt": "2026-09-16T12:32:44.297033+00:00"
+          "status": "extracted",
+          "error": null,
+          "failures": 0,
+          "lastSuccessAt": "2026-09-16T13:06:09.052316+00:00",
+          "nextCheckAt": "2026-09-17T09:06:09.052328+00:00"
         },
         "63ad7acb8945c7c93667": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD82DF40938123/מודעה לעיתונות בעברית",
@@ -5877,10 +5877,10 @@
       }
     },
     "627143": {
-      "listingAttemptedAt": "2026-09-16T12:41:17.054160+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:49.468905+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:18.856102+00:00",
+      "listedAt": "2026-09-16T13:05:51.468353+00:00",
       "documents": {
         "fc720589ef1660e93661": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB8CFAA02CAE59A122/נספח למכרז",
@@ -6137,7 +6137,7 @@
         "e7f7eedb0f70ede1e7ab": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB85F66D74D3ECE12A/מענה לשאלות הבהרה",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T09:00:41.213315+00:00",
+          "attemptedAt": "2026-09-16T13:06:06.194786+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "5a4c830ad3ef394a7cdc296d5562efe576c53aba75c72c409966ba57b20bd60b",
@@ -6149,8 +6149,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T09:00:45.532988+00:00",
-          "nextCheckAt": "2026-09-17T05:00:45.533004+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:11.542059+00:00",
+          "nextCheckAt": "2026-09-17T09:06:11.542071+00:00"
         },
         "3d3961fe7ef8041003ea": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB85F6705C3FC3412A/אחר",
@@ -6606,10 +6606,10 @@
       }
     },
     "633258": {
-      "listingAttemptedAt": "2026-09-16T12:41:19.189838+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:51.682985+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:21.310629+00:00",
+      "listedAt": "2026-09-16T13:05:54.623142+00:00",
       "documents": {
         "8e38961440051c9e332d": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937C725844612A/מסמכי הליך",
@@ -6884,7 +6884,7 @@
         "48720dd7faf2c3224af9": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937D34A3C8612A/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T09:00:44.072527+00:00",
+          "attemptedAt": "2026-09-16T13:06:09.402876+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "7616b1b8217b85885ed98aa430d3c608c5d97861fbd9e39f02742e1fecd95548",
@@ -6896,8 +6896,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T09:00:48.597553+00:00",
-          "nextCheckAt": "2026-09-17T05:00:48.597566+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:14.195346+00:00",
+          "nextCheckAt": "2026-09-17T09:06:14.195357+00:00"
         },
         "d879a60b1097e87701a7": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937D34A3C7812A/מסמכי הליך",
@@ -7731,10 +7731,10 @@
       }
     },
     "613802": {
-      "listingAttemptedAt": "2026-09-16T12:41:18.856156+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:51.468409+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:20.497612+00:00",
+      "listedAt": "2026-09-16T13:05:53.413078+00:00",
       "documents": {
         "b19f60bf5f6e1b63a9ab": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819376E0D344E12A/מסמכי הליך",
@@ -7757,7 +7757,7 @@
         "e7eb3d82cd0a95234310": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819376E0D345C12A/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T10:02:36.758510+00:00",
+          "attemptedAt": "2026-09-16T13:06:09.052376+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "35e60853be39d544e1fa305ab8de5890f389f554a0a214913eaa6ba6e69d0b45",
@@ -7769,8 +7769,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T10:02:38.019250+00:00",
-          "nextCheckAt": "2026-09-17T06:02:38.019263+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:10.841501+00:00",
+          "nextCheckAt": "2026-09-17T09:06:10.841513+00:00"
         },
         "c5f6052b0b0fad471e16": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819376E0D346A12A/מסמכי הליך",
@@ -8318,10 +8318,10 @@
       }
     },
     "633259": {
-      "listingAttemptedAt": "2026-09-16T12:41:19.255793+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:51.854084+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:21.273568+00:00",
+      "listedAt": "2026-09-16T13:05:54.354232+00:00",
       "documents": {
         "e372728a8d1fb74fcae9": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937F7D54A0612A/מסמכי הליך",
@@ -8723,11 +8723,21 @@
         "d6fe0bcf2f1145877cf4": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81938045F467012A/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T08:55:31.575331+00:00",
-          "status": "retry_pending",
-          "error": "The read operation timed out",
-          "failures": 2,
-          "nextCheckAt": "2026-09-16T12:55:49.936031+00:00"
+          "attemptedAt": "2026-09-16T13:06:10.841563+00:00",
+          "status": "extracted",
+          "error": null,
+          "failures": 0,
+          "nextCheckAt": "2026-09-17T09:06:12.770807+00:00",
+          "previousSha256": null,
+          "reviewedUnits": [],
+          "routeReviewedUnits": [],
+          "sha256": "a2b7f40158281aabed9a9b51d8d006788193edaf23ddee5d69ff47f890f986b5",
+          "units": 2,
+          "textUnits": 0,
+          "visualUnits": 2,
+          "memberErrors": [],
+          "parserVersion": 2,
+          "lastSuccessAt": "2026-09-16T13:06:12.770796+00:00"
         },
         "a105805e0c65e95e86fc": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81938045F46B612A/מסמכי הליך",
@@ -9395,15 +9405,15 @@
       }
     },
     "636078": {
-      "listingAttemptedAt": "2026-09-16T12:41:20.497667+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:53.413127+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:21.549603+00:00",
+      "listedAt": "2026-09-16T13:05:54.717471+00:00",
       "documents": {
         "52ddae6cd559c785386e": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5026123/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:41:38.763182+00:00",
+          "attemptedAt": "2026-09-16T13:06:11.542121+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "77d0a50d7a4273a02f085966695f74a1cc26a7a95e70a854423aeedc0a9081c2",
@@ -9415,8 +9425,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T12:41:40.166575+00:00",
-          "nextCheckAt": "2026-09-17T08:41:40.166592+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:13.176721+00:00",
+          "nextCheckAt": "2026-09-17T09:06:13.176734+00:00"
         },
         "1eb9b7965f59f892e383": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5034123/מודעה לעיתונות בערבית",
@@ -9457,10 +9467,10 @@
       }
     },
     "631745": {
-      "listingAttemptedAt": "2026-09-16T12:41:21.273623+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:54.354282+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:22.552721+00:00",
+      "listedAt": "2026-09-16T13:05:55.837518+00:00",
       "documents": {
         "7cfb0cbc2a5d85d0ec66": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0205362810121/מסמכי הליך",
@@ -9610,7 +9620,7 @@
         "ac63325cf961b806bef0": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01F93702B4121/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:03:06.715569+00:00",
+          "attemptedAt": "2026-09-16T13:06:12.770853+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "9c64b6e06d827cbfbd357fd6ac23482529f1eb72d390ceef6e18ddedbd23c1ad",
@@ -9622,8 +9632,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:03:08.409841+00:00",
-          "nextCheckAt": "2026-09-17T07:03:08.409855+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:14.506373+00:00",
+          "nextCheckAt": "2026-09-17T09:06:14.506385+00:00"
         },
         "a1ef4dcf235d35e60c40": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01F93702A6121/מסמכי הליך",
@@ -9700,10 +9710,10 @@
       }
     },
     "631740": {
-      "listingAttemptedAt": "2026-09-16T12:41:21.310680+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:54.623188+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:22.566556+00:00",
+      "listedAt": "2026-09-16T13:05:56.085536+00:00",
       "documents": {
         "343c5a1654bd34e2b6fe": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01ECB310E6121/מסמכי הליך",
@@ -9853,7 +9863,7 @@
         "ac6e25eb33c16e72685f": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01E08753D4121/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:03:07.477367+00:00",
+          "attemptedAt": "2026-09-16T13:06:13.176783+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "f12224a6583f09ee83d75a175f901bf50258344827afbd68d39da878e29250d0",
@@ -9865,8 +9875,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:03:09.075142+00:00",
-          "nextCheckAt": "2026-09-17T07:03:09.075155+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:14.710833+00:00",
+          "nextCheckAt": "2026-09-17T09:06:14.710844+00:00"
         },
         "2b346edce3792719f842": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01E08753B8121/מסמכי הליך",
@@ -9943,15 +9953,15 @@
       }
     },
     "618396": {
-      "listingAttemptedAt": "2026-09-16T12:41:22.566599+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:56.001488+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:24.010288+00:00",
+      "listedAt": "2026-09-16T13:05:57.342146+00:00",
       "documents": {
         "ec5c3ac069fb31e17c68": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA968E08213E2A811B/מסמכי הליך",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:29:47.372037+00:00",
+          "attemptedAt": "2026-09-16T13:06:14.710890+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "114f59441f037facaed3841fd5382066a57eeca392b4dce49976d9340a8680af",
@@ -9963,8 +9973,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:29:50.345754+00:00",
-          "nextCheckAt": "2026-09-17T07:29:50.345771+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:17.723128+00:00",
+          "nextCheckAt": "2026-09-17T09:06:17.723142+00:00"
         },
         "fb157c28f514a49cb325": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA968E08213E2B611B/מסמכי הליך",
@@ -10077,10 +10087,10 @@
       }
     },
     "632739": {
-      "listingAttemptedAt": "2026-09-16T12:41:21.549661+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:54.717518+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:22.646423+00:00",
+      "listedAt": "2026-09-16T13:05:56.001452+00:00",
       "documents": {
         "828009b4581b8f5aa3e5": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D122E121/מסמכי הליך",
@@ -10121,7 +10131,7 @@
         "fbf0c6f614aa565d7c91": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1204121/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:20:46.832794+00:00",
+          "attemptedAt": "2026-09-16T13:06:14.195414+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "392f1593d1472b7746d8d8f806f8c5a6720ad5e31bc55b9a3d96fd9b5c1b0d7a",
@@ -10133,8 +10143,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T12:20:48.336947+00:00",
-          "nextCheckAt": "2026-09-17T08:20:48.336960+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:15.941604+00:00",
+          "nextCheckAt": "2026-09-17T09:06:15.941616+00:00"
         },
         "299f0065c4cb916a0480": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/מסמכי הליך",
@@ -10157,10 +10167,10 @@
       }
     },
     "631737": {
-      "listingAttemptedAt": "2026-09-16T12:41:22.552780+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:55.837572+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:23.846328+00:00",
+      "listedAt": "2026-09-16T13:05:57.476443+00:00",
       "documents": {
         "41924cb4dbb95144a39d": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01D486EC62121/מסמכי הליך",
@@ -10328,7 +10338,7 @@
         "46f7720056bb81998e40": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01C386DB56121/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:03:25.701635+00:00",
+          "attemptedAt": "2026-09-16T13:06:14.506432+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "0d3d2322506d6df07cfdc58890d094f71847f7da7625331a2c59543fab822d67",
@@ -10340,8 +10350,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:03:27.319286+00:00",
-          "nextCheckAt": "2026-09-17T07:03:27.319299+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:16.231674+00:00",
+          "nextCheckAt": "2026-09-17T09:06:16.231687+00:00"
         },
         "021572ad100216f7d3ea": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01C386DB64121/מודעה לעיתונות בערבית",
@@ -10382,15 +10392,15 @@
       }
     },
     "581458": {
-      "listingAttemptedAt": "2026-09-16T12:41:23.846377+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:57.396053+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:24.995730+00:00",
+      "listedAt": "2026-09-16T13:05:58.708565+00:00",
       "documents": {
         "193a8820e2423ab0a065": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1AC121/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:41:42.833277+00:00",
+          "attemptedAt": "2026-09-16T13:06:17.064485+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "eee64db0b1c9f285be0443791e5a66b0a06e74b7ace9b0e98717e3eb3a744271",
@@ -10402,8 +10412,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T12:41:44.166236+00:00",
-          "nextCheckAt": "2026-09-17T08:41:44.166250+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:18.423861+00:00",
+          "nextCheckAt": "2026-09-17T09:06:18.423873+00:00"
         },
         "a790c1fbcd192d45ff3b": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1BA121/מודעה לעיתונות בערבית",
@@ -10444,15 +10454,15 @@
       }
     },
     "609100": {
-      "listingAttemptedAt": "2026-09-16T12:41:23.835239+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:57.342202+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:24.980450+00:00",
+      "listedAt": "2026-09-16T13:05:58.698057+00:00",
       "documents": {
         "af0d1af8d8edf1209684": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1F1E4D1B611B/מודעה לעיתונות בערבית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:41:42.388688+00:00",
+          "attemptedAt": "2026-09-16T13:06:16.231738+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "fdaae281ccaf960cb0b6e5e6e861b16f0cb72e070eceaeec9eaef2d2b95a3667",
@@ -10464,8 +10474,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T12:41:43.859426+00:00",
-          "nextCheckAt": "2026-09-17T08:41:43.859440+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:17.748464+00:00",
+          "nextCheckAt": "2026-09-17T09:06:17.748475+00:00"
         },
         "1b08a4a2e6ab7fb88bd2": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1F1E4D19A11B/מודעה לעיתונות בעברית",
@@ -10506,10 +10516,10 @@
       }
     },
     "609098": {
-      "listingAttemptedAt": "2026-09-16T12:41:22.646471+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:56.085581+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:23.835184+00:00",
+      "listedAt": "2026-09-16T13:05:57.396012+00:00",
       "documents": {
         "a8b6c46abd548d59f59f": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1E5DE464811B/מודעה לעיתונות בערבית",
@@ -10550,7 +10560,7 @@
         "b1dc69c7b02172934cac": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1E5DE461E11B/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:20:49.105971+00:00",
+          "attemptedAt": "2026-09-16T13:06:15.941667+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "4ccdadd7bbe432d2f1f09c7c05d63e305fc023c7f267305de7e81ee45d0912fb",
@@ -10562,8 +10572,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T12:20:49.984681+00:00",
-          "nextCheckAt": "2026-09-17T08:20:49.984694+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:17.064419+00:00",
+          "nextCheckAt": "2026-09-17T09:06:17.064430+00:00"
         },
         "ad41b61bf754dc3b57b3": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1E5DE462C11B/מסמכי הליך",
@@ -10586,19 +10596,19 @@
       }
     },
     "archive-northern-negev": {
-      "listingAttemptedAt": "2026-09-16T12:41:25.365472+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:58.826350+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:25.365492+00:00",
+      "listedAt": "2026-09-16T13:05:58.826372+00:00",
       "documents": {
         "4d502ded247a93157af1": {
           "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:41:44.166296+00:00",
+          "attemptedAt": "2026-09-16T13:06:17.748533+00:00",
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "nextCheckAt": "2026-09-17T08:41:53.952731+00:00",
+          "nextCheckAt": "2026-09-17T09:06:28.233051+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "routeReviewedUnits": [],
@@ -10608,24 +10618,24 @@
           "visualUnits": 33,
           "memberErrors": [],
           "parserVersion": 2,
-          "lastSuccessAt": "2026-09-16T12:41:53.952711+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:28.233037+00:00"
         }
       }
     },
     "archive-hadera-netanya": {
-      "listingAttemptedAt": "2026-09-16T12:41:25.365500+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:58.826384+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:25.365509+00:00",
+      "listedAt": "2026-09-16T13:05:58.826398+00:00",
       "documents": {
         "cee2de9ac8edc2df9c0d": {
           "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/NetanyaNetanyaTender.pdf",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:41:45.431979+00:00",
+          "attemptedAt": "2026-09-16T13:06:18.423923+00:00",
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "nextCheckAt": "2026-09-17T08:42:16.014811+00:00",
+          "nextCheckAt": "2026-09-17T09:06:52.566092+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "routeReviewedUnits": [],
@@ -10635,24 +10645,24 @@
           "visualUnits": 79,
           "memberErrors": [],
           "parserVersion": 2,
-          "lastSuccessAt": "2026-09-16T12:42:16.014792+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:52.566077+00:00"
         }
       }
     },
     "archive-sharon-holon": {
-      "listingAttemptedAt": "2026-09-16T12:41:25.365515+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:58.826407+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:25.365522+00:00",
+      "listedAt": "2026-09-16T13:05:58.826420+00:00",
       "documents": {
         "1a7a746236d9d3885031": {
           "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/SharonHolonTender.pdf",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T12:41:48.199953+00:00",
+          "attemptedAt": "2026-09-16T13:06:19.311612+00:00",
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "nextCheckAt": "2026-09-17T08:42:04.918249+00:00",
+          "nextCheckAt": "2026-09-17T09:06:37.233731+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "routeReviewedUnits": [],
@@ -10662,15 +10672,15 @@
           "visualUnits": 42,
           "memberErrors": [],
           "parserVersion": 2,
-          "lastSuccessAt": "2026-09-16T12:42:04.918230+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:37.233717+00:00"
         }
       }
     },
     "570024": {
-      "listingAttemptedAt": "2026-09-16T12:41:24.010337+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:57.476491+00:00",
       "listingOk": true,
       "listingError": null,
-      "listedAt": "2026-09-16T12:41:25.365418+00:00",
+      "listedAt": "2026-09-16T13:05:58.826305+00:00",
       "documents": {
         "3267f0a7ae8a19d0a6c2": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA96DCE0102EE5A121/מסמכי הליך",
@@ -10784,7 +10794,7 @@
         "97e0f87ef42778cfa493": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA96DCE0102EE22121/מודעה לעיתונות בעברית",
           "presentInLatestListing": true,
-          "attemptedAt": "2026-09-16T11:04:22.184276+00:00",
+          "attemptedAt": "2026-09-16T13:06:17.723204+00:00",
           "previousSha256": null,
           "reviewedUnits": [],
           "sha256": "0ee0339a28bf1437fd25022275b70109d7d74f25234e8fccd40f5520534f1085",
@@ -10796,8 +10806,8 @@
           "status": "extracted",
           "error": null,
           "failures": 0,
-          "lastSuccessAt": "2026-09-16T11:04:23.567509+00:00",
-          "nextCheckAt": "2026-09-17T07:04:23.567521+00:00"
+          "lastSuccessAt": "2026-09-16T13:06:19.311539+00:00",
+          "nextCheckAt": "2026-09-17T09:06:19.311551+00:00"
         },
         "230e8fc90e656f916965": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA96DCE0102EE30121/מסמכי הליך",
@@ -10820,18 +10830,18 @@
       }
     },
     "15660": {
-      "listingAttemptedAt": "2026-09-16T12:41:24.995770+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:58.708595+00:00",
       "listingOk": false,
       "listingError": "לא נמצאו קישורי מסמכים בעמוד הפרסום",
       "documents": {}
     },
     "515257": {
-      "listingAttemptedAt": "2026-09-16T12:41:24.980498+00:00",
+      "listingAttemptedAt": "2026-09-16T13:05:58.698109+00:00",
       "listingOk": false,
       "listingError": "לא נמצאו קישורי מסמכים בעמוד הפרסום",
       "documents": {}
     }
   },
-  "checkedAt": "2026-09-16T12:43:57.319211+00:00",
-  "remainingDownloads": 501
+  "checkedAt": "2026-09-16T13:06:52.576906+00:00",
+  "remainingDownloads": 544
 }
