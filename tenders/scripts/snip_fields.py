@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 16
+VERSION = 17
 
 
 def read(path, default):
@@ -202,18 +202,25 @@ def find_quote(pg, quote):
             break
     if not hits:
         return None
+    # קיבוץ לשורות לפי מרחק אנכי (לא לפי עיגול קבוע — מילים באותה שורה נפלו לדליים שונים: השרון עמוד 69)
     lines = {}
-    for w, r in hits:
-        yc = round((r.y0 + r.y1) / 2 / 6) * 6
-        e = lines.setdefault(yc, {'words': set(), 'rects': []})
-        e['words'].add(w)
-        e['rects'].append(r)
+    for w, r in sorted(hits, key=lambda x: (x[1].y0 + x[1].y1) / 2):
+        yc = (r.y0 + r.y1) / 2
+        key = next((k for k in lines if abs(k - yc) <= 5), None)
+        if key is None:
+            key = yc
+            lines[key] = {'words': set(), 'rects': []}
+        lines[key]['words'].add(w)
+        lines[key]['rects'].append(r)
     ys = sorted(lines)
     nlines = max(1, min(8, len(quote) // 55 + 1))
+    # מק"ט (5–6 ספרות) שמופיע פעם אחת בעמוד מזהה את השורה לבדו — גם כשהמילים האחרות בציטוט לא נמצאו
+    unique_ids = {w for w, _ in hits if re.fullmatch(r'\d{5,6}', w) and sum(1 for w2, _ in hits if w2 == w) == 1}
     best = None
     for i, y in enumerate(ys):
         win = [y2 for y2 in ys[i:] if y2 - y <= nlines * 14]
-        score = len(set().union(*(lines[y2]['words'] for y2 in win)))
+        words = set().union(*(lines[y2]['words'] for y2 in win))
+        score = len(words) + (3 if words & unique_ids else 0)
         if best is None or score > best[0]:
             best = (score, win)
     distinct = len({w for w, _ in hits})

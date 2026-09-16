@@ -488,3 +488,15 @@ def test_numbers_written_differently_in_the_document_are_still_found():
     import fitz
     doc = fitz.open(); p2 = doc.new_page(); p2.insert_text((50, 100), 'מחזור של לפחות 300מיליון ₪ לשנה', fontsize=11, fontname='helv') if False else None
     assert snip_fields.HEB_NUM[5] == ['חמש', 'חמישה']
+
+
+def test_quote_with_a_unique_makat_is_found_even_when_other_words_repeat():
+    # השרון עמוד 69: 11 שורות "קו N (מק"ט XXXXX) ברעננה" — "ברעננה" בכל שורה, המק"ט פעם אחת
+    import fitz
+    doc = fitz.open(); pg = doc.new_page()
+    for i, (n, mk) in enumerate([(2, 45002), (16, 24016), (24, 39024)]):
+        pg.insert_text((60, 100 + 20 * i), f'line {n} (makat {mk}) in Raanana.', fontsize=11)
+    span = snip_fields.find_quote(pg, 'line 16 (makat 24016) in Raanana.')
+    assert span and 105 < (span[0] + span[1]) / 2 < 125          # השורה השנייה בלבד
+    span = snip_fields.find_quote(pg, 'line 24 (makat 39024) in Raanana.')
+    assert span and 125 < (span[0] + span[1]) / 2 < 145
