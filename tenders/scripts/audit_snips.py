@@ -40,14 +40,14 @@ def check(key, f, s):
         return ['אין סימון בכלל']
     nums = numbers_in(marks)
     probs = []
-    if key == 'penalties.amount':
-        if not any(re.search(r'פיצוי|קנס', m) for m in marks):
-            probs.append(f'טבלת הקנסות: סומן {marks[:3]} ולא כותרת הפיצויים')
-        return probs
     if s.get('how') == 'heading':
         n = str((f.get('sec') or {}).get('n'))
         if not any(n in m for m in marks):
             probs.append(f'סומנה כותרת שאינה סעיף {n}: {marks[:2]}')
+        return probs
+    if key == 'penalties.amount':
+        if not any(re.search(r'פיצוי|קנס', m) for m in marks) or len(marks) > 2:
+            probs.append(f'טבלת הקנסות: סומן {marks[:3]} ({len(marks)} סימונים) ולא כותרת הפיצויים')
         return probs
     if s.get('how') == 'sentence':
         # הערך לא נמצא בעמוד — סומן משפט המפתח של הסעיף; בודקים שהסימון באמת על המשפט הזה

@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 10
+VERSION = 11
 
 
 def read(path, default):
@@ -262,12 +262,20 @@ def locate(fitz, pdf, pno, key, f):
     sec = f.get('sec') or {}
     back = 2 if key == 'penalties.amount' else 0
     pages = [p for p in list(range(pno, pno + 2)) + list(range(pno - 1, pno - back - 1, -1)) if 1 <= p <= pdf.page_count]
+    if key == 'penalties.amount':
+        # טבלת הקנסות: הסעיף הראשון בה ("20.2 פיצויים מוסכמים") — שורת הכותרת שלו, לא כל אזכור של "פיצוי" בעמוד
+        # (בחיפה סומנו 9 אזכורים שני עמודים לפני הטבלה, בסעיף על אתר האינטרנט)
+        head = heading_rows(fitz, pdf, pages[:2], sec)
+        if head:
+            return head
     for p in pages:
         pg = pdf[p - 1]
         words = pg.get_text('words')
         groups = find_value(pg, words, key, f)
         if not groups:
             continue
+        if key == 'penalties.amount':
+            groups = [(n, sorted(rects, key=lambda r: r.y0)[:2]) for n, rects in groups]
         # רק בתוך הסעיף עצמו, כשכותרתו בעמוד (אותו מספר יכול להופיע גם בסעיף השכן)
         span = section_span(pg, words, sec.get('n'))
         if span:
@@ -287,10 +295,17 @@ def locate(fitz, pdf, pno, key, f):
                 rows = [fitz.Rect(*b) for b in rows_between(pg, sent[0], sent[1])]
                 if rows:
                     return pg, p, rows, 'משפט המפתח של הסעיף', 'sentence', None
+    return heading_rows(fitz, pdf, pages, sec)
+
+
+def heading_rows(fitz, pdf, pages, sec):
+    """שורת הכותרת של הסעיף (מספר הסעיף בשוליים והטקסט שבאותה שורה) בעמוד הראשון מבין pages שבו הוא נמצא."""
+    if not sec.get('n') or '.' not in str(sec['n']):
+        return None
     for p in pages:
         pg = pdf[p - 1]
         words = pg.get_text('words')
-        heads = [w for w in words if sec.get('n') and '.' in str(sec['n']) and w[4].rstrip('.') == str(sec['n'])]
+        heads = [w for w in words if w[4].rstrip('.') == str(sec['n'])]
         if heads:
             head = max(heads, key=lambda w: w[2])
             rows = [fitz.Rect(*b) for b in rows_between(pg, head[1], head[3])]
