@@ -87,6 +87,7 @@ const GROUPS = [
     ok(f['fleet.electric_share']) && [typeof f['fleet.electric_share'].value === 'number' ? (f['fleet.electric_share'].value === 100 ? 'כל האוטובוסים יהיו חשמליים.' : `לפחות ${f['fleet.electric_share'].value}% מהאוטובוסים יהיו חשמליים.`) : `אוטובוסים חשמליים: ${S(f['fleet.electric_share'].value)}.`, f['fleet.electric_share']],
     ok(f['fleet.max_age']) && [`לא להשתמש באוטובוס בן יותר מ-${heNum(f['fleet.max_age'].value)} שנים.`, f['fleet.max_age']],
     ok(f['fleet.accessibility']) && [`${S(f['fleet.accessibility'].value)} לאנשים עם מוגבלות.`, f['fleet.accessibility']],
+    ok(f['fleet.seats']) && [`בכל אוטובוס לפחות ${heNum(f['fleet.seats'].value)} מקומות ישיבה.`, f['fleet.seats']],
     ok(f['service.routes']) && [`להפעיל ${heNum(f['service.routes'].value)} קווים${ok(f['service.variants']) ? ` (${heNum(f['service.variants'].value)} כיוונים וחלופות)` : ''}.`, f['service.routes']],
     ok(f['service.annual_km']) && [`לנסוע בסך הכול כ-${(f['service.annual_km'].value / 1e6).toLocaleString('he-IL', { maximumFractionDigits: 1 })} מיליון קילומטר בשנה.`, f['service.annual_km']],
     ok(f['guarantee.performance']) && [`להפקיד ערבות ביצוע של ${money(f['guarantee.performance'].value)}. אם היא לא תעמוד בהתחייבויות, המדינה תוכל לקחת מהכסף הזה.`, f['guarantee.performance']],
@@ -151,5 +152,6 @@ function renderPlainFacts(id) {
     <p class="plain-intro">המדינה מחפשת חברה שתפעיל את ${what}${cluster}. מי שיזכה יקבל תשלום מהמדינה, ובתמורה יצטרך לעמוד בדרישות האלה. ליד כל משפט קישור לסעיף במסמך.</p>
     <div class="plain-grid">${groups.join('')}</div>
     ${keyList.length ? `<details class="fielddetails keysecs"><summary>הסעיפים העיקריים · ${keyList.length}</summary><ol class="keysecs-list">${keyList.join('')}</ol></details>` : ''}
+    ${typeof renderPendingFields === 'function' ? renderPendingFields(id) : ''}
     ${renderGlossary()}</section>`;
 }

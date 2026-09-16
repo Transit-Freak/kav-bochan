@@ -32,8 +32,9 @@ function renderFeed(){const host=$('live-results');if(!host)return;const tokens=
   lines&&['lines',`הקווים${nLines?` · ${nLines}`:''}`,lines],
   cond&&['cond','כל הסעיפים',cond],
   files.trim()&&['files',`הקבצים${nDocs?` · ${nDocs}`:''}`,files],
-  ['fields',`פרטים שנבדקו${nVerified?` · ${nVerified}`:''}`,`${t.discoveryNote?`<p class="muted">${esc(t.discoveryNote)}</p>`:''}${renderFields(t)}`],
+  !plain&&['fields',`פרטים שנבדקו${nVerified?` · ${nVerified}`:''}`,`${t.discoveryNote?`<p class="muted">${esc(t.discoveryNote)}</p>`:''}${renderFields(t)}`],
  ].filter(Boolean);
+ if(!panes.length)panes.push(['fields','פרטים',`${t.discoveryNote?`<p class="muted">${esc(t.discoveryNote)}</p>`:''}${renderFields(t)}`]);
  const active=panes.some(p=>p[0]===cardTab[t.id])?cardTab[t.id]:panes[0][0];
  const tabs=`<div class="card-tabs" role="tablist">${panes.map(([k,l])=>`<button role="tab" data-card-tab="${k}" data-card-id="${esc(t.id)}" aria-selected="${k===active}" class="${k===active?'on':''}">${l}</button>`).join('')}</div><div class="tabpanes">${panes.map(([k,,h])=>`<section class="tabpane" data-pane="${k}"${k===active?'':' hidden'}>${h}</section>`).join('')}</div>`;
  const parts=panes.map(p=>p[1].split(' · ')[0]);
@@ -80,8 +81,15 @@ function renderFields(t){
  if(fieldsState==='error'||!Object.keys(fieldCatalog).length)return '<p role="status">טעינת התנאים נכשלה. <button data-retry-fields>ניסיון חוזר</button></p>';
  const fields=combinedFields(t.id),all=Object.entries(fieldCatalog).map(([k,d])=>[k,fields[k]||d]);
  const verified=all.filter(([,f])=>isVerified(f)),pending=all.filter(([,f])=>!isVerified(f));
- const labels={unverified:'עדיין לא בדקנו',source_missing:'לא מצאנו מסמך מתאים',unrecognized_wording:'הניסוח במסמך אינו ברור',conflict:'המקורות מציגים מידע שונה',not_applicable:'לא רלוונטי למכרז הזה',per_line:'נקבע לכל קו בנספח',not_found:'לא נמצא במסמך הראשי',later:'ייקבע אחרי ההגשה'};
- return `${extractionSummary(t.id)}<details class="fielddetails tender-conditions"><summary>${verified.length?`${verified.length} פרטים שנבדקו`:'עדיין לא בדקנו את התנאים'}</summary>${verified.length?`<p class="muted">הפרטים נבדקו במסמך המקושר. ייתכן שיש עדכונים מאוחרים יותר שעדיין לא בדקנו.</p><div class="verified-grid">${verified.map(([k,f])=>renderVerifiedField(k,f)).join('')}</div>`:''}<details class="pending-fields"><summary>מה עדיין חסר? ${pending.length} פרטים</summary>${pending.map(([k,f])=>`<div class="pending-row"><strong>${esc(fieldLabel(k,f))}</strong><span>${labels[f.status]||'ממתין לבדיקה'}</span>${f.reason?`<p>${esc(f.reason)}</p>`:''}${f.sources?.length?`<p>${renderSources(f.sources)}</p>`:''}</div>`).join('')}</details></details>`;
+ return `${extractionSummary(t.id)}<details class="fielddetails tender-conditions"><summary>${verified.length?`${verified.length} פרטים שנבדקו`:'עדיין לא בדקנו את התנאים'}</summary>${verified.length?`<p class="muted">הפרטים נבדקו במסמך המקושר. ייתכן שיש עדכונים מאוחרים יותר שעדיין לא בדקנו.</p><div class="verified-grid">${verified.map(([k,f])=>renderVerifiedField(k,f)).join('')}</div>`:''}${renderPendingFields(t.id)}</details>`;
+}
+const PENDING_LABELS={unverified:'עדיין לא בדקנו',source_missing:'לא מצאנו מסמך מתאים',unrecognized_wording:'הניסוח במסמך אינו ברור',conflict:'המקורות מציגים מידע שונה',not_applicable:'לא רלוונטי למכרז הזה',per_line:'נקבע לכל קו בנספח',not_found:'לא נמצא במסמך הראשי',later:'ייקבע אחרי ההגשה'};
+// "מה לא מצאנו" — השדות שאין להם ערך, עם ההסבר למה (מוצג בסוף "מה המכרז דורש")
+function renderPendingFields(id){
+ if(fieldsState!=='ready'||!Object.keys(fieldCatalog).length)return '';
+ const fields=combinedFields(id),pending=Object.entries(fieldCatalog).map(([k,d])=>[k,fields[k]||d]).filter(([,f])=>!isVerified(f));
+ if(!pending.length)return '';
+ return `<details class="pending-fields"><summary>מה לא מצאנו במסמך · ${pending.length}</summary>${pending.map(([k,f])=>`<div class="pending-row"><strong>${esc(fieldLabel(k,f))}</strong><span>${PENDING_LABELS[f.status]||'ממתין לבדיקה'}</span>${f.reason?`<p>${esc(f.reason)}</p>`:''}${f.sources?.length?`<p>${renderSources(f.sources)}</p>`:''}</div>`).join('')}</details>`;
 }
 async function loadFields(){
  fieldsState='loading';renderFeed();
