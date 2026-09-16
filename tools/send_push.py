@@ -155,16 +155,32 @@ def collect_changes():
         except Exception:
             continue
         for v in d.get('versions') or []:
-            # echo: אותו שינוי כבר נכנס לקו בחלופה אחרת (mark_echo_events.py) — לא שולחים שוב (שלמה 16.09)
-            if str(v.get('d', ''))[:10] != DATE or v.get('k') in SKIP_KINDS or v.get('echo'):
+            if str(v.get('d', ''))[:10] != DATE or v.get('k') in SKIP_KINDS:
                 continue
             rd = d.get('rd') or f.rsplit('.', 1)[0]
             mk = rd.split('-')[0]
             e = idx.setdefault(mk, {'line': d.get('line') or (cat.get(rd) or {}).get('line', ''),
                                     'dest': d.get('dest') or (cat.get(rd) or {}).get('dest', ''),
-                                    'kinds': set(), 'rd': rd})
+                                    'kinds': set(), 'rd': rd, 'echo': [], 'fresh': 0})
             e['kinds'].add(v.get('k'))
+            # echo: אותו שינוי כבר נכנס לקו בחלופה אחרת (mark_echo_events.py). שולחים — זה שינוי אמיתי
+            # בחלופה הזאת — אבל אומרים בהודעה שהוא כבר נכנס קודם בחלופה אחרת (שלמה 16.09)
+            if v.get('echo'):
+                e['echo'].append((rd, v['echo']))
+            else:
+                e['fresh'] += 1
     return idx
+
+
+def echo_line(e):
+    """"השינוי הזה כבר נכנס ב-19.07.2026 בחלופה 10350-1-4 של הקו; עכשיו גם בחלופה 10350-1-6" — כשכל
+    השינויים של היום בקו הם הדים; אחרת אין תוספת."""
+    if not e.get('echo') or e.get('fresh'):
+        return ''
+    rd, ec = e['echo'][0]
+    d = ec.get('d', '')
+    dd = f'{int(d[8:10])}.{int(d[5:7])}.{d[:4]}' if len(d) >= 10 else d
+    return f'השינוי הזה כבר נכנס ב-{dd} בחלופה {ec.get("rd", "")} של הקו; עכשיו גם בחלופה {rd}'
 
 
 def send(payload):
@@ -204,6 +220,8 @@ def main():
         # "קו 11 מקרית מלאכי לאשדוד" — מאיזו עיר לאיזו עיר (שלמה 07.09), ותחנות הקצה בגוף
         title = f'קו {e["line"]} {route_words(e["dest"])}'.strip() if e['line'] else 'קו'
         body = f'{kinds} — {terminals(e["dest"])[:90]}' if e['dest'] else kinds
+        if echo_line(e):
+            body += '\n' + echo_line(e)
         url = f'{BASE_URL}#{e["rd"]}@{DATE}'
         groups = {KIND_GROUP.get(k) for k in e['kinds']} - {None}
         ctags = {city_tag(ct) for ct in dest_cities(e['dest'])}
@@ -243,7 +261,7 @@ def collect_range(days):
             continue
         for v in d.get('versions') or []:
             dd = str(v.get('d', ''))[:10]
-            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot') or v.get('echo'):
+            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot'):
                 continue
             rd = d.get('rd') or f.rsplit('.', 1)[0]
             for ct in dest_cities(d.get('dest') or ''):
@@ -297,11 +315,15 @@ def collect_range_mk(days):
         rd = d.get('rd') or f.rsplit('.', 1)[0]
         for v in d.get('versions') or []:
             dd = str(v.get('d', ''))[:10]
-            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot') or v.get('echo'):
+            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot'):
                 continue
             e = by_mk.setdefault(rd.split('-')[0], {'kinds': set(), 'line': d.get('line') or (cat.get(rd) or {}).get('line', ''),
-                                                    'dest': d.get('dest') or (cat.get(rd) or {}).get('dest', ''), 'rd': rd})
+                                                    'dest': d.get('dest') or (cat.get(rd) or {}).get('dest', ''), 'rd': rd, 'echo': [], 'fresh': 0})
             e['kinds'].add(v.get('k'))
+            if v.get('echo'):
+                e['echo'].append((rd, v['echo']))
+            else:
+                e['fresh'] += 1
     return by_mk
 
 
@@ -315,6 +337,9 @@ def digest_body(mks, by_mk, lead=''):
         if not e:
             continue
         labels = ' · '.join(sorted({KIND_LBL.get(k, k) for k in e['kinds']})[:2])
+        if echo_line(e):
+            d = e['echo'][0][1].get('d', '')
+            labels += f' (כבר נכנס בחלופה אחרת ב-{int(d[8:10])}.{int(d[5:7])})' if len(d) >= 10 else ' (כבר נכנס בחלופה אחרת)'
         rows.append(f'קו {e["line"] or "?"} {route_words(e["dest"])}: {labels}'.replace('  ', ' '))
     more = len(rows) - 4
     body = '\n'.join(rows[:4]) + (f'\nועוד {more} קווים' if more > 0 else '')
