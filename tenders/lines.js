@@ -116,7 +116,8 @@ document.addEventListener('click', e => {
 // ציטוט: קודם השורה במילים פשוטות, והציטוט המלא של המשרד מתקפל מתחת כפי שהוא
 function quoteBody(q) {
   const b = q.brief && q.brief.replace(/…$/, '') !== q.quote ? q.brief : '';
-  return b ? `<p class="brief">${esc(b)}</p><details class="fullquote"><summary>הציטוט המלא מהמסמך</summary><p>${esc(q.quote)}</p></details>` : `<p>${esc(q.quote)}</p>`;
+  // בלי פתיחה וסגירה: השורה הקצרה, ומתחתיה הציטוט המלא של המשרד באות קטנה יותר (שלמה 16.09)
+  return b ? `<p class="brief">${esc(b)}</p><p class="fullquote"><span class="muted">הציטוט המלא: </span>${esc(q.quote)}</p>` : `<p>${esc(q.quote)}</p>`;
 }
 function renderQuote(q) {
   return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}</span>${quoteBody(q)}<small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a></small></blockquote>`;

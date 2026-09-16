@@ -98,8 +98,13 @@ def clean(s):
 
 
 def fix_parens(s):
-    """pdftotext מוציא סוגריים הפוכים סביב מספרים: ")10014( 14" → "(10014) 14"."""
-    return re.sub(r'\)\s*(\d{4,6})\s*\(', r'(\1)', s)
+    """pdftotext מוציא סוגריים הפוכים סביב מספרים: ")10014( 14" → "(10014) 14";
+    ברשימות: "מעלה אדומים ( ,)209בית אל (,)269" → "מעלה אדומים (209), בית אל (269),"."""
+    s = re.sub(r'\)\s*(\d{4,6})\s*\(', r'(\1)', s)
+    s = re.sub(r'\(\s*([,.;]?)\s*\)(\d+)(?=[\sא-ת]|$)', r'(\2)\1 ', s)
+    s = re.sub(r'\s+([,.;])', r'\1', re.sub(r'\s{2,}', ' ', s))       # "בנוסף ,קו" → "בנוסף,קו"
+    s = re.sub(r'([,.;])(?=[א-ת(])', r'\1 ', s)                          # "בנוסף,קו" → "בנוסף, קו"
+    return re.sub(r'(\d)(?=[א-ת])', r'\1 ', s)                           # "468ממודיעין" → "468 ממודיעין"
 
 
 def tags_in(text):
@@ -291,7 +296,7 @@ def dedupe(items, key):
     return out
 
 
-def quote_brief(quote, max_len=200):
+def quote_brief(quote, max_len=240):
     """המשפט הראשון של הציטוט + משפט שמדבר על מה שעשוי להשתנות (ייתכן/יורה/רשאי), במילים פשוטות."""
     from tender_sections import tidy, simplify, sentences, BOILER
     sents = [x for x in sentences(tidy(quote)) if len(x) > 8]
