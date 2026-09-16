@@ -46,6 +46,10 @@ function sourceLinks(id, key, f) {
 }
 const srcLink = f => sourceLinks(null, null, f);
 const ok = f => f && ['verified', 'verified_conditional'].includes(f.status);
+/* במכרז מוניות המשפטים מדברים על מוניות, לא על אוטובוסים (הפאנל 16.09: "האוטובוסים אמורים להתחיל לנסוע" במכרז מוניות) */
+const VEH_BUS = { pl: 'אוטובוסים', sg: 'אוטובוס', thePl: 'האוטובוסים', theSg: 'האוטובוס', start: 'אמורים', old: 'בן', acc: 'נגישים', all: 'כל' };
+const VEH_TAXI = { pl: 'מוניות', sg: 'מונית', thePl: 'המוניות', theSg: 'המונית', start: 'אמורות', old: 'בת', acc: 'נגישות', all: 'כל' };
+let VEH = VEH_BUS;
 function condText(f) {
   // שדה "מותנה" (למשל תקופת ההפעלה לפי שלבים, תנאי סף לפי חלופות): התנאים כפי שנקראו, חודשים → שנים
   return (f.conditions || []).map(c => `${esc(c.label)}: ${c.comparison === 'gte' ? 'לפחות ' : c.comparison === 'lte' ? 'עד ' : ''}${formatFieldValue(c)}`).join('; ')
@@ -70,7 +74,7 @@ function eligLine(k, f) {
   return conds.map(c => {
     const val = condVal(c);
     const label = String(c.label || '').replace(/בחלופת סעיף [\d.]+:?\s*/, '').replace('בעלי הזיקה המוגדרים בסעיף', 'חברות קשורות').replace(/המציע/g, 'החברה').trim();
-    if (k === 'eligibility.fleet') { const m = /לפחות (\d+) מושבים/.exec(label); return `להחזיק ${val} אוטובוסים${m ? ` (כל אחד עם לפחות ${m[1]} מושבים)` : ''}, בבעלות החברה או חברות קשורות.`; }
+    if (k === 'eligibility.fleet') { const m = /לפחות (\d+) מושבים/.exec(label); return `להחזיק ${val} ${VEH.pl}${m ? ` (${VEH === VEH_TAXI ? 'כל אחת' : 'כל אחד'} עם לפחות ${m[1]} מושבים)` : ''}, בבעלות החברה או חברות קשורות.`; }
     if (k === 'eligibility.turnover') return `מחזור הכנסות ${label.replace(/^מחזור\s*/, '')}: ${val}.`;
     if (k === 'eligibility.equity') return `${label || 'הון עצמי'}: ${val}.`;
     if (k === 'eligibility.experience') return `ניסיון של ${val} ב${label.replace(/^ביצוע\s*/, '').replace(/^ניסיון\s*(?:ב|של)?\s*/, '')}.`;
@@ -91,9 +95,10 @@ function licenseLine(v) {
 const GROUPS = [
   ['מתי?', f => [
     ok(f['dates.publication']) && [`את המכרז פרסמו ב-${heDate(f['dates.publication'].value)}.`, f['dates.publication']],
-    ok(f['dates.questions']) && [`שאלות אפשר לשאול עד ${heDate(f['dates.questions'].value)}.`, f['dates.questions']],
+    // תאריך שאלות שקודם לתאריך הפרסום בא ממהדורה ישנה של המסמך (631731: שאלות עד 8.4.2019, פורסם 25.6.2020) — לא מציגים
+    ok(f['dates.questions']) && !(ok(f['dates.publication']) && String(f['dates.questions'].value) < String(f['dates.publication'].value)) && !(ok(f['dates.submission']) && String(f['dates.questions'].value) > String(f['dates.submission'].value)) && [`שאלות אפשר לשאול עד ${heDate(f['dates.questions'].value)}.`, f['dates.questions']],
     ok(f['dates.submission']) && [`הצעות מגישים עד ${heDate(f['dates.submission'].value)}.`, f['dates.submission']],
-    ok(f['dates.service_start']) && [`האוטובוסים אמורים להתחיל לנסוע ${S(f['dates.service_start'].value).replace('מההודעה על הזכייה', 'אחרי שיודיעו מי זכה')}.`, f['dates.service_start']],
+    ok(f['dates.service_start']) && [`${VEH.thePl} ${VEH.start} להתחיל לנסוע ${S(f['dates.service_start'].value).replace('מההודעה על הזכייה', 'אחרי שיודיעו מי זכה')}.`, f['dates.service_start']],
   ]],
   ['לכמה זמן?', f => [
     ok(f['term.base']) && [f['term.base'].status === 'verified_conditional' ? `אורך החוזה — ${condText(f['term.base'])}.` : `החוזה הוא ל-${months(f['term.base'].value)}.`, f['term.base']],
@@ -107,12 +112,12 @@ const GROUPS = [
   ]],
   ['מה החברה שתזכה חייבת לעשות?', f => [
     // רק מה שכתוב במסמך: "רזרבה תפעולית" — בלי "למקרה של תקלות" (שלמה 16.09: "הוא רושם דברים שלא רושמים במכרז כלל")
-    ok(f['fleet.operating']) && [typeof f['fleet.operating'].value === 'number' ? `להפעיל לפחות ${heNum(f['fleet.operating'].value)} אוטובוסים, כולל הרזרבה התפעולית.` : `${S(f['fleet.operating'].value)}.`, f['fleet.operating']],
-    ok(f['fleet.reserve']) && [`להחזיק רזרבה תפעולית של ${heNum(f['fleet.reserve'].value)}% אוטובוסים.`, f['fleet.reserve']],
-    ok(f['fleet.electric_share']) && [typeof f['fleet.electric_share'].value === 'number' ? (f['fleet.electric_share'].value === 100 ? 'כל האוטובוסים יהיו חשמליים.' : `לפחות ${f['fleet.electric_share'].value}% מהאוטובוסים יהיו חשמליים.`) : `אוטובוסים חשמליים: ${S(f['fleet.electric_share'].value)}.`, f['fleet.electric_share']],
-    ok(f['fleet.max_age']) && valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`) && [typeof f['fleet.max_age'].value === 'number' ? `לא להשתמש באוטובוס בן יותר מ-${heNum(f['fleet.max_age'].value)} שנים.` : `גיל הרכב: ${valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`)}.`, f['fleet.max_age']],
+    ok(f['fleet.operating']) && [typeof f['fleet.operating'].value === 'number' ? `להפעיל לפחות ${heNum(f['fleet.operating'].value)} ${VEH.pl}, כולל הרזרבה התפעולית.` : `${S(f['fleet.operating'].value)}.`, f['fleet.operating']],
+    ok(f['fleet.reserve']) && [`להחזיק רזרבה תפעולית של ${heNum(f['fleet.reserve'].value)}% ${VEH.pl}.`, f['fleet.reserve']],
+    ok(f['fleet.electric_share']) && [typeof f['fleet.electric_share'].value === 'number' ? (f['fleet.electric_share'].value === 100 ? `כל ${VEH.thePl} יהיו ${VEH === VEH_TAXI ? 'חשמליות' : 'חשמליים'}.` : `לפחות ${f['fleet.electric_share'].value}% מ${VEH.thePl} יהיו ${VEH === VEH_TAXI ? 'חשמליות' : 'חשמליים'}.`) : `אוטובוסים חשמליים: ${S(f['fleet.electric_share'].value)}.`, f['fleet.electric_share']],
+    ok(f['fleet.max_age']) && valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`) && [typeof f['fleet.max_age'].value === 'number' ? `לא להשתמש ב${VEH.sg} ${VEH.old} יותר מ-${heNum(f['fleet.max_age'].value)} שנים.` : `גיל הרכב: ${valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`)}.`, f['fleet.max_age']],
     ok(f['fleet.accessibility']) && [`${S(f['fleet.accessibility'].value)} לאנשים עם מוגבלות.`, f['fleet.accessibility']],
-    ok(f['fleet.seats']) && [`בכל אוטובוס לפחות ${heNum(f['fleet.seats'].value)} מקומות ישיבה.`, f['fleet.seats']],
+    ok(f['fleet.seats']) && [`בכל ${VEH.sg} לפחות ${heNum(f['fleet.seats'].value)} מקומות ישיבה.`, f['fleet.seats']],
     ok(f['service.routes']) && [`להפעיל ${heNum(f['service.routes'].value)} קווים${ok(f['service.variants']) ? ` (${heNum(f['service.variants'].value)} כיוונים וחלופות)` : ''}.`, f['service.routes']],
     ok(f['service.annual_km']) && [`לנסוע בסך הכול כ-${(f['service.annual_km'].value / 1e6).toLocaleString('he-IL', { maximumFractionDigits: 1 })} מיליון קילומטר בשנה.`, f['service.annual_km']],
     ok(f['guarantee.performance']) && [`להפקיד ערבות ביצוע של ${money(f['guarantee.performance'].value)}. אם היא לא תעמוד בהתחייבויות, המדינה תוכל לקחת מהכסף הזה.`, f['guarantee.performance']],
@@ -170,6 +175,7 @@ function renderPlainFacts(id) {
   const t = (typeof portalItems !== 'undefined' ? portalItems : []).find(x => x.id === id) || {};
   const cluster = ok(f['identity.cluster']) ? ` באזור ${S(f['identity.cluster'].value)}` : '';
   const what = t.type === 'taxi' ? 'קווי מוניות השירות' : 'קווי האוטובוס';
+  VEH = t.type === 'taxi' ? VEH_TAXI : VEH_BUS;
   const groups = GROUPS.map(([name, fn]) => {
     const items = fn(f).filter(Boolean);
     return items.length ? `<div class="plain-group"><h4>${esc(name)}</h4><ul>${items.map(([txt, fld]) => `<li>${txt}${sourceLinks(id, keyOf(f, fld), fld)}</li>`).join('')}</ul></div>` : '';

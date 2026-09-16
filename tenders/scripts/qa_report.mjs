@@ -35,8 +35,8 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 // הצהרות const/let בקובץ לא הופכות לגלובליות — מייצאים אותן במפורש
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'plain.js'), 'utf8').replace(/^'use strict';/, '') + '\n;globalThis.__plain = { GROUPS, keyOf, ok };', sandbox, { filename: 'plain.js' });
-const { GROUPS, keyOf, ok } = sandbox.__plain;
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'plain.js'), 'utf8').replace(/^'use strict';/, '') + '\n;globalThis.__plain = { GROUPS, keyOf, ok, setVeh: taxi => { VEH = taxi ? VEH_TAXI : VEH_BUS; } };', sandbox, { filename: 'plain.js' });
+const { GROUPS, keyOf, ok, setVeh } = sandbox.__plain;
 
 const strip = html => String(html).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
 // מספרים בטקסט: "20,000" → 20000; תאריך "22.1.2026" → 22, 1, 2026 (לא "22.1"); "7.2 מיליון" → 7.2
@@ -75,8 +75,8 @@ function combinedFields(id) {
 const snips = read('snips.json', { tenders: {}, quotes: {} });
 const audit = read('audit.json', { tenders: {} }).tenders || {};
 const lines = read('line-changes.json', { tenders: {}, sections: {} });
-const titles = {};
-for (const t of [...(read('tenders-feed.json', { items: [] }).items || []), ...(read('archive-feed.json', { items: [] }).items || [])]) titles[t.id] = t.title || t.id;
+const titles = {}, types = {};
+for (const t of [...(read('tenders-feed.json', { items: [] }).items || []), ...(read('archive-feed.json', { items: [] }).items || [])]) { titles[t.id] = t.title || t.id; types[t.id] = t.type; }
 
 function allowedNumbers(fld, snip, all) {
   const out = new Set();
@@ -100,7 +100,12 @@ const allIds = [...new Set([...Object.keys(rules), ...Object.keys(structured), .
 for (const tid of allIds) {
   if (ONLY && tid !== ONLY) continue;
   const f = combinedFields(tid);
+  setVeh(types[tid] === 'taxi');
   const tSn = snips.tenders?.[tid] || {}, tAu = audit[tid] || {};
+  // סדר תאריכים: פרסום ≤ שאלות ≤ הגשה
+  const d = k => ok(f[k]) && typeof f[k].value === 'string' ? f[k].value : null;
+  if (d('dates.questions') && d('dates.publication') && d('dates.questions') < d('dates.publication')) flagged.push(`${titles[tid] ? titles[tid].slice(0, 40) : tid} · תאריכים\n    ⚠ תאריך השאלות (${d('dates.questions')}) קודם לפרסום (${d('dates.publication')}) — כנראה מהדורה ישנה של המסמך; המשפט לא מוצג`);
+  if (d('dates.submission') && d('dates.questions') && d('dates.submission') < d('dates.questions')) flagged.push(`${titles[tid] ? titles[tid].slice(0, 40) : tid} · תאריכים\n    ⚠ ההגשה (${d('dates.submission')}) לפני מועד השאלות (${d('dates.questions')})`);
   const rows = [];
   const covered = new Set();
   for (const [group, fn] of GROUPS) {
