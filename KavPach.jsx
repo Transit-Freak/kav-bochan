@@ -945,7 +945,7 @@ function ChoiceScreen({ onPick }) {
 
         </div>
 
-        <p className="text-center text-slate-500 font-bold text-xs mt-8">נבנה על ידי שלמה הרטמן · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a></p>
+        <p className="text-center text-slate-500 font-bold text-xs mt-8">נבנה על ידי שלמה הרטמן · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a> · <a href="terms.html" className="hover:underline">תנאי שימוש ופרטיות</a> · <a href="accessibility.html" className="hover:underline">הצהרת נגישות</a></p>
       </div>
     </div>
   );

@@ -125,6 +125,11 @@
         : "https://transit-freak.github.io/kav-bochan/accessibility.html";
       a.textContent = "הצהרת נגישות ←";
       panel.appendChild(a);
+      // תנאי שימוש ופרטיות — באותה חלונית, בכל עמוד באתר (שלמה 16.09: "תוסיף לכל אתר אותם")
+      var t = document.createElement("a");
+      t.href = me ? base + "terms.html" : "https://transit-freak.github.io/kav-bochan/terms.html";
+      t.textContent = "תנאי שימוש ופרטיות ←";
+      panel.appendChild(t);
       document.body.appendChild(panel);
       btn.setAttribute("aria-expanded", "true");
     }
