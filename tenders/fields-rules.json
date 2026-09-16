@@ -6199,6 +6199,28 @@
 }
 ]
 },
+"service.routes": {
+"status": "verified",
+"value": 128,
+"notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
+"sources": [
+{
+"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=archive-northern-negev",
+"locator": "טבלת הקווים במכרז"
+}
+]
+},
+"service.variants": {
+"status": "verified",
+"value": 128,
+"notes": "כיוונים וחלופות בנספח הקווים (128 קווים; נקראו 1 גרסאות של הנספח).",
+"sources": [
+{
+"url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf",
+"locator": "נספח הקווים"
+}
+]
+},
 "service.operating_hours": {
 "status": "per_line",
 "reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
