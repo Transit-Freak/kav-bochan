@@ -62,14 +62,25 @@ def check(key, f, s):
         if not any(y in m or y[2:] in m for m in marks) or not any(str(int(d)) in numbers_in([m]) or v.replace('-', '') in num_core(m.replace('/', '').replace('.', '')) or re.search(rf'\b0?{int(d)}\b', m) for m in marks):
             probs.append(f'תאריך {v}: סומן {marks[:3]}')
         return probs
+    def forms(n):
+        """כל הצורות שבהן מספר יכול להופיע בסימון: 20,000,000 → 20 (מיליון), 129 חודשים → 10 (שנים) ו-9 (חודשים)."""
+        out = {str(n)}
+        if n >= 1000000 and n % 1000000 == 0:
+            out.add(str(n // 1000000))
+        if n >= 1000 and n % 1000 == 0:
+            out.add(str(n // 1000))
+        if 12 < n <= 240:
+            y, m = divmod(n, 12)
+            out |= {str(y), str(m), str(y - 1), '12'}
+        return out
     if v is None and f.get('conditions'):
-        wants = [str(int(c['value'])) for c in f['conditions'] if isinstance(c.get('value'), (int, float))]
-        if wants and not any(w in nums or (int(w) >= 1000000 and str(int(w) // 1000000) in nums) or (int(w) >= 1000 and str(int(w) // 1000) in nums) for w in wants):
+        wants = [int(c['value']) for c in f['conditions'] if isinstance(c.get('value'), (int, float))]
+        if wants and not any(forms(w) & set(nums) for w in wants):
             probs.append(f'תנאי {wants}: סומן {marks[:3]}')
         return probs
     if isinstance(v, (int, float)) and v:
         want = str(int(v))
-        bad = [m for m in marks if want not in numbers_in([m]) and (want if int(v) < 1000 or int(v) % 1000 else str(int(v) // 1000)) not in numbers_in([m])]
+        bad = [m for m in marks if not (forms(int(v)) & set(numbers_in([m])))]
         if bad:
             probs.append(f'ערך {want}: סומן גם {bad[:4]}')
         if len(marks) > 6:

@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 15
+VERSION = 16
 
 
 def read(path, default):
@@ -42,6 +42,8 @@ def find_rects(pg, needle, words=None):
     want = m.group(1).rstrip('.,/-').replace(',', '')     # תאריך "25/11/2020" נשאר שלם — לא "25"
     if words is None:
         words = pg.get_text('words')
+    if ' ' in needle:
+        rects = merge_by_row(rects)     # "30 ביולי 2014" — search_for מחזיר מלבן לכל מילה; מאחדים כדי שלא יישאר רק "30"
     boxes = [w[:4] for w in words if num_core(w[4]) == want]
     return [r for r in rects if any(r.x0 < b[2] and r.x1 > b[0] and r.y0 < b[3] and r.y1 > b[1] for b in boxes)]
 
@@ -257,8 +259,8 @@ def number_groups(pg, words, f):
         elif n in HEB_NUM:
             for w in HEB_NUM[n]:
                 r = []
-                for unit in ('שנים', 'שנות', 'חודשים', 'אוטובוסים', 'מוניות', 'ימים', 'עמודים'):
-                    r += find_rects(pg, f'{w} {unit}', words)
+                for unit in ('שנים', 'השנים', 'שנות', 'חודשים', 'אוטובוסים', 'מוניות', 'ימים', 'עמודים'):
+                    r += find_rects(pg, f'{w} {unit}', words) + find_rects(pg, f'ב{w} {unit}', words)
                 if r:
                     out.append((f'{w} …', r[:6])); break
     return out
