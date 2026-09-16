@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-09-16T10:30:40.690810+00:00",
+  "checkedAt": "2026-09-16T11:00:15.012488+00:00",
   "query": "קווי:updateDate:officeName:משרד התחבורה והבטיחות בדרכים",
   "coverage": "חמישה חיפושים במפרסם משרד התחבורה; ייתכנו ניסוחים או מקורות נוספים.",
   "items": [
@@ -8,7 +8,7 @@
       "id": "4000620280",
       "title": "קול קורא לקבלת התייחסות הציבור להחלת מנגנונים של העדפת ייצור מקומי במסגרת הפעלת קווי שירות בתחבורה הציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "17/2026",
       "status": "חלף מועד הגשה",
       "published": "30/07/2026",
@@ -16,7 +16,7 @@
       "deadline": "09/09/2026 18:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000620280",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -32,7 +32,7 @@
       "deadline": "01/09/2026 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000589849",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -48,7 +48,7 @@
       "deadline": "21/10/2026 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000611926",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -56,7 +56,7 @@
       "id": "4000609393",
       "title": "פיילוט להפעלת יחידת אבטחה ומניעת אלימות בקווי השירות ומתקני התשתית  בתחבורה הציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "25/2025",
       "status": "חלף מועד הגשה",
       "published": "14/11/2025",
@@ -64,7 +64,7 @@
       "deadline": "23/12/2025 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000609393",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -80,7 +80,7 @@
       "deadline": "09/04/2025 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000594348",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -96,7 +96,7 @@
       "deadline": "14/10/2024 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000582393",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -112,7 +112,7 @@
       "deadline": "13/03/2023 14:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000560703",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -128,7 +128,7 @@
       "deadline": "03/10/2022 15:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000552742",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -144,7 +144,7 @@
       "deadline": "22/12/2021 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000538622",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -160,7 +160,7 @@
       "deadline": "19/04/2021 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/627142",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -176,7 +176,7 @@
       "deadline": "22/02/2021 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000521518",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -192,7 +192,7 @@
       "deadline": "09/12/2020 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/627143",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -208,7 +208,7 @@
       "deadline": "09/12/2020 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/631731",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -224,7 +224,7 @@
       "deadline": "28/10/2020 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/624510",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -240,7 +240,7 @@
       "deadline": "16/08/2020 15:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/613802",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -256,7 +256,7 @@
       "deadline": "16/08/2020 15:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/633258",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -272,7 +272,7 @@
       "deadline": "16/08/2020 15:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/633259",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -288,7 +288,7 @@
       "deadline": "31/07/2019 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/636078",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -304,7 +304,7 @@
       "deadline": "18/06/2019 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/631745",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -320,7 +320,7 @@
       "deadline": "19/05/2019 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/631740",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -336,7 +336,7 @@
       "deadline": "02/05/2019 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/632739",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -352,7 +352,7 @@
       "deadline": "18/04/2019 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/631737",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -368,7 +368,7 @@
       "deadline": "03/10/2018 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/618396",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -384,7 +384,7 @@
       "deadline": "14/02/2018 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/609098",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -400,7 +400,7 @@
       "deadline": "14/02/2018 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/609100",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -408,7 +408,7 @@
       "id": "610029",
       "title": "התקשרות עם חב' מרטנס הופמן לצורך מתן שירותי בקרה תפעולית על קווי שירות במוניות",
       "type": "taxi",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -416,7 +416,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/610029",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -424,7 +424,7 @@
       "id": "597604",
       "title": "מהות ההתקשרות לספק שירות חדש לנוסעים עם מוגבלות המאפשר ממשק לנוסע עם מידע קולי על הקווים העוברים ולוחות הזמנים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -432,7 +432,7 @@
       "deadline": "29/05/2017 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/597604",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -448,7 +448,7 @@
       "deadline": "31/10/2016 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/581458",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -464,7 +464,7 @@
       "deadline": "03/02/2016 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/570024",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -472,7 +472,7 @@
       "id": "560010",
       "title": "מחוז תא והמרכז כולל בתחומו את מירב הנושאים הנמצאים בליבת העשייה והמדיניות של משרד התחבורה   תכנון והקמת קווי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -480,7 +480,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/560010",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -488,7 +488,7 @@
       "id": "557385",
       "title": "התקשרות לצורך מתן שירותי ייעוץ למחוז תל אביב והמרכז בנושאי תכנון והקמת קווי מתען בגוש דן לרבות צירי העדפה לתח",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -496,7 +496,7 @@
       "deadline": "17/09/2014 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/557385",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -504,7 +504,7 @@
       "id": "538521",
       "title": "חברת ריבה יחזקאל ושות' החלה את עבודתה לאחר זכייתה במכרז להפעלת מערך הבקרה על קווי שירות באוטובוסים, ביום 1 ב",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -512,7 +512,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/538521",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -520,7 +520,7 @@
       "id": "532835",
       "title": "חברת ריבה יחזקאל ושות' החלה את עבודתה לאחר זכייתה במכרז להפעלת מערך הבקרה על קווי שירות באוטובוסים, ביום 1 ב",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -528,7 +528,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/532835",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -536,7 +536,7 @@
       "id": "524184",
       "title": "הרפורמה בתחבורה הציבורית במסגרתו מוצאים אשכולות קווי שירות בתחבורה ציבורית באוטובוסים לתחרות.  המנהלת נותנת שי",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -544,7 +544,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/524184",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -552,7 +552,7 @@
       "id": "515257",
       "title": "במסגרת קידום התחרות, עורך המשרד מכרזים לבחירת מפעילי תחבורה ציבורית   להפעלת אשכולות של קווי שירות באוטובוסים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "operating_tender",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -560,7 +560,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/515257",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -576,7 +576,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/15660",
       "firstSeen": "2026-09-15T11:31:59.084371+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -584,7 +584,7 @@
       "id": "4000617837",
       "title": "התקשרות עם ספק יחיד לצורך הקמת תשתיות אספקת חשמל ומערכות טעינה אלחוטיות, לאוטובוסים חשמליים לרבות תמיכה ושירו",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "02/06/2026",
@@ -592,7 +592,7 @@
       "deadline": "18/06/2026 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000617837",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -600,7 +600,7 @@
       "id": "4000611856",
       "title": "התקנת סככות המתנה בתחנות אוטובוסים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "6/18",
       "status": "פורסם",
       "published": "24/12/2025",
@@ -608,7 +608,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000611856",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -616,7 +616,7 @@
       "id": "4000600130",
       "title": "מניעת שריפות אוטובוסים חשמליים במסופים וחניונים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "5752",
       "status": "חלף מועד הגשה",
       "published": "10/03/2025",
@@ -624,7 +624,7 @@
       "deadline": "07/05/2025 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000600130",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -632,7 +632,7 @@
       "id": "4000600109",
       "title": "איתור ו/או ניטור ו/ואו התרעה לזיהוי חפץ חשוד באוטובוסים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "5753",
       "status": "חלף מועד הגשה",
       "published": "10/03/2025",
@@ -640,7 +640,7 @@
       "deadline": "27/04/2025 13:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000600109",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -648,7 +648,7 @@
       "id": "4000551303",
       "title": "מתן שירותי בקרה בתחבורה ציבורית אוטובוסים ומוניות שירות",
       "type": "taxi",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "0000-2021",
       "status": "חדש",
       "published": "12/04/2022",
@@ -656,7 +656,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000551303",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -664,7 +664,7 @@
       "id": "4000535355",
       "title": "מכרז פומבי למתן שירותי בקרה בענף התחבורה הציבורית באוטובוסים  ובמוניות השירות",
       "type": "taxi",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "1-2021",
       "status": "חלף מועד הגשה",
       "published": "05/07/2021",
@@ -672,7 +672,7 @@
       "deadline": "04/10/2021 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000535355",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -680,7 +680,7 @@
       "id": "620704",
       "title": "שירותי בקרה בענף התחבורה הציבורית באוטובוסים ובמוניות שירות עבור משרד התחבורה והבטיחות בדרכים",
       "type": "taxi",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "14/18",
       "status": "סגור",
       "published": "01/11/2018",
@@ -688,7 +688,7 @@
       "deadline": "25/11/2018 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/620704",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -696,7 +696,7 @@
       "id": "613798",
       "title": "התקנת סככות המתנה בתחנות האוטובוסים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "6/18",
       "status": "סגור",
       "published": "19/03/2018",
@@ -704,7 +704,7 @@
       "deadline": "16/05/2018 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/613798",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -712,7 +712,7 @@
       "id": "580099",
       "title": "משרד התחבורה מפעיל שרותי תחבורה ציבורית על ידי אוטובוסים, רכבות, רכבות קלות ועוד.     הרשות הקימה מסלקה למטרות",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -720,7 +720,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/580099",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -728,7 +728,7 @@
       "id": "554497",
       "title": "מכרז פומבי מס' 8/14 למתן שירותי בקרה בענף האוטובוסים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "08/14",
       "status": "סגור",
       "published": "24/07/2014",
@@ -736,7 +736,7 @@
       "deadline": "25/08/2014 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/554497",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -744,7 +744,7 @@
       "id": "553822",
       "title": "קבוצת העבודה הבינל לאבטחת התחבורה הציבורית  (רכבות ,אוטובוסים, אוניות להובלת מטען ) הינו גוף שנועד לקדם את הש",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -752,7 +752,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/553822",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -760,7 +760,7 @@
       "id": "538635",
       "title": "מכרז פומבי מס' 12/ 17 למתן שירותי בקרה תפעולית על פעילות מפעילי התחבורה הציבורית בענף האוטובוסים",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "17/12",
       "status": "סגור",
       "published": "20/05/2013",
@@ -768,7 +768,7 @@
       "deadline": "26/06/2013 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/538635",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -776,7 +776,7 @@
       "id": "31192",
       "title": "הארכת  התקשרות  עם  חברת ריבה לפיקוח  על  מפעילי  אוטובוסים.",
       "type": "bus",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -784,7 +784,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/31192",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -792,7 +792,7 @@
       "id": "653175",
       "title": "ברשות הארצית לתחבורה ציבורית מתנהל תהליך פיקוח על חברות הסעה, השכרות רכב, מוניות מיוחדות, מוניות שירות ומפעילי",
       "type": "taxi",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -800,7 +800,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/653175",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -808,7 +808,7 @@
       "id": "651341",
       "title": "ברשות הארצית לתחבורה ציבורית מתנהל תהליך פיקוח על חברות הסעה, השכרות רכב, מוניות מיוחדות, מוניות שירות ומפעילי",
       "type": "taxi",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -816,7 +816,7 @@
       "deadline": "22/07/2020 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/651341",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -824,7 +824,7 @@
       "id": "4000613204",
       "title": "חידוש תחזוקה לרישיונות ICHAIN לשנת 2026 מה-1.1.26 עד 31.12.26",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": "19/01/2026",
@@ -832,7 +832,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000613204",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -840,7 +840,7 @@
       "id": "4000612268",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2026",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": "29/12/2025",
@@ -848,7 +848,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000612268",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -856,7 +856,7 @@
       "id": "4000611506",
       "title": "חידוש רישיונות DATAPOWER מה-1.1.26 עד 31.12.26 תחבורה ציבורית חברת טנגרם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": "17/12/2025",
@@ -864,7 +864,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000611506",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -872,7 +872,7 @@
       "id": "4000611078",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2026",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "10/12/2025",
@@ -880,7 +880,7 @@
       "deadline": "15/12/2025 13:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000611078",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -888,7 +888,7 @@
       "id": "4000610252",
       "title": "רישיונות לסביבה  פתוחה DB2+WAS",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "11/2025",
       "status": "חלף מועד הגשה",
       "published": "27/11/2025",
@@ -896,7 +896,7 @@
       "deadline": "09/12/2025 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000610252",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -904,7 +904,7 @@
       "id": "4000608764",
       "title": "חידוש רישיונות DATAPOWER לשנת 2026",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "05/11/2025",
@@ -912,7 +912,7 @@
       "deadline": "25/11/2025 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000608764",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -920,7 +920,7 @@
       "id": "4000608469",
       "title": "חידוש תחזוקה לרישיונות ICHAIN לשנת 2026",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "29/10/2025",
@@ -928,7 +928,7 @@
       "deadline": "18/11/2025 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000608469",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -936,7 +936,7 @@
       "id": "4000602919",
       "title": "מכרז ממוכן מהיר להקמת והפעלת תחנות צילום למבקשי רישיונות נהיגה, רישיונות משיט ורישיון נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "12/2025",
       "status": "חלף מועד הגשה",
       "published": "26/05/2025",
@@ -944,7 +944,7 @@
       "deadline": "05/06/2025 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000602919",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -952,7 +952,7 @@
       "id": "4000594472",
       "title": "שירותי ייצור/ייבוא, פרסונליזציה, עיטוף, הפצה ודיוור של רישיונות נהיגה הכוללים תמונה ותעודות שונות במדינת ישראל",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "27-24",
       "status": "חלף מועד הגשה",
       "published": "17/11/2024",
@@ -960,7 +960,7 @@
       "deadline": "02/03/2025 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000594472",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -968,7 +968,7 @@
       "id": "4000596580",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2025 מ-1.1.25עד 31.12.25 שנה שלישית ואחרונה להסכם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": "22/12/2024",
@@ -976,7 +976,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000596580",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -984,7 +984,7 @@
       "id": "4000597329",
       "title": "חידוש תחזוקת רישיונות מערכת ETERNAL לשנת 2025",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "עודכן",
       "published": "31/12/2024",
@@ -992,7 +992,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000597329",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1000,7 +1000,7 @@
       "id": "4000592121",
       "title": "חידוש רישיונות DATAPOWER ו DATABASE FIREWALL מה-1.1.25 עד 31.12.25 תחבורה ציבורית חברת טנגרם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "התקשרות בתוקף",
       "published": "17/09/2024",
@@ -1008,7 +1008,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000592121",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1016,7 +1016,7 @@
       "id": "4000526621",
       "title": "מתן שירותי הנפקת רישיון נהיגה בינלאומי , רישיונות משיט ותחנות צילום למבקשי ומחדשי רישיון נהיגה- הצעות מחיר",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "עודכן",
       "published": "24/12/2020",
@@ -1024,7 +1024,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000526621",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1032,7 +1032,7 @@
       "id": "4000596457",
       "title": "חידוש תחזוקת רישיונות מערכת ETERNAL לשנת 2025",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "19/12/2024",
@@ -1040,7 +1040,7 @@
       "deadline": "23/12/2024 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000596457",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1048,7 +1048,7 @@
       "id": "4000594532",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2025 מ-1.1.25עד 31.12.25 שנה שלישית ואחרונה להסכם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "18/11/2024",
@@ -1056,7 +1056,7 @@
       "deadline": "05/12/2024 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000594532",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1064,7 +1064,7 @@
       "id": "4000593014",
       "title": "חידוש תחזוקה לרישיונות ICHAIN לשנת 2025 מה-1.1.25 עד 31.12.25",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "10/10/2024",
@@ -1072,7 +1072,7 @@
       "deadline": "07/11/2024 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000593014",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1080,7 +1080,7 @@
       "id": "4000590178",
       "title": "חידוש רישיונות DATAPOWER ו DATABASE FIREWALL מה-1.1.25 עד 31.12.25 תחבורה ציבורית חברת טנגרם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "08/08/2024",
@@ -1088,7 +1088,7 @@
       "deadline": "27/08/2024 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000590178",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1096,7 +1096,7 @@
       "id": "4000587376",
       "title": "לאספקה, הדפסה, מגנוט ומשלוח של רישיונות וטפסים עבור משרד התחבורה והבטיחות בדרכים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "22-24",
       "status": "חלף מועד הגשה",
       "published": "23/06/2024",
@@ -1104,7 +1104,7 @@
       "deadline": "07/08/2024 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000587376",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1112,7 +1112,7 @@
       "id": "4000587461",
       "title": "רישיונות לבסיסי נתונים גאוגרפים ועדכונם השוטף",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "26/06/2024",
@@ -1120,7 +1120,7 @@
       "deadline": "15/07/2024 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000587461",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1128,7 +1128,7 @@
       "id": "4000586958",
       "title": "אספקה, הדפסה, מגנוט ומשלוח של רישיונות וטפסים עבור משרד התחבורה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "17/18",
       "status": "חדש",
       "published": "02/06/2024",
@@ -1136,7 +1136,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000586958",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1144,7 +1144,7 @@
       "id": "4000579580",
       "title": "חידוש תחזוקה לרישיונות ICHAIN לשנת 2024 מה-1.1.24 עד 31.12.24",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "06/12/2023",
@@ -1152,7 +1152,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000579580",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1160,7 +1160,7 @@
       "id": "4000579582",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2024 מ-1.1.24עד 31.12.24 שנה שנייה להסכם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "06/12/2023",
@@ -1168,7 +1168,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000579582",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1176,7 +1176,7 @@
       "id": "4000579517",
       "title": "חידוש רישיונות DATAPOWER ו DATABASE FIREWALL לשנת 2024",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "06/12/2023",
@@ -1184,7 +1184,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000579517",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1192,7 +1192,7 @@
       "id": "4000576643",
       "title": "חידוש רישיונות DATAPOWER ו DATABASE FIREWALL לשנת 2024",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "17/10/2023",
@@ -1200,7 +1200,7 @@
       "deadline": "06/11/2023 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000576643",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1208,7 +1208,7 @@
       "id": "4000574983",
       "title": "תחזוקת רישיונות לתוכנות GIS  עבור מערכת מידע תחבורתי פרויקט חצב מ-1.11.23 עד  31.10.24",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "03/09/2023",
@@ -1216,7 +1216,7 @@
       "deadline": "21/09/2023 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000574983",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1224,7 +1224,7 @@
       "id": "4000573598",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2024 מ-1.1.24עד 31.12.24 שנה שנייה להסכם",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "06/08/2023",
@@ -1232,7 +1232,7 @@
       "deadline": "24/08/2023 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000573598",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1240,7 +1240,7 @@
       "id": "4000573171",
       "title": "חידוש תחזוקה לרישיונות ICHAIN לשנת 2024 מה-1.1.24 עד 31.12.24",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "27/07/2023",
@@ -1248,7 +1248,7 @@
       "deadline": "16/08/2023 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000573171",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1256,7 +1256,7 @@
       "id": "4000566379",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2023 מ-1.1.23 עד 31.12.23",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "26/02/2023",
@@ -1264,7 +1264,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000566379",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1272,7 +1272,7 @@
       "id": "4000563875",
       "title": "חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2023 מ-1.1.23 עד 31.12.23",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "08/01/2023",
@@ -1280,7 +1280,7 @@
       "deadline": "25/01/2023 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000563875",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1288,7 +1288,7 @@
       "id": "4000560850",
       "title": "חידוש תחזוקה לרישיונות ICHAIN לשנת 2023",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "22/11/2022",
@@ -1296,7 +1296,7 @@
       "deadline": "12/12/2022 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000560850",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1304,7 +1304,7 @@
       "id": "4000561399",
       "title": "חידוש תחזוקת רישיונות ARCGIS  עבור מערכות GIS תח\"צ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "30/11/2022",
@@ -1312,7 +1312,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000561399",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1320,7 +1320,7 @@
       "id": "4000558475",
       "title": "תחזוקת רישיונות לתוכנות GIS  עבור מערכת מידע תחבורתי פרויקט חצב מ-1.11.22 עד 31.10.23",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "28/09/2022",
@@ -1328,7 +1328,7 @@
       "deadline": "26/10/2022 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000558475",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1336,7 +1336,7 @@
       "id": "4000547980",
       "title": "התקשרות עם נס.א.ט לצורך חידוש רישיונות מסלול כחול למוצרי מיקרוסופט לשנה רביעית (אחרונה)",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "31/01/2022",
@@ -1344,7 +1344,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000547980",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1352,7 +1352,7 @@
       "id": "4000547754",
       "title": "התקשרות עם חברת פרו ויז'ן לצורך חידוש תחזוקה לרישיונות ICHAIN    לשנת 2022",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "30/01/2022",
@@ -1360,7 +1360,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000547754",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1368,7 +1368,7 @@
       "id": "4000546709",
       "title": "חידוש רישיונות  POWERTERM  מחברת  ERICOM  ל- 3 שנים מ- 1.1.22 ועד 31.12.24",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "10/01/2022",
@@ -1376,7 +1376,7 @@
       "deadline": "27/01/2022 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000546709",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1384,7 +1384,7 @@
       "id": "4000545884",
       "title": "התקשרות עם חברת נס.א. ט . לצורך חידוש רישיונות מסלול כחול למוצרי מיקרוסופט לשנה רביעית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "27/12/2021",
@@ -1392,7 +1392,7 @@
       "deadline": "13/01/2022 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000545884",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1400,7 +1400,7 @@
       "id": "4000544951",
       "title": "התקשרות עם חברת פרו ויז'ן לצורך חידוש תחזוקה לרישיונות ICHAIN לשנת 2022",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "12/12/2021",
@@ -1408,7 +1408,7 @@
       "deadline": "29/12/2021 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000544951",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1416,7 +1416,7 @@
       "id": "4000540716",
       "title": "התקשרות עם  סיסטמטיקס לתחזוקת רישיונות לתוכנות GIS  עבור מערכת מידע תחבורתי פרויקט חצב מ-1.11.21 עד 31.10.22",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "20/10/2021",
@@ -1424,7 +1424,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000540716",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1432,7 +1432,7 @@
       "id": "4000536472",
       "title": "התקשרות עם  סיסטמטיקס לתחזוקת רישיונות לתוכנות GIS  עבור מערכת מידע תחבורתי פרויקט חצב מ-1.11.21 עד 31.10.22",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "29/07/2021",
@@ -1440,7 +1440,7 @@
       "deadline": "17/08/2021 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000536472",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1448,7 +1448,7 @@
       "id": "4000526860",
       "title": "התקשרות עם פרו ויזן לצורך חידוש תחזוקה לרישיונות ICHAIN    לשנת 2021",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "29/12/2020",
@@ -1456,7 +1456,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000526860",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1464,7 +1464,7 @@
       "id": "4000525136",
       "title": "התקשרות עם פרו ויזן לצורך חידוש תחזוקה לרישיונות ICHAIN    לשנת 2021",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חלף מועד הגשה",
       "published": "06/12/2020",
@@ -1472,7 +1472,7 @@
       "deadline": "23/12/2020 16:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000525136",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1480,7 +1480,7 @@
       "id": "651145",
       "title": "משרד התחבורה מבקש להקים מערכת רוחבית לניהול הסמכות (רישיונות) עבור אגף הרכב. המערכת תיישם תהליכים עסקיים רוחבי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1488,7 +1488,7 @@
       "deadline": "16/07/2020 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/651145",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1496,7 +1496,7 @@
       "id": "633467",
       "title": "משרד התחבורה מבקש להקים מערכת רוחבית לניהול הסמכות (רישיונות) עבור אגף הרכב.   המערכת תיישם תהליכים עסקיים רוח",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1504,7 +1504,7 @@
       "deadline": "20/05/2019 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/633467",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1512,7 +1512,7 @@
       "id": "631523",
       "title": "חידוש רישיונות מייקרוסופט לשנים 2019-2022",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1520,7 +1520,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/631523",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1528,7 +1528,7 @@
       "id": "620418",
       "title": "מכרז פומבי מס' 17/18 לאספקה, הדפסה, מגנוט ומשלוח של רישיונות וטפסים עבור משרד התחבורה והבטיחות בדרכים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "17/18",
       "status": "סגור",
       "published": "15/11/2018",
@@ -1536,7 +1536,7 @@
       "deadline": "25/11/2018 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/620418",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1544,7 +1544,7 @@
       "id": "620403",
       "title": "רכישת רישיונות  תוכנה לעמדות GIS ושרת עבור הקמת מערכת מידע תחבורתי עבור אגף תכנון מערכתי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1552,7 +1552,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/620403",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1560,7 +1560,7 @@
       "id": "618485",
       "title": "הארכת התקשרות עם חב' אוניה לצורך הדפסה, מיגנוט, משלוח של רישיונות וטפסים עבור משרד התחבורה, מכוח זכייתה במכרז",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1568,7 +1568,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/618485",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1576,7 +1576,7 @@
       "id": "605031",
       "title": "הארכת התקשרות עם חב' אוניה לצורך הדפסה, מיגנוט, משלוח של רישיונות וטפסים עבור משרד התחבורה, מכוח זכייתה במכרז",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1584,7 +1584,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/605031",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1592,7 +1592,7 @@
       "id": "603728",
       "title": "הארכת התקשרות עם דפוס בארי למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1600,7 +1600,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/603728",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1608,7 +1608,7 @@
       "id": "596870",
       "title": "במכרז להקמת תחנות צילום למבקשי רישיונות נהיגה זכו חב' טלדור וחב' פמיפימיום החוזה עם חב' טלדור נחתם ביום 28.1.2",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1616,7 +1616,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/596870",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1624,7 +1624,7 @@
       "id": "595224",
       "title": "הארכת התקשרות עם דפוס בארי למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1632,7 +1632,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/595224",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1640,7 +1640,7 @@
       "id": "588335",
       "title": "באגף הרכב מופעלת מערכת לטיפול ברישיונות יבוא  המערכת משרתת את מחלקת יבוא גף צמה,תחום סח, ייצוא וייבוא  המערכת",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1648,7 +1648,7 @@
       "deadline": "30/11/2016 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/588335",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1656,7 +1656,7 @@
       "id": "585785",
       "title": "הארכת התקשרות עם דפוס בארי למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1664,7 +1664,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/585785",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1672,7 +1672,7 @@
       "id": "579860",
       "title": "הארכת התקשרות עם דפוס בארי למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1680,7 +1680,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/579860",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1688,7 +1688,7 @@
       "id": "579459",
       "title": "במכרז להקמת תחנות צילום למבקשי רישיונות נהיגה, זכו חב' טלדור וחב' פמיפרימיום. החוזה עם חב' טלדור נחתם ביום 28.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1696,7 +1696,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/579459",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1704,7 +1704,7 @@
       "id": "579463",
       "title": "במכרז להקמת תחנות צילום למבקשי רישיונות נהיגה, זכו חב' טלדור וחב' פמיפרימיום. החוזה עם חב' טלדור נחתם ביום 28.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1712,7 +1712,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/579463",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1720,7 +1720,7 @@
       "id": "569878",
       "title": "שירותי ייצור , פרסונליזציה, עיטוף , הפצה ודיוור של רישיונות נהיגה הכוללים תמונה ותעודות שונות",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "15/15",
       "status": "סגור",
       "published": "25/02/2016",
@@ -1728,7 +1728,7 @@
       "deadline": "06/03/2016 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/569878",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1736,7 +1736,7 @@
       "id": "576137",
       "title": "במשרד התחבורה קימות מספר מערכות תפעוליות המופעלות על טכנולוגיית SAPIENS EMERGE אשר תפקין לאשר רישיונות יבוא: י",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1744,7 +1744,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/576137",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1752,7 +1752,7 @@
       "id": "574770",
       "title": "רכישת רישיונות וקבלת שירותי תחזוקה ותמיכה לרכישת מערכת GOOGLE MAPS FOR WORK מסוג OEM, לשימוש משרד התחבורה ומתכ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1760,7 +1760,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/574770",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1768,7 +1768,7 @@
       "id": "569057",
       "title": "הארכת התקשרות עם דפוס בארי למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1776,7 +1776,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/569057",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1784,7 +1784,7 @@
       "id": "563548",
       "title": "באגף הרכב מופעלת מערכת לטיפול ברישיונות יבוא, המחוברת למכס. המערכת משרתת את מחלקת יבוא, גף צמה, תחום סחר, ייצ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1792,7 +1792,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/563548",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1800,7 +1800,7 @@
       "id": "562828",
       "title": "בקשה לקבלת מידע (rfi) בנושא ייצור פרסונליזציה עיטוף והפצה של רישיונות נהיגה הכוללים תמונה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "2/15",
       "status": "סגור",
       "published": "05/01/2015",
@@ -1808,7 +1808,7 @@
       "deadline": "01/02/2015 10:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/562828",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1816,7 +1816,7 @@
       "id": "563454",
       "title": "על פי הסכמי רישוי של תוכנות י.ב.מ, מותר לחברה לבצע בדיקות שאכן כמות הרישיונות   המותקנים והמשולמים זהים לכמות",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1824,7 +1824,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/563454",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1832,7 +1832,7 @@
       "id": "558529",
       "title": "הארכת התקשרות עם דפוס בארי למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1840,7 +1840,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/558529",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1848,7 +1848,7 @@
       "id": "560568",
       "title": "חברת דפוס בארי זכתה במכרז פומבי 11/09  למתן שירותי הפקה עיטוף הפצה ודיוור של רישיונות נהיגה עם תמונה מיום 27.7",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1856,7 +1856,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/560568",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1864,7 +1864,7 @@
       "id": "553509",
       "title": "במשרד התחבורה קיימות מספר מערכות תפעוליות המופעלות על טכנולוגיות SAPIENS EMERGE אשר תפקידן לאשר רישיונות יבוא",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1872,7 +1872,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/553509",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1880,7 +1880,7 @@
       "id": "547078",
       "title": "ברשות השירות המטאורולוגי 2 רישיונות לתוכנת WASP המשמשת לניתוח נתוני רוחות.  נדרש לשדרג את הרישיונות לגרסה המעו",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1888,7 +1888,7 @@
       "deadline": "25/11/2013 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/547078",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1896,7 +1896,7 @@
       "id": "539491",
       "title": "אספקה, הדפסה, מיגנוט ומשלוח של רישיונות וטפסים עבור משרד התחבורה, התשתיות הלאומיות והבטיחות בדרכים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "5/12",
       "status": "סגור",
       "published": "31/01/2013",
@@ -1904,7 +1904,7 @@
       "deadline": "07/04/2013 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/539491",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1912,7 +1912,7 @@
       "id": "535645",
       "title": "חברת אוניה שפירא זכתה במכרז פומבי לצורך אספקה , הדפסה , מיגנוט ומשלוח רישיונות וטפסים עבור משרד התחבורה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1920,7 +1920,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/535645",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1928,7 +1928,7 @@
       "id": "528767",
       "title": "בהליך מכרז פומבי 4/11 נבחרו שני זכיינים לניהול ותפעול מערך תחנות צילום למבקשי רישיונות נהיגה :    1. חברת פמי-",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1936,7 +1936,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/528767",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1944,7 +1944,7 @@
       "id": "528768",
       "title": "בהליך מכרז פומבי 4/11 נבחרו שני זכיינים לניהול ותפעול מערך תחנות צילום למבקשי רישיונות נהיגה :    1. חברת פמי-",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1952,7 +1952,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/528768",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1960,7 +1960,7 @@
       "id": "524760",
       "title": "חברת אניה-שפירא זכתה במכרז פומבי  לצורך אספקה, הדפסה, מיגנוט ומשלוח רישיונות וטפסים עבור משרד התחבורה.    הס",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1968,7 +1968,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/524760",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1976,7 +1976,7 @@
       "id": "523044",
       "title": "הארכת התקשרות עם הזכיינים לצורך תפעול שוטף של מערך תחנות צילום למבקשי רישיונות נהיגה.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -1984,7 +1984,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/523044",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -1992,7 +1992,7 @@
       "id": "523046",
       "title": "הארכת התקשרות עם הזכיינים לצורך תפעול שוטף של מערך תחנות צילום למבקשי רישיונות נהיגה.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2000,7 +2000,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/523046",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2008,7 +2008,7 @@
       "id": "520730",
       "title": "באגף הרכב מופעלת מערכת לטיפול ברישיונות יבוא. המערכת משרתת את מחלקת יבוא, גף צמה, תחום סחר, ייצוא וייבוא. המע",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2016,7 +2016,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/520730",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2024,7 +2024,7 @@
       "id": "508821",
       "title": "הארכת התקשרות עם חברת טלדור מערכות להנפקת רישיונות נהיגה ביל",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2032,7 +2032,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/508821",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2040,7 +2040,7 @@
       "id": "33082",
       "title": "הארכת התקשרות עם חברת טלדור מערכות להנפקת רישיונות נהיגה ביל",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2048,7 +2048,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/33082",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2056,7 +2056,7 @@
       "id": "33084",
       "title": "הארכת התקשרות עם חברת אשת ארגון שירותי תיירות בעמ  להנפקת רישיונות נהיגה ביל",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2064,7 +2064,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/33084",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2072,7 +2072,7 @@
       "id": "4000619369",
       "title": "ניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "פורסם",
       "published": "12/07/2026",
@@ -2080,7 +2080,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000619369",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2088,7 +2088,7 @@
       "id": "4000615181",
       "title": "מרכז 21/19 לקבלת אישור להפעלת שירות מרוחק ויישומון בטלפון סלולרי לתשלום דמי נסיעה ותיקוף בתח\"צ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "21/19",
       "status": "פורסם",
       "published": "16/03/2026",
@@ -2096,7 +2096,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000615181",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2104,7 +2104,7 @@
       "id": "4000614577",
       "title": "ניהול והפעלת מרכז שירות לתחבורה ציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "עודכן",
       "published": "25/02/2026",
@@ -2112,7 +2112,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000614577",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2120,7 +2120,7 @@
       "id": "4000614755",
       "title": "ניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "פורסם",
       "published": "04/03/2026",
@@ -2128,7 +2128,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000614755",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2136,7 +2136,7 @@
       "id": "4000608737",
       "title": "ניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "פורסם",
       "published": "04/11/2025",
@@ -2144,7 +2144,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000608737",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2152,7 +2152,7 @@
       "id": "4000601324",
       "title": "מכרז מספר 3/25 להקמה והפעלת תחנות צילום למבקשי רשיונות נהיגה ורשיונות משיט,  וצילום והנפקת רישיון נהיגה בינלאו",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "0003-2025",
       "status": "חלף מועד הגשה",
       "published": "08/04/2025",
@@ -2160,7 +2160,7 @@
       "deadline": "02/07/2025 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000601324",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2168,7 +2168,7 @@
       "id": "4000600327",
       "title": "ניהול והפעלת קורסי חובה לנהגים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "פורסם",
       "published": "13/03/2025",
@@ -2176,7 +2176,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000600327",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2184,7 +2184,7 @@
       "id": "4000599182",
       "title": "ניהול והפעלת מרכז שירות לתחבורה ציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": "13/02/2025",
@@ -2192,7 +2192,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000599182",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2200,7 +2200,7 @@
       "id": "4000571995",
       "title": "מכרז להפעלת חברת בקרה על תפעול ושירות רכבת ישראל",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "7/23",
       "status": "חלף מועד הגשה",
       "published": "03/07/2023",
@@ -2208,7 +2208,7 @@
       "deadline": "22/11/2023 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000571995",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2216,7 +2216,7 @@
       "id": "4000573200",
       "title": "לניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "23-23",
       "status": "חלף מועד הגשה",
       "published": "16/11/2023",
@@ -2224,7 +2224,7 @@
       "deadline": "28/07/2024 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000573200",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2232,7 +2232,7 @@
       "id": "4000587069",
       "title": "מכרז 32/14 -  ניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "חדש",
       "published": "09/06/2024",
@@ -2240,7 +2240,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000587069",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2248,7 +2248,7 @@
       "id": "4000576570",
       "title": "הפעלת הסעות נוסעים משד\"ת רמון לאזור נתב\"ג במסגרת הפעלת נוהל \"כנפי הכסף\"",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "חדש",
       "published": "15/10/2023",
@@ -2256,7 +2256,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000576570",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2264,7 +2264,7 @@
       "id": "4000570794",
       "title": "ניהול והפעלת קורסי חובה לנהגים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "חדש",
       "published": "12/06/2023",
@@ -2272,7 +2272,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000570794",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2280,7 +2280,7 @@
       "id": "4000567646",
       "title": "הפעלת מרכז שירות לתחבורה ציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "0006-2021",
       "status": "חדש",
       "published": "27/03/2023",
@@ -2288,7 +2288,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000567646",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2296,7 +2296,7 @@
       "id": "4000560307",
       "title": "ניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "חדש",
       "published": "13/11/2022",
@@ -2304,7 +2304,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000560307",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2312,7 +2312,7 @@
       "id": "4000557292",
       "title": "ניהול והפעלת מרכז השירות לתחבורה ציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "0006-2021",
       "status": "חדש",
       "published": "01/09/2022",
@@ -2320,7 +2320,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000557292",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2328,7 +2328,7 @@
       "id": "4000551835",
       "title": "הפעלת מוקד מענה טלפוני ממוכן ומאויש",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "חדש",
       "published": "01/05/2022",
@@ -2336,7 +2336,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000551835",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2344,7 +2344,7 @@
       "id": "4000527388",
       "title": "הקמת והפעלת תחנות צילום למבקשי רשיונות נהיגה ורשיונות משיט,  והנפקת רישיון נהיגה בינלאומי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "56-2020",
       "status": "מבוטל",
       "published": "28/02/2022",
@@ -2352,7 +2352,7 @@
       "deadline": "27/02/2022 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000527388",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2360,7 +2360,7 @@
       "id": "4000541633",
       "title": "ניהול והפעלת מרכז השירות לתחבורה ציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "חדש",
       "published": "03/11/2021",
@@ -2368,7 +2368,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000541633",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2376,7 +2376,7 @@
       "id": "4000535596",
       "title": "ניסוי להפעלת שירות תחבורה ציבורית אוטונומי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "5/21",
       "status": "חלף מועד הגשה",
       "published": "08/07/2021",
@@ -2384,7 +2384,7 @@
       "deadline": "09/09/2021 10:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000535596",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2392,7 +2392,7 @@
       "id": "4000525468",
       "title": "הארכת התקשרות לטובת ניהול והפעלת מרכז השירות לתחבורה ציבורית",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "חדש",
       "published": "09/12/2020",
@@ -2400,7 +2400,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/4000525468",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2408,7 +2408,7 @@
       "id": "640369",
       "title": "מכרז להפעלת חברת בקרה על תפעול ושירות רכבת ישראל",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "16/18",
       "status": "סגור",
       "published": "30/01/2020",
@@ -2416,7 +2416,7 @@
       "deadline": "04/03/2020 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/640369",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2424,7 +2424,7 @@
       "id": "644469",
       "title": "תחנת הכוח אורות רבין ונמל חדרה.  בהתאם להסדרים שנקבעו עם הפעלת הנמל, חברת חשמל מספקת  לנמל שירותים שונים ובכ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2432,7 +2432,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/644469",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2440,7 +2440,7 @@
       "id": "636384",
       "title": "הליך לקבלת אישור להפעלת שירות מרוחק ויישומון בטלפון סלולרי לתשלום דמי נסיעה ולתיקוף בתחבורה הציבורית עבור משרד",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "21/19",
       "status": "סגור",
       "published": "08/07/2019",
@@ -2448,7 +2448,7 @@
       "deadline": "15/09/2019 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/636384",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2456,7 +2456,7 @@
       "id": "608090",
       "title": "א. הסכם הזיכיון להפעלת הרכבת הקלה בירושלים מיום 12.06.2011 קובע חלוקת אחריות בין המדינה לבין הזכיין בנושא מערך",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2464,7 +2464,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/608090",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2472,7 +2472,7 @@
       "id": "608137",
       "title": "תחנת הכוח אורות רבין ונמל חדרה.  בהתאם להסדרים שנקבעו עם הפעלת הנמל, חברת חשמל מספקת  לנמל שירותים שונים ובכ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2480,7 +2480,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/608137",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2488,7 +2488,7 @@
       "id": "580217",
       "title": "מכרז 29-15 להקמת והפעלת תחנות צילום למבקשי רשיונות נהיגה ורשיונות משיט ולהקמת והפעלת תחנות להנפקת רשיון נהיגה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "29-15",
       "status": "סגור",
       "published": "11/07/2016",
@@ -2496,7 +2496,7 @@
       "deadline": "24/07/2016 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/580217",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2504,7 +2504,7 @@
       "id": "564241",
       "title": "א. הסכם הזיכיון להפעלת הרכבת הקלה בירושלים מיום 12.06.2011 קובע חלוקת אחריות בין המדינה לבין הזכיין בנושא מערך",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2512,7 +2512,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/564241",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2520,7 +2520,7 @@
       "id": "568313",
       "title": "מכרז פומבי 32/14 לניהול והפעלת קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "32/14",
       "status": "סגור",
       "published": "25/01/2016",
@@ -2528,7 +2528,7 @@
       "deadline": "15/03/2016 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/568313",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2536,7 +2536,7 @@
       "id": "552485",
       "title": "א. הסכם הזיכיון להפעלת הרכבת הקלה בירושלים מיום 12.06.2011 קובע חלוקת אחריות בין המדינה לבין הזכיין בנושא מערך",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "transport_related",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2544,7 +2544,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/552485",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2552,7 +2552,7 @@
       "id": "552979",
       "title": "חברת טלאול קונטקט סנטר נבחרה במסגרת מכרז פומבי 5/07 לניהול והפעלת המוקד הטלפוני של משרד התחבורה.  ביום 8.8.13",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2560,7 +2560,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/552979",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2568,7 +2568,7 @@
       "id": "551169",
       "title": "בעקבות סיום התקשרות עם חברת אלביט להפעלת הממלת ותחזוקת מערכת ענת הוחלט על פיצול מכרז לשני תחומים תפעול הממלת",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2576,7 +2576,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/551169",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2584,7 +2584,7 @@
       "id": "545677",
       "title": "קול קורא להפעלת טיסות בקו תל אביב - מחניים",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "18/13",
       "status": "סגור",
       "published": "30/12/2013",
@@ -2592,7 +2592,7 @@
       "deadline": "26/01/2014 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/545677",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2600,7 +2600,7 @@
       "id": "541881",
       "title": "באגף מערכות מידע מותקנת תוכנת תשתית SAPIENS EMERGE 45.20 המהווה פלטפורמה לפיתוח הפעלת יישומים.על גבי הפלטפורמה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2608,7 +2608,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/541881",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2616,7 +2616,7 @@
       "id": "537974",
       "title": "באגף מערכות מידע מותקנת תוכנת תשתית SAPIENS EMERGE 45.20 המהווה פלטפורמה לפיתוח הפעלת יישומים.על גבי הפלטפורמה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2624,7 +2624,7 @@
       "deadline": "02/01/2013 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/537974",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2632,7 +2632,7 @@
       "id": "512700",
       "title": "ניהול והפעלת מערך קורסי חובה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "3/2010",
       "status": "סגור",
       "published": "17/05/2010",
@@ -2640,7 +2640,7 @@
       "deadline": "24/06/2010 12:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/512700",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2648,7 +2648,7 @@
       "id": "511035",
       "title": "בהליך מכרז פומבי נבחרו שלושה זכיינים לניהול והפעלת מערך קורסי חובה מסוגים שונים (קורסי חובה) בהתאם להוראות תקנ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2656,7 +2656,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/511035",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2664,7 +2664,7 @@
       "id": "511049",
       "title": "הליך מכרז פומבי נבחרו שלושה זכיינים לניהול והפעלת מערך קורסי חובה מסוגים שונים (קורסי חובה) בהתאם להוראות תקנה",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2672,7 +2672,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/511049",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2680,7 +2680,7 @@
       "id": "511053",
       "title": "בהליך מכרז פומבי נבחרו שלושה זכיינים לניהול והפעלת מערך קורסי חובה מסוגים שונים (קורסי חובה) בהתאם להוראות תקנ",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2688,7 +2688,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/511053",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2696,7 +2696,7 @@
       "id": "509676",
       "title": "תוכנת ENTIRE X של SOFTWARE AG נרכשה בשנת 2001 עם הפעלת הפרוייקט מול חברת דרך ארץ. מוצר תוכנה זה מאפשר חשיפת",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2704,7 +2704,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/509676",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2712,7 +2712,7 @@
       "id": "509680",
       "title": "תוכנת EMEREGE של חברת סאפיאנס, מהווה תשתית לפיתוח והפעלת יישומים.   התוכנה נרכשה עי המשרד לפני מספר רב של שני",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2720,7 +2720,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/509680",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2728,7 +2728,7 @@
       "id": "508771",
       "title": "תוכנת EMERGE  של חברת סאפיאנס , מהווה תשתית לפיתוח והפעלת יישומים.  התוכנה נרכשה עי המשרד לפני מספר רב של ש",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2736,7 +2736,7 @@
       "deadline": "17/12/2009 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/508771",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2744,7 +2744,7 @@
       "id": "508664",
       "title": "רכישת רשיון קבוע למוצר ENTIRE X COMMUNICATOR     תוכנת ENTIRE X של SOFTWARE AG נרכשה בשנת 2001 עם הפעלת הפרויי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2752,7 +2752,7 @@
       "deadline": "15/12/2009 00:00",
       "url": "https://mr.gov.il/ilgstorefront/he/p/508664",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2760,7 +2760,7 @@
       "id": "31556",
       "title": "הארכת התקשרות להפעלת מרכז שירות טלפוני.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2768,7 +2768,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/31556",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2776,7 +2776,7 @@
       "id": "29216",
       "title": "הארכת התקשרות להפעלת מרכז שירות טלפוני.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2784,7 +2784,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/29216",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2792,7 +2792,7 @@
       "id": "22681",
       "title": "התקשרויות  לצורך הפעלת בקרה  ופיקוח  על  ביצוע  פרויקטים  תחבורתיים  ברשויות  המקומיות .",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2800,7 +2800,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/22681",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2808,7 +2808,7 @@
       "id": "24019",
       "title": "הארכת התקשרות להפעלת מרכז שירות טלפוני.",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2816,7 +2816,7 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/24019",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     },
@@ -2824,7 +2824,7 @@
       "id": "15000",
       "title": "פטור ממכרז והתקשרות עם חברת אלביט להפעלת מערכת קוד פוזיטיבי",
       "type": "other",
-      "classification": "needs_review",
+      "classification": "unrelated",
       "number": "",
       "status": "פורסם",
       "published": null,
@@ -2832,12 +2832,767 @@
       "deadline": null,
       "url": "https://mr.gov.il/ilgstorefront/he/p/15000",
       "firstSeen": "2026-09-15T19:13:26.855279+00:00",
-      "lastSeen": "2026-09-16T10:30:40.690810+00:00",
+      "lastSeen": "2026-09-16T11:00:15.012488+00:00",
       "summaryStatus": "pending",
       "missingFromLatestSearch": false
     }
   ],
   "changes": [
+    {
+      "id": "4000620280",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000609393",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "610029",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "597604",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "560010",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "557385",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "538521",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "532835",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "524184",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "515257",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000617837",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000611856",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000600130",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000600109",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000551303",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000535355",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "620704",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "613798",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "580099",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "554497",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "553822",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "538635",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "31192",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "653175",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "651341",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000613204",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000612268",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000611506",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000611078",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000610252",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000608764",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000608469",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000602919",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000594472",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000596580",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000597329",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000592121",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000526621",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000596457",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000594532",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000593014",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000590178",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000587376",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000587461",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000586958",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000579580",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000579582",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000579517",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000576643",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000574983",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000573598",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000573171",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000566379",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000563875",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000560850",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000561399",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000558475",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000547980",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000547754",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000546709",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000545884",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000544951",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000540716",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000536472",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000526860",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000525136",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "651145",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "633467",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "631523",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "620418",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "620403",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "618485",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "605031",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "603728",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "596870",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "595224",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "588335",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "585785",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "579860",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "579459",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "579463",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "569878",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "576137",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "574770",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "569057",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "563548",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "562828",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "563454",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "558529",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "560568",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "553509",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "547078",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "539491",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "535645",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "528767",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "528768",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "524760",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "523044",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "523046",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "520730",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "508821",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "33082",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "33084",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000619369",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000615181",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000614577",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000614755",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000608737",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000601324",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000600327",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000599182",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000571995",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000573200",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000587069",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000576570",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000570794",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000567646",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000560307",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000557292",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000551835",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000527388",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000541633",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000535596",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "4000525468",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "640369",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "644469",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "636384",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "608090",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "608137",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "580217",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "564241",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "568313",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "552485",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "552979",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "551169",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "545677",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "541881",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "537974",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "512700",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "511035",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "511049",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "511053",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "509676",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "509680",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "508771",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "508664",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "31556",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "29216",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "22681",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "24019",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
+    {
+      "id": "15000",
+      "kind": "updated",
+      "at": "2026-09-16T11:00:15.012488+00:00"
+    },
     {
       "id": "4000617837",
       "kind": "discovered",
@@ -3080,466 +3835,6 @@
     },
     {
       "id": "4000547754",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000546709",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000545884",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000544951",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000540716",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000536472",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000526860",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000525136",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "651145",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "633467",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "631523",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "620418",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "620403",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "618485",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "605031",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "603728",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "596870",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "595224",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "588335",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "585785",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "579860",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "579459",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "579463",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "569878",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "576137",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "574770",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "569057",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "563548",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "562828",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "563454",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "558529",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "560568",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "553509",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "547078",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "539491",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "535645",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "528767",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "528768",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "524760",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "523044",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "523046",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "520730",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "508821",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "33082",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "33084",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000619369",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000615181",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000614577",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000614755",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000608737",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000601324",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000600327",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000599182",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000571995",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000573200",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000587069",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000576570",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000570794",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000567646",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000560307",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000557292",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000551835",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000527388",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000541633",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000535596",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "4000525468",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "640369",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "644469",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "636384",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "608090",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "608137",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "580217",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "564241",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "568313",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "552485",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "552979",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "551169",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "545677",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "541881",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "537974",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "512700",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "511035",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "511049",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "511053",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "509676",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "509680",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "508771",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "508664",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "31556",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "29216",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "22681",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "24019",
-      "kind": "discovered",
-      "at": "2026-09-15T19:13:26.855279+00:00"
-    },
-    {
-      "id": "15000",
       "kind": "discovered",
       "at": "2026-09-15T19:13:26.855279+00:00"
     }
