@@ -22,21 +22,29 @@ function heDate(iso) {
 }
 let fieldSnips = { tenders: {} };
 fetch('snips.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(r => { if (r) { fieldSnips = r; renderFeed(); } }).catch(() => {});
-function snipLink(id, key) {
-  const sn = fieldSnips.tenders?.[id]?.[key];
-  return sn ? ` <a class="fsrc snip" href="${esc(sn.image)}" data-snip="${esc(sn.image)}" data-snip-page="${sn.page}">צילום מהמסמך 📷</a>` : '';
-}
+/* פתיחת צילום מהמסמך בחלון (הדגשה צהובה על המקום), עם קישור לקובץ המקורי באותו עמוד */
 document.addEventListener('click', e => {
   const a = e.target.closest('a[data-snip]'); if (!a || typeof routeDialog === 'undefined') return;
   e.preventDefault();
-  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">ההדגשה הצהובה מסמנת את המקום שממנו נלקח המספר.</p><img class="snipimg" src="${esc(a.dataset.snip)}" alt="צילום מהמסמך">`;
+  const url = a.dataset.snipUrl;
+  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">בצהוב מסומן המקום שממנו נלקח הפרט.${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener">לפתוח את קובץ ה-PDF המקורי בעמוד הזה ↗</a>` : ''}</p><img class="snipimg" src="${esc(a.dataset.snip)}" alt="צילום מהמסמך">`;
   routeDialog.showModal();
 });
-function srcLink(f) {
-  // הקישור אומר לאן הוא מוביל ("סעיף 38.2.2, עמוד PDF 79"), לא "מקור" סתמי
+/* קישורי המקור של פרט: כשיש צילום מהמסמך — הלחיצה על "סעיף 38.2.2, עמוד 79" פותחת את הצילום כאן באתר
+   (שלמה 16.09: הקישור ל-PDF הוריד את הקובץ במקום להראות את התמונה), וליד זה "הקובץ ↗" למי שרוצה את ה-PDF.
+   בלי צילום — הקישור ל-PDF כמו קודם, ואומרים שזה קובץ. */
+function sourceLinks(id, key, f) {
   const srcs = (f.sources || []).filter(x => /^https:\/\//.test(x.url || '')).slice(0, 2);
-  return srcs.length ? ' ' + srcs.map(s => `<a class="fsrc" href="${esc(s.url)}" target="_blank" rel="noopener">${esc((s.locator || 'למסמך').replace('עמוד PDF', 'עמוד'))} ↗</a>`).join(' · ') : '';
+  if (!srcs.length) return '';
+  const sn = key && fieldSnips.tenders?.[id]?.[key];
+  const label = s => esc((s.locator || 'למסמך').replace('עמוד PDF', 'עמוד'));
+  if (sn) {
+    const first = srcs[0], rest = srcs.slice(1);
+    return ` <a class="fsrc snip" href="${esc(sn.image)}" data-snip="${esc(sn.image)}" data-snip-page="${sn.page}" data-snip-url="${esc(first.url)}">${label(first)} 📷</a> <a class="fsrc" href="${esc(first.url)}" target="_blank" rel="noopener" title="פותח את קובץ ה-PDF המקורי">הקובץ ↗</a>${rest.map(s => ` · <a class="fsrc" href="${esc(s.url)}" target="_blank" rel="noopener" title="פותח את קובץ ה-PDF המקורי">${label(s)} ↗</a>`).join('')}`;
+  }
+  return ' ' + srcs.map(s => `<a class="fsrc" href="${esc(s.url)}" target="_blank" rel="noopener" title="פותח את קובץ ה-PDF המקורי">${label(s)} ↗</a>`).join(' · ');
 }
+const srcLink = f => sourceLinks(null, null, f);
 const ok = f => f && ['verified', 'verified_conditional'].includes(f.status);
 function condText(f) {
   // שדה "מותנה" (למשל תקופת ההפעלה לפי שלבים, תנאי סף לפי חלופות): התנאים כפי שנקראו, חודשים → שנים
@@ -163,7 +171,7 @@ function renderPlainFacts(id) {
   const what = t.type === 'taxi' ? 'קווי מוניות השירות' : 'קווי האוטובוס';
   const groups = GROUPS.map(([name, fn]) => {
     const items = fn(f).filter(Boolean);
-    return items.length ? `<div class="plain-group"><h4>${esc(name)}</h4><ul>${items.map(([txt, fld]) => `<li>${txt}${srcLink(fld)}${snipLink(id, keyOf(f, fld))}</li>`).join('')}</ul></div>` : '';
+    return items.length ? `<div class="plain-group"><h4>${esc(name)}</h4><ul>${items.map(([txt, fld]) => `<li>${txt}${sourceLinks(id, keyOf(f, fld), fld)}</li>`).join('')}</ul></div>` : '';
   }).filter(Boolean);
   if (!groups.length) return '';
   // הסעיפים העיקריים שמצאנו: הסעיפים שמהם נלקחו העובדות, בניסוח הפשוט שלהם, עם קישור
@@ -171,10 +179,10 @@ function renderPlainFacts(id) {
   for (const fld of Object.values(f)) if (ok(fld) && fld.sec && !secs.has(fld.sec.n + (fld.sec.d || ''))) secs.set(fld.sec.n + (fld.sec.d || ''), fld);
   const keyList = [...secs.values()].sort((a, b) => a.sec.n.localeCompare(b.sec.n, undefined, { numeric: true })).slice(0, 14).map(fld => {
     const sc = fld.sec, isHeading = sc.t.length <= 48 && !/[,.]$/.test(sc.t);
-    return `<li><b>${esc(sc.n)}</b> ${isHeading ? `<span class="ctitle">${esc(sc.t)}</span> — ` : ''}${esc(sc.brief || sc.t)} <small class="muted">${sc.d ? esc(sc.d) + ' · ' : ''}עמוד ${sc.p}</small>${srcLink(fld)}</li>`;
+    return `<li><b>${esc(sc.n)}</b> ${isHeading ? `<span class="ctitle">${esc(sc.t)}</span> — ` : ''}${esc(sc.brief || sc.t)} <small class="muted">${sc.d ? esc(sc.d) + ' · ' : ''}עמוד ${sc.p}</small>${sourceLinks(id, keyOf(f, fld), fld)}</li>`;
   });
   return `<section class="plainfacts"><h3>מה המכרז דורש</h3>
-    <p class="plain-intro">המדינה מחפשת חברה שתפעיל את ${what}${cluster}. מי שיזכה יקבל תשלום מהמדינה, ובתמורה יצטרך לעמוד בדרישות האלה. ליד כל משפט קישור לסעיף במסמך.</p>
+    <p class="plain-intro">המדינה מחפשת חברה שתפעיל את ${what}${cluster}. מי שיזכה יקבל תשלום מהמדינה, ובתמורה יצטרך לעמוד בדרישות האלה. ליד כל משפט: לחיצה על הסעיף 📷 פותחת צילום מהמסמך עם המקום מסומן, ו"הקובץ ↗" פותח את ה-PDF עצמו.</p>
     <div class="plain-grid">${groups.join('')}</div>
     ${keyList.length ? `<details class="fielddetails keysecs"><summary>הסעיפים העיקריים · ${keyList.length}</summary><ol class="keysecs-list">${keyList.join('')}</ol></details>` : ''}
     ${renderPreviousScan(id)}

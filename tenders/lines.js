@@ -120,7 +120,7 @@ async function fillLines(details) {
   const orphan = quotes.filter(q => !used.has(q));
   const notIn = td?.clusterExact && td.notInTender?.length ? `<details class="fielddetails"><summary>קווים שרצים היום באשכול ״${esc(td.clusterName)}״ ואינם בטבלת המכרז · ${td.notInTender.length}</summary><p class="muted">לפי קובץ ״אשכול לקו״ של משרד התחבורה ולוח הזמנים של ${fdDate(todayData.gtfsDate)}. זה לא אומר בהכרח שהקווים יבוטלו: ייתכן שהם בנספח אחר או במספר אחר.</p><ul>${td.notInTender.map(([mk, num, name, op]) => `<li><b>${esc(num)}</b> · ${esc(name)} · ${esc(op)} <small class="muted">מק״ט ${esc(mk)}</small></li>`).join('')}</ul></details>` : '';
   const notes = sectionNotes(id);
-  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length === 1 ? 'פסקה אחת' : `${notes.length} פסקאות`}</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span>${quoteBody(n)}<small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a>${quoteSnip(n)}</small></blockquote>`).join('')}</details>` : '';
+  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length === 1 ? 'פסקה אחת' : `${notes.length} פסקאות`}</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span>${quoteBody(n)}<small>${quoteLinks(n)}</small></blockquote>`).join('')}</details>` : '';
   body.innerHTML = `${notesHtml}${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
     ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>${pdfSource ? 'סוג' : 'כיוונים וחלופות'}</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">${pdfSource ? `טבלת הקווים נקראה מתוך המסמך עצמו (עמודים ${esc((pdfV.pages || []).join('–'))}). במסמך אין מק״טים, ולכן ״רץ היום״ נבדק לפי מספר הקו${td?.clusterName ? ` באשכול ״${esc(td.clusterName)}״` : ''} בלוח הזמנים. ` : ''}לחיצה על קו: מה כתוב עליו במסמך ומה רץ היום.${sure && mentioned.length && allLines.length > mentioned.length ? (showAll ? ` <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="mentioned">להראות רק את ${mentioned.length} הקווים שהמכרז מזכיר</button>` : ` מוצגים ${mentioned.length} הקווים שהמכרז מזכיר. <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="all">להראות גם את ${allLines.length - mentioned.length} הקווים שממשיכים כמו היום</button>`) : ''}</p>` : `<p class="muted">${orphan.length ? 'למכרז הזה אין קובץ אקסל של הקווים. מה שכתוב למטה נלקח מתוך הטקסט של המכרז עצמו.' : 'למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.'}</p>`}
     ${orphan.length ? `<details class="fielddetails"${lines.length ? '' : ' open'}><summary>${lines.length ? 'ציטוטים על קווים שאינם בטבלת הנספח' : 'מה המכרז אומר על כל קו'} · ${orphan.length}</summary>${orphan.map(renderQuote).join('')}</details>` : ''}
@@ -156,20 +156,24 @@ function quoteBody(q) {
   return b ? `<p class="brief">${esc(b)}</p><p class="fullquote"><span class="muted">הציטוט המלא: </span>${esc(q.quote)}</p>` : `<p>${esc(q.quote)}</p>`;
 }
 /* צילום העמוד מהמסמך עם הציטוט מודגש בצהוב (snip_fields.py → snips.json, "quotes"), לפי המסמך והעמוד */
-function quoteSnip(q) {
+/* קישורי המקור של ציטוט: כשיש צילום של העמוד (snips.json, "quotes") — הלחיצה על "המסמך · עמוד 84" פותחת את
+   הצילום כאן באתר עם הציטוט מודגש, וליד זה "הקובץ ↗" ל-PDF. בלי צילום — קישור ל-PDF, ואומרים שזה קובץ. */
+function quoteLinks(q) {
   const m = typeof fieldSnips !== 'undefined' ? fieldSnips.quotes : null;
   const s = m && q.sha256 && q.page ? m[`${String(q.sha256).slice(0, 12)}:${q.page}`] : null;
-  return s ? ` · <a class="snip" href="${esc(s.image)}" data-qsnip="${esc(s.image)}" data-snip-page="${q.page}" target="_blank" rel="noopener">צילום מהמסמך 📷</a>` : '';
+  const doc = esc(q.doc || 'המסמך');
+  if (s) return `<a class="snip" href="${esc(s.image)}" data-qsnip="${esc(s.image)}" data-snip-page="${q.page}" data-snip-url="${esc(q.url)}" target="_blank" rel="noopener">${doc} · עמוד ${q.page} 📷</a> <a href="${esc(q.url)}" target="_blank" rel="noopener" title="פותח את קובץ ה-PDF המקורי">הקובץ ↗</a>`;
+  return `<a href="${esc(q.url)}" target="_blank" rel="noopener" title="פותח את קובץ ה-PDF המקורי">${doc} · עמוד PDF ${q.page} ↗</a>`;
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('a[data-qsnip]'); if (!a || typeof routeDialog === 'undefined') return;
   if (routeDialog.open) return;          // מתוך חלון הקו — הצילום נפתח בלשונית חדשה
   e.preventDefault();
-  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">בצהוב מסומן המקום שבו כתוב הציטוט. אם בעמוד יש כמה ציטוטים, כולם מסומנים.</p><img class="snipimg" src="${esc(a.dataset.qsnip)}" alt="צילום מהמסמך">`;
+  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">בצהוב מסומן המקום שבו כתוב הציטוט. אם בעמוד יש כמה ציטוטים, כולם מסומנים.${a.dataset.snipUrl ? ` <a href="${esc(a.dataset.snipUrl)}" target="_blank" rel="noopener">לפתוח את קובץ ה-PDF המקורי בעמוד הזה ↗</a>` : ''}</p><img class="snipimg" src="${esc(a.dataset.qsnip)}" alt="צילום מהמסמך">`;
   routeDialog.showModal();
 });
 function renderQuote(q) {
-  return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}${q.city ? ` · ${esc(q.city)}` : ''}</span>${quoteBody(q)}<small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a>${quoteSnip(q)}</small></blockquote>`;
+  return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}${q.city ? ` · ${esc(q.city)}` : ''}</span>${quoteBody(q)}<small>${quoteLinks(q)}</small></blockquote>`;
 }
 
 /* Leaflet נטען רק כשפותחים קו */
