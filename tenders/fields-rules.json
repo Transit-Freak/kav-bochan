@@ -184,6 +184,188 @@
 "reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
 }
 },
+"4000538622": {
+"dates.questions": {
+"status": "verified",
+"value": "2021-10-10",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=26",
+"locator": "סעיף 12.2, עמוד PDF 26"
+}
+],
+"notes": "לפי טבלת המועדים במסמך המקורי; מועדים עשויים להתעדכן בהודעות הבהרה."
+},
+"term.extension": {
+"status": "verified",
+"value": 12,
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=9",
+"locator": "סעיף 1.10, עמוד PDF 9"
+}
+],
+"unit": "months",
+"notes": "לפי שיקול דעת הממשלה (\"תקופת ההפעלה הנוספת\")."
+},
+"fleet.reserve": {
+"status": "verified",
+"value": 20,
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=75",
+"locator": "סעיף 38.2.5, עמוד PDF 75"
+}
+],
+"kind": "percent"
+},
+"fleet.max_age": {
+"status": "verified",
+"value": 10,
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=97",
+"locator": "סעיף 40.1.6, עמוד PDF 97"
+}
+],
+"unit": "years",
+"notes": "אוטובוסים משומשים בתחילת ההפעלה: עד 6 שנים (סעיף 38.2.2)."
+},
+"fleet.accessibility": {
+"status": "verified",
+"value": "כל האוטובוסים נגישים",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=75",
+"locator": "סעיף 38.2.5, עמוד PDF 75"
+}
+],
+"notes": "לפי תקנות שוויון זכויות לאנשים עם מוגבלות (הסדרת נגישות לשירותי תחבורה ציבורית)."
+},
+"eligibility.licenses": {
+"status": "verified",
+"value": "רישיון תקף להסעת נוסעים בקווי שירות בתחבורה ציבורית",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=17",
+"locator": "סעיף 4.1, עמוד PDF 17"
+}
+],
+"notes": "המציע, או בעל שליטה במציע או בעל עניין במציע המחזיק לפחות 50% מהון המניות הנפרע של המציע הוא מפעיל תחבורה ציבורית פעיל, בעל רישיון תקף להסעת נוסעים בקווי שירות בתחבורה ציבורית באוטובוסים הכוללים במצטבר לפחות 80 אוטובוסים בעלי 33 מקומות ישיבה לפחות בכל אחד מהאו"
+},
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=17",
+"locator": "סעיף 4.1, עמוד PDF 17"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"price.per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=45",
+"locator": "סעיף 21.3.2, עמוד PDF 45"
+}
+]
+},
+"price.ceiling_per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=45",
+"locator": "סעיף 21.3.2, עמוד PDF 45"
+}
+]
+},
+"price.fixed_payment": {
+"status": "not_applicable",
+"reason": "התשלום למפעיל הוא סובסידיה שוטפת שמחושבת מעלות ההפעלה השנתית והכנסות בפועל, לא תשלום קבוע.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=18",
+"locator": "סעיף 4.1.4, עמוד PDF 18"
+}
+]
+},
+"price.indexation": {
+"status": "verified",
+"value": "מדד מחירי התשומות",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=112",
+"locator": "סעיף 49, עמוד PDF 112"
+}
+],
+"notes": "הרכב המדד והמשקולות מפורטים בסעיף שבו הוא מוגדר."
+},
+"scoring.quality_weight": {
+"status": "verified",
+"value": 48,
+"kind": "percent",
+"notes": "משלים ל-100 את משקל המחיר. רכיבים שנמצאו: ניסיון עבר 18, הצעה תפעולית 16, תכנית עסקית 9.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=51",
+"locator": "סעיף 28.4, עמוד PDF 51"
+},
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=53",
+"locator": "סעיף 28.4.3, עמוד PDF 53"
+},
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=56",
+"locator": "סעיף 28.7, עמוד PDF 56"
+}
+]
+},
+"scoring.minimum_quality": {
+"status": "not_found",
+"reason": "בסעיף הקריטריונים (28) לא נמצא ציון איכות מזערי.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=51",
+"locator": "סעיף 28.4, עמוד PDF 51"
+}
+]
+},
+"penalties.amount": {
+"status": "verified",
+"value": "12 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=13",
+"locator": "סעיף 2.25.1, עמוד PDF 13"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
+},
 "4000552742": {
 "dates.questions": {
 "status": "verified",
@@ -1617,6 +1799,100 @@
 "reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
 }
 },
+"581458": {
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=17",
+"locator": "סעיף 4.1.2, עמוד PDF 17"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"price.per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=45",
+"locator": "סעיף 18.4.1, עמוד PDF 45"
+}
+]
+},
+"price.ceiling_per_km": {
+"status": "not_applicable",
+"reason": "ההצעה הכספית במכרז היא תוספת לעלות ההפעלה השנתית או תוספת ק\"מ לממשלה, לא מחיר לק\"מ.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=45",
+"locator": "סעיף 18.4.1, עמוד PDF 45"
+}
+]
+},
+"price.fixed_payment": {
+"status": "not_applicable",
+"reason": "התשלום למפעיל הוא סובסידיה שוטפת שמחושבת מעלות ההפעלה השנתית והכנסות בפועל, לא תשלום קבוע.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=122",
+"locator": "סעיף 40, עמוד PDF 122"
+}
+]
+},
+"price.indexation": {
+"status": "verified",
+"value": "מדד מחירי התשומות",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=122",
+"locator": "סעיף 40, עמוד PDF 122"
+}
+],
+"notes": "הרכב המדד והמשקולות מפורטים בסעיף שבו הוא מוגדר."
+},
+"scoring.minimum_quality": {
+"status": "not_found",
+"reason": "בסעיף הקריטריונים (28) לא נמצא ציון איכות מזערי.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=57",
+"locator": "סעיף 28.7, עמוד PDF 57"
+}
+]
+},
+"penalties.amount": {
+"status": "verified",
+"value": "10 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=38",
+"locator": "סעיף 17.13, עמוד PDF 38"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
+},
 "609098": {
 "dates.service_start": {
 "status": "verified",
@@ -1923,6 +2199,49 @@
 {
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819377ACA75B612A/מסמכי הליך#page=39",
 "locator": "סעיף 11.13, עמוד PDF 39"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
+},
+"618396": {
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA968E08213E27E11B/מסמכי הליך#page=15",
+"locator": "סעיף 4.1.2, עמוד PDF 15"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"penalties.amount": {
+"status": "verified",
+"value": "4 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA968E08213E27E11B/מסמכי הליך#page=101",
+"locator": "סעיף 11.1, עמוד PDF 101"
 }
 ],
 "notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
@@ -2661,6 +2980,69 @@
 "service.weekly_trips": {
 "status": "per_line",
 "reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"award.winner": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+},
+"award.awarded_price": {
+"status": "later",
+"reason": "תוצאות המכרז מתפרסמות אחרי ההגשה ובחינת ההצעות."
+}
+},
+"636078": {
+"eligibility.drivers": {
+"status": "not_found",
+"reason": "בתנאי הסף (סעיף 4) אין דרישה למספר נהגים.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5042123/מסמכי הליך#page=14",
+"locator": "סעיף 4.1.1, עמוד PDF 14"
+}
+]
+},
+"service.operating_hours": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.frequency": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"service.weekly_trips": {
+"status": "per_line",
+"reason": "נקבע לכל קו בטבלאות התפעוליות בנספח, לא ערך אחד למכרז."
+},
+"price.fixed_payment": {
+"status": "not_applicable",
+"reason": "התשלום למפעיל הוא סובסידיה שוטפת שמחושבת מעלות ההפעלה השנתית והכנסות בפועל, לא תשלום קבוע.",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5042123/מסמכי הליך#page=171",
+"locator": "סעיף 14.3, עמוד PDF 171"
+}
+]
+},
+"scoring.minimum_quality": {
+"status": "verified",
+"value": "על המציע לעמוד בניקוד מינימלי בבחינת התוכנית התפעולית והתכנית העסקית לפי מפורט, אי עמידה בציון המינימאלי הקבוע לתכנית התפעולית או לתכנית העיסקית, תגרור פסילת הצעת המציע טרם פתיחת מעטפה מספר.2 תוכנית תפעולית – ציון מינימא",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5042123/מסמכי הליך#page=31",
+"locator": "סעיף 27.2.1, עמוד PDF 31"
+}
+]
+},
+"penalties.amount": {
+"status": "verified",
+"value": "8 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"sources": [
+{
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5042123/מסמכי הליך#page=89",
+"locator": "סעיף 13.1, עמוד PDF 89"
+}
+],
+"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
 },
 "award.winner": {
 "status": "later",

@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "source": "https://www.gov.il/he/departments/guides/agreements_for_operating_service_lines_in_public_transportation",
   "lastRun": {
-    "attemptedAt": "2026-09-16T10:31:06.609099+00:00",
+    "attemptedAt": "2026-09-16T11:00:38.646898+00:00",
     "ok": false,
     "sourceUrl": "https://www.gov.il/he/departments/guides/agreements_for_operating_service_lines_in_public_transportation",
     "coverage": "partial",
-    "error": "HTTP Error 403: Forbidden"
+    "error": "HTTP Error 403: HTTP Error 403 (curl)"
   },
   "items": [
     {
