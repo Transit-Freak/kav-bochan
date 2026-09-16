@@ -70,6 +70,15 @@ function eligLine(k, f) {
   }).map(esc).join(' ');
 }
 
+/* "מי יכול להתמודד" לפי רישיונות/מיון מוקדם: "רק חברה עם רישיון…", ובמכרזים הישנים — "רק חברה שעברה את המיון המוקדם (06/2010)" */
+function licenseLine(v) {
+  const t = String(v ?? '').trim().replace(/\.+$/, '');
+  const pre = /מיון מוקדם/.exec(t);
+  if (pre) { const d = /\d{1,2}\/\d{4}|\d{4}/.exec(t); return `רק חברה שעברה את המיון המוקדם${d ? ` (${esc(d[0])})` : ''} ועומדת בתנאיו יכולה להתמודד.`; }
+  if (/^השתתפות מותנית ב/.test(t)) return `רק חברה ש${esc(t.replace(/^השתתפות מותנית ב/, 'עומדת ב'))}.`;
+  return `רק חברה עם ${esc(t)}.`;
+}
+
 /* שאלות ותשובות. כל פונקציה מקבלת את השדות ומחזירה משפטים [טקסט, שדה] (או כלום אם אין נתון). */
 const GROUPS = [
   ['מתי?', f => [
@@ -79,11 +88,11 @@ const GROUPS = [
     ok(f['dates.service_start']) && [`האוטובוסים אמורים להתחיל לנסוע ${S(f['dates.service_start'].value).replace('מההודעה על הזכייה', 'אחרי שיודיעו מי זכה')}.`, f['dates.service_start']],
   ]],
   ['לכמה זמן?', f => [
-    ok(f['term.base']) && [f['term.base'].status === 'verified_conditional' ? `החוזה הוא ל-${condText(f['term.base'])}.` : `החוזה הוא ל-${months(f['term.base'].value)}.`, f['term.base']],
+    ok(f['term.base']) && [f['term.base'].status === 'verified_conditional' ? `אורך החוזה — ${condText(f['term.base'])}.` : `החוזה הוא ל-${months(f['term.base'].value)}.`, f['term.base']],
     ok(f['term.extension']) && valOf(f['term.extension'], months) && [`המדינה יכולה להאריך אותו: ${valOf(f['term.extension'], months)}.`, f['term.extension']],
   ]],
   ['מי יכול להתמודד?', f => [
-    ok(f['eligibility.licenses']) && [`רק חברה עם ${S(f['eligibility.licenses'].value)}.`, f['eligibility.licenses']],
+    ok(f['eligibility.licenses']) && [licenseLine(f['eligibility.licenses'].value), f['eligibility.licenses']],
     ...['eligibility.fleet', 'eligibility.turnover', 'eligibility.equity', 'eligibility.experience'].map(k => ok(f[k]) && [eligLine(k, f[k]), f[k]]),
     ok(f['eligibility.drivers']) && [S(f['eligibility.drivers'].value), f['eligibility.drivers']],
     ok(f['guarantee.bid']) && [`כדי להגיש הצעה צריך להפקיד ערבות בנקאית של ${money(f['guarantee.bid'].value)} (כסף ביטחון, מקבלים אותו בחזרה אם לא זוכים).`, f['guarantee.bid']],

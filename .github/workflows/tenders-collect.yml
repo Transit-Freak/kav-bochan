@@ -35,7 +35,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      # תמיד מהראש הנוכחי של main: ריצה שחיכתה בתור לריצה קודמת קיבלה את הגרסה שלפני הנתונים
+      # שהריצה הקודמת דחפה, ואז ה-rebase בסוף נכשל והעבודה אבדה (16.09, ריצה 8)
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-python@v5
         with:
@@ -102,5 +106,18 @@ jobs:
           git config user.email 'noreply@github.com'
           git add tenders
           git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
-          git commit -m 'data: tenders — מסמכים, טקסט, קווים, סעיפים, מפות והשוואה להיום'
-          for i in 1 2 3 4; do git pull --rebase -q origin main && git push -q && break || sleep $((2**i)); done
+          git commit -q -m 'data: tenders — מסמכים, טקסט, קווים, סעיפים, מפות והשוואה להיום'
+          # אם main התקדם בזמן הריצה: הנתונים שנוצרו כאן מנצחים בקבצי הנתונים (הם נוצרו מחדש מהכול);
+          # וכישלון דחיפה מסומן ככישלון של הריצה, לא מוסתר
+          for i in 1 2 3 4; do
+            git fetch -q origin main
+            if ! git rebase -q -X theirs origin/main; then
+              git checkout --theirs -- tenders 2>/dev/null || true
+              git add -A tenders
+              GIT_EDITOR=true git rebase --continue || git rebase --abort
+            fi
+            git push -q origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo 'הדחיפה ל-main נכשלה' >&2
+          exit 1
