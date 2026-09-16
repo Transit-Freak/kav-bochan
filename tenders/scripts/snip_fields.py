@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 11
+VERSION = 12
 
 
 def read(path, default):
@@ -263,8 +263,19 @@ def locate(fitz, pdf, pno, key, f):
     back = 2 if key == 'penalties.amount' else 0
     pages = [p for p in list(range(pno, pno + 2)) + list(range(pno - 1, pno - back - 1, -1)) if 1 <= p <= pdf.page_count]
     if key == 'penalties.amount':
-        # טבלת הקנסות: הסעיף הראשון בה ("20.2 פיצויים מוסכמים") — שורת הכותרת שלו, לא כל אזכור של "פיצוי" בעמוד
-        # (בחיפה סומנו 9 אזכורים שני עמודים לפני הטבלה, בסעיף על אתר האינטרנט)
+        # טבלת הקנסות: המילים "פיצוי מוסכם"/"קנס" בתוך הסעיף הראשון שבטבלה (20.2) בעמוד שלו — לא כל אזכור בעמוד
+        # (בחיפה סומנו 9 אזכורים שני עמודים לפני הטבלה), ולא רק שורת הכותרת (20.2 היא "מוקד טלפוני", והקנס בסופה)
+        for p in pages[:2]:
+            pg = pdf[p - 1]
+            words = pg.get_text('words')
+            span = section_span(pg, words, sec.get('n'))
+            if not span:
+                continue
+            groups = find_value(pg, words, key, f)
+            inside = [r for _, rects in groups for r in rects if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
+            if inside:
+                hit = sorted(inside, key=lambda r: r.y0)[:2]
+                return pg, p, hit, ' · '.join(n for n, _ in groups), 'value', span
         head = heading_rows(fitz, pdf, pages[:2], sec)
         if head:
             return head

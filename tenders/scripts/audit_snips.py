@@ -82,10 +82,24 @@ def check(key, f, s):
     return probs
 
 
+def missing_reason(f, url_sha):
+    loc = f['sources'][0].get('locator', '')
+    if 'נספח הקווים' in loc or 'טבלת הקווים' in loc:
+        return 'המקור הוא טבלת קווים, לא עמוד במסמך'
+    url = (f['sources'][0].get('url') or '').partition('#page=')[0]
+    if url not in url_sha:
+        return 'המסמך לא ירד (חסום להורדה)'
+    return 'הערך לא נמצא בעמוד ולא משפט המפתח'
+
+
 def main():
+    import datetime
     rules = json.loads((ROOT / 'fields-rules.json').read_text(encoding='utf-8'))['tenders']
     snips = json.loads((ROOT / 'snips.json').read_text(encoding='utf-8'))
+    index = json.loads((ROOT / 'text' / 'index.json').read_text(encoding='utf-8'))['documents'] if (ROOT / 'text' / 'index.json').exists() else {}
+    url_sha = {m['url']: sha for sha, m in index.items()}
     total = bad = missing = 0
+    out = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
     for tid, fields in rules.items():
         for key, f in fields.items():
             if f.get('status') != 'verified' or not f.get('sources'):
@@ -94,13 +108,18 @@ def main():
             s = snips['tenders'].get(tid, {}).get(key)
             if not s:
                 missing += 1
-                print(f'[אין צילום] {tid} {key}: {str(f.get("value"))[:50]} ({f["sources"][0].get("locator", "")})')
+                reason = missing_reason(f, url_sha)
+                out['tenders'].setdefault(tid, {})[key] = {'status': 'missing', 'reason': reason}
+                print(f'[אין צילום] {tid} {key}: {str(f.get("value"))[:50]} ({f["sources"][0].get("locator", "")}) — {reason}')
                 continue
             probs = check(key, f, s)
+            out['tenders'].setdefault(tid, {})[key] = {'status': 'bad' if probs else 'ok', 'problems': probs}
             if probs:
                 bad += 1
                 for p in probs:
                     print(f'[חריג] {tid} {key} עמוד {s["page"]}: {p}')
+    out['summary'] = {'fields': total, 'withSnip': total - missing, 'bad': bad, 'missing': missing}
+    (ROOT / 'audit.json').write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
     print(f'\n{total} שדות מאומתים, {total - missing} עם צילום, {bad} חריגים, {missing} בלי צילום')
     return 1 if bad else 0
 
