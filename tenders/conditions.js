@@ -58,7 +58,8 @@ function renderConditionsBody(id, body, doc) {
     const secs = doc.sections.filter(s => q ? hit(s) : (st.topic === '__all__' ? true : s.topics.includes(st.topic)));
     html += `<p class="muted">לכל סעיף שורה "בקצרה": המשפט המרכזי שלו במילים פשוטות — נוצר בחוקים קבועים בקוד (החלפת ניסוח משפטי במילים יומיומיות), לא במודל שפה. לחיצה על סעיף פותחת את הטקסט המלא כפי שהוא כתוב ב<a href="${esc(doc.doc)}" target="_blank" rel="noopener">מסמך ↗</a> (${doc.pages} עמודים, ${doc.sections.length} סעיפים ממוספרים). השיוך לנושא לפי כותרת הסעיף.</p>
       <div class="filters cond-topics">${topics.map(([t, n]) => `<button class="tchip ${!q && st.topic === t ? 'on' : ''}" data-cond-topic="${esc(t)}" data-cond-id="${esc(id)}">${esc(t)} · ${n}</button>`).join('')}<button class="tchip ${!q && st.topic === '__all__' ? 'on' : ''}" data-cond-topic="__all__" data-cond-id="${esc(id)}">תוכן העניינים · ${doc.toc.length}</button></div>
-      <p class="cond-search"><input type="search" data-cond-search="${esc(id)}" value="${esc(st.q || '')}" placeholder="חיפוש מילה בכל סעיפי המסמך, למשל: שכר, ערבות, מפרקי" aria-label="חיפוש בסעיפי המכרז">${q ? `<small class="muted">${secs.length} סעיפים עם "${esc(q)}"</small>` : ''}</p>`;
+      <label class="cond-topic-select">נושא <select data-cond-select="${esc(id)}" aria-label="בחירת נושא">${topics.map(([t, n]) => `<option value="${esc(t)}" ${!q && st.topic === t ? 'selected' : ''}>${esc(t)} · ${n}</option>`).join('')}<option value="__all__" ${!q && st.topic === '__all__' ? 'selected' : ''}>תוכן העניינים · ${doc.toc.length}</option></select></label>
+      <p class="cond-search"><input type="search" data-cond-search="${esc(id)}" value="${esc(st.q || '')}" placeholder="חיפוש מילה בכל סעיפי המסמך, למשל: שכר, ערבות, מפרקי" aria-label="חיפוש בסעיפי המכרז">${q ? `<small class="muted">${secs.length} סעיפים עם "${esc(q)}"</small>` : ''}<button data-cond-csv="${esc(id)}" title="הסעיפים המוצגים כרגע, כקובץ לאקסל">הורדה (CSV)</button></p>`;
     if (!q && st.topic === '__all__') {
       html += `<ol class="toc">${doc.toc.map((e, i) => `<li><a href="${esc(doc.doc)}#page=${e.p}" target="_blank" rel="noopener"><b>${esc(e.n)}</b> ${esc(e.t)}</a> <small class="muted">עמוד ${e.p}</small></li>`).join('')}</ol>`;
     } else {
@@ -81,6 +82,21 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.matches && 
 document.addEventListener('click', e => {
   const b = e.target.closest('button[data-cond-topic]'); if (!b) return;
   const id = b.dataset.condId; condState[id] = condState[id] || {}; condState[id].topic = b.dataset.condTopic; condState[id].q = '';
+  const details = document.querySelector(`details.cond-section[data-cond-tender="${id}"]`);
+  if (details) renderConditionsBody(id, details.querySelector('.cond-body'), sectionFiles[id] || null);
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-cond-csv]'); if (!b) return;
+  const id = b.dataset.condCsv, doc = sectionFiles[id], st = condState[id] || {}; if (!doc) return;
+  const q = (st.q || '').trim();
+  const secs = doc.sections.filter(s => q ? (s.t + ' ' + s.text).includes(q) : (st.topic === '__all__' ? true : s.topics.includes(st.topic)));
+  if (typeof downloadCSV !== 'function') return;
+  downloadCSV(`tnaim-mikhraz-${id}${q ? '' : '-' + (st.topic === '__all__' ? 'kol' : st.topic)}.csv`, ['סעיף', 'כותרת', 'בקצרה', 'מספרים', 'נושאים', 'עמוד PDF', 'הטקסט במסמך'],
+    secs.map(s => [s.n, s.t, s.brief || '', s.numbers.join(' | '), s.topics.join(' | '), s.p, s.text]));
+});
+document.addEventListener('change', e => {
+  const sel = e.target; if (!sel.matches || !sel.matches('select[data-cond-select]')) return;
+  const id = sel.dataset.condSelect; condState[id] = condState[id] || {}; condState[id].topic = sel.value; condState[id].q = '';
   const details = document.querySelector(`details.cond-section[data-cond-tender="${id}"]`);
   if (details) renderConditionsBody(id, details.querySelector('.cond-body'), sectionFiles[id] || null);
 });

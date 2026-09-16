@@ -88,8 +88,30 @@ async function fillLines(details) {
   body.innerHTML = `${notesHtml}${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
     ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>כיוונים וחלופות</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">לחיצה על קו: התחנות והמסלול מהנספח, הציטוטים מהמסמך ומה רץ היום.</p>` : '<p class="muted">למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.</p>'}
     ${orphan.length ? `<details class="fielddetails"><summary>ציטוטים על קווים שאינם בטבלת הנספח · ${orphan.length}</summary>${orphan.map(renderQuote).join('')}</details>` : ''}
-    ${notIn}`;
+    ${notIn}
+    ${lines.length || meta ? `<p class="lines-tools">${lines.length ? `<button data-lines-csv="${esc(id)}">הורדת הרשימה (CSV)</button>` : ''}${meta ? ` <button data-annex-tender="${esc(id)}">הנספחים המקוריים לפי קובץ (${meta.versions})</button>` : ''}</p>` : ''}`;
 }
+
+/* הורדה כקובץ CSV שנפתח באקסל (עם סימון עברית) */
+function downloadCSV(name, header, rows) {
+  const cell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const text = '\uFEFF' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-lines-csv]'); if (!b) return;
+  const id = b.dataset.linesCsv, td = todayData.tenders?.[id], lines = linesOf(routeFiles[id] || []);
+  const rows = lines.map(l => {
+    const today = td?.lines?.[l.mk], qs = quotesFor(id, l.number, l.mk), first = l.rows[0];
+    return [l.number, l.mk, l.area || '', first?.origin || '', first?.destination || '', l.rows.length,
+      today == null ? 'לא נבדק' : today.today ? 'רץ' : 'לא רץ היום', today?.operator || '', today?.number || '',
+      [...new Set(qs.flatMap(q => q.tags))].join(' | '), qs.map(q => q.quote).join(' | ')];
+  });
+  downloadCSV(`kavim-mikhraz-${id}.csv`, ['קו', 'מק"ט', 'יישוב', 'מוצא', 'יעד', 'כיוונים וחלופות', 'היום', 'מפעיל היום', 'מספר היום', 'מה כתוב במכרז', 'ציטוטים'], rows);
+});
 
 function renderQuote(q) {
   return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}</span><p>${esc(q.quote)}</p><small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a></small></blockquote>`;
@@ -152,6 +174,7 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.matches && 
   let autoOpened = false;
   const hashQuery = () => { try { return new URLSearchParams(location.hash.slice(1)).get('q') || ''; } catch { return ''; } };
   const q = hashQuery();
+  const initialQ = q;   // פתיחה אוטומטית של טבלת הקווים רק כשמגיעים עם קישור ישיר, לא בכל הקלדה בחיפוש
   if (q) { $('search').value = q; render(); }
   $('search').addEventListener('input', () => { const v = $('search').value.trim(); history.replaceState(null, '', v ? '#q=' + encodeURIComponent(v) : location.pathname + location.search); });
   const original = renderFeed;
@@ -160,9 +183,9 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.matches && 
     const openKeys = [...document.querySelectorAll('details[data-keep-open][open]')].map(d => d.dataset.keepOpen);
     original();
     for (const k of openKeys) { const d = document.querySelector(`details[data-keep-open="${k.replace(/"/g, '')}"]`); if (d) d.open = true; }
-    if (autoOpened || !hashQuery()) return;
+    if (autoOpened || !initialQ) return;
     const d = document.querySelector('details.lines-section');
-    if (d) { autoOpened = true; d.open = true; }
+    if (d) { autoOpened = true; d.open = true; const card = d.closest('details.cardbody'); if (card) card.open = true; }
   };
 })();
 document.addEventListener('click', e => { const row = e.target.closest('tr.lineRow'); if (row) showLine(row.dataset.lineTender, Number(row.dataset.lineIndex)); });
