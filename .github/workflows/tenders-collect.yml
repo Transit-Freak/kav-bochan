@@ -18,6 +18,10 @@ on:
         description: 'להוריד מחדש גם מסמכים שכבר נקראו (true/false)'
         required: false
         default: 'false'
+      retry_failed:
+        description: 'לנסות שוב עכשיו מסמכים שההורדה שלהם נכשלה (true/false)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -48,7 +52,7 @@ jobs:
 
       - name: הורדת מסמכים וחילוץ טקסט
         continue-on-error: true
-        run: python3 tenders/scripts/package_pipeline.py --limit "${{ github.event.inputs.limit || '600' }}" ${{ github.event.inputs.force == 'true' && '--force' || '' }}
+        run: python3 tenders/scripts/package_pipeline.py --limit "${{ github.event.inputs.limit || '600' }}" ${{ github.event.inputs.force == 'true' && '--force' || '' }} ${{ github.event.inputs.retry_failed == 'true' && '--retry-failed' || '' }}
 
       - name: שמירת הטקסט במאגר
         continue-on-error: true

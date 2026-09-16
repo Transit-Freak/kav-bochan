@@ -43,3 +43,4 @@
 @media(max-width:760px){.card-tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}.card-tabs button{flex:0 0 auto;white-space:nowrap}}
 .linkbtn{border:0;background:none;color:#126b80;text-decoration:underline;text-underline-offset:4px;padding:0 2px;font-size:inherit;cursor:pointer}
 .snipimg{max-width:100%;border:1px solid #dbe4ea;border-radius:8px;margin-top:8px}.fsrc.snip{color:#137864}
+.tabpane>details.review-details>summary{display:none}.prev-scan{margin-top:10px;border-top:1px solid #cfe6de;padding-top:8px}

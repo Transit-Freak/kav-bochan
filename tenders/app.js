@@ -22,7 +22,9 @@ const cardTab={};   // מכרז → הלשונית הפתוחה
 function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const every=matches();const all=every.filter(t=>feedClass(t)!=='unrelated'),other=every.filter(t=>feedClass(t)==='unrelated');const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>{
  const lines=typeof renderLinesSection==='function'?renderLinesSection(t):'',cond=typeof renderConditionsSection==='function'?renderConditionsSection(t):'',pkg=renderPackage(t,!!lines);
  const plain=typeof renderPlainFacts==='function'?renderPlainFacts(t.id):'';
- const files=`${pkg}${renderDocumentReview(t)}${!lines&&typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}`;
+ // טבלת קווים שתועתקה בסריקה הקודמת (למשל צפון הנגב, שהקובץ שלו חסום להורדה) — לשונית "הקווים" משלה
+ const review=!lines?renderDocumentReview(t):'';
+ const files=`${pkg}${lines?renderDocumentReview(t):''}${!lines&&typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}`;
  const nLines=(typeof hasChangeSection==='function'&&hasChangeSection(t.id)&&mentionedCount(t.id))||(typeof todayData!=='undefined'&&todayData.tenders?.[t.id]?.counts?.inTender)||(typeof routeIndex!=='undefined'&&routeIndex[t.id]?.uniqueRoutes)||0;
  const nDocs=Object.keys(packageState[t.id]?.documents||{}).length;
  const nVerified=Object.values(combinedFields(t.id)).filter(isVerified).length;
@@ -30,6 +32,7 @@ function renderFeed(){const host=$('live-results');if(!host)return;const tokens=
  const panes=[
   plain&&['plain','מה המכרז דורש',plain],
   lines&&['lines',`הקווים${nLines?` · ${nLines}`:''}`,lines],
+  review&&['review',`הקווים · ${documentReviews[t.id].routes.length}`,review],
   cond&&['cond','כל הסעיפים',cond],
   files.trim()&&['files',`הקבצים${nDocs?` · ${nDocs}`:''}`,files],
   !plain&&['fields',`פרטים שנבדקו${nVerified?` · ${nVerified}`:''}`,`${t.discoveryNote?`<p class="muted">${esc(t.discoveryNote)}</p>`:''}${renderFields(t)}`],
@@ -146,7 +149,7 @@ function renderDocumentReview(t){
  const r=documentReviews[t.id];if(!r||!r.routes?.length)return '';
  // בלי פסקאות שנכתבו בידי מודל שפה (שלמה 16.09). נשארת רק טבלת הקווים שתועתקה
  // מעמודי המסמך, עם ציון העמוד — עד שהקריאה האוטומטית של המסמך תחליף אותה.
- return `<details class="fielddetails review-details"><summary>קווים מתוך טבלת המסמך · ${r.routes.length} (תעתוק מעמודי המסמך, בבדיקה)</summary><p class="muted">הטבלה תועתקה ידנית מעמודי המסמך המקושר ועדיין לא אומתה בקריאה אוטומטית. כל קו מקושר לעמוד שלו.</p><div class="routechips">${r.routes.map((route,i)=>`<button data-reviewed-tender="${esc(t.id)}" data-reviewed-route="${i}" aria-haspopup="dialog">${esc(route.number)} · ${esc(route.area)}</button>`).join('')}</div></details>`;
+ return `<details class="fielddetails review-details" open><summary>קווים מתוך טבלת המסמך · ${r.routes.length} (תעתוק מעמודי המסמך, בבדיקה)</summary><p class="muted">הטבלה תועתקה מעמודי המסמך בסריקה הקודמת${r.routeTableCheck?.pages?.length?` (עמודים ${r.routeTableCheck.pages[0]}–${r.routeTableCheck.pages.at(-1)})`:''} ועדיין לא אומתה בקריאה אוטומטית${r.document?.url?`, כי <a href="${esc(r.document.url)}" target="_blank" rel="noopener">הקובץ באתר gov.il</a> חסום להורדה אוטומטית`:''}. לחיצה על קו מראה את השורה שלו ואת העמוד.</p><div class="routechips">${r.routes.map((route,i)=>`<button data-reviewed-tender="${esc(t.id)}" data-reviewed-route="${i}" aria-haspopup="dialog">${esc(route.number)} · ${esc(route.area)}</button>`).join('')}</div></details>`;
 }
 fetch('document-reviews.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('Review unavailable');return r.json()}).then(r=>{documentReviews=r;renderFeed()}).catch(()=>{});
 document.addEventListener('click',async event=>{
@@ -173,9 +176,10 @@ function renderPackage(t,hasLines){
  const docs=Object.values(p.documents||{}),downloaded=docs.filter(d=>d.sha256),failed=docs.filter(d=>d.status==='retry_pending');
  const total=downloaded.reduce((n,d)=>n+(d.units||0),0);
  const routes=allPackageRoutes(t.id);
- const kinds={not_found:'הקישור לא נמצא (404) — ייתכן שהמסמך הוחלף בפורטל',blocked:'האתר חסם את ההורדה (403)',timeout:'זמן קצוב — ייבדק שוב בלילה'};
+ const kinds={not_found:'הקישור לא נמצא (404) — ייתכן שהמסמך הוחלף בפורטל',blocked:'אתר gov.il חוסם הורדה אוטומטית (403). אפשר להוריד ידנית ולשמור בתיקייה tenders/manual באותו שם קובץ, והמערכת תקרא אותו',timeout:'זמן קצוב — ייבדק שוב בלילה'};
+ const kindOf=d=>d.errorKind||(/403/.test(d.error||'')?'blocked':/404/.test(d.error||'')?'not_found':/timed out|Timeout/i.test(d.error||'')?'timeout':'');
  // הפרטים שנקראו מהמסמכים מוצגים פעם אחת, ב"פרטים שנבדקו"; כאן רק רשימת המסמכים (שלמה 16.09)
- return `<details class="fielddetails package-summary"><summary>הקבצים המקוריים של המכרז להורדה · ${docs.length} קבצים${failed.length?` · ${failed.length} לא ירדו`:''}</summary><p class="muted">${downloaded.length} מסמכים נקראו לטקסט, ${total} עמודים או גיליונות.${failed.length?` הורדת ${failed.length} מסמכים נכשלה.`:''}${!p.listingOk?' לא ניתן היה לעדכן את רשימת המסמכים מהמקור בבדיקה האחרונה.':''}</p><ul>${docs.map(d=>`<li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(decodeURIComponent(d.url.split('/').pop()))}</a> · ${d.status==='extracted'?`${d.units} עמודים או יחידות תוכן`:d.status==='retry_pending'?(kinds[d.errorKind]||'הורדה לא הצליחה'):'ממתין להורדה'}</li>`).join('')}</ul>
+ return `<details class="fielddetails package-summary"><summary>הקבצים המקוריים של המכרז להורדה · ${docs.length} קבצים${failed.length?` · ${failed.length} לא ירדו`:''}</summary><p class="muted">${downloaded.length} מסמכים נקראו לטקסט, ${total} עמודים או גיליונות.${failed.length?` הורדת ${failed.length} מסמכים נכשלה.`:''}${!p.listingOk?' לא ניתן היה לעדכן את רשימת המסמכים מהמקור בבדיקה האחרונה.':''}</p><ul>${docs.map(d=>`<li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(decodeURIComponent(d.url.split('/').pop()))}</a> · ${d.status==='extracted'?`${d.units} עמודים או יחידות תוכן`:d.status==='retry_pending'?(kinds[kindOf(d)]||'הורדה לא הצליחה'):'ממתין להורדה'}${d.manualFile?' · מקובץ שהורד ידנית':''}</li>`).join('')}</ul>
  ${routes.length&&!hasLines?`<details class="fielddetails"><summary>קווים מתוך מסמכי המכרז · ${routes.length} רשומות</summary><p class="muted">הרשימה מבוססת על המסמכים המקושרים. השלמת כל הכיוונים, החלופות וההבהרות עדיין בבדיקה.</p><div class="routechips">${routes.map((r,i)=>`<button data-package-tender="${esc(t.id)}" data-package-route="${i}" aria-haspopup="dialog">${esc(r.number)} · ${esc(r.area)}</button>`).join('')}</div></details>`:''}</details>`;
 }
 const packageDataReady=Promise.all(['packages-state.json','automatic-summaries.json','semantic-reviews.json'].map(async name=>{const r=await fetch(name,{cache:'no-cache'});if(!r.ok)throw new Error(name);return r.json();})).then(([p,a,s])=>{packageState=p.tenders||{};automaticSummaries=a.tenders||{};semanticReviews=s.tenders||{};renderFeed();}).catch(()=>{});

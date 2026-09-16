@@ -27,6 +27,7 @@ VERSION = 2
 HOSTS = {'mr.gov.il', 'www.gov.il', 'gov.il', 'www.golan.org.il', 'golan.org.il'}
 STATE = ROOT / 'packages-state.json'
 CACHE = pathlib.Path(tempfile.gettempdir()) / 'tender-packages'
+MANUAL = ROOT / 'manual'   # קבצים שהורדו ידנית מאתר gov.il (שחוסם הורדה אוטומטית)
 
 
 def official(url):
@@ -169,7 +170,13 @@ def process(item, key, prior, cache, force=False):
     result = {**prior, 'attemptedAt':stamp()}
     try:
         if not official(prior['url']): raise ValueError('מקור המסמך אינו רשמי')
-        body, cut, *_ = fetch_with_retry(prior['url'], 80_000_000)
+        # קובץ שהורד ידנית (אתר gov.il חוסם הורדה אוטומטית): tenders/manual/<שם הקובץ כמו בכתובת>
+        manual = MANUAL / urllib.parse.unquote(prior['url'].rstrip('/').rsplit('/', 1)[-1])
+        if manual.exists() and manual.stat().st_size > 1000:
+            body, cut = manual.read_bytes(), False
+            result['manualFile'] = manual.name
+        else:
+            body, cut, *_ = fetch_with_retry(prior['url'], 80_000_000)
         if cut: raise ValueError('המסמך חורג ממגבלת 80 MB')
         digest = hashlib.sha256(body).hexdigest()
         folder = cache / digest; folder.mkdir(parents=True, exist_ok=True)
@@ -222,6 +229,7 @@ def make_queue(state, cache):
 def main(argv=None):
     parser = argparse.ArgumentParser(); parser.add_argument('--limit',type=int,default=120)
     parser.add_argument('--cache',type=pathlib.Path,default=CACHE); parser.add_argument('--force',action='store_true'); parser.add_argument('--skip-discovery',action='store_true')
+    parser.add_argument('--retry-failed',action='store_true',help='לנסות שוב עכשיו כל מסמך שההורדה שלו נכשלה, בלי לחכות להשהיה')
     args=parser.parse_args(argv);args.cache.mkdir(parents=True,exist_ok=True)
     feeds=read(ROOT/'tenders-feed.json',{'items':[]})['items']+read(ROOT/'archive-feed.json',{'items':[]})['items']
     items={i['id']:i for i in feeds if i['classification']=='operating_tender'}
@@ -236,7 +244,7 @@ def main(argv=None):
     due=[];now=stamp()
     for tid,item in items.items():
         for key,doc in state['tenders'][tid]['documents'].items():
-            if doc.get('nextCheckAt','') <= now or args.force or (doc.get('sha256') and not (args.cache/doc['sha256']/'units.json').exists()):
+            if doc.get('nextCheckAt','') <= now or args.force or (args.retry_failed and doc.get('status')=='retry_pending') or (doc.get('sha256') and not (args.cache/doc['sha256']/'units.json').exists()):
                 due.append((item,key,doc))
     # Fresh documents first, then least recently attempted; bounded, fair and resumable.
     groups={}

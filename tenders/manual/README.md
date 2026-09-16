@@ -1,0 +1,1 @@
+קבצים שהורדו ידנית מאתר gov.il (שחוסם הורדה אוטומטית). שם הקובץ צריך להיות בדיוק כמו בסוף הכתובת, למשל TenderNorthernNegev.pdf, SharonHolonTender.pdf, HaderaNetanyaTender.pdf. המערכת קוראת אותם במקום להוריד.

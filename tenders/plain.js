@@ -130,6 +130,15 @@ function renderGlossary() {
 }
 
 const keyOf = (fields, fld) => Object.keys(fields).find(k => fields[k] === fld) || '';
+/* מכרז שהקובץ שלו לא ירד (צפון הנגב — gov.il חוסם): מה שנמצא בסריקה הקודמת, עם עמוד לכל פרט.
+   מוצג רק כשאין לנו סעיפים שנקראו בקוד מהמסמך הזה. */
+function renderPreviousScan(id) {
+  const r = (typeof documentReviews !== 'undefined' ? documentReviews : {})[id];
+  const haveSections = typeof sectionsIndex !== 'undefined' && sectionsIndex.tenders?.[id];
+  if (!r || !r.sections?.length || haveSections) return '';
+  const url = r.document?.url || '';
+  return `<div class="plain-group prev-scan"><h4>מהסריקה הקודמת של המסמך</h4><p class="muted">הקובץ (${r.document?.pages || '?'} עמודים) חסום להורדה אוטומטית מאתר gov.il, ולכן הפרטים האלה הם מהסריקה הקודמת, לפי עמודים במסמך, ולא נקראו מחדש בקוד.</p><ul>${r.sections.map(sec => `<li><b>${esc(sec.title)}</b>: ${esc(sec.text)}${url ? ` <a class="fsrc" href="${esc(url)}#page=${sec.page}" target="_blank" rel="noopener">עמוד ${sec.page}${sec.alsoPages?.length ? `, ${sec.alsoPages.join(', ')}` : ''} ↗</a>` : ''}</li>`).join('')}</ul></div>`;
+}
 function renderPlainFacts(id) {
   if (typeof combinedFields !== 'function') return '';
   const f = combinedFields(id);
@@ -152,6 +161,7 @@ function renderPlainFacts(id) {
     <p class="plain-intro">המדינה מחפשת חברה שתפעיל את ${what}${cluster}. מי שיזכה יקבל תשלום מהמדינה, ובתמורה יצטרך לעמוד בדרישות האלה. ליד כל משפט קישור לסעיף במסמך.</p>
     <div class="plain-grid">${groups.join('')}</div>
     ${keyList.length ? `<details class="fielddetails keysecs"><summary>הסעיפים העיקריים · ${keyList.length}</summary><ol class="keysecs-list">${keyList.join('')}</ol></details>` : ''}
+    ${renderPreviousScan(id)}
     ${typeof renderPendingFields === 'function' ? renderPendingFields(id) : ''}
     ${renderGlossary()}</section>`;
 }
