@@ -484,7 +484,13 @@
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=56",
 "locator": "סעיף 28.7, עמוד PDF 56"
 }
-]
+],
+"sec": {
+"n": "28.4",
+"t": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18נקודות:",
+"brief": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18 נקודות: 45",
+"p": 51
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
@@ -842,7 +848,13 @@
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDCB7993DB1248B8135/מסמכי הליך#page=58",
 "locator": "סעיף 28.7, עמוד PDF 58"
 }
-]
+],
+"sec": {
+"n": "28.4",
+"t": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18נקודות:",
+"brief": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18 נקודות: 45",
+"p": 52
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
@@ -1199,7 +1211,13 @@
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB3BE6BC0A615C/מסמכי הליך#page=59",
 "locator": "סעיף 28.7, עמוד PDF 59"
 }
-]
+],
+"sec": {
+"n": "28.4",
+"t": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18נקודות:",
+"brief": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18 נקודות: 47",
+"p": 53
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
@@ -1595,7 +1613,13 @@
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=58",
 "locator": "סעיף 28.7, עמוד PDF 58"
 }
-]
+],
+"sec": {
+"n": "28.4",
+"t": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18נקודות:",
+"brief": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18 נקודות: 47",
+"p": 53
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
@@ -1973,7 +1997,13 @@
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=59",
 "locator": "סעיף 28.7, עמוד PDF 59"
 }
-]
+],
+"sec": {
+"n": "28.4",
+"t": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18נקודות:",
+"brief": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 18 נקודות: 47",
+"p": 54
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
@@ -2499,7 +2529,13 @@
 "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=61",
 "locator": "סעיף 28.7, עמוד PDF 61"
 }
-]
+],
+"sec": {
+"n": "28.4",
+"t": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 24נקודות:",
+"brief": "ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה התפעולית – 24 נקודות: ציון הבקרה, ציון סקר שביעות הרצון, ציון שביעות הרצון מהנהג ושיעור הביצוע של מציע לתקופת בקרה…",
+"p": 55
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
@@ -6298,7 +6334,13 @@
 "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=58",
 "locator": "סעיף 28.7, עמוד PDF 58"
 }
-]
+],
+"sec": {
+"n": "28.5",
+"t": "הצעה תפעולית – 26נקודות ,כדלקמן: 18B",
+"brief": "הצעה תפעולית – 26 נקודות, כדלקמן: 18B: החברה המתמודדת תגיש את הצעתו התפעולית לפי דרישות המפורטות במסמכי המכרז 48 בכלל, ובפרט בדגש לסעיפים המפורטים:",
+"p": 54
+}
 },
 "scoring.minimum_quality": {
 "status": "not_found",
