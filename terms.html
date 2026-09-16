@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>תנאי שימוש ופרטיות — הקו הבוחן</title>
   <meta name="description" content="תנאי השימוש ומדיניות הפרטיות של הקו הבוחן: מה האתר, מאיפה הנתונים, מה מותר לעשות איתם, הגבלת אחריות ומה נשמר על המשתמשים." />
+  <meta name="page-version" content="2026-09-16.3" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet" />
@@ -105,5 +106,21 @@
     <p><a href="accessibility.html">הצהרת נגישות</a> · <a href="./">→ חזרה לאתר</a></p>
   </div>
   <script src="a11y.js" defer></script>
+  <script>
+  // אם הדפדפן הראה עותק ישן מהמטמון: מביאים את הגרסה העדכנית מהשרת (עוקף את המטמון ומעדכן אותו),
+  // ואם היא שונה — טוענים מחדש פעם אחת. שלמה (16.09): "תדאג שהוא ימחק לבד את המטמון".
+  (async () => {
+    try {
+      const mine = document.querySelector('meta[name="page-version"]')?.content;
+      if (!mine || sessionStorage.getItem('page-refreshed:' + location.pathname)) return;
+      const html = await (await fetch(location.pathname, { cache: 'reload' })).text();
+      const theirs = html.match(/name="page-version" content="([^"]+)"/)?.[1];
+      if (theirs && theirs !== mine) {
+        sessionStorage.setItem('page-refreshed:' + location.pathname, '1');
+        location.reload();
+      }
+    } catch (e) { /* בלי רשת — נשארים עם מה שיש */ }
+  })();
+  </script>
 </body>
 </html>
