@@ -21,13 +21,13 @@ import urllib.parse
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-from package_pipeline import CACHE, STATE  # noqa: E402
+from package_pipeline import CACHE, STATE, ensure_cached  # noqa: E402
 
 MAPS = ROOT / 'maps'
 OUT = ROOT / 'maps.json'
 MAX_PER_DOC = 40
 NUM = r'N?\d{1,4}[א-ת]?'
-HEURISTIC = 2          # גרסת הכללים; כשמשנים אותם, כל העמודים נבדקים מחדש ולא נשמרים מהריצה הקודמת
+HEURISTIC = 3          # גרסת הכללים; כשמשנים אותם, כל העמודים נבדקים מחדש ולא נשמרים מהריצה הקודמת
 # מילים שמעידות שהעמוד הוא מפה או תרשים — בשורה קצרה (כיתוב), לא בתוך פסקה
 MAP_WORDS = re.compile(r'מפת |מפה\b|מפה |להלן מפה|לאורך המסלול|תיאור מסלול|מסלול הקו|מפת המסלול|תרשים|תוואי|סכמת|סכמה')
 TOC_MARK = re.compile(r'תוכן העניינים|תוכן עניינים')
@@ -105,6 +105,13 @@ def main():
     feeds = read(ROOT / 'tenders-feed.json', {'items': []})['items'] + read(ROOT / 'archive-feed.json', {'items': []})['items']
     operating = {i['id'] for i in feeds if i.get('classification') == 'operating_tender'}
     previous = read(OUT, {'tenders': {}})['tenders']
+    sections_index = read(ROOT / 'sections-index.json', {'tenders': {}})['tenders']
+    main_docs = set()
+    for tid, meta in sections_index.items():
+        sec = read(ROOT / meta['file'], None) if meta.get('file') else None
+        for d in (sec or {}).get('docs', []):
+            if d.get('sha256'):
+                main_docs.add(d['sha256'])
     result = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
     scanned = 0
     for tid, tender in state['tenders'].items():
@@ -120,6 +127,10 @@ def main():
             if done and all((ROOT / m['image']).exists() for m in done):
                 found += done          # כבר הופק בריצה קודמת — לא מרנדרים שוב
                 continue
+            # המטמון ריק בכל ריצה: מסמך שהיו בו מפות, או המסמך הראשי של המכרז — מורידים כדי לבדוק שוב
+            had = [m for m in previous.get(tid, []) if m.get('sha256') == sha]
+            if not src.exists() and (had or sha in main_docs):
+                src = ensure_cached(sha, doc['url']) or src
             if not src.exists() or not src.read_bytes()[:4] == b'%PDF':
                 found += done
                 continue

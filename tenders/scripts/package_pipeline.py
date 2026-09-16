@@ -166,6 +166,24 @@ def fetch_with_retry(url, limit, tries=3):
     raise last
 
 
+def ensure_cached(sha, url, cache=None):
+    """המטמון של הריצה מתחיל ריק בכל ריצה בגיטהאב; מסמך שצריך לצלם/לסרוק ולא ירד בריצה הזו — מורידים אותו
+    עכשיו ומוודאים שזה אותו קובץ (אותו sha256). מחזיר את הנתיב, או None."""
+    cache = cache or CACHE
+    path = cache / sha / 'source.bin'
+    if path.exists():
+        return path
+    try:
+        body, cut, *_ = fetch_with_retry(url, 80_000_000)
+        if cut or hashlib.sha256(body).hexdigest() != sha:
+            return None
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+        return path
+    except Exception:
+        return None
+
+
 def process(item, key, prior, cache, force=False):
     result = {**prior, 'attemptedAt':stamp()}
     try:

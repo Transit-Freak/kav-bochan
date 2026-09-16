@@ -16,7 +16,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-from package_pipeline import CACHE  # noqa: E402
+from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
@@ -91,8 +91,8 @@ def main():
             if prev and prev.get('sha') == sha and prev.get('page') == pno and prev.get('v') == VERSION and (ROOT / prev['image']).exists():
                 result['tenders'].setdefault(tid, {})[key] = prev; kept += 1
                 continue
-            path = CACHE / sha / 'source.bin'
-            if not path.exists() or path.read_bytes()[:4] != b'%PDF':
+            path = ensure_cached(sha, url)          # המטמון ריק בכל ריצה — מורידים את המסמך אם צריך
+            if not path or path.read_bytes()[:4] != b'%PDF':
                 continue
             try:
                 pdf = pdfs.get(sha) or fitz.open(str(path)); pdfs[sha] = pdf
