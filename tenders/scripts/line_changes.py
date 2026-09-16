@@ -31,6 +31,7 @@ import pathlib
 import re
 import sys
 import urllib.parse
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -290,6 +291,23 @@ def dedupe(items, key):
     return out
 
 
+def quote_brief(quote, max_len=200):
+    """המשפט הראשון של הציטוט + משפט שמדבר על מה שעשוי להשתנות (ייתכן/יורה/רשאי), במילים פשוטות."""
+    from tender_sections import tidy, simplify, sentences, BOILER
+    sents = [x for x in sentences(tidy(quote)) if len(x) > 8]
+    if not sents:
+        return ''
+    lead = next((x for x in sents if not BOILER.match(simplify(x))), sents[0])
+    out = [simplify(lead)]
+    extra = next((x for x in sents if x is not lead and re.search(r'ייתכן|יורה|רשאי|יכול|צפוי|מתוכנן|יבוטל|ישונה|יופעל', x)), None)
+    if extra:
+        out.append(simplify(extra))
+    text = ' '.join(x for x in out if x)
+    if len(text) > max_len:
+        text = text[:max_len].rsplit(' ', 1)[0].rstrip(' ,;:-–') + '…'
+    return text
+
+
 def main():
     index = json.load(open(TEXT / 'index.json', encoding='utf-8'))['documents'] if (TEXT / 'index.json').exists() else {}
     packages = json.load(open(ROOT / 'packages-state.json', encoding='utf-8'))['tenders'] if (ROOT / 'packages-state.json').exists() else {}
@@ -313,6 +331,11 @@ def main():
         result['tenders'][tid] = dedupe(result['tenders'][tid], lambda it: (it['quote'], tuple(it['numbers'])))
     for tid in list(result['sections']):
         result['sections'][tid] = dedupe(result['sections'][tid], lambda it: (it['section'], it['quote']))
+    # "בקצרה" לכל ציטוט: המשפט שאומר מה קורה, במילים פשוטות (הציטוט המלא נשמר כפי שהוא)
+    for coll in (result['tenders'], result['sections']):
+        for items in coll.values():
+            for it in items:
+                it['brief'] = quote_brief(it['quote'])
     tmp = OUT.with_suffix('.tmp')
     tmp.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')) + '\n')
     tmp.replace(OUT)

@@ -84,7 +84,7 @@ async function fillLines(details) {
   const orphan = quotes.filter(q => !used.has(q));
   const notIn = td?.clusterExact && td.notInTender?.length ? `<details class="fielddetails"><summary>קווים שרצים היום באשכול ״${esc(td.clusterName)}״ ואינם בטבלת המכרז · ${td.notInTender.length}</summary><p class="muted">לפי קובץ ״אשכול לקו״ של משרד התחבורה ולוח הזמנים של ${fdDate(todayData.gtfsDate)}. זה לא אומר בהכרח שהקווים יבוטלו: ייתכן שהם בנספח אחר או במספר אחר.</p><ul>${td.notInTender.map(([mk, num, name, op]) => `<li><b>${esc(num)}</b> · ${esc(name)} · ${esc(op)} <small class="muted">מק״ט ${esc(mk)}</small></li>`).join('')}</ul></details>` : '';
   const notes = sectionNotes(id);
-  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length} פסקאות</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span><p>${esc(n.quote)}</p><small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a></small></blockquote>`).join('')}</details>` : '';
+  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length} פסקאות</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span>${quoteBody(n)}<small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a></small></blockquote>`).join('')}</details>` : '';
   body.innerHTML = `${notesHtml}${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
     ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>כיוונים וחלופות</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">לחיצה על קו: התחנות והמסלול מהנספח, הציטוטים מהמסמך ומה רץ היום.</p>` : '<p class="muted">למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.</p>'}
     ${orphan.length ? `<details class="fielddetails"><summary>ציטוטים על קווים שאינם בטבלת הנספח · ${orphan.length}</summary>${orphan.map(renderQuote).join('')}</details>` : ''}
@@ -113,8 +113,13 @@ document.addEventListener('click', e => {
   downloadCSV(`kavim-mikhraz-${id}.csv`, ['קו', 'מק"ט', 'יישוב', 'מוצא', 'יעד', 'כיוונים וחלופות', 'היום', 'מפעיל היום', 'מספר היום', 'מה כתוב במכרז', 'ציטוטים'], rows);
 });
 
+// ציטוט: קודם השורה במילים פשוטות, והציטוט המלא של המשרד מתקפל מתחת כפי שהוא
+function quoteBody(q) {
+  const b = q.brief && q.brief.replace(/…$/, '') !== q.quote ? q.brief : '';
+  return b ? `<p class="brief">${esc(b)}</p><details class="fullquote"><summary>הציטוט המלא מהמסמך</summary><p>${esc(q.quote)}</p></details>` : `<p>${esc(q.quote)}</p>`;
+}
 function renderQuote(q) {
-  return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}</span><p>${esc(q.quote)}</p><small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a></small></blockquote>`;
+  return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}</span>${quoteBody(q)}<small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a></small></blockquote>`;
 }
 
 /* Leaflet נטען רק כשפותחים קו */

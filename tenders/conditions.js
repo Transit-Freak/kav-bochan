@@ -23,7 +23,7 @@ function renderConditionsSection(t) {
   const parts = [];
   if (meta) parts.push(`${meta.sections.toLocaleString('he-IL')} סעיפים לפי נושא: שכר, תמורה, ערבויות, קנסות, צי ועוד`);
   if (maps.length) parts.push(`${maps.length} מפות מהמסמך`);
-  return `<details class="fielddetails cond-section" data-keep-open="cond:${esc(t.id)}" data-cond-tender="${esc(t.id)}"><summary>מה המכרז דורש, בשפה פשוטה · ${parts.join(' · ')}</summary><div class="cond-body"><p class="muted">טוען את סעיפי המסמך…</p></div></details>`;
+  return `<details class="fielddetails cond-section" data-keep-open="cond:${esc(t.id)}" data-cond-tender="${esc(t.id)}"><summary>כל הסעיפים במסמך · ${parts.join(' · ')}</summary><div class="cond-body"><p class="muted">טוען את סעיפי המסמך…</p></div></details>`;
 }
 
 const condState = {};   // tid → {topic}
@@ -49,14 +49,16 @@ function renderConditionsBody(id, body, doc) {
   const maps = tenderMaps.tenders?.[id] || [];
   const st = condState[id] = condState[id] || { topic: null, toc: false };
   let html = '';
+  const wide = window.matchMedia('(min-width:761px)').matches;
   if (doc) {
+    html += `<div class="allsecs-in">`;
     const topics = Object.entries(sectionsIndex.tenders[id].topics || {});
     if (!st.topic && topics.length) st.topic = topics[0][0];
     const q = (st.q || '').trim();
     const hit = s => !q || (s.t + ' ' + s.text).includes(q);
     // חיפוש חופשי עובר על כל המסמך; בלי חיפוש — לפי הנושא שנבחר
     const secs = doc.sections.filter(s => q ? hit(s) : (st.topic === '__all__' ? true : s.topics.includes(st.topic)));
-    html += `<p class="muted">כל שורה היא סעיף אחד מהמכרז, במילים פשוטות (הניסוח המשפטי מוחלף במילים יומיומיות לפי רשימת חוקים קבועה, לא מודל שפה). לחיצה על השורה מראה את הציטוט המקורי של משרד התחבורה כפי שהוא, עם קישור לעמוד במסמך (${doc.pages} עמודים, ${doc.sections.length} סעיפים ממוספרים${(doc.docs || []).length > 1 ? `, מ-${doc.docs.length} מסמכים: ${doc.docs.map(d => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a>`).join(' · ')}` : `: <a href="${esc(doc.doc)}" target="_blank" rel="noopener">המסמך המלא ↗</a>`}). השיוך לנושא לפי כותרת הסעיף.</p>
+    html += `<p class="muted">כל שורה היא סעיף אחד מהמכרז, בניסוח קצר. לחיצה על השורה מראה את הציטוט המקורי וקישור לעמוד במסמך (${doc.pages} עמודים, ${doc.sections.length} סעיפים${(doc.docs || []).length > 1 ? `, מ-${doc.docs.length} קבצים: ${doc.docs.map(d => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a>`).join(' · ')}` : `: <a href="${esc(doc.doc)}" target="_blank" rel="noopener">המסמך המלא ↗</a>`}).</p>
       <div class="filters cond-topics">${topics.map(([t, n]) => `<button class="tchip ${!q && st.topic === t ? 'on' : ''}" data-cond-topic="${esc(t)}" data-cond-id="${esc(id)}">${esc(t)} · ${n}</button>`).join('')}<button class="tchip ${!q && st.topic === '__all__' ? 'on' : ''}" data-cond-topic="__all__" data-cond-id="${esc(id)}">תוכן העניינים · ${doc.toc.length}</button></div>
       <label class="cond-topic-select">נושא <select data-cond-select="${esc(id)}" aria-label="בחירת נושא">${topics.map(([t, n]) => `<option value="${esc(t)}" ${!q && st.topic === t ? 'selected' : ''}>${esc(t)} · ${n}</option>`).join('')}<option value="__all__" ${!q && st.topic === '__all__' ? 'selected' : ''}>תוכן העניינים · ${doc.toc.length}</option></select></label>
       <p class="cond-search"><input type="search" data-cond-search="${esc(id)}" value="${esc(st.q || '')}" placeholder="חיפוש מילה בכל סעיפי המסמך, למשל: שכר, ערבות, מפרקי" aria-label="חיפוש בסעיפי המכרז">${q ? `<small class="muted">${secs.length} סעיפים עם "${esc(q)}"</small>` : ''}<button data-cond-csv="${esc(id)}" title="הסעיפים המוצגים כרגע, כקובץ לאקסל">הורדה (CSV)</button></p>`;
@@ -69,9 +71,10 @@ function renderConditionsBody(id, body, doc) {
       const full = s => isHeading(s) ? s.text : (s.t + ' ' + s.text).trim();
       const brief = s => s.brief ? `<span class="brief">${esc(s.brief)}</span>` : head(s);
       const title = s => isHeading(s) ? `<span class="ctitle">${esc(s.t)}</span> ` : '';
-      html += secs.length ? secs.map(s => `<details class="csec"><summary><b>${esc(s.n)}</b> ${s.brief ? title(s) : ''}${brief(s)} <small class="muted">· ${s.d ? esc(s.d) + ' · ' : ''}עמוד PDF ${s.p}</small>${s.numbers.length ? `<span class="nums">${s.numbers.slice(0, 8).map(x => `<span class="numchip">${esc(x)}</span>`).join('')}</span>` : ''}</summary><blockquote class="linequote"><small class="muted">הציטוט המקורי מהמסמך:</small><p>${esc(full(s) || 'הסעיף ריק בטקסט שחולץ (ייתכן טבלה או תמונה).')}</p><small><a href="${esc(s.u || doc.doc)}#page=${s.p}" target="_blank" rel="noopener">לעמוד במסמך ↗</a></small></blockquote></details>`).join('') : '<p class="muted">אין סעיפים בנושא הזה.</p>';
+      html += secs.length ? secs.map(s => `<details class="csec"><summary><b>${esc(s.n)}</b> ${s.brief ? title(s) : ''}${brief(s)} <small class="muted">· ${s.d ? esc(s.d) + ' · ' : ''}עמוד PDF ${s.p}</small>${(s.nums || []).length || s.numbers.length ? `<span class="nums">${(s.nums || s.numbers.map(v => [v, ''])).slice(0, 6).map(([v, c]) => `<span class="numchip"><b>${esc(v)}</b>${c && c !== v ? ` <small>${esc(c)}</small>` : ''}</span>`).join('')}</span>` : ''}</summary><blockquote class="linequote"><small class="muted">הציטוט המקורי מהמסמך:</small><p>${esc(full(s) || 'הסעיף ריק בטקסט שחולץ (ייתכן טבלה או תמונה).')}</p><small><a href="${esc(s.u || doc.doc)}#page=${s.p}" target="_blank" rel="noopener">לעמוד במסמך ↗</a></small></blockquote></details>`).join('') : '<p class="muted">אין סעיפים בנושא הזה.</p>';
     }
   }
+  if (doc) html += '</div>';
   if (maps.length) {
     html += `<details class="fielddetails" ${doc ? '' : 'open'}><summary>מפות ותרשימים שהועתקו מהמסמכים · ${maps.length}</summary><p class="muted">צילום של העמוד במסמך, כפי שהוא. הכיתוב הוא שורה מהעמוד עצמו.</p><div class="tmaps">${maps.map(renderMap).join('')}</div></details>`;
   }

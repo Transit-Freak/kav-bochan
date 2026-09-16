@@ -39,11 +39,11 @@ def src(doc, s, extra=''):
     return {'url': f"{s.get('u') or doc['doc']}#page={s['p']}", 'locator': f"{where}סעיף {s['n']}, עמוד PDF {s['p']}{extra}"}
 
 
-def find(secs, pattern, prefix=None, flags=0):
+def find(secs, pattern, prefix=None, flags=0, strict=False):
     """הסעיף הראשון שמתאים. prefix הוא מספר הסעיף המועדף בתבנית משרד התחבורה (למשל 38 = מצבת האוטובוסים);
     אם אין התאמה שם — מחפשים בכל המסמך, כי במכרזי מוניות ובמכרזים ישנים המספור שונה."""
     rx = re.compile(pattern, flags)
-    for only_prefix in ((True, False) if prefix else (False,)):
+    for only_prefix in ((True,) if (prefix and strict) else (True, False) if prefix else (False,)):
         for s in secs:
             if only_prefix and not (s['n'] == prefix or s['n'].startswith(prefix + '.')):
                 continue
@@ -108,7 +108,9 @@ def num(s):
 
 
 def V(value, doc, s, **kw):
-    f = {'status': 'verified', 'value': value, 'sources': [src(doc, s)]}
+    # sec: הסעיף שממנו נלקח הערך — כדי שהאתר יציג "הסעיפים העיקריים שמצאנו" בלי לטעון את כל המסמך
+    f = {'status': 'verified', 'value': value, 'sources': [src(doc, s)],
+         'sec': {'n': s['n'], 't': s['t'][:90], 'brief': (s.get('brief') or '')[:220], 'p': s['p'], **({'d': s['d']} if s.get('d') else {})}}
     f.update({k: v for k, v in kw.items() if v is not None})
     return f
 
@@ -179,7 +181,7 @@ def rules(doc, secs, today, route_meta, known):
     if s:
         out['eligibility.licenses'] = V('רישיון תקף להסעת נוסעים בקווי שירות בתחבורה ציבורית', doc, s, notes=ts.simplify(sentence_around(full(s), m.start()))[:260])
     if not verified('eligibility.drivers'):
-        s, m = find(secs, r'לפחות\s*\d+\s*נהגים|\d+\s*נהגים לפחות|מעסיק\s*\d+\s*נהגים', '4')
+        s, m = find(secs, r'לפחות\s*\d+\s*נהגים|\d+\s*נהגים לפחות|מעסיק\s*\d+\s*נהגים', '4', strict=True)   # רק בתנאי הסף, לא במענק ההכשרה
         if s:
             out['eligibility.drivers'] = V(ts.simplify(sentence_around(full(s), m.start()))[:200], doc, s)
         elif any(x['n'].startswith('4') for x in secs):
@@ -263,6 +265,25 @@ def rules(doc, secs, today, route_meta, known):
             parts.append(f'איחור בתחילת ההפעלה: עד {m.group(1)} אלף ₪ לכל שבוע')
         srcs = ([src(doc, s)] if s else []) + [src(doc, pen[0])] if pen else [src(doc, s)]
         out['penalties.amount'] = {'status': 'verified', 'value': '; '.join(parts), 'sources': srcs, 'notes': 'הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים.'}
+
+    # --- עובדות במילים פשוטות (לא בקטלוג השדות; משמשות את "בקצרה למי שלא מבין במכרזים") ------------
+    s, m = find(secs, r'מענק (?:בסך|של)\s*(\d+)\s*אלף\s*₪\s*(?:בגין|על) כל נהג.{0,80}?(?:עד לתקרה של|עד)\s*(\d+)\s*נהגים')
+    if s:
+        out['facts.driver_grant'] = V(f'המדינה תשלם לחברה מענק של {m.group(1)} אלף ₪ על כל נהג חדש שהיא תכשיר, עד {m.group(2)} נהגים.', doc, s)
+    s, m = find(secs, r'שכר היסוד לשעה')
+    if s:
+        txt = 'כל חברה שמתמודדת צריכה לכתוב בהצעה כמה שכר לשעה היא תשלם לנהגים, ולעמוד בזה כל תקופת המכרז.'
+        s2, m2 = find(secs, r'רשאי לפרסם לנהגים.{0,40}?שכר')
+        if s2:
+            txt += ' משרד התחבורה יכול לפרסם לנהגים כמה הובטח להם.'
+        out['facts.driver_wage'] = V(txt, doc, s)
+    s, m = find(secs, r'סובסידיה שוטפת')
+    s2, m2 = find(secs, r'עלות ההפעלה השנתית')
+    if s and s2:
+        out['facts.payment_model'] = V('המדינה משלמת לחברה סובסידיה: עלות ההפעלה השנתית שנקבעה, פחות מה שנכנס מהנוסעים.', doc, s)
+    s, m = find(secs, r'תוספת לעלות ההפעלה השנתית|תוספת ק"מ לממשלה')
+    if s:
+        out['facts.bid_type'] = V('כל חברה אומרת כמה תוספת היא רוצה מעל עלות ההפעלה, או כמה קילומטרים היא מוכנה לתת בחינם. מי שזול יותר למדינה מקבל יותר נקודות.', doc, s)
 
     # --- זוכה ---------------------------------------------------------------------------------
     for key in ('award.winner', 'award.awarded_price'):
