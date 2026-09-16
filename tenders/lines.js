@@ -22,6 +22,10 @@ function quotesFor(id, number, catalog) {
   const n = normNum(number), mk = catalog ? String(catalog) : null;
   return items.filter(q => (mk && (q.makats || []).includes(mk)) || ((q.makats || []).length === 0 && q.numbers.some(x => normNum(x) === n)));
 }
+function hasChangeSection(id) {
+  return (lineChanges.sections?.[id] || []).length > 0 || (lineChanges.tenders?.[id] || []).length > 0;
+}
+const ROUTE_TAGS = new Set(['שינוי מסלול', 'קו חדש', 'הארכה', 'קיצור', 'חלופה', 'איחוד', 'פיצול']);
 /* הערות הסעיף ("המכרז לא כולל קווים חדשים.") — לפי סעיף, בלי כפילויות */
 function sectionNotes(id) {
   const notes = lineChanges.sections?.[id] || [], seen = new Set(), out = [];
@@ -71,6 +75,8 @@ async function fillLines(details) {
   }
   const lines = linesOf(versions);
   const used = new Set();
+  // "בטוחים": במסמך יש סעיף שינויים לקווים (נמצאו בו פסקאות או ציטוטים) — אז קו שלא מוזכר בו ממשיך כמו היום
+  const sure = hasChangeSection(id);
   const rows = lines.map((l, i) => {
     const today = td?.lines?.[l.mk];
     const qs = quotesFor(id, l.number, l.mk); qs.forEach(q => used.add(q));
@@ -79,7 +85,7 @@ async function fillLines(details) {
     const todayCell = today == null ? '<span class="muted">לא נבדק</span>' : today.today
       ? `<span class="today on">רץ</span> ${esc(today.operator || '')}${today.number && normNum(today.number) !== normNum(l.number) ? ` · מס׳ ${esc(today.number)}` : ''}`
       : '<span class="today off">לא רץ היום</span>';
-    return `<tr class="lineRow" data-line-tender="${esc(id)}" data-line-index="${i}" tabindex="0"><td><b>${esc(l.number)}</b></td><td class="muted">${esc(l.mk)}</td><td>${esc(l.area || '')}${first ? `<br><small>${esc(first.origin)} ← ${esc(first.destination)}</small>` : ''}</td><td>${l.rows.length}</td><td>${todayCell}</td><td>${tags.map(tagChip).join(' ') || (qs.length ? '' : '<span class="muted" title="הקו לא מוזכר בסעיף השינויים של המסמך">לא מוזכר</span>')}${qs.length ? ` <small class="muted">${qs.length} ציטוט${qs.length > 1 ? 'ים' : ''}</small>` : ''}</td></tr>`;
+    return `<tr class="lineRow" data-line-tender="${esc(id)}" data-line-index="${i}" tabindex="0"><td><b>${esc(l.number)}</b></td><td class="muted">${esc(l.mk)}</td><td>${esc(l.area || '')}${first ? `<br><small>${esc(first.origin)} ← ${esc(first.destination)}</small>` : ''}</td><td>${l.rows.length}</td><td>${todayCell}</td><td>${tags.map(tagChip).join(' ') || (qs.length ? '' : sure ? '<span class="muted" title="הקו לא מוזכר בסעיף השינויים של המסמך">ממשיך כמו היום</span>' : '<span class="muted">לא נבדק</span>')}${qs.length ? ` <small class="muted">${qs.length} ציטוט${qs.length > 1 ? 'ים' : ''}</small>` : ''}</td></tr>`;
   }).join('');
   const orphan = quotes.filter(q => !used.has(q));
   const notIn = td?.clusterExact && td.notInTender?.length ? `<details class="fielddetails"><summary>קווים שרצים היום באשכול ״${esc(td.clusterName)}״ ואינם בטבלת המכרז · ${td.notInTender.length}</summary><p class="muted">לפי קובץ ״אשכול לקו״ של משרד התחבורה ולוח הזמנים של ${fdDate(todayData.gtfsDate)}. זה לא אומר בהכרח שהקווים יבוטלו: ייתכן שהם בנספח אחר או במספר אחר.</p><ul>${td.notInTender.map(([mk, num, name, op]) => `<li><b>${esc(num)}</b> · ${esc(name)} · ${esc(op)} <small class="muted">מק״ט ${esc(mk)}</small></li>`).join('')}</ul></details>` : '';
@@ -140,17 +146,19 @@ async function showLine(id, index) {
   const lines = linesOf(routeFiles[id] || []), l = lines[index]; if (!l) return;
   const td = todayData.tenders?.[id], today = td?.lines?.[l.mk], qs = quotesFor(id, l.number, l.mk);
   const v = l.version;
-  const located = l.rows.some(r => r.stops.some(s => Number.isFinite(s[3]) && Number.isFinite(s[4])));
+  const routeChange = qs.some(q => (q.tags || []).some(t => ROUTE_TAGS.has(t)));
+  const sure = hasChangeSection(id);
+  const located = routeChange && l.rows.some(r => r.stops.some(s => Number.isFinite(s[3]) && Number.isFinite(s[4])));
   routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form>
     <h2 id="route-title">קו ${esc(l.number)} · ${esc(l.area || '')}</h2>
     <p class="muted">מק״ט ${esc(l.mk)} · לפי נספח המכרז (<a href="${esc(v.url)}" target="_blank" rel="noopener">המסמך ↗</a>)${v.sourceStatus === 'superseded' ? ' · גרסת מסמך קודמת' : ''}</p>
     ${today ? `<p class="todaybox">${today.today ? `<span class="today on">רץ היום</span> אצל <b>${esc(today.operator || '')}</b>${today.number ? ` כקו <b>${esc(today.number)}</b>` : ''}${today.name ? ` · ${esc(today.name)}` : ''} · ${today.directions?.length || 0} כיוונים/חלופות בלוח הזמנים` : '<span class="today off">לא רץ היום</span> · אין קו עם מק״ט זה בלוח הזמנים הרשמי'} <small class="muted">(${fdDate(todayData.gtfsDate)})</small></p>` : ''}
-    ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : '<p class="muted">במסמכי המכרז שנקראו לא נמצאה פסקה שמתחילה במספר הקו הזה ומזכירה שינוי. ייתכן שהשינוי מתועד בטבלה או בניסוח אחר.</p>'}
+    ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : sure ? `<p class="plainline">המכרז לא מזכיר שינוי בקו ${esc(l.number)}. לפי המסמך הוא ממשיך כמו היום.</p>` : '<p class="muted">במסמכים שנקראו אין סעיף שינויים לקווים, ולכן אי אפשר לומר מהמסמך אם הקו משתנה.</p>'}
     ${typeof mapsFor === 'function' && mapsFor(id, l.number).length ? `<h3>מפה מהמסמך</h3><div class="tmaps">${mapsFor(id, l.number).map(renderMap).join('')}</div>` : ''}
     ${located ? `<h3>התחנות לפי נספח המכרז</h3>
     <div id="line-map" style="height:340px;border-radius:12px;background:#eef5f6"></div>
-    <p class="muted">על המפה מסומנות רק התחנות שרשומות בנספח, לפי הסדר. במסמכי המכרז אין שרטוט של הדרך בין התחנות, ולכן היא לא מצוירת.</p>` : '<h3>התחנות לפי נספח המכרז</h3><p class="muted">בנספח אין רשימת תחנות עם מיקומים לקו הזה, ולכן אין מפה. מה שכתוב במסמך על המסלול מופיע בציטוטים למעלה.</p>'}
-    ${l.rows.map((r, i) => `<details class="fielddetails" ${i === 0 ? 'open' : ''}><summary><span class="vdot" style="background:${VARIANT_COLORS[i % VARIANT_COLORS.length]}"></span> כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)} · ${r.stops.length} תחנות</summary><ol class="stops">${r.stops.map(s => `<li>${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])}</small></li>`).join('') || '<li class="muted">רשימת התחנות לא מופיעה בנספח הזה.</li>'}</ol><p class="muted">גיליון ${esc(r.sheet)}, שורה ${r.row}</p></details>`).join('')}`;
+    <p class="muted">על המפה מסומנות רק התחנות שרשומות בנספח, לפי הסדר. במסמכי המכרז אין שרטוט של הדרך בין התחנות, ולכן היא לא מצוירת.</p>` : routeChange ? '<h3>התחנות לפי נספח המכרז</h3><p class="muted">בנספח אין רשימת תחנות עם מיקומים לקו הזה, ולכן אין מפה. מה שכתוב במסמך על המסלול מופיע בציטוטים למעלה.</p>' : '<h3>התחנות לפי נספח המכרז</h3>'}
+    ${l.rows.map((r, i) => `<details class="fielddetails" ${i === 0 && routeChange ? 'open' : ''}><summary><span class="vdot" style="background:${VARIANT_COLORS[i % VARIANT_COLORS.length]}"></span> כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)} · ${r.stops.length} תחנות</summary><ol class="stops">${r.stops.map(s => `<li>${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])}</small></li>`).join('') || '<li class="muted">רשימת התחנות לא מופיעה בנספח הזה.</li>'}</ol><p class="muted">גיליון ${esc(r.sheet)}, שורה ${r.row}</p></details>`).join('')}`;
   if (!routeDialog.open) routeDialog.showModal();
   if (!located) return;
   try {
