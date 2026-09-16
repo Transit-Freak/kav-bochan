@@ -246,7 +246,9 @@ def rules(doc, secs, today, route_meta, known):
             if sub in seen:
                 continue
             seen.add(sub)
-            name = re.split(r' של המציע| לפי | בהתאם ל| – |: ', mm.group(2).strip())[0][:40]
+            name = re.split(r' של המציע| לפי | בהתאם ל| – |: ', mm.group(2).strip())[0]
+            if len(name) > 48:                       # קיצור בגבול מילה — לא "ותכנית השתלמו" (צפון הנגב)
+                name = name[:48].rsplit(' ', 1)[0]
             comps.append((name, int(mm.group(3)), s2))
     pw = known.get('scoring.price_weight', {})
     if pw.get('status') == 'verified' and isinstance(pw.get('value'), (int, float)):

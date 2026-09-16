@@ -6320,7 +6320,7 @@
 "status": "verified",
 "value": 44,
 "kind": "percent",
-"notes": "משלים ל-100 את משקל המחיר. רכיבים שנמצאו: הצעה תפעולית 26, שכר יסוד לשעת עבודה של נהג ותכנית השתלמו 3, תכנית עסקית 5.",
+"notes": "משלים ל-100 את משקל המחיר. רכיבים שנמצאו: הצעה תפעולית 26, שכר יסוד לשעת עבודה של נהג ותכנית השתלמות שנתית 3, תכנית עסקית 5.",
 "sources": [
 {
 "url": "https://www.gov.il/BlobFolder/guide/agreements_for_operating_service_lines_in_public_transportation/he/TenderNorthernNegev.pdf#page=54",

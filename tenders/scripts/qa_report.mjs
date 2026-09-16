@@ -87,7 +87,9 @@ function allowedNumbers(fld, snip, all) {
   (fld.sources || []).forEach(s => numsOf(s.locator).forEach(n => out.add(n)));
   numsOf(fld.notes).forEach(n => out.add(n));
   (snip?.marks || []).forEach(m => numsOf(m).forEach(n => out.add(n)));
-  for (const o of Object.values(all || {})) if (ok(o)) { add(o.value); (o.conditions || []).forEach(c => add(c.value)); }
+  for (const o of Object.values(all || {})) if (ok(o)) { add(o.value); (o.conditions || []).forEach(c => add(c.value)); numsOf(o.notes).forEach(n => out.add(n)); }
+  // "129 חודשים (כ-11 שנים)" — עיגול השנים
+  for (const n of [...out]) if (/^\d+$/.test(n) && Number(n) > 12) out.add(String(Math.round(Number(n) / 12)));
   return out;
 }
 
@@ -122,7 +124,7 @@ for (const tid of allIds) {
       const stray = numsOf(sentence).filter(n => !allowedNumbers(fld, sn, f).has(n));
       if (stray.length) probs.push(`מספר במשפט שלא נמצא במקור: ${stray.join(', ')}`);
       // מילים ארוכות במשפט שאינן מהתבנית, מהערך או מהמסמך — ניסוח שהוסיף משהו (כמו "למקרה של תקלות")
-      const srcText = [fld.sec?.brief, fld.sec?.t, fld.value, fld.notes, ...(fld.conditions || []).map(c => c.label), ...(sn?.marks || [])].join(' ');
+      const srcText = [fld.sec?.brief, fld.sec?.t, fld.value, fld.notes, ...(fld.conditions || []).map(c => c.label), ...(sn?.marks || []), ...Object.values(f).map(o => o?.notes || '')].join(' ');
       const strayWords = (sentence.match(/[א-ת]{5,}/g) || []).filter(w => !TEMPLATE_WORDS.has(w) && !srcText.includes(w) && !srcText.includes(w.replace(/^[והבלמשכ]/, '')));
       if (strayWords.length >= 3) probs.push(`מילים במשפט שאינן מהמסמך ולא מהתבנית: ${[...new Set(strayWords)].slice(0, 6).join(', ')}`);
       const row = { group, key, sentence, source: fld.sec ? `סעיף ${fld.sec.n}, עמוד ${fld.sec.p}: ${fld.sec.brief || fld.sec.t || ''}` : (fld.sources?.[0]?.locator || ''), value: fld.status === 'verified_conditional' ? (fld.conditions || []).map(c => `${c.label}: ${c.value}`).join('; ') : fld.value, snip: sn ? { image: sn.image, page: sn.page, how: HOW[sn.how] || sn.how, marks: sn.marks } : null, problems: probs };
