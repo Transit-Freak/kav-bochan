@@ -103,7 +103,7 @@ def main():
     import datetime
     from fields_merge import load as load_fields, combined_fields, all_tender_ids, is_verified, source_of
     data = load_fields()
-    rules = {tid: {k: f for k, f in combined_fields(data, tid).items() if is_verified(f) and source_of(f)} for tid in all_tender_ids(data)}
+    rules = {tid: {k: f for k, f in combined_fields(data, tid).items() if is_verified(f) and source_of(f) and not k.startswith('identity.')} for tid in all_tender_ids(data)}
     snips = json.loads((ROOT / 'snips.json').read_text(encoding='utf-8'))
     index = json.loads((ROOT / 'text' / 'index.json').read_text(encoding='utf-8'))['documents'] if (ROOT / 'text' / 'index.json').exists() else {}
     url_sha = {m['url']: sha for sha, m in index.items()}

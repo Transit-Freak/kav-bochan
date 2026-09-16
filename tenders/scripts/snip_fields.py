@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 14
+VERSION = 15
 
 
 def read(path, default):
@@ -221,6 +221,49 @@ def find_quote(pg, quote):
     return (min(r.y0 for r in rects), max(r.y1 for r in rects))
 
 
+HEB_NUM = {1: ['אחת', 'אחד'], 2: ['שתי', 'שני', 'שתיים', 'שניים'], 3: ['שלוש', 'שלושה'], 4: ['ארבע', 'ארבעה'], 5: ['חמש', 'חמישה'],
+           6: ['שש', 'שישה'], 7: ['שבע', 'שבעה'], 8: ['שמונה'], 9: ['תשע', 'תשעה'], 10: ['עשר', 'עשרה']}
+
+
+def number_groups(pg, words, f):
+    """ערך מספרי שהמסמך כותב אחרת ממה שחיפשנו: "300מיליון ₪" (דבוק), "60 מליון" (כתיב חסר), "חמש שנים" (במילים)."""
+    vals = []
+    v = f.get('value')
+    if isinstance(v, (int, float)) and v:
+        vals.append(int(v))
+    for c in f.get('conditions') or []:
+        if isinstance(c.get('value'), (int, float)) and c['value']:
+            vals.append(int(c['value']))
+    out = []
+    for n in vals:
+        if n >= 1000000 and n % 1000000 == 0:
+            for unit in ('מיליון', 'מליון'):
+                r = phrase_rects(words, str(n // 1000000), unit)
+                if r:
+                    out.append((f'{n // 1000000} {unit}', r[:6])); break
+        elif n >= 1000 and n % 1000 == 0 and n < 1000000:
+            r = phrase_rects(words, str(n // 1000), 'אלף')
+            if r:
+                out.append((f'{n // 1000} אלף', r[:6]))
+        elif 12 < n <= 240 and (f.get('unit') == 'months' or any(c.get('unit') == 'months' for c in f.get('conditions') or []) or 'חודש' in str(f.get('notes') or '')):
+            # 129 חודשים שהמסמך כותב "10 שנים ו-9 חודשים"
+            y, m = divmod(n, 12)
+            ry = phrase_rects(words, str(y), 'שנים')
+            rm = phrase_rects(words, str(m), 'חודשים') if m else []
+            if ry:
+                out.append((f'{y} שנים', ry[:4]))
+            if rm:
+                out.append((f'{m} חודשים', rm[:4]))
+        elif n in HEB_NUM:
+            for w in HEB_NUM[n]:
+                r = []
+                for unit in ('שנים', 'שנות', 'חודשים', 'אוטובוסים', 'מוניות', 'ימים', 'עמודים'):
+                    r += find_rects(pg, f'{w} {unit}', words)
+                if r:
+                    out.append((f'{w} …', r[:6])); break
+    return out
+
+
 def find_value(pg, words, key, f):
     """הערך עצמו בעמוד: קודם "מספר יחידה" לכל מספר בערך, אחר כך המספר/התאריך/משפט מהערך.
     מחזיר קבוצות [(מה נמצא, מלבנים)] — קבוצה לכל ביטוי, כדי שסינון לפי סעיף או משפט לא יעלים ביטוי שלם."""
@@ -246,7 +289,7 @@ def find_value(pg, words, key, f):
             if not re.match(r'^[\d,./-]', n) and ' ' in n:
                 rects = merge_by_row(rects)          # "רישיון תקף להסעת" — מלבן אחד לביטוי, לא רק למילה הראשונה
             return [(n, rects[:12])]
-    return []
+    return number_groups(pg, words, f)
 
 
 def merge_by_row(rects):
@@ -280,12 +323,18 @@ def locate(fitz, pdf, pno, key, f):
     if key == 'penalties.amount':
         # טבלת הקנסות: המילים "פיצוי מוסכם"/"קנס" בתוך הסעיף הראשון שבטבלה (20.2) בעמוד שלו — לא כל אזכור בעמוד
         # (בחיפה סומנו 9 אזכורים שני עמודים לפני הטבלה), ולא רק שורת הכותרת (20.2 היא "מוקד טלפוני", והקנס בסופה)
+        carry = False
         for p in pages[:2]:
             pg = pdf[p - 1]
             words = pg.get_text('words')
             span = section_span(pg, words, sec.get('n'))
+            if not span and carry:
+                # הסעיף התחיל בעמוד הקודם ונמשך לכאן — עד מספר הסעיף הבא בשוליים
+                nxt = [w for w in words if SEC_NUM.match(w[4]) and w[2] > pg.rect.width * 0.7]
+                span = (0, min(w[1] for w in nxt) - 2 if nxt else pg.rect.height)
             if not span:
                 continue
+            carry = span[1] >= pg.rect.height - 5
             groups = find_value(pg, words, key, f)
             inside = [r for _, rects in groups for r in rects if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
             if inside:
@@ -431,7 +480,7 @@ def main():
     for tid, fields in rules.items():
         for key, f in fields.items():
             src = source_of(f)
-            if not src:
+            if not src or key.startswith('identity.'):
                 continue
             url, _, page = (src.get('url') or '').partition('#page=')
             sha = url_sha.get(url)
@@ -457,6 +506,10 @@ def main():
             words = pg.get_text('words')
             # מה בדיוק סומן (המילים שמתחת לכל סימון) — נשמר כדי שאפשר יהיה לבדוק את כל הצילומים בלי לפתוח תמונות
             marks = [' '.join(w[4] for w in words if r.x0 < w[2] and r.x1 > w[0] and r.y0 < w[3] and r.y1 > w[1]) for r in hit]
+            hit = [r for r, m in zip(hit, marks) if m]
+            marks = [m for m in marks if m]
+            if not hit:
+                continue
             annots = []
             for r in hit:
                 a = pg.add_highlight_annot(r)
