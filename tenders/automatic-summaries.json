@@ -76752,6 +76752,17 @@
           "baseIdentityVerified": false,
           "analysisVersion": 2,
           "textFingerprint": "f16763d4faea9fda1572bbf9a0df0593d8696a69d305413b18406821e2c8913b"
+        },
+        "d6fe0bcf2f1145877cf4": {
+          "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81938045F467012A/מודעה לעיתונות בעברית",
+          "sha256": "a2b7f40158281aabed9a9b51d8d006788193edaf23ddee5d69ff47f890f986b5",
+          "units": 2,
+          "fields": {},
+          "routes": [],
+          "mapCandidates": [],
+          "baseIdentityVerified": false,
+          "analysisVersion": 2,
+          "textFingerprint": "e1ce016dcb5c558997d9e672914c9f008ad6486f1d937d5882fa4cdafd3cc556"
         }
       },
       "metadataFields": {
@@ -78912,5 +78923,5 @@
       "metadataFields": {}
     }
   },
-  "checkedAt": "2026-09-16T12:44:01.690745+00:00"
+  "checkedAt": "2026-09-16T13:06:55.772246+00:00"
 }
