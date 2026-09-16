@@ -44,6 +44,13 @@ function condText(f) {
     .replace(/(\d+) חודשים/g, (_, n) => months(Number(n))).replace(/בחלופת סעיף [\d.]+:\s*/g, '').replace(/ · מע״מ: לא (?:צוין|חל)/g, '');
 }
 const S = v => esc(String(v ?? ''));
+/* ערך של שדה כטקסט: מספר → בפורמט המבוקש; שדה "מותנה" → התנאים; טקסט → כפי שהוא; אין → '' */
+function valOf(f, numFmt) {
+  if (f.status === 'verified_conditional') return condText(f);
+  if (typeof f.value === 'number') return numFmt(f.value);
+  const t = String(f.value ?? '').trim();
+  return t ? esc(t) : '';
+}
 function condVal(c) {
   const pre = c.comparison === 'gte' ? 'לפחות ' : c.comparison === 'lte' ? 'עד ' : c.comparison === 'lt' ? 'פחות מ-' : '';
   if (typeof c.value === 'number' && c.currency) return pre + money(c.value);   // השנים כבר בכותרת התנאי
@@ -73,7 +80,7 @@ const GROUPS = [
   ]],
   ['לכמה זמן?', f => [
     ok(f['term.base']) && [f['term.base'].status === 'verified_conditional' ? `החוזה הוא ל-${condText(f['term.base'])}.` : `החוזה הוא ל-${months(f['term.base'].value)}.`, f['term.base']],
-    ok(f['term.extension']) && [`המדינה יכולה להאריך אותו בעוד ${months(f['term.extension'].value)}.`, f['term.extension']],
+    ok(f['term.extension']) && valOf(f['term.extension'], months) && [`המדינה יכולה להאריך אותו: ${valOf(f['term.extension'], months)}.`, f['term.extension']],
   ]],
   ['מי יכול להתמודד?', f => [
     ok(f['eligibility.licenses']) && [`רק חברה עם ${S(f['eligibility.licenses'].value)}.`, f['eligibility.licenses']],
@@ -85,7 +92,7 @@ const GROUPS = [
     ok(f['fleet.operating']) && [typeof f['fleet.operating'].value === 'number' ? `להפעיל לפחות ${heNum(f['fleet.operating'].value)} אוטובוסים, כולל רזרבה לתקלות.` : `${S(f['fleet.operating'].value)}.`, f['fleet.operating']],
     ok(f['fleet.reserve']) && [`להחזיק עוד ${heNum(f['fleet.reserve'].value)}% אוטובוסים ברזרבה, למקרה של תקלות.`, f['fleet.reserve']],
     ok(f['fleet.electric_share']) && [typeof f['fleet.electric_share'].value === 'number' ? (f['fleet.electric_share'].value === 100 ? 'כל האוטובוסים יהיו חשמליים.' : `לפחות ${f['fleet.electric_share'].value}% מהאוטובוסים יהיו חשמליים.`) : `אוטובוסים חשמליים: ${S(f['fleet.electric_share'].value)}.`, f['fleet.electric_share']],
-    ok(f['fleet.max_age']) && [`לא להשתמש באוטובוס בן יותר מ-${heNum(f['fleet.max_age'].value)} שנים.`, f['fleet.max_age']],
+    ok(f['fleet.max_age']) && valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`) && [typeof f['fleet.max_age'].value === 'number' ? `לא להשתמש באוטובוס בן יותר מ-${heNum(f['fleet.max_age'].value)} שנים.` : `גיל הרכב: ${valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`)}.`, f['fleet.max_age']],
     ok(f['fleet.accessibility']) && [`${S(f['fleet.accessibility'].value)} לאנשים עם מוגבלות.`, f['fleet.accessibility']],
     ok(f['fleet.seats']) && [`בכל אוטובוס לפחות ${heNum(f['fleet.seats'].value)} מקומות ישיבה.`, f['fleet.seats']],
     ok(f['service.routes']) && [`להפעיל ${heNum(f['service.routes'].value)} קווים${ok(f['service.variants']) ? ` (${heNum(f['service.variants'].value)} כיוונים וחלופות)` : ''}.`, f['service.routes']],
