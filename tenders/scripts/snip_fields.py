@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 4
+VERSION = 5
 
 
 def read(path, default):
@@ -77,21 +77,20 @@ def quote_words(quote, strict=True):
     return [w for w in dict.fromkeys(words) if not strict or w not in STOP][:40]
 
 
-def line_rects(pg, ys, tol=5):
-    """מלבן לכל שורה שנבחרה — כל המילים בעמוד שנמצאות בגובה הזה — כדי שהסימון יהיה פס רציף על המשפט
-    ולא כתמים על מילים בודדות."""
-    out = []
-    words = pg.get_text('words')
-    for y in ys:
-        row = [w for w in words if abs((w[1] + w[3]) / 2 - y) <= tol]
-        if row:
-            out.append((min(w[0] for w in row), min(w[1] for w in row), max(w[2] for w in row), max(w[3] for w in row)))
-    return out
+def rows_between(pg, y0, y1, tol=3):
+    """מלבן לכל שורת טקסט בעמוד בין y0 ל-y1 — כולל שורות אמצע שלא נמצאה בהן מילה — כדי שהסימון יהיה
+    פס רציף על כל הציטוט ולא כתמים על מילים בודדות (שלמה 16.09: "דייק את הסימון")."""
+    rows = {}
+    for w in pg.get_text('words'):
+        yc = (w[1] + w[3]) / 2
+        if y0 - tol <= yc <= y1 + tol:
+            rows.setdefault(round(yc / 4), []).append(w)
+    return [(min(w[0] for w in ws), min(w[1] for w in ws), max(w[2] for w in ws), max(w[3] for w in ws)) for ws in rows.values()]
 
 
 def find_quote(pg, quote):
     """המקום בעמוד שבו כתוב הציטוט: מחפשים את מילות הציטוט, מקבצים לפי שורות, ובוחרים את רצף השורות
-    (לפי אורך הציטוט) שבו נמצאו הכי הרבה מילים שונות. מחזיר את מלבני השורות להדגשה, או [] כשלא בטוחים."""
+    (לפי אורך הציטוט) שבו נמצאו הכי הרבה מילים שונות. מחזיר (y עליון, y תחתון) של שורות הציטוט, או None."""
     hits = []
     for strict in (True, False):
         for w in quote_words(quote, strict):
@@ -100,7 +99,7 @@ def find_quote(pg, quote):
         if hits:
             break
     if not hits:
-        return []
+        return None
     lines = {}
     for w, r in hits:
         yc = round((r.y0 + r.y1) / 2 / 6) * 6
@@ -117,10 +116,9 @@ def find_quote(pg, quote):
             best = (score, win)
     distinct = len({w for w, _ in hits})
     if best is None or best[0] < min(3, distinct):
-        return []
-    import fitz
-    centers = [sum((r.y0 + r.y1) / 2 for r in lines[y]['rects']) / len(lines[y]['rects']) for y in best[1]]
-    return [fitz.Rect(*box) for box in line_rects(pg, centers)] or [r for y in best[1] for r in lines[y]['rects']]
+        return None
+    rects = [r for y in best[1] for r in lines[y]['rects']]
+    return (min(r.y0 for r in rects), max(r.y1 for r in rects))
 
 
 def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
@@ -155,16 +153,21 @@ def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
             pg = pdf[pno - 1]
         except Exception:
             continue
-        bands = [rects for rects in (find_quote(pg, q) for q in quotes) if rects]
-        if not bands:
+        spans = [s for s in (find_quote(pg, q) for q in quotes) if s]
+        if not spans:
             continue
-        for rects in bands:
-            for r in rects:
-                a = pg.add_highlight_annot(r)
-                a.set_colors(stroke=(1, 0.9, 0.2))
-                a.update()
-        y0 = min(r.y0 for b in bands for r in b) - 40
-        y1 = max(r.y1 for b in bands for r in b) + 40
+        # כל שורה מסומנת פעם אחת גם כשכמה ציטוטים חולקים אותה — סימון כפול נראה כתום
+        rows = {}
+        for ya, yb in spans:
+            for box in rows_between(pg, ya, yb):
+                rows[round((box[1] + box[3]) / 2)] = box
+        for box in rows.values():
+            a = pg.add_highlight_annot(fitz.Rect(*box))
+            a.set_colors(stroke=(1, 0.9, 0.2))
+            a.update()
+        bands = spans
+        y0 = min(b[1] for b in rows.values()) - 40
+        y1 = max(b[3] for b in rows.values()) + 40
         clip = pg.rect if (y1 - y0) > 0.75 * pg.rect.height else fitz.Rect(0, max(0, y0), pg.rect.width, min(pg.rect.height, y1))
         pix = pg.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), clip=clip, alpha=False)
         img = Image.open(io.BytesIO(pix.tobytes('png')))
