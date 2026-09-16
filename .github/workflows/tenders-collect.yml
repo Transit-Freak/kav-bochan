@@ -1,0 +1,86 @@
+name: tenders-collect
+
+# מסכם המכרזים — איסוף וקריאה בקוד בלבד, בלי מודל שפה (שלמה 16.09).
+# מוריד את מסמכי המכרזים מהפורטל הממשלתי, מחלץ טקסט וטבלאות, שומר את הטקסט
+# במאגר (tenders/text), קורא טבלאות קווים ותחנות מהנספחים, מוציא ציטוטים על
+# שינויי קווים, ומשווה למה שרץ היום בלוח הזמנים הרשמי.
+
+on:
+  schedule:
+    - cron: '45 3 * * *'   # 03:45 UTC = 06:45 בישראל
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'כמה מסמכים להוריד בריצה (ברירת מחדל 600)'
+        required: false
+        default: '600'
+      force:
+        description: 'להוריד מחדש גם מסמכים שכבר נקראו (true/false)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tenders-collect
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: כלים לקריאת PDF ותלויות
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils >/dev/null
+          python3 -m pip install -q -r tenders/scripts/requirements.txt
+
+      - name: רשימת הפרסומים מהפורטל
+        continue-on-error: true
+        run: python3 tenders/scripts/refresh_feed.py
+
+      - name: הורדת מסמכים וחילוץ טקסט
+        continue-on-error: true
+        run: python3 tenders/scripts/package_pipeline.py --limit "${{ github.event.inputs.limit || '600' }}" ${{ github.event.inputs.force == 'true' && '--force' || '' }}
+
+      - name: שמירת הטקסט במאגר
+        continue-on-error: true
+        run: python3 tenders/scripts/persist_units.py
+
+      - name: טבלאות קווים ותחנות מהנספחים
+        continue-on-error: true
+        run: python3 tenders/scripts/extract_route_tables.py
+
+      - name: שדות בחוקים קבועים (בלי מודל)
+        continue-on-error: true
+        run: python3 tenders/scripts/analyze_packages.py
+
+      - name: ציטוטים על שינויי קווים
+        continue-on-error: true
+        run: test -f tenders/scripts/line_changes.py && python3 tenders/scripts/line_changes.py || echo "line_changes.py עוד לא קיים"
+
+      - name: מה רץ היום מול המכרז
+        continue-on-error: true
+        run: python3 tenders/scripts/compare_today.py
+
+      - name: בדיקות
+        continue-on-error: true
+        run: |
+          cd tenders/scripts && python3 test_extraction.py && cd ../..
+          python3 -c "import json,glob; [json.load(open(f,encoding='utf-8')) for f in glob.glob('tenders/*.json')]; print('JSON ok')"
+
+      - name: commit
+        run: |
+          git config user.name 'tenders-bot'
+          git config user.email 'noreply@github.com'
+          git add tenders
+          git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
+          git commit -m 'data: tenders — איסוף מסמכים, טקסט, קווים והשוואה להיום'
+          for i in 1 2 3 4; do git pull --rebase -q origin main && git push -q && break || sleep $((2**i)); done
