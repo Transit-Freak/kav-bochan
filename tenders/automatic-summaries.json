@@ -60446,7 +60446,7 @@
           "mapCandidates": [],
           "baseIdentityVerified": false,
           "analysisVersion": 2,
-          "textFingerprint": "c8e62ce9676f392bba0b8f30d9e240062971c2fd5e31be4d5cf7898f61cd2ad4"
+          "textFingerprint": "d1c4ff2e8ded2ee80f62e653a27a8ce0ee056483fb348608e89575ffe667c29a"
         },
         "f41e8b82cdb5d89fbd94": {
           "url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB88D0E50DA298A122/נספח למכרז",
@@ -78418,5 +78418,5 @@
       "metadataFields": {}
     }
   },
-  "checkedAt": "2026-09-16T11:04:43.423411+00:00"
+  "checkedAt": "2026-09-16T11:30:25.821219+00:00"
 }
