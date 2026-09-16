@@ -52,7 +52,7 @@ function renderLinesSection(t) {
   if (meta) parts.push(`${c ? c.inTender : meta.uniqueRoutes} קווים בנספח`);
   if (c) { parts.push(`${c.runningToday} רצים היום`); if (c.notRunning) parts.push(`${c.notRunning} לא רצים היום`); }
   if (quotes.length) parts.push(`${quotes.length} ציטוטים על שינויים`);
-  return `<details class="fielddetails lines-section" data-lines-tender="${esc(t.id)}"><summary>הקווים במכרז · ${parts.join(' · ')}</summary><div class="lines-body"><p class="muted">טוען את טבלת הקווים…</p></div></details>`;
+  return `<details class="fielddetails lines-section" data-keep-open="lines:${esc(t.id)}" data-lines-tender="${esc(t.id)}"><summary>הקווים במכרז · ${parts.join(' · ')}</summary><div class="lines-body"><p class="muted">טוען את טבלת הקווים…</p></div></details>`;
 }
 
 async function fillLines(details) {
@@ -118,6 +118,7 @@ async function showLine(id, index) {
     <p class="muted">מק״ט ${esc(l.mk)} · לפי נספח המכרז (<a href="${esc(v.url)}" target="_blank" rel="noopener">המסמך ↗</a>)${v.sourceStatus === 'superseded' ? ' · גרסת מסמך קודמת' : ''}</p>
     ${today ? `<p class="todaybox">${today.today ? `<span class="today on">רץ היום</span> אצל <b>${esc(today.operator || '')}</b>${today.number ? ` כקו <b>${esc(today.number)}</b>` : ''}${today.name ? ` · ${esc(today.name)}` : ''} · ${today.directions?.length || 0} כיוונים/חלופות בלוח הזמנים` : '<span class="today off">לא רץ היום</span> · אין קו עם מק״ט זה בלוח הזמנים הרשמי'} <small class="muted">(${fdDate(todayData.gtfsDate)})</small></p>` : ''}
     ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : '<p class="muted">במסמכי המכרז שנקראו לא נמצאה פסקה שמתחילה במספר הקו הזה ומזכירה שינוי. ייתכן שהשינוי מתועד בטבלה או בניסוח אחר.</p>'}
+    ${typeof mapsFor === 'function' && mapsFor(id, l.number).length ? `<h3>מפה מהמסמך</h3><div class="tmaps">${mapsFor(id, l.number).map(renderMap).join('')}</div>` : ''}
     ${located ? `<h3>התחנות לפי נספח המכרז</h3>
     <div id="line-map" style="height:340px;border-radius:12px;background:#eef5f6"></div>
     <p class="muted">על המפה מסומנות רק התחנות שרשומות בנספח, לפי הסדר. במסמכי המכרז אין שרטוט של הדרך בין התחנות, ולכן היא לא מצוירת.</p>` : '<h3>התחנות לפי נספח המכרז</h3><p class="muted">בנספח אין רשימת תחנות עם מיקומים לקו הזה, ולכן אין מפה. מה שכתוב במסמך על המסלול מופיע בציטוטים למעלה.</p>'}
@@ -155,10 +156,10 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.matches && 
   $('search').addEventListener('input', () => { const v = $('search').value.trim(); history.replaceState(null, '', v ? '#q=' + encodeURIComponent(v) : location.pathname + location.search); });
   const original = renderFeed;
   renderFeed = function () {
-    // הרינדור בונה את הרשימה מחדש ומאבד את "פתוח/סגור" — שומרים אילו טבלאות קווים היו פתוחות ומחזירים
-    const openIds = [...document.querySelectorAll('details.lines-section[open]')].map(d => d.dataset.linesTender);
+    // הרינדור בונה את הרשימה מחדש ומאבד את "פתוח/סגור" — שומרים מה היה פתוח (קווים, תנאים) ומחזירים
+    const openKeys = [...document.querySelectorAll('details[data-keep-open][open]')].map(d => d.dataset.keepOpen);
     original();
-    for (const id of openIds) { const d = document.querySelector(`details.lines-section[data-lines-tender="${id}"]`); if (d) d.open = true; }
+    for (const k of openKeys) { const d = document.querySelector(`details[data-keep-open="${k.replace(/"/g, '')}"]`); if (d) d.open = true; }
     if (autoOpened || !hashQuery()) return;
     const d = document.querySelector('details.lines-section');
     if (d) { autoOpened = true; d.open = true; }

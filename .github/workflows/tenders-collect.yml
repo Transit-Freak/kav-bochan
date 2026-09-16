@@ -64,7 +64,15 @@ jobs:
 
       - name: ציטוטים על שינויי קווים
         continue-on-error: true
-        run: test -f tenders/scripts/line_changes.py && python3 tenders/scripts/line_changes.py || echo "line_changes.py עוד לא קיים"
+        run: python3 tenders/scripts/line_changes.py
+
+      - name: התנאים במכרז — הסעיפים לפי נושא
+        continue-on-error: true
+        run: python3 tenders/scripts/tender_sections.py
+
+      - name: מפות שהועתקו מהמסמכים
+        continue-on-error: true
+        run: python3 tenders/scripts/extract_maps.py
 
       - name: מה רץ היום מול המכרז
         continue-on-error: true
@@ -82,5 +90,5 @@ jobs:
           git config user.email 'noreply@github.com'
           git add tenders
           git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
-          git commit -m 'data: tenders — איסוף מסמכים, טקסט, קווים והשוואה להיום'
+          git commit -m 'data: tenders — מסמכים, טקסט, קווים, סעיפים, מפות והשוואה להיום'
           for i in 1 2 3 4; do git pull --rebase -q origin main && git push -q && break || sleep $((2**i)); done

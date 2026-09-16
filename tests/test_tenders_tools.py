@@ -140,3 +140,68 @@ def test_section_continues_to_next_page():
     assert by[('133',)]['section'] == 'שינויים בקווים קיימים'
     assert by[('401',)]['section'] == 'שינויים בקווים קיימים'      # הרשימה נמשכה לעמוד הבא
     assert by[('5',)]['section'] is None                             # "חלק ה'" סיים את הסעיף
+
+
+import tender_sections  # noqa: E402
+
+
+def test_section_headers_are_recognized_and_sentences_are_not():
+    assert tender_sections.header('38.2 מספר האוטובוסים ,תמהילם ומאפייניהם') == ('38.2', 'מספר האוטובוסים ,תמהילם ומאפייניהם')
+    assert tender_sections.header('                                  מצבת האוטובוסים      38') == ('38', 'מצבת האוטובוסים')
+    assert tender_sections.header('                       34.1קווים חדשים') == ('34.1', 'קווים חדשים')
+    assert tender_sections.header('12 חודשים ממועד ההודעה על הזכייה ותקופת ההפעלה של שלב ב') is None    # כמות, לא סעיף
+    assert tender_sections.header('כללי    .1') is None                                                   # שורת תוכן עניינים
+    assert tender_sections.header('3.2 תאגיד רשום בישראל.') is None                                       # משפט קצר עם נקודה
+    assert tender_sections.header('1.7 בוטל') is None
+    # תחילת סעיף ממוספר ארוך מתקבלת (מספר מנוקד), ומספר בודד בתחילת שורה ארוכה לא
+    long_clause = '2.2אי ביצוע של לפחות  2נסיעות (בתקופת היום) או אי ביצוע גדול מ( 4.5%-הגבוה מהשניים),'
+    assert tender_sections.header(long_clause) == ('2.2', 'אי ביצוע של לפחות 2נסיעות (בתקופת היום) או אי ביצוע גדול מ( 4.5%-הגבוה מהשניים),')
+    assert tender_sections.header(' .1על מעשה או מחדל של החברה ,המהווים אי-עמידה ברמת ובתנאי שירות ,אי-עמידה בהוראות ההסכם') is None
+    assert tender_sections.header('3.5 מיליון ₪ לשנה') is None
+
+
+def test_numbers_and_topics():
+    nums = tender_sections.numbers_in('מפעיל השירות יהיה זכאי למענק בסך 30אלף ₪ בגין כל נהג ,עד לתקרה של 45נהגים ,בתוך 18 חודשים. משקל המחיר 35%')
+    assert '30 אלף ₪' in nums and '45 נהגים' in nums and '18 חודשים' in nums and '35%' in nums
+    assert '500 ₪' in tender_sections.numbers_in('לתקופת יום בקו ,שאינו מוגדר כקו בתדירות נמוכה.₪ 500 -')
+    assert 'צי הרכבים' in tender_sections.topics_for('מצבת האוטובוסים', [])
+    assert 'צי הרכבים' not in tender_sections.topics_for('קבלה של מידע כאמור או גילויו', [])   # "גילויו" אינו "גיל"
+    assert tender_sections.topics_for('שורה בלי מילת נושא', ['ערבויות']) == ['ערבויות']        # ירושה מהסעיף שמעל
+
+
+def test_parse_document_splits_sections_and_inherits_topics():
+    page = "חלק ד' - מפרט טכני\n                                  מצבת האוטובוסים      38\nסוגי אוטובוסים 38.1\nבקווים הכלולים באשכול זה יופעלו אוטובוסים עירוניים.\n38.2 מספר האוטובוסים ,תמהילם ומאפייניהם\nהמספר הכולל של הרכבים באשכול לא יפחת מ 120 אוטובוסים.\n"
+    toc, secs = tender_sections.parse_document([{'page': 78, 'text': page}])
+    by = {s['n']: s for s in secs}
+    assert [e['n'] for e in toc] == ['38', '38.2'] or [e['n'] for e in toc] == ['38', '38.1', '38.2']
+    assert 'צי הרכבים' in by['38']['topics'] and 'צי הרכבים' in by['38.2']['topics']
+    assert '120 אוטובוסים' in by['38.2']['numbers']
+    assert by['38.2']['p'] == 78
+
+
+def test_annex_cover_page_gives_its_topic_to_the_clauses_inside():
+    cover = '   נספח כ"ו\n\nפיצויים מוסכמים\n'
+    body = ' נספח פיצויים מוסכמים מראש בגין אי-עמידה ברמת שירות ("הפרה")\n .2גובה הפיצויים המוסכמים יעמוד על הסכומים המפורטים להלן לכל הפרה המפורטת בפסקאות הבאות\n 2.2אי ביצוע של לפחות  2נסיעות (בתקופת היום) או אי ביצוע גדול מ( 4.5%-הגבוה מהשניים),\n                                 לתקופת יום בקו ,שאינו מוגדר כקו בתדירות נמוכה.₪ 500 -\n2.3 חריגה מלוח הזמנים\nיציאה מוקדמת מתחנת המוצא – 200 ₪ לכל נסיעה.\n'
+    toc, secs = tender_sections.parse_document([{'page': 243, 'text': cover}, {'page': 244, 'text': body}])
+    by = {s['n']: s for s in secs}
+    assert set(by) == {'2.2', '2.3'}
+    assert 'קנסות ופיצויים' in by['2.2']['topics'] and 'קנסות ופיצויים' in by['2.3']['topics']
+    assert '500 ₪' in by['2.2']['numbers'] and '4.5%' in by['2.2']['numbers']
+    assert '200 ₪' in by['2.3']['numbers']
+
+
+def test_brief_is_the_key_sentence_in_plain_words():
+    s = tender_sections.simplify('מפעיל השירות יהיה זכאי למענק בסך 30אלף ₪בגין כל נהג ,עד לתקרה של 45נהגים ,בתוך 18 חודשים ממועד תחילת ההפעלה.')
+    assert s == 'המפעיל יקבל מענק של 30 אלף ₪ על כל נהג, עד 45 נהגים, בתוך 18 חודשים ממועד תחילת ההפעלה.'
+    assert tender_sections.simplify('למען הסר ספק מובהר ,כי הממשלה רשאית לקזז את הסכומים כאמור מהתשלומים.') == 'הממשלה יכולה לקזז את הסכומים מהתשלומים.'
+    assert tender_sections.simplify('שני ( )2עותקים של ההצעה ,כשהם כוללים את כל הנספחים -עותק אחד מקור.') == 'שני (2) עותקים של ההצעה, כשהם כוללים את כל הנספחים - עותק אחד מקור.'
+    # המשפט עם המספרים נבחר, לא משפט-המסגרת המשפטי; הכותרת נשארת לפני
+    b = tender_sections.brief_of('מצבת האוטובוסים', 'למען הסר ספק ,האמור בסעיף זה כפוף לנספח ב\' .המספר הכולל של הרכבים באשכול לא יפחת מ 120-אוטובוסים.', ['צי הרכבים'])
+    assert b == 'מצבת האוטובוסים: המספר הכולל של הרכבים באשכול יהיה לפחות 120 אוטובוסים.'
+    # שורת טבלה (רצף מספרים) לא נבחרת; המשפט המוביל כן, ומשפט מוביל שמסתיים בנקודתיים מקבל את הבא
+    t = 'המפעיל יקבל תשלום בגין הצטיידות באוטובוסים כדלקמן: 52.2.1.1 בגין אוטובוס עירוני סך של. ₪ 155,000 52.2.1.2 בגין אוטובוס מפרקי. ₪ 205,000'
+    assert tender_sections.brief_of('52.2.1 ' + t, '', ['תמורה ותשלומים']).startswith('52.2.1 המפעיל יקבל תשלום על הצטיידות באוטובוסים כדלקמן: 52.2.1.1 על אוטובוס עירוני סך של 155,000 ₪.')
+    assert tender_sections.brief_of('פיצויים', 'שיעור יומי סכום הפיצוי 0 1.0% 0% 63 1.5% 1.0% 93 2.5% 1.5%. הפיצוי ישולם תוך 30 ימים.', ['קנסות ופיצויים']) == 'פיצויים: הפיצוי ישולם תוך 30 ימים.'
+    assert tender_sections.simplify('במשך כל תקופת ההתקשרות בהתאם להליך תחרותי זה, בהתאם לאמור בסעיף 5.') == 'במשך כל תקופת ההתקשרות לפי מכרז זה, לפי סעיף 5.'
+    long = tender_sections.brief_of('כללי', 'מילה ' * 120, [])
+    assert len(long) <= 191 and long.endswith('…')
