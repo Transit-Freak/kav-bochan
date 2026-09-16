@@ -17,6 +17,7 @@ import gzip
 import json
 import pathlib
 import re
+import urllib.parse
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -118,7 +119,7 @@ def numbers_in(text):
 # ומחליפים ניסוח משפטי במילים פשוטות. כל החלפה שומרת על המשמעות; מה שלא בטוח — לא מוחלף.
 PLAIN = [
     (r'למען הסר ספק,?\s*(?:מובהר|יובהר)?\s*(?:בזאת)?,?\s*(?:כי)?\s*', ''),
-    (r'מבלי לגרוע מ(?:האמור|כלליות האמור)(?: לעיל| בסעיף [\d.]+ לעיל)?,?\s*', ''),
+    (r'מבלי לגרוע מ(?:האמור|כלליות האמור|הוראות)(?: לעיל)?(?: בסעיפ(?:ים|ף) [\d.]+(?:\s*[–-]\s*[\d.]+)?)?(?: לעיל)?,?\s*', ''),
     (r'(?:מובהר|יובהר|יצוין|יודגש) (?:בזאת,? )?כי\s*', ''),
     (r'על אף האמור(?: לעיל)?,?\s*', 'בכל מקרה, '),
     (r'בכפוף ל(?:הוראות )?', 'בתנאי של '),
@@ -149,6 +150,38 @@ PLAIN = [
     (r'(?<![א-ת])רשאית ', 'יכולה '),
     (r'(?<![א-ת])יידרש ', 'יצטרך '),
     (r'(?<![א-ת])בטרם ', 'לפני '),
+    # מילים של אנשים, לא של עורכי דין (שלמה: "לאיש פשוט כמוני")
+    (r'(?<![א-ת])(?:ה)?זוכה בהליך התחרותי', 'החברה שתזכה'),
+    (r'(?<![א-ת])(?:ה)?זוכה במכרז', 'החברה שתזכה'),
+    (r'(?<![א-ת])ממועד ההודעה על הזכייה', 'מהיום שהודיעו למי שזכה'),
+    (r'(?<![א-ת])מועד ההודעה על הזכייה', 'היום שהודיעו למי שזכה'),
+    (r'(?<![א-ת])(?:ה)?ועדת המכרזים', 'ועדת המכרזים'),
+    (r'(?<![א-ת])הוועדה ', 'ועדת המכרזים '),
+    (r'(?<![א-ת])הממשלה(?![א-ת])', 'המדינה'),
+    (r'(?<![א-ת])לממשלה(?![א-ת])', 'למדינה'),
+    (r'(?<![א-ת])מהממשלה(?![א-ת])', 'מהמדינה'),
+    (r'(?<![א-ת])המציע יציין בהצעתו ', 'החברה המתמודדת תכתוב בהצעה '),
+    (r'(?<![א-ת])המציע יגיש ', 'החברה המתמודדת תגיש '),
+    (r'(?<![א-ת])המציע יצרף ', 'החברה המתמודדת תוסיף '),
+    (r'(?<![א-ת])על המציע ל', 'החברה המתמודדת צריכה ל'),
+    (r'(?<![א-ת])בהצעתו ', 'בהצעה '),
+    (r'(?<![א-ת])תקופת ההכנות', 'תקופת ההכנה'),
+    (r'(?<![א-ת])כדלקמן:?', 'כך:'),
+    (r'(?<![א-ת])לעניין סעיף זה,?\s*', ''),
+    (r'(?<![א-ת])בשים לב לאמור,?\s*', ''),
+    (r'(?<![א-ת])לצורך ', 'כדי '),
+    (r'(?<![א-ת])בתום ', 'בסוף '),
+    (r'(?<![א-ת])מעת לעת', 'מדי פעם'),
+    (r'(?<![א-ת])אך ורק ', 'רק '),
+    (r'(?<![א-ת])ימציא ', 'יביא '),
+    (r'(?<![א-ת])יעמיד ', 'ייתן '),
+    (r'(?<![א-ת])בפועל', 'באמת'),
+    (r'(?<![א-ת])הינו ', 'הוא '),
+    (r'(?<![א-ת])הינה ', 'היא '),
+    (r'(?<![א-ת])הינם ', 'הם '),
+    (r'(?<![א-ת])במסגרת ', 'בתוך '),
+    (r'(?<![א-ת])ביחס ל', 'לעומת '),
+    (r'(?<![א-ת])בהתאמה', ''),
     (r'(?<![א-ת])אינו ', 'לא '),
     (r'(?<![א-ת])אינם ', 'לא '),
     (r'(?<![א-ת])אינה ', 'לא '),
@@ -173,7 +206,7 @@ FIXES = [
     (re.compile(r'\s{2,}'), ' '),
 ]
 # סוף משפט, או תת-סעיף ממוספר בתוך הטקסט ("… כדלקמן: 52.2.1.1 בגין …")
-SENT_SPLIT = re.compile(r'(?<=[.;])\s+(?=[א-ת"\'(])|\s+(?=\d{1,2}(?:\.\d{1,2}){1,3}\s+[א-ת"\'(])')
+SENT_SPLIT = re.compile(r'(?<=[.;])\s+(?=[א-ת"\'(])|\s+(?=\d{1,2}(?:\.\d{1,2}){1,3}\s+(?!לעיל|להלן)[א-ת"\'(])')
 TABLE_LIKE = re.compile(r'(?:\S*\d\S*\s+){5,}')      # חמישה "מספרים" ברצף — שורת טבלה, לא משפט
 
 
@@ -189,6 +222,9 @@ def simplify(s):
     for rx, rep in PLAIN_RX:
         s = rx.sub(rep, s)
     s = re.sub(r'\s*\([^()]{30,}\)', '', s)             # הערת-אגב ארוכה בסוגריים — לא בקצרה
+    # "הזוכה יגיש" הפך ל"החברה שתזכה" — הפועל עובר לנקבה (יגיש → תגיש, ישלם → תשלם)
+    s = re.sub(r'(החברה (?:שתזכה|המתמודדת)) י([א-ת]{2,})', r'\1 ת\2', s)
+    s = re.sub(r'^\s*[\d.]+(?:\s*[–-]\s*[\d.]+)?\s*,\s*', '', s)   # שארית של הפניה לסעיפים שנמחקה ("1.8 , ")
     s = re.sub(r'\s+([,.;:])', r'\1', re.sub(r'\s{2,}', ' ', s)).strip(' ,;-–')
     s = re.sub(r'^(?:ו|וכן|וכי|כי)\s+', '', s)
     if s and s[0] in '"\'' and s.count(s[0]) == 1:
@@ -200,7 +236,7 @@ def sentences(text):
     return [x.strip() for x in SENT_SPLIT.split(text) if x.strip()]
 
 
-def brief_of(title, text, topics, max_len=190):
+def brief_of(title, text, topics, max_len=170):
     """המשפט המוביל של הסעיף (בסעיף משפטי הוא בדרך כלל ההוראה עצמה), בניסוח פשוט וקצר.
     שורות טבלה ומשפטי-מסגרת ("מבלי לגרוע…") נדחים; משפט מוביל קצר או שמסתיים בנקודתיים מקבל את המשפט הבא."""
     heading = len(title) <= 48
@@ -293,14 +329,25 @@ def parse_document(units):
     return toc, out
 
 
-def main_document(index, tid):
-    """המסמך הראשי: "מסמכי הליך" (או "מסמכי המכרז"/"חוברת") עם הכי הרבה עמודים."""
-    cands = [(sha, m) for sha, m in index.items() if m['tender'] == tid and any(k in m['url'] for k in ('מסמכי הליך', 'מסמכי המכרז', 'חוברת', 'מסמכי הצעה')) or (m['tender'] == tid and m['url'].lower().endswith('.pdf'))]
-    if not cands:
-        cands = [(sha, m) for sha, m in index.items() if m['tender'] == tid]
-    if not cands:
-        return None
-    return max(cands, key=lambda x: x[1].get('units', 0))
+def doc_label(units):
+    """שם קצר למסמך מתוך השורות הראשונות שלו ("הסכם הפעלה", "נספח כ' כרטוס חכם")."""
+    for u in units[:2]:
+        for raw in (u.get('text') or '').split('\n'):
+            t = clean(raw)
+            if len(t) >= 4 and not re.fullmatch(r'[\d\s./]+', t) and 'מדינת ישראל' not in t and 'משרד התחבורה' not in t:
+                return t[:40]
+    return ''
+
+
+def tender_documents(index, current, tid):
+    """כל מסמכי הטקסט העכשוויים של המכרז, הגדול ראשון. בלי מודעות לעיתונות (אין בהן סעיפים)."""
+    docs = [(sha, m) for sha, m in index.items() if m['tender'] == tid and (not current or sha in current) and 'מודעה לעיתונות' not in m['url']]
+    return sorted(docs, key=lambda x: -x[1].get('units', 0))
+
+
+def is_duplicate(headers, seen, ratio=0.6):
+    """מסמך שרוב כותרותיו כבר נראו — גרסה אחרת של אותו מסמך (למשל "הסכם הפעלה" שפורסם פעמיים)."""
+    return bool(headers) and sum(1 for h in headers if h in seen) >= ratio * len(headers)
 
 
 def main():
@@ -311,26 +358,45 @@ def main():
     tenders = sorted({m['tender'] for m in index.values()})
     result = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
     for tid in tenders:
-        pick = main_document({s: m for s, m in index.items() if not current or s in current}, tid)
-        if not pick:
-            continue
-        sha, meta = pick
-        path = TEXT / (sha + '.json.gz')
-        if not path.exists():
-            continue
-        payload = json.load(gzip.open(path, 'rt', encoding='utf-8'))
-        toc, sections = parse_document(payload['units'])
+        # כל מסמכי המכרז, לא רק הגדול: במכרזים שפורסמו כעשרות קבצים קטנים (הסכם, נספחים) התנאים מפוזרים ביניהם
+        sections, toc, docs, seen = [], [], [], set()
+        for sha, meta in tender_documents(index, current, tid):
+            path = TEXT / (sha + '.json.gz')
+            if not path.exists():
+                continue
+            payload = json.load(gzip.open(path, 'rt', encoding='utf-8'))
+            units = payload['units']
+            if sum(1 for u in units if u.get('text') and not u.get('rows')) < 2:
+                continue
+            d_toc, d_secs = parse_document(units)
+            if len(d_secs) < 3:
+                continue
+            headers = {(x['n'], x['t']) for x in d_secs}
+            if is_duplicate(headers, seen):
+                continue
+            seen |= headers
+            label = doc_label(units) or urllib.parse.unquote(payload['url'].rstrip('/').split('/')[-1])
+            if docs:   # לא המסמך הראשי — כל סעיף נושא את הקישור ואת שם המסמך שלו
+                for x in d_secs:
+                    x['u'] = payload['url']; x['d'] = label
+                for x in d_toc:
+                    x['u'] = payload['url']; x['d'] = label
+            docs.append({'url': payload['url'], 'name': label, 'sha256': sha, 'pages': meta.get('units', 0), 'sections': len(d_secs)})
+            sections += d_secs; toc += d_toc
+            if len(sections) >= 4000:
+                break
         if len(sections) < 5:
             continue
         counts = {}
-        for s in sections:
-            for t in s['topics']:
+        for x in sections:
+            for t in x['topics']:
                 counts[t] = counts.get(t, 0) + 1
-        doc = {'tender': tid, 'doc': payload['url'], 'sha256': sha, 'pages': meta.get('units', 0), 'toc': toc, 'sections': sections}
+        pages = sum(d['pages'] for d in docs)
+        doc = {'tender': tid, 'doc': docs[0]['url'], 'sha256': docs[0]['sha256'], 'pages': pages, 'docs': docs, 'toc': toc, 'sections': sections}
         (OUTDIR / f'{tid}.json').write_text(json.dumps(doc, ensure_ascii=False, separators=(',', ':')) + '\n')
-        result['tenders'][tid] = {'file': f'sections/{tid}.json', 'sections': len(sections), 'pages': meta.get('units', 0),
+        result['tenders'][tid] = {'file': f'sections/{tid}.json', 'sections': len(sections), 'pages': pages, 'docs': len(docs),
                                   'topics': {t: counts[t] for t in TOPIC_ORDER if counts.get(t)}}
-        print(tid, len(sections), 'סעיפים ·', {t: c for t, c in result['tenders'][tid]['topics'].items()}, flush=True)
+        print(tid, len(sections), 'סעיפים ב-', len(docs), 'מסמכים ·', {t: c for t, c in result['tenders'][tid]['topics'].items()}, flush=True)
     INDEX.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')) + '\n')
     print('תנאים:', len(result['tenders']), 'מכרזים', flush=True)
 

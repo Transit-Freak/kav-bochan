@@ -35,18 +35,41 @@ def full(s):
 
 
 def src(doc, s, extra=''):
-    return {'url': f"{doc['doc']}#page={s['p']}", 'locator': f"סעיף {s['n']}, עמוד PDF {s['p']}{extra}"}
+    where = f"{s['d']}, " if s.get('d') else ''
+    return {'url': f"{s.get('u') or doc['doc']}#page={s['p']}", 'locator': f"{where}סעיף {s['n']}, עמוד PDF {s['p']}{extra}"}
 
 
 def find(secs, pattern, prefix=None, flags=0):
+    """הסעיף הראשון שמתאים. prefix הוא מספר הסעיף המועדף בתבנית משרד התחבורה (למשל 38 = מצבת האוטובוסים);
+    אם אין התאמה שם — מחפשים בכל המסמך, כי במכרזי מוניות ובמכרזים ישנים המספור שונה."""
     rx = re.compile(pattern, flags)
-    for s in secs:
-        if prefix and not (s['n'] == prefix or s['n'].startswith(prefix + '.')):
-            continue
-        m = rx.search(full(s))
-        if m:
-            return s, m
+    for only_prefix in ((True, False) if prefix else (False,)):
+        for s in secs:
+            if only_prefix and not (s['n'] == prefix or s['n'].startswith(prefix + '.')):
+                continue
+            m = rx.search(full(s))
+            if m:
+                return s, m
     return None, None
+
+
+HEB_MONTHS = {'ינואר': 1, 'פברואר': 2, 'מרץ': 3, 'מרס': 3, 'אפריל': 4, 'מאי': 5, 'יוני': 6, 'יולי': 7, 'אוגוסט': 8, 'ספטמבר': 9, 'אוקטובר': 10, 'נובמבר': 11, 'דצמבר': 12}
+DATE_RX = re.compile(r'(\d{2})/(\d{2})/(\d{4})|(\d{1,2})\s*ב?(' + '|'.join(HEB_MONTHS) + r')\s*,?\s*(\d{4})')
+
+
+def date_near(text, pos, window=110):
+    """התאריך הקרוב ביותר לביטוי (לפניו או אחריו) — "22/01/2026" או "14 בפברואר 2019"."""
+    best = None
+    for m in DATE_RX.finditer(text, max(0, pos - window), min(len(text), pos + window)):
+        dist = min(abs(m.start() - pos), abs(m.end() - pos))
+        if best is None or dist < best[0]:
+            best = (dist, m)
+    if not best:
+        return None
+    m = best[1]
+    if m.group(1):
+        return f'{m.group(3)}-{m.group(2)}-{m.group(1)}'
+    return f'{m.group(6)}-{HEB_MONTHS[m.group(5)]:02d}-{int(m.group(4)):02d}'
 
 
 def find_all(secs, pattern, prefix=None):
@@ -95,11 +118,11 @@ def rules(doc, secs, today, route_meta, known):
     verified = lambda k: known.get(k, {}).get('status') in ('verified', 'verified_conditional')  # noqa: E731
 
     # --- מועדים ------------------------------------------------------------------------
-    s, m = find(secs, r'(\d{2}/\d{2}/\d{4})\s*הגשת שאלות הבהרה', '12')
-    if not s:
-        s, m = find(secs, r'(\d{2}/\d{2}/\d{4})\s*הגשת שאלות הבהרה')
+    s, m = find(secs, r'הגשת שאלות הבהרה|שאלות הבהרה עד|מועד אחרון (?:להגשת|למשלוח) שאלות', '12')
     if s:
-        out['dates.questions'] = V(iso(m.group(1)), doc, s, notes='לפי טבלת המועדים במסמך המקורי; מועדים עשויים להתעדכן בהודעות הבהרה.')
+        d = date_near(full(s), m.start())
+        if d:
+            out['dates.questions'] = V(d, doc, s, notes='לפי טבלת המועדים במסמך המקורי; מועדים עשויים להתעדכן בהודעות הבהרה.')
 
     s, m = find(secs, r"תקופת הפעלת שלב א['׳] תחל לא יאוחר מ\s*[–-]?\s*(\d+)\s*חודשים", '1')
     if s:
@@ -115,25 +138,35 @@ def rules(doc, secs, today, route_meta, known):
         out['term.extension'] = V(int(m.group(1)), doc, s, unit='months' if m.group(2) == 'חודשים' else 'years', notes='לפי שיקול דעת הממשלה ("תקופת ההפעלה הנוספת").')
 
     # --- צי ------------------------------------------------------------------------------
-    s, m = find(secs, r'המספר הכולל של(?:\s*\d+)?\s*הרכבים באשכול לא יפחת מ\s*-?\s*(\d+)\s*-?\s*אוטובוסים', '38')
+    # אוטובוסים: "המספר הכולל של הרכבים באשכול (עד ליישום מלא) לא יפחת מ-166 אוטובוסים"; מוניות: מספר מזערי שמציע המציע
+    s, m = find(secs, r'המספר הכולל של(?:\s*\d+)?\s*(?:הרכבים|האוטובוסים|המוניות) באשכול(?: עד ליישום מלא)? לא יפחת מ\s*-?\s*(\d+)\s*-?\s*(?:אוטובוסים|מוניות|כלי רכב)', '38')
     if s:
         out['fleet.operating'] = V(int(m.group(1)), doc, s, notes='"מצבת האוטובוסים הבסיסית", כולל רזרבה תפעולית.')
-    s, m = find(secs, r'רזרבה תפעולית של\s*(\d{1,2})\s*%', '38')
+    else:
+        s, m = find(secs, r'המספר הכולל של המוניות באשכול לא יפחת ממספר המוניות המזערי')
+        if s:
+            out['fleet.operating'] = V('מספר המוניות המזערי שהמציע מתחייב לו בהצעתו, כולל רזרבה', doc, s)
+    s, m = find(secs, r'רזרבה תפעולית(?: של|:)?\s*(\d{1,2})\s*%', '38')
     if s:
         out['fleet.reserve'] = V(int(m.group(1)), doc, s, kind='percent')
-    sA, mA = find(secs, r'גיל האוטובוסים לא יעלה על\s*(\d+)\s*שנים')
-    sB, mB = find(secs, r'משומשים שגילם(?:\s*לא)?(?:\s*•)?\s*(?:יעלה על|עד)\s*(?:•\s*)?(\d+)\s*שנים', '38')
+    sA, mA = find(secs, r'גיל (?:ה)?(?:אוטובוסים|מוניות|רכבים|כלי הרכב) לא יעלה על\s*(\d+)\s*-?\s*שנים|יהיו בגיל נמוך מ\s*-?\s*(\d+)\s*-?\s*שנים')
+    sB, mB = find(secs, r'משומש(?:ים|ות) שגיל[םן](?:\s*לא)?(?:\s*•)?\s*(?:יעלה על|עד)\s*(?:•\s*)?(\d+)\s*שנים', '38')
     if sA:
-        out['fleet.max_age'] = V(int(mA.group(1)), doc, sA, unit='years', notes=(f'אוטובוסים משומשים בתחילת ההפעלה: עד {mB.group(1)} שנים (סעיף {sB["n"]}).' if sB else None))
+        age = int(mA.group(1) or mA.group(2))
+        out['fleet.max_age'] = V(age, doc, sA, unit='years', notes=(f'כלי רכב משומשים בתחילת ההפעלה: עד {mB.group(1)} שנים (סעיף {sB["n"]}).' if sB else None))
     elif sB:
-        out['fleet.max_age'] = V(int(mB.group(1)), doc, sB, unit='years', notes='לאוטובוסים משומשים במועד הפעלת האשכול.')
+        out['fleet.max_age'] = V(int(mB.group(1)), doc, sB, unit='years', notes='לכלי רכב משומשים במועד הפעלת האשכול.')
     s, m = find(secs, r'כל האוטובוסים באשכול.{0,80}?יופעלו באוטובוסים חשמליים', '38')
     if s:
         out['fleet.electric_share'] = V(100, doc, s, kind='percent', notes='כל האוטובוסים באשכול חשמליים לאורך כל תקופת ההפעלה.')
     else:
-        s, m = find(secs, r'לא נדרשים אוטובוסים מונעים בחשמל', '38')
+        s, m = find(secs, r'האוטובוסים החשמליים לא יפחת מ\s*-?\s*(\d{1,3})\s*(?:אחוז|%)', '38')
         if s:
-            out['fleet.electric_share'] = V('לא נדרש בתחילת ההפעלה', doc, s, notes=ts.simplify(sentence_around(full(s), m.start()))[:220])
+            out['fleet.electric_share'] = V(int(m.group(1)), doc, s, kind='percent', notes=ts.simplify(sentence_around(full(s), m.start()))[:220])
+        else:
+            s, m = find(secs, r'לא נדרשים אוטובוסים מונעים בחשמל', '38')
+            if s:
+                out['fleet.electric_share'] = V('לא נדרש בתחילת ההפעלה', doc, s, notes=ts.simplify(sentence_around(full(s), m.start()))[:220])
     s, m = find(secs, r'יהיה אוטובוס נגיש', '38')
     if s:
         out['fleet.accessibility'] = V('כל האוטובוסים נגישים', doc, s, notes='לפי תקנות שוויון זכויות לאנשים עם מוגבלות (הסדרת נגישות לשירותי תחבורה ציבורית).')
@@ -192,11 +225,13 @@ def rules(doc, secs, today, route_meta, known):
     # --- ניקוד ------------------------------------------------------------------------------
     # רכיבי הניקוד בסעיף 28: "28.4 ניסיון עבר … – 24 נקודות", "28.7 תכנית עסקית 10 - נקודות", וגם כותרת שנדבקה לטקסט של הסעיף הקודם
     comps, seen = [], set()
-    COMP = re.compile(r"(?:^|\s)28\.(\d)\s*(.{3,70}?)\s*[–-]?\s*(\d{1,2})\s*[–-]?\s*(?:נקודות|נק')")
+    crit = next((x for x in secs if re.search(r'הקריטריונים והמשקלות|אמות המידה|קריטריונים לבחירת', x['t'])), None)
+    base = crit['n'].split('.')[0] if crit else '28'
+    COMP = re.compile(r"(?:^|\s)" + re.escape(base) + r"\.(\d)\s*(.{3,70}?)\s*[–-]?\s*(\d{1,2})\s*[–-]?\s*(?:נקודות|נק')")
     for s2 in secs:
-        if not s2['n'].startswith('28'):
+        if not s2['n'].startswith(base):
             continue
-        for mm in COMP.finditer('28.' + s2['n'].split('.')[1] + ' ' + full(s2) if re.fullmatch(r'28\.\d', s2['n']) else full(s2)):
+        for mm in COMP.finditer(base + '.' + s2['n'].split('.')[1] + ' ' + full(s2) if re.fullmatch(re.escape(base) + r'\.\d', s2['n']) else full(s2)):
             sub = mm.group(1)
             if sub in seen:
                 continue
@@ -211,11 +246,11 @@ def rules(doc, secs, today, route_meta, known):
             out['scoring.quality_weight'] = {'status': 'verified', 'value': 100 - pw['value'], 'kind': 'percent', 'notes': 'משלים ל-100 את משקל המחיר: ' + ', '.join(f'{c[0]} {c[1]}' for c in others) + '.', 'sources': [src(doc, c[2]) for c in others]}
         elif others:
             out['scoring.quality_weight'] = {'status': 'verified', 'value': 100 - pw['value'], 'kind': 'percent', 'notes': 'משלים ל-100 את משקל המחיר. רכיבים שנמצאו: ' + ', '.join(f'{c[0]} {c[1]}' for c in others) + '.', 'sources': [src(doc, c[2]) for c in others]}
-    s, m = find(secs, r'ציון (?:איכות )?(?:מזערי|מינימלי|סף)|ניקוד (?:איכות )?מינימלי|סף איכות|ציון סף')
+    s, m = find(secs, r'ציון (?:איכות )?(?:מזערי|מינימלי|מינימאלי|סף)(?: נדרש)?|ניקוד (?:איכות )?(?:מינימלי|מינימאלי)|סף איכות|ציון סף')
     if s:
         out['scoring.minimum_quality'] = V(ts.simplify(sentence_around(full(s), m.start()))[:220], doc, s)
     elif comps:
-        out['scoring.minimum_quality'] = {'status': 'not_found', 'reason': 'בסעיף הקריטריונים (28) לא נמצא ציון איכות מזערי.', 'sources': [src(doc, comps[0][2])]}
+        out['scoring.minimum_quality'] = {'status': 'not_found', 'reason': f'בסעיף הקריטריונים ({base}) לא נמצא ציון איכות מזערי.', 'sources': [src(doc, comps[0][2])]}
 
     # --- פיצויים ------------------------------------------------------------------------------
     pen = [x for x in secs if 'קנסות ופיצויים' in x['topics']]
