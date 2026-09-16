@@ -143,6 +143,9 @@ def header_of(line):
     if not rest and not numbered and len(line.strip()) > 45:
         return None
     name = m['h']
+    # המשך של שם הכותרת ("שינויים שבוצעו בקווי האשכול הקיימים היום") אינו הערה; הערה מתחילה בקו מפריד
+    if rest and not re.match(r'^[–\-:]', rest):
+        rest = ''
     for s, cat in SECTIONS:
         if s == name:
             return name, cat, rest.lstrip('–-: ').strip(), numbered
@@ -154,6 +157,7 @@ def items_of(text, section=None):
     section — הסעיף שבו העמוד הקודם נגמר (רשימה שנמשכת לעמוד הבא). מחזיר גם את הסעיף בסוף העמוד."""
     out = []
     cur = None
+    note = None         # הערת סעיף פתוחה — שורות עוקבות מצטרפות לפסקה אחת
     budget = 0          # הערות סעיף נשמרות רק בעמוד הכותרת, ורק כמה שורות אחריה
     for raw in text.split('\n'):
         line = raw.rstrip()
@@ -161,6 +165,7 @@ def items_of(text, section=None):
             if cur:
                 out.append(cur)
                 cur = None
+            note = None
             continue
         h = header_of(line)
         if h:
@@ -169,8 +174,10 @@ def items_of(text, section=None):
                 cur = None
             section = h[0]
             budget = NOTE_BUDGET
+            note = None
             if h[2] and len(h[2]) > 8:
-                out.append({'kind': 'note', 'section': section, 'lines': [h[2]], 'numbered': h[3]})
+                note = {'kind': 'note', 'section': section, 'lines': [h[2]], 'numbered': h[3]}
+                out.append(note)
             continue
         # כותרת רצה של חלק במסמך ("חלק ד' – מפרט טכני") — לא תוכן; חלק אחר (חלק ה', נספח) מסיים את הסעיף
         if re.match(r"^\s*(?:חלק [א-ת]['׳]|נספח [א-ת]{1,3}['׳]?\s*[–\-:])", line):
@@ -188,15 +195,22 @@ def items_of(text, section=None):
             if cur:
                 out.append(cur)
             cur = {'kind': 'category', 'section': section, 'category': clean(cat['cat']), 'lines': [line.strip()]}
+            note = None
         elif is_bullet or starts:
             if cur:
                 out.append(cur)
             cur = {'kind': 'line', 'section': section, 'lines': [line.strip()]}
+            note = None
         elif cur:
             cur['lines'].append(line.strip())
         elif section in NOTE_SECTIONS and budget > 0:
-            # טקסט תחת כותרת סעיף בלי תבליט — הערת סעיף ("המכרז לא כולל קווים חדשים.")
-            out.append({'kind': 'note', 'section': section, 'lines': [line.strip()]})
+            # טקסט תחת כותרת סעיף בלי תבליט — הערת סעיף ("המכרז לא כולל קווים חדשים.");
+            # שורות עוקבות מצטרפות לאותה פסקה
+            if note is not None and note['section'] == section:
+                note['lines'].append(line.strip())
+            else:
+                note = {'kind': 'note', 'section': section, 'lines': [line.strip()]}
+                out.append(note)
             budget -= 1
     if cur:
         out.append(cur)

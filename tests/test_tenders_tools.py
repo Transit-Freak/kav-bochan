@@ -118,7 +118,10 @@ def test_overview_counts_are_not_headers_and_descriptions_are_not_changes():
 def test_section_notes_are_limited_to_the_header_page():
     text = '                     קווי לילה    34.4\nאשכול זה אינו כולל קווי לילה .במרחב האשכול פועלים מספר קווי לילה\n' + 'שורה נוספת בתוך הסעיף\n' * 10
     found, notes = line_changes.scan_units([{'page': 71, 'text': text}, {'page': 72, 'text': 'עוד טקסט שאינו קשור\nהמפעיל מחויב לנסות ולמנוע\n'}], 'https://mr.gov.il/doc', 'abc', 'מסמכי הליך')
-    assert len(notes) == line_changes.NOTE_BUDGET and all(n['page'] == 71 for n in notes)
+    # שורות עוקבות מתאחדות לפסקה אחת, רק בעמוד הכותרת, ורק עד תקציב השורות
+    assert len(notes) == 1 and notes[0]['page'] == 71
+    assert notes[0]['quote'].startswith('אשכול זה אינו כולל קווי לילה')
+    assert notes[0]['quote'].count('שורה נוספת') == line_changes.NOTE_BUDGET - 1
 
 
 def test_section_continues_to_next_page():
