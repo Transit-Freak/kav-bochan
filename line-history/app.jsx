@@ -2260,6 +2260,12 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
                   <TipTag cls="rvflag" tip="השינוי הקודם התבטל כאן — רצף התחנות חזר למה שהיה לפניו">
                     ↩ החזרת המצב הקודם</TipTag>
                 ) : null}
+                {/* הד: אותן תחנות נוספו ואותן ירדו כבר קודם בחלופה אחרת של הקו — החלופה הזאת רק חזרה
+                    לרישום עם המסלול המעודכן. לא שינוי חדש, ולא נשלחת עליו התראה (שלמה 16.09) */}
+                {x.echo ? (
+                  <TipTag cls="rvflag" tip={"אותן תחנות נוספו ואותן תחנות ירדו כבר ב-" + fmtD(x.echo.d) + " בחלופה " + x.echo.rd + " של הקו. החלופה הזאת חזרה לרישום עם המסלול המעודכן — זה לא שינוי חדש"}>
+                    ↻ אותו שינוי כבר נכנס לקו ב-{fmtD(x.echo.d)}</TipTag>
+                ) : null}
                 {x.note && x.k !== "planned-dropped" && <span className="evnote"> {noteFix(x.note)}</span>}
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
@@ -2709,7 +2715,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
     setChs(null); setChErr(false);
     dfetch("data/changes/" + mon + ".json")
       .then((r) => (r.ok ? r.json() : { changes: [] }))
-      .then((d) => { if (ok) setChs((d.changes || []).filter((c) => !hiddenEv(c))); })
+      .then((d) => { if (ok) setChs((d.changes || []).filter((c) => !hiddenEv(c) && !c.echo)); })
       .catch(() => { if (ok) { setChErr(true); setChs([]); } });
     return () => { ok = false; };
   }, [mon, rty]);
@@ -2891,7 +2897,7 @@ function RecentChanges({ idx, openLine, onAll }) {
         if (!ms.length) { if (ok) setRows([]); return; }
         const get = (m) => dfetch("data/changes/" + m + ".json")
           .then((r) => (r.ok ? r.json() : { changes: [] }))
-          .then((d) => ({ changes: (d.changes || []).filter((c) => !hiddenEv(c)) }));
+          .then((d) => ({ changes: (d.changes || []).filter((c) => !hiddenEv(c) && !c.echo) }));
         let list = (await get(ms[ms.length - 1])).changes || [];
         // ב-1 בחודש הקובץ החדש כמעט ריק, והמסך הראשי נראה כאילו האתר מת —
         // כשחסרים ימים משלימים מהחודש הקודם כדי שתמיד יוצגו הימים האחרונים

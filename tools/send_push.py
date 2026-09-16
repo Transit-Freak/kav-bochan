@@ -155,7 +155,8 @@ def collect_changes():
         except Exception:
             continue
         for v in d.get('versions') or []:
-            if str(v.get('d', ''))[:10] != DATE or v.get('k') in SKIP_KINDS:
+            # echo: אותו שינוי כבר נכנס לקו בחלופה אחרת (mark_echo_events.py) — לא שולחים שוב (שלמה 16.09)
+            if str(v.get('d', ''))[:10] != DATE or v.get('k') in SKIP_KINDS or v.get('echo'):
                 continue
             rd = d.get('rd') or f.rsplit('.', 1)[0]
             mk = rd.split('-')[0]
@@ -242,7 +243,7 @@ def collect_range(days):
             continue
         for v in d.get('versions') or []:
             dd = str(v.get('d', ''))[:10]
-            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot'):
+            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot') or v.get('echo'):
                 continue
             rd = d.get('rd') or f.rsplit('.', 1)[0]
             for ct in dest_cities(d.get('dest') or ''):
@@ -296,7 +297,7 @@ def collect_range_mk(days):
         rd = d.get('rd') or f.rsplit('.', 1)[0]
         for v in d.get('versions') or []:
             dd = str(v.get('d', ''))[:10]
-            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot'):
+            if not (since < dd <= DATE) or v.get('k') in SKIP_KINDS or v.get('k') in ('baseline', 'snapshot') or v.get('echo'):
                 continue
             e = by_mk.setdefault(rd.split('-')[0], {'kinds': set(), 'line': d.get('line') or (cat.get(rd) or {}).get('line', ''),
                                                     'dest': d.get('dest') or (cat.get(rd) or {}).get('dest', ''), 'rd': rd})
