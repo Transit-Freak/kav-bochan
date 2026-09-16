@@ -11,7 +11,7 @@ const linesReady = Promise.all([
   fetch('line-changes.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(r => { if (r) lineChanges = r; }).catch(() => {}),
 ]).then(() => renderFeed());
 
-const TAG_COLORS = { 'קו חדש': '#166534', 'ביטול': '#991b1b', 'שינוי מסלול': '#92400e', 'שינוי תדירות': '#1d4ed8', 'הארכה': '#0f766e', 'קיצור': '#7c2d12', 'שינוי מספר': '#6d28d9', 'איחוד': '#334155', 'פיצול': '#334155', 'חלופה': '#475569', 'ללא שינוי': '#64748b' };
+const TAG_COLORS = { 'קו חדש': '#166534', 'ביטול': '#991b1b', 'שינוי מסלול': '#92400e', 'שינוי תדירות': '#1d4ed8', 'הארכה': '#0f766e', 'קיצור': '#7c2d12', 'שינוי מספר': '#6d28d9', 'איחוד': '#334155', 'פיצול': '#334155', 'חלופה': '#475569', 'ללא שינוי': '#64748b', 'קו לילה': '#1e3a8a', 'קו תלמידים': '#6b21a8' };
 const normNum = n => String(n || '').replace(/\s+/g, '').replace(/^0+(?=\d)/, '');
 const tagChip = t => `<span class="linetag" style="background:${TAG_COLORS[t] || '#475569'}">${esc(t)}</span>`;
 const fdDate = s => s ? s.split('-').reverse().join('.') : '';

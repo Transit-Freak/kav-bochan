@@ -350,6 +350,20 @@ def items_of(text, section=None, state=None):
 
 
 SECTION_TAG = {s: c for s, c in SECTIONS if c in ('קו חדש', 'ביטול', 'שינוי')}
+# סעיפים שמתארים סוג של קווים: הפסקה שמונה אותם נצמדת לקווים בטבלה עם התגית הזאת
+DESCRIBE_SECTIONS = {'קווי לילה': 'קו לילה', 'קווי תלמידים': 'קו תלמידים', 'חלופות תלמידים': 'קו תלמידים'}
+DESCRIBED = re.compile(r'\((?P<p>\d{1,3}[א-ת]?(?:\s*,\s*\d{1,3}[א-ת]?)*)\)|(?:קו|קווים|וקו)\s+(?P<k>\d{1,4}[א-ת]?)(?![\d.])')
+
+
+def described_numbers(text):
+    """מספרי הקווים בפסקה שמונה קווים: "מעלה אדומים (209), בית אל (269) … קו 468" → ['209', '269', '468'];
+    גם רשימה בסוגריים "(228, 229)". לא "5 קווי לילה" (הכמות), לא שנים ולא מספרי סעיפים."""
+    out = []
+    for m in DESCRIBED.finditer(text):
+        for n in re.split(r'\s*,\s*', m.group('p') or m.group('k')):
+            if n and n not in out:
+                out.append(n)
+    return out
 
 
 def analyze_item(item):
@@ -394,7 +408,16 @@ def scan_units(units, url, sha, doc_name):
             if item['kind'] == 'note':
                 q = fix_parens(clean(' '.join(item['lines'])))
                 if len(q) >= 12 and re.search('[א-ת]', q):
-                    notes.append({'section': item['section'], 'quote': q[:600], 'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
+                    # פסקה על קווי לילה/תלמידים שמונה קווים ("מעלה אדומים (209), בית אל (269)… קו 468") — נצמדת לקווים
+                    # עצמם בטבלה (תגית "קו לילה") במקום להופיע כפסקה נפרדת (שלמה 16.09: "שזה יופיע רק בטבלה")
+                    kind_tag = DESCRIBE_SECTIONS.get(item['section'])
+                    nums = described_numbers(q) if kind_tag else []
+                    if nums:
+                        found.append({'numbers': nums, 'makats': [], 'tags': [kind_tag], 'section': item['section'], 'quote': q[:900],
+                                      'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
+                        page_items += 1
+                    else:
+                        notes.append({'section': item['section'], 'quote': q[:600], 'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
                 continue
             nums, makats, tags, quote = analyze_item(item)
             if not (nums or makats) or not tags or len(quote) < 8:

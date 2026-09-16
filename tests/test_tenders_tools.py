@@ -454,3 +454,22 @@ def test_date_needles_and_value_on_next_page_and_sentence_fallback():
     pg, p, hit, needle, how, span = snip_fields.locate(fitz, doc, 1, 'fleet.electric_share', f2)
     assert (p, how) == (1, 'sentence') and len(hit) >= 1
     assert snip_fields.locate(fitz, doc, 1, 'x', {'value': 999, 'sec': {'n': '9.9', 'brief': 'nothing like this anywhere'}}) is None
+
+
+NIGHT = """      34.1.5קווי לילה
+ההליך כולל חמישה קווי לילה מירושלים ליישובים :מעלה אדומים ( ,)209בית אל ( ,)269מצפה יריחו
+( ,)208קדר ( )211ופסגות ( .)270בנוסף ,קו 468 ממודיעין לירושלים דרך יישובי מטה בנימין כולל
+חלופת לילה .תשומת לב המציע מופנית לכך שמשרד התחבורה בוחן כל שנה את מערך קווי הלילה.
+"""
+
+
+def test_night_lines_paragraph_attaches_to_its_lines_instead_of_a_section_note():
+    found, notes = line_changes.scan_units([{'page': 71, 'text': NIGHT}], 'https://mr.gov.il/doc', 'abc', 'מסמכי הליך')
+    assert not any(n['section'] == 'קווי לילה' for n in notes)
+    night = [f for f in found if f['tags'] == ['קו לילה']]
+    assert len(night) == 1 and night[0]['section'] == 'קווי לילה'
+    assert night[0]['numbers'] == ['209', '269', '208', '211', '270', '468']
+    assert night[0]['quote'].startswith('ההליך כולל חמישה קווי לילה מירושלים ליישובים: מעלה אדומים (209), בית אל (269)')
+    assert line_changes.described_numbers('ההליך כולל 5 קווי לילה, קו 12א וקו 7, בשנת 2024 לפי סעיף 34.1') == ['12א', '7']
+    # רשימה בסוגריים (השרון): "קווי לילה עירוניים (228, 229) ושני קווים בינעירוניים (230, 231)"
+    assert line_changes.described_numbers('שני קווי לילה עירוניים (228, 229) ושני קווים בינעירוניים (230, 231).') == ['228', '229', '230', '231']
