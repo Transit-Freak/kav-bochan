@@ -62,6 +62,99 @@ def needles_for(key, f):
     return res
 
 
+STOP = set('''של את על עם בין דרך הקו קו קווים לקו לקווים גם כל אל או כמו יהיה תהיה היום כיום לפי בלבד אשר כאשר וכן ולא לא אין
+יש בכל בתוך עד מן ממנו זה זו זאת הזה אחד אחת שני שתי כדי לצורך בגין ידי חדש חדשים הקווים שינוי במסלול מסלול ביטול'''.split())
+
+
+def quote_words(quote):
+    """המילים שמחפשים בעמוד: מילים בעברית של 3 אותיות ומעלה ומספרים — בלי מילות קישור, בלי כפילויות."""
+    words = re.findall(r'[א-ת]{3,}|\d{2,}', quote)
+    return [w for w in dict.fromkeys(words) if w not in STOP][:40]
+
+
+def find_quote(pg, quote):
+    """המקום בעמוד שבו כתוב הציטוט: מחפשים את מילות הציטוט, מקבצים לפי שורות, ובוחרים את רצף השורות
+    (לפי אורך הציטוט) שבו נמצאו הכי הרבה מילים שונות. מחזיר את המלבנים להדגשה, או [] כשלא בטוחים."""
+    hits = []
+    for w in quote_words(quote):
+        for r in pg.search_for(w)[:20]:
+            hits.append((w, r))
+    if not hits:
+        return []
+    lines = {}
+    for w, r in hits:
+        yc = round((r.y0 + r.y1) / 2 / 6) * 6
+        e = lines.setdefault(yc, {'words': set(), 'rects': []})
+        e['words'].add(w)
+        e['rects'].append(r)
+    ys = sorted(lines)
+    nlines = max(1, min(8, len(quote) // 55 + 1))
+    best = None
+    for i, y in enumerate(ys):
+        win = [y2 for y2 in ys[i:] if y2 - y <= nlines * 14]
+        score = len(set().union(*(lines[y2]['words'] for y2 in win)))
+        if best is None or score > best[0]:
+            best = (score, win)
+    distinct = len({w for w, _ in hits})
+    if best is None or best[0] < min(3, distinct):
+        return []
+    return [r for y in best[1] for r in lines[y]['rects']]
+
+
+def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
+    """צילום לכל עמוד שיש בו ציטוטים על קווים (line-changes.json): כל הציטוטים שבעמוד מודגשים בצהוב,
+    והתמונה חתוכה לאזור שלהם. שלמה (16.09): "שהתכונה תצלם את המסכים הרלוונטיים לאותו פרק ותסמן את הציטוט"."""
+    lc = read(ROOT / 'line-changes.json', {})
+    groups = {}
+    for tid, items in lc.get('tenders', {}).items():
+        for q in items:
+            if q.get('sha256') and q.get('page'):
+                groups.setdefault((q['sha256'], q['page']), []).append(q['quote'])
+    for tid, notes in lc.get('sections', {}).items():
+        for q in notes:
+            if q.get('sha256') and q.get('page'):
+                groups.setdefault((q['sha256'], q['page']), []).append(q['quote'])
+    sha_url = {sha: url for url, sha in url_sha.items()}
+    made = kept = 0
+    for (sha, pno), quotes in sorted(groups.items()):
+        key = f'{sha[:12]}:{pno}'
+        prev = previous.get(key)
+        if prev and prev.get('v') == VERSION and prev.get('n') == len(quotes) and (ROOT / prev['image']).exists():
+            result['quotes'][key] = prev
+            kept += 1
+            continue
+        url = sha_url.get(sha)
+        path = ensure_cached(sha, url) if url else None
+        if not path or path.read_bytes()[:4] != b'%PDF':
+            continue
+        try:
+            pdf = pdfs.get(sha) or fitz.open(str(path))
+            pdfs[sha] = pdf
+            pg = pdf[pno - 1]
+        except Exception:
+            continue
+        bands = [rects for rects in (find_quote(pg, q) for q in quotes) if rects]
+        if not bands:
+            continue
+        for rects in bands:
+            for r in rects:
+                a = pg.add_highlight_annot(r)
+                a.set_colors(stroke=(1, 0.9, 0.2))
+                a.update()
+        y0 = min(r.y0 for b in bands for r in b) - 40
+        y1 = max(r.y1 for b in bands for r in b) + 40
+        clip = pg.rect if (y1 - y0) > 0.75 * pg.rect.height else fitz.Rect(0, max(0, y0), pg.rect.width, min(pg.rect.height, y1))
+        pix = pg.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), clip=clip, alpha=False)
+        img = Image.open(io.BytesIO(pix.tobytes('png')))
+        if img.width > 1400:
+            img = img.resize((1400, int(img.height * 1400 / img.width)))
+        rel = f'snips/q-{sha[:12]}-p{pno}.webp'
+        img.save(ROOT / rel, 'WEBP', quality=80, method=6)
+        result['quotes'][key] = {'image': rel, 'page': pno, 'sha': sha, 'v': VERSION, 'n': len(quotes), 'marked': len(bands)}
+        made += 1
+    print(f'צילומי ציטוטים: {len(result["quotes"])} עמודים ({made} חדשים, {kept} נשמרו) מתוך {len(groups)} עמודים עם ציטוטים', flush=True)
+
+
 def main():
     try:
         import fitz  # PyMuPDF
@@ -72,9 +165,10 @@ def main():
     rules = read(ROOT / 'fields-rules.json', {'tenders': {}})['tenders']
     index = read(ROOT / 'text' / 'index.json', {'documents': {}})['documents']
     url_sha = {m['url']: sha for sha, m in index.items()}
-    previous = read(OUT, {'tenders': {}})['tenders']
+    prev_all = read(OUT, {'tenders': {}})
+    previous = prev_all.get('tenders', {})
     SNIPS.mkdir(exist_ok=True)
-    result = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
+    result = {'updated': datetime.date.today().isoformat(), 'tenders': {}, 'quotes': {}}
     made = kept = 0
     pdfs = {}
     for tid, fields in rules.items():
@@ -122,9 +216,10 @@ def main():
             img.save(ROOT / rel, 'WEBP', quality=82, method=6)
             result['tenders'].setdefault(tid, {})[key] = {'image': rel, 'page': pno, 'needle': needle, 'sha': sha, 'v': VERSION}
             made += 1
+    snip_quotes(fitz, Image, url_sha, prev_all.get('quotes', {}), result, pdfs)
     for pdf in pdfs.values():
         pdf.close()
-    used = {v['image'] for t in result['tenders'].values() for v in t.values()}
+    used = {v['image'] for t in result['tenders'].values() for v in t.values()} | {v['image'] for v in result['quotes'].values()}
     removed = 0
     for img in SNIPS.glob('*.webp'):
         if f'snips/{img.name}' not in used:

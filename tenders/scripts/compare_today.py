@@ -107,13 +107,17 @@ def main():
     cluster_names = set(cluster_of.values())
     fields = json.load(open(ROOT / 'structured-tenders.json', encoding='utf-8'))
     result = {'updated': datetime.date.today().isoformat(), 'gtfsDate': gdate, 'tenders': {}}
+    nn = lambda s: re.sub(r'\s+', '', str(s or '')).lstrip('0')
     for tid, versions in load_route_data().items():
         makats = {}
+        pdf_lines = {}          # טבלת קווים מתוך ה-PDF (מכרזי 2014) — בלי מק"ט, רק מספר קו
         for v in versions:
             for r in v['routes']:
                 mk = str(r['key'][0]).strip()
                 if mk.isdigit():
                     makats[mk] = r['key'][1]
+                elif mk.startswith('pdf:'):
+                    pdf_lines[mk] = (str(r['key'][1]), r.get('area') or '')
         lines = {}
         for mk in makats:
             t = today.get(mk)
@@ -123,10 +127,39 @@ def main():
         # "חיפה עירוני מזרח" הוא חלק מאשכול "חיפה עירוני" של המשרד — קווי המערב
         # אינם "קווים שיבוטלו". הרשימה מוצגת רק כשהשם זהה (ולא חלק מאשכול).
         exact = bool(cname) and words(cname) == words(tc)
+        tender_numbers = set()
+        if pdf_lines and cname:
+            # בלי מק"ט משווים לפי מספר הקו בתוך האשכול של המשרד: קו 61 של צפון הנגב במכרז ↔ קו 61 באשכול "צפון הנגב" היום
+            by_num = {}
+            for mk, cl in cluster_of.items():
+                if cl == cname and mk in today:
+                    by_num.setdefault(nn(today[mk]['number']), []).append(mk)
+            place = lambda s: re.sub(r'קריית', 'קרית', re.sub(r'[."\'׳״\-]', ' ', str(s or '')))
+            for key, (num, area) in pdf_lines.items():
+                cands = by_num.get(nn(num), [])
+                tender_numbers.add(nn(num))
+                if not cands:
+                    lines[key] = {'today': False, 'byNumber': True}
+                    continue
+                # אותו מספר בכמה ערים (קו 1 בקריית גת, בנתיבות, באשקלון) — בוחרים לפי שם היישוב בשם הקו בלוח הזמנים;
+                # כשאי אפשר להחליט, לא אומרים כלום
+                aw = {w for w in re.split(r'\s+', place(area).strip()) if w and w not in ('מ', 'א', 'אזורית', 'מועצה', 'קווי', 'קווים')}
+                # שם הקו בלוח הזמנים נגמר ביישוב המוצא ("תחנת רכבת קריית גת/יציאה-קרית גת") — משווים אליו, לא לשם רחוב
+                city_of = lambda name: set(re.split(r'[\s,/־]+', place(str(name or '').rsplit('-', 1)[-1])))
+                fit = [mk for mk in cands if aw and aw <= city_of(today[mk]['name'])]
+                if aw and not fit:
+                    lines[key] = {'today': False, 'byNumber': True}     # יש קו במספר הזה באשכול, אבל לא של היישוב הזה
+                    continue
+                pick = fit if fit else (cands if len(cands) == 1 else [])
+                if not pick:
+                    continue
+                t = today[pick[0]]
+                lines[key] = {'today': True, 'byNumber': True, 'candidates': len(cands), 'makat': pick[0],
+                              **{k: t[k] for k in ('operator', 'number', 'name', 'directions')}}
         not_in = []
         if cname and exact:
             for mk, cl in cluster_of.items():
-                if cl == cname and mk not in makats and mk in today:
+                if cl == cname and mk not in makats and mk in today and not (pdf_lines and nn(today[mk]['number']) in tender_numbers):
                     t = today[mk]
                     not_in.append([mk, t['number'], t['name'], t['operator']])
             not_in.sort(key=lambda x: (len(x[1]), x[1]))

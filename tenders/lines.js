@@ -17,10 +17,21 @@ const tagChip = t => `<span class="linetag" style="background:${TAG_COLORS[t] ||
 const fdDate = s => s ? s.split('-').reverse().join('.') : '';
 
 /* ציטוטים על קו: לפי המק"ט כשהמסמך מציין אותו (חד-משמעי), אחרת לפי מספר הקו */
-function quotesFor(id, number, catalog) {
+const normPlace = s => String(s || '').replace(/["'׳״.\-\s]/g, '');
+function quotesFor(id, number, catalog, line) {
   const items = lineChanges.tenders?.[id] || [];
-  const n = normNum(number), mk = catalog ? String(catalog) : null;
-  return items.filter(q => (mk && (q.makats || []).includes(mk)) || ((q.makats || []).length === 0 && q.numbers.some(x => normNum(x) === n)));
+  const n = normNum(number), mk = catalog && !String(catalog).startsWith('pdf:') ? String(catalog) : null;
+  return items.filter(q => {
+    if (mk && (q.makats || []).includes(mk)) return true;
+    if ((q.makats || []).length && mk) return false;
+    if (!q.numbers.some(x => normNum(x) === n)) return false;
+    // טבלה מתוך ה-PDF (בלי מק"ט): אותו מספר משמש כמה ערים — הציטוט נצמד לפי העיר וסוג הקו שבכותרת שלו
+    if (line && line.pdf) {
+      if (q.city && (line.area || line.group)) { const c = normPlace(q.city), a = normPlace(line.area), g = normPlace(line.group); if (!(a && (a.includes(c) || c.includes(a))) && !(g && g.includes(c))) return false; }
+      if (q.kind && line.service && !line.service.startsWith(q.kind)) return false;
+    }
+    return true;
+  });
 }
 const linesShowAll = {};   // מכרז → להראות גם קווים שהמכרז לא מזכיר
 function mentionedCount(id) {
@@ -51,7 +62,7 @@ function linesOf(versions) {
   for (const v of ordered) for (const r of v.routes) {
     const mk = String(r.key[0]).trim();
     let e = byMk.get(mk);
-    if (!e) { e = { mk, number: String(r.key[1]), area: r.area, rows: [], version: v }; byMk.set(mk, e); }
+    if (!e) { e = { mk, number: String(r.key[1]), area: r.area, rows: [], version: v, pdf: mk.startsWith('pdf:'), service: r.service || '', operator: r.operator || '', isNew: !!r.isNew, group: r.group || '', page: r.page }; byMk.set(mk, e); }
     if (e.version !== v) continue;   // גרסה אחרת של אותו מק"ט — לא מערבבים
     e.rows.push(r);
   }
@@ -64,7 +75,8 @@ function renderLinesSection(t) {
   if (!meta && !quotes.length) return '';
   const c = td?.counts;
   const parts = [];
-  if (meta) parts.push(hasChangeSection(t.id) && mentionedCount(t.id) ? `המכרז מזכיר ${mentionedCount(t.id)} קווים מתוך ${c ? c.inTender : meta.uniqueRoutes} בנספח` : `${c ? c.inTender : meta.uniqueRoutes} קווים בנספח`);
+  const where = meta?.source === 'pdf-table' ? 'בטבלת הקווים במסמך' : 'בנספח';
+  if (meta) parts.push(hasChangeSection(t.id) && mentionedCount(t.id) ? `המכרז מזכיר ${mentionedCount(t.id)} קווים מתוך ${c ? c.inTender : meta.uniqueRoutes} ${where}` : `${c ? c.inTender : meta.uniqueRoutes} קווים ${where}`);
   if (c) { parts.push(`${c.runningToday} רצים היום`); if (c.notRunning) parts.push(`${c.notRunning} לא רצים היום`); }
   if (quotes.length) parts.push(`${quotes.length} ציטוטים על שינויים`);
   return `<details class="fielddetails lines-section" data-keep-open="lines:${esc(t.id)}" data-lines-tender="${esc(t.id)}"><summary>הקווים במכרז · ${parts.join(' · ')}</summary><div class="lines-body"><p class="muted">טוען את טבלת הקווים…</p></div></details>`;
@@ -85,29 +97,32 @@ async function fillLines(details) {
     } catch { body.innerHTML = '<p>טעינת טבלת הקווים נכשלה. אפשר לרענן ולנסות שוב.</p>'; details.dataset.filled = ''; return; }
   }
   const allLines = linesOf(versions);
+  const pdfV = versions.find(v => v.source === 'pdf-table'), pdfSource = !!pdfV;   // טבלה שנקראה מתוך ה-PDF (מכרזי 2014) — בלי מק"טים
   const used = new Set();
   // "בטוחים": במסמך יש סעיף שינויים לקווים (נמצאו בו פסקאות או ציטוטים) — אז קו שלא מוזכר בו ממשיך כמו היום
   const sure = hasChangeSection(id);
   // ברירת המחדל: רק קווים שהמכרז מזכיר (שלמה 16.09: "אם לא מזכיר — לא אמור להופיע"); כפתור אחד מראה גם את השאר
-  const mentioned = allLines.filter(l => quotesFor(id, l.number, l.mk).length);
+  const mentioned = allLines.filter(l => quotesFor(id, l.number, l.mk, l).length);
   const showAll = !sure || linesShowAll[id] || !mentioned.length;
   const lines = showAll ? allLines : mentioned;
   const rows = lines.map((l, i) => {
     const today = td?.lines?.[l.mk];
-    const qs = quotesFor(id, l.number, l.mk); qs.forEach(q => used.add(q));
+    const qs = quotesFor(id, l.number, l.mk, l); qs.forEach(q => used.add(q));
     const tags = [...new Set(qs.flatMap(q => q.tags))];
     const first = l.rows[0];
+    // טבלת ה-PDF אומרת בעצמה "קו חדש" בעמודת המפעיל הקיים — זה נחשב כמו שהמכרז מזכיר את הקו
+    const tableNew = l.pdf && l.isNew && !tags.includes('קו חדש') ? tagChip('קו חדש') + ' ' : '';
     const todayCell = today == null ? '<span class="muted">לא נבדק</span>' : today.today
-      ? `<span class="today on">רץ</span> ${esc(today.operator || '')}${today.number && normNum(today.number) !== normNum(l.number) ? ` · מס׳ ${esc(today.number)}` : ''}`
-      : '<span class="today off">לא רץ היום</span>';
-    return `<tr class="lineRow" data-line-tender="${esc(id)}" data-line-index="${allLines.indexOf(l)}" tabindex="0"><td><b>${esc(l.number)}</b></td><td class="muted">${esc(l.mk)}</td><td>${esc(l.area || '')}${first ? `<br><small>${esc(first.origin)} ← ${esc(first.destination)}</small>` : ''}</td><td>${l.rows.length}</td><td>${todayCell}</td><td>${tags.map(tagChip).join(' ') || (qs.length ? '' : sure ? '<span class="muted" title="הקו לא מוזכר בסעיף השינויים של המסמך">ממשיך כמו היום</span>' : '<span class="muted">לא נבדק</span>')}${qs.length ? ` <small class="muted">${qs.length} ציטוט${qs.length > 1 ? 'ים' : ''}</small>` : ''}</td></tr>`;
+      ? `<span class="today on"${today.byNumber ? ' title="לפי מספר הקו באשכול בלוח הזמנים"' : ''}>רץ</span> ${esc(today.operator || '')}${today.number && normNum(today.number) !== normNum(l.number) ? ` · מס׳ ${esc(today.number)}` : ''}`
+      : `<span class="today off"${today.byNumber ? ' title="אין קו במספר הזה באשכול בלוח הזמנים"' : ''}>לא רץ היום</span>`;
+    return `<tr class="lineRow" data-line-tender="${esc(id)}" data-line-index="${allLines.indexOf(l)}" tabindex="0"><td><b>${esc(l.number)}</b></td><td class="muted">${l.pdf ? '—' : esc(l.mk)}</td><td>${esc(l.area || '')}${first && (first.origin || first.destination) ? `<br><small>${esc(first.origin)}${first.destination ? ` ← ${esc(first.destination)}` : ''}</small>` : ''}${l.pdf && l.operator ? `<br><small class="muted">מפעיל לפי המסמך: ${esc(l.operator)}</small>` : ''}</td><td>${l.pdf ? esc(l.service) : l.rows.length}</td><td>${todayCell}</td><td>${tableNew}${tags.map(tagChip).join(' ') || (qs.length || tableNew ? '' : sure ? '<span class="muted" title="הקו לא מוזכר בסעיף השינויים של המסמך">ממשיך כמו היום</span>' : '<span class="muted">לא נבדק</span>')}${qs.length ? ` <small class="muted">${qs.length} ציטוט${qs.length > 1 ? 'ים' : ''}</small>` : ''}</td></tr>`;
   }).join('');
   const orphan = quotes.filter(q => !used.has(q));
   const notIn = td?.clusterExact && td.notInTender?.length ? `<details class="fielddetails"><summary>קווים שרצים היום באשכול ״${esc(td.clusterName)}״ ואינם בטבלת המכרז · ${td.notInTender.length}</summary><p class="muted">לפי קובץ ״אשכול לקו״ של משרד התחבורה ולוח הזמנים של ${fdDate(todayData.gtfsDate)}. זה לא אומר בהכרח שהקווים יבוטלו: ייתכן שהם בנספח אחר או במספר אחר.</p><ul>${td.notInTender.map(([mk, num, name, op]) => `<li><b>${esc(num)}</b> · ${esc(name)} · ${esc(op)} <small class="muted">מק״ט ${esc(mk)}</small></li>`).join('')}</ul></details>` : '';
   const notes = sectionNotes(id);
-  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length === 1 ? 'פסקה אחת' : `${notes.length} פסקאות`}</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span>${quoteBody(n)}<small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a></small></blockquote>`).join('')}</details>` : '';
+  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length === 1 ? 'פסקה אחת' : `${notes.length} פסקאות`}</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span>${quoteBody(n)}<small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a>${quoteSnip(n)}</small></blockquote>`).join('')}</details>` : '';
   body.innerHTML = `${notesHtml}${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
-    ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>כיוונים וחלופות</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">לחיצה על קו: מה כתוב עליו במסמך ומה רץ היום.${sure && mentioned.length && allLines.length > mentioned.length ? (showAll ? ` <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="mentioned">להראות רק את ${mentioned.length} הקווים שהמכרז מזכיר</button>` : ` מוצגים ${mentioned.length} הקווים שהמכרז מזכיר. <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="all">להראות גם את ${allLines.length - mentioned.length} הקווים שממשיכים כמו היום</button>`) : ''}</p>` : `<p class="muted">${orphan.length ? 'למכרז הזה אין קובץ אקסל של הקווים. מה שכתוב למטה נלקח מתוך הטקסט של המכרז עצמו.' : 'למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.'}</p>`}
+    ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>${pdfSource ? 'סוג' : 'כיוונים וחלופות'}</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">${pdfSource ? `טבלת הקווים נקראה מתוך המסמך עצמו (עמודים ${esc((pdfV.pages || []).join('–'))}). במסמך אין מק״טים, ולכן ״רץ היום״ נבדק לפי מספר הקו${td?.clusterName ? ` באשכול ״${esc(td.clusterName)}״` : ''} בלוח הזמנים. ` : ''}לחיצה על קו: מה כתוב עליו במסמך ומה רץ היום.${sure && mentioned.length && allLines.length > mentioned.length ? (showAll ? ` <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="mentioned">להראות רק את ${mentioned.length} הקווים שהמכרז מזכיר</button>` : ` מוצגים ${mentioned.length} הקווים שהמכרז מזכיר. <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="all">להראות גם את ${allLines.length - mentioned.length} הקווים שממשיכים כמו היום</button>`) : ''}</p>` : `<p class="muted">${orphan.length ? 'למכרז הזה אין קובץ אקסל של הקווים. מה שכתוב למטה נלקח מתוך הטקסט של המכרז עצמו.' : 'למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.'}</p>`}
     ${orphan.length ? `<details class="fielddetails"${lines.length ? '' : ' open'}><summary>${lines.length ? 'ציטוטים על קווים שאינם בטבלת הנספח' : 'מה המכרז אומר על כל קו'} · ${orphan.length}</summary>${orphan.map(renderQuote).join('')}</details>` : ''}
     ${notIn}
     ${lines.length || meta ? `<p class="lines-tools">${lines.length ? `<button data-lines-csv="${esc(id)}">הורדת הרשימה (CSV)</button>` : ''}${meta ? ` <button data-annex-tender="${esc(id)}">הנספחים המקוריים לפי קובץ (${meta.versions})</button>` : ''}</p>` : ''}`;
@@ -126,12 +141,12 @@ document.addEventListener('click', e => {
   const b = e.target.closest('button[data-lines-csv]'); if (!b) return;
   const id = b.dataset.linesCsv, td = todayData.tenders?.[id], lines = linesOf(routeFiles[id] || []);
   const rows = lines.map(l => {
-    const today = td?.lines?.[l.mk], qs = quotesFor(id, l.number, l.mk), first = l.rows[0];
-    return [l.number, l.mk, l.area || '', first?.origin || '', first?.destination || '', l.rows.length,
+    const today = td?.lines?.[l.mk], qs = quotesFor(id, l.number, l.mk, l), first = l.rows[0];
+    return [l.number, l.pdf ? '' : l.mk, l.area || '', first?.origin || '', first?.destination || '', l.pdf ? l.service : l.rows.length, l.pdf ? (l.isNew ? 'קו חדש' : l.operator) : '',
       today == null ? 'לא נבדק' : today.today ? 'רץ' : 'לא רץ היום', today?.operator || '', today?.number || '',
       [...new Set(qs.flatMap(q => q.tags))].join(' | '), qs.map(q => q.quote).join(' | ')];
   });
-  downloadCSV(`kavim-mikhraz-${id}.csv`, ['קו', 'מק"ט', 'יישוב', 'מוצא', 'יעד', 'כיוונים וחלופות', 'היום', 'מפעיל היום', 'מספר היום', 'מה כתוב במכרז', 'ציטוטים'], rows);
+  downloadCSV(`kavim-mikhraz-${id}.csv`, ['קו', 'מק"ט', 'יישוב', 'מוצא', 'יעד', 'כיוונים וחלופות / סוג', 'מפעיל לפי המסמך', 'היום', 'מפעיל היום', 'מספר היום', 'מה כתוב במכרז', 'ציטוטים'], rows);
 });
 
 // ציטוט: קודם השורה במילים פשוטות, והציטוט המלא של המשרד מתקפל מתחת כפי שהוא
@@ -140,8 +155,21 @@ function quoteBody(q) {
   // בלי פתיחה וסגירה: השורה הקצרה, ומתחתיה הציטוט המלא של המשרד באות קטנה יותר (שלמה 16.09)
   return b ? `<p class="brief">${esc(b)}</p><p class="fullquote"><span class="muted">הציטוט המלא: </span>${esc(q.quote)}</p>` : `<p>${esc(q.quote)}</p>`;
 }
+/* צילום העמוד מהמסמך עם הציטוט מודגש בצהוב (snip_fields.py → snips.json, "quotes"), לפי המסמך והעמוד */
+function quoteSnip(q) {
+  const m = typeof fieldSnips !== 'undefined' ? fieldSnips.quotes : null;
+  const s = m && q.sha256 && q.page ? m[`${String(q.sha256).slice(0, 12)}:${q.page}`] : null;
+  return s ? ` · <a class="snip" href="${esc(s.image)}" data-qsnip="${esc(s.image)}" data-snip-page="${q.page}" target="_blank" rel="noopener">צילום מהמסמך 📷</a>` : '';
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-qsnip]'); if (!a || typeof routeDialog === 'undefined') return;
+  if (routeDialog.open) return;          // מתוך חלון הקו — הצילום נפתח בלשונית חדשה
+  e.preventDefault();
+  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">בצהוב מסומן המקום שבו כתוב הציטוט. אם בעמוד יש כמה ציטוטים, כולם מסומנים.</p><img class="snipimg" src="${esc(a.dataset.qsnip)}" alt="צילום מהמסמך">`;
+  routeDialog.showModal();
+});
 function renderQuote(q) {
-  return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}</span>${quoteBody(q)}<small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a></small></blockquote>`;
+  return `<blockquote class="linequote">${q.tags.map(tagChip).join(' ')} <span class="muted">קו${q.numbers.length > 1 ? 'וים' : ''} ${q.numbers.map(esc).join(', ')}${q.city ? ` · ${esc(q.city)}` : ''}</span>${quoteBody(q)}<small><a href="${esc(q.url)}" target="_blank" rel="noopener">${esc(q.doc || 'המסמך')} · עמוד PDF ${q.page} ↗</a>${quoteSnip(q)}</small></blockquote>`;
 }
 
 /* Leaflet נטען רק כשפותחים קו */
@@ -159,18 +187,19 @@ function ensureLeaflet() {
 const VARIANT_COLORS = ['#126977', '#b45309', '#7c3aed', '#be185d', '#15803d', '#1d4ed8', '#a16207', '#0f766e'];
 async function showLine(id, index) {
   const lines = linesOf(routeFiles[id] || []), l = lines[index]; if (!l) return;
-  const td = todayData.tenders?.[id], today = td?.lines?.[l.mk], qs = quotesFor(id, l.number, l.mk);
+  const td = todayData.tenders?.[id], today = td?.lines?.[l.mk], qs = quotesFor(id, l.number, l.mk, l);
   const v = l.version;
   const routeChange = qs.some(q => (q.tags || []).some(t => ROUTE_TAGS.has(t)));
   const sure = hasChangeSection(id);
-  const located = routeChange && l.rows.some(r => r.stops.some(s => Number.isFinite(s[3]) && Number.isFinite(s[4])));
+  const located = routeChange && l.rows.some(r => (r.stops || []).some(s => Number.isFinite(s[3]) && Number.isFinite(s[4])));
+  const first = l.rows[0];
   routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form>
     <h2 id="route-title">קו ${esc(l.number)} · ${esc(l.area || '')}</h2>
-    <p class="muted">מק״ט ${esc(l.mk)} · לפי נספח המכרז (<a href="${esc(v.url)}" target="_blank" rel="noopener">המסמך ↗</a>)${v.sourceStatus === 'superseded' ? ' · גרסת מסמך קודמת' : ''}</p>
-    ${today ? `<p class="todaybox">${today.today ? `<span class="today on">רץ היום</span> אצל <b>${esc(today.operator || '')}</b>${today.number ? ` כקו <b>${esc(today.number)}</b>` : ''}${today.name ? ` · ${esc(today.name)}` : ''} · ${today.directions?.length || 0} כיוונים/חלופות בלוח הזמנים` : '<span class="today off">לא רץ היום</span> · אין קו עם מק״ט זה בלוח הזמנים הרשמי'} <small class="muted">(${fdDate(todayData.gtfsDate)})</small></p>` : ''}
-    ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : sure ? `<p class="plainline">המכרז לא מזכיר שינוי בקו ${esc(l.number)}. לפי המסמך הוא ממשיך כמו היום.</p>` : '<p class="muted">במסמכים שנקראו אין סעיף שינויים לקווים, ולכן אי אפשר לומר מהמסמך אם הקו משתנה.</p>'}
+    <p class="muted">${l.pdf ? `לפי טבלת הקווים במסמך, עמוד ${esc(l.page)}${first?.origin ? ` · ${esc(first.origin)}${first.destination ? ` ← ${esc(first.destination)}` : ''}` : ''}${l.service ? ` · ${esc(l.service)}` : ''}${l.isNew ? ' · במסמך: קו חדש' : l.operator ? ` · מפעיל לפי המסמך: ${esc(l.operator)}` : ''}` : `מק״ט ${esc(l.mk)} · לפי נספח המכרז`} (<a href="${esc(v.url)}${l.pdf && l.page ? `#page=${l.page}` : ''}" target="_blank" rel="noopener">המסמך ↗</a>)${v.sourceStatus === 'superseded' ? ' · גרסת מסמך קודמת' : ''}</p>
+    ${today ? `<p class="todaybox">${today.today ? `<span class="today on">רץ היום</span> אצל <b>${esc(today.operator || '')}</b>${today.number ? ` כקו <b>${esc(today.number)}</b>` : ''}${today.name ? ` · ${esc(today.name)}` : ''} · ${today.directions?.length || 0} כיוונים/חלופות בלוח הזמנים${today.byNumber ? ' · לפי מספר הקו באשכול' : ''}` : `<span class="today off">לא רץ היום</span> · ${today.byNumber ? 'אין קו במספר הזה באשכול בלוח הזמנים הרשמי' : 'אין קו עם מק״ט זה בלוח הזמנים הרשמי'}`} <small class="muted">(${fdDate(todayData.gtfsDate)})</small></p>` : ''}
+    ${qs.length ? `<h3>מה כתוב במסמכי המכרז על הקו</h3>${qs.map(renderQuote).join('')}` : l.pdf && l.isNew ? `<p class="plainline">בטבלת הקווים של המכרז קו ${esc(l.number)} מסומן ״קו חדש״.</p>` : sure ? `<p class="plainline">המכרז לא מזכיר שינוי בקו ${esc(l.number)}. לפי המסמך הוא ממשיך כמו היום.</p>` : '<p class="muted">במסמכים שנקראו אין סעיף שינויים לקווים, ולכן אי אפשר לומר מהמסמך אם הקו משתנה.</p>'}
     ${typeof mapsFor === 'function' && mapsFor(id, l.number).length ? `<h3>מפה מהמסמך</h3><div class="tmaps">${mapsFor(id, l.number).map(renderMap).join('')}</div>` : ''}
-    ${located ? `<h3>התחנות לפי נספח המכרז</h3>
+    ${l.pdf ? '' : located ? `<h3>התחנות לפי נספח המכרז</h3>
     <div id="line-map" style="height:340px;border-radius:12px;background:#eef5f6"></div>
     <p class="muted">על המפה מסומנות רק התחנות שרשומות בנספח, לפי הסדר. במסמכי המכרז אין שרטוט של הדרך בין התחנות, ולכן היא לא מצוירת.</p>` : routeChange ? '<h3>התחנות לפי נספח המכרז</h3><p class="muted">בנספח אין רשימת תחנות עם מיקומים לקו הזה, ולכן אין מפה. מה שכתוב במסמך על המסלול מופיע בציטוטים למעלה.</p>' : '<h3>התחנות לפי נספח המכרז</h3>'}
     ${l.rows.map((r, i) => `<details class="fielddetails" ${i === 0 && routeChange ? 'open' : ''}><summary><span class="vdot" style="background:${VARIANT_COLORS[i % VARIANT_COLORS.length]}"></span> כיוון ${esc(r.key[2])} · חלופה ${esc(r.key[3])} · ${esc(r.origin)} ← ${esc(r.destination)} · ${r.stops.length} תחנות</summary><ol class="stops">${r.stops.map(s => `<li>${esc(s[2])} <small class="muted">מק״ט תחנה ${esc(s[1])}</small></li>`).join('') || '<li class="muted">רשימת התחנות לא מופיעה בנספח הזה.</li>'}</ol><p class="muted">גיליון ${esc(r.sheet)}, שורה ${r.row}</p></details>`).join('')}`;

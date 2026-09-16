@@ -66,6 +66,10 @@ jobs:
         continue-on-error: true
         run: python3 tenders/scripts/extract_route_tables.py
 
+      - name: טבלת הקווים מתוך ה-PDF (מכרזים בלי נספח אקסל)
+        continue-on-error: true
+        run: python3 tenders/scripts/pdf_line_tables.py
+
       - name: שדות בחוקים קבועים (בלי מודל)
         continue-on-error: true
         run: python3 tenders/scripts/analyze_packages.py

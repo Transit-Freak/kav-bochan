@@ -202,29 +202,58 @@ def header_of(line):
     return None
 
 
-def items_of(text, section=None):
-    """חלוקת עמוד לפריטים: [{'lines': [...], 'kind': 'line'|'category'|'note', 'section': שם}].
-    section — הסעיף שבו העמוד הקודם נגמר (רשימה שנמשכת לעמוד הבא). מחזיר גם את הסעיף בסוף העמוד."""
+# כותרת עיר בתוך סעיף השינויים (מכרזי 2014: "אשקלון:" ואחריה תבליטים) — הקווים שאחריה שייכים לעיר
+CITY_HEAD = re.compile(r'^\s*(?P<c>[א-ת][א-ת"׳\'.\- ]{1,24}):\s*$')
+# תת-סעיף לפי סוג קו: "34.1.2 שינויים במסלול הקווים האזוריים" / "34.1.4 קווים עירוניים חדשים"
+KIND_HEAD = re.compile(r'^\s*\d+(?:\.\d+)*\s*(?:שינויים במסלול הקווים ה?(?P<k>עירוניים|אזוריים|בינעירוניים|בין-עירוניים)|קווים ה?(?P<kn>עירוניים|אזוריים|בינעירוניים|בין-עירוניים) חדשים)\s*$')
+KIND_MAP = {'עירוניים': 'עירוני', 'אזוריים': 'אזורי', 'בינעירוניים': 'בינעירוני', 'בין-עירוניים': 'בינעירוני'}
+
+
+def items_of(text, section=None, state=None):
+    """חלוקת עמוד לפריטים: [{'lines': [...], 'kind': 'line'|'category'|'note', 'section': שם, 'city', 'kind'}].
+    section — הסעיף שבו העמוד הקודם נגמר (רשימה שנמשכת לעמוד הבא). מחזיר גם את הסעיף בסוף העמוד.
+    state — {'city', 'lineKind'}: העיר וסוג הקו של הכותרות האחרונות (נמשכים לעמוד הבא)."""
     out = []
     cur = None
     note = None         # הערת סעיף פתוחה — שורות עוקבות מצטרפות לפסקה אחת
     budget = 0          # הערות סעיף נשמרות רק בעמוד הכותרת, ורק כמה שורות אחריה
+    state = state if state is not None else {}
+
+    def close():
+        nonlocal cur
+        if cur:
+            out.append(cur)
+            cur = None
+
     for raw in text.split('\n'):
         line = raw.rstrip()
         if not line.strip():
-            if cur:
-                out.append(cur)
-                cur = None
+            close()
             note = None
+            continue
+        kh = KIND_HEAD.match(line)
+        if kh:
+            close()
+            section = 'קווים חדשים' if kh.group('kn') else 'שינויים בקווים קיימים'
+            budget = NOTE_BUDGET
+            note = None
+            state['lineKind'] = KIND_MAP[kh.group('k') or kh.group('kn')]
+            state['city'] = None
+            continue
+        ch = CITY_HEAD.match(line)
+        if ch and 'קו' not in line and len(ch.group('c').split()) <= 3:
+            close()
+            note = None
+            state['city'] = clean(ch.group('c'))
             continue
         h = header_of(line)
         if h:
-            if cur:
-                out.append(cur)
-                cur = None
+            close()
             section = h[0]
             budget = NOTE_BUDGET
             note = None
+            state['city'] = None
+            state['lineKind'] = None
             if h[2] and len(h[2]) > 8:
                 note = {'kind': 'note', 'section': section, 'lines': [h[2]], 'numbered': h[3]}
                 out.append(note)
@@ -242,14 +271,13 @@ def items_of(text, section=None):
         cat = CATEGORY.match(line) if ':' in line and 'קו' in line else None
         starts = 'קו' in line and bool(LINE_START.match(line))
         if cat and (is_bullet or re.search(r'\d', cat['rest'])):
-            if cur:
-                out.append(cur)
-            cur = {'kind': 'category', 'section': section, 'category': clean(cat['cat']), 'lines': [line.strip()]}
+            close()
+            cur = {'kind': 'category', 'section': section, 'category': clean(cat['cat']), 'lines': [line.strip()],
+                   'city': state.get('city'), 'lineKind': state.get('lineKind')}
             note = None
         elif is_bullet or starts:
-            if cur:
-                out.append(cur)
-            cur = {'kind': 'line', 'section': section, 'lines': [line.strip()]}
+            close()
+            cur = {'kind': 'line', 'section': section, 'lines': [line.strip()], 'city': state.get('city'), 'lineKind': state.get('lineKind')}
             note = None
         elif cur:
             cur['lines'].append(line.strip())
@@ -294,6 +322,7 @@ def scan_units(units, url, sha, doc_name):
     או כשהוא בתוך סעיף שינויים. עמודים של נספחי נהלים (טבלת "סוג השינוי") לא נסרקים."""
     found, notes = [], []
     section = None
+    state = {'city': None, 'lineKind': None}
     for u in units:
         text = u.get('text') or ''
         if not text or u.get('rows'):
@@ -303,7 +332,9 @@ def scan_units(units, url, sha, doc_name):
         if 'נוהל' in head and ('שם ההוראה' in head or 'מספר הוראה' in head):
             section = None
             continue
-        items, next_section = items_of(text, section)
+        if section is None:
+            state = {'city': None, 'lineKind': None}
+        items, next_section = items_of(text, section, state)
         page_items = 0
         for item in items:
             if item['kind'] == 'note':
@@ -318,8 +349,18 @@ def scan_units(units, url, sha, doc_name):
             if not in_section and not (set(tags) & STRONG):
                 continue
             page_items += 1
-            found.append({'numbers': nums, 'makats': makats, 'tags': tags, 'section': item['section'], 'quote': quote[:900],
-                          'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
+            entry = {'numbers': nums, 'makats': makats, 'tags': tags, 'section': item['section'], 'quote': quote[:900],
+                     'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name}
+            # עיר/אזור וסוג קו — כדי שציטוט על "קו 11" יוצמד לקו 11 הנכון כשאותו מספר משמש כמה ערים (צפון הנגב)
+            city = item.get('city')
+            if not city:
+                m_area = re.search(r'\((מ\.?"?א\.?\s*[א-ת]+(?:\s+[א-ת]+)?)\)', quote)
+                city = m_area.group(1) if m_area else None
+            if city:
+                entry['city'] = city
+            if item.get('lineKind'):
+                entry['kind'] = item['lineKind']
+            found.append(entry)
         # הסעיף נמשך לעמוד הבא רק אם בעמוד הזה עדיין היו פריטים ברשימה (רשימה שנקטעה בסוף עמוד)
         section = next_section if page_items else None
     return found, notes
