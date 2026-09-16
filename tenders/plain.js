@@ -27,7 +27,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('a[data-snip]'); if (!a || typeof routeDialog === 'undefined') return;
   e.preventDefault();
   const url = a.dataset.snipUrl;
-  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">בצהוב מסומן המקום שממנו נלקח הפרט.${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener">לפתוח את קובץ ה-PDF המקורי בעמוד הזה ↗</a>` : ''}</p><img class="snipimg" src="${esc(a.dataset.snip)}" alt="צילום מהמסמך">`;
+  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">זה צילום מתוך הקובץ המקורי של משרד התחבורה, כמו שהוא (חתוך לאזור הסעיף). הצהוב הוא סימון שהוספנו מעל הצילום, במקום שממנו נלקח הפרט.${url ? ` <a href="${esc(url)}" target="_blank" rel="noopener">לפתוח את קובץ ה-PDF המקורי בעמוד הזה ↗</a>` : ''}</p><img class="snipimg" src="${esc(a.dataset.snip)}" alt="צילום מהמסמך">`;
   routeDialog.showModal();
 });
 /* קישורי המקור של פרט: כשיש צילום מהמסמך — הלחיצה על "סעיף 38.2.2, עמוד 79" פותחת את הצילום כאן באתר

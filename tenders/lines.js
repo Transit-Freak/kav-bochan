@@ -169,7 +169,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('a[data-qsnip]'); if (!a || typeof routeDialog === 'undefined') return;
   if (routeDialog.open) return;          // מתוך חלון הקו — הצילום נפתח בלשונית חדשה
   e.preventDefault();
-  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">בצהוב מסומן המקום שבו כתוב הציטוט. אם בעמוד יש כמה ציטוטים, כולם מסומנים.${a.dataset.snipUrl ? ` <a href="${esc(a.dataset.snipUrl)}" target="_blank" rel="noopener">לפתוח את קובץ ה-PDF המקורי בעמוד הזה ↗</a>` : ''}</p><img class="snipimg" src="${esc(a.dataset.qsnip)}" alt="צילום מהמסמך">`;
+  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">זה צילום של העמוד המלא מהקובץ המקורי של משרד התחבורה, כמו שהוא. הפס הצהוב הוא סימון שהוספנו מעל הצילום, במקום שבו כתוב הציטוט; אם בעמוד יש כמה ציטוטים, כולם מסומנים.${a.dataset.snipUrl ? ` <a href="${esc(a.dataset.snipUrl)}" target="_blank" rel="noopener">לפתוח את קובץ ה-PDF המקורי בעמוד הזה ↗</a>` : ''}</p><img class="snipimg" src="${esc(a.dataset.qsnip)}" alt="צילום מהמסמך">`;
   routeDialog.showModal();
 });
 function renderQuote(q) {

@@ -166,10 +166,8 @@ def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
             a.set_colors(stroke=(1, 0.9, 0.2))
             a.update()
         bands = spans
-        y0 = min(b[1] for b in rows.values()) - 40
-        y1 = max(b[3] for b in rows.values()) + 40
-        clip = pg.rect if (y1 - y0) > 0.75 * pg.rect.height else fitz.Rect(0, max(0, y0), pg.rect.width, min(pg.rect.height, y1))
-        pix = pg.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), clip=clip, alpha=False)
+        # תמיד העמוד המלא של המסמך, כמו שהוא (שלמה 16.09: "לצלם את כל הדף במסמך של משרד התחבורה") — הסימון מעליו
+        pix = pg.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), clip=pg.rect, alpha=False)
         img = Image.open(io.BytesIO(pix.tobytes('png')))
         if img.width > 1400:
             img = img.resize((1400, int(img.height * 1400 / img.width)))
