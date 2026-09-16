@@ -97,10 +97,23 @@ def clean(s):
     return re.sub(r'\s+', ' ', re.sub('[‪-‮‎‏]', '', s)).strip()
 
 
+def fix_paren_lists(s):
+    """רשימת מספרים בסוגריים שיצאה הפוכה: "( )229 ,228ושני" → "(228, 229) ושני";  "(,230 .)231" → "(230, 231).";
+    "( ).556 ,555" → "(555, 556)."."""
+    def rev(m):
+        # הסדר יצא הפוך או מעורבב — מספרי הקווים במסמך רשומים בסדר עולה, אז מסדרים מספרית
+        nums = sorted({x.strip() for x in m.group(3).split(',')}, key=lambda x: int(x))
+        return '(' + ', '.join(nums) + ')' + (m.group(1) or m.group(2) or '') + ' '
+    s = re.sub(r'\(\s*([.;,]?)\s*\)\s*([.;,]?)\s*((?:\d+\s*,\s*)+\d+)(?=[\sא-ת]|$)', rev, s)
+    s = re.sub(r'\(\s*,\s*(\d+)\s*([.,;]?)\s*\)\s*(\d+)(?=[\sא-ת]|$)', r'(\1, \3)\2 ', s)
+    return s
+
+
 def fix_parens(s):
     """pdftotext מוציא סוגריים הפוכים סביב מספרים: ")10014( 14" → "(10014) 14";
     ברשימות: "מעלה אדומים ( ,)209בית אל (,)269" → "מעלה אדומים (209), בית אל (269),"."""
     s = re.sub(r'\)\s*(\d{4,6})\s*\(', r'(\1)', s)
+    s = fix_paren_lists(s)
     s = re.sub(r'\(\s*([,.;]?)\s*\)(\d+)(?=[\sא-ת]|$)', r'(\2)\1 ', s)
     s = re.sub(r'\s+([,.;])', r'\1', re.sub(r'\s{2,}', ' ', s))       # "בנוסף ,קו" → "בנוסף,קו"
     s = re.sub(r'([,.;])(?=[א-ת(])', r'\1 ', s)                          # "בנוסף,קו" → "בנוסף, קו"
@@ -317,6 +330,12 @@ def main():
     index = json.load(open(TEXT / 'index.json', encoding='utf-8'))['documents'] if (TEXT / 'index.json').exists() else {}
     packages = json.load(open(ROOT / 'packages-state.json', encoding='utf-8'))['tenders'] if (ROOT / 'packages-state.json').exists() else {}
     current = {d['sha256'] for t in packages.values() for d in t.get('documents', {}).values() if d.get('sha256')}
+    # אותו קובץ יכול להשתייך לכמה מכרזים (אשכולות המוניות בנתניה) — הציטוטים נרשמים לכל אחד מהם
+    sha_tenders = {}
+    for tid, t in packages.items():
+        for d in t.get('documents', {}).values():
+            if d.get('sha256'):
+                sha_tenders.setdefault(d['sha256'], set()).add(tid)
     result = {'updated': datetime.date.today().isoformat(), 'tenders': {}, 'sections': {}}
     n = 0
     for path in sorted(TEXT.glob('*.json.gz')):
@@ -327,11 +346,12 @@ def main():
         with gzip.open(path, 'rt', encoding='utf-8') as f:
             payload = json.load(f)
         found, notes = scan_units(payload['units'], payload['url'], sha, doc_name_of(payload['url']))
-        if found:
-            result['tenders'].setdefault(meta['tender'], []).extend(found)
-            n += len(found)
-        if notes:
-            result['sections'].setdefault(meta['tender'], []).extend(notes)
+        for tid in (sha_tenders.get(sha) or {meta['tender']}):
+            if found:
+                result['tenders'].setdefault(tid, []).extend(found)
+                n += len(found)
+            if notes:
+                result['sections'].setdefault(tid, []).extend(notes)
     for tid in list(result['tenders']):
         result['tenders'][tid] = dedupe(result['tenders'][tid], lambda it: (it['quote'], tuple(it['numbers'])))
     for tid in list(result['sections']):

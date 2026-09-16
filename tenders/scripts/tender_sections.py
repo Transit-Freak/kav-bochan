@@ -243,6 +243,9 @@ BOILER = re.compile(r'^(?:למען הסר ספק|מבלי לגרוע|על אף �
 FIXES = [
     (re.compile(r'\s(\d{1,3})\s\.(?=\s?[א-ת])'), r'. \1 '),   # "בשלב א' 10 .שנים" → "בשלב א'. 10 שנים" (הנקודה של המשפט הקודם נדדה)
     (re.compile(r'\)(\d[\d.,%]*)\('), r'(\1)'),        # ")2(" → "(2)"
+    # רשימת מספרים בסוגריים שיצאה הפוכה: "( )229 ,228" → "(228, 229)";  "(,230 .)231" → "(230, 231)."
+    (re.compile(r'\(\s*([.;,]?)\s*\)\s*([.;,]?)\s*((?:\d+\s*,\s*)+\d+)(?=[\sא-ת]|$)'), lambda m: '(' + ', '.join(sorted({x.strip() for x in m.group(3).split(',')}, key=int)) + ')' + (m.group(1) or m.group(2) or '') + ' '),
+    (re.compile(r'\(\s*,\s*(\d+)\s*([.,;]?)\s*\)\s*(\d+)(?=[\sא-ת]|$)'), r'(\1, \3)\2 '),
     (re.compile(r'\(\s*([,.;]?)\s*\)(\d+)'), r'(\2)\1 '),   # "מעלה אדומים ( ,)209בית אל" → "מעלה אדומים (209), בית אל"
     (re.compile(r'\.\)(\d[\d.,]*%?)'), r' \1).'),      # "של.)20%" → "של 20%)."
     (re.compile(r'\.\s*₪\s*(\d[\d,]*)'), r' \1 ₪.'),   # "סך של. ₪ 155,000" → "סך של 155,000 ₪."
@@ -401,9 +404,13 @@ def doc_label(units):
     return ''
 
 
-def tender_documents(index, current, tid):
-    """כל מסמכי הטקסט העכשוויים של המכרז, הגדול ראשון. בלי מודעות לעיתונות (אין בהן סעיפים)."""
-    docs = [(sha, m) for sha, m in index.items() if m['tender'] == tid and (not current or sha in current) and 'מודעה לעיתונות' not in m['url']]
+def tender_documents(index, current, tid, sha_tenders=None):
+    """כל מסמכי הטקסט העכשוויים של המכרז, הגדול ראשון. בלי מודעות לעיתונות (אין בהן סעיפים).
+    אותו קובץ יכול להשתייך לכמה מכרזים (שלושת אשכולות המוניות בנתניה חולקים PDF אחד) — לכן ההשתייכות
+    נלקחת מ-packages-state (sha_tenders) ולא רק מהמכרז היחיד שרשום באינדקס הטקסט."""
+    def belongs(sha, m):
+        return tid in (sha_tenders or {}).get(sha, set()) or m['tender'] == tid
+    docs = [(sha, m) for sha, m in index.items() if belongs(sha, m) and (not current or sha in current) and 'מודעה לעיתונות' not in m['url']]
     return sorted(docs, key=lambda x: -x[1].get('units', 0))
 
 
@@ -416,13 +423,18 @@ def main():
     index = json.load(open(TEXT / 'index.json', encoding='utf-8'))['documents'] if (TEXT / 'index.json').exists() else {}
     packages = json.load(open(ROOT / 'packages-state.json', encoding='utf-8'))['tenders'] if (ROOT / 'packages-state.json').exists() else {}
     current = {d['sha256'] for t in packages.values() for d in t.get('documents', {}).values() if d.get('sha256')}
+    sha_tenders = {}
+    for tid, t in packages.items():
+        for d in t.get('documents', {}).values():
+            if d.get('sha256'):
+                sha_tenders.setdefault(d['sha256'], set()).add(tid)
     OUTDIR.mkdir(exist_ok=True)
-    tenders = sorted({m['tender'] for m in index.values()})
+    tenders = sorted({m['tender'] for m in index.values()} | {tid for sha, tids in sha_tenders.items() if sha in index for tid in tids})
     result = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
     for tid in tenders:
         # כל מסמכי המכרז, לא רק הגדול: במכרזים שפורסמו כעשרות קבצים קטנים (הסכם, נספחים) התנאים מפוזרים ביניהם
         sections, toc, docs, seen = [], [], [], set()
-        for sha, meta in tender_documents(index, current, tid):
+        for sha, meta in tender_documents(index, current, tid, sha_tenders):
             path = TEXT / (sha + '.json.gz')
             if not path.exists():
                 continue
