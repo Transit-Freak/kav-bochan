@@ -82,6 +82,8 @@ def is_map_page(page, text):
         return None
     if sum(1 for l in lines if TABLE_LINE.search(l)) >= 3:
         return None
+    if re.search(r'מספר סעיף|סכום הפיצוי|מק"ט קו', text):     # כותרות של טבלאות (פיצויים, קווים) — לא מפה
+        return None
     if not any(MAP_WORDS.search(l) and len(l) < 90 for l in lines):
         return None
     if big_image >= 0.3:
