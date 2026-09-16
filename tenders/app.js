@@ -20,8 +20,8 @@ const FEED_TRANSPORT=/קווי שירות|קו שירות|אוטובוס|מונ�
 function feedClass(t){if(t.classification==='operating_tender'||t.classification==='transport_related'||t.classification==='unrelated')return t.classification;const s=t.title||'';if(FEED_UNRELATED.test(s))return 'unrelated';return FEED_TRANSPORT.test(s)?'transport_related':'unrelated';}
 const cardTab={};   // מכרז → הלשונית הפתוחה
 function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const every=matches();
- // ברשימה הראשית רק מכרזים להפעלת קווים. קול קורא / בקשה למידע / מכרז לציוד — מקופלים בסוף (שלמה 16.09: "לא נראה לי זה קשור לאתר")
- const all=every.filter(t=>feedClass(t)==='operating_tender'),related=every.filter(t=>feedClass(t)==='transport_related'),other=every.filter(t=>feedClass(t)==='unrelated');const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>{
+ // רק מכרזים להפעלת קווי אוטובוס ומוניות שירות. קול קורא / בקשה למידע / מכרז לציוד — לא מופיעים (שלמה 16.09: "לא נראה לי זה קשור לאתר")
+ const all=every.filter(t=>feedClass(t)==='operating_tender');const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>{
  const lines=typeof renderLinesSection==='function'?renderLinesSection(t):'',cond=typeof renderConditionsSection==='function'?renderConditionsSection(t):'',pkg=renderPackage(t,!!lines);
  const plain=typeof renderPlainFacts==='function'?renderPlainFacts(t.id):'';
  // טבלת קווים שתועתקה בסריקה הקודמת (למשל צפון הנגב, שהקובץ שלו חסום להורדה) — לשונית "הקווים" משלה
@@ -45,10 +45,7 @@ function renderFeed(){const host=$('live-results');if(!host)return;const tokens=
  const tabs=`${panes.length>1?`<div class="card-tabs" role="tablist">${panes.map(([k,l])=>`<button role="tab" data-card-tab="${k}" data-card-id="${esc(t.id)}" aria-selected="${k===active}" class="${k===active?'on':''}">${l}</button>`).join('')}</div>`:''}<div class="tabpanes">${panes.map(([k,,h])=>`<section class="tabpane" data-pane="${k}"${k===active?'':' hidden'}>${h}</section>`).join('')}</div>`;
  const parts=panes.map(p=>p[1].split(' · ')[0]);
  return `<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום בתחום התחבורה הציבורית · לא מכרז להפעלת קווים'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p><details class="cardbody" data-keep-open="card:${esc(t.id)}"${wideScreen()?' open':''}><summary>${parts.join(' · ')}</summary><div class="cardbody-in">${tabs}</div></details></div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`;}).join('')||'<p>אין מכרזים להפעלת קווים המתאימים לחיפוש במידע שנטען.</p>';
- // פרסומים בתחום התחבורה הציבורית שאינם מכרז להפעלת קווים (קול קורא, בקשה למידע, ציוד) — רק קישור לפורטל, בלי כרטיס
- if(related.length)host.insertAdjacentHTML('beforeend',`<details class="fielddetails other-feed" data-keep-open="related-feed"><summary>פרסומים אחרים בתחום התחבורה הציבורית, שאינם מכרז להפעלת קווים · ${related.length}</summary><p class="muted">קולות קוראים, בקשות למידע ומכרזים על ציוד או שירותים. האתר לא קורא את המסמכים שלהם — יש כאן רק קישור לפורטל.</p><ul class="other-list">${related.map(t=>`<li><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a> <small class="muted">${t.number?`מס׳ <bdi>${esc(t.number)}</bdi> · `:''}${t.status?`${esc(t.status)} · `:''}${esc(t.updated||'')}</small></li>`).join('')}</ul></details>`);
- // פרסומים של משרד התחבורה שאינם תחבורה ציבורית (רישיונות תוכנה, רישיונות נהיגה…) — מקופלים בסוף, לא ברשימה
- if(other.length)host.insertAdjacentHTML('beforeend',`<details class="fielddetails other-feed" data-keep-open="other-feed"><summary>פרסומים אחרים של משרד התחבורה שאינם תחבורה ציבורית · ${other.length}</summary><p class="muted">הפורטל מחזיר גם פרסומים על תוכנה, רישיונות נהיגה והדפסה. הם מוצגים כאן רק לשלמות.</p><ul class="other-list">${other.map(t=>`<li><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a> <small class="muted">${esc(t.updated||'')}</small></li>`).join('')}</ul></details>`);
+ // מה שאינו מכרז להפעלת קווי אוטובוס או מוניות שירות לא מופיע בכלל — גם לא מקופל (שלמה 16.09: "מה שלא קווי אוטובוס ומונית שירות — לא לרשום!")
  // הלשונית הפעילה של קווים/סעיפים נטענת (הן נבנות בעצלות)
  for(const pane of host.querySelectorAll('.tabpane:not([hidden])'))activatePane(pane);
  $('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
@@ -63,7 +60,7 @@ document.addEventListener('click',e=>{
  for(const p of wrap.querySelectorAll('.tabpane')){p.hidden=p.dataset.pane!==k;if(!p.hidden)activatePane(p);}
 });
 $('feed-more').onclick=()=>{feedExpanded=!feedExpanded;renderFeed()};
-fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. ${r.queries?.length?`נערכו ${r.queries.length} חיפושים במפרסם משרד התחבורה. הכיסוי עדיין אינו מובטח כמלא.`:'הרשימה עדיין חלקית: החיפוש בפורטל מוגבל למשרד התחבורה ולמילה ״קווי״.'}`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. אפשר לנסות לרענן את הדף.'});
+fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.filter(t=>feedClass(t)==='operating_tender').length} מכרזים להפעלת קווים מהפורטל הממשלתי. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. פרסומים אחרים של משרד התחבורה (ציוד, בקרה, תוכנה) לא מוצגים.`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. אפשר לנסות לרענן את הדף.'});
 fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?(r.firstScheduledRunVerified?'העדכון היומי הופעל ונבדקה הרצה מתוזמנת.':'הוגדר עדכון יומי ל־08:30. הצלחת ההרצה המתוזמנת הראשונה עדיין לא אומתה.'):'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
 function isVerified(f){return ['verified','verified_conditional'].includes(f?.status);}
 function renderSources(sources){
@@ -126,7 +123,8 @@ $('feed-status').after(archiveStatus);
 fetch('archive-feed.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('Archive unavailable');return r.json()}).then(r=>{
  if(!Array.isArray(r.items))throw new Error('Invalid archive');
  archiveItems=r.items;
- archiveStatus.textContent=`ארכיון משרד התחבורה: ${r.items.length} פרסומים נוספים. ${r.lastRun?.ok?'נמצאו מסמכים בארכיון; חלקם עדיין לא נבדקו.':'לא הצלחנו לקרוא את כל הארכיון. מוצגים הפרסומים שכבר נמצאו, וייתכן שיש נוספים.'}`;
+ const oldOnes=r.items.filter(t=>feedClass(t)==='operating_tender').length;
+ archiveStatus.textContent=oldOnes?`מארכיון משרד התחבורה נוספו ${oldOnes} מכרזים ישנים.`:'';
  combineFeeds();
 }).catch(()=>{archiveStatus.textContent='לא ניתן לטעון את פרסומי הארכיון. רשימת הפורטל נשארת זמינה.';});
 
