@@ -339,6 +339,8 @@ def main():
             if span:
                 inside = [r for r in hit if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
                 hit = inside or hit
+            # מה בדיוק סומן (המילים שמתחת לכל סימון) — נשמר כדי שאפשר יהיה לבדוק את כל הצילומים בלי לפתוח תמונות
+            marks = [' '.join(w[4] for w in words if r.x0 < w[2] and r.x1 > w[0] and r.y0 < w[3] and r.y1 > w[1]) for r in hit]
             for r in hit:
                 a = pg.add_highlight_annot(r)
                 a.set_colors(stroke=(1, 0.9, 0.2)); a.update()
@@ -352,7 +354,7 @@ def main():
             safe = re.sub(r'[^a-z0-9_]', '_', key)
             rel = f'snips/{re.sub(r"[^a-zA-Z0-9_-]", "_", tid)}-{sha[:12]}-p{pno}-{safe}.webp'   # כולל את המכרז — שני מכרזים יכולים לחלוק מסמך
             img.save(ROOT / rel, 'WEBP', quality=82, method=6)
-            result['tenders'].setdefault(tid, {})[key] = {'image': rel, 'page': pno, 'needle': needle, 'sha': sha, 'v': VERSION}
+            result['tenders'].setdefault(tid, {})[key] = {'image': rel, 'page': pno, 'needle': needle, 'sha': sha, 'v': VERSION, 'marks': marks[:24], 'inSection': bool(span)}
             made += 1
     snip_quotes(fitz, Image, url_sha, prev_all.get('quotes', {}), result, pdfs)
     for pdf in pdfs.values():
