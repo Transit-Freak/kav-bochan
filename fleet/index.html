@@ -163,18 +163,19 @@
         <button class="mode" data-m="city">עיר</button>
         <button class="mode" data-m="type">דגם</button>
         <button class="mode" data-m="plate">מספר רכב</button>
+        <button class="mode" data-m="moves" title="מאיפה לאן עברו רכבים — בין חברות ובין ערים">מעברים</button>
         <button class="xlsbtn" onclick="XDL()" title="מוריד את הטבלה של המסך הנוכחי כקובץ CSV שנפתח באקסל">⬇ אקסל</button>
         <button class="xlsbtn sharebtn" onclick="SHARE()" title="מעתיק קישור שפותח בדיוק את המסך הנוכחי — כולל החיפוש והסינון שבחרתם">שיתוף</button>
       </div>
     </div>
     <a class="homelink" href="../" target="_blank" rel="noopener">→ הקו הבוחן</a>
   </div>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה לראשונה ולאחרונה, ואילו ירדו מהשירות. לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 19 · הדף מתעדכן מעצמו</span></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה לראשונה ולאחרונה, ואילו ירדו מהשירות. לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 20 · הדף מתעדכן מעצמו</span></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
 <script>
-window.FLEET_BUILD='19';
+window.FLEET_BUILD='20';
 // ריפוי-עצמי של מטמון (בקשת שלמה — שלא יצטרך לנקות ידנית כל פעם):
 // GitHub Pages מחזיק את הדף במטמון עד ~10 דקות ובניידים לפעמים הרבה
 // יותר, ורענון רגיל לא תמיד מאמת מול השרת. לכן בכל טעינה הדף שואל את
@@ -193,7 +194,7 @@ window.FLEET_BUILD='19';
 const COLORS={3:'#1B7A3D',4:'#0F766E',5:'#1E5BC6',6:'#334155',14:'#0E7490',15:'#E87511',16:'#B45309',18:'#7C3AED',21:'#BE185D',25:'#C2410C',30:'#1E5BC6',31:'#1E5BC6',32:'#1E5BC6',33:'#4D7C0F',34:'#A16207',35:'#9333EA',37:'#0369A1',38:'#0369A1'};
 const PALETTE=['#475569','#B91C1C','#15803D','#6D28D9','#0E7490','#A16207','#BE185D','#374151'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -250,6 +251,7 @@ function home(){
   const f=Q.trim();
   if(MODE==='city') return cityHome(f);
   if(MODE==='type') return typeHome(f);
+  if(MODE==='moves') return movesHome();
   if(MODE==='plate'){
     // בלי חיפוש: כל רשימת הרכבים (לא רשימת החברות) — מהחדש שנצפה לישן
     const clean=f.replace(/-/g,'');
@@ -304,7 +306,7 @@ function cityHome(f){
   if(CITYSEL&&CITIES.cities[CITYSEL]) return cityView(CITYSEL);
   const hits=all.filter(([c])=>!f||c.includes(f)).sort((a,b)=>(b[1].act??b[1].total)-(a[1].act??a[1].total)).slice(0,30);
   return kpis()+`<div class="cards">${hits.map(([c,d])=>
-    `<button class="card" style="background:#10172A" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';render();window.scrollTo({top:0})">
+    `<button class="card" style="background:#10172A" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2>${esc(c)}</h2><div class="n">${d.act!=null?fmt(d.act):fmt(d.total)}</div>
       <div style="font-size:13.5px;font-weight:700;opacity:.92;margin-top:-2px">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
       ${d.act!=null?`<div style="font-size:11px;opacity:.75">"פעיל" = שידר נסיעות בחודש האחרון · נכון ל-${fd(DATA.updated)}</div>`:''}
@@ -374,7 +376,179 @@ function cityView(c){
         return `<div class="yrow"><span>${y}</span><div class="ybar">${bar}</div><span class="c">${m!=null&&m?`<b style="color:var(--ok)">${fmt(m)}</b> · `:''}${fmt(tot)}</span></div>`;}).join('')}
     </div>`:'<div class="panel"><p class="ptitle">שנתונים</p><div class="empty">שנות הייצור יתווספו עם ההעשרה הממשלתית</div></div>';})()}
   </div>
+  ${cityVehPanel(c)}
   <p class="note">רכב משויך לעיר רק אם היא מוצא או יעד של קו שבו שידר — קווים שרק חולפים דרך העיר אינם נספרים. הנתונים מצטברים ככל שהסריקה מתקדמת.</p>`;
+}
+
+/* ── רכבי העיר (שלמה 16.09): כל הרכבים שפעלו בעיר — מספר הרכב, ימי הפעילות
+   והנסיעות שנמדדו, ומסונן לפי החודש שנבחר למעלה. הנתונים: fleet-city-veh.json
+   (לכל רכב: הערים שלו ומסיכת חודשי הפעילות, בהקסה) ── */
+let CV=null, CVIDX=null, KEYV=null;
+async function loadCV(){
+  if(CV!==null) return;
+  try{const r=await fetch('data/fleet-city-veh.json',{cache:'no-cache'});CV=r.ok?await r.json():{cities:[],v:{}};}
+  catch(e){CV={cities:[],v:{}};}
+  await loadDays();
+  CVIDX={};
+  for(const k in CV.v){for(const ci of CV.v[k][1]){const c=CV.cities[ci];(CVIDX[c]=CVIDX[c]||[]).push(k);}}
+  render();
+}
+function keyV(k){if(!KEYV){KEYV={};for(const o of DATA.operators)for(const v of o.vehicles)KEYV[o.ref+':'+v[0]]=[o,v];}return KEYV[k];}
+const monBit=m=>(+m.slice(0,4)-2020)*12+(+m.slice(5,7)-1);
+// האם הרכב שידר בחודש (מסיכת החודשים בהקסה — גדולה מדי למספר רגיל, לכן BigInt)
+const inMon=(hex,m)=>{if(!hex)return false;try{return ((BigInt('0x'+hex)>>BigInt(monBit(m)))&1n)===1n;}catch(e){return false;}};
+function cityVehRows(c){
+  const keys=(CVIDX&&CVIDX[c])||[], rows=[];
+  for(const k of keys){const p=keyV(k);if(!p)continue;if(CITYMON&&!inMon(CV.v[k][0],CITYMON))continue;
+    const dd=DAYS&&DAYS.d?DAYS.d[k]:null;rows.push({o:p[0],v:p[1],k,dd:dd?dd[0]:null,rt:dd?dd[1]:null});}
+  let out=rows;
+  if(STATF!==null) out=out.filter(r=>(isActive(r.v)?1:0)===STATF);
+  if(KABF==='k') out=out.filter(r=>isKab(r.v));
+  if(KABF==='l') out=out.filter(r=>!isKab(r.v));
+  const key={o:r=>r.o.name,p:r=>r.v[0],t:r=>gT(r.v)||'',y:r=>gY(r.v)||0,m:r=>gM(r.v)||'',dd:r=>r.dd||0,rt:r=>r.rt||0,r:r=>gR(r.v)||0,f:r=>r.v[1],l:r=>r.v[2]}[SORTK]||(r=>r.v[2]);
+  const dir=SORTK?SORTD:-1;
+  return out.slice().sort((a,b)=>{const x=key(a),y=key(b);return (x>y?1:x<y?-1:0)*dir;});
+}
+function cityVehPanel(c){
+  if(CV===null){loadCV();return '<div class="panel"><p class="ptitle">הרכבים שפעלו בעיר</p><div class="empty">⏳ טוען את רשימת הרכבים…</div></div>';}
+  if(!CVIDX||!CVIDX[c]) return '<div class="panel"><p class="ptitle">הרכבים שפעלו בעיר</p><div class="empty">רשימת הרכבים לעיר תיבנה בריצת האיסוף הקרובה</div></div>';
+  const rows=cityVehRows(c);
+  const n=rows.length, act=rows.filter(r=>isActive(r.v)).length;
+  const avg=arr=>{const xs=arr.filter(x=>x!=null);return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;};
+  const aD=avg(rows.map(r=>r.dd)), aR=avg(rows.map(r=>gR(r.v))), tR=rows.reduce((s,r)=>s+(r.rt||0),0);
+  const th=(k,t)=>`<th onclick="srt('${k}')">${t}${SORTK===k?(SORTD>0?' ▲':' ▼'):''}</th>`;
+  const shown=rows.slice(0,LIMIT), mon=CITYMON?CITYMON.slice(5)+'.'+CITYMON.slice(0,4):'';
+  return `<div class="panel"><p class="ptitle">הרכבים שפעלו ב${esc(c)}${mon?' · '+mon:''} · ${fmt(n)} רכבים</p>
+    <div class="kpis" style="margin-bottom:10px">
+      <div class="kpi"><b>${fmt(n)}</b><span>רכבים${mon?' ששידרו ב-'+mon:' שנצפו בעיר'}</span></div>
+      <div class="kpi"><b>${fmt(act)}</b><span>מהם פעילים היום</span></div>
+      ${aD!=null?`<div class="kpi" title="בכמה ימים שנסרקו הרכב שידר נסיעות — בכל מקום, לא רק בעיר הזו"><b>${Math.round(aD)}</b><span>ימי פעילות שנמדדו לרכב, בממוצע</span></div>`:''}
+      ${aR!=null?`<div class="kpi" title="ממוצע הנסיעות ביום פעילות של הרכב, לפי השידורים"><b>${aR.toFixed(1)}</b><span>נסיעות ביום לרכב, בממוצע</span></div>`:''}
+      ${tR?`<div class="kpi"><b>${fmt(tR)}</b><span>נסיעות שנמדדו בסך הכול</span></div>`:''}
+    </div>
+    <div class="filters">
+      <button class="fchip ${STATF===null&&KABF===null?'on':''}" onclick="STATF=null;KABF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
+      ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
+      <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+    </div>
+    ${rows.length?`<div class="tblbox"><table><thead><tr>${th('o','חברה')}${th('p','מספר רכב')}${DATA.enriched?th('t','סוג הרכב')+th('y','שנתון')+th('m','יצרן ודגם'):''}${th('dd','ימי פעילות שנמדדו')}${th('rt','נסיעות סה"כ')}${th('r','נסיעות ביום')}${th('f','נצפה לראשונה')}${th('l','נצפה לאחרונה')}<th>מצב</th></tr></thead><tbody>
+    ${shown.map(r=>{const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
+      return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')"><td>${esc(r.o.name)}</td><td dir="ltr" style="text-align:right">${esc(v[0])}</td>${DATA.enriched?`<td>${gT(v)?`<span class="tg">${esc(gT(v).replace(/^אוטובוס /,''))}</span>`:'—'}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}<td>${r.dd!=null?fmt(r.dd):'—'}</td><td>${r.rt!=null?fmt(r.rt):'—'}</td><td>${gR(v)!=null?gR(v):'—'}</td><td>${fd(v[1])}</td><td>${fd(v[2])}</td><td><span class="st ${on?'on':mv?'mv':'off'}">${on?'פעיל':mv?'עבר ל'+esc(mv.name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
+    </tbody></table></div>
+    ${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,rows.length-LIMIT))} מתוך ${fmt(rows.length-LIMIT)} שנותרו</button>`:''}`:'<div class="empty">אין רכבים בסינון הזה</div>'}
+    <p class="note">ימי הפעילות והנסיעות נמדדו בשידורים בכל הימים שנסרקו, בכל מקום שהרכב פעל — לא רק בעיר הזו. ${mon?'בחירת חודש משאירה רק רכבים ששידרו באותו חודש (בכל מקום); באיזו עיר בדיוק הם היו באותו חודש ייראה כשרישום החודשים לפי קו יתמלא. ':''}לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
+  </div>`;
+}
+
+/* ── מצב "מעברים": מאיפה לאן עברו רכבים — בין חברות ובין ערים (שלמה 16.09:
+   "כמה מפרקיות עברו לאלעד?"). הלוגיקה ב-moves.js (נבדקת אוטומטית ב-tests/);
+   כאן רק הבחירה והתצוגה. הנתונים: fleet-moves.json — לכל לוחית, הערים של
+   כל תקופת-חברה (ובעתיד גם החודשים של כל עיר) ── */
+async function loadMoves(){
+  if(MOVES!==null) return;
+  try{const r=await fetch('data/fleet-moves.json',{cache:'no-cache'});MOVES=r.ok?await r.json():{m:{}};}
+  catch(e){MOVES={m:{}};}
+  await Promise.all([loadDays(),loadOfficial()]);buildOfficial();
+  render();
+}
+const mvIsOp=k=>k.startsWith('op:');
+const mvLabel=k=>mvIsOp(k)?opName(k.slice(3)):k.slice(5);
+const mvFull=k=>(mvIsOp(k)?'חברת ':'')+mvLabel(k);
+// סוג הרכב לסינון: "מפרקי" לפי הרישוי או לפי הגוף במאגר הרשמי
+function mvType(v){const t=gT(v)||'',bs=v._bs||'';
+  if(t.includes('מפרקי')||bs.includes('מפרקי'))return 'מפרקי';
+  if(t.includes('דו-קומתי'))return 'דו-קומתי';
+  if(t.includes('הסעות')||t.includes('מיוחד'))return 'רכבי קבלן';
+  if(t.includes('מיניבוס')||bs==='מיניבוס'||bs==='מידיבוס')return 'מיניבוס';
+  if(t.includes('בין-עירוני'))return 'בין-עירוני';
+  if(t.includes('עירוני'))return 'עירוני';
+  return 'אחר';}
+let MVCACHE=null;
+// כל המעברים של כל הלוחיות — מחושב פעם אחת (ומחדש כשמשנים "רק מעברים של ממש")
+function mvAll(){
+  if(MVCACHE&&MVCACHE.real===MVREAL&&MVCACHE.src===MOVES) return MVCACHE.list;
+  const list=[],FM=window.FleetMoves;
+  if(FM&&MOVES&&MOVES.m) for(const plate in MOVES.m){
+    const recs=(XPLATE[plate]||[]).map(([o,v])=>{const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;return {op:o.ref,first:v[1],last:v[2],days:dd?dd[0]:null};})
+      .sort((a,b)=>a.first<b.first?-1:a.first>b.first?1:0);
+    if(!recs.length) continue;
+    const v=XPLATE[plate][0][1];
+    for(const m of FM.moves(recs,MOVES.m[plate],{minDays:MVREAL?5:0})) list.push(Object.assign({plate,v},m));
+  }
+  MVCACHE={real:MVREAL,src:MOVES,list};
+  return list;
+}
+// הבחירה הנוכחית (לטבלה ולאקסל): לפי סוג, חיפוש, מקור ויעד
+function mvSelected(){
+  const f=Q.trim(),clean=f.replace(/-/g,'');
+  let list=mvAll();
+  if(clean) list=list.filter(m=>m.plate.replace(/-/g,'').includes(clean)||(gM(m.v)||'').includes(f));
+  if(MVK) list=list.filter(m=>mvType(m.v)===MVK);
+  return {base:list,sel:list.filter(m=>(!MVF||m.from===MVF)&&(!MVT||m.to===MVT))};
+}
+function mvPick(el){const k=el.dataset.k||null;if(el.dataset.mv==='to')MVT=k;else MVF=k;LIMIT=200;render();window.scrollTo({top:0});}
+function mvPair(el){MVF=el.dataset.a;MVT=el.dataset.b;LIMIT=200;render();window.scrollTo({top:0});}
+function mvSwap(){const t=MVF;MVF=MVT;MVT=t;LIMIT=200;render();}
+// ספירת לוחיות שונות לכל מפתח
+const mvCount=(list,fn)=>{const s={};for(const m of list){const k=fn(m);(s[k]=s[k]||new Set()).add(m.plate);}return Object.entries(s).map(([k,v])=>[k,v.size]).sort((a,b)=>b[1]-a[1]);};
+function movesHome(){
+  if(MOVES===null){loadMoves();return kpis()+'<div class="msg">⏳ טוען נתוני מעברים…</div>';}
+  if(!window.FleetMoves) return kpis()+'<div class="panel"><div class="empty">קובץ הלוגיקה של המעברים (moves.js) לא נטען — נסו לרענן</div></div>';
+  if(!MOVES.m||!Object.keys(MOVES.m).length) return kpis()+'<div class="panel"><div class="empty">נתוני המעברים ייבנו בריצת האיסוף הקרובה</div></div>';
+  const {base,sel}=mvSelected();
+  const all=mvAll();
+  // אפשרויות הבחירה: מקורות שיש מהם מעברים (ליעד שנבחר), ויעדים (מהמקור שנבחר)
+  const fromOpts=mvCount(base.filter(m=>!MVT||m.to===MVT),m=>m.from), toOpts=mvCount(base.filter(m=>!MVF||m.from===MVF),m=>m.to);
+  const optHtml=(opts,cur)=>{const ops=opts.filter(([k])=>mvIsOp(k)),cts=opts.filter(([k])=>!mvIsOp(k));
+    const o=([k,n])=>`<option value="${esc(k)}" ${cur===k?'selected':''}>${esc(mvLabel(k))} · ${fmt(n)}</option>`;
+    return `<option value="">— בחירה —</option>${ops.length?`<optgroup label="חברות">${ops.map(o).join('')}</optgroup>`:''}${cts.length?`<optgroup label="ערים">${cts.map(o).join('')}</optgroup>`:''}`;};
+  const types=mvCount(all,m=>mvType(m.v));
+  const opMovers=new Set(all.filter(m=>mvIsOp(m.from)&&mvIsOp(m.to)).map(m=>m.plate)).size;
+  const cov=MOVES.cov||[];
+  const covTxt=cov.length?`מעבר מעיר לעיר בתוך אותה חברה נראה רק בימים שכבר נסרקו עם רישום החודשים של כל קו: ${cov.map(r=>fd(r[0])+(r[1]!==r[0]?'–'+fd(r[1]):'')).join(', ')}. השאר מתמלא בסריקות הבאות.`
+    :'מעבר מעיר לעיר בתוך אותה חברה עוד לא נראה — הסריקה התחילה לרשום רק עכשיו באילו חודשים כל רכב שירת כל קו, וזה יתמלא בסריקות הבאות.';
+  const head=`<div class="kpis">
+    <div class="kpi"><b>${fmt(opMovers)}</b><span>רכבים שעברו בין חברות מאז ${fd(MOVES.since)}</span></div>
+    <div class="kpi"><b>${fmt(new Set(sel.map(m=>m.plate)).size)}</b><span>רכבים בבחירה הנוכחית</span></div>
+    <div class="kpi"><b style="font-size:15px">${fd(MOVES.updated)}</b><span>עדכון נתוני המעברים</span></div>
+  </div>
+  <div class="panel"><p class="ptitle">מאיפה ולאן — בוחרים חברה או עיר בכל צד</p>
+    <div class="filters" style="align-items:center;gap:10px">
+      <label style="font-size:13px;font-weight:700;color:var(--mut)">מאיפה: <select class="mselect" onchange="MVF=this.value||null;LIMIT=200;render()">${optHtml(fromOpts,MVF)}</select></label>
+      <button class="fchip" onclick="mvSwap()" title="החלפת כיוון">⇄</button>
+      <label style="font-size:13px;font-weight:700;color:var(--mut)">לאן: <select class="mselect" onchange="MVT=this.value||null;LIMIT=200;render()">${optHtml(toOpts,MVT)}</select></label>
+      ${MVF||MVT?`<button class="fchip" onclick="MVF=null;MVT=null;LIMIT=200;render()">✕ ניקוי</button>`:''}
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <button class="fchip ${MVK===null?'on':''}" onclick="MVK=null;LIMIT=200;render()">כל הסוגים</button>
+      ${types.map(([t,n])=>`<button class="fchip ${MVK===t?'on':''}" data-k="${esc(t)}" onclick="MVK=MVK===this.dataset.k?null:this.dataset.k;LIMIT=200;render()">${esc(t)} · ${fmt(n)}</button>`).join('')}
+      <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש = הרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש</button>
+    </div>
+    <p class="note">רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. בין חברות רואים את זה מתחילת המעקב (${fd(MOVES.since)}); רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}</p>
+  </div>`;
+  const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<button class="type" data-mv="${side}" data-k="${esc(k)}" onclick="mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></button>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
+  let body='';
+  if(MVF&&MVT){
+    const rows=sel.slice().sort((a,b)=>a.arrived<b.arrived?1:a.arrived>b.arrived?-1:0), shown=rows.slice(0,LIMIT);
+    const cur=p=>(XPLATE[p]||[]).slice().sort((a,b)=>a[1][2]<b[1][2]?1:-1)[0];
+    body=`<div class="panel"><p class="ptitle">${fmt(new Set(rows.map(m=>m.plate)).size)} רכבים עברו מ${esc(mvFull(MVF))} ל${esc(mvFull(MVT))}${MVK?' · '+esc(MVK):''}</p>
+      ${rows.length?`<div class="tblbox"><table><thead><tr><th>מספר רכב</th><th>סוג הרכב</th><th>שנתון</th><th>יצרן ודגם</th><th>נצפה לאחרונה ב${esc(mvLabel(MVF))}</th><th>נצפה לראשונה ב${esc(mvLabel(MVT))}</th><th>היום</th></tr></thead><tbody>
+      ${shown.map(m=>{const c=cur(m.plate),on=c&&isActive(c[1]);
+        return `<tr class="v ${on?'':'off'}" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${esc(m.plate)}</td><td><span class="tg">${esc(mvType(m.v))}${m.v._bs&&m.v._bs!=='אוטובוס'&&!mvType(m.v).includes(m.v._bs)?' · '+esc(m.v._bs):''}</span></td><td>${gY(m.v)||'—'}</td><td>${esc(gM(m.v)||'—')}</td><td>${fd(m.left)}</td><td>${fd(m.arrived)}</td><td><span class="st ${on?'on':'off'}">${on?'פעיל · '+esc(c[0].name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
+      </tbody></table></div>${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,rows.length-LIMIT))} מתוך ${fmt(rows.length-LIMIT)} שנותרו</button>`:''}
+      <p class="note">התאריכים הם של השידורים: היום האחרון שהרכב נצפה במקור והיום הראשון שנצפה ביעד. חפיפה של כמה שבועות רגילה — בהחלפת חברה הרכב משדר זמן-מה תחת שתי החברות. לחיצה על רכב פותחת את כל פרטיו.</p>`:'<div class="empty">אין מעברים כאלה בסינון הנוכחי</div>'}</div>`;
+  }else if(MVF){
+    body=cards(`לאילו חברות עברו רכבים מ${esc(mvFull(MVF))} — לחיצה מציגה את הרכבים`,toOpts.filter(([k])=>mvIsOp(k)),'to')+cards(`לאילו ערים עברו רכבים מ${esc(mvFull(MVF))}`,toOpts.filter(([k])=>!mvIsOp(k)),'to');
+  }else if(MVT){
+    body=cards(`מאילו חברות הגיעו רכבים ל${esc(mvFull(MVT))} — לחיצה מציגה את הרכבים`,fromOpts.filter(([k])=>mvIsOp(k)),'from')+cards(`מאילו ערים הגיעו רכבים ל${esc(mvFull(MVT))}`,fromOpts.filter(([k])=>!mvIsOp(k)),'from');
+  }else{
+    const pairs=pred=>mvCount(base.filter(pred),m=>m.from+'|'+m.to).slice(0,24);
+    const pairCards=(title,ps)=>`<div class="panel"><p class="ptitle">${title}</p>${ps.length?`<div class="types">${ps.map(([k,n])=>{const [a,b]=k.split('|');return `<button class="type" data-a="${esc(a)}" data-b="${esc(b)}" onclick="mvPair(this)"><b>${fmt(n)}</b><span>מ${esc(mvFull(a))}<br>ל${esc(mvFull(b))}</span></button>`;}).join('')}</div>`:'<div class="empty">אין</div>'}</div>`;
+    body=pairCards('המעברים הגדולים בין חברות — לחיצה מציגה את הרכבים',pairs(m=>mvIsOp(m.from)&&mvIsOp(m.to)))+pairCards('המעברים הגדולים בין ערים',pairs(m=>!mvIsOp(m.from)&&!mvIsOp(m.to)));
+  }
+  return head+body;
 }
 
 /* מצב "דגם": כל דגמי האוטובוסים בארץ (יצרן+דגם מהרישוי), ובלחיצה —
@@ -825,8 +999,16 @@ function XDL(){
       const g=agg[t]||(agg[t]={n:0,a:0,s:new Set()});g.n++;if(isActive(v))g.a++;g.s.add(o.ref);}
     Object.entries(agg).sort((x,y)=>y[1].n-x[1].n).forEach(([t,g])=>D.push([t,g.n,g.a,g.n-g.a,g.s.size]));
   }else if(MODE==='city'&&CITYSEL&&CITIES&&CITIES.cities[CITYSEL]){
-    name='fleet-city '+CITYSEL; D.push(['חברה','רכבים שפעלו בעיר']);
-    (CITIES.cities[CITYSEL].ops||[]).forEach(([r,n])=>D.push([opName(r),n]));
+    name='fleet-city '+CITYSEL+(CITYMON?' '+CITYMON:'');
+    if(CV&&CVIDX&&CVIDX[CITYSEL]){
+      // רשימת הרכבים של העיר, כמו בטבלה (כולל סינון החודש והמצב)
+      D.push(['חברה','מספר רכב','סוג הרכב','שנתון','יצרן ודגם','ימי פעילות שנמדדו','נסיעות סה"כ','נסיעות ביום','נצפה לראשונה','נצפה לאחרונה','מצב']);
+      for(const r of cityVehRows(CITYSEL)){const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
+        D.push([r.o.name,v[0],gT(v)||'',gY(v)||'',gM(v)||'',r.dd!=null?r.dd:'',r.rt!=null?r.rt:'',gR(v)!=null?gR(v):'',v[1],v[2],on?'פעיל':mv?'עבר ל'+mv.name:'ירד מהשירות']);}
+    }else{
+      D.push(['חברה','רכבים שפעלו בעיר']);
+      (CITIES.cities[CITYSEL].ops||[]).forEach(([r,n])=>D.push([opName(r),n]));
+    }
   }else if(MODE==='city'&&CITIES){
     name='fleet-cities'; D.push(['עיר','רכבים שונים שפעלו בה']);
     Object.entries(CITIES.cities||{}).sort((a,b)=>b[1].total-a[1].total).forEach(([c,d])=>D.push([c,d.total]));
@@ -835,6 +1017,10 @@ function XDL(){
     name=clean?'fleet-search '+Q.trim():'fleet-all-vehicles'; D.push(VHEAD);
     for(const o of DATA.operators) for(const v of o.vehicles)
       if(!clean||v[0].replace(/-/g,'').includes(clean)) D.push(vRow(v,o));
+  }else if(MODE==='moves'&&MOVES&&MOVES.m){
+    name='fleet-moves'+(MVF?' '+mvLabel(MVF):'')+(MVT?' '+mvLabel(MVT):'');
+    D.push(['מספר רכב','סוג','שנתון','יצרן ודגם','מאיפה','נצפה שם לאחרונה','לאן','נצפה שם לראשונה']);
+    for(const m of mvSelected().sel) D.push([m.plate,mvType(m.v),gY(m.v)||'',gM(m.v)||'',mvLabel(m.from),m.left,mvLabel(m.to),m.arrived]);
   }else{
     name='fleet-operators';
     D.push(['חברה','רכבים במעקב','פעילים','ירדו (צי סדיר)','רכבי קבלן פעילים','רכבי קבלן שירדו']);
@@ -880,6 +1066,10 @@ function SHARE(){
   if(KABF)p.set('kb',KABF);
   if(TSORT!=='n')p.set('ts',TSORT);
   if(YRF)p.set('yr',YRF);
+  if(MVF)p.set('mf',MVF);
+  if(MVT)p.set('mt',MVT);
+  if(MVK)p.set('mk',MVK);
+  if(!MVREAL)p.set('mr','0');
   const u=location.origin+location.pathname+(p.toString()?'#'+p.toString():'');
   if(navigator.share){navigator.share({url:u}).catch(()=>{});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText)
@@ -894,7 +1084,7 @@ function applyHash(){
     if(gv('m'))MODE=gv('m');
     if(gv('q')){Q=gv('q');$('#q').value=Q;}
     document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('on',x.dataset.m===MODE));
-    $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':'חיפוש מספר רכב…';
+    $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':'חיפוש מספר רכב…';
     if(gv('op')!==null)VIEW={t:'op',ref:+gv('op')};
     if(gv('city'))CITYSEL=gv('city');
     if(gv('mon'))CITYMON=gv('mon');
@@ -908,13 +1098,17 @@ function applyHash(){
     if(gv('kb'))KABF=gv('kb');
     if(gv('ts'))TSORT=gv('ts');
     if(gv('yr'))YRF=+gv('yr');
+    if(gv('mf'))MVF=gv('mf');
+    if(gv('mt'))MVT=gv('mt');
+    if(gv('mk'))MVK=gv('mk');
+    if(gv('mr')==='0')MVREAL=0;
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
   }catch(e){}
 }
 document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
   MODE=b.dataset.m;document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('on',x===b));
-  $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':'חיפוש מספר רכב…';
-  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;LIMIT=200;render();
+  $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':'חיפוש מספר רכב…';
+  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;LIMIT=200;render();
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LIMIT=200;render();});
 
@@ -928,6 +1122,7 @@ fetch('data/fleet.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw {nd:r.status
     : '<div class="msg">📡 הנתונים לא ירדו — כנראה תקלת אינטרנט רגעית.<br><button onclick="location.reload()" style="margin-top:10px;border:1.5px solid var(--acc,#2563eb);background:#fff;color:var(--acc,#2563eb);border-radius:9999px;padding:7px 18px;font:inherit;font-weight:800;cursor:pointer">↻ נסו שוב</button></div>';
 });
 </script>
+<script src="moves.js"></script>
 <script src="../birthday.js" defer></script>
 <script src="../hagim.js" defer></script>
 </body>

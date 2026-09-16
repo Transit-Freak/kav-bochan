@@ -135,19 +135,34 @@ def scan_day(day, routes, state):
             key = f'{op}:{v}'
             cur = state.get(key)
             if cur is None:
-                cur = state[key] = [day, day, 0, 0, [], 0]
+                cur = state[key] = [day, day, 0, 0, [], 0, {}]
             else:
-                while len(cur) < 6:   # מצב ישן — הרחבה הדרגתית
-                    cur.append([] if len(cur) == 4 else 0)
+                while len(cur) < 7:   # מצב ישן — הרחבה הדרגתית
+                    cur.append([] if len(cur) == 4 else ({} if len(cur) == 6 else 0))
                 if day < cur[0]:
                     cur[0] = day
                 if day > cur[1]:
                     cur[1] = day
             # באיזה חודש הרכב פעל — ביט במסיכה (לספירה חודשית בערים)
-            cur[5] |= 1 << (int(day[:4]) * 12 + int(day[5:7]) - 1 - MBASE)
+            mi = int(day[:4]) * 12 + int(day[5:7]) - 1 - MBASE
+            cur[5] |= 1 << mi
             # אילו קווים הרכב שירת (עד 40 — מספיק לשיוך ערים)
             if line and line not in cur[4] and len(cur[4]) < 40:
                 cur[4].append(line)
+            # מתי (באילו חודשים) הרכב שירת כל קו: קו → [חודש ראשון, חודש אחרון]
+            # (מדד החודשים כמו במסיכה). זה מה שמאפשר לראות רכב שעבר מעיר
+            # לעיר בתוך אותה חברה — "מעברים" בצי הרכבים (שלמה 16.09). עד 60 קווים.
+            if line:
+                lm = cur[6]
+                ent = lm.get(str(line))
+                if ent is None:
+                    if len(lm) < 60:
+                        lm[str(line)] = [mi, mi]
+                else:
+                    if mi < ent[0]:
+                        ent[0] = mi
+                    if mi > ent[1]:
+                        ent[1] = mi
             today[key] = today.get(key, 0) + 1
         n += len(rows)
         if len(rows) < PAGE:
@@ -161,6 +176,38 @@ def scan_day(day, routes, state):
             cur[2] += cnt
             cur[3] += 1
     print(f'{day}: {n} נסיעות', flush=True)
+
+
+def mark_lm_day(root, day):
+    """מוסיף יום לרשימת טווחי הימים שנסרקו עם רישום החודשים לכל קו
+    (root['lm_cov'] = [[מ, עד], ...] — טווחים רציפים, ממוזגים)."""
+    cov = root.setdefault('lm_cov', [])
+    d = datetime.date.fromisoformat(day)
+    prev = (d - datetime.timedelta(days=1)).isoformat()
+    nxt = (d + datetime.timedelta(days=1)).isoformat()
+    for r in cov:
+        if r[0] <= day <= r[1]:
+            return
+    for r in cov:
+        if r[1] == prev:
+            r[1] = day
+            break
+        if r[0] == nxt:
+            r[0] = day
+            break
+    else:
+        cov.append([day, day])
+    cov.sort()
+    # מיזוג טווחים שנפגשו
+    merged = []
+    for r in cov:
+        if merged and (merged[-1][1] >= r[0] or
+                       (datetime.date.fromisoformat(merged[-1][1])
+                        + datetime.timedelta(days=1)).isoformat() == r[0]):
+            merged[-1][1] = max(merged[-1][1], r[1])
+        else:
+            merged.append(list(r))
+    root['lm_cov'] = merged
 
 
 def build_output(state):
@@ -252,6 +299,8 @@ def main():
             break
         scan_day(day.isoformat(), routes, state)
         scanned.append(day.isoformat())
+        # אילו ימים כבר נסרקו עם רישום "קו → חודשים" (לכיסוי של מסך המעברים)
+        mark_lm_day(root, day.isoformat())
         if MONTHS_ONLY:
             prev = root.get('months_done')
             root['months_done'] = min(prev, day.isoformat()) if prev else day.isoformat()

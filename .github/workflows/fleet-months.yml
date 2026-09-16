@@ -78,6 +78,11 @@ jobs:
         continue-on-error: true
         run: python3 tools/fleet_cities.py
 
+      - name: מעברים ורכבי הערים (best-effort)
+        if: steps.chap.outputs.skip != '1'
+        continue-on-error: true
+        run: python3 tools/fleet_moves.py && python3 tools/fleet_city_veh.py
+
       - name: נפילות-וחזרות (best-effort)
         if: steps.chap.outputs.skip != '1'
         continue-on-error: true

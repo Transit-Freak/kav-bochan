@@ -18,6 +18,10 @@ jobs:
       - name: שיוך ערים
         run: python3 tools/fleet_cities.py
 
+      - name: מעברים ורכבי הערים (best-effort)
+        continue-on-error: true
+        run: python3 tools/fleet_moves.py && python3 tools/fleet_city_veh.py
+
       - name: הערכת קילומטראז' (best-effort)
         continue-on-error: true
         run: python3 tools/fleet_km.py

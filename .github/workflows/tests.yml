@@ -1,0 +1,46 @@
+name: tests
+
+# בדיקות אוטומטיות לקוד (לא לנתונים): הלוגיקה של דפי האתר שיושבת בקבצים
+# נפרדים (fleet/moves.js) והכלים בפייתון (tools/). רץ על כל דחיפה שנוגעת
+# בקוד, ואפשר גם ידנית. נתוני האתר (data/) לא מפעילים את הבדיקות.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/**'
+      - 'tests/**'
+      - 'fleet/*.js'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'tools/**'
+      - 'tests/**'
+      - 'fleet/*.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: בדיקות JavaScript
+        run: node --test tests/*.test.mjs
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: בדיקות פייתון
+        run: |
+          python3 -m pip install -q pytest
+          python3 -m pytest tests -q
