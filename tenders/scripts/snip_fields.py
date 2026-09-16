@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 7
+VERSION = 8
 
 
 def read(path, default):
@@ -36,14 +36,59 @@ def find_rects(pg, needle, words=None):
     """איפה כתוב needle בעמוד. מחרוזת שמתחילה במספר ("20", "20%", "9 חודשים") נחשבת רק כשהמספר הוא מילה שלמה —
     כשחיפשו "20" סומנו גם "2003" ו-"2017" באותו עמוד (שלמה 16.09, חיפה עמוד 80)."""
     rects = pg.search_for(needle)
-    m = re.match(r'^([\d,]+)', needle)
+    m = re.match(r'^([\d,.]+)', needle)
     if not m or not rects:
         return rects
-    want = m.group(1).replace(',', '')
+    want = m.group(1).rstrip('.,').replace(',', '')
     if words is None:
         words = pg.get_text('words')
     boxes = [w[:4] for w in words if num_core(w[4]) == want]
     return [r for r in rects if any(r.x0 < b[2] and r.x1 > b[0] and r.y0 < b[3] and r.y1 > b[1] for b in boxes)]
+
+
+def _letters(s):
+    return re.sub(r'[^א-תa-zA-Z%₪"]', '', s)
+
+
+def phrase_rects(words, num, unit):
+    """מלבנים ל"מספר יחידה" ("12 חודשים") לפי המקום בעמוד: מילה שהיא בדיוק המספר, ומילה צמודה אליה באותה שורה
+    שהיא היחידה (או אותה מילה כשהיחידה דבוקה: "(20%)"). לא תלוי בסדר שבו ה-PDF שומר טקסט עברי — בחיפה עמוד 8
+    search_for מצא רק את ה"12 חודשים" הראשון (אורך החוזה) ולא את זה של מועד ההתחלה שבתחילת שורה."""
+    import fitz
+    want = num.rstrip('.,').replace(',', '')
+    out = []
+    for w in words:
+        if num_core(w[4]) != want:
+            continue
+        own = _letters(w[4])
+        if own and (own.endswith(unit) or own.startswith(unit)):
+            out.append(fitz.Rect(w[:4]))
+            continue
+        h = max(w[3] - w[1], 4)
+        for u in words:
+            if _letters(u[4]) != unit or abs((u[1] + u[3]) / 2 - (w[1] + w[3]) / 2) > h * 0.6:
+                continue
+            if min(abs(u[0] - w[2]), abs(w[0] - u[2])) <= h * 0.8:      # רווח אחד, לא מילה קצרה ביניהן
+                out.append(fitz.Rect(min(w[0], u[0]), min(w[1], u[1]), max(w[2], u[2]), max(w[3], u[3])))
+                break
+    return out
+
+
+SEC_NUM = re.compile(r'^\d+(?:\.\d+)+\.?$')
+
+
+def section_span(pg, words, sec_n):
+    """טווח ה-y של הסעיף בעמוד: ממספר הסעיף (המילה "38.2.9" בשולי העמוד, הכי ימנית) עד מספר הסעיף הבא באותו
+    טור. סימון מוגבל לסעיף — כדי שמספר זהה בסעיף שכן באותו עמוד לא יסומן. None כשהכותרת לא בעמוד הזה."""
+    if not sec_n or '.' not in str(sec_n):
+        return None
+    heads = [w for w in words if w[4].rstrip('.') == str(sec_n)]
+    if not heads:
+        return None
+    head = max(heads, key=lambda w: w[2])
+    nxt = [w for w in words if SEC_NUM.match(w[4]) and w[2] >= head[2] - 8 and w[1] > head[3]]
+    y1 = min(w[1] for w in nxt) - 2 if nxt else pg.rect.height
+    return (head[1] - 2, y1)
 
 
 UNIT = r'(?:חודשים|חודש|ימים|יום|שנים|שנה|שבועות|אחוז|%|₪|ש"ח|נקודות|מושבים|אוטובוסים)'
@@ -273,7 +318,9 @@ def main():
                         continue
                     if any(n == u.split(' ')[0] for u in used):
                         continue                      # המספר לבדו — רק אם הביטוי עם היחידה לא נמצא
-                    rects = find_rects(pg, n, words)
+                    pm = re.match(r'^([\d,.]+) (\S+)$', n)
+                    rects = phrase_rects(words, pm.group(1), pm.group(2)) if pm else []
+                    rects = rects or find_rects(pg, n, words)
                     if rects:
                         found += rects[:6]
                         used.append(n)
@@ -287,6 +334,11 @@ def main():
                         break
             if not hit:
                 continue
+            # רק בתוך הסעיף עצמו, כשכותרתו בעמוד (אותו מספר יכול להופיע גם בסעיף השכן)
+            span = section_span(pg, words, (f.get('sec') or {}).get('n'))
+            if span:
+                inside = [r for r in hit if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
+                hit = inside or hit
             for r in hit:
                 a = pg.add_highlight_annot(r)
                 a.set_colors(stroke=(1, 0.9, 0.2)); a.update()

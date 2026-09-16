@@ -403,3 +403,31 @@ def test_number_needle_matches_whole_numbers_only():
     assert len(pg2.search_for('9 months')) == 2
     # ערך באחוזים מחפש קודם "20%"
     assert snip_fields.needles_for('fleet.reserve', {'value': 20, 'kind': 'percent'})[:2] == ['20%', '20']
+    # מספר עשרוני ("7.2 מיליון") עדיין נמצא
+    pg3 = _page_with('about 7.2 million km, not 17.2')
+    assert len(snip_fields.find_rects(pg3, '7.2')) == 1
+
+
+def test_phrase_is_found_by_position_and_section_limits_the_marks():
+    import fitz
+    doc = fitz.open()
+    pg = doc.new_page()
+    # כותרות סעיפים בטור ימני, גוף בטור שמאלי; "12 months" פעמיים: בסעיף 1.6.1 ובסעיף 1.6.2
+    pg.insert_text((520, 100), '1.6.1', fontsize=11)
+    pg.insert_text((60, 100), 'the term is 10 years and 12 months in total', fontsize=11)
+    pg.insert_text((520, 200), '1.6.2', fontsize=11)
+    pg.insert_text((60, 200), 'phase a starts within 12 months, phase b within 18 months', fontsize=11)
+    pg.insert_text((60, 230), 'and 112 months is not 12 months or 12 days', fontsize=11)
+    pg.insert_text((520, 300), '1.6.3', fontsize=11)
+    pg.insert_text((60, 300), 'penalty of 12 months', fontsize=11)
+    words = pg.get_text('words')
+    r12 = snip_fields.phrase_rects(words, '12', 'months')
+    assert len(r12) == 4                      # 100, 200, 230, 300 — לא "112 months" ולא "12 days"
+    assert sorted(round(r.y0 / 10) for r in r12) == [9, 19, 22, 29]
+    assert len(snip_fields.phrase_rects(words, '18', 'months')) == 1
+    span = snip_fields.section_span(pg, words, '1.6.2')
+    assert span and 180 < span[0] < 200 and 280 < span[1] < 300
+    inside = [r for r in r12 if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
+    assert len(inside) == 2
+    assert snip_fields.section_span(pg, words, '9.9.9') is None
+    assert snip_fields.section_span(pg, words, '1') is None
