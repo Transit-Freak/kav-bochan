@@ -16,11 +16,17 @@ const normNum = n => String(n || '').replace(/\s+/g, '').replace(/^0+(?=\d)/, ''
 const tagChip = t => `<span class="linetag" style="background:${TAG_COLORS[t] || '#475569'}">${esc(t)}</span>`;
 const fdDate = s => s ? s.split('-').reverse().join('.') : '';
 
-/* ציטוטים על קו לפי מספרו (ולפי מק"ט כשמופיע בציטוט) */
+/* ציטוטים על קו: לפי המק"ט כשהמסמך מציין אותו (חד-משמעי), אחרת לפי מספר הקו */
 function quotesFor(id, number, catalog) {
   const items = lineChanges.tenders?.[id] || [];
-  const n = normNum(number);
-  return items.filter(q => q.numbers.some(x => normNum(x) === n) || (catalog && q.quote.includes(String(catalog))));
+  const n = normNum(number), mk = catalog ? String(catalog) : null;
+  return items.filter(q => (mk && (q.makats || []).includes(mk)) || ((q.makats || []).length === 0 && q.numbers.some(x => normNum(x) === n)));
+}
+/* הערות הסעיף ("המכרז לא כולל קווים חדשים.") — לפי סעיף, בלי כפילויות */
+function sectionNotes(id) {
+  const notes = lineChanges.sections?.[id] || [], seen = new Set(), out = [];
+  for (const n of notes) { const k = n.section + '|' + n.quote; if (seen.has(k)) continue; seen.add(k); out.push(n); }
+  return out;
 }
 
 /* טבלת הקווים: איחוד שורות הנספח לפי מק"ט, גרסת המסמך העדכנית קודמת */
@@ -76,7 +82,9 @@ async function fillLines(details) {
   }).join('');
   const orphan = quotes.filter(q => !used.has(q));
   const notIn = td?.clusterExact && td.notInTender?.length ? `<details class="fielddetails"><summary>קווים שרצים היום באשכול ״${esc(td.clusterName)}״ ואינם בטבלת המכרז · ${td.notInTender.length}</summary><p class="muted">לפי קובץ ״אשכול לקו״ של משרד התחבורה ולוח הזמנים של ${fdDate(todayData.gtfsDate)}. זה לא אומר בהכרח שהקווים יבוטלו: ייתכן שהם בנספח אחר או במספר אחר.</p><ul>${td.notInTender.map(([mk, num, name, op]) => `<li><b>${esc(num)}</b> · ${esc(name)} · ${esc(op)} <small class="muted">מק״ט ${esc(mk)}</small></li>`).join('')}</ul></details>` : '';
-  body.innerHTML = `${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
+  const notes = sectionNotes(id);
+  const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length} פסקאות</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span><p>${esc(n.quote)}</p><small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a></small></blockquote>`).join('')}</details>` : '';
+  body.innerHTML = `${notesHtml}${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
     ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>כיוונים וחלופות</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">לחיצה על קו: התחנות והמסלול מהנספח, הציטוטים מהמסמך ומה רץ היום.</p>` : '<p class="muted">למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.</p>'}
     ${orphan.length ? `<details class="fielddetails"><summary>ציטוטים על קווים שאינם בטבלת הנספח · ${orphan.length}</summary>${orphan.map(renderQuote).join('')}</details>` : ''}
     ${notIn}`;

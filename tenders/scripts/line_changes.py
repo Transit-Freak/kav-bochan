@@ -1,16 +1,28 @@
 """מה המכרז אומר על כל קו — ציטוטים מילה במילה, בלי מודל שפה.
 
-מסמכי המכרז (הטקסט השמור ב-tenders/text) נסרקים לפסקאות שמתחילות ב"קו 199"
-או "קווים 4 ו-N4" וכוללות מילים של שינוי: קו חדש, ביטול, שינוי מסלול, שינוי
-תדירות, הארכה, קיצור, שינוי מספר, איחוד, פיצול. כל פסקה כזאת נשמרת כמו שהיא,
-עם מספרי הקווים שבראשה, התגיות שנמצאו בה, העמוד והקישור למסמך.
+מסמכי המכרז של משרד התחבורה בנויים על תבנית אחת. בחלק ד' (מפרט טכני) יש סעיף
+"שינויים שבוצעו בקווי האשכול" עם סעיפי משנה: "קווים חדשים", "שינויים בקווים
+קיימים", "קווים מבוטלים", "קווי לילה", "קווי תלמידים". תחת כל סעיף — פריטים:
+  • קו – 199 קו חדש מבת ים לחולון, ...                       (פריט לקו)
+  • קו 19 (מק"ט 18019) – אין שינוי במכרז, אך ...              (פריט לקו עם מק"ט)
+  • שינוי תדירות בלבד: קווים 14 (10014), 13 (11013), 6 (10006)  (רשימת קטגוריה)
+  • קו 19 (10019), 217 (14217), 224 (12224)                    (רשימה תחת "קווים מבוטלים")
 
-זה לא סיכום ולא פרשנות: האתר מציג את הפסקה עצמה. מה שלא מנוסח כפסקה של קו
-(למשל טבלת שינויים) לא יופיע כאן, וזה נאמר בגלוי בעמוד.
+הקורא כאן עובד רק בכללים:
+- מזהה את כותרות הסעיפים ומחזיק את הסעיף הנוכחי (הוא קובע את סוג השינוי).
+- פריט מתחיל בשורה עם תבליט (•) או בשורה שמתחילה ב"קו"/"קווים" או ברשימת
+  קטגוריה ("… :קווים"), ונמשך עד תבליט/כותרת/שורה ריקה הבאים.
+- מספרי הקווים והמק"טים (5 ספרות) נלקחים מהקטע המספרי שאחרי "קו" (לא מתוך
+  תיאור הקו, כדי ש"כביש 6" לא יהפוך לקו 6). ברשימת קטגוריה — מכל השורה.
+- התגיות: מהסעיף (קו חדש / ביטול / שינוי) ומהמילים בפריט (שינוי מסלול, שינוי
+  תדירות, הארכה, קיצור, שינוי מספר, איחוד, פיצול, חלופה); "אין שינוי" מזוהה בנפרד.
+- הציטוט הוא הטקסט של הפריט כפי שחולץ מה-PDF (סוגריים שהתהפכו בחילוץ מתוקנים).
 
 הפלט: tenders/line-changes.json
-{ "updated": ..., "tenders": { tid: [ {"numbers": ["199"], "tags": ["קו חדש"],
-    "quote": "...", "page": 66, "url": "...#page=66", "sha256": ..., "doc": "מסמכי הליך"} ] } }
+{ "updated": ..., "tenders": { tid: [ {"numbers": ["199"], "makats": ["99199"],
+    "tags": ["קו חדש"], "section": "קווים חדשים", "quote": "...", "page": 67,
+    "url": "...#page=67", "sha256": ..., "doc": "מסמכי הליך"} ] },
+  "sections": { tid: [ {"section": "קווים חדשים", "quote": "המכרז לא כולל קווים חדשים.", ...} ] } }
 """
 import datetime
 import gzip
@@ -25,11 +37,36 @@ ROOT = HERE.parent
 TEXT = ROOT / 'text'
 OUT = ROOT / 'line-changes.json'
 
+# מספר קו: עד 4 ספרות (אופציונלי N ללילה) ואות עברית אחת רק אם אינה תחילת מילה ("6א" כן, "13הינו" לא);
+# ו' דבוקה היא ו' החיבור ("6ו-16") אלא אם אחריה גרש
+NUM = r"N?\d{1,4}(?:[א-הז-ת](?![א-ת])|ו(?=['׳]))?"
+MAKAT = r'(?<!\d)[1-9]\d{4}(?!\d)'
+
+SECTIONS = [
+    ('קווים חדשים', 'קו חדש'),
+    ('שינויים בקווים קיימים', 'שינוי'),
+    ('שינויים בקווים', 'שינוי'),
+    ('קווים מבוטלים', 'ביטול'),
+    ('קווים שיבוטלו', 'ביטול'),
+    ('ביטול קווים', 'ביטול'),
+    ('קווי לילה', 'קווי לילה'),
+    ('קווי תלמידים', 'קווי תלמידים'),
+    ('חלופות תלמידים', 'קווי תלמידים'),
+    ('שינויים שבוצעו בקווי האשכול', 'כללי'),
+    ('שינויים בקווי האשכול', 'כללי'),
+    ('מספרי נוסעים', None),
+    ('סקירה כללית', None),
+    ('הקווים הכלולים באשכול', None),
+]
+SEC_NUM = r'\d{1,2}(?:\.\d{1,2}){0,3}'
+SEC_NUM_DOTTED = r'\d{1,2}(?:\.\d{1,2}){1,3}'       # מספר סעיף בתחילת שורה חייב נקודה ("34.1"); "47קווי תלמידים" הוא ספירה
+HEADER = re.compile(r'^\s*(?:' + SEC_NUM_DOTTED + r')?\s*(?P<h>' + '|'.join(re.escape(s) for s, _ in SECTIONS) + r')(?P<rest>.*?)\s*(?:' + SEC_NUM + r')?\s*$')
+
 TAGS = [
-    ('קו חדש', r'קו חדש|קווים חדשים|קו\s+\S+\s+חדש|יופעל קו|הפעלת קו חדש|תופעל'),
-    ('ביטול', r'יבוטל|יבוטלו|תבוטל|ביטול הקו|ביטול קו|ביטול הקווים|מבוטל|בוטל'),
-    ('שינוי מסלול', r'שינוי מסלול|שינוי במסלול|שינויי מסלול|ישונה מסלול|המסלול ישונה|מסלולו ישונה|יעבור דרך|לא יעבור|ייסע דרך|יסע דרך|מסלול חדש|במקום .{0,40}?ייסע|יוסט'),
-    ('שינוי תדירות', r'תדירות|תדירויות|תגבור|תוגבר|יתוגבר|תוספת נסיעות|הפחתת נסיעות'),
+    ('קו חדש', r'קו חדש|קווים חדשים|קו\s+\S+\s+חדש|יופעל קו|הפעלת קו חדש|תופעל|קו אוטובוס חדש'),
+    ('ביטול', r'(?<![א-ת])(?:יבוטל|יבוטלו|תבוטל|ביטול ה?קו(?:וים)?|מבוטל(?:ים|ת|ות)?|בוטל(?:ו|ה)?|לביטול|צפי לביטול|שמבוטל)(?![א-ת])'),
+    ('שינוי מסלול', r'שינוי מסלול|שינוי במסלול|שינויי מסלול|ישונה מסלול|המסלול ישונה|מסלולו ישונה|יעבור דרך|לא יעבור|ייסע דרך|יסע דרך|מסלול חדש|יוסט|צפוי להשתנות|צפויים להשתנות|יותאם המסלול|מסלול הקו יהיה|יהפוך לחלופה'),
+    ('שינוי תדירות', r'תדירות|תדירויות|תגבור|תוגבר|יתוגבר|תוספת נסיעות|הפחתת נסיעות|מתוגברת'),
     ('הארכה', r'יוארך|תוארך|הארכת הקו|הארכת המסלול|הארכה'),
     ('קיצור', r'יקוצר|תקוצר|קיצור המסלול|קיצור הקו|קיצור'),
     ('שינוי מספר', r'ישונה מספרו|מספרו ישונה|מספר הקו ישונה|יקבל את המספר|ימוספר|מספר חדש|במקום קו'),
@@ -37,47 +74,31 @@ TAGS = [
     ('פיצול', r'יפוצל|יפוצלו|פיצול'),
     ('חלופה', r'חלופה|חלופת|חלופות'),
 ]
-NUM = r'N?\d{1,4}[א-ת]?'
-# תחילת פסקה של קו: "קו 199", "קו 4 ו-N4", "קווים 18 ו־N18", "קו 144:" (גם אחרי מספור סעיף)
-HEAD = re.compile(r'^\s*(?:\d+(?:\.\d+)*\s+)?(?:קו|קווים|לקו|לקווים)\s+(' + NUM + r'(?:\s*(?:,|ו-|ו־|ו|,\s*ו-)\s*' + NUM + r')*)\s*[:\-–—]?\s*(.*)$')
-# שינוי שמתייחס לקו באמצע משפט: "ביטול קו 19", "קו 217 יבוטל"
-INLINE = re.compile(r'(?:ביטול|יבוטל|יבוטלו|תבוטל)\s+(?:של\s+)?(?:הקו|קו|הקווים|קווים)\s+(' + NUM + r'(?:\s*(?:,|ו-|ו־|ו)\s*' + NUM + r')*)|(?:הקו|קו)\s+(' + NUM + r')\s+(?:יבוטל|תבוטל|יוארך|יקוצר|יאוחד|יפוצל)')
+NEG = re.compile(r'(?:ללא|אין|בלי|לא יהיה|לא יחול|לא)\s+(?:כל\s+)?שינוי(?:ים)?(?:\s+ב?\S+){0,2}|יישאר(?:ו)? (?:ללא שינוי|כפי שה(?:וא|ם) היום)|ימשיך לפעול|ימשיכו לפעול|לא ישונה|לא ישתנה')
+BULLET = re.compile(r'[•▪●◦■]|(?<![\w"])-(?=\s)')
+LINE_START = re.compile(r'^\s*[•▪●◦]?\s*(?:קו|קווים|לקו|לקווים)\s*[:–\-]?\s*[\(\)]?\s*(?:N?\d|\(|\))')
+CATEGORY = re.compile(r'^\s*[•▪●◦]?\s*(?P<cat>[^:•]{3,45}?)\s*:\s*(?:קווים?|הקווים?)\b(?P<rest>.*)$')
+# הקטע המספרי אחרי "קו": מספרים, מק"טים, סוגריים, מקפים, פסיקים, ו' החיבור והמילה מק"ט
+HEAD_TAIL = re.compile(r'(?:קו|קווים|לקו|לקווים)\s*[:–\-]?\s*(?P<nums>(?:[\(\)\s,.–\-\']|N?\d+[א-ת]?|ו(?=[\s\-–\)\(\d])|מק"ט|מק״ט|מקט)+)')
+SECTION_WORDS = tuple(s for s, _ in SECTIONS)
 
 
-def numbers(s):
-    return re.findall(NUM, s)
+def split_glued(s):
+    """pdftotext מדביק מספר למילה שאחריו ("199קו חדש", "19מק"ט"): מפרידים ברווח,
+    אבל אות סופית יחידה נשארת דבוקה ("6א")."""
+    s = re.sub(r'(\d)(?=[א-ת]{2})', r'\1 ', s)
+    s = re.sub(r'(?<=[א-ת])(?=\d)', ' ', s)
+    return s
+WORDS = re.compile(r'[א-ת]{2,}')
 
 
 def clean(s):
     return re.sub(r'\s+', ' ', re.sub('[‪-‮‎‏]', '', s)).strip()
 
 
-def paragraphs(text):
-    """פסקאות לפי שורות: פסקה מתחילה בשורת "קו …" ונמשכת עד שורה ריקה או תחילת פסקה אחרת."""
-    out = []
-    cur = None
-    for raw in text.split('\n'):
-        line = raw.rstrip()
-        m = HEAD.match(line)
-        if m:
-            if cur:
-                out.append(cur)
-            cur = {'numbers': numbers(m[1]), 'lines': [line.strip()]}
-            continue
-        if cur is None:
-            continue
-        if not line.strip():
-            out.append(cur)
-            cur = None
-            continue
-        cur['lines'].append(line.strip())
-    if cur:
-        out.append(cur)
-    return out
-
-
-# "ללא שינוי במסלול" אינו שינוי מסלול: הביטוי המשלול מוסר לפני התיוג ומקבל תגית משלו
-NEG = re.compile(r'(?:ללא|אין|בלי|לא יהיה|לא יחול|לא)\s+(?:כל\s+)?שינוי(?:ים)?(?:\s+ב?\S+){0,2}|יישאר(?:ו)? (?:ללא שינוי|כפי שה(?:וא|ם) היום)|ימשיך לפעול|ימשיכו לפעול|לא ישונה|לא ישתנה')
+def fix_parens(s):
+    """pdftotext מוציא סוגריים הפוכים סביב מספרים: ")10014( 14" → "(10014) 14"."""
+    return re.sub(r'\)\s*(\d{4,6})\s*\(', r'(\1)', s)
 
 
 def tags_in(text):
@@ -89,48 +110,176 @@ def tags_in(text):
     return tags
 
 
+def numbers_in(segment):
+    """מק"טים (5 ספרות) ומספרי קווים מתוך קטע מספרי; מספרי סעיפים (34.1) ושנים אינם קווים."""
+    seg = re.sub(r'\d{1,2}(?:\.\d{1,2}){1,3}', ' ', segment)   # 34.1.2
+    seg = re.sub(r'\d{6,}', ' ', seg)                          # מספר של 6 ספרות ומעלה אינו קו ואינו מק"ט
+    makats = re.findall(MAKAT, seg)
+    seg2 = re.sub(MAKAT, ' ', seg)
+    nums = [n for n in re.findall(r'(?<![\dא-ת])' + NUM, seg2) if not re.fullmatch(r'(?:19|20)\d\d', n)]
+    return nums, makats
+
+
+STRONG = {'קו חדש', 'ביטול', 'שינוי מסלול', 'שינוי תדירות', 'הארכה', 'קיצור', 'שינוי מספר', 'איחוד', 'פיצול', 'שינוי'}
+# סעיפים שכל פריט בהם הוא שינוי (גם בלי מילת שינוי בטקסט)
+CHANGE_SECTIONS = {'קווים חדשים', 'שינויים בקווים קיימים', 'שינויים בקווים', 'קווים מבוטלים', 'קווים שיבוטלו', 'ביטול קווים'}
+# סעיפים שמתארים את הקווים (לילה/תלמידים) — נשמרות הערות הסעיף, אבל פריט נחשב שינוי רק עם מילת שינוי
+NOTE_SECTIONS = CHANGE_SECTIONS | {'קווי לילה', 'קווי תלמידים', 'חלופות תלמידים'}
+NOTE_BUDGET = 6     # כמה שורות אחרי כותרת סעיף נשמרות כהערת סעיף
+
+
+def header_of(line):
+    """כותרת סעיף: שם הסעיף לבדו, או עם מספר סעיף (34.1), או עם המשך אחרי קו מפריד.
+    משפט שרק מתחיל במילים "קווים חדשים שלא הופעלו עד כה…" אינו כותרת."""
+    if not any(s in line for s in SECTION_WORDS):   # בדיקה זולה לפני הביטוי הרגולרי
+        return None
+    m = HEADER.match(line)
+    if not m:
+        return None
+    rest = clean(m['rest'] or '')
+    numbered = bool(re.match(r'^\s*' + SEC_NUM_DOTTED + r'\s*\S', line)) or bool(re.search(r'\s' + SEC_NUM + r'\s*$', line))
+    if rest and not (numbered or re.match(r'^[–\-:]', rest)):
+        return None
+    if not rest and not numbered and len(line.strip()) > 45:
+        return None
+    name = m['h']
+    for s, cat in SECTIONS:
+        if s == name:
+            return name, cat, rest.lstrip('–-: ').strip(), numbered
+    return None
+
+
+def items_of(text, section=None):
+    """חלוקת עמוד לפריטים: [{'lines': [...], 'kind': 'line'|'category'|'note', 'section': שם}].
+    section — הסעיף שבו העמוד הקודם נגמר (רשימה שנמשכת לעמוד הבא). מחזיר גם את הסעיף בסוף העמוד."""
+    out = []
+    cur = None
+    budget = 0          # הערות סעיף נשמרות רק בעמוד הכותרת, ורק כמה שורות אחריה
+    for raw in text.split('\n'):
+        line = raw.rstrip()
+        if not line.strip():
+            if cur:
+                out.append(cur)
+                cur = None
+            continue
+        h = header_of(line)
+        if h:
+            if cur:
+                out.append(cur)
+                cur = None
+            section = h[0]
+            budget = NOTE_BUDGET
+            if h[2] and len(h[2]) > 8:
+                out.append({'kind': 'note', 'section': section, 'lines': [h[2]], 'numbered': h[3]})
+            continue
+        # כותרת רצה של חלק במסמך ("חלק ד' – מפרט טכני") — לא תוכן; חלק אחר (חלק ה', נספח) מסיים את הסעיף
+        if re.match(r"^\s*(?:חלק [א-ת]['׳]|נספח [א-ת]{1,3}['׳]?\s*[–\-:])", line):
+            if 'מפרט טכני' in line:
+                continue
+            if cur:
+                out.append(cur)
+                cur = None
+            section = None
+            continue
+        is_bullet = bool(BULLET.search(line))
+        cat = CATEGORY.match(line) if ':' in line and 'קו' in line else None
+        starts = 'קו' in line and bool(LINE_START.match(line))
+        if cat and (is_bullet or re.search(r'\d', cat['rest'])):
+            if cur:
+                out.append(cur)
+            cur = {'kind': 'category', 'section': section, 'category': clean(cat['cat']), 'lines': [line.strip()]}
+        elif is_bullet or starts:
+            if cur:
+                out.append(cur)
+            cur = {'kind': 'line', 'section': section, 'lines': [line.strip()]}
+        elif cur:
+            cur['lines'].append(line.strip())
+        elif section in NOTE_SECTIONS and budget > 0:
+            # טקסט תחת כותרת סעיף בלי תבליט — הערת סעיף ("המכרז לא כולל קווים חדשים.")
+            out.append({'kind': 'note', 'section': section, 'lines': [line.strip()]})
+            budget -= 1
+    if cur:
+        out.append(cur)
+    return out, section
+
+
+SECTION_TAG = {s: c for s, c in SECTIONS if c in ('קו חדש', 'ביטול', 'שינוי')}
+
+
+def analyze_item(item):
+    first = split_glued(item['lines'][0])
+    text = clean(' '.join(item['lines']))
+    if item['kind'] == 'category':
+        nums, makats = numbers_in(first)
+        base = tags_in(item['category']) or tags_in(first)
+    else:
+        m = HEAD_TAIL.search(first)
+        nums, makats = numbers_in(m['nums']) if m else ([], [])
+        base = tags_in(text)
+    sec_tag = SECTION_TAG.get(item['section'])
+    tags = list(dict.fromkeys(base + ([sec_tag] if sec_tag and sec_tag not in ('כללי', 'שינוי') and sec_tag not in base else [])))
+    if sec_tag == 'שינוי' and not tags:
+        tags = ['שינוי']
+    return nums, makats, tags, fix_parens(text)
+
+
 def scan_units(units, url, sha, doc_name):
-    found = []
+    """סריקת מסמך אחד. הסעיף נמשך מעמוד לעמוד (רשימת שינויים שממשיכה בעמוד הבא).
+    פריט נשמר רק כשיש בו מספר קו או מק"ט, ותגית של שינוי ממש (לא "חלופה" לבדה),
+    או כשהוא בתוך סעיף שינויים. עמודים של נספחי נהלים (טבלת "סוג השינוי") לא נסרקים."""
+    found, notes = [], []
+    section = None
     for u in units:
         text = u.get('text') or ''
         if not text or u.get('rows'):
             continue
         page = u.get('page')
-        for p in paragraphs(text):
-            quote = clean(' '.join(p['lines']))
-            tags = tags_in(quote)
-            if not tags or len(quote) < 15:
+        head = text[:400]
+        if 'נוהל' in head and ('שם ההוראה' in head or 'מספר הוראה' in head):
+            section = None
+            continue
+        items, next_section = items_of(text, section)
+        page_items = 0
+        for item in items:
+            if item['kind'] == 'note':
+                q = fix_parens(clean(' '.join(item['lines'])))
+                if len(q) >= 12 and re.search('[א-ת]', q):
+                    notes.append({'section': item['section'], 'quote': q[:600], 'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
                 continue
-            found.append({'numbers': p['numbers'], 'tags': tags, 'quote': quote[:900], 'page': page,
-                          'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
-        # אזכור בתוך משפט (ביטול קו 19 …) — המשפט השלם כציטוט
-        flat = clean(text)
-        for m in INLINE.finditer(flat):
-            nums = numbers(m[1] or m[2] or '')
-            if not nums:
+            nums, makats, tags, quote = analyze_item(item)
+            if not (nums or makats) or not tags or len(quote) < 8:
                 continue
-            start = max(flat.rfind('.', 0, m.start()) + 1, m.start() - 250)
-            end = flat.find('.', m.end())
-            end = len(flat) if end < 0 else min(end + 1, m.end() + 250)
-            quote = flat[start:end].strip()
-            # כבר יש פסקה על אותם קווים שמכילה את המשפט — לא צריך פעמיים;
-            # אבל משפט על קווים אחרים בתוך פסקה של קו אחר כן נשמר בנפרד
-            if any(f['quote'] == quote or (quote in f['quote'] and set(nums) <= set(f['numbers'])) for f in found):
+            in_section = item['section'] in CHANGE_SECTIONS
+            if not in_section and not (set(tags) & STRONG):
                 continue
-            found.append({'numbers': nums, 'tags': tags_in(quote), 'quote': quote[:900], 'page': page,
-                          'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
-    return found
+            page_items += 1
+            found.append({'numbers': nums, 'makats': makats, 'tags': tags, 'section': item['section'], 'quote': quote[:900],
+                          'page': page, 'url': f'{url}#page={page}', 'sha256': sha, 'doc': doc_name})
+        # הסעיף נמשך לעמוד הבא רק אם בעמוד הזה עדיין היו פריטים ברשימה (רשימה שנקטעה בסוף עמוד)
+        section = next_section if page_items else None
+    return found, notes
 
 
 def doc_name_of(url):
     return urllib.parse.unquote(url.rstrip('/').split('/')[-1])
 
 
+def dedupe(items, key):
+    seen, out = set(), []
+    for it in items:
+        k = key(it)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(it)
+    return out
+
+
 def main():
     index = json.load(open(TEXT / 'index.json', encoding='utf-8'))['documents'] if (TEXT / 'index.json').exists() else {}
     packages = json.load(open(ROOT / 'packages-state.json', encoding='utf-8'))['tenders'] if (ROOT / 'packages-state.json').exists() else {}
     current = {d['sha256'] for t in packages.values() for d in t.get('documents', {}).values() if d.get('sha256')}
-    result = {'updated': datetime.date.today().isoformat(), 'tenders': {}}
+    result = {'updated': datetime.date.today().isoformat(), 'tenders': {}, 'sections': {}}
     n = 0
     for path in sorted(TEXT.glob('*.json.gz')):
         sha = path.name.split('.')[0]
@@ -139,24 +288,20 @@ def main():
             continue
         with gzip.open(path, 'rt', encoding='utf-8') as f:
             payload = json.load(f)
-        found = scan_units(payload['units'], payload['url'], sha, doc_name_of(payload['url']))
+        found, notes = scan_units(payload['units'], payload['url'], sha, doc_name_of(payload['url']))
         if found:
             result['tenders'].setdefault(meta['tender'], []).extend(found)
             n += len(found)
-    for tid, items in result['tenders'].items():
-        seen = set()
-        uniq = []
-        for it in items:
-            k = (it['quote'], tuple(it['numbers']))
-            if k in seen:
-                continue
-            seen.add(k)
-            uniq.append(it)
-        result['tenders'][tid] = uniq
+        if notes:
+            result['sections'].setdefault(meta['tender'], []).extend(notes)
+    for tid in list(result['tenders']):
+        result['tenders'][tid] = dedupe(result['tenders'][tid], lambda it: (it['quote'], tuple(it['numbers'])))
+    for tid in list(result['sections']):
+        result['sections'][tid] = dedupe(result['sections'][tid], lambda it: (it['section'], it['quote']))
     tmp = OUT.with_suffix('.tmp')
     tmp.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')) + '\n')
     tmp.replace(OUT)
-    print(f'שינויי קווים: {n} ציטוטים ב-{len(result["tenders"])} מכרזים', flush=True)
+    print(f'שינויי קווים: {n} ציטוטים ב-{len(result["tenders"])} מכרזים · הערות סעיף: {sum(len(v) for v in result["sections"].values())}', flush=True)
 
 
 if __name__ == '__main__':
