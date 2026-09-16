@@ -220,14 +220,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "28 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 24 (הסכם הפעלה), 28 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDB83D8EAD859382121/מסמכי הצעה#page=13",
-"locator": "סעיף 2.25.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB95D0E1EC5E7A8127/נספח למכרז#page=24",
+"locator": "טבלת הקנסות: עמוד PDF 24"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "24.2",
+"t": "הפר מפעיל השירות תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית ,תתרה בו",
+"brief": "הפר המפעיל תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית, תתרה בו המדינה, בהודעה בכתב של 60 ימים מראש, ותיתן לו ארכה של 14 ימים לתיקון ההפרה.",
+"p": 24
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -492,14 +498,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "29 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 57 (נספח ל'), 29 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC81B0673E5593C13A/מסמכי הליך#page=13",
-"locator": "סעיף 2.25.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDC8DB07110F5B3E143/נספח למכרז#page=57",
+"locator": "טבלת הקנסות: עמוד PDF 57"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "8",
+"t": "תנאי שירות ופיצויים מוסכמים מראש",
+"brief": "",
+"p": 57
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -844,14 +856,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "58 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 342, 58 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDCB7993DB1248B8135/מסמכי הליך#page=13",
-"locator": "סעיף 2.25.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1EDCB7993DB1248B8135/מסמכי הליך#page=342",
+"locator": "טבלת הקנסות: עמוד PDF 342"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.2",
+"t": "מוקד טלפוני",
+"brief": "",
+"p": 342
+}
 },
 "facts.driver_grant": {
 "status": "verified",
@@ -1195,18 +1213,24 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "59 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\"); איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
+"value": "טבלת הקנסות בעמוד 353, 59 סעיפים; איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB3BE6BC0A615C/מסמכי הליך#page=8",
-"locator": "סעיף 1.6.2, עמוד PDF 8"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB3BE6BC0A615C/מסמכי הליך#page=353",
+"locator": "טבלת הקנסות: עמוד PDF 353"
 },
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB3BE6BC0A615C/מסמכי הליך#page=13",
-"locator": "סעיף 2.22.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDD9AAB3BE6BC0A615C/מסמכי הליך#page=8",
+"locator": "איחור בתחילת ההפעלה: סעיף 1.6.2, עמוד PDF 8"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.2",
+"t": "מוקד טלפוני",
+"brief": "",
+"p": 353
+}
 },
 "facts.driver_grant": {
 "status": "verified",
@@ -1585,18 +1609,24 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "59 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\"); איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
+"value": "טבלת הקנסות בעמוד 307, 59 סעיפים; איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=8",
-"locator": "סעיף 1.6.2, עמוד PDF 8"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=307",
+"locator": "טבלת הקנסות: עמוד PDF 307"
 },
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=13",
-"locator": "סעיף 2.21.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEEADA8B6ED462B52DE/מסמכי הליך#page=8",
+"locator": "איחור בתחילת ההפעלה: סעיף 1.6.2, עמוד PDF 8"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.2",
+"t": "מוקד טלפוני",
+"brief": "",
+"p": 307
+}
 },
 "facts.driver_grant": {
 "status": "verified",
@@ -1957,18 +1987,24 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "77 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\"); איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
+"value": "טבלת הקנסות בעמוד 308, 77 סעיפים; איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=8",
-"locator": "סעיף 1.6.2, עמוד PDF 8"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=308",
+"locator": "טבלת הקנסות: עמוד PDF 308"
 },
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=13",
-"locator": "סעיף 2.21.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEF93F9DD1D094AF2E5/מסמכי הליך#page=8",
+"locator": "איחור בתחילת ההפעלה: סעיף 1.6.2, עמוד PDF 8"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.2",
+"t": "מוקד טלפוני",
+"brief": "",
+"p": 308
+}
 },
 "facts.driver_grant": {
 "status": "verified",
@@ -2112,14 +2148,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "9 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 149, 9 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFA8CBCD68E630F2E6/מסמכי הליך#page=72",
-"locator": "סעיף 12.1, עמוד PDF 72"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4F1A1EEFA8CBCD68E630F2E6/מסמכי הליך#page=149",
+"locator": "טבלת הקנסות: עמוד PDF 149"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "19.2",
+"t": "הפר מפעיל השירות תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית ,תתרה בו",
+"brief": "הפר המפעיל תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית, תתרה בו המדינה, בהודעה בכתב של 60 ימים מראש, ותיתן לו ארכה של 14 ימים לתיקון ההפרה.",
+"p": 149
+}
 },
 "facts.payment_model": {
 "status": "verified",
@@ -2471,18 +2513,24 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "54 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\"); איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
+"value": "טבלת הקנסות בעמוד 285, 54 סעיפים; איחור בתחילת ההפעלה: עד 100 אלף ₪ לכל שבוע",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=8",
-"locator": "סעיף 1.6.2, עמוד PDF 8"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=285",
+"locator": "טבלת הקנסות: עמוד PDF 285"
 },
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=13",
-"locator": "סעיף 2.21.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF65EB1FD0B89C5F0C1C0EA156/מסמכי הליך#page=8",
+"locator": "איחור בתחילת ההפעלה: סעיף 1.6.2, עמוד PDF 8"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.2",
+"t": "מוקד טלפוני",
+"brief": "",
+"p": 285
+}
 },
 "facts.driver_grant": {
 "status": "verified",
@@ -2657,14 +2705,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "12 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 249, 12 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA96DCE0102EE30121/מסמכי הליך#page=9",
-"locator": "סעיף 1.10, עמוד PDF 9"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA96DCE0102EE30121/מסמכי הליך#page=249",
+"locator": "טבלת הקנסות: עמוד PDF 249"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "17",
+"t": "פיצויים מוסכמים",
+"brief": "פיצויים מוסכמים: על הפרת התחייבויות המפעיל כמפורט בנספח זה יחולו הפיצויים המוסכמים בסעיפים:",
+"p": 249
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -2874,14 +2928,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "10 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 279, 10 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=38",
-"locator": "סעיף 17.13, עמוד PDF 38"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95A650476A1C8121/מסמכי הליך#page=279",
+"locator": "טבלת הקנסות: עמוד PDF 279"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "17",
+"t": "פיצויים מוסכמים",
+"brief": "פיצויים מוסכמים: על הפרת התחייבויות המפעיל כמפורט בנספח זה יחולו הפיצויים המוסכמים בסעיפים:",
+"p": 279
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -3125,14 +3185,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "10 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 241, 10 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1E5DE462C11B/מסמכי הליך#page=41",
-"locator": "סעיף 17.13, עמוד PDF 41"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1E5DE462C11B/מסמכי הליך#page=241",
+"locator": "טבלת הקנסות: עמוד PDF 241"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "17",
+"t": "פיצויים מוסכמים",
+"brief": "פיצויים מוסכמים: על הפרת התחייבויות המפעיל כמפורט בנספח זה יחולו הפיצויים המוסכמים בסעיפים:",
+"p": 241
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -3376,14 +3442,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "10 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 240, 10 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1F1E4D1A811B/מסמכי הליך#page=41",
-"locator": "סעיף 17.13, עמוד PDF 41"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA95CC1F1E4D1A811B/מסמכי הליך#page=240",
+"locator": "טבלת הקנסות: עמוד PDF 240"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "17",
+"t": "פיצויים מוסכמים",
+"brief": "פיצויים מוסכמים: על הפרת התחייבויות המפעיל כמפורט בנספח זה יחולו הפיצויים המוסכמים בסעיפים:",
+"p": 240
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -3612,14 +3684,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "30 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 5 (נספח כא'), 30 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819377ACA75B612A/מסמכי הליך#page=39",
-"locator": "סעיף 11.13, עמוד PDF 39"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB819377ACA754612A/מסמכי הליך#page=5",
+"locator": "טבלת הקנסות: עמוד PDF 5"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "6.4.7",
+"t": "הפרה של חוק /רגולציה",
+"brief": "",
+"p": 5
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -3810,14 +3888,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "10 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 17 (הסכם הפעלה), 10 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA968E08213E27E11B/מסמכי הליך#page=101",
-"locator": "סעיף 11.1, עמוד PDF 101"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDA968E08213E2B611B/מסמכי הליך#page=17",
+"locator": "טבלת הקנסות: עמוד PDF 17"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.1",
+"t": "בגין אי עמידה בהתחייבות מפעיל השירות להפעיל את קווי השירות במועד ,כאמור",
+"brief": "על אי עמידה בהתחייבות המפעיל להפעיל את קווי השירות במועד, כ 4.1 ובסעיף 7.8, תהיה המדינה יכולה לבטל את ההסכם לאלתר ולחלט את ערבות הביצוע שבידה, כולה או חלקה, לפי שיקול…",
+"p": 17
+}
 },
 "facts.payment_model": {
 "status": "verified",
@@ -4032,14 +4116,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "41 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 33 (נספח א'), 41 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD82DF40998123/מסמכי הליך#page=42",
-"locator": "סעיף 17.13, עמוד PDF 42"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD821CDC684123/מסמכי הליך#page=33",
+"locator": "טבלת הקנסות: עמוד PDF 33"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "24.2",
+"t": "הפר מפעיל השירות תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית ,תתרה בו",
+"brief": "הפר המפעיל תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית, תתרה בו המדינה, בהודעה בכתב של 60 ימים מראש, ותיתן לו ארכה של 14 ימים לתיקון ההפרה.",
+"p": 33
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -4283,14 +4373,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "26 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 173, 26 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937AE9F103012A/מסמכי הליך#page=42",
-"locator": "סעיף 17.13, עמוד PDF 42"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937AE9F103012A/מסמכי הליך#page=173",
+"locator": "טבלת הקנסות: עמוד PDF 173"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "25.1",
+"t": "בגין אי עמידה בהתחייבות מפעיל השירות להפעיל את קווי השירות במועד ,כאמור",
+"brief": "על אי עמידה בהתחייבות המפעיל להפעיל את קווי השירות במועד, כ 4.1 ובסעיף 7.11, תהיה המדינה יכולה לבטל את ההסכם לאלתר ולחלט את ערבות הביצוע שבידה, כולה או חלקה, לפי שיקול…",
+"p": 173
+}
 },
 "facts.driver_grant": {
 "status": "verified",
@@ -4602,14 +4698,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "33 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 32 (נספח א'), 33 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD84657C35A123/מסמכי הליך#page=42",
-"locator": "סעיף 17.13, עמוד PDF 42"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD83A592D00123/מסמכי הליך#page=32",
+"locator": "טבלת הקנסות: עמוד PDF 32"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "24.2",
+"t": "הפר מפעיל השירות תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית ,תתרה בו",
+"brief": "הפר המפעיל תנאי מתנאי ההסכם הפרה שאינה הפרה יסודית, תתרה בו המדינה, בהודעה בכתב של 60 ימים מראש, ותיתן לו ארכה של 14 ימים לתיקון ההפרה.",
+"p": 32
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -4853,14 +4955,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "27 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 155, 27 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD85F2F76F6123/מסמכי הליך#page=13",
-"locator": "סעיף 2.25.1, עמוד PDF 13"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80FD85F2F76F6123/מסמכי הליך#page=155",
+"locator": "טבלת הקנסות: עמוד PDF 155"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "25.1",
+"t": "בגין אי עמידה בהתחייבות מפעיל השירות להפעיל את קווי השירות במועד ,כאמור",
+"brief": "על אי עמידה בהתחייבות המפעיל להפעיל את קווי השירות במועד, כ 4.1 ובסעיף 7.11, תהיה המדינה יכולה לבטל את ההסכם לאלתר ולחלט את ערבות הביצוע שבידה, כולה או חלקה, לפי שיקול…",
+"p": 155
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -5022,14 +5130,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "9 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 17 (הסכם הפעלה), 9 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01F9370298121/מסמכי הליך#page=191",
-"locator": "סעיף 13.1, עמוד PDF 191"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F01F93702A6121/מסמכי הליך#page=17",
+"locator": "טבלת הקנסות: עמוד PDF 17"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.1",
+"t": "בגין אי עמידה בהתחייבות מפעיל השירות להפעיל את קווי השירות במועד ,כאמור",
+"brief": "על אי עמידה בהתחייבות המפעיל להפעיל את קווי השירות במועד, כ 4.1 ובסעיף 7.8, תהיה המדינה יכולה לבטל את ההסכם לאלתר ולחלט את ערבות הביצוע שבידה, כולה או חלקה, לפי שיקול…",
+"p": 17
+}
 },
 "facts.payment_model": {
 "status": "verified",
@@ -5159,14 +5273,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "9 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 158, 9 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/מסמכי הליך#page=75",
-"locator": "סעיף 13.1, עמוד PDF 75"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDA95F0BDA1D1212121/מסמכי הליך#page=158",
+"locator": "טבלת הקנסות: עמוד PDF 158"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.1",
+"t": "בגין אי עמידה בהתחייבות מפעיל השירות להפעיל את קווי השירות במועד ,כאמור",
+"brief": "על אי עמידה בהתחייבות המפעיל להפעיל את קווי השירות במועד, כ 4.1 ובסעיף 7.8, תהיה המדינה יכולה לבטל את ההסכם לאלתר ולחלט את ערבות הביצוע שבידה, כולה או חלקה, לפי שיקול…",
+"p": 158
+}
 },
 "facts.payment_model": {
 "status": "verified",
@@ -5263,14 +5383,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "23 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 21 (אגף תחבורה ציבורית), 23 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937DF443F8412A/מסמכי הליך#page=24",
-"locator": "סעיף 25.1, עמוד PDF 24"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937DF443F2212A/מסמכי הליך#page=21",
+"locator": "טבלת הקנסות: עמוד PDF 21"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "40.1",
+"t": "פיצויים מוסכמים נוספים בגין חריגה ממדדי אי ביצוע ואי דיוק – מבלי לגרוע",
+"brief": "פיצויים מוסכמים נוספים על חריגה ממדדי אי ביצוע ואי דיוק – מבלי לגרוע מ, על חריגות אי ביצוע ואי דיוק,, ישלם המפעיל פיצויים מוסכמים נוספים, לכל תקופת בקרה, בשביל חריגה של…",
+"p": 21
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -5384,14 +5510,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "17 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 5 (נספח כא'), 17 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB8193810A6802012A/מסמכי הליך#page=24",
-"locator": "הסכם הפעלה, סעיף 25.1, עמוד PDF 24"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF19AF1EDB81937A29BAE2012A/מסמכי הליך#page=5",
+"locator": "טבלת הקנסות: עמוד PDF 5"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "6.4.7",
+"t": "הפרה של חוק /רגולציה",
+"brief": "",
+"p": 5
+}
 },
 "facts.driver_wage": {
 "status": "verified",
@@ -5538,14 +5670,20 @@
 },
 "penalties.amount": {
 "status": "verified",
-"value": "8 סעיפים בנושא קנסות ופיצויים (ראו \"התנאים במכרז\")",
+"value": "טבלת הקנסות בעמוד 174, 8 סעיפים",
 "sources": [
 {
-"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5042123/מסמכי הליך#page=89",
-"locator": "סעיף 13.1, עמוד PDF 89"
+"url": "https://mr.gov.il/ilgstorefront/he/p/attachment/005056BF4DAB1EDB80962575D5042123/מסמכי הליך#page=174",
+"locator": "טבלת הקנסות: עמוד PDF 174"
 }
 ],
-"notes": "הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים."
+"notes": "הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.",
+"sec": {
+"n": "20.1",
+"t": "בגין אי עמידה בהתחייבות מפעיל השירות להפעיל את קווי השירות במועד ,כאמור",
+"brief": "על אי עמידה בהתחייבות המפעיל להפעיל את קווי השירות במועד, כ 4.1 ובסעיף 7.8, תהיה המדינה יכולה לבטל את ההסכם לאלתר ולחלט את ערבות הביצוע שבידה, כולה או חלקה, לפי שיקול…",
+"p": 174
+}
 },
 "facts.payment_model": {
 "status": "verified",

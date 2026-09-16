@@ -22,6 +22,17 @@ function quotesFor(id, number, catalog) {
   const n = normNum(number), mk = catalog ? String(catalog) : null;
   return items.filter(q => (mk && (q.makats || []).includes(mk)) || ((q.makats || []).length === 0 && q.numbers.some(x => normNum(x) === n)));
 }
+const linesShowAll = {};   // מכרז → להראות גם קווים שהמכרז לא מזכיר
+function mentionedCount(id) {
+  const items = lineChanges.tenders?.[id] || [];
+  return new Set(items.flatMap(q => (q.makats || []).length ? q.makats : q.numbers.map(normNum))).size;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-lines-all]'); if (!b) return;
+  const id = b.dataset.linesAll; linesShowAll[id] = b.dataset.mode === 'all';
+  const d = document.querySelector(`details.lines-section[data-lines-tender="${id}"]`);
+  if (d) { d.dataset.filled = ''; fillLines(d); }
+});
 function hasChangeSection(id) {
   return (lineChanges.sections?.[id] || []).length > 0 || (lineChanges.tenders?.[id] || []).length > 0;
 }
@@ -53,7 +64,7 @@ function renderLinesSection(t) {
   if (!meta && !quotes.length) return '';
   const c = td?.counts;
   const parts = [];
-  if (meta) parts.push(`${c ? c.inTender : meta.uniqueRoutes} קווים בנספח`);
+  if (meta) parts.push(hasChangeSection(t.id) && mentionedCount(t.id) ? `המכרז מזכיר ${mentionedCount(t.id)} קווים מתוך ${c ? c.inTender : meta.uniqueRoutes} בנספח` : `${c ? c.inTender : meta.uniqueRoutes} קווים בנספח`);
   if (c) { parts.push(`${c.runningToday} רצים היום`); if (c.notRunning) parts.push(`${c.notRunning} לא רצים היום`); }
   if (quotes.length) parts.push(`${quotes.length} ציטוטים על שינויים`);
   return `<details class="fielddetails lines-section" data-keep-open="lines:${esc(t.id)}" data-lines-tender="${esc(t.id)}"><summary>הקווים במכרז · ${parts.join(' · ')}</summary><div class="lines-body"><p class="muted">טוען את טבלת הקווים…</p></div></details>`;
@@ -73,10 +84,14 @@ async function fillLines(details) {
       versions = routeFiles[id];
     } catch { body.innerHTML = '<p>טעינת טבלת הקווים נכשלה. אפשר לרענן ולנסות שוב.</p>'; details.dataset.filled = ''; return; }
   }
-  const lines = linesOf(versions);
+  const allLines = linesOf(versions);
   const used = new Set();
   // "בטוחים": במסמך יש סעיף שינויים לקווים (נמצאו בו פסקאות או ציטוטים) — אז קו שלא מוזכר בו ממשיך כמו היום
   const sure = hasChangeSection(id);
+  // ברירת המחדל: רק קווים שהמכרז מזכיר (שלמה 16.09: "אם לא מזכיר — לא אמור להופיע"); כפתור אחד מראה גם את השאר
+  const mentioned = allLines.filter(l => quotesFor(id, l.number, l.mk).length);
+  const showAll = !sure || linesShowAll[id] || !mentioned.length;
+  const lines = showAll ? allLines : mentioned;
   const rows = lines.map((l, i) => {
     const today = td?.lines?.[l.mk];
     const qs = quotesFor(id, l.number, l.mk); qs.forEach(q => used.add(q));
@@ -85,14 +100,14 @@ async function fillLines(details) {
     const todayCell = today == null ? '<span class="muted">לא נבדק</span>' : today.today
       ? `<span class="today on">רץ</span> ${esc(today.operator || '')}${today.number && normNum(today.number) !== normNum(l.number) ? ` · מס׳ ${esc(today.number)}` : ''}`
       : '<span class="today off">לא רץ היום</span>';
-    return `<tr class="lineRow" data-line-tender="${esc(id)}" data-line-index="${i}" tabindex="0"><td><b>${esc(l.number)}</b></td><td class="muted">${esc(l.mk)}</td><td>${esc(l.area || '')}${first ? `<br><small>${esc(first.origin)} ← ${esc(first.destination)}</small>` : ''}</td><td>${l.rows.length}</td><td>${todayCell}</td><td>${tags.map(tagChip).join(' ') || (qs.length ? '' : sure ? '<span class="muted" title="הקו לא מוזכר בסעיף השינויים של המסמך">ממשיך כמו היום</span>' : '<span class="muted">לא נבדק</span>')}${qs.length ? ` <small class="muted">${qs.length} ציטוט${qs.length > 1 ? 'ים' : ''}</small>` : ''}</td></tr>`;
+    return `<tr class="lineRow" data-line-tender="${esc(id)}" data-line-index="${allLines.indexOf(l)}" tabindex="0"><td><b>${esc(l.number)}</b></td><td class="muted">${esc(l.mk)}</td><td>${esc(l.area || '')}${first ? `<br><small>${esc(first.origin)} ← ${esc(first.destination)}</small>` : ''}</td><td>${l.rows.length}</td><td>${todayCell}</td><td>${tags.map(tagChip).join(' ') || (qs.length ? '' : sure ? '<span class="muted" title="הקו לא מוזכר בסעיף השינויים של המסמך">ממשיך כמו היום</span>' : '<span class="muted">לא נבדק</span>')}${qs.length ? ` <small class="muted">${qs.length} ציטוט${qs.length > 1 ? 'ים' : ''}</small>` : ''}</td></tr>`;
   }).join('');
   const orphan = quotes.filter(q => !used.has(q));
   const notIn = td?.clusterExact && td.notInTender?.length ? `<details class="fielddetails"><summary>קווים שרצים היום באשכול ״${esc(td.clusterName)}״ ואינם בטבלת המכרז · ${td.notInTender.length}</summary><p class="muted">לפי קובץ ״אשכול לקו״ של משרד התחבורה ולוח הזמנים של ${fdDate(todayData.gtfsDate)}. זה לא אומר בהכרח שהקווים יבוטלו: ייתכן שהם בנספח אחר או במספר אחר.</p><ul>${td.notInTender.map(([mk, num, name, op]) => `<li><b>${esc(num)}</b> · ${esc(name)} · ${esc(op)} <small class="muted">מק״ט ${esc(mk)}</small></li>`).join('')}</ul></details>` : '';
   const notes = sectionNotes(id);
   const notesHtml = notes.length ? `<details class="fielddetails" open><summary>מה כתוב במכרז על השינויים בקווים · ${notes.length} פסקאות</summary>${notes.slice(0, 12).map(n => `<blockquote class="linequote"><span class="linetag" style="background:#334155">${esc(n.section)}</span>${quoteBody(n)}<small><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.doc || 'המסמך')} · עמוד PDF ${n.page} ↗</a></small></blockquote>`).join('')}</details>` : '';
   body.innerHTML = `${notesHtml}${td ? `<p class="muted">״רץ היום״ — לפי לוח הזמנים הרשמי של ${fdDate(todayData.gtfsDate)}, לפי מספר הקטלוג (מק״ט) של הקו, שזהה במכרז ובלוח הזמנים. קו שלא רץ היום הוא בדרך כלל קו חדש או מספר חדש שהמכרז קובע.</p>` : ''}
-    ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>כיוונים וחלופות</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">לחיצה על קו: התחנות והמסלול מהנספח, הציטוטים מהמסמך ומה רץ היום.</p>` : '<p class="muted">למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.</p>'}
+    ${lines.length ? `<div class="tblwrap"><table class="linesTable"><thead><tr><th>קו</th><th>מק״ט</th><th>יישוב · מוצא ← יעד</th><th>כיוונים וחלופות</th><th>היום</th><th>מה כתוב במכרז</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">לחיצה על קו: מה כתוב עליו במסמך ומה רץ היום.${sure && mentioned.length && allLines.length > mentioned.length ? (showAll ? ` <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="mentioned">להראות רק את ${mentioned.length} הקווים שהמכרז מזכיר</button>` : ` מוצגים ${mentioned.length} הקווים שהמכרז מזכיר. <button class="linkbtn" data-lines-all="${esc(id)}" data-mode="all">להראות גם את ${allLines.length - mentioned.length} הקווים שממשיכים כמו היום</button>`) : ''}</p>` : '<p class="muted">למכרז הזה לא נמצאה טבלת קווים בנספחי האקסל.</p>'}
     ${orphan.length ? `<details class="fielddetails"><summary>ציטוטים על קווים שאינם בטבלת הנספח · ${orphan.length}</summary>${orphan.map(renderQuote).join('')}</details>` : ''}
     ${notIn}
     ${lines.length || meta ? `<p class="lines-tools">${lines.length ? `<button data-lines-csv="${esc(id)}">הורדת הרשימה (CSV)</button>` : ''}${meta ? ` <button data-annex-tender="${esc(id)}">הנספחים המקוריים לפי קובץ (${meta.versions})</button>` : ''}</p>` : ''}`;
@@ -198,8 +213,8 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.matches && 
     original();
     for (const k of openKeys) { const d = document.querySelector(`details[data-keep-open="${k.replace(/"/g, '')}"]`); if (d) d.open = true; }
     if (autoOpened || !initialQ) return;
-    const d = document.querySelector('details.lines-section');
-    if (d) { autoOpened = true; d.open = true; const card = d.closest('details.cardbody'); if (card) card.open = true; }
+    const btn = document.querySelector('button[data-card-tab="lines"]');
+    if (btn) { autoOpened = true; const card = btn.closest('details.cardbody'); if (card) card.open = true; btn.click(); }
   };
 })();
 document.addEventListener('click', e => { const row = e.target.closest('tr.lineRow'); if (row) showLine(row.dataset.lineTender, Number(row.dataset.lineIndex)); });

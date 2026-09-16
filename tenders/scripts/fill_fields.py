@@ -258,13 +258,24 @@ def rules(doc, secs, today, route_meta, known):
     pen = [x for x in secs if 'קנסות ופיצויים' in x['topics']]
     s, m = find(secs, r'כפיצוי מוסכם סך מקסימלי של\s*(\d+)\s*אלף ₪\s*(?:בגין|על) כל שבוע איחור')
     if pen or s:
-        parts = []
+        # טבלת הקנסות עצמה: הנספח שבו מרוכזים רוב סעיפי הקנסות (עמודים צמודים), והסעיף הראשון בו — אליו מקשרים
+        table = None
         if pen:
-            parts.append(f'{len(pen)} סעיפים בנושא קנסות ופיצויים (ראו "התנאים במכרז")')
+            pages = [x['p'] for x in pen]
+            best = max(pages, key=lambda pg: sum(1 for q in pages if abs(q - pg) <= 4))
+            table = min((x for x in pen if abs(x['p'] - best) <= 4), key=lambda x: x['p'])
+        parts = []
+        if table:
+            parts.append(f'טבלת הקנסות בעמוד {table["p"]}' + (f' ({table["d"]})' if table.get('d') else '') + f', {len(pen)} סעיפים')
         if s:
             parts.append(f'איחור בתחילת ההפעלה: עד {m.group(1)} אלף ₪ לכל שבוע')
-        srcs = ([src(doc, s)] if s else []) + [src(doc, pen[0])] if pen else [src(doc, s)]
-        out['penalties.amount'] = {'status': 'verified', 'value': '; '.join(parts), 'sources': srcs, 'notes': 'הסכומים לכל הפרה מפורטים בנספח הפיצויים המוסכמים.'}
+        srcs = []
+        if table:
+            srcs.append({**src(doc, table), 'locator': f'טבלת הקנסות: עמוד PDF {table["p"]}'})
+        if s:
+            srcs.append({**src(doc, s), 'locator': f'איחור בתחילת ההפעלה: סעיף {s["n"]}, עמוד PDF {s["p"]}'})
+        out['penalties.amount'] = {'status': 'verified', 'value': '; '.join(parts), 'sources': srcs, 'notes': 'הסכומים לכל הפרה מפורטים בטבלת הפיצויים המוסכמים.',
+                                   **({'sec': {'n': table['n'], 't': table['t'][:90], 'brief': (table.get('brief') or '')[:220], 'p': table['p']}} if table else {})}
 
     # --- עובדות במילים פשוטות (לא בקטלוג השדות; משמשות את "בקצרה למי שלא מבין במכרזים") ------------
     s, m = find(secs, r'מענק (?:בסך|של)\s*(\d+)\s*אלף\s*₪\s*(?:בגין|על) כל נהג.{0,80}?(?:עד לתקרה של|עד)\s*(\d+)\s*נהגים')

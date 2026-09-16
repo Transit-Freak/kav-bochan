@@ -20,9 +20,22 @@ function heDate(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
   return m ? `${Number(m[3])}.${Number(m[2])}.${m[1]}` : esc(iso || '');
 }
+let fieldSnips = { tenders: {} };
+fetch('snips.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(r => { if (r) { fieldSnips = r; renderFeed(); } }).catch(() => {});
+function snipLink(id, key) {
+  const sn = fieldSnips.tenders?.[id]?.[key];
+  return sn ? ` <a class="fsrc snip" href="${esc(sn.image)}" data-snip="${esc(sn.image)}" data-snip-page="${sn.page}">צילום מהמסמך 📷</a>` : '';
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-snip]'); if (!a || typeof routeDialog === 'undefined') return;
+  e.preventDefault();
+  routeDialog.innerHTML = `<form method="dialog"><button>סגירה ✕</button></form><h2 id="route-title">צילום מהמסמך · עמוד ${esc(a.dataset.snipPage)}</h2><p class="muted">ההדגשה הצהובה מסמנת את המקום שממנו נלקח המספר.</p><img class="snipimg" src="${esc(a.dataset.snip)}" alt="צילום מהמסמך">`;
+  routeDialog.showModal();
+});
 function srcLink(f) {
-  const s = (f.sources || []).find(x => /^https:\/\//.test(x.url || ''));
-  return s ? ` <a class="fsrc" href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.locator || '')}">מקור ↗</a>` : '';
+  // הקישור אומר לאן הוא מוביל ("סעיף 38.2.2, עמוד PDF 79"), לא "מקור" סתמי
+  const srcs = (f.sources || []).filter(x => /^https:\/\//.test(x.url || '')).slice(0, 2);
+  return srcs.length ? ' ' + srcs.map(s => `<a class="fsrc" href="${esc(s.url)}" target="_blank" rel="noopener">${esc((s.locator || 'למסמך').replace('עמוד PDF', 'עמוד'))} ↗</a>`).join(' · ') : '';
 }
 const ok = f => f && ['verified', 'verified_conditional'].includes(f.status);
 function condText(f) {
@@ -31,6 +44,24 @@ function condText(f) {
     .replace(/(\d+) חודשים/g, (_, n) => months(Number(n))).replace(/בחלופת סעיף [\d.]+:\s*/g, '').replace(/ · מע״מ: לא (?:צוין|חל)/g, '');
 }
 const S = v => esc(String(v ?? ''));
+function condVal(c) {
+  const pre = c.comparison === 'gte' ? 'לפחות ' : c.comparison === 'lte' ? 'עד ' : c.comparison === 'lt' ? 'פחות מ-' : '';
+  if (typeof c.value === 'number' && c.currency) return pre + money(c.value);   // השנים כבר בכותרת התנאי
+  return pre + formatFieldValue(c).replace(/ · מע״מ: לא (?:צוין|חל)/g, '').replace(/ · /g, ' ');
+}
+/* תנאי סף במשפט אחד ברור: "להחזיק לפחות 80 אוטובוסים (כל אחד עם לפחות 34 מושבים)" ולא "…עם לפחות 34 מושבים: לפחות 80" */
+function eligLine(k, f) {
+  const conds = f.status === 'verified_conditional' ? (f.conditions || []) : [{ label: '', value: f.value, comparison: 'gte', currency: f.currency, unit: f.unit, kind: f.kind, period: f.period }];
+  return conds.map(c => {
+    const val = condVal(c);
+    const label = String(c.label || '').replace(/בחלופת סעיף [\d.]+:?\s*/, '').replace('בעלי הזיקה המוגדרים בסעיף', 'חברות קשורות').replace(/המציע/g, 'החברה').trim();
+    if (k === 'eligibility.fleet') { const m = /לפחות (\d+) מושבים/.exec(label); return `להחזיק ${val} אוטובוסים${m ? ` (כל אחד עם לפחות ${m[1]} מושבים)` : ''}, בבעלות החברה או חברות קשורות.`; }
+    if (k === 'eligibility.turnover') return `מחזור הכנסות ${label.replace(/^מחזור\s*/, '')}: ${val}.`;
+    if (k === 'eligibility.equity') return `${label || 'הון עצמי'}: ${val}.`;
+    if (k === 'eligibility.experience') return `ניסיון של ${val} ב${label.replace(/^ביצוע\s*/, '').replace(/^ניסיון\s*(?:ב|של)?\s*/, '')}.`;
+    return `${label}: ${val}.`;
+  }).map(esc).join(' ');
+}
 
 /* שאלות ותשובות. כל פונקציה מקבלת את השדות ומחזירה משפטים [טקסט, שדה] (או כלום אם אין נתון). */
 const GROUPS = [
@@ -46,7 +77,7 @@ const GROUPS = [
   ]],
   ['מי יכול להתמודד?', f => [
     ok(f['eligibility.licenses']) && [`רק חברה עם ${S(f['eligibility.licenses'].value)}.`, f['eligibility.licenses']],
-    ...['eligibility.fleet', 'eligibility.turnover', 'eligibility.equity', 'eligibility.experience'].map(k => ok(f[k]) && [`${esc(fieldLabel(k, f[k]))}: ${f[k].status === 'verified_conditional' ? condText(f[k]) : formatFieldValue(f[k])}.`, f[k]]),
+    ...['eligibility.fleet', 'eligibility.turnover', 'eligibility.equity', 'eligibility.experience'].map(k => ok(f[k]) && [eligLine(k, f[k]), f[k]]),
     ok(f['eligibility.drivers']) && [S(f['eligibility.drivers'].value), f['eligibility.drivers']],
     ok(f['guarantee.bid']) && [`כדי להגיש הצעה צריך להפקיד ערבות בנקאית של ${money(f['guarantee.bid'].value)} (כסף ביטחון, מקבלים אותו בחזרה אם לא זוכים).`, f['guarantee.bid']],
   ]],
@@ -75,7 +106,7 @@ const GROUPS = [
     ok(f['scoring.minimum_quality']) && [S(f['scoring.minimum_quality'].value), f['scoring.minimum_quality']],
   ]],
   ['ואם החברה לא עומדת בדרישות?', f => [
-    ok(f['penalties.amount']) && [(() => { const parts = String(f['penalties.amount'].value).split('; '); return `יש טבלת קנסות שנקבעו מראש${parts[0] ? ` (${parts[0].replace(/ \(ראו.*?\)/, '')})` : ''}.${parts[1] ? ` למשל, ${parts[1].replace('איחור בתחילת ההפעלה: ', 'איחור בתחילת ההפעלה עולה ')}.` : ''}`; })(), f['penalties.amount']],
+    ok(f['penalties.amount']) && [(() => { const parts = String(f['penalties.amount'].value).split('; '); const tbl = parts.find(p => p.startsWith('טבלת')); const late = parts.find(p => p.startsWith('איחור')); return `${tbl ? `יש טבלת קנסות שנקבעו מראש (${tbl.replace('טבלת הקנסות ', '')}).` : 'יש קנסות שנקבעו מראש.'}${late ? ` למשל, ${late.replace('איחור בתחילת ההפעלה: ', 'איחור בתחילת ההפעלה עולה ')}.` : ''}`; })(), f['penalties.amount']],
   ]],
 ];
 
@@ -97,6 +128,7 @@ function renderGlossary() {
   return `<details class="glossary"><summary>מילון קצר</summary><dl>${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl></details>`;
 }
 
+const keyOf = (fields, fld) => Object.keys(fields).find(k => fields[k] === fld) || '';
 function renderPlainFacts(id) {
   if (typeof combinedFields !== 'function') return '';
   const f = combinedFields(id);
@@ -105,7 +137,7 @@ function renderPlainFacts(id) {
   const what = t.type === 'taxi' ? 'קווי מוניות השירות' : 'קווי האוטובוס';
   const groups = GROUPS.map(([name, fn]) => {
     const items = fn(f).filter(Boolean);
-    return items.length ? `<div class="plain-group"><h4>${esc(name)}</h4><ul>${items.map(([txt, fld]) => `<li>${txt}${srcLink(fld)}</li>`).join('')}</ul></div>` : '';
+    return items.length ? `<div class="plain-group"><h4>${esc(name)}</h4><ul>${items.map(([txt, fld]) => `<li>${txt}${srcLink(fld)}${snipLink(id, keyOf(f, fld))}</li>`).join('')}</ul></div>` : '';
   }).filter(Boolean);
   if (!groups.length) return '';
   // הסעיפים העיקריים שמצאנו: הסעיפים שמהם נלקחו העובדות, בניסוח הפשוט שלהם, עם קישור

@@ -74,6 +74,10 @@ jobs:
         continue-on-error: true
         run: python3 tenders/scripts/fill_fields.py
 
+      - name: צילום מהמסמך לכל עובדה (עם הדגשה)
+        continue-on-error: true
+        run: python3 tenders/scripts/snip_fields.py
+
       - name: מפות שהועתקו מהמסמכים
         continue-on-error: true
         run: python3 tenders/scripts/extract_maps.py

@@ -18,15 +18,41 @@ const wideScreen=()=>window.matchMedia('(min-width:761px)').matches;
 const FEED_UNRELATED=/מיקרוסופט|microsoft|ichain|datapower|db2|\bwas\b|arcgis|\bgis\b|eternal|firewall|תוכנ|תחזוקת רישיונות|תחזוקה לרישיונות|חידוש רישיונות|רישיון נהיגה|רישיונות נהיגה|משיט|הדפסה|מגנוט|דיוור|תחנות צילום|בסיסי נתונים|ריהוט|ניקיון|מזגנים|כלי רכב לעובדי|רכבי ליסינג/i;
 const FEED_TRANSPORT=/קווי שירות|קו שירות|אוטובוס|מוניות|תחבורה ציבורית|תח"צ|תחצ|סככות|תחנות|מסופ|רכבת|מטרו|נת"צ|נוסעים|מפעילי|קווי מתע"ן|מתען|רב[- ]קו|כרטוס|הסעות/;
 function feedClass(t){if(t.classification==='operating_tender'||t.classification==='transport_related'||t.classification==='unrelated')return t.classification;const s=t.title||'';if(FEED_UNRELATED.test(s))return 'unrelated';return FEED_TRANSPORT.test(s)?'transport_related':'unrelated';}
+const cardTab={};   // מכרז → הלשונית הפתוחה
 function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const every=matches();const all=every.filter(t=>feedClass(t)!=='unrelated'),other=every.filter(t=>feedClass(t)==='unrelated');const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>{
  const lines=typeof renderLinesSection==='function'?renderLinesSection(t):'',cond=typeof renderConditionsSection==='function'?renderConditionsSection(t):'',pkg=renderPackage(t,!!lines);
  const plain=typeof renderPlainFacts==='function'?renderPlainFacts(t.id):'';
- const parts=[plain&&'מה המכרז דורש',lines&&'הקווים',cond&&'כל הסעיפים',pkg&&'הקבצים המקוריים','הפרטים שנבדקו'].filter(Boolean);
- const body=`${plain}${t.discoveryNote?`<details class="discovery-note"><summary>מה בדקנו עד עכשיו?</summary><p>${esc(t.discoveryNote)}</p></details>`:''}${lines}${cond}${pkg}${renderFields(t)}${renderDocumentReview(t)}${!lines&&typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}`;
- return `<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום בתחום התחבורה הציבורית · לא מכרז להפעלת קווים'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p><details class="cardbody" data-keep-open="card:${esc(t.id)}"${wideScreen()?' open':''}><summary>${parts.join(' · ')}</summary><div class="cardbody-in">${body}</div></details></div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`;}).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';
+ const files=`${pkg}${renderDocumentReview(t)}${!lines&&typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}`;
+ const nLines=(typeof hasChangeSection==='function'&&hasChangeSection(t.id)&&mentionedCount(t.id))||(typeof todayData!=='undefined'&&todayData.tenders?.[t.id]?.counts?.inTender)||(typeof routeIndex!=='undefined'&&routeIndex[t.id]?.uniqueRoutes)||0;
+ const nDocs=Object.keys(packageState[t.id]?.documents||{}).length;
+ const nVerified=Object.values(combinedFields(t.id)).filter(isVerified).length;
+ // לשוניות במקום שורות שנפתחות ונסגרות (שלמה 16.09: "ממש מסובך לסגור ולפתוח")
+ const panes=[
+  plain&&['plain','מה המכרז דורש',plain],
+  lines&&['lines',`הקווים${nLines?` · ${nLines}`:''}`,lines],
+  cond&&['cond','כל הסעיפים',cond],
+  files.trim()&&['files',`הקבצים${nDocs?` · ${nDocs}`:''}`,files],
+  ['fields',`פרטים שנבדקו${nVerified?` · ${nVerified}`:''}`,`${t.discoveryNote?`<p class="muted">${esc(t.discoveryNote)}</p>`:''}${renderFields(t)}`],
+ ].filter(Boolean);
+ const active=panes.some(p=>p[0]===cardTab[t.id])?cardTab[t.id]:panes[0][0];
+ const tabs=`<div class="card-tabs" role="tablist">${panes.map(([k,l])=>`<button role="tab" data-card-tab="${k}" data-card-id="${esc(t.id)}" aria-selected="${k===active}" class="${k===active?'on':''}">${l}</button>`).join('')}</div><div class="tabpanes">${panes.map(([k,,h])=>`<section class="tabpane" data-pane="${k}"${k===active?'':' hidden'}>${h}</section>`).join('')}</div>`;
+ const parts=panes.map(p=>p[1].split(' · ')[0]);
+ return `<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום בתחום התחבורה הציבורית · לא מכרז להפעלת קווים'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p><details class="cardbody" data-keep-open="card:${esc(t.id)}"${wideScreen()?' open':''}><summary>${parts.join(' · ')}</summary><div class="cardbody-in">${tabs}</div></details></div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`;}).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';
  // פרסומים של משרד התחבורה שאינם תחבורה ציבורית (רישיונות תוכנה, רישיונות נהיגה…) — מקופלים בסוף, לא ברשימה
  if(other.length)host.insertAdjacentHTML('beforeend',`<details class="fielddetails other-feed" data-keep-open="other-feed"><summary>פרסומים אחרים של משרד התחבורה שאינם תחבורה ציבורית · ${other.length}</summary><p class="muted">הפורטל מחזיר גם פרסומים על תוכנה, רישיונות נהיגה והדפסה. הם מוצגים כאן רק לשלמות.</p><ul class="other-list">${other.map(t=>`<li><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a> <small class="muted">${esc(t.updated||'')}</small></li>`).join('')}</ul></details>`);
+ // הלשונית הפעילה של קווים/סעיפים נטענת (הן נבנות בעצלות)
+ for(const pane of host.querySelectorAll('.tabpane:not([hidden])'))activatePane(pane);
  $('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
+function activatePane(pane){
+ for(const d of pane.querySelectorAll(':scope > details.lines-section, :scope > details.cond-section')){if(!d.open)d.open=true;}
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button[data-card-tab]');if(!b)return;
+ const id=b.dataset.cardId,k=b.dataset.cardTab;cardTab[id]=k;
+ const wrap=b.closest('.cardbody-in');if(!wrap)return;
+ for(const x of wrap.querySelectorAll('.card-tabs button')){const on=x.dataset.cardTab===k;x.classList.toggle('on',on);x.setAttribute('aria-selected',on);}
+ for(const p of wrap.querySelectorAll('.tabpane')){p.hidden=p.dataset.pane!==k;if(!p.hidden)activatePane(p);}
+});
 $('feed-more').onclick=()=>{feedExpanded=!feedExpanded;renderFeed()};
 fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. ${r.queries?.length?`נערכו ${r.queries.length} חיפושים במפרסם משרד התחבורה. הכיסוי עדיין אינו מובטח כמלא.`:'הרשימה עדיין חלקית: החיפוש בפורטל מוגבל למשרד התחבורה ולמילה ״קווי״.'}`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. אפשר לנסות לרענן את הדף.'});
 fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?(r.firstScheduledRunVerified?'העדכון היומי הופעל ונבדקה הרצה מתוזמנת.':'הוגדר עדכון יומי ל־08:30. הצלחת ההרצה המתוזמנת הראשונה עדיין לא אומתה.'):'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
