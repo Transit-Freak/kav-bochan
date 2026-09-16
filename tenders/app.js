@@ -14,11 +14,18 @@ if(document.modelContext?.registerTool){
 fetch('access-check.json').then(r=>{if(!r.ok)throw new Error('audit unavailable');return r.json()}).then(r=>{$('audit-summary').textContent=`בדיקת חיפוש מוניות: ${r.uniqueRecords} רשומות ייחודיות מתוך ${r.pages[0].total} בתוצאות הפורטל. ${r.allPagesValidated&&r.matchesPortalTotal?'כל עמודי החיפוש נקראו.':'האיסוף חלקי; חלק מהבקשות נכשלו.'} החיפוש כולל גם תוצאות שאינן מכרזי קווי שירות.`}).catch(()=>{$('audit-summary').textContent='דוח הבדיקה אינו זמין כרגע.'});
 // בטלפון כל כרטיס סגור ורק הכותרת נראית; לחיצה פותחת את הפרטים. במחשב הכרטיס פתוח (שלמה 16.09).
 const wideScreen=()=>window.matchMedia('(min-width:761px)').matches;
-function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const all=matches();const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>{
+// סיווג פרסום לפי הכותרת — אותם חוקים כמו ב-scripts/feed_rules.py (לפרסומים שנשמרו לפני שהסיווג נוסף)
+const FEED_UNRELATED=/מיקרוסופט|microsoft|ichain|datapower|db2|\bwas\b|arcgis|\bgis\b|eternal|firewall|תוכנ|תחזוקת רישיונות|תחזוקה לרישיונות|חידוש רישיונות|רישיון נהיגה|רישיונות נהיגה|משיט|הדפסה|מגנוט|דיוור|תחנות צילום|בסיסי נתונים|ריהוט|ניקיון|מזגנים|כלי רכב לעובדי|רכבי ליסינג/i;
+const FEED_TRANSPORT=/קווי שירות|קו שירות|אוטובוס|מוניות|תחבורה ציבורית|תח"צ|תחצ|סככות|תחנות|מסופ|רכבת|מטרו|נת"צ|נוסעים|מפעילי|קווי מתע"ן|מתען|רב[- ]קו|כרטוס|הסעות/;
+function feedClass(t){if(t.classification==='operating_tender'||t.classification==='transport_related'||t.classification==='unrelated')return t.classification;const s=t.title||'';if(FEED_UNRELATED.test(s))return 'unrelated';return FEED_TRANSPORT.test(s)?'transport_related':'unrelated';}
+function renderFeed(){const host=$('live-results');if(!host)return;const tokens=$('search').value.trim().toLowerCase().split(/\s+/).filter(Boolean);const every=matches();const all=every.filter(t=>feedClass(t)!=='unrelated'),other=every.filter(t=>feedClass(t)==='unrelated');const visible=feedExpanded?all:all.slice(0,6);host.innerHTML=visible.map(t=>{
  const lines=typeof renderLinesSection==='function'?renderLinesSection(t):'',cond=typeof renderConditionsSection==='function'?renderConditionsSection(t):'',pkg=renderPackage(t,!!lines);
  const parts=[lines&&'הקווים',cond&&'התנאים',pkg&&'המסמכים','הפרטים שנבדקו'].filter(Boolean);
  const body=`${t.discoveryNote?`<details class="discovery-note"><summary>מה בדקנו עד עכשיו?</summary><p>${esc(t.discoveryNote)}</p></details>`:''}${lines}${cond}${pkg}${renderFields(t)}${renderDocumentReview(t)}${!lines&&typeof renderRouteAnnexes==='function'?renderRouteAnnexes(t):''}`;
- return `<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום נוסף · עדיין בבדיקה'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p><details class="cardbody" data-keep-open="card:${esc(t.id)}"${wideScreen()?' open':''}><summary>${parts.join(' · ')}</summary><div class="cardbody-in">${body}</div></details></div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`;}).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';$('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
+ return `<div class="feedrow"><div><span class="tag">${t.classification==='operating_tender'?'מכרז להפעלת שירות':'פרסום בתחום התחבורה הציבורית · לא מכרז להפעלת קווים'}</span><h3><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)} ↗</a></h3><p class="muted">מספר המכרז: <bdi>${esc(t.number||'לא זוהה')}</bdi> · מצב באתר הממשלתי: ${esc(t.status||'לא זוהה')}</p><details class="cardbody" data-keep-open="card:${esc(t.id)}"${wideScreen()?' open':''}><summary>${parts.join(' · ')}</summary><div class="cardbody-in">${body}</div></details></div><div class="feeddate"><span>עודכן באתר הממשלתי</span><bdi>${esc(t.updated||'לא זוהה')}</bdi><small>הגשה: <bdi>${esc(t.deadline||'לא זוהה')}</bdi></small></div></div>`;}).join('')||'<p>אין פרסומים המתאימים לחיפוש במידע שנטען.</p>';
+ // פרסומים של משרד התחבורה שאינם תחבורה ציבורית (רישיונות תוכנה, רישיונות נהיגה…) — מקופלים בסוף, לא ברשימה
+ if(other.length)host.insertAdjacentHTML('beforeend',`<details class="fielddetails other-feed" data-keep-open="other-feed"><summary>פרסומים אחרים של משרד התחבורה שאינם תחבורה ציבורית · ${other.length}</summary><p class="muted">הפורטל מחזיר גם פרסומים על תוכנה, רישיונות נהיגה והדפסה. הם מוצגים כאן רק לשלמות.</p><ul class="other-list">${other.map(t=>`<li><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a> <small class="muted">${esc(t.updated||'')}</small></li>`).join('')}</ul></details>`);
+ $('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
 $('feed-more').onclick=()=>{feedExpanded=!feedExpanded;renderFeed()};
 fetch('tenders-feed.json').then(r=>{if(!r.ok)throw new Error('feed unavailable');return r.json()}).then(r=>{governmentItems=r.items;combineFeeds();$('feed-status').textContent=`${r.items.length} פרסומים שנאספו. בדיקה אחרונה: ${new Date(r.checkedAt).toLocaleString('he-IL')}. ${r.queries?.length?`נערכו ${r.queries.length} חיפושים במפרסם משרד התחבורה. הכיסוי עדיין אינו מובטח כמלא.`:'הרשימה עדיין חלקית: החיפוש בפורטל מוגבל למשרד התחבורה ולמילה ״קווי״.'}`;renderFeed()}).catch(()=>{$('feed-status').textContent='לא ניתן לטעון את רשימת הפרסומים כרגע. אפשר לנסות לרענן את הדף.'});
 fetch('automation-config.json').then(r=>r.json()).then(r=>{$('schedule-status').textContent=r.enabled?(r.firstScheduledRunVerified?'העדכון היומי הופעל ונבדקה הרצה מתוזמנת.':'הוגדר עדכון יומי ל־08:30. הצלחת ההרצה המתוזמנת הראשונה עדיין לא אומתה.'):'עדכון מתוזמן עדיין לא הופעל.'}).catch(()=>{$('schedule-status').textContent='סטטוס התזמון אינו זמין.'});
@@ -46,7 +53,7 @@ function renderFields(t){
  if(fieldsState==='error'||!Object.keys(fieldCatalog).length)return '<p role="status">טעינת התנאים נכשלה. <button data-retry-fields>ניסיון חוזר</button></p>';
  const fields=combinedFields(t.id),all=Object.entries(fieldCatalog).map(([k,d])=>[k,fields[k]||d]);
  const verified=all.filter(([,f])=>isVerified(f)),pending=all.filter(([,f])=>!isVerified(f));
- const labels={unverified:'עדיין לא בדקנו',source_missing:'לא מצאנו מסמך מתאים',unrecognized_wording:'הניסוח במסמך אינו ברור',conflict:'המקורות מציגים מידע שונה',not_applicable:'לא רלוונטי למכרז הזה'};
+ const labels={unverified:'עדיין לא בדקנו',source_missing:'לא מצאנו מסמך מתאים',unrecognized_wording:'הניסוח במסמך אינו ברור',conflict:'המקורות מציגים מידע שונה',not_applicable:'לא רלוונטי למכרז הזה',per_line:'נקבע לכל קו בנספח',not_found:'לא נמצא במסמך הראשי',later:'ייקבע אחרי ההגשה'};
  return `${extractionSummary(t.id)}<details class="fielddetails tender-conditions"><summary>${verified.length?`${verified.length} פרטים שנבדקו`:'עדיין לא בדקנו את התנאים'}</summary>${verified.length?`<p class="muted">הפרטים נבדקו במסמך המקושר. ייתכן שיש עדכונים מאוחרים יותר שעדיין לא בדקנו.</p><div class="verified-grid">${verified.map(([k,f])=>renderVerifiedField(k,f)).join('')}</div>`:''}<details class="pending-fields"><summary>מה עדיין חסר? ${pending.length} פרטים</summary>${pending.map(([k,f])=>`<div class="pending-row"><strong>${esc(fieldLabel(k,f))}</strong><span>${labels[f.status]||'ממתין לבדיקה'}</span>${f.reason?`<p>${esc(f.reason)}</p>`:''}${f.sources?.length?`<p>${renderSources(f.sources)}</p>`:''}</div>`).join('')}</details></details>`;
 }
 async function loadFields(){
@@ -129,15 +136,12 @@ function packageSource(r){
 function renderPackage(t,hasLines){
  const p=packageState[t.id];if(!p)return '';
  const docs=Object.values(p.documents||{}),downloaded=docs.filter(d=>d.sha256),failed=docs.filter(d=>d.status==='retry_pending');
- const total=downloaded.reduce((n,d)=>n+(d.units||0),0),reviewed=downloaded.reduce((n,d)=>n+(d.reviewedUnits?.length||0),0);
- const semantic=currentPackageDocuments(t.id,semanticReviews),automatic=currentPackageDocuments(t.id,automaticSummaries);
+ const total=downloaded.reduce((n,d)=>n+(d.units||0),0);
  const routes=allPackageRoutes(t.id);
- const versions=automatic.filter(d=>Object.keys(d.fields||{}).length);
- // בלי סיכומים בשפה חופשית (שלמה 16.09): רק מה שנקרא בקוד — טבלאות, שדות בחוקים קבועים וציטוטים
- return `<section class="package-summary"><h4>מסמכי המכרז</h4>
- ${versions.map(d=>{const keys=['identity.cluster','guarantee.bid','guarantee.performance','scoring.price_weight'];return `<p>${keys.filter(k=>d.fields[k]).map(k=>`${esc(fieldLabel(k,d.fields[k]))}: <strong>${formatFieldValue(d.fields[k])}</strong>`).join(' · ')} <small>${renderSources([{url:d.url,locator:'מסמך המקור'}])}</small></p>`;}).join('')}
- ${routes.length&&!hasLines?`<details class="fielddetails"><summary>קווים מתוך מסמכי המכרז · ${routes.length} רשומות</summary><p class="muted">הרשימה מבוססת על המסמכים המקושרים. השלמת כל הכיוונים, החלופות וההבהרות עדיין בבדיקה.</p><div class="routechips">${routes.map((r,i)=>`<button data-package-tender="${esc(t.id)}" data-package-route="${i}" aria-haspopup="dialog">${esc(r.number)} · ${esc(r.area)}</button>`).join('')}</div></details>`:''}
- <details class="source-details"><summary>המסמכים והיקף הבדיקה</summary><p>${docs.length} מסמכים אותרו; ${downloaded.length} נקראו לקובצי טקסט. סוכמו ונבדקו ${reviewed} מתוך ${total} עמודים או יחידות תוכן שחולצו.${failed.length?` הורדת ${failed.length} מסמכים נכשלה ותיבדק שוב.`:''}</p>${!p.listingOk?'<p>לא ניתן היה לעדכן את רשימת המסמכים מהמקור בבדיקה האחרונה.</p>':''}<ul>${docs.map(d=>`<li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(decodeURIComponent(d.url.split('/').pop()))}</a> · ${d.status==='extracted'?`${d.units} עמודים או יחידות תוכן`:d.status==='retry_pending'?'הורדה לא הצליחה':'ממתין להורדה'}</li>`).join('')}</ul></details></section>`;
+ const kinds={not_found:'הקישור לא נמצא (404) — ייתכן שהמסמך הוחלף בפורטל',blocked:'האתר חסם את ההורדה (403)',timeout:'זמן קצוב — ייבדק שוב בלילה'};
+ // הפרטים שנקראו מהמסמכים מוצגים פעם אחת, ב"פרטים שנבדקו"; כאן רק רשימת המסמכים (שלמה 16.09)
+ return `<details class="fielddetails package-summary"><summary>מסמכי המכרז · ${docs.length} מסמכים${failed.length?` · ${failed.length} לא ירדו`:''}</summary><p class="muted">${downloaded.length} מסמכים נקראו לטקסט, ${total} עמודים או גיליונות.${failed.length?` הורדת ${failed.length} מסמכים נכשלה.`:''}${!p.listingOk?' לא ניתן היה לעדכן את רשימת המסמכים מהמקור בבדיקה האחרונה.':''}</p><ul>${docs.map(d=>`<li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(decodeURIComponent(d.url.split('/').pop()))}</a> · ${d.status==='extracted'?`${d.units} עמודים או יחידות תוכן`:d.status==='retry_pending'?(kinds[d.errorKind]||'הורדה לא הצליחה'):'ממתין להורדה'}</li>`).join('')}</ul>
+ ${routes.length&&!hasLines?`<details class="fielddetails"><summary>קווים מתוך מסמכי המכרז · ${routes.length} רשומות</summary><p class="muted">הרשימה מבוססת על המסמכים המקושרים. השלמת כל הכיוונים, החלופות וההבהרות עדיין בבדיקה.</p><div class="routechips">${routes.map((r,i)=>`<button data-package-tender="${esc(t.id)}" data-package-route="${i}" aria-haspopup="dialog">${esc(r.number)} · ${esc(r.area)}</button>`).join('')}</div></details>`:''}</details>`;
 }
 const packageDataReady=Promise.all(['packages-state.json','automatic-summaries.json','semantic-reviews.json'].map(async name=>{const r=await fetch(name,{cache:'no-cache'});if(!r.ok)throw new Error(name);return r.json();})).then(([p,a,s])=>{packageState=p.tenders||{};automaticSummaries=a.tenders||{};semanticReviews=s.tenders||{};renderFeed();}).catch(()=>{});
 document.addEventListener('click',async event=>{
@@ -149,6 +153,8 @@ document.addEventListener('click',async event=>{
  routeDialog.showModal();
 });
 
+let ruleFields={};
+fetch('fields-rules.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(r=>{ruleFields=r.tenders||{};renderFeed()}).catch(()=>{});
 function combinedFields(id){
  const fields={...(structuredFields[id]||{})};
  const docs=[{fields:automaticSummaries[id]?.metadataFields||{}},...currentPackageDocuments(id,automaticSummaries),...currentPackageDocuments(id,semanticReviews)];
@@ -159,5 +165,8 @@ function combinedFields(id){
   if(JSON.stringify(old.value)!==JSON.stringify(f.value)&&old.status==='verified'&&f.status==='verified'){
    fields[key]={...old,status:'conflict',value:null,reason:'בגרסאות המסמכים מופיעים ערכים שונים. יש לבדוק את ההבהרות ואת תחולת השינוי.',sources:[...(old.sources||[]),...(f.sources||[])]};
   }
- }}return fields;
+ }}
+ // חוקים מסעיפי המסמך (fill_fields.py): רק לשדות שלא אומתו במסמך עצמו
+ for(const [key,f] of Object.entries(ruleFields[id]||{})){if(!isVerified(fields[key])&&fields[key]?.status!=='conflict')fields[key]=f;}
+ return fields;
 }

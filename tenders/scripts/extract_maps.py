@@ -27,6 +27,12 @@ MAPS = ROOT / 'maps'
 OUT = ROOT / 'maps.json'
 MAX_PER_DOC = 40
 NUM = r'N?\d{1,4}[א-ת]?'
+HEURISTIC = 2          # גרסת הכללים; כשמשנים אותם, כל העמודים נבדקים מחדש ולא נשמרים מהריצה הקודמת
+# מילים שמעידות שהעמוד הוא מפה או תרשים — בשורה קצרה (כיתוב), לא בתוך פסקה
+MAP_WORDS = re.compile(r'מפת |מפה\b|מפה |להלן מפה|לאורך המסלול|תיאור מסלול|מסלול הקו|מפת המסלול|תרשים|תוואי|סכמת|סכמה')
+TOC_MARK = re.compile(r'תוכן העניינים|תוכן עניינים')
+TOC_LINE = re.compile(r'\.\s*\d{1,3}\s*$')
+TABLE_LINE = re.compile(r'(?:\S*\d\S*\s+){5,}')
 
 
 def read(path, default):
@@ -67,12 +73,20 @@ def is_map_page(page, text):
     except Exception:
         pass
     words = len(text.split())
-    mentions_map = bool(re.search(r'מפ[הת]\s|מפת ה|תרשים|מסלול הקו', text))
-    if big_image >= 0.3 and (words < 250 or mentions_map):
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    # עמוד מפה: מעט טקסט, ובו שורת כיתוב קצרה עם "מפה"/"לאורך המסלול"/"תרשים". לא שער, לא תוכן עניינים, לא טבלה
+    # (בטבלאות הקווים "חלופת מסלול" היא כותרת עמודה — לכן דורשים את הביטויים המלאים).
+    if page.number < 3 or words >= 135:
+        return None
+    if TOC_MARK.search(text) or sum(1 for l in lines if TOC_LINE.search(l)) >= 6:
+        return None
+    if sum(1 for l in lines if TABLE_LINE.search(l)) >= 3:
+        return None
+    if not any(MAP_WORDS.search(l) and len(l) < 90 for l in lines):
+        return None
+    if big_image >= 0.3:
         return 'image'
-    if drawings >= 150 and words < 200:
-        return 'vector'
-    if drawings >= 60 and mentions_map and words < 150:
+    if drawings >= 60:
         return 'vector'
     return None
 
@@ -99,7 +113,7 @@ def main():
             sha = doc.get('sha256')
             if not sha:
                 continue
-            done = [m for m in previous.get(tid, []) if m.get('sha256') == sha]
+            done = [m for m in previous.get(tid, []) if m.get('sha256') == sha and m.get('v') == HEURISTIC]
             src = CACHE / sha / 'source.bin'
             if done and all((ROOT / m['image']).exists() for m in done):
                 found += done          # כבר הופק בריצה קודמת — לא מרנדרים שוב
@@ -128,7 +142,7 @@ def main():
                 rel = f'maps/{sha[:16]}-p{pno + 1}.webp'
                 img.save(ROOT / rel, 'WEBP', quality=80, method=6)
                 found.append({'image': rel, 'page': pno + 1, 'url': f"{doc['url']}#page={pno + 1}", 'caption': caption_of(text),
-                              'numbers': numbers_of(text), 'sha256': sha, 'doc': name, 'kind': kind})
+                              'numbers': numbers_of(text), 'sha256': sha, 'doc': name, 'kind': kind, 'v': HEURISTIC})
                 n += 1
                 if n >= MAX_PER_DOC:
                     break
@@ -138,6 +152,14 @@ def main():
         if found:
             result['tenders'][tid] = found
     OUT.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')) + '\n')
+    # תמונות שכבר לא מוזכרות (כללים שהשתנו, מסמך שהוחלף) — נמחקות כדי לא להשאיר עמודים שאינם מפה
+    used = {m['image'] for v in result['tenders'].values() for m in v}
+    removed = 0
+    for img in MAPS.glob('*.webp'):
+        if f'maps/{img.name}' not in used:
+            img.unlink(); removed += 1
+    if removed:
+        print(f'  נמחקו {removed} תמונות שאינן מפה לפי הכללים הנוכחיים', flush=True)
     total = sum(len(v) for v in result['tenders'].values())
     size = sum(p.stat().st_size for p in MAPS.glob('*.webp')) // 1024
     print(f'מפות: {total} עמודים ב-{len(result["tenders"])} מכרזים · נסרקו {scanned} מסמכים · {size} KB', flush=True)

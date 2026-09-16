@@ -9,10 +9,26 @@ HEADERS={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
  'Accept':'text/html,application/xhtml+xml,application/pdf,application/xml;q=0.9,*/*;q=0.8','Accept-Language':'he-IL,he;q=0.9,en;q=0.7'}
 def get(url,limit=15000000):
  url=urllib.parse.quote(url,safe=':/?=&%')
- req=urllib.request.Request(url,headers={**HEADERS,'Referer':'https://www.gov.il/' if 'www.gov.il' in url else 'https://mr.gov.il/'})
- with urllib.request.urlopen(req,timeout=30) as r:
-  b=r.read(limit+1)
-  return b[:limit],len(b)>limit,r.status,r.headers.get('Content-Type','')
+ referer='https://www.gov.il/' if 'www.gov.il' in url else 'https://mr.gov.il/'
+ req=urllib.request.Request(url,headers={**HEADERS,'Referer':referer})
+ try:
+  with urllib.request.urlopen(req,timeout=30) as r:
+   b=r.read(limit+1)
+   return b[:limit],len(b)>limit,r.status,r.headers.get('Content-Type','')
+ except urllib.error.HTTPError as e:
+  if e.code!=403 or 'www.gov.il' not in url: raise
+  # www.gov.il חוסם את ספריית הרשת של פייתון (403) — מנסים עם curl, שנראה כמו דפדפן
+  import subprocess,tempfile,os
+  tmp=tempfile.NamedTemporaryFile(delete=False).name
+  try:
+   out=subprocess.run(['curl','-sL','--max-time','90','--compressed','-A',HEADERS['User-Agent'],'-H','Accept: '+HEADERS['Accept'],'-H','Accept-Language: '+HEADERS['Accept-Language'],'-H','Referer: '+referer,'-o',tmp,'-w','%{http_code}\t%{content_type}',url],capture_output=True,text=True,timeout=120)
+   code,_,ctype=out.stdout.strip().partition('\t')
+   if code!='200': raise urllib.error.HTTPError(url,int(code or 0),f'HTTP Error {code} (curl)',None,None)
+   b=open(tmp,'rb').read()
+   return b[:limit],len(b)>limit,200,ctype
+  finally:
+   try: os.unlink(tmp)
+   except OSError: pass
 def page(n):
  params={'q':'מוניות:updateDate','page':n}
  url=BASE+'/ilgstorefront/he/search/ajaxHtml/?'+urllib.parse.urlencode(params)

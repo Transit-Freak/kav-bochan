@@ -205,3 +205,59 @@ def test_brief_is_the_key_sentence_in_plain_words():
     assert tender_sections.simplify('במשך כל תקופת ההתקשרות בהתאם להליך תחרותי זה, בהתאם לאמור בסעיף 5.') == 'במשך כל תקופת ההתקשרות לפי מכרז זה, לפי סעיף 5.'
     long = tender_sections.brief_of('כללי', 'מילה ' * 120, [])
     assert len(long) <= 191 and long.endswith('…')
+
+
+import fill_fields  # noqa: E402
+
+DOC = {'tender': '999', 'doc': 'https://mr.gov.il/x/מסמכי הליך', 'sections': [
+    {'n': '1.6.2', 'p': 8, 't': 'תקופת הפעלת שלב א\' תחל לא יאוחר מ – 12חודשים ממועד ההודעה על הזכייה ותקופת ההפעלה של שלב ב\' תחל לא יאוחר מ – 18חודשים ממועד ההודעה על הזכייה.', 'text': 'כפיצוי מוסכם סך מקסימלי של 100אלף ₪בגין כל שבוע איחור.', 'topics': ['תקופת ההתקשרות'], 'numbers': [], 'brief': ''},
+    {'n': '1.10', 'p': 10, 't': 'רשאית הממשלה להאריך את תקופת ההפעלה לתקופה נוספת של 12חודשים', 'text': '', 'topics': [], 'numbers': [], 'brief': ''},
+    {'n': '4.1', 'p': 17, 't': 'תנאי סף כלליים', 'text': '4.1.1 על המציע לעמוד באחד מתנאי הסף: 4.1.1.1 המציע הוא מפעיל תחבורה ציבורית פעיל ,בעל רישיון תקף להסעת נוסעים בקווי שירות בתחבורה ציבורית באוטובוסים הכוללים לפחות 80אוטובוסים. 4.1.1.2 תנאי אחר.', 'topics': ['תנאי סף'], 'numbers': [], 'brief': ''},
+    {'n': '12.2', 'p': 28, 't': 'ריכוז מועדים', 'text': 'שעה תאריך 25/12/2025 פרסום ההליך התחרותי עד 18:00 22/01/2026 הגשת שאלות הבהרה עד 12:00 18/03/2026 הגשת מסמכי ההליך', 'topics': ['מועדים והגשה'], 'numbers': [], 'brief': ''},
+    {'n': '28.4', 'p': 55, 't': 'ניסיון עבר של המציע בהפעלת קווי שירות לפי מדדי הבקרה – 24נקודות:', 'text': 'טקסט. 28.5 הצעה תפעולית – 21נקודות: המציע יגיש.', 'topics': ['ניקוד ההצעות'], 'numbers': [], 'brief': ''},
+    {'n': '28.7', 'p': 60, 't': 'תכנית עסקית 10 - נקודות', 'text': '', 'topics': ['ניקוד ההצעות'], 'numbers': [], 'brief': ''},
+    {'n': '38.2.2', 'p': 79, 't': 'המציע יחשב את מספר האוטובוסים ,כאשר המספר הכולל של הרכבים באשכול לא יפחת מ 166-אוטובוסים (להלן "מצבת האוטובוסים הבסיסית").', 'text': 'המציע יוכל לרכוש אוטובוסים משומשים שגילם לא יעלה על • 6שנים במועד הפעלת האשכול.', 'topics': ['צי הרכבים'], 'numbers': [], 'brief': ''},
+    {'n': '38.2.9', 'p': 80, 't': 'אוטובוסים המונעים בחשמל – כל האוטובוסים באשכול ,לאורך כל תקופת ההפעלה, יופעלו באוטובוסים חשמליים (כולל רזרבה תפעולית של .)20%', 'text': '', 'topics': ['צי הרכבים'], 'numbers': [], 'brief': ''},
+    {'n': '40.1.6', 'p': 100, 't': 'גיל האוטובוסים לא יעלה על 10שנים או בהתאם לאמור בנספח.', 'text': '', 'topics': ['צי הרכבים'], 'numbers': [], 'brief': ''},
+    {'n': '49', 'p': 111, 't': 'הגדרות לעניין חישובי סובסידיה', 'text': '"מפת הבסיס לאשכול" – סך נסיעות וק"מ רכב בשנה בכל קווי האשכול ,המסתכם ב – 512 אלפי נסיעות ו 7,179-אלפי ק"מ. "סובסידיה שוטפת" – הסכום המשולם. "מדד מחירי התשומות" – יהיה מורכב.', 'topics': ['תמורה ותשלומים'], 'numbers': [], 'brief': ''},
+]}
+
+
+def test_fill_fields_reads_single_values_with_their_section():
+    known = {'scoring.price_weight': {'status': 'verified', 'value': 35}, 'guarantee.bid': {'status': 'verified', 'value': 2000000}}
+    out = fill_fields.rules(DOC, DOC['sections'], {'counts': {'inTender': 38}}, None, known)
+    assert out['dates.questions']['value'] == '2026-01-22' and out['dates.questions']['sources'][0]['locator'] == 'סעיף 12.2, עמוד PDF 28'
+    assert out['dates.service_start']['value'] == "עד 12 חודשים מההודעה על הזכייה (שלב א'), שלב ב' עד 18 חודשים"
+    assert out['term.extension']['value'] == 12 and out['term.extension']['unit'] == 'months'
+    assert out['fleet.operating']['value'] == 166 and out['fleet.operating']['sources'][0]['url'].endswith('#page=79')
+    assert out['fleet.reserve']['value'] == 20 and out['fleet.reserve']['kind'] == 'percent'
+    assert out['fleet.max_age']['value'] == 10 and '6 שנים' in out['fleet.max_age']['notes']
+    assert out['fleet.electric_share']['value'] == 100
+    assert out['eligibility.licenses']['status'] == 'verified' and 'בעל רישיון תקף' in out['eligibility.licenses']['notes']
+    assert '4.1.1.2' not in out['eligibility.licenses']['notes']          # רק תת-הסעיף שבו נמצא, לא כל הסעיף
+    assert out['eligibility.drivers']['status'] == 'not_found'              # "80 אוטובוסים" אינו דרישת נהגים
+    assert out['service.routes']['value'] == 38
+    assert out['service.annual_km']['value'] == 7179000 and out['service.annual_km']['unit'] == 'km'
+    assert out['service.frequency']['status'] == 'per_line'
+    assert out['price.fixed_payment']['status'] == 'not_applicable' and out['price.indexation']['value'] == 'מדד מחירי התשומות'
+    q = out['scoring.quality_weight']
+    assert q['value'] == 65 and 'ניסיון עבר 24' in q['notes'] and 'הצעה תפעולית 21' in q['notes'] and 'תכנית עסקית 10' in q['notes']
+    assert 'עד 100 אלף ₪ לכל שבוע' in out['penalties.amount']['value']
+    assert out['award.winner']['status'] == 'later'
+    assert 'guarantee.bid' not in out and 'scoring.price_weight' not in out   # מה שאומת במסמך לא נדרס
+
+
+import feed_rules  # noqa: E402
+
+
+def test_feed_classification_keeps_only_public_transport_in_the_main_list():
+    c = feed_rules.classify
+    assert c('הליך תחרותי לקבלת רישיונות להפעלת קווי שירות בתחבורה הציבורית באוטובוסים באשכול מטה בנימין') == 'operating_tender'
+    assert c('מכרז להפעלת אוטובוסים באשכול צפון הנגב') == 'operating_tender'
+    assert c('קול קורא לקבלת התייחסות הציבור להחלת מנגנונים במסגרת הפעלת קווי שירות') == 'transport_related'
+    assert c('התקנת סככות המתנה בתחנות אוטובוסים') == 'transport_related'
+    assert c('מכרז פומבי למתן שירותי בקרה בענף התחבורה הציבורית באוטובוסים ובמוניות השירות') == 'transport_related'
+    assert c('חידוש רישיונות מיקרוסופט מוצרים לא ייחודיים לשנת 2026') == 'unrelated'
+    assert c('חידוש רישיונות DATAPOWER מה-1.1.26 עד 31.12.26 תחבורה ציבורית חברת טנגרם') == 'unrelated'
+    assert c('מתן שירותי הנפקת רישיון נהיגה בינלאומי, רישיונות משיט ותחנות צילום') == 'unrelated'
+    assert c('תחזוקת רישיונות לתוכנות GIS עבור מערכת מידע תחבורתי') == 'unrelated'

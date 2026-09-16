@@ -70,6 +70,10 @@ jobs:
         continue-on-error: true
         run: python3 tenders/scripts/tender_sections.py
 
+      - name: פרטים שנבדקו — מילוי בחוקים מסעיפי המסמך
+        continue-on-error: true
+        run: python3 tenders/scripts/fill_fields.py
+
       - name: מפות שהועתקו מהמסמכים
         continue-on-error: true
         run: python3 tenders/scripts/extract_maps.py

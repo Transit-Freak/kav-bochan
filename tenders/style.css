@@ -31,3 +31,4 @@
 @media(min-width:761px){.cardbody>summary{display:none}}
 @media(max-width:760px){.cond-topics{display:none}.cond-topic-select{display:block;margin:6px 0 10px}.feedrow{padding:14px}.feedrow h3{font-size:17px;margin:6px 0}.feedrow .fielddetails{margin-top:8px;padding-top:8px}.feedrow .fielddetails>summary{font-size:15px}.package-summary h4{margin:8px 0 4px}}
 .lines-tools{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}.lines-tools button,.cond-search button{font-size:13px;padding:7px 12px;border-radius:8px}
+.other-feed{margin-top:18px;background:#fff;border:1px solid #dce5e9;border-radius:14px;padding:14px 18px}.other-list{padding-right:18px;font-size:14px}.other-list li{margin-bottom:6px}

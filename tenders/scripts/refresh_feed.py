@@ -16,6 +16,9 @@ class Text(HTMLParser):
   if t in ('script','style'):self.ignore=max(0,self.ignore-1)
  def handle_data(self,s):
   if not self.ignore and s.strip():self.parts.append(s.strip())
+import sys as _sys, pathlib as _pl
+_sys.path.insert(0,str(_pl.Path(__file__).resolve().parent))
+from feed_rules import classify  # noqa: E402
 def clean(s):
  p=Text();p.feed(s);return ' '.join(p.parts)
 def parse_page(s,n):
@@ -28,8 +31,7 @@ def parse_page(s,n):
   text=clean(block);field=lambda name:(re.search(name+r'\s*([^|]+?)(?=\s*\||תאריך פרסום:|תאריך עדכון:|מועד אחרון להגשה:|$)',text).group(1).strip() if re.search(name+r'\s*([^|]+?)(?=\s*\||תאריך פרסום:|תאריך עדכון:|מועד אחרון להגשה:|$)',text) else None)
   date=lambda name:(re.search(name+r'\s*(\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2})?)',text).group(1) if re.search(name+r'\s*(\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2})?)',text) else None)
   title=clean(title.group(1));kind='taxi' if 'מוניות' in title else 'bus' if 'אוטובוס' in title or 'מטרונית' in title else 'other'
-  operating=bool(re.search(r'קבלת ר[יש]+ונות|להפעלת קווי',title)) and not any(x in title for x in ['קול קורא','אבטחה','בקרה','התייחסות הציבור'])
-  entries.append({'id':mid.group(1),'title':title,'type':kind,'classification':'operating_tender' if operating else 'needs_review','number':field('מס׳ הליך:'),'status':field('סטטוס:'),'published':date('תאריך פרסום:'),'updated':date('תאריך עדכון:'),'deadline':date('מועד אחרון להגשה:'),'url':'https://mr.gov.il/ilgstorefront/he/p/'+mid.group(1)})
+  entries.append({'id':mid.group(1),'title':title,'type':kind,'classification':classify(title),'number':field('מס׳ הליך:'),'status':field('סטטוס:'),'published':date('תאריך פרסום:'),'updated':date('תאריך עדכון:'),'deadline':date('מועד אחרון להגשה:'),'url':'https://mr.gov.il/ilgstorefront/he/p/'+mid.group(1)})
  return entries,stat('totalResults'),stat('numberOfPages')
 def fetch_page(n,query=QUERY):
  u='https://mr.gov.il/ilgstorefront/he/search/ajaxHtml/?'+urllib.parse.urlencode({'q':query,'page':n})

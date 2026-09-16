@@ -141,11 +141,35 @@ def decode_file(body, cache_path, member='', depth=0):
     return units, errors
 
 
+def error_kind(error):
+    """סיווג הכישלון: קישור שבור (404) לעומת עומס רגעי (זמן קצוב) לעומת חסימה (403)."""
+    text = str(error)
+    if '404' in text: return 'not_found'
+    if '403' in text: return 'blocked'
+    if 'timed out' in text or 'Timeout' in text or 'reset' in text or 'Connection' in text: return 'timeout'
+    return 'other'
+
+
+def fetch_with_retry(url, limit, tries=3):
+    """ניסיון חוזר עם השהיה הולכת וגדלה (2, 4 שניות) — רק על שגיאות רגעיות, לא על 404/403."""
+    import time
+    last = None
+    for attempt in range(tries):
+        try:
+            return get(url, limit)
+        except Exception as error:
+            last = error
+            if error_kind(error) in ('not_found', 'blocked') or attempt == tries - 1:
+                raise
+            time.sleep(2 ** (attempt + 1))
+    raise last
+
+
 def process(item, key, prior, cache, force=False):
     result = {**prior, 'attemptedAt':stamp()}
     try:
         if not official(prior['url']): raise ValueError('מקור המסמך אינו רשמי')
-        body, cut, *_ = get(prior['url'], 80_000_000)
+        body, cut, *_ = fetch_with_retry(prior['url'], 80_000_000)
         if cut: raise ValueError('המסמך חורג ממגבלת 80 MB')
         digest = hashlib.sha256(body).hexdigest()
         folder = cache / digest; folder.mkdir(parents=True, exist_ok=True)
@@ -171,7 +195,7 @@ def process(item, key, prior, cache, force=False):
         result.pop('unitIndex',None)
     except Exception as error:
         failures = prior.get('failures',0)+1
-        result.update(status='retry_pending', error=str(error), failures=failures,
+        result.update(status='retry_pending', error=str(error), errorKind=error_kind(error), failures=failures,
                       nextCheckAt=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(hours=min(24,2**min(failures,5)))).isoformat())
     return item['id'], key, result
 
