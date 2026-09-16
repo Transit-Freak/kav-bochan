@@ -44,6 +44,19 @@ def check(key, f, s):
         if not any(re.search(r'פיצוי|קנס', m) for m in marks):
             probs.append(f'טבלת הקנסות: סומן {marks[:3]} ולא כותרת הפיצויים')
         return probs
+    if s.get('how') == 'sentence':
+        # הערך לא נמצא בעמוד — סומן משפט המפתח של הסעיף; בודקים שהסימון באמת על המשפט הזה
+        brief = (f.get('sec') or {}).get('brief') or ''
+        bw = {w for w in re.findall(r'[א-ת]{4,}', brief) if w not in STOP}
+        hit = sum(1 for w in bw if any(w in m for m in marks))
+        if hit < min(3, len(bw)):
+            probs.append(f'סומן משפט שלא דומה למשפט המפתח ({hit} מילים משותפות): {marks[:2]}')
+        return probs
+    if isinstance(v, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', v):
+        y, mo, d = v.split('-')
+        if not any(y in m or y[2:] in m for m in marks) or not any(str(int(d)) in numbers_in([m]) or v.replace('-', '') in num_core(m.replace('/', '').replace('.', '')) or re.search(rf'\b0?{int(d)}\b', m) for m in marks):
+            probs.append(f'תאריך {v}: סומן {marks[:3]}')
+        return probs
     if isinstance(v, (int, float)) and v:
         want = str(int(v))
         bad = [m for m in marks if want not in numbers_in([m]) and (want if int(v) < 1000 or int(v) % 1000 else str(int(v) // 1000)) not in numbers_in([m])]

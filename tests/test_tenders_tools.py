@@ -431,3 +431,26 @@ def test_phrase_is_found_by_position_and_section_limits_the_marks():
     assert len(inside) == 2
     assert snip_fields.section_span(pg, words, '9.9.9') is None
     assert snip_fields.section_span(pg, words, '1') is None
+
+
+def test_date_needles_and_value_on_next_page_and_sentence_fallback():
+    import fitz
+    assert snip_fields.date_needles('2020-11-25')[:2] == ['25/11/2020', '25.11.2020']
+    assert '25 בנובמבר 2020' in snip_fields.date_needles('2020-11-25')
+    assert snip_fields.needles_for('dates.questions', {'value': '2020-11-25'}) == snip_fields.date_needles('2020-11-25')
+    # תאריך שלם נמצא, וחלק ממנו ("11") לא נחשב
+    pg = _page_with('section 11 says: questions until 25/11/2020 at 18:00')
+    assert len(snip_fields.find_rects(pg, '25/11/2020')) == 1
+    assert len(snip_fields.find_rects(pg, '11')) == 1        # רק "11" של הסעיף, לא מתוך התאריך
+    # ערך שלא נמצא בעמוד המקור אבל נמצא בעמוד הבא — הצילום מהעמוד הבא
+    doc = fitz.open()
+    p1 = doc.new_page(); p1.insert_text((520, 100), '38.2.2', fontsize=11); p1.insert_text((60, 100), 'the operator shall compute the fleet', fontsize=11)
+    p2 = doc.new_page(); p2.insert_text((60, 100), 'the total shall not be less than 185 buses', fontsize=11)
+    f = {'value': 185, 'sec': {'n': '38.2.2', 'brief': 'the operator shall compute the fleet needed for all lines together'}}
+    pg, p, hit, needle, how, span = snip_fields.locate(fitz, doc, 1, 'fleet.operating', f)
+    assert (p, needle, how, len(hit)) == (2, '185', 'value', 1)
+    # ערך שלא כתוב בשום מקום (100% נגזר מ"כל האוטובוסים") — מסמנים את משפט המפתח, לא מילים מהכותרת
+    f2 = {'value': 100, 'kind': 'percent', 'sec': {'n': '38.2.2', 'brief': 'the operator shall compute the fleet needed for all lines together'}}
+    pg, p, hit, needle, how, span = snip_fields.locate(fitz, doc, 1, 'fleet.electric_share', f2)
+    assert (p, how) == (1, 'sentence') and len(hit) >= 1
+    assert snip_fields.locate(fitz, doc, 1, 'x', {'value': 999, 'sec': {'n': '9.9', 'brief': 'nothing like this anywhere'}}) is None

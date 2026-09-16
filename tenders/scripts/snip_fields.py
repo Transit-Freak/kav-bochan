@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 8
+VERSION = 9
 
 
 def read(path, default):
@@ -36,10 +36,10 @@ def find_rects(pg, needle, words=None):
     """איפה כתוב needle בעמוד. מחרוזת שמתחילה במספר ("20", "20%", "9 חודשים") נחשבת רק כשהמספר הוא מילה שלמה —
     כשחיפשו "20" סומנו גם "2003" ו-"2017" באותו עמוד (שלמה 16.09, חיפה עמוד 80)."""
     rects = pg.search_for(needle)
-    m = re.match(r'^([\d,.]+)', needle)
+    m = re.match(r'^([\d,./-]+)', needle)
     if not m or not rects:
         return rects
-    want = m.group(1).rstrip('.,').replace(',', '')
+    want = m.group(1).rstrip('.,/-').replace(',', '')     # תאריך "25/11/2020" נשאר שלם — לא "25"
     if words is None:
         words = pg.get_text('words')
     boxes = [w[:4] for w in words if num_core(w[4]) == want]
@@ -108,8 +108,28 @@ def phrases_for(f):
     return list(dict.fromkeys(out))
 
 
+HEB_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+
+
+def date_needles(v):
+    """"2020-11-25" → כל הצורות שבהן המסמך יכול לכתוב את התאריך: 25/11/2020, 25.11.2020, 25 בנובמבר 2020 …
+    לא חלקים ממנו ("11", "25") — כך סומן "11" של סעיף 11 במקום התאריך (ביקורת 16.09)."""
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', str(v))
+    if not m:
+        return []
+    y, mo, d = m.groups()
+    mon = HEB_MONTHS[int(mo) - 1]
+    out = []
+    for dd, mm in ((d, mo), (str(int(d)), str(int(mo)))):
+        out += [f'{dd}/{mm}/{y}', f'{dd}.{mm}.{y}', f'{dd}-{mm}-{y}', f'{dd}/{mm}/{y[2:]}', f'{dd}.{mm}.{y[2:]}']
+    out += [f'{int(d)} ב{mon} {y}', f'{int(d)}ב{mon} {y}', f'{int(d)} {mon} {y}']
+    return list(dict.fromkeys(out))
+
+
 def needles_for(key, f):
-    """מה לחפש בעמוד: קודם המספר (יציב גם בעברית הפוכה), אחר כך מילים קצרות מהכותרת."""
+    """מה לחפש בעמוד: המספר עצמו (יציב גם בעברית הפוכה), תאריך בכל צורותיו, או משפט מהערך הטקסטואלי.
+    לא מילים מכותרת הסעיף ולא מילים בודדות: כשהמספר לא נמצא סומנו 12 פעמים "המציע" או "הגדרות" בכל העמוד
+    (ביקורת 16.09). כשאין התאמה — main מסמן את משפט המפתח של הסעיף."""
     out = []
     if key == 'penalties.amount':
         # עמוד טבלת הקנסות: מסמנים את הכותרת של הפיצויים, לא מספר עמוד/סעיף מהערך ולא מילים מכותרת סעיף אחר
@@ -123,31 +143,18 @@ def needles_for(key, f):
         out += [f'{n:,}', str(n)]
         if n >= 1000 and n % 1000 == 0:
             out.append(f'{n // 1000:,}')       # "2,000" בתוך "2,000,000"
+    elif isinstance(v, str) and date_needles(v):
+        out += date_needles(v)
     elif isinstance(v, str):
-        # ערך טקסטואלי ("רישיון תקף להסעת נוסעים בקווי שירות"): מחפשים את המשפט עצמו — קודם רצפים של 3 מילים,
-        # אחר כך 2, אחר כך מילים בודדות של 4 אותיות ומעלה. לא מילים מכותרת הסעיף (שלמה 16.09: סומן רק "יובהר")
+        # ערך טקסטואלי ("רישיון תקף להסעת נוסעים בקווי שירות"): מחפשים את המשפט עצמו — רצפים של 3 מילים, אחר כך 2
         words = [w for w in re.findall(r'[א-ת"\']{2,}', v) if w not in STOP]
         for size in (3, 2):
             out += [' '.join(words[i:i + size]) for i in range(len(words) - size + 1)]
-        out += [w for w in words if len(w) >= 4]
-        out += [x.group(0) for x in re.finditer(r'\d[\d,.]*', v) if len(x.group(0)) >= 2][:3]
-        return list(dict.fromkeys(n for n in out if len(n) >= 2))
+        out += [x.group(0) for x in re.finditer(r'\d[\d,.]*', v) if len(x.group(0)) >= 3][:3]
     for c in f.get('conditions') or []:
         cv = c.get('value')
         if isinstance(cv, (int, float)) and cv:
             out += [f'{int(cv):,}', str(int(cv))]
-    for s in re.findall(r'\d{1,2}/\d{1,2}/\d{4}|\d{4}-\d{2}-\d{2}', str(v)):
-        y, m, d = (s.split('-') if '-' in s else reversed(s.split('/')))
-        out.append(f'{d}/{m}/{y}')
-    sec = f.get('sec') or {}
-    words = [w for w in re.findall(r'[א-ת"]{3,}', sec.get('t', '')) if w not in ('של', 'את', 'על')]
-    if len(words) >= 2:
-        out.append(' '.join(words[:2]))
-    out += words[:2]
-    hints = {'fleet.accessibility': ['נגיש'], 'fleet.electric_share': ['חשמלי'], 'price.indexation': ['מדד'],
-             'eligibility.licenses': ['רישיון'], 'penalties.amount': ['פיצוי'], 'facts.driver_wage': ['שכר היסוד', 'שכר'],
-             'facts.payment_model': ['סובסידיה'], 'facts.bid_type': ['תוספת']}
-    out += hints.get(key, [])
     seen, res = set(), []
     for n in out:
         n = str(n).strip()
@@ -163,7 +170,7 @@ STOP = set('''של את על עם בין דרך הקו קו קווים לקו ל
 def quote_words(quote, strict=True):
     """המילים שמחפשים בעמוד: מילים בעברית של 3 אותיות ומעלה ומספרים — בלי מילות קישור, בלי כפילויות.
     ציטוט קצר שכולו מילים כלליות ("קו 3 – שינוי במסלול") — מחפשים גם אותן (strict=False)."""
-    words = re.findall(r'[א-ת]{3,}|\d{2,}', quote)
+    words = re.findall(r'[א-תa-zA-Z]{3,}|\d{2,}', quote)
     return [w for w in dict.fromkeys(words) if not strict or w not in STOP][:40]
 
 
@@ -212,6 +219,66 @@ def find_quote(pg, quote):
     return (min(r.y0 for r in rects), max(r.y1 for r in rects))
 
 
+def find_value(pg, words, key, f):
+    """הערך עצמו בעמוד: קודם "מספר יחידה" לכל מספר בערך, אחר כך המספר/התאריך/משפט מהערך. (מלבנים, מה נמצא) או (None, None)."""
+    phrases = phrases_for(f)
+    if phrases:
+        found, used = [], []
+        for n in phrases:
+            if ' ' not in n and len(n) < 2:
+                continue
+            if any(n == u.split(' ')[0] for u in used):
+                continue                      # המספר לבדו — רק אם הביטוי עם היחידה לא נמצא
+            pm = re.match(r'^([\d,.]+) (\S+)$', n)
+            rects = phrase_rects(words, pm.group(1), pm.group(2)) if pm else []
+            rects = rects or find_rects(pg, n, words)
+            if rects:
+                found += rects[:6]
+                used.append(n)
+        if found:
+            return found[:24], ' · '.join(used)
+    for n in needles_for(key, f):
+        rects = find_rects(pg, n, words)
+        if rects:
+            return rects[:12], n
+    return None, None
+
+
+def locate(fitz, pdf, pno, key, f):
+    """איפה לסמן: הערך בעמוד המקור, ואם אין — בעמוד הבא (סעיף שנמשך; "185 אוטובוסים" היה בעמוד 73 כשהסעיף
+    התחיל ב-72); ואם גם שם אין — משפט המפתח של הסעיף (brief), כפס על השורות שלו, כמו בציטוטי הקווים.
+    מחזיר (עמוד, מספרו, מלבנים, מה נמצא, איך, טווח הסעיף) או None."""
+    sec = f.get('sec') or {}
+    pages = [p for p in (pno, pno + 1) if 1 <= p <= pdf.page_count]
+    for p in pages:
+        pg = pdf[p - 1]
+        words = pg.get_text('words')
+        hit, needle = find_value(pg, words, key, f)
+        if not hit:
+            continue
+        # רק בתוך הסעיף עצמו, כשכותרתו בעמוד (אותו מספר יכול להופיע גם בסעיף השכן)
+        span = section_span(pg, words, sec.get('n'))
+        if span:
+            inside = [r for r in hit if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
+            hit = inside or hit
+        # ואם משפט המפתח נמצא בעמוד — עדיף המופע שבתוכו ("12 חודשים" של מועד ההתחלה, לא של אורך החוזה)
+        sent = find_quote(pg, sec['brief']) if len(sec.get('brief') or '') >= 20 else None
+        if sent:
+            inside = [r for r in hit if sent[0] - 3 <= (r.y0 + r.y1) / 2 <= sent[1] + 3]
+            hit = inside or hit
+        return pg, p, hit, needle, 'value', span
+    brief = sec.get('brief') or ''
+    if len(brief) >= 20:
+        for p in pages:
+            pg = pdf[p - 1]
+            sent = find_quote(pg, brief)
+            if sent:
+                rows = [fitz.Rect(*b) for b in rows_between(pg, sent[0], sent[1])]
+                if rows:
+                    return pg, p, rows, 'משפט המפתח של הסעיף', 'sentence', None
+    return None
+
+
 def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
     """צילום לכל עמוד שיש בו ציטוטים על קווים (line-changes.json): כל הציטוטים שבעמוד מודגשים בצהוב,
     והתמונה חתוכה לאזור שלהם. שלמה (16.09): "שהתכונה תצלם את המסכים הרלוונטיים לאותו פרק ותסמן את הציטוט"."""
@@ -252,13 +319,17 @@ def snip_quotes(fitz, Image, url_sha, previous, result, pdfs):
         for ya, yb in spans:
             for box in rows_between(pg, ya, yb):
                 rows[round((box[1] + box[3]) / 2)] = box
+        annots = []
         for box in rows.values():
             a = pg.add_highlight_annot(fitz.Rect(*box))
             a.set_colors(stroke=(1, 0.9, 0.2))
             a.update()
+            annots.append(a)
         bands = spans
         # תמיד העמוד המלא של המסמך, כמו שהוא (שלמה 16.09: "לצלם את כל הדף במסמך של משרד התחבורה") — הסימון מעליו
         pix = pg.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), clip=pg.rect, alpha=False)
+        for a in annots:
+            pg.delete_annot(a)
         img = Image.open(io.BytesIO(pix.tobytes('png')))
         if img.width > 1400:
             img = img.resize((1400, int(img.height * 1400 / img.width)))
@@ -304,57 +375,35 @@ def main():
                 continue
             try:
                 pdf = pdfs.get(sha) or fitz.open(str(path)); pdfs[sha] = pdf
-                pg = pdf[pno - 1]
+                pdf[pno - 1]
             except Exception:
                 continue
-            hit, needle = None, None
-            words = pg.get_text('words')
-            # ערך עם כמה מספרים: כל מספר עם היחידה שלו, וכולם מסומנים (בלי היחידה — רק כשלמספר 2 ספרות ומעלה)
-            phrases = phrases_for(f)
-            if phrases:
-                found, used = [], []
-                for n in phrases:
-                    if ' ' not in n and len(n) < 2:
-                        continue
-                    if any(n == u.split(' ')[0] for u in used):
-                        continue                      # המספר לבדו — רק אם הביטוי עם היחידה לא נמצא
-                    pm = re.match(r'^([\d,.]+) (\S+)$', n)
-                    rects = phrase_rects(words, pm.group(1), pm.group(2)) if pm else []
-                    rects = rects or find_rects(pg, n, words)
-                    if rects:
-                        found += rects[:6]
-                        used.append(n)
-                if found:
-                    hit, needle = found[:24], ' · '.join(used)
-            if not hit:
-                for n in needles_for(key, f):
-                    rects = find_rects(pg, n, words)
-                    if rects:
-                        hit, needle = rects[:12], n
-                        break
-            if not hit:
+            found = locate(fitz, pdf, pno, key, f)
+            if not found:
                 continue
-            # רק בתוך הסעיף עצמו, כשכותרתו בעמוד (אותו מספר יכול להופיע גם בסעיף השכן)
-            span = section_span(pg, words, (f.get('sec') or {}).get('n'))
-            if span:
-                inside = [r for r in hit if span[0] <= (r.y0 + r.y1) / 2 <= span[1]]
-                hit = inside or hit
+            pg, used_page, hit, needle, how, span = found
+            words = pg.get_text('words')
             # מה בדיוק סומן (המילים שמתחת לכל סימון) — נשמר כדי שאפשר יהיה לבדוק את כל הצילומים בלי לפתוח תמונות
             marks = [' '.join(w[4] for w in words if r.x0 < w[2] and r.x1 > w[0] and r.y0 < w[3] and r.y1 > w[1]) for r in hit]
+            annots = []
             for r in hit:
                 a = pg.add_highlight_annot(r)
                 a.set_colors(stroke=(1, 0.9, 0.2)); a.update()
+                annots.append(a)
             y0 = max(0, min(r.y0 for r in hit) - 110)
             y1 = min(pg.rect.height, max(r.y1 for r in hit) + 150)
             clip = fitz.Rect(0, y0, pg.rect.width, y1)
             pix = pg.get_pixmap(matrix=fitz.Matrix(1.7, 1.7), clip=clip, alpha=False)
+            for a in annots:                       # הסימון של שדה אחד לא נשאר בצילום של שדה אחר באותו עמוד
+                pg.delete_annot(a)
             img = Image.open(io.BytesIO(pix.tobytes('png')))
             if img.width > 1400:
                 img = img.resize((1400, int(img.height * 1400 / img.width)))
             safe = re.sub(r'[^a-z0-9_]', '_', key)
-            rel = f'snips/{re.sub(r"[^a-zA-Z0-9_-]", "_", tid)}-{sha[:12]}-p{pno}-{safe}.webp'   # כולל את המכרז — שני מכרזים יכולים לחלוק מסמך
+            rel = f'snips/{re.sub(r"[^a-zA-Z0-9_-]", "_", tid)}-{sha[:12]}-p{used_page}-{safe}.webp'   # כולל את המכרז — שני מכרזים יכולים לחלוק מסמך
             img.save(ROOT / rel, 'WEBP', quality=82, method=6)
-            result['tenders'].setdefault(tid, {})[key] = {'image': rel, 'page': pno, 'needle': needle, 'sha': sha, 'v': VERSION, 'marks': marks[:24], 'inSection': bool(span)}
+            result['tenders'].setdefault(tid, {})[key] = {'image': rel, 'page': used_page, 'needle': needle, 'sha': sha, 'v': VERSION,
+                                                          'marks': marks[:24], 'how': how, 'inSection': bool(span)}
             made += 1
     snip_quotes(fitz, Image, url_sha, prev_all.get('quotes', {}), result, pdfs)
     for pdf in pdfs.values():

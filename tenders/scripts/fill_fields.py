@@ -124,7 +124,12 @@ def rules(doc, secs, today, route_meta, known):
     if s:
         d = date_near(full(s), m.start())
         if d:
-            out['dates.questions'] = V(d, doc, s, notes='לפי טבלת המועדים במסמך המקורי; מועדים עשויים להתעדכן בהודעות הבהרה.')
+            note = 'לפי טבלת המועדים במסמך המקורי; מועדים עשויים להתעדכן בהודעות הבהרה.'
+            yr = int(d[:4])
+            if yr < 2010 or yr > datetime.date.today().year + 2:
+                # במכרז 624510 כתוב "12 בדצמבר 2118" — כך במסמך; מציגים כמו שכתוב ומעירים
+                note += f' במסמך כתוב {yr} — כנראה טעות כתיב ({yr - 100}).'
+            out['dates.questions'] = V(d, doc, s, notes=note)
 
     s, m = find(secs, r"תקופת הפעלת שלב א['׳] תחל לא יאוחר מ\s*[–-]?\s*(\d+)\s*חודשים", '1')
     if s:
