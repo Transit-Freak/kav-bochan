@@ -375,3 +375,31 @@ def test_student_lines_list_is_rebuilt_in_document_order():
     # מק"ט שלא מתאים למספר — לא נוגעים
     assert line_changes.fix_parens('קווים (25041) 41, (10010) 10') == 'קווים 10 (10010) ו-41 (25041).'
     assert line_changes.fix_parens('קו (99123) 41 יבוטל') == 'קו (99123) 41 יבוטל'
+
+
+import snip_fields  # noqa: E402
+
+
+def _page_with(text):
+    import fitz
+    doc = fitz.open()
+    pg = doc.new_page()
+    pg.insert_text((50, 100), text, fontsize=12)
+    return pg
+
+
+def test_number_needle_matches_whole_numbers_only():
+    # בעמוד 80 של חיפה "20" סימן גם את "2003" ו-"2017" (שנות חוקים) — רק המספר כמילה שלמה נחשב
+    pg = _page_with('law 2003 and 2017 rules (20%) and 120 buses, 20 more')
+    words = pg.get_text('words')
+    assert [w[4] for w in words if snip_fields.num_core(w[4]) == '20'] == ['(20%)', '20']
+    rects = snip_fields.find_rects(pg, '20', words)
+    assert len(rects) == 2
+    assert len(pg.search_for('20')) == 5           # בלי הסינון: 2003, 2017, 20%, 120, 20
+    assert len(snip_fields.find_rects(pg, '20%', words)) == 1
+    # ביטוי עם יחידה: "9 months" לא נתפס בתוך "19 months"
+    pg2 = _page_with('phase a within 9 months, phase b within 19 months')
+    assert len(snip_fields.find_rects(pg2, '9 months')) == 1
+    assert len(pg2.search_for('9 months')) == 2
+    # ערך באחוזים מחפש קודם "20%"
+    assert snip_fields.needles_for('fleet.reserve', {'value': 20, 'kind': 'percent'})[:2] == ['20%', '20']

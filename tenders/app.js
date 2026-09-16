@@ -50,7 +50,9 @@ function renderFeed(){const host=$('live-results');if(!host)return;const tokens=
  for(const pane of host.querySelectorAll('.tabpane:not([hidden])'))activatePane(pane);
  $('feed-more').hidden=all.length<=6;$('feed-more').textContent=feedExpanded?'הצגת פחות':`הצגת כל ${all.length} התוצאות`;}
 function activatePane(pane){
- for(const d of pane.querySelectorAll(':scope > details.lines-section, :scope > details.cond-section')){if(!d.open)d.open=true;}
+ // כל "פרטים" שהכותרת שלו מוסתרת בלשונית (קווים, סעיפים, הקבצים, טבלה מסריקה קודמת) חייב להיפתח — אחרת הלשונית ריקה
+ // (שלמה 16.09: "כפתור הקבצים לא עושה כלום")
+ for(const d of pane.querySelectorAll(':scope > details.lines-section, :scope > details.cond-section, :scope > details.package-summary, :scope > details.review-details')){if(!d.open)d.open=true;}
 }
 document.addEventListener('click',e=>{
  const b=e.target.closest('button[data-card-tab]');if(!b)return;

@@ -106,8 +106,9 @@ const GROUPS = [
     ok(f['guarantee.bid']) && [`כדי להגיש הצעה צריך להפקיד ערבות בנקאית של ${money(f['guarantee.bid'].value)} (כסף ביטחון, מקבלים אותו בחזרה אם לא זוכים).`, f['guarantee.bid']],
   ]],
   ['מה החברה שתזכה חייבת לעשות?', f => [
-    ok(f['fleet.operating']) && [typeof f['fleet.operating'].value === 'number' ? `להפעיל לפחות ${heNum(f['fleet.operating'].value)} אוטובוסים, כולל רזרבה לתקלות.` : `${S(f['fleet.operating'].value)}.`, f['fleet.operating']],
-    ok(f['fleet.reserve']) && [`להחזיק עוד ${heNum(f['fleet.reserve'].value)}% אוטובוסים ברזרבה, למקרה של תקלות.`, f['fleet.reserve']],
+    // רק מה שכתוב במסמך: "רזרבה תפעולית" — בלי "למקרה של תקלות" (שלמה 16.09: "הוא רושם דברים שלא רושמים במכרז כלל")
+    ok(f['fleet.operating']) && [typeof f['fleet.operating'].value === 'number' ? `להפעיל לפחות ${heNum(f['fleet.operating'].value)} אוטובוסים, כולל הרזרבה התפעולית.` : `${S(f['fleet.operating'].value)}.`, f['fleet.operating']],
+    ok(f['fleet.reserve']) && [`להחזיק רזרבה תפעולית של ${heNum(f['fleet.reserve'].value)}% אוטובוסים.`, f['fleet.reserve']],
     ok(f['fleet.electric_share']) && [typeof f['fleet.electric_share'].value === 'number' ? (f['fleet.electric_share'].value === 100 ? 'כל האוטובוסים יהיו חשמליים.' : `לפחות ${f['fleet.electric_share'].value}% מהאוטובוסים יהיו חשמליים.`) : `אוטובוסים חשמליים: ${S(f['fleet.electric_share'].value)}.`, f['fleet.electric_share']],
     ok(f['fleet.max_age']) && valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`) && [typeof f['fleet.max_age'].value === 'number' ? `לא להשתמש באוטובוס בן יותר מ-${heNum(f['fleet.max_age'].value)} שנים.` : `גיל הרכב: ${valOf(f['fleet.max_age'], v => `${heNum(v)} שנים`)}.`, f['fleet.max_age']],
     ok(f['fleet.accessibility']) && [`${S(f['fleet.accessibility'].value)} לאנשים עם מוגבלות.`, f['fleet.accessibility']],
@@ -143,7 +144,7 @@ const GLOSSARY = [
   ['סובסידיה', 'התשלום שהמדינה משלמת למפעיל על הפעלת הקווים.'],
   ['עלות ההפעלה השנתית', 'כמה עולה להפעיל את כל הקווים בשנה, לפי חישוב המדינה. על זה מתחרים.'],
   ['תוספת ק"מ', 'קילומטרים נוספים שהחברה מציעה לתת למדינה בלי תשלום, כדי לזכות.'],
-  ['רזרבה תפעולית', 'אוטובוסים נוספים שמחזיקים למקרה של תקלות.'],
+  ['רזרבה תפעולית', 'אוטובוסים נוספים מעבר למספר שצריך לנסיעות עצמן (המסמך לא מפרט למה; בדרך כלל כדי להחליף אוטובוס שבטיפול או שהתקלקל).'],
   ['מק"ט', 'מספר הזיהוי הרשמי של קו (לא מספר הקו שרואים על האוטובוס).'],
   ['המפקח על התעבורה', 'האחראי במשרד התחבורה שנותן את רישיונות הקווים.'],
   ['פיצויים מוסכמים', 'קנסות קבועים מראש שהחברה משלמת על כל הפרה (נסיעה שלא יצאה, איחור, אוטובוס מלוכלך…).'],

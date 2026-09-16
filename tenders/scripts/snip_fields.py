@@ -20,11 +20,30 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 6
+VERSION = 7
 
 
 def read(path, default):
     return json.loads(path.read_text(encoding='utf-8')) if path.exists() else default
+
+
+def num_core(word):
+    """המספר שבתוך מילה מהעמוד: "(20%)" → "20", "מ-12" → "12", "2,000" → "2000", "2003" → "2003"."""
+    return re.sub(r'^\D+|\D+$', '', word).replace(',', '')
+
+
+def find_rects(pg, needle, words=None):
+    """איפה כתוב needle בעמוד. מחרוזת שמתחילה במספר ("20", "20%", "9 חודשים") נחשבת רק כשהמספר הוא מילה שלמה —
+    כשחיפשו "20" סומנו גם "2003" ו-"2017" באותו עמוד (שלמה 16.09, חיפה עמוד 80)."""
+    rects = pg.search_for(needle)
+    m = re.match(r'^([\d,]+)', needle)
+    if not m or not rects:
+        return rects
+    want = m.group(1).replace(',', '')
+    if words is None:
+        words = pg.get_text('words')
+    boxes = [w[:4] for w in words if num_core(w[4]) == want]
+    return [r for r in rects if any(r.x0 < b[2] and r.x1 > b[0] and r.y0 < b[3] and r.y1 > b[1] for b in boxes)]
 
 
 UNIT = r'(?:חודשים|חודש|ימים|יום|שנים|שנה|שבועות|אחוז|%|₪|ש"ח|נקודות|מושבים|אוטובוסים)'
@@ -54,6 +73,8 @@ def needles_for(key, f):
     v = f.get('value')
     if isinstance(v, (int, float)) and v:
         n = int(v)
+        if f.get('kind') == 'percent':
+            out.append(f'{n}%')
         out += [f'{n:,}', str(n)]
         if n >= 1000 and n % 1000 == 0:
             out.append(f'{n // 1000:,}')       # "2,000" בתוך "2,000,000"
@@ -116,9 +137,10 @@ def find_quote(pg, quote):
     """המקום בעמוד שבו כתוב הציטוט: מחפשים את מילות הציטוט, מקבצים לפי שורות, ובוחרים את רצף השורות
     (לפי אורך הציטוט) שבו נמצאו הכי הרבה מילים שונות. מחזיר (y עליון, y תחתון) של שורות הציטוט, או None."""
     hits = []
+    words = pg.get_text('words')
     for strict in (True, False):
         for w in quote_words(quote, strict):
-            for r in pg.search_for(w)[:20]:
+            for r in find_rects(pg, w, words)[:20]:
                 hits.append((w, r))
         if hits:
             break
@@ -241,6 +263,7 @@ def main():
             except Exception:
                 continue
             hit, needle = None, None
+            words = pg.get_text('words')
             # ערך עם כמה מספרים: כל מספר עם היחידה שלו, וכולם מסומנים (בלי היחידה — רק כשלמספר 2 ספרות ומעלה)
             phrases = phrases_for(f)
             if phrases:
@@ -250,7 +273,7 @@ def main():
                         continue
                     if any(n == u.split(' ')[0] for u in used):
                         continue                      # המספר לבדו — רק אם הביטוי עם היחידה לא נמצא
-                    rects = pg.search_for(n)
+                    rects = find_rects(pg, n, words)
                     if rects:
                         found += rects[:6]
                         used.append(n)
@@ -258,7 +281,7 @@ def main():
                     hit, needle = found[:24], ' · '.join(used)
             if not hit:
                 for n in needles_for(key, f):
-                    rects = pg.search_for(n)
+                    rects = find_rects(pg, n, words)
                     if rects:
                         hit, needle = rects[:12], n
                         break
