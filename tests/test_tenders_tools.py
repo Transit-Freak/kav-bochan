@@ -377,6 +377,7 @@ def test_student_lines_list_is_rebuilt_in_document_order():
     assert line_changes.fix_parens('קו (99123) 41 יבוטל') == 'קו (99123) 41 יבוטל'
     # השרון: הסוגריים נפתחו לפני המספר ונסגרו לפני המק"ט
     assert line_changes.fix_parens('קו ( 2 מק"ט )45002 ברעננה.') == 'קו 2 (מק"ט 45002) ברעננה.'
+    assert line_changes.fix_parens('קו ( 2מק"ט  )45002ברעננה.') == 'קו 2 (מק"ט 45002) ברעננה.'
     assert line_changes.fix_parens('קו ( 12 מק"ט,)31012 מהוד השרון למסוף רעננה.') == 'קו 12 (מק"ט 31012) מהוד השרון למסוף רעננה.'
 
 
