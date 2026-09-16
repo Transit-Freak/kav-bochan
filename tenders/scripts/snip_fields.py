@@ -20,7 +20,7 @@ from package_pipeline import CACHE, ensure_cached  # noqa: E402
 
 SNIPS = ROOT / 'snips'
 OUT = ROOT / 'snips.json'
-VERSION = 1
+VERSION = 2
 
 
 def read(path, default):
@@ -118,7 +118,7 @@ def main():
             if img.width > 1400:
                 img = img.resize((1400, int(img.height * 1400 / img.width)))
             safe = re.sub(r'[^a-z0-9_]', '_', key)
-            rel = f'snips/{sha[:16]}-p{pno}-{safe}.webp'
+            rel = f'snips/{re.sub(r"[^a-zA-Z0-9_-]", "_", tid)}-{sha[:12]}-p{pno}-{safe}.webp'   # כולל את המכרז — שני מכרזים יכולים לחלוק מסמך
             img.save(ROOT / rel, 'WEBP', quality=82, method=6)
             result['tenders'].setdefault(tid, {})[key] = {'image': rel, 'page': pno, 'needle': needle, 'sha': sha, 'v': VERSION}
             made += 1
