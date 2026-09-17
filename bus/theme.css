@@ -111,7 +111,7 @@ h1{font-size:32px}
 @media (min-width: 1024px) {
   #app{display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:22px;align-items:start}
   #app > :not(.tabbar):not(.tabsec){grid-column:1 / -1}
-  .tabbar{grid-column:1;grid-row:2 / span 40;position:sticky;top:12px;flex-direction:column;gap:6px;padding:6px 0;margin:0;overflow:visible;background:transparent}
+  .tabbar{grid-column:1;grid-row:span 40;position:sticky;top:12px;flex-direction:column;gap:6px;padding:6px 0;margin:0;overflow:visible;background:transparent}
   .tabbar .tab{text-align:right;padding:10px 14px;border-radius:12px;font-size:13.5px}
   .tabbar .tab small{display:block;margin:3px 0 0;font-size:11.5px}
   .tabsec{grid-column:2;min-width:0}
