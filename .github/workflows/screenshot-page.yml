@@ -1,0 +1,105 @@
+name: screenshot-page
+
+# צילום מסך של דף חי דרך דפדפן אמיתי (Chromium) במכונת Actions, ששם יש אינטרנט מלא —
+# לבדיקה בעין של מפות ושל אתרים שחסומים מסביבת העבודה (שלמה 17.09: "אין לך אפשרות לפתוח
+# דפדפן ולהסתכל?"). אפשר ללחוץ על אלמנטים לפני הצילום (למשל לפתוח נסיעה במדד הרכבת).
+# הצילום נשמר ב-docs/fetched/ בענף main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'כתובת הדף'
+        required: true
+      out:
+        description: 'נתיב הצילום (PNG) בתוך הריפו'
+        required: true
+        default: 'docs/fetched/page.png'
+      clicks:
+        description: 'בוררי CSS ללחיצה לפני הצילום, מופרדים ב-;; (אופציונלי)'
+        required: false
+        default: ''
+      wait:
+        description: 'המתנה במילישניות אחרי הטעינה/הלחיצות'
+        required: false
+        default: '5000'
+      width:
+        description: 'רוחב החלון'
+        required: false
+        default: '1280'
+      full:
+        description: 'עמוד שלם (1) או רק החלון (0)'
+        required: false
+        default: '0'
+
+permissions:
+  contents: write
+
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: דפדפן
+        run: |
+          npm init -y >/dev/null
+          npm install --silent playwright@1.47.2
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: פתיחה, לחיצות וצילום
+        env:
+          U: ${{ inputs.url }}
+          OUT: ${{ inputs.out }}
+          CLICKS: ${{ inputs.clicks }}
+          WAIT: ${{ inputs.wait }}
+          WIDTH: ${{ inputs.width }}
+          FULL: ${{ inputs.full }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$OUT")"
+          cat > shot.js <<'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const b = await chromium.launch();
+            const ctx = await b.newContext({ locale: 'he-IL', viewport: { width: +process.env.WIDTH || 1280, height: 900 }, deviceScaleFactor: 1 });
+            const pg = await ctx.newPage();
+            const errs = [];
+            pg.on('pageerror', e => errs.push(e.message.slice(0, 120)));
+            pg.on('requestfailed', r => { if (/tile|basemap|cartocdn|openstreetmap/.test(r.url())) errs.push('אריח נכשל: ' + r.url().slice(0, 100)); });
+            const resp = await pg.goto(process.env.U, { waitUntil: 'networkidle', timeout: 90000 });
+            console.log('סטטוס', resp && resp.status());
+            for (const sel of (process.env.CLICKS || '').split(';;').map(s => s.trim()).filter(Boolean)) {
+              await pg.waitForSelector(sel, { timeout: 30000 });
+              await pg.locator(sel).first().click();
+              console.log('לחיצה:', sel);
+              await pg.waitForTimeout(1500);
+            }
+            await pg.waitForTimeout(+process.env.WAIT || 5000);
+            await pg.screenshot({ path: process.env.OUT, fullPage: process.env.FULL === '1' });
+            console.log('שגיאות בדף:', errs.length ? errs.join(' | ') : 'אין');
+            await b.close();
+          })().catch(e => { console.error(e); process.exit(1); });
+          EOF
+          node shot.js
+          ls -la "$OUT"
+
+      - name: שמירה ב-main
+        env:
+          OUT: ${{ inputs.out }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$OUT"
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -m "צילום מסך: $OUT"
+          for i in 1 2 3 4 5; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true; sleep 10
+          done
+          exit 1
