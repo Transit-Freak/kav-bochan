@@ -70,25 +70,35 @@
     <span class="tag">לעורכי ויקיפדיה</span>
     <a class="homelink" href="../" target="_blank" rel="noopener">→ הקו הבוחן</a>
   </div>
-  <div class="sub">בערכים של תחנות מרכזיות ומסופים יש הרבה רשימות קווים לא מעודכנות. הכלי משווה את מה שכתוב בערך מול הקווים שמתחילים ומסתיימים בתחנה בפועל — לפי קובץ ה-GTFS הרשמי של משרד התחבורה — ומייצר טבלה מוכנה להדבקה בערך.</div>
+  <div class="sub">בערכים של תחנות מרכזיות ומסופים יש הרבה רשימות קווים לא מעודכנות. הכלי סורק את הערכים אוטומטית, משווה את מה שכתוב בהם מול הקווים שמתחילים ומסתיימים בכל תחנה בפועל — לפי קובץ ה-GTFS הרשמי של משרד התחבורה — ומייצר טבלה מוכנה להדבקה בערך.</div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
-let DATA=null, SEL=null, Q='', WIKI=null, WBUSY=false;
+let DATA=null, AUDIT=null, SEL=null, Q='', WIKI=null, WBUSY=false;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fd=s=>s?s.split('-').reverse().join('.'):'—';
 
+function auditBadge(k){
+  const a=AUDIT&&AUDIT.stations&&AUDIT.stations[k];
+  if(!a) return '';
+  if(!a.article) return '<span class="chip warn">לא נמצא ערך</span>';
+  if(!a.hasTable) return '<span class="chip warn">אין טבלת קווים בערך</span>';
+  if(a.wrong&&a.wrong.length) return `<span class="chip bad">${a.wrong.length} קווים שגויים בערך</span>`;
+  return '<span class="chip ok">הטבלה בערך תקינה ✓</span>';
+}
 function home(){
   const f=Q.trim();
   const ks=Object.keys(DATA.stations).filter(k=>!f||k.includes(f)||DATA.stations[k].city.includes(f))
-    .sort((a,b)=>DATA.stations[b].lines.length-DATA.stations[a].lines.length);
+    .sort((a,b)=>{
+      const w=k=>{const x=AUDIT&&AUDIT.stations&&AUDIT.stations[k];return x&&x.wrong?x.wrong.length:0;};
+      return (w(b)-w(a))||(DATA.stations[b].lines.length-DATA.stations[a].lines.length);});
   return `<div class="cards">${ks.map(k=>{const s=DATA.stations[k];
     return `<button class="card" onclick="pick(${JSON.stringify(k).replace(/"/g,'&quot;')})">
-      <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span></button>`;}).join('')
+      <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span><div style="margin-top:6px">${auditBadge(k)}</div></button>`;}).join('')
     ||'<div class="empty">לא נמצאה תחנה</div>'}</div>
-  <p class="note">מוצגות תחנות מרכזיות ומסופים עם 5 קווים ומעלה (בלי מסופים תפעוליים). קו משויך לתחנה אם היא נקודת המוצא או הסיום שלו. עדכון: ${fd(DATA.updated)}.</p>`;
+  <p class="note">מוצגות תחנות מרכזיות ומסופים עם 5 קווים ומעלה (בלי מסופים תפעוליים). קו משויך לתחנה אם היא נקודת המוצא או הסיום שלו. הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
 }
 
 function destTxt(st,l){
@@ -98,23 +108,35 @@ function destTxt(st,l){
 
 function stView(){
   const s=DATA.stations[SEL];
+  const a=AUDIT&&AUDIT.stations&&AUDIT.stations[SEL];
+  const real=new Set(s.lines.map(l=>l[0]));
+  const hasPlat=s.lines.some(l=>l[3]);
   return `<button class="back" onclick="SEL=null;WIKI=null;render()">→ כל התחנות</button>
   <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים מתחילים/מסתיימים בתחנה · לפי GTFS מ-${fd(DATA.updated)}</div></div>
 
-  <div class="panel"><p class="ptitle">בדיקה מול ויקיפדיה</p>
+  ${a?`<div class="panel"><p class="ptitle">מה כתוב בערך היום — מהסריקה השבועית</p>
+    ${!a.article?'<p class="note">לא נמצא ערך מתאים בוויקיפדיה לתחנה הזו.</p>':
+      !a.hasTable?`<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a></div>
+        <div class="stat" style="color:var(--warn)">⚠ בערך אין טבלת קווים — אפשר להוסיף אחת עם הטבלה המוכנה שלמטה.</div>`:
+      `<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a> · ${a.inArticle.length} קווים בטבלאות הערך · <b style="color:var(--ok)">${a.correct} נכונים</b>${a.wrong.length?` · <b style="color:var(--bad)">${a.wrong.length} שגויים</b>`:''}${a.missing?` · ${a.missing} חסרים`:''}</div>
+      <div>${a.inArticle.map(l=>`<span class="chip ${real.has(l)?'ok':'bad'}">${esc(l)}</span>`).join('')}</div>
+      <p class="note">ירוק = הקו כתוב בערך וקיים בתחנה. אדום = כתוב בערך אבל לא מתחיל/מסתיים בתחנה כיום (ייתכן שבוטל — או שהוא עוצר בתחנה באמצע מסלולו). הסריקה רצה פעם בשבוע.</p>`}
+  </div>`:''}
+
+  <div class="panel"><p class="ptitle">בדיקה מול ויקיפדיה — עכשיו</p>
     <div class="row2">
-      <input id="wtitle" placeholder="שם הערך בוויקיפדיה (ריק = חיפוש אוטומטי)" value="${esc(WIKI&&WIKI.title||'')}">
+      <input id="wtitle" placeholder="שם הערך בוויקיפדיה (ריק = חיפוש אוטומטי)" value="${esc((WIKI&&WIKI.title)||(a&&a.article)||'')}">
       <button class="btn" onclick="checkWiki()" ${WBUSY?'disabled':''}>${WBUSY?'בודק…':'בדיקת הערך'}</button>
     </div>
     ${WIKI&&WIKI.err?`<div class="stat" style="color:var(--bad)">${esc(WIKI.err)}</div>`:''}
-    ${WIKI&&WIKI.done?wikiResult():'<p class="note">מקלידים את שם הערך (או משאירים ריק לחיפוש אוטומטי) ולוחצים. הכלי קורא את קוד המקור של הערך ומזהה את הקווים שכתובים בטבלאות שלו — כמו שעורכים כותבים קווים בערכי תחנות.</p>'}
+    ${WIKI&&WIKI.done?wikiResult():'<p class="note">בדיקה טרייה מול הגרסה הנוכחית של הערך — למקרה שערכו אותו אחרי הסריקה השבועית.</p>'}
   </div>
 
   <div class="panel"><p class="ptitle">הקווים בתחנה בפועל</p>
-    <table><thead><tr><th>קו</th><th>מפעיל</th><th>יעדים</th></tr></thead><tbody>
-    ${s.lines.map(l=>`<tr><td>${esc(l[0])}</td><td>${esc(l[1])}</td><td>${esc(destTxt(SEL,l))}</td></tr>`).join('')}
+    <table><thead><tr><th>קו</th><th>מפעיל</th><th>יעדים</th>${hasPlat?'<th>רציף</th>':''}</tr></thead><tbody>
+    ${s.lines.map(l=>`<tr><td>${esc(l[0])}</td><td>${esc(l[1])}</td><td>${esc(destTxt(SEL,l))}</td>${hasPlat?`<td>${esc(l[3]||'—')}</td>`:''}</tr>`).join('')}
     </tbody></table>
-    <p class="note">נספרים קווים שהתחנה היא המוצא או היעד שלהם. קווים שרק עוצרים בדרך אינם ברשימה.</p>
+    <p class="note">נספרים קווים שהתחנה היא המוצא או היעד שלהם. הרציף — כפי שמופיע בשם התחנה ב-GTFS (לא לכל קו יש). קווים שרק עוצרים בדרך אינם ברשימה.</p>
   </div>
 
   <div class="panel"><p class="ptitle">טבלה מוכנה להדבקה בערך</p>
@@ -122,7 +144,7 @@ function stView(){
     <div class="row2" style="margin-top:8px">
       <button class="btn" onclick="navigator.clipboard.writeText($('#wt').value).then(()=>{this.textContent='הועתק ✓';setTimeout(()=>this.textContent='העתקת הטבלה',1500)})">העתקת הטבלה</button>
     </div>
-    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · יעדים) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
+    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · יעדים · רציף) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
   </div>`;
 }
 
@@ -146,8 +168,9 @@ function wikitext(s){
     if(!ds.length) return 'קו מעגלי';
     return ds.map(d=>isStop(d)?d:`[[${CITYFIX[d]||d}]]`).join(', ');
   };
-  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${linkDests(l)}`).join('\n');
-  return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! יעדים\n${rows}\n|}`;
+  const hasPlat=s.lines.some(l=>l[3]);
+  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${linkDests(l)}${hasPlat?` || ${l[3]||'—'}`:''}`).join('\n');
+  return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! יעדים${hasPlat?' !! רציף':''}\n${rows}\n|}`;
 }
 
 /* ── בדיקת הערך: קוראים את קוד המקור (wikitext) ומזהים קווים בטבלאות —
@@ -168,8 +191,11 @@ function extractLines(wt){
     if(ln.startsWith('!')){rowStart=false;continue;}   // שורת כותרות
     if(ln.startsWith('|')&&rowStart){
       const cell=ln.replace(/^\|+/,'').split(/\|\|/)[0];
-      const m=clean(cell).match(/^(\d{1,3}[א-ת]?)$/);
-      if(m) found.add(m[1]);
+      // "9/9א" — זוג קווים באותו תא, מפוצל על לוכסן
+      for(const part of clean(cell).split(/[\/\\]/)){
+        const m=part.trim().match(/^(\d{1,3}[א-ת]?)$/);
+        if(m) found.add(m[1]);
+      }
       // תבנית קו בתא הראשון: {{...|370}}
       for(const t of cell.matchAll(/\{\{[^}]*?\|\s*(\d{1,3}[א-ת]?)\s*(?:\||\}\})/g)) found.add(t[1]);
       rowStart=false;
@@ -184,10 +210,14 @@ async function checkWiki(){
   try{
     const api='https://he.wikipedia.org/w/api.php?origin=*&format=json&';
     if(!title){
-      const q=await (await fetch(api+'action=query&list=search&srlimit=1&srsearch='+encodeURIComponent(SEL+' '+s.city))).json();
-      const hit=(q.query.search||[])[0];
-      if(!hit) throw new Error('לא נמצא ערך מתאים — נסו להקליד את שם הערך המדויק');
-      title=hit.title;
+      // מחפשים ערך שבאמת נראה כמו תחנה — לא סתם התוצאה הראשונה
+      const rel=t=>['תחנה','מסוף','מרכזית'].some(w=>t.includes(w))||t.includes(s.city);
+      for(const q of [SEL+' '+s.city,'התחנה המרכזית של '+s.city,'התחנה המרכזית '+s.city]){
+        const r0=await (await fetch(api+'action=query&list=search&srlimit=5&srsearch='+encodeURIComponent(q))).json();
+        const hit=(r0.query.search||[]).find(h=>rel(h.title));
+        if(hit){title=hit.title;break;}
+      }
+      if(!title) throw new Error('לא נמצא ערך שנראה כמו תחנה — הקלידו את שם הערך המדויק');
     }
     const r=await (await fetch(api+'action=query&prop=revisions&rvprop=content&rvslots=main&redirects=1&titles='+encodeURIComponent(title))).json();
     const pg=Object.values(r.query.pages)[0];
@@ -223,7 +253,7 @@ function wikiResult(){
   <div class="stat" style="color:var(--mut)">קווים בתחנה שלא מופיעים בערך (${w.missing.length}) — לא בהכרח טעות: הרבה ערכים מפרטים רק חלק מהקווים</div>
   <div>${chipList(w.missing,'warn','כל הקווים מופיעים בערך')}</div>
   ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים בערך: ${esc(w.opsMissing.join(', '))}</div>`:''}
-  <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד, ורק מעמודת הקו (התא הראשון בכל שורה) — מספרי רציפים, שנים וטקסט חופשי אינם נספרים. חלק מהקווים בבדיקה עשויים לעצור בתחנה באמצע מסלולם ולכן לא להופיע בנתוני המוצא/יעד — כדאי לאמת לפני עריכה.</p>`;
+  <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד, ורק מעמודת הקו (התא הראשון בכל שורה, כולל זוגות כמו 9/9א) — מספרי רציפים, שנים וטקסט חופשי אינם נספרים. חלק מהקווים בבדיקה עשויים לעצור בתחנה באמצע מסלולם ולכן לא להופיע בנתוני המוצא/יעד — כדאי לאמת לפני עריכה.</p>`;
 }
 
 function pick(k){SEL=k;WIKI=null;render();window.scrollTo({top:0});}
@@ -231,8 +261,10 @@ function render(){$('#view').innerHTML=SEL?stView():home();
   const q=$('#q');if(q)q.value=Q;}
 document.addEventListener('input',e=>{if(e.target.id==='q'){Q=e.target.value;render();$('#q').focus();const v=$('#q');v.setSelectionRange(v.value.length,v.value.length);}});
 
-fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json();})
-.then(d=>{DATA=d;
+Promise.all([
+  fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
+  fetch('data/audit.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null)
+]).then(([d,a])=>{DATA=d;AUDIT=a;
   document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה מרכזית או מסוף…">');
   render();})
 .catch(()=>{$('#view').innerHTML='<div class="msg">עוד אין נתונים — הריצו את ה-workflow ‏wiki-stations ב-GitHub Actions.</div>';});
