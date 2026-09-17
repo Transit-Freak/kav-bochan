@@ -8,7 +8,7 @@
 
 route_long_name בפורמט "תחנה-עיר<->תחנה-עיר-מק" — צד = נקודת קצה של
 הקו. תחנה נחשבת מרכזית/מסוף לפי שמה. הפלט: wiki-check/data/stations.json
-בפורמט {updated, stations:{"שם התחנה": {city, lines:[[קו, מפעיל, [יעדים]]]}}}.
+בפורמט {updated, stations:{"שם התחנה": {city, lines:[[קו, מפעיל, [יעדים], רציף]]}}}.
 """
 import datetime
 import json
@@ -26,8 +26,11 @@ SUFFIX = re.compile(r'(-\d+[א-ת]?#?\s*)+$')   # מק"ט/כיוון/חלופה 
 STATION_WORDS = ('מרכזית', 'מסוף')
 
 
+PLATFORM = re.compile(r'רציפ(?:ים)?\s*[-:]?\s*([A-Za-z0-9א-ת]{1,3})\b')
+
+
 def parse_side(side):
-    """"ת. מרכזית טבריה/רציפים-טבריה-1א" → (תחנה, עיר) או None."""
+    """"ת. מרכזית טבריה/רציף 12-טבריה-1א" → (תחנה, עיר, רציף) או None."""
     side = SUFFIX.sub('', side).strip()
     if '-' not in side:
         return None
@@ -35,7 +38,13 @@ def parse_side(side):
     stop, city = stop.strip(), city.strip()
     if not stop or not city:
         return None
-    return stop, city
+    # הרציף — מהחלק שאחרי ה-'/' בשם התחנה (כמו בערכים: עמודת רציף)
+    plat = ''
+    if '/' in stop:
+        m = PLATFORM.search(stop.split('/', 1)[1])
+        if m and m.group(1) not in ('ם',):
+            plat = m.group(1)
+    return stop, city, plat
 
 
 def station_key(stop):
@@ -74,10 +83,13 @@ def main():
             key = f'{base}|{me[1]}'
             st = stations.setdefault(key, {'name': base, 'city': me[1], 'lines': {}})
             lk = f'{line}|{op}'
-            ent = st['lines'].setdefault(lk, {'line': line, 'op': op, 'dests': set()})
+            ent = st['lines'].setdefault(lk, {'line': line, 'op': op,
+                                              'dests': set(), 'plats': set()})
             # היעד: העיר שבקצה השני, ואם זו אותה עיר — התחנה שבקצה השני
             dest = other[1] if other[1] != me[1] else station_key(other[0])
             ent['dests'].add(dest)
+            if me[2]:
+                ent['plats'].add(me[2])
 
     def linekey(x):
         m = re.match(r'\d+', x['line'])
@@ -96,7 +108,8 @@ def main():
         label = st['name'] if names[st['name']] == 1 else f"{st['name']} ({st['city']})"
         out_st[label] = {
             'city': st['city'],
-            'lines': [[x['line'], x['op'], sorted(x['dests'])] for x in lines]}
+            'lines': [[x['line'], x['op'], sorted(x['dests']),
+                       '/'.join(sorted(x['plats']))] for x in lines]}
     out = {'updated': datetime.date.today().isoformat(), 'stations': out_st}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = f'{OUT}.tmp'
