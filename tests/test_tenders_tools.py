@@ -500,3 +500,14 @@ def test_quote_with_a_unique_makat_is_found_even_when_other_words_repeat():
     assert span and 105 < (span[0] + span[1]) / 2 < 125          # השורה השנייה בלבד
     span = snip_fields.find_quote(pg, 'line 24 (makat 39024) in Raanana.')
     assert span and 125 < (span[0] + span[1]) / 2 < 145
+
+
+def test_operator_may_becomes_the_company_can_and_page_headers_are_not_sections():
+    """שלמה 17.09: בתקציר הופיע "יהיה תכול החברה שתזכה" (פועל בנקבה בטעות); ו-78 שורות כותרת-עמוד של נוהל מצורף
+    ("05  מהדורה: ציבורית") הפכו לסעיפים ב"כל הסעיפים"."""
+    from tender_sections import simplify, header
+    assert simplify('במידה שיינתן אישור מראש ,יהיה רשאי המפעיל לנתב שיחות') == 'אם יינתן אישור מראש, החברה שתזכה תוכל לנתב שיחות'
+    assert simplify('אחת לרבעון רשאי המפעיל לפנות למפקח') == 'אחת לרבעון החברה שתזכה תוכל לפנות למפקח'
+    assert 'תכול' not in simplify('המפעיל יכול לפנות למפקח')
+    assert header('05  מהדורה: ציבורית') is None
+    assert header('20.2 מוקד טלפוני') == ('20.2', 'מוקד טלפוני')
