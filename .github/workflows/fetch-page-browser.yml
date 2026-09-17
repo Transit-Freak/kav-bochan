@@ -64,4 +64,5 @@ jobs:
           git add "${{ inputs.out }}"
           git diff --cached --quiet && { echo "ללא שינוי"; exit 0; }
           git commit -m "docs: דף שהורד דרך דפדפן במכונת Actions — ${{ inputs.out }}"
-          git push origin HEAD:"$GITHUB_REF_NAME"
+          # כמה ריצות במקביל דוחפות לאותו ענף — מנסים שוב אחרי משיכה
+          for i in 1 2 3 4 5; do git pull --rebase -q origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME" && break || sleep $((5 * i)); done
