@@ -350,7 +350,7 @@ function render() {
   renderAgencies(); renderClusters(); renderCities(); renderFilters(); renderLines(); renderWorst(); renderVehicles(); renderVanish();
 }
 // איפה האוטובוס נעלם (שלמה 17.09): עד איפה נראו הנסיעות, לפי מפעיל, והתחנות שאחריהן נסיעות נעלמות
-let coverCache = {}, sortV = {k: 'rT', dir: -1};
+let coverCache = {}, sortV = {k: 'rT', dir: -1}, sortVL = {k: 'gone', dir: -1}, vlq = '', showAllVL = false;
 function loadCover(days) {
   return Promise.all(days.filter(d => !coverCache[d]).map(d => load(DATA + 'days/' + d + '.cover.json').then(j => { coverCache[d] = j; }).catch(() => { coverCache[d] = {}; })));
 }
@@ -359,6 +359,22 @@ const RCOL = [C.ok, C.warn, C.bad, C.early];
 function reachBar(x) {
   const T = reachT(x); if (!T) return '';
   return `<div class="rbar" title="${x.reach.map((v, i) => RNAMES[i] + ' ' + pct(v, T)).join(' · ')}">${x.reach.map((v, i) => v ? `<span style="width:${100 * v / T}%;background:${RCOL[i]}"></span>` : '').join('')}</div>`;
+}
+function renderVanishLines() {
+  const box = $('#t-vlines'); if (!box) return;
+  const q = vlq.trim();
+  let rows = Object.values(M.Rr).map(s => { const l = lineLabel(s.rid), rT = reachT(s); return {rid: s.rid, short: l.short, long: l.long, agency: l.agency, sched: s.sched, rT, rend: rT ? s.reach[0] / rT : null, rpart: rT ? s.reach[1] / rT : null, rstart: rT ? s.reach[2] / rT : null, rstatic: rT ? s.reach[3] / rT : null, gone: rT ? 1 - s.reach[0] / rT : null, miss: s.sched ? Math.max(0, s.sched - rT) / s.sched : null, cov: s.cov[0] ? s.cov[1] / s.cov[0] : null, s}; }).filter(r => r.rT >= MIN_RIDES);
+  if (q) { const tok = q.split(/\s+/); const numTok = tok.find(t => /^\d/.test(t)), txt = tok.filter(t => t !== numTok).join(' '); rows = rows.filter(r => (!numTok || r.short === numTok || (!txt && r.short.startsWith(numTok))) && (!txt || (r.long + ' ' + r.agency).includes(txt))); }
+  sortRows(rows, sortVL);
+  const total = rows.length;
+  if (!showAllVL) rows = rows.slice(0, q ? 60 : 30);
+  box.innerHTML = `<div class="tblbox"><table id="tvl"><thead><tr>${th('קו', 'short', sortVL)}${th('מסלול', 'long', sortVL)}${th('מפעיל', 'agency', sortVL)}${th('נסיעות ששודרו', 'rT', sortVL)}<th>עד איפה נראו</th>${th('עד הסוף', 'rend', sortVL)}${th('באמצע הדרך', 'rpart', sortVL)}${th('רק בהתחלה', 'rstart', sortVL)}${th('לא זזו', 'rstatic', sortVL)}${th('לא שידרו בכלל', 'miss', sortVL)}${th('קליטה בדרך', 'cov', sortVL)}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td>${num(r.rT)} <small style="color:var(--dim)">מתוך ${num(r.sched)}</small></td><td style="min-width:120px">${reachBar(r.s)}</td><td>${Math.round(r.rend * 100)}%</td><td class="${r.rpart >= 0.2 ? 'd4' : r.rpart >= 0.1 ? 'd3' : ''}">${Math.round(r.rpart * 100)}%</td><td class="${r.rstart >= 0.05 ? 'd4' : ''}">${Math.round(r.rstart * 100)}%</td><td class="${r.rstatic >= 0.1 ? 'd4' : r.rstatic >= 0.05 ? 'd3' : ''}">${Math.round(r.rstatic * 100)}%</td><td class="${missCls(r.miss)}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${r.cov == null ? '—' : Math.round(r.cov * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
+    (total > rows.length ? `<button class="more" id="more-vl">הצגת כל ${num(total)} הקווים</button>` : '') +
+    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים עם ${MIN_RIDES} נסיעות ששודרו לפחות (כיוון וחלופה נספרים בנפרד)</div>`;
+  $('#tvl thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortVL = {k, dir: sortVL.k === k ? -sortVL.dir : (['short', 'long', 'agency'].includes(k) ? 1 : -1)}; renderVanishLines(); };
+  box.querySelectorAll('.linebtn').forEach(b => b.onclick = () => { openLine = b.dataset.rid; showTab('line'); renderLineDetail(); $('#line-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  const mb = $('#more-vl'); if (mb) mb.onclick = () => { showAllVL = true; renderVanishLines(); };
 }
 function renderVanish() {
   const box = $('#t-vanish'); if (!box) return;
@@ -379,8 +395,12 @@ function renderVanish() {
     <div class="tblbox"><table id="tv"><thead><tr>${th('מפעיל', 'nm', sortV)}${th('נסיעות ששודרו', 'rT', sortV)}<th>עד איפה נראו</th>${th('עד הסוף', 'rend', sortV)}${th('באמצע הדרך', 'rpart', sortV)}${th('רק בהתחלה', 'rstart', sortV)}${th('לא זזו', 'rstatic', sortV)}${th('לא שידרו בכלל', 'miss', sortV)}${th('קליטה בדרך', 'cov', sortV)}</tr></thead><tbody>` +
     rows.map(r => `<tr><td class="nm">${esc(r.nm)}</td><td>${num(r.rT)} <small style="color:var(--dim)">מתוך ${num(r.sched)}</small></td><td style="min-width:140px">${reachBar(r.s)}</td><td>${Math.round(r.rend * 100)}%</td><td class="${r.rpart >= 0.1 ? 'd3' : ''}">${Math.round(r.rpart * 100)}%</td><td class="${r.rstart >= 0.03 ? 'd4' : ''}">${Math.round(r.rstart * 100)}%</td><td class="${r.rstatic >= 0.05 ? 'd4' : r.rstatic >= 0.03 ? 'd3' : ''}">${Math.round(r.rstatic * 100)}%</td><td class="${missCls(r.miss)}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${r.cov == null ? '—' : Math.round(r.cov * 100) + '%'}</td></tr>`).join('') +
     `</tbody></table></div><div class="mut" style="margin-top:6px">מפעילים עם 20 נסיעות ששודרו לפחות. "קליטה בדרך": מתוך התחנות שהאוטובוס ודאי עבר (נמדד לפניהן ואחריהן), כמה נקלטו. "לא שידרו בכלל": נסיעות בלו״ז בלי שום שידור, לא בוצעו או בוצעו בלי מכשיר.</div>
+    <div class="ptitle" style="margin-top:12px">לפי קו</div><p class="pdesc">אותם ארבעה מדדים לכל כיוון של כל קו, מהקו שהכי הרבה נסיעות שלו לא נראו עד הסוף. לחיצה על מספר הקו פותחת את הפירוט שלו, תחנה אחרי תחנה.</p>
+    <div class="filters"><input id="vlq" placeholder="חיפוש קו: מספר, יעד או מפעיל" value="${esc(vlq)}"></div><div id="t-vlines"></div>
     <div class="ptitle" style="margin-top:12px">התחנות שאחריהן נסיעות נעלמות</div><p class="pdesc">התחנה האחרונה שבה נראה האוטובוס בנסיעות שנעלמו באמצע הדרך. כמה חברות שונות נעלמות שם: אחת, כנראה עניין של החברה; כמה, כנראה קליטה או מסוף שבו הנסיעה "מתחלפת".</p><div id="t-holes"><div class="empty">טוען…</div></div>`;
   $('#tv thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortV = {k, dir: sortV.k === k ? -sortV.dir : (k === 'nm' ? 1 : -1)}; renderVanish(); };
+  $('#vlq').oninput = e => { vlq = e.target.value; showAllVL = false; renderVanishLines(); };
+  renderVanishLines();
   const days = M.days;
   Promise.all([loadCover(days), loadProfiles([])]).then(() => {
     const hb = $('#t-holes'); if (!hb) return;
@@ -610,7 +630,7 @@ function renderLineDetail() {
       <div><b>${oT ? pct(s.o[0], oT) : '—'}</b><span>יציאה מוקדמת מהמוצא</span></div>
       <div><b>${s.avg == null ? '—' : fmt1(s.avg)}<i>דק׳</i></b><span>איחור ממוצע${s.s && s.s[2] != null ? ` · 90% עד ${fmt1(s.s[2])}` : ''}</span></div>
       <div><b>${num(s.obs)}</b><span>נסיעות נצפו מתוך ${num(s.sched)}</span></div>
-      ${reachT(s) ? `<div><b>${pct(s.reach[0], reachT(s))}</b><span>נראו עד סוף המסלול</span></div><div><b>${pct(s.reach[2] + s.reach[3], reachT(s))}</b><span>נראו רק בהתחלה, או שודרו ולא זזו</span></div>` : ''}
+      ${reachT(s) ? `<div><b>${pct(s.reach[0], reachT(s))}</b><span>נראו עד סוף המסלול</span></div><div><b>${pct(s.reach[1], reachT(s))}</b><span>נעלמו באמצע הדרך</span></div><div><b>${pct(s.reach[2], reachT(s))}</b><span>נראו רק בהתחלה</span></div><div><b>${pct(s.reach[3], reachT(s))}</b><span>שידרו ולא זזו</span></div>` : ''}
       ${s.cov[0] ? `<div><b>${pct(s.cov[1], s.cov[0])}</b><span>מהתחנות שבדרך נקלטו (השאר: חורי GPS)</span></div>` : ''}
     </div>
     ${vehicleDetails(s)}
