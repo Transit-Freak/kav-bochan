@@ -74,9 +74,16 @@ jobs:
             const resp = await pg.goto(process.env.U, { waitUntil: 'networkidle', timeout: 90000 });
             console.log('סטטוס', resp && resp.status());
             for (const sel of (process.env.CLICKS || '').split(';;').map(s => s.trim()).filter(Boolean)) {
-              await pg.waitForSelector(sel, { timeout: 30000 });
-              await pg.locator(sel).first().click();
-              console.log('לחיצה:', sel);
+              // מחכים שהאלמנט יהיה בדף (גם אם מחוץ למסך), גוללים אליו ולוחצים; כישלון לא מבטל את הצילום
+              try {
+                await pg.waitForSelector(sel, { state: 'attached', timeout: 45000 });
+                const el = pg.locator(sel).first();
+                await el.scrollIntoViewIfNeeded();
+                await el.click({ force: true });
+                console.log('לחיצה:', sel, '(נמצאו', await pg.locator(sel).count(), ')');
+              } catch (e) {
+                console.log('לחיצה נכשלה:', sel, e.message.split('\n')[0], '· טקסט בדף:', (await pg.evaluate(() => document.body.innerText)).slice(0, 300).replace(/\s+/g, ' '));
+              }
               await pg.waitForTimeout(1500);
             }
             await pg.waitForTimeout(+process.env.WAIT || 5000);
