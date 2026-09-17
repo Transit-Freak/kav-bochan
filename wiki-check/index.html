@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>ויקי-בודק — הקו הבוחן</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="2" y="4" width="28" height="24" rx="5" fill="%2310172A"/><text x="16" y="22" font-size="16" text-anchor="middle" fill="white" font-family="serif" font-weight="bold">W</text></svg>'>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{
+    --bg:#F2F4F8; --surface:#FFFFFF; --ink:#10172A; --mut:#6B7488; --dim:#8B93A7;
+    --line:#E6EAF0; --chipbg:#EEF1F6; --row:#F6F8FB;
+    --ok:#166534; --ok-bg:#DCFCE7; --bad:#991B1B; --bad-bg:#FEE2E2;
+    --warn:#92400E; --warn-bg:#FEF3C7;
+    --shadow:0 1px 3px rgba(16,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  html{direction:rtl}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Rubik',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:18px 16px 60px}
+  .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .logo{width:42px;height:42px;border-radius:13px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;font-family:serif;flex-shrink:0}
+  h1{font-size:21px;font-weight:800;margin:0}
+  .tag{font-size:10.5px;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:999px;padding:3px 10px}
+  .homelink{margin-inline-start:auto;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none}
+  .sub{font-size:12.5px;color:var(--mut);font-weight:600;line-height:1.6;margin:8px 0 14px}
+  #q{width:100%;height:46px;border:none;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);padding:0 16px;font:600 14px 'Rubik',sans-serif;color:var(--ink);outline:none;margin-bottom:12px}
+  #q:focus{box-shadow:0 0 0 2px #10172A, var(--shadow)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+  .card{border:none;text-align:inherit;font-family:inherit;cursor:pointer;color:#fff;background:#10172A;border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
+  .card h2{margin:0;font-size:15px;font-weight:800}
+  .card span{font-size:11px;opacity:.75;font-weight:600}
+  .panel{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;margin-top:14px}
+  .ptitle{font-weight:800;font-size:14px;margin:0 0 10px}
+  .ophead{color:#fff;background:#10172A;border-radius:18px;padding:16px 20px}
+  .ophead h2{margin:0;font-size:20px;font-weight:800}
+  .ophead .sub2{font-size:12px;opacity:.85;font-weight:500;margin-top:3px}
+  .back{border:none;background:var(--surface);color:var(--ink);border-radius:12px;padding:9px 15px;font:700 13px 'Rubik',sans-serif;cursor:pointer;box-shadow:var(--shadow);margin-bottom:12px}
+  table{width:100%;border-collapse:separate;border-spacing:0 5px;font-size:12.5px}
+  th{text-align:right;font-size:11px;color:var(--dim);font-weight:700;padding:2px 10px}
+  td{background:var(--row);padding:8px 10px;font-weight:600}
+  td:first-child{border-radius:0 10px 10px 0;font-weight:800}
+  td:last-child{border-radius:10px 0 0 10px}
+  .chip{display:inline-block;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:800;margin:2px}
+  .chip.ok{background:var(--ok-bg);color:var(--ok)}
+  .chip.bad{background:var(--bad-bg);color:var(--bad)}
+  .chip.warn{background:var(--warn-bg);color:var(--warn)}
+  .btn{border:none;cursor:pointer;background:var(--ink);color:#fff;border-radius:12px;padding:11px 18px;font:700 13px 'Rubik',sans-serif}
+  .btn.sec{background:var(--chipbg);color:var(--ink)}
+  .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  #wtitle{flex:1;min-width:200px;height:42px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:600 13px 'Rubik',sans-serif;color:var(--ink);outline:none}
+  textarea{width:100%;min-height:180px;border:1px solid var(--line);border-radius:12px;padding:12px;font:500 12px ui-monospace,monospace;direction:rtl;resize:vertical}
+  .note{font-size:11px;color:var(--dim);font-weight:600;line-height:1.6;margin-top:10px}
+  .empty{padding:40px;text-align:center;color:var(--dim);font-weight:700}
+  .msg{padding:60px 20px;text-align:center;color:var(--mut);font-weight:800;font-size:16px}
+  .stat{font-size:13px;font-weight:700;margin:8px 0}
+  a{color:#1D4ED8}
+  button:focus-visible,input:focus-visible{outline:2px solid #10172A;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">W</div>
+    <h1>ויקי-בודק</h1>
+    <span class="tag">לעורכי ויקיפדיה</span>
+    <a class="homelink" href="../" target="_blank" rel="noopener">→ הקו הבוחן</a>
+  </div>
+  <div class="sub">בערכים של תחנות מרכזיות ומסופים יש הרבה רשימות קווים לא מעודכנות. הכלי משווה את מה שכתוב בערך מול הקווים שמתחילים ומסתיימים בתחנה בפועל — לפי קובץ ה-GTFS הרשמי של משרד התחבורה — ומייצר טבלה מוכנה להדבקה בערך.</div>
+  <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+let DATA=null, SEL=null, Q='', WIKI=null, WBUSY=false;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fd=s=>s?s.split('-').reverse().join('.'):'—';
+
+function home(){
+  const f=Q.trim();
+  const ks=Object.keys(DATA.stations).filter(k=>!f||k.includes(f)||DATA.stations[k].city.includes(f))
+    .sort((a,b)=>DATA.stations[b].lines.length-DATA.stations[a].lines.length);
+  return `<div class="cards">${ks.map(k=>{const s=DATA.stations[k];
+    return `<button class="card" onclick="pick(${JSON.stringify(k).replace(/"/g,'&quot;')})">
+      <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span></button>`;}).join('')
+    ||'<div class="empty">לא נמצאה תחנה</div>'}</div>
+  <p class="note">מוצגות תחנות מרכזיות ומסופים עם 5 קווים ומעלה (בלי מסופים תפעוליים). קו משויך לתחנה אם היא נקודת המוצא או הסיום שלו. עדכון: ${fd(DATA.updated)}.</p>`;
+}
+
+function destTxt(st,l){
+  const ds=l[2].filter(d=>d!==SEL&&!SEL.startsWith(d));
+  return ds.length?ds.join(', '):'קו מעגלי';
+}
+
+function stView(){
+  const s=DATA.stations[SEL];
+  return `<button class="back" onclick="SEL=null;WIKI=null;render()">→ כל התחנות</button>
+  <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים מתחילים/מסתיימים בתחנה · לפי GTFS מ-${fd(DATA.updated)}</div></div>
+
+  <div class="panel"><p class="ptitle">בדיקה מול ויקיפדיה</p>
+    <div class="row2">
+      <input id="wtitle" placeholder="שם הערך בוויקיפדיה (ריק = חיפוש אוטומטי)" value="${esc(WIKI&&WIKI.title||'')}">
+      <button class="btn" onclick="checkWiki()" ${WBUSY?'disabled':''}>${WBUSY?'בודק…':'בדיקת הערך'}</button>
+    </div>
+    ${WIKI&&WIKI.err?`<div class="stat" style="color:var(--bad)">${esc(WIKI.err)}</div>`:''}
+    ${WIKI&&WIKI.done?wikiResult():'<p class="note">מקלידים את שם הערך (או משאירים ריק לחיפוש אוטומטי) ולוחצים. הבדיקה רצה בדפדפן מול ה-API הפתוח של ויקיפדיה.</p>'}
+  </div>
+
+  <div class="panel"><p class="ptitle">הקווים בתחנה בפועל</p>
+    <table><thead><tr><th>קו</th><th>מפעיל</th><th>יעדים</th></tr></thead><tbody>
+    ${s.lines.map(l=>`<tr><td>${esc(l[0])}</td><td>${esc(l[1])}</td><td>${esc(destTxt(SEL,l))}</td></tr>`).join('')}
+    </tbody></table>
+    <p class="note">נספרים קווים שהתחנה היא המוצא או היעד שלהם. קווים שרק עוצרים בדרך אינם ברשימה.</p>
+  </div>
+
+  <div class="panel"><p class="ptitle">טבלה מוכנה להדבקה בערך</p>
+    <textarea id="wt" readonly>${esc(wikitext(s))}</textarea>
+    <div class="row2" style="margin-top:8px">
+      <button class="btn" onclick="navigator.clipboard.writeText($('#wt').value).then(()=>{this.textContent='הועתק ✓';setTimeout(()=>this.textContent='העתקת הטבלה',1500)})">העתקת הטבלה</button>
+    </div>
+    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · יעדים), כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
+  </div>`;
+}
+
+function wikitext(s){
+  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${l[1]} || ${destTxt(SEL,l)}`).join('\n');
+  return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! יעדים\n${rows}\n|}`;
+}
+
+/* ── בדיקת הערך: משווים את מספרי הקווים שמוזכרים בערך לרשימה האמיתית ── */
+async function checkWiki(){
+  const s=DATA.stations[SEL];
+  let title=$('#wtitle').value.trim();
+  WBUSY=true;WIKI={title};render();
+  try{
+    const api='https://he.wikipedia.org/w/api.php?origin=*&format=json&';
+    if(!title){
+      const q=await (await fetch(api+'action=query&list=search&srlimit=1&srsearch='+encodeURIComponent(SEL+' '+s.city))).json();
+      const hit=(q.query.search||[])[0];
+      if(!hit) throw new Error('לא נמצא ערך מתאים — נסו להקליד את שם הערך המדויק');
+      title=hit.title;
+    }
+    const r=await (await fetch(api+'action=query&prop=extracts&explaintext=1&redirects=1&titles='+encodeURIComponent(title))).json();
+    const pg=Object.values(r.query.pages)[0];
+    if(!pg||pg.missing!==undefined) throw new Error('הערך "'+title+'" לא נמצא בוויקיפדיה');
+    const text=pg.extract||'';
+    if(!text) throw new Error('לא הצלחתי לקרוא את תוכן הערך');
+    // מספרים בני 1–3 ספרות בערך = מועמדים למספרי קווים (שנים בנות 4 ספרות מסוננות)
+    const nums=new Set((text.match(/(?<![\d.])\d{1,3}(?![\d.])/g)||[]));
+    const real=new Set(s.lines.map(l=>l[0].replace(/[א-ת]/g,'')));
+    const realFull=new Set(s.lines.map(l=>l[0]));
+    const mentioned=[...realFull].filter(l=>nums.has(l.replace(/[א-ת]/g,'')));
+    const missing=[...realFull].filter(l=>!nums.has(l.replace(/[א-ת]/g,'')));
+    const suspect=[...nums].filter(n=>+n>0&&+n<700&&!real.has(n));
+    const ops=[...new Set(s.lines.map(l=>l[1]))];
+    const opsMissing=ops.filter(o=>!text.includes(o.split(' ')[0]));
+    WIKI={title:pg.title,done:true,mentioned,missing,suspect,opsMissing,len:text.length};
+  }catch(e){WIKI={title,err:e.message};}
+  WBUSY=false;render();
+}
+
+function chipList(arr,cls,empty){
+  return arr.length?arr.map(x=>`<span class="chip ${cls}">${esc(x)}</span>`).join(''):`<span class="note">${empty}</span>`;
+}
+function wikiResult(){
+  const w=WIKI;
+  return `<div class="stat">הערך שנבדק: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></div>
+  <div class="stat" style="color:var(--ok)">✓ קווים שמוזכרים בערך וקיימים בתחנה (${w.mentioned.length})</div>
+  <div>${chipList(w.mentioned,'ok','אף קו מהתחנה לא מוזכר בערך')}</div>
+  <div class="stat" style="color:var(--bad)">✗ קווים שקיימים בתחנה אבל לא מוזכרים בערך (${w.missing.length})</div>
+  <div>${chipList(w.missing,'bad','כל הקווים מוזכרים — כל הכבוד לעורכים')}</div>
+  <div class="stat" style="color:var(--warn)">⚠ מספרים בערך שאינם קווים בתחנה כיום (${w.suspect.length}) — אולי קו שבוטל, ואולי סתם מספר בטקסט</div>
+  <div>${chipList(w.suspect,'warn','אין מספרים חשודים')}</div>
+  ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים: ${esc(w.opsMissing.join(', '))}</div>`:''}
+  <p class="note">הבדיקה היא היסטית: היא מזהה מספרים בטקסט הערך, ולכן ייתכנו התאמות מקריות (מספרי רציפים, שנים קצרות וכד'). התוצאה היא כלי עזר לעורך — לא פסק דין.</p>`;
+}
+
+function pick(k){SEL=k;WIKI=null;render();window.scrollTo({top:0});}
+function render(){$('#view').innerHTML=SEL?stView():home();
+  const q=$('#q');if(q)q.value=Q;}
+document.addEventListener('input',e=>{if(e.target.id==='q'){Q=e.target.value;render();$('#q').focus();const v=$('#q');v.setSelectionRange(v.value.length,v.value.length);}});
+
+fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json();})
+.then(d=>{DATA=d;
+  document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה מרכזית או מסוף…">');
+  render();})
+.catch(()=>{$('#view').innerHTML='<div class="msg">עוד אין נתונים — הריצו את ה-workflow ‏wiki-stations ב-GitHub Actions.</div>';});
+</script>
+</body>
+</html>

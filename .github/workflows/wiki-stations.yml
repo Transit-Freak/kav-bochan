@@ -1,0 +1,32 @@
+name: wiki-stations
+
+# ויקי-בודק: בניית נתוני האמת על תחנות מרכזיות ומסופים מה-GTFS הרשמי —
+# הקווים שמתחילים/מסתיימים בכל תחנה, לבדיקת ערכי ויקיפדיה.
+
+on:
+  schedule:
+    - cron: '0 4 * * 5'   # שישי 04:00 UTC — שבועי
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: בניית נתוני התחנות
+        run: python3 tools/wiki_stations.py
+
+      - name: commit
+        run: |
+          git config user.name 'fleet-bot'
+          git config user.email 'noreply@github.com'
+          git add wiki-check/data
+          git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
+          git commit -m 'data: wiki-check — עדכון נתוני התחנות מה-GTFS'
+          git pull --rebase origin main
+          git push
