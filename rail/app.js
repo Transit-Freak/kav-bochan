@@ -359,7 +359,9 @@ function openRide(r) {
     const pts = r.s.map(x => ST[x[0]]).filter(s => s && s[1] != null);
     if (window.L && pts.length) {
       MAP = L.map('map', {scrollWheelZoom: false, attributionControl: true});
-      L.tileLayer(`https://{s}.basemaps.cartocdn.com/${T.tiles === 'dark' ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, {attribution: '© OpenStreetMap, © CARTO', maxZoom: 18}).addTo(MAP);
+      // רקע המפה מ-OpenStreetMap, כמו בשאר האתר. CARTO דורשים מפתח מסוף אוגוסט 2026 והאריחים
+      // שלהם הראו "API KEY REQUIRED" (רם אגמון דרך קו באג, 17.09). במצב כהה האריחים מתהפכים ב-CSS.
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap', maxZoom: 19, className: T.tiles === 'dark' ? 'tiles-dark' : ''}).addTo(MAP);
       // המסילה בין כל שתי תחנות עוקבות (מרשת המסילות של OSM); בלעדיה קו מקווקו
       for (let i = 1; i < r.s.length; i++) {
         const a = ST[r.s[i - 1][0]], c = ST[r.s[i][0]]; if (!a || !c || a[1] == null || c[1] == null) continue;
