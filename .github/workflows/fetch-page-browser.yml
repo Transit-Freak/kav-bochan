@@ -49,7 +49,7 @@ jobs:
             await pg.waitForTimeout(4000);
             const text = await pg.evaluate(() => document.body.innerText);
             const links = await pg.$$eval('a[href]', as => as.map(a => (a.innerText.trim() + ' | ' + a.href)).filter(s => s.length > 3));
-            fs.writeFileSync(process.env.OUT, `מקור: ${process.env.U}\nסטטוס: ${resp && resp.status()}\nהורד: ${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })} (שעון ישראל)\n\n${text}\n\n===== קישורים =====\n${links.join('\n')}\n`);
+            fs.writeFileSync(process.env.OUT, `מקור: ${process.env.U}\nכתובת סופית: ${pg.url()}\nסטטוס: ${resp && resp.status()}\nהורד: ${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })} (שעון ישראל)\n\n${text}\n\n===== קישורים =====\n${links.join('\n')}\n`);
             await b.close();
           })();
           EOF
