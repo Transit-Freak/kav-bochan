@@ -667,7 +667,7 @@ function ChoiceScreen({ onPick }) {
             <svg viewBox="0 0 120 120" className="w-11 h-11 md:w-14 md:h-14 flex-none"><rect width="120" height="120" rx="26" fill="#0f172a"/><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" stroke="#38bdf8" strokeWidth="6" fill="none" strokeLinejoin="round"/><circle cx="60" cy="60" r="20" fill="#38bdf8"/><circle cx="60" cy="60" r="9.5" fill="#0f172a"/><circle cx="66" cy="54" r="3.5" fill="#fff"/><path d="M22 60 H34 M86 60 H98" stroke="#38bdf8" strokeWidth="4" strokeLinecap="round" strokeDasharray="1 7"/></svg>
             <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">הקו הבוחן</h1>
           </div>
-          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">אחד-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
+          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שנים-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
           <button onClick={() => setAboutMe(v => !v)} className="mt-3 text-sm font-black text-sky-700 hover:text-sky-900 hover:underline">
             👋 קצת עליי {aboutMe ? '▲' : '▼'}
           </button>
@@ -885,30 +885,6 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
-          {/* נגישות אזורי תעשייה — אפליקציה עצמאית בתיקיית parks/, בשיתוף
-              מחלקת קידום תחבורה ציבורית בהסתדרות (שלמה 03.09: סמלי ההסתדרות בכרטיס) */}
-          <a
-            href="parks/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0c1e4a 0%,#1e3a8a 52%,#2563eb 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#93c5fd' }} />
-            <div className="relative">
-              {/* הלוגואים יורדים לשורה משלהם כשהכרטיס צר (4 עמודות במחשב): בגובה קבוע
-                  ובלי שבירה הם נחתכו בקצה הכרטיס (שלמה 13.09) */}
-              <div className="flex flex-wrap items-center justify-between mb-6 min-h-28 gap-3">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🏭</span>
-                <div className="flex flex-wrap items-center justify-end gap-2" style={{ flex: "1 1 170px", minWidth: 0 }}>
-                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" loading="lazy" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
-                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" loading="lazy" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
-                </div>
-              </div>
-              <h2 className="text-3xl font-[900] text-blue-100">נגישות אזורי תעשייה</h2>
-              <p className="text-blue-100/80 font-bold mt-2 text-sm leading-relaxed">ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-blue-200 text-blue-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
           {/* מדד אמינות הרכבת — עמוד עצמאי בתיקיית rail/, מנתוני דאטאבוס (שלמה 04.09) */}
           <a
             href="rail/"
@@ -943,6 +919,56 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
+        </div>
+
+        {/* שיתופי פעולה (שלמה 17.09): אזורי התעשייה עם ההסתדרות, וגו אינפו של רם אגמון — כל אחד מפרסם את של השני */}
+        <div id="partners" className="mt-12 pt-8 border-t border-slate-200">
+          <h2 className="text-2xl font-black text-slate-800 mb-6">שיתופי פעולה</h2>
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {/* נגישות אזורי תעשייה — אפליקציה עצמאית בתיקיית parks/, בשיתוף
+              מחלקת קידום תחבורה ציבורית בהסתדרות (שלמה 03.09: סמלי ההסתדרות בכרטיס) */}
+          <a
+            href="parks/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#0c1e4a 0%,#1e3a8a 52%,#2563eb 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#93c5fd' }} />
+            <div className="relative">
+              {/* הלוגואים יורדים לשורה משלהם כשהכרטיס צר (4 עמודות במחשב): בגובה קבוע
+                  ובלי שבירה הם נחתכו בקצה הכרטיס (שלמה 13.09) */}
+              <div className="flex flex-wrap items-center justify-between mb-6 min-h-28 gap-3">
+                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🏭</span>
+                <div className="flex flex-wrap items-center justify-end gap-2" style={{ flex: "1 1 170px", minWidth: 0 }}>
+                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" loading="lazy" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
+                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" loading="lazy" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
+                </div>
+              </div>
+              <h2 className="text-3xl font-[900] text-blue-100">נגישות אזורי תעשייה</h2>
+              <p className="text-blue-100/80 font-bold mt-2 text-sm leading-relaxed">ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-blue-200 text-blue-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
+
+          {/* גו אינפו — האתר של רם אגמון (goinfo.co.il) */}
+          <a
+            href="https://goinfo.co.il"
+            target="_blank"
+            rel="noopener"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#14532d 45%,#15803d 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#86efac' }} />
+            <div className="relative">
+              <div className="flex items-center mb-6 h-28">
+                <img src="goinfo-logo.png" alt="גו אינפו" loading="lazy" className="h-24 w-24 rounded-full bg-white shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
+              </div>
+              <h2 className="text-3xl font-[900] text-green-100">גו אינפו</h2>
+              <p className="text-green-100/80 font-bold mt-2 text-sm leading-relaxed">מערך כלים למודיעין אזרחי ולעידוד מעורבות חברתית: מפות של קווי התחבורה הציבורית, איכות הקווים ומסלולי הליכה · האתר של רם אגמון</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-green-200 text-green-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">לאתר <span>←</span></span>
+            </div>
+          </a>
+          </div>
+          <p className="text-slate-500 font-bold text-sm leading-relaxed mt-6">שנינו עוסקים בתחבורה ציבורית, ושנינו רוצים שהמידע יגיע לציבור. אז למה לא: אני מפרסם את שלו, והוא את שלי.</p>
         </div>
 
         <p data-copyright="" className="text-center text-slate-500 font-bold text-xs mt-8">© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a> · <a href="terms.html#copyright" className="hover:underline">זכויות יוצרים ותנאי שימוש</a> · <a href="accessibility.html" className="hover:underline">הצהרת נגישות</a></p>

@@ -266,6 +266,34 @@ function lineLabel(rid) {
   return {short: c[1] || rid, long: (c[2] || '').replace(/-\d[\d#א-ת]?$/, '').replace('<->', ' ← '), agency: c[3] || '', dir: c[4] || '', alt: c[5] || '', aid: c[7] || '', cluster: c[8] || '', ltype: c[9] || '', sub: c[10] || ''};
 }
 let M = null;
+// קטגוריות (שלמה 17.09: "העמוד עמוס, במיוחד בטלפון"): הסיכום הגדול תמיד למעלה, ומתחתיו רק הקטגוריה שנבחרה.
+// הקטעים הלא-נבחרים נשארים בדף בגובה אפס (לא display:none) כדי שהגרפים שבהם יצוירו ברוחב נכון.
+const TABS = [['overview', 'מבט כללי'], ['ops', 'מפעילים ואשכולות'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו']];
+let tab = 'overview';
+// המספר של כל קטגוריה, על הכפתור שלה (שלמה 17.09: "שיראה את המדד של אחוזים לפי המדד")
+function tabBadge(k) {
+  const t = M.tot;
+  const range = arr => { const v = arr.filter(x => x != null).map(x => Math.round(x * 100)); return v.length ? `${Math.min(...v)}%–${Math.max(...v)}% בזמן` : ''; };
+  switch (k) {
+    case 'overview': return t.meas ? pct(t.c[1], t.meas) + ' בזמן' : '';
+    case 'ops': return range(Object.values(M.A).filter(a => a.meas >= 1000).map(a => a.on));
+    case 'city': return range(Object.values(M.Cc).filter(c => c.meas >= 500).map(c => c.on));
+    case 'line': return num(Object.keys(M.Rr).length) + ' מסלולים';
+    case 'vanish': return reachT(t) ? pct(t.reach[0], reachT(t)) + ' נראו עד הסוף' : '';
+    case 'vehicle': return t.vt && t.vt[0] ? pct(t.vt[1], t.vt[0]) + ' רכב קטן מהנקבע' : '';
+    case 'worst': return t.meas ? pct(t.c[4], t.meas) + ' מעל 20 דק׳' : '';
+  }
+  return '';
+}
+function showTab(k, scroll) {
+  if (!TABS.some(([x]) => x === k)) k = 'overview';
+  tab = k;
+  document.querySelectorAll('.tabsec').forEach(el => el.classList.toggle('off', el.dataset.tab !== k));
+  document.querySelectorAll('#tabbar .tab').forEach(b => { const on = b.dataset.t === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  const h = (period === 'day' && dayD ? dayD : '') + (k !== 'overview' ? '/' + k : '');
+  history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
+  if (scroll) { const bar = $('#tabbar'); if (bar) bar.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+}
 function render() {
   renderPeriods();
   const days = windowDays();
@@ -284,20 +312,39 @@ function render() {
   const hours = Array.from({length: 24}, (_, h) => { const v = M.H[h]; const sh = v && v[0] >= 30 ? v[1] / v[0] : null; return {x: String(h).padStart(2, '0'), y: sh == null ? null : Math.round(sh * 100), color: hourColor(sh), tip: `<b>${String(h).padStart(2, '0')}:00–${String(h).padStart(2, '0')}:59</b><br>${v && v[0] ? pct(v[1], v[0]) + ' בזמן · ' + num(v[0]) + ' הגעות' : 'אין נתונים'}`}; });
   app.innerHTML = `
     ${heroHtml(M.tot, loaded)}
+    <div class="tabbar" id="tabbar" role="tablist">${TABS.map(([k, t]) => { const b = tabBadge(k); return `<button class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}">${t}${b ? `<small>${b}</small>` : ''}</button>`; }).join('')}</div>
+    <div class="tabsec" data-tab="overview">
     <div class="panel"><div class="ptitle">התפלגות ההגעות לתחנות</div><p class="pdesc">כל הגעה של אוטובוס לתחנה נספרת פעם אחת, לפי הפער בינה לבין השעה שבלוח הזמנים: כמה הגיעו מוקדם, כמה בזמן, וכמה איחרו ובכמה.</p>${distHtml(M.tot)}</div>
     <div class="cols2">
       <div class="panel"><div class="ptitle">אחוז בזמן, יום אחרי יום</div><p class="pdesc">כמה מההגעות לתחנות היו בזמן בכל יום שנמדד. לחיצה על יום בלוח השנה למעלה פותחת אותו.</p><div class="chart" id="c-trend"></div></div>
       <div class="panel"><div class="ptitle">אחוז בזמן לפי השעה ביום</div><p class="pdesc">לפי השעה שבה האוטובוס היה אמור להגיע לתחנה. ירוק: 80% ומעלה בזמן, צהוב: 65%–80%, כתום: 50%–65%, אדום: פחות מ-50%.</p><div class="chart" id="c-hours"></div></div>
     </div>
+    </div>
+    <div class="tabsec" data-tab="ops">
     <div class="panel"><div class="ptitle">לפי מפעיל</div><p class="pdesc">אותם מדדים לכל חברת אוטובוסים. לחיצה על כותרת עמודה ממיינת, לחיצה על שם המפעיל מציגה את הקווים שלו.</p><div id="t-ag"></div></div>
+    </div>
+    <div class="tabsec" data-tab="vanish">
     <div class="panel" id="p-vanish"><div class="ptitle">איפה האוטובוס נעלם</div><p class="pdesc">משרד התחבורה סופר נסיעה כ"בוצעה" אם האוטובוס דיווח בתחנת המוצא. כאן עוקבים אחרי כל נסיעה תחנה אחרי תחנה: האם נראתה עד סוף המסלול, נעלמה באמצע הדרך, נראתה רק בהתחלה, או שידרה מיקום 5 דקות ומעלה בלי לזוז על המסלול. היעלמות יכולה להיות קליטה גרועה, נסיעה שקוצרה, או נסיעה שדווחה ולא נסעה. כדי להפריד בין קליטה למפעיל: תחנה שבה אוטובוסים של כמה חברות נעלמים היא בעיית קליטה, לא של החברה.</p><div id="t-vanish"></div></div>
+    </div>
+    <div class="tabsec" data-tab="ops">
     <div class="panel"><div class="ptitle">לפי אשכול</div><p class="pdesc">משרד התחבורה מחלק את קווי האוטובוס לאשכולות (למשל "חשמונאים", "הגליל", "שרון"), וכל אשכול יוצא למכרז ומופעל על ידי חברה אחת. כאן אותם מדדים לכל אשכול, ולמעלה לפי סוג הקו: עירוני, אזורי או בינעירוני. לחיצה על שם האשכול מציגה את הקווים שלו.</p><div id="lt-sum"></div><div id="t-cl"></div></div>
+    </div>
+    <div class="tabsec" data-tab="city">
     <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">כל ההגעות לתחנות שבתחומי העיר, מכל הקווים שעוברים בה, וגם כמה מהנסיעות של הקווים האלה לא נצפו בכלל (אי ביצוע משוער). לחיצה על שם העיר פותחת פירוט: אילו קווים עוברים בה, איזה מפעילים, כמה נסיעות לא בוצעו, ואיך כל קו מדייק בתוך העיר.</p><div class="filters" id="cfilters"></div><div id="city-detail"></div><div id="t-city"></div></div>
+    </div>
+    <div class="tabsec" data-tab="line">
     <div class="panel"><div class="ptitle">לפי קו</div><p class="pdesc">כל כיוון של כל קו בנפרד. אפשר לבחור מפעיל או אשכול, לדרג ("הכי לא מדייקים") או לחפש מספר קו. לחיצה על מספר הקו פותחת פירוט: באיזה קטע לאורך הקו נצבר האיחור.</p>
       <div class="filters" id="lfilters"></div>
       <div id="line-detail"></div><div id="t-lines"></div></div>
+    </div>
+    <div class="tabsec" data-tab="vehicle">
     <div class="panel"><div class="ptitle">סוג הרכב מול מה שנקבע לקו</div><p class="pdesc">לכל קו משרד התחבורה קובע גודל רכב: מיניבוס, מידיבוס, אוטובוס או אוטובוס מפרקי. כאן משווים אותו לרכב שהגיע בפועל בכל נסיעה, לפי מספר הרכב בשידור ומאגר ציי הרכב של המשרד. "רכב קטן יותר" הוא למשל מיניבוס בקו שנקבע לו אוטובוס.</p><div id="vt-sum"></div><div class="filters" id="vt-filters"></div><div id="t-vt"></div></div>
-    <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>`;
+    </div>
+    <div class="tabsec" data-tab="worst">
+    <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>
+    </div>`;
+  $('#tabbar').onclick = e => { const b = e.target.closest('button.tab'); if (b) showTab(b.dataset.t); };
+  showTab(tab);
   lineChart($('#c-trend'), trend, {color: C.line, min: 0, max: 100, unit: '%'});
   barChart($('#c-hours'), hours, {color: C.line, max: 100, unit: '%'});
   renderAgencies(); renderClusters(); renderCities(); renderFilters(); renderLines(); renderWorst(); renderVehicles(); renderVanish();
@@ -362,7 +409,7 @@ function renderClusters() {
     rows.map(r => `<tr><td class="nm"><button class="linebtn" data-cl="${esc(r.nm)}" title="הקווים של האשכול">${esc(r.nm)}</button>${r.subs ? `<br><small style="color:var(--dim);font-weight:400">${esc(r.subs)}</small>` : ''}</td><td style="font-size:12px">${esc(r.ag)}</td><td>${num(r.n)}</td><td>${num(r.sched)}</td><td>${num(r.obs)} <small style="color:var(--dim)">(${pct(r.obs, r.sched)})</small></td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oon == null ? '—' : Math.round(r.oon * 100) + '%'}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
     `<div class="mut" style="margin-top:6px">${num(rows.length)} אשכולות · האשכול של כל קו לפי רשימת ClusterToLine של משרד התחבורה · מתחת לשם האשכול: תת-האזורים שלו, כשיש</div>`;
   $('#tk thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortK = {k, dir: sortK.k === k ? -sortK.dir : (['nm', 'ag'].includes(k) ? 1 : -1)}; renderClusters(); };
-  box.querySelectorAll('.linebtn').forEach(b => b.onclick = () => { cluster = b.dataset.cl; agency = ''; rank = rank || 'worst'; showAllL = false; renderFilters(); renderLines(); renderWorst(); $('#lfilters').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  box.querySelectorAll('.linebtn').forEach(b => b.onclick = () => { cluster = b.dataset.cl; agency = ''; rank = rank || 'worst'; showAllL = false; renderFilters(); renderLines(); renderWorst(); showTab('line'); $('#lfilters').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 }
 let vsort = 'small', vAll = false, vAgency = '';
 function renderVehicles() {
@@ -402,7 +449,7 @@ function renderAgencies() {
     rows.map(r => `<tr><td class="nm"><button class="linebtn" data-ag="${esc(r.nm)}" title="סינון הקווים למפעיל הזה">${esc(r.nm)}</button></td><td>${num(r.sched)}</td><td>${num(r.obs)} <small style="color:var(--dim)">(${pct(r.obs, r.sched)})</small></td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oon == null ? '—' : Math.round(r.oon * 100) + '%'}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td>${anyReach ? `<td>${r.rend == null ? '—' : Math.round(r.rend * 100) + '%'}</td><td class="${r.rstart == null ? '' : r.rstart >= 0.1 ? 'd4' : r.rstart >= 0.05 ? 'd3' : ''}" title="${r.rT ? num(r.rT) + ' נסיעות ששודרו' : ''}">${r.rstart == null ? '—' : Math.round(r.rstart * 100) + '%'}</td>` : ''}</tr>`).join('') + '</tbody></table></div>' +
     (anyReach ? '<p class="pdesc">"נראו עד הסוף": נסיעות ששודרו ונמדדו עד שתי התחנות האחרונות של המסלול. "רק בהתחלה": נסיעות ששודרו אבל נמדדו רק בשלוש התחנות הראשונות, או שודרו 5 דקות ומעלה בלי להתקדם על המסלול. משרד התחבורה בודק ביצוע נסיעה בתחנת המוצא בלבד; כאן בכל תחנה. הפירוט למטה, ב"איפה האוטובוס נעלם".</p>' : '');
   $('#ta thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortA = {k, dir: sortA.k === k ? -sortA.dir : (k === 'nm' ? 1 : -1)}; renderAgencies(); };
-  $('#t-ag').querySelectorAll('.linebtn').forEach(b => b.onclick = () => { agency = b.dataset.ag; rank = rank || 'worst'; showAllL = false; renderFilters(); renderLines(); renderWorst(); $('#lfilters').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  $('#t-ag').querySelectorAll('.linebtn').forEach(b => b.onclick = () => { agency = b.dataset.ag; rank = rank || 'worst'; showAllL = false; renderFilters(); renderLines(); renderWorst(); showTab('line'); $('#lfilters').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 }
 function renderCities() {
   const box = $('#t-city'); if (!box) return;
@@ -643,8 +690,9 @@ function init() {
     // רק ימים אמיתיים (YYYY-MM-DD): קובץ ערים שנכנס בטעות לאינדקס הפיל את העמוד (08.09)
     DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d && /^\d{4}-\d{2}-\d{2}$/.test(d.d));
     if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין ימים מחושבים.</div>'; $('#sub').textContent = ''; return; }
-    const h = decodeURIComponent((location.hash || '').slice(1));
+    const [h, t] = decodeURIComponent((location.hash || '').slice(1)).split('/');
     dayD = DAYS.some(d => d.d === h) ? h : DAYS[DAYS.length - 1].d;
+    if (t) tab = t;
     period = 'day';
     render();
   }).catch(e => { $('#app').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });

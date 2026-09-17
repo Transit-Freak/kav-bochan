@@ -255,6 +255,28 @@ function stationsTable(stations) {
     rows.map(r => `<tr><td class="nm">${esc(r.nm)}</td><td>${num(r.rides)}</td><td>${num(r.n)} <small style="color:var(--dim)">(${pct(r.n, r.rides)})</small></td><td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}<span class="bar"><i style="width:${Math.round((r.on || 0) * 100)}%"></i></span></td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b3 == null ? '—' : Math.round(r.b3 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
 }
 
+// קטגוריות (שלמה 17.09: "העמוד עמוס, במיוחד בטלפון"): הסיכום הגדול תמיד למעלה, מתחתיו רק הקטגוריה שנבחרה.
+// "לוח הנסיעות" קיים רק ביום בודד. במחשב הקטגוריות בתפריט צד, בטלפון בשורה שנגללת (CSS).
+const TABS = [['overview', 'מבט כללי'], ['rides', 'לוח הנסיעות'], ['lines', 'לפי קו'], ['stations', 'לפי תחנה']];
+let tab = 'overview';
+function tabBadge(k, A, days) {
+  switch (k) {
+    case 'overview': return A.acc.n ? pct(A.acc.ok, A.acc.n) + ' בזמן ליעד' : '';
+    case 'rides': return days[0] && days[0].rides ? num(days[0].rides) + ' רכבות' : '';
+    case 'lines': return num(Object.keys(A.lines).length) + ' קווים';
+    case 'stations': return num(Object.keys(A.stations).length) + ' תחנות';
+  }
+  return '';
+}
+function showTab(k) {
+  const avail = TABS.filter(([x]) => x !== 'rides' || period === 'day').map(([x]) => x);
+  if (!avail.includes(k)) k = 'overview';
+  tab = k;
+  document.querySelectorAll('.tabsec').forEach(el => el.classList.toggle('off', el.dataset.tab !== k));
+  document.querySelectorAll('#tabbar .tab').forEach(b => { const on = b.dataset.t === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  const h = (period === 'day' && dayD ? dayD : '') + (k !== 'overview' ? '/' + k : '');
+  history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
+}
 function render() {
   renderPeriods();
   const days = selectedDays();
@@ -267,7 +289,8 @@ function render() {
   if (period === 'day' && days[0] && partial(days[0])) html += `<div class="warn">ביום זה דאטאבוס קלט שידורי מיקום רק מ-${num(days[0].fix)} מתוך ${num(days[0].rides)} רכבות שבלו״ז. המספרים של היום הזה אינם מייצגים, והוא אינו נכלל בממוצעי התקופה.</div>`;
   html += heroHtml(A.acc, days);
   if (skipped.length) html += `<div class="warn">לא נכללו ${skipped.length} ימים שבהם דאטאבוס קלט שידורים מפחות ממחצית הרכבות: ${skipped.map(d => `${shortDate(d.d)} (${num(d.fix)} מתוך ${num(d.rides)})`).join(', ')}.</div>`;
-  html += `<div class="cols2">
+  html += `<div class="tabbar" id="tabbar" role="tablist">${TABS.filter(([k]) => k !== 'rides' || period === 'day').map(([k, t]) => { const b = tabBadge(k, A, days); return `<button class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}">${t}${b ? `<small>${b}</small>` : ''}</button>`; }).join('')}</div>`;
+  html += `<div class="tabsec" data-tab="overview"><div class="cols2">
     <div class="panel"><p class="ptitle">התפלגות האיחור ביעד <small>${num(A.acc.n)} רכבות</small></p><p class="pdesc">לכל רכבת נספר האיחור בתחנה האחרונה שנמדדה בה. עיכוב באמצע הדרך שנסגר עד היעד לא מופיע כאן.</p>${distHtml(A.acc) || '<div class="empty">אין רכבות שנמדדו</div>'}</div>
     <div class="panel"><p class="ptitle">התפלגות ההגעות לתחנות <small>${num(A.acc.sn)} הגעות, כולל תחנות ביניים</small></p><p class="pdesc">כל הגעה של רכבת לתחנה נספרת פעם אחת, גם בתחנות הביניים. כאן עיכוב באמצע הדרך כן נספר, גם אם הרכבת השלימה אותו עד היעד.</p>${distHtml({n: A.acc.sn, b: A.acc.sb}) || '<div class="empty">אין הגעות שנמדדו</div>'}</div>
   </div>`;
@@ -278,11 +301,13 @@ function render() {
     </div>
     <div class="panel"><p class="ptitle">איחור ממוצע ביעד, יום אחרי יום <small>דקות</small></p><div class="chart" id="c-avg"></div></div>`;
   }
-  html += `<div class="panel"><p class="ptitle">בזמן לפי שעת היציאה <small>אחוז הרכבות שנמדדו באיחור של עד 5 דק׳</small></p><div class="chart" id="c-hours"></div></div>`;
-  if (period === 'day') html += `<div class="panel" id="rides-panel"><p class="ptitle">לוח הנסיעות של היום <small id="rides-n"></small></p><div class="filters"><input id="rq" placeholder="חיפוש: קו, תחנה, מספר רכבת" value="${esc(rq)}">${[['all', 'הכול'], ['late', 'איחור מעל 5 דק׳'], ['bad', 'מעל 20 דק׳'], ['none', 'ללא שידור']].map(([k, t]) => `<button class="fchip${rfilter === k ? ' on' : ''}" data-f="${k}">${t}</button>`).join('')}</div><div id="rides"><div class="empty">טוען…</div></div></div>`;
-  html += `<div class="panel"><p class="ptitle">לפי קו <small>${Object.keys(A.lines).length} קווים</small></p>${linesTable(A.lines)}</div>`;
-  html += `<div class="panel"><p class="ptitle">לפי תחנה <small>איחור ההגעה לתחנה, בנסיעות שנמדדו בה</small></p>${stationsTable(A.stations)}</div>`;
+  html += `<div class="panel"><p class="ptitle">בזמן לפי שעת היציאה <small>אחוז הרכבות שנמדדו באיחור של עד 5 דק׳</small></p><div class="chart" id="c-hours"></div></div></div>`;
+  if (period === 'day') html += `<div class="tabsec" data-tab="rides"><div class="panel" id="rides-panel"><p class="ptitle">לוח הנסיעות של היום <small id="rides-n"></small></p><div class="filters"><input id="rq" placeholder="חיפוש: קו, תחנה, מספר רכבת" value="${esc(rq)}">${[['all', 'הכול'], ['late', 'איחור מעל 5 דק׳'], ['bad', 'מעל 20 דק׳'], ['none', 'ללא שידור']].map(([k, t]) => `<button class="fchip${rfilter === k ? ' on' : ''}" data-f="${k}">${t}</button>`).join('')}</div><div id="rides"><div class="empty">טוען…</div></div></div></div>`;
+  html += `<div class="tabsec" data-tab="lines"><div class="panel"><p class="ptitle">לפי קו <small>${Object.keys(A.lines).length} קווים</small></p>${linesTable(A.lines)}</div></div>`;
+  html += `<div class="tabsec" data-tab="stations"><div class="panel"><p class="ptitle">לפי תחנה <small>איחור ההגעה לתחנה, בנסיעות שנמדדו בה</small></p>${stationsTable(A.stations)}</div></div>`;
   app.innerHTML = html;
+  $('#tabbar').onclick = e => { const b = e.target.closest('button.tab'); if (b) showTab(b.dataset.t); };
+  showTab(tab);
   if (period !== 'day') {
     const wd = windowDays();
     lineChart($('#c-on'), wd.map(d => ({x: shortDate(d.d), y: partial(d) ? null : d.n ? Math.round(d.b[0] / d.n * 1000) / 10 : null, tip: partial(d) ? `<b>${heDate(d.d)}</b><br>שידור חלקי: ${num(d.fix)} מתוך ${num(d.rides)} רכבות — לא נכלל` : `<b>${heDate(d.d)}</b><br>בזמן: ${d.n ? pct(d.b[0], d.n) : '—'} מתוך ${num(d.n)} רכבות שנמדדו<br>ממוצע ${fmt1(d.avg)} דק׳ · ללא שידור ${pct(d.rides - d.fix, d.rides)}`})), {min: 0, max: 100, unit: '%', color: C.ok});
@@ -387,7 +412,8 @@ const methodEl = $('#method'); if (methodEl) methodEl.innerHTML = METHOD;
 Promise.all([load(T.data + 'index.json'), load(T.data + 'stations.json').catch(() => ({})), load(T.data + 'segments.json').catch(() => ({}))]).then(([idx, st, seg]) => {
   IDX = idx; ST = st || {}; SEG = (seg && seg.segments) || {}; DAYS = (idx.days || []).filter(d => d.rides).sort((a, b) => a.d < b.d ? -1 : 1);
   if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין נתונים — הריצה הראשונה מתבצעת הלילה</div>'; $('#sub').textContent = ''; return; }
-  const h = location.hash.replace('#', '');
+  const [h, t0] = location.hash.replace('#', '').split('/');
+  if (t0) tab = t0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(h) && DAYS.some(d => d.d === h)) { period = 'day'; dayD = h; }
   else if (DAYS.length <= 30) period = 'all';   // כל עוד אין יותר מחודש, 'כל התקופה' היא ברירת המחדל (הכפתור 30 ימים מוסתר)
   dayD = dayD || DAYS[DAYS.length - 1].d;

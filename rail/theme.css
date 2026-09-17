@@ -53,3 +53,20 @@
   .stopsline b{font-family:var(--disp);font-weight:400;font-size:26px;color:var(--accent);margin-inline-end:4px}
   .stopsline small{font-size:12px;color:var(--mut);font-weight:600}
   .pdesc{font-size:12.5px;color:var(--mut);font-weight:500;line-height:1.6;margin:-2px 0 10px}
+/* קטגוריות (טאבים) מתחת לסיכום הגדול — דבוקות למעלה, נגללות לרוחב בטלפון */
+.tabbar{position:sticky;top:0;z-index:6;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:4px 0 14px;background:var(--bg);scrollbar-width:none;-webkit-overflow-scrolling:touch}.tabbar::-webkit-scrollbar{display:none}
+.tabbar .tab{flex:none;white-space:nowrap;border:1px solid var(--line2);background:var(--panel);color:var(--mut);border-radius:999px;padding:8px 14px;font:800 13px var(--body);cursor:pointer}
+.tabbar .tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tabbar .tab small{display:inline;font-weight:600;font-size:11px;color:var(--dim);margin-right:6px}.tabbar .tab.on small{color:#cbd5e1}
+.tabsec.off{height:0;overflow:hidden;visibility:hidden;margin:0}
+
+/* במחשב: הקטגוריות בתפריט צד (ימין), דבוק למעלה בזמן גלילה; הסיכום הגדול נשאר ברוחב מלא (שלמה 17.09) */
+@media (min-width: 1024px) {
+  #app{display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:22px;align-items:start}
+  #app > :not(.tabbar):not(.tabsec){grid-column:1 / -1}
+  .tabbar{grid-column:1;grid-row:2 / span 40;position:sticky;top:12px;flex-direction:column;gap:6px;padding:6px 0;margin:0;overflow:visible;background:transparent}
+  .tabbar .tab{text-align:right;padding:10px 14px;border-radius:12px;font-size:13.5px}
+  .tabbar .tab small{display:block;margin:3px 0 0;font-size:11.5px}
+  .tabsec{grid-column:2;min-width:0}
+  .tabsec.off{height:0;overflow:hidden;visibility:hidden;margin:0}
+}
