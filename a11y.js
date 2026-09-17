@@ -134,6 +134,10 @@
       c.href = (me ? base + "terms.html" : "https://transit-freak.github.io/kav-bochan/terms.html") + "#copyright";
       c.textContent = "זכויות יוצרים ←";
       panel.appendChild(c);
+      var l = document.createElement("a");
+      l.href = me ? base + "links.html" : "https://transit-freak.github.io/kav-bochan/links.html";
+      l.textContent = "קישורים ←";
+      panel.appendChild(l);
       document.body.appendChild(panel);
       btn.setAttribute("aria-expanded", "true");
     }

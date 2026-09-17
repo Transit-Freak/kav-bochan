@@ -971,7 +971,7 @@ function ChoiceScreen({ onPick }) {
           </div>
         </div>
 
-        <p data-copyright="" className="text-center text-slate-500 font-bold text-xs mt-8">© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a> · <a href="terms.html#copyright" className="hover:underline">זכויות יוצרים ותנאי שימוש</a> · <a href="accessibility.html" className="hover:underline">הצהרת נגישות</a></p>
+        <p data-copyright="" className="text-center text-slate-500 font-bold text-xs mt-8">© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a> · <a href="links.html" className="hover:underline">קישורים</a> · <a href="terms.html#copyright" className="hover:underline">זכויות יוצרים ותנאי שימוש</a> · <a href="accessibility.html" className="hover:underline">הצהרת נגישות</a></p>
       </div>
     </div>
   );
