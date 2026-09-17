@@ -1,0 +1,99 @@
+name: fetch-logo
+
+# הורדת הלוגו/האייקונים של אתר חיצוני דרך דפדפן אמיתי במכונת Actions (מסביבת העבודה
+# האתרים האלה חסומים). פותח את הדף, אוסף מועמדים (og:image, אייקונים, תמונות עם "logo"
+# בשם), מוריד עד 6 מהם ל-docs/fetched/logos/ ושומר ב-main. שלמה 17.09: הלוגו של גו אינפו
+# לפסקת "שיתופי פעולה" בדף הבית.
+
+on:
+  workflow_dispatch:
+    inputs:
+      page:
+        description: 'כתובת הדף שממנו לוקחים את הלוגו'
+        required: true
+      out:
+        description: 'תיקיית היעד בתוך הריפו'
+        required: true
+        default: 'docs/fetched/logos'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: דפדפן
+        run: |
+          npm init -y >/dev/null
+          npm install --silent playwright@1.47.2
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: איסוף והורדה
+        env:
+          U: ${{ inputs.page }}
+          OUT: ${{ inputs.out }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          cat > logo.js <<'EOF'
+          const { chromium } = require('playwright'); const fs = require('fs'); const path = require('path');
+          (async () => {
+            const b = await chromium.launch();
+            const ctx = await b.newContext({ locale: 'he-IL', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' });
+            const pg = await ctx.newPage();
+            await pg.goto(process.env.U, { waitUntil: 'networkidle', timeout: 90000 });
+            await pg.waitForTimeout(3000);
+            const cands = await pg.evaluate(() => {
+              const out = [];
+              const add = (kind, u) => { if (u) out.push({ kind, url: new URL(u, location.href).href }); };
+              document.querySelectorAll('meta[property="og:image"], meta[name="twitter:image"]').forEach(m => add('og', m.content));
+              document.querySelectorAll('link[rel*="icon"]').forEach(l => add('icon:' + (l.sizes && l.sizes.value || ''), l.href));
+              document.querySelectorAll('img').forEach(i => { const s = (i.currentSrc || i.src || '') + ' ' + (i.alt || '') + ' ' + (i.className || '') + ' ' + (i.id || ''); if (/logo|לוגו|brand|icon/i.test(s)) add('img:' + (i.alt || i.className || ''), i.currentSrc || i.src); });
+              const hdr = document.querySelector('header img, nav img, .navbar img, .logo img, a[href="/"] img');
+              if (hdr) add('header', hdr.currentSrc || hdr.src);
+              return out;
+            });
+            const seen = new Set(); const list = cands.filter(c => !seen.has(c.url) && seen.add(c.url)).slice(0, 6);
+            console.log('מועמדים:', JSON.stringify(list, null, 1));
+            let n = 0;
+            for (const c of list) {
+              try {
+                const r = await ctx.request.get(c.url, { timeout: 30000 });
+                if (!r.ok()) { console.log('נכשל', r.status(), c.url); continue; }
+                const ct = r.headers()['content-type'] || '';
+                const ext = /svg/.test(ct) ? 'svg' : /png/.test(ct) ? 'png' : /jpe?g/.test(ct) ? 'jpg' : /webp/.test(ct) ? 'webp' : /ico|icon/.test(ct) ? 'ico' : path.extname(new URL(c.url).pathname).slice(1) || 'bin';
+                const body = await r.body();
+                const name = `${String(++n).padStart(2, '0')}-${c.kind.replace(/[^a-z0-9א-ת]+/gi, '_').slice(0, 24)}.${ext}`;
+                fs.writeFileSync(path.join(process.env.OUT, name), body);
+                console.log('נשמר', name, body.length, 'בייט', '←', c.url);
+              } catch (e) { console.log('שגיאה', c.url, e.message.split('\n')[0]); }
+            }
+            fs.writeFileSync(path.join(process.env.OUT, 'sources.txt'), list.map(c => c.kind + ' ' + c.url).join('\n') + '\n');
+            await b.close();
+          })().catch(e => { console.error(e); process.exit(1); });
+          EOF
+          node logo.js
+          ls -la "$OUT"
+
+      - name: שמירה ב-main
+        env:
+          OUT: ${{ inputs.out }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$OUT"
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -m "לוגו מאתר חיצוני: $OUT"
+          for i in 1 2 3 4 5; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true; sleep 10
+          done
+          exit 1
