@@ -144,7 +144,7 @@ function stView(){
     <div class="row2" style="margin-top:8px">
       <button class="btn" onclick="navigator.clipboard.writeText($('#wt').value).then(()=>{this.textContent='הועתק ✓';setTimeout(()=>this.textContent='העתקת הטבלה',1500)})">העתקת הטבלה</button>
     </div>
-    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · יעדים · רציף) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
+    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · מסלול · רציף) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. המסלול מקוצר (מוצא-יעד) — בערך שמפרט מסלולים תחנה-תחנה כדאי לשמור על הפירוט הקיים. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
   </div>`;
 }
 
@@ -169,8 +169,10 @@ function wikitext(s){
     return ds.map(d=>isStop(d)?d:`[[${CITYFIX[d]||d}]]`).join(', ');
   };
   const hasPlat=s.lines.some(l=>l[3]);
-  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${linkDests(l)}${hasPlat?` || ${l[3]||'—'}`:''}`).join('\n');
-  return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! יעדים${hasPlat?' !! רציף':''}\n${rows}\n|}`;
+  // מסלול מקוצר בסגנון הערכים: התחנה מודגשת ואז היעדים
+  const routeTxt=l=>{const d=linkDests(l);return d==='קו מעגלי'?`'''${SEL}''' (קו מעגלי)`:`'''${SEL}''' - ${d}`;};
+  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${routeTxt(l)}${hasPlat?` || ${l[3]||'—'}`:''}`).join('\n');
+  return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! מסלול${hasPlat?' !! רציף':''}\n${rows}\n|}`;
 }
 
 /* ── בדיקת הערך: קוראים את קוד המקור (wikitext) ומזהים קווים בטבלאות —
@@ -232,7 +234,8 @@ async function checkWiki(){
     const missing=[...realFull].filter(l=>!inArticle.has(l));
     const ops=[...new Set(s.lines.map(l=>l[1]))];
     const opsMissing=ops.filter(o=>!wt.includes(o.split(' ')[0]));
-    WIKI={title:pg.title,done:true,hasTable,nInArticle:inArticle.size,correct,wrong,missing,opsMissing};
+    const detailed=/←|→/.test(wt);
+    WIKI={title:pg.title,done:true,hasTable,detailed,nInArticle:inArticle.size,correct,wrong,missing,opsMissing};
   }catch(e){WIKI={title,err:e.message};}
   WBUSY=false;render();
 }
@@ -253,6 +256,7 @@ function wikiResult(){
   <div class="stat" style="color:var(--mut)">קווים בתחנה שלא מופיעים בערך (${w.missing.length}) — לא בהכרח טעות: הרבה ערכים מפרטים רק חלק מהקווים</div>
   <div>${chipList(w.missing,'warn','כל הקווים מופיעים בערך')}</div>
   ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים בערך: ${esc(w.opsMissing.join(', '))}</div>`:''}
+  ${w.detailed?`<div class="stat" style="color:var(--mut)">בערך המסלולים מפורטים תחנה-תחנה (עם חיצים) — הטבלה המוכנה נותנת מסלול מקוצר (מוצא-יעד), כדאי לשמור על הפירוט הקיים בעריכה.</div>`:''}
   <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד, ורק מעמודת הקו (התא הראשון בכל שורה, כולל זוגות כמו 9/9א) — מספרי רציפים, שנים וטקסט חופשי אינם נספרים. חלק מהקווים בבדיקה עשויים לעצור בתחנה באמצע מסלולם ולכן לא להופיע בנתוני המוצא/יעד — כדאי לאמת לפני עריכה.</p>`;
 }
 
