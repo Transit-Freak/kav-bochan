@@ -5,6 +5,21 @@
 
 ## 17.09.2026
 
+### הדומיין החדש: kavbochan.app (דרך Cloudflare)
+- **מה**: שלמה חיבר את הדומיין `kavbochan.app` ל‑GitHub Pages דרך Cloudflare (קובץ `CNAME` בשורש). כל הכתובות
+  הקבועות באתר הוחלפו לדומיין החדש: canonical ו‑og:url בדפי הכלים, `sitemap.xml`, קישורי הגיבוי ב‑`a11y.js`,
+  ~36,000 דפי השיתוף ב‑`s/`, ה‑README ותיאורי המכרזים. גם הכלים שמייצרים כתובות עודכנו (`tools/share_stubs.py`,
+  `tools/send_push.py`, `tools/ui_hunt.mjs`, `tools/report_docx.mjs`, `tools/share_line_banner.mjs`,
+  `tools/report_maps.py`, `tenders/scripts/fill_fields.py`, `next-station/app.jsx`), כדי שהריצות הבאות לא יחזירו
+  את הכתובת הישנה. נוסף `robots.txt` שמצביע על מפת האתר.
+- **התראות (OneSignal)**: הנתיב ל‑service worker היה קבוע `/kav-bochan/…`, מה שנכון רק ב‑github.io. עכשיו
+  `line-history/index.html` מחשב את שורש האתר מהכתובת (`/` בדומיין החדש, `/kav-bochan/` בישנה). בנוסף צריך
+  לעדכן ב‑OneSignal את כתובת האתר ל‑`https://kavbochan.app` (פעולה ידנית של שלמה בלוח הבקרה).
+- **לא שונה**: `docs/CHANGELOG.md` (היסטוריה), `docs/fetched/` (צילומים), `kavbug/index.html` (מפנה לאתר
+  קו באג שנשאר ב‑github.io), וקבצי נתונים שמכילים כתובות ישנות כתיעוד (`tenders/fields-rules.json`,
+  `line-history/data/ui-hunt.json`).
+- **לזכור**: הכתובת הרשמית של האתר היא `https://kavbochan.app/`. הכתובת הישנה ממשיכה להפנות אליה.
+
 ### דף "קישורים": אתרים של אחרים, המקורות, השותפים
 - **מה**: דף חדש `links.html` בסגנון תנאי השימוש, בשלושה חלקים: אתרים של אחרים שמשלימים את מה שכאן (גו אינפו של
   רם אגמון, מפת האוטובוסים של דאטאבוס; קו באג הוסר לבקשת שלמה, הוא כלי של האתר ולא אתר חיצוני), המקורות שהאתר בנוי עליהם (GTFS, SIRI דרך דאטאבוס, רישוי מערך

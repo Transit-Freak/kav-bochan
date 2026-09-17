@@ -19,7 +19,7 @@ APP_ID = os.environ.get('ONESIGNAL_APP_ID', '')
 API_KEY = os.environ.get('ONESIGNAL_API_KEY', '')
 DATE = os.environ.get('DATE') or datetime.date.today().isoformat()
 DRY = os.environ.get('DRY') == '1'
-BASE_URL = 'https://transit-freak.github.io/kav-bochan/line-history/'
+BASE_URL = 'https://kavbochan.app/line-history/'
 MAX_SENDS = int(os.environ.get('MAX_SENDS', '200'))
 
 # platform: אירועי "מספר הרציף ברישום השתנה" לא מוצגים באתר (שלמה 07.09) — ולא נשלחים

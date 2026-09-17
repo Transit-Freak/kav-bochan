@@ -20,7 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 REP = ROOT / 'parks' / 'report'
 IMG = REP / 'img'
 TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-UA = 'kav-bochan-report/1.0 (+https://transit-freak.github.io/kav-bochan/; industrial-zone accessibility report)'
+UA = 'kav-bochan-report/1.0 (+https://kavbochan.app/; industrial-zone accessibility report)'
 COL = {'in': '#16a34a', 'gate': '#84cc16', 'near': '#eab308', 'far': '#f97316', 'blocked': '#94a3b8'}
 TIER_HE = {'in': 'בתוך האזור', 'gate': 'עד 5 דק׳', 'near': '5–10 דק׳', 'far': '10–14 דק׳', 'blocked': '15 ומעלה — לא נספרת'}
 

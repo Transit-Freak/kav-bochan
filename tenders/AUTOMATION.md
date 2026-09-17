@@ -28,7 +28,7 @@
 # Tender summary updates on GitHub Pages
 
 This project's authoritative location is Transit-Freak/kav-bochan, branch main,
-directory tenders/. Its public URL is https://transit-freak.github.io/kav-bochan/tenders/.
+directory tenders/. Its public URL is https://kavbochan.app/tenders/.
 Only edit tenders/; do not edit other applications, especially parks/.
 
 1. Read the latest tenders/ files from GitHub before each run. This is no longer a Sites deployment.

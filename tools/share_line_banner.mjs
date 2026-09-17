@@ -15,7 +15,7 @@ for (const n of nums) {
     <div style="flex:1">
       <div style="font-size:110px;font-weight:900;color:#fff;line-height:1">קו ${n}</div>
       <div style="font-size:38px;font-weight:600;color:#ddd6fe;margin-top:18px">ההיסטוריה המלאה — הקו בזמן</div>
-      <div style="font-size:24px;color:rgba(255,255,255,.55);margin-top:46px;direction:ltr">transit-freak.github.io/kav-bochan/line-history</div>
+      <div style="font-size:24px;color:rgba(255,255,255,.55);margin-top:46px;direction:ltr">kavbochan.app/line-history</div>
     </div>
     <svg width="360" height="430" viewBox="0 0 180 215">
       <rect x="10" y="10" width="160" height="185" rx="26" fill="#f8fafc" stroke="#0f172a" stroke-width="5"/>

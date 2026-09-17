@@ -8,7 +8,7 @@
 import fs from 'fs';
 import { chromium } from 'playwright';
 
-const BASE = process.env.HUNT_BASE || 'https://transit-freak.github.io/kav-bochan/line-history/';
+const BASE = process.env.HUNT_BASE || 'https://kavbochan.app/line-history/';
 const N = parseInt(process.env.HUNT_N || '30', 10);
 
 const idx = await (await fetch(BASE + 'data/lines.json?cb=' + Date.now())).json();

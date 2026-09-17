@@ -122,20 +122,20 @@
       var me = document.querySelector('script[src*="a11y.js"]');
       var base = me ? me.getAttribute("src").replace(/a11y\.js.*$/, "") : "";
       a.href = me ? base + "accessibility.html"
-        : "https://transit-freak.github.io/kav-bochan/accessibility.html";
+        : "https://kavbochan.app/accessibility.html";
       a.textContent = "הצהרת נגישות ←";
       panel.appendChild(a);
       // תנאי שימוש ופרטיות — באותה חלונית, בכל עמוד באתר (שלמה 16.09: "תוסיף לכל אתר אותם")
       var t = document.createElement("a");
-      t.href = me ? base + "terms.html" : "https://transit-freak.github.io/kav-bochan/terms.html";
+      t.href = me ? base + "terms.html" : "https://kavbochan.app/terms.html";
       t.textContent = "תנאי שימוש ופרטיות ←";
       panel.appendChild(t);
       var c = document.createElement("a");
-      c.href = (me ? base + "terms.html" : "https://transit-freak.github.io/kav-bochan/terms.html") + "#copyright";
+      c.href = (me ? base + "terms.html" : "https://kavbochan.app/terms.html") + "#copyright";
       c.textContent = "זכויות יוצרים ←";
       panel.appendChild(c);
       var l = document.createElement("a");
-      l.href = me ? base + "links.html" : "https://transit-freak.github.io/kav-bochan/links.html";
+      l.href = me ? base + "links.html" : "https://kavbochan.app/links.html";
       l.textContent = "קישורים ←";
       panel.appendChild(l);
       document.body.appendChild(panel);
@@ -153,7 +153,7 @@
   function copyright() {
     if (document.querySelector("[data-copyright]")) return;
     var me = document.querySelector('script[src*="a11y.js"]');
-    var base = me ? me.getAttribute("src").replace(/a11y\.js.*$/, "") : "https://transit-freak.github.io/kav-bochan/";
+    var base = me ? me.getAttribute("src").replace(/a11y\.js.*$/, "") : "https://kavbochan.app/";
     var p = document.createElement("p");
     p.setAttribute("data-copyright", "");
     p.className = "kb-copyright";

@@ -774,7 +774,7 @@ function LetterModal({ data, initial, onClose }) {
     "",
     "שמות תחנות מדויקים חיוניים להתמצאות הנוסעים. נודה לבדיקת הליקויים ולתיקונם מול מפעילי התחבורה הציבורית.",
     "",
-    "נוצר באמצעות \"התחנה הבאה\": https://transit-freak.github.io/kav-bochan/next-station/",
+    "נוצר באמצעות \"התחנה הבאה\": https://kavbochan.app/next-station/",
     "בברכה,",
   ].join("\n") : "";
   function copyLetter() { navigator.clipboard && navigator.clipboard.writeText(letter); }

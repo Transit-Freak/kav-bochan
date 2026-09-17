@@ -12,12 +12,12 @@
   <meta property="og:site_name" content="הקו הבוחן" />
   <meta property="og:title" content="הקו בזמן — היסטוריית מסלולים ותחנות" />
   <meta property="og:description" content="כל שינוי שנכנס לתוקף בקווי התחבורה הציבורית בישראל מ-מרץ 2017 ועד היום: מסלול, שרטוט, תחנות, שמות ותדירות — מהשוואת קובצי ה-GTFS של משרד התחבורה." />
-  <meta property="og:url" content="https://transit-freak.github.io/kav-bochan/line-history/" />
+  <meta property="og:url" content="https://kavbochan.app/line-history/" />
   <meta property="og:locale" content="he_IL" />
-  <link rel="canonical" href="https://transit-freak.github.io/kav-bochan/line-history/" />
+  <link rel="canonical" href="https://kavbochan.app/line-history/" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='8' fill='%234c1d95'/%3E%3Ccircle cx='17' cy='17' r='10' fill='none' stroke='%23ddd6fe' stroke-width='2.5'/%3E%3Cpath d='M17 11 V17 L21.5 20' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
-<link rel="apple-touch-icon" href="https://transit-freak.github.io/kav-bochan/line-history/icon-180.png">
-<meta property="og:image" content="https://transit-freak.github.io/kav-bochan/line-history/og-image.png">
+<link rel="apple-touch-icon" href="https://kavbochan.app/line-history/icon-180.png">
+<meta property="og:image" content="https://kavbochan.app/line-history/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -39,11 +39,13 @@
     window.KB_ONESIGNAL_APP_ID = '80b3eceb-2e76-4c95-9d2f-a9d6d8a90848';   // הקו בזמן @ OneSignal
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     if (window.KB_ONESIGNAL_APP_ID) {
+      // שורש האתר: '/' בדומיין kavbochan.app, '/kav-bochan/' בכתובת הישנה ב-github.io
+      var kbRoot = location.pathname.replace(/line-history\/.*$/, '');
       OneSignalDeferred.push(async function (OneSignal) {
         await OneSignal.init({
           appId: window.KB_ONESIGNAL_APP_ID,
-          serviceWorkerPath: '/kav-bochan/OneSignalSDKWorker.js',
-          serviceWorkerParam: { scope: '/kav-bochan/' },
+          serviceWorkerPath: kbRoot + 'OneSignalSDKWorker.js',
+          serviceWorkerParam: { scope: kbRoot },
         });
       });
       var s = document.createElement('script');

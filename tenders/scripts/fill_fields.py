@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import tender_sections as ts  # noqa: E402
 
 OUT = ROOT / 'fields-rules.json'
-SITE = 'https://transit-freak.github.io/kav-bochan/tenders/'
+SITE = 'https://kavbochan.app/tenders/'
 
 
 def read(path, default):

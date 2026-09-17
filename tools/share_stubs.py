@@ -14,7 +14,7 @@ import json
 import os
 import sys
 
-BASE = 'https://transit-freak.github.io/kav-bochan'
+BASE = 'https://kavbochan.app'
 OUT = 's'
 
 STUB = '''<!doctype html><html lang="he"><head><meta charset="utf-8">
