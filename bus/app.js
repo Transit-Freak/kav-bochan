@@ -280,7 +280,7 @@ function tabBadge(k) {
     case 'city': return range(Object.values(M.Cc).filter(c => c.meas >= 500).map(c => c.on));
     case 'line': return num(Object.keys(M.Rr).length) + ' מסלולים';
     case 'vanish': return reachT(t) ? pct(t.reach[0], reachT(t)) + ' נראו עד הסוף' : '';
-    case 'vehicle': return t.vt && t.vt[0] ? pct(t.vt[1], t.vt[0]) + ' רכב קטן מהנקבע' : '';
+    case 'vehicle': return t.vt && t.vt[0] ? pct(t.vt[1] + t.vt[2], t.vt[0]) + ' רכב שונה מהנקבע' : '';   // קטן וגם גדול מהנקבע (שלמה 17.09)
     case 'worst': return t.meas ? pct(t.c[4], t.meas) + ' מעל 20 דק׳' : '';
   }
   return '';
