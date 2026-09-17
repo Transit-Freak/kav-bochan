@@ -107,7 +107,7 @@ function stView(){
       <button class="btn" onclick="checkWiki()" ${WBUSY?'disabled':''}>${WBUSY?'בודק…':'בדיקת הערך'}</button>
     </div>
     ${WIKI&&WIKI.err?`<div class="stat" style="color:var(--bad)">${esc(WIKI.err)}</div>`:''}
-    ${WIKI&&WIKI.done?wikiResult():'<p class="note">מקלידים את שם הערך (או משאירים ריק לחיפוש אוטומטי) ולוחצים. הבדיקה רצה בדפדפן מול ה-API הפתוח של ויקיפדיה.</p>'}
+    ${WIKI&&WIKI.done?wikiResult():'<p class="note">מקלידים את שם הערך (או משאירים ריק לחיפוש אוטומטי) ולוחצים. הכלי קורא את קוד המקור של הערך ומזהה את הקווים שכתובים בטבלאות שלו — כמו שעורכים כותבים קווים בערכי תחנות.</p>'}
   </div>
 
   <div class="panel"><p class="ptitle">הקווים בתחנה בפועל</p>
@@ -131,7 +131,32 @@ function wikitext(s){
   return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! יעדים\n${rows}\n|}`;
 }
 
-/* ── בדיקת הערך: משווים את מספרי הקווים שמוזכרים בערך לרשימה האמיתית ── */
+/* ── בדיקת הערך: קוראים את קוד המקור (wikitext) ומזהים קווים בטבלאות —
+   ככה זה כתוב בערכי תחנות: טבלאות קו/מפעיל/יעד לפי רציפים ── */
+function extractLines(wt){
+  // מספרי קווים מתוך שורות טבלה בלבד (| 370 || אגד...), לא מכל הטקסט —
+  // ככה שנים, מספרי רציפים וכמויות בטקסט החופשי לא נחשבים קווים
+  const found=new Set();
+  let inTable=0;
+  for(const raw of wt.split('\n')){
+    const ln=raw.trim();
+    if(ln.startsWith('{|')){inTable++;continue;}
+    if(ln.startsWith('|}')){if(inTable)inTable--;continue;}
+    if(!inTable) continue;
+    if(ln.startsWith('|-')||ln.startsWith('|+')) continue;
+    if(ln.startsWith('|')||ln.startsWith('!')){
+      // תא ראשון בשורה + תאים אחרי || — מספר עצמאי (אולי עם אות) = מועמד לקו
+      for(const cell of ln.replace(/^[|!]+/,'').split(/\|\||!!/)){
+        const c=cell.replace(/\{\{[^}]*\}\}|\[\[|\]\]|'''?|<[^>]*>/g,' ').trim();
+        const m=c.match(/^(\d{1,3}[א-ת]?)$/);
+        if(m) found.add(m[1]);
+        // גם תבניות קו: {{...|370}} בתוך התא
+        for(const t of cell.matchAll(/\{\{[^}]*?\|\s*(\d{1,3}[א-ת]?)\s*(?:\||\}\})/g)) found.add(t[1]);
+      }
+    }
+  }
+  return found;
+}
 async function checkWiki(){
   const s=DATA.stations[SEL];
   let title=$('#wtitle').value.trim();
@@ -144,21 +169,20 @@ async function checkWiki(){
       if(!hit) throw new Error('לא נמצא ערך מתאים — נסו להקליד את שם הערך המדויק');
       title=hit.title;
     }
-    const r=await (await fetch(api+'action=query&prop=extracts&explaintext=1&redirects=1&titles='+encodeURIComponent(title))).json();
+    const r=await (await fetch(api+'action=query&prop=revisions&rvprop=content&rvslots=main&redirects=1&titles='+encodeURIComponent(title))).json();
     const pg=Object.values(r.query.pages)[0];
-    if(!pg||pg.missing!==undefined) throw new Error('הערך "'+title+'" לא נמצא בוויקיפדיה');
-    const text=pg.extract||'';
-    if(!text) throw new Error('לא הצלחתי לקרוא את תוכן הערך');
-    // מספרים בני 1–3 ספרות בערך = מועמדים למספרי קווים (שנים בנות 4 ספרות מסוננות)
-    const nums=new Set((text.match(/(?<![\d.])\d{1,3}(?![\d.])/g)||[]));
-    const real=new Set(s.lines.map(l=>l[0].replace(/[א-ת]/g,'')));
+    if(!pg||pg.missing!==undefined||!pg.revisions) throw new Error('הערך "'+title+'" לא נמצא בוויקיפדיה');
+    const wt=pg.revisions[0].slots.main['*']||'';
+    if(!wt) throw new Error('לא הצלחתי לקרוא את קוד הערך');
+    const hasTable=wt.includes('{|');
+    const inArticle=extractLines(wt);
     const realFull=new Set(s.lines.map(l=>l[0]));
-    const mentioned=[...realFull].filter(l=>nums.has(l.replace(/[א-ת]/g,'')));
-    const missing=[...realFull].filter(l=>!nums.has(l.replace(/[א-ת]/g,'')));
-    const suspect=[...nums].filter(n=>+n>0&&+n<700&&!real.has(n));
+    const correct=[...inArticle].filter(l=>realFull.has(l));
+    const wrong=[...inArticle].filter(l=>!realFull.has(l)).sort((a,b)=>parseInt(a)-parseInt(b));
+    const missing=[...realFull].filter(l=>!inArticle.has(l));
     const ops=[...new Set(s.lines.map(l=>l[1]))];
-    const opsMissing=ops.filter(o=>!text.includes(o.split(' ')[0]));
-    WIKI={title:pg.title,done:true,mentioned,missing,suspect,opsMissing,len:text.length};
+    const opsMissing=ops.filter(o=>!wt.includes(o.split(' ')[0]));
+    WIKI={title:pg.title,done:true,hasTable,nInArticle:inArticle.size,correct,wrong,missing,opsMissing};
   }catch(e){WIKI={title,err:e.message};}
   WBUSY=false;render();
 }
@@ -168,15 +192,18 @@ function chipList(arr,cls,empty){
 }
 function wikiResult(){
   const w=WIKI;
-  return `<div class="stat">הערך שנבדק: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></div>
-  <div class="stat" style="color:var(--ok)">✓ קווים שמוזכרים בערך וקיימים בתחנה (${w.mentioned.length})</div>
-  <div>${chipList(w.mentioned,'ok','אף קו מהתחנה לא מוזכר בערך')}</div>
-  <div class="stat" style="color:var(--bad)">✗ קווים שקיימים בתחנה אבל לא מוזכרים בערך (${w.missing.length})</div>
-  <div>${chipList(w.missing,'bad','כל הקווים מוזכרים — כל הכבוד לעורכים')}</div>
-  <div class="stat" style="color:var(--warn)">⚠ מספרים בערך שאינם קווים בתחנה כיום (${w.suspect.length}) — אולי קו שבוטל, ואולי סתם מספר בטקסט</div>
-  <div>${chipList(w.suspect,'warn','אין מספרים חשודים')}</div>
-  ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים: ${esc(w.opsMissing.join(', '))}</div>`:''}
-  <p class="note">הבדיקה היא היסטית: היא מזהה מספרים בטקסט הערך, ולכן ייתכנו התאמות מקריות (מספרי רציפים, שנים קצרות וכד'). התוצאה היא כלי עזר לעורך — לא פסק דין.</p>`;
+  if(!w.hasTable||!w.nInArticle)
+    return `<div class="stat">הערך שנבדק: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></div>
+    <div class="stat" style="color:var(--warn)">⚠ בערך הזה לא נמצאה טבלת קווים — אין מה להשוות. אפשר להשתמש בטבלה המוכנה שלמטה כדי להוסיף אחת.</div>`;
+  return `<div class="stat">הערך שנבדק: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a> · זוהו ${w.nInArticle} קווים בטבלאות הערך</div>
+  <div class="stat" style="color:var(--bad)">✗ כתובים בערך אבל לא מתחילים/מסתיימים בתחנה כיום (${w.wrong.length}) — כנראה קו שבוטל, שונה או הועבר</div>
+  <div>${chipList(w.wrong,'bad','כל הקווים שכתובים בערך נכונים ✓')}</div>
+  <div class="stat" style="color:var(--ok)">✓ כתובים בערך וקיימים בתחנה (${w.correct.length})</div>
+  <div>${chipList(w.correct,'ok','—')}</div>
+  <div class="stat" style="color:var(--mut)">קווים בתחנה שלא מופיעים בערך (${w.missing.length}) — לא בהכרח טעות: הרבה ערכים מפרטים רק חלק מהקווים</div>
+  <div>${chipList(w.missing,'warn','כל הקווים מופיעים בערך')}</div>
+  ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים בערך: ${esc(w.opsMissing.join(', '))}</div>`:''}
+  <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד (כך כתובים קווים בערכי תחנות) — טקסט חופשי, שנים ומספרי רציפים אינם נספרים. חלק מהקווים בבדיקה עשויים לעצור בתחנה באמצע מסלולם ולכן לא להופיע בנתוני המוצא/יעד — כדאי לאמת לפני עריכה.</p>`;
 }
 
 function pick(k){SEL=k;WIKI=null;render();window.scrollTo({top:0});}
