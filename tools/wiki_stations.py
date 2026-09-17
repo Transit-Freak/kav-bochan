@@ -41,7 +41,12 @@ def parse_side(side):
 def station_key(stop):
     """שם התחנה בלי רציף/הורדה/קומה — "ת.מרכזית ת"א קומה 6" → "ת.מרכזית ת"א"."""
     base = stop.split('/')[0].strip()
-    return re.sub(r'\s*קומה\s*\d+\s*$', '', base).strip()
+    base = re.sub(r'\s*קומה\s*\d+\s*$', '', base)
+    base = re.sub(r'\s+', ' ', base).strip()
+    # מסוף ארלוזורוב (סבידור) — ב-GTFS מופיע בכמה שמות בלי "מסוף" בכלל
+    if 'סבידור' in base or base == 'תל אביב מרכז':
+        return 'מסוף ארלוזורוב (סבידור)'
+    return base
 
 
 def main():
