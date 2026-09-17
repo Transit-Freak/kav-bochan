@@ -8,6 +8,9 @@
 wiki-check/data/audit.json — כך שהאתר מציג כבר בכניסה כמה טעויות
 יש בכל ערך, בלי שהגולש יריץ בדיקה בעצמו.
 
+השיוך תחנה→ערך קבוע: articles.json (ידני, גובר על הכול) ← audit.json
+הקודם (מה שכבר נמצא) ← חיפוש — רק לתחנה חדשה.
+
 רץ מ-GitHub Actions (לוויקיפדיה אין גישה מסביבות אחרות של הפרויקט).
 """
 import json
@@ -79,16 +82,15 @@ def extract_lines(wt):
 
 
 def find_article(name, city):
-    q = api({'action': 'query', 'list': 'search', 'srlimit': '5',
-             'srsearch': f'{name} {city}'})
-    hits = q.get('query', {}).get('search', [])
-    if not hits:
-        return None
-    # מעדיפים ערך שנשמע כמו תחנה/מסוף; אחרת התוצאה הראשונה
-    for h in hits:
-        if any(w in h['title'] for w in ('תחנה', 'מסוף', 'מרכזית')):
-            return h['title']
-    return hits[0]['title']
+    """חיפוש שמחזיר רק ערך שנראה כמו תחנה/מסוף — לא סתם התוצאה הראשונה."""
+    def rel(t):
+        return any(w in t for w in ('תחנה', 'מסוף', 'מרכזית')) or city in t
+    for q in (f'{name} {city}', f'התחנה המרכזית של {city}', f'התחנה המרכזית {city}'):
+        r = api({'action': 'query', 'list': 'search', 'srlimit': '5', 'srsearch': q})
+        for h in r.get('query', {}).get('search', []):
+            if rel(h['title']):
+                return h['title']
+    return None
 
 
 def get_wikitext(title):
@@ -103,11 +105,25 @@ def get_wikitext(title):
 def main():
     with open(STATIONS, encoding='utf-8') as f:
         data = json.load(f)
+    # חיבור קבוע: שיוך תחנה→ערך נשמר בין ריצות — מחפשים רק תחנה חדשה.
+    # articles.json = הצמדות ידניות (גוברות על הכול); audit.json הקודם = מה שכבר נמצא.
+    override = {}
+    ov_path = os.path.join(os.path.dirname(OUT), 'articles.json')
+    if os.path.exists(ov_path):
+        with open(ov_path, encoding='utf-8') as f:
+            override = json.load(f)
+    known = {}
+    if os.path.exists(OUT):
+        with open(OUT, encoding='utf-8') as f:
+            for k, v in json.load(f).get('stations', {}).items():
+                if v.get('article'):
+                    known[k] = v['article']
     out = {}
     for name, st in data['stations'].items():
         real = {l[0] for l in st['lines']}
         try:
-            title = find_article(name, st['city'])
+            title = override.get(name) or known.get(name) or \
+                find_article(name, st['city'])
             if not title:
                 out[name] = {'article': None}
                 print(f'{name}: לא נמצא ערך', flush=True)
