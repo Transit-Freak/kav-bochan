@@ -964,11 +964,11 @@ function ChoiceScreen({ onPick }) {
               </div>
               <h2 className="text-3xl font-[900] text-green-100">גו אינפו</h2>
               <p className="text-green-100/80 font-bold mt-2 text-sm leading-relaxed">מערך כלים למודיעין אזרחי ולעידוד מעורבות חברתית: מפות של קווי התחבורה הציבורית, איכות הקווים ומסלולי הליכה · האתר של רם אגמון</p>
+              <p className="text-green-100/70 font-bold mt-3 text-sm leading-relaxed">שנינו עוסקים בתחבורה ציבורית, ושנינו רוצים שהמידע יגיע לציבור. אז למה לא: אני מפרסם את שלו, והוא את שלי.</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-green-200 text-green-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">לאתר <span>←</span></span>
             </div>
           </a>
           </div>
-          <p className="text-slate-500 font-bold text-sm leading-relaxed mt-6">שנינו עוסקים בתחבורה ציבורית, ושנינו רוצים שהמידע יגיע לציבור. אז למה לא: אני מפרסם את שלו, והוא את שלי.</p>
         </div>
 
         <p data-copyright="" className="text-center text-slate-500 font-bold text-xs mt-8">© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a> · <a href="terms.html#copyright" className="hover:underline">זכויות יוצרים ותנאי שימוש</a> · <a href="accessibility.html" className="hover:underline">הצהרת נגישות</a></p>
