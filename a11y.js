@@ -130,6 +130,10 @@
       t.href = me ? base + "terms.html" : "https://transit-freak.github.io/kav-bochan/terms.html";
       t.textContent = "תנאי שימוש ופרטיות ←";
       panel.appendChild(t);
+      var c = document.createElement("a");
+      c.href = (me ? base + "terms.html" : "https://transit-freak.github.io/kav-bochan/terms.html") + "#copyright";
+      c.textContent = "זכויות יוצרים ←";
+      panel.appendChild(c);
       document.body.appendChild(panel);
       btn.setAttribute("aria-expanded", "true");
     }
@@ -140,6 +144,20 @@
     });
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
-  else build();
+  // שורת זכויות יוצרים בתחתית כל עמוד (שלמה 17.09: "תוסיף זכויות יוצרים"). עמוד שכבר מכיל
+  // שורה כזו (דף הבית) מסומן ב-data-copyright ולא מקבל עוד אחת.
+  function copyright() {
+    if (document.querySelector("[data-copyright]")) return;
+    var me = document.querySelector('script[src*="a11y.js"]');
+    var base = me ? me.getAttribute("src").replace(/a11y\.js.*$/, "") : "https://transit-freak.github.io/kav-bochan/";
+    var p = document.createElement("p");
+    p.setAttribute("data-copyright", "");
+    p.className = "kb-copyright";
+    p.setAttribute("style", "margin:28px 16px 72px;text-align:center;font-size:12px;line-height:1.7;color:#64748b;font-family:Arial,sans-serif;direction:rtl");
+    p.innerHTML = '© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="' + base + 'terms.html#copyright" style="color:#64748b">זכויות יוצרים ותנאי שימוש</a>';
+    document.body.appendChild(p);
+  }
+  function start() { build(); copyright(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();
