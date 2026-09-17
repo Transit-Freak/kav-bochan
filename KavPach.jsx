@@ -949,25 +949,6 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
-          {/* גו אינפו — האתר של רם אגמון (goinfo.co.il) */}
-          <a
-            href="https://goinfo.co.il"
-            target="_blank"
-            rel="noopener"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#14532d 45%,#15803d 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#86efac' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <img src="goinfo-logo.png" alt="גו אינפו" className="h-24 w-24 rounded-full bg-white shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
-              </div>
-              <h2 className="text-3xl font-[900] text-green-100">גו אינפו</h2>
-              <p className="text-green-100/80 font-bold mt-2 text-sm leading-relaxed">מערך כלים למודיעין אזרחי ולעידוד מעורבות חברתית: מפות של קווי התחבורה הציבורית, איכות הקווים ומסלולי הליכה · האתר של רם אגמון</p>
-              <p className="text-green-100/70 font-bold mt-3 text-sm leading-relaxed">שנינו עוסקים בתחבורה ציבורית, ושנינו רוצים שהמידע יגיע לציבור. אז למה לא: אני מפרסם את שלו, והוא את שלי.</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-green-200 text-green-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">לאתר <span>←</span></span>
-            </div>
-          </a>
           </div>
         </div>
 
