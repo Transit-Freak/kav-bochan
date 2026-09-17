@@ -698,4 +698,28 @@ function init() {
   }).catch(e => { $('#app').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
 }
 init();
+
+// מיון בלחיצה על כותרת בכל טבלה שאין לה מיון משלה (שלמה 17.09: "שיהיה אפשר ללחוץ על כל שורה בטבלה… מלמעלה
+// למטה או הפוך, בכל הטבלות"): לחיצה ראשונה — מהגדול לקטן (טקסט: א→ת), לחיצה נוספת הופכת. הטבלאות עם id
+// ממוינות מהנתונים עצמם (renderX) ולא נוגעים בהן.
+const cellNum = s => { const m = String(s).replace(/[,\u2212]/g, c => c === ',' ? '' : '-').match(/-?\d+(?:\.\d+)?/); return m ? parseFloat(m[0]) : null; };
+document.addEventListener('click', e => {
+  const th = e.target.closest('table:not([id]) > thead th'); if (!th) return;
+  const table = th.closest('table'), tbody = table.tBodies[0]; if (!tbody) return;
+  const idx = [...th.parentNode.children].indexOf(th);
+  const rows = [...tbody.rows];
+  const vals = rows.map(r => (r.cells[idx] ? r.cells[idx].innerText : '').trim());
+  const numeric = vals.filter(v => v && v !== '—').every(v => cellNum(v) != null);
+  const was = th.classList.contains('sort-desc') ? 'desc' : th.classList.contains('sort-asc') ? 'asc' : '';
+  const dir = was ? (was === 'desc' ? 'asc' : 'desc') : (numeric ? 'desc' : 'asc');
+  table.querySelectorAll('thead th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+  th.classList.add('sort-' + dir);
+  const key = i => numeric ? cellNum(vals[i]) : vals[i];
+  const order = rows.map((_, i) => i).sort((a, b) => {
+    const x = key(a), y = key(b);
+    if (x == null || x === '') return 1; if (y == null || y === '') return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * (dir === 'asc' ? 1 : -1);
+  });
+  order.forEach(i => tbody.appendChild(rows[i]));
+});
 })();

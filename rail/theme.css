@@ -70,3 +70,7 @@
   .tabsec{grid-column:2;min-width:0}
   .tabsec.off{height:0;overflow:hidden;visibility:hidden;margin:0}
 }
+
+/* מיון בלחיצה על כותרת בטבלאות בלי מיון משלהן */
+table:not([id]) thead th{cursor:pointer;user-select:none}table:not([id]) thead th:hover{color:var(--accent)}
+th.sort-desc::after{content:" ▼";font-size:10px}th.sort-asc::after{content:" ▲";font-size:10px}

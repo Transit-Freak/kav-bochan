@@ -939,8 +939,8 @@ function ChoiceScreen({ onPick }) {
               <div className="flex flex-wrap items-center justify-between mb-6 min-h-28 gap-3">
                 <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🏭</span>
                 <div className="flex flex-wrap items-center justify-end gap-2" style={{ flex: "1 1 170px", minWidth: 0 }}>
-                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" loading="lazy" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
-                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" loading="lazy" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
+                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
+                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
                 </div>
               </div>
               <h2 className="text-3xl font-[900] text-blue-100">נגישות אזורי תעשייה</h2>
@@ -960,7 +960,7 @@ function ChoiceScreen({ onPick }) {
             <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#86efac' }} />
             <div className="relative">
               <div className="flex items-center mb-6 h-28">
-                <img src="goinfo-logo.png" alt="גו אינפו" loading="lazy" className="h-24 w-24 rounded-full bg-white shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
+                <img src="goinfo-logo.png" alt="גו אינפו" className="h-24 w-24 rounded-full bg-white shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
               </div>
               <h2 className="text-3xl font-[900] text-green-100">גו אינפו</h2>
               <p className="text-green-100/80 font-bold mt-2 text-sm leading-relaxed">מערך כלים למודיעין אזרחי ולעידוד מעורבות חברתית: מפות של קווי התחבורה הציבורית, איכות הקווים ומסלולי הליכה · האתר של רם אגמון</p>
