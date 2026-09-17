@@ -624,6 +624,13 @@ def main():
     # של התחנה הראשונה) וגם למדידה
     st = load_stop_times(g, set(g['trips']))
     print(f'stop_times: {sum(len(v) for v in st.values()):,} שורות ל-{len(st):,} נסיעות · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
+    # מעברים מתוכננים בכל תחנה של כל מסלול — המכנה של "מהמתוכנן" בטבלת "תחנה אחרי תחנה"
+    # (שלמה 17.09: "לתת לכמות כאן גם אחוז מתכנון")
+    plan_stop = collections.defaultdict(collections.Counter)
+    for tid, lst in st.items():
+        rid_ = g['trips'].get(tid)
+        for s_ in lst:
+            plan_stop[rid_][s_[1]] += 1
     # הצמדה: LineRef של SIRI = route_id של GTFS, ו-OriginAimedDepartureTime = שעת
     # היציאה המתוכננת מהתחנה הראשונה. (route_id, שנייה) → trip_id; ואם אין
     # התאמה מדויקת — הנסיעה הקרובה ביותר באותו מסלול עד 3 דקות.
@@ -685,12 +692,16 @@ def main():
     routes = g['routes']
     stops = g['stops']
     # מצברים
-    R = collections.defaultdict(lambda: {'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'on': 0,
+    # reach — עד איפה לאורך המסלול נראה האוטובוס: [עד הסוף, חלק מהדרך, רק בהתחלה, שודר ולא זז]
+    # (שלמה 17.09, "נסיעות מזויפות": המשרד בודק רק בתחנת המוצא; כאן כל תחנה).
+    # cov — כיסוי GPS: [תחנות שהרכב ודאי עבר (בין הראשונה לאחרונה שנמדדו), מהן נמדדו]
+    R = collections.defaultdict(lambda: {'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'on': 0, 'reach': [0] * 4, 'cov': [0, 0],
                                          'hours': collections.defaultdict(lambda: [0, 0]), 'stops': collections.defaultdict(lambda: [0, 0.0, 0, 10 ** 9])})
-    A = collections.defaultdict(lambda: {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5})
+    A = collections.defaultdict(lambda: {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'reach': [0] * 4, 'cov': [0, 0]})
     C = collections.defaultdict(lambda: {'meas': 0, 'c': [0] * 5, 'd': []})
     H = collections.defaultdict(lambda: [0, 0])
-    tot = {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5}
+    tot = {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'reach': [0] * 4, 'cov': [0, 0]}
+    COV = collections.defaultdict(lambda: [0, 0, set(), 0])   # תחנה → [עברו, נמדדו, מפעילים, נסיעות שנעלמו אחריה] — "חורי GPS" שמשותפים לכולם
     # סוג הרכב מול מה שנקבע לקו: [נסיעות עם רכב וקו מזוהים, רכב קטן יותר, רכב גדול יותר]
     VT = collections.defaultdict(lambda: [0, 0, 0, collections.Counter()])   # route_id
     actual_types = collections.defaultdict(collections.Counter)
@@ -721,7 +732,13 @@ def main():
         recs = sorted(journeys[key])
         rid = g['trips'].get(tid)
         pas = passages(recs, seq, [stops.get(s[1], ('',))[0] for s in seq])
+        ag = routes.get(rid, {}).get('agency', '?')
         if len(pas) < MIN_STOPS_RIDE:
+            # שודרה (5 דגימות ומעלה = 5 דקות לפחות) אבל לא נראתה מתקדמת לאורך המסלול —
+            # בבדיקה של המשרד (תחנת המוצא בלבד) זו נסיעה שבוצעה; כאן היא נספרת בנפרד
+            if len(recs) >= 5:
+                for acc in (R[rid], A[ag], tot):
+                    acc['reach'][3] += 1
             continue
         meas = []
         n_beyond = 0
@@ -775,9 +792,11 @@ def main():
         # רכב לא עומד 20 דק׳ בין תחנות — אלה מדידות מהסיבוב הבא של אותו רכב, שדווח
         # תחת שעת היציאה הישנה (שלמה 08.09; ביומן: -1 ואז +28, +55, +111 בקפיצות של
         # סיבוב). הנסיעה נחתכת בקפיצה: החלק הראשון נמדד, ההמשך לא.
+        was_cut = False
         for i in range(1, len(meas)):
             if meas[i][3] - meas[i - 1][3] > SPIKE + max(0, meas[i][2] - meas[i - 1][2]):
                 cut += 1
+                was_cut = True
                 meas = meas[:i]
                 break
         if len(meas) < MIN_STOPS_RIDE:
@@ -794,9 +813,38 @@ def main():
             diag_raw3.append(f'טיפוסית {rid}/{tid} יציאה {hms_(seq[0][3])} n={len(seq)} מעברים: ' + ' '.join(f'{k}:{d // 60:+d}' for k, s, sc, d in meas))
         r = R[rid]
         r['obs'] += 1
-        ag = routes.get(rid, {}).get('agency', '?')
         A[ag]['obs'] += 1
         tot['obs'] += 1
+        # עד איפה נראה האוטובוס: התחנה האחרונה שנמדדה מול אורך המסלול (היעד עצמו לרוב לא
+        # נמדד — הרכב מפסיק לשדר במסוף — לכן שתי התחנות האחרונות נחשבות "עד הסוף")
+        n_st = len(seq)
+        ks = sorted(k for k, s, sc, d in meas)
+        k_last = ks[-1]
+        if was_cut:
+            cls = 1
+        elif k_last >= n_st - 2 or k_last >= 0.85 * n_st:
+            cls = 0
+        elif k_last <= 3 and k_last <= 0.3 * n_st:
+            cls = 2
+        else:
+            cls = 1
+        for acc in (r, A[ag], tot):
+            acc['reach'][cls] += 1
+        if cls == 1 and not was_cut:
+            COV[seq[k_last - 1][1]][3] += 1      # התחנה האחרונה שנראתה בנסיעה שנעלמה באמצע הדרך
+            COV[seq[k_last - 1][1]][2].add(ag)
+        # כיסוי GPS: בין התחנה הראשונה לאחרונה שנמדדו הרכב ודאי עבר — כמה מהתחנות באמצע נמדדו
+        kset = set(ks)
+        for k in range(ks[0], k_last + 1):
+            cv = COV[seq[k - 1][1]]
+            cv[0] += 1
+            cv[2].add(ag)
+            hit = k in kset
+            if hit:
+                cv[1] += 1
+            for acc in (r, A[ag], tot):
+                acc['cov'][0] += 1
+                acc['cov'][1] += 1 if hit else 0
         # סוג הרכב שהגיע (לפי מספר הרכב בשידור) מול הסוג שנקבע לקו (לפי המק"ט)
         planned = plan_cls.get(routes.get(rid, {}).get('mkt', ''))
         actual = veh_cls.get(key[2])
@@ -926,12 +974,12 @@ def main():
         out_routes.append([rid, sched_per_route.get(rid, 0), r['obs'], r['meas'], r['c'], stats(r['d']), r['o'],
                            [[h, v[0], v[1]] for h, v in sorted(r['hours'].items())],
                            [[stops.get(sid, ('',))[0], stops.get(sid, ('', ''))[1], v[0], round(v[1] / v[0] / 60, 1)] for sid, v in ws],
-                           vt_row])
+                           vt_row, r['reach'], r['cov']])
         prof = []
         for sid, v in sorted(r['stops'].items(), key=lambda kv: kv[1][3]):
             code, name = stops.get(sid, ('', ''))[0], stops.get(sid, ('', ''))[1]
             stop_names[code] = name
-            prof.append([code, v[0], round(v[1] / v[0] / 6), v[2]])
+            prof.append([code, v[0], round(v[1] / v[0] / 6), v[2], plan_stop[rid].get(sid, 0)])
         profiles[rid] = prof
     out_routes.sort(key=lambda x: -x[3])
     worst.sort(key=lambda w: -w[0])
@@ -951,21 +999,33 @@ def main():
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
         'minutes': len(files), 'records': n_rec,
         'tot': {'sched': tot['sched'], 'obs': tot['obs'], 'meas': tot['meas'], 'c': tot['c'], 's': stats(tot['d']), 'o': tot['o'],
-                'far': far, 'extra': unmatched.get('no_trip', 0), 'vt': vt_tot},
+                'far': far, 'extra': unmatched.get('no_trip', 0), 'vt': vt_tot, 'reach': tot['reach'], 'cov': tot['cov']},
         'hours': [[h, v[0], v[1]] for h, v in sorted(H.items())],
-        'agencies': sorted([[ag, v['sched'], v['obs'], v['meas'], v['c'], stats(v['d']), v['o'], VA.get(ag, [0, 0, 0])] for ag, v in A.items()], key=lambda x: -x[3]),
+        'agencies': sorted([[ag, v['sched'], v['obs'], v['meas'], v['c'], stats(v['d']), v['o'], VA.get(ag, [0, 0, 0]), v['reach'], v['cov']] for ag, v in A.items()], key=lambda x: -x[3]),
         'cities': sorted([[c, v['meas'], v['c'], stats(v['d'])] + city_trips.get(c, [0, 0]) for c, v in C.items() if v['meas'] >= 50], key=lambda x: -x[1]),
         'routes': out_routes,
         'worst': [[rid, tid.split('_')[0], round(dl / 60), stops.get(sid, ('', ''))[1], sched, ps] for dl, rid, tid, sid, sched, ps in worst[:40]],
-        'cols': {'routes': ['route_id', 'sched', 'obs', 'meas', 'cats[early,ontime,5-10,10-20,20+]', 'stats[avg,med,p90 min]', 'origin cats', 'hours[[h,n,on]]', 'worst stops[[code,name,n,avg]]', 'vehicle[planned size, comparable rides, smaller, larger, daily mode, actual size counts, detail{plan,actual type counts,fleetDate,observed}]'],
-                 'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]'], 'cities': ['city', 'meas', 'cats', 'stats', 'sched trips of lines through the city', 'observed trips'],
+        'cols': {'routes': ['route_id', 'sched', 'obs', 'meas', 'cats[early,ontime,5-10,10-20,20+]', 'stats[avg,med,p90 min]', 'origin cats', 'hours[[h,n,on]]', 'worst stops[[code,name,n,avg]]', 'vehicle[planned size, comparable rides, smaller, larger, daily mode, actual size counts, detail{plan,actual type counts,fleetDate,observed}]', 'reach[to end, part way, start only, transmitted but static]', 'cov[stops surely passed, of them measured]'],
+                 'agencies': ['name', 'sched', 'obs', 'meas', 'cats', 'stats', 'origin cats', 'vehicle[known, smaller, larger]', 'reach', 'cov'], 'cities': ['city', 'meas', 'cats', 'stats', 'sched trips of lines through the city', 'observed trips'],
                  'worst': ['route_id', 'trip', 'max delay min', 'stop', 'sched sec', 'passages[[code,sched sec,actual sec]]'],
-                 'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip',
-                 'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n]] along the route}; stops.json = {code: name}',
+                 'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip · reach/cov as in routes',
+                 'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n, planned passes]] along the route}; stops.json = {code: name}',
+                 'cover file': 'days/D.cover.json = {code: [passed, measured, agencies, vanished after, city]} — stops surely passed (between first and last measured stop of a ride) where fewer than 70% were measured (GPS holes, passed >= 10), or last seen stop of 5+ rides that vanished part way',
                  'cities file': 'days/D.cities.json = {city: [[route_id, n, on-time n, sum delay (tenths of min)]]}; routes.json[rid][8:11] = cluster, line type, sub-area (ClusterToLine)'},
     }
     json.dump(day_obj, open(f'{a.out}/days/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(profiles, open(f'{a.out}/days/{day}.stops.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    # חורי GPS: תחנות שאוטובוסים ודאי עברו בהן (נמדדו לפניהן ואחריהן) ובכל זאת פחות מ-70% מהמעברים נמדדו.
+    # אם זה קורה לכמה מפעילים באותה תחנה — זו קליטה, לא המפעיל (שלמה 17.09: "להפריד איפה יש בעיות של GPS")
+    # וגם: התחנות שאחריהן נסיעות "נעלמות" (נמדדו עד כאן ולא הלאה, ולא בגלל סיבוב הבא) — 5 ומעלה ביום
+    holes = {}
+    for sid, (passed, measured, ags, vanished) in COV.items():
+        if (passed >= 10 and measured < 0.7 * passed) or vanished >= 5:
+            code = stops.get(sid, ('',))[0]
+            holes[code] = [passed, measured, len(ags), vanished, stops.get(sid, ('', '', 0, 0, ''))[4]]
+            stop_names.setdefault(code, stops.get(sid, ('', ''))[1])
+    json.dump(holes, open(f'{a.out}/days/{day}.cover.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    print(f'עד איפה נראו הנסיעות [עד הסוף, חלק, רק בהתחלה, שודרו ולא זזו]: {tot["reach"]} · כיסוי GPS בתחנות שוודאי עברו: {tot["cov"][1]:,}/{tot["cov"][0]:,} · חורי GPS (תחנות): {len(holes):,}', flush=True)
     json.dump({c: sorted([[rid, v[0], v[1], round(v[2] / 6)] for rid, v in rr.items()], key=lambda x: -x[1]) for c, rr in city_routes.items()},
               open(f'{a.out}/days/{day}.cities.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     if a.clusters:

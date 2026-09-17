@@ -71,7 +71,7 @@ h1{font-size:32px}
 .ldetail{border:1.5px solid var(--ink);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--panel2)}
 .prof{position:relative;padding:4px 0;max-height:520px;overflow:auto}
 .prof::before{content:"";position:absolute;top:14px;bottom:14px;right:7px;width:6px;background:var(--ink);border-radius:3px}
-.ps{display:grid;grid-template-columns:20px 1fr 56px 84px 64px;align-items:center;gap:8px;padding:6px 0;position:relative;font-size:12.5px}
+.ps{display:grid;grid-template-columns:20px 1fr 56px 60px 84px 64px;align-items:center;gap:8px;padding:6px 0;position:relative;font-size:12.5px}
 .ps.h{color:var(--dim);font-size:11px;font-weight:700;padding-bottom:2px}
 .ps .dot{width:14px;height:14px;border-radius:50%;background:var(--panel);border:3px solid var(--none);margin-right:2px;position:relative;z-index:1}
 .ps .rn{font-weight:700;min-width:0;overflow-wrap:anywhere}
@@ -91,8 +91,11 @@ h1{font-size:32px}
   .ringwrap{grid-template-columns:1fr;justify-items:center}
   .rstats{grid-template-columns:1fr 1fr;width:100%}
   .rtext{width:100%}
-  .ps{grid-template-columns:20px 1fr 44px 70px 52px;gap:5px;font-size:12px}
+  .ps{grid-template-columns:20px 1fr 40px 46px 64px 44px;gap:4px;font-size:11.5px}
 }
 /* שמות מסלול ארוכים בטבלאות הקווים — קיצוץ עם שלוש נקודות כדי שכל העמודות ייכנסו */
 #tlines td:nth-child(2),#t-vt td:nth-child(2){max-width:300px;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:760px){#tlines td:nth-child(2),#t-vt td:nth-child(2){max-width:160px}}
+
+/* איפה האוטובוס נעלם: פס עד-איפה-נראו לכל מפעיל */
+.rbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line,#E5E7EB)}.rbar span{display:block;height:100%}

@@ -34,7 +34,10 @@ const stopName = code => (NAMES && NAMES[code]) || code;
 const partial = d => d.sched > 0 && d.obs < d.sched * 0.3;
 
 // ---------------------------------------------------------------- צבירה (כמה ימים)
-function emptyAgg() { return {sched: 0, obs: 0, meas: 0, c: [0, 0, 0, 0, 0], o: [0, 0, 0, 0, 0], sum: 0, s: null, far: 0, extra: 0, vt: [0, 0, 0]}; }
+function emptyAgg() { return {sched: 0, obs: 0, meas: 0, c: [0, 0, 0, 0, 0], o: [0, 0, 0, 0, 0], sum: 0, s: null, far: 0, extra: 0, vt: [0, 0, 0], reach: [0, 0, 0, 0], cov: [0, 0], reachDays: 0}; }
+// עד איפה נראה האוטובוס לאורך המסלול (מהריצה של 17.09; ימים ישנים בלי הנתון): [עד הסוף, חלק מהדרך, רק בהתחלה, שודר ולא זז]
+function addReach(x, reach, cov) { if (!reach) return; reach.forEach((v, i) => x.reach[i] += v); (cov || []).forEach((v, i) => x.cov[i] += v); x.reachDays++; }
+const reachT = x => x.reach.reduce((a, b) => a + b, 0);
 // גודל הרכב במילים של האתר: "אוטובוס" אצל המשרד הוא קטגוריית גודל (לא מיניבוס,
 // לא מידיבוס, לא מפרקי) — אותו ניסוח כמו ב"הקו בזמן" (שלמה 06.09)
 const VNAMES = {'מיניבוס': 'מיניבוס', 'מידיבוס': 'מידיבוס', 'אוטובוס': 'אוטובוס', 'מפרקי': 'אוטובוס מפרקי'};
@@ -222,15 +225,17 @@ function mergeDays(days) {
     addAgg(tot, d.tot);
     tot.far += d.tot.far || 0; tot.extra += d.tot.extra || 0;
     if (days.length === 1) tot.s = d.tot.s;
-    for (const [nm, sched, obs, meas, c, s, o, va] of d.agencies) { const x = A[nm] || (A[nm] = emptyAgg()); addAgg(x, {sched, obs, meas, c, s}); (o || []).forEach((v, i) => x.o[i] += v); (va || []).forEach((v, i) => x.vt[i] += v); }
+    for (const [nm, sched, obs, meas, c, s, o, va, reach, cov] of d.agencies) { const x = A[nm] || (A[nm] = emptyAgg()); addAgg(x, {sched, obs, meas, c, s}); (o || []).forEach((v, i) => x.o[i] += v); (va || []).forEach((v, i) => x.vt[i] += v); addReach(x, reach, cov); }
     (d.tot.vt || []).forEach((v, i) => tot.vt[i] += v);
+    addReach(tot, d.tot.reach, d.tot.cov);
     // לעיר גם נסיעות בלו״ז/נצפו של הקווים שעוברים בה — אי ביצוע (משוב אלעזר פינדר 07.09)
     for (const [nm, meas, c, s, sched, obs] of d.cities) { const x = Cc[nm] || (Cc[nm] = emptyAgg()); addAgg(x, {meas, c, s}); x.sched += sched || 0; x.obs += obs || 0; }
     for (const [h, n, on] of d.hours) { const x = H[h] || (H[h] = [0, 0]); x[0] += n; x[1] += on; }
     for (const r of d.routes) {
-      const [rid, sched, obs, meas, c, s, o, hours, ws, vt] = r;
-      const x = Rr[rid] || (Rr[rid] = Object.assign(emptyAgg(), {rid, hours: {}, ws: [], vplan: '', vact: {}}));
+      const [rid, sched, obs, meas, c, s, o, hours, ws, vt, reach, cov] = r;
+      const x = Rr[rid] || (Rr[rid] = Object.assign(emptyAgg(), {rid, hours: {}, ws: [], vplan: '', vact: {}, schedByDay: {}}));
       addAgg(x, {sched, obs, meas, c, s}); o.forEach((v, i) => { x.o[i] += v; tot.o[i] += v; });
+      addReach(x, reach, cov); x.schedByDay[d.d] = sched;
       for (const [h, n, on] of hours) { const y = x.hours[h] || (x.hours[h] = [0, 0]); y[0] += n; y[1] += on; }
       addVehicleData(x, vt);
       if (days.length === 1) { x.s = s; x.ws = ws; }
@@ -246,7 +251,7 @@ function mergeDays(days) {
     for (const [grp, nm] of [[K, l.cluster || 'ללא אשכול'], [LT, l.ltype || 'לא ידוע']]) {
       const y = grp[nm] || (grp[nm] = Object.assign(emptyAgg(), {ags: {}, subs: {}, n: 0}));
       y.sched += x.sched; y.obs += x.obs; y.meas += x.meas; y.sum += x.sum; y.n++;
-      x.c.forEach((v, i) => y.c[i] += v); x.o.forEach((v, i) => y.o[i] += v);
+      x.c.forEach((v, i) => y.c[i] += v); x.o.forEach((v, i) => y.o[i] += v); x.reach.forEach((v, i) => y.reach[i] += v); x.cov.forEach((v, i) => y.cov[i] += v);
       y.ags[l.agency] = (y.ags[l.agency] || 0) + x.meas;
       if (l.sub) y.subs[l.sub] = 1;
     }
@@ -285,6 +290,7 @@ function render() {
       <div class="panel"><div class="ptitle">אחוז בזמן לפי השעה ביום</div><p class="pdesc">לפי השעה שבה האוטובוס היה אמור להגיע לתחנה. ירוק: 80% ומעלה בזמן, צהוב: 65%–80%, כתום: 50%–65%, אדום: פחות מ-50%.</p><div class="chart" id="c-hours"></div></div>
     </div>
     <div class="panel"><div class="ptitle">לפי מפעיל</div><p class="pdesc">אותם מדדים לכל חברת אוטובוסים. לחיצה על כותרת עמודה ממיינת, לחיצה על שם המפעיל מציגה את הקווים שלו.</p><div id="t-ag"></div></div>
+    <div class="panel" id="p-vanish"><div class="ptitle">איפה האוטובוס נעלם</div><p class="pdesc">משרד התחבורה סופר נסיעה כ"בוצעה" אם האוטובוס דיווח בתחנת המוצא. כאן עוקבים אחרי כל נסיעה תחנה אחרי תחנה: האם נראתה עד סוף המסלול, נעלמה באמצע הדרך, נראתה רק בהתחלה, או שידרה מיקום 5 דקות ומעלה בלי לזוז על המסלול. היעלמות יכולה להיות קליטה גרועה, נסיעה שקוצרה, או נסיעה שדווחה ולא נסעה. כדי להפריד בין קליטה למפעיל: תחנה שבה אוטובוסים של כמה חברות נעלמים היא בעיית קליטה, לא של החברה.</p><div id="t-vanish"></div></div>
     <div class="panel"><div class="ptitle">לפי אשכול</div><p class="pdesc">משרד התחבורה מחלק את קווי האוטובוס לאשכולות (למשל "חשמונאים", "הגליל", "שרון"), וכל אשכול יוצא למכרז ומופעל על ידי חברה אחת. כאן אותם מדדים לכל אשכול, ולמעלה לפי סוג הקו: עירוני, אזורי או בינעירוני. לחיצה על שם האשכול מציגה את הקווים שלו.</p><div id="lt-sum"></div><div id="t-cl"></div></div>
     <div class="panel"><div class="ptitle">לפי עיר</div><p class="pdesc">כל ההגעות לתחנות שבתחומי העיר, מכל הקווים שעוברים בה, וגם כמה מהנסיעות של הקווים האלה לא נצפו בכלל (אי ביצוע משוער). לחיצה על שם העיר פותחת פירוט: אילו קווים עוברים בה, איזה מפעילים, כמה נסיעות לא בוצעו, ואיך כל קו מדייק בתוך העיר.</p><div class="filters" id="cfilters"></div><div id="city-detail"></div><div id="t-city"></div></div>
     <div class="panel"><div class="ptitle">לפי קו</div><p class="pdesc">כל כיוון של כל קו בנפרד. אפשר לבחור מפעיל או אשכול, לדרג ("הכי לא מדייקים") או לחפש מספר קו. לחיצה על מספר הקו פותחת פירוט: באיזה קטע לאורך הקו נצבר האיחור.</p>
@@ -294,7 +300,52 @@ function render() {
     <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>`;
   lineChart($('#c-trend'), trend, {color: C.line, min: 0, max: 100, unit: '%'});
   barChart($('#c-hours'), hours, {color: C.line, max: 100, unit: '%'});
-  renderAgencies(); renderClusters(); renderCities(); renderFilters(); renderLines(); renderWorst(); renderVehicles();
+  renderAgencies(); renderClusters(); renderCities(); renderFilters(); renderLines(); renderWorst(); renderVehicles(); renderVanish();
+}
+// איפה האוטובוס נעלם (שלמה 17.09): עד איפה נראו הנסיעות, לפי מפעיל, והתחנות שאחריהן נסיעות נעלמות
+let coverCache = {}, sortV = {k: 'rT', dir: -1};
+function loadCover(days) {
+  return Promise.all(days.filter(d => !coverCache[d]).map(d => load(DATA + 'days/' + d + '.cover.json').then(j => { coverCache[d] = j; }).catch(() => { coverCache[d] = {}; })));
+}
+const RNAMES = ['עד הסוף', 'חלק מהדרך', 'רק בהתחלה', 'שודרו ולא זזו'];
+const RCOL = [C.ok, C.warn, C.bad, C.early];
+function reachBar(x) {
+  const T = reachT(x); if (!T) return '';
+  return `<div class="rbar" title="${x.reach.map((v, i) => RNAMES[i] + ' ' + pct(v, T)).join(' · ')}">${x.reach.map((v, i) => v ? `<span style="width:${100 * v / T}%;background:${RCOL[i]}"></span>` : '').join('')}</div>`;
+}
+function renderVanish() {
+  const box = $('#t-vanish'); if (!box) return;
+  const t = M.tot, T = reachT(t);
+  if (!T) { box.innerHTML = `<div class="empty">הנתון הזה מחושב מהריצה של 17.09.2026 ואילך. ${M.days.length === 1 ? 'ליום הזה' : 'לתקופה הזו'} אין אותו עדיין.</div>`; return; }
+  const unseen = Math.max(0, t.sched - T);
+  const rows = Object.entries(M.A).map(([nm, s]) => { const rT = reachT(s); return {nm, sched: s.sched, rT, rend: rT ? s.reach[0] / rT : null, rpart: rT ? s.reach[1] / rT : null, rstart: rT ? s.reach[2] / rT : null, rstatic: rT ? s.reach[3] / rT : null, miss: s.sched ? Math.max(0, s.sched - rT) / s.sched : null, cov: s.cov[0] ? s.cov[1] / s.cov[0] : null, s}; }).filter(r => r.rT >= 20);
+  sortRows(rows, sortV);
+  box.innerHTML = `<div class="stat-row">
+      <div><b>${pct(t.reach[0], T)}</b><span>נראו עד סוף המסלול</span></div>
+      <div><b>${pct(t.reach[1], T)}</b><span>נעלמו באמצע הדרך</span></div>
+      <div><b>${pct(t.reach[2], T)}</b><span>נראו רק בהתחלה</span></div>
+      <div><b>${pct(t.reach[3], T)}</b><span>שידרו 5 דק׳ ומעלה ולא זזו</span></div>
+      <div><b>${num(unseen)}</b><span>נסיעות בלו״ז שלא שידרו בכלל (${pct(unseen, t.sched)})</span></div>
+      ${t.cov[0] ? `<div><b>${pct(t.cov[1], t.cov[0])}</b><span>מהתחנות שבדרך נקלטו, כשהאוטובוס משדר</span></div>` : ''}
+    </div>
+    <div class="ptitle" style="margin-top:12px">לפי מפעיל</div>
+    <div class="tblbox"><table id="tv"><thead><tr>${th('מפעיל', 'nm', sortV)}${th('נסיעות ששודרו', 'rT', sortV)}<th>עד איפה נראו</th>${th('עד הסוף', 'rend', sortV)}${th('באמצע הדרך', 'rpart', sortV)}${th('רק בהתחלה', 'rstart', sortV)}${th('לא זזו', 'rstatic', sortV)}${th('לא שידרו בכלל', 'miss', sortV)}${th('קליטה בדרך', 'cov', sortV)}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm">${esc(r.nm)}</td><td>${num(r.rT)} <small style="color:var(--dim)">מתוך ${num(r.sched)}</small></td><td style="min-width:140px">${reachBar(r.s)}</td><td>${Math.round(r.rend * 100)}%</td><td class="${r.rpart >= 0.1 ? 'd3' : ''}">${Math.round(r.rpart * 100)}%</td><td class="${r.rstart >= 0.03 ? 'd4' : ''}">${Math.round(r.rstart * 100)}%</td><td class="${r.rstatic >= 0.05 ? 'd4' : r.rstatic >= 0.03 ? 'd3' : ''}">${Math.round(r.rstatic * 100)}%</td><td class="${missCls(r.miss)}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${r.cov == null ? '—' : Math.round(r.cov * 100) + '%'}</td></tr>`).join('') +
+    `</tbody></table></div><div class="mut" style="margin-top:6px">מפעילים עם 20 נסיעות ששודרו לפחות. "קליטה בדרך": מתוך התחנות שהאוטובוס ודאי עבר (נמדד לפניהן ואחריהן), כמה נקלטו. "לא שידרו בכלל": נסיעות בלו״ז בלי שום שידור, לא בוצעו או בוצעו בלי מכשיר.</div>
+    <div class="ptitle" style="margin-top:12px">התחנות שאחריהן נסיעות נעלמות</div><p class="pdesc">התחנה האחרונה שבה נראה האוטובוס בנסיעות שנעלמו באמצע הדרך. כמה חברות שונות נעלמות שם: אחת, כנראה עניין של החברה; כמה, כנראה קליטה או מסוף שבו הנסיעה "מתחלפת".</p><div id="t-holes"><div class="empty">טוען…</div></div>`;
+  $('#tv thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortV = {k, dir: sortV.k === k ? -sortV.dir : (k === 'nm' ? 1 : -1)}; renderVanish(); };
+  const days = M.days;
+  Promise.all([loadCover(days), loadProfiles([])]).then(() => {
+    const hb = $('#t-holes'); if (!hb) return;
+    const acc = {};
+    for (const d of days) for (const [code, v] of Object.entries(coverCache[d] || {})) { const x = acc[code] || (acc[code] = {code, passed: 0, measured: 0, ags: 0, van: 0, city: ''}); x.passed += v[0]; x.measured += v[1]; x.ags = Math.max(x.ags, v[2] || 0); x.van += v[3] || 0; x.city = x.city || v[4] || ''; }
+    const van = Object.values(acc).filter(x => x.van >= 5).sort((a, b) => b.van - a.van).slice(0, 30);
+    const holes = Object.values(acc).filter(x => x.passed >= 10 && x.measured < 0.7 * x.passed).sort((a, b) => (b.passed - b.measured) - (a.passed - a.measured)).slice(0, 20);
+    hb.innerHTML = (van.length ? `<div class="tblbox"><table><thead><tr><th>תחנה</th><th>עיר</th><th>נסיעות שנעלמו אחריה</th><th>חברות</th></tr></thead><tbody>` +
+      van.map(x => `<tr><td class="nm">${esc(stopName(x.code))} <small style="color:var(--dim)">${esc(x.code)}</small></td><td style="font-size:12px">${esc(x.city)}</td><td>${num(x.van)}</td><td class="${x.ags >= 2 ? '' : 'd3'}">${x.ags >= 2 ? num(x.ags) + ' · כנראה קליטה' : 'אחת'}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">אין תחנות עם 5 היעלמויות ומעלה</div>') +
+      (holes.length ? `<div class="ptitle" style="margin-top:12px">חורי קליטה באמצע הדרך</div><p class="pdesc">תחנות שהאוטובוסים ודאי עברו בהן (נמדדו לפניהן ואחריהן) ובכל זאת פחות מ-70% מהמעברים נקלטו.</p><div class="tblbox"><table><thead><tr><th>תחנה</th><th>עיר</th><th>עברו</th><th>נקלטו</th><th>חברות</th></tr></thead><tbody>` +
+      holes.map(x => `<tr><td class="nm">${esc(stopName(x.code))} <small style="color:var(--dim)">${esc(x.code)}</small></td><td style="font-size:12px">${esc(x.city)}</td><td>${num(x.passed)}</td><td class="d4">${pct(x.measured, x.passed)}</td><td>${num(x.ags)}</td></tr>`).join('') + '</tbody></table></div>' : '');
+  });
 }
 const LTNAME = {'עירוני': 'עירוניים', 'אזורי': 'אזוריים', 'בינעירוני': 'בינעירוניים'};
 function renderClusters() {
@@ -344,10 +395,12 @@ function renderVehicles() {
   const mb = $('#more-v'); if (mb) mb.onclick = () => { vAll = true; renderVehicles(); };
 }
 function renderAgencies() {
-  const rows = Object.entries(M.A).map(([nm, s]) => { const oT = s.o.reduce((x, y) => x + y, 0); return {nm, sched: s.sched, obs: s.obs, meas: s.meas, on: s.on, oon: oT ? s.o[1] / oT : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}; });
+  const anyReach = reachT(M.tot) > 0;
+  const rows = Object.entries(M.A).map(([nm, s]) => { const oT = s.o.reduce((x, y) => x + y, 0), rT = reachT(s); return {nm, sched: s.sched, obs: s.obs, meas: s.meas, on: s.on, oon: oT ? s.o[1] / oT : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, rend: rT ? s.reach[0] / rT : null, rstart: rT ? (s.reach[2] + s.reach[3]) / rT : null, rT}; });
   sortRows(rows, sortA);
-  $('#t-ag').innerHTML = `<div class="tblbox"><table id="ta"><thead><tr>${th('מפעיל', 'nm', sortA)}${th('נסיעות בלו״ז', 'sched', sortA)}${th('נצפו', 'obs', sortA)}${th('הגעות נמדדו', 'meas', sortA)}${th('בזמן בתחנות', 'on', sortA)}${th('יציאה בזמן מהמוצא', 'oon', sortA)}${th('יצאו מוקדם', 'oearly', sortA)}${th('איחור ממוצע', 'avg', sortA)}${th('מעל 20 דק׳', 'b4', sortA)}</tr></thead><tbody>` +
-    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-ag="${esc(r.nm)}" title="סינון הקווים למפעיל הזה">${esc(r.nm)}</button></td><td>${num(r.sched)}</td><td>${num(r.obs)} <small style="color:var(--dim)">(${pct(r.obs, r.sched)})</small></td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oon == null ? '—' : Math.round(r.oon * 100) + '%'}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
+  $('#t-ag').innerHTML = `<div class="tblbox"><table id="ta"><thead><tr>${th('מפעיל', 'nm', sortA)}${th('נסיעות בלו״ז', 'sched', sortA)}${th('נצפו', 'obs', sortA)}${th('הגעות נמדדו', 'meas', sortA)}${th('בזמן בתחנות', 'on', sortA)}${th('יציאה בזמן מהמוצא', 'oon', sortA)}${th('יצאו מוקדם', 'oearly', sortA)}${th('איחור ממוצע', 'avg', sortA)}${th('מעל 20 דק׳', 'b4', sortA)}${anyReach ? th('נראו עד הסוף', 'rend', sortA) + th('רק בהתחלה', 'rstart', sortA) : ''}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-ag="${esc(r.nm)}" title="סינון הקווים למפעיל הזה">${esc(r.nm)}</button></td><td>${num(r.sched)}</td><td>${num(r.obs)} <small style="color:var(--dim)">(${pct(r.obs, r.sched)})</small></td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oon == null ? '—' : Math.round(r.oon * 100) + '%'}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td>${anyReach ? `<td>${r.rend == null ? '—' : Math.round(r.rend * 100) + '%'}</td><td class="${r.rstart == null ? '' : r.rstart >= 0.1 ? 'd4' : r.rstart >= 0.05 ? 'd3' : ''}" title="${r.rT ? num(r.rT) + ' נסיעות ששודרו' : ''}">${r.rstart == null ? '—' : Math.round(r.rstart * 100) + '%'}</td>` : ''}</tr>`).join('') + '</tbody></table></div>' +
+    (anyReach ? '<p class="pdesc">"נראו עד הסוף": נסיעות ששודרו ונמדדו עד שתי התחנות האחרונות של המסלול. "רק בהתחלה": נסיעות ששודרו אבל נמדדו רק בשלוש התחנות הראשונות, או שודרו 5 דקות ומעלה בלי להתקדם על המסלול. משרד התחבורה בודק ביצוע נסיעה בתחנת המוצא בלבד; כאן בכל תחנה. הפירוט למטה, ב"איפה האוטובוס נעלם".</p>' : '');
   $('#ta thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortA = {k, dir: sortA.k === k ? -sortA.dir : (k === 'nm' ? 1 : -1)}; renderAgencies(); };
   $('#t-ag').querySelectorAll('.linebtn').forEach(b => b.onclick = () => { agency = b.dataset.ag; rank = rank || 'worst'; showAllL = false; renderFilters(); renderLines(); renderWorst(); $('#lfilters').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 }
@@ -441,7 +494,7 @@ function renderCityLines() {
 }
 function renderFilters() {
   const ags = Object.keys(M.A).sort((a, b) => M.A[b].meas - M.A[a].meas);
-  const chips = [['worst', 'הכי לא מדייקים'], ['best', 'הכי מדייקים'], ['early', 'הכי הרבה יציאות מוקדמות'], ['miss', 'הכי הרבה לא נצפו'], ['', 'הכי הרבה נסיעות']];
+  const chips = [['worst', 'הכי לא מדייקים'], ['best', 'הכי מדייקים'], ['early', 'הכי הרבה יציאות מוקדמות'], ['miss', 'הכי הרבה לא נצפו']].concat(reachT(M.tot) ? [['vanish', 'הכי הרבה נעלמו בדרך']] : []).concat([['', 'הכי הרבה נסיעות']]);
   const cls = Object.keys(M.K || {}).sort((a, b) => M.K[b].meas - M.K[a].meas);
   $('#lfilters').innerHTML = `<select id="agsel" title="מפעיל"><option value="">כל המפעילים</option>${ags.map(a => `<option value="${esc(a)}"${a === agency ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select>` +
     (cls.length > 1 ? `<select id="clsel" title="אשכול"><option value="">כל האשכולות</option>${cls.map(a => `<option value="${esc(a)}"${a === cluster ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select>` : '') +
@@ -449,15 +502,16 @@ function renderFilters() {
     `<input class="search" id="lq" placeholder="חיפוש קו: מספר, יעד…" value="${esc(lq)}">`;
   $('#agsel').onchange = e => { agency = e.target.value; showAllL = false; renderLines(); renderWorst(); };
   const cs = $('#clsel'); if (cs) cs.onchange = e => { cluster = e.target.value; showAllL = false; renderLines(); renderWorst(); };
-  $('#lfilters').querySelectorAll('.fchip').forEach(b => b.onclick = () => { rank = b.dataset.r; showAllL = false; sortL = rank === 'worst' ? {k: 'on', dir: 1} : rank === 'best' ? {k: 'on', dir: -1} : rank === 'early' ? {k: 'oearly', dir: -1} : rank === 'miss' ? {k: 'miss', dir: -1} : {k: 'meas', dir: -1}; renderFilters(); renderLines(); });
+  $('#lfilters').querySelectorAll('.fchip').forEach(b => b.onclick = () => { rank = b.dataset.r; showAllL = false; sortL = rank === 'worst' ? {k: 'on', dir: 1} : rank === 'best' ? {k: 'on', dir: -1} : rank === 'early' ? {k: 'oearly', dir: -1} : rank === 'miss' ? {k: 'miss', dir: -1} : rank === 'vanish' ? {k: 'rvan', dir: -1} : {k: 'meas', dir: -1}; renderFilters(); renderLines(); });
   $('#lq').oninput = e => { lq = e.target.value; showAllL = false; renderLines(); };
 }
 function renderLines() {
   const q = lq.trim();
-  let rows = Object.values(M.Rr).map(s => { const l = lineLabel(s.rid); const oT = s.o.reduce((x, y) => x + y, 0); return Object.assign({short: l.short, long: l.long, agency: l.agency, cluster: l.cluster || 'ללא אשכול', dir: l.dir, on: s.on, miss: s.sched > 0 ? Math.max(0, 1 - s.obs / s.sched) : null, early: s.meas ? s.c[0] / s.meas : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null}, s); });
+  let rows = Object.values(M.Rr).map(s => { const l = lineLabel(s.rid); const oT = s.o.reduce((x, y) => x + y, 0), rT = reachT(s); return Object.assign({short: l.short, long: l.long, agency: l.agency, cluster: l.cluster || 'ללא אשכול', dir: l.dir, on: s.on, miss: s.sched > 0 ? Math.max(0, 1 - s.obs / s.sched) : null, early: s.meas ? s.c[0] / s.meas : null, oearly: oT ? s.o[0] / oT : null, avg: s.avg, b4: s.meas ? s.c[4] / s.meas : null, rend: rT ? s.reach[0] / rT : null, rstart: rT ? (s.reach[2] + s.reach[3]) / rT : null, rvan: rT ? 1 - s.reach[0] / rT : null, rT}, s); });
   if (agency) rows = rows.filter(r => r.agency === agency);
   if (cluster) rows = rows.filter(r => r.cluster === cluster);
   if (rank === 'miss') rows = rows.filter(r => r.sched >= MIN_RIDES);
+  else if (rank === 'vanish') rows = rows.filter(r => r.rT >= MIN_RIDES);
   else if (rank) rows = rows.filter(r => r.obs >= MIN_RIDES);
   if (q) {
     const tok = q.split(/\s+/);
@@ -467,10 +521,10 @@ function renderLines() {
   sortRows(rows, sortL);
   const total = rows.length;
   if (!showAllL) rows = rows.slice(0, q ? 60 : 40);
-  $('#t-lines').innerHTML = `<div class="tblbox"><table id="tlines"><thead><tr>${th('קו', 'short', sortL)}${th('מסלול', 'long', sortL)}${th('מפעיל', 'agency', sortL)}${th('אשכול', 'cluster', sortL)}${th('נסיעות', 'sched', sortL)}${th('נצפו', 'obs', sortL)}${th('לא נצפו', 'miss', sortL)}${th('הגעות', 'meas', sortL)}${th('בזמן', 'on', sortL)}${th('יצאו מוקדם', 'oearly', sortL)}${th('איחור ממוצע', 'avg', sortL)}${th('מעל 20 דק׳', 'b4', sortL)}</tr></thead><tbody>` +
-    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px;color:var(--mut)">${esc(r.cluster)}</td><td>${num(r.sched)}</td><td>${num(r.obs)}</td><td class="${missCls(r.miss)}" title="${r.sched > 0 ? num(Math.max(0, r.sched - r.obs)) + ' מתוך ' + num(r.sched) + ' נסיעות מתוכננות לא נצפו' : 'אין נסיעות מתוכננות לחישוב'}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>' +
+  $('#t-lines').innerHTML = `<div class="tblbox"><table id="tlines"><thead><tr>${th('קו', 'short', sortL)}${th('מסלול', 'long', sortL)}${th('מפעיל', 'agency', sortL)}${th('אשכול', 'cluster', sortL)}${th('נסיעות', 'sched', sortL)}${th('נצפו', 'obs', sortL)}${th('לא נצפו', 'miss', sortL)}${th('הגעות', 'meas', sortL)}${th('בזמן', 'on', sortL)}${th('יצאו מוקדם', 'oearly', sortL)}${th('איחור ממוצע', 'avg', sortL)}${th('מעל 20 דק׳', 'b4', sortL)}${reachT(M.tot) ? th('עד הסוף', 'rend', sortL) + th('רק בהתחלה', 'rstart', sortL) : ''}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm"><button class="linebtn" data-rid="${esc(r.rid)}">${esc(r.short)}</button></td><td style="font-size:12px;color:var(--mut)">${esc(r.long)}</td><td style="font-size:12px">${esc(r.agency)}</td><td style="font-size:12px;color:var(--mut)">${esc(r.cluster)}</td><td>${num(r.sched)}</td><td>${num(r.obs)}</td><td class="${missCls(r.miss)}" title="${r.sched > 0 ? num(Math.max(0, r.sched - r.obs)) + ' מתוך ' + num(r.sched) + ' נסיעות מתוכננות לא נצפו' : 'אין נסיעות מתוכננות לחישוב'}">${r.miss == null ? '—' : Math.round(r.miss * 100) + '%'}</td><td>${num(r.meas)}</td><td>${onCell(r.on)}</td><td>${r.oearly == null ? '—' : Math.round(r.oearly * 100) + '%'}</td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td><td>${r.b4 == null ? '—' : Math.round(r.b4 * 100) + '%'}</td>${reachT(M.tot) ? `<td>${r.rend == null ? '—' : Math.round(r.rend * 100) + '%'}</td><td class="${r.rstart == null ? '' : r.rstart >= 0.1 ? 'd4' : r.rstart >= 0.05 ? 'd3' : ''}">${r.rstart == null ? '—' : Math.round(r.rstart * 100) + '%'}</td>` : ''}</tr>`).join('') + '</tbody></table></div>' +
     (total > rows.length ? `<button class="more" id="more-l">הצגת כל ${num(total)} הקווים</button>` : '') +
-    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים${agency ? ' של ' + esc(agency) : ''}${cluster ? ' באשכול ' + esc(cluster) : ''} (כיוון וחלופה נספרים בנפרד)${rank === 'miss' ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות בלו״ז` : rank ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות שנצפו` : ''}</div><p class="pdesc">״לא נצפו״: נסיעות מתוכננות שלא זוהו בנתונים. ייתכן שלא בוצעו או שבוצעו ללא שידור שנקלט. האחוז מחושב מתוך הנסיעות המתוכננות.</p>`;
+    `<div class="mut" style="margin-top:6px">${num(total)} מסלולים${agency ? ' של ' + esc(agency) : ''}${cluster ? ' באשכול ' + esc(cluster) : ''} (כיוון וחלופה נספרים בנפרד)${rank === 'miss' ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות בלו״ז` : rank === 'vanish' ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות ששודרו` : rank ? ` · בדירוג רק קווים עם לפחות ${MIN_RIDES} נסיעות שנצפו` : ''}</div><p class="pdesc">״לא נצפו״: נסיעות מתוכננות שלא זוהו בנתונים. ייתכן שלא בוצעו או שבוצעו ללא שידור שנקלט. האחוז מחושב מתוך הנסיעות המתוכננות.${reachT(M.tot) ? ' "עד הסוף" ו"רק בהתחלה": עד איפה לאורך המסלול נראה האוטובוס, מתוך הנסיעות ששודרו (הסבר בפירוט "איפה האוטובוס נעלם").' : ''}</p>`;
   $('#tlines thead').onclick = e => { const k = e.target.closest('th') && e.target.closest('th').dataset.k; if (!k) return; sortL = {k, dir: sortL.k === k ? -sortL.dir : (['short', 'long', 'agency', 'cluster'].includes(k) ? 1 : -1)}; renderLines(); };
   $('#t-lines').querySelectorAll('.linebtn').forEach(b => b.onclick = () => { openLine = b.dataset.rid; renderLineDetail(); $('#line-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   const mb = $('#more-l'); if (mb) mb.onclick = () => { showAllL = true; renderLines(); };
@@ -489,9 +543,10 @@ function profileOf(rid, days) {
   for (const d of days) {
     const rows = (stopCache[d] || {})[rid];
     if (!rows) continue;
-    rows.forEach(([code, n, avg10, on], i) => { const x = acc.get(code) || {code, n: 0, sum: 0, on: 0, i}; x.n += n; x.sum += avg10 / 10 * n; x.on += on; acc.set(code, x); });
+    const sched = ((M.Rr[rid] || {}).schedByDay || {})[d] || 0;
+    rows.forEach(([code, n, avg10, on, plan], i) => { const x = acc.get(code) || {code, n: 0, sum: 0, on: 0, plan: 0, i}; x.n += n; x.sum += avg10 / 10 * n; x.on += on; x.plan += plan == null ? sched : plan; acc.set(code, x); });
   }
-  return [...acc.values()].sort((a, b) => a.i - b.i).map(x => ({code: x.code, n: x.n, avg: x.sum / x.n, on: x.on / x.n}));
+  return [...acc.values()].sort((a, b) => a.i - b.i).map(x => ({code: x.code, n: x.n, avg: x.sum / x.n, on: x.on / x.n, plan: x.plan}));
 }
 function renderLineDetail() {
   const el = $('#line-detail'); if (!el) return;
@@ -508,12 +563,14 @@ function renderLineDetail() {
       <div><b>${oT ? pct(s.o[0], oT) : '—'}</b><span>יציאה מוקדמת מהמוצא</span></div>
       <div><b>${s.avg == null ? '—' : fmt1(s.avg)}<i>דק׳</i></b><span>איחור ממוצע${s.s && s.s[2] != null ? ` · 90% עד ${fmt1(s.s[2])}` : ''}</span></div>
       <div><b>${num(s.obs)}</b><span>נסיעות נצפו מתוך ${num(s.sched)}</span></div>
+      ${reachT(s) ? `<div><b>${pct(s.reach[0], reachT(s))}</b><span>נראו עד סוף המסלול</span></div><div><b>${pct(s.reach[2] + s.reach[3], reachT(s))}</b><span>נראו רק בהתחלה, או שודרו ולא זזו</span></div>` : ''}
+      ${s.cov[0] ? `<div><b>${pct(s.cov[1], s.cov[0])}</b><span>מהתחנות שבדרך נקלטו (השאר: חורי GPS)</span></div>` : ''}
     </div>
     ${vehicleDetails(s)}
     ${distHtml(s)}
     <div class="cols2" style="margin-top:10px"><div><div class="ptitle">אחוז בזמן לפי השעה ביום</div><p class="pdesc">לפי השעה שבה האוטובוס היה אמור להגיע לתחנה.</p><div class="chart" id="c-lh"></div></div>
     <div><div class="ptitle">האיחור הממוצע לאורך הקו</div><p class="pdesc">עמודה לכל תחנה, מהמוצא (ימין) ליעד. איפה שהעמודות קופצות, שם הקו מאבד זמן.</p><div class="chart" id="c-lp"><div class="empty">טוען…</div></div></div></div>
-    <div class="ptitle" style="margin-top:12px">תחנה אחרי תחנה</div><p class="pdesc">לכל תחנה בקו: כמה הגעות נמדדו, האיחור הממוצע, ואיזה חלק מההגעות היה בזמן.</p><div id="lprof"><div class="empty">טוען…</div></div>
+    <div class="ptitle" style="margin-top:12px">תחנה אחרי תחנה</div><p class="pdesc">לכל תחנה בקו: כמה הגעות נמדדו ואיזה חלק הן מהנסיעות המתוכננות שעוברות בתחנה, האיחור הממוצע, ואיזה חלק מההגעות היה בזמן. ירידה חדה ב"מהמתוכנן" באמצע הקו: שם האוטובוסים נעלמים, בגלל קליטה או כי הנסיעה לא הגיעה עד לשם.</p><div id="lprof"><div class="empty">טוען…</div></div>
   </div>`;
   barChart($('#c-lh'), hours, {color: C.line, max: 100, unit: '%', h: 160});
   $('#close-l').onclick = () => { openLine = null; el.innerHTML = ''; };
@@ -526,9 +583,10 @@ function renderLineDetail() {
     if (!prof.length) { box.innerHTML = '<div class="empty">אין עדיין פירוט לתחנות ליום הזה (מחושב מהריצה הבאה)</div>'; ch.innerHTML = '<div class="empty">אין נתונים</div>'; return; }
     const mx = Math.max(10, Math.ceil(Math.max(...prof.map(p => p.avg)) / 5) * 5);
     barChart(ch, prof.map((p, i) => ({x: String(i + 1), y: Math.max(0, p.avg), color: BCOL[catOf(p.avg)], tip: `<b>${esc(stopName(p.code))}</b><br>איחור ממוצע ${delayTxt(p.avg)} דק׳ · ${pct(p.on * p.n, p.n)} בזמן · ${num(p.n)} הגעות`})), {color: C.line, max: mx, unit: '׳', h: 160});
-    box.innerHTML = `<div class="prof"><div class="ps h"><span></span><span>תחנה</span><span>הגעות</span><span>איחור ממוצע</span><span>בזמן</span></div>` +
-      prof.map((p, i) => `<div class="ps"><span class="dot s${catOf(p.avg)}"></span><span class="rn">${esc(stopName(p.code))} <small>${esc(p.code)}${i === 0 ? ' · מוצא' : i === prof.length - 1 ? ' · יעד' : ''}</small></span><span class="num">${num(p.n)}</span><span class="num ${dcls(p.avg)}">${delayTxt(p.avg)} דק׳</span><span class="num">${Math.round(p.on * 100)}%</span></div>`).join('') + '</div>' +
-      '<div class="mut" style="margin-top:6px">בתחנת המוצא: יציאה מול השעה שבלו״ז. בשאר התחנות: הגעה. קפיצה חדה בין שתי תחנות סמוכות היא הקטע שבו הקו מאבד זמן.</div>';
+    const planCls = p => !p.plan ? '' : p.n / p.plan >= 0.8 ? 'd1' : p.n / p.plan >= 0.6 ? 'd2' : p.n / p.plan >= 0.4 ? 'd3' : 'd4';
+    box.innerHTML = `<div class="prof"><div class="ps h"><span></span><span>תחנה</span><span>הגעות</span><span>מהמתוכנן</span><span>איחור ממוצע</span><span>בזמן</span></div>` +
+      prof.map((p, i) => `<div class="ps"><span class="dot s${catOf(p.avg)}"></span><span class="rn">${esc(stopName(p.code))} <small>${esc(p.code)}${i === 0 ? ' · מוצא' : i === prof.length - 1 ? ' · יעד' : ''}</small></span><span class="num">${num(p.n)}</span><span class="num ${planCls(p)}" title="${p.plan ? num(p.n) + ' הגעות נמדדו מתוך ' + num(p.plan) + ' נסיעות מתוכננות שעוברות בתחנה' : 'אין מספר מתוכנן לתחנה'}">${p.plan ? Math.round(100 * p.n / p.plan) + '%' : '—'}</span><span class="num ${dcls(p.avg)}">${delayTxt(p.avg)} דק׳</span><span class="num">${Math.round(p.on * 100)}%</span></div>`).join('') + '</div>' +
+      '<div class="mut" style="margin-top:6px">בתחנת המוצא: יציאה מול השעה שבלו״ז. בשאר התחנות: הגעה. קפיצה חדה בין שתי תחנות סמוכות היא הקטע שבו הקו מאבד זמן. "מהמתוכנן": ההגעות שנמדדו מתוך כל הנסיעות שהיו אמורות לעבור בתחנה. במוצא המספר נמוך יותר כי היציאה נמדדת רק כשהרכב נראה עומד בתחנה לפני שיצא.</div>';
   });
 }
 function renderWorst() {
@@ -573,6 +631,7 @@ const METHOD = `<div class="ptitle">איך זה נמדד</div>
 <li><b>קטגוריות:</b> מוקדם = יותר מ-2 דקות לפני הלו״ז (בעיה לנוסע שמגיע בזמן); בזמן = עד 5 דקות איחור; ואז 5–10, 10–20, ומעל 20 דקות. "בזמן" נספר לכל הגעה לתחנה, לא לנסיעה.</li>
 <li><b>מה לא נספר:</b> נסיעות שלא שידרו בכלל (מופיעות כ"לא נצפו"); נסיעה ששודרה יותר משעה וחצי רחוק מהלו״ז שלה (כנראה רכב שהוסב לנסיעה אחרת); נסיעה שיצאה 45 דקות ומעלה אחרי הלו״ז כשבדיוק אז יש נסיעה אחרת בלו״ז של אותו קו (זו הנסיעה האחרת, שדווחה עם שעת יציאה ישנה); קפיצה של תחנות או מרחק בין שתי דגימות במהירות שאינה אפשרית (תקלת שידור, התחנות שבקפיצה לא נמדדות); מדידה בודדת שקופצת ב-20 דקות משתי שכנותיה (תקלת שיערוך); רכבת ורכבת קלה; ויום שבו נצפו פחות מ-30% מהנסיעות (שידור חלקי, מוצג בנפרד). נסיעות ששודרו ואין להן נסיעה בלו״ז (תגבורים) נספרות בנפרד.</li>
 <li><b>אשכול ועיר:</b> האשכול של כל קו לפי רשימת ClusterToLine שמשרד התחבורה מפרסם לצד לוח הזמנים (73 אשכולות מכרז, וסוג הקו: עירוני, אזורי, בינעירוני). העיר של כל תחנה לפי קובץ התחנות של המשרד, כך ש"לפי עיר" סופר את ההגעות לתחנות שבתחומי העיר בלבד, וקו שעובר בכמה ערים נמדד בכל עיר בנפרד.</li>
+<li><b>עד איפה נראה האוטובוס (מ-17.09.2026):</b> לכל נסיעה ששודרה נרשמת התחנה האחרונה שבה נמדדה. "עד הסוף": אחת משתי התחנות האחרונות (ביעד עצמו הרכב לרוב כבר לא משדר). "רק בהתחלה": לא מעבר לשלוש התחנות הראשונות. "שודרו ולא זזו": 5 דגימות ומעלה בלי שהתחנה הבאה התקדמה. משרד התחבורה סופר נסיעה שבוצעה לפי הדיווח בתחנת המוצא בלבד; כאן לפי כל התחנות. "קליטה בדרך": מתוך התחנות שבין הראשונה לאחרונה שנמדדו (הרכב ודאי עבר בהן), כמה נמדדו. תחנה שאחריה נעלמות נסיעות של כמה חברות היא כנראה בעיית קליטה או מסוף, לא של החברה. "מהמתוכנן" בטבלת התחנות: ההגעות שנמדדו בתחנה מתוך כל הנסיעות שהיו אמורות לעבור בה לפי לוח הזמנים.</li>
 <li><b>אי ביצוע:</b> נסיעה שבלוח הזמנים ולא שידרה מיקום בכלל נספרת "לא נצפתה". זה אי ביצוע משוער: או שהנסיעה לא יצאה, או שיצאה בלי שידור. אי אפשר להבחין בין השניים מהשידורים, ולכן זה מוצג לצד מדדי הדיוק ולא בתוכם, בסך הארצי, לפי מפעיל, אשכול, קו ועיר. בעיר נספרות כל הנסיעות של הקווים שעוברים בה, לאורך כל המסלול.</li>
 <li><b>העומס על דאטאבוס:</b> אפס קריאות ל-API. הקבצים היומיים יורדים מאחסון S3 שנועד לזה, פעם אחת בלילה.</li>
 </ul>`;
