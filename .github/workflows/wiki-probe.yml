@@ -1,0 +1,40 @@
+name: wiki-probe
+
+# זמני: שליפת קוד המקור של ערכי תחנות מוויקיפדיה — כדי ללמוד איך
+# קווים כתובים בפועל בערכים (טבלאות/תבניות) ולכוון את הזיהוי בוויקי-בודק.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: fetch wikitext
+        run: |
+          for t in "מסוף ארלוזורוב" "התחנה המרכזית של באר שבע" "התחנה המרכזית החדשה" "התחנה המרכזית של טבריה" "מסוף רדינג"; do
+            echo "===== ARTICLE: $t ====="
+            curl -sG 'https://he.wikipedia.org/w/api.php' \
+              --data-urlencode "titles=$t" \
+              --data-urlencode 'action=query' --data-urlencode 'prop=revisions' \
+              --data-urlencode 'rvprop=content' --data-urlencode 'rvslots=main' \
+              --data-urlencode 'redirects=1' --data-urlencode 'format=json' \
+            | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+pg=list(d["query"]["pages"].values())[0]
+if "revisions" not in pg:
+    print("MISSING"); raise SystemExit
+wt=pg["revisions"][0]["slots"]["main"]["*"]
+print("TITLE:",pg["title"],"LEN:",len(wt))
+# מדפיסים רק את הטבלאות ושורות עם תבניות קו — החלק הרלוונטי
+in_t=0
+for ln in wt.split("\n"):
+    s=ln.strip()
+    if s.startswith("{|"): in_t+=1
+    if in_t: print("T|",ln[:200])
+    elif "קו" in ln and ("{{" in ln or "[[" in ln): print("L|",ln[:200])
+    if s.startswith("|}") and in_t: in_t-=1
+'
+          done
