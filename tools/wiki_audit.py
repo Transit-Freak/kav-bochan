@@ -17,6 +17,7 @@ import json
 import os
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -32,16 +33,27 @@ TPL_LINE = re.compile(r'\{\{[^}]*?\|\s*(\d{1,3}[א-ת]?)\s*(?:\||\}\})')
 
 def api(params):
     url = API + urllib.parse.urlencode(params)
-    for attempt in range(4):
+    for attempt in range(7):
         try:
             with urllib.request.urlopen(
                     urllib.request.Request(url, headers=UA), timeout=60) as r:
                 return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                # ויקיפדיה מגבילה קצב — מכבדים Retry-After (לפחות דקה) ולא מוותרים
+                wait = max(60, int(e.headers.get('Retry-After') or 0))
+                print(f'  429 — ממתין {wait}s', flush=True)
+                time.sleep(wait)
+                continue
+            if attempt == 6:
+                raise
+            time.sleep(5 * (attempt + 1))
         except Exception as e:  # noqa: BLE001
-            if attempt == 3:
+            if attempt == 6:
                 raise
             print(f'  retry {attempt + 1}: {e}', flush=True)
-            time.sleep(3 * (attempt + 1))
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError('ויקיפדיה לא זמינה')
 
 
 def extract_lines(wt):
@@ -241,7 +253,7 @@ def main():
         except Exception as e:  # noqa: BLE001 — ערך אחד לא מפיל את כולם
             out[name] = {'article': None, 'err': str(e)}
             print(f'{name}: שגיאה {e}', flush=True)
-        time.sleep(0.3)   # נימוס כלפי ה-API של ויקיפדיה
+        time.sleep(0.6)   # נימוס כלפי ה-API של ויקיפדיה
     used = {v.get('article') for v in out.values()}
     unmatched = sorted(t for t in cat_titles if t not in used)
     print(f'ערכים בקטגוריה שלא שודכו לתחנה ({len(unmatched)}): ' + ' | '.join(unmatched[:60]), flush=True)
