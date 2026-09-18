@@ -389,3 +389,9 @@ button.kbtn { border: 0; cursor: pointer; font: inherit; }
 .rdnum { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 /* נכנסו לקו מתוך חיפוש לפי קטגוריה — הסרגל דלוק רק עליה, וזו ההערה שמסבירה */
 .khint { font-size: 12px; color: #64748b; margin: 8px 0 -4px; line-height: 1.5; }
+
+/* מפת העיר לפי חודש */
+.citymap { height: min(70vh, 640px); min-height: 320px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 8px; }
+.maphint { color: #475569; font-weight: 700; font-size: 13px; line-height: 1.6; margin: 0 0 10px; }
+.mapstat { font-weight: 800; font-size: 13px; color: #334155; margin: 4px 0 6px; }
+.lh-pop .plink { color: #7c3aed; font-weight: 800; }
