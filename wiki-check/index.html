@@ -58,6 +58,9 @@
   .empty{padding:40px;text-align:center;color:var(--dim);font-weight:700}
   .msg{padding:60px 20px;text-align:center;color:var(--mut);font-weight:800;font-size:16px}
   .stat{font-size:13px;font-weight:700;margin:8px 0}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .fchip{border:none;cursor:pointer;background:var(--chipbg);color:var(--mut);border-radius:999px;padding:7px 14px;font:700 12px 'Rubik',sans-serif}
+  .fchip.on{background:var(--ink);color:#fff}
   a{color:#1D4ED8}
   button:focus-visible,input:focus-visible{outline:2px solid #10172A;outline-offset:2px}
 </style>
@@ -76,7 +79,8 @@
 
 <script>
 const $=s=>document.querySelector(s);
-let DATA=null, AUDIT=null, SEL=null, Q='', WIKI=null, WBUSY=false;
+let DATA=null, AUDIT=null, SEL=null, Q='', WIKI=null, WBUSY=false, KIND='station';
+const KINDS={station:'תחנות מרכזיות ומסופים',street:'רחובות מרכזיים',place:'מקומות מרכזיים'};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fd=s=>s?s.split('-').reverse().join('.'):'—';
 
@@ -90,15 +94,16 @@ function auditBadge(k){
 }
 function home(){
   const f=Q.trim();
-  const ks=Object.keys(DATA.stations).filter(k=>!f||k.includes(f)||DATA.stations[k].city.includes(f))
+  const ks=Object.keys(DATA.stations).filter(k=>(DATA.stations[k].kind||'station')===KIND).filter(k=>!f||k.includes(f)||DATA.stations[k].city.includes(f))
     .sort((a,b)=>{
       const w=k=>{const x=AUDIT&&AUDIT.stations&&AUDIT.stations[k];return x&&x.wrong?x.wrong.length:0;};
       return (w(b)-w(a))||(DATA.stations[b].lines.length-DATA.stations[a].lines.length);});
-  return `<div class="cards">${ks.map(k=>{const s=DATA.stations[k];
+  return `<div class="filters">${Object.entries(KINDS).map(([k,t])=>`<button class="fchip ${KIND===k?'on':''}" onclick="KIND='${k}';render()">${t}</button>`).join('')}</div>
+  <div class="cards">${ks.map(k=>{const s=DATA.stations[k];
     return `<button class="card" onclick="pick(${JSON.stringify(k).replace(/"/g,'&quot;')})">
       <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span><div style="margin-top:6px">${auditBadge(k)}</div></button>`;}).join('')
     ||'<div class="empty">לא נמצאה תחנה</div>'}</div>
-  <p class="note">מוצגות תחנות מרכזיות ומסופים עם 5 קווים ומעלה (בלי מסופים תפעוליים). קו משויך לתחנה אם הוא עוצר בה לפי לוח הזמנים הרשמי (כולל באמצע מסלול). הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
+  <p class="note">תחנות מרכזיות ומסופים (5 קווים ומעלה), רחובות מרכזיים (30 קווים ומעלה) ומקומות מרכזיים — אוניברסיטאות, בתי חולים, קניונים, תחנות רכבת. קו משויך למקום אם הוא עוצר בו לפי לוח הזמנים הרשמי (כולל באמצע מסלול). הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
 }
 
 function destTxt(st,l){
@@ -112,7 +117,7 @@ function stView(){
   const real=new Set(s.lines.map(l=>l[0]));
   const hasPlat=s.lines.some(l=>l[3]);
   return `<button class="back" onclick="SEL=null;WIKI=null;render()">→ כל התחנות</button>
-  <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים עוצרים בתחנה · לפי GTFS מ-${fd(DATA.updated)}</div></div>
+  <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים עוצרים כאן · לפי GTFS מ-${fd(DATA.updated)}</div></div>
 
   ${a?`<div class="panel"><p class="ptitle">מה כתוב בערך היום — מהסריקה השבועית</p>
     ${!a.article?'<p class="note">לא נמצא ערך מתאים בוויקיפדיה לתחנה הזו.</p>':
@@ -213,7 +218,8 @@ async function checkWiki(){
     const api='https://he.wikipedia.org/w/api.php?origin=*&format=json&';
     if(!title){
       // מחפשים ערך שבאמת נראה כמו תחנה — לא סתם התוצאה הראשונה
-      const rel=t=>['תחנה','מסוף','מרכזית'].some(w=>t.includes(w))||t.includes(s.city);
+      const core=SEL.replace(/^(רחוב|שדרות|דרך|קניון|מרכז רפואי|בית חולים|מכללת|תחנת רכבת|אוניברסיטת)\s+/,'').replace(/\s*\(.*\)$/,'');
+      const rel=t=>(s.kind||'station')==='station'?(['תחנה','מסוף','מרכזית'].some(w=>t.includes(w))||t.includes(s.city)):t.includes(core);
       for(const q of [SEL+' '+s.city,'התחנה המרכזית של '+s.city,'התחנה המרכזית '+s.city]){
         const r0=await (await fetch(api+'action=query&list=search&srlimit=5&srsearch='+encodeURIComponent(q))).json();
         const hit=(r0.query.search||[]).find(h=>rel(h.title));
@@ -269,7 +275,7 @@ Promise.all([
   fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
   fetch('data/audit.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null)
 ]).then(([d,a])=>{DATA=d;AUDIT=a;
-  document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה מרכזית או מסוף…">');
+  document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה, רחוב או מקום…">');
   render();})
 .catch(()=>{$('#view').innerHTML='<div class="msg">עוד אין נתונים — הריצו את ה-workflow ‏wiki-stations ב-GitHub Actions.</div>';});
 </script>

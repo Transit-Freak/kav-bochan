@@ -30,6 +30,11 @@ SUFFIX = re.compile(r'(-\d+[א-ת]?#?\s*)+$')
 STATION_WORDS = ('מרכזית', 'מסוף')
 CITY_RE = re.compile(r'עיר:\s*(.+?)\s*(?:רציף:|קומה:|$)')
 PLAT_RE = re.compile(r'רציף:\s*([^\s:]+)')
+STREET_RE = re.compile(r'רחוב:\s*(.+?)\s*עיר:')
+# מקומות מרכזיים שיש להם ערכים עם רשימות קווים — לפי מילים בשם התחנה
+PLACE_WORDS = ('אוניברסיט', 'בית חולים', 'ביה"ח', "בי''ח", 'מרכז רפואי', 'קניון',
+               'מכללת', 'ת. רכבת', 'ת.רכבת', 'תחנת רכבת', 'טרמינל', 'נמל', 'קריית הממשלה')
+MIN_LINES = {'station': 5, 'street': 30, 'place': 6}
 
 
 def station_key(stop_name):
@@ -78,27 +83,37 @@ def main():
     download()
     zf = zipfile.ZipFile(ZIP)
 
-    # 1. תחנות מרכזיות/מסופים מתוך stops.txt — עיר ורציף מתוך stop_desc
-    stop_info = {}     # stop_id -> (station_key, city, platform)
+    # 1. קבוצות מתוך stops.txt: תחנות מרכזיות/מסופים, רחובות, מקומות מרכזיים.
+    #    לכל עצירה: רשימת (מפתח קבוצה, סוג, שם, עיר, רציף)
+    stop_groups = {}
     for r in reader(zf, 'stops.txt'):
         name = (r.get('stop_name') or '').strip()
-        base = station_key(name)
-        if not any(w in base for w in STATION_WORDS):
-            continue
         desc = r.get('stop_desc') or ''
         mc = CITY_RE.search(desc)
         city = mc.group(1).strip() if mc else ''
-        # נרמול: "תחנה מרכזית" סתמית מקבלת את שם העיר; לסבידור עיר קבועה
-        if base in ('תחנה מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'מרכזית') and city:
-            base = f'ת. מרכזית {city}'
-        if base == 'מסוף ארלוזורוב (סבידור)':
-            city = 'תל אביב יפו'
         mp = PLAT_RE.search(desc)
         plat = (mp.group(1).strip() if mp else '')
         if plat in ('0', 'None', 'ם') or plat.startswith('קומה'):
             plat = ''
-        stop_info[r['stop_id']] = (base, city, plat)
-    print(f'stops: {len(stop_info)} עצירות בתחנות מרכזיות/מסופים', flush=True)
+        groups = []
+        base = station_key(name)
+        if any(w in base for w in STATION_WORDS):
+            if base in ('תחנה מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'מרכזית') and city:
+                base = f'ת. מרכזית {city}'
+            if base == 'מסוף ארלוזורוב (סבידור)':
+                city = 'תל אביב יפו'
+            groups.append((f'S|{base}|{city}', 'station', base, city, plat))
+        ms = STREET_RE.search(desc)
+        street = ms.group(1).strip() if ms else ''
+        if street and city and len(street) > 2 and not street[0].isdigit():
+            groups.append((f'R|{street}|{city}', 'street', street, city, ''))
+        pl = name.split('/')[0].strip()
+        if any(w in pl for w in PLACE_WORDS) and city:
+            pl = re.sub(r'^(ת\.\s*רכבת|ת\.רכבת)\s*', 'תחנת רכבת ', pl)
+            groups.append((f'P|{pl}|{city}', 'place', pl, city, plat))
+        if groups:
+            stop_groups[r['stop_id']] = groups
+    print(f'stops: {len(stop_groups)} עצירות בקבוצות', flush=True)
 
     # 2. routes + agency
     agency = {r['agency_id']: (r.get('agency_name') or '').strip()
@@ -114,38 +129,40 @@ def main():
     trip_route = {r['trip_id']: r['route_id'] for r in reader(zf, 'trips.txt')}
     print(f'trips: {len(trip_route)}', flush=True)
 
-    # 4. stop_times — סריקה אחת: אילו מסלולים עוצרים בכל תחנה ובאיזה רציף
-    hits = {}          # (route_id, station, city) → set(רציפים)
+    # 4. stop_times — סריקה אחת: אילו מסלולים עוצרים בכל קבוצה ובאיזה רציף
+    hits = {}          # (route_id, group_key) → set(רציפים)
+    meta = {}          # group_key → (kind, name, city)
     n = 0
     for r in reader(zf, 'stop_times.txt'):
         n += 1
-        si = stop_info.get(r['stop_id'])
-        if si is None:
+        gs = stop_groups.get(r['stop_id'])
+        if gs is None:
             continue
         rid = trip_route.get(r['trip_id'])
         if rid is None:
             continue
-        key = (rid, si[0], si[1])
-        s = hits.get(key)
-        if s is None:
-            s = hits[key] = set()
-        if si[2]:
-            s.add(si[2])
-    print(f'stop_times: {n} שורות · {len(hits)} צירופי קו-תחנה', flush=True)
+        for gk, kind, name, city, plat in gs:
+            meta[gk] = (kind, name, city)
+            st = hits.get((rid, gk))
+            if st is None:
+                st = hits[(rid, gk)] = set()
+            if plat:
+                st.add(plat)
+    print(f'stop_times: {n} שורות · {len(hits)} צירופי קו-קבוצה', flush=True)
 
-    # 5. קיבוץ לתחנות
+    # 5. קיבוץ
     stations = {}
-    for (rid, base, city), plats in hits.items():
+    for (rid, gk), plats in hits.items():
         short, op, long_name = routes.get(rid, ('', '', ''))
         if not short:
             continue
-        st = stations.setdefault(f'{base}|{city}',
-                                 {'name': base, 'city': city, 'lines': {}})
+        kind, base, city = meta[gk]
+        st = stations.setdefault(gk, {'kind': kind, 'name': base, 'city': city, 'lines': {}})
         ends = endpoint_cities(long_name)
-        term = any(station_key(e[0]) == base for e in ends)
+        term = kind == 'station' and any(station_key(e[0]) == base for e in ends)
         dests = set()
         for stop, ecity in ends:
-            if station_key(stop) == base:
+            if kind == 'station' and station_key(stop) == base:
                 continue
             dests.add(ecity if ecity != city else station_key(stop))
         lk = f'{short}|{op}'
@@ -161,18 +178,25 @@ def main():
         return (int(m.group()) if m else 10 ** 6, x['line'], x['op'])
 
     from collections import Counter
-    names = Counter(st['name'] for st in stations.values())
+    names = Counter((st['kind'], st['name']) for st in stations.values())
     out_st = {}
     for st in stations.values():
-        if 'תפעול' in st['name'] or len(st['lines']) < 5:
+        if 'תפעול' in st['name'] or len(st['lines']) < MIN_LINES[st['kind']]:
             continue
         lines = sorted(st['lines'].values(), key=linekey)
-        label = st['name'] if names[st['name']] == 1 else f"{st['name']} ({st['city']})"
+        if st['kind'] == 'street':
+            label = f"{st['name']} ({st['city']})"
+        elif names[(st['kind'], st['name'])] == 1:
+            label = st['name']
+        else:
+            label = f"{st['name']} ({st['city']})"
         out_st[label] = {
-            'city': st['city'],
+            'kind': st['kind'], 'city': st['city'],
             'lines': [[x['line'], x['op'], sorted(x['dests']),
                        '/'.join(sorted(x['plats'])[:3]),
                        1 if x['term'] else 0] for x in lines]}
+    kinds = Counter(v['kind'] for v in out_st.values())
+    print(f'קבוצות: {dict(kinds)}', flush=True)
     out = {'updated': datetime.date.today().isoformat(), 'stations': out_st}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = f'{OUT}.tmp'

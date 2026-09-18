@@ -81,11 +81,25 @@ def extract_lines(wt):
     return found
 
 
-def find_article(name, city):
-    """חיפוש שמחזיר רק ערך שנראה כמו תחנה/מסוף — לא סתם התוצאה הראשונה."""
-    def rel(t):
-        return any(w in t for w in ('תחנה', 'מסוף', 'מרכזית')) or city in t
-    for q in (f'{name} {city}', f'התחנה המרכזית של {city}', f'התחנה המרכזית {city}'):
+PREFIX = re.compile(r'^(רחוב|שדרות|שד\'|דרך|קניון|מרכז רפואי|בית חולים|ביה"ח|בי\'\'ח|מכללת|תחנת רכבת|אוניברסיטת)\s+')
+
+
+def find_article(name, city, kind='station'):
+    """חיפוש שמחזיר רק ערך שנראה רלוונטי — לא סתם התוצאה הראשונה."""
+    core = PREFIX.sub('', name).strip()
+    if kind == 'station':
+        def rel(t):
+            return any(w in t for w in ('תחנה', 'מסוף', 'מרכזית')) or city in t
+        qs = (f'{name} {city}', f'התחנה המרכזית של {city}', f'התחנה המרכזית {city}')
+    elif kind == 'street':
+        def rel(t):
+            return core in t and ('רחוב' in t or 'שדרות' in t or 'דרך' in t or city in t)
+        qs = (f'{name} {city}', f'רחוב {core} {city}', f'{core} ({city})')
+    else:
+        def rel(t):
+            return core in t
+        qs = (f'{name} {city}', f'{core} {city}', core)
+    for q in qs:
         r = api({'action': 'query', 'list': 'search', 'srlimit': '5', 'srsearch': q})
         for h in r.get('query', {}).get('search', []):
             if rel(h['title']):
@@ -125,7 +139,7 @@ def main():
             if name in override:
                 title = override[name]   # null = אין ערך מתאים, לא מחפשים
             else:
-                title = known.get(name) or find_article(name, st['city'])
+                title = known.get(name) or find_article(name, st['city'], st.get('kind', 'station'))
             if not title:
                 out[name] = {'article': None}
                 print(f'{name}: לא נמצא ערך', flush=True)
@@ -139,7 +153,7 @@ def main():
             wrong = [l for l in in_article if l not in real]
             correct = [l for l in in_article if l in real]
             missing = len(real) - len(correct)
-            out[name] = {'article': title, 'hasTable': has_table,
+            out[name] = {'article': title, 'kind': st.get('kind', 'station'), 'hasTable': has_table,
                          'inArticle': in_article, 'wrong': wrong,
                          'correct': len(correct), 'missing': missing}
             print(f'{name} → {title}: בערך {len(in_article)} · '
