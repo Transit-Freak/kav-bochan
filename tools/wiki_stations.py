@@ -127,6 +127,9 @@ def main():
         if plat in ('0', 'None', 'ם') or plat.startswith('קומה'):
             plat = ''
         groups = []
+        # רציף הורדה אינו רציף היציאה — בוויקיפדיה כותבים מאיפה הקו יוצא (שלמה 18.09)
+        if 'הורדה' in name:
+            plat = ''
         code = (r.get('stop_code') or '').strip()
         if code in manual:
             lab = re.sub(r'\s*\(.*?\)\s*$', '', manual[code])
@@ -178,6 +181,7 @@ def main():
     meta = {}          # group_key → (kind, name, city)
     n = 0
     route_streets = {}   # route_id → {(רחוב, עיר): None} לפי סדר ההופעה
+    dep_plats = {}       # (route_id, קבוצה) → רציפי היציאה (התחנה הראשונה בנסיעה)
     for r in reader(zf, 'stop_times.txt'):
         n += 1
         sid = r['stop_id']
@@ -196,6 +200,7 @@ def main():
         rid = trip_route.get(r['trip_id'])
         if rid is None:
             continue
+        first = (r.get('stop_sequence') or '').strip() == '1'   # תחנת המוצא של הנסיעה
         for gk, kind, name, city, plat in gs:
             meta[gk] = (kind, name, city)
             st = hits.get((rid, gk))
@@ -203,6 +208,8 @@ def main():
                 st = hits[(rid, gk)] = set()
             if plat:
                 st.add(plat)
+                if first:
+                    dep_plats.setdefault((rid, gk), set()).add(plat)
     print(f'stop_times: {n} שורות · {len(hits)} צירופי קו-קבוצה', flush=True)
 
     # 5. קיבוץ
@@ -225,9 +232,17 @@ def main():
             lk, {'line': short, 'op': op, 'dests': set(), 'plats': set(),
                  'term': False})
         ent['dests'] |= dests
+        # רציף היציאה עדיף על כל רציף אחר (הורדה/מעבר): כמו בערכי ויקיפדיה
+        dp = dep_plats.get((rid, gk))
+        if dp:
+            ent.setdefault('dep', set()).update(dp)
         ent['plats'] |= plats
         ent['term'] = ent['term'] or term
         ent.setdefault('rids', set()).add(rid)
+
+    def plat_sort(p):
+        m = re.match(r'\d+', p)
+        return (int(m.group()) if m else 10 ** 6, p)
 
     def linekey(x):
         m = re.match(r'\d+', x['line'])
@@ -272,7 +287,7 @@ def main():
             'lat': round(sum(p[0] for p in pos) / len(pos), 5) if pos else None,
             'lon': round(sum(p[1] for p in pos) / len(pos), 5) if pos else None,
             'lines': [[x['line'], x['op'], sorted(x['dests']),
-                       '/'.join(sorted(x['plats'])[:3]),
+                       '/'.join(sorted(x['dep'] or x['plats'], key=plat_sort)[:3]) if x.get('dep') else '/'.join(sorted(x['plats'], key=plat_sort)[:3]),
                        1 if x['term'] else 0,
                        streets_of(x.get('rids', ())),
                        acc_of(x.get('rids', ()))] for x in lines]}
