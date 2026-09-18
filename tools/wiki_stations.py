@@ -288,6 +288,7 @@ def main():
             return None
         return 1 if ok == tot else 0 if ok == 0 else 2
     out_st = {}
+    out_places = {}
     for st in stations.values():
         if 'תפעול' in st['name'] or len(st['lines']) < MIN_LINES[st['kind']]:
             continue
@@ -307,8 +308,9 @@ def main():
                        '/'.join(sorted(x['dep'] or x['plats'], key=plat_sort)[:3]) if x.get('dep') else '/'.join(sorted(x['plats'], key=plat_sort)[:3]),
                        1 if x['term'] else 0,
                        streets_of(x.get('rids', ())),
-                       acc_of(x.get('rids', ())),
-                       places_of(x.get('rids', ()))] for x in lines]}
+                       acc_of(x.get('rids', ()))] for x in lines]}
+        # שמות התחנות במסלול — לסריקה בלבד (קובץ נפרד, שהאתר לא טוען)
+        out_places[label] = {x['line']: places_of(x.get('rids', ())) for x in lines}
     kinds = Counter(v['kind'] for v in out_st.values())
     print(f'קבוצות: {dict(kinds)}', flush=True)
     # שירותים עירוניים שאינם ב-GTFS הלאומי (סבבוס, שאטלים עירוניים וכד') —
@@ -344,6 +346,10 @@ def main():
     all_cities = sorted({v[1] for v in stop_street.values()} | {c for c in central})
     out = {'updated': datetime.date.today().isoformat(), 'stations': out_st, 'central': central, 'cities': all_cities}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    pp = os.path.join(os.path.dirname(OUT), 'places.json')
+    with open(pp + '.tmp', 'w', encoding='utf-8') as f:
+        json.dump(out_places, f, ensure_ascii=False, separators=(',', ':'))
+    os.replace(pp + '.tmp', pp)
     tmp = f'{OUT}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, separators=(',', ':'))

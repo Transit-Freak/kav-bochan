@@ -416,6 +416,11 @@ def main():
             for k, v in json.load(f).get('stations', {}).items():
                 if v.get('article'):
                     known[k] = v['article']
+    places = {}
+    pp = os.path.join(os.path.dirname(STATIONS), 'places.json')
+    if os.path.exists(pp):
+        with open(pp, encoding='utf-8') as f:
+            places = json.load(f)
     cat_titles = category_articles()
     coords = category_coords(cat_titles)
     out = {}
@@ -460,7 +465,7 @@ def main():
             for l in st['lines']:
                 sl = l[5] if len(l) > 5 else None
                 if sl and l[0] not in real_lines:
-                    real_lines[l[0]] = {'streets': sl, 'places': l[7] if len(l) > 7 else []}
+                    real_lines[l[0]] = {'streets': sl, 'places': (places.get(name) or {}).get(l[0]) or []}
             # ערים ותחנות קצה אינן רחובות: עיר התחנה, היעדים, וכל היישובים שבקובץ התחנות
             skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
             real_acc = {l[0]: l[6] for l in st['lines'] if len(l) > 6 and l[6] is not None}
