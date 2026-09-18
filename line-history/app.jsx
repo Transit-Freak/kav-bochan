@@ -14,9 +14,15 @@ const BUILD = window.LH_BUILD || "0";
     const nav = performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
     const reload = nav ? nav.type === "reload" : !!(performance.navigation && performance.navigation.type === 1);
     const origs = ((s && Array.isArray(s.origs)) ? s.origs : []).filter((u) => base(u) === base(now));
-    if (reload && s && s.url && s.url !== now && base(s.url) === base(now) && origs.includes(now)) history.replaceState(history.state, "", s.url);
+    // ההחלפה "אתר למחשב"/"אתר לנייד" לא תמיד נרשמת כ-reload — לפעמים כניווט
+    // רגיל בלי מפנה, ואז נחתנו על הכתובת המקורית (למשל קישור לקו 10) ולא
+    // על המסך האחרון. מצב שנשמר בדקות האחרונות באותה לשונית מספיק בשביל
+    // לשחזר גם אז (שלמה 18.09: "מקפיץ אותך לקו 10 ולא נותן לחזור לתפריט").
+    const recent = !!(s && s.ts && Date.now() - s.ts < 15 * 60 * 1000);
+    const toggled = !reload && recent && !document.referrer && (!nav || nav.type === "navigate");
+    if ((reload || toggled) && s && s.url && s.url !== now && base(s.url) === base(now) && origs.includes(now)) history.replaceState(history.state, "", s.url);
     const note = () => { if (!origs.includes(location.href)) origs.push(location.href); if (origs.length > 30) origs.splice(0, origs.length - 30); };
-    const save = () => { try { sessionStorage[K] = JSON.stringify({ origs, url: location.href }); } catch (e) { /* ignore */ } };
+    const save = () => { try { sessionStorage[K] = JSON.stringify({ origs, url: location.href, ts: Date.now() }); } catch (e) { /* ignore */ } };
     note();
     const push0 = history.pushState.bind(history), rep0 = history.replaceState.bind(history);
     history.pushState = function (st, t, u) { push0(st, t, u); note(); save(); };
