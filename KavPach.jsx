@@ -2080,7 +2080,7 @@ const cityOnly2 = (x) => x ? (x.indexOf(' - ') > 0 ? x.slice(0, x.indexOf(' - ')
 const DEADHEAD_MAX_RIDERS = 1.5;      // עד כאן "כמעט ריק"
 const DEADHEAD_SURE_RIDERS = 0.5;     // עד כאן "ריק"
 const DEADHEAD_GAP_MIN = 100;         // כמה דקות בין היציאות של זוג
-function computeDeadhead(trips) {
+function computeDeadhead(trips, lineStopsMap) {
   const cityOnly = (x) => x ? (x.indexOf(' - ') > 0 ? x.slice(0, x.indexOf(' - ')).trim() : x.split('/')[0].trim()) : '';
   const groups = new Map();
   for (const t of trips) {
@@ -2093,6 +2093,43 @@ function computeDeadhead(trips) {
     const la = a.daysList || [], lb = b.daysList || [];
     if (!la.length || !lb.length) return true;
     return la.some(d => lb.includes(d));
+  };
+  // "קו עמוס באזור": נסיעה עמוסה (80% מקיבולת הרכב — ההגדרה של האתר) של קו
+  // אחר, באותה עיר, שיוצאת עד 30 דק' מהנסיעה הריקה. הסעה ריקה ליד קו שנחנק
+  // היא הבזבוז הבולט ביותר — אותו אוטובוס יכול היה לתגבר אותו (שלמה 18.09).
+  const DEADHEAD_NEAR_MIN = 30;
+  const crowdedByCity = new Map();
+  for (const t of trips) {
+    if (t.timeMins == null) continue;
+    const cap80 = (t.capacity || 50) * 0.8;
+    if (t.ridership < cap80 && t.peakLoad < cap80) continue;
+    for (const c of new Set([cityOnly(t.origin), cityOnly(t.dest)])) {
+      if (!c) continue;
+      if (!crowdedByCity.has(c)) crowdedByCity.set(c, []);
+      crowdedByCity.get(c).push(t);
+    }
+  }
+  // "באזור" = אותה עיר, וכשיש מפת תחנות — גם לפחות תחנה משותפת (אותו
+  // מסדרון). בלי זה בירושלים או בתל אביב כל נסיעה ריקה הייתה "ליד" קו עמוס.
+  const stopsOf = (t) => (lineStopsMap && lineStopsMap.get(String(t.makat || '').replace(/^0+/, ''))) || null;
+  const sharesStop = (t, x) => {
+    const A = stopsOf(t), B = stopsOf(x);
+    if (!A || !B) return true;
+    for (const st of A) if (B.has(st)) return true;
+    return false;
+  };
+  const crowdedNear = (t) => {
+    let best = null;
+    for (const c of new Set([cityOnly(t.origin), cityOnly(t.dest)])) {
+      for (const x of (crowdedByCity.get(c) || [])) {
+        if (String(x.lineNum) === String(t.lineNum)) continue;
+        const d = Math.abs(x.timeMins - t.timeMins);
+        if (d > DEADHEAD_NEAR_MIN) continue;
+        if (!sharesStop(t, x)) continue;
+        if (!best || Math.max(x.ridership, x.peakLoad) > Math.max(best.ridership, best.peakLoad)) best = x;
+      }
+    }
+    return best;
   };
   const pairs = [];
   for (const [groupKey, list] of groups) {
@@ -2120,7 +2157,9 @@ function computeDeadhead(trips) {
       const weekly = Math.min(a.tripCount || 1, b.tripCount || 1);
       const km = ((a.distance || 0) + (b.distance || 0)) * weekly;
       const sure = a.ridership <= DEADHEAD_SURE_RIDERS && b.ridership <= DEADHEAD_SURE_RIDERS;
+      const hot = crowdedNear(a) || crowdedNear(b);
       pairs.push({
+        near: hot,
         groupKey, lineNum: a.lineNum, makat: a.makat, origin: a.origin, dest: a.dest,
         cluster: a.cluster || a.clusterVal || '', district: a.district || '', lineType: a.lineType || '',
         a, b, gap: best.gap, weekly, km, sure,
@@ -2128,21 +2167,22 @@ function computeDeadhead(trips) {
       });
     }
   }
-  pairs.sort((x, y) => (y.sure - x.sure) || (y.km - x.km));
+  pairs.sort((x, y) => ((y.near ? 1 : 0) - (x.near ? 1 : 0)) || (y.sure - x.sure) || (y.km - x.km));
   const byLine = new Map();
   for (const p of pairs) {
     const k = p.groupKey;
     if (!byLine.has(k)) byLine.set(k, { groupKey: k, lineNum: p.lineNum, makat: p.makat, origin: p.origin, dest: p.dest, cluster: p.cluster, district: p.district, lineType: p.lineType, pairs: [], weekly: 0, km: 0, sure: 0 });
     const L = byLine.get(k);
-    L.pairs.push(p); L.weekly += p.weekly; L.km += p.km; if (p.sure) L.sure += 1;
+    L.pairs.push(p); L.weekly += p.weekly; L.km += p.km; if (p.sure) L.sure += 1; if (p.near) L.near = (L.near || 0) + 1;
   }
-  const lines = [...byLine.values()].sort((x, y) => y.km - x.km);
+  const lines = [...byLine.values()].sort((x, y) => ((y.near || 0) - (x.near || 0)) || (y.km - x.km));
   return {
     pairs, lines,
     totalPairs: pairs.length,
     weekly: pairs.reduce((s, p) => s + p.weekly, 0),
     km: Math.round(pairs.reduce((s, p) => s + p.km, 0)),
     sure: pairs.filter(p => p.sure).length,
+    near: pairs.filter(p => p.near).length,
   };
 }
 
@@ -2199,9 +2239,10 @@ function KavPach() {
   const [retryCount, setRetryCount] = useState(0);
 
   const [tab, setTab] = useState("redundant"); 
-  const deadhead = useMemo(() => computeDeadhead(trips || []), [trips]);
+  const deadhead = useMemo(() => computeDeadhead(trips || [], lineStopsMap), [trips, lineStopsMap]);
   const [dhOpen, setDhOpen] = useState(null);       // קו פתוח בטבלת הנסיעות התפעוליות
   const [dhSureOnly, setDhSureOnly] = useState(false);
+  const [dhNearOnly, setDhNearOnly] = useState(false);
   const [searchCity, setSearchCity] = useState("");
   const [overlapMap, setOverlapMap] = useState(null); // חפיפת מסלולים בין קווים (kavpach-overlap.json, מתעדכן לילית)
   useEffect(() => {
@@ -4344,7 +4385,7 @@ const DAYS_FILTER = [
 
             {tab === "deadhead" && (() => {
               const D = deadhead;
-              const rows = D.lines.filter(L => !dhSureOnly || L.sure > 0);
+              const rows = D.lines.filter(L => (!dhSureOnly || L.sure > 0) && (!dhNearOnly || (L.near || 0) > 0));
               const fmtN = (n) => Math.round(n).toLocaleString('he-IL');
               const dirName = (t) => `${cityOnly2(t.origin)} ← ${cityOnly2(t.dest)}`;
               return (
@@ -4355,10 +4396,11 @@ const DAYS_FILTER = [
                     זוגות נסיעות של אותו קו — הלוך וחזור צמודים בזמן — שבספירות משרד התחבורה עלו אליהן כמעט אפס נוסעים.
                     זו הסעת רכב למסוף שנרשמה כשירות, כדי שהמפעיל לא ייסע ריק בלי תשלום.
                   </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
                     {[
                       ['זוגות', fmtN(D.totalPairs), 'text-slate-900'],
                       ['מהם ריקים לגמרי', fmtN(D.sure), 'text-orange-700'],
+                      ['ליד קו עמוס', fmtN(D.near), 'text-rose-700'],
                       ['נסיעות בשבוע', fmtN(D.weekly * 2), 'text-slate-900'],
                       ['ק"מ בשבוע', fmtN(D.km), 'text-rose-700'],
                     ].map(([l, v, c]) => (
@@ -4372,13 +4414,17 @@ const DAYS_FILTER = [
                     <input type="checkbox" checked={dhSureOnly} onChange={e => setDhSureOnly(e.target.checked)} className="w-4 h-4 accent-orange-600" />
                     רק קווים עם זוג ריק לגמרי (0 נוסעים בשני הכיוונים)
                   </label>
+                  <label className="inline-flex items-center gap-2 mt-5 mr-6 text-sm font-black text-rose-700 cursor-pointer">
+                    <input type="checkbox" checked={dhNearOnly} onChange={e => setDhNearOnly(e.target.checked)} className="w-4 h-4 accent-rose-600" />
+                    רק כשיש קו עמוס באזור באותה שעה — הבזבוז הבולט ביותר
+                  </label>
                 </div>
 
                 <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-x-auto">
                   <table className="w-full text-right border-collapse text-sm">
                     <thead><tr className="text-slate-500 text-xs border-b border-slate-200">
                       <th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
-                      <th className="p-3">זוגות</th><th className="p-3">נסיעות/שבוע</th><th className="p-3">ק"מ/שבוע</th><th className="p-3"></th>
+                      <th className="p-3">זוגות</th><th className="p-3">ליד קו עמוס</th><th className="p-3">נסיעות/שבוע</th><th className="p-3">ק"מ/שבוע</th><th className="p-3"></th>
                     </tr></thead>
                     <tbody>
                       {rows.slice(0, 200).map(L => (
@@ -4388,18 +4434,21 @@ const DAYS_FILTER = [
                             <td className="p-3 font-bold">{cityOnly2(L.origin)} – {cityOnly2(L.dest)}</td>
                             <td className="p-3 text-slate-600">{L.cluster || L.district}</td>
                             <td className="p-3 font-black">{L.pairs.length}{L.sure ? <span className="text-orange-700"> ({L.sure} ריקים)</span> : null}</td>
+                            <td className="p-3 font-black text-rose-700">{L.near ? `${L.near} 🔥` : '—'}</td>
                             <td className="p-3">{fmtN(L.weekly * 2)}</td>
                             <td className="p-3 font-black text-rose-700">{fmtN(L.km)}</td>
                             <td className="p-3 text-slate-400"><Ic n={dhOpen === L.groupKey ? 'chevronUp' : 'chevronDown'} size={16} /></td>
                           </tr>
                           {dhOpen === L.groupKey && (
-                            <tr><td colSpan={7} className="p-0">
+                            <tr><td colSpan={8} className="p-0">
                               <div className="bg-slate-50 rounded-2xl m-2 p-4">
                                 {L.pairs.map((p, i) => (
                                   <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center py-2 border-b border-slate-200 last:border-0 text-sm">
                                     <div><span className="font-black">{p.a.time}</span> {dirName(p.a)} · <span className={p.a.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.a.ridership} נוסעים</span></div>
                                     <div><span className="font-black">{p.b.time}</span> {dirName(p.b)} · <span className={p.b.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.b.ridership} נוסעים</span></div>
-                                    <div className="text-slate-600 text-xs font-bold">{p.gap} דק' בין היציאות · {p.a.days || ''} · {p.weekly} פעמים בשבוע{p.edge ? ' · קצה יום' : ''}{p.sure ? ' · ריק לגמרי' : ''}</div>
+                                    <div className="text-slate-600 text-xs font-bold">{p.gap} דק' בין היציאות · {p.a.days || ''} · {p.weekly} פעמים בשבוע{p.edge ? ' · קצה יום' : ''}{p.sure ? ' · ריק לגמרי' : ''}
+                                      {p.near ? <div className="text-rose-700 mt-1">🔥 באותה שעה קו {p.near.lineNum} ({cityOnly2(p.near.origin)} ← {cityOnly2(p.near.dest)}, {p.near.time}) נוסע עמוס: {Math.round(Math.max(p.near.ridership, p.near.peakLoad))} נוסעים על קיבולת {p.near.capacity}</div> : null}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -4407,12 +4456,13 @@ const DAYS_FILTER = [
                           )}
                         </React.Fragment>
                       ))}
-                      {!rows.length && <tr><td colSpan={7} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
+                      {!rows.length && <tr><td colSpan={8} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
                     </tbody>
                   </table>
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
                     איך זה מחושב: מנתוני הספירות של משרד התחבורה (ממוצע נוסעים לכל נסיעה מתוכננת). נסיעה נחשבת "כמעט ריקה" עד {DEADHEAD_MAX_RIDERS} נוסעים בממוצע ו"ריקה" עד {DEADHEAD_SURE_RIDERS}.
                     זוג = שתי נסיעות כמעט ריקות של אותו קו בכיוונים מנוגדים, שיוצאות בהפרש של עד {DEADHEAD_GAP_MIN} דקות באותם ימים. נסיעה ריקה בודדת לא נספרת.
+                    🔥 "ליד קו עמוס" = באותה עיר ועם תחנה משותפת (אותו מסדרון), עד 30 דקות מהנסיעה הריקה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר). אלה מוצגים ראשונים.
                     בשלב הבא: אישור מהשידורים (מדד הדיוק) — אותו רכב בשתי הנסיעות, ובלי עצירות בדרך.
                   </p>
                 </div>
