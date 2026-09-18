@@ -170,6 +170,25 @@ def reset_previous():
     print(f'איפוס: נמחקו {n} אירועים קודמים של הכלי', file=sys.stderr)
 
 
+def flush(events, st, done, cur, pend_add, pend_del, multi):
+    """כתיבת האירועים והמצב — גם באמצע הריצה, כדי שנפילה לא תאבד שעות."""
+    shist = jload(f'{OUTDIR}/stops-hist.json', {})
+    feeds = {}
+    for d, code, kind, p, info, src in events:
+        stop_event(shist, feeds, code, d, kind, p, info, src)
+    for month, m in feeds.items():
+        m['changes'].sort(key=lambda x: x.get('d', ''))
+        jdump(m, f'{OUTDIR}/changes/stops-{month}.json')
+    if events:
+        jdump(shist, f'{OUTDIR}/stops-hist.json')
+    st.update({'done': sorted(done), 'cur': cur, 'pend_add': pend_add, 'pend_del': pend_del,
+               'multi': sorted(multi),
+               'updated': datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')})
+    jdump(st, STATE)
+    print(f'נכתבו {len(events)} אירועי תחנה', file=sys.stderr)
+    events.clear()
+
+
 def main():
     if RESET and not DRY:
         reset_previous()
@@ -197,7 +216,7 @@ def main():
             break
         try:
             snap, parent = snapshot(ds, src)
-        except Exception as e:  # noqa: BLE001
+        except (Exception, SystemExit) as e:  # noqa: BLE001 — יום חסר בארכיון (404) לא מפיל את הריצה
             print(f'  {iso(ds)}: דילוג — {e}', file=sys.stderr)
             done.add(ds)
             continue
@@ -266,25 +285,14 @@ def main():
                 pend_del.pop(key)
         done.add(ds)
         print(f'  {today} ({src}): {len(snap)} מק"טים · {n} אירועים · ממתינים {len(pend_add)}+{len(pend_del)}', file=sys.stderr)
+        if not DRY and len(done) % 50 == 0:
+            flush(events, st, done, cur, pend_add, pend_del, multi)
     print(f'סה"כ אירועים: {len(events)}', file=sys.stderr)
     if DRY:
         for e in events[:40]:
             print('   ', e, file=sys.stderr)
         return
-    shist = jload(f'{OUTDIR}/stops-hist.json', {})
-    feeds = {}
-    for d, code, kind, p, info, src in events:
-        stop_event(shist, feeds, code, d, kind, p, info, src)
-    for month, m in feeds.items():
-        m['changes'].sort(key=lambda x: x.get('d', ''))
-        jdump(m, f'{OUTDIR}/changes/stops-{month}.json')
-    if events:
-        jdump(shist, f'{OUTDIR}/stops-hist.json')
-    st.update({'done': sorted(done), 'cur': cur, 'pend_add': pend_add, 'pend_del': pend_del,
-               'multi': sorted(multi),
-               'updated': datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')})
-    jdump(st, STATE)
-    print(f'נכתבו {len(events)} אירועי תחנה', file=sys.stderr)
+    flush(events, st, done, cur, pend_add, pend_del, multi)
 
 
 if __name__ == '__main__':
