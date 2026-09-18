@@ -85,7 +85,7 @@ function auditBadge(k){
   if(!a) return '';
   if(!a.article) return '<span class="chip warn">לא נמצא ערך</span>';
   if(!a.hasTable) return '<span class="chip warn">אין טבלת קווים בערך</span>';
-  if(a.wrong&&a.wrong.length) return `<span class="chip bad">${a.wrong.length} קווים שגויים בערך</span>`;
+  if(a.wrong&&a.wrong.length) return `<span class="chip bad">${a.wrong.length} קווים בערך שכבר לא עוצרים בתחנה</span>`;
   return '<span class="chip ok">הטבלה בערך תקינה ✓</span>';
 }
 function home(){
@@ -98,7 +98,7 @@ function home(){
     return `<button class="card" onclick="pick(${JSON.stringify(k).replace(/"/g,'&quot;')})">
       <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span><div style="margin-top:6px">${auditBadge(k)}</div></button>`;}).join('')
     ||'<div class="empty">לא נמצאה תחנה</div>'}</div>
-  <p class="note">מוצגות תחנות מרכזיות ומסופים עם 5 קווים ומעלה (בלי מסופים תפעוליים). קו משויך לתחנה אם היא נקודת המוצא או הסיום שלו. הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
+  <p class="note">מוצגות תחנות מרכזיות ומסופים עם 5 קווים ומעלה (בלי מסופים תפעוליים). קו משויך לתחנה אם הוא עוצר בה לפי לוח הזמנים הרשמי (כולל באמצע מסלול). הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
 }
 
 function destTxt(st,l){
@@ -112,7 +112,7 @@ function stView(){
   const real=new Set(s.lines.map(l=>l[0]));
   const hasPlat=s.lines.some(l=>l[3]);
   return `<button class="back" onclick="SEL=null;WIKI=null;render()">→ כל התחנות</button>
-  <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים מתחילים/מסתיימים בתחנה · לפי GTFS מ-${fd(DATA.updated)}</div></div>
+  <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים עוצרים בתחנה · לפי GTFS מ-${fd(DATA.updated)}</div></div>
 
   ${a?`<div class="panel"><p class="ptitle">מה כתוב בערך היום — מהסריקה השבועית</p>
     ${!a.article?'<p class="note">לא נמצא ערך מתאים בוויקיפדיה לתחנה הזו.</p>':
@@ -120,7 +120,7 @@ function stView(){
         <div class="stat" style="color:var(--warn)">⚠ בערך אין טבלת קווים — אפשר להוסיף אחת עם הטבלה המוכנה שלמטה.</div>`:
       `<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a> · ${a.inArticle.length} קווים בטבלאות הערך · <b style="color:var(--ok)">${a.correct} נכונים</b>${a.wrong.length?` · <b style="color:var(--bad)">${a.wrong.length} שגויים</b>`:''}${a.missing?` · ${a.missing} חסרים`:''}</div>
       <div>${a.inArticle.map(l=>`<span class="chip ${real.has(l)?'ok':'bad'}">${esc(l)}</span>`).join('')}</div>
-      <p class="note">ירוק = הקו כתוב בערך וקיים בתחנה. אדום = כתוב בערך אבל לא מתחיל/מסתיים בתחנה כיום (ייתכן שבוטל — או שהוא עוצר בתחנה באמצע מסלולו). הסריקה רצה פעם בשבוע.</p>`}
+      <p class="note">ירוק = הקו כתוב בערך וקיים בתחנה. אדום = כתוב בערך אבל לא עוצר בתחנה כיום לפי לוח הזמנים הרשמי — כנראה בוטל, שונה או הועבר. הסריקה רצה פעם בשבוע.</p>`}
   </div>`:''}
 
   <div class="panel"><p class="ptitle">בדיקה מול ויקיפדיה — עכשיו</p>
@@ -134,9 +134,9 @@ function stView(){
 
   <div class="panel"><p class="ptitle">הקווים בתחנה בפועל</p>
     <table><thead><tr><th>קו</th><th>מפעיל</th><th>יעדים</th>${hasPlat?'<th>רציף</th>':''}</tr></thead><tbody>
-    ${s.lines.map(l=>`<tr><td>${esc(l[0])}</td><td>${esc(l[1])}</td><td>${esc(destTxt(SEL,l))}</td>${hasPlat?`<td>${esc(l[3]||'—')}</td>`:''}</tr>`).join('')}
+    ${s.lines.map(l=>`<tr><td>${esc(l[0])}${l[4]?' <span title="מתחיל/מסתיים בתחנה" style="color:var(--dim);font-size:9px">⬤</span>':''}</td><td>${esc(l[1])}</td><td>${esc(destTxt(SEL,l))}</td>${hasPlat?`<td>${esc(l[3]||'—')}</td>`:''}</tr>`).join('')}
     </tbody></table>
-    <p class="note">נספרים קווים שהתחנה היא המוצא או היעד שלהם. הרציף — כפי שמופיע בשם התחנה ב-GTFS (לא לכל קו יש). קווים שרק עוצרים בדרך אינם ברשימה.</p>
+    <p class="note">כל הקווים שעוצרים בתחנה לפי לוח הזמנים הרשמי — כולל קווים שעוצרים בה באמצע מסלולם. ⬤ = הקו מתחיל או מסתיים בתחנה. הרציף — מתוך תיאור התחנה ב-GTFS (לא לכל קו יש).</p>
   </div>
 
   <div class="panel"><p class="ptitle">טבלה מוכנה להדבקה בערך</p>
@@ -249,7 +249,7 @@ function wikiResult(){
     return `<div class="stat">הערך שנבדק: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></div>
     <div class="stat" style="color:var(--warn)">⚠ בערך הזה לא נמצאה טבלת קווים — אין מה להשוות. אפשר להשתמש בטבלה המוכנה שלמטה כדי להוסיף אחת.</div>`;
   return `<div class="stat">הערך שנבדק: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a> · זוהו ${w.nInArticle} קווים בטבלאות הערך</div>
-  <div class="stat" style="color:var(--bad)">✗ כתובים בערך אבל לא מתחילים/מסתיימים בתחנה כיום (${w.wrong.length}) — כנראה קו שבוטל, שונה או הועבר</div>
+  <div class="stat" style="color:var(--bad)">✗ כתובים בערך אבל לא עוצרים בתחנה כיום (${w.wrong.length}) — כנראה קו שבוטל, שונה או הועבר</div>
   <div>${chipList(w.wrong,'bad','כל הקווים שכתובים בערך נכונים ✓')}</div>
   <div class="stat" style="color:var(--ok)">✓ כתובים בערך וקיימים בתחנה (${w.correct.length})</div>
   <div>${chipList(w.correct,'ok','—')}</div>
@@ -257,7 +257,7 @@ function wikiResult(){
   <div>${chipList(w.missing,'warn','כל הקווים מופיעים בערך')}</div>
   ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים בערך: ${esc(w.opsMissing.join(', '))}</div>`:''}
   ${w.detailed?`<div class="stat" style="color:var(--mut)">בערך המסלולים מפורטים תחנה-תחנה (עם חיצים) — הטבלה המוכנה נותנת מסלול מקוצר (מוצא-יעד), כדאי לשמור על הפירוט הקיים בעריכה.</div>`:''}
-  <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד, ורק מעמודת הקו (התא הראשון בכל שורה, כולל זוגות כמו 9/9א) — מספרי רציפים, שנים וטקסט חופשי אינם נספרים. חלק מהקווים בבדיקה עשויים לעצור בתחנה באמצע מסלולם ולכן לא להופיע בנתוני המוצא/יעד — כדאי לאמת לפני עריכה.</p>`;
+  <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד, ורק מעמודת הקו (התא הראשון בכל שורה, כולל זוגות כמו 9/9א) — מספרי רציפים, שנים וטקסט חופשי אינם נספרים. הנתונים כוללים את כל הקווים שעוצרים בתחנה לפי לוח הזמנים הרשמי — ובכל זאת כדאי לאמת לפני עריכה.</p>`;
 }
 
 function pick(k){SEL=k;WIKI=null;render();window.scrollTo({top:0});}
