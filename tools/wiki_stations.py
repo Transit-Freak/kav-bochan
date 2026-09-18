@@ -131,6 +131,17 @@ def main():
         plat = (mp.group(1).strip() if mp else '')
         if plat in ('0', 'None', 'ם') or plat.startswith('קומה'):
             plat = ''
+        # "רציף" בטבלאות ויקיפדיה (שלמה 18.09, סבידור וכרמיאל): קו שעוצר ברחוב ליד
+        # המסוף ולא ברציף — כותבים את הרחוב ("רחוב דרור", "דרך נמיר 3"); רציפים
+        # בקבוצה עם אות ("רציפים B") מקבלים את האות ("B2"); "רציפים" רגיל — המספר בלבד
+        suf = name.split('/')[1].strip() if '/' in name else ''
+        if suf and not re.match(r'^(הורדה|איסוף|עליה|עלייה|חנה וסע)$', suf):
+            mg = re.match(r'^רציפים?\s*([A-Za-z])$', suf)
+            if mg:
+                plat = (mg.group(1).upper() + plat) if plat else ''
+            elif not suf.startswith('רציפ'):
+                street = suf if re.match(r'^(רחוב|דרך|שד|שדרות|גשר|כיכר|מסוף|חניון|מרכז|קניון|בי)', suf) else 'רחוב ' + suf
+                plat = f'{street} {plat}' if plat else street
         groups = []
         # רציף הורדה אינו רציף היציאה — בוויקיפדיה כותבים מאיפה הקו יוצא (שלמה 18.09)
         if 'הורדה' in name:
@@ -255,6 +266,13 @@ def main():
         m = re.match(r'\d+', p)
         return (int(m.group()) if m else 10 ** 6, p)
 
+    def plat_join(ps):
+        # "דרך נמיר" לצד "דרך נמיר 3" — הכללי מיותר כשיש רציף ממוספר באותו רחוב
+        ps = [p for p in ps if not any(q != p and q.startswith(p + ' ') for q in ps)]
+        ps = sorted(ps, key=plat_sort)[:3]
+        # מספרים בלבד — "1/3"; עם שם רחוב — "רחוב דרור · 2" (לוכסן היה נקרא כחלק מהשם)
+        return '/'.join(ps) if all(re.fullmatch(r'[A-Z]?\d+[א-ת]?', p) for p in ps) else ' · '.join(ps)
+
     def linekey(x):
         m = re.match(r'\d+', x['line'])
         return (int(m.group()) if m else 10 ** 6, x['line'], x['op'])
@@ -305,7 +323,7 @@ def main():
             'lat': round(sum(p[0] for p in pos) / len(pos), 5) if pos else None,
             'lon': round(sum(p[1] for p in pos) / len(pos), 5) if pos else None,
             'lines': [[x['line'], x['op'], sorted(x['dests']),
-                       '/'.join(sorted(x['dep'] or x['plats'], key=plat_sort)[:3]) if x.get('dep') else '/'.join(sorted(x['plats'], key=plat_sort)[:3]),
+                       plat_join(x['dep'] if x.get('dep') else x['plats']),
                        1 if x['term'] else 0,
                        streets_of(x.get('rids', ())),
                        acc_of(x.get('rids', ()))] for x in lines]}
