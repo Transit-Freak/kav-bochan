@@ -2300,7 +2300,7 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     return best ? best.r : null;
   };
   const lines = [];
-  let unknown = 0;
+  let unknown = 0, normal = 0, noCountsN = 0;
   for (const [mk, e] of Object.entries(obs.lines)) {
     const ts = byMakat.get(String(mk));
     if (!ts || !ts.length) { unknown++; continue; }
@@ -2316,6 +2316,11 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const withR = ex.filter(x => x.bRiders != null);
     const emptyFrac = withR.length ? withR.filter(x => x.bRiders <= DEADHEAD_MAX_RIDERS).length / withR.length : 0;
     const noCounts = !withR.length;   // אין ספירות לנסיעות החזרה — הרכיב "ריק בספירות" לא נספר, ולא נטען שהיא ריקה
+    // הלוך-חזור צמוד של אותו רכב הוא גם שירות עירוני רגיל (הרכב עומד בקצה
+    // ויוצא חזרה). מה שהופך אותו לנסיעה תפעולית הוא שהחזרה ריקה — לכן
+    // ספירות המשרד הן תנאי כניסה: בלי ספירות לא נכנס, ועם נוסעים בחזרה זה שירות.
+    if (noCounts) { noCountsN++; continue; }
+    if (emptyFrac < 0.5) { normal++; continue; }
     let hot = null;
     for (const x of ex) { hot = crowdedNear(info, mk, x.depB / 60); if (hot) break; }
     // "צריך תגבור": העומס בקו העמוס ביחס לקיבולת הרכב — מעל 100% = מלוא הנקודות, 90% = חצי
@@ -2345,7 +2350,7 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
   const minScore = Number((dset || DEADHEAD_DEFAULTS).minScore) || 0;
   lines.sort((x, y) => (y.score - x.score) || (y.n - x.n));
   return {
-    mode: 'vehicle', nDays, updated: obs.updated, unknown,
+    mode: 'vehicle', nDays, updated: obs.updated, unknown, normal, noCountsN,
     lines: lines.filter(L => L.score >= minScore), allLines: lines,
     totalPairs: lines.reduce((s2, L) => s2 + L.n, 0),
     other: lines.reduce((s2, L) => s2 + L.other, 0),
@@ -4556,14 +4561,15 @@ const DAYS_FILTER = [
                   </div>
                 );
               }
-              const rows = D.lines.filter(L => (!dhNearOnly || L.hot) && (!dhSureOnly || L.emptyFrac >= 0.5));
+              const rows = D.lines.filter(L => !dhNearOnly || L.hot);
               return (
               <div className="space-y-8 transition-opacity duration-300 opacity-100">
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
                   <h2 className="text-2xl font-black text-slate-900">נסיעות תפעוליות במסווה</h2>
                   <p className="text-slate-500 font-bold mt-1">
                     לפי מספר הרכב, מהשידורים: אוטובוס שהגיע לקצה נסיעה ותוך 15 דקות יצא לנסיעה שמסתיימת במקום שממנו התחיל — לא בהכרח באותו קו.
-                    זו הסעת רכב שנרשמה כשירות. {D.nDays} הימים האחרונים, עדכון {String(D.updated || '').slice(0, 10)}.
+                    ונסיעת החזרה ריקה גם בספירות משרד התחבורה — הלוך-חזור צמוד לבדו הוא גם שירות עירוני רגיל, החזרה הריקה היא מה שהופך אותו להסעה שנרשמה כשירות.
+                    {D.nDays} הימים האחרונים, עדכון {String(D.updated || '').slice(0, 10)}.
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
                     {[
@@ -4579,11 +4585,7 @@ const DAYS_FILTER = [
                       </div>
                     ))}
                   </div>
-                  <label className="inline-flex items-center gap-2 mt-5 text-sm font-black text-slate-700 cursor-pointer">
-                    <input type="checkbox" checked={dhSureOnly} onChange={e => setDhSureOnly(e.target.checked)} className="w-4 h-4 accent-orange-600" />
-                    רק קווים שנסיעת החזרה שלהם ריקה גם בספירות המשרד
-                  </label>
-                  <label className="inline-flex items-center gap-2 mt-5 mr-6 text-sm font-black text-rose-700 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 mt-5 text-sm font-black text-rose-700 cursor-pointer">
                     <input type="checkbox" checked={dhNearOnly} onChange={e => setDhNearOnly(e.target.checked)} className="w-4 h-4 accent-rose-600" />
                     רק כשיש קו עמוס באזור באותה שעה
                   </label>
@@ -4612,7 +4614,7 @@ const DAYS_FILTER = [
                             <td className="p-3">{L.other || '—'}</td>
                             <td className="p-3">{L.gap} דק'</td>
                             <td className="p-3 font-black text-rose-700">{L.hot ? `קו ${L.hot.lineNum}` : '—'}</td>
-                            <td className="p-3 font-black text-orange-700">{L.noCounts ? <span className="text-slate-400 font-bold" title="לקו אין ספירות בקובץ המשרד (מתעדכן רבעונית) — לא נטען שהוא ריק">אין ספירות</span> : L.emptyFrac ? `${Math.round(L.emptyFrac * 100)}%` : 'לא ריק'}</td>
+                            <td className="p-3 font-black text-orange-700">{Math.round(L.emptyFrac * 100)}%</td>
                             <td className="p-3 text-slate-400"><Ic n={dhOpen === L.groupKey ? 'chevronUp' : 'chevronDown'} size={16} /></td>
                           </tr>
                           {dhOpen === L.groupKey && (
@@ -4621,7 +4623,7 @@ const DAYS_FILTER = [
                                 <div className="text-slate-600 text-xs font-bold mb-2">ניקוד: תצפיות {L.parts.obs}/{dset.c.obs.on ? dset.c.obs.max : 0} ({L.perWeek.toFixed(1)} בשבוע) · צמידות {L.parts.tight}/{dset.c.tight.on ? dset.c.tight.max : 0} · קו עמוס באזור {L.parts.hot}/{dset.c.hot.on ? dset.c.hot.max : 0} · צריך תגבור {L.parts.crush}/{dset.c.crush.on ? dset.c.crush.max : 0} · ריק בספירות {L.parts.empty}/{dset.c.empty.on ? dset.c.empty.max : 0}{L.protections.length ? ` · הגנות: ${L.protections.map(x => `${x.name} (−${x.value})`).join(', ')}` : ''}</div>
                                 {L.hot ? <div className="text-rose-700 text-xs font-bold mb-2">באותה שעה קו {L.hot.lineNum} ({cityOnly2(L.hot.origin)} ← {cityOnly2(L.hot.dest)}, {L.hot.time}) נוסע עמוס: {Math.round(Math.max(L.hot.ridership, L.hot.peakLoad))} נוסעים על קיבולת {L.hot.capacity}{L.hotLoad >= 0.9 ? ` — ${Math.round(L.hotLoad * 100)}% מהקיבולת, קו שצריך תגבור` : ''}</div> : null}
                                 <div className="text-slate-500 text-xs font-bold mb-1">דוגמאות מהשידורים:</div>
-                                {L.ex.map((x, i) => (
+                                {L.ex.slice(0, 8).map((x, i) => (
                                   <div key={i} className="py-1.5 border-b border-slate-200 last:border-0">
                                     <span className="font-black">{x.day.split('-').reverse().join('.')}</span> · רכב <span dir="ltr" className="font-black">{x.veh}</span> · קו {x.aLine} כיוון {x.dirA} {hms(x.depA)}–{hms(x.endA)} ← חזר {x.aLine === x.bLine ? 'באותו קו' : `בקו ${x.bLine}`} כיוון {x.dirB} ב-{hms(x.depB)} · <span className="font-black">{Math.round(x.gap / 60)} דק'</span> אחרי שהגיע
                                     {x.bRiders != null ? <span className={x.bRiders <= DEADHEAD_MAX_RIDERS ? 'text-orange-700 font-black' : 'text-slate-600'}> · בספירות המשרד: {x.bRiders} נוסעים בחזרה</span> : null}
@@ -4638,7 +4640,7 @@ const DAYS_FILTER = [
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
                     ההגדרה: אותו רכב (לפי מספרו בשידור) מגיע לקצה נסיעה, ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק"מ מהמקום שבו התחיל — באותו קו או בקו אחר. הזוג נרשם על קו החזרה (הריק בדרך כלל) וגם על קו ההלוך.
                     הניקוד (0–100) בדיוק כמו ציון אי-היעילות של קו: רכיבים עם נקודות שנקבעות בלוח למעלה, נרמול ל-100, והגנות שמופחתות. תוויות הסטטוס זהות.
-                    קו שאין לו ספירות בקובץ המשרד (הקובץ מתעדכן רבעונית) מסומן "אין ספירות" — הרכיב "ריק בספירות" לא נספר לו, ולא נטען שנסיעותיו ריקות.
+                    לא ברשימה: {D.normal.toLocaleString('he-IL')} קווים שנצפה בהם הלוך-חזור צמוד אבל נסיעת החזרה שלהם עם נוסעים בספירות — שירות רגיל; {D.noCountsN.toLocaleString('he-IL')} קווים בלי ספירות בקובץ המשרד (מתעדכן רבעונית) — לא נטען שהם ריקים.
                     {D.unknown ? ` ${D.unknown} קווים מהשידורים לא נמצאו בקובץ המשרד ולכן אינם ברשימה.` : ''}
                   </p>
                 </div>

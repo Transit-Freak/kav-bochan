@@ -1122,7 +1122,7 @@ def main():
                 e['vehicles'].add(pr[7])
                 if pr[0] != pr[4]:
                     e['other'] = e.get('other', 0) + 1
-                if len(e['ex']) < 6:
+                if len(e['ex']) < 24:   # מספיק כדי להצליב מול ספירות המשרד
                     e['ex'].append([d0, pr[7], pr[0], pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[8]])
     dh_out = {'days': dh_days, 'updated': day_obj['built'],
               'cols': {'lines': 'mkt → {n pairs, days with pairs, distinct vehicles, other: pairs where the return was on a different line, avg gap min, share A reached end, ex:[[day, vehicle, mkt A, dir A, dep A sec, end A sec, mkt B, dir B, dep B sec, gap sec]]}'},
