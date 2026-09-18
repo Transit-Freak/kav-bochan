@@ -163,7 +163,14 @@ def main():
             r.get('route_long_name') or '')
 
     # 3. trips: trip_id → route_id
-    trip_route = {r['trip_id']: r['route_id'] for r in reader(zf, 'trips.txt')}
+    trip_route = {}
+    route_acc = {}      # route_id → [נסיעות נגישות, נסיעות סה"כ] (wheelchair_accessible: 1 = נגיש)
+    for r in reader(zf, 'trips.txt'):
+        trip_route[r['trip_id']] = r['route_id']
+        a = route_acc.setdefault(r['route_id'], [0, 0])
+        a[1] += 1
+        if (r.get('wheelchair_accessible') or '').strip() == '1':
+            a[0] += 1
     print(f'trips: {len(trip_route)}', flush=True)
 
     # 4. stop_times — סריקה אחת: אילו מסלולים עוצרים בכל קבוצה ובאיזה רציף
@@ -237,6 +244,17 @@ def main():
                 if k not in seen:
                     seen[k] = None
         return [[a, b] for a, b in seen]
+
+    def acc_of(rids):
+        """נגישות הקו בתחנה: 1 = כל הנסיעות נגישות, 0 = אף אחת, 2 = חלקית."""
+        ok = tot = 0
+        for rid in rids:
+            a = route_acc.get(rid)
+            if a:
+                ok += a[0]; tot += a[1]
+        if not tot:
+            return None
+        return 1 if ok == tot else 0 if ok == 0 else 2
     out_st = {}
     for st in stations.values():
         if 'תפעול' in st['name'] or len(st['lines']) < MIN_LINES[st['kind']]:
@@ -256,7 +274,8 @@ def main():
             'lines': [[x['line'], x['op'], sorted(x['dests']),
                        '/'.join(sorted(x['plats'])[:3]),
                        1 if x['term'] else 0,
-                       streets_of(x.get('rids', ()))] for x in lines]}
+                       streets_of(x.get('rids', ())),
+                       acc_of(x.get('rids', ()))] for x in lines]}
     kinds = Counter(v['kind'] for v in out_st.values())
     print(f'קבוצות: {dict(kinds)}', flush=True)
     # שירותים עירוניים שאינם ב-GTFS הלאומי (סבבוס, שאטלים עירוניים וכד') —

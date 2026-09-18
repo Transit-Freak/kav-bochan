@@ -83,7 +83,7 @@ def extract_lines(wt):
             cell = ln.lstrip('|').split('||')[0]
             # "9/9א" — זוג קווים באותו תא, מפוצל על לוכסן
             for part in re.split(r'[/\\]', CLEAN.sub(' ', cell)):
-                m = LINE.match(part.strip())
+                m = LINE.match(part.replace('♿', '').strip())
                 if m and m.group(1) not in found:
                     found.append(m.group(1))
             for t in TPL_LINE.finditer(cell):
@@ -169,6 +169,34 @@ def same_street(a, b):
     if a == b:
         return True
     return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
+
+
+ACC_RE = re.compile(r'♿|נגיש')
+
+
+def check_access(wt, real_acc):
+    """סימון נגישות (♿) בטבלאות מול ה-GTFS: קו נגיש בלי סימון ('missing'),
+    וסימון על קו שאינו נגיש ('wrong'). real_acc: קו → 1/0/2 (שלמה 18.09)."""
+    missing, wrong = [], []
+    for hdr, rows in parse_tables(wt):
+        for row in rows:
+            if not row:
+                continue
+            first = CLEAN.sub(' ', row[0]).strip()
+            marked = any(ACC_RE.search(c or '') for c in row)
+            for part in re.split(r'[/\\]', first):
+                m = LINE.match(ACC_RE.sub('', part).strip())
+                if not m:
+                    continue
+                line = m.group(1)
+                acc = real_acc.get(line)
+                if acc is None:
+                    continue
+                if acc == 1 and not marked and line not in missing:
+                    missing.append(line)
+                if acc == 0 and marked and line not in wrong:
+                    wrong.append(line)
+    return {'missing': missing, 'wrong': wrong}
 
 
 def check_routes(wt, real_lines, central, skip_names):
@@ -427,6 +455,8 @@ def main():
             # ערים ותחנות קצה אינן רחובות: עיר התחנה, היעדים, וכל היישובים שבקובץ התחנות
             skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
             route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names) if real_lines else {}
+            real_acc = {l[0]: l[6] for l in st['lines'] if len(l) > 6 and l[6] is not None}
+            acc_issues = check_access(wt, real_acc) if real_acc and has_table else {'missing': [], 'wrong': []}
             # האם הערך מפרט רחובות בעמודת המסלול (חיצים, או 3 קטעים ומעלה בתא) — הטבלה
             # המוכנה באתר מחקה את הסגנון הקיים: מפורט כשהערך מפורט, קצר כשלא (שלמה 18.09)
             detailed = False
@@ -443,7 +473,8 @@ def main():
             missing = len(real) - len(correct)
             out[name] = {'article': title, 'kind': st.get('kind', 'station'), 'hasTable': has_table,
                          'inArticle': in_article, 'wrong': wrong,
-                         'correct': len(correct), 'missing': missing, 'routes': route_issues, 'detailed': detailed}
+                         'correct': len(correct), 'missing': missing, 'routes': route_issues, 'detailed': detailed,
+                         'acc': acc_issues}
             print(f'{name} → {title}: בערך {len(in_article)} · '
                   f'שגויים {len(wrong)} · חסרים {missing} · מסלולים לבדיקה {len(route_issues)}', flush=True)
         except Exception as e:  # noqa: BLE001 — ערך אחד לא מפיל את כולם
