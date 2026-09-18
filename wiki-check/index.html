@@ -93,8 +93,8 @@ function auditBadge(k){
   if(!a.hasTable) return '<span class="chip warn">אין טבלת קווים בערך</span>';
   const nr=a.routes?Object.keys(a.routes).length:0;
   const rr=nr?`<span class="chip warn">${nr} מסלולים לבדיקה</span>`:'';
-  const na=a.acc?((a.acc.missing||[]).length+(a.acc.wrong||[]).length):0;
-  const ra=na?`<span class="chip warn">${na} סימוני נגישות</span>`:'';
+  const na=a.acc?['missing','wrong','circMissing','circWrong'].reduce((n,k)=>n+(a.acc[k]||[]).length,0):0;
+  const ra=na?`<span class="chip warn">${na} סימונים לבדיקה</span>`:'';
   if(a.wrong&&a.wrong.length) return `<span class="chip bad">${a.wrong.length} קווים בערך שכבר לא עוצרים בתחנה</span>`+rr+ra;
   return (nr||na?'':'<span class="chip ok">הטבלה בערך תקינה ✓</span>')+rr+ra;
 }
@@ -131,8 +131,9 @@ function stView(){
         <div class="stat" style="color:var(--warn)">⚠ בערך אין טבלת קווים — אפשר להוסיף אחת עם הטבלה המוכנה שלמטה.</div>`:
       `<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a> · ${a.inArticle.length} קווים בטבלאות הערך · <b style="color:var(--ok)">${a.correct} נכונים</b>${a.wrong.length?` · <b style="color:var(--bad)">${a.wrong.length} שגויים</b>`:''}${a.missing?` · ${a.missing} חסרים`:''}</div>
       <div>${a.inArticle.map(l=>`<span class="chip ${real.has(l)?'ok':'bad'}">${esc(l)}</span>`).join('')}</div>
-      ${a.acc&&((a.acc.missing||[]).length||(a.acc.wrong||[]).length)?`<p class="ptitle" style="margin-top:14px">סימון נגישות (♿)</p>
-      <div class="rlist">${(a.acc.missing||[]).length?`<div class="rrow"><span style="color:var(--warn)">קווים נגישים לפי ה-GTFS בלי סימון ♿ בערך:</span> ${a.acc.missing.map(esc).join(', ')}</div>`:''}${(a.acc.wrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים ♿ בערך אבל לא נגישים לפי ה-GTFS:</span> ${a.acc.wrong.map(esc).join(', ')}</div>`:''}</div>`:''}
+      ${a.acc&&['missing','wrong','circMissing','circWrong'].some(k=>(a.acc[k]||[]).length)?`<p class="ptitle" style="margin-top:14px">סימונים בטבלה (♿ 🔄)</p>
+      <div class="rlist">${(a.acc.missing||[]).length?`<div class="rrow"><span style="color:var(--warn)">קווים נגישים לפי ה-GTFS בלי סימון ♿ בערך:</span> ${a.acc.missing.map(esc).join(', ')}</div>`:''}${(a.acc.wrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים ♿ בערך אבל לא נגישים לפי ה-GTFS:</span> ${a.acc.wrong.map(esc).join(', ')}</div>`:''}${(a.acc.circMissing||[]).length?`<div class="rrow"><span style="color:var(--warn)">קווים מעגליים לפי ה-GTFS בלי סימון 🔄 בערך:</span> ${a.acc.circMissing.map(esc).join(', ')}</div>`:''}${(a.acc.circWrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים 🔄 בערך אבל אינם מעגליים לפי ה-GTFS:</span> ${a.acc.circWrong.map(esc).join(', ')}</div>`:''}</div>
+      <p class="note">הסימונים 🛡️ (ממוגן ירי), 💺 (בהזמנה מראש) ו-🚆 (הזנה לרכבת) אינם בקובץ משרד התחבורה ולכן לא נבדקים.</p>`:''}
       ${a.routes&&Object.keys(a.routes).length?`<p class="ptitle" style="margin-top:14px">עמודת המסלול — רחובות שכדאי לבדוק</p>
       <div class="rlist">${Object.entries(a.routes).sort((x,y)=>lineKey(x[0])-lineKey(y[0])).map(([ln,r])=>`<div class="rrow"><b>קו ${esc(ln)}</b>${r.no&&r.no.length?` · <span style="color:var(--bad)">כתוב בערך אבל הקו לא עובר שם: ${r.no.map(esc).join(', ')}</span>`:''}${r.miss&&r.miss.length?` · <span style="color:var(--warn)">רחובות מרכזיים במסלול שלא הוזכרו: ${r.miss.map(esc).join(', ')}</span>`:''}</div>`).join('')}</div>
       <p class="note">ההשוואה לפי רחובות התחנות של הקו בלוח הזמנים הרשמי. "רחוב מרכזי" = רחוב שעוברים בו 10 קווים ומעלה באותה עיר. שמות ערים ותחנות קצה לא נספרים.</p>`:''}
@@ -193,7 +194,7 @@ function wikitext(s){
   // הסריקה השבועית יודעת את זה מראש (detailed); בדיקה חיה מעדכנת.
   const a0=AUDIT&&AUDIT.stations&&AUDIT.stations[SEL];
   const detailed=WIKI&&WIKI.done?!!WIKI.detailed:!!(a0&&a0.detailed);
-  const routeTxt=l=>{const d=linkDests(l);const ms=detailed?mainStreets(l):[];const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return d==='קו מעגלי'?`'''${SEL}''' (קו מעגלי)`:`'''${SEL}'''${mid}${d}`;};
+  const routeTxt=l=>{const d=linkDests(l);const ms=detailed?mainStreets(l):[];const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return d==='קו מעגלי'?`'''${SEL}''' 🔄 קו מעגלי`:`'''${SEL}'''${mid}${d}`;};
   // עמודת נגישות: ♿ = כל נסיעות הקו נגישות לפי ה-GTFS, ♿ חלקי = חלק מהנסיעות (שלמה 18.09)
   const hasAcc=s.lines.some(l=>l[6]!=null);
   const accTxt=l=>l[6]===1?'♿':l[6]===2?'♿ חלקי':'—';

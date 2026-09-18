@@ -160,7 +160,8 @@ def parse_tables(wt):
 
 
 STREET_PFX = re.compile(r"^(רחוב|רח'|רח\"|שד'|שד\"|שדרות|דרך|כביש מס'|כביש)\s+")
-STREET_SPLIT = re.compile(r'[,;،·•←→⇐⇒]|\s[-–—]\s|\s/\s|\bדרך\b|\bעד\b|\bאל\b')
+STREET_SPLIT = re.compile(r'[,;،·•←→⇐⇒♿🔄🛡💺🚆]|\s[-–—]\s|\s/\s|\bדרך\b|\bעד\b|\bאל\b')
+NOTE_RE = re.compile(r'^(בשעות|בשעה|נסיעות|נסיעה|רק |בימי|בימים|חלק|בהזמנה|הזנה|קו |אוטובוס|ממוגן|מעגלי|סיבובי|נגיש)')
 
 
 def street_norm(t):
@@ -180,16 +181,17 @@ def street_norm(t):
     return re.sub(r'\s+', ' ', t).strip()
 
 
-GENERIC = {'מסוף', 'תחנה', 'תחנה מרכזית', 'מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'רציף', 'רציפים', 'הורדה', 'איסוף', 'מפגש', 'צומת'}
+GENERIC = {'מסוף', 'תחנה', 'תחנה מרכזית', 'מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'רציף', 'רציפים', 'הורדה', 'איסוף', 'מפגש', 'צומת',
+           'קו מעגלי', 'מעגלי', 'סיבובי', 'קו סיבובי', 'ממוגן ירי', 'ממוגן', 'בהזמנה מראש', 'בהזמנה מראש בלבד', 'הזנה', 'קו הזנה', 'נגיש', 'אוטובוס נגיש'}
 
 
 def route_cell_streets(cell):
     """שמות רחובות מתא המסלול בערך — מנורמלים, בלי מספרים ובלי קטעים קצרים."""
     out = []
     for part in STREET_SPLIT.split(cell):
-        if '♿' in (part or ''):            # הערת נגישות ("♿ בשעות הבוקר") אינה רחוב
-            continue
         n = street_norm(part or '')
+        if NOTE_RE.search(n):              # הערת סימון ("בשעות הבוקר", "בהזמנה מראש בלבד") אינה רחוב
+            continue
         if len(n) >= 3 and re.search(r'[א-ת]', n) and not n.isdigit() and n not in out and n not in GENERIC:
             out.append(n)
     return out
@@ -202,32 +204,47 @@ def same_street(a, b):
     return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
 
 
+# הסימונים המקובלים בטבלאות הקווים בוויקיפדיה (שלמה 18.09):
+#   ♿ אוטובוס נגיש · 🔄 קו סיבובי (מעגלי) · 🛡️ ממוגן ירי · 💺 בהזמנה מראש בלבד · 🚆 הזנה לרכבת
+# מול ה-GTFS אפשר לאמת נגישות וקו מעגלי; ממוגן/הזמנה מראש/הזנה אינם בקובץ — לא נבדקים ולא נספרים כשגיאה.
 ACC_RE = re.compile(r'♿|נגיש')
+CIRC_RE = re.compile(r'🔄|מעגלי|סיבובי')
+ICONS_RE = re.compile(r'[♿🔄🛡️💺🚆\U0001F6E1\uFE0F]')
 
 
-def check_access(wt, real_acc):
-    """סימון נגישות (♿) בטבלאות מול ה-GTFS: קו נגיש בלי סימון ('missing'),
-    וסימון על קו שאינו נגיש ('wrong'). real_acc: קו → 1/0/2 (שלמה 18.09)."""
-    missing, wrong = [], []
+def check_marks(wt, real_acc, real_circ):
+    """סימוני ♿ ו-🔄 בטבלאות מול ה-GTFS: קו שראוי לסימון ואין ('missing'),
+    וסימון על קו שאינו כזה ('wrong'). real_acc: קו → 1/0/2; real_circ: קו → True/False."""
+    out = {'missing': [], 'wrong': [], 'circMissing': [], 'circWrong': []}
     for hdr, rows in parse_tables(wt):
         for row in rows:
             if not row:
                 continue
             first = CLEAN.sub(' ', row[0]).strip()
-            marked = any(ACC_RE.search(c or '') for c in row)
+            acc_marked = any(ACC_RE.search(c or '') for c in row)
+            circ_marked = any(CIRC_RE.search(c or '') for c in row)
             for part in re.split(r'[/\\]', first):
-                m = LINE.match(ACC_RE.sub('', part).strip())
+                m = LINE.match(ICONS_RE.sub('', part).strip())
                 if not m:
                     continue
                 line = m.group(1)
                 acc = real_acc.get(line)
-                if acc is None:
-                    continue
-                if acc == 1 and not marked and line not in missing:
-                    missing.append(line)
-                if acc == 0 and marked and line not in wrong:
-                    wrong.append(line)
-    return {'missing': missing, 'wrong': wrong}
+                if acc is not None:
+                    if acc == 1 and not acc_marked and line not in out['missing']:
+                        out['missing'].append(line)
+                    if acc == 0 and acc_marked and line not in out['wrong']:
+                        out['wrong'].append(line)
+                circ = real_circ.get(line)
+                if circ is not None:
+                    if circ and not circ_marked and line not in out['circMissing']:
+                        out['circMissing'].append(line)
+                    if not circ and circ_marked and line not in out['circWrong']:
+                        out['circWrong'].append(line)
+    return out
+
+
+def check_access(wt, real_acc):
+    return check_marks(wt, real_acc, {})
 
 
 JUNK_STREET = re.compile(r'יציאה|כניסה|מחלף|צומת|כביש')
@@ -497,7 +514,9 @@ def main():
             # ערים ותחנות קצה אינן רחובות: עיר התחנה, היעדים, וכל היישובים שבקובץ התחנות
             skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
             real_acc = {l[0]: l[6] for l in st['lines'] if len(l) > 6 and l[6] is not None}
-            acc_issues = check_access(wt, real_acc) if real_acc and has_table else {'missing': [], 'wrong': []}
+            # קו מעגלי לפי ה-GTFS: בלי יעדים מחוץ לתחנה (כל הקצוות הם התחנה עצמה)
+            real_circ = {l[0]: (len([d for d in l[2] if d and d != name and not name.startswith(d)]) == 0) for l in st['lines']}
+            acc_issues = check_marks(wt, real_acc, real_circ) if has_table else {'missing': [], 'wrong': [], 'circMissing': [], 'circWrong': []}
             # האם הערך מפרט רחובות בעמודת המסלול (חיצים, או 3 קטעים ומעלה בתא) — הטבלה
             # המוכנה באתר מחקה את הסגנון הקיים: מפורט כשהערך מפורט, קצר כשלא (שלמה 18.09)
             detailed = False
