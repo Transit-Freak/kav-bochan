@@ -877,7 +877,8 @@ def main():
         _e = stops.get(seq[-1][1]) if seq else None
         veh_rides.append((key[2], routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''),
                           t_of.get(1, min(t_of.values())), max(t_of.values()), reach_cls == 0, rid,
-                          (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None))
+                          (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None,
+                          seq[0][3] if seq else None))
         for k, s, sched, delay in meas:
             c = cat(delay)
             r['meas'] += 1
@@ -1052,13 +1053,12 @@ def main():
             back_km = near_km(r2[8], r1[7])          # סוף ב ליד מוצא א
             if not same_line and (back_km is None or back_km > 1.5):
                 continue
+            # נרשם פעם אחת, על קו החזרה (הריק בדרך כלל) — אותה נסיעה לא מופיעה בשני מקומות
             row = [r1[1], r1[2], r1[3], r1[4], r2[1], r2[2], r2[3], veh, max(0, gap), 1 if r1[5] else 0,
-                   round(back_km, 2) if back_km is not None else None]
+                   round(back_km, 2) if back_km is not None else None, r1[9], r2[9]]
             dh[r2[1]].append(row)
-            if r1[1] != r2[1]:
-                dh[r1[1]].append(row)
             n_dh += 1
-    json.dump({'d': day, 'cols': ['mkt A', 'dir A', 'dep A sec', 'end A sec', 'mkt B', 'dir B', 'dep B sec', 'vehicle', 'gap sec', 'A reached end', 'B end to A start km'],
+    json.dump({'d': day, 'cols': ['mkt A', 'dir A', 'dep A sec', 'end A sec', 'mkt B', 'dir B', 'dep B sec', 'vehicle', 'gap sec', 'A reached end', 'B end to A start km', 'sched dep A sec', 'sched dep B sec'],
                'n': n_dh, 'pairs': dict(dh)},
               open(f'{a.out}/days/{day}.deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     print(f'נסיעות תפעוליות במסווה (הלוך-חזור של אותו רכב עד 15 דק\'): {n_dh:,} זוגות ב-{len(dh):,} קווים', flush=True)
@@ -1123,9 +1123,10 @@ def main():
                 if pr[0] != pr[4]:
                     e['other'] = e.get('other', 0) + 1
                 if len(e['ex']) < 24:   # מספיק כדי להצליב מול ספירות המשרד
-                    e['ex'].append([d0, pr[7], pr[0], pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[8]])
+                    e['ex'].append([d0, pr[7], pr[0], pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[8],
+                                    pr[11] if len(pr) > 12 else None, pr[12] if len(pr) > 12 else None])
     dh_out = {'days': dh_days, 'updated': day_obj['built'],
-              'cols': {'lines': 'mkt → {n pairs, days with pairs, distinct vehicles, other: pairs where the return was on a different line, avg gap min, share A reached end, ex:[[day, vehicle, mkt A, dir A, dep A sec, end A sec, mkt B, dir B, dep B sec, gap sec]]}'},
+              'cols': {'lines': 'mkt → {n pairs, days with pairs, distinct vehicles, other: pairs where the return was on a different line, avg gap min, share A reached end, ex:[[day, vehicle, mkt A, dir A, dep A sec, end A sec, mkt B, dir B, dep B sec, gap sec, sched dep A sec, sched dep B sec]]}'},
               'lines': {mkt: {'n': e['n'], 'days': len(e['days']), 'veh': len(e['vehicles']), 'other': e.get('other', 0),
                               'gap': round(sum(e['gaps']) / max(len(e['gaps']), 1) / 60, 1),
                               'end': round(e['end'] / max(e['n'], 1), 2), 'ex': e['ex']} for mkt, e in agg.items()}}

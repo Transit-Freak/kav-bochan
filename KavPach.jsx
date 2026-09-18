@@ -2307,11 +2307,11 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const info = ts[0];
     const perWeek = e.n / nDays * 7;
     const ex = (e.ex || []).map(x => {
-      const [day, veh, mkA, dirA, depA, endA, mkB, dirB, depB, gap] = x;
+      const [day, veh, mkA, dirA, depA, endA, mkB, dirB, depB, gap, schA, schB] = x;
       const aInfo = (byMakat.get(String(mkA)) || [])[0];
       const bInfo = (byMakat.get(String(mkB)) || [])[0];
-      return { day, veh, mkA, dirA, depA, endA, mkB, dirB, depB, gap, aLine: aInfo ? aInfo.lineNum : mkA, bLine: bInfo ? bInfo.lineNum : mkB,
-               bOrigin: bInfo ? bInfo.origin : '', bDest: bInfo ? bInfo.dest : '', bRiders: ridersOf(mkB, dirB, depB) };
+      return { day, veh, mkA, dirA, depA, endA, mkB, dirB, depB, gap, schA, schB, aLine: aInfo ? aInfo.lineNum : mkA, bLine: bInfo ? bInfo.lineNum : mkB,
+               bOrigin: bInfo ? bInfo.origin : '', bDest: bInfo ? bInfo.dest : '', bRiders: ridersOf(mkB, dirB, schB != null ? schB : depB) };
     });
     const withR = ex.filter(x => x.bRiders != null);
     const emptyFrac = withR.length ? withR.filter(x => x.bRiders <= DEADHEAD_MAX_RIDERS).length / withR.length : 0;
@@ -4625,7 +4625,7 @@ const DAYS_FILTER = [
                                 <div className="text-slate-500 text-xs font-bold mb-1">דוגמאות מהשידורים:</div>
                                 {L.ex.slice(0, 8).map((x, i) => (
                                   <div key={i} className="py-1.5 border-b border-slate-200 last:border-0">
-                                    <span className="font-black">{x.day.split('-').reverse().join('.')}</span> · רכב <span dir="ltr" className="font-black">{x.veh}</span> · קו {x.aLine} כיוון {x.dirA} {hms(x.depA)}–{hms(x.endA)} ← חזר {x.aLine === x.bLine ? 'באותו קו' : `בקו ${x.bLine}`} כיוון {x.dirB} ב-{hms(x.depB)} · <span className="font-black">{Math.round(x.gap / 60)} דק'</span> אחרי שהגיע
+                                    <span className="font-black">{x.day.split('-').reverse().join('.')}</span> · רכב <span dir="ltr" className="font-black">{x.veh}</span> · קו {x.aLine} כיוון {x.dirA}{x.schA != null ? ` (מתוכנן ${hms(x.schA)})` : ''} {hms(x.depA)}–{hms(x.endA)} ← חזר {x.aLine === x.bLine ? 'באותו קו' : `בקו ${x.bLine}`} כיוון {x.dirB}{x.schB != null ? `, מתוכנן ${hms(x.schB)}` : ''}, יצא {hms(x.depB)} · <span className="font-black">{Math.round(x.gap / 60)} דק'</span> אחרי שהגיע
                                     {x.bRiders != null ? <span className={x.bRiders <= DEADHEAD_MAX_RIDERS ? 'text-orange-700 font-black' : 'text-slate-600'}> · בספירות המשרד: {x.bRiders} נוסעים בחזרה</span> : null}
                                   </div>
                                 ))}
@@ -4638,7 +4638,7 @@ const DAYS_FILTER = [
                     </tbody>
                   </table>
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
-                    ההגדרה: אותו רכב (לפי מספרו בשידור) מגיע לקצה נסיעה, ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק"מ מהמקום שבו התחיל — באותו קו או בקו אחר. הזוג נרשם על קו החזרה (הריק בדרך כלל) וגם על קו ההלוך.
+                    ההגדרה: אותו רכב (לפי מספרו בשידור) מגיע לקצה נסיעה, ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק"מ מהמקום שבו התחיל — באותו קו או בקו אחר. כל זוג נרשם פעם אחת, על קו החזרה. בכל דוגמה: השעה המתוכננת בלו"ז לצד השעה שבה יצא בפועל.
                     הניקוד (0–100) בדיוק כמו ציון אי-היעילות של קו: רכיבים עם נקודות שנקבעות בלוח למעלה, נרמול ל-100, והגנות שמופחתות. תוויות הסטטוס זהות.
                     לא ברשימה: {D.normal.toLocaleString('he-IL')} קווים שנצפה בהם הלוך-חזור צמוד אבל נסיעת החזרה שלהם עם נוסעים בספירות — שירות רגיל; {D.noCountsN.toLocaleString('he-IL')} קווים בלי ספירות בקובץ המשרד (מתעדכן רבעונית) — לא נטען שהם ריקים.
                     {D.unknown ? ` ${D.unknown} קווים מהשידורים לא נמצאו בקובץ המשרד ולכן אינם ברשימה.` : ''}
