@@ -1,5 +1,5 @@
 {
-"updated": "2026-09-17",
+"updated": "2026-09-18",
 "tenders": {
 "4000521518": {
 "dates.questions": {
@@ -730,7 +730,7 @@
 "notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
 "sources": [
 {
-"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=4000552742",
+"url": "https://kavbochan.app/tenders/#q=4000552742",
 "locator": "טבלת הקווים במכרז"
 }
 ]
@@ -1093,7 +1093,7 @@
 "notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
 "sources": [
 {
-"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=4000560703",
+"url": "https://kavbochan.app/tenders/#q=4000560703",
 "locator": "טבלת הקווים במכרז"
 }
 ]
@@ -1495,7 +1495,7 @@
 "notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
 "sources": [
 {
-"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=4000582393",
+"url": "https://kavbochan.app/tenders/#q=4000582393",
 "locator": "טבלת הקווים במכרז"
 }
 ]
@@ -1879,7 +1879,7 @@
 "notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
 "sources": [
 {
-"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=4000589849",
+"url": "https://kavbochan.app/tenders/#q=4000589849",
 "locator": "טבלת הקווים במכרז"
 }
 ]
@@ -2407,7 +2407,7 @@
 "notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
 "sources": [
 {
-"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=4000611926",
+"url": "https://kavbochan.app/tenders/#q=4000611926",
 "locator": "טבלת הקווים במכרז"
 }
 ]
@@ -6241,7 +6241,7 @@
 "notes": "קווים בנספח הקווים של המכרז (טבלת \"הקווים במכרז\").",
 "sources": [
 {
-"url": "https://transit-freak.github.io/kav-bochan/tenders/#q=archive-northern-negev",
+"url": "https://kavbochan.app/tenders/#q=archive-northern-negev",
 "locator": "טבלת הקווים במכרז"
 }
 ]
