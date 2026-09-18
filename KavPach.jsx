@@ -3930,7 +3930,7 @@ const DAYS_FILTER = [
         ) : (
           <main>
             <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
-              {["redundant", "deadhead", "areas", "allTrips", "simulator", "about"].map(tabName => {
+              {["redundant", "areas", "allTrips", "simulator", "deadhead", "about"].map(tabName => {
                 const isSelected = tab === tabName;
                 let colorClass = "text-slate-500";
                 let iconName = "";
