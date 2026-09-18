@@ -30,7 +30,7 @@ jobs:
       - name: build
         run: |
           set -euo pipefail
-          npm i --no-save --silent tailwindcss@3
+          npm i --no-save --silent tailwindcss@3 terser
           node tools/build_kavpach.mjs
       - name: commit
         run: |

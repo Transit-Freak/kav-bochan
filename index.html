@@ -34,10 +34,7 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=0abf8cd870" />
-<!-- React ייצור: גרסת הפיתוח איטית משמעותית (בדיקות בכל רינדור) -->
-<script src="vendor/react.production.min.js"></script>
-<script src="vendor/react-dom.production.min.js"></script>
+<link rel="stylesheet" href="vendor/kavpach.css?v=c555b189f8" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -343,8 +340,8 @@
               <div style="min-height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                 <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🏭</span>
                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;flex:1 1 170px;">
-                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:6px 10px;box-sizing:border-box;">
-                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:4px 8px;box-sizing:border-box;">
+                  <img src="parks/histadrut-logo-96.webp" alt="תחום קידום תחבורה ציבורית — ההסתדרות" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:6px 10px;box-sizing:border-box;">
+                  <img src="parks/rahokim-logo-96.webp" alt="רחוקים אבל שווים" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:4px 8px;box-sizing:border-box;">
                 </div>
               </div>
               <h2 style="font-size:1.875rem;font-weight:900;color:#dbeafe;margin:0;">נגישות אזורי תעשייה</h2>
@@ -360,6 +357,9 @@
   </div>
   <!-- KavPach.js מקומפל מראש (tools/build_kavpach.mjs, רץ ב-GitHub Actions בכל
        שינוי של KavPach.jsx) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
+  <!-- React ייצור (גרסת הפיתוח איטית משמעותית) — בסוף הדף, כדי שלא יחסמו את הציור הראשון -->
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
   <script>
     (function () {
       // חיווי מיידי בלחיצה על כלי לפני שהאפליקציה עלתה — במקום כפתור מת
@@ -398,7 +398,7 @@
         document.body.appendChild(b);
       };
       var sc = document.createElement('script');
-      sc.src = 'KavPach.js?v=0abf8cd870';
+      sc.src = 'KavPach.js?v=c555b189f8';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);

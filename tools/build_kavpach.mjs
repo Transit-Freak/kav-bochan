@@ -20,7 +20,13 @@ const ctx = { window: {}, self: {}, console };
 vm.createContext(ctx);
 vm.runInContext(rd('vendor/babel.min.js'), ctx);
 ctx.src = rd('KavPach.jsx');
-const js = vm.runInContext("Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code", ctx);
+let js = vm.runInContext("Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code", ctx);
+// מיזעור (terser) — כ-110KB פחות להורדה ופחות זמן פענוח (Lighthouse: unminified-javascript)
+try {
+  const { minify } = await import('terser');
+  const out = await minify(js, { compress: { passes: 2 }, mangle: true, format: { comments: false } });
+  if (out.code) js = out.code;
+} catch (e) { console.warn('terser לא זמין — הקובץ לא ממוזער:', e.message); }
 wr('KavPach.js', '/* נבנה אוטומטית מ-KavPach.jsx (tools/build_kavpach.mjs) — לא לערוך ידנית */\n' + js);
 
 // 2. Tailwind → CSS מוכן

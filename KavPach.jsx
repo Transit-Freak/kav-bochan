@@ -955,8 +955,8 @@ function ChoiceScreen({ onPick }) {
               <div className="flex flex-wrap items-center justify-between mb-6 min-h-28 gap-3">
                 <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🏭</span>
                 <div className="flex flex-wrap items-center justify-end gap-2" style={{ flex: "1 1 170px", minWidth: 0 }}>
-                  <img src="parks/histadrut-logo.png" alt="תחום קידום תחבורה ציבורית — ההסתדרות" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
-                  <img src="parks/rahokim-logo.png" alt="רחוקים אבל שווים" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
+                  <img src="parks/histadrut-logo-96.webp" alt="תחום קידום תחבורה ציבורית — ההסתדרות" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
+                  <img src="parks/rahokim-logo-96.webp" alt="רחוקים אבל שווים" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
                 </div>
               </div>
               <h2 className="text-3xl font-[900] text-blue-100">נגישות אזורי תעשייה</h2>
@@ -1292,7 +1292,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
             {/* אותה חותמת שקיפות כמו בקו פח — שני הכלים נשענים על אותו צילום */}
             <p className="text-slate-500 text-[11px] font-bold mt-1 pr-1">
               נתוני נוסעים ועלויות: צילום משרד התחבורה, יוני 2026
-              {liveGen ? ` · הצלבה מול רישום הקווים העדכני: ${String(liveGen).split('-').reverse().join('.')}` : ''}
+              {/* תאריך ההצלבה מגיע מקובץ נפרד — נשמר לו מקום כבר עכשיו, שהכותרת לא תגדל ותדחוף את הדף (Lighthouse: CLS) */}
+              {' · הצלבה מול רישום הקווים העדכני: '}{liveGen ? String(liveGen).split('-').reverse().join('.') : <span className="inline-block w-16 h-[1em] align-middle bg-slate-100 rounded" aria-hidden="true" />}
             </p>
           </div>
           <button type="button" onClick={onBack} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</button>
@@ -1440,19 +1441,19 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
 
                     <div className="space-y-2.5 pt-4 border-t border-slate-100">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-bold">ממוצע נוסעים לנסיעה</span>
+                        <span className="text-slate-700 font-bold">ממוצע נוסעים לנסיעה</span>
                         <span className="font-black text-slate-900">{line.avg}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-bold">עומס שיא ממוצע</span>
+                        <span className="text-slate-700 font-bold">עומס שיא ממוצע</span>
                         <span className="font-black text-slate-900">{line.avgPeak}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-bold">נסיעות בשבוע</span>
+                        <span className="text-slate-700 font-bold">נסיעות בשבוע</span>
                         <span className="font-black text-slate-900">{line.count}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm gap-2">
-                        <span className="text-slate-600 font-bold">עלות תפעולית לנוסע</span>
+                        <span className="text-slate-700 font-bold">עלות תפעולית לנוסע</span>
                         <span className="text-right">
                           <span className="font-black text-slate-900">{line.cost > 0 ? `₪${line.cost.toFixed(2)}` : 'לא זמין'}</span>
                           {line.cost > 0 && line.costBenchmark > 0 && (
@@ -1469,7 +1470,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
+                        <span className="text-slate-700 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
                         <span className="font-black text-emerald-700">{(line.nonWastedKm || 0).toLocaleString()} ק&quot;מ</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
@@ -1675,7 +1676,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                   </div>
                 )}
                 {expandSearched && expandMatches.length === 0 && expandSearch && (
-                  <p className="text-xs font-bold text-rose-500 text-right mt-4">קו {expandSearch} לא נמצא במערכת{expandCity ? " בעיר שהוקלדה" : ""}</p>
+                  <p className="text-xs font-bold text-rose-700 text-right mt-4">קו {expandSearch} לא נמצא במערכת{expandCity ? " בעיר שהוקלדה" : ""}</p>
                 )}
               </div>
             );
@@ -3012,9 +3013,10 @@ const DAYS_FILTER = [
           setFileMessage(`נטענו ${(msg.trips || []).length.toLocaleString()} נסיעות ✓`);
           setFileLoading(false);
           setInitialLoading(false);
-          // שמירה בקאש (best-effort, רץ ברקע) — יעיל לטעינה הבאה
+          // שמירה בקאש (best-effort) — אחרי שהמסך הראשון צויר: השכפול של 200 אלף
+          // נסיעות ל-IndexedDB חסם את התגובה הראשונה (Lighthouse: TBT)
           if (fileKeyRef.current) {
-            idbSetCache(IDB_KEY, {
+            const payload = {
               fileKey: fileKeyRef.current,
               trips: msg.trips || [],
               lineCitiesMap: lcm,
@@ -3022,7 +3024,9 @@ const DAYS_FILTER = [
               lineNormStopsMap: lnsm,
               costBenchmark: bench,
               savedAt: Date.now(),
-            });
+            };
+            const later = typeof requestIdleCallback === 'function' ? (f) => requestIdleCallback(f, { timeout: 8000 }) : (f) => setTimeout(f, 2500);
+            later(() => idbSetCache(IDB_KEY, payload));
           }
           worker.terminate();
           resolve();
@@ -3970,8 +3974,9 @@ const DAYS_FILTER = [
   };
 
   // מסך טעינה מלא — מוצג רק כשנכנסים לכלי לפני שהנתונים מוכנים
+  // מסך הטעינה מעוגן למעלה (לא ממורכז אנכית): כשהאפליקציה מופיעה הכותרת לא קופצת — Lighthouse: CLS 0.41
   const fullLoadingScreen = (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-6 px-6" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
+    <div key="loading" className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-start gap-6 px-6 pt-24 md:pt-32" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
       {loadError ? (
         <>
           <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -4007,8 +4012,9 @@ const DAYS_FILTER = [
   if (initialLoading || trips.length === 0) return fullLoadingScreen;
   if (appMode === 'golden') return <GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} liveOf={liveOf} liveGen={liveGen} focusMakat={focusMakat} onClearFocus={() => { setFocusMakat(null); try { window.location.hash = 'מוזהב'; } catch (e) {} }} />;
 
+  // key נפרד למסך הטעינה ולאפליקציה: בלי זה React השתמש באותו DOM והאלמנט "זז" — Lighthouse: CLS
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
+    <div key="app" className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
       <CitiesDatalist cities={allCities} />
 
       <div className="max-w-6xl mx-auto">
@@ -4028,7 +4034,8 @@ const DAYS_FILTER = [
                 שלו סומן — מתחיל מ"הנתונים בכלל לא עדכניים" וצודק חלקית */}
             <p className="text-slate-500 text-[11px] font-bold mt-1 pr-1">
               נתוני נוסעים ועלויות: צילום משרד התחבורה, יוני 2026
-              {liveGen ? ` · הצלבה מול רישום הקווים העדכני: ${String(liveGen).split('-').reverse().join('.')}` : ''}
+              {/* תאריך ההצלבה מגיע מקובץ נפרד — נשמר לו מקום כבר עכשיו, שהכותרת לא תגדל ותדחוף את הדף (Lighthouse: CLS) */}
+              {' · הצלבה מול רישום הקווים העדכני: '}{liveGen ? String(liveGen).split('-').reverse().join('.') : <span className="inline-block w-16 h-[1em] align-middle bg-slate-100 rounded" aria-hidden="true" />}
             </p>
           </div>
           <button type="button" onClick={() => pickMode('choice')} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</button>
@@ -4310,7 +4317,7 @@ const DAYS_FILTER = [
                               <div className="flex flex-wrap gap-1.5">
                                 {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
                                   <details key={mk2} className="text-[10px] font-black bg-white border border-sky-200 text-sky-800 rounded-2xl" style={{maxWidth:'100%'}}>
-                                    <summary className="cursor-pointer flex items-center gap-1 list-none" style={{listStyle:'none',padding:'2px 8px'}}>
+                                    <summary className="cursor-pointer flex items-center gap-1 list-none" style={{listStyle:'none',padding:'6px 10px',minHeight:24}}>
                                       <span className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}%</span>
                                       <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{width:14,height:14,fontSize:10}}>?</span>
                                     </summary>
@@ -4347,15 +4354,15 @@ const DAYS_FILTER = [
 
                         <div className="space-y-2.5 pt-4 border-t border-slate-100">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-600 font-bold">ממוצע נוסעים לנסיעה</span>
+                            <span className="text-slate-700 font-bold">ממוצע נוסעים לנסיעה</span>
                             <span className="font-black text-slate-900">{res.avg}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-600 font-bold">עומס שיא ממוצע</span>
+                            <span className="text-slate-700 font-bold">עומס שיא ממוצע</span>
                             <span className="font-black text-slate-900">{res.avgPeak}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-600 font-bold">נסיעות בשבוע</span>
+                            <span className="text-slate-700 font-bold">נסיעות בשבוע</span>
                             <span className="text-right">
                               <span className="font-black text-slate-900">{res.count}</span>
                               {res.live && !res.live.rm && res.live.ntr > 0 && (
@@ -4366,21 +4373,21 @@ const DAYS_FILTER = [
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-sm gap-2">
-                            <span className="text-slate-600 font-bold">עלות תפעולית לנוסע</span>
+                            <span className="text-slate-700 font-bold">עלות תפעולית לנוסע</span>
                             <span className="text-right">
                               <span className="font-black text-slate-900">{res.cost > 0 ? `₪${res.cost.toFixed(2)}` : 'לא זמין'}</span>
                               {res.cost > 0 && res.costBenchmark > 0 && (
                                 <div className="text-[10px] font-bold text-slate-500">
                                   ממוצע {res.category}: ₪{res.costBenchmark}
                                   {res.costRatio > 1 && (
-                                    <span className="text-rose-500 mr-1">(×{res.costRatio.toFixed(2)})</span>
+                                    <span className="text-rose-700 mr-1">(×{res.costRatio.toFixed(2)})</span>
                                   )}
                                 </div>
                               )}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-600 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
+                            <span className="text-slate-700 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
                             <span className="font-black text-emerald-700">{res.nonWastedKm.toLocaleString()} ק&quot;מ</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
