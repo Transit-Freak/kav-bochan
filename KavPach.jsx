@@ -2272,15 +2272,29 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     for (const st of A) if (B.has(st)) return true;
     return false;
   };
-  const crowdedNear = (info, mk, mins) => {
+  // התאמת רכב לקו העמוס (שלמה 18.09): רכב בינעירוני לא מבצע קו עירוני ולהפך;
+  // תקן הרכב של הקו העמוס הוא מינימום — מיניבוס לא מתגבר קו שדורש אוטובוס,
+  // אבל אוטובוס כן מתגבר קו מיניבוס. (נגישות אינה בקובץ המשרד — לא נבדקת.)
+  const SIZE_RANK = { 'מיניבוס': 1, 'מידיבוס': 2, 'אוטובוס': 3, 'מפרקי': 4 };
+  const sizeRank = (bs) => { const k = String(bs || '').replace(/\s/g, ''); for (const [n, r] of Object.entries(SIZE_RANK)) if (k.includes(n.replace(/\s/g, ''))) return r; return 3; };
+  const svcKind = (lt) => { const t = String(lt || ''); return t.includes('בינעירוני') ? 'inter' : t.includes('עירוני') ? 'urban' : 'other'; };
+  const vehicleFits = (veh, line) => {
+    const a = svcKind(veh.lineType), b = svcKind(line.lineType);
+    if ((a === 'inter' && b === 'urban') || (a === 'urban' && b === 'inter')) return false;
+    return sizeRank(veh.busSize) >= sizeRank(line.busSize);
+  };
+  // הקו העמוס חייב לצאת מהעיר שבה הרכב נמצא (קצה הנסיעה שסיים = מוצא החזרה),
+  // ובחלון של עד 30 דק' אחרי שהגיע — רכב שנמצא בשוהם לא יתגבר קו שיוצא מבאר יעקב.
+  const crowdedNear = (veh, mk, city, arrMins) => {
+    if (!city) return null;
     let best = null;
-    for (const c of new Set([cityOnly(info.origin), cityOnly(info.dest)])) {
-      for (const x of (crowdedByCity.get(c) || [])) {
-        if (String(x.lineNum) === String(info.lineNum)) continue;
-        if (Math.abs(x.timeMins - mins) > 30) continue;
-        if (!sharesStop(mk, x)) continue;
-        if (!best || Math.max(x.ridership, x.peakLoad) > Math.max(best.ridership, best.peakLoad)) best = x;
-      }
+    for (const x of (crowdedByCity.get(city) || [])) {
+      if (String(x.lineNum) === String(veh.lineNum)) continue;
+      if (cityOnly(x.origin) !== city) continue;
+      if (x.timeMins < arrMins || x.timeMins - arrMins > 30) continue;
+      if (!vehicleFits(veh, x)) continue;
+      if (!sharesStop(mk, x)) continue;
+      if (!best || Math.max(x.ridership, x.peakLoad) > Math.max(best.ridership, best.peakLoad)) best = x;
     }
     return best;
   };
@@ -2309,7 +2323,8 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const ex = (e.ex || []).map(x => {
       const [day, veh, mkA, dirA, depA, endA, mkB, dirB, depB, gap, schA, schB] = x;
       const aInfo = (byMakat.get(String(mkA)) || [])[0];
-      const bInfo = (byMakat.get(String(mkB)) || [])[0];
+      const bAll = byMakat.get(String(mkB)) || [];
+      const bInfo = bAll.find(t => String(t.direction) === String(dirB)) || bAll[0];
       return { day, veh, mkA, dirA, depA, endA, mkB, dirB, depB, gap, schA, schB, aLine: aInfo ? aInfo.lineNum : mkA, bLine: bInfo ? bInfo.lineNum : mkB,
                bOrigin: bInfo ? bInfo.origin : '', bDest: bInfo ? bInfo.dest : '', bRiders: ridersOf(mkB, dirB, schB != null ? schB : depB) };
     });
@@ -2324,7 +2339,9 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     // הקו העמוס נבדק לכל דוגמה בנפרד, לפי שעת החזרה שלה — ומוצג מתחתיה
     let hot = null;
     for (const x of ex) {
-      x.hot = crowdedNear(info, mk, (x.schB != null ? x.schB : x.depB) / 60);
+      // הרכב שסיים את קו A: התקן שלו הוא לפחות תקן קו A — לפיו נבדקת ההתאמה
+      const aInfo = (byMakat.get(String(x.mkA)) || [])[0] || info;
+      x.hot = crowdedNear(aInfo, mk, cityOnly(x.bOrigin), x.endA / 60);
       if (x.hot && (!hot || Math.max(x.hot.ridership, x.hot.peakLoad) / (x.hot.capacity || 50) > Math.max(hot.ridership, hot.peakLoad) / (hot.capacity || 50))) hot = x.hot;
     }
     // "צריך תגבור": העומס בקו העמוס ביחס לקיבולת הרכב — מעל 100% = מלוא הנקודות, 90% = חצי
@@ -2408,7 +2425,10 @@ function KavPach() {
   useEffect(() => {
     fetch('bus/data/deadhead.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setDhObs(d)).catch(() => {});
   }, []);
-  const deadhead = useMemo(() => computeDeadhead(trips || [], lineStopsMap, dset, dhObs), [trips, lineStopsMap, dset, dhObs]);
+  // מחושב רק כשהלשונית פתוחה (dhOpened) — לא מכביד על טעינת האתר
+  const [dhOpened, setDhOpened] = useState(false);
+  const deadhead = useMemo(() => (dhOpened ? computeDeadhead(trips || [], lineStopsMap, dset, dhObs) : null),
+    [dhOpened, trips, lineStopsMap, dset, dhObs]);
   const [lineNormStopsMap, setLineNormStopsMap] = useState(new Map());
   const [costBenchmarkTable, setCostBenchmarkTable] = useState(null);
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
@@ -2422,6 +2442,7 @@ function KavPach() {
   const [retryCount, setRetryCount] = useState(0);
 
   const [tab, setTab] = useState("redundant"); 
+  useEffect(() => { if (tab === "deadhead") setDhOpened(true); }, [tab]);
   const [dhOpen, setDhOpen] = useState(null);       // קו פתוח בטבלת הנסיעות התפעוליות
   const [dhSureOnly, setDhSureOnly] = useState(false);
   const [dhNearOnly, setDhNearOnly] = useState(false);
@@ -4523,6 +4544,7 @@ const DAYS_FILTER = [
 
             {tab === "deadhead" && (() => {
               const D = deadhead;
+              if (!D) return <div className="p-10 text-center text-slate-500 font-bold">מחשב נסיעות תפעוליות…</div>;
               const fmtN = (n) => Math.round(n).toLocaleString('he-IL');
               const settingsPanel = (
                 <ScoreSettingsPanel
@@ -4533,7 +4555,7 @@ const DAYS_FILTER = [
                   rows={[
                     { key: 'obs', label: 'תצפיות', hint: 'כמה פעמים בשבוע נצפה רכב מגיע לקצה וחוזר תוך 15 דקות — 7 בשבוע ומעלה = מלוא הנקודות' },
                     { key: 'tight', label: 'צמידות', hint: 'כמה מהר הרכב יצא חזרה — עד 5 דקות = מלוא הנקודות, 15 דקות = אפס' },
-                    { key: 'hot', label: 'קו עמוס באזור', hint: 'באותה עיר ועם תחנה משותפת, עד 30 דקות מנסיעת החזרה, יוצא קו אחר עמוס (80% מקיבולת הרכב)' },
+                    { key: 'hot', label: 'קו עמוס באזור', hint: 'יוצא קו אחר עמוס (80% מקיבולת הרכב) מהעיר שבה הרכב נמצא, עד 30 דקות אחרי שהגיע, עם תחנה משותפת — ורק אם הרכב מתאים לקו: עירוני/בינעירוני לא מתחלפים, ותקן הרכב של הקו העמוס הוא מינימום (אוטובוס מתגבר קו מיניבוס, לא להפך)' },
                     { key: 'crush', label: 'קו שצריך תגבור', hint: 'תוספת חומרה כשהקו העמוס ממש נחנק: מעל 100% מהקיבולת = מלוא הנקודות, 90% = חצי — האוטובוס הריק נסע ליד קו שהיה צריך אותו' },
                     { key: 'empty', label: 'ריק גם בספירות', hint: 'חלק נסיעות החזרה שבספירות משרד התחבורה עלו אליהן עד 1.5 נוסעים' },
                   ]}
@@ -5210,7 +5232,7 @@ const DAYS_FILTER = [
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
                         <li><strong>תצפיות (עד {dset.c.obs.on ? dset.c.obs.max : 0}):</strong> כמה פעמים בשבוע זה קורה; 7 ומעלה = מלוא הנקודות.</li>
                         <li><strong>צמידות (עד {dset.c.tight.on ? dset.c.tight.max : 0}):</strong> כמה מהר הרכב יצא חזרה — עד 5 דקות = מלוא הנקודות, 15 = אפס.</li>
-                        <li><strong>קו עמוס באזור ({dset.c.hot.on ? dset.c.hot.max : 0}):</strong> באותה עיר ועם תחנה משותפת, עד 30 דקות מנסיעת החזרה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר).</li>
+                        <li><strong>קו עמוס באזור ({dset.c.hot.on ? dset.c.hot.max : 0}):</strong> הרכב הריק היה יכול לתגבר קו אחר: מהעיר שבה הוא נמצא (קצה הנסיעה שסיים) יוצא, עד 30 דקות אחרי שהגיע, קו עמוס (80% מקיבולת הרכב) עם תחנה משותפת. נבדק גם שהרכב מתאים לקו — רכב בינעירוני לא מבצע קו עירוני ולהפך, ותקן הרכב של הקו העמוס הוא מינימום: אוטובוס יכול לתגבר קו שמוגדר מיניבוס, אבל מיניבוס לא יתגבר קו שדורש אוטובוס. (נגישות אינה בקובץ המשרד ולכן לא נבדקת.)</li>
                         <li><strong>קו שצריך תגבור (עד {dset.c.crush.on ? dset.c.crush.max : 0}):</strong> תוספת חומרה כשהקו העמוס ממש נחנק — מעל 100% מהקיבולת = מלוא הנקודות, 90% = חצי. האוטובוס הריק נסע ליד קו שהיה צריך אותו.</li>
                         <li><strong>ריק גם בספירות (עד {dset.c.empty.on ? dset.c.empty.max : 0}):</strong> נסיעת החזרה ריקה גם בספירות משרד התחבורה (עד 1.5 נוסעים). קו שאין לו ספירות בקובץ (מתעדכן רבעונית) לא נטען כריק.</li>
                         <li><strong>הגנות:</strong> קו לילה (−{dset.p.night}), סופ&quot;ש (−{dset.p.weekend}), תצפית בודדת (−{dset.p.rare}).</li>

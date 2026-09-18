@@ -37,6 +37,21 @@
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="vendor/babel.min.js"></script>
+<script>
+  // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
+  // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
+  (function () {
+    try {
+      var h = decodeURIComponent((location.hash || '').replace('#', '').trim());
+      if (/^(פח|kavpach|מוזהב|golden)(\/|$)/.test(h)) document.documentElement.className += ' kb-tool';
+    } catch (e) {}
+  })();
+</script>
+<style>
+  html.kb-tool #static-choice { display: none !important; }
+  #static-boot { display: none; }
+  html.kb-tool #static-boot { display: flex; }
+</style>
 <style>
   * { box-sizing: border-box; }
   html { direction: rtl; }
@@ -83,6 +98,10 @@
 <body>
   <div id="root">
     <!-- static placeholder — replaced by React on mount -->
+    <div id="static-boot" style="min-height:100vh;background:#F8FAFC;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:'Heebo',system-ui,sans-serif;" dir="rtl">
+      <div style="width:44px;height:44px;border:3px solid #e2e8f0;border-top-color:#4f46e5;border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <div style="font-size:14px;color:#64748b;font-weight:700;">טוען את הכלי…</div>
+    </div>
     <div id="static-choice" style="min-height:100vh;background:linear-gradient(to bottom,#f8fafc,#f1f5f9);display:flex;align-items:center;justify-content:center;padding:16px;font-family:'Heebo',system-ui,sans-serif;" dir="rtl">
       <div style="max-width:1280px;width:100%;">
         <div style="text-align:center;margin-bottom:40px;">
