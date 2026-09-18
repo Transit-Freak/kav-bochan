@@ -697,7 +697,8 @@ function parseJSON(payload) {
   progress(12, "קרא נתוני קווים…");
   const schedRows    = JSON.parse(dec.decode(payload.jsonScheduleBuf));
   progress(22, "קרא לוח זמנים…");
-  const stopsRows    = JSON.parse(dec.decode(payload.jsonStopsBuf));
+  // קובץ התחנות (15MB) נטען בעצלות אחרי המסך הראשון (הודעת 'stops') — כאן אופציונלי
+  const stopsRows    = payload.jsonStopsBuf ? JSON.parse(dec.decode(payload.jsonStopsBuf)) : [];
   progress(28, "קרא תחנות…");
   const costBenchmark = payload.jsonBenchmarkBuf
     ? JSON.parse(dec.decode(payload.jsonBenchmarkBuf))
@@ -736,28 +737,7 @@ function parseJSON(payload) {
   // ── בניית מפות תחנות ──
   // [0]=makat [1]=stopId [2]=city(lowercase) [3]=normName
   progress(38, "בונה מפת תחנות…");
-  const tempCitiesMap   = new Map();
-  const tempStopsMap    = new Map();
-  const tempNormStopsMap = new Map();
-  for (const row of stopsRows) {
-    const makat = row[0];
-    if (!makat) continue;
-    const stopId   = row[1];
-    const city     = row[2];
-    const normName = row[3];
-    if (city) {
-      if (!tempCitiesMap.has(makat)) tempCitiesMap.set(makat, new Set());
-      tempCitiesMap.get(makat).add(city);
-    }
-    if (stopId) {
-      if (!tempStopsMap.has(makat)) tempStopsMap.set(makat, new Set());
-      tempStopsMap.get(makat).add(stopId);
-    }
-    if (normName) {
-      if (!tempNormStopsMap.has(makat)) tempNormStopsMap.set(makat, new Set());
-      tempNormStopsMap.get(makat).add(normName);
-    }
-  }
+  const { tempCitiesMap, tempStopsMap, tempNormStopsMap } = buildStopsMaps(stopsRows);
 
   // ── עיבוד שורות לוח זמנים ──
   // [0]=makat [1]=direction [2]=time [3]=timeMins [4]=days [5]=ridership [6]=peakLoad [7]=tripCount
@@ -881,9 +861,65 @@ function parseJSON(payload) {
   };
 }
 
+// מפות התחנות מקובץ data-stops.json: [makat, stopId, city, normName] לכל שורה
+function buildStopsMaps(stopsRows) {
+  const tempCitiesMap   = new Map();
+  const tempStopsMap    = new Map();
+  const tempNormStopsMap = new Map();
+  for (const row of stopsRows) {
+    const makat = row[0];
+    if (!makat) continue;
+    const stopId   = row[1];
+    const city     = row[2];
+    const normName = row[3];
+    if (city) {
+      if (!tempCitiesMap.has(makat)) tempCitiesMap.set(makat, new Set());
+      tempCitiesMap.get(makat).add(city);
+    }
+    if (stopId) {
+      if (!tempStopsMap.has(makat)) tempStopsMap.set(makat, new Set());
+      tempStopsMap.get(makat).add(stopId);
+    }
+    if (normName) {
+      if (!tempNormStopsMap.has(makat)) tempNormStopsMap.set(makat, new Set());
+      tempNormStopsMap.get(makat).add(normName);
+    }
+  }
+  return { tempCitiesMap, tempStopsMap, tempNormStopsMap };
+}
+
+// שלב עצל: קובץ התחנות לבדו → שלוש המפות, עם כינוי לפי מספר הקו (aliases: [[makat, lineNum], …])
+function parseStopsOnly(payload) {
+  const dec = new TextDecoder('utf-8');
+  const stopsRows = JSON.parse(dec.decode(payload.jsonStopsBuf));
+  const { tempCitiesMap, tempStopsMap, tempNormStopsMap } = buildStopsMaps(stopsRows);
+  const out = [new Map(), new Map(), new Map()];
+  const srcs = [tempCitiesMap, tempStopsMap, tempNormStopsMap];
+  for (const [makat, lineNum] of (payload.aliases || [])) {
+    const m = String(makat || '').replace(/^0+/, '');
+    const cl = String(lineNum || '').replace(/^0+/, '');
+    srcs.forEach((src, i) => {
+      const set = src.get(m) || src.get(makat);
+      if (!set) return;
+      out[i].set(m, set);
+      if (cl) out[i].set(cl, set);
+    });
+  }
+  return { lineCitiesMap: out[0], lineStopsMap: out[1], lineNormStopsMap: out[2] };
+}
+
 // ── message handler ───────────────────────────────────────────────────
 self.onmessage = (e) => {
   const d = e.data || {};
+  if (d.type === 'stops') {
+    try {
+      const r = parseStopsOnly(d);
+      post({ type: 'stops', lineCitiesMap: r.lineCitiesMap, lineStopsMap: r.lineStopsMap, lineNormStopsMap: r.lineNormStopsMap });
+    } catch (err) {
+      post({ type: 'error', message: err && err.message ? err.message : String(err) });
+    }
+    return;
+  }
   if (d.type !== 'parse') return;
   try {
     const r = d.jsonMainBuf ? parseJSON(d) : parseXLSX(d);

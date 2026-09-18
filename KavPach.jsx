@@ -2791,6 +2791,47 @@ const DAYS_FILTER = [
   // מפתח הקובץ הנוכחי — נשמר ב-ref כדי שלא יגרור re-render, ומועבר לתוך
   // ה-onmessage של ה-worker בלי להיתפס closure ישן.
   const fileKeyRef = useRef(null);
+  // שלב עצל: קובץ התחנות נטען ומפוענח ב-worker אחרי שהמסך הראשון הוצג. עד אז
+  // חיפוש לפי עיר עובד לפי מוצא/יעד בלבד, וחפיפת תחנות בנסיעות התפעוליות לא נבדקת.
+  const stopsStageRef = useRef(false);
+  useEffect(() => {
+    if (initialLoading || !trips.length || appMode === 'choice') return;
+    if (lineStopsMap.size > 0 || stopsStageRef.current) return;
+    stopsStageRef.current = true;
+    const aliases = [];
+    const seen = new Set();
+    for (const t of trips) {
+      const m = String(t.makat || '').replace(/^0+/, '');
+      if (!m || seen.has(m)) continue;
+      seen.add(m); aliases.push([m, String(t.lineNum || '')]);
+    }
+    const go = async () => {
+      try {
+        const res = await fetch('data-stops.json', { cache: 'no-cache' });
+        if (!res.ok) return;
+        const buf = await res.arrayBuffer();
+        const worker = new Worker('xlsx-worker.js?v=20260918a');
+        worker.onmessage = (ev) => {
+          const msg = ev.data || {};
+          if (msg.type === 'stops') {
+            const lcm = msg.lineCitiesMap instanceof Map ? msg.lineCitiesMap : new Map();
+            const lsm = msg.lineStopsMap instanceof Map ? msg.lineStopsMap : new Map();
+            const lnsm = msg.lineNormStopsMap instanceof Map ? msg.lineNormStopsMap : new Map();
+            setLineCitiesMap(lcm); setLineStopsMap(lsm); setLineNormStopsMap(lnsm);
+            // הקאש המקומי מקבל את המפות — בביקור הבא הן כבר שם
+            if (fileKeyRef.current) {
+              idbGetCache(IDB_KEY).then(c => { if (c && c.fileKey === fileKeyRef.current) idbSetCache(IDB_KEY, { ...c, lineCitiesMap: lcm, lineStopsMap: lsm, lineNormStopsMap: lnsm }); }).catch(() => {});
+            }
+          }
+          worker.terminate();
+        };
+        worker.onerror = () => worker.terminate();
+        worker.postMessage({ type: 'stops', jsonStopsBuf: buf, aliases }, [buf]);
+      } catch (e) { /* בלי תחנות — האתר עובד, בלי חיפוש עיר מדויק */ }
+    };
+    const later = typeof requestIdleCallback === 'function' ? (f) => requestIdleCallback(f, { timeout: 4000 }) : (f) => setTimeout(f, 1500);
+    later(go);
+  }, [initialLoading, trips, appMode, lineStopsMap]);
 
   // ── טעינה אוטומטית בעליית הקומפוננטה ──────────────────────────────────────
   // 4 קבצי מקור: מצומצם(ראשי) · מרחוב(לוז/שעות) · תחנות · עלות לנוסע(בנצ'מרק)
@@ -2890,9 +2931,9 @@ const DAYS_FILTER = [
       clearTimeout(jsonProbeTimer);
       if (jsonMainRes && jsonMainRes.ok) {
         setFileMessage('מוריד נתונים (JSON)…');
-        const JSON_EST = { main: 965_000, schedule: 9_840_000, stops: 16_980_000, benchmark: 3_000 };
+        const JSON_EST = { main: 965_000, schedule: 9_840_000, benchmark: 3_000 };
         const jsonTotalEst = Object.values(JSON_EST).reduce((a, b) => a + b, 0);
-        const jsonReceived = { main: 0, schedule: 0, stops: 0, benchmark: 0 };
+        const jsonReceived = { main: 0, schedule: 0, benchmark: 0 };
         const updateJsonProgress = () => {
           const done = Object.entries(jsonReceived).reduce((s, [k, v]) => s + Math.min(v, JSON_EST[k]), 0);
           setFileProgress(Math.min(20, 2 + Math.round((done / jsonTotalEst) * 18)));
@@ -2909,14 +2950,15 @@ const DAYS_FILTER = [
         const jmBuf = new Uint8Array(jmRec); let jmPos = 0;
         for (const c of jsonMainChunks) { jmBuf.set(c, jmPos); jmPos += c.length; }
 
-        const [jsonScheduleBuf, jsonStopsBuf, jsonBenchmarkBuf] = await Promise.all([
+        // קובץ התחנות (15MB, הכבד מכולם) לא נטען כאן: הוא נדרש רק לחיפוש לפי עיר,
+        // לחפיפות ולנסיעות התפעוליות — נטען בעצלות אחרי שהמסך הראשון הוצג (שלמה 18.09)
+        const [jsonScheduleBuf, jsonBenchmarkBuf] = await Promise.all([
           grabWithProgress('data-schedule.json', false, (b) => { jsonReceived.schedule = b; updateJsonProgress(); }),
-          grabWithProgress('data-stops.json',    false, (b) => { jsonReceived.stops    = b; updateJsonProgress(); }),
           grabWithProgress('data-benchmark.json',false, (b) => { jsonReceived.benchmark = b; updateJsonProgress(); }),
         ]);
 
         setFileMessage('מנתח נתונים…');
-        await runWorker({ jsonMainBuf: jmBuf.buffer, jsonScheduleBuf, jsonStopsBuf, jsonBenchmarkBuf });
+        await runWorker({ jsonMainBuf: jmBuf.buffer, jsonScheduleBuf, jsonBenchmarkBuf });
         return true;
       }
 
@@ -2974,7 +3016,7 @@ const DAYS_FILTER = [
     return new Promise((resolve) => {
       let worker;
       try {
-        worker = new Worker('xlsx-worker.js?v=20260617u'); // ?v= cache-busting — עדכן בכל פריסה
+        worker = new Worker('xlsx-worker.js?v=20260918a'); // ?v= cache-busting — עדכן בכל פריסה
       } catch (err) {
         console.error('Worker creation failed:', err);
         alert('שגיאה ביצירת thread עיבוד: ' + err.message);
@@ -3423,6 +3465,7 @@ const DAYS_FILTER = [
   useEffect(() => { setVisibleLineCount(30); }, [filteredRedundant]);
 
   const areaStats = useMemo(() => {
+    if (tab !== 'areas') return [];   // מחושב רק כשהלשונית פתוחה (שלמה: lazy calculating)
     const map = new Map();
     redundantLines.forEach(line => {
       // כאן הוספנו את הסינון - הניתוח האזורי יתייחס רק לקווים מיותרים לחלוטין (80 ומעלה)
@@ -3476,7 +3519,7 @@ const DAYS_FILTER = [
       if (areaSortBy === 'avgRiders') return parseFloat(a.avgAreaRiders) - parseFloat(b.avgAreaRiders);
       return b.avgScore - a.avgScore;
     });
-  }, [redundantLines, areaViewMode, areaSortBy]);
+  }, [tab, redundantLines, areaViewMode, areaSortBy]);
 
   const handleViewAreaLines = (areaName) => {
     if (areaViewMode === 'district') {
