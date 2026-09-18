@@ -254,6 +254,10 @@ def main():
             out[name] = {'article': None, 'err': str(e)}
             print(f'{name}: שגיאה {e}', flush=True)
         time.sleep(0.6)   # נימוס כלפי ה-API של ויקיפדיה
+        if len(out) % 40 == 0:
+            with open(f'{OUT}.tmp', 'w', encoding='utf-8') as f:
+                json.dump({'updated': data['updated'], 'stations': out, 'partial': True}, f, ensure_ascii=False)
+            os.replace(f'{OUT}.tmp', OUT)
     used = {v.get('article') for v in out.values()}
     unmatched = sorted(t for t in cat_titles if t not in used)
     print(f'ערכים בקטגוריה שלא שודכו לתחנה ({len(unmatched)}): ' + ' | '.join(unmatched[:60]), flush=True)
