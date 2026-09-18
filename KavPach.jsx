@@ -2158,8 +2158,21 @@ function computeDeadhead(trips, lineStopsMap) {
       const km = ((a.distance || 0) + (b.distance || 0)) * weekly;
       const sure = a.ridership <= DEADHEAD_SURE_RIDERS && b.ridership <= DEADHEAD_SURE_RIDERS;
       const hot = crowdedNear(a) || crowdedNear(b);
+      // ניקוד 0–100 לכל זוג, באותה רוח של ציון אי-היעילות לקו:
+      //   ריקות (עד 40)   — כמה נוסעים בכל זאת עלו בשני הכיוונים יחד
+      //   צמידות (עד 20)  — כמה קרובות היציאות (הסעה למסוף = דקות ספורות)
+      //   קו עמוס באזור (עד 30) — האוטובוס יכול היה לתגבר קו שנחנק
+      //   היקף (עד 10)    — כמה פעמים בשבוע זה חוזר
+      const riders = a.ridership + b.ridership;
+      const parts = {
+        empty: Math.round(40 * Math.max(0, 1 - riders / (2 * DEADHEAD_MAX_RIDERS))),
+        tight: Math.round(20 * Math.max(0, 1 - Math.max(0, best.gap - 15) / (DEADHEAD_GAP_MIN - 15))),
+        hot: hot ? 30 : 0,
+        volume: Math.round(10 * Math.min(1, weekly / 6)),
+      };
+      const score = parts.empty + parts.tight + parts.hot + parts.volume;
       pairs.push({
-        near: hot,
+        near: hot, score, parts,
         groupKey, lineNum: a.lineNum, makat: a.makat, origin: a.origin, dest: a.dest,
         cluster: a.cluster || a.clusterVal || '', district: a.district || '', lineType: a.lineType || '',
         a, b, gap: best.gap, weekly, km, sure,
@@ -2167,7 +2180,7 @@ function computeDeadhead(trips, lineStopsMap) {
       });
     }
   }
-  pairs.sort((x, y) => ((y.near ? 1 : 0) - (x.near ? 1 : 0)) || (y.sure - x.sure) || (y.km - x.km));
+  pairs.sort((x, y) => (y.score - x.score) || (y.km - x.km));
   const byLine = new Map();
   for (const p of pairs) {
     const k = p.groupKey;
@@ -2175,7 +2188,13 @@ function computeDeadhead(trips, lineStopsMap) {
     const L = byLine.get(k);
     L.pairs.push(p); L.weekly += p.weekly; L.km += p.km; if (p.sure) L.sure += 1; if (p.near) L.near = (L.near || 0) + 1;
   }
-  const lines = [...byLine.values()].sort((x, y) => ((y.near || 0) - (x.near || 0)) || (y.km - x.km));
+  // ציון הקו = ממוצע ציוני הזוגות שלו, משוקלל לפי כמה פעמים בשבוע כל זוג חוזר
+  for (const L of byLine.values()) {
+    const w = L.pairs.reduce((s2, p) => s2 + p.weekly, 0) || 1;
+    L.score = Math.round(L.pairs.reduce((s2, p) => s2 + p.score * p.weekly, 0) / w);
+    L.maxScore = Math.max(...L.pairs.map(p => p.score));
+  }
+  const lines = [...byLine.values()].sort((x, y) => (y.score - x.score) || (y.km - x.km));
   return {
     pairs, lines,
     totalPairs: pairs.length,
@@ -4423,13 +4442,14 @@ const DAYS_FILTER = [
                 <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-x-auto">
                   <table className="w-full text-right border-collapse text-sm">
                     <thead><tr className="text-slate-500 text-xs border-b border-slate-200">
-                      <th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
+                      <th className="p-3">ניקוד</th><th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
                       <th className="p-3">זוגות</th><th className="p-3">ליד קו עמוס</th><th className="p-3">נסיעות/שבוע</th><th className="p-3">ק"מ/שבוע</th><th className="p-3"></th>
                     </tr></thead>
                     <tbody>
                       {rows.slice(0, 200).map(L => (
                         <React.Fragment key={L.groupKey}>
                           <tr className="border-b border-slate-100 hover:bg-orange-50/40 cursor-pointer" onClick={() => setDhOpen(dhOpen === L.groupKey ? null : L.groupKey)}>
+                            <td className="p-3"><span className={`inline-block min-w-[3rem] text-center px-2 py-1 rounded-xl font-black text-base ${L.score >= 70 ? 'bg-rose-600 text-white' : L.score >= 45 ? 'bg-amber-400 text-slate-900' : 'bg-slate-200 text-slate-700'}`} title={`ממוצע הזוגות (משוקלל לפי תדירות). הזוג החמור ביותר: ${L.maxScore}`}>{L.score}</span></td>
                             <td className="p-3 font-black text-lg">{L.lineNum}</td>
                             <td className="p-3 font-bold">{cityOnly2(L.origin)} – {cityOnly2(L.dest)}</td>
                             <td className="p-3 text-slate-600">{L.cluster || L.district}</td>
@@ -4440,13 +4460,15 @@ const DAYS_FILTER = [
                             <td className="p-3 text-slate-400"><Ic n={dhOpen === L.groupKey ? 'chevronUp' : 'chevronDown'} size={16} /></td>
                           </tr>
                           {dhOpen === L.groupKey && (
-                            <tr><td colSpan={8} className="p-0">
+                            <tr><td colSpan={9} className="p-0">
                               <div className="bg-slate-50 rounded-2xl m-2 p-4">
                                 {L.pairs.map((p, i) => (
-                                  <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center py-2 border-b border-slate-200 last:border-0 text-sm">
+                                  <div key={i} className="grid grid-cols-1 md:grid-cols-[4rem_1fr_1fr_1fr] gap-2 items-center py-2 border-b border-slate-200 last:border-0 text-sm">
+                                    <div><span className={`inline-block min-w-[3rem] text-center px-2 py-1 rounded-xl font-black ${p.score >= 70 ? 'bg-rose-600 text-white' : p.score >= 45 ? 'bg-amber-400 text-slate-900' : 'bg-slate-200 text-slate-700'}`} title={`ריקות ${p.parts.empty}/40 · צמידות ${p.parts.tight}/20 · קו עמוס באזור ${p.parts.hot}/30 · היקף ${p.parts.volume}/10`}>{p.score}</span></div>
                                     <div><span className="font-black">{p.a.time}</span> {dirName(p.a)} · <span className={p.a.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.a.ridership} נוסעים</span></div>
                                     <div><span className="font-black">{p.b.time}</span> {dirName(p.b)} · <span className={p.b.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.b.ridership} נוסעים</span></div>
                                     <div className="text-slate-600 text-xs font-bold">{p.gap} דק' בין היציאות · {p.a.days || ''} · {p.weekly} פעמים בשבוע{p.edge ? ' · קצה יום' : ''}{p.sure ? ' · ריק לגמרי' : ''}
+                                      <div className="text-slate-500 mt-1">ניקוד: ריקות {p.parts.empty}/40 · צמידות {p.parts.tight}/20 · קו עמוס באזור {p.parts.hot}/30 · היקף {p.parts.volume}/10</div>
                                       {p.near ? <div className="text-rose-700 mt-1">באותה שעה קו {p.near.lineNum} ({cityOnly2(p.near.origin)} ← {cityOnly2(p.near.dest)}, {p.near.time}) נוסע עמוס: {Math.round(Math.max(p.near.ridership, p.near.peakLoad))} נוסעים על קיבולת {p.near.capacity}</div> : null}
                                     </div>
                                   </div>
@@ -4456,10 +4478,11 @@ const DAYS_FILTER = [
                           )}
                         </React.Fragment>
                       ))}
-                      {!rows.length && <tr><td colSpan={8} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
+                      {!rows.length && <tr><td colSpan={9} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
                     </tbody>
                   </table>
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
+                    הניקוד (0–100), כמו ציון אי-היעילות של קו: ריקות עד 40 נק' (כמה נוסעים בכל זאת עלו בשני הכיוונים), צמידות עד 20 (יציאות בהפרש של עד 15 דק' = מלוא הנקודות), קו עמוס באזור 30, היקף עד 10 (6 פעמים בשבוע = מלוא הנקודות). ציון הקו = ממוצע הזוגות שלו משוקלל לפי תדירות; אדום מ-70, כתום מ-45.
                     איך זה מחושב: מנתוני הספירות של משרד התחבורה (ממוצע נוסעים לכל נסיעה מתוכננת). נסיעה נחשבת "כמעט ריקה" עד {DEADHEAD_MAX_RIDERS} נוסעים בממוצע ו"ריקה" עד {DEADHEAD_SURE_RIDERS}.
                     זוג = שתי נסיעות כמעט ריקות של אותו קו בכיוונים מנוגדים, שיוצאות בהפרש של עד {DEADHEAD_GAP_MIN} דקות באותם ימים. נסיעה ריקה בודדת לא נספרת.
                     "ליד קו עמוס" = באותה עיר ועם תחנה משותפת (אותו מסדרון), עד 30 דקות מהנסיעה הריקה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר). אלה מוצגים ראשונים.
