@@ -197,6 +197,21 @@ def main():
                        1 if x['term'] else 0] for x in lines]}
     kinds = Counter(v['kind'] for v in out_st.values())
     print(f'קבוצות: {dict(kinds)}', flush=True)
+    # שירותים עירוניים שאינם ב-GTFS הלאומי (סבבוס, שאטלים עירוניים וכד') —
+    # תוספת ידנית: wiki-check/data/extra-lines.json {"שם מקום": [[קו, מפעיל, [יעדים], רציף, 0], ...]}
+    extra_path = os.path.join(os.path.dirname(OUT), 'extra-lines.json')
+    if os.path.exists(extra_path):
+        with open(extra_path, encoding='utf-8') as f:
+            extra = json.load(f)
+        n_extra = 0
+        for label, lines in extra.items():
+            if label in out_st:
+                have = {(l[0], l[1]) for l in out_st[label]['lines']}
+                for l in lines:
+                    if (l[0], l[1]) not in have:
+                        out_st[label]['lines'].append(l)
+                        n_extra += 1
+        print(f'תוספות ידניות: {n_extra} קווים', flush=True)
     out = {'updated': datetime.date.today().isoformat(), 'stations': out_st}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = f'{OUT}.tmp'
