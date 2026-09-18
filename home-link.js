@@ -10,6 +10,7 @@
       'background:#0f172a;color:#fff;text-decoration:none;font:800 12.5px/1 "Rubik","Heebo",system-ui,sans-serif;' +
       'padding:9px 13px;border-radius:999px;box-shadow:0 2px 10px rgba(15,23,42,.25);direction:rtl}' +
       '.kb-home:hover{background:#1e293b}.kb-home:focus-visible{outline:2px solid #fff;outline-offset:2px}' +
+      '@media (max-width:760px){body{padding-top:46px !important}}' +
       '@media print{.kb-home{display:none}}';
     document.head.appendChild(st);
     var mk = function () {
