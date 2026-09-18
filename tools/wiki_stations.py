@@ -28,6 +28,10 @@ OUT = os.environ.get('OUT', 'wiki-check/data/stations.json')
 ZIP = os.environ.get('GTFS_ZIP', '/tmp/gtfs.zip')
 SUFFIX = re.compile(r'(-\d+[א-ת]?#?\s*)+$')
 STATION_WORDS = ('מרכזית', 'מסוף')
+ABBR = {"ראשל''צ": 'ראשון לציון', 'ראשל"צ': 'ראשון לציון', "כפ''ס": 'כפר סבא', 'כפ"ס': 'כפר סבא',
+        "ק''ש": 'קריית שמונה', 'ק"ש': 'קריית שמונה', "ת''א": 'תל אביב', 'ת"א': 'תל אביב',
+        "ב''ש": 'באר שבע', 'ב"ש': 'באר שבע', "פ''ת": 'פתח תקווה', 'פ"ת': 'פתח תקווה',
+        "ר''ג": 'רמת גן', 'ר"ג': 'רמת גן', "ב''ב": 'בני ברק', 'ב"ב': 'בני ברק'}
 CITY_RE = re.compile(r'עיר:\s*(.+?)\s*(?:רציף:|קומה:|$)')
 PLAT_RE = re.compile(r'רציף:\s*([^\s:]+)')
 STREET_RE = re.compile(r'רחוב:\s*(.+?)\s*עיר:')
@@ -43,6 +47,10 @@ def station_key(stop_name):
     base = re.sub(r'\s*קומה\s*\d+\s*$', '', base)
     base = re.sub(r'\s+', ' ', base).strip()
     base = re.sub(r'^ת\.\s*מרכזית', 'ת. מרכזית', base)   # איחוד "ת.מרכזית"/"ת. מרכזית"
+    base = re.sub(r'^תחנה מרכזית\b', 'ת. מרכזית', base)
+    # קיצורי ערים בשמות תחנות — כדי שראשל''צ וראשון לציון יהיו אותה תחנה
+    for ab, full in ABBR.items():
+        base = base.replace(ab, full)
     if 'סבידור' in base or base in ('תל אביב מרכז', 'מסוף 2000'):
         return 'מסוף ארלוזורוב (סבידור)'
     return base
