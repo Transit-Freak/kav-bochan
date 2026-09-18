@@ -2226,6 +2226,7 @@ function KavPach() {
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
+  const deadhead = useMemo(() => computeDeadhead(trips || [], lineStopsMap), [trips, lineStopsMap]);
   const [lineNormStopsMap, setLineNormStopsMap] = useState(new Map());
   const [costBenchmarkTable, setCostBenchmarkTable] = useState(null);
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
@@ -2239,7 +2240,6 @@ function KavPach() {
   const [retryCount, setRetryCount] = useState(0);
 
   const [tab, setTab] = useState("redundant"); 
-  const deadhead = useMemo(() => computeDeadhead(trips || [], lineStopsMap), [trips, lineStopsMap]);
   const [dhOpen, setDhOpen] = useState(null);       // קו פתוח בטבלת הנסיעות התפעוליות
   const [dhSureOnly, setDhSureOnly] = useState(false);
   const [dhNearOnly, setDhNearOnly] = useState(false);
