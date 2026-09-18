@@ -832,14 +832,9 @@ def main():
             cls = 2
         else:
             cls = 1
+        reach_cls = cls
         for acc in (r, A[ag], tot):
             acc['reach'][cls] += 1
-        # תחנת המוצא ותחנת הסיום של המסלול — לבדיקת "חזר לאותו מקום" גם בקו אחר
-        _o = stops.get(seq[0][1]) if seq else None
-        _e = stops.get(seq[-1][1]) if seq else None
-        veh_rides.append((key[2], routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''),
-                          t_of.get(1, min(t_of.values())), max(t_of.values()), cls == 0, rid,
-                          (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None))
         if cls == 1 and not was_cut:
             COV[seq[k_last - 1][1]][3] += 1      # התחנה האחרונה שנראתה בנסיעה שנעלמה באמצע הדרך
             COV[seq[k_last - 1][1]][2].add(ag)
@@ -877,6 +872,12 @@ def main():
         ride_max = None
         ride_pass = []                       # [מק"ט, מתוכנן, בפועל] לכל תחנה — לרשימת המאחרות
         t_of = {k: sc + d for k, s, sc, d in meas}
+        # תחנת המוצא ותחנת הסיום של המסלול — לבדיקת "חזר לאותו מקום" גם בקו אחר
+        _o = stops.get(seq[0][1]) if seq else None
+        _e = stops.get(seq[-1][1]) if seq else None
+        veh_rides.append((key[2], routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''),
+                          t_of.get(1, min(t_of.values())), max(t_of.values()), reach_cls == 0, rid,
+                          (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None))
         for k, s, sched, delay in meas:
             c = cat(delay)
             r['meas'] += 1
