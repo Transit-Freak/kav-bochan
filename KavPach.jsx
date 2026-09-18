@@ -438,6 +438,20 @@ const PACH_DEFAULTS = {
   p: { exclusive: 15, train: 10, school: 10, prebook: 20, weekend: 10, newLine: 10, reduced: 10, noAlt: 10 },
 };
 
+// ניקוד נסיעות תפעוליות — אותה מסגרת כמו ציון אי-היעילות של קו: רכיבים עם
+// נקודות לבחירת המשתמש, נרמול ל-100 לפי הרכיבים הדלוקים, הגנות שמופחתות
+const DEADHEAD_DEFAULTS = {
+  minScore: 25,
+  c: {
+    empty:  { on: true, max: 40 },
+    tight:  { on: true, max: 20 },
+    hot:    { on: true, max: 30 },
+    volume: { on: true, max: 10 },
+  },
+  // הגנות: קו לילה (ריק זה נורמלי), קו סופ"ש, זוג בודד בשבוע (לא דפוס)
+  p: { night: 10, weekend: 10, rare: 10 },
+};
+
 // לוח ההגדרות — משותף לשני הכלים. rows: [{ key, label, hint, params: [{ k, label, auto, unit, min, max, step }] }]
 function ScoreSettingsPanel({ title, intro, settings, update, reset, isDefault, rows, extras, footnote, accent }) {
   const [open, setOpen] = useState(false);
@@ -2080,7 +2094,10 @@ const cityOnly2 = (x) => x ? (x.indexOf(' - ') > 0 ? x.slice(0, x.indexOf(' - ')
 const DEADHEAD_MAX_RIDERS = 1.5;      // עד כאן "כמעט ריק"
 const DEADHEAD_SURE_RIDERS = 0.5;     // עד כאן "ריק"
 const DEADHEAD_GAP_MIN = 100;         // כמה דקות בין היציאות של זוג
-function computeDeadhead(trips, lineStopsMap) {
+function computeDeadhead(trips, lineStopsMap, dset) {
+  const PC = (dset || DEADHEAD_DEFAULTS).c, PP = (dset || DEADHEAD_DEFAULTS).p;
+  const ptsOf = (k, f) => (PC[k].on ? Math.max(0, Math.min(1, f)) * (Number(PC[k].max) || 0) : 0);
+  const maxSum = maxSumOf(PC);
   const cityOnly = (x) => x ? (x.indexOf(' - ') > 0 ? x.slice(0, x.indexOf(' - ')).trim() : x.split('/')[0].trim()) : '';
   const groups = new Map();
   for (const t of trips) {
@@ -2164,15 +2181,26 @@ function computeDeadhead(trips, lineStopsMap) {
       //   קו עמוס באזור (עד 30) — האוטובוס יכול היה לתגבר קו שנחנק
       //   היקף (עד 10)    — כמה פעמים בשבוע זה חוזר
       const riders = a.ridership + b.ridership;
+      // כל רכיב = שבר 0–1 כפול הנקודות שנקבעו לו; הציון מנורמל ל-100 לפי
+      // סכום הרכיבים הדלוקים — בדיוק כמו ציון אי-היעילות של קו
       const parts = {
-        empty: Math.round(40 * Math.max(0, 1 - riders / (2 * DEADHEAD_MAX_RIDERS))),
-        tight: Math.round(20 * Math.max(0, 1 - Math.max(0, best.gap - 15) / (DEADHEAD_GAP_MIN - 15))),
-        hot: hot ? 30 : 0,
-        volume: Math.round(10 * Math.min(1, weekly / 6)),
+        empty: ptsOf('empty', 1 - riders / (2 * DEADHEAD_MAX_RIDERS)),
+        tight: ptsOf('tight', 1 - Math.max(0, best.gap - 15) / (DEADHEAD_GAP_MIN - 15)),
+        hot: ptsOf('hot', hot ? 1 : 0),
+        volume: ptsOf('volume', weekly / 6),
       };
-      const score = parts.empty + parts.tight + parts.hot + parts.volume;
+      const rawScore = normScore(parts.empty + parts.tight + parts.hot + parts.volume, maxSum);
+      Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k]); });
+      // הגנות — נקודות שמופחתות
+      const protections = [];
+      if (PP.night > 0 && (a.isNightLine || b.isNightLine || a.timeMins < 5 * 60)) protections.push({ name: 'קו לילה', value: PP.night });
+      const wk = (a.daysList || []);
+      if (PP.weekend > 0 && wk.length && wk.every(d => d === 6 || d === 7)) protections.push({ name: 'קו סופ"ש', value: PP.weekend });
+      if (PP.rare > 0 && weekly <= 1) protections.push({ name: 'זוג בודד בשבוע', value: PP.rare });
+      const deduction = protections.reduce((s2, x) => s2 + x.value, 0);
+      const score = Math.max(0, rawScore - deduction);
       pairs.push({
-        near: hot, score, parts,
+        near: hot, score, rawScore, parts, protections,
         groupKey, lineNum: a.lineNum, makat: a.makat, origin: a.origin, dest: a.dest,
         cluster: a.cluster || a.clusterVal || '', district: a.district || '', lineType: a.lineType || '',
         a, b, gap: best.gap, weekly, km, sure,
@@ -2193,8 +2221,11 @@ function computeDeadhead(trips, lineStopsMap) {
     const w = L.pairs.reduce((s2, p) => s2 + p.weekly, 0) || 1;
     L.score = Math.round(L.pairs.reduce((s2, p) => s2 + p.score * p.weekly, 0) / w);
     L.maxScore = Math.max(...L.pairs.map(p => p.score));
+    L.statusTier = getStatusTier(L.score);
+    L.status = L.statusTier.label;
   }
-  const lines = [...byLine.values()].sort((x, y) => (y.score - x.score) || (y.km - x.km));
+  const minScore = Number((dset || DEADHEAD_DEFAULTS).minScore) || 0;
+  const lines = [...byLine.values()].filter(L => L.score >= minScore).sort((x, y) => (y.score - x.score) || (y.km - x.km));
   return {
     pairs, lines,
     totalPairs: pairs.length,
@@ -2245,7 +2276,8 @@ function KavPach() {
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
-  const deadhead = useMemo(() => computeDeadhead(trips || [], lineStopsMap), [trips, lineStopsMap]);
+  const [dset, updDset, resetDset, dsetDefault] = useStoredSettings('kb-deadhead-score', DEADHEAD_DEFAULTS);
+  const deadhead = useMemo(() => computeDeadhead(trips || [], lineStopsMap, dset), [trips, lineStopsMap, dset]);
   const [lineNormStopsMap, setLineNormStopsMap] = useState(new Map());
   const [costBenchmarkTable, setCostBenchmarkTable] = useState(null);
   const [csvLoadFailed, setCsvLoadFailed] = useState(false);
@@ -4165,7 +4197,7 @@ const DAYS_FILTER = [
                               <div className="text-[10px] font-black text-sky-700 mb-1">🔀 חפיפת מסלול</div>
                               <div className="flex flex-wrap gap-1.5">
                                 {ov.map(([mk2, num2, long2, pct, shared, shape]) => (
-                                  <details key={mk2} className="text-[10px] font-black bg-white border border-sky-200 text-sky-800 rounded-full" style={{maxWidth:'100%'}}>
+                                  <details key={mk2} className="text-[10px] font-black bg-white border border-sky-200 text-sky-800 rounded-2xl" style={{maxWidth:'100%'}}>
                                     <summary className="cursor-pointer flex items-center gap-1 list-none" style={{listStyle:'none',padding:'2px 8px'}}>
                                       <span className="font-black">קו {num2} · {((pct + shape.selfPct) / 2).toLocaleString('he-IL', {maximumFractionDigits:1})}%</span>
                                       <span aria-label={`הסבר חפיפה עם קו ${num2}`} title="איך מחושבת החפיפה?" className="inline-flex items-center justify-center rounded-full border border-sky-300 font-black" style={{width:14,height:14,fontSize:10}}>?</span>
@@ -4439,17 +4471,47 @@ const DAYS_FILTER = [
                   </label>
                 </div>
 
+                <ScoreSettingsPanel
+                  title="מה נחשב נסיעה תפעולית מיותרת? כאן קובעים את הניקוד"
+                  accent="rose"
+                  settings={dset} update={updDset} reset={resetDset} isDefault={dsetDefault}
+                  intro='אותה שיטה כמו ציון אי-היעילות של קו: לכל רכיב קובעים כמה נקודות הוא נותן, הציון מנורמל ל-100, וההגנות מופחתות ממנו. הרשימה מתעדכנת מיד.'
+                  rows={[
+                    { key: 'empty', label: 'ריקות', hint: 'כמה נוסעים בכל זאת עלו בשני הכיוונים יחד — 0 נוסעים = מלוא הנקודות, 3 = אפס' },
+                    { key: 'tight', label: 'צמידות', hint: 'כמה קרובות היציאות — עד 15 דקות = מלוא הנקודות, 100 דקות = אפס' },
+                    { key: 'hot', label: 'קו עמוס באזור', hint: 'באותה עיר ועם תחנה משותפת, עד 30 דקות מהנסיעה הריקה, יוצא קו אחר עמוס (80% מקיבולת הרכב)' },
+                    { key: 'volume', label: 'היקף', hint: 'כמה פעמים בשבוע הזוג חוזר — 6 ומעלה = מלוא הנקודות' },
+                  ]}
+                  extras={
+                    <div className="space-y-3">
+                      <div className="text-[12px] font-black text-slate-900">הגנות — נקודות שמופחתות מהציון (0 = בלי הגנה):</div>
+                      <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-slate-700 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+                        {[['night', 'קו לילה (יציאה לפני 05:00)'], ['weekend', 'קו סופ"ש'], ['rare', 'זוג בודד בשבוע']].map(([k, lbl]) => (
+                          <label key={k} className="inline-flex items-center gap-2">{lbl}
+                            <NumField value={dset.p[k]} onChange={v => updDset(s2 => ({ ...s2, p: { ...s2.p, [k]: v == null ? 0 : Math.max(0, Math.min(100, v)) } }))} min={0} max={100} width="w-16" suffix="נק׳" />
+                          </label>
+                        ))}
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-[12px] font-bold text-slate-700 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3">נכנס לרשימה מציון של לפחות
+                        <NumField value={dset.minScore} onChange={v => updDset(s2 => ({ ...s2, minScore: v == null ? 0 : Math.max(0, Math.min(100, v)) }))} min={0} max={100} suffix="מתוך 100" />
+                      </label>
+                    </div>
+                  }
+                  footnote='ההגדרות נשמרות בדפדפן הזה בלבד. תוויות הסטטוס (חמור / לא יעיל / טעון בדיקה / סטייה קלה / תקין) הן אותן תוויות של קווים לא יעילים.'
+                />
+
                 <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-x-auto">
                   <table className="w-full text-right border-collapse text-sm">
                     <thead><tr className="text-slate-500 text-xs border-b border-slate-200">
-                      <th className="p-3">ניקוד</th><th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
+                      <th className="p-3">ניקוד</th><th className="p-3">סטטוס</th><th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
                       <th className="p-3">זוגות</th><th className="p-3">ליד קו עמוס</th><th className="p-3">נסיעות/שבוע</th><th className="p-3">ק"מ/שבוע</th><th className="p-3"></th>
                     </tr></thead>
                     <tbody>
                       {rows.slice(0, 200).map(L => (
                         <React.Fragment key={L.groupKey}>
                           <tr className="border-b border-slate-100 hover:bg-orange-50/40 cursor-pointer" onClick={() => setDhOpen(dhOpen === L.groupKey ? null : L.groupKey)}>
-                            <td className="p-3"><span className={`inline-block min-w-[3rem] text-center px-2 py-1 rounded-xl font-black text-base ${L.score >= 70 ? 'bg-rose-600 text-white' : L.score >= 45 ? 'bg-amber-400 text-slate-900' : 'bg-slate-200 text-slate-700'}`} title={`ממוצע הזוגות (משוקלל לפי תדירות). הזוג החמור ביותר: ${L.maxScore}`}>{L.score}</span></td>
+                            <td className="p-3"><span className={`font-black text-base ${L.statusTier.color}`} title={`ממוצע הזוגות (משוקלל לפי תדירות). הזוג החמור ביותר: ${L.maxScore}`}>{L.score}/100</span></td>
+                            <td className="p-3"><span className={`px-3 py-1 rounded-full text-[11px] font-black border ${L.statusTier.bg} ${L.statusTier.color}`}>{L.status}</span></td>
                             <td className="p-3 font-black text-lg">{L.lineNum}</td>
                             <td className="p-3 font-bold">{cityOnly2(L.origin)} – {cityOnly2(L.dest)}</td>
                             <td className="p-3 text-slate-600">{L.cluster || L.district}</td>
@@ -4460,15 +4522,15 @@ const DAYS_FILTER = [
                             <td className="p-3 text-slate-400"><Ic n={dhOpen === L.groupKey ? 'chevronUp' : 'chevronDown'} size={16} /></td>
                           </tr>
                           {dhOpen === L.groupKey && (
-                            <tr><td colSpan={9} className="p-0">
+                            <tr><td colSpan={10} className="p-0">
                               <div className="bg-slate-50 rounded-2xl m-2 p-4">
                                 {L.pairs.map((p, i) => (
                                   <div key={i} className="grid grid-cols-1 md:grid-cols-[4rem_1fr_1fr_1fr] gap-2 items-center py-2 border-b border-slate-200 last:border-0 text-sm">
-                                    <div><span className={`inline-block min-w-[3rem] text-center px-2 py-1 rounded-xl font-black ${p.score >= 70 ? 'bg-rose-600 text-white' : p.score >= 45 ? 'bg-amber-400 text-slate-900' : 'bg-slate-200 text-slate-700'}`} title={`ריקות ${p.parts.empty}/40 · צמידות ${p.parts.tight}/20 · קו עמוס באזור ${p.parts.hot}/30 · היקף ${p.parts.volume}/10`}>{p.score}</span></div>
+                                    <div><span className={`font-black ${getStatusTier(p.score).color}`}>{p.score}/100</span></div>
                                     <div><span className="font-black">{p.a.time}</span> {dirName(p.a)} · <span className={p.a.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.a.ridership} נוסעים</span></div>
                                     <div><span className="font-black">{p.b.time}</span> {dirName(p.b)} · <span className={p.b.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.b.ridership} נוסעים</span></div>
                                     <div className="text-slate-600 text-xs font-bold">{p.gap} דק' בין היציאות · {p.a.days || ''} · {p.weekly} פעמים בשבוע{p.edge ? ' · קצה יום' : ''}{p.sure ? ' · ריק לגמרי' : ''}
-                                      <div className="text-slate-500 mt-1">ניקוד: ריקות {p.parts.empty}/40 · צמידות {p.parts.tight}/20 · קו עמוס באזור {p.parts.hot}/30 · היקף {p.parts.volume}/10</div>
+                                      <div className="text-slate-500 mt-1">ניקוד: ריקות {p.parts.empty}/{dset.c.empty.on ? dset.c.empty.max : 0} · צמידות {p.parts.tight}/{dset.c.tight.on ? dset.c.tight.max : 0} · קו עמוס באזור {p.parts.hot}/{dset.c.hot.on ? dset.c.hot.max : 0} · היקף {p.parts.volume}/{dset.c.volume.on ? dset.c.volume.max : 0}{p.protections.length ? ` · הגנות: ${p.protections.map(x => `${x.name} (−${x.value})`).join(', ')}` : ''}</div>
                                       {p.near ? <div className="text-rose-700 mt-1">באותה שעה קו {p.near.lineNum} ({cityOnly2(p.near.origin)} ← {cityOnly2(p.near.dest)}, {p.near.time}) נוסע עמוס: {Math.round(Math.max(p.near.ridership, p.near.peakLoad))} נוסעים על קיבולת {p.near.capacity}</div> : null}
                                     </div>
                                   </div>
@@ -4478,11 +4540,11 @@ const DAYS_FILTER = [
                           )}
                         </React.Fragment>
                       ))}
-                      {!rows.length && <tr><td colSpan={9} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
+                      {!rows.length && <tr><td colSpan={10} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
                     </tbody>
                   </table>
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
-                    הניקוד (0–100), כמו ציון אי-היעילות של קו: ריקות עד 40 נק' (כמה נוסעים בכל זאת עלו בשני הכיוונים), צמידות עד 20 (יציאות בהפרש של עד 15 דק' = מלוא הנקודות), קו עמוס באזור 30, היקף עד 10 (6 פעמים בשבוע = מלוא הנקודות). ציון הקו = ממוצע הזוגות שלו משוקלל לפי תדירות; אדום מ-70, כתום מ-45.
+                    הניקוד (0–100) עובד בדיוק כמו ציון אי-היעילות של קו: כל רכיב נותן נקודות לפי מה שנקבע בלוח למעלה, הציון מנורמל ל-100 לפי הרכיבים הדלוקים, וההגנות מופחתות. תוויות הסטטוס זהות: חמור מ-80, לא יעיל מ-65, טעון בדיקה מ-45, סטייה קלה מ-25. ציון הקו = ממוצע הזוגות שלו משוקלל לפי תדירות.
                     איך זה מחושב: מנתוני הספירות של משרד התחבורה (ממוצע נוסעים לכל נסיעה מתוכננת). נסיעה נחשבת "כמעט ריקה" עד {DEADHEAD_MAX_RIDERS} נוסעים בממוצע ו"ריקה" עד {DEADHEAD_SURE_RIDERS}.
                     זוג = שתי נסיעות כמעט ריקות של אותו קו בכיוונים מנוגדים, שיוצאות בהפרש של עד {DEADHEAD_GAP_MIN} דקות באותם ימים. נסיעה ריקה בודדת לא נספרת.
                     "ליד קו עמוס" = באותה עיר ועם תחנה משותפת (אותו מסדרון), עד 30 דקות מהנסיעה הריקה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר). אלה מוצגים ראשונים.
