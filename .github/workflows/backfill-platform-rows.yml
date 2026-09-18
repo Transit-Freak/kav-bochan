@@ -1,0 +1,99 @@
+name: backfill-platform-rows
+
+# "הקו בזמן" — מילוי לאחור של "רציף נוסף/בוטל" לפי שורות הרציפים (שלמה 18.09):
+# TransitFeeds 2017–2022 + הארכיון היומי של הסדנא 2023 עד 06.09.2026 (יום לפני
+# הבסיס של הכלי היומי). כל ריצה מעבדת פרק ושומרת מצב; chain=true מזניק את הבא.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_min:
+        description: 'תקציב דקות לריצה'
+        required: false
+        default: '150'
+      from:
+        description: 'FROM (YYYYMMDD)'
+        required: false
+        default: '20170101'
+      to:
+        description: 'TO (YYYYMMDD)'
+        required: false
+        default: '20260906'
+      dry:
+        description: 'ניתוח בלבד בלי כתיבה (1)'
+        required: false
+        default: ''
+      chain:
+        description: 'שרשור — בסיום, הזנקת הפרק הבא (true)'
+        required: false
+        default: 'false'
+      reset:
+        description: 'איפוס — מחיקת תוצרי הכלי ומצבו והתחלה מההתחלה (1)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: backfill-platform-rows
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: רציפים לפי שורות — מהארכיון
+        run: |
+          set -euo pipefail
+          OUTDIR=line-history/data FROM='${{ inputs.from }}' TO='${{ inputs.to }}' \
+            MAX_MIN='${{ inputs.max_min }}' DRY='${{ inputs.dry }}' RESET='${{ inputs.reset }}' \
+            python3 tools/backfill_platform_rows.py
+
+      - name: תוצרים נגזרים (אינדקס, פיד הארכיון, שברי תחנות)
+        if: ${{ inputs.dry != '1' }}
+        run: |
+          set -euo pipefail
+          OUTDIR=line-history/data python3 tools/build_archive_months.py
+          OUTDIR=line-history/data python3 tools/build_stop_shards.py
+          OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+
+      - name: commit
+        if: ${{ inputs.dry != '1' }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A line-history/data
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -m "data: line-history — רציפים שנוספו/בוטלו מהארכיון (לפי שורות הרציפים)"
+          for i in 1 2 3 4; do
+            git pull --rebase -X theirs origin main && git push origin HEAD:main && break
+            echo "push rejected — retry $i"; sleep 10
+          done
+
+      - name: המשך אוטומטי
+        if: ${{ inputs.chain == 'true' && inputs.dry != '1' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - > /tmp/next.env <<'PY'
+          import json, os, sys
+          sys.path.insert(0, 'tools')
+          os.environ.update(OUTDIR='line-history/data', FROM='${{ inputs.from }}', TO='${{ inputs.to }}')
+          import backfill_platform_rows as b
+          st = json.load(open(b.STATE)) if os.path.exists(b.STATE) else {'done': []}
+          todo = [d for d, _ in b.all_days() if d not in set(st['done'])]
+          print('DONE=1' if not todo else 'DONE=')
+          PY
+          . /tmp/next.env
+          if [ -z "$DONE" ]; then
+            gh workflow run backfill-platform-rows.yml --ref main -f from='${{ inputs.from }}' -f to='${{ inputs.to }}' \
+              -f max_min='${{ inputs.max_min }}' -f chain=true
+          else
+            echo 'המילוי הושלם'
+          fi
