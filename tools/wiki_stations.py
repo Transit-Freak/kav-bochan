@@ -113,6 +113,7 @@ def main():
         with open(mp, encoding='utf-8') as f:
             manual = {k: v for k, v in json.load(f).items() if not k.startswith('_')}
     stop_street = {}   # stop_id → (רחוב, עיר) — למסלול הרחובות של כל קו
+    stop_places = {}   # stop_id → חלקי שם התחנה
     for r in reader(zf, 'stops.txt'):
         name = (r.get('stop_name') or '').strip()
         desc = r.get('stop_desc') or ''
@@ -122,6 +123,10 @@ def main():
         st0 = re.sub(r'\s+\d+[א-ת]?$', '', ms0.group(1).strip()) if ms0 else ''   # בלי מספר בית
         if st0 and city and len(st0) > 1 and not st0[0].isdigit():
             stop_street[r['stop_id']] = (st0, city)
+        # חלקי שם התחנה ("מרכז רפואי מאיר/ויצמן") — מקומות שמותר לכתוב בתא המסלול
+        parts = [x.strip() for x in name.split('/') if len(x.strip()) > 2]
+        if parts:
+            stop_places[r['stop_id']] = parts
         mp = PLAT_RE.search(desc)
         plat = (mp.group(1).strip() if mp else '')
         if plat in ('0', 'None', 'ם') or plat.startswith('קומה'):
@@ -182,18 +187,24 @@ def main():
     n = 0
     route_streets = {}   # route_id → {(רחוב, עיר): None} לפי סדר ההופעה
     dep_plats = {}       # (route_id, קבוצה) → רציפי היציאה (התחנה הראשונה בנסיעה)
+    route_places = {}    # route_id → חלקי שמות התחנות במסלול
     for r in reader(zf, 'stop_times.txt'):
         n += 1
         sid = r['stop_id']
         ss = stop_street.get(sid)
-        if ss is not None:
-            rid0 = trip_route.get(r['trip_id'])
-            if rid0 is not None:
-                rs = route_streets.get(rid0)
-                if rs is None:
-                    rs = route_streets[rid0] = {}
-                if ss not in rs:
-                    rs[ss] = None
+        rid0 = trip_route.get(r['trip_id'])
+        if ss is not None and rid0 is not None:
+            rs = route_streets.get(rid0)
+            if rs is None:
+                rs = route_streets[rid0] = {}
+            if ss not in rs:
+                rs[ss] = None
+        pp = stop_places.get(sid)
+        if pp is not None and rid0 is not None:
+            rp = route_places.get(rid0)
+            if rp is None:
+                rp = route_places[rid0] = set()
+            rp.update(pp)
         gs = stop_groups.get(sid)
         if gs is None:
             continue
@@ -260,6 +271,12 @@ def main():
                     seen[k] = None
         return [[a, b] for a, b in seen]
 
+    def places_of(rids):
+        out = set()
+        for rid in rids:
+            out |= route_places.get(rid, set())
+        return sorted(out)
+
     def acc_of(rids):
         """נגישות הקו בתחנה: 1 = כל הנסיעות נגישות, 0 = אף אחת, 2 = חלקית."""
         ok = tot = 0
@@ -290,7 +307,8 @@ def main():
                        '/'.join(sorted(x['dep'] or x['plats'], key=plat_sort)[:3]) if x.get('dep') else '/'.join(sorted(x['plats'], key=plat_sort)[:3]),
                        1 if x['term'] else 0,
                        streets_of(x.get('rids', ())),
-                       acc_of(x.get('rids', ()))] for x in lines]}
+                       acc_of(x.get('rids', ())),
+                       places_of(x.get('rids', ()))] for x in lines]}
     kinds = Counter(v['kind'] for v in out_st.values())
     print(f'קבוצות: {dict(kinds)}', flush=True)
     # שירותים עירוניים שאינם ב-GTFS הלאומי (סבבוס, שאטלים עירוניים וכד') —

@@ -148,6 +148,7 @@ def street_norm(t):
     t = re.sub(r"['\"’]", '', t).replace('-', ' ').replace('–', ' ')
     t = re.sub(r'\bקרית\b', 'קריית', t)
     t = re.sub(r'^ה', '', t.strip())          # ה' הידיעה
+    t = t.replace('יי', 'י').replace('וו', 'ו')   # ויצמן/וייצמן, תעש/תע"ש — כתיב מלא/חסר
     return re.sub(r'\s+', ' ', t).strip()
 
 
@@ -158,6 +159,8 @@ def route_cell_streets(cell):
     """שמות רחובות מתא המסלול בערך — מנורמלים, בלי מספרים ובלי קטעים קצרים."""
     out = []
     for part in STREET_SPLIT.split(cell):
+        if '♿' in (part or ''):            # הערת נגישות ("♿ בשעות הבוקר") אינה רחוב
+            continue
         n = street_norm(part or '')
         if len(n) >= 3 and re.search(r'[א-ת]', n) and not n.isdigit() and n not in out and n not in GENERIC:
             out.append(n)
@@ -199,7 +202,10 @@ def check_access(wt, real_acc):
     return {'missing': missing, 'wrong': wrong}
 
 
-def check_routes(wt, real_lines, central, skip_names):
+JUNK_STREET = re.compile(r'יציאה|כניסה|מחלף|צומת|כביש')
+
+
+def check_routes(wt, real_lines, central, skip_names, detailed=True):
     """עמודת המסלול בטבלאות: לכל קו — רחובות שכתובים אך הקו לא עובר בהם ('no'),
     ורחובות מרכזיים שהקו עובר בהם ולא הוזכרו ('miss'). (שלמה 18.09)"""
     res = {}
@@ -223,16 +229,19 @@ def check_routes(wt, real_lines, central, skip_names):
                     continue
                 streets = [(x[0], street_norm(x[0])) for x in ls['streets']]
                 cities = {x[1] for x in ls['streets']}
-                lskip = skip | {street_norm(c) for c in cities}
+                # שמות תחנות במסלול (קניון ערים, מרכז רפואי מאיר) — מותר לכתוב, לא "רחוב שהקו לא עובר בו"
+                lskip = skip | {street_norm(c) for c in cities} | {street_norm(p) for p in ls.get('places') or []}
                 cent = {street_norm(st) for ct in cities for st in central.get(ct, [])}
                 written = route_cell_streets(row[ci])
                 no = [w for w in written if not any(same_street(w, c) for c in lskip)
                       and not any(same_street(w, n) for _, n in streets)]
+                # רחובות מרכזיים חסרים — רק בערך שמפרט רחובות (בערך עם מסלול קצר אין מה להשלים), עד 3
                 miss, seen_m = [], set()
-                for o, n in streets:
-                    if n in cent and n not in seen_m and not any(same_street(w, n) for w in written):
-                        miss.append(o); seen_m.add(n)
-                miss = miss[:5]
+                if detailed:
+                    for o, n in streets:
+                        if n in cent and n not in seen_m and not JUNK_STREET.search(o) and not any(same_street(w, n) for w in written):
+                            miss.append(o); seen_m.add(n)
+                miss = miss[:3]
                 if no or miss:
                     res[line] = {'no': no[:8], 'miss': miss}
     return res
@@ -451,10 +460,9 @@ def main():
             for l in st['lines']:
                 sl = l[5] if len(l) > 5 else None
                 if sl and l[0] not in real_lines:
-                    real_lines[l[0]] = {'streets': sl}
+                    real_lines[l[0]] = {'streets': sl, 'places': l[7] if len(l) > 7 else []}
             # ערים ותחנות קצה אינן רחובות: עיר התחנה, היעדים, וכל היישובים שבקובץ התחנות
             skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
-            route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names) if real_lines else {}
             real_acc = {l[0]: l[6] for l in st['lines'] if len(l) > 6 and l[6] is not None}
             acc_issues = check_access(wt, real_acc) if real_acc and has_table else {'missing': [], 'wrong': []}
             # האם הערך מפרט רחובות בעמודת המסלול (חיצים, או 3 קטעים ומעלה בתא) — הטבלה
@@ -468,6 +476,7 @@ def main():
                 if any(('←' in c or '→' in c or len(route_cell_streets(c)) >= 3) for c in cells):
                     detailed = True
                     break
+            route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names, detailed) if real_lines else {}
             wrong = [l for l in in_article if l not in real]
             correct = [l for l in in_article if l in real]
             missing = len(real) - len(correct)
