@@ -32,5 +32,10 @@ jobs:
           git add wiki-check/data
           git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
           git commit -m 'data: wiki-check — עדכון נתוני התחנות וסריקת הערכים'
-          git pull --rebase origin main
-          git push
+          # קובצי הנתונים של הריצה הזו הם העדכניים — בהתנגשות מול דחיפה שהגיעה
+          # בינתיים (למשל stations.json שנבנה מקומית) הם גוברים (-X theirs ברִיבייס)
+          for i in 1 2 3 4; do
+            git pull --rebase -X theirs origin main && git push origin HEAD:main && break
+            git rebase --abort 2>/dev/null || true
+            echo "push rejected — retry $i"; sleep 10
+          done
