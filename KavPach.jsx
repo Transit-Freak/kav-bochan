@@ -1295,12 +1295,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
               {liveGen ? ` · הצלבה מול רישום הקווים העדכני: ${String(liveGen).split('-').reverse().join('.')}` : ''}
             </p>
           </div>
-          <button
-            onClick={onBack}
-            className="shrink-0 flex items-center gap-2 bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 px-4 py-2.5 rounded-2xl font-black text-sm shadow-sm transition-colors"
-          >
-            <span className="text-base leading-none">⇄</span> החלף כלי
-          </button>
+          <button type="button" onClick={onBack} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</button>
         </header>
 
         <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
@@ -2516,7 +2511,6 @@ function KavPach() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [activeExplainId, setActiveExplainId] = useState(null);
-  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const explainRef = useRef(null);
 
   // ── מצב מפה ──────────────────────────────────────────────────────────────
@@ -3992,12 +3986,6 @@ const DAYS_FILTER = [
               </div>
               <h1 className="text-4xl font-[900] text-slate-900 tracking-tighter leading-none">קו פח</h1>
               <div className="relative mr-3 flex items-center gap-3">
-                <button
-                  onClick={() => setShowWhatsNew(v => !v)}
-                  className="bg-indigo-100 text-indigo-800 text-xs font-black px-3 py-1 rounded-full border border-indigo-200 shadow-sm whitespace-nowrap tracking-wide hover:bg-indigo-200 transition-colors cursor-pointer"
-                >
-                  מה חדש
-                </button>
                 <span className="text-xs font-bold text-slate-500">נבנה על ידי שלמה הרטמן</span>
               </div>
             </div>
@@ -4009,65 +3997,9 @@ const DAYS_FILTER = [
               {liveGen ? ` · הצלבה מול רישום הקווים העדכני: ${String(liveGen).split('-').reverse().join('.')}` : ''}
             </p>
           </div>
-          <button
-            onClick={() => pickMode('choice')}
-            className="shrink-0 flex items-center gap-2 bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 px-4 py-2.5 rounded-2xl font-black text-sm shadow-sm transition-colors"
-            title="חזרה למסך הבחירה"
-          >
-            <span className="text-base leading-none">⇄</span> החלף כלי
-          </button>
+          <button type="button" onClick={() => pickMode('choice')} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</button>
         </header>
 
-        {showWhatsNew && (
-          <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4" onClick={() => setShowWhatsNew(false)}>
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full border border-slate-100 max-h-[90vh] overflow-y-auto text-right" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="font-black text-2xl text-slate-800">מה חדש</h3>
-                  <p className="text-slate-500 font-bold text-xs mt-1">עדכון מידע — נתונים עדכניים ועלות תפעולית מדויקת לפי מחוז</p>
-                </div>
-                <button onClick={() => setShowWhatsNew(false)} className="text-slate-500 hover:bg-slate-100 hover:text-slate-900 rounded-full w-8 h-8 flex items-center justify-center font-black text-2xl transition-colors leading-none pb-1" title="סגור">
-                  &times;
-                </button>
-              </div>
-              <div className="space-y-6 text-slate-700 text-sm leading-relaxed">
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">עדכון מידע</span>
-                    נתונים עדכניים ממקורות חדשים
-                  </h4>
-                  <p className="text-slate-600 mb-3">כל הנתונים במערכת עודכנו והוחלפו במקורות החדשים והעדכניים של משרד התחבורה. המידע מאורגן כעת בארבעה קבצים נפרדים — נתוני קווים, לוז נסיעות, תחנות, וטבלת עלויות — לדיוק ועדכון פשוט יותר.</p>
-                  <ul className="list-disc list-inside space-y-2 marker:text-emerald-400 pr-2">
-                    <li><strong>לוז מורחב:</strong> מעל 205,000 יציאות מתוזמנות עם נתוני נוסעים ועומס מעודכנים.</li>
-                    <li><strong>נתוני תחנות מלאים:</strong> כולל שם תחנה, עיר ומיקום לכל קו.</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                    עלות תפעולית מדויקת לפי מחוז
-                  </h4>
-                  <p className="text-slate-600 mb-3">עד כה כל קו הושווה לממוצע <strong>ארצי</strong> אחד לקטגוריה שלו. כעת ההשוואה מתבצעת מול בנצ'מרק <strong>מחוזי</strong> — כל קו נמדד מול העלות הממוצעת לנוסע בקטגוריה שלו <strong>ובמחוז שלו</strong> בפועל.</p>
-                  <ul className="list-disc list-inside space-y-2 marker:text-sky-400 pr-2">
-                    <li>זיהוי הוגן יותר של קווים יקרים — קו בפריפריה נמדד מול הפריפריה, לא מול גוש דן.</li>
-                    <li>טבלת בנצ'מרק רשמית של 8 קטגוריות × 8 מחוזות.</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="font-black text-slate-900 text-base mb-2 flex items-center gap-2">
-                    <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
-                    עדכונים מופיעים מיד
-                  </h4>
-                  <p className="text-slate-600 mb-3">תוקנה בעיה שבה הדפדפן הציג גרסה ישנה מהזיכרון המקומי (cache) ולא את העדכון האחרון. כעת המערכת בודקת מול השרת בכל טעינה ומציגה תמיד את הנתונים והקוד העדכניים ביותר.</p>
-                </section>
-
-              </div>
-            </div>
-          </div>
-        )}
 
         {fileLoad.active || initialLoading ? (
           <div className="flex flex-col items-center justify-center py-40 text-center gap-6">
@@ -4127,7 +4059,7 @@ const DAYS_FILTER = [
                 let iconName = "";
                 let label = "";
                 if (tabName === "redundant") { colorClass = isSelected ? "bg-white text-rose-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "trash"; label = "קווים לא יעילים"; }
-                if (tabName === "deadhead") { colorClass = isSelected ? "bg-white text-orange-700 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "moon"; label = "נסיעות תפעוליות"; }
+                if (tabName === "deadhead") { colorClass = isSelected ? "bg-white text-orange-700 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "alert"; label = "נסיעות תפעוליות"; }
                 if (tabName === "areas") { colorClass = isSelected ? "bg-white text-amber-700 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "chart"; label = "ניתוח אזורי"; }
                 if (tabName === "allTrips") { colorClass = isSelected ? "bg-white text-indigo-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "list"; label = "כל הנסיעות"; }
                 if (tabName === "simulator") { colorClass = isSelected ? "bg-white text-slate-900 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "zap"; label = "אלגוריתם ייעול"; }
@@ -5217,47 +5149,6 @@ const DAYS_FILTER = [
 
                 <div className="space-y-6">
 
-                  {/* מה חדש בגרסה הנוכחית — תמיד בהתחלה */}
-                  <section className="bg-gradient-to-bl from-indigo-50 to-white rounded-[2rem] p-6 border-2 border-indigo-200 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-xl font-black text-indigo-700">מה חדש בעדכון הנוכחי</h3>
-                    </div>
-                    <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
-
-                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
-                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
-                          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]">עדכון מידע</span>
-                          נתונים עדכניים ממקורות חדשים
-                        </h4>
-                        <p className="text-slate-600 mb-2">כל הנתונים במערכת עודכנו והוחלפו במקורות החדשים והעדכניים של משרד התחבורה. המידע מאורגן כעת בארבעה קבצים נפרדים — נתוני קווים, לוז נסיעות, תחנות, וטבלת עלויות.</p>
-                        <ul className="list-disc list-inside space-y-1 marker:text-emerald-400 pr-2 text-xs">
-                          <li>לוז מורחב: מעל 205,000 יציאות מתוזמנות עם נתוני נוסעים ועומס מעודכנים.</li>
-                          <li>נתוני תחנות מלאים: שם תחנה, עיר ומיקום לכל קו.</li>
-                        </ul>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
-                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
-                          <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md text-[10px]">שיפור</span>
-                          עלות תפעולית מדויקת לפי מחוז
-                        </h4>
-                        <p className="text-slate-600 mb-2">עד כה כל קו הושווה לממוצע <strong>ארצי</strong> אחד לקטגוריה שלו. כעת ההשוואה מתבצעת מול בנצ'מרק <strong>מחוזי</strong> — כל קו נמדד מול העלות הממוצעת לנוסע בקטגוריה שלו ובמחוז שלו בפועל.</p>
-                        <ul className="list-disc list-inside space-y-1 marker:text-sky-400 pr-2 text-xs">
-                          <li>זיהוי הוגן יותר — קו בפריפריה נמדד מול הפריפריה, לא מול גוש דן.</li>
-                          <li>טבלת בנצ'מרק רשמית של 8 קטגוריות × 8 מחוזות.</li>
-                        </ul>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-4 border border-indigo-100">
-                        <h4 className="font-black text-slate-900 mb-1.5 flex items-center gap-2">
-                          <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">תיקון</span>
-                          עדכונים מופיעים מיד
-                        </h4>
-                        <p className="text-slate-600">תוקנה בעיה שבה הדפדפן הציג גרסה ישנה מהזיכרון המקומי (cache) ולא את העדכון האחרון. כעת המערכת בודקת מול השרת בכל טעינה ומציגה תמיד את הנתונים והקוד העדכניים ביותר.</p>
-                      </div>
-
-                    </div>
-                  </section>
 
                   <div className="border-t border-slate-100 pt-2">
                     <h3 className="text-2xl font-black text-slate-900 mb-2">איך המערכת עובדת</h3>
