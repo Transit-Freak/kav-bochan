@@ -2807,6 +2807,15 @@ const DAYS_FILTER = [
     }
     const go = async () => {
       try {
+        if (fileKeyRef.current) {
+          const c = await idbGetCache(IDB_KEY + '-stops').catch(() => null);
+          if (c && c.fileKey === fileKeyRef.current && c.lineStopsMap instanceof Map && c.lineStopsMap.size) {
+            setLineCitiesMap(c.lineCitiesMap instanceof Map ? c.lineCitiesMap : new Map());
+            setLineStopsMap(c.lineStopsMap);
+            setLineNormStopsMap(c.lineNormStopsMap instanceof Map ? c.lineNormStopsMap : new Map());
+            return;
+          }
+        }
         const res = await fetch('data-stops.json', { cache: 'no-cache' });
         if (!res.ok) return;
         const buf = await res.arrayBuffer();
@@ -2818,10 +2827,8 @@ const DAYS_FILTER = [
             const lsm = msg.lineStopsMap instanceof Map ? msg.lineStopsMap : new Map();
             const lnsm = msg.lineNormStopsMap instanceof Map ? msg.lineNormStopsMap : new Map();
             setLineCitiesMap(lcm); setLineStopsMap(lsm); setLineNormStopsMap(lnsm);
-            // הקאש המקומי מקבל את המפות — בביקור הבא הן כבר שם
-            if (fileKeyRef.current) {
-              idbGetCache(IDB_KEY).then(c => { if (c && c.fileKey === fileKeyRef.current) idbSetCache(IDB_KEY, { ...c, lineCitiesMap: lcm, lineStopsMap: lsm, lineNormStopsMap: lnsm }); }).catch(() => {});
-            }
+            // המפות נשמרות תחת מפתח משלהן — בלי לשכפל שוב את 200 אלף הנסיעות
+            if (fileKeyRef.current) idbSetCache(IDB_KEY + '-stops', { fileKey: fileKeyRef.current, lineCitiesMap: lcm, lineStopsMap: lsm, lineNormStopsMap: lnsm, savedAt: Date.now() });
           }
           worker.terminate();
         };
@@ -3061,9 +3068,6 @@ const DAYS_FILTER = [
             const payload = {
               fileKey: fileKeyRef.current,
               trips: msg.trips || [],
-              lineCitiesMap: lcm,
-              lineStopsMap: lsm,
-              lineNormStopsMap: lnsm,
               costBenchmark: bench,
               savedAt: Date.now(),
             };
