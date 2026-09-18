@@ -714,6 +714,10 @@ def main():
     diag_mx_o = collections.Counter()    # נסיעות עם מרבי ≥55 דק׳: האיחור במוצא (10 דק׳)
     diag_ex = []                         # דוגמאות של נסיעות כאלה שיצאו בזמן
     rides_dump = []                      # --dump-rides: [מק"ט, כיוון, חלופה, trip, יציאה מתוכננת, איחור במוצא, איחור אחרון, תחנה אחרונה, מדידות, רכב, זמן יציאה, זמן אחרון]
+    # נסיעות תפעוליות במסווה (שלמה 18.09): אותו רכב, לפי מספרו, מגיע לקצה
+    # הקו וחוזר בכיוון ההפוך תוך 15 דקות. לכל נסיעה שנמדדה: [רכב, מק"ט, כיוון,
+    # יציאה, זמן אחרון, הגיע לסוף?, route_id]
+    veh_rides = []
     diag_raw, diag_raw2, diag_raw3 = [], [], []   # רשומות גולמיות לאבחון המוצא, ונסיעות טיפוסיות
     spikes = 0
     relabeled = 0       # נסיעות שסומנו בשעת יציאה ישנה — בפועל נסיעה אחרת בלו"ז
@@ -830,6 +834,12 @@ def main():
             cls = 1
         for acc in (r, A[ag], tot):
             acc['reach'][cls] += 1
+        # תחנת המוצא ותחנת הסיום של המסלול — לבדיקת "חזר לאותו מקום" גם בקו אחר
+        _o = stops.get(seq[0][1]) if seq else None
+        _e = stops.get(seq[-1][1]) if seq else None
+        veh_rides.append((key[2], routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''),
+                          t_of.get(1, min(t_of.values())), max(t_of.values()), cls == 0, rid,
+                          (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None))
         if cls == 1 and not was_cut:
             COV[seq[k_last - 1][1]][3] += 1      # התחנה האחרונה שנראתה בנסיעה שנעלמה באמצע הדרך
             COV[seq[k_last - 1][1]][2].add(ag)
@@ -1013,6 +1023,45 @@ def main():
                  'cover file': 'days/D.cover.json = {code: [passed, measured, agencies, vanished after, city]} — stops surely passed (between first and last measured stop of a ride) where fewer than 70% were measured (GPS holes, passed >= 10), or last seen stop of 5+ rides that vanished part way',
                  'cities file': 'days/D.cities.json = {city: [[route_id, n, on-time n, sum delay (tenths of min)]]}; routes.json[rid][8:11] = cluster, line type, sub-area (ClusterToLine)'},
     }
+    # --- נסיעות תפעוליות במסווה: הלוך ואז חזור של אותו רכב תוך 15 דק' ---
+    DEADHEAD_GAP = 15 * 60
+    by_veh = collections.defaultdict(list)
+    for rec in veh_rides:
+        if rec[0] and rec[0] != '0' and rec[1]:
+            by_veh[rec[0]].append(rec)
+    # זוג = הרכב סיים נסיעה, ותוך 15 דק' יצא לנסיעה שמסתיימת ליד המקום שבו
+    # התחילה הראשונה — לא חייב אותו קו (89 הלוך, 80 חזור — שלמה 18.09).
+    # "ליד" = עד 1.5 ק"מ. הזוג נרשם על הקו של נסיעת החזרה (זו הריקה בדרך כלל)
+    # וגם על קו ההלוך, כדי ששני הקווים יראו אותו.
+    def near_km(p1, p2):
+        if not p1 or not p2:
+            return None
+        dy = (p1[0] - p2[0]) * 111.0
+        dx = (p1[1] - p2[1]) * 111.0 * math.cos(math.radians(p1[0]))
+        return (dx * dx + dy * dy) ** 0.5
+    dh = collections.defaultdict(list)     # מק"ט → [[מק"ט א, כיוון א, יציאה א, סוף א, מק"ט ב, כיוון ב, יציאה ב, רכב, פער שניות, א הגיע לסוף, ק"מ חזרה]]
+    n_dh = 0
+    for veh, lst in by_veh.items():
+        lst.sort(key=lambda x: x[3])
+        for r1, r2 in zip(lst, lst[1:]):
+            gap = r2[3] - r1[4]
+            if gap < -120 or gap > DEADHEAD_GAP:
+                continue
+            same_line = r1[1] == r2[1] and r1[2] != r2[2]
+            back_km = near_km(r2[8], r1[7])          # סוף ב ליד מוצא א
+            if not same_line and (back_km is None or back_km > 1.5):
+                continue
+            row = [r1[1], r1[2], r1[3], r1[4], r2[1], r2[2], r2[3], veh, max(0, gap), 1 if r1[5] else 0,
+                   round(back_km, 2) if back_km is not None else None]
+            dh[r2[1]].append(row)
+            if r1[1] != r2[1]:
+                dh[r1[1]].append(row)
+            n_dh += 1
+    json.dump({'d': day, 'cols': ['mkt A', 'dir A', 'dep A sec', 'end A sec', 'mkt B', 'dir B', 'dep B sec', 'vehicle', 'gap sec', 'A reached end', 'B end to A start km'],
+               'n': n_dh, 'pairs': dict(dh)},
+              open(f'{a.out}/days/{day}.deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    print(f'נסיעות תפעוליות במסווה (הלוך-חזור של אותו רכב עד 15 דק\'): {n_dh:,} זוגות ב-{len(dh):,} קווים', flush=True)
+
     json.dump(day_obj, open(f'{a.out}/days/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(profiles, open(f'{a.out}/days/{day}.stops.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     # חורי GPS: תחנות שאוטובוסים ודאי עברו בהן (נמדדו לפניהן ואחריהן) ובכל זאת פחות מ-70% מהמעברים נמדדו.
@@ -1053,6 +1102,33 @@ def main():
             days.append({'d': f[:-5], **{k: dj['tot'][k] for k in ('sched', 'obs', 'meas', 'c', 's', 'o') if k in dj['tot']}})
         except Exception:  # noqa: BLE001
             days.append({'d': f[:-5]})
+    # צבירה של 14 הימים האחרונים לקובץ אחד שקו פח קורא — לכל מק"ט: זוגות,
+    # ימים, דוגמאות; ולכל זוג בלו"ז (כיוון+שעת יציאה מתוכננת) כמה פעמים נצפה
+    agg = {}
+    dh_days = sorted(f[:-14] for f in os.listdir(f'{a.out}/days') if f.endswith('.deadhead.json'))[-14:]
+    for d0 in dh_days:
+        try:
+            dj = json.load(open(f'{a.out}/days/{d0}.deadhead.json', encoding='utf-8'))
+        except Exception:  # noqa: BLE001
+            continue
+        for mkt, prs in dj.get('pairs', {}).items():
+            e = agg.setdefault(mkt, {'n': 0, 'days': set(), 'ex': [], 'gaps': [], 'end': 0, 'vehicles': set()})
+            for pr in prs:
+                e['n'] += 1
+                e['days'].add(d0)
+                e['gaps'].append(pr[8])
+                e['end'] += pr[9]
+                e['vehicles'].add(pr[7])
+                if pr[0] != pr[4]:
+                    e['other'] = e.get('other', 0) + 1
+                if len(e['ex']) < 6:
+                    e['ex'].append([d0, pr[7], pr[0], pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[8]])
+    dh_out = {'days': dh_days, 'updated': day_obj['built'],
+              'cols': {'lines': 'mkt → {n pairs, days with pairs, distinct vehicles, other: pairs where the return was on a different line, avg gap min, share A reached end, ex:[[day, vehicle, mkt A, dir A, dep A sec, end A sec, mkt B, dir B, dep B sec, gap sec]]}'},
+              'lines': {mkt: {'n': e['n'], 'days': len(e['days']), 'veh': len(e['vehicles']), 'other': e.get('other', 0),
+                              'gap': round(sum(e['gaps']) / max(len(e['gaps']), 1) / 60, 1),
+                              'end': round(e['end'] / max(e['n'], 1), 2), 'ex': e['ex']} for mkt, e in agg.items()}}
+    json.dump(dh_out, open(f'{a.out}/deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     idx = {'days': days, 'updated': day_obj['built'], 'fmt': FMT}
     json.dump(idx, open(f'{a.out}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     sz = os.path.getsize(f'{a.out}/days/{day}.json')
