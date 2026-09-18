@@ -3430,6 +3430,9 @@ function StopsTab({ sel, selN }) {
 // בוחרים עיר, שנה וחודש — ורואים על המפה איך זה נראה אז: תחנות שהשתנו
 // באותו חודש (לחיצה על סימן = מה קרה לתחנה), או קווים — מסומנים רק
 // הקווים שבהם בוצעו שינויים מהסוגים שנבחרו, על המסלול כפי שהיה אז.
+// צבע לכל קו (לפי מספרו) — כל קווי העיר בצבעים, כמו במפת קווים (שלמה 18.09)
+const LINE_PALETTE = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2", "#65a30d", "#ea580c", "#4f46e5", "#0d9488", "#c026d3", "#b45309"];
+const lineHash = (str) => { let h = 0; for (const ch of String(str)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
 const STOP_KIND_LIST = ["new", "del", "renamed", "moved", "city", "pubdest", "platform"];
 const LINE_KIND_SKIP = new Set(["baseline", "snapshot"]);
 function MapTab({ idx, openLine, cities }) {
@@ -3594,7 +3597,7 @@ function MapTab({ idx, openLine, cities }) {
         if (!r || !r.length || sel.has(l.rd)) return;
         r.forEach((p) => pts.push(p));
         const html = `<b>קו ${esc(l.line || "")}</b> · ${esc(l.op || "")}<br><span class="pcode">${esc(l.dest || "")}</span><br><a href="#${encodeURIComponent(l.rd)}" class="plink">לעמוד הקו ←</a>`;
-        L.polyline(r, { color: "#94a3b8", weight: 2, opacity: 0.7 }).bindPopup(html, { className: "lh-pop", maxWidth: 320 }).addTo(lg);
+        L.polyline(r, { color: LINE_PALETTE[lineHash(l.line || l.rd) % LINE_PALETTE.length], weight: 2.5, opacity: 0.75 }).bindPopup(html, { className: "lh-pop", maxWidth: 320 }).addTo(lg);
       });
       shownLines.forEach((x) => {
         const r = routes[x.rd + "@" + mon];
@@ -3605,7 +3608,9 @@ function MapTab({ idx, openLine, cities }) {
         const html = `<b>קו ${esc(x.l.line || "")}</b> · ${esc(x.l.op || "")}<br><span class="pcode">${esc(x.l.dest || "")}</span><br>` +
           x.chs.map((c) => `<span class="pst"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${catColor(c.k)};margin-inline-end:5px"></i>${fmtD(c.d)} · <b>${esc((KINDS[c.k] || { label: c.k }).label)}</b>${c.note ? " — " + esc(noteFix(c.note)).slice(0, 220) : ""}</span>`).join("<br>") +
           `<br><a href="#${encodeURIComponent(x.rd)}" class="plink">לעמוד הקו ←</a>`;
-        L.polyline(r, { color, weight: 4, opacity: 0.9 }).bindPopup(html, { className: "lh-pop", maxWidth: 340 }).addTo(lg);
+        // קו שהשתנה: מסגרת לבנה ומעליה צבע הקטגוריה, עבה — בולט מעל שאר הקווים
+        L.polyline(r, { color: "#fff", weight: 9, opacity: 0.95 }).addTo(lg);
+        L.polyline(r, { color, weight: 5, opacity: 1 }).bindPopup(html, { className: "lh-pop", maxWidth: 340 }).addTo(lg);
       });
     }
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 15 });
@@ -3614,7 +3619,7 @@ function MapTab({ idx, openLine, cities }) {
   const noRoute = mode === "lines" && shownLines.filter((x) => routes[x.rd + "@" + mon] === null).length;
   return (
     <div className="card">
-      <p className="maphint">בוחרים עיר, שנה וחודש — והמפה מראה מה השתנה שם באותו חודש: תחנות שהשתנו (לחיצה על סימן = מה קרה לה), או קווים — מסומנים רק הקווים שבהם בוצעו שינויים מהסוגים שתבחרו, על המסלול כפי שהיה אז.</p>
+      <p className="maphint">בוחרים עיר, שנה וחודש — והמפה מראה איך זה נראה אז: תחנות שהשתנו באותו חודש (לחיצה על סימן = מה קרה לה), או כל קווי העיר על המסלול כפי שהיה אז, כל קו בצבע משלו; סימון סוגי שינוי מבליט בעבה את הקווים שבהם זה קרה באותו חודש.</p>
       <input className="search" list="lh-map-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="עיר… (למשל חולון)" aria-label="עיר" />
       <datalist id="lh-map-cities">{(cities || []).map((c) => <option key={c} value={c} />)}</datalist>
       {months && (
@@ -3650,7 +3655,7 @@ function MapTab({ idx, openLine, cities }) {
       )}
       <div className="mapstat">
         {!canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length} תחנות ב${canon} השתנו ב-${fmtM(mon)}` : `אין תחנות ב${canon} שהשתנו ב-${fmtM(mon)}`)
-          : (lineChs === null || prog ? "טוען…" : `${cityLines.filter((l) => routes[l.rd + "@" + mon]).length} קווים של ${canon} היו בתוקף ב-${fmtM(mon)}` + (lineGroups.length ? ` · ${lineGroups.length} מהם השתנו באותו חודש` + (kinds.size ? ` · ${shownLines.length} מסומנים בצבע` : " — סמנו סוגי שינוי כדי לצבוע אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")))}
+          : (lineChs === null || prog ? "טוען…" : `${cityLines.filter((l) => routes[l.rd + "@" + mon]).length} קווים של ${canon} היו בתוקף ב-${fmtM(mon)}` + (lineGroups.length ? ` · ${lineGroups.length} מהם השתנו באותו חודש` + (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי לצבוע אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")))}
       </div>
       <div className="mapwrap">
         <div className="citymap" ref={mapRef} role="application" aria-label="מפת השינויים בעיר לפי חודש" />
