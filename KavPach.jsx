@@ -2321,8 +2321,12 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     // ספירות המשרד הן תנאי כניסה: בלי ספירות לא נכנס, ועם נוסעים בחזרה זה שירות.
     if (noCounts) { noCountsN++; continue; }
     if (emptyFrac < 0.5) { normal++; continue; }
+    // הקו העמוס נבדק לכל דוגמה בנפרד, לפי שעת החזרה שלה — ומוצג מתחתיה
     let hot = null;
-    for (const x of ex) { hot = crowdedNear(info, mk, x.depB / 60); if (hot) break; }
+    for (const x of ex) {
+      x.hot = crowdedNear(info, mk, (x.schB != null ? x.schB : x.depB) / 60);
+      if (x.hot && (!hot || Math.max(x.hot.ridership, x.hot.peakLoad) / (x.hot.capacity || 50) > Math.max(hot.ridership, hot.peakLoad) / (hot.capacity || 50))) hot = x.hot;
+    }
     // "צריך תגבור": העומס בקו העמוס ביחס לקיבולת הרכב — מעל 100% = מלוא הנקודות, 90% = חצי
     const hotLoad = hot ? Math.max(hot.ridership, hot.peakLoad) / (hot.capacity || 50) : 0;
     const parts = {
@@ -4621,12 +4625,14 @@ const DAYS_FILTER = [
                             <tr><td colSpan={13} className="p-0">
                               <div className="bg-slate-50 rounded-2xl m-2 p-4 text-sm">
                                 <div className="text-slate-600 text-xs font-bold mb-2">ניקוד: תצפיות {L.parts.obs}/{dset.c.obs.on ? dset.c.obs.max : 0} ({L.perWeek.toFixed(1)} בשבוע) · צמידות {L.parts.tight}/{dset.c.tight.on ? dset.c.tight.max : 0} · קו עמוס באזור {L.parts.hot}/{dset.c.hot.on ? dset.c.hot.max : 0} · צריך תגבור {L.parts.crush}/{dset.c.crush.on ? dset.c.crush.max : 0} · ריק בספירות {L.parts.empty}/{dset.c.empty.on ? dset.c.empty.max : 0}{L.protections.length ? ` · הגנות: ${L.protections.map(x => `${x.name} (−${x.value})`).join(', ')}` : ''}</div>
-                                {L.hot ? <div className="text-rose-700 text-xs font-bold mb-2">באותה שעה קו {L.hot.lineNum} ({cityOnly2(L.hot.origin)} ← {cityOnly2(L.hot.dest)}, {L.hot.time}) נוסע עמוס: {Math.round(Math.max(L.hot.ridership, L.hot.peakLoad))} נוסעים על קיבולת {L.hot.capacity}{L.hotLoad >= 0.9 ? ` — ${Math.round(L.hotLoad * 100)}% מהקיבולת, קו שצריך תגבור` : ''}</div> : null}
                                 <div className="text-slate-500 text-xs font-bold mb-1">דוגמאות מהשידורים:</div>
                                 {L.ex.slice(0, 8).map((x, i) => (
                                   <div key={i} className="py-1.5 border-b border-slate-200 last:border-0">
                                     <span className="font-black">{x.day.split('-').reverse().join('.')}</span> · רכב <span dir="ltr" className="font-black">{x.veh}</span> · קו {x.aLine} כיוון {x.dirA}{x.schA != null ? ` (מתוכנן ${hms(x.schA)})` : ''} {hms(x.depA)}–{hms(x.endA)} ← חזר {x.aLine === x.bLine ? 'באותו קו' : `בקו ${x.bLine}`} כיוון {x.dirB}{x.schB != null ? `, מתוכנן ${hms(x.schB)}` : ''}, יצא {hms(x.depB)} · <span className="font-black">{Math.round(x.gap / 60)} דק'</span> אחרי שהגיע
                                     {x.bRiders != null ? <span className={x.bRiders <= DEADHEAD_MAX_RIDERS ? 'text-orange-700 font-black' : 'text-slate-600'}> · בספירות המשרד: {x.bRiders} נוסעים בחזרה</span> : null}
+                                    {x.hot ? (() => { const ld = Math.max(x.hot.ridership, x.hot.peakLoad) / (x.hot.capacity || 50); return (
+                                      <div className="text-rose-700 text-xs font-bold mt-1 pr-4">באותה שעה קו {x.hot.lineNum} ({cityOnly2(x.hot.origin)} ← {cityOnly2(x.hot.dest)}, {x.hot.time}) נוסע עמוס: {Math.round(Math.max(x.hot.ridership, x.hot.peakLoad))} נוסעים על קיבולת {x.hot.capacity}{ld >= 0.9 ? ` — ${Math.round(ld * 100)}% מהקיבולת, קו שצריך תגבור` : ''}</div>
+                                    ); })() : null}
                                   </div>
                                 ))}
                               </div>
