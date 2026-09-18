@@ -3104,8 +3104,11 @@ function StopsTab({ sel, selN }) {
   };
   // גם סגירה עקיפה — שינוי או מחיקה של החיפוש — מנקה את הכתובת, כדי
   // שלחיצה חוזרת על קישור התחנה תיחשב לניווט חדש ותפתח את הפאנל
+  // selDone: רק אחרי שהחיפוש כבר קיבל את מק"ט הקישור. בסבב הראשון החיפוש
+  // עדיין ריק, והכתובת ‎#stop=274‎ נמחקה ל-‎#t=stops‎ עוד לפני שהתחנה נפתחה —
+  // ריענון (או "אתר למחשב") איבד את התחנה (הבדיקה האוטומטית, 18.09)
   useEffect(() => {
-    if (sel && q.trim() !== sel && (location.hash || "").includes("stop="))
+    if (sel && selDone.current && q.trim() !== sel && (location.hash || "").includes("stop="))
       history.replaceState(null, "", "#t=stops");
   }, [q, sel]);
   // 100 תחנות בטעינה (היו 250): ב"כל התקופה" כל קבוצה היא כמה שורות, ומאות
@@ -3221,6 +3224,10 @@ function StopsTab({ sel, selN }) {
     // מחרוזת חיפוש אחת לכל אירוע, מחושבת פעם אחת — במקום ארבע החלפות-regex
     // לכל אירוע בכל הקלדה; המיון בהשוואת מחרוזות רגילה (localeCompare איטי פי 2)
     const withS = (e) => ({ ...e, s: sQ(e.n) + "|" + sQ(e.nn) + "|" + sQ(e.on) + "|" + sQ(e.t) });
+    // קישור לתחנה: עד שהחודש הפך ל"כל התקופה" והשבר שלה נטען, הרשימה
+    // הראתה לרגע תחנות אחרות מהחודש הנוכחי שמספרן מכיל את המק"ט — מסך
+    // "טוען" במקום זה (הבדיקה האוטומטית תפסה: ‎#stop=274‎ "נפתחה על תחנה אחרת")
+    if (sel && !shardLeft.current && (mon !== "all" || !hist)) return null;
     const raw = mon === "all"
       ? (hist ? Object.entries(hist).flatMap(([c, evs]) => evs.map((e) => withS({ ...e, c }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
       : (chs ? chs.map(withS) : chs);
@@ -3449,6 +3456,14 @@ function MapTab({ idx, openLine, cities }) {
     return (cities || []).find((x) => x === c) || (cities || []).find((x) => x.includes(c) || c.includes(x)) || c;
   }, [city, cities]);
   const monthEnd = mon ? mon + "-31" : "";
+  // מיקוד על העיר ברגע הבחירה (שלמה 18.09) — גבולות התחנות של כל עיר, data/cities.json
+  const [cityBox, setCityBox] = useState(null);
+  useEffect(() => { dfetch("data/cities.json").then((r) => r.json()).then(setCityBox).catch(() => {}); }, []);
+  useEffect(() => {
+    const map = mapObj.current, b = cityBox && canon && cityBox[canon];
+    if (!map || !b) return;
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [20, 20], maxZoom: 14 });
+  }, [canon, cityBox]);
   // אירועי תחנות / שינויי קווים של החודש
   useEffect(() => {
     if (!mon) return;

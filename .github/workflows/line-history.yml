@@ -73,6 +73,8 @@ jobs:
           # רציפים פעילים בתחנה, רציף לכל קו, ואירועי רציף נוסף/בוטל (שלמה 07.09)
           STOPS=stops.txt STOP_TIMES=stop_times.txt TRIPS=trips.txt ROUTES=routes.txt CALENDAR=calendar.txt \
             OUTDIR=line-history/data python3 tools/platforms.py || echo "רציפים — נשלים בריצה הבאה"
+          # גבולות כל עיר לפי תחנותיה — למיקוד מפת העיר בבחירת עיר (שלמה 18.09)
+          STOPS=stops.txt OUT=line-history/data/cities.json python3 tools/city_centers.py || echo "ערים — נשלים בריצה הבאה"
           # ניקוי עצמי: זוג אירועים שסוגר את עצמו (רפרוף רישום סביב הפסקה)
           # נמחק — תנודת-נייר איננה שינוי (הלקח מקו 80 כפר חב"ד)
           OUTDIR=line-history/data python3 tools/collapse_wobbles.py

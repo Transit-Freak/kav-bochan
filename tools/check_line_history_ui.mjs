@@ -132,6 +132,8 @@ await page.route('**://unpkg.com/**', (route) => {
 await page.route('**://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
 await page.route('**://fonts.gstatic.com/**', (r) => r.fulfill({ body: '' }));
 
+// שחזור המסך האחרון (app.jsx, ההחלפה "אתר למחשב") היה מחזיר את הבדיקה למסך הקודם — הבדיקה מנקה אותו לפני כל ניווט
+await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
 await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
 await page.click('button.tab:has-text("תחנות")', { timeout: 30000 });
 // הצ'יפים מצוירים רק אחרי ש-months.json נטען — חובה לחכות להם
@@ -211,6 +213,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   // בשקט בפעם הבאה שמישהו נוגע ב-useEffect, והמשתמש מחכה 4.5 מגה.
   const heavy2 = [];
   page.on('request', (r) => { if (r.url().includes('stops-hist.json')) heavy2.push(r.url()); });
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html#stop=${code}`,
     { waitUntil: 'domcontentloaded' });
   await page.reload({ waitUntil: 'domcontentloaded' });   // hash בלבד אינו טוען מחדש
@@ -228,6 +231,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   if (!clip.includes('#stop=')) fail(`הלוח לא קיבל קישור לתחנה: "${clip}"`);
   console.log(`✓ קישור לתחנה: #stop=${code} נפתח עם ${nrow} שורות, ולחיצה מעתיקה ${clip.slice(-14)}`);
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tabs', { timeout: 30000 });
 }
@@ -244,6 +248,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
     if (n) { rvFile = lf.rd; rv = n; break; }
   }
   if (!rvFile) fail('אין באף קו סימון לשינוי שהתבטל מיד');
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html#${encodeURIComponent(rvFile)}`,
     { waitUntil: 'domcontentloaded' });
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -266,6 +271,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
     console.log(`✓ סרגל הסינון: כיבוי "שינוי תחנות" הוריד ${before - after} אירועים`);
   }
   console.log(`✓ שינוי שהתבטל: ${rv} אירועים מסומנים בקו ${rvFile}, ${n} מוצגים בעמוד`);
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tabs', { timeout: 30000 });
 }
@@ -274,6 +280,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
 // קודם הוא הציג תיבת חיפוש ריקה והוראה להקליד, וכל 58 אלף השינויים היו
 // מאחורי פעולה שהמבקר צריך ליזום.
 {
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.click('button.tab:has-text("קווים")');
   await page.fill('input.search', '');
@@ -305,6 +312,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   idx.forEach((l) => { (bym[l.rd.split('-')[0]] = bym[l.rd.split('-')[0]] || []).push(l); });
   const grp = Object.values(bym).find((g) => g.length > 1 && g.every((l) => l.v > 1));
   if (!grp) fail('לא נמצא קו עם יותר מחלופה אחת לבדיקה');
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html#${encodeURIComponent(grp[0].rd)}`,
     { waitUntil: 'domcontentloaded' });
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -317,6 +325,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   if (!/\d/.test(txt)) fail('השוואת חלופות בלי מספרים');
   if (!(await page.locator('.altcmp .map').count())) fail('השוואת חלופות בלי מפה');
   console.log(`✓ השוואת חלופות: ${txt.replace(/\n/g, ' · ').slice(0, 70)}`);
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tabs', { timeout: 30000 });
 }
@@ -343,6 +352,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   if (!head12.includes('548')) fail(`עמוד קו 2012: הכותרת לא מזהה את הקו (${head12})`);
   const nst = await page.locator('.card > .s12 li').count();
   console.log(`✓ חיפוש: 548 מציג ${n12} קווים מ-2012, והעמוד נפתח עם מפה ו-${nst} תחנות`);
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tabs', { timeout: 30000 });
 }
@@ -363,6 +373,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   await page.waitForSelector('.linehead', { timeout: 30000 })
     .catch(() => fail('לחיצה על קו שבוטל לא פתחה את עמוד הקו'));
   console.log(`✓ ביטולים: ${n} שורות ברשימה הרגילה, ולחיצה מגיעה לעמוד הקו`);
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tabs', { timeout: 30000 });
 }
@@ -442,6 +453,7 @@ const dem = idxLines.find((l) => l.tt === 'demand');
 if (dem) {
   // שינוי שמשנה רק את ה-hash אינו טוען את הדף מחדש, ולכן React לא קורא
   // אותו שוב — חובה reload מפורש, אחרת נבדק המסך הקודם
+  await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html#${encodeURIComponent(dem.rd)}`,
     { waitUntil: 'domcontentloaded' });
   await page.reload({ waitUntil: 'domcontentloaded' });
