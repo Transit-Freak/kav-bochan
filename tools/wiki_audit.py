@@ -159,6 +159,7 @@ def category_articles(root=CATEGORY, depth=3):
 def norm(t):
     t = re.sub(r'\(.*?\)', ' ', t)
     t = t.replace('"', '').replace("'", '').replace('-', ' ').replace('–', ' ')
+    t = re.sub(r'\bקרית\b', 'קריית', t)   # קרית/קריית — אותו דבר
     return re.sub(r'\s+', ' ', t).strip()
 
 
@@ -167,13 +168,20 @@ def match_in_category(name, city, cat_titles):
     is_central = 'מרכזית' in name
     core = norm(re.sub(r'^(ת\. מרכזית|תחנה מרכזית|מרכזית|מסוף)\s*', '', name))
     ncity = norm(city)
+    # "מסוף אגד (דימונה)": העיר שבסוגריים חייבת להופיע בכותרת
+    mpar = re.search(r'\(([^)]+)\)', name)
+    par_city = norm(mpar.group(1)) if mpar else ''
     best, best_score = None, 0
     for t in cat_titles:
         nt = norm(t)
         score = 0
         if ncity and ncity in nt:
             score += 2
-        if core and len(core) > 2 and core in nt:
+        # שם המסוף כמילה שלמה — "אגד" לא תופס "חניון אגד חולון" ו"ג'ת" לא תופס "קריית גת"
+        core_in = bool(core) and len(core) > 2 and re.search(r'(^|\s)ה?' + re.escape(core) + r'(\s|$)', nt) is not None
+        if par_city and par_city not in nt:
+            continue
+        if core_in:
             score += 3
         if is_central and 'מרכזית' in nt:
             score += 1
@@ -182,7 +190,7 @@ def match_in_category(name, city, cat_titles):
         # מסוף: חובה ששם המסוף עצמו יופיע; תחנה מרכזית: חובה שם העיר
         if is_central and not (ncity and ncity in nt):
             continue
-        if not is_central and not (core and core in nt):
+        if not is_central and not core_in:
             continue
         if score > best_score:
             best, best_score = t, score
