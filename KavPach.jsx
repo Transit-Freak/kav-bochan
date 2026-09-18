@@ -433,6 +433,7 @@ const PACH_DEFAULTS = {
     wastedKm: { on: true, max: 20 },
     cost:     { on: true, max: 20 },
     riders:   { on: true, max: 30, low: null, peak: null },
+    deadhead: { on: true, max: 10 },   // הקו משמש להסעת רכבים במסווה (הלוך-חזור של אותו רכב תוך 15 דק', מהשידורים)
   },
   // הגנות — נקודות שמופחתות מהציון; 0 = ההגנה כבויה
   p: { exclusive: 15, train: 10, school: 10, prebook: 20, weekend: 10, newLine: 10, reduced: 10, noAlt: 10 },
@@ -446,6 +447,7 @@ const DEADHEAD_DEFAULTS = {
     obs:   { on: true, max: 40 },   // כמה פעמים בשבוע נצפה הרכב עושה הלוך-חזור צמוד
     tight: { on: true, max: 20 },   // כמה מהר יצא חזרה (עד 5 דק' = מלוא הנקודות)
     hot:   { on: true, max: 30 },   // קו עמוס באזור באותה שעה
+    crush: { on: true, max: 15 },   // ואם הקו הזה ממש נחנק (מעל הקיבולת) — צריך תגבור, והאוטובוס הריק נסע לידו
     empty: { on: true, max: 10 },   // נסיעת החזרה ריקה גם בספירות המשרד
   },
   // הגנות: קו לילה, סופ"ש, תצפית בודדת
@@ -2321,13 +2323,16 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const noCounts = !withR.length;   // אין ספירות לנסיעות החזרה — הרכיב "ריק בספירות" לא נספר, ולא נטען שהיא ריקה
     let hot = null;
     for (const x of ex) { hot = crowdedNear(info, mk, x.depB / 60); if (hot) break; }
+    // "צריך תגבור": העומס בקו העמוס ביחס לקיבולת הרכב — מעל 100% = מלוא הנקודות, 90% = חצי
+    const hotLoad = hot ? Math.max(hot.ridership, hot.peakLoad) / (hot.capacity || 50) : 0;
     const parts = {
       obs: ptsOf('obs', perWeek / 7),
       tight: ptsOf('tight', 1 - Math.max(0, e.gap - 5) / 10),
       hot: ptsOf('hot', hot ? 1 : 0),
+      crush: ptsOf('crush', hotLoad >= 1 ? 1 : hotLoad >= 0.9 ? 0.5 : 0),
       empty: ptsOf('empty', emptyFrac),
     };
-    const rawScore = normScore(parts.obs + parts.tight + parts.hot + parts.empty, maxSum);
+    const rawScore = normScore(parts.obs + parts.tight + parts.hot + parts.crush + parts.empty, maxSum);
     Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k]); });
     const protections = [];
     const nightShare = ex.length ? ex.filter(x => x.depB < 5 * 3600 || x.depB >= 24 * 3600).length / ex.length : 0;
@@ -2339,7 +2344,7 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const score = Math.max(0, rawScore - deduction);
     const st = getStatusTier(score);
     lines.push({ groupKey: mk, makat: mk, lineNum: info.lineNum, origin: info.origin, dest: info.dest, cluster: info.cluster || info.clusterVal || '', district: info.district || '',
-                 n: e.n, days: e.days, veh: e.veh, other: e.other || 0, gap: e.gap, end: e.end, perWeek, emptyFrac, noCounts, hot, ex,
+                 n: e.n, days: e.days, veh: e.veh, other: e.other || 0, gap: e.gap, end: e.end, perWeek, emptyFrac, noCounts, hot, hotLoad, ex,
                  score, rawScore, parts, protections, statusTier: st, status: st.label });
   }
   const minScore = Number((dset || DEADHEAD_DEFAULTS).minScore) || 0;
@@ -2394,7 +2399,7 @@ function KavPach() {
   const [trips, setTrips] = useState([]);
   const [lineCitiesMap, setLineCitiesMap] = useState(new Map());
   const [lineStopsMap, setLineStopsMap] = useState(new Map());
-  const [dset, updDset, resetDset, dsetDefault] = useStoredSettings('kb-deadhead-score-v2', DEADHEAD_DEFAULTS);
+  const [dset, updDset, resetDset, dsetDefault] = useStoredSettings('kb-deadhead-score-v3', DEADHEAD_DEFAULTS);
   const [dhObs, setDhObs] = useState(null);   // bus/data/deadhead.json — הלוך-חזור של אותו רכב מהשידורים (14 יום)
   useEffect(() => {
     fetch('bus/data/deadhead.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setDhObs(d)).catch(() => {});
@@ -3183,8 +3188,20 @@ const DAYS_FILTER = [
       if (avgPeak < peakTh) fRiders += 0.5;
       componentScores.riders = ptsOf('riders', fRiders);
 
+      // 5. נסיעה תפעולית במסווה — כמה פעמים בשבוע נצפה רכב מגיע לקצה הקו
+      //    וחוזר תוך 15 דק' (מהשידורים, 14 יום); 7 בשבוע ומעלה = מלוא הנקודות
+      let dhWeekly = 0;
+      if (dhObs && dhObs.lines) {
+        const nd = (dhObs.days || []).length || 14;
+        const mks = new Set(data.map(t => String(t.makat || '').replace(/^0+/, '')));
+        let n = 0;
+        mks.forEach(mk => { const e = dhObs.lines[mk]; if (e) n += e.n; });
+        dhWeekly = n / nd * 7;
+      }
+      componentScores.deadhead = PC.deadhead ? ptsOf('deadhead', dhWeekly / 7) : 0;
+
       const maxSum = maxSumOf(PC);
-      const rawScore = normScore(componentScores.lowTrips + componentScores.wastedKm + componentScores.cost + componentScores.riders, maxSum);
+      const rawScore = normScore(componentScores.lowTrips + componentScores.wastedKm + componentScores.cost + componentScores.riders + componentScores.deadhead, maxSum);
       Object.keys(componentScores).forEach(k => { componentScores[k] = Math.round(componentScores[k]); });
 
       // ── הגנות (deductions) — הנקודות לכל הגנה לבחירת המשתמש; 0 = כבויה ──
@@ -3300,6 +3317,7 @@ const DAYS_FILTER = [
         score: finalScore,
         rawScore,
         componentScores,
+        dhWeekly,
         protections,
         totalDeduction,
         category,
@@ -3327,7 +3345,7 @@ const DAYS_FILTER = [
         live,
       };
     }).filter(l => l.score >= (Number(pset.minScore) || 0)).sort((a,b) => b.score - a.score);
-  }, [trips, costBenchmarkTable, liveOf, overlapMap, pset, appMode]);
+  }, [trips, costBenchmarkTable, liveOf, overlapMap, pset, appMode, dhObs]);
 
   const filteredRedundant = useMemo(() => {
     let result = [...redundantLines];
@@ -4180,6 +4198,7 @@ const DAYS_FILTER = [
                     { key: 'lowTrips', label: 'נסיעות שפל', hint: 'אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה' },
                     { key: 'wastedKm', label: 'קילומטר מבוזבז', hint: 'חלק הק"מ בנסיעות ריקות, ועוד תוספת אם יש מעל 100 ק"מ סרק בשבוע' },
                     { key: 'cost', label: 'עלות תפעולית לנוסע', hint: 'ביחס לממוצע הקטגוריה — מדרגות מפי 1.3 ועד פי 6' },
+                    { key: 'deadhead', label: 'נסיעה תפעולית במסווה', hint: 'כמה פעמים בשבוע נצפה רכב מגיע לקצה הקו וחוזר תוך 15 דקות (מהשידורים, 14 יום) — 7 ומעלה = מלוא הנקודות' },
                     { key: 'riders', label: 'ממוצע נוסעים ועומס שיא', hint: 'חצי מהנקודות על ממוצע נמוך, חצי על שיא נמוך', params: [{ k: 'low', label: 'קו ריק = ממוצע מתחת ל-', auto: 'אוטו', unit: 'נוסעים', min: 1, max: 300, title: 'ברירת המחדל: 60% מסף הקטגוריה, לפי קיבולת הרכב' }, { k: 'peak', label: 'שיא נמוך = מתחת ל-', auto: '15', unit: 'נוסעים', min: 1, max: 300 }] },
                   ]}
                   extras={
@@ -4231,6 +4250,11 @@ const DAYS_FILTER = [
                             <div className="px-3 py-1.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">
                               {res.category}
                             </div>
+                            {res.dhWeekly > 0 && (
+                              <span className="px-3 py-1.5 rounded-full text-[11px] font-black bg-orange-100 text-orange-800 border border-orange-200" title="הלוך-חזור של אותו רכב תוך 15 דק' — מהשידורים">
+                                נסיעה תפעולית · {res.dhWeekly.toFixed(1)} בשבוע
+                              </span>
+                            )}
                             {res.isNightLine && (
                               <span className="text-indigo-400 bg-indigo-50 p-1 rounded-full" title="קו לילה">
                                 <Ic n="moon" size={14} />
@@ -4569,6 +4593,7 @@ const DAYS_FILTER = [
                     { key: 'obs', label: 'תצפיות', hint: 'כמה פעמים בשבוע נצפה רכב מגיע לקצה וחוזר תוך 15 דקות — 7 בשבוע ומעלה = מלוא הנקודות' },
                     { key: 'tight', label: 'צמידות', hint: 'כמה מהר הרכב יצא חזרה — עד 5 דקות = מלוא הנקודות, 15 דקות = אפס' },
                     { key: 'hot', label: 'קו עמוס באזור', hint: 'באותה עיר ועם תחנה משותפת, עד 30 דקות מנסיעת החזרה, יוצא קו אחר עמוס (80% מקיבולת הרכב)' },
+                    { key: 'crush', label: 'קו שצריך תגבור', hint: 'תוספת חומרה כשהקו העמוס ממש נחנק: מעל 100% מהקיבולת = מלוא הנקודות, 90% = חצי — האוטובוס הריק נסע ליד קו שהיה צריך אותו' },
                     { key: 'empty', label: 'ריק גם בספירות', hint: 'חלק נסיעות החזרה שבספירות משרד התחבורה עלו אליהן עד 1.5 נוסעים' },
                   ]}
                   extras={
@@ -4661,8 +4686,8 @@ const DAYS_FILTER = [
                           {dhOpen === L.groupKey && (
                             <tr><td colSpan={13} className="p-0">
                               <div className="bg-slate-50 rounded-2xl m-2 p-4 text-sm">
-                                <div className="text-slate-600 text-xs font-bold mb-2">ניקוד: תצפיות {L.parts.obs}/{dset.c.obs.on ? dset.c.obs.max : 0} ({L.perWeek.toFixed(1)} בשבוע) · צמידות {L.parts.tight}/{dset.c.tight.on ? dset.c.tight.max : 0} · קו עמוס באזור {L.parts.hot}/{dset.c.hot.on ? dset.c.hot.max : 0} · ריק בספירות {L.parts.empty}/{dset.c.empty.on ? dset.c.empty.max : 0}{L.protections.length ? ` · הגנות: ${L.protections.map(x => `${x.name} (−${x.value})`).join(', ')}` : ''}</div>
-                                {L.hot ? <div className="text-rose-700 text-xs font-bold mb-2">באותה שעה קו {L.hot.lineNum} ({cityOnly2(L.hot.origin)} ← {cityOnly2(L.hot.dest)}, {L.hot.time}) נוסע עמוס: {Math.round(Math.max(L.hot.ridership, L.hot.peakLoad))} נוסעים על קיבולת {L.hot.capacity}</div> : null}
+                                <div className="text-slate-600 text-xs font-bold mb-2">ניקוד: תצפיות {L.parts.obs}/{dset.c.obs.on ? dset.c.obs.max : 0} ({L.perWeek.toFixed(1)} בשבוע) · צמידות {L.parts.tight}/{dset.c.tight.on ? dset.c.tight.max : 0} · קו עמוס באזור {L.parts.hot}/{dset.c.hot.on ? dset.c.hot.max : 0} · צריך תגבור {L.parts.crush}/{dset.c.crush.on ? dset.c.crush.max : 0} · ריק בספירות {L.parts.empty}/{dset.c.empty.on ? dset.c.empty.max : 0}{L.protections.length ? ` · הגנות: ${L.protections.map(x => `${x.name} (−${x.value})`).join(', ')}` : ''}</div>
+                                {L.hot ? <div className="text-rose-700 text-xs font-bold mb-2">באותה שעה קו {L.hot.lineNum} ({cityOnly2(L.hot.origin)} ← {cityOnly2(L.hot.dest)}, {L.hot.time}) נוסע עמוס: {Math.round(Math.max(L.hot.ridership, L.hot.peakLoad))} נוסעים על קיבולת {L.hot.capacity}{L.hotLoad >= 0.9 ? ` — ${Math.round(L.hotLoad * 100)}% מהקיבולת, קו שצריך תגבור` : ''}</div> : null}
                                 <div className="text-slate-500 text-xs font-bold mb-1">דוגמאות מהשידורים:</div>
                                 {L.ex.map((x, i) => (
                                   <div key={i} className="py-1.5 border-b border-slate-200 last:border-0">
@@ -5266,13 +5291,30 @@ const DAYS_FILTER = [
 
                     <div className="bg-white rounded-2xl border border-rose-100 p-4 mb-3">
                       <h4 className="font-black text-slate-800 text-sm mb-2">שלב 2: ניקוד (0–100)</h4>
-                      <p className="text-slate-600 text-sm leading-relaxed mb-2">ארבעה רכיבים, סף הנוסעים בכל אחד מהם מותאם לקטגוריה (5 לאזורי/לילה, 8 לקצר/מזין, 10 לארוך/תדירות נמוכה, 15 לתדירות גבוהה/תלמידים):</p>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">חמישה רכיבים, סף הנוסעים בכל אחד מהם מותאם לקטגוריה (5 לאזורי/לילה, 8 לקצר/מזין, 10 לארוך/תדירות נמוכה, 15 לתדירות גבוהה/תלמידים):</p>
                       <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
                         <li><strong>נסיעות שפל (עד {pset.c.lowTrips.on ? pset.c.lowTrips.max : 0} נק&apos;):</strong> אחוז הנסיעות עם פחות נוסעים מסף הקטגוריה.</li>
                         <li><strong>קילומטר מבוזבז (עד {pset.c.wastedKm.on ? pset.c.wastedKm.max : 0} נק&apos;):</strong> משקלל אחוז ק&quot;מ סרק וכמות מוחלטת.</li>
                         <li><strong>עלות תפעולית לנוסע (עד {pset.c.cost.on ? pset.c.cost.max : 0} נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
                         <li><strong>ממוצע נוסעים ועומס שיא (עד {pset.c.riders.on ? pset.c.riders.max : 0} נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
+                        <li><strong>נסיעה תפעולית במסווה (עד {pset.c.deadhead && pset.c.deadhead.on ? pset.c.deadhead.max : 0} נק&apos;):</strong> כמה פעמים בשבוע נצפה בשידורים רכב שהגיע לקצה הקו וחזר תוך 15 דקות — הסעת רכב שנרשמה כשירות. 7 בשבוע ומעלה = מלוא הנקודות. הפירוט בלשונית &quot;נסיעות תפעוליות&quot;.</li>
                         <li className="text-slate-500">אלה ברירות המחדל{psetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}. בטאב &quot;קווים לא יעילים&quot; יש לוח ⚙️ שבו כל אחד קובע לעצמו כמה נקודות כל דבר נותן, מתחת לכמה נוסעים קו נחשב ריק, ואילו הגנות פועלות.</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-orange-50 rounded-2xl border border-orange-100 p-4 mb-3">
+                      <h4 className="font-black text-orange-800 text-sm mb-2">נסיעות תפעוליות במסווה — לשונית נפרדת</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2">
+                        <strong>מה זה:</strong> מפעיל שלא רוצה להסיע רכב ריק למסוף בלי תשלום רושם את ההסעה כנסיעת שירות. <strong>איך מזהים:</strong> לפי מספר הרכב בשידורי המיקום — הרכב מגיע לקצה נסיעה ותוך 15 דקות יוצא לנסיעה שמסתיימת עד 1.5 ק&quot;מ מהמקום שממנו התחיל, באותו קו או בקו אחר (89 הלוך, 80 חזור). 14 הימים האחרונים.
+                      </p>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-2"><strong>הניקוד</strong> באותה שיטה (רכיבים לבחירה, נרמול ל-100, הגנות, אותן תוויות סטטוס):</p>
+                      <ul className="list-disc list-inside text-slate-600 text-sm space-y-1.5 pr-2">
+                        <li><strong>תצפיות (עד {dset.c.obs.on ? dset.c.obs.max : 0}):</strong> כמה פעמים בשבוע זה קורה; 7 ומעלה = מלוא הנקודות.</li>
+                        <li><strong>צמידות (עד {dset.c.tight.on ? dset.c.tight.max : 0}):</strong> כמה מהר הרכב יצא חזרה — עד 5 דקות = מלוא הנקודות, 15 = אפס.</li>
+                        <li><strong>קו עמוס באזור ({dset.c.hot.on ? dset.c.hot.max : 0}):</strong> באותה עיר ועם תחנה משותפת, עד 30 דקות מנסיעת החזרה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר).</li>
+                        <li><strong>קו שצריך תגבור (עד {dset.c.crush.on ? dset.c.crush.max : 0}):</strong> תוספת חומרה כשהקו העמוס ממש נחנק — מעל 100% מהקיבולת = מלוא הנקודות, 90% = חצי. האוטובוס הריק נסע ליד קו שהיה צריך אותו.</li>
+                        <li><strong>ריק גם בספירות (עד {dset.c.empty.on ? dset.c.empty.max : 0}):</strong> נסיעת החזרה ריקה גם בספירות משרד התחבורה (עד 1.5 נוסעים). קו שאין לו ספירות בקובץ (מתעדכן רבעונית) לא נטען כריק.</li>
+                        <li><strong>הגנות:</strong> קו לילה (−{dset.p.night}), סופ&quot;ש (−{dset.p.weekend}), תצפית בודדת (−{dset.p.rare}).</li>
                       </ul>
                     </div>
 
