@@ -395,3 +395,8 @@ button.kbtn { border: 0; cursor: pointer; font: inherit; }
 .maphint { color: #475569; font-weight: 700; font-size: 13px; line-height: 1.6; margin: 0 0 10px; }
 .mapstat { font-weight: 800; font-size: 13px; color: #334155; margin: 4px 0 6px; }
 .lh-pop .plink { color: #7c3aed; font-weight: 800; }
+.mapwrap { position: relative; }
+.mapprog { position: absolute; inset-inline: 12px; bottom: 12px; z-index: 800; background: rgba(255,255,255,.95); border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+.mapprog-t { font-weight: 800; font-size: 13px; color: #334155; margin-bottom: 6px; }
+.mapprog-b { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+.mapprog-b i { display: block; height: 100%; background: #7c3aed; transition: width .3s; }

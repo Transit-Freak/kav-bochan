@@ -3435,7 +3435,6 @@ function MapTab({ idx, openLine, cities }) {
   const [stopChs, setStopChs] = useState(null);
   const [lineChs, setLineChs] = useState(null);
   const [routes, setRoutes] = useState({});       // rd → [[lat,lon],…] של הגרסה שהייתה בתוקף אז
-  const [loading, setLoading] = useState(0);
   const [err, setErr] = useState(null);
   const mapRef = useRef(null), mapObj = useRef(null), layer = useRef(null);
   const cache = useRef({});
@@ -3496,30 +3495,41 @@ function MapTab({ idx, openLine, cities }) {
   const shownLines = useMemo(() => kinds.size ? lineGroups.filter((x) => x.chs.some((c) => kinds.has(c.k))) : [], [lineGroups, kinds]);
   useEffect(() => setKinds(new Set()), [mode, canon]);
   const toggleKind = (k) => setKinds((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  // מסלולי הקווים המסומנים — הגרסה האחרונה עם שרטוט עד סוף החודש
-  const MAX_LINES = 60;
+  // מסלולי הקווים המסומנים — הגרסה האחרונה עם שרטוט עד סוף החודש.
+  // כל הקווים נטענים (בלי תקרה, בקשת שלמה): במנות של 8 במקביל, המפה
+  // מתמלאת תוך כדי ופס התקדמות מראה כמה נשאר.
+  const [prog, setProg] = useState(null);   // {done, total} בזמן טעינה
   useEffect(() => {
     if (mode !== "lines" || !monthEnd) return;
-    const want = shownLines.slice(0, MAX_LINES).map((x) => x.rd).filter((rd) => !(rd + "@" + mon in cache.current));
-    if (!want.length) return;
-    let alive = true;
-    setLoading((n) => n + 1);
-    Promise.all(want.map((rd) => dfetch("data/lines/" + fsafe(rd) + ".json").then((r) => r.json()).then((lf) => {
+    const want = shownLines.map((x) => x.rd).filter((rd) => !(rd + "@" + mon in cache.current));
+    if (!want.length) { setProg(null); return; }
+    let alive = true, i = 0, done = 0;
+    setProg({ done: 0, total: want.length });
+    const flush = () => setRoutes((r) => { const o = { ...r }; want.forEach((rd) => { if (rd + "@" + mon in cache.current) o[rd + "@" + mon] = cache.current[rd + "@" + mon]; }); return o; });
+    const one = (rd) => dfetch("data/lines/" + fsafe(rd) + ".json").then((r) => r.json()).then((lf) => {
       const m = materializeLf(lf);
       const vs = (m.versions || []).filter((v) => v.d <= monthEnd);
       const v = [...vs].reverse().find((x) => typeof x.shp === "string" && x.shp.length > 2);
       cache.current[rd + "@" + mon] = v ? decodeShape(v.shp) : null;
-    }).catch(() => { cache.current[rd + "@" + mon] = null; }))).then(() => {
-      if (!alive) return;
-      setLoading((n) => n - 1);
-      setRoutes((r) => { const o = { ...r }; want.forEach((rd) => { o[rd + "@" + mon] = cache.current[rd + "@" + mon]; }); return o; });
-    });
+    }).catch(() => { cache.current[rd + "@" + mon] = null; });
+    const worker = () => {
+      if (!alive) return Promise.resolve();
+      if (i >= want.length) return Promise.resolve();
+      const rd = want[i++];
+      return one(rd).then(() => {
+        done++;
+        if (!alive) return;
+        if (done % 10 === 0 || done === want.length) { setProg({ done, total: want.length }); flush(); }
+        return worker();
+      });
+    };
+    Promise.all(Array.from({ length: 8 }, worker)).then(() => { if (alive) { flush(); setProg(null); } });
     return () => { alive = false; };
   }, [shownLines, mode, monthEnd, mon]);
   // המפה
   useEffect(() => {
     if (!mapRef.current || mapObj.current) return;
-    const map = L.map(mapRef.current, { scrollWheelZoom: true });
+    const map = L.map(mapRef.current, { scrollWheelZoom: true, preferCanvas: true });   // canvas — מאות מסלולים בלי להיחנק
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
     }).addTo(map);
@@ -3553,7 +3563,7 @@ function MapTab({ idx, openLine, cities }) {
           .bindPopup(html, { className: "lh-pop", maxWidth: 320 }).addTo(lg);
       });
     } else {
-      shownLines.slice(0, MAX_LINES).forEach((x, i) => {
+      shownLines.forEach((x) => {
         const r = routes[x.rd + "@" + mon];
         if (!r || !r.length) return;
         r.forEach((p) => pts.push(p));
@@ -3568,7 +3578,7 @@ function MapTab({ idx, openLine, cities }) {
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 15 });
   }, [mode, stopGroups, shownLines, routes, mon, kinds]);
   const years = months ? [...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse() : [];
-  const noRoute = mode === "lines" && shownLines.slice(0, MAX_LINES).filter((x) => routes[x.rd + "@" + mon] === null).length;
+  const noRoute = mode === "lines" && shownLines.filter((x) => routes[x.rd + "@" + mon] === null).length;
   return (
     <div className="card">
       <p className="maphint">בוחרים עיר, שנה וחודש — והמפה מראה מה השתנה שם באותו חודש: תחנות שהשתנו (לחיצה על סימן = מה קרה לה), או קווים — מסומנים רק הקווים שבהם בוצעו שינויים מהסוגים שתבחרו, על המסלול כפי שהיה אז.</p>
@@ -3608,9 +3618,15 @@ function MapTab({ idx, openLine, cities }) {
       <div className="mapstat">
         {!canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length} תחנות ב${canon} השתנו ב-${fmtM(mon)}` : `אין תחנות ב${canon} שהשתנו ב-${fmtM(mon)}`)
           : (lineChs === null ? "טוען…" : !lineGroups.length ? `אין קווים של ${canon} שהשתנו ב-${fmtM(mon)}` : !kinds.size ? `${lineGroups.length} קווים של ${canon} השתנו ב-${fmtM(mon)} — סמנו סוגי שינוי כדי לראות אותם על המפה`
-            : `${shownLines.length} קווים מסומנים` + (shownLines.length > MAX_LINES ? ` (מוצגים ${MAX_LINES} הראשונים)` : "") + (loading ? " · טוען מסלולים…" : "") + (noRoute ? ` · ל-${noRoute} אין שרטוט מאותו זמן` : "")))}
+            : `${shownLines.length} קווים מסומנים` + (noRoute && !prog ? ` · ל-${noRoute} אין שרטוט מאותו זמן` : "")))}
       </div>
-      <div className="citymap" ref={mapRef} role="application" aria-label="מפת השינויים בעיר לפי חודש" />
+      <div className="mapwrap">
+        <div className="citymap" ref={mapRef} role="application" aria-label="מפת השינויים בעיר לפי חודש" />
+        {prog && <div className="mapprog" role="status" aria-live="polite">
+          <div className="mapprog-t">טוען את המסלולים כפי שהיו אז… {prog.done}/{prog.total}</div>
+          <div className="mapprog-b"><i style={{ width: Math.round(prog.done / prog.total * 100) + "%" }} /></div>
+        </div>}
+      </div>
     </div>
   );
 }
