@@ -4434,7 +4434,7 @@ const DAYS_FILTER = [
                             <td className="p-3 font-bold">{cityOnly2(L.origin)} – {cityOnly2(L.dest)}</td>
                             <td className="p-3 text-slate-600">{L.cluster || L.district}</td>
                             <td className="p-3 font-black">{L.pairs.length}{L.sure ? <span className="text-orange-700"> ({L.sure} ריקים)</span> : null}</td>
-                            <td className="p-3 font-black text-rose-700">{L.near ? `${L.near} 🔥` : '—'}</td>
+                            <td className="p-3 font-black text-rose-700">{L.near ? L.near : '—'}</td>
                             <td className="p-3">{fmtN(L.weekly * 2)}</td>
                             <td className="p-3 font-black text-rose-700">{fmtN(L.km)}</td>
                             <td className="p-3 text-slate-400"><Ic n={dhOpen === L.groupKey ? 'chevronUp' : 'chevronDown'} size={16} /></td>
@@ -4447,7 +4447,7 @@ const DAYS_FILTER = [
                                     <div><span className="font-black">{p.a.time}</span> {dirName(p.a)} · <span className={p.a.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.a.ridership} נוסעים</span></div>
                                     <div><span className="font-black">{p.b.time}</span> {dirName(p.b)} · <span className={p.b.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.b.ridership} נוסעים</span></div>
                                     <div className="text-slate-600 text-xs font-bold">{p.gap} דק' בין היציאות · {p.a.days || ''} · {p.weekly} פעמים בשבוע{p.edge ? ' · קצה יום' : ''}{p.sure ? ' · ריק לגמרי' : ''}
-                                      {p.near ? <div className="text-rose-700 mt-1">🔥 באותה שעה קו {p.near.lineNum} ({cityOnly2(p.near.origin)} ← {cityOnly2(p.near.dest)}, {p.near.time}) נוסע עמוס: {Math.round(Math.max(p.near.ridership, p.near.peakLoad))} נוסעים על קיבולת {p.near.capacity}</div> : null}
+                                      {p.near ? <div className="text-rose-700 mt-1">באותה שעה קו {p.near.lineNum} ({cityOnly2(p.near.origin)} ← {cityOnly2(p.near.dest)}, {p.near.time}) נוסע עמוס: {Math.round(Math.max(p.near.ridership, p.near.peakLoad))} נוסעים על קיבולת {p.near.capacity}</div> : null}
                                     </div>
                                   </div>
                                 ))}
@@ -4462,7 +4462,7 @@ const DAYS_FILTER = [
                   <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
                     איך זה מחושב: מנתוני הספירות של משרד התחבורה (ממוצע נוסעים לכל נסיעה מתוכננת). נסיעה נחשבת "כמעט ריקה" עד {DEADHEAD_MAX_RIDERS} נוסעים בממוצע ו"ריקה" עד {DEADHEAD_SURE_RIDERS}.
                     זוג = שתי נסיעות כמעט ריקות של אותו קו בכיוונים מנוגדים, שיוצאות בהפרש של עד {DEADHEAD_GAP_MIN} דקות באותם ימים. נסיעה ריקה בודדת לא נספרת.
-                    🔥 "ליד קו עמוס" = באותה עיר ועם תחנה משותפת (אותו מסדרון), עד 30 דקות מהנסיעה הריקה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר). אלה מוצגים ראשונים.
+                    "ליד קו עמוס" = באותה עיר ועם תחנה משותפת (אותו מסדרון), עד 30 דקות מהנסיעה הריקה, יוצא קו אחר עמוס (80% מקיבולת הרכב — ההגדרה של האתר). אלה מוצגים ראשונים.
                     בשלב הבא: אישור מהשידורים (מדד הדיוק) — אותו רכב בשתי הנסיעות, ובלי עצירות בדרך.
                   </p>
                 </div>
