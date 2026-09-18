@@ -79,7 +79,7 @@
 <script>
 const $=s=>document.querySelector(s);
 let DATA=null, AUDIT=null, SEL=null, Q='', WIKI=null, WBUSY=false, KIND='station';
-const KINDS={station:'תחנות מרכזיות ומסופים',street:'רחובות מרכזיים',place:'מקומות מרכזיים'};
+const KINDS={station:'תחנות מרכזיות ומסופים'};   // רק מה שרשום בוויקיפדיה בקטגוריית התחנות המרכזיות והמסופים (שלמה 18.09)
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fd=s=>s?s.split('-').reverse().join('.'):'—';
 
@@ -97,12 +97,12 @@ function home(){
     .sort((a,b)=>{
       const w=k=>{const x=AUDIT&&AUDIT.stations&&AUDIT.stations[k];return x&&x.wrong?x.wrong.length:0;};
       return (w(b)-w(a))||(DATA.stations[b].lines.length-DATA.stations[a].lines.length);});
-  return `<div class="filters">${Object.entries(KINDS).map(([k,t])=>`<button class="fchip ${KIND===k?'on':''}" onclick="KIND='${k}';render()">${t}</button>`).join('')}</div>
+  return `<div class="filters"></div>
   <div class="cards">${ks.map(k=>{const s=DATA.stations[k];
     return `<button class="card" onclick="pick(${JSON.stringify(k).replace(/"/g,'&quot;')})">
       <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span><div style="margin-top:6px">${auditBadge(k)}</div></button>`;}).join('')
     ||'<div class="empty">לא נמצאה תחנה</div>'}</div>
-  <p class="note">תחנות מרכזיות ומסופים (5 קווים ומעלה), רחובות מרכזיים (30 קווים ומעלה) ומקומות מרכזיים — אוניברסיטאות, בתי חולים, קניונים, תחנות רכבת. קו משויך למקום אם הוא עוצר בו לפי לוח הזמנים הרשמי (כולל באמצע מסלול). הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
+  <p class="note">תחנות מרכזיות ומסופים בלבד — אלה שיש להם ערך בקטגוריה "ישראל: תחנות מרכזיות ומסופי אוטובוסים" בוויקיפדיה. קו משויך למקום אם הוא עוצר בו לפי לוח הזמנים הרשמי (כולל באמצע מסלול). הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
 }
 
 function destTxt(st,l){
@@ -274,7 +274,7 @@ Promise.all([
   fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
   fetch('data/audit.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null)
 ]).then(([d,a])=>{DATA=d;AUDIT=a;
-  document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה, רחוב או מקום…">');
+  document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה מרכזית או מסוף…">');
   render();})
 .catch(()=>{$('#view').innerHTML='<div class="msg">עוד אין נתונים — הריצו את ה-workflow ‏wiki-stations ב-GitHub Actions.</div>';});
 </script>

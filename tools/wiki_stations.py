@@ -111,14 +111,8 @@ def main():
             if base == 'מסוף ארלוזורוב (סבידור)':
                 city = 'תל אביב יפו'
             groups.append((f'S|{base}|{city}', 'station', base, city, plat))
-        ms = STREET_RE.search(desc)
-        street = ms.group(1).strip() if ms else ''
-        if street and city and len(street) > 2 and not street[0].isdigit():
-            groups.append((f'R|{street}|{city}', 'street', street, city, ''))
-        pl = name.split('/')[0].strip()
-        if any(w in pl for w in PLACE_WORDS) and city:
-            pl = re.sub(r'^(ת\.\s*רכבת|ת\.רכבת)\s*', 'תחנת רכבת ', pl)
-            groups.append((f'P|{pl}|{city}', 'place', pl, city, plat))
+        # רחובות ומקומות מרכזיים הוסרו (שלמה 18.09: "ביקשתי רק מסופים ותחנות
+        # מרכזיות שרשומות בוויקיפדיה") — הכלי עוסק בקטגוריה הזו בלבד.
         if groups:
             stop_groups[r['stop_id']] = groups
     print(f'stops: {len(stop_groups)} עצירות בקבוצות', flush=True)
