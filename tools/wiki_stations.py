@@ -112,11 +112,16 @@ def main():
     if os.path.exists(mp):
         with open(mp, encoding='utf-8') as f:
             manual = {k: v for k, v in json.load(f).items() if not k.startswith('_')}
+    stop_street = {}   # stop_id → (רחוב, עיר) — למסלול הרחובות של כל קו
     for r in reader(zf, 'stops.txt'):
         name = (r.get('stop_name') or '').strip()
         desc = r.get('stop_desc') or ''
         mc = CITY_RE.search(desc)
         city = mc.group(1).strip() if mc else ''
+        ms0 = STREET_RE.search(desc)
+        st0 = re.sub(r'\s+\d+[א-ת]?$', '', ms0.group(1).strip()) if ms0 else ''   # בלי מספר בית
+        if st0 and city and len(st0) > 1 and not st0[0].isdigit():
+            stop_street[r['stop_id']] = (st0, city)
         mp = PLAT_RE.search(desc)
         plat = (mp.group(1).strip() if mp else '')
         if plat in ('0', 'None', 'ם') or plat.startswith('קומה'):
@@ -165,9 +170,20 @@ def main():
     hits = {}          # (route_id, group_key) → set(רציפים)
     meta = {}          # group_key → (kind, name, city)
     n = 0
+    route_streets = {}   # route_id → {(רחוב, עיר): None} לפי סדר ההופעה
     for r in reader(zf, 'stop_times.txt'):
         n += 1
-        gs = stop_groups.get(r['stop_id'])
+        sid = r['stop_id']
+        ss = stop_street.get(sid)
+        if ss is not None:
+            rid0 = trip_route.get(r['trip_id'])
+            if rid0 is not None:
+                rs = route_streets.get(rid0)
+                if rs is None:
+                    rs = route_streets[rid0] = {}
+                if ss not in rs:
+                    rs[ss] = None
+        gs = stop_groups.get(sid)
         if gs is None:
             continue
         rid = trip_route.get(r['trip_id'])
@@ -204,6 +220,7 @@ def main():
         ent['dests'] |= dests
         ent['plats'] |= plats
         ent['term'] = ent['term'] or term
+        ent.setdefault('rids', set()).add(rid)
 
     def linekey(x):
         m = re.match(r'\d+', x['line'])
@@ -211,6 +228,15 @@ def main():
 
     from collections import Counter
     names = Counter((st['kind'], st['name']) for st in stations.values())
+
+    def streets_of(rids):
+        """רחובות המסלול של הקו בתחנה הזו — מהמסלולים שבאמת עוצרים בה, לפי סדר, בלי כפילויות."""
+        seen = {}
+        for rid in rids:
+            for k in route_streets.get(rid, {}):
+                if k not in seen:
+                    seen[k] = None
+        return [[a, b] for a, b in seen]
     out_st = {}
     for st in stations.values():
         if 'תפעול' in st['name'] or len(st['lines']) < MIN_LINES[st['kind']]:
@@ -229,7 +255,8 @@ def main():
             'lon': round(sum(p[1] for p in pos) / len(pos), 5) if pos else None,
             'lines': [[x['line'], x['op'], sorted(x['dests']),
                        '/'.join(sorted(x['plats'])[:3]),
-                       1 if x['term'] else 0] for x in lines]}
+                       1 if x['term'] else 0,
+                       streets_of(x.get('rids', ()))] for x in lines]}
     kinds = Counter(v['kind'] for v in out_st.values())
     print(f'קבוצות: {dict(kinds)}', flush=True)
     # שירותים עירוניים שאינם ב-GTFS הלאומי (סבבוס, שאטלים עירוניים וכד') —
@@ -247,7 +274,21 @@ def main():
                         out_st[label]['lines'].append(l)
                         n_extra += 1
         print(f'תוספות ידניות: {n_extra} קווים', flush=True)
-    out = {'updated': datetime.date.today().isoformat(), 'stations': out_st}
+    # "רחובות מרכזיים" לכל עיר = רחוב שעוברים בו 10 קווים (קו+מפעיל) ומעלה.
+    # משמש את הסריקה (tools/wiki_audit.py) לבדיקת עמודת המסלול בטבלאות (שלמה 18.09)
+    street_lines = {}
+    for rid, rs in route_streets.items():
+        short, op, _ln = routes.get(rid, ('', '', ''))
+        if not short:
+            continue
+        for k in rs:
+            street_lines.setdefault(k, set()).add(f'{short}|{op}')
+    central = {}
+    for (st_, ct_), lks in street_lines.items():
+        if len(lks) >= 10:
+            central.setdefault(ct_, []).append(st_)
+    print(f'רחובות מרכזיים: {sum(len(v) for v in central.values())} ב-{len(central)} ערים', flush=True)
+    out = {'updated': datetime.date.today().isoformat(), 'stations': out_st, 'central': central}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = f'{OUT}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:

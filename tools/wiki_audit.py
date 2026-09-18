@@ -93,6 +93,115 @@ def extract_lines(wt):
     return found
 
 
+def parse_tables(wt):
+    """כל הטבלאות בערך: [(כותרות, [שורות של תאים])] — תא = טקסט גולמי (wikitext)."""
+    tables, hdr, rows, cur = [], [], [], None
+    in_t = 0
+    for raw in wt.split('\n'):
+        ln = raw.strip()
+        if ln.startswith('{|'):
+            in_t += 1
+            hdr, rows, cur = [], [], None
+            continue
+        if ln.startswith('|}'):
+            if cur:
+                rows.append(cur)
+            if in_t:
+                tables.append((hdr, rows))
+            in_t = max(0, in_t - 1)
+            hdr, rows, cur = [], [], None
+            continue
+        if not in_t:
+            continue
+        if ln.startswith('|-'):
+            if cur:
+                rows.append(cur)
+            cur = []
+            continue
+        if ln.startswith('|+'):
+            continue
+        if ln.startswith('!'):
+            for c in re.split(r'!!', ln.lstrip('!')):
+                c = c.split('|')[-1] if '|' in c and not c.strip().startswith('[[') else c
+                hdr.append(CLEAN.sub(' ', c).strip())
+            continue
+        if ln.startswith('|'):
+            if cur is None:
+                cur = []
+            for c in re.split(r'\|\|', ln.lstrip('|')):
+                cur.append(c)
+    return tables
+
+
+STREET_PFX = re.compile(r"^(רחוב|רח'|רח\"|שד'|שד\"|שדרות|דרך|כביש מס'|כביש)\s+")
+STREET_SPLIT = re.compile(r'[,;،·•←→⇐⇒]|\s[-–—]\s|\s/\s|\bדרך\b|\bעד\b|\bאל\b')
+
+
+def street_norm(t):
+    t = re.sub(r"\[\[([^\]|]*)\|[^\]]*\]\]", r"\1", t)     # [[יעד|טקסט]] → יעד (השם המלא)
+    t = re.sub(r'\s*\([^)]*\)', ' ', t)                        # (דימונה)
+    t = CLEAN.sub(' ', t).strip()
+    t = STREET_PFX.sub('', t)
+    t = re.sub(r"['\"’]", '', t).replace('-', ' ').replace('–', ' ')
+    t = re.sub(r'\bקרית\b', 'קריית', t)
+    t = re.sub(r'^ה', '', t.strip())          # ה' הידיעה
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+GENERIC = {'מסוף', 'תחנה', 'תחנה מרכזית', 'מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'רציף', 'רציפים', 'הורדה', 'איסוף', 'מפגש', 'צומת'}
+
+
+def route_cell_streets(cell):
+    """שמות רחובות מתא המסלול בערך — מנורמלים, בלי מספרים ובלי קטעים קצרים."""
+    out = []
+    for part in STREET_SPLIT.split(cell):
+        n = street_norm(part or '')
+        if len(n) >= 3 and not n.isdigit() and n not in out and n not in GENERIC:
+            out.append(n)
+    return out
+
+
+def same_street(a, b):
+    """שוויון רחובות מנורמלים: זהים, או שאחד מכיל את השני (מ-4 תווים)."""
+    if a == b:
+        return True
+    return len(a) >= 4 and len(b) >= 4 and (a in b or b in a)
+
+
+def check_routes(wt, real_lines, central, skip_names):
+    """עמודת המסלול בטבלאות: לכל קו — רחובות שכתובים אך הקו לא עובר בהם ('no'),
+    ורחובות מרכזיים שהקו עובר בהם ולא הוזכרו ('miss'). (שלמה 18.09)"""
+    res = {}
+    skip = {street_norm(x) for x in skip_names if x}
+    skip |= {street_norm(x) for x in GENERIC}
+    for hdr, rows in parse_tables(wt):
+        ci = next((i for i, h in enumerate(hdr) if 'מסלול' in h), None)
+        if ci is None:
+            continue
+        for row in rows:
+            if len(row) <= ci:
+                continue
+            first = CLEAN.sub(' ', row[0]).strip()
+            for part in re.split(r'[/\\]', first):
+                m = LINE.match(part.strip())
+                if not m:
+                    continue
+                line = m.group(1)
+                ls = real_lines.get(line)
+                if ls is None:
+                    continue
+                streets = [(x[0], street_norm(x[0])) for x in ls['streets']]
+                cities = {x[1] for x in ls['streets']}
+                cent = {street_norm(st) for ct in cities for st in central.get(ct, [])}
+                written = route_cell_streets(row[ci])
+                no = [w for w in written if not any(same_street(w, c) for c in skip)
+                      and not any(same_street(w, n) for _, n in streets)]
+                miss = [o for o, n in streets if n in cent and not any(same_street(w, n) for w in written)][:8]
+                if no or miss:
+                    res[line] = {'no': no[:8], 'miss': miss}
+    return res
+
+
 PREFIX = re.compile(r'^(רחוב|שדרות|שד\'|דרך|קניון|מרכז רפואי|בית חולים|ביה"ח|בי\'\'ח|מכללת|תחנת רכבת|אוניברסיטת)\s+')
 
 
@@ -295,14 +404,22 @@ def main():
                 continue
             in_article = extract_lines(wt)
             has_table = '{|' in wt and bool(in_article)
+            # בדיקת עמודת המסלול: רחובות כתובים שהקו לא עובר בהם / מרכזיים שחסרים
+            real_lines = {}
+            for l in st['lines']:
+                sl = l[5] if len(l) > 5 else None
+                if sl and l[0] not in real_lines:
+                    real_lines[l[0]] = {'streets': sl}
+            skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]}
+            route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names) if real_lines else {}
             wrong = [l for l in in_article if l not in real]
             correct = [l for l in in_article if l in real]
             missing = len(real) - len(correct)
             out[name] = {'article': title, 'kind': st.get('kind', 'station'), 'hasTable': has_table,
                          'inArticle': in_article, 'wrong': wrong,
-                         'correct': len(correct), 'missing': missing}
+                         'correct': len(correct), 'missing': missing, 'routes': route_issues}
             print(f'{name} → {title}: בערך {len(in_article)} · '
-                  f'שגויים {len(wrong)} · חסרים {missing}', flush=True)
+                  f'שגויים {len(wrong)} · חסרים {missing} · מסלולים לבדיקה {len(route_issues)}', flush=True)
         except Exception as e:  # noqa: BLE001 — ערך אחד לא מפיל את כולם
             out[name] = {'article': None, 'err': str(e)}
             print(f'{name}: שגיאה {e}', flush=True)
