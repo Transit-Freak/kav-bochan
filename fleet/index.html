@@ -175,7 +175,7 @@
 </div>
 
 <script>
-window.FLEET_BUILD='20';
+window.FLEET_BUILD='21';
 // ריפוי-עצמי של מטמון (בקשת שלמה — שלא יצטרך לנקות ידנית כל פעם):
 // GitHub Pages מחזיק את הדף במטמון עד ~10 דקות ובניידים לפעמים הרבה
 // יותר, ורענון רגיל לא תמיד מאמת מול השרת. לכן בכל טעינה הדף שואל את
@@ -258,6 +258,10 @@ function home(){
     let hits=[];
     for(const o of DATA.operators) for(const v of o.vehicles)
       if(!clean||v[0].replace(/-/g,'').includes(clean)) hits.push([o,v]);
+    // רכב שעבר בין חברות (למשל מטרופולין → גלים) רשום פעם בכל חברה — בתוצאות
+    // מופיע פעם אחת, אצל החברה שבה נצפה לאחרונה; ההיסטוריה המלאה בחלון הרכב (שלמה 18.09)
+    {const best=new Map();for(const h of hits){const b=best.get(h[1][0]);if(!b||h[1][2]>b[1][2])best.set(h[1][0],h);}
+     hits=[...best.values()];}
     if(SORTK){const key={p:v=>v[0],f:v=>v[1],l:v=>v[2],y:v=>gY(v)||0,m:v=>gM(v)||'',t:v=>gT(v)||'',r:v=>gR(v)||0,kd:v=>v._kd||0,kt:v=>v._kt||0,ok:v=>v._ok||0}[SORTK];
       if(key) hits.sort((a,b)=>{const x=key(a[1]),y=key(b[1]);return (x>y?1:x<y?-1:0)*SORTD;});}
     else hits.sort((a,b)=>a[1][2]<b[1][2]?1:a[1][2]>b[1][2]?-1:0);
