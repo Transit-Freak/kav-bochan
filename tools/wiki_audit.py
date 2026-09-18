@@ -427,12 +427,23 @@ def main():
             # ערים ותחנות קצה אינן רחובות: עיר התחנה, היעדים, וכל היישובים שבקובץ התחנות
             skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
             route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names) if real_lines else {}
+            # האם הערך מפרט רחובות בעמודת המסלול (חיצים, או 3 קטעים ומעלה בתא) — הטבלה
+            # המוכנה באתר מחקה את הסגנון הקיים: מפורט כשהערך מפורט, קצר כשלא (שלמה 18.09)
+            detailed = False
+            for hdr_, rows_ in parse_tables(wt):
+                ci_ = next((i for i, h in enumerate(hdr_) if 'מסלול' in h), None)
+                if ci_ is None:
+                    continue
+                cells = [r_[ci_] for r_ in rows_ if len(r_) > ci_]
+                if any(('←' in c or '→' in c or len(route_cell_streets(c)) >= 3) for c in cells):
+                    detailed = True
+                    break
             wrong = [l for l in in_article if l not in real]
             correct = [l for l in in_article if l in real]
             missing = len(real) - len(correct)
             out[name] = {'article': title, 'kind': st.get('kind', 'station'), 'hasTable': has_table,
                          'inArticle': in_article, 'wrong': wrong,
-                         'correct': len(correct), 'missing': missing, 'routes': route_issues}
+                         'correct': len(correct), 'missing': missing, 'routes': route_issues, 'detailed': detailed}
             print(f'{name} → {title}: בערך {len(in_article)} · '
                   f'שגויים {len(wrong)} · חסרים {missing} · מסלולים לבדיקה {len(route_issues)}', flush=True)
         except Exception as e:  # noqa: BLE001 — ערך אחד לא מפיל את כולם

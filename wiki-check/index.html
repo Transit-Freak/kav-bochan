@@ -156,7 +156,7 @@ function stView(){
     <div class="row2" style="margin-top:8px">
       <button class="btn" onclick="navigator.clipboard.writeText($('#wt').value).then(()=>{this.textContent='הועתק ✓';setTimeout(()=>this.textContent='העתקת הטבלה',1500)})">העתקת הטבלה</button>
     </div>
-    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · מסלול · רציף) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. המסלול: התחנה ← הרחובות המרכזיים שהקו עובר בהם (עד 6, לפי הסדר) ← היעד. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
+    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · מסלול · רציף) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. המסלול לפי סגנון הערך הקיים: אם הערך מפרט רחובות, הטבלה מפרטת את הרחובות המרכזיים שהקו עובר בהם (עד 6, לפי הסדר); אחרת מוצא-יעד בקצרה. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
   </div>`;
 }
 
@@ -185,8 +185,11 @@ function wikitext(s){
   // מסלול: הרחובות המרכזיים שהקו עובר בהם, לפי הסדר — עד 6
   const cent=DATA.central||{};
   const mainStreets=l=>(l[5]||[]).filter(([st,ct])=>(cent[ct]||[]).includes(st)).map(([st])=>st).filter((x,i,arr)=>arr.indexOf(x)===i).slice(0,6);
-  // הרחובות המרכזיים תמיד בטבלה המוכנה (שלמה 18.09) — לא רק כשהערך כבר מפורט
-  const routeTxt=l=>{const d=linkDests(l);const ms=mainStreets(l);const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return d==='קו מעגלי'?`'''${SEL}''' (קו מעגלי)`:`'''${SEL}'''${mid}${d}`;};
+  // סגנון הערך הקיים קובע (שלמה 18.09): ערך שמפרט רחובות מקבל מסלול מפורט, ערך עם מסלול קצר נשאר קצר.
+  // הסריקה השבועית יודעת את זה מראש (detailed); בדיקה חיה מעדכנת.
+  const a0=AUDIT&&AUDIT.stations&&AUDIT.stations[SEL];
+  const detailed=WIKI&&WIKI.done?!!WIKI.detailed:!!(a0&&a0.detailed);
+  const routeTxt=l=>{const d=linkDests(l);const ms=detailed?mainStreets(l):[];const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return d==='קו מעגלי'?`'''${SEL}''' (קו מעגלי)`:`'''${SEL}'''${mid}${d}`;};
   const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${routeTxt(l)}${hasPlat?` || ${l[3]||'—'}`:''}`).join('\n');
   return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! מסלול${hasPlat?' !! רציף':''}\n${rows}\n|}`;
 }
