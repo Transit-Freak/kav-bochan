@@ -129,6 +129,9 @@ def parse_tables(wt):
             if cur is None:
                 cur = []
             for c in re.split(r'\|\|', ln.lstrip('|')):
+                # תכונות תא ("rowspan=2 | טקסט") — נשאר רק הטקסט
+                if re.match(r'^\s*[a-zA-Z-]+\s*=', c) and '|' in c:
+                    c = c.split('|', 1)[1]
                 cur.append(c)
     return tables
 
@@ -156,7 +159,7 @@ def route_cell_streets(cell):
     out = []
     for part in STREET_SPLIT.split(cell):
         n = street_norm(part or '')
-        if len(n) >= 3 and not n.isdigit() and n not in out and n not in GENERIC:
+        if len(n) >= 3 and re.search(r'[א-ת]', n) and not n.isdigit() and n not in out and n not in GENERIC:
             out.append(n)
     return out
 
@@ -196,7 +199,11 @@ def check_routes(wt, real_lines, central, skip_names):
                 written = route_cell_streets(row[ci])
                 no = [w for w in written if not any(same_street(w, c) for c in skip)
                       and not any(same_street(w, n) for _, n in streets)]
-                miss = [o for o, n in streets if n in cent and not any(same_street(w, n) for w in written)][:8]
+                miss, seen_m = [], set()
+                for o, n in streets:
+                    if n in cent and n not in seen_m and not any(same_street(w, n) for w in written):
+                        miss.append(o); seen_m.add(n)
+                miss = miss[:5]
                 if no or miss:
                     res[line] = {'no': no[:8], 'miss': miss}
     return res
@@ -384,8 +391,14 @@ def main():
                 if kind == 'station':
                     # תחנות/מסופים: קודם לפי מיקום (הקואורדינטות שבערך מול מרכז
                     # המתחם ב-GTFS), ורק אם אין ערך קרוב — לפי השם, מתוך הקטגוריה בלבד
-                    title, dm = match_by_coords(st, coords)
-                    how = f'לפי מיקום ({dm} מ\')' if title else 'לפי שם'
+                    # שם זהה בקטגוריה ("מסוף משה ארנס" = "מסוף משה ארנס") גובר על מיקום —
+                    # מסוף זמני ליד תחנה מרכזית סגורה אינו הערך שלה; אחרת לפי מיקום, ואז לפי שם
+                    exact = next((t for t in cat_titles if norm(t) == norm(name)), None)
+                    if exact:
+                        title, how = exact, 'שם זהה'
+                    else:
+                        title, dm = match_by_coords(st, coords)
+                        how = f'לפי מיקום ({dm} מ\')' if title else 'לפי שם'
                     if not title:
                         title = match_in_category(name, st['city'], cat_titles)
                     if title:

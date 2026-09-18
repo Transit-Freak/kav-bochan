@@ -117,7 +117,7 @@ def main():
         name = (r.get('stop_name') or '').strip()
         desc = r.get('stop_desc') or ''
         mc = CITY_RE.search(desc)
-        city = mc.group(1).strip() if mc else ''
+        city = re.sub(r'\bקרית\b', 'קריית', mc.group(1).strip()) if mc else ''   # קרית גת = קריית גת
         ms0 = STREET_RE.search(desc)
         st0 = re.sub(r'\s+\d+[א-ת]?$', '', ms0.group(1).strip()) if ms0 else ''   # בלי מספר בית
         if st0 and city and len(st0) > 1 and not st0[0].isdigit():
