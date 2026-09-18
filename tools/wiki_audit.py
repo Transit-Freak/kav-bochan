@@ -88,8 +88,12 @@ def find_article(name, city, kind='station'):
     """חיפוש שמחזיר רק ערך שנראה רלוונטי — לא סתם התוצאה הראשונה."""
     core = PREFIX.sub('', name).strip()
     if kind == 'station':
+        # חובה: שם העיר בכותרת (או שם המסוף עצמו) — "מרכזית" לבד תופס כל תחנה בארץ
+        toks = [city] + [w for w in city.split() if len(w) > 2]
+        mcore = PREFIX.sub('', name).replace('ת. מרכזית', '').strip()
         def rel(t):
-            return any(w in t for w in ('תחנה', 'מסוף', 'מרכזית')) or city in t
+            return (any(tok and tok in t for tok in toks) or (len(mcore) > 3 and mcore in t)) \
+                and any(w in t for w in ('תחנה', 'מסוף', 'מרכזית'))
         qs = (f'{name} {city}', f'התחנה המרכזית של {city}', f'התחנה המרכזית {city}')
     elif kind == 'street':
         def rel(t):
@@ -99,6 +103,11 @@ def find_article(name, city, kind='station'):
         def rel(t):
             return core in t
         qs = (f'{name} {city}', f'{core} {city}', core)
+    return rel, qs
+
+
+def search_article(name, city, kind='station'):
+    rel, qs = find_article(name, city, kind)
     for q in qs:
         r = api({'action': 'query', 'list': 'search', 'srlimit': '5', 'srsearch': q})
         for h in r.get('query', {}).get('search', []):
@@ -139,7 +148,11 @@ def main():
             if name in override:
                 title = override[name]   # null = אין ערך מתאים, לא מחפשים
             else:
-                title = known.get(name) or find_article(name, st['city'], st.get('kind', 'station'))
+                kind = st.get('kind', 'station')
+                rel, _ = find_article(name, st['city'], kind)
+                prev = known.get(name)
+                # שיוך שנשמר מסריקה קודמת חייב לעבור את אותה בדיקת רלוונטיות
+                title = prev if (prev and rel(prev)) else search_article(name, st['city'], kind)
             if not title:
                 out[name] = {'article': None}
                 print(f'{name}: לא נמצא ערך', flush=True)
