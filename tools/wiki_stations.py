@@ -288,7 +288,9 @@ def main():
         if len(lks) >= 10:
             central.setdefault(ct_, []).append(st_)
     print(f'רחובות מרכזיים: {sum(len(v) for v in central.values())} ב-{len(central)} ערים', flush=True)
-    out = {'updated': datetime.date.today().isoformat(), 'stations': out_st, 'central': central}
+    # כל היישובים שבקובץ התחנות — כדי ששם עיר בתא המסלול (זכרון יעקב, בני ברק) לא ייחשב רחוב
+    all_cities = sorted({v[1] for v in stop_street.values()} | {c for c in central})
+    out = {'updated': datetime.date.today().isoformat(), 'stations': out_st, 'central': central, 'cities': all_cities}
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     tmp = f'{OUT}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:

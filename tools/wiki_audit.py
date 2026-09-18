@@ -195,9 +195,10 @@ def check_routes(wt, real_lines, central, skip_names):
                     continue
                 streets = [(x[0], street_norm(x[0])) for x in ls['streets']]
                 cities = {x[1] for x in ls['streets']}
+                lskip = skip | {street_norm(c) for c in cities}
                 cent = {street_norm(st) for ct in cities for st in central.get(ct, [])}
                 written = route_cell_streets(row[ci])
-                no = [w for w in written if not any(same_street(w, c) for c in skip)
+                no = [w for w in written if not any(same_street(w, c) for c in lskip)
                       and not any(same_street(w, n) for _, n in streets)]
                 miss, seen_m = [], set()
                 for o, n in streets:
@@ -423,7 +424,8 @@ def main():
                 sl = l[5] if len(l) > 5 else None
                 if sl and l[0] not in real_lines:
                     real_lines[l[0]] = {'streets': sl}
-            skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]}
+            # ערים ותחנות קצה אינן רחובות: עיר התחנה, היעדים, וכל היישובים שבקובץ התחנות
+            skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
             route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names) if real_lines else {}
             wrong = [l for l in in_article if l not in real]
             correct = [l for l in in_article if l in real]
