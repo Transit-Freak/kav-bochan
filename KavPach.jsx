@@ -2800,12 +2800,16 @@ const DAYS_FILTER = [
       stops: 'תחנות.xlsx',
       benchmark: 'עלות לנוסע.xlsx',
     };
+    // מפתח הקאש נגזר מהקבצים שבאמת נטענים — ה-JSON. ה-HEAD לקובצי ה-xlsx
+    // הישנים החזיר 404, המפתח נשאר ריק, והקאש המקומי (IndexedDB) לא שימש
+    // אף פעם: כל כניסה הורידה ופענחה מחדש 31MB (שלמה 18.09: "האתר איטי")
+    const KEY_FILES = ['data-main.json', 'data-schedule.json', 'data-stops.json', 'data-benchmark.json'];
     try {
       // שלב 1: HEAD מקביל לכל הקבצים → מפתח קאש משולב.
       let fileKey = null;
       try {
         const sigs = await Promise.all(
-          Object.values(FILES).map(f =>
+          KEY_FILES.map(f =>
             // cache: 'no-cache' מאלץ אימות-מחדש מול השרת (304 אם לא השתנה) —
             // כך חתימת הקובץ תמיד עדכנית והקאש המקומי מתעדכן כשהנתונים משתנים.
             fetch(f, { method: 'HEAD', cache: 'no-cache' }).then(r => (r.ok ? (fileKeyFromHeaders(r) || '') : '')).catch(() => '')
