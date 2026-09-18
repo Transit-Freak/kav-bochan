@@ -31,12 +31,13 @@
      הסטטית תוצג באותו פונט בדיוק — בלי "קפיצת" טיפוגרפיה כשהאפליקציה עולה. -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" />
-<script src="vendor/tailwind.js"></script>
+<!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+<noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" /></noscript>
+<link rel="stylesheet" href="vendor/kavpach.css?v=0abf8cd870" />
 <!-- React ייצור: גרסת הפיתוח איטית משמעותית (בדיקות בכל רינדור) -->
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
-<script src="vendor/babel.min.js"></script>
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -357,9 +358,8 @@
       </div>
     </div>
   </div>
-  <!-- הקוד נטען עם cache:no-cache — הדפדפן מאמת מול השרת (ETag) ומקבל 304
-       כשאין שינוי, כך שאין צורך לעדכן חותמת ?v ידנית בכל פריסה. הקומפילציה
-       נשמרת ב-localStorage לפי hash של התוכן — מתחלפת מעצמה בכל שינוי קוד. -->
+  <!-- KavPach.js מקומפל מראש (tools/build_kavpach.mjs, רץ ב-GitHub Actions בכל
+       שינוי של KavPach.jsx) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
   <script>
     (function () {
       // חיווי מיידי בלחיצה על כלי לפני שהאפליקציה עלתה — במקום כפתור מת
@@ -369,40 +369,39 @@
         var cta = a.querySelector('[data-cta]');
         if (cta) cta.textContent = '⏳ טוען את הכלי…';
       });
-      fetch('KavPach.jsx', { cache: 'no-cache' })
-        .then(function (r) { return r.text(); })
-        .then(function (src) {
-          // מפתח ה-cache נגזר מתוכן הקובץ עצמו (hash) ולא מחותמת ידנית:
-          // כל שינוי בקוד מבטל אוטומטית את הקומפילציה השמורה — הבאג שבו
-          // מבקרים חוזרים נתקעו על גרסה ישנה (הסמל "נעלם") לא יחזור.
-          var h = 0;
-          for (var i = 0; i < src.length; i++) h = (h * 31 + src.charCodeAt(i)) | 0;
-          var key = 'kavpach-js-' + h, js = null;
-          try { js = localStorage.getItem(key); } catch (e) {}
-          if (!js) {
-            js = Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code;
-            try {
-              Object.keys(localStorage).forEach(function (k) {
-                if (k.indexOf('kavpach-js-') === 0 && k !== key) localStorage.removeItem(k);
-              });
-              localStorage.setItem(key, js);
-            } catch (e) {}
+      // הקוד מקומפל מראש (tools/build_kavpach.mjs → KavPach.js, חותמת ?v= לפי
+      // תוכן) — בלי Babel בדפדפן. אם הקובץ חסר, קומפילציה בדפדפן כמו קודם.
+      var mount = function () {
+        window.__kavpachReady = true;
+        var tries = 0;
+        (function go() {
+          if (typeof KavPach === 'undefined') {
+            if (tries++ < 400) return setTimeout(go, 25);
+            return;
           }
-          var sc = document.createElement('script');
-          sc.text = js;
-          document.body.appendChild(sc);
-          window.__kavpachReady = true;
-          var tries = 0;
-          (function go() {
-            if (typeof KavPach === 'undefined') {
-              if (tries++ < 400) return setTimeout(go, 25);
-              return;
-            }
-            var boot = document.getElementById('boot-loader');
-            if (boot) boot.remove();
-            ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(KavPach));
-          })();
-        });
+          var boot = document.getElementById('boot-loader');
+          if (boot) boot.remove();
+          ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(KavPach));
+        })();
+      };
+      var fallback = function () {
+        var b = document.createElement('script');
+        b.src = 'vendor/babel.min.js';
+        b.onload = function () {
+          fetch('KavPach.jsx', { cache: 'no-cache' }).then(function (r) { return r.text(); }).then(function (src) {
+            var sc = document.createElement('script');
+            sc.text = Babel.transform(src, { presets: ['react'], filename: 'KavPach.jsx' }).code;
+            document.body.appendChild(sc);
+            mount();
+          });
+        };
+        document.body.appendChild(b);
+      };
+      var sc = document.createElement('script');
+      sc.src = 'KavPach.js?v=0abf8cd870';
+      sc.onload = mount;
+      sc.onerror = fallback;
+      document.body.appendChild(sc);
     })();
   </script>
   <!-- כפתור הנגישות הצף — משותף לכל הכלים -->

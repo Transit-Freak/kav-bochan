@@ -1122,7 +1122,7 @@ def main():
                 e['vehicles'].add(pr[7])
                 if pr[0] != pr[4]:
                     e['other'] = e.get('other', 0) + 1
-                if len(e['ex']) < 24:   # מספיק כדי להצליב מול ספירות המשרד
+                if len(e['ex']) < 16:   # מספיק כדי להצליב מול ספירות המשרד (24→16: הקובץ נטען בכל כניסה לקו פח)
                     e['ex'].append([d0, pr[7], pr[0], pr[1], pr[2], pr[3], pr[4], pr[5], pr[6], pr[8],
                                     pr[11] if len(pr) > 12 else None, pr[12] if len(pr) > 12 else None])
     dh_out = {'days': dh_days, 'updated': day_obj['built'],
