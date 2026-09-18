@@ -9,6 +9,13 @@ on:
   push:
     branches: [main]
     paths: ['KavPach.jsx', 'index.html', 'tools/build_kavpach.mjs', 'kavpach-core.js', 'xlsx-worker.js', 'tools/precompute_kavpach.mjs', 'data-main.json', 'data-schedule.json', 'data-benchmark.json']
+  # עדכניות: הניקוד המוכן נשען על הארכיון, החפיפות והנסיעות התפעוליות — נבנה מחדש
+  # אחרי כל אחד מהתהליכים שמעדכנים אותם, וגם לילית ליתר ביטחון
+  workflow_run:
+    workflows: [line-history, bus-reliability, kavpach-overlap]
+    types: [completed]
+  schedule:
+    - cron: '45 7 * * *'
   workflow_dispatch:
 
 permissions:
@@ -20,11 +27,13 @@ concurrency:
 
 jobs:
   build:
-    if: github.actor != 'github-actions[bot]'
+    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'build: קו פח') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

@@ -2323,14 +2323,41 @@ function KavPach() {
   // איתה המסך הראשון עולה בלי להוריד ולפענח את לוח הזמנים; הנסיעות נטענות ברקע ללשוניות האחרות
   const [linesPre, setLinesPre] = useState(null);
   const [linesPreDone, setLinesPreDone] = useState(false);
+  const [linesPreMeta, setLinesPreMeta] = useState(null);   // deps/src של הקובץ המוכן — לבדיקת עדכניות
   useEffect(() => {
-    fetch('data-lines.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d && Array.isArray(d.lines) && d.lines.length) setLinesPre(d.lines); })
-      .catch(() => {}).finally(() => setLinesPreDone(true));
+    (async () => {
+      try {
+        const r = await fetch('data-lines.json', { cache: 'no-cache' });
+        const d = r.ok ? await r.json() : null;
+        if (!d || !Array.isArray(d.lines) || !d.lines.length) return;
+        // עדכניות: הקובץ המוכן נבנה מקובצי הנתונים בגודל מסוים; אם הקבצים החיים באתר
+        // שונים (עודכנו ועוד לא נבנה מחדש) — לא משתמשים בו, ומחשבים בדפדפן כמו קודם
+        try {
+          const heads = await Promise.all(['data-main.json', 'data-schedule.json'].map(f => fetch(f, { method: 'HEAD', cache: 'no-cache' }).then(h => (h.ok ? h.headers.get('content-length') : null)).catch(() => null)));
+          const want = [d.src && d.src.main, d.src && d.src.schedule];
+          const stale = heads.some((h, i) => h && want[i] && String(h) !== String(want[i]));
+          if (stale) { console.warn('data-lines.json לא תואם את קובצי הנתונים — מחשבים בדפדפן'); return; }
+        } catch (e) { /* בלי HEAD — מקבלים את הקובץ */ }
+        setLinesPreMeta({ deps: d.deps || {}, updated: d.updated });
+        setLinesPre(d.lines);
+      } catch (e) { /* אין קובץ מוכן — המסלול הישן */ }
+      finally { setLinesPreDone(true); }
+    })();
   }, []);
+  // הקבצים הנלווים (ארכיון, חפיפות, נסיעות תפעוליות, ~3MB) נטענים אחרי המסך הראשון:
+  // הניקוד המוכן בקובץ כבר כולל אותם, והם נחוצים רק להגדרות מותאמות ולפרטים בכרטיסים
+  const [depsStart, setDepsStart] = useState(false);
+  const [depsDone, setDepsDone] = useState(0);
   useEffect(() => {
-    fetch('bus/data/deadhead.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setDhObs(d)).catch(() => {});
-  }, []);
+    if (!linesPreDone) return;
+    if (!linesPre) { setDepsStart(true); return; }
+    const later = typeof requestIdleCallback === 'function' ? (f) => requestIdleCallback(f, { timeout: 3000 }) : (f) => setTimeout(f, 1500);
+    later(() => setDepsStart(true));
+  }, [linesPreDone, linesPre]);
+  useEffect(() => {
+    if (!depsStart) return;
+    fetch('bus/data/deadhead.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setDhObs(d)).catch(() => {}).finally(() => setDepsDone(n => n + 1));
+  }, [depsStart]);
   // מחושב רק כשהלשונית פתוחה (dhOpened) — לא מכביד על טעינת האתר
   const [dhOpened, setDhOpened] = useState(false);
   const deadhead = useMemo(() => (dhOpened ? computeDeadhead(trips || [], lineStopsMap, dset, dhObs) : null),
@@ -2355,19 +2382,22 @@ function KavPach() {
   const [searchCity, setSearchCity] = useState("");
   const [overlapMap, setOverlapMap] = useState(null); // חפיפת מסלולים בין קווים (kavpach-overlap.json, מתעדכן לילית)
   useEffect(() => {
-    fetch('kavpach-overlap.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setOverlapMap(d.lines || null)).catch(() => {});
-  }, []);
+    if (!depsStart) return;
+    fetch('kavpach-overlap.json', {cache:'no-cache'}).then(r => (r.ok ? r.json() : null)).then(d => d && setOverlapMap(d.lines || null)).catch(() => {}).finally(() => setDepsDone(n => n + 1));
+  }, [depsStart]);
   // הדלתא מהארכיון של "הקו בזמן" (kavpach-live.json, נבנה לילית): קווים
   // שכבר בוטלו, נסיעות עדכניות, צמצומים, קווים חדשים והשבתות. נתוני
   // הליבה כאן הם צילום מיוני 2026 — בלי זה הכלי ממליץ לבטל קווים
   // שכבר בוטלו. נטען ברקע; אם איננו — הכל עובד כמו קודם.
   const [liveMap, setLiveMap] = useState(null);
   const [liveGen, setLiveGen] = useState('');
+  useEffect(() => { if (linesPreMeta && linesPreMeta.deps && linesPreMeta.deps.live) setLiveGen(g => g || linesPreMeta.deps.live); }, [linesPreMeta]);
   useEffect(() => {
+    if (!depsStart) return;
     fetch('kavpach-live.json').then(r => (r.ok ? r.json() : null)).then(d => {
       if (d) { setLiveMap(d.lines || null); setLiveGen(d.gen || ''); }
-    }).catch(() => {});
-  }, []);
+    }).catch(() => {}).finally(() => setDepsDone(n => n + 1));
+  }, [depsStart]);
   // הכרטיסים מאגדים את שני הכיוונים — לכן החיפוש ברמת המקט השלם
   // (מפתח בלי מקף בדלתא); המקט בקו פח מגיע עם אפסים מובילים
   const liveOf = useCallback((makat) => {
@@ -2911,16 +2941,24 @@ const DAYS_FILTER = [
     }
   }, []);
 
+  // סדר עדיפויות ברשת (שלמה 18.09): קודם הקובץ המוכן (~400KB) והמסך הראשון, ורק
+  // אחר כך הורדת הנסיעות (~1.7MB דחוס) — אחרת שני הקבצים חולקים את הפס והמסך
+  // הראשון מחכה לכבד. אם אין קובץ מוכן — מיד, כמו קודם.
   useEffect(() => {
+    if (!linesPreDone) return;
     setLoadError(false);
     setInitialLoading(true);
     setFileProgress(0);
     setFileMessage('טוען נתונים…');
-    (async () => {
-      const ok = await loadFromXLSX();
-      if (!ok) loadFromCSV();
-    })();
-  }, [loadFromXLSX, loadFromCSV, retryCount]);
+    let cancelled = false;
+    const go = () => { if (cancelled) return; (async () => { const ok = await loadFromXLSX(); if (!ok) loadFromCSV(); })(); };
+    let h = null;
+    if (linesPre && linesPre.length) {
+      // שלוש שניות אחרי המסך הראשון — שהמשתמש יראה ויתחיל לגלול לפני שהמעבד עסוק בנסיעות
+      h = setTimeout(() => { const later = typeof requestIdleCallback === 'function' ? (f) => requestIdleCallback(f, { timeout: 3000 }) : (f) => setTimeout(f, 300); later(go); }, 3000);
+    } else go();
+    return () => { cancelled = true; };
+  }, [loadFromXLSX, loadFromCSV, retryCount, linesPreDone]);
 
   // טוען את ספריית XLSX ברקע (לצרכי ייצוא לאקסל בלבד — הפרסור עצמו רץ ב-worker).
   // קריאה לא חוסמת — אם הפרסור מסתיים לפני שה-XLSX הסתיים, אין בעיה.
@@ -3061,9 +3099,12 @@ const DAYS_FILTER = [
   }, [trips, costBenchmarkTable, appMode, linesPre]);
   const redundantLines = useMemo(() => {
     if (appMode !== 'kavpach') return [];
+    // הניקוד המוכן (ברירת מחדל, מהשרת) עד שהקבצים הנלווים נטענו; אחר כך — חישוב זהה
+    // בדפדפן, שמעדכן אם קובץ נלווה התחדש מאז הבנייה או אם המשתמש שינה הגדרות
+    const usePre = linesPre && linesPre.length && psetDefault && depsDone < 3 && lineRecords[0] && lineRecords[0].sc;
     const ctx = { pset, liveOf, overlapMap, dhObs };
-    return lineRecords.map(r => scoreGroup(r, ctx)).filter(l => l.score >= (Number(pset.minScore) || 0)).sort((a, b) => b.score - a.score);
-  }, [lineRecords, liveOf, overlapMap, pset, appMode, dhObs]);
+    return lineRecords.map(r => (usePre ? toLine(r, r.sc) : scoreGroup(r, ctx))).filter(l => l.score >= (Number(pset.minScore) || 0)).sort((a, b) => b.score - a.score);
+  }, [lineRecords, liveOf, overlapMap, pset, appMode, dhObs, linesPre, psetDefault, depsDone]);
 
   const filteredRedundant = useMemo(() => {
     let result = [...redundantLines];
@@ -3733,9 +3774,10 @@ const DAYS_FILTER = [
 
         {(fileLoad.active || initialLoading) && trips.length === 0 && (linesPre && linesPre.length) ? (
           /* הרשומות המחושבות מראש כבר על המסך — הנסיעות (ללשוניות האחרות) נטענות ברקע, פס דק בלבד */
-          <div className="mb-4 bg-white border border-slate-200 rounded-2xl px-4 py-2 flex items-center gap-3 text-xs font-bold text-slate-600">
+          /* צף בתחתית המסך — לא דוחף את התוכן (Lighthouse: CLS) */
+          <div className="fixed bottom-4 left-4 z-40 bg-white/95 border border-slate-200 rounded-2xl shadow-lg px-4 py-2 flex items-center gap-3 text-xs font-bold text-slate-600" style={{ width: 'min(20rem, calc(100vw - 2rem))' }} role="status" aria-live="polite">
             <Ic n="loader" size={14} cls="text-slate-500" animate={true} />
-            <span>{fileLoad.message || 'טוען את הנסיעות ברקע…'}</span>
+            <span className="whitespace-nowrap">{fileLoad.message || 'טוען את הנסיעות ברקע…'}</span>
             <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden"><div className="h-1.5 rounded-full bg-slate-700" style={{ width: `${fileLoad.progress || 2}%`, transition: 'width 0.3s ease' }} /></div>
           </div>
         ) : null}
@@ -3764,7 +3806,7 @@ const DAYS_FILTER = [
               </div>
             )}
           </div>
-        ) : trips.length === 0 && csvLoadFailed ? (
+        ) : trips.length === 0 && !preReady && csvLoadFailed ? (
           <div className="flex flex-col items-center justify-center py-32 px-6 bg-white rounded-[3rem] border-4 border-dashed border-slate-200 shadow-sm text-center">
             <div className="bg-slate-50 p-8 rounded-full mb-8"><Ic n="upload" size={48} cls="text-slate-300" /></div>
             <h2 className="text-3xl font-black text-slate-800 mb-4">מוכנים לזרוק קווים?</h2>
@@ -3776,7 +3818,7 @@ const DAYS_FILTER = [
               <input type="file" className="hidden" accept=".xlsx,.xls" onChange={onFile} />
             </label>
           </div>
-        ) : trips.length === 0 ? (
+        ) : trips.length === 0 && !preReady ? (
           <div className="flex flex-col items-center justify-center py-40 text-center gap-6">
             <div className="flex flex-col items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center">

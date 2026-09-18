@@ -37,11 +37,36 @@ const t1 = Date.now();
 const lines = core.aggregateLineGroups(parsed.trips, parsed.costBenchmark);
 console.log(`רשומות קווים: ${lines.length.toLocaleString()} (${Date.now() - t1} ms)`);
 
+// ניקוד בהגדרות ברירת המחדל עם הקבצים הנלווים כפי שהם ברגע הבנייה — כדי שהמסך
+// הראשון לא יצטרך להוריד גם אותם (ארכיון, חפיפות, נסיעות תפעוליות: ~3MB)
+const PACH_DEFAULTS = {
+  minScore: 25,
+  c: { lowTrips: { on: true, max: 30 }, wastedKm: { on: true, max: 20 }, cost: { on: true, max: 20 },
+       riders: { on: true, max: 30, low: null, peak: null }, deadhead: { on: true, max: 10 } },
+  p: { exclusive: 15, train: 10, school: 10, prebook: 20, weekend: 10, newLine: 10, reduced: 10, noAlt: 10 },
+};
+const optJson = (p) => { try { return JSON.parse(rd(p).toString('utf8')); } catch (e) { return null; } };
+const live = optJson('kavpach-live.json'), overlap = optJson('kavpach-overlap.json'), dh = optJson('bus/data/deadhead.json');
+const liveMap = live && live.lines ? live.lines : null;
+const sctx = {
+  pset: PACH_DEFAULTS,
+  liveOf: (mk) => (liveMap ? (liveMap[String(mk || '').replace(/^0+/, '').trim()] || null) : null),
+  overlapMap: overlap && overlap.lines ? overlap.lines : null,
+  dhObs: dh,
+};
+let nScored = 0;
+for (const r of lines) { r.sc = core.scoreCore(r, sctx); nScored++; }
+console.log(`ניקוד ברירת מחדל: ${nScored} רשומות`);
+
 const sig = (p) => { const st = fs.statSync(path.join(ROOT, p)); return `${st.size}`; };
 const out = {
   updated: new Date().toISOString().slice(0, 10),
+  // חתימות המקור: האתר משווה מול הקבצים החיים (Content-Length) — קובץ מוכן שלא תואם נזרק ומחושב בדפדפן
   src: { main: sig('data-main.json'), schedule: sig('data-schedule.json') },
+  // תאריכי הקבצים הנלווים שהניקוד המוכן נשען עליהם — קובץ נלווה חדש יותר = חישוב מחדש בדפדפן
+  deps: { live: live && live.gen || null, overlap: overlap && overlap.gen || null, deadhead: dh && dh.updated || null },
   core: crypto.createHash('sha1').update(rd('kavpach-core.js')).digest('hex').slice(0, 10),
+  psetDefaults: PACH_DEFAULTS,
   lines,
 };
 fs.writeFileSync(path.join(ROOT, 'data-lines.json'), JSON.stringify(out));

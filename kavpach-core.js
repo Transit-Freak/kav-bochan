@@ -243,7 +243,14 @@ function aggregateLineGroups(trips, costBenchmarkTable) {
 }
 
 // ── שלב 2: ניקוד (זול) — רשומה + הגדרות המשתמש + ארכיון/חפיפות/נסיעות תפעוליות ──
+// scoreCore נותן רק את מה שתלוי בהגדרות ובקבצים הנלווים (ציון, רכיבים, הגנות);
+// ה-Action מחשב אותו מראש בהגדרות ברירת המחדל ושומר ברשומה (sc) — האתר מציג
+// אותו מיד, ומחשב מחדש רק כשמשנים הגדרות או כשהקבצים הנלווים התעדכנו.
 function scoreGroup(r, ctx) {
+  return toLine(r, scoreCore(r, ctx));
+}
+
+function scoreCore(r, ctx) {
   const { pset, liveOf, overlapMap, dhObs } = ctx;
   const PC = pset.c;
   const componentScores = {};
@@ -339,9 +346,16 @@ function scoreGroup(r, ctx) {
     }
   }
   const finalScore = Math.max(0, rawScore - totalDeduction);
+  return { score: finalScore, rawScore, componentScores, dhWeekly, protections, totalDeduction, live };
+}
+
+// רשומה + תוצאת הניקוד → האובייקט שהכרטיסים מציגים
+function toLine(r, sc) {
+  const finalScore = sc.score;
   const tier = getStatusTier(finalScore);
   const annualExcess = (r.avgCost > 0 && r.costBenchmark > 0 && r.avgCost > r.costBenchmark)
     ? Math.round((r.avgCost - r.costBenchmark) * r.avgRiders * r.totalTrips * 52) : 0;
+  const { rawScore, componentScores, dhWeekly, protections, totalDeduction, live } = sc;
   return {
     lineNum: r.lineNum,
     avg: r.avgRiders.toFixed(1),
@@ -374,4 +388,4 @@ function scoreGroup(r, ctx) {
   };
 }
 
-if (typeof module !== 'undefined') module.exports = { aggregateLineGroups, scoreGroup, classifyLine, lookupCostBenchmark, getStatusTier, maxSumOf, normScore, LOW_RIDER_THRESHOLD, CATEGORIES, STATUS_TIERS };
+if (typeof module !== 'undefined') module.exports = { aggregateLineGroups, scoreGroup, scoreCore, toLine, classifyLine, lookupCostBenchmark, getStatusTier, maxSumOf, normScore, LOW_RIDER_THRESHOLD, CATEGORIES, STATUS_TIERS };
