@@ -135,6 +135,8 @@ def main():
     if os.path.exists(ov_path):
         with open(ov_path, encoding='utf-8') as f:
             override = json.load(f)
+        # סובלנות לאיות "ת.מרכזית"/"ת. מרכזית" במפתחות
+        override = {re.sub(r'^ת\.\s*מרכזית', 'ת. מרכזית', k): v for k, v in override.items()}
     known = {}
     if os.path.exists(OUT):
         with open(OUT, encoding='utf-8') as f:
