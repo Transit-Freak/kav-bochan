@@ -209,13 +209,20 @@ def same_street(a, b):
 # מול ה-GTFS אפשר לאמת נגישות וקו מעגלי; ממוגן/הזמנה מראש/הזנה אינם בקובץ — לא נבדקים ולא נספרים כשגיאה.
 ACC_RE = re.compile(r'♿|נגיש')
 CIRC_RE = re.compile(r'🔄|מעגלי|סיבובי')
-ICONS_RE = re.compile(r'[♿🔄🛡️💺🚆\U0001F6E1\uFE0F]')
+ARM_RE = re.compile(r'🛡|ממוגן')
+BOOK_RE = re.compile(r'💺|הזמנה מראש|לפי דרישה')
+FEED_RE = re.compile(r'🚆|הזנה|מזין')
+ICONS_RE = re.compile(r'[♿🔄🛡💺🚆\U0001F6E1\uFE0F]')
 
 
-def check_marks(wt, real_acc, real_circ):
-    """סימוני ♿ ו-🔄 בטבלאות מול ה-GTFS: קו שראוי לסימון ואין ('missing'),
-    וסימון על קו שאינו כזה ('wrong'). real_acc: קו → 1/0/2; real_circ: קו → True/False."""
-    out = {'missing': [], 'wrong': [], 'circMissing': [], 'circWrong': []}
+def check_marks(wt, real_acc, real_circ, real_flags=None):
+    """סימוני ♿ 🔄 🛡️ 💺 🚆 בטבלאות מול הנתונים שלנו: קו שראוי לסימון ואין ('...Missing'),
+    וסימון על קו שאינו כזה ('...Wrong'). real_acc: קו → 1/0/2; real_circ: קו → bool;
+    real_flags: קו → [ממוגן ירי, לפי דרישה, מזין] (מארכיון הקו בזמן ומקובץ המשרד)."""
+    out = {'missing': [], 'wrong': [], 'circMissing': [], 'circWrong': [],
+           'armMissing': [], 'armWrong': [], 'bookMissing': [], 'bookWrong': [], 'feedMissing': [], 'feedWrong': []}
+    real_flags = real_flags or {}
+    extra = [('arm', ARM_RE, 0), ('book', BOOK_RE, 1), ('feed', FEED_RE, 2)]
     for hdr, rows in parse_tables(wt):
         for row in rows:
             if not row:
@@ -240,6 +247,14 @@ def check_marks(wt, real_acc, real_circ):
                         out['circMissing'].append(line)
                     if not circ and circ_marked and line not in out['circWrong']:
                         out['circWrong'].append(line)
+                fl = real_flags.get(line)
+                if fl:
+                    for key, rx, i in extra:
+                        marked = any(rx.search(c or '') for c in row)
+                        if fl[i] and not marked and line not in out[key + 'Missing']:
+                            out[key + 'Missing'].append(line)
+                        if not fl[i] and marked and line not in out[key + 'Wrong']:
+                            out[key + 'Wrong'].append(line)
     return out
 
 
@@ -516,7 +531,8 @@ def main():
             real_acc = {l[0]: l[6] for l in st['lines'] if len(l) > 6 and l[6] is not None}
             # קו מעגלי לפי ה-GTFS: בלי יעדים מחוץ לתחנה (כל הקצוות הם התחנה עצמה)
             real_circ = {l[0]: (len([d for d in l[2] if d and d != name and not name.startswith(d)]) == 0) for l in st['lines']}
-            acc_issues = check_marks(wt, real_acc, real_circ) if has_table else {'missing': [], 'wrong': [], 'circMissing': [], 'circWrong': []}
+            real_flags = {l[0]: l[7] for l in st['lines'] if len(l) > 7 and l[7]}
+            acc_issues = check_marks(wt, real_acc, real_circ, real_flags) if has_table else {}
             # האם הערך מפרט רחובות בעמודת המסלול (חיצים, או 3 קטעים ומעלה בתא) — הטבלה
             # המוכנה באתר מחקה את הסגנון הקיים: מפורט כשהערך מפורט, קצר כשלא (שלמה 18.09)
             detailed = False

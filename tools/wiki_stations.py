@@ -175,11 +175,30 @@ def main():
     agency = {r['agency_id']: (r.get('agency_name') or '').strip()
               for r in reader(zf, 'agency.txt')}
     routes = {}
+    route_makat = {}
     for r in reader(zf, 'routes.txt'):
         routes[r['route_id']] = (
             (r.get('route_short_name') or '').strip(),
             agency.get(r.get('agency_id'), ''),
             r.get('route_long_name') or '')
+        route_makat[r['route_id']] = (r.get('route_desc') or '').split('-')[0].strip()
+    # סימוני ויקיפדיה מהנתונים שכבר יש לנו (שלמה 18.09): מארכיון "הקו בזמן" —
+    # תקן הרכב מרישום המשרד (🛡️ "ממוגן ירי"), שירות לפי דרישה (💺, route_type 715)
+    # וקווים מזינים (🚆, מקובץ המשרד "ייחודיות")
+    flags = {'arm': set(), 'demand': set(), 'feed': set()}
+    lh = os.path.join(os.path.dirname(os.path.dirname(OUT)), '..', 'line-history', 'data', 'lines.json')
+    lh = os.path.normpath(lh)
+    if os.path.exists(lh):
+        with open(lh, encoding='utf-8') as f:
+            for l in json.load(f).get('lines', []):
+                mk = str(l.get('rd', '')).split('-')[0]
+                if 'ממוגן ירי' in (l.get('vt') or ''):
+                    flags['arm'].add(mk)
+                if l.get('tt') == 'demand':
+                    flags['demand'].add(mk)
+                if l.get('un') == 'קווים מזינים':
+                    flags['feed'].add(mk)
+        print(f"סימונים מהארכיון: ממוגן ירי {len(flags['arm'])} · לפי דרישה {len(flags['demand'])} · מזינים {len(flags['feed'])}", flush=True)
 
     # 3. trips: trip_id → route_id
     trip_route = {}
@@ -295,6 +314,11 @@ def main():
             out |= route_places.get(rid, set())
         return sorted(out)
 
+    def flags_of(rids):
+        """[ממוגן ירי, לפי דרישה/הזמנה מראש, מזין] — 1/0 לפי המק"טים של המסלולים."""
+        mks = {route_makat.get(rid, '') for rid in rids}
+        return [1 if mks & flags['arm'] else 0, 1 if mks & flags['demand'] else 0, 1 if mks & flags['feed'] else 0]
+
     def acc_of(rids):
         """נגישות הקו בתחנה: 1 = כל הנסיעות נגישות, 0 = אף אחת, 2 = חלקית."""
         ok = tot = 0
@@ -326,7 +350,8 @@ def main():
                        plat_join(x['dep'] if x.get('dep') else x['plats']),
                        1 if x['term'] else 0,
                        streets_of(x.get('rids', ())),
-                       acc_of(x.get('rids', ()))] for x in lines]}
+                       acc_of(x.get('rids', ())),
+                       flags_of(x.get('rids', ()))] for x in lines]}
         # שמות התחנות במסלול — לסריקה בלבד (קובץ נפרד, שהאתר לא טוען)
         out_places[label] = {x['line']: places_of(x.get('rids', ())) for x in lines}
     kinds = Counter(v['kind'] for v in out_st.values())
