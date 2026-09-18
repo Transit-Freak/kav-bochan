@@ -94,28 +94,45 @@ def extract_lines(wt):
 
 
 def parse_tables(wt):
-    """כל הטבלאות בערך: [(כותרות, [שורות של תאים])] — תא = טקסט גולמי (wikitext)."""
+    """כל הטבלאות בערך: [(כותרות, [שורות של תאים])] — תא = טקסט גולמי (wikitext).
+    תא ממוזג (rowspan=N, למשל ♿ שחל על כמה קווים) מועתק לכל השורות שהוא מכסה —
+    אחרת סימון הנגישות נראה רק בשורה הראשונה (שלמה 18.09)."""
     tables, hdr, rows, cur = [], [], [], None
     in_t = 0
+    spans = []          # [עמודה, שורות שנותרו, טקסט] — תאים ממוזגים שנמשכים לשורות הבאות
+
+    def close_row():
+        nonlocal cur
+        if cur is None:
+            return
+        # תאים ממוזגים משורות קודמות נכנסים למקומם
+        for sp in sorted(spans, key=lambda x: x[0]):
+            if sp[3]:               # נרשם בשורה הזו — חל רק מהשורה הבאה
+                sp[3] = False
+                continue
+            if sp[1] > 0:
+                cur.insert(min(sp[0], len(cur)), sp[2])
+                sp[1] -= 1
+        rows.append(cur)
+        cur = None
+
     for raw in wt.split('\n'):
         ln = raw.strip()
         if ln.startswith('{|'):
             in_t += 1
-            hdr, rows, cur = [], [], None
+            hdr, rows, cur, spans = [], [], None, []
             continue
         if ln.startswith('|}'):
-            if cur:
-                rows.append(cur)
+            close_row()
             if in_t:
                 tables.append((hdr, rows))
             in_t = max(0, in_t - 1)
-            hdr, rows, cur = [], [], None
+            hdr, rows, cur, spans = [], [], None, []
             continue
         if not in_t:
             continue
         if ln.startswith('|-'):
-            if cur:
-                rows.append(cur)
+            close_row()
             cur = []
             continue
         if ln.startswith('|+'):
@@ -129,9 +146,15 @@ def parse_tables(wt):
             if cur is None:
                 cur = []
             for c in re.split(r'\|\|', ln.lstrip('|')):
-                # תכונות תא ("rowspan=2 | טקסט") — נשאר רק הטקסט
+                # תכונות תא ("rowspan=2 | טקסט") — נשאר רק הטקסט; rowspan נזכר לשורות הבאות
+                attrs = ''
                 if re.match(r'^\s*[a-zA-Z-]+\s*=', c) and '|' in c:
-                    c = c.split('|', 1)[1]
+                    attrs, c = c.split('|', 1)
+                m = re.search(r'rowspan\s*=\s*"?(\d+)', attrs)
+                # מיקום העמודה כולל תאים ממוזגים שכבר "תופסים" מקום בשורה הזו
+                col = len(cur) + sum(1 for sp in spans if not sp[3] and sp[1] > 0 and sp[0] <= len(cur))
+                if m and int(m.group(1)) > 1:
+                    spans.append([col, int(m.group(1)) - 1, c, True])
                 cur.append(c)
     return tables
 
