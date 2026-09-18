@@ -48,11 +48,21 @@ def station_key(stop_name):
     base = re.sub(r'\s+', ' ', base).strip()
     base = re.sub(r'^ת\.\s*מרכזית', 'ת. מרכזית', base)   # איחוד "ת.מרכזית"/"ת. מרכזית"
     base = re.sub(r'^תחנה מרכזית\b', 'ת. מרכזית', base)
+    # "מסוף קסטינה-מלאכי לדרום"/"לצפון"/"ת. מרכזית אשקלון רציפים" — אותו מתחם,
+    # ערך אחד בוויקיפדיה; בלי האיחוד הקווים מהרציפים האחרים נראו "שגויים" (שלמה 18.09)
+    while True:
+        b2 = re.sub(r'\s+(לדרום|לצפון|למזרח|למערב|רציפים|רציף|הורדה|איסוף|עליה|עלייה|בינעירוני|עירוני|עירוניים|אזורי)$', '', base)
+        if b2 == base:
+            break
+        base = b2
     # קיצורי ערים בשמות תחנות — כדי שראשל''צ וראשון לציון יהיו אותה תחנה
     for ab, full in ABBR.items():
         base = base.replace(ab, full)
     if 'סבידור' in base or base in ('תל אביב מרכז', 'מסוף 2000'):
         return 'מסוף ארלוזורוב (סבידור)'
+    base = re.sub(r'\bקרית\b', 'קריית', base)          # קרית שרת / קריית שרת — אותו מסוף
+    if 'סולט' in base and 'סולימאן' in base:               # מסוף סולטאן סולימאן = ת. מרכזית סולטן סולימאן
+        return 'ת. מרכזית סולטן סולימאן'
     return base
 
 
@@ -94,6 +104,14 @@ def main():
     # 1. קבוצות מתוך stops.txt: תחנות מרכזיות/מסופים, רחובות, מקומות מרכזיים.
     #    לכל עצירה: רשימת (מפתח קבוצה, סוג, שם, עיר, רציף)
     stop_groups = {}
+    gpos = {}          # מפתח קבוצה → נקודות התחנות (למרכז המתחם — שידוך לערך לפי קואורדינטות)
+    # שיוך ידני מק"ט→מתחם (wiki-check/data/stop-groups.json): תחנת רחוב שהיא
+    # בפועל רציף של המסוף (שלמה 18.09: מסוף אגד דימונה = תחנה 12612)
+    manual = {}
+    mp = os.path.join(os.path.dirname(OUT), 'stop-groups.json')
+    if os.path.exists(mp):
+        with open(mp, encoding='utf-8') as f:
+            manual = {k: v for k, v in json.load(f).items() if not k.startswith('_')}
     for r in reader(zf, 'stops.txt'):
         name = (r.get('stop_name') or '').strip()
         desc = r.get('stop_desc') or ''
@@ -104,10 +122,16 @@ def main():
         if plat in ('0', 'None', 'ם') or plat.startswith('קומה'):
             plat = ''
         groups = []
+        code = (r.get('stop_code') or '').strip()
+        if code in manual:
+            lab = re.sub(r'\s*\(.*?\)\s*$', '', manual[code])
+            groups.append((f'S|{lab}|{city}', 'station', lab, city, plat))
         base = station_key(name)
         if any(w in base for w in STATION_WORDS):
             if base in ('תחנה מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'מרכזית') and city:
                 base = f'ת. מרכזית {city}'
+            if base == 'מסוף' and city:                     # "מסוף" סתמי — המסוף של העיר
+                base = f'מסוף {city}'
             if base == 'מסוף ארלוזורוב (סבידור)':
                 city = 'תל אביב יפו'
             groups.append((f'S|{base}|{city}', 'station', base, city, plat))
@@ -115,6 +139,12 @@ def main():
         # מרכזיות שרשומות בוויקיפדיה") — הכלי עוסק בקטגוריה הזו בלבד.
         if groups:
             stop_groups[r['stop_id']] = groups
+            try:
+                la, lo = float(r['stop_lat']), float(r['stop_lon'])
+                for gk, *_ in groups:
+                    gpos.setdefault(gk, []).append((la, lo))
+            except (KeyError, ValueError, TypeError):
+                pass
     print(f'stops: {len(stop_groups)} עצירות בקבוצות', flush=True)
 
     # 2. routes + agency
@@ -159,7 +189,7 @@ def main():
         if not short:
             continue
         kind, base, city = meta[gk]
-        st = stations.setdefault(gk, {'kind': kind, 'name': base, 'city': city, 'lines': {}})
+        st = stations.setdefault(gk, {'kind': kind, 'name': base, 'city': city, 'lines': {}, 'pos': gpos.get(gk, [])})
         ends = endpoint_cities(long_name)
         term = kind == 'station' and any(station_key(e[0]) == base for e in ends)
         dests = set()
@@ -192,8 +222,11 @@ def main():
             label = st['name']
         else:
             label = f"{st['name']} ({st['city']})"
+        pos = st.get('pos') or []
         out_st[label] = {
             'kind': st['kind'], 'city': st['city'],
+            'lat': round(sum(p[0] for p in pos) / len(pos), 5) if pos else None,
+            'lon': round(sum(p[1] for p in pos) / len(pos), 5) if pos else None,
             'lines': [[x['line'], x['op'], sorted(x['dests']),
                        '/'.join(sorted(x['plats'])[:3]),
                        1 if x['term'] else 0] for x in lines]}

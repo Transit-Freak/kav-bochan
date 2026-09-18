@@ -156,6 +156,44 @@ def category_articles(root=CATEGORY, depth=3):
     return titles
 
 
+def category_coords(titles):
+    """קואורדינטות של כל ערך בקטגוריה (prop=coordinates) — {כותרת: (lat, lon)}."""
+    out = {}
+    ts = sorted(titles)
+    for i in range(0, len(ts), 50):
+        r = api({'action': 'query', 'prop': 'coordinates', 'coprimary': 'primary',
+                 'titles': '|'.join(ts[i:i + 50])})
+        for pg in r.get('query', {}).get('pages', {}).values():
+            co = pg.get('coordinates')
+            if co:
+                out[pg['title']] = (co[0]['lat'], co[0]['lon'])
+        time.sleep(0.3)
+    print(f'קואורדינטות: {len(out)} מתוך {len(ts)} ערכים', flush=True)
+    return out
+
+
+def dist_m(a, b):
+    import math
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    x = (lo2 - lo1) * math.cos((la1 + la2) / 2)
+    return math.hypot(x, la2 - la1) * 6371000
+
+
+NEAR_M = 400   # ערך שהקואורדינטות שלו עד 400 מ' ממרכז המתחם — זה הערך של המתחם
+
+
+def match_by_coords(st, coords):
+    """הערך הקרוב ביותר למתחם לפי קואורדינטות (שלמה 18.09: "בכל ערך יש קואורדינטות")."""
+    if st.get('lat') is None:
+        return None, None
+    best, bd = None, None
+    for t, c in coords.items():
+        d = dist_m((st['lat'], st['lon']), c)
+        if bd is None or d < bd:
+            best, bd = t, d
+    return (best, round(bd)) if bd is not None and bd <= NEAR_M else (None, round(bd) if bd is not None else None)
+
+
 def norm(t):
     t = re.sub(r'\(.*?\)', ' ', t)
     t = t.replace('"', '').replace("'", '').replace('-', ' ').replace('–', ' ')
@@ -225,6 +263,7 @@ def main():
                 if v.get('article'):
                     known[k] = v['article']
     cat_titles = category_articles()
+    coords = category_coords(cat_titles)
     out = {}
     for name, st in data['stations'].items():
         real = {l[0] for l in st['lines']}
@@ -234,8 +273,14 @@ def main():
             else:
                 kind = st.get('kind', 'station')
                 if kind == 'station':
-                    # תחנות/מסופים: רק מתוך הקטגוריה הרשמית בוויקיפדיה
-                    title = match_in_category(name, st['city'], cat_titles)
+                    # תחנות/מסופים: קודם לפי מיקום (הקואורדינטות שבערך מול מרכז
+                    # המתחם ב-GTFS), ורק אם אין ערך קרוב — לפי השם, מתוך הקטגוריה בלבד
+                    title, dm = match_by_coords(st, coords)
+                    how = f'לפי מיקום ({dm} מ\')' if title else 'לפי שם'
+                    if not title:
+                        title = match_in_category(name, st['city'], cat_titles)
+                    if title:
+                        print(f'  {name} → {title} {how}', flush=True)
                 else:
                     rel, _ = find_article(name, st['city'], kind)
                     prev = known.get(name)
