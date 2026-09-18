@@ -122,8 +122,10 @@ def main():
     for name, st in data['stations'].items():
         real = {l[0] for l in st['lines']}
         try:
-            title = override.get(name) or known.get(name) or \
-                find_article(name, st['city'])
+            if name in override:
+                title = override[name]   # null = אין ערך מתאים, לא מחפשים
+            else:
+                title = known.get(name) or find_article(name, st['city'])
             if not title:
                 out[name] = {'article': None}
                 print(f'{name}: לא נמצא ערך', flush=True)
