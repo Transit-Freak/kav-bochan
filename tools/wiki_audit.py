@@ -116,6 +116,67 @@ def search_article(name, city, kind='station'):
     return None
 
 
+CATEGORY = 'קטגוריה:ישראל: תחנות מרכזיות ומסופי אוטובוסים'
+
+
+def category_articles(root=CATEGORY, depth=3):
+    """כל הערכים בקטגוריה, כולל תת-קטגוריות (לפי עיר) — הרשימה הסמכותית."""
+    titles, seen, queue = set(), set(), [(root, 0)]
+    while queue:
+        cat, d = queue.pop()
+        if cat in seen:
+            continue
+        seen.add(cat)
+        cont = {}
+        while True:
+            r = api({'action': 'query', 'list': 'categorymembers', 'cmtitle': cat,
+                     'cmlimit': '500', 'cmtype': 'page|subcat', **cont})
+            for m in r.get('query', {}).get('categorymembers', []):
+                if m['ns'] == 14:
+                    if d < depth:
+                        queue.append((m['title'], d + 1))
+                elif m['ns'] == 0:
+                    titles.add(m['title'])
+            cont = r.get('continue', {})
+            if not cont:
+                break
+    print(f'קטגוריה: {len(titles)} ערכים · {len(seen)} קטגוריות', flush=True)
+    return titles
+
+
+def norm(t):
+    t = re.sub(r'\(.*?\)', ' ', t)
+    t = t.replace('"', '').replace("'", '').replace('-', ' ').replace('–', ' ')
+    return re.sub(r'\s+', ' ', t).strip()
+
+
+def match_in_category(name, city, cat_titles):
+    """שידוך תחנה מה-GTFS לערך מתוך הקטגוריה בלבד — לפי עיר ושם המסוף."""
+    is_central = 'מרכזית' in name
+    core = norm(re.sub(r'^(ת\. מרכזית|תחנה מרכזית|מרכזית|מסוף)\s*', '', name))
+    ncity = norm(city)
+    best, best_score = None, 0
+    for t in cat_titles:
+        nt = norm(t)
+        score = 0
+        if ncity and ncity in nt:
+            score += 2
+        if core and len(core) > 2 and core in nt:
+            score += 3
+        if is_central and 'מרכזית' in nt:
+            score += 1
+        if not is_central and 'מסוף' in nt:
+            score += 1
+        # מסוף: חובה ששם המסוף עצמו יופיע; תחנה מרכזית: חובה שם העיר
+        if is_central and not (ncity and ncity in nt):
+            continue
+        if not is_central and not (core and core in nt):
+            continue
+        if score > best_score:
+            best, best_score = t, score
+    return best
+
+
 def get_wikitext(title):
     r = api({'action': 'query', 'prop': 'revisions', 'rvprop': 'content',
              'rvslots': 'main', 'redirects': '1', 'titles': title})
@@ -143,6 +204,7 @@ def main():
             for k, v in json.load(f).get('stations', {}).items():
                 if v.get('article'):
                     known[k] = v['article']
+    cat_titles = category_articles()
     out = {}
     for name, st in data['stations'].items():
         real = {l[0] for l in st['lines']}
@@ -151,10 +213,13 @@ def main():
                 title = override[name]   # null = אין ערך מתאים, לא מחפשים
             else:
                 kind = st.get('kind', 'station')
-                rel, _ = find_article(name, st['city'], kind)
-                prev = known.get(name)
-                # שיוך שנשמר מסריקה קודמת חייב לעבור את אותה בדיקת רלוונטיות
-                title = prev if (prev and rel(prev)) else search_article(name, st['city'], kind)
+                if kind == 'station':
+                    # תחנות/מסופים: רק מתוך הקטגוריה הרשמית בוויקיפדיה
+                    title = match_in_category(name, st['city'], cat_titles)
+                else:
+                    rel, _ = find_article(name, st['city'], kind)
+                    prev = known.get(name)
+                    title = prev if (prev and rel(prev)) else search_article(name, st['city'], kind)
             if not title:
                 out[name] = {'article': None}
                 print(f'{name}: לא נמצא ערך', flush=True)
@@ -177,7 +242,10 @@ def main():
             out[name] = {'article': None, 'err': str(e)}
             print(f'{name}: שגיאה {e}', flush=True)
         time.sleep(0.3)   # נימוס כלפי ה-API של ויקיפדיה
-    res = {'updated': data['updated'], 'stations': out}
+    used = {v.get('article') for v in out.values()}
+    unmatched = sorted(t for t in cat_titles if t not in used)
+    print(f'ערכים בקטגוריה שלא שודכו לתחנה ({len(unmatched)}): ' + ' | '.join(unmatched[:60]), flush=True)
+    res = {'updated': data['updated'], 'stations': out, 'unmatched': unmatched}
     tmp = f'{OUT}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(res, f, ensure_ascii=False, separators=(',', ':'))
