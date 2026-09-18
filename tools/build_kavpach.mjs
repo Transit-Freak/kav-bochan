@@ -45,8 +45,8 @@ execSync(`"${twBin}" -c "${cfg}" -i "${inCss}" -o "${path.join(ROOT, 'vendor', '
 fs.unlinkSync(cfg); fs.unlinkSync(inCss);
 
 // 3. חותמת
-const h = crypto.createHash('sha1').update(js).update(rd('vendor/kavpach.css')).digest('hex').slice(0, 10);
+const h = crypto.createHash('sha1').update(js).update(rd('vendor/kavpach.css')).update(rd('kavpach-core.js')).digest('hex').slice(0, 10);
 let html = rd('index.html');
-html = html.replace(/KavPach\.js\?v=[0-9a-f]+/g, 'KavPach.js?v=' + h).replace(/vendor\/kavpach\.css\?v=[0-9a-f]+/g, 'vendor/kavpach.css?v=' + h);
+html = html.replace(/KavPach\.js\?v=[0-9a-f]+/g, 'KavPach.js?v=' + h).replace(/vendor\/kavpach\.css\?v=[0-9a-f]+/g, 'vendor/kavpach.css?v=' + h).replace(/kavpach-core\.js\?v=[0-9a-f]+/g, 'kavpach-core.js?v=' + h);
 wr('index.html', html);
 console.log('KavPach.js', (js.length / 1024).toFixed(0) + 'KB · kavpach.css', (rd('vendor/kavpach.css').length / 1024).toFixed(0) + 'KB · v=' + h);

@@ -1,13 +1,14 @@
 name: kavpach-build
 
-# קו פח — בנייה מראש בכל שינוי קוד (שלמה 18.09): KavPach.jsx → KavPach.js
+# קו פח — בנייה וחישוב מוקדם בכל שינוי קוד או נתונים (שלמה 18.09): KavPach.jsx → KavPach.js,
+# והצבירה לכל קו (tools/precompute_kavpach.mjs) → data-lines.json
 # (Babel פעם אחת כאן במקום בכל דפדפן) ו-Tailwind → CSS מוכן, עם חותמת ?v=
 # ב-index.html. תוצרי הבנייה מקומטים חזרה ל-main.
 
 on:
   push:
     branches: [main]
-    paths: ['KavPach.jsx', 'index.html', 'tools/build_kavpach.mjs']
+    paths: ['KavPach.jsx', 'index.html', 'tools/build_kavpach.mjs', 'kavpach-core.js', 'xlsx-worker.js', 'tools/precompute_kavpach.mjs', 'data-main.json', 'data-schedule.json', 'data-benchmark.json']
   workflow_dispatch:
 
 permissions:
@@ -32,12 +33,14 @@ jobs:
           set -euo pipefail
           npm i --no-save --silent tailwindcss@3 terser
           node tools/build_kavpach.mjs
+          # הצבירה לכל קו מחושבת כאן פעם אחת (במקום בכל טלפון) → data-lines.json
+          node tools/precompute_kavpach.mjs
       - name: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add KavPach.js vendor/kavpach.css index.html
+          git add KavPach.js vendor/kavpach.css index.html data-lines.json
           git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
           git commit -m "build: קו פח — KavPach.js ו-CSS מוכנים מראש"
           for i in 1 2 3 4; do
