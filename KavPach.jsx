@@ -2071,6 +2071,81 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
   );
 }
 
+// ── נסיעות תפעוליות במסווה ─────────────────────────────────────────────
+// חברה שלא רוצה לנסוע ריק בלי תשלום רושמת את הסעת הרכב למסוף כנסיעת
+// שירות (רעיון שלמה, 18.09: קו 71 קריית מלאכי). הסימן: זוג נסיעות של אותו
+// קו, בשני הכיוונים, צמודות בזמן, שבספירות המשרד עלו אליהן ~0 נוסעים.
+// נסיעה בודדת עם 0 נוסעים לא מספיקה (קו לילה ריק הוא לא הסעה תפעולית).
+const cityOnly2 = (x) => x ? (x.indexOf(' - ') > 0 ? x.slice(0, x.indexOf(' - ')).trim() : x.split('/')[0].trim()) : '';
+const DEADHEAD_MAX_RIDERS = 1.5;      // עד כאן "כמעט ריק"
+const DEADHEAD_SURE_RIDERS = 0.5;     // עד כאן "ריק"
+const DEADHEAD_GAP_MIN = 100;         // כמה דקות בין היציאות של זוג
+function computeDeadhead(trips) {
+  const cityOnly = (x) => x ? (x.indexOf(' - ') > 0 ? x.slice(0, x.indexOf(' - ')).trim() : x.split('/')[0].trim()) : '';
+  const groups = new Map();
+  for (const t of trips) {
+    if (t.timeMins == null || !t.direction) continue;
+    const key = `${t.lineNum}_${[cityOnly(t.origin), cityOnly(t.dest)].sort().join('-')}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+  const daysOverlap = (a, b) => {
+    const la = a.daysList || [], lb = b.daysList || [];
+    if (!la.length || !lb.length) return true;
+    return la.some(d => lb.includes(d));
+  };
+  const pairs = [];
+  for (const [groupKey, list] of groups) {
+    // קו שכל נסיעותיו 0 — כנראה אין לו ספירות בכלל, לא צי ריק
+    if (!list.some(t => t.ridership > DEADHEAD_MAX_RIDERS)) continue;
+    const near = list.filter(t => t.ridership <= DEADHEAD_MAX_RIDERS);
+    if (near.length < 2) continue;
+    const used = new Set();
+    near.sort((a, b) => a.timeMins - b.timeMins);
+    for (let i = 0; i < near.length; i++) {
+      const a = near[i];
+      if (used.has(a.id)) continue;
+      let best = null;
+      for (let j = i + 1; j < near.length; j++) {
+        const b = near[j];
+        if (used.has(b.id) || String(b.direction) === String(a.direction)) continue;
+        const gap = b.timeMins - a.timeMins;
+        if (gap > DEADHEAD_GAP_MIN) break;
+        if (!daysOverlap(a, b)) continue;
+        if (!best || gap < best.gap) best = { b, gap };
+      }
+      if (!best) continue;
+      used.add(a.id); used.add(best.b.id);
+      const b = best.b;
+      const weekly = Math.min(a.tripCount || 1, b.tripCount || 1);
+      const km = ((a.distance || 0) + (b.distance || 0)) * weekly;
+      const sure = a.ridership <= DEADHEAD_SURE_RIDERS && b.ridership <= DEADHEAD_SURE_RIDERS;
+      pairs.push({
+        groupKey, lineNum: a.lineNum, makat: a.makat, origin: a.origin, dest: a.dest,
+        cluster: a.cluster || a.clusterVal || '', district: a.district || '', lineType: a.lineType || '',
+        a, b, gap: best.gap, weekly, km, sure,
+        edge: a.timeMins < 6 * 60 || b.timeMins >= 21 * 60,   // קצה יום — מתאים להוצאה/הכנסה של רכב
+      });
+    }
+  }
+  pairs.sort((x, y) => (y.sure - x.sure) || (y.km - x.km));
+  const byLine = new Map();
+  for (const p of pairs) {
+    const k = p.groupKey;
+    if (!byLine.has(k)) byLine.set(k, { groupKey: k, lineNum: p.lineNum, makat: p.makat, origin: p.origin, dest: p.dest, cluster: p.cluster, district: p.district, lineType: p.lineType, pairs: [], weekly: 0, km: 0, sure: 0 });
+    const L = byLine.get(k);
+    L.pairs.push(p); L.weekly += p.weekly; L.km += p.km; if (p.sure) L.sure += 1;
+  }
+  const lines = [...byLine.values()].sort((x, y) => y.km - x.km);
+  return {
+    pairs, lines,
+    totalPairs: pairs.length,
+    weekly: pairs.reduce((s, p) => s + p.weekly, 0),
+    km: Math.round(pairs.reduce((s, p) => s + p.km, 0)),
+    sure: pairs.filter(p => p.sure).length,
+  };
+}
+
 function KavPach() {
   // appMode: 'choice' (מסך בחירה) · 'kavpach' (קו פח) · 'golden' (הקו המוזהב)
   // מאותחל מה-hash כדי שלינקים ישירים ורענון דף יישמרו (אותה כתובת בסיס).
@@ -2124,6 +2199,9 @@ function KavPach() {
   const [retryCount, setRetryCount] = useState(0);
 
   const [tab, setTab] = useState("redundant"); 
+  const deadhead = useMemo(() => computeDeadhead(trips || []), [trips]);
+  const [dhOpen, setDhOpen] = useState(null);       // קו פתוח בטבלת הנסיעות התפעוליות
+  const [dhSureOnly, setDhSureOnly] = useState(false);
   const [searchCity, setSearchCity] = useState("");
   const [overlapMap, setOverlapMap] = useState(null); // חפיפת מסלולים בין קווים (kavpach-overlap.json, מתעדכן לילית)
   useEffect(() => {
@@ -3811,12 +3889,13 @@ const DAYS_FILTER = [
         ) : (
           <main>
             <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
-              {["redundant", "areas", "allTrips", "simulator", "about"].map(tabName => {
+              {["redundant", "deadhead", "areas", "allTrips", "simulator", "about"].map(tabName => {
                 const isSelected = tab === tabName;
                 let colorClass = "text-slate-500";
                 let iconName = "";
                 let label = "";
                 if (tabName === "redundant") { colorClass = isSelected ? "bg-white text-rose-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "trash"; label = "קווים לא יעילים"; }
+                if (tabName === "deadhead") { colorClass = isSelected ? "bg-white text-orange-700 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "moon"; label = "נסיעות תפעוליות"; }
                 if (tabName === "areas") { colorClass = isSelected ? "bg-white text-amber-700 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "chart"; label = "ניתוח אזורי"; }
                 if (tabName === "allTrips") { colorClass = isSelected ? "bg-white text-indigo-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "list"; label = "כל הנסיעות"; }
                 if (tabName === "simulator") { colorClass = isSelected ? "bg-white text-slate-900 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "zap"; label = "אלגוריתם ייעול"; }
@@ -4262,6 +4341,84 @@ const DAYS_FILTER = [
                 </div>
               </div>
             )}
+
+            {tab === "deadhead" && (() => {
+              const D = deadhead;
+              const rows = D.lines.filter(L => !dhSureOnly || L.sure > 0);
+              const fmtN = (n) => Math.round(n).toLocaleString('he-IL');
+              const dirName = (t) => `${cityOnly2(t.origin)} ← ${cityOnly2(t.dest)}`;
+              return (
+              <div className="space-y-8 transition-opacity duration-300 opacity-100">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                  <h2 className="text-2xl font-black text-slate-900">נסיעות תפעוליות במסווה</h2>
+                  <p className="text-slate-500 font-bold mt-1">
+                    זוגות נסיעות של אותו קו — הלוך וחזור צמודים בזמן — שבספירות משרד התחבורה עלו אליהן כמעט אפס נוסעים.
+                    זו הסעת רכב למסוף שנרשמה כשירות, כדי שהמפעיל לא ייסע ריק בלי תשלום.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                    {[
+                      ['זוגות', fmtN(D.totalPairs), 'text-slate-900'],
+                      ['מהם ריקים לגמרי', fmtN(D.sure), 'text-orange-700'],
+                      ['נסיעות בשבוע', fmtN(D.weekly * 2), 'text-slate-900'],
+                      ['ק"מ בשבוע', fmtN(D.km), 'text-rose-700'],
+                    ].map(([l, v, c]) => (
+                      <div key={l} className="bg-slate-50 rounded-2xl p-4 text-center">
+                        <div className={`text-2xl font-black ${c}`}>{v}</div>
+                        <div className="text-xs font-bold text-slate-500 mt-1">{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <label className="inline-flex items-center gap-2 mt-5 text-sm font-black text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={dhSureOnly} onChange={e => setDhSureOnly(e.target.checked)} className="w-4 h-4 accent-orange-600" />
+                    רק קווים עם זוג ריק לגמרי (0 נוסעים בשני הכיוונים)
+                  </label>
+                </div>
+
+                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-x-auto">
+                  <table className="w-full text-right border-collapse text-sm">
+                    <thead><tr className="text-slate-500 text-xs border-b border-slate-200">
+                      <th className="p-3">קו</th><th className="p-3">מסלול</th><th className="p-3">אשכול</th>
+                      <th className="p-3">זוגות</th><th className="p-3">נסיעות/שבוע</th><th className="p-3">ק"מ/שבוע</th><th className="p-3"></th>
+                    </tr></thead>
+                    <tbody>
+                      {rows.slice(0, 200).map(L => (
+                        <React.Fragment key={L.groupKey}>
+                          <tr className="border-b border-slate-100 hover:bg-orange-50/40 cursor-pointer" onClick={() => setDhOpen(dhOpen === L.groupKey ? null : L.groupKey)}>
+                            <td className="p-3 font-black text-lg">{L.lineNum}</td>
+                            <td className="p-3 font-bold">{cityOnly2(L.origin)} – {cityOnly2(L.dest)}</td>
+                            <td className="p-3 text-slate-600">{L.cluster || L.district}</td>
+                            <td className="p-3 font-black">{L.pairs.length}{L.sure ? <span className="text-orange-700"> ({L.sure} ריקים)</span> : null}</td>
+                            <td className="p-3">{fmtN(L.weekly * 2)}</td>
+                            <td className="p-3 font-black text-rose-700">{fmtN(L.km)}</td>
+                            <td className="p-3 text-slate-400"><Ic n={dhOpen === L.groupKey ? 'chevronUp' : 'chevronDown'} size={16} /></td>
+                          </tr>
+                          {dhOpen === L.groupKey && (
+                            <tr><td colSpan={7} className="p-0">
+                              <div className="bg-slate-50 rounded-2xl m-2 p-4">
+                                {L.pairs.map((p, i) => (
+                                  <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center py-2 border-b border-slate-200 last:border-0 text-sm">
+                                    <div><span className="font-black">{p.a.time}</span> {dirName(p.a)} · <span className={p.a.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.a.ridership} נוסעים</span></div>
+                                    <div><span className="font-black">{p.b.time}</span> {dirName(p.b)} · <span className={p.b.ridership <= DEADHEAD_SURE_RIDERS ? 'text-orange-700 font-black' : 'font-bold'}>{p.b.ridership} נוסעים</span></div>
+                                    <div className="text-slate-600 text-xs font-bold">{p.gap} דק' בין היציאות · {p.a.days || ''} · {p.weekly} פעמים בשבוע{p.edge ? ' · קצה יום' : ''}{p.sure ? ' · ריק לגמרי' : ''}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </td></tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                      {!rows.length && <tr><td colSpan={7} className="p-8 text-center text-slate-500 font-bold">לא נמצאו זוגות כאלה בנתונים הנוכחיים</td></tr>}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-slate-500 font-bold mt-4 leading-relaxed">
+                    איך זה מחושב: מנתוני הספירות של משרד התחבורה (ממוצע נוסעים לכל נסיעה מתוכננת). נסיעה נחשבת "כמעט ריקה" עד {DEADHEAD_MAX_RIDERS} נוסעים בממוצע ו"ריקה" עד {DEADHEAD_SURE_RIDERS}.
+                    זוג = שתי נסיעות כמעט ריקות של אותו קו בכיוונים מנוגדים, שיוצאות בהפרש של עד {DEADHEAD_GAP_MIN} דקות באותם ימים. נסיעה ריקה בודדת לא נספרת.
+                    בשלב הבא: אישור מהשידורים (מדד הדיוק) — אותו רכב בשתי הנסיעות, ובלי עצירות בדרך.
+                  </p>
+                </div>
+              </div>
+              );
+            })()}
 
             {tab === "allTrips" && (
               <div className="bg-white p-6 md:p-8 rounded-[3rem] border border-slate-200 shadow-sm transition-opacity duration-300 opacity-100">
