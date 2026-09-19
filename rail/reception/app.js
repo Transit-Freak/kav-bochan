@@ -29,22 +29,41 @@ function buildIndex() {
   for (const o of D.ops) AG[o.code] = new Map();
   for (const a of D.antennas) { const k = `${Math.floor(a[0] * 50)}_${Math.floor(a[1] * 50)}`; const m = AG[a[2]]; if (!m.has(k)) m.set(k, []); m.get(k).push(a); }
 }
+const CELL_M = 0.02 * 111320;   // גודל תא באינדקס (~2.2 ק"מ)
 function nearest(lat, lon, code) {
   const m = AG[code]; if (!m) return null;
   const ci = Math.floor(lat * 50), cj = Math.floor(lon * 50);
   let best = null;
   const cosl = Math.cos(lat * Math.PI / 180);
-  for (let i = ci - 4; i <= ci + 4; i++) for (let j = cj - 4; j <= cj + 4; j++) {
-    const cell = m.get(`${i}_${j}`); if (!cell) continue;
-    for (const a of cell) {
-      if (!hasGen(a, gen)) continue;
-      const dy = (a[0] - lat) * 111320, dx = (a[1] - lon) * 111320 * cosl;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (best == null || d < best) best = d;
+  // טבעות מסביב לתא: עוצרים כשהטבעת הבאה כבר רחוקה מהמועמד הטוב ביותר
+  for (let r = 0; r <= 4; r++) {
+    if (best != null && best < r * CELL_M * 0.9) break;
+    for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) {
+      if (Math.abs(i - ci) !== r && Math.abs(j - cj) !== r) continue;
+      const cell = m.get(`${i}_${j}`); if (!cell) continue;
+      for (const a of cell) {
+        if (!hasGen(a, gen)) continue;
+        const dy = (a[0] - lat) * 111320, dx = (a[1] - lon) * 111320 * cosl;
+        const d = dx * dx + dy * dy;
+        if (best == null || d < best) best = d;
+      }
     }
   }
-  return best != null && best <= 8000 ? Math.round(best) : null;
+  if (best == null) return null;
+  best = Math.sqrt(best);
+  return best <= 8000 ? Math.round(best) : null;
 }
+// מטמון: לכל (מפעיל, דור) מערך מרחקים לפי אינדקס הנקודה — מחושב פעם אחת, ואז החלפת קטגוריה מיידית
+const DCACHE = {};
+let NPTS = 0;
+function distArr(code) {
+  const k = code + '_' + gen;
+  if (DCACHE[k]) return DCACHE[k];
+  const arr = new Int32Array(NPTS).fill(-1);
+  for (const s of Object.values(D.segs)) for (const p of s.pts) { const d = nearest(p[0], p[1], code); if (d != null) arr[p[9]] = d; }
+  return (DCACHE[k] = arr);
+}
+
 function scoreFor(struct, d, spd, f) {
   if (struct === 'tunnel' || struct === 'covered' || d == null) return 0;
   let s = d < 1500 * f ? 3 : d < 3500 * f ? 2 : d < 6000 * f ? 1 : 0;
@@ -53,13 +72,16 @@ function scoreFor(struct, d, spd, f) {
   return s;
 }
 const STRUCT = {tunnel: 'מנהרה', cutting: 'חתך (מסילה שקועה)', covered: 'קטע מקורה'};
+let RENDERER = null;
 let D = null, op = 'pel', map, layer, antLayer, cover = null, bySpeed = false, showAnt = true;
 
 function load(u) { return fetch(u + '?v=' + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }); }
 
 function init() {
   $('#map').innerHTML = '';
-  map = L.map('map', {zoomControl: true}); window.__recepMap = map;
+  NPTS = 0; for (const s of Object.values(D.segs)) for (const p of s.pts) p[9] = NPTS++;
+  map = L.map('map', {zoomControl: true, preferCanvas: true}); window.__recepMap = map;
+  RENDERER = L.canvas({padding: 0.3});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 18, attribution: '&copy; OpenStreetMap, &copy; CARTO'}).addTo(map);
   const all = []; for (const s of Object.values(D.segs)) for (const p of s.pts) all.push([p[0], p[1]]);
   map.fitBounds(L.latLngBounds(all).pad(0.05));
@@ -81,6 +103,22 @@ function init() {
   $('#sub').textContent = `הערכה, לא מדידה: לכל ${D.step} מטר מסילה — האנטנה הקרובה של המפעיל, מנהרות וחתכים מ-OSM, ומהירות הנסיעה בפועל ב-${D.days} הימים האחרונים. עודכן ${upd}.`;
   draw();
   method();
+  prewarm();
+}
+
+// אחרי הציור הראשון: מחשבים ברקע את המרחקים לכל שילוב (מפעיל, דור), אחד בכל
+// פסק זמן פנוי — כך כל לחיצה על קטגוריה מוצאת את המטמון מוכן ומציירת מיד
+function prewarm() {
+  const todo = [];
+  for (const g of ['all', '4', '5']) for (const o of D.ops) todo.push([o.code, g]);
+  const idle = window.requestIdleCallback || (fn => setTimeout(fn, 60));
+  const step = () => {
+    const nx = todo.shift(); if (!nx) return;
+    const saved = gen; gen = nx[1];
+    try { distArr(nx[0]); } finally { gen = saved; }
+    idle(step);
+  };
+  idle(step);
 }
 
 function draw() {
@@ -88,7 +126,8 @@ function draw() {
   const all = op === 'all';
   const f = (TRAINS.find(t => t.code === train) || TRAINS[1]).f;
   let curSpd = null;
-  const dOf = (p, code) => nearest(p[0], p[1], code);
+  const DA = {}; for (const o of D.ops) if (all || o.code === op) DA[o.code] = distArr(o.code);
+  const dOf = (p, code) => { const v = DA[code][p[9]]; return v < 0 ? null : v; };
   const scoreOf = p => { if (!all) return scoreFor(p[2], dOf(p, op), curSpd, f); const v = D.ops.map(o => scoreFor(p[2], dOf(p, o.code), curSpd, f)).sort(); return v[1]; };
   const tot = [0, 0, 0, 0];
   let km = 0;
@@ -102,7 +141,7 @@ function draw() {
     let run = [], runC = null, runInfo = null;
     const flush = () => {
       if (run.length < 2) return;
-      const pl = L.polyline(run, {color: runC, weight: 6, opacity: .9, lineCap: 'round'});
+      const pl = L.polyline(run, {color: runC, weight: 6, opacity: .9, lineCap: 'round', renderer: RENDERER});
       const inf = runInfo;
       pl.bindPopup(() => `<b>${esc(name)}</b><br>${inf.struct ? '🕳️ ' + STRUCT[inf.struct] + '<br>' : ''}` +
         `${bySpeed ? '' : 'קליטה משוערת: <b>' + GNAME[inf.sc] + '</b><br>'}` +
@@ -137,7 +176,7 @@ const RADIUS = {'תורן קרקעי': 3000, 'תורן על הגג': 2000, 'אנ
 // אזורי כיסוי משוערים כיסו את כל המפה ולא אמרו כלום).
 const CoverLayer = L.Layer.extend({
   onAdd(m) { this._m = m; this._c = L.DomUtil.create('canvas', 'leaflet-zoom-animated'); this._c.style.pointerEvents = 'none'; this._c.style.position = 'absolute';
-    m.getPanes().overlayPane.appendChild(this._c); m.on('moveend zoomend resize viewreset', this._draw, this); m.on('zoomanim', this._anim, this); this._draw(); },
+    const pane = m.getPanes().overlayPane; pane.insertBefore(this._c, pane.firstChild); /* מתחת למסילה */ m.on('moveend zoomend resize viewreset', this._draw, this); m.on('zoomanim', this._anim, this); this._draw(); },
   onRemove(m) { m.off('moveend zoomend resize viewreset', this._draw, this); m.off('zoomanim', this._anim, this); this._c.remove(); },
   // בזמן אנימציית הזום הקנבס נמתח יחד עם המפה (במקום להיעלם ולחזור אחרי שנייה)
   _anim(e) { const m = this._m, scale = m.getZoomScale(e.zoom), off = m._latLngToNewLayerPoint(this._nw, e.zoom, e.center); L.DomUtil.setTransform(this._c, off, scale); },
@@ -147,7 +186,7 @@ const CoverLayer = L.Layer.extend({
     const tl = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(c, tl); this._nw = m.containerPointToLatLng([0, 0]);
     const ctx = c.getContext('2d'); ctx.clearRect(0, 0, sz.x, sz.y);
     const b = m.getBounds().pad(0.1);
-    const z = m.getZoom(), r = z >= 13 ? 4 : z >= 10 ? 3 : 2;
+    const z = m.getZoom(), r = z >= 13 ? 4 : z >= 10 ? 3 : z >= 8 ? 2 : 1.2;   // מרוחק: נקודות זעירות, שלא יכסו את המסילה
     const codes = op === 'all' ? D.ops.map(o => o.code) : [op];
     for (const code of codes) {
       ctx.fillStyle = BRAND[code]; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath();
