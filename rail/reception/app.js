@@ -124,7 +124,7 @@ function draw() {
   $('#legend').innerHTML = bySpeed
     ? [['#00A65A', 'עד 60 קמ"ש'], ['#F4B400', '60–100'], ['#F26B1D', '100–130'], ['#D7263D', 'מעל 130'], ['#8A94A3', 'אין נתון']].map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')
     : [3, 2, 1, 0].map(i => `<span><i style="background:${GCOL[i]}"></i>${GNAME[i]}</span>`).join('') + `<span>· סה"כ ${km.toFixed(0)} ק"מ מסילה בין תחנות</span>` +
-      (showAnt ? '<span class="sep"></span>' + (all ? D.ops : D.ops.filter(o => o.code === op)).map(o => `<span><i class="area" style="background:${BRAND[o.code]}"></i>כיסוי ${esc(o.name)}</span>`).join('') : '') +
+      (showAnt ? '<span class="sep"></span>' + (all ? D.ops : D.ops.filter(o => o.code === op)).map(o => `<span><i class="dot" style="background:${BRAND[o.code]}"></i>אנטנות ${esc(o.name)}</span>`).join('') : '') +
       (all ? '<span>· המסילה ב"כל החברות": הציון האמצעי מבין השלוש</span>' : '');
   drawAnt();
 }
@@ -133,8 +133,8 @@ function opName() { return op === 'all' ? 'כל החברות' : (D.ops.find(o =>
 
 // רדיוס כיסוי משוער לפי סוג האתר (מטרים) — תורן קרקעי מכסה הרבה, אתר זעיר כמעט כלום
 const RADIUS = {'תורן קרקעי': 3000, 'תורן על הגג': 2000, 'אנטנת עוקץ': 1500, 'אנטנה משתפלת': 1500, 'אתר זעיר פנימי': 300, 'אתר זעיר חיצוני': 400, 'מתקן גישה אלחוטי': 300};
-// שכבת כיסוי על קנבס אחד: כל האזורים בצבע מלא על קנבס נסתר, ואז מצוירים
-// במפה בשקיפות אחידה — כך חפיפות לא מצטברות והגבול "יש/אין" נשאר ברור.
+// שכבת האנטנות על קנבס אחד: נקודה קטנה בצבע החברה לכל אתר (שלמה 19.09:
+// אזורי כיסוי משוערים כיסו את כל המפה ולא אמרו כלום).
 const CoverLayer = L.Layer.extend({
   onAdd(m) { this._m = m; this._c = L.DomUtil.create('canvas', 'leaflet-zoom-animated'); this._c.style.pointerEvents = 'none'; this._c.style.position = 'absolute';
     m.getPanes().overlayPane.appendChild(this._c); m.on('moveend zoomend resize', this._draw, this); this._draw(); },
@@ -144,18 +144,17 @@ const CoverLayer = L.Layer.extend({
     c.width = sz.x; c.height = sz.y;
     const tl = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(c, tl);
     const ctx = c.getContext('2d'); ctx.clearRect(0, 0, sz.x, sz.y);
-    const b = m.getBounds().pad(0.2);
-    const mpp = 40075016.686 * Math.cos(m.getCenter().lat * Math.PI / 180) / (256 * Math.pow(2, m.getZoom()));
+    const b = m.getBounds().pad(0.1);
+    const z = m.getZoom(), r = z >= 13 ? 4 : z >= 10 ? 3 : 2;
     const codes = op === 'all' ? D.ops.map(o => o.code) : [op];
     for (const code of codes) {
-      ctx.fillStyle = BRAND[code]; ctx.globalAlpha = op === 'all' ? .16 : .22; ctx.beginPath();
+      ctx.fillStyle = BRAND[code]; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath();
       for (const a of D.antennas) {
         if (a[2] !== code || !hasGen(a, gen) || !b.contains([a[0], a[1]])) continue;
         const p = m.latLngToContainerPoint([a[0], a[1]]);
-        const r = (RADIUS[a[3]] || 1000) / mpp;
         ctx.moveTo(p.x + r, p.y); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       }
-      ctx.fill();
+      ctx.fill(); if (r >= 3) ctx.stroke();
     }
   },
 });
@@ -170,7 +169,7 @@ function method() {
   <p class="dim">מפה עצמאית מנתונים פתוחים. אינה מטעם פלאפון, סלקום, פרטנר או הוט, והשמות מופיעים רק כדי לציין למי שייכות האנטנות.</p>
   <p>זו <b>הערכה מנתונים פתוחים</b>, לא מדידת קליטה. השידור של הרכבת עצמה (דאטאבוס) עובר ברשת נפרדת ולכן לא משמש כאן כעדות לקליטה, רק כמקור למהירות.</p>
   <ul>
-    <li><b>אנטנות ואזורי כיסוי</b> — הכתמים הכחולים הם רדיוס משוער לפי סוג האתר (תורן קרקעי 3 ק"מ, על גג 2, עוקץ/משתפלת 1.5, אתר זעיר 300–400 מ׳); מאגר "אנטנות סלולריות פעילות" של המשרד להגנת הסביבה (data.gov.il), ${D.antennas.length.toLocaleString('he-IL')} אתרים בטווח 8 ק"מ מהמסילה. PHI היא התשתית המשותפת של פרטנר והוט.</li>
+    <li><b>אנטנות</b> — כל נקודה היא אתר שידור פעיל, בצבע החברה; מאגר "אנטנות סלולריות פעילות" של המשרד להגנת הסביבה (data.gov.il), ${D.antennas.length.toLocaleString('he-IL')} אתרים בטווח 8 ק"מ מהמסילה. PHI היא התשתית המשותפת של פרטנר והוט.</li>
     <li><b>מנהרות וחתכים</b> — מסומנים על המסילה ב-OpenStreetMap (${D.tunnels.length} מנהרות בשם: ${esc(D.tunnels.join(', '))}). במנהרה הציון הוא "אין קליטה" גם אם הותקנה בה תשתית פנימית, כי אין על כך מידע פתוח.</li>
     <li><b>מהירות</b> — הזמן בפועל בין תחנות עוקבות (לו"ז + איחור שנמדד) מול אורך המסילה, חציון על ${D.days} הימים האחרונים. מעל 120 קמ"ש הציון יורד דרגה, כי מסירה בין תאים נכשלת יותר במהירות.</li>
     <li><b>הציון</b> — עד 1.5 ק"מ מאנטנה: טובה; עד 3.5: סבירה; עד 6: חלשה; מעבר לזה: אין. חתך מוריד דרגה. אין כאן קו ראייה וטופוגרפיה עדיין.</li>
