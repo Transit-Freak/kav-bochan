@@ -34,7 +34,7 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=4907ae3bed" />
+<link rel="stylesheet" href="vendor/kavpach.css?v=415c703ff3" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -107,7 +107,7 @@
             <svg viewBox="0 0 120 120" style="width:clamp(44px,8vw,60px);height:clamp(44px,8vw,60px);flex:none;"><rect width="120" height="120" rx="26" fill="#0f172a"/><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" stroke="#38bdf8" stroke-width="6" fill="none" stroke-linejoin="round"/><circle cx="60" cy="60" r="20" fill="#38bdf8"/><circle cx="60" cy="60" r="9.5" fill="#0f172a"/><circle cx="66" cy="54" r="3.5" fill="#fff"/><path d="M22 60 H34 M86 60 H98" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 7"/></svg>
             <h1 style="font-size:clamp(2.25rem,6vw,3rem);font-weight:900;color:#0f172a;margin:0;letter-spacing:-0.025em;">הקו הבוחן</h1>
           </div>
-          <p style="color:#64748b;font-weight:700;margin-top:12px;font-size:1.125rem;">שנים-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
+          <p style="color:#64748b;font-weight:700;margin-top:12px;font-size:1.125rem;">שלושה-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
           <details style="margin-top:12px;">
             <summary style="cursor:pointer;color:#0369a1;font-weight:900;font-size:.875rem;display:inline-block;">👋 קצת עליי ▼</summary>
             <div style="max-width:768px;margin:16px auto 0;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 4px 10px -2px rgba(0,0,0,.08);padding:24px;text-align:right;line-height:1.7;color:#334155;font-weight:500;font-size:.9rem;display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
@@ -314,6 +314,18 @@
               <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#bae6fd;color:#082f49;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
             </div>
           </a>
+          <!-- קליטה ברכבת -->
+          <a href="rail/reception/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#6d28d9 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
+            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#c4b5fd;border-radius:50%;opacity:.25;"></div>
+            <div style="position:relative;">
+              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;">
+                <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">📶</span>
+              </div>
+              <h2 style="font-size:1.875rem;font-weight:900;color:#ede9fe;margin:0;">קליטה ברכבת</h2>
+              <p style="color:rgba(237,233,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">איפה יש קליטה סלולרית ברכבת ואיפה לא: כל 100 מטר מסילה לפי האנטנות של כל חברה, המנהרות, מהירות הנסיעה בפועל וסוג הקרון — פלאפון, סלקום, פרטנר והוט, דור 4 ודור 5</p>
+              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#ddd6fe;color:#2e1065;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
+            </div>
+          </a>
           <!-- מדד דיוק האוטובוסים -->
           <a href="bus/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#047857 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
             <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#6ee7b7;border-radius:50%;opacity:.25;"></div>
@@ -399,10 +411,10 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=4907ae3bed';
+      core.src = 'kavpach-core.js?v=415c703ff3';
       document.body.appendChild(core);
       var sc = document.createElement('script');
-      sc.src = 'KavPach.js?v=4907ae3bed';
+      sc.src = 'KavPach.js?v=415c703ff3';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);

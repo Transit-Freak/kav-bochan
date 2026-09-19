@@ -103,15 +103,15 @@
   var N = {
   // לכל חג — כל כלי מקבל סמל אחר של החג, ואף מילה לא חוזרת בשני שמות
   // (שלמה 07.09: "חצי מהסמלים הם מסכות", "יש כבר אתר עם אושפיזין")
-    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך" },
-    sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים" },
-    hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה" },
-    tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק" },
-    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש" },
-    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות" },
-    atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על הטקס", fares: "מחיר הקבב", ratzif: "דגל כפול", fleet: "צי חיל הים", rail: "רכבת העצמאות", bus: "האוטובוס עם הפטיש" },
-    lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המרשמלו", fares: "מחיר תפוח האדמה", ratzif: "חץ כפול", fleet: "צי הזרדים", rail: "רכבת מירון", bus: "אוטובוס על האש" },
-    shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על התיקון", fares: "מחיר החלב", ratzif: "בלינצ'ס כפול", fleet: "צי הפרחים", rail: "רכבת הר סיני", bus: "אוטובוס מגילת רות" },
+    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך", recep: "קליטה בתקיעה" },
+    sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים", recep: "קליטה בסוכה" },
+    hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה", recep: "קליטת האור" },
+    tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק", recep: "קליטה בין העצים" },
+    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש", recep: "קליטה במסכה" },
+    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות", recep: "קליטה במדבר" },
+    atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על הטקס", fares: "מחיר הקבב", ratzif: "דגל כפול", fleet: "צי חיל הים", rail: "רכבת העצמאות", bus: "האוטובוס עם הפטיש", recep: "קליטה כחול-לבן" },
+    lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המרשמלו", fares: "מחיר תפוח האדמה", ratzif: "חץ כפול", fleet: "צי הזרדים", rail: "רכבת מירון", bus: "אוטובוס על האש", recep: "קליטה ליד המדורה" },
+    shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על התיקון", fares: "מחיר החלב", ratzif: "בלינצ'ס כפול", fleet: "צי הפרחים", rail: "רכבת הר סיני", bus: "אוטובוס מגילת רות", recep: "קליטה בהר" },
     yerushalayim: { greet: "יום ירושלים שמח", ico: "🏙️" },
     // ימים שקטים — בלי שמות, בלי אפקטים
     gedaliah: { quiet: true, greet: "צום קל ומועיל — צום גדליה", ico: "🕯️" },
@@ -179,23 +179,23 @@
   // כל כלי — סמל אחר של החג (שלמה 07.09: "חצי מהסמלים הם מסכות")
   var ART = {
     rosh:      { pach: pomRot, gold: pomGold, bug: shofar, next: em("🍎", "🍯"), time: honeyClock,
-                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: rail("📯"), bus: bus("🐟") },
+                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: rail("📯"), bus: bus("🐟"), recep: em("📶", "🍎") },
     sukkot:    { pach: sukkah, gold: etrog, bug: lulav, next: em("🚏", "🛖"), time: em("🕰️", "🍂"),
-                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: rail("📜"), bus: bus("🍋") },
+                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: rail("📜"), bus: bus("🍋"), recep: em("📶", "🌿") },
     hanukkah:  { pach: sufg, gold: jug, bug: dreidel, next: em("🚏", "🕯️"), time: menorah(),
-                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: rail("✨"), bus: bus("🪔") },
+                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: rail("✨"), bus: bus("🪔"), recep: em("📶", "🕎") },
     tubishvat: { pach: dryTree, gold: blossom, bug: root, next: em("🚏", "🌳"), time: rings,
-                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: rail("🌾"), bus: bus("🍃") },
+                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: rail("🌾"), bus: bus("🍃"), recep: em("📶", "🌳") },
     purim:     { pach: gragger, gold: basket, bug: flipped, next: em("🎭"), time: scroll,
-                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: rail("🏰"), bus: bus("🐎") },
+                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: rail("🏰"), bus: bus("🐎"), recep: em("📶", "🎭") },
     pesach:    { pach: em("🍞"), gold: matzah, bug: desert, next: em("🚏", "❓"), time: em("📖", "🍷"),
-                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: rail("🌊"), bus: bus("🐸") },
+                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: rail("🌊"), bus: bus("🐸"), recep: em("📶", "🍷") },
     atzmaut:   { pach: grill, gold: flyover, bug: fwZig, next: em("🇮🇱"), time: em("🕰️", "🎂"),
-                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: rail("🎆"), bus: bus("🔨") },
+                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: rail("🎆"), bus: bus("🔨"), recep: em("📶", "🇮🇱") },
     lagbaomer: { pach: fireOut, gold: fireBig, bug: bow, next: em("🔥"), time: em("🕰️", "🌙"),
-                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: rail("⛰️"), bus: bus("🍖") },
+                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: rail("⛰️"), bus: bus("🍖"), recep: em("📶", "🔥") },
     shavuot:   { pach: cheese, gold: em("🍰", "✨"), bug: bikkurim, next: em("🚏", "🌾"), time: em("🕰️", "🧀"),
-                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: rail("⛰️"), bus: bus("📜") }
+                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: rail("⛰️"), bus: bus("📜"), recep: em("📶", "🧀") }
   };
   // העין של "הקו הבוחן" בכל חג
   function eye(pupil, extra, stroke) {
@@ -239,7 +239,7 @@
 
   // ---------- החלפות בדף ----------
   var TOOLS = { "קו פח": "pach", "הקו המוזהב": "gold", "קו באג": "bug", "התחנה הבאה": "next", "הקו בזמן": "time",
-    "הקו המדלג": "skip", "המחירון": "fares", "רציף כפול": "ratzif", "צי הרכבים": "fleet", "מדד אמינות הרכבת": "rail", "מדד דיוק האוטובוסים": "bus" };
+    "הקו המדלג": "skip", "המחירון": "fares", "רציף כפול": "ratzif", "צי הרכבים": "fleet", "מדד אמינות הרכבת": "rail", "מדד דיוק האוטובוסים": "bus", "קליטה ברכבת": "recep" };
   function renameHeading(h, name, orig) {
     if (h.getAttribute("data-hag") === "1") return;
     h.setAttribute("data-hag", "1");
