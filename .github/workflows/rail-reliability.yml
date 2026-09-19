@@ -67,6 +67,11 @@ jobs:
         continue-on-error: true
         run: python3 tools/rail_segments.py
 
+      - name: מפת הקליטה (מהירויות מעודכנות; best-effort)
+        if: ${{ github.event.inputs.dry != '1' }}
+        continue-on-error: true
+        run: python3 tools/rail_reception.py
+
       - name: commit
         if: ${{ github.event.inputs.dry != '1' }}
         run: |
