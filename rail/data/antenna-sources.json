@@ -1,0 +1,110 @@
+{
+ "updated": "2026-09-19T17:09Z",
+ "packages": [
+  {
+   "name": "antenna_hakama",
+   "title": "אנטנות סלולריות בהקמה",
+   "org": "המשרד להגנת הסביבה",
+   "resources": [
+    {
+     "id": "ff398c7e-c522-4ee8-a53a-312b188a573d",
+     "name": "אנטנות סלולריות בהקמה",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/4e9111d8-e842-40ec-b587-629e684e85ac/resource/ff398c7e-c522-4ee8-a53a-312b188a573d/download/ff398c7e-c522-4ee8-a53a-312b188a573d.xlsx"
+    }
+   ]
+  },
+  {
+   "name": "antennaactive",
+   "title": "אנטנות סלולריות פעילות",
+   "org": "המשרד להגנת הסביבה",
+   "resources": [
+    {
+     "id": "8935c8e5-ec77-421f-af86-d970583195f8",
+     "name": "אנטנות סלולריות פעילות",
+     "format": "CSV",
+     "url": "https://data.gov.il/dataset/995eb826-c471-4572-8fd3-39d92a3a9603/resource/8935c8e5-ec77-421f-af86-d970583195f8/download/8935c8e5-ec77-421f-af86-d970583195f8.csv"
+    }
+   ]
+  },
+  {
+   "name": "waste-information-system",
+   "title": "מערכת מידע פסולת - נספחים",
+   "org": "המשרד להגנת הסביבה",
+   "resources": [
+    {
+     "id": "ca71e149-49f1-48a2-b319-b27be21e3e21",
+     "name": "סוגי פסולת",
+     "format": "CSV",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/ca71e149-49f1-48a2-b319-b27be21e3e21/download/ca71e149-49f1-48a2-b319-b27be21e3e21.csv"
+    },
+    {
+     "id": "4e041600-1ce3-4780-9e3f-3d2ce1561dea",
+     "name": "רשויות מקומיות ",
+     "format": "CSV",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/4e041600-1ce3-4780-9e3f-3d2ce1561dea/download/4e041600-1ce3-4780-9e3f-3d2ce1561dea.csv"
+    },
+    {
+     "id": "89ab056c-ca88-43f6-aa83-32a0cbcbe79c",
+     "name": "מפעלי השבת אנרגיה",
+     "format": "CSV",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/89ab056c-ca88-43f6-aa83-32a0cbcbe79c/download/89ab056c-ca88-43f6-aa83-32a0cbcbe79c.csv"
+    },
+    {
+     "id": "4afcd995-2645-45de-9d92-1473f6339b28",
+     "name": "מטמנות לפסולת בניין",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/4afcd995-2645-45de-9d92-1473f6339b28/download/4afcd995-2645-45de-9d92-1473f6339b28.xlsx"
+    },
+    {
+     "id": "21df12e1-6e16-48e0-92c1-bb51974428a0",
+     "name": "מטמנות פסולת מעורבת",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/21df12e1-6e16-48e0-92c1-bb51974428a0/download/21df12e1-6e16-48e0-92c1-bb51974428a0.xlsx"
+    },
+    {
+     "id": "076285c0-6b11-4089-8a0b-ab4d50eb4b3d",
+     "name": "מפעלי מחזור לפסולת בניין",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/076285c0-6b11-4089-8a0b-ab4d50eb4b3d/download/076285c0-6b11-4089-8a0b-ab4d50eb4b3d.xlsx"
+    },
+    {
+     "id": "0064cb30-1176-4808-889d-5ef05d72f116",
+     "name": "מפעלי מחזור לפסולת מעורבת",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/0064cb30-1176-4808-889d-5ef05d72f116/download/0064cb30-1176-4808-889d-5ef05d72f116.xlsx"
+    },
+    {
+     "id": "395bdcda-b898-4739-9135-5d640157bee2",
+     "name": "תחנת מעבר לפסולת בניין",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/395bdcda-b898-4739-9135-5d640157bee2/download/395bdcda-b898-4739-9135-5d640157bee2.xlsx"
+    },
+    {
+     "id": "c5d2f1b9-c4f6-4e58-ba3d-ef02ba6d43c8",
+     "name": "תחנת מעבר לפסולת מעורבת",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/c5d2f1b9-c4f6-4e58-ba3d-ef02ba6d43c8/download/c5d2f1b9-c4f6-4e58-ba3d-ef02ba6d43c8.xlsx"
+    },
+    {
+     "id": "fe5fe429-895c-4bfe-8941-eb01aff35547",
+     "name": "אתרי טיפול בפסולת אורגנית.xlsx",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/fe5fe429-895c-4bfe-8941-eb01aff35547/download/fe5fe429-895c-4bfe-8941-eb01aff35547.xlsx"
+    },
+    {
+     "id": "8e322234-4511-4f0b-b0c1-ac19710d4846",
+     "name": "תחנות מעבר לגזם",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/8e322234-4511-4f0b-b0c1-ac19710d4846/download/8e322234-4511-4f0b-b0c1-ac19710d4846.xlsx"
+    },
+    {
+     "id": "9d5ed09b-744c-4694-a748-038a382fd8d6",
+     "name": "פרטים כללים ודרכי התקשרות - אתרי טיפול בפסולת מעורבת",
+     "format": "XLSX",
+     "url": "https://data.gov.il/dataset/e444962a-0f58-429c-bc3c-f63786be1cfe/resource/9d5ed09b-744c-4694-a748-038a382fd8d6/download/9d5ed09b-744c-4694-a748-038a382fd8d6.xlsx"
+    }
+   ]
+  }
+ ]
+}
