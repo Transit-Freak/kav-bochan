@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A rail/data/tunnels.json rail/data/antenna-sources.json
+          git add -A rail/data/tunnels.json rail/data/antenna-sources.json rail/data/antennas-raw.*
           git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
           git commit -m "data: rail — מנהרות וגשרים במסילה מ-OSM"
           for i in 1 2 3 4 5 6; do

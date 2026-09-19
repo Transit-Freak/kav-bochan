@@ -135,3 +135,34 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+def fetch_antennas():
+    """הורדת קובץ האנטנות הפעילות (המשרד להגנת הסביבה) כמות שהוא — לבדיקת המבנה."""
+    srcs = json.load(open(SRC_OUT, encoding='utf-8'))['packages']
+    for p in srcs:
+        if 'פעילות' not in (p.get('title') or ''):
+            continue
+        for rs in p['resources']:
+            if (rs.get('format') or '').upper() not in ('CSV', 'XLSX'):
+                continue
+            req = urllib.request.Request(rs['url'], headers=UA)
+            with urllib.request.urlopen(req, timeout=120) as r:
+                raw = r.read()
+            ext = 'csv' if rs['format'].upper() == 'CSV' else 'xlsx'
+            open(f'{OUTDIR}/antennas-raw.{ext}', 'wb').write(raw)
+            print(f'אנטנות: {rs["name"]} — {len(raw)} בתים')
+            if ext == 'csv':
+                txt = raw.decode('utf-8-sig', 'replace')
+                lines = txt.splitlines()
+                print(f'  {len(lines)} שורות; כותרת + 3 ראשונות:')
+                for ln in lines[:4]:
+                    print('   ', ln[:300])
+            return
+
+
+if __name__ == '__main__':
+    try:
+        fetch_antennas()
+    except Exception as ex:  # noqa: BLE001
+        print('הורדת האנטנות נכשלה:', repr(ex))
