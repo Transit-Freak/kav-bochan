@@ -137,12 +137,14 @@ const RADIUS = {'תורן קרקעי': 3000, 'תורן על הגג': 2000, 'אנ
 // אזורי כיסוי משוערים כיסו את כל המפה ולא אמרו כלום).
 const CoverLayer = L.Layer.extend({
   onAdd(m) { this._m = m; this._c = L.DomUtil.create('canvas', 'leaflet-zoom-animated'); this._c.style.pointerEvents = 'none'; this._c.style.position = 'absolute';
-    m.getPanes().overlayPane.appendChild(this._c); m.on('moveend zoomend resize', this._draw, this); this._draw(); },
-  onRemove(m) { m.off('moveend zoomend resize', this._draw, this); this._c.remove(); },
+    m.getPanes().overlayPane.appendChild(this._c); m.on('moveend zoomend resize viewreset', this._draw, this); m.on('zoomanim', this._anim, this); this._draw(); },
+  onRemove(m) { m.off('moveend zoomend resize viewreset', this._draw, this); m.off('zoomanim', this._anim, this); this._c.remove(); },
+  // בזמן אנימציית הזום הקנבס נמתח יחד עם המפה (במקום להיעלם ולחזור אחרי שנייה)
+  _anim(e) { const m = this._m, scale = m.getZoomScale(e.zoom), off = m._latLngToNewLayerPoint(this._nw, e.zoom, e.center); L.DomUtil.setTransform(this._c, off, scale); },
   _draw() {
     const m = this._m, sz = m.getSize(), c = this._c;
     c.width = sz.x; c.height = sz.y;
-    const tl = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(c, tl);
+    const tl = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(c, tl); this._nw = m.containerPointToLatLng([0, 0]);
     const ctx = c.getContext('2d'); ctx.clearRect(0, 0, sz.x, sz.y);
     const b = m.getBounds().pad(0.1);
     const z = m.getZoom(), r = z >= 13 ? 4 : z >= 10 ? 3 : 2;
