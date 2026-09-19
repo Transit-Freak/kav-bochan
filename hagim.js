@@ -107,8 +107,8 @@
     sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים", recep: "קליטה בסוכה" },
     hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה", recep: "קליטת האור" },
     tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק", recep: "קליטה בין העצים" },
-    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש", recep: "קליטה במסכה" },
-    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות", recep: "קליטה במדבר" },
+    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש", recep: "קליטה בשושן" },
+    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות", recep: "ארבע כוסות קליטה" },
     atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על הטקס", fares: "מחיר הקבב", ratzif: "דגל כפול", fleet: "צי חיל הים", rail: "רכבת העצמאות", bus: "האוטובוס עם הפטיש", recep: "קליטה כחול-לבן" },
     lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המרשמלו", fares: "מחיר תפוח האדמה", ratzif: "חץ כפול", fleet: "צי הזרדים", rail: "רכבת מירון", bus: "אוטובוס על האש", recep: "קליטה ליד המדורה" },
     shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על התיקון", fares: "מחיר החלב", ratzif: "בלינצ'ס כפול", fleet: "צי הפרחים", rail: "רכבת הר סיני", bus: "אוטובוס מגילת רות", recep: "קליטה בהר" },
@@ -165,6 +165,61 @@
   var bow = W + line + "<path d='M22 66 Q 70 -20 118 66' fill='none' stroke='#a16207' stroke-width='10' stroke-linecap='round'/><line x1='22' y1='66' x2='118' y2='66' stroke='#e2e8f0' stroke-width='3'/><line x1='70' y1='20' x2='70' y2='66' stroke='#e2e8f0' stroke-width='4'/><path d='M64 26 L70 14 L76 26 Z' fill='#e2e8f0'/>" + dots + E;
   var cheese = S + "<path d='M14 80 L96 44 L106 84 Z' fill='#fbbf24' stroke='#b45309' stroke-width='3'/><path d='M14 80 L96 44 L100 30 L20 68 Z' fill='#fde68a' stroke='#b45309' stroke-width='3'/><g fill='#a16207' opacity='.6'><circle cx='50' cy='72' r='5'/><circle cx='72' cy='66' r='4'/><circle cx='86' cy='76' r='4'/></g><g fill='#16a34a'><circle cx='40' cy='78' r='6'/><circle cx='62' cy='60' r='5'/><circle cx='90' cy='62' r='4'/></g><path d='M60 40 q4 -10 0 -18' stroke='#94a3b8' stroke-width='3' fill='none' stroke-linecap='round' opacity='.7'/>" + E;
   var bikkurim = W + line + "<g transform='rotate(30 100 44)'><path d='M78 40 h44 l-6 26 h-32 Z' fill='#d97706' stroke='#78350f' stroke-width='3'/><path d='M88 40 Q100 18 112 40' fill='none' stroke='#78350f' stroke-width='5'/></g><text x='52' y='36' font-size='22'>🍇</text><text x='30' y='54' font-size='20'>🌾</text>" + dots + E;
+  // "קליטה ברכבת" — ארבעת פסי הקליטה עשויים מהחג עצמו (שלמה 19.09: "תנסה להיות יותר מקורי")
+  var BX = [16, 41, 66, 91], BH = [30, 52, 74, 96];   // ארבעה פסים עולים, תחתית ב-y=112
+  function barsOf(fn) { var out = ""; for (var i = 0; i < 4; i++) out += fn(BX[i], 112 - BH[i], BH[i], i); return S + out + E; }
+  // ראש השנה: פסים מחלות דבש (משושים נערמים) ודבש נוטף מהגבוה
+  var recepRosh = barsOf(function (x, y, h, i) {
+    var o = "", n = i + 1, cx = x + 10;
+    for (var k = 0; k < n; k++) { var cy = 112 - 12 - k * 22; o += "<polygon points='" + [cx, cy - 12, cx + 10, cy - 6, cx + 10, cy + 6, cx, cy + 12, cx - 10, cy + 6, cx - 10, cy - 6].join(" ") + "' fill='#fbbf24' stroke='#b45309' stroke-width='2.5'/>"; }
+    if (i === 3) o += "<path d='M" + (cx + 4) + " 8 q6 6 0 14 q-6 -6 0 -14' fill='#f59e0b'/>";
+    return o;
+  });
+  // סוכות: פסים מסכך — קני במבוק בגבהים עולים עם כפות תמרים
+  var recepSukkot = barsOf(function (x, y, h) {
+    var cx = x + 10;
+    return "<rect x='" + (cx - 4) + "' y='" + y + "' width='8' height='" + h + "' rx='3' fill='#b45309'/><path d='M" + cx + " " + y + " q-16 -8 -22 4 M" + cx + " " + y + " q16 -8 22 4 M" + cx + " " + (y + 10) + " q-14 -4 -20 8 M" + cx + " " + (y + 10) + " q14 -4 20 8' stroke='#22c55e' stroke-width='4' fill='none' stroke-linecap='round'/>";
+  });
+  // חנוכה: פסים מנרות בגבהים עולים, כולם דולקים
+  var recepHan = barsOf(function (x, y, h) {
+    var cx = x + 10;
+    return "<rect x='" + x + "' y='" + y + "' width='20' height='" + h + "' rx='4' fill='#fff' stroke='#cbd5e1' stroke-width='2'/><rect x='" + (cx - 1.5) + "' y='" + (y - 7) + "' width='3' height='8' fill='#334155'/><ellipse class='hag-flame' cx='" + cx + "' cy='" + (y - 14) + "' rx='6' ry='10' fill='#fb923c'/><ellipse cx='" + cx + "' cy='" + (y - 12) + "' rx='3' ry='5' fill='#fde68a'/>";
+  }).replace(E, "<rect x='8' y='112' width='104' height='6' rx='3' fill='#fbbf24'/>" + E);
+  // ט"ו בשבט: פסים מברושים בגבהים עולים
+  var recepTu = barsOf(function (x, y, h) {
+    var cx = x + 10;
+    return "<rect x='" + (cx - 3) + "' y='" + (112 - 12) + "' width='6' height='12' fill='#78350f'/><path d='M" + cx + " " + y + " L" + (cx + 11) + " " + (112 - 10) + " L" + (cx - 11) + " " + (112 - 10) + " Z' fill='#15803d'/><path d='M" + cx + " " + (y + 8) + " L" + (cx + 7) + " " + (y + h * 0.55) + " L" + (cx - 7) + " " + (y + h * 0.55) + " Z' fill='#22c55e' opacity='.7'/>";
+  });
+  // פורים: פסים מאוזני המן נערמות (1, 2, 3, 4)
+  var recepPurim = barsOf(function (x, y, h, i) {
+    var o = "", cx = x + 10;
+    for (var k = 0; k <= i; k++) { var b = 112 - k * 22; o += "<path d='M" + cx + " " + (b - 22) + " L" + (cx + 12) + " " + b + " L" + (cx - 12) + " " + b + " Z' fill='#e9a23b' stroke='#a15c07' stroke-width='2' stroke-linejoin='round'/><circle cx='" + cx + "' cy='" + (b - 8) + "' r='3.5' fill='#1c1917'/>"; }
+    return o;
+  });
+  // פסח: ארבע כוסות — היין עולה מכוס לכוס
+  var recepPesach = barsOf(function (x, y, h, i) {
+    var cx = x + 10, top = 30, bot = 74, lvl = bot - 8 - i * 10;   // הבור מ-30 עד 74; היין עולה מכוס לכוס
+    var bowl = "M" + (cx - 11) + " " + top + " h22 q0 " + (bot - top) + " -11 " + (bot - top) + " q-11 0 -11 -" + (bot - top) + " Z";
+    var f = 1 - (lvl - top) / (bot - top);   // רוחב היין בגובה המפלס (הבור מתכווץ למטה)
+    var wine = "M" + (cx - 11 * f) + " " + lvl + " h" + (22 * f) + " q" + (2 * f) + " " + (bot - lvl) + " -" + (11 * f) + " " + (bot - lvl) + " q-" + (11 * f) + " 0 -" + (11 * f) + " -" + (bot - lvl) + " Z";
+    return "<path d='" + wine + "' fill='#b91c1c'/><path d='" + bowl + "' fill='none' stroke='#e2e8f0' stroke-width='2.5'/><path d='M" + cx + " " + bot + " V104 M" + (cx - 9) + " 106 h18' stroke='#e2e8f0' stroke-width='3' stroke-linecap='round'/>";
+  });
+  // יום העצמאות: דגלים על תרנים בגבהים עולים
+  var recepAtz = barsOf(function (x, y, h) {
+    var cx = x + 2;
+    return "<rect x='" + cx + "' y='" + y + "' width='3' height='" + h + "' fill='#94a3b8'/><g transform='translate(" + (cx + 3) + " " + y + ")'><rect width='20' height='14' fill='#fff' stroke='#cbd5e1' stroke-width='1'/><rect y='2' width='20' height='2.5' fill='#1d4ed8'/><rect y='9.5' width='20' height='2.5' fill='#1d4ed8'/><path d='M10 4.5 l3 5 h-6 Z M10 9.5 l3 -5 h-6 Z' fill='none' stroke='#1d4ed8' stroke-width='1'/></g>";
+  });
+  // ל"ג בעומר: להבות בגבהים עולים על גזרים
+  var recepLag = barsOf(function (x, y, h) {
+    var cx = x + 10, t = y;
+    return "<path d='M" + cx + " " + t + " C" + (cx + 12) + " " + (t + h * 0.35) + ", " + (cx + 12) + " " + (t + h * 0.75) + ", " + cx + " " + (112 - 6) + " C" + (cx - 12) + " " + (t + h * 0.75) + ", " + (cx - 12) + " " + (t + h * 0.35) + ", " + cx + " " + t + " Z' fill='#f97316'/><path d='M" + cx + " " + (t + h * 0.4) + " C" + (cx + 6) + " " + (t + h * 0.6) + ", " + (cx + 6) + " " + (t + h * 0.85) + ", " + cx + " " + (112 - 8) + " C" + (cx - 6) + " " + (t + h * 0.85) + ", " + (cx - 6) + " " + (t + h * 0.6) + ", " + cx + " " + (t + h * 0.4) + " Z' fill='#fde047'/><rect x='" + (x - 2) + "' y='108' width='24' height='6' rx='3' fill='#78350f'/>";
+  });
+  // שבועות: שיבולים בגבהים עולים
+  var recepShav = barsOf(function (x, y, h) {
+    var cx = x + 10, o = "<path d='M" + cx + " 112 V" + y + "' stroke='#ca8a04' stroke-width='3' stroke-linecap='round'/>";
+    for (var k = 0; k < 5; k++) { var yy = y + 4 + k * 8; o += "<ellipse cx='" + (cx - 5) + "' cy='" + yy + "' rx='5' ry='3' fill='#fbbf24' transform='rotate(-30 " + (cx - 5) + " " + yy + ")'/><ellipse cx='" + (cx + 5) + "' cy='" + (yy + 4) + "' rx='5' ry='3' fill='#fbbf24' transform='rotate(30 " + (cx + 5) + " " + (yy + 4) + ")'/>"; }
+    return o;
+  });
   // אימוג'י גדול עם תג קטן צמוד אליו (לא בפינת הכרטיס — שלמה 07.09: "הסמל נראה מוזר");
   // roof=true: התג יושב על גג הרכב (רכבת/אוטובוס נושאים את סמל החג)
   function em(e, badge, roof) { return "<span class='hag-emwrap" + (roof ? " roof" : "") + "'><span class='hag-em'>" + e + "</span>" + (badge ? "<span class='hag-badge'>" + badge + "</span>" : "") + "</span>"; }
@@ -179,23 +234,23 @@
   // כל כלי — סמל אחר של החג (שלמה 07.09: "חצי מהסמלים הם מסכות")
   var ART = {
     rosh:      { pach: pomRot, gold: pomGold, bug: shofar, next: em("🍎", "🍯"), time: honeyClock,
-                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: rail("📯"), bus: bus("🐟"), recep: em("📶", "🍎") },
+                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: rail("📯"), bus: bus("🐟"), recep: recepRosh },
     sukkot:    { pach: sukkah, gold: etrog, bug: lulav, next: em("🚏", "🛖"), time: em("🕰️", "🍂"),
-                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: rail("📜"), bus: bus("🍋"), recep: em("📶", "🌿") },
+                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: rail("📜"), bus: bus("🍋"), recep: recepSukkot },
     hanukkah:  { pach: sufg, gold: jug, bug: dreidel, next: em("🚏", "🕯️"), time: menorah(),
-                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: rail("✨"), bus: bus("🪔"), recep: em("📶", "🕎") },
+                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: rail("✨"), bus: bus("🪔"), recep: recepHan },
     tubishvat: { pach: dryTree, gold: blossom, bug: root, next: em("🚏", "🌳"), time: rings,
-                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: rail("🌾"), bus: bus("🍃"), recep: em("📶", "🌳") },
+                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: rail("🌾"), bus: bus("🍃"), recep: recepTu },
     purim:     { pach: gragger, gold: basket, bug: flipped, next: em("🎭"), time: scroll,
-                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: rail("🏰"), bus: bus("🐎"), recep: em("📶", "🎭") },
+                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: rail("🏰"), bus: bus("🐎"), recep: recepPurim },
     pesach:    { pach: em("🍞"), gold: matzah, bug: desert, next: em("🚏", "❓"), time: em("📖", "🍷"),
-                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: rail("🌊"), bus: bus("🐸"), recep: em("📶", "🍷") },
+                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: rail("🌊"), bus: bus("🐸"), recep: recepPesach },
     atzmaut:   { pach: grill, gold: flyover, bug: fwZig, next: em("🇮🇱"), time: em("🕰️", "🎂"),
-                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: rail("🎆"), bus: bus("🔨"), recep: em("📶", "🇮🇱") },
+                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: rail("🎆"), bus: bus("🔨"), recep: recepAtz },
     lagbaomer: { pach: fireOut, gold: fireBig, bug: bow, next: em("🔥"), time: em("🕰️", "🌙"),
-                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: rail("⛰️"), bus: bus("🍖"), recep: em("📶", "🔥") },
+                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: rail("⛰️"), bus: bus("🍖"), recep: recepLag },
     shavuot:   { pach: cheese, gold: em("🍰", "✨"), bug: bikkurim, next: em("🚏", "🌾"), time: em("🕰️", "🧀"),
-                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: rail("⛰️"), bus: bus("📜"), recep: em("📶", "🧀") }
+                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: rail("⛰️"), bus: bus("📜"), recep: recepShav }
   };
   // העין של "הקו הבוחן" בכל חג
   function eye(pupil, extra, stroke) {
@@ -229,6 +284,7 @@
     "@keyframes hag-drip{0%{transform:translateY(0) scaleY(.6);opacity:0}15%{opacity:1}80%{transform:translateY(64px) scaleY(1.1);opacity:1}100%{transform:translateY(74px);opacity:0}}",
     ".hag-flame{transform-origin:center 26px;animation:hag-flick 1.4s ease-in-out infinite alternate}@keyframes hag-flick{from{transform:scaleY(1)}to{transform:scaleY(.86) translateX(1px)}}",
     "html.a11y-nomotion .hag-drop,html.a11y-nomotion .hag-flame{animation:none}",
+    ".glyph.hag-glyph{background:transparent!important;border:0!important;width:auto!important;height:auto!important}.glyph.hag-glyph .hag-svg{width:60px;height:60px}.glyph.hag-glyph .hag-em{font-size:44px}",
     ".hag-eye{width:44px;height:44px;flex:none}@media (min-width:768px){.hag-eye{width:56px;height:56px}}",
     "#hag-pill{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99996;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:999px;padding:6px 14px 6px 10px;font:800 13px/1.2 'Heebo',system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;align-items:center;gap:8px;direction:rtl;max-width:92vw}",
     "#hag-pill.quiet{background:#f1f5f9;color:#334155;border-color:#cbd5e1}",
@@ -268,7 +324,12 @@
         }
         // כותרת של כלי בעמוד שלו ("🕰️ הקו בזמן", "קו פח", "הקו המוזהב", "התחנה הבאה")
         Object.keys(TOOLS).forEach(function (orig) {
-          if (t.indexOf(orig) >= 0 && H[TOOLS[orig]]) renameHeading(h, H[TOOLS[orig]], orig);
+          if (t.indexOf(orig) >= 0 && H[TOOLS[orig]]) {
+            renameHeading(h, H[TOOLS[orig]], orig);
+            // עמוד עם גליף לצד הכותרת (קליטה ברכבת): אותו סמל חג כמו בכרטיס בדף הבית (שלמה 19.09)
+            var g = h.previousElementSibling, a2 = ART[active.id] && ART[active.id][TOOLS[orig]];
+            if (g && g.classList && g.classList.contains("glyph") && a2 && !g.classList.contains("hag-glyph")) { g.classList.add("hag-glyph"); g.innerHTML = a2; }
+          }
         });
       });
       // כרטיסי דף הבית: h2 עם שם הכלי, והסמל בקופסה שלפניו
