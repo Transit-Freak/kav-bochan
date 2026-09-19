@@ -32,7 +32,8 @@ MIRRORS = [
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ]
 BBOX = '29.4,34.2,33.4,35.95'
-UA = {'User-Agent': 'kav-bochan-rail/1.0'}
+UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36',
+      'Accept': 'application/json,text/csv,*/*'}
 
 
 def hav(lat1, lon1, lat2, lon2):
@@ -138,27 +139,37 @@ if __name__ == '__main__':
 
 
 def fetch_antennas():
-    """הורדת קובץ האנטנות הפעילות (המשרד להגנת הסביבה) כמות שהוא — לבדיקת המבנה."""
+    """האנטנות הפעילות (המשרד להגנת הסביבה) דרך datastore של data.gov.il —
+    ההורדה הישירה של הקובץ חסומה (403). נשמר כ-JSON גולמי לבדיקת המבנה."""
     srcs = json.load(open(SRC_OUT, encoding='utf-8'))['packages']
+    rid = None
     for p in srcs:
-        if 'פעילות' not in (p.get('title') or ''):
-            continue
-        for rs in p['resources']:
-            if (rs.get('format') or '').upper() not in ('CSV', 'XLSX'):
-                continue
-            req = urllib.request.Request(rs['url'], headers=UA)
-            with urllib.request.urlopen(req, timeout=120) as r:
-                raw = r.read()
-            ext = 'csv' if rs['format'].upper() == 'CSV' else 'xlsx'
-            open(f'{OUTDIR}/antennas-raw.{ext}', 'wb').write(raw)
-            print(f'אנטנות: {rs["name"]} — {len(raw)} בתים')
-            if ext == 'csv':
-                txt = raw.decode('utf-8-sig', 'replace')
-                lines = txt.splitlines()
-                print(f'  {len(lines)} שורות; כותרת + 3 ראשונות:')
-                for ln in lines[:4]:
-                    print('   ', ln[:300])
-            return
+        if 'פעילות' in (p.get('title') or ''):
+            for rs in p['resources']:
+                if (rs.get('format') or '').upper() == 'CSV':
+                    rid = rs['id']
+    if not rid:
+        print('לא נמצא משאב אנטנות פעילות')
+        return
+    recs, fields, off = [], None, 0
+    while True:
+        url = 'https://data.gov.il/api/3/action/datastore_search?' + urllib.parse.urlencode(
+            {'resource_id': rid, 'limit': 5000, 'offset': off})
+        req = urllib.request.Request(url, headers=UA)
+        with urllib.request.urlopen(req, timeout=120) as r:
+            j = json.load(r)
+        res = j['result']
+        fields = fields or [f['id'] for f in res.get('fields', [])]
+        recs += res.get('records', [])
+        if len(res.get('records', [])) < 5000:
+            break
+        off += 5000
+    print(f'אנטנות: {len(recs)} רשומות; שדות: {fields}')
+    for rc in recs[:3]:
+        print('   ', json.dumps(rc, ensure_ascii=False)[:400])
+    json.dump({'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%MZ'), 'resource_id': rid,
+               'fields': fields, 'records': recs},
+              open(f'{OUTDIR}/antennas-raw.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 
 
 if __name__ == '__main__':
