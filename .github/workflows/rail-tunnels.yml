@@ -1,0 +1,39 @@
+name: rail-tunnels
+
+# מנהרות/גשרים/חתכים במסילות (OSM) + איתור מאגרי אנטנות ב-data.gov.il —
+# תשתית למפת הקליטה ברכבת.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rail-tunnels
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: מנהרות מ-OSM ומאגרי אנטנות
+        run: python3 tools/rail_tunnels.py
+
+      - name: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A rail/data/tunnels.json rail/data/antenna-sources.json
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -m "data: rail — מנהרות וגשרים במסילה מ-OSM"
+          for i in 1 2 3 4 5 6; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            echo "push rejected — retry $i"; sleep 15
+          done
+          echo "הדחיפה נכשלה"; exit 1
