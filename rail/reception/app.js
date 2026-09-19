@@ -19,6 +19,32 @@ const TRAINS = [
   {code: 'viaggio', name: 'חד-קומתי (סימנס ויאג׳ו)', f: 0.7, note: 'צי מצטמצם; זיגוג ישן יותר, חוסם פחות'},
 ];
 let train = 'twindexx';
+// סינון לפי דור: 'all' / '4' (דור 4 ומעלה; קוד לא מפוענח נחשב כדור 4, כי כל אתר
+// פעיל היום משדר לפחות דור 4) / '5' (רק אתרים שרשום בהם דור 5)
+let gen = 'all';
+const hasGen = (a, g) => g === 'all' ? true : g === '4' ? (/[45]/.test(a[4]) || !/דור/.test(a[4])) : /5/.test(a[4]);
+// אינדקס רשת של האנטנות (לכל מפעיל) — המרחק לאנטנה הקרובה מחושב בדפדפן כדי שהסינון לפי דור יעבוד
+const AG = {};
+function buildIndex() {
+  for (const o of D.ops) AG[o.code] = new Map();
+  for (const a of D.antennas) { const k = `${Math.floor(a[0] * 50)}_${Math.floor(a[1] * 50)}`; const m = AG[a[2]]; if (!m.has(k)) m.set(k, []); m.get(k).push(a); }
+}
+function nearest(lat, lon, code) {
+  const m = AG[code]; if (!m) return null;
+  const ci = Math.floor(lat * 50), cj = Math.floor(lon * 50);
+  let best = null;
+  const cosl = Math.cos(lat * Math.PI / 180);
+  for (let i = ci - 4; i <= ci + 4; i++) for (let j = cj - 4; j <= cj + 4; j++) {
+    const cell = m.get(`${i}_${j}`); if (!cell) continue;
+    for (const a of cell) {
+      if (!hasGen(a, gen)) continue;
+      const dy = (a[0] - lat) * 111320, dx = (a[1] - lon) * 111320 * cosl;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (best == null || d < best) best = d;
+    }
+  }
+  return best != null && best <= 8000 ? Math.round(best) : null;
+}
 function scoreFor(struct, d, spd, f) {
   if (struct === 'tunnel' || struct === 'covered' || d == null) return 0;
   let s = d < 1500 * f ? 3 : d < 3500 * f ? 2 : d < 6000 * f ? 1 : 0;
@@ -42,6 +68,9 @@ function init() {
   const ops = $('#ops');
   ops.innerHTML = D.ops.map(o => `<button data-op="${o.code}" style="--b:${BRAND[o.code]}" class="${o.code === op ? 'on' : ''}">${esc(o.name)}</button>`).join('') + `<button data-op="all" style="--b:#101418">כל החברות</button>`;
   ops.onclick = e => { const b = e.target.closest('button'); if (!b) return; op = b.dataset.op; ops.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); draw(); };
+  buildIndex();
+  const gsel = $('#gen');
+  gsel.onclick = e => { const b = e.target.closest('button'); if (!b) return; gen = b.dataset.gen; gsel.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); draw(); };
   const tr = $('#train');
   tr.innerHTML = TRAINS.map(t => `<option value="${t.code}" ${t.code === train ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
   tr.onchange = () => { train = tr.value; $('#trainNote').textContent = (TRAINS.find(t => t.code === train) || {}).note || ''; draw(); };
@@ -57,11 +86,10 @@ function init() {
 function draw() {
   layer.clearLayers();
   const all = op === 'all';
-  const ci = D.cols.indexOf('s_' + (all ? 'pel' : op)), di = D.cols.indexOf('d_' + (all ? 'pel' : op));
-  const dis = D.ops.map(o => D.cols.indexOf('d_' + o.code));
   const f = (TRAINS.find(t => t.code === train) || TRAINS[1]).f;
   let curSpd = null;
-  const scoreOf = p => { if (!all) return scoreFor(p[2], p[di], curSpd, f); const v = dis.map(i => scoreFor(p[2], p[i], curSpd, f)).sort(); return v[1]; };
+  const dOf = (p, code) => nearest(p[0], p[1], code);
+  const scoreOf = p => { if (!all) return scoreFor(p[2], dOf(p, op), curSpd, f); const v = D.ops.map(o => scoreFor(p[2], dOf(p, o.code), curSpd, f)).sort(); return v[1]; };
   const tot = [0, 0, 0, 0];
   let km = 0;
   for (const [key, s] of Object.entries(D.segs)) {
@@ -78,7 +106,7 @@ function draw() {
       const inf = runInfo;
       pl.bindPopup(() => `<b>${esc(name)}</b><br>${inf.struct ? '🕳️ ' + STRUCT[inf.struct] + '<br>' : ''}` +
         `${bySpeed ? '' : 'קליטה משוערת: <b>' + GNAME[inf.sc] + '</b><br>'}` +
-        (all ? D.ops.map((o, k) => { const v = scoreFor(inf.p[2], inf.p[dis[k]], s.spd, f); return `${esc(o.name)}: <b style="color:${GCOL[v]}">${GNAME[v]}</b>`; }).join(' · ') + '<br>' : `אנטנה קרובה של ${esc(opName())}: ${inf.d == null ? 'מעל 8 ק"מ' : inf.d < 1000 ? inf.d + ' מ׳' : (inf.d / 1000).toFixed(1) + ' ק"מ'}<br>`) +
+        (all ? D.ops.map((o, k) => { const v = scoreFor(inf.p[2], dOf(inf.p, o.code), s.spd, f); return `${esc(o.name)}: <b style="color:${GCOL[v]}">${GNAME[v]}</b>`; }).join(' · ') + '<br>' : `אנטנה קרובה של ${esc(opName())}: ${inf.d == null ? 'מעל 8 ק"מ' : inf.d < 1000 ? inf.d + ' מ׳' : (inf.d / 1000).toFixed(1) + ' ק"מ'}<br>`) +
         `מהירות ממוצעת במקטע: ${s.spd == null ? '—' : s.spd + ' קמ"ש'} (${s.n} נסיעות)`);
       layer.addLayer(pl);
     };
@@ -86,7 +114,7 @@ function draw() {
       const p = pts[i], sc = scoreOf(p);
       tot[sc]++;
       const c = bySpeed ? SCOL(s.spd) : GCOL[sc];
-      if (c !== runC) { if (run.length) { run.push([p[0], p[1]]); flush(); } run = [[p[0], p[1]]]; runC = c; runInfo = {sc, d: p[di], struct: p[2], p}; }
+      if (c !== runC) { if (run.length) { run.push([p[0], p[1]]); flush(); } run = [[p[0], p[1]]]; runC = c; runInfo = {sc, d: all ? null : dOf(p, op), struct: p[2], p}; }
       else run.push([p[0], p[1]]);
     }
     flush();
@@ -122,7 +150,7 @@ const CoverLayer = L.Layer.extend({
     for (const code of codes) {
       ctx.fillStyle = BRAND[code]; ctx.globalAlpha = op === 'all' ? .16 : .22; ctx.beginPath();
       for (const a of D.antennas) {
-        if (a[2] !== code || !b.contains([a[0], a[1]])) continue;
+        if (a[2] !== code || !hasGen(a, gen) || !b.contains([a[0], a[1]])) continue;
         const p = m.latLngToContainerPoint([a[0], a[1]]);
         const r = (RADIUS[a[3]] || 1000) / mpp;
         ctx.moveTo(p.x + r, p.y); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -146,6 +174,7 @@ function method() {
     <li><b>מנהרות וחתכים</b> — מסומנים על המסילה ב-OpenStreetMap (${D.tunnels.length} מנהרות בשם: ${esc(D.tunnels.join(', '))}). במנהרה הציון הוא "אין קליטה" גם אם הותקנה בה תשתית פנימית, כי אין על כך מידע פתוח.</li>
     <li><b>מהירות</b> — הזמן בפועל בין תחנות עוקבות (לו"ז + איחור שנמדד) מול אורך המסילה, חציון על ${D.days} הימים האחרונים. מעל 120 קמ"ש הציון יורד דרגה, כי מסירה בין תאים נכשלת יותר במהירות.</li>
     <li><b>הציון</b> — עד 1.5 ק"מ מאנטנה: טובה; עד 3.5: סבירה; עד 6: חלשה; מעבר לזה: אין. חתך מוריד דרגה. אין כאן קו ראייה וטופוגרפיה עדיין.</li>
+    <li><b>דור 4 / דור 5</b> — לפי עמודת "טכנולוגיית שידור" במאגר. "דור 5" מציג רק אתרים שרשום בהם דור 5; "דור 4 ומעלה" כולל גם אתרים שהטכנולוגיה שלהם רשומה בקוד מספרי לא מפוענח (כשליש מהמאגר), כי כל אתר פעיל היום משדר לפחות דור 4. הדור משפיע על מהירות הגלישה, לא על עצם הקליטה.</li>
     <li><b>סוג הרכבת</b> — הקרון עצמו חוסם: זכוכית עם ציפוי מתכתי (בידוד תרמי) מחלישה את האות פי מאות, וחריצת לייזר של הציפוי מחזירה כמעט לקליטה חיצונית. לכן הטווחים למעלה מוכפלים במקדם לפי הסוג: חלונות מחורצים 1.0, דו-קומתי טווינדקס 0.55, דזירו HC 0.4, ויאג׳ו 0.7. המקדמים הם הערכה מהספרות המקצועית, לא מדידה בקרונות של רכבת ישראל. משרד התחבורה הקצה 68 מיליון ₪ (יולי 2025) לחריצת כל 800 הקרונות; עד כה כ-30 קרונות, ואין רשימה פומבית איזה. רכבת ישראל לא מפרסמת איזה ציוד רץ על איזו רכבת, ולכן הבחירה כאן ידנית.</li>
   </ul>`;
 }
