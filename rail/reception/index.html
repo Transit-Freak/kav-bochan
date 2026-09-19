@@ -31,6 +31,7 @@
   .seg button{--b:var(--ink);color:var(--b)}
   .seg button.on{background:var(--b);color:#fff}
   label.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer}
+  select{font:700 14px var(--body);border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;background:#fff;color:var(--ink)}
   #map{height:min(70vh,640px);border:1.5px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);overflow:hidden;background:#eef2f6}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;font-size:13px;font-weight:700}
   .legend i{display:inline-block;width:22px;height:6px;border-radius:3px;vertical-align:middle;margin-inline-end:6px}
@@ -61,9 +62,11 @@
   <p class="sub" id="sub">טוען נתונים…</p>
   <div class="ctl">
     <div class="seg" id="ops"></div>
+    <label class="chk">סוג רכבת <select id="train"></select></label>
     <label class="chk"><input type="checkbox" id="showAnt" checked> אזורי כיסוי משוערים</label>
     <label class="chk"><input type="checkbox" id="showSpd"> צבע לפי מהירות</label>
   </div>
+  <p class="sub" id="trainNote" style="font-size:12.5px;margin:-6px 0 10px"></p>
   <div class="legend" id="legend"></div>
   <div id="map"><div class="msg">טוען…</div></div>
   <div class="stats" id="stats"></div>
