@@ -103,7 +103,7 @@
   var N = {
   // לכל חג — כל כלי מקבל סמל אחר של החג, ואף מילה לא חוזרת בשני שמות
   // (שלמה 07.09: "חצי מהסמלים הם מסכות", "יש כבר אתר עם אושפיזין")
-    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך", recep: "קליטה בתקיעה" },
+    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך", recep: "תרועת הקליטה" },
     sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים", recep: "קליטה בסוכה" },
     hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה", recep: "קליטת האור" },
     tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק", recep: "קליטה בין העצים" },
@@ -168,13 +168,10 @@
   // "קליטה ברכבת" — ארבעת פסי הקליטה עשויים מהחג עצמו (שלמה 19.09: "תנסה להיות יותר מקורי")
   var BX = [16, 41, 66, 91], BH = [30, 52, 74, 96];   // ארבעה פסים עולים, תחתית ב-y=112
   function barsOf(fn) { var out = ""; for (var i = 0; i < 4; i++) out += fn(BX[i], 112 - BH[i], BH[i], i); return S + out + E; }
-  // ראש השנה: פסים מחלות דבש (משושים נערמים) ודבש נוטף מהגבוה
-  var recepRosh = barsOf(function (x, y, h, i) {
-    var o = "", n = i + 1, cx = x + 10;
-    for (var k = 0; k < n; k++) { var cy = 112 - 12 - k * 22; o += "<polygon points='" + [cx, cy - 12, cx + 10, cy - 6, cx + 10, cy + 6, cx, cy + 12, cx - 10, cy + 6, cx - 10, cy - 6].join(" ") + "' fill='#fbbf24' stroke='#b45309' stroke-width='2.5'/>"; }
-    if (i === 3) o += "<path d='M" + (cx + 4) + " 8 q6 6 0 14 q-6 -6 0 -14' fill='#f59e0b'/>";
-    return o;
-  });
+  // ראש השנה: שופר, וקולות התקיעה יוצאים ממנו כקשתות עולות — כמו פסי הקליטה
+  var recepRosh = "<svg viewBox='0 22 150 104' class='hag-svg wide'>" + "<g><path d='M14 92 C 20 66, 44 60, 56 72 C 64 80, 56 96, 70 92' fill='none' stroke='#d6a054' stroke-width='12' stroke-linecap='round'/><path d='M14 92 C 20 66, 44 60, 56 72' fill='none' stroke='#8a5a1c' stroke-width='4' stroke-linecap='round' opacity='.55'/>"
+    + "<g fill='none' stroke='#fbbf24' stroke-width='7' stroke-linecap='round'><path d='M80 84 a10 10 0 0 0 0 -16'/><path d='M84 96 a24 24 0 0 0 0 -40'/><path d='M88 108 a38 38 0 0 0 0 -64'/></g>"
+    + "<g fill='none' stroke='#fde68a' stroke-width='7' stroke-linecap='round' opacity='.55'><path d='M92 120 a52 52 0 0 0 0 -88'/></g></g>" + E;
   // סוכות: פסים מסכך — קני במבוק בגבהים עולים עם כפות תמרים
   var recepSukkot = barsOf(function (x, y, h) {
     var cx = x + 10;
