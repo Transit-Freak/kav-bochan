@@ -95,54 +95,52 @@ def read_sheet(pdf, out_json, debug_dir=None):
     W, H = img.size
     a = np.asarray(img)
     print(f'{os.path.basename(pdf)}: {W}x{H} @ {dpi} dpi', flush=True)
-    # --- 2. הטבלה: קווים אופקיים ארוכים בחצי התחתון
+    # --- 2. הטבלה לפי תיבות התוויות בעמודה הקיצונית: רוחב עמודת התווית = הקו האנכי
+    #        הראשון בקצה; גבולות השורות = הקווים האופקיים בתוך העמודה הזו (חצי תחתון)
     y_from = H // 2
-    sub = a[y_from:, :]
-    lines = group_runs(dark_rows(sub, int(W * 0.08), int(W * 0.70), thresh=0.3) + y_from)
-    ys = [int((r[0] + r[1]) / 2) for r in lines]
-    print('  קווים אופקיים ארוכים:', ys[:20], flush=True)
-    rows = [(ys[i], ys[i + 1]) for i in range(len(ys) - 1) if 40 < ys[i + 1] - ys[i] < H * 0.05]
-    # --- 3. תוויות: תא בקצה (עברית — הכי ימני או הכי שמאלי; בודקים את שניהם)
-    labeled = []
-    if rows:
-        ty0, ty1 = rows[0][0], rows[-1][1]
-        # עמודת התוויות: רצועה צרה בקצה השמאלי או הימני של הטבלה — OCR עם מיקומים,
-        # וכל מילת מפתח משויכת לשורה שמכילה את מרכז הגובה שלה
-        for (x0, x1) in ((0, int(W * 0.035)), (int(W * 0.965), W)):
-            strip = img.crop((x0, ty0, x1, ty1))
-            strip = strip.resize((strip.width * 2, strip.height * 2))
-            if debug_dir:
-                strip.resize((strip.width // 2, strip.height // 2)).save(os.path.join(debug_dir, os.path.basename(pdf) + f'.strip{x0}.png'))
-            words = ocr_tsv(strip, 'heb')
-            print('   מילים ברצועת התוויות', x0, ':', [(w['t'], int(ty0 + (w['y'] + w['h'] / 2) / 2)) for w in words if w['conf'] > 20][:20], flush=True)
-            found = {}
-            for w in words:
-                t = w['t'].replace(' ', '')
-                k = ('plan' if ('מתוכנ' in t or 'מתו' in t) else 'ground' if ('קיים' in t or 'קים' in t) else
-                     'chain' if ('מרחק' in t or t.endswith('רץ') or t == 'רץ') else None)
-                if not k:
-                    continue
-                yc = ty0 + (w['y'] + w['h'] / 2) / 2
-                for (y0, y1) in rows:
-                    if y0 <= yc <= y1 and k not in found:
-                        found[k] = (y0, y1, w['t'])
-            if found:
-                for k, (y0, y1, t) in found.items():
-                    labeled.append({'y0': y0, 'y1': y1, 'label': t, 'kind': k, 'lx0': x0, 'lx1': x1})
+    labeled, rows, ys = [], [], []
+    side_used = None
+    for side in ('left', 'right'):
+        xr = range(60, int(W * 0.06)) if side == 'left' else range(W - 60, int(W * 0.94), -1)
+        band = a[y_from:, :] < 128
+        lab_edge = None
+        for x in xr:
+            col = band[:, x]
+            # קו אנכי באורך של לפחות 400 פיקסלים רצופים
+            runs = group_runs(np.where(col)[0], gap=2)
+            if any(r[1] - r[0] > 400 for r in runs):
+                lab_edge = x
                 break
-    print('  שורות עם תווית:', [(r['label'][:30], r['y0'], r['y1']) for r in labeled], flush=True)
-    if debug_dir:
+        if lab_edge is None:
+            continue
+        lx0, lx1 = (0, lab_edge) if side == 'left' else (lab_edge, W)
+        hl = group_runs(dark_rows(a[y_from:, :], lx0 + 10, lx1 - 10, thresh=0.6) + y_from)
+        ys_side = [int((r[0] + r[1]) / 2) for r in hl]
+        rows_side = [(ys_side[k], ys_side[k + 1]) for k in range(len(ys_side) - 1) if 60 < ys_side[k + 1] - ys_side[k] < H * 0.05]
+        lab = []
+        for (y0, y1) in rows_side:
+            cell = img.crop((lx0, y0 + 4, lx1, y1 - 4))
+            cell = cell.resize((cell.width * 2, cell.height * 2))
+            txt = ocr(cell, 'heb', 7).replace(' ', '')
+            k = ('plan' if ('מתוכנ' in txt or 'מתו' in txt) else 'ground' if ('קיים' in txt or 'קים' in txt) else
+                 'chain' if ('מרחק' in txt or txt.endswith('רץ')) else None)
+            print(f'   תווית {side} {y0}-{y1}: {txt!r} → {k}', flush=True)
+            if k:
+                lab.append({'y0': y0, 'y1': y1, 'label': txt, 'kind': k, 'lx0': lx0, 'lx1': lx1})
+        if len(lab) >= 2:
+            labeled, rows, ys, side_used = lab, rows_side, ys_side, side
+            break
+    print('  צד התוויות:', side_used, '· רצועות:', rows, flush=True)
+    if debug_dir and rows:
         from PIL import ImageDraw
-        dbg = img.crop((0, max(0, (rows[0][0] if rows else y_from) - 200), W, H)).convert('RGB')
+        oy = max(0, rows[0][0] - 200)
+        dbg = img.crop((0, oy, W, H)).convert('RGB')
         dr = ImageDraw.Draw(dbg)
-        oy = max(0, (rows[0][0] if rows else y_from) - 200)
         for y in ys:
             dr.line([(0, y - oy), (W, y - oy)], fill=(255, 0, 0), width=6)
         for r in labeled:
             dr.rectangle([(r['lx0'], r['y0'] - oy), (r['lx1'], r['y1'] - oy)], outline=(0, 0, 255), width=6)
-        print('   רצועות שורה:', rows, flush=True)
-        dbg = dbg.resize((dbg.width // 4, dbg.height // 4))
-        dbg.save(os.path.join(debug_dir, os.path.basename(pdf) + '.debug.png'))
+        dbg.resize((dbg.width // 4, dbg.height // 4)).save(os.path.join(debug_dir, os.path.basename(pdf) + '.debug.png'))
 
     def kind_of(label):
         s = label.replace(' ', '')
@@ -173,7 +171,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
         cells = [(xs[i], xs[i + 1]) for i in range(len(xs) - 1) if 12 < xs[i + 1] - xs[i] < 200]
         vals = []
         for (x0, x1) in cells:
-            cell = img.crop((x0 + 2, y0 + 3, x1 - 2, y1 - 3))
+            cell = img.crop((x0 + 2, y0 + 2, x1 - 2, y1 - 2))
             cell = cell.rotate(-90, expand=True)   # הטקסט מסובב 90° נגד כיוון השעון
             cell = ImageOps.autocontrast(cell)
             cell = cell.resize((cell.width * 2, cell.height * 2))
@@ -187,7 +185,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
 
     # --- 5. זיווג לפי עמודה (מרכז X קרוב)
     def parse_ch(t):
-        m = re.match(r'^\s*(\d{1,3})\+(\d{3})(?:\.\d+)?\s*$', t)
+        m = re.search(r'(\d{1,3})\+(\d{3})', t)
         return int(m.group(1)) * 1000 + int(m.group(2)) if m else None
 
     def parse_el(t):
@@ -218,7 +216,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
     print(f'  נקודות קילומטראז׳: {len(series)} · עם שני גבהים: {ok}', flush=True)
 
     # --- 6. תוויות בחתך: רצועת החתך (בין 30% ל-70% מהגובה), OCR עברית עם מיקומים
-    band_y0, band_y1 = int(H * 0.28), (rows[0][0] if rows else int(H * 0.75))
+    band_y0, band_y1 = int(H * 0.22), (rows[0][0] if rows else int(H * 0.75))
     band = img.crop((0, band_y0, W, band_y1))
     small = band.resize((band.width // 2, band.height // 2))
     words = ocr_tsv(small, 'heb')
