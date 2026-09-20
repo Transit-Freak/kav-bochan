@@ -101,14 +101,16 @@ def read_sheet(pdf, out_json, debug_dir=None):
     labeled, rows, ys = [], [], []
     side_used = None
     for side in ('left', 'right'):
-        xr = range(60, int(W * 0.06)) if side == 'left' else range(W - 60, int(W * 0.94), -1)
+        xr = range(140, int(W * 0.06)) if side == 'left' else range(W - 140, int(W * 0.94), -1)
         lab_edge = None
-        for thr, gap, minlen in ((128, 2, 400), (175, 4, 350)):
+        for thr, gap, minlen in ((128, 2, 400), (175, 4, 350), (175, 6, 80)):
             band = a[y_from:, :] < thr
             for x in xr:
-                col = band[:, x]
+                col = band[:, x] | band[:, x + 1] | band[:, x - 1]
                 runs = group_runs(np.where(col)[0], gap=gap)
-                if any(r[1] - r[0] > minlen for r in runs):
+                # קו רציף ארוך, או (ניסיון שלישי) עמודת תיבות: כמה קטעים של 80+ שסכומם 450+
+                longs = [r for r in runs if r[1] - r[0] > minlen]
+                if longs and (minlen >= 350 or (len(longs) >= 3 and sum(r[1] - r[0] for r in longs) > 450)):
                     lab_edge = x
                     break
             if lab_edge is not None:
@@ -117,9 +119,9 @@ def read_sheet(pdf, out_json, debug_dir=None):
         if lab_edge is None:
             continue
         lx0, lx1 = (0, lab_edge) if side == 'left' else (lab_edge, W)
-        hl = group_runs(dark_rows(a[y_from:, :], lx0 + 10, lx1 - 10, thresh=0.5) + y_from)
+        hl = group_runs(dark_rows(a[y_from:, :], lx0 + 12, lx1 - 12, thresh=0.85) + y_from)
         ys_side = [int((r[0] + r[1]) / 2) for r in hl]
-        rows_side = [(ys_side[k], ys_side[k + 1]) for k in range(len(ys_side) - 1) if 60 < ys_side[k + 1] - ys_side[k] < H * 0.05]
+        rows_side = [(ys_side[k], ys_side[k + 1]) for k in range(len(ys_side) - 1) if 95 < ys_side[k + 1] - ys_side[k] < H * 0.05]
         lab = []
         for (y0, y1) in rows_side:
             cell = img.crop((lx0, y0 + 4, lx1, y1 - 4))
