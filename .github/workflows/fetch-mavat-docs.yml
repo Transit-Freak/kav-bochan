@@ -80,12 +80,28 @@ jobs:
                 let done = false;
                 for (let k = info.n - 1; k >= 0 && !done; k--) {
                   const sel = `[data-kb-click="${want.slice(0, 20)}#${k}"]`;
+                  const tag = await pg.evaluate((sel) => { const e = document.querySelector(sel); return e ? e.tagName + ' ' + (e.className || '').toString().slice(0, 60) + ' ' + (e.getAttribute('href') || e.getAttribute('title') || e.getAttribute('aria-label') || '') : ''; }, sel);
                   try {
-                    const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 20000 }), pg.locator(sel).first().click({ timeout: 5000, force: true })]);
-                    const name = (dl.suggestedFilename() || ('doc_' + Date.now())).replace(/[^\w.\-֐-׿]/g, '_');
-                    const dest = dir + '/' + name; await dl.saveAs(dest);
-                    console.log('  הורד:', name, require('fs').statSync(dest).size, 'בתים'); done = true;
-                  } catch (e) { console.log('  לחיץ', k, 'לא הוריד:', e.message.slice(0, 80)); }
+                    // לחיצה דרך JS (האלמנט מוסתר בקבוצה מכווצת) — תופסים הורדה או חלון חדש
+                    const race = Promise.race([
+                      pg.waitForEvent('download', { timeout: 15000 }).then(d => ({ kind: 'download', d })),
+                      ctx.waitForEvent('page', { timeout: 15000 }).then(p => ({ kind: 'popup', p })),
+                    ]);
+                    await pg.evaluate((sel) => { const e = document.querySelector(sel); e.scrollIntoView(); e.click(); }, sel);
+                    const ev = await race;
+                    if (ev.kind === 'download') {
+                      const name = (ev.d.suggestedFilename() || ('doc_' + Date.now())).replace(/[^\w.\-֐-׿]/g, '_');
+                      const dest = dir + '/' + name; await ev.d.saveAs(dest);
+                      console.log('  הורד:', name, require('fs').statSync(dest).size, 'בתים', '(', tag, ')'); done = true;
+                    } else {
+                      await ev.p.waitForLoadState('domcontentloaded').catch(() => {});
+                      const u = ev.p.url(); console.log('  חלון חדש:', u.slice(0, 200));
+                      const r = await ctx.request.get(u, { timeout: 120000 }); const body = await r.body();
+                      console.log('  תוכן:', r.status(), r.headers()['content-type'], body.length, 'בתים');
+                      if (body.slice(0, 4).toString() === '%PDF') { const name = 'mavat_' + (u.match(/[?&]fn=([^&]+)/) || [0, 'doc_' + Date.now()])[1].replace(/[^\w.\-֐-׿]/g, '_'); const dest = dir + '/' + (name.endsWith('.pdf') ? name : name + '.pdf'); require('fs').writeFileSync(dest, body); console.log('  נשמר', dest); done = true; }
+                      await ev.p.close().catch(() => {});
+                    }
+                  } catch (e) { console.log('  לחיץ', k, '(', tag, ') לא הוריד:', e.message.slice(0, 80)); }
                 }
               } catch (e) { console.log('  שגיאה:', e.message.slice(0, 150)); }
             }
