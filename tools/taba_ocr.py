@@ -98,24 +98,36 @@ def read_sheet(pdf, out_json, debug_dir=None):
     # --- 2. הטבלה: קווים אופקיים ארוכים בחצי התחתון
     y_from = H // 2
     sub = a[y_from:, :]
-    lines = group_runs(dark_rows(sub, int(W * 0.05), int(W * 0.75)) + y_from)
+    lines = group_runs(dark_rows(sub, int(W * 0.08), int(W * 0.70), thresh=0.3) + y_from)
     ys = [int((r[0] + r[1]) / 2) for r in lines]
     print('  קווים אופקיים ארוכים:', ys[:20], flush=True)
-    rows = [(ys[i], ys[i + 1]) for i in range(len(ys) - 1) if 40 < ys[i + 1] - ys[i] < H * 0.08]
+    rows = [(ys[i], ys[i + 1]) for i in range(len(ys) - 1) if 40 < ys[i + 1] - ys[i] < H * 0.05]
     # --- 3. תוויות: תא בקצה (עברית — הכי ימני או הכי שמאלי; בודקים את שניהם)
     labeled = []
+    KEYS = ('מתוכנן', 'מתוכנו', 'קיים', 'קים', 'מרחק', 'רץ', 'רוס', 'רום')
     for (y0, y1) in rows:
         best = None
-        for (x0, x1) in ((0, int(W * 0.06)), (int(W * 0.94), W)):
+        for (x0, x1) in ((0, int(W * 0.07)), (int(W * 0.93), W)):
             cell = img.crop((x0, y0, x1, y1))
-            # התווית מודפסת אופקית; תא צר יחסית לגובה → סובבים? קודם ננסה כפי שהוא
-            txt = ocr(cell, 'heb', 7)
-            if txt and re.search(r'[א-ת]{3,}', txt):
+            cell = cell.resize((cell.width * 2, cell.height * 2))
+            txt = ocr(cell, 'heb', 6)
+            if txt and any(k in txt.replace(' ', '') for k in KEYS):
                 best = (txt, x0, x1)
                 break
         if best:
             labeled.append({'y0': y0, 'y1': y1, 'label': best[0], 'lx0': best[1], 'lx1': best[2]})
-    print('  שורות עם תווית:', [(r['label'], r['y0'], r['y1']) for r in labeled], flush=True)
+    print('  שורות עם תווית:', [(r['label'][:30], r['y0'], r['y1']) for r in labeled], flush=True)
+    if debug_dir:
+        from PIL import ImageDraw
+        dbg = img.crop((0, max(0, (rows[0][0] if rows else y_from) - 200), W, H)).convert('RGB')
+        dr = ImageDraw.Draw(dbg)
+        oy = max(0, (rows[0][0] if rows else y_from) - 200)
+        for y in ys:
+            dr.line([(0, y - oy), (W, y - oy)], fill=(255, 0, 0), width=6)
+        for r in labeled:
+            dr.rectangle([(r['lx0'], r['y0'] - oy), (r['lx1'], r['y1'] - oy)], outline=(0, 0, 255), width=6)
+        dbg = dbg.resize((dbg.width // 4, dbg.height // 4))
+        dbg.save(os.path.join(debug_dir, os.path.basename(pdf) + '.debug.png'))
 
     def kind_of(label):
         s = label.replace(' ', '')
@@ -161,8 +173,15 @@ def read_sheet(pdf, out_json, debug_dir=None):
         return int(m.group(1)) * 1000 + int(m.group(2)) if m else None
 
     def parse_el(t):
-        m = re.match(r'^\s*(-?\d{1,3}\.\d{2})\s*$', t)
-        return float(m.group(1)) if m else None
+        t = t.strip().replace(',', '.')
+        m = re.match(r'^(-?\d{1,3})\.(\d{2})$', t)
+        if m:
+            return float(t)
+        m = re.match(r'^(-?\d{3,5})$', t)          # הנקודה אבדה ב-OCR: 3777 → 37.77
+        if m:
+            d = m.group(1)
+            return float(d[:-2] + '.' + d[-2:])
+        return None
 
     chain = [(v['x'], parse_ch(v['t'])) for v in data.get('chain', [])]
     series = []
@@ -174,7 +193,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
             for v in data.get(kind, []):
                 if best is None or abs(v['x'] - x) < abs(best['x'] - x):
                     best = v
-            return parse_el(best['t']) if best and abs(best['x'] - x) < 25 else None
+            return parse_el(best['t']) if best and abs(best['x'] - x) < 45 else None
         series.append({'ch': ch, 'rail': near('plan'), 'ground': near('ground')})
     series.sort(key=lambda s: s['ch'])
     ok = sum(1 for s in series if s['rail'] is not None and s['ground'] is not None)
@@ -186,10 +205,16 @@ def read_sheet(pdf, out_json, debug_dir=None):
     small = band.resize((band.width // 2, band.height // 2))
     words = ocr_tsv(small, 'heb')
     labels = []
-    for w in words:
-        if w['conf'] < 40 or not re.search(r'[א-ת]{3,}', w['t']):
+    ws = sorted([w for w in words if w['conf'] > 30 and re.search(r'[א-ת"\']{2,}|\d', w['t'])], key=lambda w: (w['y'] // 12, -w['x']))
+    # מילים באותו קו גובה ובמרחק קטן → תווית אחת (עברית: מימין לשמאל)
+    for w in ws:
+        if labels and abs(labels[-1]['y'] - (w['y'] * 2 + band_y0)) < 24 and 0 <= labels[-1]['x'] - (w['x'] * 2 + w['w'] * 2) < 60:
+            labels[-1]['t'] += ' ' + w['t']
+            labels[-1]['x'] = w['x'] * 2
             continue
-        labels.append({'x': w['x'] * 2, 'y': w['y'] * 2 + band_y0, 't': w['t'], 'conf': w['conf']})
+        labels.append({'x': w['x'] * 2, 'xr': (w['x'] + w['w']) * 2, 'y': w['y'] * 2 + band_y0, 't': w['t'], 'conf': w['conf']})
+    for l in labels:
+        l['x'] = int((l['x'] + l.get('xr', l['x'])) / 2)
     # קילומטראז' לכל X לפי רגרסיה מנקודות הטבלה
     if len(series) >= 2:
         xs_ = [c[0] for c in chain if c[1] is not None]
@@ -210,6 +235,6 @@ if __name__ == '__main__':
     for pdf in sys.argv[1:]:
         name = os.path.splitext(os.path.basename(pdf))[0]
         try:
-            read_sheet(pdf, f'docs/fetched/taba/ocr/{name}.json')
+            read_sheet(pdf, f'docs/fetched/taba/ocr/{name}.json', debug_dir='docs/fetched/taba/ocr')
         except Exception as ex:  # noqa: BLE001
             print('נכשל:', pdf, repr(ex)[:300], flush=True)
