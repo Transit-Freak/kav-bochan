@@ -10,6 +10,10 @@ on:
       urls:
         description: 'כתובות PDF מופרדות ברווח'
         required: true
+      keep:
+        description: 'לשמור גם את ה-PDF עצמו (1) — לשרטוטים, לחילוץ גאומטריה'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -32,6 +36,7 @@ jobs:
       - name: הורדה דרך הדפדפן
         env:
           URLS: ${{ inputs.urls }}
+          KEEP: ${{ inputs.keep }}
         run: |
           set -euo pipefail
           mkdir -p docs/fetched/taba
@@ -74,7 +79,9 @@ jobs:
             pdftotext -layout "$f" "${f%.pdf}.txt" || true
             echo "טקסט: $(wc -c < "${f%.pdf}.txt") בתים · שורות עם מנהרה/חתך/גשר/ק\"מ: $(grep -cE 'מנהר|חתך|גשר|ק"מ|ק״מ' "${f%.pdf}.txt" || true)"
             grep -E 'מנהר|חתך|גשר|ק"מ|ק״מ' "${f%.pdf}.txt" | head -40 || true
-            rm -f "$f"
+            # שרטוט: גם טקסט עם מיקומים (bbox) — לגאורפרנסינג לפי צלבי הרשת
+            pdftotext -bbox-layout "$f" "${f%.pdf}.bbox.html" || true
+            [ "$KEEP" = "1" ] || rm -f "$f"
           done
       - name: שמירה
         run: |
