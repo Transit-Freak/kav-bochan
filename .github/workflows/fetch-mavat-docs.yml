@@ -60,20 +60,21 @@ jobs:
             await pg.waitForTimeout(2000);
             // הורדות: לכל טקסט שורה — מוצאים את השורה ולוחצים על כפתור/קישור ההורדה שבה
             const dir = require('path').dirname(process.env.OUT);
-            for (const want of (process.env.DL || '').split(';;').map(s => s.trim()).filter(Boolean)) {
+            for (const spec of (process.env.DL || '').split(';;').map(s => s.trim()).filter(Boolean)) {
+              const mm = spec.match(/^(.*?)#(\d+)$/); const want = mm ? mm[1].trim() : spec; const nth = mm ? +mm[2] - 1 : 0;
               try {
                 // מהטקסט למעלה: ההורה הראשון שמכיל אלמנט לחיץ — זו השורה; מסמנים את הלחיצים שבה
-                const info = await pg.evaluate((want) => {
+                const info = await pg.evaluate(([want, nth]) => {
                   const all = [...document.querySelectorAll('body *')].filter(e => e.children.length === 0 && (e.textContent || '').includes(want));
-                  if (!all.length) return null;
-                  let el = all[0], depth = 0;
+                  if (all.length <= nth) return null;
+                  let el = all[nth], depth = 0;
                   while (el && depth < 8) {
                     const cl = el.querySelectorAll('a, button, [role=button], img, svg, i, [class*=download], [class*=Download], [ng-click], [onclick]');
                     if (cl.length) { [...cl].forEach((c, k) => c.setAttribute('data-kb-click', want.slice(0, 20) + '#' + k)); return { depth, n: cl.length, html: el.outerHTML.slice(0, 2500) }; }
                     el = el.parentElement; depth++;
                   }
-                  return { depth, n: 0, html: (all[0].parentElement || all[0]).outerHTML.slice(0, 1500) };
-                }, want);
+                  return { depth, n: 0, html: (all[nth].parentElement || all[nth]).outerHTML.slice(0, 1500) };
+                }, [want, nth]);
                 console.log('שורה:', want, '→', info ? `נמצאה · לחיצים: ${info.n} · עומק ${info.depth}` : 'לא נמצאה');
                 if (info) console.log('  HTML:', info.html.replace(/\s+/g, ' ').slice(0, 1200));
                 if (!info || !info.n) continue;
@@ -123,7 +124,15 @@ jobs:
             echo "טקסט: $(wc -c < "${f%.pdf}.txt") בתים · מילים עם מנהרה/חתך/פורטל: $(grep -cE 'מנהר|חתך|פורטל' "${f%.pdf}.txt" || true) · מספרי רשת (6 ספרות): $(grep -oE '\b[12][0-9]{5}\b' "${f%.pdf}.txt" | wc -l)"
             # רינדור לתמונה (עד 3 עמודים, רוחב 4000 פיקסלים) — לקריאה של השרטוט כתמונה
             pdftoppm -png -r 50 -f 1 -l 3 -scale-to 4000 "$f" "${f%.pdf}.p" || true
-            for g in "${f%.pdf}".p*.png; do [ -f "$g" ] && echo "תמונה: $g $(stat -c %s "$g") בתים"; done
+            # אריחים ברזולוציה גבוהה (רוחב עמוד 16000 פיקסלים): 4 אריחים לרוחב, מאמצע העמוד ומטה (חתך לאורך + טבלאות)
+            W=$(pdfinfo "$f" | grep -E "^Page size" | grep -oE "[0-9.]+ x [0-9.]+" | cut -d' ' -f1); H=$(pdfinfo "$f" | grep -E "^Page size" | grep -oE "[0-9.]+ x [0-9.]+" | cut -d' ' -f3)
+            if [ -n "$W" ]; then
+              DPI=$(python3 -c "print(round(16000*72/$W))"); PH=$(python3 -c "print(round($H*$DPI/72))")
+              for i in 0 1 2 3; do
+                pdftoppm -png -r "$DPI" -f 1 -l 1 -x $((i*4000)) -y $((PH*44/100)) -W 4000 -H $((PH*38/100)) "$f" "${f%.pdf}.tile$i" || true
+              done
+            fi
+            for g in "${f%.pdf}".p*.png "${f%.pdf}".tile*.png; do [ -f "$g" ] && echo "תמונה: $g $(stat -c %s "$g") בתים"; done
             # קבצים גדולים לא נכנסים למאגר — רק הטקסט והתמונות
             [ "$(stat -c %s "$f")" -lt 45000000 ] || rm -f "$f"
           done
