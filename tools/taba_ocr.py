@@ -111,7 +111,10 @@ def read_sheet(pdf, out_json, debug_dir=None):
         for (x0, x1) in ((0, int(W * 0.035)), (int(W * 0.965), W)):
             strip = img.crop((x0, ty0, x1, ty1))
             strip = strip.resize((strip.width * 2, strip.height * 2))
+            if debug_dir:
+                strip.resize((strip.width // 2, strip.height // 2)).save(os.path.join(debug_dir, os.path.basename(pdf) + f'.strip{x0}.png'))
             words = ocr_tsv(strip, 'heb')
+            print('   מילים ברצועת התוויות', x0, ':', [(w['t'], int(ty0 + (w['y'] + w['h'] / 2) / 2)) for w in words if w['conf'] > 20][:20], flush=True)
             found = {}
             for w in words:
                 t = w['t'].replace(' ', '')
@@ -137,6 +140,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
             dr.line([(0, y - oy), (W, y - oy)], fill=(255, 0, 0), width=6)
         for r in labeled:
             dr.rectangle([(r['lx0'], r['y0'] - oy), (r['lx1'], r['y1'] - oy)], outline=(0, 0, 255), width=6)
+        print('   רצועות שורה:', rows, flush=True)
         dbg = dbg.resize((dbg.width // 4, dbg.height // 4))
         dbg.save(os.path.join(debug_dir, os.path.basename(pdf) + '.debug.png'))
 
@@ -176,6 +180,8 @@ def read_sheet(pdf, out_json, debug_dir=None):
             cell = ImageOps.expand(cell, border=16, fill=255)   # שוליים לבנים — שלא ייחתכו ספרות
             txt = ocr(cell, 'eng', 7, '0123456789.+-')
             vals.append({'x': int((x0 + x1) / 2), 't': txt})
+            if debug_dir and len(vals) in (3, 40):
+                cell.save(os.path.join(debug_dir, os.path.basename(pdf) + f'.cell_{k}_{len(vals)}.png'))
         data[k] = vals
         print(f'  {k}: {len(cells)} תאים · דוגמה: {[v["t"] for v in vals[:6]]}', flush=True)
 
