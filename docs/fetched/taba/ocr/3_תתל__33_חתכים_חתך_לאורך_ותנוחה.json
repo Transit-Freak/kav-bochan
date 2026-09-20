@@ -1,0 +1,723 @@
+{
+"pdf": "3_תתל__33_חתכים_חתך_לאורך_ותנוחה.pdf",
+"dpi": 310,
+"size": [
+16019,
+10503
+],
+"series": [
+{
+"ch": 15400,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15450,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15475,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15500,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15550,
+"rail": null,
+"ground": 38.56
+},
+{
+"ch": 15575,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15575,
+"rail": null,
+"ground": 38.96
+},
+{
+"ch": 15600,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15650,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15675,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15675,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15700,
+"rail": null,
+"ground": 38.94
+},
+{
+"ch": 15750,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15775,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15775,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15800,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15850,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15875,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15900,
+"rail": null,
+"ground": null
+},
+{
+"ch": 15950,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16000,
+"rail": null,
+"ground": 40.19
+},
+{
+"ch": 16050,
+"rail": null,
+"ground": 40.65
+},
+{
+"ch": 16075,
+"rail": null,
+"ground": 40.88
+},
+{
+"ch": 16100,
+"rail": null,
+"ground": 41.1
+},
+{
+"ch": 16125,
+"rail": null,
+"ground": 41.33
+},
+{
+"ch": 16150,
+"rail": null,
+"ground": 41.48
+},
+{
+"ch": 16175,
+"rail": null,
+"ground": 41.38
+},
+{
+"ch": 16200,
+"rail": null,
+"ground": 41.27
+},
+{
+"ch": 16300,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16350,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16400,
+"rail": null,
+"ground": 43.41
+},
+{
+"ch": 16500,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16550,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16575,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16600,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16625,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16650,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16675,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16700,
+"rail": null,
+"ground": 45.36
+},
+{
+"ch": 16750,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16775,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16800,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16850,
+"rail": null,
+"ground": 46.79
+},
+{
+"ch": 16875,
+"rail": null,
+"ground": 46.0
+},
+{
+"ch": 16875,
+"rail": null,
+"ground": 46.67
+},
+{
+"ch": 16900,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16950,
+"rail": null,
+"ground": null
+},
+{
+"ch": 16975,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17000,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17050,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17075,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17100,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17125,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17150,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17175,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17200,
+"rail": null,
+"ground": 45.08
+},
+{
+"ch": 17250,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17300,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17350,
+"rail": null,
+"ground": 46.78
+},
+{
+"ch": 17400,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17450,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17475,
+"rail": null,
+"ground": 48.45
+},
+{
+"ch": 17500,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17550,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17575,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17575,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17600,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17650,
+"rail": null,
+"ground": 50.19
+},
+{
+"ch": 17675,
+"rail": null,
+"ground": 50.2
+},
+{
+"ch": 17700,
+"rail": null,
+"ground": 50.94
+},
+{
+"ch": 17750,
+"rail": null,
+"ground": null
+},
+{
+"ch": 17775,
+"rail": null,
+"ground": 51.19
+},
+{
+"ch": 17775,
+"rail": null,
+"ground": 53.14
+},
+{
+"ch": 17800,
+"rail": null,
+"ground": 53.15
+},
+{
+"ch": 17850,
+"rail": null,
+"ground": 53.57
+},
+{
+"ch": 17875,
+"rail": null,
+"ground": 53.35
+},
+{
+"ch": 17875,
+"rail": null,
+"ground": 53.67
+},
+{
+"ch": 17900,
+"rail": null,
+"ground": 53.93
+},
+{
+"ch": 17950,
+"rail": null,
+"ground": 53.95
+},
+{
+"ch": 18000,
+"rail": null,
+"ground": 53.53
+},
+{
+"ch": 18050,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18075,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18075,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18100,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18150,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18175,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18175,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18275,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18300,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18350,
+"rail": null,
+"ground": 51.94
+},
+{
+"ch": 18400,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18450,
+"rail": null,
+"ground": 53.79
+},
+{
+"ch": 18500,
+"rail": null,
+"ground": 56.04
+},
+{
+"ch": 18525,
+"rail": null,
+"ground": 56.33
+},
+{
+"ch": 18550,
+"rail": null,
+"ground": 56.47
+},
+{
+"ch": 18575,
+"rail": null,
+"ground": 56.61
+},
+{
+"ch": 18600,
+"rail": null,
+"ground": 56.65
+},
+{
+"ch": 18625,
+"rail": null,
+"ground": 56.88
+},
+{
+"ch": 18650,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18675,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18700,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18750,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18775,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18775,
+"rail": null,
+"ground": 58.16
+},
+{
+"ch": 18800,
+"rail": null,
+"ground": 58.38
+},
+{
+"ch": 18850,
+"rail": null,
+"ground": 58.69
+},
+{
+"ch": 18875,
+"rail": null,
+"ground": 58.57
+},
+{
+"ch": 18875,
+"rail": null,
+"ground": 58.78
+},
+{
+"ch": 18900,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18950,
+"rail": null,
+"ground": null
+},
+{
+"ch": 18975,
+"rail": null,
+"ground": null
+},
+{
+"ch": 19000,
+"rail": null,
+"ground": null
+},
+{
+"ch": 19050,
+"rail": null,
+"ground": null
+},
+{
+"ch": 19075,
+"rail": null,
+"ground": 60.02
+},
+{
+"ch": 19100,
+"rail": null,
+"ground": 60.02
+},
+{
+"ch": 19150,
+"rail": null,
+"ground": null
+},
+{
+"ch": 19175,
+"rail": null,
+"ground": null
+},
+{
+"ch": 19175,
+"rail": null,
+"ground": null
+},
+{
+"ch": 164250,
+"rail": null,
+"ground": 41.92
+},
+{
+"ch": 164275,
+"rail": null,
+"ground": 41.49
+},
+{
+"ch": 164275,
+"rail": null,
+"ground": null
+},
+{
+"ch": 164375,
+"rail": null,
+"ground": null
+},
+{
+"ch": 164375,
+"rail": null,
+"ground": null
+},
+{
+"ch": 164450,
+"rail": null,
+"ground": 43.87
+},
+{
+"ch": 164475,
+"rail": null,
+"ground": null
+},
+{
+"ch": 164475,
+"rail": null,
+"ground": null
+},
+{
+"ch": 164575,
+"rail": null,
+"ground": null
+},
+{
+"ch": 174275,
+"rail": null,
+"ground": 45.16
+},
+{
+"ch": 174275,
+"rail": null,
+"ground": 45.48
+},
+{
+"ch": 194200,
+"rail": null,
+"ground": null
+},
+{
+"ch": 194250,
+"rail": null,
+"ground": null
+}
+],
+"labels": [
+{
+"x": 15360,
+"y": 3086,
+"t": "חותמת",
+"conf": 91.937912,
+"ch": 23361
+},
+{
+"x": 15138,
+"y": 3086,
+"t": "מוסד",
+"conf": 91.456924,
+"ch": 23570
+},
+{
+"x": 14882,
+"y": 3076,
+"t": "התכנו",
+"conf": 92.604736,
+"ch": 23810
+},
+{
+"x": 13154,
+"y": 3336,
+"t": "מפת",
+"conf": 91.955971,
+"ch": 25434
+},
+{
+"x": 12890,
+"y": 3336,
+"t": "מפתח:",
+"conf": 89.575676,
+"ch": 25682
+},
+{
+"x": 12698,
+"y": 3900,
+"t": "פתח-תקווה",
+"conf": 56.469173,
+"ch": 25862
+},
+{
+"x": 12500,
+"y": 4890,
+"t": "גנו",
+"conf": 90.321327,
+"ch": 26048
+},
+{
+"x": 11686,
+"y": 5030,
+"t": "ולון",
+"conf": 90.994873,
+"ch": 26813
+}
+]
+}
