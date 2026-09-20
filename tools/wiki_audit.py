@@ -58,7 +58,7 @@ def api(params):
 
 # שירותים עירוניים שאינם ב-GTFS הלאומי — שורה כזו בערך לא נבדקת ולא נספרת כ"שגויה"
 # (שלמה 20.09: "לא יכלול כשגוי קווים של נעים בסופ"ש או סובב רמת גן")
-SPECIAL_RE = re.compile(r'נעים\s*בסופ|סופ["\'״׳]?ש\b|בסופש|סובב\s|שאטל|שבתון|קו\s*שבת')
+SPECIAL_RE = re.compile(r'נעים\s*בסופ|סופ["\'״׳]?ש\b|בסופש|סובב\s|שאטל|שבתון|קו\s*שבת|קווי\s*שבת|עיריי?ת\s')
 
 
 def extract_lines(wt, special=None):
@@ -67,6 +67,8 @@ def extract_lines(wt, special=None):
     found = []
     in_table = 0
     row = None          # שורות ה-wikitext של השורה הנוכחית בטבלה
+    heading = ''        # כותרת הפרק האחרונה (== … ==)
+    table_special = False   # הטבלה כולה שייכת לשירות סופ"ש/סובב (לפי הכותרת או הכיתוב)
 
     def flush():
         if not row:
@@ -81,7 +83,7 @@ def extract_lines(wt, special=None):
         for t in TPL_LINE.finditer(first):
             if t.group(1) not in cand:
                 cand.append(t.group(1))
-        if SPECIAL_RE.search(CLEAN.sub(' ', text)):
+        if table_special or SPECIAL_RE.search(CLEAN.sub(' ', text)):
             if special is not None:
                 for c in cand:
                     if c not in special:
@@ -93,9 +95,13 @@ def extract_lines(wt, special=None):
 
     for raw in wt.split('\n'):
         ln = raw.strip()
+        if not in_table and ln.startswith('=') and ln.endswith('='):
+            heading = ln.strip('= ').strip()
+            continue
         if ln.startswith('{|'):
             in_table += 1
             row = None
+            table_special = bool(SPECIAL_RE.search(heading))
             continue
         if ln.startswith('|}'):
             flush()
@@ -111,6 +117,8 @@ def extract_lines(wt, special=None):
         if ln.startswith('|+') or ln.startswith('!'):
             flush()
             row = None
+            if ln.startswith('|+') and SPECIAL_RE.search(CLEAN.sub(' ', ln)):
+                table_special = True
             continue
         if ln.startswith('|') and row is not None:
             row.append(ln)
