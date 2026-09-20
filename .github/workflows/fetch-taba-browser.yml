@@ -1,0 +1,87 @@
+name: fetch-taba-browser
+
+# הורדת מסמכי תב"ע (PDF) דרך דפדפן אמיתי (Chromium) במכונת Actions — אתר רמ"י
+# מחזיר דף חסימה להורדה אוטומטית רגילה. הטקסט המחולץ נשמר ב-docs/fetched/taba/.
+# (שלמה 20.09: "לא דרכך אלא דרך מה שאנחנו משתמשים בו")
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'כתובות PDF מופרדות ברווח'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: דפדפן וכלים
+        run: |
+          sudo apt-get install -y -q poppler-utils >/dev/null
+          npm init -y >/dev/null
+          npm install --silent playwright@1.47.2
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: הורדה דרך הדפדפן
+        env:
+          URLS: ${{ inputs.urls }}
+        run: |
+          set -euo pipefail
+          mkdir -p docs/fetched/taba
+          cat > fetch.js <<'EOF'
+          const { chromium } = require('playwright'); const fs = require('fs');
+          (async () => {
+            const b = await chromium.launch({ headless: true, args: ['--disable-blink-features=AutomationControlled'] });
+            const ctx = await b.newContext({ locale: 'he-IL', acceptDownloads: true, viewport: { width: 1366, height: 900 },
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36' });
+            const pg = await ctx.newPage();
+            // ביקור בדף הבית של האתר קודם — לקבל עוגיות של מנגנון ההגנה
+            try { await pg.goto('https://apps.land.gov.il/IturTabot2/', { waitUntil: 'networkidle', timeout: 60000 }); await pg.waitForTimeout(5000); console.log('דף הבית:', pg.url(), (await pg.title())); } catch (e) { console.log('דף הבית נכשל:', e.message.slice(0, 120)); }
+            for (const u of process.env.URLS.split(/\s+/).filter(Boolean)) {
+              const name = u.split('/').slice(-2).join('_').replace(/[^\w.\-]/g, '_');
+              try {
+                // ניסיון 1: בקשה עם העוגיות של ההקשר
+                let r = await ctx.request.get(u, { timeout: 90000, headers: { Referer: 'https://apps.land.gov.il/IturTabot2/' } });
+                let body = await r.body();
+                console.log(u, '→ request:', r.status(), r.headers()['content-type'], body.length, 'בתים');
+                if (!(body.slice(0, 4).toString() === '%PDF')) {
+                  // ניסיון 2: ניווט בדפדפן (מפעיל אתגר JS אם יש) ואז שוב בקשה
+                  try { await pg.goto(u, { waitUntil: 'networkidle', timeout: 60000 }); } catch (e) { console.log('  ניווט:', e.message.slice(0, 100)); }
+                  await pg.waitForTimeout(6000);
+                  console.log('  אחרי ניווט:', pg.url(), (await pg.title()).slice(0, 80));
+                  r = await ctx.request.get(u, { timeout: 90000, headers: { Referer: u } });
+                  body = await r.body();
+                  console.log('  ניסיון 2:', r.status(), r.headers()['content-type'], body.length, 'בתים');
+                }
+                if (body.slice(0, 4).toString() === '%PDF') { fs.writeFileSync('docs/fetched/taba/' + name, body); console.log('  נשמר PDF', name); }
+                else { console.log('  לא PDF. תחילת התוכן:', body.toString('utf8').slice(0, 500).replace(/\s+/g, ' ')); }
+              } catch (e) { console.log(u, 'נכשל:', e.message.slice(0, 200)); }
+            }
+            await b.close();
+          })();
+          EOF
+          node fetch.js
+          for f in docs/fetched/taba/*.pdf; do
+            [ -f "$f" ] || continue
+            echo "=== $f"; pdfinfo "$f" | grep -E "Pages|Title" || true
+            pdftotext -layout "$f" "${f%.pdf}.txt" || true
+            echo "טקסט: $(wc -c < "${f%.pdf}.txt") בתים · שורות עם מנהרה/חתך/גשר/ק\"מ: $(grep -cE 'מנהר|חתך|גשר|ק"מ|ק״מ' "${f%.pdf}.txt" || true)"
+            grep -E 'מנהר|חתך|גשר|ק"מ|ק״מ' "${f%.pdf}.txt" | head -40 || true
+            rm -f "$f"
+          done
+      - name: שמירה
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/fetched/taba || true
+          git diff --cached --quiet && { echo "ללא שינוי"; exit 0; }
+          git commit -m "docs: הוראות תת\"ל שהורדו דרך דפדפן במכונת Actions"
+          for i in 1 2 3 4 5; do git pull --rebase -q origin main && git push origin HEAD:main && break || sleep $((5 * i)); done
