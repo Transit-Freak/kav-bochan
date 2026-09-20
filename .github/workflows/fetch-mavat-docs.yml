@@ -70,7 +70,7 @@ jobs:
                   let el = all[nth], depth = 0;
                   while (el && depth < 8) {
                     const cl = el.querySelectorAll('a, button, [role=button], img, svg, i, [class*=download], [class*=Download], [ng-click], [onclick]');
-                    if (cl.length) { [...cl].forEach((c, k) => c.setAttribute('data-kb-click', want.slice(0, 20) + '#' + k)); return { depth, n: cl.length, html: el.outerHTML.slice(0, 2500) }; }
+                    if (cl.length) { [...cl].forEach((c, k) => c.setAttribute('data-kb-click', want.slice(0, 20) + '@' + nth + '#' + k)); return { depth, n: cl.length, html: el.outerHTML.slice(0, 2500) }; }
                     el = el.parentElement; depth++;
                   }
                   return { depth, n: 0, html: (all[nth].parentElement || all[nth]).outerHTML.slice(0, 1500) };
@@ -80,7 +80,7 @@ jobs:
                 if (!info || !info.n) continue;
                 let done = false;
                 for (let k = info.n - 1; k >= 0 && !done; k--) {
-                  const sel = `[data-kb-click="${want.slice(0, 20)}#${k}"]`;
+                  const sel = `[data-kb-click="${want.slice(0, 20)}@${nth}#${k}"]`;
                   const tag = await pg.evaluate((sel) => { const e = document.querySelector(sel); return e ? e.tagName + ' ' + (e.className || '').toString().slice(0, 60) + ' ' + (e.getAttribute('href') || e.getAttribute('title') || e.getAttribute('aria-label') || '') : ''; }, sel);
                   try {
                     // לחיצה דרך JS (האלמנט מוסתר בקבוצה מכווצת) — תופסים הורדה או חלון חדש
@@ -91,7 +91,7 @@ jobs:
                     await pg.evaluate((sel) => { const e = document.querySelector(sel); e.scrollIntoView(); e.click(); }, sel);
                     const ev = await race;
                     if (ev.kind === 'download') {
-                      const name = (ev.d.suggestedFilename() || ('doc_' + Date.now())).replace(/[^\w.\-֐-׿]/g, '_');
+                      const name = ((mm ? (nth + 1) + '_' : '') + (ev.d.suggestedFilename() || ('doc_' + Date.now()))).replace(/[^\w.\-֐-׿]/g, '_');
                       const dest = dir + '/' + name; await ev.d.saveAs(dest);
                       console.log('  הורד:', name, require('fs').statSync(dest).size, 'בתים', '(', tag, ')'); done = true;
                     } else {
