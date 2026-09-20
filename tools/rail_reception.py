@@ -252,14 +252,15 @@ def taba_structs(segs_pts, segs_len):
     for plan in data.get('plans', []):
         anchors = sorted(plan.get('anchors', []), key=lambda a: a['chainage'])
         feats = plan.get('features', [])
-        if len(anchors) < 2 or not feats:
+        if len(anchors) < 2 or not feats or plan.get('usable') is False:
             continue
         codes = [a['stop'] for a in anchors]
         lo = min(f['from'] for f in feats)
         hi = max(f['to'] for f in feats)
 
-        def assign(key, pts, ch0, ch1, reverse):
-            """נקודות המקטע key מקבלות קילומטראז' ליניארי מ-ch0 (בתחילת הפוליליין) ל-ch1."""
+        def assign(key, pts, ch0, ch1, reverse, limit=None):
+            """נקודות המקטע key מקבלות קילומטראז' ליניארי מ-ch0 (בתחילת הפוליליין) ל-ch1.
+            limit=(עוגן, מרחק): בהארכה מעבר לעוגן — רק עד המרחק הזה ממנו."""
             n = len(pts)
             dist = [0.0]
             for i in range(1, n):
@@ -268,6 +269,8 @@ def taba_structs(segs_pts, segs_len):
             for i in range(n):
                 f = dist[i] / total
                 ch = ch0 + (ch1 - ch0) * f
+                if limit and abs(ch - limit[0]) > limit[1]:
+                    continue
                 for ft in feats:
                     if ft['from'] <= ch <= ft['to']:
                         out[(key, i)] = (ft['kind'], ft.get('depth'), plan['plan'])
@@ -294,10 +297,12 @@ def taba_structs(segs_pts, segs_len):
                 se = STATION_POS.get(end['stop'])
                 if not se:
                     continue
+                # הארכה עד 3 ק"מ מהעוגן — מעבר לזה הקילומטראז' לא אמין
+                lim = (end['chainage'], 3000)
                 if hav(*pts[0], *se) < hav(*pts[-1], *se):
-                    assign(key, pts, end['chainage'], end['chainage'] + sign * segs_len[key], False)
+                    assign(key, pts, end['chainage'], end['chainage'] + sign * segs_len[key], False, lim)
                 else:
-                    assign(key, pts, end['chainage'] + sign * segs_len[key], end['chainage'], True)
+                    assign(key, pts, end['chainage'] + sign * segs_len[key], end['chainage'], True, lim)
     return out
 
 
