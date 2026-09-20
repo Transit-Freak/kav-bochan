@@ -102,19 +102,19 @@ def read_sheet(pdf, out_json, debug_dir=None):
     side_used = None
     for side in ('left', 'right'):
         xr = range(60, int(W * 0.06)) if side == 'left' else range(W - 60, int(W * 0.94), -1)
-        band = a[y_from:, :] < 128
+        band = a[y_from:, :] < 175
         lab_edge = None
         for x in xr:
-            col = band[:, x]
-            # קו אנכי באורך של לפחות 400 פיקסלים רצופים
-            runs = group_runs(np.where(col)[0], gap=2)
-            if any(r[1] - r[0] > 400 for r in runs):
+            col = band[:, x] | band[:, min(x + 1, W - 1)]
+            # קו אנכי באורך 350 עד 30% מגובה הדף (קו המסגרת ארוך יותר — לא הוא)
+            runs = group_runs(np.where(col)[0], gap=4)
+            if any(350 < r[1] - r[0] < H * 0.3 for r in runs):
                 lab_edge = x
                 break
         if lab_edge is None:
             continue
         lx0, lx1 = (0, lab_edge) if side == 'left' else (lab_edge, W)
-        hl = group_runs(dark_rows(a[y_from:, :], lx0 + 10, lx1 - 10, thresh=0.6) + y_from)
+        hl = group_runs(dark_rows(a[y_from:, :], lx0 + 10, lx1 - 10, thresh=0.5) + y_from)
         ys_side = [int((r[0] + r[1]) / 2) for r in hl]
         rows_side = [(ys_side[k], ys_side[k + 1]) for k in range(len(ys_side) - 1) if 60 < ys_side[k + 1] - ys_side[k] < H * 0.05]
         lab = []
@@ -127,6 +127,12 @@ def read_sheet(pdf, out_json, debug_dir=None):
             print(f'   תווית {side} {y0}-{y1}: {txt!r} → {k}', flush=True)
             if k:
                 lab.append({'y0': y0, 'y1': y1, 'label': txt, 'kind': k, 'lx0': lx0, 'lx1': lx1})
+        kinds = {l['kind']: l for l in lab}
+        # "רום מתוכנן" יושבת תמיד מעל "רום קיים" באותו גובה — אם לא זוהתה, נגזרת ממנה
+        if 'ground' in kinds and 'plan' not in kinds:
+            g = kinds['ground']
+            h = g['y1'] - g['y0']
+            lab.append({'y0': g['y0'] - h, 'y1': g['y0'], 'label': '(נגזר)', 'kind': 'plan', 'lx0': lx0, 'lx1': lx1})
         if len(lab) >= 2:
             labeled, rows, ys, side_used = lab, rows_side, ys_side, side
             break
