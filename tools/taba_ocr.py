@@ -104,18 +104,29 @@ def read_sheet(pdf, out_json, debug_dir=None):
     rows = [(ys[i], ys[i + 1]) for i in range(len(ys) - 1) if 40 < ys[i + 1] - ys[i] < H * 0.05]
     # --- 3. תוויות: תא בקצה (עברית — הכי ימני או הכי שמאלי; בודקים את שניהם)
     labeled = []
-    KEYS = ('מתוכנן', 'מתוכנו', 'קיים', 'קים', 'מרחק', 'רץ', 'רוס', 'רום')
-    for (y0, y1) in rows:
-        best = None
-        for (x0, x1) in ((0, int(W * 0.07)), (int(W * 0.93), W)):
-            cell = img.crop((x0, y0, x1, y1))
-            cell = cell.resize((cell.width * 2, cell.height * 2))
-            txt = ocr(cell, 'heb', 6)
-            if txt and any(k in txt.replace(' ', '') for k in KEYS):
-                best = (txt, x0, x1)
+    if rows:
+        ty0, ty1 = rows[0][0], rows[-1][1]
+        # עמודת התוויות: רצועה צרה בקצה השמאלי או הימני של הטבלה — OCR עם מיקומים,
+        # וכל מילת מפתח משויכת לשורה שמכילה את מרכז הגובה שלה
+        for (x0, x1) in ((0, int(W * 0.035)), (int(W * 0.965), W)):
+            strip = img.crop((x0, ty0, x1, ty1))
+            strip = strip.resize((strip.width * 2, strip.height * 2))
+            words = ocr_tsv(strip, 'heb')
+            found = {}
+            for w in words:
+                t = w['t'].replace(' ', '')
+                k = ('plan' if ('מתוכנ' in t or 'מתו' in t) else 'ground' if ('קיים' in t or 'קים' in t) else
+                     'chain' if ('מרחק' in t or t.endswith('רץ') or t == 'רץ') else None)
+                if not k:
+                    continue
+                yc = ty0 + (w['y'] + w['h'] / 2) / 2
+                for (y0, y1) in rows:
+                    if y0 <= yc <= y1 and k not in found:
+                        found[k] = (y0, y1, w['t'])
+            if found:
+                for k, (y0, y1, t) in found.items():
+                    labeled.append({'y0': y0, 'y1': y1, 'label': t, 'kind': k, 'lx0': x0, 'lx1': x1})
                 break
-        if best:
-            labeled.append({'y0': y0, 'y1': y1, 'label': best[0], 'lx0': best[1], 'lx1': best[2]})
     print('  שורות עם תווית:', [(r['label'][:30], r['y0'], r['y1']) for r in labeled], flush=True)
     if debug_dir:
         from PIL import ImageDraw
@@ -142,7 +153,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
     # --- 4. תאים בכל שורה: קווים אנכיים בתוך רצועת השורה
     data = {}
     for r in labeled:
-        k = kind_of(r['label'])
+        k = r.get('kind') or kind_of(r['label'])
         if not k:
             continue
         y0, y1 = r['y0'], r['y1']
@@ -162,6 +173,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
             cell = cell.rotate(-90, expand=True)   # הטקסט מסובב 90° נגד כיוון השעון
             cell = ImageOps.autocontrast(cell)
             cell = cell.resize((cell.width * 2, cell.height * 2))
+            cell = ImageOps.expand(cell, border=16, fill=255)   # שוליים לבנים — שלא ייחתכו ספרות
             txt = ocr(cell, 'eng', 7, '0123456789.+-')
             vals.append({'x': int((x0 + x1) / 2), 't': txt})
         data[k] = vals
