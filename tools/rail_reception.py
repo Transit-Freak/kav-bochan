@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 OUTDIR = os.environ.get('OUTDIR', 'rail/data')
 STEP_M = 100
 DAYS_BACK = 30
+STATION_POS = {}
 OPS = [('פלאפון', 'pel'), ('סלקום', 'cel'), ('PHI', 'phi')]   # PHI = פרטנר + הוט
 OP_NAMES = {'pel': 'פלאפון', 'cel': 'סלקום', 'phi': 'פרטנר / הוט (PHI)'}
 
@@ -242,12 +243,72 @@ def real_routes(segs_keys):
     return out
 
 
+def taba_structs(segs_pts, segs_len):
+    """מבנים מהתב"ע (rail/data/taba-structures.json): לכל מקטע בין עוגני תחנות,
+    הקילומטראז' של כל נקודה מחושב ליניארית לפי המרחק לאורך הפוליליין; מעבר לעוגן
+    הקצה ממשיכים באותו קצב למקטעים הסמוכים. מחזיר {(key, index): (kind, depth, plan)}."""
+    data = jload(f'{OUTDIR}/taba-structures.json', {})
+    out = {}
+    for plan in data.get('plans', []):
+        anchors = sorted(plan.get('anchors', []), key=lambda a: a['chainage'])
+        feats = plan.get('features', [])
+        if len(anchors) < 2 or not feats:
+            continue
+        codes = [a['stop'] for a in anchors]
+        lo = min(f['from'] for f in feats)
+        hi = max(f['to'] for f in feats)
+
+        def assign(key, pts, ch0, ch1, reverse):
+            """נקודות המקטע key מקבלות קילומטראז' ליניארי מ-ch0 (בתחילת הפוליליין) ל-ch1."""
+            n = len(pts)
+            dist = [0.0]
+            for i in range(1, n):
+                dist.append(dist[-1] + hav(*pts[i - 1], *pts[i]))
+            total = dist[-1] or 1.0
+            for i in range(n):
+                f = dist[i] / total
+                ch = ch0 + (ch1 - ch0) * f
+                for ft in feats:
+                    if ft['from'] <= ch <= ft['to']:
+                        out[(key, i)] = (ft['kind'], ft.get('depth'), plan['plan'])
+                        break
+
+        # מקטעים בין עוגנים עוקבים
+        for a, b in zip(anchors, anchors[1:]):
+            key = f"{a['stop']}-{b['stop']}" if str(a['stop']) < str(b['stop']) else f"{b['stop']}-{a['stop']}"
+            pts = segs_pts.get(key)
+            if not pts:
+                continue
+            # כיוון הפוליליין: הקצה הקרוב לתחנה a הוא ההתחלה
+            sa = STATION_POS.get(a['stop'])
+            if sa and hav(*pts[-1], *sa) < hav(*pts[0], *sa):
+                assign(key, pts, b['chainage'], a['chainage'], True)
+            else:
+                assign(key, pts, a['chainage'], b['chainage'], False)
+        # הארכה מעבר לעוגני הקצה: מקטעים שנוגעים בעוגן הראשון/האחרון (ולא בין העוגנים)
+        for end, sign in ((anchors[0], -1), (anchors[-1], 1)):
+            for key, pts in segs_pts.items():
+                x, y = key.split('-')
+                if end['stop'] not in (x, y) or (x in codes and y in codes):
+                    continue
+                se = STATION_POS.get(end['stop'])
+                if not se:
+                    continue
+                if hav(*pts[0], *se) < hav(*pts[-1], *se):
+                    assign(key, pts, end['chainage'], end['chainage'] + sign * segs_len[key], False)
+                else:
+                    assign(key, pts, end['chainage'] + sign * segs_len[key], end['chainage'], True)
+    return out
+
+
 def score(struct, d, spd):
     if struct in ('tunnel', 'covered'):
         return 0
     if d is None:
         return 0
     s = 3 if d < 1500 else 2 if d < 3500 else 1 if d < 6000 else 0
+    if struct == 'deep':
+        s = max(0, s - 2)
     if struct == 'cutting' and s > 0:
         s -= 1
     if spd and spd > 120 and 0 < s < 3:
@@ -260,6 +321,8 @@ def main():
     tun = jload(f'{OUTDIR}/tunnels.json', {}).get('features', [])
     ant = jload(f'{OUTDIR}/antennas-raw.json', {}).get('records', [])
     stations = jload(f'{OUTDIR}/stations.json', {})
+    global STATION_POS
+    STATION_POS = {k: (v[1], v[2]) for k, v in stations.items() if v[1] is not None}
     print(f'מקטעים: {len(segs)} · מבנים: {len(tun)} · אנטנות: {len(ant)}')
 
     # מבנים — נקודות צפופות (כל 25 מ׳) באינדקס
@@ -298,6 +361,9 @@ def main():
     segs_len = {k: seg_length(p) for k, p in segs_pts.items()}
     spd = segment_speeds(segs_len)
     print(f'מהירויות: {len(spd)} מקטעים')
+    segs_d = {k: densify(p, STEP_M) for k, p in segs_pts.items()}   # הדגימות עצמן — גם לתב"ע
+    taba = taba_structs(segs_d, segs_len)
+    print(f'נקודות עם מבנה מהתב"ע: {len(taba)}')
 
     out_segs = {}
     tot = {c: [0, 0, 0, 0] for _, c in OPS}
@@ -305,8 +371,12 @@ def main():
     for key, pts in segs_pts.items():
         v, n = spd.get(key, (None, 0))
         rows = []
-        for la, lo in densify(pts, STEP_M):
+        dpts = segs_d[key]
+        for i, (la, lo) in enumerate(dpts):
             st, _ = sg.nearest(la, lo, 30)
+            tb = taba.get((key, i))
+            if tb and st not in ('tunnel', 'covered'):
+                st = tb[0]
             row = [round(la, 5), round(lo, 5), st or '']
             for _, c in OPS:
                 _, d = ag[c].nearest(la, lo, 8000)
