@@ -142,6 +142,8 @@ def read_sheet(pdf, out_json, debug_dir=None):
             labeled, rows, ys, side_used = lab, rows_side, ys_side, side
             break
     print('  צד התוויות:', side_used, '· רצועות:', rows, flush=True)
+    if debug_dir and not rows:
+        img.crop((0, y_from, 900, H)).resize((450, (H - y_from) // 2)).save(os.path.join(debug_dir, os.path.basename(pdf) + '.left.png'))
     if debug_dir and rows:
         from PIL import ImageDraw
         oy = max(0, rows[0][0] - 200)
@@ -220,7 +222,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
             for v in data.get(kind, []):
                 if best is None or abs(v['x'] - x) < abs(best['x'] - x):
                     best = v
-            return parse_el(best['t']) if best and abs(best['x'] - x) < 45 else None
+            return parse_el(best['t']) if best and abs(best['x'] - x) < 22 else None
         series.append({'ch': ch, 'rail': near('plan'), 'ground': near('ground')})
     series.sort(key=lambda s: s['ch'])
     # סבירות: הקילומטראז' עולה בצעדים של 25 מ' (או 50/12.5); ערך שקופץ הרבה מהשכנים נפסל
@@ -282,6 +284,9 @@ def read_sheet(pdf, out_json, debug_dir=None):
         for l in labels:
             l['ch'] = int(m * l['x'] + b)
     key = [l for l in labels if re.search(r'תחנ|מנהר|מינהר|גשר|פורטל', l['t'])]
+    if chain:
+        cx = [c[0] for c in chain if c[1] is not None]
+        print('   x של תאי קילומטראז׳:', (min(cx), max(cx)) if cx else None, '· רוחב רצועת התוויות:', band.width, '· דוגמאות x תוויות:', [(l['t'][:18], l['x']) for l in key[:5]], flush=True)
     print('  תוויות מפתח בחתך:', [(l['t'], l.get('ch')) for l in key][:30], flush=True)
 
     json.dump({'pdf': os.path.basename(pdf), 'dpi': dpi, 'size': [W, H], 'series': series, 'labels': labels, 'features': feats},
