@@ -73,6 +73,7 @@ function scoreFor(struct, d, spd, f) {
 }
 const STRUCT = {tunnel: 'מנהרה', cutting: 'חתך (מסילה שקועה)', covered: 'קטע מקורה'};
 let RENDERER = null;
+let ROUTE = null, routeLayer = null;   // המסלול שנבחר (מוצא→יעד) והדגשתו במפה
 let D = null, op = 'pel', map, layer, antLayer, cover = null, bySpeed = false, showAnt = true;
 
 function load(u) { return fetch(u + '?v=' + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }); }
@@ -104,6 +105,7 @@ function init() {
   draw();
   method();
   prewarm();
+  routeInit();
 }
 
 // אחרי הציור הראשון: מחשבים ברקע את המרחקים לכל שילוב (מפעיל, דור), אחד בכל
@@ -166,6 +168,101 @@ function draw() {
       (showAnt ? '<span class="sep"></span>' + (all ? D.ops : D.ops.filter(o => o.code === op)).map(o => `<span><i class="dot" style="background:${BRAND[o.code]}"></i>אנטנות ${esc(o.name)}</span>`).join('') : '') +
       (all ? '<span>· המסילה ב"כל החברות": הציון האמצעי מבין השלוש</span>' : '');
   drawAnt();
+  if (ROUTE) routeRender();
+}
+
+// ---------------------------------------------------------------- מוצא → יעד
+function routeInit() {
+  const names = Object.entries(D.stations).sort((a, b) => a[1].localeCompare(b[1], 'he'));
+  const opts = names.map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+  $('#rFrom').insertAdjacentHTML('beforeend', opts); $('#rTo').insertAdjacentHTML('beforeend', opts);
+  const on = () => routeFind();
+  $('#rFrom').onchange = on; $('#rTo').onchange = on;
+  $('#rClear').onclick = () => { $('#rFrom').value = ''; $('#rTo').value = ''; ROUTE = null; $('#rOut').innerHTML = ''; $('#rClear').hidden = true; if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; } };
+}
+function segKey(a, b) { return String(a) < String(b) ? `${a}-${b}` : `${b}-${a}`; }
+// כל הקווים האמיתיים שעוברים במוצא וביעד (בשני הכיוונים), מקוצרים לקטע שביניהם; מאוחדים לפי רצף התחנות
+function routeCandidates(from, to) {
+  const by = new Map();
+  for (const r of D.routes) {
+    const i = r.s.indexOf(+from), j = r.s.indexOf(+to);
+    if (i < 0 || j < 0 || i === j) continue;
+    const slice = i < j ? r.s.slice(i, j + 1) : r.s.slice(j, i + 1).reverse();
+    const key = slice.join('>');
+    const e = by.get(key) || {stops: slice, n: 0, names: new Set(), full: null};
+    e.n += r.n; e.names.add(r.nm);
+    if (!e.full || r.s.length > e.full.length) e.full = r.s;   // הקו הארוך ביותר שעובר ברצף — לשם
+    by.set(key, e);
+  }
+  let out = [...by.values()].filter(e => e.stops.slice(1).every((b, k) => D.segs[segKey(e.stops[k], b)]));
+  out.forEach(e => {
+    e.km = e.stops.slice(1).reduce((t, b, k) => t + (D.segs[segKey(e.stops[k], b)] || {m: 0}).m, 0) / 1000;
+    // תאי רשת (~1 ק"מ) שהמסלול עובר בהם — כדי לזהות קווים שונים על אותה מסילה (מהיר / עוצר בכל תחנה)
+    e.cells = new Set();
+    for (let k = 1; k < e.stops.length; k++) for (const p of D.segs[segKey(e.stops[k - 1], e.stops[k])].pts) e.cells.add(`${Math.floor(p[0] * 100)}_${Math.floor(p[1] * 100)}`);
+    // שם הקו מכיוון המוצא: אם בקו המלא היעד לפני המוצא — הופכים
+    if (e.full.indexOf(+from) > e.full.indexOf(+to)) e.full = [...e.full].reverse();
+  });
+  out.sort((a, b) => b.n - a.n);
+  // איחוד: אותה מסילה (חפיפה של 85% בתאים) = מסלול אחד, בשם הקו הנפוץ ביותר (שלמה 20.09: "פשוט תרשום קו אשקלון - באר שבע")
+  const merged = [];
+  for (const e of out) {
+    const same = merged.find(m => { let inter = 0; for (const c of e.cells) if (m.cells.has(c)) inter++; return inter / Math.max(e.cells.size, m.cells.size) >= 0.85; });
+    if (same) { same.n += e.n; if (e.stops.length > same.stops.length) same.stops = e.stops; }
+    else merged.push(e);
+  }
+  merged.sort((a, b) => b.n - a.n);
+  return merged;
+}
+function routeFind() {
+  const from = $('#rFrom').value, to = $('#rTo').value;
+  $('#rClear').hidden = !(from || to);
+  if (!from || !to) return;
+  if (from === to) { $('#rOut').innerHTML = '<p class="rnote">בחר שתי תחנות שונות</p>'; return; }
+  const cands = routeCandidates(from, to);
+  if (!cands.length) { ROUTE = null; $('#rOut').innerHTML = '<p class="rnote">לא נמצא קו ישיר בין שתי התחנות ב-7 הימים האחרונים (אולי נדרשת החלפה)</p>'; if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; } return; }
+  ROUTE = {cands, sel: 0};
+  routeRender();
+}
+// כמה ק"מ בכל דרגה לכל חברה לאורך המסלול, לפי הדור וסוג הרכבת שנבחרו
+function routeScores(stops) {
+  const f = (TRAINS.find(t => t.code === train) || TRAINS[1]).f;
+  const res = D.ops.map(o => ({code: o.code, name: o.name, km: [0, 0, 0, 0]}));
+  const DA = D.ops.map(o => distArr(o.code));
+  for (let k = 1; k < stops.length; k++) {
+    const s = D.segs[segKey(stops[k - 1], stops[k])]; if (!s) continue;
+    for (const p of s.pts) D.ops.forEach((o, oi) => { const d = DA[oi][p[9]]; res[oi].km[scoreFor(p[2], d < 0 ? null : d, s.spd, f)] += D.step / 1000; });
+  }
+  for (const r of res) { const tot = r.km.reduce((a, b) => a + b, 0) || 1; r.pct = r.km.map(v => v / tot); r.mean = (3 * r.km[3] + 2 * r.km[2] + r.km[1]) / (3 * tot); }
+  res.sort((a, b) => b.mean - a.mean);
+  return res;
+}
+function lineName(e) { const a = e.stops[0], b = e.stops[e.stops.length - 1]; return `קו ${D.stations[a] || a} - ${D.stations[b] || b}`; }
+function fullName(e) { const a = e.full[0], b = e.full[e.full.length - 1]; return `${D.stations[a] || a} - ${D.stations[b] || b}`; }
+function routeRender() {
+  if (!ROUTE) return;
+  const {cands, sel} = ROUTE, c = cands[sel];
+  const via = (e) => { const mids = e.stops.slice(1, -1); return mids.length ? 'דרך ' + esc(D.stations[mids[Math.floor(mids.length / 2)]] || '') : 'ישיר'; };
+  const nInter = (e) => { const n = e.stops.length - 2; return n === 0 ? 'בלי עצירות ביניים' : n === 1 ? 'תחנת ביניים אחת' : n + ' תחנות ביניים'; };
+  let h = '';
+  if (cands.length > 1) h += `<p class="rnote">יש ${cands.length} מסלולים שונים בין התחנות — בחר:</p><div class="rcands">` + cands.map((e, i) => `<button type="button" class="rcand ${i === sel ? 'on' : ''}" data-i="${i}">${esc(lineName(e))}<small>${nInter(e)} · ${e.km.toFixed(0)} ק"מ · ${via(e)}</small></button>`).join('') + '</div>';
+  const sc = routeScores(c.stops);
+  const best = sc[0], tie = sc.filter(r => Math.abs(r.mean - best.mean) < 0.005);
+  h += `<div class="rres"><p class="rnote"><b>${esc(lineName(c))}</b> (חלק מהקו ${esc(fullName(c))}) · ${c.km.toFixed(0)} ק"מ · ${nInter(c)} · ${c.n} נסיעות בשבוע האחרון · לפי ${esc((TRAINS.find(t => t.code === train) || {}).name || '')}${gen === 'all' ? '' : gen === '5' ? ' · דור 5' : ' · דור 4 ומעלה'}</p>
+    <table><thead><tr><th>חברה</th><th>טובה</th><th>סבירה</th><th>חלשה</th><th>אין</th><th></th></tr></thead><tbody>` +
+    sc.map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td style="color:${BRAND[r.code]}">${esc(r.name)}${tie.includes(r) && tie.length < sc.length ? '<span class="crown">הכי טובה</span>' : ''}</td>` +
+      [3, 2, 1, 0].map(g => `<td>${Math.round(100 * r.pct[g])}%</td>`).join('') +
+      `<td><div class="bar">${[3, 2, 1, 0].map(g => `<i style="width:${100 * r.pct[g]}%;background:${GCOL[g]}"></i>`).join('')}</div></td></tr>`).join('') +
+    `</tbody></table>${tie.length === sc.length ? '<p class="rnote">אין הבדל בין החברות בקטע הזה</p>' : ''}</div>`;
+  $('#rOut').innerHTML = h;
+  $('#rOut').querySelectorAll('.rcand').forEach(b => b.onclick = () => { ROUTE.sel = +b.dataset.i; routeRender(); });
+  // הדגשה במפה: הילה כהה מתחת למסלול, ומיקוד עליו
+  if (routeLayer) map.removeLayer(routeLayer);
+  const lines = [];
+  for (let k = 1; k < c.stops.length; k++) { const s = D.segs[segKey(c.stops[k - 1], c.stops[k])]; if (s) lines.push(s.pts.map(p => [p[0], p[1]])); }
+  routeLayer = L.polyline(lines, {color: '#101418', weight: 14, opacity: .35, lineCap: 'round', renderer: RENDERER, interactive: false}).addTo(map);
+  routeLayer.bringToBack();
+  map.fitBounds(routeLayer.getBounds().pad(0.1));
 }
 
 function opName() { return op === 'all' ? 'כל החברות' : (D.ops.find(o => o.code === op) || {}).name || op; }

@@ -215,6 +215,33 @@ def segment_speeds(segs_len):
     return out
 
 
+def real_routes(segs_keys):
+    """הקווים האמיתיים: רצפי התחנות של הנסיעות ב-7 הימים האחרונים, לפי שם המסלול.
+    לכל רצף ייחודי — שם, תחנות ומספר נסיעות. משמש לבחירת מוצא/יעד בעמוד."""
+    ddir = f'{OUTDIR}/days'
+    if not os.path.isdir(ddir):
+        return []
+    files = sorted(f for f in os.listdir(ddir) if f.endswith('.json'))[-7:]
+    seen = {}
+    for fn in files:
+        day = jload(f'{ddir}/{fn}', {})
+        for r in day.get('rides', []):
+            stops = [x[0] for x in r.get('s', []) if x[0] is not None]
+            if len(stops) < 2:
+                continue
+            key = tuple(stops)
+            e = seen.setdefault(key, {'nm': r.get('nm') or '', 'n': 0})
+            e['n'] += 1
+    out = []
+    for key, e in seen.items():
+        # רק רצפים שכל מקטעיהם קיימים במפה
+        ok = all((f'{a}-{b}' if str(a) < str(b) else f'{b}-{a}') in segs_keys for a, b in zip(key, key[1:]))
+        if ok and e['n'] >= 3:
+            out.append({'nm': e['nm'], 'n': e['n'], 's': list(key)})
+    out.sort(key=lambda r: -r['n'])
+    return out
+
+
 def score(struct, d, spd):
     if struct in ('tunnel', 'covered'):
         return 0
@@ -300,6 +327,8 @@ def main():
     for _, c in OPS:
         t = tot[c]
         print(f'  {OP_NAMES[c]}: טוב {t[3]} · סביר {t[2]} · חלש {t[1]} · אין {t[0]}')
+    routes = real_routes(set(out_segs.keys()))
+    print(f'קווים אמיתיים (רצפי תחנות): {len(routes)}')
     tunnel_names = sorted({f['n'] for f in tun if f['n'] and f['k'] == 'tunnel'})
     json.dump({
         'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%MZ'),
@@ -309,6 +338,7 @@ def main():
         'stations': {k: v[0] for k, v in stations.items()},
         'tunnels': tunnel_names,
         'antennas': ants_near,
+        'routes': routes,
         'segs': out_segs,
     }, open(f'{OUTDIR}/reception.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 

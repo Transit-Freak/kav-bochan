@@ -32,6 +32,24 @@
   .seg button.on{background:var(--b);color:#fff}
   label.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer}
   select{font:700 14px var(--body);border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;background:#fff;color:var(--ink)}
+  .route{border:1.5px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);padding:12px 14px;margin-bottom:14px;background:#fff}
+  .rsel{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .rsel label{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700}
+  .rsel select{max-width:230px}
+  .rsel button{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:6px 12px;font:700 13px var(--body);cursor:pointer}
+  .rcands{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .rcand{border:1.5px solid var(--ink);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;background:#fff;cursor:pointer;text-align:right}
+  .rcand.on{background:var(--ink);color:#fff}
+  .rcand small{display:block;font-weight:500;opacity:.8}
+  .rres{margin-top:10px}
+  .rres table{border-collapse:collapse;width:100%;font-size:13.5px}
+  .rres th,.rres td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line)}
+  .rres th{font-size:12px;color:var(--mut)}
+  .rres .best{font-weight:800}
+  .rres .bar{display:flex;height:10px;border-radius:5px;overflow:hidden;min-width:120px}
+  .rres .bar i{display:block;height:100%}
+  .rres .crown{display:inline-block;background:var(--g3);color:#fff;border-radius:999px;padding:1px 8px;font-size:11px;margin-inline-start:6px}
+  .rnote{font-size:12.5px;color:var(--mut);margin-top:6px}
   #map{height:min(70vh,640px);border:1.5px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);overflow:hidden;background:#eef2f6}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;font-size:13px;font-weight:700}
   .legend i{display:inline-block;width:22px;height:6px;border-radius:3px;vertical-align:middle;margin-inline-end:6px}
@@ -60,6 +78,14 @@
   </div>
   <div class="band"></div>
   <p class="sub" id="sub">טוען נתונים…</p>
+  <div class="route" id="route">
+    <div class="rsel">
+      <label>מוצא <select id="rFrom"><option value="">בחר תחנה</option></select></label>
+      <label>יעד <select id="rTo"><option value="">בחר תחנה</option></select></label>
+      <button type="button" id="rClear" hidden>נקה</button>
+    </div>
+    <div id="rOut"></div>
+  </div>
   <div class="ctl">
     <div class="seg" id="ops"></div>
     <div class="seg" id="gen"><button data-gen="all" class="on">כל הדורות</button><button data-gen="4">דור 4 ומעלה</button><button data-gen="5">דור 5</button></div>
