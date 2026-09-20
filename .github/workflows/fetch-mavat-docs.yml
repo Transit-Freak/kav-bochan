@@ -13,6 +13,10 @@ on:
         description: 'קובץ יעד'
         required: true
         default: 'docs/fetched/taba/mavat-docs.txt'
+      download:
+        description: 'טקסטים של שורות להורדה, מופרדים ב-;; (למשל "נספח חתך לאורך מסילה - חתום לאישור")'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -35,13 +39,15 @@ jobs:
         env:
           U: ${{ inputs.url }}
           OUT: ${{ inputs.out }}
+          DL: ${{ inputs.download }}
         run: |
           set -euo pipefail
+          sudo apt-get install -y -q poppler-utils >/dev/null
           mkdir -p "$(dirname "$OUT")"
           cat > fetch.js <<'EOF'
           const { chromium } = require('playwright'); const fs = require('fs');
           (async () => {
-            const b = await chromium.launch(); const ctx = await b.newContext({ locale: 'he-IL', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' });
+            const b = await chromium.launch(); const ctx = await b.newContext({ locale: 'he-IL', acceptDownloads: true, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' });
             const pg = await ctx.newPage(); const nets = [];
             pg.on('response', async (r) => { try { const ct = r.headers()['content-type'] || ''; if (/json/.test(ct) && /mavat/.test(r.url())) { const t = await r.text(); nets.push(`--- ${r.url()} (${t.length})\n${t.slice(0, 20000)}`); } } catch (e) {} });
             await pg.goto(process.env.U, { waitUntil: 'networkidle', timeout: 90000 }); await pg.waitForTimeout(3000);
@@ -52,6 +58,27 @@ jobs:
             // "קרא עוד" / הרחבות
             for (const t of ['הצג הכל', 'עוד', 'הרחב']) { try { const el = pg.getByText(t, { exact: false }).first(); if (await el.count()) await el.click({ timeout: 3000 }); } catch (e) {} }
             await pg.waitForTimeout(2000);
+            // הורדות: לכל טקסט שורה — מוצאים את השורה ולוחצים על כפתור/קישור ההורדה שבה
+            const dir = require('path').dirname(process.env.OUT);
+            for (const want of (process.env.DL || '').split(';;').map(s => s.trim()).filter(Boolean)) {
+              try {
+                const row = pg.locator('tr, [role=row], li, div').filter({ hasText: want }).last();
+                const n = await row.count(); console.log('שורה:', want, '→', n ? 'נמצאה' : 'לא נמצאה');
+                if (!n) continue;
+                const btns = row.locator('a[href], button, [role=button], img, i, span[class*=icon], [class*=download]');
+                const cnt = await btns.count(); console.log('  כפתורים בשורה:', cnt);
+                let done = false;
+                for (let i = cnt - 1; i >= 0 && !done; i--) {
+                  try {
+                    const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 20000 }), btns.nth(i).click({ timeout: 5000 })]);
+                    const name = (dl.suggestedFilename() || ('doc_' + Date.now())).replace(/[^\w.\-\u0590-\u05FF]/g, '_');
+                    const dest = dir + '/' + name; await dl.saveAs(dest);
+                    console.log('  הורד:', name, require('fs').statSync(dest).size, 'בתים'); done = true;
+                  } catch (e) { /* לא כפתור הורדה */ }
+                }
+                if (!done) console.log('  לא הצלחתי להוריד מהשורה');
+              } catch (e) { console.log('  שגיאה:', e.message.slice(0, 150)); }
+            }
             const text = await pg.evaluate(() => document.body.innerText);
             const links = await pg.$$eval('a[href], button, [onclick]', els => els.map(e => (e.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 80) + ' | ' + (e.href || e.getAttribute('onclick') || e.getAttribute('data-url') || '')).filter(s => s.length > 5));
             const rows = await pg.$$eval('table tr, [role=row], .row, li', els => els.map(e => (e.innerText || '').trim().replace(/\s+/g, ' ')).filter(s => /נספח|תשריט|הוראות|חתך|תנוחה/.test(s)).slice(0, 300));
@@ -61,12 +88,22 @@ jobs:
           EOF
           node fetch.js
           wc -c "$OUT"
+          for f in "$(dirname "$OUT")"/*.pdf; do
+            [ -f "$f" ] || continue
+            case "$f" in *9423881_40_2.pdf) continue;; esac
+            echo "=== $f"; pdfinfo "$f" | grep -E "Pages|Page size|Producer|Creator" || true
+            pdftotext -layout "$f" "${f%.pdf}.txt" || true
+            pdftotext -bbox-layout "$f" "${f%.pdf}.bbox.html" || true
+            echo "טקסט: $(wc -c < "${f%.pdf}.txt") בתים · מילים עם מנהרה/חתך/פורטל: $(grep -cE 'מנהר|חתך|פורטל' "${f%.pdf}.txt" || true) · מספרי רשת (6 ספרות): $(grep -oE '\b[12][0-9]{5}\b' "${f%.pdf}.txt" | wc -l)"
+            # קבצים גדולים לא נכנסים למאגר — רק הטקסט
+            [ "$(stat -c %s "$f")" -lt 45000000 ] || rm -f "$f"
+          done
       - name: שמירה
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ inputs.out }}"
+          git add "$(dirname "${{ inputs.out }}")"
           git diff --cached --quiet && { echo "ללא שינוי"; exit 0; }
           git commit -m "docs: רשימת מסמכי תוכנית ממב\"ת — ${{ inputs.out }}"
           for i in 1 2 3 4 5; do git pull --rebase -q origin main && git push origin HEAD:main && break || sleep $((5 * i)); done
