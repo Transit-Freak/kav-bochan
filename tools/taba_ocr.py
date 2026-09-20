@@ -102,44 +102,54 @@ def read_sheet(pdf, out_json, debug_dir=None):
     side_used = None
     for side in ('left', 'right'):
         xr = range(140, int(W * 0.06)) if side == 'left' else range(W - 140, int(W * 0.94), -1)
-        lab_edge = None
+        # מועמדים לקצה עמודת התוויות: קווים אנכיים ארוכים (עד 5), לפי המרחק מהקצה
+        cands = []
         for thr, gap, minlen in ((128, 2, 400), (175, 4, 350), (175, 6, 80)):
             band = a[y_from:, :] < thr
             for x in xr:
+                if cands and abs(x - cands[-1]) < 40:
+                    continue
                 col = band[:, x] | band[:, x + 1] | band[:, x - 1]
                 runs = group_runs(np.where(col)[0], gap=gap)
-                # קו רציף ארוך, או (ניסיון שלישי) עמודת תיבות: כמה קטעים של 80+ שסכומם 450+
                 longs = [r for r in runs if r[1] - r[0] > minlen]
                 if longs and (minlen >= 350 or (len(longs) >= 3 and sum(r[1] - r[0] for r in longs) > 450)):
-                    lab_edge = x
-                    break
-            if lab_edge is not None:
+                    cands.append(x)
+                    if len(cands) >= 5:
+                        break
+            if len(cands) >= 5:
                 break
-        print(f'   קצה עמודת התוויות ({side}):', lab_edge, flush=True)
-        if lab_edge is None:
-            continue
-        lx0, lx1 = (0, lab_edge) if side == 'left' else (lab_edge, W)
-        hl = group_runs(dark_rows(a[y_from:, :], lx0 + 12, lx1 - 12, thresh=0.85) + y_from)
-        ys_side = [int((r[0] + r[1]) / 2) for r in hl]
-        rows_side = [(ys_side[k], ys_side[k + 1]) for k in range(len(ys_side) - 1) if 95 < ys_side[k + 1] - ys_side[k] < H * 0.05]
-        lab = []
-        for (y0, y1) in rows_side:
-            cell = img.crop((lx0, y0 + 4, lx1, y1 - 4))
-            cell = cell.resize((cell.width * 2, cell.height * 2))
-            txt = ocr(cell, 'heb', 7).replace(' ', '')
-            k = ('plan' if ('מתוכנ' in txt or 'מתו' in txt) else 'ground' if ('קיים' in txt or 'קים' in txt) else
-                 'chain' if ('מרחק' in txt or txt.endswith('רץ')) else None)
-            print(f'   תווית {side} {y0}-{y1}: {txt!r} → {k}', flush=True)
-            if k:
-                lab.append({'y0': y0, 'y1': y1, 'label': txt, 'kind': k, 'lx0': lx0, 'lx1': lx1})
-        kinds = {l['kind']: l for l in lab}
-        # "רום מתוכנן" יושבת תמיד מעל "רום קיים" באותו גובה — אם לא זוהתה, נגזרת ממנה
-        if 'ground' in kinds and 'plan' not in kinds:
-            g = kinds['ground']
-            h = g['y1'] - g['y0']
-            lab.append({'y0': g['y0'] - h, 'y1': g['y0'], 'label': '(נגזר)', 'kind': 'plan', 'lx0': lx0, 'lx1': lx1})
-        if len(lab) >= 2:
-            labeled, rows, ys, side_used = lab, rows_side, ys_side, side
+        print(f'   מועמדים לקצה עמודת התוויות ({side}):', cands, flush=True)
+        found_side = False
+        for lab_edge in cands:
+            lx0, lx1 = (0, lab_edge) if side == 'left' else (lab_edge, W)
+            # התווית יושבת בתוך 700 פיקסלים מהקצה
+            tx0, tx1 = (max(0, lab_edge - 700), lab_edge) if side == 'left' else (lab_edge, min(W, lab_edge + 700))
+            hl = group_runs(dark_rows(a[y_from:, :], tx0 + 12, tx1 - 12, thresh=0.85) + y_from)
+            ys_side = [int((r[0] + r[1]) / 2) for r in hl]
+            rows_side = [(ys_side[k], ys_side[k + 1]) for k in range(len(ys_side) - 1) if 95 < ys_side[k + 1] - ys_side[k] < H * 0.05]
+            lab = []
+            for (y0, y1) in rows_side:
+                cell = img.crop((tx0, y0 + 4, tx1, y1 - 4))
+                cell = cell.resize((cell.width * 2, cell.height * 2))
+                txt = ocr(cell, 'heb', 7).replace(' ', '')
+                k = ('plan' if ('מתוכנ' in txt or 'מתו' in txt) else 'ground' if ('קיים' in txt or 'קים' in txt) else
+                     'chain' if ('מרחק' in txt or txt.endswith('רץ')) else None)
+                print(f'   תווית {side}@{lab_edge} {y0}-{y1}: {txt!r} → {k}', flush=True)
+                if k:
+                    lab.append({'y0': y0, 'y1': y1, 'label': txt, 'kind': k, 'lx0': tx0, 'lx1': lab_edge if side == 'left' else lab_edge})
+            kinds = {l['kind']: l for l in lab}
+            if 'ground' in kinds and 'plan' not in kinds:
+                g = kinds['ground']
+                h = g['y1'] - g['y0']
+                lab.append({'y0': g['y0'] - h, 'y1': g['y0'], 'label': '(נגזר)', 'kind': 'plan', 'lx0': tx0, 'lx1': lab_edge})
+            if len(lab) >= 2:
+                # lx0/lx1 = גבול התאים: מימין לקצה (שמאל) או משמאל לקצה (ימין)
+                for l in lab:
+                    l['lx0'], l['lx1'] = (0, lab_edge) if side == 'left' else (lab_edge, W)
+                labeled, rows, ys, side_used = lab, rows_side, ys_side, side
+                found_side = True
+                break
+        if found_side:
             break
     print('  צד התוויות:', side_used, '· רצועות:', rows, flush=True)
     if debug_dir and not rows:
@@ -223,7 +233,7 @@ def read_sheet(pdf, out_json, debug_dir=None):
                 if best is None or abs(v['x'] - x) < abs(best['x'] - x):
                     best = v
             return parse_el(best['t']) if best and abs(best['x'] - x) < 22 else None
-        series.append({'ch': ch, 'rail': near('plan'), 'ground': near('ground')})
+        series.append({'ch': ch, 'x': x, 'rail': near('plan'), 'ground': near('ground')})
     series.sort(key=lambda s: s['ch'])
     # סבירות: הקילומטראז' עולה בצעדים של 25 מ' (או 50/12.5); ערך שקופץ הרבה מהשכנים נפסל
     good = []
@@ -275,14 +285,11 @@ def read_sheet(pdf, out_json, debug_dir=None):
         labels.append({'x': w['x'] * 2, 'xr': (w['x'] + w['w']) * 2, 'y': w['y'] * 2 + band_y0, 't': w['t'], 'conf': w['conf']})
     for l in labels:
         l['x'] = int((l['x'] + l.get('xr', l['x'])) / 2)
-    # קילומטראז' לכל X לפי רגרסיה מנקודות הטבלה
-    if len(series) >= 2:
-        xs_ = [c[0] for c in chain if c[1] is not None]
-        cs_ = [c[1] for c in chain if c[1] is not None]
-        A = np.vstack([xs_, np.ones(len(xs_))]).T
-        m, b = np.linalg.lstsq(A, np.array(cs_, dtype=float), rcond=None)[0]
+    # קילומטראז' לכל תווית: התא הקרוב ביותר בשורת "מרחק רץ" (מדויק גם כשיש קפיצת קילומטראז')
+    if series:
         for l in labels:
-            l['ch'] = int(m * l['x'] + b)
+            best = min(series, key=lambda p: abs(p['x'] - l['x']))
+            l['ch'] = best['ch'] if abs(best['x'] - l['x']) < 400 else None
     key = [l for l in labels if re.search(r'תחנ|מנהר|מינהר|גשר|פורטל', l['t'])]
     if chain:
         cx = [c[0] for c in chain if c[1] is not None]
