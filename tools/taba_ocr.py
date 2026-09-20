@@ -102,15 +102,18 @@ def read_sheet(pdf, out_json, debug_dir=None):
     side_used = None
     for side in ('left', 'right'):
         xr = range(60, int(W * 0.06)) if side == 'left' else range(W - 60, int(W * 0.94), -1)
-        band = a[y_from:, :] < 175
         lab_edge = None
-        for x in xr:
-            col = band[:, x] | band[:, min(x + 1, W - 1)]
-            # קו אנכי באורך 350 עד 30% מגובה הדף (קו המסגרת ארוך יותר — לא הוא)
-            runs = group_runs(np.where(col)[0], gap=4)
-            if any(350 < r[1] - r[0] < H * 0.3 for r in runs):
-                lab_edge = x
+        for thr, gap, minlen in ((128, 2, 400), (175, 4, 350)):
+            band = a[y_from:, :] < thr
+            for x in xr:
+                col = band[:, x]
+                runs = group_runs(np.where(col)[0], gap=gap)
+                if any(r[1] - r[0] > minlen for r in runs):
+                    lab_edge = x
+                    break
+            if lab_edge is not None:
                 break
+        print(f'   קצה עמודת התוויות ({side}):', lab_edge, flush=True)
         if lab_edge is None:
             continue
         lx0, lx1 = (0, lab_edge) if side == 'left' else (lab_edge, W)
@@ -218,7 +221,38 @@ def read_sheet(pdf, out_json, debug_dir=None):
             return parse_el(best['t']) if best and abs(best['x'] - x) < 45 else None
         series.append({'ch': ch, 'rail': near('plan'), 'ground': near('ground')})
     series.sort(key=lambda s: s['ch'])
+    # סבירות: הקילומטראז' עולה בצעדים של 25 מ' (או 50/12.5); ערך שקופץ הרבה מהשכנים נפסל
+    good = []
+    for i, pt in enumerate(series):
+        prev = good[-1]['ch'] if good else None
+        if prev is not None and not (0 < pt['ch'] - prev <= 200):
+            continue
+        good.append(pt)
+    series = good
+    for key in ('rail', 'ground'):
+        vals = [p[key] for p in series]
+        for i, p in enumerate(series):
+            if p[key] is None:
+                continue
+            nb = [v for v in vals[max(0, i - 3):i] + vals[i + 1:i + 4] if v is not None]
+            if len(nb) >= 2 and abs(p[key] - sorted(nb)[len(nb) // 2]) > 4:
+                p[key] = None
     ok = sum(1 for s in series if s['rail'] is not None and s['ground'] is not None)
+    # מבנים: הפרש מסילה-קרקע. חתך: המסילה מתחת לקרקע 3 מ' ומעלה; עמוק: 6 ומעלה; סוללה: מעל 3
+    feats = []
+    cur = None
+    for p in series:
+        d = (p['rail'] - p['ground']) if (p['rail'] is not None and p['ground'] is not None) else None
+        kind = None if d is None else ('deep' if d <= -6 else 'cutting' if d <= -3 else 'embankment' if d >= 3 else 'grade')
+        if cur and kind == cur['kind']:
+            cur['to'] = p['ch']; cur['ds'].append(d)
+        else:
+            if cur and cur['kind'] in ('deep', 'cutting', 'embankment') and cur['to'] - cur['from'] >= 50:
+                feats.append({'from': cur['from'], 'to': cur['to'], 'kind': cur['kind'], 'depth': round(abs(sum(cur['ds']) / len(cur['ds'])), 1)})
+            cur = {'kind': kind, 'from': p['ch'], 'to': p['ch'], 'ds': [d]} if kind else None
+    if cur and cur['kind'] in ('deep', 'cutting', 'embankment') and cur['to'] - cur['from'] >= 50:
+        feats.append({'from': cur['from'], 'to': cur['to'], 'kind': cur['kind'], 'depth': round(abs(sum(cur['ds']) / len(cur['ds'])), 1)})
+    print('  מבנים מהסדרה:', feats[:20], flush=True)
     print(f'  נקודות קילומטראז׳: {len(series)} · עם שני גבהים: {ok}', flush=True)
 
     # --- 6. תוויות בחתך: רצועת החתך (בין 30% ל-70% מהגובה), OCR עברית עם מיקומים
@@ -248,8 +282,9 @@ def read_sheet(pdf, out_json, debug_dir=None):
     key = [l for l in labels if re.search(r'תחנ|מנהר|מינהר|גשר|פורטל', l['t'])]
     print('  תוויות מפתח בחתך:', [(l['t'], l.get('ch')) for l in key][:30], flush=True)
 
-    json.dump({'pdf': os.path.basename(pdf), 'dpi': dpi, 'size': [W, H], 'series': series, 'labels': labels},
+    json.dump({'pdf': os.path.basename(pdf), 'dpi': dpi, 'size': [W, H], 'series': series, 'labels': labels, 'features': feats},
               open(out_json, 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
+    return
 
 
 if __name__ == '__main__':
