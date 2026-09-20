@@ -9,7 +9,8 @@
 
 הקובץ המלא גדול (מאות MB) ולכן ההורדה והעיבוד רצים ב-GitHub Actions.
 הפלט: wiki-check/data/stations.json
-{updated, stations:{"שם": {city, lines:[[קו, מפעיל, [יעדים], רציף, term]]}}}
+{updated, stations:{"שם": {city, lines:[[קו, מפעיל, [יעדים], רציף, term, רחובות, נגישות, סימונים,
+ thru=[מוצא, רחובות לפני, רחובות אחרי, יעד] כשהתחנה באמצע המסלול]]}}}
 term=1 אם הקו מתחיל/מסתיים בתחנה.
 """
 import csv
@@ -215,7 +216,8 @@ def main():
     hits = {}          # (route_id, group_key) → set(רציפים)
     meta = {}          # group_key → (kind, name, city)
     n = 0
-    route_streets = {}   # route_id → {(רחוב, עיר): None} לפי סדר ההופעה
+    route_streets = {}   # route_id → {(רחוב, עיר): stop_sequence הראשון} לפי סדר ההופעה
+    hit_seq = {}         # (route_id, קבוצה) → stop_sequence של התחנה במסלול (לפיצול "לפני/אחרי")
     dep_plats = {}       # (route_id, קבוצה) → רציפי היציאה (התחנה הראשונה בנסיעה)
     route_places = {}    # route_id → חלקי שמות התחנות במסלול
     for r in reader(zf, 'stop_times.txt'):
@@ -223,12 +225,16 @@ def main():
         sid = r['stop_id']
         ss = stop_street.get(sid)
         rid0 = trip_route.get(r['trip_id'])
+        try:
+            seq = int(r.get('stop_sequence') or 0)
+        except ValueError:
+            seq = 0
         if ss is not None and rid0 is not None:
             rs = route_streets.get(rid0)
             if rs is None:
                 rs = route_streets[rid0] = {}
-            if ss not in rs:
-                rs[ss] = None
+            if ss not in rs or seq < rs[ss]:
+                rs[ss] = seq
         pp = stop_places.get(sid)
         if pp is not None and rid0 is not None:
             rp = route_places.get(rid0)
@@ -241,9 +247,11 @@ def main():
         rid = trip_route.get(r['trip_id'])
         if rid is None:
             continue
-        first = (r.get('stop_sequence') or '').strip() == '1'   # תחנת המוצא של הנסיעה
+        first = seq == 1   # תחנת המוצא של הנסיעה
         for gk, kind, name, city, plat in gs:
             meta[gk] = (kind, name, city)
+            if seq and (rid, gk) not in hit_seq or (seq and seq < hit_seq.get((rid, gk), 10 ** 9)):
+                hit_seq[(rid, gk)] = seq
             st = hits.get((rid, gk))
             if st is None:
                 st = hits[(rid, gk)] = set()
@@ -280,6 +288,19 @@ def main():
         ent['plats'] |= plats
         ent['term'] = ent['term'] or term
         ent.setdefault('rids', set()).add(rid)
+        # רציף לכל כיוון (שלמה 20.09: "לכיוון … עוצר ברציף …"): היעד של הכיוון והרציפים בו
+        if len(ends) == 2 and plats:
+            dlab = ends[1][1] if ends[1][1] != city else station_key(ends[1][0])
+            ent.setdefault('dirs', {}).setdefault(dlab, set()).update(dp or plats)
+        # מסלול עובר (התחנה באמצע): מוצא ← רחובות לפני ← התחנה ← רחובות אחרי ← יעד
+        # (שלמה 20.09: "מראה רק מהתחנה המרכזית עד לתחנה האחרונה ולא מה שהיה לפני")
+        sq = hit_seq.get((rid, gk))
+        if not term and sq and len(ends) == 2 and 'thru' not in ent:
+            rs = route_streets.get(rid, {})
+            before = [list(k) for k, v in sorted(rs.items(), key=lambda kv: kv[1]) if v < sq]
+            after = [list(k) for k, v in sorted(rs.items(), key=lambda kv: kv[1]) if v > sq]
+            lab = lambda e: e[1] if e[1] != city else station_key(e[0])
+            ent['thru'] = [lab(ends[0]), before, after, lab(ends[1])]
 
     def plat_sort(p):
         m = re.match(r'\d+', p)
@@ -351,7 +372,13 @@ def main():
                        1 if x['term'] else 0,
                        streets_of(x.get('rids', ())),
                        acc_of(x.get('rids', ())),
-                       flags_of(x.get('rids', ()))] for x in lines]}
+                       flags_of(x.get('rids', ())),
+                       x.get('thru'),
+                       # רציפים לפי כיוון — רק כשיש יותר מכיוון אחד עם רציפים שונים
+                       ([[d, plat_join(ps)] for d, ps in sorted(x['dirs'].items())]
+                        if len(x.get('dirs', {})) > 1 and len({plat_join(ps) for ps in x['dirs'].values()}) > 1 else None),
+                       # קו מעגלי: רחובות המסלול לפי הסדר (לפירוט "התחנה ← … ← התחנה")
+                       ] for x in lines]}
         # שמות התחנות במסלול — לסריקה בלבד (קובץ נפרד, שהאתר לא טוען)
         out_places[label] = {x['line']: places_of(x.get('rids', ())) for x in lines}
     kinds = Counter(v['kind'] for v in out_st.values())

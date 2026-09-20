@@ -195,11 +195,21 @@ function wikitext(s){
   // הסריקה השבועית יודעת את זה מראש (detailed); בדיקה חיה מעדכנת.
   const a0=AUDIT&&AUDIT.stations&&AUDIT.stations[SEL];
   const detailed=WIKI&&WIKI.done?!!WIKI.detailed:!!(a0&&a0.detailed);
-  const routeTxt=l=>{const d=linkDests(l);const ms=detailed?mainStreets(l):[];const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return d==='קו מעגלי'?`'''${SEL}''' 🔄 קו מעגלי`:`'''${SEL}'''${mid}${d}`;};
+  const linkOne=d=>isStop(d)?d:`[[${CITYFIX[d]||d}]]`;
+  const mainOf=arr=>(arr||[]).filter(([st,ct])=>(cent[ct]||[]).includes(st)).map(([st])=>st).filter((x,i,a)=>a.indexOf(x)===i).slice(0,4);
+  // קו שעובר בתחנה באמצע המסלול: מוצא ← (רחובות לפני) ← '''התחנה''' ← (רחובות אחרי) ← יעד (שלמה 20.09)
+  // קו מעגלי: '''התחנה''' ← רחובות ← '''התחנה''' — הסמל 🔄 עובר לעמודת הסימונים
+  const routeTxt=l=>{const d=linkDests(l);
+    if(d==='קו מעגלי'){const ms=detailed?mainStreets(l):[];return ms.length?[`'''${SEL}'''`,...ms,`'''${SEL}'''`].join(' ← '):`'''${SEL}''' - קו מעגלי`;}
+    const t=l[8];
+    if(t&&t[0]&&t[3]&&t[0]!==SEL&&t[3]!==SEL){const b=detailed?mainOf(t[1]):[],a=detailed?mainOf(t[2]):[];const sep=detailed?' ← ':' - ';return [linkOne(t[0]),...b,`'''${SEL}'''`,...a,linkOne(t[3])].join(sep);}
+    const ms=detailed?mainStreets(l):[];const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return `'''${SEL}'''${mid}${d}`;};
+  // רציף: כשהקו עוצר ברציפים שונים לכל כיוון — "לכיוון X: 3 · לכיוון Y: 5"; אחרת רציף היציאה
+  const platTxt=l=>{const ds=l[9];if(ds&&ds.length>1)return ds.map(([d,p])=>`לכיוון ${isStop(d)?d:(CITYFIX[d]||d)}: ${p}`).join(' · ');return l[3]||'—';};
   // עמודת נגישות: ♿ = כל נסיעות הקו נגישות לפי ה-GTFS, ♿ חלקי = חלק מהנסיעות (שלמה 18.09)
-  const hasAcc=s.lines.some(l=>l[6]!=null);
-  const accTxt=l=>{const f=l[7]||[];const m=[l[6]===1?'♿':l[6]===2?'♿ חלקי':'',f[0]?'🛡️':'',f[1]?'💺':'',f[2]?'🚆':''].filter(Boolean);return m.length?m.join(' '):'—';};
-  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${routeTxt(l)}${hasPlat?` || ${l[3]||'—'}`:''}${hasAcc?` || ${accTxt(l)}`:''}`).join('\n');
+  const hasAcc=s.lines.some(l=>l[6]!=null||linkDests(l)==='קו מעגלי'||(l[7]||[]).some(Boolean));
+  const accTxt=l=>{const f=l[7]||[];const m=[l[6]===1?'♿':l[6]===2?'♿ חלקי':'',linkDests(l)==='קו מעגלי'?'🔄':'',f[0]?'🛡️':'',f[1]?'💺':'',f[2]?'🚆':''].filter(Boolean);return m.length?m.join(' '):'—';};
+  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${routeTxt(l)}${hasPlat?` || ${platTxt(l)}`:''}${hasAcc?` || ${accTxt(l)}`:''}`).join('\n');
   return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! מסלול${hasPlat?' !! רציף':''}${hasAcc?' !! סימונים':''}\n${rows}\n|}`;
 }
 

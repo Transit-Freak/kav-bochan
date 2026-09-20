@@ -56,40 +56,65 @@ def api(params):
     raise RuntimeError('ויקיפדיה לא זמינה')
 
 
-def extract_lines(wt):
-    """מספרי קווים מטבלאות בלבד, ורק מהתא הראשון בכל שורה — אותו היגיון כמו באתר."""
+# שירותים עירוניים שאינם ב-GTFS הלאומי — שורה כזו בערך לא נבדקת ולא נספרת כ"שגויה"
+# (שלמה 20.09: "לא יכלול כשגוי קווים של נעים בסופ"ש או סובב רמת גן")
+SPECIAL_RE = re.compile(r'נעים\s*בסופ|סופ["\'״׳]?ש\b|בסופש|סובב\s|שאטל|שבתון|קו\s*שבת')
+
+
+def extract_lines(wt, special=None):
+    """מספרי קווים מטבלאות בלבד, ורק מהתא הראשון בכל שורה — אותו היגיון כמו באתר.
+    שורה שמזכירה שירות סופ"ש/סובב (SPECIAL_RE) מדולגת ונרשמת ב-special."""
     found = []
-    in_table, row_start = 0, False
+    in_table = 0
+    row = None          # שורות ה-wikitext של השורה הנוכחית בטבלה
+
+    def flush():
+        if not row:
+            return
+        text = '\n'.join(row)
+        first = row[0].lstrip('|').split('||')[0]
+        cand = []
+        for part in re.split(r'[/\\]', CLEAN.sub(' ', first)):
+            m = LINE.match(part.replace('♿', '').strip())
+            if m and m.group(1) not in cand:
+                cand.append(m.group(1))
+        for t in TPL_LINE.finditer(first):
+            if t.group(1) not in cand:
+                cand.append(t.group(1))
+        if SPECIAL_RE.search(CLEAN.sub(' ', text)):
+            if special is not None:
+                for c in cand:
+                    if c not in special:
+                        special.append(c)
+            return
+        for c in cand:
+            if c not in found:
+                found.append(c)
+
     for raw in wt.split('\n'):
         ln = raw.strip()
         if ln.startswith('{|'):
             in_table += 1
-            row_start = True
+            row = None
             continue
         if ln.startswith('|}'):
+            flush()
+            row = None
             in_table = max(0, in_table - 1)
             continue
         if not in_table:
             continue
         if ln.startswith('|-'):
-            row_start = True
+            flush()
+            row = []
             continue
-        if ln.startswith('|+'):
+        if ln.startswith('|+') or ln.startswith('!'):
+            flush()
+            row = None
             continue
-        if ln.startswith('!'):
-            row_start = False
-            continue
-        if ln.startswith('|') and row_start:
-            cell = ln.lstrip('|').split('||')[0]
-            # "9/9א" — זוג קווים באותו תא, מפוצל על לוכסן
-            for part in re.split(r'[/\\]', CLEAN.sub(' ', cell)):
-                m = LINE.match(part.replace('♿', '').strip())
-                if m and m.group(1) not in found:
-                    found.append(m.group(1))
-            for t in TPL_LINE.finditer(cell):
-                if t.group(1) not in found:
-                    found.append(t.group(1))
-            row_start = False
+        if ln.startswith('|') and row is not None:
+            row.append(ln)
+    flush()
     return found
 
 
@@ -518,7 +543,8 @@ def main():
             if wt is None:
                 out[name] = {'article': None}
                 continue
-            in_article = extract_lines(wt)
+            special = []
+            in_article = extract_lines(wt, special)
             has_table = '{|' in wt and bool(in_article)
             # בדיקת עמודת המסלול: רחובות כתובים שהקו לא עובר בהם / מרכזיים שחסרים
             real_lines = {}
@@ -549,7 +575,7 @@ def main():
             correct = [l for l in in_article if l in real]
             missing = len(real) - len(correct)
             out[name] = {'article': title, 'kind': st.get('kind', 'station'), 'hasTable': has_table,
-                         'inArticle': in_article, 'wrong': wrong,
+                         'inArticle': in_article, 'wrong': wrong, 'special': special,
                          'correct': len(correct), 'missing': missing, 'routes': route_issues, 'detailed': detailed,
                          'acc': acc_issues}
             print(f'{name} → {title}: בערך {len(in_article)} · '
