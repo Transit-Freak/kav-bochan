@@ -1,0 +1,30 @@
+name: probe-wiki
+
+# אבחון: הדפסת ה-wikitext של ערך בוויקיפדיה ליומן הריצה (מהסביבה של קלוד ויקיפדיה חסומה)
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: 'שם הערך'
+        required: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: wikitext
+        env:
+          TITLE: ${{ github.event.inputs.title }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          t = os.environ['TITLE']
+          u = 'https://he.wikipedia.org/w/api.php?' + urllib.parse.urlencode({'action': 'query', 'prop': 'revisions', 'rvprop': 'content', 'rvslots': 'main', 'titles': t, 'format': 'json', 'redirects': 1})
+          r = urllib.request.Request(u, headers={'User-Agent': 'kav-bochan/wiki-probe (shlomihartman@gmail.com)'})
+          j = json.load(urllib.request.urlopen(r, timeout=60))
+          for p in j['query']['pages'].values():
+              print('=== ' + p.get('title', ''))
+              print(p['revisions'][0]['slots']['main']['*'])
+          PY
