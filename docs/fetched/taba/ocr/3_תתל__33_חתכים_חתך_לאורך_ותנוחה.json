@@ -5,719 +5,245 @@
 16019,
 10503
 ],
-"series": [
-{
-"ch": 15400,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15450,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15475,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15500,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15550,
-"rail": null,
-"ground": 38.56
-},
-{
-"ch": 15575,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15575,
-"rail": null,
-"ground": 38.96
-},
-{
-"ch": 15600,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15650,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15675,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15675,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15700,
-"rail": null,
-"ground": 38.94
-},
-{
-"ch": 15750,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15775,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15775,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15800,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15850,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15875,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15900,
-"rail": null,
-"ground": null
-},
-{
-"ch": 15950,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16000,
-"rail": null,
-"ground": 40.19
-},
-{
-"ch": 16050,
-"rail": null,
-"ground": 40.65
-},
-{
-"ch": 16075,
-"rail": null,
-"ground": 40.88
-},
-{
-"ch": 16100,
-"rail": null,
-"ground": 41.1
-},
-{
-"ch": 16125,
-"rail": null,
-"ground": 41.33
-},
-{
-"ch": 16150,
-"rail": null,
-"ground": 41.48
-},
-{
-"ch": 16175,
-"rail": null,
-"ground": 41.38
-},
-{
-"ch": 16200,
-"rail": null,
-"ground": 41.27
-},
-{
-"ch": 16300,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16350,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16400,
-"rail": null,
-"ground": 43.41
-},
-{
-"ch": 16500,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16550,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16575,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16600,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16625,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16650,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16675,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16700,
-"rail": null,
-"ground": 45.36
-},
-{
-"ch": 16750,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16775,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16800,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16850,
-"rail": null,
-"ground": 46.79
-},
-{
-"ch": 16875,
-"rail": null,
-"ground": 46.0
-},
-{
-"ch": 16875,
-"rail": null,
-"ground": 46.67
-},
-{
-"ch": 16900,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16950,
-"rail": null,
-"ground": null
-},
-{
-"ch": 16975,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17000,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17050,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17075,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17100,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17125,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17150,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17175,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17200,
-"rail": null,
-"ground": 45.08
-},
-{
-"ch": 17250,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17300,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17350,
-"rail": null,
-"ground": 46.78
-},
-{
-"ch": 17400,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17450,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17475,
-"rail": null,
-"ground": 48.45
-},
-{
-"ch": 17500,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17550,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17575,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17575,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17600,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17650,
-"rail": null,
-"ground": 50.19
-},
-{
-"ch": 17675,
-"rail": null,
-"ground": 50.2
-},
-{
-"ch": 17700,
-"rail": null,
-"ground": 50.94
-},
-{
-"ch": 17750,
-"rail": null,
-"ground": null
-},
-{
-"ch": 17775,
-"rail": null,
-"ground": 51.19
-},
-{
-"ch": 17775,
-"rail": null,
-"ground": 53.14
-},
-{
-"ch": 17800,
-"rail": null,
-"ground": 53.15
-},
-{
-"ch": 17850,
-"rail": null,
-"ground": 53.57
-},
-{
-"ch": 17875,
-"rail": null,
-"ground": 53.35
-},
-{
-"ch": 17875,
-"rail": null,
-"ground": 53.67
-},
-{
-"ch": 17900,
-"rail": null,
-"ground": 53.93
-},
-{
-"ch": 17950,
-"rail": null,
-"ground": 53.95
-},
-{
-"ch": 18000,
-"rail": null,
-"ground": 53.53
-},
-{
-"ch": 18050,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18075,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18075,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18100,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18150,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18175,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18175,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18275,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18300,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18350,
-"rail": null,
-"ground": 51.94
-},
-{
-"ch": 18400,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18450,
-"rail": null,
-"ground": 53.79
-},
-{
-"ch": 18500,
-"rail": null,
-"ground": 56.04
-},
-{
-"ch": 18525,
-"rail": null,
-"ground": 56.33
-},
-{
-"ch": 18550,
-"rail": null,
-"ground": 56.47
-},
-{
-"ch": 18575,
-"rail": null,
-"ground": 56.61
-},
-{
-"ch": 18600,
-"rail": null,
-"ground": 56.65
-},
-{
-"ch": 18625,
-"rail": null,
-"ground": 56.88
-},
-{
-"ch": 18650,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18675,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18700,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18750,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18775,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18775,
-"rail": null,
-"ground": 58.16
-},
-{
-"ch": 18800,
-"rail": null,
-"ground": 58.38
-},
-{
-"ch": 18850,
-"rail": null,
-"ground": 58.69
-},
-{
-"ch": 18875,
-"rail": null,
-"ground": 58.57
-},
-{
-"ch": 18875,
-"rail": null,
-"ground": 58.78
-},
-{
-"ch": 18900,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18950,
-"rail": null,
-"ground": null
-},
-{
-"ch": 18975,
-"rail": null,
-"ground": null
-},
-{
-"ch": 19000,
-"rail": null,
-"ground": null
-},
-{
-"ch": 19050,
-"rail": null,
-"ground": null
-},
-{
-"ch": 19075,
-"rail": null,
-"ground": 60.02
-},
-{
-"ch": 19100,
-"rail": null,
-"ground": 60.02
-},
-{
-"ch": 19150,
-"rail": null,
-"ground": null
-},
-{
-"ch": 19175,
-"rail": null,
-"ground": null
-},
-{
-"ch": 19175,
-"rail": null,
-"ground": null
-},
-{
-"ch": 164250,
-"rail": null,
-"ground": 41.92
-},
-{
-"ch": 164275,
-"rail": null,
-"ground": 41.49
-},
-{
-"ch": 164275,
-"rail": null,
-"ground": null
-},
-{
-"ch": 164375,
-"rail": null,
-"ground": null
-},
-{
-"ch": 164375,
-"rail": null,
-"ground": null
-},
-{
-"ch": 164450,
-"rail": null,
-"ground": 43.87
-},
-{
-"ch": 164475,
-"rail": null,
-"ground": null
-},
-{
-"ch": 164475,
-"rail": null,
-"ground": null
-},
-{
-"ch": 164575,
-"rail": null,
-"ground": null
-},
-{
-"ch": 174275,
-"rail": null,
-"ground": 45.16
-},
-{
-"ch": 174275,
-"rail": null,
-"ground": 45.48
-},
-{
-"ch": 194200,
-"rail": null,
-"ground": null
-},
-{
-"ch": 194250,
-"rail": null,
-"ground": null
-}
-],
+"series": [],
 "labels": [
 {
-"x": 15360,
-"y": 3086,
-"t": "חותמת",
-"conf": 91.937912,
-"ch": 23361
-},
-{
-"x": 15138,
-"y": 3086,
-"t": "מוסד",
-"conf": 91.456924,
-"ch": 23570
-},
-{
-"x": 14882,
+"x": 14983,
+"xr": 15084,
 "y": 3076,
 "t": "התכנו",
-"conf": 92.604736,
-"ch": 23810
+"conf": 92.604736
 },
 {
-"x": 13154,
+"x": 15472,
+"xr": 15584,
+"y": 3086,
+"t": "חותמת",
+"conf": 91.937912
+},
+{
+"x": 15219,
+"xr": 15300,
+"y": 3086,
+"t": "מוסד",
+"conf": 91.456924
+},
+{
+"x": 8525,
+"xr": 8708,
+"y": 3098,
+"t": "2",
+"conf": 62.76059
+},
+{
+"x": 3149,
+"xr": 3500,
+"y": 3214,
+"t": "4",
+"conf": 61.583401
+},
+{
+"x": 13092,
+"xr": 13294,
 "y": 3336,
-"t": "מפת",
-"conf": 91.955971,
-"ch": 25434
+"t": "מפת מפתח:",
+"conf": 91.955971
 },
 {
-"x": 12890,
-"y": 3336,
-"t": "מפתח:",
-"conf": 89.575676,
-"ch": 25682
+"x": 13091,
+"xr": 13300,
+"y": 3548,
+"t": "וד דד",
+"conf": 50.400452
 },
 {
-"x": 12698,
+"x": 13244,
+"xr": 13300,
+"y": 3766,
+"t": "6",
+"conf": 75.436417
+},
+{
+"x": 12861,
+"xr": 12864,
+"y": 3852,
+"t": "2",
+"conf": 74.183228
+},
+{
+"x": 10995,
+"xr": 11002,
+"y": 3874,
+"t": "6",
+"conf": 95.671448
+},
+{
+"x": 13024,
+"xr": 13120,
+"y": 3882,
+"t": "\"7",
+"conf": 49.905556
+},
+{
+"x": 12861,
+"xr": 13024,
 "y": 3900,
 "t": "פתח-תקווה",
-"conf": 56.469173,
-"ch": 25862
+"conf": 56.469173
 },
 {
-"x": 12500,
+"x": 11023,
+"xr": 11080,
+"y": 4010,
+"t": "3",
+"conf": 39.014439
+},
+{
+"x": 11378,
+"xr": 11790,
+"y": 4254,
+"t": "\"7\"",
+"conf": 80.656914
+},
+{
+"x": 13244,
+"xr": 13300,
+"y": 4376,
+"t": "6",
+"conf": 81.788315
+},
+{
+"x": 12631,
+"xr": 13246,
+"y": 4362,
+"t": ".לה",
+"conf": 70.155762
+},
+{
+"x": 13244,
+"xr": 13300,
+"y": 4498,
+"t": "6",
+"conf": 79.959961
+},
+{
+"x": 12373,
+"xr": 12486,
+"y": 4584,
+"t": "בב",
+"conf": 44.451691
+},
+{
+"x": 11397,
+"xr": 11778,
+"y": 4584,
+"t": ")\"מ\"ר",
+"conf": 42.08136
+},
+{
+"x": 13056,
+"xr": 13120,
+"y": 4614,
+"t": "\"1",
+"conf": 50.420555
+},
+{
+"x": 12603,
+"xr": 12604,
+"y": 4614,
+"t": "6",
+"conf": 33.623444
+},
+{
+"x": 11371,
+"xr": 11384,
+"y": 4828,
+"t": "0",
+"conf": 66.844086
+},
+{
+"x": 11531,
+"xr": 11534,
+"y": 4858,
+"t": "8",
+"conf": 52.749237
+},
+{
+"x": 11421,
+"xr": 11422,
+"y": 4858,
+"t": "0",
+"conf": 57.765289
+},
+{
+"x": 12535,
+"xr": 12570,
 "y": 4890,
 "t": "גנו",
-"conf": 90.321327,
-"ch": 26048
+"conf": 90.321327
 },
 {
-"x": 11686,
+"x": 8477,
+"xr": 8558,
+"y": 4890,
+"t": "1",
+"conf": 80.017677
+},
+{
+"x": 8323,
+"xr": 8448,
+"y": 4912,
+"t": "0",
+"conf": 31.628128
+},
+{
+"x": 11732,
+"xr": 11778,
 "y": 5030,
 "t": "ולון",
-"conf": 90.994873,
-"ch": 26813
+"conf": 90.994873
+},
+{
+"x": 12045,
+"xr": 12074,
+"y": 5076,
+"t": "הד",
+"conf": 40.168236
+},
+{
+"x": 11436,
+"xr": 11466,
+"y": 5076,
+"t": "הז",
+"conf": 30.229691
+},
+{
+"x": 12812,
+"xr": 12876,
+"y": 5102,
+"t": "0",
+"conf": 30.268005
+},
+{
+"x": 11713,
+"xr": 11776,
+"y": 5102,
+"t": "כו",
+"conf": 34.965904
+},
+{
+"x": 11551,
+"xr": 11574,
+"y": 5102,
+"t": "שה",
+"conf": 54.672203
+},
+{
+"x": 11226,
+"xr": 11290,
+"y": 5102,
+"t": "הר",
+"conf": 35.316315
 }
 ]
 }
