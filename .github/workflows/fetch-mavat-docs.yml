@@ -1,0 +1,72 @@
+name: fetch-mavat-docs
+
+# רשימת מסמכי תוכנית במב"ת (דף פומבי, דרך דפדפן אמיתי כמו משתמש): לוחצים על הלשונית
+# "מסמכי התכנית" ושומרים את הטבלה ואת קישורי ההורדה. לא ניגשים ל-GIS (שלמה 20.09).
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'כתובת דף התוכנית במב"ת'
+        required: true
+      out:
+        description: 'קובץ יעד'
+        required: true
+        default: 'docs/fetched/taba/mavat-docs.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: דפדפן
+        run: |
+          npm init -y >/dev/null
+          npm install --silent playwright@1.47.2
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: לשונית המסמכים
+        env:
+          U: ${{ inputs.url }}
+          OUT: ${{ inputs.out }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$OUT")"
+          cat > fetch.js <<'EOF'
+          const { chromium } = require('playwright'); const fs = require('fs');
+          (async () => {
+            const b = await chromium.launch(); const ctx = await b.newContext({ locale: 'he-IL', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' });
+            const pg = await ctx.newPage(); const nets = [];
+            pg.on('response', async (r) => { try { const ct = r.headers()['content-type'] || ''; if (/json/.test(ct) && /mavat/.test(r.url())) { const t = await r.text(); nets.push(`--- ${r.url()} (${t.length})\n${t.slice(0, 20000)}`); } } catch (e) {} });
+            await pg.goto(process.env.U, { waitUntil: 'networkidle', timeout: 90000 }); await pg.waitForTimeout(3000);
+            // לחיצה על הלשונית "מסמכי התכנית"
+            const tab = pg.getByText('מסמכי התכנית', { exact: false }).first();
+            try { await tab.click({ timeout: 15000 }); console.log('לחצתי על הלשונית'); } catch (e) { console.log('לחיצה נכשלה:', e.message.slice(0, 120)); }
+            await pg.waitForTimeout(6000);
+            // "קרא עוד" / הרחבות
+            for (const t of ['הצג הכל', 'עוד', 'הרחב']) { try { const el = pg.getByText(t, { exact: false }).first(); if (await el.count()) await el.click({ timeout: 3000 }); } catch (e) {} }
+            await pg.waitForTimeout(2000);
+            const text = await pg.evaluate(() => document.body.innerText);
+            const links = await pg.$$eval('a[href], button, [onclick]', els => els.map(e => (e.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 80) + ' | ' + (e.href || e.getAttribute('onclick') || e.getAttribute('data-url') || '')).filter(s => s.length > 5));
+            const rows = await pg.$$eval('table tr, [role=row], .row, li', els => els.map(e => (e.innerText || '').trim().replace(/\s+/g, ' ')).filter(s => /נספח|תשריט|הוראות|חתך|תנוחה/.test(s)).slice(0, 300));
+            fs.writeFileSync(process.env.OUT, `מקור: ${process.env.U}\nהורד: ${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}\n\n===== שורות מסמכים =====\n${rows.join('\n')}\n\n===== טקסט =====\n${text}\n\n===== קישורים/כפתורים =====\n${links.join('\n')}\n\n===== תשובות רשת (JSON) =====\n${nets.join('\n\n')}\n`);
+            await b.close();
+          })();
+          EOF
+          node fetch.js
+          wc -c "$OUT"
+      - name: שמירה
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ inputs.out }}"
+          git diff --cached --quiet && { echo "ללא שינוי"; exit 0; }
+          git commit -m "docs: רשימת מסמכי תוכנית ממב\"ת — ${{ inputs.out }}"
+          for i in 1 2 3 4 5; do git pull --rebase -q origin main && git push origin HEAD:main && break || sleep $((5 * i)); done
