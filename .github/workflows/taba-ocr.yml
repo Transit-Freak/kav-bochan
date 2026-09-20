@@ -1,0 +1,42 @@
+name: taba-ocr
+
+# קריאה אוטומטית (OCR) של שרטוטי "חתך לאורך" של תת"ל שכבר הורדו — טבלאות הגבהים
+# והתוויות (תחנות, מנהרות, גשרים). הפלט ל-docs/fetched/taba/ocr/.
+
+on:
+  workflow_dispatch:
+    inputs:
+      glob:
+        description: 'תבנית קבצים (bash glob) של PDF'
+        required: true
+        default: 'docs/fetched/taba/*33_*.pdf'
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: כלים
+        run: |
+          sudo apt-get install -y -q poppler-utils tesseract-ocr tesseract-ocr-heb >/dev/null
+          pip install -q pillow numpy
+      - name: OCR
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=( ${{ inputs.glob }} )
+          echo "קבצים: ${#files[@]}"
+          python3 tools/taba_ocr.py "${files[@]}"
+      - name: שמירה
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/fetched/taba/ocr
+          git diff --cached --quiet && { echo "ללא שינוי"; exit 0; }
+          git commit -m "docs: OCR של שרטוטי חתך לאורך (תת\"ל)"
+          for i in 1 2 3 4 5; do git pull --rebase -q origin main && git push origin HEAD:main && break || sleep $((5 * i)); done
