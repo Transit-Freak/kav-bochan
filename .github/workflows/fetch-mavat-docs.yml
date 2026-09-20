@@ -121,7 +121,10 @@ jobs:
             pdftotext -layout "$f" "${f%.pdf}.txt" || true
             pdftotext -bbox-layout "$f" "${f%.pdf}.bbox.html" || true
             echo "טקסט: $(wc -c < "${f%.pdf}.txt") בתים · מילים עם מנהרה/חתך/פורטל: $(grep -cE 'מנהר|חתך|פורטל' "${f%.pdf}.txt" || true) · מספרי רשת (6 ספרות): $(grep -oE '\b[12][0-9]{5}\b' "${f%.pdf}.txt" | wc -l)"
-            # קבצים גדולים לא נכנסים למאגר — רק הטקסט
+            # רינדור לתמונה (עד 3 עמודים, רוחב 4000 פיקסלים) — לקריאה של השרטוט כתמונה
+            pdftoppm -png -r 50 -f 1 -l 3 -scale-to 4000 "$f" "${f%.pdf}.p" || true
+            for g in "${f%.pdf}".p*.png; do [ -f "$g" ] && echo "תמונה: $g $(stat -c %s "$g") בתים"; done
+            # קבצים גדולים לא נכנסים למאגר — רק הטקסט והתמונות
             [ "$(stat -c %s "$f")" -lt 45000000 ] || rm -f "$f"
           done
       - name: שמירה
