@@ -69,8 +69,10 @@ def extract_lines(wt, special=None):
     row = None          # שורות ה-wikitext של השורה הנוכחית בטבלה
     heading = ''        # כותרת הפרק האחרונה (== … ==)
     table_special = False   # הטבלה כולה שייכת לשירות סופ"ש/סובב (לפי הכותרת או הכיתוב)
+    carry = 0           # תא ממוזג (rowspan) עם "נעים בסופ"ש" — כמה שורות נוספות הוא מכסה
 
     def flush():
+        nonlocal carry
         if not row:
             return
         text = '\n'.join(row)
@@ -83,7 +85,15 @@ def extract_lines(wt, special=None):
         for t in TPL_LINE.finditer(first):
             if t.group(1) not in cand:
                 cand.append(t.group(1))
-        if table_special or SPECIAL_RE.search(CLEAN.sub(' ', text)):
+        row_special = bool(SPECIAL_RE.search(CLEAN.sub(' ', text)))
+        if row_special:
+            # rowspan="N" בשורה הזו: התא הממוזג (למשל המפעיל "נעים בסופ"ש") חל גם על N-1 השורות הבאות
+            spans = [int(m) for m in re.findall(r'rowspan\s*=\s*"?(\d+)', text)]
+            carry = max(carry, max(spans) - 1 if spans else 0)
+        elif carry > 0:
+            row_special = True
+            carry -= 1
+        if table_special or row_special:
             if special is not None:
                 for c in cand:
                     if c not in special:
@@ -101,6 +111,7 @@ def extract_lines(wt, special=None):
         if ln.startswith('{|'):
             in_table += 1
             row = None
+            carry = 0
             table_special = bool(SPECIAL_RE.search(heading))
             continue
         if ln.startswith('|}'):
