@@ -2133,7 +2133,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
                 <ol className="s12">
                   {((d12.routes[sel12] || d12.routes[0]).stops || []).map((s) => (
                     <li key={s[0]}>{s[1]}{" "}
-                      {s[4] && s[4].length === 1 ? <span className="pcode" title={s[7] === 1 ? "מק״ט ומיקום מרישום התחנות של 2012" : "הוצלבה לרישום התחנות של היום"}>מק״ט {s[4][0]}{s[7] === 1 ? " · 2012" : ""}</span>
+                      {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
                         : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
                           : <span className="pcode">לא הוצלבה</span>}
                     </li>
@@ -2612,7 +2612,7 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
       <ol className="s12">
         {stops.map((s) => (
           <li key={s[0]}>{s[1]}{" "}
-            {s[4] && s[4].length === 1 ? <span className="pcode" title={s[7] === 1 ? "מק״ט ומיקום מרישום התחנות של 2012" : "הוצלבה לרישום התחנות של היום"}>מק״ט {s[4][0]}{s[7] === 1 ? " · 2012" : ""}</span>
+            {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
               : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
                 : <span className="pcode">לא הוצלבה</span>}
           </li>
@@ -3491,6 +3491,14 @@ function MapTab({ idx, openLine, cities }) {
   const [lineChs, setLineChs] = useState(null);
   const [routes, setRoutes] = useState({});       // rd → [[lat,lon],…] של הגרסה שהייתה בתוקף אז
   const [err, setErr] = useState(null);
+  // "2012" במפה (שלמה 22.09): כל התחנות שהיו בעיר ברישום התחנות של יוני 2012
+  // (GTFS של משרד התחבורה דרך OpenStreetMap, changeset 12028672) — נטען פעם אחת
+  const [snap12, setSnap12] = useState(null);
+  const is2012 = yr === "2012";
+  useEffect(() => {
+    if (!is2012 || snap12) return;
+    dfetch("../magihim-2012/data/stops-2012.json").then((r) => (r.ok ? r.json() : { stops: {} })).then((d) => setSnap12(d.stops || {})).catch(() => setSnap12({}));
+  }, [is2012, snap12]);
   const mapRef = useRef(null), mapObj = useRef(null), layer = useRef(null);
   const cache = useRef({});
   useEffect(() => { getMonths().then((d) => {
@@ -3523,6 +3531,20 @@ function MapTab({ idx, openLine, cities }) {
   const lineOf = useMemo(() => { const m = {}; (((idx || {}).lines) || []).forEach((l) => { m[l.rd] = l; }); return m; }, [idx]);
   // תחנות של העיר שהשתנו בחודש — מקובצות לפי מק"ט
   const stopGroups = useMemo(() => {
+    if (is2012) {
+      if (!snap12 || !canon) return [];
+      // העיר היא סוף הכתובת ברישום 2012; שמות ערים שנכתבו אז אחרת
+      const ALIAS = { "תל אביב יפו": ["תל אביב"], "נוף הגליל": ["נצרת עילית"], "מעלות תרשיחא": ["מעלות"], "יהוד מונוסון": ["יהוד"], "דייר חנא": ["דיר חנא"] };
+      const names = [canon].concat(ALIAS[canon] || []);
+      const out = [];
+      for (const code in snap12) {
+        const [n, la, lo, addr] = snap12[code];
+        const a = (addr || "").trim();
+        if (!names.some((c) => a === c || a.endsWith(" " + c))) continue;
+        out.push({ code, evs: [{ c: code, d: "2012-06-26", k: "gtfs2012", n, t: a, la, lo }] });
+      }
+      return out;
+    }
     if (!stopChs || !canon) return [];
     const g = {};
     stopChs.forEach((c) => {
@@ -3532,7 +3554,7 @@ function MapTab({ idx, openLine, cities }) {
       (g[c.c] = g[c.c] || []).push(c);
     });
     return Object.entries(g).map(([code, evs]) => ({ code, evs: evs.sort((a, b) => a.d < b.d ? -1 : 1) }));
-  }, [stopChs, canon, kinds]);
+  }, [stopChs, canon, kinds, is2012, snap12]);
   const stopKindCounts = useMemo(() => {
     const n = {};
     (stopChs || []).forEach((c) => { if (c.la != null && (c.t || "") === canon && !(c.k === "platform" && !c.pv)) n[c.k] = (n[c.k] || 0) + 1; });
@@ -3630,6 +3652,7 @@ function MapTab({ idx, openLine, cities }) {
         const color = (SKINDS[last.k] || {}).color || "#2563eb";
         pts.push([last.la, last.lo]);
         const html = `<b>${esc(last.nn || last.n || "")}</b> <span class="pcode" dir="ltr">${esc(g.code)}</span><br>` +
+          (last.k === "gtfs2012" ? `<span class="pst">${esc(last.t || "")}</span><br><span class="pst">רישום 2012 · GTFS 06.2012 דרך OSM</span><br>` : "") +
           g.evs.map((c) => `<span class="pst"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${(SKINDS[c.k] || {}).color || "#64748b"};margin-inline-end:5px"></i>${fmtD(c.d)} · ${stopLabel(c)}</span>`).join("<br>") +
           `<br><a href="#stop=${encodeURIComponent(g.code)}" class="plink">כל ההיסטוריה של התחנה ←</a>`;
         L.circleMarker([last.la, last.lo], { radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: 0.95 })
@@ -3670,13 +3693,15 @@ function MapTab({ idx, openLine, cities }) {
       <datalist id="lh-map-cities">{(cities || []).map((c) => <option key={c} value={c} />)}</datalist>
       {months && (
         <div className="months" style={{ marginTop: 10 }}>
+          <button className={"mchip" + (is2012 ? " on" : "")} aria-pressed={is2012} title="כל התחנות שהיו בעיר ברישום התחנות של משרד התחבורה מיוני 2012"
+            onClick={() => { setYr("2012"); setMode("stops"); setKinds(new Set()); }}>2012</button>
           {years.map((y) => (
             <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
               onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1]); }}>{y}</button>
           ))}
         </div>
       )}
-      {months && yr && (
+      {months && yr && !is2012 && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
@@ -3687,7 +3712,7 @@ function MapTab({ idx, openLine, cities }) {
         <button role="tab" aria-selected={mode === "stops"} className={"tab" + (mode === "stops" ? " on" : "")} onClick={() => setMode("stops")}>🚏 תחנות שהשתנו</button>
         <button role="tab" aria-selected={mode === "lines"} className={"tab" + (mode === "lines" ? " on" : "")} onClick={() => setMode("lines")}>🚌 קווים שהשתנו</button>
       </div>
-      {canon && mon && (
+      {canon && mon && !is2012 && (
         <div className="months">
           {mode === "stops"
             ? STOP_KIND_LIST.filter((k) => stopKindCounts[k]).map((k) => (
@@ -3700,7 +3725,8 @@ function MapTab({ idx, openLine, cities }) {
         </div>
       )}
       <div className="mapstat">
-        {!canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length} תחנות ב${canon} השתנו ב-${fmtM(mon)}` : `אין תחנות ב${canon} שהשתנו ב-${fmtM(mon)}`)
+        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות ב{canon} ברישום 2012 · המקור: רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener">OpenStreetMap ב-26.06.2012</a> (33,055 תחנות בארץ, רישיון ODbL) · לחיצה על תחנה: שם, מק״ט וכתובת של אז</>)
+          : !canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length} תחנות ב${canon} השתנו ב-${fmtM(mon)}` : `אין תחנות ב${canon} שהשתנו ב-${fmtM(mon)}`)
           : (lineChs === null || prog ? "טוען…" : `${cityLines.filter((l) => routes[l.rd + "@" + mon]).length} קווים של ${canon} היו בתוקף ב-${fmtM(mon)}` + (lineGroups.length ? ` · ${lineGroups.length} מהם השתנו באותו חודש` + (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי לצבוע אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")))}
       </div>
       <div className="mapwrap">
