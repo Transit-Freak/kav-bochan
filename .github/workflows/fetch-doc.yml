@@ -21,7 +21,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -34,12 +34,15 @@ jobs:
           U='${{ inputs.url }}'
           OUT='${{ inputs.out }}'
           mkdir -p "$(dirname "$OUT")"
-          curl -fsSL --max-time 120 --retry 3 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' -o /tmp/doc.bin "$U"
+          curl -fsSL --max-time 900 --retry 3 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' -o /tmp/doc.bin "$U"
           file /tmp/doc.bin
           if file /tmp/doc.bin | grep -qi pdf; then
             pdftotext -layout /tmp/doc.bin /tmp/doc.txt
           elif [ "$(head -c1 /tmp/doc.bin)" = "{" ] || [ "$(head -c1 /tmp/doc.bin)" = "[" ] || file /tmp/doc.bin | grep -qi json; then
             # JSON נשמר כמו שהוא — ההמרה לטקסט מחקה כל מה שבין '<' ל-'>'
+            cp /tmp/doc.bin /tmp/doc.txt
+          elif head -c 200 /tmp/doc.bin | grep -q '<?xml\|<osm\|<osmChange'; then
+            # XML של נתונים (למשל changeset של OSM) נשמר כמו שהוא — ההמרה לטקסט הייתה מוחקת את הכל
             cp /tmp/doc.bin /tmp/doc.txt
           else
             python3 -c "
