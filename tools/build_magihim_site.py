@@ -265,8 +265,9 @@ def main():
         old.unlink()
 
     lookup, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young, snap_name, snap_srt, snap_desc = build_stop_lookup()
+    snap_codes = set(snap_desc)
     m_hit = m_tot = 0
-    n_snap = 0
+    n_snap = n_snap_over = 0
     n_side = n_young = 0
 
     def right_side(out):
@@ -348,24 +349,12 @@ def main():
                     return c
         return None
 
-    def mks_of(name):
-        nonlocal m_hit, m_tot
-        m_tot += 1
-        # העיר שבשם מכריעה: "הנביאים - ירושלים" נפל על "הנביאים/ירושלים" בקרית
-        # אתא (צומת של רחוב הנביאים ורחוב ירושלים), כי אחרי הנרמול שני השמות
-        # זהים. מק"ט שהעיר שלו ידועה ואינה העיר שבשם — נפסל (שלמה 05.09,
-        # קו 1 ירושלים: מסלול של 300 ק"מ דרך קרית אתא).
+    def snap_mks_of(name):
+        """הרישום של 2012 עצמו, לפני הכל (שלמה 22.09: "2012 גובר על הכל", גם על
+        הצלבה ידנית): השם בלי העיר מול שמות ה-GTFS של אז, והעיר מהכתובת.
+        כמה מק"טים באותו שם ובאותה עיר (שני צידי הרחוב) נשארים מועמדים
+        והגאוגרפיה של המסלול מכריעה, כמו בכל הצלבה אחרת."""
         city = name_city(name)
-
-        def same_city(mks):
-            if not city:
-                return mks
-            return [mk for mk in mks if not city_of.get(mk) or city in city_of[mk]]
-
-        # קודם כול הרישום של 2012 עצמו: השם בלי העיר מול שמות ה-GTFS של אז.
-        # כמה מק"טים באותו שם ובאותה עיר (שני צידי הרחוב) נשארים מועמדים
-        # והגאוגרפיה של המסלול מכריעה, כמו בכל הצלבה אחרת.
-        nonlocal n_snap
         parts = name.split(' - ')
         for take in (2, 1, 0):
             if len(parts) <= take:
@@ -383,11 +372,30 @@ def main():
                     incity = [mk for mk in cands if snap_desc.get(mk, '').endswith(city)]
                 cands = incity
             if 0 < len(cands) <= CAP:
-                m_hit += 1
-                n_snap += 1
                 return sorted(cands)
             if len(cands) > CAP:
                 break
+        return []
+
+    def mks_of(name):
+        nonlocal m_hit, m_tot, n_snap
+        m_tot += 1
+        # העיר שבשם מכריעה: "הנביאים - ירושלים" נפל על "הנביאים/ירושלים" בקרית
+        # אתא (צומת של רחוב הנביאים ורחוב ירושלים), כי אחרי הנרמול שני השמות
+        # זהים. מק"ט שהעיר שלו ידועה ואינה העיר שבשם — נפסל (שלמה 05.09,
+        # קו 1 ירושלים: מסלול של 300 ק"מ דרך קרית אתא).
+        city = name_city(name)
+
+        def same_city(mks):
+            if not city:
+                return mks
+            return [mk for mk in mks if not city_of.get(mk) or city in city_of[mk]]
+
+        got = snap_mks_of(name)
+        if got:
+            m_hit += 1
+            n_snap += 1
+            return got
 
         mks = same_city(sorted(lookup.get(norm(name), [])))
         if 0 < len(mks) <= CAP:
@@ -489,7 +497,7 @@ def main():
         הכיוונים של אותו רחוב. השם לבדו אינו יכול להכריע, אבל המסלול כן:
         התחנה הנכונה היא זו שמתיישבת עם השכנות שלה ברצף.
         """
-        nonlocal n_amb, n_res, n_weak, n_manual, n_young
+        nonlocal n_amb, n_res, n_weak, n_manual, n_young, n_snap_over
 
         def not_young(mks):
             nonlocal n_young
@@ -502,7 +510,11 @@ def main():
         fixed = set()
         for st in (r.get('stops') or []):
             disp = untrunc(st['name'])
-            if disp in manual:
+            if disp in manual and snap_mks_of(st['name']):
+                # הכרעה ידנית מול הרישום של היום — אבל ברישום 2012 יש את התחנה: 2012 גובר
+                raw.append((st, snap_mks_of(st['name'])))
+                n_snap_over += 1
+            elif disp in manual:
                 mk = manual[disp]
                 raw.append((st, not_young([mk] if mk and mk in coords else [])))
                 fixed.add(len(raw) - 1)
@@ -549,6 +561,11 @@ def main():
             st, mks = raw[i]
             out[i] = [st['seq'], untrunc(st['name']), st['t'], st['type'], mks] + (list(coords.get(mks[0], ())) if mks else [])
         right_side(out)   # גם על הידניות: ההכרעה היא על המקום, הצד לפי כיוון הנסיעה
+        # מקור ההצלבה, לתצוגה: 1 = מק"ט ומיקום מרישום התחנות של 2012 (GTFS יוני 2012
+        # דרך OpenStreetMap, changeset 12028672); בלי הסימון — הרישום של היום
+        for i, row in enumerate(out):
+            if len(row) >= 7 and row[4] and row[4][0] in snap_codes:
+                out[i] = row[:7] + [1]
         # חומר להכרעה: רמז מיקום מהשכנות הידועות (עד 3 מקומות לכל צד)
         for i, row in enumerate(out):
             e = xref[row[1]]
@@ -603,6 +620,7 @@ def main():
     (OUT / 'index.json').write_text(json.dumps({
         'gen': time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime()),
         'partial': True,
+        'stops_source': 'תחנה עם סימון 1 בסוף השורה: מק"ט ומיקום מרישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-OpenStreetMap ב-26.06.2012 (changeset 12028672, מקור israel_gtfs_v1, רישיון ODbL). בלי סימון: הוצלבה לרישום התחנות של היום.',
         'agencies': ag_names,
         'lines_known': total_lines_known,
         'routes_total': len(routes),
@@ -663,7 +681,7 @@ def main():
           f'{n_side} הועברו לצד הימני של הכביש · {n_young} מועמדים נפסלו כתחנות שנולדו אחרי 2017 בלי קודמת')
     print(f'נבנו {len(idx)} קווים | {len(routes)} מסלולים | '
           f'{sum(1 for _ in OUT.glob("l*.json"))} קבצים | '
-          f'הצלבת תחנות: {m_hit}/{m_tot} ({m_hit * 100 // max(m_tot, 1)}%) · מתוכן לפי רישום 2012 עצמו: {n_snap}')
+          f'הצלבת תחנות: {m_hit}/{m_tot} ({m_hit * 100 // max(m_tot, 1)}%) · מתוכן לפי רישום 2012 עצמו: {n_snap} · הצלבות ידניות שרישום 2012 גבר עליהן: {n_snap_over}')
 
 
 if __name__ == '__main__':

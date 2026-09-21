@@ -274,7 +274,29 @@ const SKINDS = {
   city:    { label: "שינוי עיר", color: "#b91c1c" },
   pubdest: { label: "תחנת יעד לפרסום", color: "#7e22ce" },
   platform: { label: "רציף נוסף/בוטל", color: "#0e7490" },
+  // רישום התחנות של יוני 2012 (GTFS של משרד התחבורה דרך OpenStreetMap, changeset 12028672):
+  // אירוע אחד לכל תחנה שהייתה ברישום אז — שם, כתובת ומיקום של 2012 (שלמה 22.09)
+  gtfs2012: { label: "ברישום 2012", color: "#78350f" },
 };
+// אירועי 2012 נבנים בדפדפן מקובץ הרישום (magihim-2012/data/stops-2012.json, או השבר לפי
+// קידומת המק"ט), כדי לא לגעת בקורות החיים שהצנרת מתחזקת. dist: המרחק למיקום האחרון
+// שידוע לנו מקורות החיים של אותה תחנה, כשיש.
+function distM(a, b) {
+  const ky = 110540, kx = 111320 * Math.cos((a[0] * Math.PI) / 180);
+  return Math.hypot((a[0] - b[0]) * ky, (a[1] - b[1]) * kx);
+}
+function events2012(snap, hist) {
+  const out = [];
+  for (const c in snap) {
+    const [n, la, lo, addr] = snap[c];
+    const e = { c, d: "2012-06-26", k: "gtfs2012", n, t: addr, la, lo };
+    const evs = (hist && hist[c]) || [];
+    const last = [...evs].reverse().find((x) => x.la != null);
+    if (last) { e.nla = last.la; e.nlo = last.lo; e.dist = Math.round(distM([la, lo], [last.la, last.lo])); e.nn = last.nn || last.n || ""; }
+    out.push(e);
+  }
+  return out;
+}
 
 // פענוח polyline (precision 5)
 // פורמט קובץ דחוס (חיסכון ~30MB, בקשת המשתמש): תחנות ומסלולים נשמרים
@@ -777,7 +799,8 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
     if (pts12.length) {
       stops12.forEach((s) => {
         L.circleMarker([s[1], s[2]], { radius: 4, color: "#78350f", weight: 2, fillColor: "#fff", fillOpacity: 1 })
-          .addTo(map).bindPopup(`<b>${esc(s[0])}</b><br><span class="pst">מסלול 2012</span>`, { className: "lh-pop", offset: [0, -4] });
+          .addTo(map).bindPopup(`<b>${esc(s[0])}</b><br><span class="pst">מסלול 2012</span>` + (s[4] ? `<br><span class="pcode">מק״ט ${esc(String(s[4]))}</span>` : "") +
+            `<br><span class="pst">${s[3] ? "מיקום ומק״ט מרישום 2012 (GTFS יוני 2012 דרך OpenStreetMap)" : "הוצלבה לרישום התחנות של היום"}</span>`, { className: "lh-pop", offset: [0, -4] });
       });
     }
     const curCodes = new Set((curStops || []).map((s) => s[0]));
@@ -2001,7 +2024,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   const sel12 = vis12.includes(r12) ? r12 : (vis12[0] ?? 0);
   // מסלול 2012 למפה: רק כשהפאנל פתוח, ורק תחנות שהוצלבו (יש להן קואורדינטות)
   const stops12 = (show12 && d12 && (d12.routes || []).length)
-    ? ((d12.routes[sel12] || d12.routes[0]).stops || []).filter((s) => s.length >= 7).map((s) => [s[1], s[5], s[6]])
+    ? ((d12.routes[sel12] || d12.routes[0]).stops || []).filter((s) => s.length >= 7).map((s) => [s[1], s[5], s[6], s[7] === 1, s[4] && s[4][0]])
     : null;
   const sh12 = (stops12 && s12 && s12.routes && s12.routes[String(sel12)]) || null;
   const shape12 = sh12 ? decodeShape(sh12.pl) : null;
@@ -2111,7 +2134,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
                 <ol className="s12">
                   {((d12.routes[sel12] || d12.routes[0]).stops || []).map((s) => (
                     <li key={s[0]}>{s[1]}{" "}
-                      {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
+                      {s[4] && s[4].length === 1 ? <span className="pcode" title={s[7] === 1 ? "מק״ט ומיקום מרישום התחנות של 2012" : "הוצלבה לרישום התחנות של היום"}>מק״ט {s[4][0]}{s[7] === 1 ? " · 2012" : ""}</span>
                         : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
                           : <span className="pcode">לא הוצלבה</span>}
                     </li>
@@ -2469,6 +2492,12 @@ function StopEvMap({ ev }) {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
     }).addTo(map);
     const pts = [[ev.la, ev.lo]];
+    if (ev.k === "gtfs2012" && ev.nla != null && (ev.dist || 0) >= 30) {
+      pts.push([ev.nla, ev.nlo]);
+      L.polyline([[ev.la, ev.lo], [ev.nla, ev.nlo]], { color: "#78350f", weight: 3, dashArray: "5 7", opacity: 0.9 }).addTo(map);
+      L.circleMarker([ev.nla, ev.nlo], { radius: 9, color: "#fff", weight: 2, fillColor: "#2563eb", fillOpacity: 1 })
+        .addTo(map).bindPopup(`<b>${esc(ev.nn || ev.n || "")}</b><br>המיקום של היום<br><span class="pcode" dir="ltr">(${ev.nla}, ${ev.nlo})</span>`, { className: "lh-pop" });
+    }
     if (ev.k === "moved" && ev.ola != null) {
       pts.push([ev.ola, ev.olo]);
       L.polyline([[ev.ola, ev.olo], [ev.la, ev.lo]], { color: "#2563eb", weight: 3, dashArray: "5 7", opacity: 0.9 }).addTo(map);
@@ -2477,12 +2506,12 @@ function StopEvMap({ ev }) {
     }
     L.circleMarker([ev.la, ev.lo], { radius: 9, color: "#fff", weight: 2,
       fillColor: ev.k === "moved" ? "#16a34a" : ((SKINDS[ev.k] || {}).color || "#2563eb"), fillOpacity: 1 })
-      .addTo(map).bindPopup(`<b>${esc(ev.n || ev.nn || "")}</b>${ev.k === "moved" ? "<br>המיקום החדש" : ""}<br><span class="pcode" dir="ltr">(${ev.la}, ${ev.lo})</span>`, { className: "lh-pop" });
+      .addTo(map).bindPopup(`<b>${esc(ev.n || ev.nn || "")}</b>${ev.k === "moved" ? "<br>המיקום החדש" : ev.k === "gtfs2012" ? "<br>המיקום ברישום 2012" : ""}<br><span class="pcode" dir="ltr">(${ev.la}, ${ev.lo})</span>`, { className: "lh-pop" });
     map.fitBounds(L.latLngBounds(pts).pad(0.6), { maxZoom: 17 });
     return () => map.remove();
   }, [ev]);
   return <div className="smap" ref={ref} role="img"
-    aria-label={ev.k === "moved" ? "מפה: הזזת התחנה מהמיקום הישן לחדש, " + (ev.dist || ev.m || "") + " מטרים" : "מפה: מיקום התחנה " + (ev.n || ev.nn || "")} />;
+    aria-label={ev.k === "moved" ? "מפה: הזזת התחנה מהמיקום הישן לחדש, " + (ev.dist || ev.m || "") + " מטרים" : ev.k === "gtfs2012" ? "מפה: מיקום התחנה ברישום 2012" + (ev.nla != null ? " מול המיקום של היום" : "") : "מפה: מיקום התחנה " + (ev.n || ev.nn || "")} />;
 }
 
 /* ---------- עמוד קו של 2012 ---------- */
@@ -2497,7 +2526,8 @@ function Map2012({ stops, shape }) {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
     }).addTo(map);
-    // מיקום התחנה הוא של היום, כי ב-2012 לא נשמרו קואורדינטות. תחנה שלא
+    // מיקום התחנה: מרישום התחנות של 2012 עצמו (GTFS יוני 2012 דרך OpenStreetMap,
+    // changeset 12028672 — s[7] === 1), ואם התחנה לא נמצאה שם, מהרישום של היום. תחנה שלא
     // הוצלבה למק"ט אינה על המפה. כשחושב מסלול משוער על הכבישים (shape,
     // tools/shape_2012.py) הוא מצויר; אחרת קו ישר בין התחנות, מקווקו.
     const pts = stops.filter((s) => s[5] != null && s[6] != null).map((s) => [s[5], s[6]]);
@@ -2511,7 +2541,8 @@ function Map2012({ stops, shape }) {
         color: i === 0 || last ? "#fff" : "#78350f",
         fillColor: i === 0 ? "#16a34a" : last ? "#dc2626" : "#fff", fillOpacity: 1 })
         .addTo(map).bindPopup(`<b>${esc(s[1])}</b><br><span class="pst">תחנה ${s[0]} במסלול 2012</span>` +
-          (s[4] && s[4].length === 1 ? `<br><span class="pcode">מק״ט ${esc(String(s[4][0]))}</span>` : ""),
+          (s[4] && s[4].length === 1 ? `<br><span class="pcode">מק״ט ${esc(String(s[4][0]))}</span>` : "") +
+          `<br><span class="pst">${s[7] === 1 ? "מיקום ומק״ט מרישום 2012" : "הוצלבה לרישום של היום"}</span>`,
           { className: "lh-pop", offset: [0, -4] });
     });
     const all = pts.concat(road || []);
@@ -2520,7 +2551,7 @@ function Map2012({ stops, shape }) {
     return () => map.remove();
   }, [stops, shape]);
   return <div className="map" ref={ref} role="img"
-    aria-label={"מפת מסלול 2012 דרך " + (stops || []).filter((x) => x[5] != null).length + " תחנות שהוצלבו למיקום של היום"} />;
+    aria-label={"מפת מסלול 2012 דרך " + (stops || []).filter((x) => x[5] != null).length + " תחנות שהוצלבו למיקום"} />;
 }
 
 function Line2012Page({ k12, anchorRd, openLine, onBack }) {
@@ -2562,7 +2593,7 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
           }}>🔗 שיתוף</button>
       </div>
       <div className="facts">{d.an} · {stops.length} תחנות · {(d.routes || []).length} מסלולים ·
-        {" "}{matched} תחנות הוצלבו למק"ט של היום
+        {" "}{matched} תחנות הוצלבו למק"ט · {stops.filter((s) => s[7] === 1).length} מהן מרישום 2012 עצמו
         {anchorRd && <> · <a className="totoday" href={lineHref(anchorRd)}
           onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(anchorRd); }}>הקו של היום ←</a></>}
       </div>
@@ -2583,14 +2614,15 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
       <ol className="s12">
         {stops.map((s) => (
           <li key={s[0]}>{s[1]}{" "}
-            {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
+            {s[4] && s[4].length === 1 ? <span className="pcode" title={s[7] === 1 ? "מק״ט ומיקום מרישום התחנות של 2012" : "הוצלבה לרישום התחנות של היום"}>מק״ט {s[4][0]}{s[7] === 1 ? " · 2012" : ""}</span>
               : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
                 : <span className="pcode">לא הוצלבה</span>}
           </li>
         ))}
       </ol>
-      <div className="katnote">ℹ️ המיקום על המפה הוא של התחנה כפי שהיא רשומה היום, כי בצילום
-        2012 לא נשמרו קואורדינטות. תחנה שלא הוצלבה למק"ט אינה מופיעה על המפה{rsh
+      <div className="katnote">ℹ️ תחנות המסומנות "2012": המק"ט והמיקום מרישום התחנות של משרד התחבורה מיוני 2012 (קובץ GTFS),
+        כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener">OpenStreetMap ב-26.06.2012</a> (33,055 תחנות, רישיון ODbL).
+        רישום 2012 קודם לכל הצלבה אחרת; תחנה שלא נמצאה בו הוצלבה לרישום התחנות של היום. תחנה שלא הוצלבה כלל אינה מופיעה על המפה{rsh
           ? ", והמסלול ביניהן הוא הערכה: נסיעת אוטובוס בכבישים של היום דרך התחנות הידועות, לפי הסדר. כביש שנפתח מאז 2012 או תחנה שלא הוצלבה יכולים לעקם אותו."
           : ", ולכן הקו מקווקו."}</div>
     </div>
@@ -3127,6 +3159,7 @@ function StopsTab({ sel, selN }) {
   // אותם מסומנים מראש על האירוע (k1/xb), וקישור לתחנה מסתפק בשבר של
   // הקידומת שלה — כמאתיים קילובייט במקום ארבעה וחצי מגה.
   const [shard, setShard] = useState(null);   // המק"ט שהשבר שנטען שייך לו
+  const [snap12, setSnap12] = useState(null); // רישום התחנות של 2012 (כולו ב"כל התקופה", שבר לתחנה מקישור)
   const needHist = mon === "all" || !!sel;
   // ההשוואה ל-q הייתה מוקדמת מדי: החיפוש נקבע ל-sel באפקט אחר, ובסבב
   // הראשון הוא עדיין הערך הישן — ואז נטען הקובץ המלא במקום השבר.
@@ -3139,15 +3172,22 @@ function StopsTab({ sel, selN }) {
   useEffect(() => {
     if (!needHist || hist) return;
     const done = (d) => setHist(d);
+    const done12 = (d) => setSnap12(d && d.stops ? d.stops : d || {});
+    setSnap12(null);
     if (wantShard) {
       setShard(sel);
-      dfetch("data/stops/" + (sel.slice(0, 2) || "0").padStart(2, "0") + ".json")
+      const pre = (sel.slice(0, 2) || "0").padStart(2, "0");
+      dfetch("data/stops/" + pre + ".json")
         .then((r) => (r.ok ? r.json() : {})).then(done).catch(() => done({}));
+      dfetch("../magihim-2012/data/stops-2012/" + pre + ".json")
+        .then((r) => (r.ok ? r.json() : {})).then(done12).catch(() => done12({}));
       return;
     }
     setShard(null);
     dfetch("data/stops-hist.json")
       .then((r) => (r.ok ? r.json() : {})).then(done).catch(() => done({}));
+    dfetch("../magihim-2012/data/stops-2012.json")
+      .then((r) => (r.ok ? r.json() : {})).then(done12).catch(() => done12({}));
   }, [needHist, hist, wantShard, sel]);
   // חיפוש שיצא מהתחנה של הקישור — השבר כבר לא מספיק, וצריך את הכל.
   // הדגל נחוץ כי בסבב הראשון החיפוש עדיין מחזיק ערך קודם, ובלעדיו השבר
@@ -3229,14 +3269,16 @@ function StopsTab({ sel, selN }) {
     // "טוען" במקום זה (הבדיקה האוטומטית תפסה: ‎#stop=274‎ "נפתחה על תחנה אחרת")
     if (sel && !shardLeft.current && (mon !== "all" || !hist)) return null;
     const raw = mon === "all"
-      ? (hist ? Object.entries(hist).flatMap(([c, evs]) => evs.map((e) => withS({ ...e, c }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
+      ? (hist ? Object.entries(hist).flatMap(([c, evs]) => evs.map((e) => withS({ ...e, c })))
+          // רישום 2012: אירוע לכל תחנה שהייתה אז — אחרי כל השאר, כי הוא הישן ביותר
+          .concat(snap12 ? events2012(snap12, hist).map(withS) : []).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
       : (chs ? chs.map(withS) : chs);
     // כשמגיעים לתחנה מקישור מציגים את כל מה שידוע עליה. כללי התצוגה
     // נועדו לפיד החודשי, ובתחנה מסוימת הם הסתירו גם את מה שביקשו לראות:
     // ‎#stop=48‎ הראה מסך ריק, כי שני האירועים שלה נחשבים "חוזרים".
     return raw === null ? null
       : raw.filter((c) => !hiddenEv(c) && ((sel && c.c === sel) || keepEvent(c)));
-  }, [mon, hist, chs, sel]);
+  }, [mon, hist, chs, sel, snap12]);
   const counts = useMemo(() => {
     const cn = {};
     (source || []).forEach((c) => { cn[c.k] = (cn[c.k] || 0) + 1; });
@@ -3335,6 +3377,7 @@ function StopsTab({ sel, selN }) {
                   {one ? (
                     <span className="nm">
                       {c.k === "renamed" ? <><s>{c.on}</s> ← <b>{c.nn}</b></> : <b>{c.n}</b>}
+                      {c.k === "gtfs2012" && c.nn && c.nn !== c.n && <> <span className="pcode">היום: {c.nn}</span></>}
                       <StopCode code={c.c} />
                       <a className="latlink" href={"#stop=" + c.c} title="אילו קווים עצרו בתחנה ומה השתנה"
                         onClick={(e) => e.stopPropagation()}>🚌 קווים</a>
@@ -3356,6 +3399,10 @@ function StopsTab({ sel, selN }) {
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
                         מקבלים כיוון RTL וסדר lat/lon התהפך ויזואלית */}
                     {c.k === "city" && <> · <s>{c.oc}</s> ← <b>{c.nc}</b></>}
+                    {c.k === "gtfs2012" && <> · <span dir="ltr">({c.la}, {c.lo})</span>{c.dist != null
+                      ? (c.dist >= 30 ? <> · המיקום של היום <b>{c.dist} מ׳</b> משם</> : <> · באותו מקום גם היום</>)
+                      : <> · אין לה אירועים בקורות החיים מ-2017 ואילך</>}
+                      {" "}· <a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener" title="רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-OpenStreetMap ב-26.06.2012" onClick={(e) => e.stopPropagation()}>מקור: GTFS 06.2012 דרך OSM</a></>}
                     {/* רציף (pv=2, tools/platforms.py): רציף במסוף שקיבל קווים / נשאר בלי קווים —
                         רק זה "שינוי ברציף התחנה" (שלמה 07.09), לא קפיצה של מספר ברישום */}
                     {/* אירועי הארכיון (src=tf/ob, tools/backfill_platform_rows.py) נגזרים מקובץ
@@ -3433,7 +3480,7 @@ function StopsTab({ sel, selN }) {
 // צבע לכל קו (לפי מספרו) — כל קווי העיר בצבעים, כמו במפת קווים (שלמה 18.09)
 const LINE_PALETTE = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2", "#65a30d", "#ea580c", "#4f46e5", "#0d9488", "#c026d3", "#b45309"];
 const lineHash = (str) => { let h = 0; for (const ch of String(str)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
-const STOP_KIND_LIST = ["new", "del", "renamed", "moved", "city", "pubdest", "platform"];
+const STOP_KIND_LIST = ["new", "del", "renamed", "moved", "city", "pubdest", "platform", "gtfs2012"];
 const LINE_KIND_SKIP = new Set(["baseline", "snapshot"]);
 function MapTab({ idx, openLine, cities }) {
   const [months, setMonths] = useState(null);
@@ -3570,6 +3617,7 @@ function MapTab({ idx, openLine, cities }) {
     : c.k === "moved" ? "הוזזה " + (c.dist || c.m || "") + " מ׳"
     : c.k === "city" ? "שינוי עיר: " + esc(c.oc || "") + " ← " + esc(c.nc || "")
     : c.k === "pubdest" ? "תחנת היעד לפרסום שוּנתה"
+    : c.k === "gtfs2012" ? "ברישום 2012" + (c.dist >= 30 ? " · היום " + c.dist + " מ׳ משם" : "")
     : c.k === "new" ? "תחנה חדשה" + (c.lines && c.lines.length ? " · קווים: " + c.lines.slice(0, 8).join(", ") : "")
     : c.k === "del" ? "בוטלה" + (c.lines && c.lines.length ? " · עצרו בה: " + c.lines.slice(0, 8).join(", ") : "")
     : (SKINDS[c.k] || { label: c.k }).label;
