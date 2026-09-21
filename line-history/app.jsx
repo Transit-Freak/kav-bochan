@@ -295,6 +295,10 @@ function events2012(snap) {
     const [n, la, lo, addr, , fn, fla, flo, dist, ren] = snap[c];
     out.push({ c, d: "2012-06-26", k: "gtfs2012", n, t: addr, la, lo });
     if (fn == null) { out.push({ c, d: "2016-12-31", b12: 1, k: "del", n, la, lo }); continue; }
+    // אותו מק"ט במרחק קילומטר ומעלה: זו לא הזזה אלא מק"ט שהוקצה מחדש לתחנה אחרת
+    // (למשל 59695: "בית לחם הגלילית ג׳" ב-2012, "צומת נהריה מזרח" מ-2017, 31 ק"מ) —
+    // התחנה של 2012 בוטלה, והמק"ט שימש אחר כך תחנה אחרת (שלמה 22.09)
+    if (dist >= 1000) { out.push({ c, d: "2016-12-31", b12: 1, k: "del", n, la, lo, reused: fn, rdist: dist }); continue; }
     if (ren) out.push({ c, d: "2016-12-31", b12: 1, k: "renamed", on: n, nn: fn, n: fn, la: fla, lo: flo });
     if (dist >= 30) out.push({ c, d: "2016-12-31", b12: 1, k: "moved", n: fn, la: fla, lo: flo, ola: la, olo: lo, dist });
   }
@@ -3393,6 +3397,7 @@ function StopsTab({ sel, selN }) {
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
                         מקבלים כיוון RTL וסדר lat/lon התהפך ויזואלית */}
                     {c.k === "city" && <> · <s>{c.oc}</s> ← <b>{c.nc}</b></>}
+                    {c.reused && <> · המק״ט שימש אחר כך תחנה אחרת: <b>{c.reused}</b>, במרחק {c.rdist >= 1000 ? (c.rdist / 1000).toFixed(1) + " ק״מ" : c.rdist + " מ׳"} — לא אותה תחנה</>}
                     {c.k === "gtfs2012" && <> · <span dir="ltr">({c.la}, {c.lo})</span>
                       {" "}· <a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener" title="רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-OpenStreetMap ב-26.06.2012" onClick={(e) => e.stopPropagation()}>מקור: GTFS 06.2012 דרך OSM</a></>}
                     {/* רציף (pv=2, tools/platforms.py): רציף במסוף שקיבל קווים / נשאר בלי קווים —
@@ -3633,7 +3638,7 @@ function MapTab({ idx, openLine, cities }) {
     : c.k === "pubdest" ? "תחנת היעד לפרסום שוּנתה"
     : c.k === "gtfs2012" ? "ברישום 2012"
     : c.k === "new" ? "תחנה חדשה" + (c.lines && c.lines.length ? " · קווים: " + c.lines.slice(0, 8).join(", ") : "")
-    : c.k === "del" ? "בוטלה" + (c.lines && c.lines.length ? " · עצרו בה: " + c.lines.slice(0, 8).join(", ") : "")
+    : c.k === "del" ? "בוטלה" + (c.reused ? " · המק״ט הוקצה מחדש לתחנה אחרת" : "") + (c.lines && c.lines.length ? " · עצרו בה: " + c.lines.slice(0, 8).join(", ") : "")
     : (SKINDS[c.k] || { label: c.k }).label;
   useEffect(() => {
     const map = mapObj.current, lg = layer.current;
