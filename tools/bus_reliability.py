@@ -54,6 +54,30 @@ RELABEL_MIN = 45 * 60                            # יציאה מאוחרת מז�
 ARRIVE_M = 25                                    # DistanceFromStop עד כאן = הגעה
 MIN_STOPS_RIDE = 2
 BUS_TYPES = {'3'}                                # route_type של אוטובוס (רכבת=2, רכבת קלה=0 — לא כאן)
+# התקבצות (bus bunching): שתי נסיעות עוקבות של אותו מסלול שאמורות להגיע לתחנה
+# בהפרש של עד 20 דק׳, ומגיעות בפועל בהפרש של פחות מ-30% מהמתוכנן (או שהשנייה
+# עוקפת את הראשונה). "רווח כפול": ההפרש בפועל לפחות פי 2 מהמתוכנן.
+HUBS_D = []   # (שם מרחב, מחוז) — ממולא אחרי HUBS
+BUNCH_MAX_SCHED = 20 * 60
+BUNCH_MIN_SCHED = 60
+BUNCH_RATIO = 0.3
+GAP_RATIO = 2.0
+# אזורים גיאוגרפיים (קול קורא דאטאבוס, ספטמבר 2026): כל תחנה משויכת למרחב לפי
+# המוקד הקרוב אליה, וכל מרחב למחוז. הגעה נספרת באזור של התחנה שבה נמדדה —
+# כך קו ירושלים–באר שבע נספר בירושלים על התחנות שבירושלים ובנגב על אלה שבנגב,
+# בלי להחליט "למי הוא שייך".
+HUBS = [
+    ('ירושלים', 'ירושלים', 31.78, 35.21), ('בית שמש ומטה יהודה', 'ירושלים', 31.75, 34.99),
+    ('תל אביב וגוש דן', 'תל אביב', 32.07, 34.79), ('חולון ובת ים', 'תל אביב', 32.01, 34.77), ('פתח תקווה ובקעת אונו', 'תל אביב', 32.09, 34.89),
+    ('נתניה והשרון', 'המרכז', 32.32, 34.86), ('הרצליה ורעננה', 'המרכז', 32.17, 34.84), ('ראשון לציון ורחובות', 'המרכז', 31.93, 34.80),
+    ('מודיעין ולוד', 'המרכז', 31.92, 34.95), ('אשדוד ואשקלון', 'הדרום', 31.72, 34.62),
+    ('באר שבע והנגב', 'הדרום', 31.25, 34.79), ('דימונה וערד', 'הדרום', 31.07, 35.03), ('אילת והערבה', 'הדרום', 29.56, 34.95),
+    ('חיפה והקריות', 'חיפה', 32.80, 35.02), ('חדרה והכרמל', 'חיפה', 32.44, 34.92),
+    ('נצרת והעמקים', 'הצפון', 32.70, 35.30), ('טבריה והכנרת', 'הצפון', 32.79, 35.53), ('צפת וקריית שמונה', 'הצפון', 33.10, 35.55),
+    ('עכו, נהריה וכרמיאל', 'הצפון', 32.93, 35.15), ('בית שאן', 'הצפון', 32.50, 35.50),
+    ('אריאל והשומרון', 'יהודה ושומרון', 32.10, 35.18), ('מעלה אדומים וגוש עציון', 'יהודה ושומרון', 31.70, 35.20),
+]
+HUBS_D = [(h[0], h[1]) for h in HUBS]
 
 
 def cat(delay):
@@ -699,6 +723,21 @@ def main():
                                          'hours': collections.defaultdict(lambda: [0, 0]), 'stops': collections.defaultdict(lambda: [0, 0.0, 0, 10 ** 9])})
     A = collections.defaultdict(lambda: {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'reach': [0] * 4, 'cov': [0, 0]})
     C = collections.defaultdict(lambda: {'meas': 0, 'c': [0] * 5, 'd': []})
+    RG = collections.defaultdict(lambda: {'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5})   # מרחב → כמו עיר, גם יציאות מהמוצא
+    region_routes = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0.0]))   # מרחב → route_id → [הגעות, בזמן, סכום איחור]
+    stop_region = {}
+
+    def region_of(sid):
+        r = stop_region.get(sid)
+        if r is None:
+            st_ = stops.get(sid)
+            if not st_ or not st_[2]:
+                r = ''
+            else:
+                r = min(HUBS, key=lambda h: (h[2] - st_[2]) ** 2 + ((h[3] - st_[3]) * 0.85) ** 2)[0]
+            stop_region[sid] = r
+        return r
+    BP = collections.defaultdict(list)   # (route_id, stop_id) → [(מתוכנן, בפועל)] — להתקבצות
     H = collections.defaultdict(lambda: [0, 0])
     tot = {'sched': 0, 'obs': 0, 'meas': 0, 'c': [0] * 5, 'd': [], 'o': [0] * 5, 'reach': [0] * 4, 'cov': [0, 0]}
     COV = collections.defaultdict(lambda: [0, 0, set(), 0])   # תחנה → [עברו, נמדדו, מפעילים, נסיעות שנעלמו אחריה] — "חורי GPS" שמשותפים לכולם
@@ -909,6 +948,18 @@ def main():
                 C[city]['meas'] += 1
                 C[city]['c'][c] += 1
                 C[city]['d'].append(delay)
+            reg = region_of(s[1])
+            if reg:
+                RG[reg]['meas'] += 1
+                RG[reg]['c'][c] += 1
+                RG[reg]['d'].append(delay)
+                if k == 1:
+                    RG[reg]['o'][c] += 1
+                rr_ = region_routes[reg][rid]
+                rr_[0] += 1
+                rr_[1] += 1 if c == ONTIME else 0
+                rr_[2] += delay
+            BP[(rid, s[1])].append((sched, t_of[k]))
             tot['meas'] += 1
             tot['c'][c] += 1
             tot['d'].append(delay)
@@ -942,6 +993,41 @@ def main():
     print(f'אבחון איחור מרבי לנסיעה (5 דק׳ → נסיעות): {dict(sorted(diag_mx.items()))} · מרבי ≥55: איחור במוצא: {dict(sorted(diag_mx_o.items(), key=lambda kv: str(kv[0])))}', flush=True)
     for ex in diag_ex:
         print('  דוגמה:', ex, flush=True)
+
+    # --- התקבצות: זוגות נסיעות עוקבות באותה תחנה ---
+    B_tot = [0, 0, 0]
+    B_ag = collections.defaultdict(lambda: [0, 0, 0])
+    B_city = collections.defaultdict(lambda: [0, 0, 0])
+    B_reg = collections.defaultdict(lambda: [0, 0, 0])
+    B_route = collections.defaultdict(lambda: [0, 0, 0])
+    B_stop = collections.defaultdict(lambda: [0, 0, 0])     # (route_id, stop_id)
+    B_hours = collections.defaultdict(lambda: [0, 0])
+    B_ex = []                                               # דוגמאות: [route_id, מק"ט, מתוכנן א, מתוכנן ב, בפועל א, בפועל ב]
+    for (rid, sid), lst in BP.items():
+        if len(lst) < 2:
+            continue
+        lst.sort()
+        ag = routes.get(rid, {}).get('agency', '?')
+        city = stops.get(sid, ('', '', 0, 0, ''))[4]
+        reg = region_of(sid)
+        for (s1, a1), (s2, a2) in zip(lst, lst[1:]):
+            hs = s2 - s1
+            if hs < BUNCH_MIN_SCHED or hs > BUNCH_MAX_SCHED:
+                continue
+            ha = a2 - a1
+            kind = 1 if ha < hs * BUNCH_RATIO else 2 if ha >= hs * GAP_RATIO else 0
+            for acc in (B_tot, B_ag[ag], B_route[rid], B_stop[(rid, sid)]) + ((B_city[city],) if city else ()) + ((B_reg[reg],) if reg else ()):
+                acc[0] += 1
+                if kind:
+                    acc[kind] += 1
+            hb = B_hours[(s2 // 3600) % 24]
+            hb[0] += 1
+            if kind == 1:
+                hb[1] += 1
+                if len(B_ex) < 400:
+                    B_ex.append([rid, stops.get(sid, ('',))[0], s1, s2, a1, a2])
+    B_ex.sort(key=lambda e: (e[5] - e[4]) - (e[3] - e[2]))
+    print(f'התקבצות: {B_tot[1]:,} זוגות צמודים ו-{B_tot[2]:,} רווחים כפולים מתוך {B_tot[0]:,} זוגות נסיעות עוקבות (עד 20 דק׳ בלו"ז)', flush=True)
 
     def stats(d):
         if not d:
@@ -1015,6 +1101,14 @@ def main():
         'hours': [[h, v[0], v[1]] for h, v in sorted(H.items())],
         'agencies': sorted([[ag, v['sched'], v['obs'], v['meas'], v['c'], stats(v['d']), v['o'], VA.get(ag, [0, 0, 0]), v['reach'], v['cov']] for ag, v in A.items()], key=lambda x: -x[3]),
         'cities': sorted([[c, v['meas'], v['c'], stats(v['d'])] + city_trips.get(c, [0, 0]) for c, v in C.items() if v['meas'] >= 50], key=lambda x: -x[1]),
+        'regions': sorted([[reg, v['meas'], v['c'], stats(v['d']), dict(HUBS_D).get(reg, ''), v['o'],
+                            sum(sched_per_route.get(rid, 0) for rid in region_routes[reg]), sum(R[rid]['obs'] for rid in region_routes[reg]),
+                            len(region_routes[reg])] for reg, v in RG.items() if v['meas'] >= 50], key=lambda x: -x[1]),
+        'bunch': {'tot': B_tot, 'agencies': {ag: v for ag, v in B_ag.items() if v[0] >= 20}, 'cities': {c: v for c, v in B_city.items() if v[0] >= 20},
+                  'regions': dict(B_reg), 'routes': {rid: v for rid, v in B_route.items() if v[0] >= 5},
+                  'hours': [[h, v[0], v[1]] for h, v in sorted(B_hours.items())],
+                  'stops': [[rid, stops.get(sid, ('',))[0], stops.get(sid, ('', ''))[1], v[0], v[1]] for (rid, sid), v in sorted(B_stop.items(), key=lambda kv: -kv[1][1])[:60] if v[1] >= 3],
+                  'examples': B_ex[:60]},
         'routes': out_routes,
         'worst': [[rid, tid.split('_')[0], round(dl / 60), stops.get(sid, ('', ''))[1], sched, ps] for dl, rid, tid, sid, sched, ps in worst[:40]],
         'cols': {'routes': ['route_id', 'sched', 'obs', 'meas', 'cats[early,ontime,5-10,10-20,20+]', 'stats[avg,med,p90 min]', 'origin cats', 'hours[[h,n,on]]', 'worst stops[[code,name,n,avg]]', 'vehicle[planned size, comparable rides, smaller, larger, daily mode, actual size counts, detail{plan,actual type counts,fleetDate,observed}]', 'reach[to end, part way, start only, transmitted but static]', 'cov[stops surely passed, of them measured]'],
@@ -1023,6 +1117,9 @@ def main():
                  'tot': 'o = origin cats · far = rides beyond ±90 min (dropped) · extra = SIRI journeys with no GTFS trip · reach/cov as in routes',
                  'stops file': 'days/D.stops.json = {route_id: [[code, n, avg delay (tenths of min), on-time n, planned passes]] along the route}; stops.json = {code: name}',
                  'cover file': 'days/D.cover.json = {code: [passed, measured, agencies, vanished after, city]} — stops surely passed (between first and last measured stop of a ride) where fewer than 70% were measured (GPS holes, passed >= 10), or last seen stop of 5+ rides that vanished part way',
+                 'regions': ['hub name', 'meas', 'cats', 'stats', 'district', 'origin cats', 'sched trips of lines with stops in the hub', 'observed trips', 'routes'],
+                 'bunch': 'consecutive scheduled rides of a route at a stop, scheduled headway 1–20 min: [pairs, bunched (actual headway < 30% of scheduled), double gaps (>= 2x)]; hours[[h, pairs, bunched]]; stops[[route_id, code, name, pairs, bunched]]; examples[[route_id, code, sched A, sched B, actual A, actual B]]',
+                 'regions file': 'days/D.regions.json = {hub: [[route_id, n, on-time n, sum delay (tenths of min)]]}',
                  'cities file': 'days/D.cities.json = {city: [[route_id, n, on-time n, sum delay (tenths of min)]]}; routes.json[rid][8:11] = cluster, line type, sub-area (ClusterToLine)'},
     }
     # --- נסיעות תפעוליות במסווה: הלוך ואז חזור של אותו רכב תוך 15 דק' ---
@@ -1078,6 +1175,8 @@ def main():
     print(f'עד איפה נראו הנסיעות [עד הסוף, חלק, רק בהתחלה, שודרו ולא זזו]: {tot["reach"]} · כיסוי GPS בתחנות שוודאי עברו: {tot["cov"][1]:,}/{tot["cov"][0]:,} · חורי GPS (תחנות): {len(holes):,}', flush=True)
     json.dump({c: sorted([[rid, v[0], v[1], round(v[2] / 6)] for rid, v in rr.items()], key=lambda x: -x[1]) for c, rr in city_routes.items()},
               open(f'{a.out}/days/{day}.cities.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    json.dump({reg: sorted([[rid, v[0], v[1], round(v[2] / 6)] for rid, v in rr.items()], key=lambda x: -x[1]) for reg, rr in region_routes.items()},
+              open(f'{a.out}/days/{day}.regions.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     if a.clusters:
         n_cl = apply_clusters(catalog, load_clusters(a.clusters))
         print(f'אשכולות: {n_cl:,} מסלולים בקטלוג עם אשכול', flush=True)
