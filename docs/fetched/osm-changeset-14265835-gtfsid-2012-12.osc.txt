@@ -1,0 +1,5 @@
+מקור: https://api.openstreetmap.org/api/0.6/changeset/14265835/download
+הורד: 2026-09-22 00:46 (שעון ישראל)
+
+
+
