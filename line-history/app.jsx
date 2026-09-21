@@ -409,6 +409,19 @@ function noteFix(s) {
   return String(s || "").replace(/\s*\(\d{4}-\d{2}-\d{2} ← \d{4}-\d{2}-\d{2}\)/g, "");
 }
 function fmtM(d) { const p = (d || "").split("-"); return p[1] + "." + p[0]; }
+// תקופה: חודש "YYYY-MM" או שנה שלמה "Y:YYYY" (שלמה 22.09: "לפי שנה ולא רק לפי חודש")
+const isYear = (m) => typeof m === "string" && m.startsWith("Y:");
+const fmtP = (m) => isYear(m) ? "שנת " + m.slice(2) : fmtM(m);
+const bP = (m) => isYear(m) ? "בשנת " + m.slice(2) : "ב-" + fmtM(m);   // "בשנת 2025" / "ב-09.2026"
+const periodStart = (m) => isYear(m) ? m.slice(2) + "-01-01" : m + "-01";
+const periodEnd = (m) => isYear(m) ? m.slice(2) + "-12-31" : m + "-31";
+const periodMonths = (m, months) => isYear(m) ? (months || []).filter((x) => x.startsWith(m.slice(2))) : [m];
+// טעינת קובצי השינויים של תקופה (חודש אחד או כל חודשי השנה, במקביל) ואיחודם מהחדש לישן
+const loadPeriod = (prefix, m, months) => {
+  const ms = periodMonths(m, months);
+  return Promise.all(ms.map((x) => dfetch("data/changes/" + prefix + x + ".json").then((r) => (r.ok ? r.json() : { changes: [] })).then((d) => d.changes || [])))
+    .then((parts) => (ms.length > 1 ? parts.flat().sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : parts[0] || []));
+};
 function gapDays(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5); }
 // חיפוש סלחני לגרשיים: בנתונים כתוב רשל''צ (שני גרשים) והמשתמש מקליד
 // רשל"צ או רשל״צ — כל סימני הגרש/גרשיים מוסרים משני צידי ההשוואה
@@ -3264,12 +3277,12 @@ function StopsTab({ sel, selN }) {
     // ביטול כשעוברים חודש: תשובה איטית של חודש קודם לא דורסת את החדש
     let ok = true;
     setChs(null); setChErr(false);
-    dfetch("data/changes/stops-" + mon + ".json")
-      .then((r) => (r.ok ? r.json() : { changes: [] }))
-      .then((d) => { if (ok) setChs(d.changes || []); })
+    // שנה שלמה ("Y:2025"): כל קובצי החודשים של השנה במקביל — כחצי מגה לשנה
+    loadPeriod("stops-", mon, months)
+      .then((chs) => { if (ok) setChs(chs); })
       .catch(() => { if (ok) { setChErr(true); setChs([]); } });
     return () => { ok = false; };
-  }, [mon, rty]);
+  }, [mon, rty, months]);
   // ממואם: בלי זה כל הקלדה בחיפוש בנתה ומיינה מחדש את כל האירועים (לאגים).
   // "כל התקופה": כל האירועים מכל הזמנים מתוך קורות-החיים, עם תאריך ליד כל אחד
   const source = useMemo(() => {
@@ -3333,6 +3346,7 @@ function StopsTab({ sel, selN }) {
       )}
       {yr && (
         <div className="months">
+          <button className={"mchip" + (mon === "Y:" + yr ? " on" : "")} aria-pressed={mon === "Y:" + yr} title={"כל שינויי התחנות של שנת " + yr + " ברצף אחד"} onClick={() => setMon("Y:" + yr)}>🗓️ כל {yr}</button>
           {months.filter((m) => m.startsWith(yr)).map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="הצגת השינויים של החודש הזה בלבד" onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
           ))}
@@ -3477,7 +3491,7 @@ function StopsTab({ sel, selN }) {
           })()}
           {list.length === 0 && (chErr
             ? <NetErr onRetry={() => setRty((n) => n + 1)} />
-            : <div className="empty">אין שינויים תואמים בחודש הזה.</div>)}
+            : <div className="empty">אין שינויים תואמים בתקופה הזו.</div>)}
         </div>
       )}
     </div>
@@ -3498,6 +3512,7 @@ function StopsTab({ sel, selN }) {
 // באותו חודש (לחיצה על סימן = מה קרה לתחנה), או קווים — מסומנים רק
 // הקווים שבהם בוצעו שינויים מהסוגים שנבחרו, על המסלול כפי שהיה אז.
 // צבע לכל קו (לפי מספרו) — כל קווי העיר בצבעים, כמו במפת קווים (שלמה 18.09)
+const ALL_IL = "כל הארץ";   // בחירת "עיר" שמציגה את כל הארץ (שלמה 22.09)
 const LINE_PALETTE = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2", "#65a30d", "#ea580c", "#4f46e5", "#0d9488", "#c026d3", "#b45309"];
 const lineHash = (str) => { let h = 0; for (const ch of String(str)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
 const STOP_KIND_LIST = ["new", "del", "renamed", "moved", "city", "pubdest", "platform", "gtfs2012"];
@@ -3531,25 +3546,32 @@ function MapTab({ idx, openLine, cities }) {
   const canon = useMemo(() => {
     const c = (city || "").trim();
     if (!c) return "";
+    if (c === ALL_IL) return "*";
     return (cities || []).find((x) => x === c) || (cities || []).find((x) => x.includes(c) || c.includes(x)) || c;
   }, [city, cities]);
-  const monthEnd = mon ? mon + "-31" : "";
+  const place = canon === "*" ? "כל הארץ" : canon;            // לתצוגה
+  const inPlace = canon === "*" ? "בכל הארץ" : "ב" + canon;
+  const monthEnd = mon ? periodEnd(mon) : "";
   // מיקוד על העיר ברגע הבחירה (שלמה 18.09) — גבולות התחנות של כל עיר, data/cities.json
   const [cityBox, setCityBox] = useState(null);
   useEffect(() => { dfetch("data/cities.json").then((r) => r.json()).then(setCityBox).catch(() => {}); }, []);
   useEffect(() => {
-    const map = mapObj.current, b = cityBox && canon && cityBox[canon];
-    if (!map || !b) return;
+    const map = mapObj.current;
+    if (!map || !canon) return;
+    if (canon === "*") { map.fitBounds([[29.45, 34.2], [33.35, 35.95]], { padding: [10, 10] }); return; }
+    const b = cityBox && cityBox[canon];
+    if (!b) return;
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [20, 20], maxZoom: 14 });
   }, [canon, cityBox]);
   // אירועי תחנות / שינויי קווים של החודש
   useEffect(() => {
     if (!mon) return;
     setStopChs(null); setLineChs(null); setErr(null);
-    const a = dfetch("data/changes/stops-" + mon + ".json").then((r) => r.json()).then((d) => setStopChs(d.changes || [])).catch(() => setStopChs([]));
-    const b = dfetch("data/changes/" + mon + ".json").then((r) => r.json()).then((d) => setLineChs(d.changes || [])).catch(() => setLineChs([]));
+    // חודש אחד, או שנה שלמה — כל חודשי השנה במקביל
+    const a = loadPeriod("stops-", mon, months).then(setStopChs).catch(() => setStopChs([]));
+    const b = loadPeriod("", mon, months).then(setLineChs).catch(() => setLineChs([]));
     Promise.all([a, b]).catch(() => {});
-  }, [mon]);
+  }, [mon, months]);
   const lineOf = useMemo(() => { const m = {}; (((idx || {}).lines) || []).forEach((l) => { m[l.rd] = l; }); return m; }, [idx]);
   // תחנות של העיר שהשתנו בחודש — מקובצות לפי מק"ט
   const stopGroups = useMemo(() => {
@@ -3562,7 +3584,7 @@ function MapTab({ idx, openLine, cities }) {
       for (const code in snap12) {
         const [n, la, lo, addr] = snap12[code];
         const a = (addr || "").trim();
-        if (!names.some((c) => a === c || a.endsWith(" " + c))) continue;
+        if (canon !== "*" && !names.some((c) => a === c || a.endsWith(" " + c))) continue;
         out.push({ code, evs: [{ c: code, d: "2012-06-26", k: "gtfs2012", n, t: a, la, lo }] });
       }
       return out;
@@ -3570,7 +3592,7 @@ function MapTab({ idx, openLine, cities }) {
     if (!stopChs || !canon) return [];
     const g = {};
     stopChs.forEach((c) => {
-      if (c.la == null || (c.t || "") !== canon) return;
+      if (c.la == null || (canon !== "*" && (c.t || "") !== canon)) return;
       if (c.k === "platform" && !c.pv) return;
       if (kinds.size && !kinds.has(c.k)) return;
       (g[c.c] = g[c.c] || []).push(c);
@@ -3579,7 +3601,7 @@ function MapTab({ idx, openLine, cities }) {
   }, [stopChs, canon, kinds, is2012, snap12]);
   const stopKindCounts = useMemo(() => {
     const n = {};
-    (stopChs || []).forEach((c) => { if (c.la != null && (c.t || "") === canon && !(c.k === "platform" && !c.pv)) n[c.k] = (n[c.k] || 0) + 1; });
+    (stopChs || []).forEach((c) => { if (c.la != null && (canon === "*" || (c.t || "") === canon) && !(c.k === "platform" && !c.pv)) n[c.k] = (n[c.k] || 0) + 1; });
     return n;
   }, [stopChs, canon]);
   // קווים של העיר (לפי ערי הקצה) שהשתנו בחודש — לפי סוגי השינוי שנבחרו
@@ -3589,7 +3611,7 @@ function MapTab({ idx, openLine, cities }) {
     lineChs.forEach((c) => {
       const l = lineOf[c.rd];
       if (!l || LINE_KIND_SKIP.has(c.k)) return;
-      if (!destCities(l.dest).includes(canon)) return;
+      if (canon !== "*" && !destCities(l.dest).includes(canon)) return;
       (g[c.rd] = g[c.rd] || { rd: c.rd, l, chs: [] }).chs.push(c);
     });
     return Object.values(g).sort((a, b) => lineNum(a.l.line) - lineNum(b.l.line));
@@ -3604,8 +3626,10 @@ function MapTab({ idx, openLine, cities }) {
   // מה שבאמת היה בתוקף אז נקבע מקובץ הקו — הגרסה האחרונה עד סוף החודש
   const cityLines = useMemo(() => {
     if (!canon || !mon) return [];
-    return (((idx || {}).lines) || []).filter((l) => destCities(l.dest).includes(canon) && !(l.lk === "removed" && (l.ld || "") < mon + "-01"));
-  }, [idx, canon, mon]);
+    // כל הארץ: רק הקווים שהשתנו בתקופה (כל 13 אלף הקווים ברקע היו מאות מגה-בייט)
+    if (canon === "*") return lineGroups.map((x) => x.l);
+    return (((idx || {}).lines) || []).filter((l) => destCities(l.dest).includes(canon) && !(l.lk === "removed" && (l.ld || "") < periodStart(mon)));
+  }, [idx, canon, mon, lineGroups]);
   useEffect(() => setKinds(new Set()), [mode, canon]);
   const toggleKind = (k) => setKinds((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   // מסלולי הקווים המסומנים — הגרסה האחרונה עם שרטוט עד סוף החודש.
@@ -3669,7 +3693,7 @@ function MapTab({ idx, openLine, cities }) {
     lg.clearLayers();
     const pts = [];
     if (mode === "stops") {
-      stopGroups.forEach((g) => {
+      const addOne = (g) => {
         const last = g.evs[g.evs.length - 1];
         const color = (SKINDS[last.k] || {}).color || "#2563eb";
         pts.push([last.la, last.lo]);
@@ -3677,9 +3701,26 @@ function MapTab({ idx, openLine, cities }) {
           (last.k === "gtfs2012" ? `<span class="pst">${esc(last.t || "")}</span><br><span class="pst">רישום 2012 · GTFS 06.2012 דרך OSM</span><br>` : "") +
           g.evs.map((c) => `<span class="pst"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${(SKINDS[c.k] || {}).color || "#64748b"};margin-inline-end:5px"></i>${c.b12 ? "בין 2012 ל-2017" : fmtD(c.d)} · ${stopLabel(c)}</span>`).join("<br>") +
           `<br><a href="#stop=${encodeURIComponent(g.code)}" class="plink">כל ההיסטוריה של התחנה ←</a>`;
-        L.circleMarker([last.la, last.lo], { radius: 8, color: "#fff", weight: 2, fillColor: color, fillOpacity: 0.95 })
+        L.circleMarker([last.la, last.lo], { radius: stopGroups.length > 5000 ? 5 : 8, color: "#fff", weight: stopGroups.length > 5000 ? 1 : 2, fillColor: color, fillOpacity: 0.95 })
           .bindPopup(html, { className: "lh-pop", maxWidth: 320 }).addTo(lg);
-      });
+      };
+      // עד 2,500 תחנות מצוירות בבת אחת; מעבר לזה (כל הארץ, רישום 2012 — 33 אלף) במנות
+      // עם פס התקדמות, כדי שהדפדפן לא ייתקע (שלמה 22.09: "שיטען כמו כל הקווים בעיר")
+      const CH = 2500;
+      if (stopGroups.length > CH) {
+        let i = 0, alive = true, timer = null;
+        setProg({ done: 0, total: stopGroups.length });
+        const step = () => {
+          if (!alive) return;
+          const end = Math.min(i + CH, stopGroups.length);
+          for (; i < end; i++) addOne(stopGroups[i]);
+          if (i < stopGroups.length) { setProg({ done: i, total: stopGroups.length }); timer = setTimeout(step, 0); }
+          else { setProg(null); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.05), { maxZoom: 15 }); }
+        };
+        timer = setTimeout(step, 0);
+        return () => { alive = false; clearTimeout(timer); setProg(null); };
+      }
+      stopGroups.forEach(addOne);
     } else {
       const sel = new Set(shownLines.map((x) => x.rd));
       // כל קווי העיר כפי שהיו אז — אפור דק; הקווים שהשתנו (לפי הסוגים שנבחרו) מעליהם, צבועים
@@ -3711,20 +3752,26 @@ function MapTab({ idx, openLine, cities }) {
   return (
     <div className="card">
       <p className="maphint">בוחרים עיר, שנה וחודש — והמפה מראה איך זה נראה אז: תחנות שהשתנו באותו חודש (לחיצה על סימן = מה קרה לה), או כל קווי העיר על המסלול כפי שהיה אז, כל קו בצבע משלו; סימון סוגי שינוי מבליט בעבה את הקווים שבהם זה קרה באותו חודש.</p>
-      <input className="search" list="lh-map-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="עיר… (למשל חולון)" aria-label="עיר" />
-      <datalist id="lh-map-cities">{(cities || []).map((c) => <option key={c} value={c} />)}</datalist>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input className="search" style={{ flex: 1, minWidth: 180 }} list="lh-map-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="עיר… (למשל חולון)" aria-label="עיר" />
+        <button className={"mchip" + (canon === "*" ? " on" : "")} aria-pressed={canon === "*"} title="כל התחנות/הקווים שהשתנו בכל הארץ, בלי לבחור עיר"
+          onClick={() => setCity(canon === "*" ? "" : ALL_IL)}>🗺️ כל הארץ</button>
+      </div>
+      <datalist id="lh-map-cities"><option value={ALL_IL} />{(cities || []).map((c) => <option key={c} value={c} />)}</datalist>
       {months && (
         <div className="months" style={{ marginTop: 10 }}>
-          <button className={"mchip" + (is2012 ? " on" : "")} aria-pressed={is2012} title="כל התחנות שהיו בעיר ברישום התחנות של משרד התחבורה מיוני 2012"
-            onClick={() => { setYr("2012"); setMode("stops"); setKinds(new Set()); }}>2012</button>
           {years.map((y) => (
             <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
               onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1]); }}>{y}</button>
           ))}
+          {/* אחרי 2017 (הכי שמאלי), לא לפני 2026 — כמו בלשונית התחנות (שלמה 22.09) */}
+          <button className={"mchip" + (is2012 ? " on" : "")} aria-pressed={is2012} title="כל התחנות שהיו בעיר ברישום התחנות של משרד התחבורה מיוני 2012"
+            onClick={() => { setYr("2012"); setMode("stops"); setKinds(new Set()); }}>2012</button>
         </div>
       )}
       {months && yr && !is2012 && (
         <div className="months">
+          <button className={"mchip" + (mon === "Y:" + yr ? " on" : "")} aria-pressed={mon === "Y:" + yr} title={"כל השינויים של שנת " + yr + " יחד"} onClick={() => setMon("Y:" + yr)}>🗓️ כל {yr}</button>
           {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
           ))}
@@ -3747,15 +3794,17 @@ function MapTab({ idx, openLine, cities }) {
         </div>
       )}
       <div className="mapstat">
-        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות ב{canon} ברישום 2012 · המקור: רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener">OpenStreetMap ב-26.06.2012</a> (33,055 תחנות בארץ, רישיון ODbL) · לחיצה על תחנה: שם, מק״ט וכתובת של אז</>)
-          : !canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length} תחנות ב${canon} השתנו ב-${fmtM(mon)}` : `אין תחנות ב${canon} שהשתנו ב-${fmtM(mon)}`)
-          : (lineChs === null || prog ? "טוען…" : `${cityLines.filter((l) => routes[l.rd + "@" + mon]).length} קווים של ${canon} היו בתוקף ב-${fmtM(mon)}` + (lineGroups.length ? ` · ${lineGroups.length} מהם השתנו באותו חודש` + (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי לצבוע אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")))}
+        {is2012 ? (!canon ? "בחרו עיר כדי להתחיל" : !snap12 ? "טוען…" : <>{stopGroups.length.toLocaleString()} תחנות {inPlace} ברישום 2012 · המקור: רישום התחנות של משרד התחבורה מיוני 2012 (GTFS), כפי שיובא ל-<a href="https://www.openstreetmap.org/changeset/12028672" target="_blank" rel="noopener">OpenStreetMap ב-26.06.2012</a> (33,055 תחנות בארץ, רישיון ODbL) · לחיצה על תחנה: שם, מק״ט וכתובת של אז</>)
+          : !canon ? "בחרו עיר כדי להתחיל" : !mon ? "בחרו חודש" : (mode === "stops" ? (stopChs === null ? "טוען…" : stopGroups.length ? `${stopGroups.length.toLocaleString()} תחנות ${inPlace} השתנו ${bP(mon)}` : `אין תחנות ${inPlace} שהשתנו ${bP(mon)}`)
+          : (lineChs === null || prog ? "טוען…" : canon === "*"
+            ? `בכל הארץ מוצגים רק הקווים שהשתנו ${bP(mon)}: ${lineGroups.length.toLocaleString()}` + (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי לצבוע אותם") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")
+            : `${cityLines.filter((l) => routes[l.rd + "@" + mon]).length} קווים של ${canon} היו בתוקף ${bP(mon)}` + (lineGroups.length ? ` · ${lineGroups.length} מהם השתנו ${isYear(mon) ? "באותה שנה" : "באותו חודש"}` + (kinds.size ? ` · ${shownLines.length} מובלטים` : " — סמנו סוגי שינוי כדי לצבוע אותם") : "") + (noRoute && shownLines.length ? ` · ל-${noRoute} מהמסומנים אין שרטוט מאותו זמן` : "")))}
       </div>
       <div className="mapwrap">
         <div className="citymap" ref={mapRef} role="application" aria-label="מפת השינויים בעיר לפי חודש" />
         {prog && <div className="mapload" role="status" aria-live="polite">
-          <div className="mapprog-t">טוען את כל קווי {canon} כפי שהיו ב-{fmtM(mon)}… {prog.done}/{prog.total}</div>
-          <div className="mapprog-s">המפה תוצג כשכל הקווים יהיו מוכנים</div>
+          <div className="mapprog-t">{mode === "stops" ? `מצייר ${prog.total.toLocaleString()} תחנות…` : `טוען את קווי ${place} כפי שהיו ${bP(mon)}…`} {prog.done.toLocaleString()}/{prog.total.toLocaleString()}</div>
+          <div className="mapprog-s">{mode === "stops" ? "המפה מתמלאת במנות" : "המפה תוצג כשכל הקווים יהיו מוכנים"}</div>
           <div className="mapprog-b"><i style={{ width: Math.round(prog.done / prog.total * 100) + "%" }} /></div>
         </div>}
       </div>

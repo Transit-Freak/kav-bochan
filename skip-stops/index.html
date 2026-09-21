@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="vendor/leaflet-gesture-handling.min.css" />
   <script>window.SK_BUILD = "20";</script>
   <!-- document.write חסם את הפרסר; קישור רגיל + חותמת גרסה סטטית -->
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <script>document.write('<link rel="stylesheet" href="styles.css?v=' + Date.now() + '" />')</script>
 </head>
 <body>
   <div id="root"><div class="boot">טוען נתונים…</div></div>
@@ -57,7 +57,8 @@
         while (i) h = (h * 33) ^ str.charCodeAt(--i);
         return (h >>> 0).toString(36);
       }
-      fetch("app.jsx", { cache: "no-cache" })
+      // חותמת זמן בכתובת: ה-CDN של Pages מגיש קובץ ששונה מהעותק הישן עד 10 דקות גם עם no-cache (שלמה 22.09)
+      fetch("app.jsx?v=" + Date.now(), { cache: "no-cache" })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
         .then(function (code) {
           var key = "sk-js-" + hash(code);
