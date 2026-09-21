@@ -139,7 +139,8 @@ def build_stop_lookup():
     except Exception:
         pass
     # תחנות 2012 עצמן (magihim-2012/data/stops-2012.json): ה-GTFS של משרד
-    # התחבורה ממאי/יוני 2012, כפי שיובא ל-OpenStreetMap (changeset 12028672).
+    # התחבורה מ-2012, כפי שיובא ל-OpenStreetMap (changeset 12028672) ותוקן
+    # ב-changeset 14265835 — המפתח הוא המק"ט שעל השלט (stop_code), לא stop_id.
     # זה הרישום של אותה שנה בדיוק — שמות, מק"טים ומיקומים של אז — ולכן הוא
     # קודם לכל הצלבה מול הרישום של היום. מיקום של מק"ט משנת 2012 גובר.
     snap_name = collections.defaultdict(set)   # norm(שם 2012) -> מק"טים
@@ -147,7 +148,8 @@ def build_stop_lookup():
     snap_desc = {}                             # מק"ט -> norm(כתובת ועיר)
     try:
         snap = json.load(open(OUT / 'stops-2012.json', encoding='utf-8'))['stops']
-        for mk, (nm, la, lo, desc) in snap.items():
+        for mk, row in snap.items():
+            nm, la, lo, desc = row[:4]
             snap_name[norm(nm)].add(mk)
             snap_srt[sortkey(nm)].add(mk)
             snap_desc[mk] = norm(desc)
