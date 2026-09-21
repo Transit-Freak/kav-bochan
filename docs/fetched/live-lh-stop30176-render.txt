@@ -1,0 +1,183 @@
+מקור: https://kavbochan.app/line-history/?x=11#stop=30176
+כתובת סופית: https://kavbochan.app/line-history/?x=11#stop=30176
+סטטוס: 200
+הורד: 22.9.2026, 2:42:36 (שעון ישראל)
+
+🕰️ הקו בזמן
+
+כל שינוי שנכנס לתוקף במסלולי הקווים ובתחנות — מסלול, שרטוט, תחנות ושמות. מהשוואת ה-GTFS של משרד התחבורה, יום מול יום, ממרץ 2017 ועד היום.
+
+13,301 וריאנטים מתועדים
+13,205 עם שינויים
+עודכן: 2026-09-21
+🚌 קווים
+🚏 תחנות
+🗺️ מפה
+🚆 רכבת
+🚕 מוניות שירות
+🔔 הרשמה להתראות על שינויים — עיר, סוגי שינויים ותדירות
+🗓️ כל התקופה
+2026
+2025
+2024
+2023
+2022
+2021
+2020
+2019
+2018
+2017
+2012
+◀
+🗂️ קטגוריות לבחירה
+🚌 הקווים בתחנה הזו לאורך זמן
+✕
+עוצרים בה היום (יש להם לו״ז לשבוע הקרוב):
+632
+703
+704
+706
+710
+729
+807
+826
+852
+910
+947
+🕰️ ב-2012 עצרו כאן (מגיעים 2012):
+610
+702
+703
+706
+709
+729
+784
+808
+852
+872
+910
+26.04.2026 ➖ 4 קווים הפסיקו לעצור בתחנה: 826, 852, 910, 632
+16.05.2025 🆕 קו 703 התחיל לעצור בתחנה
+29.12.2024 ➖ קו 729 הפסיק לעצור בתחנה
+27.07.2024 🚏 בתיעוד הראשון עצרו כאן 3 קווים: 826, 852, 910
+01.07.2024 🆕 קו 151 התחיל לעצור בתחנה
+29.06.2024 🚏 קו 632 תועד בתחנה לראשונה
+31.03.2024 ➖ קו 826 הפסיק לעצור בתחנה
+15.03.2024 🆕 2 קווים התחילו לעצור בתחנה: 852, 947
+07.12.2023 🆕 קו 807 התחיל לעצור בתחנה
+19.11.2023 🆕 קו 826 התחיל לעצור בתחנה
+12.11.2023 🆕 קו 704 התחיל לעצור בתחנה
+15.10.2023 🆕 3 קווים התחילו לעצור בתחנה: 703, 826, 910
+10.09.2023 🆕 4 קווים התחילו לעצור בתחנה: 706, 710, 632, 729
+30.01.2022 ➖ 6 קווים הפסיקו לעצור בתחנה: 706, 710, 910, 632, 729, 27
+13.01.2022 ➖ קו 263 הפסיק לעצור בתחנה
+11.10.2021 🆕 קו 910 התחיל לעצור בתחנה
+16.07.2021 ➖ 5 קווים הפסיקו לעצור בתחנה: 703, 807, 852, 910, 704
+15.07.2021 ➖ 2 קווים הפסיקו לעצור בתחנה: 852, 784
+30.07.2020 🚏 קו 852 תועד בתחנה לראשונה
+19.06.2020 🚏 קו 704 תועד בתחנה לראשונה
+13.01.2020 🚏 קו 27 תועד בתחנה לראשונה
+05.07.2019 🚏 קו 632 תועד בתחנה לראשונה
+11.07.2018 ➖ קו 610 הפסיק לעצור בתחנה
+16.03.2017 🚏 בתיעוד הראשון עצרו כאן 10 קווים: 610, 703, 706, 710, 807, 852, 910, 784, 729, 263
+מחושב מהשוואת רצפי התחנות של כל הקווים לאורך התקופה. מעבר רציף נראה כאן כקו שירד — ועלה באותו תאריך ברציף השכן.
+פנימיית הדסה נעורים/השיטה (30176) 🔗🚌 קווים
+נעורים · 4 שינויים
+שינוי עיר
+10.10.2023 · עמק חפר ← נעורים · 🗺️
+הזזת מיקום
+04.10.2023 · הוזזה 160 מ׳ · (32.37836, 34.86484) ← (32.37692, 34.86465) · קווים שעצרו בה אז: 632, 706, 710, 729 · 🗺️
+הזזת מיקום
+בין 2012 ל-2017 · הוזזה 44 מ׳ · (32.378747, 34.864942) ← (32.37836, 34.86484) · 🗺️
+ברישום 2012
+26.06.2012 · (32.378747, 34.864942) · מקור: GTFS 06.2012 דרך OSM · 🗺️
+📚 המקורות — מאיפה מגיע כל פרט, ועד לאן הוא מגיע
+במסגרת הקו הבוחן · הנתונים: GTFS משרד התחבורה · היסטוריה: TransitFeeds/OpenMobilityData (2017–2022), אופן באס — הסדנא לידע ציבורי (2022–2026), מגיעים (2012)
+
+© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · זכויות יוצרים ותנאי שימוש
+
+← חזרה לקו הבוחן
+
+===== קישורים =====
+632 | https://kavbochan.app/line-history/?x=11#11632-1-0
+703 | https://kavbochan.app/line-history/?x=11#10703-2-%D7%97
+704 | https://kavbochan.app/line-history/?x=11#12704-2-%D7%96
+706 | https://kavbochan.app/line-history/?x=11#10706-1-3
+710 | https://kavbochan.app/line-history/?x=11#10710-1-0
+729 | https://kavbochan.app/line-history/?x=11#12729-1-0
+807 | https://kavbochan.app/line-history/?x=11#10807-1-%23
+826 | https://kavbochan.app/line-history/?x=11#10826-2-%D7%9B
+852 | https://kavbochan.app/line-history/?x=11#10852-2-%D7%96
+910 | https://kavbochan.app/line-history/?x=11#10910-2-%23
+947 | https://kavbochan.app/line-history/?x=11#10947-2-%D7%90
+610 | https://kavbochan.app/line-history/?x=11#2012/14-1000
+702 | https://kavbochan.app/line-history/?x=11#2012/3-251
+703 | https://kavbochan.app/line-history/?x=11#2012/3-252
+706 | https://kavbochan.app/line-history/?x=11#2012/14-1010
+709 | https://kavbochan.app/line-history/?x=11#2012/14-1022
+729 | https://kavbochan.app/line-history/?x=11#2012/14-1024
+784 | https://kavbochan.app/line-history/?x=11#2012/3-327
+808 | https://kavbochan.app/line-history/?x=11#2012/3-253
+852 | https://kavbochan.app/line-history/?x=11#2012/3-255
+872 | https://kavbochan.app/line-history/?x=11#2012/3-257
+910 | https://kavbochan.app/line-history/?x=11#2012/3-445
+826 | https://kavbochan.app/line-history/?x=11#10826-2-8@2026-04-26
+852 | https://kavbochan.app/line-history/?x=11#10852-2-9@2026-04-26
+910 | https://kavbochan.app/line-history/?x=11#10910-2-9@2026-04-26
+632 | https://kavbochan.app/line-history/?x=11#11632-1-9@2026-04-26
+703 | https://kavbochan.app/line-history/?x=11#10703-2-%23@2025-05-16
+729 | https://kavbochan.app/line-history/?x=11#12729-1-1@2024-12-29
+826 | https://kavbochan.app/line-history/?x=11#10826-2-8@2024-07-27
+852 | https://kavbochan.app/line-history/?x=11#10852-2-9@2024-07-27
+910 | https://kavbochan.app/line-history/?x=11#10910-2-9@2024-07-27
+151 | https://kavbochan.app/line-history/?x=11#14151-2-0@2024-07-01
+632 | https://kavbochan.app/line-history/?x=11#11632-1-9@2024-06-29
+826 | https://kavbochan.app/line-history/?x=11#10826-2-%D7%96@2024-03-31
+852 | https://kavbochan.app/line-history/?x=11#10852-2-%23@2024-03-15
+947 | https://kavbochan.app/line-history/?x=11#10947-2-%D7%90@2024-03-15
+807 | https://kavbochan.app/line-history/?x=11#10807-1-%23@2023-12-07
+826 | https://kavbochan.app/line-history/?x=11#10826-2-%D7%96@2023-11-19
+704 | https://kavbochan.app/line-history/?x=11#12704-2-%D7%96@2023-11-12
+703 | https://kavbochan.app/line-history/?x=11#10703-2-%D7%97@2023-10-15
+826 | https://kavbochan.app/line-history/?x=11#10826-2-%23@2023-10-15
+910 | https://kavbochan.app/line-history/?x=11#10910-2-%23@2023-10-15
+706 | https://kavbochan.app/line-history/?x=11#10706-1-0@2023-09-10
+710 | https://kavbochan.app/line-history/?x=11#10710-1-0@2023-09-10
+632 | https://kavbochan.app/line-history/?x=11#11632-1-0@2023-09-10
+729 | https://kavbochan.app/line-history/?x=11#12729-1-0@2023-09-10
+706 | https://kavbochan.app/line-history/?x=11#10706-1-0@2022-01-30
+710 | https://kavbochan.app/line-history/?x=11#10710-1-0@2022-01-30
+910 | https://kavbochan.app/line-history/?x=11#10910-2-%23@2022-01-30
+632 | https://kavbochan.app/line-history/?x=11#11632-1-0@2022-01-30
+729 | https://kavbochan.app/line-history/?x=11#12729-1-0@2022-01-30
+27 | https://kavbochan.app/line-history/?x=11#32027-2-0@2022-01-30
+263 | https://kavbochan.app/line-history/?x=11#16263-1-0@2022-01-13
+910 | https://kavbochan.app/line-history/?x=11#10910-2-%23@2021-10-11
+703 | https://kavbochan.app/line-history/?x=11#10703-2-%23@2021-07-16
+807 | https://kavbochan.app/line-history/?x=11#10807-1-%23@2021-07-16
+852 | https://kavbochan.app/line-history/?x=11#10852-2-%23@2021-07-16
+910 | https://kavbochan.app/line-history/?x=11#10910-2-%23@2021-07-16
+704 | https://kavbochan.app/line-history/?x=11#12704-2-%D7%96@2021-07-16
+852 | https://kavbochan.app/line-history/?x=11#10852-2-%D7%96@2021-07-15
+784 | https://kavbochan.app/line-history/?x=11#11784-2-%23@2021-07-15
+852 | https://kavbochan.app/line-history/?x=11#10852-2-%D7%96@2020-07-30
+704 | https://kavbochan.app/line-history/?x=11#12704-2-%D7%96@2020-06-19
+27 | https://kavbochan.app/line-history/?x=11#32027-2-0@2020-01-13
+632 | https://kavbochan.app/line-history/?x=11#11632-1-0@2019-07-05
+610 | https://kavbochan.app/line-history/?x=11#10610-1-%23@2018-07-11
+610 | https://kavbochan.app/line-history/?x=11#10610-1-%23@2017-03-16
+703 | https://kavbochan.app/line-history/?x=11#10703-2-%D7%97@2017-03-16
+706 | https://kavbochan.app/line-history/?x=11#10706-1-3@2017-03-16
+710 | https://kavbochan.app/line-history/?x=11#10710-1-0@2017-03-16
+807 | https://kavbochan.app/line-history/?x=11#10807-1-%23@2017-03-16
+852 | https://kavbochan.app/line-history/?x=11#10852-2-%23@2017-03-16
+910 | https://kavbochan.app/line-history/?x=11#10910-2-%23@2017-03-16
+784 | https://kavbochan.app/line-history/?x=11#11784-2-%23@2017-03-16
+729 | https://kavbochan.app/line-history/?x=11#12729-1-1@2017-03-16
+263 | https://kavbochan.app/line-history/?x=11#16263-1-0@2017-03-16
+(30176) 🔗 | https://kavbochan.app/line-history/?x=11#stop=30176
+🚌 קווים | https://kavbochan.app/line-history/?x=11#stop=30176
+מקור: GTFS 06.2012 דרך OSM | https://www.openstreetmap.org/changeset/12028672
+הקו הבוחן | https://kavbochan.app/
+זכויות יוצרים ותנאי שימוש | https://kavbochan.app/terms.html#copyright
+← חזרה לקו הבוחן | https://kavbochan.app/
