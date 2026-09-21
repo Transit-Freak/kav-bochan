@@ -1,0 +1,18 @@
+מקור: https://web.archive.org/cdx/search/cdx?url=data.gov.il/dataset/*&from=2012&to=2013&filter=original:.*(gtfs|transport|tahbura|public).*&limit=200
+כתובת סופית: https://web.archive.org/cdx/search/cdx?url=data.gov.il/dataset/*&from=2012&to=2013&filter=original:.*(gtfs|transport|tahbura|public).*&limit=200
+סטטוס: 503
+הורד: 22.9.2026, 0:45:18 (שעון ישראל)
+
+   
+Temporarily Offline
+
+Internet Archive services are temporarily offline.
+
+Please check our official accounts, including Twitter/X, Bluesky or Mastodon for the latest information.
+
+We apologize for the inconvenience.
+
+===== קישורים =====
+Twitter/X | https://twitter.com/internetarchive/
+Bluesky | https://bsky.app/profile/did:plc:73dpznbu4wqwtcyurwbiulov
+Mastodon | https://mastodon.archive.org/deck/@internetarchive
