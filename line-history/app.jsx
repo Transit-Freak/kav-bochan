@@ -1,7 +1,9 @@
 /* הקו בזמן — היסטוריית מסלולים ותחנות מהשוואת GTFS יומית.
    הנתונים: line-history/data, נוצר ע"י tools/linehistory.py ב-GitHub Actions. */
 const { useState, useEffect, useMemo, useRef } = React;
-const BUILD = window.LH_BUILD || "0";
+// מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
+// (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
+const BUILD = "173";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -3159,7 +3161,17 @@ function StopsTab({ sel, selN }) {
   // הקידומת שלה — כמאתיים קילובייט במקום ארבעה וחצי מגה.
   const [shard, setShard] = useState(null);   // המק"ט שהשבר שנטען שייך לו
   const [snap12, setSnap12] = useState(null); // רישום התחנות של 2012 (כולו ב"כל התקופה", שבר לתחנה מקישור)
+  const [snapScope, setSnapScope] = useState(""); // "full" / "shard" — מה נטען ל-snap12
   const needHist = mon === "all" || !!sel;
+  // מצב "2012" (שלמה 22.09): רק רישום התחנות של 2012 עם מה שהשתנה בכל תחנה עד 2017 —
+  // בלי קורות החיים הכבדים
+  const need12 = mon === "2012";
+  useEffect(() => {
+    if (!need12 || (snap12 && snapScope === "full")) return;
+    dfetch("../magihim-2012/data/stops-2012.json").then((r) => (r.ok ? r.json() : {}))
+      .then((d) => { setSnap12(d && d.stops ? d.stops : d || {}); setSnapScope("full"); })
+      .catch(() => { setSnap12({}); setSnapScope("full"); });
+  }, [need12, snap12, snapScope]);
   // ההשוואה ל-q הייתה מוקדמת מדי: החיפוש נקבע ל-sel באפקט אחר, ובסבב
   // הראשון הוא עדיין הערך הישן — ואז נטען הקובץ המלא במקום השבר.
   // shardLeft: אחרי שהחיפוש עזב את תחנת הקישור, הדגל נשאר דלוק והשבר
@@ -3173,6 +3185,7 @@ function StopsTab({ sel, selN }) {
     const done = (d) => setHist(d);
     const done12 = (d) => setSnap12(d && d.stops ? d.stops : d || {});
     setSnap12(null);
+    setSnapScope(wantShard ? "shard" : "full");
     if (wantShard) {
       setShard(sel);
       const pre = (sel.slice(0, 2) || "0").padStart(2, "0");
@@ -3247,7 +3260,7 @@ function StopsTab({ sel, selN }) {
   useEffect(() => {
     // "כל התקופה" נבנית מקורות החיים ולא מקובץ חודש — בלי התנאי הזה נשלחה
     // בקשה ל-stops-all.json שתמיד חוזרת 404
-    if (!mon || mon === "all") return;
+    if (!mon || mon === "all" || mon === "2012") return;
     // ביטול כשעוברים חודש: תשובה איטית של חודש קודם לא דורסת את החדש
     let ok = true;
     setChs(null); setChErr(false);
@@ -3267,7 +3280,9 @@ function StopsTab({ sel, selN }) {
     // הראתה לרגע תחנות אחרות מהחודש הנוכחי שמספרן מכיל את המק"ט — מסך
     // "טוען" במקום זה (הבדיקה האוטומטית תפסה: ‎#stop=274‎ "נפתחה על תחנה אחרת")
     if (sel && !shardLeft.current && (mon !== "all" || !hist)) return null;
-    const raw = mon === "all"
+    const raw = mon === "2012"
+      ? (snap12 && snapScope === "full" ? events2012(snap12).map(withS).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
+      : mon === "all"
       ? (hist ? Object.entries(hist).flatMap(([c, evs]) => evs.map((e) => withS({ ...e, c })))
           // רישום 2012: אירוע לכל תחנה שהייתה אז — אחרי כל השאר, כי הוא הישן ביותר
           .concat(snap12 ? events2012(snap12).map(withS) : []).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
@@ -3277,7 +3292,7 @@ function StopsTab({ sel, selN }) {
     // ‎#stop=48‎ הראה מסך ריק, כי שני האירועים שלה נחשבים "חוזרים".
     return raw === null ? null
       : raw.filter((c) => !hiddenEv(c) && ((sel && c.c === sel) || keepEvent(c)));
-  }, [mon, hist, chs, sel, snap12]);
+  }, [mon, hist, chs, sel, snap12, snapScope]);
   const counts = useMemo(() => {
     const cn = {};
     (source || []).forEach((c) => { cn[c.k] = (cn[c.k] || 0) + 1; });
@@ -3307,7 +3322,15 @@ function StopsTab({ sel, selN }) {
           <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
             title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[0]); }}>{y}</button>
         ))}
+        <button className={"mchip" + (mon === "2012" ? " on" : "")} aria-pressed={mon === "2012"}
+          title="רישום התחנות של משרד התחבורה מ-2012 (דרך OpenStreetMap) — כל תחנה שהייתה אז, ומה השתנה בה עד תחילת התיעוד ב-2017"
+          onClick={() => { setYr(""); setMon("2012"); }}>2012</button>
       </div>
+      {mon === "2012" && (
+        <p className="pdesc">🕰️ רישום התחנות של 2012: 32,987 תחנות מקובץ ה-GTFS של משרד התחבורה מ-2012, כפי שיובאו ל-<a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener">OpenStreetMap</a> (רישיון ODbL).
+          לכל תחנה: השם, הכתובת והמיקום של אז, ואחריהם מה השתנה באותו מק״ט עד תחילת התיעוד שלנו במרץ 2017 — שינוי שם, הזזה (30 מ׳ ומעלה), או ביטול. מק״ט שנמצא מ-2017 במרחק קילומטר ומעלה נחשב מק״ט שהוקצה מחדש לתחנה אחרת, לא הזזה.
+          {snap12 && snapScope === "full" ? "" : " טוען…"}</p>
+      )}
       {yr && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr)).map((m) => (
