@@ -364,6 +364,7 @@ button.kbtn { border: 0; cursor: pointer; font: inherit; }
 .lat .lathead{font-weight:900;font-size:15px;color:#0f172a;margin-bottom:8px}
 .lat .latnow{font-size:13px;font-weight:700;color:#334155;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .lat .latb{text-decoration:none}
+.lat .latb.b12{background:#78350f}
 .lat .latlist{display:flex;flex-direction:column;gap:4px}
 .lat .latrow{font-size:13px;color:#334155;padding:3px 0;border-bottom:1px dashed #f1f5f9}
 .lat .latrow a{color:#0369a1;text-decoration:none;font-weight:900}

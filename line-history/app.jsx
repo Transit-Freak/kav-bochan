@@ -3023,16 +3023,24 @@ function LinesAtStop({ code, onClose }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(false);
   const [all, setAll] = useState(false);
+  // קווי 2012 שעצרו בתחנה (מגיעים 2012, לפי המק"ט שהוצלב ברישום 2012) — שבר לפי קידומת (שלמה 22.09)
+  const [l12, setL12] = useState(null);
   useEffect(() => {
-    setD(null); setErr(false); setAll(false);
+    setD(null); setErr(false); setAll(false); setL12(null);
     dfetch("data/stopev/" + (code.length >= 2 ? code.slice(0, 2) : "0x") + ".json")
       .then((r) => (r.ok ? r.json() : {}))
       .then((m) => setD(m[code] || { ev: [] }))
       .catch(() => setErr(true));
+    dfetch("../magihim-2012/data/stop-lines/" + (code.slice(0, 2) || "0").padStart(2, "0") + ".json")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((m) => setL12(m[code] || []))
+      .catch(() => setL12([]));
   }, [code]);
-  if (err || (d && !(d.ev || []).length)) return null;
-  if (!d) return <div className="lat"><div className="empty">⏳ טוען את קווי התחנה…</div></div>;
-  const ev = d.ev;
+  const has12 = !!(l12 && l12.length);
+  if (err && !has12) return null;
+  if (d && !(d.ev || []).length && l12 !== null && !has12) return null;
+  if (!d && !err) return <div className="lat"><div className="empty">⏳ טוען את קווי התחנה…</div></div>;
+  const ev = (d && d.ev) || [];
   // מצב נוכחי: האירוע האחרון של כל וריאנט קובע אם הוא עוצר כאן היום
   const lastByRd = {};
   ev.forEach((e) => { lastByRd[e[2]] = e; });
@@ -3108,6 +3116,12 @@ function LinesAtStop({ code, onClose }) {
       {now.length > 0 && (
         <div className="latnow" title="קווים שעוצרים בתחנה לפי התיעוד ויש להם לו״ז לשבוע הקרוב (פרסום הרישוי ל-10 הימים)">עוצרים בה היום (יש להם לו״ז לשבוע הקרוב):{" "}
           {now.slice(0, 40).map(([l, rd2]) => <a key={l} className="badge sm latb" href={lineHref(rd2)}>{l}</a>)}
+        </div>
+      )}
+      {has12 && (
+        <div className="latnow" title="לפי מסלולי הקווים במאגר מגיעים 2012, שהוצלבו לרישום התחנות של 2012 (GTFS משרד התחבורה דרך OpenStreetMap). לחיצה פותחת את הקו כפי שהיה ב-2012">🕰️ ב-2012 עצרו כאן (מגיעים 2012):{" "}
+          {l12.slice(0, 40).map((x) => <a key={x[0]} className="badge sm latb b12" href={"#2012/" + encodeURIComponent(x[0])} title={"קו " + x[1] + " · " + x[2] + " · " + x[3] + " — רצף התחנות והמסלול כפי שהיו ב-2012"}>{x[1]}</a>)}
+          {l12.length > 40 ? <span className="mut">ועוד {l12.length - 40}</span> : null}
         </div>
       )}
       <div className="latlist">

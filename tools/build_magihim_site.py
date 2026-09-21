@@ -688,3 +688,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # קווי 2012 לפי תחנה — לעמוד התחנה ב"הקו בזמן" (שלמה 22.09)
+    import build_stop_lines_2012
+    build_stop_lines_2012.main()
