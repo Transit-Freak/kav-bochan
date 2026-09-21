@@ -799,8 +799,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
     if (pts12.length) {
       stops12.forEach((s) => {
         L.circleMarker([s[1], s[2]], { radius: 4, color: "#78350f", weight: 2, fillColor: "#fff", fillOpacity: 1 })
-          .addTo(map).bindPopup(`<b>${esc(s[0])}</b><br><span class="pst">מסלול 2012</span>` + (s[4] ? `<br><span class="pcode">מק״ט ${esc(String(s[4]))}</span>` : "") +
-            `<br><span class="pst">${s[3] ? "מיקום ומק״ט מרישום 2012 (GTFS יוני 2012 דרך OpenStreetMap)" : "הוצלבה לרישום התחנות של היום"}</span>`, { className: "lh-pop", offset: [0, -4] });
+          .addTo(map).bindPopup(`<b>${esc(s[0])}</b><br><span class="pst">מסלול 2012</span>` + (s[4] ? `<br><span class="pcode">מק״ט ${esc(String(s[4]))}</span>` : ""), { className: "lh-pop", offset: [0, -4] });
       });
     }
     const curCodes = new Set((curStops || []).map((s) => s[0]));
@@ -2541,8 +2540,7 @@ function Map2012({ stops, shape }) {
         color: i === 0 || last ? "#fff" : "#78350f",
         fillColor: i === 0 ? "#16a34a" : last ? "#dc2626" : "#fff", fillOpacity: 1 })
         .addTo(map).bindPopup(`<b>${esc(s[1])}</b><br><span class="pst">תחנה ${s[0]} במסלול 2012</span>` +
-          (s[4] && s[4].length === 1 ? `<br><span class="pcode">מק״ט ${esc(String(s[4][0]))}</span>` : "") +
-          `<br><span class="pst">${s[7] === 1 ? "מיקום ומק״ט מרישום 2012" : "הוצלבה לרישום של היום"}</span>`,
+          (s[4] && s[4].length === 1 ? `<br><span class="pcode">מק״ט ${esc(String(s[4][0]))}</span>` : ""),
           { className: "lh-pop", offset: [0, -4] });
     });
     const all = pts.concat(road || []);
