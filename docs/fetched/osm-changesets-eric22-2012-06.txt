@@ -1,0 +1,108 @@
+מקור: https://api.openstreetmap.org/api/0.6/changesets?display_name=eric22&time=2012-06-20T00:00:00Z,2012-06-30T00:00:00Z
+כתובת סופית: https://api.openstreetmap.org/api/0.6/changesets?display_name=eric22&time=2012-06-20T00:00:00Z,2012-06-30T00:00:00Z
+סטטוס: 200
+הורד: 22.9.2026, 0:45:08 (שעון ישראל)
+
+This XML file does not appear to have any style information associated with it. The document tree is shown below.
+
+<osm version="0.6" generator="OpenStreetMap server" copyright="OpenStreetMap and contributors" attribution="http://www.openstreetmap.org/copyright" license="http://opendatacommons.org/licenses/odbl/1-0/">
+<changeset id="12057748" created_at="2012-06-29T15:29:54Z" open="false" comments_count="0" changes_count="160" created_count="56" modified_count="104" deleted_count="0" closed_at="2012-06-29T15:30:05Z" min_lat="31.3705077" min_lon="34.7359290" max_lat="31.4016125" max_lon="34.7856547" uid="160949" user="eric22">
+<tag k="comment" v="streets in rahat, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12050874" created_at="2012-06-28T20:54:37Z" open="false" comments_count="0" changes_count="1" created_count="0" modified_count="1" deleted_count="0" closed_at="2012-06-28T20:54:38Z" min_lat="32.5184335" min_lon="35.1552703" max_lat="32.5234558" max_lon="35.1599561" uid="160949" user="eric22">
+<tag k="comment" v="fix in um al fahm, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12050840" created_at="2012-06-28T20:50:34Z" open="false" comments_count="0" changes_count="72" created_count="30" modified_count="42" deleted_count="0" closed_at="2012-06-28T20:50:45Z" min_lat="32.7838493" min_lon="35.0558240" max_lat="32.8495034" max_lon="35.2081236" uid="160949" user="eric22">
+<tag k="comment" v="streets in shfaram and the krayot, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12050667" created_at="2012-06-28T20:28:28Z" open="false" comments_count="0" changes_count="40" created_count="30" modified_count="9" deleted_count="1" closed_at="2012-06-28T20:28:32Z" min_lat="32.5040760" min_lon="35.1461351" max_lat="32.5361248" max_lon="35.1627281" uid="160949" user="eric22">
+<tag k="comment" v="streets in um al fahm, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12050593" created_at="2012-06-28T20:20:28Z" open="false" comments_count="0" changes_count="12" created_count="5" modified_count="7" deleted_count="0" closed_at="2012-06-28T20:20:31Z" min_lat="32.1067190" min_lon="34.9624425" max_lat="32.1206897" max_lon="34.9966287" uid="160949" user="eric22">
+<tag k="comment" v="streets in kafr kasm, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12039975" created_at="2012-06-27T19:18:55Z" open="false" comments_count="0" changes_count="34" created_count="0" modified_count="34" deleted_count="0" closed_at="2012-06-27T19:18:57Z" min_lat="31.9355782" min_lon="34.8717548" max_lat="31.9457115" max_lon="34.8794389" uid="160949" user="eric22">
+<tag k="comment" v="streets in lod, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12039882" created_at="2012-06-27T19:09:16Z" open="false" comments_count="0" changes_count="1000" created_count="175" modified_count="816" deleted_count="9" closed_at="2012-06-27T19:10:13Z" min_lat="31.9314655" min_lon="34.8694278" max_lat="31.9824426" max_lon="34.9076757" uid="160949" user="eric22">
+<tag k="comment" v="streets in lod, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12028672" created_at="2012-06-26T17:27:30Z" open="false" comments_count="0" changes_count="33055" created_count="33055" modified_count="0" deleted_count="0" closed_at="2012-06-26T18:46:02Z" min_lat="29.2494529" min_lon="34.1979952" max_lat="33.3917189" max_lon="35.9006047" uid="160949" user="eric22">
+<tag k="comment" v="Israel GTFS bus stop import - attempt 3"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12028208" created_at="2012-06-26T16:36:06Z" open="false" comments_count="0" changes_count="1000" created_count="1000" modified_count="0" deleted_count="0" closed_at="2012-06-26T17:38:43Z" min_lat="30.8419581" min_lon="34.1979952" max_lat="33.3917189" max_lon="35.9006047" uid="160949" user="eric22">
+<tag k="comment" v="Israel GTFS bus stop import - attempt 2"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12028202" created_at="2012-06-26T16:35:25Z" open="false" comments_count="0" changes_count="1000" created_count="1000" modified_count="0" deleted_count="0" closed_at="2012-06-26T17:38:16Z" min_lat="30.8419581" min_lon="34.1979952" max_lat="33.3917189" max_lon="35.9006047" uid="160949" user="eric22">
+<tag k="comment" v="Israel GTFS bus stop import - attempt 2"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12016274" created_at="2012-06-25T20:43:21Z" open="false" comments_count="0" changes_count="0" created_count="0" modified_count="0" deleted_count="0" closed_at="2012-06-25T21:43:21Z" uid="160949" user="eric22">
+<tag k="comment" v="Israel GTFS bus stop import - attempt 1"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="12004749" created_at="2012-06-24T19:57:09Z" open="false" comments_count="0" changes_count="764" created_count="718" modified_count="46" deleted_count="0" closed_at="2012-06-24T19:57:55Z" min_lat="32.7586071" min_lon="34.9494782" max_lat="32.8440528" max_lon="35.0869104" uid="160949" user="eric22">
+<tag k="comment" v="buildings near achuza, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11994087" created_at="2012-06-23T22:12:50Z" open="false" comments_count="0" changes_count="816" created_count="773" modified_count="43" deleted_count="0" closed_at="2012-06-23T22:13:44Z" min_lat="32.7585224" min_lon="34.9490688" max_lat="32.8442560" max_lon="35.0873717" uid="160949" user="eric22">
+<tag k="comment" v="buildings near achuza, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11993426" created_at="2012-06-23T20:56:08Z" open="false" comments_count="0" changes_count="484" created_count="431" modified_count="48" deleted_count="5" closed_at="2012-06-23T20:56:41Z" min_lat="32.7586066" min_lon="34.9494897" max_lat="32.8442282" max_lon="35.0871592" uid="160949" user="eric22">
+<tag k="comment" v="buildings near achuza, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11963379" created_at="2012-06-20T21:24:08Z" open="false" comments_count="0" changes_count="641" created_count="612" modified_count="27" deleted_count="2" closed_at="2012-06-20T21:24:45Z" min_lat="32.7831351" min_lon="34.9575220" max_lat="32.8071987" max_lon="34.9915343" uid="160949" user="eric22">
+<tag k="comment" v="buildings near achuza, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11962644" created_at="2012-06-20T20:08:45Z" open="false" comments_count="0" changes_count="380" created_count="372" modified_count="8" deleted_count="0" closed_at="2012-06-20T20:09:05Z" min_lat="32.7822525" min_lon="34.9889687" max_lat="32.7878990" max_lon="35.0018229" uid="160949" user="eric22">
+<tag k="comment" v="buildings near ramat ben gurion, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11962442" created_at="2012-06-20T19:49:47Z" open="false" comments_count="0" changes_count="893" created_count="842" modified_count="49" deleted_count="2" closed_at="2012-06-20T19:55:01Z" min_lat="32.7758032" min_lon="34.9746599" max_lat="32.7978103" max_lon="35.0055771" uid="160949" user="eric22">
+<tag k="comment" v="buildings near horev, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11962386" created_at="2012-06-20T19:44:52Z" open="false" comments_count="0" changes_count="0" created_count="0" modified_count="0" deleted_count="0" closed_at="2012-06-20T20:44:52Z" uid="160949" user="eric22">
+<tag k="comment" v="buildings near horev, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+<changeset id="11961875" created_at="2012-06-20T18:51:07Z" open="false" comments_count="0" changes_count="251" created_count="240" modified_count="11" deleted_count="0" closed_at="2012-06-20T18:51:21Z" min_lat="32.7848737" min_lon="34.9858989" max_lat="32.7875465" max_lon="34.9934915" uid="160949" user="eric22">
+<tag k="comment" v="buildings near horev, haifa, israel"/>
+<tag k="created_by" v="JOSM/1.5 (5181 en)"/>
+...
+</changeset>
+...
+</osm>
+
+===== קישורים =====
+
