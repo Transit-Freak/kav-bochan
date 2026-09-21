@@ -138,6 +138,37 @@ def build_stop_lookup():
                     coords[mk] = (e['la'], e['lo'])
     except Exception:
         pass
+    # תחנות 2012 עצמן (magihim-2012/data/stops-2012.json): ה-GTFS של משרד
+    # התחבורה ממאי/יוני 2012, כפי שיובא ל-OpenStreetMap (changeset 12028672).
+    # זה הרישום של אותה שנה בדיוק — שמות, מק"טים ומיקומים של אז — ולכן הוא
+    # קודם לכל הצלבה מול הרישום של היום. מיקום של מק"ט משנת 2012 גובר.
+    snap_name = collections.defaultdict(set)   # norm(שם 2012) -> מק"טים
+    snap_srt = collections.defaultdict(set)    # sortkey(שם 2012) -> מק"טים
+    snap_desc = {}                             # מק"ט -> norm(כתובת ועיר)
+    try:
+        snap = json.load(open(OUT / 'stops-2012.json', encoding='utf-8'))['stops']
+        for mk, (nm, la, lo, desc) in snap.items():
+            snap_name[norm(nm)].add(mk)
+            snap_srt[sortkey(nm)].add(mk)
+            snap_desc[mk] = norm(desc)
+            coords[mk] = (la, lo)
+            for c in list(cities):
+                pass
+    except Exception:
+        snap = {}
+    # העיר של מק"ט 2012: לפי סוף הכתובת ("… 20 יוקנעם עילית") מול שמות הערים
+    # המוכרים מהרישום, כדי ש-same_city יעבוד גם על מק"טים של 2012
+    if snap:
+        city_list = sorted(cities, key=len, reverse=True)
+        for mk, d in snap_desc.items():
+            for c in city_list:
+                if d.endswith(c) and (len(d) == len(c) or d[-len(c) - 1] == ' '):
+                    city_of[mk].add(c)
+                    for k, al in CITY_ALIAS.items():
+                        if c == norm(k) or c in [norm(x) for x in al]:
+                            city_of[mk].add(norm(k))
+                            city_of[mk].update(norm(x) for x in al)
+                    break
     # תאומות: שתי תחנות באותו שם משני צידי הכביש (עד 120 מ׳). ההצלבה לפי
     # שם לבדו בוחרת צד אקראי; הצד נקבע אחר כך לפי כיוון הנסיעה (route_stops).
     twins = collections.defaultdict(set)
@@ -190,7 +221,9 @@ def build_stop_lookup():
                 break
         if not pred:
             young.add(mk)
-    return lk, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young
+    # מק"ט שמופיע ברישום 2012 היה קיים ב-2012 — גם אם הארכיון שלנו ראה אותו "נולד" מאוחר יותר
+    young -= set(snap)
+    return lk, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young, snap_name, snap_srt, snap_desc
 
 
 def main():
@@ -231,8 +264,9 @@ def main():
     for old in OUT.glob('l*.json'):
         old.unlink()
 
-    lookup, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young = build_stop_lookup()
+    lookup, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young, snap_name, snap_srt, snap_desc = build_stop_lookup()
     m_hit = m_tot = 0
+    n_snap = 0
     n_side = n_young = 0
 
     def right_side(out):
@@ -327,6 +361,33 @@ def main():
             if not city:
                 return mks
             return [mk for mk in mks if not city_of.get(mk) or city in city_of[mk]]
+
+        # קודם כול הרישום של 2012 עצמו: השם בלי העיר מול שמות ה-GTFS של אז.
+        # כמה מק"טים באותו שם ובאותה עיר (שני צידי הרחוב) נשארים מועמדים
+        # והגאוגרפיה של המסלול מכריעה, כמו בכל הצלבה אחרת.
+        nonlocal n_snap
+        parts = name.split(' - ')
+        for take in (2, 1, 0):
+            if len(parts) <= take:
+                continue
+            street = ' '.join(parts[:-take]) if take else name
+            if city and take == 0:
+                break
+            cands = set(snap_name.get(norm(street), ())) | set(snap_srt.get(sortkey(street), ()))
+            if not cands:
+                continue
+            if city:
+                incity = [mk for mk in cands if city in city_of.get(mk, ())]
+                if not incity:
+                    # עיר לא מזוהה בכתובת של 2012 — מספיק שהכתובת מסתיימת בשם העיר
+                    incity = [mk for mk in cands if snap_desc.get(mk, '').endswith(city)]
+                cands = incity
+            if 0 < len(cands) <= CAP:
+                m_hit += 1
+                n_snap += 1
+                return sorted(cands)
+            if len(cands) > CAP:
+                break
 
         mks = same_city(sorted(lookup.get(norm(name), [])))
         if 0 < len(mks) <= CAP:
@@ -602,7 +663,7 @@ def main():
           f'{n_side} הועברו לצד הימני של הכביש · {n_young} מועמדים נפסלו כתחנות שנולדו אחרי 2017 בלי קודמת')
     print(f'נבנו {len(idx)} קווים | {len(routes)} מסלולים | '
           f'{sum(1 for _ in OUT.glob("l*.json"))} קבצים | '
-          f'הצלבת תחנות: {m_hit}/{m_tot} ({m_hit * 100 // max(m_tot, 1)}%)')
+          f'הצלבת תחנות: {m_hit}/{m_tot} ({m_hit * 100 // max(m_tot, 1)}%) · מתוכן לפי רישום 2012 עצמו: {n_snap}')
 
 
 if __name__ == '__main__':
