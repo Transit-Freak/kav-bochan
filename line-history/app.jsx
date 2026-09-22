@@ -3578,17 +3578,26 @@ function MapTab({ idx, openLine, cities }) {
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [20, 20], maxZoom: 14 });
   }, [canon, cityBox]);
   // אירועי תחנות / שינויי קווים של החודש
+  // קובצי השינויים של התקופה נשמרים לפי תקופה — מעבר בין תחנות לקווים לא מוריד שוב.
+  // שינויי הקווים (6–7 מגה לשנה) נטענים רק במצב קווים; במצב תחנות הם לא מוצגים
+  // בכלל, והגעתם הייתה מפעילה מחדש את טעינת המסלולים (סקירה 22.09)
+  const chsCache = useRef({});
   useEffect(() => {
     if (!mon) return;
-    setStopChs(null); setLineChs(null); setErr(null);
-    // חודש אחד, או שנה שלמה — כל חודשי השנה במקביל
-    // ביטול בהחלפת תקופה: תשובה איטית של שנה שלמה לא דורסת חודש שנבחר אחריה
+    setErr(null);
+    // ביטול בהחלפת תקופה/מצב: תשובה איטית של שנה שלמה לא דורסת חודש שנבחר אחריה
     let ok = true;
-    const a = loadPeriod("stops-", mon, months).then((d) => { if (ok) setStopChs(d); }).catch(() => { if (ok) setStopChs([]); });
-    const b = loadPeriod("", mon, months).then((d) => { if (ok) setLineChs(d); }).catch(() => { if (ok) setLineChs([]); });
-    Promise.all([a, b]).catch(() => {});
+    const get = (prefix) => {
+      const k = prefix + mon;
+      if (!chsCache.current[k]) chsCache.current[k] = loadPeriod(prefix, mon, months).catch(() => { delete chsCache.current[k]; return []; });
+      return chsCache.current[k];
+    };
+    setStopChs(null);
+    get("stops-").then((d) => { if (ok) setStopChs(d); });
+    if (mode === "lines") { setLineChs(null); get("").then((d) => { if (ok) setLineChs(d); }); }
+    else setLineChs(null);
     return () => { ok = false; };
-  }, [mon, months]);
+  }, [mon, months, mode]);
   const lineOf = useMemo(() => { const m = {}; (((idx || {}).lines) || []).forEach((l) => { m[l.rd] = l; }); return m; }, [idx]);
   // תחנות של העיר שהשתנו בחודש — מקובצות לפי מק"ט
   const stopGroups = useMemo(() => {
@@ -3647,7 +3656,7 @@ function MapTab({ idx, openLine, cities }) {
     if (canon === "*") return lineGroups.map((x) => x.l);
     return (((idx || {}).lines) || []).filter((l) => destCities(l.dest).includes(canon) && !(l.lk === "removed" && (l.ld || "") < periodStart(mon)));
   }, [idx, canon, mon, lineGroups]);
-  useEffect(() => setKinds(new Set()), [mode, canon]);
+  useEffect(() => setKinds((s) => (s.size ? new Set() : s)), [mode, canon]);
   const toggleKind = (k) => setKinds((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   // מסלולי הקווים המסומנים — הגרסה האחרונה עם שרטוט עד סוף החודש.
   // כל הקווים נטענים (בלי תקרה, בקשת שלמה): במנות של 8 במקביל, המפה
@@ -3695,7 +3704,7 @@ function MapTab({ idx, openLine, cities }) {
     }).addTo(map);
     map.setView([31.9, 35.0], 8);
     mapObj.current = map;
-    layer.current = L.layerGroup().addTo(map);
+    layer.current = L.featureGroup().addTo(map);   // featureGroup: אירועי לחיצה של הסמנים עולים לקבוצה
     return () => { map.remove(); mapObj.current = null; layer.current = null; };
   }, []);
   const stopLabel = (c) => c.k === "platform" ? (c.st === "add" ? "רציף " + c.pl + " נוסף" : "רציף " + c.pl + " בוטל")
@@ -3711,31 +3720,47 @@ function MapTab({ idx, openLine, cities }) {
     const map = mapObj.current, lg = layer.current;
     if (!map || !lg) return;
     lg.clearLayers();
+    lg.off("click");
     const pts = [];
     if (mode === "stops") {
+      // החלון הקופץ נבנה רק לתחנה שנלחצה (33 אלף חלונות מוכנים מראש = 20 מגה זיכרון; סקירה 22.09)
+      const stopHtml = (g) => {
+        const last = g.evs[g.evs.length - 1];
+        return `<b>${esc(last.nn || last.n || "")}</b> <span class="pcode" dir="ltr">${esc(g.code)}</span><br>` +
+          (last.k === "gtfs2012" ? `<span class="pst">${esc(last.t || "")}</span><br><span class="pst">רישום 2012 · GTFS 2012 דרך OSM</span><br>` : "") +
+          g.evs.map((c) => `<span class="pst"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${(SKINDS[c.k] || {}).color || "#64748b"};margin-inline-end:5px"></i>${c.b12 ? "בין 2012 ל-2017" : fmtD(c.d)} · ${stopLabel(c)}</span>`).join("<br>") +
+          `<br><a href="#stop=${encodeURIComponent(g.code)}" class="plink">כל ההיסטוריה של התחנה ←</a>`;
+      };
+      lg.on("click", (e) => {
+        const g = e.propagatedFrom && e.propagatedFrom._g;
+        if (!g) return;
+        L.popup({ className: "lh-pop", maxWidth: 320 }).setLatLng(e.latlng).setContent(stopHtml(g)).openOn(map);
+      });
+      const big = stopGroups.length > 5000;
       const addOne = (g) => {
         const last = g.evs[g.evs.length - 1];
         const color = (SKINDS[last.k] || {}).color || "#2563eb";
         pts.push([last.la, last.lo]);
-        const html = `<b>${esc(last.nn || last.n || "")}</b> <span class="pcode" dir="ltr">${esc(g.code)}</span><br>` +
-          (last.k === "gtfs2012" ? `<span class="pst">${esc(last.t || "")}</span><br><span class="pst">רישום 2012 · GTFS 06.2012 דרך OSM</span><br>` : "") +
-          g.evs.map((c) => `<span class="pst"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${(SKINDS[c.k] || {}).color || "#64748b"};margin-inline-end:5px"></i>${c.b12 ? "בין 2012 ל-2017" : fmtD(c.d)} · ${stopLabel(c)}</span>`).join("<br>") +
-          `<br><a href="#stop=${encodeURIComponent(g.code)}" class="plink">כל ההיסטוריה של התחנה ←</a>`;
-        L.circleMarker([last.la, last.lo], { radius: stopGroups.length > 5000 ? 5 : 8, color: "#fff", weight: stopGroups.length > 5000 ? 1 : 2, fillColor: color, fillOpacity: 0.95 })
-          .bindPopup(html, { className: "lh-pop", maxWidth: 320 }).addTo(lg);
+        const m = L.circleMarker([last.la, last.lo], { radius: big ? 5 : 8, color: "#fff", weight: big ? 1 : 2, fillColor: color, fillOpacity: 0.95 });
+        m._g = g;
+        m.addTo(lg);
       };
       // עד 2,500 תחנות מצוירות בבת אחת; מעבר לזה (כל הארץ, רישום 2012 — 33 אלף) במנות
-      // עם פס התקדמות, כדי שהדפדפן לא ייתקע (שלמה 22.09: "שיטען כמו כל הקווים בעיר")
+      // עם פס התקדמות, כדי שהדפדפן לא ייתקע (שלמה 22.09: "שיטען כמו כל הקווים בעיר").
+      // המנות ממוינות לפי קו רוחב, כדי שכל מנה תצייר מחדש אזור קטן ולא את כל הארץ,
+      // והמיקוד נעשה פעם אחת לפני הציור (סקירה 22.09: 237 אלף ציורים חוזרים → 100 אלף)
       const CH = 2500;
       if (stopGroups.length > CH) {
+        const ordered = stopGroups.slice().sort((a, b) => a.evs[a.evs.length - 1].la - b.evs[b.evs.length - 1].la);
+        if (canon !== "*") map.fitBounds(L.latLngBounds(ordered.map((g) => { const l = g.evs[g.evs.length - 1]; return [l.la, l.lo]; })).pad(0.05), { maxZoom: 15 });
         let i = 0, alive = true, timer = null;
-        setProg({ done: 0, total: stopGroups.length });
+        setProg({ done: 0, total: ordered.length });
         const step = () => {
           if (!alive) return;
-          const end = Math.min(i + CH, stopGroups.length);
-          for (; i < end; i++) addOne(stopGroups[i]);
-          if (i < stopGroups.length) { setProg({ done: i, total: stopGroups.length }); timer = setTimeout(step, 0); }
-          else { setProg(null); if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.05), { maxZoom: 15 }); }
+          const end = Math.min(i + CH, ordered.length);
+          for (; i < end; i++) addOne(ordered[i]);
+          if (i < ordered.length) { setProg({ done: i, total: ordered.length }); timer = setTimeout(step, 0); }
+          else setProg(null);
         };
         timer = setTimeout(step, 0);
         return () => { alive = false; clearTimeout(timer); setProg(null); };
