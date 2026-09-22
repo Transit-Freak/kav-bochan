@@ -46,6 +46,25 @@ def main():
         shards.setdefault(shard_of(code), {})[code] = rows
     for sh, part in shards.items():
         json.dump(part, open(f'{out}/{sh}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    # מספר קווי 2012 לכל תחנה נחתם גם ברישום התחנות (שדה 10) — לסינון מק"טים זמניים
+    # (99xxxxx) שאף קו לא עצר בהם ב-2012 (שלמה 22.09: "האתר לא מצא קווים בתחנות אלה")
+    snap_path = f'{DATA}/stops-2012.json'
+    snapf = json.load(open(snap_path, encoding='utf-8'))
+    for code, row in snapf['stops'].items():
+        while len(row) < 10:
+            row.append(None)
+        row[10:] = [len(by_code.get(code, {}))]
+    snapf['note'] = snapf['note'].split(' שדה 10')[0] + ' שדה 10: מספר קווי 2012 (מגיעים) שעצרו בתחנה לפי ההצלבה.'
+    json.dump(snapf, open(snap_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    d2 = f'{DATA}/stops-2012'
+    os.makedirs(d2, exist_ok=True)
+    for old in glob.glob(f'{d2}/*.json'):
+        os.remove(old)
+    parts = {}
+    for code, row in snapf['stops'].items():
+        parts.setdefault(shard_of(code), {})[code] = row
+    for sh, part in parts.items():
+        json.dump(part, open(f'{d2}/{sh}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     big = max(os.path.getsize(f'{out}/{sh}.json') for sh in shards) if shards else 0
     print(f'קווי 2012 לפי תחנה: {len(by_code):,} מק"טים, {len(shards)} שברים, הגדול {big // 1024} ק"ב')
 
