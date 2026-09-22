@@ -204,7 +204,10 @@ jobs:
             # הדלתא לקו פח ולקו המוזהב: קווים שבוטלו, נסיעות עדכניות,
             # צמצומים — נגזר מהארכיון ונטען באתר הראשי
             OUTDIR=line-history/data python3 tools/build_kavpach_live.py
-            git add -A line-history/data kavbug-data kavpach-live.json
+            # רישום 2012 מול הרישום המעודכן: מה השתנה בכל מק"ט עד 2017, קווי 2012 לפי תחנה,
+            # והאירועים המוכנים לתצוגה — מחושב כאן ולא בדפדפן (שלמה 22.09)
+            python3 tools/build_stop_lines_2012.py
+            git add -A line-history/data kavbug-data kavpach-live.json magihim-2012/data/stops-2012.json magihim-2012/data/stops-2012 magihim-2012/data/stop-lines magihim-2012/data/stops-2012-events.json magihim-2012/data/stops-2012-counts.json
             if git diff --cached --quiet; then
               echo "unchanged — nothing to commit"; break; fi
             git commit -m "data: line-history — שינויי מסלולים ותחנות יומיים"

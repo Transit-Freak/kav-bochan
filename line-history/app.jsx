@@ -291,6 +291,20 @@ function distM(a, b) {
 // התיעוד שלנו (מרץ 2017): שינוי שם, הזזה (30 מ׳ ומעלה), או ביטול (המק"ט אינו
 // ברישום מ-2017 ואילך). האירועים האלה מתוארכים "בין 2012 ל-2017" — לא ידוע מתי
 // בדיוק (b12), והם ממוינים אחרי 2012 ולפני 2017 (שלמה 22.09).
+// האירועים המוכנים מהשרת (magihim-2012/data/stops-2012-events.json, tools/build_stop_lines_2012.py):
+// שורות קצרות → אובייקטי אירוע. שום חישוב על התחנות בדפדפן (שלמה 22.09)
+function expand2012(rows) {
+  const out = [];
+  for (const r of rows || []) {
+    const c = r[0], k = r[1];
+    if (k === 0) out.push({ c, d: "2012-06-26", k: "gtfs2012", n: r[2], t: r[3], la: r[4], lo: r[5], tmp99: !!r[6], lines12: r[7] || 0 });
+    else if (k === 1) out.push(r.length > 5 ? { c, d: "2016-12-31", b12: 1, k: "del", n: r[2], la: r[3], lo: r[4], reused: r[5], rdist: r[6] } : { c, d: "2016-12-31", b12: 1, k: "del", n: r[2], la: r[3], lo: r[4] });
+    else if (k === 2) out.push({ c, d: "2016-12-31", b12: 1, k: "renamed", on: r[5], nn: r[2], n: r[2], la: r[3], lo: r[4] });
+    else if (k === 3) out.push({ c, d: "2016-12-31", b12: 1, k: "moved", n: r[2], la: r[3], lo: r[4], ola: r[5], olo: r[6], dist: r[7] });
+  }
+  return out;
+}
+// לתחנה בודדת (שבר לפי קידומת) — אותה לוגיקה, על מעט תחנות
 function events2012(snap) {
   const out = [];
   for (const c in snap) {
@@ -3200,12 +3214,17 @@ function StopsTab({ sel, selN }) {
   // מצב "2012" (שלמה 22.09): רק רישום התחנות של 2012 עם מה שהשתנה בכל תחנה עד 2017 —
   // בלי קורות החיים הכבדים
   const need12 = mon === "2012";
+  const [ev12, setEv12] = useState(null);       // האירועים המוכנים מהשרת (2012 מול 2017)
+  const [counts12, setCounts12] = useState(null);   // הספירה לכל סוג — קובץ זעיר שמגיע ראשון
+  const ev12Busy = useRef(false);   // הקובץ הגדול נטען פעם אחת בלבד
   useEffect(() => {
-    if (!need12 || (snap12 && snapScope === "full")) return;
-    dfetch("../magihim-2012/data/stops-2012.json").then((r) => (r.ok ? r.json() : {}))
-      .then((d) => { setSnap12(d && d.stops ? d.stops : d || {}); setSnapScope("full"); })
-      .catch(() => { setSnap12({}); setSnapScope("full"); });
-  }, [need12, snap12, snapScope]);
+    if (!(need12 || mon === "all") || ev12 || ev12Busy.current) return;
+    ev12Busy.current = true;
+    dfetch("../magihim-2012/data/stops-2012-counts.json").then((r) => (r.ok ? r.json() : null)).then((d) => d && setCounts12((c) => c || d)).catch(() => {});
+    dfetch("../magihim-2012/data/stops-2012-events.json").then((r) => (r.ok ? r.json() : { events: [] }))
+      .then((d) => { setEv12(expand2012(d.events)); if (d.counts) setCounts12(d); })
+      .catch(() => setEv12([]));
+  }, [need12, mon, ev12]);
   // ההשוואה ל-q הייתה מוקדמת מדי: החיפוש נקבע ל-sel באפקט אחר, ובסבב
   // הראשון הוא עדיין הערך הישן — ואז נטען הקובץ המלא במקום השבר.
   // shardLeft: אחרי שהחיפוש עזב את תחנת הקישור, הדגל נשאר דלוק והשבר
@@ -3232,8 +3251,6 @@ function StopsTab({ sel, selN }) {
     setShard(null);
     dfetch("data/stops-hist.json")
       .then((r) => (r.ok ? r.json() : {})).then(done).catch(() => done({}));
-    dfetch("../magihim-2012/data/stops-2012.json")
-      .then((r) => (r.ok ? r.json() : {})).then(done12).catch(() => done12({}));
   }, [needHist, hist, wantShard, sel]);
   // חיפוש שיצא מהתחנה של הקישור — השבר כבר לא מספיק, וצריך את הכל.
   // הדגל נחוץ כי בסבב הראשון החיפוש עדיין מחזיק ערך קודם, ובלעדיו השבר
@@ -3315,18 +3332,18 @@ function StopsTab({ sel, selN }) {
     // "טוען" במקום זה (הבדיקה האוטומטית תפסה: ‎#stop=274‎ "נפתחה על תחנה אחרת")
     if (sel && !shardLeft.current && (mon !== "all" || !hist)) return null;
     const raw = mon === "2012"
-      ? (snap12 && snapScope === "full" ? events2012(snap12).map(withS).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
+      ? (ev12 ? ev12.map(withS).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
       : mon === "all"
       ? (hist ? Object.entries(hist).flatMap(([c, evs]) => evs.map((e) => withS({ ...e, c })))
           // רישום 2012: אירוע לכל תחנה שהייתה אז — אחרי כל השאר, כי הוא הישן ביותר
-          .concat(snap12 ? events2012(snap12).map(withS) : []).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
+          .concat(ev12 ? ev12.map(withS) : []).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)) : null)
       : (chs ? chs.map(withS) : chs);
     // כשמגיעים לתחנה מקישור מציגים את כל מה שידוע עליה. כללי התצוגה
     // נועדו לפיד החודשי, ובתחנה מסוימת הם הסתירו גם את מה שביקשו לראות:
     // ‎#stop=48‎ הראה מסך ריק, כי שני האירועים שלה נחשבים "חוזרים".
     return raw === null ? null
       : raw.filter((c) => !hiddenEv(c) && ((sel && c.c === sel) || keepEvent(c)));
-  }, [mon, hist, chs, sel, snap12, snapScope]);
+  }, [mon, hist, chs, sel, snap12, snapScope, ev12]);
   const counts = useMemo(() => {
     const cn = {};
     (source || []).forEach((c) => { cn[c.k] = (cn[c.k] || 0) + 1; });
@@ -3363,7 +3380,7 @@ function StopsTab({ sel, selN }) {
       {mon === "2012" && (
         <p className="pdesc">🕰️ רישום התחנות של 2012: 32,987 תחנות מקובץ ה-GTFS של משרד התחבורה מ-2012, כפי שיובאו ל-<a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener">OpenStreetMap</a> (רישיון ODbL).
           לכל תחנה: השם, הכתובת והמיקום של אז, ואחריהם מה השתנה באותו מק״ט עד תחילת התיעוד שלנו במרץ 2017 — שינוי שם, הזזה (30 מ׳ ומעלה), או ביטול. מק״ט שנמצא מ-2017 במרחק קילומטר ומעלה נחשב מק״ט שהוקצה מחדש לתחנה אחרת, לא הזזה. מק״ט של 7 ספרות שמתחיל ב-99 הוא מספר זמני שמשרד התחבורה נתן בקובץ 2012 לתחנה בלי מספר שלט; 2,516 כאלה שאף קו לא עצר בהן ב-2012 אינן מוצגות (רשומות בקובץ בלי שירות), 49 הן כפילות של תחנה אמיתית באותו שם עד 100 מ׳ (מוצגת האמיתית, וקווי 2012 שלהן עוברים אליה), ורק 35 — בעיקר בסיסים, בתי כלא ומחסומים בלי מספר שלט — מוצגות עם הסימון ״מק״ט זמני״.
-          {snap12 && snapScope === "full" ? "" : " טוען…"}</p>
+          {counts12 ? ` ${counts12.stops.toLocaleString()} תחנות מוצגות; מחושב מראש אצלנו ומתעדכן כל לילה (${counts12.gen}).` : ""}{ev12 ? "" : " טוען את הרשימה…"}</p>
       )}
       {yr && (
         <div className="months">
@@ -3389,7 +3406,7 @@ function StopsTab({ sel, selN }) {
                 <span className="katlab">{v.label}</span>
                 {/* בזמן החלפת תקופה המונה הראה 0 מטעה לכמה שניות (בקשת
                     שלמה) — עד שהנתונים נטענים כתוב בו "טוען" */}
-                <b className="katc">{chs === null ? "טוען…" : (counts[k] || 0).toLocaleString()}</b>
+                <b className="katc">{source === null ? (mon === "2012" && counts12 ? (counts12.counts[k] || 0).toLocaleString() : "טוען…") : (counts[k] || 0).toLocaleString()}</b>
               </label>
             ))}
             {/* תחנות שלא נמצאו במסלול של אף קו מהמתועדים אצלנו. חלקן
