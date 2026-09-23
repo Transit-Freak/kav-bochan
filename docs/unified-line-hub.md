@@ -15,3 +15,5 @@ Map: exact makat-direction-alternative archive filename; no fallback to a differ
 Source limitations: passenger and cost snapshot is June 2026; the source currently has no per-stop boarding/alighting counts. Historical departure times are not presented as current travel information. Generated scoring date is distinct from observation period. Personal settings on the old sites do not affect the default scores here.
 
 Automation: `.github/workflows/line-hub.yml` rebuilds on relevant source changes, successful upstream workflows and daily at 08:15 UTC, with manual dispatch available. Existing sites continue using their original files. Builder/test failures leave previous generated data intact, and publishing failures cause a failed run rather than false success.
+
+Runtime JSON is read from the same public main branch on raw.githubusercontent.com. This lets successful bot data commits become visible without relying on a Pages deployment being triggered by GITHUB_TOKEN. HTML/CSS/JS remain hosted on the existing site.
