@@ -28,3 +28,18 @@ test('compressed archive decodes ordered stops and shape without making up missi
  const shape='_p~iF~ps|U_ulLnnqC_mqNvxq`@';assert.deepEqual(decodePolyline(shape),[[38.5,-120.2],[40.7,-120.95],[43.252,-126.453]]);
  const g=archiveGeometry({pool:[['a','A',1,2]],spool:['',shape],versions:[{d:'2026-01-01',stops:[0],shp:1}]});assert.equal(g.stops[0][0],'a');assert.equal(g.points.length,3);assert.equal(archiveGeometry({versions:[]}),null);
 });
+
+import {passengerStats,hourProfile,annualExcess,scopeText} from '../lines/insights.mjs';
+test('passenger views weight departures, keep directions and handle empty data',()=>{
+ const rows=[[1,'07:00',[1,2],10,5,2],[2,'07:30',[1],40,20,1],[1,'08:00',[1],0,0,1]];
+ assert.deepEqual(passengerStats(rows),{count:4,avg:15,peak:7.5});
+ const hours=hourProfile(rows);assert.equal(hours[0].avg,20);assert.equal(hours[0].peak,10);assert.equal(hours[1].avg,0);
+ assert.deepEqual(passengerStats([]),{count:0,avg:null,peak:null});
+ assert.deepEqual(hourProfile([[1,'bad',[],10,5,1],[1,'07:00',[],10,5,0]]),[]);
+});
+test('annual cost gap is an estimate and group scope is never attributed to one line',()=>{
+ assert.equal(annualExcess({avgCost:15,costBenchmark:10,avgRiders:20,totalTrips:100}),520000);
+ assert.equal(annualExcess({avgCost:5,costBenchmark:10,avgRiders:20,totalTrips:100}),0);
+ assert.equal(annualExcess({avgCost:15,costBenchmark:0,avgRiders:20,totalTrips:100}),0);
+ assert.match(scopeText({makats:['1','2']}),/1, 2/);assert.equal(scopeText({makats:['1']}),'');
+});
