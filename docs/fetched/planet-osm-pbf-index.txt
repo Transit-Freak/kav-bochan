@@ -1,0 +1,792 @@
+מקור: https://planet.openstreetmap.org/pbf/
+כתובת סופית: https://planet.openstreetmap.org/pbf/
+סטטוס: 200
+הורד: 23.9.2026, 6:09:29 (שעון ישראל)
+
+Index of /pbf
+ Name                          Last modified      Size  Description
+ Parent Directory                                   -   
+ full-history/                 2026-09-17 17:59    -   
+ planet-latest.osm.pbf.md5     2026-09-17 17:21   56   
+ planet-pbf-rss.xml            2026-09-17 17:21  3.5K  
+ planet-260914.osm.pbf.md5     2026-09-17 17:03   56   
+ planet-latest.osm.pbf.torrent 2026-09-17 15:09  443K  
+ planet-260914.osm.pbf.torrent 2026-09-17 15:09  443K  
+ planet-latest.osm.pbf         2026-09-17 15:01   88G  
+ planet-260914.osm.pbf         2026-09-17 15:01   88G  
+ planet-260907.osm.pbf.md5     2026-09-10 15:54   56   
+ planet-260907.osm.pbf.torrent 2026-09-10 14:02  443K  
+ planet-260907.osm.pbf         2026-09-10 13:53   88G  
+ planet-260831.osm.pbf.md5     2026-09-03 15:53   56   
+ planet-260831.osm.pbf.torrent 2026-09-03 14:00  442K  
+ planet-260831.osm.pbf         2026-09-03 13:50   88G  
+ planet-260824.osm.pbf.md5     2026-08-27 12:50   56   
+ planet-260824.osm.pbf.torrent 2026-08-27 11:09  442K  
+ planet-260824.osm.pbf         2026-08-27 11:00   88G  
+ planet-260817.osm.pbf.md5     2026-08-20 16:58   56   
+ planet-260817.osm.pbf.torrent 2026-08-20 15:13  441K  
+ planet-260817.osm.pbf         2026-08-20 15:04   88G  
+ planet-260810.osm.pbf.torrent 2026-08-13 13:29  441K  
+ planet-260803.osm.pbf.md5     2026-08-06 14:04   56   
+ planet-260803.osm.pbf.torrent 2026-08-06 12:24  440K  
+ planet-260803.osm.pbf         2026-08-06 12:15   88G  
+ planet-260727.osm.pbf.torrent 2026-07-31 03:59  440K  
+ planet-260720.osm.pbf.torrent 2026-07-23 21:03  439K  
+ planet-260713.osm.pbf.torrent 2026-07-16 17:18  439K  
+ planet-260706.osm.pbf.md5     2026-07-11 10:25   56   
+ planet-260706.osm.pbf.torrent 2026-07-11 08:46  438K  
+ planet-260706.osm.pbf         2026-07-11 08:38   87G  
+ planet-260629.osm.pbf.torrent 2026-07-04 05:07  438K  
+ planet-260622.osm.pbf.torrent 2026-06-27 07:24  437K  
+ planet-260615.osm.pbf.torrent 2026-06-20 06:36  437K  
+ planet-260608.osm.pbf.torrent 2026-06-13 05:28  437K  
+ planet-260601.osm.pbf.md5     2026-06-06 05:33   56   
+ planet-260601.osm.pbf.torrent 2026-06-06 03:52  436K  
+ planet-260601.osm.pbf         2026-06-06 03:43   87G  
+ planet-260525.osm.pbf.torrent 2026-05-30 04:52  436K  
+ planet-260518.osm.pbf.torrent 2026-05-23 07:09  435K  
+ planet-260511.osm.pbf.md5     2026-05-16 10:13   56   
+ planet-260511.osm.pbf.torrent 2026-05-16 08:34  434K  
+ planet-260511.osm.pbf         2026-05-16 08:24   87G  
+ planet-260427.osm.pbf.torrent 2026-05-02 10:22  433K  
+ planet-260420.osm.pbf.torrent 2026-04-25 16:41  432K  
+ planet-260413.osm.pbf.torrent 2026-04-18 11:06  432K  
+ planet-260406.osm.pbf.md5     2026-04-11 09:42   56   
+ planet-260406.osm.pbf.torrent 2026-04-11 08:05  431K  
+ planet-260406.osm.pbf         2026-04-11 07:57   86G  
+ planet-260330.osm.pbf.torrent 2026-04-04 08:19  430K  
+ planet-260323.osm.pbf.torrent 2026-03-28 06:56  430K  
+ planet-260316.osm.pbf.torrent 2026-03-21 16:14  429K  
+ planet-260309.osm.pbf.torrent 2026-03-14 08:24  429K  
+ planet-260302.osm.pbf.md5     2026-03-07 10:58   56   
+ planet-260302.osm.pbf.torrent 2026-03-07 09:20  428K  
+ planet-260302.osm.pbf         2026-03-07 09:12   85G  
+ planet-260223.osm.pbf.torrent 2026-02-28 15:11  428K  
+ planet-260216.osm.pbf.torrent 2026-02-22 02:35  427K  
+ planet-260209.osm.pbf.torrent 2026-02-15 04:13  427K  
+ planet-260202.osm.pbf.md5     2026-02-07 07:34   56   
+ planet-260202.osm.pbf.torrent 2026-02-07 05:57  426K  
+ planet-260202.osm.pbf         2026-02-07 05:49   85G  
+ planet-260126.osm.pbf.torrent 2026-01-31 07:31  425K  
+ planet-260119.osm.pbf.torrent 2026-01-24 05:01  425K  
+ planet-260112.osm.pbf.torrent 2026-01-17 06:50  424K  
+ planet-260105.osm.pbf.md5     2026-01-10 08:53   56   
+ planet-260105.osm.pbf.torrent 2026-01-10 07:17  424K  
+ planet-260105.osm.pbf         2026-01-10 07:09   84G  
+ planet-251229.osm.pbf.torrent 2026-01-03 05:39  423K  
+ planet-251222.osm.pbf.torrent 2025-12-27 05:16  423K  
+ planet-251215.osm.pbf.torrent 2025-12-20 07:14  422K  
+ planet-251208.osm.pbf.torrent 2025-12-13 06:42  422K  
+ planet-251201.osm.pbf.md5     2025-12-06 08:33   56   
+ planet-251201.osm.pbf.torrent 2025-12-06 06:56  421K  
+ planet-251201.osm.pbf         2025-12-06 06:49   84G  
+ planet-251124.osm.pbf.torrent 2025-11-29 08:54  421K  
+ planet-251117.osm.pbf.torrent 2025-11-22 10:20  420K  
+ planet-251110.osm.pbf.torrent 2025-11-15 04:27  420K  
+ planet-251103.osm.pbf.md5     2025-11-08 06:34   56   
+ planet-251103.osm.pbf.torrent 2025-11-08 04:58  419K  
+ planet-251103.osm.pbf         2025-11-08 04:50   84G  
+ planet-251027.osm.pbf.torrent 2025-11-01 04:28  419K  
+ planet-251020.osm.pbf.torrent 2025-10-25 06:38  418K  
+ planet-251013.osm.pbf.torrent 2025-10-18 03:33  418K  
+ planet-251006.osm.pbf.md5     2025-10-11 03:51   56   
+ planet-251006.osm.pbf.torrent 2025-10-11 02:05  417K  
+ planet-251006.osm.pbf         2025-10-11 01:57   83G  
+ planet-250929.osm.pbf.torrent 2025-10-04 03:01  417K  
+ planet-250922.osm.pbf.torrent 2025-09-27 03:44  416K  
+ planet-250915.osm.pbf.torrent 2025-09-20 01:04  416K  
+ planet-250908.osm.pbf.torrent 2025-09-13 00:54  415K  
+ planet-250901.osm.pbf.md5     2025-09-06 05:57   56   
+ planet-250901.osm.pbf.torrent 2025-09-06 04:18  414K  
+ planet-250901.osm.pbf         2025-09-06 04:10   83G  
+ planet-250825.osm.pbf.torrent 2025-08-30 08:40  414K  
+ planet-250818.osm.pbf.torrent 2025-08-23 04:51  413K  
+ planet-250811.osm.pbf.torrent 2025-08-16 00:38  413K  
+ planet-250804.osm.pbf.md5     2025-08-09 09:21   56   
+ planet-250804.osm.pbf.torrent 2025-08-09 07:44  412K  
+ planet-250804.osm.pbf         2025-08-09 07:35   82G  
+ planet-250728.osm.pbf.torrent 2025-08-02 07:35  412K  
+ planet-250721.osm.pbf.torrent 2025-07-26 08:06  411K  
+ planet-250714.osm.pbf.torrent 2025-07-19 09:40  411K  
+ planet-250707.osm.pbf.md5     2025-07-12 00:23   56   
+ planet-250707.osm.pbf.torrent 2025-07-11 22:49  410K  
+ planet-250707.osm.pbf         2025-07-11 22:42   82G  
+ planet-250630.osm.pbf.torrent 2025-07-05 01:14  410K  
+ planet-250623.osm.pbf.torrent 2025-06-27 21:54  409K  
+ planet-250616.osm.pbf.torrent 2025-06-20 23:20  409K  
+ planet-250609.osm.pbf.torrent 2025-06-14 01:08  408K  
+ planet-250602.osm.pbf.md5     2025-06-07 04:29   56   
+ planet-250602.osm.pbf.torrent 2025-06-07 02:44  407K  
+ planet-250602.osm.pbf         2025-06-07 02:36   81G  
+ planet-250526.osm.pbf.torrent 2025-05-30 23:20  407K  
+ planet-250519.osm.pbf.torrent 2025-05-24 02:21  406K  
+ planet-250512.osm.pbf.torrent 2025-05-17 00:14  406K  
+ planet-250505.osm.pbf.md5     2025-05-10 00:21   56   
+ planet-250505.osm.pbf.torrent 2025-05-09 22:30  405K  
+ planet-250505.osm.pbf         2025-05-09 22:23   81G  
+ planet-250428.osm.pbf.torrent 2025-05-02 23:58  405K  
+ planet-250421.osm.pbf.torrent 2025-04-26 04:20  404K  
+ planet-250414.osm.pbf.torrent 2025-04-18 23:23  403K  
+ planet-250407.osm.pbf.md5     2025-04-12 04:38   56   
+ planet-250407.osm.pbf.torrent 2025-04-12 02:02  403K  
+ planet-250407.osm.pbf         2025-04-12 01:54   80G  
+ planet-250331.osm.pbf.torrent 2025-04-05 02:48  402K  
+ planet-250324.osm.pbf.torrent 2025-03-29 05:30  402K  
+ planet-250317.osm.pbf.torrent 2025-03-22 03:51  401K  
+ planet-250310.osm.pbf.torrent 2025-03-15 01:52  400K  
+ planet-250303.osm.pbf.md5     2025-03-08 06:46   56   
+ planet-250303.osm.pbf.torrent 2025-03-08 04:12  400K  
+ planet-250303.osm.pbf         2025-03-08 04:04   80G  
+ planet-250224.osm.pbf.torrent 2025-03-01 03:16  399K  
+ planet-250217.osm.pbf.torrent 2025-02-22 02:15  399K  
+ planet-250210.osm.pbf.torrent 2025-02-14 21:51  398K  
+ planet-250203.osm.pbf.md5     2025-02-07 22:34   56   
+ planet-250203.osm.pbf.torrent 2025-02-07 20:09  397K  
+ planet-250203.osm.pbf         2025-02-07 20:01   79G  
+ planet-250127.osm.pbf.torrent 2025-02-01 06:55  397K  
+ planet-250120.osm.pbf.torrent 2025-01-24 23:22  396K  
+ planet-250113.osm.pbf.torrent 2025-01-17 19:33  395K  
+ planet-250106.osm.pbf.md5     2025-01-10 21:41   56   
+ planet-250106.osm.pbf.torrent 2025-01-10 20:18  395K  
+ planet-250106.osm.pbf         2025-01-10 20:11   79G  
+ planet-241230.osm.pbf.torrent 2025-01-03 20:39  394K  
+ planet-241223.osm.pbf.torrent 2024-12-27 17:28  394K  
+ planet-241216.osm.pbf.torrent 2024-12-20 18:07  393K  
+ planet-241209.osm.pbf.torrent 2024-12-13 19:34  393K  
+ planet-241202.osm.pbf.torrent 2024-12-07 00:40  392K  
+ planet-241125.osm.pbf.torrent 2024-11-29 17:58  392K  
+ planet-241118.osm.pbf.torrent 2024-11-22 19:56  391K  
+ planet-241111.osm.pbf.torrent 2024-11-15 18:15  390K  
+ planet-241104.osm.pbf.torrent 2024-11-08 18:31  390K  
+ planet-241028.osm.pbf.torrent 2024-11-01 18:06  389K  
+ planet-241021.osm.pbf.torrent 2024-10-25 18:56  388K  
+ planet-241014.osm.pbf.torrent 2024-10-18 16:31  388K  
+ planet-241007.osm.pbf.torrent 2024-10-11 20:11  387K  
+ planet-240930.osm.pbf.torrent 2024-10-04 18:07  387K  
+ planet-240923.osm.pbf.torrent 2024-09-27 19:14  386K  
+ planet-240916.osm.pbf.torrent 2024-09-20 17:13  386K  
+ planet-240909.osm.pbf.torrent 2024-09-13 20:41  385K  
+ planet-240902.osm.pbf.torrent 2024-09-06 21:40  385K  
+ planet-240826.osm.pbf.torrent 2024-08-30 15:32  384K  
+ planet-240819.osm.pbf.torrent 2024-08-23 17:19  384K  
+ planet-240812.osm.pbf.torrent 2024-08-16 20:31  383K  
+ planet-240805.osm.pbf.torrent 2024-08-10 05:16  383K  
+ planet-240729.osm.pbf.torrent 2024-08-02 22:01  382K  
+ planet-240722.osm.pbf.torrent 2024-07-26 20:11  382K  
+ planet-240715.osm.pbf.torrent 2024-07-19 15:16  382K  
+ planet-240708.osm.pbf.torrent 2024-07-12 18:42  381K  
+ planet-240701.osm.pbf.torrent 2024-07-05 18:12  381K  
+ planet-240624.osm.pbf.torrent 2024-06-28 19:04  380K  
+ planet-240617.osm.pbf.torrent 2024-06-21 18:59  380K  
+ planet-240610.osm.pbf.torrent 2024-06-14 23:21  379K  
+ planet-240603.osm.pbf.torrent 2024-06-07 19:54  378K  
+ planet-240527.osm.pbf.torrent 2024-05-31 17:12  378K  
+ planet-240520.osm.pbf.torrent 2024-05-24 19:11  377K  
+ planet-240513.osm.pbf.torrent 2024-05-17 17:00  377K  
+ planet-240506.osm.pbf.torrent 2024-05-10 18:02  376K  
+ planet-240429.osm.pbf.torrent 2024-05-03 14:36  376K  
+ planet-240422.osm.pbf.torrent 2024-04-26 17:47  375K  
+ planet-240415.osm.pbf.torrent 2024-04-19 16:42  374K  
+ planet-240408.osm.pbf.torrent 2024-04-12 16:48  374K  
+ planet-240401.osm.pbf.torrent 2024-04-05 17:30  373K  
+ planet-240325.osm.pbf.torrent 2024-03-30 01:10  372K  
+ planet-240318.osm.pbf.torrent 2024-03-22 16:35  372K  
+ planet-240311.osm.pbf.torrent 2024-03-15 18:03  371K  
+ planet-240304.osm.pbf.torrent 2024-03-08 16:47  370K  
+ planet-240226.osm.pbf.torrent 2024-03-01 18:47  370K  
+ planet-240219.osm.pbf.torrent 2024-02-23 15:51  369K  
+ planet-240212.osm.pbf.torrent 2024-02-16 16:32  368K  
+ planet-240205.osm.pbf.torrent 2024-02-09 14:14  367K  
+ planet-240129.osm.pbf.torrent 2024-02-02 15:32  366K  
+ planet-240122.osm.pbf.torrent 2024-01-26 21:55  366K  
+ planet-240115.osm.pbf.torrent 2024-01-19 13:00  365K  
+ planet-240108.osm.pbf.torrent 2024-01-12 16:27  364K  
+ planet-240101.osm.pbf.torrent 2024-01-05 13:23  364K  
+ planet-231225.osm.pbf.torrent 2023-12-29 16:18  363K  
+ planet-231218.osm.pbf.torrent 2023-12-22 14:50  362K  
+ planet-231211.osm.pbf.torrent 2023-12-15 18:36  362K  
+ planet-231204.osm.pbf.torrent 2023-12-08 16:38  361K  
+ planet-231127.osm.pbf.torrent 2023-12-01 16:06  361K  
+ planet-231120.osm.pbf.torrent 2023-11-24 22:08  360K  
+ planet-231113.osm.pbf.torrent 2023-11-17 13:20  360K  
+ planet-231106.osm.pbf.torrent 2023-11-10 14:04  359K  
+ planet-231030.osm.pbf.torrent 2023-11-03 13:17  359K  
+ planet-231023.osm.pbf.torrent 2023-10-27 13:39  358K  
+ planet-231016.osm.pbf.torrent 2023-10-20 13:27  358K  
+ planet-231009.osm.pbf.torrent 2023-10-13 15:50  357K  
+ planet-231002.osm.pbf.torrent 2023-10-06 14:38  357K  
+ planet-230925.osm.pbf.torrent 2023-09-29 12:46  356K  
+ planet-230918.osm.pbf.torrent 2023-09-22 16:03  356K  
+ planet-230911.osm.pbf.torrent 2023-09-15 15:29  355K  
+ planet-230904.osm.pbf.torrent 2023-09-09 14:03  355K  
+ planet-230828.osm.pbf.torrent 2023-09-01 12:32  354K  
+ planet-230821.osm.pbf.torrent 2023-08-25 11:25  354K  
+ planet-230814.osm.pbf.torrent 2023-08-18 10:00  353K  
+ planet-230807.osm.pbf.torrent 2023-08-11 10:21  353K  
+ planet-230731.osm.pbf.torrent 2023-08-04 11:07  352K  
+ planet-230724.osm.pbf.torrent 2023-07-28 12:17  352K  
+ planet-230717.osm.pbf.torrent 2023-07-21 10:54  351K  
+ planet-230710.osm.pbf.torrent 2023-07-14 11:37  351K  
+ planet-230703.osm.pbf.torrent 2023-07-07 09:41  350K  
+ planet-230626.osm.pbf.torrent 2023-06-30 12:22  350K  
+ planet-230619.osm.pbf.torrent 2023-06-23 10:22  349K  
+ planet-230612.osm.pbf.torrent 2023-06-16 10:52  349K  
+ planet-230605.osm.pbf.torrent 2023-06-09 09:26  348K  
+ planet-230529.osm.pbf.torrent 2023-06-02 12:58  348K  
+ planet-230522.osm.pbf.torrent 2023-05-26 22:19  347K  
+ planet-230515.osm.pbf.torrent 2023-05-19 11:16  346K  
+ planet-230508.osm.pbf.torrent 2023-05-12 10:57  346K  
+ planet-230501.osm.pbf.torrent 2023-05-05 08:57  345K  
+ planet-230424.osm.pbf.torrent 2023-04-28 10:59  344K  
+ planet-230417.osm.pbf.torrent 2023-04-21 08:46  344K  
+ planet-230410.osm.pbf.torrent 2023-04-14 09:27  343K  
+ planet-230403.osm.pbf.torrent 2023-04-07 06:44  343K  
+ planet-230327.osm.pbf.torrent 2023-03-31 04:51  342K  
+ planet-230320.osm.pbf.torrent 2023-03-24 06:54  342K  
+ planet-230313.osm.pbf.torrent 2023-03-17 05:59  341K  
+ planet-230227.osm.pbf.torrent 2023-03-03 06:31  340K  
+ planet-230220.osm.pbf.torrent 2023-02-24 05:18  340K  
+ planet-230213.osm.pbf.torrent 2023-02-19 01:22  339K  
+ planet-230206.osm.pbf.torrent 2023-02-12 00:04  339K  
+ planet-230130.osm.pbf.torrent 2023-02-04 23:28  338K  
+ planet-230123.osm.pbf.torrent 2023-01-29 01:15  338K  
+ planet-230116.osm.pbf.torrent 2023-01-22 05:30  337K  
+ planet-230109.osm.pbf.torrent 2023-01-14 19:55  336K  
+ planet-230102.osm.pbf.torrent 2023-01-07 17:51  336K  
+ planet-221226.osm.pbf.torrent 2022-12-31 18:08  336K  
+ planet-221219.osm.pbf.torrent 2022-12-24 19:17  335K  
+ planet-221212.osm.pbf.torrent 2022-12-17 18:57  335K  
+ planet-221205.osm.pbf.torrent 2022-12-10 15:50  334K  
+ planet-221128.osm.pbf.torrent 2022-12-03 14:16  334K  
+ planet-221121.osm.pbf.torrent 2022-11-26 09:59  333K  
+ planet-221114.osm.pbf.torrent 2022-11-19 03:38  333K  
+ planet-221107.osm.pbf.torrent 2022-11-12 03:34  332K  
+ planet-221031.osm.pbf.torrent 2022-11-05 09:10  331K  
+ planet-221024.osm.pbf.torrent 2022-10-29 06:50  331K  
+ planet-221017.osm.pbf.torrent 2022-10-22 02:25  330K  
+ planet-221010.osm.pbf.torrent 2022-10-15 01:39  330K  
+ planet-221003.osm.pbf.torrent 2022-10-08 00:59  329K  
+ planet-220926.osm.pbf.torrent 2022-10-01 01:16  329K  
+ planet-220919.osm.pbf.torrent 2022-09-24 02:02  328K  
+ planet-220905.osm.pbf.torrent 2022-09-10 04:27  327K  
+ planet-220829.osm.pbf.torrent 2022-09-02 20:55  327K  
+ planet-220822.osm.pbf.torrent 2022-08-26 22:33  326K  
+ planet-220815.osm.pbf.torrent 2022-08-19 20:11  326K  
+ planet-220808.osm.pbf.torrent 2022-08-12 22:02  325K  
+ planet-220725.osm.pbf.torrent 2022-07-29 20:57  324K  
+ planet-220718.osm.pbf.torrent 2022-07-22 20:09  323K  
+ planet-220711.osm.pbf.torrent 2022-07-15 18:27  323K  
+ planet-220704.osm.pbf.torrent 2022-07-09 10:56  322K  
+ planet-220627.osm.pbf.torrent 2022-07-02 18:42  322K  
+ planet-220620.osm.pbf.torrent 2022-06-25 14:49  322K  
+ planet-220613.osm.pbf.torrent 2022-06-18 19:44  321K  
+ planet-220606.osm.pbf.torrent 2022-06-11 14:23  321K  
+ planet-220530.osm.pbf.torrent 2022-06-04 07:47  320K  
+ planet-220523.osm.pbf.torrent 2022-05-28 11:12  320K  
+ planet-220516.osm.pbf.torrent 2022-05-21 17:11  319K  
+ planet-220509.osm.pbf.torrent 2022-05-14 10:37  319K  
+ planet-220502.osm.pbf.torrent 2022-05-07 09:42  318K  
+ planet-220425.osm.pbf.torrent 2022-04-30 09:39  318K  
+ planet-220418.osm.pbf.torrent 2022-04-23 08:27  317K  
+ planet-220411.osm.pbf.torrent 2022-04-16 07:24  317K  
+ planet-220404.osm.pbf.torrent 2022-04-09 07:56  316K  
+ planet-220328.osm.pbf.torrent 2022-04-02 14:05  316K  
+ planet-220307.osm.pbf.torrent 2022-03-12 16:21  314K  
+ planet-220228.osm.pbf.torrent 2022-03-05 16:17  313K  
+ planet-220214.osm.pbf.torrent 2022-02-19 00:52  312K  
+ planet-220207.osm.pbf.torrent 2022-02-12 04:42  311K  
+ planet-220131.osm.pbf.torrent 2022-02-05 01:34  311K  
+ planet-220124.osm.pbf.torrent 2022-01-29 03:06  310K  
+ planet-220117.osm.pbf.torrent 2022-01-22 03:11  310K  
+ planet-220110.osm.pbf.torrent 2022-01-15 01:11  309K  
+ planet-220103.osm.pbf.torrent 2022-01-08 03:10  309K  
+ planet-211227.osm.pbf.torrent 2021-12-31 19:44  308K  
+ planet-211220.osm.pbf.torrent 2021-12-24 23:08  308K  
+ planet-211213.osm.pbf.torrent 2021-12-17 21:47  307K  
+ planet-211206.osm.pbf.torrent 2021-12-10 21:43  307K  
+ planet-211129.osm.pbf.torrent 2021-12-03 22:50  306K  
+ planet-211122.osm.pbf.torrent 2021-11-27 03:32  306K  
+ planet-211115.osm.pbf.torrent 2021-11-19 21:31  305K  
+ planet-211108.osm.pbf.torrent 2021-11-13 02:03  304K  
+ planet-211101.osm.pbf.torrent 2021-11-06 01:41  304K  
+ planet-211018.osm.pbf.torrent 2021-10-23 03:49  303K  
+ planet-211011.osm.pbf.torrent 2021-10-15 21:12  303K  
+ planet-210927.osm.pbf.torrent 2021-10-02 06:09  302K  
+ planet-210906.osm.pbf.torrent 2021-09-11 11:11  300K  
+ planet-210830.osm.pbf.torrent 2021-09-04 10:18  300K  
+ planet-210823.osm.pbf.torrent 2021-08-28 08:16  299K  
+ planet-210816.osm.pbf.torrent 2021-08-21 10:43  298K  
+ planet-210809.osm.pbf.torrent 2021-08-14 08:12  298K  
+ planet-210802.osm.pbf.torrent 2021-08-07 08:22  297K  
+ planet-210726.osm.pbf.torrent 2021-07-31 10:29  297K  
+ planet-210719.osm.pbf.torrent 2021-07-24 06:55  296K  
+ planet-210712.osm.pbf.torrent 2021-07-17 07:38  296K  
+ planet-210628.osm.pbf.torrent 2021-07-03 04:54  295K  
+ planet-210621.osm.pbf.torrent 2021-06-26 05:11  294K  
+ planet-210614.osm.pbf.torrent 2021-06-19 02:44  293K  
+ planet-210607.osm.pbf.torrent 2021-06-12 00:03  293K  
+ planet-210531.osm.pbf.torrent 2021-06-05 07:08  292K  
+ planet-210524.osm.pbf.torrent 2021-05-29 04:46  291K  
+ planet-210510.osm.pbf.torrent 2021-05-15 07:22  290K  
+ planet-210503.osm.pbf.torrent 2021-05-08 05:53  289K  
+ planet-210426.osm.pbf.torrent 2021-05-01 01:08  289K  
+ planet-210419.osm.pbf.torrent 2021-04-24 01:16  288K  
+ planet-210412.osm.pbf.torrent 2021-04-17 06:26  287K  
+ planet-210405.osm.pbf.torrent 2021-04-09 22:55  286K  
+ planet-210329.osm.pbf.torrent 2021-04-03 01:07  286K  
+ planet-210322.osm.pbf.torrent 2021-03-27 00:34  285K  
+ planet-210315.osm.pbf.torrent 2021-03-19 18:17  284K  
+ planet-210308.osm.pbf.torrent 2021-03-12 21:58  284K  
+ planet-210301.osm.pbf.torrent 2021-03-06 02:55  283K  
+ planet-210222.osm.pbf.torrent 2021-02-27 00:17  282K  
+ planet-210215.osm.pbf.torrent 2021-02-20 07:07  282K  
+ planet-210208.osm.pbf.torrent 2021-02-12 20:33  281K  
+ planet-210201.osm.pbf.torrent 2021-02-05 22:22  280K  
+ planet-210125.osm.pbf.torrent 2021-01-29 22:26  280K  
+ planet-210118.osm.pbf.torrent 2021-01-22 19:56  279K  
+ planet-210111.osm.pbf.torrent 2021-01-15 20:43  278K  
+ planet-210104.osm.pbf.torrent 2021-01-08 19:02  278K  
+ planet-201228.osm.pbf.torrent 2021-01-01 21:18  277K  
+ planet-201221.osm.pbf.torrent 2020-12-25 16:08  276K  
+ planet-201214.osm.pbf.torrent 2020-12-19 03:06  276K  
+ planet-201207.osm.pbf.torrent 2020-12-11 17:47  275K  
+ planet-201130.osm.pbf.torrent 2020-12-04 16:49  275K  
+ planet-201123.osm.pbf.torrent 2020-11-27 18:15  274K  
+ planet-201116.osm.pbf.torrent 2020-11-20 12:05  273K  
+ planet-201109.osm.pbf.torrent 2020-11-13 12:42  272K  
+ planet-201102.osm.pbf.torrent 2020-11-06 20:29  271K  
+ planet-201026.osm.pbf.torrent 2020-10-30 08:32  271K  
+ planet-201019.osm.pbf.torrent 2020-10-23 07:21  270K  
+ planet-201012.osm.pbf.torrent 2020-10-16 06:25  269K  
+ planet-201005.osm.pbf.torrent 2020-10-09 06:24  269K  
+ planet-200928.osm.pbf.torrent 2020-10-08 01:09  268K  
+ planet-200921.osm.pbf.torrent 2020-10-01 01:11  267K  
+ planet-200914.osm.pbf.torrent 2020-09-24 01:10  267K  
+ planet-200907.osm.pbf.torrent 2020-09-11 04:25  266K  
+ planet-200831.osm.pbf.torrent 2020-09-10 01:19  265K  
+ planet-200824.osm.pbf.torrent 2020-09-03 01:17  265K  
+ planet-200817.osm.pbf.torrent 2020-08-27 02:07  264K  
+ planet-200810.osm.pbf.torrent 2020-08-20 02:09  264K  
+ planet-200803.osm.pbf.torrent 2020-08-13 02:39  263K  
+ planet-200720.osm.pbf.torrent 2020-07-30 05:36  262K  
+ planet-200713.osm.pbf.torrent 2020-07-23 02:22  261K  
+ planet-200629.osm.pbf.torrent 2020-07-02 22:43  260K  
+ planet-200622.osm.pbf.torrent 2020-06-26 10:02  259K  
+ planet-200615.osm.pbf.torrent 2020-06-19 00:07  258K  
+ planet-200608.osm.pbf.torrent 2020-06-11 22:37  258K  
+ planet-200601.osm.pbf.torrent 2020-06-04 21:07  257K  
+ planet-200525.osm.pbf.torrent 2020-05-28 21:04  257K  
+ planet-200518.osm.pbf.torrent 2020-05-21 22:21  256K  
+ planet-200511.osm.pbf.torrent 2020-05-14 22:50  255K  
+ planet-200504.osm.pbf.torrent 2020-05-07 21:10  255K  
+ planet-200427.osm.pbf.torrent 2020-04-30 19:50  254K  
+ planet-200420.osm.pbf.torrent 2020-04-23 19:01  253K  
+ planet-200413.osm.pbf.torrent 2020-04-16 19:41  252K  
+ planet-200406.osm.pbf.torrent 2020-04-09 19:21  252K  
+ planet-200330.osm.pbf.torrent 2020-04-02 21:53  251K  
+ planet-200323.osm.pbf.torrent 2020-03-28 07:13  250K  
+ planet-200316.osm.pbf.torrent 2020-03-19 18:12  250K  
+ planet-200309.osm.pbf.torrent 2020-03-12 17:08  249K  
+ planet-200302.osm.pbf.torrent 2020-03-05 16:22  249K  
+ planet-200224.osm.pbf.torrent 2020-02-27 16:50  248K  
+ planet-200217.osm.pbf.torrent 2020-02-21 11:14  247K  
+ planet-200210.osm.pbf.torrent 2020-02-13 14:24  247K  
+ planet-200203.osm.pbf.torrent 2020-02-06 18:46  246K  
+ planet-200127.osm.pbf.torrent 2020-01-30 20:17  246K  
+ planet-200120.osm.pbf.torrent 2020-01-27 05:38  245K  
+
+
+===== קישורים =====
+Name | https://planet.openstreetmap.org/pbf/?C=N;O=A
+Last modified | https://planet.openstreetmap.org/pbf/?C=M;O=A
+Size | https://planet.openstreetmap.org/pbf/?C=S;O=A
+Description | https://planet.openstreetmap.org/pbf/?C=D;O=A
+Parent Directory | https://planet.openstreetmap.org/
+full-history/ | https://planet.openstreetmap.org/pbf/full-history/
+planet-latest.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf.md5
+planet-pbf-rss.xml | https://planet.openstreetmap.org/pbf/planet-pbf-rss.xml
+planet-260914.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260914.osm.pbf.md5
+planet-latest.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf.torrent
+planet-260914.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260914.osm.pbf.torrent
+planet-latest.osm.pbf | https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf
+planet-260914.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260914.osm.pbf
+planet-260907.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260907.osm.pbf.md5
+planet-260907.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260907.osm.pbf.torrent
+planet-260907.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260907.osm.pbf
+planet-260831.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260831.osm.pbf.md5
+planet-260831.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260831.osm.pbf.torrent
+planet-260831.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260831.osm.pbf
+planet-260824.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260824.osm.pbf.md5
+planet-260824.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260824.osm.pbf.torrent
+planet-260824.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260824.osm.pbf
+planet-260817.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260817.osm.pbf.md5
+planet-260817.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260817.osm.pbf.torrent
+planet-260817.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260817.osm.pbf
+planet-260810.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260810.osm.pbf.torrent
+planet-260803.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260803.osm.pbf.md5
+planet-260803.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260803.osm.pbf.torrent
+planet-260803.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260803.osm.pbf
+planet-260727.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260727.osm.pbf.torrent
+planet-260720.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260720.osm.pbf.torrent
+planet-260713.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260713.osm.pbf.torrent
+planet-260706.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260706.osm.pbf.md5
+planet-260706.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260706.osm.pbf.torrent
+planet-260706.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260706.osm.pbf
+planet-260629.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260629.osm.pbf.torrent
+planet-260622.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260622.osm.pbf.torrent
+planet-260615.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260615.osm.pbf.torrent
+planet-260608.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260608.osm.pbf.torrent
+planet-260601.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260601.osm.pbf.md5
+planet-260601.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260601.osm.pbf.torrent
+planet-260601.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260601.osm.pbf
+planet-260525.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260525.osm.pbf.torrent
+planet-260518.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260518.osm.pbf.torrent
+planet-260511.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260511.osm.pbf.md5
+planet-260511.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260511.osm.pbf.torrent
+planet-260511.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260511.osm.pbf
+planet-260427.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260427.osm.pbf.torrent
+planet-260420.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260420.osm.pbf.torrent
+planet-260413.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260413.osm.pbf.torrent
+planet-260406.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260406.osm.pbf.md5
+planet-260406.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260406.osm.pbf.torrent
+planet-260406.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260406.osm.pbf
+planet-260330.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260330.osm.pbf.torrent
+planet-260323.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260323.osm.pbf.torrent
+planet-260316.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260316.osm.pbf.torrent
+planet-260309.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260309.osm.pbf.torrent
+planet-260302.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260302.osm.pbf.md5
+planet-260302.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260302.osm.pbf.torrent
+planet-260302.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260302.osm.pbf
+planet-260223.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260223.osm.pbf.torrent
+planet-260216.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260216.osm.pbf.torrent
+planet-260209.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260209.osm.pbf.torrent
+planet-260202.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260202.osm.pbf.md5
+planet-260202.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260202.osm.pbf.torrent
+planet-260202.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260202.osm.pbf
+planet-260126.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260126.osm.pbf.torrent
+planet-260119.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260119.osm.pbf.torrent
+planet-260112.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260112.osm.pbf.torrent
+planet-260105.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-260105.osm.pbf.md5
+planet-260105.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-260105.osm.pbf.torrent
+planet-260105.osm.pbf | https://planet.openstreetmap.org/pbf/planet-260105.osm.pbf
+planet-251229.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251229.osm.pbf.torrent
+planet-251222.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251222.osm.pbf.torrent
+planet-251215.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251215.osm.pbf.torrent
+planet-251208.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251208.osm.pbf.torrent
+planet-251201.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-251201.osm.pbf.md5
+planet-251201.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251201.osm.pbf.torrent
+planet-251201.osm.pbf | https://planet.openstreetmap.org/pbf/planet-251201.osm.pbf
+planet-251124.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251124.osm.pbf.torrent
+planet-251117.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251117.osm.pbf.torrent
+planet-251110.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251110.osm.pbf.torrent
+planet-251103.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-251103.osm.pbf.md5
+planet-251103.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251103.osm.pbf.torrent
+planet-251103.osm.pbf | https://planet.openstreetmap.org/pbf/planet-251103.osm.pbf
+planet-251027.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251027.osm.pbf.torrent
+planet-251020.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251020.osm.pbf.torrent
+planet-251013.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251013.osm.pbf.torrent
+planet-251006.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-251006.osm.pbf.md5
+planet-251006.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-251006.osm.pbf.torrent
+planet-251006.osm.pbf | https://planet.openstreetmap.org/pbf/planet-251006.osm.pbf
+planet-250929.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250929.osm.pbf.torrent
+planet-250922.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250922.osm.pbf.torrent
+planet-250915.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250915.osm.pbf.torrent
+planet-250908.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250908.osm.pbf.torrent
+planet-250901.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250901.osm.pbf.md5
+planet-250901.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250901.osm.pbf.torrent
+planet-250901.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250901.osm.pbf
+planet-250825.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250825.osm.pbf.torrent
+planet-250818.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250818.osm.pbf.torrent
+planet-250811.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250811.osm.pbf.torrent
+planet-250804.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250804.osm.pbf.md5
+planet-250804.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250804.osm.pbf.torrent
+planet-250804.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250804.osm.pbf
+planet-250728.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250728.osm.pbf.torrent
+planet-250721.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250721.osm.pbf.torrent
+planet-250714.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250714.osm.pbf.torrent
+planet-250707.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250707.osm.pbf.md5
+planet-250707.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250707.osm.pbf.torrent
+planet-250707.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250707.osm.pbf
+planet-250630.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250630.osm.pbf.torrent
+planet-250623.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250623.osm.pbf.torrent
+planet-250616.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250616.osm.pbf.torrent
+planet-250609.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250609.osm.pbf.torrent
+planet-250602.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250602.osm.pbf.md5
+planet-250602.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250602.osm.pbf.torrent
+planet-250602.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250602.osm.pbf
+planet-250526.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250526.osm.pbf.torrent
+planet-250519.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250519.osm.pbf.torrent
+planet-250512.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250512.osm.pbf.torrent
+planet-250505.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250505.osm.pbf.md5
+planet-250505.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250505.osm.pbf.torrent
+planet-250505.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250505.osm.pbf
+planet-250428.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250428.osm.pbf.torrent
+planet-250421.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250421.osm.pbf.torrent
+planet-250414.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250414.osm.pbf.torrent
+planet-250407.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250407.osm.pbf.md5
+planet-250407.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250407.osm.pbf.torrent
+planet-250407.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250407.osm.pbf
+planet-250331.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250331.osm.pbf.torrent
+planet-250324.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250324.osm.pbf.torrent
+planet-250317.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250317.osm.pbf.torrent
+planet-250310.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250310.osm.pbf.torrent
+planet-250303.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250303.osm.pbf.md5
+planet-250303.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250303.osm.pbf.torrent
+planet-250303.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250303.osm.pbf
+planet-250224.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250224.osm.pbf.torrent
+planet-250217.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250217.osm.pbf.torrent
+planet-250210.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250210.osm.pbf.torrent
+planet-250203.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250203.osm.pbf.md5
+planet-250203.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250203.osm.pbf.torrent
+planet-250203.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250203.osm.pbf
+planet-250127.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250127.osm.pbf.torrent
+planet-250120.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250120.osm.pbf.torrent
+planet-250113.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250113.osm.pbf.torrent
+planet-250106.osm.pbf.md5 | https://planet.openstreetmap.org/pbf/planet-250106.osm.pbf.md5
+planet-250106.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-250106.osm.pbf.torrent
+planet-250106.osm.pbf | https://planet.openstreetmap.org/pbf/planet-250106.osm.pbf
+planet-241230.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241230.osm.pbf.torrent
+planet-241223.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241223.osm.pbf.torrent
+planet-241216.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241216.osm.pbf.torrent
+planet-241209.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241209.osm.pbf.torrent
+planet-241202.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241202.osm.pbf.torrent
+planet-241125.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241125.osm.pbf.torrent
+planet-241118.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241118.osm.pbf.torrent
+planet-241111.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241111.osm.pbf.torrent
+planet-241104.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241104.osm.pbf.torrent
+planet-241028.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241028.osm.pbf.torrent
+planet-241021.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241021.osm.pbf.torrent
+planet-241014.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241014.osm.pbf.torrent
+planet-241007.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-241007.osm.pbf.torrent
+planet-240930.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240930.osm.pbf.torrent
+planet-240923.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240923.osm.pbf.torrent
+planet-240916.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240916.osm.pbf.torrent
+planet-240909.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240909.osm.pbf.torrent
+planet-240902.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240902.osm.pbf.torrent
+planet-240826.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240826.osm.pbf.torrent
+planet-240819.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240819.osm.pbf.torrent
+planet-240812.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240812.osm.pbf.torrent
+planet-240805.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240805.osm.pbf.torrent
+planet-240729.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240729.osm.pbf.torrent
+planet-240722.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240722.osm.pbf.torrent
+planet-240715.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240715.osm.pbf.torrent
+planet-240708.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240708.osm.pbf.torrent
+planet-240701.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240701.osm.pbf.torrent
+planet-240624.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240624.osm.pbf.torrent
+planet-240617.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240617.osm.pbf.torrent
+planet-240610.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240610.osm.pbf.torrent
+planet-240603.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240603.osm.pbf.torrent
+planet-240527.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240527.osm.pbf.torrent
+planet-240520.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240520.osm.pbf.torrent
+planet-240513.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240513.osm.pbf.torrent
+planet-240506.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240506.osm.pbf.torrent
+planet-240429.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240429.osm.pbf.torrent
+planet-240422.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240422.osm.pbf.torrent
+planet-240415.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240415.osm.pbf.torrent
+planet-240408.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240408.osm.pbf.torrent
+planet-240401.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240401.osm.pbf.torrent
+planet-240325.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240325.osm.pbf.torrent
+planet-240318.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240318.osm.pbf.torrent
+planet-240311.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240311.osm.pbf.torrent
+planet-240304.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240304.osm.pbf.torrent
+planet-240226.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240226.osm.pbf.torrent
+planet-240219.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240219.osm.pbf.torrent
+planet-240212.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240212.osm.pbf.torrent
+planet-240205.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240205.osm.pbf.torrent
+planet-240129.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240129.osm.pbf.torrent
+planet-240122.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240122.osm.pbf.torrent
+planet-240115.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240115.osm.pbf.torrent
+planet-240108.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240108.osm.pbf.torrent
+planet-240101.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-240101.osm.pbf.torrent
+planet-231225.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231225.osm.pbf.torrent
+planet-231218.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231218.osm.pbf.torrent
+planet-231211.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231211.osm.pbf.torrent
+planet-231204.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231204.osm.pbf.torrent
+planet-231127.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231127.osm.pbf.torrent
+planet-231120.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231120.osm.pbf.torrent
+planet-231113.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231113.osm.pbf.torrent
+planet-231106.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231106.osm.pbf.torrent
+planet-231030.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231030.osm.pbf.torrent
+planet-231023.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231023.osm.pbf.torrent
+planet-231016.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231016.osm.pbf.torrent
+planet-231009.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231009.osm.pbf.torrent
+planet-231002.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-231002.osm.pbf.torrent
+planet-230925.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230925.osm.pbf.torrent
+planet-230918.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230918.osm.pbf.torrent
+planet-230911.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230911.osm.pbf.torrent
+planet-230904.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230904.osm.pbf.torrent
+planet-230828.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230828.osm.pbf.torrent
+planet-230821.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230821.osm.pbf.torrent
+planet-230814.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230814.osm.pbf.torrent
+planet-230807.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230807.osm.pbf.torrent
+planet-230731.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230731.osm.pbf.torrent
+planet-230724.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230724.osm.pbf.torrent
+planet-230717.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230717.osm.pbf.torrent
+planet-230710.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230710.osm.pbf.torrent
+planet-230703.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230703.osm.pbf.torrent
+planet-230626.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230626.osm.pbf.torrent
+planet-230619.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230619.osm.pbf.torrent
+planet-230612.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230612.osm.pbf.torrent
+planet-230605.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230605.osm.pbf.torrent
+planet-230529.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230529.osm.pbf.torrent
+planet-230522.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230522.osm.pbf.torrent
+planet-230515.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230515.osm.pbf.torrent
+planet-230508.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230508.osm.pbf.torrent
+planet-230501.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230501.osm.pbf.torrent
+planet-230424.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230424.osm.pbf.torrent
+planet-230417.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230417.osm.pbf.torrent
+planet-230410.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230410.osm.pbf.torrent
+planet-230403.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230403.osm.pbf.torrent
+planet-230327.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230327.osm.pbf.torrent
+planet-230320.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230320.osm.pbf.torrent
+planet-230313.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230313.osm.pbf.torrent
+planet-230227.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230227.osm.pbf.torrent
+planet-230220.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230220.osm.pbf.torrent
+planet-230213.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230213.osm.pbf.torrent
+planet-230206.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230206.osm.pbf.torrent
+planet-230130.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230130.osm.pbf.torrent
+planet-230123.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230123.osm.pbf.torrent
+planet-230116.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230116.osm.pbf.torrent
+planet-230109.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230109.osm.pbf.torrent
+planet-230102.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-230102.osm.pbf.torrent
+planet-221226.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221226.osm.pbf.torrent
+planet-221219.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221219.osm.pbf.torrent
+planet-221212.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221212.osm.pbf.torrent
+planet-221205.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221205.osm.pbf.torrent
+planet-221128.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221128.osm.pbf.torrent
+planet-221121.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221121.osm.pbf.torrent
+planet-221114.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221114.osm.pbf.torrent
+planet-221107.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221107.osm.pbf.torrent
+planet-221031.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221031.osm.pbf.torrent
+planet-221024.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221024.osm.pbf.torrent
+planet-221017.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221017.osm.pbf.torrent
+planet-221010.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221010.osm.pbf.torrent
+planet-221003.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-221003.osm.pbf.torrent
+planet-220926.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220926.osm.pbf.torrent
+planet-220919.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220919.osm.pbf.torrent
+planet-220905.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220905.osm.pbf.torrent
+planet-220829.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220829.osm.pbf.torrent
+planet-220822.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220822.osm.pbf.torrent
+planet-220815.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220815.osm.pbf.torrent
+planet-220808.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220808.osm.pbf.torrent
+planet-220725.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220725.osm.pbf.torrent
+planet-220718.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220718.osm.pbf.torrent
+planet-220711.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220711.osm.pbf.torrent
+planet-220704.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220704.osm.pbf.torrent
+planet-220627.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220627.osm.pbf.torrent
+planet-220620.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220620.osm.pbf.torrent
+planet-220613.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220613.osm.pbf.torrent
+planet-220606.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220606.osm.pbf.torrent
+planet-220530.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220530.osm.pbf.torrent
+planet-220523.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220523.osm.pbf.torrent
+planet-220516.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220516.osm.pbf.torrent
+planet-220509.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220509.osm.pbf.torrent
+planet-220502.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220502.osm.pbf.torrent
+planet-220425.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220425.osm.pbf.torrent
+planet-220418.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220418.osm.pbf.torrent
+planet-220411.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220411.osm.pbf.torrent
+planet-220404.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220404.osm.pbf.torrent
+planet-220328.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220328.osm.pbf.torrent
+planet-220307.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220307.osm.pbf.torrent
+planet-220228.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220228.osm.pbf.torrent
+planet-220214.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220214.osm.pbf.torrent
+planet-220207.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220207.osm.pbf.torrent
+planet-220131.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220131.osm.pbf.torrent
+planet-220124.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220124.osm.pbf.torrent
+planet-220117.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220117.osm.pbf.torrent
+planet-220110.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220110.osm.pbf.torrent
+planet-220103.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-220103.osm.pbf.torrent
+planet-211227.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211227.osm.pbf.torrent
+planet-211220.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211220.osm.pbf.torrent
+planet-211213.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211213.osm.pbf.torrent
+planet-211206.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211206.osm.pbf.torrent
+planet-211129.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211129.osm.pbf.torrent
+planet-211122.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211122.osm.pbf.torrent
+planet-211115.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211115.osm.pbf.torrent
+planet-211108.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211108.osm.pbf.torrent
+planet-211101.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211101.osm.pbf.torrent
+planet-211018.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211018.osm.pbf.torrent
+planet-211011.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-211011.osm.pbf.torrent
+planet-210927.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210927.osm.pbf.torrent
+planet-210906.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210906.osm.pbf.torrent
+planet-210830.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210830.osm.pbf.torrent
+planet-210823.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210823.osm.pbf.torrent
+planet-210816.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210816.osm.pbf.torrent
+planet-210809.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210809.osm.pbf.torrent
+planet-210802.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210802.osm.pbf.torrent
+planet-210726.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210726.osm.pbf.torrent
+planet-210719.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210719.osm.pbf.torrent
+planet-210712.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210712.osm.pbf.torrent
+planet-210628.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210628.osm.pbf.torrent
+planet-210621.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210621.osm.pbf.torrent
+planet-210614.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210614.osm.pbf.torrent
+planet-210607.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210607.osm.pbf.torrent
+planet-210531.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210531.osm.pbf.torrent
+planet-210524.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210524.osm.pbf.torrent
+planet-210510.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210510.osm.pbf.torrent
+planet-210503.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210503.osm.pbf.torrent
+planet-210426.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210426.osm.pbf.torrent
+planet-210419.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210419.osm.pbf.torrent
+planet-210412.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210412.osm.pbf.torrent
+planet-210405.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210405.osm.pbf.torrent
+planet-210329.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210329.osm.pbf.torrent
+planet-210322.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210322.osm.pbf.torrent
+planet-210315.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210315.osm.pbf.torrent
+planet-210308.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210308.osm.pbf.torrent
+planet-210301.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210301.osm.pbf.torrent
+planet-210222.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210222.osm.pbf.torrent
+planet-210215.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210215.osm.pbf.torrent
+planet-210208.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210208.osm.pbf.torrent
+planet-210201.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210201.osm.pbf.torrent
+planet-210125.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210125.osm.pbf.torrent
+planet-210118.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210118.osm.pbf.torrent
+planet-210111.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210111.osm.pbf.torrent
+planet-210104.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-210104.osm.pbf.torrent
+planet-201228.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201228.osm.pbf.torrent
+planet-201221.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201221.osm.pbf.torrent
+planet-201214.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201214.osm.pbf.torrent
+planet-201207.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201207.osm.pbf.torrent
+planet-201130.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201130.osm.pbf.torrent
+planet-201123.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201123.osm.pbf.torrent
+planet-201116.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201116.osm.pbf.torrent
+planet-201109.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201109.osm.pbf.torrent
+planet-201102.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201102.osm.pbf.torrent
+planet-201026.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201026.osm.pbf.torrent
+planet-201019.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201019.osm.pbf.torrent
+planet-201012.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201012.osm.pbf.torrent
+planet-201005.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-201005.osm.pbf.torrent
+planet-200928.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200928.osm.pbf.torrent
+planet-200921.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200921.osm.pbf.torrent
+planet-200914.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200914.osm.pbf.torrent
+planet-200907.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200907.osm.pbf.torrent
+planet-200831.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200831.osm.pbf.torrent
+planet-200824.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200824.osm.pbf.torrent
+planet-200817.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200817.osm.pbf.torrent
+planet-200810.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200810.osm.pbf.torrent
+planet-200803.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200803.osm.pbf.torrent
+planet-200720.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200720.osm.pbf.torrent
+planet-200713.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200713.osm.pbf.torrent
+planet-200629.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200629.osm.pbf.torrent
+planet-200622.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200622.osm.pbf.torrent
+planet-200615.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200615.osm.pbf.torrent
+planet-200608.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200608.osm.pbf.torrent
+planet-200601.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200601.osm.pbf.torrent
+planet-200525.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200525.osm.pbf.torrent
+planet-200518.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200518.osm.pbf.torrent
+planet-200511.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200511.osm.pbf.torrent
+planet-200504.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200504.osm.pbf.torrent
+planet-200427.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200427.osm.pbf.torrent
+planet-200420.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200420.osm.pbf.torrent
+planet-200413.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200413.osm.pbf.torrent
+planet-200406.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200406.osm.pbf.torrent
+planet-200330.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200330.osm.pbf.torrent
+planet-200323.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200323.osm.pbf.torrent
+planet-200316.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200316.osm.pbf.torrent
+planet-200309.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200309.osm.pbf.torrent
+planet-200302.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200302.osm.pbf.torrent
+planet-200224.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200224.osm.pbf.torrent
+planet-200217.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200217.osm.pbf.torrent
+planet-200210.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200210.osm.pbf.torrent
+planet-200203.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200203.osm.pbf.torrent
+planet-200127.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200127.osm.pbf.torrent
+planet-200120.osm.pbf.torrent | https://planet.openstreetmap.org/pbf/planet-200120.osm.pbf.torrent
