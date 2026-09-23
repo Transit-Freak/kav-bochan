@@ -1,0 +1,56 @@
+name: line-hub
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lines/*.mjs'
+      - 'tools/build_line_hub.mjs'
+      - 'KavPach.jsx'
+      - 'kavpach-core.js'
+      - 'xlsx-worker.js'
+      - 'data-*.json'
+      - 'kavpach-*.json'
+      - 'bus/data/routes.json'
+      - 'bus/data/deadhead.json'
+      - '.github/workflows/line-hub.yml'
+  workflow_run:
+    workflows: [kavpach-build, bus-reliability, line-history, kavpach-overlap]
+    types: [completed]
+  schedule:
+    - cron: '15 8 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: line-hub
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build and validate unified line data
+        run: |
+          node tools/build_line_hub.mjs
+          node --test tests/line-hub.test.mjs
+      - name: Save generated data
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lines/data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'data: refresh unified line hub'
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+          done
+          echo 'Failed to publish unified data after retries' >&2
+          exit 1
