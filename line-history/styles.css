@@ -403,3 +403,11 @@ button.kbtn { border: 0; cursor: pointer; font: inherit; }
 .mapprog-t { font-weight: 800; font-size: 13px; color: #334155; margin-bottom: 6px; }
 .mapprog-b { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
 .mapprog-b i { display: block; height: 100%; background: #7c3aed; transition: width .3s; }
+
+/* Historical source exploration shares the existing line-history layout. */
+.early-archive label,.early-detail label{display:block;margin:12px 0;font-weight:700}
+.early-archive input,.early-archive select,.early-detail select{max-width:100%;width:100%;padding:10px;border:1px solid #c4b5fd;border-radius:10px;background:white;color:#231744;font:inherit}
+.early-result{display:flex;flex-direction:column;align-items:flex-start;text-align:right;width:100%;gap:5px;background:#faf8ff;border:1px solid #e4dcf7;border-radius:12px;padding:12px;margin:8px 0;color:#31204f;font:inherit;cursor:pointer}
+.early-result:hover{background:#eee7ff}.early-result small{color:#554966}
+.early-scroll{overflow:auto;max-height:480px}.early-scroll table{border-collapse:collapse;width:100%}.early-scroll td,.early-scroll th{padding:9px;border-bottom:1px solid #ddd;text-align:right;white-space:nowrap}
+.early-detail{margin:12px 0;padding:12px;border:1px solid #ddd1f2;border-radius:12px}.early-detail summary{cursor:pointer;font-weight:700}.early-detail details{margin:8px 0}

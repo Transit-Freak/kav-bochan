@@ -1,0 +1,86 @@
+name: historical-2012-2018
+on:
+  push:
+    branches: [main, data/historical-2012-2018]
+    paths:
+      - 'tools/import_early_history.py'
+      - 'tools/import_early_rail.py'
+      - 'tools/link_early_2012.py'
+      - 'tools/check_early_history.py'
+      - '.github/workflows/early-history.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: historical-2012-2018-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+      - name: Check whether historical import is complete
+        id: remaining
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path('line-history/data/early-progress.json')
+          done=json.loads(p.read_text()).get('done',{}) if p.exists() else {}
+          c=json.load(open('line-history/data/early-sources.json'))['snapshots']
+          needed=any(s['id'] not in done for s in c) or not pathlib.Path('line-history/data/early-rail/index.json').exists()
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('needed='+str(needed).lower()+'\n')
+          PY
+      - name: Import railway records and next GTFS batch
+        if: steps.remaining.outputs.needed == 'true'
+        id: import
+        run: |
+          python tools/import_early_rail.py
+          status=0
+          if [ ! -f line-history/data/early-progress.json ]; then
+            python tools/import_early_history.py --limit 1 --max-minutes 35 || status=$?
+          else
+            python tools/import_early_history.py --max-minutes 35 || status=$?
+          fi
+          python tools/link_early_2012.py
+          python tools/rebuild_lines_index.py
+          python tools/build_archive_months.py
+          python tools/check_early_history.py
+          echo "source_status=$status" >> "$GITHUB_OUTPUT"
+      - name: Check archive in a mobile browser
+        if: steps.remaining.outputs.needed == 'true' && success()
+        run: |
+          npm install --no-save playwright-core
+          CHROMIUM_PATH="$(which google-chrome)" node tools/check_early_history_ui.mjs
+      - name: Commit verified results
+        if: steps.remaining.outputs.needed == 'true' && success()
+        env:
+          WORK_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name historical-data-bot
+          git config user.email actions@users.noreply.github.com
+          git add line-history/data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'data: import recovered 2012–2018 transport history with provenance'
+          # Never resolve competing data writes by dropping either side.
+          # A conflict fails visibly; the next hourly run resumes from published state.
+          git fetch origin "$WORK_BRANCH"
+          git rebase "origin/$WORK_BRANCH"
+          git push origin "HEAD:$WORK_BRANCH"
+      - name: Request Pages rebuild for published data
+        if: steps.remaining.outputs.needed == 'true' && github.ref == 'refs/heads/main' && success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+      - name: Report source failures
+        if: steps.import.outputs.source_status != '' && steps.import.outputs.source_status != '0'
+        run: |
+          echo '::error::Some source files failed. Verified imports were saved; see early-progress.json. Failed sources will be retried.'
+          exit 1
