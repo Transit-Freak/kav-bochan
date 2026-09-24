@@ -1,7 +1,7 @@
 name: historical-2012-2018
 on:
   push:
-    branches: [main, data/historical-2012-2018]
+    branches: [main]
     paths:
       - 'tools/import_early_history.py'
       - 'tools/import_early_rail.py'

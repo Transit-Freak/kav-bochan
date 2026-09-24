@@ -12,11 +12,15 @@ class TimelineTest(unittest.TestCase):
    self.assertEqual(m.publish(source('2015-01-01'),[])['versionsAdded'],1)
    tables['calendar.txt']['c']['end_date']='20160101'
    self.assertEqual(m.publish(source('2015-01-02'),[])['versionsAdded'],0)
-   times['t']=[(1,'s','09:00:00','09:00:00','0','0')]
+   # Reordering trip IDs must not manufacture a public service change.
+   tables['trips.txt']['z']=tables['trips.txt'].pop('t')
+   times['z']=times.pop('t')
+   self.assertEqual(m.publish(source('2015-01-03'),[])['versionsAdded'],0)
+   times['z']=[(1,'s','09:00:00','09:00:00','0','0')]
    self.assertEqual(m.publish(source('2015-01-05'),[])['versionsAdded'],1)
    line=m.materialize(m.read(Path(d)/'lines/12345-1-0.json'))
    self.assertEqual([v['d'] for v in line['versions']],['2015-01-01','2015-01-05'])
-   self.assertEqual(line['versions'][-1]['sd'],'2015-01-02')
+   self.assertEqual(line['versions'][-1]['sd'],'2015-01-03')
    self.assertEqual(line['versions'][-1]['k'],'sched')
    self.assertEqual(m.publish(source('2015-01-05'),[])['versionsAdded'],1)
    self.assertEqual(len(m.read(Path(d)/'lines/12345-1-0.json')['versions']),2)
