@@ -41,6 +41,7 @@ jobs:
         if: steps.remaining.outputs.needed == 'true'
         id: import
         run: |
+          python tools/test_early_history.py
           python tools/import_early_rail.py
           status=0
           if [ ! -f line-history/data/early-progress.json ]; then

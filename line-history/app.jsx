@@ -4077,6 +4077,15 @@ function EarlyPatternLoader({ event }) {
   const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
   return <details className="early-detail" onToggle={e=>{if(e.currentTarget.open)load();}}><summary>כל תבניות המסלול ולוחות היציאה ({event.earlyPatternCount})</summary>{err?<p role="alert">{err} <button onClick={load}>ניסיון חוזר</button></p>:data?<EarlyPatterns event={{...event,earlyPatterns:data}} />:<p>טוען…</p>}</details>;
 }
+function EarlyTripTimes({ pattern, service }) {
+  const [trip,setTrip]=useState(0);
+  const profile=pattern.timeProfiles?.[service.profiles?.[trip]];
+  if(!profile)return null;
+  const parts=service.departures[trip].split(":").map(Number);
+  const base=parts[0]*3600+parts[1]*60+(parts[2]||0);
+  const time=offset=>{if(offset==null)return "לא צוין";const total=base+offset;return [Math.floor(total/3600),Math.floor(total%3600/60),total%60].map(x=>String(x).padStart(2,"0")).join(":");};
+  return <><label>זמני מעבר לפי יציאה <select value={trip} onChange={e=>setTrip(+e.target.value)}>{service.departures.map((d,i)=><option key={i} value={i}>{d}</option>)}</select></label><div className="early-scroll"><table><thead><tr><th>תחנה</th><th>הגעה מתוכננת</th><th>יציאה מתוכננת</th></tr></thead><tbody>{pattern.stops.map((stop,i)=><tr key={i}><td>{stop[1]}</td><td dir="ltr">{time(profile[i]?.[0])}</td><td dir="ltr">{time(profile[i]?.[1])}</td></tr>)}</tbody></table></div></>;
+}
 function EarlyPatterns({ event }) {
   const [pick, setPick] = useState(0);
   const p = (event.earlyPatterns || [])[pick];
@@ -4089,7 +4098,7 @@ function EarlyPatterns({ event }) {
     <EarlyMap stops={p.stops} shp={p.shp} />
     {!p.shp && <p>לא נשמר שרטוט כביש לתבנית הזו. הקו המקווקו מחבר את מיקומי התחנות בלבד.</p>}
     <div className="early-scroll"><table><thead><tr><th>תחנה</th><th>מק״ט</th><th>עלייה</th><th>ירידה</th></tr></thead><tbody>{p.stops.map((s,i)=><tr key={i}><td>{i+1}. {s[1]}</td><td>{s[0]}</td><td>{boarding(p.boarding[i][0])}</td><td>{boarding(p.boarding[i][1])}</td></tr>)}</tbody></table></div>
-    {p.services.map((s,i)=><details key={i}><summary>{weekdays.filter(([k])=>s.calendar[k]==="1").map(x=>x[1]).join(", ")} · {s.calendar.start_date}–{s.calendar.end_date} · {s.departures.length} יציאות</summary><p dir="ltr">{s.departures.join(" · ")}</p></details>)}
+    {p.services.map((s,i)=><details key={i}><summary>{weekdays.filter(([k])=>s.calendar[k]==="1").map(x=>x[1]).join(", ")} · {s.calendar.start_date}–{s.calendar.end_date} · {s.departures.length} יציאות</summary><p dir="ltr">{s.departures.join(" · ")}</p><EarlyTripTimes key={pick+":"+i} pattern={p} service={s} /></details>)}
     <p>מקור: {SRC_LABEL[event.src]} · מזהה הקו בקובץ: {event.routeId}</p>
   </details>;
 }
@@ -4128,7 +4137,7 @@ function EarlyArchive({ idx, openLine }) {
       {point&&<div><h4>{point.c} · {point.n}</h4><EarlyMap stops={[[point.c,point.n,point.la,point.lo]]} shp="" /></div>}
       {(lines.length>lim||ss.length>lim)&&<button onClick={()=>setLim(lim+100)}>הצגת עוד תוצאות</button>}</>}
     {days.length>0&&<><h3>רכבת ישראל: תכנון וביצוע ({year})</h3><p>מקור: רכבת ישראל, בארכיון רכבת פתוחה / הסדנא לידע ציבורי. אלה רישומי מעבר בתחנות, לא GTFS ולא מסלולים על מפה. אפס נשמר כערך המקור ואינו מוכיח הגעה בחצות.</p>
-      <label>יום <select value={day} onChange={e=>setDay(e.target.value)}><option value="">בחרו תאריך</option>{days.map(d=><option key={d} value={d}>{fmtD(d)}</option>)}</select></label>
+      <label>יום <select aria-label="יום" value={day} onChange={e=>setDay(e.target.value)}><option value="">בחרו תאריך</option>{days.map(d=><option key={d} value={d}>{fmtD(d)}</option>)}</select></label>
       <p>{rail.sources.map(s=><a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">קובץ המקור {s.year} ↗　</a>)}</p>
       {day&&!railRows&&<p>טוען רישומי רכבות…</p>}{railRows&&<><p>{rr.length.toLocaleString()} רישומים מתאימים</p><div className="early-scroll"><table><thead><tr>{["רכבת","תחנה","קוד","הגעה מתוכננת","הגעה בפועל","יציאה מתוכננת","יציאה בפועל"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rr.slice(0,lim).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{v}</td>)}</tr>)}</tbody></table></div>{rr.length>lim&&<button onClick={()=>setLim(lim+100)}>עוד רישומים</button>}</>}
     </>}

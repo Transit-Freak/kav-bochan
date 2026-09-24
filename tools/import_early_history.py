@@ -94,12 +94,14 @@ def publish(source, paths):
     tables, times, shapes=load_snapshot(paths)
     date=source['date']; src=source['kind']; stops=tables['stops.txt']
     agencies=tables['agency.txt']; calendar=tables['calendar.txt']
+    native_keys=[r.get('route_desc') for r in tables['routes.txt'].values() if r.get('route_desc')]
+    if len(native_keys)!=len(set(native_keys)): raise ValueError('Duplicate native route_desc; source needs explicit disambiguation')
     byroute=collections.defaultdict(list)
     for tid,t in tables['trips.txt'].items(): byroute[t['route_id']].append(tid)
+    seen_path=OUT/'early-seen.json'; seen=read(seen_path,{})
     additions=[]; nversions=0; modes=collections.Counter()
     for rid,r in tables['routes.txt'].items():
         tids=byroute.get(rid,[])
-        if not tids: continue
         rd=r.get('route_desc','').strip()
         # 2012 route_id is not a contemporary MOT license number.
         rd=rd if re.fullmatch(r'\d+-[^-]+-[^-]+',rd) else f'archive{date[:4]}r{rid}-0-H'
@@ -119,27 +121,41 @@ def publish(source, paths):
                   float(stops[s]['stop_lat']),float(stops[s]['stop_lon'])] for s,_,_ in stopseq]
             shp=enc_polyline([(p[1],p[2]) for p in shapes.get(shape,[])])
             services=collections.defaultdict(list)
+            profiles=[]; profile_ids={}
+            def seconds(t):
+                if not t:return None
+                h,m,sec=map(int,t.split(':'));return h*3600+m*60+sec
             for tid in ptids:
                 ss=times[tid]; cal=tables['trips.txt'][tid]['service_id']
-                services[cal].append(ss[0][3] or ss[0][2])
+                departure=ss[0][3] or ss[0][2]
+                base=seconds(departure)
+                profile=tuple((None if seconds(x[2]) is None or base is None else seconds(x[2])-base,
+                               None if seconds(x[3]) is None or base is None else seconds(x[3])-base) for x in ss)
+                if profile not in profile_ids:profile_ids[profile]=len(profiles);profiles.append(profile)
+                services[cal].append((departure,profile_ids[profile]))
+            canonical=sorted(profiles,key=repr)
+            remap={i:canonical.index(profile) for i,profile in enumerate(profiles)}
+            profiles=canonical
+            services={cal:[(departure,remap[profile]) for departure,profile in departures] for cal,departures in services.items()}
             pattern_data.append({'stops':seq,'shp':shp,'trips':len(ptids),
-                'boarding':[[a,b] for _,a,b in stopseq],
-                'services':[{'calendar':calendar[s], 'departures':sorted(dep)} for s,dep in sorted(services.items())]})
+                'boarding':[[a,b] for _,a,b in stopseq],'timeProfiles':profiles,
+                'services':[{'calendar':calendar[s], 'departures':[x[0] for x in sorted(dep)],'profiles':[x[1] for x in sorted(dep)]} for s,dep in sorted(services.items())]})
         first=pattern_data[0] if pattern_data else {'stops':[], 'shp':''}
         meta={'line':r.get('route_short_name',''),'dest':r.get('route_long_name',''),
               'op':agencies.get(r.get('agency_id'),{}).get('agency_name','').strip(),'tt':mode}
         # GTFS service IDs and validity windows roll forward daily; those
         # bookkeeping changes alone are not changes to the public route.
-        structural = [{'stops':p['stops'],'shp':p['shp'],'boarding':p['boarding'],
+        structural = [{'stops':p['stops'],'shp':p['shp'],'boarding':p['boarding'],'timeProfiles':p['timeProfiles'],
             'services':sorted([{'days':[x['calendar'].get(d,'0') for d in DAYS],
-                'departures':x['departures']} for x in p['services']],key=lambda x:json.dumps(x,sort_keys=True))}
+                'departures':x['departures'],'profiles':x['profiles']} for x in p['services']],key=lambda x:json.dumps(x,sort_keys=True))}
             for p in pattern_data]
+        structural.sort(key=lambda x:json.dumps(x,sort_keys=True))
         fp=digest({'meta':meta,'patterns':structural})
         p=OUT/'lines'/f'{fsafe(rd)}.json'; lf=materialize(read(p,{}))
         previous=[v for v in lf.get('versions',[]) if v.get('earlyFingerprint') and v['d'] <= date and v.get('earlySource') != source['id']]
         prev=previous[-1] if previous else None
         if prev and prev.get('earlyFingerprint')==fp:
-            additions.append(rd);continue
+            additions.append(rd);seen[rd]=date;continue
         if not lf:
             lf={'rd':rd,**meta,'ty':'','versions':[],'historicalOnly':True}
         # Imported evidence does not overwrite present-day route metadata.
@@ -162,7 +178,8 @@ def publish(source, paths):
         if add:v['add']=add
         if rem:v['rem']=rem
         if prev:v['note']='שינוי שנמצא בהשוואת שני צילומים זמינים של אותו מק״ט, כיוון וחלופה.'
-        if prev and prev['d']<date: v['sd']=prev['d']
+        if prev and prev['d']<date: v['sd']=seen.get(rd,prev['d'])
+        seen[rd]=date
         lf['versions'].append(v);lf['versions'].sort(key=lambda x:x['d'])
         # Do not borrow a later shape for an early snapshot with missing shape.
         packed=compact(lf)
@@ -170,6 +187,7 @@ def publish(source, paths):
             if event.get('earlySource')==source['id'] and not first['shp']:
                 event['shp']='';event.pop('shpref',None)
         write(p,packed);nversions+=1;additions.append(rd)
+    write(seen_path,seen)
     # Preserve every stop, including those unused by representative trips.
     stoplist=[{'c':r['stop_code'] or r['stop_id'],'id':r['stop_id'],'n':r['stop_name'],
                'desc':r.get('stop_desc',''),'la':float(r['stop_lat']),'lo':float(r['stop_lon'])}
@@ -195,6 +213,7 @@ def main():
         if sid in progress['done'] or (args.only and sid!=args.only):continue
         if time.monotonic()>deadline or (args.limit and count>=args.limit):break
         print('Importing',sid,flush=True)
+        failed=False
         try:
             with tempfile.TemporaryDirectory(prefix='early-gtfs-') as tmp:
                 paths=[]
@@ -211,9 +230,10 @@ def main():
             progress['done'][sid]=result;progress['errors'].pop(sid,None)
             print(sid,result,flush=True)
         except Exception as e:
-            progress['errors'][sid]=str(e);print('FAILED',sid,str(e),flush=True)
+            progress['errors'][sid]=str(e);print('FAILED',sid,str(e),flush=True);failed=True
         progress['updatedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat()
         write(PROGRESS,progress);count+=1
+        if failed: break  # keep chronological comparison; retry before advancing
     if progress['errors']:raise SystemExit(1)
 
 if __name__=='__main__':main()
