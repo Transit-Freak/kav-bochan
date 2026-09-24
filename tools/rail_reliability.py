@@ -165,29 +165,39 @@ def hav(lat1, lon1, lat2, lon2):
 
 
 # ---------------------------------------------------------------- שליפה
+def fetch_scheduled_stops(ride_ids, start, end):
+    stops = []
+    for i in range(0, len(ride_ids), 30):
+        batch = ride_ids[i:i + 30]
+        rows = fetch_all('/gtfs_ride_stops/list',
+                         gtfs_ride_ids=','.join(map(str, batch)),
+                         # ה-API מחייב חלון זמן בשליפה של כמה נסיעות יחד.
+                         arrival_time_from=iso(start),
+                         arrival_time_to=iso(end + datetime.timedelta(hours=3)))
+        missing = set(batch) - {r.get('gtfs_ride_id') for r in rows}
+        if missing:
+            raise ValueError(f'חסרות תחנות ל-{len(missing)} נסיעות — היום לא יפורסם חלקית')
+        stops.extend(rows)
+        log(f'  תחנות: {min(i + 30, len(ride_ids))}/{len(ride_ids)} נסיעות')
+    return stops
+
+
 def fetch_day(d):
     start = datetime.datetime.combine(d, datetime.time(0), tzinfo=IL)
     end = start + datetime.timedelta(days=1)
-    # שאילתה על כל המפעיל בבת אחת נופלת על statement timeout בדאטאבוס; הדרך
-    # שעובדת (כמו בעמוד הרכבת של אופן באס) היא לפי מזהי קו: קודם מסלולי
-    # היום של רכבת ישראל, ואז התחנות והשידורים לפי המזהים האלה.
-    routes = fetch_all('/gtfs_routes/list', operator_refs=OP,
-                       date_from=d.isoformat(), date_to=d.isoformat())
-    line_refs = sorted({r['line_ref'] for r in routes if r.get('line_ref') is not None})
-    log(f'  מסלולי רכבת בלו"ז: {len(routes)} ({len(line_refs)} מזהי קו)')
-    if not line_refs:
-        raise ValueError('אין מסלולי רכבת ביום הזה')
-    # חלון ההגעה נפתח עד 03:00 למחרת כדי שנסיעה שיצאה לפני חצות תישמר על כל
-    # תחנותיה; הנסיעות עצמן מסוננות לפי שעת היציאה (בצד שלנו)
-    stops = []
-    for i in range(0, len(line_refs), 30):
-        batch = line_refs[i:i + 30]
-        stops.extend(fetch_all('/gtfs_ride_stops/list',
-                               gtfs_route__line_refs=','.join(map(str, batch)),
-                               gtfs_route__operator_refs=OP,
-                               gtfs_route__date_from=d.isoformat(), gtfs_route__date_to=d.isoformat(),
-                               arrival_time_from=iso(start),
-                               arrival_time_to=iso(end + datetime.timedelta(hours=3))))
+    # מזהי הנסיעות מצמצמים את שאילתת התחנות לפני צירוף טבלאות המסלולים.
+    # סינון תחנות לפי קו+מפעיל+תאריך בלבד גרם ל-statement timeout (23.09).
+    scheduled = fetch_all('/gtfs_rides/list', gtfs_route__operator_refs=OP,
+                          gtfs_route__date_from=d.isoformat(), gtfs_route__date_to=d.isoformat())
+    s0, s1 = start.timestamp(), end.timestamp()
+    scheduled = [r for r in scheduled if s0 - 1 <= (ts(r.get('start_time')) or 0) < s1]
+    ride_ids = sorted({r['id'] for r in scheduled})
+    line_refs = sorted({r['gtfs_route__line_ref'] for r in scheduled
+                        if r.get('gtfs_route__line_ref') is not None})
+    log(f'  נסיעות רכבת בלו"ז: {len(ride_ids)} ({len(line_refs)} מזהי קו)')
+    if not ride_ids:
+        raise ValueError('אין נסיעות רכבת ביום הזה — ננסה שוב בריצה הבאה')
+    stops = fetch_scheduled_stops(ride_ids, start, end)
     s0, s1 = start.timestamp(), end.timestamp()
     stops = [s for s in stops if (ts(s.get('gtfs_ride__start_time')) or 0) >= s0 - 1
              and (ts(s.get('gtfs_ride__start_time')) or 0) < s1]
