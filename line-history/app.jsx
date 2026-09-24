@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "175-history-categories";
+const BUILD = "176-history-categories";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2786,7 +2786,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
     return () => { ok = false; };
   }, [rty]);
   useEffect(() => {
-    if (!mon) return;
+    if (!mon || mon === "legacy2012") return;
     // מעבר מהיר בין חודשים ברשת איטית: בלי הביטול, תשובה איטית של החודש
     // הקודם עלולה לנחות אחרונה ולהציג רשימה של חודש אחד תחת כותרת של אחר
     let ok = true;
@@ -2830,10 +2830,10 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
           <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
             title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1]); }}>{y}</button>
         ))}
-        <button className={"mchip" + (yr === "2012" ? " on" : "")} aria-pressed={yr === "2012"} title="רשת הקווים המלאה כפי שצולמה ב-2012 — 3,214 קווים מאתר מגיעים"
-          onClick={() => { setYr("2012"); setMon(""); }}>2012</button>
+        <button className={"mchip" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="רשת הקווים המלאה כפי שצולמה ב-2012 — 3,214 קווים מאתר מגיעים"
+          onClick={() => { setYr("2012"); setMon("legacy2012"); }}>מגיעים 2012</button>
       </div>
-      {yr && yr !== "2012" && (
+      {yr && mon !== "legacy2012" && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="הצגת השינויים של החודש הזה בלבד" onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
@@ -2841,7 +2841,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
         </div>
       )}
       <input className="search" type="search" placeholder="סינון: מספר קו, יעד, מפעיל או מק״ט…" value={q} onChange={(e) => setQ(e.target.value)} />
-      {yr === "2012" ? (() => {
+      {mon === "legacy2012" ? (() => {
         if (!a12 || !idx12) return "טוען…";
         const list12 = sort12(rows12.filter((v) => match12(v, needle)), needle);
         if (!list12.length) return <div className="empty">אין קווי 2012 תואמים.</div>;
