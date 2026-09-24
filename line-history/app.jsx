@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "173";
+const BUILD = "174-early";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2143,6 +2143,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
+        {lf.historicalOnly && <p className="evnote">תיעוד היסטורי בלבד. הרשומה אינה קובעת אם הקו פועל היום.</p>}
+        {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
+        {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
         {lf.tt === "demand" && (
           <div className="ttnote">
             {/* הניסוח הקודם קבע ש"הנסיעה מבוצעת לפי הזמנה מראש". זו פרשנות
@@ -2342,6 +2345,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              {x.earlyPatternsFile ? <EarlyPatternLoader event={x} /> : x.earlyPatterns ? <EarlyPatterns event={x} /> : null}
               <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
@@ -3900,6 +3904,8 @@ const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", 
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
 const SRC_LABEL = {
+  miu12: "משרד התחבורה, יולי 2012; חלוקה אזורית: נחמן שלף ועמותת מרחב; שימור: Internet Archive",
+  obusOld: "משרד התחבורה; הארכיון הישן של אוטובוס פתוח / הסדנא לידע ציבורי, 2015–2018",
   tf: "מקור: ארכיון TransitFeeds / OpenMobilityData — צילומי הפיד הארצי של משרד התחבורה (הארכיון מכסה 03.2017–12.2022; זה טווח המקור, לא טווח הקו)",
   tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData — צילום 16.3.2017, הישן ביותר שקיים",
   ob: "מקור: ארכיון הסדנא לידע ציבורי (Open Bus) — צילומים יומיים, 01.2022–07.2026",
@@ -3912,6 +3918,9 @@ const SRC_LABEL = {
 // רשימת המקורות המלאה. היא מוצגת למשתמש ולא רק מתועדת בקוד: מי שקורא
 // "תחנה בוטלה ב-2019" צריך לדעת מאיפה זה ידוע, ומה הגבול של מה שידוע.
 const SOURCES = [
+  { t: "קובצי GTFS ששוחזרו מעמותת מרחב", d: "07–21.07.2012", b: "חמישה קבצים אזוריים שחולקו בידי נחמן שלף ונשמרו ב-Internet Archive. קווים, מיקומי תחנות, תבניות מסלול ויציאות מתוכננות. הכיסוי חלקי ואינו ארכיון שנתי רציף." },
+  { t: "הארכיון הישן של אוטובוס פתוח", d: "2015–2018", b: "קובצי משרד התחבורה ששמרה הסדנא לידע ציבורי. רשימת המקורות והתקדמות הקליטה מופיעות בארכיון 2012–2018; קובץ ממתין אינו מוצג כאילו נקלט." },
+  { t: "רכבת פתוחה", d: "2013–2014", b: "רישומי רכבת ישראל: מספר רכבת, תחנה, הגעה ויציאה מתוכננות ובפועל. נשמרו במאגר OpenTrainCommunity של הסדנא. זהו מקור נפרד מקובצי GTFS." },
   { t: "הסריקה היומית שלנו", d: "מ-25.07.2026 והלאה",
     b: "הורדה יומית של הפיד הארצי (israel-public-transportation.zip) והשוואה מול היום הקודם. זה המקור החי — כל מה שמכאן והלאה נמדד ביום שבו קרה." },
   { t: "קובץ הרישוי היומי Gtfs_10_days", d: "מ-08.2026 והלאה",
@@ -3919,7 +3928,7 @@ const SOURCES = [
   { t: "ארכיון אופן באס — הסדנא לידע ציבורי", d: "16.01.2022 – 24.07.2026",
     b: "צילומים יומיים של הפיד הארצי. מהם נבנתה היסטוריית הקווים והתחנות לתקופה הזו, וממנו גם השינויים שתוכננו ולא נכנסו לתוקף מינואר 2023 ואילך." },
   { t: "ארכיון TransitFeeds / OpenMobilityData", d: "16.03.2017 – 14.01.2022",
-    b: "799 צילומים של הפיד הארצי. 16.03.2017 הוא הצילום הישן ביותר שקיים שם. משם מגיעה כל ההיסטוריה שלפני 2022, בקווים ובתחנות כאחד." },
+    b: "799 צילומים של הפיד הארצי. 16.03.2017 הוא הצילום הישן ביותר שקיים שם. מקור נוסף להיסטוריה שלפני 2022, בקווים ובתחנות כאחד." },
   { t: "רישוי מערך האוטובוסים — משרד התחבורה", d: "מ-01.2022 והלאה",
     b: "מאגר ב-data.gov.il עם שורה לכל מק\"ט לכל יום: הסוג (עירוני/בינעירוני) והגודל (אוטובוס/מיניבוס/מידיבוס/מפרקי) של הרכב שנקבע לקו. ממנו מגיעים \"שינוי סוג רכב\" בציר הזמן והתג ליד הנגישות. השדות קיימים רק מ-2022." },
   { t: "רשת 2012 מאתר מגיעים", d: "צילום יחיד מ-2012",
@@ -4035,6 +4044,107 @@ function RecheckNotice() {
   );
 }
 
+// Recovered sources use the same line pages and maps as the rest of הקו בזמן.
+async function earlyGrab(url) { const r = await dfetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
+async function earlyGzip(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("הקובץ לא נטען (" + r.status + ")");
+  if (!window.DecompressionStream) throw new Error("לצפייה בקובץ הדחוס נדרש דפדפן מעודכן.");
+  return new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).json();
+}
+function EarlyMap({ stops, shp }) {
+  const el = useRef(null);
+  useEffect(() => {
+    if (!el.current || !window.L || !stops.length) return;
+    const map = L.map(el.current, { scrollWheelZoom: false });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+    const points = stops.map(s => [s[2], s[3]]);
+    // Lines between stops are deliberately dashed when no historical shape exists.
+    let route = points;
+    if (shp) { try { route = decodeShape(shp); } catch(e) { route = points; } }
+    L.polyline(route, { color: "#6d28d9", weight: 4, dashArray: shp ? null : "5 8" }).addTo(map);
+    stops.forEach(s => {
+      const label = document.createElement("span"); label.textContent = s[0] + " · " + s[1];
+      L.circleMarker([s[2],s[3]], { radius: 4, color: "#4338ca", fillOpacity: 1 }).addTo(map).bindPopup(label);
+    });
+    map.fitBounds(L.latLngBounds(points), { padding: [20,20], maxZoom: 15 });
+    return () => map.remove();
+  }, [stops, shp]);
+  return <div ref={el} style={{ height: 330, borderRadius: 14, margin: "12px 0" }} aria-label="מפת התחנות ההיסטוריות" />;
+}
+function EarlyPatternLoader({ event }) {
+  const [data,setData]=useState(null),[err,setErr]=useState("");
+  const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
+  return <details className="early-detail" onToggle={e=>{if(e.currentTarget.open)load();}}><summary>כל תבניות המסלול ולוחות היציאה ({event.earlyPatternCount})</summary>{err?<p role="alert">{err} <button onClick={load}>ניסיון חוזר</button></p>:data?<EarlyPatterns event={{...event,earlyPatterns:data}} />:<p>טוען…</p>}</details>;
+}
+function EarlyTripTimes({ pattern, service }) {
+  const [trip,setTrip]=useState(0);
+  const profile=pattern.timeProfiles?.[service.profiles?.[trip]];
+  if(!profile)return null;
+  const parts=service.departures[trip].split(":").map(Number);
+  const base=parts[0]*3600+parts[1]*60+(parts[2]||0);
+  const time=offset=>{if(offset==null)return "לא צוין";const total=base+offset;return [Math.floor(total/3600),Math.floor(total%3600/60),total%60].map(x=>String(x).padStart(2,"0")).join(":");};
+  return <><label>זמני מעבר לפי יציאה <select value={trip} onChange={e=>setTrip(+e.target.value)}>{service.departures.map((d,i)=><option key={i} value={i}>{d}</option>)}</select></label><div className="early-scroll"><table><thead><tr><th>תחנה</th><th>הגעה מתוכננת</th><th>יציאה מתוכננת</th></tr></thead><tbody>{pattern.stops.map((stop,i)=><tr key={i}><td>{stop[1]}</td><td dir="ltr">{time(profile[i]?.[0])}</td><td dir="ltr">{time(profile[i]?.[1])}</td></tr>)}</tbody></table></div></>;
+}
+function EarlyPatterns({ event }) {
+  const [pick, setPick] = useState(0);
+  const p = (event.earlyPatterns || [])[pick];
+  if (!p) return null;
+  const weekdays = [["sunday","א׳"],["monday","ב׳"],["tuesday","ג׳"],["wednesday","ד׳"],["thursday","ה׳"],["friday","ו׳"],["saturday","שבת"]];
+  const boarding = x => ({"0":"מותר", "1":"לא", "2":"בתיאום טלפוני", "3":"בתיאום עם הנהג"}[x] || "לא צוין");
+  return <details className="early-detail"><summary>כל תבניות המסלול ולוחות היציאה מהקובץ ({event.earlyPatterns.length})</summary>
+    <label>תבנית מסלול <select value={pick} onChange={e=>setPick(+e.target.value)}>{event.earlyPatterns.map((x,i)=><option key={i} value={i}>{i+1}: {x.stops.length} תחנות · {x.trips} רשומות נסיעה</option>)}</select></label>
+    <p>הנתונים כפי שפורסמו אז. מספר הרשומות אינו מספר הנסיעות ביום. תוקף וימי פעילות מפורטים למטה.</p>
+    <EarlyMap stops={p.stops} shp={p.shp} />
+    {!p.shp && <p>לא נשמר שרטוט כביש לתבנית הזו. הקו המקווקו מחבר את מיקומי התחנות בלבד.</p>}
+    <div className="early-scroll"><table><thead><tr><th>תחנה</th><th>מק״ט</th><th>עלייה</th><th>ירידה</th></tr></thead><tbody>{p.stops.map((s,i)=><tr key={i}><td>{i+1}. {s[1]}</td><td>{s[0]}</td><td>{boarding(p.boarding[i][0])}</td><td>{boarding(p.boarding[i][1])}</td></tr>)}</tbody></table></div>
+    {p.services.map((s,i)=><details key={i}><summary>{weekdays.filter(([k])=>s.calendar[k]==="1").map(x=>x[1]).join(", ")} · {s.calendar.start_date}–{s.calendar.end_date} · {s.departures.length} יציאות</summary><p dir="ltr">{s.departures.join(" · ")}</p><EarlyTripTimes key={pick+":"+i} pattern={p} service={s} /></details>)}
+    <p>מקור: {SRC_LABEL[event.src]} · מזהה הקו בקובץ: {event.routeId}</p>
+  </details>;
+}
+function EarlyArchive({ idx, openLine }) {
+  const [catalog,setCatalog]=useState(null), [progress,setProgress]=useState(null);
+  const [year,setYear]=useState("2012"),[source,setSource]=useState("miu-2012-07");
+  const [routes,setRoutes]=useState(null),[stops,setStops]=useState(null),[q,setQ]=useState("");
+  const [err,setErr]=useState(""),[lim,setLim]=useState(60),[point,setPoint]=useState(null);
+  const [rail,setRail]=useState(null),[day,setDay]=useState(""),[railRows,setRailRows]=useState(null);
+  useEffect(()=>{let live=true;Promise.all([earlyGrab("data/early-sources.json"),earlyGrab("data/early-progress.json"),earlyGrab("data/early-rail/index.json")]).then(([c,p,r])=>{if(live){setCatalog(c);setProgress(p);setRail(r);}}).catch(e=>{if(live)setErr("לא הצלחנו לטעון את הארכיון. נסו לרענן.");});return()=>{live=false};},[]);
+  useEffect(()=>{setLim(60);setPoint(null);},[q,source,year]);
+  useEffect(()=>{let live=true;setRoutes(null);setStops(null);setErr("");if(!source||!progress?.done?.[source])return;
+    Promise.all([earlyGrab("data/early-routes/"+source+".json"),earlyGzip("data/early-stops/"+source+".json.gz?v="+BUILD)]).then(([r,s])=>{if(live){setRoutes(new Set(r.routes));setStops(s.stops);}}).catch(e=>{if(live)setErr(e.message);});return()=>{live=false};},[source,progress]);
+  useEffect(()=>{let live=true;setRailRows(null);if(!day)return;earlyGzip("data/early-rail/"+day+".json.gz?v="+BUILD).then(r=>{if(live)setRailRows(r.rows)}).catch(e=>{if(live)setErr(e.message)});return()=>{live=false};},[day]);
+  if(!catalog)return <section className="card">{err||"טוען את רשימת המקורות…"}</section>;
+  const snaps=catalog.snapshots.filter(s=>s.date.startsWith(year));
+  const selected=catalog.snapshots.find(s=>s.id===source);
+  const tokens=q.trim().split(/\s+/).filter(Boolean);
+  const match=s=>tokens.every(t=>s.includes(t));
+  const lines=routes&&idx?idx.lines.filter(l=>routes.has(l.rd)&&match([l.line,l.dest,l.op,l.rd].join(" "))):[];
+  const ss=(stops||[]).filter(s=>match([s.c,s.n,s.desc].join(" ")));
+  const rr=(railRows||[]).filter(r=>match(r.join(" ")));
+  const days=(rail?.days||[]).filter(d=>d.startsWith(year));
+  return <section className="card early-archive"><h2>חוזרים ל־2012–2018</h2><p>הקווים, התחנות ולוחות הזמנים שנשמרו אז. יש פערים בין הצילומים: היעדר מידע אינו הוכחה שקו או תחנה לא פעלו.</p>
+    <div className="filters">{[2012,2013,2014,2015,2016,2017,2018].map(y=><button className={"mchip"+(year===String(y)?" on":"")} key={y} onClick={()=>{setYear(String(y));setSource(catalog.snapshots.find(s=>s.date.startsWith(String(y)))?.id||"");setDay("");}}>{y}</button>)}</div>
+    <p role="status">נקלטו לתצוגה {Object.keys(progress?.done||{}).length.toLocaleString()} מתוך {catalog.snapshots.length.toLocaleString()} קבוצות קבצים. קבצים שטרם נקלטו זמינים בקישורי המקור למטה.</p>
+    {err&&<p role="alert">{err}</p>}
+    {snaps.length>0?<><label>צילום מהארכיון <select value={source} onChange={e=>setSource(e.target.value)}>{snaps.map((s,i)=><option key={s.id} value={s.id}>{fmtD(s.date)} · {progress?.done?.[s.id]?"נקלט":"ממתין לעיבוד"} · {i+1}</option>)}</select></label>
+      <p>{catalog.credits[selected?.kind]}{selected?.coverage&&" · "+selected.coverage}</p>
+      {selected?.validThrough&&<p>תוקף לוח השירות בקובץ: {fmtD(selected.date)}–{fmtD(selected.validThrough)}. זה אינו רצף נתונים לכל שנת 2012.</p>}
+      <p>{selected?.urls.map((u,i)=><a key={u} href={u} target="_blank" rel="noopener noreferrer">הורדת קובץ המקור {i+1} ↗　</a>)}</p>
+    </>:<p>לא נמצא קובץ GTFS לאוטובוסים לשנה הזו. להלן נתוני הרכבות שנשמרו.</p>}
+    <label>חיפוש קו, תחנה, עיר או מספר רכבת <input value={q} onChange={e=>setQ(e.target.value)} placeholder="למשל: קריית מלאכי, קו 301, אשקלון" /></label>
+    {routes&&<><h3>קווים בצילום ({lines.length.toLocaleString()})</h3>{!idx?<p>טוען את אינדקס הקווים…</p>:lines.slice(0,lim).map(l=><button className="early-result" key={l.rd} onClick={()=>openLine(l.rd)}><b>{l.line} · {l.op}</b><span>{l.dest}</span><small>פתיחת ההיסטוריה והמסלולים ←</small></button>)}
+      <h3>תחנות בצילום ({ss.length.toLocaleString()})</h3>{ss.slice(0,lim).map(s=><button className="early-result" key={s.id} onClick={()=>setPoint(s)}>{s.c} · {s.n}<small>{s.desc}</small></button>)}
+      {point&&<div><h4>{point.c} · {point.n}</h4><EarlyMap stops={[[point.c,point.n,point.la,point.lo]]} shp="" /></div>}
+      {(lines.length>lim||ss.length>lim)&&<button onClick={()=>setLim(lim+100)}>הצגת עוד תוצאות</button>}</>}
+    {days.length>0&&<><h3>רכבת ישראל: תכנון וביצוע ({year})</h3><p>מקור: רכבת ישראל, בארכיון רכבת פתוחה / הסדנא לידע ציבורי. אלה רישומי מעבר בתחנות, לא GTFS ולא מסלולים על מפה. אפס נשמר כערך המקור ואינו מוכיח הגעה בחצות.</p>
+      <label>יום <select aria-label="יום" value={day} onChange={e=>setDay(e.target.value)}><option value="">בחרו תאריך</option>{days.map(d=><option key={d} value={d}>{fmtD(d)}</option>)}</select></label>
+      <p>{rail.sources.map(s=><a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer">קובץ המקור {s.year} ↗　</a>)}</p>
+      {day&&!railRows&&<p>טוען רישומי רכבות…</p>}{railRows&&<><p>{rr.length.toLocaleString()} רישומים מתאימים</p><div className="early-scroll"><table><thead><tr>{["רכבת","תחנה","קוד","הגעה מתוכננת","הגעה בפועל","יציאה מתוכננת","יציאה בפועל"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rr.slice(0,lim).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{v}</td>)}</tr>)}</tbody></table></div>{rr.length>lim&&<button onClick={()=>setLim(lim+100)}>עוד רישומים</button>}</>}
+    </>}
+    <details><summary>מה יש בארכיון ומה חסר?</summary>{catalog.gaps.map(g=><p key={g}>{g}</p>)}<p>מספר קו דומה אינו מספיק לקביעת זהות היסטורית. קווי 2012 נשמרים עם המזהים המקוריים שלהם; קישורים לרשת מגיעים ולהמשך ההיסטוריה מוצגים רק כשהתחנות מספקות התאמה חזקה.</p></details>
+  </section>;
+}
+
 function App() {
   const [idx, setIdx] = useState(null);
   const [err, setErr] = useState(null);
@@ -4044,7 +4154,7 @@ function App() {
     if (h.startsWith("stop=")) return "stops";
     if (h.startsWith("t=")) {
       const t = h.slice(2);
-      if (t === "stops" || t === "map" || TABS.some((x) => x.k === t)) return t;
+      if (t === "early" || t === "stops" || t === "map" || TABS.some((x) => x.k === t)) return t;
     }
     return "lines";
   });
@@ -4095,7 +4205,7 @@ function App() {
       if (h.startsWith("2012/")) { setRd(null); setK12(h.slice(5)); return; }
       if (isStopH(h)) { setRd(null); setStopSel(h.slice(5)); setStopSelN((n) => n + 1); setTab("stops"); return; }
       if (isDigestH(h)) { setRd(null); setK12(null); setDig(parseDigest(h)); return; }
-      if (h.startsWith("t=")) { setRd(null); setK12(null); const t = h.slice(2); if (t === "stops" || t === "lines" || t === "map" || TABS.some((x) => x.k === t)) setTab(t); return; }
+      if (h.startsWith("t=")) { setRd(null); setK12(null); const t = h.slice(2); if (t === "early" || t === "stops" || t === "lines" || t === "map" || TABS.some((x) => x.k === t)) setTab(t); return; }
       // כתובת של קו נקראה רק בטעינה הראשונה: מי שהדביק קישור לקו בשורת
       // הכתובת של לשונית פתוחה, או ערך את הכתובת ידנית, נשאר במסך הקודם.
       // pushState/replaceState אינם מפעילים hashchange, ולכן אין כאן לולאה.
@@ -4152,7 +4262,7 @@ function App() {
   }, [idx, rd]);
   const mktAlive = useMemo(() => {
     const m = {};
-    if (idx) idx.lines.forEach((l) => { if (l.lk !== "removed") m[l.rd.split("-")[0]] = true; });
+    if (idx) idx.lines.forEach((l) => { if (l.lk !== "removed" && !l.historicalOnly) m[l.rd.split("-")[0]] = true; });
     return m;
   }, [idx]);
   const isLineGone = (l) => l.lk === "removed" && !mktAlive[l.rd.split("-")[0]];
@@ -4218,6 +4328,7 @@ function App() {
         <button role="tab" aria-selected={tab === "lines"} className={"tab" + (tab === "lines" ? " on" : "")} title="חיפוש בכל קווי האוטובוס בארץ והיסטוריית השינויים של כל קו" onClick={() => { setTab("lines"); backToList("lines"); }}>🚌 קווים</button>
         <button role="tab" aria-selected={tab === "stops"} className={"tab" + (tab === "stops" ? " on" : "")} title="חיפוש תחנות והיסטוריית השינויים שלהן — שינוי שם, הזזה, ביטול" onClick={() => { setTab("stops"); backToList("stops"); }}>🚏 תחנות</button>
         <button role="tab" aria-selected={tab === "map"} className={"tab" + (tab === "map" ? " on" : "")} title="מפה לפי עיר וחודש: תחנות שהשתנו וקווים שהשתנו, כפי שהיו אז" onClick={() => { setTab("map"); backToList("map"); }}>🗺️ מפה</button>
+        <button role="tab" aria-selected={tab === "early"} className={"tab" + (tab === "early" ? " on" : "")} onClick={() => { setTab("early"); backToList("early"); }}>📚 ארכיון 2012–2018</button>
         {TABS.map((t) => (
           <button key={t.k} role="tab" aria-selected={tab === t.k} className={"tab" + (tab === t.k ? " on" : "")} title={t.tip}
             onClick={() => { setTab(t.k); backToList(t.k); }}>{t.icon} {t.label}</button>
@@ -4230,13 +4341,13 @@ function App() {
       ) : k12 ? (
         <Line2012Page k12={k12} anchorRd={anc12[k12] || null} openLine={openLine}
           onBack={() => { setK12(null); clearHashKeepTab(); }} />
-      ) : tab === "stops" ? <StopsTab sel={stopSel} selN={stopSelN} /> : tab === "map" && !rd ? <MapTab idx={idx} openLine={openLine} cities={notifyCities} /> : (TABS.some((t) => t.k === tab) && !rd) ? (
+      ) : tab === "early" && !rd ? <EarlyArchive idx={idx} openLine={openLine} /> : tab === "stops" ? <StopsTab sel={stopSel} selN={stopSelN} /> : tab === "map" && !rd ? <MapTab idx={idx} openLine={openLine} cities={notifyCities} /> : (TABS.some((t) => t.k === tab) && !rd) ? (
         idx ? <ModesTab idx={idx} openLine={openLine} spec={TABS.find((t) => t.k === tab)} />
           : <div className="card">טוען את רשימת הקווים…</div>
       ) : rd ? (
         /* קישור ישיר לקו נפתח לפני שהאינדקס הגיע — בלי ההגנות האלה הדף
            קרס ללבן (הבאג ששלמה מצא): idx עדיין null ו-idx.lines התפוצץ */
-        <LinePage rd={rd} lineGone={idx ? !mktAlive[rd.split("-")[0]] : false}
+        <LinePage rd={rd} lineGone={idx ? !idx.lines.find(l => l.rd === rd)?.historicalOnly && !mktAlive[rd.split("-")[0]] : false}
           sibs={((idx && idx.lines) || []).filter((x) => x.rd.split("-")[0] === rd.split("-")[0])}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate}
           initCats={[...kats].sort().join(",")} />
@@ -4306,6 +4417,7 @@ function App() {
                   ))}
                   <span className="ldest">{l.dest}</span>
                   <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
+                    {l.historicalOnly && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {l.lk === "removed" && <> · מבוטל מאז {fmtD(l.ld)}</>}</span>
                 </a>
               ))}
