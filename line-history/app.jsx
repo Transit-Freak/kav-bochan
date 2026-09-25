@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "192-exact-line-ranking";
+const BUILD = "193-numeric-history-order";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2933,7 +2933,9 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
     return matchesRouteSearch({ ...m, rd: c.rd, line: c.line || m.line }, needle, citySearch.data, c.d);
 
   }).sort((a, b) => routeSearchRank({ ...meta[a.rd], line: a.line || meta[a.rd]?.line }, needle)
-    - routeSearchRank({ ...meta[b.rd], line: b.line || meta[b.rd]?.line }, needle)), meta);
+    - routeSearchRank({ ...meta[b.rd], line: b.line || meta[b.rd]?.line }, needle)
+    || String(a.line || meta[a.rd]?.line || "").localeCompare(String(b.line || meta[b.rd]?.line || ""), "he", { numeric: true })
+    || String(a.rd).localeCompare(String(b.rd), "he", { numeric: true })), meta);
   const days = []; const byd = new Map();
   for (const c of list) { let g = byd.get(c.d); if (!g) { g = []; byd.set(c.d, g); days.push(c.d); } g.push(c); }
   days.sort().reverse();
