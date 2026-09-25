@@ -52,7 +52,7 @@ console.log(`✓ נתונים: ${listed.size} חודשי תחנות (מ-${oldest
   }
   const app = fs.readFileSync(path.join(LH, 'app.jsx'), 'utf8');
   const nsrc = (app.match(/SOURCES = \[([\s\S]*?)\n\];/) || ['', ''])[1]
-    .split('{ t:').length - 1;
+    .match(/(?:^|[,{]\s*)["']?t["']?\s*:/gm)?.length || 0;
   if (nsrc < 4) fail(`רשימת המקורות באתר מונה ${nsrc} מקורות — פחות ממה שבשימוש`);
   console.log(`✓ טקסטים: התיאור לשיתוף מזכיר ${yr} · ${nsrc} מקורות רשומים באתר`);
 }
@@ -385,7 +385,7 @@ if (oldestL) {
   await page.waitForSelector('.months .mchip', { timeout: 30000 })
     .catch(() => fail('פיד הקווים: בוחר החודשים לא הופיע'));
   const [ly, lm] = oldestL.split('-');
-  const yChip = page.locator('.months .mchip', { hasText: new RegExp(`^${ly}$`) }).first();
+  const yChip = page.getByRole("button", { name: ly, exact: true }).first();
   if (!(await yChip.count())) fail(`פיד הקווים: אין כפתור לשנה ${ly} — ${oldestL} לא נגיש`);
   await yChip.click();
   const mChip = page.locator('.months .mchip', { hasText: `${lm}.${ly}` }).first();
