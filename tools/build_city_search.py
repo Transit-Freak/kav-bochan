@@ -60,6 +60,12 @@ def build(outdir):
  tmp=outdir+'/route-cities.json.tmp'
  with open(tmp,'w',encoding='utf-8') as f:json.dump(result,f,ensure_ascii=False,separators=(',',':'))
  os.replace(tmp,outdir+'/route-cities.json')
- print('City search:',len(routes),'routes,',len(names),'towns;',unknown,'stops without a recorded town')
+ # The browser loads both shards; rebuild them atomically with every data refresh.
+ for shard in range(2):
+  part={**result,'routes':{rd:routes[rd] for i,rd in enumerate(sorted(routes)) if i%2==shard}}
+  dest=outdir+'/route-cities-'+str(shard)+'.json'
+  with open(dest+'.tmp','w',encoding='utf-8') as f:json.dump(part,f,ensure_ascii=False,separators=(',',':'))
+  os.replace(dest+'.tmp',dest)
+ print('City search:' ,len(routes),'routes,',len(names),'towns;',unknown,'stops without a recorded town')
  return result
 if __name__=='__main__':build(os.environ.get('OUTDIR','line-history/data'))

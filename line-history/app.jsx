@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "190-verified-schedule";
+const BUILD = "191-city-stop-search";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -454,6 +454,51 @@ function gapDays(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5);
 const rdTxt = (rd) => "\u202A" + String(rd || "") + "\u202C";
 // חיפוש: מק"ט שהודבק עם תווי הכיוון האלה חייב עדיין להתאים
 const sQ = (t) => String(t || "").replace(/[׳״'"\u200e\u200f\u202a-\u202e\u2066-\u2069]+/g, "");
+
+// Match recorded intermediate towns by exact route identity and service date.
+let routeCitiesPromise;
+function getRouteCities() {
+  if (!routeCitiesPromise) routeCitiesPromise = Promise.all([0, 1].map(i =>
+    dfetch("data/route-cities-" + i + ".json").then(r => {
+      if (!r.ok) throw new Error("לא ניתן לטעון את ערי התחנות");
+      return r.json();
+    })
+  )).then(parts => ({ epoch: parts[0].epoch, cities: parts[0].cities,
+    routes: Object.assign({}, ...parts.map(p => p.routes))
+  })).catch(e => { routeCitiesPromise = null; throw e; });
+  return routeCitiesPromise;
+}
+function useRouteCities() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let live = true; setError(false);
+    getRouteCities().then(d => { if (live) setData(d); })
+      .catch(() => { if (live) setError(true); });
+    return () => { live = false; };
+  }, [retry]);
+  return { data, error, retry: () => setRetry(n => n + 1) };
+}
+function CitySearchStatus({ state }) {
+  return state.error ? <p role="alert">חיפוש לפי תחנות בדרך לא נטען. <button onClick={state.retry}>נסו שוב</button></p>
+    : !state.data ? <p role="status">טוען ערים שבהן הקווים עוצרים בדרך…</p> : null;
+}
+const citySearchNorm = value => sQ(value).replace(/יי/g, "י").replace(/[-–]/g, " ").replace(/\s+/g, " ").trim();
+function citySearchText(data, rd, date) {
+  if (!data) return "";
+  const day = date ? Math.floor((Date.parse(date) - Date.parse(data.epoch)) / 86400000) : null;
+  return (data.routes[rd] || []).filter(([, a, b]) => day === null || (a <= day && (b === null || day < b)))
+    .map(([id]) => citySearchNorm(data.cities[id])).join(" | ");
+}
+function matchesRouteSearch(line, query, data, date, prefix = false) {
+  const tokens = citySearchNorm(query).split(/\s+/).filter(t => t && t !== "קו");
+  if (!tokens.length) return true;
+  const base = citySearchNorm((prefix ? [line.dest, line.op] : [line.line, line.rd, line.dest, line.op]).join(" "));
+  const towns = citySearchText(data, line.rd, date);
+  return tokens.every(t => base.includes(t) || towns.includes(t) ||
+    (prefix && (String(line.line || "").startsWith(t) || String(line.rd || "").startsWith(t))));
+}
 // קובצי הנתונים מתעדכנים יומית תחת אותה כתובת. חותמת-יום בכתובת החטיאה
 // את המטמון פעם ביום גם לקבצים היסטוריים שלא השתנו, ובחלק מהקבצים
 // (?v=BUILD בלבד) הוגשה גרסה של אתמול. cache:no-cache מאלץ בדיקת
@@ -2778,6 +2823,7 @@ function lineSiblings(idx, rd) {
 }
 
 function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines" }) {
+  const citySearch = useRouteCities();
   const earlyMonths = useHistoricalMonths(mode);
   const [regularMonths, setRegularMonths] = useState([]);
   const [months, setMonths] = useState(null);
@@ -2868,16 +2914,12 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
     }
     return c.k === k;
   });
-  const searchTokens = sQ(needle).split(/\s+/).filter(Boolean);
   const list = collapse2012Rows((chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
     if (!inKats(c)) return false;
     // Match words across fields, just like the main line search.
-    return searchTokens.every((t) =>
-      sQ(c.line || m.line).includes(t) ||
-      sQ(c.rd).includes(t) ||
-      sQ(m.dest).includes(t) || sQ(m.op).includes(t));
+    return matchesRouteSearch({ ...m, rd: c.rd, line: c.line || m.line }, needle, citySearch.data, c.d);
 
   }), meta);
   const days = []; const byd = new Map();
@@ -2909,7 +2951,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
           ))}
         </div>
       )}
-      {!missingYear && <input className="search" type="search" placeholder="סינון: מספר קו, יעד, מפעיל או מק״ט…" value={q} onChange={(e) => setQ(e.target.value)} />}
+      {!missingYear && <CitySearchStatus state={citySearch} />}
+      {!missingYear && <input className="search" type="search" placeholder="סינון: מספר קו, עיר בדרך, יעד, מפעיל או מק״ט…" value={q} onChange={(e) => setQ(e.target.value)} />}
       {missingYear ? <HistoricalPeriod key={yr} idx={idx} openLine={openLine} mode={mode} year={yr} month={mon} embedded /> : mon === "legacy2012" ? (() => {
         if (!a12 || !idx12) return "טוען…";
         const list12 = sort12(rows12.filter((v) => match12(v, needle)), needle);
@@ -4143,6 +4186,7 @@ const TT_LABEL = { rail: "רכבת", taxi: "מונית שירות", lightrail: "
                    cable: "רכבל/כרמלית", demand: "שירות לפי דרישה" };
 
 function ModesTab({ idx, openLine, spec }) {
+  const citySearch = useRouteCities();
   const [daily, setDaily] = useState(false);
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = usePersistedQ("lh-q-" + spec.k);
@@ -4164,16 +4208,13 @@ function ModesTab({ idx, openLine, spec }) {
     const allowed = sel.size ? new Set(spec.groups.filter((m) => sel.has(m.k)).flatMap((m) => m.tts)) : null;
     let ls = mine.filter((l) => !allowed || allowed.has(l.tt));
     if (needle) {
-      const toks = sQ(needle).split(/\s+/).filter(Boolean);
-      ls = ls.filter((l) => toks.every((t) =>
-        (l.line || "").startsWith(t) || l.rd.startsWith(t) ||
-        sQ(l.dest).includes(t) || sQ(l.op).includes(t)));
+      ls = ls.filter(l => matchesRouteSearch(l, needle, citySearch.data, null, true));
     }
     const lnum = (l) => parseInt(l.line) || 1e9;
     ls = ls.slice().sort((a, b) => lnum(a) - lnum(b) || (a.line || "").localeCompare(b.line || "") || a.rd.localeCompare(b.rd));
     ls = collapse2012Rows(ls);
     return { total: ls.length, list: ls.slice(0, lim) };
-  }, [mine, spec, sel, q, lim]);
+  }, [mine, spec, sel, q, lim, citySearch.data]);
 
   return (
     <div className="card">
@@ -4194,7 +4235,7 @@ function ModesTab({ idx, openLine, spec }) {
         </div>
       )}
       <input className="search" type="search" dir="rtl"
-        placeholder="חיפוש: מספר קו, מק״ט, יעד או מפעיל…"
+        placeholder="חיפוש: מספר קו, מק״ט, עיר בדרך, יעד או מפעיל…"
         value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="llist">
         {list.map((l) => (
@@ -4379,6 +4420,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, month = "", embedded = fa
 }
 
 function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, q }) {
+  const citySearch = useRouteCities();
   const source = snapshot?.id || "";
   const [routes, setRoutes] = useState(null), [stops, setStops] = useState(null);
   const [err, setErr] = useState(""), [lim, setLim] = useState(60), [point, setPoint] = useState(null);
@@ -4397,13 +4439,14 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const selected=snapshot;
   const tokens=sQ(q).split(/\s+/).filter(t=>t&&t!=="קו");
   const match=s=>tokens.every(t=>sQ(s).includes(t));
-  const lines=collapse2012Rows(routes&&idx ? idx.lines.filter(l=>routes.has(l.rd)&&inHistoryMode(l,mode)&&match([l.line,l.dest,l.op,l.rd].join(" ")))
+  const lines=collapse2012Rows(routes&&idx ? idx.lines.filter(l=>routes.has(l.rd)&&inHistoryMode(l,mode)&&matchesRouteSearch(l,q,citySearch.data,snapshot.date))
     .sort((a,b)=>String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : []);
   const ss=(stops||[]).filter(s=>match([s.c,s.n,s.desc].join(" ")));
   const rr=(railRows||[]).filter(r=>match(r.join(" ")));
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
   return <section className="historical-day" data-date={day || snapshot.date}>
     <h3 className="dayhead">{fmtD(day || snapshot.date)}</h3>
+    <CitySearchStatus state={citySearch} />
     {err&&<p role="alert">{err}</p>}
     {snapshot && <>
       <p>מקור: {catalog.credits[selected?.kind]}</p>
@@ -4427,6 +4470,7 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
 }
 
 function App() {
+  const citySearch = useRouteCities();
   const [idx, setIdx] = useState(null);
   const [err, setErr] = useState(null);
   // ‎#t=stops‎ וכד' — הטאב נשמר בכתובת, כדי שריענון לא יחזיר לעמוד הראשי
@@ -4564,12 +4608,10 @@ function App() {
     // חיפוש רב-מילים: "13 קרית גת" — כל מילה חייבת להתאים לאחד השדות.
     // ההשוואה דרך sQ: גרשיים בכל צורה (רשל"צ / רשל''צ / רשל״צ) מתאימים
     const toks = sQ(needle).split(/\s+/).filter(Boolean);
-    const tokHit = (l, t) => l.line === t || l.line.startsWith(t) || l.rd.startsWith(t) ||
-      sQ(l.dest).includes(t) || sQ(l.op).includes(t);
     // טאב "קווים" הוא אוטובוסים. קווי "שירות לפי דרישה" מופעלים בידי חברות
     // האוטובוס ונשארים גם כאן, ולא רק בטאב סוגי התחבורה (בקשת המשתמש).
     const buses = idx.lines.filter((l) => !l.tt || l.tt === "demand");
-    let list = buses.filter((l) => inKats(l) && toks.every((t) => tokHit(l, t)));
+    let list = buses.filter((l) => inKats(l) && matchesRouteSearch(l, needle, citySearch.data, null, true));
     const onlyRemoval = kats.size > 0 && [...kats].every((k) => REMOVAL_CATS.has(k));
     // דירוג: קודם מספר הקו המדויק, אחריו קווים שמתחילים בו, ורק בסוף
     // התאמות מק"ט/יעד/מפעיל — ובתוך כל דרגה לפי סדר מספרי
@@ -4582,7 +4624,7 @@ function App() {
     else list.sort((a, b) => lnum(a) - lnum(b) || a.line.localeCompare(b.line) || a.rd.localeCompare(b.rd));
     list = collapse2012Rows(list);
     return { total: list.length, list: list.slice(0, lim) };
-  }, [idx, q, kats, lim]);
+  }, [idx, q, kats, lim, citySearch.data]);
   // סטטוס HTTP = הקובץ באמת לא קיים; כל כשל אחר הוא תקלת רשת — עם כפתור
   // ניסיון חוזר במקום הודעה שגורמת לגולש לחשוב שאין נתונים
   if (err) return (
@@ -4599,6 +4641,7 @@ function App() {
   return (
     <div className="wrap">
       <RecheckNotice />
+      <CitySearchStatus state={citySearch} />
       <header>
         <h1>🕰️ הקו בזמן</h1>
         <p className="tag">כל שינוי שנכנס לתוקף במסלולי הקווים ובתחנות — מסלול, שרטוט, תחנות ושמות. מהשוואת ה-GTFS של משרד התחבורה, יום מול יום, ממרץ 2017 ועד היום.</p>

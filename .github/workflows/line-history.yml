@@ -20,6 +20,7 @@ on:
       - 'tools/fix_false_removed.py'
       - 'tools/mark_reverted_changes.py'
       - 'tools/build_stop_shards.py'
+      - 'tools/build_city_search.py'
       - 'tools/scan_vcnt_daily.py'
       - 'tools/last_sched.py'
       - 'tools/compact_lines.py'
@@ -201,6 +202,7 @@ jobs:
             OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
             # היסטוריה לפי תחנה: אילו קווים עצרו בכל תחנה ומתי זה השתנה
             OUTDIR=line-history/data python3 tools/build_stop_history.py
+            OUTDIR=line-history/data python3 tools/build_city_search.py
             # הדלתא לקו פח ולקו המוזהב: קווים שבוטלו, נסיעות עדכניות,
             # צמצומים — נגזר מהארכיון ונטען באתר הראשי
             OUTDIR=line-history/data python3 tools/build_kavpach_live.py
