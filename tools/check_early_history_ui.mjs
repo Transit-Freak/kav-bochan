@@ -66,6 +66,8 @@ try{
   const event=p.getByRole('button',{name:'בחירת האירוע מ-05.03.2016: שינוי לו"ז',exact:true});
   await event.click();
   await p.locator('.early-schedule-diff .tdiff-tbl').first().waitFor({timeout:30000});
+  if(await p.locator('.card.main .tdiff-tbl').count()!==1)throw Error('Selecting one schedule change must open exactly one table');
+  await p.waitForFunction(()=>{const r=document.querySelector('.early-schedule-diff')?.getBoundingClientRect();return r&&r.top>=0&&r.top<innerHeight;});
   const box=await p.locator('.early-schedule-diff').boundingBox();
   if(!box||box.y<0||box.y>=viewport.height||box.x+box.width<=0||box.x>=viewport.width)throw Error('Line 2 timetable remains outside visible screen');
   await event.click();
