@@ -82,7 +82,7 @@
       fetch("app.jsx?v=" + Date.now(), { cache: "no-cache" })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
         .then(function (code) {
-          var key = "lh-js-" + hash(code);
+          var key = "lh-js-190-" + hash(code);
           var cached = null;
           try { cached = localStorage.getItem(key); } catch (e) { /* מצב פרטי */ }
           if (cached) { run(cached); return; }
@@ -94,13 +94,8 @@
           run(out);
         })
         .catch(function (e) {
-          // תקלת רשת רגעית: אם יש קומפילציה שמורה מביקור קודם — מריצים
-          // אותה במקום להציג שגיאה (הקוד מעט ישן, אבל האתר חי)
-          try {
-            var k = Object.keys(localStorage).find(function (x) { return x.indexOf("lh-js-") === 0; });
-            if (k) { run(localStorage.getItem(k)); return; }
-          } catch (e2) { /* אין מטמון */ }
-          document.getElementById("root").innerHTML = '<div class="boot">שגיאה בטעינה: ' + e + "</div>";
+          // Do not silently execute obsolete UI after a network failure.
+          document.getElementById("root").innerHTML = '<div class="boot">לא הצלחנו לטעון את הגרסה העדכנית. <button onclick="location.reload()">ניסיון נוסף</button></div>';
         });
     })();
   </script>
