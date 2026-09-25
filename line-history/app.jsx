@@ -2525,7 +2525,6 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
-        {v.earlyPatternsFile ? <EarlyPatternLoader key={v.earlyPatternsFile} event={v} /> : v.earlyPatterns ? <EarlyPatterns event={v} /> : null}
       </div>
     </div>
   );
