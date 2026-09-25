@@ -58,6 +58,19 @@ try{
  await p.locator('.early-schedule-diff .tdiff-tbl').first().waitFor({timeout:30000});
  if(!(await p.locator('.early-schedule-diff').innerText()).includes('07:00'))throw Error('Historical departure times missing');
  if(await p.locator('.early-schedule-diff .td-added,.early-schedule-diff .td-removed,.early-schedule-diff .td-moved').count())throw Error('Calendar-only change falsely changes departures');
+ for(const viewport of [{width:390,height:844},{width:980,height:844}]){
+  await p.setViewportSize(viewport);
+  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('75002-2-#')}`);
+  const event=p.getByRole('button',{name:'בחירת האירוע מ-05.03.2016: שינוי לו"ז',exact:true});
+  await event.click();
+  await p.locator('.early-schedule-diff .tdiff-tbl').first().waitFor({timeout:30000});
+  const box=await p.locator('.early-schedule-diff').boundingBox();
+  if(!box||box.y<0||box.y>=viewport.height||box.x+box.width<=0||box.x>=viewport.width)throw Error('Line 2 timetable remains outside visible screen');
+  await event.click();
+  const again=await p.locator('.early-schedule-diff').boundingBox();
+  if(!again||again.y>=viewport.height)throw Error('Selecting same event does not reveal timetable');
+ }
+ await p.setViewportSize({width:390,height:844});
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=map`);
  const mapLines=p.getByRole('button',{name:'2012 · קווים',exact:true});
  const mapStops=p.getByRole('button',{name:'2012 · תחנות OpenStreetMap',exact:true});
