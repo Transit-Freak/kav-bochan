@@ -52,8 +52,7 @@ try{
  await p.getByText('תיעוד היסטורי',{exact:true}).waitFor({timeout:30000});
  if(await p.locator('.tl details,.tl .early-detail').count())throw Error('Custom archive panels remain in timeline');
  await p.locator('.tl .evsrc').first().waitFor();
- await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה ('}).first().click();
- await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה מהקובץ'}).first().waitFor({timeout:30000});
+ if(await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה'}).count())throw Error('Unrequested archive panels remain');
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('38001-3-א')}`);
  await p.getByRole('button',{name:'בחירת האירוע מ-11.02.2016: שינוי לו"ז',exact:true}).click();
  await p.locator('.early-schedule-diff .tdiff-tbl').first().waitFor({timeout:30000});
