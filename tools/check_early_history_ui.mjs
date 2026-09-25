@@ -49,7 +49,9 @@ try{
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
  await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
  await p.locator('.lrow').first().click();
- await p.getByText('תיעוד היסטורי בלבד. הרשומה אינה קובעת אם הקו פועל היום.',{exact:true}).waitFor({timeout:30000});
+ await p.getByText('תיעוד היסטורי',{exact:true}).waitFor({timeout:30000});
+ if(await p.locator('.event-details[open]').count())throw Error('Event details should be collapsed');
+ await p.locator('.event-details > summary').first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה ('}).first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה מהקובץ'}).first().waitFor({timeout:30000});
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=map`);
