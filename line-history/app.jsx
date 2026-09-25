@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "189-single-schedule";
+const BUILD = "190-verified-schedule";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -267,7 +267,7 @@ const REMOVAL_CATS = new Set(["removed-year", "removed-now", "removed-past"]);
    למספר אחד, והמספר "קפץ" 12→17→8→16→3 בראשל"צ בלי שרציף נוסף או בוטל.
    האירועים החדשים (pv=2, tools/platforms.py) נבנים מהשורות עצמן — רציף
    שקיבל קווים / נשאר בלי קווים בתחנה, וקו שעבר רציף — ומוצגים. */
-const hiddenEv = (e) => e && e.k === "platform" && !e.pv;
+const hiddenEv = (e) => e && (e.hid || (e.k === "platform" && !e.pv));
 const SKINDS = {
   new:     { label: "חדשה", color: "#15803d" },
   del:     { label: "בוטלה", color: "#dc2626" },
@@ -1720,7 +1720,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
       .then((d) => { if (!ok) return; const m = materializeLf(d); setLf(m);
         // קישור מציר תחנה מגיע עם תאריך (‎#מקט@תאריך‎) — נוחתים ישר על
         // הגרסה של אותו שינוי, לא על הגרסה האחרונה
-        let s = d.versions.length - 1;
+        let s = d.versions.reduce((last,v,i)=>v.hid?last:i, 0);
         if (initDate) {
           const i = d.versions.findIndex((v) => v.d === initDate);
           if (i >= 0) s = i;
@@ -2169,8 +2169,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
           </div>
         )}
-        <SchedBox rd={rd} vs={vs} selD={sel != null && vs[sel] ? vs[sel].d : null}
-          isLast={sel == null || sel >= vs.length - 1} />
+        {v.k !== "sched" && v.k !== "freq" && <SchedBox rd={rd} vs={vs} selD={sel != null && vs[sel] ? vs[sel].d : null}
+          isLast={sel == null || sel >= vs.length - 1} />}
         {anc && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
@@ -2533,8 +2533,6 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
-        {!(v.tl || v.tn) && (v.k === "sched" || v.k === "freq") && (v.earlyPatternsFile || v.earlyPatterns) &&
-          <EarlyScheduleDiff key={v.d+":"+v.earlyPatternsFile+":"+pv?.d} event={v} previous={pv} />}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
     </div>
@@ -4245,53 +4243,6 @@ function EarlyMap({ stops, shp }) {
 }
 
 // Reconstruct actual service dates so different calendar periods are never counted as simultaneous trips.
-function earlySchedule(patterns) {
-  const days = new Map(), weekday = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-  let first = "", last = "";
-  const iso = s => /^\d{8}$/.test(s || "") ? s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8) : "";
-  for (const p of patterns || []) for (const s of p.services || []) {
-    const start = iso(s.calendar?.start_date), end = iso(s.calendar?.end_date);
-    if(!start || !end || end<start)continue;
-    if(!first || start<first)first=start;if(end>last)last=end;
-    for(let n=Date.parse(start+"T00:00:00Z"), stop=Date.parse(end+"T00:00:00Z");n<=stop;n+=864e5){
-      const d=new Date(n);if(String(s.calendar[weekday[d.getUTCDay()]])!=="1")continue;
-      const date=d.toISOString().slice(0,10), rows=days.get(date)||[];
-      (s.departures||[]).forEach((t,i)=>rows.push({t:t.replace(/:00$/,""), raw:t,
-        key:JSON.stringify((p.stops||[]).map(x=>x[0]))+"|"+t,
-        stops:p.stops||[], profile:p.timeProfiles?.[s.profiles?.[i]]||[]}));
-      days.set(date,rows);
-    }
-  }
-  for(const rows of days.values())rows.sort((a,b)=>a.key.localeCompare(b.key)||JSON.stringify(a.profile).localeCompare(JSON.stringify(b.profile)));
-  return {days,first,last};
-}
-function earlyScheduleDiff(before,after,eventDate) {
-  const a=earlySchedule(before),b=earlySchedule(after);
-  const start=a.first>b.first?a.first:b.first,end=a.last<b.last?a.last:b.last;
-  // Like the ordinary history, compare one operating day's departure list.
-  // Both lists refer to the same date and weekday, within both calendars.
-  const dates=[...new Set([...a.days.keys(),...b.days.keys()])]
-    .filter(d=>d>=start&&d<=end).sort();
-  const date=dates.find(d=>d>=(eventDate||start))||dates[0];
-  if(!date)return null;
-  const times=rows=>(rows||[]).map(r=>r.t).sort().join(",");
-  return {date,tl:times(a.days.get(date)),tn:times(b.days.get(date))};
-}
-function EarlyScheduleDiff({event,previous}) {
-  const [data,setData]=useState(null),[err,setErr]=useState(""),[retry,setRetry]=useState(0);
-  useEffect(()=>{
-    let live=true;setData(null);setErr("");
-    const read=v=>v?.earlyPatterns?Promise.resolve(v.earlyPatterns):v?.earlyPatternsFile?earlyGzip("data/early-patterns/"+v.earlyPatternsFile+".json.gz"):Promise.resolve(null);
-    Promise.all([read(previous),read(event)]).then(([a,b])=>{if(live)setData(a&&b?earlyScheduleDiff(a,b,event.d):false);})
-      .catch(()=>{if(live)setErr("לא הצלחנו לטעון את השעות.");});
-    return()=>{live=false;};
-  },[event,previous,retry]);
-  if(err)return <div role="alert">{err} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></div>;
-  if(data===null)return <section className="early-schedule-diff" role="status">טוען השוואת לו״ז…</section>;
-  if(!data)return <p>לא נשמר לו״ז להשוואה לגרסה הקודמת.</p>;
-  return <section className="early-schedule-diff"><TimesDiff tl={data.tl} tn={data.tn}/></section>;
-}
-
 function EarlyPatternLoader({ event }) {
   const [data,setData]=useState(null),[err,setErr]=useState("");
   const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
