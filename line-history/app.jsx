@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "188-standard-schedule";
+const BUILD = "189-single-schedule";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -1653,7 +1653,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
     if(event.k === "sched" || event.k === "freq"){
       requestAnimationFrame(()=>{
         const panel=detailRef.current;
-        if(panel)(panel.querySelector(".early-schedule-diff,.tdiff")||panel).scrollIntoView({block:"start",inline:"nearest"});
+        if(panel)(panel.querySelector(".early-schedule-diff,.tdiff")||panel).scrollIntoView({block:"start",inline:"nearest",behavior:"instant"});
+        window.scrollBy({top:-12,behavior:"instant"});
       });
     }
   };
@@ -2532,7 +2533,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
-        {(v.k === "sched" || v.k === "freq") && (v.earlyPatternsFile || v.earlyPatterns) &&
+        {!(v.tl || v.tn) && (v.k === "sched" || v.k === "freq") && (v.earlyPatternsFile || v.earlyPatterns) &&
           <EarlyScheduleDiff key={v.d+":"+v.earlyPatternsFile+":"+pv?.d} event={v} previous={pv} />}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
@@ -4264,46 +4265,31 @@ function earlySchedule(patterns) {
   for(const rows of days.values())rows.sort((a,b)=>a.key.localeCompare(b.key)||JSON.stringify(a.profile).localeCompare(JSON.stringify(b.profile)));
   return {days,first,last};
 }
-function earlyScheduleDiff(before,after) {
-  const a=earlySchedule(before),b=earlySchedule(after),groups=new Map();
+function earlyScheduleDiff(before,after,eventDate) {
+  const a=earlySchedule(before),b=earlySchedule(after);
   const start=a.first>b.first?a.first:b.first,end=a.last<b.last?a.last:b.last;
-  const clock=(t,offset)=>{if(offset==null)return "לא צוין";const p=t.split(":").map(Number),v=p[0]*3600+p[1]*60+(p[2]||0)+Number(offset);return [Math.floor(v/3600),Math.floor(v%3600/60),v%60].map(x=>String(x).padStart(2,"0")).join(":").replace(/:00$/,"");};
-  if(a.first&&b.first)for(let n=Date.parse(start+"T00:00:00Z"),stop=Date.parse(end+"T00:00:00Z");n<=stop;n+=864e5){
-    const date=new Date(n).toISOString().slice(0,10),old=a.days.get(date)||[],now=b.days.get(date)||[];
-    if(!old.length&&!now.length)continue;
-    const tl=old.map(r=>r.t).sort().join(","),tn=now.map(r=>r.t).sort().join(",");
-    const pool=new Map();old.forEach(r=>{if(!pool.has(r.key))pool.set(r.key,[]);pool.get(r.key).push(r);});
-    const transit=[];
-    now.forEach(r=>{const prev=pool.get(r.key)?.shift();if(!prev)return;
-      r.stops.forEach((s,i)=>{const x=prev.profile[i],y=r.profile[i];if(!x||!y||JSON.stringify(x)===JSON.stringify(y))return;
-        transit.push([r.t,s[1],clock(prev.raw,x[0]),clock(r.raw,y[0]),clock(prev.raw,x[1]),clock(r.raw,y[1])]);});
-    });
-    const key=JSON.stringify([tl,tn]);
-    if(!groups.has(key))groups.set(key,{tl,tn,transit,dates:[],changed:tl!==tn||transit.length>0});
-    groups.get(key).dates.push(date);
-  }
-  const all=[...groups.values()],changed=all.filter(g=>g.changed);
-  return {before:a,after:b,groups:changed.length?changed:all,changed:changed.length>0};
+  // Like the ordinary history, compare one operating day's departure list.
+  // Both lists refer to the same date and weekday, within both calendars.
+  const dates=[...new Set([...a.days.keys(),...b.days.keys()])]
+    .filter(d=>d>=start&&d<=end).sort();
+  const date=dates.find(d=>d>=(eventDate||start))||dates[0];
+  if(!date)return null;
+  const times=rows=>(rows||[]).map(r=>r.t).sort().join(",");
+  return {date,tl:times(a.days.get(date)),tn:times(b.days.get(date))};
 }
 function EarlyScheduleDiff({event,previous}) {
   const [data,setData]=useState(null),[err,setErr]=useState(""),[retry,setRetry]=useState(0);
   useEffect(()=>{
     let live=true;setData(null);setErr("");
     const read=v=>v?.earlyPatterns?Promise.resolve(v.earlyPatterns):v?.earlyPatternsFile?earlyGzip("data/early-patterns/"+v.earlyPatternsFile+".json.gz"):Promise.resolve(null);
-    Promise.all([read(previous),read(event)]).then(([a,b])=>{if(live)setData(a&&b?earlyScheduleDiff(a,b):false);})
+    Promise.all([read(previous),read(event)]).then(([a,b])=>{if(live)setData(a&&b?earlyScheduleDiff(a,b,event.d):false);})
       .catch(()=>{if(live)setErr("לא הצלחנו לטעון את השעות.");});
     return()=>{live=false;};
   },[event,previous,retry]);
   if(err)return <div role="alert">{err} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></div>;
   if(data===null)return <section className="early-schedule-diff" role="status">טוען השוואת לו״ז…</section>;
   if(!data)return <p>לא נשמר לו״ז להשוואה לגרסה הקודמת.</p>;
-  return <section className="early-schedule-diff">
-    {!data.groups.length&&<p>אין תאריכים חופפים להשוואת שעות.</p>}
-    {data.groups.map((g,i)=><div key={i}>
-      {data.groups.length>1&&<h4>{g.dates.length===1?fmtD(g.dates[0]):<TipTag cls="mut" tip={g.dates.map(fmtD).join(", ")}>{g.dates.length} תאריכים: {fmtD(g.dates[0])}–{fmtD(g.dates[g.dates.length-1])}</TipTag>}</h4>}
-      <TimesDiff tl={g.tl} tn={g.tn}/>
-    </div>)}
-  </section>;
+  return <section className="early-schedule-diff"><TimesDiff tl={data.tl} tn={data.tn}/></section>;
 }
 
 function EarlyPatternLoader({ event }) {
