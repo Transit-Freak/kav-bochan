@@ -54,6 +54,11 @@ try{
  await p.locator('.event-details > summary').first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה ('}).first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה מהקובץ'}).first().waitFor({timeout:30000});
+ await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('38001-3-א')}`);
+ await p.getByRole('button',{name:'בחירת האירוע מ-11.02.2016: שינוי לו"ז',exact:true}).click();
+ await p.locator('.early-schedule-diff .tdiff-tbl').first().waitFor({timeout:30000});
+ if(!(await p.locator('.early-schedule-diff').innerText()).includes('07:00'))throw Error('Historical departure times missing');
+ if(await p.locator('.early-schedule-diff .td-added,.early-schedule-diff .td-removed,.early-schedule-diff .td-moved').count())throw Error('Calendar-only change falsely changes departures');
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=map`);
  const mapLines=p.getByRole('button',{name:'2012 · קווים',exact:true});
  const mapStops=p.getByRole('button',{name:'2012 · תחנות OpenStreetMap',exact:true});
