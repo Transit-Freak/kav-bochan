@@ -10,6 +10,7 @@ on:
     paths:
       - 'line-history/**'
       - 'tools/check_line_history_ui.mjs'
+      - 'tools/check_early_history_ui.mjs'
       - '.github/workflows/line-history-guard.yml'
   workflow_dispatch:
 
@@ -34,3 +35,4 @@ jobs:
           set -euo pipefail
           npm i --no-save playwright-core
           CHROMIUM_PATH="$(which google-chrome)" node tools/check_line_history_ui.mjs
+          CHROMIUM_PATH="$(which google-chrome)" node tools/check_early_history_ui.mjs
