@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "183-map-source-selection";
+const BUILD = "184-compact-history-events";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -47,7 +47,7 @@ const KGLABEL = { stops: "שינוי תחנות", terminal: "שינוי קצה �
                   baseline: "נקודת פתיחה" };
 const KINDS = {
   baseline:    { label: "תיעוד ראשון", color: "#64748b" },
-  snapshot:    { label: "צילום מהארכיון", color: "#64748b" },
+  snapshot:    { label: "תיעוד ראשון", color: "#64748b" },
   new:         { label: "וריאנט חדש", color: "#15803d" },
   route:       { label: "שינוי מסלול", color: "#7c3aed" },
   redraw:      { label: "תיקון שרטוט", color: "#0e7490" },
@@ -427,6 +427,7 @@ function fmtD(d) { return (d || "").split("-").reverse().join("."); }
 // סיומת התאריכים "(2025-07-10 ← 2025-07-11)" בהערות הסריקה מוסתרת
 // בתצוגה (בקשת שלמה): תאריך הביצוע כבר כתוב בכותרת האירוע — זהו
 function noteFix(s) {
+  if (["שינוי שנמצא בהשוואת שני צילומים זמינים של אותו מק״ט, כיוון וחלופה.", "צילום היסטורי של פרסום משרד התחבורה. מועד התיעוד אינו מועד פתיחת הקו או שינוי המסלול."].includes(String(s || "").trim())) return "";
   return String(s || "").replace(/\s*\(\d{4}-\d{2}-\d{2} ← \d{4}-\d{2}-\d{2}\)/g, "");
 }
 function fmtM(d) { const p = (d || "").split("-"); return p[1] + "." + p[0]; }
@@ -2143,7 +2144,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {lf.historicalOnly && <p className="evnote">תיעוד היסטורי בלבד. הרשומה אינה קובעת אם הקו פועל היום.</p>}
+        {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
         {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
         {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
         {lf.tt === "demand" && (
@@ -2345,8 +2346,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
-              {x.earlyPatternsFile ? <EarlyPatternLoader event={x} /> : x.earlyPatterns ? <EarlyPatterns event={x} /> : null}
-              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
+              <details className="event-details"><summary>פרטים ומקור</summary>
+                <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
+                {x.earlyPatternsFile ? <EarlyPatternLoader event={x} /> : x.earlyPatterns ? <EarlyPatterns event={x} /> : null}
+              </details>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
                   התחנות (שלמה 05.09) */}
@@ -2418,7 +2421,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             וזה בדיוק מה ש-'sd' מודד. */}
         {!cmpOn && !evDate(v).exact && (
           <div className="gapwarn">
-            ℹ️ היום המדויק אינו ידוע: {evDate(v).tip}.
+            <TipTag cls="mut" tip={evDate(v).tip}>תאריך משוער</TipTag>
           </div>
         )}
         {v.k === "times" && v.tb ? (
@@ -2520,7 +2523,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           ? <div className="mut">ℹ️ {gv.shp ? "השרטוט המלא של המסלול שתוכנן, כפי שפורסם בפיד" : "המסלול שתוכנן מצויר כקו ישר בין התחנות — לתוכנית הזו לא נשמר שרטוט"}.</div>
           : approx
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
-          : <div className="mut">🔍 הגאומטריה נשמרת במלואה, בלי דילול — גם תיקון שרטוט של כמה מטרים ייראה כאן. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
+          : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
