@@ -50,8 +50,8 @@ try{
  await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
  await p.locator('.lrow').first().click();
  await p.getByText('תיעוד היסטורי',{exact:true}).waitFor({timeout:30000});
- if(await p.locator('.event-details[open]').count())throw Error('Event details should be collapsed');
- await p.locator('.event-details > summary').first().click();
+ if(await p.locator('.tl details,.tl .early-detail').count())throw Error('Custom archive panels remain in timeline');
+ await p.locator('.tl .evsrc').first().waitFor();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה ('}).first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה מהקובץ'}).first().waitFor({timeout:30000});
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('38001-3-א')}`);
