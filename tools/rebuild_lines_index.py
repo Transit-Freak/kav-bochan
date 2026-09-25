@@ -53,7 +53,7 @@ for fn in os.listdir(f'{OUTDIR}/lines'):
         json.dump(lf, open(f'{OUTDIR}/lines/{fn}', 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         n_anc += 1
-    vs = lf.get('versions', [])
+    vs = [v for v in lf.get('versions', []) if not v.get('hid')]
     e = byrd.get(rd)
     if e is None:
         e = {'rd': rd, 'line': lf.get('line', ''), 'dest': lf.get('dest', '')[:80],
