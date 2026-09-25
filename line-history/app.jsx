@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "184-compact-history-events";
+const BUILD = "185-historical-schedule-diff";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2424,6 +2424,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             <TipTag cls="mut" tip={evDate(v).tip}>תאריך משוער</TipTag>
           </div>
         )}
+        {(v.k === "sched" || v.k === "freq") && (v.earlyPatternsFile || v.earlyPatterns) &&
+          <EarlyScheduleDiff key={v.d+":"+v.earlyPatternsFile+":"+pv?.d} event={v} previous={pv} />}
         {v.k === "times" && v.tb ? (
           /* הלו"ז האחרון של קו מבוטל — צילום מהארכיון (בקשת המשתמש): קו
              שבוטל בלי שום אירוע לו"ז מקבל, שנה אחרי הביטול, את שעות-היציאה
@@ -2812,9 +2814,19 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   // הפיד יושב בטאב "קווים", שהוא טאב האוטובוסים. רכבת ומוניות שירות הן
   // טאבים משלהן, וכשהן הופיעו כאן הן גם הגיעו בלי מספר קו — תג ריק.
   // סינון לפי הקטגוריות המסומנות בעמוד (שלמה 13.09: "שינויים לפי יום" באותו עמוד)
-  const inKats = (c) => !kats || !kats.size || kats.has(c.k) ||
-    (kats.has("stops") && /^stops/.test(c.k)) || (kats.has("terminal") && (c.k === "extend" || c.k === "shorten")) ||
-    (kats.has("removed") && c.k === "removed");
+  const inKats = (c) => !kats || !kats.size || [...kats].some(k => {
+    if(k === "endpoint")return ENDPOINT_KINDS.includes(c.k);
+    if(k === "sched")return c.k === "sched" || c.k === "freq";
+    if(REMOVAL_CATS.has(k))return c.k === "removed" && catMatch(meta[c.rd] || {},k);
+    if(k === "stops" || k === "stops-add" || k === "stops-del"){
+      if(c.k === k)return true;
+      if(c.k !== "removed"){
+        const add=(c.add||[]).length,rem=(c.rem||[]).length;
+        return k === "stops" ? add>0&&rem>0 : k === "stops-add" ? add>0&&!rem : rem>0&&!add;
+      }
+    }
+    return c.k === k;
+  });
   const list = (chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
@@ -4223,6 +4235,74 @@ function EarlyMap({ stops, shp }) {
   }, [stops, shp]);
   return <div ref={el} style={{ height: 330, borderRadius: 14, margin: "12px 0" }} aria-label="מפת התחנות ההיסטוריות" />;
 }
+
+// Reconstruct actual service dates so different calendar periods are never counted as simultaneous trips.
+function earlySchedule(patterns) {
+  const days = new Map(), weekday = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  let first = "", last = "";
+  const iso = s => /^\d{8}$/.test(s || "") ? s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8) : "";
+  for (const p of patterns || []) for (const s of p.services || []) {
+    const start = iso(s.calendar?.start_date), end = iso(s.calendar?.end_date);
+    if(!start || !end || end<start)continue;
+    if(!first || start<first)first=start;if(end>last)last=end;
+    for(let n=Date.parse(start+"T00:00:00Z"), stop=Date.parse(end+"T00:00:00Z");n<=stop;n+=864e5){
+      const d=new Date(n);if(String(s.calendar[weekday[d.getUTCDay()]])!=="1")continue;
+      const date=d.toISOString().slice(0,10), rows=days.get(date)||[];
+      (s.departures||[]).forEach((t,i)=>rows.push({t:t.replace(/:00$/,""), raw:t,
+        key:JSON.stringify((p.stops||[]).map(x=>x[0]))+"|"+t,
+        stops:p.stops||[], profile:p.timeProfiles?.[s.profiles?.[i]]||[]}));
+      days.set(date,rows);
+    }
+  }
+  for(const rows of days.values())rows.sort((a,b)=>a.key.localeCompare(b.key)||JSON.stringify(a.profile).localeCompare(JSON.stringify(b.profile)));
+  return {days,first,last};
+}
+function earlyScheduleDiff(before,after) {
+  const a=earlySchedule(before),b=earlySchedule(after),groups=new Map();
+  const start=a.first>b.first?a.first:b.first,end=a.last<b.last?a.last:b.last;
+  const clock=(t,offset)=>{if(offset==null)return "לא צוין";const p=t.split(":").map(Number),v=p[0]*3600+p[1]*60+(p[2]||0)+Number(offset);return [Math.floor(v/3600),Math.floor(v%3600/60),v%60].map(x=>String(x).padStart(2,"0")).join(":").replace(/:00$/,"");};
+  if(a.first&&b.first)for(let n=Date.parse(start+"T00:00:00Z"),stop=Date.parse(end+"T00:00:00Z");n<=stop;n+=864e5){
+    const date=new Date(n).toISOString().slice(0,10),old=a.days.get(date)||[],now=b.days.get(date)||[];
+    if(!old.length&&!now.length)continue;
+    const tl=old.map(r=>r.t).sort().join(","),tn=now.map(r=>r.t).sort().join(",");
+    const pool=new Map();old.forEach(r=>{if(!pool.has(r.key))pool.set(r.key,[]);pool.get(r.key).push(r);});
+    const transit=[];
+    now.forEach(r=>{const prev=pool.get(r.key)?.shift();if(!prev)return;
+      r.stops.forEach((s,i)=>{const x=prev.profile[i],y=r.profile[i];if(!x||!y||JSON.stringify(x)===JSON.stringify(y))return;
+        transit.push([r.t,s[1],clock(prev.raw,x[0]),clock(r.raw,y[0]),clock(prev.raw,x[1]),clock(r.raw,y[1])]);});
+    });
+    const key=JSON.stringify([tl,tn,transit]);
+    if(!groups.has(key))groups.set(key,{tl,tn,transit,dates:[],changed:tl!==tn||transit.length>0});
+    groups.get(key).dates.push(date);
+  }
+  const all=[...groups.values()],changed=all.filter(g=>g.changed);
+  return {before:a,after:b,groups:changed.length?changed:all,changed:changed.length>0};
+}
+function EarlyScheduleDiff({event,previous}) {
+  const [data,setData]=useState(null),[err,setErr]=useState(""),[retry,setRetry]=useState(0);
+  useEffect(()=>{
+    let live=true;setData(null);setErr("");
+    const read=v=>v?.earlyPatterns?Promise.resolve(v.earlyPatterns):v?.earlyPatternsFile?earlyGzip("data/early-patterns/"+v.earlyPatternsFile+".json.gz"):Promise.resolve(null);
+    Promise.all([read(previous),read(event)]).then(([a,b])=>{if(live)setData(a&&b?earlyScheduleDiff(a,b):false);})
+      .catch(()=>{if(live)setErr("לא הצלחנו לטעון את השעות.");});
+    return()=>{live=false;};
+  },[event,previous,retry]);
+  if(err)return <div role="alert">{err} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></div>;
+  if(data===null)return <p role="status">טוען השוואת לו״ז…</p>;
+  if(!data)return <p>לא נשמר לו״ז להשוואה לגרסה הקודמת.</p>;
+  return <section className="early-schedule-diff">
+    <h3>שינוי לו״ז</h3>
+    {!data.changed&&<p>שעות היציאה וזמני המעבר בתאריכים החופפים זהים.</p>}
+    {(data.before.first!==data.after.first||data.before.last!==data.after.last)&&<p>תוקף הלוח: {fmtD(data.before.first)}–{fmtD(data.before.last)} ← {fmtD(data.after.first)}–{fmtD(data.after.last)}</p>}
+    {!data.groups.length&&<p>אין תאריכים חופפים להשוואת שעות.</p>}
+    {data.groups.map((g,i)=><div key={i}>
+      <h4>{g.dates.length===1?fmtD(g.dates[0]):<TipTag cls="mut" tip={g.dates.map(fmtD).join(", ")}>{g.dates.length} תאריכים: {fmtD(g.dates[0])}–{fmtD(g.dates[g.dates.length-1])}</TipTag>}</h4>
+      <TimesDiff tl={g.tl} tn={g.tn}/>
+      {g.transit.length>0&&<><h4>זמני מעבר בתחנות שהשתנו</h4><div className="early-scroll"><table className="tdiff-tbl"><thead><tr>{["יציאה","תחנה","הגעה לפני","הגעה אחרי","יציאה לפני","יציאה אחרי"].map(s=><th key={s}>{s}</th>)}</tr></thead><tbody>{g.transit.map((r,j)=><tr key={j}>{r.map((s,k)=><td key={k}>{s}</td>)}</tr>)}</tbody></table></div></>}
+    </div>)}
+  </section>;
+}
+
 function EarlyPatternLoader({ event }) {
   const [data,setData]=useState(null),[err,setErr]=useState("");
   const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
@@ -4606,7 +4686,7 @@ function App() {
                   </React.Fragment>
                 ))}
                 <div className="katnote">
-                  ℹ️ כל סוגי השינויים מחושבים מהשוואת צילומי הפיד — ממרץ 2017 ועד היום.
+                  ℹ️ הקטגוריות משותפות לכל השנים. מוצגים שינויים רק כשיש נתונים להשוואה.
                   היוצא מן הכלל הוא שינוי מספר הרכבים באותה יציאה, שנרשם רק מ-08.2026:
                   הוא נשען על קובץ רישוי שהארכיונים לא שמרו.
                 </div>
