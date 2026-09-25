@@ -30,8 +30,7 @@ try{
  await p.getByLabel('יום',{exact:true}).selectOption('2013-01-01');
  await p.locator('.early-scroll tbody tr').first().waitFor({timeout:30000});
  await p.getByRole('tab',{name:'🚕 מוניות שירות',exact:true}).click();
- await p.getByLabel('תקופה',{exact:true}).selectOption('2012');
- await p.getByText('0 קווים',{exact:true}).waitFor({timeout:30000});
+ if(await p.locator('select[aria-label="תקופה"] option[value="2012"]').count())throw Error('Empty taxi year 2012 is offered');
  await p.getByRole('tab',{name:'🚌 קווים',exact:true}).click();
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
  await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
