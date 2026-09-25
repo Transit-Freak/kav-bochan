@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "180-available-history-only";
+const BUILD = "181-unified-daily-history";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2731,12 +2731,14 @@ function Res2012({ needle, onOpen }) {
 // קטגוריה: מי שמסמן "מבוטל" מצפה לרשימת הקווים הרגילה, כמו בכל קטגוריה
 // אחרת, ולא למסך אחר עם חוקים אחרים. הביטולים מוצגים ברשימה הרגילה.
 
-function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
+function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines" }) {
+  const earlyMonths = useHistoricalMonths(mode);
+  const [regularMonths, setRegularMonths] = useState([]);
   const [months, setMonths] = useState(null);
   // השנה והחודש שנבחרו נשמרים ללשונית: פתיחת קו וחזרה החזירו ל-2026 (שלמה 13.09)
-  const [yr, setYr] = useState(() => { try { return location.hash === "#t=early" ? "2012" : sessionStorage.getItem("lh-day-yr") || ""; } catch (e) { return ""; } });
-  const [mon, setMon] = useState(() => { try { return location.hash === "#t=early" ? "2012-07" : sessionStorage.getItem("lh-day-mon") || ""; } catch (e) { return ""; } });
-  useEffect(() => { try { sessionStorage.setItem("lh-day-yr", yr); sessionStorage.setItem("lh-day-mon", mon); } catch (e) { /* ignore */ } }, [yr, mon]);
+  const [yr, setYr] = useState(() => { try { return location.hash === "#t=early" ? "2012" : sessionStorage.getItem("lh-day-yr-"+mode) || ""; } catch (e) { return ""; } });
+  const [mon, setMon] = useState(() => { try { return location.hash === "#t=early" ? "2012-07" : sessionStorage.getItem("lh-day-mon-"+mode) || ""; } catch (e) { return ""; } });
+  useEffect(() => { try { sessionStorage.setItem("lh-day-yr-"+mode, yr); sessionStorage.setItem("lh-day-mon-"+mode, mon); } catch (e) { /* ignore */ } }, [yr, mon]);
   const [chs, setChs] = useState(null);
   const [q, setQ] = usePersistedQ("lh-q-day");
   const [lim, setLim] = useState(300);
@@ -2775,18 +2777,20 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
         // ממיינים כאן במקום לסמוך על סדר הקובץ: ריצת שלב ב' הפכה את
         // months ליורד, וההנחה "האיבר האחרון הוא הנוכחי" שלחה את הפיד
         // למרץ 2017. מיון מקומי עולה מנתק את התלות בכיוון שבדיסק.
-        const ms = (d.months || []).slice().sort(); setMonths(ms);
+        const regular = mode === "lines" ? (d.months || []) : (d.modeMonths?.[mode] || []);
+        setRegularMonths(regular);
+        const ms = [...new Set([...regular,...earlyMonths])].sort(); setMonths(ms);
         // לא דורסים בחירה שכבר נעשתה — כניסה מכתובת ‎#2012/<k>‎ קובעת
         // את השנה לפני שהחודשים נטענים. אחרי המיון האיבר האחרון הוא
         // החודש הנוכחי.
         const last = ms[ms.length - 1] || "";
-        if (ms.length) { setYr((cur) => ms.some(m => m.startsWith(cur)) ? cur : last.slice(0, 4)); setMon((cur) => cur === "legacy2012" || ms.includes(cur) ? cur : last); }
+        if (ms.length) { setYr((cur) => cur && ms.some(m => m.startsWith(cur)) ? cur : last.slice(0, 4)); setMon((cur) => cur === "legacy2012" || ms.includes(cur) ? cur : last); }
       })
       .catch(() => { if (ok) { setMErr(true); setMonths([]); } });
     return () => { ok = false; };
-  }, [rty]);
+  }, [rty, mode, earlyMonths]);
   useEffect(() => {
-    if (!mon || mon === "legacy2012") return;
+    if (!mon || mon === "legacy2012" || !regularMonths.includes(mon)) return;
     // מעבר מהיר בין חודשים ברשת איטית: בלי הביטול, תשובה איטית של החודש
     // הקודם עלולה לנחות אחרונה ולהציג רשימה של חודש אחד תחת כותרת של אחר
     let ok = true;
@@ -2796,8 +2800,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
       .then((d) => { if (ok) setChs((d.changes || []).filter((c) => !hiddenEv(c))); })
       .catch(() => { if (ok) { setChErr(true); setChs([]); } });
     return () => { ok = false; };
-  }, [mon, rty]);
-  const missingYear = !!yr && mon !== "legacy2012" && months !== null && !months.some(m => m.startsWith(yr));
+  }, [mon, rty, regularMonths]);
+  const missingYear = !!yr && mon !== "legacy2012" && months !== null && !regularMonths.includes(mon);
   const wrap = embedded ? "" : "card";
   if (months === null) return <div className={wrap}>טוען…</div>;
   if (mErr) return <div className={wrap}><NetErr onRetry={() => { setMonths(null); setRty((n) => n + 1); }} /></div>;
@@ -2810,7 +2814,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
     (kats.has("removed") && c.k === "removed");
   const list = (chs || []).filter((c) => {
     const m = meta[c.rd] || {};
-    if (m.tt && m.tt !== "demand") return false;
+    if (!inHistoryMode(m, mode)) return false;
     if (!inKats(c)) return false;
     return !needle || c.line.includes(needle) || sQ(m.dest).includes(sQ(needle)) ||
       sQ(m.op).includes(sQ(needle)) || c.rd.includes(needle);
@@ -2824,19 +2828,19 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
     <div className={wrap}>
       {!embedded && <button className="back" title="חזרה למסך החיפוש הראשי — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש הקווים</button>}
       <div className="months">
-        {/* כל השנים בבוחר הקיים, מהחדשה לישנה. שנים שטרם נקלטו מציגות את מצב המקור. */}
+        {/* שנים וחודשים עם נתונים זמינים בלבד. */}
         {[...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
           <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012"}
             aria-label={y} aria-describedby={y === "2012" ? "source-gtfs-2012" : undefined}
             title={y === "2012" ? "קובצי משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive" : "הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1] || ""); }}>{y}{y === "2012" ? " · משרד התחבורה" : ""}</button>
         ))}
       </div>
-      <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, margin: "10px 0 14px" }}>
+      {mode === "lines" && <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, margin: "10px 0 14px" }}>
         <span className="pdesc" style={{ marginInlineEnd: 10 }}>צילום ממקור נוסף:</span>
         <button className={"mchip" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
           onClick={() => { setYr("2012"); setMon("legacy2012"); }}>2012 · אתר מגיעים</button>
-      </div>
-      {yr === "2012" && mon !== "legacy2012" && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
+      </div>}
+      {mode === "lines" && yr === "2012" && mon !== "legacy2012" && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
       {yr && mon !== "legacy2012" && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
@@ -2845,7 +2849,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
         </div>
       )}
       {!missingYear && <input className="search" type="search" placeholder="סינון: מספר קו, יעד, מפעיל או מק״ט…" value={q} onChange={(e) => setQ(e.target.value)} />}
-      {missingYear ? <HistoricalPeriod key={yr} idx={idx} openLine={openLine} mode="lines" year={yr} embedded /> : mon === "legacy2012" ? (() => {
+      {missingYear ? <HistoricalPeriod key={yr} idx={idx} openLine={openLine} mode={mode} year={yr} month={mon} embedded /> : mon === "legacy2012" ? (() => {
         if (!a12 || !idx12) return "טוען…";
         const list12 = sort12(rows12.filter((v) => match12(v, needle)), needle);
         if (!list12.length) return <div className="empty">אין קווי 2012 תואמים.</div>;
@@ -3172,7 +3176,10 @@ function LinesAtStop({ code, onClose }) {
   );
 }
 
-function StopsTab({ sel, selN }) {
+function StopsTab({ sel, selN, idx, openLine }) {
+  const [dailyOpen, setDailyOpen] = useState(true);
+  useEffect(()=>{if(sel)setDailyOpen(true);},[sel,selN]);
+  const earlyMonths = useHistoricalMonths("stops");
   const [months, setMonths] = useState(null);
   const [mon, setMon] = useState("");
   const [yr, setYr] = useState("");   // שנה נבחרת בבוחר החודשים
@@ -3319,7 +3326,7 @@ function StopsTab({ sel, selN }) {
   useEffect(() => {
     // "כל התקופה" נבנית מקורות החיים ולא מקובץ חודש — בלי התנאי הזה נשלחה
     // בקשה ל-stops-all.json שתמיד חוזרת 404
-    if (!mon || mon === "all" || mon === "2012") return;
+    if (!mon || mon === "all" || mon === "2012" || (earlyMonths.includes(mon) && !months?.includes(mon))) return;
     // ביטול כשעוברים חודש: תשובה איטית של חודש קודם לא דורסת את החדש
     let ok = true;
     setChs(null); setChErr(false);
@@ -3365,11 +3372,15 @@ function StopsTab({ sel, selN }) {
       (!needle || c.s.includes(sNeedle) || c.c === needle));
     return { nsCount: (source || []).filter((c) => c.ns).length, list: ls };
   }, [source, dq, kinds, onlyNs]);
+  const availableMonths = [...new Set([...(months || []), ...earlyMonths])].sort().reverse();
+  const earlySelected = earlyMonths.includes(mon) && !months?.includes(mon);
   if (months === null) return <div className="card">טוען…</div>;
   if (mErr) return <div className="card"><NetErr onRetry={() => { setMonths(null); setRty((n) => n + 1); }} /></div>;
   if (!months.length) return <div className="card"><div className="empty">עדיין אין נתוני שינויי תחנות — הם יצטברו מהריצות היומיות הקרובות.</div></div>;
   return (
     <div className="card">
+      <button className="kathead" aria-expanded={dailyOpen} onClick={()=>setDailyOpen(!dailyOpen)}>📅 שינויים לפי יום — מה השתנה בכל תאריך, בכל התחנות</button>
+      {dailyOpen && <>
       {/* בוחר לפי שנה: slice(0,18) הישן הסתיר את כל מה שלפני 02.2025 —
           עכשיו כל שנה נגישה בלחיצה, והחודשים שלה נפתחים מתחתיה */}
       <div className="months">
@@ -3377,13 +3388,13 @@ function StopsTab({ sel, selN }) {
         {/* מהחדשה לישנה, באותו כיוון של החודשים בתוך כל שנה.
             stopMonths ממוין יורד (בניגוד ל-months של הקווים) — החודש
             החדש של שנה הוא ms[0], וה-reverse היה הופך את סדר התצוגה */}
-        {[...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
+        {[...new Set(availableMonths.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
           <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
-            title={"פתיחת חודשי " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon) && mon !== "Y:" + y) setMon(ms[0]); }}>{y}</button>
+            title={"פתיחת חודשי " + y} onClick={() => { setYr(y); const ms = availableMonths.filter((m) => m.startsWith(y)); if (!ms.includes(mon) && mon !== "Y:" + y) setMon(ms[0]); }}>{y}</button>
         ))}
         <button className={"mchip" + (mon === "2012" ? " on" : "")} aria-pressed={mon === "2012"}
           title="רישום התחנות של משרד התחבורה מ-2012 (דרך OpenStreetMap) — כל תחנה שהייתה אז, ומה השתנה בה עד תחילת התיעוד ב-2017"
-          onClick={() => { setYr(""); setMon("2012"); }}>2012</button>
+          onClick={() => { setYr(""); setMon("2012"); }}>2012 · OpenStreetMap</button>
       </div>
       {mon === "2012" && (
         <p className="pdesc">🕰️ רישום התחנות של 2012: 32,987 תחנות מקובץ ה-GTFS של משרד התחבורה מ-2012, כפי שיובאו ל-<a href="https://www.openstreetmap.org/changeset/14265835" target="_blank" rel="noopener">OpenStreetMap</a> (רישיון ODbL).
@@ -3392,12 +3403,13 @@ function StopsTab({ sel, selN }) {
       )}
       {yr && (
         <div className="months">
-          <button className={"mchip" + (mon === "Y:" + yr ? " on" : "")} aria-pressed={mon === "Y:" + yr} title={"כל שינויי התחנות של שנת " + yr + " ברצף אחד"} onClick={() => setMon("Y:" + yr)}>🗓️ כל {yr}</button>
-          {months.filter((m) => m.startsWith(yr)).map((m) => (
+          {months.some(m=>m.startsWith(yr)) && <button className={"mchip" + (mon === "Y:" + yr ? " on" : "")} aria-pressed={mon === "Y:" + yr} title={"כל שינויי התחנות של שנת " + yr + " ברצף אחד"} onClick={() => setMon("Y:" + yr)}>🗓️ כל {yr}</button>}
+          {availableMonths.filter((m) => m.startsWith(yr)).map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="הצגת השינויים של החודש הזה בלבד" onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
           ))}
         </div>
       )}
+      {earlySelected ? <HistoricalPeriod key={mon} idx={idx} openLine={openLine} mode="stops" year={yr} month={mon} embedded /> : <>
       <input className="search" type="search" placeholder="חיפוש תחנה / עיר / מק״ט…" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="katbox">
         <button className="kathead" aria-expanded={katOpen} onClick={() => setKatOpen(!katOpen)}>
@@ -3541,6 +3553,8 @@ function StopsTab({ sel, selN }) {
             : <div className="empty">אין שינויים תואמים בתקופה הזו.</div>)}
         </div>
       )}
+      </>}
+      </>}
     </div>
   );
 }
@@ -4066,6 +4080,7 @@ const TT_LABEL = { rail: "רכבת", taxi: "מונית שירות", lightrail: "
                    cable: "רכבל/כרמלית", demand: "שירות לפי דרישה" };
 
 function ModesTab({ idx, openLine, spec }) {
+  const [daily, setDaily] = useState(false);
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = usePersistedQ("lh-q-" + spec.k);
   const [lim, setLim] = useState(200);
@@ -4098,6 +4113,8 @@ function ModesTab({ idx, openLine, spec }) {
 
   return (
     <div className="card">
+      <button className="kathead" aria-expanded={daily} onClick={()=>setDaily(!daily)}>📅 שינויים לפי יום — מה השתנה בכל תאריך, בכל הקווים</button>
+      {daily ? <DayFeed key={spec.k} idx={idx} openLine={openLine} mode={spec.k} embedded /> : <>
       {spec.groups.length > 1 && (
         <div className="kfilter">
           <button className={"kchip" + (sel.size ? "" : " on")}
@@ -4136,6 +4153,7 @@ function ModesTab({ idx, openLine, spec }) {
           </button>
         )}
       </div>
+      </>}
     </div>
   );
 }
@@ -4243,24 +4261,21 @@ function hasHistoricalData(record, mode) {
   return Object.entries(record.modes || {}).some(([type, count]) =>
     Number(count) > 0 && (types ? types.includes(type) : !["0","2","5","8"].includes(type)));
 }
-function useHistoricalYears(mode) {
+function useHistoricalMonths(mode) {
   const [available, setAvailable] = useState([]);
   useEffect(() => {
     let live = true;
-    setAvailable([]);
-    Promise.all([
-      earlyGrab("data/early-progress.json"),
+    Promise.all([earlyGrab("data/early-progress.json"),
       mode === "rail" ? earlyGrab("data/early-rail/index.json").catch(() => ({days:[]})) : Promise.resolve({days:[]})
-    ]).then(([progress, rail]) => {
-      const years = Object.values(progress.done || {}).filter(r => hasHistoricalData(r, mode)).map(r => r.date.slice(0,4));
-      if (live) setAvailable([...new Set([...years, ...(rail.days || []).map(d => d.slice(0,4))])].sort().reverse());
-    }).catch(() => {});
-    return () => { live = false; };
-  }, [mode]);
+    ]).then(([progress,rail]) => {
+      const dates = Object.values(progress.done || {}).filter(r => hasHistoricalData(r,mode)).map(r => r.date);
+      if (live) setAvailable([...new Set([...dates,...(rail.days||[])].map(d=>d.slice(0,7)))].sort());
+    }).catch(()=>{});
+    return () => { live=false; };
+  },[mode]);
   return available;
 }
-
-function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
+function HistoricalPeriod({ idx, openLine, mode, year, month = "", embedded = false }) {
   const [catalog, setCatalog] = useState(null), [progress, setProgress] = useState(null);
   const [source, setSource] = useState(() => { try { return sessionStorage.getItem("lh-snapshot-"+mode+"-"+year)||""; } catch { return ""; } });
   const [routes, setRoutes] = useState(null), [stops, setStops] = useState(null);
@@ -4271,12 +4286,12 @@ function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
     let live=true;
     Promise.all([earlyGrab("data/early-sources.json"), earlyGrab("data/early-progress.json")])
       .then(([c,p]) => { if(!live)return; setCatalog(c);setProgress(p);
-        const snaps=c.snapshots.filter(s=>s.date.startsWith(year)&&hasHistoricalData(p.done?.[s.id],mode)).sort((a,b)=>b.date.localeCompare(a.date));
+        const snaps=c.snapshots.filter(s=>s.date.startsWith(month || year)&&hasHistoricalData(p.done?.[s.id],mode)).sort((a,b)=>b.date.localeCompare(a.date));
         setSource(cur=>snaps.some(s=>s.id===cur)?cur:snaps[0]?.id||"");
       }).catch(()=>{if(live)setErr("לא הצלחנו לטעון את המקורות. נסו לרענן.");});
     if(mode==="rail") earlyGrab("data/early-rail/index.json").then(r=>{if(live)setRail(r);}).catch(()=>{if(live)setErr("לא הצלחנו לטעון את רישומי הרכבות. נסו לרענן.");});
     return()=>{live=false;};
-  },[mode,year]);
+  },[mode,year,month]);
   useEffect(()=>{try{sessionStorage.setItem("lh-snapshot-"+mode+"-"+year,source);}catch{}},[source,mode,year]);
   useEffect(()=>{setLim(60);setPoint(null);},[q,source,day]);
   useEffect(()=>{
@@ -4290,7 +4305,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
     earlyGzip("data/early-rail/"+day+".json.gz?v="+BUILD).then(r=>{if(live)setRailRows(r.rows);}).catch(e=>{if(live)setErr(e.message);});return()=>{live=false;};
   },[day]);
   if(!catalog)return <div className={embedded ? "" : "card"} role="status">{err||"טוען את הנתונים…"}</div>;
-  const snaps=catalog.snapshots.filter(s=>s.date.startsWith(year)&&hasHistoricalData(progress?.done?.[s.id],mode)).sort((a,b)=>b.date.localeCompare(a.date));
+  const snaps=catalog.snapshots.filter(s=>s.date.startsWith(month || year)&&hasHistoricalData(progress?.done?.[s.id],mode)).sort((a,b)=>b.date.localeCompare(a.date));
   const selected=snaps.find(s=>s.id===source);
   const tokens=sQ(q).split(/\s+/).filter(t=>t&&t!=="קו");
   const match=s=>tokens.every(t=>sQ(s).includes(t));
@@ -4298,7 +4313,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
     .sort((a,b)=>String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : [];
   const ss=(stops||[]).filter(s=>match([s.c,s.n,s.desc].join(" ")));
   const rr=(railRows||[]).filter(r=>match(r.join(" ")));
-  const days=(rail?.days||[]).filter(d=>d.startsWith(year)).sort().reverse();
+  const days=(rail?.days||[]).filter(d=>d.startsWith(month || year)).sort().reverse();
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
   return <div className={embedded ? "" : "card"}>
     <input className="search" aria-label={"חיפוש "+label+" בשנת "+year} value={q} onChange={e=>setQ(e.target.value)} placeholder={"חיפוש "+label+": מספר, שם או עיר…"} />
@@ -4345,17 +4360,6 @@ function App() {
     }
     return "lines";
   });
-  const [historyYears, setHistoryYears] = useState(() => {
-    try { const saved=JSON.parse(sessionStorage.getItem("lh-history-years")||"{}"); return location.hash==="#t=early" ? {...saved,lines:"2012"} : saved; } catch { return location.hash==="#t=early"?{lines:"2012"}:{}; }
-  });
-  const availableHistoryYears = useHistoricalYears(tab);
-  const savedHistoryYear = historyYears[tab] || "";
-  const historyYear = tab !== "lines" && availableHistoryYears.includes(savedHistoryYear) ? savedHistoryYear : "";
-  const chooseHistoryYear = (year) => {
-    if(location.hash==="#t=early")history.replaceState(null,"","#t=lines");
-    setHistoryYears(old=>({...old,[tab]:year}));
-  };
-  useEffect(()=>{try{sessionStorage.setItem("lh-history-years",JSON.stringify(historyYears));}catch{}},[historyYears]);
   const [q, setQ] = usePersistedQ("lh-q-main");
   const [kats, setKats] = useState(() => new Set());   // קטגוריות מסומנות (בחירה מרובה)
   const [katOpen, setKatOpen] = useState(false);
@@ -4401,7 +4405,7 @@ function App() {
     const onHash = () => {
       const h = decodeURIComponent((location.hash || "").slice(1));
       if (h.startsWith("2012/")) { setRd(null); setK12(h.slice(5)); return; }
-      if (isStopH(h)) { setRd(null); setStopSel(h.slice(5)); setStopSelN((n) => n + 1); setHistoryYears(old=>({...old,stops:""})); setTab("stops"); return; }
+      if (isStopH(h)) { setRd(null); setStopSel(h.slice(5)); setStopSelN((n) => n + 1); setTab("stops"); return; }
       if (isDigestH(h)) { setRd(null); setK12(null); setDig(parseDigest(h)); return; }
       if (h.startsWith("t=")) { setRd(null); setK12(null); const t = h.slice(2); if (t === "early") { setTab("lines"); setByDay(true); try { sessionStorage.setItem("lh-day-yr","2012"); sessionStorage.setItem("lh-day-mon","2012-07"); } catch {} } else if (t === "stops" || t === "lines" || t === "map" || TABS.some((x) => x.k === t)) setTab(t); return; }
       // כתובת של קו נקראה רק בטעינה הראשונה: מי שהדביק קישור לקו בשורת
@@ -4532,19 +4536,13 @@ function App() {
         ))}
       </div>
       {!rd && !k12 && !dig && <NotifyCenter cities={notifyCities} />}
-      {!rd && !k12 && !dig && tab !== "map" && tab !== "lines" && availableHistoryYears.length > 0 && <div className="months" aria-label="תקופה בקטגוריה">
-        <label>תקופה <select aria-label="תקופה" value={historyYear} onChange={e=>chooseHistoryYear(e.target.value)}>
-          <option value="">כל התקופות</option>
-          {availableHistoryYears.map(y=><option key={y} value={String(y)}>{y}</option>)}
-        </select></label>
-      </div>}
       {dig ? (
         <DigestPage city={dig.city} days={dig.days} openLine={openLine}
           onBack={() => { setDig(null); clearHashKeepTab(); }} />
       ) : k12 ? (
         <Line2012Page k12={k12} anchorRd={anc12[k12] || null} openLine={openLine}
           onBack={() => { setK12(null); clearHashKeepTab(); }} />
-      ) : historyYear && !rd && tab !== "map" ? <HistoricalPeriod key={tab+historyYear} idx={idx} openLine={openLine} mode={tab} year={historyYear} /> : tab === "stops" ? <StopsTab sel={stopSel} selN={stopSelN} /> : tab === "map" && !rd ? <MapTab idx={idx} openLine={openLine} cities={notifyCities} /> : (TABS.some((t) => t.k === tab) && !rd) ? (
+      ) : tab === "stops" ? <StopsTab idx={idx} openLine={openLine} sel={stopSel} selN={stopSelN} /> : tab === "map" && !rd ? <MapTab idx={idx} openLine={openLine} cities={notifyCities} /> : (TABS.some((t) => t.k === tab) && !rd) ? (
         idx ? <ModesTab idx={idx} openLine={openLine} spec={TABS.find((t) => t.k === tab)} />
           : <div className="card">טוען את רשימת הקווים…</div>
       ) : rd ? (
