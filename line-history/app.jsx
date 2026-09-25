@@ -2833,12 +2833,17 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
     }
     return c.k === k;
   });
+  const searchTokens = sQ(needle).split(/\s+/).filter(Boolean);
   const list = (chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
     if (!inKats(c)) return false;
-    return !needle || c.line.includes(needle) || sQ(m.dest).includes(sQ(needle)) ||
-      sQ(m.op).includes(sQ(needle)) || c.rd.includes(needle);
+    // Match words across fields, just like the main line search.
+    return searchTokens.every((t) =>
+      sQ(c.line || m.line).includes(t) ||
+      sQ(c.rd).includes(t) ||
+      sQ(m.dest).includes(t) || sQ(m.op).includes(t));
+
   });
   const days = []; const byd = new Map();
   for (const c of list) { let g = byd.get(c.d); if (!g) { g = []; byd.set(c.d, g); days.push(c.d); } g.push(c); }
