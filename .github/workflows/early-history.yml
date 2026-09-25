@@ -52,6 +52,7 @@ jobs:
           python tools/link_early_2012.py
           python tools/rebuild_lines_index.py
           python tools/build_archive_months.py
+          python tools/schedule_diff.py
           python tools/check_early_history.py
           echo "source_status=$status" >> "$GITHUB_OUTPUT"
       - name: Check archive in a mobile browser
