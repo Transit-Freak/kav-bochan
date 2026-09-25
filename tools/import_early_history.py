@@ -12,6 +12,7 @@ import re, shutil, tempfile, time, urllib.request, zipfile
 from compact_lines import compact, materialize
 from backfill_geo import enc_polyline, fsafe
 from backfill_tf import classify
+from schedule_diff import annotate_archive_schedule
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'line-history/data'
@@ -179,6 +180,8 @@ def publish(source, paths):
         if rem:v['rem']=rem
         if prev:v['note']='שינוי שנמצא בהשוואת שני צילומים זמינים של אותו מק״ט, כיוון וחלופה.'
         if prev and prev['d']<date: v['sd']=seen.get(rd,prev['d'])
+        if prev and v['k'] == 'sched':
+            annotate_archive_schedule(v, prev, OUT)
         seen[rd]=date
         lf['versions'].append(v);lf['versions'].sort(key=lambda x:x['d'])
         # Do not borrow a later shape for an early snapshot with missing shape.
