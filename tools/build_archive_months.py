@@ -33,6 +33,10 @@ SRCS = None   # None = כל המקורות
 
 def main():
     months = {}
+    mode_months = {'lines': set(), 'rail': set(), 'taxi': set()}
+    index_path = f'{OUTDIR}/lines.json'
+    index = json.load(open(index_path, encoding='utf-8')) if os.path.exists(index_path) else {}
+    types = {l['rd']: l.get('tt', 'bus') for l in index.get('lines', [])}
     for fn in sorted(os.listdir(f'{OUTDIR}/lines')):
         if not fn.endswith('.json'):
             continue
@@ -63,6 +67,9 @@ def main():
                 if v.get(f):
                     c[f] = v[f][:15]
             months.setdefault(v['d'][:7], []).append(c)
+            tt = types.get(rd, lf.get('tt', 'bus'))
+            category = 'rail' if tt in ('rail', 'lightrail', 'cable') else 'taxi' if tt == 'taxi' else 'lines'
+            mode_months[category].add(v['d'][:7])
 
     if not months:
         print('אין אירועי ארכיון', file=sys.stderr)
@@ -106,6 +113,7 @@ def main():
         # יושב על הדיסק — זה בדיוק הפער שהכלי הזה בא לסגור.
         mp = f'{OUTDIR}/months.json'
         mj = json.load(open(mp, encoding='utf-8')) if os.path.exists(mp) else {}
+        mj['modeMonths'] = {k: sorted(v) for k, v in mode_months.items()}
         mj['months'] = sorted(set(mj.get('months') or []) | set(months))
         json.dump(mj, open(mp, 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
