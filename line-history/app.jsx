@@ -2204,7 +2204,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         )}
         {sibs && sibs.length > 1 && (
           <div className="sibs">
-            <span className="sibt">חלופות וכיוונים:</span>
+            <span className="sibt">{sibs.some(s => s.hgroup) ? "מסלולים:" : "חלופות וכיוונים:"}</span>
             {sibs.map((s) => {
               const alt0 = (x) => x.rd.split("-").slice(2).join("-");
               const dir0 = (x) => x.rd.split("-")[1] || "";
@@ -2212,12 +2212,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               const isBase = alt === "" || alt === "#" || alt === "0";
               const dupDir = sibs.filter((x) => dir0(x) === dir).length > 1;
               const dupBase = dupDir && isBase && sibs.some((x) => x.rd !== s.rd && dir0(x) === dir && ["", "#", "0"].includes(alt0(x)));
-              const lbl = "כיוון " + dir + (isBase
+              const lbl = s.hgroup ? "מ־" + s.hfrom + " אל " + s.hto : "כיוון " + dir + (isBase
                 ? (dupDir ? " · ראשית" + (dupBase ? " (" + (alt || "־") + ")" : "") : "")
                 : " · חלופה " + alt);
               return (
-                <span key={s.rd} className="sibwrap">
+                <span key={s.rd} className="sibwrap" style={s.hgroup ? {maxWidth: "100%"} : undefined}>
                   <a className={"sib" + (s.rd === rd ? " on" : "")} title={s.dest}
+                    style={s.hgroup ? {minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere"} : undefined}
                     href={lineHref(s.rd)}
                     onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); if (s.rd !== rd) onSwitch(s.rd); }}>
                     {lbl}
@@ -2742,6 +2743,40 @@ function Res2012({ needle, onOpen }) {
 // קטגוריה: מי שמסמן "מבוטל" מצפה לרשימת הקווים הרגילה, כמו בכל קטגוריה
 // אחרת, ולא למסך אחר עם חוקים אחרים. הביטולים מוצגים ברשימה הרגילה.
 
+// Display grouping only. Historic route IDs and current license IDs never merge.
+function attach2012Groups(idx, data) {
+  const rows = new Map((idx.lines || []).map(l => [l.rd, l]));
+  const tags = new Map();
+  for (const g of data.groups || []) {
+    const members = g.members.map(([id, from, to]) => ({rd: "archive2012r" + id + "-0-H", from, to}));
+    const valid = members.every(m => {
+      const l = rows.get(m.rd), parts = String(l?.dest || "").split("<->");
+      const cities = parts.map(p => p.slice(p.lastIndexOf("-") + 1).trim().replace(/\s+/g, " ")).sort();
+      return l && l.op === g.op && l.line === g.line && parts.length === 2 &&
+        JSON.stringify(cities) === JSON.stringify(g.cities) && !tags.has(m.rd);
+    });
+    if (!valid || members.length < 2) continue;
+    const key = "historical-2012:" + members[0].rd;
+    for (const m of members) tags.set(m.rd, {hgroup: key, hfrom: m.from, hto: m.to});
+  }
+  return {...idx, lines: idx.lines.map(l => tags.has(l.rd) ? {...l, ...tags.get(l.rd)} : l)};
+}
+function collapse2012Rows(rows, meta = null) {
+  const seen = new Set();
+  return rows.filter(r => {
+    const m = meta ? meta[r.rd] : r;
+    if (!m?.hgroup || (meta && !["snapshot", "baseline"].includes(r.k))) return true;
+    const key = m.hgroup + (meta ? ":" + r.d + ":" + r.k : "");
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+}
+function lineSiblings(idx, rd) {
+  const lines = idx?.lines || [], current = lines.find(l => l.rd === rd);
+  return current?.hgroup ? lines.filter(l => l.hgroup === current.hgroup)
+    : lines.filter(l => l.rd.split("-")[0] === rd.split("-")[0]);
+}
+
 function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines" }) {
   const earlyMonths = useHistoricalMonths(mode);
   const [regularMonths, setRegularMonths] = useState([]);
@@ -2834,7 +2869,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
     return c.k === k;
   });
   const searchTokens = sQ(needle).split(/\s+/).filter(Boolean);
-  const list = (chs || []).filter((c) => {
+  const list = collapse2012Rows((chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
     if (!inKats(c)) return false;
@@ -2844,7 +2879,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
       sQ(c.rd).includes(t) ||
       sQ(m.dest).includes(t) || sQ(m.op).includes(t));
 
-  });
+  }), meta);
   const days = []; const byd = new Map();
   for (const c of list) { let g = byd.get(c.d); if (!g) { g = []; byd.set(c.d, g); days.push(c.d); } g.push(c); }
   days.sort().reverse();
@@ -4136,6 +4171,7 @@ function ModesTab({ idx, openLine, spec }) {
     }
     const lnum = (l) => parseInt(l.line) || 1e9;
     ls = ls.slice().sort((a, b) => lnum(a) - lnum(b) || (a.line || "").localeCompare(b.line || "") || a.rd.localeCompare(b.rd));
+    ls = collapse2012Rows(ls);
     return { total: ls.length, list: ls.slice(0, lim) };
   }, [mine, spec, sel, q, lim]);
 
@@ -4361,8 +4397,8 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const selected=snapshot;
   const tokens=sQ(q).split(/\s+/).filter(t=>t&&t!=="קו");
   const match=s=>tokens.every(t=>sQ(s).includes(t));
-  const lines=routes&&idx ? idx.lines.filter(l=>routes.has(l.rd)&&inHistoryMode(l,mode)&&match([l.line,l.dest,l.op,l.rd].join(" ")))
-    .sort((a,b)=>String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : [];
+  const lines=collapse2012Rows(routes&&idx ? idx.lines.filter(l=>routes.has(l.rd)&&inHistoryMode(l,mode)&&match([l.line,l.dest,l.op,l.rd].join(" ")))
+    .sort((a,b)=>String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : []);
   const ss=(stops||[]).filter(s=>match([s.c,s.n,s.desc].join(" ")));
   const rr=(railRows||[]).filter(r=>match(r.join(" ")));
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
@@ -4480,7 +4516,10 @@ function App() {
   useEffect(() => {
     dfetch("data/lines.json")
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(setIdx)
+      .then(async d => {
+        const groups = await dfetch("data/historical-groups-2012.json").then(r => r.ok ? r.json() : {}).catch(() => ({}));
+        setIdx(attach2012Groups(d, groups));
+      })
       .catch(setErr);
   }, [rty]);
   const counts = useMemo(() => {
@@ -4541,6 +4580,7 @@ function App() {
     if (needle) list.sort((a, b) => rank(a) - rank(b) || lnum(a) - lnum(b) || a.line.localeCompare(b.line) || a.rd.localeCompare(b.rd));
     else if (onlyRemoval) list.sort((a, b) => (b.ld || "").localeCompare(a.ld || ""));
     else list.sort((a, b) => lnum(a) - lnum(b) || a.line.localeCompare(b.line) || a.rd.localeCompare(b.rd));
+    list = collapse2012Rows(list);
     return { total: list.length, list: list.slice(0, lim) };
   }, [idx, q, kats, lim]);
   // סטטוס HTTP = הקובץ באמת לא קיים; כל כשל אחר הוא תקלת רשת — עם כפתור
@@ -4593,7 +4633,7 @@ function App() {
         /* קישור ישיר לקו נפתח לפני שהאינדקס הגיע — בלי ההגנות האלה הדף
            קרס ללבן (הבאג ששלמה מצא): idx עדיין null ו-idx.lines התפוצץ */
         <LinePage rd={rd} lineGone={idx ? !idx.lines.find(l => l.rd === rd)?.historicalOnly && !mktAlive[rd.split("-")[0]] : false}
-          sibs={((idx && idx.lines) || []).filter((x) => x.rd.split("-")[0] === rd.split("-")[0])}
+          sibs={lineSiblings(idx, rd)}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate}
           initCats={[...kats].sort().join(",")} />
       ) : (
@@ -4715,5 +4755,6 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
 
 
