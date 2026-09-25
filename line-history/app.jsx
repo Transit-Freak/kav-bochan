@@ -2431,8 +2431,6 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             <TipTag cls="mut" tip={evDate(v).tip}>תאריך משוער</TipTag>
           </div>
         )}
-        {(v.k === "sched" || v.k === "freq") && (v.earlyPatternsFile || v.earlyPatterns) &&
-          <EarlyScheduleDiff key={v.d+":"+v.earlyPatternsFile+":"+pv?.d} event={v} previous={pv} />}
         {v.k === "times" && v.tb ? (
           /* הלו"ז האחרון של קו מבוטל — צילום מהארכיון (בקשת המשתמש): קו
              שבוטל בלי שום אירוע לו"ז מקבל, שנה אחרי הביטול, את שעות-היציאה
@@ -2534,6 +2532,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
+        {(v.k === "sched" || v.k === "freq") && (v.earlyPatternsFile || v.earlyPatterns) &&
+          <EarlyScheduleDiff key={v.d+":"+v.earlyPatternsFile+":"+pv?.d} event={v} previous={pv} />}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
     </div>
@@ -4295,15 +4295,12 @@ function EarlyScheduleDiff({event,previous}) {
     return()=>{live=false;};
   },[event,previous,retry]);
   if(err)return <div role="alert">{err} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></div>;
-  if(data===null)return <p role="status">טוען השוואת לו״ז…</p>;
+  if(data===null)return <section className="early-schedule-diff" role="status">טוען השוואת לו״ז…</section>;
   if(!data)return <p>לא נשמר לו״ז להשוואה לגרסה הקודמת.</p>;
   return <section className="early-schedule-diff">
-    <h3>שינוי לו״ז</h3>
-    {!data.changed&&<p>שעות היציאה וזמני המעבר בתאריכים החופפים זהים.</p>}
-    {(data.before.first!==data.after.first||data.before.last!==data.after.last)&&<p>תוקף הלוח: {fmtD(data.before.first)}–{fmtD(data.before.last)} ← {fmtD(data.after.first)}–{fmtD(data.after.last)}</p>}
     {!data.groups.length&&<p>אין תאריכים חופפים להשוואת שעות.</p>}
     {data.groups.map((g,i)=><div key={i}>
-      <h4>{g.dates.length===1?fmtD(g.dates[0]):<TipTag cls="mut" tip={g.dates.map(fmtD).join(", ")}>{g.dates.length} תאריכים: {fmtD(g.dates[0])}–{fmtD(g.dates[g.dates.length-1])}</TipTag>}</h4>
+      {data.groups.length>1&&<h4>{g.dates.length===1?fmtD(g.dates[0]):<TipTag cls="mut" tip={g.dates.map(fmtD).join(", ")}>{g.dates.length} תאריכים: {fmtD(g.dates[0])}–{fmtD(g.dates[g.dates.length-1])}</TipTag>}</h4>}
       <TimesDiff tl={g.tl} tn={g.tn}/>
       {g.transit.length>0&&<><h4>זמני מעבר בתחנות שהשתנו</h4><div className="early-scroll"><table className="tdiff-tbl"><thead><tr>{["יציאה","תחנה","הגעה לפני","הגעה אחרי","יציאה לפני","יציאה אחרי"].map(s=><th key={s}>{s}</th>)}</tr></thead><tbody>{g.transit.map((r,j)=><tr key={j}>{r.map((s,k)=><td key={k}>{s}</td>)}</tr>)}</tbody></table></div></>}
     </div>)}
