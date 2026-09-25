@@ -316,15 +316,26 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   await page.goto(`http://127.0.0.1:${port}/index.html#${encodeURIComponent(grp[0].rd)}`,
     { waitUntil: 'domcontentloaded' });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.sibs .sibcmp', { timeout: 30000 })
-    .catch(() => fail('אין כפתור השוואת חלופות בעמוד הקו'));
-  await page.locator('.sibs .sibcmp').first().click();
+  const toggle = page.getByRole('button', { name: /החלפת חלופה/ });
+  await toggle.waitFor({ state: 'visible', timeout: 30000 });
+  if (await page.locator('#alternative-options').count()) fail('רשימת החלופות צריכה להתחיל סגורה');
+  await toggle.click();
+  const compare = page.locator('#alternative-options').getByRole('button', { name: 'השוואה', exact: true }).first();
+  await compare.waitFor({ state: 'visible', timeout: 30000 });
+  await compare.click();
   await page.waitForSelector('.altcmp .altstat', { timeout: 30000 })
     .catch(() => fail('לחיצה על ⇄ לא פתחה את ההשוואה בין החלופות'));
   const txt = await page.locator('.altcmp .altstat').innerText();
   if (!/\d/.test(txt)) fail('השוואת חלופות בלי מספרים');
   if (!(await page.locator('.altcmp .map').count())) fail('השוואת חלופות בלי מפה');
   console.log(`✓ השוואת חלופות: ${txt.replace(/\n/g, ' · ').slice(0, 70)}`);
+  const target = page.locator('#alternative-options a').filter({ hasNotText: 'נבחרה' }).first();
+  const href = await target.getAttribute('href');
+  await target.click();
+  await page.waitForSelector('#alternative-options', { state: 'detached', timeout: 30000 });
+  await page.waitForFunction(h => location.hash === new URL(h, location.href).hash, href);
+  await page.waitForSelector('.linehead', { timeout: 30000 });
+  console.log('✓ בורר חלופות: מתחיל סגור, נפתח בלחיצה ונסגר לאחר החלפה');
   await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tabs', { timeout: 30000 });
