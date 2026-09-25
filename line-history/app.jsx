@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "182-automatic-history-days";
+const BUILD = "183-map-source-selection";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -3592,7 +3592,7 @@ function MapTab({ idx, openLine, cities }) {
   // "2012" במפה (שלמה 22.09): כל התחנות שהיו בעיר ברישום התחנות של יוני 2012
   // (GTFS של משרד התחבורה דרך OpenStreetMap, changeset 12028672) — נטען פעם אחת
   const [snap12, setSnap12] = useState(null);
-  const is2012 = yr === "2012";
+  const is2012 = mon === "snapshot2012";
   useEffect(() => {
     if (!is2012 || snap12) return;
     dfetch("../magihim-2012/data/stops-2012.json").then((r) => (r.ok ? r.json() : { stops: {} })).then((d) => setSnap12(d.stops || {})).catch(() => setSnap12({}));
@@ -3612,7 +3612,7 @@ function MapTab({ idx, openLine, cities }) {
   }, [city, cities]);
   const place = canon === "*" ? "כל הארץ" : canon;            // לתצוגה
   const inPlace = canon === "*" ? "בכל הארץ" : "ב" + canon;
-  const monthEnd = mon ? periodEnd(mon) : "";
+  const monthEnd = mon && !is2012 ? periodEnd(mon) : "";
   // מיקוד על העיר ברגע הבחירה (שלמה 18.09) — גבולות התחנות של כל עיר, data/cities.json
   const [cityBox, setCityBox] = useState(null);
   useEffect(() => { dfetch("data/cities.json").then((r) => r.json()).then(setCityBox).catch(() => {}); }, []);
@@ -3630,7 +3630,7 @@ function MapTab({ idx, openLine, cities }) {
   // בכלל, והגעתם הייתה מפעילה מחדש את טעינת המסלולים (סקירה 22.09)
   const chsCache = useRef({});
   useEffect(() => {
-    if (!mon) return;
+    if (!mon || is2012) return;
     setErr(null);
     // ביטול בהחלפת תקופה/מצב: תשובה איטית של שנה שלמה לא דורסת חודש שנבחר אחריה
     let ok = true;
@@ -3844,7 +3844,7 @@ function MapTab({ idx, openLine, cities }) {
   const noRoute = mode === "lines" && shownLines.filter((x) => routes[x.rd + "@" + mon] === null).length;
   return (
     <div className="card">
-      <p className="maphint">בוחרים עיר (או ״כל הארץ״), שנה וחודש — או שנה שלמה — והמפה מראה איך זה נראה אז: תחנות שהשתנו בתקופה (לחיצה על סימן = מה קרה לה), או כל קווי העיר על המסלול כפי שהיה אז, כל קו בצבע משלו (בכל הארץ — רק הקווים שהשתנו); סימון סוגי שינוי מבליט בעבה את הקווים שבהם זה קרה. ״2012״ — כל התחנות שהיו ברישום של 2012.</p>
+      <p className="maphint">בוחרים עיר (או ״כל הארץ״), שנה וחודש — או שנה שלמה — והמפה מראה איך זה נראה אז: תחנות שהשתנו בתקופה (לחיצה על סימן = מה קרה לה), או כל קווי העיר על המסלול כפי שהיה אז, כל קו בצבע משלו (בכל הארץ — רק הקווים שהשתנו); סימון סוגי שינוי מבליט בעבה את הקווים שבהם זה קרה. ״2012 · קווים״ מציג את נתוני הקווים; ״2012 · תחנות OpenStreetMap״ מציג את צילום התחנות מהמקור הנוסף.</p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input className="search" style={{ flex: 1, minWidth: 180 }} list="lh-map-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="עיר… (למשל חולון)" aria-label="עיר" />
         <button className={"mchip" + (canon === "*" ? " on" : "")} aria-pressed={canon === "*"} title="כל התחנות/הקווים שהשתנו בכל הארץ, בלי לבחור עיר"
@@ -3854,14 +3854,16 @@ function MapTab({ idx, openLine, cities }) {
       {months && (
         <div className="months" style={{ marginTop: 10 }}>
           {years.map((y) => (
-            <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
-              onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon) && mon !== "Y:" + y) setMon(ms[ms.length - 1]); }}>{y}</button>
+            <button key={y} className={"mchip" + (yr === y && !is2012 ? " on" : "")} aria-pressed={yr === y && !is2012}
+              onClick={() => { setYr(y); if(y === "2012") setMode("lines"); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon) && mon !== "Y:" + y) setMon(ms[ms.length - 1]); }}>{y === "2012" ? "2012 · קווים" : y}</button>
           ))}
-          {/* אחרי 2017 (הכי שמאלי), לא לפני 2026 — כמו בלשונית התחנות (שלמה 22.09) */}
-          <button className={"mchip" + (is2012 ? " on" : "")} aria-pressed={is2012} title="כל התחנות שהיו בעיר (או בכל הארץ) ברישום התחנות של משרד התחבורה מ-2012"
-            onClick={() => { setYr("2012"); setMode("stops"); setKinds(new Set()); }}>2012</button>
         </div>
       )}
+      {months && <div className="months" style={{borderTop:"1px solid #e2e8f0",paddingTop:10}}>
+          <span className="pdesc">צילום תחנות ממקור נוסף:</span>
+          <button className={"mchip" + (is2012 ? " on" : "")} aria-pressed={is2012} title="כל התחנות שהיו בעיר (או בכל הארץ) ברישום התחנות של משרד התחבורה מ-2012"
+            onClick={() => { setYr("2012"); setMon("snapshot2012"); setMode("stops"); setKinds(new Set()); }}>2012 · תחנות OpenStreetMap</button>
+        </div>}
       {months && yr && !is2012 && (
         <div className="months">
           <button className={"mchip" + (mon === "Y:" + yr ? " on" : "")} aria-pressed={mon === "Y:" + yr} title={"כל השינויים של שנת " + yr + " יחד"} onClick={() => setMon("Y:" + yr)}>🗓️ כל {yr}</button>
