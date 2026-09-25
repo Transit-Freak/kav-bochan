@@ -61,7 +61,10 @@ try{
  if(!(await p.locator('.early-schedule-diff').innerText()).includes('07:00'))throw Error('Historical departure times missing');
  if(await p.locator('.early-schedule-diff .td-added,.early-schedule-diff .td-removed,.early-schedule-diff .td-moved').count())throw Error('Calendar-only change falsely changes departures');
  for(const viewport of [{width:390,height:844},{width:980,height:844}]){
-  await p.setViewportSize(viewport);
+  const p=await browser.newPage({viewport});
+  p.on('pageerror',e=>{errors.push(e.message);console.error('Schedule page error:',e.message);});
+  await p.route('**/OneSignalSDK.page.js',r=>r.fulfill({body:''}));
+  console.log('Checking line 2 schedule at width',viewport.width);
   await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('75002-2-#')}`);
   const event=p.getByRole('button',{name:'בחירת האירוע מ-05.03.2016: שינוי לו"ז',exact:true});
   await event.click();
@@ -74,6 +77,7 @@ try{
   await p.waitForFunction(()=>{const r=document.querySelector('.early-schedule-diff')?.getBoundingClientRect();return r&&r.top>=0&&r.top<innerHeight;});
   const again=await p.locator('.early-schedule-diff').boundingBox();
   if(!again||again.y>=viewport.height)throw Error('Selecting same event does not reveal timetable');
+  await p.close();
  }
  await p.setViewportSize({width:390,height:844});
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=map`);
