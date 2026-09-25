@@ -17,8 +17,10 @@ try{
  await p.route('**/OneSignalSDK.page.js',r=>r.fulfill({body:''}));
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=early`);
  if(await p.getByRole('tab',{name:/ארכיון/}).count())throw Error('Separate archive tab still exists');
- await p.getByLabel('תקופה',{exact:true}).selectOption('2012');
- await p.getByText('5,317 קווים',{exact:true}).waitFor({timeout:60000});
+ if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
+ await p.getByRole('button',{name:'2012',exact:true}).click();
+ await p.getByRole('button',{name:'07.2012',exact:true}).click();
+ await p.locator('.lrow').first().waitFor({timeout:60000});
  if(await p.getByRole('heading',{name:/תכנון וביצוע/}).count())throw Error('Rail data leaked into buses');
  await p.getByRole('tab',{name:'🚏 תחנות',exact:true}).click();
  await p.getByLabel('תקופה',{exact:true}).selectOption('2012');
@@ -31,8 +33,9 @@ try{
  await p.getByLabel('תקופה',{exact:true}).selectOption('2012');
  await p.getByText('0 קווים',{exact:true}).waitFor({timeout:30000});
  await p.getByRole('tab',{name:'🚌 קווים',exact:true}).click();
- if(await p.getByLabel('תקופה',{exact:true}).inputValue()!=='2012')throw Error('Year selection was lost');
- await p.locator('.llist .lrow').first().click();
+ if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
+ await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
+ await p.locator('.lrow').first().click();
  await p.getByText('תיעוד היסטורי בלבד. הרשומה אינה קובעת אם הקו פועל היום.',{exact:true}).waitFor({timeout:30000});
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה ('}).first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה מהקובץ'}).first().waitFor({timeout:30000});
