@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "179-source-credits";
+const BUILD = "180-available-history-only";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2780,7 +2780,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
         // את השנה לפני שהחודשים נטענים. אחרי המיון האיבר האחרון הוא
         // החודש הנוכחי.
         const last = ms[ms.length - 1] || "";
-        if (ms.length) { setYr((cur) => cur || last.slice(0, 4)); setMon((cur) => cur || last); }
+        if (ms.length) { setYr((cur) => ms.some(m => m.startsWith(cur)) ? cur : last.slice(0, 4)); setMon((cur) => cur === "legacy2012" || ms.includes(cur) ? cur : last); }
       })
       .catch(() => { if (ok) { setMErr(true); setMonths([]); } });
     return () => { ok = false; };
@@ -2825,7 +2825,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
       {!embedded && <button className="back" title="חזרה למסך החיפוש הראשי — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש הקווים</button>}
       <div className="months">
         {/* כל השנים בבוחר הקיים, מהחדשה לישנה. שנים שטרם נקלטו מציגות את מצב המקור. */}
-        {[...new Set([...months.map((m) => m.slice(0, 4)), ...[2012,2013,2014,2015,2016,2017,2018].map(String)])].sort().reverse().map((y) => (
+        {[...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
           <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012"}
             aria-label={y} aria-describedby={y === "2012" ? "source-gtfs-2012" : undefined}
             title={y === "2012" ? "קובצי משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive" : "הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1] || ""); }}>{y}{y === "2012" ? " · משרד התחבורה" : ""}</button>
@@ -4235,6 +4235,31 @@ function inHistoryMode(line, mode) {
   if (mode === "lines") return !line.tt || line.tt === "bus" || line.tt === "demand";
   return (TABS.find(t => t.k === mode)?.tts || []).includes(line.tt);
 }
+// Only published snapshots with data in this category are selectable.
+function hasHistoricalData(record, mode) {
+  if (!record) return false;
+  if (mode === "stops") return record.stops > 0;
+  const types = mode === "rail" ? ["0","2","5"] : mode === "taxi" ? ["8"] : null;
+  return Object.entries(record.modes || {}).some(([type, count]) =>
+    Number(count) > 0 && (types ? types.includes(type) : !["0","2","5","8"].includes(type)));
+}
+function useHistoricalYears(mode) {
+  const [available, setAvailable] = useState([]);
+  useEffect(() => {
+    let live = true;
+    setAvailable([]);
+    Promise.all([
+      earlyGrab("data/early-progress.json"),
+      mode === "rail" ? earlyGrab("data/early-rail/index.json").catch(() => ({days:[]})) : Promise.resolve({days:[]})
+    ]).then(([progress, rail]) => {
+      const years = Object.values(progress.done || {}).filter(r => hasHistoricalData(r, mode)).map(r => r.date.slice(0,4));
+      if (live) setAvailable([...new Set([...years, ...(rail.days || []).map(d => d.slice(0,4))])].sort().reverse());
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [mode]);
+  return available;
+}
+
 function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
   const [catalog, setCatalog] = useState(null), [progress, setProgress] = useState(null);
   const [source, setSource] = useState(() => { try { return sessionStorage.getItem("lh-snapshot-"+mode+"-"+year)||""; } catch { return ""; } });
@@ -4246,8 +4271,8 @@ function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
     let live=true;
     Promise.all([earlyGrab("data/early-sources.json"), earlyGrab("data/early-progress.json")])
       .then(([c,p]) => { if(!live)return; setCatalog(c);setProgress(p);
-        const snaps=c.snapshots.filter(s=>s.date.startsWith(year)).sort((a,b)=>b.date.localeCompare(a.date));
-        setSource(cur=>snaps.some(s=>s.id===cur)?cur:(snaps.find(s=>p.done?.[s.id])||snaps[0])?.id||"");
+        const snaps=c.snapshots.filter(s=>s.date.startsWith(year)&&hasHistoricalData(p.done?.[s.id],mode)).sort((a,b)=>b.date.localeCompare(a.date));
+        setSource(cur=>snaps.some(s=>s.id===cur)?cur:snaps[0]?.id||"");
       }).catch(()=>{if(live)setErr("לא הצלחנו לטעון את המקורות. נסו לרענן.");});
     if(mode==="rail") earlyGrab("data/early-rail/index.json").then(r=>{if(live)setRail(r);}).catch(()=>{if(live)setErr("לא הצלחנו לטעון את רישומי הרכבות. נסו לרענן.");});
     return()=>{live=false;};
@@ -4265,7 +4290,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
     earlyGzip("data/early-rail/"+day+".json.gz?v="+BUILD).then(r=>{if(live)setRailRows(r.rows);}).catch(e=>{if(live)setErr(e.message);});return()=>{live=false;};
   },[day]);
   if(!catalog)return <div className={embedded ? "" : "card"} role="status">{err||"טוען את הנתונים…"}</div>;
-  const snaps=catalog.snapshots.filter(s=>s.date.startsWith(year)).sort((a,b)=>b.date.localeCompare(a.date));
+  const snaps=catalog.snapshots.filter(s=>s.date.startsWith(year)&&hasHistoricalData(progress?.done?.[s.id],mode)).sort((a,b)=>b.date.localeCompare(a.date));
   const selected=snaps.find(s=>s.id===source);
   const tokens=sQ(q).split(/\s+/).filter(t=>t&&t!=="קו");
   const match=s=>tokens.every(t=>sQ(s).includes(t));
@@ -4280,7 +4305,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, embedded = false }) {
     <p className="pdesc">{label} · {year}. מוצגים הצילומים שנשמרו; פער בתיעוד אינו מעיד שהשירות לא פעל.</p>
     {err&&<p role="alert">{err}</p>}
     {snaps.length>0 ? <>
-      <label>תאריך <select aria-label="תאריך צילום" value={source} onChange={e=>setSource(e.target.value)}>{snaps.map(s=><option key={s.id} value={s.id}>{fmtD(s.date)} · {progress?.done?.[s.id]?"זמין":"ממתין לעיבוד"}</option>)}</select></label>
+      <label>תאריך <select aria-label="תאריך צילום" value={source} onChange={e=>setSource(e.target.value)}>{snaps.map(s=><option key={s.id} value={s.id}>{fmtD(s.date)}</option>)}</select></label>
       <p>מקור: {catalog.credits[selected?.kind]}</p>
       {selected?.validThrough&&<p>תוקף לוח השירות: {fmtD(selected.date)}–{fmtD(selected.validThrough)}.</p>}
       {!progress?.done?.[source] ? <p role="status">הקובץ לתאריך הזה טרם נקלט. הנתונים יוצגו כאן לאחר עיבודו.</p> : mode==="stops" ? <>
@@ -4323,7 +4348,9 @@ function App() {
   const [historyYears, setHistoryYears] = useState(() => {
     try { const saved=JSON.parse(sessionStorage.getItem("lh-history-years")||"{}"); return location.hash==="#t=early" ? {...saved,lines:"2012"} : saved; } catch { return location.hash==="#t=early"?{lines:"2012"}:{}; }
   });
-  const historyYear = tab === "lines" ? "" : historyYears[tab] || "";
+  const availableHistoryYears = useHistoricalYears(tab);
+  const savedHistoryYear = historyYears[tab] || "";
+  const historyYear = tab !== "lines" && availableHistoryYears.includes(savedHistoryYear) ? savedHistoryYear : "";
   const chooseHistoryYear = (year) => {
     if(location.hash==="#t=early")history.replaceState(null,"","#t=lines");
     setHistoryYears(old=>({...old,[tab]:year}));
@@ -4505,10 +4532,10 @@ function App() {
         ))}
       </div>
       {!rd && !k12 && !dig && <NotifyCenter cities={notifyCities} />}
-      {!rd && !k12 && !dig && tab !== "map" && tab !== "lines" && <div className="months" aria-label="תקופה בקטגוריה">
+      {!rd && !k12 && !dig && tab !== "map" && tab !== "lines" && availableHistoryYears.length > 0 && <div className="months" aria-label="תקופה בקטגוריה">
         <label>תקופה <select aria-label="תקופה" value={historyYear} onChange={e=>chooseHistoryYear(e.target.value)}>
           <option value="">כל התקופות</option>
-          {[2018,2017,2016,2015,2014,2013,2012].map(y=><option key={y} value={String(y)}>{y}</option>)}
+          {availableHistoryYears.map(y=><option key={y} value={String(y)}>{y}</option>)}
         </select></label>
       </div>}
       {dig ? (
