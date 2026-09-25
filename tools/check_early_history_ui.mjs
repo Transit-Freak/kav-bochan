@@ -52,6 +52,17 @@ try{
  await p.getByText('תיעוד היסטורי בלבד. הרשומה אינה קובעת אם הקו פועל היום.',{exact:true}).waitFor({timeout:30000});
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה ('}).first().click();
  await p.locator('summary').filter({hasText:'כל תבניות המסלול ולוחות היציאה מהקובץ'}).first().waitFor({timeout:30000});
+ await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=map`);
+ const mapLines=p.getByRole('button',{name:'2012 · קווים',exact:true});
+ const mapStops=p.getByRole('button',{name:'2012 · תחנות OpenStreetMap',exact:true});
+ await mapLines.click();
+ await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
+ if(await mapLines.getAttribute('aria-pressed')!=='true'||await mapStops.getAttribute('aria-pressed')!=='false')throw Error('Map selects both 2012 sources');
+ await mapStops.click();
+ if(await mapLines.getAttribute('aria-pressed')!=='false'||await mapStops.getAttribute('aria-pressed')!=='true')throw Error('Map snapshot selection overlaps');
+ if(await p.getByRole('button',{name:'07.2012',exact:true}).count())throw Error('Snapshot retains unrelated month selection');
+ await mapLines.click();
+ await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
  if(errors.length)throw Error(errors.join('\n'));
  console.log('PASS: integrated category years, mode separation, 2012 lines/stops, 2013 railway, saved year and line details');
 }finally{await browser?.close();srv.close();}
