@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "187-schedule-selection";
+const BUILD = "188-standard-schedule";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -3946,10 +3946,10 @@ const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", 
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
 const SRC_LABEL = {
-  miu12: "מארכיון מרחב ו־Internet Archive של הפיד הארצי של משרד התחבורה.",
-  obusOld: "מארכיון אוטובוס פתוח של הפיד הארצי של משרד התחבורה.",
-  tf: "מקור: ארכיון TransitFeeds / OpenMobilityData — צילומי הפיד הארצי של משרד התחבורה (הארכיון מכסה 03.2017–12.2022; זה טווח המקור, לא טווח הקו)",
-  tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData — צילום 16.3.2017, הישן ביותר שקיים",
+  miu12: "מקור: ארכיון מרחב ו־Internet Archive.",
+  obusOld: "מקור: ארכיון אוטובוס פתוח / הסדנא לידע ציבורי.",
+  tf: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
+  tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
   ob: "מקור: ארכיון הסדנא לידע ציבורי (Open Bus) — צילומים יומיים, 01.2022–07.2026",
   v10: "מקור: קובץ הרישוי היומי Gtfs_10_days של משרד התחבורה — הפורמט שמייצג כמה רכבים באותה יציאה",
   _daily: "מקור: הסריקה היומית שלנו — השוואת הפיד הארצי, יום מול יום",
@@ -3963,7 +3963,7 @@ const SOURCES = [
   {
     "t": "קובצי GTFS ששוחזרו מעמותת מרחב",
     "d": "07–21.07.2012",
-    "b": "קובצי GTFS של משרד התחבורה, שחולקו לחמישה קבצים אזוריים בידי נחמן שלף ועמותת מרחב ונשמרו ב־Internet Archive. כוללים קווים, תחנות, מסלולים ויציאות מתוכננות. הכיסוי חלקי ואינו ארכיון שנתי רציף.",
+    "b": "קובצי GTFS ששוחזרו מקבצים אזוריים של נחמן שלף ועמותת מרחב, שנשמרו ב־Internet Archive. כוללים קווים, תחנות, מסלולים ויציאות מתוכננות. הכיסוי חלקי.",
     "links": [
       [
         "קובצי המקור ותאריכיהם",
@@ -3972,99 +3972,6 @@ const SOURCES = [
       [
         "Internet Archive",
         "https://web.archive.org/"
-      ]
-    ]
-  },
-  {
-    "t": "הארכיון הישן של אוטובוס פתוח",
-    "d": "2015–2018",
-    "b": "קובצי GTFS של משרד התחבורה שהורדנו מתיקיית old_gtfs באחסון של הסדנא לידע ציבורי. השנים מציינות את תאריכי הנתונים בארכיון, ולא מועד הקמת אתר דאטאבוס. הקליטה הדרגתית; הכיסוי הזמין מוצג בבחירת השנה.",
-    "links": [
-      [
-        "פרויקט אוטובוס פתוח",
-        "https://github.com/hasadna/open-bus"
-      ],
-      [
-        "התקדמות קליטת הקבצים",
-        "data/early-progress.json"
-      ],
-      [
-        "רשימת קובצי הארכיון",
-        "https://github.com/Transit-Freak/kav-bochan/blob/main/line-history/data/early-sources.json"
-      ]
-    ]
-  },
-  {
-    "t": "רכבת פתוחה",
-    "d": "2013–2014",
-    "b": "רישומי רכבת ישראל: מספר רכבת, תחנה, הגעה ויציאה מתוכננות ובפועל. נשמרו במאגר OpenTrainCommunity של הסדנא. זהו מקור נפרד מקובצי GTFS.",
-    "links": [
-      [
-        "ארכיון רכבת פתוחה",
-        "https://github.com/hasadna/OpenTrainCommunity/tree/8dd9ba7b3ebed022469723df6974b27bf2c5577d/data"
-      ]
-    ]
-  },
-  {
-    "t": "הסריקה היומית שלנו",
-    "d": "מ-25.07.2026 והלאה",
-    "b": "הורדה יומית של הפיד הארצי (israel-public-transportation.zip) והשוואה מול היום הקודם. זה המקור החי — כל מה שמכאן והלאה נמדד ביום שבו קרה.",
-    "links": [
-      [
-        "תיעוד משרד התחבורה",
-        "https://www.gov.il/BlobFolder/generalpage/gtfs_general_transit_feed_specifications/he/GTFS%20-%20Developer%20Information.pdf"
-      ]
-    ]
-  },
-  {
-    "t": "קובץ הרישוי היומי Gtfs_10_days",
-    "d": "מ-08.2026 והלאה",
-    "b": "הפורמט החדש של משרד התחבורה, היחיד שמייצג שני אוטובוסים או שלושה שיוצאים באותה דקה על אותה נסיעה. ממנו נרשמים שינויי תגבור. הארכיונים לא שמרו אותו, ולכן אין לו היסטוריה.",
-    "links": [
-      [
-        "תהליך קליטת הנתונים",
-        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/linehistory.py"
-      ]
-    ]
-  },
-  {
-    "t": "ארכיון אופן באס — הסדנא לידע ציבורי",
-    "d": "16.01.2022 – 24.07.2026",
-    "b": "צילומים יומיים של הפיד הארצי. מהם נבנתה היסטוריית הקווים והתחנות לתקופה הזו, וממנו גם השינויים שתוכננו ולא נכנסו לתוקף מינואר 2023 ואילך.",
-    "links": [
-      [
-        "פרויקט אוטובוס פתוח",
-        "https://github.com/hasadna/open-bus"
-      ],
-      [
-        "תהליך בדיקת הארכיון",
-        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/audit_archive_daily.py"
-      ]
-    ]
-  },
-  {
-    "t": "ארכיון TransitFeeds / OpenMobilityData",
-    "d": "16.03.2017 – 14.01.2022",
-    "b": "צילומים היסטוריים של הפיד הארצי של משרד התחבורה, שהורדנו מארכיון OpenMobilityData, שנקרא בעבר TransitFeeds. מקור להיסטוריית הקווים והתחנות; הכיסוי אינו בהכרח יומי.",
-    "links": [
-      [
-        "תהליך ההורדה ומיקום הארכיון",
-        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/backfill_tf.py"
-      ]
-    ]
-  },
-  {
-    "t": "רישוי מערך האוטובוסים — משרד התחבורה",
-    "d": "מ-01.2022 והלאה",
-    "b": "מאגר ב-data.gov.il עם שורה לכל מק\"ט לכל יום: הסוג (עירוני/בינעירוני) והגודל (אוטובוס/מיניבוס/מידיבוס/מפרקי) של הרכב שנקבע לקו. ממנו מגיעים \"שינוי סוג רכב\" בציר הזמן והתג ליד הנגישות. השדות קיימים רק מ-2022.",
-    "links": [
-      [
-        "מאגרי המידע הממשלתיים",
-        "https://data.gov.il/"
-      ],
-      [
-        "תהליך קליטת הרישוי",
-        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/linehistory_rishui.py"
       ]
     ]
   },
@@ -4095,6 +4002,99 @@ const SOURCES = [
       [
         "תהליך הצלבת התחנות",
         "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/crossref_magihim_stops.py"
+      ]
+    ]
+  },
+  {
+    "t": "רכבת פתוחה",
+    "d": "2013–2014",
+    "b": "רישומי רכבת ישראל: מספר רכבת, תחנה, הגעה ויציאה מתוכננות ובפועל. נשמרו במאגר OpenTrainCommunity של הסדנא. זהו מקור נפרד מקובצי GTFS.",
+    "links": [
+      [
+        "ארכיון רכבת פתוחה",
+        "https://github.com/hasadna/OpenTrainCommunity/tree/8dd9ba7b3ebed022469723df6974b27bf2c5577d/data"
+      ]
+    ]
+  },
+  {
+    "t": "הארכיון הישן של אוטובוס פתוח",
+    "d": "2015–2018",
+    "b": "קובצי GTFS שהורדנו מתיקיית old_gtfs בארכיון הסדנא לידע ציבורי. הקליטה הדרגתית; הכיסוי הזמין מוצג בבחירת השנה.",
+    "links": [
+      [
+        "פרויקט אוטובוס פתוח",
+        "https://github.com/hasadna/open-bus"
+      ],
+      [
+        "התקדמות קליטת הקבצים",
+        "data/early-progress.json"
+      ],
+      [
+        "רשימת קובצי הארכיון",
+        "https://github.com/Transit-Freak/kav-bochan/blob/main/line-history/data/early-sources.json"
+      ]
+    ]
+  },
+  {
+    "t": "ארכיון TransitFeeds / OpenMobilityData",
+    "d": "16.03.2017 – 14.01.2022",
+    "b": "צילומי GTFS שהורדנו מארכיון OpenMobilityData, שנקרא בעבר TransitFeeds. משמשים להיסטוריית הקווים והתחנות; הכיסוי אינו בהכרח יומי.",
+    "links": [
+      [
+        "תהליך ההורדה ומיקום הארכיון",
+        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/backfill_tf.py"
+      ]
+    ]
+  },
+  {
+    "t": "רישוי מערך האוטובוסים — משרד התחבורה",
+    "d": "מ-01.2022 והלאה",
+    "b": "מאגר ב-data.gov.il עם שורה לכל מק\"ט לכל יום: הסוג (עירוני/בינעירוני) והגודל (אוטובוס/מיניבוס/מידיבוס/מפרקי) של הרכב שנקבע לקו. ממנו מגיעים \"שינוי סוג רכב\" בציר הזמן והתג ליד הנגישות. השדות קיימים רק מ-2022.",
+    "links": [
+      [
+        "מאגרי המידע הממשלתיים",
+        "https://data.gov.il/"
+      ],
+      [
+        "תהליך קליטת הרישוי",
+        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/linehistory_rishui.py"
+      ]
+    ]
+  },
+  {
+    "t": "ארכיון אופן באס — הסדנא לידע ציבורי",
+    "d": "16.01.2022 – 24.07.2026",
+    "b": "צילומים יומיים של הפיד הארצי. מהם נבנתה היסטוריית הקווים והתחנות לתקופה הזו, וממנו גם השינויים שתוכננו ולא נכנסו לתוקף מינואר 2023 ואילך.",
+    "links": [
+      [
+        "פרויקט אוטובוס פתוח",
+        "https://github.com/hasadna/open-bus"
+      ],
+      [
+        "תהליך בדיקת הארכיון",
+        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/audit_archive_daily.py"
+      ]
+    ]
+  },
+  {
+    "t": "הסריקה היומית שלנו",
+    "d": "מ-25.07.2026 והלאה",
+    "b": "הורדה יומית של הפיד הארצי (israel-public-transportation.zip) והשוואה מול היום הקודם. זה המקור החי — כל מה שמכאן והלאה נמדד ביום שבו קרה.",
+    "links": [
+      [
+        "תיעוד משרד התחבורה",
+        "https://www.gov.il/BlobFolder/generalpage/gtfs_general_transit_feed_specifications/he/GTFS%20-%20Developer%20Information.pdf"
+      ]
+    ]
+  },
+  {
+    "t": "קובץ הרישוי היומי Gtfs_10_days",
+    "d": "מ-08.2026 והלאה",
+    "b": "הפורמט החדש של משרד התחבורה, היחיד שמייצג שני אוטובוסים או שלושה שיוצאים באותה דקה על אותה נסיעה. ממנו נרשמים שינויי תגבור. הארכיונים לא שמרו אותו, ולכן אין לו היסטוריה.",
+    "links": [
+      [
+        "תהליך קליטת הנתונים",
+        "https://github.com/Transit-Freak/kav-bochan/blob/main/tools/linehistory.py"
       ]
     ]
   }
@@ -4278,7 +4278,7 @@ function earlyScheduleDiff(before,after) {
       r.stops.forEach((s,i)=>{const x=prev.profile[i],y=r.profile[i];if(!x||!y||JSON.stringify(x)===JSON.stringify(y))return;
         transit.push([r.t,s[1],clock(prev.raw,x[0]),clock(r.raw,y[0]),clock(prev.raw,x[1]),clock(r.raw,y[1])]);});
     });
-    const key=JSON.stringify([tl,tn,transit]);
+    const key=JSON.stringify([tl,tn]);
     if(!groups.has(key))groups.set(key,{tl,tn,transit,dates:[],changed:tl!==tn||transit.length>0});
     groups.get(key).dates.push(date);
   }
@@ -4302,7 +4302,6 @@ function EarlyScheduleDiff({event,previous}) {
     {data.groups.map((g,i)=><div key={i}>
       {data.groups.length>1&&<h4>{g.dates.length===1?fmtD(g.dates[0]):<TipTag cls="mut" tip={g.dates.map(fmtD).join(", ")}>{g.dates.length} תאריכים: {fmtD(g.dates[0])}–{fmtD(g.dates[g.dates.length-1])}</TipTag>}</h4>}
       <TimesDiff tl={g.tl} tn={g.tn}/>
-      {g.transit.length>0&&<><h4>זמני מעבר בתחנות שהשתנו</h4><div className="early-scroll"><table className="tdiff-tbl"><thead><tr>{["יציאה","תחנה","הגעה לפני","הגעה אחרי","יציאה לפני","יציאה אחרי"].map(s=><th key={s}>{s}</th>)}</tr></thead><tbody>{g.transit.map((r,j)=><tr key={j}>{r.map((s,k)=><td key={k}>{s}</td>)}</tr>)}</tbody></table></div></>}
     </div>)}
   </section>;
 }
@@ -4766,7 +4765,7 @@ function App() {
         </div>
       </details>
       <footer>
-        במסגרת <a href="../" target="_blank" rel="noopener">הקו הבוחן</a> · הנתונים: GTFS משרד התחבורה ·
+        במסגרת <a href="../" target="_blank" rel="noopener">הקו הבוחן</a> · מקורות הנתונים: 
         היסטוריה: מרחב ו־Internet Archive (2012), מגיעים ו־OpenStreetMap (2012), רכבת פתוחה (2013–2014), אוטובוס פתוח והסדנא לידע ציבורי (2015–2018, 2022–2026), TransitFeeds/OpenMobilityData (2017–2022). פירוט וקישורים בסעיף המקורות שמעל.
       </footer>
     </div>
