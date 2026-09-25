@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "186-standard-event-source";
+const BUILD = "187-schedule-selection";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -1647,6 +1647,16 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   const [lf, setLf] = useState(null);
   const [err, setErr] = useState(null);
   const [sel, setSel] = useState(null);   // אינדקס גרסה נבחרת
+  const detailRef = useRef(null);
+  const selectEvent = (i, event) => {
+    setSel(i);
+    if(event.k === "sched" || event.k === "freq"){
+      requestAnimationFrame(()=>{
+        const panel=detailRef.current;
+        if(panel)(panel.querySelector(".early-schedule-diff,.tdiff")||panel).scrollIntoView({block:"start",inline:"nearest"});
+      });
+    }
+  };
   const [mon, setMon] = useState("");
   const [offK, setOffK] = useState(() => new Set());   // קטגוריות שכובו בעמוד הקו
   const [cmpI, setCmpI] = useState(null);              // גרסת בסיס להשוואה חופשית
@@ -2298,7 +2308,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
           {shown.map(({ v: x, i }) => (
             <div key={x.d + x.k + i} className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
-              onClick={() => setSel(i)}>
+              onClick={() => selectEvent(i, x)}>
               <div className="d">
                 {(() => { const ed = evDate(x); return ed.tip
                   ? <TipTag cls={ed.exact ? "" : "approxd"} tip={ed.tip}>{ed.txt}{ed.exact ? "" : " ≈"}</TipTag>
@@ -2324,7 +2334,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
                 <button className="k kbtn" style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
                   aria-current={i === vs.indexOf(v)}
                   aria-label={"בחירת האירוע מ-" + evDate(x).txt + ": " + ((KINDS[dispKind(x, i, vs)] || { label: x.k }).label)}
-                  onClick={(e) => { e.stopPropagation(); setSel(i); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
+                  onClick={(e) => { e.stopPropagation(); selectEvent(i, x); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
                 {x.k === "redraw" && " הגאומטריה תוקנה — רצף התחנות לא השתנה"}
                 {/* שינוי שרצף התחנות חזר ממנו מיד. בלי הסימון הזה השורה
                     אומרת שתחנות ירדו, בעוד הקו עוצר בהן עד היום. */}
@@ -2379,7 +2389,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           ))}
         </div>
       </div>
-      <div className="card main">
+      <div className="card main" ref={detailRef}>
         <div className="vhead">
           {plannedV ? (plKind === "new" ? <>קו שפורסם להתחלה ב-<b>{fmtD(v.ps)}</b> ולא נכנס לפעול</> : <>שינוי תחנות שפורסם ל-<b>{fmtD(v.ps)}</b> ולא נכנס לפעול</>)
             : cmpOn ? <>השוואה שביקשת: <b>{evDate(v).txt}</b> מול <b>{evDate(pv).txt}</b></>
