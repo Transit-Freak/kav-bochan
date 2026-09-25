@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "191-city-stop-search";
+const BUILD = "192-exact-line-ranking";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -484,7 +484,7 @@ function CitySearchStatus({ state }) {
   return state.error ? <p role="alert">חיפוש לפי תחנות בדרך לא נטען. <button onClick={state.retry}>נסו שוב</button></p>
     : !state.data ? <p role="status">טוען ערים שבהן הקווים עוצרים בדרך…</p> : null;
 }
-const citySearchNorm = value => sQ(value).replace(/יי/g, "י").replace(/[-–]/g, " ").replace(/\s+/g, " ").trim();
+const citySearchNorm = value => sQ(value).replace(/יי/g, "י").replace(/וו/g, "ו").replace(/[-–]/g, " ").replace(/\s+/g, " ").trim();
 function citySearchText(data, rd, date) {
   if (!data) return "";
   const day = date ? Math.floor((Date.parse(date) - Date.parse(data.epoch)) / 86400000) : null;
@@ -492,12 +492,23 @@ function citySearchText(data, rd, date) {
     .map(([id]) => citySearchNorm(data.cities[id])).join(" | ");
 }
 function matchesRouteSearch(line, query, data, date, prefix = false) {
+  if (line.rd && sQ(query).trim() === sQ(line.rd)) return true;
   const tokens = citySearchNorm(query).split(/\s+/).filter(t => t && t !== "קו");
   if (!tokens.length) return true;
   const base = citySearchNorm((prefix ? [line.dest, line.op] : [line.line, line.rd, line.dest, line.op]).join(" "));
   const towns = citySearchText(data, line.rd, date);
-  return tokens.every(t => base.includes(t) || towns.includes(t) ||
-    (prefix && (String(line.line || "").startsWith(t) || String(line.rd || "").startsWith(t))));
+  return tokens.every(t => {
+    // A line number must not match random digits inside an archive route ID.
+    if (/^\d+[א-ת]?$/.test(t)) return String(line.line || "").startsWith(t) || String(line.rd || "").startsWith(t);
+    return base.includes(t) || towns.includes(t) ||
+      (prefix && (String(line.line || "").startsWith(t) || String(line.rd || "").startsWith(t)));
+  });
+}
+function routeSearchRank(line, query) {
+  const number = citySearchNorm(query).split(/\s+/).find(t => /^\d+[א-ת]?$/.test(t));
+  if (!number) return 0;
+  const no = String(line.line || "");
+  return no === number ? 0 : no.startsWith(number) ? 1 : 2;
 }
 // קובצי הנתונים מתעדכנים יומית תחת אותה כתובת. חותמת-יום בכתובת החטיאה
 // את המטמון פעם ביום גם לקבצים היסטוריים שלא השתנו, ובחלק מהקבצים
@@ -2921,7 +2932,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
     // Match words across fields, just like the main line search.
     return matchesRouteSearch({ ...m, rd: c.rd, line: c.line || m.line }, needle, citySearch.data, c.d);
 
-  }), meta);
+  }).sort((a, b) => routeSearchRank({ ...meta[a.rd], line: a.line || meta[a.rd]?.line }, needle)
+    - routeSearchRank({ ...meta[b.rd], line: b.line || meta[b.rd]?.line }, needle)), meta);
   const days = []; const byd = new Map();
   for (const c of list) { let g = byd.get(c.d); if (!g) { g = []; byd.set(c.d, g); days.push(c.d); } g.push(c); }
   days.sort().reverse();
@@ -4211,7 +4223,7 @@ function ModesTab({ idx, openLine, spec }) {
       ls = ls.filter(l => matchesRouteSearch(l, needle, citySearch.data, null, true));
     }
     const lnum = (l) => parseInt(l.line) || 1e9;
-    ls = ls.slice().sort((a, b) => lnum(a) - lnum(b) || (a.line || "").localeCompare(b.line || "") || a.rd.localeCompare(b.rd));
+    ls = ls.slice().sort((a, b) => routeSearchRank(a, needle) - routeSearchRank(b, needle) || lnum(a) - lnum(b) || (a.line || "").localeCompare(b.line || "") || a.rd.localeCompare(b.rd));
     ls = collapse2012Rows(ls);
     return { total: ls.length, list: ls.slice(0, lim) };
   }, [mine, spec, sel, q, lim, citySearch.data]);
@@ -4440,7 +4452,7 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const tokens=sQ(q).split(/\s+/).filter(t=>t&&t!=="קו");
   const match=s=>tokens.every(t=>sQ(s).includes(t));
   const lines=collapse2012Rows(routes&&idx ? idx.lines.filter(l=>routes.has(l.rd)&&inHistoryMode(l,mode)&&matchesRouteSearch(l,q,citySearch.data,snapshot.date))
-    .sort((a,b)=>String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : []);
+    .sort((a,b)=>routeSearchRank(a,q)-routeSearchRank(b,q)||String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : []);
   const ss=(stops||[]).filter(s=>match([s.c,s.n,s.desc].join(" ")));
   const rr=(railRows||[]).filter(r=>match(r.join(" ")));
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
