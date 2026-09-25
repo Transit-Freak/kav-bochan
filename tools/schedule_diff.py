@@ -110,6 +110,8 @@ def main():
     counts = Counter()
     examples = []
     audit = Counter()
+    fixes = {}
+    summaries = {}
     for p in sorted((root / 'lines').glob('*.json')):
         lf = json.loads(p.read_text())
         audit['linesScanned'] += 1
@@ -126,6 +128,8 @@ def main():
                     examples.append({'rd': lf['rd'], 'd': event['d'], 'note': event['note']})
             previous = event
         for event in lf.get('versions', []):
+            if event.get('earlyScheduleChecked'):
+                fixes[(lf['rd'], event['d'])] = event
             if event.get('hid') or event.get('k') not in ('sched', 'freq'):
                 continue
             audit['scheduleEventsScanned'] += 1
@@ -143,6 +147,42 @@ def main():
                 audit['ordinaryEventsWithoutStoredTimes'] += 1
         if dirty:
             p.write_text(json.dumps(lf, ensure_ascii=False, separators=(',', ':')))
+        if any(v.get('earlyScheduleChecked') for v in lf.get('versions', [])):
+            visible = [v for v in lf['versions'] if not v.get('hid')]
+            schedules = [v for v in visible if v.get('k') in ('sched', 'freq')]
+            summaries[lf['rd']] = (len(visible), bool(schedules),
+                any(v.get('k') == 'freq' and 'תגבור' in v.get('note', '') for v in schedules))
+    index_path = root / 'lines.json'
+    if index_path.exists():
+        index = json.loads(index_path.read_text())
+        for row in index.get('lines', []):
+            summary = summaries.get(row.get('rd'))
+            if summary is None:
+                continue
+            count, sched, freq = summary
+            row['v'] = count
+            kinds = set(row.get('ks', [])) - {'sched', 'freq'}
+            if sched: kinds.add('sched')
+            if freq: kinds.add('freq')
+            row['ks'] = sorted(kinds)
+        index_path.write_text(json.dumps(index, ensure_ascii=False, separators=(',', ':')))
+    # Only annotate the exact historical schedule records verified above.
+    # Preserve every monthly row and every unrelated source/event unchanged.
+    for p in sorted((root / 'changes').glob('????-??.json')):
+        feed = json.loads(p.read_text())
+        dirty = False
+        for row in feed.get('changes', []):
+            event = fixes.get((row.get('rd'), row.get('d')))
+            if event is None or row.get('k') not in ('sched', 'freq', 'snapshot'):
+                continue
+            fields = {k:event[k] for k in ('k','note','tl','tn','earlyScheduleChecked') if k in event}
+            fields['hid'] = bool(event.get('hid'))
+            if any(row.get(k) != v for k, v in fields.items()):
+                row.update(fields)
+                dirty = True
+                audit['archiveFeedRowsCorrected'] += 1
+        if dirty:
+            p.write_text(json.dumps(feed, ensure_ascii=False, separators=(',', ':')))
     report = {'counts': dict(counts), 'audit': dict(audit), 'examples': examples}
     (root / 'schedule-audit.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
     print(json.dumps(report, ensure_ascii=False), flush=True)
