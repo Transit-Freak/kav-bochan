@@ -273,32 +273,7 @@ def write_event(rd2, ds, kind, note, tl='', tn=''):
     return True
 
 
-BUCKET_HE = {'א': 'ימי ראשון', 'ב': 'ימי שני', 'ג': 'ימי שלישי', 'ד': 'ימי רביעי',
-             'ה': 'ימי חמישי', 'ו': 'ימי שישי', 'ש': 'שבת'}
-
-
-def diff_note(bucket, old_ts, new_ts):
-    """בונה את טקסט האירוע ומחזיר (kind, note).
-
-    ההשוואה בריבוי (Counter) ולא בקבוצות — כדי שגם נסיעות תגבור (שני
-    אוטובוסים באותה שעה בדיוק) ייתפסו: ביטול אחד מהם מדווח עם השעה
-    והסימון "(תגבור)", במקום להיעלם מהפירוט."""
-    from collections import Counter
-    bh = BUCKET_HE[bucket]
-    co, cn = Counter(old_ts), Counter(new_ts)
-    added = [t + (' (תגבור)' if co[t] else '') for t in sorted((cn - co).elements())]
-    removed = [t + (' (תגבור)' if cn[t] else '') for t in sorted((co - cn).elements())]
-    if len(old_ts) != len(new_ts):
-        note = f'מספר היציאות ({bh}) השתנה מ-{len(old_ts)} ל-{len(new_ts)}'
-        if added:
-            note += f' · נוספו: {fmt_times(added)}'
-        if removed:
-            note += f' · ירדו: {fmt_times(removed)}'
-        return 'freq', note
-    note = f'לוח הזמנים ({bh}, {len(new_ts)} יציאות) השתנה'
-    if added and removed:
-        note += f' · שעות חדשות: {fmt_times(added)} · במקום: {fmt_times(removed)}'
-    return 'sched', note
+from schedule_diff import diff_note
 
 
 statep = f'{OUTDIR}/freq-state.json'
