@@ -56,6 +56,8 @@ try{
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('38001-3-א')}`);
  await p.getByRole('button',{name:'בחירת האירוע מ-11.02.2016: שינוי לו"ז',exact:true}).click();
  await p.locator('.early-schedule-diff .tdiff-tbl').first().waitFor({timeout:30000});
+ if(await p.locator('.early-schedule-diff table:not(.tdiff .tdiff-tbl)').count())throw Error('Custom historical table remains');
+ if((await p.locator('.early-schedule-diff .tdiff-tbl').first().locator('th').allTextContents()).join('|')!=='לפני|אחרי')throw Error('Historical timetable differs from ordinary TimesDiff');
  if(!(await p.locator('.early-schedule-diff').innerText()).includes('07:00'))throw Error('Historical departure times missing');
  if(await p.locator('.early-schedule-diff .td-added,.early-schedule-diff .td-removed,.early-schedule-diff .td-moved').count())throw Error('Calendar-only change falsely changes departures');
  for(const viewport of [{width:390,height:844},{width:980,height:844}]){
@@ -67,6 +69,7 @@ try{
   const box=await p.locator('.early-schedule-diff').boundingBox();
   if(!box||box.y<0||box.y>=viewport.height||box.x+box.width<=0||box.x>=viewport.width)throw Error('Line 2 timetable remains outside visible screen');
   await event.click();
+  await p.waitForFunction(()=>{const r=document.querySelector('.early-schedule-diff')?.getBoundingClientRect();return r&&r.top>=0&&r.top<innerHeight;});
   const again=await p.locator('.early-schedule-diff').boundingBox();
   if(!again||again.y>=viewport.height)throw Error('Selecting same event does not reveal timetable');
  }
