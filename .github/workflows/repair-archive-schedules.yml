@@ -1,0 +1,46 @@
+name: repair-archive-schedules
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-archive-schedules.yml'
+      - 'tools/schedule_diff.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: repair-archive-schedules
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Verify schedule comparison
+        run: python tools/test_schedule_diff.py
+      - name: Audit every line and repair archive departure events
+        run: python tools/schedule_diff.py
+      - name: Check ordinary timetable and actual changed departure
+        run: |
+          npm install --no-save playwright-core
+          CHROMIUM_PATH="$(which google-chrome)" node tools/check_early_history_ui.mjs
+      - name: Publish verified data
+        run: |
+          set -euo pipefail
+          git config user.name historical-data-bot
+          git config user.email actions@users.noreply.github.com
+          git add line-history/data/lines line-history/data/changes line-history/data/lines.json line-history/data/schedule-audit.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'data: verify archive departure changes across all lines and preserve source snapshots'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+      - name: Publish website data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
