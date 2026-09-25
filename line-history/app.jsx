@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "185-historical-schedule-diff";
+const BUILD = "186-standard-event-source";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2346,10 +2346,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
-              <details className="event-details"><summary>פרטים ומקור</summary>
-                <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
-                {x.earlyPatternsFile ? <EarlyPatternLoader event={x} /> : x.earlyPatterns ? <EarlyPatterns event={x} /> : null}
-              </details>
+              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
                   התחנות (שלמה 05.09) */}
@@ -2528,6 +2525,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
+        {v.earlyPatternsFile ? <EarlyPatternLoader key={v.earlyPatternsFile} event={v} /> : v.earlyPatterns ? <EarlyPatterns event={v} /> : null}
       </div>
     </div>
   );
@@ -3939,8 +3937,8 @@ const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", 
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
 const SRC_LABEL = {
-  miu12: "משרד התחבורה, יולי 2012; חלוקה אזורית: נחמן שלף ועמותת מרחב; שימור: Internet Archive",
-  obusOld: "משרד התחבורה; הארכיון הישן של אוטובוס פתוח / הסדנא לידע ציבורי, 2015–2018",
+  miu12: "מקובצי משרד התחבורה שנשמרו בעמותת מרחב וב־Internet Archive, יולי 2012.",
+  obusOld: "מארכיון אוטובוס פתוח של הפיד הארצי של משרד התחבורה.",
   tf: "מקור: ארכיון TransitFeeds / OpenMobilityData — צילומי הפיד הארצי של משרד התחבורה (הארכיון מכסה 03.2017–12.2022; זה טווח המקור, לא טווח הקו)",
   tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData — צילום 16.3.2017, הישן ביותר שקיים",
   ob: "מקור: ארכיון הסדנא לידע ציבורי (Open Bus) — צילומים יומיים, 01.2022–07.2026",
