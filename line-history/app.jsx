@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "177-single-daily-history";
+const BUILD = "178-2012-source-labels";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2826,12 +2826,17 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded }) {
       <div className="months">
         {/* כל השנים בבוחר הקיים, מהחדשה לישנה. שנים שטרם נקלטו מציגות את מצב המקור. */}
         {[...new Set([...months.map((m) => m.slice(0, 4)), ...[2012,2013,2014,2015,2016,2017,2018].map(String)])].sort().reverse().map((y) => (
-          <button key={y} className={"mchip" + (yr === y ? " on" : "")} aria-pressed={yr === y}
-            title={"הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1] || ""); }}>{y}</button>
+          <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012"}
+            aria-label={y} aria-describedby={y === "2012" ? "source-gtfs-2012" : undefined}
+            title={y === "2012" ? "קובצי משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive" : "הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1] || ""); }}>{y}{y === "2012" ? " · משרד התחבורה" : ""}</button>
         ))}
-        <button className={"mchip" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="רשת הקווים המלאה כפי שצולמה ב-2012 — 3,214 קווים מאתר מגיעים"
-          onClick={() => { setYr("2012"); setMon("legacy2012"); }}>מגיעים 2012</button>
       </div>
+      <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, margin: "10px 0 14px" }}>
+        <span className="pdesc" style={{ marginInlineEnd: 10 }}>צילום ממקור נוסף:</span>
+        <button className={"mchip" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
+          onClick={() => { setYr("2012"); setMon("legacy2012"); }}>2012 · אתר מגיעים</button>
+      </div>
+      {yr === "2012" && mon !== "legacy2012" && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
       {yr && mon !== "legacy2012" && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
