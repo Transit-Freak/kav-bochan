@@ -1062,7 +1062,13 @@ json.dump(cur_stops,open(f'{OUTDIR}/stops-state.json','w',encoding='utf-8'),ensu
 json.dump({k:v for k,v in sorted(_ntr.items()) if k.count('-')>=2},
           open(f'{OUTDIR}/line-trips.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 mons=sorted({f[8:15] for f in os.listdir(f'{OUTDIR}/changes') if f.startswith('stops-')})
-json.dump({'months':sorted({f[:7] for f in os.listdir(f'{OUTDIR}/changes') if re.match(r'^\d{4}-\d{2}\.json$',f)},reverse=True),
+# Keep the category calendars maintained by build_archive_months.py.
+try:
+    with open(f'{OUTDIR}/months.json', encoding='utf-8') as history_months_file:
+        saved_history_months = json.load(history_months_file)
+except (OSError, ValueError):
+    saved_history_months = {}
+json.dump({**saved_history_months, 'months':sorted({f[:7] for f in os.listdir(f'{OUTDIR}/changes') if re.match(r'^\d{4}-\d{2}\.json$',f)},reverse=True),
            'stopMonths':sorted({f[6:13] for f in os.listdir(f'{OUTDIR}/changes') if f.startswith('stops-')},reverse=True)},
           open(f'{OUTDIR}/months.json','w',encoding='utf-8'),ensure_ascii=False)
 # ערכים שלא הכרנו — מתריעים ברעש. דילוג שקט על סוג חדש הוא בדיוק מה
