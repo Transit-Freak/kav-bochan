@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "193-numeric-history-order";
+const BUILD = "194-alternative-selector";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -1070,6 +1070,192 @@ const getAnchors2012 = () =>
     .catch(() => ({ anchors: {} })));
 
 /* ---------- עמוד קו ---------- */
+/* ---------- Compact alternative selector ---------- */
+// Base is the Ministry's #, never a locally invented regular-route default.
+const variantPart = s => String(s.rd).split('-').slice(2).join('-');
+const variantDirection = s => String(s.rd).split('-')[1] || '';
+function variantSnapshot(lf, date, historical) {
+  const vs = (lf?.versions || []).filter(v => v.stops?.length && !v.syn && v.k !== 'planned-dropped' && (!date || v.d <= date));
+  const v = vs[vs.length - 1];
+  return historical && date && v?.d !== date ? null : v;
+}
+function variantOrientation(a, b) {
+  if (!a?.length || !b?.length) return 0;
+  const positions = new Map(b.map((s,i)=>[String(s[0]),i]));
+  const common = a.map(s=>positions.get(String(s[0]))).filter(i=>i!=null);
+  if (common.length >= 2 && common[0] !== common[common.length-1]) return common[0] < common[common.length-1] ? 1 : -1;
+  const dist=(p,q)=>Math.hypot((p[2]-q[2])*111320,(p[3]-q[3])*94000);
+  const direct=dist(a[0],b[0])+dist(a[a.length-1],b[b.length-1]);
+  const reverse=dist(a[0],b[b.length-1])+dist(a[a.length-1],b[0]);
+  return Math.abs(direct-reverse)<100 ? 0 : direct<reverse ? 1 : -1;
+}
+// Actual departures over the same seven dates, respecting calendar validity.
+function variantFrequency(patterns, date) {
+  if (!Array.isArray(patterns) || !date) return null;
+  const week=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  let total=0;
+  for(let day=0;day<7;day++) {
+    const dt=new Date(date+'T00:00:00Z');dt.setUTCDate(dt.getUTCDate()+day);
+    const key=dt.toISOString().slice(0,10).replace(/-/g,'');
+    for(const p of patterns) for(const s of p.services || []) {
+      const c=s.calendar || {};
+      let active=key>=String(c.start_date).replace(/-/g,'') && key<=String(c.end_date).replace(/-/g,'') && String(c[week[dt.getUTCDay()]])==='1';
+      for(const ex of s.exceptions || []) if(String(ex.date).replace(/-/g,'')===key) active=String(ex.exception_type)==='1';
+      if(active) total+=(s.departures || []).length;
+    }
+  }
+  return total;
+}
+function variantBase(item, items, historical) {
+  if(!historical) return items.find(x=>variantDirection(x)===variantDirection(item) && variantPart(x)==='#') || null;
+  const same=items.filter(x=>x.rd===item.rd || variantOrientation(item.snapshot?.stops,x.snapshot?.stops)===1);
+  // A missing timetable must not silently make another alternative the main one.
+  if(same.some(x=>x.frequency==null)) return null;
+  return same.filter(x=>x.frequency>0).sort((a,b)=>b.frequency-a.frequency || a.rd.localeCompare(b.rd))[0] || null;
+}
+function variantRingContains(x,y,ring) {
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++) {
+    const a=ring[i],b=ring[j];
+    if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) inside=!inside;
+  }
+  return inside;
+}
+function variantBoundaryDistance(x,y,poly) {
+  const sx=111320*Math.cos(y*Math.PI/180),sy=111320;let best=Infinity;
+  for(const ring of poly) for(let i=0;i<ring.length-1;i++) {
+    const a=[(ring[i][0]-x)*sx,(ring[i][1]-y)*sy],b=[(ring[i+1][0]-x)*sx,(ring[i+1][1]-y)*sy];
+    const dx=b[0]-a[0],dy=b[1]-a[1],den=dx*dx+dy*dy;
+    const t=den ? Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dy)/den)) : 0;
+    best=Math.min(best,Math.hypot(a[0]+t*dx,a[1]+t*dy));
+  }
+  return best;
+}
+function variantNeighborhood(stop, areas) {
+  const x=+stop[3],y=+stop[2];if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+  let best=null;
+  for(const row of areas || []) {
+    const b=row[3];if(x<b[0]||x>b[2]||y<b[1]||y>b[3])continue;
+    for(const poly of row[4]) if(variantRingContains(x,y,poly[0]) && !poly.slice(1).some(r=>variantRingContains(x,y,r))) {
+      const distance=variantBoundaryDistance(x,y,poly);
+      if(!best||distance>best.distance)best={id:row[0],name:row[1],city:row[2],distance,interior:distance>50};
+    }
+  }
+  return best;
+}
+function variantStreet(stop) {
+  const parts=String(stop?.[1]||'').split('/').map(x=>x.trim()).filter(Boolean);
+  const landmark=/^(ביה|בית |קניון|תחנת |ת\.רכבת|רכבת|מסוף|מרכז |מכון |קמפוס|הפקולטה|האוניברסיטה|מחלף|צומת|מרינה|מגרש|אזור תעשייה)/;
+  const candidate=parts.find(p=>!landmark.test(p));
+  return candidate || '';
+}
+function describeVariant(item, base, areas) {
+  const a=item.snapshot?.stops,b=base?.snapshot?.stops;
+  if(!a?.length)return 'אין רצף תחנות להשוואה במועד הזה';
+  if(!base)return 'לא נמצאה חלופה ראשית להשוואה במועד הזה';
+  if(item.rd===base.rd)return 'חלופה ראשית';
+  if(!b?.length)return 'אין רצף תחנות לחלופה הראשית במועד הזה';
+  const id=s=>String(s[0]);
+  if(a.length===b.length&&a.every((s,i)=>id(s)===id(b[i])))return 'אותו רצף תחנות כמו הראשית';
+  const ids=new Set(b.map(id)),extra=a.filter(s=>!ids.has(id(s)));
+  const pos=new Map(b.map((s,i)=>[id(s),i]));
+  const matches=a.map(s=>pos.get(id(s))).filter(i=>i!=null);
+  const ordered=matches.length>=2 && matches.every((v,i)=>!i||v>matches[i-1]);
+  const local=new Map();
+  const area=s=>{const k=[s[2],s[3]].join(',');if(!local.has(k))local.set(k,variantNeighborhood(s,areas));return local.get(k);};
+  const place=s=>{const n=area(s);return n?.interior ? 'שכונת '+n.name : variantStreet(s) ? 'רחוב '+variantStreet(s) : 'תחנת '+s[1];};
+  const labels=[];
+  const firstCommon=a.findIndex(s=>pos.has(id(s))),lastCommon=a.findLastIndex(s=>pos.has(id(s)));
+  const nearby=(p,q)=>Math.hypot((p[2]-q[2])*111320,(p[3]-q[3])*94000)<600;
+  const shortStart=ordered && firstCommon>=0 && pos.get(id(a[firstCommon]))>firstCommon && firstCommon<=2 && nearby(a[0],a[firstCommon]);
+  const shortEnd=ordered && lastCommon>=0 && b.length-1-pos.get(id(a[lastCommon]))>a.length-1-lastCommon && a.length-1-lastCommon<=2 && nearby(a[a.length-1],a[lastCommon]);
+  if(shortStart)labels.push('מתחיל ב'+place(a[0]));
+  if(shortEnd)labels.push('מסיים ב'+place(a[a.length-1]));
+  const through=extra.filter(s=>{const i=a.indexOf(s);return !(shortStart && i<firstCommon) && !(shortEnd && i>lastCommon);});
+  if(through.length) {
+    const streets=[...new Set(through.map(variantStreet).filter(Boolean))];
+    // One changed street takes precedence over a neighborhood label.
+    if(streets.length===1 && through.every(s=>variantStreet(s)===streets[0])) labels.push('דרך רחוב '+streets[0]);
+    else {
+      const counts=new Map();for(const s of b){const n=area(s);if(n)counts.set(n.id,(counts.get(n.id)||0)+1);}
+      const now=new Map();for(const s of a){const n=area(s);if(n)now.set(n.id,(now.get(n.id)||0)+1);}
+      for(const s of through) {
+        const n=area(s),street=variantStreet(s);
+        const text=n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
+        if(!labels.includes(text))labels.push(text);
+      }
+    }
+  }
+  if(!labels.length) return 'מסלול שונה מהראשית · '+a.length+' תחנות';
+  return labels.join(' · ');
+}
+async function variantRead(url, compressed=false) {
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+  try {
+    const r=await fetch(url,{signal:controller.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    if(!compressed)return await r.json();
+    if(!window.DecompressionStream)throw new Error('נדרש דפדפן מעודכן');
+    return await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();
+  } finally {clearTimeout(timer);}
+}
+let variantAreasPromise;
+function loadVariantAreas() {
+  if(!variantAreasPromise)variantAreasPromise=Promise.all(Array.from({length:8},(_,i)=>variantRead('data/neighborhoods/'+i+'.json.gz?v=20260923',true))).then(parts=>parts.flat()).catch(e=>{variantAreasPromise=null;throw e;});
+  return variantAreasPromise;
+}
+function AlternativeSelector({sibs,rd,date,onSwitch,altRd,setAltRd}) {
+  const [open,setOpen]=useState(false),[items,setItems]=useState(null),[areas,setAreas]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
+  const historical=sibs.some(s=>s.hgroup),key=sibs.map(s=>s.rd).join('|');
+  useEffect(()=>{setOpen(false);setError('');},[rd,date]);
+  useEffect(()=>{setItems(null);},[key,date]);
+  useEffect(()=>{
+    if(!open)return;
+    let active=true;setItems(null);setError('');
+    loadVariantAreas().then(x=>{if(active)setAreas(x);}).catch(()=>{if(active){setAreas([]);setError('גבולות השכונות לא נטענו; מוצגים שמות הרחובות.');}});
+    const results=new Array(sibs.length);let next=0;
+    async function worker(){
+      while(active && next<sibs.length){const i=next++,s=sibs[i];
+        try{
+          const lf=materializeLf(await variantRead('data/lines/'+fsafe(s.rd)+'.json?v='+BUILD)),snapshot=variantSnapshot(lf,date,historical);
+          let frequency=null;
+          if(historical && snapshot){
+            try{const p=snapshot.earlyPatterns || (snapshot.earlyPatternsFile ? await variantRead('data/early-patterns/'+snapshot.earlyPatternsFile+'.json.gz',true) : null);frequency=variantFrequency(p,date||snapshot.d);}catch(e){/* Do not invent a frequency. */}
+          }
+          results[i]={...s,snapshot,frequency};
+        }catch(e){results[i]={...s,snapshot:null,frequency:null};}
+      }
+    }
+    Promise.all(Array.from({length:Math.min(4,sibs.length)},worker)).then(()=>{if(active){setItems(results);if(results.some(s=>!s.snapshot || (historical && s.frequency==null)))setError('לחלק מהחלופות אין נתוני השוואה זמינים במועד הזה.');}});
+    return()=>{active=false;};
+  },[open,key,date,retry]);
+  const current=sibs.find(s=>s.rd===rd);
+  const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון'));
+  return <section className="alt-selector" style={{margin:'12px 0',padding:12,border:'1px solid #ddd6fe',borderRadius:12}}>
+    <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+      <span style={{flex:'1 1 220px'}}>{current ? label(current) : rd}{items && areas && items.find(s=>s.rd===rd) && <small style={{display:'block',marginTop:4}}>{describeVariant(items.find(s=>s.rd===rd),variantBase(items.find(s=>s.rd===rd),items,historical),areas)}</small>}</span>
+      <button type="button" aria-expanded={open} aria-controls="alternative-options" onClick={()=>setOpen(!open)}>החלפת חלופה {open?'▴':'▾'}</button>
+    </div>
+    {open && <div id="alternative-options">
+      {error && <p role="status">{error} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></p>}
+      {!items ? <p role="status">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</p> : <div style={{maxHeight:'55vh',overflowY:'auto',marginTop:10}}>
+        {items.map(s=>{
+          const base=variantBase(s,items,historical),selected=s.rd===rd;
+          return <div key={s.rd} style={{display:'flex',gap:8,alignItems:'center',padding:'8px 0',borderTop:'1px solid #e2e8f0'}}>
+            <a href={lineHref(s.rd)} aria-current={selected?'true':undefined} style={{flex:1,minWidth:0,padding:10,borderRadius:8,background:selected?'#ede9fe':'#f8fafc',color:'#312e81',textDecoration:'none'}} onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(s.rd);}}>
+              <strong>{label(s)}{s.lk==='removed'?' · בוטלה':''}{selected?' · נבחרה':''}</strong>
+              <div style={{marginTop:4,fontSize:14}}>{areas ? describeVariant(s,base,areas) : 'טוען תיאור מסלול…'}</div>
+              {historical && <small>{base?.rd===s.rd?'הראשית לפי התדירות · ':''}{s.frequency==null?'נתוני התדירות לא זמינים':s.frequency+' נסיעות בשבעה ימים מ־'+fmtD(date||s.snapshot?.d)}{s.snapshot?'':' · אין נתונים למועד הזה'}</small>}
+            </a>
+            {!selected && <button type="button" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'סגירת השוואה':'השוואה'}</button>}
+          </div>;
+        })}
+      </div>}
+      <small style={{display:'block',marginTop:10,color:'#64748b'}}>גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</small>
+    </div>}
+  </section>;
+}
+
 /* ---------- השוואה בין חלופות ---------- */
 // עד עכשיו אפשר היה להשוות גרסה של קו לגרסה קודמת שלו, אבל לא חלופה
 // לחלופה: מי שרצה לדעת במה כיוון 1 שונה מכיוון 2, או ה"ראשית" מהחלופה,
@@ -2258,40 +2444,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               : <div className="mut">טוען…</div>)}
           </div>
         )}
-        {sibs && sibs.length > 1 && (
-          <div className="sibs">
-            <span className="sibt">{sibs.some(s => s.hgroup) ? "מסלולים:" : "חלופות וכיוונים:"}</span>
-            {sibs.map((s) => {
-              const alt0 = (x) => x.rd.split("-").slice(2).join("-");
-              const dir0 = (x) => x.rd.split("-")[1] || "";
-              const dir = dir0(s), alt = alt0(s);
-              const isBase = alt === "" || alt === "#" || alt === "0";
-              const dupDir = sibs.filter((x) => dir0(x) === dir).length > 1;
-              const dupBase = dupDir && isBase && sibs.some((x) => x.rd !== s.rd && dir0(x) === dir && ["", "#", "0"].includes(alt0(x)));
-              const lbl = s.hgroup ? "מ־" + s.hfrom + " אל " + s.hto : "כיוון " + dir + (isBase
-                ? (dupDir ? " · ראשית" + (dupBase ? " (" + (alt || "־") + ")" : "") : "")
-                : " · חלופה " + alt);
-              return (
-                <span key={s.rd} className="sibwrap" style={s.hgroup ? {maxWidth: "100%"} : undefined}>
-                  <a className={"sib" + (s.rd === rd ? " on" : "")} title={s.dest}
-                    style={s.hgroup ? {minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere"} : undefined}
-                    href={lineHref(s.rd)}
-                    onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); if (s.rd !== rd) onSwitch(s.rd); }}>
-                    {lbl}
-                    {s.lk === "removed" && <span className="sibx">✖</span>}
-                  </a>
-                  {/* השוואה בין חלופות: עד עכשיו אפשר היה רק לעבור ביניהן,
-                      ולהחזיק את ההבדל בראש */}
-                  {s.rd !== rd && (
-                    <button className="sibcmp" title={"השוואת התחנות והמסלול מול " + lbl}
-                      onClick={() => setAltRd(altRd === s.rd ? null : s.rd)}>
-                      {altRd === s.rd ? "✕" : "⇄"}</button>
-                  )}
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
