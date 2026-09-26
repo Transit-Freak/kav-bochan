@@ -4698,7 +4698,7 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const rr=(railRows||[]).filter(r=>match(r.join(" ")));
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
   return <section className="historical-day" data-date={day || snapshot.date}>
-    <h3 className="dayhead">{fmtD(day || snapshot.date)}</h3>
+    {!day && <h3 className="dayhead">{fmtD(snapshot.date)}</h3>}
     <CitySearchStatus state={citySearch} />
     {err&&<p role="alert">{err}</p>}
     {snapshot && <>
@@ -4713,7 +4713,23 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
       {(lines.length>lim||ss.length>lim)&&<button className="morebtn" onClick={()=>setLim(lim+100)}>הצגת עוד תוצאות</button>}
     </>}
     {day && <>
-      {day&&!railRows&&<p role="status">טוען רישומי רכבות…</p>}{railRows&&<><p>{rr.length.toLocaleString()} רישומים מתאימים</p><div className="early-scroll"><table><thead><tr>{["רכבת","תחנה","קוד","הגעה מתוכננת","הגעה בפועל","יציאה מתוכננת","יציאה בפועל"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rr.slice(0,lim).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{v}</td>)}</tr>)}</tbody></table></div>{rr.length>lim&&<button onClick={()=>setLim(lim+100)}>עוד רישומים</button>}</>}
+      {day&&!railRows&&<p role="status">טוען רישומי רכבות…</p>}{railRows&&(()=>{
+        // כרטיס לכל נסיעה, באותו עיצוב של שאר השנים (שלמה 26.09) — הטבלה נפתחת בלחיצה
+        const hm=v=>{const x=String(v||"").padStart(4,"0");return x.slice(0,2)+":"+x.slice(2);};
+        const trips=[];let cur=null;
+        for(const r of rr){if(!cur||cur.no!==r[0]||(cur.rows.length&&cur.rows[cur.rows.length-1][1]===r[1])){cur={no:r[0],rows:[]};trips.push(cur);}cur.rows.push(r);}
+        return <><div className="dayhead">{fmtD(day)} · {trips.length.toLocaleString()} נסיעות</div>
+          {trips.slice(0,lim).map((t,i)=>{const f=t.rows[0],l=t.rows[t.rows.length-1];return(
+            <details key={i} className="lrow" style={{display:"block"}}><summary style={{listStyle:"none",cursor:"pointer",display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+              <span className="badge sm">🚆 {t.no}</span>
+              <span className="k" style={{background:"#475569"}}>נסיעה</span>
+              <span className="ldest">{f[1]} ← {l[1]}</span>
+              <span className="lmeta">רכבת ישראל · <bdi dir="ltr">{hm(f[5])}–{hm(l[3])}</bdi> · {t.rows.length} תחנות</span></summary>
+              <div className="early-scroll"><table><thead><tr>{["תחנה","הגעה מתוכננת","הגעה בפועל","יציאה מתוכננת","יציאה בפועל"].map(h=><th key={h}>{h}</th>)}</tr></thead>
+              <tbody>{t.rows.map((r,j)=><tr key={j}><td>{r[1]}</td><td>{hm(r[3])}</td><td>{hm(r[4])}</td><td>{hm(r[5])}</td><td>{hm(r[6])}</td></tr>)}</tbody></table></div>
+            </details>);})}
+          {trips.length>lim&&<button className="recmore" onClick={()=>setLim(lim+100)}>ועוד {(trips.length-lim).toLocaleString()} נסיעות ←</button>}</>;
+      })()}
     </>}
     {snapshot && <details><summary>מקור הנתונים ליום הזה</summary>
       {snapshot.coverage&&<p>{snapshot.coverage}</p>}
