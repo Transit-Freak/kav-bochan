@@ -1306,7 +1306,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
                   onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(s.rd);}}>
                   {desc(s) || label(s)}{s.lk==='removed' && <span className="sibx">✖</span>}
                 </a>
-                {!selected && <button type="button" className="sibcmp" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'✕':'⇄'}</button>}
+                {!selected && <button type="button" className="sibcmp" aria-label="השוואה" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'✕':'⇄'}</button>}
               </span>
               {desc(s) ? <span className="sibdesc">{label(s)}</span> : (!usePre && !areas ? <span className="sibdesc">טוען תיאור מסלול…</span> : null)}
               {historical && <span className="sibdesc">{base?.rd===s.rd?'הראשית לפי התדירות · ':''}{s.frequency==null?'נתוני התדירות לא זמינים':s.frequency+' נסיעות בשבעה ימים מ־'+fmtD(date||s.snapshot?.d)}{s.snapshot?'':' · אין נתונים למועד הזה'}</span>}
@@ -4813,6 +4813,7 @@ function App() {
       if (h.startsWith("2012/")) { setRd(null); setK12(h.slice(5)); return; }
       if (isStopH(h)) { setRd(null); setStopSel(h.slice(5)); setStopSelN((n) => n + 1); setTab("stops"); return; }
       if (isDigestH(h)) { setRd(null); setK12(null); setDig(parseDigest(h)); return; }
+      if (/^t=rail@/.test(h)) { location.reload(); return; }   // קישור ליום בארכיון הרכבת — טעינה מחדש פותחת בדיוק עליו
       if (h.startsWith("t=")) { setRd(null); setK12(null); const t = h.slice(2); if (t === "early") { setTab("lines"); setByDay(true); try { sessionStorage.setItem("lh-day-yr","2012"); sessionStorage.setItem("lh-day-mon","2012-07"); } catch {} } else if (t === "stops" || t === "lines" || t === "map" || TABS.some((x) => x.k === t)) setTab(t); return; }
       // כתובת של קו נקראה רק בטעינה הראשונה: מי שהדביק קישור לקו בשורת
       // הכתובת של לשונית פתוחה, או ערך את הכתובת ידנית, נשאר במסך הקודם.
