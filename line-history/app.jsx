@@ -1188,6 +1188,12 @@ function describeVariant(item, base, areas) {
   const id=s=>String(s[0]);
   const stl=st=>(/^(שד|שד'|שדרות|דרך|כביש|כיכר|סמטת|מחלף|צומת|רחוב) /.test(st)?'':'רחוב ')+st;
   if(a.length===b.length&&a.every((s,i)=>id(s)===id(b[i])))return 'אותו רצף תחנות כמו הראשית';
+  // קו ישיר/מהיר: מעט תחנות לעומת הראשית — "ישיר מתל אביב יפו למעלה אפרים" (שלמה 26.09, קו 161 חלופה 5)
+  if(a.length<=6 && a.length*3<b.length) {
+    const SC=typeof STOP_CITIES!=='undefined'&&STOP_CITIES?STOP_CITIES:null;
+    const c0=SC&&SC[id(a[0])],c1=SC&&SC[id(a[a.length-1])];
+    return c0&&c1&&c0!==c1 ? 'ישיר מ'+c0+' ל'+c1 : 'ישיר: '+a[0][1]+' ← '+a[a.length-1][1];
+  }
   const ids=new Set(b.map(id)),extra=a.filter(s=>!ids.has(id(s)));
   const pos=new Map(b.map((s,i)=>[id(s),i]));
   const matches=a.map(s=>pos.get(id(s))).filter(i=>i!=null);
@@ -1256,12 +1262,12 @@ function describeVariant(item, base, areas) {
     const missing=b.filter(s=>!ids2.has(id(s)));
     // הבדל = לפחות 2 תחנות, והצד השני עוצר שם בפחות ממחצית (תחנה בודדת בצומת או באזור תעשייה אינה "עובר ב")
     const tally=(list,f)=>{const m=new Map();for(const s of list)for(const k of [].concat(f(s)||[]))if(k)m.set(k,(m.get(k)||0)+1);return m;};
-    const diff=(f)=>{const A=tally(a,f),B=tally(b,f),T=tally(through,f),M=tally(missing,f);
+    const diff=(f,city)=>{const A=tally(a,f),B=tally(b,f),T=tally(through,f),M=tally(missing,f);
       const plus=[...T].filter(([k,n])=>n>=2&&(B.get(k)||0)*2<(A.get(k)||0)).sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
-      const minus=[...M].filter(([k,n])=>n>=2&&(A.get(k)||0)*2<(B.get(k)||0)).sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
+      const minus=[...M].filter(([k,n])=>n>=2&&(city?!(A.get(k)||0):(A.get(k)||0)*2<(B.get(k)||0))).sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
       return [plus,minus];};
     const keep=labels.filter(t=>/^(מתחיל|מסתיים)/.test(t));
-    const [cPlus,cMinus]=SC?diff(cityOf):[[],[]];
+    const [cPlus,cMinus]=SC?diff(cityOf,true):[[],[]];
     const [rPlus,rMinus]=diff(roadsOf);
     const road=[...rPlus.map(r=>'דרך '+r),...rMinus.map(r=>'לא נוסע ב'+r)];
     if(cPlus.length||cMinus.length){labels.length=0;const city=[...cPlus.map(c=>'דרך '+c),...cMinus.map(c=>'לא עובר ב'+c)];labels.push(...keep,...city,...road.slice(0,Math.max(0,3-city.length)));}
@@ -1287,7 +1293,10 @@ function describeVariant(item, base, areas) {
     if(m&&prev&&prev.kind===m[1])prev.items.push(m[2]);
     else merged.push(m?{kind:m[1],items:[m[2]]}:{text:t});
   }
-  return merged.map(x=>x.text||(x.items.length===1?'דרך '+x.kind+' '+x.items[0]:'דרך '+(x.kind==='רחוב'?'רחובות':'שכונות')+' '+x.items.join(', '))).join(' · ');
+  // גרש שנשמר בהתחלה במקום בסוף ("'רובע ב" ← "רובע ב'"), ו"דרך דרך רון נחמן" ← "דרך רון נחמן"
+  const fixq=t=>t.replace(/(^|[\s,(])(''?|")([^\s,'"]+(?: [^\s,'"]+)*? [א-ת])(?=$|[,·)])/g,'$1$3$2');
+  return merged.map(x=>x.text||(x.items.length===1?'דרך '+x.kind+' '+x.items[0]:'דרך '+(x.kind==='רחוב'?'רחובות':'שכונות')+' '+x.items.join(', ')))
+    .map(t=>fixq(t).replace(/^דרך דרך /,'דרך ').replace(/ב?דרך דרך /g,'דרך ')).join(' · ');
 }
 async function variantRead(url, compressed=false) {
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
