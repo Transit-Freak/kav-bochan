@@ -4552,6 +4552,25 @@ function RecheckNotice() {
 // Recovered sources use the same line pages and maps as the rest of הקו בזמן.
 // ‎#t=rail@2013-12-18@33‎ — קישור ישיר ליום בארכיון הרכבת ולנסיעה בו
 function railHash(){const m=/^#t=rail@(\d{4}-\d{2}-\d{2})(?:@(\w+))?/.exec(decodeURIComponent(location.hash||""));return m?{day:m[1],no:m[2]||null}:null;}
+// קובץ יומי בארכיון הרכבת מסודר לפי שעות היום: בתחילתו סוף רכבות הלילה של אתמול (אחרי חצות),
+// וההמשך אחרי חצות של רכבות הערב נמצא בקובץ של מחר. כאן מרכיבים "יום שירות":
+// מוציאים את זנב הלילה של אתמול (שורות לפני 04:00 שנגמרות בתחנה אחרונה) ומצרפים את הזנב ממחר.
+function railServiceDay(rows,next){
+  const early=r=>r[3]!=="0"&&(parseInt(r[5]!=="0"?r[5]:r[3])||0)<400;
+  const tails=(rs)=>{const by={};rs.forEach((r,i)=>{(by[r[0]]=by[r[0]]||[]).push(i);});const out=new Set();
+    for(const ids of Object.values(by)){const t=[];for(const i of ids){if(rs[i][3]==="0")continue;if(early(rs[i]))t.push(i);}
+      // זנב = רצף שורות מוקדמות שנגמר בתחנה אחרונה (יציאה 0) ואחריו שורות ערב של אותה רכבת
+      if(t.length&&rs[t[t.length-1]][5]==="0"&&ids.some(i=>!early(rs[i])&&rs[i][3]!=="0"))t.forEach(i=>out.add(i));}
+    return out;};
+  const drop=tails(rows),own=rows.filter((r,i)=>!drop.has(i));
+  const take=tails(next),ends={};own.forEach(r=>{ends[r[0]]=r[5]==="0"&&r[6]==="0";});
+  const add=next.filter((r,i)=>take.has(i)&&ends[r[0]]===false);
+  // השורות של אותה רכבת נשארות ברצף: הזנב נכנס מיד אחרי השורה האחרונה שלה
+  const out=[];const byNo={};add.forEach(r=>{(byNo[r[0]]=byNo[r[0]]||[]).push(r);});
+  const last={};own.forEach((r,i)=>{last[r[0]]=i;});
+  own.forEach((r,i)=>{out.push(r);if(last[r[0]]===i&&byNo[r[0]])out.push(...byNo[r[0]]);});
+  return out;
+}
 async function earlyGrab(url) { const r = await dfetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
 async function earlyGzip(url) {
   const r = await fetch(url);
@@ -4693,7 +4712,10 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
     return()=>{live=false;};
   },[source,progress,mode]);
   useEffect(()=>{let live=true;setRailRows(null);if(!day)return;
-    earlyGzip("data/early-rail/"+day+".json.gz?v="+BUILD).then(r=>{if(live)setRailRows(r.rows);}).catch(e=>{if(live)setErr(e.message);});return()=>{live=false;};
+    // גם הקובץ של היום הבא: רכבת לילה שחצתה את חצות ממשיכה שם (שלמה 26.09)
+    const nx=new Date(Date.parse(day)+86400000).toISOString().slice(0,10);
+    Promise.all([earlyGzip("data/early-rail/"+day+".json.gz?v="+BUILD),earlyGzip("data/early-rail/"+nx+".json.gz?v="+BUILD).catch(()=>({rows:[]}))])
+      .then(([r,n])=>{if(live)setRailRows(railServiceDay(r.rows,n.rows));}).catch(e=>{if(live)setErr(e.message);});return()=>{live=false;};
   },[day]);
   const selected=snapshot;
   const tokens=sQ(q).split(/\s+/).filter(t=>t&&t!=="קו");
@@ -4701,7 +4723,9 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const lines=collapse2012Rows(routes&&idx ? idx.lines.filter(l=>routes.has(l.rd)&&inHistoryMode(l,mode)&&matchesRouteSearch(l,q,citySearch.data,snapshot.date))
     .sort((a,b)=>routeSearchRank(a,q)-routeSearchRank(b,q)||String(a.line||"").localeCompare(String(b.line||""),"he",{numeric:true})||a.rd.localeCompare(b.rd)) : []);
   const ss=(stops||[]).filter(s=>match([s.c,s.n,s.desc].join(" ")));
-  const rr=(railRows||[]).filter(r=>match(r.join(" ")));
+  const rr=useMemo(()=>{const rows=railRows||[];const by=new Map();rows.forEach(r=>{if(!by.has(r[0]))by.set(r[0],[]);by.get(r[0]).push(r);});
+    // כל רכבת ברצף, ובתוכה לפי סדר הקובץ; חיפוש מסנן רכבות שלמות
+    return [...by.values()].filter(g=>!tokens.length||match(g.map(r=>r.join(" ")).join(" "))).flat();},[railRows,q]);
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
   return <section className="historical-day" data-date={day || snapshot.date}>
     {!day && <h3 className="dayhead">{fmtD(snapshot.date)}</h3>}
