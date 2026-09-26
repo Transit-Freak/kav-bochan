@@ -1210,14 +1210,24 @@ function describeVariant(item, base, areas) {
       const sc=new Map();for(const s of through)for(const x of new Set(parts(s)))sc.set(x,(sc.get(x)||0)+1);
       // רחוב שגם הראשית עוצרת בו אינו הבדל (קו 3 עובר גם הוא בשדרות ירושלים)
       const baseStreets=new Set(b.flatMap(parts));
-      const tally=new Map(),first=new Map();
+      const tally=new Map(),first=new Map(),lblNb=new Map();
+      const nbN=new Map(),nbSt=new Map();
+      for(const s of through){const nn=area(s);if(!nn||parts(s).some(x=>baseStreets.has(x)||sc.get(x)>=2))continue;nbN.set(nn.id,(nbN.get(nn.id)||0)+1);if(!nbSt.has(nn.id))nbSt.set(nn.id,new Set());nbSt.get(nn.id).add(variantStreet(s)||s[1]);}
       through.forEach((s,i)=>{
         if(parts(s).some(x=>baseStreets.has(x)))return;
+        // כמה תחנות חדשות באותה שכונה על כמה רחובות — זו השכונה, לא רשימת רחובות (שלמה 26.09, קו 38001)
+        const nn=area(s);
+        if(nn&&!parts(s).some(x=>sc.get(x)>=2)&&nbN.get(nn.id)>=2&&nbSt.get(nn.id).size>=2){const text='דרך שכונת '+nn.name;tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);return;}
         const st=parts(s).filter(x=>sc.get(x)>=2).sort((x,y)=>sc.get(y)-sc.get(x))[0];
         const n=area(s),street=variantStreet(s);
         const text=st ? 'דרך '+stl(st) : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך '+stl(street) : 'דרך תחנת '+s[1];
         tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);
+        if(!lblNb.has(text))lblNb.set(text,new Set());lblNb.get(text).add(n?n.name:'');
       });
+      // שני רחובות ומעלה שכל התחנות שלהם באותה שכונה — זו השכונה (שלמה 26.09, קו 38001: חלוצי התעשייה/העמל/החרושת = אזור תעשייה)
+      const byNb=new Map();
+      for(const [t,set] of lblNb){if(!t.startsWith('דרך רחוב ')&&!t.startsWith('דרך שדרות'))continue;if(set.size!==1)continue;const nb=[...set][0];if(!nb)continue;if(!byNb.has(nb))byNb.set(nb,[]);byNb.get(nb).push(t);}
+      for(const [nb,ts] of byNb){if(ts.length<2)continue;const text='דרך שכונת '+nb;let c=0,f=1e9;for(const t of ts){c+=tally.get(t);f=Math.min(f,first.get(t));tally.delete(t);}tally.set(text,(tally.get(text)||0)+c);first.set(text,Math.min(first.get(text)??1e9,f));}
       const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,3).sort((x,y)=>first.get(x[0])-first.get(y[0])).map(x=>x[0]);
       if(through.length>a.length/2 && !otherStart && !otherEnd)labels.push('מסלול אחר');
       for(const t of top)if(!labels.includes(t))labels.push(t);
