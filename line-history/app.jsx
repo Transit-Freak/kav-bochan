@@ -4568,7 +4568,7 @@ function EarlyMap({ stops, shp }) {
     if (shp) { try { route = decodeShape(shp); } catch(e) { route = points; } }
     L.polyline(route, { color: "#6d28d9", weight: 4, dashArray: shp ? null : "5 8" }).addTo(map);
     stops.forEach(s => {
-      const label = document.createElement("span"); label.textContent = s[0] + " · " + s[1];
+      const label = document.createElement("span"); label.textContent = s[1] ? s[0] + " · " + s[1] : s[0];
       L.circleMarker([s[2],s[3]], { radius: 4, color: "#4338ca", fillOpacity: 1 }).addTo(map).bindPopup(label);
     });
     map.fitBounds(L.latLngBounds(points), { padding: [20,20], maxZoom: 15 });
@@ -4678,6 +4678,8 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const [routes, setRoutes] = useState(null), [stops, setStops] = useState(null);
   const [err, setErr] = useState(""), [lim, setLim] = useState(60), [point, setPoint] = useState(null);
   const [railRows, setRailRows] = useState(null);
+  const [openTrip, setOpenTrip] = useState(null), [railSt, setRailSt] = useState(null);
+  useEffect(()=>{if(!day)return;let live=true;earlyGrab("data/early-rail/stations.json").then(d=>{if(live)setRailSt(d);}).catch(()=>{if(live)setRailSt({});});return()=>{live=false;};},[day]);
   useEffect(()=>{setLim(60);setPoint(null);},[q,source,day]);
   useEffect(()=>{
     let live=true;setRoutes(null);setStops(null);setErr("");
@@ -4714,20 +4716,25 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
     </>}
     {day && <>
       {day&&!railRows&&<p role="status">טוען רישומי רכבות…</p>}{railRows&&(()=>{
-        // כרטיס לכל נסיעה, באותו עיצוב של שאר השנים (שלמה 26.09) — הטבלה נפתחת בלחיצה
+        // כרטיס לכל נסיעה, באותו עיצוב של שאר השנים; בלחיצה — מפה ורשימת תחנות כמו במפה הרגילה, בלי זמנים (שלמה 26.09)
         const hm=v=>{const x=String(v||"").padStart(4,"0");return x.slice(0,2)+":"+x.slice(2);};
         const trips=[];let cur=null;
         for(const r of rr){if(!cur||cur.no!==r[0]||(cur.rows.length&&cur.rows[cur.rows.length-1][1]===r[1])){cur={no:r[0],rows:[]};trips.push(cur);}cur.rows.push(r);}
         return <><div className="dayhead">{fmtD(day)} · {trips.length.toLocaleString()} נסיעות</div>
-          {trips.slice(0,lim).map((t,i)=>{const f=t.rows[0],l=t.rows[t.rows.length-1];return(
-            <details key={i} className="lrow" style={{display:"block"}}><summary style={{listStyle:"none",cursor:"pointer",display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+          {trips.slice(0,lim).map((t,i)=>{const f=t.rows[0],l=t.rows[t.rows.length-1],on=openTrip===i;
+            const st=t.rows.filter(r=>railSt&&railSt[r[2]]);
+            return(
+            <div key={i} className="lrow" style={{display:"block",cursor:"pointer"}} onClick={()=>setOpenTrip(on?null:i)}>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
               <span className="badge sm">🚆 {t.no}</span>
               <span className="k" style={{background:"#475569"}}>נסיעה</span>
               <span className="ldest">{f[1]} ← {l[1]}</span>
-              <span className="lmeta">רכבת ישראל · <bdi dir="ltr">{hm(f[5])}–{hm(l[3])}</bdi> · {t.rows.length} תחנות</span></summary>
-              <div className="early-scroll"><table><thead><tr>{["תחנה","הגעה מתוכננת","הגעה בפועל","יציאה מתוכננת","יציאה בפועל"].map(h=><th key={h}>{h}</th>)}</tr></thead>
-              <tbody>{t.rows.map((r,j)=><tr key={j}><td>{r[1]}</td><td>{hm(r[3])}</td><td>{hm(r[4])}</td><td>{hm(r[5])}</td><td>{hm(r[6])}</td></tr>)}</tbody></table></div>
-            </details>);})}
+              <span className="lmeta">רכבת ישראל · {st.length} תחנות {on?"▴":"▾"}</span></div>
+              {on&&<div onClick={e=>e.stopPropagation()}>
+                {st.length>1&&<EarlyMap stops={st.map(r=>[railSt[r[2]][0],"",railSt[r[2]][1],railSt[r[2]][2]])} shp="" />}
+                <ol className="pdesc" style={{margin:"6px 0",paddingInlineStart:22}}>{st.map((r,j)=><li key={j}>{railSt[r[2]][0]}</li>)}</ol>
+              </div>}
+            </div>);})}
           {trips.length>lim&&<button className="recmore" onClick={()=>setLim(lim+100)}>ועוד {(trips.length-lim).toLocaleString()} נסיעות ←</button>}</>;
       })()}
     </>}
