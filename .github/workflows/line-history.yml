@@ -62,7 +62,11 @@ jobs:
 
       - name: רחוב לכל תחנה (stop_desc) לתיאורי החלופות
         if: hashFiles('stops.txt') != ''
-        run: OUTDIR=line-history/data python3 tools/build_stop_streets.py stops.txt || true
+        run: |
+          # רחוב לכל תחנה לפי המפה (OpenStreetMap, ענף osm-roads); בלי המפה — לפי הכתובת ב-GTFS
+          git fetch -q --depth 1 origin osm-roads && git show origin/osm-roads:roads.json > roads.json || echo "אין roads.json"
+          OUTDIR=line-history/data python3 tools/build_stop_streets.py stops.txt roads.json || true
+          rm -f roads.json
 
       - name: Diff line & stop history
         run: |

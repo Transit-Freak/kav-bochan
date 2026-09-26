@@ -1162,9 +1162,10 @@ function variantStreet(stop) {
   const addr=typeof STOP_STREETS!=='undefined'&&STOP_STREETS&&STOP_STREETS[String(stop?.[0])];
   if(addr)return addr;
   const parts=String(stop?.[1]||'').split('/').map(x=>x.trim()).filter(Boolean);
-  const landmark=/^(ת\.|ביה|בית |קניון|תחנת |ת\.רכבת|רכבת|מסוף|מרכז |מכון |קמפוס|הפקולטה|האוניברסיטה|מחלף|צומת|מרינה|מגרש|אזור תעשייה)/;
+  const landmark=/^(ת\.|תחנה מרכזית|ת"מ|קניון|שער|קיבוץ|מושב|מוזיאון|מחצבת|בסיס|מחנה|חניון|כניסה|מתחם|תחנת|מכללת|מכללה|פארק|אוניברסיטת|בית חולים|בי"ח|ביה|בית |קניון|תחנת |ת\.רכבת|רכבת|מסוף|מרכז |מכון |קמפוס|הפקולטה|האוניברסיטה|מחלף|צומת|מרינה|מגרש|אזור תעשייה)/;
   const notStreet=/^(רציפים?|הורדה|הורדת נוסעים|עלי?יה|יציאה|כניסה|לצפון|לדרום|למזרח|למערב|בינעירוני|עירוני)$/;
   const candidate=parts.find(p=>!landmark.test(p)&&!notStreet.test(p));
+  if(candidate&&/^[\d/]+$/.test(candidate))return 'כביש '+candidate;
   return candidate || '';
 }
 function describeVariant(item, base, areas) {
@@ -1212,12 +1213,13 @@ function describeVariant(item, base, areas) {
       const baseStreets=new Set(b.flatMap(parts));
       const tally=new Map(),first=new Map(),lblNb=new Map();
       const nbN=new Map(),nbSt=new Map();
-      for(const s of through){const nn=area(s);if(!nn||parts(s).some(x=>baseStreets.has(x)||sc.get(x)>=2))continue;nbN.set(nn.id,(nbN.get(nn.id)||0)+1);if(!nbSt.has(nn.id))nbSt.set(nn.id,new Set());nbSt.get(nn.id).add(variantStreet(s)||s[1]);}
+      for(const s of through){const nn=area(s);if(!nn||parts(s).some(x=>baseStreets.has(x)))continue;nbN.set(nn.id,(nbN.get(nn.id)||0)+1);if(!nbSt.has(nn.id))nbSt.set(nn.id,new Set());nbSt.get(nn.id).add(variantStreet(s)||s[1]);}
       through.forEach((s,i)=>{
         if(parts(s).some(x=>baseStreets.has(x)))return;
         // כמה תחנות חדשות באותה שכונה על כמה רחובות — זו השכונה, לא רשימת רחובות (שלמה 26.09, קו 38001)
         const nn=area(s);
-        if(nn&&!parts(s).some(x=>sc.get(x)>=2)&&nbN.get(nn.id)>=2&&nbSt.get(nn.id).size>=2){const text='דרך שכונת '+nn.name;tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);return;}
+        // הכלל של שלמה: יותר מתחנה אחת באותה שכונה ← "דרך שכונת"; רחוב רק לתחנה בודדת בשכונה
+        if(nn&&nbN.get(nn.id)>=2){const text='דרך שכונת '+nn.name;tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);return;}
         const st=parts(s).filter(x=>sc.get(x)>=2).sort((x,y)=>sc.get(y)-sc.get(x))[0];
         const n=area(s),street=variantStreet(s);
         const text=st ? 'דרך '+stl(st) : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך '+stl(street) : 'דרך תחנת '+s[1];
@@ -1267,7 +1269,14 @@ function describeVariant(item, base, areas) {
     }
   }
   if(!labels.length) return 'מסלול שונה מהראשית · '+a.length+' תחנות';
-  return labels.join(' · ');
+  // "דרך רחוב א · דרך רחוב ב" ← "דרך רחובות א, ב" (וכך גם שכונות) — שלמה 26.09
+  const merged=[];
+  for(const t of labels){
+    const m=/^דרך (רחוב|שכונת) (.+)$/.exec(t),prev=merged[merged.length-1];
+    if(m&&prev&&prev.kind===m[1])prev.items.push(m[2]);
+    else merged.push(m?{kind:m[1],items:[m[2]]}:{text:t});
+  }
+  return merged.map(x=>x.text||(x.items.length===1?'דרך '+x.kind+' '+x.items[0]:'דרך '+(x.kind==='רחוב'?'רחובות':'שכונות')+' '+x.items.join(', '))).join(' · ');
 }
 async function variantRead(url, compressed=false) {
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
