@@ -1,6 +1,6 @@
 /* הקו בזמן — היסטוריית מסלולים ותחנות מהשוואת GTFS יומית.
    הנתונים: line-history/data, נוצר ע"י tools/linehistory.py ב-GitHub Actions. */
-const { useState, useEffect, useMemo, useRef } = React;
+const { useState, useEffect, useMemo, useRef, useDeferredValue } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
 const BUILD = "194-alternative-selector";
@@ -485,8 +485,18 @@ function CitySearchStatus({ state }) {
     : !state.data ? <p role="status">טוען ערים שבהן הקווים עוצרים בדרך…</p> : null;
 }
 const citySearchNorm = value => sQ(value).replace(/יי/g, "י").replace(/וו/g, "ו").replace(/[-–]/g, " ").replace(/\s+/g, " ").trim();
+// מטמון: נרמול שמות הערים לכל קו פעם אחת, לא בכל הקשה בחיפוש (הקלדה לאגה)
+const _cstCache = new WeakMap();
+const _baseCache = new WeakMap();
 function citySearchText(data, rd, date) {
   if (!data) return "";
+  if (!date) {
+    let m = _cstCache.get(data);
+    if (!m) { m = new Map(); _cstCache.set(data, m); }
+    let v = m.get(rd);
+    if (v === undefined) { v = (data.routes[rd] || []).map(([id]) => citySearchNorm(data.cities[id])).join(" | "); m.set(rd, v); }
+    return v;
+  }
   const day = date ? Math.floor((Date.parse(date) - Date.parse(data.epoch)) / 86400000) : null;
   return (data.routes[rd] || []).filter(([, a, b]) => day === null || (a <= day && (b === null || day < b)))
     .map(([id]) => citySearchNorm(data.cities[id])).join(" | ");
@@ -495,7 +505,10 @@ function matchesRouteSearch(line, query, data, date, prefix = false) {
   if (line.rd && sQ(query).trim() === sQ(line.rd)) return true;
   const tokens = citySearchNorm(query).split(/\s+/).filter(t => t && t !== "קו");
   if (!tokens.length) return true;
-  const base = citySearchNorm((prefix ? [line.dest, line.op] : [line.line, line.rd, line.dest, line.op]).join(" "));
+  let bc = _baseCache.get(line);
+  if (!bc) { bc = {}; _baseCache.set(line, bc); }
+  const bk = prefix ? "p" : "f";
+  const base = bc[bk] !== undefined ? bc[bk] : (bc[bk] = citySearchNorm((prefix ? [line.dest, line.op] : [line.line, line.rd, line.dest, line.op]).join(" ")));
   const towns = citySearchText(data, line.rd, date);
   return tokens.every(t => {
     // A line number must not match random digits inside an archive route ID.
@@ -4407,6 +4420,7 @@ function ModesTab({ idx, openLine, spec }) {
   const [daily, setDaily] = useState(false);
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = usePersistedQ("lh-q-" + spec.k);
+  const dq = useDeferredValue(q);
   const [lim, setLim] = useState(200);
   useEffect(() => { setLim(200); setSel(new Set()); }, [spec.k]);
   useEffect(() => setLim(200), [q, sel]);
@@ -4421,7 +4435,7 @@ function ModesTab({ idx, openLine, spec }) {
 
   // ב-useMemo — שלא ירוץ מחדש על כל רינדור שאינו קשור לחיפוש (סעיף 14)
   const { list, total } = useMemo(() => {
-    const needle = q.trim();
+    const needle = dq.trim();
     const allowed = sel.size ? new Set(spec.groups.filter((m) => sel.has(m.k)).flatMap((m) => m.tts)) : null;
     let ls = mine.filter((l) => !allowed || allowed.has(l.tt));
     if (needle) {
@@ -4431,7 +4445,7 @@ function ModesTab({ idx, openLine, spec }) {
     ls = ls.slice().sort((a, b) => routeSearchRank(a, needle) - routeSearchRank(b, needle) || lnum(a) - lnum(b) || (a.line || "").localeCompare(b.line || "") || a.rd.localeCompare(b.rd));
     ls = collapse2012Rows(ls);
     return { total: ls.length, list: ls.slice(0, lim) };
-  }, [mine, spec, sel, q, lim, citySearch.data]);
+  }, [mine, spec, sel, dq, lim, citySearch.data]);
 
   return (
     <div className="card">
@@ -4702,6 +4716,7 @@ function App() {
     return "lines";
   });
   const [q, setQ] = usePersistedQ("lh-q-main");
+  const dq = useDeferredValue(q);   // הקלדה חלקה: הסינון רץ ברקע
   const [kats, setKats] = useState(() => new Set());   // קטגוריות מסומנות (בחירה מרובה)
   const [katOpen, setKatOpen] = useState(false);
   // דף קו נכנס להיסטוריית הדפדפן (וגם לקישור, אחרי ה-#) — כפתור "אחורה"
@@ -4815,7 +4830,7 @@ function App() {
   // הסינון והמיון של 13 אלף שורות ב-useMemo: קודם הם רצו מחדש גם ברינדורים
   // שאינם קשורים לחיפוש — פתיחת קטגוריות, "הצג עוד" — תקיעות מורגשת בנייד
   const searchRes = useMemo(() => {
-    const needle = q.trim();
+    const needle = dq.trim();
     if (!idx || (!needle && !kats.size)) return { list: [], total: 0 };
     const inKats = (l) => {
       if (!kats.size) return true;
@@ -4841,7 +4856,7 @@ function App() {
     else list.sort((a, b) => lnum(a) - lnum(b) || a.line.localeCompare(b.line) || a.rd.localeCompare(b.rd));
     list = collapse2012Rows(list);
     return { total: list.length, list: list.slice(0, lim) };
-  }, [idx, q, kats, lim, citySearch.data]);
+  }, [idx, dq, kats, lim, citySearch.data]);
   // סטטוס HTTP = הקובץ באמת לא קיים; כל כשל אחר הוא תקלת רשת — עם כפתור
   // ניסיון חוזר במקום הודעה שגורמת לגולש לחשוב שאין נתונים
   if (err) return (
