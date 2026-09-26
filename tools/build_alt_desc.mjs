@@ -43,6 +43,34 @@ try { trips = JSON.parse(fs.readFileSync(`${DIR}/line-trips.json`, 'utf8')); } c
 const lines = (idx.lines || idx).filter((l) => !l.hgroup).map((l) => ({ ...l, ntr: trips[l.rd] || 0 }));
 const fam = new Map();
 for (const l of lines) { const f = l.rd.split('-')[0]; if (!fam.has(f)) fam.set(f, []); fam.get(f).push(l); }
+// מתי החלופה פועלת לעומת הראשית (לו"ז לשבוע הקרוב, data/sched): "רק בימי שישי", "רק בבוקר" (שלמה 27.09)
+const schedCache = {};
+const sched = (rd) => {
+  const k = fsafe(rd).slice(0, 2);
+  if (!(k in schedCache)) { try { schedCache[k] = JSON.parse(fs.readFileSync(`${DIR}/sched/${k}.json`, 'utf8')).lines || {}; } catch (e) { schedCache[k] = {}; } }
+  return schedCache[k][rd] || null;
+};
+const DAYS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+const mins = (t) => { const [h, m] = String(Array.isArray(t) ? t[0] : t).split(':').map(Number); return h * 60 + m; };   // ["16:30", 2] = שני רכבים באותה שעה
+function when(rd, baseRd) {
+  const a = sched(rd), b = baseRd && baseRd !== rd ? sched(baseRd) : null;
+  if (!a || !b) return '';
+  const da = DAYS.filter((d) => (a[d] || []).length), db = DAYS.filter((d) => (b[d] || []).length);
+  const parts = [];
+  if (da.length && da.length < db.length && da.every((d) => db.includes(d))) {
+    const key = da.join('');
+    const named = { 'ו': 'רק בימי שישי', 'ש': 'רק במוצאי שבת', 'וש': 'רק בסוף השבוע', 'אבגדה': 'רק בימי חול', 'אבגדהו': 'לא במוצאי שבת' }[key];
+    parts.push(named || 'רק בימים ' + da.map((d) => d + "'").join(', '));
+  }
+  const ta = da.flatMap((d) => a[d]).map(mins), tb = db.flatMap((d) => b[d]).map(mins);
+  if (ta.length && tb.length) {
+    const lo = Math.min(...ta), hi = Math.max(...ta), blo = Math.min(...tb), bhi = Math.max(...tb);
+    if (hi < 10 * 60 && bhi >= 12 * 60) parts.push('רק בבוקר');
+    else if (lo >= 18 * 60 && blo < 12 * 60) parts.push('רק בערב');
+    else if (lo >= 12 * 60 && hi < 18 * 60 && blo < 10 * 60 && bhi >= 19 * 60) parts.push('רק בצהריים');
+  }
+  return parts.join(' · ');
+}
 const shards = {}; let nFam = 0, nVar = 0, nMiss = 0;
 const t0 = process.hrtime.bigint();
 for (const [f, sibs] of fam) {
@@ -53,7 +81,13 @@ for (const [f, sibs] of fam) {
     return { ...s, snapshot: lf ? variantSnapshot(lf, null, false) : null };
   });
   const out = {};
-  for (const it of items) out[it.rd] = describeVariant(it, variantBase(it, items, false), areas);
+  for (const it of items) {
+    const base = variantBase(it, items, false);
+    let t = describeVariant(it, base, areas);
+    const w = when(it.rd, base && base.rd);
+    if (w) t = t === 'אותו רצף תחנות כמו הראשית' || t === 'חלופה ראשית' && base && base.rd !== it.rd ? w : (t === 'חלופה ראשית' ? t : w + ' · ' + t);
+    out[it.rd] = t;
+  }
   (shards[f.slice(0, 2).padStart(2, '0')] ||= {})[f] = out;
   nFam++; nVar += items.length;
 }
