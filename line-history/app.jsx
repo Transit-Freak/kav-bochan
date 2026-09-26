@@ -1162,8 +1162,9 @@ function variantStreet(stop) {
   const addr=typeof STOP_STREETS!=='undefined'&&STOP_STREETS&&STOP_STREETS[String(stop?.[0])];
   if(addr)return addr;
   const parts=String(stop?.[1]||'').split('/').map(x=>x.trim()).filter(Boolean);
-  const landmark=/^(ביה|בית |קניון|תחנת |ת\.רכבת|רכבת|מסוף|מרכז |מכון |קמפוס|הפקולטה|האוניברסיטה|מחלף|צומת|מרינה|מגרש|אזור תעשייה)/;
-  const candidate=parts.find(p=>!landmark.test(p));
+  const landmark=/^(ת\.|ביה|בית |קניון|תחנת |ת\.רכבת|רכבת|מסוף|מרכז |מכון |קמפוס|הפקולטה|האוניברסיטה|מחלף|צומת|מרינה|מגרש|אזור תעשייה)/;
+  const notStreet=/^(רציפים?|הורדה|הורדת נוסעים|עלי?יה|יציאה|כניסה|לצפון|לדרום|למזרח|למערב|בינעירוני|עירוני)$/;
+  const candidate=parts.find(p=>!landmark.test(p)&&!notStreet.test(p));
   return candidate || '';
 }
 function describeVariant(item, base, areas) {
@@ -1221,6 +1222,27 @@ function describeVariant(item, base, areas) {
       if(through.length>a.length/2 && !otherStart && !otherEnd)labels.push('מסלול אחר');
       for(const t of top)if(!labels.includes(t))labels.push(t);
     }
+  }
+  // היררכיה אחת לכל הקווים (שלמה 26.09): עיר ← כביש ← רחוב/שכונה. אם החלופה נבדלת בערים שהיא עוברת בהן —
+  // זה כל הסיפור ("לא עובר בשדרות"); אחרת בכבישים ("לא נוסע בכביש 25"); ורק בקו שכל ההבדל בתוך העיר — רחובות ושכונות.
+  {
+    const SC=typeof STOP_CITIES!=='undefined'&&STOP_CITIES?STOP_CITIES:null;
+    const cityOf=s=>SC&&SC[String(s[0])];
+    const roadsOf=s=>{const m=/^כביש ([\d/]+)$/.exec(variantStreet(s)||'');return m?m[1].split('/').map(x=>'כביש '+x):[];};
+    const ids2=new Set(a.map(id));
+    const missing=b.filter(s=>!ids2.has(id(s)));
+    // הבדל = לפחות 2 תחנות, והצד השני עוצר שם בפחות ממחצית (תחנה בודדת בצומת או באזור תעשייה אינה "עובר ב")
+    const tally=(list,f)=>{const m=new Map();for(const s of list)for(const k of [].concat(f(s)||[]))if(k)m.set(k,(m.get(k)||0)+1);return m;};
+    const diff=(f)=>{const A=tally(a,f),B=tally(b,f),T=tally(through,f),M=tally(missing,f);
+      const plus=[...T].filter(([k,n])=>n>=2&&(B.get(k)||0)*2<(A.get(k)||0)).sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
+      const minus=[...M].filter(([k,n])=>n>=2&&(A.get(k)||0)*2<(B.get(k)||0)).sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
+      return [plus,minus];};
+    const keep=labels.filter(t=>/^(מתחיל|מסתיים)/.test(t));
+    const [cPlus,cMinus]=SC?diff(cityOf):[[],[]];
+    const [rPlus,rMinus]=diff(roadsOf);
+    const road=[...rPlus.map(r=>'דרך '+r),...rMinus.map(r=>'לא נוסע ב'+r)];
+    if(cPlus.length||cMinus.length){labels.length=0;const city=[...cPlus.map(c=>'דרך '+c),...cMinus.map(c=>'לא עובר ב'+c)];labels.push(...keep,...city,...road.slice(0,Math.max(0,3-city.length)));}
+    else if(road.length){labels.length=0;labels.push(...keep,...road);}
   }
   // חלופה שמדלגת על תחנות של הראשית (בלי תחנות משלה) — "מדלג על…" (שלמה 26.09, קו 1 בית שמש: סביון/חרוב)
   if(!labels.length && firstCommon>=0) {

@@ -31,6 +31,7 @@ const ctx = vm.createContext({ console, Map, Set, Math, Number, String, Array, O
 let STOP_STREETS = null;
 try { STOP_STREETS = JSON.parse(fs.readFileSync(`${DIR}/stop-streets.json`, 'utf8')); } catch (e) {}
 ctx.STOP_STREETS = STOP_STREETS;
+try { ctx.STOP_CITIES = JSON.parse(fs.readFileSync(`${DIR}/stop-cities.json`, 'utf8')); } catch (e) { ctx.STOP_CITIES = null; }
 vm.runInContext(code, ctx);
 const { fsafe, materializeLf, variantSnapshot, variantBase, describeVariant } = ctx.api;
 
