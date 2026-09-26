@@ -4723,7 +4723,10 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
         // כרטיס לכל נסיעה, באותו עיצוב של שאר השנים; בלחיצה — מפה ורשימת תחנות כמו במפה הרגילה, בלי זמנים (שלמה 26.09)
         const hm=v=>{const x=String(v||"").padStart(4,"0");return x.slice(0,2)+":"+x.slice(2);};
         const trips=[];let cur=null;
-        for(const r of rr){if(!cur||cur.no!==r[0]||(cur.rows.length&&cur.rows[cur.rows.length-1][1]===r[1])){cur={no:r[0],rows:[]};trips.push(cur);}cur.rows.push(r);}
+        // אותו מספר רכבת משמש לכמה נסיעות ביום. נסיעה נגמרת ביציאה 0 (תחנה אחרונה) ומתחילה בהגעה 0 (תחנת מוצא); גם קפיצה של יותר משלוש שעות היא נסיעה חדשה
+        const mins=v=>{const n=parseInt(v)||0;return Math.floor(n/100)*60+n%100;};
+        const tm=r=>mins(r[5]!=="0"?r[5]:r[3]);
+        for(const r of rr){const p=cur&&cur.rows[cur.rows.length-1];if(!cur||cur.no!==r[0]||p[1]===r[1]||(p[5]==='0'&&p[6]==='0')||(r[3]==='0'&&r[4]==='0')||(d=>Math.min(d,1440-d))(Math.abs(tm(r)-tm(p))%1440)>180){cur={no:r[0],rows:[]};trips.push(cur);}cur.rows.push(r);}
         const rh=railHash();if(rh&&rh.day===day&&rh.no&&openTrip===null&&!railJump.current){railJump.current=1;const k=trips.findIndex(t=>t.no===rh.no);if(k>=0)setTimeout(()=>{setLim(Math.max(lim,k+1));setOpenTrip(k);setTimeout(()=>{const el=document.getElementById("rtrip-"+k);if(el)el.scrollIntoView({block:"start"});},300);},0);}
         return <><div className="dayhead">{fmtD(day)} · {trips.length.toLocaleString()} נסיעות</div>
           {trips.slice(0,lim).map((t,i)=>{const f=t.rows[0],l=t.rows[t.rows.length-1],on=openTrip===i;
@@ -4734,10 +4737,10 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
               <span className="badge sm">🚆 {t.no}</span>
               <span className="k" style={{background:"#475569"}}>נסיעה</span>
               <span className="ldest">{f[1]} ← {l[1]}</span>
-              <span className="lmeta">רכבת ישראל · {st.length} תחנות {on?"▴":"▾"}</span></div>
+              <span className="lmeta">רכבת ישראל · {t.rows.length} נקודות {on?"▴":"▾"}</span></div>
               {on&&<div onClick={e=>e.stopPropagation()}>
                 {st.length>1&&<EarlyMap stops={st.map(r=>[railSt[r[2]][0],"",railSt[r[2]][1],railSt[r[2]][2]])} shp="" />}
-                <ol className="pdesc" style={{margin:"6px 0",paddingInlineStart:22}}>{st.map((r,j)=><li key={j}>{railSt[r[2]][0]}</li>)}</ol>
+                <ol className="pdesc" style={{margin:"6px 0",paddingInlineStart:22}}>{t.rows.map((r,j)=>railSt&&railSt[r[2]]?<li key={j}>{railSt[r[2]][0]}</li>:<li key={j} style={{color:"#94a3b8"}}>{r[1].trim()} <small>(נקודה בלי מיקום במפה)</small></li>)}</ol>
               </div>}
             </div>);})}
           {trips.length>lim&&<button className="recmore" onClick={()=>setLim(lim+100)}>ועוד {(trips.length-lim).toLocaleString()} נסיעות ←</button>}</>;
