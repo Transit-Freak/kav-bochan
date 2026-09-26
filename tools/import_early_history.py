@@ -120,7 +120,10 @@ def publish(source, paths):
         for (stopseq,shape), ptids in ordered:
             seq=[[stops[s]['stop_code'] or s,stops[s]['stop_name'].strip(),
                   float(stops[s]['stop_lat']),float(stops[s]['stop_lon'])] for s,_,_ in stopseq]
-            shp=enc_polyline([(p[1],p[2]) for p in shapes.get(shape,[])])
+            # בקובצי 2012 יש שרטוטים שבהם חלק מהנקודות נשמרו עם קו רוחב וקו אורך הפוכים (34.8, 32.0 — בים).
+            # בישראל קו רוחב 29–33.5 וקו אורך 34–36, כך שהיפוך כזה חד-משמעי ומתוקן כאן
+            fix=lambda a,b:(b,a) if (34<a<36 and 29<b<33.5) else (a,b)
+            shp=enc_polyline([fix(p[1],p[2]) for p in shapes.get(shape,[])])
             services=collections.defaultdict(list)
             profiles=[]; profile_ids={}
             def seconds(t):
