@@ -81,11 +81,19 @@ for (const [f, sibs] of fam) {
     return { ...s, snapshot: lf ? variantSnapshot(lf, null, false) : null };
   });
   const out = {};
+  // אותו סדר תחנות = אותו מסלול (הבדל בשרטוט בלבד, למשל בכיכר, אינו חלופה אחרת) — "אותו מסלול כמו חלופה X" (שלמה 27.09)
+  const seqKey = (it) => (it.snapshot?.stops || []).map((x) => String(x[0])).join(',');
+  const partOf = (rd) => rd.split('-')[2];
   for (const it of items) {
     const base = variantBase(it, items, false);
     let t = describeVariant(it, base, areas);
+    const k = seqKey(it);
+    if (k && base && base.rd !== it.rd) {
+      const twin = seqKey(base) === k ? base : items.find((x) => x.rd !== it.rd && x.rd !== base.rd && x.rd.split('-')[1] === it.rd.split('-')[1] && seqKey(x) === k && x.rd < it.rd);
+      if (twin) t = twin === base ? 'אותו מסלול כמו הראשית' : 'אותו מסלול כמו חלופה ' + partOf(twin.rd);
+    }
     const w = when(it.rd, base && base.rd);
-    if (w) t = t === 'אותו רצף תחנות כמו הראשית' || t === 'חלופה ראשית' && base && base.rd !== it.rd ? w : (t === 'חלופה ראשית' ? t : w + ' · ' + t);
+    if (w) t = t === 'חלופה ראשית' ? t : w + ' · ' + t;
     out[it.rd] = t;
   }
   (shards[f.slice(0, 2).padStart(2, '0')] ||= {})[f] = out;
