@@ -1157,6 +1157,9 @@ function variantNeighborhood(stop, areas) {
   return best;
 }
 function variantStreet(stop) {
+  // קודם הכתובת של התחנה ב-GTFS (data/stop-streets.json, נבנה כל לילה), ורק בלעדיה — שם התחנה
+  const addr=typeof STOP_STREETS!=='undefined'&&STOP_STREETS&&STOP_STREETS[String(stop?.[0])];
+  if(addr)return addr;
   const parts=String(stop?.[1]||'').split('/').map(x=>x.trim()).filter(Boolean);
   const landmark=/^(ביה|בית |קניון|תחנת |ת\.רכבת|רכבת|מסוף|מרכז |מכון |קמפוס|הפקולטה|האוניברסיטה|מחלף|צומת|מרינה|מגרש|אזור תעשייה)/;
   const candidate=parts.find(p=>!landmark.test(p));
@@ -1195,13 +1198,14 @@ function describeVariant(item, base, areas) {
       // רק ההבדלים הבולטים (הכי הרבה תחנות), לא תיאור של כל המסלול (שלמה 26.09)
       // רחוב מזוהה משני חלקי שם התחנה ("עיריית קרית מלאכי/ז'בוטינסקי" → ז'בוטינסקי);
       // רחוב שעליו 2 תחנות שונות ומעלה גובר על שם השכונה (שלמה 26.09)
-      const parts=s=>String(s[1]||'').split('/').map(x=>x.trim().replace(/^שד(?:רות|'|׳)\s+/,'')).filter(Boolean);
+      const parts=s=>{const a=typeof STOP_STREETS!=='undefined'&&STOP_STREETS&&STOP_STREETS[String(s[0])];
+        return a?[a]:String(s[1]||'').split('/').map(x=>x.trim().replace(/^שד(?:רות|'|׳)\s+/,'')).filter(Boolean);};
       const sc=new Map();for(const s of through)for(const x of new Set(parts(s)))sc.set(x,(sc.get(x)||0)+1);
       const tally=new Map(),first=new Map();
       through.forEach((s,i)=>{
         const st=parts(s).filter(x=>sc.get(x)>=2).sort((x,y)=>sc.get(y)-sc.get(x))[0];
         const n=area(s),street=variantStreet(s);
-        const text=st ? 'דרך רחוב '+st : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
+        const text=st ? 'דרך '+(/^(שד|שדרות|דרך|כביש|כיכר|סמטת|מחלף|צומת) /.test(st)?'':'רחוב ')+st : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
         tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);
       });
       const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,3).sort((x,y)=>first.get(x[0])-first.get(y[0])).map(x=>x[0]);

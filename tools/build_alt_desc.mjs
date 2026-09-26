@@ -28,6 +28,9 @@ const extra = (process.env.EXTRA || '').split(',').filter(Boolean);
 const parts = [...names, ...extra].map((n) => { const g = grab(n); if (process.env.DEBUG) console.log('== ' + n + ' ' + g.length + ' ' + JSON.stringify(g.slice(0, 80))); return g; });
 const code = parts.join('\n') + '\nthis.api = { fsafe, materializeLf, variantSnapshot, variantBase, describeVariant };';
 const ctx = vm.createContext({ console, Map, Set, Math, Number, String, Array, Object, JSON, Date, RegExp });
+let STOP_STREETS = null;
+try { STOP_STREETS = JSON.parse(fs.readFileSync(`${DIR}/stop-streets.json`, 'utf8')); } catch (e) {}
+ctx.STOP_STREETS = STOP_STREETS;
 vm.runInContext(code, ctx);
 const { fsafe, materializeLf, variantSnapshot, variantBase, describeVariant } = ctx.api;
 

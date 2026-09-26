@@ -60,6 +60,10 @@ jobs:
             || curl -fsSL -A "$UA" --retry 3 -o clusters.zip "https://gtfs.mot.gov.il/gtfsfiles/ClusterToLine.zip" \
             || echo "אין ClusterToLine היום"
 
+      - name: רחוב לכל תחנה (stop_desc) לתיאורי החלופות
+        if: hashFiles('stops.txt') != ''
+        run: OUTDIR=line-history/data python3 tools/build_stop_streets.py stops.txt || true
+
       - name: Diff line & stop history
         run: |
           set -euo pipefail
