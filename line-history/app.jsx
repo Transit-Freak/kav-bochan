@@ -1192,11 +1192,16 @@ function describeVariant(item, base, areas) {
     else {
       const counts=new Map();for(const s of b){const n=area(s);if(n)counts.set(n.id,(counts.get(n.id)||0)+1);}
       const now=new Map();for(const s of a){const n=area(s);if(n)now.set(n.id,(now.get(n.id)||0)+1);}
+      // רק ההבדלים הבולטים (הכי הרבה תחנות), לא תיאור של כל המסלול (שלמה 26.09)
+      const tally=new Map();
       for(const s of through) {
         const n=area(s),street=variantStreet(s);
         const text=n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
-        if(!labels.includes(text))labels.push(text);
+        tally.set(text,(tally.get(text)||0)+1);
       }
+      const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
+      if(through.length>a.length/2)labels.push('מסלול אחר');
+      for(const t of top)if(!labels.includes(t))labels.push(t);
     }
   }
   if(!labels.length) return 'מסלול שונה מהראשית · '+a.length+' תחנות';
