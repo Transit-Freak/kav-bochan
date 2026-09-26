@@ -39,7 +39,10 @@ try{
  if(dates.length<2||dates.some(d=>!d.startsWith('2013-01'))||dates.join()!==[...dates].sort().reverse().join())throw Error('Month is not grouped by descending days');
  await p.getByRole('button',{name:/הצגת ימים נוספים/}).click();
  if(await p.locator('.historical-day').count()<=dates.length)throw Error('Older days inaccessible');
- await p.locator('.early-scroll tbody tr').first().waitFor({timeout:30000});
+ // רכבת 2013–2014: כרטיס לכל נסיעה (לא טבלת רישומים גולמית), ולחיצה פותחת את רשימת הנקודות
+ await p.locator('.historical-day .lrow').first().waitFor({timeout:30000});
+ await p.locator('.historical-day .lrow').first().click();
+ await p.locator('.historical-day .lrow ol li').first().waitFor({timeout:30000});
  await p.getByRole('tab',{name:'🚕 מוניות שירות',exact:true}).click();
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Period selector remains in taxis');
  await p.getByRole('button',{name:/שינויים לפי יום/}).click();
