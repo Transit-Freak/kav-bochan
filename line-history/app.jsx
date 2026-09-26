@@ -3077,8 +3077,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   const [regularMonths, setRegularMonths] = useState([]);
   const [months, setMonths] = useState(null);
   // השנה והחודש שנבחרו נשמרים ללשונית: פתיחת קו וחזרה החזירו ל-2026 (שלמה 13.09)
-  const [yr, setYr] = useState(() => { try { return location.hash === "#t=early" ? "2012" : sessionStorage.getItem("lh-day-yr-"+mode) || ""; } catch (e) { return ""; } });
-  const [mon, setMon] = useState(() => { try { return location.hash === "#t=early" ? "2012-07" : sessionStorage.getItem("lh-day-mon-"+mode) || ""; } catch (e) { return ""; } });
+  const [yr, setYr] = useState(() => { try { const rh = mode === "rail" && railHash(); if (rh) return rh.day.slice(0,4); return location.hash === "#t=early" ? "2012" : sessionStorage.getItem("lh-day-yr-"+mode) || ""; } catch (e) { return ""; } });
+  const [mon, setMon] = useState(() => { try { const rh = mode === "rail" && railHash(); if (rh) return rh.day.slice(0,7); return location.hash === "#t=early" ? "2012-07" : sessionStorage.getItem("lh-day-mon-"+mode) || ""; } catch (e) { return ""; } });
   useEffect(() => { try { sessionStorage.setItem("lh-day-yr-"+mode, yr); sessionStorage.setItem("lh-day-mon-"+mode, mon); } catch (e) { /* ignore */ } }, [yr, mon]);
   const [chs, setChs] = useState(null);
   const [q, setQ] = usePersistedQ("lh-q-day");
@@ -3125,7 +3125,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
         // את השנה לפני שהחודשים נטענים. אחרי המיון האיבר האחרון הוא
         // החודש הנוכחי.
         const last = ms[ms.length - 1] || "";
-        if (ms.length) { setYr((cur) => cur && ms.some(m => m.startsWith(cur)) ? cur : last.slice(0, 4)); setMon((cur) => cur === "legacy2012" || ms.includes(cur) ? cur : last); }
+        const rhk = mode === "rail" && railHash();
+        if (ms.length && !rhk) { setYr((cur) => cur && ms.some(m => m.startsWith(cur)) ? cur : last.slice(0, 4)); setMon((cur) => cur === "legacy2012" || ms.includes(cur) ? cur : last); }
       })
       .catch(() => { if (ok) { setMErr(true); setMonths([]); } });
     return () => { ok = false; };
@@ -4439,7 +4440,7 @@ const TT_LABEL = { rail: "רכבת", taxi: "מונית שירות", lightrail: "
 
 function ModesTab({ idx, openLine, spec }) {
   const citySearch = useRouteCities();
-  const [daily, setDaily] = useState(false);
+  const [daily, setDaily] = useState(() => !!(spec.k === "rail" && railHash()));
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = usePersistedQ("lh-q-" + spec.k);
   const dq = useDeferredValue(q);
@@ -4549,6 +4550,8 @@ function RecheckNotice() {
 }
 
 // Recovered sources use the same line pages and maps as the rest of הקו בזמן.
+// ‎#t=rail@2013-12-18@33‎ — קישור ישיר ליום בארכיון הרכבת ולנסיעה בו
+function railHash(){const m=/^#t=rail@(\d{4}-\d{2}-\d{2})(?:@(\w+))?/.exec(decodeURIComponent(location.hash||""));return m?{day:m[1],no:m[2]||null}:null;}
 async function earlyGrab(url) { const r = await dfetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
 async function earlyGzip(url) {
   const r = await fetch(url);
@@ -4655,7 +4658,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, month = "", embedded = fa
     ...catalog.snapshots.filter(s=>s.date.startsWith(month||year)&&hasHistoricalData(progress.done?.[s.id],mode))
       .map(s=>({key:s.id,date:s.date,snapshot:s})),
     ...(rail.days||[]).filter(d=>d.startsWith(month||year)).map(d=>({key:"rail-"+d,date:d,day:d}))
-  ].sort((a,b)=>b.date.localeCompare(a.date)||a.key.localeCompare(b.key));
+  ].filter(e=>{const rh=mode==="rail"&&railHash();return !rh||!rh.day.startsWith(month||year)||e.date===rh.day;}).sort((a,b)=>b.date.localeCompare(a.date)||a.key.localeCompare(b.key));
   const label=mode==="stops"?"תחנות":mode==="lines"?"קווי אוטובוס":TABS.find(t=>t.k===mode)?.label;
   return <div className={embedded?"":"card"}>
     <input className="search" aria-label={"חיפוש "+label+" בשנת "+year} value={q} onChange={e=>setQ(e.target.value)} placeholder={"חיפוש "+label+": מספר, שם או עיר…"} />
@@ -4678,6 +4681,7 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   const [routes, setRoutes] = useState(null), [stops, setStops] = useState(null);
   const [err, setErr] = useState(""), [lim, setLim] = useState(60), [point, setPoint] = useState(null);
   const [railRows, setRailRows] = useState(null);
+  const railJump = useRef(0);
   const [openTrip, setOpenTrip] = useState(null), [railSt, setRailSt] = useState(null);
   useEffect(()=>{if(!day)return;let live=true;earlyGrab("data/early-rail/stations.json").then(d=>{if(live)setRailSt(d);}).catch(()=>{if(live)setRailSt({});});return()=>{live=false;};},[day]);
   useEffect(()=>{setLim(60);setPoint(null);},[q,source,day]);
@@ -4720,11 +4724,12 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
         const hm=v=>{const x=String(v||"").padStart(4,"0");return x.slice(0,2)+":"+x.slice(2);};
         const trips=[];let cur=null;
         for(const r of rr){if(!cur||cur.no!==r[0]||(cur.rows.length&&cur.rows[cur.rows.length-1][1]===r[1])){cur={no:r[0],rows:[]};trips.push(cur);}cur.rows.push(r);}
+        const rh=railHash();if(rh&&rh.day===day&&rh.no&&openTrip===null&&!railJump.current){railJump.current=1;const k=trips.findIndex(t=>t.no===rh.no);if(k>=0)setTimeout(()=>{setLim(Math.max(lim,k+1));setOpenTrip(k);setTimeout(()=>{const el=document.getElementById("rtrip-"+k);if(el)el.scrollIntoView({block:"start"});},300);},0);}
         return <><div className="dayhead">{fmtD(day)} · {trips.length.toLocaleString()} נסיעות</div>
           {trips.slice(0,lim).map((t,i)=>{const f=t.rows[0],l=t.rows[t.rows.length-1],on=openTrip===i;
             const st=t.rows.filter(r=>railSt&&railSt[r[2]]);
             return(
-            <div key={i} className="lrow" style={{display:"block",cursor:"pointer"}} onClick={()=>setOpenTrip(on?null:i)}>
+            <div key={i} id={"rtrip-"+i} className="lrow" style={{display:"block",cursor:"pointer"}} onClick={()=>setOpenTrip(on?null:i)}>
               <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
               <span className="badge sm">🚆 {t.no}</span>
               <span className="k" style={{background:"#475569"}}>נסיעה</span>
@@ -4754,7 +4759,7 @@ function App() {
     const h = decodeURIComponent((location.hash || "").slice(1));
     if (h.startsWith("stop=")) return "stops";
     if (h.startsWith("t=")) {
-      const t = h.slice(2);
+      const t = h.slice(2).split("@")[0];
       if (t === "early") return "lines";
       if (t === "stops" || t === "map" || TABS.some((x) => x.k === t)) return t;
     }
