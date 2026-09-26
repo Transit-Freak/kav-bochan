@@ -1204,13 +1204,25 @@ function loadVariantAreas() {
   if(!variantAreasPromise)variantAreasPromise=Promise.all(Array.from({length:8},(_,i)=>variantRead('data/neighborhoods/'+i+'.json.gz?v=20260923',true))).then(parts=>parts.flat()).catch(e=>{variantAreasPromise=null;throw e;});
   return variantAreasPromise;
 }
-function AlternativeSelector({sibs,rd,date,onSwitch,altRd,setAltRd}) {
+// תיאורי החלופות מחושבים מראש אצלנו (tools/build_alt_desc.mjs, שבר לפי 2 ספרות ראשונות של המק"ט)
+const altDescCache={};
+function loadAltDesc(fam){
+  const k=(fam.slice(0,2)||'0').padStart(2,'0');
+  if(!altDescCache[k])altDescCache[k]=dfetch('data/alt-desc/'+k+'.json').then(r=>r.ok?r.json():{}).catch(()=>{delete altDescCache[k];return {};});
+  return altDescCache[k].then(m=>m[fam]||null);
+}
+function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const [open,setOpen]=useState(false),[items,setItems]=useState(null),[areas,setAreas]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
   const historical=sibs.some(s=>s.hgroup),key=sibs.map(s=>s.rd).join('|');
+  // מצב עדכני (הגרסה האחרונה של הקו): התיאורים מוכנים מראש — נטענים מיד, בלי להוריד את קובצי
+  // החלופות ואת גבולות השכונות בדפדפן (שלמה 26.09). גרסה ישנה או מסלולי 2012 — חישוב בעמוד כמו קודם.
+  const [pre,setPre]=useState(null);
+  useEffect(()=>{setPre(null);if(historical)return;let ok=true;loadAltDesc(rd.split('-')[0]).then(m=>{if(ok)setPre(m||{});});return()=>{ok=false;};},[key]);
+  const usePre=!historical && latest && pre && sibs.every(s=>s.rd in pre);
   useEffect(()=>{setOpen(false);setError('');},[rd,date]);
   useEffect(()=>{setItems(null);},[key,date]);
   useEffect(()=>{
-    if(!open)return;
+    if(!open || usePre)return;
     let active=true;setItems(null);setError('');
     loadVariantAreas().then(x=>{if(active)setAreas(x);}).catch(()=>{if(active){setAreas([]);setError('גבולות השכונות לא נטענו; מוצגים שמות הרחובות.');}});
     const results=new Array(sibs.length);let next=0;
@@ -1228,32 +1240,47 @@ function AlternativeSelector({sibs,rd,date,onSwitch,altRd,setAltRd}) {
     }
     Promise.all(Array.from({length:Math.min(4,sibs.length)},worker)).then(()=>{if(active){setItems(results);if(results.some(s=>!s.snapshot || (historical && s.frequency==null)))setError('לחלק מהחלופות אין נתוני השוואה זמינים במועד הזה.');}});
     return()=>{active=false;};
-  },[open,key,date,retry]);
+  },[open,key,date,retry,usePre]);
   const current=sibs.find(s=>s.rd===rd);
   const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון'));
-  return <section className="alt-selector" style={{margin:'12px 0',padding:12,border:'1px solid #ddd6fe',borderRadius:12}}>
-    <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
-      <span style={{flex:'1 1 220px'}}>{current ? label(current) : rd}{items && areas && items.find(s=>s.rd===rd) && <small style={{display:'block',marginTop:4}}>{describeVariant(items.find(s=>s.rd===rd),variantBase(items.find(s=>s.rd===rd),items,historical),areas)}</small>}</span>
-      <button type="button" aria-expanded={open} aria-controls="alternative-options" onClick={()=>setOpen(!open)}>החלפת חלופה {open?'▴':'▾'}</button>
+  // העיצוב הקודם של שורת החלופות (sibs/sib/sibcmp — כפתורי גלולה סגולים) — הלוגיקה של
+  // בוחר החלופות נשארה כמו שהיא, רק התצוגה חזרה לעיצוב של האתר (שלמה 26.09)
+  const curItem=items && items.find(s=>s.rd===rd);
+  // תיאור לתצוגה: מהקובץ המוכן, או מהחישוב בעמוד. "לא נמצאה חלופה ראשית" (קו בלי חלופה # — רכבת,
+  // מוניות, חלק מהקווים) לא מוצג: זה לא מידע על המסלול
+  const NO_BASE='לא נמצאה חלופה ראשית להשוואה במועד הזה';
+  const desc=(s)=>{const t=usePre ? pre[s.rd] : (areas && items ? describeVariant(s,variantBase(s,items,historical),areas) : null);return t===NO_BASE?'':t;};
+  const shown=usePre ? sibs : items;
+  return <div className="alt-selector">
+    <div className="sibs">
+      <span className="sibt">{historical ? "מסלולים:" : "חלופות וכיוונים:"}</span>
+      <span className="sib on" title={current?.dest}>{current ? label(current) : rd}{current?.lk==='removed' && <span className="sibx">✖</span>}</span>
+      <button type="button" className="sib" aria-expanded={open} aria-controls="alternative-options" onClick={()=>setOpen(!open)}>החלפת חלופה {open?'▴':'▾'}</button>
     </div>
+    {(usePre ? desc(current||{rd}) : curItem && areas && desc(curItem)) ? <div className="sibdesc">{usePre ? desc(current||{rd}) : desc(curItem)}</div> : null}
     {open && <div id="alternative-options">
-      {error && <p role="status">{error} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></p>}
-      {!items ? <p role="status">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</p> : <div style={{maxHeight:'55vh',overflowY:'auto',marginTop:10}}>
-        {items.map(s=>{
-          const base=variantBase(s,items,historical),selected=s.rd===rd;
-          return <div key={s.rd} style={{display:'flex',gap:8,alignItems:'center',padding:'8px 0',borderTop:'1px solid #e2e8f0'}}>
-            <a href={lineHref(s.rd)} aria-current={selected?'true':undefined} style={{flex:1,minWidth:0,padding:10,borderRadius:8,background:selected?'#ede9fe':'#f8fafc',color:'#312e81',textDecoration:'none'}} onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(s.rd);}}>
-              <strong>{label(s)}{s.lk==='removed'?' · בוטלה':''}{selected?' · נבחרה':''}</strong>
-              <div style={{marginTop:4,fontSize:14}}>{areas ? describeVariant(s,base,areas) : 'טוען תיאור מסלול…'}</div>
-              {historical && <small>{base?.rd===s.rd?'הראשית לפי התדירות · ':''}{s.frequency==null?'נתוני התדירות לא זמינים':s.frequency+' נסיעות בשבעה ימים מ־'+fmtD(date||s.snapshot?.d)}{s.snapshot?'':' · אין נתונים למועד הזה'}</small>}
-            </a>
-            {!selected && <button type="button" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'סגירת השוואה':'השוואה'}</button>}
+      {!usePre && error && <div className="sibdesc">{error}</div>}
+      {!shown ? <div className="sibdesc">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</div> : <div className="siblist">
+        {shown.map(s=>{
+          const base=usePre ? null : variantBase(s,items,historical),selected=s.rd===rd;
+          return <div key={s.rd} className="sibitem">
+            <div className="sibinfo">
+              <span className="sibwrap">
+                <a className={"sib"+(selected?" on":"")} href={lineHref(s.rd)} title={s.dest} aria-current={selected?'true':undefined}
+                  onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(s.rd);}}>
+                  {label(s)}{s.lk==='removed' && <span className="sibx">✖</span>}
+                </a>
+                {!selected && <button type="button" className="sibcmp" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'✕':'⇄'}</button>}
+              </span>
+              {usePre ? (desc(s) ? <span className="sibdesc">{desc(s)}</span> : null) : <span className="sibdesc">{areas ? desc(s) : 'טוען תיאור מסלול…'}</span>}
+              {historical && <span className="sibdesc">{base?.rd===s.rd?'הראשית לפי התדירות · ':''}{s.frequency==null?'נתוני התדירות לא זמינים':s.frequency+' נסיעות בשבעה ימים מ־'+fmtD(date||s.snapshot?.d)}{s.snapshot?'':' · אין נתונים למועד הזה'}</span>}
+            </div>
           </div>;
         })}
       </div>}
-      <small style={{display:'block',marginTop:10,color:'#64748b'}}>גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</small>
+      <div className="sibt" style={{fontWeight:700,marginTop:6}}>{usePre ? 'התיאורים מחושבים מראש לפי המסלול העדכני של כל חלופה. ' : ''}גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</div>
     </div>}
-  </section>;
+  </div>;
 }
 
 /* ---------- השוואה בין חלופות ---------- */
@@ -2445,7 +2472,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           </div>
         )}
         {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />

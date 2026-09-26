@@ -200,6 +200,8 @@ jobs:
             OUTDIR=line-history/data python3 tools/build_stop_shards.py
             OUTDIR=line-history/data python3 tools/compact_lines.py
             OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+            # תיאורי החלופות ("דרך שכונת…", "דרך רחוב…", "מתחיל ב…") — מחושבים כאן ולא בדפדפן (שלמה 26.09)
+            OUTDIR=line-history/data node tools/build_alt_desc.mjs
             # היסטוריה לפי תחנה: אילו קווים עצרו בכל תחנה ומתי זה השתנה
             OUTDIR=line-history/data python3 tools/build_stop_history.py
             OUTDIR=line-history/data python3 tools/build_city_search.py
