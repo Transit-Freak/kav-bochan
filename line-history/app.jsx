@@ -1249,15 +1249,16 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   // תיאור לתצוגה: מהקובץ המוכן, או מהחישוב בעמוד. "לא נמצאה חלופה ראשית" (קו בלי חלופה # — רכבת,
   // מוניות, חלק מהקווים) לא מוצג: זה לא מידע על המסלול
   const NO_BASE='לא נמצאה חלופה ראשית להשוואה במועד הזה';
-  const desc=(s)=>{const t=usePre ? pre[s.rd] : (areas && items ? describeVariant(s,variantBase(s,items,historical),areas) : null);return t===NO_BASE?'':t;};
+  const desc=(s)=>{const it=usePre ? s : (items && items.find(x=>x.rd===s.rd));const t=usePre ? pre[s.rd] : (areas && it ? describeVariant(it,variantBase(it,items,historical),areas) : null);return t===NO_BASE?'':(t||'');};
   const shown=usePre ? sibs : items;
   return <div className="alt-selector">
     <div className="sibs">
       <span className="sibt">{historical ? "מסלולים:" : "חלופות וכיוונים:"}</span>
-      <span className="sib on" title={current?.dest}>{current ? label(current) : rd}{current?.lk==='removed' && <span className="sibx">✖</span>}</span>
+      <span className="sib on" title={current?.dest}>{(current && desc(current)) || (current ? label(current) : rd)}{current?.lk==='removed' && <span className="sibx">✖</span>}</span>
       <button type="button" className="sib" aria-expanded={open} aria-controls="alternative-options" onClick={()=>setOpen(!open)}>החלפת חלופה {open?'▴':'▾'}</button>
     </div>
-    {(usePre ? desc(current||{rd}) : curItem && areas && desc(curItem)) ? <div className="sibdesc">{usePre ? desc(current||{rd}) : desc(curItem)}</div> : null}
+    {/* הפוך מקודם (שלמה 26.09): בכפתור — דרך איפה הקו עובר; מתחת, בקטן — הכיוון והחלופה */}
+    {current && desc(current) ? <div className="sibdesc">{label(current)}</div> : null}
     {open && <div id="alternative-options">
       {!usePre && error && <div className="sibdesc">{error}</div>}
       {!shown ? <div className="sibdesc">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</div> : <div className="siblist">
@@ -1268,11 +1269,11 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
               <span className="sibwrap">
                 <a className={"sib"+(selected?" on":"")} href={lineHref(s.rd)} title={s.dest} aria-current={selected?'true':undefined}
                   onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(s.rd);}}>
-                  {label(s)}{s.lk==='removed' && <span className="sibx">✖</span>}
+                  {desc(s) || label(s)}{s.lk==='removed' && <span className="sibx">✖</span>}
                 </a>
                 {!selected && <button type="button" className="sibcmp" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'✕':'⇄'}</button>}
               </span>
-              {usePre ? (desc(s) ? <span className="sibdesc">{desc(s)}</span> : null) : <span className="sibdesc">{areas ? desc(s) : 'טוען תיאור מסלול…'}</span>}
+              {desc(s) ? <span className="sibdesc">{label(s)}</span> : (!usePre && !areas ? <span className="sibdesc">טוען תיאור מסלול…</span> : null)}
               {historical && <span className="sibdesc">{base?.rd===s.rd?'הראשית לפי התדירות · ':''}{s.frequency==null?'נתוני התדירות לא זמינים':s.frequency+' נסיעות בשבעה ימים מ־'+fmtD(date||s.snapshot?.d)}{s.snapshot?'':' · אין נתונים למועד הזה'}</span>}
             </div>
           </div>;
@@ -1942,6 +1943,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   // בעבר כל פתיחת עמוד קו הורידה את קובץ העוגנים המלא (1.2MB) רק כדי
   // לשלוף שורה אחת, כולל בקווי רכבת ומוניות שאין להם עוגן בכלל.
   const anc = (lf && lf.anc) || null;
+  // הקו של 2012 לפי קובצי משרד התחבורה (tools/link_mot2012.py) — קודם למגיעים (שלמה 26.09)
+  const [mot12, setMot12] = useState(null);
+  useEffect(() => {
+    setMot12(null); let ok = true;
+    const k = (rd.split("-")[0].slice(0, 2) || "0").padStart(2, "0");
+    dfetch("data/mot2012-links/" + k + ".json").then((r) => (r.ok ? r.json() : {})).then((m) => { if (ok) setMot12(m[rd] || []); }).catch(() => { if (ok) setMot12([]); });
+    return () => { ok = false; };
+  }, [rd]);
   useEffect(() => {
     setShow12(false); setD12(null); setR12(0); setS12(null); setAltRd(null);
   }, [rd]);
@@ -2440,7 +2449,20 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         )}
         {v.k !== "sched" && v.k !== "freq" && <SchedBox rd={rd} vs={vs} selD={sel != null && vs[sel] ? vs[sel].d : null}
           isLast={sel == null || sel >= vs.length - 1} />}
-        {anc && !NO_2012.has(lf.tt || "") && (
+        {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
+          <div className="a2012">
+            <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
+            {mot12.map((x) => (
+              <div key={x[0]} style={{ marginTop: 4 }}>
+                {x[1].replace("<->", " ← ")} · {x[3]} תחנות
+                <TipTag cls="a2012ov" tip="מספר התחנות (לפי מק״ט) שמופיעות גם במסלול של 2012 לפי קובץ משרד התחבורה וגם במסלול הישן ביותר שידוע לנו לקו הזה">· {x[4]} תחנות משותפות</TipTag>
+                <a className="a2012btn" href={lineHref(x[0])} title="הקו כפי שהיה ביולי 2012 לפי קובץ משרד התחבורה — רצף התחנות והמסלול המקורי על המפה">המסלול ב-2012 ←</a>
+              </div>
+            ))}
+            {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
+          </div>
+        )}
+        {anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
             {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
