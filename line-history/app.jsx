@@ -56,6 +56,7 @@ const KINDS = {
   shorten:     { label: "קיצור קו", color: "#c2410c" },
   "stops-add": { label: "תחנות נוספו", color: "#3f6212" },
   "stops-del": { label: "תחנות ירדו", color: "#be123c" },
+  notrips:     { label: "אין נסיעות בקובץ", color: "#94a3b8" },   // הקו קיים בקובץ בלי אף נסיעה באותו יום (ארכיון אוטובוס פתוח)
   stops:       { label: "שינוי תחנות", color: "#b45309" },
   operator:    { label: "החלפת מפעיל", color: "#0f766e" },
   dest:        { label: "שינוי יעד", color: "#9333ea" },
@@ -1219,6 +1220,18 @@ function describeVariant(item, base, areas) {
       const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,3).sort((x,y)=>first.get(x[0])-first.get(y[0])).map(x=>x[0]);
       if(through.length>a.length/2 && !otherStart && !otherEnd)labels.push('מסלול אחר');
       for(const t of top)if(!labels.includes(t))labels.push(t);
+    }
+  }
+  // חלופה שמדלגת על תחנות של הראשית (בלי תחנות משלה) — "מדלג על…" (שלמה 26.09, קו 1 בית שמש: סביון/חרוב)
+  if(!labels.length && firstCommon>=0) {
+    const ids2=new Set(a.map(id)),lo=pos.get(id(a[firstCommon])),hi=pos.get(id(a[lastCommon]));
+    const skipped=b.filter((s,i)=>i>lo&&i<hi&&!ids2.has(id(s)));
+    if(skipped.length===1) labels.push('מדלג על תחנת '+skipped[0][1]);
+    else if(skipped.length===2) labels.push('מדלג על '+skipped.map(s=>s[1]).join(' ו'));
+    else if(skipped.length) {
+      const c=new Map();for(const s of skipped){const st=variantStreet(s);if(st)c.set(st,(c.get(st)||0)+1);}
+      const top=[...c].sort((x,y)=>y[1]-x[1])[0];
+      labels.push(top&&top[1]>=2 ? 'לא עובר ב'+stl(top[0])+' ('+skipped.length+' תחנות)' : 'מדלג על '+skipped.length+' תחנות');
     }
   }
   if(!labels.length) return 'מסלול שונה מהראשית · '+a.length+' תחנות';

@@ -155,6 +155,8 @@ def publish(source, paths):
         p=OUT/'lines'/f'{fsafe(rd)}.json'; lf=materialize(read(p,{}))
         previous=[v for v in lf.get('versions',[]) if v.get('earlyFingerprint') and v['d'] <= date and v.get('earlySource') != source['id']]
         prev=previous[-1] if previous else None
+        # צילום שבו הקו קיים בלי אף נסיעה אינו "כל התחנות ירדו" — משווים מול הצילום האחרון שהיו בו תחנות
+        prev_st=next((v for v in reversed(previous) if v.get('stops')),None)
         if prev and prev.get('earlyFingerprint')==fp:
             additions.append(rd);seen[rd]=date;continue
         if not lf:
@@ -163,7 +165,10 @@ def publish(source, paths):
         old=[v for v in lf['versions'] if v.get('earlySource')==source['id']]
         lf['versions']=[v for v in lf['versions'] if v.get('earlySource')!=source['id']]
         # Sources and dates are explicit. No claims of exact opening/closure.
-        kind,add,rem = classify(prev.get('stops',[]),first['stops'],prev.get('shp',''),first['shp']) if prev else (None,[],[])
+        if not pattern_data:
+            kind,add,rem = 'notrips',[],[]
+        else:
+            kind,add,rem = classify(prev_st.get('stops',[]),first['stops'],prev_st.get('shp',''),first['shp']) if prev_st else (None,[],[])
         if prev and not kind:
             pm=prev.get('historicalMeta',{})
             kind='operator' if pm.get('op')!=meta['op'] else 'renum' if pm.get('line')!=meta['line'] else 'dest' if pm.get('dest')!=meta['dest'] else 'sched'
