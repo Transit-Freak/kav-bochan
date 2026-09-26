@@ -1172,6 +1172,7 @@ function describeVariant(item, base, areas) {
   if(item.rd===base.rd)return 'חלופה ראשית';
   if(!b?.length)return 'אין רצף תחנות לחלופה הראשית במועד הזה';
   const id=s=>String(s[0]);
+  const stl=st=>(/^(שד|שד'|שדרות|דרך|כביש|כיכר|סמטת|מחלף|צומת|רחוב) /.test(st)?'':'רחוב ')+st;
   if(a.length===b.length&&a.every((s,i)=>id(s)===id(b[i])))return 'אותו רצף תחנות כמו הראשית';
   const ids=new Set(b.map(id)),extra=a.filter(s=>!ids.has(id(s)));
   const pos=new Map(b.map((s,i)=>[id(s),i]));
@@ -1179,19 +1180,23 @@ function describeVariant(item, base, areas) {
   const ordered=matches.length>=2 && matches.every((v,i)=>!i||v>matches[i-1]);
   const local=new Map();
   const area=s=>{const k=[s[2],s[3]].join(',');if(!local.has(k))local.set(k,variantNeighborhood(s,areas));return local.get(k);};
-  const place=s=>{const n=area(s);return n?.interior ? 'שכונת '+n.name : variantStreet(s) ? 'רחוב '+variantStreet(s) : 'תחנת '+s[1];};
+  const place=s=>{const n=area(s);return n?.interior ? 'שכונת '+n.name : variantStreet(s) ? stl(variantStreet(s)) : 'תחנת '+s[1];};
   const labels=[];
   const firstCommon=a.findIndex(s=>pos.has(id(s))),lastCommon=a.findLastIndex(s=>pos.has(id(s)));
   const nearby=(p,q)=>Math.hypot((p[2]-q[2])*111320,(p[3]-q[3])*94000)<600;
   const shortStart=ordered && firstCommon>=0 && pos.get(id(a[firstCommon]))>firstCommon && firstCommon<=2 && nearby(a[0],a[firstCommon]);
   const shortEnd=ordered && lastCommon>=0 && b.length-1-pos.get(id(a[lastCommon]))>a.length-1-lastCommon && a.length-1-lastCommon<=2 && nearby(a[a.length-1],a[lastCommon]);
-  if(shortStart)labels.push('מתחיל ב'+place(a[0]));
-  if(shortEnd)labels.push('מסיים ב'+place(a[a.length-1]));
-  const through=extra.filter(s=>{const i=a.indexOf(s);return !(shortStart && i<firstCommon) && !(shortEnd && i>lastCommon);});
+  // קצה במקום אחר לגמרי (לא ליד קצה הראשית) — גם הוא "מתחיל ב/מסתיים ב" (שלמה 26.09)
+  const far=(p,q)=>!nearby(p,q);
+  const otherStart=!shortStart && !pos.has(id(a[0])) && far(a[0],b[0]);
+  const otherEnd=!shortEnd && !pos.has(id(a[a.length-1])) && far(a[a.length-1],b[b.length-1]);
+  if(shortStart||otherStart)labels.push('מתחיל ב'+place(a[0]));
+  if(shortEnd||otherEnd)labels.push('מסתיים ב'+place(a[a.length-1]));
+  const through=extra.filter(s=>{const i=a.indexOf(s);return !(shortStart && i<firstCommon) && !(shortEnd && i>lastCommon) && !(otherStart && i===0) && !(otherEnd && i===a.length-1);});
   if(through.length) {
     const streets=[...new Set(through.map(variantStreet).filter(Boolean))];
     // One changed street takes precedence over a neighborhood label.
-    if(streets.length===1 && through.every(s=>variantStreet(s)===streets[0])) labels.push('דרך רחוב '+streets[0]);
+    if(streets.length===1 && through.every(s=>variantStreet(s)===streets[0])) labels.push('דרך '+stl(streets[0]));
     else {
       const counts=new Map();for(const s of b){const n=area(s);if(n)counts.set(n.id,(counts.get(n.id)||0)+1);}
       const now=new Map();for(const s of a){const n=area(s);if(n)now.set(n.id,(now.get(n.id)||0)+1);}
@@ -1201,15 +1206,18 @@ function describeVariant(item, base, areas) {
       const parts=s=>{const a=typeof STOP_STREETS!=='undefined'&&STOP_STREETS&&STOP_STREETS[String(s[0])];
         return a?[a]:String(s[1]||'').split('/').map(x=>x.trim().replace(/^שד(?:רות|'|׳)\s+/,'')).filter(Boolean);};
       const sc=new Map();for(const s of through)for(const x of new Set(parts(s)))sc.set(x,(sc.get(x)||0)+1);
+      // רחוב שגם הראשית עוצרת בו אינו הבדל (קו 3 עובר גם הוא בשדרות ירושלים)
+      const baseStreets=new Set(b.flatMap(parts));
       const tally=new Map(),first=new Map();
       through.forEach((s,i)=>{
+        if(parts(s).some(x=>baseStreets.has(x)))return;
         const st=parts(s).filter(x=>sc.get(x)>=2).sort((x,y)=>sc.get(y)-sc.get(x))[0];
         const n=area(s),street=variantStreet(s);
-        const text=st ? 'דרך '+(/^(שד|שדרות|דרך|כביש|כיכר|סמטת|מחלף|צומת) /.test(st)?'':'רחוב ')+st : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
+        const text=st ? 'דרך '+stl(st) : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך '+stl(street) : 'דרך תחנת '+s[1];
         tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);
       });
       const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,3).sort((x,y)=>first.get(x[0])-first.get(y[0])).map(x=>x[0]);
-      if(through.length>a.length/2)labels.push('מסלול אחר');
+      if(through.length>a.length/2 && !otherStart && !otherEnd)labels.push('מסלול אחר');
       for(const t of top)if(!labels.includes(t))labels.push(t);
     }
   }
