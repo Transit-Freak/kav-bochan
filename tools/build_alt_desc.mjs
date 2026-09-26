@@ -38,7 +38,9 @@ const { fsafe, materializeLf, variantSnapshot, variantBase, describeVariant } = 
 const areas = [];
 for (let i = 0; i < 8; i++) areas.push(...JSON.parse(zlib.gunzipSync(fs.readFileSync(`${DIR}/neighborhoods/${i}.json.gz`)).toString('utf8')));
 const idx = JSON.parse(fs.readFileSync(`${DIR}/lines.json`, 'utf8'));
-const lines = (idx.lines || idx).filter((l) => !l.hgroup);
+let trips = {};
+try { trips = JSON.parse(fs.readFileSync(`${DIR}/line-trips.json`, 'utf8')); } catch (e) {}
+const lines = (idx.lines || idx).filter((l) => !l.hgroup).map((l) => ({ ...l, ntr: trips[l.rd] || 0 }));
 const fam = new Map();
 for (const l of lines) { const f = l.rd.split('-')[0]; if (!fam.has(f)) fam.set(f, []); fam.get(f).push(l); }
 const shards = {}; let nFam = 0, nVar = 0, nMiss = 0;

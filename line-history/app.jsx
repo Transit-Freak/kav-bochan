@@ -1121,7 +1121,18 @@ function variantFrequency(patterns, date) {
   return total;
 }
 function variantBase(item, items, historical) {
-  if(!historical) return items.find(x=>variantDirection(x)===variantDirection(item) && variantPart(x)==='#') || null;
+  if(!historical) {
+    const dir=items.filter(x=>variantDirection(x)===variantDirection(item));
+    const hash=dir.find(x=>variantPart(x)==='#');
+    if(hash) return hash;
+    // בלי חלופה # (קו 241 ועוד ~7,000 חלופות): הראשית = הפעילה עם הכי הרבה נסיעות ביום;
+    // אם לאף אחת אין נסיעות — הפעילה הראשונה; אם כולן בוטלו — האחרונה שפעלה (שלמה 26.09)
+    const act=dir.filter(x=>x.lk!=='removed');
+    const byTrips=act.filter(x=>(x.ntr||0)>0).sort((a,b)=>b.ntr-a.ntr||a.rd.localeCompare(b.rd))[0];
+    if(byTrips) return byTrips;
+    if(act.length) return act.slice().sort((a,b)=>a.rd.localeCompare(b.rd))[0];
+    return dir.slice().sort((a,b)=>(b.ld||'').localeCompare(a.ld||'')||a.rd.localeCompare(b.rd))[0]||null;
+  }
   const same=items.filter(x=>x.rd===item.rd || variantOrientation(item.snapshot?.stops,x.snapshot?.stops)===1);
   // A missing timetable must not silently make another alternative the main one.
   if(same.some(x=>x.frequency==null)) return null;
