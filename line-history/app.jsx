@@ -1193,13 +1193,18 @@ function describeVariant(item, base, areas) {
       const counts=new Map();for(const s of b){const n=area(s);if(n)counts.set(n.id,(counts.get(n.id)||0)+1);}
       const now=new Map();for(const s of a){const n=area(s);if(n)now.set(n.id,(now.get(n.id)||0)+1);}
       // רק ההבדלים הבולטים (הכי הרבה תחנות), לא תיאור של כל המסלול (שלמה 26.09)
-      const tally=new Map();
-      for(const s of through) {
+      // רחוב מזוהה משני חלקי שם התחנה ("עיריית קרית מלאכי/ז'בוטינסקי" → ז'בוטינסקי);
+      // רחוב שעליו 2 תחנות שונות ומעלה גובר על שם השכונה (שלמה 26.09)
+      const parts=s=>String(s[1]||'').split('/').map(x=>x.trim().replace(/^שד(?:רות|'|׳)\s+/,'')).filter(Boolean);
+      const sc=new Map();for(const s of through)for(const x of new Set(parts(s)))sc.set(x,(sc.get(x)||0)+1);
+      const tally=new Map(),first=new Map();
+      through.forEach((s,i)=>{
+        const st=parts(s).filter(x=>sc.get(x)>=2).sort((x,y)=>sc.get(y)-sc.get(x))[0];
         const n=area(s),street=variantStreet(s);
-        const text=n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
-        tally.set(text,(tally.get(text)||0)+1);
-      }
-      const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
+        const text=st ? 'דרך רחוב '+st : n?.interior && (now.get(n.id)||0)>(counts.get(n.id)||0) ? 'דרך שכונת '+n.name : street ? 'דרך רחוב '+street : 'דרך תחנת '+s[1];
+        tally.set(text,(tally.get(text)||0)+1);if(!first.has(text))first.set(text,i);
+      });
+      const top=[...tally].sort((x,y)=>y[1]-x[1]).slice(0,3).sort((x,y)=>first.get(x[0])-first.get(y[0])).map(x=>x[0]);
       if(through.length>a.length/2)labels.push('מסלול אחר');
       for(const t of top)if(!labels.includes(t))labels.push(t);
     }
