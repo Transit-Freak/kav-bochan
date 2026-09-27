@@ -21,6 +21,9 @@ NEAR_M=10        # תחנה נחשבת "על המסלול" עד מרחק זה מ
                  # 2-6 מ' מהעמוד; 15-25 מ' זה לרוב מיסעה מקבילה/דרך שירות (קרית גת)
 ALONG_MIN=50     # הקו חייב ללוות את התחנה לאורך לפחות כך (מ׳) — מסנן חציית-צומת
 SANDWICH_M=800   # תחנה עצורה לפני ואחרי בטווח זה לאורך המסלול
+AIR_MIN=120      # ואם הקו עוצר בתחנה אחרת עד כך בקו אווירי — אותו מקום (ההגנה 25638/25636), לא דילוג
+WIDE_M=20000     # לדוח החריגים (WIDE_OUT): גם פערים ארוכים וגם תחנות בלי קווים אחרים
+WIDE_OUT=os.environ.get('WIDE_OUT','')
 SANDWICH_MIN=120 # אבל לא צמוד מדי — עצירה 40 מ' משם היא אותו צומת (עמדה סמוכה), לא דילוג
 TERMINAL_M=300   # מתעלמים מקצוות המסלול (אזורי מסוף)
 # תחנות שהן חלק ממסוף/תחנה מרכזית — לא מועמדות לדילוג: אוטובוס עוצר רק ברציף
@@ -209,15 +212,17 @@ for (rid,sh),t in rep.items():
         j=bisect.bisect_left(positions,pos)
         before=pos-positions[j-1] if j>0 else 1e9
         after=positions[j]-pos if j<len(positions) else 1e9
-        if before>SANDWICH_M or after>SANDWICH_M: continue  # אין סנדוויץ' — אולי מהיר
+        if before>WIDE_M or after>WIDE_M: continue
         if before<SANDWICH_MIN or after<SANDWICH_MIN: continue  # עמדה סמוכה באותו צומת
+        # עצירה סמוכה בקו אווירי (המסלול מסתובב — המרחק לאורכו מטעה)
+        air=min((math.hypot(xy(stops[q])[0]-x,xy(stops[q])[1]-y) for _,q in served_arc[max(0,j-3):j+3] if q in stops),default=1e9)
+        if air<AIR_MIN: continue
         if sid in rail_stops: continue                       # תחנת רק"ל/רכבת
         # ליווי לאורך הרחוב: כמה מטרים מהמסלול נשארים קרוב לתחנה
         near=sum(math.hypot(m[i+1][0]-m[i][0],m[i+1][1]-m[i][1]) for i in range(len(m)-1)
                  if min(math.hypot(m[i][0]-x,m[i][1]-y),math.hypot(m[i+1][0]-x,m[i+1][1]-y))<=45)
         if near<ALONG_MIN: continue
         others=stop_lines[sid]-{info.get('num','')}
-        if not others: continue
         # קטע המסלול סביב התחנה (למפה באתר): ±300 מ' לאורך הקו, מדולל עד 24 נקודות
         # (כיסוי ארצי — חוסכים נפח קובץ; המפה ממילא מתמקדת סביב התחנה)
         i0=bisect.bisect_left(arc,pos-300); i1=bisect.bisect_right(arc,pos+300)
@@ -227,8 +232,11 @@ for (rid,sh),t in rep.items():
         findings.append({'line':info.get('num',''),'agency':info.get('agency',''),'long':info.get('long',''),
                          'type':ty,'stop':s,'sid':sid,'dist':round(p[0]),'before':round(before),'after':round(after),
                          'bsid':served_arc[j-1][1],'asid':served_arc[j][1],'seg':seg,'shp':sh,'rid':rid,
-                         'others':sorted(others)})
+                         'others':sorted(others),'air':round(air)})
 
+# דוח חריגים: כל הממצאים, כולל פער ארוך ותחנה בלי קווים אחרים (לא מוצג באתר)
+wide=findings
+findings=[f for f in findings if f['before']<=SANDWICH_M and f['after']<=SANDWICH_M and f['others']]
 # איחוד כפילויות (אותו קו ואותה תחנה בכמה חלופות) + דירוג
 best={}
 for f in findings:
@@ -307,3 +315,21 @@ if OUT:
     if OUT2:
         json.dump(build(rest),open(OUT2,'w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
         print('נכתב',OUT2,'(%d ממצאים לא-עירוניים)'%len(rest))
+
+if WIDE_OUT:
+    # דוח חריגים לבדיקה ידנית: כל קו×תחנה פעם אחת (החלופה עם הפער הקטן), בלי מסלולים
+    wb={}
+    for f in wide:
+        k=(f['line'],f['stop']['code'],f['type'])
+        if k not in wb or f['before']+f['after']<wb[k]['before']+wb[k]['after']: wb[k]=f
+    out=[]
+    for f in wb.values():
+        s=f['stop']; b=stops.get(f['bsid']) or {}; a=stops.get(f['asid']) or {}
+        out.append({'line':f['line'],'dest':f['long'],'ty':f['type'] or '','op':agencies.get(f['agency'],''),
+                    'stop':s['name'],'code':s['code'],'city':s['city'],'la':round(s['la'],5),'lo':round(s['lo'],5),
+                    'before':f['before'],'after':f['after'],'air':f['air'],'onum':len(f['others']),'others':f['others'][:12],
+                    'bstop':[b.get('name',''),b.get('code','')],'astop':[a.get('name',''),a.get('code','')],
+                    'site':f['before']<=SANDWICH_M and f['after']<=SANDWICH_M and bool(f['others'])})
+    out.sort(key=lambda r:(r['site'],-min(r['before'],r['after'])))
+    json.dump({'items':out},open(WIDE_OUT,'w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
+    print('נכתב',WIDE_OUT,'(%d ממצאים בדוח החריגים)'%len(out))
