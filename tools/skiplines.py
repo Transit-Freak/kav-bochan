@@ -21,6 +21,7 @@ NEAR_M=10        # תחנה נחשבת "על המסלול" עד מרחק זה מ
                  # 2-6 מ' מהעמוד; 15-25 מ' זה לרוב מיסעה מקבילה/דרך שירות (קרית גת)
 ALONG_MIN=50     # הקו חייב ללוות את התחנה לאורך לפחות כך (מ׳) — מסנן חציית-צומת
 SANDWICH_M=800   # תחנה עצורה לפני ואחרי בטווח זה לאורך המסלול
+TURN_DEG=45      # פנייה חדה ליד התחנה (כיוון 50 מ' לפני מול 50 מ' אחרי) — אין איפה לעצור (32 בהרצל/מינץ)
 AIR_MIN=120      # ואם הקו עוצר בתחנה אחרת עד כך בקו אווירי — אותו מקום (ההגנה 25638/25636), לא דילוג
 SANDWICH_MIN=120 # אבל לא צמוד מדי — עצירה 40 מ' משם היא אותו צומת (עמדה סמוכה), לא דילוג
 TERMINAL_M=300   # מתעלמים מקצוות המסלול (אזורי מסוף)
@@ -139,6 +140,17 @@ print('מסלולים רלוונטיים:',len(shapes))
 def meters(pts,la0):
     cl=math.cos(math.radians(la0))
     return [((lo)*111320*cl,(la)*110540) for la,lo in pts]
+def point_at(shape_m,arc,d):
+    import bisect
+    d=max(0.0,min(arc[-1],d)); i=max(0,min(len(arc)-2,bisect.bisect_right(arc,d)-1))
+    L=arc[i+1]-arc[i]; t=0 if L==0 else (d-arc[i])/L
+    return (shape_m[i][0]+t*(shape_m[i+1][0]-shape_m[i][0]), shape_m[i][1]+t*(shape_m[i+1][1]-shape_m[i][1]))
+
+def turn_at(shape_m,arc,pos,r=50):
+    a,o,b=point_at(shape_m,arc,pos-r),point_at(shape_m,arc,pos),point_at(shape_m,arc,pos+r)
+    h1=math.atan2(o[1]-a[1],o[0]-a[0]); h2=math.atan2(b[1]-o[1],b[0]-o[0])
+    return abs((math.degrees(h2-h1)+180)%360-180)
+
 def project(shape_m,arc,x,y):
     # המרחק המזערי מהקו + מיקום לאורך המסלול + צד (ימין=True)
     best=None
@@ -215,6 +227,7 @@ for (rid,sh),t in rep.items():
         # עצירה סמוכה בקו אווירי (המסלול מסתובב — המרחק לאורכו מטעה)
         air=min((math.hypot(xy(stops[q])[0]-x,xy(stops[q])[1]-y) for _,q in served_arc[max(0,j-3):j+3] if q in stops),default=1e9)
         if air<AIR_MIN: continue
+        if turn_at(m,arc,pos)>TURN_DEG: continue            # פנייה חדה — לא מקום לעצור
         if sid in rail_stops: continue                       # תחנת רק"ל/רכבת
         # ליווי לאורך הרחוב: כמה מטרים מהמסלול נשארים קרוב לתחנה
         near=sum(math.hypot(m[i+1][0]-m[i][0],m[i+1][1]-m[i][1]) for i in range(len(m)-1)
