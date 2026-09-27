@@ -63,7 +63,7 @@ jobs:
           # סוגי הקווים מהקובץ המצומצם שכבר בריפו (data-main.json — אותו קובץ שקו פח מציג)
           STOPS=stops.txt STOP_TIMES=stop_times.txt TRIPS=trips.txt ROUTES=routes.txt SHAPES=shapes.txt \
             MAIN=data-main.json AGENCY=agency.txt CITIES=ALL \
-            OUT=skip-stops/data.json OUT2=skip-stops/data-inter.json WIDE_OUT=skip-stops/wide.json python3 tools/skiplines.py
+            OUT=skip-stops/data.json OUT2=skip-stops/data-inter.json python3 tools/skiplines.py
 
       - name: Route overlap for kav-pach (same GTFS)
         run: |
@@ -81,17 +81,14 @@ jobs:
           cp skip-stops/data.json /tmp/out-skip.json
           cp skip-stops/data-inter.json /tmp/out-skip2.json 2>/dev/null || true
           cp kavpach-overlap.json /tmp/out-ovl.json 2>/dev/null || true
-          cp skip-stops/wide.json /tmp/out-wide.json 2>/dev/null || true
           for i in 1 2 3 4; do
             git fetch origin main && git reset --hard origin/main
             cp /tmp/out-skip.json skip-stops/data.json
             [ -f /tmp/out-skip2.json ] && cp /tmp/out-skip2.json skip-stops/data-inter.json
             [ -f /tmp/out-ovl.json ] && cp /tmp/out-ovl.json kavpach-overlap.json
-            [ -f /tmp/out-wide.json ] && cp /tmp/out-wide.json skip-stops/wide.json
             git add skip-stops/data.json
             git add skip-stops/data-inter.json 2>/dev/null || true
             git add kavpach-overlap.json 2>/dev/null || true
-            git add skip-stops/wide.json 2>/dev/null || true
             if git diff --cached --quiet; then
               echo "data unchanged — nothing to commit"; break; fi
             git commit -m "data: refresh skip-stops findings + route overlap"
