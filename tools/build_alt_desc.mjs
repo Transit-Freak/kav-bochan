@@ -22,7 +22,7 @@ function grab(name) {
   while (j < L.length && !/^\}\)?;?\s*$/.test(L[j])) j++;
   return L.slice(i, j + 1).join('\n');
 }
-const names = ['fsafe', 'hiddenEv', 'fmtD', 'gapDays', 'materializeLf', 'variantPart', 'variantDirection', 'variantSnapshot', 'variantOrientation',
+const names = ['decodeShape', 'fsafe', 'hiddenEv', 'fmtD', 'gapDays', 'materializeLf', 'variantPart', 'variantDirection', 'variantSnapshot', 'variantOrientation',
   'variantBase', 'variantRingContains', 'variantBoundaryDistance', 'variantNeighborhood', 'variantStreet', 'VARIANT_RC', 'describeVariant'];
 const extra = (process.env.EXTRA || '').split(',').filter(Boolean);
 const parts = [...names, ...extra].map((n) => { const g = grab(n); if (process.env.DEBUG) console.log('== ' + n + ' ' + g.length + ' ' + JSON.stringify(g.slice(0, 80))); return g; });
