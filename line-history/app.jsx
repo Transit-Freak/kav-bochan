@@ -1243,7 +1243,9 @@ function describeVariant(item, base, areas) {
   if(shortStart||otherStart)labels.push(endLabel(true));
   if(shortEnd||otherEnd)labels.push(endLabel(false));
   // לפי השרטוט: תחנה חדשה שהשרטוט של הראשית עובר לידה (עד 30 מ') — הראשית נוסעת שם ולא עוצרת; זה "עוצר גם ב…", לא "דרך…" (שלמה 27.09, קו 18175)
-  const shpPts=x=>{const v=x?.snapshot?.shp;if(typeof v!=='string'||!v)return null;try{return decodeShape(v);}catch(e){return null;}};
+  // שרטוט מ-shapes.txt; בלעדיו (80 חלופות) — קו שמחבר את נקודות התחנות מה-GTFS לפי הסדר
+  const shpPts=x=>{const v=x?.snapshot?.shp;if(typeof v==='string'&&v){try{return decodeShape(v);}catch(e){}}
+    const st=x?.snapshot?.stops;return st&&st.length>1?st.map(q=>[q[2],q[3]]):null;};
   const bPts=shpPts(base),aPts=shpPts(item);
   const nearLine=(s,pts)=>{if(!pts||pts.length<2)return false;const ky=111320,kx=94000,x=s[3]*kx,y=s[2]*ky;
     for(let i=1;i<pts.length;i++){const x1=pts[i-1][1]*kx,y1=pts[i-1][0]*ky,x2=pts[i][1]*kx,y2=pts[i][0]*ky;
