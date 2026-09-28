@@ -76,7 +76,7 @@ def main():
                 + f' · {e.get("op") or ""} · באתר הקו הבוחן').strip(' ·')
         url = f'{BASE}/line-history/#{rd}'
         img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{line.encode().hex()}.png'
-               if line and line in rendered else f'{BASE}/line-history/og-image.png?v=2')
+               if line and line in rendered else f'{BASE}/line-history/og-image.png?v=3')
         w += write_stub(f'l-{fsafe(rd)}.html', title, desc, url,
                         f'{BASE}/line-history/icon-180.png', img)
         n += 1
@@ -95,7 +95,7 @@ def main():
                     + f' · {e.get("an") or ""} · באתר הקו הבוחן').strip(' ·')
             url = f'{BASE}/line-history/#2012/{k}'
             img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{no.encode().hex()}.png'
-                   if no and no in rendered else f'{BASE}/line-history/og-image.png?v=2')
+                   if no and no in rendered else f'{BASE}/line-history/og-image.png?v=3')
             w += write_stub(f'k-{fsafe(k)}.html', title, desc, url,
                             f'{BASE}/line-history/icon-180.png', img)
             n += 1
@@ -122,7 +122,7 @@ def main():
             desc = f'רכבת ישראל, רכבת מספר {no}: כל הנסיעות שלה בארכיון 2013–2014, עם מפה ותחנות · באתר הקו הבוחן'
             url = f'{BASE}/line-history/#t=rail@{day}@{no}'
             img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/rail-h{no.encode().hex()}.png'
-                   if no in rrend else f'{BASE}/line-history/og-image.png?v=2')
+                   if no in rrend else f'{BASE}/line-history/og-image.png?v=3')
             w += write_stub(f't-{fsafe(no)}.html', title, desc, url,
                             f'{BASE}/line-history/icon-180.png', img,
                             js=f'var d=location.hash.slice(1);location.replace({json.dumps(BASE + "/line-history/#t=rail@")}+(/^\\d{{4}}-\\d\\d-\\d\\d$/.test(d)?d:{json.dumps(day)})+"@"+{json.dumps(no)});')
