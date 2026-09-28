@@ -149,7 +149,14 @@ jobs:
                  + "  if sf and ({" + ",".join(b + "=1" for b in bad) + "})[sf] then return end\n"
                  + "  local tt = way:get_value_by_key('tracktype')\n"
                  + "  if tt and tt ~= 'grade1' then return end")
-          open('car-bus.lua', 'w').write(s.replace(head, add, 1))
+          s = s.replace(head, add, 1)
+          # פרופיל אוטובוס (שלמה 28.09): הרשאות לפי bus/psv לפני הרכב הפרטי — נתיב/כביש לתח"צ בלבד
+          # פתוח, כביש שסגור לאוטובוסים (bus=no) חסום, וכך גם איסורי פנייה עם חריג לתח"צ
+          import re
+          s, n1 = re.subn(r"access_tags_hierarchy\s*=\s*Sequence\s*\{\s*'motorcar',", "access_tags_hierarchy = Sequence { 'bus', 'psv', 'motorcar',", s, count=1)
+          s, n2 = re.subn(r"restrictions\s*=\s*Sequence\s*\{\s*'motorcar',", "restrictions = Sequence { 'bus', 'psv', 'motorcar',", s, count=1)
+          print('bus profile:', n1, n2)
+          open('car-bus.lua', 'w').write(s)
           PYEOF
           grep -n "u_turn_penalty\|get_value_by_key('surface')" car-bus.lua | head -5
           docker run --rm -v "$PWD:/data" -v "$PWD/car-bus.lua:/opt/car-bus.lua" $IMG osrm-extract -p /opt/car-bus.lua /data/il.osm.pbf
