@@ -43,7 +43,7 @@ jobs:
   run:
     if: github.ref == 'refs/heads/main' || github.event_name != 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -124,6 +124,23 @@ jobs:
       # האמת שלו נשאר שם), רץ על אותו GTFS שכבר ירד כאן, והתוצאות נשמרות
       # ב-kavbug-data/; ריפו קו-באג מושך אותן בסנכרון קטן והאתר שלו נשאר
       # באותה כתובת בדיוק.
+      # שרת ניווט מקומי (OSRM) ממפת ישראל של OpenStreetMap (Geofabrik) — כך קו באג בודק
+      # לבד את כל המקטעים בכל הקווים, בלי הגבלת הקצב של שרת-ההדגמה הציבורי.
+      # נתוני OSM ברישיון ODbL (ייחוס "© OpenStreetMap" כבר מופיע במפות); OSRM ברישיון BSD.
+      - name: שרת ניווט מקומי (OSRM, מפת ישראל)
+        continue-on-error: true
+        run: |
+          set -e
+          mkdir -p /tmp/osrm && cd /tmp/osrm
+          curl -fsSL --retry 5 -o il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          IMG=ghcr.io/project-osrm/osrm-backend:v5.27.1
+          docker run --rm -v "$PWD:/data" $IMG osrm-extract -p /opt/car.lua /data/il.osm.pbf
+          docker run --rm -v "$PWD:/data" $IMG osrm-partition /data/il.osrm
+          docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/il.osrm
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" $IMG osrm-routed --algorithm mld --max-table-size 1000 /data/il.osrm
+          for i in $(seq 1 60); do curl -fs "http://localhost:5000/route/v1/driving/34.78,32.08;34.79,32.09" >/dev/null && break; sleep 2; done
+          curl -fs "http://localhost:5000/route/v1/driving/34.78,32.08;34.79,32.09?approaches=curb;curb" | head -c 200
+          echo "OSRM_URL=http://localhost:5000" >> "$GITHUB_ENV"
       - name: סריקת קו באג (עיקופי אוטובוסים) על אותו GTFS
         continue-on-error: true
         run: |
