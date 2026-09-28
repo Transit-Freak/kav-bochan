@@ -185,13 +185,13 @@ function isRemovedYear(l) {
 }
 // תאריך הנתונים (idx.gen) — "היום" של בדיקת "לא נצפה מעל שנה"
 let DATA_GEN = null;
-// מבוטל = removed מפורש, או notrips/תיעוד היסטורי בלי נסיעות שלא נצפה מעל שנה
+// מבוטל = removed מפורש, או notrips/תיעוד היסטורי בלי נסיעות
 // (שלמה 28.09: 10111-2-# לא נצפה מאז 2017 הוצג רק "אינה פעילה כרגע").
 // מחזיר את תאריך הביטול או null
 function variantGone(lk, ld, historicalOnly, ntr) {
   if (lk === "removed") return ld || null;
-  if ((lk === "notrips" || historicalOnly) && !(ntr > 0) && ld
-      && ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(ld)) / 864e5 > 365) return ld;
+  // שלמה 28.09: ברגע שאין לו"ז ואין נסיעות — מבוטל כבר עכשיו, בלי המתנה של שנה
+  if ((lk === "notrips" || historicalOnly) && !(ntr > 0) && ld) return ld;
   return null;
 }
 const lineGoneAt = (l) => variantGone(l.lk, l.ld, l.historicalOnly, l.ntr);
@@ -1570,7 +1570,8 @@ function SchedBox({ rd, vs, selD, isLast, gone }) {
   if (d === false) {
     const real = (vs || []).filter((v) => !v.syn && v.k !== "planned-dropped");
     if (gone || (real.length && real[real.length - 1].k === "removed")) return null;
-    return <div className="gapwarn">⏸️ אין לחלופה הזו לו״ז לשבוע הקרוב (לפי פרסום הרישוי ל-10 הימים הקרובים) — היא אינה פעילה כרגע.</div>;
+    // אין לו"ז = מבוטל כרגע (שלמה 28.09), לא "הפסקה"
+    return <div className="gapwarn" style={{ background: "#fef2f2", borderColor: "#fca5a5", color: "#991b1b" }}>✖ מבוטל כרגע: אין לחלופה הזו לו״ז לשבוע הקרוב (לפי פרסום הרישוי ל-10 הימים הקרובים).</div>;
   }
   if (!d) return null;
   // הלו"ז של אז (בקשת שלמה): כשנבחרה גרסה ישנה משחזרים אחורה מהלו"ז של
@@ -2707,7 +2708,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr);
           const stale = gd && lv.k !== "removed";
           const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
-          const dk = stale ? "removed-year" : dispKind(lv, li, vs);
+          const dk = stale ? ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(gd) >= 365 * 864e5 ? "removed-year" : "removed-now") : dispKind(lv, li, vs);
           return gd && (
           <div className="facts" style={{ color: lineGone ? (KINDS[dk] || {}).color : "#c2410c", fontWeight: 700 }}>
             {lineGone
