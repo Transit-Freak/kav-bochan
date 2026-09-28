@@ -134,10 +134,10 @@ jobs:
           mkdir -p /tmp/osrm && cd /tmp/osrm
           curl -fsSL --retry 5 -o il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
           IMG=ghcr.io/project-osrm/osrm-backend:v5.27.1
-          # פרופיל רכב בלי פרסות בצמתים: קנס של שעה לפרסה, כך שהניווט עושה פרסה רק כשאין דרך אחרת
+          # פרופיל רכב בלי פרסות בצמתים: קנס של 10 דקות לפרסה (שעה גורמת לגלישה ב-osrm-extract), כך שהניווט עושה פרסה רק כשאין דרך אחרת
           # (קו 100: הירוק עבר את הצומת, עשה בו פרסה וחזר לתחנה, ואוטובוס לא יכול לעשות את זה). שלמה 28.09
           docker run --rm $IMG cat /opt/car.lua > car-bus.lua
-          sed -i -E 's/u_turn_penalty *= *[0-9.]+/u_turn_penalty = 3600/' car-bus.lua
+          sed -i -E 's/u_turn_penalty *= *[0-9.]+/u_turn_penalty = 600/' car-bus.lua
           # ולא נוסעים בשום דרך שאינה סלולה (שלמה 28.09): לפי surface ו-tracktype של OSM.
           # דרך בלי סימון נחשבת סלולה — אין על זה מידע אחר.
           python3 - <<'PYEOF'
