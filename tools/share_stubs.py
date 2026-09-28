@@ -27,16 +27,16 @@ STUB = '''<!doctype html><html lang="he"><head><meta charset="utf-8">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="refresh" content="0;url={url}">
-<script>location.replace({url_js});</script>
+<script>{js}</script>
 </head><body style="font-family:sans-serif;text-align:center;padding:40px" dir="rtl">
 <a href="{url}">{title}</a>
 </body></html>'''
 
 
-def write_stub(name, title, desc, url, icon, img=None):
+def write_stub(name, title, desc, url, icon, img=None, js=None):
     p = os.path.join(OUT, name)
     content = STUB.format(title=html.escape(title), desc=html.escape(desc),
-                          url=html.escape(url), url_js=json.dumps(url),
+                          url=html.escape(url), js=js or f'location.replace({json.dumps(url)});',
                           icon=html.escape(icon), img=html.escape(img or icon))
     try:
         if open(p, encoding='utf-8').read() == content:
@@ -76,7 +76,7 @@ def main():
                 + f' · {e.get("op") or ""} · באתר הקו הבוחן').strip(' ·')
         url = f'{BASE}/line-history/#{rd}'
         img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{line.encode().hex()}.png'
-               if line and line in rendered else f'{BASE}/line-history/og-image.png')
+               if line and line in rendered else f'{BASE}/line-history/og-image.png?v=2')
         w += write_stub(f'l-{fsafe(rd)}.html', title, desc, url,
                         f'{BASE}/line-history/icon-180.png', img)
         n += 1
@@ -95,12 +95,41 @@ def main():
                     + f' · {e.get("an") or ""} · באתר הקו הבוחן').strip(' ·')
             url = f'{BASE}/line-history/#2012/{k}'
             img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{no.encode().hex()}.png'
-                   if no and no in rendered else f'{BASE}/line-history/og-image.png')
+                   if no and no in rendered else f'{BASE}/line-history/og-image.png?v=2')
             w += write_stub(f'k-{fsafe(k)}.html', title, desc, url,
                             f'{BASE}/line-history/icon-180.png', img)
             n += 1
     except Exception as e:
         print('2012: דילוג —', type(e).__name__, e, file=sys.stderr)
+
+    # --- הקו בזמן: רכבות 2013–2014 — דף לכל מספר רכבת, כמו לקווי אוטובוס (שלמה 28.09).
+    #     היום עובר בסולמית (s/t-33.html#2013-12-18): וואטסאפ לא רואה אותה, והדף מעביר אליה ---
+    try:
+        import glob, gzip
+        last = {}
+        for f in sorted(glob.glob('line-history/data/early-rail/????-??-??.json.gz')):
+            d = json.load(gzip.open(f, 'rt', encoding='utf-8'))
+            for r in d.get('rows') or []:
+                no = str(r[0]).strip()
+                if no:
+                    last[no] = d['date']
+        try:
+            rrend = set(json.load(open(f'{OUT}/rail-banners.json', encoding='utf-8')))
+        except Exception:
+            rrend = set()
+        for no, day in sorted(last.items()):
+            title = f'רכבת {no} (2013–2014) — הקו בזמן'
+            desc = f'רכבת ישראל, רכבת מספר {no}: כל הנסיעות שלה בארכיון 2013–2014, עם מפה ותחנות · באתר הקו הבוחן'
+            url = f'{BASE}/line-history/#t=rail@{day}@{no}'
+            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/rail-h{no.encode().hex()}.png'
+                   if no in rrend else f'{BASE}/line-history/og-image.png?v=2')
+            w += write_stub(f't-{fsafe(no)}.html', title, desc, url,
+                            f'{BASE}/line-history/icon-180.png', img,
+                            js=f'var d=location.hash.slice(1);location.replace({json.dumps(BASE + "/line-history/#t=rail@")}+(/^\\d{{4}}-\\d\\d-\\d\\d$/.test(d)?d:{json.dumps(day)})+"@"+{json.dumps(no)});')
+            n += 1
+        json.dump(sorted(last), open(f'{OUT}/rail-numbers.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    except Exception as e:
+        print('רכבות: דילוג —', type(e).__name__, e, file=sys.stderr)
 
     # --- צי הרכבים: כל רכב ---
     try:

@@ -4908,6 +4908,14 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
               <span className="ldest">{f[1]} ← {l[1]}</span>
               <span className="lmeta">רכבת ישראל · {t.rows.length} נקודות {on?"▴":"▾"}</span></div>
               {on&&<div onClick={e=>e.stopPropagation()}>
+                {/* שיתוף כמו בקווי אוטובוס: דף-שיתוף לכל מספר רכבת (s/t-*.html) עם באנר "רכבת N"; היום עובר בסולמית (שלמה 28.09) */}
+                <button className="sharebtn" title="שיתוף הקישור לנסיעה הזו" onClick={e=>{
+                  const url=location.origin+location.pathname.replace(/line-history\/?[^/]*$/,"")+"s/t-"+fsafe(String(t.no))+".html#"+day;
+                  const b=e.currentTarget;
+                  if(navigator.share){navigator.share({title:"הקו בזמן — רכבת "+t.no+" ("+fmtD(day)+")",url}).catch(()=>{});return;}
+                  const tx=b.textContent;const done=()=>{b.textContent="✓ הועתק";setTimeout(()=>{b.textContent=tx;},1500);};
+                  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(done,()=>{});
+                }}>🔗 שיתוף</button>
                 {st.length>1&&<EarlyMap stops={st.map(r=>[railSt[r[2]][0],"",railSt[r[2]][1],railSt[r[2]][2]])} shp="" />}
                 <ol className="pdesc" style={{margin:"6px 0",paddingInlineStart:22}}>{t.rows.map((r,j)=>railSt&&railSt[r[2]]?<li key={j}>{railSt[r[2]][0]}</li>:<li key={j} style={{color:"#94a3b8"}}>{r[1].trim()} <small>(נקודה בלי מיקום במפה)</small></li>)}</ol>
               </div>}

@@ -32,7 +32,10 @@ jobs:
           gh release view share-img -R "$R" --json assets -q '.assets[].name' > have.txt || true
           python3 - <<'PYEOF'
           import json
-          nums=sorted({(e.get('line') or '') for e in json.load(open('line-history/data/lines.json',encoding='utf-8'))['lines']} - {''})
+          nums={(e.get('line') or '') for e in json.load(open('line-history/data/lines.json',encoding='utf-8'))['lines']}
+          # גם קווי הצילום של 2012 — מספרים שכבר לא קיימים היום קיבלו תמונה גנרית (שלמה 28.09)
+          nums|={str(e.get('no') or '') for e in json.load(open('magihim-2012/data/index.json',encoding='utf-8')).get('lines') or []}
+          nums=sorted(nums-{''})
           have={l.strip() for l in open('have.txt')} if __import__('os').path.exists('have.txt') else set()
           missing=[n for n in nums if f'line-h{n.encode().hex()}.png' not in have][:6000]
           json.dump(missing,open('missing.json','w',encoding='utf-8'),ensure_ascii=False)
@@ -44,6 +47,30 @@ jobs:
             npm install --no-save playwright-core >/dev/null 2>&1
             node tools/share_line_banner.mjs missing.json bnr "$(which google-chrome || which chromium-browser)"
             gh release upload share-img -R "$R" bnr/*.png --clobber
+          fi
+      - name: באנרים לרכבות 2013–2014 — רינדור החסרים בלבד
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R: Transit-Freak/kav-bochan
+        run: |
+          set -e
+          gh release view share-img -R "$R" --json assets -q '.assets[].name' > have.txt || true
+          python3 - <<'PYEOF'
+          import json,glob,gzip
+          nums=set()
+          for f in glob.glob('line-history/data/early-rail/????-??-??.json.gz'):
+              for r in json.load(gzip.open(f,'rt',encoding='utf-8')).get('rows') or []:
+                  if str(r[0]).strip(): nums.add(str(r[0]).strip())
+          have={l.strip() for l in open('have.txt')}
+          missing=sorted(n for n in nums if f'rail-h{n.encode().hex()}.png' not in have)
+          json.dump(missing,open('rmissing.json','w',encoding='utf-8'),ensure_ascii=False)
+          json.dump(sorted(nums),open('s/rail-banners.json','w',encoding='utf-8'),ensure_ascii=False)
+          print('רכבות:',len(nums),'| חסרים לרינדור:',len(missing))
+          PYEOF
+          if [ "$(python3 -c "import json;print(len(json.load(open('rmissing.json'))))")" != "0" ]; then
+            npm install --no-save playwright-core >/dev/null 2>&1
+            KIND=rail node tools/share_line_banner.mjs rmissing.json rbnr "$(which google-chrome || which chromium-browser)"
+            gh release upload share-img -R "$R" rbnr/*.png --clobber
           fi
       - name: יצירת דפי השיתוף
         run: python3 tools/share_stubs.py
