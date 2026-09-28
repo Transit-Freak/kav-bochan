@@ -138,7 +138,20 @@ jobs:
           # (קו 100: הירוק עבר את הצומת, עשה בו פרסה וחזר לתחנה, ואוטובוס לא יכול לעשות את זה). שלמה 28.09
           docker run --rm $IMG cat /opt/car.lua > car-bus.lua
           sed -i -E 's/u_turn_penalty *= *[0-9.]+/u_turn_penalty = 3600/' car-bus.lua
-          grep -n "u_turn_penalty" car-bus.lua
+          # ולא נוסעים בשום דרך שאינה סלולה (שלמה 28.09): לפי surface ו-tracktype של OSM.
+          # דרך בלי סימון נחשבת סלולה — אין על זה מידע אחר.
+          python3 - <<'PYEOF'
+          s = open('car-bus.lua').read()
+          head = 'function process_way(profile, way, result, relations)'
+          assert head in s
+          bad = 'unpaved dirt gravel fine_gravel ground earth sand grass mud compacted pebblestone rock grass_paver wood woodchips snow ice salt'.split()
+          add = (head + "\n  local sf = way:get_value_by_key('surface')\n"
+                 + "  if sf and ({" + ",".join(b + "=1" for b in bad) + "})[sf] then return end\n"
+                 + "  local tt = way:get_value_by_key('tracktype')\n"
+                 + "  if tt and tt ~= 'grade1' then return end")
+          open('car-bus.lua', 'w').write(s.replace(head, add, 1))
+          PYEOF
+          grep -n "u_turn_penalty\|get_value_by_key('surface')" car-bus.lua | head -5
           docker run --rm -v "$PWD:/data" -v "$PWD/car-bus.lua:/opt/car-bus.lua" $IMG osrm-extract -p /opt/car-bus.lua /data/il.osm.pbf
           docker run --rm -v "$PWD:/data" $IMG osrm-partition /data/il.osrm
           docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/il.osrm
