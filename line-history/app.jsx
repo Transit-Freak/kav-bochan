@@ -180,8 +180,23 @@ function dispKind(x, i, vs) {
 }
 // אותו כלל ברמת האינדקס (lk/ld = הרשומה האחרונה של הווריאנט)
 function isRemovedYear(l) {
-  return l.lk === "removed" && (Date.now() - new Date(l.ld)) / 864e5 >= 365;
+  const g = lineGoneAt(l);
+  return !!g && (Date.now() - new Date(g)) / 864e5 >= 365;
 }
+// תאריך הנתונים (idx.gen) — "היום" של בדיקת "לא נצפה מעל שנה"
+let DATA_GEN = null;
+// מבוטל = removed מפורש, או notrips/תיעוד היסטורי בלי נסיעות שלא נצפה מעל שנה
+// (שלמה 28.09: 10111-2-# לא נצפה מאז 2017 הוצג רק "אינה פעילה כרגע").
+// מחזיר את תאריך הביטול או null
+function variantGone(lk, ld, historicalOnly, ntr) {
+  if (lk === "removed") return ld || null;
+  if ((lk === "notrips" || historicalOnly) && !(ntr > 0) && ld
+      && ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(ld)) / 864e5 > 365) return ld;
+  return null;
+}
+const lineGoneAt = (l) => variantGone(l.lk, l.ld, l.historicalOnly, l.ntr);
+// מבוטל בלי removed מפורש — מוצג "לא נצפה מאז"
+const goneStale = (l) => l.lk !== "removed" && !!lineGoneAt(l);
 // קטגוריות הבחירה — מחולקות לקבוצות, בלי חפיפות: שלוש קטגוריות ביטול
 // נפרדות (מעל שנה / פחות משנה / חזר), ותוויות שמסבירות את ההבדל.
 // הקטגוריות אוחדו איפה שההפרדה הייתה שלנו ולא של העולם:
@@ -236,8 +251,8 @@ const ENDPOINT_KINDS = ["extend", "shorten", "terminal"];
 // ואילו ביטול טרי עוד עשוי להתברר כהפסקה. ההבחנה נשארה לבקשת המשתמש.
 function catMatch(l, k) {
   if (k === "removed-year") return isRemovedYear(l);
-  if (k === "removed-now") return l.lk === "removed" && !isRemovedYear(l);
-  if (k === "removed-past") return l.lk !== "removed" && (l.ks || []).includes("removed");
+  if (k === "removed-now") return !!lineGoneAt(l) && !isRemovedYear(l);
+  if (k === "removed-past") return !lineGoneAt(l) && (l.ks || []).includes("removed");
   if (k === "endpoint") return ENDPOINT_KINDS.some((x) => (l.ks || []).includes(x));
   return (l.ks || []).includes(k);
 }
@@ -1434,7 +1449,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   return <div className="alt-selector">
     <div className="sibs">
       <span className="sibt">{historical ? "מסלולים:" : "חלופות וכיוונים:"}</span>
-      <span className="sib on" title={current?.dest}>{(current && desc(current)) || (current ? label(current) : rd)}{current?.lk==='removed' && <span className="sibx">✖</span>}</span>
+      <span className="sib on" title={current?.dest}>{(current && desc(current)) || (current ? label(current) : rd)}{current && lineGoneAt(current) && <span className="sibx">✖</span>}</span>
       <button type="button" className="sib" aria-expanded={open} aria-controls="alternative-options" onClick={()=>setOpen(!open)}>החלפת חלופה {open?'▴':'▾'}</button>
     </div>
     {/* הפוך מקודם (שלמה 26.09): בכפתור — דרך איפה הקו עובר; מתחת, בקטן — הכיוון והחלופה */}
@@ -1449,7 +1464,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
               <span className="sibwrap">
                 <a className={"sib"+(selected?" on":"")} href={lineHref(s.rd)} title={s.dest} aria-current={selected?'true':undefined}
                   onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(s.rd);}}>
-                  {desc(s) || label(s)}{s.lk==='removed' && <span className="sibx">✖</span>}
+                  {desc(s) || label(s)}{lineGoneAt(s) && <span className="sibx">✖</span>}
                 </a>
                 {!selected && <button type="button" className="sibcmp" aria-label="השוואה" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'✕':'⇄'}</button>}
               </span>
@@ -1539,7 +1554,7 @@ const schedDayOf = (note) => {
   return { "ראשון": "א", "שני": "ב", "שלישי": "ג", "רביעי": "ד",
            "חמישי": "ה", "שישי": "ו", "שבת": "ש" }[m && m[1]] || null;
 };
-function SchedBox({ rd, vs, selD, isLast }) {
+function SchedBox({ rd, vs, selD, isLast, gone }) {
   const [d, setD] = useState(null);
   useEffect(() => {
     let ok = true;
@@ -1554,7 +1569,7 @@ function SchedBox({ rd, vs, selD, isLast }) {
   // "פעיל" הוא רק מי שיש לו לו"ז לשבוע הקרוב). קו שכבר מסומן מבוטל לא צריך את זה.
   if (d === false) {
     const real = (vs || []).filter((v) => !v.syn && v.k !== "planned-dropped");
-    if (real.length && real[real.length - 1].k === "removed") return null;
+    if (gone || (real.length && real[real.length - 1].k === "removed")) return null;
     return <div className="gapwarn">⏸️ אין לחלופה הזו לו״ז לשבוע הקרוב (לפי פרסום הרישוי ל-10 הימים הקרובים) — היא אינה פעילה כרגע.</div>;
   }
   if (!d) return null;
@@ -2211,6 +2226,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   // מספר הנסיעות מגיע מהאינדקס ולא מקובץ הקו: הוא משתנה מיום ליום, ובקובץ
   // הקו הוא היה משנה את כל 13,000 הקבצים בכל ריצה יומית
   const ntr = ((sibs || []).find((x) => x.rd === rd) || {}).ntr || 0;
+  const lastReal = vs.filter((v) => !v.syn && v.k !== "planned-dropped").pop();
+  const goneD = lastReal ? variantGone(lastReal.k, lastReal.d, lf.historicalOnly, ntr) : null;
   const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
   const shown = vs.map((v, i) => ({ v, i }))
     .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
@@ -2627,7 +2644,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
           </div>
         )}
-        {v.k !== "sched" && v.k !== "freq" && <SchedBox rd={rd} vs={vs} selD={sel != null && vs[sel] ? vs[sel].d : null}
+        {v.k !== "sched" && v.k !== "freq" && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
           isLast={sel == null || sel >= vs.length - 1} />}
         {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
@@ -2686,12 +2703,17 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           let li = vs.length - 1;
           while (li > 0 && (vs[li].k === "planned-dropped" || vs[li].syn)) li--;
           const lv = vs[li];
-          return lv.k === "removed" && (
-          <div className="facts" style={{ color: lineGone ? (KINDS[dispKind(lv, li, vs)] || {}).color : "#c2410c", fontWeight: 700 }}>
+          // אותו כלל כמו ברשימה ובבורר (שלמה 28.09)
+          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr);
+          const stale = gd && lv.k !== "removed";
+          const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
+          const dk = stale ? "removed-year" : dispKind(lv, li, vs);
+          return gd && (
+          <div className="facts" style={{ color: lineGone ? (KINDS[dk] || {}).color : "#c2410c", fontWeight: 700 }}>
             {lineGone
-              ? <>❌ הקו בוטל — אין חלופות פעילות — מאז {fmtD(lv.d)}</>
-              : <>⚠️ החלופה הזו מבוטלת מאז {fmtD(lv.d)} (לקו יש חלופות פעילות)</>}
-            {dispKind(lv, li, vs) === "removed-year" ? " — מעל שנה ולא חזרה" : ""}
+              ? <>❌ הקו בוטל — אין חלופות פעילות — {since}</>
+              : <>⚠️ החלופה הזו מבוטלת {since} (לקו יש חלופות פעילות)</>}
+            {dk === "removed-year" && !stale ? " — מעל שנה ולא חזרה" : ""}
           </div>);
         })()}
         {cmpOn && (
@@ -5025,6 +5047,7 @@ function App() {
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(async d => {
         const groups = await dfetch("data/historical-groups-2012.json").then(r => r.ok ? r.json() : {}).catch(() => ({}));
+        DATA_GEN = d.gen || null;
         setIdx(attach2012Groups(d, groups));
       })
       .catch(setErr);
@@ -5054,10 +5077,10 @@ function App() {
   }, [idx, rd]);
   const mktAlive = useMemo(() => {
     const m = {};
-    if (idx) idx.lines.forEach((l) => { if (l.lk !== "removed" && !l.historicalOnly) m[l.rd.split("-")[0]] = true; });
+    if (idx) idx.lines.forEach((l) => { if (!lineGoneAt(l) && !l.historicalOnly) m[l.rd.split("-")[0]] = true; });
     return m;
   }, [idx]);
-  const isLineGone = (l) => l.lk === "removed" && !mktAlive[l.rd.split("-")[0]];
+  const isLineGone = (l) => !!lineGoneAt(l) && !mktAlive[l.rd.split("-")[0]];
   // הסינון והמיון של 13 אלף שורות ב-useMemo: קודם הם רצו מחדש גם ברינדורים
   // שאינם קשורים לחיפוש — פתיחת קטגוריות, "הצג עוד" — תקיעות מורגשת בנייד
   const searchRes = useMemo(() => {
@@ -5138,7 +5161,7 @@ function App() {
       ) : rd ? (
         /* קישור ישיר לקו נפתח לפני שהאינדקס הגיע — בלי ההגנות האלה הדף
            קרס ללבן (הבאג ששלמה מצא): idx עדיין null ו-idx.lines התפוצץ */
-        <LinePage rd={rd} lineGone={idx ? !idx.lines.find(l => l.rd === rd)?.historicalOnly && !mktAlive[rd.split("-")[0]] : false}
+        <LinePage rd={rd} lineGone={idx ? (l => !(l?.historicalOnly && !lineGoneAt(l)))(idx.lines.find(l => l.rd === rd)) && !mktAlive[rd.split("-")[0]] : false}
           sibs={lineSiblings(idx, rd)}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate}
           initCats={[...kats].sort().join(",")} />
@@ -5197,7 +5220,7 @@ function App() {
                 <a key={l.rd} className="lrow" href={lineHref(l.rd)}
                   onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(l.rd); }}>
                   <span className="badge sm">{l.line || TT_ICON[l.tt] || "—"}</span>
-                  {l.lk === "removed" && (isLineGone(l) ? (
+                  {lineGoneAt(l) && (isLineGone(l) ? (
                     <span className="k" style={{ background: isRemovedYear(l) ? "#7f1d1d" : "#dc2626" }}>
                       {isRemovedYear(l) ? "הקו בוטל — מעל שנה" : "הקו בוטל"}
                     </span>
@@ -5208,8 +5231,8 @@ function App() {
                   ))}
                   <span className="ldest">{l.dest}</span>
                   <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
-                    {l.historicalOnly && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
-                    {l.lk === "removed" && <> · מבוטל מאז {fmtD(l.ld)}</>}</span>
+                    {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
+                    {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
                 </a>
               ))}
               {list.length === 0 && (
