@@ -592,6 +592,7 @@ def passages(recs, seq, codes=None):
 # ---------------------------------------------------------------- תדירות שידור GPS
 GPS_GAP_MAX = 600    # פער של יותר מ-10 דקות בין שני דיווחים באותה נסיעה = הרכב מחוץ לשירות/ללא קליטה — לא נספר
 GPS_SLOW = 90        # רכב "איטי": ממוצע מעל 90 שנ׳; מרווח "חסר": 90 שנ׳ ומעלה (הדגימה של SIRI היא פעם בדקה, כך ש-60 הוא הרצפה)
+GPS_SLOW_SHARE = 0.5  # רכב "איטי" (שלמה 29.09): לפחות 50% מהמרווחים שלו חסרים — קורה באופן קבוע, לא מדי פעם
 GPS_DAYS = 14        # חלון הצבירה לקובץ gps.json
 
 
@@ -669,12 +670,12 @@ def gps_aggregate(out, agency_names, updated):
     agencies = []
     for op, lst in ops.items():
         agencies.append([op, agency_names.get(op, op), len(lst), round(sum(x[0] for x in lst) / len(lst)),
-                         median([x[1] for x in lst]), round(sum(1 for x in lst if x[0] > GPS_SLOW) / len(lst), 3),
+                         median([x[1] for x in lst]), round(sum(1 for x in lst if x[2] >= GPS_SLOW_SHARE) / len(lst), 3),
                          round(sum(x[2] for x in lst) / len(lst), 3)])
     agencies.sort(key=lambda x: -x[2])
     rows.sort(key=lambda x: -x[2])
-    json.dump({'days': ds, 'updated': updated, 'gapMax': GPS_GAP_MAX, 'slow': GPS_SLOW,
-               'cols': {'agencies': ['agency_id', 'name', 'vehicles', 'avg of vehicle means sec', 'median of vehicle medians sec', 'share of vehicles with mean > slow', 'avg share of intervals >= slow'],
+    json.dump({'days': ds, 'updated': updated, 'gapMax': GPS_GAP_MAX, 'slow': GPS_SLOW, 'slowShare': GPS_SLOW_SHARE,
+               'cols': {'agencies': ['agency_id', 'name', 'vehicles', 'avg of vehicle means sec', 'median of vehicle medians sec', 'share of vehicles with >= slowShare intervals >= slow', 'avg share of intervals >= slow'],
                         'v': ['vehicle (plate)', 'agency_id', 'mean interval sec', 'median interval sec (weighted median of daily medians, 5s bins)', 'distinct reports', 'days seen', 'share of intervals >= slow']},
                'agencies': agencies, 'v': rows},
               open(f'{out}/gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

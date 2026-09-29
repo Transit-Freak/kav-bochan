@@ -894,13 +894,13 @@ function renderGps() {
   const box = $('#t-gps-v'); if (!box) return;
   if (!GPS) { $('#gps-sum').innerHTML = '<div class="empty">אין עדיין נתוני שידור (מחושב בריצה הלילית הבאה)</div>'; $('#t-gps-ag').innerHTML = ''; box.innerHTML = ''; return; }
   const agName = {}; GPS.agencies.forEach(a => { agName[a[0]] = a[1]; });
-  const slowV = GPS.v.filter(r => r[2] > GPS.slow).length;
+  const slowV = GPS.v.filter(r => r[6] >= (GPS.slowShare || 0.5)).length;
   const d0 = GPS.days[0], d1 = GPS.days[GPS.days.length - 1];
   $('#gps-sum').innerHTML = `<div class="stat-row">
       <div><b>${gpsAvg()} שנ׳</b><span>המרווח הממוצע בין דיווחי מיקום, ממוצע על כל הרכבים</span></div>
-      <div><b>${pct(slowV, GPS.v.length)}</b><span>מהרכבים משדרים בממוצע לאט מכל ${GPS.slow} שניות</span></div>
+      <div><b>${pct(slowV, GPS.v.length)}</b><span>מהרכבים מדלגים באופן קבוע (לפחות ${Math.round((GPS.slowShare||0.5)*100)}% מהמרווחים ${GPS.slow} שנ׳ ומעלה)</span></div>
       <div><b>${num(GPS.v.length)}</b><span>רכבים שנמדדו · ${GPS.days.length} ימים (${shortDate(d0)}–${shortDate(d1)})</span></div></div>`;
-  $('#t-gps-ag').innerHTML = `<div class="tblbox"><table><thead><tr><th>מפעיל</th><th>רכבים</th><th>מרווח ממוצע</th><th>חציון</th><th>רכבים איטיים (ממוצע מעל ${GPS.slow} שנ׳)</th><th>מרווחים חסרים</th></tr></thead><tbody>` +
+  $('#t-gps-ag').innerHTML = `<div class="tblbox"><table><thead><tr><th>מפעיל</th><th>רכבים</th><th>מרווח ממוצע</th><th>חציון</th><th>רכבים איטיים (לפחות ${Math.round((GPS.slowShare||0.5)*100)}% מהמרווחים ${GPS.slow} שנ׳ ומעלה)</th><th>מרווחים חסרים</th></tr></thead><tbody>` +
     GPS.agencies.filter(a => a[2] >= 3).map(a => `<tr><td class="nm">${esc(a[1])}</td><td>${num(a[2])}</td><td class="${secCls(a[3])}">${a[3]} שנ׳</td><td>${a[4] == null ? '—' : a[4] + ' שנ׳'}</td><td class="${a[5] > .1 ? 'd4' : a[5] > .03 ? 'd2' : ''}">${Math.round(a[5] * 1000) / 10}%</td><td>${a[6] == null ? '—' : Math.round(a[6] * 1000) / 10 + '%'}</td></tr>`).join('') + '</tbody></table></div>';
   const q = gq.trim().replace(/-/g, '');
   let rows = GPS.v;
