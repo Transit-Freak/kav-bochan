@@ -1444,8 +1444,19 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   // תיאור לתצוגה: מהקובץ המוכן, או מהחישוב בעמוד. "לא נמצאה חלופה ראשית" (קו בלי חלופה # — רכבת,
   // מוניות, חלק מהקווים) לא מוצג: זה לא מידע על המסלול
   const NO_BASE='לא נמצאה חלופה ראשית להשוואה במועד הזה';
-  const desc=(s)=>{const it=usePre ? s : (items && items.find(x=>x.rd===s.rd));const t=usePre ? pre[s.rd] : (areas && it ? describeVariant(it,variantBase(it,items,historical),areas) : null);return t===NO_BASE?'':(t||'');};
-  const shown=usePre ? sibs : items;
+  // גרסה ישנה (שלמה 29.09: "טוען חלופות" במקום להציג ישר, ו"אין רצף תחנות" לא מובן): עד שהחישוב
+  // בעמוד מסתיים מוצגים התיאורים המוכנים; ומה שאין לו תיאור במועד הזה מקבל ניסוח מובן
+  const preAll=!historical && pre && sibs.every(s=>s.rd in pre);
+  const NO_SEQ='אין רצף תחנות להשוואה במועד הזה', NO_BSEQ='אין רצף תחנות לחלופה הראשית במועד הזה';
+  const desc=(s)=>{
+    if(usePre || (!items && preAll)) { const t=pre[s.rd]; return t===NO_BASE?'':(t||''); }
+    const it=items && items.find(x=>x.rd===s.rd);
+    let t=areas && it ? describeVariant(it,variantBase(it,items,historical),areas) : null;
+    if(t===NO_SEQ) t='לא פעלה במועד הזה';
+    else if(t===NO_BSEQ || t===NO_BASE) t=(pre && pre[s.rd] && pre[s.rd]!==NO_BASE) ? pre[s.rd] : '';
+    return t||'';
+  };
+  const shown=usePre ? sibs : (items || (preAll ? sibs : null));
   return <div className="alt-selector">
     <div className="sibs">
       <span className="sibt">{historical ? "מסלולים:" : "חלופות וכיוונים:"}</span>
