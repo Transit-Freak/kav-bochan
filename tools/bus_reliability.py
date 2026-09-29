@@ -662,6 +662,8 @@ def gps_aggregate(out, agency_names, updated):
         if e[2] < 20:     # מעט מדי מרווחים לנתון יציב
             continue
         op = e[0].most_common(1)[0][0]
+        if str(op) == '2':   # רכבת ישראל — לא נכללת (שלמה 29.09: אוטובוסים בלבד)
+            continue
         mean = round(e[3] / e[2])
         md = med(e[4], e[2])
         slow = round(e[6] / e[2], 3)
