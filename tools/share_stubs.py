@@ -77,8 +77,11 @@ def main():
         url = f'{BASE}/line-history/#{rd}'
         img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{line.encode().hex()}.png'
                if line and line in rendered else f'{BASE}/line-history/og-image.png?v=4')
+        # האתר מציג את כתובת דף השיתוף בשורת הכתובת (עם ה-# המלא, כולל @תאריך),
+        # ולכן ריענון נוחת כאן — ה-# שבכתובת מועבר כמו שהוא לדף הקו
+        js = (f'var h=location.hash;location.replace(h.length>1?{json.dumps(BASE + "/line-history/")}+h:{json.dumps(url)});')
         w += write_stub(f'l-{fsafe(rd)}.html', title, desc, url,
-                        f'{BASE}/line-history/icon-180.png', img)
+                        f'{BASE}/line-history/icon-180.png', img, js=js)
         n += 1
 
     # --- הקו בזמן: קווי צילום 2012 (שלמה 07.09: לשיתוף שלהם לא היה דף, והכרטיס
