@@ -589,6 +589,98 @@ def passages(recs, seq, codes=None):
 
 
 # ---------------------------------------------------------------- ריצה
+# ---------------------------------------------------------------- תדירות שידור GPS
+GPS_GAP_MAX = 600    # פער של יותר מ-10 דקות בין שני דיווחים באותה נסיעה = הרכב מחוץ לשירות/ללא קליטה — לא נספר
+GPS_SLOW = 90        # רכב "איטי": ממוצע מעל 90 שנ׳; מרווח "חסר": 90 שנ׳ ומעלה (הדגימה של SIRI היא פעם בדקה, כך ש-60 הוא הרצפה)
+GPS_DAYS = 14        # חלון הצבירה לקובץ gps.json
+
+
+def gps_day(journeys, meta):
+    """לכל רכב ביום אחד: [מפעיל (agency_id), דיווחים שונים, מרווחים, סכום מרווחים, מרווחים של GPS_SLOW ומעלה, חציון (סלים של 5 שנ׳)].
+    דיווח = RecordedAtTime שונה באותה נסיעה (אותו זמן שחוזר בכמה קובצי דקה נספר פעם אחת).
+    מגבלה: קובצי SIRI נאספים פעם בדקה, ולכן מרווח קצר מדקה נראה כ~60 שנ׳."""
+    V = {}
+    for key, recs in journeys.items():
+        veh = meta[key][3]
+        if not veh:
+            continue
+        ts = sorted({r[0] for r in recs})
+        e = V.setdefault(veh, [meta[key][1], 0, 0, 0, collections.Counter()])
+        e[1] += len(ts)
+        for x, y in zip(ts, ts[1:]):
+            d = y - x
+            if 0 < d <= GPS_GAP_MAX:
+                e[2] += 1
+                e[3] += d
+                e[4][min(d // 5, GPS_GAP_MAX // 5)] += 1
+    def med(h, tot):
+        acc = 0
+        for k in sorted(h):
+            acc += h[k]
+            if acc * 2 >= tot:
+                return k * 5 + 2
+    # שורה קומפקטית ליום (הקובץ נשמר ב-git): בלי ההיסטוגרמה — רק החציון ומספר המרווחים האיטיים
+    return {v: [e[0], e[1], e[2], e[3], sum(c for k, c in e[4].items() if k * 5 >= GPS_SLOW), med(e[4], e[2])]
+            for v, e in V.items() if e[2]}
+
+
+def gps_aggregate(out, agency_names, updated):
+    """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
+    ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
+    V = {}
+    for d0 in ds:
+        try:
+            dj = json.load(open(f'{out}/days/{d0}.gps.json', encoding='utf-8'))
+        except Exception:  # noqa: BLE001
+            continue
+        for veh, (op, n, ni, sm, ns, md) in dj.get('v', {}).items():
+            e = V.setdefault(veh, [collections.Counter(), 0, 0, 0, [], 0, 0])
+            e[0][op] += ni
+            e[1] += n
+            e[2] += ni
+            e[3] += sm
+            e[4].append((md, ni))
+            e[5] += 1
+            e[6] += ns
+
+    def med(pairs, tot):
+        # חציון משוקלל של החציונים היומיים (משקל = מספר המרווחים באותו יום)
+        acc = 0
+        for m, w in sorted(pairs):
+            acc += w
+            if acc * 2 >= tot:
+                return m
+        return None
+
+    def median(xs):
+        xs = sorted(xs)
+        return xs[len(xs) // 2] if xs else None
+    rows = []
+    ops = collections.defaultdict(list)
+    for veh, e in V.items():
+        if e[2] < 20:     # מעט מדי מרווחים לנתון יציב
+            continue
+        op = e[0].most_common(1)[0][0]
+        mean = round(e[3] / e[2])
+        md = med(e[4], e[2])
+        slow = round(e[6] / e[2], 3)
+        rows.append([veh, op, mean, md, e[1], e[5], slow])
+        ops[op].append((mean, md, slow))
+    agencies = []
+    for op, lst in ops.items():
+        agencies.append([op, agency_names.get(op, op), len(lst), round(sum(x[0] for x in lst) / len(lst)),
+                         median([x[1] for x in lst]), round(sum(1 for x in lst if x[0] > GPS_SLOW) / len(lst), 3),
+                         round(sum(x[2] for x in lst) / len(lst), 3)])
+    agencies.sort(key=lambda x: -x[2])
+    rows.sort(key=lambda x: -x[2])
+    json.dump({'days': ds, 'updated': updated, 'gapMax': GPS_GAP_MAX, 'slow': GPS_SLOW,
+               'cols': {'agencies': ['agency_id', 'name', 'vehicles', 'avg of vehicle means sec', 'median of vehicle medians sec', 'share of vehicles with mean > slow', 'avg share of intervals >= slow'],
+                        'v': ['vehicle (plate)', 'agency_id', 'mean interval sec', 'median interval sec (weighted median of daily medians, 5s bins)', 'distinct reports', 'days seen', 'share of intervals >= slow']},
+               'agencies': agencies, 'v': rows},
+              open(f'{out}/gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    print(f'GPS: {len(rows):,} רכבים · {len(agencies)} מפעילים · {len(ds)} ימים', flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--day', default='')
@@ -637,6 +729,8 @@ def main():
                 if key not in meta:
                     meta[key] = (line, op, dep, veh)
     print(f'רשומות: {n_rec:,} · נסיעות (מפתחות): {len(journeys):,} · {(datetime.datetime.now() - t0).seconds} שנ׳', flush=True)
+    gps_v = gps_day(journeys, meta)
+    print(f'GPS: {len(gps_v):,} רכבים עם מרווחי שידור', flush=True)
 
     g = load_gtfs(a.gtfs, day)
     print(f'GTFS: {len(g["trips"]):,} נסיעות פעילות · {len(g["routes"]):,} מסלולים · {len(g["stops"]):,} תחנות', flush=True)
@@ -1230,6 +1324,8 @@ def main():
                               'gap': round(sum(e['gaps']) / max(len(e['gaps']), 1) / 60, 1),
                               'end': round(e['end'] / max(e['n'], 1), 2), 'ex': e['ex']} for mkt, e in agg.items()}}
     json.dump(dh_out, open(f'{a.out}/deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    json.dump({'d': day, 'v': gps_v}, open(f'{a.out}/days/{day}.gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    gps_aggregate(a.out, {r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}, day_obj['built'])
     idx = {'days': days, 'updated': day_obj['built'], 'fmt': FMT}
     json.dump(idx, open(f'{a.out}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     sz = os.path.getsize(f'{a.out}/days/{day}.json')

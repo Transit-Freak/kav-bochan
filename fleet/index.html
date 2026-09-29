@@ -912,13 +912,21 @@ async function shard(d){
   catch(e){SHARDS[d]={};}
   return SHARDS[d];
 }
+// תדירות שידור GPS לכל רכב (מדד האמינות, ../bus/data/gps.json — 14 הימים האחרונים) — בעצלתיים לכרטיס הרכב
+let GPSV=null,GPSM=null;
+async function loadGps(){
+  if(GPSV!==null) return;
+  try{const r=await fetch('../bus/data/gps.json',{cache:'no-cache'});const j=r.ok?await r.json():null;GPSV={};GPSM=j;
+    if(j&&j.v) for(const x of j.v) GPSV[String(x[0]).replace(/\D/g,'').replace(/^0+/,'')]=x;}
+  catch(e){GPSV={};}
+}
 async function showV(plate){
   // כל רשומות השידור של הלוחית — רכב שעבר בין חברות מופיע אצל כמה מפעילים
   const recs=(XPLATE[plate]||[]).slice().sort((a,b)=>a[1][2]<b[1][2]?1:-1);
   if(!recs.length) return;
   const fv=recs[0][1];
   const clean=plate.replace(/-/g,'').replace(/^0+/,'');
-  const [gov]=await Promise.all([shard(clean.slice(-1)).then(s=>s[clean]),loadKM(),loadArmor(),loadDays(),loadOfficial(),loadGaps(),loadPhotos()]);
+  const [gov]=await Promise.all([shard(clean.slice(-1)).then(s=>s[clean]),loadKM(),loadArmor(),loadDays(),loadOfficial(),loadGaps(),loadPhotos(),loadGps()]);
   const ofc=OFC&&OFC.of?OFC.of[clean]:null;
   const ar=ARM&&ARM.armor?ARM.armor[clean]:null;
   const on=recs.some(([,v])=>isActive(v));
@@ -938,6 +946,8 @@ async function showV(plate){
     ${gR(v2)!=null?`<div class="k">נסיעות ביום בממוצע</div><div class="v2">${gR(v2)} (בימים שנמדדו)</div>`:''}
     ${km&&km[0]!=null?`<div class="k">ק"מ ביום פעילות (משוער)</div><div class="v2">כ-${fmt(km[0])} ק"מ</div>`:''}
     ${km?`<div class="k">ק"מ שנמדדו בסך הכול (משוער)</div><div class="v2">כ-${fmt(km[1])} ק"מ</div>`:''}
+    ${(()=>{const g=recs.indexOf(recs.find(r=>r[1]===v2))===0&&GPSV?GPSV[clean]:null;
+      return g?`<div class="k">תדירות שידור מיקום</div><div class="v2">משדר מיקום בממוצע כל ${g[2]} שניות<div style="font-size:11px;color:var(--dim)">חציון ${g[3]} שנ׳ · ${fmt(g[4])} דיווחים ב-${g[5]} ימים · הדגימה פעם בדקה, כך ש-60 שנ׳ הוא המינימום הנמדד · <a href="../bus/#/gps">מדד האמינות</a></div></div>`:'';})()}
     <div class="k">מצב</div><div class="v2">${on2?'✅ פעיל':recs.length>1&&on?'↩️ כבר לא משדר אצל המפעיל הזה':'🔴 ירד מהשירות'}</div></div>`;
   }
   if(anyKm) rows+=`<p class="note">הערכת הקילומטראז': אורך המסלול המתוכנן של הקווים שבהם הרכב שידר (משרטוטי "הקו בזמן") × הנסיעות שנקלטו. הערכה גסה בלבד — לא ידוע אם כל נסיעה בוצעה במלואה (ייתכנו נסיעות חלקיות או בעיות שידור GPS), לא ידוע כמה נסיעות היו בכל קו, והיא מכסה רק ימים שנסרקו.</p>`;

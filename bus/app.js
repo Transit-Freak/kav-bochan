@@ -285,7 +285,7 @@ function lineLabel(rid) {
 let M = null;
 // קטגוריות (שלמה 17.09: "העמוד עמוס, במיוחד בטלפון"): הסיכום הגדול תמיד למעלה, ומתחתיו רק הקטגוריה שנבחרה.
 // הקטעים הלא-נבחרים נשארים בדף בגובה אפס (לא display:none) כדי שהגרפים שבהם יצוירו ברוחב נכון.
-const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו']];
+const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', 'תדירות שידור GPS']];
 let tab = 'overview';
 // המספר של כל קטגוריה, על הכפתור שלה (שלמה 17.09: "שיראה את המדד של אחוזים לפי המדד")
 function tabBadge(k) {
@@ -301,6 +301,7 @@ function tabBadge(k) {
     case 'worst': return t.meas ? pct(t.c[4], t.meas) + ' מעל 20 דק׳' : '';
     case 'early': { const oT = t.o.reduce((a, b) => a + b, 0); return oT ? pct(t.o[0], oT) + ' יצאו מוקדם' : ''; }
     case 'region': return range(Object.values(M.Rg).filter(c => c.meas >= 500).map(c => c.on));
+    case 'gps': return GPS && GPS.v.length ? 'ממוצע ' + gpsAvg() + ' שנ׳' : '';
     case 'bunch': return M.Bn.tot[0] ? pct(M.Bn.tot[1], M.Bn.tot[0]) + ' צמודים' : '';
   }
   return '';
@@ -380,6 +381,11 @@ function render() {
     <div class="tabsec" data-tab="vehicle">
     <div class="panel"><div class="ptitle">סוג הרכב מול מה שנקבע לקו</div><p class="pdesc">לכל קו משרד התחבורה קובע גודל רכב: מיניבוס, מידיבוס, אוטובוס או אוטובוס מפרקי. כאן משווים אותו לרכב שהגיע בפועל בכל נסיעה, לפי מספר הרכב בשידור ומאגר ציי הרכב של המשרד. "רכב קטן יותר" הוא למשל מיניבוס בקו שנקבע לו אוטובוס.</p><div id="vt-sum"></div><div class="filters" id="vt-filters"></div><div id="t-vt"></div></div>
     </div>
+    <div class="tabsec" data-tab="gps">
+    <div class="panel"><div class="ptitle">תדירות שידור מיקום (GPS)</div><p class="pdesc">כל כמה זמן כל אוטובוס משדר את המיקום שלו, בממוצע. מחושב מזמן הדיווח (RecordedAtTime) שבשידורי SIRI: המרווח בין שני דיווחים עוקבים של אותו רכב באותה נסיעה. דיווח שחוזר על עצמו נספר פעם אחת, ופער של יותר מ-10 דקות (רכב מחוץ לשירות או בלי קליטה) לא נספר. שימו לב: השידורים נאספים פעם בדקה, ולכן רכב שמשדר כל 20 או 30 שניות ייראה כאן כ"כל 60 שניות" — המדד תופס בעיקר רכבים שמשדרים לאט מזה או מדלגים על דקות. "מרווחים חסרים": אחוז המרווחים של 90 שניות ומעלה.</p><div id="gps-sum"></div>
+      <div class="ptitle" style="margin-top:12px">לפי מפעיל</div><div id="t-gps-ag"></div>
+      <div class="ptitle" style="margin-top:12px">לפי רכב</div><p class="pdesc">חיפוש לפי מספר רכב (לוחית רישוי) או שם מפעיל. ברירת המחדל: הרכבים שמשדרים הכי לאט.</p><div class="filters"><input id="gps-q" type="search" placeholder="מספר רכב או מפעיל" value="${esc(gq)}" style="min-width:200px"></div><div id="t-gps-v"></div></div>
+    </div>
     <div class="tabsec" data-tab="worst">
     <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>
     </div>`;
@@ -388,7 +394,7 @@ function render() {
   lineChart($('#c-trend'), trend, {color: C.line, min: 0, max: 100, unit: '%'});
   barChart($('#c-hours'), hours, {color: C.line, max: 100, unit: '%'});
   renderAgencies(); renderClusters(); renderCities(); renderFilters(); renderLines(); renderWorst(); renderVehicles(); renderVanish();
-  renderEarly(); renderRegions(); renderBunch();
+  renderEarly(); renderRegions(); renderBunch(); renderGps();
 }
 // איפה האוטובוס נעלם (שלמה 17.09): עד איפה נראו הנסיעות, לפי מפעיל, והתחנות שאחריהן נסיעות נעלמות
 let coverCache = {}, sortV = {k: 'rT', dir: -1}, sortVL = {k: 'gone', dir: -1}, vlq = '', showAllVL = false;
@@ -879,10 +885,39 @@ function renderBunchLines() {
   box.querySelectorAll('.linebtn').forEach(b => b.onclick = () => { openLine = b.dataset.rid; showTab('line'); renderLineDetail(); $('#line-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 }
 
+// תדירות שידור GPS (שלמה 29.09: "כל כמה זמן הרכב משדר בממוצע", לפי רכב ולפי מפעיל) — data/gps.json,
+// צבירה של 14 הימים האחרונים, לא תלויה בתקופה שנבחרה למעלה
+let GPS = null, gq = '', gAll = false;
+const gpsAvg = () => { let s = 0, n = 0; GPS.v.forEach(r => { s += r[2]; n++; }); return n ? Math.round(s / n) : '—'; };
+const secCls = v => v == null ? '' : v >= 120 ? 'd4' : v >= 90 ? 'd3' : v >= 75 ? 'd2' : '';
+function renderGps() {
+  const box = $('#t-gps-v'); if (!box) return;
+  if (!GPS) { $('#gps-sum').innerHTML = '<div class="empty">אין עדיין נתוני שידור (מחושב בריצה הלילית הבאה)</div>'; $('#t-gps-ag').innerHTML = ''; box.innerHTML = ''; return; }
+  const agName = {}; GPS.agencies.forEach(a => { agName[a[0]] = a[1]; });
+  const slowV = GPS.v.filter(r => r[2] > GPS.slow).length;
+  const d0 = GPS.days[0], d1 = GPS.days[GPS.days.length - 1];
+  $('#gps-sum').innerHTML = `<div class="stat-row">
+      <div><b>${gpsAvg()} שנ׳</b><span>המרווח הממוצע בין דיווחי מיקום, ממוצע על כל הרכבים</span></div>
+      <div><b>${pct(slowV, GPS.v.length)}</b><span>מהרכבים משדרים בממוצע לאט מכל ${GPS.slow} שניות</span></div>
+      <div><b>${num(GPS.v.length)}</b><span>רכבים שנמדדו · ${GPS.days.length} ימים (${shortDate(d0)}–${shortDate(d1)})</span></div></div>`;
+  $('#t-gps-ag').innerHTML = `<div class="tblbox"><table><thead><tr><th>מפעיל</th><th>רכבים</th><th>מרווח ממוצע</th><th>חציון</th><th>רכבים איטיים (ממוצע מעל ${GPS.slow} שנ׳)</th><th>מרווחים חסרים</th></tr></thead><tbody>` +
+    GPS.agencies.filter(a => a[2] >= 3).map(a => `<tr><td class="nm">${esc(a[1])}</td><td>${num(a[2])}</td><td class="${secCls(a[3])}">${a[3]} שנ׳</td><td>${a[4] == null ? '—' : a[4] + ' שנ׳'}</td><td class="${a[5] > .1 ? 'd4' : a[5] > .03 ? 'd2' : ''}">${Math.round(a[5] * 1000) / 10}%</td><td>${a[6] == null ? '—' : Math.round(a[6] * 1000) / 10 + '%'}</td></tr>`).join('') + '</tbody></table></div>';
+  const q = gq.trim().replace(/-/g, '');
+  let rows = GPS.v;
+  if (q) rows = rows.filter(r => r[0].includes(q) || (agName[r[1]] || '').includes(q));
+  const total = rows.length;
+  if (!gAll) rows = rows.slice(0, 50);
+  box.innerHTML = rows.length ? `<div class="tblbox" style="margin-top:10px"><table><thead><tr><th>מספר רכב</th><th>מפעיל</th><th>מרווח ממוצע</th><th>חציון</th><th>מרווחים חסרים</th><th>דיווחים</th><th>ימים</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="nm" style="direction:ltr;text-align:right">${esc(r[0])}</td><td style="font-size:12px">${esc(agName[r[1]] || r[1])}</td><td class="${secCls(r[2])}"><b>${r[2]}</b> שנ׳</td><td>${r[3] == null ? '—' : r[3] + ' שנ׳'}</td><td>${r[6] == null ? '—' : Math.round(r[6] * 100) + '%'}</td><td>${num(r[4])}</td><td>${r[5]}</td></tr>`).join('') + '</tbody></table></div>' +
+    (total > rows.length ? `<button class="more" id="more-gps">הצגת כל ${num(total)} הרכבים</button>` : '') +
+    `<div class="mut" style="margin-top:6px">${num(total)} רכבים · רק רכבים עם 20 מרווחים לפחות · החציון מעוגל לסלים של 5 שניות</div>` : '<div class="empty">לא נמצא רכב כזה</div>';
+  const inp = $('#gps-q'); if (inp && !inp.oninput) inp.oninput = e => { gq = e.target.value; gAll = false; renderGps(); };
+  const mb = $('#more-gps'); if (mb) mb.onclick = () => { gAll = true; renderGps(); };
+}
 function init() {
   $('#method').innerHTML = METHOD;
-  Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({}))]).then(([idx, cat]) => {
-    IDX = idx; CAT = cat || {};
+  Promise.all([load(DATA + 'index.json'), load(DATA + 'routes.json').catch(() => ({})), load(DATA + 'gps.json').catch(() => null)]).then(([idx, cat, gps]) => {
+    IDX = idx; CAT = cat || {}; GPS = gps && gps.v ? gps : null;
     // רק ימים אמיתיים (YYYY-MM-DD): קובץ ערים שנכנס בטעות לאינדקס הפיל את העמוד (08.09)
     DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d && /^\d{4}-\d{2}-\d{2}$/.test(d.d));
     if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין ימים מחושבים.</div>'; $('#sub').textContent = ''; return; }
