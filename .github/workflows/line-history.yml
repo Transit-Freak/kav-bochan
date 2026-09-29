@@ -178,6 +178,25 @@ jobs:
           node --max-old-space-size=6144 /tmp/kbscan/scan-country.js gtfs.zip kavbug-data/country-scan
           node /tmp/kbscan/update-history.js kavbug-data/country-scan.json kavbug-data/history.json
 
+      # קו באג — "לפי GPS בפועל": מקטעים מתוכננים שהאוטובוסים לא נוסעים בהם לפי
+      # ה-GPS (Open Bus Stride של הסדנא לידע ציבורי). דגימה מתחלפת של קווים כל
+      # לילה עם מטמון דחוס ב-kavbug-data/gps-cache (נשמר ב-commit), ועבודות
+      # מזוהות גם לפי שינויים זמניים בהיסטוריית הקווים של כאן (line-history).
+      # תקציב זמן קשיח; כשל כאן לעולם לא עוצר את הצינור.
+      - name: קו באג — בדיקה לפי GPS בפועל
+        if: hashFiles('gtfs.zip') != ''
+        continue-on-error: true
+        timeout-minutes: 35
+        env:
+          GPS_BUDGET_MIN: "25"
+          GPS_LINES_PER_NIGHT: "30"
+        run: |
+          set -e
+          mkdir -p /tmp/kbgps kavbug-data/gps-cache
+          curl -fsSL "https://raw.githubusercontent.com/Transit-Freak/kav-bug/main/gps-scan.js" -o /tmp/kbgps/gps-scan.js
+          npm install --prefix /tmp/kbgps fflate --no-save
+          node --max-old-space-size=4096 /tmp/kbgps/gps-scan.js gtfs.zip kavbug-data/gps-cache kavbug-data/gps-scan.json --history line-history/data/lines
+
       # איחוד הצינור: ה-GTFS שכבר ירד כאן מפורסם כ-artifact, והצינורות של
       # "הקו המדלג" ו"התחנה הבאה" נדלקים בסיום הריצה וניזונים ממנו —
       # הורדה אחת ביום במקום שלוש, וכל הכלים מתעדכנים על אותו קובץ בדיוק.
