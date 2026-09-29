@@ -62,9 +62,10 @@ def main():
     except Exception:
         lines = []
     try:
-        rendered = set(json.load(open(f'{OUT}/line-banners.json', encoding='utf-8')))
+        rendered = json.load(open(f'{OUT}/line-banners.json', encoding='utf-8'))
+        if isinstance(rendered, list): rendered = {n: 'share-img' for n in rendered}   # מבנה ישן
     except Exception:
-        rendered = set()
+        rendered = {}
     for e in lines:
         rd = e.get('rd') or ''
         if not rd:
@@ -75,7 +76,7 @@ def main():
         desc = (f'ההיסטוריה המלאה של קו {line}' + (f' אל {dest}' if dest else '')
                 + f' · {e.get("op") or ""} · באתר הקו הבוחן').strip(' ·')
         url = f'{BASE}/line-history/#{rd}'
-        img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{line.encode().hex()}.png'
+        img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/{rendered[line]}/line-h{line.encode().hex()}.png'
                if line and line in rendered else f'{BASE}/line-history/og-image.png?v=4')
         # האתר מציג את כתובת דף השיתוף בשורת הכתובת (עם ה-# המלא, כולל @תאריך),
         # ולכן ריענון נוחת כאן — ה-# שבכתובת מועבר כמו שהוא לדף הקו
@@ -97,7 +98,7 @@ def main():
             desc = (f'הקו כפי שהיה ב-2012: קו {no}' + (f' אל {dest}' if dest else '')
                     + f' · {e.get("an") or ""} · באתר הקו הבוחן').strip(' ·')
             url = f'{BASE}/line-history/#2012/{k}'
-            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/line-h{no.encode().hex()}.png'
+            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/{rendered[no]}/line-h{no.encode().hex()}.png'
                    if no and no in rendered else f'{BASE}/line-history/og-image.png?v=4')
             w += write_stub(f'k-{fsafe(k)}.html', title, desc, url,
                             f'{BASE}/line-history/icon-180.png', img)
@@ -117,14 +118,15 @@ def main():
                 if no:
                     last[no] = d['date']
         try:
-            rrend = set(json.load(open(f'{OUT}/rail-banners.json', encoding='utf-8')))
+            rrend = json.load(open(f'{OUT}/rail-banners.json', encoding='utf-8'))
+            if isinstance(rrend, list): rrend = {n: 'share-img' for n in rrend}
         except Exception:
-            rrend = set()
+            rrend = {}
         for no, day in sorted(last.items()):
             title = f'רכבת {no} (2013–2014) — הקו בזמן'
             desc = f'רכבת ישראל, רכבת מספר {no}: כל הנסיעות שלה בארכיון 2013–2014, עם מפה ותחנות · באתר הקו הבוחן'
             url = f'{BASE}/line-history/#t=rail@{day}@{no}'
-            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/share-img/rail-h{no.encode().hex()}.png'
+            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/{rrend[no]}/rail-h{no.encode().hex()}.png'
                    if no in rrend else f'{BASE}/line-history/og-image.png?v=4')
             w += write_stub(f't-{fsafe(no)}.html', title, desc, url,
                             f'{BASE}/line-history/icon-180.png', img,
