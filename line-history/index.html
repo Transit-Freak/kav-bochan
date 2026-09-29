@@ -48,6 +48,14 @@
           appId: window.KB_ONESIGNAL_APP_ID,
           serviceWorkerPath: kbRoot + 'OneSignalSDKWorker.js',
           serviceWorkerParam: { scope: kbRoot },
+          // בלי חלון הרשמה אוטומטי (שלמה 29.09: הופיע בלי שלחצו "הרשמה") — ההרשאה
+          // מתבקשת רק מכפתור ההרשמה באתר. ואם בכל זאת יוצג — בעברית
+          promptOptions: {
+            slidedown: { prompts: [{ type: 'push', autoPrompt: false, text: {
+              actionMessage: 'לקבל התראות על שינויים בקווים ובתחנות שבחרת? אפשר לבטל בכל רגע.',
+              acceptButton: 'הרשמה', cancelButton: 'לא עכשיו' } }] },
+          },
+          welcomeNotification: { disable: true },
         });
       });
       var s = document.createElement('script');

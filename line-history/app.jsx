@@ -1777,6 +1777,36 @@ function savedTags() {
 }
 // שולח לספק את מה שנשמר בדפדפן הזה, או מוחק את התג כשאין הרשמה
 const pushTags = (done) => { const t = savedTags(); osTags(Object.keys(t).length ? t : { kb: null }, done); };
+// שחזור ההרשמה מהספק (שלמה 29.09: "רשום שאני לא רשום, אבל אני מקבל כל שבוע"):
+// ההרשמה נשמרת גם בדפדפן (localStorage) וגם אצל ספק ההתראות. כשהשמירה בדפדפן
+// אבדה — ניקוי נתוני אתר, כתובת אחרת, או האתר ממסך הבית מול הדפדפן — הספק עדיין
+// שולח, והדף הציג "לא רשום". וגרוע מזה: לחיצה על "עקוב" שלחה אז תג ריק ומחקה את
+// ההרשמה אצל הספק. כאן, כשאין כלום בדפדפן ויש תג kb אצל הספק, ההרשמה משוחזרת
+// לדפדפן (שמות הערים — לפי אותו גיבוב cityTag מול רשימת הערים).
+function restoreFromServer() {
+  if (!PUSH_ON) return;
+  try { if (localStorage.kbNotify || localStorage.kbFollow) return; } catch (e) { return; }
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async (OS) => {
+    try {
+      const t = (await OS.User.getTags()) || {};
+      if (!t.kb) return;
+      const f = {};
+      String(t.kb).split("|").forEach((p) => { const i = p.indexOf("="); if (i > 0) f[p.slice(0, i)] = p.slice(i + 1); });
+      const all = Object.keys(await (await dfetch("data/cities.json")).json());
+      const byTag = {}; all.forEach((c) => { byTag[cityTag(c)] = c; });
+      const list = (s) => String(s || "").split(",").filter(Boolean);
+      const cities = list(f.c).map((h) => byTag[h]).filter(Boolean);
+      if (cities.length) localStorage.kbNotify = JSON.stringify({ cities, freq: f.f || "1", gs: list(f.g).map((g) => "kg_" + g) });
+      const fol = {};
+      list(f.w).forEach((h) => { fol[h] = byTag[h] || "עיר"; });
+      list(f.l).forEach((code) => { fol["l" + code] = "קו"; });
+      if (Object.keys(fol).length) localStorage.kbFollow = JSON.stringify(fol);
+      if (cities.length || Object.keys(fol).length) window.dispatchEvent(new Event("kb-notify-restored"));
+    } catch (e) { /* ignore */ }
+  });
+}
+restoreFromServer();
 function FollowBtn({ tag, label, title }) {
   const [on, setOn] = useState(() => { try { return !!JSON.parse(localStorage.kbFollow || "{}")[tag]; } catch (e) { return false; } });
   const [st, setSt] = useState("");
@@ -1953,8 +1983,14 @@ function NotifyCenter({ cities: allCities }) {
   const [msg, setMsg] = useState("");
   const [ps, setPs] = useState({ loading: true });
   useEffect(() => { if (open && PUSH_ON) { setPs({ loading: true }); readPushState((s) => setPs((p) => (typeof s === "function" ? s(p) : s)), savedTags()); } }, [open]);
+  // ההרשמה שוחזרה מהספק אחרי שהדף עלה — מציגים אותה
+  useEffect(() => {
+    const on = () => { try { const s = JSON.parse(localStorage.kbNotify || "{}"); setCities(s.cities || []); setFreq(s.freq || "1"); if (s.gs) setGs(new Set(s.gs)); setSaved(!!(s.cities || []).length); } catch (e) { /* ignore */ } };
+    window.addEventListener("kb-notify-restored", on);
+    return () => window.removeEventListener("kb-notify-restored", on);
+  }, []);
   if (!PUSH_ON) return null;
-  const toggleG = (t) => setGs((p) => { const n = new Set(p); if (n.has(t)) n.delete(t); else n.add(t); return n; });
+  const toggleG =(t) => setGs((p) => { const n = new Set(p); if (n.has(t)) n.delete(t); else n.add(t); return n; });
   // רק שמות ערים כפי שהם ברישום (אחרת התג לא יתאים לשום קו)
   const pick = (raw) => {
     const c = raw.trim(); if (!c) return null;
