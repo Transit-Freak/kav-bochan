@@ -5,61 +5,13 @@ const { useState, useEffect, useMemo, useRef, useDeferredValue } = React;
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
 const BUILD = "194-alternative-selector";
 
-// דף קו פתוח מוצג בשורת הכתובת כדף השיתוף שלו: ‎<שורש>/s/l-<מקט>.html#<מקט>‎.
-// וואטסאפ מתעלם מה-#, ולכן העתקת הכתובת הרגילה (line-history/#מקט) נתנה כרטיס
-// גנרי; דף השיתוף נושא את שם הקו ואת תמונתו, ובטעינה מפנה חזרה לכאן עם ה-#.
-// הנתיב מוחלף רק אחרי שווידאנו שדף השיתוף קיים (דפים נוצרים בריצה היומית).
-// שאר המסכים — תמיד ‎<שורש>/line-history/#...‎. ה-<base> ב-index.html שומר על
-// כל הנתיבים היחסיים (נתונים, סקריפטים) נכונים גם כשהנתיב המוצג הוא /s/.
-const KB_ROOT = window.KB_ROOT || location.pathname.replace(/line-history\/.*$/, "");
-const KB_HOME = location.origin + KB_ROOT + "line-history/";
-const KB_STUB = new Map();   // מקט -> true/false/Promise (האם דף השיתוף קיים)
-let KB_FIX = () => {};
-const stubName = (rd) => "s/l-" + rd.replace(/#/g, "H").replace(/\*/g, "X").replace(/:/g, "-") + ".html";
-const hashRd = (h) => {
-  let x = ""; try { x = decodeURIComponent(String(h || "").replace(/^#/, "")); } catch (e) { return null; }
-  if (!x || /^(t=|2012\/|stop=|digest=)/.test(x)) return null;
-  const i = x.lastIndexOf("@"); return i > 0 ? x.slice(0, i) : x;
-};
-function kbCanon(u) {
-  try { const x = new URL(u, KB_HOME); if (x.origin === location.origin && x.pathname.startsWith(KB_ROOT + "s/l-")) return KB_HOME + x.search + x.hash; return x.href; }
-  catch (e) { return String(u); }
-}
-function kbShown(u) {
-  if (u === undefined || u === null) return u;
-  let x; try { x = new URL(u, document.baseURI); } catch (e) { return u; }
-  if (x.origin !== location.origin) return u;
-  const onApp = x.pathname === KB_ROOT + "line-history/" || (x.pathname.startsWith(KB_ROOT + "s/l-") && x.pathname.endsWith(".html"));
-  if (!onApp) return x.href;
-  const rd = hashRd(x.hash);
-  const st = rd && KB_STUB.get(rd);
-  if (rd && st === undefined) {   // בדיקה חד-פעמית ברקע; כשתסתיים — יישור הכתובת
-    KB_STUB.set(rd, fetch(KB_ROOT + stubName(rd), { method: "HEAD" }).then((r) => r.ok).catch(() => false)
-      .then((ok) => { KB_STUB.set(rd, ok); KB_FIX(); }));
-  }
-  x.pathname = st === true ? KB_ROOT + stubName(rd) : KB_ROOT + "line-history/";
-  return x.href;
-}
-// קישורי ‎href="#..."‎ נפתרים מול ה-<base> (line-history/) — כשהמסמך מוצג
-// בנתיב /s/ הם היו טוענים את הדף מחדש. קליק רגיל הופך לשינוי # באותו מסמך.
-document.addEventListener("click", (e) => {
-  if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-  const a = e.target && e.target.closest && e.target.closest("a[href]");
-  if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
-  if (a.origin !== location.origin || a.pathname !== KB_ROOT + "line-history/" || a.search !== location.search) return;
-  if (location.pathname === a.pathname) return;   // כבר בנתיב הרגיל — הדפדפן מטפל
-  e.preventDefault();
-  if (a.hash) location.hash = a.hash; else history.pushState(null, "", KB_HOME + a.search);
-});
-
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
 // בלי טעינה. לכן המצב האחרון נשמר ללשונית (sessionStorage) ומשוחזר כשטעינה
 // מחדש נוחתת על אחת הכתובות המקוריות (שלמה 07.09: "מחזיר אותך לדף הקודם").
 (function () {
   try {
-    // הכתובת נשמרת בצורתה הקנונית (line-history/#...) — גם כששורת הכתובת מציגה דף שיתוף
-    const K = "kbNav", now = kbCanon(location.href), base = (u) => String(u).split("#")[0];
+    const K = "kbNav", now = location.href, base = (u) => String(u).split("#")[0];
     let s = null; try { s = JSON.parse(sessionStorage[K] || "null"); } catch (e) { /* ignore */ }
     const nav = performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
     const reload = nav ? nav.type === "reload" : !!(performance.navigation && performance.navigation.type === 1);
@@ -71,18 +23,14 @@ document.addEventListener("click", (e) => {
     const recent = !!(s && s.ts && Date.now() - s.ts < 15 * 60 * 1000);
     const toggled = !reload && recent && !document.referrer && (!nav || nav.type === "navigate");
     if ((reload || toggled) && s && s.url && s.url !== now && base(s.url) === base(now) && origs.includes(now)) history.replaceState(history.state, "", s.url);
-    const note = () => { const u = kbCanon(location.href); if (!origs.includes(u)) origs.push(u); if (origs.length > 30) origs.splice(0, origs.length - 30); };
-    const save = () => { try { sessionStorage[K] = JSON.stringify({ origs, url: kbCanon(location.href), ts: Date.now() }); } catch (e) { /* ignore */ } };
+    const note = () => { if (!origs.includes(location.href)) origs.push(location.href); if (origs.length > 30) origs.splice(0, origs.length - 30); };
+    const save = () => { try { sessionStorage[K] = JSON.stringify({ origs, url: location.href, ts: Date.now() }); } catch (e) { /* ignore */ } };
     note();
     const push0 = history.pushState.bind(history), rep0 = history.replaceState.bind(history);
-    history.pushState = function (st, t, u) { push0(st, t, kbShown(u)); note(); save(); };
-    history.replaceState = function (st, t, u) { rep0(st, t, kbShown(u)); save(); };
-    // שינוי ב-# (קישור רגיל, עריכה ידנית, חזרה אחורה) — מיישרים את הנתיב לתצוגה
-    const fix = () => { const u = kbShown(location.href); if (u !== location.href) rep0(history.state, "", u); };
-    window.addEventListener("popstate", () => { fix(); save(); });
-    window.addEventListener("hashchange", () => { fix(); note(); save(); });
-    KB_FIX = fix;
-    fix();
+    history.pushState = function (st, t, u) { push0(st, t, u); note(); save(); };
+    history.replaceState = function (st, t, u) { rep0(st, t, u); save(); };
+    window.addEventListener("popstate", save);
+    window.addEventListener("hashchange", () => { note(); save(); });
     save();
   } catch (e) { /* ignore */ }
 })();
@@ -2669,7 +2617,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           <button className="sharebtn" title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
             onClick={(e) => {
               // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
-              const url = location.origin + KB_ROOT + "s/l-" + fsafe(rd) + ".html";
+              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + fsafe(rd) + ".html";
               const b = e.currentTarget;
               // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
               // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
@@ -3196,7 +3144,7 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
             את מספר הקו ואת סמל האתר — לקווי 2012 לא היה כזה (שלמה 07.09) */}
         <button className="sharebtn" title="שיתוף הקישור לקו הזה כפי שהיה ב-2012"
           onClick={(e) => {
-            const url = location.origin + KB_ROOT + "s/k-" + fsafe(k12) + ".html";
+            const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/k-" + fsafe(k12) + ".html";
             const b = e.currentTarget;
             if (navigator.share) { navigator.share({ title: "הקו בזמן — קו " + (d.no || k12) + " (2012)", url }).catch(() => {}); return; }
             const t = b.textContent;
@@ -3568,7 +3516,7 @@ function StopCode({ code }) {
     e.stopPropagation();
     if (!plainClick(e)) return;      // Ctrl/אמצעית — פתיחה בלשונית חדשה
     e.preventDefault();
-    const url = KB_HOME + stopHref(code);
+    const url = location.origin + location.pathname + stopHref(code);
     const done = () => setOk(true);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done, () => fallback(url, done));
@@ -5032,7 +4980,7 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
               {on&&<div onClick={e=>e.stopPropagation()}>
                 {/* שיתוף כמו בקווי אוטובוס: דף-שיתוף לכל מספר רכבת (s/t-*.html) עם באנר "רכבת N"; היום עובר בסולמית (שלמה 28.09) */}
                 <button className="sharebtn" title="שיתוף הקישור לנסיעה הזו" onClick={e=>{
-                  const url=location.origin+KB_ROOT+"s/t-"+fsafe(String(t.no))+".html#"+day;
+                  const url=location.origin+location.pathname.replace(/line-history\/?[^/]*$/,"")+"s/t-"+fsafe(String(t.no))+".html#"+day;
                   const b=e.currentTarget;
                   if(navigator.share){navigator.share({title:"הקו בזמן — רכבת "+t.no+" ("+fmtD(day)+")",url}).catch(()=>{});return;}
                   const tx=b.textContent;const done=()=>{b.textContent="✓ הועתק";setTimeout(()=>{b.textContent=tx;},1500);};
@@ -5134,7 +5082,7 @@ function App() {
   // כך ריענון מחזיר לאותו מקום ולא לעמוד הראשי (בקשת שלמה)
   const clearHashKeepTab = (t) => {
     const tt = typeof t === "string" ? t : tab;
-    history.replaceState(null, "", tt && tt !== "lines" ? "#t=" + tt : KB_HOME + location.search);
+    history.replaceState(null, "", tt && tt !== "lines" ? "#t=" + tt : location.pathname + location.search);
   };
   const backToList = (t) => {
     setRd(null);

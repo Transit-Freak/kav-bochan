@@ -2,19 +2,6 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <!-- דף קו פתוח מציג בשורת הכתובת את דף השיתוף שלו (‎/s/l-<מקט>.html#<מקט>‎), כדי
-       שהעתקה משורת הכתובת תיתן בוואטסאפ כרטיס עם שם הקו. לכן כל הנתיבים היחסיים
-       בדף נפתרים מול base קבוע של line-history/ ולא מול נתיב המסמך. -->
-  <script>
-    (function () {
-      var p = location.pathname, i = p.indexOf('/line-history');
-      var root = i >= 0 ? p.slice(0, i + 1) : p.replace(/s\/[^\/]*$/, '').replace(/[^\/]*$/, '');
-      window.KB_ROOT = root;
-      var b = document.createElement('base');
-      b.href = location.origin + root + 'line-history/';
-      document.head.appendChild(b);
-    })();
-  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1" /><script src="../home-link.js"></script>
   <title>הקו בזמן — היסטוריית מסלולים ותחנות</title>
   <!-- התיאור הזה הוא מה שמופיע כשמשתפים קישור לאתר, ולכן טווח השנים בו
@@ -55,7 +42,7 @@
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     if (window.KB_ONESIGNAL_APP_ID) {
       // שורש האתר: '/' בדומיין kavbochan.app, '/kav-bochan/' בכתובת הישנה ב-github.io
-      var kbRoot = window.KB_ROOT;
+      var kbRoot = location.pathname.replace(/line-history\/.*$/, '');
       OneSignalDeferred.push(async function (OneSignal) {
         await OneSignal.init({
           appId: window.KB_ONESIGNAL_APP_ID,
