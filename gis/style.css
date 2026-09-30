@@ -366,3 +366,7 @@ a.lb:hover { background: var(--acc); }
 .dsheet .dtitle { align-self: center; padding: 0 4px 3px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 .dgrid td.hot { color: #b91c1c; font-weight: 700; }
 .dgrid td.wrap { white-space: normal; min-width: 180px; }
+
+.hw { font-size: 11px; color: var(--mut); white-space: nowrap; }
+.hw.in { color: #15803d; font-weight: 700; }
+.ctl .btn.on { background: var(--acc); color: #fff; border-color: var(--acc); }
