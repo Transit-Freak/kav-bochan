@@ -29,7 +29,7 @@ def main():
             key=v['earlyPatternsFile']
             if key in checked:continue
             checked.add(key)
-            data=json.loads(gzip.decompress((OUT/'early-patterns'/(key+'.json.gz')).read_bytes()))
+            data=json.loads(gzip.decompress((OUT/'early-patterns'/key[:2]/(key+'.json.gz')).read_bytes()))
             for pattern in data:
                 assert len(pattern['stops'])==len(pattern['boarding'])
                 assert sum(len(s['departures']) for s in pattern['services'])==pattern['trips']

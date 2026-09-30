@@ -177,7 +177,7 @@ def publish(source, paths):
             kind='operator' if pm.get('op')!=meta['op'] else 'renum' if pm.get('line')!=meta['line'] else 'dest' if pm.get('dest')!=meta['dest'] else 'sched'
         payload=json.dumps(pattern_data,ensure_ascii=False,separators=(',',':')).encode()
         pattern_hash=hashlib.sha256(payload).hexdigest()
-        pattern_path=OUT/'early-patterns'/(pattern_hash+'.json.gz')
+        pattern_path=OUT/'early-patterns'/pattern_hash[:2]/(pattern_hash+'.json.gz')
         pattern_path.parent.mkdir(parents=True,exist_ok=True)
         if not pattern_path.exists():pattern_path.write_bytes(gzip.compress(payload,mtime=0))
         v={'d':date,'k':kind or 'snapshot','src':src,'stops':first['stops'],'shp':first['shp'],

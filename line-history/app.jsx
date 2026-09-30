@@ -1427,7 +1427,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
           const lf=materializeLf(await variantRead('data/lines/'+fsafe(s.rd)+'.json?v='+BUILD)),snapshot=variantSnapshot(lf,date,historical);
           let frequency=null;
           if(historical && snapshot){
-            try{const p=snapshot.earlyPatterns || (snapshot.earlyPatternsFile ? await variantRead('data/early-patterns/'+snapshot.earlyPatternsFile+'.json.gz',true) : null);frequency=variantFrequency(p,date||snapshot.d);}catch(e){/* Do not invent a frequency. */}
+            try{const p=snapshot.earlyPatterns || (snapshot.earlyPatternsFile ? await variantRead('data/early-patterns/'+snapshot.earlyPatternsFile.slice(0,2)+'/'+snapshot.earlyPatternsFile+'.json.gz',true) : null);frequency=variantFrequency(p,date||snapshot.d);}catch(e){/* Do not invent a frequency. */}
           }
           results[i]={...s,snapshot,frequency};
         }catch(e){results[i]={...s,snapshot:null,frequency:null};}
@@ -4817,7 +4817,7 @@ function EarlyMap({ stops, shp }) {
 // Reconstruct actual service dates so different calendar periods are never counted as simultaneous trips.
 function EarlyPatternLoader({ event }) {
   const [data,setData]=useState(null),[err,setErr]=useState("");
-  const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
+  const load=()=>{if(data)return;earlyGzip("data/early-patterns/"+event.earlyPatternsFile.slice(0,2)+"/"+event.earlyPatternsFile+".json.gz").then(setData).catch(e=>setErr(e.message));};
   return <details className="early-detail" onToggle={e=>{if(e.currentTarget.open)load();}}><summary>כל תבניות המסלול ולוחות היציאה ({event.earlyPatternCount})</summary>{err?<p role="alert">{err} <button onClick={load}>ניסיון חוזר</button></p>:data?<EarlyPatterns event={{...event,earlyPatterns:data}} />:<p>טוען…</p>}</details>;
 }
 function EarlyTripTimes({ pattern, service }) {

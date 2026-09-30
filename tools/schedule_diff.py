@@ -79,7 +79,7 @@ def archive_diff(before, after):
 def read_patterns(event, root):
     if 'earlyPatterns' in event:
         return event['earlyPatterns']
-    with gzip.open(Path(root) / 'early-patterns' / (event['earlyPatternsFile'] + '.json.gz'), 'rt') as f:
+    with gzip.open(Path(root) / 'early-patterns' / event['earlyPatternsFile'][:2] / (event['earlyPatternsFile'] + '.json.gz'), 'rt') as f:
         return json.load(f)
 
 def annotate_archive_schedule(event, previous, root):

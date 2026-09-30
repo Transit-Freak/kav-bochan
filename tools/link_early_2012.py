@@ -19,7 +19,7 @@ def main():
     for p in (OUT/'lines').glob('archive2012r*.json'):
         lf=materialize(read(p));patterns=[]
         for v in lf['versions']:
-            patterns.extend(v.get('earlyPatterns',[]) or (json.loads(gzip.decompress((OUT/'early-patterns'/(v['earlyPatternsFile']+'.json.gz')).read_bytes())) if v.get('earlyPatternsFile') else []))
+            patterns.extend(v.get('earlyPatterns',[]) or (json.loads(gzip.decompress((OUT/'early-patterns'/v['earlyPatternsFile'][:2]/(v['earlyPatternsFile']+'.json.gz')).read_bytes())) if v.get('earlyPatternsFile') else []))
         codes={s[0] for pat in patterns for s in pat['stops']}
         cand=[]
         for k,cs in old.get(str(lf['line']).lstrip('0'),[]):
