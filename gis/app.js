@@ -1355,6 +1355,7 @@ mc.addEventListener('pointerup', e => {
 map.on('click', e => {
   if (rsJust) return;
   if (SP.draw) { spClick(e.latlng); return; }
+  if (STR.draw) { strClick(e.latlng); return; }
   if (MODE === 'measure') { measureClick(e.latlng); return; }
   const add = e.originalEvent && (e.originalEvent.shiftKey || e.originalEvent.ctrlKey || e.originalEvent.metaKey);
   if (MODE === 'select') {
@@ -1628,6 +1629,51 @@ function hoodChart(hours) {
   hours.forEach((v, h) => { const x = W - (h + 1) * bw, bh = v / mx * (H - B - 8); s += `<rect x="${x + 1}" y="${H - B - bh}" width="${bw - 2}" height="${bh}" fill="#0ea5e9"><title>${h}:00 — ${v} נסיעות</title></rect>`; if (h % 3 === 0) s += `<text x="${x + bw / 2}" y="${H - 5}" font-size="9" fill="#64748b" text-anchor="middle">${h}</text>`; });
   return s + '</svg>';
 }
+// דוח תחנות משותף לפאנל השכונה ולתצוגת "לפי קטע רחוב": st = [[מק"ט, מרחק (0 = בתוך/על)]], tt — לוח הזמנים לתחנות.
+// o: {st, tt, bugs, rails, inLabel, where, title, sub, kpisFirst, kpisMid, onN, stLabel, stHead, foot, extraKpis}
+function stopsReport(o) {
+  const bi = busIndex(), st = o.st, codes = st.map(x => x[0]), dOf = {}; st.forEach(([c, d]) => { dOf[c] = d; });
+  // קווים: לכל מסלול — בכל שעה, המקסימום על פני התחנות שלו (נסיעה שעוברת בכמה תחנות נספרת פעם אחת)
+  const per = {}, dmin = {};
+  codes.forEach(c => (o.tt[c] || []).forEach(([ri, ...hrs]) => { const a = per[ri] || (per[ri] = new Array(24).fill(0)); hrs.forEach((v, k) => { if (v > a[k]) a[k] = v; }); dmin[ri] = Math.min(dmin[ri] == null ? 1e9 : dmin[ri], dOf[c]); }));
+  // קו פח: הציון ותווית הסטטוס כמו בכלי עצמו (getStatusTier מ-kavpach-core.js)
+  if (!KPSET && byId.kavpach.items) { KPSET = new Map(); byId.kavpach.items.forEach(it => String(it.p.makat || '').split(' ').forEach(m => m && KPSET.set(m, it.p.score))); }
+  const lines = Object.entries(per).map(([ri, hrs]) => { const R = ROUTES.routes[ri]; return {R, hrs, tot: hrs.reduce((a, b) => a + b, 0), kp: KPSET && KPSET.has(String(R[3])) ? KPSET.get(String(R[3])) : null, d: dmin[ri]}; })
+    .sort((a, b) => b.tot - a.tot || String(a.R[0]).localeCompare(String(b.R[0]), 'he', {numeric: true}));
+  const hours = new Array(24).fill(0); lines.forEach(x => x.hrs.forEach((v, k) => { hours[k] += v; }));
+  const trips = hours.reduce((a, b) => a + b, 0), day = hours.slice(7, 19).reduce((a, b) => a + b, 0) / 12;
+  let seen = 0, seenW = 0, n = 0, on = 0;
+  st.forEach(([c]) => { const j = bi[c]; if (j == null) return; const p = byId.bus.items[j].p; if (p.seen != null && p.n) { seen += p.seen * p.n; seenW += p.n; } if (p.n && p.on != null) { n += p.n; on += p.on / 100 * p.n; } });
+  const onPct = n ? 100 * on / n : null;
+  const kpLines = lines.filter(x => x.kp != null);
+  const kpTag = sc => { const t = typeof getStatusTier === 'function' ? getStatusTier(sc) : null; return `<span class="tag" title="ציון בקו פח">קו פח: ${t ? esc(t.label) + ' · ' : ''}ציון ${sc}</span>`; };
+  const how = d => d === 0 ? `<span class="hw in">${o.inLabel}</span>` : `<span class="hw">בטווח הליכה · ${num(d)} מ'</span>`;
+  const HRS = Array.from({length: 20}, (_, k) => (k + 5) % 24);
+  const kpi = ([v, t]) => `<div class="kpi"><b>${v}</b><span>${t}</span></div>`;
+  const html = `<h3>${esc(o.title)}</h3><div class="sub">${o.sub} · <button class="linkbtn" id="h-zoom">התקרבות</button></div>
+    <div class="kpis">${(o.kpisFirst || []).map(kpi).join('')}
+      ${kpi([onPct == null ? '—' : fmt1(onPct) + '%', `הגעות בזמן (30 יום, ${num(n)} מדידות)`])}
+      ${kpi([seenW ? Math.round(seen / seenW) + '%' : '—', 'נסיעות שנצפו מתוך המתוכנן (השאר — לא נצפו/לא בוצעו)'])}
+      ${(o.kpisMid || []).map(kpi).join('')}
+      ${kpi([num(st.length), o.stLabel])}${kpi([num(lines.length), 'קווים (מסלולים)'])}${kpi([num(trips), 'נסיעות ביום חול'])}${kpi([fmt1(day), 'נסיעות בשעה (07–19 בממוצע)'])}${(o.extraKpis || []).map(kpi).join('')}
+    </div>
+    <p class="hint">יום חול לדוגמה: ${esc(ROUTES.day || '')} (GTFS). נסיעה של קו שעוברת בכמה תחנות ${o.where} נספרת פעם אחת. איחור/הקדמה בפילוח לפי תחנה אינם זמינים — המדד לתחנה הוא אחוז בזמן והאיחור הממוצע.</p>
+    <h4>נסיעות לפי שעה</h4><div class="chart">${hoodChart(hours)}</div>
+    <h4>קו פח — קווים בזבזניים שעוברים כאן (${kpLines.length})</h4>
+    ${kpLines.length ? kpLines.map(x => `<b>${esc(x.R[0])}</b> ${esc(x.R[2])} · ${esc(String(x.R[1]).split('<->')[1] || '')} ${kpTag(x.kp)} ${how(x.d)}`).join('<br>') : '<p class="hint">אין.</p>'}
+    <h4>קו באג — קטעים חשודים ${o.where} (${o.bugs.length})</h4>
+    ${o.bugs.length ? o.bugs.slice(0, 20).map(b => `קו ${esc(b.p.line)} (${esc(b.p.operator)}) · ${esc(b.p.verdict)} · ${fmt1(b.p.excessKm)} ק"מ עודפים`).join('<br>') : '<p class="hint">אין.</p>'}
+    <h4>תחנות רכבת עד 800 מ'</h4>
+    ${o.rails.length ? o.rails.map(x => `${esc(x.p.name)} — ${num(x.d)} מ' · בזמן ${x.p.on == null ? '—' : fmt1(x.p.on) + '%'}`).join('<br>') : '<p class="hint">אין.</p>'}
+    <h4>לוח זמנים — נסיעות לפי קו ושעה</h4>
+    <div class="ttwrap"><table class="mini tt"><thead><tr><th>קו</th><th>מפעיל</th><th>יעד</th><th>איך משרת</th>${HRS.map(k => `<th>${k}</th>`).join('')}<th>סה"כ</th></tr></thead><tbody>
+    ${lines.map(x => `<tr><td><b>${esc(x.R[0])}</b>${x.kp != null ? ' ' + kpTag(x.kp) : ''}</td><td>${esc(x.R[2])}</td><td>${esc((String(x.R[1]).split('<->')[1] || '').replace(/-\d+#?$/, ''))}</td><td>${how(x.d)}</td>${HRS.map(k => `<td class="h${x.hrs[k] ? '' : ' h0'}">${x.hrs[k] || '·'}</td>`).join('')}<td><b>${x.tot}</b></td></tr>`).join('')}
+    </tbody></table></div>
+    <h4>${o.stHead}</h4><div class="ttwrap"><table class="mini"><thead><tr><th>תחנה</th><th>מרחק</th><th>בזמן</th><th>איחור</th><th>נסיעות</th></tr></thead><tbody>
+    ${st.map(([c, d]) => { const j = bi[c]; const p = j != null ? byId.bus.items[j].p : {name: c}; return `<tr data-c="${esc(c)}" style="cursor:pointer"><td>${esc(p.name)} <small class="mut">${esc(c)}</small></td><td>${d ? `בטווח הליכה · ${num(d)} מ'` : o.inLabel}</td><td>${p.on == null ? '—' : fmt1(p.on) + '%'}</td><td>${fmt1(p.avg)}</td><td>${num(p.tpd)}</td></tr>`; }).join('')}
+    </tbody></table></div>${o.foot || ''}`;
+  return {html, lines, hours, trips};
+}
 function renderHood() {
   const el = $('#hood'); if (!el || PANE !== 'analysis' || ANA !== 'hood') return;
   const ctl = `<div class="ctl"><input id="h-q" list="h-list" placeholder="בחירת שכונה (שם או יישוב)…" aria-label="בחירת שכונה"><datalist id="h-list"></datalist>
@@ -1646,54 +1692,16 @@ function renderHood() {
     const codes = st.map(s => s[0]), dOf = {}; st.forEach(([c, d]) => { dOf[c] = d; });
     return ttLoad(codes).then(tt => {
       if (HOOD !== h.p.i || PANE !== 'analysis' || ANA !== 'hood') return;
-      const bi = busIndex();
-      // קווים: לכל מסלול — בכל שעה, המקסימום על פני התחנות שלו בשכונה (נסיעה שעוברת בכמה תחנות נספרת פעם אחת)
-      const per = {}, dmin = {};
-      codes.forEach(c => (tt[c] || []).forEach(([ri, ...hrs]) => { const a = per[ri] || (per[ri] = new Array(24).fill(0)); hrs.forEach((v, k) => { if (v > a[k]) a[k] = v; }); dmin[ri] = Math.min(dmin[ri] == null ? 1e9 : dmin[ri], dOf[c]); }));
-      // קו פח: הציון ותווית הסטטוס כמו בכלי עצמו (getStatusTier מ-kavpach-core.js)
-      if (!KPSET && byId.kavpach.items) { KPSET = new Map(); byId.kavpach.items.forEach(it => String(it.p.makat || '').split(' ').forEach(m => m && KPSET.set(m, it.p.score))); }
-      const lines = Object.entries(per).map(([ri, hrs]) => { const R = ROUTES.routes[ri]; return {R, hrs, tot: hrs.reduce((a, b) => a + b, 0), kp: KPSET && KPSET.has(String(R[3])) ? KPSET.get(String(R[3])) : null, d: dmin[ri]}; })
-        .sort((a, b) => b.tot - a.tot || String(a.R[0]).localeCompare(String(b.R[0]), 'he', {numeric: true}));
-      const hours = new Array(24).fill(0); lines.forEach(x => x.hrs.forEach((v, k) => { hours[k] += v; }));
-      const trips = hours.reduce((a, b) => a + b, 0);
-      const day = hours.slice(7, 19).reduce((a, b) => a + b, 0) / 12;
+      const hb = bbOf(h), inPoly = ll => { try { return hb.contains(ll) && pip(ll, h.f.geometry); } catch (e) { return false; } };
       // קו באג: נקודת ההתחלה של הקטע בתוך השכונה
-      const hb = bbOf(h);
-      const inPoly = ll => { try { return hb.contains(ll) && pip(ll, h.f.geometry); } catch (e) { return false; } };
       const bugs = (byId.kavbug.items || []).filter(it => { const c = it.f.geometry.type === 'Point' ? it.f.geometry.coordinates : it.f.geometry.coordinates[0]; return inPoly([c[1], c[0]]); });
       const rails = (LINK.rail[HOOD] || []).map(([c, d]) => { const it = (byId.rail.items || []).find(x => String(x.p.code) === String(c)); return it ? {p: it.p, d} : null; }).filter(Boolean);
-      let seen = 0, seenW = 0; st.forEach(([c]) => { const j = bi[c]; if (j != null) { const p = byId.bus.items[j].p; if (p.seen != null && p.n) { seen += p.seen * p.n; seenW += p.n; } } });
-      const kpLines = lines.filter(x => x.kp != null);
-      const kpTag = sc => { const t = typeof getStatusTier === 'function' ? getStatusTier(sc) : null; return `<span class="tag" title="ציון בקו פח">קו פח: ${t ? esc(t.label) + ' · ' : ''}ציון ${sc}</span>`; };
-      const how = d => d === 0 ? '<span class="hw in">בתוך השכונה</span>' : `<span class="hw">בטווח הליכה · ${num(d)} מ'</span>`;
-      const HRS = Array.from({length: 20}, (_, k) => (k + 5) % 24);
-      el.innerHTML = ctl + `<h3>${esc(h.p.name)}</h3><div class="sub">${esc(h.p.city || '')} · ${fmt1(h.p.km2)} קמ"ר · ${HMODE === 'walk' ? `כולל תחנות בטווח הליכה של ${RADIUS} מ'` : 'רק תחנות בתוך השכונה'} · ${NT.net ? 'מרחקי הליכה לפי רשת הרחובות והשבילים (OSM)' : WALK_FALLBACK} · <button class="linkbtn" id="h-zoom">התקרבות</button></div>
-        <div class="kpis">
-          <div class="kpi"><b>${r.score == null ? '—' : r.score}</b><span>ציון השכונה (0–100)</span></div>
-          <div class="kpi"><b>${r.onPct == null ? '—' : fmt1(r.onPct) + '%'}</b><span>הגעות בזמן (30 יום, ${num(r.n)} מדידות)</span></div>
-          <div class="kpi"><b>${seenW ? Math.round(seen / seenW) + '%' : '—'}</b><span>נסיעות שנצפו מתוך המתוכנן (השאר — לא נצפו/לא בוצעו)</span></div>
-          <div class="kpi"><b>${r.cov == null ? '—' : r.cov + '%'}</b><span>משטח השכונה בטווח ${covR()} מ' מתחנה${HMODE === 'walk' ? '' : ' שבתוכה'}</span></div>
-          <div class="kpi"><b>${num(st.length)}</b><span>${HMODE === 'walk' ? 'תחנות בשכונה ובטווח' : 'תחנות בתוך השכונה'}</span></div>
-          <div class="kpi"><b>${num(lines.length)}</b><span>קווים (מסלולים)</span></div>
-          <div class="kpi"><b>${num(trips)}</b><span>נסיעות ביום חול</span></div>
-          <div class="kpi"><b>${fmt1(day)}</b><span>נסיעות בשעה (07–19 בממוצע)</span></div>
-        </div>
-        <p class="hint">יום חול לדוגמה: ${esc(ROUTES.day || '')} (GTFS). נסיעה של קו שעוברת בכמה תחנות בשכונה נספרת פעם אחת. איחור/הקדמה בפילוח לפי תחנה אינם זמינים — המדד לתחנה הוא אחוז בזמן והאיחור הממוצע.</p>
-        <h4>נסיעות לפי שעה</h4><div class="chart">${hoodChart(hours)}</div>
-        <h4>קו פח — קווים בזבזניים שעוברים כאן (${kpLines.length})</h4>
-        ${kpLines.length ? kpLines.map(x => `<b>${esc(x.R[0])}</b> ${esc(x.R[2])} · ${esc(String(x.R[1]).split('<->')[1] || '')} ${kpTag(x.kp)} ${how(x.d)}`).join('<br>') : '<p class="hint">אין.</p>'}
-        <h4>קו באג — קטעים חשודים בשכונה (${bugs.length})</h4>
-        ${bugs.length ? bugs.slice(0, 20).map(b => `קו ${esc(b.p.line)} (${esc(b.p.operator)}) · ${esc(b.p.verdict)} · ${fmt1(b.p.excessKm)} ק"מ עודפים`).join('<br>') : '<p class="hint">אין.</p>'}
-        <h4>תחנות רכבת עד 800 מ'</h4>
-        ${rails.length ? rails.map(x => `${esc(x.p.name)} — ${num(x.d)} מ' · בזמן ${x.p.on == null ? '—' : fmt1(x.p.on) + '%'}`).join('<br>') : '<p class="hint">אין.</p>'}
-        <h4>לוח זמנים לשכונה — נסיעות לפי קו ושעה</h4>
-        <div class="ttwrap"><table class="mini tt"><thead><tr><th>קו</th><th>מפעיל</th><th>יעד</th><th>איך משרת</th>${HRS.map(k => `<th>${k}</th>`).join('')}<th>סה"כ</th></tr></thead><tbody>
-        ${lines.map(x => `<tr><td><b>${esc(x.R[0])}</b>${x.kp != null ? ' ' + kpTag(x.kp) : ''}</td><td>${esc(x.R[2])}</td><td>${esc((String(x.R[1]).split('<->')[1] || '').replace(/-\d+#?$/, ''))}</td><td>${how(x.d)}</td>${HRS.map(k => `<td class="h${x.hrs[k] ? '' : ' h0'}">${x.hrs[k] || '·'}</td>`).join('')}<td><b>${x.tot}</b></td></tr>`).join('')}
-        </tbody></table></div>
-        <h4>${HMODE === 'walk' ? 'התחנות בשכונה ובטווח ההליכה' : 'התחנות בתוך השכונה'}</h4><div class="ttwrap"><table class="mini"><thead><tr><th>תחנה</th><th>מרחק</th><th>בזמן</th><th>איחור</th><th>נסיעות</th></tr></thead><tbody>
-        ${st.map(([c, d]) => { const j = bi[c]; const p = j != null ? byId.bus.items[j].p : {name: c}; return `<tr data-c="${esc(c)}" style="cursor:pointer"><td>${esc(p.name)} <small class="mut">${esc(c)}</small></td><td>${d ? `בטווח הליכה · ${num(d)} מ'` : 'בתוך השכונה'}</td><td>${p.on == null ? '—' : fmt1(p.on) + '%'}</td><td>${fmt1(p.avg)}</td><td>${num(p.tpd)}</td></tr>`; }).join('')}
-        </tbody></table></div>
-        <p class="hint">${SCORE_TXT()}</p><p class="hint">${hoodSourceNote()}</p>`;
+      el.innerHTML = ctl + stopsReport({st, tt, bugs, rails, inLabel: 'בתוך השכונה', where: 'בשכונה',
+        title: h.p.name, sub: `${esc(h.p.city || '')} · ${fmt1(h.p.km2)} קמ"ר · ${HMODE === 'walk' ? `כולל תחנות בטווח הליכה של ${RADIUS} מ'` : 'רק תחנות בתוך השכונה'} · ${NT.net ? 'מרחקי הליכה לפי רשת הרחובות והשבילים (OSM)' : WALK_FALLBACK}`,
+        kpisFirst: [[r.score == null ? '—' : r.score, 'ציון השכונה (0–100)']], onN: r.n,
+        kpisMid: [[r.cov == null ? '—' : r.cov + '%', `משטח השכונה בטווח ${covR()} מ' מתחנה${HMODE === 'walk' ? '' : ' שבתוכה'}`]],
+        stLabel: HMODE === 'walk' ? 'תחנות בשכונה ובטווח' : 'תחנות בתוך השכונה', stHead: HMODE === 'walk' ? 'התחנות בשכונה ובטווח ההליכה' : 'התחנות בתוך השכונה',
+        foot: `<p class="hint">${SCORE_TXT()}</p><p class="hint">${hoodSourceNote()}</p>`}).html;
       wireHoodCtl();
       $('#h-zoom').onclick = () => { if (hoodHi) map.fitBounds(hoodHi.getBounds(), {padding: [30, 30]}); };
       $$('#hood tr[data-c]').forEach(tr => { tr.onclick = () => { const j = busIndex()[tr.dataset.c]; if (j != null) zoomItem(byId.bus, j); }; });
@@ -2058,6 +2066,7 @@ function renderAnalysis() {
   $$('.atabs [data-ana]').forEach(b => { b.classList.toggle('on', b.dataset.ana === ANA); b.setAttribute('aria-selected', b.dataset.ana === ANA); });
   $$('[data-ana-pane]').forEach(p => { p.hidden = p.dataset.anaPane !== ANA; });
   if (ANA !== 'sp') spStopDraw();
+  if (ANA !== 'st') { strStopDraw(); strG.clearLayers(); }
   if (ANA !== 'line') lvG.clearLayers();
   if (ANA !== 'stop') svG.clearLayers();
   if (ANA !== 'fut') { futG.clearLayers(); futHide(false); }
@@ -2065,6 +2074,7 @@ function renderAnalysis() {
   else if (ANA === 'line') renderLineView();
   else if (ANA === 'fut') renderFuture();
   else if (ANA === 'sp') renderSpatial();
+  else if (ANA === 'st') renderStreet();
   else renderStopView();
 }
 $('.atabs').addEventListener('click', e => { const b = e.target.closest('[data-ana]'); if (b) { ANA = b.dataset.ana; renderAnalysis(); } });
@@ -2462,6 +2472,135 @@ function wnCoverTest(dists, d) {
     for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const L0 = g.get(key(a + i, b + j)); if (!L0) continue;
       for (const [u, du] of L0) { const s = mDist(p, [WN.lat[u], WN.lon[u]]); if (s <= 60 && du + s <= d) return true; } } return false; };
 }
+
+// ---------------------------------------------------------------- לפי קטע רחוב: אותו ניתוח כמו לשכונה, לתחנות שעל קטע רחוב
+// הרחובות — משמות הדרכים ב-OSM (data/walk/streets.json והמשבצות, tools/gis_walknet.py). בלי הרשת — ציור קו לאורך הרחוב.
+const STR = {city: '', name: '', chain: null, cross: [], from: 0, to: null, seg: null, walk: false, draw: false, pts: [], near: 30, label: ''};
+const strG = L.layerGroup().addTo(map);
+let STREETS;
+const streetsIdx = () => STREETS !== undefined ? Promise.resolve(STREETS) : load('data/walk/streets.json').then(d => (STREETS = d), () => (STREETS = null));
+function strStopDraw() { if (STR.draw) { STR.draw = false; map.doubleClickZoom.enable(); map.getContainer().style.cursor = ''; } }
+function lineLen(L0) { let d = 0; for (let i = 1; i < L0.length; i++) d += mDist(L0[i - 1], L0[i]); return d; }
+function distToLine(p, L0) {
+  const kx = Math.cos(p[0] * Math.PI / 180) * 111320, ky = 110574; let best = Infinity;
+  for (let i = 1; i < L0.length; i++) {
+    const ax = (L0[i - 1][1] - p[1]) * kx, ay = (L0[i - 1][0] - p[0]) * ky, bx = (L0[i][1] - p[1]) * kx, by = (L0[i][0] - p[0]) * ky;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best;
+}
+// החלקים של רחוב בשם הזה במשבצות, מחוברים לשרשרת (הארוכה ביותר) + רחובות חוצים לפי המיקום לאורכה
+function strLoad(city, name) {
+  return streetsIdx().then(S => {
+    const ks = S && S[city] && S[city][name]; if (!ks) return null;
+    const bb = (byId.hoods.items || []).filter(h => h.p.city === city).reduce((m, h) => m ? m.extend(bbOf(h)) : L.latLngBounds(bbOf(h).getSouthWest(), bbOf(h).getNorthEast()), null);
+    return Promise.all(ks.map(wnTile)).then(Ts => {
+      const pieces = [], other = [];
+      Ts.forEach(T => { if (!T) return; const P = i => [T.n[2 * i] / 1e5, T.n[2 * i + 1] / 1e5];
+        T.s.forEach(([nm, idx]) => { const pts = idx.map(P); if (bb && !pts.some(q => bb.pad(0.05).contains(q))) return; (nm === name ? pieces : other).push({nm, pts}); }); });
+      if (!pieces.length) return null;
+      // חיבור חלקים לפי נקודות קצה משותפות
+      const k = q => q[0].toFixed(5) + ',' + q[1].toFixed(5), used = new Set(); let best = null;
+      pieces.forEach((pc, i0) => {
+        if (used.has(i0)) return; used.add(i0); let ch = pc.pts.slice(), grew = true;
+        while (grew) { grew = false;
+          pieces.forEach((q, i) => { if (used.has(i)) return; const a = q.pts, e0 = k(ch[0]), e1 = k(ch[ch.length - 1]);
+            if (k(a[0]) === e1) ch = ch.concat(a.slice(1)); else if (k(a[a.length - 1]) === e1) ch = ch.concat(a.slice(0, -1).reverse());
+            else if (k(a[a.length - 1]) === e0) ch = a.slice(0, -1).concat(ch); else if (k(a[0]) === e0) ch = a.slice(1).reverse().concat(ch); else return;
+            used.add(i); grew = true; }); }
+        if (!best || lineLen(ch) > lineLen(best)) best = ch; });
+      // רחובות חוצים: צומת משותף עם השרשרת
+      const pos = new Map(); let acc = 0; best.forEach((q, i) => { if (i) acc += mDist(best[i - 1], q); pos.set(k(q), [i, acc]); });
+      const cross = new Map();
+      other.forEach(o => o.pts.forEach(q => { const hit = pos.get(k(q)); if (hit && !cross.has(o.nm + '|' + hit[0])) cross.set(o.nm + '|' + hit[0], {nm: o.nm, i: hit[0], at: hit[1]}); }));
+      const cr = [...cross.values()].sort((a, b) => a.at - b.at).filter((c, j, A) => !j || c.nm !== A[j - 1].nm || c.at - A[j - 1].at > 30);
+      return {chain: best, cross: cr};
+    });
+  });
+}
+function strSeg() {
+  if (!STR.chain) return STR.seg;
+  const a = STR.from || 0, b = STR.to == null ? STR.chain.length - 1 : STR.to;
+  return STR.chain.slice(Math.min(a, b), Math.max(a, b) + 1);
+}
+function strClick(ll) {
+  STR.pts.push([ll.lat, ll.lng]);
+  strG.clearLayers(); strG.addLayer(L.polyline(STR.pts, {color: '#db2777', weight: 4, dashArray: '5 5'}));
+  STR.pts.forEach(q => strG.addLayer(L.circleMarker(q, {radius: 4, color: '#db2777', fillColor: '#fff', fillOpacity: 1})));
+  renderStreet(true);
+}
+function strFinish() { if (STR.pts.length > 1) { STR.seg = STR.pts.slice(); STR.chain = null; STR.label = 'קו שצויר על המפה'; } strStopDraw(); STR.pts = []; renderStreet(); }
+map.on('dblclick', () => { if (STR.draw) strFinish(); });
+function renderStreet(ctlOnly) {
+  const el = $('#strview'); if (PANE !== 'analysis' || ANA !== 'st') return;
+  if (STREETS === undefined || WN.meta === undefined) { Promise.all([streetsIdx(), wnMeta(), ensure('hoods').catch(() => null)]).then(() => renderStreet()); el.innerHTML = '<div class="note">טוען…</div>'; return; }
+  const cities = STREETS ? Object.keys(STREETS).sort((a, b) => a.localeCompare(b, 'he')) : [];
+  const names = STREETS && STR.city && STREETS[STR.city] ? Object.keys(STREETS[STR.city]) : [];
+  const cr = STR.cross || [];
+  const ctl = `<div class="sec">${STREETS ? `<div class="row"><span>יישוב</span><input class="fld" id="st-city" list="st-cities" value="${esc(STR.city)}" placeholder="בחירת יישוב…" style="flex:1"><datalist id="st-cities">${cities.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
+    <div class="row"><span>רחוב</span><input class="fld" id="st-name" list="st-names" value="${esc(STR.name)}" placeholder="שם הרחוב…" style="flex:1"${STR.city ? '' : ' disabled'}><datalist id="st-names">${names.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
+    ${STR.chain && cr.length ? `<div class="row"><span>מ-</span><select class="fld" id="st-from"><option value="0">תחילת הרחוב</option>${cr.map(c => `<option value="${c.i}"${c.i === STR.from ? ' selected' : ''}>${esc(c.nm)}</option>`).join('')}</select></div>
+    <div class="row"><span>עד</span><select class="fld" id="st-to"><option value="">סוף הרחוב</option>${cr.map(c => `<option value="${c.i}"${c.i === STR.to ? ' selected' : ''}>${esc(c.nm)}</option>`).join('')}</select></div>` : ''}`
+    : `<p class="hint">רשימת הרחובות (משמות הדרכים ב-OpenStreetMap) תהיה זמינה אחרי בניית רשת ההליכה בריצה הבאה של gis-layers. בינתיים — מציירים קו לאורך הרחוב.</p>`}
+    <div class="row"><button class="btn" id="st-draw">${STR.draw ? `מציירים… ${STR.pts.length} נקודות` : 'ציור קו לאורך רחוב'}</button>${STR.draw ? ' <button class="btn" id="st-fin">סיום</button>' : ''}</div>
+    <div class="row"><span>תחנות על הקטע — עד</span><input class="fld" type="number" id="st-near" min="10" max="100" step="5" value="${STR.near}" style="width:64px"> מ' מהקו</div>
+    <button class="btn${STR.walk ? ' on' : ''}" id="st-walk" aria-pressed="${STR.walk}">כולל תחנות בטווח הליכה מהקטע</button>
+    ${STR.walk ? `<label>טווח הליכה <select id="st-r">${RADII.map(r => `<option value="${r}"${r === RADIUS ? ' selected' : ''}>${r} מ'</option>`).join('')}</select></label>` : ''}</div>`;
+  if (ctlOnly) { el.innerHTML = ctl; return; }
+  const seg = strSeg();
+  if (!seg || seg.length < 2) { strG.clearLayers(); el.innerHTML = ctl + '<p class="hint">בוחרים יישוב ורחוב (ואפשר גם קטע: מרחוב חוצה עד רחוב חוצה), או מציירים קו לאורך רחוב. הניתוח — כמו לשכונה: דיוק, קווים, תדירות לפי שעה, לוח זמנים, קו פח, קו באג ותחנות רכבת.</p>'; return; }
+  el.innerHTML = ctl + '<div class="note">מחשב…</div>';
+  strG.clearLayers();
+  strG.addLayer(L.polyline(seg, {color: '#fff', weight: 11, opacity: 0.9, interactive: false}));
+  strG.addLayer(L.polyline(seg, {color: '#db2777', weight: 6, opacity: 1, interactive: false}));
+  const SB = L.latLngBounds(seg); map.fitBounds(SB, {paddingTopLeft: [30, 30], paddingBottomRight: [30, 30 + (isMobile() ? $('#pane').offsetHeight : 0)], maxZoom: 17});
+  Promise.all([ensure('bus'), loadLink(), ensure('kavpach').catch(() => null), ensure('kavbug').catch(() => null), ensure('rail').catch(() => null)]).then(() => {
+    const near = STR.near, R0 = STR.walk ? RADIUS : 0, pad = SB.pad(0.02 + (R0 + near) / 111000 / Math.max(1e-4, SB.getNorth() - SB.getSouth()));
+    const bi = busIndex(), cand = byId.bus.items.filter(it => pad.contains(it.ll)).map(it => [it, distToLine(it.ll, seg)]).filter(([, d]) => d <= near + R0 + 5);
+    const onSeg = cand.filter(([, d]) => d <= near).map(([it]) => [it.p.code, 0]);
+    const outs = cand.filter(([, d]) => d > near);
+    const netP = STR.walk && wnHave() && outs.length ? wnLoadAround(outs.map(([it]) => it.ll).concat([seg[0], seg[seg.length - 1]]), R0 + 100).then(() => {
+      return outs.map(([it]) => { const D = wnReach(it.ll, R0); let best = null; D.forEach((du, u) => { if ((best == null || du < best) && distToLine([WN.lat[u], WN.lon[u]], seg) <= near) best = du; }); return best == null ? null : [it.p.code, Math.max(1, Math.round(best))]; }).filter(Boolean); })
+      : Promise.resolve(outs.filter(([, d]) => d <= near + R0).map(([it, d]) => [it.p.code, Math.max(1, Math.round(d - near))]));
+    return netP.then(walkSt => {
+      const st = onSeg.concat(STR.walk ? walkSt : []).sort((a, b) => a[1] - b[1]);
+      return ttLoad(st.map(x => x[0])).then(tt => {
+        if (ANA !== 'st') return;
+        const bugs = (byId.kavbug.items || []).filter(it => { let hit = false; eachCoord(it.f.geometry, (x, y) => { if (!hit && SB.pad(0.1).contains([y, x]) && distToLine([y, x], seg) <= near) hit = true; }); return hit; });
+        const rails = (byId.rail.items || []).map(it => ({p: it.p, d: Math.round(distToLine(it.ll, seg))})).filter(x => x.d <= 800).sort((a, b) => a.d - b.d);
+        st.forEach(([c]) => { const j = bi[c]; if (j != null) strG.addLayer(L.circleMarker(byId.bus.items[j].ll, {radius: 5, color: '#fff', weight: 1.5, fillColor: '#db2777', fillOpacity: 1, interactive: false})); });
+        const len = lineLen(seg);
+        const rep = stopsReport({st, tt, bugs, rails, inLabel: 'על הקטע', where: 'ברחוב',
+          title: STR.chain ? `${STR.name}${STR.from || STR.to != null ? ' — קטע' : ''}` : STR.label || 'קטע רחוב',
+          sub: `${esc(STR.city || '')}${STR.chain && (STR.from || STR.to != null) ? ` · ${esc((STR.cross.find(c => c.i === STR.from) || {nm: 'תחילת הרחוב'}).nm)} עד ${esc((STR.cross.find(c => c.i === STR.to) || {nm: 'סוף הרחוב'}).nm)}` : ''} · תחנות עד ${near} מ' מהקטע${STR.walk ? ` + בטווח הליכה של ${RADIUS} מ' (${wnHave() ? 'ברשת הרחובות' : WALK_FALLBACK})` : ''}`,
+          kpisMid: [[len >= 1000 ? fmt1(len / 1000) + ' ק"מ' : num(Math.round(len)) + " מ'", 'אורך הקטע']],
+          stLabel: STR.walk ? 'תחנות על הקטע ובטווח' : 'תחנות על הקטע', stHead: STR.walk ? 'התחנות על הקטע ובטווח ההליכה' : 'התחנות על הקטע',
+          foot: `<p class="hint">"על הקטע" — תחנה עד ${near} מ' מקו הרחוב. ${STR.chain ? 'שם הרחוב והקו שלו — מ-OpenStreetMap (© תורמי OpenStreetMap, ODbL).' : ''}</p>`});
+        const peak = Math.max(...rep.hours);
+        el.innerHTML = ctl + rep.html.replace('<div class="kpis">', `<div class="kpis"><div class="kpi"><b>${peak ? num(peak) : '—'}</b><span>נסיעות בשעת השיא ברחוב${peak ? ` (${rep.hours.indexOf(peak)}:00)` : ''}</span></div>`);
+        const z = $('#h-zoom'); if (z) z.onclick = () => map.fitBounds(SB, {padding: [30, 30]});
+        $$('#strview tr[data-c]').forEach(tr => { tr.onclick = () => { const j = busIndex()[tr.dataset.c]; if (j != null) zoomItem(byId.bus, j); }; });
+      });
+    });
+  }).catch(e => { console.warn(e); el.innerHTML = ctl + `<div class="note warn">הנתונים לא זמינים כרגע.</div>`; });
+}
+$('#strview').addEventListener('click', e => {
+  const t = e.target;
+  if (t.id === 'st-draw') { STR.pts = []; STR.draw = true; map.doubleClickZoom.disable(); map.getContainer().style.cursor = 'crosshair'; closeIdent(); if (isMobile()) $('#pane').style.height = '34vh'; renderStreet(true); }
+  else if (t.id === 'st-fin') strFinish();
+  else if (t.id === 'st-walk') { STR.walk = !STR.walk; renderStreet(); }
+});
+$('#strview').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'st-city') { STR.city = t.value.trim(); STR.name = ''; STR.chain = null; renderStreet(); }
+  else if (t.id === 'st-name') { STR.name = t.value.trim(); STR.from = 0; STR.to = null; $('#strview').insertAdjacentHTML('beforeend', '<div class="note">טוען את הרחוב…</div>');
+    strLoad(STR.city, STR.name).then(r => { if (!r) { STR.chain = null; msg('הרחוב לא נמצא ברשת'); renderStreet(); return; } STR.chain = r.chain; STR.cross = r.cross; STR.seg = null; renderStreet(); }); }
+  else if (t.id === 'st-from') { STR.from = +t.value; renderStreet(); }
+  else if (t.id === 'st-to') { STR.to = t.value === '' ? null : +t.value; renderStreet(); }
+  else if (t.id === 'st-near') { STR.near = Math.max(10, Math.min(100, +t.value || 30)); renderStreet(); }
+  else if (t.id === 'st-r') { RADIUS = +t.value; lsSet('gis.radius', RADIUS); renderStreet(); }
+});
 
 // ---------------------------------------------------------------- ניתוח מרחבי חופשי
 // אזור: מלבן / פוליגון / מעגל שמציירים, פוליגון קיים (שכונה, עיר, אזור תעשייה), או חיץ סביב שכבה.
