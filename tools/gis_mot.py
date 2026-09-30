@@ -172,6 +172,35 @@ def download(url, dest, ds_name=None):
     return False
 
 
+def api_csv(res, dest):
+    """משאב CSV שנטען ל-datastore של data.gov.il — קוראים אותו דרך ה-API (לא חסום, כמו צי
+    הרכבים), כותבים CSV מקומי, ומשם אותה המרה של קואורדינטות לנקודות (X/Y או LAT/LON)."""
+    if not res.get('datastore_active'):
+        return False
+    rows, fields, off = [], None, 0
+    while True:
+        r = get_json(API + 'datastore_search?' + urllib.parse.urlencode({'resource_id': res['id'], 'limit': 32000, 'offset': off}))
+        if not r:
+            return False
+        r = r.get('result') or {}
+        if fields is None:
+            fields = [f['id'] for f in r.get('fields', []) if f['id'] != '_id']
+        recs = r.get('records') or []
+        rows += recs
+        off += len(recs)
+        if not recs or off >= (r.get('total') or 0):
+            break
+    if not rows:
+        return False
+    with open(dest, 'w', encoding='utf-8', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction='ignore')
+        w.writeheader()
+        for x in rows:
+            w.writerow(x)
+    print(f'   דרך ה-API: {len(rows)} שורות')
+    return True
+
+
 def classify(name, title, notes=''):
     txt = f'{name} {title}'
     group = 'תכניות עתידיות' if FUTURE.search(txt) else 'מצב קיים'
@@ -286,8 +315,8 @@ def geojson_stats(path):
     return len(feats), geom, fields, d
 
 
-COORD_X = re.compile(r'^(lon|lng|long|longitude|x|x_itm|itm_x|coord_x|אורך|קו_אורך|נ\.צ\. ?x)$', re.I)
-COORD_Y = re.compile(r'^(lat|latitude|y|y_itm|itm_y|coord_y|רוחב|קו_רוחב|נ\.צ\. ?y)$', re.I)
+COORD_X = re.compile(r'^(lon|lng|long|longitude|lon_start|long_start|x|x_itm|itm_x|coord_x|אורך|קו_אורך|נ\.צ\. ?x)$', re.I)
+COORD_Y = re.compile(r'^(lat|latitude|lat_start|y|y_itm|itm_y|coord_y|רוחב|קו_רוחב|נ\.צ\. ?y)$', re.I)
 
 
 def csv_to_geojson(path, dest):
@@ -362,20 +391,26 @@ def process_dataset(ds, work, prev):
     base = {'dataset': name, 'datasetTitle': title, 'group': group, 'topic': topic,
             'source': f'https://data.gov.il/dataset/{name}', 'modified': (ds.get('metadata_modified') or '')[:19]}
     out, why = [], None
-    cands = geo or csvs
+    # קבצי מפה קודם; אם לא ירדו — טבלאות CSV (דרך ה-API) עם קואורדינטות
+    cands = geo + [c for c in csvs if c not in geo]
     if not cands:
         fm = sorted({(r.get('format') or '?').upper() for r in res})
         return [], f'אין משאב גאוגרפי ({",".join(fm) or "אין משאבים"})'
     for r in cands:
         url = r.get('url') or ''
-        if not url:
+        if not url or (out and r in csvs and r not in geo):
             continue
         rtitle = r.get('name') or r.get('description') or ''
         ext = os.path.splitext(urllib.parse.urlparse(url).path)[1].lower() or '.' + (r.get('format') or 'bin').lower()
         d = tempfile.mkdtemp(dir=work)
         f = os.path.join(d, 'src' + ext)
         print(f'  ↓ {url}')
-        if not download(url, f, name):
+        # קודם קובץ ידני / הורדה; משאב CSV שב-datastore — דרך ה-API (שלמה 30.09: "כל פעם
+        # שנכנסים לאתר ממשלתי — דרך API")
+        got = download(url, f, name)
+        if not got and ext == '.csv':
+            got = api_csv(r, f)
+        if not got:
             why = 'ההורדה נכשלה'
             continue
         srcs = []   # (path, layer, label)
@@ -407,7 +442,7 @@ def process_dataset(ds, work, prev):
         if not srcs:
             why = 'אין קובץ גאוגרפי בתוך המשאב'
             continue
-        multi = len(srcs) > 1 or len(cands) > 1
+        multi = len(srcs) > 1 or len(geo or csvs) > 1
         for path, lay, label in srcs:
             lid = safe(name) + ('__' + safe(label) if multi else '')
             dest = os.path.join(OUTD, lid + '.geojson')
