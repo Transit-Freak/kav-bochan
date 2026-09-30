@@ -2792,8 +2792,9 @@ Promise.all([load('data/catalog.json').then(addCatalog).catch(() => { CATALOG = 
   renderTree(); renderLyrTop();
   const m = location.hash.match(/^#(\d+)\/([\d.]+)\/([\d.]+)/);
   if (m) map.setView([+m[2], +m[3]], +m[1]);
-  let on = null; try { on = JSON.parse(lsGet('gis.on', 'null')); } catch (e) {}
-  (on && on.length ? on : ['terminals', 'rail']).forEach(id => { if (byId[id]) setVisible(byId[id], true); });
+  // בכל כניסה מתחילים משתי שכבות קלות בלבד. שחזור השכבות מהביקור הקודם הדליק
+  // לפעמים עשרות שכבות כבדות יחד והדף נתקע (שלמה 30.09: "זה מפעיל את כל השכבות לבד")
+  ['terminals', 'rail'].forEach(id => { if (byId[id]) setVisible(byId[id], true); });
   if (isMobile()) closePane(); else openPane('layers');
   syncOv(); showView(); showCoord(map.getCenter());
 });
