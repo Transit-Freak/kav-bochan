@@ -2204,7 +2204,7 @@ function renderStopView() {
   if (!(HMETA && SV.iso === HMETA.d2012)) SV.iso = isoOf(cur);
   el.innerHTML = `<div class="sec"><div class="lvh"><span class="lb big">🚏</span><div><b>${esc(SV.name)}</b><div class="mut">מק"ט ${esc(SV.code)} · <a href="../line-history/#stop=${encodeURIComponent(SV.code)}" target="_blank" rel="noopener">כל ההיסטוריה של התחנה ↗</a></div></div></div></div>
     <div class="sec"><h5>הזזת תאריך: <b id="sv-d">${fmtD(SV.iso)}</b></h5><input type="range" id="sv-r" min="${lo}" max="${hi}" step="1" value="${cur}" style="width:100%" aria-label="הזזת תאריך">
-    <div class="row" style="display:flex;justify-content:space-between" class="mut"><small class="mut">${fmtD(isoOf(lo))}</small><small class="mut">${hi > dayOf(todayIso()) ? fmtD(isoOf(hi)) + ' (עתידי — לפי התוכניות שפורסמו)' : 'היום'}</small></div>
+    <div style="display:flex;justify-content:space-between;gap:10px;margin:2px 0 6px"><small class="mut">${fmtD(isoOf(lo))}</small><small class="mut">${hi > dayOf(todayIso()) ? fmtD(isoOf(hi)) + ' (עתידי — לפי התוכניות שפורסמו)' : 'היום'}</small></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button class="btn" data-j="-365">‹ שנה</button><button class="btn" data-j="-30">‹ חודש</button><button class="btn" data-j="30">חודש ›</button><button class="btn" data-j="365">שנה ›</button>${HMETA ? `<button class="btn" data-j="2012">2012</button>` : ''}</div>
     <div class="mut" style="margin-top:4px">${histRangeTxt()}</div></div><div class="sec" id="sv-out"><div class="note">טוען…</div></div>`;
   svUpdate();

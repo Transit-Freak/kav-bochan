@@ -390,3 +390,5 @@ html.a11y-links .tool, html.a11y-links .hbtn, html.a11y-links .eye, html.a11y-li
 #kb-a11y-panel { z-index: 100000 !important; }
 .kb-copyright { display: none !important; }
 @media (max-width: 760px) { html.a11y-font1 #bar, html.a11y-font2 #bar { zoom: 1; } }
+/* טלפון: כשהחיפוש פתוח בכותרת — כפתור הנגישות מתפנה כדי לא לכסות את שדה החיפוש */
+@media (max-width: 760px) { body:has(#bar.sopen) #kb-a11y-btn { display: none !important; } }
