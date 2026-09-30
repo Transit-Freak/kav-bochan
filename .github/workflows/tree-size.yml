@@ -1,0 +1,16 @@
+name: tree-size
+# בדיקה שבועית: אף תיקייה לא מתקרבת לגבול 50 המגה של GitHub לרשימת קבצים
+# (שלמה 30.09, אחרי הכשל של historical-2012-2018). נכשל כבר ב-30 מגה — הרבה
+# לפני שהדחיפות הליליות נדחות — כדי שיהיה זמן לפצל לתת-תיקיות.
+on:
+  schedule: [{ cron: '17 6 * * 0' }]
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { filter: 'blob:none' }
+      - run: python3 tools/check_tree_size.py
