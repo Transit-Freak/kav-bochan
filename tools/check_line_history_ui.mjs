@@ -43,7 +43,8 @@ console.log(`✓ נתונים: ${listed.size} חודשי תחנות (מ-${oldest
 // התיאור שמופיע כשמשתפים קישור אמר "מ-2022" עוד חודשים אחרי שהמילוי הגיע
 // למרץ 2017. טקסט שמתאר את הנתונים חייב להיבדק מול הנתונים.
 {
-  const yr = oldest.slice(0, 4);
+  // השנה המוקדמת בכל הנתונים — קווים מ-2012 (צילומים), תחנות מ-2017 (שלמה 30.09)
+  const yr = [oldest, oldestL].filter(Boolean).sort()[0].slice(0, 4);
   const html = fs.readFileSync(path.join(LH, 'index.html'), 'utf8');
   for (const tag of ['name="description"', 'property="og:description"']) {
     const m = html.match(new RegExp(`<meta ${tag} content="([^"]*)"`));
