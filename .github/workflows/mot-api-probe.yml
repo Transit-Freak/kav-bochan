@@ -1,0 +1,31 @@
+name: mot-api-probe
+# בדיקה חד-פעמית: האם שכבות המפה של משרד התחבורה זמינות דרך ה-API (datastore) כמו נתוני צי הרכבים
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - shell: bash {0}
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse
+          A='https://data.gov.il/api/3/action/'
+          def get(a,q):
+              u=A+a+'?'+urllib.parse.urlencode(q)
+              return json.load(urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':'Mozilla/5.0'}),timeout=60))['result']
+          ok=0
+          for n in ['brt_line','metro_line','metro_stat','lrt_line','nataz_planned','nataz_kayam','bus_terminal_strat','bus_terminal_fcl','park_n_ride','rail_strategic','mataan_tlv_2040','workplan','roadnumbers','tahaz_clusters','depo_metro']:
+              try:
+                  d=get('package_show',{'id':n})
+                  for r in d['resources']:
+                      if not r.get('datastore_active'): continue
+                      s=get('datastore_search',{'resource_id':r['id'],'limit':1})
+                      f=[x['id'] for x in s['fields']]
+                      rec=s['records'][0] if s['records'] else {}
+                      geo=[k for k,v in rec.items() if isinstance(v,str) and any(t in v[:30].upper() for t in ('POINT','LINESTRING','POLYGON','MULTI'))]
+                      print(f"{n} | {r.get('format')} | total {s.get('total')} | geo cols {geo} | fields {f[:14]}")
+                      if geo: print('   sample:', str(rec[geo[0]])[:160]); ok+=1
+              except Exception as e: print(n,'ERR',e)
+          print('datasets with WKT via API:',ok)
+          PY
