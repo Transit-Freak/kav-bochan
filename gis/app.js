@@ -1092,7 +1092,7 @@ function exportMenu(l, anchor) {
 const exportIdx = (l, sc) => sc === 'sel' ? [...(SEL[l.id] || [])] : l.items.map((it, i) => i).filter(i => sc !== 'filt' || passes(l, l.items[i]));
 const plainProps = (l, p) => { const o = {}; (l.fields || Object.keys(p)).forEach(f => { if (f[0] !== '_' && (!l.labels || l.labels[f] !== null)) o[(l.labels && l.labels[f]) || f] = p[f]; }); return o; };
 const geomOf = it => it.ll ? {type: 'Point', coordinates: [it.ll[1], it.ll[0]]} : it.f.geometry;
-function srcNote(l) { return `${l.title} · מקור: ${l.tool ? 'הקו הבוחן — ' + l.tool : l.src ? 'משרד התחבורה, data.gov.il (' + l.src + ')' : 'הקו הבוחן'} · kavbochan.app/gis · יוצא ${todayIso()}`; }
+function srcNote(l) { const ms = l.meta && l.meta.source && l.meta.source.source; return `${l.title} · מקור: ${l.tool ? 'הקו הבוחן — ' + l.tool : l.src ? 'משרד התחבורה, data.gov.il (' + l.src + ')' : 'הקו הבוחן'}${ms ? ' · ' + ms : ''} · kavbochan.app/gis · יוצא ${todayIso()}`; }
 function toKml(name, feats, note) {
   const x = v => String(v == null ? '' : v).replace(/[<&>]/g, c => ({'<': '&lt;', '&': '&amp;', '>': '&gt;'}[c]));
   const cs = a => a.map(c => c[0] + ',' + c[1]).join(' ');
@@ -1354,6 +1354,7 @@ mc.addEventListener('pointerup', e => {
 // לחיצה על המפה: לפי המצב — מדידה, בחירה או זיהוי
 map.on('click', e => {
   if (rsJust) return;
+  if (SP.draw) { spClick(e.latlng); return; }
   if (MODE === 'measure') { measureClick(e.latlng); return; }
   const add = e.originalEvent && (e.originalEvent.shiftKey || e.originalEvent.ctrlKey || e.originalEvent.metaKey);
   if (MODE === 'select') {
@@ -1996,12 +1997,14 @@ let ANA = 'hood';
 function renderAnalysis() {
   $$('.atabs [data-ana]').forEach(b => { b.classList.toggle('on', b.dataset.ana === ANA); b.setAttribute('aria-selected', b.dataset.ana === ANA); });
   $$('[data-ana-pane]').forEach(p => { p.hidden = p.dataset.anaPane !== ANA; });
+  if (ANA !== 'sp') spStopDraw();
   if (ANA !== 'line') lvG.clearLayers();
   if (ANA !== 'stop') svG.clearLayers();
   if (ANA !== 'fut') { futG.clearLayers(); futHide(false); }
   if (ANA === 'hood') { renderHoodTop(); renderHood(); }
   else if (ANA === 'line') renderLineView();
   else if (ANA === 'fut') renderFuture();
+  else if (ANA === 'sp') renderSpatial();
   else renderStopView();
 }
 $('.atabs').addEventListener('click', e => { const b = e.target.closest('[data-ana]'); if (b) { ANA = b.dataset.ana; renderAnalysis(); } });
@@ -2331,6 +2334,139 @@ function futureAtStop(code, iso, base) {
   });
 }
 const lastPlanDate = () => plans().then(P => Object.values(P).reduce((m, p) => p.start && p.start > m ? p.start : m, todayIso()));
+// ---------------------------------------------------------------- ניתוח מרחבי חופשי
+// אזור: מלבן / פוליגון / מעגל שמציירים, פוליגון קיים (שכונה, עיר, אזור תעשייה), או חיץ סביב שכבה.
+// ישות נספרת אם נקודה כלשהי שלה (נקודה / קודקוד) בתוך האזור. הכול בדפדפן, עם תקרה לכמות הישויות.
+const SP = {src: 'rect', draw: null, pts: [], area: null, r: 500, bufL: 'rail', bufD: 500, pick: '', layers: new Set(['bus']), res: null};
+const spG = L.layerGroup().addTo(map);
+const SP_MAX = 60000;
+const mDist = (a, b) => { const kx = Math.cos(a[0] * Math.PI / 180) * 111320, dx = (a[1] - b[1]) * kx, dy = (a[0] - b[0]) * 110574; return Math.sqrt(dx * dx + dy * dy); };
+function spStopDraw() { if (SP.draw) { SP.draw = null; map.doubleClickZoom.enable(); map.getContainer().style.cursor = ''; } }
+function spDrawArea() {
+  spG.clearLayers(); const A = SP.area; if (!A) return;
+  const st = {color: '#7c3aed', weight: 2.5, dashArray: '6 4', fillColor: '#a78bfa', fillOpacity: 0.12, interactive: false};
+  if (A.type === 'poly') A.polys.forEach(p => spG.addLayer(L.polygon(p, st)));
+  else if (A.type === 'circle') spG.addLayer(L.circle(A.c, Object.assign({radius: A.r}, st)));
+  else if (A.type === 'buffer' && A.pts.length <= 3000) A.pts.forEach(p => spG.addLayer(L.circle(p, Object.assign({radius: A.d}, st, {weight: 1}))));
+}
+function spClick(ll) {
+  const p = [ll.lat, ll.lng];
+  if (SP.draw === 'circle') { SP.area = {type: 'circle', c: p, r: SP.r}; spStopDraw(); spDrawArea(); renderSpatial(); return; }
+  SP.pts.push(p);
+  if (SP.draw === 'rect' && SP.pts.length === 2) { const [a, b] = SP.pts; SP.area = {type: 'poly', polys: [[[a[0], a[1]], [a[0], b[1]], [b[0], b[1]], [b[0], a[1]]]], name: 'מלבן'}; spStopDraw(); spDrawArea(); renderSpatial(); return; }
+  spG.clearLayers(); spG.addLayer(L.polyline(SP.pts.concat(SP.draw === 'poly' && SP.pts.length > 2 ? [SP.pts[0]] : []), {color: '#7c3aed', weight: 2, dashArray: '4 4'}));
+  SP.pts.forEach(q => spG.addLayer(L.circleMarker(q, {radius: 4, color: '#7c3aed', fillColor: '#fff', fillOpacity: 1})));
+  renderSpatial();
+}
+function spFinishPoly() { if (SP.pts.length > 2) { SP.area = {type: 'poly', polys: [SP.pts.slice()], name: 'פוליגון'}; } spStopDraw(); spDrawArea(); renderSpatial(); }
+map.on('dblclick', () => { if (SP.draw === 'poly') spFinishPoly(); });
+const spLayers = () => LAYERS.filter(l => l.kind !== 'custom');
+function spPolyOf(it) { const g = it.f.geometry, out = []; (g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []).forEach(P => out.push(P[0].map(([x, y]) => [y, x]))); return out; }
+function renderSpatial() {
+  const el = $('#spview'); if (PANE !== 'analysis' || ANA !== 'sp') return;
+  const A = SP.area, src = SP.src;
+  const lyrOpts = spLayers().map(l => `<label class="chk sp-l"><input type="checkbox" data-l="${esc(l.id)}"${SP.layers.has(l.id) ? ' checked' : ''}> ${esc(l.title)}</label>`).join('');
+  const ptL = spLayers().filter(l => l.kind === 'points' || l.geom === 'Point' || l.id === 'kavbug' || l.id === 'kavpach' || l.id === 'alllines' || /^mot:/.test(l.id));
+  el.innerHTML = `<div class="sec"><h5>1. האזור</h5>
+    <div class="seg" role="group" aria-label="סוג האזור">${[['rect', 'מלבן'], ['poly', 'פוליגון'], ['circle', 'מעגל'], ['pick', 'פוליגון קיים'], ['buffer', 'חיץ סביב שכבה']].map(([k, t]) => `<button data-src="${k}" class="${src === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    ${src === 'rect' ? `<p class="hint">לוחצים "ציור" ואז שתי פינות מנוגדות על המפה.</p><button class="btn" data-a="draw">${SP.draw ? 'מציירים… (לחיצה על המפה)' : 'ציור מלבן'}</button>` : ''}
+    ${src === 'poly' ? `<p class="hint">לוחצים "ציור", מוסיפים נקודות בלחיצות על המפה, ומסיימים בלחיצה כפולה או "סיום".</p><button class="btn" data-a="draw">${SP.draw ? `מציירים… ${SP.pts.length} נקודות` : 'ציור פוליגון'}</button>${SP.draw ? ' <button class="btn" data-a="fin">סיום</button>' : ''}` : ''}
+    ${src === 'circle' ? `<div class="row"><span>רדיוס</span><input class="fld" type="number" id="sp-r" min="50" max="20000" step="50" value="${SP.r}" style="width:90px"> מ' <button class="btn" data-a="draw">${SP.draw ? 'לחיצה על המרכז במפה…' : 'בחירת מרכז'}</button></div>` : ''}
+    ${src === 'pick' ? `<div class="row"><input class="fld" id="sp-pick" list="sp-picks" placeholder="שכונה, עיר (כל השכונות שלה) או אזור תעשייה…" value="${esc(SP.pick)}" style="flex:1"><datalist id="sp-picks"></datalist></div>` : ''}
+    ${src === 'buffer' ? `<div class="row"><span>סביב</span><select class="fld" id="sp-bl">${ptL.map(l => `<option value="${esc(l.id)}"${l.id === SP.bufL ? ' selected' : ''}>${esc(l.title)}</option>`).join('')}</select></div><div class="row"><span>מרחק</span><input class="fld" type="number" id="sp-bd" min="25" max="5000" step="25" value="${SP.bufD}" style="width:90px"> מ' <button class="btn" data-a="buf">בניית החיץ</button></div><p class="hint">לדוגמה: תחנות אוטובוס בטווח 500 מ' מתחנת רכבת — "סביב: מדד אמינות הרכבת", 500, ובשכבות לבדיקה: "מדד דיוק האוטובוסים". המרחק — בקו אווירי.</p>` : ''}
+    <div class="mut">${A ? `אזור: <b>${esc(A.type === 'circle' ? `מעגל ${num(A.r)} מ'` : A.type === 'buffer' ? `חיץ ${num(A.d)} מ' סביב ${A.name} (${num(A.pts.length)} נקודות)` : A.name || 'פוליגון')}</b> · <button class="linkbtn" data-a="clr">ניקוי</button> · <button class="linkbtn" data-a="area-geo">הורדת האזור (GeoJSON)</button>` : 'עוד לא נבחר אזור.'}</div></div>
+    <div class="sec"><h5>2. שכבות לבדיקה</h5><div class="sp-ls">${lyrOpts}</div></div>
+    <div class="sec"><button class="btn pri" data-a="run"${A ? '' : ' disabled'}>הרצת הניתוח</button> <span class="mut" id="sp-msg"></span></div>
+    <div id="sp-out">${SP.res ? spResHtml() : ''}</div>`;
+  if (src === 'pick') ensure('hoods').then(() => { const dl = $('#sp-picks'); if (!dl) return; const H = byId.hoods.items, cities = [...new Set(H.map(h => h.p.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'));
+    ensure('parks').catch(() => null).then(() => { dl.innerHTML = cities.map(c => `<option value="עיר: ${esc(c)}">`).join('') + H.map(h => `<option value="שכונה: ${esc(h.p.name + ' — ' + (h.p.city || ''))}">`).join('') + ((byId.parks.items || []).map(it => `<option value="אזור תעשייה: ${esc(titleOf(byId.parks, it.p))}">`).join('')); }); });
+}
+function spPick(v) {
+  SP.pick = v;
+  const H = byId.hoods.items || [], m = v.match(/^(עיר|שכונה|אזור תעשייה): (.+)$/); if (!m) return;
+  let polys = [];
+  if (m[1] === 'עיר') H.filter(h => h.p.city === m[2]).forEach(h => polys.push(...spPolyOf(h)));
+  else if (m[1] === 'שכונה') { const h = H.find(x => x.p.name + ' — ' + (x.p.city || '') === m[2]); if (h) polys = spPolyOf(h); }
+  else { const it = (byId.parks.items || []).find(x => titleOf(byId.parks, x.p) === m[2]); if (it) polys = spPolyOf(it); }
+  if (!polys.length) { msg('לא נמצא פוליגון'); return; }
+  SP.area = {type: 'poly', polys, name: v}; spDrawArea(); map.fitBounds(L.latLngBounds([].concat(...polys)), {padding: [20, 20]}); renderSpatial();
+}
+function spBuild() {
+  const l = byId[SP.bufL]; if (!l) return;
+  $('#sp-msg').textContent = 'טוען…';
+  fetchData(l).then(() => {
+    const pts = [];
+    l.items.forEach(it => { if (!passes(l, it)) return; if (it.ll) pts.push(it.ll); else eachCoord(it.f.geometry, (x, y) => { pts.push([y, x]); }); });
+    if (pts.length > 200000) { $('#sp-msg').textContent = 'יותר מדי נקודות לחיץ — מסננים את השכבה קודם'; return; }
+    SP.area = {type: 'buffer', pts, d: SP.bufD, name: l.title, lid: l.id}; spDrawArea(); renderSpatial();
+  });
+}
+// בדיקת שייכות לאזור. לחיץ — אינדקס רשת כדי שהבדיקה תהיה מהירה
+function spTester(A) {
+  if (A.type === 'circle') return p => mDist(p, A.c) <= A.r;
+  if (A.type === 'poly') { const G = A.polys.map(P => ({P, b: L.latLngBounds(P)})); return p => G.some(({P, b}) => b.contains(p) && pipRing(p, P)); }
+  const cell = A.d / 111000 * 1.2, grid = new Map(), key = (a, b) => a + ',' + b;
+  A.pts.forEach(q => { const k = key(Math.floor(q[0] / cell), Math.floor(q[1] / cell)); (grid.get(k) || grid.set(k, []).get(k)).push(q); });
+  return p => { const a = Math.floor(p[0] / cell), b = Math.floor(p[1] / cell);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const g = grid.get(key(a + i, b + j)); if (g && g.some(q => mDist(p, q) <= A.d)) return true; } return false; };
+}
+function pipRing(p, R) { let c = false; for (let i = 0, j = R.length - 1; i < R.length; j = i++) { const [yi, xi] = R[i], [yj, xj] = R[j]; if (((yi > p[0]) !== (yj > p[0])) && (p[1] < (xj - xi) * (p[0] - yi) / (yj - yi) + xi)) c = !c; } return c; }
+function spRun() {
+  const A = SP.area; if (!A) return;
+  const ls = [...SP.layers].map(id => byId[id]).filter(Boolean);
+  $('#sp-msg').textContent = 'מחשב…';
+  Promise.all(ls.map(l => fetchData(l).catch(() => null))).then(() => new Promise(r => setTimeout(r, 20))).then(() => {
+    const T = spTester(A), res = [];
+    ls.forEach(l => {
+      if (!l.items) { res.push({l, err: 'השכבה לא זמינה'}); return; }
+      if (l.id === 'alllines' && !l.items.length) { res.push({l, err: 'שכבת הקווים נטענת רק בתחום המפה מזום 11 — מתקרבים לאזור ומפעילים אותה'}); return; }
+      if (l.items.length > SP_MAX) { res.push({l, err: `יותר מ-${num(SP_MAX)} ישויות — מסננים את השכבה קודם`}); return; }
+      const idx = [];
+      l.items.forEach((it, i) => { if (!passes(l, it)) return; let inside = false;
+        if (it.ll) inside = T(it.ll); else eachCoord(it.f.geometry, (x, y) => { if (!inside && T([y, x])) inside = true; });
+        if (inside) idx.push(i); });
+      const nums = (l.fields || []).filter(f => (!l.labels || l.labels[f] !== null) && isNumField(l, f)).map(f => {
+        const vs = idx.map(i => l.items[i].p[f]).filter(v => typeof v === 'number');
+        return vs.length ? {f, n: vs.length, sum: vs.reduce((a, b) => a + b, 0), min: Math.min(...vs), max: Math.max(...vs)} : null; }).filter(Boolean);
+      res.push({l, idx, nums});
+    });
+    SP.res = res; $('#sp-msg').textContent = ''; renderSpatial();
+  });
+}
+function spResHtml() {
+  return `<div class="sec"><h5>תוצאות</h5>${SP.res.map((r, k) => `<div class="spr"><b>${esc(r.l.title)}</b> — ${r.err ? `<span class="mut">${esc(r.err)}</span>` : `<b>${num(r.idx.length)}</b> ישויות באזור
+    ${r.idx.length ? ` · <button class="linkbtn" data-a="tbl" data-k="${k}">טבלה ובחירה</button> · <button class="linkbtn" data-a="exp" data-k="${k}" data-f="geojson">GeoJSON</button> · <button class="linkbtn" data-a="exp" data-k="${k}" data-f="csv">CSV</button>` : ''}
+    ${r.nums.length ? `<table class="mini"><thead><tr><th>שדה</th><th>סכום</th><th>ממוצע</th><th>מינ׳</th><th>מקס׳</th></tr></thead><tbody>${r.nums.map(x => `<tr><td>${esc(fname(r.l, x.f))}</td><td>${fmt1(x.sum)}</td><td>${fmt1(x.sum / x.n)}</td><td>${fmt1(x.min)}</td><td>${fmt1(x.max)}</td></tr>`).join('')}</tbody></table>` : ''}`}</div>`).join('')}
+    <p class="hint">ממוצע — ממוצע פשוט של הערכים בישויות שבאזור (לא משוקלל). ישות נספרת אם נקודה כלשהי שלה בתוך האזור.</p></div>`;
+}
+function spAreaGeo() {
+  const A = SP.area; if (!A) return;
+  let geom;
+  if (A.type === 'poly') geom = {type: 'MultiPolygon', coordinates: A.polys.map(P => [P.concat([P[0]]).map(([y, x]) => [x, y])])};
+  else if (A.type === 'circle') { const c = []; for (let k = 0; k <= 64; k++) { const a = 2 * Math.PI * k / 64; c.push([A.c[1] + A.r * Math.cos(a) / (111320 * Math.cos(A.c[0] * Math.PI / 180)), A.c[0] + A.r * Math.sin(a) / 110574]); } geom = {type: 'Polygon', coordinates: [c]}; }
+  else geom = {type: 'MultiPoint', coordinates: A.pts.map(([y, x]) => [x, y])};
+  exportFeatures('analysis-area', 'אזור הניתוח', [{name: 'אזור', properties: {סוג: A.type === 'buffer' ? `חיץ ${A.d} מ' סביב ${A.name} (הנקודות; החיץ = מרחק ${A.d} מ' מכל נקודה)` : A.type === 'circle' ? `מעגל ${A.r} מ'` : A.name || 'פוליגון'}, geometry: geom}], 'ניתוח מרחבי · kavbochan.app/gis · ' + todayIso(), 'geojson');
+}
+$('#spview').addEventListener('click', e => {
+  const b = e.target.closest('[data-src],[data-a]'); if (!b) return;
+  if (b.dataset.src) { SP.src = b.dataset.src; spStopDraw(); SP.pts = []; renderSpatial(); return; }
+  const a = b.dataset.a;
+  if (a === 'draw') { SP.pts = []; SP.draw = SP.src; map.doubleClickZoom.disable(); map.getContainer().style.cursor = 'crosshair'; closeIdent(); if (isMobile()) $('#pane').style.height = '34vh'; renderSpatial(); }
+  else if (a === 'fin') spFinishPoly();
+  else if (a === 'clr') { SP.area = null; SP.res = null; spG.clearLayers(); renderSpatial(); }
+  else if (a === 'buf') { SP.bufL = $('#sp-bl').value; SP.bufD = +$('#sp-bd').value || 500; spBuild(); }
+  else if (a === 'run') spRun();
+  else if (a === 'area-geo') spAreaGeo();
+  else if (a === 'tbl') { const r = SP.res[+b.dataset.k]; setSel(r.idx.map(i => ({l: r.l, i})), 'new'); if (!r.l.on) setVisible(r.l, true); openTable(r.l); $('#t-selonly').checked = true; setTimeout(renderTable, 50); }
+  else if (a === 'exp') { const r = SP.res[+b.dataset.k]; exportFeatures(r.l.id.replace(/[^\w-]/g, '_') + '-in-area', r.l.title + ' — באזור הניתוח', r.idx.map(i => { const it = r.l.items[i]; return {name: titleOf(r.l, it.p), properties: plainProps(r.l, it.p), geometry: geomOf(it)}; }), srcNote(r.l) + ' · תוצאת ניתוח מרחבי', b.dataset.f); }
+});
+$('#spview').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.l) { if (t.checked) SP.layers.add(t.dataset.l); else SP.layers.delete(t.dataset.l); }
+  else if (t.id === 'sp-r') { SP.r = +t.value || 500; if (SP.area && SP.area.type === 'circle') { SP.area.r = SP.r; spDrawArea(); renderSpatial(); } }
+  else if (t.id === 'sp-pick') spPick(t.value);
+});
+
 // ---------------------------------------------------------------- שכבות משרד התחבורה מהקטלוג
 function addCatalog(cat) {
   CATALOG = cat;

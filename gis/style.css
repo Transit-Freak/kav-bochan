@@ -370,3 +370,10 @@ a.lb:hover { background: var(--acc); }
 .hw { font-size: 11px; color: var(--mut); white-space: nowrap; }
 .hw.in { color: #15803d; font-weight: 700; }
 .ctl .btn.on { background: var(--acc); color: #fff; border-color: var(--acc); }
+
+/* ניתוח מרחבי */
+.sp-ls { display: flex; flex-direction: column; gap: 2px; max-height: 190px; overflow: auto; border: 1px solid var(--line2); padding: 4px 6px; }
+.sp-l { font-size: 12px; }
+.spr { padding: 5px 0; border-bottom: 1px solid var(--line2); }
+.btn.pri { background: var(--acc); color: #fff; border-color: var(--acc); }
+.btn[disabled] { opacity: .5; cursor: default; }
