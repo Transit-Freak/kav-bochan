@@ -48,6 +48,8 @@ svg { flex: none; }
 #main { display: grid; grid-template-columns: var(--tb-w) var(--pane-w) 1fr; min-height: 0; min-width: 0; }
 #main.nopane { grid-template-columns: var(--tb-w) 0 1fr; }
 #main.nopane #pane { display: none; }
+/* מיקום מפורש בעמודות — כשהלוח סגור (display:none) המפה לא תזוז לעמודה הצרה */
+@media (min-width: 761px) { #main > #toolbar { grid-column: 1; grid-row: 1; } #main > #pane { grid-column: 2; grid-row: 1; } #main > #mapwrap { grid-column: 3; grid-row: 1; } }
 #toolbar { background: var(--tbar); display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 6px; overflow: auto; z-index: 1000; }
 .tool { width: 46px; min-height: 46px; border: 0; border-radius: 4px; background: none; color: var(--tbar-ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10px; padding: 4px 0; }
 .tool svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
