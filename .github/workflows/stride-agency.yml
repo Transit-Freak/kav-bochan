@@ -1,0 +1,14 @@
+name: stride-agency
+# בדיקה חד-פעמית: שם מפעיל לפי מספר ב-GTFS (שלמה 30.09: "מפעיל 22?")
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: |
+          curl -sSL -o g.zip https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip
+          unzip -o -q g.zip agency.txt routes.txt
+          cat agency.txt
+          echo; echo "== routes of agency 21/22:"
+          awk -F, '$2=="21"||$2=="22"' routes.txt | head -20
