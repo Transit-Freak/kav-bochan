@@ -579,7 +579,7 @@ function ChoiceScreen({ onPick }) {
             <svg viewBox="0 0 120 120" className="w-11 h-11 md:w-14 md:h-14 flex-none"><rect width="120" height="120" rx="26" fill="#0f172a"/><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" stroke="#38bdf8" strokeWidth="6" fill="none" strokeLinejoin="round"/><circle cx="60" cy="60" r="20" fill="#38bdf8"/><circle cx="60" cy="60" r="9.5" fill="#0f172a"/><circle cx="66" cy="54" r="3.5" fill="#fff"/><path d="M22 60 H34 M86 60 H98" stroke="#38bdf8" strokeWidth="4" strokeLinecap="round" strokeDasharray="1 7"/></svg>
             <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">הקו הבוחן</h1>
           </div>
-          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">שלושה-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
+          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">ארבעה-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
           <button onClick={() => setAboutMe(v => !v)} className="mt-3 text-sm font-black text-sky-700 hover:text-sky-900 hover:underline">
             👋 קצת עליי {aboutMe ? '▲' : '▼'}
           </button>
@@ -845,6 +845,23 @@ function ChoiceScreen({ onPick }) {
               <h2 className="text-3xl font-[900] text-emerald-100">מדד דיוק האוטובוסים</h2>
               <p className="text-emerald-100/80 font-bold mt-2 text-sm leading-relaxed">כל אוטובוס בארץ מול הלו"ז, תחנה אחרי תחנה: כמה הגיעו בזמן, מי יצא מוקדם ומי איחר ואיפה לאורך הקו — לפי קו, מפעיל, עיר ושעה, יום אחרי יום, מנתוני דאטאבוס</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-emerald-200 text-emerald-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
+
+          {/* GIS הקו הבוחן — עמוד עצמאי בתיקיית gis/: כל השכבות על מפה אחת (שלמה 30.09) */}
+          <a
+            href="gis/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#020617 0%,#0f172a 45%,#0e7490 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#67e8f9' }} />
+            <div className="relative">
+              <div className="flex items-center mb-6 h-28">
+                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🗺️</span>
+              </div>
+              <h2 className="text-3xl font-[900] text-cyan-100">GIS הקו הבוחן</h2>
+              <p className="text-cyan-100/80 font-bold mt-2 text-sm leading-relaxed">כל השכבות על מפה אחת: מדדי הדיוק לפי תחנה, קו פח, קו באג, צי הרכבים, מסופים, ושכבות משרד התחבורה — נתיבי העדפה, מטרו, רק"ל ותכניות העתיד. עם עץ שכבות, טבלת מאפיינים, מדידה ומדד לכל שכונה</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-cyan-200 text-cyan-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </a>
 

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <script src="../nav-restore.js"></script><script src="../home-link.js"></script>
+<meta name="theme-color" content="#0f172a">
+<meta name="robots" content="noindex, nofollow">
+<title>GIS הקו הבוחן</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%230f172a"/><path d="M10 44 L24 20 L36 36 L44 26 L56 44 Z" fill="%2310b981"/><circle cx="44" cy="16" r="6" fill="%23f59e0b"/><path d="M8 52 H56" stroke="%23fff" stroke-width="3"/></svg>'>
+<meta property="og:image" content="https://kavbochan.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:title" content="GIS הקו הבוחן">
+<meta property="og:description" content="כל שכבות התחבורה הציבורית על מפה אחת: מדדי האמינות, קו פח, קו באג, צי הרכבים, מסופים, נתיבי העדפה ותכניות העתיד של משרד התחבורה, ומדד לכל שכונה">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<!-- הקוד והעיצוב נטענים עם חותמת זמן (כמו במדד הדיוק): כל רענון מביא את הגרסה החדשה -->
+<script>document.write('<link rel="stylesheet" href="style.css?v='+Date.now()+'">')</script>
+</head>
+<body>
+<!-- ממשק GIS (שלמה 30.09: "שיהיה כמו GIS, לא כמו שאר האתרים שלנו"):
+     מפה על כל המסך, עץ שכבות, מקרא, זיהוי בלחיצה, טבלת מאפיינים, חיפוש, מדידה, קנה מידה -->
+<div id="app">
+  <header id="bar">
+    <div class="brand"><span class="logo" aria-hidden="true">◆</span><h1>GIS הקו הבוחן</h1><span class="beta">בטא</span></div>
+    <div class="search">
+      <input id="q" type="search" autocomplete="off" placeholder="חיפוש: תחנה, מק״ט, קו, שכונה, מקום…" aria-label="חיפוש במפה">
+      <div id="qres" class="qres" role="listbox" hidden></div>
+    </div>
+    <nav class="tools" aria-label="כלים">
+      <button id="b-layers" class="tb on" title="עץ השכבות">☰<span>שכבות</span></button>
+      <button id="b-legend" class="tb" title="מקרא">◧<span>מקרא</span></button>
+      <button id="b-hood" class="tb" title="מדד לכל שכונה">⌂<span>שכונה</span></button>
+      <button id="b-table" class="tb" title="טבלת מאפיינים">▦<span>טבלה</span></button>
+      <button id="b-measure" class="tb" title="מדידת מרחק">📏<span>מדידה</span></button>
+      <button id="b-base" class="tb" title="מפת רקע">🗺<span>רקע</span></button>
+    </nav>
+  </header>
+
+  <aside id="side" class="panel" aria-label="לוח צד">
+    <div class="ptabs" role="tablist">
+      <button data-tab="layers" class="on" role="tab">שכבות</button>
+      <button data-tab="legend" role="tab">מקרא</button>
+      <button data-tab="hood" role="tab">שכונה</button>
+      <button class="pclose" id="side-close" title="סגירה" aria-label="סגירת הלוח">✕</button>
+    </div>
+    <div class="pbody">
+      <section data-pane="layers" id="tree"></section>
+      <section data-pane="legend" id="legend" hidden></section>
+      <section data-pane="hood" id="hood" hidden></section>
+    </div>
+  </aside>
+
+  <div id="map" role="application" aria-label="מפה"></div>
+
+  <div id="basemenu" class="menu" hidden></div>
+  <div id="measurebox" class="measure" hidden><b id="mdist">0 מ׳</b><span>לחיצה על המפה מוסיפה נקודה · לחיצה כפולה מסיימת</span><button id="mclear">ניקוי</button><button id="mstop">סיום</button></div>
+
+  <section id="table" class="panel tbl" hidden aria-label="טבלת מאפיינים">
+    <div class="thead">
+      <select id="t-layer" aria-label="שכבה"></select>
+      <input id="t-q" type="search" placeholder="סינון בטבלה…" aria-label="סינון">
+      <label class="chk"><input type="checkbox" id="t-view"> רק בתחום המפה</label>
+      <span id="t-count" class="mut"></span>
+      <button id="t-csv" title="הורדה כ-CSV">⭳ CSV</button>
+      <button class="pclose" id="t-close" aria-label="סגירת הטבלה">✕</button>
+    </div>
+    <div class="tscroll"><table id="t-grid"></table></div>
+  </section>
+
+  <footer id="status">
+    <span id="s-coord" dir="ltr">—</span>
+    <span id="s-zoom"></span>
+    <span id="s-msg" aria-live="polite"></span>
+    <span class="src">נתונים: משרד התחבורה (data.gov.il, GTFS), דאטאבוס, הקו הבוחן · <a href="../">kavbochan.app</a></span>
+  </footer>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>document.write('<script src="app.js?v='+Date.now()+'"><\/script>')</script>
+<script src="../a11y.js" defer></script>
+</body>
+</html>

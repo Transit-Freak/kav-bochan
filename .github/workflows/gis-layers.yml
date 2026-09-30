@@ -1,0 +1,107 @@
+name: gis-layers
+# GIS הקו הבוחן (שלמה 30.09): כל לילה — השכבות שלנו (מדדי האמינות, קו פח, קו באג, שכונות,
+# לוח זמנים לתחנות) מ-GTFS יומי ומהנתונים שבמאגר; פעם בשבוע (ראשון) ובהפעלה ידנית —
+# גם כל שכבות משרד התחבורה מ-data.gov.il (ZIP/SHP/KMZ/CSV → GeoJSON ב-ogr2ogr).
+on:
+  schedule:
+    - cron: '40 5 * * *'    # אחרי ריצות הלילה של מדד הדיוק וקו פח
+  workflow_dispatch:
+    inputs:
+      mot:
+        description: 'להוריד גם את שכבות משרד התחבורה? (yes/no)'
+        default: 'yes'
+      only:
+        description: 'רק המאגרים האלה (שמות מופרדים בפסיק, ריק = הכול)'
+        default: ''
+permissions:
+  contents: write
+concurrency:
+  group: gis-layers
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide what runs
+        id: w
+        run: |
+          MOT=no
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then MOT="${{ github.event.inputs.mot || 'yes' }}"; fi
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%u)" = "7" ]; then MOT=yes; fi
+          # עד שיש קטלוג ראשון — מורידים בכל ריצה
+          [ -f gis/data/catalog.json ] || MOT=yes
+          echo "mot=$MOT" >> "$GITHUB_OUTPUT"
+          echo "MOT layers: $MOT"
+      - name: Fetch GTFS (MOT, fallback Stride archive)
+        run: |
+          set -uo pipefail
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+          ok=0
+          if curl -fSL --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 10 -A "$UA" -o gtfs.zip \
+               "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"; then ok=1; fi
+          if [ $ok = 0 ]; then
+            for back in 0 1 2 3; do
+              D=$(date -u -d "-$back day" +%Y/%m/%d)
+              if curl -fsSL --max-time 900 -o gtfs.zip "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/$D/israel-public-transportation.zip"; then ok=1; echo "archive $D"; break; fi
+            done
+          fi
+          if [ $ok = 1 ]; then
+            mkdir -p /tmp/gtfs && unzip -o -q gtfs.zip stops.txt routes.txt trips.txt calendar.txt agency.txt shapes.txt stop_times.txt -d /tmp/gtfs
+            ls -la /tmp/gtfs; rm -f gtfs.zip
+          else
+            echo "::warning::GTFS לא ירד — נבנות רק השכבות שלא תלויות בו"
+          fi
+      - name: Install GDAL
+        if: steps.w.outputs.mot == 'yes'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gdal-bin >/dev/null && ogr2ogr --version
+      - name: MOT layers (tools/gis_mot.py)
+        if: steps.w.outputs.mot == 'yes'
+        env:
+          ONLY: ${{ github.event.inputs.only }}
+        run: |
+          python3 tools/gis_mot.py
+          du -sh gis/data/mot || true
+          # בדיקת גודל: אף קובץ מעל 15MB
+          find gis/data -type f -size +15M -print -delete || true
+      - name: Inspect zone layers + neighborhood source (log only)
+        if: steps.w.outputs.mot == 'yes'
+        continue-on-error: true
+        run: |
+          # שלמה 30.09: לבדוק את merhavironi / TAZ של משרד התחבורה ואת over.org.il כמקור לשכונות —
+          # רק הדפסה ביומן (שדות, מספר ישויות, שמות עבריים); הבחירה עצמה ב-load_hoods
+          python3 -c "import sys; sys.path.insert(0,'tools'); import gis_build as g; [g._mot_hoods(p, False) for p in ('merhavironi','taz','accid_taz','functional_areas')]"
+          echo "== over.org.il"
+          curl -sSL --max-time 60 -A "Mozilla/5.0" "https://over.org.il/versions/f6a7046f-921d-4fe2-b82d-b4eadc9c8a9b" -o /tmp/over.html || true
+          ls -la /tmp/over.html || true
+          grep -oiE '(href|src)="[^"]+"' /tmp/over.html | grep -iE 'geojson|json|zip|shp|download|api|license|terms|רישיון|תנאי' | sort -u | head -40 || true
+          grep -oiE '.{0,120}(license|רישיון|תנאי שימוש|CC-BY|ODbL|attribution).{0,120}' /tmp/over.html | head -10 || true
+      - name: Build own layers (tools/gis_build.py)
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/gtfs/stops.txt ]; then export GTFS_DIR=/tmp/gtfs; fi
+          # גבולות השכונות: קודם מאגרי משרד התחבורה (merhavironi / TAZ) אם הם שמישים — ראו load_hoods
+          python3 tools/gis_build.py
+          du -sh gis/data/own; ls -la gis/data/own
+      - name: Commit results
+        run: |
+          set -euo pipefail
+          BR="${GITHUB_REF_NAME:-main}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf /tmp/gisout && cp -r gis/data /tmp/gisout
+          for i in 1 2 3 4; do
+            git fetch origin "$BR" && git reset --hard "origin/$BR"
+            rm -rf gis/data/own
+            cp -r /tmp/gisout/own gis/data/own
+            if [ "${{ steps.w.outputs.mot }}" = "yes" ]; then
+              rm -rf gis/data/mot; [ -d /tmp/gisout/mot ] && cp -r /tmp/gisout/mot gis/data/mot
+              [ -f /tmp/gisout/catalog.json ] && cp /tmp/gisout/catalog.json gis/data/catalog.json
+            fi
+            git add -A gis/data
+            if git diff --cached --quiet; then echo "unchanged"; break; fi
+            git commit -q -m "data: GIS — רענון שכבות"
+            if git push origin HEAD:"$BR"; then break; fi
+            echo "push rejected — retry $i"; sleep 10
+          done
