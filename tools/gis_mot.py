@@ -110,8 +110,20 @@ def _alt_hosts(url):
     return out
 
 
+MANUAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gis', 'manual')
+
+
 def download(url, dest, ds_name=None):
     ext = os.path.splitext(urllib.parse.urlparse(url).path)[1].lower()
+    # קובץ שהורד ידנית מ-data.gov.il (האתר חוסם את שרתי GitHub — 403 גם בדפדפן, 30.09):
+    # gis/manual/<שם הקובץ כמו בכתובת ההורדה>, למשל gis/manual/brt_line.zip
+    man = os.path.join(MANUAL, os.path.basename(urllib.parse.urlparse(url).path))
+    if os.path.isfile(man) and os.path.getsize(man) > 0:
+        shutil.copyfile(man, dest)
+        print(f'   מקובץ ידני: gis/manual/{os.path.basename(man)}')
+        return True
+    if os.environ.get('MANUAL_ONLY') == '1':
+        return False
     try:
         subprocess.run(['curl', '-fsSL', '--connect-timeout', '30', '--max-time', '900', '-A', UA['User-Agent'],
                         '-o', dest, url], check=True, capture_output=True)

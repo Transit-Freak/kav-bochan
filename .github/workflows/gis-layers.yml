@@ -72,6 +72,8 @@ jobs:
         timeout-minutes: 20
         env:
           ONLY: ${{ github.event.inputs.only }}
+          # data.gov.il חוסם את GitHub — משתמשים רק בקבצים שהועלו ידנית ל-gis/manual/
+          MANUAL_ONLY: '1'
         run: |
           python3 tools/gis_mot.py
           du -sh gis/data/mot || true
