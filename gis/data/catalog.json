@@ -1,0 +1,957 @@
+{
+ "updated": "2026-09-30T09:06Z",
+ "source": "data.gov.il — משרד התחבורה",
+ "topics": [
+  "תחבורה ציבורית",
+  "רכבת, רק\"ל ומטרו",
+  "דרכים ונתיבים",
+  "אופניים",
+  "תאונות ובטיחות",
+  "אוכלוסייה ותכנון",
+  "תעופה",
+  "אחר"
+ ],
+ "layers": [],
+ "skipped": [
+  {
+   "dataset": "2010-2019",
+   "title": "קובץ אחוד ארצי של סקרי הרגלי נסיעה 2010-2019",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "2030",
+   "title": "צפיפות מקומות עבודה לשנת 2030",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "257",
+   "title": "פרסום מידע תעופתי פנים ארצי",
+   "reason": "אין משאב גאוגרפי (RSS)"
+  },
+  {
+   "dataset": "258",
+   "title": "מאגר דוחות חקירה בטיחותיים",
+   "reason": "אין משאב גאוגרפי (RSS)"
+  },
+  {
+   "dataset": "a3",
+   "title": "database of questions and answers for a dedicated theoretical test for electric bicycle vehicles",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "a3-fr",
+   "title": "מאגר השאלות והתשובות הרשמי למבחן עיוני ייעודי לרוכבי אופניים חשמליים (A3) בשפה הצרפתית",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "a3-ru",
+   "title": "מאגר השאלות והתשובות הרשמי למבחן עיוני ייעודי לרוכבי אופניים חשמליים (A3) בשפה הרוסית",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "a3_aa",
+   "title": "מאגר השאלות והתשובות הרשמי למבחן עיוני ייעודי לרוכבי אופניים חשמליים (A3) בשפה האמהרית",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "a3_sp",
+   "title": "מאגר השאלות והתשובות הרשמי למבחן עיוני ייעודי לרוכבי אופניים חשמליים (A3) בשפה הספרדית",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "accid_taz",
+   "title": "תאונות דרכים לפי אזורי תנועה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "accidents_municipal",
+   "title": "תאונות דרכים לפי רשות מוניציפלית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "agg_charge_stations",
+   "title": "עמדות טעינה לרכב חשמלי",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "aircraft_data_il",
+   "title": "נתוני כלי טיס ישראליים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "airport",
+   "title": "שדות תעופה אזרחיים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "airstrip",
+   "title": "מנחתים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "alhakav",
+   "title": "מרכזי שירות ומידע על-הקו",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "amount_monthly_closures_vehicles",
+   "title": "כמות כלי רכב חדשים בעלי קוד דגם העולים על הכביש בכל חודש",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "area_authority",
+   "title": "רשות תמרור מתחמים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "arrivaltostationdayandhours",
+   "title": "מאגר זמני הגעה לתחנה VM ברמת יום ושעה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "arrivaltostationhours",
+   "title": "זמני הגעה לתחנה VM ברמת שעה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "ashdod_metro_bus",
+   "title": "אשדוד מטרו בס",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "ayalontrafficcounts",
+   "title": "ספירות תנועה תקופתיות בדרך 20 (נתיבי איילון)",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "batei-esek",
+   "title": "סחר, יבוא וייצור מוצרי תעבורה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bicycle_jer_2019",
+   "title": "שבילי אופניים בירושלים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bike_net_center",
+   "title": "רשת רכיבה מחוז מרכז",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bike_net_tlv",
+   "title": "רשת רכיבה מחוז תל אביב",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bitzua_bus_trip",
+   "title": "תכנון מול ביצוע נסיעות אוטובוסים ברמת נסיעה בודדת",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bph_infra_exist",
+   "title": "שבילי אופניים - תשתית רכיבה קיימת",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bph_infra_plan",
+   "title": "שבילי אופניים - תשתית רכיבה מתוכננת",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "brt_line",
+   "title": "קווי תכנון נתיבים לתעבורת אוטובוסים מהירה BRT",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bus_fleet",
+   "title": "ציי רכב אוטובוסים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bus_rishui_bitzua_2021",
+   "title": "תכנון וביצוע אוטובוסים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bus_speed",
+   "title": "אוטובוסים - מהירות נסיעה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bus_stops",
+   "title": "תחנות תחבורה ציבורית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bus_terminal_fcl",
+   "title": "מסופים ומתקני תשתית מצב קיים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "bus_terminal_strat",
+   "title": "מסופים ומתקני תשתית מצב מתוכנן",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "busterminal",
+   "title": "מסופי אוטובוסים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "cong_tax_rings",
+   "title": "טבעות סל גודש",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "construction_equipment",
+   "title": "כלי צמ\"ה (ציוד מכני הנדסי)",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "cvfr",
+   "title": "נתיבי טיסה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "degem-rechev-wltp",
+   "title": "תוצרים ודגמים של כלי רכב פרטי ומסחרי",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "depo_lrt",
+   "title": "דיפו רק\"ל",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "depo_metro",
+   "title": "דיפו מטרו",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "discountpublictransportation",
+   "title": "זכאות להנחה בתחבורה ציבורית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "driving_license_ranks",
+   "title": "דרגות והיתרי רישיון נהיגה",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "driving_shcool",
+   "title": "בתי ספר לנהיגה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "employment",
+   "title": "מוקדי תעסוקה - נוהל שותפים לדרך",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "fast_lane_gate",
+   "title": "נתיבים מהירים - שערים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "fast_lanes",
+   "title": "נתיבים מהירים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "functional_areas",
+   "title": "אזורי תפקוד מינהל התכנון",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "hagbalat_recall",
+   "title": "כלי רכב שלא ביצעו ריקול (קריאת שירות)",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "hatkana_nekudat_igun",
+   "title": "כלי רכב המחויבים בהתקנת נקודות עיגון לאבטחת מטענים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "heavy-truck",
+   "title": "כלי רכב מעל 3 וחצי טון וכלי רכב חסרי קוד דגם",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "helipad",
+   "title": "מנחתי בתי חולים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "hov_2024",
+   "title": "HOV נתיבים רבי תפוסה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "hoze_zhut",
+   "title": "חוצה ישראל - זכות דרך",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "ims_stat",
+   "title": "תחנות מטאורולוגיות - מגבלות בניה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "industrial",
+   "title": "תחום אזורי תעשיה תעסוקה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "interchange_areas",
+   "title": "שטחים כלואים במחלפים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "kamut_sgirot_hodshi_rechev_blikoddegem",
+   "title": "כמות כלי רכב חדשים (מסירות) חסרי קוד דגם העולים לכביש בחודש",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "kav_ratzif_surveys",
+   "title": "נתוני סקרי פרויקט קו רציף (שילובים)",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "kishuriyut_metronit",
+   "title": "קישוריות לתחנות מטרונית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "kishuriyut_nofit",
+   "title": "קישוריות - רק\"ל נופית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "kishuriyut_prj",
+   "title": "פרויקט קישוריות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "kli_rechev_ciburiim",
+   "title": "מספרי רישוי של כלי הרכב הציבוריים הפעילים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "levelseparation",
+   "title": "הפרדות מפלסיות רכבת ישראל",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "licensing_bus_system",
+   "title": "רישוי מערך האוטובוסים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "light-mobility-parking-calculator",
+   "title": "מחשבון חניות תחבורה קלה במוקדי תחבורה ציבורית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "lines-reliabilty",
+   "title": "אמינות קווים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "lrt_line",
+   "title": "קווי רכבת קלה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "lrt_stat",
+   "title": "תחנות רכבת קלה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "lrt_tunnels",
+   "title": "מנהרות רכבת קלה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mahirlair_city",
+   "title": "מהיר לעיר עירוני",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_ashkelon",
+   "title": "אסטרטגית למתע\"ן בנפת אשקלון 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_ashkelon_app",
+   "title": "בדיקת ישימות למתע\"ן בנפת אשקלון 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_brshva",
+   "title": "הסעת המונים מטרופולין באר שבע - 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_haifa",
+   "title": "אסטרטגית למתע\"ן מטרופולין חיפה 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_hdr_ntn",
+   "title": "אסטרטגית למתע\"ן חדרה נתניה 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_jlm_2040",
+   "title": "אסטרטגית למתע\"ן מטרופולין ירושלים 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_jlm_2050",
+   "title": "אסטרטגית למתע\"ן מטרופולין ירושלים 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_ntn_app",
+   "title": "בדיקת ישימות למתע\"ן במרחב נתניה 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_tlv",
+   "title": "אסטרטגית למתע\"ן מטרופולין ת\"א - 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mataan_tlv_2040",
+   "title": "אסטרטגית למתע\"ן מטרופולין ת\"א 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mehir_yevuan",
+   "title": "יבואנים ומחירוני רכב חדש",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "merhavironi",
+   "title": "מרחבים עירוניים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "metro_line",
+   "title": "קווי מטרו",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "metro_line_jlm",
+   "title": "מטרו - קווים במטרופולין ירושלים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "metro_stat",
+   "title": "תחנות מטרו",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "metrofan",
+   "title": "מטרופן",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "metronit",
+   "title": "מטרונית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mile_post",
+   "title": "אבני קילומטר",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mimshakim_2023",
+   "title": "ממשקים אגף תכנון 2023",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "mimshakim_2030",
+   "title": "ממשקים אגף תכנון 2030",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "miutim_poi",
+   "title": "מוקדי משיכה בישובי החברה הערבית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "miutim_prj",
+   "title": "פרויקטי תשתית בישובי החברה הערבית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "miutim_risk",
+   "title": "מוקדי סיכון בישובי החברה הערבית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "motorcycle",
+   "title": "מספרי רישוי של כלי רכב דו גלגליים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "musachim",
+   "title": "מוסכים ומכוני רישוי",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "n2r",
+   "title": "הודעות למשיטים",
+   "reason": "אין משאב גאוגרפי (?)"
+  },
+  {
+   "dataset": "nataz_completion",
+   "title": "השלמת נתיבי העדפה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "nataz_kayam",
+   "title": "נתיבי העדפה קיימים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "nataz_planned",
+   "title": "נתיבי העדפה מתוכננים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "nataz_strategic",
+   "title": "נתיבי העדפה עתידיים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "nti_taba",
+   "title": "תכניות בניין עיר של נתיבי ישראל",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "nti_zhut_dereh",
+   "title": "נתיבי ישראל - זכות דרך",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "obbusta2013",
+   "title": "סקר נוסעים באוטובוסים במטרופולין תל אביב 2013",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "obrailta_2013",
+   "title": "סקר נוסעים בתחנות רכבת במטרופולין תל אביב 2013",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "ofneidan",
+   "title": "אופנידן",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_bsh_2019",
+   "title": "סקר נוסעים באוטובוסים במטרופולין באר-שבע 2019",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboardbusta2022peima1",
+   "title": "סקר נוסעים באוטובוסים במטרופולין תל אביב 2020-2022– פעימה ראשונה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "opercraft_tq",
+   "title": "שאלות ותשובות למבחן עיוני למשטים",
+   "reason": "אין משאב גאוגרפי (PDF,XLS)"
+  },
+  {
+   "dataset": "park_n_ride",
+   "title": "חניוני חנה וסע",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "personal_import_vehicles",
+   "title": "כלי רכב ביבוא אישי",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "principal-investigator-posts",
+   "title": "הודעות החוקר הראשי",
+   "reason": "אין משאב גאוגרפי (?)"
+  },
+  {
+   "dataset": "private-and-commercial-vehicles",
+   "title": "מספרי רישוי של כלי רכב פרטיים ומסחריים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_flow_2040",
+   "title": "רכבת כבדה - מספר נוסעים בשנת 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_freq_2018",
+   "title": "רכבת כבדה - תדירות שעתית 2018",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_freq_2019",
+   "title": "רכבת כבדה - תדירות שעתית 2019",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_freq_2020",
+   "title": "רכבת כבדה - תדירות שעתית 2020",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_freq_2026",
+   "title": "רכבת כבדה - תדירות שעתית 2026",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_freq_2040",
+   "title": "רכבת כבדה - תדירות שעתית 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_stat",
+   "title": "רכבת כבדה - תחנות נוסעים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_stat_onoff_month",
+   "title": "רכבת כבדה - ספירת נוסעים בתחנות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_strat_station",
+   "title": "רכבת כבדה - תכנית אסטרטגית - תחנות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_strategic",
+   "title": "רכבת כבדה - תכנית אסטרטגית - מסילות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_tunnels",
+   "title": "מנהרות רכבת כבדה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "recall",
+   "title": "הודעות יצרני הרכב RECALL",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rechavim_hashmalim",
+   "title": "כמות כלי רכב חשמליים לפי נפה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rechev-tag-nachim",
+   "title": "כלי רכב עם תג חניה לנכה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rechev_le_pail_with_degem",
+   "title": "מספרי רישוי של כלי רכב לא פעילים עם קוד דגם",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rechev_le_pail_without-degem",
+   "title": "מספרי רישוי של כלי רכב לא פעילים וחסרי קוד דגם",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "reshev_bitul_sofi",
+   "title": "כלי רכב שירדו מהכביש ובסטטוס ביטול סופי",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "ridership",
+   "title": "נסועה בקווי אוטובוס",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "road_strat_2030",
+   "title": "אסטרטגית לדרכים 2030",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "road_strat_2050",
+   "title": "אסטרטגית לדרכים 2050",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "roadauthority",
+   "title": "רשות תמרור בכבישים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "roadnumber_tma",
+   "title": "מספור דרכים בתמ\"א",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "roadnumbers",
+   "title": "מספרי דרכים ארציות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "roundabout",
+   "title": "מעגלי תנועה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "sfirot",
+   "title": "ספירות תנועה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "shamaim_rechev",
+   "title": "שמאי רכב",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "shinui_mivne",
+   "title": "היסטוריית כלי רכב פרטיים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "socharim",
+   "title": "סוחרי רכב",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "speed_survey_2022",
+   "title": "סקר ארצי של מהירויות נסיעה בישראל 2022",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "strat_border",
+   "title": "גבולות תכניות אסטרטגיות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tahaz_clusters",
+   "title": "אשכולות תח\"צ",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tavlat-simlei-averot",
+   "title": "טבלת סמלי עבירות",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "taz_jer_pop_type",
+   "title": "סוג אוכלוסיה בירושלים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "taz_mot_rate_2040",
+   "title": "רמת מינוע לשנת 2040",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "taz_north_popdens_2016",
+   "title": "צפיפות אוכלוסיה לקילומטר רבוע בצפון הארץ",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "taz_ta_popdens_2017",
+   "title": "צפיפות אוכלוסיה במטרופולין תל אביב",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tikufim-2021",
+   "title": "תיקופי מסלקה בתחבורה ציבורית",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tikufim_station_2022",
+   "title": "תיקופי מסלקה לתחנה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_23",
+   "title": "תמא 23 - קומפילציית מסילות ברזל",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_23a4_dipo",
+   "title": "תמ\"א 23-א-4 - דיפו",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_23a4_lines",
+   "title": "תמ\"א 23_א_4 - קווי מתע\"ן",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_3",
+   "title": "תמא 3 - קומפילציית דרכים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_3_plans",
+   "title": "תמא 31_א - תכניות מפורטות לדרכים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_3_points",
+   "title": "תמ\"א 3 - מחלפים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tma_42",
+   "title": "תמ\"א 42",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tourism1617",
+   "title": "סקר הרגלי נסיעה של תיירים 2016-2017",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tozeret",
+   "title": "תוצרים של כלי הרכב הפעילים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tq_he_a3",
+   "title": "מאגר השאלות והתשובות למבחן עיוני ייעודי לרוכבי אופניים חשמליים A3",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "tqar",
+   "title": "بنك أسئلة امتحان السياقة النظري",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "tqar_a3",
+   "title": "بنك الأسئلة والأجوبة الرسمي للاختبار النظري المخصص لراكبي الدراجات الكهربائية (A3)",
+   "reason": "אין משאב גאוגרפי (XLSX)"
+  },
+  {
+   "dataset": "tqen",
+   "title": "The complete pool of questions and answers for the computerized driving theory test",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "tqes",
+   "title": "Banco de preguntas del examen teórico a tomarse en el Ministerio de Transporte para y renovar licencias de conducción",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "tqfr",
+   "title": "Questions et réponses de l'examen de conduite théorique informatisé",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "tqhe",
+   "title": "מאגר השאלות והתשובות הרשמי למבחן נהיגה עיוני ממוחשב",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "tqru",
+   "title": "Вопросы и ответы квалификационного экзамена на знание Правил Дорожного Движения",
+   "reason": "אין משאב גאוגרפי (XLSX,XML)"
+  },
+  {
+   "dataset": "traffic_authority",
+   "title": "רשימת רשויות תמרור מקומיות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "traffic_light_junction",
+   "title": "צמתים מרומזרים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "train_safety",
+   "title": "בטיחות ברכבת",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "train_station",
+   "title": "רכבת לו\"ז",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "train_trip",
+   "title": "רכבת תכנון מול ביצוע",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tripscelular_1819",
+   "title": "מידע על תנועות ארציות של נוסעים לפי נתוני טלפונים סלולריים 2018-19",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "truck_survey_2017",
+   "title": "סקר משאיות ארצי 2017",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "ttl_transport",
+   "title": "תכניות תשתית לאומית - תחבורה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "tunnels",
+   "title": "מנהרות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "urban_intersections",
+   "title": "צמתים בערים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "urban_road_safety_elements",
+   "title": "אמצעי בטיחות בערים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "vehicle_counts",
+   "title": "נתוני ספירות תנועה מזדמנות (אד-הוק)",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "vehicles_filters_reduce_emissions",
+   "title": "כלי רכב שמותקנים בהם מסננים לצמצום פליטת מזהמים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "vor",
+   "title": "מתקני עזר לניווט",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "workplan",
+   "title": "פרויקטי תשתית תחבורה",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "wplan_muni",
+   "title": "שותפים לדרך - השתתפות במימון פרויקטי תחבורה ברשויות מקומיות",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "zakaut-hatkana",
+   "title": "מערכת בטיחות ברכב",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "zmt_names",
+   "title": "שמות צמתים ומחלפים",
+   "reason": "ההורדה נכשלה"
+  }
+ ]
+}
