@@ -19,7 +19,7 @@ jobs:
               u=B+p+'?'+urllib.parse.urlencode(q)
               print('GET', u)
               return json.load(urllib.request.urlopen(u, timeout=60))
-          q={'vehicle_refs': '${{ inputs.plate }}', 'recorded_at_time_from': '${{ inputs.start }}',
+          q={'siri_ride__vehicle_ref': '${{ inputs.plate }}', 'recorded_at_time_from': '${{ inputs.start }}',
              'recorded_at_time_to': '${{ inputs.end }}', 'order_by': 'recorded_at_time asc', 'limit': 5000}
           rows=get('/siri_vehicle_locations/list', q)
           print('rows:', len(rows))
