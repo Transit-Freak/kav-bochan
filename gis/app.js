@@ -420,7 +420,7 @@ const rendPt = l => l.rendP || (l.rendP = geomKind(l) === 'pts' ? rendOf(l) : L.
 const useMarker = l => !!(l.marker && l.icon && ICONS[l.icon] && (!l.items || l.items.length <= ICONMAX));
 function ptIcon(l, it) {
   const st = ptStyle(l, it), k = l.icon === 'stop' && it.p.st === 'לא פעילה' ? 'stopOff' : l.icon;
-  const px = Math.round(Math.max(18, Math.min(30, st.radius * 3.4)));
+  const px = map.getZoom() < 11 ? 13 : Math.round(Math.max(18, Math.min(30, st.radius * 3.4)));   // בזום ארצי — סמלים קטנים
   return L.divIcon({className: 'lic', html: iconSvg(k, l.sym || l.color || l.pointColor ? st.fillColor : null, px), iconSize: [px, px], iconAnchor: [px / 2, px / 2]});
 }
 function mkPt(l, it, ll) {
@@ -488,6 +488,8 @@ function spreadPts() {
   });
 }
 map.on('zoomend moveend', spreadPts);
+let icoSmall = null;
+map.on('zoomend', () => { const sm = map.getZoom() < 11; if (sm === icoSmall) return; icoSmall = sm; LAYERS.forEach(l => { if (l.lg && useMarker(l)) restyle(l); }); });
 const LABMAX = 300;
 function drawLabels(l) {
   if (l.labG) { map.removeLayer(l.labG); l.labG = null; }
@@ -789,17 +791,45 @@ function fmtVal(v) {
   const s = String(v);
   return /^https?:\/\//.test(s) ? `<a href="${esc(s)}" target="_blank" rel="noopener">קישור</a>` : esc(s);
 }
+// כמה ישויות באותה שכבה עם אותו מק"ט (פיצול של תחנה אחת לרציפים / נקודות) — תוצאה אחת לתחנה
+function mergeHits(hits) {
+  const out = [], seen = new Map();
+  hits.forEach(h => {
+    const p = h.l.items[h.i].p, code = h.l.kind === 'points' && p.code != null && p.code !== '' ? h.l.id + '|' + p.code : null;
+    if (code && seen.has(code)) { seen.get(code).grp.push(h.i); return; }
+    const x = Object.assign({}, h, {grp: [h.i]}); out.push(x); if (code) seen.set(code, x);
+  });
+  return out;
+}
+// ערכי שדה "קווים": כל מספר קו בתג נפרד (bdi), כדי שהסדר ב-RTL לא יתבלגן
+const lineChips = v => String(v).trim().split(/[\s,]+/).filter(Boolean).map(x => `<bdi class="chip">${esc(x)}</bdi>`).join('');
+const fmtField = (f, v) => f === 'lines' && v != null && v !== '' ? `<span class="chips">${lineChips(v)}</span>` : fmtVal(v);
+// מאפיינים מאוחדים לקבוצה: שדה זהה — פעם אחת; מספר שונה — סכום; טקסט שונה — איחוד הערכים (קווים — איחוד המספרים)
+function mergedProps(l, idx) {
+  const ps = idx.map(i => l.items[i].p), out = Object.assign({}, ps[0]), diff = [];
+  (l.fields || Object.keys(ps[0])).forEach(f => {
+    const vs = ps.map(p => p[f]); if (vs.every(v => v === vs[0])) return;
+    diff.push(f);
+    if (vs.every(v => typeof v === 'number' || v == null)) out[f] = vs.reduce((a, v) => a + (v || 0), 0);
+    else if (f === 'lines') out[f] = [...new Set(vs.flatMap(v => String(v || '').split(/\s+/).filter(Boolean)))].sort((a, b) => (parseInt(a) || 9e9) - (parseInt(b) || 9e9) || a.localeCompare(b, 'he')).join(' ');
+    else out[f] = [...new Set(vs.filter(v => v != null && v !== ''))].join(' · ');
+  });
+  return {p: out, ps, diff};
+}
 function renderIdent() {
   const box = $('#ident');
   if (IDN) { IDN.hits = IDN.hits.filter(h => h.l.items && h.l.items[h.i]); if (IDN.k >= IDN.hits.length) IDN.k = Math.max(0, IDN.hits.length - 1); }
   if (!IDN || !IDN.hits.length) { box.hidden = true; return; }
-  const {l, i} = IDN.hits[IDN.k], it = l.items[i], p = it.p, lab = l.labels || {}, N = IDN.hits.length;
+  const {l, i, grp} = IDN.hits[IDN.k], it = l.items[i], lab = l.labels || {}, N = IDN.hits.length;
+  const M = grp && grp.length > 1 ? mergedProps(l, grp) : null, p = M ? M.p : it.p;
   const code = p.code && l.kind === 'points' && l.id !== 'skip' ? `${l.id === 'rail' ? 'תחנה' : 'תחנה'} ${p.code} · ` : '';
-  const rows = (l.fields || Object.keys(p)).filter(f => lab[f] !== null && f in p && !(l.id === 'kavbug' && p[f] == null)).map(f => typeof p[f] === 'string' && p[f].length > 60 && !/^https?:/.test(p[f]) ? `<tr><td colspan="2" class="long"><span>${esc(lab[f] || f)}</span>${fmtVal(p[f])}</td></tr>` : `<tr><td>${esc(lab[f] || f)}</td><td>${fmtVal(p[f])}</td></tr>`).join('');
+  const rows = (l.fields || Object.keys(p)).filter(f => lab[f] !== null && f in p && !(l.id === 'kavbug' && p[f] == null)).map(f => typeof p[f] === 'string' && p[f].length > 60 && !/^https?:/.test(p[f]) ? `<tr><td colspan="2" class="long"><span>${esc(lab[f] || f)}</span>${fmtField(f, p[f])}</td></tr>` : `<tr><td>${esc(lab[f] || f)}${M && M.diff.includes(f) && typeof p[f] === 'number' ? ' (סה"כ)' : ''}</td><td>${fmtField(f, p[f])}</td></tr>`).join('');
+  // פירוט לפי רציף / נקודה, רק בשדות שבהם הנקודות שונות
+  const brk = M && M.diff.length ? `<div class="brk"><b>פירוט לפי רציף (${num(M.ps.length)} נקודות עם אותו מק"ט)</b><table><tr><th>רציף</th>${M.diff.map(f => `<th>${esc(lab[f] || f)}</th>`).join('')}</tr>${M.ps.map((q, j) => `<tr><td>${j + 1}</td>${M.diff.map(f => `<td>${fmtField(f, q[f])}</td>`).join('')}</tr>`).join('')}</table></div>` : '';
   const lk = l.link && l.link(p);
   box.innerHTML = `<div class="t"><b title="${esc(titleOf(l, p))}">${esc(code + titleOf(l, p))}</b><button class="x" data-a="x" title="סגירה" aria-label="סגירה">${ICO.x}</button></div>
     <div class="ly"><span class="sw" style="background:${swatchOf(l)}"></span>${esc(l.title)}</div>
-    <div class="bd"><table>${rows}</table>${l.extra ? l.extra(p, it) : ''}${l.after ? '<div class="xl note">טוען…</div>' : ''}</div>
+    <div class="bd"><table>${rows}</table>${brk}${l.extra ? l.extra(p, it) : ''}${l.after ? '<div class="xl note">טוען…</div>' : ''}</div>
     <div class="f"><span class="pg"><button data-a="prev"${IDN.k === 0 ? ' disabled' : ''} aria-label="הישות הקודמת">‹</button>${num(IDN.k + 1)} מתוך ${num(N)}<button data-a="next"${IDN.k >= N - 1 ? ' disabled' : ''} aria-label="הישות הבאה">›</button></span>
     <span><button class="linkbtn" data-a="zoom">זום</button> · <button class="linkbtn" data-a="sel">בחירה</button>${STOPLIKE.includes(l.id) && p.code ? ' · <button class="linkbtn" data-a="sv">ניתוח תחנה</button>' : ''}${l.id === 'alllines' ? ' · <button class="linkbtn" data-a="lv">ניתוח קו</button>' : ''}${lk ? ` · <a href="${esc(lk[0])}" target="_blank" rel="noopener">${esc(lk[1])} ↗</a>` : ''}</span></div>`;
   box.hidden = false;
@@ -1178,7 +1208,7 @@ map.on('click', e => {
     if (h) setSel([h], add ? 'toggle' : 'new'); else if (!add) setSel([], 'new');
     renderModebar(); return;
   }
-  const hits = hitTest(e.latlng);
+  const hits = mergeHits(hitTest(e.latlng));
   if (!hits.length) { closeIdent(); return; }
   IDN = {hits, k: 0}; renderIdent();
   const h = hits[0]; if (h.l.onclick) h.l.onclick(h.l.items[h.i].p);

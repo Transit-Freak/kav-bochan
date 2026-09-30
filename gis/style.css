@@ -353,3 +353,10 @@ a.lb:hover { background: var(--acc); }
 .leaflet-control-attribution a { color: #1d4ed8; }
 [data-theme="dark"] .leaflet-control-attribution { background: rgba(15,23,42,.8) !important; color: #cbd5e1; }
 [data-theme="dark"] .leaflet-control-attribution a { color: #7dd3fc; }
+
+/* תגי קווים ופירוט לפי רציף בזיהוי */
+.chips { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.chip { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--soft); border: 1px solid var(--line); font-size: 11.5px; font-weight: 700; text-align: center; unicode-bidi: isolate; }
+.ident .brk { padding: 4px 8px; font-size: 11.5px; }
+.ident .brk table th { text-align: start; color: var(--mut); font-weight: 600; padding: 2px 4px; border-bottom: 1px solid var(--line); }
+.ident .brk table td { padding: 2px 4px; width: auto; color: inherit; }
