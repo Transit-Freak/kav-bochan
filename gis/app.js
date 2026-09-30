@@ -297,6 +297,64 @@ reg({id: 'nextst', icon: 'name', title: 'התחנה הבאה — שם התחנה
 
 // כל התחנות וכל הקווים לפי תאריך — מנתוני כלי ההיסטוריה (tools/gis_history.py בונה רק אינדקס מיקום ומרווחי פעילות;
 // הקווים שבתחנה ופרטי הקו נקראים בלחיצה ישירות מ-../line-history/data)
+// רציף כפול: הקובץ של הכלי עצמו (../ratzif/data/conflicts.json), מקושר לקואורדינטות התחנות מאינדקס התחנות (data/hist/stops.json).
+// הלוגיקה כמו ב-ratzif/index.html: expand (בלי תחנות תפעוליות), fmtDays, ו"מתי הרציף תפוס" (דקה עם 2+ או דקות צמודות).
+let RZ = null;
+const rzData = () => RZ || (RZ = load('../ratzif/data/conflicts.json'));
+const histStops = () => SHARED['data/hist/stops.json'] || (SHARED['data/hist/stops.json'] = load('data/hist/stops.json'));
+const RZ_DHE = 'אבגדהוש';
+function rzDays(s) {
+  if (!s) return '';
+  const idx = [...s].map(c => RZ_DHE.indexOf(c)).filter(i => i >= 0).sort((a, b) => a - b);
+  if (!idx.length) return s;
+  const runs = []; let st = idx[0], pr = idx[0];
+  for (const i of idx.slice(1)) { if (i === pr + 1) { pr = i; continue; } runs.push([st, pr]); st = pr = i; }
+  runs.push([st, pr]);
+  return runs.map(([a, b]) => a === b ? RZ_DHE[a] + '׳' : (b - a === 1 ? RZ_DHE[a] + '׳, ' + RZ_DHE[b] + '׳' : RZ_DHE[a] + '׳–' + RZ_DHE[b] + '׳')).join(', ');
+}
+const rzPlat = s => (s[3] && !String(s[3]).includes('קומה')) ? s[3] : '';
+reg({id: 'ratzif', icon: 'terminal', marker: true, title: 'רציף כפול — יציאות מאותו רציף באותה דקה', group: G_OWN, kind: 'points', url: '../ratzif/data/conflicts.json', tool: 'רציף כפול',
+  dyn: l => Promise.all([rzData(), histStops()]).then(([d, S]) => {
+    if (l.items) return;
+    const ci = S.fields.indexOf('code'), la = S.fields.indexOf('lat'), lo = S.fields.indexOf('lon'), LL = {};
+    S.rows.forEach(r => { LL[r[ci]] = [r[la], r[lo]]; });
+    const by = {};
+    d.st.forEach((s, ix) => { if (/תפעולי/.test(s[1] || '')) return; const b = by[s[0]] || (by[s[0]] = {code: s[0], name: s[1], city: s[2], ix: [], plats: new Set(), n: 0, mx: 0}); b.ix.push(ix); if (rzPlat(s)) b.plats.add(rzPlat(s)); });
+    const ixc = {}; Object.values(by).forEach(b => b.ix.forEach(i => { ixc[i] = b; }));
+    (d.c || []).forEach(r => { const b = ixc[r[0]]; if (!b) return; b.n++; b.mx = Math.max(b.mx, r[4] || r[3].length); });
+    l.miss = 0;
+    l.items = Object.values(by).filter(b => b.n).map(b => { const ll = LL[b.code]; if (!ll) { l.miss++; return null; }
+      return {ll, p: {code: b.code, name: b.name, city: b.city, plats: [...b.plats].sort((x, y) => x.localeCompare(y, 'he', {numeric: true})).join(', '), nconf: b.n, maxbus: b.mx, _ix: b.ix}}; }).filter(Boolean);
+    l.fields = ['code', 'name', 'city', 'plats', 'nconf', 'maxbus'];
+    l.meta = {updated: d.updated};
+  }),
+  labels: {code: 'מק"ט', name: 'תחנת מוצא', city: 'יישוב', plats: 'רציפים', nconf: 'התנגשויות בלוח', maxbus: 'הכי הרבה אוטובוסים בדקה', _ix: null},
+  color: p => p.maxbus >= 3 ? '#dc2626' : '#d97706', radius: p => Math.min(9, 3 + Math.sqrt(p.nconf) / 2),
+  link: p => [`../ratzif/#st=${encodeURIComponent(p.code)}`, 'פתיחה ברציף כפול'],
+  after: (p, el) => { el.classList.remove('note'); el.innerHTML = `<button class="btn" onclick="window.GIS.rzSheet('${esc(p.code)}')">טבלת היציאות וההתנגשויות ←</button>`; return Promise.resolve(); },
+  legend: () => ({type: 'pt', items: [{c: '#dc2626', t: '3 אוטובוסים ומעלה יוצאים יחד מאותו רציף'}, {c: '#d97706', t: '2 אוטובוסים יוצאים יחד'}], note: `כמו בכלי רציף כפול: אוטובוסים שלפי הלו"ז יוצאים מאותו רציף מוצא באותה דקה. ${RZ ? '' : ''}${byId.ratzif && byId.ratzif.miss ? `${num(byId.ratzif.miss)} תחנות בלי מיקום באינדקס התחנות לא מוצגות. ` : ''}${byId.ratzif && byId.ratzif.meta ? 'לוח נבדק: ' + fmtD(byId.ratzif.meta.updated) : ''}`}), sw: '#dc2626'});
+// טבלה לתחנה: כל ההתנגשויות (כמו בכלי), וכל היציאות מכל רציף לפי יום ושעה (occ) עם סימון "תפוס"
+function rzSheet(code) {
+  rzData().then(d => {
+    const it = byId.ratzif.items.find(x => x.p.code === code); if (!it) return;
+    const ixs = new Set(it.p._ix), mins = t => +t.slice(0, 2) * 60 + +t.slice(3, 5), BK = ['ימי חול (א׳–ה׳)', 'שישי', 'שבת'];
+    const conf = (d.c || []).filter(r => ixs.has(r[0])).map(r => { const s = d.st[r[0]], L0 = r[3].map(x => ({n: x[0], dest: x[1], op: d.ops[x[2]], cnt: x[3] || 1}));
+      return {t: r[1], plat: rzPlat(s) || 'אין מספור', days: rzDays(r[2]), bus: r[4] || L0.length, lines: L0.map(x => `${x.n || '—'}${x.cnt > 1 ? ` (${x.cnt} אוטובוסים)` : ''}${x.dest ? ' אל ' + x.dest : ''} · ${x.op}`).join(' | ')}; });
+    const dep = [];
+    it.p._ix.forEach(ix => { const B = (d.occ || {})[ix]; if (!B) return; const pl = rzPlat(d.st[ix]) || 'אין מספור';
+      [0, 1, 2].forEach(bi => { const all = B[bi] || [];
+        all.forEach(([t, n, lns], i) => { const m = mins(t), pv = all[i - 1], nx = all[i + 1];
+          const busy = n > 1 || (pv && m - mins(pv[0]) <= 1) || (nx && mins(nx[0]) - m <= 1);
+          dep.push({plat: pl, day: BK[bi], t, n, lines: lns || '', busy: busy ? (n > 1 ? `${n} באותה דקה` : 'דקות צמודות') : ''}); }); }); });
+    openSheet({title: `${it.p.name} · ${it.p.city || ''} · מק"ט ${code}`, csv: 'ratzif-' + code,
+      note: `מקור: רציף כפול (לוח ${fmtD(d.updated)}). בכלי אין הצעות לפתרון — מוצגים הנתונים שהוא מציג.`,
+      tabs: [
+        {t: 'התנגשויות', csv: 'conflicts', cols: [{k: 't', t: 'שעה'}, {k: 'plat', t: 'רציף'}, {k: 'days', t: 'ימים'}, {k: 'bus', t: 'אוטובוסים בדקה', num: true, cls: r => r.bus >= 3 ? 'hot' : ''}, {k: 'lines', t: 'קווים מתנגשים', wrap: true}], rows: conf},
+        {t: 'כל היציאות', csv: 'departures', cols: [{k: 'plat', t: 'רציף'}, {k: 'day', t: 'ימים'}, {k: 't', t: 'שעה'}, {k: 'n', t: 'אוטובוסים', num: true}, {k: 'lines', t: 'קווים', wrap: true}, {k: 'busy', t: 'הרציף תפוס', cls: r => r.busy ? 'hot' : ''}], rows: dep,
+          note: 'הרציף תפוס — דקה עם 2 אוטובוסים ומעלה, או יציאות בדקות צמודות (כמו "מתי הרציף תפוס" בכלי).'},
+      ]});
+  });
+}
 reg({id: 'allstops', icon: 'stop', title: 'כל התחנות — פעילות בתאריך', group: G_GEN, kind: 'points', url: 'data/hist/stops.json', tool: 'היסטוריית הקווים והתחנות',
   adapt: d => ({type: 'points', fields: ['code', 'name', 'city', 'now', 'iv'], rows: d.rows.map(r => [r[2], r[1], r[0], r[3], r[4], r[5], r[6]])}),
   labels: {code: 'מק"ט', name: 'שם התחנה', city: 'יישוב', now: null, iv: null, st: 'בתאריך הנבחר'},
@@ -1008,12 +1066,57 @@ function csvOut(l) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = l.id.replace(/[^\w-]/g, '_') + (S && S.size ? '-selected' : '') + '.csv'; a.click();
 }
 function showTable(on) {
+  if (on && !$('#dsheet').hidden) $('#dsheet').hidden = true;
   $('#table').hidden = !on; $('#mapwrap').classList.toggle('tbl', on);
   if (on && isMobile()) { closePane(); closeIdent(); }
   markActive();
   setTimeout(() => map.invalidateSize(), 30);
 }
 $('#t-close').onclick = () => showTable(false);
+
+// ---------------------------------------------------------------- טבלת נתונים כללית (עגינה בתחתית): רציף כפול, תוצאות ניתוח
+// o: {title, csv, note, tabs: [{t, cols: [{k, t, num, wrap, html(r), cls(r)}], rows: [...], note, onRow(r)}]}
+const DS = {tabs: [], k: 0, sort: null, dir: 1, title: '', csv: 'data'};
+function openSheet(o) {
+  o.tabs.forEach(T => T.rows.forEach((r, i) => { r._i = i; }));
+  Object.assign(DS, {tabs: o.tabs, k: 0, sort: null, dir: 1, title: o.title || '', csv: o.csv || 'data', note: o.note || ''});
+  $('#d-q').value = '';
+  showTable(false);
+  $('#dsheet').hidden = false; $('#mapwrap').classList.add('tbl');
+  if (isMobile()) { closePane(); closeIdent(); }
+  renderSheet(); setTimeout(() => map.invalidateSize(), 30);
+}
+function closeSheet() { $('#dsheet').hidden = true; $('#mapwrap').classList.toggle('tbl', !$('#table').hidden); setTimeout(() => map.invalidateSize(), 30); }
+function sheetRows() {
+  const T = DS.tabs[DS.k], q = $('#d-q').value.trim(); let r = T.rows;
+  if (q) r = r.filter(x => T.cols.some(c => String(x[c.k] == null ? '' : x[c.k]).includes(q)));
+  if (DS.sort) { const c = T.cols.find(y => y.k === DS.sort) || {};
+    r = r.slice().sort((a, b) => { const x = a[DS.sort], y = b[DS.sort]; return (c.num ? (x == null ? -1e18 : x) - (y == null ? -1e18 : y) : String(x == null ? '' : x).localeCompare(String(y == null ? '' : y), 'he', {numeric: true})) * DS.dir; }); }
+  return r;
+}
+function renderSheet() {
+  const T = DS.tabs[DS.k], rows = sheetRows(), LIM = 2000;
+  $('#d-title').textContent = DS.title;
+  $('#d-tabs').innerHTML = DS.tabs.map((t, i) => `<div class="tab${i === DS.k ? ' on' : ''}" data-i="${i}" role="tab" aria-selected="${i === DS.k}"><span>${esc(t.t)} (${num(t.rows.length)})</span></div>`).join('');
+  $('#d-act').innerHTML = '<button class="linkbtn" data-a="csv">CSV</button>';
+  $('#d-count').textContent = `${num(rows.length)} שורות${rows.length > LIM ? ` · מוצגות ${num(LIM)} הראשונות (ב-CSV — הכול)` : ''}`;
+  $('#d-note').innerHTML = T.note || DS.note || '';
+  $('#d-grid').innerHTML = `<thead><tr>${T.cols.map(c => `<th data-k="${esc(c.k)}">${esc(c.t)}${DS.sort === c.k ? (DS.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${rows.slice(0, LIM).map(r => `<tr data-i="${r._i}">${T.cols.map(c => `<td class="${c.num ? 'n' : ''}${c.wrap ? ' wrap' : ''}${c.cls ? ' ' + c.cls(r) : ''}">${c.html ? c.html(r) : esc(r[c.k] == null ? '' : (c.num && typeof r[c.k] === 'number' ? num(r[c.k]) : r[c.k]))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+function sheetCsv() {
+  const T = DS.tabs[DS.k], q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const csv = '﻿' + [T.cols.map(c => q(c.t)).join(',')].concat(sheetRows().map(r => T.cols.map(c => q(r[c.k])).join(','))).join('\n') + (DS.note ? '\n' + q(DS.note.replace(/<[^>]+>/g, '')) : '');
+  saveFile(new Blob([csv], {type: 'text/csv'}), (DS.csv + '-' + (T.csv || DS.k)).replace(/[^\w֐-׿-]/g, '_') + '.csv');
+}
+function saveFile(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+$('#d-close').onclick = closeSheet;
+$('#d-q').addEventListener('input', renderSheet);
+$('#dsheet').addEventListener('click', e => {
+  const tb = e.target.closest('#d-tabs .tab'); if (tb) { DS.k = +tb.dataset.i; DS.sort = null; renderSheet(); return; }
+  const th = e.target.closest('#d-grid th'); if (th) { const k = th.dataset.k; DS.dir = DS.sort === k ? -DS.dir : 1; DS.sort = k; renderSheet(); return; }
+  if (e.target.closest('[data-a="csv"]')) { sheetCsv(); return; }
+  const tr = e.target.closest('#d-grid tbody tr'); if (tr) { const T = DS.tabs[DS.k]; $$('#d-grid tr.s').forEach(x => x.classList.remove('s')); tr.classList.add('s'); if (T.onRow) T.onRow(T.rows[+tr.dataset.i]); }
+});
 // שינוי גובה הטבלה בגרירת הקצה העליון, ושינוי רוחב הלוח בגרירת הקצה שלו
 function dragger(handle, onMove, onEnd) {
   handle.addEventListener('pointerdown', e => {
@@ -2188,5 +2291,5 @@ Promise.all([load('data/catalog.json').then(addCatalog).catch(() => { CATALOG = 
   if (isMobile()) closePane(); else openPane('layers');
   syncOv(); showView(); showCoord(map.getCenter());
 });
-window.GIS = {identify, diffRuns, lineAt, afterPts, plans, selectHood, byId, map, setVisible, openTable, setRadius, toITM, setSel, SEL, openPane, hitTest, setDate, openLineView, openStopView, setArea};
+window.GIS = {rzSheet, openSheet, identify, diffRuns, lineAt, afterPts, plans, selectHood, byId, map, setVisible, openTable, setRadius, toITM, setSel, SEL, openPane, hitTest, setDate, openLineView, openStopView, setArea};
 })();

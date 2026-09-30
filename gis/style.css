@@ -268,7 +268,7 @@ a.lb:hover { background: var(--acc); }
 .ident .pg button:disabled { color: var(--line); cursor: default; }
 
 /* טבלת מאפיינים מעוגנת */
-#table { position: relative; flex: 0 0 var(--tbl-h); background: var(--panel); border-top: 3px solid var(--line); display: flex; flex-direction: column; min-height: 0; z-index: 860; }
+#table, .dsheet { position: relative; flex: 0 0 var(--tbl-h); background: var(--panel); border-top: 3px solid var(--line); display: flex; flex-direction: column; min-height: 0; z-index: 860; }
 .rzh { position: absolute; top: -6px; left: 0; right: 0; height: 8px; cursor: row-resize; z-index: 5; }
 .rzh:hover, .rzh.drag { background: var(--acc); opacity: .5; }
 .ttabs { display: flex; align-items: flex-end; gap: 6px; background: var(--soft); padding: 3px 6px 0; min-height: 28px; }
@@ -285,12 +285,12 @@ a.lb:hover { background: var(--acc); }
 .chk { display: flex; gap: 3px; align-items: center; cursor: pointer; }
 .mut { color: var(--mut); font-size: 11.5px; }
 .tscroll { flex: 1; overflow: auto; min-height: 0; }
-#t-grid { border-collapse: collapse; width: max-content; min-width: 100%; }
-#t-grid th { position: sticky; top: 0; background: var(--bg); padding: 4px 8px; text-align: right; cursor: pointer; white-space: nowrap; font-weight: 700; border-bottom: 1px solid var(--line); z-index: 1; }
-#t-grid td { padding: 3px 8px; border-bottom: 1px solid var(--line2); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
-#t-grid td.n { font-variant-numeric: tabular-nums; }
+#t-grid, .dgrid { border-collapse: collapse; width: max-content; min-width: 100%; }
+#t-grid th, .dgrid th { position: sticky; top: 0; background: var(--bg); padding: 4px 8px; text-align: right; cursor: pointer; white-space: nowrap; font-weight: 700; border-bottom: 1px solid var(--line); z-index: 1; }
+#t-grid td, .dgrid td { padding: 3px 8px; border-bottom: 1px solid var(--line2); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+#t-grid td.n, .dgrid td.n { font-variant-numeric: tabular-nums; }
 #t-grid tbody tr { cursor: pointer; }
-#t-grid tbody tr:hover td { background: var(--soft); }
+#t-grid tbody tr:hover td, .dgrid tbody tr:hover td { background: var(--soft); }
 #t-grid tbody tr.s td { background: var(--sel-bg); }
 
 /* שורת מצב */
@@ -319,7 +319,7 @@ a.lb:hover { background: var(--acc); }
   .ph { height: 38px; }
   .ph::before { content: ''; position: absolute; top: 4px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line); }
   .rz { display: none; }
-  #table { position: fixed; z-index: 1600; left: 0; right: 0; top: var(--head-h); bottom: calc(var(--tb-h) + 22px); flex: none; border-top: 0; }
+  #table, .dsheet { position: fixed; z-index: 1600; left: 0; right: 0; top: var(--head-h); bottom: calc(var(--tb-h) + 22px); flex: none; border-top: 0; }
   .rzh { display: none; }
   #bar { padding-left: 156px; }
   .kb-home { font-size: 11px !important; padding: 5px 8px !important; }
@@ -360,3 +360,9 @@ a.lb:hover { background: var(--acc); }
 .ident .brk { padding: 4px 8px; font-size: 11.5px; }
 .ident .brk table th { text-align: start; color: var(--mut); font-weight: 600; padding: 2px 4px; border-bottom: 1px solid var(--line); }
 .ident .brk table td { padding: 2px 4px; width: auto; color: inherit; }
+
+/* טבלת נתונים כללית (רציף כפול, תוצאות ניתוח) */
+.dsheet { flex: 0 0 var(--tbl-h); }
+.dsheet .dtitle { align-self: center; padding: 0 4px 3px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+.dgrid td.hot { color: #b91c1c; font-weight: 700; }
+.dgrid td.wrap { white-space: normal; min-width: 180px; }
