@@ -276,7 +276,7 @@ reg({id: 'hoodscore', icon: 'hood', title: 'מדד התחבורה הציבורי
   extra: p => hoodExtra(p.i), onclick: p => selectHood(p.i),
   legend: () => ({type: 'fl', items: HOODRAMP.map(([t, c], i) => ({c, t: i === 0 ? `${t} ומעלה` : `${t}–${HOODRAMP[i - 1][0]}`})).concat([{c: '#cbd5e1', t: 'אין תחנות בטווח'}]), note: SCORE_TXT()}), sw: '#65a30d'});
 reg({id: 'walk', title: 'טווח הליכה מתחנות', group: G_HOOD, kind: 'custom', needs: ['bus'], sw: '#0ea5e9',
-  legend: () => ({type: 'fl', items: [{c: '#bae6fd', t: `עיגול ברדיוס ${RADIUS} מ' סביב כל תחנה`}], note: 'מוצג מזום 13 ומעלה, לתחנות שבתחום המפה. את הרדיוס בוחרים בכלי "ניתוח".'})});
+  legend: () => ({type: 'fl', items: [{c: '#bae6fd', t: wnHave() ? `הרחובות והשבילים שאפשר להגיע אליהם ב-${RADIUS} מ' הליכה מכל תחנה` : `${WALK_FALLBACK}: עיגול של ${RADIUS} מ' סביב כל תחנה`}], note: `מוצג מזום 13 ומעלה, לתחנות שבתחום המפה. את המרחק בוחרים בכלי "ניתוח".${wnHave() ? ' רשת ההליכה: ' + esc(WN.meta.source) + ', ' + fmtD(WN.meta.gen) + '.' : ''}`})});
 
 // התחנה הבאה — קורא ישירות את הנתונים של הכלי (../next-station/data.json); הקטגוריות והטקסטים כמו ב-next-station/app.jsx
 const NS_CATS = {
@@ -1506,7 +1506,47 @@ function computeScores() {
     const w = parts.reduce((a, [x]) => a + x, 0);
     r.score = w ? Math.round(parts.reduce((a, [x, v]) => a + x * v, 0) / w) : null;
   });
-  SC = raw; SCR = HMODE + RADIUS; return SC;
+  raw.p90 = p90; SC = raw; SCR = HMODE + RADIUS; return SC;
+}
+// פאנל השכונה לפי רשת ההליכה (כשהיא קיימת): התחנות מחוץ לשכונה שמגיעים מהן לשכונה בהליכה עד RADIUS מ' ברחובות,
+// והכיסוי — משטח השכונה שבהליכה עד covR() מ' מתחנה. בלי רשת — הערכים המחושבים מראש (קו אווירי).
+function hoodNet(h) {
+  const base = {st: hoodStops(h.p.i), net: false};
+  return wnMeta().then(() => {
+    if (!wnHave()) return base;
+    const bi = busIndex(), items = byId.bus.items, llOf = c => bi[c] != null ? items[bi[c]].ll : null;
+    const cand = (LINK.stops[h.p.i] || []).filter(s => s[1] === 0 || (HMODE === 'walk' && s[1] <= RADIUS)).filter(s => llOf(s[0]));
+    return wnLoadAround(cand.map(s => llOf(s[0])), Math.max(RADIUS, covR()) + 100).then(() => {
+      const hb = bbOf(h), inP = (la, lo) => hb.contains([la, lo]) && pip([la, lo], h.f.geometry), st = [], reaches = [];
+      cand.forEach(([c, d0]) => {
+        if (d0 === 0) { st.push([c, 0]); reaches.push(wnReach(llOf(c), covR())); return; }
+        const D = wnReach(llOf(c), RADIUS); let best = null;
+        D.forEach((du, u) => { if ((best == null || du < best) && inP(WN.lat[u], WN.lon[u])) best = du; });
+        if (best != null) { st.push([c, Math.max(1, Math.round(best))]); reaches.push(D); }
+      });
+      st.sort((a, b) => a[1] - b[1]);
+      const T = wnCoverTest(reaches, covR());
+      const cov = covSampleT(h, T);
+      return {st, net: true, cov};
+    });
+  });
+}
+function covSampleT(h, T) {
+  const b = bbOf(h), s0 = b.getSouth(), w0 = b.getWest(), N = 16, dy = (b.getNorth() - s0) / N, dx = (b.getEast() - w0) / N;
+  let tot = 0, hit = 0;
+  for (let a = 0; a < N; a++) for (let c = 0; c < N; c++) { const q = [s0 + (a + 0.5) * dy, w0 + (c + 0.5) * dx]; if (!pip(q, h.f.geometry)) continue; tot++; if (T(q)) hit++; }
+  return tot ? Math.round(100 * hit / tot) : null;
+}
+// ציון לשכונה אחת מרשימת תחנות — אותה נוסחה כמו computeScores (והנרמול לפי ה-90% העליון בארץ)
+function hoodScoreOf(h, NT) {
+  const bi = busIndex(), items = byId.bus.items; let n = 0, on = 0, tpd = 0;
+  NT.st.forEach(([c]) => { const j = bi[c]; if (j == null) return; const p = items[j].p; if (p.n && p.on != null) { n += p.n; on += p.on / 100 * p.n; } tpd += p.tpd || 0; });
+  const r = {stops: NT.st.length, onPct: n ? 100 * on / n : null, n, tpd, cov: NT.cov, net: true};
+  r.freq = Math.min(100, 100 * (tpd / Math.max(h.p.km2 || 0, 0.05)) / ((SC && SC.p90) || 1));
+  if (!r.stops) { r.score = null; return r; }
+  const parts = [[0.4, r.onPct], [0.3, r.freq], [0.3, r.cov]].filter(([, v]) => v != null), w = parts.reduce((a, [x]) => a + x, 0);
+  r.score = w ? Math.round(parts.reduce((a, [x, v]) => a + x * v, 0) / w) : null;
+  return r;
 }
 function hoodScore(i) { return SC && SC[i] ? SC[i].score : null; }
 function hoodExtra(i) { const r = SC && SC[i]; if (!r) return ''; return `<table><tr><td>ציון</td><td><b>${r.score == null ? '—' : r.score}</b></td></tr><tr><td>בזמן</td><td>${r.onPct == null ? '—' : fmt1(r.onPct) + '%'}</td></tr><tr><td>כיסוי ${covR()} מ'</td><td>${r.cov == null ? '—' : r.cov + '%'}</td></tr><tr><td>${HMODE === 'walk' ? 'תחנות בשכונה ובטווח' : 'תחנות בתוך השכונה'}</td><td>${num(r.stops)}</td></tr></table><button class="linkbtn" onclick="window.GIS.selectHood(${i},false,true)">פירוט מלא ולוח זמנים ←</button>`; }
@@ -1524,18 +1564,37 @@ function renderHoodTop() {
 $('#hoodtop').addEventListener('change', e => { const id = e.target.dataset.id; if (id) setVisible(byId[id], e.target.checked); });
 
 // שכבת טווח ההליכה — עיגולים סביב תחנות בתחום המפה (מזום 13)
+let walkGen = 0;
 function drawWalk() {
-  const l = byId.walk;
+  const l = byId.walk, gen = ++walkGen;
   if (l.lg) { map.removeLayer(l.lg); l.lg = null; }
   if (!l.on || !byId.bus.items || FUT.hidden) return;
   if (map.getZoom() < 13) { setStatus(l, 'מוצג מזום 13 ומעלה'); return; }
-  setStatus(l, '');
   const B = map.getBounds().pad(0.2);
   const sel = HOOD != null && LINK ? new Set(hoodStops(HOOD).map(s => s[0])) : null;
-  const g = L.featureGroup();
-  byId.bus.items.forEach(it => { if (!B.contains(it.ll)) return; const hot = sel && sel.has(it.p.code);
-    g.addLayer(L.circle(it.ll, {renderer: canvas, radius: RADIUS, color: hot ? '#0369a1' : '#0ea5e9', weight: hot ? 1.2 : 0.6, opacity: 0.5 * l.opacity, fillColor: hot ? '#0284c7' : '#38bdf8', fillOpacity: (hot ? 0.2 : 0.1) * l.opacity, interactive: false})); });
-  l.lg = g.addTo(map);
+  const vis = byId.bus.items.filter(it => B.contains(it.ll));
+  wnMeta().then(() => {
+    if (gen !== walkGen || !l.on) return;
+    const g = L.featureGroup();
+    if (!wnHave()) {
+      setStatus(l, WALK_FALLBACK);
+      vis.forEach(it => { const hot = sel && sel.has(it.p.code);
+        g.addLayer(L.circle(it.ll, {renderer: canvas, radius: RADIUS, color: hot ? '#0369a1' : '#0ea5e9', weight: hot ? 1.2 : 0.6, opacity: 0.5 * l.opacity, fillColor: hot ? '#0284c7' : '#38bdf8', fillOpacity: (hot ? 0.2 : 0.1) * l.opacity, interactive: false})); });
+      l.lg = g.addTo(map); return;
+    }
+    // רשת ההליכה: עד 150 תחנות בתחום (קודם אלה של השכונה הנבחרת)
+    const MAXS = 150, pick = vis.slice().sort((x, y) => (sel && sel.has(y.p.code) ? 1 : 0) - (sel && sel.has(x.p.code) ? 1 : 0)).slice(0, MAXS);
+    setStatus(l, 'מחשב טווחי הליכה ברשת…');
+    wnLoadAround(pick.map(it => it.ll), RADIUS + 100).then(() => {
+      if (gen !== walkGen || !l.on) return;
+      const hotS = [], coldS = [];
+      pick.forEach(it => { const segs = wnSegs(wnReach(it.ll, RADIUS), RADIUS); (sel && sel.has(it.p.code) ? hotS : coldS).push(...segs); });
+      if (coldS.length) g.addLayer(wnLayer(coldS, {color: '#38bdf8', opacity: 0.28 * l.opacity}));
+      if (hotS.length) g.addLayer(wnLayer(hotS, {color: '#0284c7', opacity: 0.4 * l.opacity}));
+      setStatus(l, vis.length > MAXS ? `מוצגות ${MAXS} מתוך ${num(vis.length)} תחנות בתחום — מתקרבים לראות את כולן` : '');
+      l.lg = g.addTo(map);
+    });
+  });
 }
 map.on('moveend', () => { if (byId.walk.on) drawWalk(); });
 
@@ -1581,8 +1640,9 @@ function renderHood() {
   el.innerHTML = ctl + '<div class="note">טוען…</div>'; wireHoodCtl();
   Promise.all([ensure('hoods'), ensure('bus'), loadLink(), ensure('kavpach').catch(() => null), ensure('kavbug').catch(() => null), ensure('rail').catch(() => null)]).then(() => {
     const h = byId.hoods.items.find(x => x.p.i === HOOD); if (!h) return;
-    computeScores(); const r = SC[HOOD] || {};
-    const st = hoodStops(HOOD);
+    computeScores();
+    return hoodNet(h).then(NT => {
+    const st = NT.st, r = NT.net ? hoodScoreOf(h, NT) : (SC[HOOD] || {});
     const codes = st.map(s => s[0]), dOf = {}; st.forEach(([c, d]) => { dOf[c] = d; });
     return ttLoad(codes).then(tt => {
       if (HOOD !== h.p.i || PANE !== 'analysis' || ANA !== 'hood') return;
@@ -1607,7 +1667,7 @@ function renderHood() {
       const kpTag = sc => { const t = typeof getStatusTier === 'function' ? getStatusTier(sc) : null; return `<span class="tag" title="ציון בקו פח">קו פח: ${t ? esc(t.label) + ' · ' : ''}ציון ${sc}</span>`; };
       const how = d => d === 0 ? '<span class="hw in">בתוך השכונה</span>' : `<span class="hw">בטווח הליכה · ${num(d)} מ'</span>`;
       const HRS = Array.from({length: 20}, (_, k) => (k + 5) % 24);
-      el.innerHTML = ctl + `<h3>${esc(h.p.name)}</h3><div class="sub">${esc(h.p.city || '')} · ${fmt1(h.p.km2)} קמ"ר · ${HMODE === 'walk' ? `כולל תחנות בטווח הליכה של ${RADIUS} מ'` : 'רק תחנות בתוך השכונה'} · <button class="linkbtn" id="h-zoom">התקרבות</button></div>
+      el.innerHTML = ctl + `<h3>${esc(h.p.name)}</h3><div class="sub">${esc(h.p.city || '')} · ${fmt1(h.p.km2)} קמ"ר · ${HMODE === 'walk' ? `כולל תחנות בטווח הליכה של ${RADIUS} מ'` : 'רק תחנות בתוך השכונה'} · ${NT.net ? 'מרחקי הליכה לפי רשת הרחובות והשבילים (OSM)' : WALK_FALLBACK} · <button class="linkbtn" id="h-zoom">התקרבות</button></div>
         <div class="kpis">
           <div class="kpi"><b>${r.score == null ? '—' : r.score}</b><span>ציון השכונה (0–100)</span></div>
           <div class="kpi"><b>${r.onPct == null ? '—' : fmt1(r.onPct) + '%'}</b><span>הגעות בזמן (30 יום, ${num(r.n)} מדידות)</span></div>
@@ -1637,7 +1697,7 @@ function renderHood() {
       wireHoodCtl();
       $('#h-zoom').onclick = () => { if (hoodHi) map.fitBounds(hoodHi.getBounds(), {padding: [30, 30]}); };
       $$('#hood tr[data-c]').forEach(tr => { tr.onclick = () => { const j = busIndex()[tr.dataset.c]; if (j != null) zoomItem(byId.bus, j); }; });
-    });
+    }); });
   }).catch(err => { console.warn(err); el.innerHTML = ctl + `<div class="note warn">נתוני השכונות לא זמינים — ${LATER}.</div>`; wireHoodCtl(); });
 }
 function pip(ll, geom) {
@@ -2334,6 +2394,75 @@ function futureAtStop(code, iso, base) {
   });
 }
 const lastPlanDate = () => plans().then(P => Object.values(P).reduce((m, p) => p.start && p.start > m ? p.start : m, todayIso()));
+// ---------------------------------------------------------------- רשת ההליכה (OSM): טווח הליכה לפי רחובות ושבילים
+// משבצות של 0.02° מ-data/walk (tools/gis_walknet.py). כל עוד אין רשת (לפני הריצה הראשונה ב-CI) — עיגולי רדיוס, עם תווית ברורה.
+const WN = {meta: undefined, tiles: {}, key: new Map(), lat: [], lon: [], adj: [], grid: new Map(), cache: new Map()};
+const WN_CELL = 0.02;
+const wnMeta = () => WN.meta !== undefined ? Promise.resolve(WN.meta) : load('data/walk/meta.json').then(m => (WN.meta = m), () => (WN.meta = null));
+const wnHave = () => !!WN.meta;
+const WALK_FALLBACK = 'רדיוס (עד שתיטען רשת ההליכה)';
+function wnNode(la, lo) {
+  const k = la * 1e7 + lo; let i = WN.key.get(k);
+  if (i == null) { i = WN.lat.length; WN.key.set(k, i); WN.lat.push(la / 1e5); WN.lon.push(lo / 1e5); WN.adj.push([]);
+    const g = Math.floor(la / 100) + ',' + Math.floor(lo / 100 * 0.85); (WN.grid.get(g) || WN.grid.set(g, []).get(g)).push(i); }   // רשת ~110 מ' לחיפוש צומת קרוב
+  return i;
+}
+function wnTile(k) {
+  if (WN.tiles[k]) return WN.tiles[k];
+  return (WN.tiles[k] = load('data/walk/' + k + '.json').then(T => {
+    const ids = []; for (let q = 0; q < T.n.length; q += 2) ids.push(wnNode(T.n[q], T.n[q + 1]));
+    for (let q = 0; q < T.e.length; q += 3) { const a = ids[T.e[q]], b = ids[T.e[q + 1]], L0 = T.e[q + 2]; WN.adj[a].push(b, L0); WN.adj[b].push(a, L0); }
+    T.ids = ids; return T;
+  }, () => null));
+}
+// משבצות שמכסות נקודות + מרחק d (במטרים)
+function wnLoadAround(pts, d) {
+  const ks = new Set(), pad = d / 111000 + 0.002;
+  pts.forEach(([la, lo]) => { for (let a = Math.floor((la - pad) / WN_CELL); a <= Math.floor((la + pad) / WN_CELL); a++) for (let b = Math.floor((lo - pad) / WN_CELL); b <= Math.floor((lo + pad) / WN_CELL); b++) ks.add(a + '_' + b); });
+  return Promise.all([...ks].map(wnTile));
+}
+function wnNearest(p, maxM) {
+  const la = Math.round(p[0] * 1e5), lo = Math.round(p[1] * 1e5), ga = Math.floor(la / 100), gb = Math.floor(lo / 100 * 0.85);
+  let best = -1, bd = maxM || 150;
+  for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) { const g = WN.grid.get((ga + a) + ',' + (gb + b)); if (!g) continue;
+    g.forEach(i => { const d = mDist(p, [WN.lat[i], WN.lon[i]]); if (d < bd) { bd = d; best = i; } }); }
+  return best < 0 ? null : {i: best, d: bd};
+}
+// Dijkstra מהצומת הקרוב לנקודה, עד מרחק d (כולל ההליכה מהנקודה לצומת). מחזיר Map: צומת → מרחק
+function wnReach(p, d) {
+  const ck = p[0].toFixed(5) + ',' + p[1].toFixed(5) + ',' + d; if (WN.cache.has(ck)) return WN.cache.get(ck);
+  const s = wnNearest(p, 150); const dist = new Map(); if (!s || s.d >= d) { WN.cache.set(ck, dist); return dist; }
+  const H = [[s.d, s.i]]; dist.set(s.i, s.d);
+  const push = x => { H.push(x); let i = H.length - 1; while (i) { const q = (i - 1) >> 1; if (H[q][0] <= H[i][0]) break; [H[q], H[i]] = [H[i], H[q]]; i = q; } };
+  const pop = () => { const top = H[0], last = H.pop(); if (H.length) { H[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < H.length && H[l][0] < H[m][0]) m = l; if (r < H.length && H[r][0] < H[m][0]) m = r; if (m === i) break; [H[m], H[i]] = [H[i], H[m]]; i = m; } } return top; };
+  while (H.length) { const [du, u] = pop(); if (du > dist.get(u)) continue; const A = WN.adj[u];
+    for (let q = 0; q < A.length; q += 2) { const v = A[q], nd = du + A[q + 1]; if (nd <= d && (!dist.has(v) || nd < dist.get(v))) { dist.set(v, nd); push([nd, v]); } } }
+  if (WN.cache.size > 3000) WN.cache.clear();
+  WN.cache.set(ck, dist); return dist;
+}
+// המקטעים שבטווח (כולל חלק ממקטע שהקצה שלו מחוץ לטווח) — לציור שטח ההליכה
+function wnSegs(dist, d) {
+  const out = [];
+  dist.forEach((du, u) => { const A = WN.adj[u];
+    for (let q = 0; q < A.length; q += 2) { const v = A[q], L0 = A[q + 1], dv = dist.get(v);
+      if (dv != null) { if (u < v) out.push([[WN.lat[u], WN.lon[u]], [WN.lat[v], WN.lon[v]]]); }
+      else if (L0 > 0) { const f = Math.min(1, (d - du) / L0); if (f > 0.02) out.push([[WN.lat[u], WN.lon[u]], [WN.lat[u] + (WN.lat[v] - WN.lat[u]) * f, WN.lon[u] + (WN.lon[v] - WN.lon[u]) * f]]); } } });
+  return out;
+}
+// ציור שטחי הליכה: קו אחד עבה (בקנבס — חפיפות לא מתכהות) ברוחב ~50 מ' סביב המקטעים שבטווח
+const WN_HALF = 25;
+function wnWeight() { const c = map.getCenter(), mpp = 40075016.686 * Math.cos(c.lat * Math.PI / 180) / Math.pow(2, map.getZoom() + 8); return Math.max(3, 2 * WN_HALF / mpp); }
+function wnLayer(segs, o) { const pl = L.polyline(segs, Object.assign({renderer: canvas, weight: wnWeight(), lineCap: 'round', lineJoin: 'round', interactive: false}, o)); pl._wn = true; return pl; }
+map.on('zoomend', () => { const w = wnWeight(); [byId.walk && byId.walk.lg, spG].forEach(g => g && g.eachLayer(x => { if (x._wn) x.setStyle({weight: w}); })); });
+// בדיקת כיסוי: נקודה מכוסה אם צומת שהגיעו אליו נמצא עד 60 מ' ממנה, והמרחק הכולל עד d
+function wnCoverTest(dists, d) {
+  const g = new Map(), key = (a, b) => a + ',' + b, C = 0.0006;
+  dists.forEach(D => D.forEach((du, u) => { const k = key(Math.floor(WN.lat[u] / C), Math.floor(WN.lon[u] / C)); (g.get(k) || g.set(k, []).get(k)).push([u, du]); }));
+  return p => { const a = Math.floor(p[0] / C), b = Math.floor(p[1] / C);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const L0 = g.get(key(a + i, b + j)); if (!L0) continue;
+      for (const [u, du] of L0) { const s = mDist(p, [WN.lat[u], WN.lon[u]]); if (s <= 60 && du + s <= d) return true; } } return false; };
+}
+
 // ---------------------------------------------------------------- ניתוח מרחבי חופשי
 // אזור: מלבן / פוליגון / מעגל שמציירים, פוליגון קיים (שכונה, עיר, אזור תעשייה), או חיץ סביב שכבה.
 // ישות נספרת אם נקודה כלשהי שלה (נקודה / קודקוד) בתוך האזור. הכול בדפדפן, עם תקרה לכמות הישויות.
@@ -2347,6 +2476,7 @@ function spDrawArea() {
   const st = {color: '#7c3aed', weight: 2.5, dashArray: '6 4', fillColor: '#a78bfa', fillOpacity: 0.12, interactive: false};
   if (A.type === 'poly') A.polys.forEach(p => spG.addLayer(L.polygon(p, st)));
   else if (A.type === 'circle') spG.addLayer(L.circle(A.c, Object.assign({radius: A.r}, st)));
+  else if (A.type === 'buffer' && A.net) spG.addLayer(wnLayer([].concat(...A.reach.map(D => wnSegs(D, A.d))), {color: '#7c3aed', opacity: 0.3}));
   else if (A.type === 'buffer' && A.pts.length <= 3000) A.pts.forEach(p => spG.addLayer(L.circle(p, Object.assign({radius: A.d}, st, {weight: 1}))));
 }
 function spClick(ll) {
@@ -2364,6 +2494,7 @@ const spLayers = () => LAYERS.filter(l => l.kind !== 'custom');
 function spPolyOf(it) { const g = it.f.geometry, out = []; (g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []).forEach(P => out.push(P[0].map(([x, y]) => [y, x]))); return out; }
 function renderSpatial() {
   const el = $('#spview'); if (PANE !== 'analysis' || ANA !== 'sp') return;
+  if (WN.meta === undefined) { wnMeta().then(renderSpatial); return; }
   const A = SP.area, src = SP.src;
   const lyrOpts = spLayers().map(l => `<label class="chk sp-l"><input type="checkbox" data-l="${esc(l.id)}"${SP.layers.has(l.id) ? ' checked' : ''}> ${esc(l.title)}</label>`).join('');
   const ptL = spLayers().filter(l => l.kind === 'points' || l.geom === 'Point' || l.id === 'kavbug' || l.id === 'kavpach' || l.id === 'alllines' || /^mot:/.test(l.id));
@@ -2373,7 +2504,8 @@ function renderSpatial() {
     ${src === 'poly' ? `<p class="hint">לוחצים "ציור", מוסיפים נקודות בלחיצות על המפה, ומסיימים בלחיצה כפולה או "סיום".</p><button class="btn" data-a="draw">${SP.draw ? `מציירים… ${SP.pts.length} נקודות` : 'ציור פוליגון'}</button>${SP.draw ? ' <button class="btn" data-a="fin">סיום</button>' : ''}` : ''}
     ${src === 'circle' ? `<div class="row"><span>רדיוס</span><input class="fld" type="number" id="sp-r" min="50" max="20000" step="50" value="${SP.r}" style="width:90px"> מ' <button class="btn" data-a="draw">${SP.draw ? 'לחיצה על המרכז במפה…' : 'בחירת מרכז'}</button></div>` : ''}
     ${src === 'pick' ? `<div class="row"><input class="fld" id="sp-pick" list="sp-picks" placeholder="שכונה, עיר (כל השכונות שלה) או אזור תעשייה…" value="${esc(SP.pick)}" style="flex:1"><datalist id="sp-picks"></datalist></div>` : ''}
-    ${src === 'buffer' ? `<div class="row"><span>סביב</span><select class="fld" id="sp-bl">${ptL.map(l => `<option value="${esc(l.id)}"${l.id === SP.bufL ? ' selected' : ''}>${esc(l.title)}</option>`).join('')}</select></div><div class="row"><span>מרחק</span><input class="fld" type="number" id="sp-bd" min="25" max="5000" step="25" value="${SP.bufD}" style="width:90px"> מ' <button class="btn" data-a="buf">בניית החיץ</button></div><p class="hint">לדוגמה: תחנות אוטובוס בטווח 500 מ' מתחנת רכבת — "סביב: מדד אמינות הרכבת", 500, ובשכבות לבדיקה: "מדד דיוק האוטובוסים". המרחק — בקו אווירי.</p>` : ''}
+    ${src === 'buffer' ? `<div class="row"><span>סביב</span><select class="fld" id="sp-bl">${ptL.map(l => `<option value="${esc(l.id)}"${l.id === SP.bufL ? ' selected' : ''}>${esc(l.title)}</option>`).join('')}</select></div><div class="row"><span>מרחק</span><input class="fld" type="number" id="sp-bd" min="25" max="5000" step="25" value="${SP.bufD}" style="width:90px"> מ' <button class="btn" data-a="buf">בניית החיץ</button></div>
+    <label class="chk"><input type="checkbox" id="sp-net"${SP.net ? ' checked' : ''}${wnHave() ? '' : ' disabled'}> לפי רשת ההליכה (רחובות ושבילים, עד 500 נקודות)${wnHave() ? '' : ' — הרשת עוד לא נבנתה'}</label><p class="hint">לדוגמה: תחנות אוטובוס בטווח 500 מ' מתחנת רכבת — "סביב: מדד אמינות הרכבת", 500, ובשכבות לבדיקה: "מדד דיוק האוטובוסים". המרחק — בקו אווירי, או בהליכה ברשת כשמסמנים.</p>` : ''}
     <div class="mut">${A ? `אזור: <b>${esc(A.type === 'circle' ? `מעגל ${num(A.r)} מ'` : A.type === 'buffer' ? `חיץ ${num(A.d)} מ' סביב ${A.name} (${num(A.pts.length)} נקודות)` : A.name || 'פוליגון')}</b> · <button class="linkbtn" data-a="clr">ניקוי</button> · <button class="linkbtn" data-a="area-geo">הורדת האזור (GeoJSON)</button>` : 'עוד לא נבחר אזור.'}</div></div>
     <div class="sec"><h5>2. שכבות לבדיקה</h5><div class="sp-ls">${lyrOpts}</div></div>
     <div class="sec"><button class="btn pri" data-a="run"${A ? '' : ' disabled'}>הרצת הניתוח</button> <span class="mut" id="sp-msg"></span></div>
@@ -2398,12 +2530,19 @@ function spBuild() {
     const pts = [];
     l.items.forEach(it => { if (!passes(l, it)) return; if (it.ll) pts.push(it.ll); else eachCoord(it.f.geometry, (x, y) => { pts.push([y, x]); }); });
     if (pts.length > 200000) { $('#sp-msg').textContent = 'יותר מדי נקודות לחיץ — מסננים את השכבה קודם'; return; }
+    if (SP.net && wnHave()) {
+      if (pts.length > 500) { $('#sp-msg').textContent = `חיץ ברשת ההליכה — עד 500 נקודות (יש ${num(pts.length)}); מסננים את השכבה או מבטלים את "לפי רשת ההליכה"`; return; }
+      $('#sp-msg').textContent = 'מחשב טווחי הליכה ברשת…';
+      return wnLoadAround(pts, SP.bufD + 100).then(() => { const R = pts.map(p => wnReach(p, SP.bufD));
+        SP.area = {type: 'buffer', net: true, pts, reach: R, d: SP.bufD, name: l.title + ' (רשת הליכה)', lid: l.id}; $('#sp-msg').textContent = ''; spDrawArea(); renderSpatial(); });
+    }
     SP.area = {type: 'buffer', pts, d: SP.bufD, name: l.title, lid: l.id}; spDrawArea(); renderSpatial();
   });
 }
 // בדיקת שייכות לאזור. לחיץ — אינדקס רשת כדי שהבדיקה תהיה מהירה
 function spTester(A) {
   if (A.type === 'circle') return p => mDist(p, A.c) <= A.r;
+  if (A.type === 'buffer' && A.net) return wnCoverTest(A.reach, A.d);
   if (A.type === 'poly') { const G = A.polys.map(P => ({P, b: L.latLngBounds(P)})); return p => G.some(({P, b}) => b.contains(p) && pipRing(p, P)); }
   const cell = A.d / 111000 * 1.2, grid = new Map(), key = (a, b) => a + ',' + b;
   A.pts.forEach(q => { const k = key(Math.floor(q[0] / cell), Math.floor(q[1] / cell)); (grid.get(k) || grid.set(k, []).get(k)).push(q); });
@@ -2463,6 +2602,7 @@ $('#spview').addEventListener('click', e => {
 $('#spview').addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.l) { if (t.checked) SP.layers.add(t.dataset.l); else SP.layers.delete(t.dataset.l); }
+  else if (t.id === 'sp-net') SP.net = t.checked;
   else if (t.id === 'sp-r') { SP.r = +t.value || 500; if (SP.area && SP.area.type === 'circle') { SP.area.r = SP.r; spDrawArea(); renderSpatial(); } }
   else if (t.id === 'sp-pick') spPick(t.value);
 });

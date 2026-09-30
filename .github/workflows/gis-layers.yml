@@ -33,6 +33,9 @@ jobs:
           # עד שיש קטלוג ראשון — מורידים בכל ריצה
           [ -f gis/data/catalog.json ] || MOT=yes
           echo "mot=$MOT" >> "$GITHUB_OUTPUT"
+          # רשת ההליכה (OSM) — יחד עם שכבות המשרד (שבועי / ידני), ובכל ריצה עד שיש רשת ראשונה
+          WALK=$MOT; [ -f gis/data/walk/meta.json ] || WALK=yes
+          echo "walk=$WALK" >> "$GITHUB_OUTPUT"
           echo "MOT layers: $MOT"
       - name: Fetch GTFS (MOT, fallback Stride archive)
         run: |
@@ -90,6 +93,16 @@ jobs:
           # גבולות השכונות: קודם מאגרי משרד התחבורה (merhavironi / TAZ) אם הם שמישים — ראו load_hoods
           python3 tools/gis_build.py
           du -sh gis/data/own; ls -la gis/data/own
+      - name: Walking network (tools/gis_walknet.py)
+        if: steps.w.outputs.walk == 'yes'
+        continue-on-error: true
+        run: |
+          # רשת ההולכי-רגל מ-OpenStreetMap (Geofabrik) — לטווח הליכה לפי רחובות ושבילים ולתצוגת "לפי קטע רחוב"
+          python3 -m pip install --quiet osmium
+          curl -fsSL --retry 3 -o /tmp/il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          ls -la /tmp/il.osm.pbf
+          python3 tools/gis_walknet.py /tmp/il.osm.pbf
+          du -sh gis/data/walk
       - name: History layers (tools/gis_history.py)
         continue-on-error: true
         run: |
@@ -108,6 +121,7 @@ jobs:
             rm -rf gis/data/own
             cp -r /tmp/gisout/own gis/data/own
             if [ -d /tmp/gisout/hist ]; then rm -rf gis/data/hist; cp -r /tmp/gisout/hist gis/data/hist; fi
+            if [ -f /tmp/gisout/walk/meta.json ]; then rm -rf gis/data/walk; cp -r /tmp/gisout/walk gis/data/walk; fi
             if [ "${{ steps.w.outputs.mot }}" = "yes" ]; then
               rm -rf gis/data/mot; [ -d /tmp/gisout/mot ] && cp -r /tmp/gisout/mot gis/data/mot
               [ -f /tmp/gisout/catalog.json ] && cp /tmp/gisout/catalog.json gis/data/catalog.json
