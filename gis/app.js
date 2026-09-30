@@ -377,7 +377,7 @@ function restyle(l) {
 const LABMAX = 300;
 function drawLabels(l) {
   if (l.labG) { map.removeLayer(l.labG); l.labG = null; }
-  if (!l.on || !l.labf || !l.items) { if (l.labMsg) { msg(''); l.labMsg = false; } return; }
+  if (!l.on || !l.labf || !l.items || FUT.hidden) { if (l.labMsg) { msg(''); l.labMsg = false; } return; }
   const B = map.getBounds(), g = L.layerGroup(); let n = 0;
   for (const it of l.items) {
     if (!passes(l, it)) continue;
@@ -417,7 +417,7 @@ function showLayer(l, on) {
     setStatus(l, '');
     if (l.kind === 'custom') { drawWalk(); afterLayerChange(); return; }
     if (!l.lg) buildLeaflet(l);
-    l.lg.addTo(map);
+    if (!FUT.hidden) l.lg.addTo(map);
     if (l.id === 'alllines') linesRefresh();
     drawLabels(l); rerow(l); afterLayerChange();
   }).catch(err => {
@@ -1175,7 +1175,7 @@ $('#hoodtop').addEventListener('change', e => { const id = e.target.dataset.id; 
 function drawWalk() {
   const l = byId.walk;
   if (l.lg) { map.removeLayer(l.lg); l.lg = null; }
-  if (!l.on || !byId.bus.items) return;
+  if (!l.on || !byId.bus.items || FUT.hidden) return;
   if (map.getZoom() < 13) { setStatus(l, 'מוצג מזום 13 ומעלה'); return; }
   setStatus(l, '');
   const B = map.getBounds().pad(0.2);
@@ -1642,7 +1642,7 @@ function renderAnalysis() {
   $$('[data-ana-pane]').forEach(p => { p.hidden = p.dataset.anaPane !== ANA; });
   if (ANA !== 'line') lvG.clearLayers();
   if (ANA !== 'stop') svG.clearLayers();
-  if (ANA !== 'fut') futG.clearLayers();
+  if (ANA !== 'fut') { futG.clearLayers(); futHide(false); }
   if (ANA === 'hood') { renderHoodTop(); renderHood(); }
   else if (ANA === 'line') renderLineView();
   else if (ANA === 'fut') renderFuture();
@@ -1822,7 +1822,7 @@ $('#stopview').addEventListener('click', e => {
 // ביטולים עתידיים ושינויי לו"ז עתידיים — אין בנתונים; מוצג כך במפורש.
 let PLANS = null;
 const plans = () => PLANS || (PLANS = load('../line-history/data/planned-state.json').catch(() => ({})));
-const FUT = {city: '', sel: null};
+const FUT = {city: '', sel: null, items: [], lays: {}, tok: 0, hidden: false};
 const futG = L.layerGroup().addTo(map);
 const FKIND = {add: ['קו / וריאנט חדש', '#16a34a'], chg: ['שינוי מסלול', '#f97316'], del: ['ביטול', '#dc2626']};
 function planMatchesCity(p, city) {
@@ -1834,7 +1834,7 @@ function planMatchesCity(p, city) {
 function renderFuture() {
   const el = $('#futview'); if (PANE !== 'analysis' || ANA !== 'fut') return;
   el.innerHTML = `<div class="sec"><div class="row" style="display:flex;gap:6px"><input class="fld" id="fu-city" list="fu-cities" placeholder="בחירת עיר…" value="${esc(FUT.city)}" style="flex:1" aria-label="עיר"><datalist id="fu-cities"></datalist></div>
-    <div class="lgs"><span><i style="background:${FKIND.add[1]}"></i>${FKIND.add[0]}</span><span><i style="background:${FKIND.chg[1]}"></i>${FKIND.chg[0]}</span><span><i style="background:${FKIND.del[1]}"></i>${FKIND.del[0]}</span><small class="mut">על המפה: המסלול של היום מקווקו, המסלול החדש רציף.</small></div></div><div id="fu-out" class="sec">${FUT.city ? '<div class="note">טוען…</div>' : '<div class="note">בוחרים עיר — יוצגו כל השינויים העתידיים שפורסמו בלו"ז (GTFS) לקווים שעוברים בה, עם תאריך הכניסה לתוקף.</div>'}</div>`;
+    <div class="lgs"><span><i style="background:${FKIND.add[1]}"></i>${FKIND.add[0]}</span><span><i style="background:${FKIND.chg[1]}"></i>${FKIND.chg[0]}</span><span><i style="background:${FKIND.del[1]}"></i>${FKIND.del[0]}</span><small class="mut">על המפה: המסלול של היום מקווקו אפור, המסלול החדש רציף; הקטע החדש מודגש בהילה, קטע שיוצא מהמסלול — אדום מקווקו; תחנה שנוספת ירוקה, תחנה שיורדת — עיגול אדום. לחיצה על שינוי מתמקדת בו.</small></div></div><div id="fu-out" class="sec">${FUT.city ? '<div class="note">טוען…</div>' : '<div class="note">בוחרים עיר — יוצגו כל השינויים העתידיים שפורסמו בלו"ז (GTFS) לקווים שעוברים בה, עם תאריך הכניסה לתוקף.</div>'}</div>`;
   ensure('hoods').then(() => { const dl = $('#fu-cities'); if (dl && !dl.children.length) dl.innerHTML = [...new Set(byId.hoods.items.map(h => h.p.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he')).map(c => `<option value="${esc(c)}">`).join(''); }).catch(() => {});
   if (FUT.city) futList();
 }
@@ -1854,11 +1854,88 @@ function futList() {
       xs.map(x => { const [a, b] = destParts(x.p.long); return `<div class="opt fch${FUT.sel === x.rd ? ' on' : ''}" data-rd="${esc(x.rd)}"><span class="lb" style="background:${FKIND[x.kind][1]}">${esc(x.p.line)}</span><span class="grow"><b>${FKIND[x.kind][0]}</b> · ${esc(a)} ← ${esc(b)}<br><small>${esc(x.p.op)} · ${esc(x.rd)} · נכנס לתוקף ב-${fmtD(x.p.start)}</small><span class="fdet" data-det="${esc(x.rd)}"></span></span></div>`; }).join('')).join('') :
       '<div class="mut">אין שינויים עתידיים לקווים בעיר הזו בנתונים.</div>') +
       `<p class="mut">מקור: היסטוריית הקווים — התוכניות שפורסמו בלו"ז של משרד התחבורה ועוד לא נכנסו לתוקף (planned-state). ${num(Object.keys(P).length)} תוכניות פתוחות בכל הארץ. ביטולי קווים ושינויי לו"ז עתידיים אינם בנתונים, ולכן לא מוצגים.</p>`;
-    // כל השינויים על המפה (המסלול המתוכנן), צבוע לפי הסוג
-    const B = [];
-    list.forEach(x => { const pts = x.p.shp ? decodePoly(x.p.shp) : (x.p.stopinfo || []).map(s => [s[2], s[3]]); if (pts.length < 2) return; const pl = L.polyline(pts, {color: FKIND[x.kind][1], weight: 3, opacity: 0.75}).bindTooltip(`קו ${esc(x.p.line)} · ${FKIND[x.kind][0]} · ${fmtD(x.p.start)}`, {sticky: true}); pl.on('click', () => futOpen(x.rd)); futG.addLayer(pl); B.push(pl.getBounds()); });
-    if (B.length) map.fitBounds(B.reduce((m, q) => m.extend(q), L.latLngBounds(B[0].getSouthWest(), B[0].getNorthEast())), {padding: [20, 20]});
+    // כל השינויים על המפה: המסלול של היום מקווקו, המסלול החדש רציף, והקטע שמשתנה מודגש; זום לעיר/לשינויים
+    FUT.items = list; FUT.lays = {};
+    futHide(true);
+    const cb = cityBoundsOf(city);
+    const B = cb ? L.latLngBounds(cb.getSouthWest(), cb.getNorthEast()) : null;
+    const tok = ++FUT.tok;
+    list.forEach(x => { const pts = afterPts(x.p); if (pts.length > 1 && B) B.extend(L.latLngBounds(pts)); });
+    if (B && B.isValid()) map.fitBounds(B, {paddingTopLeft: [20, 20], paddingBottomRight: [20, 20 + (isMobile() ? $('#pane').offsetHeight : 0)]});
+    // המסלולים של היום נטענים מכלי ההיסטוריה (קובץ לכל קו), עד 60 שינויים
+    list.forEach((x, i) => {
+      const draw = lf => { if (tok !== FUT.tok) return; const cur = lf ? lineAt(lf, todayIso()) : null; drawChange(x, cur); if (FUT.sel === x.rd) futFocus(x.rd, false); };
+      if (x.kind === 'chg' && i < 60) lineFile(x.rd).then(draw, () => draw(null)); else draw(null);
+    });
   }).catch(e => { console.warn(e); if (out) out.innerHTML = '<div class="note warn">נתוני השינויים העתידיים לא זמינים כרגע.</div>'; });
+}
+const afterPts = p => p.shp ? decodePoly(p.shp) : (p.stopinfo || []).map(s => [s[2], s[3]]);
+function cityBoundsOf(city) {
+  const H = (byId.hoods.items || []).filter(h => h.p.city === city); if (!H.length) return null;
+  return H.reduce((m, h) => m.extend(bbOf(h)), L.latLngBounds(bbOf(H[0]).getSouthWest(), bbOf(H[0]).getNorthEast()));
+}
+// הקטעים במסלול a שרחוקים יותר מ-tol מטר מכל נקודה במסלול b (קירוב מישורי מקומי) — "החלק שמשתנה"
+function diffRuns(a, b, tol) {
+  if (!a || a.length < 2 || !b || b.length < 2) return [];
+  const M = 111320, kx = Math.cos(a[0][0] * Math.PI / 180) * M, P = q => [q[1] * kx, q[0] * M];
+  const Bp = b.map(P), t2 = tol * tol;
+  const near = q => { const [x, y] = P(q);
+    for (let i = 1; i < Bp.length; i++) {
+      const [x1, y1] = Bp[i - 1], [x2, y2] = Bp[i], dx = x2 - x1, dy = y2 - y1, L2 = dx * dx + dy * dy;
+      const t = L2 ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / L2)) : 0, ex = x1 + t * dx - x, ey = y1 + t * dy - y;
+      if (ex * ex + ey * ey <= t2) return true;
+    }
+    return false; };
+  const far = a.map(q => !near(q)), runs = [];
+  let cur = null;
+  far.forEach((f, i) => {
+    if (f) { if (!cur) { cur = i > 0 ? [a[i - 1]] : []; runs.push(cur); } cur.push(a[i]); }
+    else if (cur) { cur.push(a[i]); cur = null; }
+  });
+  return runs.filter(r => r.length > 1);
+}
+// ציור שינוי אחד לשכבת futG. כל הישויות של השינוי נשמרות ב-FUT.lays[rd] לעמעום ולהדגשה
+function drawChange(x, cur, add, rem) {
+  (FUT.lays[x.rd] || []).forEach(o => futG.removeLayer(o.lay));
+  const col = FKIND[x.kind][1], after = afterPts(x.p), ls = [];
+  const put = (lay, base) => { futG.addLayer(lay); ls.push({lay, base}); };
+  const tip = `קו ${esc(x.p.line)} · ${FKIND[x.kind][0]} · ${fmtD(x.p.start)}`;
+  if (cur && cur.shape.length > 1) put(L.polyline(cur.shape, {color: '#475569', weight: 3, opacity: 0.8, dashArray: '7 6'}).bindTooltip(`${tip} — המסלול היום`, {sticky: true}), {opacity: 0.8});
+  if (after.length > 1) {
+    const runs = cur && cur.shape.length > 1 ? diffRuns(after, cur.shape, 35) : [];
+    const minus = cur && cur.shape.length > 1 && after.length > 1 ? diffRuns(cur.shape, after, 35) : [];
+    put(L.polyline(after, {color: col, weight: 3, opacity: 0.85}).bindTooltip(`${tip} — המסלול החדש`, {sticky: true}), {opacity: 0.85});
+    // הקטע שמשתנה: הילה רחבה ומעליה קו עבה (בקטע שנוסף — בצבע השינוי, בקטע שיורד — אדום מקווקו)
+    runs.forEach(r => { put(L.polyline(r, {color: col, weight: 14, opacity: 0.28, interactive: false}), {opacity: 0.28}); put(L.polyline(r, {color: col, weight: 6, opacity: 1}).bindTooltip(`${tip} — הקטע החדש`, {sticky: true}), {opacity: 1}); });
+    minus.forEach(r => put(L.polyline(r, {color: '#dc2626', weight: 5, opacity: 0.9, dashArray: '6 5'}).bindTooltip(`${tip} — קטע שיוצא מהמסלול`, {sticky: true}), {opacity: 0.9}));
+    x.nDiff = runs.length + minus.length;
+    x.focusB = runs.concat(minus).length ? L.latLngBounds([].concat(...runs, ...minus)) : L.latLngBounds(after);
+    if (cur && cur.shape.length > 1 && !runs.length && !minus.length) x.focusB.extend(L.latLngBounds(cur.shape));
+  }
+  (add || []).forEach(s => put(L.circleMarker([s[2], s[3]], {radius: 6, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1}).bindTooltip(`נוספת: ${esc(s[1])} (${esc(s[0])})`), {opacity: 1, fillOpacity: 1}));
+  (rem || []).forEach(s => put(L.circleMarker([s[2], s[3]], {radius: 6, color: '#dc2626', weight: 2.5, fillColor: '#fff', fillOpacity: 1}).bindTooltip(`יורדת: ${esc(s[1])} (${esc(s[0])})`), {opacity: 1, fillOpacity: 1}));
+  ls.forEach(o => o.lay.on('click', () => futOpen(x.rd)));
+  FUT.lays[x.rd] = ls;
+}
+// הדגשת שינוי אחד ועמעום השאר; zoom — זום לקטע שמשתנה
+function futFocus(rd, zoom) {
+  Object.entries(FUT.lays || {}).forEach(([r, ls]) => ls.forEach(o => {
+    const on = !rd || r === rd;
+    o.lay.setStyle({opacity: on ? o.base.opacity : o.base.opacity * 0.18, fillOpacity: o.base.fillOpacity == null ? undefined : on ? o.base.fillOpacity : 0.15});
+    if (on && rd && o.lay.bringToFront) o.lay.bringToFront();
+  }));
+  const x = (FUT.items || []).find(y => y.rd === rd);
+  if (zoom && x && x.focusB && x.focusB.isValid()) {
+    if (isMobile()) $('#pane').style.height = '42vh';
+    setTimeout(() => { map.invalidateSize(); const ph = isMobile() ? $('#pane').offsetHeight : 0; map.fitBounds(x.focusB, {paddingTopLeft: [40, 40], paddingBottomRight: [40, 40 + ph], maxZoom: 17}); }, 60);
+  }
+}
+// בזמן הצגת שינויים לפי עיר מסתירים את שאר השכבות, כדי שרק השינויים ייראו; ביציאה מחזירים
+function futHide(on) {
+  if (FUT.hidden === on) return; FUT.hidden = on;
+  LAYERS.forEach(l => { if (!l.on) return; [l.lg, l.labG].forEach(g => { if (!g) return; if (on) map.removeLayer(g); else g.addTo(map); }); });
+  [lvG, svG, areaG].forEach(g => { if (on) g.clearLayers(); });
+  if (!on && byId.walk.on) drawWalk();
 }
 // לחיצה על שינוי: לפני (מקווקו, המסלול של היום מכלי ההיסטוריה) ואחרי (רציף), והפירוט בניסוח של הכלי
 function futOpen(rd) {
@@ -1867,21 +1944,16 @@ function futOpen(rd) {
   Promise.all([plans(), lineFile(rd).catch(() => null)]).then(([P, lf]) => {
     const p = P[rd]; if (!p) return;
     const cur = lf ? lineAt(lf, todayIso()) : null;
-    const k = p.kind === 'route' || cur ? 'chg' : 'add', col = FKIND[k][1];
-    futG.clearLayers();
-    const after = p.shp ? decodePoly(p.shp) : (p.stopinfo || []).map(s => [s[2], s[3]]);
-    const B = L.latLngBounds(after);
-    if (cur && cur.shape.length > 1) { futG.addLayer(L.polyline(cur.shape, {color: '#475569', weight: 4, opacity: 0.8, dashArray: '8 7'}).bindTooltip('המסלול היום', {sticky: true})); B.extend(L.latLngBounds(cur.shape)); }
-    futG.addLayer(L.polyline(after, {color: col, weight: 5, opacity: 0.95}).bindTooltip(`המסלול מ-${fmtD(p.start)}`, {sticky: true}));
+    const k = p.kind === 'route' || cur ? 'chg' : 'add';
     const plan = p.stopinfo || [], base = cur ? cur.stops : [];
     const pc = new Set(plan.map(s => String(s[0]))), bc = new Set(base.map(s => String(s[0])));
     const add = cur ? plan.filter(s => !bc.has(String(s[0]))) : [], rem = cur ? base.filter(s => !pc.has(String(s[0]))) : [];
-    add.forEach(s => futG.addLayer(L.circleMarker([s[2], s[3]], {radius: 5, color: '#fff', weight: 1.5, fillColor: '#16a34a', fillOpacity: 1}).bindTooltip(`נוספת: ${esc(s[1])} (${esc(s[0])})`)));
-    rem.forEach(s => futG.addLayer(L.circleMarker([s[2], s[3]], {radius: 5, color: '#dc2626', weight: 2, fillColor: '#fff', fillOpacity: 1}).bindTooltip(`יורדת: ${esc(s[1])} (${esc(s[0])})`)));
-    if (B.isValid()) map.fitBounds(B, {padding: [30, 30]});
+    const x = (FUT.items || []).find(y => y.rd === rd) || {rd, p, kind: k};
+    drawChange(x, cur, add, rem);
+    futFocus(rd, true);
     const names = arr => arr.slice(0, 12).map(s => `${esc(s[1])} (${esc(s[0])})`).join(', ') + (arr.length > 12 ? ` ועוד ${arr.length - 12}` : '');
     const det = $(`#fu-out [data-det="${CSS.escape(rd)}"]`);
-    if (det) det.innerHTML = `<div class="fd">${cur ? (add.length || rem.length ? `${add.length ? `<div>➕ בתוכנית נוספו: ${names(add)}</div>` : ''}${rem.length ? `<div>➖ בתוכנית ירדו: ${names(rem)}</div>` : ''}` : '<div>🟰 רצף התחנות שתוכנן זהה למסלול שנוסע היום — השינוי בשרטוט בלבד</div>') : plan.length > 1 ? `<div>🗺️ המסלול שתוכנן: מ${esc(plan[0][1])} עד ${esc(plan[plan.length - 1][1])}</div>` : ''}<div class="mut">פורסם לראשונה בלו"ז ${fmtD(p.first)} · נראה לאחרונה ${fmtD(p.last)} · <a href="../line-history/#${encodeURIComponent(rd)}" target="_blank" rel="noopener">היסטוריית הקו ↗</a></div></div>`;
+    if (det) det.innerHTML = `<div class="fd">${cur ? (add.length || rem.length ? `${add.length ? `<div>➕ בתוכנית נוספו: ${names(add)}</div>` : ''}${rem.length ? `<div>➖ בתוכנית ירדו: ${names(rem)}</div>` : ''}` : '<div>🟰 רצף התחנות שתוכנן זהה למסלול שנוסע היום — השינוי בשרטוט בלבד</div>' + (x.nDiff ? `<div>🗺️ הקטע שמשתנה מודגש במפה (${num(x.nDiff)} קטעים)</div>` : '<div class="mut">השרטוט שפורסם לתוכנית זהה לשרטוט של היום (בדיוק של 35 מ\') — אין קטע שונה להדגיש.</div>')) : plan.length > 1 ? `<div>🗺️ המסלול שתוכנן: מ${esc(plan[0][1])} עד ${esc(plan[plan.length - 1][1])}</div>` : ''}<div class="mut">פורסם לראשונה בלו"ז ${fmtD(p.first)} · נראה לאחרונה ${fmtD(p.last)} · <a href="../line-history/#${encodeURIComponent(rd)}" target="_blank" rel="noopener">היסטוריית הקו ↗</a></div></div>`;
   });
 }
 $('#futview').addEventListener('change', e => { if (e.target.id === 'fu-city') { FUT.city = e.target.value.trim(); FUT.sel = null; renderFuture(); } });
@@ -1939,5 +2011,5 @@ Promise.all([load('data/catalog.json').then(addCatalog).catch(() => { CATALOG = 
   if (isMobile()) closePane(); else openPane('layers');
   syncOv(); showView(); showCoord(map.getCenter());
 });
-window.GIS = {selectHood, byId, map, setVisible, openTable, setRadius, toITM, setSel, SEL, openPane, hitTest, setDate, openLineView, openStopView, setArea};
+window.GIS = {diffRuns, lineAt, afterPts, plans, selectHood, byId, map, setVisible, openTable, setRadius, toITM, setSel, SEL, openPane, hitTest, setDate, openLineView, openStopView, setArea};
 })();
