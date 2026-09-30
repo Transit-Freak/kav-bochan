@@ -2491,6 +2491,17 @@ function saveState() {
 }
 map.on('moveend', saveState);
 
+// כפתור הנגישות (a11y.js) — ממוקם בכותרת מיד אחרי "חזרה לקו הבוחן", לפי הרוחב האמיתי של הכפתור ההוא
+// (בגופן גדול או בטלפון הוא רחב יותר, והמיקום הקבוע כיסה אותו), והלוח שלו נפתח מתחתיו.
+function placeA11y() {
+  const b = $('#kb-a11y-btn'), h = $('.kb-home'); if (!b) return;
+  const x = h ? Math.ceil(h.getBoundingClientRect().right) + 6 : 8;
+  b.style.setProperty('left', x + 'px', 'important');
+  const p = $('#kb-a11y-panel'); if (p) p.style.setProperty('left', Math.max(4, Math.min(x, innerWidth - p.offsetWidth - 4)) + 'px', 'important');
+}
+new MutationObserver(placeA11y).observe(document.body, {childList: true});
+addEventListener('resize', placeA11y); setTimeout(placeA11y, 300); setTimeout(placeA11y, 1500);
+
 // ---------------------------------------------------------------- הפעלה
 { const b = lsGet('gis.base', 'light'); setBase(BASES[b] ? b : 'light'); }
 load('data/own/meta.json').then(d => { OWNMETA = d; }).catch(() => {});

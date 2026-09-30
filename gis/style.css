@@ -323,8 +323,6 @@ a.lb:hover { background: var(--acc); }
   .rzh { display: none; }
   #bar { padding-left: 156px; }
   .kb-home { font-size: 11px !important; padding: 5px 8px !important; }
-  #kb-a11y-btn { left: 118px !important; }
-  #kb-a11y-panel { left: 8px !important; }
   .brand h1 { font-size: 13px; }
   .search { display: none; position: absolute; right: 44px; left: 156px; top: 6px; width: auto; max-width: none; }
   #bar.sopen .search { display: block; }
@@ -377,3 +375,16 @@ a.lb:hover { background: var(--acc); }
 .spr { padding: 5px 0; border-bottom: 1px solid var(--line2); }
 .btn.pri { background: var(--acc); color: #fff; border-color: var(--acc); }
 .btn[disabled] { opacity: .5; cursor: default; }
+
+/* נגישות (a11y.js): ההגדלה חלה על ממשק ה-GIS (לוחות, טבלאות, זיהוי, סרגלים) — לא על המפה עצמה, כדי שהקואורדינטות יישארו נכונות */
+html.a11y-font1 #bar, html.a11y-font1 #toolbar, html.a11y-font1 #pane, html.a11y-font1 #table, html.a11y-font1 .dsheet, html.a11y-font1 .ident, html.a11y-font1 #status, html.a11y-font1 #lmenu, html.a11y-font1 .modebar, html.a11y-font1 .qres { zoom: 1.12; }
+html.a11y-font2 #bar, html.a11y-font2 #toolbar, html.a11y-font2 #pane, html.a11y-font2 #table, html.a11y-font2 .dsheet, html.a11y-font2 .ident, html.a11y-font2 #status, html.a11y-font2 #lmenu, html.a11y-font2 .modebar, html.a11y-font2 .qres { zoom: 1.25; }
+html.a11y-font1 .leaflet-tooltip, html.a11y-font1 .lbl { font-size: 13px; }
+html.a11y-font2 .leaflet-tooltip, html.a11y-font2 .lbl { font-size: 14.5px; }
+html.a11y-contrast { --mut: #334155; --line: #64748b; --line2: #94a3b8; }
+html.a11y-contrast[data-theme="dark"] { --mut: #e2e8f0; --line: #94a3b8; --line2: #64748b; }
+html.a11y-links .linkbtn, html.a11y-links .tab span { text-decoration: underline !important; }
+html.a11y-links .tool, html.a11y-links .hbtn, html.a11y-links .eye, html.a11y-links .dots { outline: 1.5px solid currentColor; outline-offset: -2px; }
+#kb-a11y-panel { z-index: 100000 !important; }
+.kb-copyright { display: none !important; }
+@media (max-width: 760px) { html.a11y-font1 #bar, html.a11y-font2 #bar { zoom: 1; } }
