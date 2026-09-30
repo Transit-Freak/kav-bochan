@@ -782,6 +782,7 @@ function layerMenu(l, anchor) {
     data && {t: 'מסנן', ico: ICO.filt, go: () => openEditor(l, 'filt')},
     data && '-',
     data && {t: 'פתיחת טבלה', ico: ICO.tbl, go: () => openTable(l)},
+    data && {t: 'ייצוא (GeoJSON / KML / CSV)…', ico: ICO.down, go: () => exportMenu(l, anchor)},
     {t: 'הבא לחזית', ico: ICO.up || '', go: () => moveLayer(l, 'front')},
     {t: 'שלח לאחור', ico: ICO.down || '', go: () => moveLayer(l, 'back')},
     {t: 'מידע על השכבה', ico: ICO.info, go: () => openEditor(l, 'info')},
@@ -1075,6 +1076,53 @@ function showTable(on) {
   setTimeout(() => map.invalidateSize(), 30);
 }
 $('#t-close').onclick = () => showTable(false);
+
+// ---------------------------------------------------------------- ייצוא שכבה: GeoJSON, KML, CSV — כל השכבה / רק המסונן / רק הנבחרים
+function exportMenu(l, anchor) {
+  fetchData(l).then(() => {
+    const nSel = SEL[l.id] ? SEL[l.id].size : 0, nF = passCount(l), items = [];
+    [['all', `כל השכבה (${num(l.items.length)})`], ['filt', `רק המסונן (${num(nF)})`], ['sel', `רק הנבחרים (${num(nSel)})`]].forEach(([sc, t], k) => {
+      if (sc === 'sel' && !nSel) return; if (sc === 'filt' && nF === l.items.length) return;
+      if (k) items.push('-');
+      ['geojson', 'kml', 'csv'].forEach(fm => items.push({t: `${fm === 'geojson' ? 'GeoJSON' : fm.toUpperCase()} · ${t}`, go: () => exportLayer(l, sc, fm)}));
+    });
+    setTimeout(() => openMenu(anchor && anchor.isConnected ? anchor : $('#tree'), items), 0);   // אחרי שהלחיצה הנוכחית מסיימת לבעבע
+  });
+}
+const exportIdx = (l, sc) => sc === 'sel' ? [...(SEL[l.id] || [])] : l.items.map((it, i) => i).filter(i => sc !== 'filt' || passes(l, l.items[i]));
+const plainProps = (l, p) => { const o = {}; (l.fields || Object.keys(p)).forEach(f => { if (f[0] !== '_' && (!l.labels || l.labels[f] !== null)) o[(l.labels && l.labels[f]) || f] = p[f]; }); return o; };
+const geomOf = it => it.ll ? {type: 'Point', coordinates: [it.ll[1], it.ll[0]]} : it.f.geometry;
+function srcNote(l) { return `${l.title} · מקור: ${l.tool ? 'הקו הבוחן — ' + l.tool : l.src ? 'משרד התחבורה, data.gov.il (' + l.src + ')' : 'הקו הבוחן'} · kavbochan.app/gis · יוצא ${todayIso()}`; }
+function toKml(name, feats, note) {
+  const x = v => String(v == null ? '' : v).replace(/[<&>]/g, c => ({'<': '&lt;', '&': '&amp;', '>': '&gt;'}[c]));
+  const cs = a => a.map(c => c[0] + ',' + c[1]).join(' ');
+  const g = G => G.type === 'Point' ? `<Point><coordinates>${G.coordinates[0]},${G.coordinates[1]}</coordinates></Point>`
+    : G.type === 'LineString' ? `<LineString><coordinates>${cs(G.coordinates)}</coordinates></LineString>`
+    : G.type === 'Polygon' ? `<Polygon>${G.coordinates.map((r, i) => `<${i ? 'inner' : 'outer'}BoundaryIs><LinearRing><coordinates>${cs(r)}</coordinates></LinearRing></${i ? 'inner' : 'outer'}BoundaryIs>`).join('')}</Polygon>`
+    : G.type === 'MultiPoint' ? `<MultiGeometry>${G.coordinates.map(c => g({type: 'Point', coordinates: c})).join('')}</MultiGeometry>`
+    : G.type === 'MultiLineString' ? `<MultiGeometry>${G.coordinates.map(c => g({type: 'LineString', coordinates: c})).join('')}</MultiGeometry>`
+    : G.type === 'MultiPolygon' ? `<MultiGeometry>${G.coordinates.map(c => g({type: 'Polygon', coordinates: c})).join('')}</MultiGeometry>`
+    : G.type === 'GeometryCollection' ? `<MultiGeometry>${G.geometries.map(g).join('')}</MultiGeometry>` : '';
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${x(name)}</name><description>${x(note)}</description>\n` +
+    feats.map(f => `<Placemark><name>${x(f.name)}</name><ExtendedData>${Object.entries(f.properties).map(([k, v]) => `<Data name="${x(k)}"><value>${x(typeof v === 'object' ? JSON.stringify(v) : v)}</value></Data>`).join('')}</ExtendedData>${g(f.geometry)}</Placemark>`).join('\n') + '\n</Document></kml>';
+}
+function exportLayer(l, sc, fm) {
+  const idx = exportIdx(l, sc), note = srcNote(l) + (sc === 'filt' ? ' · מסונן' : sc === 'sel' ? ' · רק הנבחרים' : '');
+  const base = (l.id.replace(/[^\w-]/g, '_')) + (sc === 'all' ? '' : '-' + sc);
+  exportFeatures(base, l.title, idx.map(i => { const it = l.items[i]; return {name: titleOf(l, it.p), properties: plainProps(l, it.p), geometry: geomOf(it)}; }), note, fm);
+}
+function exportFeatures(base, name, feats, note, fm) {
+  if (fm === 'geojson') saveFile(new Blob([JSON.stringify({type: 'FeatureCollection', name, metadata: {credit: note}, features: feats.map(f => ({type: 'Feature', properties: f.properties, geometry: f.geometry}))})], {type: 'application/geo+json'}), base + '.geojson');
+  else if (fm === 'kml') saveFile(new Blob([toKml(name, feats, note)], {type: 'application/vnd.google-earth.kml+xml'}), base + '.kml');
+  else {
+    const q = v => '"' + String(v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : v).replace(/"/g, '""') + '"';
+    const keys = [...new Set(feats.flatMap(f => Object.keys(f.properties)))];
+    const pt = feats.length && feats.every(f => f.geometry.type === 'Point');
+    const csv = '﻿' + [keys.concat(pt ? ['lat', 'lon'] : []).map(q).join(',')].concat(feats.map(f => keys.map(k => q(f.properties[k])).concat(pt ? [f.geometry.coordinates[1], f.geometry.coordinates[0]] : []).join(','))).join('\n') + '\n' + q(note);
+    saveFile(new Blob([csv], {type: 'text/csv'}), base + '.csv');
+  }
+  msg(`יוצאו ${num(feats.length)} ישויות`);
+}
 
 // ---------------------------------------------------------------- טבלת נתונים כללית (עגינה בתחתית): רציף כפול, תוצאות ניתוח
 // o: {title, csv, note, tabs: [{t, cols: [{k, t, num, wrap, html(r), cls(r)}], rows: [...], note, onRow(r)}]}

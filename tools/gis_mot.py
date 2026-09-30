@@ -84,23 +84,38 @@ def _browser_ctx():
         pg.goto('https://data.gov.il/dataset/', wait_until='domcontentloaded', timeout=120000)
         pg.wait_for_timeout(8000)
         print('  דפדפן: האתר נטען —', (pg.title() or '(בלי כותרת)')[:60])
-        _BR.update(pw=pw, br=br, ctx=ctx)
+        _BR.update(pw=pw, br=br, ctx=ctx, page=pg)
     except Exception as e:  # noqa: BLE001
         print('  דפדפן לא זמין:', e)
     return _BR['ctx']
 
 
-def _looks_ok(path):
+def _looks_ok(path, ext=''):
     with open(path, 'rb') as f:
         head = f.read(512)
-    return bool(head) and not re.search(rb'<html|<!doctype', head, re.I)
+    if not head or re.search(rb'<html|<!doctype|<script', head, re.I):
+        return False
+    if ext in ('.zip', '.kmz', '.gdb') and head[:2] != b'PK':
+        return False
+    return True
 
 
-def download(url, dest):
+def _alt_hosts(url):
+    """אותו קובץ בשני שרתי ההורדה (data.gov.il / e.data.gov.il) — כמו ב-fetch_mot_shapes.py"""
+    out = [url]
+    if '://e.data.gov.il/' in url:
+        out.append(url.replace('://e.data.gov.il/', '://data.gov.il/'))
+    elif '://data.gov.il/' in url:
+        out.append(url.replace('://data.gov.il/', '://e.data.gov.il/'))
+    return out
+
+
+def download(url, dest, ds_name=None):
+    ext = os.path.splitext(urllib.parse.urlparse(url).path)[1].lower()
     try:
         subprocess.run(['curl', '-fsSL', '--connect-timeout', '30', '--max-time', '900', '-A', UA['User-Agent'],
                         '-o', dest, url], check=True, capture_output=True)
-        if os.path.getsize(dest) > 0 and _looks_ok(dest):
+        if os.path.getsize(dest) > 0 and _looks_ok(dest, ext):
             return True
         print('   curl קיבל דף HTML (הגנת בוטים) — מנסים בדפדפן')
     except Exception as e:  # noqa: BLE001
@@ -108,17 +123,40 @@ def download(url, dest):
     ctx = _browser_ctx()
     if not ctx:
         return False
-    for i in range(2):
+    # כניסה לעמוד הדאטהסט פעם אחת לכל מאגר, כדי שאתגר הגנת-הבוטים ייפתר גם לשרת ההורדות שלו
+    if ds_name and ds_name not in _BR.setdefault('visited', set()):
+        _BR['visited'].add(ds_name)
         try:
-            r = ctx.request.get(url, timeout=300000)
+            pg = _BR['page']
+            pg.goto(f'https://data.gov.il/dataset/{ds_name}', wait_until='domcontentloaded', timeout=120000)
+            pg.wait_for_timeout(4000)
+        except Exception as e:  # noqa: BLE001
+            print('   עמוד הדאטהסט לא נטען:', e)
+    for u in _alt_hosts(url):
+        try:
+            r = ctx.request.get(u, timeout=300000)
             body = r.body()
-            if r.ok and body and not re.search(rb'<html|<!doctype', body[:512], re.I):
+            if r.ok and body:
                 open(dest, 'wb').write(body)
-                return True
-            print(f'   דפדפן: סטטוס {r.status}, {len(body)} בתים — לא קובץ')
+                if _looks_ok(dest, ext):
+                    print(f'   ירד בדפדפן: {len(body)} bytes | {u}')
+                    return True
+            print(f'   דפדפן: סטטוס {r.status}, {len(body)} בתים — לא קובץ | {u}')
         except Exception as e:  # noqa: BLE001
             print(f'   דפדפן נכשל: {e}')
-        time.sleep(5)
+        try:   # נפילה לאחור: ניווט שמפעיל הורדת-קובץ בדפדפן
+            pg = _BR['page']
+            with pg.expect_download(timeout=60000) as dl:
+                try:
+                    pg.goto(u, timeout=60000)
+                except Exception:  # noqa: BLE001
+                    pass
+            dl.value.save_as(dest)
+            if _looks_ok(dest, ext):
+                print(f'   ירד כהורדת-דפדפן: {os.path.getsize(dest)} bytes')
+                return True
+        except Exception as e:  # noqa: BLE001
+            print(f'   הורדת-דפדפן נכשלה: {str(e)[:120]}')
     return False
 
 
@@ -325,7 +363,7 @@ def process_dataset(ds, work, prev):
         d = tempfile.mkdtemp(dir=work)
         f = os.path.join(d, 'src' + ext)
         print(f'  ↓ {url}')
-        if not download(url, f):
+        if not download(url, f, name):
             why = 'ההורדה נכשלה'
             continue
         srcs = []   # (path, layer, label)
@@ -507,6 +545,10 @@ def main():
     for f in glob.glob(os.path.join(OUTD, '*.new')) + glob.glob(os.path.join(OUTD, '*.gpkg')):
         os.remove(f)
     layers.sort(key=lambda l: (l['group'] != 'מצב קיים', TOPIC_ORDER.index(l['topic']), l['title']))
+    if not layers and prev:
+        # ריצה בלי אף שכבה (הורדות חסומות) לא מוחקת את הקטלוג הקודם
+        print('!! 0 שכבות — הקטלוג הקודם נשאר; הריצה תסומן כנכשלת')
+        return 1
     cat = {'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%MZ'),
            'source': 'data.gov.il — משרד התחבורה', 'topics': TOPIC_ORDER, 'layers': layers, 'skipped': skipped}
     json.dump(cat, open(CAT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
@@ -520,6 +562,9 @@ def main():
     print(f'  סך הכול {tot // 1048576} MB')
     for s in skipped:
         print(f"  ✗ {s['dataset']}: {s['reason']}")
+    if not layers:
+        print('!! 0 שכבות — הריצה תסומן כנכשלת')
+        return 1
     return 0
 
 

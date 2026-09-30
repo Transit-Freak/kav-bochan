@@ -60,7 +60,10 @@ jobs:
           # data.gov.il חוסם הורדות שאינן מדפדפן — כרומיום לפתרון אתגר הגנת-הבוטים (כמו fetch-mot-shapes)
           python3 -m pip install --quiet playwright && python3 -m playwright install --with-deps chromium >/dev/null
       - name: MOT layers (tools/gis_mot.py)
+        id: mot
         if: steps.w.outputs.mot == 'yes'
+        # נכשל כשלא נוצרה אף שכבה; שאר השלבים ממשיכים, והריצה מסומנת כנכשלת בסוף (שלב "Fail if no MOT layers")
+        continue-on-error: true
         env:
           ONLY: ${{ github.event.inputs.only }}
         run: |
@@ -115,3 +118,8 @@ jobs:
             if git push origin HEAD:"$BR"; then break; fi
             echo "push rejected — retry $i"; sleep 10
           done
+      - name: Fail if no MOT layers
+        if: steps.mot.outcome == 'failure'
+        run: |
+          echo "::error::gis_mot.py לא יצר אף שכבה של משרד התחבורה (ההורדות מ-data.gov.il נכשלו?) — ראו את הלוג של שלב MOT layers"
+          exit 1
