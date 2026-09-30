@@ -53,14 +53,14 @@ jobs:
       - name: Render maps
         run: |
           set -euo pipefail
-          mkdir -p citymap/maps
+          mkdir -p unreleased/citymap/maps
           for f in /tmp/citydata/*.json; do
             b="$(basename "$f")"
             [ "$b" = "cities.json" ] && continue
-            POI=poi.json python3 tools/citymap-render.py "$f" "citymap/maps/${b%.json}.html"
+            POI=poi.json python3 tools/citymap-render.py "$f" "unreleased/citymap/maps/${b%.json}.html"
           done
-          cp /tmp/citydata/cities.json citymap/cities.json
-          ls citymap/maps | head -50
+          cp /tmp/citydata/cities.json unreleased/citymap/cities.json
+          ls unreleased/citymap/maps | head -50
 
       - name: Push extracted city data (citymap-data branch)
         run: |
@@ -85,15 +85,15 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # main עלול לזוז בזמן הריצה — שומרים פלט, מתעדכנים, מחילים ודוחפים (עם ניסיונות חוזרים)
           rm -rf /tmp/out-citymap && mkdir -p /tmp/out-citymap
-          cp -r citymap/maps /tmp/out-citymap/maps
-          cp citymap/cities.json /tmp/out-citymap/cities.json
+          cp -r unreleased/citymap/maps /tmp/out-citymap/maps
+          cp unreleased/citymap/cities.json /tmp/out-citymap/cities.json
           for i in 1 2 3 4; do
             git fetch origin main && git reset --hard origin/main
             mkdir -p citymap
-            rm -rf citymap/maps
-            cp -r /tmp/out-citymap/maps citymap/maps
-            cp /tmp/out-citymap/cities.json citymap/cities.json
-            git add citymap/maps citymap/cities.json
+            rm -rf unreleased/citymap/maps
+            cp -r /tmp/out-citymap/maps unreleased/citymap/maps
+            cp /tmp/out-citymap/cities.json unreleased/citymap/cities.json
+            git add unreleased/citymap/maps unreleased/citymap/cities.json
             if git diff --cached --quiet; then
               echo "maps unchanged — nothing to commit"; break; fi
             git commit -m "data: refresh citymap network maps"

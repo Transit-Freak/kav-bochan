@@ -1,0 +1,90 @@
+name: Static open-map Pages
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, open-commercial-services]
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: static-open-map-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Navigation regression tests
+        run: |
+          node --test tests/*.test.cjs
+          python -m unittest discover -s tests -p test_map_source.py
+      - name: Open archive reader
+        run: pip install pmtiles==3.5.0
+      - name: Select available compatible map archive
+        id: map-source
+        run: python tools/map-source.py
+      - uses: actions/cache@v4
+        with:
+          path: israel.pmtiles
+          key: protomaps-${{ steps.map-source.outputs.key }}-israel-z14-v2
+      - name: Extract regional openly licensed map
+        env:
+          MAP_URL: ${{ steps.map-source.outputs.url }}
+        run: |
+          set -euo pipefail
+          if [ ! -f israel.pmtiles ]; then
+            curl -fL --retry 3 https://github.com/protomaps/go-pmtiles/releases/download/v1.31.2/go-pmtiles_1.31.2_Linux_x86_64.tar.gz -o /tmp/pmtiles.tar.gz
+            mkdir -p /tmp/pmtiles-bin
+            tar -xzf /tmp/pmtiles.tar.gz -C /tmp/pmtiles-bin
+            /tmp/pmtiles-bin/pmtiles extract "$MAP_URL" israel.partial.pmtiles --bbox=34.2,29.4,35.95,33.5 --maxzoom=14
+            mv israel.partial.pmtiles israel.pmtiles
+          fi
+          python tools/static-map.py israel.pmtiles maps/tiles
+      - name: Prepare licensed map code, fonts and Hebrew styles
+        run: |
+          python tools/map-assets.py
+          node tools/map-style.cjs
+      - name: Assemble static site
+        run: |
+          mkdir _site
+          cp *.html *.js *.jsx _site/
+          cp -r maps vendor licenses docs _site/
+          cp THIRD_PARTY.md sample-gtfs.zip _site/
+          touch _site/.nojekyll
+          python -c "from pathlib import Path; size=sum(p.stat().st_size for p in Path('_site').rglob('*') if p.is_file()); print(size); assert size < 900_000_000"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Wait for legacy Pages deployment of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 60); do
+            pending=$(gh api "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" --jq '[.workflow_runs[] | select(.name == "pages build and deployment" and .status != "completed")] | length')
+            if [ "$pending" = "0" ]; then exit 0; fi
+            sleep 10
+          done
+          echo 'Legacy deployment did not finish; keeping the current site.'
+          exit 1
+      - name: Deploy static files
+        id: deployment
+        uses: actions/deploy-pages@v4

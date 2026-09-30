@@ -5,7 +5,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tenders', 'scripts'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'unreleased', 'tenders', 'scripts'))
 
 import compare_today  # noqa: E402
 import line_changes  # noqa: E402

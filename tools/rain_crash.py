@@ -2,7 +2,7 @@
 # הקו הרטוב — גשם מול תאונות: הורדה ועיבוד של קובצי התאונות של הלמ"ס (PUF)
 # ונתוני הגשם של השירות המטאורולוגי, מ-data.gov.il (API פתוח, בלי טוקן).
 #
-# הפלט: rain-crash/data/
+# הפלט: unreleased/rain-crash/data/
 #   summary.json — מספרי-העל הארציים (חלק התאונות בגשם, מכפיל חומרה, לפי שעה)
 #   cells.json   — רשת תאים ~500 מ' עם ספירת תאונות רטוב/יבש ומקדם גשם
 #   cities.json  — טבלת יישובים: חלק תאונות הגשם מול הממוצע הארצי + ימי גשם
@@ -14,7 +14,7 @@ from collections import defaultdict
 
 API = 'https://data.gov.il/api/3/action/datastore_search'
 UA = {'User-Agent': 'Mozilla/5.0 (kav-bochan rain-crash research; github.com/Transit-Freak/kav-bochan)'}
-OUTDIR = os.environ.get('OUTDIR', 'rain-crash/data')
+OUTDIR = os.environ.get('OUTDIR', 'unreleased/rain-crash/data')
 EXPLORE = os.environ.get('EXPLORE') == '1'
 
 # משאבי ה-PUF המלא (למ"ס) — data + Dictionary לכל שנה

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: 'sha256 של המסמך (או תחילתו) מתוך tenders/text/index.json'
+        description: 'sha256 של המסמך (או תחילתו) מתוך unreleased/tenders/text/index.json'
         required: true
       pages:
         description: 'עמודים, מופרדים ברווח (למשל "8 17")'
@@ -28,6 +28,6 @@ jobs:
       - name: כלים
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils >/dev/null
-          python3 -m pip install -q -r tenders/scripts/requirements.txt
+          python3 -m pip install -q -r unreleased/tenders/scripts/requirements.txt
       - name: אבחון
-        run: python3 tenders/scripts/pdf_diag.py "${{ github.event.inputs.sha }}" ${{ github.event.inputs.pages }}
+        run: python3 unreleased/tenders/scripts/pdf_diag.py "${{ github.event.inputs.sha }}" ${{ github.event.inputs.pages }}

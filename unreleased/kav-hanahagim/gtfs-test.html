@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>קו הנהגים · בדיקת מנוע GTFS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  [data-theme="dark"] {
+    --bg: #0E1116; --panel: #171B22; --panel2: #1E242D; --hair: #262C36;
+    --text: #EEF1F6; --mut: #9AA4B2; --dim: #5E6675;
+    --accent: #6098FF; --accent-soft: rgba(96,152,255,0.14);
+    --accent-ink: #0E1116;
+    --ok: #34C77B; --ok-soft: rgba(52,199,123,0.14);
+    --warn: #E0A23A; --warn-soft: rgba(224,162,58,0.14);
+    --mono: 'JetBrains Mono', monospace;
+  }
+  [data-theme="light"] {
+    --bg: #EEF1F5; --panel: #FFFFFF; --panel2: #F2F5F9; --hair: #E2E7EE;
+    --text: #14171C; --mut: #5B6472; --dim: #9AA3B1;
+    --accent: #1F5EE0; --accent-soft: rgba(31,94,224,0.10);
+    --accent-ink: #FFFFFF;
+    --ok: #1E9E5A; --ok-soft: rgba(30,158,90,0.12);
+    --warn: #B26A00; --warn-soft: rgba(178,106,0,0.12);
+    --mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Assistant', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; transition: background .25s, color .25s; }
+  #root { max-width: 1240px; margin: 0 auto; padding: 26px 26px 80px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin .8s linear infinite; }
+  ::-webkit-scrollbar { height: 9px; width: 9px; }
+  ::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 99px; }
+  .leaflet-container { font-family: 'Assistant', sans-serif; }
+  .leaflet-control-attribution { font-size: 9px !important; }
+  .stop-ico { background: none; border: none; }
+  .stop-ico .dot { display: block; width: 13px; height: 13px; border-radius: 99px; background: #fff; border: 3px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.4); box-sizing: border-box; }
+  .stop-ico.passed .dot { background: #aeb6c2; border-color: #aeb6c2; }
+  .stop-ico.next .dot { width: 17px; height: 17px; background: var(--accent); border-color: #fff; }
+  .stop-ico.last .dot { border-radius: 4px; }
+  .puck-ico { background: none; border: none; }
+  .puck-ico .ring { position: absolute; inset: 4px; border-radius: 99px; background: var(--accent); opacity: 0.18; }
+  .puck-ico .core { position: absolute; inset: 9px; border-radius: 99px; background: var(--accent); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+  .puck-ico .core svg { width: 14px; height: 14px; }
+  .puck-ico .core svg path { fill: #fff; }
+</style>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/leaflet-maplibre-gl.js"></script>
+<script src="maps/styles.js"></script>
+</head>
+<body data-theme="light">
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="data.js?v=20260913d"></script>
+  <script src="navigation.js?v=20260913f"></script>
+  <script src="gtfs.js"></script>
+  <script src="geo.js"></script>
+  <script src="osrm.js"></script>
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="LeafletMap.jsx"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+    const fmt = (n) => (n || 0).toLocaleString('he-IL');
+
+    function Stat({ label, value, tone }) {
+      return (
+        <div style={{ background: 'var(--panel)', border: '1px solid var(--hair)', borderRadius: 14, padding: '14px 16px' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: 26, color: tone || 'var(--text)' }}>{value}</div>
+          <div style={{ fontSize: 13, color: 'var(--mut)', marginTop: 2 }}>{label}</div>
+        </div>
+      );
+    }
+
+    function Th({ children, w }) { return <th style={{ textAlign: 'right', padding: '7px 10px', color: 'var(--mut)', fontWeight: 700, fontSize: 12.5, borderBottom: '1px solid var(--hair)', whiteSpace: 'nowrap', width: w }}>{children}</th>; }
+    function Td({ children, mono }) { return <td style={{ padding: '7px 10px', fontSize: 13, borderBottom: '1px solid var(--hair)', fontFamily: mono ? 'var(--mono)' : 'inherit', whiteSpace: 'nowrap', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</td>; }
+
+    function Panel({ title, children, right }) {
+      return (
+        <div style={{ background: 'var(--panel)', border: '1px solid var(--hair)', borderRadius: 16, padding: 18, marginTop: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{title}</div>
+            <div style={{ marginInlineStart: 'auto' }}>{right}</div>
+          </div>
+          {children}
+        </div>
+      );
+    }
+
+    function App() {
+      const [dark, setDark] = useState(false);
+      const [stage, setStage] = useState('loading');   // loading | parsing | done | error
+      const [prog, setProg] = useState({ phase: '', pct: 0, detail: '' });
+      const [feed, setFeed] = useState(null);
+      const [err, setErr] = useState('');
+      const [fileName, setFileName] = useState('');
+      const [t0, setT0] = useState(0);
+      const [elapsed, setElapsed] = useState(0);
+      const [sel, setSel] = useState(null);         // selected routeId
+      const [view, setView] = useState(null);
+      const [q, setQ] = useState('');
+      const [page, setPage] = useState(0);
+      const [routeErr, setRouteErr] = useState('');
+      const [routeAttempt, setRouteAttempt] = useState(0);
+      const sourceEpoch = useRef(0);
+      const [driverF, setDriverF] = useState(0);
+      const [speed, setSpeed] = useState(2);
+      const speedRef = useRef(2);
+      useEffect(() => { speedRef.current = speed; }, [speed]);
+
+      // animate the driver puck along the selected route (the "simulation")
+      useEffect(() => {
+        if (!view) return;
+        setDriverF(0);
+        let raf, last;
+        const span = Math.max(45, Math.min(240, (view.totalMeters || 4000) / 90));
+        const tick = (t) => {
+          if (last != null) {
+            const dt = (t - last) / 1000;
+            setDriverF((f) => { const n = f + (dt / span) * speedRef.current; return n > 1.01 ? 0 : n; });
+          }
+          last = t; raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+      }, [view]);
+
+      useEffect(() => { document.body.setAttribute('data-theme', dark ? 'dark' : 'light'); }, [dark]);
+
+      const beginSource = (stage, name) => {
+        const epoch = ++sourceEpoch.current;
+        setFileName(name); setStage(stage); setErr(''); setFeed(null); setView(null); setSel(null);
+        setRouteErr(''); setQ(''); setPage(0);
+        return epoch;
+      };
+      const loadRemote = async () => {
+        const epoch = beginSource('loading', 'נתוני הקווים המעודכנים');
+        const start = performance.now();
+        try {
+          const loaded = await window.NahagimData.loadIndex();
+          if (epoch !== sourceEpoch.current) return;
+          setFeed(loaded); setFileName(loaded.fileName); setElapsed(Math.round(performance.now() - start)); setStage('done');
+        } catch (e) {
+          if (epoch !== sourceEpoch.current) return;
+          setErr('טעינת הקווים נכשלה: ' + e.message); setStage('error');
+        }
+      };
+      useEffect(() => { loadRemote(); return () => { sourceEpoch.current++; }; }, []);
+
+      const run = async (getBuffer, name) => {
+        const epoch = beginSource('parsing', name);
+        const start = performance.now(); setT0(start);
+        try {
+          const buf = await getBuffer();
+          if (epoch !== sourceEpoch.current) return;
+          if (typeof DecompressionStream === 'undefined') throw new Error('הדפדפן לא תומך בפענוח ZIP.');
+          const parsed = await window.GTFSParser.parseZip(buf, (p) => { if (epoch === sourceEpoch.current) setProg(p); });
+          if (epoch !== sourceEpoch.current) return;
+          parsed.fileName = name;
+          setElapsed(Math.round(performance.now() - start)); setFeed(parsed); setStage('done');
+        } catch (e) {
+          if (epoch !== sourceEpoch.current) return;
+          setErr(e.message || String(e)); setStage('error');
+        }
+      };
+      const onFile = (e) => { const f = e.target.files && e.target.files[0]; if (f) run(() => f.arrayBuffer(), f.name); };
+      const loadSample = () => run(async () => {
+        const r = await fetch('sample-gtfs.zip');
+        if (!r.ok) throw new Error('טעינת הדוגמה נכשלה: HTTP ' + r.status);
+        return r.arrayBuffer();
+      }, 'sample-gtfs.zip (דוגמה)');
+
+      const pickRoute = (id) => { setView(null); setRouteErr(''); setSel(id); setRouteAttempt(n => n + 1); };
+      useEffect(() => {
+        if (!feed || sel == null) return;
+        let cancelled = false;
+        setView(null); setRouteErr('');
+        Promise.resolve().then(() => feed.remote
+          ? window.NahagimData.loadRoute(sel)
+          : window.GTFSParser.buildTripView(feed, sel)).then((v) => {
+            if (cancelled) return;
+            if (!v || !v.trip || !Array.isArray(v.trip.stops) || !Array.isArray(v.geom) || v.geom.length < 2)
+              throw new Error('אין מסלול תקין לקו שנבחר');
+            setView(v);
+          }).catch((e) => { if (!cancelled) setRouteErr(e.message || String(e)); });
+        return () => { cancelled = true; };
+      }, [feed, sel, routeAttempt]);
+
+      const routes = feed ? feed.routes : [];
+      const matches = useMemo(() => q ? routes.filter((r) => [r.shortName, r.makat, r.id, r.longName].some(v => String(v || '').includes(q))) : routes, [routes, q]);
+      const filtered = matches.slice(page * 40, (page + 1) * 40);
+      const sampleStops = feed && feed.remote ? (view ? view.trip.stops.slice(0, 5).map(s => [s.id, s]) : [])
+        : feed ? [...feed.stops.entries()].slice(0, 5) : [];
+
+      // live simulation read-outs (turn + distance to next stop)
+      const simMetrics = useMemo(() => (view ? window.Geo.polylineMetrics(view.geom) : null), [view]);
+      const simStops = view ? view.trip.stops : [];
+      const simNext = simStops.find((s) => s.f > driverF) || simStops[simStops.length - 1];
+      const simMeters = (simNext && simMetrics) ? Math.max(0, (simNext.f - driverF) * simMetrics.total) : 0;
+      const simTurn = 'straight';
+      const TurnIco = simTurn === 'right' ? IconTurnRight : simTurn === 'left' ? IconTurnLeft : IconStraight;
+      const turnLabel = 'התחנה הבאה';
+      const fmtM = (m) => m >= 1000 ? (m / 1000).toFixed(1) + ' ק״מ' : Math.round(m / 10) * 10 + ' מ׳';
+
+      // LIVE OSRM maneuvers for the selected route (real turn-by-turn).
+      const [osrmOn, setOsrmOn] = useState(true);
+      const [osrmServer, setOsrmServer] = useState(window.OSRM.DEFAULT_SERVER);
+      const [osrm, setOsrm] = useState({ status: 'idle' });
+      useEffect(() => {
+        if (!view || feed?.remote || !osrmOn) { setOsrm({ status: 'off' }); return; }
+        let cancelled = false;
+        setOsrm({ status: 'loading' });
+        window.OSRM.maneuvers(view.geom, { server: osrmServer }).then((res) => {
+          if (cancelled) return;
+          if (res.ok) setOsrm({ status: 'ok', maneuvers: res.maneuvers.map((m) => ({ ...m, source: 'osrm' })), dist: res.dist, shape: res.shape });
+          else setOsrm({ status: 'fallback', reason: res.reason, dist: res.dist, shape: res.shape });
+        }).catch((e) => { if (!cancelled) setOsrm({ status: 'fallback', reason: e.message }); });
+        return () => { cancelled = true; };
+      }, [view, feed, osrmOn, osrmServer]);
+
+      const mvSource = feed?.remote ? (view?.maneuvers || [])
+        : (osrmOn && osrm.status === 'ok' ? osrm.maneuvers : []);
+      const prepared = useMemo(() => window.RouteNavigation.prepare(mvSource), [mvSource]);
+      const activeMv = window.RouteNavigation.next(prepared, driverF, simMetrics ? simMetrics.total : 0);
+      const MvIco = activeMv ? (activeMv.kind === 'roundabout' ? IconRoundabout : activeMv.kind.endsWith('right') ? IconTurnRight : activeMv.kind.endsWith('left') ? IconTurnLeft : IconStraight) : IconStraight;
+      const osrmBadge = osrm.status === 'ok' ? { t: `OSRM · ${osrm.maneuvers.length} הוראות`, c: 'var(--ok)' }
+        : osrm.status === 'loading' ? { t: 'OSRM · טוען…', c: 'var(--mut)' }
+        : osrm.status === 'fallback' ? { t: osrm.reason === 'wander' ? 'OSRM · המסלול אינו מתאים' : 'OSRM · הוראות לא זמינות', c: 'var(--warn)' }
+        : osrm.status === 'off' ? { t: 'OSRM כבוי', c: 'var(--mut)' } : null;
+
+      return (
+        <React.Fragment>
+          {/* header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconBus size={24} sw={2.2} /></div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 21 }}>בדיקת מנוע GTFS</div>
+              <div style={{ fontSize: 13, color: 'var(--mut)' }}>קו הנהגים · בדיקת מסלולים ונתוני GTFS</div>
+            </div>
+            <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button onClick={() => setDark((d) => !d)} aria-label="יום/לילה" style={{ width: 40, height: 40, borderRadius: 11, border: '1px solid var(--hair)', background: 'var(--panel2)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {dark ? <IconSun size={20} /> : <IconMoon size={20} />}
+              </button>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--warn)', background: 'var(--warn-soft)', padding: '6px 12px', borderRadius: 99 }}>ניסיוני · למחשב בלבד</div>
+            </div>
+          </div>
+
+          <p style={{ color: 'var(--mut)' }}>הקווים נטענים אוטומטית, כמו באפליקציית הנהג. חפש קו ובחר אותו להצגת המסלול והתחנות.</p>
+          {/* controls */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'var(--accent)', color: 'var(--accent-ink)', fontWeight: 800, fontSize: 15, padding: '12px 20px', borderRadius: 12, cursor: 'pointer' }}>
+              <IconUpload size={19} sw={2.2} /> טען קובץ GTFS (ZIP)
+              <input type="file" onChange={onFile} style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+            </label>
+            <button onClick={loadRemote} style={{ padding: '12px 20px', borderRadius: 12, cursor: 'pointer', background: 'var(--panel2)', color: 'var(--text)', border: '1px solid var(--hair)', fontFamily: 'inherit', fontWeight: 700 }}>טען קווים מעודכנים</button>
+            <button onClick={loadSample} style={{ background: 'var(--panel2)', color: 'var(--text)', border: '1px solid var(--hair)', fontFamily: 'inherit', fontWeight: 700, fontSize: 15, padding: '12px 20px', borderRadius: 12, cursor: 'pointer' }}>טען קובץ דוגמה</button>
+            <a href="app.html" style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, color: 'var(--mut)', textDecoration: 'none', fontSize: 14, fontWeight: 600, alignSelf: 'center' }}>← לאפליקציית הנהג</a>
+          </div>
+
+          {stage === 'loading' && <Panel title="טוען קווים מעודכנים…"><div role="status">מוריד את רשימת הקווים. אין צורך להעלות קובץ.</div></Panel>}
+          {/* parsing */}
+          {stage === 'parsing' && (
+            <Panel title="מפענח…">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div className="spin" style={{ width: 30, height: 30, borderRadius: 99, border: '3px solid var(--hair)', borderTopColor: 'var(--accent)', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                    <span style={{ fontWeight: 700 }}>{prog.phase}</span>
+                    <span style={{ fontFamily: 'var(--mono)', color: 'var(--mut)', direction: 'ltr' }}>{prog.detail}</span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 99, background: 'var(--panel2)', marginTop: 8, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: Math.round(prog.pct * 100) + '%', background: 'var(--accent)', transition: 'width .15s' }} />
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          )}
+
+          {stage === 'error' && (
+            <Panel title="שגיאה">
+              <div style={{ display: 'flex', gap: 10, color: 'var(--warn)', background: 'var(--warn-soft)', padding: 14, borderRadius: 12 }}>
+                <IconAlert size={20} /><span style={{ fontWeight: 600 }}>{err}</span>
+              </div>
+            </Panel>
+          )}
+
+          {stage === 'done' && feed && (
+            <React.Fragment>
+              {/* summary */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 20, color: 'var(--ok)', fontWeight: 700, fontSize: 15 }}>
+                <IconCheck size={20} sw={2.4} /> נקרא בהצלחה — {fileName} · {elapsed} מ״ש
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 14 }}>
+                <Stat label="מפעילים (agency)" value={feed.remote ? fmt(new Set(feed.routes.map(r => r.agency)).size) : fmt(feed.counts.agencies)} />
+                <Stat label="קווים (routes)" value={fmt(feed.counts.routes)} tone="var(--accent)" />
+                <Stat label="תחנות (stops)" value={fmt(feed.counts.stops)} />
+                <Stat label="נסיעות (trips)" value={fmt(feed.counts.trips)} />
+                {!feed.remote && <Stat label="שורות stop_times" value={fmt(feed.counts.stopTimes)} />}
+                {!feed.remote && <Stat label="נקודות shapes" value={fmt(feed.counts.shapes)} />}
+              </div>
+              {feed.caps?.shapeCapped && (
+                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--warn)', background: 'var(--warn-soft)', padding: '10px 14px', borderRadius: 10 }}>
+                  הקובץ חרג ממגבלת הזיכרון של הדפדפן ({fmt(20000000)} נקודות צורה). נתון נדיר — נסה במחשב עם יותר זיכרון.
+                </div>
+              )}
+
+              {/* sample tables */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 4, alignItems: 'start' }}>
+                <Panel title={feed.remote ? "דוגמת הקווים המוכנים" : "דוגמת routes.txt"} right={<span style={{ fontSize: 12, color: 'var(--dim)' }}>5 ראשונים</span>}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr><Th w="64">מק״ט</Th><Th w="56">route_id</Th><Th>קצר</Th><Th>מפעיל</Th><Th>שם ארוך</Th></tr></thead>
+                      <tbody>{feed.routes.slice(0, 5).map((r) => (
+                        <tr key={r.id}><Td mono>{r.makat}</Td><Td mono>{r.id}</Td><Td mono>{r.shortName}</Td><Td>{r.agency}</Td><Td>{r.longName}</Td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </Panel>
+                <Panel title={feed.remote ? "תחנות מהקו הנבחר" : "דוגמת stops.txt"} right={<span style={{ fontSize: 12, color: 'var(--dim)' }}>5 ראשונות</span>}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr><Th w="70">stop_id</Th><Th>קוד</Th><Th>שם</Th><Th>lat,lon</Th></tr></thead>
+                      <tbody>{sampleStops.map(([id, s]) => (
+                        <tr key={id}><Td mono>{id}</Td><Td mono>{s.code}</Td><Td>{s.name}</Td><Td mono>{isFinite(s.lat) ? s.lat.toFixed(4) + ',' + s.lon.toFixed(4) : '—'}</Td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </Panel>
+              </div>
+
+              {/* route preview */}
+              <Panel title="תצוגת מסלול שנבנה מהנתונים" right={
+                <input aria-label="חיפוש קו או מק״ט" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="חיפוש קו / מק״ט…"
+                  style={{ background: 'var(--panel2)', border: '1px solid var(--hair)', color: 'var(--text)', fontFamily: 'inherit', fontSize: 14, padding: '8px 12px', borderRadius: 10, width: 200, outline: 'none' }} />
+              }>
+                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 1fr', gap: 16, alignItems: 'start' }}>
+                  {/* route list */}
+                  <div>
+                    <div style={{ fontSize: 12.5, color: 'var(--mut)', fontWeight: 700, marginBottom: 6 }}>
+                      {fmt(matches.length)} {q ? 'תוצאות' : 'קווים'} · מוצגים {fmt(filtered.length)}
+                    </div>
+                    <div style={{ maxHeight: 432, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingInlineEnd: 4 }}>
+                      {matches.length > 40 && <div style={{ display: 'flex', gap: 8 }}><button disabled={page === 0} onClick={() => setPage(p => p - 1)}>הקודם</button><span>עמוד {page + 1} מתוך {Math.ceil(matches.length / 40)}</span><button disabled={(page + 1) * 40 >= matches.length} onClick={() => setPage(p => p + 1)}>הבא</button></div>}
+                      {filtered.map((r) => (
+                        <button key={r.id} onClick={() => pickRoute(r.id)} style={{
+                          display: 'flex', alignItems: 'center', gap: 10, textAlign: 'inherit', cursor: 'pointer',
+                          background: sel === r.id ? 'var(--accent-soft)' : 'var(--panel2)',
+                          border: '1px solid ' + (sel === r.id ? 'var(--accent)' : 'var(--hair)'),
+                          borderRadius: 10, padding: '8px 10px', fontFamily: 'inherit', color: 'var(--text)',
+                        }}>
+                          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, color: 'var(--accent)', minWidth: 34 }}>{r.shortName}</span>
+                          <span style={{ fontSize: 12.5, color: 'var(--mut)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.longName || r.makat}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* map + simulation overlay */}
+                  <div>
+                    <div style={{ position: 'relative', aspectRatio: '390/560', maxHeight: 432, borderRadius: 14, overflow: 'hidden', border: '1px solid var(--hair)', background: 'var(--panel2)' }}>
+                      {view ? <LeafletMap geom={view.geom} stops={view.trip.stops} driverF={driverF} dark={dark} follow={false} /> :
+                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--dim)', fontSize: 14 }}>{routeErr || (sel != null ? 'טוען את הקו…' : 'בחר קו לתצוגה')}</div>}
+                      {view && simNext && (
+                        <div style={{ position: 'absolute', top: 10, insetInlineStart: 54, insetInlineEnd: 10, zIndex: 500, background: activeMv ? (activeMv.kind === 'roundabout' ? '#0E4FC4' : 'var(--accent)') : 'var(--accent)', color: '#fff', borderRadius: 12, padding: '10px 13px', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' }}>
+                          {activeMv ? (
+                            <React.Fragment>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                                <div style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <MvIco size={26} style={{ color: '#fff' }} />
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 700 }}>בעוד {fmtM(Math.max(0, activeMv.meters))}</div>
+                                  <div style={{ fontSize: 15, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeMv.text}</div>
+                                </div>
+                                <div style={{ fontSize: 10, fontWeight: 800, flexShrink: 0, padding: '3px 7px', borderRadius: 99, background: 'rgba(255,255,255,0.2)' }}>{feed?.remote ? 'נתונים מוכנים' : 'OSRM'}</div>
+                              </div>
+                            </React.Fragment>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                              <div style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <TurnIco size={26} style={{ color: '#fff' }} />
+                              </div>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 700 }}>{turnLabel} · בעוד {fmtM(simMeters)}</div>
+                                <div style={{ fontSize: 15, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{simNext.name}</div>
+                              </div>
+                              <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{simNext.time}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* speed control */}
+                    {view && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                        <span style={{ fontSize: 12.5, color: 'var(--mut)', fontWeight: 700 }}>מהירות הדמיה</span>
+                        <div style={{ display: 'flex', gap: 4, marginInlineStart: 'auto' }}>
+                          {[0.5, 1, 2].map((s) => (
+                            <button key={s} onClick={() => setSpeed(s)} style={{
+                              border: '1px solid ' + (speed === s ? 'var(--accent)' : 'var(--hair)'),
+                              background: speed === s ? 'var(--accent)' : 'var(--panel2)',
+                              color: speed === s ? '#fff' : 'var(--text)', cursor: 'pointer',
+                              fontFamily: 'var(--mono)', fontWeight: 600, fontSize: 13, padding: '6px 11px', borderRadius: 8,
+                            }}>{s}×</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {view && feed?.remote && <div style={{ marginTop: 10, color: 'var(--mut)', fontSize: 13 }}>הוראות מהנתונים המוכנים · {view.nav?.status === 'ok' ? 'הוראות זמינות' : view.nav?.status === 'weak' ? 'איכות חלקית' : 'אין הוראות פנייה'} · עודכן {feed.built}</div>}
+                    {/* OSRM live navigation */}
+                    {view && !feed?.remote && (
+                      <div style={{ marginTop: 10, background: 'var(--panel)', border: '1px solid var(--hair)', borderRadius: 12, padding: '11px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 800 }}>ניווט אמיתי · OSRM</span>
+                          {osrmBadge && <span style={{ fontSize: 11, fontWeight: 700, color: osrmBadge.c }}>{osrmBadge.t}</span>}
+                          <button onClick={() => setOsrmOn((v) => !v)} style={{ marginInlineStart: 'auto', position: 'relative', width: 42, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer', background: osrmOn ? 'var(--accent)' : 'var(--hair)', transition: 'background .15s' }}>
+                            <span style={{ position: 'absolute', top: 2, insetInlineStart: osrmOn ? 20 : 2, width: 20, height: 20, borderRadius: 99, background: '#fff', transition: 'inset-inline-start .15s' }} />
+                          </button>
+                        </div>
+                        <input value={osrmServer} onChange={(e) => setOsrmServer(e.target.value)} spellCheck={false}
+                          style={{ width: '100%', marginTop: 9, background: 'var(--panel2)', border: '1px solid var(--hair)', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: 11.5, padding: '7px 9px', borderRadius: 8, outline: 'none', direction: 'ltr', textAlign: 'left' }} />
+                        <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 7, lineHeight: 1.5 }}>
+                          בדיקת ניתוב חיה לקובץ שהועלה ידנית. אם הניתוב אינו זמין, יוצגו התחנות ללא ניחוש הוראות פנייה.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* stops table */}
+                  <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                    {view ? (
+                      <React.Fragment>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>{view.trip.headsign} · {view.trip.stops.length} תחנות</div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead><tr><Th w="34">#</Th><Th>תחנה</Th><Th w="54">זמן</Th><Th w="48">f</Th></tr></thead>
+                          <tbody>{view.trip.stops.map((s) => (
+                            <tr key={s.seq} style={{ background: simNext && s.id === simNext.id ? 'var(--accent-soft)' : 'transparent' }}><Td mono>{s.seq}</Td><Td>{s.name}</Td><Td mono>{s.time}</Td><Td mono>{(s.f != null ? s.f.toFixed(3) : '—')}</Td></tr>
+                          ))}</tbody>
+                        </table>
+                      </React.Fragment>
+                    ) : <div style={{ color: 'var(--dim)', fontSize: 14, paddingTop: 20 }}>—</div>}
+                  </div>
+                </div>
+              </Panel>
+            </React.Fragment>
+          )}
+
+          {stage === 'idle' && (
+            <div style={{ marginTop: 40, textAlign: 'center', color: 'var(--dim)' }}>
+              <div style={{ fontSize: 15 }}>טען קובץ GTFS אמיתי, או נסה את קובץ הדוגמה כדי לראות שהמנוע קורא ומפענח.</div>
+              <div style={{ fontSize: 13, marginTop: 8 }}>קבצים גדולים (הזנה ארצית) נקראים בזרימה — שמור על הקבצה זמן לפי הגודל.</div>
+            </div>
+          )}
+        </React.Fragment>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
+

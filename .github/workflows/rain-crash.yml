@@ -47,9 +47,9 @@ jobs:
           for i in 1 2 3 4; do
             git fetch origin "$BR" && git reset --hard "origin/$BR"
             mkdir -p rain-crash
-            rm -rf rain-crash/data
-            cp -r /tmp/rcout rain-crash/data
-            git add rain-crash/data
+            rm -rf unreleased/rain-crash/data
+            cp -r /tmp/rcout unreleased/rain-crash/data
+            git add unreleased/rain-crash/data
             if git diff --cached --quiet; then echo "unchanged"; break; fi
             git commit -m "data: refresh rain-crash (למ\"ס PUF + גשם שמ\"ט)"
             if git push origin HEAD:"$BR"; then break; fi

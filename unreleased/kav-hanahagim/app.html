@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+<title>קו הנהגים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Assistant', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--bg-deep);
+    transition: background .3s ease;
+  }
+  button { font-family: inherit; }
+
+  [data-theme="light"] {
+    --bg: #F1F3F6; --surface: #FFFFFF;
+    --text: #14171C; --text-mut: #5B6472; --text-dim: #9AA3B1;
+    --accent: #1F5EE0; --accent-soft: #E5EDFC;
+    --accent-shadow: rgba(31,94,224,0.32); --accent-ring: rgba(31,94,224,0.16);
+    --chip: #EDF0F4; --seg-bg: #E6EAEF; --hair: #E8EBF0;
+    --rail: #D2D8E0; --rail-done: var(--accent); --row-hl: #EEF3FE;
+    --drop-bg: #F7F9FB; --dashed: #C6CDD8;
+    --ok: #1E9E5A; --ok-soft: #E0F2E8;
+    --warn: #B26A00; --warn-soft: #FBEEDA;
+    --keypad-bg: transparent; --bg-deep: #C9CED6; --status: #14171C;
+  }
+  [data-theme="dark"] {
+    --bg: #0E1116; --surface: #181C23;
+    --text: #F2F4F8; --text-mut: #9AA4B2; --text-dim: #5E6675;
+    --accent: #6098FF; --accent-soft: rgba(96,152,255,0.16);
+    --accent-shadow: rgba(0,0,0,0.55); --accent-ring: rgba(96,152,255,0.28);
+    --chip: #232833; --seg-bg: #20242D; --hair: #232833;
+    --rail: #333A45; --rail-done: var(--accent); --row-hl: rgba(96,152,255,0.12);
+    --drop-bg: #161A21; --dashed: #333A45;
+    --ok: #34C77B; --ok-soft: rgba(52,199,123,0.16);
+    --warn: #E0A23A; --warn-soft: rgba(224,162,58,0.16);
+    --keypad-bg: transparent; --bg-deep: #05070A; --status: #F2F4F8;
+  }
+
+  #app {
+    width: 100%; max-width: 440px; height: 100dvh; margin: 0 auto;
+    background: var(--bg); display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+  }
+  @media (min-width: 520px) {
+    body { display: flex; align-items: center; justify-content: center; }
+    #app { height: min(940px, 100dvh); border-radius: 26px; box-shadow: 0 30px 90px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06); }
+  }
+
+  .statusbar {
+    height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; color: var(--status); font-weight: 700; font-size: 14px;
+    background: var(--bg); position: relative; z-index: 30;
+    font-variant-numeric: tabular-nums;
+  }
+  .statusbar .gps { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--ok); }
+  .statusbar .dot { width: 7px; height: 7px; border-radius: 99px; background: var(--ok); }
+  .screen { flex: 1; min-height: 0; position: relative; }
+  .screen > * { height: 100%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin .8s linear infinite; }
+
+  .leaflet-container { font-family: 'Assistant', sans-serif; background: var(--bg-deep); }
+  .leaflet-control-attribution { font-size: 9px !important; background: rgba(255,255,255,0.6) !important; }
+  [data-theme="dark"] .leaflet-control-attribution { background: rgba(10,12,16,0.6) !important; color: #889 !important; }
+  .stop-ico { background: none; border: none; }
+  .stop-ico .dot { display: block; width: 14px; height: 14px; border-radius: 99px; background: #fff; border: 3px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.4); box-sizing: border-box; }
+  .stop-ico.passed .dot { background: #aeb6c2; border-color: #aeb6c2; width: 11px; height: 11px; }
+  .stop-ico.next .dot { width: 18px; height: 18px; background: var(--accent); border-color: #fff; box-shadow: 0 0 0 0 var(--accent-ring), 0 1px 3px rgba(0,0,0,0.4); animation: stoppulse 1.8s ease-out infinite; }
+  .stop-ico.last .dot { border-radius: 4px; }
+  @keyframes stoppulse { 0% { box-shadow: 0 0 0 0 var(--accent-ring), 0 1px 3px rgba(0,0,0,0.4); } 70% { box-shadow: 0 0 0 12px transparent, 0 1px 3px rgba(0,0,0,0.4); } 100% { box-shadow: 0 0 0 0 transparent, 0 1px 3px rgba(0,0,0,0.4); } }
+  .puck-ico { background: none; border: none; }
+  .puck-ico .ring { position: absolute; inset: 4px; border-radius: 99px; background: var(--accent); opacity: 0.18; animation: puckpulse 2.4s ease-out infinite; }
+  @keyframes puckpulse { 0% { transform: scale(0.7); opacity: 0.28; } 70% { transform: scale(1.6); opacity: 0; } 100% { opacity: 0; } }
+  .puck-ico .core { position: absolute; inset: 9px; border-radius: 99px; background: var(--accent); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+  .puck-ico .core svg { width: 14px; height: 14px; }
+  .puck-ico .core svg path { fill: #fff; }
+</style>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/leaflet-maplibre-gl.js"></script>
+<script src="maps/styles.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script src="search.js?v=20260914a"></script>
+  <script src="route.js?v=20260913c"></script>
+  <script src="gtfs.js?v=20260913i"></script>
+  <script src="geo.js?v=20260913c"></script>
+  <script src="services.js?v=20260914licenses"></script>
+  <script src="osrm.js?v=20260914licenses"></script>
+  <script src="gps.js?v=20260913h"></script>
+  <script src="speech.js?v=20260914kastina"></script>
+  <script src="wake-lock.js?v=20260913g"></script>
+  <script src="coverage.js?v=20260914coverage"></script>
+  <script src="navigation.js?v=20260914kastina"></script>
+  <script src="data.js?v=20260913c"></script>
+  <script type="text/babel" src="icons.jsx?v=20260913c"></script>
+  <script type="text/babel" src="LeafletMap.jsx?v=20260914static3"></script>
+  <script type="text/babel" src="ui.jsx?v=20260913i"></script>
+  <script type="text/babel" src="screens.jsx?v=20260914a"></script>
+  <script type="text/babel" src="MapScreen.jsx?v=20260914coverage"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function StatusBar() {
+      const [t, setT] = useState('');
+      useEffect(() => {
+        const upd = () => setT(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
+        upd();
+        const id = setInterval(upd, 10000);
+        return () => clearInterval(id);
+      }, []);
+      return (
+        <div className="statusbar">
+          <span>{t}</span>
+          <span className="gps"><span className="dot"></span>תצוגת מסלול</span>
+        </div>
+      );
+    }
+
+    // מסך ביניים: טוען את רשימת הקווים המוכנה / את הקו שנבחר
+    function Waiting({ title, detail, err, onBack }) {
+      return (
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+          {!err && <div className="spin" style={{ width: 44, height: 44, borderRadius: 99, border: '3px solid var(--chip)', borderTopColor: 'var(--accent)' }} />}
+          <div style={{ fontWeight: 800, fontSize: 17, color: err ? 'var(--warn)' : 'var(--text)' }}>{err ? 'לא הצלחתי לטעון' : title}</div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-mut)', lineHeight: 1.5, direction: err ? 'ltr' : 'rtl' }}>{err || detail}</div>
+          {onBack && <button onClick={onBack} style={{ marginTop: 6, background: 'var(--chip)', border: 'none', borderRadius: 12, padding: '10px 18px', fontFamily: 'inherit', fontWeight: 700, fontSize: 14.5, color: 'var(--text)', cursor: 'pointer' }}>חזרה לחיפוש</button>}
+        </div>
+      );
+    }
+
+    class MapBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { failed: false }; }
+      static getDerivedStateFromError() { return { failed: true }; }
+      componentDidCatch(error) { console.error('Map rendering failed', error); }
+      render() {
+        return this.state.failed
+          ? <Waiting err="לא ניתן להציג את המפה של הקו. אפשר לחזור ולבחור קו אחר." onBack={this.props.onBack} />
+          : this.props.children;
+      }
+    }
+
+    function App() {
+      const [dark, setDark] = useState(false);
+      const initial = (location.hash || '').replace('#', '');
+      // בפתיחה: רשימת הקווים המוכנה מהשרת (data.js). #upload פותח ישר את ההעלאה הידנית.
+      const [screen, setScreen] = useState(initial === 'upload' ? 'upload' : 'boot');
+      const [route, setRoute] = useState(null);
+      const [feed, setFeed] = useState(null);
+      const [view, setView] = useState(null);
+      const [routeErr, setRouteErr] = useState('');
+      const [bootErr, setBootErr] = useState('');
+      const [search, setSearch] = useState({ mode: 'line', q: '', page: 0 });
+      const toggle = () => setDark((d) => !d);
+
+      useEffect(() => {
+        document.body.setAttribute('data-theme', dark ? 'dark' : 'light');
+      }, [dark]);
+
+      useEffect(() => {
+        if (screen !== 'boot') return;
+        let alive = true;
+        window.NahagimData.loadIndex()
+          .then((f) => { if (alive) { setFeed(f); setScreen('search'); } })
+          .catch((e) => { if (alive) { setBootErr(String(e.message || e)); setScreen('upload'); } });
+        return () => { alive = false; };
+      }, []);
+
+      useEffect(() => {
+        const onHash = () => {
+          // A bare #map cannot identify a route; never open a map without one.
+          setScreen(location.hash === '#upload' ? 'upload' : 'search');
+          setRoute(null);
+          setView(null);
+        };
+        window.addEventListener('hashchange', onHash);
+        return () => window.removeEventListener('hashchange', onHash);
+      }, []);
+
+      // Bind each response to the selected route. Leaving the screen or choosing
+      // another route invalidates the old response, including late failures.
+      useEffect(() => {
+        if (screen !== 'map' || !route) return;
+        let cancelled = false;
+        setView(null);
+        setRouteErr('');
+        Promise.resolve().then(() => {
+          if (feed && feed.remote) return window.NahagimData.loadRoute(route.id);
+          if (feed) return window.GTFSParser.buildTripView(feed, route.id);
+          return { trip: window.GTFS_FEED.trip, geom: window.GTFS_FEED.geom };
+        }).then((v) => {
+          if (cancelled) return;
+          if (!v || !v.trip || !Array.isArray(v.trip.stops) || !Array.isArray(v.geom) || v.geom.length < 2)
+            throw new Error('אין מסלול תקין לקו שנבחר');
+          setView(v);
+        }).catch((e) => { if (!cancelled) setRouteErr(String(e.message || e)); });
+        return () => { cancelled = true; };
+      }, [screen, route, feed]);
+
+      const backToSearch = () => { setScreen('search'); setRoute(null); setView(null); setRouteErr(''); };
+      const selectRoute = (r) => {
+        setRoute(r);
+        setView(null);
+        setRouteErr('');
+        setScreen('map');
+      };
+
+      const demo = window.GTFS_FEED;
+      const trip = view ? view.trip : demo.trip;
+      const geom = view ? view.geom : demo.geom;
+      const mapRoute = route || demo.routes[0];
+
+      let body;
+      if (screen === 'boot')
+        body = <Waiting title="טוען את רשימת הקווים" detail="נתוני משרד התחבורה, מעודכנים אחת לשבוע" />;
+      else if (screen === 'upload')
+        body = <UploadScreen dark={dark} onToggleDark={toggle} note={bootErr}
+          onLoaded={(f) => { setFeed(f); setScreen('search'); }}
+          onDemo={() => { setFeed(null); setView(null); setScreen('search'); }} />;
+      else if (screen === 'search')
+        body = <SearchScreen dark={dark} onToggleDark={toggle} feed={feed} search={search} onSearch={setSearch} onSelect={selectRoute} onUpload={() => setScreen('upload')} />;
+      else if (!view || !route)
+        body = <Waiting title={`טוען את קו ${route ? route.shortName : ''}`} detail="תחנות, מסלול והוראות נהיגה" err={routeErr} onBack={backToSearch} />;
+      else
+        body = <MapBoundary key={route.id} onBack={backToSearch}><MapScreen key={route.id} route={mapRoute} trip={trip} geom={geom} dark={dark} onToggleDark={toggle}
+          maneuvers={view && view.maneuvers ? view.maneuvers : undefined}
+          uncertainSegments={view?.nav?.uncertainSegments}
+          navSource={view && view.nav ? view.nav.status : undefined}
+          onBack={backToSearch} startF={0} /></MapBoundary>;
+
+      return (
+        <React.Fragment>
+          <StatusBar />
+          <div className="screen">{body}</div>
+        </React.Fragment>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+  </script>
+</body>
+</html>
+

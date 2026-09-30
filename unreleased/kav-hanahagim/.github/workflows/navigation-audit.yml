@@ -1,0 +1,51 @@
+name: Navigation audit
+on:
+  push:
+    paths:
+      - 'navigation.js'
+      - 'coverage.js'
+      - 'search.js'
+      - 'screens.jsx'
+      - 'speech.js'
+      - 'wake-lock.js'
+      - 'gps.js'
+      - 'MapScreen.jsx'
+      - 'tools/audit-navigation.cjs'
+      - 'tools/audit-terminals.cjs'
+      - 'tests/**'
+      - '.github/workflows/navigation-audit.yml'
+  workflow_dispatch:
+  # הריצה היומית הופסקה עד להודעה חדשה (שלמה 28.09). להחזרה:
+  # schedule:
+  #   - cron: '30 12 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regression tests
+        run: node --test tests/navigation.test.cjs tests/speech.test.cjs tests/wake-lock.test.cjs tests/gps.test.cjs tests/search.test.cjs tests/coverage.test.cjs tests/audit-navigation.test.cjs
+      - uses: actions/checkout@v4
+        with:
+          repository: Transit-Freak/kav-bochan
+          ref: nahagim-data
+          path: feed
+          persist-credentials: false
+      - name: Check every indexed route and replay navigation
+        run: node tools/audit-navigation.cjs feed navigation-audit.json
+      - name: Screen terminal approaches and cross-route disagreements
+        run: node tools/audit-terminals.cjs feed terminal-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: navigation-audit
+          path: |
+            navigation-audit.json
+            terminal-audit.json
+          retention-days: 30
