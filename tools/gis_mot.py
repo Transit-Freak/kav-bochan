@@ -177,6 +177,16 @@ def api_csv(res, dest):
     הרכבים), כותבים CSV מקומי, ומשם אותה המרה של קואורדינטות לנקודות (X/Y או LAT/LON)."""
     if not res.get('datastore_active'):
         return False
+    # קודם רק שמות העמודות: בלי עמודות קואורדינטות — לא מושכים (יש מאגרים של מיליוני שורות, כמו רישוי רכב)
+    head = get_json(API + 'datastore_search?' + urllib.parse.urlencode({'resource_id': res['id'], 'limit': 0}))
+    hr = (head or {}).get('result') or {}
+    cols = [f['id'] for f in hr.get('fields', [])]
+    if not (any(COORD_X.match(c.strip()) for c in cols) and any(COORD_Y.match(c.strip()) for c in cols)):
+        print('   API: אין עמודות קואורדינטות — מדלגים')
+        return False
+    if (hr.get('total') or 0) > 200000:
+        print(f"   API: {hr.get('total')} שורות — גדול מדי לשכבה, מדלגים")
+        return False
     rows, fields, off = [], None, 0
     while True:
         r = get_json(API + 'datastore_search?' + urllib.parse.urlencode({'resource_id': res['id'], 'limit': 32000, 'offset': off}))

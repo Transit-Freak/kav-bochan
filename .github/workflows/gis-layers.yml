@@ -74,6 +74,7 @@ jobs:
           ONLY: ${{ github.event.inputs.only }}
           # data.gov.il חוסם את GitHub — משתמשים רק בקבצים שהועלו ידנית ל-gis/manual/
           MANUAL_ONLY: '1'
+          PYTHONUNBUFFERED: '1'
         run: |
           python3 tools/gis_mot.py
           du -sh gis/data/mot || true
@@ -104,7 +105,10 @@ jobs:
         run: |
           # רשת ההולכי-רגל מ-OpenStreetMap (Geofabrik) — לטווח הליכה לפי רחובות ושבילים ולתצוגת "לפי קטע רחוב"
           python3 -m pip install --quiet osmium
-          curl -fsSL --retry 3 -o /tmp/il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          # Geofabrik לפעמים נכנס ללולאת הפניות בלי עוגיות (30.09) — עם עוגיות, ומראה חלופית
+          curl -fsSL --retry 3 -c /tmp/cj -b /tmp/cj -A "Mozilla/5.0 (kavbochan.app)" -o /tmp/il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf \
+            || curl -fsSL --retry 3 -o /tmp/il.osm.pbf https://download.openstreetmap.fr/extracts/asia/israel_and_palestine-latest.osm.pbf \
+            || curl -fsSL --retry 3 -o /tmp/il.osm.pbf https://download.bbbike.org/osm/extract/planet_34.2,29.4_35.95,33.35.osm.pbf
           ls -la /tmp/il.osm.pbf
           python3 tools/gis_walknet.py /tmp/il.osm.pbf
           du -sh gis/data/walk
