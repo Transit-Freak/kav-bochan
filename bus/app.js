@@ -887,7 +887,7 @@ function renderBunchLines() {
 
 // תדירות שידור GPS (שלמה 29.09: "כל כמה זמן הרכב משדר בממוצע", לפי רכב ולפי מפעיל) — data/gps.json,
 // צבירה של 14 הימים האחרונים, לא תלויה בתקופה שנבחרה למעלה
-let GPS = null, gq = '', gAll = false;
+let GPS = null, gq = '', gLim = 50, gT = 0;
 const gpsAvg = () => { let s = 0, n = 0; GPS.v.forEach(r => { s += r[2]; n++; }); return n ? Math.round(s / n) : '—'; };
 const secCls = v => v == null ? '' : v >= 120 ? 'd4' : v >= 90 ? 'd3' : v >= 75 ? 'd2' : '';
 function renderGps() {
@@ -906,13 +906,14 @@ function renderGps() {
   let rows = GPS.v;
   if (q) rows = rows.filter(r => r[0].includes(q) || (agName[r[1]] || '').includes(q));
   const total = rows.length;
-  if (!gAll) rows = rows.slice(0, 50);
+  // בלי "הצגת הכל": אלפי שורות בבת אחת האטו כל לחיצה בדף (שלמה 30.09) — טוענים עוד 100 בכל פעם
+  rows = rows.slice(0, gLim);
   box.innerHTML = rows.length ? `<div class="tblbox" style="margin-top:10px"><table><thead><tr><th>מספר רכב</th><th>מפעיל</th><th>מרווח ממוצע</th><th>חציון</th><th>מרווחים חסרים</th><th>דיווחים</th><th>ימים</th></tr></thead><tbody>` +
     rows.map(r => `<tr><td class="nm" style="direction:ltr;text-align:right">${esc(r[0])}</td><td style="font-size:12px">${esc(agName[r[1]] || r[1])}</td><td class="${secCls(r[2])}"><b>${r[2]}</b> שנ׳</td><td>${r[3] == null ? '—' : r[3] + ' שנ׳'}</td><td>${r[6] == null ? '—' : Math.round(r[6] * 100) + '%'}</td><td>${num(r[4])}</td><td>${r[5]}</td></tr>`).join('') + '</tbody></table></div>' +
-    (total > rows.length ? `<button class="more" id="more-gps">הצגת כל ${num(total)} הרכבים</button>` : '') +
+    (total > rows.length ? `<button class="more" id="more-gps">עוד ${num(Math.min(100, total - rows.length))} רכבים (מוצגים ${num(rows.length)} מתוך ${num(total)})</button>` : '') +
     `<div class="mut" style="margin-top:6px">${num(total)} רכבים · רק רכבים עם 20 מרווחים לפחות · החציון מעוגל לסלים של 5 שניות</div>` : '<div class="empty">לא נמצא רכב כזה</div>';
-  const inp = $('#gps-q'); if (inp && !inp.oninput) inp.oninput = e => { gq = e.target.value; gAll = false; renderGps(); };
-  const mb = $('#more-gps'); if (mb) mb.onclick = () => { gAll = true; renderGps(); };
+  const inp = $('#gps-q'); if (inp && !inp.oninput) inp.oninput = e => { gq = e.target.value; gLim = 50; clearTimeout(gT); gT = setTimeout(renderGps, 200); };
+  const mb = $('#more-gps'); if (mb) mb.onclick = () => { gLim += 100; renderGps(); };
 }
 function init() {
   $('#method').innerHTML = METHOD;
