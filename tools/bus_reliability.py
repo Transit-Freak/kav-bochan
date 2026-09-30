@@ -147,7 +147,7 @@ def load_gtfs(path, day):
         if 'עיר:' in desc:
             city = desc.split('עיר:', 1)[1].split('רציף:')[0].split('קומה:')[0].strip()
         stops[r['stop_id']] = (r['stop_code'], r['stop_name'], float(r['stop_lat'] or 0), float(r['stop_lon'] or 0), city)
-    return {'routes': routes, 'trips': trips, 'stops': stops, 'zip': z}
+    return {'routes': routes, 'trips': trips, 'stops': stops, 'zip': z, 'agencies': agencies}
 
 
 def load_clusters(path):
@@ -1328,7 +1328,8 @@ def main():
                               'end': round(e['end'] / max(e['n'], 1), 2), 'ex': e['ex']} for mkt, e in agg.items()}}
     json.dump(dh_out, open(f'{a.out}/deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump({'d': day, 'v': gps_v}, open(f'{a.out}/days/{day}.gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    gps_aggregate(a.out, {r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}, day_obj['built'])
+    # שמות מ-agency.txt: מפעיל שמשדר ב-SIRI בלי קווים ב-GTFS של היום הופיע כמספר ("22", שלמה 30.09)
+    gps_aggregate(a.out, {**g.get('agencies', {}), **{r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}}, day_obj['built'])
     idx = {'days': days, 'updated': day_obj['built'], 'fmt': FMT}
     json.dump(idx, open(f'{a.out}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     sz = os.path.getsize(f'{a.out}/days/{day}.json')
