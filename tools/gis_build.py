@@ -457,7 +457,15 @@ def build_kavbug():
     feats = []
     for it in scan.get('issues', []):
         props = {k: it.get(k) for k in ('line', 'operator', 'dir', 'type', 'from', 'to', 'city', 'excessKm',
-                                        'tripsDay', 'wasteDayKm', 'ratio', 'verdict', 'reason')}
+                                        'tripsDay', 'wasteDayKm', 'ratio', 'verdict', 'reason', 'optKm', 'ref')}
+        # אורך המסלול הנוכחי בין התחנות = הדרך הקצרה + העודף (כמו בקו באג); הדרך המוצעת — optRoute (ניווט OSRM),
+        # ובבדיקה מול קו אחר גם refGeom (מסלול קו-הייחוס). נשמרים מפושטים כדי לצייר אותם בזיהוי.
+        if it.get('optKm') is not None and it.get('excessKm') is not None:
+            props['curKm'] = round(float(it['optKm']) + float(it['excessKm']), 2)
+        for k, src in (('opt', 'optRoute'), ('refg', 'refGeom')):
+            g = it.get(src)
+            if g and len(g) > 1:
+                props[k] = [[p[0], p[1]] for p in (lambda c: [[y, x] for x, y in c])(simp_line([[p[1], p[0]] for p in g], 0.00003))]
         seg = it.get('seg')
         if seg and len(seg) > 1:
             geom = {'type': 'LineString', 'coordinates': simp_line([[p[1], p[0]] for p in seg], 0.00002)}

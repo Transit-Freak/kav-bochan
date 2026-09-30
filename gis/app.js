@@ -186,8 +186,11 @@ reg({id: 'kavpach', title: 'קו פח — קווים בזבזניים', group: G
 reg({id: 'kavbug', title: 'קו באג — קטעי מסלול חשודים', group: G_OWN, kind: 'geojson', url: 'data/own/kavbug.json', tool: 'קו באג',
   style: p => ({color: VERDICT[p.verdict] || '#64748b', weight: 4, opacity: 0.9}), pointColor: p => VERDICT[p.verdict] || '#64748b',
   link: () => ['https://transit-freak.github.io/kav-bug/', 'פתיחה בקו באג'],
-  labels: {line: 'קו', operator: 'מפעיל', dir: 'כיוון', type: 'סוג', from: 'מתחנה', to: 'עד תחנה', city: 'יישוב', excessKm: 'ק"מ עודפים', tripsDay: 'נסיעות ביום', wasteDayKm: 'ק"מ מבוזבזים ביום', ratio: 'יחס לדרך הקצרה', verdict: 'הכרעה', reason: 'נימוק'},
-  legend: () => ({type: 'ln', items: Object.entries(VERDICT).map(([t, c]) => ({c, t}))}), sw: '#f59e0b'});
+  fields: ['line', 'operator', 'dir', 'type', 'from', 'to', 'city', 'curKm', 'optKm', 'excessKm', 'ratio', 'ref', 'tripsDay', 'wasteDayKm', 'verdict', 'reason'],
+  labels: {line: 'קו', operator: 'מפעיל', dir: 'כיוון', type: 'סוג', from: 'מתחנה', to: 'עד תחנה', city: 'יישוב', curKm: 'אורך המסלול הנוכחי (ק"מ)', optKm: 'אורך המסלול המוצע — הדרך הקצרה ברכב (ק"מ)', ref: 'קו ייחוס', excessKm: 'ק"מ עודפים', tripsDay: 'נסיעות ביום', wasteDayKm: 'ק"מ מבוזבזים ביום', ratio: 'יחס לדרך הקצרה', verdict: 'הכרעה', reason: 'נימוק', opt: null, refg: null},
+  // בזיהוי: המקטע הנוכחי (כתום-אדום) מול המסלול המוצע (ירוק) — כמו בקו באג; זום לשניהם ותחנות הקצה
+  after: (p, el, it) => { kavbugDraw(p, it); el.innerHTML = `<div class="lgs"><span><i style="background:#ea580c"></i>המסלול הנוכחי בין התחנות</span><span><i style="background:#16a34a"></i>המסלול המוצע / הקצר</span>${p.refg ? `<span><i style="background:#0d9488"></i>מסלול קו הייחוס ${esc(p.ref || '')}</span>` : ''}</div>`; el.classList.remove('note'); return Promise.resolve(); },
+  legend: () => ({type: 'ln', items: Object.entries(VERDICT).map(([t, c]) => ({c, t})).concat([{c: '#16a34a', t: 'בזיהוי: המסלול המוצע / הקצר (ירוק מקווקו)'}, {c: '#ea580c', t: 'בזיהוי: המסלול הנוכחי בין התחנות'}]), note: 'צבע הקטע במפה — לפי הכרעת קו באג. בלחיצה על קטע מוצגים המסלול הנוכחי מול המסלול המוצע (הדרך הקצרה ברכב לפי ניווט), ותחנות הקצה.'}), sw: '#f59e0b'});
 reg({id: 'skip', title: 'הקו המדלג — תחנות שמדלגים עליהן', group: G_OWN, kind: 'points', url: 'data/own/skip-stops.json', tool: 'הקו המדלג',
   color: () => '#7c3aed', radius: () => 4.5, link: () => ['../skip-stops/', 'פתיחה בהקו המדלג'],
   legend: () => ({type: 'pt', items: [{c: '#7c3aed', t: 'תחנה שהקו עובר לידה ולא עוצר'}]}), sw: '#7c3aed'});
@@ -670,7 +673,7 @@ function renderIdent() {
   if (!IDN || !IDN.hits.length) { box.hidden = true; return; }
   const {l, i} = IDN.hits[IDN.k], it = l.items[i], p = it.p, lab = l.labels || {}, N = IDN.hits.length;
   const code = p.code && l.kind === 'points' && l.id !== 'skip' ? `${l.id === 'rail' ? 'תחנה' : 'תחנה'} ${p.code} · ` : '';
-  const rows = (l.fields || Object.keys(p)).filter(f => lab[f] !== null && f in p).map(f => `<tr><td>${esc(lab[f] || f)}</td><td>${fmtVal(p[f])}</td></tr>`).join('');
+  const rows = (l.fields || Object.keys(p)).filter(f => lab[f] !== null && f in p && !(l.id === 'kavbug' && p[f] == null)).map(f => typeof p[f] === 'string' && p[f].length > 60 && !/^https?:/.test(p[f]) ? `<tr><td colspan="2" class="long"><span>${esc(lab[f] || f)}</span>${fmtVal(p[f])}</td></tr>` : `<tr><td>${esc(lab[f] || f)}</td><td>${fmtVal(p[f])}</td></tr>`).join('');
   const lk = l.link && l.link(p);
   box.innerHTML = `<div class="t"><b title="${esc(titleOf(l, p))}">${esc(code + titleOf(l, p))}</b><button class="x" data-a="x" title="סגירה" aria-label="סגירה">${ICO.x}</button></div>
     <div class="ly"><span class="sw" style="background:${swatchOf(l)}"></span>${esc(l.title)}</div>
@@ -696,6 +699,17 @@ $('#ident').addEventListener('click', e => {
 function closeIdent() { IDN = null; $('#ident').hidden = true; clearXtra(); if (hiLayer) { map.removeLayer(hiLayer); hiLayer = null; } }
 // שכבת עזר לזיהוי (למשל הרחובות של "התחנה הבאה") — מתנקה בכל מעבר ישות
 const xtraG = L.layerGroup().addTo(map);
+function kavbugDraw(p, it) {
+  const seg = it.f && it.f.geometry.type === 'LineString' ? it.f.geometry.coordinates.map(([x, y]) => [y, x]) : null, B = [];
+  const add = (pts, o, tip) => { const pl = L.polyline(pts, Object.assign({interactive: true, lineCap: 'round', lineJoin: 'round'}, o)).bindTooltip(tip, {sticky: true}); xtraG.addLayer(pl); B.push(...pts); };
+  if (p.refg) add(p.refg, {color: '#0d9488', weight: 4, opacity: 0.85}, `מסלול קו הייחוס ${p.ref || ''}`);
+  if (seg && seg.length > 1) { add(seg, {color: '#fff', weight: 11, opacity: 0.8}, ''); add(seg, {color: '#ea580c', weight: 6, opacity: 1}, `המסלול הנוכחי · ${p.curKm != null ? fmt1(p.curKm) + ' ק"מ' : ''}`); }
+  if (p.opt) add(p.opt, {color: '#16a34a', weight: 5, opacity: 0.95, dashArray: '2 9'}, `המסלול המוצע / הקצר · ${p.optKm != null ? fmt1(+p.optKm) + ' ק"מ' : ''}`);
+  if (seg && seg.length > 1) [[seg[0], p.from], [seg[seg.length - 1], p.to]].forEach(([pt, nm]) => { if (!nm) return;
+    xtraG.addLayer(L.circleMarker(pt, {radius: 5.5, color: '#0f172a', fillColor: '#fff', fillOpacity: 1, weight: 2.5}).bindTooltip(esc(nm), {permanent: true, direction: 'top', className: 'stoptip'})); });
+  if (hiLayer) { map.removeLayer(hiLayer); hiLayer = null; }   // בלי הדגשת הבחירה מעל הכתום
+  if (B.length) { const I = $('#ident'), mob = isMobile(); map.fitBounds(L.latLngBounds(B), {paddingTopLeft: [50, 50], paddingBottomRight: [50 + (!mob && !I.hidden ? I.offsetWidth + 52 : 0), 50 + (mob && !I.hidden ? I.offsetHeight : 0)], maxZoom: 16}); }
+}
 function clearXtra() { xtraG.clearLayers(); }
 function identify(l, idx) { IDN = {hits: [{l, i: idx}], k: 0}; renderIdent(); }
 function flash(it) {
@@ -2011,5 +2025,5 @@ Promise.all([load('data/catalog.json').then(addCatalog).catch(() => { CATALOG = 
   if (isMobile()) closePane(); else openPane('layers');
   syncOv(); showView(); showCoord(map.getCenter());
 });
-window.GIS = {diffRuns, lineAt, afterPts, plans, selectHood, byId, map, setVisible, openTable, setRadius, toITM, setSel, SEL, openPane, hitTest, setDate, openLineView, openStopView, setArea};
+window.GIS = {identify, diffRuns, lineAt, afterPts, plans, selectHood, byId, map, setVisible, openTable, setRadius, toITM, setSel, SEL, openPane, hitTest, setDate, openLineView, openStopView, setArea};
 })();
