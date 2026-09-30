@@ -8,9 +8,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { sparse-checkout: links.html }
-      - run: |
+      - shell: bash {0}
+        run: |
           for u in $(grep -o 'href="https\?://[^"]*"' links.html | sed 's/href="//;s/"$//' | sort -u); do
-            r=$(curl -sL -A 'Mozilla/5.0' -o /tmp/b -w '%{http_code} %{url_effective}' --max-time 30 "$u")
+            r=$(curl -sL -A 'Mozilla/5.0' -o /tmp/b -w '%{http_code} %{url_effective}' --max-time 30 "$u" || true)
             t=$(grep -o '<title>[^<]*' /tmp/b | head -1 | cut -c8-90)
             echo "$r | $u | $t"
           done
