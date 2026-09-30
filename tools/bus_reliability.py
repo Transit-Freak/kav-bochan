@@ -625,7 +625,7 @@ def gps_day(journeys, meta):
             for v, e in V.items() if e[2]}
 
 
-def gps_aggregate(out, agency_names, updated):
+def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
     V = {}
@@ -662,7 +662,9 @@ def gps_aggregate(out, agency_names, updated):
         if e[2] < 20:     # מעט מדי מרווחים לנתון יציב
             continue
         op = e[0].most_common(1)[0][0]
-        if str(op) == '2':   # רכבת ישראל — לא נכללת (שלמה 29.09: אוטובוסים בלבד)
+        # אוטובוסים בלבד (שלמה 29.09: "רכבת לא"): מפעיל נכלל רק אם יש לו קווי אוטובוס (route_type 3) ב-GTFS.
+        # כך נופלות גם הרכבות הקלות — תבל (22) וכפיר (21) הופיעו כ"מפעיל 22" עם רכבים "4", "33" (30.09)
+        if str(op) == '2' or (bus_ops and str(op) not in bus_ops):
             continue
         mean = round(e[3] / e[2])
         md = med(e[4], e[2])
@@ -1329,7 +1331,8 @@ def main():
     json.dump(dh_out, open(f'{a.out}/deadhead.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump({'d': day, 'v': gps_v}, open(f'{a.out}/days/{day}.gps.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     # שמות מ-agency.txt: מפעיל שמשדר ב-SIRI בלי קווים ב-GTFS של היום הופיע כמספר ("22", שלמה 30.09)
-    gps_aggregate(a.out, {**g.get('agencies', {}), **{r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}}, day_obj['built'])
+    gps_aggregate(a.out, {**g.get('agencies', {}), **{r.get('agency_id'): r.get('agency') for r in g['routes'].values() if r.get('agency_id')}}, day_obj['built'],
+                  {str(r.get('agency_id')) for r in g['routes'].values() if r.get('type') in BUS_TYPES and r.get('agency_id')})
     idx = {'days': days, 'updated': day_obj['built'], 'fmt': FMT}
     json.dump(idx, open(f'{a.out}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     sz = os.path.getsize(f'{a.out}/days/{day}.json')
