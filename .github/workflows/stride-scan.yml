@@ -1,0 +1,59 @@
+name: stride-scan
+# סריקה חד-פעמית: מרווח שידור GPS ממוצע לכל רכב וקו בחלון זמן (שלמה 30.09)
+on:
+  workflow_dispatch:
+    inputs:
+      start: { default: '2026-09-30T06:30:00+03:00' }
+      end:   { default: '2026-09-30T07:00:00+03:00' }
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - env: { START: '${{ inputs.start }}', END: '${{ inputs.end }}' }
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse, datetime, os, collections, statistics
+          B='https://open-bus-stride-api.hasadna.org.il/siri_vehicle_locations/list'
+          rows=[]; off=0
+          while True:
+              q={'recorded_at_time_from':os.environ['START'],'recorded_at_time_to':os.environ['END'],
+                 'order_by':'id asc','limit':10000,'offset':off}
+              for k in range(4):
+                  try: page=json.load(urllib.request.urlopen(B+'?'+urllib.parse.urlencode(q), timeout=120)); break
+                  except Exception as e: print('retry', e)
+              else: raise SystemExit('API failed')
+              rows+=page; off+=len(page)
+              if len(page)<10000: break
+          print('rows:', len(rows))
+          if rows: print('fields:', sorted(rows[0].keys()))
+          veh=collections.defaultdict(set); line={}
+          for r in rows:
+              v=r.get('siri_ride__vehicle_ref')
+              if not v: continue
+              veh[v].add(r['recorded_at_time'])
+              line[v]=(r.get('siri_route__operator_ref'), r.get('siri_route__line_ref'))
+          means={}
+          for v,ts in veh.items():
+              t=sorted(datetime.datetime.fromisoformat(x.replace('Z','+00:00')) for x in ts)
+              d=[(b-a).total_seconds() for a,b in zip(t,t[1:]) if (b-a).total_seconds()<600]
+              if len(d)>=10: means[v]=sum(d)/len(d)
+          def bucket(m): return '<30' if m<30 else '30-50' if m<50 else '50-70' if m<70 else '70-90' if m<90 else '90+'
+          print('\n== רכבים (לפחות 10 מרווחים):', len(means))
+          c=collections.Counter(bucket(m) for m in means.values())
+          for b in ['<30','30-50','50-70','70-90','90+']: print(f'{b:>6}: {c[b]:5d}  ({100*c[b]/max(1,len(means)):.1f}%)')
+          ln=collections.defaultdict(list)
+          for v,m in means.items(): ln[line[v]].append(m)
+          lm={k:statistics.mean(x) for k,x in ln.items()}
+          print('\n== קווים (line_ref):', len(lm))
+          c=collections.Counter(bucket(m) for m in lm.values())
+          for b in ['<30','30-50','50-70','70-90','90+']: print(f'{b:>6}: {c[b]:5d}  ({100*c[b]/max(1,len(lm)):.1f}%)')
+          op=collections.defaultdict(list)
+          for v,m in means.items(): op[line[v][0]].append(m)
+          print('\n== לפי מפעיל: מפעיל | רכבים | ממוצע | % רכבים 30-50')
+          for o,x in sorted(op.items(), key=lambda kv:-len(kv[1])):
+              print(o, len(x), round(statistics.mean(x),1), round(100*sum(30<=m<50 for m in x)/len(x),1))
+          print('\n== דוגמאות קווים 30-50:')
+          for k,m in sorted(lm.items(), key=lambda kv:kv[1])[:0]: pass
+          for k,m in [kv for kv in lm.items() if 30<=kv[1]<50][:40]: print(k, round(m,1))
+          PY
