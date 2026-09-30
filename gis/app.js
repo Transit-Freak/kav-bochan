@@ -21,6 +21,8 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 
 // סמלים (SVG שצויר כאן, קו דק)
 const ICO = {
+  up: '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
   eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>',
   fold: '<svg class="fold" viewBox="0 0 16 13"><path d="M.5 1.5v11h15V3.5H7.5L6 1.5z"/></svg>',
@@ -51,6 +53,52 @@ map.createPane('sel').style.zIndex = 460;
 map.getPane('sel').style.pointerEvents = 'none';
 const canvasPts = L.canvas({padding: 0.4, tolerance: 4, pane: 'pts'});
 const canvasSel = L.canvas({padding: 0.4, pane: 'sel'});
+// סדר הציור: פוליגונים מתחת לקווים, קווים מתחת לנקודות; בתוך אותו סוג — לפי הסדר בעץ השכבות (העליון מעל).
+// לכל שכבה משטח ציור (canvas) משלה בחלונית של הסוג שלה, וה-z-index שלו נקבע לפי המקום בעץ (applyOrder).
+map.createPane('poly').style.zIndex = 410;
+map.createPane('line').style.zIndex = 420;
+map.createPane('ptsIco').style.zIndex = 455;
+map.getPane('ptsIco').style.pointerEvents = 'none';
+
+// ---------------------------------------------------------------- סמלים: מה שהשכבה מראה (סט משלנו, SVG 40×40; c — צבע ראשי)
+const ICONS = {
+  stop: c => `<circle cx="20" cy="20" r="17" fill="${c || '#16a34a'}"/><rect x="12" y="11" width="16" height="15" rx="3" fill="#fff"/><rect x="14" y="13" width="12" height="6" fill="${c || '#16a34a'}"/><circle cx="15" cy="28" r="2" fill="#fff"/><circle cx="25" cy="28" r="2" fill="#fff"/>`,
+  stopOff: c => `<circle cx="20" cy="20" r="17" fill="${c || '#dc2626'}"/><rect x="12" y="11" width="16" height="15" rx="3" fill="#fff"/><rect x="14" y="13" width="12" height="6" fill="${c || '#dc2626'}"/><path d="M9 31 31 9" stroke="#fff" stroke-width="3"/>`,
+  terminal: c => `<rect x="3" y="3" width="34" height="34" rx="6" fill="${c || '#0f172a'}"/><path d="M8 28h24M10 28V15l10-6 10 6v13" stroke="#fff" stroke-width="2.5" fill="none"/><rect x="15" y="18" width="10" height="10" fill="#38bdf8"/>`,
+  rail: c => `<circle cx="20" cy="20" r="17" fill="${c || '#1d4ed8'}"/><rect x="13" y="9" width="14" height="17" rx="4" fill="#fff"/><rect x="15" y="12" width="10" height="5" fill="${c || '#1d4ed8'}"/><path d="M14 31l3-5M26 31l-3-5" stroke="#fff" stroke-width="2.5"/>`,
+  lrt: c => `<circle cx="20" cy="20" r="17" fill="${c || '#9333ea'}"/><path d="M20 6v5M14 8h12" stroke="#fff" stroke-width="2"/><rect x="12" y="12" width="16" height="15" rx="4" fill="#fff"/><rect x="14" y="15" width="12" height="5" fill="${c || '#9333ea'}"/>`,
+  metro: c => `<circle cx="20" cy="20" r="17" fill="${c || '#f97316'}"/><text x="20" y="27" text-anchor="middle" font-size="20" font-weight="900" fill="#fff" font-family="Arial">M</text>`,
+  ontime: c => `<circle cx="20" cy="20" r="17" fill="#fff" stroke="${c || '#16a34a'}" stroke-width="3"/><path d="M20 10v10l7 4" stroke="${c || '#16a34a'}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  late: c => `<circle cx="20" cy="20" r="17" fill="#fff" stroke="${c || '#dc2626'}" stroke-width="3"/><path d="M20 10v10l7 4" stroke="${c || '#dc2626'}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M29 6l5 5M34 6l-5 5" stroke="${c || '#dc2626'}" stroke-width="2.5"/>`,
+  empty: () => `<rect x="4" y="12" width="32" height="16" rx="4" fill="#fff" stroke="#a16207" stroke-width="2.5"/><rect x="8" y="15" width="6" height="5" fill="#fde68a"/><rect x="17" y="15" width="6" height="5" fill="#fde68a"/><rect x="26" y="15" width="6" height="5" fill="#fde68a"/><circle cx="12" cy="30" r="3" fill="#a16207"/><circle cx="28" cy="30" r="3" fill="#a16207"/><text x="20" y="9" text-anchor="middle" font-size="8" font-weight="900" fill="#a16207" font-family="Arial">0</text>`,
+  detour: () => `<circle cx="6" cy="30" r="3.5" fill="#0f172a"/><circle cx="34" cy="30" r="3.5" fill="#0f172a"/><path d="M6 30H34" stroke="#94a3b8" stroke-width="2" stroke-dasharray="3 3"/><path d="M6 30 C8 4 32 4 34 30" stroke="#dc2626" stroke-width="3.5" fill="none"/>`,
+  name: () => `<rect x="5" y="6" width="30" height="13" rx="2" fill="#0ea5e9"/><text x="20" y="16" text-anchor="middle" font-size="8" font-weight="900" fill="#fff" font-family="Arial">שם</text><rect x="5" y="23" width="30" height="11" rx="2" fill="#fff" stroke="#0f172a" stroke-width="2"/><text x="20" y="31.5" text-anchor="middle" font-size="7" font-weight="700" fill="#0f172a" font-family="Arial">רחוב</text><path d="M34 17 L38 25" stroke="#dc2626" stroke-width="2.5"/>`,
+  fleet: () => `<circle cx="20" cy="22" r="15" fill="#e0f2fe" stroke="#0891b2" stroke-width="2"/><rect x="10" y="16" width="20" height="10" rx="2" fill="#0891b2"/><circle cx="14" cy="28" r="2" fill="#0f172a"/><circle cx="26" cy="28" r="2" fill="#0f172a"/><circle cx="31" cy="8" r="7" fill="#0891b2"/><text x="31" y="11" text-anchor="middle" font-size="9" font-weight="900" fill="#fff" font-family="Arial">#</text>`,
+  skip: () => `<path d="M3 20H37" stroke="#0f172a" stroke-width="3"/><circle cx="20" cy="30" r="4" fill="#f59e0b"/><path d="M8 14 C14 8 26 8 32 14" stroke="#0ea5e9" stroke-width="3" fill="none"/><path d="M29 11l3 3-4 1" stroke="#0ea5e9" stroke-width="2.5" fill="none"/>`,
+  industry: () => `<rect x="6" y="14" width="12" height="20" fill="#475569"/><rect x="20" y="8" width="14" height="26" fill="#64748b"/><circle cx="9" cy="8" r="4" fill="#16a34a"/><path d="M9 12v4" stroke="#16a34a" stroke-width="2"/>`,
+  pnr: c => `<rect x="3" y="3" width="34" height="34" rx="6" fill="${c || '#1d4ed8'}"/><text x="20" y="28" text-anchor="middle" font-size="22" font-weight="900" fill="#fff" font-family="Arial">P</text><path d="M26 10h6v6" stroke="#fff" stroke-width="2" fill="none"/>`,
+  nataz: c => `<rect x="3" y="3" width="34" height="34" rx="6" fill="${c || '#e11d48'}"/><path d="M13 34V8M27 34V8" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/><rect x="14" y="14" width="12" height="11" rx="2" fill="#fff"/><circle cx="17" cy="27" r="1.5" fill="#fff"/><circle cx="23" cy="27" r="1.5" fill="#fff"/>`,
+  depot: c => `<path d="M20 3 36 11v18L20 37 4 29V11z" fill="${c || '#64748b'}"/><path d="M12 26V15l8-4 8 4v11" stroke="#fff" stroke-width="2.5" fill="none"/><path d="M16 26v-6h8v6" stroke="#fff" stroke-width="2.5" fill="none"/>`,
+  project: c => `<rect x="3" y="3" width="34" height="34" rx="6" fill="#fff" stroke="${c || '#f59e0b'}" stroke-width="3" stroke-dasharray="5 3"/><path d="M12 28l6-12 4 7 3-4 4 9z" fill="${c || '#f59e0b'}"/>`,
+  road: () => `<path d="M5 34 20 5l15 29" stroke="#475569" stroke-width="3" fill="none"/><path d="M20 12v4M20 20v4M20 28v4" stroke="#facc15" stroke-width="3"/><rect x="12" y="1" width="16" height="9" rx="2" fill="#16a34a"/><text x="20" y="8.5" text-anchor="middle" font-size="7" font-weight="900" fill="#fff" font-family="Arial">431</text>`,
+  hood: () => `<path d="M6 8h28v24H6z" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5" stroke-dasharray="4 2"/><circle cx="16" cy="18" r="3" fill="#7c3aed"/><circle cx="25" cy="24" r="3" fill="#7c3aed"/>`,
+};
+const iconSvg = (k, c, px) => `<svg viewBox="0 0 40 40" width="${px || 16}" height="${px || 16}" aria-hidden="true">${ICONS[k](c)}</svg>`;
+// סמל לשכבת משרד התחבורה — לפי הכותרת (מה שהשכבה מראה)
+function motIcon(t, fut) {
+  if (/חנה.?וסע|park/i.test(t)) return 'pnr';
+  if (/דיפו|depo/i.test(t)) return 'depot';
+  if (/מטרו(?!נית)|metro(?!nit)/i.test(t)) return 'metro';
+  if (/רק"ל|רקל|רכבת קלה|lrt/i.test(t)) return 'lrt';
+  if (/רכבת|rail|מסיל/i.test(t)) return 'rail';
+  if (/נת"צ|נתצ|nataz|העדפ/i.test(t)) return 'nataz';
+  if (/מסוף|terminal|מרכזית/i.test(t)) return 'terminal';
+  if (/כביש|מספור|road|דרכים/i.test(t)) return 'road';
+  if (/תחנ/i.test(t)) return 'stop';
+  if (/תעשי|תעסוק/i.test(t)) return 'industry';
+  return fut ? 'project' : null;
+}
+const ICONMAX = 3000;   // שכבת נקודות עם סמל מצוירת בסמלים רק עד כמות כזו; צפופה יותר — עיגולים צבעוניים
 let baseLayer = null, baseKey = 'light', ovBase = null;
 function tiles(b) { return L.tileLayer(b.u, Object.assign({crossOrigin: true}, b.o)); }
 function setBase(k) {
@@ -172,18 +220,18 @@ const G_OWN = 'הכלים של הקו הבוחן', G_HOOD = 'שכונות וני
 const STOPLIKE = ['bus', 'allstops', 'nextst', 'terminals'];
 const TOPIC_OPEN = ['תחבורה ציבורית', 'רכבת, רק"ל ומטרו'];
 
-reg({id: 'bus', title: 'מדד דיוק האוטובוסים — לפי תחנה', group: G_OWN, kind: 'points', url: 'data/own/bus-stops.json', tool: 'מדד דיוק האוטובוסים',
+reg({id: 'bus', icon: 'ontime', title: 'מדד דיוק האוטובוסים — לפי תחנה', group: G_OWN, kind: 'points', url: 'data/own/bus-stops.json', tool: 'מדד דיוק האוטובוסים',
   color: p => onColor(p.on), radius: () => 3.2, link: () => ['../bus/', 'פתיחה במדד'],
   legend: () => ({type: 'pt', items: onLegend('בזמן'), note: 'אחוז ההגעות בזמן לתחנה ב-30 הימים האחרונים (כל הקווים), מדאטאבוס. "נסיעות ביום חול" — מלוח הזמנים (GTFS).'}),
   sw: '#16a34a'});
-reg({id: 'rail', title: 'מדד אמינות הרכבת — לפי תחנה', group: G_OWN, kind: 'points', url: 'data/own/rail-stations.json', tool: 'מדד אמינות הרכבת',
+reg({id: 'rail', icon: 'rail', marker: true, title: 'מדד אמינות הרכבת — לפי תחנה', group: G_OWN, kind: 'points', url: 'data/own/rail-stations.json', tool: 'מדד אמינות הרכבת',
   color: p => onColor(p.on), radius: () => 7, link: () => ['../rail/', 'פתיחה במדד'],
   legend: () => ({type: 'pt', items: onLegend('בזמן'), note: 'רכבות שהגיעו לתחנה עד 5 דקות מהלו"ז, 30 ימים אחרונים.'}), sw: '#0ea5e9'});
-reg({id: 'kavpach', title: 'קו פח — קווים בזבזניים', group: G_OWN, kind: 'geojson', url: 'data/own/kavpach.json', tool: 'קו פח',
+reg({id: 'kavpach', icon: 'empty', title: 'קו פח — קווים בזבזניים', group: G_OWN, kind: 'geojson', url: 'data/own/kavpach.json', tool: 'קו פח',
   style: p => ({color: scoreColor(p.score), weight: 2.5, opacity: 0.85}), link: () => ['../', 'פתיחה בקו פח'],
   labels: {line: 'קו', makat: 'מק"ט', origin: 'מוצא', dest: 'יעד', district: 'מחוז', category: 'קטגוריה', score: 'ציון קו פח', trips: 'נסיעות (בנתוני קו פח)', avgRiders: 'נוסעים בממוצע לנסיעה', wastedKm: 'ק"מ מבוזבזים', avgCost: 'עלות לנוסע (₪)'},
   legend: () => ({type: 'ln', items: SCORE.map(([t, c], i) => ({c, t: i === 0 ? `ציון ${t} ומעלה` : `ציון ${t}–${SCORE[i - 1][0]}`})), note: 'קווים שקיבלו בקו פח ציון 25 ומעלה (ברירת המחדל של האתר). המסלול: החלופה הראשית בכל כיוון, מ-GTFS.'}), sw: '#dc2626'});
-reg({id: 'kavbug', title: 'קו באג — קטעי מסלול חשודים', group: G_OWN, kind: 'geojson', url: 'data/own/kavbug.json', tool: 'קו באג',
+reg({id: 'kavbug', icon: 'detour', title: 'קו באג — קטעי מסלול חשודים', group: G_OWN, kind: 'geojson', url: 'data/own/kavbug.json', tool: 'קו באג',
   style: p => ({color: VERDICT[p.verdict] || '#64748b', weight: 4, opacity: 0.9}), pointColor: p => VERDICT[p.verdict] || '#64748b',
   link: () => ['https://transit-freak.github.io/kav-bug/', 'פתיחה בקו באג'],
   fields: ['line', 'operator', 'dir', 'type', 'from', 'to', 'city', 'curKm', 'optKm', 'excessKm', 'ratio', 'ref', 'tripsDay', 'wasteDayKm', 'verdict', 'reason'],
@@ -191,28 +239,28 @@ reg({id: 'kavbug', title: 'קו באג — קטעי מסלול חשודים', gr
   // בזיהוי: המקטע הנוכחי (כתום-אדום) מול המסלול המוצע (ירוק) — כמו בקו באג; זום לשניהם ותחנות הקצה
   after: (p, el, it) => { kavbugDraw(p, it); el.innerHTML = `<div class="lgs"><span><i style="background:#ea580c"></i>המסלול הנוכחי בין התחנות</span><span><i style="background:#16a34a"></i>המסלול המוצע / הקצר</span>${p.refg ? `<span><i style="background:#0d9488"></i>מסלול קו הייחוס ${esc(p.ref || '')}</span>` : ''}</div>`; el.classList.remove('note'); return Promise.resolve(); },
   legend: () => ({type: 'ln', items: Object.entries(VERDICT).map(([t, c]) => ({c, t})).concat([{c: '#16a34a', t: 'בזיהוי: המסלול המוצע / הקצר (ירוק מקווקו)'}, {c: '#ea580c', t: 'בזיהוי: המסלול הנוכחי בין התחנות'}]), note: 'צבע הקטע במפה — לפי הכרעת קו באג. בלחיצה על קטע מוצגים המסלול הנוכחי מול המסלול המוצע (הדרך הקצרה ברכב לפי ניווט), ותחנות הקצה.'}), sw: '#f59e0b'});
-reg({id: 'skip', title: 'הקו המדלג — תחנות שמדלגים עליהן', group: G_OWN, kind: 'points', url: 'data/own/skip-stops.json', tool: 'הקו המדלג',
+reg({id: 'skip', icon: 'skip', title: 'הקו המדלג — תחנות שמדלגים עליהן', group: G_OWN, kind: 'points', url: 'data/own/skip-stops.json', tool: 'הקו המדלג',
   color: () => '#7c3aed', radius: () => 4.5, link: () => ['../skip-stops/', 'פתיחה בהקו המדלג'],
   legend: () => ({type: 'pt', items: [{c: '#7c3aed', t: 'תחנה שהקו עובר לידה ולא עוצר'}]}), sw: '#7c3aed'});
-reg({id: 'parks', title: 'נגישות אזורי תעשייה', group: G_OWN, kind: 'geojson', url: 'data/own/parks.json', tool: 'נגישות אזורי תעשייה',
+reg({id: 'parks', icon: 'industry', title: 'נגישות אזורי תעשייה', group: G_OWN, kind: 'geojson', url: 'data/own/parks.json', tool: 'נגישות אזורי תעשייה',
   style: p => ({color: '#1e3a8a', weight: 1.5, fillColor: onColor(p.cov == null ? null : p.cov * (p.cov <= 1 ? 100 : 1)), fillOpacity: 0.45}),
   link: () => ['../parks/', 'פתיחה בכלי'],
   labels: {name: 'שם', city: 'יישוב', area: 'שטח (קמ"ר)', lines: 'קווים', cov: 'כיסוי', zt: 'סוג', f: null},
   legend: () => ({type: 'fl', items: onLegend('כיסוי'), note: 'הצבע לפי שיעור הכיסוי בתחבורה ציבורית כפי שחושב בכלי אזורי התעשייה.'}), sw: '#1e3a8a'});
-reg({id: 'fleet', title: 'צי הרכבים — לפי יישוב', group: G_OWN, kind: 'points', url: 'data/own/fleet-cities.json', tool: 'צי הרכבים',
+reg({id: 'fleet', icon: 'fleet', title: 'צי הרכבים — לפי יישוב', group: G_OWN, kind: 'points', url: 'data/own/fleet-cities.json', tool: 'צי הרכבים',
   color: () => '#334155', radius: p => Math.max(4, Math.min(22, Math.sqrt(p.total || 0) / 3.5)), link: () => ['../fleet/', 'פתיחה בצי הרכבים'],
   legend: () => ({type: 'pt', items: [{c: '#334155', t: 'גודל העיגול — מספר הרכבים השונים ששירתו את היישוב'}], note: 'הנקודה היא מרכז תחום היישוב, לא חניון.'}), sw: '#334155'});
-reg({id: 'terminals', title: 'מסופים ותחנות מרכזיות (GTFS)', group: G_OWN, kind: 'points', url: 'data/own/terminals.json', tool: 'GTFS של משרד התחבורה',
+reg({id: 'terminals', icon: 'terminal', marker: true, title: 'מסופים ותחנות מרכזיות (GTFS)', group: G_OWN, kind: 'points', url: 'data/own/terminals.json', tool: 'GTFS של משרד התחבורה',
   color: () => '#0f172a', radius: p => Math.max(5, Math.min(14, Math.sqrt(p.tpd || 0) / 4)), link: () => null,
   legend: () => ({type: 'pt', items: [{c: '#0f172a', t: 'תחנת אב ב-GTFS (מסוף, ת. מרכזית, רכבת)'}], note: 'רק מה שמסומן ב-GTFS כתחנת אב (location_type=1). הגודל — נסיעות ביום חול.'}), sw: '#0f172a'});
 
 // שכונות: גבולות, מדד מורכב, טווח הליכה
-reg({id: 'hoods', title: 'גבולות שכונות', group: G_HOOD, kind: 'geojson', url: 'data/own/hoods.json',
+reg({id: 'hoods', icon: 'hood', title: 'גבולות שכונות', group: G_HOOD, kind: 'geojson', url: 'data/own/hoods.json',
   style: () => ({color: '#0f172a', weight: 1, fillColor: '#38bdf8', fillOpacity: 0.06}), labels: {i: null, name: 'שכונה', city: 'יישוב', km2: 'שטח (קמ"ר)'},
   onclick: p => selectHood(p.i), link: () => { const s = byId.hoods.meta && byId.hoods.meta.source; return s && s.url ? [s.url, 'מקור הגבולות'] : null; },
   extra: () => `<p class="note">${hoodSourceNote()}</p>`,
   legend: () => ({type: 'fl', items: [{c: '#e0f2fe', t: 'שכונה — לחיצה בוחרת אותה'}], note: hoodSourceNote()}), sw: '#38bdf8'});
-reg({id: 'hoodscore', title: 'מדד התחבורה הציבורית לשכונה', group: G_HOOD, kind: 'geojson', url: 'data/own/hoods.json', needs: ['bus', 'hoods'],
+reg({id: 'hoodscore', icon: 'hood', title: 'מדד התחבורה הציבורית לשכונה', group: G_HOOD, kind: 'geojson', url: 'data/own/hoods.json', needs: ['bus', 'hoods'],
   style: p => ({color: '#334155', weight: 0.6, fillColor: hoodColor(hoodScore(p.i)), fillOpacity: 0.6}), labels: {i: null, name: 'שכונה', city: 'יישוב', km2: 'שטח (קמ"ר)'},
   extra: p => hoodExtra(p.i), onclick: p => selectHood(p.i),
   legend: () => ({type: 'fl', items: HOODRAMP.map(([t, c], i) => ({c, t: i === 0 ? `${t} ומעלה` : `${t}–${HOODRAMP[i - 1][0]}`})).concat([{c: '#cbd5e1', t: 'אין תחנות בטווח'}]), note: SCORE_TXT()}), sw: '#65a30d'});
@@ -228,7 +276,7 @@ const NS_CATS = {
   uncertain: {label: 'ספק / כתיב חלופי', color: '#64748b', desc: 'כנראה לא טעות — הבדל כתיב, או שם על-שם מוסד/ציון-דרך (בית ספר, מרפאה, ישיבה…)'},
   closer: {label: 'הצעות כלליות', color: '#16a34a', desc: 'הרחוב המצטלב בשם רחוק מהתחנה — יש רחוב אחר קרוב יותר שכדאי שיופיע בשם'},
 };
-reg({id: 'nextst', title: 'התחנה הבאה — שם התחנה מול הכתובת', group: G_OWN, kind: 'points', url: '../next-station/data.json', tool: 'התחנה הבאה',
+reg({id: 'nextst', icon: 'name', title: 'התחנה הבאה — שם התחנה מול הכתובת', group: G_OWN, kind: 'points', url: '../next-station/data.json', tool: 'התחנה הבאה',
   // כמו בכלי: הצעת "closer" שההליכה האמיתית הפריכה (walkBad) — מוסתרת
   adapt: d => { const st = (d.stops || []).filter(s => NS_CATS[s.k] && !nsWalkBad(s));
     return {type: 'points', updated: d.generated, fields: ['code', 'name', 'street', 'city', 'cat', 'ms', 'md', 'sug'],
@@ -240,7 +288,7 @@ reg({id: 'nextst', title: 'התחנה הבאה — שם התחנה מול הכת
 
 // כל התחנות וכל הקווים לפי תאריך — מנתוני כלי ההיסטוריה (tools/gis_history.py בונה רק אינדקס מיקום ומרווחי פעילות;
 // הקווים שבתחנה ופרטי הקו נקראים בלחיצה ישירות מ-../line-history/data)
-reg({id: 'allstops', title: 'כל התחנות — פעילות בתאריך', group: G_GEN, kind: 'points', url: 'data/hist/stops.json', tool: 'היסטוריית הקווים והתחנות',
+reg({id: 'allstops', icon: 'stop', title: 'כל התחנות — פעילות בתאריך', group: G_GEN, kind: 'points', url: 'data/hist/stops.json', tool: 'היסטוריית הקווים והתחנות',
   adapt: d => ({type: 'points', fields: ['code', 'name', 'city', 'now', 'iv'], rows: d.rows.map(r => [r[2], r[1], r[0], r[3], r[4], r[5], r[6]])}),
   labels: {code: 'מק"ט', name: 'שם התחנה', city: 'יישוב', now: null, iv: null, st: 'בתאריך הנבחר'},
   prep: l => { l.fields = ['code', 'name', 'city', 'st']; restatus(l); },
@@ -352,14 +400,33 @@ function passes(l, it) {
 const passCount = l => l.items ? l.items.reduce((n, it) => n + (passes(l, it) ? 1 : 0), 0) : 0;
 const swatchOf = l => l.sym && l.sym.mode === 'single' ? l.sym.color : l.sw || hashColor(l.id);
 
+// סוג הגאומטריה של השכבה — קובע באיזו חלונית היא מצוירת
+function geomKind(l) {
+  if (l.kind === 'points') return 'pts';
+  const it = (l.items || []).find(x => x.f), g = l.geom || (it ? it.f.geometry.type : '');
+  return /Polygon/.test(g) ? 'poly' : /Line/.test(g) ? 'line' : 'pts';
+}
+const rendOf = l => l.rend || (l.rend = L.canvas({padding: 0.4, tolerance: 4, pane: geomKind(l)}));
+const rendPt = l => l.rendP || (l.rendP = geomKind(l) === 'pts' ? rendOf(l) : L.canvas({padding: 0.4, tolerance: 4, pane: 'pts'}));
+const useMarker = l => !!(l.marker && l.icon && ICONS[l.icon] && (!l.items || l.items.length <= ICONMAX));
+function ptIcon(l, it) {
+  const st = ptStyle(l, it), k = l.icon === 'stop' && it.p.st === 'לא פעילה' ? 'stopOff' : l.icon;
+  const px = Math.round(Math.max(18, Math.min(30, st.radius * 3.4)));
+  return L.divIcon({className: 'lic', html: iconSvg(k, l.sym || l.color || l.pointColor ? st.fillColor : null, px), iconSize: [px, px], iconAnchor: [px / 2, px / 2]});
+}
+function mkPt(l, it, ll) {
+  if (useMarker(l)) { const m = L.marker(ll, {icon: ptIcon(l, it), interactive: false, keyboard: false, pane: 'ptsIco', opacity: l.opacity}); m.isIco = true; return m; }
+  return L.circleMarker(ll, Object.assign({renderer: rendPt(l), interactive: false}, ptStyle(l, it)));
+}
 function mkLay(l, it, idx) {
   it.i = idx;
-  it.lay = it.ll ? L.circleMarker(it.ll, Object.assign({renderer: canvasPts, interactive: false}, ptStyle(l, it))) :
-    L.geoJSON(it.f, {renderer: canvas, interactive: false, style: () => pathStyle(l, it),
-      pointToLayer: (f, ll) => L.circleMarker(ll, Object.assign({renderer: canvasPts, interactive: false}, ptStyle(l, it)))});
+  it.lay = it.ll ? mkPt(l, it, it.dll || it.ll) :
+    L.geoJSON(it.f, {renderer: rendOf(l), interactive: false, style: () => pathStyle(l, it), pointToLayer: (f, ll) => mkPt(l, it, ll)});
 }
 function buildLeaflet(l) {
   if (l.kind === 'custom') return;
+  // שקיפות ברירת מחדל לשכבות פוליגונים (~40%), כדי שהשכבות שמתחתן ייראו
+  if (!l.opaInit) { l.opaInit = true; if (geomKind(l) === 'poly' && l.opacity === 1) l.opacity = 0.6; }
   l.items.forEach((it, idx) => mkLay(l, it, idx));
   l.lg = L.featureGroup();
   refill(l);
@@ -369,14 +436,49 @@ function refill(l) {
   l.lg.clearLayers();
   l.items.forEach(it => { if (passes(l, it)) l.lg.addLayer(it.lay); });
 }
+const styleLay = (l, it, c) => { if (c.isIco) { c.setIcon(ptIcon(l, it)); c.setOpacity(l.opacity); } else c.setStyle(c instanceof L.CircleMarker ? ptStyle(l, it) : pathStyle(l, it)); };
 function restyle(l) {
   if (l.kind === 'custom') { drawWalk(); return; }
   if (!l.lg) return;
-  l.items.forEach(it => {
-    if (it.ll) it.lay.setStyle(ptStyle(l, it));
-    else it.lay.eachLayer(c => c.setStyle(c instanceof L.CircleMarker ? ptStyle(l, it) : pathStyle(l, it)));
+  l.items.forEach(it => { if (it.ll) styleLay(l, it, it.lay); else it.lay.eachLayer(c => styleLay(l, it, c)); });
+}
+// z-index של משטחי הציור לפי הסדר בעץ: שכבה גבוהה יותר בעץ מצוירת מעל (בתוך אותו סוג גאומטריה)
+function applyOrder() {
+  const n = LAYERS.length;
+  LAYERS.forEach((l, i) => {
+    [l.rend, l.rendP].forEach(r => { if (r && r._container) r._container.style.zIndex = String(n - i); });
+    if (l.lg && useMarker(l)) l.lg.eachLayer(m => { if (m.setZIndexOffset) m.setZIndexOffset((n - i) * 10); else if (m.eachLayer) m.eachLayer(c => c.setZIndexOffset && c.setZIndexOffset((n - i) * 10)); });
   });
 }
+// הזזת שכבה בעץ: dir = 'front' (לראש הקבוצה), 'back' (לסוף), או לפני שכבה אחרת (before)
+function moveLayer(l, dir, before) {
+  const grp = LAYERS.filter(x => x.group === l.group && x.topic === l.topic);
+  const i = LAYERS.indexOf(l); LAYERS.splice(i, 1);
+  let j;
+  if (before) j = LAYERS.indexOf(before);
+  else if (dir === 'front') j = LAYERS.indexOf(grp.find(x => x !== l) || l);
+  else { const last = grp.filter(x => x !== l).pop(); j = last ? LAYERS.indexOf(last) + 1 : i; }
+  LAYERS.splice(j < 0 ? i : j, 0, l);
+  renderTree(); applyOrder(); if (PANE === 'legend') renderLegend();
+  lsSet('gis.order', JSON.stringify(LAYERS.map(x => x.id)));
+}
+// נקודות באותו מקום בדיוק (משכבות שונות או באותה שכבה): בזום 16 ומעלה נפרשות במעגל קטן, כדי שכולן ייראו וייבחרו
+let SPREAD = [];
+function spreadPts() {
+  SPREAD.forEach(it => { it.dll = null; if (it.lay && it.lay.setLatLng) it.lay.setLatLng(it.ll); });
+  SPREAD = [];
+  if (map.getZoom() < 16) return;
+  const B = map.getBounds(), G = new Map();
+  LAYERS.forEach(l => { if (!l.on || !l.lg || l.kind !== 'points' || !l.items || !map.hasLayer(l.lg)) return;
+    l.items.forEach(it => { if (!it.ll || !B.contains(it.ll) || !passes(l, it)) return; const k = it.ll[0].toFixed(5) + ',' + it.ll[1].toFixed(5); (G.get(k) || G.set(k, []).get(k)).push(it); }); });
+  G.forEach(arr => {
+    if (arr.length < 2) return;
+    const P = map.latLngToLayerPoint(arr[0].ll), R = 9 + arr.length * 2;
+    arr.forEach((it, j) => { const a = 2 * Math.PI * j / arr.length - Math.PI / 2, q = map.layerPointToLatLng(P.add([R * Math.cos(a), R * Math.sin(a)]));
+      it.dll = [q.lat, q.lng]; if (it.lay.setLatLng) it.lay.setLatLng(it.dll); SPREAD.push(it); });
+  });
+}
+map.on('zoomend moveend', spreadPts);
 const LABMAX = 300;
 function drawLabels(l) {
   if (l.labG) { map.removeLayer(l.labG); l.labG = null; }
@@ -421,6 +523,7 @@ function showLayer(l, on) {
     if (l.kind === 'custom') { drawWalk(); afterLayerChange(); return; }
     if (!l.lg) buildLeaflet(l);
     if (!FUT.hidden) l.lg.addTo(map);
+    applyOrder(); spreadPts();
     if (l.id === 'alllines') linesRefresh();
     drawLabels(l); rerow(l); afterLayerChange();
   }).catch(err => {
@@ -448,9 +551,9 @@ function lyrRow(l) {
   const n = l.items ? (l.filt || (AREA.v && l.kind !== 'custom') ? `${num(passCount(l))}/${num(l.items.length)}` : num(l.items.length)) : l.count != null ? num(l.count) : '';
   const fx = [l.filt ? 'מסנן' : '', l.labf ? 'תוויות' : '', l.sym ? 'סימבולוגיה' : ''].filter(Boolean).join(' · ');
   const active = tLayer && tLayer.id === l.id && !$('#table').hidden;
-  return `<div class="lyr${l.on ? ' on' : ''}${active ? ' active' : ''}" data-id="${esc(l.id)}">
+  return `<div class="lyr${l.on ? ' on' : ''}${active ? ' active' : ''}" data-id="${esc(l.id)}" draggable="true">
     <div class="lr"><button class="eye" aria-pressed="${!!l.on}" title="${l.on ? 'הסתרה' : 'הצגה'}" aria-label="הצגה או הסתרה של ${esc(l.title)}">${ICO.eye}</button>
-    <span class="sw${l.sym && l.sym.mode === 'class' ? ' class' : ''}" style="background:${swatchOf(l)}"></span>
+    ${l.icon && ICONS[l.icon] && !l.sym ? `<span class="ic" title="${esc(l.title)}">${iconSvg(l.icon)}</span>` : `<span class="sw${l.sym && l.sym.mode === 'class' ? ' class' : ''}" style="background:${swatchOf(l)}"></span>`}
     <span class="nm" title="${esc(l.title)}">${esc(l.title)}${fx ? `<span class="fx">${fx}</span>` : ''}</span>
     <span class="cnt">${n}</span>
     <button class="dots" title="אפשרויות השכבה" aria-label="אפשרויות השכבה ${esc(l.title)}" aria-haspopup="menu">⋯</button></div>
@@ -483,6 +586,13 @@ function renderTree() {
   }
   $('#tree').innerHTML = h;
 }
+
+// גרירת שכבה בעץ משנה את סדר הציור (בתוך אותה קבוצה)
+let DRAG = null;
+$('#tree').addEventListener('dragstart', e => { const r = e.target.closest && e.target.closest('.lyr'); if (!r) return; DRAG = byId[r.dataset.id]; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', r.dataset.id); } catch (x) {} r.classList.add('drag'); });
+$('#tree').addEventListener('dragover', e => { const r = e.target.closest('.lyr'); if (!r || !DRAG) return; const t = byId[r.dataset.id]; if (!t || t === DRAG || t.group !== DRAG.group || t.topic !== DRAG.topic) return; e.preventDefault(); $$('.lyr.dover').forEach(x => x.classList.remove('dover')); r.classList.add('dover'); });
+$('#tree').addEventListener('drop', e => { const r = e.target.closest('.lyr'); if (!r || !DRAG) return; e.preventDefault(); const t = byId[r.dataset.id]; if (t && t !== DRAG) moveLayer(DRAG, null, t); DRAG = null; });
+$('#tree').addEventListener('dragend', () => { DRAG = null; $$('.lyr.drag, .lyr.dover').forEach(x => x.classList.remove('drag', 'dover')); });
 
 // עורכים בתוך שורת השכבה (נפתחים מתפריט ⋯)
 function editorHtml(l) {
@@ -601,6 +711,8 @@ function layerMenu(l, anchor) {
     data && {t: 'מסנן', ico: ICO.filt, go: () => openEditor(l, 'filt')},
     data && '-',
     data && {t: 'פתיחת טבלה', ico: ICO.tbl, go: () => openTable(l)},
+    {t: 'הבא לחזית', ico: ICO.up || '', go: () => moveLayer(l, 'front')},
+    {t: 'שלח לאחור', ico: ICO.down || '', go: () => moveLayer(l, 'back')},
     {t: 'מידע על השכבה', ico: ICO.info, go: () => openEditor(l, 'info')},
   ].filter(Boolean));
 }
@@ -619,7 +731,7 @@ function renderLegend() {
     if (l.sym && l.sym.mode === 'single') lg = {type: gt, items: [{c: l.sym.color, t: l.title}], note: 'סימבולוגיה שנקבעה בתצוגה הזו'};
     if (l.sym && l.sym.mode === 'class' && l.sym.br) lg = {type: gt, items: classLabels(l).map((t, k) => ({c: CLASS_RAMP[k], t})).concat([{c: NOVAL, t: 'אין ערך'}]), note: `לפי "${esc(fname(l, l.sym.field))}" — 5 מחלקות (חמישונים)`};
     const cls = lg.type === 'pt' ? 'pt' : lg.type === 'ln' ? 'ln' : 'fl';
-    return `<div class="lg"><h4>${esc(l.title)}${l.filt ? ' <small class="mut">(מסונן)</small>' : ''}</h4>${lg.items.map(i => `<div class="li"><span class="${cls}" style="background:${i.c}"></span>${esc(i.t)}</div>`).join('')}${lg.note ? `<p>${lg.note}</p>` : ''}</div>`;
+    return `<div class="lg"><h4>${l.icon && ICONS[l.icon] ? iconSvg(l.icon, null, 18) + ' ' : ''}${esc(l.title)}${l.filt ? ' <small class="mut">(מסונן)</small>' : ''}</h4>${lg.items.map(i => `<div class="li"><span class="${cls}" style="background:${i.c}"></span>${esc(i.t)}</div>`).join('')}${lg.note ? `<p>${lg.note}</p>` : ''}</div>`;
   }).join('');
 }
 
@@ -633,8 +745,9 @@ function hitTest(latlng, tolPx) {
     for (let i = 0; i < l.items.length; i++) {
       const it = l.items[i]; if (!passes(l, it)) continue;
       if (it.ll) {
-        if (!pad.contains(it.ll)) continue;
-        const d = P.distanceTo(map.latLngToContainerPoint(it.ll)), r = ptStyle(l, it).radius;
+        const ll = it.dll || it.ll;
+        if (!pad.contains(ll)) continue;
+        const d = P.distanceTo(map.latLngToContainerPoint(ll)), r = useMarker(l) ? 10 : ptStyle(l, it).radius;
         if (d <= r + tol - 2) out.push({l, i, pri: 0, d});
         continue;
       }
@@ -1995,7 +2108,7 @@ function addCatalog(cat) {
   (cat.layers || []).forEach(c => {
     const g = c.group === 'תכניות עתידיות' ? G_FUT : G_NOW;
     reg({id: 'mot:' + c.id, title: c.title, group: g, topic: c.topic || 'אחר', kind: 'geojson', url: 'data/' + c.file, count: c.count, geom: c.geom,
-      src: c.source, modified: c.modified, sw: hashColor(c.id),
+      src: c.source, modified: c.modified, sw: hashColor(c.id), icon: motIcon(c.title, g === G_FUT), marker: c.geom === 'Point' && (c.count || 0) <= ICONMAX,
       style: () => ({color: hashColor(c.id), weight: c.geom === 'LineString' ? 2.5 : 1.2, fillColor: hashColor(c.id), fillOpacity: c.geom === 'Polygon' ? 0.25 : 0.9, opacity: 0.9}),
       link: () => [c.source, 'המאגר ב-data.gov.il']});
   });
@@ -2017,6 +2130,10 @@ map.on('moveend', saveState);
 { const b = lsGet('gis.base', 'light'); setBase(BASES[b] ? b : 'light'); }
 load('data/own/meta.json').then(d => { OWNMETA = d; }).catch(() => {});
 Promise.all([load('data/catalog.json').then(addCatalog).catch(() => { CATALOG = null; }), load('data/hist/meta.json').then(d => { HMETA = d; }).catch(() => {})]).then(() => {
+  // סדר השכבות שנשמר (גרירה בעץ / הבא לחזית)
+  { let ord = null; try { ord = JSON.parse(lsGet('gis.order', 'null')); } catch (e) {}
+    if (Array.isArray(ord)) { const pos = new Map(ord.map((id, i) => [id, i])), orig = new Map(LAYERS.map((l, i) => [l, i]));
+      LAYERS.sort((a, b) => (pos.has(a.id) && pos.has(b.id) ? pos.get(a.id) - pos.get(b.id) : orig.get(a) - orig.get(b))); } }
   renderTree(); renderLyrTop();
   const m = location.hash.match(/^#(\d+)\/([\d.]+)\/([\d.]+)/);
   if (m) map.setView([+m[2], +m[3]], +m[1]);

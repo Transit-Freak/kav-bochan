@@ -85,6 +85,14 @@ svg { flex: none; }
 .eye svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
 .lyr.on .eye { color: var(--acc-ink); }
 .lyr .sw { width: 12px; height: 12px; border-radius: 2px; flex: 0 0 12px; border: 1px solid rgba(0,0,0,.2); }
+.lyr .ic { flex: 0 0 16px; width: 16px; height: 16px; display: inline-flex; }
+.lyr .ic svg { width: 16px; height: 16px; }
+.lyr.drag { opacity: .45; }
+.lyr.dover { box-shadow: inset 0 2px 0 var(--acc, #0ea5e9); }
+.lyr[draggable="true"] .nm { cursor: grab; }
+.lic { background: none; border: 0; }
+.lic svg { display: block; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.45)); }
+.lg h4 svg { vertical-align: -3px; }
 .lyr .sw.class { background: linear-gradient(90deg, #fde68a, #f97316, #7f1d1d) !important; }
 .lyr .nm { flex: 1; cursor: pointer; min-width: 0; }
 .lyr .nm .fx { color: var(--acc-ink); font-size: 10.5px; margin-inline-start: 4px; }
