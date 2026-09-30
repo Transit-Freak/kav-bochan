@@ -1,5 +1,5 @@
 name: mot-api-probe
-# בדיקה חד-פעמית: האם שכבות המפה של משרד התחבורה זמינות דרך ה-API (datastore) כמו נתוני צי הרכבים
+# בדיקה חד-פעמית: מקורות חלופיים לקבצי המפה של משרד התחבורה (data.gov.il חוסם את GitHub)
 on: workflow_dispatch
 jobs:
   p:
@@ -8,24 +8,11 @@ jobs:
     steps:
       - shell: bash {0}
         run: |
-          python3 - <<'PY'
-          import json, urllib.request, urllib.parse
-          A='https://data.gov.il/api/3/action/'
-          def get(a,q):
-              u=A+a+'?'+urllib.parse.urlencode(q)
-              return json.load(urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':'Mozilla/5.0'}),timeout=60))['result']
-          ok=0
-          for n in ['brt_line','metro_line','metro_stat','lrt_line','nataz_planned','nataz_kayam','bus_terminal_strat','bus_terminal_fcl','park_n_ride','rail_strategic','mataan_tlv_2040','workplan','roadnumbers','tahaz_clusters','depo_metro']:
-              try:
-                  d=get('package_show',{'id':n})
-                  for r in d['resources']:
-                      if not r.get('datastore_active'): continue
-                      s=get('datastore_search',{'resource_id':r['id'],'limit':1})
-                      f=[x['id'] for x in s['fields']]
-                      rec=s['records'][0] if s['records'] else {}
-                      geo=[k for k,v in rec.items() if isinstance(v,str) and any(t in v[:30].upper() for t in ('POINT','LINESTRING','POLYGON','MULTI'))]
-                      print(f"{n} | {r.get('format')} | total {s.get('total')} | geo cols {geo} | fields {f[:14]}")
-                      if geo: print('   sample:', str(rec[geo[0]])[:160]); ok+=1
-              except Exception as e: print(n,'ERR',e)
-          print('datasets with WKT via API:',ok)
-          PY
+          Z='https://data.gov.il/dataset/66ba64f9-f47c-4c0a-917f-e3cdaf1cf6b1/resource/8d4d11cc-0406-4cb4-8344-d2752b89e003/download/brt_line.zip'
+          echo "== wayback availability"; curl -s "https://archive.org/wayback/available?url=$Z" ; echo
+          echo "== wayback id_ fetch"; curl -sL -o /tmp/w.zip -w '%{http_code} %{size_download}\n' "https://web.archive.org/web/2026id_/$Z"; file /tmp/w.zip
+          echo "== wayback save"; curl -s -m 120 -o /dev/null -w '%{http_code}\n' "https://web.archive.org/save/$Z"
+          sleep 20; curl -sL -o /tmp/w2.zip -w '%{http_code} %{size_download}\n' "https://web.archive.org/web/2026id_/$Z"; file /tmp/w2.zip
+          echo "== MOT ArcGIS"; for u in https://gisn.mot.gov.il/arcgis/rest/services?f=json https://geo.mot.gov.il/arcgis/rest/services?f=json https://gis.mot.gov.il/arcgis/rest/services?f=json https://services.arcgis.com/; do curl -s -m 20 -o /tmp/a -w "%{http_code} $u\n" "$u"; head -c 300 /tmp/a; echo; done
+          echo "== ArcGIS Online search"; curl -s "https://www.arcgis.com/sharing/rest/search?q=%D7%9E%D7%A9%D7%A8%D7%93%20%D7%94%D7%AA%D7%97%D7%91%D7%95%D7%A8%D7%94%20BRT&f=json&num=10" | python3 -c "import json,sys;[print(r['type'],'|',r['title'],'|',r.get('owner'),'|',r.get('url')) for r in json.load(sys.stdin).get('results',[])]"
+          curl -s "https://www.arcgis.com/sharing/rest/search?q=metro%20israel%20mot&f=json&num=10" | python3 -c "import json,sys;[print(r['type'],'|',r['title'],'|',r.get('owner'),'|',r.get('url')) for r in json.load(sys.stdin).get('results',[])]"
