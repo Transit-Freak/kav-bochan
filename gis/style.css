@@ -348,3 +348,8 @@ a.lb:hover { background: var(--acc); }
   #map { height: 100%; }
 }
 .lx a, .xl a:not(.lb), .ns a, .ident .bd a { color: var(--acc-ink); }
+/* קרדיט הרקע על המפה — קטן וגלוי תמיד */
+.leaflet-control-attribution { font-size: 10px; line-height: 1.4; direction: rtl; padding: 0 5px; background: rgba(255,255,255,.8) !important; color: #334155; }
+.leaflet-control-attribution a { color: #1d4ed8; }
+[data-theme="dark"] .leaflet-control-attribution { background: rgba(15,23,42,.8) !important; color: #cbd5e1; }
+[data-theme="dark"] .leaflet-control-attribution a { color: #7dd3fc; }

@@ -36,15 +36,22 @@ const ICO = {
 };
 
 // ---------------------------------------------------------------- מפה ורקעים
+// קרדיט לכל רקע: a — טקסט (לייצוא PNG), ah — עם קישורים (על המפה). OSM: בלי תת-דומיינים, לפי מדיניות האריחים שלהם.
+const OSM_C = '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© תורמי OpenStreetMap</a>';
+const CARTO_C = '<a href="https://carto.com/attributions" target="_blank" rel="noopener">© CARTO</a>';
 const BASES = {
-  light: {t: 'בהירה', s: 'CARTO Positron', u: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', a: '© OpenStreetMap © CARTO', o: {maxZoom: 20, subdomains: 'abcd'}, th: '#eceff1'},
-  osm: {t: 'רחובות', s: 'OpenStreetMap', u: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', a: '© תורמי OpenStreetMap', o: {maxZoom: 19}, th: '#f2efe9'},
-  dark: {t: 'כהה', s: 'CARTO Dark Matter', u: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', a: '© OpenStreetMap © CARTO', o: {maxZoom: 20, subdomains: 'abcd'}, th: '#262a30'},
-  sat: {t: 'תצלום אוויר', s: 'Esri World Imagery', u: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', a: 'Esri, Maxar, Earthstar Geographics', o: {maxZoom: 19}, th: '#4b5a3c'},
-  none: {t: 'בלי רקע', s: 'רק השכבות', u: null, a: '', th: '#ffffff'},
+  light: {t: 'בהירה', s: 'CARTO Positron', u: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', a: '© תורמי OpenStreetMap © CARTO', ah: OSM_C + ' ' + CARTO_C, o: {maxZoom: 20, subdomains: 'abcd'}, th: '#eceff1'},
+  osm: {t: 'רחובות', s: 'OpenStreetMap', u: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', a: '© תורמי OpenStreetMap', ah: OSM_C, o: {maxZoom: 19}, th: '#f2efe9'},
+  dark: {t: 'כהה', s: 'CARTO Dark Matter', u: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', a: '© תורמי OpenStreetMap © CARTO', ah: OSM_C + ' ' + CARTO_C, o: {maxZoom: 20, subdomains: 'abcd'}, th: '#262a30'},
+  // תצלום האוויר של Esri הוסר (30.09): תנאי השימוש של Esri מחייבים חשבון ArcGIS ומפתח API לשירותי המפות שלהם.
+  // אפשר להחזיר אותו בעתיד עם מפתח — רקע נוסף כאן, עם הקרדיט "Powered by Esri · Esri, Maxar, Earthstar Geographics".
+  none: {t: 'בלי רקע', s: 'רק השכבות', u: null, a: '', ah: '', th: '#ffffff'},
 };
 const HOME = {c: [31.75, 34.95], z: 8};
 const map = L.map('map', {preferCanvas: true, zoomControl: false, attributionControl: false}).setView(HOME.c, HOME.z);
+// קרדיט הרקע גלוי על המפה עצמה (גם בנייד), עם קישורים למקורות
+const attrCtl = L.control.attribution({position: 'bottomright', prefix: false}).addTo(map);
+let attrNow = '';
 L.control.scale({metric: true, imperial: false, position: 'bottomright'}).addTo(map);
 const canvas = L.canvas({padding: 0.4, tolerance: 4});
 // נקודות בשכבה נפרדת מעל הקווים והפוליגונים; הבחירה (תכלת) מעל הכול
@@ -55,8 +62,8 @@ const canvasPts = L.canvas({padding: 0.4, tolerance: 4, pane: 'pts'});
 const canvasSel = L.canvas({padding: 0.4, pane: 'sel'});
 // סדר הציור: פוליגונים מתחת לקווים, קווים מתחת לנקודות; בתוך אותו סוג — לפי הסדר בעץ השכבות (העליון מעל).
 // לכל שכבה משטח ציור (canvas) משלה בחלונית של הסוג שלה, וה-z-index שלו נקבע לפי המקום בעץ (applyOrder).
-map.createPane('poly').style.zIndex = 410;
-map.createPane('line').style.zIndex = 420;
+map.createPane('poly').style.zIndex = 350;
+map.createPane('line').style.zIndex = 380;   // מתחת ל-overlayPane (400), שבו ציורי הזיהוי והניתוח
 map.createPane('ptsIco').style.zIndex = 455;
 map.getPane('ptsIco').style.pointerEvents = 'none';
 
@@ -108,7 +115,9 @@ function setBase(k) {
   if (baseLayer) baseLayer.bringToBack();
   if (ovBase) ov.removeLayer(ovBase);
   ovBase = b.u ? tiles(b).addTo(ov) : null;
-  $('#s-attr').textContent = b.a ? 'רקע: ' + b.a : '';
+  if (attrNow) attrCtl.removeAttribution(attrNow);
+  attrNow = b.ah || ''; if (attrNow) attrCtl.addAttribution(attrNow);
+  $('#s-attr').innerHTML = b.ah ? 'רקע: ' + b.ah : '';
   lsSet('gis.base', k);
   if (PANE === 'base') renderBases();
 }
@@ -1232,12 +1241,19 @@ function doSearch() {
     renderQ(searchAll(q).concat([{h: 'מקום (OpenStreetMap)', t: `חיפוש "${q}" במפה`, s: 'Nominatim', geo: true, go: () => geocode(q)}]));
   });
 }
+// Nominatim — רק בלחיצה מפורשת על "חיפוש במפה", ולכל היותר בקשה אחת בשנייה (מדיניות השימוש שלהם)
+let geoLast = 0, geoTimer = null;
 function geocode(q) {
+  const wait = Math.max(0, geoLast + 1000 - Date.now());
+  clearTimeout(geoTimer);
+  if (wait) { geoTimer = setTimeout(() => geocode(q), wait); return; }
+  geoLast = Date.now();
   msg('מחפש…');
   fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&countrycodes=il&accept-language=he&q=' + encodeURIComponent(q)).then(r => r.json()).then(rs => {
     msg('');
-    if (!rs.length) { renderQ([{h: 'מקום', t: 'לא נמצא', s: '', go: () => {}}]); return; }
-    renderQ(rs.map(r => ({h: 'מקום (OpenStreetMap)', t: r.display_name.split(',').slice(0, 2).join(','), s: r.type, go: () => { const b = r.boundingbox; map.fitBounds([[+b[0], +b[2]], [+b[1], +b[3]]], {maxZoom: 16}); }})));
+    const cr = {h: 'מקור', t: 'חיפוש: Nominatim / OpenStreetMap', s: '© תורמי OpenStreetMap', go: () => window.open('https://www.openstreetmap.org/copyright', '_blank', 'noopener')};
+    if (!rs.length) { renderQ([{h: 'מקום', t: 'לא נמצא', s: '', go: () => {}}, cr]); return; }
+    renderQ(rs.map(r => ({h: 'מקום (OpenStreetMap)', t: r.display_name.split(',').slice(0, 2).join(','), s: r.type, go: () => { const b = r.boundingbox; map.fitBounds([[+b[0], +b[2]], [+b[1], +b[3]]], {maxZoom: 16}); }})).concat([cr]));
   }).catch(() => msg('החיפוש במפה לא זמין כרגע'));
 }
 function pickQ(i) { const it = qItems[i]; if (!it) return; if (!it.geo) { $('#qres').hidden = true; $('#bar').classList.remove('sopen'); } it.go(); }
