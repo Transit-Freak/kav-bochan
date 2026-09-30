@@ -239,6 +239,59 @@ def build_gtfs(g):
     return {'stops': stops, 'routes': routes, 'tt': tt, 'day': day, 'shape_cnt': shape_cnt}
 
 
+def build_route_times(g, day=None, per_route=9):
+    """זמני נסיעה מתוכננים בין תחנות, לכל מסלול (route_id) ביום החול הייצוגי — לתצוגת "קו" ב-GIS
+    (שלמה 30.09: "זמן הנסיעה על המפה"). לכל מסלול: עד per_route נסיעות מפוזרות על פני היום, רצף התחנות
+    הנפוץ ביניהן, ולכל קטע — החציון של הזמן בלו"ז. הפלט: rtime/XX.json (לפי שתי הספרות האחרונות של
+    route_id): {route_id: [[מק"ט תחנה…], [שניות מצטברות מהמוצא…], מספר נסיעות ביום]}."""
+    print('== זמני נסיעה בין תחנות')
+    day = day or pick_day(g)
+    dname = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][day.weekday()]
+    ds = day.strftime('%Y%m%d')
+    services = {r['service_id'] for r in g.rows('calendar.txt')
+                if r[dname] == '1' and r['start_date'] <= ds <= r['end_date']}
+    by_route = defaultdict(list)
+    for r in g.rows('trips.txt'):
+        if r['service_id'] in services:
+            by_route[r['route_id']].append(r['trip_id'])
+    want, ntrips = {}, {}
+    for rid, ts in by_route.items():
+        ntrips[rid] = len(ts)
+        step = max(1, len(ts) // per_route)
+        for t in ts[::step][:per_route]:
+            want[t] = rid
+    code = {r['stop_id']: r.get('stop_code') or r['stop_id'] for r in g.rows('stops.txt')}
+    seqs = defaultdict(list)
+    for r in g.rows('stop_times.txt'):
+        if r['trip_id'] not in want:
+            continue
+        t = r['arrival_time'] or r['departure_time']
+        try:
+            h, m, s = (int(x) for x in t.split(':'))
+        except ValueError:
+            continue
+        seqs[r['trip_id']].append((int(r['stop_sequence']), code.get(r['stop_id'], r['stop_id']), h * 3600 + m * 60 + s))
+    per = defaultdict(list)
+    for t, rows in seqs.items():
+        rows.sort()
+        per[want[t]].append(([c for _, c, _ in rows], [x for _, _, x in rows]))
+    out = defaultdict(dict)
+    for rid, trips in per.items():
+        common = Counter(tuple(s) for s, _ in trips).most_common(1)[0][0]
+        same = [ts for s, ts in trips if tuple(s) == common]
+        cum = [0]
+        for i in range(1, len(common)):
+            d = sorted(ts[i] - ts[i - 1] for ts in same)
+            cum.append(cum[-1] + max(0, d[len(d) // 2]))
+        out[rid[-2:].rjust(2, '0')][rid] = [list(common), cum, ntrips.get(rid, 0)]
+    RT = os.path.join(OUT, 'rtime')
+    if os.path.isdir(RT):
+        for f in glob.glob(os.path.join(RT, '*.json')):
+            os.remove(f)
+    tot = sum(jdump(os.path.join(RT, k + '.json'), v) for k, v in out.items())
+    print(f'  rtime: {sum(len(v) for v in out.values())} מסלולים, {len(out)} קבצים, {tot // 1024} KB · יום {day}')
+
+
 def load_shapes(g, want):
     pts = defaultdict(list)
     for r in g.rows('shapes.txt'):
@@ -712,6 +765,7 @@ def main():
     per_stop = build_bus_stops(G, stats, days)
     build_terminals(G)
     build_timetable(G, per_stop)
+    build_route_times(g, G['day'])
     build_kavpach(G, g)
     build_hoods(per_stop, rail)
     jdump(os.path.join(OUT, 'meta.json'), {'built': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%MZ'),

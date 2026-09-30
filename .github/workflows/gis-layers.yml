@@ -1,6 +1,6 @@
 name: gis-layers
 # GIS הקו הבוחן (שלמה 30.09): כל לילה — השכבות שלנו (מדדי האמינות, קו פח, קו באג, שכונות,
-# לוח זמנים לתחנות) מ-GTFS יומי ומהנתונים שבמאגר; פעם בשבוע (ראשון) ובהפעלה ידנית —
+# לוח זמנים וזמני נסיעה, כל התחנות והקווים לפי תאריך) מ-GTFS יומי ומהנתונים שבמאגר; פעם בשבוע (ראשון) ובהפעלה ידנית —
 # גם כל שכבות משרד התחבורה מ-data.gov.il (ZIP/SHP/KMZ/CSV → GeoJSON ב-ogr2ogr).
 on:
   schedule:
@@ -55,7 +55,10 @@ jobs:
           fi
       - name: Install GDAL
         if: steps.w.outputs.mot == 'yes'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq gdal-bin >/dev/null && ogr2ogr --version
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq gdal-bin >/dev/null && ogr2ogr --version
+          # data.gov.il חוסם הורדות שאינן מדפדפן — כרומיום לפתרון אתגר הגנת-הבוטים (כמו fetch-mot-shapes)
+          python3 -m pip install --quiet playwright && python3 -m playwright install --with-deps chromium >/dev/null
       - name: MOT layers (tools/gis_mot.py)
         if: steps.w.outputs.mot == 'yes'
         env:
@@ -84,6 +87,12 @@ jobs:
           # גבולות השכונות: קודם מאגרי משרד התחבורה (merhavironi / TAZ) אם הם שמישים — ראו load_hoods
           python3 tools/gis_build.py
           du -sh gis/data/own; ls -la gis/data/own
+      - name: History layers (tools/gis_history.py)
+        continue-on-error: true
+        run: |
+          # שכבות "כל התחנות" ו"קווים" לפי תאריך — אינדקס קטן מתוך line-history/data (ראו ההסבר בראש הסקריפט)
+          python3 tools/gis_history.py
+          du -sh gis/data/hist || true
       - name: Commit results
         run: |
           set -euo pipefail
@@ -95,6 +104,7 @@ jobs:
             git fetch origin "$BR" && git reset --hard "origin/$BR"
             rm -rf gis/data/own
             cp -r /tmp/gisout/own gis/data/own
+            if [ -d /tmp/gisout/hist ]; then rm -rf gis/data/hist; cp -r /tmp/gisout/hist gis/data/hist; fi
             if [ "${{ steps.w.outputs.mot }}" = "yes" ]; then
               rm -rf gis/data/mot; [ -d /tmp/gisout/mot ] && cp -r /tmp/gisout/mot gis/data/mot
               [ -f /tmp/gisout/catalog.json ] && cp /tmp/gisout/catalog.json gis/data/catalog.json

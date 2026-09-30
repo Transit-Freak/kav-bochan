@@ -65,16 +65,60 @@ def get_json(url, tries=3):
     return None
 
 
+_BR = {}
+
+
+def _browser_ctx():
+    """שרת ההורדות של data.gov.il מגיש לבקשות שאינן דפדפן דף JavaScript של הגנת-בוטים
+    במקום הקובץ (כך נכשלו כל 167 ההורדות בריצה הראשונה, 30.09). כמו ב-fetch_mot_shapes.py:
+    נכנסים פעם אחת לאתר בכרומיום, פותרים את האתגר, ומורידים עם אותו הקשר."""
+    if 'ctx' in _BR:
+        return _BR['ctx']
+    _BR['ctx'] = None
+    try:
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        br = pw.chromium.launch(args=['--no-sandbox'])
+        ctx = br.new_context(accept_downloads=True, locale='he-IL', user_agent=UA['User-Agent'])
+        pg = ctx.new_page()
+        pg.goto('https://data.gov.il/dataset/', wait_until='domcontentloaded', timeout=120000)
+        pg.wait_for_timeout(8000)
+        print('  דפדפן: האתר נטען —', (pg.title() or '(בלי כותרת)')[:60])
+        _BR.update(pw=pw, br=br, ctx=ctx)
+    except Exception as e:  # noqa: BLE001
+        print('  דפדפן לא זמין:', e)
+    return _BR['ctx']
+
+
+def _looks_ok(path):
+    with open(path, 'rb') as f:
+        head = f.read(512)
+    return bool(head) and not re.search(rb'<html|<!doctype', head, re.I)
+
+
 def download(url, dest):
-    for i in range(3):
+    try:
+        subprocess.run(['curl', '-fsSL', '--connect-timeout', '30', '--max-time', '900', '-A', UA['User-Agent'],
+                        '-o', dest, url], check=True, capture_output=True)
+        if os.path.getsize(dest) > 0 and _looks_ok(dest):
+            return True
+        print('   curl קיבל דף HTML (הגנת בוטים) — מנסים בדפדפן')
+    except Exception as e:  # noqa: BLE001
+        print(f'   curl נכשל: {e}')
+    ctx = _browser_ctx()
+    if not ctx:
+        return False
+    for i in range(2):
         try:
-            subprocess.run(['curl', '-fsSL', '--connect-timeout', '30', '--max-time', '900', '-A', UA['User-Agent'],
-                            '-o', dest, url], check=True)
-            if os.path.getsize(dest) > 0:
+            r = ctx.request.get(url, timeout=300000)
+            body = r.body()
+            if r.ok and body and not re.search(rb'<html|<!doctype', body[:512], re.I):
+                open(dest, 'wb').write(body)
                 return True
+            print(f'   דפדפן: סטטוס {r.status}, {len(body)} בתים — לא קובץ')
         except Exception as e:  # noqa: BLE001
-            print(f'   הורדה {i + 1} נכשלה: {e}')
-            time.sleep(10)
+            print(f'   דפדפן נכשל: {e}')
+        time.sleep(5)
     return False
 
 
