@@ -78,6 +78,7 @@ const SearchInput = React.memo(function SearchInput({ value, onSubmit, placehold
     }
   };
   const clear = () => {
+    clearTimeout(timer.current);
     setLocal('');
     submit('');
   };
@@ -85,13 +86,25 @@ const SearchInput = React.memo(function SearchInput({ value, onSubmit, placehold
     if (e.key === 'Enter') { e.preventDefault(); submit(); }
     if (e.key === 'Escape') { e.preventDefault(); clear(); }
   };
+  // בטלפון (מקלדות אנדרואיד בעברית) Enter לא תמיד מגיע כאירוע מקש — שלמה 30.09:
+  // "החיפוש בקו פח הפסיק לעבוד". לכן גם טופס (כפתור "חיפוש" במקלדת שולח submit),
+  // וגם חיפוש אוטומטי אחרי הפסקה קצרה בהקלדה.
+  const timer = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timer.current), []);
+  const onChange = (e) => {
+    const v = e.target.value;
+    setLocal(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => submit(v), 800);
+  };
   const isDirty = local !== (value || '');
   return (
-    <div className="relative w-full">
+    <form className="relative w-full" onSubmit={e => { e.preventDefault(); clearTimeout(timer.current); submit(); }} role="search">
       <input
-        type="text"
+        type="search"
+        enterKeyHint="search"
         value={local}
-        onChange={e => setLocal(e.target.value)}
+        onChange={onChange}
         onKeyDown={handleKey}
         placeholder={placeholder}
         className={className}
@@ -106,9 +119,9 @@ const SearchInput = React.memo(function SearchInput({ value, onSubmit, placehold
         >×</button>
       )}
       {isDirty && (
-        <div className="absolute -bottom-5 right-2 text-[10px] font-bold text-slate-500">הקש Enter לחיפוש</div>
+        <div className="absolute -bottom-5 right-2 text-[10px] font-bold text-slate-500">מחפש…</div>
       )}
-    </div>
+    </form>
   );
 });
 
