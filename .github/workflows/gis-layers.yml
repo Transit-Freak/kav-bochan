@@ -67,6 +67,9 @@ jobs:
         if: steps.w.outputs.mot == 'yes'
         # נכשל כשלא נוצרה אף שכבה; שאר השלבים ממשיכים, והריצה מסומנת כנכשלת בסוף (שלב "Fail if no MOT layers")
         continue-on-error: true
+        # data.gov.il חוסם את שרתי GitHub (403 גם בדפדפן, 30.09) — בלי תקרה ההורדות שרפו
+        # את כל שעתיים של הריצה ושאר השכבות לא נשמרו
+        timeout-minutes: 20
         env:
           ONLY: ${{ github.event.inputs.only }}
         run: |
