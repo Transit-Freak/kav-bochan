@@ -441,7 +441,37 @@ def category_coords(titles):
             if co:
                 out[pg['title']] = (co[0]['lat'], co[0]['lon'])
         time.sleep(0.3)
-    print(f'קואורדינטות: {len(out)} מתוך {len(ts)} ערכים', flush=True)
+    n_geo = len(out)
+    # רק לחלק מהערכים יש קואורדינטות ב-GeoData (30.09: 20 מתוך 83); לשאר — המיקום מוויקינתונים
+    # (P625), זה שמוצג בתבנית הערך. כך דימונה ודומותיה נמדדות לפי המיקום שבערך
+    rest = [t for t in ts if t not in out]
+    qid = {}
+    for i in range(0, len(rest), 50):
+        r = api({'action': 'query', 'prop': 'pageprops', 'ppprop': 'wikibase_item', 'redirects': '1',
+                 'titles': '|'.join(rest[i:i + 50])})
+        for pg in r.get('query', {}).get('pages', {}).values():
+            q = (pg.get('pageprops') or {}).get('wikibase_item')
+            if q:
+                qid[q] = pg['title']
+        time.sleep(0.3)
+    ids = sorted(qid)
+    for i in range(0, len(ids), 50):
+        try:
+            u = 'https://www.wikidata.org/w/api.php?' + urllib.parse.urlencode(
+                {'action': 'wbgetentities', 'ids': '|'.join(ids[i:i + 50]), 'props': 'claims', 'format': 'json'})
+            with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60) as resp:
+                ents = json.load(resp).get('entities', {})
+        except Exception as e:  # noqa: BLE001
+            print(f'ויקינתונים: {e}', flush=True)
+            break
+        for q, ent in ents.items():
+            for c in (ent.get('claims') or {}).get('P625', []):
+                v = ((c.get('mainsnak') or {}).get('datavalue') or {}).get('value') or {}
+                if 'latitude' in v and qid.get(q):
+                    out[qid[q]] = (v['latitude'], v['longitude'])
+                    break
+        time.sleep(0.3)
+    print(f'קואורדינטות: {len(out)} מתוך {len(ts)} ערכים ({n_geo} מהערך, {len(out) - n_geo} מוויקינתונים)', flush=True)
     return out
 
 
