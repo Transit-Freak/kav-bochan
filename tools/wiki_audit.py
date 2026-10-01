@@ -580,6 +580,12 @@ def main():
                         how = f'לפי מיקום ({dm} מ\')' if title else 'לפי שם'
                     if not title:
                         title = match_in_category(name, st['city'], cat_titles)
+                        # שידוך לפי שם בלבד אסור לערך רחוק — "מסוף אגד" (מעלה אדומים) תפס את
+                        # "חניון אגד חולון" (שלמה 01.10). ערך עם קואורדינטות במרחק מעל 2 ק"מ — נדחה
+                        if title and title in coords and st.get('lat') is not None \
+                                and dist_m((st['lat'], st['lon']), coords[title]) > 2000:
+                            print(f'   {name}: "{title}" רחוק {round(dist_m((st["lat"], st["lon"]), coords[title]) / 1000)} ק"מ — לא משדכים', flush=True)
+                            title = None
                         if title and not allowed(name, title, dist_m((st['lat'], st['lon']), coords[title])
                                                  if st.get('lat') is not None and title in coords else None):
                             print(f'  {name}: "{title}" נדחה — מסוף רחוק מהתחנה המרכזית', flush=True)
