@@ -17,6 +17,7 @@ import csv
 import datetime
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -114,10 +115,15 @@ def main():
         with open(mp, encoding='utf-8') as f:
             manual = {k: v for k, v in json.load(f).items() if not k.startswith('_')}
     stop_street = {}   # stop_id → (רחוב, עיר) — למסלול הרחובות של כל קו
+    stop_xy = {}       # stop_id → (lat, lon, שם, מק"ט) — לתחנות "ליד המתחם" (שלמה 01.10)
     stop_places = {}   # stop_id → חלקי שם התחנה
     for r in reader(zf, 'stops.txt'):
         name = (r.get('stop_name') or '').strip()
         desc = r.get('stop_desc') or ''
+        try:
+            stop_xy[r['stop_id']] = (float(r['stop_lat']), float(r['stop_lon']), name, (r.get('stop_code') or '').strip())
+        except (KeyError, ValueError, TypeError):
+            pass
         mc = CITY_RE.search(desc)
         city = re.sub(r'\bקרית\b', 'קריית', mc.group(1).strip()) if mc else ''   # קרית גת = קריית גת
         ms0 = STREET_RE.search(desc)
@@ -172,6 +178,32 @@ def main():
                 pass
     print(f'stops: {len(stop_groups)} עצירות בקבוצות', flush=True)
 
+    # עצירות ליד המתחם (שלמה 01.10, מודיעין: קו 50 עוצר ב"שדרות החשמונאים/לב העיר", קומה
+    # מעל המרכזית — לא "שגוי" בערך). כל עצירה שאינה במתחם ונמצאת עד NEAR_M מעצירה שלו.
+    NEAR_M = 150
+    near_stops = {}    # stop_id → [(קבוצה, שם התחנה), ...]
+    cell = {}
+    for sid, (la, lo, _n, _c) in stop_xy.items():
+        cell.setdefault((int(la * 500), int(lo * 500)), []).append(sid)
+    for gk, pts in gpos.items():
+        if not gk.startswith('S|'):
+            continue
+        for la, lo in pts:
+            ci, cj = int(la * 500), int(lo * 500)
+            for di in (-1, 0, 1):
+                for dj in (-1, 0, 1):
+                    for sid in cell.get((ci + di, cj + dj), ()):
+                        if sid in stop_groups and any(g[0] == gk for g in stop_groups[sid]):
+                            continue
+                        la2, lo2, nm2, cd2 = stop_xy[sid]
+                        dy = (la2 - la) * 111320
+                        dx = (lo2 - lo) * 111320 * math.cos(math.radians(la))
+                        if dx * dx + dy * dy <= NEAR_M * NEAR_M:
+                            lst = near_stops.setdefault(sid, [])
+                            if all(x[0] != gk for x in lst):
+                                lst.append((gk, f'{nm2} ({cd2})' if cd2 else nm2))
+    print(f'עצירות ליד מתחמים: {len(near_stops)}', flush=True)
+
     # 2. routes + agency
     agency = {r['agency_id']: (r.get('agency_name') or '').strip()
               for r in reader(zf, 'agency.txt')}
@@ -214,6 +246,7 @@ def main():
 
     # 4. stop_times — סריקה אחת: אילו מסלולים עוצרים בכל קבוצה ובאיזה רציף
     hits = {}          # (route_id, group_key) → set(רציפים)
+    near_hits = {}     # (route_id, group_key) → שם העצירה הסמוכה שהקו עוצר בה
     meta = {}          # group_key → (kind, name, city)
     n = 0
     route_streets = {}   # route_id → {(רחוב, עיר): stop_sequence הראשון} לפי סדר ההופעה
@@ -241,6 +274,10 @@ def main():
             if rp is None:
                 rp = route_places[rid0] = set()
             rp.update(pp)
+        ns = near_stops.get(sid)
+        if ns is not None and rid0 is not None:
+            for gk, nm in ns:
+                near_hits.setdefault((rid0, gk), nm)
         gs = stop_groups.get(sid)
         if gs is None:
             continue
@@ -379,6 +416,18 @@ def main():
                         if len(x.get('dirs', {})) > 1 and len({plat_join(ps) for ps in x['dirs'].values()}) > 1 else None),
                        # קו מעגלי: רחובות המסלול לפי הסדר (לפירוט "התחנה ← … ← התחנה")
                        ] for x in lines]}
+        # קווים שלא עוצרים במתחם אבל עוצרים בעצירה צמודה (עד 150 מ') — [קו, מפעיל, שם העצירה]
+        have = {x['line'] for x in lines}
+        gk_ = next((k for k, v in stations.items() if v is st), None)
+        nl = {}
+        for (rid, gk), nm in near_hits.items():
+            if gk != gk_:
+                continue
+            short, op, _ln = routes.get(rid, ('', '', ''))
+            if short and short not in have and short not in nl:
+                nl[short] = [short, op, nm]
+        if nl:
+            out_st[label]['near'] = sorted(nl.values(), key=lambda v: (int(re.match(r'\d+', v[0]).group()) if re.match(r'\d+', v[0]) else 10 ** 6, v[0]))
         # שמות התחנות במסלול — לסריקה בלבד (קובץ נפרד, שהאתר לא טוען)
         out_places[label] = {x['line']: places_of(x.get('rids', ())) for x in lines}
     kinds = Counter(v['kind'] for v in out_st.values())

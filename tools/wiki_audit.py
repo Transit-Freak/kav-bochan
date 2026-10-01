@@ -590,11 +590,14 @@ def main():
                     detailed = True
                     break
             route_issues = check_routes(wt, real_lines, data.get('central') or {}, skip_names, detailed) if real_lines else {}
-            wrong = [l for l in in_article if l not in real]
+            # קו שעוצר בעצירה צמודה למתחם (עד 150 מ', למשל קומה מעל המרכזית) — לא "שגוי" (שלמה 01.10)
+            near_map = {n[0]: n[2] for n in (st.get('near') or [])}
+            near = [[l, near_map[l]] for l in in_article if l not in real and l in near_map]
+            wrong = [l for l in in_article if l not in real and l not in near_map]
             correct = [l for l in in_article if l in real]
             missing = len(real) - len(correct)
             out[name] = {'article': title, 'kind': st.get('kind', 'station'), 'hasTable': has_table,
-                         'inArticle': in_article, 'wrong': wrong, 'special': special,
+                         'inArticle': in_article, 'wrong': wrong, 'near': near, 'special': special,
                          'correct': len(correct), 'missing': missing, 'routes': route_issues, 'detailed': detailed,
                          'acc': acc_issues}
             print(f'{name} → {title}: בערך {len(in_article)} · '
