@@ -251,9 +251,12 @@ def main():
             if any(d <= 300 and any(w in x[2] for w in need) for x, d in near):
                 continue
             lab = re.sub(r'^התחנה המרכזית של\s+', 'ת. מרכזית ', re.sub(r'\s*\(.*?\)\s*$', '', title))
-            for x, d in near:
-                if d <= 150 and x[3]:
-                    manual[x[3]] = lab
+            got = [x for x, d in near if d <= 150 and x[3]]
+            for x in got:
+                manual[x[3]] = lab
+            nn = min(near, key=lambda t: t[1]) if near else None
+            print(f'  מיקום הערך "{title}" ({la:.5f},{lo:.5f}): {len(got)} עצירות עד 150 מ\''
+                  + (f' · הקרובה: {nn[0][2]} ({nn[0][3]}) {round(nn[1])} מ\'' if nn else ' · אין עצירה קרובה'), flush=True)
         print(f'מתחמים לפי מיקום הערך: {len(set(manual.values()))} ({len(manual)} עצירות)', flush=True)
     stop_street = {}   # stop_id → (רחוב, עיר) — למסלול הרחובות של כל קו
     stop_xy = {}       # stop_id → (lat, lon, שם, מק"ט) — לתחנות "ליד המתחם" (שלמה 01.10)
