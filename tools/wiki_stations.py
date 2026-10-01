@@ -342,23 +342,39 @@ def main():
     cell = {}
     for sid, (la, lo, _n, _c) in stop_xy.items():
         cell.setdefault((int(la * 500), int(lo * 500)), []).append(sid)
+    # מתחם שמיקום ערך ויקיפדיה עד 300 מ' ממנו — מחפשים עצירות צמודות עד FAR_M (דימונה: "ת. מרכזית
+    # דימונה" 11332 במיקום הערך, והקווים ב-10517 במרחק 277 מ'). העצירות שמעבר ל-NEAR_M לא מוצגות
+    # כ"עוצרים ליד" — הן משמשות רק מתחם קטן שאין בו מספיק קווים משלו (ראו בהמשך)
+    FAR_M = 300
+    def _anch(pts):
+        if not pts or not art_xy:
+            return False
+        cla = sum(p[0] for p in pts) / len(pts); clo = sum(p[1] for p in pts) / len(pts)
+        return any(math.hypot((cla - a) * 111320, (clo - b) * 111320 * math.cos(math.radians(cla))) <= 300
+                   for a, b in art_xy.values())
     for gk, pts in gpos.items():
         if not gk.startswith('S|'):
             continue
+        R = FAR_M if _anch(pts) else NEAR_M
         for la, lo in pts:
             ci, cj = int(la * 500), int(lo * 500)
-            for di in (-1, 0, 1):
-                for dj in (-1, 0, 1):
+            for di in (-2, -1, 0, 1, 2):
+                for dj in (-2, -1, 0, 1, 2):
                     for sid in cell.get((ci + di, cj + dj), ()):
                         if sid in stop_groups and any(g[0] == gk for g in stop_groups[sid]):
                             continue
                         la2, lo2, nm2, cd2 = stop_xy[sid]
                         dy = (la2 - la) * 111320
                         dx = (lo2 - lo) * 111320 * math.cos(math.radians(la))
-                        if dx * dx + dy * dy <= NEAR_M * NEAR_M:
+                        d2 = dx * dx + dy * dy
+                        if d2 <= R * R:
                             lst = near_stops.setdefault(sid, [])
-                            if all(x[0] != gk for x in lst):
-                                lst.append((gk, f'{nm2} ({cd2})' if cd2 else nm2))
+                            far = d2 > NEAR_M * NEAR_M
+                            old = next((i for i, x in enumerate(lst) if x[0] == gk), None)
+                            if old is None:
+                                lst.append((gk, f'{nm2} ({cd2})' if cd2 else nm2, far))
+                            elif lst[old][2] and not far:
+                                lst[old] = (gk, lst[old][1], False)
     print(f'עצירות ליד מתחמים: {len(near_stops)}', flush=True)
 
     # 2. routes + agency
@@ -433,8 +449,10 @@ def main():
             rp.update(pp)
         ns = near_stops.get(sid)
         if ns is not None and rid0 is not None:
-            for gk, nm in ns:
-                near_hits.setdefault((rid0, gk), nm)
+            for gk, nm, far in ns:
+                cur = near_hits.get((rid0, gk))
+                if cur is None or (cur[1] and not far):
+                    near_hits[(rid0, gk)] = (nm, far)
         gs = stop_groups.get(sid)
         if gs is None:
             continue
@@ -613,8 +631,8 @@ def main():
         have = {x['line'] for x in lines}
         gk_ = next((k for k, v in stations.items() if v is st), None)
         nl = {}
-        for (rid, gk), nm in near_hits.items():
-            if gk != gk_:
+        for (rid, gk), (nm, far) in near_hits.items():
+            if gk != gk_ or far:
                 continue
             short, op, _ln = routes.get(rid, ('', '', ''))
             if short and short not in have and short not in nl:
