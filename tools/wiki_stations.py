@@ -245,8 +245,11 @@ def main():
             return math.hypot((c - a) * 111320, (e - b) * 111320 * math.cos(math.radians(a)))
         for title, (la, lo) in art_xy.items():
             near = [(x, _d(la, lo, x[0], x[1])) for x in allst if abs(x[0] - la) < 0.004 and abs(x[1] - lo) < 0.005]
-            if any(d <= 300 and any(w in x[2] for w in STATION_WORDS) for x, d in near):
-                continue          # יש כבר מתחם לפי שם — השידוך לערך ייעשה לפי מיקום בסריקה
+            # יש כבר מתחם מאותו סוג לפי שם — השידוך לערך ייעשה לפי מיקום בסריקה. ערך של "התחנה
+            # המרכזית" צריך עצירה עם "מרכזית" בשם; מסוף סמוך (מסוף אגד דימונה) אינו התחנה המרכזית
+            need = ('מרכזית',) if 'מרכזית' in title else STATION_WORDS
+            if any(d <= 300 and any(w in x[2] for w in need) for x, d in near):
+                continue
             lab = re.sub(r'^התחנה המרכזית של\s+', 'ת. מרכזית ', re.sub(r'\s*\(.*?\)\s*$', '', title))
             for x, d in near:
                 if d <= 150 and x[3]:
