@@ -221,13 +221,37 @@ def main():
     #    לכל עצירה: רשימת (מפתח קבוצה, סוג, שם, עיר, רציף)
     stop_groups = {}
     gpos = {}          # מפתח קבוצה → נקודות התחנות (למרכז המתחם — שידוך לערך לפי קואורדינטות)
-    # שיוך ידני מק"ט→מתחם (wiki-check/data/stop-groups.json): תחנת רחוב שהיא
-    # בפועל רציף של המסוף (שלמה 18.09: מסוף אגד דימונה = תחנה 12612)
+    # מתחם לפי הקואורדינטות שבערך ויקיפדיה (שלמה 01.10: "בכל ערך יש קואורדינטות"; בלי שיוך
+    # ידני של מק"טים — מק"ט יכול להשתנות). ערך בקטגוריית התחנות המרכזיות שאין ליד המיקום
+    # שלו (300 מ') אף עצירה עם "מרכזית"/"מסוף" בשם — העצירות עד 150 מ' ממנו הן המתחם.
+    # כך "התחנה המרכזית של דימונה" = העצירה שבמיקום הערך, גם כשבשם שלה אין "מרכזית".
     manual = {}
-    mp = os.path.join(os.path.dirname(OUT), 'stop-groups.json')
-    if os.path.exists(mp):
-        with open(mp, encoding='utf-8') as f:
-            manual = {k: v for k, v in json.load(f).items() if not k.startswith('_')}
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import wiki_audit as WA
+        art_xy = WA.category_coords(WA.category_articles())
+    except Exception as e:  # noqa: BLE001 — בלי ויקיפדיה: רק שיוך לפי שמות
+        print(f'קואורדינטות הערכים לא זמינות: {e}', flush=True)
+        art_xy = {}
+    if art_xy:
+        allst = []
+        for r in reader(zf, 'stops.txt'):
+            try:
+                allst.append((float(r['stop_lat']), float(r['stop_lon']), (r.get('stop_name') or ''), (r.get('stop_code') or '').strip()))
+            except (KeyError, ValueError, TypeError):
+                pass
+
+        def _d(a, b, c, e):
+            return math.hypot((c - a) * 111320, (e - b) * 111320 * math.cos(math.radians(a)))
+        for title, (la, lo) in art_xy.items():
+            near = [(x, _d(la, lo, x[0], x[1])) for x in allst if abs(x[0] - la) < 0.004 and abs(x[1] - lo) < 0.005]
+            if any(d <= 300 and any(w in x[2] for w in STATION_WORDS) for x, d in near):
+                continue          # יש כבר מתחם לפי שם — השידוך לערך ייעשה לפי מיקום בסריקה
+            lab = re.sub(r'^התחנה המרכזית של\s+', 'ת. מרכזית ', re.sub(r'\s*\(.*?\)\s*$', '', title))
+            for x, d in near:
+                if d <= 150 and x[3]:
+                    manual[x[3]] = lab
+        print(f'מתחמים לפי מיקום הערך: {len(set(manual.values()))} ({len(manual)} עצירות)', flush=True)
     stop_street = {}   # stop_id → (רחוב, עיר) — למסלול הרחובות של כל קו
     stop_xy = {}       # stop_id → (lat, lon, שם, מק"ט) — לתחנות "ליד המתחם" (שלמה 01.10)
     stop_places = {}   # stop_id → חלקי שם התחנה
