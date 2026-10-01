@@ -468,6 +468,10 @@ def main():
             small.setdefault(gk, set()).add(sh)
     promoted = 0
     for gk, pts in gpos.items():
+        if gk not in meta:      # מתחם בלי אף נסיעה משלו (דימונה 11332) — הפרטים מהעצירות שלו
+            gm = next((g for gs in stop_groups.values() for g in gs if g[0] == gk), None)
+            if gm:
+                meta[gk] = (gm[1], gm[2], gm[3])
         if not gk.startswith('S|') or gk not in meta or len(small.get(gk, ())) >= MIN_LINES['station'] or not pts:
             continue
         cla = sum(p[0] for p in pts) / len(pts); clo = sum(p[1] for p in pts) / len(pts)
