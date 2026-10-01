@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """צי הרכבים — העשרה מהמאגר הממשלתי: כל פרט קיים על כל רכב.
 
-מקור הנתונים: קובץ ה-CSV של "כלי הרכב הציבוריים הפעילים" שמועלה ידנית
-לריפו (fleet/data/*.csv) — כי data.gov.il חוסם שרתי ענן. אם אין קובץ
+מקור הנתונים: קובץ ה-CSV של "כלי הרכב הציבוריים הפעילים" שמתעדכן אוטומטית מדי יום
+לריפו (fleet/data/*.csv) באמצעות fleet_refresh_registry.py. אם אין קובץ
 מקומי, מנסים את ה-API הישיר כגיבוי.
 
 שני תוצרים:
@@ -86,7 +86,8 @@ def load_local_csv(wanted):
              if os.path.basename(p) not in outs]
     if not cands:
         return None
-    path = max(cands, key=os.path.getsize)
+    official = os.path.join(os.path.dirname(OUT), 'cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv')
+    path = official if official in cands else max(cands, key=os.path.getsize)
     reg = {}
     with open(path, encoding='utf-8-sig', newline='') as f:
         rd = csv.DictReader(f, delimiter='|')
@@ -195,6 +196,16 @@ def main():
         # בצ'קאאוט רדוד git מייחס את הקובץ לקומיט הגבול (של היום) — תאריך שקרי,
         # ולכן במצב כזה עדיף לא לגעת בערך הקיים מאשר לדרוס אותו בתאריך שגוי.
         import subprocess
+        metadata_path = os.path.join(os.path.dirname(OUT), 'gov-registry-source.json')
+        verified_date = None
+        if os.path.exists(metadata_path):
+            import hashlib
+            with open(metadata_path, encoding='utf-8') as mf:
+                metadata = json.load(mf)
+            with open(csv_path, 'rb') as cf:
+                digest = hashlib.sha256(cf.read()).hexdigest()
+            if digest == metadata.get('sha256'):
+                verified_date = metadata.get('last_modified', '')[:10] or None
         try:
             shallow = subprocess.run(
                 ['git', 'rev-parse', '--is-shallow-repository'],
@@ -208,6 +219,8 @@ def main():
                     capture_output=True, text=True, timeout=30).stdout.strip() or None
         except Exception:  # noqa: BLE001
             gov_date = None
+        if verified_date:
+            gov_date = verified_date
 
     hit = miss = 0
     total = sum(len(op['vehicles']) for op in data['operators'])
