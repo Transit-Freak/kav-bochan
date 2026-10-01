@@ -22,8 +22,19 @@
     --shadow:0 1px 3px rgba(16,23,42,.08);
     color-scheme:light dark;
   }
+  /* מצב כהה: לפי הגדרת המכשיר, אלא אם נבחר ידנית בכפתור (שלמה 01.10) */
+  :root[data-theme="dark"]{
+      --bg:#0B1120; --surface:#151D2E; --ink:#E6EAF2; --mut:#AEB6C6; --dim:#A3ABBC;
+      --line:#2A3448; --chipbg:#222C40; --row:#1B2436;
+      --ok:#86EFAC; --ok-bg:#14361F; --bad:#FCA5A5; --bad-bg:#3F1616;
+      --warn:#FCD34D; --warn-bg:#3A2A0A;
+      --head:#1F2A44; --head-ink:#FFFFFF; --link:#93B4FF; --focus:#E6EAF2;
+      --shadow:0 1px 3px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"]{color-scheme:light}
+  .themebtn{position:fixed;top:10px;right:10px;z-index:50;min-width:44px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:var(--shadow)}
   @media (prefers-color-scheme:dark){
-    :root{
+    :root:not([data-theme="light"]){
       --bg:#0B1120; --surface:#151D2E; --ink:#E6EAF2; --mut:#AEB6C6; --dim:#A3ABBC;
       --line:#2A3448; --chipbg:#222C40; --row:#1B2436;
       --ok:#86EFAC; --ok-bg:#14361F; --bad:#FCA5A5; --bad-bg:#3F1616;
@@ -85,6 +96,13 @@
 </style>
 </head>
 <body>
+<button class="themebtn" id="themebtn" type="button" aria-label="החלפת מצב בהיר/כהה" title="מצב בהיר/כהה"></button>
+<script>(function(){var k='wk.theme',r=document.documentElement,b=document.getElementById('themebtn');
+function get(){try{return localStorage.getItem(k)}catch(e){return null}}
+function dark(){var t=r.dataset.theme;return t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches}
+function show(){b.textContent=dark()?'☀️':'🌙'}
+var t=get();if(t)r.dataset.theme=t;show();
+b.onclick=function(){var n=dark()?'light':'dark';r.dataset.theme=n;try{localStorage.setItem(k,n)}catch(e){}show()};})();</script>
 <div class="wrap">
   <div class="top">
     <div class="logo">W</div>
