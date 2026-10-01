@@ -41,6 +41,40 @@ STREET_RE = re.compile(r'רחוב:\s*(.+?)\s*עיר:')
 PLACE_WORDS = ('אוניברסיט', 'בית חולים', 'ביה"ח', "בי''ח", 'מרכז רפואי', 'קניון',
                'מכללת', 'ת. רכבת', 'ת.רכבת', 'תחנת רכבת', 'טרמינל', 'נמל', 'קריית הממשלה')
 MIN_LINES = {'station': 5, 'street': 30, 'place': 6}
+SAVIDOR = 'מסוף ארלוזורוב (סבידור)'
+GROUP_M = 500                     # עצירה רחוקה יותר מחציון המתחם — שם דומה במקום אחר, לא חלק ממנו
+MERGE_M = 150                     # שתי קבוצות תחנה באותה עיר שעצירותיהן עד 150 מ' זו מזו — מתחם אחד
+BARE = ('ת. מרכזית', 'תחנה מרכזית', 'ת.מרכזית', 'מרכזית', 'מסוף')
+# סיומת שם העצירה ("…/עירוניים לדרום", "…/רציפים בינעירוני") שמתארת את חלק המתחם ולא רחוב —
+# לא הופכת ל"רחוב …" בעמודת הרציף (באר שבע: "רחוב עירוניים לדרום 18")
+PART_RE = re.compile(r'^((רציפים?|עירוני(ים)?|בינעירוני(ים)?|אזורי(ים)?|לדרום|לצפון|למזרח|למערב|'
+                     r'הורדה|איסוף|עליה|עלייה|מטרונית|חנה וסע|[A-Za-z])\s*)+$')
+# סיומת שכבר מתחילה בסוג מקום — לא מוסיפים לה "רחוב " ("רחוב רח' ירושלים", "רחוב צומת רעננה")
+PLACE_PFX = re.compile(r"^(רחוב|רח['\"׳״]|דרך|שד['\"׳״]?|שדרות|גשר|כיכר|ככר|מסוף|חניון|מרכז|קניון|בי|צומת|כביש|מחלף|"
+                       r"תחנת|ת\.|רכבת|שער|גן|פארק|נמל|טרמינל)")
+
+
+def dist_m(a, b):
+    dy = (b[0] - a[0]) * 111320
+    dx = (b[1] - a[1]) * 111320 * math.cos(math.radians(a[0]))
+    return math.hypot(dx, dy)
+
+
+def suffix_station(name):
+    """עצירה שהמתחם כתוב בסיומת שלה: "בר כוכבא/ת.מרכזית פתח תקווה", "רכבת/מסוף ביג" —
+    מחזיר את שם המתחם (או "" — "תחנה מרכזית" סתמי, והעיר נקבעת אחר כך). None אם אין."""
+    if '/' not in name:
+        return None
+    head, suf = name.split('/', 1)
+    if re.search(r"רק['\"׳״]*ל|רכבת קלה|תפעול", head):   # רכבת קלה / תחנה תפעולית — לא אוטובוסים במתחם
+        return None
+    k = station_key(suf.strip())
+    if k in ('ת. מרכזית', 'תחנה מרכזית'):
+        return ''
+    if k.startswith('ת. מרכזית ') or (k.startswith('מסוף ') and k not in ('מסוף אוטובוסים',)
+                                       and not re.search(r'הורדה|רציפים', k)):
+        return k
+    return None
 
 
 def station_key(stop_name):
@@ -50,6 +84,7 @@ def station_key(stop_name):
     base = re.sub(r'\s+', ' ', base).strip()
     base = re.sub(r'^ת\.\s*מרכזית', 'ת. מרכזית', base)   # איחוד "ת.מרכזית"/"ת. מרכזית"
     base = re.sub(r'^תחנה מרכזית\b', 'ת. מרכזית', base)
+    base = re.sub(r'^מרכזית(?=\s)', 'ת. מרכזית', base)    # "מרכזית המפרץ" = "ת. מרכזית המפרץ"
     # "מסוף קסטינה-מלאכי לדרום"/"לצפון"/"ת. מרכזית אשקלון רציפים" — אותו מתחם,
     # ערך אחד בוויקיפדיה; בלי האיחוד הקווים מהרציפים האחרים נראו "שגויים" (שלמה 18.09)
     while True:
@@ -60,12 +95,91 @@ def station_key(stop_name):
     # קיצורי ערים בשמות תחנות — כדי שראשל''צ וראשון לציון יהיו אותה תחנה
     for ab, full in ABBR.items():
         base = base.replace(ab, full)
-    if 'סבידור' in base or base in ('תל אביב מרכז', 'מסוף 2000'):
-        return 'מסוף ארלוזורוב (סבידור)'
+    # מסוף ארלוזורוב (סבידור): רק עצירות המסוף/תחנת הרכבת עצמן ("ת. רכבת תל אביב - סבידור",
+    # "תחנת רכבת סבידור מרכז", "מסוף 2000") — לא כל שם עם "סבידור" (רחוב מנחם סבידור,
+    # "פרויד/סבידור" בערים אחרות). בנוסף מסננים במרחק (SAVIDOR_M) ב-main.
+    if re.search(r'רכבת.*סבידור|סבידור\s+מרכז', base) or base in ('תל אביב מרכז', 'מסוף 2000'):
+        return SAVIDOR
     base = re.sub(r'\bקרית\b', 'קריית', base)          # קרית שרת / קריית שרת — אותו מסוף
     if 'סולט' in base and 'סולימאן' in base:               # מסוף סולטאן סולימאן = ת. מרכזית סולטן סולימאן
         return 'ת. מרכזית סולטן סולימאן'
     return base
+
+
+def prune_outliers(stop_groups, gpos, stop_xy):
+    """עצירה שרחוקה יותר מ-GROUP_M מחציון המתחם יוצאת ממנו (QA 01.10: "סבידור" תפס
+    עצירות בשם דומה בכל העיר). רק במתחם עם 3 עצירות ומעלה — שיהיה חציון אמין."""
+    med = {}
+    for gk, pts in gpos.items():
+        if len(pts) >= 3:
+            med[gk] = (sorted(p[0] for p in pts)[len(pts) // 2], sorted(p[1] for p in pts)[len(pts) // 2])
+    if not med:
+        return
+    n = 0
+    for sid, gs in list(stop_groups.items()):
+        xy = stop_xy.get(sid)
+        if not xy:
+            continue
+        keep = [g for g in gs if g[0] not in med or dist_m(med[g[0]], xy[:2]) <= GROUP_M]
+        if len(keep) != len(gs):
+            n += len(gs) - len(keep)
+            if keep:
+                stop_groups[sid] = keep
+            else:
+                del stop_groups[sid]
+    gpos.clear()
+    for sid, gs in stop_groups.items():
+        xy = stop_xy.get(sid)
+        if xy:
+            for g in gs:
+                gpos.setdefault(g[0], []).append(xy[:2])
+    print(f'עצירות רחוקות שהוצאו ממתחמים: {n}', flush=True)
+
+
+def merge_groups(stop_groups, gpos):
+    """איחוד מתחמים לפי מרחק (QA 01.10): שתי קבוצות תחנה באותה עיר שיש ביניהן עצירות
+    במרחק עד MERGE_M — אותו מתחם (מסוף שער שכם / מסוף דרך שכם, 64 מ'). השם הנבחר:
+    "מרכזית" קודם, אחר כך הקבוצה עם הכי הרבה עצירות. משנה את stop_groups ו-gpos במקום."""
+    keys = [k for k in gpos if k.startswith('S|')]
+    parent = {k: k for k in keys}
+
+    def find(k):
+        while parent[k] != k:
+            parent[k] = parent[parent[k]]
+            k = parent[k]
+        return k
+    for i, a in enumerate(keys):
+        ca = a.split('|')[2]
+        for b in keys[i + 1:]:
+            if not ca or b.split('|')[2] != ca or find(a) == find(b):
+                continue
+            if any(dist_m(p, q) <= MERGE_M for p in gpos[a] for q in gpos[b]):
+                parent[find(b)] = find(a)
+    comps = {}
+    for k in keys:
+        comps.setdefault(find(k), []).append(k)
+    ren = {}
+    for ks in comps.values():
+        if len(ks) < 2:
+            continue
+        main_ = sorted(ks, key=lambda k: ('מרכזית' not in k, -len(gpos[k]), len(k)))[0]
+        for k in ks:
+            if k != main_:
+                ren[k] = main_
+        print(f'איחוד לפי מרחק: {" + ".join(k.split("|")[1] for k in ks)} → {main_.split("|")[1]}', flush=True)
+    if not ren:
+        return
+    for sid, gs in stop_groups.items():
+        new = []
+        for g in gs:
+            if g[0] in ren:
+                m = ren[g[0]]
+                g = (m, g[1], m.split('|')[1], g[3], g[4], {g[2]} | (g[5] if len(g) > 5 else set()))
+            if all(x[0] != g[0] for x in new):
+                new.append(g)
+        stop_groups[sid] = new
+    for k, m in ren.items():
+        gpos.setdefault(m, []).extend(gpos.pop(k))
 
 
 def download():
@@ -146,8 +260,9 @@ def main():
             mg = re.match(r'^רציפים?\s*([A-Za-z])$', suf)
             if mg:
                 plat = (mg.group(1).upper() + plat) if plat else ''
-            elif not suf.startswith('רציפ'):
-                street = suf if re.match(r'^(רחוב|דרך|שד|שדרות|גשר|כיכר|מסוף|חניון|מרכז|קניון|בי)', suf) else 'רחוב ' + suf
+            elif not suf.startswith('רציפ') and not PART_RE.match(suf) and suffix_station(name) is None:
+                suf = re.sub(r"^רח['\"׳״]\s*", 'רחוב ', suf)      # רח' ירושלים → רחוב ירושלים
+                street = suf if PLACE_PFX.match(suf) else 'רחוב ' + suf
                 plat = f'{street} {plat}' if plat else street
         groups = []
         # רציף הורדה אינו רציף היציאה — בוויקיפדיה כותבים מאיפה הקו יוצא (שלמה 18.09)
@@ -158,6 +273,11 @@ def main():
             lab = re.sub(r'\s*\(.*?\)\s*$', '', manual[code])
             groups.append((f'S|{lab}|{city}', 'station', lab, city, plat))
         base = station_key(name)
+        ss_ = suffix_station(name)
+        if ss_ is not None:                     # "בר כוכבא/ת.מרכזית פתח תקווה" — המתחם בסיומת
+            base = ss_ or 'ת. מרכזית'
+        if 'תפעול' in name:
+            base = ''
         if any(w in base for w in STATION_WORDS):
             if base in ('תחנה מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'מרכזית') and city:
                 base = f'ת. מרכזית {city}'
@@ -165,7 +285,10 @@ def main():
                 base = f'מסוף {city}'
             if base == 'מסוף ארלוזורוב (סבידור)':
                 city = 'תל אביב יפו'
-            groups.append((f'S|{base}|{city}', 'station', base, city, plat))
+            # עצירה שהמתחם בסיומת שלה ("בר כוכבא/ת.מרכזית פתח תקווה"): קצה מסלול בשם
+            # "בר כוכבא" באותה עיר הוא התחנה עצמה, לא יעד
+            al = {station_key(name.split('/')[0])} if ss_ is not None else set()
+            groups.append((f'S|{base}|{city}', 'station', base, city, plat, al))
         # רחובות ומקומות מרכזיים הוסרו (שלמה 18.09: "ביקשתי רק מסופים ותחנות
         # מרכזיות שרשומות בוויקיפדיה") — הכלי עוסק בקטגוריה הזו בלבד.
         if groups:
@@ -177,6 +300,8 @@ def main():
             except (KeyError, ValueError, TypeError):
                 pass
     print(f'stops: {len(stop_groups)} עצירות בקבוצות', flush=True)
+    prune_outliers(stop_groups, gpos, stop_xy)
+    merge_groups(stop_groups, gpos)
 
     # עצירות ליד המתחם (שלמה 01.10, מודיעין: קו 50 עוצר ב"שדרות החשמונאים/לב העיר", קומה
     # מעל המרכזית — לא "שגוי" בערך). כל עצירה שאינה במתחם ונמצאת עד NEAR_M מעצירה שלו.
@@ -285,7 +410,7 @@ def main():
         if rid is None:
             continue
         first = seq == 1   # תחנת המוצא של הנסיעה
-        for gk, kind, name, city, plat in gs:
+        for gk, kind, name, city, plat, *_ in gs:
             meta[gk] = (kind, name, city)
             if seq and (rid, gk) not in hit_seq or (seq and seq < hit_seq.get((rid, gk), 10 ** 9)):
                 hit_seq[(rid, gk)] = seq
@@ -300,6 +425,10 @@ def main():
 
     # 5. קיבוץ
     stations = {}
+    alias = {}         # קבוצה → שמות הקבוצות שאוחדו לתוכה (קצה מסלול בשם הישן = התחנה עצמה)
+    for gs in stop_groups.values():
+        for g in gs:
+            alias.setdefault(g[0], set()).update(g[5] if len(g) > 5 else ())
     for (rid, gk), plats in hits.items():
         short, op, long_name = routes.get(rid, ('', '', ''))
         if not short:
@@ -307,10 +436,12 @@ def main():
         kind, base, city = meta[gk]
         st = stations.setdefault(gk, {'kind': kind, 'name': base, 'city': city, 'lines': {}, 'pos': gpos.get(gk, [])})
         ends = endpoint_cities(long_name)
-        term = kind == 'station' and any(station_key(e[0]) == base for e in ends)
+        is_self = lambda e: kind == 'station' and (station_key(e[0]) == base or (station_key(e[0]) in BARE and e[1] == city)
+                                                   or (e[1] == city and station_key(e[0]) in alias.get(gk, ())))
+        term = any(is_self(e) for e in ends)
         dests = set()
         for stop, ecity in ends:
-            if kind == 'station' and station_key(stop) == base:
+            if is_self((stop, ecity)):
                 continue
             dests.add(ecity if ecity != city else station_key(stop))
         lk = f'{short}|{op}'
@@ -328,6 +459,8 @@ def main():
         # רציף לכל כיוון (שלמה 20.09: "לכיוון … עוצר ברציף …"): היעד של הכיוון והרציפים בו
         if len(ends) == 2 and plats:
             dlab = ends[1][1] if ends[1][1] != city else station_key(ends[1][0])
+            if is_self(ends[1]):          # הכיוון שמגיע לתחנה עצמה — לפי המוצא
+                dlab = ends[0][1] if ends[0][1] != city else station_key(ends[0][0])
             ent.setdefault('dirs', {}).setdefault(dlab, set()).update(dp or plats)
         # מסלול עובר (התחנה באמצע): מוצא ← רחובות לפני ← התחנה ← רחובות אחרי ← יעד
         # (שלמה 20.09: "מראה רק מהתחנה המרכזית עד לתחנה האחרונה ולא מה שהיה לפני")
@@ -336,7 +469,7 @@ def main():
             rs = route_streets.get(rid, {})
             before = [list(k) for k, v in sorted(rs.items(), key=lambda kv: kv[1]) if v < sq]
             after = [list(k) for k, v in sorted(rs.items(), key=lambda kv: kv[1]) if v > sq]
-            lab = lambda e: e[1] if e[1] != city else station_key(e[0])
+            lab = lambda e: base if is_self(e) else e[1] if e[1] != city else station_key(e[0])
             ent['thru'] = [lab(ends[0]), before, after, lab(ends[1])]
 
     def plat_sort(p):

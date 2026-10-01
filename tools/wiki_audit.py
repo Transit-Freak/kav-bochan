@@ -205,7 +205,14 @@ def parse_tables(wt):
 
 STREET_PFX = re.compile(r"^(רחוב|רח'|רח\"|שד'|שד\"|שדרות|דרך|כביש מס'|כביש)\s+")
 STREET_SPLIT = re.compile(r'[,;،·•←→⇐⇒♿🔄🛡💺🚆]|\s[-–—]\s|\s/\s|\bדרך\b|\bעד\b|\bאל\b')
-NOTE_RE = re.compile(r'^(בשעות|בשעה|נסיעות|נסיעה|רק |בימי|בימים|חלק|בהזמנה|הזנה|קו |אוטובוס|ממוגן|מעגלי|סיבובי|נגיש)')
+NOTE_RE = re.compile(r'^(בשעות|בשעה|נסיעות|נסיעה|רק |בימי|בימים|חלק|בהזמנה|הזנה|קו |אוטובוס|ממוגן|מעגלי|סיבובי|נגיש)'
+                     r'|פי?עיל|בלבד|שבת|סופש|במוצאי|בשעות|כיוו?נו|הנגדי|(^|\s)ציר(\s|$)|בימי|לילה')
+# שכונות/מקומות שאינם רחובות — קטע בתא המסלול שמכיל אחד מאלה לא נבדק כ"רחוב שהקו לא עובר בו"
+NONSTREET_RE = re.compile(r'תחנת ה?רכבת|רכבת|(^|\s)ת\.?\s?מ\.?(\s|$)|ביח|אוניברסיט|רובע|(^|\s)נוו?ה\s|קריי?ת\s|שכונת|'
+                          r'עיר התחתית|מרכז העיר|קניון|מרכזית|מסוף|מכללת|פארק|נמל|שוק|כפר|מושב|קיבוץ|אזור התעשי|א\.?ת\.?(\s|$)|'
+                          r'יציאה|כניסה|מחלף|צומת')
+# שמות ערים/אזורים עם מילים שהפיצול חותך ("אל", "דרך") — מוגנים לפני הפיצול
+PROTECT = ('אום אל פחם', 'אום אל-פחם', 'אום אל פאחם', 'הקריות', 'ואדי עארה', 'בית אל', 'כפר אל')
 
 
 def street_norm(t):
@@ -225,16 +232,24 @@ def street_norm(t):
     return re.sub(r'\s+', ' ', t).strip()
 
 
+BARE = ('ת. מרכזית', 'תחנה מרכזית', 'ת.מרכזית', 'מרכזית', 'מסוף')
 GENERIC = {'מסוף', 'תחנה', 'תחנה מרכזית', 'מרכזית', 'ת. מרכזית', 'ת.מרכזית', 'רציף', 'רציפים', 'הורדה', 'איסוף', 'מפגש', 'צומת',
            'קו מעגלי', 'מעגלי', 'סיבובי', 'קו סיבובי', 'ממוגן ירי', 'ממוגן', 'בהזמנה מראש', 'בהזמנה מראש בלבד', 'הזנה', 'קו הזנה', 'נגיש', 'אוטובוס נגיש'}
 
 
-def route_cell_streets(cell):
-    """שמות רחובות מתא המסלול בערך — מנורמלים, בלי מספרים ובלי קטעים קצרים."""
+def route_cell_streets(cell, protect=()):
+    """שמות רחובות מתא המסלול בערך — מנורמלים, בלי מספרים ובלי קטעים קצרים.
+    protect: שמות יישובים (מכמה מילים) שלא מפצלים — הם נמחקים מהתא, ממילא אינם רחובות."""
     out = []
+    cell = re.sub(r'\[\[[^\]|]*\|([^\]]*)\]\]', r'\1', cell or '')    # [[יעד|טקסט]] → טקסט
+    cell = cell.replace('|', ' ')                                       # "|" תועה
+    for ph in sorted(set(PROTECT) | {p for p in protect if p and ' ' in p}, key=len, reverse=True):
+        cell = cell.replace(ph, ',')
     for part in STREET_SPLIT.split(cell):
         n = street_norm(part or '')
-        if NOTE_RE.search(n):              # הערת סימון ("בשעות הבוקר", "בהזמנה מראש בלבד") אינה רחוב
+        if NOTE_RE.search(n) or NONSTREET_RE.search(n):   # הערה ("פעיל בשעות…", "סופ"ש בלבד") / שכונה, מקום
+            continue
+        if re.search(r'\d', n):          # מספר קו/כביש ("31א הוא כיוונו הנגדי", "כביש 481") — לא רחוב
             continue
         if len(n) >= 3 and re.search(r'[א-ת]', n) and not n.isdigit() and n not in out and n not in GENERIC:
             out.append(n)
@@ -336,7 +351,7 @@ def check_routes(wt, real_lines, central, skip_names, detailed=True):
                 # שמות תחנות במסלול (קניון ערים, מרכז רפואי מאיר) — מותר לכתוב, לא "רחוב שהקו לא עובר בו"
                 lskip = skip | {street_norm(c) for c in cities} | {street_norm(p) for p in ls.get('places') or []}
                 cent = {street_norm(st) for ct in cities for st in central.get(ct, [])}
-                written = route_cell_streets(row[ci])
+                written = route_cell_streets(row[ci], skip_names)
                 no = [w for w in written if not any(same_street(w, c) for c in lskip)
                       and not any(same_street(w, n) for _, n in streets)]
                 # רחובות מרכזיים חסרים — רק בערך שמפרט רחובות (בערך עם מסלול קצר אין מה להשלים), עד 3
@@ -438,6 +453,20 @@ def dist_m(a, b):
 
 
 NEAR_M = 400   # ערך שהקואורדינטות שלו עד 400 מ' ממרכז המתחם — זה הערך של המתחם
+# מסוף (שאינו "מרכזית") מול ערך "התחנה המרכזית של X": רק אם הוא ממש צמוד לה — מסוף/חניון
+# של מפעיל בעיר אינו התחנה המרכזית (QA 01.10: "מסוף אגד (דימונה)" → 11/16 "שגויים")
+CENTRAL_M = 300
+
+
+def central_title(t):
+    return 'התחנה המרכזית' in t or t.startswith('מרכזית ')
+
+
+def allowed(name, title, d):
+    """מותר לשדך את המתחם name לערך title במרחק d (מטרים, או None כשאין קואורדינטות)?"""
+    if 'מרכזית' in name or not central_title(title):
+        return True
+    return d is not None and d <= CENTRAL_M
 
 
 def match_by_coords(st, coords):
@@ -447,6 +476,8 @@ def match_by_coords(st, coords):
     best, bd = None, None
     for t, c in coords.items():
         d = dist_m((st['lat'], st['lon']), c)
+        if not allowed(st.get('name', ''), t, d):
+            continue
         if bd is None or d < bd:
             best, bd = t, d
     return (best, round(bd)) if bd is not None and bd <= NEAR_M else (None, round(bd) if bd is not None else None)
@@ -513,7 +544,8 @@ def main():
         with open(ov_path, encoding='utf-8') as f:
             override = json.load(f)
         # סובלנות לאיות "ת.מרכזית"/"ת. מרכזית" במפתחות
-        override = {re.sub(r'^ת\.\s*מרכזית', 'ת. מרכזית', k): v for k, v in override.items()}
+        # ו"מרכזית X" סתמי = "ת. מרכזית X" — כמו station_key ב-wiki_stations.py
+        override = {re.sub(r'^(ת\.\s*|תחנה\s+)?מרכזית(?=\s)', 'ת. מרכזית', k): v for k, v in override.items()}
     known = {}
     if os.path.exists(OUT):
         with open(OUT, encoding='utf-8') as f:
@@ -544,10 +576,14 @@ def main():
                     if exact:
                         title, how = exact, 'שם זהה'
                     else:
-                        title, dm = match_by_coords(st, coords)
+                        title, dm = match_by_coords(dict(st, name=name), coords)
                         how = f'לפי מיקום ({dm} מ\')' if title else 'לפי שם'
                     if not title:
                         title = match_in_category(name, st['city'], cat_titles)
+                        if title and not allowed(name, title, dist_m((st['lat'], st['lon']), coords[title])
+                                                 if st.get('lat') is not None and title in coords else None):
+                            print(f'  {name}: "{title}" נדחה — מסוף רחוק מהתחנה המרכזית', flush=True)
+                            title = None
                     if title:
                         print(f'  {name} → {title} {how}', flush=True)
                 else:
@@ -575,7 +611,8 @@ def main():
             skip_names = {st['city'], name} | {d for l in st['lines'] for d in l[2]} | set(data.get('cities') or [])
             real_acc = {l[0]: l[6] for l in st['lines'] if len(l) > 6 and l[6] is not None}
             # קו מעגלי לפי ה-GTFS: בלי יעדים מחוץ לתחנה (כל הקצוות הם התחנה עצמה)
-            real_circ = {l[0]: (len([d for d in l[2] if d and d != name and not name.startswith(d)]) == 0) for l in st['lines']}
+            # — וגם מתחיל/מסתיים בה (term); קו בלי יעדים בגלל נתון חסר אינו "מעגלי"
+            real_circ = {l[0]: (bool(l[4]) and len([d for d in l[2] if d and d != name and d not in BARE]) == 0) for l in st['lines']}
             real_flags = {l[0]: l[7] for l in st['lines'] if len(l) > 7 and l[7]}
             acc_issues = check_marks(wt, real_acc, real_circ, real_flags) if has_table else {}
             # האם הערך מפרט רחובות בעמודת המסלול (חיצים, או 3 קטעים ומעלה בתא) — הטבלה
