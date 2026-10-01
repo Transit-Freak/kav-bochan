@@ -456,13 +456,18 @@ def category_coords(titles):
         time.sleep(0.3)
     ids = sorted(qid)
     for i in range(0, len(ids), 50):
-        try:
-            u = 'https://www.wikidata.org/w/api.php?' + urllib.parse.urlencode(
-                {'action': 'wbgetentities', 'ids': '|'.join(ids[i:i + 50]), 'props': 'claims', 'format': 'json'})
-            with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60) as resp:
-                ents = json.load(resp).get('entities', {})
-        except Exception as e:  # noqa: BLE001
-            print(f'ויקינתונים: {e}', flush=True)
+        u = 'https://www.wikidata.org/w/api.php?' + urllib.parse.urlencode(
+            {'action': 'wbgetentities', 'ids': '|'.join(ids[i:i + 50]), 'props': 'claims', 'format': 'json'})
+        ents = None
+        for k in range(4):     # 429 מוויקינתונים — ממתינים ומנסים שוב (30.09: נפלו 9 ערכים)
+            try:
+                with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60) as resp:
+                    ents = json.load(resp).get('entities', {})
+                break
+            except Exception as e:  # noqa: BLE001
+                print(f'ויקינתונים: {e} — ממתין', flush=True)
+                time.sleep(30 * (k + 1))
+        if ents is None:
             break
         for q, ent in ents.items():
             for c in (ent.get('claims') or {}).get('P625', []):

@@ -248,7 +248,9 @@ def main():
             # יש כבר מתחם מאותו סוג לפי שם — השידוך לערך ייעשה לפי מיקום בסריקה. ערך של "התחנה
             # המרכזית" צריך עצירה עם "מרכזית" בשם; מסוף סמוך (מסוף אגד דימונה) אינו התחנה המרכזית
             need = ('מרכזית',) if 'מרכזית' in title else STATION_WORDS
-            if any(d <= 300 and any(w in x[2] for w in need) for x, d in near):
+            hit = next(((x, d) for x, d in near if d <= 300 and any(w in x[2] for w in need)), None)
+            if hit:
+                print(f'  מיקום הערך "{title}": כבר יש לידו "{hit[0][2]}" ({hit[0][3]}) {round(hit[1])} מ\' — בלי מתחם לפי מיקום', flush=True)
                 continue
             lab = re.sub(r'^התחנה המרכזית של\s+', 'ת. מרכזית ', re.sub(r'\s*\(.*?\)\s*$', '', title))
             got = [x for x, d in near if d <= 150 and x[3]]
