@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><script src="../home-link.js"></script>
+<script src="../a11y.js" defer></script>
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -12,35 +13,50 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap">
 <style>
   :root{
-    --bg:#F2F4F8; --surface:#FFFFFF; --ink:#10172A; --mut:#6B7488; --dim:#8B93A7;
+    /* --mut/--dim כהים מספיק לניגודיות 4.5:1 על הרקע ועל השורות */
+    --bg:#F2F4F8; --surface:#FFFFFF; --ink:#10172A; --mut:#545D70; --dim:#596276;
     --line:#E6EAF0; --chipbg:#EEF1F6; --row:#F6F8FB;
     --ok:#166534; --ok-bg:#DCFCE7; --bad:#991B1B; --bad-bg:#FEE2E2;
     --warn:#92400E; --warn-bg:#FEF3C7;
+    --head:#10172A; --head-ink:#FFFFFF; --link:#1D4ED8; --focus:#10172A;
     --shadow:0 1px 3px rgba(16,23,42,.08);
+    color-scheme:light dark;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0B1120; --surface:#151D2E; --ink:#E6EAF2; --mut:#AEB6C6; --dim:#A3ABBC;
+      --line:#2A3448; --chipbg:#222C40; --row:#1B2436;
+      --ok:#86EFAC; --ok-bg:#14361F; --bad:#FCA5A5; --bad-bg:#3F1616;
+      --warn:#FCD34D; --warn-bg:#3A2A0A;
+      --head:#1F2A44; --head-ink:#FFFFFF; --link:#93B4FF; --focus:#E6EAF2;
+      --shadow:0 1px 3px rgba(0,0,0,.5);
+    }
   }
   *{box-sizing:border-box}
   html{direction:rtl}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Rubik',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
   .wrap{max-width:900px;margin:0 auto;padding:18px 16px 60px}
   .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-  .logo{width:42px;height:42px;border-radius:13px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;font-family:serif;flex-shrink:0}
+  .logo{width:42px;height:42px;border-radius:13px;background:var(--head);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;font-family:serif;flex-shrink:0}
   h1{font-size:21px;font-weight:800;margin:0}
   .tag{font-size:10.5px;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:999px;padding:3px 10px}
   .homelink{margin-inline-start:auto;font-size:13px;font-weight:700;color:#1D4ED8;text-decoration:none}
   .sub{font-size:12.5px;color:var(--mut);font-weight:600;line-height:1.6;margin:8px 0 14px}
-  #q{width:100%;height:46px;border:none;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);padding:0 16px;font:600 14px 'Rubik',sans-serif;color:var(--ink);outline:none;margin-bottom:12px}
-  #q:focus{box-shadow:0 0 0 2px #10172A, var(--shadow)}
+  #qf{margin:0 0 12px}
+  #q{width:100%;height:46px;border:none;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);padding:0 16px;font:600 14px 'Rubik',sans-serif;color:var(--ink);outline:none}
+  #q:focus-visible{box-shadow:0 0 0 2px var(--focus), var(--shadow)}
   .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-  .card{border:none;text-align:inherit;font-family:inherit;cursor:pointer;color:#fff;background:#10172A;border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
+  .card{border:none;text-align:inherit;font-family:inherit;cursor:pointer;color:var(--head-ink);background:var(--head);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
   .card h2{margin:0;font-size:15px;font-weight:800}
-  .card span{font-size:11px;opacity:.75;font-weight:600}
+  .card .meta{font-size:11px;opacity:.85;font-weight:600}
   .panel{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;margin-top:14px}
   .ptitle{font-weight:800;font-size:14px;margin:0 0 10px}
-  .ophead{color:#fff;background:#10172A;border-radius:18px;padding:16px 20px}
-  .ophead h2{margin:0;font-size:20px;font-weight:800}
+  .ophead{color:var(--head-ink);background:var(--head);border-radius:18px;padding:16px 20px}
+  .ophead h2{margin:0;font-size:20px;font-weight:800;outline:none}
   .ophead .sub2{font-size:12px;opacity:.85;font-weight:500;margin-top:3px}
-  .back{border:none;background:var(--surface);color:var(--ink);border-radius:12px;padding:9px 15px;font:700 13px 'Rubik',sans-serif;cursor:pointer;box-shadow:var(--shadow);margin-bottom:12px}
+  .back{border:none;background:var(--surface);color:var(--ink);border-radius:12px;padding:9px 15px;font:700 13px 'Rubik',sans-serif;cursor:pointer;box-shadow:var(--shadow);margin-bottom:12px;min-height:44px}
   table{width:100%;border-collapse:separate;border-spacing:0 5px;font-size:12.5px}
+  .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
   th{text-align:right;font-size:11px;color:var(--dim);font-weight:700;padding:2px 10px}
   td{background:var(--row);padding:8px 10px;font-weight:600}
   td:first-child{border-radius:0 10px 10px 0;font-weight:800}
@@ -49,22 +65,23 @@
   .chip.ok{background:var(--ok-bg);color:var(--ok)}
   .chip.bad{background:var(--bad-bg);color:var(--bad)}
   .chip.warn{background:var(--warn-bg);color:var(--warn)}
-  .btn{border:none;cursor:pointer;background:var(--ink);color:#fff;border-radius:12px;padding:11px 18px;font:700 13px 'Rubik',sans-serif}
+  .btn{border:none;cursor:pointer;background:var(--head);color:var(--head-ink);border-radius:12px;padding:11px 18px;font:700 13px 'Rubik',sans-serif;min-height:44px}
   .btn.sec{background:var(--chipbg);color:var(--ink)}
   .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  #wtitle{flex:1;min-width:200px;height:42px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:600 13px 'Rubik',sans-serif;color:var(--ink);outline:none}
-  textarea{width:100%;min-height:180px;border:1px solid var(--line);border-radius:12px;padding:12px;font:500 12px ui-monospace,monospace;direction:rtl;resize:vertical}
+  #wtitle{flex:1;min-width:200px;height:42px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:600 13px 'Rubik',sans-serif;color:var(--ink);background:var(--surface)}
+  textarea{width:100%;min-height:180px;border:1px solid var(--line);border-radius:12px;padding:12px;font:500 12px ui-monospace,monospace;direction:rtl;resize:vertical;color:var(--ink);background:var(--surface)}
   .note{font-size:11px;color:var(--dim);font-weight:600;line-height:1.6;margin-top:10px}
   .empty{padding:40px;text-align:center;color:var(--dim);font-weight:700}
   .msg{padding:60px 20px;text-align:center;color:var(--mut);font-weight:800;font-size:16px}
   .stat{font-size:13px;font-weight:700;margin:8px 0}
-  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .fchip{border:none;cursor:pointer;background:var(--chipbg);color:var(--mut);border-radius:999px;padding:7px 14px;font:700 12px 'Rubik',sans-serif}
   .fchip.on{background:var(--ink);color:#fff}
   .rlist{display:flex;flex-direction:column;gap:6px;margin:6px 0}
   .rrow{font-size:13px;line-height:1.6;padding:6px 10px;background:var(--row);border-radius:10px}
-  a{color:#1D4ED8}
-  button:focus-visible,input:focus-visible{outline:2px solid #10172A;outline-offset:2px}
+  a{color:var(--link)}
+  .homelink{color:var(--link)}
+  button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,.card:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -74,17 +91,84 @@
     <h1>ויקי-בודק</h1>
     <span class="tag">לעורכי ויקיפדיה</span>
   </div>
-  <div class="sub">בערכים של תחנות מרכזיות ומסופים יש הרבה רשימות קווים לא מעודכנות. הכלי סורק את הערכים אוטומטית, משווה את מה שכתוב בהם מול הקווים שמתחילים ומסתיימים בכל תחנה בפועל — לפי קובץ ה-GTFS הרשמי של משרד התחבורה — ומייצר טבלה מוכנה להדבקה בערך.</div>
+  <div class="sub">בערכים של תחנות מרכזיות ומסופים יש הרבה רשימות קווים לא מעודכנות. הכלי סורק את הערכים אוטומטית, משווה את מה שכתוב בהם מול כל הקווים שעוצרים בכל תחנה בפועל — לפי קובץ ה-GTFS הרשמי של משרד התחבורה — ומייצר טבלה מוכנה להדבקה בערך.</div>
+  <form id="qf" role="search" aria-label="חיפוש תחנה" onsubmit="event.preventDefault();const c=document.querySelector('.card');if(c)c.focus();" hidden>
+    <label for="q" class="sr">חיפוש תחנה מרכזית או מסוף</label>
+    <input id="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="חיפוש תחנה מרכזית או מסוף…">
+  </form>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
+  <div id="live" class="sr" aria-live="polite" role="status"></div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
-let DATA=null, AUDIT=null, SEL=null, Q='', WIKI=null, WBUSY=false, KIND='station';
+let DATA=null, AUDIT=null, SEL=null, Q='', WIKI=null, WBUSY=false, KIND='station', LISTY=0;
 const KINDS={station:'תחנות מרכזיות ומסופים'};   // רק מה שרשום בוויקיפדיה בקטגוריית התחנות המרכזיות והמסופים (שלמה 18.09)
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fd=s=>s?s.split('-').reverse().join('.'):'—';
 function lineKey(x){const m=/^(\d+)/.exec(String(x));return m?+m[1]:1e9;}
+// ערך מיון מספרי לוויקיפדיה (data-sort-value): 9 < 9א < 10
+function sortVal(x){const m=/^(\d+)([א-ת]?)/.exec(String(x));if(!m)return 1e6;return +m[1]+(m[2]?(m[2].charCodeAt(0)-0x5CF)/100:0);}
+// הודעה לקוראי מסך (aria-live)
+function say(msg){const el=$('#live');if(!el)return;el.textContent='';setTimeout(()=>{el.textContent=msg;},60);}
+
+/* נרמול לחיפוש: "תחנה מרכזית"/"התחנה המרכזית"/"ת.מרכזית" = "ת. מרכזית"; גרש/גרשיים
+   (' '' ״ ׳ ") ופיסוק ורווחים לא משנים; קרית=קריית; אות כפולה (יי, וו) = אות אחת */
+function normQ(s){
+  return String(s||'').toLowerCase()
+    .replace(/(^|\s)(התחנה המרכזית|תחנה מרכזית|ת\s*\.?\s*מרכזית)(?=\s|$)/g,'$1תמ ')
+    .replace(/(^|\s)המסוף(?=\s|$)/g,'$1מסוף ')
+    .replace(/["'״׳’‘`“”]/g,'')
+    .replace(/[\s.,\-–—_()\/\\:;!?]+/g,'')
+    .replace(/(.)\1+/g,'$1');
+}
+/* "התחנה עצמה": השם המלא, השם בלי "(עיר)", וכינוי סתמי ("ת. מרכזית"/"מסוף") — אחרת קו
+   שמסתיים ב"ת. מרכזית" נראה כאילו התחנה היא המוצא של עצמה (באר שבע, נצרת, אילת) */
+const BARE=new Set(['ת. מרכזית','ת.מרכזית','תחנה מרכזית','התחנה המרכזית','מרכזית','מסוף']);
+function isSelf(d){
+  d=String(d||'').trim();if(!d||!SEL)return false;
+  const base=SEL.replace(/\s*\([^)]*\)\s*$/,'');
+  return BARE.has(d)||d===SEL||d===base||normQ(d)===normQ(base);
+}
+/* טקסט לוויקיפדיה: '' (גרשיים בשמות ה-GTFS) הופך לנטוי בוויקי — מחליפים ל-״ וגרש ל-׳ */
+const wq=s=>String(s==null?'':s).replace(/''/g,'״').replace(/'/g,'׳');
+/* שמות ערים כמו בשמות הערכים בוויקיפדיה */
+const CITYFIX={'תל אביב יפו':'תל אביב-יפו','פתח תקוה':'פתח תקווה','מודיעין מכבים רעות':'מודיעין-מכבים-רעות','יהוד מונוסון':'יהוד-מונוסון'};
+const cityFix=d=>{d=String(d||'').trim().replace(/(^|\s)קרית(?=\s|$)/g,'$1קריית');return CITYFIX[d]||d;};
+// יישוב שערך הוויקיפדיה שלו בשם אחר (מועצות אזוריות, נתב"ג) — קישור עם כינוי
+const CITYLINK={'נמל תעופה בן גוריון':'נמל התעופה בן-גוריון','אשכול':'מועצה אזורית אשכול','זבולון':'מועצה אזורית זבולון','חוף השרון':'מועצה אזורית חוף השרון'};
+let CITIES=null;
+function isCity(d){
+  if(!CITIES){CITIES=new Set([...(DATA.cities||[]),...Object.values(DATA.stations).map(x=>x.city)].map(cityFix));}
+  return CITIES.has(cityFix(d));
+}
+/* מפעילים — טבלה אחת: שם התצוגה (בלי "בע"מ") ← שם הערך בוויקיפדיה. מקשרים רק ערך
+   שידוע בוודאות; מפעיל שאינו כאן נשאר טקסט רגיל — עדיף בלי קישור מאשר קישור שגוי */
+const OPLINK={'אגד':'אגד','אגד תעבורה':'אגד תעבורה',
+  'דן':'דן חברה לתחבורה ציבורית','דן בדרום':'דן בדרום','דן באר שבע':'דן באר שבע','דן צפון':'דן צפון',
+  'מטרופולין':'מטרופולין (תחבורה ציבורית)','קווים':'קווים (חברת אוטובוסים)','סופרבוס':'סופרבוס',
+  'נתיב אקספרס':'נתיב אקספרס','אלקטרה אפיקים':'אלקטרה-אפיקים','אלקטרה אפיקים תחבורה':'אלקטרה-אפיקים',
+  'תנופה':'תנופה (חברת תחבורה)','בית שמש אקספרס':'בית שמש אקספרס',
+  'גי.בי. טורס':'גי.בי. טורס','גי.בי.טורס':'גי.בי. טורס',
+  'נסיעות ותיירות':'חברת הנסיעות והתיירות נצרת',
+  'מועצה אזורית גולן':'מועצה אזורית גולן','מועצה אזורית אילות':'מועצה אזורית חבל אילות'};
+const opName=o=>String(o||'').replace(/\s*בע["״'׳]?מ\s*$/,'').trim();
+function opWiki(o){const n=opName(o),t=OPLINK[n];return t?(t===n?`[[${t}]]`:`[[${t}|${wq(n)}]]`):wq(n);}
+
+/* קווים: יעדים בלי התחנה עצמה; מעגלי רק כשהנתונים מראים זאת — הקו מתחיל/מסתיים בתחנה
+   ואין לו יעד אחר, או שהמוצא והיעד זהים. קו שחסרים לו יעדים בנתונים אינו "מעגלי" */
+const dests=l=>(l[2]||[]).filter(d=>d&&!isSelf(d));
+function isCirc(l){
+  const t=l[8];
+  if(t&&t[0]&&t[3]&&!isSelf(t[0])&&t[0]===t[3]) return true;
+  return !!l[4]&&!dests(l).length;
+}
+/* היעד הראשי: כשיש כמה (וריאנטים) — היעד שמופיע ככיוון ברציפים, אחרת עיר, אחרת הראשון */
+function mainDest(l){
+  const ds=dests(l);if(ds.length<2)return ds[0]||'';
+  const dirs=(l[9]||[]).map(x=>x[0]);
+  return ds.find(d=>dirs.includes(d))||ds.find(isCity)||ds[0];
+}
 
 function auditBadge(k){
   const a=AUDIT&&AUDIT.stations&&AUDIT.stations[k];
@@ -100,22 +184,22 @@ function auditBadge(k){
   return (nr||na?'':'<span class="chip ok">הטבלה בערך תקינה ✓</span>')+rr+ra;
 }
 function home(){
-  const f=Q.trim();
-  const ks=Object.keys(DATA.stations).filter(k=>(DATA.stations[k].kind||'station')===KIND).filter(k=>!f||k.includes(f)||DATA.stations[k].city.includes(f))
+  const f=normQ(Q.trim());
+  const ks=Object.keys(DATA.stations).filter(k=>(DATA.stations[k].kind||'station')===KIND).filter(k=>!f||normQ(k).includes(f)||normQ(DATA.stations[k].city).includes(f))
     .sort((a,b)=>{
       const w=k=>{const x=AUDIT&&AUDIT.stations&&AUDIT.stations[k];return x&&x.wrong?x.wrong.length:0;};
       return (w(b)-w(a))||(DATA.stations[b].lines.length-DATA.stations[a].lines.length);});
-  return `<div class="filters"></div>
-  <div class="cards">${ks.map(k=>{const s=DATA.stations[k];
-    return `<button class="card" onclick="pick(${JSON.stringify(k).replace(/"/g,'&quot;')})">
-      <h2>${esc(k)}</h2><span>${esc(s.city)} · ${s.lines.length} קווים</span><div style="margin-top:6px">${auditBadge(k)}</div></button>`;}).join('')
+  return `<div class="cards">${ks.map(k=>{const s=DATA.stations[k];
+    return `<button class="card" data-k="${esc(k)}">
+      <h2>${esc(k)}</h2><span class="meta">${esc(s.city)} · ${s.lines.length} קווים</span><div style="margin-top:6px">${auditBadge(k)}</div></button>`;}).join('')
     ||'<div class="empty">לא נמצאה תחנה</div>'}</div>
   <p class="note">תחנות מרכזיות ומסופים בלבד — אלה שיש להם ערך בקטגוריה "ישראל: תחנות מרכזיות ומסופי אוטובוסים" בוויקיפדיה. קו משויך למקום אם הוא עוצר בו לפי לוח הזמנים הרשמי (כולל באמצע מסלול). הערכים נסרקים אוטומטית כל שבוע — ערכים עם טעויות מוצגים ראשונים. עדכון: ${fd(DATA.updated)}.</p>`;
 }
 
 function destTxt(st,l){
-  const ds=l[2].filter(d=>d!==SEL&&!SEL.startsWith(d));
-  return ds.length?ds.join(', '):'קו מעגלי';
+  if(isCirc(l)) return 'קו מעגלי 🔄';
+  const ds=dests(l);
+  return ds.length?ds.join(', '):'—';
 }
 
 function stView(){
@@ -123,22 +207,23 @@ function stView(){
   const a=AUDIT&&AUDIT.stations&&AUDIT.stations[SEL];
   const real=new Set(s.lines.map(l=>l[0]));
   const hasPlat=s.lines.some(l=>l[3]);
-  return `<button class="back" onclick="SEL=null;WIKI=null;render()">→ כל התחנות</button>
-  <div class="ophead"><h2>${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים עוצרים כאן · לפי GTFS מ-${fd(DATA.updated)}</div></div>
+  return `<button class="back" onclick="goBack()">→ כל התחנות</button>
+  <div class="ophead"><h2 tabindex="-1">${esc(SEL)}</h2><div class="sub2">${esc(s.city)} · ${s.lines.length} קווים עוצרים כאן · לפי GTFS מ-${fd(DATA.updated)}</div></div>
 
   ${a?`<div class="panel"><p class="ptitle">מה כתוב בערך היום — מהסריקה השבועית</p>
     ${!a.article?'<p class="note">לא נמצא ערך מתאים בוויקיפדיה לתחנה הזו.</p>':
       !a.hasTable?`<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a></div>
         <div class="stat" style="color:var(--warn)">⚠ בערך אין טבלת קווים — אפשר להוסיף אחת עם הטבלה המוכנה שלמטה.</div>`:
-      `<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a> · ${a.inArticle.length} קווים בטבלאות הערך · <b style="color:var(--ok)">${a.correct} נכונים</b>${(a.near||[]).length?` · <b style="color:var(--warn)">${a.near.length} עוצרים ליד</b>`:''}${a.wrong.length?` · <b style="color:var(--bad)">${a.wrong.length} שגויים</b>`:''}${a.missing?` · ${a.missing} חסרים`:''}</div>
+      `<div class="stat">הערך: <a href="https://he.wikipedia.org/wiki/${encodeURIComponent(a.article)}" target="_blank" rel="noopener">${esc(a.article)}</a> · ${a.inArticle.length} קווים בטבלאות הערך · <b style="color:var(--ok)">${a.correct} נכונים</b>${(a.near||[]).length?` · <b style="color:var(--warn)">${a.near.length} עוצרים ליד</b>`:''}${a.wrong.length?` · <b style="color:var(--bad)">${a.wrong.length} שגויים</b>`:''}${(a.missing||0)?` · ${a.missing} חסרים`:''}</div>
       <div>${a.inArticle.map(l=>{const nr=(a.near||[]).find(x=>x[0]===l);return `<span class="chip ${real.has(l)?'ok':nr?'warn':'bad'}"${nr?` title="עוצר ליד: ${esc(nr[1])}"`:''}>${esc(l)}</span>`;}).join('')}</div>
+      ${(a.special||[]).length?`<div class="rlist"><div class="rrow"><span style="color:var(--mut)">קווים מיוחדים בערך (שירות סופ"ש, סובב, שאטל — לא בלוח הזמנים הארצי, לא נבדקים):</span> ${a.special.map(esc).join(', ')}</div></div>`:''}
       ${(a.near||[]).length?`<div class="rlist"><div class="rrow"><span style="color:var(--warn)">עוצרים ליד התחנה (עד 150 מ') ולא בתוכה — לא שגוי, אבל כדאי לציין בערך באיזה רחוב:</span> ${a.near.map(x=>`<b>${esc(x[0])}</b> — ${esc(x[1])}`).join(' · ')}</div></div>`:''}
       ${a.acc&&['missing','wrong','circMissing','circWrong','armMissing','armWrong','bookMissing','bookWrong','feedMissing','feedWrong'].some(k=>(a.acc[k]||[]).length)?`<p class="ptitle" style="margin-top:14px">סימונים בטבלה (♿ 🔄 🛡️ 💺 🚆)</p>
       <div class="rlist">${(a.acc.missing||[]).length?`<div class="rrow"><span style="color:var(--warn)">קווים נגישים לפי ה-GTFS בלי סימון ♿ בערך:</span> ${a.acc.missing.map(esc).join(', ')}</div>`:''}${(a.acc.wrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים ♿ בערך אבל לא נגישים לפי ה-GTFS:</span> ${a.acc.wrong.map(esc).join(', ')}</div>`:''}${(a.acc.circMissing||[]).length?`<div class="rrow"><span style="color:var(--warn)">קווים מעגליים לפי ה-GTFS בלי סימון 🔄 בערך:</span> ${a.acc.circMissing.map(esc).join(', ')}</div>`:''}${(a.acc.circWrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים 🔄 בערך אבל אינם מעגליים לפי ה-GTFS:</span> ${a.acc.circWrong.map(esc).join(', ')}</div>`:''}${(a.acc.armMissing||[]).length?`<div class="rrow"><span style="color:var(--warn)">רכב ממוגן ירי לפי רישום המשרד בלי סימון 🛡️ בערך:</span> ${a.acc.armMissing.map(esc).join(', ')}</div>`:''}${(a.acc.armWrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים 🛡️ בערך אבל תקן הרכב ברישום אינו ממוגן ירי:</span> ${a.acc.armWrong.map(esc).join(', ')}</div>`:''}${(a.acc.bookMissing||[]).length?`<div class="rrow"><span style="color:var(--warn)">שירות לפי דרישה בפיד הארצי בלי סימון 💺 בערך:</span> ${a.acc.bookMissing.map(esc).join(', ')}</div>`:''}${(a.acc.bookWrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים 💺 בערך אבל אינם שירות לפי דרישה בפיד:</span> ${a.acc.bookWrong.map(esc).join(', ')}</div>`:''}${(a.acc.feedMissing||[]).length?`<div class="rrow"><span style="color:var(--warn)">קו מזין לפי משרד התחבורה בלי סימון 🚆 בערך:</span> ${a.acc.feedMissing.map(esc).join(', ')}</div>`:''}${(a.acc.feedWrong||[]).length?`<div class="rrow"><span style="color:var(--bad)">מסומנים 🚆 בערך אבל אינם קו מזין לפי המשרד:</span> ${a.acc.feedWrong.map(esc).join(', ')}</div>`:''}</div>
       <p class="note">🛡️ לפי תקן הרכב ברישום המשרד ("בינעירוני ממוגן ירי", מארכיון הקו בזמן); 💺 לפי "שירות לפי דרישה" בפיד הארצי — לא כל קו בהזמנה מראש רשום כך; 🚆 לפי "קווים מזינים" בקובץ המשרד. אלה סימני עזר לבדיקה, לא הוכחה.</p>`:''}
       ${a.routes&&Object.keys(a.routes).length?`<p class="ptitle" style="margin-top:14px">עמודת המסלול — רחובות שכדאי לבדוק</p>
       <div class="rlist">${Object.entries(a.routes).sort((x,y)=>lineKey(x[0])-lineKey(y[0])).map(([ln,r])=>`<div class="rrow"><b>קו ${esc(ln)}</b>${r.no&&r.no.length?` · <span style="color:var(--bad)">כתוב בערך אבל הקו לא עובר שם: ${r.no.map(esc).join(', ')}</span>`:''}${r.miss&&r.miss.length?` · <span style="color:var(--warn)">רחובות מרכזיים במסלול שלא הוזכרו: ${r.miss.map(esc).join(', ')}</span>`:''}</div>`).join('')}</div>
-      <p class="note">ההשוואה לפי רחובות התחנות של הקו בלוח הזמנים הרשמי. "רחוב מרכזי" = רחוב שעוברים בו 10 קווים ומעלה באותה עיר. שמות ערים ותחנות קצה לא נספרים.</p>`:''}
+      <p class="note">ההשוואה לפי רחובות התחנות של הקו בלוח הזמנים הרשמי. "רחוב מרכזי" = רחוב שעוברים בו 10 קווים ומעלה באותה עיר. שמות ערים, תחנות קצה, שכונות ומקומות (תחנת רכבת, בית חולים, אוניברסיטה) והערות ("פעיל בשעות…", "בלבד") לא נספרים.</p>`:''}
       <p class="note">ירוק = הקו כתוב בערך וקיים בתחנה. אדום = כתוב בערך אבל לא עוצר בתחנה כיום לפי לוח הזמנים הרשמי — כנראה בוטל, שונה או הועבר. הסריקה רצה פעם בשבוע.</p>`}
   </div>`:''}
 
@@ -147,71 +232,84 @@ function stView(){
       <input id="wtitle" placeholder="שם הערך בוויקיפדיה (ריק = חיפוש אוטומטי)" value="${esc((WIKI&&WIKI.title)||(a&&a.article)||'')}">
       <button class="btn" onclick="checkWiki()" ${WBUSY?'disabled':''}>${WBUSY?'בודק…':'בדיקת הערך'}</button>
     </div>
+    <div role="status" aria-live="polite">
     ${WIKI&&WIKI.err?`<div class="stat" style="color:var(--bad)">${esc(WIKI.err)}</div>`:''}
     ${WIKI&&WIKI.done?wikiResult():'<p class="note">בדיקה טרייה מול הגרסה הנוכחית של הערך — למקרה שערכו אותו אחרי הסריקה השבועית.</p>'}
+    </div>
   </div>
 
   <div class="panel"><p class="ptitle">הקווים בתחנה בפועל</p>
-    <table><thead><tr><th>קו</th><th>מפעיל</th><th>יעדים</th>${hasPlat?'<th>רציף</th>':''}</tr></thead><tbody>
-    ${s.lines.map(l=>`<tr><td>${esc(l[0])}${l[4]?' <span title="מתחיל/מסתיים בתחנה" style="color:var(--dim);font-size:9px">⬤</span>':''}</td><td>${esc(l[1])}</td><td>${esc(destTxt(SEL,l))}</td>${hasPlat?`<td>${esc(l[3]||'—')}</td>`:''}</tr>`).join('')}
-    </tbody></table>
-    <p class="note">כל הקווים שעוצרים בתחנה לפי לוח הזמנים הרשמי — כולל קווים שעוצרים בה באמצע מסלולם. ⬤ = הקו מתחיל או מסתיים בתחנה. הרציף — מתוך תיאור התחנה ב-GTFS (לא לכל קו יש).</p>
+    <div class="tscroll"><table><thead><tr><th>קו</th><th>מפעיל</th><th>יעדים</th>${hasPlat?'<th>רציף</th>':''}</tr></thead><tbody>
+    ${s.lines.map(l=>`<tr><td>${esc(l[0])}${l[4]?' <span title="מתחיל/מסתיים בתחנה" style="color:var(--dim);font-size:9px">⬤</span>':''}</td><td>${esc(opName(l[1]))}</td><td>${esc(destTxt(SEL,l))}</td>${hasPlat?`<td>${esc(l[3]||'—')}</td>`:''}</tr>`).join('')}
+    </tbody></table></div>
+    <p class="note">כל הקווים שעוצרים בתחנה לפי לוח הזמנים הרשמי — כולל קווים שעוצרים בה באמצע מסלולם. ⬤ = הקו מתחיל או מסתיים בתחנה. הרציף — מתוך תיאור התחנה ב-GTFS (לא לכל קו יש; — = אין רציף בנתונים).</p>
   </div>
 
   <div class="panel"><p class="ptitle">טבלה מוכנה להדבקה בערך</p>
     <textarea id="wt" readonly>${esc(wikitext(s))}</textarea>
     <div class="row2" style="margin-top:8px">
-      <button class="btn" onclick="navigator.clipboard.writeText($('#wt').value).then(()=>{this.textContent='הועתק ✓';setTimeout(()=>this.textContent='העתקת הטבלה',1500)})">העתקת הטבלה</button>
+      <button class="btn" onclick="copyWT(this)">העתקת הטבלה</button>
     </div>
-    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · מסלול · רציף · סימונים ♿ 🛡️ 💺 🚆) עם קישורים פנימיים — המפעילים מקושרים לערכים שלהם והיעדים לערכי הערים. המסלול לפי סגנון הערך הקיים: אם הערך מפרט רחובות, הטבלה מפרטת את הרחובות המרכזיים שהקו עובר בהם (עד 6, לפי הסדר); אחרת מוצא-יעד בקצרה. כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
+    <p class="note">טבלת ויקי ממוינת (קו · מפעיל · מסלול · רציף · סימונים ♿ 🔄 🛡️ 💺 🚆), מספרי הקווים ממוינים מספרית. קישורים פנימיים: מפעיל — רק כשידוע שם הערך שלו; יעד — רק כשהוא עיר או יישוב (רחובות ומקומות בלי קישור), פעם אחת בכל שורה. המסלול לפי סגנון הערך הקיים: ${detailedNow()?'<b>הערך הזה מפרט רחובות</b>, ולכן גם הטבלה מפרטת את הרחובות המרכזיים שהקו עובר בהם (עד 6, לפי הסדר)':'<b>הערך הזה כותב מסלול קצר</b>, ולכן גם הטבלה: התחנה - היעד הראשי'}. קו שעובר בתחנה באמצע מסלולו: מוצא - התחנה - יעד; קו מעגלי מסומן 🔄. גרשיים וגרש נכתבים ״ ו-׳ (שני גרשים רגילים הם נטוי בוויקיפדיה). כולל שורת מקור עם תאריך הנתונים. מומלץ לעבור עליה לפני ההדבקה.</p>
   </div>`;
 }
 
-function wikitext(s){
-  // קישורים פנימיים: מפעילים לפי שמות הערכים האמיתיים שלהם בוויקיפדיה,
-  // יעדים כקישור לערך העיר. שם שלא מוכר נשאר טקסט רגיל — עדיף בלי קישור מאשר קישור שגוי.
-  const OPLINK={'אגד':'[[אגד]]','אגד תעבורה':'[[אגד תעבורה]]',
-    'דן':'[[דן חברה לתחבורה ציבורית|דן]]','דן בדרום':'[[דן בדרום]]',
-    'דן באר שבע':'[[דן באר שבע]]','דן צפון':'[[דן צפון]]',
-    'מטרופולין':'[[מטרופולין (תחבורה ציבורית)|מטרופולין]]',
-    'קווים':'[[קווים (חברת אוטובוסים)|קווים]]','סופרבוס':'[[סופרבוס]]',
-    'נתיב אקספרס':'[[נתיב אקספרס]]','אלקטרה אפיקים':'[[אלקטרה-אפיקים]]',
-    'אלקטרה אפיקים תחבורה':'[[אלקטרה-אפיקים]]','תנופה':'[[תנופה (חברת תחבורה)|תנופה]]',
-    'בית שמש אקספרס':'[[בית שמש אקספרס]]','גי.בי. טורס':'[[גי.בי. טורס]]',
-    'נסיעות ותיירות':'[[חברת הנסיעות והתיירות נצרת|נסיעות ותיירות]]',
-    'מועצה אזורית גולן':'[[מועצה אזורית גולן]]','מועצה אזורית אילות':'[[מועצה אזורית חבל אילות|מועצה אזורית אילות]]'};
-  const CITYFIX={'תל אביב יפו':'תל אביב-יפו','פתח תקוה':'פתח תקווה'};
-  const isStop=d=>/מסוף|מרכזית|ת\.|תחנ|\//.test(d);
-  const linkDests=l=>{
-    const ds=l[2].filter(d=>d!==SEL&&!SEL.startsWith(d));
-    if(!ds.length) return 'קו מעגלי';
-    return ds.map(d=>isStop(d)?d:`[[${CITYFIX[d]||d}]]`).join(', ');
-  };
-  const hasPlat=s.lines.some(l=>l[3]);
-  // מסלול מקוצר בסגנון הערכים: התחנה מודגשת ואז היעדים
-  // מסלול: הרחובות המרכזיים שהקו עובר בהם, לפי הסדר — עד 6
-  const cent=DATA.central||{};
-  const mainStreets=l=>(l[5]||[]).filter(([st,ct])=>(cent[ct]||[]).includes(st)).map(([st])=>st).filter((x,i,arr)=>arr.indexOf(x)===i).slice(0,6);
+function detailedNow(){
   // סגנון הערך הקיים קובע (שלמה 18.09): ערך שמפרט רחובות מקבל מסלול מפורט, ערך עם מסלול קצר נשאר קצר.
   // הסריקה השבועית יודעת את זה מראש (detailed); בדיקה חיה מעדכנת.
   const a0=AUDIT&&AUDIT.stations&&AUDIT.stations[SEL];
-  const detailed=WIKI&&WIKI.done?!!WIKI.detailed:!!(a0&&a0.detailed);
-  const linkOne=d=>isStop(d)?d:`[[${CITYFIX[d]||d}]]`;
-  const mainOf=arr=>(arr||[]).filter(([st,ct])=>(cent[ct]||[]).includes(st)).map(([st])=>st).filter((x,i,a)=>a.indexOf(x)===i).slice(0,4);
+  return WIKI&&WIKI.done?!!WIKI.detailed:!!(a0&&a0.detailed);
+}
+function wikitext(s){
+  // כל הטקסט עובר wq (גרש/גרשיים), קישור רק לעיר/יישוב (isCity) ולמפעיל שידוע הערך שלו
+  const cent=DATA.central||{};
+  const detailed=detailedNow();
+  const junk=x=>/^(יציאה|כניסה)(\s|ל)/.test(x);          // "יציאה לכביש 4" אינו רחוב במסלול
+  const uniq=arr=>arr.filter((x,i,a)=>a.indexOf(x)===i);
+  const mainOf=(arr,n)=>uniq((arr||[]).filter(([st,ct])=>(cent[ct]||[]).includes(st)&&!junk(st)).map(([st])=>wq(st))).slice(0,n);
+  const S=`'''${wq(SEL)}'''`;
   // קו שעובר בתחנה באמצע המסלול: מוצא ← (רחובות לפני) ← '''התחנה''' ← (רחובות אחרי) ← יעד (שלמה 20.09)
-  // קו מעגלי: '''התחנה''' ← רחובות ← '''התחנה''' — הסמל 🔄 עובר לעמודת הסימונים
-  const routeTxt=l=>{const d=linkDests(l);
-    if(d==='קו מעגלי'){const ms=detailed?mainStreets(l):[];return ms.length?[`'''${SEL}'''`,...ms,`'''${SEL}'''`].join(' ← '):`'''${SEL}''' - קו מעגלי`;}
+  // קו מעגלי: '''התחנה''' ← רחובות ← '''התחנה''' — הסמל 🔄 בעמודת הסימונים
+  const routeTxt=l=>{
+    const linked=new Set();
+    const P=d=>{if(!isCity(d))return wq(d);const c=wq(cityFix(d));if(linked.has(c))return c;linked.add(c);const t=CITYLINK[cityFix(d)];return t?`[[${t}|${c}]]`:`[[${c}]]`;};
     const t=l[8];
-    if(t&&t[0]&&t[3]&&t[0]!==SEL&&t[3]!==SEL){const b=detailed?mainOf(t[1]):[],a=detailed?mainOf(t[2]):[];const sep=detailed?' ← ':' - ';return [linkOne(t[0]),...b,`'''${SEL}'''`,...a,linkOne(t[3])].join(sep);}
-    const ms=detailed?mainStreets(l):[];const mid=ms.length?` ← ${ms.join(' ← ')} ← `:' - ';return `'''${SEL}'''${mid}${d}`;};
-  // רציף: כשהקו עוצר ברציפים שונים לכל כיוון — "לכיוון X: 3 · לכיוון Y: 5"; אחרת רציף היציאה
-  const platTxt=l=>{const ds=l[9];if(ds&&ds.length>1)return ds.map(([d,p])=>`לכיוון ${isStop(d)?d:(CITYFIX[d]||d)}: ${p}`).join(' · ');return l[3]||'—';};
-  // עמודת נגישות: ♿ = כל נסיעות הקו נגישות לפי ה-GTFS, ♿ חלקי = חלק מהנסיעות (שלמה 18.09)
-  const hasAcc=s.lines.some(l=>l[6]!=null||linkDests(l)==='קו מעגלי'||(l[7]||[]).some(Boolean));
-  const accTxt=l=>{const f=l[7]||[];const m=[l[6]===1?'♿':l[6]===2?'♿ חלקי':'',linkDests(l)==='קו מעגלי'?'🔄':'',f[0]?'🛡️':'',f[1]?'💺':'',f[2]?'🚆':''].filter(Boolean);return m.length?m.join(' '):'—';};
-  const rows=s.lines.map(l=>`|-\n| ${l[0]} || ${OPLINK[l[1]]||l[1]} || ${routeTxt(l)}${hasPlat?` || ${platTxt(l)}`:''}${hasAcc?` || ${accTxt(l)}`:''}`).join('\n');
+    if(t&&t[0]&&t[3]&&!(isSelf(t[0])&&isSelf(t[3]))){
+      const o=isSelf(t[0]),e=isSelf(t[3]);
+      const b=detailed&&!o?mainOf(t[1],4):[],a=detailed&&!e?mainOf(t[2],4):[];
+      return [...(o?[]:[P(t[0]),...b]),S,...(e?[]:[...a,P(t[3])])].join(detailed?' ← ':' - ');
+    }
+    const ms=detailed?mainOf(l[5],6):[];
+    if(isCirc(l)) return ms.length?[S,...ms,S].join(' ← '):`${S} - קו מעגלי`;
+    const md=mainDest(l);
+    if(!md) return ms.length?[S,...ms].join(' ← '):S;
+    return ms.length?[S,...ms,P(md)].join(' ← '):`${S} - ${P(md)}`;
+  };
+  // רציף: כשהקו עוצר ברציפים שונים לכל כיוון — "לכיוון X: 3 · לכיוון Y: 5" (בלי התחנה עצמה
+  // כיעד ובלי כיוון בלי רציף); אחרת רציף היציאה
+  const lab=d=>wq(isCity(d)?cityFix(d):d);
+  const platTxt=l=>{
+    const ds=(l[9]||[]).filter(([d,p])=>d&&!isSelf(d)&&p&&p!=='—');
+    if(ds.length>1&&new Set(ds.map(x=>x[1])).size>1) return ds.map(([d,p])=>`לכיוון ${lab(d)}: ${wq(p)}`).join(' · ');
+    return wq(l[3])||'—';
+  };
+  const hasPlat=s.lines.some(l=>l[3]);
+  // עמודת סימונים: ♿ = כל נסיעות הקו נגישות לפי ה-GTFS, ♿ חלקי = חלק מהנסיעות (שלמה 18.09)
+  const hasAcc=s.lines.some(l=>l[6]!=null||isCirc(l)||(l[7]||[]).some(Boolean));
+  const accTxt=l=>{const f=l[7]||[];const m=[l[6]===1?'♿':l[6]===2?'♿ חלקי':'',isCirc(l)?'🔄':'',f[0]?'🛡️':'',f[1]?'💺':'',f[2]?'🚆':''].filter(Boolean);return m.length?m.join(' '):'—';};
+  const rows=s.lines.map(l=>`|-\n| data-sort-value="${sortVal(l[0])}" | ${wq(l[0])} || ${opWiki(l[1])} || ${routeTxt(l)}${hasPlat?` || ${platTxt(l)}`:''}${hasAcc?` || ${accTxt(l)}`:''}`).join('\n');
   return `{| class="wikitable sortable"\n|+ קווי האוטובוס בתחנה (נכון ל-${fd(DATA.updated)}, לפי נתוני GTFS של משרד התחבורה)\n! קו !! מפעיל !! מסלול${hasPlat?' !! רציף':''}${hasAcc?' !! סימונים':''}\n${rows}\n|}`;
+}
+
+function copyWT(btn){
+  const v=$('#wt').value;
+  const ok=()=>{btn.textContent='הועתק ✓';say('הטבלה הועתקה ✓');setTimeout(()=>{btn.textContent='העתקת הטבלה';},1500);};
+  Promise.resolve().then(()=>navigator.clipboard.writeText(v)).then(ok).catch(()=>{
+    // בלי הרשאת לוח (http, דפדפן ישן) — ניסיון בשיטה הישנה, אחרת הודעה
+    try{const t=$('#wt');t.focus();t.select();if(document.execCommand('copy'))return ok();}catch(e){}
+    btn.textContent='ההעתקה נכשלה';say('ההעתקה נכשלה — סמנו את הטבלה והעתיקו ידנית (Ctrl+C)');
+    setTimeout(()=>{btn.textContent='העתקת הטבלה';},2500);
+  });
 }
 
 /* ── בדיקת הערך: קוראים את קוד המקור (wikitext) ומזהים קווים בטבלאות —
@@ -244,6 +342,16 @@ function extractLines(wt){
   }
   return found;
 }
+// שאילתה ל-API של ויקיפדיה עם הודעות שגיאה בעברית
+async function wapi(url){
+  let r;
+  try{r=await fetch(url);}catch(e){throw new Error('אין חיבור לוויקיפדיה — נסו שוב');}
+  if(!r.ok) throw new Error(`ויקיפדיה החזירה שגיאה (${r.status}) — נסו שוב בעוד רגע`);
+  let j;
+  try{j=await r.json();}catch(e){throw new Error('תשובה לא תקינה מוויקיפדיה — נסו שוב');}
+  if(j&&j.error) throw new Error('שגיאה מוויקיפדיה: '+(j.error.info||j.error.code||'לא ידועה'));
+  return j||{};
+}
 async function checkWiki(){
   const s=DATA.stations[SEL];
   let title=$('#wtitle').value.trim();
@@ -255,14 +363,14 @@ async function checkWiki(){
       const core=SEL.replace(/^(רחוב|שדרות|דרך|קניון|מרכז רפואי|בית חולים|מכללת|תחנת רכבת|אוניברסיטת)\s+/,'').replace(/\s*\(.*\)$/,'');
       const rel=t=>(s.kind||'station')==='station'?(['תחנה','מסוף','מרכזית'].some(w=>t.includes(w))||t.includes(s.city)):t.includes(core);
       for(const q of [SEL+' '+s.city,'התחנה המרכזית של '+s.city,'התחנה המרכזית '+s.city]){
-        const r0=await (await fetch(api+'action=query&list=search&srlimit=5&srsearch='+encodeURIComponent(q))).json();
-        const hit=(r0.query.search||[]).find(h=>rel(h.title));
+        const r0=await wapi(api+'action=query&list=search&srlimit=5&srsearch='+encodeURIComponent(q));
+        const hit=((r0.query&&r0.query.search)||[]).find(h=>rel(h.title));
         if(hit){title=hit.title;break;}
       }
       if(!title) throw new Error('לא נמצא ערך שנראה כמו תחנה — הקלידו את שם הערך המדויק');
     }
-    const r=await (await fetch(api+'action=query&prop=revisions&rvprop=content&rvslots=main&redirects=1&titles='+encodeURIComponent(title))).json();
-    const pg=Object.values(r.query.pages)[0];
+    const r=await wapi(api+'action=query&prop=revisions&rvprop=content&rvslots=main&redirects=1&titles='+encodeURIComponent(title));
+    const pg=Object.values((r.query&&r.query.pages)||{})[0];
     if(!pg||pg.missing!==undefined||!pg.revisions) throw new Error('הערך "'+title+'" לא נמצא בוויקיפדיה');
     const wt=pg.revisions[0].slots.main['*']||'';
     if(!wt) throw new Error('לא הצלחתי לקרוא את קוד הערך');
@@ -275,10 +383,11 @@ async function checkWiki(){
     const wrong=[...inArticle].filter(l=>!realFull.has(l)&&!nearM.has(l)).sort((a,b)=>parseInt(a)-parseInt(b));
     const missing=[...realFull].filter(l=>!inArticle.has(l));
     const ops=[...new Set(s.lines.map(l=>l[1]))];
-    const opsMissing=ops.filter(o=>!wt.includes(o.split(' ')[0]));
+    const opsMissing=ops.map(opName).filter((o,i,a)=>a.indexOf(o)===i&&!wt.includes(o.split(' ')[0]));
     const detailed=/←|→/.test(wt);
     WIKI={title:pg.title,done:true,hasTable,detailed,nInArticle:inArticle.size,correct,wrong,near,missing,opsMissing};
-  }catch(e){WIKI={title,err:e.message};}
+    say(hasTable&&inArticle.size?`נבדק הערך ${pg.title}: ${correct.length} נכונים, ${wrong.length} שגויים`:`נבדק הערך ${pg.title}: לא נמצאה טבלת קווים`);
+  }catch(e){WIKI={title,err:e.message};say(e.message);}
   WBUSY=false;render();
 }
 
@@ -299,22 +408,45 @@ function wikiResult(){
   <div class="stat" style="color:var(--mut)">קווים בתחנה שלא מופיעים בערך (${w.missing.length}) — לא בהכרח טעות: הרבה ערכים מפרטים רק חלק מהקווים</div>
   <div>${chipList(w.missing,'warn','כל הקווים מופיעים בערך')}</div>
   ${w.opsMissing.length?`<div class="stat" style="color:var(--warn)">⚠ מפעילים שפועלים בתחנה ולא מוזכרים בערך: ${esc(w.opsMissing.join(', '))}</div>`:''}
-  ${w.detailed?`<div class="stat" style="color:var(--mut)">בערך המסלולים מפורטים תחנה-תחנה (עם חיצים) — הטבלה המוכנה נותנת מסלול מקוצר (מוצא-יעד), כדאי לשמור על הפירוט הקיים בעריכה.</div>`:''}
+  <div class="stat" style="color:var(--mut)">${w.detailed?'בערך המסלולים מפורטים (חיצים/רחובות) — הטבלה המוכנה עודכנה לפרט גם היא את הרחובות המרכזיים.':'בערך המסלולים קצרים — הטבלה המוכנה כותבת מסלול קצר (התחנה - היעד).'}</div>
   <p class="note">הזיהוי נעשה מתוך טבלאות הערך בלבד, ורק מעמודת הקו (התא הראשון בכל שורה, כולל זוגות כמו 9/9א) — מספרי רציפים, שנים וטקסט חופשי אינם נספרים. הנתונים כוללים את כל הקווים שעוצרים בתחנה לפי לוח הזמנים הרשמי — ובכל זאת כדאי לאמת לפני עריכה.</p>`;
 }
 
-function pick(k){SEL=k;WIKI=null;render();window.scrollTo({top:0});}
-function render(){$('#view').innerHTML=SEL?stView():home();
-  const q=$('#q');if(q)q.value=Q;}
-document.addEventListener('input',e=>{if(e.target.id==='q'){Q=e.target.value;render();$('#q').focus();const v=$('#q');v.setSelectionRange(v.value.length,v.value.length);}});
+// מהרשימה: pushState עם סימון — "אחורה" חוזר בדיוק לרשימה (ולמקום הגלילה בה)
+function pick(k){LISTY=window.scrollY;history.pushState({fromList:true},'','#'+encodeURIComponent(k));route();}
+function goBack(){
+  if(history.state&&history.state.fromList){history.back();return;}
+  history.replaceState(null,'',location.pathname+location.search);route();
+}
+function fromHash(){
+  let h='';try{h=decodeURIComponent(location.hash.slice(1));}catch(e){h='';}
+  return h&&DATA.stations[h]?h:null;
+}
+function route(){
+  const was=SEL,k=fromHash();
+  if(k!==SEL){SEL=k;WIKI=null;}
+  render();
+  if(SEL&&SEL!==was){window.scrollTo(0,0);const h2=$('.ophead h2');if(h2)h2.focus({preventScroll:true});}
+  else if(!SEL&&was){window.scrollTo(0,LISTY);const q=$('#q');if(q)q.focus({preventScroll:true});}
+}
+function render(){
+  $('#view').innerHTML=SEL?stView():home();
+  const f=$('#qf');if(f)f.hidden=!!SEL;          // החיפוש שייך לרשימה בלבד
+  const q=$('#q');if(q&&q.value!==Q)q.value=Q;
+}
+document.addEventListener('input',e=>{if(e.target.id==='q'){Q=e.target.value;render();}});
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.card[data-k]');if(c)pick(c.dataset.k);});
+window.addEventListener('hashchange',()=>{if(DATA)route();});
 
 Promise.all([
-  fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
+  fetch('data/stations.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(r.status===404?'nodata':'http');return r.json();}),
   fetch('data/audit.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null)
 ]).then(([d,a])=>{DATA=d;AUDIT=a;
-  document.querySelector('.sub').insertAdjacentHTML('afterend','<input id="q" placeholder="חיפוש תחנה מרכזית או מסוף…">');
-  render();})
-.catch(()=>{$('#view').innerHTML='<div class="msg">עוד אין נתונים — הריצו את ה-workflow ‏wiki-stations ב-GitHub Actions.</div>';});
+  if(!DATA||!DATA.stations) throw new Error('nodata');
+  route();})
+.catch(e=>{$('#view').innerHTML=e&&e.message==='nodata'
+  ?'<div class="msg">עוד אין נתונים לתחנות — הם נבנים פעם בשבוע. נסו שוב מאוחר יותר.</div>'
+  :'<div class="msg">לא הצלחנו לטעון את נתוני התחנות 😕<br><span style="font-size:13px;font-weight:600">בדקו את החיבור לאינטרנט ורעננו את הדף.</span></div>';});
 </script>
 </body>
 </html>
