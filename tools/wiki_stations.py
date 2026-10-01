@@ -468,7 +468,7 @@ def main():
             small.setdefault(gk, set()).add(sh)
     promoted = 0
     for gk, pts in gpos.items():
-        if not gk.startswith('S|') or len(small.get(gk, ())) >= MIN_LINES['station'] or not pts:
+        if not gk.startswith('S|') or gk not in meta or len(small.get(gk, ())) >= MIN_LINES['station'] or not pts:
             continue
         cla = sum(p[0] for p in pts) / len(pts); clo = sum(p[1] for p in pts) / len(pts)
         if not any(_dm(cla, clo, la, lo) <= 300 for la, lo in art_xy.values()):
