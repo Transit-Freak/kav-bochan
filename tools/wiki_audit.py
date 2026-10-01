@@ -471,8 +471,69 @@ def category_coords(titles):
                     out[qid[q]] = (v['latitude'], v['longitude'])
                     break
         time.sleep(0.3)
-    print(f'קואורדינטות: {len(out)} מתוך {len(ts)} ערכים ({n_geo} מהערך, {len(out) - n_geo} מוויקינתונים)', flush=True)
+    n_wd = len(out) - n_geo
+    # ערכים שהקואורדינטות שלהם רק בתבנית בגוף הערך (לא ב-GeoData ולא בוויקינתונים) — דימונה
+    # (שלמה 01.10). קוראים את קוד הערך: {{coord|…}} / {{קואורדינטות|…}} או פרמטרי רוחב/אורך בתבנית
+    for t in [t for t in ts if t not in out]:
+        try:
+            r = api({'action': 'query', 'prop': 'revisions', 'rvprop': 'content', 'rvslots': 'main',
+                     'redirects': '1', 'titles': t})
+            pg = list(r['query']['pages'].values())[0]
+            wt = pg['revisions'][0]['slots']['main']['*'] if 'revisions' in pg else ''
+        except Exception:  # noqa: BLE001
+            continue
+        xy = wikitext_coords(wt)
+        if xy:
+            out[t] = xy
+        time.sleep(0.3)
+    print(f'קואורדינטות: {len(out)} מתוך {len(ts)} ערכים ({n_geo} מהערך, {n_wd} מוויקינתונים, '
+          f'{len(out) - n_geo - n_wd} מתבנית בגוף הערך)', flush=True)
+    missing = [t for t in ts if t not in out]
+    if missing:
+        print('  בלי קואורדינטות: ' + ' | '.join(missing), flush=True)
     return out
+
+
+def _dms(parts):
+    v = [float(x) for x in parts if x not in ('',)]
+    return v[0] + (v[1] if len(v) > 1 else 0) / 60 + (v[2] if len(v) > 2 else 0) / 3600
+
+
+def wikitext_coords(wt):
+    """(lat, lon) מקוד ערך: תבנית coord/קואורדינטות (עשרוני או מעלות-דקות-שניות) או פרמטרים
+    בשם רוחב/אורך / lat/long בתבנית מידע. רק ערכים בתחום ישראל (29–34, 34–36)."""
+    ok = lambda la, lo: 29 <= la <= 34 and 34 <= lo <= 36
+    for m in re.finditer(r'\{\{\s*(?:coord|Coord|קואורדינטות|נ\.צ\.?)\s*\|([^{}]*)\}\}', wt):
+        ps = [p.strip() for p in m.group(1).split('|')]
+        nums, hem = [], []
+        for p in ps:
+            if '=' in p:
+                continue
+            if re.fullmatch(r'-?\d+(\.\d+)?', p):
+                nums.append(p)
+            elif p.upper() in ('N', 'S', 'E', 'W'):
+                hem.append(len(nums))
+        try:
+            if len(hem) >= 2:
+                la, lo = _dms(nums[:hem[0]]), _dms(nums[hem[0]:hem[1]])
+            elif len(nums) >= 2:
+                la, lo = float(nums[0]), float(nums[1])
+            else:
+                continue
+        except (ValueError, IndexError):
+            continue
+        if ok(la, lo):
+            return (la, lo)
+    def num(keys):
+        for k in keys:
+            m = re.search(r'\|\s*' + k + r'\s*=\s*(\d+(?:\.\d+)?)', wt)
+            if m:
+                return float(m.group(1))
+    la = num(['קו רוחב', 'רוחב', 'latitude', 'lat', 'lat_d'])
+    lo = num(['קו אורך', 'אורך', 'longitude', 'long', 'lon', 'long_d'])
+    if la is not None and lo is not None and ok(la, lo):
+        return (la, lo)
+    return None
 
 
 def dist_m(a, b):
