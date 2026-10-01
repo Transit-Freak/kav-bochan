@@ -455,6 +455,30 @@ def main():
                     dep_plats.setdefault((rid, gk), set()).add(plat)
     print(f'stop_times: {n} שורות · {len(hits)} צירופי קו-קבוצה', flush=True)
 
+    # מתחם של ערך ויקיפדיה שבשמו מעט מדי קווים (דימונה, שלמה 01.10: "ת. מרכזית דימונה" 11332
+    # צמוד למיקום הערך, אבל הקווים עוצרים בעצירה הסמוכה 10517 "העצמאות/רחבת הסוכנות") — הקווים
+    # של העצירות הצמודות (עד 150 מ') נספרים בו. רק למתחם שמיקום ערך עד 300 מ' ממנו ושיש בו
+    # פחות מ-MIN_LINES קווים; מתחם גדול (מודיעין) נשאר עם "עוצרים ליד" כרגיל
+    def _dm(a, b, c, e):
+        return math.hypot((c - a) * 111320, (e - b) * 111320 * math.cos(math.radians(a)))
+    small = {}
+    for (rid, gk) in hits:
+        sh = routes.get(rid, ('',))[0]
+        if sh:
+            small.setdefault(gk, set()).add(sh)
+    promoted = 0
+    for gk, pts in gpos.items():
+        if not gk.startswith('S|') or len(small.get(gk, ())) >= MIN_LINES['station'] or not pts:
+            continue
+        cla = sum(p[0] for p in pts) / len(pts); clo = sum(p[1] for p in pts) / len(pts)
+        if not any(_dm(cla, clo, la, lo) <= 300 for la, lo in art_xy.values()):
+            continue
+        for (rid, g2), _nm in near_hits.items():
+            if g2 == gk and (rid, gk) not in hits:
+                hits[(rid, gk)] = set()
+                promoted += 1
+    print(f'קווים מעצירות צמודות שנוספו למתחמים קטנים של ערכים: {promoted}', flush=True)
+
     # 5. קיבוץ
     stations = {}
     alias = {}         # קבוצה → שמות הקבוצות שאוחדו לתוכה (קצה מסלול בשם הישן = התחנה עצמה)
