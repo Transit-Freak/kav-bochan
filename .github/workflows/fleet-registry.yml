@@ -1,0 +1,43 @@
+name: fleet-registry
+
+on:
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/fleet_refresh_registry.py'
+      - 'tools/fleet_enrich_gov.py'
+      - '.github/workflows/fleet-registry.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fleet-scan
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: בדיקת הגנות העדכון
+        run: python3 -m unittest discover -s tools -p 'test_fleet_refresh_registry.py'
+      - name: הורדה ואימות של מאגר הרישוי הממשלתי
+        run: python3 tools/fleet_refresh_registry.py
+      - name: עדכון פרטי כלי הרכב
+        run: python3 tools/fleet_enrich_gov.py
+      - name: פרסום נתוני הרישוי בלבד
+        run: |
+          git config user.name 'fleet-bot'
+          git config user.email 'noreply@github.com'
+          git add fleet/data/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv fleet/data/gov-registry-source.json fleet/data/fleet.json fleet/data/gov-details-*.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'data: refresh official fleet registration details'
+          git pull --rebase origin main
+          git push
