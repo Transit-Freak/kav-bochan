@@ -55,14 +55,28 @@ def load_snapshot(paths):
     tables={n:{} for n in ('routes.txt','agency.txt','stops.txt','calendar.txt','trips.txt')}
     keys={'routes.txt':'route_id','agency.txt':'agency_id','stops.txt':'stop_id',
           'calendar.txt':'service_id','trips.txt':'trip_id'}
-    stop_times, shapes = {}, {}
+    stop_times, shapes, trip_aliases = {}, {}, {}
     for path in paths:
         with zipfile.ZipFile(path) as z:
             for name, table in tables.items():
                 for r in rows(z,name):
                     k=r[keys[name]]
                     if k in table and table[k] != r:
-                        raise ValueError(f'Conflicting {name} ID {k}')
+                        previous = table[k]
+                        # Historical MOT feeds sometimes reuse one trip_id across
+                        # routes, with identical service/direction/shape and one
+                        # shared stop_times sequence. Preserve every explicit
+                        # route assignment instead of choosing or dropping one.
+                        if name == 'trips.txt' and {
+                            c: v for c, v in previous.items() if c != 'route_id'
+                        } == {c: v for c, v in r.items() if c != 'route_id'}:
+                            original = k
+                            k = 'archive-trip-' + digest(r)
+                            if k in table and table[k] != r:
+                                raise ValueError('Conflicting generated trip identity')
+                            trip_aliases[k] = original
+                        else:
+                            raise ValueError(f'Conflicting {name} ID {k}')
                     table[k]=r
             local=collections.defaultdict(list)
             for r in rows(z,'stop_times.txt'):
@@ -79,6 +93,8 @@ def load_snapshot(paths):
                 pts.sort()
                 if sid in shapes and shapes[sid] != pts: raise ValueError('Conflicting shape '+sid)
                 shapes[sid]=pts
+    for alias, original in trip_aliases.items():
+        stop_times[alias] = stop_times.get(original, [])
     stops=tables['stops.txt']; routes=tables['routes.txt']; trips=tables['trips.txt']
     if not routes or not stops or not trips or not stop_times: raise ValueError('Empty GTFS required table')
     for tid, t in trips.items():
@@ -209,7 +225,9 @@ def publish(source, paths):
     write(OUT/'early-routes'/f"{source['id']}.json",{'routes':sorted(set(additions))})
     return {'routes':len(additions),'stops':len(stoplist),'trips':len(tables['trips.txt']),
             'modes':dict(modes),'versionsAdded':nversions,'date':date,
-            'tripsWithoutStopTimes':sum(not x for x in times.values())}
+            'tripsWithoutStopTimes':sum(not x for x in times.values()),
+            'sourceTripIds':len({t['trip_id'] for t in tables['trips.txt'].values() if 'trip_id' in t}),
+            'sharedTripRouteAssignments':sum(k != t.get('trip_id', k) for k,t in tables['trips.txt'].items())}
 
 def main():
     global OUT,CAT,PROGRESS
