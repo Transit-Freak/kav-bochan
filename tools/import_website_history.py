@@ -146,6 +146,8 @@ def main():
     def save_checkpoint():
         for c in manifest['captures']:c.setdefault('result',{'status':'pending'})
         manifest['routesImported']=import_records(manifest)
+        from enrich_website_maps import enrich
+        enrich()
         manifest['counts']={status:sum(c['result']['status']==status for c in manifest['captures']) for status in ('parsed','unparsed','failed','pending')}
         raw=json.dumps(manifest,ensure_ascii=False,separators=(',',':')).encode()
         (DATA/'website-archive.json.gz').write_bytes(gzip.compress(raw,mtime=0))

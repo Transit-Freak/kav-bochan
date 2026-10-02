@@ -228,44 +228,7 @@ def build_stop_lookup():
     return lk, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young, snap_name, snap_srt, snap_desc
 
 
-def main():
-    state = json.loads(show('state.json') or '{}')
-    ag_names = {a: (m.get('name') or f'חברה {a}')
-                for a, m in state.get('agencies', {}).items()}
-
-    listing = subprocess.run(['git', 'ls-tree', '--name-only', REF, 'parsed/'],
-                             capture_output=True, text=True).stdout.split()
-    routes = {}   # rid -> row (דה-דופליקציה: שומרים את הגרסה העשירה ביותר)
-    for f in listing:
-        if not re.match(r'parsed/routes-agency-\d+\.jsonl$', f):
-            continue
-        for ln in (show(f) or '').splitlines():
-            if not ln.strip():
-                continue
-            row = json.loads(ln)
-            rid = str(row.get('route'))
-            if rid not in routes or len(row.get('stops', [])) > len(routes[rid].get('stops', [])):
-                routes[rid] = row
-
-    # מגיעים קיבץ במסד שלו את כל המסלולים הארציים של אותו מספר תחת מזהה
-    # קו אחד — "קו 1" מכיל את קרית שמונה, אילת, ירושלים ועוד. מפצלים לפי
-    # חתימת הערים שבכותרת של כל מסלול, כדי שכל עיר תקבל שורה משלה.
-    def citysig(dest):
-        mm = re.match(r'מ(.+?) ל(.+)$', dest or '')
-        if mm:
-            return ' ↔ '.join(sorted((mm.group(1).strip(), mm.group(2).strip())))
-        return (dest or '').strip() or '?'
-
-    lines = collections.defaultdict(list)   # (agency, line_id, citysig) -> [row]
-    for row in routes.values():
-        title = row.get('title', '')
-        dest = title.split(' - ', 1)[1] if ' - ' in title else ''
-        lines[(str(row['agency']), str(row.get('line')), citysig(dest))].append(row)
-
-    OUT.mkdir(parents=True, exist_ok=True)
-    for old in OUT.glob('l*.json'):
-        old.unlink()
-
+def make_stop_matcher():
     lookup, srt, by_city, cities, coords, tok_city, city_of, born, old_named, cur_named, twins, young, snap_name, snap_srt, snap_desc = build_stop_lookup()
     snap_codes = set(snap_desc)
     m_hit = m_tot = 0
@@ -583,6 +546,57 @@ def main():
                 e['nb'] = [[nb[5], nb[6], nb[1]] for nb in nbs[:6]]
         return out
 
+    def counters():
+        return dict(m_hit=m_hit,m_tot=m_tot,n_snap=n_snap,n_snap_over=n_snap_over,
+                    n_side=n_side,n_young=n_young,n_manual=n_manual,n_res=n_res,
+                    n_amb=n_amb,n_out=n_out,n_weak=n_weak)
+    return dict(route_stops=route_stops,xref=xref,name_city=name_city,city_of=city_of,
+                coords=coords,km=km,manual=manual,counters=counters)
+
+
+def main():
+    state = json.loads(show('state.json') or '{}')
+    ag_names = {a: (m.get('name') or f'חברה {a}')
+                for a, m in state.get('agencies', {}).items()}
+
+    listing = subprocess.run(['git', 'ls-tree', '--name-only', REF, 'parsed/'],
+                             capture_output=True, text=True).stdout.split()
+    routes = {}   # rid -> row (דה-דופליקציה: שומרים את הגרסה העשירה ביותר)
+    for f in listing:
+        if not re.match(r'parsed/routes-agency-\d+\.jsonl$', f):
+            continue
+        for ln in (show(f) or '').splitlines():
+            if not ln.strip():
+                continue
+            row = json.loads(ln)
+            rid = str(row.get('route'))
+            if rid not in routes or len(row.get('stops', [])) > len(routes[rid].get('stops', [])):
+                routes[rid] = row
+
+    # מגיעים קיבץ במסד שלו את כל המסלולים הארציים של אותו מספר תחת מזהה
+    # קו אחד — "קו 1" מכיל את קרית שמונה, אילת, ירושלים ועוד. מפצלים לפי
+    # חתימת הערים שבכותרת של כל מסלול, כדי שכל עיר תקבל שורה משלה.
+    def citysig(dest):
+        mm = re.match(r'מ(.+?) ל(.+)$', dest or '')
+        if mm:
+            return ' ↔ '.join(sorted((mm.group(1).strip(), mm.group(2).strip())))
+        return (dest or '').strip() or '?'
+
+    lines = collections.defaultdict(list)   # (agency, line_id, citysig) -> [row]
+    for row in routes.values():
+        title = row.get('title', '')
+        dest = title.split(' - ', 1)[1] if ' - ' in title else ''
+        lines[(str(row['agency']), str(row.get('line')), citysig(dest))].append(row)
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    for old in OUT.glob('l*.json'):
+        old.unlink()
+
+    matcher = make_stop_matcher()
+    route_stops = matcher['route_stops']
+    xref, name_city, city_of = matcher['xref'], matcher['name_city'], matcher['city_of']
+    coords, km, manual = matcher['coords'], matcher['km'], matcher['manual']
+
     by_al = collections.defaultdict(list)    # (agency, line_id) -> [(sig, rows)]
     for (a, lid, sig), rows in lines.items():
         by_al[(a, lid)].append((sig, rows))
@@ -677,6 +691,10 @@ def main():
         'gen': time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime()),
         'counts': dict(cnt), 'names': len(xref), 'rows': rows_x,
     }, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    stats = matcher['counters']()
+    n_manual,n_res,n_amb,n_out,n_weak,n_side,n_young = (stats[k] for k in
+        ('n_manual','n_res','n_amb','n_out','n_weak','n_side','n_young'))
+    m_hit,m_tot,n_snap,n_snap_over = (stats[k] for k in ('m_hit','m_tot','n_snap','n_snap_over'))
     print(f'xref: {len(rows_x)} שמות להכרעה מתוך {len(xref)} · {dict(cnt)} · הצלבות ידניות בשימוש: {n_manual}')
     print(f'הכרעת מועמדים לפי המסלול: {n_res} מתוך {n_amb} תחנות רב-משמעיות · '
           f'{n_out} התאמות בוטלו כחריגות גאוגרפיות · {n_weak} התאמות לפי שם בלי עיר, ליד עוגן · '

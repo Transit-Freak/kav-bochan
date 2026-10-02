@@ -1,0 +1,78 @@
+name: website-estimated-maps
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/enrich_website_maps.py'
+      - '.github/workflows/website-maps.yml'
+  workflow_run:
+    workflows: [historical-passenger-websites]
+    types: [completed]
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: website-estimated-maps
+  cancel-in-progress: false
+jobs:
+  maps:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /tools/
+            /tests/
+            /line-history/
+            /vendor/
+            /magihim-2012/data/stops-2012.json
+            /magihim-2012/data/manual.json
+            !/line-history/data/early-patterns/
+            !/line-history/data/early-stops/
+            !/line-history/data/early-rail/
+      - run: pip install lxml
+      - name: Prepare browser verification
+        run: |
+          npm install --prefix /tmp/website-ui playwright-core
+          echo "PW_MODULES=/tmp/website-ui" >> "$GITHUB_ENV"
+          echo "CHROMIUM_PATH=$(which google-chrome)" >> "$GITHUB_ENV"
+      - name: Verify and publish station matching
+        run: |
+          python -m unittest discover -s tests -p 'test_website*.py' -v
+          python tools/enrich_website_maps.py
+          python tools/publish_website_history.py
+      - name: OSRM — פרופיל אוטובוס, מפת ישראל
+        run: |
+          set -euo pipefail
+          mkdir -p osrm && cd osrm
+          curl -fSL --connect-timeout 20 --max-time 600 --retry 15 --retry-all-errors --retry-delay 60 \
+            -o map.osm.pbf "https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf"
+          IMG=osrm/osrm-backend:latest
+          docker pull "$IMG" >/dev/null
+          cp ../tools/osrm/bus-il.lua ./bus-il.lua
+          docker run --rm -v "$PWD:/data" "$IMG" osrm-extract   -p /data/bus-il.lua /data/map.osm.pbf >/dev/null
+          docker run --rm -v "$PWD:/data" "$IMG" osrm-partition  /data/map.osrm >/dev/null
+          docker run --rm -v "$PWD:/data" "$IMG" osrm-customize  /data/map.osrm >/dev/null
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" "$IMG" \
+            osrm-routed --algorithm mld --max-viaroute-size 1000 /data/map.osrm
+          up=0
+          for i in $(seq 1 40); do
+            if curl -fsS "http://localhost:5000/nearest/v1/driving/34.78,32.08" >/dev/null 2>&1; then up=1; break; fi
+            sleep 2
+          done
+          [ "$up" = "1" ] || { echo "OSRM failed"; docker logs osrm || true; exit 1; }
+
+      - name: Verify and publish road estimates
+        run: |
+          python tools/enrich_website_maps.py --osrm http://localhost:5000
+          python tools/publish_website_history.py

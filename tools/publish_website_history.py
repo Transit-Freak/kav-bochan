@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Reapply cached website observations over current main after a concurrent write."""
-import sys,subprocess,pathlib,shutil,os
+import sys,subprocess,pathlib,shutil,os,gzip,json
 sys.path.insert(0,str(pathlib.Path(__file__).parent))
 from publish_early_history import publish,git
 
@@ -9,9 +9,19 @@ def main():
     cache=root/'line-history/data/website-cache'
     replay_cache=pathlib.Path('/tmp/website-replay')
     shutil.copytree(cache,replay_cache,dirs_exist_ok=True)
+    map_file=root/'line-history/data/website-map-cache.json.gz'
+    saved_maps=json.loads(gzip.decompress(map_file.read_bytes())) if map_file.exists() else {}
     def run(script,*args):
         subprocess.run([sys.executable,'tools/'+script,*args],cwd=root,check=True)
     def replay():
+        # Keep source payloads published by another worker while this job ran.
+        shutil.copytree(cache,replay_cache,dirs_exist_ok=True)
+        remote_maps=json.loads(gzip.decompress(map_file.read_bytes())) if map_file.exists() else {}
+        for key,estimate in saved_maps.items():
+            current=remote_maps.get(key)
+            if not current or (estimate.get('shape') and not current.get('shape') and estimate['stops']==current['stops']):
+                remote_maps[key]=estimate
+        if remote_maps:map_file.write_bytes(gzip.compress(json.dumps(remote_maps,ensure_ascii=False,separators=(',',':')).encode(),mtime=0))
         run('import_website_history.py','--catalog-dir','line-history/data/website-catalogs','--cache-dir',str(replay_cache),'--cache-only')
         shutil.copytree(replay_cache,cache,dirs_exist_ok=True)
         run('rebuild_lines_index.py');run('build_archive_months.py')
