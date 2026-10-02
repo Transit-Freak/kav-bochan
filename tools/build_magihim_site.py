@@ -166,6 +166,12 @@ def build_stop_lookup():
             for c in city_list:
                 if d.endswith(c) and (len(d) == len(c) or d[-len(c) - 1] == ' '):
                     city_of[mk].add(c)
+                    # Passenger websites often name the stop by its street address.
+                    # Only an exact numbered address is indexed; never a nearby house.
+                    address = d[:-len(c)].strip()
+                    if re.search(r'\b[1-9]\d*\b', address):
+                        snap_name[address].add(mk)
+                        snap_srt[sortkey(address)].add(mk)
                     for k, al in CITY_ALIAS.items():
                         if c == norm(k) or c in [norm(x) for x in al]:
                             city_of[mk].add(norm(k))

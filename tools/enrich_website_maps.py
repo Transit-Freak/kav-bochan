@@ -10,7 +10,7 @@ from shape_2012 import route_shape
 ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'line-history/data'
 CACHE=DATA/'website-map-cache.json.gz'
-ALGORITHM='magihim-stops-v1'
+ALGORITHM='magihim-stops-address-v2'
 
 def load_cache(path=CACHE):
     return json.loads(gzip.decompress(path.read_bytes())) if path.exists() else {}
