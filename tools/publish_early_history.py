@@ -17,7 +17,7 @@ def git(root, *args, check=True):
 
 
 def publish(root, branch, replay, validate, attempts=3):
-    changed = git(root, 'diff', 'HEAD', '--name-only').stdout.splitlines()
+    changed = [p for p in git(root, 'diff', 'HEAD', '--name-only', '-z').stdout.split('\0') if p]
     if any(not p.startswith('line-history/data/') for p in changed):
         raise RuntimeError('Refusing to discard changes outside generated history data')
     git(root, 'add', '--', 'line-history/data')
