@@ -6,6 +6,8 @@ on:
     paths:
       - 'tools/import_website_history.py'
       - 'tools/check_history_claims.py'
+      - 'tools/check_website_history_ui.mjs'
+      - 'tools/publish_website_history.py'
       - '.github/workflows/website-history.yml'
       - 'line-history/data/website-catalogs/**'
 permissions:

@@ -27,7 +27,7 @@ try{
    const latest=sample.versions.at(-1),stops=latest.stops.map(s=>typeof s==='number'?sample.pool[s]:s);
    if(await page.locator('.website-capture ol li').count()!==stops.length)throw Error('Stop rows are missing or duplicated');
    if(!(await page.locator('.website-capture').innerText()).includes('ולא מועד פתיחת הקו או שינוי בתחנות'))throw Error('Capture date is presented as a change date');
-   if(!(await page.locator('.website-capture a').getAttribute('href')).startsWith('https://web.archive.org/web/'))throw Error('Missing source capture link');
+   if(!(await page.locator('.website-capture a[href^="https://web.archive.org/web/"]').getAttribute('href')).startsWith('https://web.archive.org/web/'))throw Error('Missing source capture link');
    const badges=await page.locator('.tl .kbtn').allTextContents();
    if(badges.some(t=>t!=='צילום מתועד'))throw Error('Website observations were labelled as change events');
    if((await page.locator('.wrap').innerText()).includes('לא נצפה מאז'))throw Error('Sparse historical website coverage is presented as a cancellation');
