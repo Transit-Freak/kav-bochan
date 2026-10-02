@@ -280,6 +280,7 @@ def main():
     catalog=read(CAT);progress=read(PROGRESS,{'done':{},'errors':{}})
     deadline=time.monotonic()+args.max_minutes*60;count=0
     for source in catalog['snapshots']:
+        if source['kind']=='websiteArchive':continue
         sid=source['id']
         if sid in progress['done'] or (args.only and sid!=args.only):continue
         if time.monotonic()>deadline or (args.limit and count>=args.limit):break

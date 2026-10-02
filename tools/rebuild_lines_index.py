@@ -67,6 +67,10 @@ for fn in os.listdir(f'{OUTDIR}/lines'):
         e['op'] = lf.get('op', e.get('op', ''))
     if lf.get('historicalOnly'):
         e['historicalOnly'] = True
+    if lf.get('observationOnly'):
+        e['observationOnly'] = True
+    else:
+        e.pop('observationOnly',None)
     # סוג התחבורה — לסינון באתר. חובה גם למחוק: קו שחזר להיות אוטובוס רגיל
     # נמחק לו השדה בקובץ, ובלי השורה השנייה האינדקס נשאר עם הסיווג הישן
     # לנצח. כך קו 15 ברחובות הוצג כ"שירות לפי דרישה" שנים אחרי שחזר.

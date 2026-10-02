@@ -56,7 +56,7 @@ def compact(lf):
     # התחנות שלה זהה: אותן תחנות באותו סדר ⇒ אותו מסלול. עדיפות לקרובה
     # בזמן. בלי זה קווים שלמים הוצגו במפה כנקודות בלבד.
     for i, v in enumerate(vs):
-        if v.get('shp') or not v.get('stops'):
+        if v.get('shp') or not v.get('stops') or v.get('noShapeBorrow'):
             continue
         codes = _codes(v['stops'])
         donor = None

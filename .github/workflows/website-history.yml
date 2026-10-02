@@ -1,0 +1,83 @@
+name: historical-passenger-websites
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/import_website_history.py'
+      - 'tools/check_history_claims.py'
+      - '.github/workflows/website-history.yml'
+      - 'line-history/data/website-catalogs/**'
+permissions:
+  contents: write
+concurrency:
+  group: historical-passenger-websites
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            tools
+            tests
+            line-history
+            vendor
+      - run: pip install lxml
+      - name: Prepare browser verification
+        run: |
+          npm install --prefix /tmp/website-ui playwright-core
+          echo "PW_MODULES=/tmp/website-ui" >> "$GITHUB_ENV"
+          echo "CHROMIUM_PATH=$(which google-chrome)" >> "$GITHUB_ENV"
+      - name: Restore verified payloads
+        run: |
+          python - <<'PY'
+          import gzip,json,pathlib
+          root=pathlib.Path('line-history/data/website-cache');root.mkdir(exist_ok=True)
+          seed=pathlib.Path('line-history/data/website-seed-cache.json.gz')
+          if seed.exists():
+              for name,result in json.loads(gzip.decompress(seed.read_bytes())).items():
+                  target=root/name
+                  if not target.exists():target.write_text(json.dumps(result,ensure_ascii=False))
+          PY
+      - name: Publish the already recovered and verified snapshots
+        run: |
+          python tools/import_website_history.py --catalog-dir line-history/data/website-catalogs --cache-dir line-history/data/website-cache --cache-only
+          python tools/rebuild_lines_index.py
+          python tools/build_archive_months.py
+          python tools/check_early_history.py --websites-only
+          python tools/check_history_claims.py
+          node tools/check_website_history_ui.mjs
+          python tools/publish_website_history.py
+      - name: Recover all indexed route and map payloads through 2015
+        run: |
+          python -m unittest discover -s tests -p test_website_history.py -v
+          python tools/import_website_history.py --catalog-dir line-history/data/website-catalogs --cache-dir line-history/data/website-cache --max-seconds 18000 --publish-checkpoints
+      - name: Build indexes and verify observations
+        run: |
+          python tools/rebuild_lines_index.py
+          python tools/build_archive_months.py
+          python tools/check_early_history.py --websites-only
+          python tools/check_history_claims.py
+          node - <<'JS'
+          const fs=require('fs'),Babel=require('./vendor/babel.min.js');
+          Babel.transform(fs.readFileSync('line-history/app.jsx','utf8'),{presets:['react']});
+          console.log('JSX compiled');
+          JS
+      - name: Verify the final data in the browser
+        run: node tools/check_website_history_ui.mjs
+      - name: Publish verified records without overwriting concurrent data
+        run: python tools/publish_website_history.py
+      - name: Preserve progress if a verification or publication fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passenger-website-history-${{ github.run_id }}
+          path: |
+            line-history/data/website-cache
+            line-history/data/website-archive-summary.json
+            line-history/data/website-archive.json.gz
+          retention-days: 30

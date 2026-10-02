@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef, useDeferredValue } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "194-alternative-selector";
+const BUILD = "196-live-website-captures";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -44,10 +44,10 @@ const KGROUP = {
   snapshot: "baseline",
 };
 const KGLABEL = { stops: "שינוי תחנות", terminal: "שינוי קצה המסלול",
-                  baseline: "נקודת פתיחה" };
+                  baseline: "תיעוד וצילומים" };
 const KINDS = {
   baseline:    { label: "תיעוד ראשון", color: "#64748b" },
-  snapshot:    { label: "תיעוד ראשון", color: "#64748b" },
+  snapshot:    { label: "צילום מתועד", color: "#64748b" },
   new:         { label: "וריאנט חדש", color: "#15803d" },
   route:       { label: "שינוי מסלול", color: "#7c3aed" },
   redraw:      { label: "תיקון שרטוט", color: "#0e7490" },
@@ -188,13 +188,14 @@ let DATA_GEN = null;
 // מבוטל = removed מפורש, או notrips/תיעוד היסטורי בלי נסיעות
 // (שלמה 28.09: 10111-2-# לא נצפה מאז 2017 הוצג רק "אינה פעילה כרגע").
 // מחזיר את תאריך הביטול או null
-function variantGone(lk, ld, historicalOnly, ntr) {
+function variantGone(lk, ld, historicalOnly, ntr, observationOnly = false) {
+  if(observationOnly)return null;
   if (lk === "removed") return ld || null;
   // שלמה 28.09: ברגע שאין לו"ז ואין נסיעות — מבוטל כבר עכשיו, בלי המתנה של שנה
   if ((lk === "notrips" || historicalOnly) && !(ntr > 0) && ld) return ld;
   return null;
 }
-const lineGoneAt = (l) => variantGone(l.lk, l.ld, l.historicalOnly, l.ntr);
+const lineGoneAt = (l) => variantGone(l.lk, l.ld, l.historicalOnly, l.ntr, l.observationOnly || String(l.rd||"").startsWith("website"));
 // מבוטל בלי removed מפורש — מוצג "לא נצפה מאז"
 const goneStale = (l) => l.lk !== "removed" && !!lineGoneAt(l);
 // קטגוריות הבחירה — מחולקות לקבוצות, בלי חפיפות: שלוש קטגוריות ביטול
@@ -543,7 +544,7 @@ function routeSearchRank(line, query) {
 // את המטמון פעם ביום גם לקבצים היסטוריים שלא השתנו, ובחלק מהקבצים
 // (?v=BUILD בלבד) הוגשה גרסה של אתמול. cache:no-cache מאלץ בדיקת
 // טריות מול השרת: קובץ שלא השתנה חוזר 304 זעיר, קובץ שהשתנה מגיע טרי.
-const dfetch = (p) => fetch(p + "?v=" + BUILD, { cache: "no-cache" });
+const dfetch = (p) => fetch(p + (p.includes("?") ? "&" : "?") + "v=" + BUILD + "&update=" + Date.now(), { cache: "no-cache" });
 
 // דיוק התאריך נקבע לפי המרווח בין שני צילומי הארכיון שביניהם אותר השינוי.
 // בארכיון של 2020 הצילומים יומיים והתאריך מדויק; ב-2017 הם במרחק שבועיים,
@@ -844,7 +845,7 @@ const dedupCount = (arr) => {
   (arr || []).forEach((x) => { const k = typeof x === "string" ? x : x[0] + "|" + x[1]; const e = m.get(k); if (e) e.n += 1; else m.set(k, { x, n: 1 }); });
   return [...m.values()];
 };
-function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats }) {
+function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   // קטעי-שינוי ששולפו מהארכיון (v.sg) — הגאומטריה האמיתית של מה שירד
@@ -891,7 +892,8 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
     const focused = canFocus && focus;
     const pts12 = (stops12 || []).map((s) => [s[1], s[2]]);
     const pinPts = (remPins || []).map((p) => [p[2], p[3]]);
-    const all = focused ? focusPts : cur.concat(prev || []).concat(pts12).concat(shape12 || []).concat(pinPts);
+    const stationPts = [...(curStops||[]),...(prevStops||[])].filter(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])).map(s=>[s[2],s[3]]);
+    const all = focused ? focusPts : cur.concat(prev || []).concat(pts12).concat(shape12 || []).concat(pinPts).concat(stationPts);
     map.fitBounds(L.latLngBounds(all.length ? all : [[32.08, 34.78]]).pad(focused ? 0.35 : 0.1), { maxZoom: 16 });
     // במצב התמקדות שכבות-הרקע כמעט שקופות: המקווקו האדום העדין שמצויר
     // לאורך כל המסלול נקרא בטעות כ"שינוי לא מסומן" בקטעים שבהם שני
@@ -946,7 +948,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
       (PD[s[4]] ? `<br><span class="pst">⛔ ${PD[s[4]]}</span>` : "") +
       // הרציף של הווריאנט בתחנה הזו היום (platforms.json) — רק במסופים עם רציפים
       (plats && plats[String(s[0])] ? `<br><span class="pst">🛤️ רציף ${esc(String(plats[String(s[0])]))}</span>` : "") +
-      `<br><span class="pcode">מק״ט תחנה ${esc(s[0])}</span>`;
+      `<br><span class="pcode">${String(s[0]).startsWith('website:')?'מזהה פנימי במקור':'מק״ט תחנה'} ${esc(s[0])}</span>`;
     (curStops || []).forEach((s) => {
       // הגרסה הקודמת עשויה להיות שינוי תדירות בלי רצף תחנות, ואז אין מול מה
       // להשוות. רשימת התחנות שנוספו כבר חושבה בצנרת ונשמרה על הגרסה — היא
@@ -980,7 +982,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
   const nAdd = (curStops || []).filter((s) => addedCodes && addedCodes.has(s[0])).length;
   const curC = new Set((curStops || []).map((s) => s[0]));
   const nRem = (prevStops || []).filter((s) => !curC.has(s[0])).length;
-  const mapLabel = "מפת המסלול" + (prev ? " בהשוואה לגרסה הקודמת" : "") +
+  const mapLabel = (pointsOnly ? "נקודות שנשמרו במפת המקור" : "מפת המסלול") + (prev ? " בהשוואה לגרסה הקודמת" : "") +
     (nAdd ? " · " + nAdd + " תחנות נוספו" : "") + (nRem ? " · " + nRem + " תחנות ירדו" : "");
   return (
     <div className="mapwrap">
@@ -2275,7 +2277,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   // הקו הוא היה משנה את כל 13,000 הקבצים בכל ריצה יומית
   const ntr = ((sibs || []).find((x) => x.rd === rd) || {}).ntr || 0;
   const lastReal = vs.filter((v) => !v.syn && v.k !== "planned-dropped").pop();
-  const goneD = lastReal ? variantGone(lastReal.k, lastReal.d, lf.historicalOnly, ntr) : null;
+  const goneD = lastReal ? variantGone(lastReal.k, lastReal.d, lf.historicalOnly, ntr, lf.observationOnly) : null;
   const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
   const shown = vs.map((v, i) => ({ v, i }))
     .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
@@ -2511,7 +2513,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
     };
   })();
   // גרסת ארכיון בלי גאומטריה אך עם רצף תחנות (שלב ב') — קו מקורב בין התחנות.
-  const toPts = (x) => (x.shp ? decodeShape(x.shp) : ((x.stops || []).length > 1 ? x.stops.map((s) => [s[2], s[3]]) : null));
+  const toPts = (x) => { if(x.shp)return decodeShape(x.shp); const pts=(x.stops||[]).filter(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])).map(s=>[s[2],s[3]]);return pts.length>1?pts:null; };
   // במצב השוואה מעניין מצב הקו בשני התאריכים, לא האירוע עצמו: אירוע לו"ז
   // אינו נושא גאומטריה, ובלי זה המפה לא הייתה נפתחת כלל בהשוואה.
   const geoAt = (idx) => {
@@ -2752,7 +2754,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
           while (li > 0 && (vs[li].k === "planned-dropped" || vs[li].syn)) li--;
           const lv = vs[li];
           // אותו כלל כמו ברשימה ובבורר (שלמה 28.09)
-          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr);
+          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr, lf.observationOnly);
           const stale = gd && lv.k !== "removed";
           const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
           const dk = stale ? ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(gd) >= 365 * 864e5 ? "removed-year" : "removed-now") : dispKind(lv, li, vs);
@@ -2942,7 +2944,18 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             <TipTag cls="mut" tip={evDate(v).tip}>תאריך משוער</TipTag>
           </div>
         )}
-        {v.k === "times" && v.tb ? (
+        {v.src === "websiteArchive" ? (
+          <div className="website-capture">
+            <p>צילום מאתר מידע לנוסעים שנשמר ב־{fmtD(v.d)}. זהו מועד התיעוד בארכיון, ולא מועד פתיחת הקו או שינוי בתחנות.</p>
+            <p><a href={v.sourceUrl} target="_blank" rel="noopener noreferrer">צפייה בצילום המקור ↗</a></p>
+            {v.websitePartial && <p>זהו תיעוד חלקי של הנקודות שנשמרו במפת המקור. הוא אינו רשימת התחנות המלאה של הקו.</p>}
+            <ol>{(v.stops || []).map((s,i)=><li key={i}>{s[1]}{s[2] == null ? " · ללא מיקום מתועד" : ""}</li>)}</ol>
+            {(v.stops || []).some(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])) &&
+              <><p>הנקודות הן המיקומים שנשמרו במקור. לא שורטט ביניהן מסלול נסיעה משוער.</p>
+              <DiffMap pointsOnly={true} cur={[]} prev={null} approx={true} curStops={(v.stops || []).filter(s=>Number.isFinite(s[2])&&Number.isFinite(s[3]))} />
+              </>}
+          </div>
+        ) : v.k === "times" && v.tb ? (
           /* הלו"ז האחרון של קו מבוטל — צילום מהארכיון (בקשת המשתמש): קו
              שבוטל בלי שום אירוע לו"ז מקבל, שנה אחרי הביטול, את שעות-היציאה
              שלו מיום-הארכיון האחרון שבו פעל */
@@ -4496,6 +4509,7 @@ const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", 
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
 const SRC_LABEL = {
+  websiteArchive: "מקור: אתר מידע לנוסעים שנשמר ב־Internet Archive. כיסוי חלקי; צילום אינו הודעת שינוי.",
   miu12: "מקור: ארכיון מרחב ו־Internet Archive.",
   obusOld: "מקור: ארכיון אוטובוס פתוח / הסדנא לידע ציבורי.",
   tf: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
@@ -4510,6 +4524,12 @@ const SRC_LABEL = {
 // רשימת המקורות המלאה. היא מוצגת למשתמש ולא רק מתועדת בקוד: מי שקורא
 // "תחנה בוטלה ב-2019" צריך לדעת מאיפה זה ידוע, ומה הגבול של מה שידוע.
 const SOURCES = [
+  {
+    t: "צילומי אתרי מידע לנוסעים",
+    d: "צילומים שנשמרו עד סוף 2015",
+    b: "רצפי תחנות ומיקומים שנשמרו ב־Otobusim וב־Bus.co.il בארכיון האינטרנט. כיסוי חלקי. כל צילום נושא קישור למקור ותאריך שמירה; הוא אינו הודעת שינוי, ולא הוכחה שהקו נשאר זהה בין צילומים. מזהי התחנות פנימיים למקור ואין התאמה מוכחת למספרי משרד התחבורה.",
+    links: [["מצב האיסוף", "data/website-archive-summary.json"], ["מאגר הצילומים עם המקורות", "data/website-archive.json.gz"]],
+  },
   {
     "t": "קובצי GTFS ששוחזרו מעמותת מרחב",
     "d": "07–21.07.2012",
@@ -4859,6 +4879,7 @@ function hasHistoricalData(record, mode) {
     Number(count) > 0 && (types ? types.includes(type) : !["0","2","5","8"].includes(type)));
 }
 function useHistoricalMonths(mode) {
+  const revision=useWebsiteRevision();
   const [available, setAvailable] = useState([]);
   useEffect(() => {
     let live = true;
@@ -4869,10 +4890,11 @@ function useHistoricalMonths(mode) {
       if (live) setAvailable([...new Set([...dates,...(rail.days||[])].map(d=>d.slice(0,7)))].sort());
     }).catch(()=>{});
     return () => { live=false; };
-  },[mode]);
+  },[mode,revision]);
   return available;
 }
 function HistoricalPeriod({ idx, openLine, mode, year, month = "", embedded = false }) {
+  const revision=useWebsiteRevision();
   const [data, setData] = useState(null), [err, setErr] = useState("");
   const [q,setQ] = usePersistedQ("lh-history-q-"+mode);
   const [lim,setLim] = useState(7), [retry,setRetry] = useState(0);
@@ -4883,7 +4905,7 @@ function HistoricalPeriod({ idx, openLine, mode, year, month = "", embedded = fa
       .then(([catalog,progress,rail])=>{if(live)setData({catalog,progress,rail});})
       .catch(()=>{if(live)setErr("לא הצלחנו לטעון את הנתונים.");});
     return()=>{live=false;};
-  },[mode,retry]);
+  },[mode,retry,revision]);
   useEffect(()=>setLim(7),[mode,month,year]);
   if(err)return <div role="alert">{err} <button onClick={()=>setRetry(retry+1)}>ניסיון נוסף</button></div>;
   if(!data)return <div role="status">טוען את הנתונים…</div>;
@@ -5000,6 +5022,46 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
   </section>;
 }
 
+function useWebsiteRevision() {
+  const [revision,setRevision]=useState(0);
+  useEffect(()=>{const update=()=>setRevision(n=>n+1);window.addEventListener("website-history-published",update);return()=>window.removeEventListener("website-history-published",update);},[]);
+  return revision;
+}
+function WebsiteImportStatus({openLine,onPublished}) {
+  const [data,setData]=useState(null),[error,setError]=useState(false);
+  const stamp=useRef(null),callback=useRef(onPublished);callback.current=onPublished;
+  useEffect(()=>{
+    let active=true;
+    const load=async()=>{
+      if(document.hidden)return;
+      try{
+        const response=await fetch("data/website-archive-summary.json?v="+Date.now(),{cache:"no-store"});
+        if(!response.ok)throw Error(response.status);
+        const next=await response.json();if(!active)return;
+        if(stamp.current && stamp.current!==next.updatedAt)callback.current();
+        stamp.current=next.updatedAt;setData(next);setError(false);
+      }catch(e){if(active)setError(true);}
+    };
+    load();const timer=setInterval(load,30000);document.addEventListener("visibilitychange",load);
+    return()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",load);};
+  },[]);
+  if(!data)return <div className="card mut" role="status">{error?"מצב האיסוף ההיסטורי טרם זמין. ניסיון עדכון נוסף יתבצע אוטומטית.":"טוען את מצב האיסוף ההיסטורי…"}</div>;
+  const c=data.counts||{},total=Object.values(c).reduce((a,b)=>a+Number(b),0),done=total-(c.pending||0);
+  return <section className="card" aria-label="מצב האיסוף ההיסטורי">
+    <h2>איסוף צילומים היסטוריים</h2>
+    <p>{c.pending?"הנתונים שכבר פורסמו זמינים באתר. יתר הצילומים ממתינים לבדיקה.":"סבב האיסוף הסתיים."} מצב הפרסום מתעדכן אוטומטית.</p>
+    <div className="stats"><span><b>{(c.parsed||0).toLocaleString()}</b> צילומים פורסמו</span><span><b>{(data.routesImported||0).toLocaleString()}</b> חלופות מתועדות</span><span><b>{(c.pending||0).toLocaleString()}</b> צילומים ממתינים</span></div>
+    <progress max={total||1} value={done} aria-label="צילומים שנבדקו" />
+    <p className="mut">{(c.failed||0).toLocaleString()} הורדות שלא הצליחו · {(c.unparsed||0).toLocaleString()} צילומים שלא פוענחו. אלה אינם ביטולי קווים או תחנות.</p>
+    {data.updatedAt&&<p className="mut">נתונים שפורסמו עד {new Date(data.updatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem"})}</p>}
+    {error&&<p role="status">לא הצלחנו לקבל עדכון כרגע. מוצג מצב הפרסום האחרון שהתקבל.</p>}
+    <details><summary>התאריכים והקווים שכבר פורסמו</summary>
+      <p>{(data.dates||[]).map(d=>fmtD(d.date)+" ("+d.captures+" צילומים)").join(" · ")}</p>
+      <p>דגימות מהתיעוד שפורסם לאחרונה:</p>
+      {(data.recent||[]).map(r=><button className="kchip" key={r.rd} onClick={()=>openLine(r.rd)}>קו {r.line} · {r.operator} · {fmtD(r.date)}</button>)}
+    </details>
+  </section>;
+}
 function App() {
   const citySearch = useRouteCities();
   const [idx, setIdx] = useState(null);
@@ -5171,14 +5233,14 @@ function App() {
   // קווים מקישור ישיר עובדים בלעדיו, ולכן האתר כבר לא מחכה לו כדי להופיע
   const needle = q.trim();
   const { list, total } = searchRes;
-  const changed = idx ? idx.lines.filter((l) => l.v > 1).length : 0;
+  const changed = idx ? idx.lines.filter((l) => (l.ks||[]).some(k=>!["baseline","snapshot","times"].includes(k))).length : 0;
   return (
     <div className="wrap">
       <RecheckNotice />
       <CitySearchStatus state={citySearch} />
       <header>
         <h1>🕰️ הקו בזמן</h1>
-        <p className="tag">כל שינוי שנכנס לתוקף במסלולי הקווים ובתחנות — מסלול, שרטוט, תחנות ושמות. מהשוואת קובצי ה-GTFS של משרד התחבורה: צילומים מ-2012 ומ-2015–2016, תיעוד רציף ממרץ 2017, ויום מול יום מיולי 2026.</p>
+        <p className="tag">היסטוריית מסלולים ותחנות: צילומי אתרי מידע לנוסעים מ־2003 בכיסוי חלקי, נתוני GTFS מ־2012 ותיעוד רציף ממרץ 2017. צילום בארכיון אינו הודעה על שינוי.</p>
         <div className="stats">
           {idx ? (<>
             <span className="stat"><b>{idx.lines.length.toLocaleString()}</b> וריאנטים מתועדים</span>
@@ -5187,6 +5249,7 @@ function App() {
           </>) : <span className="stat mut">טוען את רשימת הקווים ברקע…</span>}
         </div>
       </header>
+      <WebsiteImportStatus openLine={openLine} onPublished={()=>{setRty(n=>n+1);window.dispatchEvent(new Event("website-history-published"));}} />
       <div className="tabs" role="tablist" aria-label="אזורי האתר">
         <button role="tab" aria-selected={tab === "lines"} className={"tab" + (tab === "lines" ? " on" : "")} title="חיפוש בכל קווי האוטובוס בארץ והיסטוריית השינויים של כל קו" onClick={() => { setTab("lines"); backToList("lines"); }}>🚌 קווים</button>
         <button role="tab" aria-selected={tab === "stops"} className={"tab" + (tab === "stops" ? " on" : "")} title="חיפוש תחנות והיסטוריית השינויים שלהן — שינוי שם, הזזה, ביטול" onClick={() => { setTab("stops"); backToList("stops"); }}>🚏 תחנות</button>
@@ -5332,6 +5395,3 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-
-
-
