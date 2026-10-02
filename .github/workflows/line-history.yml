@@ -127,12 +127,35 @@ jobs:
       # שרת ניווט מקומי (OSRM) ממפת ישראל של OpenStreetMap (Geofabrik) — כך קו באג בודק
       # לבד את כל המקטעים בכל הקווים, בלי הגבלת הקצב של שרת-ההדגמה הציבורי.
       # נתוני OSM ברישיון ODbL (ייחוס "© OpenStreetMap" כבר מופיע במפות); OSRM ברישיון BSD.
+      - name: מטמון מפת ישראל לניווט
+        uses: actions/cache@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: kavbug-osm-${{ github.run_id }}
+          restore-keys: kavbug-osm-
+
       - name: שרת ניווט מקומי (OSRM, מפת ישראל)
         continue-on-error: true
         run: |
           set -e
           mkdir -p /tmp/osrm && cd /tmp/osrm
-          curl -fsSL --retry 5 -o il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          # הורדה אטומית: קובץ קודם נשמר גם אם ההורדה נקטעת או השרת מחזיר 404/502.
+          fetched=0
+          for suffix in latest $(for n in 1 2 3 4 5 6 7; do date -u -d "$n days ago" +%y%m%d; done); do
+            if curl -fsSL --connect-timeout 20 --max-time 180 --retry 2 --retry-all-errors --retry-delay 3 \
+              -o il.osm.pbf.new "https://download.geofabrik.de/asia/israel-and-palestine-$suffix.osm.pbf" \
+              && [ "$(stat -c%s il.osm.pbf.new)" -gt 1000000 ]; then
+              mv il.osm.pbf.new il.osm.pbf
+              echo "OSM source: $suffix"
+              fetched=1
+              break
+            fi
+          done
+          rm -f il.osm.pbf.new
+          if [ "$fetched" = 0 ]; then
+            [ -s il.osm.pbf ] || { echo "::error::מפת ישראל לא זמינה ואין מטמון; לא נפרסם סריקת ניווט ריקה"; exit 1; }
+            echo "::warning::הורדת המפה נכשלה; משתמשים במפה האחרונה שבמטמון"
+          fi
           IMG=ghcr.io/project-osrm/osrm-backend:v5.27.1
           # פרופיל רכב בלי פרסות בצמתים: קנס של 10 דקות לפרסה (שעה גורמת לגלישה ב-osrm-extract), כך שהניווט עושה פרסה רק כשאין דרך אחרת
           # (קו 100: הירוק עבר את הצומת, עשה בו פרסה וחזר לתחנה, ואוטובוס לא יכול לעשות את זה). שלמה 28.09
@@ -164,9 +187,11 @@ jobs:
           docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/il.osrm
           docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" $IMG osrm-routed --algorithm mld --max-table-size 1000 /data/il.osrm
           for i in $(seq 1 60); do curl -fs "http://localhost:5000/route/v1/driving/34.78,32.08;34.79,32.09" >/dev/null && break; sleep 2; done
-          curl -fs "http://localhost:5000/route/v1/driving/34.78,32.08;34.79,32.09?approaches=curb;curb" | head -c 200
+          curl -fs --max-time 20 "http://localhost:5000/route/v1/driving/34.78,32.08;34.79,32.09?approaches=curb;curb" -o /tmp/osrm-probe.json
+          python3 -c 'import json; d=json.load(open("/tmp/osrm-probe.json")); assert d.get("code") == "Ok" and d.get("routes"), d'
           echo "OSRM_URL=http://localhost:5000" >> "$GITHUB_ENV"
       - name: סריקת קו באג (עיקופי אוטובוסים) על אותו GTFS
+        if: env.OSRM_URL != ''
         continue-on-error: true
         run: |
           set -e
