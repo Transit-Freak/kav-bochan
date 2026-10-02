@@ -1578,6 +1578,7 @@ function SchedBox({ rd, vs, selD, isLast, gone }) {
       .catch(() => { if (ok) setD(false); });
     return () => { ok = false; };
   }, [rd]);
+  if (String(rd).startsWith("website") || (vs?.length && vs.every(v => v.src === "websiteArchive"))) return null;
   // אין לו"ז לשבוע הקרוב = החלופה אינה פעילה כרגע — וזה נאמר, לא נשתק (שלמה 07.09:
   // "פעיל" הוא רק מי שיש לו לו"ז לשבוע הקרוב). קו שכבר מסומן מבוטל לא צריך את זה.
   if (d === false) {

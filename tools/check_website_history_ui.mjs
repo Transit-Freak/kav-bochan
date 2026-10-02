@@ -30,7 +30,11 @@ try{
    if(!(await page.locator('.website-capture a[href^="https://web.archive.org/web/"]').getAttribute('href')).startsWith('https://web.archive.org/web/'))throw Error('Missing source capture link');
    const badges=await page.locator('.tl .kbtn').allTextContents();
    if(badges.some(t=>t!=='צילום מתועד'))throw Error('Website observations were labelled as change events');
-   if((await page.locator('.wrap').innerText()).includes('לא נצפה מאז'))throw Error('Sparse historical website coverage is presented as a cancellation');
+   if((await page.locator('.wrap').innerText()).match(/לא נצפה מאז|מבוטל כרגע/))throw Error('Sparse historical website coverage is presented as a cancellation');
+   if(latest.websiteMapEstimate?.matched>=2){
+    await page.locator('.website-estimate [role=img]').waitFor();
+    if(!(await page.locator('.website-estimate .legend').innerText()).includes('מסלול משוער'))throw Error('Estimated map lacks the Magihim uncertainty label');
+   }
    if(latest.websitePartial){
     await page.getByRole('img',{name:'נקודות שנשמרו במפת המקור',exact:true}).waitFor();
     await page.waitForFunction(()=>document.querySelectorAll('.website-capture .leaflet-interactive').length===6);
