@@ -210,7 +210,7 @@ a.lrow, a.sib { text-decoration: none; color: inherit; }
 .rchip12.on { background: #78350f; color: #fff; border-color: #78350f; }
 .s12 { max-height: 260px; overflow-y: auto; margin: 6px 0 2px; padding-inline-start: 20px; font-size: 12.5px; line-height: 1.75; }
 /* בעמוד קו 2012 הרשימה היא התוכן ולא הצצה בתוך שורה */
-.card > .s12 { max-height: none; overflow: visible; font-size: 13.5px; margin-top: 10px; }
+.card > .s12, .website-capture > .s12 { max-height: none; overflow: visible; font-size: 13.5px; margin-top: 10px; }
 .s12 .pcode { color: #a8a29e; font-size: 11px; }
 
 /* טבלת לפני/אחרי של לוח היציאות (אירועי תדירות/לו"ז) */

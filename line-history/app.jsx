@@ -3,7 +3,7 @@
 const { useState, useEffect, useMemo, useRef, useDeferredValue } = React;
 // מספר הגרסה של קובצי הנתונים (?v=): כאן ולא ב-index.html, כי הקוד נטען תמיד טרי
 // (חותמת זמן בכתובת) ואילו index.html יושב במטמון ה-CDN עד 10 דקות (שלמה 22.09)
-const BUILD = "196-live-website-captures";
+const BUILD = "197-estimated-website-maps";
 
 // כרום באנדרואיד: ההחלפה בין "אתר למחשב" ל"אתר לנייד" טוענת מחדש את הכתובת
 // שאיתה נכנסו לדף — לא את המצב הנוכחי (טאב, קו פתוח) שהאתר כתב בשורת הכתובת
@@ -2672,7 +2672,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
               {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
           )}
-          {" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span> · {vs.length} גרסאות מתועדות</div>
+          {!lf.observationOnly && <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span></>} · {vs.length} גרסאות מתועדות</div>
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}
@@ -2947,13 +2947,33 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         {v.src === "websiteArchive" ? (
           <div className="website-capture">
             <p>צילום מאתר מידע לנוסעים שנשמר ב־{fmtD(v.d)}. זהו מועד התיעוד בארכיון, ולא מועד פתיחת הקו או שינוי בתחנות.</p>
-            <p><a href={v.sourceUrl} target="_blank" rel="noopener noreferrer">צפייה בצילום המקור ↗</a></p>
+            <div className="facts">{(v.stops || []).length} {v.websitePartial ? "נקודות מתועדות" : "תחנות"}
+              {v.websiteMapEstimate && <> · {v.websiteMapEstimate.matched} תחנות הוצלבו למיקום</>}
+              {" · "}<a href={v.sourceUrl} target="_blank" rel="noopener noreferrer">צפייה בצילום המקור ↗</a>
+            </div>
             {v.websitePartial && <p>זהו תיעוד חלקי של הנקודות שנשמרו במפת המקור. הוא אינו רשימת התחנות המלאה של הקו.</p>}
-            <ol>{(v.stops || []).map((s,i)=><li key={i}>{s[1]}{s[2] == null ? " · ללא מיקום מתועד" : ""}</li>)}</ol>
-            {(v.stops || []).some(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])) &&
-              <><p>הנקודות הן המיקומים שנשמרו במקור. לא שורטט ביניהן מסלול נסיעה משוער.</p>
+            {v.websiteMapEstimate?.matched >= 2 && <div className="website-estimate">
+              <Map2012 stops={v.websiteMapEstimate.stops} shape={v.websiteMapEstimate.shape ? decodeShape(v.websiteMapEstimate.shape.pl) : null} year={v.d.slice(0,4)} estimatedLocations={true} />
+              <div className="legend">
+                <span><i style={{borderColor:"#78350f",borderStyle:"dashed"}} />{v.websiteMapEstimate.shape
+                  ? `מסלול משוער — חישוב על כבישי היום דרך ${v.websiteMapEstimate.shape.n} מ-${v.websiteMapEstimate.total} התחנות, כ-${(v.websiteMapEstimate.shape.m/1000).toFixed(1)} ק"מ`
+                  : `מסלול משוער — קו ישר דרך ${v.websiteMapEstimate.matched} מ-${v.websiteMapEstimate.total} התחנות שהוצלבו`}</span>
+                <span><i className="dot" style={{background:"#16a34a"}} />ראשונה</span>
+                <span><i className="dot" style={{background:"#dc2626"}} />אחרונה</span>
+              </div>
+            </div>}
+            {(v.stops || []).some(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])) && <>
               <DiffMap pointsOnly={true} cur={[]} prev={null} approx={true} curStops={(v.stops || []).filter(s=>Number.isFinite(s[2])&&Number.isFinite(s[3]))} />
-              </>}
+              <div className="legend"><span><i className="dot" style={{background:"#2563eb"}} />מיקומי תחנות שנשמרו במקור</span></div>
+            </>}
+            <ol className="s12">{(v.stops || []).map((s,i)=>{
+              const m=v.websiteMapEstimate?.stops?.[i];
+              return <li key={i}>{s[1]}{" "}<span className="pcode">{Number.isFinite(s[2]) ? "מיקום מתועד במקור" : m?.length >= 7
+                ? (m[4]?.length===1 ? "התאמה משוערת למק״ט "+m[4][0] : (m[4]?.length||0)+" מק״טים אפשריים") : "לא הוצלבה"}</span></li>;
+            })}</ol>
+            <div className="katnote">{v.websiteMapEstimate
+              ? "ℹ️ כמו ברשת מגיעים, מיקומי תחנות הוצלבו לרישום משרד התחבורה מ־2012 ולרישום מאוחר יותר. המפה משוערת: ההצלבה אינה מוכיחה שמיקום התחנה היה זהה בשנת הצילום. תחנה שלא הוצלבה אינה מופיעה על המפה. השרטוט מבוסס על כבישי היום כשחושב מסלול, או על קווים ישרים בין התחנות הידועות."
+              : (v.stops || []).some(s=>Number.isFinite(s[2])) ? "ℹ️ הנקודות הן המיקומים שנשמרו במקור. לא שורטט ביניהן מסלול נסיעה משוער." : "ℹ️ במקור נשמרו שמות תחנות ללא מיקומים. הצלבה למיקום נדרשת לפני הצגת מפה משוערת."}</div>
           </div>
         ) : v.k === "times" && v.tb ? (
           /* הלו"ז האחרון של קו מבוטל — צילום מהארכיון (בקשת המשתמש): קו
@@ -3092,7 +3112,7 @@ function StopEvMap({ ev }) {
 // קו של 2012 נפתח קודם כרשימת תחנות בתוך שורה בפיד, בלי מפה ובלי כתובת
 // משלו. זה עמוד לכל דבר: מסלול על המפה דרך התחנות שהוצלבו למק"ט, רצף
 // התחנות, ומעבר לקו של היום כשיש כזה.
-function Map2012({ stops, shape }) {
+function Map2012({ stops, shape, year = "2012", estimatedLocations = false }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current) return;
@@ -3114,17 +3134,17 @@ function Map2012({ stops, shape }) {
       L.circleMarker([s[5], s[6]], { radius: i === 0 || last ? 8 : 5, weight: 2,
         color: i === 0 || last ? "#fff" : "#78350f",
         fillColor: i === 0 ? "#16a34a" : last ? "#dc2626" : "#fff", fillOpacity: 1 })
-        .addTo(map).bindPopup(`<b>${esc(s[1])}</b><br><span class="pst">תחנה ${s[0]} במסלול 2012</span>` +
-          (s[4] && s[4].length === 1 ? `<br><span class="pcode">מק״ט ${esc(String(s[4][0]))}</span>` : ""),
+        .addTo(map).bindPopup(`<b>${esc(s[1])}</b><br><span class="pst">תחנה ${s[0]} במסלול ${esc(String(year))}</span>` +
+          (s[4] && s[4].length === 1 ? `<br><span class="pcode">${estimatedLocations ? "התאמה משוערת למק״ט" : "מק״ט"} ${esc(String(s[4][0]))}</span>` : ""),
           { className: "lh-pop", offset: [0, -4] });
     });
     const all = pts.concat(road || []);
     if (all.length) map.fitBounds(L.latLngBounds(all).pad(0.15), { maxZoom: 16 });
     else map.setView([31.5, 34.9], 8);
     return () => map.remove();
-  }, [stops, shape]);
+  }, [stops, shape, year, estimatedLocations]);
   return <div className="map" ref={ref} role="img"
-    aria-label={"מפת מסלול 2012 דרך " + (stops || []).filter((x) => x[5] != null).length + " תחנות שהוצלבו למיקום"} />;
+    aria-label={"מפת מסלול " + year + " דרך " + (stops || []).filter((x) => x[5] != null).length + " תחנות שהוצלבו למיקום"} />;
 }
 
 function Line2012Page({ k12, anchorRd, openLine, onBack }) {
