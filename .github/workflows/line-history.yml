@@ -191,6 +191,7 @@ jobs:
           python3 -c 'import json; d=json.load(open("/tmp/osrm-probe.json")); assert d.get("code") == "Ok" and d.get("routes"), d'
           echo "OSRM_URL=http://localhost:5000" >> "$GITHUB_ENV"
       - name: סריקת קו באג (עיקופי אוטובוסים) על אותו GTFS
+        id: kavbug_nav
         if: env.OSRM_URL != ''
         continue-on-error: true
         run: |
@@ -208,6 +209,36 @@ jobs:
       # לילה עם מטמון דחוס ב-kavbug-data/gps-cache (נשמר ב-commit), ועבודות
       # מזוהות גם לפי שינויים זמניים בהיסטוריית הקווים של כאן (line-history).
       # תקציב זמן קשיח; כשל כאן לעולם לא עוצר את הצינור.
+      # תוצאות ניווט מוכנות מתפרסמות בלי להמתין לדגימת ה-GPS.
+      - name: פרסום תוצאות ניווט לפני בדיקת GPS
+        if: steps.kavbug_nav.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 -c 'import json; d=json.load(open("kavbug-data/country-scan.json")); assert d.get("navigationScan", {}).get("status") == "completed"'
+          BR="${GITHUB_REF_NAME:-main}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$BR"
+          PUB=$(mktemp -d /tmp/kavbug-publish.XXXXXX)
+          git worktree add --detach "$PUB" "origin/$BR"
+          mkdir -p "$PUB/kavbug-data"
+          for f in country-scan.json country-scan.csv history.json; do
+            cp "kavbug-data/$f" "$PUB/kavbug-data/$f"
+          done
+          git -C "$PUB" add kavbug-data/country-scan.json kavbug-data/country-scan.csv kavbug-data/history.json
+          if ! git -C "$PUB" diff --cached --quiet; then
+            git -C "$PUB" commit -m "data: publish verified navigation results before GPS sampling"
+            published=0
+            for attempt in 1 2 3 4; do
+              git -C "$PUB" fetch origin "$BR"
+              git -C "$PUB" rebase "origin/$BR"
+              if git -C "$PUB" push origin "HEAD:$BR"; then published=1; break; fi
+            done
+            [ "$published" = 1 ]
+          fi
+          git worktree remove "$PUB"
+
       - name: קו באג — בדיקה לפי GPS בפועל
         if: hashFiles('gtfs.zip') != ''
         continue-on-error: true
