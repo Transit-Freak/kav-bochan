@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T10:38:00.634Z",
+  "generatedAt": "2026-10-02T11:41:37.355Z",
   "sourceZip": "gtfs.zip",
   "navigationScan": {
     "status": "completed",
@@ -8,7 +8,7 @@
     "responses": 38634,
     "failures": 0,
     "found": 433,
-    "completedAt": "2026-10-02T10:37:41.106Z"
+    "completedAt": "2026-10-02T11:41:17.920Z"
   },
   "totalLines": 6773,
   "totalIssues": 670,
