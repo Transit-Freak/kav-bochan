@@ -58,6 +58,18 @@ class PublicationTest(unittest.TestCase):
             self.assertTrue(m.publish(work,'main',unexpected,unexpected))
             self.assertEqual((work/'README.md').read_text(),'concurrent unrelated update')
 
+    def test_hebrew_generated_path_can_be_published(self):
+        with tempfile.TemporaryDirectory() as directory:
+            remote,work,other,data = self.setup_repo(directory)
+            hebrew = 'line-history/data/lines/10268-2-ן.json'
+            m.git(work,'mv',data,hebrew)
+            m.git(work,'commit','-qm','Hebrew filename');m.git(work,'push','origin','main')
+            (work/hebrew).write_text(json.dumps({'versions':['base','historical']}))
+            self.assertTrue(m.publish(work,'main',lambda:None,lambda:None))
+            m.git(other,'pull','--ff-only')
+            self.assertEqual(json.loads((other/hebrew).read_text())['versions'],
+                             ['base','historical'])
+
     def test_outside_changes_are_not_discarded(self):
         with tempfile.TemporaryDirectory() as directory:
             remote,work,other,data = self.setup_repo(directory)
