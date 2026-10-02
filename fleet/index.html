@@ -175,7 +175,7 @@
 </div>
 
 <script>
-window.FLEET_BUILD='21';
+window.FLEET_BUILD='22';
 // ריפוי-עצמי של מטמון (בקשת שלמה — שלא יצטרך לנקות ידנית כל פעם):
 // GitHub Pages מחזיק את הדף במטמון עד ~10 דקות ובניידים לפעמים הרבה
 // יותר, ורענון רגיל לא תמיד מאמת מול השרת. לכן בכל טעינה הדף שואל את
@@ -792,6 +792,15 @@ const LBL={mispar_rechev:'מספר רכב',tozeret_nm:'יצרן',tozeret_cd:'ק�
   abs_ind:'ABS',mispar_kariot_avir:'כריות אוויר',mispar_mekomot:'מספר מושבים',
   mispar_mekomot_leyd_nahag:'מושבים ליד הנהג',sug_rechev_EU_nm:'סיווג אירופי',
   bitul_nm:'סטטוס רישום',_source:'מקור הנתון'};
+function licenseHTML(gov){
+  const history=gov._license_history||[];
+  const change=history.length?history[history.length-1]:null;
+  const date=fd(String(gov.tokef_dt||'').slice(0,10));
+  if(!change||change.current!==gov.tokef_dt)return esc(date);
+  return '<span style="color:var(--ok);font-weight:800">'+esc(date)+'</span> <span class="st on">עודכן</span>'+
+    '<span style="display:block;font-size:11px;color:var(--mut);line-height:1.6;margin-top:4px">התוקף הקודם במאגר: '+esc(fd(String(change.previous).slice(0,10)))+
+    '<br>השינוי זוהה ב־'+esc(fd(change.detected))+'</span>';
+}
 const SHARDS={};
 // הערכת הקילומטראז' (נבנית ב-CI מאורכי המסלולים של הקו בזמן) — נטענת
 // בעצלתיים בפתיחת כרטיס הרכב הראשון; אם הקובץ עוד לא נוצר, פשוט בלעדיה
@@ -965,9 +974,9 @@ async function showV(plate){
   }
   if(gov){
     const known=Object.keys(LBL).filter(k=>gov[k]!==undefined);
-    const rest=Object.keys(gov).filter(k=>!(k in LBL));
+    const rest=Object.keys(gov).filter(k=>!(k in LBL)&&!k.startsWith('_license_'));
     rows+=`<div class="msec">מהמאגר הממשלתי — כל השדות${DATA.gov_updated?` (נכון ל-${fd(DATA.gov_updated)})`:''}</div><div class="mgrid">`+
-      [...known,...rest].map(k=>`<div class="k">${esc(LBL[k]||k)}</div><div class="v2">${esc(k==='sug_rechev_nm'?fixT(gov[k]):gov[k])}</div>`).join('')+`</div>`;
+      [...known,...rest].map(k=>`<div class="k">${esc(LBL[k]||k)}</div><div class="v2">${k==='tokef_dt'?licenseHTML(gov):esc(k==='sug_rechev_nm'?fixT(gov[k]):gov[k])}</div>`).join('')+`</div>`;
   }else{
     rows+=`<div class="msec">המאגר הממשלתי</div><div class="note">הרכב לא נמצא במאגר הרכב הציבורי — ייתכן שהוסר מהרישום, שההעשרה טרם רצה, או שהמזהה בשידור אינו לוחית.</div>`;
   }
