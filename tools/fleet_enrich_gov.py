@@ -182,6 +182,41 @@ def jdump(obj, path):
     os.replace(tmp, path)
 
 
+def preserve_license_history(reg, base_path):
+    """Keep observed expiry changes; detection date is not a renewal date."""
+    from datetime import datetime, timezone
+    import subprocess
+    detected = datetime.now(timezone.utc).date().isoformat()
+    previous = {}
+    for digit in range(10):
+        path = f'{base_path}-{digit}.json'
+        if os.path.exists(path):
+            with open(path, encoding='utf-8') as f:
+                previous.update(json.load(f))
+    # Immutable last snapshot before the first automatic registry refresh.
+    baseline = {}
+    if not any(r.get('_license_history') for r in previous.values()):
+        for digit in range(10):
+            result = subprocess.run(
+                ['git', 'show', f'94c6fdec1ee71d83401497fd28e9f717daeb85e0:{base_path}-{digit}.json'],
+                capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                baseline.update(json.loads(result.stdout))
+    for plate, rec in reg.items():
+        old = previous.get(plate, {})
+        history = list(old.get('_license_history', []))
+        prior = old.get('tokef_dt')
+        current = rec.get('tokef_dt')
+        if prior and current and prior != current:
+            history.append({'previous': prior, 'current': current, 'detected': detected})
+        elif not history and plate in baseline:
+            prior = baseline[plate].get('tokef_dt')
+            if prior and current and prior != current:
+                history.append({'previous': prior, 'current': current, 'detected': detected})
+        if history:
+            rec['_license_history'] = history
+
+
 def main():
     with open(OUT, encoding='utf-8') as f:
         data = json.load(f)
@@ -256,6 +291,7 @@ def main():
     # הפרטים המלאים נחתכים ל-10 קבצים לפי הספרה האחרונה של הלוחית —
     # האתר טוען רק את הקובץ הרלוונטי בלחיצה על רכב (במקום קובץ ענק אחד)
     base_path = DETAILS.rsplit('.json', 1)[0]
+    preserve_license_history(reg, base_path)
     shards = {str(d): {} for d in range(10)}
     for plate, rec in reg.items():
         shards[plate[-1]][plate] = rec
