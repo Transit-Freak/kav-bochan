@@ -88,6 +88,10 @@ def main():
     by_month = {}
     for rd, d, k, src in deleted:
         by_month.setdefault(d[:7], set()).add((rd, d, k))
+    redraw_months = {}
+    for rd, d in redrawn:
+        redraw_months.setdefault(d[:7], set()).add((rd, d))
+        by_month.setdefault(d[:7], set())
     n_rows = 0
     if not DRY:
         for month, keys in by_month.items():
@@ -98,7 +102,15 @@ def main():
             before = len(m['changes'])
             m['changes'] = [c for c in m['changes'] if (c.get('rd'), c.get('d'), c.get('k')) not in keys]
             n_rows += before - len(m['changes'])
-            if before != len(m['changes']):
+            updated = False
+            for c in m['changes']:
+                if c.get('k') == 'route' and (c.get('rd'), c.get('d')) in redraw_months.get(month, set()):
+                    c['k'] = 'redraw'
+                    for key in ('add', 'rem', 'ac', 'rc', 'nc'):
+                        c.pop(key, None)
+                    c['note'] = 'תיקון שרטוט — רצף התחנות לא השתנה'
+                    updated = True
+            if before != len(m['changes']) or updated:
                 jdump(m, mp)
         log = jload(LOG, {'runs': []})
         log['runs'].append({'at': datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'), 'deleted': len(deleted),

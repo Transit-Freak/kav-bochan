@@ -16,7 +16,7 @@ def main():
         shutil.copytree(replay_cache,cache,dirs_exist_ok=True)
         run('rebuild_lines_index.py');run('build_archive_months.py')
     def validate():
-        run('check_early_history.py','--websites-only');run('check_history_claims.py')
+        run('check_early_history.py','--websites-only');run('repair_noop_events.py');run('repair_legacy_diffs.py','--all','--apply');run('check_history_claims.py')
         subprocess.run(['node','tools/check_website_history_ui.mjs'],cwd=root,check=True)
     git(root,'config','user.name','historical-website-bot')
     git(root,'config','user.email','actions@users.noreply.github.com')

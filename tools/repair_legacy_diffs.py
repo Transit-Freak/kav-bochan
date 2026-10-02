@@ -36,6 +36,13 @@ def diff(prev_stops, cur_stops):
     return add, rem
 
 
+def claims_contradict(prev_stops, cur_stops, ac, rc):
+    added, removed = diff(prev_stops, cur_stops)
+    # Older records intentionally contain only the first 15 changed stops.
+    return bool({str(c) for c in ac if c} - {str(s[0]) for s in added}) or \
+           bool({str(c) for c in rc if c} - {str(s[0]) for s in removed})
+
+
 def main():
     files = sorted(glob.glob(f'{OUTDIR}/lines/*.json'))
     n_ver = n_fixed = n_cleared = 0
@@ -68,9 +75,7 @@ def main():
             if ALL and prev is not None and ((rc and not rem) or (ac and not add)):
                 inconsistent = True
             if ALL and prev is not None and (rem or add):
-                a2, r2 = diff(prev['stops'], st)
-                inconsistent = ({str(c) for c in rc if c} != {str(s[0]) for s in r2}) or \
-                               ({str(c) for c in ac if c} != {str(s[0]) for s in a2})
+                inconsistent = claims_contradict(prev['stops'], st, ac, rc)
             if (legacy or inconsistent) and prev is not None:
                 n_ver += 1
                 a2, r2 = diff(prev['stops'], st)

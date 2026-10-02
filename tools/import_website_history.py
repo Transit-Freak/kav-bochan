@@ -162,7 +162,7 @@ def main():
         write(DATA/'website-archive-summary.json',{'counts':manifest['counts'],'catalogs':manifest['catalogs'],'routesImported':manifest['routesImported'],'through':manifest['through'],'updatedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'dates':[{'date':d,'captures':n} for d,n in sorted(dates.items())],'recent':recent[:20]})
     def publish_checkpoint():
         save_checkpoint()
-        for script,extra in [('rebuild_lines_index.py',[]),('build_archive_months.py',[]),('check_early_history.py',['--websites-only']),('check_history_claims.py',[]),('publish_website_history.py',[])]:
+        for script,extra in [('rebuild_lines_index.py',[]),('build_archive_months.py',[]),('check_early_history.py',['--websites-only']),('repair_noop_events.py',[]),('repair_legacy_diffs.py',['--all','--apply']),('check_history_claims.py',[]),('publish_website_history.py',[])]:
             if script=='publish_website_history.py':
                 subprocess.run(['node',str(ROOT/'tools/check_website_history_ui.mjs')],cwd=ROOT,check=True)
             subprocess.run([sys.executable,str(ROOT/'tools'/script),*extra],cwd=ROOT,check=True)

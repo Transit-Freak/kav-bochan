@@ -23,11 +23,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          sparse-checkout-cone-mode: false
           sparse-checkout: |
-            tools
-            tests
-            line-history
-            vendor
+            /*
+            !/*/
+            /tools/
+            /tests/
+            /line-history/
+            /vendor/
+            !/line-history/data/early-patterns/
+            !/line-history/data/early-stops/
+            !/line-history/data/early-rail/
       - run: pip install lxml
       - name: Prepare browser verification
         run: |
@@ -51,6 +57,8 @@ jobs:
           python tools/rebuild_lines_index.py
           python tools/build_archive_months.py
           python tools/check_early_history.py --websites-only
+          python tools/repair_noop_events.py
+          python tools/repair_legacy_diffs.py --all --apply
           python tools/check_history_claims.py
           node tools/check_website_history_ui.mjs
           python tools/publish_website_history.py
@@ -63,6 +71,8 @@ jobs:
           python tools/rebuild_lines_index.py
           python tools/build_archive_months.py
           python tools/check_early_history.py --websites-only
+          python tools/repair_noop_events.py
+          python tools/repair_legacy_diffs.py --all --apply
           python tools/check_history_claims.py
           node - <<'JS'
           const fs=require('fs'),Babel=require('./vendor/babel.min.js');

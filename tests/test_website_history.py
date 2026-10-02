@@ -2,11 +2,14 @@ import sys
 import unittest
 import tempfile
 import json
+import os
+import subprocess
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from import_website_history import parse_page
 from compact_lines import compact,materialize
 from check_history_claims import check
+from repair_legacy_diffs import claims_contradict
 
 class HistoricalWebsiteTests(unittest.TestCase):
     def test_public_number_is_read_from_page_not_internal_url(self):
@@ -49,6 +52,31 @@ class HistoricalWebsiteTests(unittest.TestCase):
             data=Path(tmp);(data/'lines').mkdir()
             (data/'lines/1.json').write_text(json.dumps({'rd':'1-1-H','versions':versions}))
             with self.assertRaises(RuntimeError):check(data)
+
+    def test_noop_repair_preserves_snapshots_and_updates_monthly_redraw(self):
+        stops=[['1','a',None,None],['2','b',None,None]]
+        versions=[{'d':'2003-01-01','k':'snapshot','stops':stops,'shp':'abc'},
+                  {'d':'2003-01-02','k':'snapshot','stops':stops,'shp':'abc'},
+                  {'d':'2003-01-03','k':'stops-add','stops':stops,'ac':['2']},
+                  {'d':'2003-01-04','k':'route','stops':stops,'shp':'def','ac':['2']}]
+        with tempfile.TemporaryDirectory() as tmp:
+            data=Path(tmp);(data/'lines').mkdir();(data/'changes').mkdir()
+            (data/'lines/1.json').write_text(json.dumps({'rd':'1','versions':versions}))
+            (data/'changes/2003-01.json').write_text(json.dumps({'changes':[{'rd':'1','d':v['d'],'k':v['k'],'add':['b']} for v in versions]}))
+            env={**os.environ,'OUTDIR':tmp};env.pop('DRY',None)
+            subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'tools/repair_noop_events.py')],env=env,check=True,capture_output=True)
+            result=materialize(json.loads((data/'lines/1.json').read_text()))
+            self.assertEqual([v['k'] for v in result['versions']],['snapshot','snapshot','redraw'])
+            rows=json.loads((data/'changes/2003-01.json').read_text())['changes']
+            self.assertEqual(rows[-1]['k'],'redraw')
+            self.assertNotIn('add',rows[-1])
+            self.assertEqual(len(rows),3)
+
+    def test_truncated_change_list_is_not_a_contradiction(self):
+        old=[['1','a',None,None]]
+        new=old+[[str(i),'b',None,None] for i in range(2,25)]
+        self.assertFalse(claims_contradict(old,new,[str(i) for i in range(2,17)],[]))
+        self.assertTrue(claims_contradict(old,new,['1'],[]))
 
     def test_addition_after_a_documented_removal_is_valid(self):
         a=['1','תחנה א',31.8,35.2];b=['2','תחנה ב',31.9,35.3]
