@@ -58,4 +58,30 @@ class SharedTripTest(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'Conflicting trips.txt'):
     m.load_snapshot([p])
 
+
+class DuplicateRouteIdentityTest(unittest.TestCase):
+ def data(self):
+  return {'routes.txt':{
+   'a':{'route_id':'a','route_desc':'12345-1-0','route_type':'2','route_long_name':'A-B'},
+   'b':{'route_id':'b','route_desc':'12345-1-0','route_type':'2','route_long_name':'A-B'}},
+   'trips.txt':{
+    't':{'trip_id':'t','route_id':'a','service_id':'c'},
+    'alias':{'trip_id':'t','route_id':'b','service_id':'c'},
+    'u':{'trip_id':'u','route_id':'b','service_id':'c'}}}, {
+     't':[(1,'s','08:00:00')],'alias':[(1,'s','08:00:00')],'u':[(1,'s','09:00:00')]}
+ def test_merge_retains_provenance_and_distinct_departures(self):
+  tables,times=self.data()
+  self.assertEqual(m.coalesce_identical_routes(tables,times),{'a':['a','b']})
+  self.assertEqual(len(tables['routes.txt']),1)
+  self.assertEqual(set(tables['trips.txt']),{'t','u'})
+  self.assertEqual(times['u'][0][2],'09:00:00')
+ def test_different_metadata_is_not_merged(self):
+  tables,times=self.data();tables['routes.txt']['b']['route_long_name']='A-C'
+  with self.assertRaisesRegex(ValueError,'Conflicting metadata'):
+   m.coalesce_identical_routes(tables,times)
+ def test_different_shared_trip_times_is_not_merged(self):
+  tables,times=self.data();times['alias']=[(1,'s','08:30:00')]
+  with self.assertRaisesRegex(ValueError,'Conflicting shared trip'):
+   m.coalesce_identical_routes(tables,times)
+
 if __name__=='__main__':unittest.main()
