@@ -1,4 +1,4 @@
-import copy,tempfile,unittest
+import copy,tempfile,unittest,csv,io,zipfile
 from pathlib import Path
 from unittest.mock import patch
 import import_early_history as m
@@ -24,5 +24,38 @@ class TimelineTest(unittest.TestCase):
    self.assertEqual(line['versions'][-1]['k'],'sched')
    self.assertEqual(m.publish(source('2015-01-05'),[])['versionsAdded'],1)
    self.assertEqual(len(m.read(Path(d)/'lines/12345-1-0.json')['versions']),2)
+
+
+class SharedTripTest(unittest.TestCase):
+ def fixture(self, path, conflicting_service=False):
+  tables={
+   'routes.txt':[['route_id'],['r1'],['r2']],
+   'agency.txt':[['agency_id'],['a']],
+   'stops.txt':[['stop_id'],['s']],
+   'calendar.txt':[['service_id'],['c'],['c2']],
+   'trips.txt':[['route_id','service_id','trip_id','direction_id','shape_id'],
+                ['r1','c','t','0','shape'],['r2','c2' if conflicting_service else 'c','t','0','shape'],
+                ['r2','c2' if conflicting_service else 'c','t','0','shape']],
+   'stop_times.txt':[['trip_id','stop_sequence','stop_id','arrival_time','departure_time'],
+                     ['t','1','s','08:00:00','08:00:00']],
+   'shapes.txt':[['shape_id','shape_pt_sequence','shape_pt_lat','shape_pt_lon'],
+                 ['shape','1','31','34']]}
+  with zipfile.ZipFile(path,'w') as z:
+   for name,rs in tables.items():
+    stream=io.StringIO();csv.writer(stream).writerows(rs);z.writestr(name,stream.getvalue())
+ def test_shared_trip_preserves_routes_without_duplicate_rows(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d)/'feed.zip';self.fixture(p)
+   tables,times,shapes=m.load_snapshot([p])
+   self.assertEqual(len(tables['trips.txt']),2)
+   self.assertEqual({r['route_id'] for r in tables['trips.txt'].values()},{'r1','r2'})
+   self.assertEqual(len(times),2)
+   self.assertEqual(list(times.values())[0],list(times.values())[1])
+   self.assertEqual(m.load_snapshot([p,p]),(tables,times,shapes))
+ def test_conflicting_service_still_fails(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d)/'feed.zip';self.fixture(p,True)
+   with self.assertRaisesRegex(ValueError,'Conflicting trips.txt'):
+    m.load_snapshot([p])
 
 if __name__=='__main__':unittest.main()
