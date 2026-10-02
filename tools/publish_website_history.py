@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Reapply cached website observations over current main after a concurrent write."""
-import sys,subprocess,pathlib,shutil
+import sys,subprocess,pathlib,shutil,os
 sys.path.insert(0,str(pathlib.Path(__file__).parent))
 from publish_early_history import publish,git
 
@@ -20,6 +20,9 @@ def main():
         subprocess.run(['node','tools/check_website_history_ui.mjs'],cwd=root,check=True)
     git(root,'config','user.name','historical-website-bot')
     git(root,'config','user.email','actions@users.noreply.github.com')
-    publish(root,'main',replay,validate)
+    published=publish(root,'main',replay,validate)
+    if published and os.environ.get('GITHUB_REPOSITORY'):
+        subprocess.run(['gh','api','--method','POST','repos/'+os.environ['GITHUB_REPOSITORY']+'/pages/builds'],cwd=root,check=True,stdout=subprocess.DEVNULL)
+        print('Requested public Pages rebuild for verified data',flush=True)
 
 if __name__=='__main__':main()

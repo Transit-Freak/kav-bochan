@@ -12,13 +12,16 @@ on:
       - 'line-history/data/website-catalogs/**'
 permissions:
   contents: write
+  pages: write
 concurrency:
   group: historical-passenger-websites
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   import:
     runs-on: ubuntu-latest
     timeout-minutes: 355
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:

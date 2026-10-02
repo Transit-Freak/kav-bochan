@@ -199,7 +199,7 @@ def main():
                 for c in active.pop(future):c['result']=future.result()
                 processed+=1
                 if processed%120==0:print('Fetched',processed,'unique payloads of',len(groups),flush=True)
-            if args.publish_checkpoints and time.monotonic()-last_publish>=600:
+            if args.publish_checkpoints and time.monotonic()-last_publish>=1200:
                 publish_checkpoint();last_publish=time.monotonic()
     for c in manifest['captures']: c.setdefault('result',{'status':'pending'})
     save_checkpoint()
