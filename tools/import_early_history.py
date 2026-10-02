@@ -107,8 +107,48 @@ def load_snapshot(paths):
         if any(s[1] not in stops for s in seq): raise ValueError('Missing stop reference')
     return tables, stop_times, shapes
 
+def coalesce_identical_routes(tables, times):
+    """Merge identical route_desc rows, retaining all original route IDs.
+
+    Duplicate trip assignments collapse only when every trip field and the
+    complete stop-time sequence agree. Different service/departure stays.
+    """
+    groups = collections.defaultdict(list)
+    for rid, row in tables['routes.txt'].items():
+        groups[row.get('route_desc') or ('route', rid)].append((rid, row))
+    canonical, originals = {}, {}
+    for members in groups.values():
+        rid, first = members[0]
+        expected = {k: v for k, v in first.items() if k != 'route_id'}
+        for other, row in members:
+            if {k: v for k, v in row.items() if k != 'route_id'} != expected:
+                raise ValueError('Conflicting metadata for native route_desc ' + first['route_desc'])
+            canonical[other] = rid
+        originals[rid] = [key for key, row in members]
+    if all(len(ids) == 1 for ids in originals.values()):
+        return originals
+    routes = {rid: tables['routes.txt'][rid] for rid in originals}
+    trips, merged_times, assigned = {}, {}, {}
+    for key, row in tables['trips.txt'].items():
+        updated = dict(row, route_id=canonical[row['route_id']])
+        identity = (updated['route_id'], updated['trip_id'])
+        previous = assigned.get(identity)
+        if previous is not None:
+            if trips[previous] != updated or merged_times[previous] != times[key]:
+                raise ValueError('Conflicting shared trip after route identity merge')
+            continue
+        assigned[identity] = key
+        trips[key] = updated
+        merged_times[key] = times[key]
+    tables['routes.txt'], tables['trips.txt'] = routes, trips
+    times.clear()
+    times.update(merged_times)
+    return originals
+
+
 def publish(source, paths):
     tables, times, shapes=load_snapshot(paths)
+    original_route_ids = coalesce_identical_routes(tables, times)
     date=source['date']; src=source['kind']; stops=tables['stops.txt']
     agencies=tables['agency.txt']; calendar=tables['calendar.txt']
     native_keys=[r.get('route_desc') for r in tables['routes.txt'].values() if r.get('route_desc')]
@@ -200,6 +240,8 @@ def publish(source, paths):
            'earlySource':source['id'],'earlyFingerprint':fp,'historicalMeta':meta,
            'note':'צילום היסטורי של פרסום משרד התחבורה. מועד התיעוד אינו מועד פתיחת הקו או שינוי המסלול.',
            'earlyPatternsFile':pattern_hash,'earlyPatternCount':len(pattern_data),'routeId':rid}
+        if len(original_route_ids[rid]) > 1:
+            v['routeIds'] = original_route_ids[rid]
         if add:v['add']=add
         if rem:v['rem']=rem
         if prev:v['note']='שינוי שנמצא בהשוואת שני צילומים זמינים של אותו מק״ט, כיוון וחלופה.'
