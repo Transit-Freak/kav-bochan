@@ -1,7 +1,7 @@
 import sys,unittest,copy,json,os,tempfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from enrich_website_maps import estimate,match_name
+from enrich_website_maps import estimate,match_name,manual_for,reusable,ALGORITHM
 from build_magihim_site import make_stop_matcher
 class Maps(unittest.TestCase):
     def test_original_coordinates_take_priority(self):
@@ -13,6 +13,16 @@ class Maps(unittest.TestCase):
         self.assertEqual(result['stops'][0][5:7],[32.0,35.0])
         self.assertEqual(len(result['stops'][1]),5)
         self.assertNotIn('shape',result)
+    def test_new_manual_decision_recomputes_only_affected_maps(self):
+        stops=[['a','תל אביב יפו - תחנה מרכזית חדשה',None,None],['b','רמת גן - ביאליק',None,None]]
+        manual={'תחנה מרכזית חדשה - תל אביב יפו':'21256','אחר - עיר':'1'}
+        decided=manual_for(stops,manual)
+        self.assertEqual(decided,{'תחנה מרכזית חדשה - תל אביב יפו':'21256'})
+        old={'algorithm':ALGORITHM,'stops':[],'matched':0,'total':2}
+        self.assertFalse(reusable(old,decided))
+        self.assertTrue(reusable(dict(old,manual=decided),decided))
+        self.assertTrue(reusable(old,{}))
+
     def test_shared_matcher_and_source_preservation(self):
         stops=[['a','City - Station',None,None],['b','Other',None,None]]
         before=copy.deepcopy(stops);seen=[]
