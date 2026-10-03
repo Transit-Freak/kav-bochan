@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant,route_id,toward
 from compact_lines import compact,materialize
+from odd_website_routes import analyse
 from check_history_claims import check
 from repair_legacy_diffs import claims_contradict
 
@@ -66,6 +67,17 @@ class HistoricalWebsiteTests(unittest.TestCase):
     def test_direction_is_named_by_the_last_town(self):
         self.assertEqual(toward([['a','תל אביב יפו - אוניברסיטה',None,None],['b','רחובות - תחנה מרכזית',None,None]]),'לכיוון רחובות')
         self.assertEqual(toward([['a','x',None,None],['b','(צמתים ומחלפים) - מחלף הסירה',None,None]]),'לכיוון מחלף הסירה')
+
+    def test_odd_route_is_found_by_shape_and_only_for_one_trip(self):
+        towns={'ראשון לציון':(31.96,34.80),'בת ים':(32.02,34.75),'תל אביב יפו':(32.07,34.78),'חולון':(32.01,34.78)}
+        rows=[['ראשון לציון','מרכזית','0:00'],['בת ים','א','0:37'],['תל אביב יפו','ב','0:55'],
+              ['חולון','ג','0:55'],['תל אביב יפו','ד','1:02'],['בת ים','ה','1:08']]
+        odd=analyse(rows,towns,{})
+        self.assertIn('בת ים',' '.join(odd['reasons']))
+        # Both directions listed in one table (time restarts) is not one odd trip.
+        self.assertIsNone(analyse(rows[:3]+[['בת ים','ו','0:00'],['ראשון לציון','ז','0:30']],towns,{}))
+        # A straight line is not odd.
+        self.assertIsNone(analyse([['ראשון לציון','x','0:00'],['חולון','y','0:10'],['תל אביב יפו','z','0:20']],towns,{}))
 
     def test_unidentified_page_is_not_a_route(self):
         self.assertEqual(parse_page(b'<html>Unavailable</html>','http://bus.co.il/LinePlaces.asp?LineCode=1')['status'],'unparsed')
