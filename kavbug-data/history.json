@@ -420,5 +420,11 @@
   "totalLines": 6773,
   "realCount": 151,
   "totalWasteDayKm": 572
+ },
+ {
+  "date": "2026-10-03",
+  "totalLines": 6750,
+  "realCount": 151,
+  "totalWasteDayKm": 571
  }
 ]
