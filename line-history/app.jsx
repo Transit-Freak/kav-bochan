@@ -3434,7 +3434,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   const list = collapse2012Rows((chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
-    if (String(c.rd).startsWith("website") !== showWeb) return false;
+    // הפרדת המקורות רק כשידוע מה המקור של כל חודש; בלי המידע הזה מציגים הכול, כמו קודם
+    if (srcMonths.official && String(c.rd).startsWith("website") !== showWeb) return false;
     if (!inKats(c)) return false;
     // Match words across fields, just like the main line search.
     return matchesRouteSearch({ ...m, rd: c.rd, line: c.line || m.line }, needle, citySearch.data, c.d);
