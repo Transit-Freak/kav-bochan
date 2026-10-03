@@ -99,6 +99,36 @@ def parse_page(payload, original):
         return {'status':'unparsed','reason':'No supported stop table or saved coordinates','line':line,'operator':operator}
     return {'status':'parsed','line':line,'operator':operator,'company':company,'internalLine':internal,'patterns':patterns}
 
+def variant(original,result):
+    query={k.lower():v[0].strip() for k,v in parse_qs(urlsplit(original).query).items()}
+    internal=result['internalLine']
+    if internal=='unknown' and query.get('lineid'): internal='lineid:'+query['lineid']
+    return query.get('linealternatecode',''),query.get('linedirection',''),internal
+
+def toward(stops):
+    """'לכיוון רחובות': the town of the last stop, as passengers name a direction."""
+    name=stops[-1][1]
+    town,_,station=name.partition(' - ')
+    return 'לכיוון '+(station if town.startswith('(') or not station else town).strip()
+
+def route_id(result,internal,alt,direction,index,count=1):
+    """website<line>-<direction>-<alternative>, like Ministry route ids, so the line page
+    groups the alternatives and directions of one archived line.
+
+    The line key is the source's own line code, never a public number, which repeats
+    between cities.
+    """
+    code=internal.lstrip('0') or internal
+    if internal=='unknown': code+='|'+result['line']+'|'+result['operator']
+    family=hashlib.sha256((result['company']+'|'+code).encode()).hexdigest()[:16]
+    alt=re.sub(r'[-/#\s]','',alt)
+    # A page without a stated direction lists its alternatives as tables; the direction
+    # is unknown (0) and each table is an alternative.
+    direction=re.sub(r'\D','',direction) or '0'
+    if count>1 or direction=='0': alt+=str(index+1)
+    # No invented main alternative: '#' is the Ministry's own mark.
+    return f'website{family}-{direction}-{alt}'
+
 def import_records(manifest):
     from compact_lines import materialize, compact
     byroute={}
@@ -106,18 +136,22 @@ def import_records(manifest):
         result=capture.get('result')
         if not result or result.get('status')!='parsed': continue
         d=capture['timestamp'];date=f'{d[:4]}-{d[4:6]}-{d[6:8]}'
-        for pat in result['patterns']:
-            identity='|'.join([result['company'],result['internalLine'],result['line'],result['operator'],pat['heading'],str(result['patterns'].index(pat))])
-            rd='website'+hashlib.sha256(identity.encode()).hexdigest()[:20]+'-0-H'
+        alt,direction,internal=variant(capture['original'],result)
+        for index,pat in enumerate(result['patterns']):
+            rd=route_id(result,internal,alt,direction,index,len(result['patterns']))
             lf=byroute.setdefault(rd,{'rd':rd,'line':result['line'],'dest':pat['heading'],'op':result['operator'],'tt':'bus','ty':'','historicalOnly':True,'observationOnly':True,'versions':[]})
             v={'d':date,'k':'snapshot','src':'websiteArchive','stops':pat['stops'],'shp':'','noShapeBorrow':True,
                'sourceUrl':capture['archiveUrl'],'captureTimestamp':d,'websitePartial':bool(pat.get('partial')),
                'note':'צילום מאתר מידע לנוסעים. תאריך השמירה בארכיון, לא מועד שינוי הקו. מזהי התחנות פנימיים למקור.'}
             # Preserve every capture in the manifest; the line timeline shows one state per day.
             if not any(w['d']==date and w['stops']==v['stops'] for w in lf['versions']): lf['versions'].append(v)
+    # Routes from an earlier identity scheme are replaced, not kept beside the new ones.
+    for path in (DATA/'lines').glob('website*.json'):
+        if path.stem not in byroute: path.unlink()
     dates={}
     for rd,lf in byroute.items():
         lf['versions'].sort(key=lambda v:(v['d'],v['captureTimestamp']))
+        lf['heading']=lf['dest'];lf['dest']=toward(lf['versions'][-1]['stops'])
         write(DATA/'lines'/f'{rd}.json',compact(lf))
         for v in lf['versions']: dates.setdefault(v['d'],set()).add(rd)
     catalog_path=DATA/'early-sources.json';progress_path=DATA/'early-progress.json'

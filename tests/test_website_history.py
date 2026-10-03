@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS
+from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant,route_id,toward
 from compact_lines import compact,materialize
 from check_history_claims import check
 from repair_legacy_diffs import claims_contradict
@@ -38,6 +38,34 @@ class HistoricalWebsiteTests(unittest.TestCase):
         self.assertFalse(needs_retry({'status':'failed','reason':'timed out','attempts':MAX_ATTEMPTS}))
         self.assertFalse(needs_retry({'status':'unparsed','reason':'No supported stop table or saved coordinates'}))
         self.assertFalse(needs_retry({'status':'parsed'}))
+
+    def test_map_alternatives_and_directions_are_separate_routes(self):
+        result={'internalLine':'10274'}
+        base='http://www.bus.co.il:80/otobusim/Front2007/PlacesMap.asp?LineCompanyID=1&LineCode=10274&LineAlternateCode=%D7%93&LineDirection=2&PlaceID1=457271'
+        self.assertEqual(variant(base,result),('ד','2','10274'))
+        self.assertNotEqual(variant(base,result),variant(base.replace('%D7%93','%D7%96'),result))
+        self.assertNotEqual(variant(base,result),variant(base.replace('LineDirection=2','LineDirection=1'),result))
+        # Another map centre of the same route is the same route.
+        self.assertEqual(variant(base,result),variant(base.replace('457271','345296'),result))
+        self.assertEqual(variant('http://bus.co.il/LineStations.asp?LineID=55',{'internalLine':'unknown'})[2],'lineid:55')
+
+    def test_archived_routes_use_line_direction_alternative_ids(self):
+        r={'company':'1','line':'274','operator':'אגד'}
+        a=route_id(r,'10274','ז','1',0)
+        self.assertRegex(a,r'^website[0-9a-f]{16}-1-ז$')
+        # Same line: same family, so the line page groups its alternatives and directions.
+        self.assertEqual(a.split('-')[0],route_id(r,'10274','ד','2',0).split('-')[0])
+        self.assertEqual(a.split('-')[0],route_id(r,'010274','ד','2',0).split('-')[0])
+        self.assertNotEqual(a.split('-')[0],route_id(r,'10275','ז','1',0).split('-')[0])
+        # A page listing its alternatives as tables, without a stated direction.
+        self.assertEqual(route_id(r,'437','','',1).split('-')[1:],['0','2'])
+        self.assertEqual(route_id(r,'437','ז','1',0).split('-')[1:],['1','ז'])
+        self.assertEqual(route_id(r,'437','','2',1,2).split('-')[1:],['2','2'])
+        self.assertEqual(route_id(r,'437','-842354059','1',0).split('-')[2],'842354059')
+
+    def test_direction_is_named_by_the_last_town(self):
+        self.assertEqual(toward([['a','תל אביב יפו - אוניברסיטה',None,None],['b','רחובות - תחנה מרכזית',None,None]]),'לכיוון רחובות')
+        self.assertEqual(toward([['a','x',None,None],['b','(צמתים ומחלפים) - מחלף הסירה',None,None]]),'לכיוון מחלף הסירה')
 
     def test_unidentified_page_is_not_a_route(self):
         self.assertEqual(parse_page(b'<html>Unavailable</html>','http://bus.co.il/LinePlaces.asp?LineCode=1')['status'],'unparsed')

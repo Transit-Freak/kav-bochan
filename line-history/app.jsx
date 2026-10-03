@@ -1201,7 +1201,8 @@ function describeVariant(item, base, areas) {
   const a=item.snapshot?.stops,b=base?.snapshot?.stops;
   if(!a?.length)return 'אין רצף תחנות להשוואה במועד הזה';
   if(!base)return 'לא נמצאה חלופה ראשית להשוואה במועד הזה';
-  if(item.rd===base.rd)return 'חלופה ראשית';
+  // בצילומי הארכיון אין חלופה ראשית במקור: זו רק החלופה שמולה מושווים האחרים
+  if(item.rd===base.rd)return String(item.rd).startsWith('website') ? 'בסיס ההשוואה' : 'חלופה ראשית';
   if(!b?.length)return 'אין רצף תחנות לחלופה הראשית במועד הזה';
   const id=s=>String(s[0]);
   const stl=st=>(/^(שד|שד'|שדרות|דרך|כביש|כיכר|סמטת|מחלף|צומת|רחוב) /.test(st)?'':'רחוב ')+st;
@@ -1439,7 +1440,8 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
     return()=>{active=false;};
   },[open,key,date,retry,usePre]);
   const current=sibs.find(s=>s.rd===rd);
-  const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון'));
+  // קו מצילומי הארכיון: "לכיוון רחובות" לפי התחנה האחרונה, במקום מספר כיוון של המקור
+  const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : (String(s.rd).startsWith('website') ? (s.dest||'')+(variantPart(s) ? ' · חלופה '+variantPart(s) : '') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון')));
   // העיצוב הקודם של שורת החלופות (sibs/sib/sibcmp — כפתורי גלולה סגולים) — הלוגיקה של
   // בוחר החלופות נשארה כמו שהיא, רק התצוגה חזרה לעיצוב של האתר (שלמה 26.09)
   const curItem=items && items.find(s=>s.rd===rd);
