@@ -34,6 +34,8 @@ SRCS = None   # None = כל המקורות
 def main():
     months = {}
     mode_months = {'lines': set(), 'rail': set(), 'taxi': set()}
+    # מקור לכל חודש: צילומי אתרי המידע לנוסעים מוצגים בנפרד מנתוני משרד התחבורה
+    web_months, official_months = set(), set()
     index_path = f'{OUTDIR}/lines.json'
     index = json.load(open(index_path, encoding='utf-8')) if os.path.exists(index_path) else {}
     types = {l['rd']: l.get('tt', 'bus') for l in index.get('lines', [])}
@@ -70,6 +72,7 @@ def main():
             tt = types.get(rd, lf.get('tt', 'bus'))
             category = 'rail' if tt in ('rail', 'lightrail', 'cable') else 'taxi' if tt == 'taxi' else 'lines'
             mode_months[category].add(v['d'][:7])
+            (web_months if v.get('src') == 'websiteArchive' else official_months).add(v['d'][:7])
 
     if not months:
         print('אין אירועי ארכיון', file=sys.stderr)
@@ -114,6 +117,11 @@ def main():
         mp = f'{OUTDIR}/months.json'
         mj = json.load(open(mp, encoding='utf-8')) if os.path.exists(mp) else {}
         mj['modeMonths'] = {k: sorted(v) for k, v in mode_months.items()}
+        if SRCS is not None:   # ריצה חלקית: לא מוחקים מקור שלא נסרק
+            web_months |= set(mj.get('webMonths') or [])
+            official_months |= set(mj.get('officialMonths') or [])
+        mj['webMonths'] = sorted(web_months)
+        mj['officialMonths'] = sorted(official_months)
         mj['months'] = sorted(set(mj.get('months') or []) | set(months))
         json.dump(mj, open(mp, 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
