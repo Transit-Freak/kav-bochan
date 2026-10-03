@@ -99,6 +99,12 @@ def parse_page(payload, original):
         return {'status':'unparsed','reason':'No supported stop table or saved coordinates','line':line,'operator':operator}
     return {'status':'parsed','line':line,'operator':operator,'company':company,'internalLine':internal,'patterns':patterns}
 
+def variant(original,result):
+    query={k.lower():v[0].strip() for k,v in parse_qs(urlsplit(original).query).items()}
+    internal=result['internalLine']
+    if internal=='unknown' and query.get('lineid'): internal='lineid:'+query['lineid']
+    return query.get('linealternatecode',''),query.get('linedirection',''),internal
+
 def import_records(manifest):
     from compact_lines import materialize, compact
     byroute={}
@@ -106,15 +112,22 @@ def import_records(manifest):
         result=capture.get('result')
         if not result or result.get('status')!='parsed': continue
         d=capture['timestamp'];date=f'{d[:4]}-{d[4:6]}-{d[6:8]}'
+        alt,direction,internal=variant(capture['original'],result)
         for pat in result['patterns']:
-            identity='|'.join([result['company'],result['internalLine'],result['line'],result['operator'],pat['heading'],str(result['patterns'].index(pat))])
+            identity='|'.join([result['company'],internal,result['line'],result['operator'],pat['heading'],str(result['patterns'].index(pat))])
+            # Map pages of different alternatives and directions are different routes.
+            if alt or direction: identity+='|'+alt+'|'+direction
             rd='website'+hashlib.sha256(identity.encode()).hexdigest()[:20]+'-0-H'
-            lf=byroute.setdefault(rd,{'rd':rd,'line':result['line'],'dest':pat['heading'],'op':result['operator'],'tt':'bus','ty':'','historicalOnly':True,'observationOnly':True,'versions':[]})
+            dest=pat['heading']+(' · חלופה '+alt if alt else '')+(' · כיוון '+direction if direction else '')
+            lf=byroute.setdefault(rd,{'rd':rd,'line':result['line'],'dest':dest,'op':result['operator'],'tt':'bus','ty':'','historicalOnly':True,'observationOnly':True,'versions':[]})
             v={'d':date,'k':'snapshot','src':'websiteArchive','stops':pat['stops'],'shp':'','noShapeBorrow':True,
                'sourceUrl':capture['archiveUrl'],'captureTimestamp':d,'websitePartial':bool(pat.get('partial')),
                'note':'צילום מאתר מידע לנוסעים. תאריך השמירה בארכיון, לא מועד שינוי הקו. מזהי התחנות פנימיים למקור.'}
             # Preserve every capture in the manifest; the line timeline shows one state per day.
             if not any(w['d']==date and w['stops']==v['stops'] for w in lf['versions']): lf['versions'].append(v)
+    # Routes from an earlier identity scheme are replaced, not kept beside the new ones.
+    for path in (DATA/'lines').glob('website*.json'):
+        if path.stem not in byroute: path.unlink()
     dates={}
     for rd,lf in byroute.items():
         lf['versions'].sort(key=lambda v:(v['d'],v['captureTimestamp']))

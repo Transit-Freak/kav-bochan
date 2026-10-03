@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS
+from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant
 from compact_lines import compact,materialize
 from check_history_claims import check
 from repair_legacy_diffs import claims_contradict
@@ -38,6 +38,16 @@ class HistoricalWebsiteTests(unittest.TestCase):
         self.assertFalse(needs_retry({'status':'failed','reason':'timed out','attempts':MAX_ATTEMPTS}))
         self.assertFalse(needs_retry({'status':'unparsed','reason':'No supported stop table or saved coordinates'}))
         self.assertFalse(needs_retry({'status':'parsed'}))
+
+    def test_map_alternatives_and_directions_are_separate_routes(self):
+        result={'internalLine':'10274'}
+        base='http://www.bus.co.il:80/otobusim/Front2007/PlacesMap.asp?LineCompanyID=1&LineCode=10274&LineAlternateCode=%D7%93&LineDirection=2&PlaceID1=457271'
+        self.assertEqual(variant(base,result),('ד','2','10274'))
+        self.assertNotEqual(variant(base,result),variant(base.replace('%D7%93','%D7%96'),result))
+        self.assertNotEqual(variant(base,result),variant(base.replace('LineDirection=2','LineDirection=1'),result))
+        # Another map centre of the same route is the same route.
+        self.assertEqual(variant(base,result),variant(base.replace('457271','345296'),result))
+        self.assertEqual(variant('http://bus.co.il/LineStations.asp?LineID=55',{'internalLine':'unknown'})[2],'lineid:55')
 
     def test_unidentified_page_is_not_a_route(self):
         self.assertEqual(parse_page(b'<html>Unavailable</html>','http://bus.co.il/LinePlaces.asp?LineCode=1')['status'],'unparsed')
