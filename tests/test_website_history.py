@@ -81,8 +81,10 @@ class HistoricalWebsiteTests(unittest.TestCase):
 
     def test_archive_refusal_is_a_pause_not_a_failed_capture(self):
         import urllib.error,socket
-        self.assertTrue(refused(urllib.error.URLError(ConnectionRefusedError(111,'Connection refused'))))
-        self.assertTrue(refused(urllib.error.HTTPError('u',429,'Too Many Requests',{},None)))
+        from import_website_history import BLOCK_PAUSE,RATE_PAUSE
+        self.assertEqual(refused(urllib.error.URLError(ConnectionRefusedError(111,'Connection refused'))),BLOCK_PAUSE)
+        self.assertEqual(refused(urllib.error.HTTPError('u',429,'Too Many Requests',{},None)),RATE_PAUSE)
+        self.assertEqual(refused(urllib.error.HTTPError('u',429,'Too Many Requests',{'Retry-After':'900'},None)),900)
         self.assertFalse(refused(urllib.error.URLError(socket.timeout('timed out'))))
         self.assertFalse(refused(urllib.error.HTTPError('u',404,'Not Found',{},None)))
 

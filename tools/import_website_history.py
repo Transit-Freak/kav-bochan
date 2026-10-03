@@ -42,14 +42,24 @@ MAX_ATTEMPTS = 4
 def needs_retry(result):
     return result.get('status')=='failed' and result.get('attempts',1)<MAX_ATTEMPTS
 
-# The archive refuses connections (or answers 429) when it is asked too fast. That is not
-# a failed capture: pause, then ask again. Half an hour of refusals ends the run.
-PAUSE_SECONDS = 300
-MAX_PAUSES = 6
+# Internet Archive limits: about 15 playback requests a minute for bulk downloads (one every
+# 4 seconds, as wayback-machine-downloader does). Above it the archive answers 429; ignoring
+# 429 for a minute blocks the address at the firewall ("Connection refused") for an hour,
+# doubling on every repeat. A refusal is not a failed capture: wait it out, then ask again.
+MIN_INTERVAL = 4.0
+RATE_PAUSE = 120        # after 429/503, unless the archive says Retry-After
+BLOCK_PAUSE = 1200      # firewall block: at least an hour, so check every 20 minutes
+MAX_PAUSE_SECONDS = 3600
 
 def refused(error):
+    """Seconds to wait if the archive refused the request, else 0."""
+    if getattr(error,'code',None) in (429,503):
+        try:return min(max(int(error.headers.get('Retry-After')),RATE_PAUSE),MAX_PAUSE_SECONDS)
+        except Exception:return RATE_PAUSE
     reason=getattr(error,'reason',None)
-    return getattr(error,'code',None) in (429,503) or isinstance(reason,ConnectionRefusedError) or isinstance(error,ConnectionRefusedError) or 'Connection refused' in str(error)
+    if isinstance(reason,ConnectionRefusedError) or isinstance(error,ConnectionRefusedError) or 'Connection refused' in str(error):
+        return BLOCK_PAUSE
+    return 0
 
 def parse_page(payload, original):
     encoding = 'utf-8' if re.search(br'charset\s*=\s*["\']?utf-8', payload[:3000], re.I) else 'cp1255'
@@ -187,7 +197,7 @@ def main():
             if re.search(r'(LineStations|LinePlaces|PlacesMap)\.asp\?',original,re.I) or ('bus.co.il' in original and re.search(r'LinePlaces|LineStations|PlacesMap',original,re.I)):
                 manifest['captures'].append({'timestamp':timestamp,'original':original,'digest':digest,'archiveUrl':f'https://web.archive.org/web/{timestamp}/{original}'})
     manifest['captures'].sort(key=lambda c:(c['timestamp'],c['original']))
-    started=time.monotonic();processed=0;groups={};lock=threading.Lock();last_request=[0];pause_until=[0];pauses=[0];limited=threading.Event();last_publish=started
+    started=time.monotonic();processed=0;groups={};lock=threading.Lock();last_request=[0];pause_until=[0];paused=[0];limited=threading.Event();last_publish=started
     retries={}
     for c in manifest['captures']:
         p=cache/(hashlib.sha256(c['digest'].encode()).hexdigest()+'.json')
@@ -236,7 +246,7 @@ def main():
         previous=c['result']
         if limited.is_set():return previous,True
         with lock:
-            delay=max(1-(time.monotonic()-last_request[0]),pause_until[0]-time.monotonic())
+            delay=max(MIN_INTERVAL-(time.monotonic()-last_request[0]),pause_until[0]-time.monotonic())
             if delay>0:time.sleep(delay)
             last_request[0]=time.monotonic()
         url=f"https://web.archive.org/web/{c['timestamp']}id_/{c['original']}"
@@ -247,15 +257,19 @@ def main():
             if found and found[1]!=c['timestamp']: raise ValueError('Archive redirected to a different capture date')
             result=parse_page(payload,c['original'])
         except Exception as e:
-            if refused(e):
+            wait=refused(e)
+            if wait:
                 with lock:
-                    pauses[0]+=1;pause_until[0]=time.monotonic()+PAUSE_SECONDS
-                    print('Archive refused the connection; pausing',PAUSE_SECONDS,'s (pause',pauses[0],'of',MAX_PAUSES,')',flush=True)
-                    if pauses[0]>=MAX_PAUSES:limited.set()
+                    # Requests already in flight may be refused too; one pause covers them.
+                    if pause_until[0]<=time.monotonic():
+                        paused[0]+=wait;pause_until[0]=time.monotonic()+wait
+                        print('Archive refused (',str(e)[:60],'); pausing',wait,'s, total',paused[0],'s',flush=True)
+                    # More than an hour of continuous refusal: stop; the next run continues.
+                    if paused[0]>MAX_PAUSE_SECONDS:limited.set()
                 return previous,True
             attempts=previous.get('attempts',1)+1 if previous.get('status')=='failed' else 1
             result={'status':'failed','reason':str(e)[:200],'attempts':attempts}
-        with lock:pauses[0]=0
+        with lock:paused[0]=0
         write(p,result);return result,False
     todo=iter(groups.values());active={};again=collections.deque()
     with ThreadPoolExecutor(max_workers=3) as executor:
