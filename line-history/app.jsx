@@ -5295,7 +5295,8 @@ function App() {
           </>) : <span className="stat mut">טוען את רשימת הקווים ברקע…</span>}
         </div>
       </header>
-      <WebsiteImportStatus openLine={openLine} onPublished={()=>{setRty(n=>n+1);window.dispatchEvent(new Event("website-history-published"));}} />
+      {/* פרסום חדש: גם רשימת החודשים נטענת מחדש, אחרת דף פתוח נשאר עם חודשים ומקורות ישנים מול אינדקס חדש */}
+      <WebsiteImportStatus openLine={openLine} onPublished={()=>{MONTHS_P=null;setRty(n=>n+1);window.dispatchEvent(new Event("website-history-published"));}} />
       <div className="tabs" role="tablist" aria-label="אזורי האתר">
         <button role="tab" aria-selected={tab === "lines"} className={"tab" + (tab === "lines" ? " on" : "")} title="חיפוש בכל קווי האוטובוס בארץ והיסטוריית השינויים של כל קו" onClick={() => { setTab("lines"); backToList("lines"); }}>🚌 קווים</button>
         <button role="tab" aria-selected={tab === "stops"} className={"tab" + (tab === "stops" ? " on" : "")} title="חיפוש תחנות והיסטוריית השינויים שלהן — שינוי שם, הזזה, ביטול" onClick={() => { setTab("stops"); backToList("stops"); }}>🚏 תחנות</button>
