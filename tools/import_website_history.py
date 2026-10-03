@@ -172,6 +172,9 @@ def import_records(manifest):
     for rd,lf in byroute.items():
         lf['versions'].sort(key=lambda v:(v['d'],v['captureTimestamp']))
         lf['heading']=lf['dest'];lf['dest']=toward(lf['versions'][-1]['stops'])
+        # ישובים מתוך שמות התחנות ("אשדוד - ..."), לחיפוש לפי עיר: לקווי הארכיון אין מק"טים
+        lf['towns']=sorted({s[1].split(' - ')[0].strip() for v in lf['versions'] for s in v['stops']
+                            if ' - ' in s[1] and not s[1].startswith('(')})
         write(DATA/'lines'/f'{rd}.json',compact(lf))
         for v in lf['versions']: dates.setdefault(v['d'],set()).add(rd)
     catalog_path=DATA/'early-sources.json';progress_path=DATA/'early-progress.json'
