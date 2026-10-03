@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant,route_id,toward
+from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant,route_id,toward,refused
 from compact_lines import compact,materialize
 from odd_website_routes import analyse
 from check_history_claims import check
@@ -78,6 +78,13 @@ class HistoricalWebsiteTests(unittest.TestCase):
         self.assertIsNone(analyse(rows[:3]+[['בת ים','ו','0:00'],['ראשון לציון','ז','0:30']],towns,{}))
         # A straight line is not odd.
         self.assertIsNone(analyse([['ראשון לציון','x','0:00'],['חולון','y','0:10'],['תל אביב יפו','z','0:20']],towns,{}))
+
+    def test_archive_refusal_is_a_pause_not_a_failed_capture(self):
+        import urllib.error,socket
+        self.assertTrue(refused(urllib.error.URLError(ConnectionRefusedError(111,'Connection refused'))))
+        self.assertTrue(refused(urllib.error.HTTPError('u',429,'Too Many Requests',{},None)))
+        self.assertFalse(refused(urllib.error.URLError(socket.timeout('timed out'))))
+        self.assertFalse(refused(urllib.error.HTTPError('u',404,'Not Found',{},None)))
 
     def test_unidentified_page_is_not_a_route(self):
         self.assertEqual(parse_page(b'<html>Unavailable</html>','http://bus.co.il/LinePlaces.asp?LineCode=1')['status'],'unparsed')
