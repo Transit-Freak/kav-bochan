@@ -4,7 +4,7 @@ The archived stop names and coordinates are preserved independently.
 """
 import argparse,datetime,gzip,hashlib,json,math,os,sys
 from pathlib import Path
-from build_magihim_site import make_stop_matcher
+from build_magihim_site import make_stop_matcher,untrunc
 from compact_lines import materialize,compact
 from shape_2012 import route_shape
 ROOT=Path(__file__).resolve().parents[1]
@@ -29,8 +29,18 @@ def fingerprint(stops):
 def saved_points(stops):
     return [s for s in stops if isinstance(s[2],(int,float)) and isinstance(s[3],(int,float))]
 
-def estimate(stops,matcher,osrm=None,old=None):
+def manual_for(stops,manual):
+    """The manual decisions (stop panel or a person) that apply to these stop names."""
+    names=[untrunc(match_name(s[1])) for s in stops]
+    return {n:manual[n] for n in names if n in manual}
+
+def reusable(old,decided):
+    # A new manual decision for one of the stops recomputes the estimate.
+    return bool(old) and old.get('algorithm')==ALGORITHM and old.get('manual',{})==decided
+
+def estimate(stops,matcher,osrm=None,old=None,decided=None):
     if len(stops)<2:return None
+    decided=decided or {}
     if saved_points(stops):
         # A saved source map: its own points, in the source's order. Only the road path
         # between them is estimated, and only when the road router finds a plausible one.
@@ -41,7 +51,7 @@ def estimate(stops,matcher,osrm=None,old=None):
             result={'algorithm':ALGORITHM,'savedPoints':True,'stops':rows,'matched':len(saved_points(stops)),'total':len(stops),
                     'basis':'Points saved in the source map; the road path between them is estimated on today\'s roads',
                     'updated':datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    elif old and old.get('algorithm')==ALGORITHM:
+    elif reusable(old,decided):
         result=dict(old)
     else:
         raw={'stops':[{'seq':i+1,'name':match_name(s[1]),'t':'','type':''} for i,s in enumerate(stops)]}
@@ -50,6 +60,7 @@ def estimate(stops,matcher,osrm=None,old=None):
         result={'algorithm':ALGORITHM,'stops':mapped,'matched':sum(len(s)>=7 and all(isinstance(x,(int,float)) and math.isfinite(x) for x in s[5:7]) for s in mapped),
                 'total':len(stops),'basis':'Magihim matcher: MOT 2012 and later stop registry; locations are estimated for this capture',
                 'updated':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if decided:result['manual']=decided
     if osrm and result['matched']>=2 and not result.get('roadChecked'):
         shape,error=route_shape(osrm,result['stops'])
         result['roadChecked']=True
@@ -60,15 +71,17 @@ def estimate(stops,matcher,osrm=None,old=None):
 def enrich(osrm=None):
     os.chdir(ROOT)
     cache=load_cache();matcher=None;changed=versions=mapped=roads=0
+    try:manual=json.loads((ROOT/'magihim-2012/data/manual.json').read_text())
+    except Exception:manual={}
     for path in sorted((DATA/'lines').glob('website*.json')):
         original=path.read_text();lf=materialize(json.loads(original));dirty=False
         for v in lf.get('versions',[]):
             if v.get('src')!='websiteArchive':continue
             st=v.get('stops',[])
             if len(st)<2:continue
-            key=fingerprint(st);old=cache.get(key)
-            if not old and not saved_points(st) and matcher is None:matcher=make_stop_matcher()
-            result=estimate(st,matcher,osrm,old)
+            key=fingerprint(st);old=cache.get(key);decided={} if saved_points(st) else manual_for(st,manual)
+            if not saved_points(st) and not reusable(old,decided) and matcher is None:matcher=make_stop_matcher()
+            result=estimate(st,matcher,osrm,old,decided)
             if not result:continue
             cache[key]=result;versions+=1;mapped+=result['matched'];roads+=bool(result.get('shape'))
             if v.get('websiteMapEstimate')!=result:v['websiteMapEstimate']=result;dirty=True
