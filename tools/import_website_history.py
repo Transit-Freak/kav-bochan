@@ -194,6 +194,13 @@ def main():
         for c in manifest['captures']:c.setdefault('result',{'status':'pending'})
         manifest['routesImported']=import_records(manifest)
         subprocess.run([sys.executable,str(ROOT/'tools/enrich_website_maps.py')],cwd=ROOT,check=True)
+        # מסלולים מוזרים (צורת המסלול, לא מרחק) מכל מה שנאסף עד עכשיו
+        from odd_website_routes import find as odd_routes
+        def route_of(capture,result,index):
+            alt,direction,internal=variant(capture['original'],result)
+            return route_id(result,internal,alt,direction,index,len(result['patterns']))
+        write(DATA/'website-odd-routes.json',{'rule':'Route shape by the towns in the stop names; one trip (times rise). Not distance.',
+              'routes':odd_routes(manifest['captures'],route_of=route_of)})
         manifest['counts']={status:sum(c['result']['status']==status for c in manifest['captures']) for status in ('parsed','unparsed','failed','pending')}
         raw=json.dumps(manifest,ensure_ascii=False,separators=(',',':')).encode()
         (DATA/'website-archive.json.gz').write_bytes(gzip.compress(raw,mtime=0))
