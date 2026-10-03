@@ -61,6 +61,42 @@ def refused(error):
         return BLOCK_PAUSE
     return 0
 
+# Up to 15 requests a minute (MIN_INTERVAL). The archive answers slowly, so with only
+# three requests in flight the real rate was about 7 a minute; five keep it near the limit.
+WORKERS = 5
+PAGE_IGNORED = {'languageid','languagetid','design','placeid1','deptime'}
+
+def page_key(original):
+    """The same line page, whatever its language, design or map centre."""
+    s=urlsplit(original.lower().replace(':80/','/'))
+    q={k:v[0] for k,v in parse_qs(s.query).items() if k not in PAGE_IGNORED}
+    return s.netloc.replace('www.','')+s.path+'?'+'&'.join(f'{k}={v}' for k,v in sorted(q.items()))
+
+def names_a_line(original):
+    q={k.lower() for k in parse_qs(urlsplit(original).query)}
+    return bool(q & {'companylinecode','linecode','lineid'})
+
+def prioritize(captures,new,retries):
+    """Fetch order: first one capture of every line page in every month that has none yet,
+    then the other captures of the same page and month, then retries of those, and last
+    the pages that name no line. Nothing is skipped; only the order changes."""
+    covered={(page_key(c['original']),c['timestamp'][:6]) for c in captures
+             if c.get('result',{}).get('status') in ('parsed','unparsed')}
+    first,more,again,nameless=[],[],[],[]
+    for retry,items in ((False,new),(True,retries)):
+        for digest,group in items.items():
+            c=group[0]
+            if not names_a_line(c['original']):
+                nameless.append((digest,group));continue
+            k=(page_key(c['original']),c['timestamp'][:6])
+            if k not in covered:
+                covered.add(k);first.append((digest,group))
+            else:
+                (again if retry else more).append((digest,group))
+    ordered={}
+    for digest,group in first+more+again+nameless: ordered.setdefault(digest,group)
+    return ordered
+
 def parse_page(payload, original):
     encoding = 'utf-8' if re.search(br'charset\s*=\s*["\']?utf-8', payload[:3000], re.I) else 'cp1255'
     text = payload.decode(encoding, errors='replace')
@@ -211,8 +247,7 @@ def main():
             continue
         c['result']={'status':'pending'}
         groups.setdefault(c['digest'],[]).append(c)
-    # New captures first; earlier timeouts are retried with the remaining time.
-    for digest,group in retries.items(): groups.setdefault(digest,group)
+    groups=prioritize(manifest['captures'],groups,retries)
     def save_checkpoint():
         for c in manifest['captures']:c.setdefault('result',{'status':'pending'})
         manifest['routesImported']=import_records(manifest)
@@ -275,10 +310,10 @@ def main():
         with lock:paused[0]=0
         write(p,result);return result,False
     todo=iter(groups.values());active={};again=collections.deque()
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=WORKERS) as executor:
         while True:
             expired=args.cache_only or bool(args.max_seconds and time.monotonic()-started>=args.max_seconds)
-            while len(active)<3 and not expired and not limited.is_set():
+            while len(active)<WORKERS and not expired and not limited.is_set():
                 group=again.popleft() if again else next(todo,None)
                 if group is None:break
                 active[executor.submit(fetch,group[0])]=group

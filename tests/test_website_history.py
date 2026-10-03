@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant,route_id,toward,refused
+from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS,variant,route_id,toward,refused,prioritize,page_key
 from compact_lines import compact,materialize
 from odd_website_routes import analyse
 from check_history_claims import check
@@ -87,6 +87,18 @@ class HistoricalWebsiteTests(unittest.TestCase):
         self.assertEqual(refused(urllib.error.HTTPError('u',429,'Too Many Requests',{'Retry-After':'900'},None)),900)
         self.assertFalse(refused(urllib.error.URLError(socket.timeout('timed out'))))
         self.assertFalse(refused(urllib.error.HTTPError('u',404,'Not Found',{},None)))
+
+    def test_one_capture_per_page_and_month_is_fetched_first(self):
+        u='http://www.bus.co.il:80/otobusim/Front2007/PlacesMap.asp?LineCompanyID=1&LineCode=10201&LineAlternateCode=%D7%A7&LineDirection=2'
+        self.assertEqual(page_key(u+'&PlaceID1=1&LanguageID=10'),page_key(u.replace('www.','')+'&PlaceID1=2&Design=2007'))
+        cap=lambda d,t,o=u:{'digest':d,'timestamp':t,'original':o}
+        caps=[cap('done','20100101000000'),cap('a','20100102000000'),cap('b','20100201000000'),cap('c','20100203000000'),
+              cap('x','20100205000000','http://bus.co.il/otobusim/Front2007/LinePlaces.asp?'),cap('r','20100301000000')]
+        caps[0]['result']={'status':'parsed'}
+        new={c['digest']:[c] for c in caps[1:5]}
+        order=list(prioritize(caps,new,{'r':[caps[5]]}))
+        # February and March have no capture yet; January already has one; a page without a line goes last.
+        self.assertEqual(order,['b','r','a','c','x'])
 
     def test_unidentified_page_is_not_a_route(self):
         self.assertEqual(parse_page(b'<html>Unavailable</html>','http://bus.co.il/LinePlaces.asp?LineCode=1')['status'],'unparsed')
