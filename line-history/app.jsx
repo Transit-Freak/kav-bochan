@@ -2947,25 +2947,27 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             <TipTag cls="mut" tip={evDate(v).tip}>תאריך משוער</TipTag>
           </div>
         )}
-        {v.src === "websiteArchive" ? (
-          <div className="website-capture">
+        {v.src === "websiteArchive" ? (() => {
+          // מפת מקור שנשמרה: הנקודות אמיתיות, ורק הדרך ביניהן משוערת — מוצגת רק כשחושבה על הכבישים (שלמה 03.10)
+          const est = v.websiteMapEstimate, savedRoad = !!(est?.savedPoints && est.shape);
+          return <div className="website-capture">
             <p>צילום מאתר מידע לנוסעים שנשמר ב־{fmtD(v.d)}. זהו מועד התיעוד בארכיון, ולא מועד פתיחת הקו או שינוי בתחנות.</p>
             <div className="facts">{(v.stops || []).length} {v.websitePartial ? "נקודות מתועדות" : "תחנות"}
-              {v.websiteMapEstimate && <> · {v.websiteMapEstimate.matched} תחנות הוצלבו למיקום</>}
+              {est && !est.savedPoints && <> · {est.matched} תחנות הוצלבו למיקום</>}
               {" · "}<a href={v.sourceUrl} target="_blank" rel="noopener noreferrer">צפייה בצילום המקור ↗</a>
             </div>
             {v.websitePartial && <p>זהו תיעוד חלקי של הנקודות שנשמרו במפת המקור. הוא אינו רשימת התחנות המלאה של הקו.</p>}
-            {v.websiteMapEstimate?.matched >= 2 && <div className="website-estimate">
+            {est?.matched >= 2 && (!est.savedPoints || savedRoad) && <div className="website-estimate">
               <Map2012 stops={v.websiteMapEstimate.stops} shape={v.websiteMapEstimate.shape ? decodeShape(v.websiteMapEstimate.shape.pl) : null} year={v.d.slice(0,4)} estimatedLocations={true} />
               <div className="legend">
                 <span><i style={{borderColor:"#78350f",borderStyle:"dashed"}} />{v.websiteMapEstimate.shape
-                  ? `מסלול משוער — חישוב על כבישי היום דרך ${v.websiteMapEstimate.shape.n} מ-${v.websiteMapEstimate.total} התחנות, כ-${(v.websiteMapEstimate.shape.m/1000).toFixed(1)} ק"מ`
+                  ? `מסלול משוער — חישוב על כבישי היום דרך ${v.websiteMapEstimate.shape.n} מ-${v.websiteMapEstimate.total} ${est.savedPoints ? "הנקודות שנשמרו במקור" : "התחנות"}, כ-${(v.websiteMapEstimate.shape.m/1000).toFixed(1)} ק"מ`
                   : `מסלול משוער — קו ישר דרך ${v.websiteMapEstimate.matched} מ-${v.websiteMapEstimate.total} התחנות שהוצלבו`}</span>
                 <span><i className="dot" style={{background:"#16a34a"}} />ראשונה</span>
                 <span><i className="dot" style={{background:"#dc2626"}} />אחרונה</span>
               </div>
             </div>}
-            {(v.stops || []).some(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])) && <>
+            {!savedRoad && (v.stops || []).some(s=>Number.isFinite(s[2])&&Number.isFinite(s[3])) && <>
               <DiffMap pointsOnly={true} cur={[]} prev={null} approx={true} curStops={(v.stops || []).filter(s=>Number.isFinite(s[2])&&Number.isFinite(s[3]))} />
               <div className="legend"><span><i className="dot" style={{background:"#2563eb"}} />מיקומי תחנות שנשמרו במקור</span></div>
             </>}
@@ -2974,11 +2976,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
               return <li key={i}>{s[1]}{" "}<span className="pcode">{Number.isFinite(s[2]) ? "מיקום מתועד במקור" : m?.length >= 7
                 ? (m[4]?.length===1 ? "התאמה משוערת למק״ט "+m[4][0] : (m[4]?.length||0)+" מק״טים אפשריים") : "לא הוצלבה"}</span></li>;
             })}</ol>
-            <div className="katnote">{v.websiteMapEstimate
+            <div className="katnote">{savedRoad
+              ? "ℹ️ הנקודות הן המיקומים שנשמרו במפת המקור. הדרך ביניהן משוערת: היא חושבה על כבישי היום לפי סדר הנקודות במקור, ואינה מתועדת במקור."
+              : est && !est.savedPoints
               ? "ℹ️ כמו ברשת מגיעים, מיקומי תחנות הוצלבו לרישום משרד התחבורה מ־2012 ולרישום מאוחר יותר. המפה משוערת: ההצלבה אינה מוכיחה שמיקום התחנה היה זהה בשנת הצילום. תחנה שלא הוצלבה אינה מופיעה על המפה. השרטוט מבוסס על כבישי היום כשחושב מסלול, או על קווים ישרים בין התחנות הידועות."
               : (v.stops || []).some(s=>Number.isFinite(s[2])) ? "ℹ️ הנקודות הן המיקומים שנשמרו במקור. לא שורטט ביניהן מסלול נסיעה משוער." : "ℹ️ במקור נשמרו שמות תחנות ללא מיקומים. הצלבה למיקום נדרשת לפני הצגת מפה משוערת."}</div>
-          </div>
-        ) : v.k === "times" && v.tb ? (
+          </div>;
+        })() : v.k === "times" && v.tb ? (
           /* הלו"ז האחרון של קו מבוטל — צילום מהארכיון (בקשת המשתמש): קו
              שבוטל בלי שום אירוע לו"ז מקבל, שנה אחרי הביטול, את שעות-היציאה
              שלו מיום-הארכיון האחרון שבו פעל */
@@ -3430,7 +3434,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   const list = collapse2012Rows((chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
-    if (String(c.rd).startsWith("website") !== showWeb) return false;
+    // הפרדת המקורות רק כשידוע מה המקור של כל חודש; בלי המידע הזה מציגים הכול, כמו קודם
+    if (srcMonths.official && String(c.rd).startsWith("website") !== showWeb) return false;
     if (!inKats(c)) return false;
     // Match words across fields, just like the main line search.
     return matchesRouteSearch({ ...m, rd: c.rd, line: c.line || m.line }, needle, citySearch.data, c.d);

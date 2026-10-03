@@ -26,9 +26,22 @@ def match_name(name):
 def fingerprint(stops):
     return hashlib.sha256(json.dumps([ALGORITHM,stops],ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
 
+def saved_points(stops):
+    return [s for s in stops if isinstance(s[2],(int,float)) and isinstance(s[3],(int,float))]
+
 def estimate(stops,matcher,osrm=None,old=None):
-    if len(stops)<2 or any(isinstance(s[2],(int,float)) and isinstance(s[3],(int,float)) for s in stops):return None
-    if old and old.get('algorithm')==ALGORITHM:
+    if len(stops)<2:return None
+    if saved_points(stops):
+        # A saved source map: its own points, in the source's order. Only the road path
+        # between them is estimated, and only when the road router finds a plausible one.
+        if old and old.get('algorithm')==ALGORITHM and old.get('savedPoints'):
+            result=dict(old)
+        else:
+            rows=[[i+1,s[1],'','',[]]+([s[2],s[3]] if isinstance(s[2],(int,float)) and isinstance(s[3],(int,float)) else []) for i,s in enumerate(stops)]
+            result={'algorithm':ALGORITHM,'savedPoints':True,'stops':rows,'matched':len(saved_points(stops)),'total':len(stops),
+                    'basis':'Points saved in the source map; the road path between them is estimated on today\'s roads',
+                    'updated':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    elif old and old.get('algorithm')==ALGORITHM:
         result=dict(old)
     else:
         raw={'stops':[{'seq':i+1,'name':match_name(s[1]),'t':'','type':''} for i,s in enumerate(stops)]}
@@ -52,9 +65,9 @@ def enrich(osrm=None):
         for v in lf.get('versions',[]):
             if v.get('src')!='websiteArchive':continue
             st=v.get('stops',[])
-            if len(st)<2 or any(isinstance(s[2],(int,float)) and isinstance(s[3],(int,float)) for s in st):continue
+            if len(st)<2:continue
             key=fingerprint(st);old=cache.get(key)
-            if not old and matcher is None:matcher=make_stop_matcher()
+            if not old and not saved_points(st) and matcher is None:matcher=make_stop_matcher()
             result=estimate(st,matcher,osrm,old)
             if not result:continue
             cache[key]=result;versions+=1;mapped+=result['matched'];roads+=bool(result.get('shape'))
