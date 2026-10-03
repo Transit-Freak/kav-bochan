@@ -3330,6 +3330,10 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   // השנה והחודש שנבחרו נשמרים ללשונית: פתיחת קו וחזרה החזירו ל-2026 (שלמה 13.09)
   const [yr, setYr] = useState(() => { try { const rh = mode === "rail" && railHash(); if (rh) return rh.day.slice(0,4); return location.hash === "#t=early" ? "2012" : sessionStorage.getItem("lh-day-yr-"+mode) || ""; } catch (e) { return ""; } });
   const [mon, setMon] = useState(() => { try { const rh = mode === "rail" && railHash(); if (rh) return rh.day.slice(0,7); return location.hash === "#t=early" ? "2012-07" : sessionStorage.getItem("lh-day-mon-"+mode) || ""; } catch (e) { return ""; } });
+  // צילומי אתרי המידע לנוסעים (2003–2015) הם מקור נפרד: בשנה שיש בה גם נתוני משרד
+  // התחבורה, בחירת השנה מציגה רק את משרד התחבורה, והצילומים בכפתור משלהם (שלמה 03.10)
+  const [webSrc, setWebSrc] = useState(false);
+  const [srcMonths, setSrcMonths] = useState({ web: [], official: null });
   useEffect(() => { try { sessionStorage.setItem("lh-day-yr-"+mode, yr); sessionStorage.setItem("lh-day-mon-"+mode, mon); } catch (e) { /* ignore */ } }, [yr, mon]);
   const [chs, setChs] = useState(null);
   const [q, setQ] = usePersistedQ("lh-q-day");
@@ -3371,6 +3375,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
         // למרץ 2017. מיון מקומי עולה מנתק את התלות בכיוון שבדיסק.
         const regular = mode === "lines" ? (d.months || []) : (d.modeMonths?.[mode] || []);
         setRegularMonths(regular);
+        setSrcMonths({ web: mode === "lines" ? (d.webMonths || []) : [], official: d.officialMonths || null });
         const ms = [...new Set([...regular,...earlyMonths])].sort(); setMonths(ms);
         // לא דורסים בחירה שכבר נעשתה — כניסה מכתובת ‎#2012/<k>‎ קובעת
         // את השנה לפני שהחודשים נטענים. אחרי המיון האיבר האחרון הוא
@@ -3398,6 +3403,13 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   const wrap = embedded ? "" : "card";
   if (months === null) return <div className={wrap}>טוען…</div>;
   if (mErr) return <div className={wrap}><NetErr onRetry={() => { setMonths(null); setRty((n) => n + 1); }} /></div>;
+  const webSet = new Set(srcMonths.web);
+  // earlyMonths כולל גם את חודשי צילומי האתרים, ולכן המקור נקבע רק לפי officialMonths
+  const offSet = srcMonths.official ? new Set(srcMonths.official) : null;
+  const isOfficial = (m) => !offSet || offSet.has(m) || !webSet.has(m);
+  const officialOf = (y) => months.filter((m) => m.startsWith(y) && isOfficial(m));
+  const webOf = (y) => srcMonths.web.filter((m) => m.startsWith(y));
+  const showWeb = webSrc || (!!yr && !officialOf(yr).length && webOf(yr).length > 0);
   const needle = q.trim();
   // הפיד יושב בטאב "קווים", שהוא טאב האוטובוסים. רכבת ומוניות שירות הן
   // טאבים משלהן, וכשהן הופיעו כאן הן גם הגיעו בלי מספר קו — תג ריק.
@@ -3418,6 +3430,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
   const list = collapse2012Rows((chs || []).filter((c) => {
     const m = meta[c.rd] || {};
     if (!inHistoryMode(m, mode)) return false;
+    if (String(c.rd).startsWith("website") !== showWeb) return false;
     if (!inKats(c)) return false;
     // Match words across fields, just like the main line search.
     return matchesRouteSearch({ ...m, rd: c.rd, line: c.line || m.line }, needle, citySearch.data, c.d);
@@ -3437,20 +3450,25 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
       <div className="months">
         {/* שנים וחודשים עם נתונים זמינים בלבד. */}
         {[...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse().map((y) => (
-          <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012"}
+          <button key={y} className={"mchip" + (yr === y && mon !== "legacy2012" && !webSrc ? " on" : "")} aria-pressed={yr === y && mon !== "legacy2012" && !webSrc}
             aria-label={y} aria-describedby={y === "2012" ? "source-gtfs-2012" : undefined}
-            title={y === "2012" ? "קובצי משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive" : "הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const ms = months.filter((m) => m.startsWith(y)); if (!ms.includes(mon)) setMon(ms[ms.length - 1] || ""); }}>{y}{y === "2012" ? " · משרד התחבורה" : ""}</button>
+            title={y === "2012" ? "קובצי משרד התחבורה מיולי 2012, וצילומי אתרי מידע לנוסעים מהשנה הזו" : "הצגת השינויים של שנת " + y} onClick={() => { setYr(y); const off = officialOf(y); const ms = off.length ? off : months.filter((m) => m.startsWith(y)); setWebSrc(!off.length && webOf(y).length > 0); if (!ms.includes(mon) || (off.length && !isOfficial(mon))) setMon(ms[ms.length - 1] || ""); }}>{y}{y === "2012" ? " · משרד התחבורה" : ""}</button>
         ))}
       </div>
       {mode === "lines" && <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, margin: "10px 0 14px" }}>
         <span className="pdesc" style={{ marginInlineEnd: 10 }}>צילום ממקור נוסף:</span>
         <button className={"mchip" + (mon === "legacy2012" ? " on" : "")} aria-pressed={mon === "legacy2012"} title="צילום רשת האוטובוסים מאתר מגיעים, 2012"
-          onClick={() => { setYr("2012"); setMon("legacy2012"); }}>2012 · אתר מגיעים</button>
+          onClick={() => { setYr("2012"); setWebSrc(false); setMon("legacy2012"); }}>2012 · אתר מגיעים</button>
+        {yr && officialOf(yr).length > 0 && webOf(yr).length > 0 && <button className={"mchip" + (webSrc && mon !== "legacy2012" ? " on" : "")} aria-pressed={webSrc && mon !== "legacy2012"}
+          title={"צילומים מאתרי מידע לנוסעים שנשמרו ב־Internet Archive, " + yr}
+          onClick={() => { const ws = webOf(yr); setWebSrc(true); if (!ws.includes(mon)) setMon(ws[ws.length - 1]); }}>{yr} · אתרי מידע לנוסעים</button>}
       </div>}
-      {mode === "lines" && yr === "2012" && mon !== "legacy2012" && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
+      {/* המקור לפי מה שיש בחודש שנבחר: צילומי אתרי המידע (מ־2003) אינם קובצי משרד התחבורה (שלמה 03.10) */}
+      {mode === "lines" && yr === "2012" && mon !== "legacy2012" && !showWeb && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
+      {mode === "lines" && mon !== "legacy2012" && showWeb && <p className="pdesc">מקור: אתרי מידע לנוסעים שנשמרו ב־Internet Archive. כיסוי חלקי; צילום אינו הודעה על שינוי.</p>}
       {yr && mon !== "legacy2012" && (
         <div className="months">
-          {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
+          {months.filter((m) => m.startsWith(yr) && (showWeb ? webSet.has(m) : isOfficial(m))).slice().reverse().map((m) => (
             <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} title="הצגת השינויים של החודש הזה בלבד" onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
           ))}
         </div>
