@@ -861,23 +861,6 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
-          {/* GIS הקו הבוחן — עמוד עצמאי בתיקיית gis/: כל השכבות על מפה אחת (שלמה 30.09) */}
-          <a
-            href="gis/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#020617 0%,#0f172a 45%,#0e7490 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#67e8f9' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🗺️</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-cyan-100">GIS הקו הבוחן</h2>
-              <p className="text-cyan-100/80 font-bold mt-2 text-sm leading-relaxed">כל השכבות על מפה אחת: מדדי הדיוק לפי תחנה, קו פח, קו באג, צי הרכבים, מסופים, ושכבות משרד התחבורה — נתיבי העדפה, מטרו, רק"ל ותכניות העתיד. עם עץ שכבות, טבלת מאפיינים, מדידה ומדד לכל שכונה</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-cyan-200 text-cyan-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
         </div>
 
         {/* שיתופי פעולה (שלמה 17.09): אזורי התעשייה עם ההסתדרות, וגו אינפו של רם אגמון — כל אחד מפרסם את של השני */}
