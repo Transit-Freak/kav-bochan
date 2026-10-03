@@ -3444,6 +3444,19 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
     - routeSearchRank({ ...meta[b.rd], line: b.line || meta[b.rd]?.line }, needle)
     || String(a.line || meta[a.rd]?.line || "").localeCompare(String(b.line || meta[b.rd]?.line || ""), "he", { numeric: true })
     || String(a.rd).localeCompare(String(b.rd), "he", { numeric: true })), meta);
+  // מעבר לצילומי אתרי המידע של השנה: לחודש האחרון שבו החיפוש מוצא משהו
+  const toWeb = async () => {
+    const ws = webOf(yr).slice().reverse();
+    let pick = ws[0];
+    if (needle) for (const m of ws) {
+      try {
+        const d = await (await dfetch("data/changes/" + m + ".json")).json();
+        if ((d.changes || []).some((c) => String(c.rd).startsWith("website") &&
+          matchesRouteSearch({ ...(meta[c.rd] || {}), rd: c.rd, line: c.line || meta[c.rd]?.line }, needle, citySearch.data, c.d))) { pick = m; break; }
+      } catch (e) { /* חודש שלא נטען — ממשיכים לבא */ }
+    }
+    setWebSrc(true); setMon(pick);
+  };
   const days = []; const byd = new Map();
   for (const c of list) { let g = byd.get(c.d); if (!g) { g = []; byd.set(c.d, g); days.push(c.d); } g.push(c); }
   days.sort().reverse();
@@ -3509,7 +3522,12 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
           </div>
         );
       })() : chs === null ? "טוען…" : chErr ? <NetErr onRetry={() => setRty((n) => n + 1)} />
-        : days.length === 0 ? <div className="empty">אין שינויים תואמים בחודש הזה.</div> : (
+        : days.length === 0 ? <div className="empty">אין שינויים תואמים בחודש הזה.
+            {/* צילומי אתרי המידע של אותה שנה נמצאים בכפתור משלהם — מפנים אליהם במקום להשאיר חיפוש ריק */}
+            {!showWeb && yr && officialOf(yr).length > 0 && webOf(yr).length > 0 && <div style={{ marginTop: 8 }}>
+              <button type="button" className="mchip" onClick={toWeb}>
+                {q ? "לחפש את \u201C" + q + "\u201D בצילומי אתרי המידע לנוסעים, " + yr : "לצילומי אתרי המידע לנוסעים, " + yr}</button></div>}
+          </div> : (
         <div>
           {/* אינדקס הימים של החודש: רואים מראש באילו תאריכים יש שינויים,
               ולחיצה קופצת ישר ליום — בלי לגלול ולגלות אותם אחד-אחד */}
