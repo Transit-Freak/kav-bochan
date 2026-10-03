@@ -31,11 +31,16 @@ try{
    const badges=await page.locator('.tl .kbtn').allTextContents();
    if(badges.some(t=>t!=='צילום מתועד'))throw Error('Website observations were labelled as change events');
    if((await page.locator('.wrap').innerText()).match(/לא נצפה מאז|מבוטל כרגע/))throw Error('Sparse historical website coverage is presented as a cancellation');
-   if(latest.websiteMapEstimate?.matched>=2){
+   if(latest.websiteMapEstimate?.matched>=2&&(!latest.websiteMapEstimate.savedPoints||latest.websiteMapEstimate.shape)){
     await page.locator('.website-estimate [role=img]').waitFor();
     if(!(await page.locator('.website-estimate .legend').innerText()).includes('מסלול משוער'))throw Error('Estimated map lacks the Magihim uncertainty label');
    }
-   if(latest.websitePartial){
+   if(latest.websitePartial&&latest.websiteMapEstimate?.savedPoints&&latest.websiteMapEstimate.shape){
+    // A route between saved points is shown only as an estimate, with its label.
+    await page.locator('.website-estimate [role=img]').waitFor();
+    if(!(await page.locator('.website-estimate .legend').innerText()).includes('מסלול משוער'))throw Error('Road path between saved points lacks the estimate label');
+    if(!(await page.locator('.website-capture .katnote').innerText()).includes('אינה מתועדת במקור'))throw Error('Estimated road path is not marked as undocumented');
+   }else if(latest.websitePartial){
     await page.getByRole('img',{name:'נקודות שנשמרו במפת המקור',exact:true}).waitFor();
     await page.waitForFunction(()=>document.querySelectorAll('.website-capture .leaflet-interactive').length===6);
     if(await page.locator('.website-capture path.leaflet-interactive').count()!==6)throw Error('Map includes a fake route or map centre as a station');

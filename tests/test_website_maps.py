@@ -6,7 +6,13 @@ from build_magihim_site import make_stop_matcher
 class Maps(unittest.TestCase):
     def test_original_coordinates_take_priority(self):
         stops=[['a','first',32.0,35.0],['b','second',None,None]]
-        self.assertIsNone(estimate(stops,None))
+        # No stop matching (matcher=None would fail if called): the saved points are used as
+        # they are, and without a road router no path is drawn between them.
+        result=estimate(stops,None)
+        self.assertTrue(result['savedPoints'])
+        self.assertEqual(result['stops'][0][5:7],[32.0,35.0])
+        self.assertEqual(len(result['stops'][1]),5)
+        self.assertNotIn('shape',result)
     def test_shared_matcher_and_source_preservation(self):
         stops=[['a','City - Station',None,None],['b','Other',None,None]]
         before=copy.deepcopy(stops);seen=[]
