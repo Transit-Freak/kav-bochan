@@ -1,6 +1,9 @@
 name: historical-passenger-websites
 on:
   workflow_dispatch:
+  # Each run recovers about 3,500 payloads in five hours; continue until none are pending.
+  schedule:
+    - cron: '17 */6 * * *'
   push:
     branches: [main]
     paths:
@@ -15,7 +18,8 @@ permissions:
   pages: write
 concurrency:
   group: historical-passenger-websites
-  cancel-in-progress: true
+  # A push must not discard hours of archive downloads; the next run waits instead.
+  cancel-in-progress: false
 jobs:
   import:
     runs-on: ubuntu-latest

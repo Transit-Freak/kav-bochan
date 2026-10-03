@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from import_website_history import parse_page
+from import_website_history import parse_page,needs_retry,MAX_ATTEMPTS
 from compact_lines import compact,materialize
 from check_history_claims import check
 from repair_legacy_diffs import claims_contradict
@@ -32,6 +32,12 @@ class HistoricalWebsiteTests(unittest.TestCase):
         self.assertEqual(len(p['stops']),2)
         self.assertEqual(len(p['sourceRows']),4)
         self.assertIsNone(p['stops'][0][2])
+
+    def test_archive_timeouts_are_retried_but_not_forever(self):
+        self.assertTrue(needs_retry({'status':'failed','reason':'<urlopen error timed out>'}))
+        self.assertFalse(needs_retry({'status':'failed','reason':'timed out','attempts':MAX_ATTEMPTS}))
+        self.assertFalse(needs_retry({'status':'unparsed','reason':'No supported stop table or saved coordinates'}))
+        self.assertFalse(needs_retry({'status':'parsed'}))
 
     def test_unidentified_page_is_not_a_route(self):
         self.assertEqual(parse_page(b'<html>Unavailable</html>','http://bus.co.il/LinePlaces.asp?LineCode=1')['status'],'unparsed')
