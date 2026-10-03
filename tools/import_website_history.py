@@ -35,6 +35,12 @@ def read(path):
     raw=path.read_bytes()
     return json.loads(gzip.decompress(raw) if path.suffix=='.gz' else raw)
 
+# Archive timeouts and rate limits are transient; they are retried on later runs.
+MAX_ATTEMPTS = 4
+
+def needs_retry(result):
+    return result.get('status')=='failed' and result.get('attempts',1)<MAX_ATTEMPTS
+
 def parse_page(payload, original):
     encoding = 'utf-8' if re.search(br'charset\s*=\s*["\']?utf-8', payload[:3000], re.I) else 'cp1255'
     text = payload.decode(encoding, errors='replace')
@@ -138,11 +144,18 @@ def main():
                 manifest['captures'].append({'timestamp':timestamp,'original':original,'digest':digest,'archiveUrl':f'https://web.archive.org/web/{timestamp}/{original}'})
     manifest['captures'].sort(key=lambda c:(c['timestamp'],c['original']))
     started=time.monotonic();processed=0;groups={};lock=threading.Lock();last_request=[0];limited=threading.Event();last_publish=started
+    retries={}
     for c in manifest['captures']:
         p=cache/(hashlib.sha256(c['digest'].encode()).hexdigest()+'.json')
-        if p.exists(): c['result']=read(p); continue
+        if p.exists():
+            c['result']=read(p)
+            # Failed downloads stay visible as failed until a retry replaces them.
+            if needs_retry(c['result']): retries.setdefault(c['digest'],[]).append(c)
+            continue
         c['result']={'status':'pending'}
         groups.setdefault(c['digest'],[]).append(c)
+    # New captures first; earlier timeouts are retried with the remaining time.
+    for digest,group in retries.items(): groups.setdefault(digest,group)
     def save_checkpoint():
         for c in manifest['captures']:c.setdefault('result',{'status':'pending'})
         manifest['routesImported']=import_records(manifest)
@@ -169,20 +182,22 @@ def main():
             subprocess.run([sys.executable,str(ROOT/'tools'/script),*extra],cwd=ROOT,check=True)
     def fetch(c):
         p=cache/(hashlib.sha256(c['digest'].encode()).hexdigest()+'.json')
-        if limited.is_set():return {'status':'pending'}
+        previous=c['result']
+        if limited.is_set():return previous
         with lock:
             delay=1-(time.monotonic()-last_request[0])
             if delay>0:time.sleep(delay)
             last_request[0]=time.monotonic()
         url=f"https://web.archive.org/web/{c['timestamp']}id_/{c['original']}"
         try:
-            with urlopen(Request(url,headers={'User-Agent':'KavBochan-Historical-Research/1.0'}),timeout=20) as r:
+            with urlopen(Request(url,headers={'User-Agent':'KavBochan-Historical-Research/1.0'}),timeout=60) as r:
                 payload=r.read();actual=r.geturl()
             found=re.search(r'/web/(\d{14})',actual)
             if found and found[1]!=c['timestamp']: raise ValueError('Archive redirected to a different capture date')
             result=parse_page(payload,c['original'])
         except Exception as e:
-            result={'status':'failed','reason':str(e)[:200]}
+            attempts=previous.get('attempts',1)+1 if previous.get('status')=='failed' else 1
+            result={'status':'failed','reason':str(e)[:200],'attempts':attempts}
             if getattr(e,'code',None)==429:
                 limited.set()
         write(p,result);return result
