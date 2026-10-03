@@ -67,6 +67,11 @@ for fn in os.listdir(f'{OUTDIR}/lines'):
         e['op'] = lf.get('op', e.get('op', ''))
     if lf.get('historicalOnly'):
         e['historicalOnly'] = True
+    # ישובים בדרך לקווי הארכיון (אין להם מק"טים בחיפוש לפי עיר)
+    if lf.get('towns'):
+        e['tw'] = ' '.join(lf['towns'])
+    else:
+        e.pop('tw', None)
     if lf.get('observationOnly'):
         e['observationOnly'] = True
     else:

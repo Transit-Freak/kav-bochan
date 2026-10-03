@@ -525,7 +525,7 @@ function matchesRouteSearch(line, query, data, date, prefix = false) {
   let bc = _baseCache.get(line);
   if (!bc) { bc = {}; _baseCache.set(line, bc); }
   const bk = prefix ? "p" : "f";
-  const base = bc[bk] !== undefined ? bc[bk] : (bc[bk] = citySearchNorm((prefix ? [line.dest, line.op] : [line.line, line.rd, line.dest, line.op]).join(" ")));
+  const base = bc[bk] !== undefined ? bc[bk] : (bc[bk] = citySearchNorm((prefix ? [line.dest, line.op, line.tw] : [line.line, line.rd, line.dest, line.op, line.tw]).join(" ")));
   const towns = citySearchText(data, line.rd, date);
   return tokens.every(t => {
     // A line number must not match random digits inside an archive route ID.
