@@ -98,6 +98,20 @@ class HistoricalWebsiteTests(unittest.TestCase):
         for _ in range(EASE_AFTER*40):p.answered()
         self.assertEqual(p.interval,MIN_INTERVAL)
 
+    def test_last_update_lists_new_and_extended_routes_and_survives_empty_reruns(self):
+        from import_website_history import last_added
+        with tempfile.TemporaryDirectory() as tmp:
+            data=Path(tmp);(data/'lines').mkdir()
+            line=lambda rd,n:(data/'lines'/(rd+'.json')).write_text(json.dumps({'rd':rd,'line':'5','op':'דן','versions':[{'d':'2008-03-%02d'%(i+1)} for i in range(n)]}))
+            line('websiteaaa-0-1',1);line('websitebbb-0-1',2);line('websiteccc-0-1',1)
+            (data/'website-archive-summary.json').write_text(json.dumps({'counts':{'parsed':10}}))
+            added=last_added({'websiteaaa-0-1':1,'websitebbb-0-1':1},{'parsed':13},'t1',data)
+            self.assertEqual((added['captures'],added['routes'],added['newRoutes']),(3,2,1))
+            self.assertEqual([r['rd'] for r in added['sample']],['websiteccc-0-1','websitebbb-0-1'])
+            (data/'website-archive-summary.json').write_text(json.dumps({'counts':{'parsed':13},'added':added}))
+            before={p.stem:len(json.loads(p.read_text())['versions']) for p in (data/'lines').glob('*.json')}
+            self.assertEqual(last_added(before,{'parsed':13},'t2',data),added)
+
     def test_one_capture_per_page_and_month_is_fetched_first(self):
         u='http://www.bus.co.il:80/otobusim/Front2007/PlacesMap.asp?LineCompanyID=1&LineCode=10201&LineAlternateCode=%D7%A7&LineDirection=2'
         self.assertEqual(page_key(u+'&PlaceID1=1&LanguageID=10'),page_key(u.replace('www.','')+'&PlaceID1=2&Design=2007'))

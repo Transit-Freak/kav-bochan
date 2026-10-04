@@ -5119,9 +5119,13 @@ function WebsiteImportStatus({openLine,onPublished}) {
     <p className="mut">{(c.failed||0).toLocaleString()} הורדות שלא הצליחו · {(c.unparsed||0).toLocaleString()} צילומים שלא פוענחו. אלה אינם ביטולי קווים או תחנות.</p>
     {data.updatedAt&&<p className="mut">נתונים שפורסמו עד {new Date(data.updatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem"})}</p>}
     {error&&<p role="status">לא הצלחנו לקבל עדכון כרגע. מוצג מצב הפרסום האחרון שהתקבל.</p>}
+    {data.added&&<div className="added">
+      <p><b>נוספו בעדכון האחרון</b> ({new Date(data.added.at).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"})}): {data.added.captures?data.added.captures.toLocaleString()+" צילומים · ":""}{data.added.newRoutes.toLocaleString()} חלופות חדשות{data.added.routes>data.added.newRoutes?" · "+(data.added.routes-data.added.newRoutes).toLocaleString()+" חלופות קיבלו צילום נוסף":""}</p>
+      {(data.added.sample||[]).map(r=><button className="kchip" key={r.rd} onClick={()=>openLine(r.rd)}>{r.new?"חדש · ":""}קו {r.line} · {r.operator} · {fmtD(r.date)}</button>)}
+    </div>}
     <details><summary>התאריכים והקווים שכבר פורסמו</summary>
       <p>{(data.dates||[]).map(d=>fmtD(d.date)+" ("+d.captures+" צילומים)").join(" · ")}</p>
-      <p>דגימות מהתיעוד שפורסם לאחרונה:</p>
+      <p>הצילומים המאוחרים ביותר בארכיון:</p>
       {(data.recent||[]).map(r=><button className="kchip" key={r.rd} onClick={()=>openLine(r.rd)}>קו {r.line} · {r.operator} · {fmtD(r.date)}</button>)}
     </details>
   </section>;
