@@ -88,6 +88,16 @@ class HistoricalWebsiteTests(unittest.TestCase):
         self.assertFalse(refused(urllib.error.URLError(socket.timeout('timed out'))))
         self.assertFalse(refused(urllib.error.HTTPError('u',404,'Not Found',{},None)))
 
+    def test_refusals_slow_the_requests_and_answers_ease_them_back(self):
+        from import_website_history import Pacer,MIN_INTERVAL,MAX_INTERVAL,EASE_AFTER
+        p=Pacer()
+        p.refused();p.refused()
+        self.assertEqual(p.interval,MIN_INTERVAL*4)
+        for _ in range(20):p.refused()
+        self.assertEqual(p.interval,MAX_INTERVAL)
+        for _ in range(EASE_AFTER*40):p.answered()
+        self.assertEqual(p.interval,MIN_INTERVAL)
+
     def test_one_capture_per_page_and_month_is_fetched_first(self):
         u='http://www.bus.co.il:80/otobusim/Front2007/PlacesMap.asp?LineCompanyID=1&LineCode=10201&LineAlternateCode=%D7%A7&LineDirection=2'
         self.assertEqual(page_key(u+'&PlaceID1=1&LanguageID=10'),page_key(u.replace('www.','')+'&PlaceID1=2&Design=2007'))
