@@ -8,3 +8,9 @@
 - את `website-home.json.gz` שהסקריפט יוצר מעלים לתיקייה הזאת (Add file → Upload
   files). העלאה מפעילה את `website-history.yml`, שקולט את הצילומים ומפרסם אותם.
 - צילום שכבר נקרא ב-GitHub לא מוחלף; צילום שנכשל כאן מוחלף בתוצאה מהבית.
+
+## העלאה אוטומטית
+
+אם ליד הסקריפט יש קובץ `github-token.txt` ובו מפתח GitHub (fine-grained, רק המאגר
+הזה, הרשאת Contents: Read and write), הסקריפט מעלה את `website-home.json.gz` לבד
+פעם בשעה וכשהוא נעצר. המפתח נשאר רק במחשב ולא נשלח לשום מקום חוץ מ-GitHub.
