@@ -14,11 +14,14 @@ next start continues where it stopped.
 
 Results to upload: kavbochan-home/website-home.json.gz
 (GitHub -> line-history/data/website-home/ -> Add file -> Upload files).
+With a GitHub token in github-token.txt next to this script (fine-grained, this
+repository only, Contents: read and write) the file is uploaded by itself every
+hour and when the script stops.
 
   python home_collect.py              # runs until 21:50
   python home_collect.py --until 23:30
 """
-import argparse, collections, datetime, gzip, hashlib, importlib, json, re, subprocess, sys, threading, time
+import argparse, base64, collections, datetime, gzip, hashlib, importlib, json, re, subprocess, sys, threading, time
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -27,6 +30,9 @@ RAW = 'https://raw.githubusercontent.com/Transit-Freak/kav-bochan/main/'
 HOME = Path(__file__).resolve().parent / 'kavbochan-home'
 UA = {'User-Agent': 'KavBochan-Historical-Research/1.0 (home collection)'}
 PACK_EVERY = 50
+TOKEN_FILE = Path(__file__).resolve().parent / 'github-token.txt'
+UPLOAD_TO = 'https://api.github.com/repos/Transit-Freak/kav-bochan/contents/line-history/data/website-home/website-home.json.gz'
+UPLOAD_EVERY = 3600
 
 
 def get(url):
@@ -66,6 +72,34 @@ def pack(cache):
     return len(results)
 
 
+def upload(token, n):
+    """Put website-home.json.gz on GitHub; the workflow there reads and publishes it."""
+    headers = {**UA, 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'}
+    body = {'message': f'איסוף ביתי: {n} צילומים', 'branch': 'main',
+            'content': base64.b64encode((HOME / 'website-home.json.gz').read_bytes()).decode()}
+    try:
+        with urlopen(Request(UPLOAD_TO + '?ref=main', headers=headers), timeout=60) as r:
+            body['sha'] = json.loads(r.read())['sha']
+    except Exception as e:
+        if getattr(e, 'code', None) != 404:
+            raise
+    data = json.dumps(body).encode()
+    with urlopen(Request(UPLOAD_TO, data=data, method='PUT', headers={**headers, 'Content-Type': 'application/json'}), timeout=300):
+        pass
+
+
+def try_upload(token, n):
+    if not token:
+        return False
+    try:
+        upload(token, n)
+        print(f'{datetime.datetime.now():%H:%M} uploaded {n} captures to GitHub', flush=True)
+        return True
+    except Exception as e:
+        print(f'{datetime.datetime.now():%H:%M} upload failed ({str(e)[:80]}); will try again later', flush=True)
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--until', default='21:50', help='local time to stop, HH:MM')
@@ -81,6 +115,9 @@ def main():
         stop_at += datetime.timedelta(days=1)
 
     HOME.mkdir(exist_ok=True)
+    token = TOKEN_FILE.read_text(encoding='utf-8').strip() if TOKEN_FILE.exists() else ''
+    print('Uploads to GitHub: ' + ('automatic, every hour' if token else 'by hand (no github-token.txt)'), flush=True)
+    last_upload = time.monotonic()
     cache = HOME / 'cache'
     cache.mkdir(exist_ok=True)
     w = load_importer()
@@ -177,7 +214,10 @@ def main():
                     done_count += 1
                     counts[result['status']] += 1
                     if done_count % PACK_EVERY == 0:
-                        pack(cache)
+                        n = pack(cache)
+                        if token and time.monotonic() - last_upload >= UPLOAD_EVERY:
+                            try_upload(token, n)
+                            last_upload = time.monotonic()
                         print(f'{datetime.datetime.now():%H:%M} {done_count}/{total} done '
                               f'({counts["parsed"]} routes, {counts["unparsed"]} other pages, {counts["failed"]} failed); '
                               f'one request every {round(pacer.interval)} s', flush=True)
@@ -186,8 +226,9 @@ def main():
         print('Stopping...', flush=True)
     n = pack(cache)
     print(f'\nDone for now: {done_count} fetched this time, {n} in total.')
-    print(f'Upload this file: {HOME / "website-home.json.gz"}')
-    print('GitHub -> line-history/data/website-home/ -> Add file -> Upload files -> Commit.')
+    if not try_upload(token, n):
+        print(f'Upload this file: {HOME / "website-home.json.gz"}')
+        print('GitHub -> line-history/data/website-home/ -> Add file -> Upload files -> Commit.')
 
 
 if __name__ == '__main__':
