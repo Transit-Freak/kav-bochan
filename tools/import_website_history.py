@@ -171,6 +171,22 @@ def parse_page(payload, original):
         return {'status':'unparsed','reason':'No supported stop table or saved coordinates','line':line,'operator':operator}
     return {'status':'parsed','line':line,'operator':operator,'company':company,'internalLine':internal,'patterns':patterns}
 
+def last_added(before,counts,now,data=None):
+    """The routes this import added or extended, for "added in the last update" on the site.
+    An import that adds nothing keeps the previous list, so a rerun does not empty it."""
+    data=data or DATA
+    try:previous=json.loads((data/'website-archive-summary.json').read_text())
+    except (FileNotFoundError,ValueError):previous={}
+    routes=[]
+    for path in (data/'lines').glob('website*.json'):
+        lf=json.loads(path.read_text());n=len(lf.get('versions',[]))
+        if n>before.get(path.stem,0):
+            routes.append({'rd':lf['rd'],'line':lf['line'],'operator':lf['op'],'date':lf['versions'][-1]['d'],'new':path.stem not in before})
+    if not routes:return previous.get('added')
+    routes.sort(key=lambda r:r['date'],reverse=True);routes.sort(key=lambda r:not r['new'])
+    gained=counts.get('parsed',0)-previous.get('counts',{}).get('parsed',counts.get('parsed',0))
+    return {'at':now,'captures':max(gained,0),'routes':len(routes),'newRoutes':sum(r['new'] for r in routes),'sample':routes[:24]}
+
 def variant(original,result):
     query={k.lower():v[0].strip() for k,v in parse_qs(urlsplit(original).query).items()}
     internal=result['internalLine']
@@ -266,6 +282,8 @@ def main():
     groups=prioritize(manifest['captures'],groups,retries)
     def save_checkpoint():
         for c in manifest['captures']:c.setdefault('result',{'status':'pending'})
+        # מה נוסף בייבוא הזה: מסלולים חדשים, ומסלולים שקיבלו צילום נוסף
+        before={p.stem:len(json.loads(p.read_text()).get('versions',[])) for p in (DATA/'lines').glob('website*.json')}
         manifest['routesImported']=import_records(manifest)
         subprocess.run([sys.executable,str(ROOT/'tools/enrich_website_maps.py')],cwd=ROOT,check=True)
         # מסלולים מוזרים (צורת המסלול, לא מרחק) מכל מה שנאסף עד עכשיו
@@ -288,7 +306,9 @@ def main():
             lf=json.loads(path.read_text())
             recent.append({'rd':lf['rd'],'line':lf['line'],'operator':lf['op'],'date':lf['versions'][-1]['d']})
         recent.sort(key=lambda r:(r['date'],r['line'],r['rd']),reverse=True)
-        write(DATA/'website-archive-summary.json',{'counts':manifest['counts'],'catalogs':manifest['catalogs'],'routesImported':manifest['routesImported'],'through':manifest['through'],'updatedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'dates':[{'date':d,'captures':n} for d,n in sorted(dates.items())],'recent':recent[:20]})
+        now=datetime.datetime.now(datetime.timezone.utc).isoformat()
+        added=last_added(before,manifest['counts'],now)
+        write(DATA/'website-archive-summary.json',{'counts':manifest['counts'],'catalogs':manifest['catalogs'],'routesImported':manifest['routesImported'],'through':manifest['through'],'updatedAt':now,'dates':[{'date':d,'captures':n} for d,n in sorted(dates.items())],'recent':recent[:20],**({'added':added} if added else {})})
     def publish_checkpoint():
         save_checkpoint()
         for script,extra in [('rebuild_lines_index.py',[]),('build_archive_months.py',[]),('check_early_history.py',['--websites-only']),('repair_noop_events.py',[]),('repair_legacy_diffs.py',['--all','--apply']),('check_history_claims.py',[]),('publish_website_history.py',[])]:
