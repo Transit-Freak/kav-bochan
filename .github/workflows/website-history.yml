@@ -13,6 +13,7 @@ on:
       - 'tools/publish_website_history.py'
       - '.github/workflows/website-history.yml'
       - 'line-history/data/website-catalogs/**'
+      - 'line-history/data/website-home/**'
 permissions:
   contents: write
   pages: write
@@ -59,6 +60,16 @@ jobs:
               for name,result in json.loads(gzip.decompress(seed.read_bytes())).items():
                   target=root/name
                   if not target.exists():target.write_text(json.dumps(result,ensure_ascii=False))
+          # Captures fetched from a home computer (tools/home_collect.py). They replace only
+          # what is missing or failed here, never a capture that was already read.
+          for upload in sorted(pathlib.Path('line-history/data/website-home').glob('*.json.gz')):
+              added=0
+              for name,result in json.loads(gzip.decompress(upload.read_bytes())).items():
+                  target=root/name
+                  if result.get('status')=='failed' and target.exists():continue
+                  if target.exists() and json.loads(target.read_text()).get('status')!='failed':continue
+                  target.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')));added+=1
+              print(upload.name,'added',added,'captures',flush=True)
           PY
       - name: Publish the already recovered and verified snapshots
         run: |
@@ -72,6 +83,8 @@ jobs:
           node tools/check_website_history_ui.mjs
           python tools/publish_website_history.py
       - name: Recover all indexed route and map payloads through 2015
+        # While a home computer collects (website-home/ACTIVE), GitHub does not fetch at the same time.
+        if: hashFiles('line-history/data/website-home/ACTIVE') == ''
         run: |
           python -m unittest discover -s tests -p test_website_history.py -v
           python tools/import_website_history.py --catalog-dir line-history/data/website-catalogs --cache-dir line-history/data/website-cache --max-seconds 18000 --publish-checkpoints
