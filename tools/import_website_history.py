@@ -50,6 +50,22 @@ MIN_INTERVAL = 4.0
 RATE_PAUSE = 120        # after 429/503, unless the archive says Retry-After
 BLOCK_PAUSE = 1200      # firewall block: at least an hour, so check every 20 minutes
 MAX_PAUSE_SECONDS = 3600
+# In practice (03–04.10.2026) the archive let a few requests through after each pause and
+# then refused again: about 25 captures an hour instead of 900. So the spacing adapts: each
+# refusal doubles it, and a run of answers eases it back toward MIN_INTERVAL.
+MAX_INTERVAL = 120
+EASE_AFTER = 30
+
+class Pacer:
+    """Seconds between requests: doubled after a refusal, eased back after EASE_AFTER answers."""
+    def __init__(self):
+        self.interval=MIN_INTERVAL;self.answers=0
+    def refused(self):
+        self.interval=min(self.interval*2,MAX_INTERVAL);self.answers=0
+    def answered(self):
+        self.answers+=1
+        if self.answers>=EASE_AFTER:
+            self.interval=max(MIN_INTERVAL,self.interval*0.75);self.answers=0
 
 def refused(error):
     """Seconds to wait if the archive refused the request, else 0."""
@@ -236,7 +252,7 @@ def main():
             if re.search(r'(LineStations|LinePlaces|PlacesMap)\.asp\?',original,re.I) or ('bus.co.il' in original and re.search(r'LinePlaces|LineStations|PlacesMap',original,re.I)):
                 manifest['captures'].append({'timestamp':timestamp,'original':original,'digest':digest,'archiveUrl':f'https://web.archive.org/web/{timestamp}/{original}'})
     manifest['captures'].sort(key=lambda c:(c['timestamp'],c['original']))
-    started=time.monotonic();processed=0;groups={};lock=threading.Lock();last_request=[0];pause_until=[0];paused=[0];limited=threading.Event();last_publish=started
+    started=time.monotonic();processed=0;groups={};lock=threading.Lock();last_request=[0];pause_until=[0];paused=[0];limited=threading.Event();last_publish=started;pacer=Pacer()
     retries={}
     for c in manifest['captures']:
         p=cache/(hashlib.sha256(c['digest'].encode()).hexdigest()+'.json')
@@ -284,7 +300,7 @@ def main():
         previous=c['result']
         if limited.is_set():return previous,True
         with lock:
-            delay=max(MIN_INTERVAL-(time.monotonic()-last_request[0]),pause_until[0]-time.monotonic())
+            delay=max(pacer.interval-(time.monotonic()-last_request[0]),pause_until[0]-time.monotonic())
             if delay>0:time.sleep(delay)
             last_request[0]=time.monotonic()
         url=f"https://web.archive.org/web/{c['timestamp']}id_/{c['original']}"
@@ -294,14 +310,15 @@ def main():
             found=re.search(r'/web/(\d{14})',actual)
             if found and found[1]!=c['timestamp']: raise ValueError('Archive redirected to a different capture date')
             result=parse_page(payload,c['original'])
+            with lock:pacer.answered()
         except Exception as e:
             wait=refused(e)
             if wait:
                 with lock:
                     # Requests already in flight may be refused too; one pause covers them.
                     if pause_until[0]<=time.monotonic():
-                        paused[0]+=wait;pause_until[0]=time.monotonic()+wait
-                        print('Archive refused (',str(e)[:60],'); pausing',wait,'s, total',paused[0],'s',flush=True)
+                        paused[0]+=wait;pause_until[0]=time.monotonic()+wait;pacer.refused()
+                        print('Archive refused (',str(e)[:60],'); pausing',wait,'s, total',paused[0],'s; then one request every',round(pacer.interval),'s',flush=True)
                     # More than an hour of continuous refusal: stop; the next run continues.
                     if paused[0]>MAX_PAUSE_SECONDS:limited.set()
                 return previous,True
@@ -327,7 +344,7 @@ def main():
                     continue
                 for c in group:c['result']=result
                 processed+=1
-                if processed%120==0:print('Fetched',processed,'unique payloads of',len(groups),flush=True)
+                if processed%120==0:print('Fetched',processed,'unique payloads of',len(groups),'; one request every',round(pacer.interval),'s',flush=True)
             if args.publish_checkpoints and time.monotonic()-last_publish>=1200:
                 publish_checkpoint();last_publish=time.monotonic()
     for c in manifest['captures']: c.setdefault('result',{'status':'pending'})
