@@ -41,6 +41,10 @@ def load_importer():
     except ImportError:
         print('Installing lxml (needed to read the archived pages)...', flush=True)
         subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', 'lxml'], check=True)
+        # A user site folder created just now is not on this run's path yet
+        import site
+        if site.getusersitepackages() not in sys.path:
+            sys.path.append(site.getusersitepackages())
         importlib.invalidate_caches()
     (HOME / 'import_website_history.py').write_bytes(get(RAW + 'tools/import_website_history.py'))
     sys.path.insert(0, str(HOME))
