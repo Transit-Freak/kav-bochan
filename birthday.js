@@ -33,6 +33,9 @@
   try { base = (document.currentScript && document.currentScript.src) ? document.currentScript.src.replace(/birthday\.js.*$/, "") : ""; } catch (e) { /* ignore */ }
   var noMotion = false;
   try { noMotion = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) || document.documentElement.classList.contains("a11y-nomotion"); } catch (e) { /* ignore */ }
+  // "בלי בלונים וקונפטי" (שלמה 04.10): נשמר עד סוף היום, לכל הכלים באתר
+  var calmKey = "kb-bday-calm-" + t.y;
+  try { if (localStorage.getItem(calmKey)) noMotion = true; } catch (e) { /* ignore */ }
 
   var css = [
     "#kbb-bg{position:fixed;inset:0;z-index:2147483000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl;font-family:'Heebo',system-ui,sans-serif}",
@@ -55,6 +58,8 @@
     "#kbb-close{background:#e2e8f0;color:#0f172a}",
     "#kbb-x{position:absolute;top:8px;left:10px;border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:#64748b;font-family:inherit}",
     "#kbb-canvas{position:fixed;inset:0;z-index:2147483001;pointer-events:none;width:100%;height:100%}",
+    "#kbb-calm{position:fixed;bottom:74px;inset-inline-end:10px;z-index:99998;border:2px solid #fff;border-radius:999px;background:#1f2937;color:#fff;font:800 13px/1 'Heebo',system-ui,sans-serif;padding:8px 12px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)}",
+    "#kbb-btns #kbb-still{background:#fff;color:#0f172a;border:2px solid #cbd5e1}",
     "#kbb-fab{position:fixed;bottom:18px;inset-inline-end:14px;z-index:99998;width:48px;height:48px;border-radius:50%;border:2px solid #fff;background:#f59e0b;font-size:24px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:0}",
     // קישוטים קטנים: כובע מסיבה על כפתור הנגישות, בלונים בצידי המסך
     ".kbb-logo{display:inline-flex;align-items:center;justify-content:center;font-size:42px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:kbb-wiggle 2.4s ease-in-out infinite}",
@@ -133,7 +138,8 @@
         "</div>" +
         '<div id="kbb-msg"><span id="kbb-title">🎂 היום יום ההולדת של <b>שלומי הרטמן</b>, האיש שמאחורי הקו הבוחן</span><br>' +
           NAME + " חוגג היום " + age + ". מזל טוב! 🎈</div>" +
-        '<div id="kbb-btns"><button id="kbb-yay" type="button">🎉 מזל טוב!</button><button id="kbb-close" type="button">תודה, סגירה</button></div>' +
+        '<div id="kbb-btns"><button id="kbb-yay" type="button">🎉 מזל טוב!</button><button id="kbb-close" type="button">תודה, סגירה</button>' +
+          (noMotion ? "" : '<button id="kbb-still" type="button">🎈 בלי בלונים וקונפטי</button>') + "</div>" +
       "</div>";
     document.body.appendChild(bg);
     openEl = bg;
@@ -148,6 +154,8 @@
     document.addEventListener("keydown", onKey);
     bg.querySelector("#kbb-x").addEventListener("click", close);
     bg.querySelector("#kbb-close").addEventListener("click", close);
+    var still = bg.querySelector("#kbb-still");
+    if (still) still.addEventListener("click", function () { calm(true); still.remove(); });
     bg.querySelector("#kbb-yay").addEventListener("click", function (ev) {
       var r = ev.currentTarget.getBoundingClientRect();
       burst(140, r.left + r.width / 2, r.top);
@@ -199,7 +207,7 @@
       Array.prototype.forEach.call(links, function (ln) { ln.setAttribute("href", href); ln.removeAttribute("sizes"); ln.setAttribute("type", "image/svg+xml"); });
       if (document.title.indexOf("🎈") < 0) document.title = "🎈 " + document.title + " 🎂";
     } catch (e) { /* ignore */ }
-    // בלונים עולים בצידי המסך
+    // בלונים עולים בצידי המסך — נעצרים לבד אחרי חצי דקה, או בכפתור העצירה
     if (!noMotion) {
       var frag = document.createDocumentFragment();
       var spots = [3, 9, 15, 85, 91, 97];
@@ -211,11 +219,26 @@
         frag.appendChild(b);
       });
       document.body.appendChild(frag);
+      setTimeout(function () { calm(false); }, 30000);
+      var stop = el("button", { id: "kbb-calm", type: "button", "aria-label": "עצירת הבלונים והקונפטי עד סוף היום" }, "🎈 עצירה");
+      stop.addEventListener("click", function () { calm(true); });
+      document.body.appendChild(stop);
     }
     // כפתור צף לפתיחה חוזרת
     var fab = el("button", { id: "kbb-fab", type: "button", title: "יום ההולדת של שלומי 🎂", "aria-label": "יום ההולדת של שלומי — פתיחת הברכה" }, "🎂");
     fab.addEventListener("click", openSign);
     document.body.appendChild(fab);
+  }
+
+  // עוצר בלונים וקונפטי. remember: לכל היום ובכל הכלים (הכפתור); אחרת רק בדף הזה (אחרי חצי דקה)
+  function calm(remember) {
+    Array.prototype.forEach.call(document.querySelectorAll(".kbb-balloon, #kbb-calm"), function (n) { n.remove(); });
+    if (!remember) return;
+    noMotion = true;
+    parts = [];
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try { localStorage.setItem(calmKey, "1"); } catch (e) { /* ignore */ }
   }
 
   function init() {
