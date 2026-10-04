@@ -1,1 +1,1 @@
-{"status":"failed","reason":"<urlopen error timed out>"}
+{"status":"parsed","line":"370","operator":"אגד תעבורה","company":"1","internalLine":"10370","patterns":[{"heading":"נקודות שמורות במפת המקור","stops":[["website:1:84415","באר שבע - תחנה מרכזית",31.24277,34.797315],["website:1:79103","תל אביב יפו - תחנה מרכזית חדשה",32.0561447143555,34.7797183990479]],"partial":true}]}
