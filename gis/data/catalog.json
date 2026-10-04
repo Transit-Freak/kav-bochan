@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-30T16:22Z",
+ "updated": "2026-10-04T11:25Z",
  "source": "data.gov.il — משרד התחבורה",
  "topics": [
   "תחבורה ציבורית",
@@ -258,14 +258,14 @@
    "group": "מצב קיים",
    "topic": "תחבורה ציבורית",
    "source": "https://data.gov.il/dataset/bus_stops",
-   "modified": "2026-09-01T03:05:03",
+   "modified": "2026-10-01T03:10:08",
    "id": "bus_stops",
    "title": "תחנות תחבורה ציבורית",
    "sub": null,
    "resource": "תחנות תחבורה ציבורית",
    "url": "https://data.gov.il/dataset/27047419-e1fc-4f1d-bb15-7f5f0805d226/resource/e873e6a2-66c1-494f-a677-f5e77348edb0/download/e873e6a2-66c1-494f-a677-f5e77348edb0.csv",
    "geom": "Point",
-   "count": 34221,
+   "count": 34235,
    "fields": [
     "StationId",
     "CityCode",
@@ -280,7 +280,7 @@
     "Long"
    ],
    "file": "mot/bus_stops.geojson",
-   "bytes": 15209094,
+   "bytes": 15215481,
    "simplify": 2e-05
   },
   {
@@ -351,7 +351,8 @@
    ],
    "file": "mot/lrt_stat__LRT_STAT_CSV.geojson",
    "bytes": 157287,
-   "simplify": 2e-05
+   "simplify": 2e-05,
+   "stale": true
   },
   {
    "dataset": "bph_infra_exist",
