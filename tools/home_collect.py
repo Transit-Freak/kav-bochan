@@ -88,6 +88,15 @@ def upload(token, n):
         pass
 
 
+def key_works(token):
+    try:
+        req = Request(UPLOAD_TO.split('/contents/')[0], headers={**UA, 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'})
+        with urlopen(req, timeout=30):
+            return True
+    except Exception:
+        return False
+
+
 def try_upload(token, n):
     if not token:
         return False
@@ -115,7 +124,16 @@ def main():
         stop_at += datetime.timedelta(days=1)
 
     HOME.mkdir(exist_ok=True)
-    token = TOKEN_FILE.read_text(encoding='utf-8').strip() if TOKEN_FILE.exists() else ''
+    token = TOKEN_FILE.read_text(encoding='utf-8-sig').strip() if TOKEN_FILE.exists() else ''
+    if not token and sys.stdin.isatty():
+        entered = input('GitHub key for automatic uploads (paste it and press Enter, or just Enter to skip): ').strip().strip('"')
+        if entered:
+            if key_works(entered):
+                TOKEN_FILE.write_text(entered, encoding='utf-8')
+                token = entered
+                print('Key saved in github-token.txt.', flush=True)
+            else:
+                print('That key did not work; continuing without automatic uploads.', flush=True)
     print('Uploads to GitHub: ' + ('automatic, every hour' if token else 'by hand (no github-token.txt)'), flush=True)
     last_upload = time.monotonic()
     cache = HOME / 'cache'
