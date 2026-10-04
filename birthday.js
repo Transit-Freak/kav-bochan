@@ -9,7 +9,16 @@
   "use strict";
   var BDAY = { d: 12, m: 7, y: 2006 };   // מהשלט: מק״ט 12706
   var NAME = "שלומי";
-  var SIGN_ROWS = [["469", "באר שבע"], ["557", "בני ברק"], ["1", "שלומי"], ["151", "ראשון לציון"], ["245", "רמלה"], ["436", "חמד"]];
+  // הקווים שעל השלט, והשינוי ששלומי עשה בכל אחד (שלמה 04.10). הקישור פותח את הקו
+  // ב"הקו בזמן" ביום השינוי.
+  var SIGN_ROWS = [
+    ["469", "באר שבע", "נוספו התחנות בצומת מלאכי על כביש 40, לצפון ולדרום", "12469-1-#", "2025-11-01"],
+    ["557", "בני ברק", "נוספה תחנה בצומת מלאכי, על כביש 40", "10557-1-#", "2024-03-08"],
+    ["1", "שלומי", "שינוי מספר: לכיוון אחד הקו נקרא 1, ולכיוון השני 1א", "89001-2-#", "2023-02-20"],
+    ["151", "ראשון לציון", "התחנה במחלף ראשונים נקראת מאז ת. רכבת ראשונים", "16151-1-0", "2018-08-08"],
+    ["245", "רמלה", "נוספו תחנות על כביש 44, ליד כביש 421", "12245-1-0", "2024-11-11"],
+    ["436", "חמד", "\"משק\" ו\"משק 36\" הוחלפו בשמות הרחובות בחמד", "11436-2-0", "2025-06-28"]
+  ];
 
   function todayIL() {
     try {
@@ -49,6 +58,13 @@
     ".kbb-code small{font-size:10px;color:#64748b;margin-inline-end:4px}",
     ".kbb-row{display:flex;align-items:center;justify-content:space-between;flex-direction:row-reverse;padding:5px 10px;border-bottom:2px solid rgba(31,41,55,.35);font-weight:900;color:#0f172a;font-size:17px}",
     ".kbb-row:last-child{border-bottom:0}",
+    "button.kbb-row{width:100%;background:transparent;border-left:0;border-right:0;border-top:0;cursor:pointer;font-family:inherit}",
+    "button.kbb-row:hover,button.kbb-row[aria-expanded=true]{background:rgba(255,255,255,.35)}",
+    ".kbb-story{background:#fffbeb;border-bottom:2px solid rgba(31,41,55,.35);padding:7px 12px 8px;font-size:13px;font-weight:700;color:#1f2937;line-height:1.5}",
+    ".kbb-story a{color:#0055aa;font-weight:900;white-space:nowrap}",
+    ".kbb-hint{font-size:11px;font-weight:800;color:#78350f;background:#fde68a;padding:3px 8px;text-align:center}",
+    "#kbb-ribbon{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);color:#1f2937;font:800 14px/1.4 'Heebo',system-ui,sans-serif;padding:7px 12px;direction:rtl;text-align:center;border-bottom:2px solid #b45309}",
+    "#kbb-ribbon button{border:0;border-radius:999px;background:#1f2937;color:#fff;font:800 12px/1 inherit;padding:6px 11px;cursor:pointer;font-family:inherit}",
     ".kbb-num{background:#fff;border:2px solid #1f2937;border-radius:4px;min-width:52px;padding:1px 6px;text-align:center;font-size:17px;direction:ltr}",
     "#kbb-msg{margin:14px 0 12px;font-weight:800;color:#0f172a;font-size:15px;line-height:1.55}",
     "#kbb-msg b{color:#b45309}",
@@ -125,14 +141,14 @@
     if (openEl) return;
     lastFocus = document.activeElement;
     var bg = el("div", { id: "kbb-bg", role: "dialog", "aria-modal": "true", "aria-labelledby": "kbb-title" });
-    var rows = SIGN_ROWS.map(function (r) {
-      return '<div class="kbb-row"><span class="kbb-num">' + r[0] + '</span><span class="kbb-dst">' + r[1] + "</span></div>";
-    }).join("");
+    var rows = SIGN_ROWS.map(function (r, i) {
+      return '<button type="button" class="kbb-row" aria-expanded="false" data-i="' + i + '"><span class="kbb-num">' + r[0] + '</span><span class="kbb-dst">' + r[1] + "</span></button>";
+    }).join("") + '<div class="kbb-hint">👆 כל קו בשלט הוא קו ששלומי שינה. לחצו על קו</div>';
     var img = base ? '<img src="' + base + 'media/shlomi.jpg" alt="">' : "";
     bg.innerHTML =
       '<div id="kbb-card">' +
         '<button id="kbb-x" type="button" aria-label="סגירה">×</button>' +
-        '<div class="kbb-sign" aria-hidden="true">' +
+        '<div class="kbb-sign">' +
           '<div class="kbb-head">' + img + '<div><div class="kbb-name">' + NAME + " בן " + age + '</div><div class="kbb-code"><small>מק״ט</small> <bdi>12706</bdi></div></div></div>' +
           rows +
         "</div>" +
@@ -154,6 +170,21 @@
     document.addEventListener("keydown", onKey);
     bg.querySelector("#kbb-x").addEventListener("click", close);
     bg.querySelector("#kbb-close").addEventListener("click", close);
+    // לחיצה על קו בשלט: מה שלומי שינה בו, וקישור לקו ב"הקו בזמן" ביום השינוי
+    Array.prototype.forEach.call(bg.querySelectorAll("button.kbb-row"), function (btn) {
+      btn.addEventListener("click", function () {
+        var open = btn.nextElementSibling && btn.nextElementSibling.classList.contains("kbb-story");
+        Array.prototype.forEach.call(bg.querySelectorAll(".kbb-story"), function (n) { n.remove(); });
+        Array.prototype.forEach.call(bg.querySelectorAll("button.kbb-row"), function (b) { b.setAttribute("aria-expanded", "false"); });
+        if (open) return;
+        var r = SIGN_ROWS[+btn.getAttribute("data-i")];
+        var href = base + "line-history/#" + encodeURIComponent(r[3]) + "@" + r[4];
+        var d = r[4].split("-");
+        var story = el("div", { "class": "kbb-story" }, r[2] + " (" + (+d[2]) + "." + (+d[1]) + "." + d[0] + ") · <a href=\"" + href + "\">לראות בקו בזמן ←</a>");
+        btn.insertAdjacentElement("afterend", story);
+        btn.setAttribute("aria-expanded", "true");
+      });
+    });
     var still = bg.querySelector("#kbb-still");
     if (still) still.addEventListener("click", function () { calm(true); still.remove(); });
     bg.querySelector("#kbb-yay").addEventListener("click", function (ev) {
@@ -224,6 +255,12 @@
       stop.addEventListener("click", function () { calm(true); });
       document.body.appendChild(stop);
     }
+    // פס חגיגי בראש כל דף באתר, שפותח את השלט
+    var ribbon = el("div", { id: "kbb-ribbon", role: "note" }, "<span>🎂 היום יום ההולדת של שלומי, האיש שמאחורי הקו הבוחן. מזל טוב!</span>");
+    var rb = el("button", { type: "button" }, "🚏 לשלט של שלומי");
+    rb.addEventListener("click", openSign);
+    ribbon.appendChild(rb);
+    document.body.insertBefore(ribbon, document.body.firstChild);
     // כפתור צף לפתיחה חוזרת
     var fab = el("button", { id: "kbb-fab", type: "button", title: "יום ההולדת של שלומי 🎂", "aria-label": "יום ההולדת של שלומי — פתיחת הברכה" }, "🎂");
     fab.addEventListener("click", openSign);
