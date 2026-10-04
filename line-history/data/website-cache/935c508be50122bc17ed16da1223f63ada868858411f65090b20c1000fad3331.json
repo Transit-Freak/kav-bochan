@@ -1,1 +1,1 @@
-{"status":"failed","reason":"<urlopen error timed out>"}
+{"status":"parsed","line":"14","operator":"נתיב אקספרס","company":"31","internalLine":"54_14","patterns":[{"heading":"צפת - תחנה מרכזית צפת - מחנה ארמון מפה","stops":[["website:31:35511f17e72d8038","צפת - תחנה מרכזית",null,null],["website:31:e36556d1fc689b0b","צפת - צומת צפת/ביריה",null,null],["website:31:6464b206a7895832","צפת - מחנה ארמון",null,null]],"sourceRows":[["צפת - תחנה מרכזית","","0:00","מפה"],["צפת - צומת צפת/ביריה","0:03","0:03","מפה"],["צפת - מחנה ארמון","0:06","0:06","מפה"]],"duplicateRowsRemoved":0}]}
