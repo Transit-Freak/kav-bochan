@@ -34,7 +34,7 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=61e19ad407" />
+<link rel="stylesheet" href="vendor/kavpach.css?v=a45671dee4" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -417,10 +417,10 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=61e19ad407';
+      core.src = 'kavpach-core.js?v=a45671dee4';
       document.body.appendChild(core);
       var sc = document.createElement('script');
-      sc.src = 'KavPach.js?v=61e19ad407';
+      sc.src = 'KavPach.js?v=a45671dee4';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);
