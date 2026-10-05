@@ -1,0 +1,1518 @@
+[
+ {
+  "id": "אשקלון|באר שבע מרכז|2015-11-03",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|חיפה מרכז|2016-02-18",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|נהריה|2016-02-18",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|קרית מוצקין|2016-02-18",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתניה|תל אביב ההגנה|2016-03-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|נהריה|2016-03-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|חיפה מרכז|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|חיפה מרכז|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|לב המפרץ|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נהריה|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|קרית מוצקין|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|נהריה|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|נתניה|2016-04-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|נהריה|2016-04-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|בני ברק|2016-05-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|תל אביב ההגנה|2016-06-17",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|פאתי מודיעין|2016-06-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|נתבג|2016-06-30",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לב המפרץ|מודיעין מרכז|2016-07-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לב המפרץ|נתבג|2016-07-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לב המפרץ|רחובות|2016-07-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לב המפרץ|תל אביב ההגנה|2016-07-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|לב המפרץ|2017-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|נהריה|2017-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|קרית מוצקין|2017-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|בנימינה|2017-02-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|חיפה מרכז|2017-02-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הוד השרון|תל אביב מרכז|2017-03-03",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|תל אביב מרכז|2017-03-03",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "ראשונים|תל אביב ההגנה|2017-03-03",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתניה|תל אביב מרכז|2017-03-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "קרית מוצקין|תל אביב מרכז|2017-03-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתבג|תל אביב ההגנה|2017-03-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נתניה|2017-03-10",
+  "reason": "קו מקוצר בזמן עבודות תשתית בנתניה ובהרצליה (16–19 במרץ 2017) שעצרו את התנועה בין נתניה לתל אביב; הרכבות מהצפון סיימו בנתניה.",
+  "url": "https://www.themarker.com/dynamo/2017-03-12/ty-article/0000017f-f0a6-df98-a5ff-f3af2c6b0000",
+  "source": "TheMarker",
+  "published": "2017-03-12",
+  "confidence": "medium",
+  "evidence": "Same March 2017 works: northern trains terminated at Netanya.",
+  "verdict": "confirmed",
+  "note": "אותו מקור כמו נתניה|קרית מוצקין"
+ },
+ {
+  "id": "חוף הכרמל|לב המפרץ|2017-03-10",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|נתניה|2017-03-10",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתניה|קרית מוצקין|2017-03-10",
+  "reason": "קו מקוצר בזמן עבודות תשתית בנתניה ובהרצליה (16–19 במרץ 2017) שעצרו את התנועה בין נתניה לתל אביב; הרכבות מהצפון סיימו בנתניה.",
+  "url": "https://www.themarker.com/dynamo/2017-03-12/ty-article/0000017f-f0a6-df98-a5ff-f3af2c6b0000",
+  "source": "TheMarker",
+  "published": "2017-03-12",
+  "confidence": "medium",
+  "evidence": "Article of 12.3.2017 says that 16–19.3.2017 trains between Netanya and Tel Aviv stopped and trains from the north terminated at Netanya, inside the item's 10–31.3.2017 window; Kiryat Motzkin origin not named explicitly.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "באר שבע צפון|לוד|2017-05-02",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|נתבג|2017-05-02",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|חיפה מרכז|2017-06-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|נהריה|2017-06-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|נתניה|2017-06-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|קרית מוצקין|2017-06-26",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|לב המפרץ|2017-06-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית שאן|חיפה מרכז|2017-07-10",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לב המפרץ|תל אביב ההגנה|2017-07-10",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "קרית מוצקין|תל אביב ההגנה|2017-07-10",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|נהריה|2017-08-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|קרית חיים|2017-08-04",
+  "reason": "קו מקוצר בזמן הפסקת התנועה בין בית יהושע לתל אביב אוניברסיטה (18–27 באוגוסט 2017) לעבודות הסטת המסילה בין תל אביב להרצליה; הרכבות מהצפון סיימו בבית יהושע.",
+  "url": "https://m.facebook.com/irail/photos/%D7%A0%D7%95%D7%A1%D7%A2%D7%99%D7%9D-%D7%99%D7%A7%D7%A8%D7%99%D7%9D%D7%94%D7%97%D7%9C-%D7%9E%D7%94%D7%9C%D7%99%D7%9C%D7%94-%D7%A9%D7%91%D7%99%D7%9F-%D7%99%D7%95%D7%9D-%D7%94-17817-%D7%9C%D7%99%D7%95%D7%9D-%D7%95-18817-0001-%D7%95%D7%A2%D7%93-%D7%9C%D7%99%D7%95%D7%9D-%D7%90-27817-0400-/10154959401318721/",
+  "source": "רכבת ישראל (פייסבוק)",
+  "published": "2017-08-17",
+  "confidence": "high",
+  "evidence": "Israel Railways post: from 18.8.17 to 27.8.17 no trains between Beit Yehoshua and TA University, northern trains start/end at Haifa Hof HaCarmel/Beit Yehoshua; within the item's 4.8–9.9.2017 window.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "נהריה|נתניה|2017-08-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|תל אביב ההגנה|2017-08-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|רחובות|2017-08-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|קרית חיים|2017-09-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|נהריה|2017-09-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מודיעין מרכז|קרית חיים|2017-09-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|תל אביב ההגנה|2017-09-20",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|חיפה מרכז|2017-10-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|קרית חיים|2017-10-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|חיפה מרכז|2017-10-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|קרית חיים|2017-10-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "קרית חיים|תל אביב מרכז|2017-11-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|בנימינה|2018-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|מודיעין מרכז|2018-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נתבג|2018-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|לב המפרץ|2018-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|קרית מוצקין|2018-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|עכו|2018-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|לב המפרץ|2018-02-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|קרית מוצקין|2018-02-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|נתניה|2018-02-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|חוף הכרמל|2018-03-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|חוצות מפרץ|2018-03-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|קרית מוצקין|2018-03-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נתיבות|2018-03-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "קרית מוצקין|תל אביב ההגנה|2018-03-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|נתניה|2018-04-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מודיעין מרכז|נתניה|2018-04-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתניה|תל אביב ההגנה|2018-04-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתניה|תל אביב מרכז|2018-04-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|בנימינה|2018-04-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|מודיעין מרכז|2018-04-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|קרית חיים|2018-04-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|חדרה מערב|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|חדרה מערב|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|חיפה מרכז|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|לב המפרץ|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|קרית מוצקין|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חדרה מערב|לוד|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חדרה מערב|תל אביב מרכז|2018-05-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|כפר סבא|2018-06-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|כפר סבא|2018-06-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|כפר סבא|2018-06-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כפר סבא|נתיבות|2018-06-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כפר סבא|ראשון לציון משה דיין|2018-06-11",
+  "reason": "קו שהסתיים בכפר סבא נורדאו בזמן סגירת תחנת הוד השרון סוקולוב לעבודות חיבור מסילת השרון ותחנות רעננה, עם היסעים בין התחנות",
+  "url": "https://www.hasharon-post.co.il/hpnews/71262",
+  "source": "השרון פוסט",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Announces Hod HaSharon-Sokolov closure 26.5–30.6.2018 (shuttles to Kfar Saba-Nordau) ahead of connecting the Ra'anana stations; overlaps the 11 Jun–11 Jul 2018 Kfar Saba terminus but dates are not an exact match.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "אשדוד עד הלום|רעננה מערב|2018-06-26",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|קרית חיים|2018-06-26",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|מודיעין מרכז|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|תל אביב מרכז|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|כרמיאל|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|מרכזית המפרץ קו החוף|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|נהריה|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|קרית מוצקין|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "קרית חיים|תל אביב מרכז|2018-07-11",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|כרמיאל|2018-07-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|נתבג|2018-07-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כרמיאל|תל אביב מרכז|2018-07-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|הרצליה|2018-09-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|מרכזית המפרץ קו החוף|2018-09-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|נהריה|2018-09-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|חיפה מרכז|2018-09-28",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|חדרה מערב|2018-10-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|חדרה מערב|2018-10-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חדרה מערב|נתבג|2018-10-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מרכזית המפרץ קו החוף|תל אביב ההגנה|2018-11-24",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|תל אביב אוניברסיטה|2018-12-09",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|עכו|2019-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|לוד|2019-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מרכזית המפרץ קו החוף|תל אביב מרכז|2019-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "עכו|תל אביב מרכז|2019-01-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|ראשונים|2019-02-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|ראשונים|2019-02-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|נתניה|2019-02-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|עכו|2019-02-25",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|חוף הכרמל|2019-03-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|נהריה|2019-03-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כרמיאל|תל אביב ההגנה|2019-03-20",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|חיפה מרכז|2019-04-20",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|חוצות מפרץ|2019-04-20",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|תל אביב ההגנה|2019-04-20",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|כרמיאל|2019-05-17",
+  "reason": "רכבת מיוחדת וישירה מאשדוד לכרמיאל (וחזרה בלילה) לעולים להילולת הרשב\"י במירון בל\"ג בעומר תשע\"ט.",
+  "url": "https://ashdodnet.com/%D7%97%D7%93%D7%A9%D7%95%D7%AA-%D7%90%D7%A9%D7%93%D7%95%D7%93/%D7%9C%D7%A7%D7%A8%D7%90%D7%AA-%D7%9C-%D7%92-%D7%91%D7%A2%D7%95%D7%9E%D7%A8-%D7%A8%D7%9B%D7%91%D7%AA-%D7%9E%D7%99%D7%95%D7%97%D7%93%D7%AA-%D7%9E%D7%90%D7%A9%D7%93%D7%95%D7%93-%D7%95%D7%9E%D7%A2%D7%A8%D7%9A-%D7%94%D7%A1%D7%A2%D7%95%D7%AA-%D7%9C%D7%94%D7%99%D7%9C%D7%95%D7%9C%D7%94-%D7%91%D7%A7%D7%91%D7%A8-%D7%94%D7%A8%D7%A9%D7%91-%D7%99-382955",
+  "source": "אשדוד נט",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Article (per search snippets, Lag BaOmer May 2019) describes a special direct Ashdod Ad Halom-Karmiel train with no intermediate stops at 18:00 and a 02:30 return, matching the no-via pair around Lag BaOmer (23 May 2019); exact publication date not seen since the page could not be fetched.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "באר שבע צפון|חדרה מערב|2019-05-17",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בני ברק|כרמיאל|2019-05-17",
+  "reason": "רכבות מיוחדות לל\"ג בעומר תשע\"ט: רכבות ישירות מבני ברק (דרך פתח תקווה) לכרמיאל ובחזרה, ומשם הסעות להילולה במירון.",
+  "url": "https://www.hidabroot.org/article/1124759",
+  "source": "הידברות",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Article on Lag BaOmer 5779 (May 23, 2019) describes special direct trains Bnei Brak/Rosh HaAyin North to Karmiel and back, inside the May 17-25 2019 window.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "כרמיאל|ראש העין צפון|2019-05-17",
+  "reason": "רכבות מיוחדות לל\"ג בעומר תשע\"ט: רכבות ישירות מראש העין צפון ומבני ברק לכרמיאל ובחזרה, ומשם הסעות להילולה במירון.",
+  "url": "https://www.hidabroot.org/article/1124759",
+  "source": "הידברות",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Lag BaOmer 2019 article names Bnei Brak/Rosh HaAyin North–Karmiel trains.",
+  "verdict": "confirmed",
+  "note": "אותו מקור כמו בני ברק|כרמיאל"
+ },
+ {
+  "id": "בני ברק|רעננה מערב|2019-05-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|עכו|2019-06-06",
+  "reason": "קו מקוצר שהסתיים בעכו בזמן סגירת תחנת נהריה לעבודות שדרוג מסילה והנחת תשתית מים, עם היסעים בין נהריה לעכו",
+  "url": "http://www.1075.fm/%D7%AA%D7%97%D7%A0%D7%AA-%D7%94%D7%A8%D7%9B%D7%91%D7%AA-%D7%91%D7%A0%D7%94%D7%A8%D7%99%D7%94-%D7%AA%D7%94%D7%99%D7%94-%D7%A1%D7%92%D7%95%D7%A8%D7%94-%D7%91%D7%A9%D7%91%D7%95%D7%A2-%D7%94%D7%91%D7%90/",
+  "source": "רדיו חיפה 107.5",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Report (June 2019) says Nahariya station closed until Thursday 20 June 2019 and Modiin/Beer Sheva–Nahariya trains started and ended at Akko, matching the 6–20 June 2019 Akko–Beer Sheva pair.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "מודיעין מרכז|עכו|2019-06-06",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתבג|עכו|2019-06-06",
+  "reason": "קו מקוצר שהסתיים בעכו בזמן סגירת תחנת נהריה לעבודות שדרוג מסילה והנחת תשתית מים, עם היסעים בין נהריה לעכו.",
+  "url": "http://www.1075.fm/%D7%AA%D7%97%D7%A0%D7%AA-%D7%94%D7%A8%D7%9B%D7%91%D7%AA-%D7%91%D7%A0%D7%94%D7%A8%D7%99%D7%94-%D7%AA%D7%94%D7%99%D7%94-%D7%A1%D7%92%D7%95%D7%A8%D7%94-%D7%91%D7%A9%D7%91%D7%95%D7%A2-%D7%94%D7%91%D7%90/",
+  "source": "רדיו חיפה 107.5",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same June 2019 Nahariya closure (Modiin/airport line trains ended at Akko).",
+  "verdict": "confirmed",
+  "note": "אותו מקור כמו באר שבע מרכז|עכו"
+ },
+ {
+  "id": "יבנה מערב|רעננה מערב|2019-08-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "יבנה מערב|תל אביב מרכז|2019-08-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "עכו|תל אביב מרכז|2019-08-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|הרצליה|2019-08-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוצות מפרץ|תל אביב מרכז|2019-09-17",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|תל אביב מרכז|2019-09-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מודיעין מרכז|תל אביב מרכז|2019-09-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|לוד|2019-11-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|רמלה|2019-11-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתניה|רמלה|2019-11-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "רמלה|תל אביב מרכז|2019-11-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|יבנה מערב|2019-11-27",
+  "reason": "קו מקוצר בזמן עבודות החשמול במסילות איילון: רכבות מבאר שבע לא המשיכו צפונה מיבנה מערב, ומשם הופעלו היסעים לתל אביב ההגנה.",
+  "url": "https://www.themarker.com/dynamo/cars/2019-11-25/ty-article/0000017f-dbff-d3a5-af7f-fbffe75a0000",
+  "source": "TheMarker",
+  "published": "2019-11-25",
+  "confidence": "high",
+  "evidence": "Article dated 2019-11-25 announces that on 2-20 Dec 2019 and 6-28 Jan 2020, during Ayalon electrification works, trains from Beer Sheva terminate at Yavne West, matching the 2019-11-27..2020-01-17 window and the endpoints.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "בני ברק|רעננה מערב|2019-11-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|הרצליה|2019-11-29",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נתיבות|2019-11-29",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אופקים|תל אביב ההגנה|2019-12-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|תל אביב ההגנה|2019-12-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|מרכזית המפרץ קו החוף|2019-12-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|לוד|2019-12-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|נהריה|2019-12-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מודיעין מרכז|קרית מוצקין|2019-12-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|נהריה|2019-12-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|תל אביב ההגנה|2019-12-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|לוד|2019-12-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|מרכזית המפרץ קו החוף|2019-12-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|קרית מוצקין|2019-12-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|תל אביב מרכז|2019-12-23",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|רעננה מערב|2019-12-26",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשדוד עד הלום|תל אביב מרכז|2019-12-30",
+  "reason": "בזמן עבודות שדרוג החשמול שסגרו את הקטע יבנה מערב–ראשון לציון משה דיין (דצמבר 2019 ו-6–28 בינואר 2020), תוגברו רכבות מאשדוד ומאשקלון לתל אביב דרך יבנה מזרח ולוד.",
+  "url": "https://www.mako.co.il/finances-news/israel/Article-9e4594efae0ce61026.htm",
+  "source": "mako",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Mako report on the Beer Sheva–Ra'anana line changes: no trains Yavne West–Rishon Moshe Dayan, works resuming 6–28.1.2020, Ashkelon/Ashdod–Tel Aviv trains reinforced via Yavne East and Lod; overlaps the item's 30.12.2019–17.1.2020 window.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "חוף הכרמל|תל אביב מרכז|2020-01-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|הרצליה|2020-01-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|חיפה מרכז|2020-01-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|מרכזית המפרץ קו החוף|2020-01-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|נהריה|2020-01-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|קרית מוצקין|2020-01-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "לוד|עכו|2020-01-22",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|נתבג|2020-02-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "ירושלים מלחה|תל אביב ההגנה|2020-02-17",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית שמש|תל אביב ההגנה|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|חיפה מרכז|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|נהריה|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|נתניה|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מודיעין מרכז|תל אביב מרכז|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|נתניה|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "ראש העין צפון|תל אביב ההגנה|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "תל אביב ההגנה|תל אביב מרכז|2020-05-13",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|חיפה מרכז|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|ראש העין צפון|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|חיפה מרכז|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|נהריה|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|קרית מוצקין|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|רחובות|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|תל אביב ההגנה|2020-06-04",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתיבות|ראש העין צפון|2020-06-04",
+  "reason": "עם חידוש תנועת הרכבות אחרי השבתת הקורונה ביוני 2020, מסילת השרון בין ראש העין צפון לרעננה נשארה סגורה לעבודות (חיבור המסילה המזרחית), ולכן הרכבות מהדרום הסתיימו בראש העין צפון.",
+  "url": "https://www.calcalist.co.il/local/articles/0,7340,L-3827790,00.html",
+  "source": "כלכליסט",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Calcalist 'train returns on 8 June without the Sharon line': service not resumed between Rosh HaAyin North and Ra'anana, matching the item's 4–25.6.2020 window and its Rosh HaAyin North terminus.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "ירושלים יצחק נבון|תל אביב מרכז|2020-06-09",
+  "reason": "הקו המהיר לירושלים הוארך ביוני 2020 מתל אביב ההגנה עד תל אביב סבידור מרכז, לפני הארכתו להרצליה",
+  "url": "https://www.kolhair.co.il/jerusalem-news/130132/",
+  "source": "כל העיר",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Article titled 'in about two weeks the fast line from Jerusalem will reach Tel Aviv Savidor-Center'; search context places the extension in June 2020, matching the 9 Jun 2020 start (the Jan 2021 end is not explained).",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "ראש העין צפון|ראשון לציון משה דיין|2020-06-09",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נתיבות|2020-06-18",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתיבות|נתניה|2020-06-18",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית יהושע|בנימינה|2020-06-28",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|כפר סבא|2020-07-30",
+  "reason": "קו מקוצר כפר סבא–הרצליה דרך רעננה שהופעל מ-1 ביולי 2020, כשמסילת השרון הייתה מנותקת מראש העין בגלל עבודות חיבור המסילה המזרחית.",
+  "url": "https://www.tzomet-kfs.co.il/news/45236",
+  "source": "צומת השרון כפר סבא",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Local news: Kfar Saba Nordau–Herzliya line via Hod HaSharon, Ra'anana South and West opens Wednesday 1 July (2020), 2 trains/hour Sun–Thu; same stations as the item (30.7–4.10.2020).",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "חיפה מרכז|נתניה|2020-08-26",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|תל אביב ההגנה|2020-08-31",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|תל אביב ההגנה|2020-09-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|מודיעין מרכז|2020-09-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חדרה מערב|נהריה|2020-09-27",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|באר שבע צפון|2020-10-14",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|חיפה מרכז|2020-10-14",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|כרמיאל|2020-10-14",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|לוד|2020-10-14",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|ראש העין צפון|2020-10-14",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|תל אביב מרכז|2020-10-14",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בנימינה|נהריה|2020-11-03",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "יבנה מזרח|נתניה|2020-12-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|תל אביב ההגנה|2021-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|תל אביב מרכז|2021-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כרמיאל|תל אביב מרכז|2021-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מודיעין מרכז|תל אביב ההגנה|2021-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נתיבות|תל אביב ההגנה|2021-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "ראשון לציון משה דיין|תל אביב ההגנה|2021-01-01",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|כרמיאל|2021-01-07",
+  "reason": "קו זמני בזמן עבודות תשתית שהוקדמו בתקופת הסגר: קטע המסילה בין תל אביב סבידור מרכז להרצליה נסגר, ורכבות מהצפון (כולל מכרמיאל) סיימו את נסיעתן בהרצליה.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Ynet piece on works brought forward due to the lockdown says the Savidor-Herzliya section closed Jan 10-12 with northern trains (Nahariya, Karmiel, Haifa...) terminating at Herzliya; matches Jan 7-13 2021, though the year was inferred from the lockdown context, not seen directly.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "נתיבות|תל אביב מרכז|2021-01-07",
+  "reason": "בזמן סגירת הקטע תל אביב סבידור מרכז–הרצליה לעבודות שהוקדמו לתקופת הסגר (10–12 בינואר 2021), רכבות מהדרום סיימו בתל אביב סבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Ynet on works brought forward due to lockdown: Savidor–Herzliya section closed 10–12.1.2021 (after HaHagana–Savidor closure 3–10.1), within the item's 7–13.1.2021 window; Netivot line not named explicitly.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "ראשון לציון משה דיין|תל אביב מרכז|2021-01-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חיפה מרכז|תל אביב ההגנה|2021-01-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "ראש העין צפון|רחובות|2021-03-15",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|הרצליה|2021-04-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "הרצליה|לוד|2021-04-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כפר סבא|תל אביב ההגנה|2021-04-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "כרמיאל|תל אביב ההגנה|2021-04-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "מרכזית המפרץ קו החוף|נהריה|2021-04-12",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אופקים|כרמיאל|2021-04-27",
+  "reason": "רכבות מיוחדות להילולת רשב\"י במירון בל\"ג בעומר תשפ\"א: רכבות ישירות מאופקים ומראש העין לכרמיאל, ומשם הסעות למירון",
+  "url": "https://www.hidabroot.org/article/1153202",
+  "source": "הידברות",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Article on Lag BaOmer 5781 (late April 2021) transport plan describes special trains between Ofakim/Rosh HaAyin and Karmiel Thursday–Saturday night, matching 27 Apr–3 May 2021.",
+  "verdict": "confirmed"
+ },
+ {
+  "id": "כרמיאל|ראש העין צפון|2021-04-27",
+  "reason": "רכבות מיוחדות להילולת רשב\"י במירון בל\"ג בעומר תשפ\"א: רכבות ישירות מראש העין ומאופקים לכרמיאל, ומשם הסעות למירון.",
+  "url": "https://www.hidabroot.org/article/1153202",
+  "source": "הידברות",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Lag BaOmer 2021 plan names Rosh HaAyin–Karmiel trains.",
+  "verdict": "confirmed",
+  "note": "אותו מקור כמו אופקים|כרמיאל"
+ },
+ {
+  "id": "חיפה מרכז|נתבג|2021-05-07",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|הרצליה|2021-05-31",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|כפר סבא|2021-05-31",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|ראש העין צפון|2021-05-31",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע צפון|תל אביב מרכז|2021-05-31",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "בית שמש|לוד|2021-06-09",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "תל אביב ההגנה|תל אביב מרכז|2021-06-18",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "אשקלון|תל אביב אוניברסיטה|2021-07-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "באר שבע מרכז|תל אביב אוניברסיטה|2021-07-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "ירושלים יצחק נבון|תל אביב אוניברסיטה|2021-07-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "נהריה|תל אביב אוניברסיטה|2021-07-08",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ },
+ {
+  "id": "חוף הכרמל|תל אביב ההגנה|2021-07-21",
+  "reason": null,
+  "url": null,
+  "verdict": "no-source"
+ }
+]
