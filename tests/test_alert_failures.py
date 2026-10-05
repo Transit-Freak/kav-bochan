@@ -78,8 +78,6 @@ class ReportTests(unittest.TestCase):
             if path.startswith('actions/runs/'):
                 return {'name': 'line-history', 'conclusion': state['c'], 'html_url': 'u',
                         'run_started_at': '2026-10-03T12:40:31Z', 'updated_at': '2026-10-03T13:04:32Z'}
-            if path == 'actions/jobs/7/logs':
-                return 'curl: (28) Failed to connect to gtfs.mot.gov.il port 443'
             if path.startswith('issues?state=open'):
                 return [i for i in issues if i['state'] == 'open']
             if path == 'issues' and method == 'POST':
@@ -89,7 +87,8 @@ class ReportTests(unittest.TestCase):
             return {}
 
         state = {'c': 'failure'}
-        with patch.object(alert, 'api', fake_api):
+        log = lambda job_id: 'curl: (28) Failed to connect to gtfs.mot.gov.il port 443'
+        with patch.object(alert, 'api', fake_api), patch.object(alert, 'job_log', log):
             alert.on_run(1)
             alert.on_run(1)   # a second failure comments on the same issue
             self.assertEqual(1, len(issues))
@@ -104,3 +103,42 @@ class ReportTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class JobLogTests(unittest.TestCase):
+    def test_follows_the_storage_redirect_without_the_github_key(self):
+        """05.10: the log came back 401, because the key went along to the storage server."""
+        import http.server, threading
+        seen = {}
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                if self.path.startswith('/repos/'):
+                    seen['api_auth'] = self.headers.get('Authorization')
+                    self.send_response(302)
+                    self.send_header('Location', f'http://127.0.0.1:{port}/blob/log.txt')
+                    self.end_headers()
+                elif self.headers.get('Authorization'):
+                    self.send_response(401); self.end_headers()
+                else:
+                    self.send_response(200); self.end_headers()
+                    self.wfile.write('##[error]הדחיפה נכשלה'.encode())
+
+        server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        real = alert.Request
+        def local(url, *a, **k):
+            return real(url.replace('https://api.github.com', f'http://127.0.0.1:{port}'), *a, **k)
+        try:
+            with patch.dict(os.environ, {'GITHUB_REPOSITORY': 'o/r', 'GH_TOKEN': 'secret'}), \
+                 patch.object(alert, 'Request', local):
+                text = alert.job_log(7)
+        finally:
+            server.shutdown()
+        self.assertIn('הדחיפה נכשלה', text)
+        self.assertEqual('Bearer secret', seen['api_auth'])
+        self.assertIn('השמירה ל-GitHub נדחתה', alert.explain(alert.clean(text)))

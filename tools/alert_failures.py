@@ -16,7 +16,7 @@ owner, so no mail server or password is needed:
   python tools/alert_failures.py --stale            # from the scheduled freshness check
 """
 import argparse, datetime, json, os, re, sys
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from urllib.error import HTTPError
 
 OWNER = 'Transit-Freak'
@@ -80,6 +80,28 @@ def api(path, method='GET', body=None, raw=False):
     with urlopen(Request(url, data=data, method=method, headers=headers), timeout=60) as r:
         content = r.read()
     return content.decode('utf-8', 'replace') if raw else (json.loads(content) if content else None)
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def job_log(job_id):
+    """A job's log. GitHub answers with a redirect to a storage server, which refuses a request
+    that still carries the GitHub key (05.10: 401), so the redirect is followed without it."""
+    url = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/actions/jobs/{job_id}/logs"
+    headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json',
+               'User-Agent': 'kavbochan-alerts'}
+    try:
+        with build_opener(_NoRedirect).open(Request(url, headers=headers), timeout=60) as r:
+            return r.read().decode('utf-8', 'replace')
+    except HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308) or not e.headers.get('Location'):
+            raise
+        location = e.headers['Location']
+    with urlopen(Request(location, headers={'User-Agent': 'kavbochan-alerts'}), timeout=60) as r:
+        return r.read().decode('utf-8', 'replace')
 
 
 def clean(log):
@@ -180,13 +202,13 @@ def on_run(run_id):
     if job:
         step = failing_step(job)
         try:
-            lines = clean(api(f"actions/jobs/{job['id']}/logs", raw=True))
+            lines = clean(job_log(job['id']))
         except Exception as e:
             lines = [f'(היומן לא נקרא: {e})']
     why = explain(lines, timed_out)
     tail = '\n'.join(l for l in lines if l.strip())[-3000:].split('\n')[-25:]
     body = (f"@{OWNER}\n\n"
-            f"**{WATCHED[name]}** {'בוטל כי נגמר הזמן' if timed_out else 'נכשל'} — {il_time(run['run_started_at'])} (שעון ישראל).\n\n"
+            f"**{WATCHED[name]}**: {'הריצה בוטלה כי נגמר לה הזמן' if timed_out else 'הריצה נכשלה'} — {il_time(run['run_started_at'])} (שעון ישראל).\n\n"
             f"**מה קרה:** {why}\n\n"
             + (f"**השלב שנכשל:** {step}\n\n" if step else '')
             + f"[לריצה ב-GitHub]({run['html_url']})\n\n"
