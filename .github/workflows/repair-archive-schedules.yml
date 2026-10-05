@@ -43,4 +43,5 @@ jobs:
       - name: Publish website data
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+        # מאז pages-deploy.yml הבקשה הזו מיותרת (ונדחית); הפרסום קורה לבד
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" || true
