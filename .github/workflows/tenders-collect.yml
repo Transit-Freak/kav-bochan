@@ -6,8 +6,11 @@ name: tenders-collect
 # שינויי קווים, ומשווה למה שרץ היום בלוח הזמנים הרשמי.
 
 on:
-  schedule:
-    - cron: '45 3 * * *'   # 03:45 UTC = 06:45 בישראל
+  # הריצה היומית כבויה (שלמה 05.10): המסכם לא פעיל כרגע, והריצה נכשלה כל יום מאז 30.09.
+  # להפעלה מחדש: להחזיר את schedule, וגם את tenders-collect ל-alert-failures.yml ול-WATCHED
+  # ב-tools/alert_failures.py.
+  # schedule:
+  #   - cron: '45 3 * * *'   # 03:45 UTC = 06:45 בישראל
   workflow_dispatch:
     inputs:
       limit:
