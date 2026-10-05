@@ -1,0 +1,55 @@
+name: alert-failures
+
+# התראה בעברית למייל כשצינור חשוב נכשל (שלמה 05.10): "האם אפשר שברגע שיש תקלה כזו
+# אני אקבל הודעה מובנת בעברית למייל ומה הייתה התקלה?"
+# בלי שרת מייל: tools/alert_failures.py פותח Issue (אחד לכל צינור) שמזכיר את בעל המאגר,
+# ו-GitHub שולח אותו למייל. תקלה חוזרת = תגובה באותו Issue; ריצה מוצלחת סוגרת אותו.
+# workflow_run מופעל מיד כשהריצה מסתיימת — לא מתעכב כמו cron.
+# בנוסף, בדיקה כל שעתיים שהנתונים באתר לא ישנים (מדד הדיוק, הקו בזמן) גם כשאף ריצה לא נכשלה.
+
+on:
+  workflow_run:
+    workflows:
+      - line-history
+      - bus-reliability
+      - rail-reliability
+      - kavpach-build
+      - line-hub
+      - gis-layers
+      - fleet-registry
+      - ratzif
+      - tenders-collect
+      - historical-passenger-websites
+      - notify-push
+      - update-weekly
+      - update-monthly
+    types: [completed]
+  schedule:
+    - cron: '10 */2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  alert:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/alert_failures.py
+            bus/data/index.json
+            line-history/data/lines.json
+          sparse-checkout-cone-mode: false
+      - name: התראה
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if [ -n "$RUN_ID" ]; then python3 tools/alert_failures.py --run "$RUN_ID"
+          else python3 tools/alert_failures.py --stale; fi
