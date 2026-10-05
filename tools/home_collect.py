@@ -25,7 +25,7 @@ time as a small file with only what is new (website-home/part-*.json.gz):
   python home_collect.py              # runs until 21:50
   python home_collect.py --until 23:30
 """
-import argparse, base64, collections, datetime, gzip, hashlib, importlib, json, re, subprocess, sys, threading, time
+import argparse, base64, collections, datetime, gzip, hashlib, importlib, json, re, socket, subprocess, sys, threading, time
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -42,6 +42,11 @@ UPLOAD_TO = CONTENTS + 'website-home.json.gz'
 # stopped publishing at all (05.10: 33 cancelled, 6 published), so every 30 minutes.
 UPLOAD_EVERY = 1800
 UPLOADED = HOME / 'uploaded.json'
+# kav_window.pyw (the Hebrew window) asks for a safe stop by creating this file, like Ctrl+C here
+STOP_FILE = HOME / 'STOP'
+# one collection at a time on this computer (the black window and kav_window.pyw together would ask
+# the archive twice as often); the port is released by itself when the process ends, even after a crash
+LOCK_PORT = 47853
 
 
 def get(url):
@@ -155,7 +160,14 @@ def main():
     if stop_at <= now:
         stop_at += datetime.timedelta(days=1)
 
+    lock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        lock.bind(('127.0.0.1', LOCK_PORT))
+    except OSError:
+        print('Another collection is already running on this computer.', flush=True)
+        return
     HOME.mkdir(exist_ok=True)
+    STOP_FILE.unlink(missing_ok=True)
     token = TOKEN_FILE.read_text(encoding='utf-8-sig').strip() if TOKEN_FILE.exists() else ''
     if not token and sys.stdin.isatty():
         entered = input('GitHub key for automatic uploads (paste it and press Enter, or just Enter to skip): ').strip().strip('"')
@@ -252,7 +264,7 @@ def main():
     try:
         with ThreadPoolExecutor(max_workers=w.WORKERS) as executor:
             while True:
-                if datetime.datetime.now() >= stop_at:
+                if datetime.datetime.now() >= stop_at or STOP_FILE.exists():
                     stop.set()
                 while len(active) < w.WORKERS and not stop.is_set():
                     group = again.popleft() if again else next(todo, None)
@@ -285,6 +297,7 @@ def main():
     except KeyboardInterrupt:
         stop.set()
         print('Stopping...', flush=True)
+    STOP_FILE.unlink(missing_ok=True)
     n = pack(cache)
     print(f'\nDone for now: {done_count} fetched this time, {n} in total.')
     if not try_upload(token, cache, uploaded):
