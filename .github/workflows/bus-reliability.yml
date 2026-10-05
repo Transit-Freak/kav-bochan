@@ -5,10 +5,16 @@ name: bus-reliability
 # מ-S3 — ליום כולו ולשלוש השעות הראשונות של מחרת (נסיעות אחרי חצות). הכל
 # הורדה מ-S3, בלי קריאות ל-API של דאטאבוס. הפלט: bus/data/.
 # הפעלה ידנית: יום בודד, או טווח (from/to) למילוי לאחור.
+#
+# שלמה 05.10: "התאריך האחרון שיש באתר זה שבת 3.10, מה עם 4.10?". GitHub מפעיל את
+# כל הריצות המתוזמנות במאגר באיחור של 5–7 שעות, כך שהריצה של 01:30 UTC התחילה
+# רק בסביבות 10:00 בבוקר בישראל. לכן: בדיקה כל שעה (need), שעולה כמה שניות, ומחשבת
+# יום ברגע שהקבצים שלו שלמים (קובץ ה-SIRI של 02:59 למחרת קיים ב-S3), גם אם ההפעלה
+# מתעכבת. היא משלימה גם ימים שחסרים מ-3 הימים האחרונים (ריצה שנכשלה או שלא הופעלה).
 
 on:
   schedule:
-    - cron: '30 1 * * *'   # 04:30 ישראל בקיץ — הקבצים של אתמול כבר שלמים
+    - cron: '20 * * * *'   # כל שעה; ריצה בלי יום חדש מסתיימת בבדיקה בלבד
   workflow_dispatch:
     inputs:
       from:
@@ -32,7 +38,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  need:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      from: ${{ steps.pick.outputs.from }}
+      to: ${{ steps.pick.outputs.to }}
+    steps:
+      - name: אילו ימים מוכנים ועוד לא חושבו
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          FROM: ${{ github.event.inputs.from }}
+          TO: ${{ github.event.inputs.to }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            FROM=${FROM:-$(date -u -d 'yesterday' +%F)}
+            echo "from=$FROM" >> "$GITHUB_OUTPUT"; echo "to=${TO:-$FROM}" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          B="https://openbus-stride-public.s3.eu-west-1.amazonaws.com"
+          first=""; last=""
+          for i in 3 2 1; do
+            d=$(date -u -d "$i days ago" +%F); n=$(date -u -d "$d + 1 day" +%F)
+            if gh api "repos/$GITHUB_REPOSITORY/contents/bus/data/days/$d.json?ref=main" --silent 2>/dev/null; then
+              echo "$d: כבר קיים"; continue
+            fi
+            # מוכן: ה-SIRI של 02:59 למחרת כבר ב-S3, או שעברו 06:00 UTC למחרת (חור בהקלטה לא יעכב לעד)
+            if curl -fsSI -o /dev/null "$B/stride-siri-requester/${n:0:4}/${n:5:2}/${n:8:2}/02/59.br" \
+               || [ "$(date -u +%s)" -ge "$(date -u -d "$n 06:00" +%s)" ]; then
+              echo "$d: מוכן לחישוב"; first=${first:-$d}; last=$d
+            else
+              echo "$d: הקבצים עוד לא שלמים"
+            fi
+          done
+          echo "from=$first" >> "$GITHUB_OUTPUT"; echo "to=$last" >> "$GITHUB_OUTPUT"
+
   run:
+    needs: need
+    if: needs.need.outputs.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
@@ -42,8 +87,8 @@ jobs:
 
       - name: חישוב
         env:
-          FROM: ${{ github.event.inputs.from }}
-          TO: ${{ github.event.inputs.to }}
+          FROM: ${{ needs.need.outputs.from }}
+          TO: ${{ needs.need.outputs.to }}
           REDO: ${{ github.event.inputs.redo }}
         run: |
           set -euo pipefail
