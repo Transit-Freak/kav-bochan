@@ -15,8 +15,12 @@ next start continues where it stopped.
 Results to upload: kavbochan-home/website-home.json.gz
 (GitHub -> line-history/data/website-home/ -> Add file -> Upload files).
 With a GitHub token in github-token.txt next to this script (fine-grained, this
-repository only, Contents: read and write) the file is uploaded by itself every
-hour and when the script stops.
+repository only, Contents: read and write) the results upload by themselves, each
+time as a small file with only what is new (website-home/part-*.json.gz):
+- at start, everything that was not uploaded before the computer turned off;
+- every 10 minutes while new routes are being found (the site needs about as long
+  to publish them);
+- when the script stops.
 
   python home_collect.py              # runs until 21:50
   python home_collect.py --until 23:30
@@ -31,8 +35,10 @@ HOME = Path(__file__).resolve().parent / 'kavbochan-home'
 UA = {'User-Agent': 'KavBochan-Historical-Research/1.0 (home collection)'}
 PACK_EVERY = 50
 TOKEN_FILE = Path(__file__).resolve().parent / 'github-token.txt'
-UPLOAD_TO = 'https://api.github.com/repos/Transit-Freak/kav-bochan/contents/line-history/data/website-home/website-home.json.gz'
-UPLOAD_EVERY = 3600
+CONTENTS = 'https://api.github.com/repos/Transit-Freak/kav-bochan/contents/line-history/data/website-home/'
+UPLOAD_TO = CONTENTS + 'website-home.json.gz'
+UPLOAD_EVERY = 600
+UPLOADED = HOME / 'uploaded.json'
 
 
 def get(url):
@@ -72,20 +78,41 @@ def pack(cache):
     return len(results)
 
 
-def upload(token, n):
-    """Put website-home.json.gz on GitHub; the workflow there reads and publishes it."""
-    headers = {**UA, 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'}
-    body = {'message': f'איסוף ביתי: {n} צילומים', 'branch': 'main',
-            'content': base64.b64encode((HOME / 'website-home.json.gz').read_bytes()).decode()}
-    try:
-        with urlopen(Request(UPLOAD_TO + '?ref=main', headers=headers), timeout=60) as r:
-            body['sha'] = json.loads(r.read())['sha']
-    except Exception as e:
-        if getattr(e, 'code', None) != 404:
-            raise
-    data = json.dumps(body).encode()
-    with urlopen(Request(UPLOAD_TO, data=data, method='PUT', headers={**headers, 'Content-Type': 'application/json'}), timeout=300):
+def put_file(token, url, payload, message):
+    """A new file on GitHub; the workflow there reads every website-home/*.json.gz and publishes it."""
+    headers = {**UA, 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+               'Content-Type': 'application/json'}
+    body = {'message': message, 'branch': 'main', 'content': base64.b64encode(payload).decode()}
+    with urlopen(Request(url, data=json.dumps(body).encode(), method='PUT', headers=headers), timeout=300):
         pass
+
+
+def already_uploaded():
+    """Names of the captures GitHub already has. The first time: read from the file uploaded so far."""
+    if UPLOADED.exists():
+        return set(json.loads(UPLOADED.read_text(encoding='utf-8')))
+    try:
+        names = set(json.loads(gzip.decompress(get(RAW + 'line-history/data/website-home/website-home.json.gz'))))
+    except Exception:
+        names = set()
+    UPLOADED.write_text(json.dumps(sorted(names)), encoding='utf-8')
+    return names
+
+
+def upload_new(token, cache, uploaded):
+    """Only the captures GitHub does not have yet, as one small file. Returns how many went up."""
+    new = {p.name: json.loads(p.read_text(encoding='utf-8'))
+           for p in sorted(cache.glob('*.json')) if p.name not in uploaded}
+    if not new:
+        return 0
+    routes = sum(1 for r in new.values() if r.get('status') == 'parsed')
+    payload = gzip.compress(json.dumps(new, ensure_ascii=False, separators=(',', ':')).encode(), mtime=0)
+    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    put_file(token, CONTENTS + f'part-{stamp}.json.gz', payload,
+             f'איסוף ביתי: {len(new)} צילומים חדשים ({routes} קווים)')
+    uploaded.update(new)
+    UPLOADED.write_text(json.dumps(sorted(uploaded)), encoding='utf-8')
+    return len(new)
 
 
 def key_works(token):
@@ -97,12 +124,14 @@ def key_works(token):
         return False
 
 
-def try_upload(token, n):
+def try_upload(token, cache, uploaded):
     if not token:
         return False
     try:
-        upload(token, n)
-        print(f'{datetime.datetime.now():%H:%M} uploaded {n} captures to GitHub', flush=True)
+        n = upload_new(token, cache, uploaded)
+        if n:
+            print(f'{datetime.datetime.now():%H:%M} uploaded {n} new captures to GitHub '
+                  f'(the site shows them in about 10 minutes)', flush=True)
         return True
     except Exception as e:
         print(f'{datetime.datetime.now():%H:%M} upload failed ({str(e)[:80]}); will try again later', flush=True)
@@ -134,10 +163,19 @@ def main():
                 print('Key saved in github-token.txt.', flush=True)
             else:
                 print('That key did not work; continuing without automatic uploads.', flush=True)
-    print('Uploads to GitHub: ' + ('automatic, every hour' if token else 'by hand (no github-token.txt)'), flush=True)
-    last_upload = time.monotonic()
+    print('Uploads to GitHub: ' + ('automatic, every 10 minutes while new routes are found' if token
+                                   else 'by hand (no github-token.txt)'), flush=True)
     cache = HOME / 'cache'
     cache.mkdir(exist_ok=True)
+    uploaded = already_uploaded() if token else set()
+    if token:
+        # whatever was collected before the computer turned off and never went up
+        waiting = sum(1 for p in cache.glob('*.json') if p.name not in uploaded)
+        if waiting:
+            print(f'{waiting} captures from last time were not uploaded yet; uploading them now...', flush=True)
+            try_upload(token, cache, uploaded)
+    last_upload = time.monotonic()
+    new_routes = 0
     w = load_importer()
     print('Downloading the list of captures...', flush=True)
     manifest = json.loads(gzip.decompress(get(RAW + 'line-history/data/website-archive.json.gz')))
@@ -231,11 +269,13 @@ def main():
                         continue
                     done_count += 1
                     counts[result['status']] += 1
+                    new_routes += result['status'] == 'parsed'
+                    if token and new_routes and time.monotonic() - last_upload >= UPLOAD_EVERY:
+                        if try_upload(token, cache, uploaded):
+                            new_routes = 0
+                        last_upload = time.monotonic()
                     if done_count % PACK_EVERY == 0:
-                        n = pack(cache)
-                        if token and time.monotonic() - last_upload >= UPLOAD_EVERY:
-                            try_upload(token, n)
-                            last_upload = time.monotonic()
+                        pack(cache)
                         print(f'{datetime.datetime.now():%H:%M} {done_count}/{total} done '
                               f'({counts["parsed"]} routes, {counts["unparsed"]} other pages, {counts["failed"]} failed); '
                               f'one request every {round(pacer.interval)} s', flush=True)
@@ -244,7 +284,7 @@ def main():
         print('Stopping...', flush=True)
     n = pack(cache)
     print(f'\nDone for now: {done_count} fetched this time, {n} in total.')
-    if not try_upload(token, n):
+    if not try_upload(token, cache, uploaded):
         print(f'Upload this file: {HOME / "website-home.json.gz"}')
         print('GitHub -> line-history/data/website-home/ -> Add file -> Upload files -> Commit.')
 
