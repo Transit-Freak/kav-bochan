@@ -51,8 +51,14 @@ jobs:
         run: |
           set -euo pipefail
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-          curl -fSL --connect-timeout 20 --max-time 1200 --retry 15 --retry-all-errors --retry-delay 60 -A "$UA" \
-            -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
+          # gov.il לא תמיד עונה לשרתי GitHub (03.10: אין חיבור 20 דקות, והיום לא נסרק).
+          # אז אחרי כמה ניסיונות — אותו קובץ מהארכיון היומי של דאטאבוס ב-S3 (נשמר ב-00:01 UTC).
+          if ! curl -fSL --connect-timeout 20 --max-time 1200 --retry 5 --retry-all-errors --retry-delay 30 -A "$UA" \
+            -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"; then
+            echo "gov.il לא ענה — GTFS מהארכיון היומי של דאטאבוס"
+            curl -fsS --retry 3 -o gtfs.zip \
+              "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/$(date -u +%Y/%m/%d)/israel-public-transportation.zip"
+          fi
           unzip -o gtfs.zip stops.txt stop_times.txt trips.txt routes.txt shapes.txt agency.txt calendar.txt
           # רשימת האשכולות של המשרד (סוג הקו + אשכול) — מהארכיון היומי של דאטאבוס, אחרת מ-gov.il
           D=$(TZ=Asia/Jerusalem date +%Y/%m/%d)
@@ -282,14 +288,16 @@ jobs:
           git diff --cached --name-only --diff-filter=D -z "$BASE" -- line-history/data kavbug-data kavpach-live.json > /tmp/lh-deleted
           rm -rf /tmp/lh-out && mkdir -p /tmp/lh-out
           xargs -0 -r -I{} cp --parents {} /tmp/lh-out/ < /tmp/lh-changed
-          for i in 1 2 3 4; do
+          for i in 1 2 3 4 5 6; do
             git fetch origin "$BR" && git reset --hard "origin/$BR"
             cp -r /tmp/lh-out/. .
             xargs -0 -r rm -f -- < /tmp/lh-deleted
-            git diff --name-only -z "$BASE" "origin/$BR" -- line-history/data kavbug-data > /tmp/lh-theirs
-            while IFS= read -r -d '' f; do
-              git checkout "origin/$BR" -- "$f" 2>/dev/null || rm -f -- "$f"
-            done < /tmp/lh-theirs
+            # כל הקבצים בפקודה אחת: קובץ-קובץ זה לקח כ-20 דקות לכל ניסיון (04.10), ובזמן
+            # הזה צינורות אחרים דחפו שוב, כך שהדחיפה נדחתה עד שנגמר הזמן והיום לא נשמר
+            git diff --name-only -z --diff-filter=d "$BASE" "origin/$BR" -- line-history/data kavbug-data > /tmp/lh-theirs
+            git diff --name-only -z --diff-filter=D "$BASE" "origin/$BR" -- line-history/data kavbug-data > /tmp/lh-theirs-del
+            [ -s /tmp/lh-theirs ] && git checkout "origin/$BR" --pathspec-from-file=/tmp/lh-theirs --pathspec-file-nul
+            xargs -0 -r rm -f -- < /tmp/lh-theirs-del
             OUTDIR=line-history/data python3 tools/enrich_stop_diffs.py
             # סיווג "שינוי יעד" נקבע בסורק לפי מחרוזת השם; כאן הוא מתוקן
             # לפי מק"ט תחנות הקצה. שני הכלים אידמפוטנטיים ומחזירים את
@@ -343,5 +351,14 @@ jobs:
               echo "unchanged — nothing to commit"; break; fi
             git commit -m "data: line-history — שינויי מסלולים ותחנות יומיים"
             if git push origin HEAD:"$BR"; then break; fi
+            # מה שנדחף בינתיים לא נוגע בקבצים של הריצה (מדד הדיוק, צי, GIS...) — רק להעביר
+            # את ה-commit מעליו ולדחוף, בלי לחשב הכול מחדש
+            git fetch -q origin "$BR"
+            if git diff --quiet HEAD~1 "origin/$BR" -- line-history/data kavbug-data kavpach-live.json magihim-2012/data \
+               && git rebase -q "origin/$BR" && git push origin HEAD:"$BR"; then break; fi
+            git rebase --abort 2>/dev/null || true
             echo "push rejected ($BR moved) — retry $i"; sleep 10
           done
+          # כל הניסיונות נדחו — הריצה נכשלת בגלוי (ולא "הצליחה" בלי לשמור את היום)
+          git fetch -q origin "$BR"
+          git merge-base --is-ancestor HEAD "origin/$BR" || { echo "::error::השינויים של היום לא נשמרו: הדחיפה נדחתה בכל הניסיונות"; exit 1; }
