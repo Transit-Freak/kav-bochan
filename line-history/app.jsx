@@ -1081,6 +1081,23 @@ const getMonths = () => MONTHS_P || (MONTHS_P = dfetch("data/months.json")
    של הרציפים בקובץ התחנות של המשרד): st — לכל מק"ט הרציפים שיש בהם נסיעות
    בתוקף ומי עוצר בכל אחד; rd — לכל וריאנט הרציף שלו בכל תחנה. נטען פעם אחת;
    כשל או קובץ ישן = בלי רציפים, בלי לשבור את הדף. */
+/* "למה הרכבת הזו?" (שלמה 05.10): רכבות שפעלו שנה או פחות, והסיבה שנמצאה באינטרנט ואומתה
+   (tools/rail_short_lived.py + פאנל חיפוש → data/rail-reasons.json). "!" מופיע רק כשיש סיבה
+   מאומתת; בלי סיבה — בלי סימון. קובץ חסר = בלי סימונים, בלי לשבור את הדף. */
+let RAILWHY_P = null;
+const getRailWhy = () => RAILWHY_P || (RAILWHY_P = dfetch("data/rail-reasons.json")
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => (d && d.rd ? d : { rd: {} }))
+  .catch(() => ({ rd: {} })));
+function useRailWhy(rd) {
+  const [w, setW] = useState(null);
+  useEffect(() => { let on = true; getRailWhy().then((d) => { if (on) setW(d.rd[rd] || null); }); return () => { on = false; }; }, [rd]);
+  return w;
+}
+function WhyMark({ rd }) {
+  const w = useRailWhy(rd);
+  return w ? <span className="whymark" title={"למה הרכבת הזו פעלה רק זמן קצר? " + w.text}>!</span> : null;
+}
 let PLAT_P = null;
 const getPlatforms = () => PLAT_P || (PLAT_P = dfetch("data/platforms.json")
   .then((r) => (r.ok ? r.json() : null))
@@ -2161,6 +2178,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   // התחנות (platforms.json rd), מתעדכן מדי יום
   const plats = usePlatforms();
   const rdPlat = (plats && plats.rd && plats.rd[rd]) || {};
+  const why = useRailWhy(rd);
   const withPlat = (str, c) => (c != null && rdPlat[String(c)]) ? `${str} · רציף ${rdPlat[String(c)]}` : str;
   const [lf, setLf] = useState(null);
   const [err, setErr] = useState(null);
@@ -2618,6 +2636,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
         <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lf.dest}</span>
+          {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
+            onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
           {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
           <button className="sharebtn" title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
             onClick={(e) => {
@@ -2638,6 +2658,11 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
             (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
+        {why && <div className="whybox" id="why">
+          <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
+          <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
+          <a href={why.url} target="_blank" rel="noopener noreferrer">המקור: {why.source}{why.published ? ", " + fmtD(why.published) : ""} ←</a>
+        </div>}
         <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
           {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
           {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
@@ -4795,6 +4820,7 @@ function ModesTab({ idx, openLine, spec }) {
           <a key={l.rd} className="lrow" href={lineHref(l.rd)}
             onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(l.rd); }}>
             <span className="badge sm">{l.line || TT_ICON[l.tt] || "—"}</span>
+            {l.tt === "rail" && <WhyMark rd={l.rd} />}
             {l.lk === "removed" && (
               <span className="k" style={{ background: isRemovedYear(l) ? "#7f1d1d" : "#dc2626" }}>
                 {isRemovedYear(l) ? "בוטל — מעל שנה" : "בוטל"}
@@ -5400,6 +5426,7 @@ function App() {
                 <a key={l.rd} className="lrow" href={lineHref(l.rd)}
                   onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(l.rd); }}>
                   <span className="badge sm">{l.line || TT_ICON[l.tt] || "—"}</span>
+                  {l.tt === "rail" && <WhyMark rd={l.rd} />}
                   {lineGoneAt(l) && (isLineGone(l) ? (
                     <span className="k" style={{ background: isRemovedYear(l) ? "#7f1d1d" : "#dc2626" }}>
                       {isRemovedYear(l) ? "הקו בוטל — מעל שנה" : "הקו בוטל"}

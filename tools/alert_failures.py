@@ -233,6 +233,13 @@ def stale_checks(today):
         out.append(('⚠️ לא מתעדכן: מדד דיוק האוטובוסים', f'לא הצלחתי לקרוא את bus/data/index.json ({e}).'))
     try:
         gen = json.load(open('line-history/data/lines.json', encoding='utf-8'))['gen']
+        # the last successful run is the truth; gen could lag behind it before 05.10
+        try:
+            runs = api('actions/workflows/line-history.yml/runs?status=success&branch=main&per_page=1')['workflow_runs']
+            if runs:
+                gen = max(gen, runs[0]['updated_at'][:10])
+        except Exception:
+            pass
         out.append(('⚠️ לא מתעדכן: הקו בזמן',
                     f'הסריקה האחרונה שנשמרה היא מ-{gen}. שינויים שבוצעו אחריה לא מופיעים באתר.' if gen < yesterday else None))
     except Exception as e:

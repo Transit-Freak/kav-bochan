@@ -362,7 +362,7 @@ jobs:
             # שברי תחנות: קישור לתחנה טוען כמאתיים ק"ב במקום 4.5 מגה
             OUTDIR=line-history/data python3 tools/build_stop_shards.py
             OUTDIR=line-history/data python3 tools/compact_lines.py
-            OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+            SCAN_DATE=$(date -u +%F) OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
             # תיאורי החלופות ("דרך שכונת…", "דרך רחוב…", "מתחיל ב…") — מחושבים כאן ולא בדפדפן (שלמה 26.09)
             OUTDIR=line-history/data node tools/build_alt_desc.mjs
             # קישור ישיר לקווי 2012 של משרד התחבורה (קודם למגיעים) — שלמה 26.09
