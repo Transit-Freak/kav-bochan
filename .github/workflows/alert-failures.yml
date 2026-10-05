@@ -18,7 +18,7 @@ on:
       - gis-layers
       - fleet-registry
       - ratzif
-      - tenders-collect
+      # tenders-collect (מסכם המכרזים) — לא פעיל כרגע, לא נבדק (שלמה 05.10)
       - historical-passenger-websites
       - notify-push
       - update-weekly

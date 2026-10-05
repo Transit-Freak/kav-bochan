@@ -32,7 +32,7 @@ WATCHED = {
     'gis-layers': 'GIS — השכבות הליליות',
     'fleet-registry': 'צי הרכבים — רישוי',
     'ratzif': 'רציף כפול',
-    'tenders-collect': 'מסכם המכרזים',
+    # מסכם המכרזים לא פעיל כרגע ולא נבדק (שלמה 05.10); להחזיר כאן וב-alert-failures.yml כשיחזור
     'historical-passenger-websites': 'הקו בזמן — צילומי אתרי המידע (2003–2015)',
     'notify-push': 'התראות הדפדפן של הקו בזמן',
     'update-weekly': 'רענון יומי של התחנות',
