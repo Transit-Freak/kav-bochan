@@ -139,15 +139,27 @@
  },
  {
   "id": "בית יהושע|נהריה|2017-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עבודות תשתית בין בית יהושע לתל אביב (4–8 בינואר 2017): תחנות הרצליה ותל אביב נסגרו, והרכבות מהצפון הסתיימו בבית יהושע.",
+  "url": "https://www.themarker.com/dynamo/cars/2017-01-03/ty-article/0000017f-db91-db5a-a57f-dbfbbca70001",
+  "source": "TheMarker",
+  "published": "2017-01-03",
+  "confidence": "high",
+  "evidence": "Article of 3 Jan 2017: trains to Tel Aviv cancelled Wed evening to Sunday, northern lines terminate at Beit Yehoshua; matches 1–9 Jan train from Nahariya ending at Beit Yehoshua.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בית יהושע|קרית מוצקין|2017-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עבודות תשתית בין בית יהושע לתל אביב (4–8 בינואר 2017): הקטע נסגר, והרכבות מהצפון הסתיימו בבית יהושע.",
+  "url": "https://www.themarker.com/dynamo/cars/2017-01-03/ty-article/0000017f-db91-db5a-a57f-dbfbbca70001",
+  "source": "TheMarker",
+  "published": "2017-01-03",
+  "confidence": "high",
+  "evidence": "Same Jan 2017 closure (northern trains end at Beit Yehoshua, shuttles to Herzliya/TA) matches this 1–9 Jan Kiryat Motzkin–Beit Yehoshua train.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "אשדוד עד הלום|בנימינה|2017-02-08",
@@ -216,9 +228,15 @@
  },
  {
   "id": "חיפה מרכז|נתניה|2017-03-10",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עבודות תשתית בנתניה ובהרצליה סגרו את הקו בין נתניה לתל אביב בין 16 ל-19 במרץ 2017, ולכן רכבות מהצפון סיימו את נסיעתן בנתניה.",
+  "url": "https://www.themarker.com/dynamo/2017-03-12/ty-article/0000017f-f0a6-df98-a5ff-f3af2c6b0000",
+  "source": "TheMarker",
+  "published": "2017-03-12",
+  "confidence": "medium",
+  "evidence": "Article (12 Mar 2017) on the 16-19 Mar 2017 Netanya-Tel Aviv closure says northern trains terminated at Netanya, inside this train's 10-31 Mar run.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "נתניה|קרית מוצקין|2017-03-10",
@@ -292,9 +310,15 @@
  },
  {
   "id": "בית יהושע|נהריה|2017-08-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בעבודות תשתית ב-18–27 באוגוסט 2017 נסגר הקטע בית יהושע–תל אביב, ורכבות מהצפון סיימו את נסיעתן בבית יהושע.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-4998316,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Ynet report on 9-day works matches the known 18-27 Aug 2017 Beit Yehoshua-Tel Aviv closure, when northern trains terminated at Beit Yehoshua; train lasted longer than the closure.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "הרכבת פעלה עד מרץ 2018, חודשים אחרי סיום העבודות (18–27.8.2017)"
  },
  {
   "id": "בית יהושע|קרית חיים|2017-08-04",
@@ -308,9 +332,15 @@
  },
  {
   "id": "נהריה|נתניה|2017-08-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "ככל הנראה קשור לסגירת הקטע בית יהושע–תל אביב לעבודות תשתית באוגוסט 2017, שבה רכבות מהצפון קוצרו ולא הגיעו לתל אביב.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-4998316,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Dates overlap the Aug 2017 Beit Yehoshua-Tel Aviv closure, but the source does not name Netanya as a terminus.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "חוף הכרמל|תל אביב ההגנה|2017-08-25",
@@ -326,15 +356,27 @@
  },
  {
   "id": "באר שבע מרכז|קרית חיים|2017-09-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "הקו הישיר מהקריות לבאר שבע בוטל בלוח זמנים חדש בגלל מחסור במסילה רביעית באיילון והכנות לקו לירושלים; הנוסעים מהצפון נדרשו להחליף רכבת בתל אביב.",
+  "url": "https://krayot.mynet.co.il/local_news/article/m_313955",
+  "source": "mynet קריות",
+  "published": null,
+  "confidence": "low",
+  "evidence": "mynet Krayot reports cancellation of the direct Krayot–Beer Sheva line; publication date not seen, so match to the Apr 2018 end is unverified.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "לוד|נהריה|2017-09-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "ככל הנראה הוחלף בלוח הזמנים החדש שנכנס לתוקף ב-20 בספטמבר 2017 עם פתיחת קו כרמיאל.",
+  "url": "https://meida8.co.il/%D7%9C%D7%95%D7%97-%D7%96%D7%9E%D7%A0%D7%99%D7%9D-%D7%9E%D7%A2%D7%95%D7%93%D7%9B%D7%9F-%D7%9C%D7%A8%D7%9B%D7%91%D7%AA-%D7%99%D7%A9%D7%A8%D7%90%D7%9C-%D7%A2%D7%9D-%D7%94%D7%A9%D7%A7%D7%AA-%D7%A8%D7%9B/",
+  "source": "מידע 8",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Source describes the new timetable from 20 Sep 2017 with the Karmiel line launch; train ended 24 Sep 2017, but the source does not name this Nahariya–Lod train.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "מודיעין מרכז|קרית חיים|2017-09-04",
@@ -350,27 +392,51 @@
  },
  {
   "id": "בנימינה|חיפה מרכז|2017-10-24",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בעבודות תשתית ב-31 באוקטובר עד 5 בנובמבר 2017 לא נסעו רכבות בין בנימינה לתל אביב; רכבות מהצפון קוצרו ורכבת אחת בשעה המשיכה מחיפה לבנימינה.",
+  "url": "https://news.walla.co.il/item/3107465",
+  "source": "וואלה",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Walla reports the Oct 31-Nov 5 2017 Binyamina-Tel Aviv closure with an hourly train from Haifa to Binyamina, inside the train's dates.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בנימינה|קרית חיים|2017-10-24",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בעבודות תשתית ב-31 באוקטובר עד 5 בנובמבר 2017 נסגר הקטע בנימינה–תל אביב, ורכבות מהצפון הסתיימו בבנימינה או בחיפה.",
+  "url": "https://news.walla.co.il/item/3107465",
+  "source": "וואלה",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Oct 31-Nov 5 2017 Binyamina-Tel Aviv closure; northern trains were cut short with service to Binyamina.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חוף הכרמל|חיפה מרכז|2017-10-24",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "התחיל בזמן סגירת הקטע בנימינה–תל אביב לעבודות (31.10–5.11.2017), שבה רכבות מהצפון קוצרו לאזור חיפה.",
+  "url": "https://news.walla.co.il/item/3107465",
+  "source": "וואלה",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Start matches the Oct-Nov 2017 closure, but the train ran until Feb 2018, beyond the closure.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "חוף הכרמל|קרית חיים|2017-10-24",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בעבודות תשתית ב-31 באוקטובר עד 5 בנובמבר 2017 נסגר הקטע בנימינה–תל אביב, ורכבות מהצפון קוצרו לאזור חיפה.",
+  "url": "https://news.walla.co.il/item/3107465",
+  "source": "וואלה",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same closure; source says northern trains ended in Haifa (Bat Galim area) instead of reaching Tel Aviv.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "קרית חיים|תל אביב מרכז|2017-11-24",
@@ -380,33 +446,63 @@
  },
  {
   "id": "באר שבע מרכז|בנימינה|2018-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "כנראה קו מקוצר שהסתיים בבנימינה בזמן אחת מהפסקות התנועה החוזרות בין בנימינה לחוף הכרמל לעבודות שדרוג המסילה באזור עתלית ב-2018.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Same pattern (south trains end at Binyamina, Haifa shuttles from Hof HaCarmel) as the dated late-Apr 2018 Hof HaCarmel–Binyamina closure; no source dated Jan 2018 found.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "בנימינה|מודיעין מרכז|2018-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "כנראה קו מקוצר שהסתיים בבנימינה בזמן אחת מהפסקות התנועה החוזרות בין בנימינה לחוף הכרמל לעבודות שדרוג המסילה באזור עתלית ב-2018.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Same pattern (south trains end at Binyamina, Haifa shuttles from Hof HaCarmel) as the dated late-Apr 2018 Hof HaCarmel–Binyamina closure; no source dated Jan 2018 found.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "בנימינה|נתבג|2018-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "כנראה קו מקוצר שהסתיים בבנימינה בזמן אחת מהפסקות התנועה החוזרות בין בנימינה לחוף הכרמל לעבודות שדרוג המסילה באזור עתלית ב-2018.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Same pattern (south trains end at Binyamina, Haifa shuttles from Hof HaCarmel) as the dated late-Apr 2018 Hof HaCarmel–Binyamina closure; no source dated Jan 2018 found. Its 21 Jan–11 May span covers the Apr 2018 closure.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "חוף הכרמל|לב המפרץ|2018-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "כנראה קו מקוצר בחיפה בזמן אחת מהפסקות התנועה החוזרות בין חוף הכרמל לבנימינה לעבודות שדרוג המסילה באזור עתלית ב-2018.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Same pattern (south trains end at Binyamina, Haifa shuttles from Hof HaCarmel) as the dated late-Apr 2018 Hof HaCarmel–Binyamina closure; no source dated Jan 2018 found. Its 21 Jan–11 May span covers the Apr 2018 closure.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "חוף הכרמל|קרית מוצקין|2018-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "כנראה קו מקוצר בחיפה בזמן אחת מהפסקות התנועה החוזרות בין חוף הכרמל לבנימינה לעבודות שדרוג המסילה באזור עתלית ב-2018.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Same pattern (south trains end at Binyamina, Haifa shuttles from Hof HaCarmel) as the dated late-Apr 2018 Hof HaCarmel–Binyamina closure; no source dated Jan 2018 found. Its 21 Jan–11 May span covers the Apr 2018 closure.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "נהריה|עכו|2018-01-21",
@@ -416,15 +512,27 @@
  },
  {
   "id": "בית יהושע|לב המפרץ|2018-02-23",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "הקו בין בית יהושע לתל אביב נסגר בסוף פברואר 2018 (19–25 בפברואר) לעבודות לביטול מפגשי כביש-מסילה ולחיבור הקו המהיר לירושלים, ולכן רכבות מהצפון הגיעו רק עד בית יהושע.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5119888,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Feb 2018 reports of the Tel Aviv-Beit Yehoshua closure (19-25 Feb 2018) say northern trains ran only to Beit Yehoshua; train starts 23 Feb, though it stays in the timetable to 9 Mar.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בית יהושע|קרית מוצקין|2018-02-23",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "הקו בין בית יהושע לתל אביב נסגר בסוף פברואר 2018 (19–25 בפברואר) לעבודות לביטול מפגשי כביש-מסילה ולחיבור הקו המהיר לירושלים, ולכן רכבות מהצפון הגיעו רק עד בית יהושע.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5119888,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Feb 2018 reports of the Tel Aviv-Beit Yehoshua closure (19-25 Feb 2018) say northern trains ran only to Beit Yehoshua; train starts 23 Feb, though it stays in the timetable to 9 Mar.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "נהריה|נתניה|2018-02-23",
@@ -488,21 +596,39 @@
  },
  {
   "id": "באר שבע מרכז|בנימינה|2018-04-25",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "קו מקוצר שהסתיים בבנימינה בזמן הפסקת התנועה בין בנימינה לחוף הכרמל לעבודות שדרוג המסילה באזור עתלית (מרביעי בלילה עד ראשון), כשתחנת עתלית סגורה והופעלו היסעים.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "ynet article (ID dates it to late Apr 2018) describes Hof HaCarmel–Binyamina closure from Wednesday night to Sunday with Atlit closed; 25 Apr 2018, the train's first day, was a Wednesday.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בנימינה|מודיעין מרכז|2018-04-25",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "קו מקוצר שהסתיים בבנימינה בזמן הפסקת התנועה בין בנימינה לחוף הכרמל לעבודות שדרוג המסילה באזור עתלית (מרביעי בלילה עד ראשון), כשתחנת עתלית סגורה והופעלו היסעים.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "ynet article (ID dates it to late Apr 2018) describes Hof HaCarmel–Binyamina closure from Wednesday night to Sunday with Atlit closed; 25 Apr 2018, the train's first day, was a Wednesday.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חוף הכרמל|קרית חיים|2018-04-25",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "קו מקוצר בצפון שהסתיים בחוף הכרמל בזמן הפסקת התנועה בין חוף הכרמל לבנימינה לעבודות שדרוג המסילה באזור עתלית; רכבות מהדרום הגיעו רק לבנימינה.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5240749,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "ynet article (ID dates it to late Apr 2018) describes Hof HaCarmel–Binyamina closure from Wednesday night to Sunday with Atlit closed; 25 Apr 2018, the train's first day, was a Wednesday.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "אשקלון|חדרה מערב|2018-05-11",
@@ -548,27 +674,51 @@
  },
  {
   "id": "אשדוד עד הלום|כפר סבא|2018-06-11",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "תחנת הוד השרון נסגרה עד סוף יוני 2018 לקראת חיבור רעננה למסילה, והרכבות בקו השרון יצאו מתחנת כפר סבא נורדאו.",
+  "url": "https://www.israelhayom.co.il/article/558113",
+  "source": "ישראל היום",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Israel Hayom: Hod HaSharon closed 26 May-30 Jun 2018 with Sharon trains starting at Kfar Saba Nordau; overlaps the train's 11 Jun-11 Jul dates.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "אשקלון|כפר סבא|2018-06-11",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "תחנת הוד השרון נסגרה עד סוף יוני 2018 לקראת חיבור רעננה למסילה, והרכבות בקו השרון יצאו מתחנת כפר סבא נורדאו.",
+  "url": "https://www.israelhayom.co.il/article/558113",
+  "source": "ישראל היום",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Hod HaSharon closure; trains started at Kfar Saba Nordau during the train's dates.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "באר שבע מרכז|כפר סבא|2018-06-11",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "תחנת הוד השרון נסגרה עד סוף יוני 2018 לקראת חיבור רעננה למסילה, והרכבות בקו השרון יצאו מתחנת כפר סבא נורדאו.",
+  "url": "https://www.israelhayom.co.il/article/558113",
+  "source": "ישראל היום",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Hod HaSharon closure; Beer Sheva-Sharon trains started at Kfar Saba Nordau.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "כפר סבא|נתיבות|2018-06-11",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "תחנת הוד השרון נסגרה עד סוף יוני 2018 לקראת חיבור רעננה למסילה, והרכבות בקו השרון יצאו מתחנת כפר סבא נורדאו.",
+  "url": "https://www.israelhayom.co.il/article/558113",
+  "source": "ישראל היום",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Hod HaSharon closure; Sharon-line trains terminated at Kfar Saba Nordau.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "כפר סבא|ראשון לציון משה דיין|2018-06-11",
@@ -636,9 +786,15 @@
  },
  {
   "id": "בנימינה|כרמיאל|2018-07-25",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "המקטע בין בנימינה לחדרה נסגר בסוף יולי 2018 (27–29 ביולי) לעבודות תשתית, ולכן רכבות מכרמיאל הסתיימו בבנימינה.",
+  "url": "https://news.walla.co.il/break/3175120",
+  "source": "וואלה! חדשות",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Walla report of the Binyamina-Hadera closure 27-29 Jul 2018 falls inside this train's 25 Jul-8 Aug run and explains a Binyamina terminus.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חיפה מרכז|נתבג|2018-07-25",
@@ -654,21 +810,39 @@
  },
  {
   "id": "באר שבע מרכז|הרצליה|2018-09-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בלוח הזמנים החדש מ-15.9.2018 קוצר הקו באר שבע–נהריה ופעל בין הרצליה לבאר שבע מרכז.",
+  "url": "https://www.rail.co.il/pages/updates/newtimetable.aspx",
+  "source": "רכבת ישראל",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Israel Railways notice of the 15.9.18 timetable says the Beer Sheva-Nahariya line was shortened to Herzliya-Beer Sheva Center.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "באר שבע מרכז|מרכזית המפרץ קו החוף|2018-09-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "ככל הנראה חלק משינוי הקו באר שבע–נהריה בלוח הזמנים החדש מ-15.9.2018, שבו הקו קוצר.",
+  "url": "https://www.rail.co.il/pages/updates/newtimetable.aspx",
+  "source": "רכבת ישראל",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Start matches the 15.9.18 timetable that shortened the Beer Sheva-Nahariya line, but the source does not name Merkazit HaMifratz.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "באר שבע צפון|נהריה|2018-09-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בלוח הזמנים החדש מ-15.9.2018 הרכבת מנהריה לבאר שבע (06:05) סיימה בבאר שבע צפון במקום בבאר שבע מרכז.",
+  "url": "https://www.rail.co.il/pages/updates/newtimetable.aspx",
+  "source": "רכבת ישראל",
+  "published": null,
+  "confidence": "high",
+  "evidence": "Same 15.9.18 timetable notice explicitly says the 06:05 Nahariya train ends at Beer Sheva North.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "באר שבע צפון|חיפה מרכז|2018-09-28",
@@ -708,9 +882,15 @@
  },
  {
   "id": "אשקלון|עכו|2019-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "תחנת נהריה הייתה סגורה בזמן שיפוץ מבנה התחנה ב־2019, ותחנת עכו שימשה תחנת קצה זמנית לרכבות הצפון.",
+  "url": "https://he.wikipedia.org/wiki/%D7%AA%D7%97%D7%A0%D7%AA_%D7%94%D7%A8%D7%9B%D7%91%D7%AA_%D7%A0%D7%94%D7%A8%D7%99%D7%94",
+  "source": "ויקיפדיה",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Wikipedia: during Nahariya station rebuild Akko was a temporary terminus; train ends 20 Jun 2019, the known Nahariya reopening date.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חיפה מרכז|לוד|2019-01-21",
@@ -726,9 +906,15 @@
  },
  {
   "id": "עכו|תל אביב מרכז|2019-01-21",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "תחנת נהריה הייתה סגורה בזמן שיפוץ מבנה התחנה ב־2019, והרכבות לצפון הסתיימו בעכו.",
+  "url": "https://he.wikipedia.org/wiki/%D7%AA%D7%97%D7%A0%D7%AA_%D7%94%D7%A8%D7%9B%D7%91%D7%AA_%D7%A0%D7%94%D7%A8%D7%99%D7%94",
+  "source": "ויקיפדיה",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Wikipedia says Akko was temporary terminus during Nahariya station works (2018–2019); train dates (Jan–Apr 2019) fall inside but end date does not match exactly.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "בנימינה|ראשונים|2019-02-25",
@@ -845,9 +1031,15 @@
  },
  {
   "id": "מודיעין מרכז|עכו|2019-06-06",
-  "reason": null,
+  "reason": "תחנת נהריה הייתה סגורה עד 20 ביוני 2019, ורכבות הקו הסתיימו בעכו; הרכבת המשיכה להופיע בלוח גם אחר כך.",
   "url": null,
-  "verdict": "no-source"
+  "source": "",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Round-1 verified context: Nahariya station closed until 20 Jun 2019 with trains ending at Akko; covers only the start of this train's run (to 15 Sep).",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "נתבג|עכו|2019-06-06",
@@ -938,9 +1130,15 @@
  },
  {
   "id": "בני ברק|רעננה מערב|2019-11-27",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עבודות חשמול באיילון (דצמבר 2019–ינואר 2020) שבהן נסגרה אחת המסילות; חלק מהרכבות מרעננה מערב הסתיימו בבני ברק.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5631689,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Ayalon electrification announcement said 2 of 4 hourly Raanana West trains would end at Bnei Brak; start matches but train continued to Mar 2020, past the works.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "באר שבע מרכז|הרצליה|2019-11-29",
@@ -950,21 +1148,39 @@
  },
  {
   "id": "בנימינה|נתיבות|2019-11-29",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עבודות חשמול באיילון בדצמבר 2019: הרכבות מאשקלון ואשדוד הוסטו לתל אביב דרך יבנה מזרח ולוד.",
+  "url": "https://www.ynet.co.il/articles/0,7340,L-5631689,00.html",
+  "source": "ynet",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Dec 2019 Ayalon works rerouted Ashkelon/Ashdod trains via Yavne East and Lod, exactly this train's path; it ran 29 Nov–8 Dec, only part of the 2–20 Dec works.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "אופקים|תל אביב ההגנה|2019-12-08",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בזמן עבודות החשמול באיילון (2–20 בדצמבר 2019) נסגר הקטע תל אביב ההגנה–סבידור מרכז, ולכן רכבות מהדרום דרך בת ים סיימו את נסיעתן בתל אביב ההגנה.",
+  "url": "https://www.themarker.com/dynamo/cars/2019-11-25/ty-article/0000017f-dbff-d3a5-af7f-fbffe75a0000",
+  "source": "TheMarker",
+  "published": "2019-11-25",
+  "confidence": "low",
+  "evidence": "TheMarker 25 Nov 2019 describes December 2019 electrification works between TA HaHagana and Savidor (and Yavne West–Moshe Dayan); train ran within that window ending at HaHagana. Only 2 days, and the route passes Yavne West–Moshe Dayan, which the works also closed, so the fit is partial.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "אשדוד עד הלום|תל אביב ההגנה|2019-12-08",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בזמן עבודות החשמול באיילון (2–20 בדצמבר 2019) נסגר הקטע תל אביב ההגנה–סבידור מרכז, ולכן רכבות מהדרום דרך בת ים סיימו את נסיעתן בתל אביב ההגנה.",
+  "url": "https://www.themarker.com/dynamo/cars/2019-11-25/ty-article/0000017f-dbff-d3a5-af7f-fbffe75a0000",
+  "source": "TheMarker",
+  "published": "2019-11-25",
+  "confidence": "medium",
+  "evidence": "TheMarker 25 Nov 2019 describes December 2019 electrification works between TA HaHagana and Savidor (and Yavne West–Moshe Dayan); train ran within that window ending at HaHagana. Last day 20 Dec equals the end of the works.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "באר שבע מרכז|מרכזית המפרץ קו החוף|2019-12-13",
@@ -1098,51 +1314,99 @@
  },
  {
   "id": "בית שמש|תל אביב ההגנה|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "חלק מלוח הזמנים המצומצם והמפוצל שהוכן לחזרה המדורגת של הרכבות אחרי סגר הקורונה במאי 2020, חזרה שנדחתה בסוף ל-22 ביוני.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "low",
+  "evidence": "Article of 11 May 2020 describes the split reduced restart timetable from 17 May; this exact route is not named in what I saw, only the general plan and matching dates.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "חוף הכרמל|חיפה מרכז|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "חלק מלוח הזמנים המצומצם והמפוצל שהוכן לחזרה המדורגת של הרכבות אחרי סגר הקורונה במאי 2020, חזרה שנדחתה בסוף ל-22 ביוני.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "low",
+  "evidence": "Article of 11 May 2020 describes the split reduced restart timetable from 17 May; this exact route is not named in what I saw, only the general plan and matching dates.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "חוף הכרמל|נהריה|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בתוכנית לחידוש מדורג של הרכבות אחרי סגר הקורונה (מ-17 במאי 2020) קו נהריה–באר שבע פוצל וחלקו הצפוני פעל בין נהריה לחוף הכרמל. החזרה נדחתה בסוף ל-22 ביוני.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "high",
+  "evidence": "Article of 11 May 2020 lists the planned split Nahariya-Haifa Hof HaCarmel service for the gradual restart, matching this train's 13-15 May dates and stations.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חיפה מרכז|נתניה|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "חלק מלוח הזמנים המצומצם והמפוצל שהוכן לחזרה המדורגת של הרכבות אחרי סגר הקורונה במאי 2020, חזרה שנדחתה בסוף ל-22 ביוני.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "low",
+  "evidence": "Article of 11 May 2020 describes the split reduced restart timetable from 17 May; this exact route is not named in what I saw, only the general plan and matching dates.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "מודיעין מרכז|תל אביב מרכז|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בתוכנית החזרה המדורגת אחרי סגר הקורונה (מאי 2020) חלקו הדרומי של קו נהריה–מודיעין פוצל לקו נפרד בין מודיעין מרכז לתל אביב סבידור מרכז.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "medium",
+  "evidence": "Article of 11 May 2020 lists a split Modiin Center-Tel Aviv Savidor service in the restart plan; matches start date and endpoints, runs until Jan 2021.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "נהריה|נתניה|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "בתוכנית החזרה המדורגת אחרי סגר הקורונה (מאי 2020) קו נהריה–מודיעין פוצל, וחלקו הצפוני פעל בין נהריה לנתניה בלבד; הפיצול נשאר בלוח בתקופת הקורונה.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "medium",
+  "evidence": "Article of 11 May 2020 lists a split Nahariya-Netanya service in the restart plan; matches start date and stations, though the train stays in the timetable until Mar 2021.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "ראש העין צפון|תל אביב ההגנה|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "חלק מלוח הזמנים המצומצם והמפוצל שהוכן לחזרה המדורגת של הרכבות אחרי סגר הקורונה במאי 2020, חזרה שנדחתה בסוף ל-22 ביוני.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "low",
+  "evidence": "Article of 11 May 2020 describes the split reduced restart timetable from 17 May; this exact route is not named in what I saw, only the general plan and matching dates.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "תל אביב ההגנה|תל אביב מרכז|2020-05-13",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "חלק מלוח הזמנים המצומצם והמפוצל שהוכן לחזרה המדורגת של הרכבות אחרי סגר הקורונה במאי 2020, חזרה שנדחתה בסוף ל-22 ביוני.",
+  "url": "https://www.themarker.com/dynamo/cars/2020-05-11/ty-article/0000017f-e499-d38f-a57f-e6db256a0000",
+  "source": "TheMarker",
+  "published": "2020-05-11",
+  "confidence": "low",
+  "evidence": "Article of 11 May 2020 describes the split reduced restart timetable from 17 May; this exact route is not named in what I saw, only the general plan and matching dates.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "אשקלון|חיפה מרכז|2020-06-04",
@@ -1152,27 +1416,51 @@
  },
  {
   "id": "אשקלון|ראש העין צפון|2020-06-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עם חזרת הרכבות אחרי הקורונה ביוני 2020 קו השרון לא חזר מעבר לראש העין, ולכן רכבות הקו הסתיימו בראש העין צפון.",
+  "url": "https://www.mako.co.il/finances-news/israel/Article-66a8da2e2c56671027.htm",
+  "source": "mako",
+  "published": null,
+  "confidence": "low",
+  "evidence": "Restart article covers Rosh HaAyin North as a terminus in June 2020 but does not name the Ashkelon service specifically.",
+  "round": 2,
+  "verdict": "rejected",
+  "note": "ביטחון נמוך"
  },
  {
   "id": "בית יהושע|חיפה מרכז|2020-06-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עם חזרת הרכבות אחרי סגר הקורונה ביוני 2020, נסגר הקטע סבידור–בית יהושע בערבים ובסופי שבוע לעבודות חשמול, ורכבות מהצפון סיימו בבית יהושע.",
+  "url": "https://www.mako.co.il/finances-news/israel/Article-66a8da2e2c56671027.htm",
+  "source": "mako",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Mako article on the June 2020 restart says Savidor-Beit Yehoshua closed nightly and on weekends, with northern trains ending at Beit Yehoshua.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בית יהושע|נהריה|2020-06-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עם חזרת הרכבות אחרי סגר הקורונה ביוני 2020, נסגר הקטע סבידור–בית יהושע בערבים ובסופי שבוע לעבודות חשמול, ורכבות מהצפון סיימו בבית יהושע.",
+  "url": "https://www.mako.co.il/finances-news/israel/Article-66a8da2e2c56671027.htm",
+  "source": "mako",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same June 2020 restart article; northern trains terminated at Beit Yehoshua during the nightly/weekend closures.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בית יהושע|קרית מוצקין|2020-06-04",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עם חזרת הרכבות אחרי סגר הקורונה ביוני 2020, נסגר הקטע סבידור–בית יהושע בערבים ובסופי שבוע לעבודות חשמול, ורכבות מהצפון סיימו בבית יהושע.",
+  "url": "https://www.mako.co.il/finances-news/israel/Article-66a8da2e2c56671027.htm",
+  "source": "mako",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same June 2020 restart article; northern trains terminated at Beit Yehoshua during the closures.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "נהריה|רחובות|2020-06-04",
@@ -1208,9 +1496,15 @@
  },
  {
   "id": "ראש העין צפון|ראשון לציון משה דיין|2020-06-09",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "עם חזרת הרכבות אחרי הקורונה ביוני 2020 קו השרון לא חזר מעבר לראש העין, והקו הופעל בין ראשון לציון משה דיין לראש העין צפון; הוא בוטל בסגר ינואר 2021 לטובת עבודות החשמול.",
+  "url": "https://www.mako.co.il/finances-news/israel/Article-66a8da2e2c56671027.htm",
+  "source": "mako",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Mako restart article names the Rishon Moshe Dayan-Rosh HaAyin North line for June 2020; the Jan 2021 lockdown works then cancelled lines south of HaHagana.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "בנימינה|נתיבות|2020-06-18",
@@ -1320,39 +1614,75 @@
  },
  {
   "id": "אשקלון|תל אביב ההגנה|2021-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת קטע ההגנה–סבידור לעבודות תשתית בזמן הסגר (3–10 בינואר 2021): רכבות מהדרום הסתיימו בתל אביב ההגנה ומהצפון בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Lockdown works Jan 2021: southern trains ended at HaHagana (3–10 Jan), then Savidor–Herzliya closed 10–12 Jan; train ran 1–13 Jan.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חיפה מרכז|תל אביב מרכז|2021-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת קטע ההגנה–סבידור לעבודות תשתית בזמן הסגר (3–10 בינואר 2021): רכבות מהדרום הסתיימו בתל אביב ההגנה ומהצפון בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "high",
+  "evidence": "HaHagana–Savidor closed 3–10 Jan 2021, northern trains terminated at Savidor; train ran 1–8 Jan.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "כרמיאל|תל אביב מרכז|2021-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת קטע ההגנה–סבידור לעבודות תשתית בזמן הסגר (3–10 בינואר 2021): רכבות מהדרום הסתיימו בתל אביב ההגנה ומהצפון בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "high",
+  "evidence": "HaHagana–Savidor closed 3–10 Jan 2021, northern trains terminated at Savidor; train ran 1–8 Jan.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "מודיעין מרכז|תל אביב ההגנה|2021-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת קטע ההגנה–סבידור לעבודות תשתית בזמן הסגר (3–10 בינואר 2021): רכבות מהדרום הסתיימו בתל אביב ההגנה ומהצפון בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "high",
+  "evidence": "HaHagana–Savidor closed 3–10 Jan 2021, southern/eastern trains terminated at HaHagana; train ran 1–8 Jan.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "נתיבות|תל אביב ההגנה|2021-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת קטע ההגנה–סבידור לעבודות תשתית בזמן הסגר (3–10 בינואר 2021): רכבות מהדרום הסתיימו בתל אביב ההגנה ומהצפון בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "high",
+  "evidence": "HaHagana–Savidor closed 3–10 Jan 2021, southern trains terminated at HaHagana; train ran 1–8 Jan.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "ראשון לציון משה דיין|תל אביב ההגנה|2021-01-01",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת קטע ההגנה–סבידור לעבודות תשתית בזמן הסגר (3–10 בינואר 2021): רכבות מהדרום הסתיימו בתל אביב ההגנה ומהצפון בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "high",
+  "evidence": "HaHagana–Savidor closed 3–10 Jan 2021, southern trains terminated at HaHagana; train ran 1–8 Jan.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "הרצליה|כרמיאל|2021-01-07",
@@ -1376,9 +1706,15 @@
  },
  {
   "id": "ראשון לציון משה דיין|תל אביב מרכז|2021-01-07",
-  "reason": null,
-  "url": null,
-  "verdict": "no-source"
+  "reason": "סגירת הקטע סבידור מרכז–הרצליה לעבודות בזמן הסגר (10–12 בינואר 2021), ולכן הרכבות מדרום הסתיימו בסבידור מרכז.",
+  "url": "https://www.ynet.co.il/news/article/rykrl0Kpv",
+  "source": "ynet",
+  "published": null,
+  "confidence": "medium",
+  "evidence": "Same Jan 2021 lockdown-works article: Savidor–Herzliya closed 10–12 Jan; train ran 7–13 Jan ending at Savidor.",
+  "round": 2,
+  "verdict": "confirmed",
+  "note": ""
  },
  {
   "id": "חיפה מרכז|תל אביב ההגנה|2021-01-12",
