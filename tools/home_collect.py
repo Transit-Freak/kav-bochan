@@ -18,8 +18,8 @@ With a GitHub token in github-token.txt next to this script (fine-grained, this
 repository only, Contents: read and write) the results upload by themselves, each
 time as a small file with only what is new (website-home/part-*.json.gz):
 - at start, everything that was not uploaded before the computer turned off;
-- every 10 minutes while new routes are being found (the site needs about as long
-  to publish them);
+- every 30 minutes while new routes are being found (more often keeps cancelling the
+  site's publish, which takes 11-12 minutes);
 - when the script stops.
 
   python home_collect.py              # runs until 21:50
@@ -37,7 +37,10 @@ PACK_EVERY = 50
 TOKEN_FILE = Path(__file__).resolve().parent / 'github-token.txt'
 CONTENTS = 'https://api.github.com/repos/Transit-Freak/kav-bochan/contents/line-history/data/website-home/'
 UPLOAD_TO = CONTENTS + 'website-home.json.gz'
-UPLOAD_EVERY = 600
+# Every upload is a commit to main, and every commit to main restarts the site's publish (11-12
+# minutes; a newer commit cancels the one in progress). With uploads every 10 minutes the site
+# stopped publishing at all (05.10: 33 cancelled, 6 published), so every 30 minutes.
+UPLOAD_EVERY = 1800
 UPLOADED = HOME / 'uploaded.json'
 
 
@@ -109,7 +112,7 @@ def upload_new(token, cache, uploaded):
     payload = gzip.compress(json.dumps(new, ensure_ascii=False, separators=(',', ':')).encode(), mtime=0)
     stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     put_file(token, CONTENTS + f'part-{stamp}.json.gz', payload,
-             f'איסוף ביתי: {len(new)} צילומים חדשים ({routes} קווים)')
+             f'איסוף ביתי: {len(new)} צילומים חדשים ({routes} דפי קווים)')
     uploaded.update(new)
     UPLOADED.write_text(json.dumps(sorted(uploaded)), encoding='utf-8')
     return len(new)
@@ -131,7 +134,7 @@ def try_upload(token, cache, uploaded):
         n = upload_new(token, cache, uploaded)
         if n:
             print(f'{datetime.datetime.now():%H:%M} uploaded {n} new captures to GitHub '
-                  f'(the site shows them in about 10 minutes)', flush=True)
+                  f'(the site shows them in about 15-20 minutes)', flush=True)
         return True
     except Exception as e:
         print(f'{datetime.datetime.now():%H:%M} upload failed ({str(e)[:80]}); will try again later', flush=True)
@@ -163,7 +166,7 @@ def main():
                 print('Key saved in github-token.txt.', flush=True)
             else:
                 print('That key did not work; continuing without automatic uploads.', flush=True)
-    print('Uploads to GitHub: ' + ('automatic, every 10 minutes while new routes are found' if token
+    print('Uploads to GitHub: ' + ('automatic, every 30 minutes while new routes are found' if token
                                    else 'by hand (no github-token.txt)'), flush=True)
     cache = HOME / 'cache'
     cache.mkdir(exist_ok=True)
