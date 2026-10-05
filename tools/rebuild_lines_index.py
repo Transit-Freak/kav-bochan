@@ -144,5 +144,10 @@ before = len(idx['lines'])
 idx['lines'] = [e for e in idx['lines'] if e['rd'].replace('#', 'H').replace('/', '_') in have]
 n_gone = before - len(idx['lines'])
 idx['lines'].sort(key=lambda x: (x.get('line', ''), x['rd']))
+# תאריך הסריקה היומית (gen, "עודכן:" באתר). בשלב השמירה של line-history.yml הקובץ הזה נלקח
+# מ-main כשמישהו אחר שינה אותו בינתיים — ואז התאריך של הסריקה הלך לאיבוד (05.10: נשאר 02.10
+# אחרי סריקה שנשמרה). SCAN_DATE מחזיר אותו; אף פעם לא אחורה.
+if os.environ.get('SCAN_DATE'):
+    idx['gen'] = max(idx.get('gen') or '', os.environ['SCAN_DATE'])
 json.dump(idx, open(idxp, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(f'אינדקס נבנה מחדש: {len(idx["lines"])} שורות ({n_new} חדשות, {n_gone} בלי קובץ נמחקו) · עוגני 2012 שהוטמעו/עודכנו: {n_anc}')
