@@ -6,6 +6,10 @@ name: line-history
 on:
   schedule:
     - cron: '30 7 * * *'   # 10:30 ישראל בקיץ — אחרי חלון הפרסום של משרד התחבורה
+    # ניסיון שני באותו יום (שלמה 05.10: "למה המערכת לא ניסתה בקשה חוזרת אחרי כמה שעות?").
+    # רץ רק אם הסריקה של היום עוד לא נשמרה (check למטה); בפועל GitHub מפעיל אותו בערך 6 שעות
+    # אחרי הראשון, כך שהם לא חופפים.
+    - cron: '30 15 * * *'
   push:
     branches: [main]   # הבסיס נבנה פעם אחת על main — לא על ענפי עבודה
     paths:
@@ -40,8 +44,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      go: ${{ steps.today.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event.schedule == '30 15 * * *'
+        with:
+          sparse-checkout: line-history/data/lines.json
+          sparse-checkout-cone-mode: false
+      - name: הסריקה של היום כבר נשמרה?
+        id: today
+        env:
+          SECOND: ${{ github.event.schedule == '30 15 * * *' }}
+        run: |
+          # רק הניסיון השני נבדק; הריצה הראשונה תמיד רצה (הקובץ של המשרד מתעדכן במהלך הבוקר).
+          # gen = תאריך הסריקה האחרונה שנשמרה (UTC, כמו TODAY ב-linehistory.py)
+          if [ "$SECOND" = "true" ] && python3 -c "import json,sys,datetime; sys.exit(json.load(open('line-history/data/lines.json'))['gen'] != datetime.date.today().isoformat())"; then
+            echo "הסריקה של היום כבר נשמרה — אין צורך בניסיון נוסף"; echo "go=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          fi
+
   run:
-    if: github.ref == 'refs/heads/main' || github.event_name != 'push'
+    needs: check
+    if: needs.check.outputs.go == 'yes' && (github.ref == 'refs/heads/main' || github.event_name != 'push')
     runs-on: ubuntu-latest
     # הסריקה כ-50 דקות, וכל חישוב מחדש בשלב השמירה כ-9 דקות
     timeout-minutes: 180
