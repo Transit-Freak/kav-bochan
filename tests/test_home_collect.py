@@ -28,7 +28,7 @@ class UploadNewTests(unittest.TestCase):
                 self.assertEqual(2, home.upload_new('t', cache, uploaded))
                 self.assertEqual({'b.json', 'c.json'}, set(sent[0][1]))
                 self.assertIn('/website-home/part-', sent[0][0])
-                self.assertIn('(1 קווים)', sent[0][2])
+                self.assertIn('(1 דפי קווים)', sent[0][2])
                 # nothing new -> nothing sent
                 self.assertEqual(0, home.upload_new('t', cache, uploaded))
                 # a new capture -> only it
