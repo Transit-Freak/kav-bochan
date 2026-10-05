@@ -43,7 +43,8 @@ jobs:
   run:
     if: github.ref == 'refs/heads/main' || github.event_name != 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # הסריקה כ-50 דקות, וכל חישוב מחדש בשלב השמירה כ-9 דקות
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -288,7 +289,7 @@ jobs:
           git diff --cached --name-only --diff-filter=D -z "$BASE" -- line-history/data kavbug-data kavpach-live.json > /tmp/lh-deleted
           rm -rf /tmp/lh-out && mkdir -p /tmp/lh-out
           xargs -0 -r -I{} cp --parents {} /tmp/lh-out/ < /tmp/lh-changed
-          for i in 1 2 3 4 5 6; do
+          for i in 1 2 3 4 5 6 7 8 9 10; do
             git fetch origin "$BR" && git reset --hard "origin/$BR"
             cp -r /tmp/lh-out/. .
             xargs -0 -r rm -f -- < /tmp/lh-deleted
@@ -351,11 +352,11 @@ jobs:
               echo "unchanged — nothing to commit"; break; fi
             git commit -m "data: line-history — שינויי מסלולים ותחנות יומיים"
             if git push origin HEAD:"$BR"; then break; fi
-            # מה שנדחף בינתיים לא נוגע בקבצים של הריצה (מדד הדיוק, צי, GIS...) — רק להעביר
-            # את ה-commit מעליו ולדחוף, בלי לחשב הכול מחדש
+            # קודם rebase רגיל מעל מה שנדחף בינתיים, ודחיפה מיד — כמו publish_early_history.py.
+            # רק כשיש התנגשות אמיתית באותם קבצים מחשבים הכול מחדש (כ-9 דקות). 05.10: כל ניסיון
+            # חישב מחדש, ובכל 9 דקות כאלה נדחף משהו אחר לתיקייה, וכל 6 הניסיונות נדחו.
             git fetch -q origin "$BR"
-            if git diff --quiet HEAD~1 "origin/$BR" -- line-history/data kavbug-data kavpach-live.json magihim-2012/data \
-               && git rebase -q "origin/$BR" && git push origin HEAD:"$BR"; then break; fi
+            if git rebase -q "origin/$BR" && git push origin HEAD:"$BR"; then break; fi
             git rebase --abort 2>/dev/null || true
             echo "push rejected ($BR moved) — retry $i"; sleep 10
           done
