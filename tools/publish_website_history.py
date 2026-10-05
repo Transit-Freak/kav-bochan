@@ -32,7 +32,8 @@ def main():
     git(root,'config','user.email','actions@users.noreply.github.com')
     published=publish(root,'main',replay,validate)
     if published and os.environ.get('GITHUB_REPOSITORY'):
-        subprocess.run(['gh','api','--method','POST','repos/'+os.environ['GITHUB_REPOSITORY']+'/pages/builds'],cwd=root,check=True,stdout=subprocess.DEVNULL)
+        # since pages-deploy.yml this legacy build request is refused; the deploy workflow publishes
+        subprocess.run(['gh','api','--method','POST','repos/'+os.environ['GITHUB_REPOSITORY']+'/pages/builds'],cwd=root,check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         print('Requested public Pages rebuild for verified data',flush=True)
 
 if __name__=='__main__':main()

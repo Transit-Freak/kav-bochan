@@ -37,6 +37,7 @@ WATCHED = {
     'notify-push': 'התראות הדפדפן של הקו בזמן',
     'update-weekly': 'רענון יומי של התחנות',
     'update-monthly': 'רענון חודשי של התחנות',
+    'pages-deploy': 'פרסום האתר',
 }
 
 # (pattern in the log, explanation). The first match wins, so specific causes come first.

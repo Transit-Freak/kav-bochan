@@ -74,7 +74,8 @@ jobs:
         if: steps.remaining.outputs.needed == 'true' && github.ref == 'refs/heads/main' && success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+        # מאז pages-deploy.yml הבקשה הזו מיותרת (ונדחית); הפרסום קורה ב-workflow_run
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" || true
       - name: Report source failures
         if: steps.import.outputs.source_status != '' && steps.import.outputs.source_status != '0'
         run: |
