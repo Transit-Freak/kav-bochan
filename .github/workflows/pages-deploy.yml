@@ -59,8 +59,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
         run: |
-          # עד שהמקור בהגדרות הוא GitHub Actions, הפרסום הישן עדיין פעיל — מדלגים בלי להיכשל
+          # מקור הפרסום בהגדרות חייב להיות GitHub Actions. שלמה 05.10 (לא ליד המחשב): "שה-GitHub
+          # ידע לבד" — מנסים להחליף אותו מכאן. אם אין הרשאה, מדלגים בלי להיכשל, והפרסום הישן
+          # ממשיך לעבוד עד שמחליפים ב-Settings → Pages → Source.
           type=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type 2>/dev/null || echo unknown)
+          if [ "$type" = "legacy" ]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/pages" -f build_type=workflow >/dev/null 2>&1 \
+              && echo "מקור הפרסום הוחלף ל-GitHub Actions" || echo "אין הרשאה להחליף את מקור הפרסום מכאן"
+            type=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type 2>/dev/null || echo unknown)
+          fi
           if [ "$type" != "workflow" ]; then
             echo "מקור הפרסום בהגדרות: $type (לא GitHub Actions) — מדלג"; echo "go=no" >> "$GITHUB_OUTPUT"; exit 0
           fi
