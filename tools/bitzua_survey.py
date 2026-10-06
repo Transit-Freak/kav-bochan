@@ -64,11 +64,9 @@ def main():
     agg = collections.defaultdict(lambda: {'plan': 0, 'miss': 0, 'erua': 0, 'erua_miss': 0, 'mkts': set(), 'cl': collections.Counter(), 'm': collections.Counter()})
     months_seen = collections.Counter()
     limit = 32000
-    # המק"טים בקבוצות — רשימת סינון ארוכה מדי ב-URL נדחית
-    for i in range(0, len(mkts), 60):
-        part = mkts[i:i + 60]
-        flt = urllib.parse.quote(json.dumps({'OfficeLineId': part, 'trip_month': months}))
-        offset = 0
+    def take(flt_obj, label):
+        n, offset = 0, 0
+        flt = urllib.parse.quote(json.dumps(flt_obj, ensure_ascii=False))
         while True:
             res = ckan(f'{CKAN}/datastore_search?resource_id={rid}&limit={limit}&offset={offset}&filters={flt}&fields={",".join(FIELDS)}')['result']
             recs = res.get('records', [])
@@ -85,10 +83,17 @@ def main():
                 a['cl'][r.get('cluster_nm') or ''] += 1
                 a['m'][r.get('trip_month')] += 1
                 months_seen[r.get('trip_month')] += 1
-            log(f'  מק"טים {i + 1}–{i + len(part)} · היסט {offset:,} · {len(recs):,} שורות')
+            n += len(recs)
+            log(f'  {label} · היסט {offset:,} · {len(recs):,} שורות')
             if len(recs) < limit:
-                break
+                return n
             offset += limit
+    # קודם לפי שם האשכול בנתוני המשרד עצמם (כולל קווים שבוטלו מאז); אם השמות שם שונים — לפי המק"טים
+    got = take({'cluster_nm': clusters, 'trip_month': months}, 'לפי אשכול')
+    if not got:
+        log('אין שורות לפי שם האשכול — לפי המק"טים של היום')
+        for i in range(0, len(mkts), 60):   # רשימת סינון ארוכה מדי ב-URL נדחית
+            take({'OfficeLineId': mkts[i:i + 60], 'trip_month': months}, f'מק"טים {i + 1}–{min(i + 60, len(mkts))}')
     lines = []
     for (op, ln), a in agg.items():
         lines.append({'op': op, 'line': ln, 'plan': a['plan'], 'miss': a['miss'], 'rate': round(100 * a['miss'] / a['plan'], 2) if a['plan'] else None,
