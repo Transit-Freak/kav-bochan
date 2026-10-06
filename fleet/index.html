@@ -165,6 +165,7 @@
         <button class="mode" data-m="type">דגם</button>
         <button class="mode" data-m="plate">מספר רכב</button>
         <button class="mode" data-m="moves" title="מאיפה לאן עברו רכבים — בין חברות ובין ערים">מעברים</button>
+        <button class="mode" data-m="cluster" title="כמה אוטובוסים עבדו בכל יום, לפי אשכול מכרז ועיר — להשוואה בין יום חול לסוף שבוע">אשכול ביום</button>
         <button class="xlsbtn" onclick="XDL()" title="מוריד את הטבלה של המסך הנוכחי כקובץ CSV שנפתח באקסל">⬇ אקסל</button>
         <button class="xlsbtn sharebtn" onclick="SHARE()" title="מעתיק קישור שפותח בדיוק את המסך הנוכחי — כולל החיפוש והסינון שבחרתם">שיתוף</button>
       </div>
@@ -252,6 +253,7 @@ function home(){
   if(MODE==='city') return cityHome(f);
   if(MODE==='type') return typeHome(f);
   if(MODE==='moves') return movesHome();
+  if(MODE==='cluster') return clusterHome(f);
   if(MODE==='plate'){
     // בלי חיפוש: כל רשימת הרכבים (לא רשימת החברות) — מהחדש שנצפה לישן
     const clean=f.replace(/-/g,'');
@@ -301,6 +303,93 @@ function pickMon(v){
   if(v===CITYMON)return;
   CITYMON=v;render();
   setTimeout(()=>{const p=document.querySelector('.cols2 .panel');p&&p.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+/* ── אשכול ביום: כמה אוטובוסים עבדו בכל יום, לפי אשכול ועיר ──
+   אלעזר פינדר דרך שלמה (06.10): "כמה אוטובוסים משמשים את מודיעין ומודיעין עילית ביום רגיל וכמה
+   בסופ"ש, כדי להבין עד כמה יש היגיון בחלוקה של האשכול ל-2 מכרזים נפרדים". המקור: מדד הדיוק
+   (bus/data/fleetday) — כל רכב ששידר באותו יום, והקווים שבהם נסע. רכב נספר בעיר אם נסע באותו
+   יום בקו שעובר בה; לכל אשכול נשמר באילו מערי האשכול עבד כל רכב, וכך אפשר לחשב לכל שתי ערים
+   כמה רכבים עבדו רק בזו, רק בזו, ובשתיהן (רכב משותף = מה שהולך לאיבוד בפיצול). */
+let FD=null, FDSEL=null, CLSEL=null, CLA='', CLB='';
+const FDC={}, WDN=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+async function loadFDay(d){
+  if(FDC[d]) return FDC[d];
+  try{const r=await fetch(`../bus/data/fleetday/${d}.json`,{cache:'no-cache'});FDC[d]=r.ok?await r.json():{cl:{},city:{}};}
+  catch(e){FDC[d]={cl:{},city:{}};}
+  return FDC[d];
+}
+async function loadFD(){
+  if(FD!==null) return;
+  try{const r=await fetch('../bus/data/fleetday/index.json',{cache:'no-cache'});FD=r.ok?await r.json():{days:[]};}catch(e){FD={days:[]};}
+  const ds=FD.days||[];
+  if(!FDSEL){
+    // ברירת מחדל: יום החול האחרון, שישי האחרון ושבת האחרונה
+    const wd=d=>{const [y,m,dd]=d.split('-');return new Date(+y,m-1,+dd).getDay();};
+    const pick=t=>[...ds].reverse().find(d=>t(wd(d)));
+    FDSEL=[...new Set([pick(w=>w<5),pick(w=>w===5),pick(w=>w===6)].filter(Boolean))].sort();
+    if(!FDSEL.length) FDSEL=ds.slice(-3);
+  }
+  await Promise.all(FDSEL.map(loadFDay));
+  render();
+}
+function fdToggle(d){
+  const i=FDSEL.indexOf(d);
+  if(i>=0){ if(FDSEL.length>1) FDSEL.splice(i,1); }
+  else { if(FDSEL.length>=6) FDSEL.shift(); FDSEL.push(d); FDSEL.sort(); }
+  loadFDay(d).then(render);
+}
+function dlab(d){const [y,m,dd]=d.split('-');return `${WDN[new Date(+y,m-1,+dd).getDay()]} ${+dd}.${+m}`;}
+const sigHas=(sig,i)=>sig!==''&&sig.split(',').includes(String(i));
+function clCity(x,city){if(!x)return null;const i=x.c.indexOf(city);if(i<0)return 0;let n=0;for(const [s,c] of Object.entries(x.s))if(sigHas(s,i))n+=c;return n;}
+function clPair(x,a,b){
+  if(!x) return null;
+  const i=x.c.indexOf(a), j=x.c.indexOf(b); let oa=0,ob=0,both=0;
+  for(const [s,c] of Object.entries(x.s)){const A=i>=0&&sigHas(s,i),B=j>=0&&sigHas(s,j);if(A&&B)both+=c;else if(A)oa+=c;else if(B)ob+=c;}
+  return [oa,ob,both];
+}
+function clusterHome(f){
+  if(FD===null){loadFD();return kpis()+'<div class="msg">⏳ טוען את הספירה היומית…</div>';}
+  const ds=FD.days||[];
+  if(!ds.length) return kpis()+'<div class="panel"><div class="empty">הספירה היומית נאספת מעכשיו, עם עיבוד כל יום במדד הדיוק — חזרו מחר.</div></div>';
+  const sel=FDSEL.filter(d=>FDC[d]);
+  const chips=`<div class="filters" style="flex-wrap:wrap">${ds.slice().reverse().slice(0,35).map(d=>`<button class="fchip ${FDSEL.includes(d)?'on':''}" onclick="fdToggle('${d}')">${dlab(d)}</button>`).join('')}</div>
+    <div style="font-size:11.5px;color:var(--dim);margin-top:-4px">בחרו עד 6 ימים להשוואה, למשל יום חול מול שישי ושבת.</div>`;
+  const head=`<tr><th style="text-align:right">${CLSEL?'עיר':'אשכול'}</th>${sel.map(d=>`<th>${dlab(d)}</th>`).join('')}</tr>`;
+  const cell=v=>`<td>${v==null?'—':fmt(v)}</td>`;
+  const note=`<p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:10px">מספר האוטובוסים השונים ששידרו נסיעות באותו יום (לפי מספר הרכב בשידור האיכון). רכב נספר בעיר אם נסע באותו יום בקו שעובר בה, ולכן רכב שעבד בשתי ערים נספר בשתיהן. אשכול = אשכול המכרז של משרד התחבורה (ClusterToLine). המקור: דאטאבוס, דרך מדד הדיוק של האתר.</p>`;
+  if(!CLSEL){
+    const last=FDC[sel[sel.length-1]]||{cl:{},city:{}};
+    // חיפוש עיר: כמה אוטובוסים עבדו בה בכל יום (מכל האשכולות)
+    let cityTbl='';
+    if(f){
+      const cs=Object.keys(last.city||{}).filter(c=>c.includes(f)).slice(0,8);
+      if(cs.length) cityTbl=`<div class="panel"><p class="ptitle">אוטובוסים שעבדו בעיר — מכל האשכולות</p><div class="tblbox"><table><thead>${head.replace('אשכול','עיר')}</thead><tbody>${cs.map(c=>`<tr><td style="text-align:right;font-weight:700">${esc(c)}</td>${sel.map(d=>cell((FDC[d].city||{})[c]||0)).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+    }
+    const cls=Object.entries(last.cl||{}).filter(([n,x])=>!f||n.includes(f)||x.c.some(c=>c.includes(f))).sort((a,b)=>b[1].n-a[1].n);
+    return kpis()+`<div class="panel"><p class="ptitle">כמה אוטובוסים עבדו ביום — לפי אשכול</p>${chips}</div>${cityTbl}
+      <div class="panel"><p class="ptitle">אשכולות ${f?`עם "${esc(f)}"`:''} · ${fmt(cls.length)}</p><div class="tblbox"><table><thead>${head}</thead><tbody>${cls.map(([n])=>`<tr style="cursor:pointer" onclick='CLSEL=${JSON.stringify(n).replace(/'/g,"&#39;")};CLA="";CLB="";render();window.scrollTo({top:0})'><td style="text-align:right;font-weight:700;color:var(--accent2,#2563eb)">${esc(n)} ←</td>${sel.map(d=>cell(((FDC[d].cl||{})[n]||{}).n)).join('')}</tr>`).join('')||`<tr><td colspan="${sel.length+1}" class="empty">לא נמצא</td></tr>`}</tbody></table></div>${note}</div>`;
+  }
+  const X=d=>(FDC[d].cl||{})[CLSEL];
+  const cities=[...new Set(sel.flatMap(d=>(X(d)||{c:[]}).c))];
+  const lastX=X(sel[sel.length-1]);
+  cities.sort((a,b)=>(clCity(lastX,b)||0)-(clCity(lastX,a)||0));
+  if(!CLA||!cities.includes(CLA)) CLA=cities[0]||'';
+  if(!CLB||!cities.includes(CLB)||CLB===CLA) CLB=cities.find(c=>c!==CLA)||'';
+  const opt=v=>cities.map(c=>`<option ${c===v?'selected':''}>${esc(c)}</option>`).join('');
+  const ops=[...new Set(sel.flatMap(d=>Object.keys((X(d)||{}).op||{})))];
+  return kpis()+`<div class="panel"><p class="ptitle"><button class="fchip" onclick="CLSEL=null;render()">→ כל האשכולות</button> אשכול ${esc(CLSEL)}</p>${chips}</div>
+    <div class="panel"><p class="ptitle">אוטובוסים שעבדו באשכול, לפי עיר</p><div class="tblbox"><table><thead>${head}</thead><tbody>
+      <tr style="background:var(--panel2,#f1f5f9)"><td style="text-align:right;font-weight:800">כל האשכול</td>${sel.map(d=>cell((X(d)||{}).n)).join('')}</tr>
+      ${ops.length>1?ops.map(o=>`<tr><td style="text-align:right;color:var(--dim)">חברת ${esc(o)}</td>${sel.map(d=>cell(((X(d)||{}).op||{})[o]||0)).join('')}</tr>`).join(''):''}
+      ${cities.map(c=>`<tr><td style="text-align:right;font-weight:700">${esc(c)}</td>${sel.map(d=>cell(clCity(X(d),c))).join('')}</tr>`).join('')}
+    </tbody></table></div></div>
+    ${cities.length>1?`<div class="panel"><p class="ptitle">פיצול האשכול: שתי ערים</p>
+      <div class="filters"><select onchange="CLA=this.value;render()">${opt(CLA)}</select><span>מול</span><select onchange="CLB=this.value;render()">${opt(CLB)}</select></div>
+      <div class="tblbox"><table><thead>${head.replace('עיר','')}</thead><tbody>
+        ${[[`רק ב${CLA}`,0],[`רק ב${CLB}`,1],['עבדו בשתיהן (רכב משותף)',2]].map(([t,k])=>`<tr><td style="text-align:right;font-weight:700">${esc(t)}</td>${sel.map(d=>{const p=clPair(X(d),CLA,CLB);return cell(p?p[k]:null);}).join('')}</tr>`).join('')}
+      </tbody></table></div>
+      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — אוטובוסים שבאותו יום נסעו גם בקו של עיר אחת וגם בקו של השנייה (כולל קו בין-עירוני שעובר בשתיהן). אם האשכול יפוצל לשני מכרזים, אלה הרכבים שהיום משרתים את שתי הערים.</p></div>`:''}
+    ${note}`;
 }
 function opName(ref){const o=op(+ref);return o?o.name:'מפעיל '+ref;}
 function cityHome(f){
@@ -1107,7 +1196,7 @@ function applyHash(){
     if(gv('m'))MODE=gv('m');
     if(gv('q')){Q=gv('q');$('#q').value=Q;}
     document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('on',x.dataset.m===MODE));
-    $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':'חיפוש מספר רכב…';
+    $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':MODE==='cluster'?'חיפוש אשכול או עיר…':'חיפוש מספר רכב…';
     if(gv('op')!==null)VIEW={t:'op',ref:+gv('op')};
     if(gv('city'))CITYSEL=gv('city');
     if(gv('mon'))CITYMON=gv('mon');
@@ -1130,7 +1219,7 @@ function applyHash(){
 }
 document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
   MODE=b.dataset.m;document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('on',x===b));
-  $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':'חיפוש מספר רכב…';
+  $('#q').placeholder=MODE==='op'?'חיפוש חברה…':MODE==='city'?'חיפוש עיר…':MODE==='type'?'חיפוש דגם או יצרן…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':MODE==='cluster'?'חיפוש אשכול או עיר…':'חיפוש מספר רכב…';
   VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;LIMIT=200;render();
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LIMIT=200;render();});
