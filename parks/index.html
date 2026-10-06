@@ -828,7 +828,7 @@ function openPark(f,push=true){
     if(bounds){ setTimeout(()=>map.fitBounds(bounds.pad(0.25)),80); }
     const lines=(WALKMODE=='c'?d.lines:(d.linesE||d.lines));
     const nin=d.stops.filter(s=>sTier(s)=='in').length, ngate=d.stops.filter(s=>sTier(s)=='gate').length,
-          nnear=d.stops.filter(s=>sTier(s)=='near').length;
+          nnear=d.stops.filter(s=>sTier(s)=='near'||sTier(s)=='far').length;
     // אזור שטרם נבנה: בלי ההערה הזו "אין שירות" נקרא כחור בשירות אמיתי,
     // כשבפועל פשוט אין שם עדיין עובדים (הסימון קיים בטבלה ובמפה — לא כאן)
     const _pi=IDX.find(x=>x.f===f), _plan=!!(_pi&&_pi.st==='planned');
@@ -851,9 +851,16 @@ function openPark(f,push=true){
       </div>`;})()}
     <div class="stats" style="margin:0 0 10px">
       <span class="stat sm" title="שטח האזור בקילומטרים רבועים">שטח <b>${d.area}</b> קמ"ר</span>
+      ${_pi?(()=>{const e=WALKMODE!='c';const li=e?_pi.lie:_pi.li,lg=e?_pi.lge:_pi.lg,ln=e?_pi.lne:_pi.ln;
+        // אותם מספרים כמו בעמודות הטבלה (איריס 06.10: "למה זה לא תואם") — קווים, לא תחנות
+        return `<span class="stat sm" title="קווי אוטובוס שעוצרים בתוך שטח האזור">קווים בפנים <b>${li??'—'}</b></span>
+      <span class="stat sm" title="קווים שהתחנה שלהם עד 5 דקות הליכה מהאזור">קווים קרוב 🚶 <b>${lg??'—'}</b></span>
+      <span class="stat sm" title="קווים שהתחנה שלהם 5–14 דקות הליכה מהאזור">קווים רחוק 🚶 <b>${ln??'—'}</b></span>`;})():''}
+    </div>
+    <div class="stats" style="margin:0 0 10px">
       <span class="stat sm" title="תחנות אוטובוס שנמצאות בתוך גבולות האזור עצמו">תחנות בפנים <b>${nin}</b></span>
-      <span class="stat sm" title="תחנות עד 5 דקות הליכה אמיתית מהאזור">קרוב 🚶 <b>${ngate}</b></span>
-      <span class="stat sm" title="תחנות במרחק 5–14 דקות הליכה — נספרות, והמרחק מגביל את מדרגת הקו החזק">רחוק 🚶 <b>${nnear}</b></span>
+      <span class="stat sm" title="תחנות עד 5 דקות הליכה אמיתית מהאזור">תחנות קרוב 🚶 <b>${ngate}</b></span>
+      <span class="stat sm" title="תחנות במרחק 5–14 דקות הליכה">תחנות רחוק 🚶 <b>${nnear}</b></span>
     </div>`;
     let boxes='', svcbox='';
     if(!d.strict&&!(d.stops||[]).length&&(d.lines||[]).length===0){
