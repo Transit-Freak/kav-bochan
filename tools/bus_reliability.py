@@ -625,6 +625,69 @@ def gps_day(journeys, meta):
             for v, e in V.items() if e[2]}
 
 
+def name_cities(long_name):
+    """הערים משני קצות שם המסלול ("תחנה-עיר<->תחנה-עיר-12165-1#"), כמו ב-fleet_cities.py."""
+    out = set()
+    for side in (long_name or '').split('<->'):
+        side = re.sub(r'(-\d+[א-ת]?#?\s*)+$', '', side).strip()
+        if '-' in side:
+            city = side.rsplit('-', 1)[1].strip()
+            if city:
+                out.add(city)
+    return out
+
+
+def fleet_day(day, meta, routes, catalog, R, stops):
+    """כמה אוטובוסים עבדו ביום הזה — לפי אשכול ולפי עיר (אלעזר פינדר דרך שלמה, 06.10: "כמה
+    אוטובוסים משמשים את מודיעין ומודיעין עילית ביום רגיל וכמה בסופ"ש, כדי להבין אם יש היגיון
+    בחלוקת האשכול לשני מכרזים"). רכב = מפעיל + מספר רכב בשידור. רכב נספר בעיר אם נסע באותו יום
+    בקו שעובר בה (קצות שם הקו + התחנות שנמדדו בו). לכל אשכול נשמרות "חתימות" — באילו מערי
+    האשכול עבד כל רכב — כך שהעמוד יכול לחשב לכל שתי ערים: רק כאן, רק שם, בשתיהן."""
+    rcity = {}
+    def cities_of(rid):
+        if rid not in rcity:
+            c = name_cities(routes.get(rid, {}).get('long'))
+            for sid in (R.get(rid) or {}).get('stops', {}):
+                ct = stops.get(sid, ('', '', 0, 0, ''))[4]
+                if ct:
+                    c.add(ct)
+            rcity[rid] = c
+        return rcity[rid]
+    veh = collections.defaultdict(set)          # רכב → מסלולים
+    vop = {}
+    for line, op, dep, v in meta.values():
+        if not v or v == '0' or routes.get(line, {}).get('type') not in BUS_TYPES:
+            continue
+        k = f'{op}:{v}'
+        veh[k].add(line)
+        vop[k] = routes.get(line, {}).get('agency') or op
+    city = collections.Counter()
+    ops = collections.Counter(vop.values())
+    cl = {}
+    for k, rids in veh.items():
+        allc = set()
+        bycl = collections.defaultdict(set)
+        for rid in rids:
+            cs = cities_of(rid)
+            allc |= cs
+            row = catalog.get(rid) or []
+            name = row[8] if len(row) > 8 and row[8] else 'ללא אשכול'
+            bycl[name] |= cs
+        for c in allc:
+            city[c] += 1
+        for name, cs in bycl.items():
+            x = cl.setdefault(name, {'n': 0, 'c': [], 'sig': collections.Counter(), 'op': collections.Counter()})
+            x['n'] += 1
+            x['op'][vop[k]] += 1
+            for c in cs:
+                if c not in x['c']:
+                    x['c'].append(c)
+            x['sig'][','.join(str(i) for i in sorted(x['c'].index(c) for c in cs))] += 1
+    wd = datetime.date.fromisoformat(day).isoweekday() % 7    # 0 = ראשון … 6 = שבת
+    return {'d': day, 'wd': wd, 'n': len(veh), 'ops': dict(ops.most_common()), 'city': dict(city.most_common()),
+            'cl': {name: {'n': x['n'], 'c': x['c'], 's': dict(x['sig']), 'op': dict(x['op'].most_common())} for name, x in cl.items()}}
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -1280,6 +1343,13 @@ def main():
         n_cl = apply_clusters(catalog, load_clusters(a.clusters))
         print(f'אשכולות: {n_cl:,} מסלולים בקטלוג עם אשכול', flush=True)
     json.dump(catalog, open(catalog_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    # אוטובוסים ביום לפי אשכול ועיר — לעמוד צי הרכבים (fleet/)
+    fd = fleet_day(day, meta, routes, catalog, R, stops)
+    os.makedirs(f'{a.out}/fleetday', exist_ok=True)
+    json.dump(fd, open(f'{a.out}/fleetday/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    json.dump({'days': sorted(f[:-5] for f in os.listdir(f'{a.out}/fleetday') if f[:4].isdigit())},
+              open(f'{a.out}/fleetday/index.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    print(f'צי יומי: {fd["n"]:,} אוטובוסים · {len(fd["cl"])} אשכולות', flush=True)
     # קטלוג שמות תחנות — מצטבר (תחנות שנעלמו נשארות לימים ישנים)
     names_path = f'{a.out}/stops.json'
     try:
