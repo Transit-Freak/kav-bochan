@@ -28,7 +28,7 @@ IMG = OUT / 'img'
 IMG.mkdir(parents=True, exist_ok=True)
 
 # ── הנוסחה (זהה ל-tools/parks.py; מועתקת כי ייבוא מריץ את כל הצינור) ──────
-IRIS_HEADWAY = [(5, 100), (10, 90), (15, 80), (21, 70), (30, 65), (40, 55), (60, 40), (90, 15)]
+IRIS_HEADWAY = [(5, 100), (10, 90), (15, 80), (21, 70), (30, 60), (40, 55), (60, 40), (90, 15)]
 IRIS_WALK = [(2, 100), (7, 90), (10, 80), (12, 75), (15, 65)]   # איריס 03.09: מעל 15 = 0
 IRIS_W = {'bl': .40, 'far': .30, 'uf': .20, 'near': .10}
 # סרגל הצבעים של איריס (02.09 10:16): ירוק רק מ-90, 70 צהוב, 50–60 כתום, מטה — אדום עד שחור
@@ -514,7 +514,7 @@ def build():
     ]
     data = {
         'generated': datetime.datetime.now(zoneinfo.ZoneInfo('Asia/Jerusalem')).strftime('%d.%m.%Y %H:%M'), 'gtfs_date': gen,  # שעון ישראל
-        'formula': {'headway_bands': IRIS_HEADWAY, 'walk_bands': IRIS_WALK, 'walk_zero_from': 15, 'weights': IRIS_W, 'version': '03.09.2026',
+        'formula': {'headway_bands': IRIS_HEADWAY, 'walk_bands': IRIS_WALK, 'walk_zero_from': 15, 'weights': IRIS_W, 'version': '06.10.2026',
                     'scale': SCALE, 'peak_am': '06:00–09:00 אל האזור', 'peak_pm': '15:00–19:00 מהאזור'},
         'national': national, 'regions': regions, 'sector': sector, 'socio': socio,
         'top10': top10, 'bottom10': bottom10, 'min_area_for_top': 0.3,
