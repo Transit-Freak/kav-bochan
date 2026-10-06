@@ -174,7 +174,13 @@ def trace_ride(r, seq, ST):
             return bool(s and x[4] and s[1] is not None and hav(x[4], x[5], s[1], s[2]) <= NEAR_M)
 
         def here(x):
-            return x[1] == str(code) or near(x)
+            # "התחנה הנוכחית" מתחלפת בדרך כלל כדקה לפני ההגעה, אבל לפעמים כבר קילומטרים לפני —
+            # כשיש GPS שמראה שהרכבת עוד רחוקה מ-3 ק"מ, ההחלפה לא נחשבת הגעה
+            if near(x):
+                return True
+            if x[1] != str(code):
+                return False
+            return not (x[4] and s and s[1] is not None and hav(x[4], x[5], s[1], s[2]) > 3000)
 
         cand = [k for k in range(ptr, len(seq)) if lo_m <= seq[k][0] <= hi_m and here(seq[k])]
         # שידור בלי GPS מגיע תמיד עם מהירות 0 — אז "עומדת" נקבע רק משידור עם GPS
@@ -183,7 +189,7 @@ def trace_ride(r, seq, ST):
         if i > 0:
             for k in cand:
                 if stand(seq[k]):
-                    arr_k, src = k, ('g' if near(seq[k]) else 's')
+                    arr_k, src = k, 'g'
                     break
             if arr_k is None:
                 for k in cand:
@@ -191,10 +197,10 @@ def trace_ride(r, seq, ST):
                         arr_k, src = k, 'g'
                         break
             if arr_k is None and cand:
-                arr_k, src = cand[0], 's'
+                arr_k, src = cand[0], ('g' if seq[cand[0]][4] else 's')
         else:
             arr_k = cand[0] if cand else None
-            src = ('g' if arr_k is not None and near(seq[arr_k]) else 's') if arr_k is not None else None
+            src = ('g' if seq[arr_k][4] else 's') if arr_k is not None else None
         arr = seq[arr_k][0] if (arr_k is not None and i > 0) else None
         dep = dwell = None
         if arr_k is not None and i < n - 1:
@@ -259,8 +265,7 @@ def build_day(day, ST):
     if cover < 0.5:
         log(f'  {day}: פחות ממחצית הדקות בארכיון — לא נכתב')
         return None
-    rides, seg, lines, cut = {}, {}, {}, []
-    origin = {}
+    rides = {}
     for r in D.get('rides', []):
         tn = str(r.get('tn') or '')
         if not tn or not r.get('s'):
@@ -285,39 +290,128 @@ def build_day(day, ST):
                 kind = 'silent'       # הפסיקה לשדר, ורכבות אחרות המשיכו
         if kind:
             rec['cut'] = [rows[last_i][0], round(last_m, 1), kind]
-            cut.append({'tn': tn, 'nm': r['nm'], 'at': rows[last_i][0], 'm': round(last_m, 1), 'k': kind,
-                        'left': left, 'pl_end': rows[-1][1], 'dep': rows[0][1]})
         rides[tn] = rec
+    built = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ')
+    det = {'d': day, 'fmt': 1, 'built': built, 'cover': round(cover, 3), 'rides': rides}
+    json.dump(det, open(os.path.join(OUT, f'{day}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    summ = summarize(det)
+    log(f'  {day}: נמדדו {summ["meas"]}/{summ["plan"]} הגעות לתחנות ({summ["gps"]} לפי GPS, '
+        f'{summ["meas"] - summ["gps"]} לפי שידור התחנה) · {len(summ["seg"])} קטעים · {len(summ["cut"])} רכבות שבוטלו באמצע')
+    return summ
+
+
+# קטעי מסילה יחידה (צמדי תחנות עוקבות): שתי רכבות מכיוונים מנוגדים לא יכולות להיות בהם יחד,
+# ולכן הן נפגשות בתחנה — אחת מחכה לשנייה. עמק יזרעאל, באר שבע–דימונה, אשקלון–שדרות–נתיבות–
+# אופקים–באר שבע, והמסילה המזרחית (חדרה מזרח–ראש העין). ב-05.10 בקטעי העמק לא נמדדה אף חפיפה
+# בין רכבות מכיוונים מנוגדים — אישור שאין שם מסילה שנייה.
+SINGLE_TRACK = {frozenset(p) for p in (
+    (17111, 17112), (17112, 17113), (17113, 17110), (17110, 17123), (17110, 17016),   # עמק יזרעאל
+    (17086, 17082),                                                                    # דימונה
+    (17072, 17106), (17106, 17108), (17108, 17109), (17109, 17082),                     # אשקלון–באר שבע
+    (17094, 2643), (2643, 2652), (2652, 2653),                                         # המסילה המזרחית
+)}
+
+
+def meetings(rides):
+    """מפגשי רכבות במסילה יחידה (שלמה 06.10: "איזו רכבת היא נפגשה במפגש שבגללה התעכבה"):
+    רכבת A עומדת בתחנה X, רכבת B מגיעה ל-X מהקטע שאליו A ממשיכה (קטע של מסילה יחידה), ו-A יוצאת
+    עד 2.5 דקות אחרי ש-B הגיעה — כלומר חיכתה לה. בתחנת המוצא: A יצאה באיחור של דקה וחצי לפחות
+    ורק אחרי ש-B הגיעה."""
+    at = {}
+    for tn, rec in rides.items():
+        rows = rec.get('s') or []
+        for i, x in enumerate(rows):
+            arr = x[1] + x[2] if x[2] is not None else None
+            dep = x[1] + x[3] if x[3] is not None else None
+            at.setdefault(x[0], []).append((tn, i, arr, dep, rows[i - 1][0] if i else None,
+                                             rows[i + 1][0] if i + 1 < len(rows) else None, x))
+    out = []
+    for code, L in at.items():
+        for tn, i, arr, dep, prv, nxt, x in L:
+            if dep is None or nxt is None or frozenset((code, nxt)) not in SINGLE_TRACK:
+                continue
+            if i == 0:
+                if x[3] < 1.5:
+                    continue
+                lo = x[1] - 10
+            else:
+                if arr is None or dep - arr < 2:
+                    continue
+                lo = arr + 0.5
+            best = None
+            for tb, ib, arrb, depb, prvb, nxtb, xb in L:
+                if tb == tn or arrb is None or prvb != nxt:
+                    continue
+                if lo < arrb <= dep + 0.5 and -0.5 <= dep - arrb <= 2.5 and (best is None or arrb > best[2]):
+                    best = (tb, xb, arrb)
+            if best:
+                tb, xb, arrb = best
+                out.append({'tn': tn, 'nm': rides[tn]['nm'], 'at': code, 'arr': round(arr, 1) if arr is not None else None,
+                            'dep': round(dep, 1), 'stood': round(dep - arr, 1) if arr is not None else None,
+                            'dd': x[3], 'with': tb, 'wnm': rides[tb]['nm'], 'warr': round(arrb, 1), 'wdl': xb[2]})
+    return sorted(out, key=lambda m: m['dep'])
+
+
+def summarize(det):
+    """הסיכום הקטן של יום לתצוגת התקופה — מחושב מקובץ המעקב המפורט, כך שאפשר לבנות אותו מחדש
+    בלי להוריד שוב את השידורים (SUMMARIZE=1)."""
+    day, rides = det['d'], det['rides']
+    seg, lines, cut, origin, lst, lorig, lord = {}, {}, [], {}, {}, {}, {}
+    for tn, rec in rides.items():
+        rows, nm = rec.get('s'), rec['nm']
+        if not rows:
+            continue
+        if len(rows) > len(lord.get(nm, [])):
+            lord[nm] = [x[0] for x in rows]          # סדר התחנות של הקו (הנסיעה הארוכה)
+        if rec.get('cut'):
+            at, m, kind = (rec['cut'] + ['silent'])[:3]
+            last_i = next(i for i, x in enumerate(rows) if x[0] == at)
+            cut.append({'tn': tn, 'nm': nm, 'at': at, 'm': m, 'k': kind,
+                        'left': len(rows) - 1 - last_i, 'pl_end': rows[-1][1], 'dep': rows[0][1]})
         if rows[0][3] is not None:
-            o = origin.setdefault(str(rows[0][0]), [0, 0.0, 0])
-            o[0] += 1
-            o[1] += rows[0][3]
-            o[2] += rows[0][3] >= 3
-        for a, b, g in gains(rows):
+            for tgt, key in ((origin, str(rows[0][0])), (lorig, nm)):
+                o = tgt.setdefault(key, [0, 0.0, 0])
+                o[0] += 1
+                o[1] += rows[0][3]
+                o[2] += rows[0][3] >= 3
+        L = lst.setdefault(nm, {})
+        for x in rows[1:]:
+            if x[2] is None:
+                continue
+            st = L.setdefault(str(x[0]), [0, 0.0, 0, 0.0, 0])
+            st[0] += 1
+            st[1] += x[2]
+            st[2] += x[2] <= 5
+            if x[5] is not None:
+                st[3] += x[5]
+                st[4] += 1
+        src = {x[0]: x[4] for x in rows}
+        for i, (a, b, g) in enumerate(gains(rows)):
+            gps = src.get(b) == 'g' and (a == rows[0][0] or src.get(a) == 'g')
             k = f'{a}>{b}'
-            for tgt in (seg, lines.setdefault(r['nm'], {})):
-                x = tgt.setdefault(k, [0, 0.0, 0.0, 0, -99.0])
+            for tgt in (seg, lines.setdefault(nm, {})):
+                x = tgt.setdefault(k, [0, 0.0, 0.0, 0, -99.0, 0])
                 x[0] += 1
                 x[1] += g
                 x[2] += max(0.0, g)
                 x[3] += g >= 2
                 x[4] = max(x[4], g)
-    rnd = lambda d: {k: [v[0], round(v[1], 1), round(v[2], 1), v[3], v[4]] for k, v in d.items()}
+                x[5] += gps            # כמה מהמדידות בקטע היו לפי GPS בשני הקצוות
+    rnd = lambda d: {k: [v[0], round(v[1], 1), round(v[2], 1), v[3], v[4], v[5]] for k, v in d.items()}
     meas = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None)
     plan = sum(len(x.get('s', [])) - 1 for x in rides.values() if 's' in x)
     gsrc = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None and s[4] == 'g')
-    summ = {'d': day, 'rides': len(D.get('rides', [])), 'sent': sum(1 for x in rides.values() if 's' in x),
-            'meas': meas, 'plan': plan, 'gps': gsrc, 'cover': round(cover, 3),
+    summ = {'d': day, 'fmt': 3, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
+            'meas': meas, 'plan': plan, 'gps': gsrc, 'cover': det.get('cover'),
             'seg': rnd(seg), 'lines': {k: rnd(v) for k, v in lines.items()},
             'origin': {k: [v[0], round(v[1], 1), v[2]] for k, v in origin.items()},
-            'cut': sorted(cut, key=lambda c: c['m'])}
+            'lorig': {k: [v[0], round(v[1], 1), v[2]] for k, v in lorig.items()},
+            'lst': {nm: {c: [v[0], round(v[1], 1), v[2], round(v[3], 1), v[4]] for c, v in L.items()} for nm, L in lst.items()},
+            'lord': lord,
+            'cut': sorted(cut, key=lambda c: c['m']),
+            'meet': meetings(rides)}
     os.makedirs(os.path.join(OUT, 'sum'), exist_ok=True)
-    built = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ')
-    json.dump({'d': day, 'fmt': 1, 'built': built, 'rides': rides}, open(os.path.join(OUT, f'{day}.json'), 'w', encoding='utf-8'),
-              ensure_ascii=False, separators=(',', ':'))
     json.dump(summ, open(os.path.join(OUT, 'sum', f'{day}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    log(f'  {day}: נמדדו {meas}/{plan} הגעות לתחנות ({gsrc} לפי GPS, {meas - gsrc} לפי שידור התחנה) · '
-        f'{len(seg)} קטעים · {len(cut)} רכבות שהפסיקו לדווח באמצע')
     return summ
 
 
@@ -343,6 +437,17 @@ def main():
             build_day(d, ST)
         except Exception as e:  # noqa: BLE001 — יום אחד שנכשל לא עוצר את השאר
             log(f'  {d}: נכשל — {e}')
+    for d in sorted(x for x in done | set(todo) if os.path.exists(os.path.join(OUT, f'{x}.json'))):
+        sp = os.path.join(OUT, 'sum', f'{d}.json')
+        try:
+            old = json.load(open(sp, encoding='utf-8')) if os.path.exists(sp) else {}
+        except ValueError:
+            old = {}
+        if old.get('fmt') != 3:
+            det = json.load(open(os.path.join(OUT, f'{d}.json'), encoding='utf-8'))
+            det.setdefault('cover', old.get('cover'))
+            summarize(det)
+            log(f'  {d}: הסיכום נבנה מחדש מהקובץ המפורט')
     sums = sorted(f[:-5] for f in os.listdir(os.path.join(OUT, 'sum')) if f.endswith('.json')) if os.path.isdir(os.path.join(OUT, 'sum')) else []
     json.dump({'days': sums, 'updated': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%MZ')},
               open(os.path.join(OUT, 'index.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

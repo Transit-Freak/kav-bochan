@@ -53,6 +53,25 @@ class RailTraceTests(unittest.TestCase):
         seq = [rec(600, 1, 0, 50, 32.0, 34.8), rec(601, 1, 500, 0, 32.005, 34.8)] + [rec(602 + i, 1, 500, 0, 32.005, 34.8) for i in range(5)]
         self.assertEqual(2, t.frozen_tail(seq))
 
+    def test_meeting_on_single_track(self):
+        # עפולה (17112): רכבת 86 מגיעה מכפר ברוך וממשיכה לבית שאן; רכבת 89 מגיעה מבית שאן
+        # באיחור, ו-86 יוצאת דקה אחרי שהיא נכנסת — חיכתה לה
+        rides = {
+            '86': {'nm': 'עתלית ← בית שאן', 's': [[17113, 1050, 0.5, 1.0, 'g', 0.5], [17112, 1060, 0.0, 7.0, 'g', 7.0], [17111, 1073, 6.0, None, 'g', None]]},
+            '89': {'nm': 'בית שאן ← עתלית', 's': [[17111, 1050, None, 6.0, 'g', None], [17112, 1063, 3.5, 5.0, 'g', 1.5], [17113, 1072, 7.0, None, 'g', None]]},
+        }
+        m = t.meetings(rides)
+        self.assertEqual(1, len(m))
+        self.assertEqual(('86', '89', 17112, 7.0), (m[0]['tn'], m[0]['with'], m[0]['at'], m[0]['stood']))
+
+    def test_no_meeting_on_double_track(self):
+        # אותו תרחיש בתל אביב (שתי מסילות ויותר) — לא נחשב מפגש
+        rides = {
+            'a': {'nm': 'x', 's': [[1, 1050, 0, 0, 'g', 0], [2, 1060, 0.0, 7.0, 'g', 7.0], [3, 1073, 6.0, None, 'g', None]]},
+            'b': {'nm': 'y', 's': [[3, 1050, None, 6.0, 'g', None], [2, 1063, 6.0, 7.0, 'g', 1.0], [1, 1072, 7.0, None, 'g', None]]},
+        }
+        self.assertEqual([], t.meetings(rides))
+
 
 if __name__ == '__main__':
     unittest.main()
