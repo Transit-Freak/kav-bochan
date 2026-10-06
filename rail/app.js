@@ -257,7 +257,7 @@ function stationsTable(stations) {
 
 // קטגוריות (שלמה 17.09: "העמוד עמוס, במיוחד בטלפון"): הסיכום הגדול תמיד למעלה, מתחתיו רק הקטגוריה שנבחרה.
 // "לוח הנסיעות" קיים רק ביום בודד. במחשב הקטגוריות בתפריט צד, בטלפון בשורה שנגללת (CSS).
-const TABS = [['overview', 'מבט כללי'], ['rides', 'לוח הנסיעות'], ['lines', 'לפי קו'], ['stations', 'לפי תחנה']];
+const TABS = [['overview', 'מבט כללי'], ['rides', 'לוח הנסיעות'], ['lines', 'לפי קו'], ['stations', 'לפי תחנה'], ['gain', 'איפה נצבר איחור']];
 let tab = 'overview';
 function tabBadge(k, A, days) {
   switch (k) {
@@ -276,6 +276,7 @@ function showTab(k) {
   document.querySelectorAll('#tabbar .tab').forEach(b => { const on = b.dataset.t === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
   const h = (period === 'day' && dayD ? dayD : '') + (k !== 'overview' ? '/' + k : '');
   history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
+  if (k === 'gain') renderGain();
 }
 function render() {
   renderPeriods();
@@ -304,6 +305,7 @@ function render() {
   html += `<div class="panel"><p class="ptitle">בזמן לפי שעת היציאה <small>אחוז הרכבות שנמדדו באיחור של עד 5 דק׳</small></p><div class="chart" id="c-hours"></div></div></div>`;
   if (period === 'day') html += `<div class="tabsec" data-tab="rides"><div class="panel" id="rides-panel"><p class="ptitle">לוח הנסיעות של היום <small id="rides-n"></small></p><div class="filters"><input id="rq" placeholder="חיפוש: קו, תחנה, מספר רכבת" value="${esc(rq)}">${[['all', 'הכול'], ['late', 'איחור מעל 5 דק׳'], ['bad', 'מעל 20 דק׳'], ['none', 'ללא שידור']].map(([k, t]) => `<button class="fchip${rfilter === k ? ' on' : ''}" data-f="${k}">${t}</button>`).join('')}</div><div id="rides"><div class="empty">טוען…</div></div></div></div>`;
   html += `<div class="tabsec" data-tab="lines"><div class="panel"><p class="ptitle">לפי קו <small>${Object.keys(A.lines).length} קווים</small></p>${linesTable(A.lines)}</div></div>`;
+  html += `<div class="tabsec" data-tab="gain"><div id="gainbox"><div class="panel"><div class="empty">טוען…</div></div></div></div>`;
   html += `<div class="tabsec" data-tab="stations"><div class="panel"><p class="ptitle">לפי תחנה <small>איחור ההגעה לתחנה, בנסיעות שנמדדו בה</small></p>${stationsTable(A.stations)}</div></div>`;
   app.innerHTML = html;
   $('#tabbar').onclick = e => { const b = e.target.closest('button.tab'); if (b) showTab(b.dataset.t); };
@@ -360,6 +362,97 @@ function renderRides() {
     '</tbody></table></div>' + (rides.length > shown.length ? `<button class="more" id="more">הצגת כל ${num(rides.length)} הנסיעות</button>` : '');
   box.querySelectorAll('tr.v').forEach(tr => { const open = () => openRide(dayData.rides[+tr.dataset.i]); tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; });
   const more = $('#more'); if (more) more.onclick = () => { showAll = true; renderRides(); };
+}
+
+// ---------------------------------------------------------------- איפה נצבר איחור
+// (שלמה 06.10) מתוך המעקב דקה-אחר-דקה (tools/rail_trace.py): לכל קטע בין שתי תחנות עוקבות — כמה
+// דקות איחור הרכבות הוסיפו בו (כולל העמידה בתחנה שבתחילתו). מפה כללית, סינון לפי קו, יציאה
+// באיחור מתחנת המוצא, ורכבות שהפסיקו לדווח באמצע המסלול.
+let TRIDX = null, GMAP = null, gLine = '', gToken = 0;
+const sumCache = {};
+const stn = c => (ST[c] || [])[0] || c;
+function loadTraceIdx() { return TRIDX ? Promise.resolve(TRIDX) : load(T.data + 'trace/index.json').then(j => (TRIDX = j)).catch(() => (TRIDX = {days: []})); }
+function loadSum(d) { return sumCache[d] ? Promise.resolve(sumCache[d]) : load(`${T.data}trace/sum/${d}.json`).then(j => (sumCache[d] = j)).catch(() => null); }
+const gainCol = v => v == null ? C.none : v < 0.3 ? C.ok : v < 1 ? C.warn : v < 2 ? C.late : C.bad;
+const gainCls = v => v == null ? 'dn' : v < 0.3 ? 'd0' : v < 1 ? 'd1' : v < 2 ? 'd2' : 'd3';
+const plus = v => v == null ? '—' : (v > 0.05 ? '+' : v < -0.05 ? '−' : '') + fmt1(Math.abs(v));
+async function renderGain() {
+  const box = $('#gainbox'); if (!box) return;
+  const my = ++gToken;
+  const idx = await loadTraceIdx();
+  const have = new Set(idx.days || []);
+  const ds = selectedDays().map(d => d.d).filter(d => have.has(d));
+  if (!ds.length) {
+    box.innerHTML = `<div class="panel"><div class="empty">עוד לא חושב ${period === 'day' ? 'ליום הזה' : 'לתקופה הזו'}.${(idx.days || []).length ? ` יש נתונים מ-${heDate(idx.days[0])} עד ${heDate(idx.days[idx.days.length - 1])}.` : ''}</div></div>`;
+    return;
+  }
+  const sums = (await Promise.all(ds.map(loadSum))).filter(Boolean);
+  if (my !== gToken || !document.body.contains(box)) return;
+  const seg = {}, origin = {}, cut = [], names = new Set();
+  let meas = 0, plan = 0, gps = 0;
+  for (const s of sums) {
+    meas += s.meas || 0; plan += s.plan || 0; gps += s.gps || 0;
+    Object.keys(s.lines || {}).forEach(k => names.add(k));
+    const src = gLine ? ((s.lines || {})[gLine] || {}) : (s.seg || {});
+    for (const [k, v] of Object.entries(src)) {
+      const x = seg[k] || (seg[k] = [0, 0, 0, 0, -99]);
+      x[0] += v[0]; x[1] += v[1]; x[2] += v[2]; x[3] += v[3]; x[4] = Math.max(x[4], v[4]);
+    }
+    if (!gLine) for (const [k, v] of Object.entries(s.origin || {})) { const o = origin[k] || (origin[k] = [0, 0, 0]); o[0] += v[0]; o[1] += v[1]; o[2] += v[2]; }
+    for (const c of s.cut || []) if (!gLine || c.nm === gLine) cut.push(Object.assign({d: s.d}, c));
+  }
+  if (gLine && !names.has(gLine)) gLine = '';
+  const multi = ds.length > 1, minN = multi ? 5 : 2;
+  const rows = Object.entries(seg).map(([k, v]) => { const [a, b] = k.split('>'); return {a, b, n: v[0], avg: v[1] / v[0], add: v[2], p2: v[3] / v[0], mx: v[4]}; })
+    .filter(r => r.n >= minN).sort((x, y) => y.add - x.add);
+  const lineOpts = [...names].sort((a, b) => a.localeCompare(b, 'he'));
+  let h = `<div class="panel"><p class="ptitle">איפה הרכבות צוברות איחור <small>${multi ? `${ds.length} ימים` : heDate(ds[0])} · נמדדו ${pct(meas, plan)} מההגעות לתחנות</small></p>
+    <div class="filters"><select id="gline" class="gsel"><option value="">כל הקווים</option>${lineOpts.map(n => `<option${n === gLine ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    <p class="pdesc">כל קטע בין שתי תחנות עוקבות צבוע לפי כמה דקות איחור רכבת הוסיפה בו בממוצע: האיחור בהגעה לתחנה שבסוף הקטע, פחות האיחור בתחנה שבתחילתו. העמידה בתחנה שבתחילת הקטע נכללת בו. ערך שלילי = הרכבת צמצמה איחור.</p>
+    <div id="gmap"></div>
+    <div class="legend"><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span>עובי הקו = מספר הרכבות</span></div>
+  </div>`;
+  h += `<div class="panel"><p class="ptitle">הקטעים שבהם נוסף הכי הרבה איחור <small>${num(rows.length)} קטעים · לפי סך הדקות שנוספו</small></p>` + (rows.length ? `<div class="tblbox"><table><thead><tr><th>קטע</th><th>רכבות</th><th>נוסף בממוצע</th><th>סך דקות שנוספו</th><th>2 דק׳ ומעלה</th><th>הכי הרבה</th></tr></thead><tbody>` +
+    rows.slice(0, 60).map(r => `<tr><td class="nm">${esc(stn(r.a))} ← ${esc(stn(r.b))}</td><td>${num(r.n)}</td><td class="${gainCls(r.avg)}">${plus(r.avg)} דק׳</td><td>${num(Math.round(r.add))}</td><td>${Math.round(r.p2 * 100)}%</td><td>${plus(r.mx)} דק׳</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">אין קטעים שנמדדו</div>') + `</div>`;
+  if (!gLine) {
+    const orows = Object.entries(origin).filter(([, v]) => v[0] >= minN).map(([c, v]) => ({c, n: v[0], avg: v[1] / v[0], p3: v[2] / v[0]})).sort((x, y) => y.avg - x.avg);
+    h += `<div class="panel"><p class="ptitle">יציאה באיחור מתחנת המוצא <small>איחור כבר לפני שהרכבת זזה</small></p>` + (orows.length ? `<div class="tblbox"><table><thead><tr><th>תחנת מוצא</th><th>רכבות שנמדדו</th><th>איחור ממוצע ביציאה</th><th>3 דק׳ ומעלה</th></tr></thead><tbody>` +
+      orows.map(r => `<tr><td class="nm">${esc(stn(r.c))}</td><td>${num(r.n)}</td><td class="${dcls(r.avg)}">${delayTxt(r.avg)} דק׳</td><td>${Math.round(r.p3 * 100)}%</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">אין מדידות</div>') +
+      `<p class="note">היציאה נמדדת רק כשה-GPS מראה את הרכבת זזה ליד התחנה. בתחנות תת-קרקעיות (ירושלים יצחק נבון, מודיעין מרכז) ה-GPS לא מתעדכן עד היציאה מהמנהרה, ולכן הן כמעט לא נמדדות.</p></div>`;
+  }
+  h += `<div class="panel"><p class="ptitle">בוטלו באמצע המסלול <small>${num(cut.length)} רכבות</small></p>` + (cut.length ? `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>רכבת</th><th>קו</th><th>תחנה אחרונה</th><th>שעה</th><th>מה קרה</th><th>תחנות שלא הגיעה אליהן</th><th>הגעה מתוכננת ליעד</th></tr></thead><tbody>` +
+    cut.sort((x, y) => (x.d + hhmm(Math.round(x.m))).localeCompare(y.d + hhmm(Math.round(y.m)))).map(c => `<tr>${multi ? `<td>${shortDate(c.d)}</td>` : ''}<td>${esc(c.tn)}</td><td class="nm">${esc(c.nm)}</td><td>${esc(stn(c.at))}</td><td>${hhmm(Math.round(c.m))}</td><td>${c.k === 'stuck' ? 'המשיכה לשדר ולא התקדמה' : 'הפסיקה לשדר'}</td><td>${num(c.left)}</td><td>${hhmm(c.pl_end)}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">לא נמצאו</div>') +
+    `<p class="note">רכבת נחשבת שבוטלה כשלא הגיעה לתחנה הבאה 20 דקות אחרי שהייתה אמורה להגיע אליה (ההגעה בפועל לתחנה האחרונה + זמן הנסיעה המתוכנן). או שהמשיכה לשדר ונשארה במקום, או שהפסיקה לשדר בזמן שרכבות אחרות המשיכו. במקרה השני רק כשנותרו לה לפחות 3 תחנות: כמעט כל הרכבות מפסיקות לשדר תחנה-שתיים לפני היעד, וזו תכונה של השידור ולא ביטול. תקלה במשדר של רכבת בודדת עלולה להיראות כמו ביטול. דוגמה: ב-5.10 בבוקר נמצאו 6 רכבות כאלה בין תל אביב ללוד, בזמן שתנועת הרכבות שם הופסקה.</p></div>`;
+  h += `<div class="panel"><p class="note" style="margin-top:0"><b>איך נמדד:</b> בכל דקה רכבת ישראל משדרת לכל רכבת את מיקום ה-GPS ואת "התחנה הנוכחית" לפי מערכת המעקב שלה, גם כשאין GPS (בנתב"ג, במנהרות, כשהמשדר תקוע). ההגעה לתחנה היא הדקה הראשונה שבה הרכבת עומדת בה לפי ה-GPS; בלי GPS — הדקה שבה "התחנה הנוכחית" התחלפה אליה. כך נמדדות כ-85% מההגעות, לעומת כ-40% לפי GPS בלבד. בבדיקה מול המדידה לפי GPS ההפרש החציוני הוא 0 דקות, ו-90% מההגעות בטווח של דקה וחצי. ${plan ? `בתקופה שנבחרה: ${num(gps)} הגעות לפי GPS ו-${num(meas - gps)} לפי שידור התחנה.` : ''}</p></div>`;
+  box.innerHTML = h;
+  $('#gline').onchange = e => { gLine = e.target.value; renderGain(); };
+  drawGainMap(seg, minN);
+}
+function drawGainMap(seg, minN) {
+  if (GMAP) { try { GMAP.remove(); } catch (e) { /* המיכל כבר הוחלף */ } GMAP = null; }
+  const el = $('#gmap'); if (!el) return;
+  if (!window.L) { el.remove(); return; }
+  const und = {};
+  for (const [k, v] of Object.entries(seg)) {
+    const [a, b] = k.split('>'); const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+    const u = und[key] || (und[key] = {a: a < b ? a : b, b: a < b ? b : a, n: 0, sum: 0, dirs: []});
+    u.n += v[0]; u.sum += v[1]; u.dirs.push([a, b, v]);
+  }
+  GMAP = L.map('gmap', {scrollWheelZoom: false, attributionControl: true});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap', maxZoom: 19, className: T.tiles === 'dark' ? 'tiles-dark' : ''}).addTo(GMAP);
+  const pts = [];
+  const list = Object.values(und).filter(u => u.n >= minN).sort((x, y) => x.sum / x.n - y.sum / y.n);
+  const maxN = Math.max(1, ...list.map(u => u.n));
+  for (const u of list) {
+    const A = ST[u.a], B = ST[u.b]; if (!A || !B || A[1] == null || B[1] == null) continue;
+    const avg = u.sum / u.n, w = 3 + 6 * Math.sqrt(u.n / maxN);
+    const shp = SEG[`${u.a}-${u.b}`] || SEG[`${u.b}-${u.a}`];
+    const ll = shp ? decodeShape(shp) : [[A[1], A[2]], [B[1], B[2]]];
+    const tip = u.dirs.map(([a, b, v]) => `${esc(stn(a))} ← ${esc(stn(b))}: ${plus(v[1] / v[0])} דק׳ בממוצע · ${num(v[0])} רכבות`).join('<br>');
+    L.polyline(ll, {color: gainCol(avg), weight: w, opacity: .9, dashArray: shp ? null : '6 5'}).addTo(GMAP).bindTooltip(tip, {sticky: true});
+    pts.push([A[1], A[2]], [B[1], B[2]]);
+  }
+  if (pts.length) GMAP.fitBounds(pts, {padding: [16, 16]}); else GMAP.setView([31.9, 34.9], 8);
 }
 
 let MAP = null;

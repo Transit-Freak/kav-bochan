@@ -27,6 +27,7 @@ on:
       - kavpach-build
       - bus-reliability
       - rail-reliability
+      - rail-trace
       - gis-layers
       - fleet-registry
       - update-weekly

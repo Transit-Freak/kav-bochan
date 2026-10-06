@@ -93,6 +93,8 @@ tr.v:hover td{background:var(--panel2)}
 .x:hover{color:var(--ink);border-color:var(--accent)}
 .msub{font-size:12px;color:var(--mut);font-weight:500;line-height:1.7;margin-bottom:10px}
 .msub a{color:var(--accent2);font-weight:700}
+#gmap{height:440px;border-radius:10px;margin:10px 0 6px;background:var(--panel2);border:1px solid var(--line)}
+.gsel{border:1px solid var(--line2);background:var(--panel);color:var(--ink);border-radius:6px;padding:6px 10px;font:700 12.5px var(--body);max-width:100%}
 #map{height:290px;border-radius:10px;margin:10px 0 14px;background:var(--panel2);border:1px solid var(--line)}
 .route{position:relative;padding:4px 0}
 .route::before{content:"";position:absolute;top:14px;bottom:14px;right:9px;width:2px;background:var(--line2)}
@@ -122,6 +124,7 @@ button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(
   .homelink{padding:6px 10px}
   .modal{padding:14px}
   #map{height:230px}
+  #gmap{height:340px}
   .bar{width:44px}
   .rs{grid-template-columns:20px 1fr 52px 52px 70px;gap:5px}
   .rs .rt,.rs .ra,.rs .rd{font-size:12.5px}
