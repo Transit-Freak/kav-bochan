@@ -27,6 +27,7 @@ WATCHED = {
     'line-history': 'הקו בזמן — הסריקה היומית של שינויי הקווים',
     'bus-reliability': 'מדד דיוק האוטובוסים',
     'rail-reliability': 'מדד אמינות הרכבת',
+    'rail-trace': 'איפה הרכבת צוברת איחור',
     'kavpach-build': 'קו פח — בנייה',
     'line-hub': 'מרכז הקווים',
     'gis-layers': 'GIS — השכבות הליליות',

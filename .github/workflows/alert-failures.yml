@@ -13,6 +13,7 @@ on:
       - line-history
       - bus-reliability
       - rail-reliability
+      - rail-trace
       - kavpach-build
       - line-hub
       - gis-layers
