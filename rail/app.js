@@ -389,7 +389,7 @@ async function renderGain() {
   }
   const sums = (await Promise.all(ds.map(loadSum))).filter(Boolean);
   if (my !== gToken || !document.body.contains(box)) return;
-  const seg = {}, origin = {}, cut = [], names = new Set();
+  const seg = {}, origin = {}, cut = [], meet = [], names = new Set();
   let meas = 0, plan = 0, gps = 0;
   for (const s of sums) {
     meas += s.meas || 0; plan += s.plan || 0; gps += s.gps || 0;
@@ -401,6 +401,7 @@ async function renderGain() {
     }
     if (!gLine) for (const [k, v] of Object.entries(s.origin || {})) { const o = origin[k] || (origin[k] = [0, 0, 0]); o[0] += v[0]; o[1] += v[1]; o[2] += v[2]; }
     for (const c of s.cut || []) if (!gLine || c.nm === gLine) cut.push(Object.assign({d: s.d}, c));
+    for (const m of s.meet || []) if (!gLine || m.nm === gLine || m.wnm === gLine) meet.push(Object.assign({d: s.d}, m));
   }
   if (gLine && !names.has(gLine)) gLine = '';
   const multi = ds.length > 1, minN = multi ? 5 : 2;
@@ -421,6 +422,7 @@ async function renderGain() {
       orows.map(r => `<tr><td class="nm">${esc(stn(r.c))}</td><td>${num(r.n)}</td><td class="${dcls(r.avg)}">${delayTxt(r.avg)} דק׳</td><td>${Math.round(r.p3 * 100)}%</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">אין מדידות</div>') +
       `<p class="note">היציאה נמדדת רק כשה-GPS מראה את הרכבת זזה ליד התחנה. בתחנות תת-קרקעיות (ירושלים יצחק נבון, מודיעין מרכז) ה-GPS לא מתעדכן עד היציאה מהמנהרה, ולכן הן כמעט לא נמדדות.</p></div>`;
   }
+  h += `<div class="panel"><p class="ptitle">המתנות במפגש רכבות <small>${num(meet.length)} המתנות · מסילה יחידה</small></p>${meetTable(meet.sort((x, y) => (y.dd || 0) - (x.dd || 0)).slice(0, 80), multi)}${MEET_NOTE}</div>`;
   h += `<div class="panel"><p class="ptitle">בוטלו באמצע המסלול <small>${num(cut.length)} רכבות</small></p>` + (cut.length ? `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>רכבת</th><th>קו</th><th>תחנה אחרונה</th><th>שעה</th><th>מה קרה</th><th>תחנות שלא הגיעה אליהן</th><th>הגעה מתוכננת ליעד</th></tr></thead><tbody>` +
     cut.sort((x, y) => (x.d + hhmm(Math.round(x.m))).localeCompare(y.d + hhmm(Math.round(y.m)))).map(c => `<tr>${multi ? `<td>${shortDate(c.d)}</td>` : ''}<td>${esc(c.tn)}</td><td class="nm">${esc(c.nm)}</td><td>${esc(stn(c.at))}</td><td>${hhmm(Math.round(c.m))}</td><td>${c.k === 'stuck' ? 'המשיכה לשדר ולא התקדמה' : 'הפסיקה לשדר'}</td><td>${num(c.left)}</td><td>${hhmm(c.pl_end)}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">לא נמצאו</div>') +
     `<p class="note">רכבת נחשבת שבוטלה כשלא הגיעה לתחנה הבאה 20 דקות אחרי שהייתה אמורה להגיע אליה (ההגעה בפועל לתחנה האחרונה + זמן הנסיעה המתוכנן). או שהמשיכה לשדר ונשארה במקום, או שהפסיקה לשדר בזמן שרכבות אחרות המשיכו. במקרה השני רק כשנותרו לה לפחות 3 תחנות: כמעט כל הרכבות מפסיקות לשדר תחנה-שתיים לפני היעד, וזו תכונה של השידור ולא ביטול. תקלה במשדר של רכבת בודדת עלולה להיראות כמו ביטול. דוגמה: ב-5.10 בבוקר נמצאו 6 רכבות כאלה בין תל אביב ללוד, בזמן שתנועת הרכבות שם הופסקה.</p></div>`;
@@ -463,6 +465,13 @@ function drawGainMap(seg, minN, elId, prev) {
   if (pts.length) map.fitBounds(pts, {padding: [16, 16]}); else map.setView([31.9, 34.9], 8);
   return map;
 }
+// מפגשי רכבות במסילה יחידה (שלמה 06.10: "איזו רכבת היא נפגשה במפגש שבגללה התעכבה")
+function meetTable(list, multi) {
+  if (!list.length) return '<div class="empty">לא נמצאו המתנות במפגש</div>';
+  return `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>תחנה</th><th>הרכבת שחיכתה</th><th>עמדה</th><th>יצאה באיחור</th><th>חיכתה לרכבת</th><th>שהגיעה באיחור</th></tr></thead><tbody>` +
+    list.map(m => `<tr>${multi ? `<td>${shortDate(m.d)}</td>` : ''}<td class="nm">${esc(stn(m.at))}</td><td class="nm">${esc(m.tn)} · ${esc(m.nm)}</td><td>${m.stood == null ? 'במוצא' : fmt1(m.stood) + ' דק׳'}</td><td class="${dcls(m.dd)}">${delayTxt(m.dd)} דק׳</td><td class="nm">${esc(m.with)} · ${esc(m.wnm)}</td><td class="${dcls(m.wdl)}">${m.wdl == null ? '—' : delayTxt(m.wdl) + ' דק׳'}</td></tr>`).join('') + '</tbody></table></div>';
+}
+const MEET_NOTE = `<p class="note">במסילה יחידה (עמק יזרעאל, באר שבע–דימונה, אשקלון–באר שבע דרך שדרות ונתיבות, המסילה המזרחית) שתי רכבות מכיוונים מנוגדים נפגשות בתחנה, ואחת מחכה שהשנייה תגיע. כאן מופיעה רכבת שעמדה בתחנה ויצאה עד 2.5 דקות אחרי שהגיעה אליה רכבת מהקטע שאליו היא ממשיכה — כלומר חיכתה לה. כשהרכבת השנייה מאחרת, האיחור עובר גם לרכבת שמחכה.</p>`;
 const gainLegend = `<div class="legend"><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span><i style="background:#fff;outline:2px solid #334155"></i>אין קליטת GPS (נמדד לפי שידור התחנה)</span><span>עובי הקו = מספר הרכבות</span></div>`;
 
 // ---------------------------------------------------------------- קו: באיזו תחנה הוא מתעכב
@@ -481,12 +490,13 @@ async function openLine(nm) {
   const ds = selectedDays().map(d => d.d).filter(d => have.has(d));
   const sums = (await Promise.all(ds.map(loadSum))).filter(s => s && s.lst);
   const body = $('#lbody', ovl); if (!body) return;
-  const st = {}, seg = {}, org = [0, 0, 0]; let order = [];
+  const st = {}, seg = {}, org = [0, 0, 0], meet = []; let order = [];
   for (const s of sums) {
     for (const [c, v] of Object.entries((s.lst || {})[nm] || {})) { const x = st[c] || (st[c] = [0, 0, 0, 0, 0]); v.forEach((y, i) => x[i] += y); }
     for (const [k, v] of Object.entries((s.lines || {})[nm] || {})) { const x = seg[k] || (seg[k] = [0, 0, 0, 0, -99, 0]); for (let i = 0; i < 4; i++) x[i] += v[i]; x[4] = Math.max(x[4], v[4]); x[5] += v[5] || 0; }
     const o = (s.lorig || {})[nm]; if (o) o.forEach((y, i) => org[i] += y);
     const lo = (s.lord || {})[nm]; if (lo && lo.length > order.length) order = lo;
+    for (const m of s.meet || []) if (m.nm === nm) meet.push(Object.assign({d: s.d}, m));
   }
   if (!order.length) { body.innerHTML = `<div class="empty">אין לקו הזה נתוני מעקב ${period === 'day' ? 'ביום הזה' : 'בתקופה הזו'}.</div>`; return; }
   const rows = order.map((c, i) => {
@@ -505,6 +515,7 @@ async function openLine(nm) {
       `<td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}</td><td class="${r.gain == null ? 'dn' : gainCls(r.gain)}">${r.gain == null ? '—' : plus(r.gain) + ' דק׳'}</td>` +
       `<td>${r.dw == null ? '—' : fmt1(r.dw) + ' דק׳'}</td><td>${num(r.n || r.gn)}</td></tr>`).join('') + `</tbody></table></div>
     <p class="note">"איחור בהגעה" — כמה דקות אחרי הלו״ז הרכבת הגיעה לתחנה, בממוצע. "נוסף בקטע שלפניה" — כמה מהאיחור הזה נוצר בדרך מהתחנה הקודמת (כולל העמידה בה). "עמידה" — כמה זמן הרכבת עמדה בתחנה בפועל, לפי GPS. ההגעה נמדדת לפי GPS, ובלי GPS לפי שידור "התחנה הנוכחית" של רכבת ישראל.</p>
+    ${meet.length ? `<p class="ptitle" style="margin-top:16px">חיכתה לרכבת אחרת במפגש <small>${num(meet.length)} פעמים</small></p>${meetTable(meet.sort((x, y) => (y.dd || 0) - (x.dd || 0)), ds.length > 1)}${MEET_NOTE}` : ''}
     <button class="more" id="lgo">לכל הקווים על המפה ←</button>`;
   LMAP = drawGainMap(seg, 1, 'lmap', LMAP);
   $('#lgo', ovl).onclick = () => { close(); gLine = nm; showTab('gain'); window.scrollTo({top: $('#tabbar').offsetTop - 10, behavior: 'smooth'}); };

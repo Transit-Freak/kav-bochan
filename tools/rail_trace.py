@@ -300,6 +300,58 @@ def build_day(day, ST):
     return summ
 
 
+# קטעי מסילה יחידה (צמדי תחנות עוקבות): שתי רכבות מכיוונים מנוגדים לא יכולות להיות בהם יחד,
+# ולכן הן נפגשות בתחנה — אחת מחכה לשנייה. עמק יזרעאל, באר שבע–דימונה, אשקלון–שדרות–נתיבות–
+# אופקים–באר שבע, והמסילה המזרחית (חדרה מזרח–ראש העין). ב-05.10 בקטעי העמק לא נמדדה אף חפיפה
+# בין רכבות מכיוונים מנוגדים — אישור שאין שם מסילה שנייה.
+SINGLE_TRACK = {frozenset(p) for p in (
+    (17111, 17112), (17112, 17113), (17113, 17110), (17110, 17123), (17110, 17016),   # עמק יזרעאל
+    (17086, 17082),                                                                    # דימונה
+    (17072, 17106), (17106, 17108), (17108, 17109), (17109, 17082),                     # אשקלון–באר שבע
+    (17094, 2643), (2643, 2652), (2652, 2653),                                         # המסילה המזרחית
+)}
+
+
+def meetings(rides):
+    """מפגשי רכבות במסילה יחידה (שלמה 06.10: "איזו רכבת היא נפגשה במפגש שבגללה התעכבה"):
+    רכבת A עומדת בתחנה X, רכבת B מגיעה ל-X מהקטע שאליו A ממשיכה (קטע של מסילה יחידה), ו-A יוצאת
+    עד 2.5 דקות אחרי ש-B הגיעה — כלומר חיכתה לה. בתחנת המוצא: A יצאה באיחור של דקה וחצי לפחות
+    ורק אחרי ש-B הגיעה."""
+    at = {}
+    for tn, rec in rides.items():
+        rows = rec.get('s') or []
+        for i, x in enumerate(rows):
+            arr = x[1] + x[2] if x[2] is not None else None
+            dep = x[1] + x[3] if x[3] is not None else None
+            at.setdefault(x[0], []).append((tn, i, arr, dep, rows[i - 1][0] if i else None,
+                                             rows[i + 1][0] if i + 1 < len(rows) else None, x))
+    out = []
+    for code, L in at.items():
+        for tn, i, arr, dep, prv, nxt, x in L:
+            if dep is None or nxt is None or frozenset((code, nxt)) not in SINGLE_TRACK:
+                continue
+            if i == 0:
+                if x[3] < 1.5:
+                    continue
+                lo = x[1] - 10
+            else:
+                if arr is None or dep - arr < 2:
+                    continue
+                lo = arr + 0.5
+            best = None
+            for tb, ib, arrb, depb, prvb, nxtb, xb in L:
+                if tb == tn or arrb is None or prvb != nxt:
+                    continue
+                if lo < arrb <= dep + 0.5 and -0.5 <= dep - arrb <= 2.5 and (best is None or arrb > best[2]):
+                    best = (tb, xb, arrb)
+            if best:
+                tb, xb, arrb = best
+                out.append({'tn': tn, 'nm': rides[tn]['nm'], 'at': code, 'arr': round(arr, 1) if arr is not None else None,
+                            'dep': round(dep, 1), 'stood': round(dep - arr, 1) if arr is not None else None,
+                            'dd': x[3], 'with': tb, 'wnm': rides[tb]['nm'], 'warr': round(arrb, 1), 'wdl': xb[2]})
+    return sorted(out, key=lambda m: m['dep'])
+
+
 def summarize(det):
     """הסיכום הקטן של יום לתצוגת התקופה — מחושב מקובץ המעקב המפורט, כך שאפשר לבנות אותו מחדש
     בלי להוריד שוב את השידורים (SUMMARIZE=1)."""
@@ -349,14 +401,15 @@ def summarize(det):
     meas = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None)
     plan = sum(len(x.get('s', [])) - 1 for x in rides.values() if 's' in x)
     gsrc = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None and s[4] == 'g')
-    summ = {'d': day, 'fmt': 2, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
+    summ = {'d': day, 'fmt': 3, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
             'meas': meas, 'plan': plan, 'gps': gsrc, 'cover': det.get('cover'),
             'seg': rnd(seg), 'lines': {k: rnd(v) for k, v in lines.items()},
             'origin': {k: [v[0], round(v[1], 1), v[2]] for k, v in origin.items()},
             'lorig': {k: [v[0], round(v[1], 1), v[2]] for k, v in lorig.items()},
             'lst': {nm: {c: [v[0], round(v[1], 1), v[2], round(v[3], 1), v[4]] for c, v in L.items()} for nm, L in lst.items()},
             'lord': lord,
-            'cut': sorted(cut, key=lambda c: c['m'])}
+            'cut': sorted(cut, key=lambda c: c['m']),
+            'meet': meetings(rides)}
     os.makedirs(os.path.join(OUT, 'sum'), exist_ok=True)
     json.dump(summ, open(os.path.join(OUT, 'sum', f'{day}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     return summ
@@ -390,7 +443,7 @@ def main():
             old = json.load(open(sp, encoding='utf-8')) if os.path.exists(sp) else {}
         except ValueError:
             old = {}
-        if old.get('fmt') != 2:
+        if old.get('fmt') != 3:
             det = json.load(open(os.path.join(OUT, f'{d}.json'), encoding='utf-8'))
             det.setdefault('cover', old.get('cover'))
             summarize(det)
