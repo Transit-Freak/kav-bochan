@@ -1418,12 +1418,7 @@ for pi, pk in enumerate(parks):
     fn = f'p{out_i}.json'
     json.dump(rec, open(os.path.join(OUTDIR, fn), 'w', encoding='utf-8'),
               ensure_ascii=False, separators=(',', ':'))
-    # שמות היישובים של התחנות, כפי שהם במאגר משרד התחבורה — לחיפוש בלבד (איריס 06.10):
-    # התחנות של "פארק תעשייה חבל מודיעין" רשומות ב"פארק תעשייה חבל מודיעים" וב"חבל
-    # מודיעין", ושילת ובארות יצחק נמצאים כך גם בחיפוש לפי שם המועצה האזורית
-    _al = sorted({s['city'] for s in stops_here if s['city']} - {city})
     index.append({'f': fn, 'name': pk['name'], 'city': city, 'area': rec['area'],
-                  **({'al': _al} if _al else {}),
                   **({'ww': strict_m['worst'], 'cv': strict_m['cov10'],
                       'wsrc': strict_m.get('wsrc')} if strict_m else {}),
                   'lines': len(lines_c),
