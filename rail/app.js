@@ -246,7 +246,7 @@ function linesTable(lines) {
   sortRows(rows, sortL);
   const single = period === 'day';
   return `<div class="tblbox"><table id="tl"><thead><tr>${th('קו', 'nm', sortL)}${th('נסיעות', 'rides', sortL)}${th('נמדדו', 'n', sortL)}${th('בזמן', 'on', sortL)}${th('איחור ממוצע', 'avg', sortL)}${single ? th('חציון', 'med', sortL) : ''}${th('מעל 20 דק׳', 'b3', sortL)}</tr></thead><tbody>` +
-    rows.map(r => `<tr><td class="nm">${esc(r.nm) || '—'}</td><td>${num(r.rides)}</td><td>${num(r.n)}</td><td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}<span class="bar"><i style="width:${Math.round((r.on || 0) * 100)}%"></i></span></td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td>${single ? `<td>${r.med == null ? '—' : fmt1(r.med) + ' דק׳'}</td>` : ''}<td>${r.b3 == null ? '—' : Math.round(r.b3 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
+    rows.map(r => `<tr class="v" tabindex="0" data-nm="${esc(r.nm)}" title="לחיצה: באיזו תחנה הקו מתעכב"><td class="nm">${esc(r.nm) || '—'} <small class="go">פירוט לפי תחנה ←</small></td><td>${num(r.rides)}</td><td>${num(r.n)}</td><td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}<span class="bar"><i style="width:${Math.round((r.on || 0) * 100)}%"></i></span></td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td>${single ? `<td>${r.med == null ? '—' : fmt1(r.med) + ' דק׳'}</td>` : ''}<td>${r.b3 == null ? '—' : Math.round(r.b3 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
 }
 function stationsTable(stations) {
   const rows = Object.entries(stations).map(([c, s]) => ({c, nm: (ST[c] || [])[0] || c, rides: s.rides, n: s.n, on: s.on, avg: s.avg, b3: s.n ? s.b[3] / s.n : null}));
@@ -317,6 +317,7 @@ function render() {
     lineChart($('#c-avg'), wd.map(d => ({x: shortDate(d.d), y: partial(d) ? null : d.n ? d.avg : null, tip: partial(d) ? `<b>${heDate(d.d)}</b><br>שידור חלקי: ${num(d.fix)} מתוך ${num(d.rides)} רכבות — לא נכלל` : `<b>${heDate(d.d)}</b><br>איחור ממוצע ${fmt1(d.avg)} דק׳ · חציון ${fmt1(d.med)}<br>90% מהרכבות עד ${fmt1(d.p90)} דק׳`})), {min: 0, color: C.line, fmtY: v => v.toFixed(1)});
   }
   barChart($('#c-hours'), Array.from({length: 24}, (_, h) => { const s = A.hours[String(h)]; const y = s && s.n ? Math.round(s.ok / s.n * 100) : null; return {x: String(h), y, color: y == null ? GRID : y >= 90 ? C.ok : y >= 75 ? C.warn : C.bad, tip: s ? `<b>יציאה בשעה ${h}:00–${h}:59</b><br>בזמן ${y == null ? '—' : y + '%'} מתוך ${num(s.n)} שנמדדו (${num(s.rides)} בלו״ז)<br>איחור ממוצע ${fmt1(s.avg)} דק׳` : `<b>${h}:00</b><br>אין נסיעות`}; }), {max: 100, unit: '%', color: C.ok});
+  app.querySelectorAll('#tl tr.v').forEach(tr => { const go = () => openLine(tr.dataset.nm); tr.onclick = go; tr.onkeydown = e => { if (e.key === 'Enter') go(); }; });
   app.querySelectorAll('#tl th').forEach(h => h.onclick = () => { const k = h.dataset.k; sortL = {k, dir: sortL.k === k ? -sortL.dir : (k === 'nm' ? 1 : -1)}; render(); });
   app.querySelectorAll('#ts th').forEach(h => h.onclick = () => { const k = h.dataset.k; sortS = {k, dir: sortS.k === k ? -sortS.dir : (k === 'nm' ? 1 : -1)}; render(); });
   if (period === 'day') {
@@ -395,25 +396,25 @@ async function renderGain() {
     Object.keys(s.lines || {}).forEach(k => names.add(k));
     const src = gLine ? ((s.lines || {})[gLine] || {}) : (s.seg || {});
     for (const [k, v] of Object.entries(src)) {
-      const x = seg[k] || (seg[k] = [0, 0, 0, 0, -99]);
-      x[0] += v[0]; x[1] += v[1]; x[2] += v[2]; x[3] += v[3]; x[4] = Math.max(x[4], v[4]);
+      const x = seg[k] || (seg[k] = [0, 0, 0, 0, -99, 0]);
+      x[0] += v[0]; x[1] += v[1]; x[2] += v[2]; x[3] += v[3]; x[4] = Math.max(x[4], v[4]); x[5] += v[5] || 0;
     }
     if (!gLine) for (const [k, v] of Object.entries(s.origin || {})) { const o = origin[k] || (origin[k] = [0, 0, 0]); o[0] += v[0]; o[1] += v[1]; o[2] += v[2]; }
     for (const c of s.cut || []) if (!gLine || c.nm === gLine) cut.push(Object.assign({d: s.d}, c));
   }
   if (gLine && !names.has(gLine)) gLine = '';
   const multi = ds.length > 1, minN = multi ? 5 : 2;
-  const rows = Object.entries(seg).map(([k, v]) => { const [a, b] = k.split('>'); return {a, b, n: v[0], avg: v[1] / v[0], add: v[2], p2: v[3] / v[0], mx: v[4]}; })
+  const rows = Object.entries(seg).map(([k, v]) => { const [a, b] = k.split('>'); return {a, b, n: v[0], avg: v[1] / v[0], add: v[2], p2: v[3] / v[0], mx: v[4], nogps: v[5] != null && v[5] / v[0] < NOGPS}; })
     .filter(r => r.n >= minN).sort((x, y) => y.add - x.add);
   const lineOpts = [...names].sort((a, b) => a.localeCompare(b, 'he'));
   let h = `<div class="panel"><p class="ptitle">איפה הרכבות צוברות איחור <small>${multi ? `${ds.length} ימים` : heDate(ds[0])} · נמדדו ${pct(meas, plan)} מההגעות לתחנות</small></p>
     <div class="filters"><select id="gline" class="gsel"><option value="">כל הקווים</option>${lineOpts.map(n => `<option${n === gLine ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
     <p class="pdesc">כל קטע בין שתי תחנות עוקבות צבוע לפי כמה דקות איחור רכבת הוסיפה בו בממוצע: האיחור בהגעה לתחנה שבסוף הקטע, פחות האיחור בתחנה שבתחילתו. העמידה בתחנה שבתחילת הקטע נכללת בו. ערך שלילי = הרכבת צמצמה איחור.</p>
     <div id="gmap"></div>
-    <div class="legend"><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span>עובי הקו = מספר הרכבות</span></div>
+    ${gainLegend}
   </div>`;
   h += `<div class="panel"><p class="ptitle">הקטעים שבהם נוסף הכי הרבה איחור <small>${num(rows.length)} קטעים · לפי סך הדקות שנוספו</small></p>` + (rows.length ? `<div class="tblbox"><table><thead><tr><th>קטע</th><th>רכבות</th><th>נוסף בממוצע</th><th>סך דקות שנוספו</th><th>2 דק׳ ומעלה</th><th>הכי הרבה</th></tr></thead><tbody>` +
-    rows.slice(0, 60).map(r => `<tr><td class="nm">${esc(stn(r.a))} ← ${esc(stn(r.b))}</td><td>${num(r.n)}</td><td class="${gainCls(r.avg)}">${plus(r.avg)} דק׳</td><td>${num(Math.round(r.add))}</td><td>${Math.round(r.p2 * 100)}%</td><td>${plus(r.mx)} דק׳</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">אין קטעים שנמדדו</div>') + `</div>`;
+    rows.slice(0, 60).map(r => `<tr><td class="nm">${esc(stn(r.a))} ← ${esc(stn(r.b))}${r.nogps ? ' <small class="nogps" title="ברוב הנסיעות אין GPS בקטע הזה — נמדד לפי שידור התחנה">ללא GPS</small>' : ''}</td><td>${num(r.n)}</td><td class="${gainCls(r.avg)}">${plus(r.avg)} דק׳</td><td>${num(Math.round(r.add))}</td><td>${Math.round(r.p2 * 100)}%</td><td>${plus(r.mx)} דק׳</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">אין קטעים שנמדדו</div>') + `</div>`;
   if (!gLine) {
     const orows = Object.entries(origin).filter(([, v]) => v[0] >= minN).map(([c, v]) => ({c, n: v[0], avg: v[1] / v[0], p3: v[2] / v[0]})).sort((x, y) => y.avg - x.avg);
     h += `<div class="panel"><p class="ptitle">יציאה באיחור מתחנת המוצא <small>איחור כבר לפני שהרכבת זזה</small></p>` + (orows.length ? `<div class="tblbox"><table><thead><tr><th>תחנת מוצא</th><th>רכבות שנמדדו</th><th>איחור ממוצע ביציאה</th><th>3 דק׳ ומעלה</th></tr></thead><tbody>` +
@@ -426,33 +427,87 @@ async function renderGain() {
   h += `<div class="panel"><p class="note" style="margin-top:0"><b>איך נמדד:</b> בכל דקה רכבת ישראל משדרת לכל רכבת את מיקום ה-GPS ואת "התחנה הנוכחית" לפי מערכת המעקב שלה, גם כשאין GPS (בנתב"ג, במנהרות, כשהמשדר תקוע). ההגעה לתחנה היא הדקה הראשונה שבה הרכבת עומדת בה לפי ה-GPS; בלי GPS — הדקה שבה "התחנה הנוכחית" התחלפה אליה. כך נמדדות כ-85% מההגעות, לעומת כ-40% לפי GPS בלבד. בבדיקה מול המדידה לפי GPS ההפרש החציוני הוא 0 דקות, ו-90% מההגעות בטווח של דקה וחצי. ${plan ? `בתקופה שנבחרה: ${num(gps)} הגעות לפי GPS ו-${num(meas - gps)} לפי שידור התחנה.` : ''}</p></div>`;
   box.innerHTML = h;
   $('#gline').onchange = e => { gLine = e.target.value; renderGain(); };
-  drawGainMap(seg, minN);
+  GMAP = drawGainMap(seg, minN, 'gmap', GMAP);
 }
-function drawGainMap(seg, minN) {
-  if (GMAP) { try { GMAP.remove(); } catch (e) { /* המיכל כבר הוחלף */ } GMAP = null; }
-  const el = $('#gmap'); if (!el) return;
-  if (!window.L) { el.remove(); return; }
+// קטע שברוב המדידות שלו אין GPS (שלמה 06.10: "שאין קליטת GPS תסמן את המקטע בלבן") — נמדד רק לפי
+// שידור "התחנה הנוכחית". הנתון v[5] קיים מגרסה 2 של הסיכום.
+const NOGPS = .2;
+const noGps = u => u.gn > 0 && u.g / u.gn < NOGPS;
+function drawGainMap(seg, minN, elId, prev) {
+  if (prev) { try { prev.remove(); } catch (e) { /* המיכל כבר הוחלף */ } }
+  const el = $('#' + elId); if (!el) return null;
+  if (!window.L) { el.remove(); return null; }
   const und = {};
   for (const [k, v] of Object.entries(seg)) {
     const [a, b] = k.split('>'); const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-    const u = und[key] || (und[key] = {a: a < b ? a : b, b: a < b ? b : a, n: 0, sum: 0, dirs: []});
+    const u = und[key] || (und[key] = {a: a < b ? a : b, b: a < b ? b : a, n: 0, sum: 0, g: 0, gn: 0, dirs: []});
     u.n += v[0]; u.sum += v[1]; u.dirs.push([a, b, v]);
+    if (v[5] != null) { u.g += v[5]; u.gn += v[0]; }
   }
-  GMAP = L.map('gmap', {scrollWheelZoom: false, attributionControl: true});
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap', maxZoom: 19, className: T.tiles === 'dark' ? 'tiles-dark' : ''}).addTo(GMAP);
+  const map = L.map(elId, {scrollWheelZoom: false, attributionControl: true});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap', maxZoom: 19, className: T.tiles === 'dark' ? 'tiles-dark' : ''}).addTo(map);
   const pts = [];
   const list = Object.values(und).filter(u => u.n >= minN).sort((x, y) => x.sum / x.n - y.sum / y.n);
   const maxN = Math.max(1, ...list.map(u => u.n));
   for (const u of list) {
     const A = ST[u.a], B = ST[u.b]; if (!A || !B || A[1] == null || B[1] == null) continue;
-    const avg = u.sum / u.n, w = 3 + 6 * Math.sqrt(u.n / maxN);
+    const avg = u.sum / u.n, w = 3 + 6 * Math.sqrt(u.n / maxN), white = noGps(u);
     const shp = SEG[`${u.a}-${u.b}`] || SEG[`${u.b}-${u.a}`];
     const ll = shp ? decodeShape(shp) : [[A[1], A[2]], [B[1], B[2]]];
-    const tip = u.dirs.map(([a, b, v]) => `${esc(stn(a))} ← ${esc(stn(b))}: ${plus(v[1] / v[0])} דק׳ בממוצע · ${num(v[0])} רכבות`).join('<br>');
-    L.polyline(ll, {color: gainCol(avg), weight: w, opacity: .9, dashArray: shp ? null : '6 5'}).addTo(GMAP).bindTooltip(tip, {sticky: true});
+    const tip = u.dirs.map(([a, b, v]) => `${esc(stn(a))} ← ${esc(stn(b))}: ${plus(v[1] / v[0])} דק׳ בממוצע · ${num(v[0])} רכבות`).join('<br>') +
+      (white ? `<br><b>אין קליטת GPS</b> ב-${Math.round(100 - 100 * u.g / u.gn)}% מהנסיעות — נמדד לפי שידור התחנה` : '');
+    if (white) L.polyline(ll, {color: '#334155', weight: w + 3, opacity: .85, dashArray: shp ? null : '6 5'}).addTo(map);
+    L.polyline(ll, {color: white ? '#FFFFFF' : gainCol(avg), weight: w, opacity: white ? 1 : .9, dashArray: shp ? null : '6 5'}).addTo(map).bindTooltip(tip, {sticky: true});
     pts.push([A[1], A[2]], [B[1], B[2]]);
   }
-  if (pts.length) GMAP.fitBounds(pts, {padding: [16, 16]}); else GMAP.setView([31.9, 34.9], 8);
+  if (pts.length) map.fitBounds(pts, {padding: [16, 16]}); else map.setView([31.9, 34.9], 8);
+  return map;
+}
+const gainLegend = `<div class="legend"><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span><i style="background:#fff;outline:2px solid #334155"></i>אין קליטת GPS (נמדד לפי שידור התחנה)</span><span>עובי הקו = מספר הרכבות</span></div>`;
+
+// ---------------------------------------------------------------- קו: באיזו תחנה הוא מתעכב
+// (שלמה 06.10) לחיצה על קו בלשונית "לפי קו": לכל תחנה לפי הסדר — האיחור בהגעה, כמה איחור נוסף
+// בקטע שלפניה, וכמה זמן הרכבת עמדה בה. מהמעקב דקה-אחר-דקה, לאותה תקופה שנבחרה.
+let LMAP = null;
+async function openLine(nm) {
+  const ovl = document.createElement('div'); ovl.className = 'ovl';
+  ovl.innerHTML = `<div class="modal wide" role="dialog" aria-modal="true"><div class="mhead"><h2>${esc(nm)}</h2><button class="x" aria-label="סגירה">✕</button></div><div id="lbody"><div class="empty">טוען…</div></div></div>`;
+  document.body.appendChild(ovl);
+  const close = () => { if (LMAP) { try { LMAP.remove(); } catch (e) { /* */ } LMAP = null; } ovl.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  $('.x', ovl).onclick = close; ovl.onclick = e => { if (e.target === ovl) close(); };
+  const idx = await loadTraceIdx(), have = new Set(idx.days || []);
+  const ds = selectedDays().map(d => d.d).filter(d => have.has(d));
+  const sums = (await Promise.all(ds.map(loadSum))).filter(s => s && s.lst);
+  const body = $('#lbody', ovl); if (!body) return;
+  const st = {}, seg = {}, org = [0, 0, 0]; let order = [];
+  for (const s of sums) {
+    for (const [c, v] of Object.entries((s.lst || {})[nm] || {})) { const x = st[c] || (st[c] = [0, 0, 0, 0, 0]); v.forEach((y, i) => x[i] += y); }
+    for (const [k, v] of Object.entries((s.lines || {})[nm] || {})) { const x = seg[k] || (seg[k] = [0, 0, 0, 0, -99, 0]); for (let i = 0; i < 4; i++) x[i] += v[i]; x[4] = Math.max(x[4], v[4]); x[5] += v[5] || 0; }
+    const o = (s.lorig || {})[nm]; if (o) o.forEach((y, i) => org[i] += y);
+    const lo = (s.lord || {})[nm]; if (lo && lo.length > order.length) order = lo;
+  }
+  if (!order.length) { body.innerHTML = `<div class="empty">אין לקו הזה נתוני מעקב ${period === 'day' ? 'ביום הזה' : 'בתקופה הזו'}.</div>`; return; }
+  const rows = order.map((c, i) => {
+    const x = st[c], g = i ? seg[`${order[i - 1]}>${c}`] : null;
+    return {c, i, n: x ? x[0] : 0, avg: x && x[0] ? x[1] / x[0] : null, on: x && x[0] ? x[2] / x[0] : null, dw: x && x[4] ? x[3] / x[4] : null,
+      gain: g && g[0] ? g[1] / g[0] : null, gn: g ? g[0] : 0, nogps: g && g[0] && g[5] / g[0] < NOGPS};
+  });
+  const worst = rows.filter(r => r.gain != null && r.gn >= (ds.length > 1 ? 5 : 2)).sort((a, b) => b.gain - a.gain)[0];
+  const lastAvg = [...rows].reverse().find(r => r.avg != null);
+  body.innerHTML = `<div class="msub">${ds.length > 1 ? `${ds.length} ימים` : heDate(ds[0])}${org[0] ? ` · יציאה מהמוצא: ${delayTxt(org[1] / org[0])} דק׳ בממוצע (${num(org[0])} רכבות)` : ''}</div>` +
+    (worst && worst.gain > 0.3 ? `<div class="warn" style="margin:8px 0">הקו צובר הכי הרבה איחור בקטע <b>${esc(stn(order[worst.i - 1]))} ← ${esc(stn(worst.c))}</b>: ${plus(worst.gain)} דק׳ בממוצע לרכבת.${lastAvg ? ` בתחנה האחרונה שנמדדה (${esc(stn(lastAvg.c))}) האיחור הממוצע ${delayTxt(lastAvg.avg)} דק׳.` : ''}</div>` : '') +
+    `<div id="lmap"></div>${gainLegend}
+    <div class="tblbox"><table class="ltbl"><thead><tr><th>תחנה</th><th>איחור בהגעה</th><th>בזמן</th><th>נוסף בקטע שלפניה</th><th>עמידה בתחנה</th><th>נמדדו</th></tr></thead><tbody>` +
+    rows.map(r => `<tr${worst && r === worst ? ' class="hot"' : ''}><td class="nm">${esc(stn(r.c))}${r.i === 0 ? ' <small>מוצא</small>' : r.i === rows.length - 1 ? ' <small>יעד</small>' : ''}${r.nogps ? ' <small class="nogps" title="ברוב הנסיעות אין GPS בקטע הזה — נמדד לפי שידור התחנה">ללא GPS</small>' : ''}</td>` +
+      `<td class="${r.i === 0 ? 'dn' : dcls(r.avg)}">${r.i === 0 ? (org[0] ? 'יציאה ' + delayTxt(org[1] / org[0]) + ' דק׳' : '—') : r.avg == null ? '—' : delayTxt(r.avg) + ' דק׳'}</td>` +
+      `<td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}</td><td class="${r.gain == null ? 'dn' : gainCls(r.gain)}">${r.gain == null ? '—' : plus(r.gain) + ' דק׳'}</td>` +
+      `<td>${r.dw == null ? '—' : fmt1(r.dw) + ' דק׳'}</td><td>${num(r.n || r.gn)}</td></tr>`).join('') + `</tbody></table></div>
+    <p class="note">"איחור בהגעה" — כמה דקות אחרי הלו״ז הרכבת הגיעה לתחנה, בממוצע. "נוסף בקטע שלפניה" — כמה מהאיחור הזה נוצר בדרך מהתחנה הקודמת (כולל העמידה בה). "עמידה" — כמה זמן הרכבת עמדה בתחנה בפועל, לפי GPS. ההגעה נמדדת לפי GPS, ובלי GPS לפי שידור "התחנה הנוכחית" של רכבת ישראל.</p>
+    <button class="more" id="lgo">לכל הקווים על המפה ←</button>`;
+  LMAP = drawGainMap(seg, 1, 'lmap', LMAP);
+  $('#lgo', ovl).onclick = () => { close(); gLine = nm; showTab('gain'); window.scrollTo({top: $('#tabbar').offsetTop - 10, behavior: 'smooth'}); };
 }
 
 let MAP = null;
