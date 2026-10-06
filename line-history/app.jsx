@@ -2722,7 +2722,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
           </div>
         )}
-        {v.k !== "sched" && v.k !== "freq" && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
+        {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
+            באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
+            יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
+        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
           isLast={sel == null || sel >= vs.length - 1} />}
         {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
