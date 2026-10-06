@@ -458,8 +458,13 @@ function drawGainMap(seg, minN, elId, prev) {
     const ll = shp ? decodeShape(shp) : [[A[1], A[2]], [B[1], B[2]]];
     const tip = u.dirs.map(([a, b, v]) => `${esc(stn(a))} ← ${esc(stn(b))}: ${plus(v[1] / v[0])} דק׳ בממוצע · ${num(v[0])} רכבות`).join('<br>') +
       (white ? `<br><b>אין קליטת GPS</b> ב-${Math.round(100 - 100 * u.g / u.gn)}% מהנסיעות — נמדד לפי שידור התחנה` : '');
-    if (white) L.polyline(ll, {color: '#334155', weight: w + 3, opacity: .85, dashArray: shp ? null : '6 5'}).addTo(map);
-    L.polyline(ll, {color: white ? '#FFFFFF' : gainCol(avg), weight: w, opacity: white ? 1 : .9, dashArray: shp ? null : '6 5'}).addTo(map).bindTooltip(tip, {sticky: true});
+    if (white) L.polyline(ll, {color: '#334155', weight: w + 3, opacity: .85, dashArray: shp ? null : '6 5', interactive: false}).addTo(map);
+    L.polyline(ll, {color: white ? '#FFFFFF' : gainCol(avg), weight: w, opacity: white ? 1 : .9, dashArray: shp ? null : '6 5', interactive: false}).addTo(map);
+    // שלמה 06.10 (בטלפון): "כאשר לוחץ על זה לא מופיע כלום" — תווית שמופיעה במעבר עכבר לא נפתחת
+    // בנגיעה. קו שקוף ורחב מעל הקטע: במחשב תווית במעבר עכבר, ובנגיעה/לחיצה חלון עם הפרטים
+    const head = `<b>${esc(stn(u.a))} — ${esc(stn(u.b))}</b><br>`;
+    L.polyline(ll, {color: '#000', weight: Math.max(18, w + 10), opacity: 0}).addTo(map)
+      .bindTooltip(head + tip, {sticky: true}).bindPopup(head + tip, {maxWidth: 280});
     pts.push([A[1], A[2]], [B[1], B[2]]);
   }
   if (pts.length) map.fitBounds(pts, {padding: [16, 16]}); else map.setView([31.9, 34.9], 8);
