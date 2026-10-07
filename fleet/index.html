@@ -65,7 +65,8 @@
   /* כרטיס חברה: שם על פס בצבע החברה, ופס שמראה מכל מה שנצפה כמה פעילים / קבלן / ירדו (שלמה 07.10, עיצוב א) */
   .card.op{padding:0;overflow:hidden;border-inline-start:none;display:flex;flex-direction:column;align-items:stretch}
   .card.op .body{flex:1}
-  .card.op h2{background:linear-gradient(to left,var(--c) 0 82%,var(--c2) 82%);color:#fff;padding:9px 14px;font-size:15px}
+  .card.op h2{background:var(--bg);color:#fff;padding:9px 14px;font-size:15px}
+  .card.op.mc h2{padding-inline-end:42%}
   .card.op.lt h2{color:#10172A}
   .card.op .body{padding:10px 14px 12px}
   .card.op .n{color:var(--ink);font-size:28px;margin:0;line-height:1.1}
@@ -213,13 +214,12 @@ window.FLEET_BUILD='22';
     }
   }).catch(function(){});
 })();
-// צבע לכל חברה — לפי הסמל שלה (unreleased/databus/operators-logos, שלמה 07.10). ב-GTFS אין צבע לחברה:
-// route_color שם לפי סוג קו. [צבע עיקרי, צבע שני מהסמל]; הצבע השני מופיע בקצה הכותרת ומבדיל בין
-// חברות שהסמלים שלהן באותו גוון. משפחת דן (אותו סמל) — גוונים שונים של הכחול שלה.
-const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','#14A651'],7:['#E42424','#8A8F98'],8:['#A61E22'],10:['#E53935'],
-  14:['#E8590C','#8A8F98'],15:['#F7840C'],16:['#0C546C','#12B5B0'],18:['#0C246C','#9CCB3B'],21:['#0C8484','#E42424'],23:['#129FD6','#C8C80C'],
-  24:['#6CB424','#E53935'],25:['#0C84CC'],31:['#2F6DB5'],32:['#6A9BD8'],33:['#0C6CB4'],34:['#2BA88C'],35:['#E09A4F','#8A8F98'],
-  37:['#0C9CE4','#F28C28'],38:['#F28C28','#0C9CE4'],39:['#0B3A6E'],42:['#1E8A4C'],44:['#3C6CCC'],49:['#3BA56B'],50:['#5BB57F'],135:['#2E9467','#24549C']};
+// צבע לכל חברה — כל הצבעים שבסמל שלה (unreleased/databus/operators-logos, שלמה 07.10), הראשון עיקרי.
+// ב-GTFS אין צבע לחברה: route_color שם לפי סוג קו. משפחת דן (אותו סמל) — גוונים שונים של הכחול.
+const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','#14A651'],7:['#E42424','#8A8F98'],8:['#A61E22','#3C3C3C'],10:['#E53935'],
+  14:['#E8590C','#9AA0A6'],15:['#F7840C'],16:['#0C546C','#12B5B0'],18:['#0C246C','#9CCB3B'],21:['#0C8484','#E42424'],23:['#129FD6','#C8C80C'],
+  24:['#6CB424','#E53935'],25:['#0C84CC'],31:['#2F6DB5'],32:['#6A9BD8'],33:['#0C6CB4','#8A8F98'],34:['#2BA88C','#1A8CB4'],35:['#E09A4F','#8A8F98'],
+  37:['#0C9CE4','#F28C28','#3C4A4A'],38:['#F28C28','#0C9CE4','#3C4A4A'],39:['#0B3A6E'],42:['#1E8A4C'],44:['#3C6CCC'],49:['#3BA56B'],50:['#5BB57F'],135:['#2E9467','#24549C','#8CB4DC']};
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
@@ -248,8 +248,11 @@ const nextScan=()=>{const n=new Date();let d=new Date(Date.UTC(n.getUTCFullYear(
 const fdt=d=>d.toLocaleString('he-IL',{timeZone:'Asia/Jerusalem',weekday:'long',day:'numeric',month:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const days=(a,b)=>Math.round((new Date(a)-new Date(b))/864e5);
 const isActive=v=>days(DATA.updated,v[2])<=DATA.retire_days;
-const opColor=(ref,i)=>(COLORS[ref]||[PALETTE[i%PALETTE.length]])[0];
-const opColor2=(ref,i)=>(COLORS[ref]||[])[1]||opColor(ref,i);
+const opColors=(ref,i)=>COLORS[ref]||[PALETTE[i%PALETTE.length]];
+const opColor=(ref,i)=>opColors(ref,i)[0];
+// רקע בצבעי הסמל: העיקרי מאחורי השם, ושאר הצבעים בפסים משופעים בקצה השני
+const opBg=(ref,i)=>{const c=opColors(ref,i);if(c.length<2)return c[0];
+  const st=c.length===2?[0,62]:[0,56,78];return `linear-gradient(250deg,${c.map((x,k)=>`${x} ${st[k]}% ${k+1<c.length?st[k+1]+'%':'100%'}`).join(',')})`;};
 // כותרת בהירה (צהוב, אפרסק, תכלת) — טקסט כהה, כדי שיהיה קריא
 const isLight=h=>{const [r,g,b]=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return .2126*r+.7152*g+.0722*b>.3;};
 // רכב קבלן = רשום ברישוי כרכב הסעות ('להסע מיוחד'/'הסעות מיוחדות') —
@@ -313,7 +316,7 @@ function home(){
     const kab=DATA.enriched?o.vehicles.filter(isKab).length:0;
     const kabA=kab?o.vehicles.filter(v=>isKab(v)&&isActive(v)).length:0, retReg=ret-(kab-kabA);
     const tot=o.vehicles.length||1, kabR=kab-kabA, w=x=>`${(100*x/tot).toFixed(1)}%`;
-    return `<button class="card op${isLight(opColor(o.ref,i))?' lt':''}" style="--c:${opColor(o.ref,i)};--c2:${opColor2(o.ref,i)}" onclick="go(${o.ref})">
+    return `<button class="card op${isLight(opColor(o.ref,i))?' lt':''}${opColors(o.ref,i).length>1?' mc':''}" style="--c:${opColor(o.ref,i)};--bg:${opBg(o.ref,i)}" onclick="go(${o.ref})">
       <h2>${esc(o.name)}</h2>
       <div class="body"><div class="n">${fmt(act-kabA)}</div>
       <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">פעילים עכשיו</div>
@@ -860,7 +863,7 @@ function opView(ref){
   }
   const armInTypes=OFCOK&&ofCards?'':armCards;   // בלי המאגר הרשמי — המיגון נשאר בשורת הסוגים
   return `<button class="back" onclick="history.back()">→ חזרה לכל החברות</button>
-  <div class="ophead" style="background:linear-gradient(to left,${color} 0 calc(100% - 16px),${opColor2(ref,i)} calc(100% - 16px))${isLight(color)?';color:#10172A':''}">
+  <div class="ophead" style="background:${opBg(ref,i)}${isLight(color)?';color:#10172A':''}">
     <div><h2>${esc(o.name)}</h2><div class="sub2">${fmt(o.vehicles.length)} רכבים${avgAge?` · גיל ממוצע ${avgAge}`:''} · עדכון ${fd(DATA.updated)}</div></div>
     <div class="pills"><span>${fmt(act)} פעילים</span>${ret-(kab-kabA)?`<span class="r">${fmt(ret-(kab-kabA))} ירדו מהשירות</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kab-kabA?` · ${fmt(kab-kabA)} ירדו`:''}</span>`:''}</div>
   </div>

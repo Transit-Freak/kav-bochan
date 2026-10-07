@@ -1,6 +1,0 @@
-og https://thumb.wikimedia.org/wikipedia/he/thumb/0/08/DanBuses.svg/1280px-DanBuses.svg.png?utm_source=he.wikipedia.org&utm_campaign=index&utm_content=thumbnail
-icon: https://he.wikipedia.org/static/apple-touch/wikipedia.png
-icon: https://he.wikipedia.org/static/favicon/wikipedia.ico
-img:mw-logo-icon https://he.wikipedia.org/static/images/icons/wikipedia.png
-img:ויקיפדיה https://he.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-he.svg
-img:האנציקלופדיה החופשית https://he.wikipedia.org/static/images/mobile/copyright/wikipedia-tagline-he.svg

@@ -1,6 +1,0 @@
-og https://upload.wikimedia.org/wikipedia/commons/5/5b/Daf_berkhof_vdl_egged_ashdod_israel_efi_elian.jpg?utm_source=he.wikipedia.org&utm_campaign=index&utm_content=thumbnail_unscaled
-icon: https://he.wikipedia.org/static/apple-touch/wikipedia.png
-icon: https://he.wikipedia.org/static/favicon/wikipedia.ico
-img:mw-logo-icon https://he.wikipedia.org/static/images/icons/wikipedia.png
-img:ויקיפדיה https://he.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-he.svg
-img:האנציקלופדיה החופשית https://he.wikipedia.org/static/images/mobile/copyright/wikipedia-tagline-he.svg
