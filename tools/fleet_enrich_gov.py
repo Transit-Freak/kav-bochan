@@ -215,6 +215,18 @@ def preserve_license_history(reg, base_path):
                 history.append({'previous': prior, 'current': current, 'detected': detected})
         if history:
             rec['_license_history'] = history
+        # כל שדה שהשתנה, באותו אופן כמו תוקף הרישיון (שלמה 07.10: "כל דבר שהשתנה יופיע בדיוק
+        # כמו תוקף רישיון"): {שדה: [{previous, current, detected}]}. מצטבר מריצה לריצה.
+        hist = {k: list(v) for k, v in (old.get('_hist') or {}).items()}
+        if old:
+            for k, cur in rec.items():
+                if k.startswith('_') or k == 'tokef_dt':
+                    continue
+                prev = old.get(k)
+                if prev not in (None, '') and cur not in (None, '') and str(prev).strip() != str(cur).strip():
+                    hist.setdefault(k, []).append({'previous': prev, 'current': cur, 'detected': detected})
+        if hist:
+            rec['_hist'] = hist
 
 
 def main():

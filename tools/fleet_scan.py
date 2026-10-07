@@ -26,7 +26,8 @@ STATE = f'{OUTDIR}/fleet-state.json'
 OUT = f'{OUTDIR}/fleet.json'
 TODAY = datetime.date.today()
 FROM = os.environ.get('FROM') or (TODAY - datetime.timedelta(days=8)).isoformat()
-TO = os.environ.get('TO') or TODAY.isoformat()
+# עד אתמול: היום עוד לא נגמר, ויום שנסרק חלקית נרשם כסרוק ולא הושלם לעולם
+TO = os.environ.get('TO') or (TODAY - datetime.timedelta(days=1)).isoformat()
 MAX_MIN = float(os.environ.get('MAX_MIN', '0'))
 RETIRE_DAYS = int(os.environ.get('RETIRE_DAYS', '30'))
 # מצב "חודשים בלבד": סריקה חוזרת של העבר שממלאת רק את מסיכת חודשי

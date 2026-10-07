@@ -216,7 +216,7 @@ const fmt=n=>n.toLocaleString('he-IL');
 const fd=s=>s?s.split('-').reverse().join('.'):'—';
 // הפעימה הבאה של הסריקה החודשית (fleet-scan): ה-1 בחודש, 00:30 UTC —
 // מחושב כאן כדי שהשעה בשעון ישראל תהיה נכונה גם במעבר שעון קיץ/חורף
-const nextScan=()=>{const n=new Date();let d=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1,0,30));if(d<=n)d=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()+1,1,0,30));return d;};
+const nextScan=()=>{const n=new Date();let d=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),0,30));if(d<=n)d=new Date(d.getTime()+864e5);return d;};
 const fdt=d=>d.toLocaleString('he-IL',{timeZone:'Asia/Jerusalem',weekday:'long',day:'numeric',month:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
 const days=(a,b)=>Math.round((new Date(a)-new Date(b))/864e5);
 const isActive=v=>days(DATA.updated,v[2])<=DATA.retire_days;
@@ -242,7 +242,7 @@ function kpis(){
         :`<div class="kpi bad"><b>${fmt(tot-act)}</b><span>ירדו מהשירות</span></div>`}
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
     ${kab?`<div class="kpi" title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים (רכבי הסעות)</span><span style="display:block;color:var(--bad)">${fmt(kab-kabA)} ירדו מהשירות</span></div>`:''}
-    <div class="kpi" title="נתוני הנסיעה מכסים את התקופה הזו — מהצפייה הראשונה ועד הצפייה האחרונה שנקלטה. הסריקה רצה פעם בחודש, ב-1 בחודש לפנות בוקר (בקשת שלמה: לא להעמיס על דאטאבוס)"><b style="font-size:15px">${fd(first)} – ${fd(last)}</b><span>טווח נתוני הנסיעה</span><span style="display:block;color:var(--mut)">העדכון הבא: ${fdt(nextScan())} (שעון ישראל)</span></div>
+    <div class="kpi" title="נתוני הנסיעה מכסים את התקופה הזו — מהצפייה הראשונה ועד הצפייה האחרונה שנקלטה. הסריקה רצה כל לילה ומוסיפה את היום שעבר (כל יום נסרק פעם אחת בלבד, כדי לא להעמיס על דאטאבוס)"><b style="font-size:15px">${fd(first)} – ${fd(last)}</b><span>טווח נתוני הנסיעה</span><span style="display:block;color:var(--mut)">העדכון הבא: ${fdt(nextScan())} (שעון ישראל)</span></div>
     ${DATA.gov_updated?`<div class="kpi" title="קובץ כלי הרכב הציבוריים ממאגר הרישוי הממשלתי — מועלה ידנית לריפו"><b>${fd(DATA.gov_updated)}</b><span>עדכון פרטי הרכב (קובץ ידני)</span></div>`:''}
     ${(()=>{const u=(ARM&&(ARM.gov_updated||ARM.updated))||(OFC&&(OFC.gov_updated||OFC.updated));return u?`<div class="kpi" title="מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה — מיגון ירי/אבנים, מד הקילומטרים הרשמי, מושבים, ארץ ייצור והנעה. נמשך אוטומטית מ-data.gov.il"><b>${fd(u)}</b><span>עדכון מאגר ציי הרכב (מיגון ומד ק"מ)</span></div>`:'';})()}
   </div>`;
@@ -890,6 +890,15 @@ function licenseHTML(gov){
     '<span style="display:block;font-size:11px;color:var(--mut);line-height:1.6;margin-top:4px">התוקף הקודם במאגר: '+esc(fd(String(change.previous).slice(0,10)))+
     '<br>השינוי זוהה ב־'+esc(fd(change.detected))+'</span>';
 }
+// כל ערך שהשתנה מוצג כמו תוקף הרישיון (שלמה 07.10): הערך החדש בירוק + "עודכן", מתחתיו
+// הערך הקודם ומתי זוהה השינוי. ch = [קודם, נוכחי, תאריך זיהוי]; רק כשהנוכחי הוא עדיין הערך.
+function chgHTML(valHtml,ch,prevTxt){
+  if(!ch) return valHtml;
+  return '<span style="color:var(--ok);font-weight:800">'+valHtml+'</span> <span class="st on">עודכן</span>'+
+    '<span style="display:block;font-size:11px;color:var(--mut);line-height:1.6;margin-top:4px">הערך הקודם במאגר: '+esc(prevTxt!=null?prevTxt:String(ch[0]))+
+    '<br>השינוי זוהה ב־'+esc(fd(ch[2]))+'</span>';
+}
+const lastCh=(list,cur)=>{const c=list&&list.length?list[list.length-1]:null;return c&&String(c[1])===String(cur)?c:null;};
 const SHARDS={};
 // הערכת הקילומטראז' (נבנית ב-CI מאורכי המסלולים של הקו בזמן) — נטענת
 // בעצלתיים בפתיחת כרטיס הרכב הראשון; אם הקובץ עוד לא נוצר, פשוט בלעדיה
@@ -1053,19 +1062,17 @@ async function showV(plate){
   if(ofc){
     rows+=`<div class="msec">ממאגר ציי רכב אוטובוסים — משרד התחבורה${(OFC.gov_updated||OFC.updated)?` (נכון ל-${fd(OFC.gov_updated||OFC.updated)})`:''}</div><div class="mgrid">
     ${ofc[0]!=null?`<div class="k">מד הקילומטרים הרשמי</div><div class="v2"><b>${fmt(ofc[0])}</b> ק"מ</div>`:''}
-    ${ofc[1]?`<div class="k">מספר מושבים</div><div class="v2">${ofc[1]}</div>`:''}
-    ${ofc[2]?`<div class="k">ארץ ייצור</div><div class="v2">${esc(ofc[2])}</div>`:''}
-    ${ofc[3]?`<div class="k">הנעה</div><div class="v2">${esc(ofc[3])}</div>`:''}
-    ${ofc[4]?`<div class="k">סוג</div><div class="v2">${esc(ofc[4])}</div>`:''}
-    ${ofc[5]?`<div class="k">גודל</div><div class="v2">${esc(ofc[5])}</div>`:''}
-    ${ofc[6]&&ofc[6]!=='לא מוגדר'?`<div class="k">אשכול</div><div class="v2">${esc(ofc[6])}</div>`:''}
+    ${(()=>{const H=(OFC.h||{})[clean]||{};const F=[[1,'מספר מושבים'],[2,'ארץ ייצור'],[3,'הנעה'],[4,'סוג'],[5,'גודל'],[6,'אשכול']];
+      return F.map(([i,l])=>{const v=ofc[i];if(!v||(i===6&&v==='לא מוגדר'))return '';return `<div class="k">${l}</div><div class="v2">${chgHTML(esc(v),lastCh(H[String(i)],v))}</div>`;}).join('')+
+        (()=>{const c=lastCh(H.a,(ARM&&ARM.armor&&ARM.armor[clean])||'');return c?`<div class="k">מיגון</div><div class="v2">${chgHTML(esc(c[1]?arLbl(c[1]):'ללא מיגון'),c,c[0]?arLbl(c[0]):'ללא מיגון')}</div>`:'';})();})()}
     </div>`;
   }
   if(gov){
     const known=Object.keys(LBL).filter(k=>gov[k]!==undefined);
-    const rest=Object.keys(gov).filter(k=>!(k in LBL)&&!k.startsWith('_license_'));
+    const rest=Object.keys(gov).filter(k=>!(k in LBL)&&!k.startsWith('_'));
     rows+=`<div class="msec">מהמאגר הממשלתי — כל השדות${DATA.gov_updated?` (נכון ל-${fd(DATA.gov_updated)})`:''}</div><div class="mgrid">`+
-      [...known,...rest].map(k=>`<div class="k">${esc(LBL[k]||k)}</div><div class="v2">${k==='tokef_dt'?licenseHTML(gov):esc(k==='sug_rechev_nm'?fixT(gov[k]):gov[k])}</div>`).join('')+`</div>`;
+      [...known,...rest].map(k=>{const show=x=>esc(k==='sug_rechev_nm'?fixT(x):x);const h=(gov._hist||{})[k];const c=h&&h.length&&String(h[h.length-1].current)===String(gov[k])?h[h.length-1]:null;
+        return `<div class="k">${esc(LBL[k]||k)}</div><div class="v2">${k==='tokef_dt'?licenseHTML(gov):c?chgHTML(show(gov[k]),[c.previous,c.current,c.detected],k==='sug_rechev_nm'?fixT(c.previous):c.previous):show(gov[k])}</div>`;}).join('')+`</div>`;
   }else{
     rows+=`<div class="msec">המאגר הממשלתי</div><div class="note">הרכב לא נמצא במאגר הרכב הציבורי — ייתכן שהוסר מהרישום, שההעשרה טרם רצה, או שהמזהה בשידור אינו לוחית.</div>`;
   }
