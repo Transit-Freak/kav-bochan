@@ -86,16 +86,18 @@ def jdump(obj, path):
 
 def get(path, **params):
     url = f'{API}{path}?' + urllib.parse.urlencode(params)
-    for attempt in range(6):
+    # שרת דאטאבוס מחזיר לפעמים 500 לכמה דקות (07.10: הריצה נפלה אחרי 78 דקות) — המתנה
+    # הולכת וגדלה עד 2 דקות, כ-9 דקות בסך הכול לפני ויתור
+    for attempt in range(8):
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'kav-bochan-fleet/1.0'})
             with urllib.request.urlopen(req, timeout=180) as r:
                 return json.load(r)
         except Exception as e:  # noqa: BLE001 — רשת/‏5xx: ננסה שוב בהדרגה
-            if attempt == 5:
+            if attempt == 7:
                 raise
             print(f'  retry {attempt + 1}: {e}', flush=True)
-            time.sleep(5 * (attempt + 1))
+            time.sleep(min(120, 10 * 2 ** attempt))
 
 
 def route_operator_map():
@@ -298,7 +300,14 @@ def main():
         if MAX_MIN and (time.time() - t0) / 60 > MAX_MIN:
             print(f'MAX_MIN — עצירה נקייה לפני {day}', flush=True)
             break
-        scan_day(day.isoformat(), routes, state)
+        try:
+            scan_day(day.isoformat(), routes, state)
+        except Exception as e:  # noqa: BLE001
+            # תקלה בשרת: עצירה נקייה ושמירת הימים שהושלמו. היום שנכשל לא מסומן כסרוק
+            # ויסרק שוב בריצה הבאה; מה שנכתב ממנו (ראשון/אחרון, קווים, חודשים) לא משתנה
+            # בסריקה חוזרת, וספירת הנסיעות נוספת רק בסוף יום שהושלם
+            print(f'::warning::דאטאבוס לא ענה ב-{day} ({e}) — שומר {len(scanned)} ימים שהושלמו וממשיך בריצה הבאה', flush=True)
+            break
         scanned.append(day.isoformat())
         # אילו ימים כבר נסרקו עם רישום "קו → חודשים" (לכיסוי של מסך המעברים)
         mark_lm_day(root, day.isoformat())
