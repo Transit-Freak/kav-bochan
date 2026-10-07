@@ -1,6 +1,0 @@
-icon: https://he.wikipedia.org/static/apple-touch/wikipedia.png
-icon: https://he.wikipedia.org/static/favicon/wikipedia.ico
-img:mw-logo-icon https://he.wikipedia.org/static/images/icons/wikipedia.png
-img:ויקיפדיה https://he.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-he.svg
-img:האנציקלופדיה החופשית https://he.wikipedia.org/static/images/mobile/copyright/wikipedia-tagline-he.svg
-img: https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Wiki_Loves_Monuments_Logo_notext.svg/60px-Wiki_Loves_Monuments_Logo_notext.svg.png
