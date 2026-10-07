@@ -62,6 +62,19 @@
   .card .pills{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;font-size:10.5px;font-weight:700}
   .card .pills span{background:var(--chipbg);color:var(--mut);border-radius:999px;padding:3px 9px}
   .card .pills .r{background:var(--bad-bg);color:var(--bad)}
+  /* כרטיס חברה: שם על פס בצבע החברה, ופס שמראה מכל מה שנצפה כמה פעילים / קבלן / ירדו (שלמה 07.10, עיצוב א) */
+  .card.op{padding:0;overflow:hidden;border-inline-start:none;display:flex;flex-direction:column;align-items:stretch}
+  .card.op .body{flex:1}
+  .card.op h2{background:var(--c);color:#fff;padding:9px 14px;font-size:15px}
+  .card.op .body{padding:10px 14px 12px}
+  .card.op .n{color:var(--ink);font-size:28px;margin:0;line-height:1.1}
+  .card.op .lbl{margin:0 0 8px}
+  .obar{display:flex;height:8px;border-radius:99px;background:var(--chipbg);overflow:hidden}
+  .obar i{display:block;background:var(--c)}.obar i.k{opacity:.45}.obar i.r{background:#E5484D;opacity:.8}.obar i.kr{background:#E5484D;opacity:.35}
+  .oleg{display:flex;gap:4px 10px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;font-weight:700;color:var(--mut)}
+  .oleg .r{color:var(--bad)}
+  .oleg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:4px;background:var(--c);vertical-align:0}
+  .oleg i.k{opacity:.45}.oleg i.r{background:#E5484D;opacity:.8}.oleg i.kr{background:#E5484D;opacity:.35}
   .upd{font-size:11.5px;color:var(--dim);font-weight:600;margin:-6px 0 14px;line-height:1.7}
   .upd b{color:var(--mut);font-weight:700}
   details.subx summary{cursor:pointer;color:#1D4ED8;font-weight:700;display:inline}
@@ -198,8 +211,11 @@ window.FLEET_BUILD='22';
     }
   }).catch(function(){});
 })();
-const COLORS={3:'#1B7A3D',4:'#0F766E',5:'#1E5BC6',6:'#334155',14:'#0E7490',15:'#E87511',16:'#B45309',18:'#7C3AED',21:'#BE185D',25:'#C2410C',30:'#1E5BC6',31:'#1E5BC6',32:'#1E5BC6',33:'#4D7C0F',34:'#A16207',35:'#9333EA',37:'#0369A1',38:'#0369A1'};
-const PALETTE=['#475569','#B91C1C','#15803D','#6D28D9','#0E7490','#A16207','#BE185D','#374151'];
+// צבע לכל חברה. ב-GTFS אין צבע לחברה — route_color שם לפי סוג קו (תלמידים, לילה, הזנה, ים) —
+// ולכן: צבעי המותג של הגדולות, ולשאר צבעים שנבחרו כך שאין שני כרטיסים דומים (שלמה 07.10)
+const COLORS={3:'#1B7A3D',4:'#4D7C0F',5:'#1E5BC6',6:'#334155',14:'#0E7490',15:'#E87511',16:'#B91C1C',18:'#7C3AED',21:'#BE185D',25:'#A21CAF',30:'#1E5BC6',31:'#1E3A8A',32:'#831843',33:'#65A30D',34:'#A16207',35:'#DB2777',37:'#0D9488',38:'#0284C7',135:'#7C2D12'};
+// חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
+const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
 let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
@@ -287,10 +303,13 @@ function home(){
     const act=o.vehicles.filter(isActive).length, ret=o.vehicles.length-act;
     const kab=DATA.enriched?o.vehicles.filter(isKab).length:0;
     const kabA=kab?o.vehicles.filter(v=>isKab(v)&&isActive(v)).length:0, retReg=ret-(kab-kabA);
-    return `<button class="card" style="--c:${opColor(o.ref,i)}" onclick="go(${o.ref})">
-      <h2>${esc(o.name)}</h2><div class="n">${fmt(act-kabA)}</div>
+    const tot=o.vehicles.length||1, kabR=kab-kabA, w=x=>`${(100*x/tot).toFixed(1)}%`;
+    return `<button class="card op" style="--c:${opColor(o.ref,i)}" onclick="go(${o.ref})">
+      <h2>${esc(o.name)}</h2>
+      <div class="body"><div class="n">${fmt(act-kabA)}</div>
       <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">פעילים עכשיו</div>
-      <div class="pills"><span>נצפו: ${fmt(o.vehicles.length)}</span>${retReg?`<span class="r">${fmt(retReg)} ירדו</span>`:''}${kabA?`<span>קבלן: ${fmt(kabA)}</span>`:''}</div>
+      <div class="obar" title="מתוך ${fmt(o.vehicles.length)} רכבים שנצפו"><i style="width:${w(act-kabA)}"></i><i class="k" style="width:${w(kabA)}"></i><i class="r" style="width:${w(retReg)}"></i><i class="kr" style="width:${w(kabR)}"></i></div>
+      <div class="oleg"><span>נצפו ${fmt(o.vehicles.length)}</span>${retReg?`<span class="r"><i class="r"></i>ירדו ${fmt(retReg)}</span>`:''}${kabA?`<span><i class="k"></i>קבלן ${fmt(kabA)}</span>`:''}${kab?`${kabR?`<span class="r"><i class="kr"></i>קבלן ירדו ${fmt(kabR)}</span>`:''}`:''}</div></div>
     </button>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;
 }
 
