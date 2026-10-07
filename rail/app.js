@@ -389,7 +389,7 @@ async function renderGain() {
   }
   const sums = (await Promise.all(ds.map(loadSum))).filter(Boolean);
   if (my !== gToken || !document.body.contains(box)) return;
-  const seg = {}, origin = {}, cut = [], meet = [], names = new Set();
+  const seg = {}, origin = {}, cut = [], meet = [], hold = [], names = new Set();
   let meas = 0, plan = 0, gps = 0;
   for (const s of sums) {
     meas += s.meas || 0; plan += s.plan || 0; gps += s.gps || 0;
@@ -402,6 +402,7 @@ async function renderGain() {
     if (!gLine) for (const [k, v] of Object.entries(s.origin || {})) { const o = origin[k] || (origin[k] = [0, 0, 0]); o[0] += v[0]; o[1] += v[1]; o[2] += v[2]; }
     for (const c of s.cut || []) if (!gLine || c.nm === gLine) cut.push(Object.assign({d: s.d}, c));
     for (const m of s.meet || []) if (!gLine || m.nm === gLine || m.wnm === gLine) meet.push(Object.assign({d: s.d}, m));
+    for (const h of s.holds || []) if (!gLine || h.nm === gLine || (h.with || []).some(w => w[1] === gLine)) hold.push(Object.assign({d: s.d}, h));
   }
   if (gLine && !names.has(gLine)) gLine = '';
   const multi = ds.length > 1, minN = multi ? 5 : 2;
@@ -423,13 +424,16 @@ async function renderGain() {
       `<p class="note">היציאה נמדדת רק כשה-GPS מראה את הרכבת זזה ליד התחנה. בתחנות תת-קרקעיות (ירושלים יצחק נבון, מודיעין מרכז) ה-GPS לא מתעדכן עד היציאה מהמנהרה, ולכן הן כמעט לא נמדדות.</p></div>`;
   }
   h += `<div class="panel"><p class="ptitle">המתנות במפגש רכבות <small>${num(meet.length)} המתנות · מסילה יחידה</small></p>${meetTable(meet.sort((x, y) => (y.dd || 0) - (x.dd || 0)).slice(0, 80), multi)}${MEET_NOTE}</div>`;
+  h += `<div class="panel"><p class="ptitle">עצירות בדרך, בין תחנות <small>${num(hold.length)} עצירות · מסומנות במפה בכתום</small></p>` + (hold.length ? `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>שעה</th><th>רכבת</th><th>קו</th><th>בין</th><th>עמדה</th><th>עברה ליד באותו זמן</th></tr></thead><tbody>` +
+    hold.sort((x, y) => y.dur - x.dur).slice(0, 80).map(x => `<tr>${multi ? `<td>${shortDate(x.d)}</td>` : ''}<td>${hhmm(Math.round(x.m))}</td><td>${esc(x.tn)}</td><td class="nm">${esc(x.nm)}</td><td class="nm">${esc(stn(x.a))} – ${esc(stn(x.b))}</td><td>${fmt1(x.dur)} דק׳</td><td class="nm">${(x.with || []).map(w => esc(w[0]) + ' · ' + esc(w[1])).join('<br>') || '—'}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">לא נמצאו (נאסף מ-07.10.2026)</div>') +
+    `<p class="note">רכבת שעמדה (לפי ה-GPS) יותר מדקה וחצי במקום שרחוק יותר מ-600 מ׳ מכל תחנה — לרוב רמזור אדום או המתנה שהמסילה שלפניה תתפנה. "עברה ליד" = רכבת אחרת ששידרה מיקום עד 1.5 ק"מ משם בזמן העמידה; במסילה יחידה זו כנראה הרכבת שבגללה חיכתה.</p></div>`;
   h += `<div class="panel"><p class="ptitle">בוטלו באמצע המסלול <small>${num(cut.length)} רכבות · מסומנות במפה בעיגול אדום</small></p>` + (cut.length ? `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>רכבת</th><th>קו</th><th>נעצרה ב</th><th>שעה</th><th>מה קרה</th><th>תחנות שלא הגיעה אליהן</th><th>המשיכה מהתחנה</th></tr></thead><tbody>` +
     cut.sort((x, y) => (x.d + hhmm(Math.round(x.m))).localeCompare(y.d + hhmm(Math.round(y.m)))).map(c => `<tr>${multi ? `<td>${shortDate(c.d)}</td>` : ''}<td>${esc(c.tn)}</td><td class="nm">${esc(c.nm)}</td><td>${esc(stn(c.at))}</td><td>${hhmm(Math.round(c.m))}</td><td>${c.k === 'stuck' ? 'המשיכה לשדר ולא התקדמה' : 'הפסיקה לשדר'}</td><td>${num(c.left)}</td><td class="nm">${nxTxt(c)}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">לא נמצאו</div>') +
     `<p class="note">רכבת נחשבת שבוטלה כשלא הגיעה לתחנה הבאה 20 דקות אחרי שהייתה אמורה להגיע אליה (ההגעה בפועל לתחנה האחרונה + זמן הנסיעה המתוכנן). או שהמשיכה לשדר ונשארה במקום, או שהפסיקה לשדר בזמן שרכבות אחרות המשיכו. במקרה השני רק כשנותרו לה לפחות 3 תחנות: כמעט כל הרכבות מפסיקות לשדר תחנה-שתיים לפני היעד, וזו תכונה של השידור ולא ביטול. תקלה במשדר של רכבת בודדת עלולה להיראות כמו ביטול. דוגמה: ב-5.10 בבוקר נמצאו 6 רכבות כאלה בין תל אביב ללוד, בזמן שתנועת הרכבות שם הופסקה.</p></div>`;
   h += `<div class="panel"><p class="note" style="margin-top:0"><b>איך נמדד:</b> בכל דקה רכבת ישראל משדרת לכל רכבת את מיקום ה-GPS ואת "התחנה הנוכחית" לפי מערכת המעקב שלה, גם כשאין GPS (בנתב"ג, במנהרות, כשהמשדר תקוע). ההגעה לתחנה היא הדקה הראשונה שבה הרכבת עומדת בה לפי ה-GPS; בלי GPS — הדקה שבה "התחנה הנוכחית" התחלפה אליה. כך נמדדות כ-85% מההגעות, לעומת כ-40% לפי GPS בלבד. בבדיקה מול המדידה לפי GPS ההפרש החציוני הוא 0 דקות, ו-90% מההגעות בטווח של דקה וחצי. ${plan ? `בתקופה שנבחרה: ${num(gps)} הגעות לפי GPS ו-${num(meas - gps)} לפי שידור התחנה.` : ''}</p></div>`;
   box.innerHTML = h;
   $('#gline').onchange = e => { gLine = e.target.value; renderGain(); };
-  GMAP = drawGainMap(seg, minN, 'gmap', GMAP, cut);
+  GMAP = drawGainMap(seg, minN, 'gmap', GMAP, cut, meet, hold);
 }
 // קטע שברוב המדידות שלו אין GPS (שלמה 06.10: "שאין קליטת GPS תסמן את המקטע בלבן") — נמדד רק לפי
 // שידור "התחנה הנוכחית". הנתון v[5] קיים מגרסה 2 של הסיכום.
@@ -438,7 +442,7 @@ const HOVER = !!(window.matchMedia && window.matchMedia('(hover: hover) and (poi
 // הרכבת שהמשיכה מהתחנה שבה נעצרה רכבת שבוטלה (שלמה 07.10)
 const nxTxt = c => c.nx ? `רכבת ${esc(c.nx.tn)} (${esc(c.nx.nm)}) ב-${hhmm(Math.round(c.nx.dep))}, ${Math.round(c.nx.wait)} דק׳ אחרי` : 'לא נמצאה רכבת באותו יום';
 const noGps = u => u.gn > 0 && u.g / u.gn < NOGPS;
-function drawGainMap(seg, minN, elId, prev, cuts) {
+function drawGainMap(seg, minN, elId, prev, cuts, meets, holds) {
   if (prev) { try { prev.remove(); } catch (e) { /* המיכל כבר הוחלף */ } }
   const el = $('#' + elId); if (!el) return null;
   if (!window.L) { el.remove(); return null; }
@@ -482,6 +486,22 @@ function drawGainMap(seg, minN, elId, prev, cuts) {
     const mk = L.circleMarker([S[1], S[2]], {radius: 8, color: '#fff', weight: 2.5, fillColor: C.bad, fillOpacity: 1}).addTo(map).bindPopup(body, {maxWidth: 300});
     if (HOVER) mk.bindTooltip(body, {direction: 'top'});
   }
+  // מפגשי רכבות (בתחנה) ועצירות בדרך (במקום המדויק לפי ה-GPS) — שלמה 07.10: "למה זה מופיע רק
+  // בתחנה ולא איפה זה קרה"
+  const pop = (ll, html, color, r) => { const mk = L.circleMarker(ll, {radius: r, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1}).addTo(map).bindPopup(html, {maxWidth: 300}); if (HOVER) mk.bindTooltip(html, {direction: 'top'}); };
+  const multiDay = arr => arr.some(x => x.d !== arr[0].d);
+  const byMeet = {};
+  (meets || []).forEach(m => (byMeet[m.at] = byMeet[m.at] || []).push(m));
+  for (const [at, ms] of Object.entries(byMeet)) {
+    const S = ST[at]; if (!S || S[1] == null) continue;
+    const md = multiDay(ms);
+    pop([S[1], S[2]], `<b>⇄ מפגש רכבות ב${esc(S[0])}</b> · ${ms.length}<br>` + ms.slice(0, 8).map(m => `${md ? shortDate(m.d) + ' · ' : ''}${hhmm(Math.round(m.dep))} · רכבת ${esc(m.tn)} חיכתה ${m.stood == null ? 'במוצא' : fmt1(m.stood) + ' דק׳'} לרכבת ${esc(m.with)}${m.wdl != null && m.wdl > 1 ? ` (שאיחרה ${fmt1(m.wdl)} דק׳)` : ''}`).join('<br>') + (ms.length > 8 ? `<br>ועוד ${ms.length - 8}` : ''), '#7C3AED', 7);
+  }
+  const hd = multiDay(holds || []);
+  for (const h of holds || []) {
+    pop([h.lat, h.lon], `<b>⏸ עצירה בדרך · ${fmt1(h.dur)} דק׳</b><br>${hd ? shortDate(h.d) + ' · ' : ''}${hhmm(Math.round(h.m))} · רכבת ${esc(h.tn)} (${esc(h.nm)})<br>בין ${esc(stn(h.a))} ל${esc(stn(h.b))}` +
+      ((h.with || []).length ? `<br><span style="color:#64748b">באותו זמן עברה ליד: ${h.with.map(w => `רכבת ${esc(w[0])} (${esc(w[1])})`).join(', ')}</span>` : ''), '#F59E0B', 5.5);
+  }
   if (pts.length) map.fitBounds(pts, {padding: [16, 16]}); else map.setView([31.9, 34.9], 8);
   return map;
 }
@@ -492,7 +512,7 @@ function meetTable(list, multi) {
     list.map(m => `<tr>${multi ? `<td>${shortDate(m.d)}</td>` : ''}<td class="nm">${esc(stn(m.at))}</td><td class="nm">${esc(m.tn)} · ${esc(m.nm)}</td><td>${m.stood == null ? 'במוצא' : fmt1(m.stood) + ' דק׳'}</td><td class="${dcls(m.dd)}">${delayTxt(m.dd)} דק׳</td><td class="nm">${esc(m.with)} · ${esc(m.wnm)}</td><td class="${dcls(m.wdl)}">${m.wdl == null ? '—' : delayTxt(m.wdl) + ' דק׳'}</td></tr>`).join('') + '</tbody></table></div>';
 }
 const MEET_NOTE = `<p class="note">במסילה יחידה (עמק יזרעאל, באר שבע–דימונה, אשקלון–באר שבע דרך שדרות ונתיבות, המסילה המזרחית) שתי רכבות מכיוונים מנוגדים נפגשות בתחנה, ואחת מחכה שהשנייה תגיע. כאן מופיעה רכבת שעמדה בתחנה ויצאה עד 2.5 דקות אחרי שהגיעה אליה רכבת מהקטע שאליו היא ממשיכה — כלומר חיכתה לה. כשהרכבת השנייה מאחרת, האיחור עובר גם לרכבת שמחכה.</p>`;
-const gainLegend = `<div class="legend"><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span><i style="background:#fff;outline:2px solid #334155"></i>אין קליטת GPS (נמדד לפי שידור התחנה)</span><span>עובי הקו = מספר הרכבות</span></div>`;
+const gainLegend = `<div class="legend"><span><i style="background:${C.ok}"></i>עד 0.3 דק׳</span><span><i style="background:${C.warn}"></i>0.3–1</span><span><i style="background:${C.late}"></i>1–2</span><span><i style="background:${C.bad}"></i>מעל 2 דק׳</span><span><i style="background:#fff;outline:2px solid #334155"></i>אין קליטת GPS (נמדד לפי שידור התחנה)</span><span>עובי הקו = מספר הרכבות</span><span><i style="background:#7C3AED;border-radius:50%"></i>מפגש רכבות</span><span><i style="background:#F59E0B;border-radius:50%"></i>עצירה בדרך</span><span><i style="background:${C.bad};border-radius:50%"></i>רכבת שבוטלה</span></div>`;
 
 // ---------------------------------------------------------------- קו: באיזו תחנה הוא מתעכב
 // (שלמה 06.10) לחיצה על קו בלשונית "לפי קו": לכל תחנה לפי הסדר — האיחור בהגעה, כמה איחור נוסף

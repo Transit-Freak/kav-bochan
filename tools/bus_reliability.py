@@ -688,6 +688,63 @@ def fleet_day(day, meta, routes, catalog, R, stops):
             'cl': {name: {'n': x['n'], 'c': x['c'], 's': dict(x['sig']), 'op': dict(x['op'].most_common())} for name, x in cl.items()}}
 
 
+BLAME_COLS = ['trips', 'origin measured', 'dispatch late sec (sum of positive origin delay)', 'departed on time (-1..+3 min)',
+              'departed early (< -1 min)', 'departed late (> +3 min)', 'planning sec (sum)', 'traffic sec (sum)',
+              'traffic beyond same city+hour, sec (sum)', 'trips compared to city+hour', 'final delay sec (sum)', 'trips with en-route split']
+
+
+def blame_day(BT, catalog):
+    """מי אשם באיחור (שלמה 07.10: "מי אשם — הפקקים או הסדרנים, וציון לכל חברה"). לכל נסיעה:
+    - סדרנים: האיחור ביציאה מתחנת המוצא (יציאה בזמן = בין דקה לפני ל-3 דקות אחרי).
+    - תכנון: מה שהקו מאחר בדרך גם בשעה הכי טובה שלו (חציון האיחור שנוסף בדרך בשעה עם הכי
+      מעט איחור, 3 נסיעות לפחות) — זמן נסיעה שבלו"ז קצר מדי, לא פקק ולא נהג.
+    - פקקים: מה שנוסף בדרך מעבר לזה.
+    - חריגה מול העיר: הפקק של הנסיעה פחות הממוצע של כל המפעילים מאותה עיר מוצא באותה שעה —
+      חיובי = החברה מאבדת בדרך יותר מאחרות באותו מקום ובאותה שעה.
+    הכול סכומים (שניות) ומונים, כך שאפשר לחבר ימים ולחלק בעמוד."""
+    per = collections.defaultdict(lambda: collections.defaultdict(list))
+    for ag, rid, h, do, d0, d1, span, city in BT:
+        if span >= 3:
+            per[rid][h].append(d1 - d0)
+    base = {}
+    for rid, hh in per.items():
+        meds = [statistics.median(v) for v in hh.values() if len(v) >= 3]
+        if meds:
+            base[rid] = max(0.0, min(meds))
+    ch = collections.defaultdict(lambda: [0, 0.0])
+    for ag, rid, h, do, d0, d1, span, city in BT:
+        if span >= 3 and rid in base and city:
+            x = ch[(city, h)]
+            x[0] += 1
+            x[1] += (d1 - d0) - base[rid]
+    agg = lambda: [0] * len(BLAME_COLS)
+    A, C, T = collections.defaultdict(agg), collections.defaultdict(agg), agg()
+    for ag, rid, h, do, d0, d1, span, city in BT:
+        row = catalog.get(rid) or []
+        cl = row[8] if len(row) > 8 and row[8] else ''
+        for x in (A[ag], T) + ((C[cl],) if cl else ()):
+            x[0] += 1
+            x[10] += d1
+            if do is not None:
+                x[1] += 1
+                x[2] += max(0, do)
+                x[3] += -60 <= do <= 180
+                x[4] += do < -60
+                x[5] += do > 180
+            if span >= 3 and rid in base:
+                tr = (d1 - d0) - base[rid]
+                x[11] += 1
+                x[6] += base[rid]
+                x[7] += tr
+                c = ch.get((city, h))
+                if c and c[0] >= 20:
+                    x[8] += tr - c[1] / c[0]
+                    x[9] += 1
+    rnd = lambda v: [int(round(n)) for n in v]
+    return {'cols': BLAME_COLS, 'tot': rnd(T), 'agencies': {k: rnd(v) for k, v in A.items()},
+            'clusters': {k: rnd(v) for k, v in C.items() if v[0] >= 30}}
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -930,6 +987,7 @@ def main():
     for rid, n in sched_per_route.items():
         A[routes.get(rid, {}).get('agency', '?')]['sched'] += n
         tot['sched'] += n
+    BT = []   # מי אשם (שלמה 07.10): לכל נסיעה שנמדדה — [מפעיל, מסלול, שעת יציאה, איחור במוצא, איחור בתחנה הראשונה/האחרונה שנמדדו, כמה תחנות ביניהן, עיר המוצא]
     for key, tid in jt.items():
         seq = st.get(tid)
         if not seq:
@@ -1018,6 +1076,8 @@ def main():
             diag_raw3.append(f'טיפוסית {rid}/{tid} יציאה {hms_(seq[0][3])} n={len(seq)} מעברים: ' + ' '.join(f'{k}:{d // 60:+d}' for k, s, sc, d in meas))
         r = R[rid]
         r['obs'] += 1
+        BT.append((ag, rid, (seq[0][3] // 3600) % 24, meas[0][3] if meas[0][0] == 1 else None, meas[0][3], meas[-1][3],
+                   meas[-1][0] - meas[0][0], stops.get(seq[0][1], ('', '', 0, 0, ''))[4]))
         A[ag]['obs'] += 1
         tot['obs'] += 1
         # עד איפה נראה האוטובוס: התחנה האחרונה שנמדדה מול אורך המסלול (היעד עצמו לרוב לא
@@ -1255,7 +1315,9 @@ def main():
     # לאיחורים"): לכל עיר — נסיעות בלו"ז ונסיעות שנצפו של הקווים שעוברים בה
     # (כל קו נספר פעם אחת). נסיעה שלא נצפתה = לא בוצעה או בוצעה בלי שידור.
     city_trips = {c: [sum(sched_per_route.get(rid, 0) for rid in rr), sum(R[rid]['obs'] for rid in rr)] for c, rr in city_routes.items()}
+    blame = blame_day(BT, catalog)
     day_obj = {
+        'blame': blame,
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
         'minutes': len(files), 'records': n_rec,
         'tot': {'sched': tot['sched'], 'obs': tot['obs'], 'meas': tot['meas'], 'c': tot['c'], 's': stats(tot['d']), 'o': tot['o'],
