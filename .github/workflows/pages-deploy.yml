@@ -99,7 +99,17 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
           df -h / | tail -1
-      - uses: actions/checkout@v4
+      # ההורדה לוקחת בדרך כלל כ-4 דקות, אבל בתקלות של GitHub היא נתקעת עד שנגמר זמן הריצה
+      # (07.10: שתי ריצות נתקעו כך, והעיצוב החדש לא פורסם). מגבילים ל-12 דקות ומנסים שוב פעם אחת.
+      - id: co
+        uses: actions/checkout@v4
+        timeout-minutes: 12
+        continue-on-error: true
+        with:
+          fetch-depth: 1
+      - if: steps.co.outcome != 'success'
+        uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           fetch-depth: 1
       - uses: actions/configure-pages@v5
