@@ -32,11 +32,16 @@ jobs:
         run: python3 tools/fleet_refresh_registry.py
       - name: עדכון פרטי כלי הרכב
         run: python3 tools/fleet_enrich_gov.py
+      # מאגר "ציי רכב אוטובוסים" (מיגון, מד ק"מ, מפרט) — כל לילה ולא רק פעם בחודש, עם תיעוד
+      # של כל שדה שהשתנה (שלמה 07.10)
+      - name: מאגר ציי רכב אוטובוסים
+        continue-on-error: true
+        run: python3 tools/fleet_armor.py
       - name: פרסום נתוני הרישוי בלבד
         run: |
           git config user.name 'fleet-bot'
           git config user.email 'noreply@github.com'
-          git add fleet/data/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv fleet/data/gov-registry-source.json fleet/data/fleet.json fleet/data/gov-details-*.json
+          git add fleet/data/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv fleet/data/gov-registry-source.json fleet/data/fleet.json fleet/data/gov-details-*.json fleet/data/fleet-official.json fleet/data/fleet-armor.json
           git diff --cached --quiet && exit 0
           git commit -m 'data: refresh official fleet registration details'
           git pull --rebase origin main

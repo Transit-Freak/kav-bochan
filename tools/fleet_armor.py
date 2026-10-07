@@ -29,6 +29,31 @@ def key(plate):
     return ''.join(c for c in str(plate) if c.isdigit()).lstrip('0')
 
 
+def track_changes(official, armor, today, outdir=None):
+    outdir = outdir or OUTDIR
+    try:
+        prev = json.load(open(f'{outdir}/fleet-official.json', encoding='utf-8'))
+        prev_armor = json.load(open(f'{outdir}/fleet-armor.json', encoding='utf-8')).get('armor', {})
+    except (OSError, ValueError):
+        return {}
+    old, hist = prev.get('of', {}), {k: {f: list(v) for f, v in d.items()} for k, d in (prev.get('h') or {}).items()}
+    # מאגר שנמשך חלקית (תקלה בשרת) לא ייראה כמו אלפי שינויים
+    if not old or len(official) < 0.9 * len(old):
+        return hist
+    for plate, cur in official.items():
+        was = old.get(plate)
+        if not was:
+            continue
+        for i in range(1, len(cur)):          # 0 = מד הקילומטרים — לא נרשם כשינוי
+            a, b = (was[i] if i < len(was) else None), cur[i]
+            if a not in (None, '') and b not in (None, '') and str(a) != str(b):
+                hist.setdefault(plate, {}).setdefault(str(i), []).append([a, b, today])
+        a, b = prev_armor.get(plate, ''), armor.get(plate, '')
+        if a != b:
+            hist.setdefault(plate, {}).setdefault('a', []).append([a, b, today])
+    return hist
+
+
 def main():
     armor, official = {}, {}
     nb = ns = 0
@@ -66,6 +91,9 @@ def main():
             break
         offset += 2000
     today = datetime.date.today().isoformat()
+    # שינויים מהריצה הקודמת (שלמה 07.10) — כל השדות חוץ ממד הקילומטרים (משתנה כל הזמן):
+    # h = {לוחית: {אינדקס שדה או 'a' למיגון: [[קודם, נוכחי, תאריך זיהוי], …]}}
+    hist = track_changes(official, armor, today)
     for path, obj in [
         (f'{OUTDIR}/fleet-armor.json',
          {'updated': today, 'gov_updated': gov_upd,
@@ -74,7 +102,7 @@ def main():
         (f'{OUTDIR}/fleet-official.json',
          {'updated': today, 'gov_updated': gov_upd,
           'src': 'מאגר "ציי רכב אוטובוסים" — משרד התחבורה (data.gov.il)',
-          'of': official}),
+          'of': official, 'h': hist}),
     ]:
         tmp = f'{path}.tmp'
         with open(tmp, 'w', encoding='utf-8') as f:
