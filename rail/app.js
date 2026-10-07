@@ -423,19 +423,22 @@ async function renderGain() {
       `<p class="note">היציאה נמדדת רק כשה-GPS מראה את הרכבת זזה ליד התחנה. בתחנות תת-קרקעיות (ירושלים יצחק נבון, מודיעין מרכז) ה-GPS לא מתעדכן עד היציאה מהמנהרה, ולכן הן כמעט לא נמדדות.</p></div>`;
   }
   h += `<div class="panel"><p class="ptitle">המתנות במפגש רכבות <small>${num(meet.length)} המתנות · מסילה יחידה</small></p>${meetTable(meet.sort((x, y) => (y.dd || 0) - (x.dd || 0)).slice(0, 80), multi)}${MEET_NOTE}</div>`;
-  h += `<div class="panel"><p class="ptitle">בוטלו באמצע המסלול <small>${num(cut.length)} רכבות</small></p>` + (cut.length ? `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>רכבת</th><th>קו</th><th>תחנה אחרונה</th><th>שעה</th><th>מה קרה</th><th>תחנות שלא הגיעה אליהן</th><th>הגעה מתוכננת ליעד</th></tr></thead><tbody>` +
-    cut.sort((x, y) => (x.d + hhmm(Math.round(x.m))).localeCompare(y.d + hhmm(Math.round(y.m)))).map(c => `<tr>${multi ? `<td>${shortDate(c.d)}</td>` : ''}<td>${esc(c.tn)}</td><td class="nm">${esc(c.nm)}</td><td>${esc(stn(c.at))}</td><td>${hhmm(Math.round(c.m))}</td><td>${c.k === 'stuck' ? 'המשיכה לשדר ולא התקדמה' : 'הפסיקה לשדר'}</td><td>${num(c.left)}</td><td>${hhmm(c.pl_end)}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">לא נמצאו</div>') +
+  h += `<div class="panel"><p class="ptitle">בוטלו באמצע המסלול <small>${num(cut.length)} רכבות · מסומנות במפה בעיגול אדום</small></p>` + (cut.length ? `<div class="tblbox"><table><thead><tr>${multi ? '<th>יום</th>' : ''}<th>רכבת</th><th>קו</th><th>נעצרה ב</th><th>שעה</th><th>מה קרה</th><th>תחנות שלא הגיעה אליהן</th><th>המשיכה מהתחנה</th></tr></thead><tbody>` +
+    cut.sort((x, y) => (x.d + hhmm(Math.round(x.m))).localeCompare(y.d + hhmm(Math.round(y.m)))).map(c => `<tr>${multi ? `<td>${shortDate(c.d)}</td>` : ''}<td>${esc(c.tn)}</td><td class="nm">${esc(c.nm)}</td><td>${esc(stn(c.at))}</td><td>${hhmm(Math.round(c.m))}</td><td>${c.k === 'stuck' ? 'המשיכה לשדר ולא התקדמה' : 'הפסיקה לשדר'}</td><td>${num(c.left)}</td><td class="nm">${nxTxt(c)}</td></tr>`).join('') + '</tbody></table></div>' : '<div class="empty">לא נמצאו</div>') +
     `<p class="note">רכבת נחשבת שבוטלה כשלא הגיעה לתחנה הבאה 20 דקות אחרי שהייתה אמורה להגיע אליה (ההגעה בפועל לתחנה האחרונה + זמן הנסיעה המתוכנן). או שהמשיכה לשדר ונשארה במקום, או שהפסיקה לשדר בזמן שרכבות אחרות המשיכו. במקרה השני רק כשנותרו לה לפחות 3 תחנות: כמעט כל הרכבות מפסיקות לשדר תחנה-שתיים לפני היעד, וזו תכונה של השידור ולא ביטול. תקלה במשדר של רכבת בודדת עלולה להיראות כמו ביטול. דוגמה: ב-5.10 בבוקר נמצאו 6 רכבות כאלה בין תל אביב ללוד, בזמן שתנועת הרכבות שם הופסקה.</p></div>`;
   h += `<div class="panel"><p class="note" style="margin-top:0"><b>איך נמדד:</b> בכל דקה רכבת ישראל משדרת לכל רכבת את מיקום ה-GPS ואת "התחנה הנוכחית" לפי מערכת המעקב שלה, גם כשאין GPS (בנתב"ג, במנהרות, כשהמשדר תקוע). ההגעה לתחנה היא הדקה הראשונה שבה הרכבת עומדת בה לפי ה-GPS; בלי GPS — הדקה שבה "התחנה הנוכחית" התחלפה אליה. כך נמדדות כ-85% מההגעות, לעומת כ-40% לפי GPS בלבד. בבדיקה מול המדידה לפי GPS ההפרש החציוני הוא 0 דקות, ו-90% מההגעות בטווח של דקה וחצי. ${plan ? `בתקופה שנבחרה: ${num(gps)} הגעות לפי GPS ו-${num(meas - gps)} לפי שידור התחנה.` : ''}</p></div>`;
   box.innerHTML = h;
   $('#gline').onchange = e => { gLine = e.target.value; renderGain(); };
-  GMAP = drawGainMap(seg, minN, 'gmap', GMAP);
+  GMAP = drawGainMap(seg, minN, 'gmap', GMAP, cut);
 }
 // קטע שברוב המדידות שלו אין GPS (שלמה 06.10: "שאין קליטת GPS תסמן את המקטע בלבן") — נמדד רק לפי
 // שידור "התחנה הנוכחית". הנתון v[5] קיים מגרסה 2 של הסיכום.
 const NOGPS = .2;
+const HOVER = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+// הרכבת שהמשיכה מהתחנה שבה נעצרה רכבת שבוטלה (שלמה 07.10)
+const nxTxt = c => c.nx ? `רכבת ${esc(c.nx.tn)} (${esc(c.nx.nm)}) ב-${hhmm(Math.round(c.nx.dep))}, ${Math.round(c.nx.wait)} דק׳ אחרי` : 'לא נמצאה רכבת באותו יום';
 const noGps = u => u.gn > 0 && u.g / u.gn < NOGPS;
-function drawGainMap(seg, minN, elId, prev) {
+function drawGainMap(seg, minN, elId, prev, cuts) {
   if (prev) { try { prev.remove(); } catch (e) { /* המיכל כבר הוחלף */ } }
   const el = $('#' + elId); if (!el) return null;
   if (!window.L) { el.remove(); return null; }
@@ -463,9 +466,21 @@ function drawGainMap(seg, minN, elId, prev) {
     // שלמה 06.10 (בטלפון): "כאשר לוחץ על זה לא מופיע כלום" — תווית שמופיעה במעבר עכבר לא נפתחת
     // בנגיעה. קו שקוף ורחב מעל הקטע: במחשב תווית במעבר עכבר, ובנגיעה/לחיצה חלון עם הפרטים
     const head = `<b>${esc(stn(u.a))} — ${esc(stn(u.b))}</b><br>`;
-    L.polyline(ll, {color: '#000', weight: Math.max(18, w + 10), opacity: 0}).addTo(map)
-      .bindTooltip(head + tip, {sticky: true}).bindPopup(head + tip, {maxWidth: 280});
+    // בטלפון נגיעה פותחת גם את התווית וגם את החלון, והטקסטים נערמו זה על זה (שלמה 07.10) —
+    // תווית רק במכשיר עם עכבר; בנגיעה רק החלון
+    const hit = L.polyline(ll, {color: '#000', weight: Math.max(18, w + 10), opacity: 0}).addTo(map).bindPopup(head + tip, {maxWidth: 280});
+    if (HOVER) hit.bindTooltip(head + tip, {sticky: true});
     pts.push([A[1], A[2]], [B[1], B[2]]);
+  }
+  // רכבות שבוטלו באמצע: עיגול אדום בתחנה שבה נעצרו, ובחלון — מי המשיכה משם
+  const byAt = {};
+  (cuts || []).forEach(c => (byAt[c.at] = byAt[c.at] || []).push(c));
+  for (const [at, cs] of Object.entries(byAt)) {
+    const S = ST[at]; if (!S || S[1] == null) continue;
+    const body = `<b>✖ ${esc(S[0])}: ${cs.length === 1 ? 'רכבת נעצרה כאן' : cs.length + ' רכבות נעצרו כאן'}</b><br>` +
+      cs.map(c => `${c.d && cs.some(x => x.d !== c.d) ? shortDate(c.d) + ' · ' : ''}רכבת ${esc(c.tn)} (${esc(c.nm)}) ב-${hhmm(Math.round(c.m))}<br><span style="color:#64748b">המשיכה מכאן: ${nxTxt(c)}</span>`).join('<br>');
+    const mk = L.circleMarker([S[1], S[2]], {radius: 8, color: '#fff', weight: 2.5, fillColor: C.bad, fillOpacity: 1}).addTo(map).bindPopup(body, {maxWidth: 300});
+    if (HOVER) mk.bindTooltip(body, {direction: 'top'});
   }
   if (pts.length) map.fitBounds(pts, {padding: [16, 16]}); else map.setView([31.9, 34.9], 8);
   return map;

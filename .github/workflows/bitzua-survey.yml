@@ -1,0 +1,55 @@
+name: bitzua-survey
+
+# סקר אי-ביצוע נסיעות לפי קו בעיר (tools/bitzua_survey.py) — הפעלה ידנית בלבד.
+# data.gov.il חסום מהמכולה של Claude, ולכן הסקר רץ כאן והתוצאה נשמרת ב-docs/surveys.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'שם הסקר (לשם הקובץ)'
+        default: 'jerusalem'
+      clusters:
+        description: 'אשכולות, מופרדים בפסיק (כמו ב-ClusterToLine)'
+        default: 'ירושלים מרכז,ירושלים עוטף מערב,ירושלים עירוני,ירושלים צפון-ציר מזרחי,ירושלים קווי צפון'
+      year:
+        description: 'שנה'
+        default: '2026'
+      months:
+        description: 'חודשים, מופרדים בפסיק'
+        default: '1,2'
+      min:
+        description: 'מינימום נסיעות מתוכננות לקו בדירוגים'
+        default: '3000'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bitzua-survey
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: סקר
+        env:
+          NAME: ${{ github.event.inputs.name }}
+          CLUSTERS: ${{ github.event.inputs.clusters }}
+          YEAR: ${{ github.event.inputs.year }}
+          MONTHS: ${{ github.event.inputs.months }}
+          MIN: ${{ github.event.inputs.min }}
+        run: python3 tools/bitzua_survey.py
+      - name: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/surveys
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -m "docs: סקר אי-ביצוע נסיעות — ${{ github.event.inputs.name }}"
+          for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep 10; done
+          exit 1

@@ -352,6 +352,33 @@ def meetings(rides):
     return sorted(out, key=lambda m: m['dep'])
 
 
+def continuation(rides, c):
+    """רכבת שבוטלה באמצע (שלמה 07.10: "איפה הרכבת הפסיקה, ומאיפה הרכבת האחרת המשיכה"): הרכבת
+    הראשונה שיצאה מהתחנה שבה נעצרה, אחרי שנעצרה, לכיוון התחנה הבאה שלה — כלומר הרכבת שבה נוסעיה
+    יכלו להמשיך. אם אין יציאה מדודה, לפי ההגעה לתחנה. None כשלא נמצאה רכבת כזו באותו יום."""
+    rows = rides[c['tn']]['s']
+    i = next(k for k, x in enumerate(rows) if x[0] == c['at'])
+    if i + 1 >= len(rows):
+        return None
+    nxt = rows[i + 1][0]
+    best = None
+    for tn, rec in rides.items():
+        if tn == c['tn'] or not rec.get('s'):
+            continue
+        rs = rec['s']
+        for k, x in enumerate(rs[:-1]):
+            if x[0] != c['at'] or nxt not in [y[0] for y in rs[k + 1:]]:
+                continue
+            t = x[1] + x[3] if x[3] is not None else (x[1] + x[2] if x[2] is not None else None)
+            if t is None or t < c['m']:
+                continue
+            if best is None or t < best[1]:
+                best = (tn, t, rec['nm'], rs[-1][0])
+    if not best:
+        return None
+    return {'tn': best[0], 'dep': round(best[1], 1), 'nm': best[2], 'wait': round(best[1] - c['m'], 1)}
+
+
 def summarize(det):
     """הסיכום הקטן של יום לתצוגת התקופה — מחושב מקובץ המעקב המפורט, כך שאפשר לבנות אותו מחדש
     בלי להוריד שוב את השידורים (SUMMARIZE=1)."""
@@ -401,14 +428,14 @@ def summarize(det):
     meas = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None)
     plan = sum(len(x.get('s', [])) - 1 for x in rides.values() if 's' in x)
     gsrc = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None and s[4] == 'g')
-    summ = {'d': day, 'fmt': 3, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
+    summ = {'d': day, 'fmt': 4, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
             'meas': meas, 'plan': plan, 'gps': gsrc, 'cover': det.get('cover'),
             'seg': rnd(seg), 'lines': {k: rnd(v) for k, v in lines.items()},
             'origin': {k: [v[0], round(v[1], 1), v[2]] for k, v in origin.items()},
             'lorig': {k: [v[0], round(v[1], 1), v[2]] for k, v in lorig.items()},
             'lst': {nm: {c: [v[0], round(v[1], 1), v[2], round(v[3], 1), v[4]] for c, v in L.items()} for nm, L in lst.items()},
             'lord': lord,
-            'cut': sorted(cut, key=lambda c: c['m']),
+            'cut': sorted([dict(c, nx=continuation(rides, c)) for c in cut], key=lambda c: c['m']),
             'meet': meetings(rides)}
     os.makedirs(os.path.join(OUT, 'sum'), exist_ok=True)
     json.dump(summ, open(os.path.join(OUT, 'sum', f'{day}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
@@ -443,7 +470,7 @@ def main():
             old = json.load(open(sp, encoding='utf-8')) if os.path.exists(sp) else {}
         except ValueError:
             old = {}
-        if old.get('fmt') != 3:
+        if old.get('fmt') != 4:
             det = json.load(open(os.path.join(OUT, f'{d}.json'), encoding='utf-8'))
             det.setdefault('cover', old.get('cover'))
             summarize(det)
