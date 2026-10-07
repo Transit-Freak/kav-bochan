@@ -42,24 +42,30 @@
   .modes{display:flex;gap:5px}
   .mode{border:none;cursor:pointer;background:var(--surface);color:var(--mut);border-radius:999px;padding:11px 15px;font:700 12.5px 'Rubik',sans-serif;box-shadow:var(--shadow)}
   .mode.on{background:var(--ink);color:#fff}
-  .xlsbtn{border:none;cursor:pointer;background:#166534;color:#fff;border-radius:999px;padding:11px 15px;font:700 12.5px 'Rubik',sans-serif;box-shadow:var(--shadow);white-space:nowrap}
-  .xlsbtn:hover{background:#14532d}
-  .sharebtn{background:#1E5BC6}
-  .sharebtn:hover{background:#164399}
+  .xlsbtn{border:1.5px solid #BBD7C3;cursor:pointer;background:var(--surface);color:#166534;border-radius:999px;padding:10px 14px;font:700 12.5px 'Rubik',sans-serif;white-space:nowrap}
+  .xlsbtn:hover{background:#F0FDF4}
+  .sharebtn{border-color:#C7D6F2;color:#1E5BC6}
+  .sharebtn:hover{background:#EFF4FD}
   .sub{font-size:12.5px;color:var(--mut);font-weight:600;line-height:1.6;margin:8px 0 14px}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
   .kpi{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:12px 16px}
   .kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
   .kpi span{font-size:12px;color:var(--mut);font-weight:700}
   .kpi.bad b{color:var(--bad)}
   .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-  .card{border:none;text-align:inherit;font-family:inherit;cursor:pointer;color:#fff;border-radius:18px;padding:16px 18px;box-shadow:var(--shadow);transition:transform .12s}
-  .card:hover{transform:translateY(-2px)}
-  .card h2{margin:0;font-size:17px;font-weight:800}
-  .card .n{font-size:28px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
-  .card .pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:10.5px;font-weight:700}
-  .card .pills span{background:rgba(255,255,255,.2);border-radius:999px;padding:3px 9px}
-  .card .pills .r{background:rgba(0,0,0,.25)}
+  /* כרטיס לבן עם פס בצבע החברה ומספר צבעוני — אותו זיהוי, פחות צבע על המסך (שלמה 07.10) */
+  .card{--c:#10172A;border:none;border-inline-start:5px solid var(--c);text-align:inherit;font-family:inherit;cursor:pointer;color:var(--ink);background:var(--surface);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s}
+  .card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .card h2{margin:0;font-size:15.5px;font-weight:800}
+  .card .n{font-size:26px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums;color:var(--c)}
+  .card .lbl{font-size:12px;font-weight:600;color:var(--mut);margin-top:-2px}
+  .card .pills{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;font-size:10.5px;font-weight:700}
+  .card .pills span{background:var(--chipbg);color:var(--mut);border-radius:999px;padding:3px 9px}
+  .card .pills .r{background:var(--bad-bg);color:var(--bad)}
+  .upd{font-size:11.5px;color:var(--dim);font-weight:600;margin:-6px 0 14px;line-height:1.7}
+  .upd b{color:var(--mut);font-weight:700}
+  details.subx summary{cursor:pointer;color:#1D4ED8;font-weight:700;display:inline}
+  details.subx summary::-webkit-details-marker{display:none}
   .panel{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;margin-top:14px}
   .ptitle{font-weight:800;font-size:14px;margin:0 0 10px}
   .ophead{color:#fff;border-radius:18px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -171,7 +177,7 @@
       </div>
     </div>
   </div>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה לראשונה ולאחרונה, ואילו ירדו מהשירות. לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 20 · הדף מתעדכן מעצמו</span></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 21 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -241,11 +247,9 @@ function kpis(){
     ${kab?`<div class="kpi bad" title="רכבים מהצי הסדיר שלא שידרו מעל ${DATA.retire_days} יום. רכבי קבלן שירדו מוצגים בנפרד, בכרטיס רכבי הקבלן"><b>${fmt(tot-act-(kab-kabA))}</b><span>ירדו מהשירות (צי סדיר)</span></div>`
         :`<div class="kpi bad"><b>${fmt(tot-act)}</b><span>ירדו מהשירות</span></div>`}
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
-    ${kab?`<div class="kpi" title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים (רכבי הסעות)</span><span style="display:block;color:var(--bad)">${fmt(kab-kabA)} ירדו מהשירות</span></div>`:''}
-    <div class="kpi" title="נתוני הנסיעה מכסים את התקופה הזו — מהצפייה הראשונה ועד הצפייה האחרונה שנקלטה. הסריקה רצה כל לילה ומוסיפה את היום שעבר (כל יום נסרק פעם אחת בלבד, כדי לא להעמיס על דאטאבוס)"><b style="font-size:15px">${fd(first)} – ${fd(last)}</b><span>טווח נתוני הנסיעה</span><span style="display:block;color:var(--mut)">העדכון הבא: ${fdt(nextScan())} (שעון ישראל)</span></div>
-    ${DATA.gov_updated?`<div class="kpi" title="קובץ כלי הרכב הציבוריים ממאגר הרישוי הממשלתי — מועלה ידנית לריפו"><b>${fd(DATA.gov_updated)}</b><span>עדכון פרטי הרכב (קובץ ידני)</span></div>`:''}
-    ${(()=>{const u=(ARM&&(ARM.gov_updated||ARM.updated))||(OFC&&(OFC.gov_updated||OFC.updated));return u?`<div class="kpi" title="מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה — מיגון ירי/אבנים, מד הקילומטרים הרשמי, מושבים, ארץ ייצור והנעה. נמשך אוטומטית מ-data.gov.il"><b>${fd(u)}</b><span>עדכון מאגר ציי הרכב (מיגון ומד ק"מ)</span></div>`:'';})()}
-  </div>`;
+    ${kab?`<div class="kpi" title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
+  </div>
+  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">נתוני נסיעה <b>${fd(first)} – ${fd(last)}</b>${DATA.gov_updated?` · פרטי רכב <b>${fd(DATA.gov_updated)}</b>`:''}${(()=>{const u=(ARM&&(ARM.gov_updated||ARM.updated))||(OFC&&(OFC.gov_updated||OFC.updated));return u?` · מאגר ציי הרכב (מיגון, ק"מ) <b>${fd(u)}</b>`:'';})()} · העדכון הבא ${fdt(nextScan())}</div>`;
 }
 
 function home(){
@@ -283,10 +287,10 @@ function home(){
     const act=o.vehicles.filter(isActive).length, ret=o.vehicles.length-act;
     const kab=DATA.enriched?o.vehicles.filter(isKab).length:0;
     const kabA=kab?o.vehicles.filter(v=>isKab(v)&&isActive(v)).length:0, retReg=ret-(kab-kabA);
-    return `<button class="card" style="background:${opColor(o.ref,i)}" onclick="go(${o.ref})">
+    return `<button class="card" style="--c:${opColor(o.ref,i)}" onclick="go(${o.ref})">
       <h2>${esc(o.name)}</h2><div class="n">${fmt(act-kabA)}</div>
-      <div style="font-size:13.5px;font-weight:700;opacity:.92;margin-top:-2px">רכבי החברה הפעילים עכשיו${kabA?' (בלי קבלנים)':''}</div>
-      <div class="pills"><span style="background:rgba(255,255,255,.16)">ובסך הכול נצפו: ${fmt(o.vehicles.length)}</span>${retReg?`<span class="r">${fmt(retReg)} ירדו</span>`:''}${kab?`<span>רכבי קבלן: ${fmt(kabA)} פעילים${kab-kabA?` · ${fmt(kab-kabA)} ירדו`:''}</span>`:''}</div>
+      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">פעילים עכשיו</div>
+      <div class="pills"><span>נצפו: ${fmt(o.vehicles.length)}</span>${retReg?`<span class="r">${fmt(retReg)} ירדו</span>`:''}${kabA?`<span>קבלן: ${fmt(kabA)}</span>`:''}</div>
     </button>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;
 }
 
@@ -399,11 +403,10 @@ function cityHome(f){
   if(CITYSEL&&CITIES.cities[CITYSEL]) return cityView(CITYSEL);
   const hits=all.filter(([c])=>!f||c.includes(f)).sort((a,b)=>(b[1].act??b[1].total)-(a[1].act??a[1].total)).slice(0,30);
   return kpis()+`<div class="cards">${hits.map(([c,d])=>
-    `<button class="card" style="background:#10172A" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2>${esc(c)}</h2><div class="n">${d.act!=null?fmt(d.act):fmt(d.total)}</div>
-      <div style="font-size:13.5px;font-weight:700;opacity:.92;margin-top:-2px">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
-      ${d.act!=null?`<div style="font-size:11px;opacity:.75">"פעיל" = שידר נסיעות בחודש האחרון · נכון ל-${fd(DATA.updated)}</div>`:''}
-      ${d.act!=null?`<div class="pills"><span style="background:rgba(255,255,255,.14);color:#e2e8f0">ובסך הכול נצפו בה אי-פעם: ${fmt(d.total)}</span></div>`:''}
+      <div class="lbl">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
+      ${d.act!=null?`<div class="pills"><span title='"פעיל" = שידר נסיעות בחודש האחרון'>נצפו בה אי-פעם: ${fmt(d.total)}</span></div>`:''}
     </button>`).join('')||'<div class="empty">לא נמצאה עיר</div>'}</div>`;
 }
 function cityView(c){
@@ -670,9 +673,9 @@ function typeHome(f){
     <button class="fchip ${TSORT==='g'?'on':''}" onclick="TSORT='g';render()" title="דגמים לפי אחוז הרכבים שנעלמו חודש+ וחזרו (תקלה אפשרית) — מ-20 רכבים ומעלה">הכי מקולקלים</button>
     ${GPOK&&GAPS.from?`<span style="font-size:12px;color:var(--mut);align-self:center">נתוני הנפילות נבדקים בטווח ${GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)}–${GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4)} · מתרחב אחורה מדי לילה</span>`:''}
   </div>${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
-    `<button class="card" style="background:${TCOLORS[i%TCOLORS.length]}" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<button class="card" style="--c:${TCOLORS[i%TCOLORS.length]}" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2 style="font-size:1.05rem;word-break:break-word">${esc(t)}</h2><div class="n">${TSORT==='g'?Math.round(100*g.gp/g.n)+'%':fmt(g.n)}</div>
-      ${TSORT==='g'?`<div style="font-size:13px;font-weight:700;opacity:.92;margin-top:-2px">נפלו וחזרו — תקלה אפשרית</div>`:''}
+      ${TSORT==='g'?`<div class="lbl">נפלו וחזרו — תקלה אפשרית</div>`:''}
       <div class="pills"><span>${fmt(g.act)} פעילים</span>${g.n-g.act?`<span class="r">${fmt(g.n-g.act)} ירדו</span>`:''}${g.gp?`<span>${fmt(g.gp)} נפלו וחזרו</span>`:''}<span>${g.ops.size} חברות</span></div>
     </button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>
     ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`;
