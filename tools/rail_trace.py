@@ -233,6 +233,34 @@ def trace_ride(r, seq, ST):
     return rows, (max(reached) if reached else -1), (seq[-1][0] if seq else None)
 
 
+def holds(seq, ST, rows, min_dur=1.5, far_m=600):
+    """עצירות בדרך, בין תחנות (שלמה 07.10: "מפגש רכבות — למה רק בתחנה ולא איפה זה קרה"):
+    רצף שידורי GPS חיים במהירות 0, יותר מ-600 מ׳ מכל תחנה, לפחות דקה וחצי — רכבת שעמדה ברמזור
+    או חיכתה שהמסילה תתפנה. [lat, lon, דקה, משך, תחנה לפני, תחנה אחרי]."""
+    seq = unfreeze(seq[:frozen_tail(seq)])
+    meas = [(x[1] + x[3] if x[3] is not None else x[1] + x[2], x[0]) for x in rows if x[2] is not None or x[3] is not None]
+    if not meas:
+        return []
+    t0, t1 = min(m for m, _ in meas), max(m for m, _ in meas)
+    pts = [(v[1], v[2]) for v in ST.values() if v and len(v) > 2 and v[1] is not None]
+    def far(x):
+        return all(hav(x[4], x[5], la, lo) > far_m for la, lo in pts)
+    out, run = [], []
+    for x in seq + [(1e9, '', 0, 1, 0, 0)]:
+        stand = x[4] and x[3] == 0 and t0 <= x[0] <= t1 and far(x)
+        if stand and (not run or hav(x[4], x[5], run[0][4], run[0][5]) < 300):
+            run.append(x)
+            continue
+        if run and run[-1][0] - run[0][0] + 1 >= min_dur:
+            m = run[0][0]
+            before = [c for t, c in meas if t <= m]
+            after = [c for t, c in meas if t > m]
+            out.append([round(run[0][4], 5), round(run[0][5], 5), round(m, 1), round(run[-1][0] - m + 1, 1),
+                        before[-1] if before else None, after[0] if after else None])
+        run = [x] if stand else []
+    return out
+
+
 def gains(rows):
     """איחור שנצבר בין כל שתי תחנות עוקבות שנמדדו שתיהן: [A, B, דקות]."""
     out = []
@@ -276,6 +304,12 @@ def build_day(day, ST):
             continue
         rows, last_i, last_m = trace_ride(r, seq, ST)
         rec = {'nm': r['nm'], 's': rows}
+        hl = holds(seq, ST, rows)
+        for h in hl:     # מי עברה ליד באותו זמן (עד 1.5 ק"מ) — הרכבת שבגללה כנראה חיכתה
+            h.append(sorted({tn2 for tn2, sq2 in T.items() if tn2 != tn and any(
+                y[4] and h[2] - 1 <= y[0] <= h[2] + h[3] + 1 and hav(y[4], y[5], h[0], h[1]) <= 1500 for y in sq2)})[:3])
+        if hl:
+            rec['hold'] = hl
         left = len(rows) - 1 - last_i
         kind = None
         if 0 <= last_i < len(rows) - 1 and last_m is not None:
@@ -428,7 +462,7 @@ def summarize(det):
     meas = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None)
     plan = sum(len(x.get('s', [])) - 1 for x in rides.values() if 's' in x)
     gsrc = sum(1 for x in rides.values() for i, s in enumerate(x.get('s', [])) if i > 0 and s[2] is not None and s[4] == 'g')
-    summ = {'d': day, 'fmt': 4, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
+    summ = {'d': day, 'fmt': 5, 'rides': len(rides), 'sent': sum(1 for x in rides.values() if 's' in x),
             'meas': meas, 'plan': plan, 'gps': gsrc, 'cover': det.get('cover'),
             'seg': rnd(seg), 'lines': {k: rnd(v) for k, v in lines.items()},
             'origin': {k: [v[0], round(v[1], 1), v[2]] for k, v in origin.items()},
@@ -436,7 +470,10 @@ def summarize(det):
             'lst': {nm: {c: [v[0], round(v[1], 1), v[2], round(v[3], 1), v[4]] for c, v in L.items()} for nm, L in lst.items()},
             'lord': lord,
             'cut': sorted([dict(c, nx=continuation(rides, c)) for c in cut], key=lambda c: c['m']),
-            'meet': meetings(rides)}
+            'meet': meetings(rides),
+            'holds': sorted([{'tn': tn, 'nm': rec['nm'], 'lat': h[0], 'lon': h[1], 'm': h[2], 'dur': h[3], 'a': h[4], 'b': h[5],
+                              'with': [[w, rides.get(w, {}).get('nm', '')] for w in (h[6] if len(h) > 6 else [])]}
+                             for tn, rec in rides.items() for h in rec.get('hold', [])], key=lambda x: x['m'])}
     os.makedirs(os.path.join(OUT, 'sum'), exist_ok=True)
     json.dump(summ, open(os.path.join(OUT, 'sum', f'{day}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     return summ
@@ -470,7 +507,7 @@ def main():
             old = json.load(open(sp, encoding='utf-8')) if os.path.exists(sp) else {}
         except ValueError:
             old = {}
-        if old.get('fmt') != 4:
+        if old.get('fmt') != 5:
             det = json.load(open(os.path.join(OUT, f'{d}.json'), encoding='utf-8'))
             det.setdefault('cover', old.get('cover'))
             summarize(det)
