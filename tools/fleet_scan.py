@@ -117,8 +117,11 @@ def route_operator_map():
 
 def scan_day(day, routes, state):
     """כל נסיעות ה-SIRI של יום אחד → ראשון/אחרון + ספירת נסיעות לכל רכב."""
-    frm = f'{day}T00:00:00+02:00'
-    to = f'{day}T23:59:59+02:00'
+    # שעה אחר שעה ולא כל היום בבת אחת (07.10): דפדוף עמוק — עשרות אלפי שורות של יום שלם —
+    # איטי בשרת של דאטאבוס ונכשל שם ב-500 (4.10 נכשל שוב ושוב). בחלון של שעה ההיסט נשאר קטן
+    windows = [(f'{day}T{h:02d}:00:00+02:00', f'{day}T{h:02d}:59:59+02:00') for h in range(24)]
+    wi = 0
+    frm, to = windows[0]
     offset, n = 0, 0
     today = {}   # key -> מספר נסיעות היום
     while True:
@@ -169,7 +172,12 @@ def scan_day(day, routes, state):
             today[key] = today.get(key, 0) + 1
         n += len(rows)
         if len(rows) < PAGE:
-            break
+            wi += 1
+            if wi == len(windows):
+                break
+            frm, to = windows[wi]
+            offset = 0
+            continue
         offset += PAGE
         if MONTHS_ONLY:
             time.sleep(PAUSE)   # מילוי היסטורי — בעדינות, לא להעמיס על דאטאבוס
