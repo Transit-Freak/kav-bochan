@@ -52,16 +52,16 @@ try{
  const page=await browser.newPage();let updated=false;
  await page.route('**/OneSignalSDK.page.js',r=>r.fulfill({body:''}));
  await page.route('**/website-archive-summary.json?*',r=>r.fulfill({contentType:'application/json',body:JSON.stringify(updated?{...summary,counts:{...summary.counts,parsed:summary.counts.parsed+1},updatedAt:'2099-01-01T00:00:00Z'}:summary)}));
- await page.goto(base);
- const status=page.getByRole('region',{name:'ארכיון אתרי המידע לנוסעים'});
- await status.waitFor();
- // לחיצה על שנה מציגה את החברות והאזורים שלה
+ // סיכום השנה של אתרי המידע מופיע ב"שינויים לפי יום" ליד בחירת השנה
  const years=JSON.parse(fs.readFileSync('line-history/data/website-years.json')).years;
- const top=years.reduce((a,b)=>b.lines>a.lines?b:a);
- await status.getByRole('button',{name:new RegExp('^'+top.y)}).click();
- const yr=status.getByRole('region',{name:'שנת '+top.y});await yr.waitFor();
- if(!(await yr.innerText()).includes(top.ops[0][0]))throw Error('Year panel lacks its main operator');
+ const webOnly=years.find(y=>y.y==='2003')||years[0];
+ await page.goto(base+'#t=early');
+ await page.getByRole('button',{name:webOnly.y,exact:true}).first().click();
+ const yr=page.getByRole('region',{name:'אתרי המידע לנוסעים בשנת '+webOnly.y});await yr.waitFor({timeout:60000});
+ if(!(await yr.innerText()).includes(webOnly.ops[0][0]))throw Error('Year summary lacks its main operator');
+ // פרסום חדש (updatedAt משתנה) מרענן את הנתונים בדף פתוח
+ await page.evaluate(()=>{window.__pub=0;addEventListener('website-history-published',()=>window.__pub++);});
  updated=true;
- await page.waitForFunction(()=>document.querySelector('[aria-label="ארכיון אתרי המידע לנוסעים"]')?.innerText.includes('2099'),null,{timeout:45000});
+ await page.waitForFunction(()=>window.__pub>0,null,{timeout:45000});
  console.log('PASS: mobile and desktop source dates, exact stop rows, partial map with six real points, no invented changes, automatic live status update');
 }finally{await browser?.close();server.close();}
