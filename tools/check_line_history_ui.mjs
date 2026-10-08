@@ -259,6 +259,8 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.tl .ev', { timeout: 30000 })
     .catch(() => fail('עמוד קו 548 לא נפתח'));
+  // שינויי לו"ז/תגבור/רישום כבויים כברירת מחדל (שלמה 08.10) — "הכול" מדליק את כולם
+  if (await page.locator('.kfilter .kchip:not(.on)').count()) await page.click('.kfilter .kchip:has-text("הכול")');
   const n = await page.locator('.rvflag').count();
   if (!n) fail(`עמוד הקו ${rvFile}: הסימון "חזר כעבור" לא מוצג באף אירוע`);
   // סרגל הסינון מאחד שלוש דרגות של שינוי תחנות לצ'יפ אחד, וכיבוי שלו
