@@ -2070,8 +2070,13 @@ function NotifyCenter({ cities: allCities }) {
     pushTags();
     setCities([]); setSaved(false); setMsg("ההרשמה בוטלה");
   };
+  // בתצוגה החדשה התיבה מוסתרת ונפתחת מהתפריט ⋯ (שלמה 08.10)
+  useEffect(() => {
+    const h = () => { setOpen(true); requestAnimationFrame(() => { const b = document.querySelector(".notifybox"); if (b) b.scrollIntoView({ block: "start", behavior: "smooth" }); }); };
+    window.addEventListener("kb-open-notify", h); return () => window.removeEventListener("kb-open-notify", h);
+  }, []);
   return (
-    <div className="katbox" style={{ marginTop: 8 }}>
+    <div className={"katbox notifybox" + (open ? " isopen" : "")} style={{ marginTop: 8 }}>
       <button className="kathead" style={{ fontWeight: 800 }} aria-expanded={open} onClick={() => setOpen(!open)}>
         🔔 הרשמה להתראות על שינויים{saved ? (() => { const cl = (st0.cities || [st0.city]).filter(Boolean); return cl.length > 2 ? ` — רשומים ל-${cl.length} ערים` : ` — רשומים ל${cl.join(" ו")}`; })() : " — עיר, סוגי שינויים ותדירות"}
       </button>
@@ -2174,7 +2179,7 @@ function DigestPage({ city, days, onBack, openLine }) {
   );
 }
 
-function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) {
+function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, lite }) {
   // "· רציף N" ליד תחנה במסוף — הרציף של הווריאנט הזה לפי שורת הרציף בקובץ
   // התחנות (platforms.json rd), מתעדכן מדי יום
   const plats = usePlatforms();
@@ -2196,6 +2201,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
     }
   };
   const [mon, setMon] = useState("");
+  // תצוגה חדשה: לשוניות סקירה / שינויים / תחנות, ו"חשובים" כברירת מחדל (שלמה 08.10)
+  const [ltab, setLtab] = useState(() => (initCats ? "ch" : "ov"));
+  const [impOnly, setImpOnly] = useState(true);
+  useEffect(() => { setLtab(initCats ? "ch" : "ov"); setImpOnly(true); }, [rd]);
   const [offK, setOffK] = useState(() => new Set());   // קטגוריות שכובו בעמוד הקו
   const [cmpI, setCmpI] = useState(null);              // גרסת בסיס להשוואה חופשית
   const [onlyCur, setOnlyCur] = useState(false);       // מפה בלי שכבת העבר
@@ -2301,8 +2310,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   const lastReal = vs.filter((v) => !v.syn && v.k !== "planned-dropped").pop();
   const goneD = lastReal ? variantGone(lastReal.k, lastReal.d, lf.historicalOnly, ntr, lf.observationOnly) : null;
   const months = [...new Set(vs.filter((v) => !v.hid).map((v) => v.d.slice(0, 7)))].reverse();
-  const shown = vs.map((v, i) => ({ v, i }))
+  const shownAll = vs.map((v, i) => ({ v, i }))
     .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
+  const impN = shownAll.filter((x) => !LOW_KINDS.has(dispKind(x.v, x.i, vs))).length;
+  const shown = lite && impOnly && impN ? shownAll.filter((x) => !LOW_KINDS.has(dispKind(x.v, x.i, vs))) : shownAll;
   // הקטגוריות שקיימות בקו הזה בפועל, לפי שכיחות — סרגל כיבוי/הדלקה.
   // שלוש קבוצות מאוחדות כאן ולא בתווית שעל האירוע: בסרגל הן שאלה אחת
   // ("להציג שינויי תחנות?") ואילו על האירוע עצמו ההבחנה כן נושאת מידע.
@@ -2632,11 +2643,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
   // כשפותחים את 2012 המפה מציגה רק את מסלול 2012; כפתור מחזיר את שתי השכבות יחד
   const m12only = !!(show12 && only12 && stops12 && stops12.length);
   return (
-    <div className="linewrap">
+    <div className={"linewrap" + (lite ? " lt lt-" + ltab : "")}>
       <div className="card side">
-        <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>
+        {lite
+          ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
+          : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lf.dest}</span>
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+          {lite && <span className="herosub">{lf.op}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
           {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
@@ -2709,6 +2723,33 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
+        {lite && <div className="ltabs" role="tablist" aria-label="עמוד הקו">{[["ov", "סקירה"], ["ch", "שינויים"], ["st", "תחנות ולו״ז"]].map(([k, t]) => (
+          <button key={k} role="tab" aria-selected={ltab === k} className={ltab === k ? "on" : ""} onClick={() => { setLtab(k); window.scrollTo({ top: 0 }); }}>{t}</button>))}</div>}
+        {lite && ltab === "ov" && (() => {
+          // סקירה: כמה שינויים מכל סוג חשוב, ומה השתנה בפעם האחרונה במסלול
+          const c = { route: 0, stops: 0, op: 0, gone: 0 };
+          vs.forEach((x, i) => { if (x.hid) return; const k = dispKind(x, i, vs);
+            if (["route", "terminal", "extend", "shorten", "dest"].includes(k)) c.route++;
+            else if (["stops-add", "stops-del", "stops"].includes(k)) c.stops++;
+            else if (k === "operator") c.op++;
+            else if (["removed", "removed-year", "notrips"].includes(k)) c.gone++; });
+          const li = [...vs.keys()].reverse().find((i) => !vs[i].hid && ((vs[i].add || []).length || (vs[i].rem || []).length));
+          const lr = li != null ? vs[li] : null;
+          const nm = (a) => a.slice(0, 5).map((x) => Array.isArray(x) ? x[1] : x).join(" · ") + (a.length > 5 ? " ועוד " + (a.length - 5) : "");
+          return (
+            <div className="ovw">
+              <div className="ovtiles">
+                <button onClick={() => setLtab("ch")}><b>{c.route}</b><span>שינויי מסלול</span></button>
+                <button onClick={() => setLtab("ch")}><b>{c.stops}</b><span>שינויי תחנות</span></button>
+                <button onClick={() => setLtab("ch")}><b>{c.op}</b><span>החלפות מפעיל</span></button>
+                <button onClick={() => setLtab("ch")}><b>{c.gone}</b><span>ביטולים</span></button>
+              </div>
+              {lr && <div className="ovlast"><b>השינוי האחרון במסלול · {fmtD(lr.d)}</b>
+                {(lr.add || []).length > 0 && <div className="ad">+ {nm(lr.add)}</div>}
+                {(lr.rem || []).length > 0 && <div className="rm">− {nm(lr.rem)}</div>}</div>}
+              <button className="ovall" onClick={() => setLtab("ch")}>לכל {vs.filter((x) => !x.hid).length.toLocaleString()} השינויים ←</button>
+            </div>);
+        })()}
         {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
         {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
         {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
@@ -2847,12 +2888,19 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
             ))}
           </div>
         )}
+        {lite && impN > 0 && impN < shownAll.length && (
+          <div className="ltog" role="group" aria-label="אילו שינויים להציג">
+            <button className={impOnly ? "on" : ""} aria-pressed={impOnly} onClick={() => setImpOnly(true)}>חשובים · {impN.toLocaleString()}</button>
+            <button className={impOnly ? "" : "on"} aria-pressed={!impOnly} onClick={() => setImpOnly(false)}>הכול · {shownAll.length.toLocaleString()}</button>
+          </div>)}
         <div className="tl">
           {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
               אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {shown.map(({ v: x, i }) => (
-            <div key={x.d + x.k + i} className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
+          {shown.map(({ v: x, i }, si) => (
+            <React.Fragment key={x.d + x.k + i}>
+            {lite && (si === 0 || shown[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
               onClick={() => selectEvent(i, x)}>
               <div className="d">
                 {(() => { const ed = evDate(x); return ed.tip
@@ -2930,7 +2978,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats }) 
                   </div>
                 );
               })()}
+              {lite && i === vs.indexOf(v) && <button className="evmap" onClick={(e) => { e.stopPropagation(); setLtab("st"); window.scrollTo({ top: 0 }); }}>🗺️ המסלול על המפה ←</button>}
             </div>
+            </React.Fragment>
           ))}
         </div>
       </div>
@@ -3402,6 +3452,17 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
       {open && <div className="lgitems">{[...g.items].sort((a, b) => (lineGoneAt(a) ? 1 : 0) - (lineGoneAt(b) ? 1 : 0)).map((l) => { const [t, d] = label(l); return renderRow(l, t, d); })}</div>}
     </div>);
 }
+// סוגי שינוי "שגרתיים": לו"ז, תגבור, צילום ותיקוני רישום. בתצוגה החדשה הם מקופלים כברירת מחדל
+const LOW_KINDS = new Set(["baseline", "snapshot", "freq", "sched", "times", "redraw", "vehicle", "ltype", "access", "renum", "renamed", "board", "platform"]);
+// "תחנה-עיר<->תחנה-עיר-1#" → "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה"
+function routeTitle(dest) {
+  if (!dest) return "";
+  const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p[p.length - 1].trim() }; });
+  const a = sides[0], b = sides[sides.length - 1];
+  if (!b || a === b) return a.stop || a.city;
+  if (a.city && b.city && a.city !== b.city) return a.city + " – " + b.city;
+  return (a.city ? a.city + ": " : "") + a.stop + " – " + b.stop;
+}
 function collapse2012Rows(rows, meta = null) {
   const seen = new Set();
   return rows.filter(r => {
@@ -3711,7 +3772,7 @@ function StopCode({ code }) {
 // מוסתרים מאחורי פעולה שהמבקר צריך ליזום. כאן מוצגים הימים האחרונים
 // שבהם קרה משהו, כמו בטאב התחנות שכבר נפתח על החודש האחרון.
 const WDR = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-function RecentChanges({ idx, openLine, onAll }) {
+function RecentChanges({ idx, openLine, onAll, lite }) {
   const [rows, setRows] = useState(null);
   const [nerr, setNerr] = useState(false);
   const [rty, setRty] = useState(0);
@@ -3748,6 +3809,32 @@ function RecentChanges({ idx, openLine, onAll }) {
     byd.get(c.d).push(c);
   }
   const top = days.slice(0, 3);
+  if (lite) {
+    // תצוגה חדשה (שלמה 08.10: "האתר עמוס מדי במידע"): היום האחרון בלבד — סיכום לפי סוג,
+    // ו"החשובים של היום": שינויי מסלול, תחנות וביטולים לפני מאות שינויי התגבור והלו"ז
+    const d = days[0], all = byd.get(d).filter((c) => { const m = meta[c.rd] || {}; return !m.tt || m.tt === "demand"; });
+    const cnt = {}; all.forEach((c) => { const k = evKind(c); cnt[k] = (cnt[k] || 0) + 1; });
+    const imp = all.filter((c) => !LOW_KINDS.has(evKind(c)));
+    const pick = (imp.length ? imp : all).slice(0, 6);
+    return (
+      <div className="recent lite-recent">
+        <div className="dayhead">{fmtD(d)} · יום {WDR[new Date(d).getDay()]} · {byd.get(d).length.toLocaleString()} שינויים</div>
+        <div className="rsum">{Object.entries(cnt).sort((a, b) => (LOW_KINDS.has(a[0]) ? 1 : 0) - (LOW_KINDS.has(b[0]) ? 1 : 0) || b[1] - a[1]).map(([k, n]) => (
+          <span key={k} className={LOW_KINDS.has(k) ? "low" : ""}>{n.toLocaleString()} {(KINDS[k] || { label: k }).label}</span>))}</div>
+        <div className="rechead"><b>{imp.length ? "החשובים של היום" : "השינויים של היום"}</b></div>
+        {pick.map((c, i) => {
+          const m = meta[c.rd] || {};
+          return (
+            <a key={c.rd + c.k + i} className="lrow" href={lineHref(c.rd)}
+              onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
+              <span className="badge sm">{c.line}</span>
+              <span className="ldest">{routeTitle(m.dest) || rdTxt(c.rd)}<small className="lop">{m.op || ""}</small></span>
+              <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
+            </a>);
+        })}
+        <button className="recmore" onClick={onAll}>לכל {byd.get(d).length.toLocaleString()} השינויים של {fmtD(d)} ←</button>
+      </div>);
+  }
   return (
     <div className="recent">
       {/* בלי כפתור "כל השינויים לפי יום" — הוא שכפל את הכפתור הגדול
@@ -5226,6 +5313,11 @@ function WebsiteYearSummary({year}) {
   </div>;
 }
 function App() {
+  // תצוגה חדשה (פחות מידע על המסך) או הקודמת — נשמר בדפדפן (שלמה 08.10: "להוסיף לחזור לגרסה הקודמת")
+  const [lite, setLite] = useState(() => { try { return localStorage.lhLite !== "0"; } catch (e) { return true; } });
+  useEffect(() => { document.body.classList.toggle("lite", lite); try { localStorage.lhLite = lite ? "1" : "0"; } catch (e) {} }, [lite]);
+  const [menu, setMenu] = useState(false);
+  useEffect(() => { if (!menu) return; const h = (e) => { if (e.key === "Escape") setMenu(false); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [menu]);
   const citySearch = useRouteCities();
   const [idx, setIdx] = useState(null);
   const [err, setErr] = useState(null);
@@ -5406,6 +5498,7 @@ function App() {
       <CitySearchStatus state={citySearch} />
       <header>
         <h1>🕰️ הקו בזמן</h1>
+        <button className="dmore" aria-label="עוד אפשרויות" aria-haspopup="dialog" onClick={() => setMenu(true)}>⋯</button>
         <p className="tag">היסטוריית מסלולים ותחנות: צילומי אתרי מידע לנוסעים מ־2003 בכיסוי חלקי, נתוני GTFS מ־2012 ותיעוד רציף ממרץ 2017. צילום בארכיון אינו הודעה על שינוי.</p>
         <div className="stats">
           {idx ? (<>
@@ -5442,7 +5535,7 @@ function App() {
         <LinePage rd={rd} lineGone={idx ? (l => !(l?.historicalOnly && !lineGoneAt(l)))(idx.lines.find(l => l.rd === rd)) && !mktAlive[rd.split("-")[0]] : false}
           sibs={lineSiblings(idx, rd)}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate}
-          initCats={[...kats].sort().join(",")} />
+          initCats={[...kats].sort().join(",")} lite={lite} />
       ) : (
         <div className="card">
           {/* "שינויים לפי יום" באותו עמוד, מתחת לקטגוריות, והקטגוריות המסומנות
@@ -5452,13 +5545,13 @@ function App() {
             value={q} onChange={(e) => setQ(e.target.value)} />}
           <div className="katbox">
             <button className="kathead" aria-pressed={byDay} title={byDay ? "חזרה לחיפוש הקווים" : "פיד כרונולוגי: בחירת שנה וחודש ורואים כל שינוי שקרה, בכל קו בארץ, לפי תאריך"} onClick={() => setByDay(!byDay)}>
-              {byDay ? "🔎 חזרה לחיפוש הקווים" : "🗓️ שינויים לפי יום — מה השתנה בכל תאריך, בכל הקווים"}
+              {byDay ? "🔎 חזרה לחיפוש הקווים" : lite ? "🗓️ שינויים לפי יום" : "🗓️ שינויים לפי יום — מה השתנה בכל תאריך, בכל הקווים"}
             </button>
           </div>
           <div className="katbox">
             <button className="kathead" aria-expanded={katOpen} onClick={() => setKatOpen(!katOpen)}>
               <span className="katarrow" aria-hidden="true">{katOpen ? "▼" : "◀"}</span>
-              🗂️ קטגוריות לבחירה
+              {lite ? "🗂️ סינון לפי סוג שינוי" : "🗂️ קטגוריות לבחירה"}
               {kats.size > 0 && <b className="katn">{kats.size} מסומנות</b>}
             </button>
             {katOpen && (
@@ -5537,8 +5630,25 @@ function App() {
               <Res2012 needle={needle} onOpen={open12} />
             </div>
           ) : (
-            <RecentChanges idx={idx} openLine={openLine} onAll={() => setByDay(true)} />
+            <RecentChanges idx={idx} openLine={openLine} onAll={() => setByDay(true)} lite={lite} />
           )}
+        </div>
+      )}
+      {menu && (
+        <div className="lmenu-ovl" onClick={(e) => { if (e.target === e.currentTarget) setMenu(false); }}>
+          <div className="lmenu" role="dialog" aria-modal="true" aria-label="עוד אפשרויות">
+            <div className="lmhead"><b>עוד</b><button className="lmx" aria-label="סגירה" onClick={() => setMenu(false)}>✕</button></div>
+            {[
+              ["🔔 התראות על שינויים", "עיר, סוגי שינויים ותדירות", () => { setTab("lines"); backToList("lines"); setTimeout(() => window.dispatchEvent(new Event("kb-open-notify")), 50); }],
+              ["🗓️ שינויים לפי יום", "מה השתנה בכל תאריך, בכל הקווים", () => { setTab("lines"); backToList("lines"); setByDay(true); }],
+              ["🗂️ סינון לפי סוג שינוי", "מסלול, תחנות, ביטולים, מפעיל", () => { setTab("lines"); backToList("lines"); setKatOpen(true); }],
+              ["📚 על המקורות", "מאיפה הנתונים ומתי הם מתעדכנים", () => { setTimeout(() => { const d = document.getElementById("data-sources"); if (d) { d.open = true; d.scrollIntoView({ block: "start", behavior: "smooth" }); } }, 50); }],
+              ["🔗 שיתוף", "קישור למסך הזה", () => { const u = location.href; if (navigator.share) navigator.share({ url: u }).catch(() => {}); else if (navigator.clipboard) navigator.clipboard.writeText(u).catch(() => {}); }],
+              [lite ? "↩ לתצוגה הקודמת" : "✨ לתצוגה החדשה", lite ? "כל הפרטים על המסך, כמו קודם" : "פחות מידע על המסך, הפרטים בלחיצה", () => setLite(!lite)],
+            ].map(([t, sub, fn]) => (
+              <button key={t} className="lmitem" onClick={() => { setMenu(false); fn(); }}>{t}<small>{sub}</small></button>
+            ))}
+          </div>
         </div>
       )}
       <details className="srcbox" id="data-sources">

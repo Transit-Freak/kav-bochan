@@ -105,6 +105,10 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
   args: ['--no-sandbox'],
 });
+
+// הבדיקות הקיימות רצות על התצוגה הקודמת (המלאה), שנשארה זמינה מהתפריט ⋯; התצוגה החדשה נבדקת בנפרד
+{ const _np = browser.newPage.bind(browser);
+  browser.newPage = async (...a) => { const p = await _np(...a); await p.addInitScript(() => { try { localStorage.lhLite = '0'; } catch (e) {} }); return p; }; }
 const page = await browser.newPage();
 page.on('pageerror', (e) => fail('שגיאת דף: ' + e.message));
 // ספריות ה-CDN מ-vendor/ המקומי; לאפלט וגופנים — סטאבים ריקים
