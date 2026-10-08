@@ -139,6 +139,21 @@ console.log('✓ קישור ישיר לקו עולה גם לפני שהאינד�
   console.log('✓ תצוגה חדשה: סיכום היום, תפריט, לשוניות עמוד הקו ומעבר לתצוגה הקודמת');
 }
 
+// "שינויים לפי יום" בתצוגה החדשה: אותו עיצוב שורה כמו בדף הראשי (שלמה 08.10)
+{
+  const p4 = await _newLitePage();
+  await p4.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p4.waitForSelector('.lite-recent .recmore', { timeout: 120000 }).catch(() => fail('תצוגה חדשה: אין כפתור לכל השינויים של היום'));
+  await p4.click('.lite-recent .recmore');
+  await p4.waitForSelector('.lrow.lite-row', { timeout: 60000 }).catch(() => fail('לפי יום: השורות לא בעיצוב של הדף הראשי'));
+  const t = await p4.locator('.lrow.lite-row .ldest').first().innerText();
+  if (t.includes('<->')) fail('לפי יום: הכותרת עדיין שם המסלול הגולמי: ' + t.slice(0, 80));
+  const kLast = await p4.locator('.lrow.lite-row').first().evaluate((a) => a.lastElementChild.classList.contains('k') || !!a.querySelector('.ldest + .k'));
+  if (!kLast) fail('לפי יום: סוג השינוי לא אחרי הכותרת');
+  console.log('✓ לפי יום בתצוגה החדשה: "' + t.split('\n')[0].slice(0, 40) + '"');
+  await p4.close();
+}
+
 if (errs.length) fail('חריגות JS: ' + errs.slice(0, 3).join(' | '));
 console.log('✅ בדיקת הקו בזמן עברה');
 await browser.close();

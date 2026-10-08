@@ -479,9 +479,9 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .rsum { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .rsum span { font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: #f5f3ff; color: #5b21b6; }
 .rsum span.low { background: #f1f5f9; color: #64748b; }
-.lite-recent .lrow { align-items: center; }
-.lite-recent .ldest { font-weight: 700; }
-.lite-recent .lop { display: block; font-weight: 500; color: #64748b; font-size: 12.5px; }
+.lite-recent .lrow, .lrow.lite-row { align-items: center; }
+.lite-recent .ldest, .lite-row .ldest { font-weight: 700; }
+.lite-recent .lop, .lite-row .lop { display: block; font-weight: 500; color: #64748b; font-size: 12.5px; }
 .lite-recent .recmore { margin-top: 8px; }
 
 /* עמוד הקו */
@@ -522,3 +522,5 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 @media (max-width: 860px) {
   .lt-ov .card.main, .lt-ch .card.main { display: none; }
 }
+/* "לפי יום" בתצוגה החדשה: ההערה מתחת לכותרת גם בטלפון (שם .ldest מקבל order:2) */
+.lrow.lite-row .lnote, .lrow.lite-row .approxd { order: 3; }
