@@ -3364,7 +3364,25 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
   if (g.items.length === 1) return renderRow(g.items[0]);
   const live = g.items.filter((l) => !lineGoneAt(l));
   const dirs = new Set(g.items.filter((l) => /^\d+-/.test(l.rd)).map((l) => String(l.rd).split("-")[1])).size;
-  const ends = endCities(g.items[0].dest);
+  // כותרת הקו: עיר מוצא – עיר יעד, וכשחלופה מגיעה לעיר אחרת היא נוספת אחרי לוכסן (שלמה 08.10:
+  // "תל אביב – קרית שמונה / קרית גת"). לפי הכיוון הראשון; החלופה הראשית קובעת את הסדר.
+  const withMk = g.items.filter((l) => /^\d+-/.test(l.rd));
+  const dir1 = withMk.length ? String(withMk[0].rd).split("-")[1] : null;
+  const pool = (withMk.length ? withMk.filter((l) => String(l.rd).split("-")[1] === dir1) : g.items)
+    .sort((a, b) => (String(a.rd).split("-")[2] === "#" ? 0 : 1) - (String(b.rd).split("-")[2] === "#" ? 0 : 1));
+  const orig = [], dest = [];
+  // שם עיר שנחתך באמצע בנתונים ("תל אביב י") נחשב לאותה עיר
+  const same = (a, b) => a.startsWith(b) || b.startsWith(a);
+  const put = (arr, c) => { if (c && !arr.some((x) => same(x, c))) arr.push(c); };
+  for (const l of pool) { const e = endCities(l.dest); put(orig, e[0]); put(dest, e[e.length - 1]); }
+  // קו עירוני (אותה עיר בשני הקצוות): "ירושלים – ירושלים" לא אומר כלום, ולכן העיר ותחנות הקצה של
+  // החלופה הראשית; הפרטים של שאר החלופות בתוך הכרטיס
+  let route = orig.slice(0, 3).join(" / ") + (dest.length ? " – " + dest.slice(0, 4).join(" / ") : "");
+  if (orig.length === 1 && dest.length === 1 && same(orig[0], dest[0]) && pool.length) {
+    const cut = (x) => x.length > 26 ? x.slice(0, 25) + "…" : x;
+    const st = String(pool[0].dest || "").replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return cut((p.length > 1 ? p.slice(0, -1) : p).join("-").trim()); });
+    route = orig[0] + ": " + st[0] + (st.length > 1 ? " – " + st[st.length - 1] : "");
+  }
   // תווית לכל חלופה: ראשית / מקוצר (מתחיל או מסתיים במקום אחר) / חלופה, ותיאור קצר אם יש
   const label = (l) => {
     if (!/^\d+-/.test(l.rd)) return [String(l.rd).startsWith("website") ? "אתר מידע" : "ארכיון 2012", null];
@@ -3377,10 +3395,9 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
     <div className="lgroup">
       <button className="lghead" aria-expanded={open} onClick={onToggle}>
         <span className="badge sm">{g.line || TT_ICON[g.items[0].tt] || "—"}</span>
-        <span className="lgop">{g.op}</span>
-        {!live.length && <span className="k" style={{ background: "#7f1d1d" }}>הקו בוטל</span>}
+        <span className="lgroute">{route}</span>
         <span className="lgarrow" aria-hidden="true">{open ? "▴" : "▾"}</span>
-        <span className="lgmeta">{ends.length ? ends.join(" ↔ ") + " · " : ""}{dirs > 1 ? dirs + " כיוונים · " : ""}{g.items.length} חלופות</span>
+        <span className="lgmeta">{g.op}{!live.length && <> · <b className="lggone">הקו בוטל</b></>} · {dirs > 1 ? dirs + " כיוונים · " : ""}{g.items.length} חלופות</span>
       </button>
       {open && <div className="lgitems">{[...g.items].sort((a, b) => (lineGoneAt(a) ? 1 : 0) - (lineGoneAt(b) ? 1 : 0)).map((l) => { const [t, d] = label(l); return renderRow(l, t, d); })}</div>}
     </div>);
