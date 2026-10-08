@@ -39,8 +39,8 @@ const _rawNewPage = browser.newPage.bind(browser);
 { const _np = browser.newPage.bind(browser);
   browser.newPage = async (...a) => { const p = await _np(...a); await p.addInitScript(() => { try { localStorage.lhLite = '0'; } catch (e) {} }); return p; }; }
 // דף בתצוגה החדשה, עם אותן הפניות כמו הדף הראשי
-const _newLitePage = async () => {
-  const p = await _rawNewPage();
+const _newLitePage = async (opts) => {
+  const p = await _rawNewPage(opts);
   await p.route('**://unpkg.com/**', (r) => {
     const u = r.request().url();
     if (u.endsWith('.css')) return r.fulfill({ contentType: 'text/css', body: '' });
@@ -119,7 +119,7 @@ console.log('✓ קישור ישיר לקו עולה גם לפני שהאינד�
 
 // ---- התצוגה החדשה (ברירת המחדל באתר; שלמה 08.10) ----
 {
-  const p3 = await _newLitePage();
+  const p3 = await _newLitePage({ viewport: { width: 390, height: 844 } });   // טלפון
   const e3 = [];
   p3.on('pageerror', (e) => e3.push(e.message.slice(0, 140)));
   await p3.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
@@ -129,14 +129,24 @@ console.log('✓ קישור ישיר לקו עולה גם לפני שהאינד�
   await p3.waitForSelector('.lmitem:has-text("לתצוגה הקודמת")', { timeout: 10000 }).catch(() => fail('תצוגה חדשה: אין מעבר לתצוגה הקודמת בתפריט'));
   await p3.click('.lmx');
   await p3.locator('.lite-recent .lrow').first().click();
-  await p3.waitForSelector('.ltabs', { timeout: 60000 }).catch(() => fail('תצוגה חדשה: לשוניות עמוד הקו לא הופיעו'));
-  await p3.click('.ltabs button:has-text("שינויים")');
-  await p3.waitForSelector('.tl .ev', { state: 'visible', timeout: 30000 }).catch(() => fail('תצוגה חדשה: לשונית השינויים ריקה'));
+  // עמוד אחד (שלמה 08.10): כותרת, מפה, "מה השתנה" ושורות שנפתחות — בלי לשוניות
+  await p3.waitForSelector('.lt-top .linehead', { timeout: 60000 }).catch(() => fail('תצוגה חדשה: כותרת הקו לא הופיעה'));
+  if (await p3.locator('.ltabs').count()) fail('תצוגה חדשה: עדיין יש לשוניות בעמוד הקו');
+  await p3.waitForSelector('.lt-bot .tl .ev', { state: 'visible', timeout: 30000 }).catch(() => fail('תצוגה חדשה: רשימת השינויים ריקה'));
+  await p3.waitForSelector('.lt > .card.main, .lt .evslot .card.main', { timeout: 30000 }).catch(() => fail('תצוגה חדשה: אין מפה בעמוד הקו'));
+  if ((await p3.locator('.lt-bot .tl .ev').count()) > 8) fail('תצוגה חדשה: יותר מ-8 שינויים לפני "עוד"');
+  // בטלפון: לחיצה על שינוי פותחת את המפה שלו בתוך הכרטיס
+  await p3.locator('.lt-bot .tl .ev:not(.sel)').first().click();
+  await p3.waitForSelector('.tl .ev.sel .evslot .card.main', { timeout: 30000 }).catch(() => fail('תצוגה חדשה: המפה לא נפתחה בתוך השינוי שנבחר'));
+  await p3.locator('.tl .ev.sel').first().click({ position: { x: 12, y: 12 } });
+  await p3.waitForSelector('.lt > .card.main', { timeout: 30000 }).catch(() => fail('תצוגה חדשה: סגירת השינוי לא החזירה את המפה למעלה'));
+  await p3.click('.ltacc-h:has-text("לוח זמנים")');
+  await p3.waitForSelector('.ltacc.open .ltacc-b', { timeout: 10000 }).catch(() => fail('תצוגה חדשה: שורת לוח הזמנים לא נפתחה'));
   if (await p3.isVisible('.kfilter')) fail('תצוגה חדשה: סרגל הקטגוריות עדיין מוצג');
   await p3.click('.dmore'); await p3.click('.lmitem:has-text("לתצוגה הקודמת")');
   await p3.waitForSelector('.kfilter', { state: 'visible', timeout: 10000 }).catch(() => fail('המעבר לתצוגה הקודמת לא החזיר את סרגל הקטגוריות'));
   if (e3.length) fail('חריגות JS בתצוגה החדשה: ' + e3.slice(0, 3).join(' | '));
-  console.log('✓ תצוגה חדשה: סיכום היום, תפריט, לשוניות עמוד הקו ומעבר לתצוגה הקודמת');
+  console.log('✓ תצוגה חדשה: סיכום היום, תפריט, עמוד קו אחד (מפה בתוך השינוי בטלפון) ומעבר לתצוגה הקודמת');
 }
 
 // "שינויים לפי יום" בתצוגה החדשה: אותו עיצוב שורה כמו בדף הראשי (שלמה 08.10)
