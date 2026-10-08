@@ -53,8 +53,15 @@ try{
  await page.route('**/OneSignalSDK.page.js',r=>r.fulfill({body:''}));
  await page.route('**/website-archive-summary.json?*',r=>r.fulfill({contentType:'application/json',body:JSON.stringify(updated?{...summary,counts:{...summary.counts,parsed:summary.counts.parsed+1},updatedAt:'2099-01-01T00:00:00Z'}:summary)}));
  await page.goto(base);
- const status=page.getByRole('region',{name:'מצב האיסוף ההיסטורי'});
- await status.waitFor();updated=true;
- await page.waitForFunction(n=>document.querySelector('[aria-label="מצב האיסוף ההיסטורי"]')?.innerText.includes(n.toLocaleString()+' צילומים פורסמו'),summary.counts.parsed+1,{timeout:45000});
+ const status=page.getByRole('region',{name:'ארכיון אתרי המידע לנוסעים'});
+ await status.waitFor();
+ // לחיצה על שנה מציגה את החברות והאזורים שלה
+ const years=JSON.parse(fs.readFileSync('line-history/data/website-years.json')).years;
+ const top=years.reduce((a,b)=>b.lines>a.lines?b:a);
+ await status.getByRole('button',{name:new RegExp('^'+top.y)}).click();
+ const yr=status.getByRole('region',{name:'שנת '+top.y});await yr.waitFor();
+ if(!(await yr.innerText()).includes(top.ops[0][0]))throw Error('Year panel lacks its main operator');
+ updated=true;
+ await page.waitForFunction(()=>document.querySelector('[aria-label="ארכיון אתרי המידע לנוסעים"]')?.innerText.includes('2099'),null,{timeout:45000});
  console.log('PASS: mobile and desktop source dates, exact stop rows, partial map with six real points, no invented changes, automatic live status update');
 }finally{await browser?.close();server.close();}

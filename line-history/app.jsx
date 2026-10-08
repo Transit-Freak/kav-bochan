@@ -5120,8 +5120,10 @@ function useWebsiteRevision() {
   useEffect(()=>{const update=()=>setRevision(n=>n+1);window.addEventListener("website-history-published",update);return()=>window.removeEventListener("website-history-published",update);},[]);
   return revision;
 }
+// אתרי המידע לנוסעים 2003–2015: לכל שנה אילו חברות ואילו אזורים יש בה, בלחיצה על השנה
+// (שלמה 08.10: בלי "כמה עלה וכמה לא"). website-years.json נבנה ב-tools/website_years.py.
 function WebsiteImportStatus({openLine,onPublished}) {
-  const [data,setData]=useState(null),[error,setError]=useState(false);
+  const [data,setData]=useState(null),[years,setYears]=useState(null),[error,setError]=useState(false),[sel,setSel]=useState(null);
   const stamp=useRef(null),callback=useRef(onPublished);callback.current=onPublished;
   useEffect(()=>{
     let active=true;
@@ -5131,32 +5133,29 @@ function WebsiteImportStatus({openLine,onPublished}) {
         const response=await fetch("data/website-archive-summary.json?v="+Date.now(),{cache:"no-store"});
         if(!response.ok)throw Error(response.status);
         const next=await response.json();if(!active)return;
-        if(stamp.current && stamp.current!==next.updatedAt)callback.current();
+        const changed=stamp.current!==next.updatedAt;
+        if(stamp.current && changed)callback.current();
         stamp.current=next.updatedAt;setData(next);setError(false);
+        if(changed){const r=await fetch("data/website-years.json?v="+Date.now(),{cache:"no-store"});if(r.ok&&active)setYears((await r.json()).years||[]);}
       }catch(e){if(active)setError(true);}
     };
     load();const timer=setInterval(load,30000);document.addEventListener("visibilitychange",load);
     return()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",load);};
   },[]);
-  if(!data)return <div className="card mut" role="status">{error?"מצב האיסוף ההיסטורי טרם זמין. ניסיון עדכון נוסף יתבצע אוטומטית.":"טוען את מצב האיסוף ההיסטורי…"}</div>;
-  const c=data.counts||{},total=Object.values(c).reduce((a,b)=>a+Number(b),0),done=total-(c.pending||0);
-  return <section className="card" aria-label="מצב האיסוף ההיסטורי">
-    <h2>איסוף צילומים היסטוריים</h2>
-    <p>{c.pending?"הנתונים שכבר פורסמו זמינים באתר. יתר הצילומים ממתינים לבדיקה.":"סבב האיסוף הסתיים."} מצב הפרסום מתעדכן אוטומטית.</p>
-    <div className="stats"><span><b>{(c.parsed||0).toLocaleString()}</b> צילומים פורסמו</span><span><b>{(data.routesImported||0).toLocaleString()}</b> חלופות מתועדות</span><span><b>{(c.pending||0).toLocaleString()}</b> צילומים ממתינים</span></div>
-    <progress max={total||1} value={done} aria-label="צילומים שנבדקו" />
-    <p className="mut">{(c.failed||0).toLocaleString()} הורדות שלא הצליחו · {(c.unparsed||0).toLocaleString()} צילומים שלא פוענחו. אלה אינם ביטולי קווים או תחנות.</p>
-    {data.updatedAt&&<p className="mut">נתונים שפורסמו עד {new Date(data.updatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem"})}</p>}
-    {error&&<p role="status">לא הצלחנו לקבל עדכון כרגע. מוצג מצב הפרסום האחרון שהתקבל.</p>}
-    {data.added&&<div className="added">
-      <p><b>נוספו בעדכון האחרון</b> ({new Date(data.added.at).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"})}): {data.added.captures?data.added.captures.toLocaleString()+" צילומים · ":""}{data.added.newRoutes.toLocaleString()} חלופות חדשות{data.added.routes>data.added.newRoutes?" · "+(data.added.routes-data.added.newRoutes).toLocaleString()+" חלופות קיבלו צילום נוסף":""}</p>
-      {(data.added.sample||[]).map(r=><button className="kchip" key={r.rd} onClick={()=>openLine(r.rd)}>{r.new?"חדש · ":""}קו {r.line} · {r.operator} · {fmtD(r.date)}</button>)}
+  if(!data)return <div className="card mut" role="status">{error?"ארכיון אתרי המידע לנוסעים טרם זמין. ניסיון נוסף יתבצע אוטומטית.":"טוען את ארכיון אתרי המידע לנוסעים…"}</div>;
+  const ys=years||[],cur=ys.find(y=>y.y===sel);
+  const list=(arr,unit)=>arr.map(([n,c])=>n+" ("+c.toLocaleString()+" "+unit+")").join(" · ");
+  return <section className="card" aria-label="ארכיון אתרי המידע לנוסעים">
+    <h2>אתרי המידע לנוסעים <span style={{whiteSpace:"nowrap"}}>2003–2015</span></h2>
+    <p>צילומים של אתרי חברות האוטובוסים מארכיון האינטרנט. לחצו על שנה כדי לראות אילו חברות ואילו אזורים יש בה.</p>
+    <div className="years" role="group" aria-label="שנים">{ys.map(y=><button key={y.y} className={"kchip"+(y.y===sel?" on":"")} aria-pressed={y.y===sel} onClick={()=>setSel(y.y===sel?null:y.y)}><b>{y.y}</b> · {y.lines.toLocaleString()} קווים</button>)}</div>
+    {cur&&<div className="added" role="region" aria-label={"שנת "+cur.y}>
+      <p><b>{cur.y}</b>: {cur.lines.toLocaleString()} קווים, מצילומים של {cur.months.length===1?"חודש אחד":cur.months.length+" חודשים"}.</p>
+      <p><b>חברות:</b> {list(cur.ops,"קווים")}</p>
+      {cur.towns.length>0&&<p><b>אזורים עיקריים:</b> {list(cur.towns,"קווים")}</p>}
     </div>}
-    <details><summary>התאריכים והקווים שכבר פורסמו</summary>
-      <p>{(data.dates||[]).map(d=>fmtD(d.date)+" ("+d.captures+" צילומים)").join(" · ")}</p>
-      <p>הצילומים המאוחרים ביותר בארכיון:</p>
-      {(data.recent||[]).map(r=><button className="kchip" key={r.rd} onClick={()=>openLine(r.rd)}>קו {r.line} · {r.operator} · {fmtD(r.date)}</button>)}
-    </details>
+    {data.updatedAt&&<p className="mut">עודכן {new Date(data.updatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem"})}</p>}
+    {error&&<p role="status">לא הצלחנו לקבל עדכון כרגע. מוצג המצב האחרון שהתקבל.</p>}
   </section>;
 }
 function App() {

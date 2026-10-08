@@ -426,3 +426,7 @@ a.whymark:hover { background: #92400e; }
 .whybox { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 9px 12px; margin: 8px 0; line-height: 1.6; }
 .whybox .whymark { width: 18px; height: 18px; font-size: 12px; vertical-align: -3px; margin-left: 4px; }
 .whybox a { white-space: nowrap; }
+
+/* ארכיון אתרי המידע לנוסעים — בחירת שנה (שלמה 08.10) */
+.years { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.years .kchip.on { background: #4c1d95; border-color: #4c1d95; color: #fff; }

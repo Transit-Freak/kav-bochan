@@ -133,3 +133,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # סיכום לפי שנה (חברות ואזורים) — נבנה מחדש יחד עם החודשים, בכל שמירה של האיסוף
+    if not DRY:
+        import website_years
+        website_years.main()
