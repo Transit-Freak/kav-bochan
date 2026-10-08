@@ -2245,6 +2245,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   const [mot12, setMot12] = useState(null);
   useEffect(() => {
     setMot12(null); let ok = true;
+    if (!SHOW_2012_BOX) return undefined;
     const k = (rd.split("-")[0].slice(0, 2) || "0").padStart(2, "0");
     dfetch("data/mot2012-links/" + k + ".json").then((r) => (r.ok ? r.json() : {})).then((m) => { if (ok) setMot12(m[rd] || []); }).catch(() => { if (ok) setMot12([]); });
     return () => { ok = false; };
@@ -3141,8 +3142,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
           isLast={sel == null || sel >= vs.length - 1} />}
         </LtAcc>
-        {(((mot12 && mot12.length > 0) || anc) && !NO_2012.has(lf.tt || "") || lf.magihim2012Match || lf.earlyRelated?.length > 0) && <LtAcc icon="🗂️" title="תיעוד היסטורי" sub={mot12 && mot12.length ? "2012 · " + mot12.length + (mot12.length > 1 ? " מסלולים" : " מסלול") : anc ? "2012" : ""}>
-        {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
+        {SHOW_2012_BOX && (((mot12 && mot12.length > 0) || anc) && !NO_2012.has(lf.tt || "") || lf.magihim2012Match || lf.earlyRelated?.length > 0) && <LtAcc icon="🗂️" title="תיעוד היסטורי" sub={mot12 && mot12.length ? "2012 · " + mot12.length + (mot12.length > 1 ? " מסלולים" : " מסלול") : anc ? "2012" : ""}>
+        {SHOW_2012_BOX && mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
             {mot12.map((x) => (
@@ -3155,7 +3156,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
           </div>
         )}
-        {anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
+        {SHOW_2012_BOX && anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
             {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
@@ -3187,8 +3188,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           </div>
         )}
         {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
-        {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
-        {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
+        {SHOW_2012_BOX && lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
+        {SHOW_2012_BOX && lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
         </LtAcc>}
       </div>
       </> : <>
@@ -3256,8 +3257,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
         {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
-        {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
-        {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
+        {SHOW_2012_BOX && lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
+        {SHOW_2012_BOX && lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
         {lf.tt === "demand" && (
           <div className="ttnote">
             {/* הניסוח הקודם קבע ש"הנסיעה מבוצעת לפי הזמנה מראש". זו פרשנות
@@ -3274,7 +3275,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
         {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
           isLast={sel == null || sel >= vs.length - 1} />}
-        {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
+        {SHOW_2012_BOX && mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
             {mot12.map((x) => (
@@ -3287,7 +3288,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
           </div>
         )}
-        {anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
+        {SHOW_2012_BOX && anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
             {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
@@ -5095,6 +5096,9 @@ const TABS = [
 ];
 // רשת 2012 היא אוטובוסים בלבד — לסוגים האלה אין שם מקבילה
 const NO_2012 = new Set(["rail", "lightrail", "cable", "taxi"]);
+// תיבת "2012" בעמוד הקו (המסלול ב-2012, רצף התחנות, התאמה למגיעים) — הוסרה לבקשת שלמה (08.10: "תוריד את 2012").
+// עמודי קווי 2012 עצמם, האירועים שלהם בציר הזמן והחיפוש — לא השתנו.
+const SHOW_2012_BOX = false;
 const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", demand: "🚐" };
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
