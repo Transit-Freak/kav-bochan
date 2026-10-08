@@ -17,6 +17,7 @@ const server=http.createServer((req,res)=>{
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));let browser;
 try{
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']});
+ { const _np=browser.newPage.bind(browser); browser.newPage=async(...a)=>{const p=await _np(...a);await p.addInitScript(()=>{try{localStorage.lhLite='0';}catch(e){}});return p;}; }   // תצוגה מלאה; החדשה — check_lh_ui
  const base=`http://127.0.0.1:${server.address().port}/line-history/`;
  for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   const page=await browser.newPage({viewport});const errors=[];page.on('pageerror',e=>errors.push(e.message));

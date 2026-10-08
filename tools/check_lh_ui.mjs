@@ -33,6 +33,26 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
   args: ['--no-sandbox'],
 });
+
+// הבדיקות הקיימות רצות על התצוגה הקודמת (המלאה), שנשארה זמינה מהתפריט ⋯; התצוגה החדשה נבדקת בנפרד
+const _rawNewPage = browser.newPage.bind(browser);
+{ const _np = browser.newPage.bind(browser);
+  browser.newPage = async (...a) => { const p = await _np(...a); await p.addInitScript(() => { try { localStorage.lhLite = '0'; } catch (e) {} }); return p; }; }
+// דף בתצוגה החדשה, עם אותן הפניות כמו הדף הראשי
+const _newLitePage = async () => {
+  const p = await _rawNewPage();
+  await p.route('**://unpkg.com/**', (r) => {
+    const u = r.request().url();
+    if (u.endsWith('.css')) return r.fulfill({ contentType: 'text/css', body: '' });
+    if (u.includes('react-dom')) return r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'vendor/react-dom.development.js')) });
+    if (u.includes('react')) return r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'vendor/react.development.js')) });
+    if (u.includes('babel')) return r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'vendor/babel.min.js')) });
+    return r.fulfill({ contentType: 'text/javascript', body: `(function(){var P=new Proxy(function(){},{get:function(t,k){if(k===Symbol.toPrimitive||k==='toString')return function(){return ''};return P;},apply:function(){return P;},construct:function(){return P;}});window.L=P;})();` });
+  });
+  await p.route('**://fonts.g**/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await p.route('**://*.tile.openstreetmap.org/**', (r) => r.fulfill({ body: Buffer.from([]) }));
+  return p;
+};
 const page = await browser.newPage();
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message.slice(0, 140)));
@@ -96,6 +116,28 @@ await page2.waitForSelector('.linehead .badge', { timeout: 60000 })
   .catch(() => fail('קישור ישיר לקו לא נפתח בזמן שהאינדקס בדרך (רגרסיית הדף הלבן)'));
 if (errs2.length) fail('חריגות JS בקישור ישיר: ' + errs2.slice(0, 3).join(' | '));
 console.log('✓ קישור ישיר לקו עולה גם לפני שהאינדקס הגיע (הבאג של שלמה תוקן)');
+
+// ---- התצוגה החדשה (ברירת המחדל באתר; שלמה 08.10) ----
+{
+  const p3 = await _newLitePage();
+  const e3 = [];
+  p3.on('pageerror', (e) => e3.push(e.message.slice(0, 140)));
+  await p3.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p3.waitForSelector('.lite-recent .dayhead', { timeout: 120000 }).catch(() => fail('תצוגה חדשה: סיכום היום לא הופיע'));
+  if (await p3.isVisible('header .stats')) fail('תצוגה חדשה: שורת המספרים עדיין מוצגת');
+  await p3.click('.dmore');
+  await p3.waitForSelector('.lmitem:has-text("לתצוגה הקודמת")', { timeout: 10000 }).catch(() => fail('תצוגה חדשה: אין מעבר לתצוגה הקודמת בתפריט'));
+  await p3.click('.lmx');
+  await p3.locator('.lite-recent .lrow').first().click();
+  await p3.waitForSelector('.ltabs', { timeout: 60000 }).catch(() => fail('תצוגה חדשה: לשוניות עמוד הקו לא הופיעו'));
+  await p3.click('.ltabs button:has-text("שינויים")');
+  await p3.waitForSelector('.tl .ev', { state: 'visible', timeout: 30000 }).catch(() => fail('תצוגה חדשה: לשונית השינויים ריקה'));
+  if (await p3.isVisible('.kfilter')) fail('תצוגה חדשה: סרגל הקטגוריות עדיין מוצג');
+  await p3.click('.dmore'); await p3.click('.lmitem:has-text("לתצוגה הקודמת")');
+  await p3.waitForSelector('.kfilter', { state: 'visible', timeout: 10000 }).catch(() => fail('המעבר לתצוגה הקודמת לא החזיר את סרגל הקטגוריות'));
+  if (e3.length) fail('חריגות JS בתצוגה החדשה: ' + e3.slice(0, 3).join(' | '));
+  console.log('✓ תצוגה חדשה: סיכום היום, תפריט, לשוניות עמוד הקו ומעבר לתצוגה הקודמת');
+}
 
 if (errs.length) fail('חריגות JS: ' + errs.slice(0, 3).join(' | '));
 console.log('✅ בדיקת הקו בזמן עברה');

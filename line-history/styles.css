@@ -446,3 +446,79 @@ a.whymark:hover { background: #92400e; }
 .altlab { font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 1px 7px; background: #ede9fe; color: #5b21b6; white-space: nowrap; }
 .altdesc { display: block; font-size: 12px; color: #6d28d9; font-weight: 600; }
 .lgsep { font-size: 14px; font-weight: 800; color: #475569; margin: 14px 2px 8px; padding-top: 10px; border-top: 2px solid #e2e8f0; }
+
+/* ───────── תצוגה חדשה (body.lite) — פחות מידע על המסך, הפרטים בלחיצה (שלמה 08.10) ─────────
+   "↩ לתצוגה הקודמת" בתפריט ⋯ מסיר את המחלקה ומחזיר את כל הפרטים כמו קודם. */
+header { display: flex; align-items: center; flex-wrap: wrap; gap: 0 10px; }
+header h1 { flex: 1; }
+header .tag, header .stats { flex-basis: 100%; }
+.dmore { border: none; background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.1); border-radius: 12px; width: 42px; height: 42px; font-size: 20px; font-weight: 900; color: #64748b; cursor: pointer; }
+.lmenu-ovl { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.lmenu { background: #fff; width: 100%; max-width: 520px; border-radius: 20px 20px 0 0; padding: 12px 18px 22px; max-height: 85vh; overflow-y: auto; }
+@media (min-width: 700px) { .lmenu-ovl { align-items: center; } .lmenu { border-radius: 18px; } }
+.lmhead { display: flex; align-items: center; margin-bottom: 4px; } .lmhead b { font-size: 17px; flex: 1; }
+.lmx { border: none; background: #f1f5f9; border-radius: 10px; width: 36px; height: 36px; font-size: 15px; cursor: pointer; }
+.lmitem { display: block; width: 100%; text-align: inherit; border: none; background: none; border-bottom: 1px solid #f1f0f7; padding: 13px 2px; font-weight: 700; font-size: 16px; font-family: inherit; color: #0f172a; cursor: pointer; }
+.lmitem small { display: block; font-weight: 500; font-size: 12.5px; color: #64748b; margin-top: 2px; }
+.lmitem:last-child { border-bottom: none; color: #5b21b6; }
+
+body.lite header .tag, body.lite header .stats { display: none; }
+body.lite .tabs { gap: 0; border-bottom: 2px solid #ece9f6; margin: 6px 0 12px; overflow-x: auto; scrollbar-width: none; }
+body.lite .tabs::-webkit-scrollbar { display: none; }
+body.lite .tab { flex: 1 0 auto; background: none; border-radius: 0; padding: 10px 6px; font-size: 13.5px; color: #64748b; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+body.lite .tab.on { background: none; color: #5b21b6; border-bottom-color: #5b21b6; }
+body.lite .notifybox:not(.isopen) { display: none; }
+/* "שינויים לפי יום" ו"קטגוריות" — קישורים קטנים מתחת לחיפוש במקום שתי מסגרות */
+body.lite .card > .katbox:not(.notifybox) { display: inline-block; border: none; margin: 8px 0 0 14px; }
+body.lite .card > .katbox:not(.notifybox) > .kathead { background: none; padding: 4px 0; color: #6d28d9; font-size: 14px; width: auto; }
+body.lite .card > .katbox:not(.notifybox):has(> .katlist) { display: block; border: 1.5px solid #e2e8f0; margin: 8px 0; }
+body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 100%; padding: 10px 13px; }
+
+/* עמוד הבית: היום האחרון בתמצית */
+.lite-recent .dayhead { font-size: 15px; }
+.rsum { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.rsum span { font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: #f5f3ff; color: #5b21b6; }
+.rsum span.low { background: #f1f5f9; color: #64748b; }
+.lite-recent .lrow { align-items: center; }
+.lite-recent .ldest { font-weight: 700; }
+.lite-recent .lop { display: block; font-weight: 500; color: #64748b; font-size: 12.5px; }
+.lite-recent .recmore { margin-top: 8px; }
+
+/* עמוד הקו */
+.lt .crumb { font-size: 13px; color: #64748b; font-weight: 700; margin: 0 0 10px; }
+.lt .crumb .back { background: none; border: none; box-shadow: none; padding: 0; margin: 0; color: #5b21b6; font: inherit; font-weight: 700; cursor: pointer; }
+/* כותרת הקו: רקע בהיר וטקסט כהה — הסגול הכהה עם טקסט עליו היה קשה לקריאה (שלמה 08.10) */
+.lt .linehead { background: #f5f3ff; border: 1px solid #e4dcfb; border-inline-start: 5px solid #5b21b6; color: #0f172a; border-radius: 14px; padding: 12px 14px; row-gap: 8px; }
+.lt .linehead .dest { flex: 1 1 55%; font-weight: 800; font-size: 17px; line-height: 1.4; color: #0f172a; }
+.lt .herosub { flex-basis: 100%; font-size: 13.5px; color: #334155; font-weight: 600; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.herost { background: #dcfce7; color: #166534; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; }
+.herost.gone { background: #fee2e2; color: #991b1b; }
+.lt .linehead + .facts, .lt .whybox + .facts { display: none; }
+.lt .kfilter, .lt .months { display: none; }
+.ltabs { display: flex; gap: 6px; margin: 12px 0; }
+.ltabs button { flex: 1; border: 1px solid #e8e5f3; background: #fff; border-radius: 999px; padding: 9px 4px; font-weight: 700; font-size: 13.5px; font-family: inherit; color: #64748b; cursor: pointer; }
+.ltabs button.on { background: #0f172a; border-color: #0f172a; color: #fff; }
+.ovw { margin: 4px 0 10px; }
+.ovtiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ovtiles button { background: #f5f3ff; border: none; border-radius: 12px; padding: 10px 12px; text-align: inherit; font-family: inherit; cursor: pointer; }
+.ovtiles b { display: block; font-size: 22px; color: #5b21b6; }
+.ovtiles span { font-size: 12.5px; color: #64748b; font-weight: 700; }
+.ovlast { margin-top: 12px; border: 1px solid #ede9fe; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; line-height: 1.6; }
+.ovlast .ad { color: #15803d; font-weight: 700; } .ovlast .rm { color: #b91c1c; font-weight: 700; }
+.ovall, .evmap { border: none; background: none; color: #5b21b6; font-weight: 800; font-size: 14px; font-family: inherit; padding: 8px 0 0; cursor: pointer; }
+.ltog { display: flex; background: #ece9f6; border-radius: 12px; padding: 3px; margin: 4px 0 10px; }
+.ltog button { flex: 1; border: none; background: none; border-radius: 10px; padding: 7px 0; font-weight: 700; font-size: 13.5px; font-family: inherit; color: #64748b; cursor: pointer; }
+.ltog button.on { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+.lt .yh { font-size: 14px; font-weight: 800; color: #5b21b6; margin: 12px 2px 4px; }
+/* שינוי סגור: תאריך, סוג ושורה אחת; הפרטים, המקור וההשוואה — כשהוא נבחר */
+.lt .ev .evsrc { display: none; }
+.lt .ev.sel .evsrc { display: block; }
+.lt .ev:not(.sel) .sub, .lt .ev:not(.sel) .cmpbtn, .lt .ev:not(.sel) .rvflag { display: none; }
+.lt .ev:not(.sel) .evnote { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+/* הלשוניות */
+.lt-ov .tl, .lt-ov .ltog, .lt-ov .cmpbar, .lt-ov .khint, .lt-ov .schedbox, .lt-ov .a2012, .lt-ov .early-detail { display: none; }   /* 2012 — רק בלשונית התחנות (שלמה 08.10: "די מיותר") */
+.lt-ch .a2012, .lt-ch .alt-selector, .lt-ch .altcmp, .lt-ch .schedbox, .lt-ch .early-detail, .lt-ch .ttnote, .lt-ch .whybox { display: none; }
+.lt-st .tl, .lt-st .ltog, .lt-st .alt-selector, .lt-st .altcmp, .lt-st .cmpbar, .lt-st .khint, .lt-st .early-detail { display: none; }
+@media (max-width: 860px) {
+  .lt-ov .card.main, .lt-ch .card.main { display: none; }
+}
