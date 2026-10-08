@@ -2311,6 +2311,15 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           const vs2 = m.versions || [], keep = new Set(), all = new Set();
           vs2.forEach((x, i) => { if (x.hid) return; const dk = dispKind(x, i, vs2); all.add(dk); if (cats.some((c) => evInCat(x, i, vs2, c))) keep.add(dk); });
           if (keep.size && keep.size < all.size) setOffK(new Set([...all].filter((k) => !keep.has(k))));
+        } else {
+          // ברירת המחדל (שלמה 08.10): כל סוגי השינויים בסרגל, אבל השגרתיים (לו"ז, תגבור, תיקוני רישום)
+          // כבויים — לחיצה על הקטגוריה מדליקה אותה. השינוי שהקישור הוביל אליו נשאר דלוק תמיד,
+          // וקו שכל השינויים שלו שגרתיים מוצג כולו ולא כעמוד ריק.
+          const vs2 = m.versions || [], all = new Set();
+          vs2.forEach((x, i) => { if (!x.hid) all.add(dispKind(x, i, vs2)); });
+          const low = new Set([...all].filter((k) => LOW_KINDS.has(k)));
+          if (initDate && s != null && vs2[s]) low.delete(dispKind(vs2[s], s, vs2));
+          if (low.size && low.size < all.size) setOffK(low);
         } })
       .catch((e) => { if (ok) setErr(e); });
     return () => { ok = false; };
@@ -2998,6 +3007,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             ) : null}
           </div>
         )}
+        {kindsHere.length > 1 && !initCats && offK.size > 0 && (
+          <div className="khint">🔎 שינויי לו״ז, תגבור ותיקוני רישום כבויים. לחיצה על קטגוריה מדליקה אותה, ו"הכול" מציג את כל השינויים.</div>
+        )}
         {kindsHere.length > 1 && initCats && offK.size > 0 && (
           <div className="khint">🔎 מוצגים רק השינויים מהקטגוריה שבחרת בחיפוש. "הכול" מציג את כל השינויים בקו.</div>
         )}
@@ -3350,6 +3362,9 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               </div>
             ) : null}
           </div>
+        )}
+        {kindsHere.length > 1 && !initCats && offK.size > 0 && (
+          <div className="khint">🔎 שינויי לו״ז, תגבור ותיקוני רישום כבויים. לחיצה על קטגוריה מדליקה אותה, ו"הכול" מציג את כל השינויים.</div>
         )}
         {kindsHere.length > 1 && initCats && offK.size > 0 && (
           <div className="khint">🔎 מוצגים רק השינויים מהקטגוריה שבחרת בחיפוש. "הכול" מציג את כל השינויים בקו.</div>
@@ -5867,7 +5882,9 @@ function App() {
         <LinePage rd={rd} lineGone={idx ? (l => !(l?.historicalOnly && !lineGoneAt(l)))(idx.lines.find(l => l.rd === rd)) && !mktAlive[rd.split("-")[0]] : false}
           sibs={lineSiblings(idx, rd)}
           onSwitch={switchLine} onBack={backToList} initDate={rdDate}
-          initCats={[...kats].sort().join(",")} lite={lite} />
+          initCats={[...kats].sort().join(",")} lite={false} />
+        /* עמוד הקו — בעיצוב הקודם גם בתצוגה החדשה (שלמה 08.10: "הדף הראשי בעיצוב החדש, ובכניסה לקו
+           העיצוב הישן"). עמוד הקו "הקל" נשאר בקוד (lite) אם יוחלט לחזור אליו */
       ) : (
         <div className="card">
           {/* "שינויים לפי יום" באותו עמוד, מתחת לקטגוריות, והקטגוריות המסומנות
