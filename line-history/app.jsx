@@ -529,9 +529,10 @@ function matchesRouteSearch(line, query, data, date, prefix = false) {
   const towns = citySearchText(data, line.rd, date);
   return tokens.every(t => {
     // A line number must not match random digits inside an archive route ID.
-    if (/^\d+[א-ת]?$/.test(t)) return String(line.line || "").startsWith(t) || String(line.rd || "").startsWith(t);
+    // מק"ט נבדק רק כשמקלידים 4 ספרות ומעלה; "22" לא אמור למצוא את קו 6 בגלל המק"ט 22006
+    if (/^\d+[א-ת]?$/.test(t)) return String(line.line || "").startsWith(t) || (t.length >= 4 && String(line.rd || "").startsWith(t));
     return base.includes(t) || towns.includes(t) ||
-      (prefix && (String(line.line || "").startsWith(t) || String(line.rd || "").startsWith(t)));
+      (prefix && (String(line.line || "").startsWith(t) || (t.length >= 4 && String(line.rd || "").startsWith(t))));
   });
 }
 function routeSearchRank(line, query) {
@@ -3338,6 +3339,52 @@ function attach2012Groups(idx, data) {
   }
   return {...idx, lines: idx.lines.map(l => tags.has(l.rd) ? {...l, ...tags.get(l.rd)} : l)};
 }
+// קיבוץ תוצאות החיפוש (שלמה 08.10): כרטיס אחד לכל קו — לפי המק"ט — והכיוונים והחלופות בתוכו.
+// שורות בלי מק"ט (ארכיון 2012, אתרי מידע) מצטרפות לקו עם אותו מספר, מפעיל ועיר קצה.
+// קווים שרק מתחילים במספר שחיפשו מופיעים אחריהם, תחת "קווים דומים".
+// היעד בנוי כך: "תחנה-עיר<->תחנה-עיר-<כיוון><חלופה>"; העיר היא הקטע האחרון בכל צד
+const endCities = (d) => String(d || "").replace(/-\d+[#א-ת]?$/, "").split("<->").map((s) => { const p = s.split("-"); return p[p.length - 1].trim(); }).filter(Boolean);
+function groupSearch(list, needle) {
+  const num = citySearchNorm(needle || "").split(/\s+/).find((t) => /^\d+[א-ת]?$/.test(t)) || null;
+  const groups = [], byKey = new Map(), loose = [];
+  const add = (key, l) => { let g = byKey.get(key); if (!g) { g = { key, line: l.line, op: l.op, items: [] }; byKey.set(key, g); groups.push(g); } g.items.push(l); };
+  for (const l of list) { const mk = String(l.rd).split("-")[0]; if (/^\d+$/.test(mk) && String(l.rd).includes("-")) add(mk, l); else loose.push(l); }
+  for (const l of loose) {
+    const cs = endCities(l.dest);
+    const g = groups.find((x) => x.line === l.line && x.op === l.op && x.items.some((y) => endCities(y.dest).some((c) => cs.includes(c))));
+    if (g) g.items.push(l); else add("x|" + l.rd, l);
+  }
+  if (!num) return { exact: groups, similar: [], num };
+  return { exact: groups.filter((g) => g.line === num), similar: groups.filter((g) => g.line !== num), num };
+}
+function SearchGroup({ g, open, onToggle, renderRow }) {
+  const fam = String(g.items[0].rd).split("-")[0];
+  const [desc, setDesc] = useState(null);
+  useEffect(() => { if (!open || !/^\d+$/.test(fam)) return; let ok = true; loadAltDesc(fam).then((m) => { if (ok) setDesc(m || {}); }); return () => { ok = false; }; }, [open, fam]);
+  if (g.items.length === 1) return renderRow(g.items[0]);
+  const live = g.items.filter((l) => !lineGoneAt(l));
+  const dirs = new Set(g.items.filter((l) => /^\d+-/.test(l.rd)).map((l) => String(l.rd).split("-")[1])).size;
+  const ends = endCities(g.items[0].dest);
+  // תווית לכל חלופה: ראשית / מקוצר (מתחיל או מסתיים במקום אחר) / חלופה, ותיאור קצר אם יש
+  const label = (l) => {
+    if (!/^\d+-/.test(l.rd)) return [String(l.rd).startsWith("website") ? "אתר מידע" : "ארכיון 2012", null];
+    const d = desc && desc[l.rd], alt = String(l.rd).split("-")[2];
+    if (d && /^(מתחיל|מסתיים)/.test(d)) return ["מקוצר", d];
+    if (alt === "#" || (d && d.startsWith("חלופה ראשית"))) return ["ראשית", null];
+    return ["חלופה", d && !/^(בסיס ההשוואה|אותו מסלול|אין רצף)/.test(d) ? d : null];
+  };
+  return (
+    <div className="lgroup">
+      <button className="lghead" aria-expanded={open} onClick={onToggle}>
+        <span className="badge sm">{g.line || TT_ICON[g.items[0].tt] || "—"}</span>
+        <span className="lgop">{g.op}</span>
+        {!live.length && <span className="k" style={{ background: "#7f1d1d" }}>הקו בוטל</span>}
+        <span className="lgarrow" aria-hidden="true">{open ? "▴" : "▾"}</span>
+        <span className="lgmeta">{ends.length ? ends.join(" ↔ ") + " · " : ""}{dirs > 1 ? dirs + " כיוונים · " : ""}{g.items.length} חלופות</span>
+      </button>
+      {open && <div className="lgitems">{[...g.items].sort((a, b) => (lineGoneAt(a) ? 1 : 0) - (lineGoneAt(b) ? 1 : 0)).map((l) => { const [t, d] = label(l); return renderRow(l, t, d); })}</div>}
+    </div>);
+}
 function collapse2012Rows(rows, meta = null) {
   const seen = new Set();
   return rows.filter(r => {
@@ -5292,6 +5339,9 @@ function App() {
   const isLineGone = (l) => !!lineGoneAt(l) && !mktAlive[l.rd.split("-")[0]];
   // הסינון והמיון של 13 אלף שורות ב-useMemo: קודם הם רצו מחדש גם ברינדורים
   // שאינם קשורים לחיפוש — פתיחת קטגוריות, "הצג עוד" — תקיעות מורגשת בנייד
+  // כרטיסי הקווים שנפתחו או נסגרו בחיפוש (הראשון פתוח מעצמו); חיפוש חדש מאפס
+  const [gOpen, setGOpen] = useState(() => new Set());
+  useEffect(() => setGOpen(new Set()), [dq, kats]);
   const searchRes = useMemo(() => {
     const needle = dq.trim();
     if (!idx || (!needle && !kats.size)) return { list: [], total: 0 };
@@ -5427,10 +5477,12 @@ function App() {
             <div className="empty">טוען את רשימת הקווים — החיפוש יעבוד בעוד רגע…</div>
           ) : (needle || kats.size > 0) ? (
             <div className="llist">
-              {list.map((l) => (
+              {(() => {
+                const renderRow = (l, lab, ad) => (
                 <a key={l.rd} className="lrow" href={lineHref(l.rd)}
                   onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(l.rd); }}>
                   <span className="badge sm">{l.line || TT_ICON[l.tt] || "—"}</span>
+                  {lab && <span className="altlab">{lab}</span>}
                   {l.tt === "rail" && <WhyMark rd={l.rd} />}
                   {lineGoneAt(l) && (isLineGone(l) ? (
                     <span className="k" style={{ background: isRemovedYear(l) ? "#7f1d1d" : "#dc2626" }}>
@@ -5441,12 +5493,20 @@ function App() {
                       {isRemovedYear(l) ? "חלופה בוטלה — מעל שנה" : "חלופה בוטלה"}
                     </span>
                   ))}
-                  <span className="ldest">{l.dest}</span>
+                  <span className="ldest">{l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
                   <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
-                </a>
-              ))}
+                </a>);
+                const G = groupSearch(list, needle);
+                const isOpen = (g, i, first) => (first && i === 0) ? !gOpen.has(g.key) : gOpen.has(g.key);
+                const tog = (k) => setGOpen((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
+                return <>
+                  {G.exact.map((g, i) => <SearchGroup key={g.key} g={g} open={isOpen(g, i, true)} onToggle={() => tog(g.key)} renderRow={renderRow} />)}
+                  {G.similar.length > 0 && <div className="lgsep">{G.exact.length ? "קווים דומים" : "אין קו " + G.num + " — קווים דומים"}</div>}
+                  {G.similar.map((g, i) => <SearchGroup key={g.key} g={g} open={isOpen(g, i, !G.exact.length)} onToggle={() => tog(g.key)} renderRow={renderRow} />)}
+                </>;
+              })()}
               {list.length === 0 && (
                 <div className="empty">{kats.size > 0 && !needle
                   ? "אין עדיין קווים בקטגוריות שסימנתם — קטגוריות של מסלול ותחנות מצטברות מההשוואות היומיות מכאן והלאה."

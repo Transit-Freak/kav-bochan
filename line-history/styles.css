@@ -430,3 +430,18 @@ a.whymark:hover { background: #92400e; }
 /* סיכום השנה של אתרי המידע לנוסעים, בתוך "שינויים לפי יום" (שלמה 08.10) */
 .wysum { background: #f5f3ff; border: 1px solid #e9e5ff; border-radius: 12px; padding: 8px 14px; margin: 6px 0 12px; font-size: 14px; line-height: 1.6; }
 .wysum p { margin: 4px 0; }
+
+/* תוצאות החיפוש: כרטיס אחד לכל קו, והחלופות בתוכו (שלמה 08.10) */
+.lgroup { border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; margin: 0 0 8px; overflow: hidden; }
+.lghead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; width: 100%; border: none; background: none; text-align: inherit; font: inherit; color: inherit; padding: 10px 12px; cursor: pointer; }
+.lghead:hover { background: #f8fafc; }
+.lgop { font-weight: 800; font-size: 14.5px; }
+.lgmeta { flex-basis: 100%; font-size: 12.5px; color: #64748b; }
+.lgarrow { margin-inline-start: auto; color: #6d28d9; font-weight: 800; }
+.lgitems { border-top: 1px dashed #e2e8f0; padding: 4px 8px 6px; }
+.lgitems .lrow { border: none; border-bottom: 1px solid #f1f5f9; border-radius: 0; margin: 0; box-shadow: none; }
+.lgitems .lrow:last-child { border-bottom: none; }
+.lgitems .lrow .badge { display: none; }   /* מספר הקו כבר בכותרת הכרטיס */
+.altlab { font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 1px 7px; background: #ede9fe; color: #5b21b6; white-space: nowrap; }
+.altdesc { display: block; font-size: 12px; color: #6d28d9; font-weight: 600; }
+.lgsep { font-size: 14px; font-weight: 800; color: #475569; margin: 14px 2px 8px; padding-top: 10px; border-top: 2px solid #e2e8f0; }
