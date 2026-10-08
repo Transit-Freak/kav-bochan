@@ -936,6 +936,16 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
     }
     const curCodes = new Set((curStops || []).map((s) => s[0]));
     const prevCodes = new Set((prevStops || []).map((s) => s[0]));
+    // החלפת מק"ט: תחנה שירדה ותחנה חדשה באותו שם ובאותו מקום (אותו כלל כמו
+    // splitRenumbers ברשימה) — זו אותה תחנה עם מספר חדש. בלי זה המפה סימנה
+    // באדום תחנות שהרשימה לא מונה כ"ירדו" (קו 94 של קווים: 3 אדומות מול 1, שלמה 08.10)
+    const renumNew = new Map(), renumOld = new Set();
+    (prevStops || []).forEach((s) => {
+      if (curCodes.has(s[0]) || !s[1]) return;
+      const t = (curStops || []).find((c) => !prevCodes.has(c[0]) && !renumNew.has(c[0]) && c[1] === s[1] &&
+        Math.abs(c[2] - s[2]) < 0.005 && Math.abs(c[3] - s[3]) < 0.005);
+      if (t) { renumNew.set(t[0], s[0]); renumOld.add(s[0]); }
+    });
     // שם התחנה נפתח בחלון קופץ (popup) — הוא מוצמד לעוגן של התחנה והמפה
     // זזה אליו לבד, אז השם תמיד מוצג במקום הנכון גם בקצה המפה ובנייד.
     // האיבר החמישי בתחנה הוא מגבלת עלייה/ירידה מהפיד: אחת מכל תשע עצירות
@@ -954,17 +964,17 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
       // הגרסה הקודמת עשויה להיות שינוי תדירות בלי רצף תחנות, ואז אין מול מה
       // להשוות. רשימת התחנות שנוספו כבר חושבה בצנרת ונשמרה על הגרסה — היא
       // המקור האמין לסימון, ולא השוואה מול גרסה שאין בה גאומטריה.
-      const isNew = addedCodes ? addedCodes.has(s[0]) : (prevStops && !prevCodes.has(s[0]));
+      const isNew = !renumNew.has(s[0]) && (addedCodes ? addedCodes.has(s[0]) : (prevStops && !prevCodes.has(s[0])));
       const m = L.circleMarker([s[2], s[3]], {
         radius: isNew ? 8 : 5, color: isNew ? "#fff" : "#4c1d95", weight: 2,
         fillColor: isNew ? "#16a34a" : "#fff", fillOpacity: 1, opacity: focused && !isNew ? 0.4 : 1,
       }).addTo(map)
-        .bindPopup(popHtml(s, isNew ? "🟢 תחנה שנוספה בגרסה זו" : ""), { className: "lh-pop", offset: [0, -4] });
+        .bindPopup(popHtml(s, isNew ? "🟢 תחנה שנוספה בגרסה זו" : renumNew.has(s[0]) ? "מק״ט חדש לתחנה (קודם " + esc(String(renumNew.get(s[0]))) + ")" : ""), { className: "lh-pop", offset: [0, -4] });
       // שם התחנה מוצג רק בלחיצה (popup צמוד לתחנה) — תוויות ריחוף בוטלו
       // לגמרי: הן נתקעו פתוחות והציגו שם כפול/ישן במקום אחר על המפה
     });
     (prevStops || []).forEach((s) => {
-      if (curCodes.has(s[0])) return;
+      if (curCodes.has(s[0]) || renumOld.has(s[0])) return;
       const m = L.circleMarker([s[2], s[3]], { radius: 8, color: "#dc2626", weight: 3, fillColor: "#fff", fillOpacity: 1 })
         .addTo(map)
         .bindPopup(popHtml(s, "🔴 תחנה שירדה מהקו בגרסה זו"), { className: "lh-pop", offset: [0, -4] });
@@ -2642,6 +2652,24 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   const shape12 = sh12 ? decodeShape(sh12.pl) : null;
   // כשפותחים את 2012 המפה מציגה רק את מסלול 2012; כפתור מחזיר את שתי השכבות יחד
   const m12only = !!(show12 && only12 && stops12 && stops12.length);
+  // גודל הרכב, סוג הקו והנגישות — בשורת הפרטים, ובתצוגה החדשה גם בכותרת הקו (שלמה 08.10: "לאן נעלם סוג הרכב ונגישות")
+  const vehEl = (() => {
+    // ביטוי אחד: "מיניבוס עירוני נגיש" — גודל הרכב וסוג הקו מרישוי משרד
+    // התחבורה, והנגישות מהפיד הארצי (שלמה 06.09: "פשוט לרשום מיניבוס עירוני
+    // נגיש"). "אוטובוס" נשאר כמילה כי "אוטובוס עירוני נגיש" קריא; "לא מוגדר"
+    // לא נכתב — נשאר רק סוג הקו.
+    const VSZ = { "אוטובוס": "אוטובוס", "מפרקי": "אוטובוס מפרקי", "מיניבוס": "מיניבוס", "מידיבוס": "מידיבוס" };
+    const what = [VSZ[lf.vsz] || "", lf.vt || ""].filter(Boolean).join(" ");
+    if (lf.wa !== "1" && lf.wa !== "2")
+      return what ? <span className="vsz" title="גודל הרכב וסוג הקו שנקבעו לקו ברישוי משרד התחבורה"> · 🚌 {what}</span> : null;
+    const chg = [...vs].reverse().find((v) => v.k === "access" || String(v.note || "").includes("הנגישות שוּנתה"));
+    const since = chg ? " מאז " + fmtD(chg.d) : "";
+    const tip = (lf.wa === "1" ? "לפי הפיד הארצי, הקו מונגש לכיסא גלגלים" : "לפי הפיד הארצי, הקו אינו מונגש לכיסא גלגלים")
+      + (chg ? " — השינוי נקלט בפיד ב-" + fmtD(chg.d) : "") + (what ? " · גודל הרכב וסוג הקו לפי רישוי משרד התחבורה: " + what : "");
+    // סמל הנגישות רק כשהקו נגיש; לקו שאינו נגיש — סמל אוטובוס והמילים (שלמה 06.09)
+    if (lf.wa === "1") return <span className="wa yes" title={tip}> · ♿ {what ? what + " " : ""}נגיש{since}</span>;
+    return <span className="wa no" title={tip}> · {what ? "🚌 " + what + " · " : ""}אינו נגיש{since}</span>;
+  })();
   return (
     <div className={"linewrap" + (lite ? " lt lt-" + ltab : "")}>
       <div className="card side">
@@ -2650,7 +2678,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
         <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
-          {lite && <span className="herosub">{lf.op}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
+          {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
           {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
@@ -2689,23 +2717,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               בהערה. לקווים שלא נצפה בהם שינוי — תג בלי תאריך, לא תאריך מומצא. */}
           {/* גודל הרכב וסוג הקו מהרישוי נכתבים בביטוי אחד ליד הנגישות —
               "מיניבוס עירוני נגיש" (שלמה 06.09); שינויים בהם — קטגוריה בציר הזמן */}
-          {(() => {
-            // ביטוי אחד: "מיניבוס עירוני נגיש" — גודל הרכב וסוג הקו מרישוי משרד
-            // התחבורה, והנגישות מהפיד הארצי (שלמה 06.09: "פשוט לרשום מיניבוס עירוני
-            // נגיש"). "אוטובוס" נשאר כמילה כי "אוטובוס עירוני נגיש" קריא; "לא מוגדר"
-            // לא נכתב — נשאר רק סוג הקו.
-            const VSZ = { "אוטובוס": "אוטובוס", "מפרקי": "אוטובוס מפרקי", "מיניבוס": "מיניבוס", "מידיבוס": "מידיבוס" };
-            const what = [VSZ[lf.vsz] || "", lf.vt || ""].filter(Boolean).join(" ");
-            if (lf.wa !== "1" && lf.wa !== "2")
-              return what ? <span className="vsz" title="גודל הרכב וסוג הקו שנקבעו לקו ברישוי משרד התחבורה"> · 🚌 {what}</span> : null;
-            const chg = [...vs].reverse().find((v) => v.k === "access" || String(v.note || "").includes("הנגישות שוּנתה"));
-            const since = chg ? " מאז " + fmtD(chg.d) : "";
-            const tip = (lf.wa === "1" ? "לפי הפיד הארצי, הקו מונגש לכיסא גלגלים" : "לפי הפיד הארצי, הקו אינו מונגש לכיסא גלגלים")
-              + (chg ? " — השינוי נקלט בפיד ב-" + fmtD(chg.d) : "") + (what ? " · גודל הרכב וסוג הקו לפי רישוי משרד התחבורה: " + what : "");
-            // סמל הנגישות רק כשהקו נגיש; לקו שאינו נגיש — סמל אוטובוס והמילים (שלמה 06.09)
-            if (lf.wa === "1") return <span className="wa yes" title={tip}> · ♿ {what ? what + " " : ""}נגיש{since}</span>;
-            return <span className="wa no" title={tip}> · {what ? "🚌 " + what + " · " : ""}אינו נגיש{since}</span>;
-          })()}
+          {vehEl}
           {/* כמה נסיעות מתוכננות יש לחלופה היום. "קיים בפיד" אינו "פועל":
               הפיד מפרסם קווים לפני הפתיחה, והקו הירוק בירושלים נכנס עם
               נסיעה אחת בכיוון מול 680 של הקו הירוק בתל אביב. המספר מוצג
@@ -3455,6 +3467,8 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
 // סוגי שינוי "שגרתיים": לו"ז, תגבור, צילום ותיקוני רישום. בתצוגה החדשה הם מקופלים כברירת מחדל
 const LOW_KINDS = new Set(["baseline", "snapshot", "freq", "sched", "times", "redraw", "vehicle", "ltype", "access", "renum", "renamed", "board", "platform"]);
 // "תחנה-עיר<->תחנה-עיר-1#" → "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה"
+// התצוגה החדשה — כדי שרכיבים עמוק בעץ (כמו "שינויים לפי יום") יידעו עליה בלי להעביר prop בכל שלב
+const LiteCtx = React.createContext(false);
 function routeTitle(dest) {
   if (!dest) return "";
   const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p[p.length - 1].trim() }; });
@@ -3480,6 +3494,7 @@ function lineSiblings(idx, rd) {
 }
 
 function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines" }) {
+  const lite = React.useContext(LiteCtx);
   const citySearch = useRouteCities();
   const earlyMonths = useHistoricalMonths(mode);
   const [regularMonths, setRegularMonths] = useState([]);
@@ -3706,13 +3721,20 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 if (shown >= lim) return null;
                 shown++;
                 const m = meta[c.rd] || {};
+                const kk = <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>;
                 return (
-                  <a key={c.rd + c.k + i} className="lrow" href={lineHref(c.rd)}
+                  <a key={c.rd + c.k + i} className={"lrow" + (lite ? " lite-row" : "")} href={lineHref(c.rd)}
                     onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
                     <span className="badge sm">{c.line || TT_ICON[m.tt] || "—"}</span>
-                    <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
-                    <span className="ldest">{m.dest || rdTxt(c.rd)}</span>
-                    <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
+                    {lite ? <>
+                      {/* כמו "החשובים של היום" בדף הראשי (שלמה 08.10): "עיר – עיר", החברה בקטן, סוג השינוי בסוף */}
+                      <span className="ldest">{routeTitle(m.dest) || rdTxt(c.rd)}<small className="lop">{m.op ? m.op + " · " : ""}מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></small></span>
+                      {kk}
+                    </> : <>
+                      {kk}
+                      <span className="ldest">{m.dest || rdTxt(c.rd)}</span>
+                      <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
+                    </>}
                     {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
@@ -5493,6 +5515,7 @@ function App() {
   const { list, total } = searchRes;
   const changed = idx ? idx.lines.filter((l) => (l.ks||[]).some(k=>!["baseline","snapshot","times"].includes(k))).length : 0;
   return (
+    <LiteCtx.Provider value={lite}>
     <div className="wrap">
       <RecheckNotice />
       <CitySearchStatus state={citySearch} />
@@ -5680,6 +5703,7 @@ function App() {
         היסטוריה: אתרי המידע לנוסעים ב־Internet Archive (2003–2015), מרחב ו־Internet Archive (2012), מגיעים ו־OpenStreetMap (2012), רכבת פתוחה (2013–2014), אוטובוס פתוח והסדנא לידע ציבורי (2015–2018, 2022–2026), TransitFeeds/OpenMobilityData (2017–2022). פירוט וקישורים בסעיף המקורות שמעל.
       </footer>
     </div>
+    </LiteCtx.Provider>
   );
 }
 
