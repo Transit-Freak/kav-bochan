@@ -1965,9 +1965,10 @@ function MyFollows({ bump, onChange }) {
 // הרשמה מדף הקו (שלמה 13.09): לוחצים על עיר, בוחרים סוגי שינוי ותדירות, ונרשמים —
 // זו אותה הרשמה כמו במרכז ההתראות בעמוד הראשי: העיר מצטרפת לרשימת הערים שם,
 // והתדירות וסוגי השינוי משותפים לכל הערים.
-function LineFollow({ cities }) {
+function LineFollow({ cities, compact }) {
   const readN = () => { try { const n = JSON.parse(localStorage.kbNotify || "{}"); if (n.city && !n.cities) n.cities = [n.city]; return n; } catch (e) { return {}; } };
   const [openC, setOpenC] = useState(null);
+  const [wide, setWide] = useState(false);   // תצוגה חדשה: סמל 🔔 אחד, וכפתורי הערים רק אחרי לחיצה
   const [gs, setGs] = useState(() => new Set(readN().gs || KIND_GROUPS_N.map((g) => g.tag)));
   const [freq, setFreq] = useState(() => readN().freq || "1");
   const [st, setSt] = useState("");
@@ -1985,6 +1986,11 @@ function LineFollow({ cities }) {
     pushTags(); setSt("ההרשמה ל" + c + " הוסרה"); setBump((b) => b + 1);
   };
   const pill = { display: "flex", alignItems: "center", gap: 5, border: "1px solid #e2e8f0", borderRadius: 999, padding: "4px 10px", fontWeight: 400 };
+  if (compact && !wide) {
+    const on = cities.some(isOn);
+    return <button className="sharebtn ico" title={on ? "רשומים להתראות על קווי העיר — לחיצה לפרטים" : "הרשמה להתראות על שינויים בקווים של העיר"}
+      aria-label="התראות" onClick={() => setWide(true)}>🔔{on ? "✓" : ""}</button>;
+  }
   return <>
     {cities.map((c) => isOn(c)
       ? <button key={c} className="sharebtn" title={"רשומים להתראות על קווי " + c + " — לחיצה מסירה את העיר מההרשמה"} onClick={() => remove(c)}>🔔 רשומים: {c} ✓</button>
@@ -2201,6 +2207,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   const [sel, setSel] = useState(null);   // אינדקס גרסה נבחרת
   const detailRef = useRef(null);
   const selectEvent = (i, event) => {
+    // בתצוגה החדשה לחיצה שנייה על השינוי שנבחר סוגרת אותו (והמפה חוזרת למעלה)
+    if (lite && i === sel) { setSel(null); return; }
     setSel(i);
     if(event.k === "sched" || event.k === "freq"){
       requestAnimationFrame(()=>{
@@ -2211,10 +2219,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
     }
   };
   const [mon, setMon] = useState("");
-  // תצוגה חדשה: לשוניות סקירה / שינויים / תחנות, ו"חשובים" כברירת מחדל (שלמה 08.10)
-  const [ltab, setLtab] = useState(() => (initCats ? "ch" : "ov"));
+  // תצוגה חדשה: עמוד אחד בלי לשוניות (שלמה 08.10: "יותר מדי כפתורים בנפרד") — "חשובים" כברירת
+  // מחדל, 8 השינויים הראשונים ו"עוד", ובטלפון המפה של שינוי שנבחר נפתחת בתוך הכרטיס שלו
   const [impOnly, setImpOnly] = useState(true);
-  useEffect(() => { setLtab(initCats ? "ch" : "ov"); setImpOnly(true); }, [rd]);
+  const [ltMore, setLtMore] = useState(false);
+  useEffect(() => { setImpOnly(true); setLtMore(false); }, [rd]);
+  const [isPhone, setIsPhone] = useState(() => { try { return matchMedia("(max-width: 860px)").matches; } catch (e) { return false; } });
+  useEffect(() => { try { const m = matchMedia("(max-width: 860px)"); const f = () => setIsPhone(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); } catch (e) { return undefined; } }, []);
+  const [evSlot, setEvSlot] = useState(null);
   const [offK, setOffK] = useState(() => new Set());   // קטגוריות שכובו בעמוד הקו
   const [cmpI, setCmpI] = useState(null);              // גרסת בסיס להשוואה חופשית
   const [onlyCur, setOnlyCur] = useState(false);       // מפה בלי שכבת העבר
@@ -2324,6 +2336,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
     .filter((x) => !x.v.hid && (!mon || x.v.d.slice(0, 7) === mon) && !offK.has(dispKind(x.v, x.i, vs))).reverse();
   const impN = shownAll.filter((x) => !LOW_KINDS.has(dispKind(x.v, x.i, vs))).length;
   const shown = lite && impOnly && impN ? shownAll.filter((x) => !LOW_KINDS.has(dispKind(x.v, x.i, vs))) : shownAll;
+  const LT_N = 8;
+  const shownL = lite && !ltMore && shown.length > LT_N && !shown.slice(LT_N).some((x) => x.i === sel) ? shown.slice(0, LT_N) : shown;
   // הקטגוריות שקיימות בקו הזה בפועל, לפי שכיחות — סרגל כיבוי/הדלקה.
   // שלוש קבוצות מאוחדות כאן ולא בתווית שעל האירוע: בסרגל הן שאלה אחת
   // ("להציג שינויי תחנות?") ואילו על האירוע עצמו ההבחנה כן נושאת מידע.
@@ -2670,332 +2684,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
     if (lf.wa === "1") return <span className="wa yes" title={tip}> · ♿ {what ? what + " " : ""}נגיש{since}</span>;
     return <span className="wa no" title={tip}> · {what ? "🚌 " + what + " · " : ""}אינו נגיש{since}</span>;
   })();
-  return (
-    <div className={"linewrap" + (lite ? " lt lt-" + ltab : "")}>
-      <div className="card side">
-        {lite
-          ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
-          : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
-        {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
-          {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
-          {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
-            onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
-          {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
-          <button className="sharebtn" title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
-            onClick={(e) => {
-              // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
-              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + fsafe(rd) + ".html";
-              const b = e.currentTarget;
-              // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
-              // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
-              if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
-              const t = b.textContent;
-              const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
-              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
-            }}>🔗 שיתוף</button>
-          {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
-              מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
-          <LineFollow cities={destCities(lf.dest)} />
-        </div>
-        {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
-        {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
-            (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
-        {why && <div className="whybox" id="why">
-          <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
-          <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
-          <a href={why.url} target="_blank" rel="noopener noreferrer">המקור: {why.source}{why.published ? ", " + fmtD(why.published) : ""} ←</a>
-        </div>}
-        <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
-          {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
-          {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
-          {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
-          {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
-              אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
-              נגישות, התג מציין מאיזה תאריך המצב הנוכחי; שינוי שקרה יחד עם
-              שינוי מסלול מסווג route/stops ולא access, ולכן הזיהוי נעזר גם
-              בהערה. לקווים שלא נצפה בהם שינוי — תג בלי תאריך, לא תאריך מומצא. */}
-          {/* גודל הרכב וסוג הקו מהרישוי נכתבים בביטוי אחד ליד הנגישות —
-              "מיניבוס עירוני נגיש" (שלמה 06.09); שינויים בהם — קטגוריה בציר הזמן */}
-          {vehEl}
-          {/* כמה נסיעות מתוכננות יש לחלופה היום. "קיים בפיד" אינו "פועל":
-              הפיד מפרסם קווים לפני הפתיחה, והקו הירוק בירושלים נכנס עם
-              נסיעה אחת בכיוון מול 680 של הקו הירוק בתל אביב. המספר מוצג
-              כעובדה ולא כמסקנה — שליש מהחלופות נוסעות ארבע פעמים ביום או
-              פחות (קווי תלמידים, חלופות משנה), ואזהרה עליהן הייתה רעש. */}
-          {ntr > 0 && (
-            <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
-              {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
-          )}
-          {!lf.observationOnly && <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span></>} · {vs.length} גרסאות מתועדות</div>
-        {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
-            (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
-            מוצג בהודעת הסטטוס למטה. */}
-        {/* רק "שירות לפי דרישה" מקבל הערה, כי היא נושאת מידע שאינו במקום
-            אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
-            לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
-            הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {lite && <div className="ltabs" role="tablist" aria-label="עמוד הקו">{[["ov", "סקירה"], ["ch", "שינויים"], ["st", "תחנות ולו״ז"]].map(([k, t]) => (
-          <button key={k} role="tab" aria-selected={ltab === k} className={ltab === k ? "on" : ""} onClick={() => { setLtab(k); window.scrollTo({ top: 0 }); }}>{t}</button>))}</div>}
-        {lite && ltab === "ov" && (() => {
-          // סקירה: כמה שינויים מכל סוג חשוב, ומה השתנה בפעם האחרונה במסלול
-          const c = { route: 0, stops: 0, op: 0, gone: 0 };
-          vs.forEach((x, i) => { if (x.hid) return; const k = dispKind(x, i, vs);
-            if (["route", "terminal", "extend", "shorten", "dest"].includes(k)) c.route++;
-            else if (["stops-add", "stops-del", "stops"].includes(k)) c.stops++;
-            else if (k === "operator") c.op++;
-            else if (["removed", "removed-year", "notrips"].includes(k)) c.gone++; });
-          const li = [...vs.keys()].reverse().find((i) => !vs[i].hid && ((vs[i].add || []).length || (vs[i].rem || []).length));
-          const lr = li != null ? vs[li] : null;
-          const nm = (a) => a.slice(0, 5).map((x) => Array.isArray(x) ? x[1] : x).join(" · ") + (a.length > 5 ? " ועוד " + (a.length - 5) : "");
-          return (
-            <div className="ovw">
-              <div className="ovtiles">
-                <button onClick={() => setLtab("ch")}><b>{c.route}</b><span>שינויי מסלול</span></button>
-                <button onClick={() => setLtab("ch")}><b>{c.stops}</b><span>שינויי תחנות</span></button>
-                <button onClick={() => setLtab("ch")}><b>{c.op}</b><span>החלפות מפעיל</span></button>
-                <button onClick={() => setLtab("ch")}><b>{c.gone}</b><span>ביטולים</span></button>
-              </div>
-              {lr && <div className="ovlast"><b>השינוי האחרון במסלול · {fmtD(lr.d)}</b>
-                {(lr.add || []).length > 0 && <div className="ad">+ {nm(lr.add)}</div>}
-                {(lr.rem || []).length > 0 && <div className="rm">− {nm(lr.rem)}</div>}</div>}
-              <button className="ovall" onClick={() => setLtab("ch")}>לכל {vs.filter((x) => !x.hid).length.toLocaleString()} השינויים ←</button>
-            </div>);
-        })()}
-        {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
-        {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
-        {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
-        {lf.tt === "demand" && (
-          <div className="ttnote">
-            {/* הניסוח הקודם קבע ש"הנסיעה מבוצעת לפי הזמנה מראש". זו פרשנות
-                של route_type 715, והנתונים שלנו סותרים אותה: ל-22 מתוך 61
-                הקווים האלה מפורסם לוח זמנים עם שעות יציאה ממש. מה שידוע
-                הוא הסיווג בפיד, לא אופן ההזמנה בפועל. */}
-            🚐 <b>שירות לפי דרישה</b> — כך הקו מסווג בפיד הארצי (route_type 715),
-            סיווג שנועד לשירות שאינו יוצא בשעה קבועה. יש קווים בסיווג הזה שכן
-            מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
-          </div>
-        )}
-        {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
-            באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
-            יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
-        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
-          isLast={sel == null || sel >= vs.length - 1} />}
-        {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
-          <div className="a2012">
-            <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
-            {mot12.map((x) => (
-              <div key={x[0]} style={{ marginTop: 4 }}>
-                {x[1].replace("<->", " ← ")} · {x[3]} תחנות
-                <TipTag cls="a2012ov" tip="מספר התחנות (לפי מק״ט) שמופיעות גם במסלול של 2012 לפי קובץ משרד התחבורה וגם במסלול הישן ביותר שידוע לנו לקו הזה">· {x[4]} תחנות משותפות</TipTag>
-                <a className="a2012btn" href={lineHref(x[0])} title="הקו כפי שהיה ביולי 2012 לפי קובץ משרד התחבורה — רצף התחנות והמסלול המקורי על המפה">המסלול ב-2012 ←</a>
-              </div>
-            ))}
-            {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
-          </div>
-        )}
-        {anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
-          <div className="a2012">
-            <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
-            {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
-                כשההתאמה נעשתה לפי שם ומספר קו בלבד הוא לא קיים. */}
-            {anc.ov && <TipTag cls="a2012ov" tip="מספר התחנות שמופיעות גם במסלול של 2012 וגם במסלול הישן ביותר שידוע לנו — על סמך זה נקבע שמדובר באותו קו">· {anc.ov} תחנות משותפות</TipTag>}
-            <button className="a2012btn" title="הצגת רשימת התחנות של הקו כפי שהייתה ב-2012 — כולל המסלול על המפה בקו מקווקו חום" aria-expanded={show12} onClick={() => setShow12(!show12)}>
-              {show12 ? "הסתר ▲" : "רצף התחנות ▼"}
-            </button>
-            {show12 && (d12 ? (d12.routes || []).length ? (
-              <div>
-                {vis12.length > 1 && (
-                  <div className="s12chips">{vis12.map((i) => (
-                    <button key={i} className={"rchip12" + (i === sel12 ? " on" : "")} title="מסלול 2012 נוסף של אותו קו — לחיצה מציגה אותו"
-                      onClick={() => setR12(i)}>{d12.routes[i].f} ← {d12.routes[i].l} ({d12.routes[i].n})</button>
-                  ))}</div>
-                )}
-                <ol className="s12">
-                  {((d12.routes[sel12] || d12.routes[0]).stops || []).map((s) => (
-                    <li key={s[0]}>{s[1]}{" "}
-                      {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
-                        : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
-                          : <span className="pcode">לא הוצלבה</span>}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : <div className="mut">הנתונים לא נטענו — נסו לרענן.</div>
-              : <div className="mut">טוען…</div>)}
-          </div>
-        )}
-        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
-        {altRd && (
-          <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
-            label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
-        )}
-        {/* הסטטוס נגזר מהרשומה האחרונה שאינה "תוכנן ולא נכנס לתוקף": תוכנית
-            להחזיר קו מבוטל שלא התממשה אינה מבטלת את הביטול */}
-        {vs.length > 0 && (() => {
-          // וגם לא אירוע נגזר (סוג רכב ברישוי) שתאריכו מאוחר מהביטול
-          let li = vs.length - 1;
-          while (li > 0 && (vs[li].k === "planned-dropped" || vs[li].syn)) li--;
-          const lv = vs[li];
-          // אותו כלל כמו ברשימה ובבורר (שלמה 28.09)
-          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr, lf.observationOnly);
-          const stale = gd && lv.k !== "removed";
-          const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
-          const dk = stale ? ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(gd) >= 365 * 864e5 ? "removed-year" : "removed-now") : dispKind(lv, li, vs);
-          return gd && (
-          <div className="facts" style={{ color: lineGone ? (KINDS[dk] || {}).color : "#c2410c", fontWeight: 700 }}>
-            {lineGone
-              ? <>❌ הקו בוטל — אין חלופות פעילות — {since}</>
-              : <>⚠️ החלופה הזו מבוטלת {since} (לקו יש חלופות פעילות)</>}
-            {dk === "removed-year" && !stale ? " — מעל שנה ולא חזרה" : ""}
-          </div>);
-        })()}
-        {cmpOn && (
-          <div className="cmpbar">
-            <b>השוואה</b> · {String(vs[pi].d).split("-").reverse().join(".")} ← {String(v.d).split("-").reverse().join(".")}
-            {cmpDiff && (
-              <span className="cmpsum">
-                {cmpDiff.add.length ? ` · ➕ ${cmpDiff.add.length} תחנות` : ""}
-                {cmpDiff.rem.length ? ` · ➖ ${cmpDiff.rem.length} תחנות` : ""}
-                {!cmpDiff.add.length && !cmpDiff.rem.length ? " · אותן תחנות בדיוק" : ""}
-              </span>
-            )}
-            <button className="cmpx" title="סיום ההשוואה — חזרה להפרש מול הגרסה הקודמת" onClick={() => setCmpI(null)}>✕ סיום</button>
-            {cmpDiff && (cmpDiff.add.length || cmpDiff.rem.length) ? (
-              <div className="cmplist">
-                {cmpDiff.add.length ? <div className="ad">➕ {dedupCount(cmpDiff.add).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
-                {cmpDiff.rem.length ? <div className="rm">➖ {dedupCount(cmpDiff.rem).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
-              </div>
-            ) : null}
-          </div>
-        )}
-        {kindsHere.length > 1 && initCats && offK.size > 0 && (
-          <div className="khint">🔎 מוצגים רק השינויים מהקטגוריה שבחרת בחיפוש. "הכול" מציג את כל השינויים בקו.</div>
-        )}
-        {kindsHere.length > 1 && (
-          <div className="kfilter">
-            <button className={"kchip" + (offK.size ? "" : " on")}
-              title="הצגת כל סוגי השינויים בקו הזה" onClick={() => setOffK(new Set())}>הכול</button>
-            {kindsHere.map(([g, e]) => {
-              const off = [...e.kinds].every((k) => offK.has(k));
-              return (
-                <button key={g} className={"kchip" + (off ? " off" : " on")}
-                  style={off ? null : { borderColor: catColor(g), color: catColor(g) }}
-                  title={off ? "הדלקה — האירועים האלה יחזרו לרשימה" : "כיבוי — האירועים האלה ייעלמו מהרשימה"}
-                  onClick={() => toggleK([...e.kinds], off)}>
-                  {KGLABEL[g] || (KINDS[g] || {}).label || g} <b>{e.n}</b>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {months.length > 1 && (
-          <div className="months">
-            <button className={"mchip" + (!mon ? " on" : "")} aria-pressed={!mon} title="כל התקופה — בלי סינון לחודש" onClick={() => setMon("")}>הכול</button>
-            {months.map((m) => (
-              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>
-                {m.split("-").reverse().join(".")} <b>{vs.filter((x) => x.d.slice(0, 7) === m).length}</b>
-              </button>
-            ))}
-          </div>
-        )}
-        {lite && impN > 0 && impN < shownAll.length && (
-          <div className="ltog" role="group" aria-label="אילו שינויים להציג">
-            <button className={impOnly ? "on" : ""} aria-pressed={impOnly} onClick={() => setImpOnly(true)}>חשובים · {impN.toLocaleString()}</button>
-            <button className={impOnly ? "" : "on"} aria-pressed={!impOnly} onClick={() => setImpOnly(false)}>הכול · {shownAll.length.toLocaleString()}</button>
-          </div>)}
-        <div className="tl">
-          {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
-              אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
-              ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {shown.map(({ v: x, i }, si) => (
-            <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || shown[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
-            <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
-              onClick={() => selectEvent(i, x)}>
-              <div className="d">
-                {(() => { const ed = evDate(x); return ed.tip
-                  ? <TipTag cls={ed.exact ? "" : "approxd"} tip={ed.tip}>{ed.txt}{ed.exact ? "" : " ≈"}</TipTag>
-                  : <span>{ed.txt}</span>; })()}
-                {(x.shp || (x.stops || []).length > 1 || (x.pstops || []).length > 1) ? " · 🗺️" : ""}
-                {(x.shp || (x.stops || []).length > 1) && (
-                <button className={"cmpbtn" + (cmpI === i ? " on" : "")}
-                  title={cmpI === i ? "זו גרסת הבסיס להשוואה — לחיצה מבטלת" : "קביעת הגרסה הזו כבסיס, ואז לחיצה על אירוע אחר תשווה מולה"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (cmpI === i) { setCmpI(null); return; }
-                    setCmpI(i);
-                    // לחיצה אחת מספיקה: אם האירוע הפתוח הוא הבסיס עצמו אין מה
-                    // להשוות, ולכן נפתחת מולו הגרסה העדכנית ביותר.
-                    if (vs.indexOf(v) === i) {
-                      const last = vs.length - 1;
-                      setSel(last === i ? Math.max(0, i - 1) : last);
-                    }
-                  }}>
-                  {cmpI === i ? "⇄ בסיס ההשוואה" : "⇄ השווה"}</button>)}
-              </div>
-              <div className="t">
-                <button className="k kbtn" style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
-                  aria-current={i === vs.indexOf(v)}
-                  aria-label={"בחירת האירוע מ-" + evDate(x).txt + ": " + ((KINDS[dispKind(x, i, vs)] || { label: x.k }).label)}
-                  onClick={(e) => { e.stopPropagation(); selectEvent(i, x); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
-                {x.k === "redraw" && " הגאומטריה תוקנה — רצף התחנות לא השתנה"}
-                {/* שינוי שרצף התחנות חזר ממנו מיד. בלי הסימון הזה השורה
-                    אומרת שתחנות ירדו, בעוד הקו עוצר בהן עד היום. */}
-                {x.rv ? (
-                  <TipTag cls="rvflag" tip="רצף התחנות חזר בדיוק למה שהיה לפני השינוי הזה. שינוי שמתבטל מיד הוא כמעט תמיד תנודה בפרסום ולא שינוי במסלול">
-                    ↩ חזר כעבור {x.rv === 1 ? "יום" : x.rv + " ימים"}</TipTag>
-                ) : x.rvb ? (
-                  <TipTag cls="rvflag" tip="השינוי הקודם התבטל כאן — רצף התחנות חזר למה שהיה לפניו">
-                    ↩ החזרת המצב הקודם</TipTag>
-                ) : null}
-                {/* הד: אותן תחנות נוספו ואותן ירדו כבר קודם בחלופה אחרת של הקו (קווי אשדוד: 19.07 בחלופות
-                    הראשיות, 13.09 בחלופה 6). זה שינוי אמיתי בחלופה הזאת — נשאר ומדווח — אבל אומרים
-                    שהוא כבר נכנס קודם בחלופה אחרת (שלמה 16.09) */}
-                {x.echo ? (
-                  <TipTag cls="rvflag" tip={"אותן תחנות נוספו ואותן תחנות ירדו כבר ב-" + fmtD(x.echo.d) + " בחלופה " + x.echo.rd + " של הקו. עכשיו השינוי הגיע גם לחלופה הזאת"}>
-                    ↻ השינוי כבר נכנס ב-{fmtD(x.echo.d)} בחלופה {x.echo.rd}; עכשיו גם בחלופה הזאת</TipTag>
-                ) : null}
-                {x.note && x.k !== "planned-dropped" && <span className="evnote"> {noteFix(x.note)}</span>}
-              </div>
-              {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
-                  בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
-              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
-              {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
-                  אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
-                  התחנות (שלמה 05.09) */}
-              {x.k === "planned-dropped" && (x.ps || x.pc) && (() => { const p = plannedInfo(x, i, vs); return (
-                <div className="sub">
-                  <div><PlanStatus p={p} /> · 📅 היה אמור להיכנס ב-<b>{fmtD(x.ps)}</b>
-                    {x.pc && x.ps && x.pc >= x.ps ? <> · ירד מהרישום ב-<b>{fmtD(x.pc)}</b></> : <> · בוטל ב-<b>{fmtD(x.pc || x.d)}</b>, לפני המועד</>}
-                    {x.sd && gapDays(x.sd, x.pc || x.d) > 1 ? <> (נראה לאחרונה ב-{fmtD(x.sd)})</> : null}
-                    {x.pf ? <> · פורסם לראשונה ב-{fmtD(x.pf)}</> : null}</div>
-                  <PlanLines p={p} max={8} />
-                </div>); })()}
-              {(x.add || x.rem) && (() => {
-                // הזיהוי לפי מספר תחנה (x.ac/x.rc, מיושרים לשמות) — השם תצוגה
-                const addE = (x.add || []).map((n, j) => ({ n, c: x.ac && x.ac[j] != null ? String(x.ac[j]) : null }));
-                const remE = (x.rem || []).map((n, j) => ({ n, c: x.rc && x.rc[j] != null ? String(x.rc[j]) : null }));
-                const pm = splitPlatformMoves(addE, remE);
-                // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
-                // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
-                const rn = splitRenumbers(pm.add, pm.rem, i);
-                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
-                return (
-                  <div className="sub">
-                    {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
-                    {rn.add.length > 0 && <div>➕ נוספו: {labelList(rn.add, i, true)}</div>}
-                    {rn.rem.length > 0 && <div>➖ ירדו: {labelList(rn.rem, i, false)}</div>}
-                  </div>
-                );
-              })()}
-              {lite && i === vs.indexOf(v) && <button className="evmap" onClick={(e) => { e.stopPropagation(); setLtab("st"); window.scrollTo({ top: 0 }); }}>🗺️ המסלול על המפה ←</button>}
-            </div>
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
+  // כרטיס המפה והפרטים של הגרסה שנבחרה. בתצוגה החדשה בטלפון הוא עובר לתוך כרטיס השינוי שנבחר
+  const mainEl = (
       <div className="card main" ref={detailRef}>
         <div className="vhead">
           {plannedV ? (plKind === "new" ? <>קו שפורסם להתחלה ב-<b>{fmtD(v.ps)}</b> ולא נכנס לפעול</> : <>שינוי תחנות שפורסם ל-<b>{fmtD(v.ps)}</b> ולא נכנס לפעול</>)
@@ -3176,6 +2866,614 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
+  );
+  // רשימת התחנות של החלופה, לפי הגרסה האחרונה שיש לה רצף תחנות
+  const ltStops = lite ? (([...vs].reverse().find((x) => (x.stops || []).length > 1) || {}).stops || null) : null;
+  return (
+    <div className={"linewrap" + (lite ? " lt" : "")}>
+      {lite ? <>
+      <div className="card side lt-top">
+        {lite
+          ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
+          : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
+        {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+          {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
+          {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
+            onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
+          {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
+          <button className={"sharebtn" + (lite ? " shr" : "")} title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
+            onClick={(e) => {
+              // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
+              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + fsafe(rd) + ".html";
+              const b = e.currentTarget;
+              // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
+              // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
+              if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
+              const t = b.textContent;
+              const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
+            }}>{lite ? "🔗" : "🔗 שיתוף"}</button>
+          {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
+              מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
+          <LineFollow cities={destCities(lf.dest)} compact={lite} />
+        </div>
+        {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
+        {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
+            (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
+        {why && <div className="whybox" id="why">
+          <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
+          <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
+          <a href={why.url} target="_blank" rel="noopener noreferrer">המקור: {why.source}{why.published ? ", " + fmtD(why.published) : ""} ←</a>
+        </div>}
+        <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
+          {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
+          {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
+          {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
+          {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
+              אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
+              נגישות, התג מציין מאיזה תאריך המצב הנוכחי; שינוי שקרה יחד עם
+              שינוי מסלול מסווג route/stops ולא access, ולכן הזיהוי נעזר גם
+              בהערה. לקווים שלא נצפה בהם שינוי — תג בלי תאריך, לא תאריך מומצא. */}
+          {/* גודל הרכב וסוג הקו מהרישוי נכתבים בביטוי אחד ליד הנגישות —
+              "מיניבוס עירוני נגיש" (שלמה 06.09); שינויים בהם — קטגוריה בציר הזמן */}
+          {vehEl}
+          {/* כמה נסיעות מתוכננות יש לחלופה היום. "קיים בפיד" אינו "פועל":
+              הפיד מפרסם קווים לפני הפתיחה, והקו הירוק בירושלים נכנס עם
+              נסיעה אחת בכיוון מול 680 של הקו הירוק בתל אביב. המספר מוצג
+              כעובדה ולא כמסקנה — שליש מהחלופות נוסעות ארבע פעמים ביום או
+              פחות (קווי תלמידים, חלופות משנה), ואזהרה עליהן הייתה רעש. */}
+          {ntr > 0 && (
+            <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
+              {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
+          )}
+          {!lf.observationOnly && <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span></>} · {vs.length} גרסאות מתועדות</div>
+        {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
+            (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
+            מוצג בהודעת הסטטוס למטה. */}
+        {/* רק "שירות לפי דרישה" מקבל הערה, כי היא נושאת מידע שאינו במקום
+            אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
+            לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
+            הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
+        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+        {altRd && (
+          <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
+            label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
+        )}
+        {/* הסטטוס נגזר מהרשומה האחרונה שאינה "תוכנן ולא נכנס לתוקף": תוכנית
+            להחזיר קו מבוטל שלא התממשה אינה מבטלת את הביטול */}
+        {vs.length > 0 && (() => {
+          // וגם לא אירוע נגזר (סוג רכב ברישוי) שתאריכו מאוחר מהביטול
+          let li = vs.length - 1;
+          while (li > 0 && (vs[li].k === "planned-dropped" || vs[li].syn)) li--;
+          const lv = vs[li];
+          // אותו כלל כמו ברשימה ובבורר (שלמה 28.09)
+          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr, lf.observationOnly);
+          const stale = gd && lv.k !== "removed";
+          const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
+          const dk = stale ? ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(gd) >= 365 * 864e5 ? "removed-year" : "removed-now") : dispKind(lv, li, vs);
+          return gd && (
+          <div className="facts" style={{ color: lineGone ? (KINDS[dk] || {}).color : "#c2410c", fontWeight: 700 }}>
+            {lineGone
+              ? <>❌ הקו בוטל — אין חלופות פעילות — {since}</>
+              : <>⚠️ החלופה הזו מבוטלת {since} (לקו יש חלופות פעילות)</>}
+            {dk === "removed-year" && !stale ? " — מעל שנה ולא חזרה" : ""}
+          </div>);
+        })()}
+        {lf.tt === "demand" && (
+          <div className="ttnote">
+            {/* הניסוח הקודם קבע ש"הנסיעה מבוצעת לפי הזמנה מראש". זו פרשנות
+                של route_type 715, והנתונים שלנו סותרים אותה: ל-22 מתוך 61
+                הקווים האלה מפורסם לוח זמנים עם שעות יציאה ממש. מה שידוע
+                הוא הסיווג בפיד, לא אופן ההזמנה בפועל. */}
+            🚐 <b>שירות לפי דרישה</b> — כך הקו מסווג בפיד הארצי (route_type 715),
+            סיווג שנועד לשירות שאינו יוצא בשעה קבועה. יש קווים בסיווג הזה שכן
+            מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
+          </div>
+        )}
+      </div>
+      {isPhone && sel != null && evSlot ? ReactDOM.createPortal(mainEl, evSlot) : mainEl}
+      <div className="card side lt-bot">
+        <div className="lthead"><b>מה השתנה</b>
+          {impN > 0 && impN < shownAll.length && <button className="ltlink" aria-pressed={!impOnly} onClick={() => { setImpOnly(!impOnly); setLtMore(false); }}>
+            {impOnly ? "הצג גם לו״ז, תגבור ותיקוני רישום (" + (shownAll.length - impN).toLocaleString() + ")" : "רק השינויים החשובים"}</button>}
+        </div>
+        {cmpOn && (
+          <div className="cmpbar">
+            <b>השוואה</b> · {String(vs[pi].d).split("-").reverse().join(".")} ← {String(v.d).split("-").reverse().join(".")}
+            {cmpDiff && (
+              <span className="cmpsum">
+                {cmpDiff.add.length ? ` · ➕ ${cmpDiff.add.length} תחנות` : ""}
+                {cmpDiff.rem.length ? ` · ➖ ${cmpDiff.rem.length} תחנות` : ""}
+                {!cmpDiff.add.length && !cmpDiff.rem.length ? " · אותן תחנות בדיוק" : ""}
+              </span>
+            )}
+            <button className="cmpx" title="סיום ההשוואה — חזרה להפרש מול הגרסה הקודמת" onClick={() => setCmpI(null)}>✕ סיום</button>
+            {cmpDiff && (cmpDiff.add.length || cmpDiff.rem.length) ? (
+              <div className="cmplist">
+                {cmpDiff.add.length ? <div className="ad">➕ {dedupCount(cmpDiff.add).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
+                {cmpDiff.rem.length ? <div className="rm">➖ {dedupCount(cmpDiff.rem).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
+              </div>
+            ) : null}
+          </div>
+        )}
+        {kindsHere.length > 1 && initCats && offK.size > 0 && (
+          <div className="khint">🔎 מוצגים רק השינויים מהקטגוריה שבחרת בחיפוש. "הכול" מציג את כל השינויים בקו.</div>
+        )}
+        {kindsHere.length > 1 && (
+          <div className="kfilter">
+            <button className={"kchip" + (offK.size ? "" : " on")}
+              title="הצגת כל סוגי השינויים בקו הזה" onClick={() => setOffK(new Set())}>הכול</button>
+            {kindsHere.map(([g, e]) => {
+              const off = [...e.kinds].every((k) => offK.has(k));
+              return (
+                <button key={g} className={"kchip" + (off ? " off" : " on")}
+                  style={off ? null : { borderColor: catColor(g), color: catColor(g) }}
+                  title={off ? "הדלקה — האירועים האלה יחזרו לרשימה" : "כיבוי — האירועים האלה ייעלמו מהרשימה"}
+                  onClick={() => toggleK([...e.kinds], off)}>
+                  {KGLABEL[g] || (KINDS[g] || {}).label || g} <b>{e.n}</b>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {months.length > 1 && (
+          <div className="months">
+            <button className={"mchip" + (!mon ? " on" : "")} aria-pressed={!mon} title="כל התקופה — בלי סינון לחודש" onClick={() => setMon("")}>הכול</button>
+            {months.map((m) => (
+              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>
+                {m.split("-").reverse().join(".")} <b>{vs.filter((x) => x.d.slice(0, 7) === m).length}</b>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="tl">
+          {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
+              אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
+              ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
+          {shownL.map(({ v: x, i }, si) => (
+            <React.Fragment key={x.d + x.k + i}>
+            {lite && (si === 0 || shownL[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
+              onClick={() => selectEvent(i, x)}>
+              <div className="d">
+                {(() => { const ed = evDate(x); return ed.tip
+                  ? <TipTag cls={ed.exact ? "" : "approxd"} tip={ed.tip}>{ed.txt}{ed.exact ? "" : " ≈"}</TipTag>
+                  : <span>{ed.txt}</span>; })()}
+                {(x.shp || (x.stops || []).length > 1 || (x.pstops || []).length > 1) ? " · 🗺️" : ""}
+                {(x.shp || (x.stops || []).length > 1) && (
+                <button className={"cmpbtn" + (cmpI === i ? " on" : "")}
+                  title={cmpI === i ? "זו גרסת הבסיס להשוואה — לחיצה מבטלת" : "קביעת הגרסה הזו כבסיס, ואז לחיצה על אירוע אחר תשווה מולה"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (cmpI === i) { setCmpI(null); return; }
+                    setCmpI(i);
+                    // לחיצה אחת מספיקה: אם האירוע הפתוח הוא הבסיס עצמו אין מה
+                    // להשוות, ולכן נפתחת מולו הגרסה העדכנית ביותר.
+                    if (vs.indexOf(v) === i) {
+                      const last = vs.length - 1;
+                      setSel(last === i ? Math.max(0, i - 1) : last);
+                    }
+                  }}>
+                  {cmpI === i ? "⇄ בסיס ההשוואה" : "⇄ השווה"}</button>)}
+              </div>
+              <div className="t">
+                <button className="k kbtn" style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
+                  aria-current={i === vs.indexOf(v)}
+                  aria-label={"בחירת האירוע מ-" + evDate(x).txt + ": " + ((KINDS[dispKind(x, i, vs)] || { label: x.k }).label)}
+                  onClick={(e) => { e.stopPropagation(); selectEvent(i, x); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
+                {x.k === "redraw" && " הגאומטריה תוקנה — רצף התחנות לא השתנה"}
+                {/* שינוי שרצף התחנות חזר ממנו מיד. בלי הסימון הזה השורה
+                    אומרת שתחנות ירדו, בעוד הקו עוצר בהן עד היום. */}
+                {x.rv ? (
+                  <TipTag cls="rvflag" tip="רצף התחנות חזר בדיוק למה שהיה לפני השינוי הזה. שינוי שמתבטל מיד הוא כמעט תמיד תנודה בפרסום ולא שינוי במסלול">
+                    ↩ חזר כעבור {x.rv === 1 ? "יום" : x.rv + " ימים"}</TipTag>
+                ) : x.rvb ? (
+                  <TipTag cls="rvflag" tip="השינוי הקודם התבטל כאן — רצף התחנות חזר למה שהיה לפניו">
+                    ↩ החזרת המצב הקודם</TipTag>
+                ) : null}
+                {/* הד: אותן תחנות נוספו ואותן ירדו כבר קודם בחלופה אחרת של הקו (קווי אשדוד: 19.07 בחלופות
+                    הראשיות, 13.09 בחלופה 6). זה שינוי אמיתי בחלופה הזאת — נשאר ומדווח — אבל אומרים
+                    שהוא כבר נכנס קודם בחלופה אחרת (שלמה 16.09) */}
+                {x.echo ? (
+                  <TipTag cls="rvflag" tip={"אותן תחנות נוספו ואותן תחנות ירדו כבר ב-" + fmtD(x.echo.d) + " בחלופה " + x.echo.rd + " של הקו. עכשיו השינוי הגיע גם לחלופה הזאת"}>
+                    ↻ השינוי כבר נכנס ב-{fmtD(x.echo.d)} בחלופה {x.echo.rd}; עכשיו גם בחלופה הזאת</TipTag>
+                ) : null}
+                {x.note && x.k !== "planned-dropped" && <span className="evnote"> {noteFix(x.note)}</span>}
+              </div>
+              {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
+                  בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
+              {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
+                  אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
+                  התחנות (שלמה 05.09) */}
+              {x.k === "planned-dropped" && (x.ps || x.pc) && (() => { const p = plannedInfo(x, i, vs); return (
+                <div className="sub">
+                  <div><PlanStatus p={p} /> · 📅 היה אמור להיכנס ב-<b>{fmtD(x.ps)}</b>
+                    {x.pc && x.ps && x.pc >= x.ps ? <> · ירד מהרישום ב-<b>{fmtD(x.pc)}</b></> : <> · בוטל ב-<b>{fmtD(x.pc || x.d)}</b>, לפני המועד</>}
+                    {x.sd && gapDays(x.sd, x.pc || x.d) > 1 ? <> (נראה לאחרונה ב-{fmtD(x.sd)})</> : null}
+                    {x.pf ? <> · פורסם לראשונה ב-{fmtD(x.pf)}</> : null}</div>
+                  <PlanLines p={p} max={8} />
+                </div>); })()}
+              {(x.add || x.rem) && (() => {
+                // הזיהוי לפי מספר תחנה (x.ac/x.rc, מיושרים לשמות) — השם תצוגה
+                const addE = (x.add || []).map((n, j) => ({ n, c: x.ac && x.ac[j] != null ? String(x.ac[j]) : null }));
+                const remE = (x.rem || []).map((n, j) => ({ n, c: x.rc && x.rc[j] != null ? String(x.rc[j]) : null }));
+                const pm = splitPlatformMoves(addE, remE);
+                // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
+                // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
+                const rn = splitRenumbers(pm.add, pm.rem, i);
+                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
+                return (
+                  <div className="sub">
+                    {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
+                    {rn.add.length > 0 && <div>➕ נוספו: {labelList(rn.add, i, true)}</div>}
+                    {rn.rem.length > 0 && <div>➖ ירדו: {labelList(rn.rem, i, false)}</div>}
+                  </div>
+                );
+              })()}
+              {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
+            </div>
+            </React.Fragment>
+          ))}
+        </div>
+        {lite && shownL.length < shown.length && <button className="ltmore" onClick={() => setLtMore(true)}>עוד {(shown.length - shownL.length).toLocaleString()} שינויים ⌄</button>}
+        {ltStops && <LtAcc icon="📍" title="התחנות" sub={ltStops.length + " תחנות"}>
+          <ol className="ltstops">{ltStops.map((s, j) => <li key={j}>{s[1]} <span className="pcode">{String(s[0]).startsWith("website:") ? "" : "מק״ט " + s[0]}</span></li>)}</ol>
+        </LtAcc>}
+        <LtAcc icon="🕐" title="לוח זמנים" sub="השעות לכל יום בשבוע">
+        {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
+            באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
+            יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
+        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
+          isLast={sel == null || sel >= vs.length - 1} />}
+        </LtAcc>
+        {(((mot12 && mot12.length > 0) || anc) && !NO_2012.has(lf.tt || "") || lf.magihim2012Match || lf.earlyRelated?.length > 0) && <LtAcc icon="🗂️" title="תיעוד היסטורי" sub={mot12 && mot12.length ? "2012 · " + mot12.length + (mot12.length > 1 ? " מסלולים" : " מסלול") : anc ? "2012" : ""}>
+        {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
+          <div className="a2012">
+            <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
+            {mot12.map((x) => (
+              <div key={x[0]} style={{ marginTop: 4 }}>
+                {x[1].replace("<->", " ← ")} · {x[3]} תחנות
+                <TipTag cls="a2012ov" tip="מספר התחנות (לפי מק״ט) שמופיעות גם במסלול של 2012 לפי קובץ משרד התחבורה וגם במסלול הישן ביותר שידוע לנו לקו הזה">· {x[4]} תחנות משותפות</TipTag>
+                <a className="a2012btn" href={lineHref(x[0])} title="הקו כפי שהיה ביולי 2012 לפי קובץ משרד התחבורה — רצף התחנות והמסלול המקורי על המפה">המסלול ב-2012 ←</a>
+              </div>
+            ))}
+            {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
+          </div>
+        )}
+        {anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
+          <div className="a2012">
+            <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
+            {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
+                כשההתאמה נעשתה לפי שם ומספר קו בלבד הוא לא קיים. */}
+            {anc.ov && <TipTag cls="a2012ov" tip="מספר התחנות שמופיעות גם במסלול של 2012 וגם במסלול הישן ביותר שידוע לנו — על סמך זה נקבע שמדובר באותו קו">· {anc.ov} תחנות משותפות</TipTag>}
+            <button className="a2012btn" title="הצגת רשימת התחנות של הקו כפי שהייתה ב-2012 — כולל המסלול על המפה בקו מקווקו חום" aria-expanded={show12} onClick={() => setShow12(!show12)}>
+              {show12 ? "הסתר ▲" : "רצף התחנות ▼"}
+            </button>
+            {show12 && (d12 ? (d12.routes || []).length ? (
+              <div>
+                {vis12.length > 1 && (
+                  <div className="s12chips">{vis12.map((i) => (
+                    <button key={i} className={"rchip12" + (i === sel12 ? " on" : "")} title="מסלול 2012 נוסף של אותו קו — לחיצה מציגה אותו"
+                      onClick={() => setR12(i)}>{d12.routes[i].f} ← {d12.routes[i].l} ({d12.routes[i].n})</button>
+                  ))}</div>
+                )}
+                <ol className="s12">
+                  {((d12.routes[sel12] || d12.routes[0]).stops || []).map((s) => (
+                    <li key={s[0]}>{s[1]}{" "}
+                      {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
+                        : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
+                          : <span className="pcode">לא הוצלבה</span>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : <div className="mut">הנתונים לא נטענו — נסו לרענן.</div>
+              : <div className="mut">טוען…</div>)}
+          </div>
+        )}
+        {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
+        {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
+        {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
+        </LtAcc>}
+      </div>
+      </> : <>
+      <div className="card side">
+        {lite
+          ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
+          : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
+        {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+          {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
+          {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
+            onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
+          {/* שיתוף כמו בהקו המדלג: גיליון השיתוף של הטלפון, ובנפילה — העתקה */}
+          <button className="sharebtn" title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
+            onClick={(e) => {
+              // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
+              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + fsafe(rd) + ".html";
+              const b = e.currentTarget;
+              // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
+              // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
+              if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
+              const t = b.textContent;
+              const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
+            }}>{lite ? "🔗" : "🔗 שיתוף"}</button>
+          {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
+              מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
+          <LineFollow cities={destCities(lf.dest)} compact={lite} />
+        </div>
+        {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
+        {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
+            (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
+        {why && <div className="whybox" id="why">
+          <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
+          <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
+          <a href={why.url} target="_blank" rel="noopener noreferrer">המקור: {why.source}{why.published ? ", " + fmtD(why.published) : ""} ←</a>
+        </div>}
+        <div className="facts">{lf.op}{(() => { const t = lf.ltc || lf.ty; return t && !(lf.vt && lf.vt.startsWith(t)) ? " · " + t : ""; })()}
+          {lf.un && lf.un !== "סדיר" ? " · " + ({ "תלמידים": "קו תלמידים", "לילה": "קו לילה", "קווים מזינים": "קו מזין" }[lf.un] || lf.un) : ""}
+          {lf.clu ? " · אשכול " + lf.clu : ""}{lf.tt ? " · " + (TT_LABEL[lf.tt] || "") : ""}
+          {/* רציף המוצא לא בשורת הפרטים — רק ליד התחנה ברשימה ובמפה (שלמה 13.09) */}
+          {/* נגישות לכיסא גלגלים מגיעה מ-wheelchair_accessible בפיד, והיא
+              אחידה לכל נסיעות הקו — ולכן תכונה של הקו. אם תועד אירוע שינוי
+              נגישות, התג מציין מאיזה תאריך המצב הנוכחי; שינוי שקרה יחד עם
+              שינוי מסלול מסווג route/stops ולא access, ולכן הזיהוי נעזר גם
+              בהערה. לקווים שלא נצפה בהם שינוי — תג בלי תאריך, לא תאריך מומצא. */}
+          {/* גודל הרכב וסוג הקו מהרישוי נכתבים בביטוי אחד ליד הנגישות —
+              "מיניבוס עירוני נגיש" (שלמה 06.09); שינויים בהם — קטגוריה בציר הזמן */}
+          {vehEl}
+          {/* כמה נסיעות מתוכננות יש לחלופה היום. "קיים בפיד" אינו "פועל":
+              הפיד מפרסם קווים לפני הפתיחה, והקו הירוק בירושלים נכנס עם
+              נסיעה אחת בכיוון מול 680 של הקו הירוק בתל אביב. המספר מוצג
+              כעובדה ולא כמסקנה — שליש מהחלופות נוסעות ארבע פעמים ביום או
+              פחות (קווי תלמידים, חלופות משנה), ואזהרה עליהן הייתה רעש. */}
+          {ntr > 0 && (
+            <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
+              {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
+          )}
+          {!lf.observationOnly && <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span></>} · {vs.length} גרסאות מתועדות</div>
+        {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
+            (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
+            מוצג בהודעת הסטטוס למטה. */}
+        {/* רק "שירות לפי דרישה" מקבל הערה, כי היא נושאת מידע שאינו במקום
+            אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
+            לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
+            הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
+        {lf.historicalOnly && <TipTag cls="mut" tip="הרשומה אינה קובעת אם הקו פועל היום">תיעוד היסטורי</TipTag>}
+        {lf.magihim2012Match && <p><a href={"#2012/" + encodeURIComponent(lf.magihim2012Match.key)}>התאמה מוצעת לקו ברשת מגיעים מ־2012 ({lf.magihim2012Match.overlap}% חפיפת תחנות)</a></p>}
+        {lf.earlyRelated?.length > 0 && <details className="early-detail"><summary>קובצי GTFS מקוריים מ־2012 לקווים תואמים</summary><p>התאמה לפי מספר קו וחפיפת תחנות לרשת מגיעים שכבר מקושרת לעמוד זה. אינה הוכחה לזהות רציפה לאורך השנים.</p>{lf.earlyRelated.map(e=><p key={e.rd}><a href={"#"+encodeURIComponent(e.rd)}>קו {e.line} · {e.dest}</a> · חפיפה {e.overlap}%</p>)}</details>}
+        {lf.tt === "demand" && (
+          <div className="ttnote">
+            {/* הניסוח הקודם קבע ש"הנסיעה מבוצעת לפי הזמנה מראש". זו פרשנות
+                של route_type 715, והנתונים שלנו סותרים אותה: ל-22 מתוך 61
+                הקווים האלה מפורסם לוח זמנים עם שעות יציאה ממש. מה שידוע
+                הוא הסיווג בפיד, לא אופן ההזמנה בפועל. */}
+            🚐 <b>שירות לפי דרישה</b> — כך הקו מסווג בפיד הארצי (route_type 715),
+            סיווג שנועד לשירות שאינו יוצא בשעה קבועה. יש קווים בסיווג הזה שכן
+            מפורסם להם לוח זמנים, ולכן כדאי לבדוק מול המפעיל איך הנסיעה מוזמנת בפועל.
+          </div>
+        )}
+        {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
+            באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
+            יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
+        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
+          isLast={sel == null || sel >= vs.length - 1} />}
+        {mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
+          <div className="a2012">
+            <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
+            {mot12.map((x) => (
+              <div key={x[0]} style={{ marginTop: 4 }}>
+                {x[1].replace("<->", " ← ")} · {x[3]} תחנות
+                <TipTag cls="a2012ov" tip="מספר התחנות (לפי מק״ט) שמופיעות גם במסלול של 2012 לפי קובץ משרד התחבורה וגם במסלול הישן ביותר שידוע לנו לקו הזה">· {x[4]} תחנות משותפות</TipTag>
+                <a className="a2012btn" href={lineHref(x[0])} title="הקו כפי שהיה ביולי 2012 לפי קובץ משרד התחבורה — רצף התחנות והמסלול המקורי על המפה">המסלול ב-2012 ←</a>
+              </div>
+            ))}
+            {anc && <div className="mut" style={{ marginTop: 4 }}>גם בצילום אתר מגיעים: <a href={"#2012/" + encodeURIComponent(anc.k)}>{anc.f} ← {anc.l}</a></div>}
+          </div>
+        )}
+        {anc && !(mot12 && mot12.length) && !NO_2012.has(lf.tt || "") && (
+          <div className="a2012">
+            <b>2012</b> · {anc.f} ← {anc.l} · {anc.n} תחנות
+            {/* מספר התחנות המשותפות הוא מה שקושר את הקו של אז לקו של היום.
+                כשההתאמה נעשתה לפי שם ומספר קו בלבד הוא לא קיים. */}
+            {anc.ov && <TipTag cls="a2012ov" tip="מספר התחנות שמופיעות גם במסלול של 2012 וגם במסלול הישן ביותר שידוע לנו — על סמך זה נקבע שמדובר באותו קו">· {anc.ov} תחנות משותפות</TipTag>}
+            <button className="a2012btn" title="הצגת רשימת התחנות של הקו כפי שהייתה ב-2012 — כולל המסלול על המפה בקו מקווקו חום" aria-expanded={show12} onClick={() => setShow12(!show12)}>
+              {show12 ? "הסתר ▲" : "רצף התחנות ▼"}
+            </button>
+            {show12 && (d12 ? (d12.routes || []).length ? (
+              <div>
+                {vis12.length > 1 && (
+                  <div className="s12chips">{vis12.map((i) => (
+                    <button key={i} className={"rchip12" + (i === sel12 ? " on" : "")} title="מסלול 2012 נוסף של אותו קו — לחיצה מציגה אותו"
+                      onClick={() => setR12(i)}>{d12.routes[i].f} ← {d12.routes[i].l} ({d12.routes[i].n})</button>
+                  ))}</div>
+                )}
+                <ol className="s12">
+                  {((d12.routes[sel12] || d12.routes[0]).stops || []).map((s) => (
+                    <li key={s[0]}>{s[1]}{" "}
+                      {s[4] && s[4].length === 1 ? <span className="pcode">מק״ט {s[4][0]}</span>
+                        : s[4] && s[4].length > 1 ? <span className="pcode">{s[4].length} מק״טים אפשריים</span>
+                          : <span className="pcode">לא הוצלבה</span>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : <div className="mut">הנתונים לא נטענו — נסו לרענן.</div>
+              : <div className="mut">טוען…</div>)}
+          </div>
+        )}
+        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+        {altRd && (
+          <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
+            label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
+        )}
+        {/* הסטטוס נגזר מהרשומה האחרונה שאינה "תוכנן ולא נכנס לתוקף": תוכנית
+            להחזיר קו מבוטל שלא התממשה אינה מבטלת את הביטול */}
+        {vs.length > 0 && (() => {
+          // וגם לא אירוע נגזר (סוג רכב ברישוי) שתאריכו מאוחר מהביטול
+          let li = vs.length - 1;
+          while (li > 0 && (vs[li].k === "planned-dropped" || vs[li].syn)) li--;
+          const lv = vs[li];
+          // אותו כלל כמו ברשימה ובבורר (שלמה 28.09)
+          const gd = variantGone(lv.k, lv.d, lf.historicalOnly, ntr, lf.observationOnly);
+          const stale = gd && lv.k !== "removed";
+          const since = stale ? <>(לא נצפה מאז {fmtD(gd)})</> : <>מאז {fmtD(gd)}</>;
+          const dk = stale ? ((DATA_GEN ? new Date(DATA_GEN) : Date.now()) - new Date(gd) >= 365 * 864e5 ? "removed-year" : "removed-now") : dispKind(lv, li, vs);
+          return gd && (
+          <div className="facts" style={{ color: lineGone ? (KINDS[dk] || {}).color : "#c2410c", fontWeight: 700 }}>
+            {lineGone
+              ? <>❌ הקו בוטל — אין חלופות פעילות — {since}</>
+              : <>⚠️ החלופה הזו מבוטלת {since} (לקו יש חלופות פעילות)</>}
+            {dk === "removed-year" && !stale ? " — מעל שנה ולא חזרה" : ""}
+          </div>);
+        })()}
+        {cmpOn && (
+          <div className="cmpbar">
+            <b>השוואה</b> · {String(vs[pi].d).split("-").reverse().join(".")} ← {String(v.d).split("-").reverse().join(".")}
+            {cmpDiff && (
+              <span className="cmpsum">
+                {cmpDiff.add.length ? ` · ➕ ${cmpDiff.add.length} תחנות` : ""}
+                {cmpDiff.rem.length ? ` · ➖ ${cmpDiff.rem.length} תחנות` : ""}
+                {!cmpDiff.add.length && !cmpDiff.rem.length ? " · אותן תחנות בדיוק" : ""}
+              </span>
+            )}
+            <button className="cmpx" title="סיום ההשוואה — חזרה להפרש מול הגרסה הקודמת" onClick={() => setCmpI(null)}>✕ סיום</button>
+            {cmpDiff && (cmpDiff.add.length || cmpDiff.rem.length) ? (
+              <div className="cmplist">
+                {cmpDiff.add.length ? <div className="ad">➕ {dedupCount(cmpDiff.add).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
+                {cmpDiff.rem.length ? <div className="rm">➖ {dedupCount(cmpDiff.rem).map(({ x, n: c }) => `${x[1]} (${x[0]})` + (c > 1 ? ` ×${c}` : "")).join(", ")}</div> : null}
+              </div>
+            ) : null}
+          </div>
+        )}
+        {kindsHere.length > 1 && initCats && offK.size > 0 && (
+          <div className="khint">🔎 מוצגים רק השינויים מהקטגוריה שבחרת בחיפוש. "הכול" מציג את כל השינויים בקו.</div>
+        )}
+        {kindsHere.length > 1 && (
+          <div className="kfilter">
+            <button className={"kchip" + (offK.size ? "" : " on")}
+              title="הצגת כל סוגי השינויים בקו הזה" onClick={() => setOffK(new Set())}>הכול</button>
+            {kindsHere.map(([g, e]) => {
+              const off = [...e.kinds].every((k) => offK.has(k));
+              return (
+                <button key={g} className={"kchip" + (off ? " off" : " on")}
+                  style={off ? null : { borderColor: catColor(g), color: catColor(g) }}
+                  title={off ? "הדלקה — האירועים האלה יחזרו לרשימה" : "כיבוי — האירועים האלה ייעלמו מהרשימה"}
+                  onClick={() => toggleK([...e.kinds], off)}>
+                  {KGLABEL[g] || (KINDS[g] || {}).label || g} <b>{e.n}</b>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {months.length > 1 && (
+          <div className="months">
+            <button className={"mchip" + (!mon ? " on" : "")} aria-pressed={!mon} title="כל התקופה — בלי סינון לחודש" onClick={() => setMon("")}>הכול</button>
+            {months.map((m) => (
+              <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>
+                {m.split("-").reverse().join(".")} <b>{vs.filter((x) => x.d.slice(0, 7) === m).length}</b>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="tl">
+          {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
+              אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
+              ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
+          {shownL.map(({ v: x, i }, si) => (
+            <React.Fragment key={x.d + x.k + i}>
+            {lite && (si === 0 || shownL[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
+              onClick={() => selectEvent(i, x)}>
+              <div className="d">
+                {(() => { const ed = evDate(x); return ed.tip
+                  ? <TipTag cls={ed.exact ? "" : "approxd"} tip={ed.tip}>{ed.txt}{ed.exact ? "" : " ≈"}</TipTag>
+                  : <span>{ed.txt}</span>; })()}
+                {(x.shp || (x.stops || []).length > 1 || (x.pstops || []).length > 1) ? " · 🗺️" : ""}
+                {(x.shp || (x.stops || []).length > 1) && (
+                <button className={"cmpbtn" + (cmpI === i ? " on" : "")}
+                  title={cmpI === i ? "זו גרסת הבסיס להשוואה — לחיצה מבטלת" : "קביעת הגרסה הזו כבסיס, ואז לחיצה על אירוע אחר תשווה מולה"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (cmpI === i) { setCmpI(null); return; }
+                    setCmpI(i);
+                    // לחיצה אחת מספיקה: אם האירוע הפתוח הוא הבסיס עצמו אין מה
+                    // להשוות, ולכן נפתחת מולו הגרסה העדכנית ביותר.
+                    if (vs.indexOf(v) === i) {
+                      const last = vs.length - 1;
+                      setSel(last === i ? Math.max(0, i - 1) : last);
+                    }
+                  }}>
+                  {cmpI === i ? "⇄ בסיס ההשוואה" : "⇄ השווה"}</button>)}
+              </div>
+              <div className="t">
+                <button className="k kbtn" style={{ background: (KINDS[dispKind(x, i, vs)] || {}).color || "#64748b" }}
+                  aria-current={i === vs.indexOf(v)}
+                  aria-label={"בחירת האירוע מ-" + evDate(x).txt + ": " + ((KINDS[dispKind(x, i, vs)] || { label: x.k }).label)}
+                  onClick={(e) => { e.stopPropagation(); selectEvent(i, x); }}>{(KINDS[dispKind(x, i, vs)] || { label: x.k }).label}</button>
+                {x.k === "redraw" && " הגאומטריה תוקנה — רצף התחנות לא השתנה"}
+                {/* שינוי שרצף התחנות חזר ממנו מיד. בלי הסימון הזה השורה
+                    אומרת שתחנות ירדו, בעוד הקו עוצר בהן עד היום. */}
+                {x.rv ? (
+                  <TipTag cls="rvflag" tip="רצף התחנות חזר בדיוק למה שהיה לפני השינוי הזה. שינוי שמתבטל מיד הוא כמעט תמיד תנודה בפרסום ולא שינוי במסלול">
+                    ↩ חזר כעבור {x.rv === 1 ? "יום" : x.rv + " ימים"}</TipTag>
+                ) : x.rvb ? (
+                  <TipTag cls="rvflag" tip="השינוי הקודם התבטל כאן — רצף התחנות חזר למה שהיה לפניו">
+                    ↩ החזרת המצב הקודם</TipTag>
+                ) : null}
+                {/* הד: אותן תחנות נוספו ואותן ירדו כבר קודם בחלופה אחרת של הקו (קווי אשדוד: 19.07 בחלופות
+                    הראשיות, 13.09 בחלופה 6). זה שינוי אמיתי בחלופה הזאת — נשאר ומדווח — אבל אומרים
+                    שהוא כבר נכנס קודם בחלופה אחרת (שלמה 16.09) */}
+                {x.echo ? (
+                  <TipTag cls="rvflag" tip={"אותן תחנות נוספו ואותן תחנות ירדו כבר ב-" + fmtD(x.echo.d) + " בחלופה " + x.echo.rd + " של הקו. עכשיו השינוי הגיע גם לחלופה הזאת"}>
+                    ↻ השינוי כבר נכנס ב-{fmtD(x.echo.d)} בחלופה {x.echo.rd}; עכשיו גם בחלופה הזאת</TipTag>
+                ) : null}
+                {x.note && x.k !== "planned-dropped" && <span className="evnote"> {noteFix(x.note)}</span>}
+              </div>
+              {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
+                  בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
+              {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
+                  אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
+                  התחנות (שלמה 05.09) */}
+              {x.k === "planned-dropped" && (x.ps || x.pc) && (() => { const p = plannedInfo(x, i, vs); return (
+                <div className="sub">
+                  <div><PlanStatus p={p} /> · 📅 היה אמור להיכנס ב-<b>{fmtD(x.ps)}</b>
+                    {x.pc && x.ps && x.pc >= x.ps ? <> · ירד מהרישום ב-<b>{fmtD(x.pc)}</b></> : <> · בוטל ב-<b>{fmtD(x.pc || x.d)}</b>, לפני המועד</>}
+                    {x.sd && gapDays(x.sd, x.pc || x.d) > 1 ? <> (נראה לאחרונה ב-{fmtD(x.sd)})</> : null}
+                    {x.pf ? <> · פורסם לראשונה ב-{fmtD(x.pf)}</> : null}</div>
+                  <PlanLines p={p} max={8} />
+                </div>); })()}
+              {(x.add || x.rem) && (() => {
+                // הזיהוי לפי מספר תחנה (x.ac/x.rc, מיושרים לשמות) — השם תצוגה
+                const addE = (x.add || []).map((n, j) => ({ n, c: x.ac && x.ac[j] != null ? String(x.ac[j]) : null }));
+                const remE = (x.rem || []).map((n, j) => ({ n, c: x.rc && x.rc[j] != null ? String(x.rc[j]) : null }));
+                const pm = splitPlatformMoves(addE, remE);
+                // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
+                // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
+                const rn = splitRenumbers(pm.add, pm.rem, i);
+                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
+                return (
+                  <div className="sub">
+                    {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
+                    {rn.add.length > 0 && <div>➕ נוספו: {labelList(rn.add, i, true)}</div>}
+                    {rn.rem.length > 0 && <div>➖ ירדו: {labelList(rn.rem, i, false)}</div>}
+                  </div>
+                );
+              })()}
+              {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
+            </div>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+      {mainEl}
+      </>}
     </div>
   );
 }
@@ -3467,6 +3765,17 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
 // סוגי שינוי "שגרתיים": לו"ז, תגבור, צילום ותיקוני רישום. בתצוגה החדשה הם מקופלים כברירת מחדל
 const LOW_KINDS = new Set(["baseline", "snapshot", "freq", "sched", "times", "redraw", "vehicle", "ltype", "access", "renum", "renamed", "board", "platform"]);
 // "תחנה-עיר<->תחנה-עיר-1#" → "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה"
+// שורה שנפתחת בלחיצה בתחתית עמוד הקו (התצוגה החדשה). התוכן נבנה רק כשפותחים — הלו"ז נטען רק אז
+function LtAcc({ icon, title, sub, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={"ltacc" + (open ? " open" : "")}>
+      <button className="ltacc-h" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>{icon} <b>{title}</b>{sub ? <small>{sub}</small> : null}</span><span className="ch" aria-hidden="true">{open ? "⌃" : "⌄"}</span>
+      </button>
+      {open && <div className="ltacc-b">{children}</div>}
+    </div>);
+}
 // התצוגה החדשה — כדי שרכיבים עמוק בעץ (כמו "שינויים לפי יום") יידעו עליה בלי להעביר prop בכל שלב
 const LiteCtx = React.createContext(false);
 function routeTitle(dest) {
