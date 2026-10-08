@@ -306,6 +306,11 @@ function buildX(){XPLATE={};for(const o of DATA.operators)for(const v of o.vehic
 const movedTo=v=>{const l=XPLATE[v[0]]||[];const hit=l.find(([o2,v2])=>v2!==v&&isActive(v2)&&v2[2]>v[2]);return hit?hit[0]:null;};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+function updFull(){
+  let first=null,last=null;
+  for(const o of DATA.operators) for(const v of o.vehicles){if(!first||v[1]<first)first=v[1];if(!last||v[2]>last)last=v[2];}
+  return `<p class="upd" style="margin:10px 0 0">נתוני נסיעה <b>${fd(first)} – ${fd(last)}</b>${DATA.gov_updated?` · פרטי רכב <b>${fd(DATA.gov_updated)}</b>`:''}${(()=>{const u=(ARM&&(ARM.gov_updated||ARM.updated))||(OFC&&(OFC.gov_updated||OFC.updated));return u?` · מאגר ציי הרכב (מיגון, ק"מ) <b>${fd(u)}</b>`:'';})()} · העדכון הבא ${fdt(nextScan())}</p>`;
+}
 function kpis(){
   let tot=0,act=0,kab=0,kabA=0,first=null,last=null;
   for(const o of DATA.operators) for(const v of o.vehicles){tot++;if(isActive(v))act++;if(DATA.enriched&&isKab(v)){kab++;if(isActive(v))kabA++;}if(!first||v[1]<first)first=v[1];if(!last||v[2]>last)last=v[2];}
@@ -317,7 +322,7 @@ function kpis(){
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
     ${kab?`<div class="kpi" title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
   </div>
-  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">נתוני נסיעה <b>${fd(first)} – ${fd(last)}</b>${DATA.gov_updated?` · פרטי רכב <b>${fd(DATA.gov_updated)}</b>`:''}${(()=>{const u=(ARM&&(ARM.gov_updated||ARM.updated))||(OFC&&(OFC.gov_updated||OFC.updated));return u?` · מאגר ציי הרכב (מיגון, ק"מ) <b>${fd(u)}</b>`:'';})()} · העדכון הבא ${fdt(nextScan())}</div>`;
+  <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">הנתונים מעודכנים ל-<b>${fd(last)}</b> · העדכון הבא בלילה</div>`;
 }
 
 function home(){
@@ -359,9 +364,9 @@ function home(){
     return `<button class="card op${isLight(opColor(o.ref,i))?' lt':''}${opColors(o.ref,i).length>1?' mc':''}" style="--c:${opColor(o.ref,i)};--bg:${opBg(o.ref,i)}" onclick="go(${o.ref})">
       <h2>${esc(o.name)}</h2>
       <div class="body"><div class="n">${fmt(act-kabA)}</div>
-      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">פעילים עכשיו</div>
+      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">אוטובוסים פעילים</div>
       <div class="obar" title="מתוך ${fmt(o.vehicles.length)} רכבים שנצפו"><i style="width:${w(act-kabA)}"></i><i class="k" style="width:${w(kabA)}"></i><i class="r" style="width:${w(retReg)}"></i><i class="kr" style="width:${w(kabR)}"></i></div>
-      <div class="oleg"><span>נצפו ${fmt(o.vehicles.length)}</span>${retReg?`<span class="r"><i class="r"></i>ירדו ${fmt(retReg)}</span>`:''}${kabA?`<span><i class="k"></i>קבלן ${fmt(kabA)}</span>`:''}${kab?`${kabR?`<span class="r"><i class="kr"></i>קבלן ירדו ${fmt(kabR)}</span>`:''}`:''}</div></div>
+      <div class="oleg"><span>${fmt(o.vehicles.length)} רכבים סה"כ</span>${retReg?`<span class="r"><i class="r"></i>${fmt(retReg)} ירדו</span>`:''}${kabA?`<span><i class="k"></i>${fmt(kabA)} רכבי קבלן</span>`:''}${kab?`${kabR?`<span class="r"><i class="kr"></i>${fmt(kabR)} רכבי קבלן ירדו</span>`:''}`:''}</div></div>
     </button>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;
 }
 
@@ -937,13 +942,13 @@ function opView(ref){
   if(OPTAB==='veh'){
     const nf=[TYPEF,ARF,BTF,BSF].filter(Boolean).length+(ELF!==null?1:0);
     const bar=filtH.trim()?`<div class="fbar"><button class="fbtn" onclick="FSHEET=true;render()" aria-haspopup="dialog">סינון ▾${nf?` (${nf})`:''}</button>${nf?`<button class="fchip" onclick="TYPEF=null;ARF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">ניקוי הסינון</button>`:''}</div>`:'';
-    const sh=FSHEET&&filtH.trim()?`<div class="ovl" onclick="if(event.target===this){FSHEET=false;render()}"><div class="modal" role="dialog" aria-modal="true" aria-label="סינון הרכבים"><div class="mhead"><b style="font-size:17px">סינון הרכבים</b><button class="x" onclick="FSHEET=false;render()" aria-label="סגירה">✕</button></div>${filtH.replace('class="panel chips"','class="chips"')}<button class="fbtn" style="width:100%;margin-top:14px" onclick="FSHEET=false;render()">הצגת ${fmt(vs.length)} רכבים</button></div></div>`:'';
+    const sh=FSHEET&&filtH.trim()?`<div class="ovl" onclick="if(event.target===this){FSHEET=false;render()}"><div class="modal" role="dialog" aria-modal="true" aria-label="סינון הרכבים"><div class="mhead"><b style="font-size:17px">סינון הרכבים</b><button class="x" onclick="FSHEET=false;render()" aria-label="סגירה">✕</button></div>${filtH.replace('class="panel chips"','class="chips"')}<button class="fbtn" style="width:100%;margin-top:14px" onclick="FSHEET=false;render()">הצג ${fmt(vs.length)} רכבים</button></div></div>`:'';
     return headH+tabs+bar+tblH+sh;
   }
   const top=Object.entries(types).sort((a,b)=>b[1]-a[1]).slice(0,elc?3:4);
   const tile=(n,l,fn)=>`<button class="t" onclick="${fn}"><b>${fmt(n)}</b><span>${esc(l)}</span></button>`;
-  const ovH=`<div class="panel ov"><h3>מה יש ל${esc(o.name)}</h3>${top.length||elc?`<div class="g">${top.map(([t,c])=>tile(c,t,`TYPEF=${JSON.stringify(t).replace(/"/g,'&quot;')};OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})`)).join('')}${elc?tile(elc,'חשמליים',"ELF=1;OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})"):''}</div>`:''}
-    <p style="margin:12px 0 0;font-size:13px;color:var(--mut);line-height:1.7">${avgAge?`גיל ממוצע ${avgAge} שנים`:''}${ravg?`${avgAge?' · ':''}${ravg} נסיעות ביום לרכב`:''} <button class="linkbtn" onclick="OPTAB='veh';FSHEET=${filtH.trim()?'true':'false'};render()">לכל הרכבים והסינונים ←</button></p></div>`;
+  const ovH=`<div class="panel ov"><h3>הצי של ${esc(o.name)}</h3>${top.length||elc?`<div class="g">${top.map(([t,c])=>tile(c,t,`TYPEF=${JSON.stringify(t).replace(/"/g,'&quot;')};OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})`)).join('')}${elc?tile(elc,'חשמליים',"ELF=1;OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})"):''}</div>`:''}
+    <p style="margin:12px 0 0;font-size:13px;color:var(--mut);line-height:1.7">${avgAge?`גיל ממוצע ${avgAge} שנים`:''}${ravg?`${avgAge?' · ':''}${ravg} נסיעות ביום לרכב`:''} <button class="linkbtn" onclick="OPTAB='veh';FSHEET=${filtH.trim()?'true':'false'};render()">לרשימת הרכבים ←</button></p></div>`;
   return headH+tabs+ovH;
 }
 
@@ -1288,7 +1293,7 @@ function MENU(){
 }
 function SOURCES(){
   const t=$('.sub').innerHTML.replace(/<details[^>]*>|<\/details>|<summary>[^<]*<\/summary>/g,' ');
-  sheet('על המקורות',`<p style="line-height:1.7;font-size:14px;margin:0 0 12px">${t}</p>${DATA?kpis():''}`);
+  sheet('על המקורות',`<p style="line-height:1.7;font-size:14px;margin:0 0 12px">${t}</p>${DATA?kpis().replace(/<div class="upd"[\s\S]*$/,''):''}${DATA?updFull():''}`);
 }
 // חיפוש אחד: חברות, ערים, דגמים ומספרי רכב
 function closeSugg(){const b=$('#sugg');if(b){b.hidden=true;b.innerHTML='';}$('#q').setAttribute('aria-expanded','false');SUG=[];SUGI=-1;}
