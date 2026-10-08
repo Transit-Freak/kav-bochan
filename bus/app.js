@@ -239,12 +239,13 @@ function blameRow(nm, v, A, B) {
     traf: g(BL.nsp) ? g(BL.traf) / g(BL.nsp) / 60 : null, ex: g(BL.nex) >= 50 ? g(BL.ex) / g(BL.nex) / 60 : null};
 }
 const scoreCls = v => v == null ? 'dn' : v >= 85 ? 'd0' : v >= 75 ? 'd1' : v >= 65 ? 'd2' : 'd4';
-const mins = v => v == null ? '—' : (v > 0.05 ? '+' : v < -0.05 ? '−' : '') + fmt1(Math.abs(v));
+// דקות עם סימן (+ איחור, − הקדמה). bdi כדי שהסימן יופיע לפני המספר גם בעמוד מימין לשמאל (שלמה 08.10: "לא מובן מה זה +")
+const mins = v => v == null ? '—' : `<bdi dir="ltr">${(v > 0.05 ? '+' : v < -0.05 ? '−' : '') + fmt1(Math.abs(v))}</bdi>`;
 function blameHtml(M) {
   if (!M.Bl || !M.Bl.days) return `<div class="panel"><div class="empty">החישוב מתחיל מהימים שמעובדים מ-07.10.2026.</div></div>`;
   const rows = Object.entries(M.Bl.A).map(([nm, v]) => blameRow(nm, v, M.A[nm], M.Bn.A[nm])).filter(r => r.n >= 200).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
   const tot = blameRow('כל החברות', M.Bl.tot, M.tot, M.Bn.tot);
-  const tbl = (list, withScore) => `<div class="tblbox"><table><thead><tr><th>${withScore ? 'חברה' : 'אשכול'}</th>${withScore ? '<th>ציון סדרנות</th>' : ''}<th>יצאו בזמן מהמסוף</th><th>יצאו מוקדם</th>${withScore ? '<th>נסיעות שנצפו</th><th>התקבצות</th>' : ''}<th>סדרנים</th><th>תכנון</th><th>פקקים</th><th>פקקים מול חברות אחרות באותה עיר ושעה</th><th>נסיעות</th></tr></thead><tbody>` +
+  const tbl = (list, withScore) => `<div class="tblbox"><table><thead><tr><th>${withScore ? 'חברה' : 'אשכול'}</th>${withScore ? '<th>ציון סדרנות<br><small>0–100</small></th>' : ''}<th>יצאו בזמן מהמסוף</th><th>יצאו מוקדם</th>${withScore ? '<th>נסיעות שנצפו</th><th>התקבצות</th>' : ''}<th>סדרנים<br><small>דק׳ לנסיעה</small></th><th>תכנון<br><small>דק׳ לנסיעה</small></th><th>פקקים<br><small>דק׳ לנסיעה</small></th><th>פקקים מול חברות אחרות באותה עיר ושעה<br><small>דק׳ · + יותר מאחרות</small></th><th>נסיעות</th></tr></thead><tbody>` +
     list.map(r => `<tr><td class="nm">${esc(r.nm)}</td>${withScore ? `<td class="${scoreCls(r.score)}"><b>${r.score ?? '—'}</b></td>` : ''}<td>${r.onDep == null ? '—' : Math.round(r.onDep * 100) + '%'}</td><td>${r.early == null ? '—' : Math.round(r.early * 100) + '%'}</td>${withScore ? `<td>${r.perf == null ? '—' : Math.round(r.perf * 100) + '%'}</td><td>${r.bunch == null ? '—' : Math.round(r.bunch * 100) + '%'}</td>` : ''}<td>${mins(r.disp)}</td><td>${mins(r.plan)}</td><td>${mins(r.traf)}</td><td class="${r.ex == null ? 'dn' : r.ex > 0.5 ? 'd3' : r.ex < -0.5 ? 'd0' : ''}">${mins(r.ex)}</td><td>${num(r.n)}</td></tr>`).join('') + '</tbody></table></div>';
   const cls = Object.entries(M.Bl.C).map(([nm, v]) => blameRow(nm, v)).filter(r => r.n >= 200).sort((a, b) => (b.disp + b.plan + b.traf) - (a.disp + a.plan + a.traf));
   return `<div class="panel"><div class="ptitle">מי אשם באיחור: הסדרנים, הפקקים או לוח הזמנים</div>
@@ -252,7 +253,7 @@ function blameHtml(M) {
     <b>סדרנים</b> — כמה האוטובוס איחר ביציאה מהמסוף (החלטה של החברה, לא של הכביש).
     <b>תכנון</b> — כמה הקו מאחר בדרך גם בשעה הכי טובה שלו: זמן הנסיעה שבלוח הזמנים קצר מדי.
     <b>פקקים</b> — מה שנוסף בדרך מעבר לזה, בשעות העומס.
-    העמודה האחרונה משווה את הפקקים של החברה לכל החברות שיוצאות מאותה עיר באותה שעה: מספר חיובי = החברה מאבדת בדרך יותר מאחרות באותו מקום, כלומר זה לא רק הכביש.</p>
+    העמודה האחרונה משווה את הפקקים של החברה לכל החברות שיוצאות מאותה עיר באותה שעה: מספר חיובי = החברה מאבדת בדרך יותר מאחרות באותו מקום, כלומר זה לא רק הכביש.<br>בעמודות סדרנים, תכנון ופקקים המספרים הם <b>דקות</b>, לא ציון: <b>+2.5</b> = 2.5 דקות איחור בממוצע לנסיעה, <b>−0.5</b> = חצי דקה הקדמה. הציון היחיד בטבלה הוא "ציון סדרנות" (0–100).</p>
     <div class="stats" style="margin:8px 0 12px">בכל החברות: סדרנים ${mins(tot.disp)} · תכנון ${mins(tot.plan)} · פקקים ${mins(tot.traf)} דק׳ לנסיעה · ${tot.onDep == null ? '—' : Math.round(tot.onDep * 100) + '%'} יצאו בזמן מהמסוף</div>
     ${rows.length ? tbl(rows, true) : '<div class="empty">אין מספיק נסיעות</div>'}
     <p class="note">ציון סדרנות (0–100): 50% יציאה בזמן מהמסוף (בין דקה לפני ל-3 דקות אחרי), 30% נסיעות שנצפו מתוך המתוכננות, 20% נסיעות שלא הגיעו צמודות לקודמת (התקבצות). נסיעה שלא שידרה בכלל נספרת כאן כנסיעה שלא נצפתה — ייתכן שיצאה ולא שידרה. היציאה מהמסוף נמדדת רק כשהאוטובוס שידר בתחנה הראשונה.</p></div>
