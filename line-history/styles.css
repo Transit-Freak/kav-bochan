@@ -427,6 +427,6 @@ a.whymark:hover { background: #92400e; }
 .whybox .whymark { width: 18px; height: 18px; font-size: 12px; vertical-align: -3px; margin-left: 4px; }
 .whybox a { white-space: nowrap; }
 
-/* ארכיון אתרי המידע לנוסעים — בחירת שנה (שלמה 08.10) */
-.years { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.years .kchip.on { background: #4c1d95; border-color: #4c1d95; color: #fff; }
+/* סיכום השנה של אתרי המידע לנוסעים, בתוך "שינויים לפי יום" (שלמה 08.10) */
+.wysum { background: #f5f3ff; border: 1px solid #e9e5ff; border-radius: 12px; padding: 8px 14px; margin: 6px 0 12px; font-size: 14px; line-height: 1.6; }
+.wysum p { margin: 4px 0; }

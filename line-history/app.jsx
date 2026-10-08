@@ -3512,6 +3512,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
       {/* המקור לפי מה שיש בחודש שנבחר: צילומי אתרי המידע (מ־2003) אינם קובצי משרד התחבורה (שלמה 03.10) */}
       {mode === "lines" && yr === "2012" && mon !== "legacy2012" && !showWeb && <p id="source-gtfs-2012" className="pdesc">מקור: קובצי GTFS של משרד התחבורה מיולי 2012, שנשמרו דרך עמותת מרחב ו־Internet Archive.</p>}
       {mode === "lines" && mon !== "legacy2012" && showWeb && <p className="pdesc">מקור: אתרי מידע לנוסעים שנשמרו ב־Internet Archive. כיסוי חלקי; צילום אינו הודעה על שינוי.</p>}
+      {mode === "lines" && mon !== "legacy2012" && showWeb && yr && <WebsiteYearSummary year={yr} />}
       {yr && mon !== "legacy2012" && (
         <div className="months">
           {months.filter((m) => m.startsWith(yr) && (showWeb ? webSet.has(m) : isOfficial(m))).slice().reverse().map((m) => (
@@ -5120,10 +5121,9 @@ function useWebsiteRevision() {
   useEffect(()=>{const update=()=>setRevision(n=>n+1);window.addEventListener("website-history-published",update);return()=>window.removeEventListener("website-history-published",update);},[]);
   return revision;
 }
-// אתרי המידע לנוסעים 2003–2015: לכל שנה אילו חברות ואילו אזורים יש בה, בלחיצה על השנה
-// (שלמה 08.10: בלי "כמה עלה וכמה לא"). website-years.json נבנה ב-tools/website_years.py.
-function WebsiteImportStatus({openLine,onPublished}) {
-  const [data,setData]=useState(null),[years,setYears]=useState(null),[error,setError]=useState(false),[sel,setSel]=useState(null);
+// מעקב אחרי פרסום חדש של צילומי אתרי המידע: כשהאיסוף מפרסם, הדף טוען מחדש את הנתונים.
+// בלי תצוגה משלו — סיכום השנה מופיע בתוך "שינויים לפי יום", ליד בחירת השנה (שלמה 08.10).
+function WebsiteImportStatus({onPublished}) {
   const stamp=useRef(null),callback=useRef(onPublished);callback.current=onPublished;
   useEffect(()=>{
     let active=true;
@@ -5131,32 +5131,35 @@ function WebsiteImportStatus({openLine,onPublished}) {
       if(document.hidden)return;
       try{
         const response=await fetch("data/website-archive-summary.json?v="+Date.now(),{cache:"no-store"});
-        if(!response.ok)throw Error(response.status);
+        if(!response.ok)return;
         const next=await response.json();if(!active)return;
-        const changed=stamp.current!==next.updatedAt;
-        if(stamp.current && changed)callback.current();
-        stamp.current=next.updatedAt;setData(next);setError(false);
-        if(changed){const r=await fetch("data/website-years.json?v="+Date.now(),{cache:"no-store"});if(r.ok&&active)setYears((await r.json()).years||[]);}
-      }catch(e){if(active)setError(true);}
+        if(stamp.current && stamp.current!==next.updatedAt)callback.current();
+        stamp.current=next.updatedAt;
+      }catch(e){}
     };
     load();const timer=setInterval(load,30000);document.addEventListener("visibilitychange",load);
     return()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",load);};
   },[]);
-  if(!data)return <div className="card mut" role="status">{error?"ארכיון אתרי המידע לנוסעים טרם זמין. ניסיון נוסף יתבצע אוטומטית.":"טוען את ארכיון אתרי המידע לנוסעים…"}</div>;
-  const ys=years||[],cur=ys.find(y=>y.y===sel);
-  const list=(arr,unit)=>arr.map(([n,c])=>n+" ("+c.toLocaleString()+" "+unit+")").join(" · ");
-  return <section className="card" aria-label="ארכיון אתרי המידע לנוסעים">
-    <h2>אתרי המידע לנוסעים <span style={{whiteSpace:"nowrap"}}>2003–2015</span></h2>
-    <p>צילומים של אתרי חברות האוטובוסים מארכיון האינטרנט. לחצו על שנה כדי לראות אילו חברות ואילו אזורים יש בה.</p>
-    <div className="years" role="group" aria-label="שנים">{ys.map(y=><button key={y.y} className={"kchip"+(y.y===sel?" on":"")} aria-pressed={y.y===sel} onClick={()=>setSel(y.y===sel?null:y.y)}><b>{y.y}</b> · {y.lines.toLocaleString()} קווים</button>)}</div>
-    {cur&&<div className="added" role="region" aria-label={"שנת "+cur.y}>
-      <p><b>{cur.y}</b>: {cur.lines.toLocaleString()} קווים, מצילומים של {cur.months.length===1?"חודש אחד":cur.months.length+" חודשים"}.</p>
-      <p><b>חברות:</b> {list(cur.ops,"קווים")}</p>
-      {cur.towns.length>0&&<p><b>אזורים עיקריים:</b> {list(cur.towns,"קווים")}</p>}
-    </div>}
-    {data.updatedAt&&<p className="mut">עודכן {new Date(data.updatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem"})}</p>}
-    {error&&<p role="status">לא הצלחנו לקבל עדכון כרגע. מוצג המצב האחרון שהתקבל.</p>}
-  </section>;
+  return null;
+}
+// סיכום לשנה של אתרי המידע לנוסעים: כמה קווים, אילו חברות ואילו אזורים (website-years.json)
+function useWebsiteYears() {
+  const revision=useWebsiteRevision();
+  const [years,setYears]=useState(null);
+  useEffect(()=>{let on=true;fetch("data/website-years.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(on&&d)setYears(d.years||[]);}).catch(()=>{});return()=>{on=false;};},[revision]);
+  return years;
+}
+const linesWord=n=>n===1?"קו אחד":n.toLocaleString()+" קווים";
+function WebsiteYearSummary({year}) {
+  const years=useWebsiteYears();
+  const cur=(years||[]).find(y=>y.y===year);
+  if(!cur)return null;
+  const list=(arr)=>arr.map(([n,c])=>n+" ("+linesWord(c)+")").join(" · ");
+  return <div className="wysum" role="region" aria-label={"אתרי המידע לנוסעים בשנת "+year}>
+    <p><b>{year}</b>: צילומים של {linesWord(cur.lines)} מאתרי החברות, מ{cur.months.length===1?"חודש אחד":"־"+cur.months.length+" חודשים"}.</p>
+    <p><b>חברות:</b> {list(cur.ops)}</p>
+    {cur.towns.length>0&&<p><b>אזורים עיקריים:</b> {list(cur.towns)}</p>}
+  </div>;
 }
 function App() {
   const citySearch = useRouteCities();
@@ -5346,7 +5349,7 @@ function App() {
         </div>
       </header>
       {/* פרסום חדש: גם רשימת החודשים נטענת מחדש, אחרת דף פתוח נשאר עם חודשים ומקורות ישנים מול אינדקס חדש */}
-      <WebsiteImportStatus openLine={openLine} onPublished={()=>{MONTHS_P=null;setRty(n=>n+1);window.dispatchEvent(new Event("website-history-published"));}} />
+      <WebsiteImportStatus onPublished={()=>{MONTHS_P=null;setRty(n=>n+1);window.dispatchEvent(new Event("website-history-published"));}} />
       <div className="tabs" role="tablist" aria-label="אזורי האתר">
         <button role="tab" aria-selected={tab === "lines"} className={"tab" + (tab === "lines" ? " on" : "")} title="חיפוש בכל קווי האוטובוס בארץ והיסטוריית השינויים של כל קו" onClick={() => { setTab("lines"); backToList("lines"); }}>🚌 קווים</button>
         <button role="tab" aria-selected={tab === "stops"} className={"tab" + (tab === "stops" ? " on" : "")} title="חיפוש תחנות והיסטוריית השינויים שלהן — שינוי שם, הזזה, ביטול" onClick={() => { setTab("stops"); backToList("stops"); }}>🚏 תחנות</button>
