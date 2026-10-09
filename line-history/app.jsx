@@ -6029,7 +6029,7 @@ function App() {
                       {isRemovedYear(l) ? "חלופה בוטלה — מעל שנה" : "חלופה בוטלה"}
                     </span>
                   ))}
-                  <span className="ldest">{lite && !lab ? (routeTitle(l.dest, l) || l.dest) : l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
+                  <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
                   <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
