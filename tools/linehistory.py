@@ -944,10 +944,11 @@ print(f'תחנות: חדשות {ns} | בוטלו {nd} | שם {nr} | מיקום {
 # האינדקס כולל את כל הווריאנטים שיש להם קובץ — גם כאלה שכבר לא ברישום
 # (קווים מבוטלים חייבים להישאר ניתנים לחיפוש ולסינון לפי קטגוריה).
 # ks = סוגי השינויים שיש לקו, lk/ld = הרשומה האחרונה (לסטטוס "מבוטל").
+# התיאור המלא, בלי קיצור ל-80 תווים: הקיצור חתך את שם העיר בסוף ("תל א", שלמה 09.10)
 def idx_entry(rdesc, line, dest, op, ty, tt=None):
     _lf = materialize(jload(f'{OUTDIR}/lines/{fsafe(rdesc)}.json', {}))
     vs = _lf.get('versions', [])
-    e = {'rd': rdesc, 'line': line, 'dest': dest[:80], 'op': op, 'ty': ty, 'v': len(vs)}
+    e = {'rd': rdesc, 'line': line, 'dest': dest, 'op': op, 'ty': ty, 'v': len(vs)}
     if tt: e['tt'] = tt      # סוג תחבורה שאינו אוטובוס — לסינון באתר
     if _lf.get('vt'): e['vt'] = _lf['vt']   # סוג הרכב ברישוי (linehistory_rishui.py)
     ks = {v['k'] for v in vs if v['k'] != 'baseline'}
