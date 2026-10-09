@@ -83,7 +83,7 @@ function LinePage({ rd, onBack }) {
   const [mon, setMon] = useState("");
   useEffect(() => {
     setLf(null); setErr(null); setSel(null); setMon("");
-    fetch("data/lines/" + fsafe(rd) + ".json?v=" + BUILD + "-" + new Date().toISOString().slice(0, 10))
+    fetch("https://raw.githubusercontent.com/Transit-Freak/kav-bochan/125fdb0f6ed85451b99f592bd104f38dd81fa851/line-history/data/lines/" + fsafe(rd) + ".json?v=" + BUILD + "-" + new Date().toISOString().slice(0, 10))
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then((d) => { setLf(d); setSel(d.versions.length - 1); })
       .catch(setErr);
@@ -157,7 +157,7 @@ function StopsTab() {
   const [kind, setKind] = useState("");
   const [q, setQ] = useState("");
   useEffect(() => {
-    fetch("data/months.json?v=" + BUILD + "-" + new Date().toISOString().slice(0, 10))
+    fetch("https://raw.githubusercontent.com/Transit-Freak/kav-bochan/125fdb0f6ed85451b99f592bd104f38dd81fa851/line-history/data/months.json?v=" + BUILD + "-" + new Date().toISOString().slice(0, 10))
       .then((r) => r.json())
       .then((d) => { const ms = d.stopMonths || []; setMonths(ms); if (ms.length) setMon(ms[0]); })
       .catch(() => setMonths([]));
@@ -165,7 +165,7 @@ function StopsTab() {
   useEffect(() => {
     if (!mon) return;
     setChs(null);
-    fetch("data/changes/stops-" + mon + ".json?v=" + BUILD)
+    fetch("https://raw.githubusercontent.com/Transit-Freak/kav-bochan/125fdb0f6ed85451b99f592bd104f38dd81fa851/line-history/data/changes/stops-" + mon + ".json?v=" + BUILD)
       .then((r) => (r.ok ? r.json() : { changes: [] }))
       .then((d) => setChs(d.changes || []))
       .catch(() => setChs([]));
@@ -223,7 +223,7 @@ function App() {
   const [q, setQ] = useState("");
   const [rd, setRd] = useState(null);
   useEffect(() => {
-    fetch("data/lines.json?v=" + BUILD + "-" + new Date().toISOString().slice(0, 10))
+    fetch("https://raw.githubusercontent.com/Transit-Freak/kav-bochan/125fdb0f6ed85451b99f592bd104f38dd81fa851/line-history/data/lines.json?v=" + BUILD + "-" + new Date().toISOString().slice(0, 10))
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(setIdx)
       .catch(setErr);

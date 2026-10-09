@@ -95,5 +95,5 @@ function method() {
   </ul>`;
 }
 
-load('../data/reception.json').then(d => { D = d; init(); }).catch(e => { $('#map').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
+load('https://raw.githubusercontent.com/Transit-Freak/kav-bochan/6a21924ddeb4fe4b505db5d882bffc1b27319bad/rail/data/reception.json').then(d => { D = d; init(); }).catch(e => { $('#map').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; });
 })();

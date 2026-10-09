@@ -110,7 +110,7 @@ function App() {
   const dq = useDeferredValue(q);
 
   useEffect(() => {
-    fetch("data.json?v=" + BUILD)
+    fetch("https://raw.githubusercontent.com/Transit-Freak/kav-bochan/fbec53aaef8f0f707ca006e4cae376b92df91bf7/skip-stops/data.json?v=" + BUILD)
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(setData)
       .catch((e) => setErr(e));
