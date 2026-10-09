@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <!-- העטיפה .wrap נדרשת לכפתור הנגישות: a11y.js מגדיל תצוגה דרך
@@ -583,10 +583,24 @@ function cityIndex(){
   CITYIX=Object.entries(m).map(([c,e])=>({c, nc:norm(c), ...e}));
   return CITYIX;
 }
+// "מרכז העיר" לחישוב מחיר מיד בבחירת עיר (שלמה 09.10: מרכז העיר, לא התחנה המרכזית): הנקודה
+// שבאמצע תחנות העיר (החציון של קווי הרוחב והאורך), והמחיר מחושב לתחנה הקרובה אליה
+function cityCenterStop(city){
+  const L=[];
+  for (const sid in STOPS){ const s=STOPS[sid]; if (s[1]===city && s[2]!=null) L.push([sid,s]); }
+  if (!L.length) return null;
+  const med=a=>{ const b=a.slice().sort((x,y)=>x-y); return b[b.length>>1]; };
+  const la=med(L.map(x=>x[1][2])), lo=med(L.map(x=>x[1][3]));
+  let best=L[0], bd=Infinity;
+  for (const x of L){ const d=(x[1][2]-la)**2+((x[1][3]-lo)*0.85)**2; if (d<bd){ bd=d; best=x; } }
+  return best[0];
+}
 function pickCity(key, city){
   CITYSEL={key, city};
   ensureMap();
   setTimeout(()=>{
+    const sid=cityCenterStop(city);
+    if (sid) selectStop(key, sid, city);   // המחיר מחושב מיד למרכז העיר; הנקודות נשארות לבחירה מדויקת
     const e=cityIndex().find(x=>x.c===city);
     if (!MAP || !e) return;
     MAP.fitBounds([[e.s,e.w],[e.n2,e.e]], {padding:[20,20], maxZoom:15});
@@ -770,17 +784,18 @@ function nearAddr(key, addr, box){
 stopSearch('qFrom','resFrom','from');
 stopSearch('qTo','resTo','to');
 
-function selectStop(key, sid){
+function selectStop(key, sid, centerOf){
   const s=STOPS[sid];
   if (!s) return;
-  if (CITYSEL){ CITYSEL=null; refreshDots(); }
-  picked[key]=[sid,s[0],s[1],s[2],s[3]];
+  if (CITYSEL && !centerOf){ CITYSEL=null; refreshDots(); }
+  picked[key]=[sid,s[0],s[1],s[2],s[3]].concat(centerOf ? [centerOf] : []);
   $('res'+(key==='from'?'From':'To')).style.display='none';
   const inputId=key==='from'?'qFrom':'qTo';
   $(inputId).style.display='none';
   const chip=$('chip'+(key==='from'?'From':'To'));
   chip.style.display='flex';
-  chip.querySelector('span').innerHTML=`<span class="rn">${sid}</span>${s[0]}${s[1]?' · '+s[1]:''}`;
+  chip.querySelector('span').innerHTML=`<span class="rn">${sid}</span>${s[0]}${s[1]?' · '+s[1]:''}`
+    +(centerOf ? `<small class="ctrnote">מרכז ${esc(centerOf)} — לתחנה מדויקת לחצו עליה במפה</small>` : '');
   placeMarker(key, s);
   computeStops();
 }
@@ -835,7 +850,8 @@ function computeStops(){
   if (EILAT_CITIES[picked.from[2]] && EILAT_CITIES[picked.to[2]] && fx.flat==null && !fx.flatAlt)
     fx.eilatRegion=true;
   // שתי תחנות רכבת — מחיר הרכבת המדויק ידוע, והוא כנראה מה שחיפשו
-  renderResult(km, 'מרחק אווירי בין התחנות', fx.railExact!=null, fx);
+  const cen=[picked.from,picked.to].filter(p=>p[5]).map(p=>p[5]);
+  renderResult(km, 'מרחק אווירי בין התחנות'+(cen.length ? ' · מחושב למרכז '+cen.join(' ול')+' — המחיר לתחנה אחרת בעיר עשוי להיות שונה' : ''), fx.railExact!=null, fx);
 }
 
 /* מפה לבחירת תחנה בלחיצה — נטענת רק כשנכנסים למצב "לפי תחנות" */
