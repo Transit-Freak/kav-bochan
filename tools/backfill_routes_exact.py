@@ -196,7 +196,7 @@ if idx.get('lines') is not None:
         vs = lf.get('versions', [])
         e = byrd_idx.get(rd)
         if e is None:
-            e = {'rd': rd, 'line': lf.get('line', ''), 'dest': lf.get('dest', '')[:80],
+            e = {'rd': rd, 'line': lf.get('line', ''), 'dest': lf.get('dest', ''),
                  'op': lf.get('op', ''), 'ty': lf.get('ty', '')}
             idx['lines'].append(e)
             byrd_idx[rd] = e
@@ -204,7 +204,7 @@ if idx.get('lines') is not None:
         else:
             # תמיד מסנכרנים מהקובץ — דיוק יכול לשנות תאריכים בלי לשנות ספירה
             e['line'] = lf.get('line', e.get('line', ''))
-            e['dest'] = (lf.get('dest') or e.get('dest', ''))[:80]
+            e['dest'] = lf.get('dest') or e.get('dest', '')
             e['op'] = lf.get('op', e.get('op', ''))
         ks = {v['k'] for v in vs if v['k'] != 'baseline'}
         for v in vs:   # קטגוריות התחנות הנגזרות מההשוואות — לא לדרוס

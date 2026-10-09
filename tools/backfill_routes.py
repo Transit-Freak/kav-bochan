@@ -167,7 +167,7 @@ if idx:
         vs = lf.get('versions', [])
         e = byrd.get(rd0)
         if e is None:
-            e = {'rd': rd0, 'line': lf.get('line', ''), 'dest': (lf.get('dest') or '')[:80],
+            e = {'rd': rd0, 'line': lf.get('line', ''), 'dest': lf.get('dest') or '',
                  'op': lf.get('op', ''), 'ty': lf.get('ty', '')}
             idx['lines'].append(e); byrd[rd0] = e
         e['v'] = len(vs)
