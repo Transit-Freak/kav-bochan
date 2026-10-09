@@ -32,16 +32,16 @@
     document.body.appendChild(bar);
     var left = SECS;
     var sub = info ? "הגרסה הראשונה של " + info.name + " (" + info.v + ", " + info.d + ") · שחזור הנתונים בתהליך" : "שחזור הנתונים בתהליך";
-    function draw() { bar.innerHTML = "⏳ טוען את האתר מחדש בעוד <b>" + left + "</b> שניות…<small>" + sub + "</small>"; }
+    function draw() { bar.innerHTML = "טוען את האתר מחדש בעוד <b>" + left + "</b> שניות…"; }
     draw();
     var t = setInterval(function () {
       left--; draw();
       if (left > 0) return;
       clearInterval(t); seen();
       var ov = document.createElement("div"); ov.id = "kb-apr-ov";
-      ov.innerHTML = '<div id="kb-apr-card" role="dialog" aria-modal="true" aria-label="1 באפריל"><div class="big">🎉</div><h3>1 באפריל!</h3>' +
-        "<p>שום דבר לא נמחק 😄 כל המידע במקום.</p>" +
-        (info ? "<p>מה שראית עכשיו זה באמת הקוד המקורי של " + info.name + " מ-" + info.d + ".</p>" : "") +
+      ov.innerHTML = '<div id="kb-apr-card" role="dialog" aria-modal="true" aria-label="1 באפריל"><h3>1 באפריל!</h3>' +
+        "<p>שום דבר לא נמחק, כל המידע במקום.</p>" +
+        
         '<a href="' + backUrl() + '">חזרה לאתר של היום ←</a></div>';
       document.body.appendChild(ov);
       ov.querySelector("a").focus();
