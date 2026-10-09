@@ -3836,7 +3836,10 @@ function routeTitle(dest, m) {
     return side(frCity, fr && (!fr.city || fr.city === frCity) ? fr : null) + " – " + side(toCity, to && (!to.city || to.city === toCity) ? to : null);
   }
   const city = toCity || frCity;
-  return (city ? city + ": " : "") + ((fr && fr.stop) || a.stop) + " – " + ((to && to.stop) || b.stop);
+  const from = (fr && fr.stop) || a.stop, to2 = (to && to.stop) || b.stop;
+  // קו מעגלי — אותו מוצא ויעד (שלמה 09.10: "ביתר עילית, גבעה ב (מעגלי)")
+  if (from && from === to2) return (city ? city + ", " : "") + from + " (מעגלי)";
+  return (city ? city + ": " : "") + from + " – " + to2;
 }
 function collapse2012Rows(rows, meta = null) {
   const seen = new Set();
@@ -3856,6 +3859,8 @@ function lineSiblings(idx, rd) {
 
 function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines" }) {
   const lite = React.useContext(LiteCtx);
+  // בתצוגה החדשה שינויי לו"ז/תגבור/רישום מקופלים לשורה אחת לכל סוג ביום (שלמה 09.10: "פירוט יתר")
+  const [openLow, setOpenLow] = useState(() => new Set());
   const citySearch = useRouteCities();
   const earlyMonths = useHistoricalMonths(mode);
   const [regularMonths, setRegularMonths] = useState([]);
@@ -4078,7 +4083,8 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                 onClick={() => setDayF(dayF === d ? null : d)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDayF(dayF === d ? null : d); } }}>
                 {fmtD(d)} · יום {WD[new Date(d).getDay()]} · {byd.get(d).length.toLocaleString()} שינויים {dayF === d ? "· 📌" : ""}</div>
-              {byd.get(d).map((c, i) => {
+              {(() => {
+                const rowOf = (c, i, withNote) => {
                 if (shown >= lim) return null;
                 shown++;
                 const m = meta[c.rd] || {};
@@ -4098,10 +4104,32 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                     </>}
                     {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
-                    {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
+                    {c.note && withNote ? <span className="lnote">{noteFix(c.note)}</span> : null}
                   </a>
                 );
-              })}
+                };
+                const all = byd.get(d);
+                if (!lite) return all.map((c, i) => rowOf(c, i, true));
+                const imp = all.filter((c) => !LOW_KINDS.has(evKind(c)));
+                const grp = new Map();
+                all.forEach((c) => { const k = evKind(c); if (LOW_KINDS.has(k)) { if (!grp.has(k)) grp.set(k, []); grp.get(k).push(c); } });
+                return <>
+                  {imp.map((c, i) => rowOf(c, i, true))}
+                  {[...grp.entries()].map(([k, list]) => {
+                    const key = d + "|" + k, open = openLow.has(key);
+                    return (
+                      <React.Fragment key={key}>
+                        <button className={"lowgrp" + (open ? " open" : "")} aria-expanded={open}
+                          onClick={() => setOpenLow((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; })}>
+                          <span className="k" style={{ background: (KINDS[k] || {}).color || "#64748b" }}>{(KINDS[k] || { label: k }).label}</span>
+                          <span>{list.length.toLocaleString()} {list.length === 1 ? "קו" : "קווים"}</span>
+                          <span className="ch" aria-hidden="true">{open ? "⌃" : "⌄"}</span>
+                        </button>
+                        {open && list.map((c, i) => rowOf(c, "l" + i, false))}
+                      </React.Fragment>);
+                  })}
+                </>;
+              })()}
             </React.Fragment>
           ))}
           {list.length > lim && (
