@@ -3726,8 +3726,11 @@ function groupSearch(list, needle) {
   const add = (key, l) => { let g = byKey.get(key); if (!g) { g = { key, line: l.line, op: l.op, items: [] }; byKey.set(key, g); groups.push(g); } g.items.push(l); };
   for (const l of list) { const mk = String(l.rd).split("-")[0]; if (/^\d+$/.test(mk) && String(l.rd).includes("-")) add(mk, l); else loose.push(l); }
   for (const l of loose) {
+    // רשומת ארכיון מצטרפת לכרטיס של מק"ט רק כששני הקצוות שלה זהים לאחת החלופות — עיר משותפת אחת
+    // לא מספיקה (449 אופקים–ירושלים מ-2012 צורף ל-449 קרית גת–ירושלים, שלמה 09.10: "לעשות לפי מק"ט")
     const cs = endCities(l.dest);
-    const g = groups.find((x) => x.line === l.line && x.op === l.op && x.items.some((y) => endCities(y.dest).some((c) => cs.includes(c))));
+    const ends = (e) => (e.length ? [e[0], e[e.length - 1]].sort().join("|") : "");
+    const g = cs.length >= 2 && groups.find((x) => x.line === l.line && x.op === l.op && x.items.some((y) => ends(endCities(y.dest)) === ends(cs)));
     if (g) g.items.push(l); else add("x|" + l.rd, l);
   }
   if (!num) return { exact: groups, similar: [], num };
