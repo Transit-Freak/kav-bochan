@@ -3754,7 +3754,9 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
   // קו עירוני (אותה עיר בשני הקצוות): "ירושלים – ירושלים" לא אומר כלום, ולכן העיר ותחנות הקצה של
   // החלופה הראשית; הפרטים של שאר החלופות בתוך הכרטיס
   let route = orig.slice(0, 3).join(" / ") + (dest.length ? " – " + dest.slice(0, 4).join(" / ") : "");
-  if (orig.length === 1 && dest.length === 1 && same(orig[0], dest[0]) && pool.length) {
+  // עיר מוצא אחת ועיר יעד אחת: הכותרת לפי השלטים, כמו בדף הראשי (שלמה 09.10)
+  if (orig.length === 1 && dest.length === 1 && pool.length && routeTitle(pool[0].dest, pool[0])) route = routeTitle(pool[0].dest, pool[0]);
+  else if (orig.length === 1 && dest.length === 1 && same(orig[0], dest[0]) && pool.length) {
     const cut = (x) => x.length > 26 ? x.slice(0, 25) + "…" : x;
     const st = String(pool[0].dest || "").replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return cut((p.length > 1 ? p.slice(0, -1) : p).join("-").trim()); });
     route = orig[0] + ": " + st[0] + (st.length > 1 ? " – " + st[st.length - 1] : "");
@@ -3837,8 +3839,11 @@ function routeTitle(dest, m) {
   }
   const city = toCity || frCity;
   const from = (fr && fr.stop) || a.stop, to2 = (to && to.stop) || b.stop;
-  // קו מעגלי — אותו מוצא ויעד (שלמה 09.10: "ביתר עילית, גבעה ב (מעגלי)")
-  if (from && from === to2) return (city ? city + ", " : "") + from + " (מעגלי)";
+  // קו מעגלי — אותו מוצא ויעד (שלמה 09.10: "ביתר עילית, גבעה ב (מעגלי)"), גם כשרק הרציף שונה:
+  // "תחנה מרכזית קריית שמונה/רציפים" ← "…/הורדה"
+  const base = (x) => String(x || "").split("/")[0].trim();
+  if (from && (from === to2 || (base(from).length > 3 && base(from) === base(to2))))
+    return (city ? city + ", " : "") + (from === to2 ? from : base(from)) + " (מעגלי)";
   return (city ? city + ": " : "") + from + " – " + to2;
 }
 function collapse2012Rows(rows, meta = null) {
@@ -6021,12 +6026,14 @@ function App() {
                       {isRemovedYear(l) ? "חלופה בוטלה — מעל שנה" : "חלופה בוטלה"}
                     </span>
                   ))}
-                  <span className="ldest">{l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
+                  <span className="ldest">{lite && !lab ? (routeTitle(l.dest, l) || l.dest) : l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
                   <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
                 </a>);
-                const G = groupSearch(list, needle);
+                // בתצוגה החדשה בלי רשומות הארכיון (2012 ואתרי המידע 2003–2015) בחיפוש — הן נמצאות ב"לפי יום"
+                // (שלמה 09.10: "תמחק את המילה ארכיון, אפשר לחפש את זה בקלות לפי יום")
+                const G = groupSearch(lite ? list.filter((l) => /^\d/.test(String(l.rd))) : list, needle);
                 const isOpen = (g, i, first) => (first && i === 0) ? !gOpen.has(g.key) : gOpen.has(g.key);
                 const tog = (k) => setGOpen((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
                 return <>
