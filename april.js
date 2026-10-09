@@ -38,7 +38,7 @@
   function show() {
     var st = document.createElement("style"); st.textContent = CSS; document.head.appendChild(st);
     var o = document.createElement("div"); o.id = "kb-oops"; o.setAttribute("role", "alertdialog"); o.setAttribute("aria-label", "אופס");
-    o.innerHTML = '<h1>אופס...</h1><p>בטעות מחקתי את כל המידע מהאתר.</p><p>אני עובד על השחזור.</p>' +
+    o.innerHTML = '<h1>אופס...</h1><p>בטעות מחקתי את כל המידע מהאתר.</p><p>השחזור בתהליך.</p>' +
       '<div class="kb-obar"><span style="display:block;width:12%;height:100%;background:#f59e0b;border-radius:9px"></span></div><small>משחזר… 12%</small><button type="button">המשך</button>';
     document.body.appendChild(o);
     document.documentElement.style.overflow = "hidden";
