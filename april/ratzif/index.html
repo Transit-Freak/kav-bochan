@@ -104,7 +104,7 @@ document.querySelectorAll('.fchip').forEach(b=>b.addEventListener('click',()=>{
   F=b.dataset.f;document.querySelectorAll('.fchip').forEach(x=>x.classList.toggle('on',x===b));LIMIT=40;render();
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;LIMIT=40;render();});
-fetch('data/conflicts.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.json()})
+fetch('https://raw.githubusercontent.com/Transit-Freak/kav-bochan/7fd8277ba2291e749b7d7acf4579107ead19916e/ratzif/data/conflicts.json').then(r=>{if(!r.ok)throw 0;return r.json()})
 .then(d=>{D=d;render();})
 .catch(()=>{$('#view').innerHTML='<div class="empty">עוד אין נתונים — המערכת תרוץ הלילה לראשונה, או שמריצים ידנית את ratzif ב-Actions.</div>';});
 </script>
