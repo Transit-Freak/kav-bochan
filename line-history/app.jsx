@@ -3794,11 +3794,32 @@ function LtAcc({ icon, title, sub, children }) {
 }
 // התצוגה החדשה — כדי שרכיבים עמוק בעץ (כמו "שינויים לפי יום") יידעו עליה בלי להעביר prop בכל שלב
 const LiteCtx = React.createContext(false);
+// שם עיר שנחתך בתיאור הקו (במקור יש מגבלת אורך: "תל א" במקום "תל אביב יפו", שלמה 09.10) — משלימים
+// לפי שמות הערים המלאים שבתיאורי כל הקווים, רק כשההשלמה חד-משמעית
+let KNOWN_CITIES = null;
+function setKnownCities(lines) {
+  const c = new Set();
+  (lines || []).forEach((l) => String(l.dest || "").replace(/-\d+[#א-ת]?$/, "").split("<->").forEach((x) => {
+    const p = x.split("-"); if (p.length > 1) { const t = p[p.length - 1].trim(); if (t) c.add(t); } }));
+  KNOWN_CITIES = [...c];
+}
+function fullCity(city, other) {
+  if (!city) return city;
+  if (other && other !== city && other.startsWith(city)) return other;   // "תל א" מול "תל אביב יפו" באותו קו
+  if (!KNOWN_CITIES || KNOWN_CITIES.includes(city)) return city;
+  const m = KNOWN_CITIES.filter((k) => k.length > city.length && k.startsWith(city));
+  if (!m.length) return city;
+  const best = m.reduce((a, b) => (a.length >= b.length ? a : b));      // "תל אביב" ו"תל אביב יפו" — אותה עיר
+  return m.every((k) => best.startsWith(k)) ? best : city;
+}
+// "תחנה-עיר<->תחנה-עיר-1#" → "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה"
 function routeTitle(dest) {
   if (!dest) return "";
-  const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p[p.length - 1].trim() }; });
+  const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p.length > 1 ? p[p.length - 1].trim() : "" }; });
   const a = sides[0], b = sides[sides.length - 1];
   if (!b || a === b) return a.stop || a.city;
+  // צד בלי "-עיר" (התיאור נחתך לפני העיר) — שם תחנה, לא שם עיר
+  a.city = fullCity(a.city, b.city); b.city = fullCity(b.city, a.city);
   if (a.city && b.city && a.city !== b.city) return a.city + " – " + b.city;
   return (a.city ? a.city + ": " : "") + a.stop + " – " + b.stop;
 }
@@ -4053,11 +4074,11 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                     <span className="badge sm">{c.line || TT_ICON[m.tt] || "—"}</span>
                     {lite ? <>
                       {/* כמו "החשובים של היום" בדף הראשי (שלמה 08.10): "עיר – עיר", החברה בקטן, סוג השינוי בסוף */}
-                      <span className="ldest">{routeTitle(m.dest) || rdTxt(c.rd)}<small className="lop">{m.op ? m.op + " · " : ""}מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></small></span>
+                      <span className="ldest">{m.dest ? routeTitle(m.dest) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op ? m.op + " · " : ""}מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></small></span>
                       {kk}
                     </> : <>
                       {kk}
-                      <span className="ldest">{m.dest || rdTxt(c.rd)}</span>
+                      <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                       <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
                     </>}
                     {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
@@ -4175,7 +4196,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
             <a key={c.rd + c.k + i} className="lrow" href={lineHref(c.rd)}
               onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
               <span className="badge sm">{c.line}</span>
-              <span className="ldest">{routeTitle(m.dest) || rdTxt(c.rd)}<small className="lop">{m.op || ""}</small></span>
+              <span className="ldest">{m.dest ? routeTitle(m.dest) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op || ""}</small></span>
               <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
             </a>);
         })}
@@ -4200,7 +4221,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
                 onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
                 <span className="badge sm">{c.line}</span>
                 <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
-                <span className="ldest">{m.dest || rdTxt(c.rd)}</span>
+                <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                 <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
                 {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
@@ -5763,6 +5784,7 @@ function App() {
       .then(async d => {
         const groups = await dfetch("data/historical-groups-2012.json").then(r => r.ok ? r.json() : {}).catch(() => ({}));
         DATA_GEN = d.gen || null;
+        setKnownCities(d && d.lines);
         setIdx(attach2012Groups(d, groups));
       })
       .catch(setErr);
