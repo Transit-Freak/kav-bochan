@@ -121,3 +121,7 @@ html,body{margin:0;font-family:'Assistant','Heebo',system-ui,sans-serif;backgrou
 .srcs .src-l b{font-weight:800}
 .foot a{color:var(--gold-lt);font-weight:800}
 .foot .credits{font-size:11.5px;opacity:.8}
+
+/* עיר בראש תוצאות חיפוש התחנות — לחיצה ממקדת את המפה בעיר ומסמנת את כל התחנות שלה */
+.resitem.city{background:var(--gold-lt)}
+.resitem.city span:first-of-type{font-weight:800}
