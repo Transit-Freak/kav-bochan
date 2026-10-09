@@ -3780,7 +3780,6 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
 }
 // סוגי שינוי "שגרתיים": לו"ז, תגבור, צילום ותיקוני רישום. בתצוגה החדשה הם מקופלים כברירת מחדל
 const LOW_KINDS = new Set(["baseline", "snapshot", "freq", "sched", "times", "redraw", "vehicle", "ltype", "access", "renum", "renamed", "board", "platform"]);
-// "תחנה-עיר<->תחנה-עיר-1#" → "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה"
 // שורה שנפתחת בלחיצה בתחתית עמוד הקו (התצוגה החדשה). התוכן נבנה רק כשפותחים — הלו"ז נטען רק אז
 function LtAcc({ icon, title, sub, children }) {
   const [open, setOpen] = useState(false);
@@ -3812,16 +3811,32 @@ function fullCity(city, other) {
   const best = m.reduce((a, b) => (a.length >= b.length ? a : b));      // "תל אביב" ו"תל אביב יפו" — אותה עיר
   return m.every((k) => best.startsWith(k)) ? best : city;
 }
-// "תחנה-עיר<->תחנה-עיר-1#" → "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה"
-function routeTitle(dest) {
+// יעד לפרסום ("עיר_תחנה" או רק "תחנה") → { city, stop }
+function hsParts(h) {
+  const t = String(h || "").trim();
+  if (!t || /^\d+$/.test(t)) return null;
+  const i = t.indexOf("_");
+  if (i > 0) return { city: t.slice(0, i).trim(), stop: t.slice(i + 1).trim() };
+  return KNOWN_CITIES && KNOWN_CITIES.includes(t) ? { city: t, stop: "" } : { city: "", stop: t };
+}
+// כותרת הקו. בלי שלטים: "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה".
+// עם היעד לפרסום (m.hs) ומה שכתוב על השלט במוצא (m.hso, לפי קו שמסתיים שם) — כמו על השלטים
+// (שלמה 09.10): "בני ברק, אזור התעשייה – בת ים, מרכז הספורט", "קרית גת: תחנת הרכבת – כרמי גת"
+function routeTitle(dest, m) {
   if (!dest) return "";
   const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p.length > 1 ? p[p.length - 1].trim() : "" }; });
   const a = sides[0], b = sides[sides.length - 1];
   if (!b || a === b) return a.stop || a.city;
   // צד בלי "-עיר" (התיאור נחתך לפני העיר) — שם תחנה, לא שם עיר
   a.city = fullCity(a.city, b.city); b.city = fullCity(b.city, a.city);
-  if (a.city && b.city && a.city !== b.city) return a.city + " – " + b.city;
-  return (a.city ? a.city + ": " : "") + a.stop + " – " + b.stop;
+  const to = hsParts(m && m.hs), fr = hsParts(m && m.hso);
+  const toCity = (to && to.city) || b.city, frCity = (fr && fr.city) || a.city;
+  if (frCity && toCity && frCity !== toCity) {
+    const side = (city, h) => city + (h && h.stop ? ", " + h.stop : "");
+    return side(frCity, fr && (!fr.city || fr.city === frCity) ? fr : null) + " – " + side(toCity, to && (!to.city || to.city === toCity) ? to : null);
+  }
+  const city = toCity || frCity;
+  return (city ? city + ": " : "") + ((fr && fr.stop) || a.stop) + " – " + ((to && to.stop) || b.stop);
 }
 function collapse2012Rows(rows, meta = null) {
   const seen = new Set();
@@ -4074,7 +4089,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                     <span className="badge sm">{c.line || TT_ICON[m.tt] || "—"}</span>
                     {lite ? <>
                       {/* כמו "החשובים של היום" בדף הראשי (שלמה 08.10): "עיר – עיר", החברה בקטן, סוג השינוי בסוף */}
-                      <span className="ldest">{m.dest ? routeTitle(m.dest) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op ? m.op + " · " : ""}מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></small></span>
+                      <span className="ldest">{m.dest ? routeTitle(m.dest, m) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op ? m.op + " · " : ""}מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></small></span>
                       {kk}
                     </> : <>
                       {kk}
@@ -4196,7 +4211,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
             <a key={c.rd + c.k + i} className="lrow" href={lineHref(c.rd)}
               onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); openLine(c.rd); }}>
               <span className="badge sm">{c.line}</span>
-              <span className="ldest">{m.dest ? routeTitle(m.dest) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op || ""}</small></span>
+              <span className="ldest">{m.dest ? routeTitle(m.dest, m) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op || ""}</small></span>
               <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
             </a>);
         })}
