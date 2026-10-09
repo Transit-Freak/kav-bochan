@@ -22,6 +22,13 @@ const hhmm = m => m == null ? '—' : `${String(Math.floor(m / 60) % 24).padStar
 const bucketOf = v => v == null ? -1 : v <= 5 ? 0 : v <= 10 ? 1 : v <= 20 ? 2 : 3;
 const delayTxt = v => v == null ? '—' : v > 0.05 ? `+${fmt1(v)}` : v < -0.05 ? `−${fmt1(-v)}` : '0.0';
 const dcls = v => v == null ? 'dn' : 'd' + bucketOf(v);
+let RAILPTS = null;
+function railPts() {   // כל נקודות קטעי המסילה (לבדיקת שידורי GPS שגויים)
+  if (RAILPTS && RAILPTS.length) return RAILPTS;
+  RAILPTS = [];
+  for (const v of Object.values(SEG || {})) { try { decodeShape(v).forEach(p => RAILPTS.push(p)); } catch (e) { /* קטע פגום */ } }
+  return RAILPTS;
+}
 function decodeShape(str) {
   const pts = []; let i = 0, la = 0, lo = 0;
   while (i < str.length) {
@@ -497,6 +504,17 @@ function drawGainMap(seg, minN, elId, prev, cuts, meets, holds) {
     const md = multiDay(ms);
     pop([S[1], S[2]], `<b>⇄ מפגש רכבות ב${esc(S[0])}</b> · ${ms.length}<br>` + ms.slice(0, 8).map(m => `${md ? shortDate(m.d) + ' · ' : ''}${hhmm(Math.round(m.dep))} · רכבת ${esc(m.tn)} חיכתה ${m.stood == null ? 'במוצא' : fmt1(m.stood) + ' דק׳'} לרכבת ${esc(m.with)}${m.wdl != null && m.wdl > 1 ? ` (שאיחרה ${fmt1(m.wdl)} דק׳)` : ''}`).join('<br>') + (ms.length > 8 ? `<br>ועוד ${ms.length - 8}` : ''), '#7C3AED', 7);
   }
+  // שידור GPS שגוי (שלמה 09.10: "עצירה בדרך" בירדן) — עצירה שרחוקה יותר מ-1.5 ק"מ מכל מסילה במפה
+  // (קטעי המסילה מ-OSM, segments.json) לא מוצגת. בלי קטעי מסילה — לפי גבולות הארץ בלבד
+  const offSeg = h => {
+    if (!(h.lat >= 29.4 && h.lat <= 33.4 && h.lon >= 34.2 && h.lon <= 35.75)) return true;
+    const P = railPts();
+    if (!P.length) return false;
+    const kx = Math.cos(h.lat * Math.PI / 180);
+    for (const [la, lo] of P) { const dy = (la - h.lat) * 111.32, dx = (lo - h.lon) * 111.32 * kx; if (dx * dx + dy * dy < 2.25) return false; }
+    return true;
+  };
+  holds = (holds || []).filter(h => !offSeg(h));
   const hd = multiDay(holds || []);
   for (const h of holds || []) {
     pop([h.lat, h.lon], `<b>⏸ עצירה בדרך · ${fmt1(h.dur)} דק׳</b><br>${hd ? shortDate(h.d) + ' · ' : ''}${hhmm(Math.round(h.m))} · רכבת ${esc(h.tn)} (${esc(h.nm)})<br>בין ${esc(stn(h.a))} ל${esc(stn(h.b))}` +

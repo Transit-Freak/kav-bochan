@@ -233,6 +233,51 @@ def trace_ride(r, seq, ST):
     return rows, (max(reached) if reached else -1), (seq[-1][0] if seq else None)
 
 
+_RAILPTS = None
+
+
+def _decode(pl):
+    pts, i, la, lo = [], 0, 0, 0
+    while i < len(pl):
+        for k in (0, 1):
+            sh = res = 0
+            while True:
+                c = ord(pl[i]) - 63; i += 1
+                res |= (c & 0x1f) << sh; sh += 5
+                if c < 0x20:
+                    break
+            d = ~(res >> 1) if res & 1 else res >> 1
+            if k == 0:
+                la += d
+            else:
+                lo += d
+        pts.append((la / 1e5, lo / 1e5))
+    return pts
+
+
+def off_segment(lat, lon, A=None, B=None, max_km=1.5):
+    """שידור GPS שגוי: נקודה מחוץ לגבולות הארץ, או רחוקה יותר מ-1.5 ק"מ מכל קטע מסילה במפה
+    (rail/data/segments.json מ-OSM). שלמה 09.10: "עצירה בדרך" בירדן."""
+    global _RAILPTS
+    if not (29.4 <= lat <= 33.4 and 34.2 <= lon <= 35.75):
+        return True
+    if _RAILPTS is None:
+        _RAILPTS = []
+        try:
+            seg = json.load(open(os.path.join(os.environ.get('OUTDIR', 'rail/data'), 'segments.json'), encoding='utf-8'))
+            for v in (seg.get('segments') or {}).values():
+                try:
+                    _RAILPTS.extend(_decode(v))
+                except Exception:  # noqa: BLE001
+                    pass
+        except Exception:  # noqa: BLE001
+            pass
+    if not _RAILPTS:
+        return False
+    kx = math.cos(math.radians(lat))
+    return all(((la - lat) * 111.32) ** 2 + ((lo - lon) * 111.32 * kx) ** 2 >= max_km ** 2 for la, lo in _RAILPTS)
+
+
 def holds(seq, ST, rows, min_dur=1.5, far_m=600):
     """עצירות בדרך, בין תחנות (שלמה 07.10: "מפגש רכבות — למה רק בתחנה ולא איפה זה קרה"):
     רצף שידורי GPS חיים במהירות 0, יותר מ-600 מ׳ מכל תחנה, לפחות דקה וחצי — רכבת שעמדה ברמזור
@@ -255,8 +300,12 @@ def holds(seq, ST, rows, min_dur=1.5, far_m=600):
             m = run[0][0]
             before = [c for t, c in meas if t <= m]
             after = [c for t, c in meas if t > m]
-            out.append([round(run[0][4], 5), round(run[0][5], 5), round(m, 1), round(run[-1][0] - m + 1, 1),
-                        before[-1] if before else None, after[0] if after else None])
+            a_, b_ = before[-1] if before else None, after[0] if after else None
+            # שידור GPS שגוי (שלמה 09.10: "עצירה בדרך" בירדן) — עצירה רחוקה מהקטע שבין שתי התחנות לא נרשמת
+            if off_segment(run[0][4], run[0][5], ST.get(a_), ST.get(b_)):
+                run = [x] if stand else []
+                continue
+            out.append([round(run[0][4], 5), round(run[0][5], 5), round(m, 1), round(run[-1][0] - m + 1, 1), a_, b_])
         run = [x] if stand else []
     return out
 
