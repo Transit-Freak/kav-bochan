@@ -1029,6 +1029,43 @@ _pdst={k:sorted(v)[:12] for k,v in _pdst.items()}
 # שם השלט של כל תחנת יעד = הנפוץ ביותר בין המסלולים שמסתיימים בה;
 # שובר-שוויון דטרמיניסטי כדי שלא ייווצרו אירועי-סרק מריצוד
 _phs={k:max(v.items(),key=lambda kv:(kv[1],kv[0]))[0] for k,v in _phc.items()}
+# ---- כותרת הקו באתר לפי השלטים (שלמה 09.10): "בני ברק, אזור התעשייה – בת ים, מרכז הספורט".
+# hs = היעד לפרסום של הווריאנט עצמו (trip_headsign, "עיר_תחנה" או רק "תחנה").
+# hso = מה שכתוב על השלט של קו שמסתיים במוצא של הווריאנט: קודם הכיוון ההפוך של אותו מק"ט,
+#       ואם אין — היעד לפרסום של תחנת הסיום הקרובה ביותר (עד 300 מ') לתחנה הראשונה.
+_srch=lambda r: (cur.get(r) or carry.get(r) or {})
+_hs_md={}
+for _rd,_c in list(cur.items())+list(carry.items()):
+    _h=_c.get('hs') or ''
+    if not _h or _h.isdigit(): continue
+    _md='-'.join(_rd.split('-')[:2]); _alt=_rd.split('-')[2] if _rd.count('-')>=2 else ''
+    if _md not in _hs_md or _alt in ('#','0'): _hs_md[_md]=_h
+_term=[]
+for _c0,_h in _phs.items():
+    _sv=cur_stops.get(_c0)
+    if _sv and not _h.isdigit() and _sv[1] is not None: _term.append((_sv[1],_sv[2],_h))
+_grid={}
+for _t in _term: _grid.setdefault((round(_t[0],2),round(_t[1],2)),[]).append(_t)
+def _near_hs(code):
+    _sv=cur_stops.get(str(code))
+    if not _sv or _sv[1] is None: return ''
+    la,lo=_sv[1],_sv[2]; best=None
+    for dx in (-0.01,0,0.01):
+        for dy in (-0.01,0,0.01):
+            for t in _grid.get((round(la+dx,2),round(lo+dy,2)),()):
+                d=((t[0]-la)*111320)**2+((t[1]-lo)*94000)**2
+                if d<=300**2 and (best is None or d<best[0]): best=(d,t[2])
+    return best[1] if best else ''
+for e in idx:
+    _c=_srch(e['rd'])
+    _h=_c.get('hs') or ''
+    if _h and not _h.isdigit(): e['hs']=_h
+    _p=e['rd'].split('-')
+    if len(_p)>=3 and _c.get('codes'):
+        _o=next((_hs_md.get(_p[0]+'-'+d) for d in ('1','2','3') if d!=_p[1] and _hs_md.get(_p[0]+'-'+d)), '') or _near_hs(_c['codes'][0])
+        if _o and _o!=_h: e['hso']=_o
+json.dump({'gen':TODAY,'first':first_run,'lines':idx},
+          open(f'{OUTDIR}/lines.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 if _pdst_prev is not None and not first_run and not REBASE:
     # רק שינוי השם שעל השלט (בקשת שלמה): אירועי "הפכה/חדלה להיות תחנת
     # יעד" הוסרו — קווים שנכנסים ויוצאים מהפיד ייצרו מהם רעש, ולשינויי
