@@ -182,6 +182,63 @@ def fetch_scheduled_stops(ride_ids, start, end):
     return stops
 
 
+def archive_schedule(d, start):
+    """הלו"ז של הרכבת ליום d מקובץ ה-GTFS היומי בארכיון של דאטאבוס (S3), באותו מבנה כמו
+    gtfs_ride_stops של ה-API. גיבוי: לפעמים דאטאבוס לא טוען את הלו"ז של יום שלם למאגר שלו
+    (8.10 — "אין נסיעות רכבת", בפעם השלישית, שלמה 09.10), בזמן שהקובץ עצמו כבר בארכיון.
+    מזהי הנסיעות שליליים (אינם של דאטאבוס) — שידורי ה-SIRI מוצמדים לפי קו + שעת יציאה."""
+    import re
+    import gtfs_zip as gz
+    url = gz.archive_url(d)
+    m = gz.central_dir(url)
+    h, rows = gz.member_rows(url, m, 'routes.txt')
+    routes = {r[h['route_id']]: r for r in rows if r[h['agency_id']].strip() == OP}
+    rh = h
+    h, rows = gz.member_rows(url, m, 'calendar.txt')
+    ymd, wd = d.strftime('%Y%m%d'), ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][d.weekday()]
+    active = {r[h['service_id']] for r in rows if r[h['start_date']] <= ymd <= r[h['end_date']] and r[h[wd]] == '1'}
+    h, rows = gz.member_rows(url, m, 'trips.txt')
+    trips = {r[h['trip_id']]: r[h['route_id']] for r in rows if r[h['route_id']] in routes and r[h['service_id']] in active}
+    log(f'  ארכיון GTFS: {len(routes)} מסלולי רכבת, {len(trips)} נסיעות ביום הזה')
+    if not trips:
+        return []
+    keys = {t.encode() for t in trips}
+    h, st = gz.member_lines(url, m, 'stop_times.txt', lambda k: k in keys)
+    need = {r[h['stop_id']] for r in st}
+    sh, rows = gz.member_rows(url, m, 'stops.txt')
+    stops = {}
+    for r in rows:
+        if r[sh['stop_id']] in need:
+            desc = r[sh['stop_desc']] if 'stop_desc' in sh else ''
+            cm = re.search(r'עיר:\s*(.*?)\s*(?:רציף:|קומה:|$)', desc)
+            stops[r[sh['stop_id']]] = (r[sh.get('stop_code', sh['stop_id'])], r[sh['stop_name']],
+                                       float(r[sh['stop_lat']]), float(r[sh['stop_lon']]), cm.group(1) if cm else '')
+
+    def at(hms):
+        hh, mm, ss = (int(x) for x in hms.strip().split(':'))
+        return (start + datetime.timedelta(hours=hh, minutes=mm, seconds=ss)).isoformat()
+
+    by_trip = {}
+    for r in st:
+        by_trip.setdefault(r[h['trip_id']], []).append(r)
+    out = []
+    for n, (tid, rs) in enumerate(sorted(by_trip.items())):
+        rs.sort(key=lambda r: int(r[h['stop_sequence']]))
+        rid = trips[tid]
+        first = at(rs[0][h['departure_time']])
+        for r in rs:
+            sp = stops.get(r[h['stop_id']])
+            if not sp:
+                continue
+            out.append({'gtfs_ride_id': -(n + 1), 'stop_sequence': int(r[h['stop_sequence']]),
+                        'arrival_time': at(r[h['arrival_time']]), 'departure_time': at(r[h['departure_time']]),
+                        'gtfs_ride__start_time': first, 'gtfs_route__line_ref': int(rid),
+                        'gtfs_route__route_long_name': routes[rid][rh['route_long_name']],
+                        'gtfs_stop__code': int(sp[0]) if str(sp[0]).isdigit() else sp[0], 'gtfs_stop__name': sp[1],
+                        'gtfs_stop__lat': sp[2], 'gtfs_stop__lon': sp[3], 'gtfs_stop__city': sp[4]})
+    return out
+
+
 def fetch_day(d):
     start = datetime.datetime.combine(d, datetime.time(0), tzinfo=IL)
     end = start + datetime.timedelta(days=1)
@@ -195,9 +252,18 @@ def fetch_day(d):
     line_refs = sorted({r['gtfs_route__line_ref'] for r in scheduled
                         if r.get('gtfs_route__line_ref') is not None})
     log(f'  נסיעות רכבת בלו"ז: {len(ride_ids)} ({len(line_refs)} מזהי קו)')
-    if not ride_ids:
-        raise ValueError('אין נסיעות רכבת ביום הזה — ננסה שוב בריצה הבאה')
-    stops = fetch_scheduled_stops(ride_ids, start, end)
+    stops = fetch_scheduled_stops(ride_ids, start, end) if ride_ids else []
+    if not stops:
+        # דאטאבוס לא טען את הלו"ז של היום (גם 06.09, 08.10) — הלו"ז נבנה מקובץ ה-GTFS שבארכיון
+        log('  דאטאבוס בלי לו"ז ליום הזה — בונה אותו מקובץ ה-GTFS היומי שבארכיון')
+        try:
+            stops = archive_schedule(d, start)
+        except Exception as e:  # noqa: BLE001
+            log(f'  קריאת הארכיון נכשלה: {e!r}')
+            stops = []
+        line_refs = sorted({s['gtfs_route__line_ref'] for s in stops})
+        if not stops:
+            raise ValueError('אין נסיעות רכבת ביום הזה, גם לא בארכיון — ננסה שוב בריצה הבאה')
     s0, s1 = start.timestamp(), end.timestamp()
     stops = [s for s in stops if (ts(s.get('gtfs_ride__start_time')) or 0) >= s0 - 1
              and (ts(s.get('gtfs_ride__start_time')) or 0) < s1]
