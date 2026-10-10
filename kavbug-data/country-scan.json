@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-10-09T14:50:47.805Z",
+  "generatedAt": "2026-10-10T14:16:29.245Z",
   "sourceZip": "gtfs.zip",
   "navigationScan": {
     "status": "completed",
     "pairs": 206513,
-    "requests": 38438,
-    "responses": 38438,
+    "requests": 38435,
+    "responses": 38435,
     "failures": 0,
     "found": 433,
-    "completedAt": "2026-10-09T14:50:28.439Z"
+    "completedAt": "2026-10-10T14:16:09.961Z"
   },
-  "totalLines": 6647,
+  "totalLines": 6642,
   "totalIssues": 668,
   "realCount": 149,
   "totalWasteDayKm": 557,
@@ -268998,8 +268998,8 @@
       "lng": 35.20623,
       "ref": null,
       "excessKm": 0.548,
-      "tripsDay": 5,
-      "wasteDayKm": 2.7,
+      "tripsDay": 4,
+      "wasteDayKm": 2.2,
       "ratio": 1.38,
       "verdict": "ספק",
       "reason": "המסלול בין התחנות ארוך פי 1.38 מהדרך הקצרה ברכב (1424 מ', מאותו כביש ובאותו כיוון נסיעה). ייתכן נתיב תח\"צ, איסור פנייה או מסוף — לבדיקה.",
