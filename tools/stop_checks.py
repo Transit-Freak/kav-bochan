@@ -12,7 +12,7 @@
 BUS_STOPS (gis/data/mot/bus_stops.geojson), NBR (תיקיית השכונות),
 POI (poi.json מענף osm-poi — מסופים ותחנות מרכזיות במפה), OUT.
 """
-import csv, glob, gzip, json, os, re, collections, datetime
+import csv, glob, gzip, json, math, os, re, collections, datetime
 
 E = os.environ.get
 STOPS = E('STOPS', 'stops.txt'); ROUTES = E('ROUTES', 'routes.txt'); TRIPS = E('TRIPS', 'trips.txt')
@@ -20,6 +20,7 @@ STOP_TIMES = E('STOP_TIMES', 'stop_times.txt')
 BUS_STOPS = E('BUS_STOPS', 'gis/data/mot/bus_stops.geojson')
 NBR = E('NBR', 'line-history/data/neighborhoods')
 POI = E('POI', 'poi.json')
+MIL = E('MIL', 'military.json')   # שטחים צבאיים מ-OSM (ענף osm-poi, fetch-osm-poi.yml)
 OUT = E('OUT', 'next-station/stop-checks.json')
 
 def rows(path):
@@ -168,6 +169,47 @@ for c, v in serve.items():
         e = base(c); e['sub'], e['why'] = r
         stype.append(e)
 stype.sort(key=lambda e: (e['sub'], e['t'], e['n']))
+
+# ---- "גבול מחנה צבאי" בלי שטח צבאי במפה (שלמה 10.10) ----
+# כל התחנות מהסוג הזה ב-GTFS, גם כאלה שאף קו לא עוצר בהן (בסיס שנסגר או עבר). בסיסים רבים
+# לא ממופים ב-OSM בכוונה, ולכן זו הצעה לבדיקה ולא קביעה. רצה רק כשקובץ השטחים נראה שלם.
+MIL_M = 300
+areas = []
+if os.path.exists(MIL):
+    try: areas = json.load(open(MIL, encoding='utf-8')).get('areas') or []
+    except Exception: areas = []
+def _seg_d(px, py, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    t = 0 if dx == dy == 0 else max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+def near_military(la, lo):
+    kx, ky = 111320 * math.cos(math.radians(la)), 111320
+    px, py = lo * kx, la * ky
+    pad = MIL_M / 90000
+    for a in areas:
+        bb = a['bb']
+        if lo < bb[0] - pad or lo > bb[2] + pad or la < bb[1] - pad or la > bb[3] + pad: continue
+        for r in a['r']:
+            if len(r) == 1:
+                if math.hypot(r[0][0] * kx - px, r[0][1] * ky - py) <= MIL_M: return True
+                continue
+            if r[0] == r[-1] and _in(lo, la, r): return True
+            for i in range(1, len(r)):
+                if _seg_d(px, py, r[i-1][0] * kx, r[i-1][1] * ky, r[i][0] * kx, r[i][1] * ky) <= MIL_M: return True
+    return False
+if len(areas) >= 50:
+    by_code = {}
+    for sid, st in stops.items(): by_code.setdefault(st['c'], st)
+    for c, typ in mot.items():
+        if typ != 'גבול מחנה צבאי' or c not in by_code: continue
+        st = by_code[c]
+        if near_military(st['la'], st['lo']): continue
+        v = serve.get(c)
+        ln = sorted(v['lines'], key=lambda x: (len(x), x))[:12] if v else []
+        stype.append({'c': c, 'n': st['n'], 't': st['t'], 'la': st['la'], 'lo': st['lo'], 'typ': typ, 'ln': ln, 'sub': 'mil',
+                      'why': "רשומה כגבול מחנה צבאי, אבל במפה (OpenStreetMap) אין שטח צבאי עד 300 מ' ממנה"
+                             + ('' if ln else ' · אף קו לא עוצר בה היום')})
+    stype.sort(key=lambda e: (e['sub'], e['t'], e['n']))
 
 out = {'gen': datetime.date.today().isoformat(), 'stops': len(serve),
        'nohs': nohs, 'stype': stype, 'notInMot': missing,

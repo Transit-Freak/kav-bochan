@@ -292,6 +292,8 @@ const SKINDS = {
   moved:   { label: "הזזת מיקום", color: "#2563eb" },
   city:    { label: "שינוי עיר", color: "#b91c1c" },
   pubdest: { label: "תחנת יעד לפרסום", color: "#7e22ce" },
+  // סוג התחנה במאגר של משרד התחבורה (StationTypeName): תחנה רגילה, מסוף, גבול מחנה צבאי… (שלמה 10.10)
+  stype:   { label: "שינוי סוג תחנה", color: "#0f766e" },
   platform: { label: "רציף נוסף/בוטל", color: "#0e7490" },
   // רישום התחנות של יוני 2012 (GTFS של משרד התחבורה דרך OpenStreetMap, changeset 12028672):
   // אירוע אחד לכל תחנה שהייתה ברישום אז — שם, כתובת ומיקום של 2012 (שלמה 22.09)
@@ -4306,8 +4308,13 @@ function LinesAtStop({ code, onClose }) {
   const [all, setAll] = useState(false);
   // קווי 2012 שעצרו בתחנה (מגיעים 2012, לפי המק"ט שהוצלב ברישום 2012) — שבר לפי קידומת (שלמה 22.09)
   const [l12, setL12] = useState(null);
+  const [sty, setSty] = useState(null);   // סוג התחנה במאגר של משרד התחבורה (שלמה 10.10)
   useEffect(() => {
-    setD(null); setErr(false); setAll(false); setL12(null);
+    setD(null); setErr(false); setAll(false); setL12(null); setSty(null);
+    dfetch("data/stop-types/" + (code.length >= 2 ? code.slice(0, 2) : "0x") + ".json")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((m) => setSty(m[code] || ""))
+      .catch(() => setSty(""));
     dfetch("data/stopev/" + (code.length >= 2 ? code.slice(0, 2) : "0x") + ".json")
       .then((r) => (r.ok ? r.json() : {}))
       .then((m) => setD(m[code] || { ev: [] }))
@@ -4371,6 +4378,7 @@ function LinesAtStop({ code, onClose }) {
       <div className="lathead">🚌 הקווים בתחנה הזו לאורך זמן
         {onClose && <button className="latx" title="סגירת ציר הקווים" onClick={onClose}>✕</button>}
       </div>
+      {sty && <div className="latnow" title="השדה StationTypeName במאגר התחנות של משרד התחבורה (data.gov.il)">🏷️ סוג התחנה במאגר של משרד התחבורה: <b>{sty}</b></div>}
       {platNos.length > 0 && (
         <details className="latplat">
           <summary title="לפי שורות הרציפים בקובץ התחנות של משרד התחבורה: רציף נחשב פעיל כשיש בו נסיעות בלוח הזמנים שבתוקף — מתעדכן מדי יום">
@@ -4742,6 +4750,7 @@ function StopsTab({ sel, selN, idx, openLine }) {
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
                         מקבלים כיוון RTL וסדר lat/lon התהפך ויזואלית */}
                     {c.k === "city" && <> · <s>{c.oc}</s> ← <b>{c.nc}</b></>}
+                    {c.k === "stype" && <> · סוג התחנה במאגר של משרד התחבורה: <s>{c.ot}</s> ← <b>{c.nt}</b></>}
                     {c.reused && <> · המק״ט שימש אחר כך תחנה אחרת: <b>{c.reused}</b>, במרחק {c.rdist >= 1000 ? (c.rdist / 1000).toFixed(1) + " ק״מ" : c.rdist + " מ׳"} — לא אותה תחנה</>}
                     {c.tmp99 && <> · <b>מק״ט זמני</b> (99…): בקובץ 2012 לתחנה לא היה מספר שלט, ומשרד התחבורה נתן לה מספר זמני; היום היא רשומה כנראה תחת מק״ט אחר, ולכן אין כאן המשך</>}
                     {c.k === "gtfs2012" && <> · <span dir="ltr">({c.la}, {c.lo})</span>
@@ -4826,7 +4835,7 @@ function StopsTab({ sel, selN, idx, openLine }) {
 const ALL_IL = "כל הארץ";   // בחירת "עיר" שמציגה את כל הארץ (שלמה 22.09)
 const LINE_PALETTE = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2", "#65a30d", "#ea580c", "#4f46e5", "#0d9488", "#c026d3", "#b45309"];
 const lineHash = (str) => { let h = 0; for (const ch of String(str)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
-const STOP_KIND_LIST = ["new", "del", "renamed", "moved", "city", "pubdest", "platform", "gtfs2012"];
+const STOP_KIND_LIST = ["new", "del", "renamed", "moved", "city", "pubdest", "stype", "platform", "gtfs2012"];
 const LINE_KIND_SKIP = new Set(["baseline", "snapshot"]);
 function MapTab({ idx, openLine, cities }) {
   const [months, setMonths] = useState(null);
@@ -5010,6 +5019,7 @@ function MapTab({ idx, openLine, cities }) {
     : c.k === "moved" ? "הוזזה " + (c.dist || c.m || "") + " מ׳"
     : c.k === "city" ? "שינוי עיר: " + esc(c.oc || "") + " ← " + esc(c.nc || "")
     : c.k === "pubdest" ? "תחנת היעד לפרסום שוּנתה"
+    : c.k === "stype" ? "סוג התחנה: " + esc(c.ot || "") + " ← " + esc(c.nt || "")
     : c.k === "gtfs2012" ? "ברישום 2012"
     : c.k === "new" ? "תחנה חדשה" + (c.lines && c.lines.length ? " · קווים: " + c.lines.slice(0, 8).join(", ") : "")
     : c.k === "del" ? "בוטלה" + (c.reused ? " · המק״ט הוקצה מחדש לתחנה אחרת" : "") + (c.lines && c.lines.length ? " · עצרו בה: " + c.lines.slice(0, 8).join(", ") : "")

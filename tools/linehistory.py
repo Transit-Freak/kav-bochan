@@ -1080,6 +1080,33 @@ if _pdst_prev is not None and not first_run and not REBASE:
                          'oh':hs_fmt(_phs_prev[_c0]),'nh':hs_fmt(_phs[_c0])}); npd_t+=1
 json.dump({'v':2,'stops':_pdst,'hs':_phs},open(_pdst_path,'w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 
+# ---- סוג התחנה במאגר של משרד התחבורה (שלמה 10.10) ----
+# StationTypeName מ-data.gov.il (bus_stops, נשמר ב-gis/data/mot/ בצינור gis-layers):
+# תחנה רגילה, מסוף, גבול מחנה צבאי, רכבת קלה… עמוד התחנה מציג את הסוג (stop-types/XX.json),
+# ושינוי סוג נרשם כאירוע "שינוי סוג תחנה". הקובץ שמור אצלנו מ-30.09.2026, ולכן אין היסטוריה לפני כן.
+_sty={}
+try:
+    for _f in json.load(open(os.environ.get('BUS_STOPS','gis/data/mot/bus_stops.geojson'),encoding='utf-8'))['features']:
+        _p=_f['properties']; _t=(_p.get('StationTypeName') or '').strip()
+        if _p.get('StationId') is not None and _t: _sty[str(_p['StationId'])]=_t
+except Exception as _e:
+    print('stop types: skipped —',_e)
+if len(_sty)>20000:   # קובץ חלקי/שבור — לא מסיקים ממנו שינויים
+    _stp=f'{OUTDIR}/stype-state.json'
+    _sty_prev=jload(_stp,None); nst=0
+    if isinstance(_sty_prev,dict) and _sty_prev and not REBASE:
+        for _c0,_t in _sty.items():
+            _o=_sty_prev.get(_c0); _v=cur_stops.get(_c0)
+            if _o and _o!=_t and _v:
+                sev(_c0,{'k':'stype','n':_v[0],'t':_v[3],'la':_v[1],'lo':_v[2],'ot':_o,'nt':_t}); nst+=1
+    json.dump(_sty,open(_stp,'w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
+    _shd={}
+    for _c0,_t in _sty.items(): _shd.setdefault(_c0[:2] if len(_c0)>=2 else '0x',{})[_c0]=_t
+    os.makedirs(f'{OUTDIR}/stop-types',exist_ok=True)
+    for _k,_m in _shd.items():
+        json.dump(_m,open(f'{OUTDIR}/stop-types/{_k}.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
+    print('stop types:',len(_sty),'· type changes today:',nst)
+
 json.dump(stm,open(spath,'w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 json.dump(shist,open(f'{OUTDIR}/stops-hist.json','w',encoding='utf-8'),ensure_ascii=False,separators=(',',':'))
 # 'tt' נשמר כדי שאפשר יהיה לזהות שינוי בסוג הקו. במצב שנוצר לפני השדה הזה

@@ -94,16 +94,77 @@ jobs:
           PY
           ls -la poi.json
 
+      # שטחים צבאיים (שלמה 10.10) — לבדיקת "סוג תחנה לא מתאים" בהתחנה הבאה: תחנה שרשומה
+      # "גבול מחנה צבאי" ואין שטח צבאי במפה לידה. בסיסים רבים לא ממופים, ולכן זו בדיקה "לבירור".
+      - name: Query Overpass for military areas
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          Q='[out:json][timeout:600][bbox:29.4,34.2,33.35,35.95];(way["landuse"="military"];relation["landuse"="military"];way["military"];relation["military"];node["military"];);out geom tags;'
+          ok=0
+          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            echo "== trying $ep =="
+            if curl -fsS --max-time 700 --data-urlencode "data=$Q" "$ep" -o mil-raw.json; then ok=1; echo "got $(wc -c < mil-raw.json) bytes"; break; fi
+            echo "failed, next endpoint"; sleep 5
+          done
+          [ "$ok" = "1" ] || { echo "all overpass endpoints failed"; exit 1; }
+          python3 - <<'PY'
+          import json, datetime
+          d = json.load(open('mil-raw.json'))
+          R = lambda p: [round(p['lon'], 4), round(p['lat'], 4)]
+          def stitch(ways):
+            # מחברים את קטעי ה-outer של יחס לטבעות סגורות (לבדיקת "בתוך השטח")
+            rings, segs = [], [w[:] for w in ways if len(w) > 1]
+            while segs:
+              r = segs.pop(0)
+              grown = True
+              while r[0] != r[-1] and grown:
+                grown = False
+                for i, s in enumerate(segs):
+                  if s[0] == r[-1]: r += s[1:]
+                  elif s[-1] == r[-1]: r += s[::-1][1:]
+                  elif s[-1] == r[0]: r = s[:-1] + r
+                  elif s[0] == r[0]: r = s[::-1][:-1] + r
+                  else: continue
+                  segs.pop(i); grown = True; break
+              rings.append(r)
+            return rings
+          out = []
+          for e in d.get('elements', []):
+            t = e.get('tags', {})
+            name = t.get('name:he') or t.get('name') or ''
+            kind = t.get('military') or t.get('landuse') or ''
+            if e['type'] == 'node':
+              rings = [[[round(e['lon'], 4), round(e['lat'], 4)]]]
+            elif e['type'] == 'way':
+              rings = [[R(p) for p in e.get('geometry') or []]]
+            else:
+              rings = stitch([[R(p) for p in m.get('geometry') or []] for m in e.get('members', []) if m.get('role') in ('outer', '') and m.get('type') == 'way'])
+            rings = [[p for i, p in enumerate(r) if i == 0 or p != r[i - 1]] for r in rings]
+            rings = [r for r in rings if r]
+            if not rings: continue
+            xs = [p[0] for r in rings for p in r]; ys = [p[1] for r in rings for p in r]
+            out.append({'n': name, 'k': kind, 'bb': [min(xs), min(ys), max(xs), max(ys)], 'r': rings})
+          json.dump({'generated': datetime.date.today().isoformat(), 'count': len(out), 'areas': out},
+                    open('military.json', 'w'), ensure_ascii=False, separators=(',', ':'))
+          print('military areas:', len(out))
+          PY
+          ls -la military.json
+
       - name: Push poi.json to osm-poi branch
         run: |
           set -euo pipefail
           cp poi.json /tmp/poi.json
+          # military.json: אם השאילתה נכשלה היום — שומרים את הגרסה הקודמת מהענף
+          if [ -f military.json ]; then cp military.json /tmp/military.json
+          else git fetch origin osm-poi && git show FETCH_HEAD:military.json > /tmp/military.json 2>/dev/null || rm -f /tmp/military.json; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan osm-poi
           git reset
           find . -maxdepth 1 -mindepth 1 -not -name '.git' -not -name 'poi.json' -exec rm -rf {} +
           cp /tmp/poi.json ./poi.json
+          [ -f /tmp/military.json ] && cp /tmp/military.json ./military.json || true
           git add -A
           git commit -m "OSM POI for Israel (broad)"
           git push -f origin osm-poi
