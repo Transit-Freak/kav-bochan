@@ -197,17 +197,25 @@ def near_military(la, lo):
             for i in range(1, len(r)):
                 if _seg_d(px, py, r[i-1][0] * kx, r[i-1][1] * ky, r[i][0] * kx, r[i][1] * ky) <= MIL_M: return True
     return False
+# השם עצמו כבר אומר מחנה/בסיס/מחסום/מעבר — הסוג מתאים לשם, גם אם הבסיס לא ממופה (הרבה לא ממופים בכוונה)
+MIL_NAME = re.compile(r"מחנה|מח\.|בסיס|בה''ד|בה\"ד|בא''ח|בא''פ|מחסום|מעבר|חטמ''ר|מג''ב|נח''ל|גדוד|מתקן|קריית ההדרכה|עיר הבה|צה''ל|מוצב|לשכת גיוס|בקו''ם")
+CHECKPOINTS = []
+if os.path.exists(POI):
+    CHECKPOINTS = [(p['la'], p['lo']) for p in json.load(open(POI, encoding='utf-8')).get('poi', []) if p.get('k') == 'checkpoint']
+def near_checkpoint(la, lo):
+    return any(abs(pla - la) < 0.004 and abs(plo - lo) < 0.004 and ((pla - la) * 111320) ** 2 + ((plo - lo) * 94000) ** 2 <= MIL_M ** 2
+               for pla, plo in CHECKPOINTS)
 if len(areas) >= 50:
     by_code = {}
     for sid, st in stops.items(): by_code.setdefault(st['c'], st)
     for c, typ in mot.items():
         if typ != 'גבול מחנה צבאי' or c not in by_code: continue
         st = by_code[c]
-        if near_military(st['la'], st['lo']): continue
+        if MIL_NAME.search(st['n']) or near_military(st['la'], st['lo']) or near_checkpoint(st['la'], st['lo']): continue
         v = serve.get(c)
         ln = sorted(v['lines'], key=lambda x: (len(x), x))[:12] if v else []
         stype.append({'c': c, 'n': st['n'], 't': st['t'], 'la': st['la'], 'lo': st['lo'], 'typ': typ, 'ln': ln, 'sub': 'mil',
-                      'why': "רשומה כגבול מחנה צבאי, אבל במפה (OpenStreetMap) אין שטח צבאי עד 300 מ' ממנה"
+                      'why': "רשומה כגבול מחנה צבאי, אבל בשם אין זכר למחנה, ובמפה (OpenStreetMap) אין שטח צבאי או מחסום עד 300 מ' ממנה"
                              + ('' if ln else ' · אף קו לא עוצר בה היום')})
     stype.sort(key=lambda e: (e['sub'], e['t'], e['n']))
 
