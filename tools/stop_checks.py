@@ -1,0 +1,162 @@
+# -*- coding: utf-8 -*-
+"""שתי בדיקות תחנות ל"התחנה הבאה" (שלמה 10.10):
+
+1. nohs — תחנות שקווים מסתיימים בהן, ואף קו שמסתיים שם לא מקבל ממשרד התחבורה
+   תחנת יעד לפרסום (trip_headsign ריק). נבדקות כל הנסיעות שבקובץ, גם עתידיות.
+2. stype — תחנות שהסוג שלהן במאגר התחנות של המשרד (data.gov.il, bus_stops,
+   השדה StationTypeName) לא מתאים למה שעוצר בהן לפי ה-GTFS: רכבת קלה בתחנה
+   שרשומה כתחנת אוטובוס, "מסוף" שאף קו לא מתחיל או מסתיים בו, וכדומה.
+
+קלט (משתני סביבה): STOPS ROUTES TRIPS STOP_TIMES (קובצי GTFS),
+BUS_STOPS (gis/data/mot/bus_stops.geojson), NBR (תיקיית השכונות), OUT.
+"""
+import csv, glob, gzip, json, os, collections, datetime
+
+E = os.environ.get
+STOPS = E('STOPS', 'stops.txt'); ROUTES = E('ROUTES', 'routes.txt'); TRIPS = E('TRIPS', 'trips.txt')
+STOP_TIMES = E('STOP_TIMES', 'stop_times.txt')
+BUS_STOPS = E('BUS_STOPS', 'gis/data/mot/bus_stops.geojson')
+NBR = E('NBR', 'line-history/data/neighborhoods')
+OUT = E('OUT', 'next-station/stop-checks.json')
+
+def rows(path):
+    with open(path, encoding='utf-8-sig', newline='') as f:
+        yield from csv.DictReader(f)
+
+# route_type כמו ב-linehistory.py: 0 רכבת קלה, 2 רכבת, 5 רכבל/כרמלית, 8 מונית שירות, 715 לפי דרישה, אחרת אוטובוס
+MODE = {'0': 'lr', '2': 'rail', '5': 'cable', '8': 'taxi', '715': 'demand'}
+routes = {}
+for r in rows(ROUTES):
+    routes[r['route_id']] = {'line': r['route_short_name'].strip(), 'rd': r['route_desc'].strip(),
+                             'mode': MODE.get(r['route_type'].strip(), 'bus')}
+
+# נסיעה מייצגת לכל (קו, שרטוט, שלט) — מספיקה כדי לדעת איפה הקו עוצר ואיפה הוא מסתיים
+rep = {}
+for r in rows(TRIPS):
+    if r['route_id'] not in routes: continue
+    k = (r['route_id'], r.get('shape_id', ''), (r.get('trip_headsign') or '').strip())
+    if k not in rep or r['trip_id'] < rep[k]: rep[k] = r['trip_id']
+want = {t: k for k, t in rep.items()}
+
+seqs = collections.defaultdict(list)   # trip_id -> [(seq, stop_id, pickup)]
+for r in rows(STOP_TIMES):
+    t = r['trip_id']
+    if t in want:
+        seqs[t].append((int(r['stop_sequence']), r['stop_id'], (r.get('pickup_type') or '0').strip() or '0'))
+
+stops = {}
+for r in rows(STOPS):
+    city = ''
+    d = r.get('stop_desc') or ''
+    if 'עיר:' in d: city = d.split('עיר:')[1].split('רציף:')[0].strip()
+    stops[r['stop_id']] = {'c': r['stop_code'].strip(), 'n': r['stop_name'].strip(), 't': city,
+                           'la': round(float(r['stop_lat']), 6), 'lo': round(float(r['stop_lon']), 6)}
+
+# הכול לפי מספר התחנה (stop_code): לתחנה אחת יכולים להיות כמה stop_id — רציף לכל קו
+# במסופים ובתחנות מרכזיות — ומספר התחנה הוא מה שמופיע במאגר של המשרד ובשלט.
+serve = collections.defaultdict(lambda: {'modes': set(), 'lines': {}, 'ends': 0, 'starts': 0, 'board': 0, 'hs': collections.Counter(), 'sid': None, 'endln': set()})
+def code(sid): return stops[sid]['c'] if sid in stops else None
+for t, sq in seqs.items():
+    sq.sort()
+    sq = [x for x in sq if x[1] in stops]
+    if len(sq) < 2: continue
+    rid, _sh, hs = want[t]
+    ro = routes[rid]
+    for i, (_s, sid, pick) in enumerate(sq):
+        v = serve[code(sid)]
+        v['sid'] = v['sid'] or sid
+        v['modes'].add(ro['mode'])
+        v['lines'].setdefault(ro['line'] or ro['rd'], ro['mode'])
+        if i < len(sq) - 1 and pick != '1': v['board'] += 1
+    serve[code(sq[0][1])]['starts'] += 1
+    end = serve[code(sq[-1][1])]
+    end['ends'] += 1
+    end['hs'][hs] += 1
+    end['endln'].add(ro['line'] or ro['rd'])
+
+# מאגר התחנות של המשרד — סוג התחנה לפי מספר תחנה
+mot = {}
+if os.path.exists(BUS_STOPS):
+    for ft in json.load(open(BUS_STOPS, encoding='utf-8'))['features']:
+        p = ft['properties']
+        mot[str(p.get('StationId'))] = (p.get('StationTypeName') or '').strip()
+
+# שכונות (GovMap) — לתחנות בלי שלט: הצעה לשם יעד לפי השכונה
+NB = []
+for g in sorted(glob.glob(os.path.join(NBR, '*.json.gz'))):
+    NB += json.loads(gzip.decompress(open(g, 'rb').read()))
+def _in(x, y, ring):
+    c = False
+    for i in range(len(ring)):
+        x1, y1 = ring[i]; x2, y2 = ring[i - 1]
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1: c = not c
+    return c
+def hood(lo, la):
+    for _id, name, _city, bb, polys in NB:
+        if not (bb[0] <= lo <= bb[2] and bb[1] <= la <= bb[3]): continue
+        for poly in polys:
+            if _in(lo, la, poly[0]) and not any(_in(lo, la, h) for h in poly[1:]): return name.strip()
+    return ''
+
+def base(c):
+    v = serve[c]; s = stops[v['sid']]
+    return {'c': s['c'], 'n': s['n'], 't': s['t'], 'la': s['la'], 'lo': s['lo'],
+            'typ': mot.get(s['c'], ''), 'ln': sorted(v['lines'], key=lambda x: (len(x), x))[:12]}
+
+# ---- 1. תחנות סיום בלי תחנת יעד לפרסום ----
+nohs = []
+for c, v in serve.items():
+    if not v['ends']: continue
+    if any(h for h in v['hs']): continue
+    e = base(c)
+    e['hood'] = hood(e['lo'], e['la'])
+    e['end'] = sorted(v['endln'], key=lambda x: (len(x), x))   # הקווים שמסתיימים כאן בלי שלט
+    nohs.append(e)
+nohs.sort(key=lambda e: (e['t'], e['n']))
+
+# ---- 2. סוג תחנה לא מתאים ----
+def is_lr(typ): return typ.startswith('רכבת קלה')        # כולל "רכבת קלה - רציפים"
+def is_rail(typ): return typ.startswith('רכבת ישראל')     # כולל "רכבת ישראל - רציפים"
+TERM = {'מסוף', 'מרכזית רציפים'}
+OPER = {'תחנה תפעולית', 'תחנת התרעננות'}
+def check(typ, v):
+    m = v['modes']
+    if 'lr' in m and not is_lr(typ):
+        return 'lr', 'הרכבת הקלה עוצרת כאן'
+    if is_lr(typ) and 'lr' not in m:
+        return 'lr_no', 'רשומה כתחנת רכבת קלה, אבל הרכבת הקלה לא עוצרת בה'
+    if 'rail' in m and not is_rail(typ):
+        return 'rail', 'רכבת ישראל עוצרת כאן'
+    if is_rail(typ) and 'rail' not in m:
+        return 'rail_no', 'רשומה כתחנת רכבת ישראל, אבל הרכבת לא עוצרת בה'
+    if 'cable' in m and typ != 'רכבל':
+        return 'cable', 'רכבל או כרמלית עוצרים כאן'
+    if typ == 'רכבל' and 'cable' not in m:
+        return 'cable_no', 'רשומה כתחנת רכבל, אבל הרכבל לא עוצר בה'
+    if typ == 'מוניות שירות' and 'bus' in m:
+        return 'taxi', 'רשומה כתחנת מוניות שירות, אבל אוטובוסים עוצרים בה'
+    if typ in TERM and not v['ends'] and not v['starts']:
+        return 'term', 'רשומה כמסוף, אבל אף קו לא מתחיל או מסתיים בה'
+    if typ in OPER and v['board']:
+        return 'oper', 'רשומה כתחנה שאין בה עלייה של נוסעים, אבל לפי לוח הזמנים נוסעים עולים בה'
+    return None
+
+stype = []
+missing = 0
+for c, v in serve.items():
+    if c not in mot:
+        missing += 1
+        continue
+    r = check(mot[c], v)
+    if r:
+        e = base(c); e['sub'], e['why'] = r
+        stype.append(e)
+stype.sort(key=lambda e: (e['sub'], e['t'], e['n']))
+
+out = {'gen': datetime.date.today().isoformat(), 'stops': len(serve),
+       'nohs': nohs, 'stype': stype, 'notInMot': missing,
+       'counts': {'nohs': len(nohs), 'stype': len(stype),
+                  'sub': dict(collections.Counter(e['sub'] for e in stype))}}
+os.makedirs(os.path.dirname(OUT) or '.', exist_ok=True)
+json.dump(out, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+print('stop checks:', json.dumps(out['counts'], ensure_ascii=False), 'not in MOT stops db:', missing)
