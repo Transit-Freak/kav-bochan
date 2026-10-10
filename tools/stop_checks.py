@@ -5,18 +5,21 @@
    תחנת יעד לפרסום (trip_headsign ריק). נבדקות כל הנסיעות שבקובץ, גם עתידיות.
 2. stype — תחנות שהסוג שלהן במאגר התחנות של המשרד (data.gov.il, bus_stops,
    השדה StationTypeName) לא מתאים למה שעוצר בהן לפי ה-GTFS: רכבת קלה בתחנה
-   שרשומה כתחנת אוטובוס, "מסוף" שאף קו לא מתחיל או מסתיים בו, וכדומה.
+   שרשומה כתחנת אוטובוס, תחנה במסוף שרשומה "תחנה רגילה", וכדומה.
+   מסוף נקבע לפי המקום (יש שם מסוף או תחנה מרכזית), לא לפי קווים שמסתיימים בתחנה.
 
 קלט (משתני סביבה): STOPS ROUTES TRIPS STOP_TIMES (קובצי GTFS),
-BUS_STOPS (gis/data/mot/bus_stops.geojson), NBR (תיקיית השכונות), OUT.
+BUS_STOPS (gis/data/mot/bus_stops.geojson), NBR (תיקיית השכונות),
+POI (poi.json מענף osm-poi — מסופים ותחנות מרכזיות במפה), OUT.
 """
-import csv, glob, gzip, json, os, collections, datetime
+import csv, glob, gzip, json, os, re, collections, datetime
 
 E = os.environ.get
 STOPS = E('STOPS', 'stops.txt'); ROUTES = E('ROUTES', 'routes.txt'); TRIPS = E('TRIPS', 'trips.txt')
 STOP_TIMES = E('STOP_TIMES', 'stop_times.txt')
 BUS_STOPS = E('BUS_STOPS', 'gis/data/mot/bus_stops.geojson')
 NBR = E('NBR', 'line-history/data/neighborhoods')
+POI = E('POI', 'poi.json')
 OUT = E('OUT', 'next-station/stop-checks.json')
 
 def rows(path):
@@ -117,9 +120,18 @@ nohs.sort(key=lambda e: (e['t'], e['n']))
 # ---- 2. סוג תחנה לא מתאים ----
 def is_lr(typ): return typ.startswith('רכבת קלה')        # כולל "רכבת קלה - רציפים"
 def is_rail(typ): return typ.startswith('רכבת ישראל')     # כולל "רכבת ישראל - רציפים"
-TERM = {'מסוף', 'מרכזית רציפים'}
+# תחנה במסוף: השם אומר מסוף/תחנה מרכזית, או שבמפה (OSM, amenity=bus_station) יש מסוף עד 40 מ' ממנה
+TERM_NAME = re.compile(r"מסוף|ת\.\s?מרכזית|תחנה מרכזית|מרכזית רציפים")
+BUSST = []
+if os.path.exists(POI):
+    BUSST = [(p['la'], p['lo'], p['n']) for p in json.load(open(POI, encoding='utf-8')).get('poi', []) if p.get('k') == 'busstation']
+def busst_near(la, lo, m=40):
+    for pla, plo, pn in BUSST:
+        if abs(pla - la) < 0.001 and abs(plo - lo) < 0.001 and ((pla - la) * 111320) ** 2 + ((plo - lo) * 94000) ** 2 <= m * m:
+            return pn
+    return ''
 OPER = {'תחנה תפעולית', 'תחנת התרעננות'}
-def check(typ, v):
+def check(typ, v, s):
     m = v['modes']
     if 'lr' in m and not is_lr(typ):
         return 'lr', 'הרכבת הקלה עוצרת כאן'
@@ -135,8 +147,12 @@ def check(typ, v):
         return 'cable_no', 'רשומה כתחנת רכבל, אבל הרכבל לא עוצר בה'
     if typ == 'מוניות שירות' and 'bus' in m:
         return 'taxi', 'רשומה כתחנת מוניות שירות, אבל אוטובוסים עוצרים בה'
-    if typ in TERM and not v['ends'] and not v['starts']:
-        return 'term', 'רשומה כמסוף, אבל אף קו לא מתחיל או מסתיים בה'
+    if typ == 'תחנה רגילה':
+        if TERM_NAME.search(s['n']):
+            return 'term', 'בשם התחנה כתוב שהיא במסוף, אבל היא רשומה כתחנה רגילה'
+        bn = busst_near(s['la'], s['lo'])
+        if bn:
+            return 'term', 'במפה (OpenStreetMap) יש כאן מסוף («' + bn + '»), אבל התחנה רשומה כתחנה רגילה'
     if typ in OPER and v['board']:
         return 'oper', 'רשומה כתחנה שאין בה עלייה של נוסעים, אבל לפי לוח הזמנים נוסעים עולים בה'
     return None
@@ -147,7 +163,7 @@ for c, v in serve.items():
     if c not in mot:
         missing += 1
         continue
-    r = check(mot[c], v)
+    r = check(mot[c], v, stops[v['sid']])
     if r:
         e = base(c); e['sub'], e['why'] = r
         stype.append(e)

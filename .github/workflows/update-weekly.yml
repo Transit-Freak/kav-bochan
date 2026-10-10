@@ -111,7 +111,7 @@ jobs:
         continue-on-error: true
         run: |
           STOPS=stops.txt ROUTES=routes.txt TRIPS=trips.txt STOP_TIMES=stop_times.txt \
-            BUS_STOPS=gis/data/mot/bus_stops.geojson OUT=next-station/stop-checks.json python3 tools/stop_checks.py
+            BUS_STOPS=gis/data/mot/bus_stops.geojson POI=poi.json OUT=next-station/stop-checks.json python3 tools/stop_checks.py
 
       - name: Commit refreshed data.json to main
         run: |
