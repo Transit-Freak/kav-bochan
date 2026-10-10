@@ -107,6 +107,12 @@ jobs:
           STOPS=stops.txt TRANS=translations.txt OUTFILE=next-station/translation-errors.json \
             MANUAL=tools/translation-errors-manual.json python3 tools/translation_check.py
 
+      - name: בדיקות תחנות — תחנת יעד לפרסום חסרה, סוג תחנה לא מתאים (קטגוריות בהתחנה הבאה)
+        continue-on-error: true
+        run: |
+          STOPS=stops.txt ROUTES=routes.txt TRIPS=trips.txt STOP_TIMES=stop_times.txt \
+            BUS_STOPS=gis/data/mot/bus_stops.geojson OUT=next-station/stop-checks.json python3 tools/stop_checks.py
+
       - name: Commit refreshed data.json to main
         run: |
           set -euo pipefail
@@ -120,6 +126,7 @@ jobs:
           cp next-station/changes.json /tmp/out-chg.json 2>/dev/null || true
           cp next-station/catdiff.json /tmp/out-catd.json 2>/dev/null || true
           cp next-station/translation-errors.json /tmp/out-trans.json 2>/dev/null || true
+          cp next-station/stop-checks.json /tmp/out-checks.json 2>/dev/null || true
           cp next-station/stops-names.json /tmp/out-snap.json 2>/dev/null || true
           cp fares/data/stops.json /tmp/out-fares.json 2>/dev/null || true
           cp fares/data/current.json /tmp/out-fares-cur.json 2>/dev/null || true
@@ -131,6 +138,7 @@ jobs:
             [ -f /tmp/out-chg.json ] && cp /tmp/out-chg.json next-station/changes.json
             [ -f /tmp/out-catd.json ] && cp /tmp/out-catd.json next-station/catdiff.json
             [ -f /tmp/out-trans.json ] && cp /tmp/out-trans.json next-station/translation-errors.json
+            [ -f /tmp/out-checks.json ] && cp /tmp/out-checks.json next-station/stop-checks.json
             [ -f /tmp/out-snap.json ] && cp /tmp/out-snap.json next-station/stops-names.json
             mkdir -p fares/data
             [ -f /tmp/out-fares.json ] && cp /tmp/out-fares.json fares/data/stops.json
@@ -140,6 +148,7 @@ jobs:
             git add next-station/changes.json 2>/dev/null || true
             git add next-station/catdiff.json 2>/dev/null || true
             git add next-station/translation-errors.json 2>/dev/null || true
+            git add next-station/stop-checks.json 2>/dev/null || true
             git add next-station/stops-names.json 2>/dev/null || true
             git add fares/data/stops.json fares/data/current.json fares/data/fixes.json 2>/dev/null || true
             if git diff --cached --quiet; then

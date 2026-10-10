@@ -20,6 +20,12 @@ const TRANS_SUBCATS = {
   format:  { label: "פורמט / כתיב",   color: "#0891b2" },
 };
 
+// בדיקות נפרדות על תחנות (שלמה 10.10, stop-checks.json): לא שם↔כתובת, ולכן לא נספרות ב"סה"כ חשודות"
+const CHECK_CATS = {
+  nohs: { label: "חסרה תחנת יעד לפרסום", icon: "🏁", color: "#0d9488", desc: "קווים מסתיימים בתחנה, ואף אחד מהם לא מקבל ממשרד התחבורה תחנת יעד לפרסום (מה שכתוב על השלט של האוטובוס)" },
+  stype: { label: "סוג תחנה לא מתאים", icon: "🏷️", color: "#b45309", desc: "הסוג שרשום לתחנה במאגר התחנות של משרד התחבורה לא מתאים למה שעוצר בה לפי לוח הזמנים" },
+};
+
 // אייקון לסוג נקודת העניין (POI) מ-OpenStreetMap
 const POI_ICON = {
   school: "🏫", academia: "🎓", health: "🏥", mall: "🛒", train: "🚉",
@@ -166,6 +172,42 @@ const TransRow = React.memo(function TransRow({ e }) {
   );
 });
 
+// שורה בבדיקות התחנות (תחנת יעד חסרה / סוג תחנה). לחיצה מראה את התחנה במפה.
+const CheckRow = React.memo(function CheckRow({ e, on, onSel }) {
+  const c = CHECK_CATS[e.k];
+  return (
+    <button className={"item check-item" + (on ? " on" : "")} style={{ borderInlineStart: "4px solid " + c.color }} onClick={() => onSel(e)}>
+      <div className="check-names">
+        <span className="check-n">{e.n}</span>
+        <span className="code">{e.c}</span>
+        {e.typ && <span className="badge" style={{ background: c.color }}>{e.typ}</span>}
+      </div>
+      <div className="check-sub">{e.t || "—"}{e.k === "nohs" && e.hood ? " · שכונת " + e.hood : ""}</div>
+      <div className="check-why">
+        {e.k === "nohs"
+          ? <>מסתיימים כאן בלי תחנת יעד לפרסום: <b>{(e.end || []).join(", ")}</b></>
+          : <>{e.why}{e.ln && e.ln.length ? <> · קווים: <b>{e.ln.slice(0, 8).join(", ")}</b>{e.ln.length > 8 ? "…" : ""}</> : null}</>}
+      </div>
+    </button>
+  );
+});
+
+function CheckDetails({ s }) {
+  const c = CHECK_CATS[s.k];
+  return (
+    <>
+      <div className="d-row">מס׳ תחנה: <b>{s.c}</b></div>
+      {s.t && <div className="d-row">עיר: {s.t}</div>}
+      <div className="d-row">סוג התחנה במאגר של משרד התחבורה: <b>{s.typ || "לא רשום"}</b></div>
+      <div className="d-cat" style={{ color: c.color }}>{c.icon} {c.label} — {c.desc}</div>
+      {s.k === "stype" && <div className="d-diff">💬 {s.why}</div>}
+      {s.k === "nohs" && <div className="d-diff">🏁 קווים שמסתיימים כאן בלי תחנת יעד לפרסום: <b>{(s.end || []).join(", ")}</b></div>}
+      {s.k === "nohs" && s.hood && <div className="d-sug">💡 שם אפשרי לשלט: <b>{s.t ? s.t + ", " : ""}{s.hood}</b> (לפי השכונה במפת המרכז למיפוי ישראל)</div>}
+      {s.ln && s.ln.length > 0 && <div className="d-row">קווים שעוצרים בתחנה: {s.ln.join(", ")}</div>}
+    </>
+  );
+}
+
 // כל פרטי התחנה — משותף לפאנל שעל המפה ולשורה ברשימה.
 // inList=true: מדלג על שדות שכבר מוצגים בכותרת השורה (מספר, רחוב, עיר)
 function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
@@ -279,6 +321,7 @@ function App() {
   const [chg, setChg] = useState(null); // יומן "תוקן!" — תחנות שתוקנו במקור
   const [catd, setCatd] = useState(null); // תחנות ששינו קטגוריה בריצה האחרונה
   const [trans, setTrans] = useState(null); // טעויות תרגום-לאנגלית (קטגוריה נפרדת)
+  const [checks, setChecks] = useState(null); // בדיקות תחנות: תחנת יעד חסרה, סוג תחנה
   const [showCat, setShowCat] = useState(null); // איזה חץ-קטגוריה פתוח
   const [showFixed, setShowFixed] = useState(false);
   const [letterCity, setLetterCity] = useState(null); // מחולל מכתב לרשות (null=סגור)
@@ -350,6 +393,10 @@ function App() {
       .then((r) => (r.ok ? r.json() : null))
       .then(setTrans)
       .catch(() => {});
+    fetch("stop-checks.json?v=" + window.NS_BUILD + "-" + new Date().toISOString().slice(0, 10))
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setChecks)
+      .catch(() => {});
   }, []);
 
   // קישור ישיר לתחנה: פתיחה עם #stop=<מספר> בוחרת אותה אוטומטית
@@ -398,7 +445,7 @@ function App() {
     // סמן התחנה
     markRef.current = L.marker([sel.la, sel.lo])
       .addTo(m)
-      .bindPopup("<b>" + esc(sel.n) + "</b><br>רחוב בכתובת: " + esc(sel.s) + "<br>" + esc(sel.t));
+      .bindPopup("<b>" + esc(sel.n) + "</b><br>" + (CHECK_CATS[sel.k] ? "מס׳ תחנה " + esc(sel.c) : "רחוב בכתובת: " + esc(sel.s)) + "<br>" + esc(sel.t));
     // "הצעות כלליות": נקודה מדויקת על כל רחוב, עם השם צמוד לנקודה.
     // כיוונים שונים (מעל/מתחת) — שהתוויות לא יכסו זו את זו או את הנקודה עצמה
     if (sel.k === "closer" && sel.roads) {
@@ -491,6 +538,15 @@ function App() {
     return list.filter((e) => nq([e.he, e.en, e.enHe, (e.cities || []).join(" "), (e.stops || []).map((s) => s.c).join(" ")].join("|")).indexOf(qn) >= 0);
   }, [trans, dq]);
 
+  // בדיקות התחנות — אותו חיפוש (שם / עיר / מספר / קו / סוג)
+  const checkFiltered = useMemo(() => {
+    if (!checks || !CHECK_CATS[cat]) return [];
+    const list = (checks[cat] || []).map((e) => ({ ...e, k: cat }));
+    const qn = nq(dq);
+    if (!qn) return list;
+    return list.filter((e) => nq([e.n, e.t, e.c, e.typ, e.hood, (e.ln || []).join(" ")].join("|")).indexOf(qn) >= 0);
+  }, [checks, cat, dq]);
+
   const hasActiveInfo = !!(data && data.stops.some((s) => s.act === false));
 
   // הורדת התצוגה הנוכחית כקובץ אקסל (CSV עם BOM כדי שעברית תיפתח נכון ב-Excel)
@@ -508,6 +564,8 @@ function App() {
 
   if (!data) return <div className="boot">טוען נתונים…</div>;
   const inTrans = cat === "translation";
+  const inCheck = !!CHECK_CATS[cat];
+  const checkShown = checkFiltered.slice(0, cap);
   const shown = filtered.slice(0, cap);
   const transShown = transFiltered.slice(0, cap);
   // מספר "הצעות כלליות" שמוצגות בפועל = אלה שההליכה לא הפריכה
@@ -620,6 +678,18 @@ function App() {
             <span>🌐 {TRANS_CAT.label}</span>
           </button>
         )}
+        {checks && Object.keys(CHECK_CATS).map((k) => (checks[k] || []).length > 0 && (
+          <button
+            key={k}
+            className={"stat" + (cat === k ? " on" : "")}
+            style={{ "--c": CHECK_CATS[k].color }}
+            onClick={() => setCat(cat === k ? "all" : k)}
+            title={CHECK_CATS[k].desc}
+          >
+            <b style={{ color: CHECK_CATS[k].color }}>{checks[k].length.toLocaleString()}</b>
+            <span>{CHECK_CATS[k].icon} {CHECK_CATS[k].label}</span>
+          </button>
+        ))}
       </div>
 
       {chg && chg.length > 0 && (() => {
@@ -675,7 +745,9 @@ function App() {
             </label>
           )}
           <div className="count">
-            {inTrans ? (
+            {inCheck ? (
+              <>מציג {checkShown.length.toLocaleString()} מתוך {checkFiltered.length.toLocaleString()} תחנות</>
+            ) : inTrans ? (
               <>מציג {transShown.length.toLocaleString()} מתוך {transFiltered.length.toLocaleString()} טעויות תרגום</>
             ) : (
               <>
@@ -685,7 +757,20 @@ function App() {
               </>
             )}
           </div>
-          {inTrans ? (
+          {inCheck ? (
+            <div className="list">
+              <div className="trans-note check-note">{CHECK_CATS[cat].icon} {CHECK_CATS[cat].desc}. בדיקה נפרדת — <b>אינה נספרת ב"סה"כ חשודות"</b>. לפי ה-GTFS ומאגר התחנות של משרד התחבורה, מעודכן ל-{(checks.gen || "").split("-").reverse().join(".")}.</div>
+              {checkShown.map((e) => (
+                <CheckRow key={e.c} e={e} on={!!(sel && sel.c === e.c && sel.k === e.k)} onSel={setSel} />
+              ))}
+              {checkFiltered.length > checkShown.length && (
+                <button className="more-btn" onClick={() => setCap(cap + PAGE)}>
+                  הצגת עוד {Math.min(PAGE, checkFiltered.length - checkShown.length).toLocaleString()}
+                </button>
+              )}
+              {checkShown.length === 0 && <div className="empty">לא נמצאו תחנות בסינון הנוכחי.</div>}
+            </div>
+          ) : inTrans ? (
             <div className="list">
               <div className="trans-note">🌐 שמות תחנה שהתרגום הרשמי שלהם לאנגלית (מ-GTFS של משרד התחבורה) שגוי. בדיקה נפרדת — <b>אינה נספרת ב"סה"כ חשודות"</b> של הכלי הראשי (שם↔כתובת).</div>
               {transShown.map((e, i) => (
@@ -736,7 +821,9 @@ function App() {
             <div className="detail">
               <button className="d-x" onClick={() => setSel(null)}>×</button>
               <div className="d-name">{sel.n}</div>
-              <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} onReport={setReportStop} />
+              {CHECK_CATS[sel.k]
+                ? <CheckDetails s={sel} />
+                : <StopDetails s={sel} onRoute={showRoute} routeBusy={route && route.loading} times={poiTimes} onReport={setReportStop} />}
             </div>
           )}
         </div>
