@@ -9,6 +9,12 @@ const srv=http.createServer((req,res)=>{
   let rel=decodeURIComponent(req.url.split('?')[0]);if(rel.endsWith('/'))rel+='index.html';
   const p=path.join(root,rel);try{const b=fs.readFileSync(p);res.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.jsx':'text/plain','.css':'text/css','.json':'application/json'}[path.extname(p)]||'application/octet-stream'});res.end(b)}catch{res.writeHead(404);res.end()}
 });
+// שינויים שגרתיים (תיעוד ראשון וכו') מקובצים בכפתור אחד ליום (שלמה 08.10) — פותחים אותו אם אין שורה גלויה
+async function firstRow(p){
+ await p.locator('.lrow, .lowgrp').first().waitFor({timeout:60000});
+ if(!(await p.locator('.lrow').count()))await p.locator('.lowgrp').first().click();
+ const r=p.locator('.lrow').first();await r.waitFor({timeout:30000});return r;
+}
 await new Promise(ok=>srv.listen(0,'127.0.0.1',ok));
 let browser;
 try{
@@ -20,7 +26,7 @@ try{
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
  await p.getByRole('button',{name:'2012',exact:true}).click();
  await p.getByRole('button',{name:'07.2012',exact:true}).click();
- await p.locator('.lrow').first().waitFor({timeout:60000});
+ await firstRow(p);
  if(await p.getByRole('heading',{name:/תכנון וביצוע/}).count())throw Error('Rail data leaked into buses');
  await p.getByRole('tab',{name:'🚏 תחנות',exact:true}).click();
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Period selector remains in stops');
@@ -51,7 +57,7 @@ try{
  await p.getByRole('tab',{name:'🚌 קווים',exact:true}).click();
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
  await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
- await p.locator('.lrow').first().click();
+ await (await firstRow(p)).click();
  await p.getByText('תיעוד היסטורי',{exact:true}).waitFor({timeout:30000});
  if(await p.locator('.tl details,.tl .early-detail').count())throw Error('Custom archive panels remain in timeline');
  await p.locator('.tl .evsrc').first().waitFor();
@@ -62,6 +68,9 @@ try{
   await p.route('**/OneSignalSDK.page.js',r=>r.fulfill({body:''}));
   console.log('Checking line 2 schedule at width',viewport.width);
   await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#${encodeURIComponent('75002-2-#')}`);
+  // שינויי לו"ז כבויים כברירת מחדל בעמוד הקו (שלמה 08.10) — "הכול" מדליק אותם
+  await p.locator('.kfilter .kchip').first().waitFor({timeout:30000});
+  if(await p.locator('.kfilter .kchip:not(.on)').count())await p.click('.kfilter .kchip:has-text("הכול")');
   const event=p.getByRole('button',{name:'בחירת האירוע מ-01.03.2016: שינוי לו"ז',exact:true});
   await event.click();
   await p.locator('.card.main .tdiff .tdiff-tbl').first().waitFor({timeout:30000});
