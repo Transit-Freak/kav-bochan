@@ -73,6 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin osm-poi && git show FETCH_HEAD:poi.json > poi.json
+          git show FETCH_HEAD:military.json > military.json 2>/dev/null || echo '{}' > military.json
           git fetch origin osm-roads && git show FETCH_HEAD:roads.json > roads.json
           ls -la poi.json roads.json
 
@@ -111,12 +112,12 @@ jobs:
         continue-on-error: true
         run: |
           STOPS=stops.txt ROUTES=routes.txt TRIPS=trips.txt STOP_TIMES=stop_times.txt \
-            BUS_STOPS=gis/data/mot/bus_stops.geojson POI=poi.json OUT=next-station/stop-checks.json python3 tools/stop_checks.py
+            BUS_STOPS=gis/data/mot/bus_stops.geojson POI=poi.json MIL=military.json OUT=next-station/stop-checks.json python3 tools/stop_checks.py
 
       - name: Commit refreshed data.json to main
         run: |
           set -euo pipefail
-          rm -f gtfs.zip stops.txt stop_times.txt translations.txt active_stops.txt poi.json roads.json prev.json
+          rm -f gtfs.zip stops.txt stop_times.txt translations.txt active_stops.txt poi.json roads.json prev.json military.json
           rm -f routes.txt trips.txt calendar.txt calendar_dates.txt fare_rules.txt fare_attributes.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
