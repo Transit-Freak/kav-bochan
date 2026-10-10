@@ -1,0 +1,53 @@
+name: fetch-osm-military
+
+# שטחים צבאיים מ-OpenStreetMap (שלמה 10.10) — לבדיקת "גבול מחנה צבאי" בהתחנה הבאה.
+# נשמר כ-military.json בענף osm-poi (ליד poi.json), ו-update-weekly קורא אותו משם.
+on:
+  schedule:
+    - cron: '17 2 * * 0'   # פעם בשבוע, ראשון 02:17 UTC
+  push:
+    paths:
+      - '.github/workflows/fetch-osm-military.yml'
+      - 'tools/osm_military.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-osm-military-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    if: github.ref == 'refs/heads/main' || github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: OSM extract (Geofabrik) + military areas
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet osmium
+          # Geofabrik לפעמים נכנס ללולאת הפניות בלי עוגיות (30.09) — עם עוגיות, ומראות חלופיות
+          curl -fsSL --retry 3 -c /tmp/cj -b /tmp/cj -A "Mozilla/5.0 (kavbochan.app)" -o /tmp/il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf \
+            || curl -fsSL --retry 3 -o /tmp/il.osm.pbf https://download.openstreetmap.fr/extracts/asia/israel_and_palestine-latest.osm.pbf \
+            || curl -fsSL --retry 3 -o /tmp/il.osm.pbf https://download.bbbike.org/osm/extract/planet_34.2,29.4_35.95,33.35.osm.pbf
+          ls -la /tmp/il.osm.pbf
+          python3 tools/osm_military.py /tmp/il.osm.pbf /tmp/military.json
+          ls -la /tmp/military.json
+      - name: Push military.json to osm-poi branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch origin osm-poi
+            git checkout -B osm-poi FETCH_HEAD
+            cp /tmp/military.json military.json
+            git add military.json
+            if git diff --cached --quiet; then echo "unchanged"; break; fi
+            git commit -q -m "OSM military areas"
+            if git push origin osm-poi; then break; fi
+            sleep 10
+          done
