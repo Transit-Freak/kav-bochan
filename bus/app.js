@@ -333,32 +333,41 @@ function layRow(nm, v) {
     nP: g(7), layP: m(8, 7), inP: m(9, 7), nO: g(10), layO: m(11, 10), inO: m(12, 10)};
 }
 const absCls = v => v == null ? 'na' : v >= .8 ? 'g' : v >= .65 ? 'y' : v >= .5 ? 'o' : 'r';
-// פס: אורך = המרווח המתוכנן; הקו הכתום = האיחור הממוצע של הנסיעה הקודמת
-function layBar(lay, inD, scale, lab) {
-  if (lay == null) return `<div class="lyr"><span class="rl">${lab}</span><span class="dn">אין נתונים</span></div>`;
-  return `<div class="lyr"><span class="rl">${lab}</span><span class="lyb"><i style="width:${Math.min(100, 100 * lay / scale)}%"></i>${inD ? `<u style="inset-inline-start:${Math.min(100, 100 * inD / scale)}%"></u>` : ''}</span><b>${fmt1(lay)}</b><small>דק׳ במסוף · איחור בהגעה ${fmt1(inD || 0)}</small></div>`;
-}
+const dmin = v => v == null ? '—' : fmt1(v);
 function layHtml(M) {
   const Lx = M.Bl && M.Bl.L;
   if (!Lx || !Lx.days) return `<div class="panel"><div class="ptitle">האם הסדרנים מתחשבים בפקקים</div><div class="empty">החישוב מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
   const tot = layRow('כל החברות', Lx.tot);
   const rows = Object.entries(Lx.A).map(([nm, v]) => layRow(nm, v)).filter(r => r.nLate >= MIN_LATE).sort((a, b) => (b.abs ?? -1) - (a.abs ?? -1));
-  const scale = Math.max(10, ...rows.flatMap(r => [r.layP || 0, r.layO || 0]));
-  return `<div class="panel">
+  const add = r => r.layP != null && r.layO != null ? r.layP - r.layO : null;
+  return `<div class="panel lay">
     <div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
-    <p class="pdesc">סדרן שמתחשב בפקקים נותן לאוטובוס יותר זמן במסוף בין נסיעה לנסיעה בשעות העומס, כדי שגם כשהוא חוזר באיחור הנסיעה הבאה תצא בזמן. כאן עוקבים אחרי כל אוטובוס לפי המספר שלו: כמה זמן לוח הזמנים נתן לו במסוף, כמה איחר בנסיעה הקודמת, והאם הזמן במסוף הספיק כדי לצאת בזמן.</p>
-    <div class="rsum">בכל החברות: בשעות השיא האוטובוס מקבל במסוף בממוצע <b>${fmt1(tot.layP)} דק׳</b> ומגיע באיחור של ${fmt1(tot.inP)}. בשאר היום <b>${fmt1(tot.layO)} דק׳</b>, ואיחור של ${fmt1(tot.inO)}. כשהאוטובוס הגיע באיחור של 3 דקות ומעלה, הזמן במסוף ספג את האיחור ב-<b>${pc(tot.abs)}</b> מהמקרים.${tot.okNA != null ? ` כשלא ספג, ${pc(tot.okNA)} בכל זאת יצאו בזמן.` : ''}</div>
-    <div class="blegend"><span><i style="background:var(--accent)"></i>זמן במסוף לפי לוח הזמנים</span><span><i style="background:var(--late)"></i>האיחור הממוצע של הנסיעה הקודמת</span></div>
-    ${rows.length ? `<div class="blist">${rows.map(r => `<div class="brow"><div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} יציאות · ${num(r.nLate)} אחרי הגעה באיחור</small></div>
-      <div class="bsc ${absCls(r.abs)}" title="מהפעמים שהאוטובוס הגיע באיחור של 3 דק׳ ומעלה: בכמה הזמן במסוף הספיק">${pc(r.abs)}</div>
-      <div class="bmid">${layBar(r.layP, r.inP, scale, 'שעות שיא')}${layBar(r.layO, r.inO, scale, 'שאר היום')}</div></div>`).join('')}</div>` : '<div class="empty">אין מספיק יציאות</div>'}
-    <p class="note">האחוז בריבוע: מהפעמים שהאוטובוס הגיע למסוף באיחור של 3 דקות ומעלה, בכמה הזמן במסוף עדיין הספיק כדי להיות שם לפחות דקה לפני היציאה. מוצגות חברות עם ${MIN_LATE} מקרים כאלה לפחות.</p>
-    <div class="ptitle" style="margin-top:14px">לפי קו</div>
-    <div class="filters"><input id="lay-q" class="search" type="search" placeholder="מספר קו, עיר או חברה (למשל 2 קרית מלאכי)" value="${esc(layQ)}"></div>
+    <p class="blead">בשעות העומס האוטובוסים חוזרים מהנסיעה באיחור. סדרן שמתחשב בזה נותן להם יותר זמן במסוף לפני הנסיעה הבאה, כדי שהיא תצא בזמן.</p>
+    <div class="ltiles">
+      <div><span>זמן במסוף בשעות השיא</span><b>${dmin(tot.layP)}<small> דק׳</small></b></div>
+      <div><span>זמן במסוף בשאר היום</span><b>${dmin(tot.layO)}<small> דק׳</small></b></div>
+      <div class="k"><span>כשהאוטובוס חזר באיחור, הגיע בזמן לנסיעה הבאה</span><b>${pc(tot.abs)}</b></div>
+    </div>
+    <div class="lhead"><span>חברה</span><span>הגיע בזמן לנסיעה הבאה</span><span>זמן במסוף</span></div>
+    ${rows.length ? rows.map(r => `<div class="lrow">
+      <div class="bn"><b>${esc(r.nm)}</b><small>חזר באיחור ב-${num(r.nLate)} נסיעות</small></div>
+      <div class="lsc ${absCls(r.abs)}">${pc(r.abs)}</div>
+      <div class="ltime"><span>שאר היום <b>${dmin(r.layO)}</b></span><span>שיא <b>${dmin(r.layP)}</b></span>${add(r) != null ? `<em class="${add(r) >= 3 ? 'up' : 'flat'}">${add(r) >= 0.5 ? `${mins(add(r))} דק׳ בשיא` : 'בלי תוספת בשיא'}</em>` : ''}</div>
+    </div>`).join('') : '<div class="empty">אין מספיק נסיעות</div>'}
+    <div class="ptitle" style="margin-top:16px">חיפוש קו</div>
+    <div class="filters"><input id="lay-q" class="search" type="search" placeholder="מספר קו ועיר, למשל: 2 קרית מלאכי" value="${esc(layQ)}"></div>
     <div id="lay-lines"></div>
-    <details class="bmore"><summary>איך זה נמדד</summary><p class="note" style="margin-top:6px">לכל נסיעה שהיציאה שלה מהמוצא נמדדה מחפשים את הנסיעה הקודמת של אותו רכב (לפי המספר שלו בשידור), אם היא הסתיימה לפי לוח הזמנים עד 90 דקות לפני, עד 1.5 ק״מ מתחנת המוצא, ונמדדה עד הסוף. הזמן במסוף = שעת היציאה פחות שעת הסיום של הנסיעה הקודמת, לפי לוח הזמנים. "הגיע באיחור" = האיחור בסוף הנסיעה הקודמת היה 3 דקות ומעלה. "הזמן במסוף ספג" = האוטובוס היה במסוף לפחות דקה לפני שעת היציאה. שעות שיא: 06:00–09:00 ו-15:00–19:00. הפסקה של יותר מ-90 דקות (חניון, הפסקת נהג) לא נחשבת.</p></details>
+    <details class="bmore"><summary>איך זה נמדד</summary><ul class="lhow">
+      <li>עוקבים אחרי כל אוטובוס לפי מספר הרכב, מנסיעה לנסיעה.</li>
+      <li><b>זמן במסוף</b>: כמה זמן לוח הזמנים נותן בין סוף נסיעה לתחילת הנסיעה הבאה של אותו אוטובוס.</li>
+      <li><b>חזר באיחור</b>: הנסיעה הקודמת הגיעה לסוף באיחור של 3 דקות ומעלה.</li>
+      <li><b>הגיע בזמן לנסיעה הבאה</b>: למרות האיחור, האוטובוס היה במסוף לפחות דקה לפני היציאה.</li>
+      <li>שעות שיא: 06:00–09:00 ו-15:00–19:00. הפסקה של יותר מ-90 דקות (חניון, הפסקת נהג) לא נחשבת.</li>
+    </ul></details>
   </div>`;
 }
+// "תחנה-עיר<->תחנה-עיר-10" → "תחנה ← תחנה"
+const routeName = l => String(l || '').replace(/-\d+[#א-ת]?$/, '').split('<->').map(x => x.replace(/-[^-]*$/, '').trim()).join(' ← ');
 function renderLayLines() {
   const box = $('#lay-lines'); if (!box || !M || !M.Bl || !M.Bl.L) return;
   const q = layQ.trim().split(/\s+/).filter(Boolean);
@@ -368,7 +377,7 @@ function renderLayLines() {
   if (q.length) list = list.filter(x => q.every(w => /^\d+[א-ת]?$/.test(w) ? x.short === w : x.long.includes(w) || x.ag.includes(w)));
   list.sort((a, b) => b.v[0] - a.v[0]);
   const shown = list.slice(0, 60), m = (v, a, b) => v[b] ? fmt1(v[a] / v[b] / 60) : '—';
-  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>חברה</th><th>יציאות</th><th>זמן במסוף בשיא<br><small>דק׳</small></th><th>זמן במסוף בשאר היום<br><small>דק׳</small></th><th>איחור בהגעה<br><small>דק׳</small></th><th>הזמן במסוף ספג<br><small>מתוך ההגעות באיחור</small></th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(x.long.replace(/-\d+[#א-ת]?$/, ''))}</td><td>${esc(x.ag)}</td><td>${num(x.v[0])}</td><td>${m(x.v, 6, 5)}</td><td>${m(x.v, 8, 7)}</td><td>${m(x.v, 2, 0)}</td><td>${x.v[3] ? `${pc(x.v[4] / x.v[3])} <small class="dn">(${num(x.v[3])})</small>` : '—'}</td></tr>`).join('')}</tbody></table></div>${list.length > shown.length ? `<p class="note">מוצגים ${shown.length} מתוך ${num(list.length)} כיווני קו. אפשר לחפש לפי מספר קו ועיר.</p>` : ''}` : '<div class="empty">לא נמצא קו עם 5 יציאות לפחות</div>';
+  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>חברה</th><th>זמן במסוף<br><small>שאר היום · דק׳</small></th><th>זמן במסוף<br><small>שיא · דק׳</small></th><th>חזר באיחור</th><th>הגיע בזמן לנסיעה הבאה</th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td><td>${esc(x.ag)}</td><td>${m(x.v, 8, 7)}</td><td>${m(x.v, 6, 5)}</td><td>${num(x.v[3])} מתוך ${num(x.v[0])}</td><td>${x.v[3] ? `<b class="bsct ${absCls(x.v[4] / x.v[3])}">${pc(x.v[4] / x.v[3])}</b>` : '—'}</td></tr>`).join('')}</tbody></table></div>${list.length > shown.length ? `<p class="note">מוצגים ${shown.length} מתוך ${num(list.length)} כיווני קו. אפשר לחפש לפי מספר קו ועיר.</p>` : ''}` : '<div class="empty">לא נמצא קו עם 5 יציאות לפחות</div>';
 }
 
 function renderBlame() {

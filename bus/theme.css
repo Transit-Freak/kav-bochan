@@ -170,12 +170,26 @@ th.sort-desc::after{content:" ▼";font-size:10px}th.sort-asc::after{content:" �
   .bhow dd{margin-bottom:10px}
   .bbar.big i{font-size:11px}
 }
-/* האם הסדרנים מתחשבים בפקקים: זמן במסוף (פס כחול) מול האיחור בהגעה (קו כתום) */
-.rsum{font-size:13px;line-height:1.6;margin:0 0 8px}
-.rl{font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap}
-.lyr{display:grid;grid-template-columns:76px 1fr auto;align-items:center;gap:2px 8px;margin-bottom:6px}
-.lyr small{grid-column:2 / -1;font-size:11px;color:var(--dim);font-weight:600}
-.lyb{position:relative;display:block;height:12px;background:var(--panel2);border-radius:6px}
-.lyb i{position:absolute;inset-block:0;inset-inline-start:0;background:var(--accent);border-radius:6px}
-.lyb u{position:absolute;top:-3px;bottom:-3px;width:3px;margin-inline-start:-1px;background:var(--late);border-radius:2px}
-.lyr b{font-size:14px}
+/* האם הסדרנים מתחשבים בפקקים — שלוש קוביות למעלה, ושורה פשוטה לכל חברה */
+.ltiles{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px;margin:4px 0 16px}
+.ltiles div{border:1.5px solid var(--ink);border-radius:10px;padding:10px 12px;background:#fff}
+.ltiles div.k{border-top:7px solid var(--ok)}
+.ltiles span{display:block;font-size:12px;font-weight:700;color:var(--mut);line-height:1.4}
+.ltiles b{font-family:var(--disp);font-size:30px;font-weight:400;line-height:1.2}
+.ltiles small{font-family:var(--body);font-size:13px;color:var(--mut)}
+.lhead,.lrow{display:grid;grid-template-columns:1fr 120px 1.3fr;gap:12px;align-items:center}
+.lhead{font-size:11.5px;font-weight:800;color:var(--dim);padding:0 0 6px;border-bottom:1.5px solid var(--ink)}
+.lrow{padding:10px 0;border-bottom:1px solid var(--line)}
+.lsc{font-family:var(--disp);font-size:20px;text-align:center;border-radius:9px;padding:3px 0;color:#fff}
+.lsc.g{background:var(--ok)}.lsc.y{background:var(--warn);color:var(--ink)}.lsc.o{background:var(--late)}.lsc.r{background:var(--bad)}.lsc.na{background:var(--panel2);color:var(--dim)}
+.ltime{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;font-size:13px;color:var(--mut);font-weight:600}
+.ltime b{color:var(--ink);font-size:15px}
+.ltime em{font-style:normal;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px}
+.ltime em.up{background:#DCFCE7;color:#166534}.ltime em.flat{background:var(--panel2);color:var(--mut)}
+.lhow{margin:6px 0 0;padding-inline-start:18px;font-size:13px;line-height:1.7;color:var(--mut)}
+@media (max-width:760px){
+  .ltiles{grid-template-columns:1fr 1fr}.ltiles div.k{grid-column:1 / -1}
+  .lhead{display:none}
+  .lrow{grid-template-columns:1fr 84px;gap:6px 10px}
+  .lrow .ltime{grid-column:1 / -1}
+}
