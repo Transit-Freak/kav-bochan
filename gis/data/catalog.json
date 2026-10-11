@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-04T11:25Z",
+ "updated": "2026-10-11T11:42Z",
  "source": "data.gov.il — משרד התחבורה",
  "topics": [
   "תחבורה ציבורית",
@@ -131,7 +131,7 @@
    "group": "מצב קיים",
    "topic": "תחבורה ציבורית",
    "source": "https://data.gov.il/dataset/nataz_kayam",
-   "modified": "2026-07-22T05:08:05",
+   "modified": "2026-10-04T11:55:22",
    "id": "nataz_kayam__NATAZ_KAYAM_CSV",
    "title": "נתיבי העדפה קיימים — NATAZ_KAYAM_CSV",
    "sub": "NATAZ_KAYAM_CSV",
@@ -351,8 +351,7 @@
    ],
    "file": "mot/lrt_stat__LRT_STAT_CSV.geojson",
    "bytes": 157287,
-   "simplify": 2e-05,
-   "stale": true
+   "simplify": 2e-05
   },
   {
    "dataset": "bph_infra_exist",
