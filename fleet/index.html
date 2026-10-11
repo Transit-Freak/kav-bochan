@@ -168,6 +168,38 @@
   .mselect{border:none;background:var(--chipbg);color:var(--ink);border-radius:999px;padding:8px 14px;font:700 12.5px 'Rubik',sans-serif;cursor:pointer}
   .fchip.on{background:var(--ink);color:#fff}
   .tblbox{overflow-x:auto}
+  /* בחירת ימים בלוח שנה ובחירת ערים (שלמה 11.10: "במקום 20 ימים בשורה — לוח שנה", "הבחירה נראית מיושנת") */
+  .dsel{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .dchip{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border-radius:999px;padding:6px 8px 6px 12px;font:700 12px 'Rubik',sans-serif}
+  .dchip button{border:none;background:rgba(255,255,255,.18);color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font:700 11px 'Rubik',sans-serif;line-height:20px;padding:0}
+  .dchip button:hover{background:rgba(255,255,255,.32)}
+  .calbtn{display:inline-flex;align-items:center;gap:7px;border:1.5px dashed #C3CAD8;background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;font:700 12px 'Rubik',sans-serif;cursor:pointer}
+  .calbtn.on{border-style:solid;border-color:var(--ink)}
+  .cal{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:12px;max-width:340px;background:var(--surface)}
+  .calhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-weight:800;font-size:14px}
+  .calhd button{border:none;background:var(--chipbg);width:30px;height:30px;border-radius:50%;cursor:pointer;font:800 14px 'Rubik',sans-serif;color:var(--ink)}
+  .calhd button:disabled{opacity:.3;cursor:default}
+  .calg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+  .calg .wh{font-size:10.5px;color:var(--dim);font-weight:700;padding:2px 0}
+  .calg button{border:none;background:var(--row);border-radius:10px;height:36px;font:700 13px 'Rubik',sans-serif;color:var(--ink);cursor:pointer}
+  .calg button.we{background:#FFF7E6}
+  .calg button:hover{box-shadow:inset 0 0 0 1.5px var(--ink)}
+  .calg button.on{background:var(--ink);color:#fff}
+  .calg button:disabled{background:none;color:#C9CEDA;cursor:default;box-shadow:none;font-weight:500}
+  .calft{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .calft .fchip{padding:6px 11px}
+  .vs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .csel{position:relative;display:inline-flex;align-items:center}
+  .csel select{appearance:none;-webkit-appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:9px 14px 9px 34px;font:700 13.5px 'Rubik',sans-serif;cursor:pointer;min-width:150px;box-shadow:var(--shadow)}
+  .csel select:focus{outline:none;border-color:var(--ink)}
+  .csel::after{content:'';position:absolute;left:14px;top:50%;width:7px;height:7px;border:solid var(--mut);border-width:0 2px 2px 0;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+  .vsx{font-weight:800;color:var(--dim);font-size:12px}
+  .swap{border:none;background:var(--chipbg);width:32px;height:32px;border-radius:50%;cursor:pointer;font:800 15px 'Rubik',sans-serif;color:var(--ink)}
+  .seg{display:inline-flex;background:var(--chipbg);border-radius:999px;padding:3px;gap:2px;margin-bottom:10px}
+  .seg button{border:none;background:none;border-radius:999px;padding:6px 13px;font:700 12px 'Rubik',sans-serif;color:var(--mut);cursor:pointer}
+  .seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  tr.brk td{font-size:12px;color:var(--mut);background:none;padding-top:3px;padding-bottom:3px}
+  tr.brk td:first-child{padding-inline-start:22px;font-weight:600}
   .more{width:100%;border:none;background:var(--chipbg);color:var(--ink);border-radius:12px;padding:10px;font:700 13px 'Rubik',sans-serif;cursor:pointer;margin-top:6px}
   .ovl{position:fixed;inset:0;background:rgba(16,23,42,.55);z-index:50;display:flex;align-items:center;justify-content:center;padding:14px}
   .modal{background:var(--surface);border-radius:18px;box-shadow:var(--shadow-lg);max-width:500px;width:100%;max-height:86vh;overflow-y:auto;padding:18px 20px}
@@ -392,7 +424,7 @@ function pickMon(v){
    (bus/data/fleetday) — כל רכב ששידר באותו יום, והקווים שבהם נסע. רכב נספר בעיר אם נסע באותו
    יום בקו שעובר בה; לכל אשכול נשמר באילו מערי האשכול עבד כל רכב, וכך אפשר לחשב לכל שתי ערים
    כמה רכבים עבדו רק בזו, רק בזו, ובשתיהן (רכב משותף = מה שהולך לאיבוד בפיצול). */
-let FD=null, FDSEL=null, CLSEL=null, CLA='', CLB='';
+let FD=null, FDSEL=null, CLSEL=null, CLA='', CLB='', CALOPEN=false, CALM='', CLBRK='';
 const FDC={}, WDN=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 async function loadFDay(d){
   if(FDC[d]) return FDC[d];
@@ -420,6 +452,52 @@ function fdToggle(d){
   else { if(FDSEL.length>=6) FDSEL.shift(); FDSEL.push(d); FDSEL.sort(); }
   loadFDay(d).then(render);
 }
+// לוח שנה לבחירת ימים להשוואה — רק ימים שיש להם ספירה לחיצים
+const HMON=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function calMove(k){const [y,m]=CALM.split('-').map(Number),t=new Date(y,m-1+k,1);CALM=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;render();}
+function fdSet(list){FDSEL=[...new Set(list)].sort().slice(-6);Promise.all(FDSEL.map(loadFDay)).then(render);}
+function fdPreset(k){
+  const ds=FD.days||[],wd=d=>{const [y,m,dd]=d.split('-');return new Date(+y,m-1,+dd).getDay();};
+  const last=t=>[...ds].reverse().find(d=>t(wd(d)));
+  if(k==='wk') fdSet([last(w=>w<5),last(w=>w===5),last(w=>w===6)].filter(Boolean));
+  else if(k==='7') fdSet(ds.slice(-6));
+  else if(k==='sat') fdSet(ds.filter(d=>wd(d)===6).slice(-6));
+}
+function dayPicker(){
+  const ds=FD.days||[],has=new Set(ds);
+  if(!CALM) CALM=(FDSEL[FDSEL.length-1]||ds[ds.length-1]||'').slice(0,7);
+  const chips=FDSEL.map(d=>`<span class="dchip">${dlab(d)}${FDSEL.length>1?`<button title="הסרה" onclick="fdToggle('${d}')">✕</button>`:''}</span>`).join('');
+  const icon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+  let cal='';
+  if(CALOPEN&&CALM){
+    const [y,m]=CALM.split('-').map(Number),first=new Date(y,m-1,1).getDay(),n=new Date(y,m,0).getDate();
+    const minM=(ds[0]||CALM).slice(0,7),maxM=(ds[ds.length-1]||CALM).slice(0,7);
+    let cells=['א','ב','ג','ד','ה','ו','ש'].map(w=>`<div class="wh">${w}</div>`).join('')+'<div></div>'.repeat(first);
+    for(let i=1;i<=n;i++){
+      const d=`${CALM}-${String(i).padStart(2,'0')}`,w=(first+i-1)%7,on=FDSEL.includes(d);
+      cells+=has.has(d)?`<button class="${on?'on':''} ${w>=5&&!on?'we':''}" onclick="fdToggle('${d}')">${i}</button>`:`<button disabled>${i}</button>`;
+    }
+    cal=`<div class="cal"><div class="calhd"><button onclick="calMove(-1)" ${CALM<=minM?'disabled':''} title="החודש הקודם">›</button><span>${HMON[m-1]} ${y}</span><button onclick="calMove(1)" ${CALM>=maxM?'disabled':''} title="החודש הבא">‹</button></div>
+      <div class="calg">${cells}</div>
+      <div class="calft"><button class="fchip" onclick="fdPreset('wk')">חול, שישי ושבת אחרונים</button><button class="fchip" onclick="fdPreset('7')">6 הימים האחרונים</button><button class="fchip" onclick="fdPreset('sat')">השבתות האחרונות</button></div>
+      <div style="font-size:11px;color:var(--dim);margin-top:8px">עד 6 ימים. בצהוב: שישי ושבת. ימים אפורים — אין להם ספירה.</div></div>`;
+  }
+  return `<div class="dsel">${chips}<button class="calbtn ${CALOPEN?'on':''}" onclick="CALOPEN=!CALOPEN;render()">${icon}${CALOPEN?'סגירת לוח השנה':'בחירת ימים'}</button></div>${cal}`;
+}
+// פירוט שורות הפיצול: סוג הקווים שבהם הרכב נסע באשכול באותו יום, או סוג הרכב ברישוי
+const LTN=t=>{if(!t)return 'סוג הקו לא ידוע';const p=t.split('+');if(p.length>1)return 'מעורב: '+p.join(' + ');return {'עירוני':'רק קווים עירוניים','בינעירוני':'רק קווים בינעירוניים','אזורי':'רק קווים אזוריים'}[t]||t;};
+function vehKind(plate){const l=XPLATE[plate];if(!l||!l.length)return 'לא נמצא ברישוי';
+  const v=l.reduce((a,b)=>b[1][2]>a[1][2]?b:a)[1],t=mvType(v);
+  return t==='עירוני'?'אוטובוס עירוני':t==='בין-עירוני'?'אוטובוס בין-עירוני':t==='אחר'?'סוג אחר':t;}
+function clBreak(x,a,b,k){
+  // k: 0 רק בא, 1 רק בב, 2 בשתיהן → {קטגוריה: מספר}
+  if(!x||!x.v) return null;
+  const i=x.c.indexOf(a),j=x.c.indexOf(b),out={};
+  for(const [plate,sig,lt] of x.v){const A=i>=0&&sigHas(sig,i),B=j>=0&&sigHas(sig,j);
+    const kk=A&&B?2:A?0:B?1:-1;if(kk!==k)continue;
+    const c=CLBRK==='lt'?LTN(lt):vehKind(plate);out[c]=(out[c]||0)+1;}
+  return out;
+}
 function dlab(d){const [y,m,dd]=d.split('-');return `${WDN[new Date(+y,m-1,+dd).getDay()]} ${+dd}.${+m}`;}
 const sigHas=(sig,i)=>sig!==''&&sig.split(',').includes(String(i));
 function clCity(x,city){if(!x)return null;const i=x.c.indexOf(city);if(i<0)return 0;let n=0;for(const [s,c] of Object.entries(x.s))if(sigHas(s,i))n+=c;return n;}
@@ -434,8 +512,7 @@ function clusterHome(f){
   const ds=FD.days||[];
   if(!ds.length) return kpis()+'<div class="panel"><div class="empty">הספירה היומית נאספת מעכשיו, עם עיבוד כל יום במדד הדיוק — חזרו מחר.</div></div>';
   const sel=FDSEL.filter(d=>FDC[d]);
-  const chips=`<div class="filters" style="flex-wrap:wrap">${ds.slice().reverse().slice(0,35).map(d=>`<button class="fchip ${FDSEL.includes(d)?'on':''}" onclick="fdToggle('${d}')">${dlab(d)}</button>`).join('')}</div>
-    <div style="font-size:11.5px;color:var(--dim);margin-top:-4px">בחרו עד 6 ימים להשוואה, למשל יום חול מול שישי ושבת.</div>`;
+  const chips=dayPicker();
   const head=`<tr><th style="text-align:right">${CLSEL?'עיר':'אשכול'}</th>${sel.map(d=>`<th>${dlab(d)}</th>`).join('')}</tr>`;
   const cell=v=>`<td>${v==null?'—':fmt(v)}</td>`;
   const note=`<p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:10px">מספר האוטובוסים השונים ששידרו נסיעות באותו יום (לפי מספר הרכב בשידור האיכון). רכב נספר בעיר אם נסע באותו יום בקו שעובר בה, ולכן רכב שעבד בשתי ערים נספר בשתיהן. אשכול = אשכול המכרז של משרד התחבורה (ClusterToLine). המקור: דאטאבוס, דרך מדד הדיוק של האתר.</p>`;
@@ -466,11 +543,20 @@ function clusterHome(f){
       ${cities.map(c=>`<tr><td style="text-align:right;font-weight:700">${esc(c)}</td>${sel.map(d=>cell(clCity(X(d),c))).join('')}</tr>`).join('')}
     </tbody></table></div></div>
     ${cities.length>1?`<div class="panel"><p class="ptitle">פיצול האשכול: שתי ערים</p>
-      <div class="filters"><select onchange="CLA=this.value;render()">${opt(CLA)}</select><span>מול</span><select onchange="CLB=this.value;render()">${opt(CLB)}</select></div>
+      <div class="vs"><span class="csel"><select aria-label="עיר ראשונה" onchange="CLA=this.value;render()">${opt(CLA)}</select></span>
+        <button class="swap" title="החלפה" onclick="[CLA,CLB]=[CLB,CLA];render()">⇄</button>
+        <span class="csel"><select aria-label="עיר שנייה" onchange="CLB=this.value;render()">${opt(CLB)}</select></span></div>
+      <div class="seg">${[['','סיכום'],['lt','לפי סוג הקו'],['veh','לפי סוג הרכב']].map(([k,t])=>`<button class="${CLBRK===k?'on':''}" onclick="CLBRK='${k}';render()">${t}</button>`).join('')}</div>
       <div class="tblbox"><table><thead>${head.replace('עיר','')}</thead><tbody>
-        ${[[`רק ב${CLA}`,0],[`רק ב${CLB}`,1],['עבדו בשתיהן (רכב משותף)',2]].map(([t,k])=>`<tr><td style="text-align:right;font-weight:700">${esc(t)}</td>${sel.map(d=>{const p=clPair(X(d),CLA,CLB);return cell(p?p[k]:null);}).join('')}</tr>`).join('')}
+        ${[[`רק ב${CLA}`,0],[`רק ב${CLB}`,1],['עבדו בשתיהן (רכב משותף)',2]].map(([t,k])=>{
+          const main=`<tr><td style="text-align:right;font-weight:700">${esc(t)}</td>${sel.map(d=>{const p=clPair(X(d),CLA,CLB);return cell(p?p[k]:null);}).join('')}</tr>`;
+          if(!CLBRK) return main;
+          const br=sel.map(d=>clBreak(X(d),CLA,CLB,k)),tot={};
+          br.forEach(o=>o&&Object.entries(o).forEach(([c,n])=>tot[c]=(tot[c]||0)+n));
+          return main+Object.keys(tot).sort((a,b)=>tot[b]-tot[a]).map(c=>`<tr class="brk"><td style="text-align:right">${esc(c)}</td>${br.map(o=>`<td>${o?fmt(o[c]||0):'—'}</td>`).join('')}</tr>`).join('');
+        }).join('')}
       </tbody></table></div>
-      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — אוטובוסים שבאותו יום נסעו גם בקו של עיר אחת וגם בקו של השנייה (כולל קו בין-עירוני שעובר בשתיהן). אם האשכול יפוצל לשני מכרזים, אלה הרכבים שהיום משרתים את שתי הערים.</p></div>`:''}
+      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — אוטובוסים שבאותו יום נסעו גם בקו של עיר אחת וגם בקו של השנייה (כולל קו בין-עירוני שעובר בשתיהן). אם האשכול יפוצל לשני מכרזים, אלה הרכבים שהיום משרתים את שתי הערים.${CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט, והם יחושבו מחדש.':''}</p></div>`:''}
     ${note}`;
 }
 function opName(ref){const o=op(+ref);return o?o.name:'מפעיל '+ref;}
