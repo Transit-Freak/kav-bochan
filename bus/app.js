@@ -325,7 +325,7 @@ function blameHtml(M) {
 // יותר זמן במסוף, יותר זמן בקו"). שלושה מספרים לנסיעה: לפי הלו"ז הרשמי, כמה זמן החברה נתנה לה
 // (עד היציאה הבאה של אותו אוטובוס), וכמה היא לקחה בפועל — בשיא ובשאר היום
 const MIN_LAY = 30, LB = 8;
-let layQ = '';
+let layQ = '', layAg = '', laySort = 'n', layMore = 60;
 function layBlk(v, o) {
   const g = i => v[o + i] || 0, m = (a, b) => g(b) ? g(a) / g(b) / 60 : null;
   return {n: g(0), off: m(2, 0), giv: m(1, 0), act: m(4, 3), made: g(0) ? g(5) / g(0) : null, ok: g(6) ? g(7) / g(6) : null};
@@ -344,17 +344,10 @@ function triBars(b, scale, lab) {
   const one = (k, t) => `<div class="tb"><i style="width:${b[k] == null ? 0 : Math.min(100, 100 * b[k] / scale)}%;background:${LCOL[k]}"></i><b>${dmin(b[k])}</b><small>${t}</small></div>`;
   return `<div class="tri"><span class="rl">${lab}</span><div>${one('off', 'בלו״ז')}${one('giv', 'ניתנו')}${one('act', 'בפועל')}</div></div>`;
 }
-const EXAMPLE = [
-  {h: '07:55', n: 1, off: 21, giv: 50, act: 40, out: 'הנסיעה הבאה יצאה בזמן', good: true},
-  {h: '19:15', n: 1, off: 21, giv: 30, act: 35, out: 'הנסיעה הבאה יצאה באיחור של 15 דק׳', good: false},
-];
 function layHtml(M) {
   const Lx = M.Bl && M.Bl.L;
   const head = `<div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
     <p class="blead">בלוח הזמנים הרשמי לכל נסיעה יש זמן קבוע. בשעות העומס הנסיעה לוקחת יותר, ולכן סדרן שמתחשב בפקקים נותן לאוטובוס יותר זמן עד הנסיעה הבאה שלו.</p>
-    <div class="lex"><div class="lext">דוגמה: קו 2 בקריית מלאכי, יום חמישי 8.10</div>
-      ${EXAMPLE.map(e => `<div class="lexr"><span class="lexh">נסיעה של ${e.h}</span>${triBars(e, 52, '')}<span class="lexo ${e.good ? 'good' : 'bad'}">${e.out}</span></div>`).join('')}
-      <p>בלוח הזמנים הרשמי הנסיעה מקבלת 21 דקות כל היום. בבוקר החברה נתנה לאוטובוס 50 דקות עד הנסיעה הבאה, והוא הספיק. בערב נתנה רק 30, והנסיעה הבאה יצאה באיחור.</p></div>
     <div class="blegend"><span><i style="background:${LCOL.off}"></i>לפי הלו״ז הרשמי</span><span><i style="background:${LCOL.giv}"></i>הזמן שהחברה נתנה עד הנסיעה הבאה</span><span><i style="background:${LCOL.act}"></i>כמה הנסיעה לקחה בפועל</span></div>`;
   if (!Lx || !Lx.days) return `<div class="panel lay">${head}<div class="empty">החישוב לכל החברות מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
   const tot = layRow('כל החברות', Lx.tot);
@@ -366,14 +359,14 @@ function layHtml(M) {
       <div><span>בשאר היום</span>${triBars(tot.O, Math.max(tot.P.giv || 0, tot.P.act || 0, 1), '')}</div>
       <div class="k"><span>האוטובוס הספיק להגיע לפני הנסיעה הבאה</span><b>${pc(tot.made)}</b></div>
     </div>
-    <div class="lhead"><span>חברה</span><span>הספיק</span><span>שעות שיא</span><span>שאר היום</span></div>
-    ${rows.map(r => `<div class="lrow">
-      <div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} נסיעות</small></div>
+    <div class="lyhead"><span>חברה</span><span>הספיק</span><span>שעות שיא</span><span>שאר היום</span></div>
+    ${rows.map(r => `<div class="lyrow">
+      <div class="bn"><button class="linebtn" data-lag="${esc(r.nm)}">${esc(r.nm)}</button><small>${num(r.n)} נסיעות · <button class="lnk" data-lag="${esc(r.nm)}">הקווים של החברה ←</button></small></div>
       <div class="lsc ${absCls(r.made)}" title="האוטובוס הגיע לסוף הנסיעה לפחות דקה לפני הנסיעה הבאה שלו">${pc(r.made)}</div>
       ${triBars(r.P, scale, 'שיא')}${triBars(r.O, scale, 'שאר היום')}
     </div>`).join('') || '<div class="empty">אין מספיק נסיעות</div>'}
-    <div class="ptitle" style="margin-top:16px">חיפוש קו</div>
-    <div class="filters"><input id="lay-q" class="search" type="search" placeholder="מספר קו ועיר, למשל: 2 קרית מלאכי" value="${esc(layQ)}"></div>
+    <div class="ptitle" style="margin-top:16px" id="lay-lt">כל הקווים</div>
+    <div class="filters" id="lay-f"></div>
     <div id="lay-lines"></div>
     <details class="bmore"><summary>איך זה נמדד</summary><ul class="lhow">
       <li>עוקבים אחרי כל אוטובוס לפי מספר הרכב, מנסיעה לנסיעה.</li>
@@ -389,21 +382,32 @@ function layHtml(M) {
 const routeName = l => String(l || '').replace(/-\d+[#א-ת]?$/, '').split('<->').map(x => x.replace(/-[^-]*$/, '').trim()).join(' ← ');
 function renderLayLines() {
   const box = $('#lay-lines'); if (!box || !M || !M.Bl || !M.Bl.L) return;
+  const all = Object.entries(M.Bl.L.lines).map(([rid, v]) => { const c = CAT[rid] || []; return {rid, short: c[1] || '', long: c[2] || '', ag: c[3] || '', r: layRow('', v)}; }).filter(x => x.r.n >= 5);
+  const ags = [...new Set(all.map(x => x.ag))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'he'));
+  $('#lay-lt').textContent = layAg ? `הקווים של ${layAg}` : 'כל הקווים';
+  $('#lay-f').innerHTML = `<select id="lay-ag" aria-label="חברה"><option value="">כל החברות</option>${ags.map(a => `<option ${a === layAg ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
+    <input id="lay-q" class="search" type="search" placeholder="מספר קו או עיר, למשל: 2 קרית מלאכי" value="${esc(layQ)}">
+    <select id="lay-s" aria-label="מיון">${[['n', 'הכי הרבה נסיעות'], ['made', 'הכי פחות הספיקו'], ['gap', 'בפועל ארוך מהזמן שניתן (שיא)'], ['num', 'לפי מספר קו']].map(([k, t]) => `<option value="${k}" ${laySort === k ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
   const q = layQ.trim().split(/\s+/).filter(Boolean);
-  let list = Object.entries(M.Bl.L.lines).map(([rid, v]) => { const c = CAT[rid] || []; return {rid, short: c[1] || '', long: c[2] || '', ag: c[3] || '', r: layRow('', v)}; })
-    .filter(x => x.r.n >= 5);
+  let list = all.filter(x => !layAg || x.ag === layAg);
   // מספר = מספר הקו בלבד (בשם המסלול יש ספרות של חלופה וכיוון); מילה = עיר, תחנה או חברה
   if (q.length) list = list.filter(x => q.every(w => /^\d+[א-ת]?$/.test(w) ? x.short === w : x.long.includes(w) || x.ag.includes(w)));
-  list.sort((a, b) => b.r.n - a.r.n);
-  const shown = list.slice(0, 60), t3 = b => b && b.n ? `${dmin(b.off)} · <b style="color:${LCOL.giv}">${dmin(b.giv)}</b> · <b style="color:${LCOL.act}">${dmin(b.act)}</b>` : '—';
-  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>חברה</th><th>שעות שיא<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>שאר היום<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>הספיק</th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td><td>${esc(x.ag)}</td><td>${t3(x.r.P)}</td><td>${t3(x.r.O)}</td><td><b class="bsct ${absCls(x.r.made)}">${pc(x.r.made)}</b></td></tr>`).join('')}</tbody></table></div>${list.length > shown.length ? `<p class="note">מוצגים ${shown.length} מתוך ${num(list.length)} כיווני קו.</p>` : ''}` : '<div class="empty">לא נמצא קו עם 5 נסיעות לפחות</div>';
+  const gap = x => x.r.P.act != null && x.r.P.giv != null ? x.r.P.act - x.r.P.giv : -99;
+  const key = {n: x => -x.r.n, made: x => x.r.made ?? 2, gap: x => -gap(x), num: x => (parseInt(x.short) || 9999) * 10 + (x.short.length)}[laySort] || (x => -x.r.n);
+  list.sort((a, b) => key(a) - key(b) || a.short.localeCompare(b.short, 'he'));
+  const shown = list.slice(0, layMore), t3 = b => b && b.n ? `${dmin(b.off)} · <b style="color:${LCOL.giv}">${dmin(b.giv)}</b> · <b style="color:${LCOL.act}">${dmin(b.act)}</b>` : '—';
+  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th>${layAg ? '' : '<th>חברה</th>'}<th>נסיעות</th><th>שעות שיא<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>שאר היום<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>הספיק</th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td>${layAg ? '' : `<td>${esc(x.ag)}</td>`}<td>${num(x.r.n)}</td><td>${t3(x.r.P)}</td><td>${t3(x.r.O)}</td><td><b class="bsct ${absCls(x.r.made)}">${pc(x.r.made)}</b></td></tr>`).join('')}</tbody></table></div>
+    <p class="note">${num(list.length)} כיווני קו עם 5 נסיעות לפחות.${list.length > shown.length ? ` <button class="lnk" id="lay-more">עוד ${num(Math.min(100, list.length - shown.length))} ←</button>` : ''}</p>` : '<div class="empty">לא נמצא קו עם 5 נסיעות לפחות</div>';
+  $('#lay-ag').onchange = e => { layAg = e.target.value; layMore = 60; renderLayLines(); };
+  $('#lay-s').onchange = e => { laySort = e.target.value; renderLayLines(); };
+  const qi = $('#lay-q'); let t = null; qi.oninput = () => { clearTimeout(t); t = setTimeout(() => { layQ = qi.value; layMore = 60; renderLayLines(); const n = $('#lay-q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
+  const mb = $('#lay-more'); if (mb) mb.onclick = () => { layMore += 100; renderLayLines(); };
 }
-
 function renderBlame() {
   const box = $('#blame-box'); if (!box || !M) return;
   box.innerHTML = blameHtml(M) + layHtml(M);
   box.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { blameSort = b.dataset.bs; renderBlame(); });
-  const q = $('#lay-q'); if (q) { let t = null; q.oninput = () => { clearTimeout(t); t = setTimeout(() => { layQ = q.value; renderLayLines(); }, 200); }; }
+  box.querySelectorAll('[data-lag]').forEach(b => b.onclick = () => { layAg = b.dataset.lag; layQ = ''; layMore = 60; renderLayLines(); $('#lay-lt').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   renderLayLines();
 }
 
