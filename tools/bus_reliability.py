@@ -667,25 +667,33 @@ def fleet_day(day, meta, routes, catalog, R, stops):
     for k, rids in veh.items():
         allc = set()
         bycl = collections.defaultdict(set)
+        bylt = collections.defaultdict(set)     # אשכול → סוגי הקווים שבהם נסע (עירוני/בינעירוני/אזורי)
         for rid in rids:
             cs = cities_of(rid)
             allc |= cs
             row = catalog.get(rid) or []
             name = row[8] if len(row) > 8 and row[8] else 'ללא אשכול'
             bycl[name] |= cs
+            if len(row) > 9 and row[9]:
+                bylt[name].add(row[9])
         for c in allc:
             city[c] += 1
         for name, cs in bycl.items():
-            x = cl.setdefault(name, {'n': 0, 'c': [], 'sig': collections.Counter(), 'op': collections.Counter()})
+            x = cl.setdefault(name, {'n': 0, 'c': [], 'sig': collections.Counter(), 'op': collections.Counter(), 'v': []})
             x['n'] += 1
             x['op'][vop[k]] += 1
             for c in cs:
                 if c not in x['c']:
                     x['c'].append(c)
-            x['sig'][','.join(str(i) for i in sorted(x['c'].index(c) for c in cs))] += 1
+            sig = ','.join(str(i) for i in sorted(x['c'].index(c) for c in cs))
+            x['sig'][sig] += 1
+            # כל רכב: מספר הרכב (= לוחית הרישוי, לסוג הרכב מהרישוי בעמוד), החתימה וסוגי הקווים —
+            # אלעזר פינדר דרך שלמה (11.10): "כמה עירוני וכמה בינעירוני" בכל צד של הפיצול
+            x['v'].append([k.split(':', 1)[1], sig, '+'.join(sorted(bylt[name]))])
     wd = datetime.date.fromisoformat(day).isoweekday() % 7    # 0 = ראשון … 6 = שבת
     return {'d': day, 'wd': wd, 'n': len(veh), 'ops': dict(ops.most_common()), 'city': dict(city.most_common()),
-            'cl': {name: {'n': x['n'], 'c': x['c'], 's': dict(x['sig']), 'op': dict(x['op'].most_common())} for name, x in cl.items()}}
+            'cl': {name: {'n': x['n'], 'c': x['c'], 's': dict(x['sig']), 'op': dict(x['op'].most_common()), 'v': x['v']}
+                   for name, x in cl.items()}}
 
 
 BLAME_COLS = ['trips', 'origin measured', 'dispatch late sec (sum of positive origin delay)', 'departed on time (-1..+3 min)',
