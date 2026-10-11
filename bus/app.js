@@ -321,43 +321,68 @@ function blameHtml(M) {
     <p class="note">נסיעה שלא שידרה מיקום בכלל נספרת כאן כנסיעה שלא נצפתה, ואולי היא יצאה ולא שידרה. מוצגות רק חברות ואשכולות עם 200 נסיעות לפחות בתקופה. החישוב מתחיל מ-07.10.2026.</p>
   </div>`;
 }
-// האם הסדרנים מתחשבים בפקקים (שלמה 11.10): יציאות כשהאוטובוס שחוזר מהכיוון השני מאחר, מול כשהוא חוזר בזמן
-const MIN_TIGHT = 30;
-function retRow(nm, v) {
-  const g = i => v[i] || 0;
-  return {nm, n: g(0), nt: g(1), okT: g(1) ? g(2) / g(1) : null, dT: g(1) ? g(3) / g(1) / 60 : null,
-    ns: g(4), okS: g(4) ? g(5) / g(4) : null, dS: g(4) ? g(6) / g(4) / 60 : null, share: g(0) ? g(1) / g(0) : null};
+// האם הסדרנים מתחשבים בפקקים (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות לנהג
+// עד הקו הבא"): כמה זמן במסוף לוח הזמנים נותן לאותו אוטובוס בין נסיעה לנסיעה, בשיא ובשאר היום,
+// ואם המרווח מספיק כשהנסיעה הקודמת מאחרת
+const MIN_LATE = 30;
+let layQ = '';
+function layRow(nm, v) {
+  const g = i => v[i] || 0, m = (a, b) => g(b) ? g(a) / g(b) / 60 : null;
+  return {nm, n: g(0), lay: m(1, 0), inD: m(2, 0), nLate: g(3), abs: g(3) ? g(4) / g(3) : null,
+    okNA: g(3) - g(4) ? g(5) / (g(3) - g(4)) : null, dNA: g(3) - g(4) ? g(6) / (g(3) - g(4)) / 60 : null,
+    nP: g(7), layP: m(8, 7), inP: m(9, 7), nO: g(10), layO: m(11, 10), inO: m(12, 10)};
 }
-function retBars(r) {
-  const bar = (v, cls) => `<span class="rb"><i class="${cls}" style="width:${Math.round((v || 0) * 100)}%"></i></span>`;
-  return `<div class="rpair"><div><span class="rl">האוטובוס חזר באיחור</span>${bar(r.okT, 't')}<b>${pc(r.okT)}</b><small>יצאו בזמן · ${num(r.nt)} יציאות</small></div>
-    <div><span class="rl">האוטובוס חזר בזמן</span>${bar(r.okS, 's')}<b>${pc(r.okS)}</b><small>יצאו בזמן · ${num(r.ns)} יציאות</small></div></div>`;
+const absCls = v => v == null ? 'na' : v >= .8 ? 'g' : v >= .65 ? 'y' : v >= .5 ? 'o' : 'r';
+// פס: אורך = המרווח המתוכנן; הקו הכתום = האיחור הממוצע של הנסיעה הקודמת
+function layBar(lay, inD, scale, lab) {
+  if (lay == null) return `<div class="lyr"><span class="rl">${lab}</span><span class="dn">אין נתונים</span></div>`;
+  return `<div class="lyr"><span class="rl">${lab}</span><span class="lyb"><i style="width:${Math.min(100, 100 * lay / scale)}%"></i>${inD ? `<u style="inset-inline-start:${Math.min(100, 100 * inD / scale)}%"></u>` : ''}</span><b>${fmt1(lay)}</b><small>דק׳ במסוף · איחור בהגעה ${fmt1(inD || 0)}</small></div>`;
 }
-function retHtml(M) {
-  const R = M.Bl && M.Bl.R;
-  if (!R || !R.days) return `<div class="panel"><div class="ptitle">האם הסדרנים מתחשבים בפקקים</div><div class="empty">החישוב מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
-  const tot = retRow('כל החברות', R.tot);
-  const rows = Object.entries(R.A).map(([nm, v]) => retRow(nm, v)).filter(r => r.nt >= MIN_TIGHT).sort((a, b) => (b.okT ?? -1) - (a.okT ?? -1));
-  const few = Object.entries(R.A).map(([nm, v]) => retRow(nm, v)).filter(r => r.nt < MIN_TIGHT && r.n >= 200).map(r => r.nm);
+function layHtml(M) {
+  const Lx = M.Bl && M.Bl.L;
+  if (!Lx || !Lx.days) return `<div class="panel"><div class="ptitle">האם הסדרנים מתחשבים בפקקים</div><div class="empty">החישוב מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
+  const tot = layRow('כל החברות', Lx.tot);
+  const rows = Object.entries(Lx.A).map(([nm, v]) => layRow(nm, v)).filter(r => r.nLate >= MIN_LATE).sort((a, b) => (b.abs ?? -1) - (a.abs ?? -1));
+  const scale = Math.max(10, ...rows.flatMap(r => [r.layP || 0, r.layO || 0]));
   return `<div class="panel">
     <div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
-    <p class="pdesc">כשיש פקקים, האוטובוסים חוזרים מהכיוון השני באיחור. סדרן שמתחשב בזה דואג שהנסיעה הבאה תצא בזמן בכל זאת, למשל עם אוטובוס אחר או עם מרווח מספיק במסוף. כאן משווים, לכל חברה, כמה מהיציאות יצאו בזמן כשהאוטובוס שחוזר הגיע באיחור, מול כשהוא הגיע בזמן. ככל שהמספר העליון קרוב לתחתון, הסדרנים מתחשבים יותר בפקקים.</p>
-    <div class="rsum">בכל החברות: כשהאוטובוס חזר באיחור, <b>${pc(tot.okT)}</b> מהיציאות יצאו בזמן (איחור ממוצע ביציאה ${mins(tot.dT)} דק׳). כשהוא חזר בזמן: <b>${pc(tot.okS)}</b> (${mins(tot.dS)} דק׳). האוטובוס חזר באיחור ב-${pc(tot.share)} מהיציאות שנבדקו.</div>
-    ${rows.length ? `<div class="blist">${rows.map(r => `<div class="brow nos"><div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} יציאות נבדקו · ב-${pc(r.share)} מהן האוטובוס חזר באיחור</small></div><div class="bmid">${retBars(r)}</div></div>`).join('')}</div>` : '<div class="empty">אין מספיק יציאות</div>'}
-    ${few.length ? `<p class="note">בלי מספיק מקרים של אוטובוס שחזר באיחור (פחות מ-${MIN_TIGHT}): ${few.map(esc).join(', ')}.</p>` : ''}
-    <details class="bmore"><summary>איך זה נמדד</summary><p class="note" style="margin-top:6px">לכל יציאה מתחנת המוצא מחפשים את הנסיעה של אותו קו בכיוון השני שאמורה להגיע אחרונה לפני שעת היציאה (עד שעה לפני), ושנמדדה עד סוף המסלול. "חזר באיחור" = הגיע בפועל אחרי דקה לפני שעת היציאה, כלומר אם אותו אוטובוס היה יוצא, הוא לא היה יכול לצאת בזמן. זה לא בהכרח האוטובוס שיצא בפועל, אלא מה שהסדרן רואה במסוף. "יצאו בזמן" = בין דקה לפני ל-3 דקות אחרי השעה שבלוח הזמנים. קווים מעגליים, וקווים שהכיוון השני שלהם לא נמדד, לא נכללים.</p></details>
+    <p class="pdesc">סדרן שמתחשב בפקקים נותן לאוטובוס יותר זמן במסוף בין נסיעה לנסיעה בשעות העומס, כדי שגם כשהוא חוזר באיחור הנסיעה הבאה תצא בזמן. כאן עוקבים אחרי כל אוטובוס לפי המספר שלו: כמה זמן לוח הזמנים נתן לו במסוף, כמה איחר בנסיעה הקודמת, והאם הזמן במסוף הספיק כדי לצאת בזמן.</p>
+    <div class="rsum">בכל החברות: בשעות השיא האוטובוס מקבל במסוף בממוצע <b>${fmt1(tot.layP)} דק׳</b> ומגיע באיחור של ${fmt1(tot.inP)}. בשאר היום <b>${fmt1(tot.layO)} דק׳</b>, ואיחור של ${fmt1(tot.inO)}. כשהאוטובוס הגיע באיחור של 3 דקות ומעלה, הזמן במסוף ספג את האיחור ב-<b>${pc(tot.abs)}</b> מהמקרים.${tot.okNA != null ? ` כשלא ספג, ${pc(tot.okNA)} בכל זאת יצאו בזמן.` : ''}</div>
+    <div class="blegend"><span><i style="background:var(--accent)"></i>זמן במסוף לפי לוח הזמנים</span><span><i style="background:var(--late)"></i>האיחור הממוצע של הנסיעה הקודמת</span></div>
+    ${rows.length ? `<div class="blist">${rows.map(r => `<div class="brow"><div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} יציאות · ${num(r.nLate)} אחרי הגעה באיחור</small></div>
+      <div class="bsc ${absCls(r.abs)}" title="מהפעמים שהאוטובוס הגיע באיחור של 3 דק׳ ומעלה: בכמה הזמן במסוף הספיק">${pc(r.abs)}</div>
+      <div class="bmid">${layBar(r.layP, r.inP, scale, 'שעות שיא')}${layBar(r.layO, r.inO, scale, 'שאר היום')}</div></div>`).join('')}</div>` : '<div class="empty">אין מספיק יציאות</div>'}
+    <p class="note">האחוז בריבוע: מהפעמים שהאוטובוס הגיע למסוף באיחור של 3 דקות ומעלה, בכמה הזמן במסוף עדיין הספיק כדי להיות שם לפחות דקה לפני היציאה. מוצגות חברות עם ${MIN_LATE} מקרים כאלה לפחות.</p>
+    <div class="ptitle" style="margin-top:14px">לפי קו</div>
+    <div class="filters"><input id="lay-q" class="search" type="search" placeholder="מספר קו, עיר או חברה (למשל 2 קרית מלאכי)" value="${esc(layQ)}"></div>
+    <div id="lay-lines"></div>
+    <details class="bmore"><summary>איך זה נמדד</summary><p class="note" style="margin-top:6px">לכל נסיעה שהיציאה שלה מהמוצא נמדדה מחפשים את הנסיעה הקודמת של אותו רכב (לפי המספר שלו בשידור), אם היא הסתיימה לפי לוח הזמנים עד 90 דקות לפני, עד 1.5 ק״מ מתחנת המוצא, ונמדדה עד הסוף. הזמן במסוף = שעת היציאה פחות שעת הסיום של הנסיעה הקודמת, לפי לוח הזמנים. "הגיע באיחור" = האיחור בסוף הנסיעה הקודמת היה 3 דקות ומעלה. "הזמן במסוף ספג" = האוטובוס היה במסוף לפחות דקה לפני שעת היציאה. שעות שיא: 06:00–09:00 ו-15:00–19:00. הפסקה של יותר מ-90 דקות (חניון, הפסקת נהג) לא נחשבת.</p></details>
   </div>`;
 }
+function renderLayLines() {
+  const box = $('#lay-lines'); if (!box || !M || !M.Bl || !M.Bl.L) return;
+  const q = layQ.trim().split(/\s+/).filter(Boolean);
+  let list = Object.entries(M.Bl.L.lines).map(([rid, v]) => { const c = CAT[rid] || []; return {rid, short: c[1] || '', long: c[2] || '', ag: c[3] || '', v}; })
+    .filter(x => x.v[0] >= 5);
+  // מספר = מספר הקו בלבד (בשם המסלול יש ספרות של חלופה וכיוון); מילה = עיר, תחנה או חברה
+  if (q.length) list = list.filter(x => q.every(w => /^\d+[א-ת]?$/.test(w) ? x.short === w : x.long.includes(w) || x.ag.includes(w)));
+  list.sort((a, b) => b.v[0] - a.v[0]);
+  const shown = list.slice(0, 60), m = (v, a, b) => v[b] ? fmt1(v[a] / v[b] / 60) : '—';
+  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>חברה</th><th>יציאות</th><th>זמן במסוף בשיא<br><small>דק׳</small></th><th>זמן במסוף בשאר היום<br><small>דק׳</small></th><th>איחור בהגעה<br><small>דק׳</small></th><th>הזמן במסוף ספג<br><small>מתוך ההגעות באיחור</small></th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(x.long.replace(/-\d+[#א-ת]?$/, ''))}</td><td>${esc(x.ag)}</td><td>${num(x.v[0])}</td><td>${m(x.v, 6, 5)}</td><td>${m(x.v, 8, 7)}</td><td>${m(x.v, 2, 0)}</td><td>${x.v[3] ? `${pc(x.v[4] / x.v[3])} <small class="dn">(${num(x.v[3])})</small>` : '—'}</td></tr>`).join('')}</tbody></table></div>${list.length > shown.length ? `<p class="note">מוצגים ${shown.length} מתוך ${num(list.length)} כיווני קו. אפשר לחפש לפי מספר קו ועיר.</p>` : ''}` : '<div class="empty">לא נמצא קו עם 5 יציאות לפחות</div>';
+}
+
 function renderBlame() {
   const box = $('#blame-box'); if (!box || !M) return;
-  box.innerHTML = blameHtml(M) + retHtml(M);
+  box.innerHTML = blameHtml(M) + layHtml(M);
   box.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { blameSort = b.dataset.bs; renderBlame(); });
+  const q = $('#lay-q'); if (q) { let t = null; q.oninput = () => { clearTimeout(t); t = setTimeout(() => { layQ = q.value; renderLayLines(); }, 200); }; }
+  renderLayLines();
 }
 
 function mergeDays(days) {
   const tot = emptyAgg(), A = {}, Cc = {}, H = {}, Rr = {}, worst = [], Rg = {};
   const Bn = {tot: [0, 0, 0], A: {}, Cc: {}, Rg: {}, Rr: {}, H: {}, stops: {}, ex: [], days: 0, missing: []};
-  const Bl = {tot: [], A: {}, C: {}, days: 0, R: {tot: [], A: {}, C: {}, days: 0}};   // מי אשם באיחור (מ-07.10.2026); R = האוטובוס שחוזר (מ-11.10)
+  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}};   // מי אשם באיחור (מ-07.10.2026); L = המרווח במסוף (מ-11.10)
   const addV = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = []); v.forEach((n, i) => x[i] = (x[i] || 0) + n); };
   const addB = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = [0, 0, 0]); v.forEach((n, i) => x[i] += n); };
   for (const d of days) {
@@ -368,12 +393,13 @@ function mergeDays(days) {
       d.blame.tot.forEach((n, i) => Bl.tot[i] = (Bl.tot[i] || 0) + n);
       for (const [nm, v] of Object.entries(d.blame.agencies || {})) addV(Bl.A, nm, v);
       for (const [nm, v] of Object.entries(d.blame.clusters || {})) addV(Bl.C, nm, v);
-      const r = d.blame.ret;
+      const r = d.blame.lay;
       if (r) {
-        Bl.R.days++;
-        r.tot.forEach((n, i) => Bl.R.tot[i] = (Bl.R.tot[i] || 0) + n);
-        for (const [nm, v] of Object.entries(r.agencies || {})) addV(Bl.R.A, nm, v);
-        for (const [nm, v] of Object.entries(r.clusters || {})) addV(Bl.R.C, nm, v);
+        Bl.L.days++;
+        r.tot.forEach((n, i) => Bl.L.tot[i] = (Bl.L.tot[i] || 0) + n);
+        for (const [nm, v] of Object.entries(r.agencies || {})) addV(Bl.L.A, nm, v);
+        for (const [nm, v] of Object.entries(r.clusters || {})) addV(Bl.L.C, nm, v);
+        for (const [rid, v] of Object.entries(r.lines || {})) addV(Bl.L.lines, rid, v);
       }
     }
     // התקבצות (מ-21.09.2026)

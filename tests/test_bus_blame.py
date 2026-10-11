@@ -32,25 +32,31 @@ class BlameTests(unittest.TestCase):
         self.assertEqual(0, a['trips with en-route split'])   # בקו אין שעה עם 3 נסיעות — אין בסיס לתכנון
 
 
-    def test_returning_bus_late_vs_on_time(self):
-        # האם הסדרנים מתחשבים בפקקים (שלמה 11.10): יציאה מול הנסיעה של אותו קו בכיוון השני שחוזרת לפניה
-        H = 3600
+    def test_layover_absorbs_late_arrival(self):
+        # המרווח במסוף (שלמה 11.10: בקרית מלאכי בשיא נותנים לקו 2 30–40 דק' עד הנסיעה הבאה)
+        H, P = 3600, (31.75, 34.77)
+        far = (31.80, 34.77)          # כ-5.5 ק"מ — לא אותו מסוף
         DQ = [
-            ('קווים', 'rB', '100', '2', 7 * H - 3000, 7 * H - 600, 0, 0),      # חוזר 10 דק׳ לפני 7:00 — בזמן
-            ('קווים', 'rB', '100', '2', 8 * H - 3000, 8 * H - 300, 0, 600),    # אמור לחזור 7:55, חזר 8:05 — באיחור
-            ('קווים', 'rB', '100', '2', 9 * H - 3000, 9 * H - 300, 0, None),   # לא נמדד עד הסוף — לא נחשב
-            ('קווים', 'rA', '100', '1', 7 * H, 7 * H + 2400, 60, 120),         # חזר בזמן, יצא בזמן
-            ('קווים', 'rA', '100', '1', 8 * H, 8 * H + 2400, 30, 0),           # חזר באיחור, ובכל זאת יצא בזמן
-            ('קווים', 'rA', '100', '1', 9 * H, 9 * H + 2400, 400, 0),          # אין נסיעה חוזרת שנמדדה בשעה שלפני
-            ('קווים', 'rA', '100', '1', 10 * H, 10 * H + 2400, None, 0),       # המוצא לא נמדד
+            # רכב 1: מגיע 7:20 באיחור 10 דק' (7:30), יוצא 7:50 — מרווח 30 דק', נספג, יצא בזמן
+            ('קווים', 'r2', 6 * H + 3600, 7 * H + 1200, 0, 600, '1', P, P),
+            ('קווים', 'r2', 7 * H + 3000, 8 * H + 600, 60, None, '1', P, P),
+            # רכב 2: מגיע 12:00 באיחור 8 דק', יוצא 12:05 — מרווח 5 דק', לא נספג, יצא 3 דק' אחרי... באיחור 6
+            ('קווים', 'r2', 11 * H, 12 * H, 0, 480, '2', P, P),
+            ('קווים', 'r2', 12 * H + 300, 13 * H, 360, 0, '2', P, P),
+            # רכב 3: הנסיעה הקודמת הסתיימה רחוק — לא נספר
+            ('קווים', 'r2', 9 * H, 10 * H, 0, 0, '3', P, far),
+            ('קווים', 'r2', 10 * H + 600, 11 * H, 0, 0, '3', P, P),
         ]
-        r = b.returns_day(DQ, {'rA': [''] * 8 + ['חשמונאים', '', '']})
-        a = dict(zip(b.RET_COLS, r['agencies']['קווים']))
-        # גם הנסיעות בכיוון 2 הן יציאות: זו של 8:10 מוצאת את 7:40 בכיוון 1, שחזרה בזמן
-        self.assertEqual([3, 1, 1, 30, 2, 2, 60], r['tot'])
-        self.assertEqual(1, a['returning bus arrived late: after the departure time minus 1 min'])
-        self.assertNotIn('חשמונאים', r['clusters'])                                    # פחות מ-30 יציאות
-
+        r = b.layover_day(DQ, {'r2': [''] * 8 + ['קרית מלאכי', '', '']})
+        a = dict(zip(b.LAY_COLS, r['agencies']['קווים']))
+        self.assertEqual(2, r['tot'][0])
+        self.assertEqual(1800 + 300, r['tot'][1])                    # מרווחים מתוכננים
+        self.assertEqual(2, a['previous trip arrived 3+ min late'])
+        self.assertEqual(1, a['of them: the layover absorbed it (bus there 1+ min before departure)'])
+        self.assertEqual(0, a['of them (not absorbed): departed on time'])
+        self.assertEqual(360, a['of them (not absorbed): sum of positive origin delay sec'])
+        self.assertEqual(1, a['peak departures (06-09, 15-19)'])      # 7:50 בשיא, 12:05 לא
+        self.assertNotIn('r2', r['lines'])                              # פחות מ-3 יציאות לקו — לא נשמר
 
 if __name__ == '__main__':
     unittest.main()

@@ -170,14 +170,12 @@ th.sort-desc::after{content:" ▼";font-size:10px}th.sort-asc::after{content:" �
   .bhow dd{margin-bottom:10px}
   .bbar.big i{font-size:11px}
 }
-/* האם הסדרנים מתחשבים בפקקים: שני פסים לכל חברה */
+/* האם הסדרנים מתחשבים בפקקים: זמן במסוף (פס כחול) מול האיחור בהגעה (קו כתום) */
 .rsum{font-size:13px;line-height:1.6;margin:0 0 8px}
-.rpair{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
-.rpair>div{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 8px}
-.rpair small{grid-column:1 / -1;font-size:11px;color:var(--dim);font-weight:600}
 .rl{font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap}
-.rb{display:block;height:10px;background:var(--panel2);border-radius:5px;overflow:hidden}
-.rb i{display:block;height:100%}
-.rb i.t{background:var(--late)}.rb i.s{background:var(--ok)}
-.rpair b{font-size:14px}
-@media (max-width:760px){.rpair{grid-template-columns:1fr}}
+.lyr{display:grid;grid-template-columns:76px 1fr auto;align-items:center;gap:2px 8px;margin-bottom:6px}
+.lyr small{grid-column:2 / -1;font-size:11px;color:var(--dim);font-weight:600}
+.lyb{position:relative;display:block;height:12px;background:var(--panel2);border-radius:6px}
+.lyb i{position:absolute;inset-block:0;inset-inline-start:0;background:var(--accent);border-radius:6px}
+.lyb u{position:absolute;top:-3px;bottom:-3px;width:3px;margin-inline-start:-1px;background:var(--late);border-radius:2px}
+.lyr b{font-size:14px}
