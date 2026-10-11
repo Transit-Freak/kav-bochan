@@ -1,11 +1,21 @@
 name: notify-push
 
-# הקו בזמן — שליחת התראות הדפדפן היומית (OneSignal), אחרי הסריקה של 07:30.
+# הקו בזמן — שליחת התראות הדפדפן היומית (OneSignal), מיד כשהסריקה של אותו יום נשמרה.
 # בלי המפתחות (Secrets) הריצה יוצאת בשקט — הפיצ'ר כבוי עד שיוזנו.
+#
+# שלמה 11.10: "שההתראות יחכו לסריקה של אותו יום ולא ישלחו בשעה קבועה". עד עכשיו השליחה רצה
+# בשעה קבועה (09:15 UTC), ובימים שבהם הסריקה התעכבה (ב-11.10 היא נשמרה רק ב-15:08 UTC, בניסיון
+# השני) נשלחו התראות בלי השינויים של היום. עכשיו: אחרי כל ריצה מוצלחת של line-history — שליחה
+# אם הסריקה של היום נשמרה (lines.json gen = היום) ואם עוד לא נשלח היום (push-sent.json).
+# רשת ביטחון ב-21:40 UTC: אם הסריקה לא נשמרה כל היום, הסיכומים (3 ימים / שבועי) נשלחים בכל זאת.
 
 on:
+  workflow_run:
+    workflows: [line-history]
+    types: [completed]
+    branches: [main]
   schedule:
-    - cron: '15 9 * * *'   # ~12:15 ישראל בקיץ — אחרי שהסריקה היומית מסיימת
+    - cron: '40 21 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -45,8 +55,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      go: ${{ steps.g.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            line-history/data/lines.json
+            line-history/data/push-sent.json
+          sparse-checkout-cone-mode: false
+      - name: הסריקה של היום נשמרה, ועוד לא נשלח היום?
+        id: g
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_OK: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          today=$(date -u +%F)
+          gen=$(python3 -c "import json; print(json.load(open('line-history/data/lines.json')).get('gen',''))" 2>/dev/null || echo "")
+          sent=$(python3 -c "import json; print(json.load(open('line-history/data/push-sent.json')).get('d',''))" 2>/dev/null || echo "")
+          echo "היום: $today · הסריקה האחרונה שנשמרה: ${gen:-אין} · נשלח לאחרונה: ${sent:-אף פעם}"
+          go=yes
+          if [ "$EVENT" = "workflow_dispatch" ]; then go=yes
+          elif [ "$sent" = "$today" ]; then echo "ההתראות של היום כבר נשלחו"; go=no
+          elif [ "$EVENT" = "workflow_run" ] && [ "$RUN_OK" != "success" ]; then echo "הסריקה לא הצליחה — מחכים לניסיון הבא"; go=no
+          elif [ "$EVENT" = "workflow_run" ] && [ "$gen" != "$today" ]; then echo "הסריקה של היום עוד לא נשמרה"; go=no
+          fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+
   send:
-    if: github.ref == 'refs/heads/main' || github.event_name != 'push'
+    needs: gate
+    if: needs.gate.outputs.go == 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -84,3 +125,16 @@ jobs:
           DIGEST_ALL='${{ github.event.inputs.digest_all || '' }}' \
           DIGEST_SINCE='${{ github.event.inputs.digest_since || '' }}' \
           python3 tools/send_push.py
+
+      # סימון שההתראות של היום נשלחו — כדי שריצה נוספת של הסריקה באותו יום לא תשלח שוב
+      - name: סימון שנשלח היום
+        if: github.event.inputs.dry != '1' && github.event.inputs.debug != '1' && (github.event.inputs.date == '' || github.event.inputs.date == null)
+        run: |
+          set -euo pipefail
+          echo "{\"d\":\"$(date -u +%F)\",\"at\":\"$(date -u +%FT%TZ)\",\"by\":\"$GITHUB_EVENT_NAME\"}" > line-history/data/push-sent.json
+          git add line-history/data/push-sent.json
+          git commit -q -m "data: התראות הקו בזמן נשלחו היום"
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then break; fi
+            git pull --rebase origin main; sleep 5
+          done
