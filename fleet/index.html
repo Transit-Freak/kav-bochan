@@ -489,13 +489,13 @@ const LTN=t=>{if(!t)return 'סוג הקו לא ידוע';const p=t.split('+');if
 function vehKind(plate){const l=XPLATE[plate];if(!l||!l.length)return 'לא נמצא ברישוי';
   const v=l.reduce((a,b)=>b[1][2]>a[1][2]?b:a)[1],t=mvType(v);
   return t==='עירוני'?'אוטובוס עירוני':t==='בין-עירוני'?'אוטובוס בין-עירוני':t==='אחר'?'סוג אחר':t;}
-function clBreak(x,a,b,k){
+function clBreak(x,a,b,k,mode=CLBRK){
   // k: 0 רק בא, 1 רק בב, 2 בשתיהן → {קטגוריה: מספר}
   if(!x||!x.v) return null;
   const i=x.c.indexOf(a),j=x.c.indexOf(b),out={};
   for(const r of x.v){const [plate,,lt]=r,sig=r.length>3?r[3]:r[1],A=i>=0&&sigHas(sig,i),B=j>=0&&sigHas(sig,j);
     const kk=A&&B?2:A?0:B?1:-1;if(kk!==k)continue;
-    const c=CLBRK==='lt'?LTN(lt):vehKind(plate);out[c]=(out[c]||0)+1;}
+    const c=mode==='lt'?LTN(lt):vehKind(plate);out[c]=(out[c]||0)+1;}
   return out;
 }
 function dlab(d){const [y,m,dd]=d.split('-');return `${WDN[new Date(+y,m-1,+dd).getDay()]} ${+dd}.${+m}`;}
@@ -1320,6 +1320,35 @@ function XDL(){
     name=clean?'fleet-search '+Q.trim():'fleet-all-vehicles'; D.push(VHEAD);
     for(const o of DATA.operators) for(const v of o.vehicles)
       if(!clean||v[0].replace(/-/g,'').includes(clean)) D.push(vRow(v,o));
+  }else if(MODE==='cluster'&&FD&&FDSEL){
+    // אשכול ביום (שלמה 11.10: "גם היצוא לאקסל לא עובד טוב" — הורד את רשימת החברות): הימים שנבחרו,
+    // ובאשכול שנבחר — טבלת הערים והפיצול לשתי ערים עם שני הפירוטים
+    const sel=FDSEL.filter(d=>FDC[d]),hd=sel.map(dlab),v=n=>n==null?'':n;
+    if(!CLSEL){
+      name='fleet-clusters';D.push(['אשכול',...hd]);
+      const last=FDC[sel[sel.length-1]]||{cl:{}};
+      Object.entries(last.cl||{}).sort((a,b)=>b[1].n-a[1].n).forEach(([n])=>D.push([n,...sel.map(d=>v(((FDC[d].cl||{})[n]||{}).n))]));
+    }else{
+      const X=d=>(FDC[d].cl||{})[CLSEL];
+      name='fleet-cluster';
+      D.push(['אשכול '+CLSEL]);D.push(['אוטובוסים שעבדו באשכול, לפי עיר',...hd]);
+      D.push(['כל האשכול',...sel.map(d=>v((X(d)||{}).n))]);
+      const ops=[...new Set(sel.flatMap(d=>Object.keys((X(d)||{}).op||{})))];
+      if(ops.length>1) ops.forEach(o=>D.push(['חברת '+o,...sel.map(d=>((X(d)||{}).op||{})[o]||0)]));
+      const cities=[...new Set(sel.flatMap(d=>(X(d)||{c:[]}).c))].filter(c=>sel.some(d=>clCity(X(d),c)>0));
+      cities.forEach(c=>D.push([c,...sel.map(d=>v(clCity(X(d),c)))]));
+      if(CLA&&CLB){
+        D.push([]);D.push(['פיצול האשכול: '+CLA+' מול '+CLB,...hd]);
+        [[`רק ב${CLA}`,0],[`רק ב${CLB}`,1],['עבדו בשתיהן (רכב משותף)',2]].forEach(([t,k])=>{
+          D.push([t,...sel.map(d=>{const p=clPair(X(d),CLA,CLB);return p?p[k]:'';})]);
+          for(const [mode,lab] of [['lt','סוג הקו'],['veh','סוג הרכב']]){
+            const br=sel.map(d=>clBreak(X(d),CLA,CLB,k,mode)),tot={};
+            br.forEach(o=>o&&Object.entries(o).forEach(([c,n])=>tot[c]=(tot[c]||0)+n));
+            Object.keys(tot).sort((a,b)=>tot[b]-tot[a]).forEach(c=>D.push(['   '+lab+': '+c,...br.map(o=>o?(o[c]||0):'')]));
+          }
+        });
+      }
+    }
   }else if(MODE==='moves'&&MOVES&&MOVES.m){
     name='fleet-moves'+(MVF?' '+mvLabel(MVF):'')+(MVT?' '+mvLabel(MVT):'');
     D.push(['מספר רכב','סוג','שנתון','יצרן ודגם','מאיפה','נצפה שם לאחרונה','לאן','נצפה שם לראשונה']);
