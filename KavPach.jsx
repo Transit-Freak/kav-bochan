@@ -1194,10 +1194,10 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
       'ק"מ סרק': Math.round(l.wastedKm || 0),
     }));
     const ws = window.XLSX.utils.json_to_sheet(data);
-    if (!ws['!views']) ws['!views'] = [];
-    ws['!views'].push({ rightToLeft: true });
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, 'קווים_מצטיינים');
+    // גיליון מימין לשמאל — ב-SheetJS זה מוגדר בחוברת (Workbook.Views), ו-!views של הגיליון לא נקרא
+    wb.Workbook = { Views: [{ RTL: true }] };
     window.XLSX.writeFile(wb, `קו_מוזהב_${areaKey.replace(/\s+/g, '_')}.xlsx`);
   };
 
