@@ -1417,10 +1417,20 @@ function describeVariant(item, base, areas) {
   return merged.map(x=>x.text||(x.items.length===1?'דרך '+x.kind+' '+x.items[0]:'דרך '+(x.kind==='רחוב'?'רחובות':'שכונות')+' '+x.items.join(', ')))
     .map(t=>fixq(t).replace(/^דרך דרך /,'דרך ').replace(/ב?דרך דרך /g,'דרך ')).join(' · ');
 }
+// הארכיון הכבד (early-patterns / early-stops, כ-4.5GB) מתפרסם מריפו נפרד, kav-bochan-archive (שלמה 11.10),
+// כדי שהאתר הראשי לא יעלה אותו מחדש בכל עדכון. קובץ שעוד לא סונכרן לשם (הייבוא השעתי) — נטען מכאן.
+// בהרצה מקומית (בדיקות) קוראים רק מכאן.
+const ARCHIVE_BASE="https://transit-freak.github.io/kav-bochan-archive/";
+async function archFetch(url,opts){
+  if(/^data\/early-(patterns|stops)\//.test(url)&&!/^(localhost|127\.)/.test(location.hostname)){
+    try{const r=await fetch(ARCHIVE_BASE+url.slice(5),opts);if(r.ok)return r;}catch(e){if(opts&&opts.signal&&opts.signal.aborted)throw e;}
+  }
+  return fetch(url,opts);
+}
 async function variantRead(url, compressed=false) {
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
   try {
-    const r=await fetch(url,{signal:controller.signal});
+    const r=await archFetch(url,{signal:controller.signal});
     if(!r.ok)throw new Error('HTTP '+r.status);
     if(!compressed)return await r.json();
     if(!window.DecompressionStream)throw new Error('נדרש דפדפן מעודכן');
@@ -5487,7 +5497,7 @@ function railServiceDay(rows,next){
 }
 async function earlyGrab(url) { const r = await dfetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
 async function earlyGzip(url) {
-  const r = await fetch(url);
+  const r = await archFetch(url);
   if (!r.ok) throw new Error("הקובץ לא נטען (" + r.status + ")");
   if (!window.DecompressionStream) throw new Error("לצפייה בקובץ הדחוס נדרש דפדפן מעודכן.");
   return new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).json();
