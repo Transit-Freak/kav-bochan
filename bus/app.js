@@ -312,7 +312,7 @@ function blameHtml(M) {
   <div class="panel">
     <div class="ptitle">איך זה מחושב</div>
     <dl class="bhow">
-      <dt><i style="background:${BPARTS[0].c}"></i>סדרנים</dt><dd>כמה דקות אחרי השעה שבלוח הזמנים האוטובוס יצא מתחנת המוצא. יציאה מוקדמת לא מקזזת איחור, אבל נספרת בנפרד ("יצאו מוקדם"). "יצאו בזמן" = בין דקה לפני השעה ל-3 דקות אחריה. נמדד רק כשהאוטובוס שידר מיקום בתחנה הראשונה.</dd>
+      <dt><i style="background:${BPARTS[0].c}"></i>סדרנים</dt><dd>כמה דקות אחרי השעה שבלוח הזמנים האוטובוס יצא מתחנת המוצא. גם כשהאיחור ביציאה נגרם כי האוטובוס חזר באיחור מהכיוון השני, הוא נספר כאן: הסדרן אמור להתחשב בפקקים ולתכנן לזה (ראו "האם הסדרנים מתחשבים בפקקים" למטה). יציאה מוקדמת לא מקזזת איחור, אבל נספרת בנפרד ("יצאו מוקדם"). "יצאו בזמן" = בין דקה לפני השעה ל-3 דקות אחריה. נמדד רק כשהאוטובוס שידר מיקום בתחנה הראשונה.</dd>
       <dt><i style="background:${BPARTS[1].c}"></i>לוח זמנים</dt><dd>לכל קו מוצאים את השעה ביום שבה הוא צובר הכי מעט איחור בדרך (לפי החציון, ורק שעות עם 3 נסיעות לפחות). האיחור שנשאר גם בשעה הזאת הוא כנראה זמן נסיעה שקצר מדי בלוח הזמנים, ולא פקק או נהג.</dd>
       <dt><i style="background:${BPARTS[2].c}"></i>פקקים</dt><dd>כל האיחור שנוסף בדרך, פחות החלק של לוח הזמנים. מספר שלילי אומר שהאוטובוסים מרוויחים זמן בדרך: לוח הזמנים נותן לנסיעה יותר זמן ממה שהיא צריכה, ולכן הם מגיעים לתחנות מוקדם יותר מהשעה שבלוח. הפס מציג רק את החלקים החיוביים, וה"סה״כ" כולל גם את הזמן שהרוויחו.</dd>
       <dt>מול חברות אחרות באותה עיר ושעה</dt><dd>הפקקים של החברה, פחות הממוצע של כל החברות שיוצאות מאותה עיר באותה שעה. מספר חיובי אומר שהחברה מאבדת בדרך יותר מאחרות שנוסעות באותו מקום ובאותה שעה, ולכן זה כנראה לא רק הכביש. נספר רק כשיש לפחות 20 נסיעות להשוואה.</dd>
@@ -321,16 +321,43 @@ function blameHtml(M) {
     <p class="note">נסיעה שלא שידרה מיקום בכלל נספרת כאן כנסיעה שלא נצפתה, ואולי היא יצאה ולא שידרה. מוצגות רק חברות ואשכולות עם 200 נסיעות לפחות בתקופה. החישוב מתחיל מ-07.10.2026.</p>
   </div>`;
 }
+// האם הסדרנים מתחשבים בפקקים (שלמה 11.10): יציאות כשהאוטובוס שחוזר מהכיוון השני מאחר, מול כשהוא חוזר בזמן
+const MIN_TIGHT = 30;
+function retRow(nm, v) {
+  const g = i => v[i] || 0;
+  return {nm, n: g(0), nt: g(1), okT: g(1) ? g(2) / g(1) : null, dT: g(1) ? g(3) / g(1) / 60 : null,
+    ns: g(4), okS: g(4) ? g(5) / g(4) : null, dS: g(4) ? g(6) / g(4) / 60 : null, share: g(0) ? g(1) / g(0) : null};
+}
+function retBars(r) {
+  const bar = (v, cls) => `<span class="rb"><i class="${cls}" style="width:${Math.round((v || 0) * 100)}%"></i></span>`;
+  return `<div class="rpair"><div><span class="rl">האוטובוס חזר באיחור</span>${bar(r.okT, 't')}<b>${pc(r.okT)}</b><small>יצאו בזמן · ${num(r.nt)} יציאות</small></div>
+    <div><span class="rl">האוטובוס חזר בזמן</span>${bar(r.okS, 's')}<b>${pc(r.okS)}</b><small>יצאו בזמן · ${num(r.ns)} יציאות</small></div></div>`;
+}
+function retHtml(M) {
+  const R = M.Bl && M.Bl.R;
+  if (!R || !R.days) return `<div class="panel"><div class="ptitle">האם הסדרנים מתחשבים בפקקים</div><div class="empty">החישוב מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
+  const tot = retRow('כל החברות', R.tot);
+  const rows = Object.entries(R.A).map(([nm, v]) => retRow(nm, v)).filter(r => r.nt >= MIN_TIGHT).sort((a, b) => (b.okT ?? -1) - (a.okT ?? -1));
+  const few = Object.entries(R.A).map(([nm, v]) => retRow(nm, v)).filter(r => r.nt < MIN_TIGHT && r.n >= 200).map(r => r.nm);
+  return `<div class="panel">
+    <div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
+    <p class="pdesc">כשיש פקקים, האוטובוסים חוזרים מהכיוון השני באיחור. סדרן שמתחשב בזה דואג שהנסיעה הבאה תצא בזמן בכל זאת, למשל עם אוטובוס אחר או עם מרווח מספיק במסוף. כאן משווים, לכל חברה, כמה מהיציאות יצאו בזמן כשהאוטובוס שחוזר הגיע באיחור, מול כשהוא הגיע בזמן. ככל שהמספר העליון קרוב לתחתון, הסדרנים מתחשבים יותר בפקקים.</p>
+    <div class="rsum">בכל החברות: כשהאוטובוס חזר באיחור, <b>${pc(tot.okT)}</b> מהיציאות יצאו בזמן (איחור ממוצע ביציאה ${mins(tot.dT)} דק׳). כשהוא חזר בזמן: <b>${pc(tot.okS)}</b> (${mins(tot.dS)} דק׳). האוטובוס חזר באיחור ב-${pc(tot.share)} מהיציאות שנבדקו.</div>
+    ${rows.length ? `<div class="blist">${rows.map(r => `<div class="brow nos"><div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} יציאות נבדקו · ב-${pc(r.share)} מהן האוטובוס חזר באיחור</small></div><div class="bmid">${retBars(r)}</div></div>`).join('')}</div>` : '<div class="empty">אין מספיק יציאות</div>'}
+    ${few.length ? `<p class="note">בלי מספיק מקרים של אוטובוס שחזר באיחור (פחות מ-${MIN_TIGHT}): ${few.map(esc).join(', ')}.</p>` : ''}
+    <details class="bmore"><summary>איך זה נמדד</summary><p class="note" style="margin-top:6px">לכל יציאה מתחנת המוצא מחפשים את הנסיעה של אותו קו בכיוון השני שאמורה להגיע אחרונה לפני שעת היציאה (עד שעה לפני), ושנמדדה עד סוף המסלול. "חזר באיחור" = הגיע בפועל אחרי דקה לפני שעת היציאה, כלומר אם אותו אוטובוס היה יוצא, הוא לא היה יכול לצאת בזמן. זה לא בהכרח האוטובוס שיצא בפועל, אלא מה שהסדרן רואה במסוף. "יצאו בזמן" = בין דקה לפני ל-3 דקות אחרי השעה שבלוח הזמנים. קווים מעגליים, וקווים שהכיוון השני שלהם לא נמדד, לא נכללים.</p></details>
+  </div>`;
+}
 function renderBlame() {
   const box = $('#blame-box'); if (!box || !M) return;
-  box.innerHTML = blameHtml(M);
+  box.innerHTML = blameHtml(M) + retHtml(M);
   box.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { blameSort = b.dataset.bs; renderBlame(); });
 }
 
 function mergeDays(days) {
   const tot = emptyAgg(), A = {}, Cc = {}, H = {}, Rr = {}, worst = [], Rg = {};
   const Bn = {tot: [0, 0, 0], A: {}, Cc: {}, Rg: {}, Rr: {}, H: {}, stops: {}, ex: [], days: 0, missing: []};
-  const Bl = {tot: [], A: {}, C: {}, days: 0};   // מי אשם באיחור (מ-07.10.2026)
+  const Bl = {tot: [], A: {}, C: {}, days: 0, R: {tot: [], A: {}, C: {}, days: 0}};   // מי אשם באיחור (מ-07.10.2026); R = האוטובוס שחוזר (מ-11.10)
   const addV = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = []); v.forEach((n, i) => x[i] = (x[i] || 0) + n); };
   const addB = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = [0, 0, 0]); v.forEach((n, i) => x[i] += n); };
   for (const d of days) {
@@ -341,6 +368,13 @@ function mergeDays(days) {
       d.blame.tot.forEach((n, i) => Bl.tot[i] = (Bl.tot[i] || 0) + n);
       for (const [nm, v] of Object.entries(d.blame.agencies || {})) addV(Bl.A, nm, v);
       for (const [nm, v] of Object.entries(d.blame.clusters || {})) addV(Bl.C, nm, v);
+      const r = d.blame.ret;
+      if (r) {
+        Bl.R.days++;
+        r.tot.forEach((n, i) => Bl.R.tot[i] = (Bl.R.tot[i] || 0) + n);
+        for (const [nm, v] of Object.entries(r.agencies || {})) addV(Bl.R.A, nm, v);
+        for (const [nm, v] of Object.entries(r.clusters || {})) addV(Bl.R.C, nm, v);
+      }
     }
     // התקבצות (מ-21.09.2026)
     if (d.bunch) {

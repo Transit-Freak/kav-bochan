@@ -27,6 +27,7 @@ MonitoredCall {StopPointRef = מק"ט התחנה הבאה, Order = מספרה ה
 bus/data/index.json.
 """
 import argparse
+import bisect
 import collections
 import csv
 import datetime
@@ -760,6 +761,59 @@ def blame_day(BT, catalog):
             'clusters': {k: rnd(v) for k, v in C.items() if v[0] >= 30}}
 
 
+RET_COLS = ['departures with a returning trip (same line, other direction, due back within 60 min before)',
+            'returning bus arrived late: after the departure time minus 1 min', 'of them departed on time (-1..+3 min)',
+            'of them: sum of positive origin delay sec', 'returning bus arrived with time to spare', 'of them departed on time',
+            'of them: sum of positive origin delay sec']
+RET_WINDOW = 3600     # האוטובוס שחוזר: הנסיעה בכיוון השני שאמורה להגיע עד שעה לפני היציאה
+RET_SLACK = 60        # "הגיע באיחור" = הגיע אחרי דקה לפני שעת היציאה (לא נשאר זמן במסוף)
+
+
+def returns_day(DQ, catalog):
+    """האם הסדרנים מתחשבים בפקקים (שלמה 11.10). לכל יציאה מהמסוף מוצאים את הנסיעה של אותו קו
+    בכיוון השני שאמורה להגיע אחרונה לפני היציאה (עד שעה לפני), ושנמדדה עד הסוף. אם היא הגיעה
+    בפועל אחרי דקה לפני שעת היציאה — האוטובוס שחוזר מאחר, ולסדרן יש בעיה לפתור (אוטובוס אחר,
+    מרווח במסוף). סופרים כמה מהיציאות האלה בכל זאת יצאו בזמן, מול היציאות שבהן האוטובוס חזר בזמן.
+    זה לא בהכרח אותו רכב — זה מה שהסדרן רואה: האוטובוסים חוזרים באיחור."""
+    inb = collections.defaultdict(list)
+    for ag, rid, mkt, dr, sdep, send, do, fin in DQ:
+        if mkt and fin is not None:
+            inb[mkt].append((send, dr, send + fin))
+    for v in inb.values():
+        v.sort()
+    keys = {m: [x[0] for x in v] for m, v in inb.items()}
+    agg = lambda: [0] * len(RET_COLS)
+    A, C, T = collections.defaultdict(agg), collections.defaultdict(agg), agg()
+    for ag, rid, mkt, dr, sdep, send, do, fin in DQ:
+        if do is None or not mkt or mkt not in inb:
+            continue
+        lst, ks = inb[mkt], keys[mkt]
+        i = bisect.bisect_right(ks, sdep) - 1
+        last = None
+        while i >= 0 and ks[i] >= sdep - RET_WINDOW:
+            if lst[i][1] != dr:
+                last = lst[i]
+                break
+            i -= 1
+        if last is None:
+            continue
+        tight = last[2] > sdep - RET_SLACK
+        ok = -60 <= do <= 180
+        row = catalog.get(rid) or []
+        cl = row[8] if len(row) > 8 and row[8] else ''
+        for x in (A[ag], T) + ((C[cl],) if cl else ()):
+            x[0] += 1
+            if tight:
+                x[1] += 1
+                x[2] += ok
+                x[3] += max(0, do)
+            else:
+                x[4] += 1
+                x[5] += ok
+                x[6] += max(0, do)
+    return {'cols': RET_COLS, 'tot': T, 'agencies': dict(A), 'clusters': {k: v for k, v in C.items() if v[0] >= 30}}
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -991,6 +1045,10 @@ def main():
     # הקו וחוזר בכיוון ההפוך תוך 15 דקות. לכל נסיעה שנמדדה: [רכב, מק"ט, כיוון,
     # יציאה, זמן אחרון, הגיע לסוף?, route_id]
     veh_rides = []
+    # היציאות מהמסוף מול האוטובוס שחוזר מהכיוון השני (שלמה 11.10: "הסדרנים תמיד מתחשבים בפקקים —
+    # צריך לבדוק אם הם מתחשבים"): [מפעיל, route_id, מק"ט, כיוון, יציאה מתוכננת, סיום מתוכנן,
+    # איחור במוצא (או None), איחור בסוף (רק נסיעה שנמדדה עד הסוף, אחרת None)]
+    DQ = []
     diag_raw, diag_raw2, diag_raw3 = [], [], []   # רשומות גולמיות לאבחון המוצא, ונסיעות טיפוסיות
     spikes = 0
     relabeled = 0       # נסיעות שסומנו בשעת יציאה ישנה — בפועל נסיעה אחרת בלו"ז
@@ -1151,6 +1209,8 @@ def main():
         # תחנת המוצא ותחנת הסיום של המסלול — לבדיקת "חזר לאותו מקום" גם בקו אחר
         _o = stops.get(seq[0][1]) if seq else None
         _e = stops.get(seq[-1][1]) if seq else None
+        DQ.append((ag, rid, routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''), seq[0][3], seq[-1][3],
+                   meas[0][3] if meas[0][0] == 1 else None, meas[-1][3] if reach_cls == 0 else None))
         veh_rides.append((key[2], routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''),
                           t_of.get(1, min(t_of.values())), max(t_of.values()), reach_cls == 0, rid,
                           (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None,
@@ -1331,6 +1391,7 @@ def main():
     # (כל קו נספר פעם אחת). נסיעה שלא נצפתה = לא בוצעה או בוצעה בלי שידור.
     city_trips = {c: [sum(sched_per_route.get(rid, 0) for rid in rr), sum(R[rid]['obs'] for rid in rr)] for c, rr in city_routes.items()}
     blame = blame_day(BT, catalog)
+    blame['ret'] = returns_day(DQ, catalog)
     day_obj = {
         'blame': blame,
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
