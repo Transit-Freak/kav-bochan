@@ -493,18 +493,23 @@ function clBreak(x,a,b,k){
   // k: 0 רק בא, 1 רק בב, 2 בשתיהן → {קטגוריה: מספר}
   if(!x||!x.v) return null;
   const i=x.c.indexOf(a),j=x.c.indexOf(b),out={};
-  for(const [plate,sig,lt] of x.v){const A=i>=0&&sigHas(sig,i),B=j>=0&&sigHas(sig,j);
+  for(const r of x.v){const [plate,,lt]=r,sig=r.length>3?r[3]:r[1],A=i>=0&&sigHas(sig,i),B=j>=0&&sigHas(sig,j);
     const kk=A&&B?2:A?0:B?1:-1;if(kk!==k)continue;
     const c=CLBRK==='lt'?LTN(lt):vehKind(plate);out[c]=(out[c]||0)+1;}
   return out;
 }
 function dlab(d){const [y,m,dd]=d.split('-');return `${WDN[new Date(+y,m-1,+dd).getDay()]} ${+dd}.${+m}`;}
 const sigHas=(sig,i)=>sig!==''&&sig.split(',').includes(String(i));
-function clCity(x,city){if(!x)return null;const i=x.c.indexOf(city);if(i<0)return 0;let n=0;for(const [s,c] of Object.entries(x.s))if(sigHas(s,i))n+=c;return n;}
+// עיר של רכב באשכול = ערי הקצה של הקווים שבהם נסע (מוצא ויעד), כשהיום נספר עם רשימת הרכבים (v[i][3]).
+// אלעזר פינדר (11.10): "עבדו בשתיהן" ניפח — קו 885 מודיעין עילית–בית שמש עוצר במודיעין בדרך, וכל רכב
+// שעשה בו נסיעה נספר כמשותף. ימים ישנים בלי הרשימה — לפי כל עיר שהקו עוצר בה, כמו קודם.
+const clT=x=>!!(x&&x.v&&x.v.length&&x.v[0].length>3);
+function clSigs(x){if(clT(x)){const o={};for(const r of x.v)o[r[3]]=(o[r[3]]||0)+1;return o;}return x.s;}
+function clCity(x,city){if(!x)return null;const i=x.c.indexOf(city);if(i<0)return 0;let n=0;for(const [s,c] of Object.entries(clSigs(x)))if(sigHas(s,i))n+=c;return n;}
 function clPair(x,a,b){
   if(!x) return null;
   const i=x.c.indexOf(a), j=x.c.indexOf(b); let oa=0,ob=0,both=0;
-  for(const [s,c] of Object.entries(x.s)){const A=i>=0&&sigHas(s,i),B=j>=0&&sigHas(s,j);if(A&&B)both+=c;else if(A)oa+=c;else if(B)ob+=c;}
+  for(const [s,c] of Object.entries(clSigs(x))){const A=i>=0&&sigHas(s,i),B=j>=0&&sigHas(s,j);if(A&&B)both+=c;else if(A)oa+=c;else if(B)ob+=c;}
   return [oa,ob,both];
 }
 function clusterHome(f){
@@ -515,7 +520,7 @@ function clusterHome(f){
   const chips=dayPicker();
   const head=`<tr><th style="text-align:right">${CLSEL?'עיר':'אשכול'}</th>${sel.map(d=>`<th>${dlab(d)}</th>`).join('')}</tr>`;
   const cell=v=>`<td>${v==null?'—':fmt(v)}</td>`;
-  const note=`<p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:10px">מספר האוטובוסים השונים ששידרו נסיעות באותו יום (לפי מספר הרכב בשידור האיכון). רכב נספר בעיר אם נסע באותו יום בקו שעובר בה, ולכן רכב שעבד בשתי ערים נספר בשתיהן. אשכול = אשכול המכרז של משרד התחבורה (ClusterToLine). המקור: דאטאבוס, דרך מדד הדיוק של האתר.</p>`;
+  const note=`<p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:10px">מספר האוטובוסים השונים ששידרו נסיעות באותו יום (לפי מספר הרכב בשידור האיכון). רכב נספר בעיר אם נסע באותו יום בקו שעובר בה (בתוך אשכול: בקו שאחד מקצותיו בעיר), ולכן רכב שעבד בשתי ערים נספר בשתיהן. אשכול = אשכול המכרז של משרד התחבורה (ClusterToLine). המקור: דאטאבוס, דרך מדד הדיוק של האתר.</p>`;
   if(!CLSEL){
     const last=FDC[sel[sel.length-1]]||{cl:{},city:{}};
     // חיפוש עיר: כמה אוטובוסים עבדו בה בכל יום (מכל האשכולות)
@@ -529,7 +534,8 @@ function clusterHome(f){
       <div class="panel"><p class="ptitle">אשכולות ${f?`עם "${esc(f)}"`:''} · ${fmt(cls.length)}</p><div class="tblbox"><table><thead>${head}</thead><tbody>${cls.map(([n])=>`<tr style="cursor:pointer" onclick='CLSEL=${JSON.stringify(n).replace(/'/g,"&#39;")};CLA="";CLB="";render();window.scrollTo({top:0})'><td style="text-align:right;font-weight:700;color:var(--accent2,#2563eb)">${esc(n)} ←</td>${sel.map(d=>cell(((FDC[d].cl||{})[n]||{}).n)).join('')}</tr>`).join('')||`<tr><td colspan="${sel.length+1}" class="empty">לא נמצא</td></tr>`}</tbody></table></div>${note}</div>`;
   }
   const X=d=>(FDC[d].cl||{})[CLSEL];
-  const cities=[...new Set(sel.flatMap(d=>(X(d)||{c:[]}).c))];
+  // ערים שאף רכב לא עבד בהן (קו רק עובר בהן בדרך) — לא מוצגות
+  const cities=[...new Set(sel.flatMap(d=>(X(d)||{c:[]}).c))].filter(c=>sel.some(d=>clCity(X(d),c)>0));
   const lastX=X(sel[sel.length-1]);
   cities.sort((a,b)=>(clCity(lastX,b)||0)-(clCity(lastX,a)||0));
   if(!CLA||!cities.includes(CLA)) CLA=cities[0]||'';
@@ -556,7 +562,7 @@ function clusterHome(f){
           return main+Object.keys(tot).sort((a,b)=>tot[b]-tot[a]).map(c=>`<tr class="brk"><td style="text-align:right">${esc(c)}</td>${br.map(o=>`<td>${o?fmt(o[c]||0):'—'}</td>`).join('')}</tr>`).join('');
         }).join('')}
       </tbody></table></div>
-      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — אוטובוסים שבאותו יום נסעו גם בקו של עיר אחת וגם בקו של השנייה (כולל קו בין-עירוני שעובר בשתיהן). אם האשכול יפוצל לשני מכרזים, אלה הרכבים שהיום משרתים את שתי הערים.${CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט, והם יחושבו מחדש.':''}</p></div>`:''}
+      <p style="font-size:11.5px;color:var(--dim);line-height:1.7;margin-top:8px">"עבדו בשתיהן" — אוטובוסים שבאותו יום נסעו גם בקו של עיר אחת וגם בקו של השנייה. קו שייך לערים שבקצוות שלו (מוצא ויעד): קו בין-עירוני שרק עובר בעיר בדרך, כמו 885 ממודיעין עילית לבית שמש דרך מודיעין, לא נחשב לה. אם האשכול יפוצל לשני מכרזים, אלה הרכבים שהיום משרתים את שתי הערים.${sel.some(d=>X(d)&&!clT(X(d)))?' בימים שעוד לא חושבו מחדש הספירה היא לפי כל עיר שהקו עוצר בה, ולכן "עבדו בשתיהן" שם גבוה מדי.':''}${CLBRK==='lt'?' סוג הקו — לפי סיווג משרד התחבורה (ClusterToLine), לקווים שבהם הרכב נסע באשכול הזה באותו יום.':CLBRK==='veh'?' סוג הרכב — לפי רישיון הרכב במשרד התחבורה, לפי מספר הרכב בשידור.':''}${CLBRK&&sel.some(d=>X(d)&&!X(d).v)?' ימים עם "—" נספרו לפני שהתחלנו לשמור את הפירוט, והם יחושבו מחדש.':''}</p></div>`:''}
     ${note}`;
 }
 function opName(ref){const o=op(+ref);return o?o.name:'מפעיל '+ref;}
