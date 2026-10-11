@@ -668,12 +668,17 @@ def fleet_day(day, meta, routes, catalog, R, stops):
         allc = set()
         bycl = collections.defaultdict(set)
         bylt = collections.defaultdict(set)     # אשכול → סוגי הקווים שבהם נסע (עירוני/בינעירוני/אזורי)
+        # ערי הקצה בלבד (מוצא ויעד בשם הקו), לפיצול האשכול. אלעזר פינדר (11.10): "כנראה 'עבדו בשתיהן'
+        # משבש" — קו 885 מודיעין עילית–בית שמש עוצר בשדרות החשמונאים במודיעין, ולכן כל רכב שעשה בו
+        # נסיעה אחת נספר כרכב משותף. במכרז הקו שייך לערי הקצה שלו, לא לכל עיר שהוא עובר בה.
+        bycl_t = collections.defaultdict(set)
         for rid in rids:
             cs = cities_of(rid)
             allc |= cs
             row = catalog.get(rid) or []
             name = row[8] if len(row) > 8 and row[8] else 'ללא אשכול'
             bycl[name] |= cs
+            bycl_t[name] |= (name_cities(routes.get(rid, {}).get('long')) & cs) or cs
             if len(row) > 9 and row[9]:
                 bylt[name].add(row[9])
         for c in allc:
@@ -687,9 +692,11 @@ def fleet_day(day, meta, routes, catalog, R, stops):
                     x['c'].append(c)
             sig = ','.join(str(i) for i in sorted(x['c'].index(c) for c in cs))
             x['sig'][sig] += 1
-            # כל רכב: מספר הרכב (= לוחית הרישוי, לסוג הרכב מהרישוי בעמוד), החתימה וסוגי הקווים —
+            # כל רכב: מספר הרכב (= לוחית הרישוי, לסוג הרכב מהרישוי בעמוד), החתימה, סוגי הקווים
+            # וחתימת ערי הקצה —
             # אלעזר פינדר דרך שלמה (11.10): "כמה עירוני וכמה בינעירוני" בכל צד של הפיצול
-            x['v'].append([k.split(':', 1)[1], sig, '+'.join(sorted(bylt[name]))])
+            sig_t = ','.join(str(i) for i in sorted(x['c'].index(c) for c in bycl_t[name]))
+            x['v'].append([k.split(':', 1)[1], sig, '+'.join(sorted(bylt[name])), sig_t])
     wd = datetime.date.fromisoformat(day).isoweekday() % 7    # 0 = ראשון … 6 = שבת
     return {'d': day, 'wd': wd, 'n': len(veh), 'ops': dict(ops.most_common()), 'city': dict(city.most_common()),
             'cl': {name: {'n': x['n'], 'c': x['c'], 's': dict(x['sig']), 'op': dict(x['op'].most_common()), 'v': x['v']}
