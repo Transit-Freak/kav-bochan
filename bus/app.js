@@ -321,48 +321,67 @@ function blameHtml(M) {
     <p class="note">נסיעה שלא שידרה מיקום בכלל נספרת כאן כנסיעה שלא נצפתה, ואולי היא יצאה ולא שידרה. מוצגות רק חברות ואשכולות עם 200 נסיעות לפחות בתקופה. החישוב מתחיל מ-07.10.2026.</p>
   </div>`;
 }
-// האם הסדרנים מתחשבים בפקקים (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות לנהג
-// עד הקו הבא"): כמה זמן במסוף לוח הזמנים נותן לאותו אוטובוס בין נסיעה לנסיעה, בשיא ובשאר היום,
-// ואם המרווח מספיק כשהנסיעה הקודמת מאחרת
-const MIN_LATE = 30;
+// האם הסדרנים מתחשבים בפקקים (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות... לא
+// יותר זמן במסוף, יותר זמן בקו"). שלושה מספרים לנסיעה: לפי הלו"ז הרשמי, כמה זמן החברה נתנה לה
+// (עד היציאה הבאה של אותו אוטובוס), וכמה היא לקחה בפועל — בשיא ובשאר היום
+const MIN_LAY = 30, LB = 8;
 let layQ = '';
+function layBlk(v, o) {
+  const g = i => v[o + i] || 0, m = (a, b) => g(b) ? g(a) / g(b) / 60 : null;
+  return {n: g(0), off: m(2, 0), giv: m(1, 0), act: m(4, 3), made: g(0) ? g(5) / g(0) : null, ok: g(6) ? g(7) / g(6) : null};
+}
 function layRow(nm, v) {
-  const g = i => v[i] || 0, m = (a, b) => g(b) ? g(a) / g(b) / 60 : null;
-  return {nm, n: g(0), lay: m(1, 0), inD: m(2, 0), nLate: g(3), abs: g(3) ? g(4) / g(3) : null,
-    okNA: g(3) - g(4) ? g(5) / (g(3) - g(4)) : null, dNA: g(3) - g(4) ? g(6) / (g(3) - g(4)) / 60 : null,
-    nP: g(7), layP: m(8, 7), inP: m(9, 7), nO: g(10), layO: m(11, 10), inO: m(12, 10)};
+  const P = layBlk(v, 0), O = layBlk(v, LB), n = P.n + O.n;
+  const made = n ? ((v[5] || 0) + (v[LB + 5] || 0)) / n : null;
+  return {nm, n, P, O, made};
 }
 const absCls = v => v == null ? 'na' : v >= .8 ? 'g' : v >= .65 ? 'y' : v >= .5 ? 'o' : 'r';
 const dmin = v => v == null ? '—' : fmt1(v);
+const LCOL = {off: '#9CA3AF', giv: '#1E5BC6', act: '#F26B1D'};
+// שלושה פסים: לפי הלו"ז (אפור), כמה ניתן (כחול), כמה לקח בפועל (כתום)
+function triBars(b, scale, lab) {
+  if (!b || !b.n) return `<div class="tri"><span class="rl">${lab}</span><span class="dn">אין מספיק נסיעות</span></div>`;
+  const one = (k, t) => `<div class="tb"><i style="width:${b[k] == null ? 0 : Math.min(100, 100 * b[k] / scale)}%;background:${LCOL[k]}"></i><b>${dmin(b[k])}</b><small>${t}</small></div>`;
+  return `<div class="tri"><span class="rl">${lab}</span><div>${one('off', 'בלו״ז')}${one('giv', 'ניתנו')}${one('act', 'בפועל')}</div></div>`;
+}
+const EXAMPLE = [
+  {h: '07:55', n: 1, off: 21, giv: 50, act: 40, out: 'הנסיעה הבאה יצאה בזמן', good: true},
+  {h: '19:15', n: 1, off: 21, giv: 30, act: 35, out: 'הנסיעה הבאה יצאה באיחור של 15 דק׳', good: false},
+];
 function layHtml(M) {
   const Lx = M.Bl && M.Bl.L;
-  if (!Lx || !Lx.days) return `<div class="panel"><div class="ptitle">האם הסדרנים מתחשבים בפקקים</div><div class="empty">החישוב מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
+  const head = `<div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
+    <p class="blead">בלוח הזמנים הרשמי לכל נסיעה יש זמן קבוע. בשעות העומס הנסיעה לוקחת יותר, ולכן סדרן שמתחשב בפקקים נותן לאוטובוס יותר זמן עד הנסיעה הבאה שלו.</p>
+    <div class="lex"><div class="lext">דוגמה: קו 2 בקריית מלאכי, יום חמישי 8.10</div>
+      ${EXAMPLE.map(e => `<div class="lexr"><span class="lexh">נסיעה של ${e.h}</span>${triBars(e, 52, '')}<span class="lexo ${e.good ? 'good' : 'bad'}">${e.out}</span></div>`).join('')}
+      <p>בלוח הזמנים הרשמי הנסיעה מקבלת 21 דקות כל היום. בבוקר החברה נתנה לאוטובוס 50 דקות עד הנסיעה הבאה, והוא הספיק. בערב נתנה רק 30, והנסיעה הבאה יצאה באיחור.</p></div>
+    <div class="blegend"><span><i style="background:${LCOL.off}"></i>לפי הלו״ז הרשמי</span><span><i style="background:${LCOL.giv}"></i>הזמן שהחברה נתנה עד הנסיעה הבאה</span><span><i style="background:${LCOL.act}"></i>כמה הנסיעה לקחה בפועל</span></div>`;
+  if (!Lx || !Lx.days) return `<div class="panel lay">${head}<div class="empty">החישוב לכל החברות מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
   const tot = layRow('כל החברות', Lx.tot);
-  const rows = Object.entries(Lx.A).map(([nm, v]) => layRow(nm, v)).filter(r => r.nLate >= MIN_LATE).sort((a, b) => (b.abs ?? -1) - (a.abs ?? -1));
-  const add = r => r.layP != null && r.layO != null ? r.layP - r.layO : null;
-  return `<div class="panel lay">
-    <div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
-    <p class="blead">בשעות העומס האוטובוסים חוזרים מהנסיעה באיחור. סדרן שמתחשב בזה נותן להם יותר זמן במסוף לפני הנסיעה הבאה, כדי שהיא תצא בזמן.</p>
+  const rows = Object.entries(Lx.A).map(([nm, v]) => layRow(nm, v)).filter(r => r.n >= MIN_LAY).sort((a, b) => (b.made ?? -1) - (a.made ?? -1));
+  const scale = Math.max(20, ...rows.flatMap(r => [r.P.giv || 0, r.P.act || 0, r.O.giv || 0, r.O.act || 0]));
+  return `<div class="panel lay">${head}
     <div class="ltiles">
-      <div><span>זמן במסוף בשעות השיא</span><b>${dmin(tot.layP)}<small> דק׳</small></b></div>
-      <div><span>זמן במסוף בשאר היום</span><b>${dmin(tot.layO)}<small> דק׳</small></b></div>
-      <div class="k"><span>כשהאוטובוס חזר באיחור, הגיע בזמן לנסיעה הבאה</span><b>${pc(tot.abs)}</b></div>
+      <div><span>בשעות השיא, כל החברות</span>${triBars(tot.P, Math.max(tot.P.giv || 0, tot.P.act || 0, 1), '')}</div>
+      <div><span>בשאר היום</span>${triBars(tot.O, Math.max(tot.P.giv || 0, tot.P.act || 0, 1), '')}</div>
+      <div class="k"><span>האוטובוס הספיק להגיע לפני הנסיעה הבאה</span><b>${pc(tot.made)}</b></div>
     </div>
-    <div class="lhead"><span>חברה</span><span>הגיע בזמן לנסיעה הבאה</span><span>זמן במסוף</span></div>
-    ${rows.length ? rows.map(r => `<div class="lrow">
-      <div class="bn"><b>${esc(r.nm)}</b><small>חזר באיחור ב-${num(r.nLate)} נסיעות</small></div>
-      <div class="lsc ${absCls(r.abs)}">${pc(r.abs)}</div>
-      <div class="ltime"><span>שאר היום <b>${dmin(r.layO)}</b></span><span>שיא <b>${dmin(r.layP)}</b></span>${add(r) != null ? `<em class="${add(r) >= 3 ? 'up' : 'flat'}">${add(r) >= 0.5 ? `${mins(add(r))} דק׳ בשיא` : 'בלי תוספת בשיא'}</em>` : ''}</div>
-    </div>`).join('') : '<div class="empty">אין מספיק נסיעות</div>'}
+    <div class="lhead"><span>חברה</span><span>הספיק</span><span>שעות שיא</span><span>שאר היום</span></div>
+    ${rows.map(r => `<div class="lrow">
+      <div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} נסיעות</small></div>
+      <div class="lsc ${absCls(r.made)}" title="האוטובוס הגיע לסוף הנסיעה לפחות דקה לפני הנסיעה הבאה שלו">${pc(r.made)}</div>
+      ${triBars(r.P, scale, 'שיא')}${triBars(r.O, scale, 'שאר היום')}
+    </div>`).join('') || '<div class="empty">אין מספיק נסיעות</div>'}
     <div class="ptitle" style="margin-top:16px">חיפוש קו</div>
     <div class="filters"><input id="lay-q" class="search" type="search" placeholder="מספר קו ועיר, למשל: 2 קרית מלאכי" value="${esc(layQ)}"></div>
     <div id="lay-lines"></div>
     <details class="bmore"><summary>איך זה נמדד</summary><ul class="lhow">
       <li>עוקבים אחרי כל אוטובוס לפי מספר הרכב, מנסיעה לנסיעה.</li>
-      <li><b>זמן במסוף</b>: כמה זמן לוח הזמנים נותן בין סוף נסיעה לתחילת הנסיעה הבאה של אותו אוטובוס.</li>
-      <li><b>חזר באיחור</b>: הנסיעה הקודמת הגיעה לסוף באיחור של 3 דקות ומעלה.</li>
-      <li><b>הגיע בזמן לנסיעה הבאה</b>: למרות האיחור, האוטובוס היה במסוף לפחות דקה לפני היציאה.</li>
-      <li>שעות שיא: 06:00–09:00 ו-15:00–19:00. הפסקה של יותר מ-90 דקות (חניון, הפסקת נהג) לא נחשבת.</li>
+      <li><b>בלו״ז</b>: הזמן שלוח הזמנים הרשמי נותן לנסיעה, מהתחנה הראשונה עד האחרונה.</li>
+      <li><b>ניתנו</b>: הזמן מהיציאה של הנסיעה עד היציאה הבאה של אותו אוטובוס, לפי לוח הזמנים. זה הזמן שהחברה נתנה בפועל לנסיעה.</li>
+      <li><b>בפועל</b>: כמה הנסיעה לקחה, מהיציאה שנמדדה עד ההגעה לסוף.</li>
+      <li><b>הספיק</b>: האוטובוס הגיע לסוף לפחות דקה לפני היציאה הבאה שלו.</li>
+      <li>שעות שיא: יציאה בין 06:00 ל-09:00 או בין 15:00 ל-19:00. כשהאוטובוס יוצא שוב יותר מ-90 דקות אחרי הסוף (חניון, הפסקה), זה לא נחשב.</li>
     </ul></details>
   </div>`;
 }
@@ -371,13 +390,13 @@ const routeName = l => String(l || '').replace(/-\d+[#א-ת]?$/, '').split('<->'
 function renderLayLines() {
   const box = $('#lay-lines'); if (!box || !M || !M.Bl || !M.Bl.L) return;
   const q = layQ.trim().split(/\s+/).filter(Boolean);
-  let list = Object.entries(M.Bl.L.lines).map(([rid, v]) => { const c = CAT[rid] || []; return {rid, short: c[1] || '', long: c[2] || '', ag: c[3] || '', v}; })
-    .filter(x => x.v[0] >= 5);
+  let list = Object.entries(M.Bl.L.lines).map(([rid, v]) => { const c = CAT[rid] || []; return {rid, short: c[1] || '', long: c[2] || '', ag: c[3] || '', r: layRow('', v)}; })
+    .filter(x => x.r.n >= 5);
   // מספר = מספר הקו בלבד (בשם המסלול יש ספרות של חלופה וכיוון); מילה = עיר, תחנה או חברה
   if (q.length) list = list.filter(x => q.every(w => /^\d+[א-ת]?$/.test(w) ? x.short === w : x.long.includes(w) || x.ag.includes(w)));
-  list.sort((a, b) => b.v[0] - a.v[0]);
-  const shown = list.slice(0, 60), m = (v, a, b) => v[b] ? fmt1(v[a] / v[b] / 60) : '—';
-  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>חברה</th><th>זמן במסוף<br><small>שאר היום · דק׳</small></th><th>זמן במסוף<br><small>שיא · דק׳</small></th><th>חזר באיחור</th><th>הגיע בזמן לנסיעה הבאה</th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td><td>${esc(x.ag)}</td><td>${m(x.v, 8, 7)}</td><td>${m(x.v, 6, 5)}</td><td>${num(x.v[3])} מתוך ${num(x.v[0])}</td><td>${x.v[3] ? `<b class="bsct ${absCls(x.v[4] / x.v[3])}">${pc(x.v[4] / x.v[3])}</b>` : '—'}</td></tr>`).join('')}</tbody></table></div>${list.length > shown.length ? `<p class="note">מוצגים ${shown.length} מתוך ${num(list.length)} כיווני קו. אפשר לחפש לפי מספר קו ועיר.</p>` : ''}` : '<div class="empty">לא נמצא קו עם 5 יציאות לפחות</div>';
+  list.sort((a, b) => b.r.n - a.r.n);
+  const shown = list.slice(0, 60), t3 = b => b && b.n ? `${dmin(b.off)} · <b style="color:${LCOL.giv}">${dmin(b.giv)}</b> · <b style="color:${LCOL.act}">${dmin(b.act)}</b>` : '—';
+  box.innerHTML = list.length ? `<div class="tblbox"><table><thead><tr><th>קו</th><th>מסלול</th><th>חברה</th><th>שעות שיא<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>שאר היום<br><small>בלו״ז · ניתנו · בפועל (דק׳)</small></th><th>הספיק</th></tr></thead><tbody>${shown.map(x => `<tr><td><b>${esc(x.short)}</b></td><td class="nm">${esc(routeName(x.long))}</td><td>${esc(x.ag)}</td><td>${t3(x.r.P)}</td><td>${t3(x.r.O)}</td><td><b class="bsct ${absCls(x.r.made)}">${pc(x.r.made)}</b></td></tr>`).join('')}</tbody></table></div>${list.length > shown.length ? `<p class="note">מוצגים ${shown.length} מתוך ${num(list.length)} כיווני קו.</p>` : ''}` : '<div class="empty">לא נמצא קו עם 5 נסיעות לפחות</div>';
 }
 
 function renderBlame() {

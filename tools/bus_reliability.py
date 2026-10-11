@@ -760,16 +760,15 @@ def blame_day(BT, catalog):
             'clusters': {k: rnd(v) for k, v in C.items() if v[0] >= 30}}
 
 
-LAY_COLS = ["departures after the same vehicle's previous trip (ended within 1.5 km, up to 90 min before)",
-            "planned layover sec (sum): departure time minus the previous trip's scheduled end",
-            'previous trip arrival delay sec (sum of positive)',
-            'previous trip arrived 3+ min late', 'of them: the layover absorbed it (bus there 1+ min before departure)',
-            'of them (not absorbed): departed on time', 'of them (not absorbed): sum of positive origin delay sec',
-            'peak departures (06-09, 15-19)', 'peak: planned layover sec (sum)', 'peak: previous trip delay sec (sum of positive)',
-            'off-peak departures', 'off-peak: planned layover sec (sum)', 'off-peak: previous trip delay sec (sum of positive)']
-LAY_GAP = 90 * 60     # נסיעה קודמת של אותו רכב: עד 90 דק' לפני (יותר — הפסקה או חניון, לא מרווח בין נסיעות)
-LAY_LATE = 180        # הנסיעה הקודמת "הגיעה באיחור": 3 דק' ומעלה
-LAY_READY = 60        # "המרווח ספג": האוטובוס הגיע לפחות דקה לפני שעת היציאה
+_LAY_BLOCK = ["trips followed by the same vehicle's next trip (from within 1.5 km of its end, up to 90 min after)",
+              "time given sec (sum): next trip's scheduled departure minus this trip's scheduled departure",
+              'official trip time sec (sum): scheduled end minus scheduled departure',
+              'trips with measured departure and end', 'actual trip time sec (sum, of those)',
+              'bus reached the end 1+ min before the next scheduled departure',
+              'next trip departure measured', 'of them: departed on time (-1..+3 min)']
+LAY_COLS = ['peak (06-09, 15-19): ' + c for c in _LAY_BLOCK] + ['off-peak: ' + c for c in _LAY_BLOCK]
+LAY_GAP = 90 * 60     # הנסיעה הבאה של אותו רכב: עד 90 דק' אחרי סוף הנסיעה (יותר — הפסקה או חניון)
+LAY_READY = 60        # "הספיק": האוטובוס הגיע לסוף לפחות דקה לפני היציאה הבאה שלו
 PEAK_H = set(range(6, 9)) | set(range(15, 19))
 
 
@@ -782,63 +781,49 @@ def _km(p1, p2):
 
 
 def layover_day(DQ, catalog):
-    """האם הסדרנים מתחשבים בפקקים (שלמה 11.10): כמה זמן במסוף לוח הזמנים נותן לאוטובוס בין סוף
-    נסיעה לתחילת הנסיעה הבאה שלו, ואם המרווח הזה מספיק כשהנסיעה הקודמת מאחרת. הרכב לפי המספר
-    שלו בשידור: לכל נסיעה שהמוצא שלה נמדד — הנסיעה הקודמת של אותו רכב, שהסתיימה (לפי הלו"ז) עד
-    90 דק' לפני, עד 1.5 ק"מ מתחנת המוצא, ונמדדה עד הסוף.
-    מרווח מתוכנן = יציאה מתוכננת פחות סיום מתוכנן של הקודמת. המרווח "ספג" את האיחור אם האוטובוס
-    הגיע לפחות דקה לפני שעת היציאה."""
+    """האם הסדרנים מתחשבים בפקקים (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות
+    לנהג... לא יותר זמן במסוף, יותר זמן בקו"). בלוח הזמנים הרשמי לנסיעה יש זמן קבוע (קו 2: 21 דק'
+    כל היום), אבל החברה מחליטה מתי האוטובוס יוצא לנסיעה הבאה שלו — וזה הזמן שהיא נותנת לנסיעה.
+    לכל נסיעה, לפי מספר הרכב: הנסיעה הבאה של אותו רכב (עד 90 דק' אחרי הסוף, עד 1.5 ק"מ מתחנת
+    הסיום). זמן שניתן = היציאה הבאה המתוכננת פחות היציאה המתוכננת של הנסיעה. בפועל = מהיציאה
+    שנמדדה עד הסוף שנמדד. "הספיק" = הגיע לסוף לפחות דקה לפני היציאה הבאה. שיא לפי שעת היציאה."""
     byv = collections.defaultdict(list)
     for t in DQ:
         if t[6] and t[6] != '0':
             byv[t[6]].append(t)
+    nb = len(_LAY_BLOCK)
     agg = lambda: [0] * len(LAY_COLS)
     A, C, T = collections.defaultdict(agg), collections.defaultdict(agg), agg()
-    L = collections.defaultdict(lambda: [0] * 9)   # route_id → [נסיעות, מרווח, איחור קודם, הגיעו באיחור, נספג, שיא, מרווח בשיא, שאר, מרווח בשאר]
+    L = collections.defaultdict(agg)
     for lst in byv.values():
         lst.sort(key=lambda t: t[2])
-        for prev, cur in zip(lst, lst[1:]):
+        for cur, nxt in zip(lst, lst[1:]):
             ag, rid, sdep, send, do, fin, veh, opos, epos = cur
-            if do is None or prev[5] is None:
+            if fin is None:
                 continue
-            lay = sdep - prev[3]
-            if lay < 0 or lay > LAY_GAP:
+            gap = nxt[2] - send
+            if gap < 0 or gap > LAY_GAP:
                 continue
-            km = _km(prev[8], opos)
+            km = _km(epos, nxt[7])
             if km is None or km > 1.5:
                 continue
-            d = prev[5]
-            late = d >= LAY_LATE
-            absorbed = late and lay - d >= LAY_READY
-            ok = -60 <= do <= 180
-            peak = (sdep // 3600) % 24 in PEAK_H
+            arr = send + fin
+            o = 0 if (sdep // 3600) % 24 in PEAK_H else nb
             row = catalog.get(rid) or []
             cl = row[8] if len(row) > 8 and row[8] else ''
-            for x in (A[ag], T) + ((C[cl],) if cl else ()):
-                x[0] += 1
-                x[1] += lay
-                x[2] += max(0, d)
-                if late:
-                    x[3] += 1
-                    if absorbed:
-                        x[4] += 1
-                    else:
-                        x[5] += ok
-                        x[6] += max(0, do)
-                o = 7 if peak else 10
+            for x in (A[ag], T, L[rid]) + ((C[cl],) if cl else ()):
                 x[o] += 1
-                x[o + 1] += lay
-                x[o + 2] += max(0, d)
-            y = L[rid]
-            y[0] += 1
-            y[1] += lay
-            y[2] += max(0, d)
-            y[3] += late
-            y[4] += absorbed
-            y[5 if peak else 7] += 1
-            y[6 if peak else 8] += lay
-    return {'cols': LAY_COLS, 'tot': T, 'agencies': dict(A), 'clusters': {k: v for k, v in C.items() if v[0] >= 30},
-            'lines': {k: v for k, v in L.items() if v[0] >= 3}}
+                x[o + 1] += nxt[2] - sdep
+                x[o + 2] += send - sdep
+                if do is not None:
+                    x[o + 3] += 1
+                    x[o + 4] += arr - (sdep + do)
+                x[o + 5] += arr <= nxt[2] - LAY_READY
+                if nxt[4] is not None:
+                    x[o + 6] += 1
+                    x[o + 7] += -60 <= nxt[4] <= 180
+    return {'cols': LAY_COLS, 'tot': T, 'agencies': dict(A), 'clusters': {k: v for k, v in C.items() if v[0] + v[nb] >= 30},
+            'lines': {k: v for k, v in L.items() if v[0] + v[nb] >= 3}}
 
 
 def gps_aggregate(out, agency_names, updated, bus_ops=None):

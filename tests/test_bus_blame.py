@@ -32,31 +32,40 @@ class BlameTests(unittest.TestCase):
         self.assertEqual(0, a['trips with en-route split'])   # בקו אין שעה עם 3 נסיעות — אין בסיס לתכנון
 
 
-    def test_layover_absorbs_late_arrival(self):
-        # המרווח במסוף (שלמה 11.10: בקרית מלאכי בשיא נותנים לקו 2 30–40 דק' עד הנסיעה הבאה)
-        H, P = 3600, (31.75, 34.77)
-        far = (31.80, 34.77)          # כ-5.5 ק"מ — לא אותו מסוף
+    def test_time_given_for_trip(self):
+        # קו 2 בקרית מלאכי, 8.10 (שלמה 11.10: "נותנים לקו 2 30–40 דקות"): בלו"ז הרשמי 21 דק'.
+        # בבוקר הנסיעה של 7:55 לקחה 40 דק' והאוטובוס יצא שוב ב-8:45 — ניתנו לה 50 דק'.
+        # בערב הנסיעה של 19:15 לקחה 35 דק', והבאה (19:45) יצאה ב-20:00 — ניתנו רק 30.
+        H, P = 3600, (31.73, 34.74)
+        far = (31.80, 34.74)
+        m = lambda h, mi: h * H + mi * 60
         DQ = [
-            # רכב 1: מגיע 7:20 באיחור 10 דק' (7:30), יוצא 7:50 — מרווח 30 דק', נספג, יצא בזמן
-            ('קווים', 'r2', 6 * H + 3600, 7 * H + 1200, 0, 600, '1', P, P),
-            ('קווים', 'r2', 7 * H + 3000, 8 * H + 600, 60, None, '1', P, P),
-            # רכב 2: מגיע 12:00 באיחור 8 דק', יוצא 12:05 — מרווח 5 דק', לא נספג, יצא 3 דק' אחרי... באיחור 6
-            ('קווים', 'r2', 11 * H, 12 * H, 0, 480, '2', P, P),
-            ('קווים', 'r2', 12 * H + 300, 13 * H, 360, 0, '2', P, P),
-            # רכב 3: הנסיעה הקודמת הסתיימה רחוק — לא נספר
-            ('קווים', 'r2', 9 * H, 10 * H, 0, 0, '3', P, far),
-            ('קווים', 'r2', 10 * H + 600, 11 * H, 0, 0, '3', P, P),
+            ('דן בדרום', 'r2', m(7, 55), m(8, 16), 120, 21 * 60, '1', P, P),     # יצא 7:57, הגיע 8:37
+            ('דן בדרום', 'r2b', m(8, 45), m(9, 5), 0, 0, '1', P, P),
+            ('דן בדרום', 'r2', m(19, 15), m(19, 36), 240, 18 * 60, '2', P, P),   # יצא 19:19, הגיע 19:54
+            ('דן בדרום', 'r2b', m(19, 45), m(20, 5), 900, 0, '2', P, P),
+            ('דן בדרום', 'r2', m(12, 0), m(12, 21), 0, 0, '3', P, far),          # הבאה רחוקה — לא נספר
+            ('דן בדרום', 'r2b', m(12, 30), m(12, 50), 0, 0, '3', P, P),
         ]
-        r = b.layover_day(DQ, {'r2': [''] * 8 + ['קרית מלאכי', '', '']})
-        a = dict(zip(b.LAY_COLS, r['agencies']['קווים']))
-        self.assertEqual(2, r['tot'][0])
-        self.assertEqual(1800 + 300, r['tot'][1])                    # מרווחים מתוכננים
-        self.assertEqual(2, a['previous trip arrived 3+ min late'])
-        self.assertEqual(1, a['of them: the layover absorbed it (bus there 1+ min before departure)'])
-        self.assertEqual(0, a['of them (not absorbed): departed on time'])
-        self.assertEqual(360, a['of them (not absorbed): sum of positive origin delay sec'])
-        self.assertEqual(1, a['peak departures (06-09, 15-19)'])      # 7:50 בשיא, 12:05 לא
-        self.assertNotIn('r2', r['lines'])                              # פחות מ-3 יציאות לקו — לא נשמר
+        r = b.layover_day(DQ, {})
+        a = dict(zip(b.LAY_COLS, r['agencies']['דן בדרום']))
+        g = lambda blk, k: a[blk + k]
+        PK, OF = 'peak (06-09, 15-19): ', 'off-peak: '
+        N = "trips followed by the same vehicle's next trip (from within 1.5 km of its end, up to 90 min after)"
+        GIV = "time given sec (sum): next trip's scheduled departure minus this trip's scheduled departure"
+        # 7:55 בשיא; 19:15 כבר אחרי השיא (15:00–19:00); 12:00 לא נספר (הבאה רחוקה)
+        self.assertEqual(1, g(PK, N))
+        self.assertEqual(50 * 60, g(PK, GIV))
+        self.assertEqual(21 * 60, g(PK, 'official trip time sec (sum): scheduled end minus scheduled departure'))
+        self.assertEqual(40 * 60, g(PK, 'actual trip time sec (sum, of those)'))
+        self.assertEqual(1, g(PK, 'bus reached the end 1+ min before the next scheduled departure'))
+        self.assertEqual(1, g(PK, 'of them: departed on time (-1..+3 min)'))
+        self.assertEqual(1, g(OF, N))
+        self.assertEqual(30 * 60, g(OF, GIV))
+        self.assertEqual(35 * 60, g(OF, 'actual trip time sec (sum, of those)'))
+        self.assertEqual(0, g(OF, 'bus reached the end 1+ min before the next scheduled departure'))
+        self.assertEqual(1, g(OF, 'next trip departure measured'))
+        self.assertEqual(0, g(OF, 'of them: departed on time (-1..+3 min)'))
 
 if __name__ == '__main__':
     unittest.main()
