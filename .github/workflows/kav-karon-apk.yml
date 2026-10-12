@@ -1,0 +1,42 @@
+name: kav-karon-apk
+
+# כמה עמוס הקרון — אפליקציית אנדרואיד פרטית (unreleased/kav-karon, שלמה 12.10). לא חלק מהאתר.
+# בונה APK לבדיקה ומעלה אותו כ-artifact של הריצה (מורידים מעמוד הריצה ב-GitHub).
+
+on:
+  push:
+    paths: ['unreleased/kav-karon/**', '.github/workflows/kav-karon-apk.yml']
+  pull_request:
+    paths: ['unreleased/kav-karon/**', '.github/workflows/kav-karon-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: unreleased/kav-karon
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            unreleased/kav-karon
+            .github
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: בדיקות ובנייה
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kav-karon-apk
+          path: unreleased/kav-karon/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
