@@ -4,8 +4,10 @@ import kotlin.math.log10
 import kotlin.math.pow
 
 // סוג המכשיר לפי מה שהוא משדר בעצמו (שלמה 12.10: "לטלפון יש כתובת שונה מאוזניות, כך שאפשר להפריד")
-enum class Kind(val label: String) {
-    PHONE("טלפונים"), EARBUDS("אוזניות"), WATCH("שעונים"), OTHER("מכשירים אחרים"), UNKNOWN("לא מזוהים")
+// wifi — נמצא בסריקת Wi-Fi ולא ב-Bluetooth (לא נכנס לספירת האנשים, רק לציור הקרון)
+enum class Kind(val label: String, val wifi: Boolean = false) {
+    PHONE("טלפונים"), EARBUDS("אוזניות"), WATCH("שעונים"), OTHER("מכשירים אחרים"), UNKNOWN("לא מזוהים"),
+    HOTSPOT("נקודות חמות של טלפונים", true), WIFI("רשתות Wi-Fi אחרות", true)
 }
 
 object Classify {
@@ -56,6 +58,14 @@ object Classify {
         if (UUID_GOOGLE_NEARBY in uuids16) return Kind.PHONE
         return Kind.UNKNOWN
     }
+
+    // שמות ברירת המחדל של נקודה חמה בטלפונים ("iPhone של…", "Galaxy A54", "Redmi Note 12"…)
+    private val HOTSPOT_NAME = Regex("iphone|android|galaxy|redmi|xiaomi|poco|oneplus|pixel|huawei|honor|oppo|vivo|realme|motorola|nokia", RegexOption.IGNORE_CASE)
+
+    fun wifiKind(ssid: String?): Kind = if (ssid != null && HOTSPOT_NAME.containsMatchIn(ssid)) Kind.HOTSPOT else Kind.WIFI
+
+    /** נתב או נקודה חמה משדרים חזק יותר מ-Bluetooth: בערך ‎-40 במטר אחד */
+    const val WIFI_AT_1M = -40
 
     private fun u16(b: ByteArray, at: Int) = (b[at].toInt() and 0xFF) or ((b[at + 1].toInt() and 0xFF) shl 8)
 

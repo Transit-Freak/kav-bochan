@@ -29,4 +29,11 @@ class ClassifyTest {
         val r = Classify.rssiAt(13.0)
         assertTrue(Classify.distance(r) in 12.0..14.5)
     }
+
+    @Test fun wifiHotspotNames() {
+        assertEquals(Kind.HOTSPOT, Classify.wifiKind("iPhone של שלמה"))
+        assertEquals(Kind.HOTSPOT, Classify.wifiKind("Galaxy A54 1F3C"))
+        assertEquals(Kind.WIFI, Classify.wifiKind("Israel Railways"))
+        assertEquals(Kind.WIFI, Classify.wifiKind(null))
+    }
 }
