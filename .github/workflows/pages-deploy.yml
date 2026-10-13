@@ -94,24 +94,52 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # האתר כ-6GB: מפנים מקום בשרת לפני ההעתקה והאריזה
+      # האתר כ-3GB (בלי הארכיון; עם הארכיון כ-7.5GB): מפנים מקום בשרת לפני ההעתקה והאריזה
       - name: מקום בדיסק
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
           df -h / | tail -1
       # ההורדה לוקחת בדרך כלל כ-4 דקות, אבל בתקלות של GitHub היא נתקעת עד שנגמר זמן הריצה
       # (07.10: שתי ריצות נתקעו כך, והעיצוב החדש לא פורסם). מגבילים ל-12 דקות ומנסים שוב פעם אחת.
+      #
+      # הארכיון הכבד של "הקו בזמן" (early-patterns, early-stops: כ-808 אלף קבצים, 4.5GB) מתפרסם
+      # מ-kav-bochan-archive, והאתר קורא משם (שלמה 13.10: "למה עדכון כזה קטן חצי שעה?"). לכן
+      # מורידים בלי שתי התיקיות, ו-tools/pages_trim_archive.sh מחזיר רק קבצים שאינם בארכיון באותו
+      # תוכן. אם אי אפשר לסמוך על הארכיון — מורידים הכל כמו קודם (full=yes).
       - id: co
         uses: actions/checkout@v4
         timeout-minutes: 12
         continue-on-error: true
         with:
           fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/line-history/data/early-patterns/
+            !/line-history/data/early-stops/
       - if: steps.co.outcome != 'success'
         uses: actions/checkout@v4
         timeout-minutes: 15
         with:
           fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/line-history/data/early-patterns/
+            !/line-history/data/early-stops/
+      - id: arch
+        name: הארכיון — באתר נשאר רק מה שאינו בארכיון
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tools/pages_trim_archive.sh
+      - if: steps.arch.outputs.full != 'no'
+        name: גיבוי — כל הקבצים
+        timeout-minutes: 20
+        run: |
+          git sparse-checkout disable
+          test -d line-history/data/early-patterns && echo "הורדו כל הקבצים"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
