@@ -170,3 +170,34 @@ th.sort-desc::after{content:" ▼";font-size:10px}th.sort-asc::after{content:" �
   .bhow dd{margin-bottom:10px}
   .bbar.big i{font-size:11px}
 }
+/* האם הסדרנים מתחשבים בפקקים — לכל נסיעה: לפי הלו"ז, כמה ניתן, כמה לקח בפועל */
+.rl{font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap}
+.tri{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;min-width:0}
+.tri>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.tb{display:grid;grid-template-columns:1fr 34px 40px;align-items:center;gap:6px;font-size:12px}
+.tb i{display:block;height:9px;border-radius:5px;min-width:2px;grid-column:1;justify-self:start}
+.tb b{font-size:13px;text-align:start}
+.tb small{color:var(--dim);font-weight:700;font-size:11px}
+.ltiles{display:grid;grid-template-columns:1fr 1fr .8fr;gap:10px;margin:4px 0 16px}
+.ltiles>div{border:1.5px solid var(--ink);border-radius:10px;padding:10px 12px;background:#fff;min-width:0}
+.ltiles>div.k{border-top:7px solid var(--ok)}
+.ltiles>div>span{display:block;font-size:12px;font-weight:700;color:var(--mut);line-height:1.4;margin-bottom:6px}
+.ltiles b{font-family:var(--disp);font-size:30px;font-weight:400;line-height:1.2}
+.ltiles .tb b{font-family:var(--body);font-size:13px;font-weight:700}
+.lyhead,.lyrow{display:grid;grid-template-columns:minmax(120px,1fr) 70px 1.2fr 1.2fr;gap:14px;align-items:center}
+.lyhead{font-size:11.5px;font-weight:800;color:var(--dim);padding:0 0 6px;border-bottom:1.5px solid var(--ink)}
+.lyrow{padding:10px 0;border-bottom:1px solid var(--line)}
+.lyrow .tri{grid-template-columns:1fr}.lyrow .tri .rl{display:none}
+.lsc{font-family:var(--disp);font-size:18px;text-align:center;border-radius:9px;padding:3px 0;color:#fff}
+.lsc.g{background:var(--ok)}.lsc.y{background:var(--warn);color:var(--ink)}.lsc.o{background:var(--late)}.lsc.r{background:var(--bad)}.lsc.na{background:var(--panel2);color:var(--dim)}
+.lhow{margin:6px 0 0;padding-inline-start:18px;font-size:13px;line-height:1.7;color:var(--mut)}
+@media (max-width:760px){
+  .ltiles{grid-template-columns:1fr}
+  .lyhead{display:none}
+  .lyrow{grid-template-columns:1fr 70px;gap:8px 10px}
+  .lyrow .tri{grid-column:1 / -1}
+  .lyrow .tri{grid-template-columns:auto 1fr}.lyrow .tri .rl{display:block}
+}
+.lnk{background:none;border:none;padding:0;font:inherit;font-weight:800;color:var(--accent2);cursor:pointer}
+.lnk:hover{text-decoration:underline}
+.lyrow .bn .linebtn{font-size:14px;text-align:start}

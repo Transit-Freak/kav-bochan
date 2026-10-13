@@ -760,6 +760,72 @@ def blame_day(BT, catalog):
             'clusters': {k: rnd(v) for k, v in C.items() if v[0] >= 30}}
 
 
+_LAY_BLOCK = ["trips followed by the same vehicle's next trip (from within 1.5 km of its end, up to 90 min after)",
+              "time given sec (sum): next trip's scheduled departure minus this trip's scheduled departure",
+              'official trip time sec (sum): scheduled end minus scheduled departure',
+              'trips with measured departure and end', 'actual trip time sec (sum, of those)',
+              'bus reached the end 1+ min before the next scheduled departure',
+              'next trip departure measured', 'of them: departed on time (-1..+3 min)']
+LAY_COLS = ['peak (06-09, 15-19): ' + c for c in _LAY_BLOCK] + ['off-peak: ' + c for c in _LAY_BLOCK]
+LAY_GAP = 90 * 60     # הנסיעה הבאה של אותו רכב: עד 90 דק' אחרי סוף הנסיעה (יותר — הפסקה או חניון)
+LAY_READY = 60        # "הספיק": האוטובוס הגיע לסוף לפחות דקה לפני היציאה הבאה שלו
+PEAK_H = set(range(6, 9)) | set(range(15, 19))
+
+
+def _km(p1, p2):
+    if not p1 or not p2:
+        return None
+    dy = (p1[0] - p2[0]) * 111.0
+    dx = (p1[1] - p2[1]) * 111.0 * math.cos(math.radians(p1[0]))
+    return (dx * dx + dy * dy) ** 0.5
+
+
+def layover_day(DQ, catalog):
+    """האם הסדרנים מתחשבים בפקקים (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות
+    לנהג... לא יותר זמן במסוף, יותר זמן בקו"). בלוח הזמנים הרשמי לנסיעה יש זמן קבוע (קו 2: 21 דק'
+    כל היום), אבל החברה מחליטה מתי האוטובוס יוצא לנסיעה הבאה שלו — וזה הזמן שהיא נותנת לנסיעה.
+    לכל נסיעה, לפי מספר הרכב: הנסיעה הבאה של אותו רכב (עד 90 דק' אחרי הסוף, עד 1.5 ק"מ מתחנת
+    הסיום). זמן שניתן = היציאה הבאה המתוכננת פחות היציאה המתוכננת של הנסיעה. בפועל = מהיציאה
+    שנמדדה עד הסוף שנמדד. "הספיק" = הגיע לסוף לפחות דקה לפני היציאה הבאה. שיא לפי שעת היציאה."""
+    byv = collections.defaultdict(list)
+    for t in DQ:
+        if t[6] and t[6] != '0':
+            byv[t[6]].append(t)
+    nb = len(_LAY_BLOCK)
+    agg = lambda: [0] * len(LAY_COLS)
+    A, C, T = collections.defaultdict(agg), collections.defaultdict(agg), agg()
+    L = collections.defaultdict(agg)
+    for lst in byv.values():
+        lst.sort(key=lambda t: t[2])
+        for cur, nxt in zip(lst, lst[1:]):
+            ag, rid, sdep, send, do, fin, veh, opos, epos = cur
+            if fin is None:
+                continue
+            gap = nxt[2] - send
+            if gap < 0 or gap > LAY_GAP:
+                continue
+            km = _km(epos, nxt[7])
+            if km is None or km > 1.5:
+                continue
+            arr = send + fin
+            o = 0 if (sdep // 3600) % 24 in PEAK_H else nb
+            row = catalog.get(rid) or []
+            cl = row[8] if len(row) > 8 and row[8] else ''
+            for x in (A[ag], T, L[rid]) + ((C[cl],) if cl else ()):
+                x[o] += 1
+                x[o + 1] += nxt[2] - sdep
+                x[o + 2] += send - sdep
+                if do is not None:
+                    x[o + 3] += 1
+                    x[o + 4] += arr - (sdep + do)
+                x[o + 5] += arr <= nxt[2] - LAY_READY
+                if nxt[4] is not None:
+                    x[o + 6] += 1
+                    x[o + 7] += -60 <= nxt[4] <= 180
+    return {'cols': LAY_COLS, 'tot': T, 'agencies': dict(A), 'clusters': {k: v for k, v in C.items() if v[0] + v[nb] >= 30},
+            'lines': {k: v for k, v in L.items() if v[0] + v[nb] >= 3}}
+
+
 def gps_aggregate(out, agency_names, updated, bus_ops=None):
     """צבירת GPS_DAYS הימים האחרונים (days/D.gps.json) → gps.json: לכל רכב ולכל מפעיל."""
     ds = sorted(f[:-9] for f in os.listdir(f'{out}/days') if f.endswith('.gps.json'))[-GPS_DAYS:]
@@ -991,6 +1057,10 @@ def main():
     # הקו וחוזר בכיוון ההפוך תוך 15 דקות. לכל נסיעה שנמדדה: [רכב, מק"ט, כיוון,
     # יציאה, זמן אחרון, הגיע לסוף?, route_id]
     veh_rides = []
+    # המרווח במסוף לפני כל נסיעה (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות
+    # לנהג עד הקו הבא"): [מפעיל, route_id, יציאה מתוכננת, סיום מתוכנן, איחור במוצא (או None),
+    # איחור בסוף (רק נסיעה שנמדדה עד הסוף, אחרת None), רכב, מיקום תחנת המוצא, מיקום תחנת הסיום]
+    DQ = []
     diag_raw, diag_raw2, diag_raw3 = [], [], []   # רשומות גולמיות לאבחון המוצא, ונסיעות טיפוסיות
     spikes = 0
     relabeled = 0       # נסיעות שסומנו בשעת יציאה ישנה — בפועל נסיעה אחרת בלו"ז
@@ -1151,6 +1221,10 @@ def main():
         # תחנת המוצא ותחנת הסיום של המסלול — לבדיקת "חזר לאותו מקום" גם בקו אחר
         _o = stops.get(seq[0][1]) if seq else None
         _e = stops.get(seq[-1][1]) if seq else None
+        _o0, _e0 = stops.get(seq[0][1]), stops.get(seq[-1][1])
+        DQ.append((ag, rid, seq[0][3], seq[-1][3], meas[0][3] if meas[0][0] == 1 else None,
+                   meas[-1][3] if reach_cls == 0 else None, key[2],
+                   (_o0[2], _o0[3]) if _o0 else None, (_e0[2], _e0[3]) if _e0 else None))
         veh_rides.append((key[2], routes.get(rid, {}).get('mkt', ''), routes.get(rid, {}).get('dir', ''),
                           t_of.get(1, min(t_of.values())), max(t_of.values()), reach_cls == 0, rid,
                           (_o[2], _o[3]) if _o else None, (_e[2], _e[3]) if _e else None,
@@ -1331,6 +1405,7 @@ def main():
     # (כל קו נספר פעם אחת). נסיעה שלא נצפתה = לא בוצעה או בוצעה בלי שידור.
     city_trips = {c: [sum(sched_per_route.get(rid, 0) for rid in rr), sum(R[rid]['obs'] for rid in rr)] for c, rr in city_routes.items()}
     blame = blame_day(BT, catalog)
+    blame['lay'] = layover_day(DQ, catalog)
     day_obj = {
         'blame': blame,
         'd': day, 'fmt': FMT, 'built': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
