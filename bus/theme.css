@@ -121,55 +121,17 @@ h1{font-size:32px}
 /* מיון בלחיצה על כותרת בטבלאות בלי מיון משלהן */
 table:not([id]) thead th{cursor:pointer;user-select:none}table:not([id]) thead th:hover{color:var(--accent)}
 th.sort-desc::after{content:" ▼";font-size:10px}th.sort-asc::after{content:" ▲";font-size:10px}
-/* מי אשם באיחור (שלמה 11.10: "לשפר את העיצוב וההסברים"): פס מפורק לשלושה חלקים, שורה לכל חברה */
+/* האם הסדרנים מתחשבים בפקקים — הכותרת, המקרא ושורת החברה (שלמה 13.10: "מי אשם באיחור" נמחק) */
 .blead{font-size:14px;color:var(--ink);line-height:1.6;margin:0 0 12px}
-.bbar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--panel2);min-width:4px}
-.bbar i{display:block;height:100%;font-style:normal}
-.bbar.big{height:34px;border-radius:9px;border:1.5px solid var(--ink);margin-bottom:14px}
-.bbar.big i{color:#fff;font:800 12.5px var(--body);display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;padding:0 6px}
-.bparts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.bpart{border:1.5px solid var(--ink);border-top:7px solid var(--c);border-radius:10px;padding:10px 12px;background:#fff;min-width:0}
-.bph{display:flex;align-items:center;gap:7px;font-weight:800;font-size:14px}
-.bph i{width:11px;height:11px;border-radius:3px;background:var(--c)}
-.bpv{font-family:var(--disp);font-size:30px;line-height:1.15;margin:4px 0 2px}
-.bpv small{font-family:var(--body);font-size:12px;color:var(--mut);font-weight:700}
-.bpart p{margin:0 0 6px;font-size:12.5px;color:var(--mut);line-height:1.55}
-.bwho{font-size:11.5px;font-weight:800;color:var(--ink);background:var(--panel2);border-radius:999px;padding:3px 10px;display:inline-block}
-.bpx{font-size:12px;font-weight:700;color:var(--ink);margin-top:6px}
-.bsort{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 10px}
-.bsort span{font-size:12px;font-weight:800;color:var(--mut)}
-.bsort button{border:1.5px solid var(--ink);border-radius:999px;background:#fff;font:700 12.5px var(--body);padding:6px 13px;cursor:pointer;color:var(--ink)}
-.bsort button.on{background:var(--ink);color:#fff}
 .blegend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:700;color:var(--mut);margin-bottom:6px}
-.blegend i,.bnums i,.bhow dt i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px;vertical-align:-1px}
-.blist{display:flex;flex-direction:column}
-.brow{display:grid;grid-template-columns:170px 52px 1fr;gap:12px;align-items:start;padding:11px 0;border-top:1px solid var(--line)}
-.brow.nos{grid-template-columns:170px 1fr}
+.blegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px;vertical-align:-1px}
 .bn b{display:block;font-size:14px;line-height:1.3}
 .bn small{font-size:11.5px;color:var(--dim);font-weight:600}
-.bsc{font-family:var(--disp);font-size:20px;text-align:center;border-radius:9px;padding:4px 0;color:#fff;line-height:1.2}
-.bsc.g,.bsct.g{background:var(--ok)}.bsc.y,.bsct.y{background:var(--warn);color:var(--ink)}.bsc.o,.bsct.o{background:var(--late)}.bsc.r,.bsct.r{background:var(--bad)}.bsc.na,.bsct.na{background:var(--panel2);color:var(--dim)}
 .bsct{display:inline-block;min-width:34px;border-radius:6px;padding:1px 6px;color:#fff;text-align:center}
-.bmid{min-width:0}
-.bnums{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;font-weight:700;margin-top:6px}
-.bnums .btot{color:var(--mut)}
-.bmet{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11.5px;color:var(--mut);font-weight:600;margin-top:4px}
-.worse{color:var(--late);font-weight:800}.better{color:var(--ok);font-weight:800}
+.bsct.g{background:var(--ok)}.bsct.y{background:var(--warn);color:var(--ink)}.bsct.o{background:var(--late)}.bsct.r{background:var(--bad)}.bsct.na{background:var(--panel2);color:var(--dim)}
 .bmore{margin-top:12px}
 .bmore summary{cursor:pointer;font-weight:800;font-size:13px;color:var(--accent2)}
 .bmore .tblbox{margin-top:8px}
-.bhow{display:grid;grid-template-columns:200px 1fr;gap:10px 16px;margin:4px 0 0;font-size:13px;line-height:1.65}
-.bhow dt{font-weight:800}
-.bhow dd{margin:0;color:var(--mut)}
-@media (max-width:760px){
-  .bparts{grid-template-columns:1fr}
-  .brow{grid-template-columns:1fr 52px;gap:6px 10px}
-  .brow .bmid{grid-column:1 / -1}
-  .brow.nos{grid-template-columns:1fr}
-  .bhow{grid-template-columns:1fr;gap:2px}
-  .bhow dd{margin-bottom:10px}
-  .bbar.big i{font-size:11px}
-}
 /* האם הסדרנים מתחשבים בפקקים — לכל נסיעה: לפי הלו"ז, כמה ניתן, כמה לקח בפועל */
 .rl{font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap}
 .tri{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;min-width:0}

@@ -219,108 +219,9 @@ const onCell = on => `${on == null ? '—' : Math.round(on * 100) + '%'}<span cl
 // צבע לאחוז "לא נצפו" (אי ביצוע משוער): עד 5% רגיל, עד 15% כתום, מעל — אדום
 const missCls = m => m == null ? '' : m > .15 ? 'd4' : m > .05 ? 'd2' : '';
 
-// ---------------------------------------------------------------- מי אשם באיחור
-// (שלמה 07.10: "מי אשם — הפקקים או הסדרנים, וציון לכל חברה"). האיחור של כל נסיעה מפורק
-// לשלושה: סדרנים (איחור ביציאה מהמסוף), תכנון (מה שהקו מאחר בדרך גם בשעה הכי טובה שלו —
-// זמן נסיעה קצר מדי בלו"ז), ופקקים (מה שנוסף בדרך מעבר לזה). ההשוואה לעיר: הפקק של החברה
-// פחות הממוצע של כל החברות שיוצאות מאותה עיר באותה שעה.
-// ציון סדרנות: 50% יציאה בזמן מהמסוף, 30% נסיעות שנצפו מתוך המתוכננות, 20% בלי התקבצות.
-const BL = {n: 0, no: 1, disp: 2, on: 3, early: 4, late: 5, plan: 6, traf: 7, ex: 8, nex: 9, fin: 10, nsp: 11};
-function blameRow(nm, v, A, B) {
-  const g = i => v[i] || 0;
-  const onDep = g(BL.no) ? g(BL.on) / g(BL.no) : null;
-  const perf = A && A.sched ? Math.min(1, A.obs / A.sched) : null;
-  const bunch = B && B[0] ? B[1] / B[0] : null;
-  const parts = [[onDep, .5], [perf, .3], [bunch == null ? null : 1 - bunch, .2]].filter(([x]) => x != null);
-  const w = parts.reduce((a, [, ww]) => a + ww, 0);
-  const score = parts.length >= 2 ? Math.round(100 * parts.reduce((a, [x, ww]) => a + x * ww, 0) / w) : null;
-  return {nm, n: g(BL.n), score, onDep, early: g(BL.no) ? g(BL.early) / g(BL.no) : null, perf, bunch,
-    disp: g(BL.no) ? g(BL.disp) / g(BL.no) / 60 : null, plan: g(BL.nsp) ? g(BL.plan) / g(BL.nsp) / 60 : null,
-    traf: g(BL.nsp) ? g(BL.traf) / g(BL.nsp) / 60 : null, ex: g(BL.nex) >= 50 ? g(BL.ex) / g(BL.nex) / 60 : null};
-}
-// צבע הציון — מחלקות משלו (ב-theme.css ‏d0 הוא סגול "מוקדם", ולכן ציון גבוה נצבע קודם בסגול)
-const scoreCls = v => v == null ? 'na' : v >= 85 ? 'g' : v >= 75 ? 'y' : v >= 65 ? 'o' : 'r';
-// דקות עם סימן (+ איחור, − הקדמה). bdi כדי שהסימן יופיע לפני המספר גם בעמוד מימין לשמאל (שלמה 08.10: "לא מובן מה זה +")
-const mins = v => v == null ? '—' : `<bdi dir="ltr">${(v > 0.05 ? '+' : v < -0.05 ? '−' : '') + fmt1(Math.abs(v))}</bdi>`;
+// ---------------------------------------------------------------- האם הסדרנים מתחשבים בפקקים
+// (שלמה 13.10: "תמחק את הקטגוריה מי אשם באיחור, שתעסוק רק אם הם מתחשבים בפקקים").
 const pc = v => v == null ? '—' : Math.round(v * 100) + '%';
-// שלושת החלקים של האיחור — צבע, שם, הסבר קצר ומי יכול לתקן (שלמה 11.10: "לשפר את העיצוב וההסברים")
-const BPARTS = [
-  {k: 'disp', c: '#1E5BC6', t: 'סדרנים', d: 'האוטובוס יצא מהמסוף אחרי השעה שבלוח הזמנים.', who: 'בידי החברה והסדרן'},
-  {k: 'plan', c: '#7C3AED', t: 'לוח זמנים', d: 'גם בשעה הכי פנויה של הקו, הנסיעה ארוכה מהזמן שהוקצב לה.', who: 'בידי מי שקובע את לוח הזמנים'},
-  {k: 'traf', c: '#F26B1D', t: 'פקקים', d: 'מה שנוסף בדרך מעבר לזה, בעיקר בשעות העומס.', who: 'בידי הכביש: נתיבי תחבורה ציבורית, רמזורים'},
-];
-let blameSort = 'score';
-function blameBar(r, scale, big) {
-  const segs = BPARTS.map(p => [p, Math.max(0, r[p.k] || 0)]).filter(([, v]) => v > 0);
-  const tot = segs.reduce((a, [, v]) => a + v, 0);
-  if (!tot) return `<div class="bbar${big ? ' big' : ''}"></div>`;
-  return `<div class="bbar${big ? ' big' : ''}" style="width:${Math.max(4, 100 * tot / scale)}%">` + segs.map(([p, v]) =>
-    `<i style="flex:${v};background:${p.c}" title="${p.t}: ${fmt1(v)} דק׳ לנסיעה">${big && v / tot > .12 ? `${p.t} ${fmt1(v)}` : ''}</i>`).join('') + '</div>';
-}
-// bpos — אורך הפס (רק חלקים חיוביים); bsum — הסכום האמיתי, גם כשהאוטובוסים מרוויחים זמן בדרך
-const bpos = r => BPARTS.reduce((a, p) => a + Math.max(0, r[p.k] || 0), 0);
-const bsum = r => BPARTS.reduce((a, p) => a + (r[p.k] || 0), 0);
-function blameRows(list, withScore, scale) {
-  return list.map(r => {
-    const ex = r.ex == null ? '' : `<span class="${r.ex > 0.5 ? 'worse' : r.ex < -0.5 ? 'better' : ''}" title="הפקקים של ${esc(r.nm)} פחות הממוצע של כל החברות שיוצאות מאותה עיר באותה שעה">מול חברות אחרות באותה עיר ושעה: ${mins(r.ex)} דק׳${r.ex > 0.5 ? ' (מאבדת יותר בדרך)' : r.ex < -0.5 ? ' (מאבדת פחות)' : ''}</span>`;
-    return `<div class="brow${withScore ? '' : ' nos'}">
-      <div class="bn"><b>${esc(r.nm)}</b><small>${num(r.n)} נסיעות</small></div>
-      ${withScore ? `<div class="bsc ${scoreCls(r.score)}" title="ציון סדרנות 0–100">${r.score ?? '—'}</div>` : ''}
-      <div class="bmid">${blameBar(r, scale)}
-        <div class="bnums">${BPARTS.map(p => `<span><i style="background:${p.c}"></i>${p.t} ${mins(r[p.k])}</span>`).join('')}<span class="btot">סה״כ ${mins(bsum(r))} דק׳</span></div>
-        <div class="bmet"><span>יצאו בזמן מהמסוף ${pc(r.onDep)}</span><span>יצאו מוקדם ${pc(r.early)}</span>${withScore ? `<span>נסיעות שנצפו ${pc(r.perf)}</span><span>התקבצות ${pc(r.bunch)}</span>` : ''}${ex}</div>
-      </div></div>`;
-  }).join('');
-}
-function blameTable(list, withScore) {
-  return `<div class="tblbox"><table><thead><tr><th>${withScore ? 'חברה' : 'אשכול'}</th>${withScore ? '<th>ציון סדרנות<br><small>0–100</small></th>' : ''}<th>יצאו בזמן מהמסוף</th><th>יצאו מוקדם</th>${withScore ? '<th>נסיעות שנצפו</th><th>התקבצות</th>' : ''}<th>סדרנים<br><small>דק׳ לנסיעה</small></th><th>לוח זמנים<br><small>דק׳ לנסיעה</small></th><th>פקקים<br><small>דק׳ לנסיעה</small></th><th>פקקים מול חברות אחרות באותה עיר ושעה<br><small>דק׳ · + יותר מאחרות</small></th><th>נסיעות</th></tr></thead><tbody>` +
-    list.map(r => `<tr><td class="nm">${esc(r.nm)}</td>${withScore ? `<td><b class="bsct ${scoreCls(r.score)}">${r.score ?? '—'}</b></td>` : ''}<td>${pc(r.onDep)}</td><td>${pc(r.early)}</td>${withScore ? `<td>${pc(r.perf)}</td><td>${pc(r.bunch)}</td>` : ''}<td>${mins(r.disp)}</td><td>${mins(r.plan)}</td><td>${mins(r.traf)}</td><td class="${r.ex == null ? 'dn' : r.ex > 0.5 ? 'worse' : r.ex < -0.5 ? 'better' : ''}">${mins(r.ex)}</td><td>${num(r.n)}</td></tr>`).join('') + '</tbody></table></div>';
-}
-function blameHtml(M) {
-  if (!M.Bl || !M.Bl.days) return `<div class="panel"><div class="empty">החישוב מתחיל מהימים שמעובדים מ-07.10.2026.</div></div>`;
-  const tot = blameRow('כל החברות', M.Bl.tot, M.tot, M.Bn.tot);
-  const rows = Object.entries(M.Bl.A).map(([nm, v]) => blameRow(nm, v, M.A[nm], M.Bn.A[nm])).filter(r => r.n >= 200);
-  const key = {score: r => -(r.score ?? -1), tot: r => -bsum(r), ex: r => -(r.ex ?? -99)}[blameSort];
-  rows.sort((a, b) => key(a) - key(b));
-  const cls = Object.entries(M.Bl.C).map(([nm, v]) => blameRow(nm, v)).filter(r => r.n >= 200).sort((a, b) => bsum(b) - bsum(a));
-  const scale = Math.max(1, ...rows.map(bpos)), scaleC = Math.max(1, ...cls.map(bpos)), T = bpos(tot);
-  const share = k => T ? Math.round(100 * Math.max(0, tot[k] || 0) / T) + '%' : '—';
-  const legend = `<div class="blegend">${BPARTS.map(p => `<span><i style="background:${p.c}"></i>${p.t}</span>`).join('')}</div>`;
-  return `<div class="panel blame">
-    <div class="ptitle">מי אשם באיחור</div>
-    <p class="blead">האיחור של כל נסיעה שנמדדה מפורק לשלושה חלקים, ומכל חלק אחראי מישהו אחר. כך הוא מתחלק בכל החברות יחד, בדקות לנסיעה בממוצע:</p>
-    ${blameBar(tot, T || 1, true)}
-    <div class="bparts">${BPARTS.map(p => `<div class="bpart" style="--c:${p.c}">
-      <div class="bph"><i></i>${p.t}</div>
-      <div class="bpv">${mins(tot[p.k])}<small> דק׳ לנסיעה · ${share(p.k)}</small></div>
-      <p>${p.d}</p><div class="bwho">${p.who}</div>
-      ${p.k === 'disp' ? `<div class="bpx">${pc(tot.onDep)} מהנסיעות יצאו בזמן מהמסוף</div>` : ''}</div>`).join('')}</div>
-  </div>
-  <div class="panel">
-    <div class="ptitle">לפי חברה</div>
-    <p class="pdesc">לכל חברה: ציון סדרנות (0–100), והפס מראה כמה דקות איחור צוברת נסיעה ממוצעת ומאיפה הן באות. פס ארוך יותר = יותר איחור.</p>
-    <div class="bsort" role="group" aria-label="מיון"><span>מיון:</span>${[['score', 'ציון סדרנות'], ['tot', 'הכי הרבה איחור'], ['ex', 'פקקים מול חברות אחרות']].map(([k, t]) => `<button data-bs="${k}" class="${blameSort === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-    ${legend}
-    ${rows.length ? `<div class="blist">${blameRows(rows, true, scale)}</div><details class="bmore"><summary>כל המספרים בטבלה</summary>${blameTable(rows, true)}</details>` : '<div class="empty">אין מספיק נסיעות</div>'}
-  </div>
-  <div class="panel">
-    <div class="ptitle">לפי אשכול</div>
-    <p class="pdesc">אותו פירוק לכל אשכול מכרז, מהאיחור הגבוה לנמוך.</p>
-    ${legend}
-    ${cls.length ? `<div class="blist">${blameRows(cls, false, scaleC)}</div><details class="bmore"><summary>כל המספרים בטבלה</summary>${blameTable(cls, false)}</details>` : '<div class="empty">אין מספיק נסיעות</div>'}
-  </div>
-  <div class="panel">
-    <div class="ptitle">איך זה מחושב</div>
-    <dl class="bhow">
-      <dt><i style="background:${BPARTS[0].c}"></i>סדרנים</dt><dd>כמה דקות אחרי השעה שבלוח הזמנים האוטובוס יצא מתחנת המוצא. גם כשהאיחור ביציאה נגרם כי האוטובוס חזר באיחור מהכיוון השני, הוא נספר כאן: הסדרן אמור להתחשב בפקקים ולתכנן לזה (ראו "האם הסדרנים מתחשבים בפקקים" למטה). יציאה מוקדמת לא מקזזת איחור, אבל נספרת בנפרד ("יצאו מוקדם"). "יצאו בזמן" = בין דקה לפני השעה ל-3 דקות אחריה. נמדד רק כשהאוטובוס שידר מיקום בתחנה הראשונה.</dd>
-      <dt><i style="background:${BPARTS[1].c}"></i>לוח זמנים</dt><dd>לכל קו מוצאים את השעה ביום שבה הוא צובר הכי מעט איחור בדרך (לפי החציון, ורק שעות עם 3 נסיעות לפחות). האיחור שנשאר גם בשעה הזאת הוא כנראה זמן נסיעה שקצר מדי בלוח הזמנים, ולא פקק או נהג.</dd>
-      <dt><i style="background:${BPARTS[2].c}"></i>פקקים</dt><dd>כל האיחור שנוסף בדרך, פחות החלק של לוח הזמנים. מספר שלילי אומר שהאוטובוסים מרוויחים זמן בדרך: לוח הזמנים נותן לנסיעה יותר זמן ממה שהיא צריכה, ולכן הם מגיעים לתחנות מוקדם יותר מהשעה שבלוח. הפס מציג רק את החלקים החיוביים, וה"סה״כ" כולל גם את הזמן שהרוויחו.</dd>
-      <dt>מול חברות אחרות באותה עיר ושעה</dt><dd>הפקקים של החברה, פחות הממוצע של כל החברות שיוצאות מאותה עיר באותה שעה. מספר חיובי אומר שהחברה מאבדת בדרך יותר מאחרות שנוסעות באותו מקום ובאותה שעה, ולכן זה כנראה לא רק הכביש. נספר רק כשיש לפחות 20 נסיעות להשוואה.</dd>
-      <dt>ציון סדרנות</dt><dd>50% יציאה בזמן מהמסוף, 30% נסיעות שנצפו מתוך המתוכננות, 20% נסיעות שלא הגיעו צמודות לקודמת (בלי התקבצות). 85 ומעלה בירוק, 75–84 בצהוב, 65–74 בכתום, מתחת ל-65 באדום.</dd>
-    </dl>
-    <p class="note">נסיעה שלא שידרה מיקום בכלל נספרת כאן כנסיעה שלא נצפתה, ואולי היא יצאה ולא שידרה. מוצגות רק חברות ואשכולות עם 200 נסיעות לפחות בתקופה. החישוב מתחיל מ-07.10.2026.</p>
-  </div>`;
-}
 // האם הסדרנים מתחשבים בפקקים (שלמה 11.10: "בקרית מלאכי בשעות השיא נותנים לקו 2 30–40 דקות... לא
 // יותר זמן במסוף, יותר זמן בקו"). שלושה מספרים לנסיעה: לפי הלו"ז הרשמי, כמה זמן החברה נתנה לה
 // (עד היציאה הבאה של אותו אוטובוס), וכמה היא לקחה בפועל — בשיא ובשאר היום
@@ -349,7 +250,7 @@ function layHtml(M) {
   const head = `<div class="ptitle">האם הסדרנים מתחשבים בפקקים</div>
     <p class="blead">בלוח הזמנים הרשמי לכל נסיעה יש זמן קבוע. בשעות העומס הנסיעה לוקחת יותר, ולכן סדרן שמתחשב בפקקים נותן לאוטובוס יותר זמן עד הנסיעה הבאה שלו.</p>
     <div class="blegend"><span><i style="background:${LCOL.off}"></i>לפי הלו״ז הרשמי</span><span><i style="background:${LCOL.giv}"></i>הזמן שהחברה נתנה עד הנסיעה הבאה</span><span><i style="background:${LCOL.act}"></i>כמה הנסיעה לקחה בפועל</span></div>`;
-  if (!Lx || !Lx.days) return `<div class="panel lay">${head}<div class="empty">החישוב לכל החברות מתחיל מהימים שמעובדים מ-11.10.2026.</div></div>`;
+  if (!Lx || !Lx.days) return `<div class="panel lay">${head}<div class="empty">החישוב מתחיל מהימים שמעובדים מ-07.10.2026.</div></div>`;
   const tot = layRow('כל החברות', Lx.tot);
   const rows = Object.entries(Lx.A).map(([nm, v]) => layRow(nm, v)).filter(r => r.n >= MIN_LAY).sort((a, b) => (b.made ?? -1) - (a.made ?? -1));
   const scale = Math.max(20, ...rows.flatMap(r => [r.P.giv || 0, r.P.act || 0, r.O.giv || 0, r.O.act || 0]));
@@ -405,8 +306,7 @@ function renderLayLines() {
 }
 function renderBlame() {
   const box = $('#blame-box'); if (!box || !M) return;
-  box.innerHTML = blameHtml(M) + layHtml(M);
-  box.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { blameSort = b.dataset.bs; renderBlame(); });
+  box.innerHTML = layHtml(M);
   box.querySelectorAll('[data-lag]').forEach(b => b.onclick = () => { layAg = b.dataset.lag; layQ = ''; layMore = 60; renderLayLines(); $('#lay-lt').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   renderLayLines();
 }
@@ -414,7 +314,7 @@ function renderBlame() {
 function mergeDays(days) {
   const tot = emptyAgg(), A = {}, Cc = {}, H = {}, Rr = {}, worst = [], Rg = {};
   const Bn = {tot: [0, 0, 0], A: {}, Cc: {}, Rg: {}, Rr: {}, H: {}, stops: {}, ex: [], days: 0, missing: []};
-  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}};   // מי אשם באיחור (מ-07.10.2026); L = המרווח במסוף (מ-11.10)
+  const Bl = {tot: [], A: {}, C: {}, days: 0, L: {tot: [], A: {}, C: {}, lines: {}, days: 0}};   // Bl.L = האם הסדרנים מתחשבים בפקקים (מ-07.10.2026); שאר Bl (מי אשם באיחור) כבר לא מוצג (13.10)
   const addV = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = []); v.forEach((n, i) => x[i] = (x[i] || 0) + n); };
   const addB = (grp, nm, v) => { const x = grp[nm] || (grp[nm] = [0, 0, 0]); v.forEach((n, i) => x[i] += n); };
   for (const d of days) {
@@ -493,7 +393,7 @@ function lineLabel(rid) {
 let M = null;
 // קטגוריות (שלמה 17.09: "העמוד עמוס, במיוחד בטלפון"): הסיכום הגדול תמיד למעלה, ומתחתיו רק הקטגוריה שנבחרה.
 // הקטעים הלא-נבחרים נשארים בדף בגובה אפס (לא display:none) כדי שהגרפים שבהם יצוירו ברוחב נכון.
-const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['blame', 'מי אשם באיחור'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', 'תדירות שידור GPS']];
+const TABS = [['overview', 'מבט כללי'], ['early', 'יציאה מוקדמת'], ['ops', 'מפעילים ואשכולות'], ['blame', 'הסדרנים והפקקים'], ['region', 'לפי אזור'], ['city', 'לפי עיר'], ['line', 'לפי קו'], ['bunch', 'התקבצות'], ['vanish', 'איפה האוטובוס נעלם'], ['vehicle', 'חריגה מסוג הרכב'], ['worst', 'הנסיעות שאיחרו'], ['gps', 'תדירות שידור GPS']];
 let tab = 'overview';
 // המספר של כל קטגוריה, על הכפתור שלה (שלמה 17.09: "שיראה את המדד של אחוזים לפי המדד")
 function tabBadge(k) {
