@@ -4,14 +4,16 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {searchLines,aggregate,decodePolyline,archiveGeometry} from '../lines/model.mjs';
 const built=fs.existsSync(new URL('../lines/data/index.json',import.meta.url));
+// מרכז הקווים כבוי (lines/PAUSED): הקבצים לא מתעדכנים, אז לא בודקים שהם תואמים לנתונים החדשים
+const paused=fs.existsSync(new URL('../lines/PAUSED',import.meta.url));
 const read=p=>JSON.parse(fs.readFileSync(new URL('../'+p,import.meta.url)));
-test('catalog contains every source line and joins reliability only by makat',{skip:!built},()=>{
+test('catalog contains every source line and joins reliability only by makat',{skip:!built||paused},()=>{
  const idx=read('lines/data/index.json'),seen=new Set();const buckets=new Map();const routes=read('bus/data/routes.json');
  for(const r of idx.lines){assert(!seen.has(r.makat));seen.add(r.makat);if(!buckets.has(r.bucket))buckets.set(r.bucket,read('lines/data/'+r.bucket+'.json'));const d=buckets.get(r.bucket)[r.makat];assert.equal(d.makat,r.makat);for(const v of d.variants){assert.equal(String(routes[v.rid][0]),r.makat);assert.equal(routes[v.rid][4],v.dir);assert.equal(routes[v.rid][5],v.alt);}for(const g of d.groups)assert(g.makats.includes(r.makat));}
  for(const r of read('data-main.json'))assert(seen.has(String(r[0])),r[0]);
  for(const r of Object.values(routes))if(r[1]&&r[3]!=='רכבת ישראל')assert(seen.has(String(r[0])));
 });
-test('all bucket hashes match catalog, data finite and scores match existing precompute',{skip:!built},()=>{
+test('all bucket hashes match catalog, data finite and scores match existing precompute',{skip:!built||paused},()=>{
  const idx=read('lines/data/index.json'),prior=read('data-lines.json'),old=new Map(prior.lines.map(x=>[x.groupKey,x]));
  const fresh=prior.deps?.live===read('kavpach-live.json').gen && prior.deps?.overlap===read('kavpach-overlap.json').gen && prior.deps?.deadhead===read('bus/data/deadhead.json').updated;
  for(const [b,hash]of Object.entries(idx.files)){const raw=fs.readFileSync(new URL('../lines/data/'+b+'.json',import.meta.url));assert.equal(crypto.createHash('sha256').update(raw).digest('hex').slice(0,12),hash);for(const r of Object.values(JSON.parse(raw))){for(const s of r.schedule){assert(s[5]>0);assert(Number.isFinite(s[3]));assert(Number.isFinite(s[4]));}for(const g of r.groups){if(g.sc){assert(g.sc.score>=0&&g.sc.score<=100);const before=old.get(g.groupKey);if(fresh&&before?.sc)assert.equal(g.sc.score,before.sc.score);}if(g.gold)assert(g.gold.score>=60&&g.gold.score<=100);}}}

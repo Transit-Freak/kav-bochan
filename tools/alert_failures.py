@@ -29,7 +29,7 @@ WATCHED = {
     'rail-reliability': 'מדד אמינות הרכבת',
     'rail-trace': 'איפה הרכבת צוברת איחור',
     'kavpach-build': 'קו פח — בנייה',
-    'line-hub': 'מרכז הקווים',
+    # מרכז הקווים כבוי (שלמה 13.10); להחזיר כאן וב-alert-failures.yml כשיחזור
     'gis-layers': 'GIS — השכבות הליליות',
     'fleet-registry': 'צי הרכבים — רישוי',
     'ratzif': 'רציף כפול',

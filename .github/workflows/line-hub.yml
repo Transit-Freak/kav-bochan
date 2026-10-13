@@ -1,23 +1,26 @@
 name: line-hub
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'lines/*.mjs'
-      - 'tools/build_line_hub.mjs'
-      - 'KavPach.jsx'
-      - 'kavpach-core.js'
-      - 'xlsx-worker.js'
-      - 'data-*.json'
-      - 'kavpach-*.json'
-      - 'bus/data/routes.json'
-      - 'bus/data/deadhead.json'
-      - '.github/workflows/line-hub.yml'
-  workflow_run:
-    workflows: [kavpach-build, bus-reliability, line-history, kavpach-overlap]
-    types: [completed]
-  schedule:
-    - cron: '15 8 * * *'
+  # כבוי (שלמה 13.10): מרכז הקווים לא באתר כרגע, והריצות האוטומטיות רק שולחות התראות.
+  # להפעלה מחדש: להחזיר את ה-push, workflow_run ו-schedule שלמטה, למחוק את lines/PAUSED,
+  # ולהחזיר את line-hub ל-alert-failures.yml ול-WATCHED ב-tools/alert_failures.py.
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'lines/*.mjs'
+  #     - 'tools/build_line_hub.mjs'
+  #     - 'KavPach.jsx'
+  #     - 'kavpach-core.js'
+  #     - 'xlsx-worker.js'
+  #     - 'data-*.json'
+  #     - 'kavpach-*.json'
+  #     - 'bus/data/routes.json'
+  #     - 'bus/data/deadhead.json'
+  #     - '.github/workflows/line-hub.yml'
+  # workflow_run:
+  #   workflows: [kavpach-build, bus-reliability, line-history, kavpach-overlap]
+  #   types: [completed]
+  # schedule:
+  #   - cron: '15 8 * * *'
   workflow_dispatch:
 permissions:
   contents: write
