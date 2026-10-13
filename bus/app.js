@@ -12,7 +12,7 @@ const GRID = C.grid, AXIS = C.axis, BG = C.bg;
 const DAYNAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const DATA = 'data/';
 const MIN_RIDES = 10;   // דירוג קווים: לפחות כך וכך נסיעות שנצפו, אחרת קו של נסיעה אחת מוביל
-let IDX = null, DAYS = [], CAT = {}, NAMES = null, period = 'day', dayD = null, dayCache = {}, stopCache = {};
+let IDX = null, DAYS = [], CAT = {}, NAMES = null, period = 'day', dayD = null, dayCache = {}, stopCache = {}, periodCache = {};
 let sortA = {k: 'meas', dir: -1}, sortC = {k: 'meas', dir: -1}, sortL = {k: 'meas', dir: -1}, lq = '', agency = '', rank = '', openLine = null, showAllL = false;
 // אשכול (ClusterToLine של המשרד) ועיר עם פירוט קווים — משוב 07.09: "אין נתונים לפי עיר או אשכול", "לפי עיר זה כללי מדי"
 let cluster = '', sortK = {k: 'meas', dir: -1}, cq = '', showAllC = false, openCity = null, cityCache = {}, cRank = 'meas', cAgency = '', sortCL = {k: 'n', dir: -1}, showAllCL = false;
@@ -34,9 +34,9 @@ const stopName = code => (NAMES && NAMES[code]) || code;
 const partial = d => d.sched > 0 && d.obs < d.sched * 0.3;
 
 // ---------------------------------------------------------------- צבירה (כמה ימים)
-function emptyAgg() { return {sched: 0, obs: 0, meas: 0, c: [0, 0, 0, 0, 0], o: [0, 0, 0, 0, 0], sum: 0, s: null, far: 0, extra: 0, vt: [0, 0, 0], reach: [0, 0, 0, 0], cov: [0, 0], reachDays: 0}; }
+function emptyAgg() { return {sched: 0, obs: 0, meas: 0, c: [0, 0, 0, 0, 0], o: [0, 0, 0, 0, 0], sum: 0, s: null, far: 0, extra: 0, vt: [0, 0, 0], reach: [0, 0, 0, 0], cov: [0, 0]}; }
 // עד איפה נראה האוטובוס לאורך המסלול (מהריצה של 17.09; ימים ישנים בלי הנתון): [עד הסוף, חלק מהדרך, רק בהתחלה, שודר ולא זז]
-function addReach(x, reach, cov) { if (!reach) return; reach.forEach((v, i) => x.reach[i] += v); (cov || []).forEach((v, i) => x.cov[i] += v); x.reachDays++; }
+function addReach(x, reach, cov) { if (!reach) return; reach.forEach((v, i) => x.reach[i] += v); (cov || []).forEach((v, i) => x.cov[i] += v); }
 const reachT = x => x.reach.reduce((a, b) => a + b, 0);
 // גודל הרכב במילים של האתר: "אוטובוס" אצל המשרד הוא קטגוריית גודל (לא מיניבוס,
 // לא מידיבוס, לא מפרקי) — אותו ניסוח כמו ב"הקו בזמן" (שלמה 06.09)
@@ -55,7 +55,9 @@ function addVehicleData(x, vt) {
   for (const [kind, n] of Object.entries(detail.actual || {})) d.actual[kind] = (d.actual[kind] || 0) + n;
   for (const label of detail.plan?.labels || []) d.plans.add(label);
   if (detail.plan?.date) d.dates.add(detail.plan.date);
+  for (const x of detail.plan?.dates || []) d.dates.add(x);   // קובץ תקופה (periods/N.json)
   if (detail.fleetDate) d.fleetDates.add(detail.fleetDate);
+  for (const x of detail.fleetDates || []) d.fleetDates.add(x);
 }
 function vehicleDetails(s) {
   const d = s.vehicleDetail;
@@ -321,13 +323,13 @@ function mergeDays(days) {
     // לפי אזור (מ-21.09.2026): מרחב לפי המוקד הקרוב לתחנה, ומחוז
     for (const [nm, meas, c, s, district, o, sched, obs, nroutes] of d.regions || []) { const x = Rg[nm] || (Rg[nm] = Object.assign(emptyAgg(), {district, nroutes: 0})); addAgg(x, {meas, c, s}); (o || []).forEach((v, i) => x.o[i] += v); x.sched += sched || 0; x.obs += obs || 0; x.nroutes = Math.max(x.nroutes, nroutes || 0); }
     if (d.blame) {
-      Bl.days++;
+      Bl.days += d.blame.nd || 1;
       d.blame.tot.forEach((n, i) => Bl.tot[i] = (Bl.tot[i] || 0) + n);
       for (const [nm, v] of Object.entries(d.blame.agencies || {})) addV(Bl.A, nm, v);
       for (const [nm, v] of Object.entries(d.blame.clusters || {})) addV(Bl.C, nm, v);
       const r = d.blame.lay;
       if (r) {
-        Bl.L.days++;
+        Bl.L.days += r.nd || 1;
         r.tot.forEach((n, i) => Bl.L.tot[i] = (Bl.L.tot[i] || 0) + n);
         for (const [nm, v] of Object.entries(r.agencies || {})) addV(Bl.L.A, nm, v);
         for (const [nm, v] of Object.entries(r.clusters || {})) addV(Bl.L.C, nm, v);
@@ -336,7 +338,7 @@ function mergeDays(days) {
     }
     // התקבצות (מ-21.09.2026)
     if (d.bunch) {
-      Bn.days++;
+      Bn.days += d.bunch.nd || 1;
       d.bunch.tot.forEach((v, i) => Bn.tot[i] += v);
       for (const [nm, v] of Object.entries(d.bunch.agencies || {})) addB(Bn.A, nm, v);
       for (const [nm, v] of Object.entries(d.bunch.cities || {})) addB(Bn.Cc, nm, v);
@@ -344,11 +346,12 @@ function mergeDays(days) {
       for (const [nm, v] of Object.entries(d.bunch.routes || {})) addB(Bn.Rr, nm, v);
       for (const [h, n, b] of d.bunch.hours || []) { const x = Bn.H[h] || (Bn.H[h] = [0, 0]); x[0] += n; x[1] += b; }
       for (const [rid, code, name, n, b] of d.bunch.stops || []) { const k = rid + '|' + code; const x = Bn.stops[k] || (Bn.stops[k] = {rid, code, name, n: 0, b: 0}); x.n += n; x.b += b; }
-      for (const e of d.bunch.examples || []) Bn.ex.push([d.d, ...e]);
-    } else Bn.missing.push(d.d);
+      for (const e of d.bunch.examples || []) Bn.ex.push(d.period ? e : [d.d, ...e]);
+    } else if (!d.period) Bn.missing.push(d.d);
+    if (d.period) Bn.missing.push(...(d.bunch_missing || []));
     addAgg(tot, d.tot);
     tot.far += d.tot.far || 0; tot.extra += d.tot.extra || 0;
-    if (days.length === 1) tot.s = d.tot.s;
+    if (days.length === 1 && !d.period) tot.s = d.tot.s;
     for (const [nm, sched, obs, meas, c, s, o, va, reach, cov] of d.agencies) { const x = A[nm] || (A[nm] = emptyAgg()); addAgg(x, {sched, obs, meas, c, s}); (o || []).forEach((v, i) => x.o[i] += v); (va || []).forEach((v, i) => x.vt[i] += v); addReach(x, reach, cov); }
     (d.tot.vt || []).forEach((v, i) => tot.vt[i] += v);
     addReach(tot, d.tot.reach, d.tot.cov);
@@ -359,12 +362,13 @@ function mergeDays(days) {
       const [rid, sched, obs, meas, c, s, o, hours, ws, vt, reach, cov] = r;
       const x = Rr[rid] || (Rr[rid] = Object.assign(emptyAgg(), {rid, hours: {}, ws: [], vplan: '', vact: {}, schedByDay: {}}));
       addAgg(x, {sched, obs, meas, c, s}); o.forEach((v, i) => { x.o[i] += v; tot.o[i] += v; });
-      addReach(x, reach, cov); x.schedByDay[d.d] = sched;
+      addReach(x, reach, cov);
+      if (d.period) d.days.forEach((dd, i) => { const v = (r[12] || [])[i]; if (v != null) x.schedByDay[dd] = v; }); else x.schedByDay[d.d] = sched;
       for (const [h, n, on] of hours) { const y = x.hours[h] || (x.hours[h] = [0, 0]); y[0] += n; y[1] += on; }
       addVehicleData(x, vt);
-      if (days.length === 1) { x.s = s; x.ws = ws; }
+      if (days.length === 1 && !d.period) { x.s = s; x.ws = ws; }
     }
-    for (const w of d.worst) worst.push([d.d, ...w]);
+    for (const w of d.worst) worst.push(d.period ? w : [d.d, ...w]);
   }
   finish(tot); Object.values(A).forEach(finish); Object.values(Cc).forEach(finish); Object.values(Rr).forEach(finish); Object.values(Rg).forEach(finish);
   Bn.ex.sort((a, b) => ((a[6] - a[5]) - (a[4] - a[3])) - ((b[6] - b[5]) - (b[4] - b[3])));
@@ -382,7 +386,7 @@ function mergeDays(days) {
     }
   }
   Object.values(K).forEach(finish); Object.values(LT).forEach(finish);
-  return {tot, A, Cc, H, Rr, K, LT, worst, Rg, Bn, Bl, days: days.map(d => d.d)};
+  return {tot, A, Cc, H, Rr, K, LT, worst, Rg, Bn, Bl, days: days.flatMap(d => d.period ? d.days : [d.d])};
 }
 
 function lineLabel(rid) {
@@ -427,6 +431,20 @@ function render() {
   renderPeriods();
   const days = windowDays();
   const app = $('#app');
+  // 7/30 ימים: קובץ אחד שמחובר מראש בכל חישוב (tools/bus_periods.py) במקום 30 קבצי יום (שלמה 13.10:
+  // "30 יום לוקח מעל דקה"). אם הימים בקובץ לא תואמים לחלון (קובץ ישן), נטענים קבצי הימים כרגיל.
+  const want = days.map(d => d.d).join(',');
+  if (period !== 'day' && days.length > 1 && periodCache[period] === undefined) {
+    app.innerHTML = '<div class="msg">טוען את נתוני התקופה…</div>';
+    fetch(DATA + 'periods/' + period + '.json?v=' + encodeURIComponent(IDX.updated || '')).then(r => r.ok ? r.json() : null)
+      .then(j => { periodCache[period] = j; }, () => { periodCache[period] = null; }).then(render);
+    return;
+  }
+  const P = period !== 'day' && periodCache[period] && periodCache[period].days.join(',') === want ? periodCache[period] : null;
+  if (P) {
+    M = mergeDays([P]);
+    return renderMain(days);
+  }
   const need = days.filter(d => !dayCache[d.d]);
   if (need.length) {
     app.innerHTML = '<div class="msg">טוען את נתוני הימים…</div>';
@@ -436,11 +454,15 @@ function render() {
   const loaded = days.map(d => dayCache[d.d]);
   if (!loaded.length) { app.innerHTML = '<div class="msg">אין נתונים לתקופה</div>'; return; }
   M = mergeDays(loaded);
+  renderMain(days);
+}
+function renderMain(days) {
+  const app = $('#app');
   $('#sub').textContent = `${num(DAYS.length)} ימים · מעודכן ${IDX.updated ? IDX.updated.replace('T', ' ').replace('Z', ' UTC') : ''} · המקור: שידורי המיקום של משרד התחבורה (SIRI) דרך דאטאבוס, לוח הזמנים (GTFS) ורשימת האשכולות (ClusterToLine) של משרד התחבורה`;
   const trend = DAYS.map(d => ({x: shortDate(d.d), y: partial(d) || !d.meas ? null : Math.round(100 * d.c[1] / d.meas), tip: `<b>${heDate(d.d)}</b><br>${d.meas ? pct(d.c[1], d.meas) + ' בזמן' : 'אין מדידות'}${partial(d) ? '<br>שידור חלקי' : ''}<br>${num(d.obs)} נסיעות נצפו מתוך ${num(d.sched)}`}));
   const hours = Array.from({length: 24}, (_, h) => { const v = M.H[h]; const sh = v && v[0] >= 30 ? v[1] / v[0] : null; return {x: String(h).padStart(2, '0'), y: sh == null ? null : Math.round(sh * 100), color: hourColor(sh), tip: `<b>${String(h).padStart(2, '0')}:00–${String(h).padStart(2, '0')}:59</b><br>${v && v[0] ? pct(v[1], v[0]) + ' בזמן · ' + num(v[0]) + ' הגעות' : 'אין נתונים'}`}; });
   app.innerHTML = `
-    ${heroHtml(M.tot, loaded)}
+    ${heroHtml(M.tot, days)}
     <div class="tabbar" id="tabbar" role="tablist">${TABS.map(([k, t]) => { const b = tabBadge(k); return `<button class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}">${t}${b ? `<small>${b}</small>` : ''}</button>`; }).join('')}</div>
     <div class="tabsec" data-tab="overview">
     <div class="panel"><div class="ptitle">התפלגות ההגעות לתחנות</div><p class="pdesc">כל הגעה של אוטובוס לתחנה נספרת פעם אחת, לפי הפער בינה לבין השעה שבלוח הזמנים: כמה הגיעו מוקדם, כמה בזמן, וכמה איחרו ובכמה.</p>${distHtml(M.tot)}</div>
