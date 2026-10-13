@@ -15,7 +15,7 @@ on:
       - rail-reliability
       - rail-trace
       - kavpach-build
-      - line-hub
+      # line-hub (מרכז הקווים) — כבוי, לא נבדק (שלמה 13.10)
       - gis-layers
       - fleet-registry
       - ratzif
