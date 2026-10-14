@@ -126,7 +126,7 @@
     <details class="meth"><summary>איך זה מחושב</summary><ul>
       <li><b>האוטובוסים:</b> הזמן שבו כל אוטובוס עבר בפועל בתחנה ליד תחנת רכבת, מנתוני ה-GPS (SIRI) של דאטאבוס — אותו חישוב של מדד דיוק האוטובוסים.</li>
       <li><b>הרכבות:</b> זמן ההגעה בפועל לכל תחנה, מנתוני המיקום של הרכבות בדאטאבוס (מדד אמינות הרכבת). השידור של הרכבות מקוטע: בתחנה שלא נמדדה נלקח האיחור של התחנה הקרובה שנמדדה באותה נסיעה, ובלי מדידה — הלו"ז. רכבת לא יוצאת לפני הזמן, והקדמה של יותר מ-10 דק' נחשבת מדידה שגויה.</li>
-      <li><b>אוטובוס ← רכבת:</b> לכל אוטובוס שהגיע (לא כזה שמתחיל בתחנה) — הרכבת הראשונה שיצאה אחריו, בכל כיוון בנפרד. <b>רכבת ← אוטובוס:</b> לכל אוטובוס שיצא (לא כזה שמסתיים בתחנה) — הרכבת האחרונה שהגיעה לפניו. כיוון הרכבת = התחנה הבאה (או הקודמת) שלה.</li>
+      <li><b>אוטובוס ← רכבת:</b> לכל אוטובוס שהגיע (לא כזה שמתחיל בתחנה) — הרכבת הראשונה שיצאה אחריו, בכל כיוון בנפרד. <b>רכבת ← אוטובוס:</b> לכל אוטובוס שיצא (לא כזה שמסתיים בתחנה) — הרכבת האחרונה שהגיעה לפניו. הרכבות מקובצות לפי כיוון הנסיעה, ומוצגות לפי היעדים שלהן ("רכבות להרצליה / נהריה").</li>
       <li><b>מזין:</b> קו שמשרד התחבורה מגדיר "קווים מזינים" (ייחודיות הקו). <b>מסוף:</b> קו שמתחיל או מסתיים עד 600 מ' מתחנת הרכבת, או ששמו מזכיר רכבת.</li>
       <li><b>הכיוון של הקו:</b> לכל קו בכל תחנה מוצג רק כיוון הרכבת שהוא מותאם אליו — זה עם הכי הרבה חיבורים עד הטווח "לבדיקה". אפשר להציג גם את שאר הכיוונים בסינון.</li>
       <li><b>המלצה:</b> כמה דקות להקדים או לאחר את הקו כדי שהחציון ייפול באמצע הטווח התקין. זו נקודת פתיחה לבדיקה, לא תיקון אוטומטי — הזזה משפיעה גם על רכבות בכיוונים אחרים.</li>
@@ -169,10 +169,10 @@
     const conn = tot[0] + tot[1] + tot[2] + tot[3], pc = (a) => conn ? Math.round(100 * a / conn) + "%" : "–";
     $("kpi").innerHTML = "<div><b>" + v.filter((r) => r.shift && r.conn).length + "</b><span>קווים שכדאי להזיז</span></div><div><b style='color:var(--c0)'>" + pc(tot[0]) + "</b><span>דורש עדכון</span></div><div><b style='color:var(--c2)'>" + pc(tot[2]) + "</b><span>תקין</span></div><div><b>" + conn.toLocaleString("he-IL") + "</b><span>חיבורים שנבדקו</span></div>";
     $("tt").textContent = (S.st ? K.C.STN[S.st][0] + " · " : "") + "קווים לטיפול (" + v.length + ")";
-    let h = "<table><thead><tr><th>תחנת רכבת</th><th>כיוון הרכבת</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
+    let h = "<table><thead><tr><th>תחנת רכבת</th><th>" + (S.mode === "to" ? "הרכבות נוסעות ל" : "הרכבות מגיעות מ") + "</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
     for (const r of v.slice(0, 400)) {
       const key = r.st + "|" + r.dir.dk + "|" + r.rid, cc = r.conn;
-      h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="mut c-dir"><span class="mo">' + (S.mode === "to" ? "לכיוון " : "מכיוון ") + "</span>" + K.esc(r.dir.name) + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
+      h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="mut c-dir"><span class="mo">' + (S.mode === "to" ? "רכבות ל" : "רכבות מ") + "</span>" + K.esc(r.dir.name) + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
         '</td><td class="c-op">' + K.esc(r.op) + '</td><td class="c-fr">' + K.esc(S.mode === "to" ? r.from : r.to) + '</td><td class="c-n">' + r.n + '</td><td class="c-bar">' + mb(r.cnt) + '</td><td class="c-pct" style="color:var(--c0);font-weight:600">' + (cc ? Math.round(100 * r.cnt[0] / cc) + "%" : "–") + '<span class="mo"> דורש עדכון</span></td><td class="c-med">' + (r.med == null ? "–" : Math.round(r.med) + "'") +
         '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (S.allDirs && !r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
       if (S.open === key) {
@@ -189,7 +189,7 @@
     $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. נתוני " + K.fmtD(K.C.day) + ", דאטאבוס. מסלולי הליכה: © OpenStreetMap contributors.";
   }
   $("csv").onclick = () => {
-    const v = view(), hd = ["תחנת רכבת", "כיוון", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
+    const v = view(), hd = ["תחנת רכבת", "הרכבות (יעד)", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
     const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift, r.conn), r.main ? "כן" : "לא"])));
     const blob = new Blob(["﻿" + lines.map((l) => l.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "feeder-" + K.C.day + ".csv"; a.click();
