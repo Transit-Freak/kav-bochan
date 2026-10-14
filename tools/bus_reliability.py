@@ -1298,6 +1298,22 @@ def main():
             tot['d'].append(delay)
             if ride_max is None or delay > ride_max[0]:
                 ride_max = (delay, s[1], sched)
+        # הקו המזין: תחנה ליד רכבת שהמעבר בה לא נמדד (לרוב תחנת הסוף — השידור נפסק כשהנסיעה מסתיימת)
+        # מקבלת זמן משוער: הלו"ז שלה + האיחור בתחנה הקרובה שנמדדה באותה נסיעה, עד 3 תחנות ממנה.
+        # שלמה 14.10 על 10א בקריית מלאכי: נמדדה התחנה ב-398 מ' ולא תחנת ההורדה ב-133 מ'.
+        # מסומן במקום ברצף +10 (10/11/12), והדף מציג "משוער".
+        if feed_near and t_of:
+            for kf in range(1, len(seq) + 1):
+                sf = seq[kf - 1]
+                if kf in t_of or sf[1] not in feed_near:
+                    continue
+                near_k = min(t_of, key=lambda q: (abs(q - kf), q > kf))
+                if abs(near_k - kf) > 3:
+                    continue
+                sq = seq[near_k - 1]
+                sched_k = sf[3] if kf == 1 else sf[2]
+                sched_n = sq[3] if near_k == 1 else sq[2]
+                FEED[sf[1]].append([rid, 10 + (0 if kf == 1 else 2 if kf == len(seq) else 1), int(sched_k), int(sched_k + t_of[near_k] - sched_n)])
         if a.dump_rides:
             od = next((d for k, s, sc, d in meas if k == 1), None)
             info = routes.get(rid, {})
@@ -1512,7 +1528,7 @@ def main():
             # כמה רציפים (stop_id) עם אותו מק"ט — פעם אחת, במרחק הקרוב
             same = next((x for x in fst[rc] if x[0] == stops[sid][0]), None)
             if same is None:
-                fst[rc].append([stops[sid][0], stops[sid][1], dm])
+                fst[rc].append([stops[sid][0], stops[sid][1], dm, round(stops[sid][2], 5), round(stops[sid][3], 5)])
             elif dm < same[2]:
                 same[2] = dm
         for row in FEED[sid]:
@@ -1525,9 +1541,9 @@ def main():
             fp[stops[sid][0]][rid_] += [pos, sc_, ac_]
     os.makedirs(f'{a.out}/feeder', exist_ok=True)
     json.dump({'d': day, 'fmt': 1,
-               'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק מ\'] של תחנות האוטובוס הסמוכות]',
+               'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק אווירי מ\', lat, lon] של תחנות האוטובוס הסמוכות]',
                         'r': 'route_id → [מספר קו, מפעיל, שם ארוך, מק"ט, כיוון, 1 = קו מזין לפי משרד התחבורה]',
-                        'p': 'מק"ט → route_id → [מקום ברצף (0 מוצא/1 באמצע/2 סוף), מתוכנן, בפועל, …] — שניות מחצות של יום השירות'},
+                        'p': 'מק"ט → route_id → [מקום ברצף (0 מוצא/1 באמצע/2 סוף; +10 = משוער מתחנה סמוכה באותה נסיעה), מתוכנן, בפועל, …] — שניות מחצות של יום השירות'},
                'st': dict(fst), 'r': fr, 'p': fp},
               open(f'{a.out}/feeder/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     # שלושה שבועות אחורה מספיקים לדף (כ-3MB ליום); הישנים נמחקים

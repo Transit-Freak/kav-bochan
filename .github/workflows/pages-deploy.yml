@@ -4,7 +4,7 @@ name: pages-deploy
 # קובץ חדש האתר יתעדכן"). הפרסום הישן התבטל בכל שמירה חדשה למאגר, גם באמצע — ב-05.10 היו
 # 33 ביטולים מול 6 פרסומים, והאתר פיגר שעות אחרי הנתונים.
 #
-# כאן פרסום שהתחיל תמיד מסתיים (cancel-in-progress: false). מה שנשמר בינתיים מחכה בתור, ו-GitHub
+# כאן פרסום שהתחיל תמיד מסתיים (cancel-in-progress: false, על שלב deploy). מה שנשמר בינתיים מחכה בתור, ו-GitHub
 # משאיר בתור רק את הבקשה האחרונה, כך שהפרסום הבא כבר כולל את כל מה שהצטבר.
 #
 # מתי מפרסמים:
@@ -42,10 +42,9 @@ permissions:
   pages: write
   id-token: write
   deployments: read
+  actions: write   # ביטול ריצה שנתקעה (למטה)
 
-concurrency:
-  group: pages-deploy
-  cancel-in-progress: false
+# התור על שלב הפרסום בלבד, לא על כל הריצה: כך check רץ תמיד, גם כשפרסום קודם תקוע, ויכול לשחרר אותו.
 
 jobs:
   check:
@@ -54,6 +53,19 @@ jobs:
     outputs:
       go: ${{ steps.cmp.outputs.go }}
     steps:
+      # 13–14.10: ריצה אחת נתקעה כמעט יום ב"ממתינה לאישור" של סביבת github-pages — בלי מאשרים ובלי
+      # זמן המתנה, תקלה של GitHub. היא החזיקה את התור, וכל פרסום אחריה חיכה ובוטל: האתר לא התעדכן
+      # (שלמה 14.10: "מה קורה?"). פרסום רגיל לוקח כ-10 דקות; ריצה שממתינה מעל 30 דקות מבוטלת.
+      - name: שחרור פרסום תקוע
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/pages-deploy.yml/runs?status=waiting&per_page=20" \
+                --jq '.workflow_runs[] | select(now - (.updated_at | fromdateiso8601) > 1800) | .id' 2>/dev/null); do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            echo "::warning::פרסום $id ממתין מעל 30 דקות — מבוטל"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/cancel" >/dev/null || true
+          done
       - name: main השתנה מאז הפרסום האחרון?
         id: cmp
         env:
@@ -88,6 +100,9 @@ jobs:
   deploy:
     needs: check
     if: needs.check.outputs.go == 'yes'
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment:
