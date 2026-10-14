@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>הקו המזין · לוח יציאות</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root{--bg:#0B1730;--board:#0F1F3F;--row:#132649;--ink:#F2F5FA;--mut:#8EA0C2;--amb:#FFB81C;
+    --c0:#FF4D5E;--c1:#FFC93C;--c2:#2EDB8A;--c3:#5B9CFF;--c4:#53627F}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 'Heebo',sans-serif;overflow-x:hidden}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px 14px 40px}
+  .hd{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+  h1{margin:0;font-weight:900;font-size:28px;color:var(--amb);letter-spacing:.01em}
+  h1 span{color:var(--ink);font-weight:500;font-size:16px;margin-inline-start:10px}
+  .ctl{display:flex;flex-wrap:wrap;gap:8px}
+  select{font:700 14px 'Heebo';border:1px solid #2C4472;border-radius:8px;padding:6px 10px;background:var(--board);color:var(--ink)}
+  .tg{display:inline-flex;border:1px solid #2C4472;border-radius:8px;overflow:hidden}
+  .tg button{border:0;background:var(--board);color:var(--mut);font:700 14px 'Heebo';padding:6px 12px;cursor:pointer}
+  .tg button.on{background:var(--amb);color:#111}
+  .board{background:var(--board);border-radius:14px;border:1px solid #22385F;overflow:hidden}
+  .bt{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0A1834;border-bottom:2px solid var(--amb)}
+  .bt b{font-size:22px;font-weight:900}
+  .bt .clk{font:700 20px 'JetBrains Mono',monospace;color:var(--amb)}
+  .sm{display:flex;gap:14px;flex-wrap:wrap;padding:8px 16px;font-size:13px;color:var(--mut);border-bottom:1px solid #1E3359}
+  .sm b{color:var(--ink)}
+  .r{display:grid;grid-template-columns:86px minmax(150px,1.1fr) 2fr;gap:12px;align-items:center;padding:9px 16px;border-bottom:1px solid #1A2E54}
+  .r:nth-child(even){background:var(--row)}
+  .t{font:700 20px 'JetBrains Mono',monospace;color:var(--amb)}
+  .t s{display:block;font-size:12px;color:var(--mut);font-weight:500}
+  .dst b{font-size:17px;font-weight:700}
+  .dst small{display:block;color:var(--mut);font-size:12.5px}
+  .bs{display:flex;flex-wrap:wrap;gap:6px}
+  .b{display:inline-flex;align-items:center;gap:6px;border-radius:7px;padding:2px 4px 2px 8px;font-weight:700;font-size:13.5px;background:#0A1834;border:1px solid}
+  .b em{font:700 12.5px 'JetBrains Mono',monospace;font-style:normal;border-radius:5px;padding:0 5px;color:#0B1730}
+  .none{color:var(--c4);font-size:13.5px;font-weight:700}
+  .lg{display:flex;flex-wrap:wrap;gap:12px;margin:10px 2px;font-size:13px;color:var(--mut)}
+  .lg i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-inline-end:5px}
+  .msg{padding:40px;text-align:center;color:var(--mut)}
+  @media (max-width:640px){.r{grid-template-columns:62px 1fr;}.r .bs{grid-column:1/-1}.t{font-size:17px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hd">
+    <h1>הקו המזין <span id="sub">לוח יציאות · אילו אוטובוסים הביאו נוסעים לכל רכבת</span></h1>
+    <div class="ctl">
+      <select id="st"></select>
+      <div class="tg" id="mode"><button data-m="to" class="on">יציאות</button><button data-m="from">הגעות</button></div>
+      <select id="lines"><option value="2">קווים מזינים</option><option value="1" selected>מזינים + מסוף</option><option value="0">כל הקווים</option></select>
+      <select id="hr"></select>
+      <select id="day"></select>
+    </div>
+  </div>
+  <div class="lg" id="lg"></div>
+  <div class="board" id="out"><div class="msg">טוען…</div></div>
+</div>
+<script src="../core.js"></script>
+<script>
+(function () {
+  const K = FeederCore, $ = (id) => document.getElementById(id);
+  const S = { mode: "to", walk: 400, lines: 1, th: K.DEF_TH.slice(), st: "", hr: 6 };
+  $("hr").innerHTML = [["-1", "כל היום"]].concat(Array.from({ length: 19 }, (_, i) => [String(i + 5), String(i + 5).padStart(2, "0") + ":00–" + String(i + 8).padStart(2, "0") + ":00"])).map((h) => '<option value="' + h[0] + '"' + (+h[0] === S.hr ? " selected" : "") + ">" + h[1] + "</option>").join("");
+  $("lg").innerHTML = K.CATS.slice(0, 4).map((c, i) => '<span><i style="background:' + c.c.replace("#D7263D", "#FF4D5E") + '"></i>' + c.label + " " + [0].concat(S.th)[i] + "–" + (S.th[i] - 1) + " דק'</span>").join("") + "<span>· המספר על כל אוטובוס = הדקות עד הרכבת</span>";
+  const col = ["var(--c0)", "var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)"];
+  function draw() {
+    const c = S.st, lines = K.busTrips(c, S), dirs = K.directions(c, S.mode);
+    const byTrain = new Map(), all = [];
+    for (const d of dirs) {
+      for (const t of d.trains) { byTrain.set(t, []); all.push([t, d]); }
+      for (const l of K.evalDir(lines, d, S)) for (const r of l.rows) if (r.tr && r.c < 4) byTrain.get(r.tr).push([l, r]);
+    }
+    all.sort((a, b) => a[0].t - b[0].t);
+    const inH = (t) => S.hr < 0 || (t >= S.hr * 60 && t < (S.hr + 3) * 60);
+    const shown = all.filter(([t]) => inH(t.t));
+    const fed = shown.filter(([t]) => byTrain.get(t).some(([, r]) => r.c === 2 || r.c === 1)).length;
+    let h = '<div class="bt"><b>' + K.esc(K.C.STN[c][0]) + '</b><span class="clk">' + K.fmtD(K.C.day) + "</span></div>" +
+      '<div class="sm"><span><b>' + shown.length + "</b> " + (S.mode === "to" ? "רכבות יצאו" : "רכבות הגיעו") + "</span><span><b>" + fed + "</b> עם אוטובוס בטווח תקין או גבולי</span><span><b>" + (shown.length - fed) + "</b> בלי</span><span>זמני רכבת בפועל (נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות)</span></div>";
+    for (const [t, d] of shown) {
+      const bs = byTrain.get(t).sort((a, b) => a[1].c === b[1].c ? a[1].gap - b[1].gap : [2, 1, 3, 0][a[1].c] - [2, 1, 3, 0][b[1].c]);
+      const late = Math.round(t.delay);
+      h += '<div class="r"><div class="t">' + K.fmt(t.t) + (late > 0 ? "<s>" + K.fmt(t.p) + "</s>" : "") + '</div><div class="dst"><b>' + K.esc(S.mode === "to" ? t.dest : t.orig) + "</b><small>" + K.esc(d.label) + (late ? " · " + (late > 0 ? "+" : "") + late + " דק'" : "") + '</small></div><div class="bs">' +
+        (bs.length ? bs.map(([l, r]) => '<span class="b" style="border-color:' + col[r.c] + '" title="' + K.esc(l.op + " · " + (S.mode === "to" ? "מ" + l.from : "ל" + l.to) + " · " + (S.mode === "to" ? "הגיע " : "יצא ") + K.fmt(r.act) + " (בלו\"ז " + K.fmt(r.sched) + ")") + '">' + K.esc(l.num) + (l.feed === 2 ? " ●" : "") + '<em style="background:' + col[r.c] + '">' + Math.round(r.gap) + "</em></span>").join("") : '<span class="none">— אין אוטובוס ' + (S.mode === "to" ? "שהגיע" : "שיצא") + " עד " + (S.th[3] - 1) + " דק' " + (S.mode === "to" ? "לפני" : "אחרי") + "</span>") + "</div></div>";
+    }
+    $("out").innerHTML = shown.length ? h : '<div class="msg">אין רכבות בשעות האלה.</div>';
+  }
+  function stations() {
+    const ss = K.stations().map((c) => [c, K.C.STN[c][0], K.busTrips(c, Object.assign({}, S, { lines: 2 })).length]).sort((a, b) => a[1].localeCompare(b[1], "he"));
+    if (!S.st) S.st = (ss.slice().sort((a, b) => b[2] - a[2])[0] || [])[0];
+    $("st").innerHTML = ss.map((s) => '<option value="' + s[0] + '"' + (s[0] === S.st ? " selected" : "") + ">" + K.esc(s[1]) + "</option>").join("");
+  }
+  $("st").onchange = (e) => { S.st = e.target.value; draw(); };
+  $("lines").onchange = (e) => { S.lines = +e.target.value; draw(); };
+  $("hr").onchange = (e) => { S.hr = +e.target.value; draw(); };
+  $("mode").querySelectorAll("button").forEach((b) => b.onclick = () => { S.mode = b.dataset.m; $("mode").querySelectorAll("button").forEach((q) => q.classList.toggle("on", q === b)); $("sub").textContent = S.mode === "to" ? "לוח יציאות · אילו אוטובוסים הביאו נוסעים לכל רכבת" : "לוח הגעות · אילו אוטובוסים לקחו את הנוסעים מכל רכבת"; draw(); });
+  $("day").onchange = (e) => K.load(e.target.value).then(draw);
+  (async () => { const ds = await K.days(); $("day").innerHTML = ds.map((d) => '<option value="' + d + '">' + K.fmtD(d) + "</option>").join(""); await K.load(ds[0]); stations(); draw(); })().catch((e) => $("out").innerHTML = '<div class="msg">' + K.esc(e.message) + "</div>");
+})();
+</script>
+</body>
+</html>

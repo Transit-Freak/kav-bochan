@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>הקו המזין · שולחן עבודה</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap">
+<style>
+  :root{--bg:#F3F5F8;--panel:#fff;--ink:#1F2937;--mut:#5B6472;--dim:#9AA3AF;--line:#E3E7ED;--acc:#3B4CCA;--acc2:#E8EBFB;
+    --c0:#D7263D;--c1:#F4B400;--c2:#00A65A;--c3:#1E5BC6;--c4:#C9CED6}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 'Rubik',sans-serif;overflow-x:hidden}
+  header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;position:sticky;top:0;z-index:5}
+  header h1{font-size:19px;margin:0;font-weight:700}
+  header .tag{font-size:12px;color:var(--acc);background:var(--acc2);border-radius:6px;padding:2px 8px;font-weight:600}
+  header .sp{flex:1}
+  .tg{display:inline-flex;background:var(--bg);border-radius:8px;padding:3px}
+  .tg button{border:0;background:none;font:600 13px 'Rubik';padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--mut)}
+  .tg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px #0002}
+  select,input[type=search]{font:500 13px 'Rubik';border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel);color:var(--ink)}
+  .lay{display:grid;grid-template-columns:270px 1fr;gap:16px;padding:16px 18px;max-width:1500px;margin:0 auto}
+  aside{display:flex;flex-direction:column;gap:12px}
+  main{min-width:0}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .box h3{margin:0 0 8px;font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.02em}
+  .th{display:grid;grid-template-columns:14px 1fr 54px;gap:6px 8px;align-items:center;font-size:13px}
+  .th i{width:12px;height:12px;border-radius:3px;display:block}
+  .th input{width:54px;font:600 13px 'Rubik';border:1px solid var(--line);border-radius:6px;padding:3px 4px;text-align:center}
+  .stl{max-height:46vh;overflow:auto;margin:6px -6px 0}
+  .stl button{display:flex;width:100%;justify-content:space-between;gap:8px;border:0;background:none;font:500 13px 'Rubik';padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--ink);text-align:right}
+  .stl button:hover{background:var(--bg)}
+  .stl button.on{background:var(--acc2);color:var(--acc)}
+  .stl b{color:var(--c0);font-weight:600}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+  .kpi div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .kpi b{display:block;font-size:24px;font-weight:700}
+  .kpi span{font-size:12px;color:var(--mut)}
+  .tbar{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+  .tbar h2{font-size:16px;margin:0;font-weight:700}
+  .tbar .sp{flex:1}
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;font:600 13px 'Rubik';cursor:pointer}
+  .tw{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{position:sticky;top:0;background:#FAFBFC;color:var(--mut);font-weight:600;font-size:12px;text-align:right;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tr.r{cursor:pointer}
+  tr.r:hover td{background:#F8F9FC}
+  .n{font-weight:700;display:inline-block;min-width:34px;text-align:center;background:var(--ink);color:#fff;border-radius:5px;padding:1px 6px}
+  .ft{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;margin-inline-start:4px}
+  .ft.f2{background:#E5F6EE;color:#08794A}.ft.f1{background:var(--bg);color:var(--mut)}
+  .mb{display:flex;width:90px;height:8px;border-radius:4px;overflow:hidden;background:var(--c4)}
+  .mb i{display:block;height:100%}
+  .hs{display:flex;gap:1px}
+  .hs i{width:7px;height:16px;border-radius:2px;background:#EEF1F5}
+  .rec{font-weight:600}
+  .rec.e{color:var(--c0)}.rec.l{color:var(--c3)}.rec.k{color:var(--c2)}
+  .det td{background:#FAFBFC;padding:0}
+  .det table{font-size:12.5px;margin:6px 0}
+  .det th{background:none;position:static}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}
+  .mut{color:var(--mut)}
+  .msg{padding:40px;text-align:center;color:var(--mut)}
+  @media (max-width:900px){.lay{grid-template-columns:1fr}.kpi{grid-template-columns:repeat(2,1fr)}.stl{max-height:200px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>הקו המזין</h1><span class="tag">שולחן עבודה למתכננים</span>
+  <span class="sp"></span>
+  <div class="tg" id="mode"><button data-m="to" class="on">אוטובוס ← רכבת</button><button data-m="from">רכבת ← אוטובוס</button></div>
+  <select id="day"></select>
+</header>
+<div class="lay">
+  <aside>
+    <div class="box"><h3>טווחי זמן (דקות)</h3><div class="th" id="th"></div></div>
+    <div class="box"><h3>סינון</h3>
+      <select id="lines" style="width:100%;margin-bottom:6px"><option value="2">קווים מזינים בלבד</option><option value="1" selected>מזינים + מסוף ליד הרכבת</option><option value="0">כל הקווים</option></select>
+      <select id="walk" style="width:100%;margin-bottom:6px"><option value="200">תחנות עד 200 מ'</option><option value="300">עד 300 מ'</option><option value="400" selected>עד 400 מ'</option><option value="600">עד 600 מ'</option></select>
+      <select id="op" style="width:100%"><option value="">כל המפעילים</option></select>
+    </div>
+    <div class="box"><h3>תחנות רכבת</h3><input type="search" id="q" placeholder="חיפוש תחנה" style="width:100%"><div class="stl" id="stl"></div></div>
+  </aside>
+  <main>
+    <div class="kpi" id="kpi"></div>
+    <div class="tbar"><h2 id="tt">קווים לטיפול</h2><span class="sp"></span><button class="btn" id="csv">⬇ ייצוא לאקסל (CSV)</button></div>
+    <div class="tw"><div id="tbl"><div class="msg">טוען…</div></div></div>
+    <p class="mut" style="font-size:12px" id="note"></p>
+  </main>
+</div>
+<script src="../core.js"></script>
+<script>
+(function () {
+  const K = FeederCore, $ = (id) => document.getElementById(id);
+  const S = { mode: "to", walk: 400, lines: 1, th: K.DEF_TH.slice(), st: "", op: "", q: "", open: null };
+  let rows = [];
+  const mb = (c) => { const n = c.reduce((a, b) => a + b, 0) || 1; return '<div class="mb">' + c.map((v, i) => v ? '<i style="width:' + 100 * v / n + '%;background:' + K.CATS[i].c + '"></i>' : "").join("") + "</div>"; };
+  const hs = (h) => { let s = '<div class="hs" title="לפי שעה, 05–24">'; for (let x = 5; x < 24; x++) { const c = h[x]; if (!c) { s += "<i></i>"; continue; } const n = c[0] + c[1] + c[2] + c[3] || 1; const w = c[0] / n > .5 ? 0 : c[1] / n > .5 ? 1 : c[2] / n >= .5 ? 2 : c[3] ? 3 : 4; s += '<i style="background:' + K.CATS[w].c + '" title="' + x + ':00 · ' + K.CATS.map((k, i) => k.label + " " + c[i]).join(", ") + '"></i>'; } return s + "</div>"; };
+  function thUI() {
+    const lo = [0].concat(S.th);
+    $("th").innerHTML = K.CATS.slice(0, 4).map((c, i) => '<i style="background:' + c.c + '"></i><span>' + c.label + " " + lo[i] + "–</span><input type=number min=1 max=60 data-i=" + i + " value=" + (S.th[i] - 1) + ">").join("") +
+      '<i style="background:' + K.CATS[4].c + '"></i><span>' + K.CATS[4].label + " " + S.th[3] + "+</span><span></span>";
+    $("th").querySelectorAll("input").forEach((x) => x.onchange = () => { const i = +x.dataset.i; S.th[i] = Math.max(1, +x.value || 1) + 1; for (let k = i + 1; k < 4; k++) if (S.th[k] <= S.th[k - 1]) S.th[k] = S.th[k - 1] + 1; thUI(); calc(); });
+  }
+  function calc() { rows = K.allRows(S); stList(); draw(); }
+  function stList() {
+    const by = {}; rows.forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
+    const q = S.q.trim();
+    const list = Object.entries(by).filter(([c, v]) => !q || v[0].includes(q)).sort((a, b) => b[1][1] - a[1][1]);
+    $("stl").innerHTML = '<button class="' + (S.st ? "" : "on") + '" data-c="">כל התחנות</button>' + list.map(([c, v]) => '<button data-c="' + c + '" class="' + (S.st === c ? "on" : "") + '"><span>' + K.esc(v[0]) + "</span><b>" + v[1] + "</b></button>").join("");
+    $("stl").querySelectorAll("button").forEach((b) => b.onclick = () => { S.st = b.dataset.c; S.open = null; stList(); draw(); });
+    const ops = [...new Set(rows.map((r) => r.op))].sort();
+    $("op").innerHTML = '<option value="">כל המפעילים</option>' + ops.map((o) => "<option" + (o === S.op ? " selected" : "") + ">" + K.esc(o) + "</option>").join("");
+  }
+  const view = () => rows.filter((r) => (!S.st || r.st === S.st) && (!S.op || r.op === S.op)).sort((a, b) => (b.feed === 2) - (a.feed === 2) || b.cnt[0] - a.cnt[0] || b.n - a.n);
+  function draw() {
+    const v = view(), tot = [0, 0, 0, 0, 0]; v.forEach((r) => r.cnt.forEach((x, i) => tot[i] += x));
+    const conn = tot[0] + tot[1] + tot[2] + tot[3], pc = (a) => conn ? Math.round(100 * a / conn) + "%" : "–";
+    $("kpi").innerHTML = "<div><b>" + v.filter((r) => r.shift).length + "</b><span>קווים × כיוון שכדאי להזיז</span></div><div><b style='color:var(--c0)'>" + pc(tot[0]) + "</b><span>דורש עדכון</span></div><div><b style='color:var(--c2)'>" + pc(tot[2]) + "</b><span>תקין</span></div><div><b>" + conn.toLocaleString("he-IL") + "</b><span>חיבורים שנבדקו</span></div>";
+    $("tt").textContent = (S.st ? K.C.STN[S.st][0] + " · " : "") + "קווים לטיפול (" + v.length + ")";
+    let h = "<table><thead><tr><th>תחנת רכבת</th><th>כיוון הרכבת</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
+    for (const r of v.slice(0, 400)) {
+      const key = r.st + "|" + r.dir.dk + "|" + r.rid, cc = r.conn;
+      h += '<tr class="r" data-k="' + key + '"><td>' + K.esc(r.stName) + '</td><td class="mut">' + K.esc(r.dir.name) + '</td><td><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
+        "</td><td>" + K.esc(r.op) + "</td><td>" + K.esc(S.mode === "to" ? r.from : r.to) + "</td><td>" + r.n + "</td><td>" + mb(r.cnt) + '</td><td style="color:var(--c0);font-weight:600">' + (cc ? Math.round(100 * r.cnt[0] / cc) + "%" : "–") + "</td><td>" + (r.med == null ? "–" : Math.round(r.med) + "'") +
+        '</td><td class="rec ' + (r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift) + "</td><td>" + hs(r.hours) + "</td></tr>";
+      if (S.open === key) {
+        h += '<tr class="det"><td colspan="11"><table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
+          r.rows.map((x) => "<tr><td><b>" + K.fmt(x.act) + "</b></td><td class=mut>" + K.fmt(x.sched) + "</td><td class=mut>" + K.esc(x.sname) + " · " + x.dist + "מ'</td><td>" + (x.tr ? "<b>" + K.fmt(x.tr.t) + "</b>" : "–") + "</td><td>" + (x.tr ? K.esc(S.mode === "to" ? "ל" + x.tr.dest : "מ" + x.tr.orig) : "") + "</td><td class=mut>" + (x.tr ? (Math.round(x.tr.delay) > 0 ? "+" : "") + Math.round(x.tr.delay) + " · " + K.esc(x.tr.how) : "") + "</td><td><b>" + (isFinite(x.gap) ? Math.round(x.gap) + "'" : "–") + '</b></td><td><span class="dot" style="background:' + K.CATS[x.c].c + '"></span>' + K.CATS[x.c].label + "</td></tr>").join("") +
+          "</tbody></table></td></tr>";
+      }
+    }
+    h += "</tbody></table>";
+    $("tbl").innerHTML = v.length ? h : '<div class="msg">אין קווים בסינון הזה.</div>';
+    $("tbl").querySelectorAll("tr.r").forEach((t) => t.onclick = () => { S.open = S.open === t.dataset.k ? null : t.dataset.k; draw(); });
+    $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. נתוני " + K.fmtD(K.C.day) + ", דאטאבוס.";
+  }
+  $("csv").onclick = () => {
+    const v = view(), hd = ["תחנת רכבת", "כיוון", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה"];
+    const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift)])));
+    const blob = new Blob(["﻿" + lines.map((l) => l.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "feeder-" + K.C.day + ".csv"; a.click();
+  };
+  $("mode").querySelectorAll("button").forEach((b) => b.onclick = () => { S.mode = b.dataset.m; S.open = null; $("mode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); calc(); });
+  $("lines").onchange = (e) => { S.lines = +e.target.value; calc(); };
+  $("walk").onchange = (e) => { S.walk = +e.target.value; calc(); };
+  $("op").onchange = (e) => { S.op = e.target.value; draw(); };
+  $("q").oninput = (e) => { S.q = e.target.value; stList(); };
+  $("day").onchange = (e) => K.load(e.target.value).then(calc);
+  (async () => { const ds = await K.days(); $("day").innerHTML = ds.map((d) => '<option value="' + d + '">' + K.fmtD(d) + "</option>").join(""); thUI(); await K.load(ds[0]); calc(); })().catch((e) => $("tbl").innerHTML = '<div class="msg">' + K.esc(e.message) + "</div>");
+})();
+</script>
+</body>
+</html>
