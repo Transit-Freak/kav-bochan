@@ -11,7 +11,7 @@
     if (t) return t;
     var p = location.pathname;
     if (/\/rail\/reception\//.test(p)) return "reception";
-    var m = p.match(/\/(line-history|fleet|bus|rail|fares|ratzif|skip-stops|next-station)\//);
+    var m = p.match(/\/(line-history|fleet|bus|rail|fares|ratzif|skip-stops|next-station|feeder)\//);
     if (m) return m[1];
     return /^#(פח|מוזהב)/.test(decodeURIComponent(location.hash || "")) ? "kavpach" : "home";
   }
