@@ -1,0 +1,91 @@
+name: feeder-walk
+
+# הקו המזין — זמני הליכה מכל תחנת רכבת לתחנות האוטובוס הסמוכות (tools/feeder_walk.py), בשרת ניווט
+# מקומי (OSRM, פרופיל הולך רגל) על מפת ישראל של OpenStreetMap (Geofabrik). שלמה 14.10: "שזה יבדוק את
+# התחנה הקרובה מבחינת דקות הליכה". תחנות האוטובוס לא זזות הרבה — פעם בשבוע מספיק.
+# נתוני OSM ברישיון ODbL ("© OpenStreetMap" מופיע בדף); OSRM ברישיון BSD.
+
+on:
+  schedule:
+    - cron: '13 3 * * 0'
+  push:
+    branches: [main]
+    paths: ['tools/feeder_walk.py', '.github/workflows/feeder-walk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: feeder-walk
+  cancel-in-progress: false
+
+jobs:
+  walk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            tools
+            bus/data/feeder
+            rail/data/stations.json
+          sparse-checkout-cone-mode: false
+
+      - name: מטמון מפת ישראל
+        uses: actions/cache@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: feeder-osm-${{ github.run_id }}
+          restore-keys: |
+            feeder-osm-
+            kavbug-osm-
+
+      - name: שרת ניווט הליכה (OSRM)
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/osrm && cd /tmp/osrm
+          # הורדה אטומית: אם נכשלה — המפה מהמטמון
+          if curl -fsSL --connect-timeout 20 --max-time 300 --retry 2 --retry-delay 5 \
+              -o il.osm.pbf.new "https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf" \
+              && [ "$(stat -c%s il.osm.pbf.new)" -gt 1000000 ]; then
+            mv il.osm.pbf.new il.osm.pbf
+          else
+            rm -f il.osm.pbf.new
+            [ -s il.osm.pbf ] || { echo "::error::מפת ישראל לא זמינה ואין מטמון"; exit 1; }
+            echo "::warning::הורדת המפה נכשלה; משתמשים במפה מהמטמון"
+          fi
+          IMG=ghcr.io/project-osrm/osrm-backend:v5.27.1
+          docker run --rm -v "$PWD:/data" $IMG osrm-extract -p /opt/foot.lua /data/il.osm.pbf
+          docker run --rm -v "$PWD:/data" $IMG osrm-partition /data/il.osrm
+          docker run --rm -v "$PWD:/data" $IMG osrm-customize /data/il.osrm
+          docker run -d --name osrm -p 5000:5000 -v "$PWD:/data" $IMG osrm-routed --algorithm mld --max-table-size 1000 /data/il.osrm
+          for i in $(seq 1 60); do
+            curl -fs "http://localhost:5000/route/v1/foot/34.78,32.07;34.79,32.08?overview=false" >/dev/null && { echo "השרת עלה"; exit 0; }
+            sleep 2
+          done
+          echo "::error::שרת הניווט לא עלה"; exit 1
+
+      - name: זמני הליכה
+        run: python3 tools/feeder_walk.py --osrm http://localhost:5000
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          docker rm -f osrm || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp bus/data/feeder/walk.json /tmp/walk.json
+          for i in 1 2 3 4; do
+            git fetch -q origin main
+            git checkout -q -B main origin/main
+            cp /tmp/walk.json bus/data/feeder/walk.json
+            git add bus/data/feeder/walk.json
+            git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+            git commit -qm "data: הקו המזין — זמני הליכה מתחנות הרכבת (OSRM)"
+            git push -q origin main && exit 0
+            sleep $((i * 10))
+          done
+          exit 1

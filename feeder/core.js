@@ -13,7 +13,7 @@ window.FeederCore = (function () {
     { k: "far", label: "רחוק מרכבת", c: "#C9CED6" },
   ];
   const DEF_TH = [5, 8, 13, 18];   // גבולות עליונים (לא כולל), בדקות: 0–4 / 5–7 / 8–12 / 13–17 / 18+
-  const C = { F: null, RAIL: null, STN: {}, TR: {}, meas: 0, day: "" };
+  const C = { F: null, RAIL: null, STN: {}, TR: {}, meas: 0, day: "", W: null };
   const base = (document.currentScript && document.currentScript.src.replace(/feeder\/core\.js.*$/, "")) || "../";
 
   const fmt = (m) => { m = Math.round(m); const h = Math.floor(m / 60) % 24, mm = ((m % 60) + 60) % 60; return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0"); };
@@ -37,6 +37,8 @@ window.FeederCore = (function () {
 
   async function load(d) {
     [C.F, C.RAIL] = await Promise.all([getJSON("bus/data/feeder/" + d + ".json"), getJSON("rail/data/days/" + d + ".json")]);
+    // זמני הליכה בפועל (tools/feeder_walk.py, OSRM על מפת OpenStreetMap); בלעדיהם — הערכה מהמרחק
+    if (!C.W) { try { C.W = (await getJSON("bus/data/feeder/walk.json")).w || {}; } catch (e) { C.W = {}; } }
     C.day = d;
     const TR = {}, STN = C.STN;
     let meas = 0, all = 0;
@@ -68,20 +70,28 @@ window.FeederCore = (function () {
   const stations = () => Object.keys(C.F.st).filter((c) => C.TR[c] && C.STN[c]);
 
   // הנסיעות של כל מסלול בתחנות הסמוכות. o = {mode, walk, lines}
+  // דקות הליכה מתחנת הרכבת לתחנת האוטובוס: לפי מסלול הליכה אמיתי, ואם אין — מהמרחק האווירי
+  // (פי 1.3 לעיקולי הדרך, 80 מ' לדקה), מסומן משוער
+  function walkOf(code, x) {
+    const w = C.W && C.W[code] && C.W[code][x[0]];
+    return w ? { min: w[1] / 60, m: w[0], real: true } : { min: x[2] * 1.3 / 80, m: Math.round(x[2] * 1.3), real: false };
+  }
+  // o.walk — דקות הליכה מרביות
   function busTrips(code, o) {
     const F = C.F, seen = new Set();
-    const near = (F.st[code] || []).filter((x) => x[2] <= o.walk && !seen.has(x[0]) && seen.add(x[0]));
+    const near = (F.st[code] || []).filter((x) => !seen.has(x[0]) && seen.add(x[0]))
+      .map((x) => [x[0], x[1], x[2], walkOf(code, x)]).filter((x) => x[3].min <= o.walk);
     const termNear = new Set();
     for (const [sc] of F.st[code] || []) for (const [rid, v] of Object.entries(F.p[sc] || {})) for (let i = 0; i < v.length; i += 3) if (v[i] % 10 !== 1) { termNear.add(rid); break; }
     const byRid = {};
-    for (const [sc, sname, dist] of near) {
+    for (const [sc, sname, dist, wk] of near) {
       for (const [rid, v] of Object.entries(F.p[sc] || {})) {
         for (let i = 0; i < v.length; i += 3) {
           // מקום ברצף: 0 מוצא, 1 באמצע, 2 סוף; +10 = הזמן משוער (לא נמדד כאן — מתחנה סמוכה באותה נסיעה)
           const pos = v[i] % 10, est = v[i] >= 10;
           if (o.mode === "to" && pos === 0) continue;     // יוצא מכאן — לא מביא נוסעים לרכבת
           if (o.mode === "from" && pos === 2) continue;   // מסיים כאן — לא לוקח נוסעים מהרכבת
-          (byRid[rid] = byRid[rid] || []).push({ sc, sname, dist, est, sched: v[i + 1] / 60, act: v[i + 2] / 60 });
+          (byRid[rid] = byRid[rid] || []).push({ sc, sname, dist, wk, est, sched: v[i + 1] / 60, act: v[i + 2] / 60 });
         }
       }
     }
@@ -91,7 +101,8 @@ window.FeederCore = (function () {
       const trips = [];
       for (const x of ps) {   // אותה נסיעה בשתי תחנות סמוכות — התחנה הקרובה לרכבת
         const last = trips[trips.length - 1];
-        if (last && x.sched - last.sched <= 6 && x.sc !== last.sc) { if (x.dist < last.dist) trips[trips.length - 1] = x; }
+        // אותה נסיעה בכמה תחנות ליד הרכבת — התחנה עם הכי מעט דקות הליכה (שלמה 14.10)
+        if (last && x.sched - last.sched <= 6 && x.sc !== last.sc) { if (x.wk.min < last.wk.min) trips[trips.length - 1] = x; }
         else trips.push(x);
       }
       const R = F.r[rid] || ["?", "", "", "", "", 0];
@@ -158,5 +169,7 @@ window.FeederCore = (function () {
 
   const shiftText = (s, conn) => conn === 0 ? "אין חיבור" : !s ? "תקין" : (s < 0 ? "להקדים " + (-s) : "לאחר " + s) + " דק'";
 
-  return { C, CATS, DEF_TH, fmt, fmtD, esc, ends, cat, days, load, stations, busTrips, directions, evalDir, allRows, shiftText };
+  const walkText = (wk) => Math.max(1, Math.round(wk.min)) + " דק' הליכה" + (wk.real ? "" : " (משוער)");
+
+  return { C, CATS, DEF_TH, walkText, walkOf, fmt, fmtD, esc, ends, cat, days, load, stations, busTrips, directions, evalDir, allRows, shiftText };
 })();

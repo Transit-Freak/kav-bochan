@@ -112,7 +112,7 @@
     <div class="box"><h3>טווחי זמן (דקות)</h3><div class="th" id="th"></div></div>
     <div class="box"><h3>סינון</h3>
       <select id="lines" style="width:100%;margin-bottom:6px"><option value="2">קווים מזינים בלבד</option><option value="1" selected>מזינים + מסוף ליד הרכבת</option><option value="0">כל הקווים</option></select>
-      <select id="walk" style="width:100%;margin-bottom:6px"><option value="200">תחנות עד 200 מ'</option><option value="300">עד 300 מ'</option><option value="400" selected>עד 400 מ'</option><option value="600">עד 600 מ'</option></select>
+      <select id="walk" style="width:100%;margin-bottom:6px"><option value="3">תחנות עד 3 דק' הליכה</option><option value="5">עד 5 דק' הליכה</option><option value="7" selected>עד 7 דק' הליכה</option><option value="10">עד 10 דק' הליכה</option></select>
       <select id="op" style="width:100%;margin-bottom:8px"><option value="">כל המפעילים</option></select>
       <label style="display:flex;gap:6px;align-items:flex-start;font-size:13px;cursor:pointer"><input type="checkbox" id="allDirs"> <span>גם כיווני רכבת שהקו לא מותאם אליהם <span class="mut">(ברירת המחדל: לכל קו רק הכיוון עם הכי הרבה חיבורים)</span></span></label>
     </div>
@@ -130,7 +130,8 @@
       <li><b>מזין:</b> קו שמשרד התחבורה מגדיר "קווים מזינים" (ייחודיות הקו). <b>מסוף:</b> קו שמתחיל או מסתיים עד 600 מ' מתחנת הרכבת, או ששמו מזכיר רכבת.</li>
       <li><b>הכיוון של הקו:</b> לכל קו בכל תחנה מוצג רק כיוון הרכבת שהוא מותאם אליו — זה עם הכי הרבה חיבורים עד הטווח "לבדיקה". אפשר להציג גם את שאר הכיוונים בסינון.</li>
       <li><b>המלצה:</b> כמה דקות להקדים או לאחר את הקו כדי שהחציון ייפול באמצע הטווח התקין. זו נקודת פתיחה לבדיקה, לא תיקון אוטומטי — הזזה משפיעה גם על רכבות בכיוונים אחרים.</li>
-      <li>נסיעה שעוצרת בכמה תחנות ליד הרכבת נספרת פעם אחת, בתחנה הקרובה לרכבת. כשהמעבר בה לא נמדד (לרוב תחנת הסוף, כי השידור נפסק כשהנסיעה מסתיימת), הזמן משוער: הלו"ז של התחנה ועוד האיחור בתחנה הסמוכה שנמדדה באותה נסיעה. ליד זמן כזה כתוב "משוער".</li>
+      <li><b>זמן הליכה:</b> מתחנת הרכבת לכל תחנת אוטובוס, לפי מסלול הליכה במפת OpenStreetMap (שרת ניווט OSRM, מתעדכן פעם בשבוע). כשאין מסלול — הערכה מהמרחק, מסומנת "משוער". הטווחים למעלה הם הפער בין האוטובוס לרכבת, כולל ההליכה.</li>
+      <li>נסיעה שעוצרת בכמה תחנות ליד הרכבת נספרת פעם אחת, בתחנה עם הכי מעט דקות הליכה. כשהמעבר בה לא נמדד (לרוב תחנת הסוף, כי השידור נפסק כשהנסיעה מסתיימת), הזמן משוער: הלו"ז של התחנה ועוד האיחור בתחנה הסמוכה שנמדדה באותה נסיעה. ליד זמן כזה כתוב "משוער".</li>
       <li>הרעיון: משה דודק, ממונה מחוז דרום במשרד התחבורה. הטווחים ניתנים לשינוי ונשמרים בדפדפן.</li>
     </ul></details>
   </main>
@@ -140,7 +141,7 @@
 (function () {
   const K = FeederCore, $ = (id) => document.getElementById(id);
   const store = { get(k, d) { try { const v = localStorage.getItem("feeder-" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem("feeder-" + k, JSON.stringify(v)); } catch (e) { /* פרטי */ } } };
-  const S = { mode: "to", walk: 400, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null, allDirs: false };
+  const S = { mode: "to", walk: 7, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null, allDirs: false };
   if (matchMedia("(min-width:901px)").matches) $("side").open = true;
   let rows = [];
   const mb = (c) => { const n = c.reduce((a, b) => a + b, 0) || 1; return '<div class="mb">' + c.map((v, i) => v ? '<i style="width:' + 100 * v / n + '%;background:' + K.CATS[i].c + '"></i>' : "").join("") + "</div>"; };
@@ -176,7 +177,7 @@
         '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (S.allDirs && !r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
       if (S.open === key) {
         h += '<tr class="det"><td colspan="11"><div class="dw"><table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
-          r.rows.map((x) => '<tr style="--cc:' + K.CATS[x.c].c + '"><td class="d-bus"><b>' + K.fmt(x.act) + "</b>" + (x.est ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + '</td><td class="mut d-sch"><span class="mo">בלו"ז </span>' + K.fmt(x.sched) + '</td><td class="mut d-stp">' + K.esc(x.sname) + " · " + x.dist + " מ'</td><td class=\"d-trt\">" + (x.tr ? '<span class="mo">🚆 </span><b>' + K.fmt(x.tr.t) + "</b>" : "–") + '</td><td class="d-trn">' + (x.tr ? K.esc(S.mode === "to" ? "ל" + x.tr.dest : "מ" + x.tr.orig) : "") + '</td><td class="mut d-dly">' + (x.tr ? (Math.round(x.tr.delay) > 0 ? "+" : "") + Math.round(x.tr.delay) + " · " + K.esc(x.tr.how) : "") + '</td><td class="d-gap"><b>' + (isFinite(x.gap) ? Math.round(x.gap) + " דק'" : "–") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[x.c].c + '"></span>' + K.CATS[x.c].label + "</td></tr>").join("") +
+          r.rows.map((x) => '<tr style="--cc:' + K.CATS[x.c].c + '"><td class="d-bus"><b>' + K.fmt(x.act) + "</b>" + (x.est ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + '</td><td class="mut d-sch"><span class="mo">בלו"ז </span>' + K.fmt(x.sched) + '</td><td class="mut d-stp">' + K.esc(x.sname) + " · " + K.walkText(x.wk) + "</td><td class=\"d-trt\">" + (x.tr ? '<span class="mo">🚆 </span><b>' + K.fmt(x.tr.t) + "</b>" : "–") + '</td><td class="d-trn">' + (x.tr ? K.esc(S.mode === "to" ? "ל" + x.tr.dest : "מ" + x.tr.orig) : "") + '</td><td class="mut d-dly">' + (x.tr ? (Math.round(x.tr.delay) > 0 ? "+" : "") + Math.round(x.tr.delay) + " · " + K.esc(x.tr.how) : "") + '</td><td class="d-gap"><b>' + (isFinite(x.gap) ? Math.round(x.gap) + " דק'" : "–") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[x.c].c + '"></span>' + K.CATS[x.c].label + "</td></tr>").join("") +
           "</tbody></table></div></td></tr>";
       }
     }
@@ -185,7 +186,7 @@
     // הפירוט ברוחב החלק הנראה של הטבלה (כשהיא רחבה מהמסך וגוללת), כדי שהפער לא ייחתך
     $("tbl").querySelectorAll(".dw").forEach((e) => e.style.width = $("tbl").parentNode.clientWidth + "px");
     $("tbl").querySelectorAll("tr.r").forEach((t) => t.onclick = () => { S.open = S.open === t.dataset.k ? null : t.dataset.k; draw(); });
-    $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. נתוני " + K.fmtD(K.C.day) + ", דאטאבוס.";
+    $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. נתוני " + K.fmtD(K.C.day) + ", דאטאבוס. מסלולי הליכה: © OpenStreetMap contributors.";
   }
   $("csv").onclick = () => {
     const v = view(), hd = ["תחנת רכבת", "כיוון", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];

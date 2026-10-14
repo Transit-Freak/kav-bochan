@@ -1528,7 +1528,7 @@ def main():
             # כמה רציפים (stop_id) עם אותו מק"ט — פעם אחת, במרחק הקרוב
             same = next((x for x in fst[rc] if x[0] == stops[sid][0]), None)
             if same is None:
-                fst[rc].append([stops[sid][0], stops[sid][1], dm])
+                fst[rc].append([stops[sid][0], stops[sid][1], dm, round(stops[sid][2], 5), round(stops[sid][3], 5)])
             elif dm < same[2]:
                 same[2] = dm
         for row in FEED[sid]:
@@ -1541,7 +1541,7 @@ def main():
             fp[stops[sid][0]][rid_] += [pos, sc_, ac_]
     os.makedirs(f'{a.out}/feeder', exist_ok=True)
     json.dump({'d': day, 'fmt': 1,
-               'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק מ\'] של תחנות האוטובוס הסמוכות]',
+               'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק אווירי מ\', lat, lon] של תחנות האוטובוס הסמוכות]',
                         'r': 'route_id → [מספר קו, מפעיל, שם ארוך, מק"ט, כיוון, 1 = קו מזין לפי משרד התחבורה]',
                         'p': 'מק"ט → route_id → [מקום ברצף (0 מוצא/1 באמצע/2 סוף; +10 = משוער מתחנה סמוכה באותה נסיעה), מתוכנן, בפועל, …] — שניות מחצות של יום השירות'},
                'st': dict(fst), 'r': fr, 'p': fp},
