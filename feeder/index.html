@@ -145,6 +145,13 @@
   const S = { mode: "to", walk: 7, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null, allDirs: false, day: "week" };
   if (matchMedia("(min-width:901px)").matches) $("side").open = true;
   let rows = [], SUM = null, info = "";
+  const TRIPS = {};
+  function loadTrips(st) {
+    if (TRIPS[st] !== undefined) return;
+    TRIPS[st] = null;
+    fetch("../bus/data/feeder/trips/" + st + ".json", { cache: "no-cache" }).then((r) => r.ok ? r.json() : { modes: {}, names: [] })
+      .then((d) => { TRIPS[st] = d; draw(); }).catch(() => { TRIPS[st] = { modes: {}, names: [] }; draw(); });
+  }
   const mb = (c) => { const n = c.reduce((a, b) => a + b, 0) || 1; return '<div class="mb">' + c.map((v, i) => v ? '<i style="width:' + 100 * v / n + '%;background:' + K.CATS[i].c + '"></i>' : "").join("") + "</div>"; };
   const hs = (h) => {
     if (typeof h === "string") return '<div class="hs" title="לפי שעה, 05–24">' + [...h].map((c, i) => c === "-" ? "<i></i>" : '<i style="background:' + K.CATS[+c].c + '" title="' + (i + 5) + ":00 · " + K.CATS[+c].label + '"></i>').join("") + "</div>";
@@ -203,8 +210,20 @@
         '</td><td class="c-op">' + K.esc(r.op) + '</td><td class="c-fr">' + K.esc(S.mode === "to" ? r.from : r.to) + '</td><td class="c-n">' + r.n + '</td><td class="c-bar">' + mb(r.cnt) + '</td><td class="c-pct" style="color:var(--c0);font-weight:600">' + (cc ? Math.round(100 * r.cnt[0] / cc) + "%" : "–") + '<span class="mo"> דורש עדכון</span></td><td class="c-med">' + (r.med == null ? "–" : Math.round(r.med) + "'") +
         '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (S.allDirs && !r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
       if (S.open === key && !r.rows) {
-        h += '<tr class="det"><td colspan="11"><div class="dw" style="padding:8px 12px">' + (r.days ? "<b>לפי יום</b> · לפירוט כל נסיעה בחרו יום:" +
-          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' + SUM.days.map((d, i) => { const x = r.days[i] || [0, 0]; return '<button class="btn dd" type="button" data-d="' + d + '" data-k="' + key + '">' + K.fmtD(d).slice(0, 5) + " · " + x[1] + " חיבורים" + (x[1] ? ' · <b style="color:var(--c0)">' + Math.round(100 * x[0] / x[1]) + "%</b>" : "") + "</button>"; }).join("") + "</div>" : "בחרו יום למעלה כדי לראות כל נסיעה.") + "</div></td></tr>";
+        // השבוע: לכל נסיעה בלו"ז — מתי האוטובוס הגיע (או יצא, בתחנת מוצא) בממוצע, והרכבת שהיא מתחברת אליה
+        // (שלמה 14.10). קובץ לכל תחנת רכבת, נטען רק כשפותחים קו.
+        const T = TRIPS[r.st], list = T && T.modes[S.mode] && T.modes[S.mode][r.dir.dk + "|" + r.rid];
+        if (!T) loadTrips(r.st);
+        const dayBtns = r.days ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px"><span class="mut" style="align-self:center">לפירוט יום:</span>' + SUM.days.map((d, i) => { const x = r.days[i] || [0, 0]; return '<button class="btn dd" type="button" data-d="' + d + '" data-k="' + key + '">' + K.fmtD(d).slice(0, 5) + " · " + x[1] + (x[1] ? ' · <b style="color:var(--c0)">' + Math.round(100 * x[0] / x[1]) + "%</b>" : "") + "</button>"; }).join("") + "</div>" : "";
+        const fm = (m) => m == null ? "–" : K.fmt(m), lt = (a, b) => { const d = Math.round(a - b); return d ? ' <span class="mut">(' + (d > 0 ? "+" : "") + d + ")</span>" : ""; };
+        const tbl = !T ? '<div class="msg" style="padding:14px">טוען את הנסיעות…</div>' : !list ? '<div class="mut">אין פירוט נסיעות לקו הזה.</div>' :
+          "<table><thead><tr><th>בלו\"ז</th><th>" + (S.mode === "to" ? "האוטובוס בממוצע" : "האוטובוס בממוצע") + "</th><th>ימים</th><th>" + (S.mode === "to" ? "הרכבת" : "הרכבת שהגיעה") + "</th><th>הרכבת בממוצע</th><th>פער ממוצע</th><th></th></tr></thead><tbody>" +
+          list.map((x) => { const [sch, n, act, gap, c, pos, est, tp, ti, tAct] = x;
+            const what = pos === 0 ? "יוצא מהמוצא " : S.mode === "to" ? "מגיע " : "יוצא ";
+            return '<tr style="--cc:' + K.CATS[c].c + '"><td class="d-sch"><span class="mo">בלו"ז </span><b>' + K.fmt(sch) + '</b></td><td class="d-bus"><span class="mo">' + what + "</span>" + fm(act) + lt(act, sch) + (est === n ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + (pos === 0 ? ' <span class="est">מוצא</span>' : "") +
+              '</td><td class="mut d-stp">' + n + " ימים</td><td class=\"d-trt\">" + (tp == null ? "אין רכבת" : '<span class="mo">🚆 </span>' + K.fmt(tp) + " " + K.esc((S.mode === "to" ? "ל" : "מ") + T.names[ti])) + '</td><td class="d-trn">' + (tAct == null ? "" : fm(tAct) + lt(tAct, tp)) +
+              '</td><td class="d-gap"><b>' + (gap == null ? "–" : Math.round(gap) + " דק'") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[c].c + '"></span>' + K.CATS[c].label + "</td></tr>"; }).join("") + "</tbody></table>";
+        h += '<tr class="det"><td colspan="11"><div class="dw" style="padding:8px 12px"><b>כל הנסיעות בשבוע, בממוצע</b> <span class="mut">· בסוגריים — הפער מהלו"ז</span>' + dayBtns + tbl + "</div></td></tr>";
       }
       if (S.open === key && r.rows) {
         h += '<tr class="det"><td colspan="11"><div class="dw"><table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +

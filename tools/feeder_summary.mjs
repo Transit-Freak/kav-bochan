@@ -37,6 +37,7 @@ const O = { walk: 7, lines: 1, th: K.DEF_TH.slice() };   // מזינים + מס�
 const mid = (O.th[1] + O.th[2] - 1) / 2;
 const out = { built: new Date().toISOString(), days, th: O.th, walk: O.walk, lines: O.lines, meas: 0, modes: {}, routes: {}, dirs: {} };
 const agg = { to: new Map(), from: new Map() };
+const trips = {};   // תחנת רכבת → { names, modes: { to|from: { כיוון|route_id: [נסיעות] } } } — קובץ לכל תחנה
 let measSum = 0;
 for (const d of days) {
   await K.load(d);
@@ -47,12 +48,21 @@ for (const d of days) {
       let a = agg[mode].get(key);
       if (!a) {
         a = { st: r.st, dk: r.dir.dk, rid: r.rid, num: r.num, op: r.op, from: r.from, to: r.to, feed: r.feed, mkt: r.R[3],
-          name: r.dir.name, via: r.dir.via, cnt: [0, 0, 0, 0, 0], gaps: [], hours: {}, days: {} };
+          name: r.dir.name, via: r.dir.via, cnt: [0, 0, 0, 0, 0], gaps: [], hours: {}, days: {}, trips: {} };
         agg[mode].set(key, a);
       }
       a.name = r.dir.name; a.feed = Math.max(a.feed, r.feed);
       r.cnt.forEach((v, i) => a.cnt[i] += v);
       for (const x of r.rows) if (x.c < 4) a.gaps.push(Math.round(x.gap * 10) / 10);
+      // לכל נסיעה בלו"ז (לפי השעה המתוכננת) — הזמנים בפועל על פני השבוע, והרכבת שהיא מתחברת אליה
+      // (שלמה 14.10: "לרשום מתי כל נסיעה מגיעה בממוצע, ויוצאת — ברגיל אם זו תחנת מוצא — או בממוצע")
+      for (const x of r.rows) {
+        const k = Math.round(x.sched);
+        const t = (a.trips[k] = a.trips[k] || { n: 0, act: 0, gap: 0, gn: 0, pos: x.pos, est: 0, tr: new Map() });
+        t.n++; t.act += x.act; if (x.est) t.est++;
+        if (isFinite(x.gap)) { t.gap += x.gap; t.gn++; }
+        if (x.tr) { const tk = Math.round(x.tr.p) + '|' + (mode === 'to' ? x.tr.dest : x.tr.orig); const e = t.tr.get(tk) || { n: 0, t: 0 }; e.n++; e.t += x.tr.t; t.tr.set(tk, e); }
+      }
       for (const [h, c] of Object.entries(r.hours)) { const t = (a.hours[h] = a.hours[h] || [0, 0, 0, 0, 0]); c.forEach((v, i) => t[i] += v); }
       a.days[d] = [r.cnt[0], r.cnt[0] + r.cnt[1] + r.cnt[2] + r.cnt[3]];   // דורש עדכון, חיבורים
     }
@@ -78,6 +88,23 @@ for (const mode of ['to', 'from']) {
   }
   const main = new Set(best.values());
   // שורה: [תחנה, כיוון, route_id, ראשי, cnt×5, חציון, הזזה, שעות, ימים]; פרטי הקו והכיוון — פעם אחת, למטה
+  // הנסיעות של כל קו (רק הכיוון שהקו מותאם אליו) — לקובץ נפרד, שנטען רק כשפותחים קו:
+  // [שעה בלו"ז, ימים, בפועל בממוצע, פער ממוצע, קטגוריה, 0 מוצא/1 באמצע/2 סוף, משוער (ימים),
+  //  הרכבת: שעה בלו"ז, יעד/מוצא (מספר ברשימת השמות), בפועל בממוצע]
+  for (const a of rows) {
+    if (!main.has(a)) continue;
+    const list = Object.entries(a.trips).map(([k, t]) => {
+      const g = t.gn ? t.gap / t.gn : null;
+      const tr = [...t.tr.entries()].sort((x, y) => y[1].n - x[1].n)[0];
+      const T = (trips[a.st] = trips[a.st] || { days, names: [], modes: {} });
+      let ti = null;
+      if (tr) { const nm = tr[0].split('|').slice(1).join('|'); ti = T.names.indexOf(nm); if (ti < 0) { T.names.push(nm); ti = T.names.length - 1; } }
+      return [+k, t.n, Math.round(t.act / t.n * 10) / 10, g == null ? null : Math.round(g * 10) / 10, g == null ? 4 : K.cat(g, O.th), t.pos, t.est,
+        tr ? +tr[0].split('|')[0] : null, ti, tr ? Math.round(tr[1].t / tr[1].n * 10) / 10 : null];
+    }).sort((x, y) => x[0] - y[0]);
+    const T = trips[a.st];
+    if (T) (T.modes[mode] = T.modes[mode] || {})[a.dk + '|' + a.rid] = list;
+  }
   out.modes[mode] = rows.filter((a) => a.cnt.some((v) => v)).map((a) => {
     const m = main.has(a);
     out.routes[a.rid] = [a.num, a.op, a.from, a.to, a.feed, a.mkt];
@@ -88,5 +115,9 @@ for (const mode of ['to', 'from']) {
 }
 out.cols = { row: 'st,dk,rid,main,upd,edge,ok,chk,far,med,shift,hours(05–23: 0–4 קטגוריה, - אין),days([דורש עדכון, חיבורים] לכל יום ב-days)', routes: 'rid → [קו, מפעיל, מגיע מ, נוסע ל, 2 מזין/1 מסוף, מק"ט]', dirs: 'מצב → תחנה|כיוון → [יעדי הרכבות, התחנה הבאה/הקודמת]' };
 fs.writeFileSync(path.join(FD, 'summary.json'), JSON.stringify(out));
+const TD = path.join(FD, 'trips');
+fs.rmSync(TD, { recursive: true, force: true }); fs.mkdirSync(TD);
+let sz2 = 0;
+for (const [st, T] of Object.entries(trips)) { const f = path.join(TD, st + '.json'); fs.writeFileSync(f, JSON.stringify(T)); sz2 = Math.max(sz2, fs.statSync(f).size); }
 const sz = fs.statSync(path.join(FD, 'summary.json')).size;
-console.log(`סיכום הקו המזין: ${days.length} ימים (${days[0]}–${days[days.length - 1]}) · ${out.modes.to.length} + ${out.modes.from.length} שורות · ${(sz / 1e6).toFixed(2)}MB`);
+console.log(`סיכום הקו המזין: ${days.length} ימים (${days[0]}–${days[days.length - 1]}) · ${out.modes.to.length} + ${out.modes.from.length} שורות · ${(sz / 1e6).toFixed(2)}MB · נסיעות: ${Object.keys(trips).length} קבצים, הגדול ${(sz2 / 1e6).toFixed(2)}MB`);
