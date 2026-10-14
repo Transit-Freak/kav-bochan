@@ -856,7 +856,7 @@ function ChoiceScreen({ onPick }) {
                 <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🚉</span>
               </div>
               <h2 className="text-3xl font-[900] text-indigo-100">הקו המזין</h2>
-              <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה — לכל קו וכיוון, לפי זמנים בפועל מדאטאבוס, עם המלצה כמה דקות להזיז</p>
+              <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-indigo-200 text-indigo-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </a>

@@ -118,8 +118,10 @@ window.FeederCore = (function () {
     for (const x of list) (by[x.dk] = by[x.dk] || []).push(x);
     return Object.entries(by).map(([dk, trains]) => {
       const cnt = {}; trains.forEach((x) => { const e = mode === "to" ? x.dest : x.orig; cnt[e] = (cnt[e] || 0) + 1; });
-      const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]);
-      return { dk, trains, name: (C.STN[dk] || ["?"])[0], label: (mode === "to" ? "לכיוון " : "מכיוון ") + (C.STN[dk] || ["?"])[0], sub: (mode === "to" ? "ל" : "מ") + top.join(", "), n: trains.length };
+      // השם — לאן הרכבות נוסעות (או מאיפה הן באות), לפי היעדים הנפוצים; לא התחנה הבאה (שלמה 14.10)
+      const all = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+      const name = all.slice(0, 2).join(" / ") + (all.length > 2 ? " ועוד" : ""), via = (C.STN[dk] || ["?"])[0];
+      return { dk, trains, name, via, label: (mode === "to" ? "רכבות ל" : "רכבות מ") + name, sub: (mode === "to" ? "התחנה הבאה: " : "התחנה הקודמת: ") + via, n: trains.length };
     }).sort((a, b) => b.n - a.n);
   }
 
