@@ -91,7 +91,7 @@ window.FeederCore = (function () {
           const pos = v[i] % 10, est = v[i] >= 10;
           if (o.mode === "to" && pos === 0) continue;     // יוצא מכאן — לא מביא נוסעים לרכבת
           if (o.mode === "from" && pos === 2) continue;   // מסיים כאן — לא לוקח נוסעים מהרכבת
-          (byRid[rid] = byRid[rid] || []).push({ sc, sname, dist, wk, est, sched: v[i + 1] / 60, act: v[i + 2] / 60 });
+          (byRid[rid] = byRid[rid] || []).push({ sc, sname, dist, wk, est, pos, sched: v[i + 1] / 60, act: v[i + 2] / 60 });
         }
       }
     }
