@@ -61,8 +61,13 @@
   .hs{display:flex;gap:1px}
   .hs i{width:7px;height:16px;border-radius:2px;background:#EEF1F5}
   .rec{font-weight:600}
-  .rec.e{color:var(--c0)}.rec.l{color:var(--c3)}.rec.k{color:var(--c2)}
+  .est{font-size:10.5px;font-weight:600;color:var(--mut);background:var(--bg);border-radius:4px;padding:0 5px}
+  .rec.e{color:var(--c0)}.rec.l{color:var(--c3)}.rec.k{color:var(--c2)}.rec.x{color:var(--dim)}
   .det td{background:#FAFBFC;padding:0}
+  .det td td{white-space:normal;padding:5px 8px}
+  .dw{position:sticky;right:0}
+  .c-fr{white-space:normal!important;max-width:210px}
+  .det table{table-layout:auto}
   .det table{font-size:12.5px;margin:6px 0}
   .det th{background:none;position:static}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}
@@ -83,7 +88,14 @@
     .c-pct{grid-column:3;grid-row:1;text-align:left}.c-rec{grid-column:3;grid-row:2;text-align:left;font-size:12.5px}
     .c-bar{grid-column:1/-1;grid-row:3}.c-bar .mb{width:100%}
     .c-op,.c-fr,.c-n,.c-med,.c-h{display:none}
-    tr.det{display:block}tr.det>td{display:block;overflow-x:auto}}
+    tr.det{display:block}tr.det>td{display:block}.dw{width:auto!important}
+    /* פירוט הנסיעות: כרטיס קטן לכל נסיעה — אוטובוס ופער בשורה הראשונה, הרכבת בשנייה, התחנה בשלישית */
+    .det table,.det tbody{display:block}.det thead{display:none}
+    .det tbody tr{display:grid;grid-template-columns:auto auto 1fr auto;gap:2px 8px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);border-inline-start:4px solid var(--cc)}
+    .det tbody td{border:0;padding:0;white-space:normal}
+    .d-bus{grid-column:1;grid-row:1}.d-sch{grid-column:2;grid-row:1;font-size:12px}.d-gap{grid-column:4;grid-row:1;text-align:left}
+    .d-trt{grid-column:1;grid-row:2}.d-trn{grid-column:2/4;grid-row:2}.d-cat{grid-column:4;grid-row:2;text-align:left;font-size:12px}
+    .d-dly{grid-column:1/-1;grid-row:3;font-size:12px}.d-stp{grid-column:1/-1;grid-row:4;font-size:12px}}
   .mo{display:none}
   @media (max-width:900px){.mo{display:inline}}
 </style>
@@ -101,7 +113,8 @@
     <div class="box"><h3>סינון</h3>
       <select id="lines" style="width:100%;margin-bottom:6px"><option value="2">קווים מזינים בלבד</option><option value="1" selected>מזינים + מסוף ליד הרכבת</option><option value="0">כל הקווים</option></select>
       <select id="walk" style="width:100%;margin-bottom:6px"><option value="200">תחנות עד 200 מ'</option><option value="300">עד 300 מ'</option><option value="400" selected>עד 400 מ'</option><option value="600">עד 600 מ'</option></select>
-      <select id="op" style="width:100%"><option value="">כל המפעילים</option></select>
+      <select id="op" style="width:100%;margin-bottom:8px"><option value="">כל המפעילים</option></select>
+      <label style="display:flex;gap:6px;align-items:flex-start;font-size:13px;cursor:pointer"><input type="checkbox" id="allDirs"> <span>גם כיווני רכבת שהקו לא מותאם אליהם <span class="mut">(ברירת המחדל: לכל קו רק הכיוון עם הכי הרבה חיבורים)</span></span></label>
     </div>
     <div class="box"><h3>תחנות רכבת</h3><input type="search" id="q" placeholder="חיפוש תחנה" style="width:100%"><div class="stl" id="stl"></div></div>
   </details></aside>
@@ -115,8 +128,9 @@
       <li><b>הרכבות:</b> זמן ההגעה בפועל לכל תחנה, מנתוני המיקום של הרכבות בדאטאבוס (מדד אמינות הרכבת). השידור של הרכבות מקוטע: בתחנה שלא נמדדה נלקח האיחור של התחנה הקרובה שנמדדה באותה נסיעה, ובלי מדידה — הלו"ז. רכבת לא יוצאת לפני הזמן, והקדמה של יותר מ-10 דק' נחשבת מדידה שגויה.</li>
       <li><b>אוטובוס ← רכבת:</b> לכל אוטובוס שהגיע (לא כזה שמתחיל בתחנה) — הרכבת הראשונה שיצאה אחריו, בכל כיוון בנפרד. <b>רכבת ← אוטובוס:</b> לכל אוטובוס שיצא (לא כזה שמסתיים בתחנה) — הרכבת האחרונה שהגיעה לפניו. כיוון הרכבת = התחנה הבאה (או הקודמת) שלה.</li>
       <li><b>מזין:</b> קו שמשרד התחבורה מגדיר "קווים מזינים" (ייחודיות הקו). <b>מסוף:</b> קו שמתחיל או מסתיים עד 600 מ' מתחנת הרכבת, או ששמו מזכיר רכבת.</li>
+      <li><b>הכיוון של הקו:</b> לכל קו בכל תחנה מוצג רק כיוון הרכבת שהוא מותאם אליו — זה עם הכי הרבה חיבורים עד הטווח "לבדיקה". אפשר להציג גם את שאר הכיוונים בסינון.</li>
       <li><b>המלצה:</b> כמה דקות להקדים או לאחר את הקו כדי שהחציון ייפול באמצע הטווח התקין. זו נקודת פתיחה לבדיקה, לא תיקון אוטומטי — הזזה משפיעה גם על רכבות בכיוונים אחרים.</li>
-      <li>נסיעה שעוצרת בשתי תחנות סמוכות לרכבת נספרת פעם אחת, בתחנה הקרובה.</li>
+      <li>נסיעה שעוצרת בכמה תחנות ליד הרכבת נספרת פעם אחת, בתחנה הקרובה לרכבת. כשהמעבר בה לא נמדד (לרוב תחנת הסוף, כי השידור נפסק כשהנסיעה מסתיימת), הזמן משוער: הלו"ז של התחנה ועוד האיחור בתחנה הסמוכה שנמדדה באותה נסיעה. ליד זמן כזה כתוב "משוער".</li>
       <li>הרעיון: משה דודק, ממונה מחוז דרום במשרד התחבורה. הטווחים ניתנים לשינוי ונשמרים בדפדפן.</li>
     </ul></details>
   </main>
@@ -126,7 +140,7 @@
 (function () {
   const K = FeederCore, $ = (id) => document.getElementById(id);
   const store = { get(k, d) { try { const v = localStorage.getItem("feeder-" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem("feeder-" + k, JSON.stringify(v)); } catch (e) { /* פרטי */ } } };
-  const S = { mode: "to", walk: 400, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null };
+  const S = { mode: "to", walk: 400, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null, allDirs: false };
   if (matchMedia("(min-width:901px)").matches) $("side").open = true;
   let rows = [];
   const mb = (c) => { const n = c.reduce((a, b) => a + b, 0) || 1; return '<div class="mb">' + c.map((v, i) => v ? '<i style="width:' + 100 * v / n + '%;background:' + K.CATS[i].c + '"></i>' : "").join("") + "</div>"; };
@@ -140,7 +154,7 @@
   }
   function calc() { rows = K.allRows(S); stList(); draw(); }
   function stList() {
-    const by = {}; rows.forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
+    const by = {}; rows.filter((r) => S.allDirs || r.main).forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
     const q = S.q.trim();
     const list = Object.entries(by).filter(([c, v]) => !q || v[0].includes(q)).sort((a, b) => b[1][1] - a[1][1]);
     $("stl").innerHTML = '<button class="' + (S.st ? "" : "on") + '" data-c="">כל התחנות</button>' + list.map(([c, v]) => '<button data-c="' + c + '" class="' + (S.st === c ? "on" : "") + '"><span>' + K.esc(v[0]) + "</span><b>" + v[1] + "</b></button>").join("");
@@ -148,32 +162,34 @@
     const ops = [...new Set(rows.map((r) => r.op))].sort();
     $("op").innerHTML = '<option value="">כל המפעילים</option>' + ops.map((o) => "<option" + (o === S.op ? " selected" : "") + ">" + K.esc(o) + "</option>").join("");
   }
-  const view = () => rows.filter((r) => (!S.st || r.st === S.st) && (!S.op || r.op === S.op)).sort((a, b) => (b.feed === 2) - (a.feed === 2) || b.cnt[0] - a.cnt[0] || b.n - a.n);
+  const view = () => rows.filter((r) => (S.allDirs || r.main) && (!S.st || r.st === S.st) && (!S.op || r.op === S.op)).sort((a, b) => (b.feed === 2) - (a.feed === 2) || b.cnt[0] - a.cnt[0] || b.n - a.n);
   function draw() {
     const v = view(), tot = [0, 0, 0, 0, 0]; v.forEach((r) => r.cnt.forEach((x, i) => tot[i] += x));
     const conn = tot[0] + tot[1] + tot[2] + tot[3], pc = (a) => conn ? Math.round(100 * a / conn) + "%" : "–";
-    $("kpi").innerHTML = "<div><b>" + v.filter((r) => r.shift).length + "</b><span>קווים × כיוון שכדאי להזיז</span></div><div><b style='color:var(--c0)'>" + pc(tot[0]) + "</b><span>דורש עדכון</span></div><div><b style='color:var(--c2)'>" + pc(tot[2]) + "</b><span>תקין</span></div><div><b>" + conn.toLocaleString("he-IL") + "</b><span>חיבורים שנבדקו</span></div>";
+    $("kpi").innerHTML = "<div><b>" + v.filter((r) => r.shift && r.conn).length + "</b><span>קווים שכדאי להזיז</span></div><div><b style='color:var(--c0)'>" + pc(tot[0]) + "</b><span>דורש עדכון</span></div><div><b style='color:var(--c2)'>" + pc(tot[2]) + "</b><span>תקין</span></div><div><b>" + conn.toLocaleString("he-IL") + "</b><span>חיבורים שנבדקו</span></div>";
     $("tt").textContent = (S.st ? K.C.STN[S.st][0] + " · " : "") + "קווים לטיפול (" + v.length + ")";
     let h = "<table><thead><tr><th>תחנת רכבת</th><th>כיוון הרכבת</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
     for (const r of v.slice(0, 400)) {
       const key = r.st + "|" + r.dir.dk + "|" + r.rid, cc = r.conn;
       h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="mut c-dir"><span class="mo">' + (S.mode === "to" ? "לכיוון " : "מכיוון ") + "</span>" + K.esc(r.dir.name) + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
         '</td><td class="c-op">' + K.esc(r.op) + '</td><td class="c-fr">' + K.esc(S.mode === "to" ? r.from : r.to) + '</td><td class="c-n">' + r.n + '</td><td class="c-bar">' + mb(r.cnt) + '</td><td class="c-pct" style="color:var(--c0);font-weight:600">' + (cc ? Math.round(100 * r.cnt[0] / cc) + "%" : "–") + '<span class="mo"> דורש עדכון</span></td><td class="c-med">' + (r.med == null ? "–" : Math.round(r.med) + "'") +
-        '</td><td class="rec c-rec ' + (r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift) + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
+        '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (S.allDirs && !r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
       if (S.open === key) {
-        h += '<tr class="det"><td colspan="11"><table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
-          r.rows.map((x) => "<tr><td><b>" + K.fmt(x.act) + "</b></td><td class=mut>" + K.fmt(x.sched) + "</td><td class=mut>" + K.esc(x.sname) + " · " + x.dist + "מ'</td><td>" + (x.tr ? "<b>" + K.fmt(x.tr.t) + "</b>" : "–") + "</td><td>" + (x.tr ? K.esc(S.mode === "to" ? "ל" + x.tr.dest : "מ" + x.tr.orig) : "") + "</td><td class=mut>" + (x.tr ? (Math.round(x.tr.delay) > 0 ? "+" : "") + Math.round(x.tr.delay) + " · " + K.esc(x.tr.how) : "") + "</td><td><b>" + (isFinite(x.gap) ? Math.round(x.gap) + "'" : "–") + '</b></td><td><span class="dot" style="background:' + K.CATS[x.c].c + '"></span>' + K.CATS[x.c].label + "</td></tr>").join("") +
-          "</tbody></table></td></tr>";
+        h += '<tr class="det"><td colspan="11"><div class="dw"><table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
+          r.rows.map((x) => '<tr style="--cc:' + K.CATS[x.c].c + '"><td class="d-bus"><b>' + K.fmt(x.act) + "</b>" + (x.est ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + '</td><td class="mut d-sch"><span class="mo">בלו"ז </span>' + K.fmt(x.sched) + '</td><td class="mut d-stp">' + K.esc(x.sname) + " · " + x.dist + " מ'</td><td class=\"d-trt\">" + (x.tr ? '<span class="mo">🚆 </span><b>' + K.fmt(x.tr.t) + "</b>" : "–") + '</td><td class="d-trn">' + (x.tr ? K.esc(S.mode === "to" ? "ל" + x.tr.dest : "מ" + x.tr.orig) : "") + '</td><td class="mut d-dly">' + (x.tr ? (Math.round(x.tr.delay) > 0 ? "+" : "") + Math.round(x.tr.delay) + " · " + K.esc(x.tr.how) : "") + '</td><td class="d-gap"><b>' + (isFinite(x.gap) ? Math.round(x.gap) + " דק'" : "–") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[x.c].c + '"></span>' + K.CATS[x.c].label + "</td></tr>").join("") +
+          "</tbody></table></div></td></tr>";
       }
     }
     h += "</tbody></table>";
     $("tbl").innerHTML = v.length ? h : '<div class="msg">אין קווים בסינון הזה.</div>';
+    // הפירוט ברוחב החלק הנראה של הטבלה (כשהיא רחבה מהמסך וגוללת), כדי שהפער לא ייחתך
+    $("tbl").querySelectorAll(".dw").forEach((e) => e.style.width = $("tbl").parentNode.clientWidth + "px");
     $("tbl").querySelectorAll("tr.r").forEach((t) => t.onclick = () => { S.open = S.open === t.dataset.k ? null : t.dataset.k; draw(); });
     $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. נתוני " + K.fmtD(K.C.day) + ", דאטאבוס.";
   }
   $("csv").onclick = () => {
-    const v = view(), hd = ["תחנת רכבת", "כיוון", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה"];
-    const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift)])));
+    const v = view(), hd = ["תחנת רכבת", "כיוון", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
+    const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift, r.conn), r.main ? "כן" : "לא"])));
     const blob = new Blob(["﻿" + lines.map((l) => l.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "feeder-" + K.C.day + ".csv"; a.click();
   };
@@ -181,6 +197,7 @@
   $("lines").onchange = (e) => { S.lines = +e.target.value; calc(); };
   $("walk").onchange = (e) => { S.walk = +e.target.value; calc(); };
   $("op").onchange = (e) => { S.op = e.target.value; draw(); };
+  $("allDirs").onchange = (e) => { S.allDirs = e.target.checked; S.open = null; stList(); draw(); };
   $("q").oninput = (e) => { S.q = e.target.value; stList(); };
   $("day").onchange = (e) => K.load(e.target.value).then(calc);
   (async () => { const ds = await K.days(); $("day").innerHTML = ds.map((d) => '<option value="' + d + '">' + K.fmtD(d) + "</option>").join(""); thUI(); await K.load(ds[0]); calc(); })().catch((e) => $("tbl").innerHTML = '<div class="msg">' + K.esc(e.message) + "</div>");

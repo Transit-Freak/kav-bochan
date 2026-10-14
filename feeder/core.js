@@ -72,15 +72,16 @@ window.FeederCore = (function () {
     const F = C.F, seen = new Set();
     const near = (F.st[code] || []).filter((x) => x[2] <= o.walk && !seen.has(x[0]) && seen.add(x[0]));
     const termNear = new Set();
-    for (const [sc] of F.st[code] || []) for (const [rid, v] of Object.entries(F.p[sc] || {})) for (let i = 0; i < v.length; i += 3) if (v[i] !== 1) { termNear.add(rid); break; }
+    for (const [sc] of F.st[code] || []) for (const [rid, v] of Object.entries(F.p[sc] || {})) for (let i = 0; i < v.length; i += 3) if (v[i] % 10 !== 1) { termNear.add(rid); break; }
     const byRid = {};
     for (const [sc, sname, dist] of near) {
       for (const [rid, v] of Object.entries(F.p[sc] || {})) {
         for (let i = 0; i < v.length; i += 3) {
-          const pos = v[i];
+          // מקום ברצף: 0 מוצא, 1 באמצע, 2 סוף; +10 = הזמן משוער (לא נמדד כאן — מתחנה סמוכה באותה נסיעה)
+          const pos = v[i] % 10, est = v[i] >= 10;
           if (o.mode === "to" && pos === 0) continue;     // יוצא מכאן — לא מביא נוסעים לרכבת
           if (o.mode === "from" && pos === 2) continue;   // מסיים כאן — לא לוקח נוסעים מהרכבת
-          (byRid[rid] = byRid[rid] || []).push({ sc, sname, dist, sched: v[i + 1] / 60, act: v[i + 2] / 60 });
+          (byRid[rid] = byRid[rid] || []).push({ sc, sname, dist, est, sched: v[i + 1] / 60, act: v[i + 2] / 60 });
         }
       }
     }
@@ -135,17 +136,27 @@ window.FeederCore = (function () {
     }).sort((a, b) => (b.feed - a.feed) || (b.cnt[0] - a.cnt[0]) || (b.n - a.n));
   }
 
-  // כל הצירופים (תחנה × כיוון × קו) — לרשימת העבודה
+  // כל הצירופים (תחנה × כיוון × קו) — לרשימת העבודה.
+  // main: הכיוון שהקו מותאם אליו בתחנה — זה עם הכי הרבה חיבורים (פער עד הטווח "לבדיקה"), ובשוויון החציון
+  // הקרוב לטווח התקין. שלמה 14.10 על 10א בקריית מלאכי: "מותאם לרכבת לתל אביב" — לכיוון קריית גת אין לו חיבור.
   function allRows(o) {
     const out = [];
     for (const c of stations()) {
       const lines = busTrips(c, o); if (!lines.length) continue;
-      for (const d of directions(c, o.mode)) for (const l of evalDir(lines, d, o)) if (l.n) out.push(Object.assign({ st: c, stName: C.STN[c][0] }, l));
+      const best = {};
+      for (const d of directions(c, o.mode)) for (const l of evalDir(lines, d, o)) {
+        if (!l.n) continue;
+        const r = Object.assign({ st: c, stName: C.STN[c][0], main: false }, l);
+        out.push(r);
+        const b = best[l.rid], score = (x) => [x.conn, -Math.abs((x.med == null ? 99 : x.med) - (o.th[1] + o.th[2] - 1) / 2)];
+        if (r.conn && (!b || score(r)[0] > score(b)[0] || (score(r)[0] === score(b)[0] && score(r)[1] > score(b)[1]))) best[l.rid] = r;
+      }
+      for (const r of Object.values(best)) r.main = true;
     }
     return out;
   }
 
-  const shiftText = (s, mode) => !s ? "תקין" : (s < 0 ? "להקדים " + (-s) : "לאחר " + s) + " דק'";
+  const shiftText = (s, conn) => conn === 0 ? "אין חיבור" : !s ? "תקין" : (s < 0 ? "להקדים " + (-s) : "לאחר " + s) + " דק'";
 
   return { C, CATS, DEF_TH, fmt, fmtD, esc, ends, cat, days, load, stations, busTrips, directions, evalDir, allRows, shiftText };
 })();
