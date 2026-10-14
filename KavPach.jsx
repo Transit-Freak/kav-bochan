@@ -844,6 +844,23 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
+          {/* הקו המזין — עמוד עצמאי בתיקיית feeder/, כלי למתכננים: אוטובוסים ליד תחנות רכבת מול הרכבות, בפועל (רעיון של משה דודק, ממונה מחוז דרום, 14.10) */}
+          <a
+            href="feeder/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#3730a3 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#a5b4fc' }} />
+            <div className="relative">
+              <div className="flex items-center mb-6 h-28">
+                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🚉</span>
+              </div>
+              <h2 className="text-3xl font-[900] text-indigo-100">הקו המזין</h2>
+              <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה — לכל קו וכיוון, לפי זמנים בפועל מדאטאבוס, עם המלצה כמה דקות להזיז</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-indigo-200 text-indigo-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
+
           {/* מדד דיוק האוטובוסים — עמוד עצמאי בתיקיית bus/, מ-SIRI גולמי של דאטאבוס (שלמה 06.09) */}
           <a
             href="bus/"
