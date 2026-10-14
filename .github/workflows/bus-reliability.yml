@@ -138,6 +138,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # 7 ו-30 ימים מחוברים מראש לקובץ אחד, שהדף טוען במקום 30 קבצי יום (שלמה 13.10)
           python3 tools/bus_periods.py --data bus/data
+          # הקו המזין: סיכום של 7 הימים האחרונים, שהדף טוען במקום שבעה קובצי יום (שלמה 14.10)
+          node tools/feeder_summary.mjs || echo "::warning::סיכום הקו המזין נכשל — הדף יחשב מקובץ יום"
           git add -A bus/data
           git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
           git commit -m "data: bus — מדד דיוק האוטובוסים"

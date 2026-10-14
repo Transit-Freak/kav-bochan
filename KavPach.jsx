@@ -848,16 +848,16 @@ function ChoiceScreen({ onPick }) {
           <a
             href="feeder/"
             className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#3730a3 100%)' }}
+            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#15803D 100%)' }}
           >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#a5b4fc' }} />
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#86efac' }} />
             <div className="relative">
               <div className="flex items-center mb-6 h-28">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🚉</span>
+                {/* הסמל של הקו המזין: רכבת שהקרון האחרון שלה הוא אוטובוס (שלמה 14.10) */}<svg viewBox="0 0 120 120" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" aria-hidden="true"><rect width="120" height="120" rx="26" fill="#15803D"/><rect x="14" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="26" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="38" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="50" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="62" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="74" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="86" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="98" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><path d="M6 87 H114" stroke="#fff" strokeWidth="4" strokeLinecap="round"/><path d="M30 32 L40 24 L50 32" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinejoin="round"/><path d="M28 24 H52" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><path d="M8 78 V58 C8 44 18 34 34 34 H64 V78 Z" fill="#fff"/><path d="M14 52 C16 45 21 41 28 41 V52 Z" fill="#15803D"/><rect x="33" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="43" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="53" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="10" y="62" width="54" height="3" fill="#15803D"/><circle cx="16" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><circle cx="25" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><circle cx="47" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><circle cx="56" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><rect x="64" y="70" width="7" height="4" fill="#fff"/><rect x="71" y="48" width="42" height="32" rx="7" fill="#fff"/><path d="M75 52 H86 V66 H75 Z" fill="#15803D"/><rect x="89" y="52" width="5" height="22" rx="1.5" fill="#15803D"/><rect x="97" y="52" width="6" height="9" rx="1.5" fill="#15803D"/><rect x="105" y="52" width="5" height="9" rx="1.5" fill="#15803D"/><circle cx="81" cy="81" r="6.5" fill="#fff" stroke="#15803D" strokeWidth="3"/><circle cx="104" cy="81" r="6.5" fill="#fff" stroke="#15803D" strokeWidth="3"/></svg>
               </div>
-              <h2 className="text-3xl font-[900] text-indigo-100">הקו המזין</h2>
-              <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-indigo-200 text-indigo-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+              <h2 className="text-3xl font-[900] text-green-100">הקו המזין</h2>
+              <p className="text-green-100/80 font-bold mt-2 text-sm leading-relaxed">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-green-200 text-green-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </a>
 
