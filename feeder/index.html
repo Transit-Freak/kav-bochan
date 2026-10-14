@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../nav-restore.js"></script><script src="../home-link.js" data-home="/"></script>
+<script src="../version.js" defer></script>
+<script src="../april.js" defer></script>
+<meta name="theme-color" content="#FFFFFF">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%230E7C66" stroke="%23101418" stroke-width="3"/><rect x="12" y="22" width="18" height="20" rx="4" fill="%23fff"/><rect x="36" y="18" width="16" height="26" rx="5" fill="%23fff"/><path d="M31 32h4" stroke="%23fff" stroke-width="3"/></svg>'>
+<meta property="og:title" content="הקו המזין — הקו הבוחן">
+<meta property="og:description" content="האם האוטובוסים מגיעים לתחנת הרכבת בזמן לרכבת, ויוצאים ממנה אחרי שהיא הגיעה — לפי זמני הגעה בפועל">
+<title>הקו המזין — הקו הבוחן</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Secular+One&display=swap">
+<style>
+  :root{--bg:#fff;--ink:#101418;--mut:#4B5563;--dim:#8A94A3;--line:#E5E7EB;--accent:#0E7C66;
+    --c0:#D7263D;--c1:#F4B400;--c2:#00A65A;--c3:#1E5BC6;--c4:#C9CED6;--disp:'Secular One','Heebo',sans-serif;--body:'Heebo',sans-serif}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);overflow-x:hidden}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 16px 40px}
+  .top{display:flex;align-items:center;gap:12px;padding-bottom:10px}
+  .glyph{width:46px;height:46px;border-radius:50%;background:var(--accent);border:3px solid var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  h1{font-family:var(--disp);font-weight:400;font-size:32px;margin:0}
+  .band{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--c2) 0 25%,var(--c1) 25% 50%,var(--c0) 50% 75%,var(--c3) 75%);margin-bottom:14px}
+  .sub{color:var(--mut);margin:0 0 14px;font-size:14px;line-height:1.55}
+  .ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  .seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden}
+  .seg button{border:0;background:#fff;color:var(--ink);font:700 14px var(--body);padding:8px 16px;cursor:pointer;border-inline-end:1.5px solid var(--ink)}
+  .seg button:last-child{border-inline-end:0}
+  .seg button.on{background:var(--ink);color:#fff}
+  label.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer}
+  select{font:700 14px var(--body);border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;background:#fff;color:var(--ink)}
+  .card{border:1.5px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);padding:12px 14px;margin-bottom:14px;background:#fff}
+  .th{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px;font-weight:700}
+  .th .k{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--ink);border-radius:999px;padding:4px 10px;background:#fff}
+  .th .k i{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid #0003}
+  .th input{width:44px;font:800 14px var(--body);border:1.5px solid var(--ink);border-radius:8px;padding:2px 4px;text-align:center}
+  .th .note{font-weight:500;color:var(--mut);font-size:12.5px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+  .stats div{border-top:6px solid var(--accent);padding-top:8px}
+  .stats b{font-family:var(--disp);font-weight:400;font-size:26px;display:block;line-height:1.1}
+  .stats span{font-size:11.5px;font-weight:800;color:var(--mut)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+  .st{border:1.5px solid var(--ink);border-radius:12px;padding:10px 12px;background:#fff;cursor:pointer;text-align:right;font:inherit;color:inherit}
+  .st:hover,.st:focus-visible{box-shadow:4px 4px 0 var(--ink);outline:none}
+  .st h3{margin:0 0 6px;font-size:16px;font-weight:800}
+  .st .meta{font-size:12.5px;color:var(--mut);margin-top:6px}
+  .bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--c4);min-width:110px}
+  .bar i{display:block;height:100%}
+  .back{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:6px 14px;font:700 13px var(--body);cursor:pointer}
+  h2{font-family:var(--disp);font-weight:400;font-size:24px;margin:6px 0 4px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:12px;color:var(--mut);font-weight:800}
+  tr.ln{cursor:pointer}
+  tr.ln:hover{background:#F7F8FA}
+  .num{display:inline-block;min-width:38px;text-align:center;font-weight:800;border:1.5px solid var(--ink);border-radius:8px;padding:1px 6px;background:#fff}
+  .tag{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px;background:var(--accent);color:#fff;margin-inline-start:6px}
+  .tag.t1{background:#fff;color:var(--accent);border:1.5px solid var(--accent);padding:0 7px}
+  .op{color:var(--mut);font-size:12.5px}
+  .pct{font-weight:800}
+  .rides{background:#FAFBFC}
+  .rides td{padding:0}
+  .rl{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:6px;padding:10px}
+  .r{font-size:12.5px;border-inline-start:5px solid var(--c4);padding:4px 8px;background:#fff;border-radius:4px;line-height:1.45}
+  .r b{font-size:13.5px}
+  .dim{color:var(--dim)}
+  .panel{border:1.5px solid var(--ink);box-shadow:4px 4px 0 var(--ink);border-radius:12px;padding:16px 18px;margin-top:18px;background:#fff;font-size:14px;line-height:1.65}
+  .panel h2{font-size:20px;margin:0 0 8px}
+  .panel ul{margin:6px 0;padding-inline-start:20px}
+  .msg{padding:30px;text-align:center;color:var(--mut)}
+  .tw{overflow-x:auto}
+  @media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}h1{font-size:26px}.hide-m{display:none}.seg button{padding:7px 11px;font-size:13px}
+    .bar{min-width:64px}th,td{padding:6px 5px}.rl{grid-template-columns:1fr}.stats b{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="glyph" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 64 64"><rect x="6" y="20" width="22" height="24" rx="5" fill="#fff"/><rect x="36" y="14" width="22" height="32" rx="7" fill="#fff"/><path d="M29 32h6" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg></div>
+    <h1>הקו המזין</h1>
+  </div>
+  <div class="band"></div>
+  <p class="sub" id="sub">טוען נתונים…</p>
+  <div class="ctl">
+    <div class="seg" id="mode"><button data-m="to" class="on">🚌 → 🚆 הגעה לרכבת</button><button data-m="from">🚆 → 🚌 יציאה מהרכבת</button></div>
+    <select id="day" aria-label="יום"></select>
+    <select id="walk" aria-label="מרחק הליכה"><option value="200">תחנות עד 200 מ'</option><option value="300">עד 300 מ'</option><option value="400" selected>עד 400 מ'</option><option value="600">עד 600 מ'</option></select>
+    <select id="lines" aria-label="אילו קווים"><option value="2">רק קווים מזינים (משרד התחבורה)</option><option value="1" selected>מזינים + מתחילים או מסתיימים ליד הרכבת</option><option value="0">כל הקווים שעוצרים ליד הרכבת</option></select>
+  </div>
+  <div class="card th" id="th"></div>
+  <div id="main"><div class="msg">טוען…</div></div>
+  <div class="panel" id="method"></div>
+</div>
+<script>document.write('<script src="app.js?v='+Date.now()+'"><\/script>')</script>
+<script src="../birthday.js" defer></script>
+</body>
+</html>

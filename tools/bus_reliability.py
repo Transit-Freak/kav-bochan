@@ -62,6 +62,10 @@ BUNCH_MAX_SCHED = 20 * 60
 BUNCH_MIN_SCHED = 60
 BUNCH_RATIO = 0.3
 GAP_RATIO = 2.0
+# הקו המזין (רעיון של משה דודק, ממונה מחוז דרום, 14.10): זמני המעבר בפועל בכל תחנת אוטובוס
+# עד FEED_M מטר מתחנת רכבת נשמרים ל-bus/data/feeder/D.json, והדף feeder/ משווה אותם לזמני
+# הרכבות בפועל (rail/data/days). FEED_M רחב — המרחק נשמר, והדף מסנן.
+FEED_M = 600
 # אזורים גיאוגרפיים (קול קורא דאטאבוס, ספטמבר 2026): כל תחנה משויכת למרחב לפי
 # המוקד הקרוב אליה, וכל מרחב למחוז. הגעה נספרת באזור של התחנה שבה נמדדה —
 # כך קו ירושלים–באר שבע נספר בירושלים על התחנות שבירושלים ובנגב על אלה שבנגב,
@@ -1015,6 +1019,22 @@ def main():
     # --- מדידה ---
     routes = g['routes']
     stops = g['stops']
+    # הקו המזין: תחנות אוטובוס ליד תחנות רכבת (קואורדינטות התחנות — מקובץ מדד הרכבת)
+    feed_near = {}      # stop_id → [(קוד תחנת רכבת, מרחק במטרים)]
+    try:
+        rail_st = json.load(open(f'{a.site}/rail/data/stations.json', encoding='utf-8'))
+    except (OSError, ValueError):
+        rail_st = {}
+    for sid, st_ in stops.items():
+        if not st_[2]:
+            continue
+        for rc, rv in rail_st.items():
+            if abs(rv[1] - st_[2]) > 0.006 or abs(rv[2] - st_[3]) > 0.007:
+                continue
+            dm = hav((rv[1], rv[2]), (st_[2], st_[3]))
+            if dm <= FEED_M:
+                feed_near.setdefault(sid, []).append((rc, int(dm)))
+    FEED = collections.defaultdict(list)   # stop_id → [[route_id, מקום ברצף (0 מוצא, 1 באמצע, 2 סוף), מתוכנן, בפועל]]
     # מצברים
     # reach — עד איפה לאורך המסלול נראה האוטובוס: [עד הסוף, חלק מהדרך, רק בהתחלה, שודר ולא זז]
     # (שלמה 17.09, "נסיעות מזויפות": המשרד בודק רק בתחנת המוצא; כאן כל תחנה).
@@ -1246,6 +1266,8 @@ def main():
             stp[2] += 1 if c == ONTIME else 0
             stp[3] = min(stp[3], k)
             ride_pass.append([stops.get(s[1], ('',))[0], sched, t_of[k]])
+            if s[1] in feed_near:
+                FEED[s[1]].append([rid, 0 if k == 1 else 2 if k == len(seq) else 1, int(sched), int(t_of[k])])
             if k == 1:
                 r['o'][c] += 1
                 tot['o'][c] += 1
@@ -1476,6 +1498,44 @@ def main():
 
     json.dump(day_obj, open(f'{a.out}/days/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(profiles, open(f'{a.out}/days/{day}.stops.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    # הקו המזין: לכל תחנת רכבת — תחנות האוטובוס הסמוכות, והמעברים בפועל בכל אחת (שניות מחצות)
+    fst, fr = collections.defaultdict(list), {}
+    # ייחודיות הקו לפי משרד התחבורה (סדיר / תלמידים / לילה / קווים מזינים) — נשמרת ב"הקו בזמן"
+    try:
+        uniq = {k: v[1] for k, v in json.load(open(f'{a.site}/line-history/data/ltype-state.json', encoding='utf-8'))['m'].items()}
+    except (OSError, ValueError, KeyError):
+        uniq = {}
+    for sid, near in feed_near.items():
+        if sid not in FEED:
+            continue
+        for rc, dm in near:
+            # כמה רציפים (stop_id) עם אותו מק"ט — פעם אחת, במרחק הקרוב
+            same = next((x for x in fst[rc] if x[0] == stops[sid][0]), None)
+            if same is None:
+                fst[rc].append([stops[sid][0], stops[sid][1], dm])
+            elif dm < same[2]:
+                same[2] = dm
+        for row in FEED[sid]:
+            rt = routes.get(row[0], {})
+            fr.setdefault(row[0], [rt.get('short', ''), rt.get('agency', ''), rt.get('long', ''), rt.get('mkt', ''), rt.get('dir', ''),
+                                   1 if uniq.get(rt.get('mkt', '')) == 'קווים מזינים' else 0])
+    fp = collections.defaultdict(lambda: collections.defaultdict(list))   # מק"ט → route_id → [מקום, מתוכנן, בפועל, …]
+    for sid, v in FEED.items():
+        for rid_, pos, sc_, ac_ in sorted(v, key=lambda x: x[3]):
+            fp[stops[sid][0]][rid_] += [pos, sc_, ac_]
+    os.makedirs(f'{a.out}/feeder', exist_ok=True)
+    json.dump({'d': day, 'fmt': 1,
+               'cols': {'st': 'קוד תחנת רכבת → [[מק"ט, שם, מרחק מ\'] של תחנות האוטובוס הסמוכות]',
+                        'r': 'route_id → [מספר קו, מפעיל, שם ארוך, מק"ט, כיוון, 1 = קו מזין לפי משרד התחבורה]',
+                        'p': 'מק"ט → route_id → [מקום ברצף (0 מוצא/1 באמצע/2 סוף), מתוכנן, בפועל, …] — שניות מחצות של יום השירות'},
+               'st': dict(fst), 'r': fr, 'p': fp},
+              open(f'{a.out}/feeder/{day}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    # שלושה שבועות אחורה מספיקים לדף (כ-3MB ליום); הישנים נמחקים
+    fdays = sorted(f[:10] for f in os.listdir(f'{a.out}/feeder') if re.match(r'\d{4}-\d{2}-\d{2}\.json$', f))
+    for old in fdays[:-21]:
+        os.remove(f'{a.out}/feeder/{old}.json')
+    json.dump({'days': fdays[-21:]}, open(f'{a.out}/feeder/index.json', 'w', encoding='utf-8'), separators=(',', ':'))
+    print(f'הקו המזין: {sum(len(v) for v in FEED.values()):,} מעברים ב-{len(FEED):,} תחנות ליד {len(fst)} תחנות רכבת', flush=True)
     # חורי GPS: תחנות שאוטובוסים ודאי עברו בהן (נמדדו לפניהן ואחריהן) ובכל זאת פחות מ-70% מהמעברים נמדדו.
     # אם זה קורה לכמה מפעילים באותה תחנה — זו קליטה, לא המפעיל (שלמה 17.09: "להפריד איפה יש בעיות של GPS")
     # וגם: התחנות שאחריהן נסיעות "נעלמות" (נמדדו עד כאן ולא הלאה, ולא בגלל סיבוב הבא) — 5 ומעלה ביום
