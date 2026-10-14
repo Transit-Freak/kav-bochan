@@ -50,6 +50,8 @@ def download(url, target):
             if attempt == 2: raise
             time.sleep(2*(attempt+1))
 
+MAX_ORPHAN_TRIPS = 50
+
 def load_snapshot(paths):
     """Merge overlapping regional feeds by primary key; conflicts fail loudly."""
     tables={n:{} for n in ('routes.txt','agency.txt','stops.txt','calendar.txt','trips.txt')}
@@ -97,8 +99,20 @@ def load_snapshot(paths):
         stop_times[alias] = stop_times.get(original, [])
     stops=tables['stops.txt']; routes=tables['routes.txt']; trips=tables['trips.txt']
     if not routes or not stops or not trips or not stop_times: raise ValueError('Empty GTFS required table')
+    # obus 2017-11-21 publishes two trips of route 21397 (Nahariya-Tel Aviv rail,
+    # one Saturday night) without its routes.txt row; the next day's feed has the
+    # route and the same trips. Without a route there is no line to attribute them
+    # to, so a handful are set aside and reported. Many such trips still fail.
+    orphans=collections.defaultdict(list)
     for tid, t in trips.items():
-        if t['route_id'] not in routes: raise ValueError('Missing route '+t['route_id'])
+        if t['route_id'] not in routes: orphans[t['route_id']].append(tid)
+    if sum(map(len, orphans.values())) > MAX_ORPHAN_TRIPS:
+        raise ValueError('Missing route '+', '.join(sorted(orphans)[:5]))
+    for rid, tids in orphans.items():
+        for tid in tids:
+            del trips[tid]; stop_times.pop(tid, None)
+    if orphans: tables['missing-route-trips']={rid: sorted(tids) for rid, tids in orphans.items()}
+    for tid, t in trips.items():
         if t['service_id'] not in tables['calendar.txt']: raise ValueError('Missing service '+t['service_id'])
         # Some published trips have no stop times. Preserve the source and
         # report this limitation instead of inventing a route for them.
@@ -269,7 +283,8 @@ def publish(source, paths):
             'modes':dict(modes),'versionsAdded':nversions,'date':date,
             'tripsWithoutStopTimes':sum(not x for x in times.values()),
             'sourceTripIds':len({t['trip_id'] for t in tables['trips.txt'].values() if 'trip_id' in t}),
-            'sharedTripRouteAssignments':sum(k != t.get('trip_id', k) for k,t in tables['trips.txt'].items())}
+            'sharedTripRouteAssignments':sum(k != t.get('trip_id', k) for k,t in tables['trips.txt'].items()),
+            **({'tripsWithMissingRoute':tables['missing-route-trips']} if tables.get('missing-route-trips') else {})}
 
 def main():
     global OUT,CAT,PROGRESS

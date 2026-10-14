@@ -27,7 +27,7 @@ class TimelineTest(unittest.TestCase):
 
 
 class SharedTripTest(unittest.TestCase):
- def fixture(self, path, conflicting_service=False):
+ def fixture(self, path, conflicting_service=False, orphans=0):
   tables={
    'routes.txt':[['route_id'],['r1'],['r2']],
    'agency.txt':[['agency_id'],['a']],
@@ -35,7 +35,8 @@ class SharedTripTest(unittest.TestCase):
    'calendar.txt':[['service_id'],['c'],['c2']],
    'trips.txt':[['route_id','service_id','trip_id','direction_id','shape_id'],
                 ['r1','c','t','0','shape'],['r2','c2' if conflicting_service else 'c','t','0','shape'],
-                ['r2','c2' if conflicting_service else 'c','t','0','shape']],
+                ['r2','c2' if conflicting_service else 'c','t','0','shape']]
+                +[['gone','c',f'o{i}','0','shape'] for i in range(orphans)],
    'stop_times.txt':[['trip_id','stop_sequence','stop_id','arrival_time','departure_time'],
                      ['t','1','s','08:00:00','08:00:00']],
    'shapes.txt':[['shape_id','shape_pt_sequence','shape_pt_lat','shape_pt_lon'],
@@ -52,6 +53,18 @@ class SharedTripTest(unittest.TestCase):
    self.assertEqual(len(times),2)
    self.assertEqual(list(times.values())[0],list(times.values())[1])
    self.assertEqual(m.load_snapshot([p,p]),(tables,times,shapes))
+ def test_few_trips_without_route_are_set_aside(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d)/'feed.zip';self.fixture(p,orphans=2)
+   tables,times,shapes=m.load_snapshot([p])
+   self.assertEqual(tables['missing-route-trips'],{'gone':['o0','o1']})
+   self.assertEqual({r['route_id'] for r in tables['trips.txt'].values()},{'r1','r2'})
+   self.assertNotIn('o0',times)
+ def test_many_trips_without_route_still_fail(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d)/'feed.zip';self.fixture(p,orphans=m.MAX_ORPHAN_TRIPS+1)
+   with self.assertRaisesRegex(ValueError,'Missing route gone'):
+    m.load_snapshot([p])
  def test_conflicting_service_still_fails(self):
   with tempfile.TemporaryDirectory() as d:
    p=Path(d)/'feed.zip';self.fixture(p,True)
