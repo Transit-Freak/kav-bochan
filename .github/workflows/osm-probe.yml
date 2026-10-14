@@ -1,0 +1,43 @@
+name: osm-probe
+# זמני — בדיקה ב-OpenStreetMap איפה מסומן הנתיב המהיר באיילון (מחקר, יימחק)
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/osm-probe.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Overpass
+        run: |
+          cat > q.txt <<'Q'
+          [out:json][timeout:120];
+          (
+            way["highway"](31.95,34.74,32.10,34.82)["name"~"מהיר|Express|Fast|נתיב לעיר"];
+            way["highway"](31.95,34.74,32.10,34.82)["toll"];
+            way["highway"](31.95,34.74,32.10,34.82)[~"^(hov|hov:lanes|toll:lanes|bus:lanes|psv:lanes|lanes:psv|lanes:bus|access:lanes|motor_vehicle:lanes)"~"."];
+            way["highway"~"motorway|trunk|primary"](31.95,34.74,32.10,34.82)["ref"~"^20$|^20;|;20$"];
+            way["highway"~"motorway|trunk"](31.95,34.74,32.10,34.82)[~"^(bus|psv|access|motor_vehicle|motorcar)$"~"designated|no|yes|private"];
+            way["highway"="construction"](31.95,34.74,32.10,34.82);
+          );
+          out tags geom;
+          Q
+          for u in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            curl -sS -m 200 --data-urlencode "data@q.txt" "$u" -o o.json && python3 -c "import json;json.load(open('o.json'))" && break
+          done
+          python3 - <<'P'
+          import json, math
+          d = json.load(open('o.json'))
+          def L(g):
+              s = 0
+              for a, b in zip(g, g[1:]):
+                  s += 6371000 * math.hypot(math.radians(b['lat'] - a['lat']), math.radians(b['lon'] - a['lon']) * math.cos(math.radians(a['lat'])))
+              return round(s)
+          keep = ('name', 'name:en', 'ref', 'highway', 'lanes', 'oneway', 'access', 'bus', 'psv', 'hov', 'toll', 'note', 'description', 'fixme', 'construction', 'motor_vehicle', 'motorcar', 'operator', 'opening_date', 'start_date', 'maxspeed')
+          print('N', len(d['elements']))
+          for e in d['elements']:
+              t = e.get('tags', {}); g = e.get('geometry', [])
+              x = {k: v for k, v in t.items() if k in keep or ':lanes' in k or 'lanes:' in k or k.startswith('toll') or k.startswith('hov')}
+              print('W', e['id'], L(g), (round(g[0]['lat'], 5), round(g[0]['lon'], 5)) if g else '', (round(g[-1]['lat'], 5), round(g[-1]['lon'], 5)) if g else '', json.dumps(x, ensure_ascii=False))
+          P
