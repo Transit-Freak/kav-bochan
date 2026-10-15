@@ -2744,7 +2744,8 @@ const DAYS_FILTER = [
             cost,
             weeklyKm: 0,
             isNightLine: uniqueness.includes("לילה"),
-            isEilatPrebooked: origin.includes("אילת") || dest.includes("אילת"),
+            // כמו ב-xlsx-worker: רק בינעירוני ארוך לאילת וממנה, לא הקווים העירוניים בתוך אילת
+            isEilatPrebooked: (origin.includes("אילת") || dest.includes("אילת")) && lineType.includes("בינעירוני") && distance > 45,
             isFeedingLine: uniqueness.includes("מזין"),
             opGroup: "",
             uniquenessVal: uniqueness || "",
