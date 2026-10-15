@@ -254,7 +254,14 @@ function scoreCore(r, ctx) {
   const { pset, liveOf, overlapMap, dhObs } = ctx;
   const PC = pset.c;
   const componentScores = {};
-  const ptsOf = (k, f) => (PC[k] && PC[k].on ? Math.max(0, Math.min(1, f)) * (Number(PC[k].max) || 0) : 0);
+  const ptsOf0 = (k, f) => (PC[k] && PC[k].on ? Math.max(0, Math.min(1, f)) * (Number(PC[k].max) || 0) : 0);
+  // קווי אילת בהזמנה מראש (שלמה 15.10): חלק גדול מהנוסעים לא נספר בתיקופים — בממוצע
+  // 9 נוסעים לנסיעה מול 15 בשאר הבינעירוני הארוך, ו-4 בקווים 790/794 שבדרך כלל מלאים.
+  // לכן כל רכיב שנשען על הספירה (נסיעות שפל, ק"מ מבוזבז, עלות לנוסע, נוסעים ועומס)
+  // לא נכנס לציון. נשאר רק מה שנמדד מהשידורים (נסיעה תפעולית).
+  const uncounted = !!(r.isEilatPrebooked && pset.p && pset.p.prebook > 0);
+  const COUNT_BASED = { lowTrips: 1, wastedKm: 1, cost: 1, riders: 1 };
+  const ptsOf = (k, f) => (uncounted && COUNT_BASED[k] ? 0 : ptsOf0(k, f));
 
   // 1. נסיעות שפל — אחוז הנסיעות שמתחת לסף הנוסעים של הקטגוריה
   componentScores.lowTrips = ptsOf('lowTrips', r.percentLow / 100);
@@ -314,10 +321,6 @@ function scoreCore(r, ctx) {
     protections.push({ name: 'תלמידים בשעות בי"ס', value: PP.school, detail: `${Math.round(r.schoolRatio * 100)}% מהנסיעות` });
     totalDeduction += PP.school;
   }
-  if (PP.prebook > 0 && r.isEilatPrebooked) {
-    protections.push({ name: 'הזמנה מראש', value: PP.prebook, detail: 'התיקופים חלקיים — העומס בפועל גבוה מהנמדד' });
-    totalDeduction += PP.prebook;
-  }
   if (PP.weekend > 0 && r.totalTrips > 0 && r.wkndRatio >= 0.6) {
     protections.push({ name: 'קו סופ"ש', value: PP.weekend, detail: `${Math.round(100 * r.wkndRatio)}% מהנסיעות בשישי-שבת` });
     totalDeduction += PP.weekend;
@@ -346,7 +349,7 @@ function scoreCore(r, ctx) {
     }
   }
   const finalScore = Math.max(0, rawScore - totalDeduction);
-  return { score: finalScore, rawScore, componentScores, dhWeekly, protections, totalDeduction, live };
+  return { score: finalScore, rawScore, componentScores, dhWeekly, protections, totalDeduction, live, uncounted };
 }
 
 // רשומה + תוצאת הניקוד → האובייקט שהכרטיסים מציגים
@@ -355,7 +358,7 @@ function toLine(r, sc) {
   const tier = getStatusTier(finalScore);
   const annualExcess = (r.avgCost > 0 && r.costBenchmark > 0 && r.avgCost > r.costBenchmark)
     ? Math.round((r.avgCost - r.costBenchmark) * r.avgRiders * r.totalTrips * 52) : 0;
-  const { rawScore, componentScores, dhWeekly, protections, totalDeduction, live } = sc;
+  const { rawScore, componentScores, dhWeekly, protections, totalDeduction, live, uncounted } = sc;
   return {
     lineNum: r.lineNum,
     avg: r.avgRiders.toFixed(1),
@@ -382,6 +385,7 @@ function toLine(r, sc) {
     nonWastedKm: r.nonWastedKm,
     groupKey: r.groupKey,
     isNightLine: r.isNightLine, isEilatPrebooked: r.isEilatPrebooked, isFeedingLine: r.isFeedingLine,
+    uncounted: !!uncounted,
     exclusiveStops: r.exclusiveStops,
     annualExcess,
     live,
