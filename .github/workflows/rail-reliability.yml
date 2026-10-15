@@ -75,8 +75,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # הקו המזין: יום נכנס לסיכום רק כשיש לו גם נתוני רכבת — לכן הסיכום נבנה גם כאן (שלמה 14.10)
-          node tools/feeder_summary.mjs || echo "::warning::סיכום הקו המזין נכשל — הדף יחשב מקובץ יום"
-          git add -A rail/data bus/data/feeder/summary.json bus/data/feeder/trips
+          for k in wk fri sat; do node tools/feeder_summary.mjs --kind $k || echo "::warning::סיכום הקו המזין ($k) נכשל — הדף יחשב מקובץ יום"; done
+          git add -A rail/data bus/data/feeder/summary*.json bus/data/feeder/trips*
           git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
           git commit -m "data: rail — מדד אמינות הרכבת מדאטאבוס"
           ok=
