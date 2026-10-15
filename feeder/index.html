@@ -209,11 +209,19 @@
     const to = S.mode === "to";
     let o = [["ta", to ? "רכבות לכיוון תל אביב" : "רכבות שמגיעות מתל אביב"], ["away", to ? "רכבות בכיוון ההפוך מתל אביב" : "רכבות שמגיעות מהכיוון ההפוך"],
       ["main", "הכיוון שהקו מותאם אליו"], ["all", "כל הכיוונים"]];
-    if (S.st) { const seen = new Set(); rows.filter((r) => r.st === S.st && !seen.has(r.dir.dk) && seen.add(r.dir.dk)).forEach((r) => o.push(["dk:" + r.dir.dk, (to ? "רכבות ל" : "רכבות מ") + r.dir.name])); }
+    if (S.st) { const seen = new Set(); rows.filter((r) => r.st === S.st && !seen.has(r.dir.dk) && seen.add(r.dir.dk)).forEach((r) => o.push(["dk:" + r.dir.dk, dirText(r.dir)])); }
     if (!o.some((x) => x[0] === S.dir)) S.dir = "ta";
     $("dir").innerHTML = o.map((x, i) => (i === 4 ? '<optgroup label="בתחנה הזו">' : "") + '<option value="' + x[0] + '"' + (x[0] === S.dir ? " selected" : "") + ">" + K.esc(x[1]) + "</option>").join("") + (o.length > 4 ? "</optgroup>" : "");
   }
   const picked = () => K.pick(rows, S.dir, S.st);
+  // שם הכיוון: לכיוון ת"א — "לתל אביב" (באוטובוס ← רכבת) או "מתל אביב" (ברכבת ← אוטובוס, חזרה מהרכבת), ואחריו
+  // היעדים / המוצאים של הרכבות; בשאר הכיוונים — היעדים / המוצאים (שלמה 15.10: "חזור מהרכבת — רכבות מתל אביב")
+  const dirText = (d, html) => {
+    const to = S.mode === "to";
+    if (d.ta !== 1) return (to ? "רכבות ל" : "רכבות מ") + (html ? K.esc(d.name) : d.name);
+    const sub = (to ? "יעד: " : "מוצא: ") + d.name;
+    return (to ? "רכבות לתל אביב" : "רכבות מתל אביב") + (html ? ' <span class="mut" style="font-size:12px">(' + K.esc(sub) + ")</span>" : " (" + sub + ")");
+  };
   function stList() {
     dirUI();
     const by = {}; picked().forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
@@ -230,10 +238,10 @@
     const conn = tot[0] + tot[1] + tot[2] + tot[3], pc = (a) => conn ? Math.round(100 * a / conn) + "%" : "–";
     $("kpi").innerHTML = "<div><b>" + v.filter((r) => r.shift && r.conn).length + "</b><span>קווים שכדאי להזיז</span></div><div><b style='color:var(--c0)'>" + pc(tot[0]) + "</b><span>דורש עדכון</span></div><div><b style='color:var(--c2)'>" + pc(tot[2]) + "</b><span>תקין</span></div><div><b>" + conn.toLocaleString("he-IL") + "</b><span>חיבורים שנבדקו</span></div>";
     $("tt").textContent = (S.st ? K.C.STN[S.st][0] + " · " : "") + "קווים לטיפול (" + v.length + ")";
-    let h = "<table><thead><tr><th>תחנת רכבת</th><th>" + (S.mode === "to" ? "הרכבות נוסעות ל" : "הרכבות מגיעות מ") + "</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
+    let h = "<table><thead><tr><th>תחנת רכבת</th><th>כיוון הרכבות</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
     for (const r of v.slice(0, 400)) {
       const key = r.st + "|" + r.dir.dk + "|" + r.rid, cc = r.conn;
-      h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="mut c-dir"><span class="mo">' + (S.mode === "to" ? "רכבות ל" : "רכבות מ") + "</span>" + K.esc(r.dir.name) + (r.fb ? ' <span class="ft f1" title="אין בתחנה הזו רכבות בכיוון שנבחר — מוצג הכיוון שהקו מותאם אליו">הכיוון של הקו</span>' : "") + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
+      h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="c-dir">' + dirText(r.dir, true) + (r.fb ? ' <span class="ft f1" title="אין בתחנה הזו רכבות בכיוון שנבחר — מוצג הכיוון שהקו מותאם אליו">הכיוון של הקו</span>' : "") + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
         '</td><td class="c-op">' + K.esc(r.op) + '</td><td class="c-fr">' + K.esc(S.mode === "to" ? r.from : r.to) + '</td><td class="c-n">' + r.n + '</td><td class="c-bar">' + mb(r.cnt) + '</td><td class="c-pct" style="color:var(--c0);font-weight:600">' + (cc ? Math.round(100 * r.cnt[0] / cc) + "%" : "–") + '<span class="mo"> דורש עדכון</span></td><td class="c-med">' + (r.med == null ? "–" : Math.round(r.med) + "'") +
         '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (!r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
       if (S.open === key && !r.rows) {
@@ -267,9 +275,9 @@
     $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. " + info + ". נתונים: דאטאבוס. מסלולי הליכה: © OpenStreetMap contributors.";
   }
   $("csv").onclick = () => {
-    const v = view(), hd = ["תחנת רכבת", "הרכבות (יעד)", "כיוון ת\"א", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
+    const v = view(), hd = ["תחנת רכבת", "כיוון הרכבות", "כיוון ת\"א", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
     const taT = (t) => t === 1 ? (S.mode === "to" ? "לת\"א" : "מת\"א") : t === -1 ? "הפוך" : "התחנה בת\"א";
-    const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, taT(r.dir.ta), r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift, r.conn), r.main ? "כן" : "לא"])));
+    const lines = [hd].concat(v.map((r) => [r.stName, dirText(r.dir), taT(r.dir.ta), r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift, r.conn), r.main ? "כן" : "לא"])));
     const blob = new Blob(["﻿" + lines.map((l) => l.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "feeder-" + (kind() && SUM && isDefault() ? kind() + "-" + SUM.days[SUM.days.length - 1] : K.C.day) + "-" + S.dir.replace(":", "") + ".csv"; a.click();
   };
