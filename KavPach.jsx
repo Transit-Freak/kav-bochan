@@ -2134,7 +2134,8 @@ function computeDeadheadCounts(trips, lineStopsMap, dset) {
       Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k]); });
       // הגנות — נקודות שמופחתות
       const protections = [];
-      if (PP.night > 0 && (a.isNightLine || b.isNightLine || a.timeMins < 5 * 60)) protections.push({ name: 'קו לילה', value: PP.night });
+      // קו לילה = רק קו שהמשרד מגדיר כקו לילה (ייחודיות "לילה"), לא נסיעה מוקדמת של קו יום (שלמה 15.10)
+      if (PP.night > 0 && (a.isNightLine || b.isNightLine)) protections.push({ name: 'קו לילה', value: PP.night });
       const wk = (a.daysList || []);
       if (PP.weekend > 0 && wk.length && wk.every(d => d === 6 || d === 7)) protections.push({ name: 'קו סופ"ש', value: PP.weekend });
       if (PP.rare > 0 && weekly <= 1) protections.push({ name: 'זוג בודד בשבוע', value: PP.rare });
@@ -2300,7 +2301,9 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const rawScore = normScore(parts.obs + parts.tight + parts.hot + parts.crush + parts.empty, maxSum);
     Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k]); });
     const protections = [];
-    const nightShare = ex.length ? ex.filter(x => x.depB < 5 * 3600 || x.depB >= 24 * 3600).length / ex.length : 0;
+    // קו לילה = רק קו שהמשרד מגדיר כקו לילה, לא לפי שעת היציאה (שלמה 15.10)
+    const isNightMk = (m) => !!((byMakat.get(String(m)) || [])[0] || {}).isNightLine;
+    const nightShare = ex.length ? ex.filter(x => isNightMk(x.mkA) || isNightMk(x.mkB)).length / ex.length : 0;
     if (PP.night > 0 && nightShare >= 0.6) protections.push({ name: 'קו לילה', value: PP.night });
     const wkShare = ex.length ? ex.filter(x => { const d = new Date(x.day + 'T12:00:00').getDay(); return d === 5 || d === 6; }).length / ex.length : 0;
     if (PP.weekend > 0 && ex.length && wkShare >= 0.6) protections.push({ name: 'סופ"ש', value: PP.weekend });
@@ -3468,7 +3471,7 @@ const DAYS_FILTER = [
         }
         
         const maxGapMerge = !isNaN(customGapValue) && customGapValue > 0 ? customGapValue : defaultMaxGap;
-        const isNight = t1.isNightLine || t1.period === 'לילה';
+        const isNight = t1.isNightLine;   // רק קו שהמשרד מגדיר כקו לילה, לא לפי השעה (שלמה 15.10)
         const hasCustomGap = !isNaN(customGapValue) && customGapValue > 0;
 
         if (isNight) cancelGapCheck = 60;
@@ -4361,7 +4364,7 @@ const DAYS_FILTER = [
                     <div className="space-y-3">
                       <div className="text-[12px] font-black text-slate-900">הגנות — נקודות שמופחתות מהציון (0 = בלי הגנה):</div>
                       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-slate-700 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
-                        {[['night', 'קו לילה (רוב החזרות לפני 05:00)'], ['weekend', 'סופ"ש'], ['rare', 'תצפית בודדת']].map(([k, lbl]) => (
+                        {[['night', 'קו לילה (מוגדר כך במשרד)'], ['weekend', 'סופ"ש'], ['rare', 'תצפית בודדת']].map(([k, lbl]) => (
                           <label key={k} className="inline-flex items-center gap-2">{lbl}
                             <NumField value={dset.p[k]} onChange={v => updDset(s2 => ({ ...s2, p: { ...s2.p, [k]: v == null ? 0 : Math.max(0, Math.min(100, v)) } }))} min={0} max={100} width="w-16" suffix="נק׳" />
                           </label>
