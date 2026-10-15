@@ -2,7 +2,8 @@
    אוטובוסים: bus/data/feeder/D.json — מעבר בפועל בכל תחנה עד 600 מ' מתחנת רכבת (tools/bus_reliability.py).
    רכבות: rail/data/days/D.json — איחור ההגעה לכל תחנה (tools/rail_reliability.py). נמדד בכשליש מהתחנות;
    בשאר — האיחור של התחנה הקרובה שנמדדה באותה נסיעה, ובלי מדידה — הלו"ז. רכבת לא יוצאת לפני הזמן.
-   כיוון רכבת = התחנה הבאה (ביציאה) או הקודמת (בהגעה). */
+   כיוון רכבת = התחנה הבאה (ביציאה) או הקודמת (בהגעה). לכל כיוון מסומן אם הוא לתל אביב (ביציאה: הרכבת
+   עוד עוברת בתחנה בת"א; בהגעה: היא כבר עברה בת"א) — ברירת המחדל בדף (שלמה 15.10). */
 window.FeederCore = (function () {
   "use strict";
   const CATS = [
@@ -14,6 +15,8 @@ window.FeederCore = (function () {
   ];
   const DEF_TH = [5, 8, 13, 18];   // גבולות עליונים (לא כולל), בדקות: 0–4 / 5–7 / 8–12 / 13–17 / 18+
   const C = { F: null, RAIL: null, STN: {}, TR: {}, meas: 0, day: "", W: null };
+  // תחנות תל אביב: מרכז (סבידור), השלום, ההגנה, האוניברסיטה
+  const TA = new Set(["17038", "17046", "17104", "17036"]);
   const base = (document.currentScript && document.currentScript.src.replace(/feeder\/core\.js.*$/, "")) || "../";
 
   const fmt = (m) => { m = Math.round(m); const h = Math.floor(m / 60) % 24, mm = ((m % 60) + 60) % 60; return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0"); };
@@ -47,6 +50,10 @@ window.FeederCore = (function () {
       const dest = (STN[String(s[n - 1][0])] || [ride.nm])[0], orig = (STN[String(s[0][0])] || [""])[0];
       // הקדמה של יותר מ-10 דק' היא הצמדה שגויה של השידור, לא רכבת מוקדמת — כאילו לא נמדד
       const m = (i) => (s[i][2] != null && s[i][2] >= -10 ? s[i][2] : null);
+      // לכל תחנה ברצף: האם יש תחנת ת"א לפניה / אחריה
+      const taB = [], taA = [];
+      for (let i = 0, f = false; i < n; i++) { taB[i] = f; if (TA.has(String(s[i][0]))) f = true; }
+      for (let i = n - 1, f = false; i >= 0; i--) { taA[i] = f; if (TA.has(String(s[i][0]))) f = true; }
       for (let i = 0; i < n; i++) {
         let d_ = m(i), how = "נמדד";
         if (d_ == null) {
@@ -59,8 +66,10 @@ window.FeederCore = (function () {
         const delay = d_ == null ? 0 : d_;
         const e = { p, delay, how: d_ == null ? "לפי הלו\"ז" : how, dest, orig, nm: ride.nm, id: ride.id };
         const t = (TR[String(s[i][0])] = TR[String(s[i][0])] || { dep: [], arr: [] });
-        if (i < n - 1) t.dep.push(Object.assign({ t: p + Math.max(0, delay), dk: String(s[i + 1][0]) }, e));
-        if (i > 0) t.arr.push(Object.assign({ t: p + delay, dk: String(s[i - 1][0]) }, e));
+        // ta: 1 = לכיוון ת"א (ביציאה) / מכיוון ת"א (בהגעה), -1 = הכיוון ההפוך, 0 = התחנה עצמה בת"א
+        const inTA = TA.has(String(s[i][0]));
+        if (i < n - 1) t.dep.push(Object.assign({ t: p + Math.max(0, delay), dk: String(s[i + 1][0]), ta: inTA ? 0 : taA[i] ? 1 : -1 }, e));
+        if (i > 0) t.arr.push(Object.assign({ t: p + delay, dk: String(s[i - 1][0]), ta: inTA ? 0 : taB[i] ? 1 : -1 }, e));
       }
     }
     for (const t of Object.values(TR)) { t.dep.sort((a, b) => a.t - b.t); t.arr.sort((a, b) => a.t - b.t); }
@@ -121,10 +130,15 @@ window.FeederCore = (function () {
       // השם — לאן הרכבות נוסעות (או מאיפה הן באות), לפי היעדים הנפוצים; לא התחנה הבאה (שלמה 14.10)
       const all = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
       const name = all.slice(0, 2).join(" / ") + (all.length > 2 ? " ועוד" : ""), via = (C.STN[dk] || ["?"])[0];
-      return { dk, trains, name, via, label: (mode === "to" ? "רכבות ל" : "רכבות מ") + name, sub: (mode === "to" ? "התחנה הבאה: " : "התחנה הקודמת: ") + via, n: trains.length };
+      // הכיוון של רוב הרכבות: לת"א (1), הפוך (-1), או התחנה בת"א (0)
+      const sum = trains.reduce((a, x) => a + x.ta, 0), ta = sum > 0 ? 1 : sum < 0 ? -1 : 0;
+      return { dk, trains, name, via, ta, label: (mode === "to" ? "רכבות ל" : "רכבות מ") + name, sub: (mode === "to" ? "התחנה הבאה: " : "התחנה הקודמת: ") + via, n: trains.length };
     }).sort((a, b) => b.n - a.n);
   }
 
+  // אין רכבת עד שעה מהאוטובוס (שבת, שישי אחר הצהריים, לילה) — הנסיעה לא נספרת, ולא מוצמדת בכוח לרכבת רחוקה
+  // (שלמה 15.10: "אם אין רכבת, המערכת לא תכריח בכוח למצוא רכבת")
+  const NOTR = 60;
   // לכל נסיעת אוטובוס: הרכבת הבאה (הגעה לרכבת) או הקודמת (יציאה מהרכבת) באותו כיוון.
   // shift — ההזזה שמביאה את החציון לאמצע הטווח התקין (חיובי = לאחר, שלילי = להקדים)
   function evalDir(lines, dir, o) {
@@ -137,7 +151,7 @@ window.FeederCore = (function () {
         if (o.mode === "to") { const k = lb(x.act); if (k < T.length) { tr = T[k]; gap = tr.t - x.act; } }
         else { const k = lb(x.act + 1e-9) - 1; if (k >= 0) { tr = T[k]; gap = x.act - tr.t; } }
         return Object.assign({ gap, c: cat(gap, th), tr }, x);
-      });
+      }).filter((r) => r.gap <= NOTR);
       const cnt = [0, 0, 0, 0, 0]; rows.forEach((r) => cnt[r.c]++);
       const conn = rows.filter((r) => r.c < 4).map((r) => r.gap).sort((a, b) => a - b);
       const med = conn.length ? conn[conn.length >> 1] : null;
@@ -173,5 +187,26 @@ window.FeederCore = (function () {
 
   const walkText = (wk) => Math.max(1, Math.round(wk.min)) + " דק' הליכה" + (wk.real ? "" : " (משוער)");
 
-  return { C, CATS, DEF_TH, walkText, walkOf, fmt, fmtD, esc, ends, cat, days, load, stations, busTrips, directions, evalDir, allRows, shiftText };
+  // בחירת השורות לפי כיוון הרכבת. dir: "ta" לכיוון ת"א (ברירת המחדל) · "away" הכיוון ההפוך · "main" הכיוון שהקו
+  // מותאם אליו · "all" · "dk:<קוד>" כיוון מסוים בתחנה st. בתחנה שאין בה כיוון כזה (תחנות ת"א עצמן) — הכיוון של הקו,
+  // מסומן fb. שורה = {st, rid, dir:{dk, ta}, main, conn, n}
+  function pick(rows, dir, st) {
+    if (dir === "all") return rows;
+    if (dir === "main") return rows.filter((r) => r.main);
+    if (dir.startsWith("dk:")) return rows.filter((r) => r.st === st && r.dir.dk === dir.slice(3));
+    const want = dir === "away" ? -1 : 1, best = new Map(), main = new Map();
+    for (const r of rows) {
+      const k = r.st + "|" + r.rid;
+      if (r.main) main.set(k, r);
+      if (r.dir.ta === want) { const b = best.get(k); if (!b || r.conn > b.conn || (r.conn === b.conn && r.n > b.n)) best.set(k, r); }
+    }
+    const out = [];
+    for (const k of new Set([...best.keys(), ...main.keys()])) {
+      const r = best.get(k) || main.get(k);
+      out.push(Object.assign({}, r, { fb: !best.has(k) }));
+    }
+    return out;
+  }
+
+  return { C, CATS, DEF_TH, TA, NOTR, pick, walkText, walkOf, fmt, fmtD, esc, ends, cat, days, load, stations, busTrips, directions, evalDir, allRows, shiftText };
 })();

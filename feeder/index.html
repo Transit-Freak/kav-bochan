@@ -114,7 +114,8 @@
       <select id="lines" style="width:100%;margin-bottom:6px"><option value="2">קווים מזינים בלבד</option><option value="1" selected>מזינים + מסוף ליד הרכבת</option><option value="0">כל הקווים</option></select>
       <select id="walk" style="width:100%;margin-bottom:6px"><option value="3">תחנות עד 3 דק' הליכה</option><option value="5">עד 5 דק' הליכה</option><option value="7" selected>עד 7 דק' הליכה</option><option value="10">עד 10 דק' הליכה</option></select>
       <select id="op" style="width:100%;margin-bottom:8px"><option value="">כל המפעילים</option></select>
-      <label style="display:flex;gap:6px;align-items:flex-start;font-size:13px;cursor:pointer"><input type="checkbox" id="allDirs"> <span>גם כיווני רכבת שהקו לא מותאם אליהם <span class="mut">(ברירת המחדל: לכל קו רק הכיוון עם הכי הרבה חיבורים)</span></span></label>
+      <label for="dir" style="display:block;font-size:12px;color:var(--mut);font-weight:600;margin-bottom:3px">כיוון הרכבת</label>
+      <select id="dir" style="width:100%"></select>
     </div>
     <div class="box"><h3>תחנות רכבת</h3><input type="search" id="q" placeholder="חיפוש תחנה" style="width:100%"><div class="stl" id="stl"></div></div>
   </details></aside>
@@ -128,10 +129,11 @@
       <li><b>הרכבות:</b> זמן ההגעה בפועל לכל תחנה, מנתוני המיקום של הרכבות בדאטאבוס (מדד אמינות הרכבת). השידור של הרכבות מקוטע: בתחנה שלא נמדדה נלקח האיחור של התחנה הקרובה שנמדדה באותה נסיעה, ובלי מדידה — הלו"ז. רכבת לא יוצאת לפני הזמן, והקדמה של יותר מ-10 דק' נחשבת מדידה שגויה.</li>
       <li><b>אוטובוס ← רכבת:</b> לכל אוטובוס שהגיע (לא כזה שמתחיל בתחנה) — הרכבת הראשונה שיצאה אחריו, בכל כיוון בנפרד. <b>רכבת ← אוטובוס:</b> לכל אוטובוס שיצא (לא כזה שמסתיים בתחנה) — הרכבת האחרונה שהגיעה לפניו. הרכבות מקובצות לפי כיוון הנסיעה, ומוצגות לפי היעדים שלהן ("רכבות להרצליה / נהריה").</li>
       <li><b>מזין:</b> קו שמשרד התחבורה מגדיר "קווים מזינים" (ייחודיות הקו). <b>מסוף:</b> קו שמתחיל או מסתיים עד 600 מ' מתחנת הרכבת, או ששמו מזכיר רכבת.</li>
-      <li><b>הכיוון של הקו:</b> לכל קו בכל תחנה מוצג רק כיוון הרכבת שהוא מותאם אליו — זה עם הכי הרבה חיבורים עד הטווח "לבדיקה". אפשר להציג גם את שאר הכיוונים בסינון.</li>
+      <li><b>כיוון הרכבת:</b> ברירת המחדל — רכבות לכיוון תל אביב (באוטובוס ← רכבת: רכבות שעוד יעברו בתחנה בת"א; ברכבת ← אוטובוס: רכבות שכבר עברו בת"א). בתחנה שאין בה כיוון כזה, כמו תחנות ת"א עצמן או עפולה, מוצג הכיוון שהקו מותאם אליו — זה עם הכי הרבה חיבורים — ומסומן "הכיוון של הקו". בסינון אפשר לבחור את הכיוון ההפוך, את הכיוון של הקו, את כל הכיוונים, או בתחנה שנבחרה — כל כיוון שלה בשמו.</li>
+      <li><b>אין רכבת:</b> אוטובוס שאין לו רכבת עד שעה לפניו או אחריו (שבת, שישי אחר הצהריים, לילה) לא נספר, ולא מוצמד בכוח לרכבת רחוקה.</li>
       <li><b>המלצה:</b> כמה דקות להקדים או לאחר את הקו כדי שהחציון ייפול באמצע הטווח התקין. זו נקודת פתיחה לבדיקה, לא תיקון אוטומטי — הזזה משפיעה גם על רכבות בכיוונים אחרים.</li>
       <li><b>זמן הליכה:</b> מתחנת הרכבת לכל תחנת אוטובוס, לפי מסלול הליכה במפת OpenStreetMap (שרת ניווט OSRM, מתעדכן פעם בשבוע). כשאין מסלול — הערכה מהמרחק, מסומנת "משוער". הטווחים למעלה הם הפער בין האוטובוס לרכבת, כולל ההליכה.</li>
-      <li><b>השבוע:</b> סיכום מוכן מראש של 7 הימים האחרונים שיש להם נתוני אוטובוסים ורכבות, בהגדרות ברירת המחדל (הטווחים של משה, עד 7 דק' הליכה, מזינים ומסוף). בהגדרות אחרות, או ביום בודד, החישוב רץ בדפדפן על קובץ היום.</li>
+      <li><b>ממוצע:</b> שלושה סיכומים נפרדים, כי לוחות הזמנים שונים לגמרי — 5 ימי החול האחרונים, 3 ימי שישי ו-3 מוצאי שבת. לכל נסיעה בלו"ז מחושב בממוצע מתי האוטובוס עבר ומתי הרכבת שלה יצאה. הסיכומים מוכנים מראש בהגדרות ברירת המחדל (הטווחים של משה, עד 7 דק' הליכה, מזינים ומסוף); בהגדרות אחרות, או ביום בודד, החישוב רץ בדפדפן על קובץ היום.</li>
       <li>נסיעה שעוצרת בכמה תחנות ליד הרכבת נספרת פעם אחת, בתחנה עם הכי מעט דקות הליכה. כשהמעבר בה לא נמדד (לרוב תחנת הסוף, כי השידור נפסק כשהנסיעה מסתיימת), הזמן משוער: הלו"ז של התחנה ועוד האיחור בתחנה הסמוכה שנמדדה באותה נסיעה. ליד זמן כזה כתוב "משוער".</li>
       <li>הרעיון: משה דודק, ממונה מחוז דרום במשרד התחבורה. הטווחים ניתנים לשינוי ונשמרים בדפדפן.</li>
     </ul></details>
@@ -142,15 +144,25 @@
 (function () {
   const K = FeederCore, $ = (id) => document.getElementById(id);
   const store = { get(k, d) { try { const v = localStorage.getItem("feeder-" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem("feeder-" + k, JSON.stringify(v)); } catch (e) { /* פרטי */ } } };
-  const S = { mode: "to", walk: 7, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null, allDirs: false, day: "week" };
+  // dir: "ta" לכיוון ת"א (ברירת המחדל, שלמה 15.10) · "away" · "main" · "all" · "dk:<תחנה הבאה/קודמת>"
+  // day: "wk" ימי חול · "fri" שישי · "sat" מוצ"ש — סיכום מוכן מראש; או תאריך
+  const S = { mode: "to", walk: 7, lines: 1, th: store.get("th", K.DEF_TH).slice(0, 4), st: "", op: "", q: "", open: null, dir: "ta", day: "wk" };
+  const KINDS = { wk: { file: "summary.json", trips: "trips", label: "ימי חול" }, fri: { file: "summary-fri.json", trips: "trips-fri", label: "שישי" }, sat: { file: "summary-sat.json", trips: "trips-sat", label: "מוצאי שבת" } };
+  const WD = ["א'", "ב'", "ג'", "ד'", "ה'", "שישי", "שבת"];
+  const nd = (n) => n === 1 ? "יום אחד" : n + " ימים";
+  const wdOf = (d) => new Date(d + "T12:00:00Z").getUTCDay();
+  const dayLabel = (d) => { const w = wdOf(d); return (w < 5 ? "יום " : "") + WD[w] + " " + K.fmtD(d); };
   if (matchMedia("(min-width:901px)").matches) $("side").open = true;
-  let rows = [], SUM = null, info = "";
-  const TRIPS = {};
+  let rows = [], SUM = null, info = "", ALL = [];
+  const SUMS = {}, TRIPS = {};
+  // הסיכום של סוג היום שנבחר (ימי חול / שישי / מוצ"ש), או null ביום בודד
+  const kind = () => KINDS[S.day] ? S.day : null;
   function loadTrips(st) {
-    if (TRIPS[st] !== undefined) return;
-    TRIPS[st] = null;
-    fetch("../bus/data/feeder/trips/" + st + ".json", { cache: "no-cache" }).then((r) => r.ok ? r.json() : { modes: {}, names: [] })
-      .then((d) => { TRIPS[st] = d; draw(); }).catch(() => { TRIPS[st] = { modes: {}, names: [] }; draw(); });
+    const k = kind() + "|" + st;
+    if (TRIPS[k] !== undefined) return;
+    TRIPS[k] = null;
+    fetch("../bus/data/feeder/" + KINDS[kind()].trips + "/" + st + ".json", { cache: "no-cache" }).then((r) => r.ok ? r.json() : { modes: {}, names: [] })
+      .then((d) => { TRIPS[k] = d; draw(); }).catch(() => { TRIPS[k] = { modes: {}, names: [] }; draw(); });
   }
   const mb = (c) => { const n = c.reduce((a, b) => a + b, 0) || 1; return '<div class="mb">' + c.map((v, i) => v ? '<i style="width:' + 100 * v / n + '%;background:' + K.CATS[i].c + '"></i>' : "").join("") + "</div>"; };
   const hs = (h) => {
@@ -163,41 +175,56 @@
     $("thr").onclick = () => { S.th = K.DEF_TH.slice(); store.set("th", S.th); thUI(); run(); };
     $("th").querySelectorAll("input").forEach((x) => x.onchange = () => { const i = +x.dataset.i; S.th[i] = Math.max(1, +x.value || 1) + 1; for (let k = i + 1; k < 4; k++) if (S.th[k] <= S.th[k - 1]) S.th[k] = S.th[k - 1] + 1; for (let k = i - 1; k >= 0; k--) if (S.th[k] >= S.th[k + 1]) S.th[k] = Math.max(1, S.th[k + 1] - 1); store.set("th", S.th); thUI(); run(); });
   }
-  // השבוע: מהסיכום המוכן מראש (tools/feeder_summary.mjs) — בהגדרות ברירת המחדל. בהגדרות אחרות, או ביום
-  // בודד, החישוב רץ כאן על קובץ היום (כ-4MB).
+  // ימי חול / שישי / מוצ"ש: מהסיכום המוכן מראש (tools/feeder_summary.mjs) — בהגדרות ברירת המחדל. בהגדרות
+  // אחרות, או ביום בודד, החישוב רץ כאן על קובץ היום (כ-4MB).
   const isDefault = () => S.th.join() === K.DEF_TH.join() && S.walk === 7 && S.lines >= 1;
   function sumRows() {
     const dirs = SUM.dirs[S.mode] || {};
     return (SUM.modes[S.mode] || []).map((x) => {
-      const R = SUM.routes[x[2]], cnt = x.slice(4, 9), dn = dirs[x[0] + "|" + x[1]] || ["?", "?"];
-      return { st: x[0], stName: (K.C.STN[x[0]] || ["?"])[0], dir: { dk: x[1], name: dn[0], via: dn[1] }, rid: x[2], main: !!x[3], cnt, n: cnt.reduce((a, b) => a + b, 0),
+      const R = SUM.routes[x[2]], cnt = x.slice(4, 9), dn = dirs[x[0] + "|" + x[1]] || ["?", "?", 0];
+      return { st: x[0], stName: (K.C.STN[x[0]] || ["?"])[0], dir: { dk: x[1], name: dn[0], via: dn[1], ta: dn[2] || 0 }, rid: x[2], main: !!x[3], cnt, n: cnt.reduce((a, b) => a + b, 0),
         conn: cnt[0] + cnt[1] + cnt[2] + cnt[3], med: x[9], shift: x[10], hours: x[11] || "", days: x[12] || null, rows: null,
         num: R[0], op: R[1], from: R[2], to: R[3], feed: R[4], R: [R[0], R[1], "", R[5]] };
     }).filter((r) => r.feed >= S.lines);
   }
   async function calc() {
-    if (S.day === "week" && SUM && isDefault()) {
+    const k = kind();
+    if (k && !SUMS[k]) { $("tbl").innerHTML = '<div class="msg">טוען…</div>'; try { const r = await fetch("../bus/data/feeder/" + KINDS[k].file, { cache: "no-cache" }); SUMS[k] = r.ok ? await r.json() : false; } catch (e) { SUMS[k] = false; } }
+    SUM = k && SUMS[k] && SUMS[k].days && SUMS[k].days.length ? SUMS[k] : null;
+    if (SUM && isDefault()) {
       rows = sumRows(); K.C.meas = SUM.meas;
-      info = "השבוע: " + K.fmtD(SUM.days[0]) + "–" + K.fmtD(SUM.days[SUM.days.length - 1]) + " (" + SUM.days.length + " ימים), סיכום מוכן מראש";
+      info = KINDS[k].label + ": " + SUM.days.map((d) => K.fmtD(d).slice(0, 5)).join(", ") + " (" + nd(SUM.days.length) + ", בממוצע)" + ", סיכום מוכן מראש";
     } else {
-      const d = S.day === "week" ? (SUM ? SUM.days[SUM.days.length - 1] : K.C.day) : S.day;
+      const d = k ? (SUM ? SUM.days[SUM.days.length - 1] : ALL[0]) : S.day;
+      if (!d) { $("tbl").innerHTML = '<div class="msg">אין עדיין נתונים ל' + KINDS[k].label + ".</div>"; return; }
       if (K.C.day !== d) { $("tbl").innerHTML = '<div class="msg">טוען את ' + K.fmtD(d) + "…</div>"; await K.load(d); }
       rows = K.allRows(S);
-      info = S.day === "week" ? "בהגדרות שבחרת מוצג יום " + K.fmtD(d) + " — הסיכום השבועי מחושב בהגדרות ברירת המחדל" : "יום " + K.fmtD(d);
+      info = (k ? "בהגדרות שבחרת מוצג " + dayLabel(d) + " — הממוצע מחושב בהגדרות ברירת המחדל" : dayLabel(d));
     }
     stList(); draw();
   }
   const run = () => calc().catch((e) => $("tbl").innerHTML = '<div class="msg">' + K.esc(e.message) + "</div>");
+  // אפשרויות כיוון הרכבת; בתחנה שנבחרה — גם כל כיוון שלה בשמו
+  function dirUI() {
+    const to = S.mode === "to";
+    let o = [["ta", to ? "רכבות לכיוון תל אביב" : "רכבות שמגיעות מתל אביב"], ["away", to ? "רכבות בכיוון ההפוך מתל אביב" : "רכבות שמגיעות מהכיוון ההפוך"],
+      ["main", "הכיוון שהקו מותאם אליו"], ["all", "כל הכיוונים"]];
+    if (S.st) { const seen = new Set(); rows.filter((r) => r.st === S.st && !seen.has(r.dir.dk) && seen.add(r.dir.dk)).forEach((r) => o.push(["dk:" + r.dir.dk, (to ? "רכבות ל" : "רכבות מ") + r.dir.name])); }
+    if (!o.some((x) => x[0] === S.dir)) S.dir = "ta";
+    $("dir").innerHTML = o.map((x, i) => (i === 4 ? '<optgroup label="בתחנה הזו">' : "") + '<option value="' + x[0] + '"' + (x[0] === S.dir ? " selected" : "") + ">" + K.esc(x[1]) + "</option>").join("") + (o.length > 4 ? "</optgroup>" : "");
+  }
+  const picked = () => K.pick(rows, S.dir, S.st);
   function stList() {
-    const by = {}; rows.filter((r) => S.allDirs || r.main).forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
+    dirUI();
+    const by = {}; picked().forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
     const q = S.q.trim();
     const list = Object.entries(by).filter(([c, v]) => !q || v[0].includes(q)).sort((a, b) => b[1][1] - a[1][1]);
     $("stl").innerHTML = '<button class="' + (S.st ? "" : "on") + '" data-c="">כל התחנות</button>' + list.map(([c, v]) => '<button data-c="' + c + '" class="' + (S.st === c ? "on" : "") + '"><span>' + K.esc(v[0]) + "</span><b>" + v[1] + "</b></button>").join("");
-    $("stl").querySelectorAll("button").forEach((b) => b.onclick = () => { S.st = b.dataset.c; S.open = null; stList(); draw(); });
+    $("stl").querySelectorAll("button").forEach((b) => b.onclick = () => { S.st = b.dataset.c; S.open = null; if (S.dir.startsWith("dk:")) S.dir = "ta"; stList(); draw(); });
     const ops = [...new Set(rows.map((r) => r.op))].sort();
     $("op").innerHTML = '<option value="">כל המפעילים</option>' + ops.map((o) => "<option" + (o === S.op ? " selected" : "") + ">" + K.esc(o) + "</option>").join("");
   }
-  const view = () => rows.filter((r) => (S.allDirs || r.main) && (!S.st || r.st === S.st) && (!S.op || r.op === S.op)).sort((a, b) => (b.feed === 2) - (a.feed === 2) || b.cnt[0] - a.cnt[0] || b.n - a.n);
+  const view = () => picked().filter((r) => (!S.st || r.st === S.st) && (!S.op || r.op === S.op)).sort((a, b) => (b.feed === 2) - (a.feed === 2) || b.cnt[0] - a.cnt[0] || b.n - a.n);
   function draw() {
     const v = view(), tot = [0, 0, 0, 0, 0]; v.forEach((r) => r.cnt.forEach((x, i) => tot[i] += x));
     const conn = tot[0] + tot[1] + tot[2] + tot[3], pc = (a) => conn ? Math.round(100 * a / conn) + "%" : "–";
@@ -206,24 +233,24 @@
     let h = "<table><thead><tr><th>תחנת רכבת</th><th>" + (S.mode === "to" ? "הרכבות נוסעות ל" : "הרכבות מגיעות מ") + "</th><th>קו</th><th>מפעיל</th><th>" + (S.mode === "to" ? "מגיע מ" : "נוסע ל") + "</th><th>נסיעות</th><th>חלוקה</th><th>דורש עדכון</th><th>חציון</th><th>המלצה</th><th>לאורך היום</th></tr></thead><tbody>";
     for (const r of v.slice(0, 400)) {
       const key = r.st + "|" + r.dir.dk + "|" + r.rid, cc = r.conn;
-      h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="mut c-dir"><span class="mo">' + (S.mode === "to" ? "רכבות ל" : "רכבות מ") + "</span>" + K.esc(r.dir.name) + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
+      h += '<tr class="r" data-k="' + key + '"><td class="c-st">' + K.esc(r.stName) + '</td><td class="mut c-dir"><span class="mo">' + (S.mode === "to" ? "רכבות ל" : "רכבות מ") + "</span>" + K.esc(r.dir.name) + (r.fb ? ' <span class="ft f1" title="אין בתחנה הזו רכבות בכיוון שנבחר — מוצג הכיוון שהקו מותאם אליו">הכיוון של הקו</span>' : "") + '</td><td class="c-ln"><span class="n">' + K.esc(r.num) + "</span>" + (r.feed === 2 ? '<span class="ft f2">מזין</span>' : r.feed === 1 ? '<span class="ft f1">מסוף</span>' : "") +
         '</td><td class="c-op">' + K.esc(r.op) + '</td><td class="c-fr">' + K.esc(S.mode === "to" ? r.from : r.to) + '</td><td class="c-n">' + r.n + '</td><td class="c-bar">' + mb(r.cnt) + '</td><td class="c-pct" style="color:var(--c0);font-weight:600">' + (cc ? Math.round(100 * r.cnt[0] / cc) + "%" : "–") + '<span class="mo"> דורש עדכון</span></td><td class="c-med">' + (r.med == null ? "–" : Math.round(r.med) + "'") +
-        '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (S.allDirs && !r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
+        '</td><td class="rec c-rec ' + (!r.conn ? "x" : r.shift < 0 ? "e" : r.shift > 0 ? "l" : "k") + '">' + K.shiftText(r.shift, r.conn) + (!r.main ? '<span class="mo"> · לא הכיוון שלו</span>' : "") + '</td><td class="c-h">' + hs(r.hours) + "</td></tr>";
       if (S.open === key && !r.rows) {
         // השבוע: לכל נסיעה בלו"ז — מתי האוטובוס הגיע (או יצא, בתחנת מוצא) בממוצע, והרכבת שהיא מתחברת אליה
         // (שלמה 14.10). קובץ לכל תחנת רכבת, נטען רק כשפותחים קו.
-        const T = TRIPS[r.st], list = T && T.modes[S.mode] && T.modes[S.mode][r.dir.dk + "|" + r.rid];
+        const T = TRIPS[kind() + "|" + r.st], list = T && T.modes[S.mode] && T.modes[S.mode][r.dir.dk + "|" + r.rid];
         if (!T) loadTrips(r.st);
-        const dayBtns = r.days ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px"><span class="mut" style="align-self:center">לפירוט יום:</span>' + SUM.days.map((d, i) => { const x = r.days[i] || [0, 0]; return '<button class="btn dd" type="button" data-d="' + d + '" data-k="' + key + '">' + K.fmtD(d).slice(0, 5) + " · " + x[1] + (x[1] ? ' · <b style="color:var(--c0)">' + Math.round(100 * x[0] / x[1]) + "%</b>" : "") + "</button>"; }).join("") + "</div>" : "";
+        const dayBtns = r.days ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px"><span class="mut" style="align-self:center">לפירוט יום:</span>' + SUM.days.map((d, i) => { const x = r.days[i] || [0, 0]; return '<button class="btn dd" type="button" data-d="' + d + '" data-k="' + key + '">' + WD[wdOf(d)] + " " + K.fmtD(d).slice(0, 5) + " · " + x[1] + (x[1] ? ' · <b style="color:var(--c0)">' + Math.round(100 * x[0] / x[1]) + "%</b>" : "") + "</button>"; }).join("") + "</div>" : "";
         const fm = (m) => m == null ? "–" : K.fmt(m), lt = (a, b) => { const d = Math.round(a - b); return d ? ' <span class="mut">(' + (d > 0 ? "+" : "") + d + ")</span>" : ""; };
-        const tbl = !T ? '<div class="msg" style="padding:14px">טוען את הנסיעות…</div>' : !list ? '<div class="mut">אין פירוט נסיעות לקו הזה.</div>' :
+        const tbl = !T ? '<div class="msg" style="padding:14px">טוען את הנסיעות…</div>' : !list ? '<div class="mut">אין פירוט ממוצע לכיוון הזה — אפשר לבחור יום למטה או למעלה.</div>' :
           "<table><thead><tr><th>בלו\"ז</th><th>" + (S.mode === "to" ? "האוטובוס בממוצע" : "האוטובוס בממוצע") + "</th><th>ימים</th><th>" + (S.mode === "to" ? "הרכבת" : "הרכבת שהגיעה") + "</th><th>הרכבת בממוצע</th><th>פער ממוצע</th><th></th></tr></thead><tbody>" +
           list.map((x) => { const [sch, n, act, gap, c, pos, est, tp, ti, tAct] = x;
             const what = pos === 0 ? "יוצא מהמוצא " : S.mode === "to" ? "מגיע " : "יוצא ";
             return '<tr style="--cc:' + K.CATS[c].c + '"><td class="d-sch"><span class="mo">בלו"ז </span><b>' + K.fmt(sch) + '</b></td><td class="d-bus"><span class="mo">' + what + "</span>" + fm(act) + lt(act, sch) + (est === n ? ' <span class="est" title="לא נמדד בתחנה הזו — לפי האיחור בתחנה הסמוכה באותה נסיעה">משוער</span>' : "") + (pos === 0 ? ' <span class="est">מוצא</span>' : "") +
               '</td><td class="mut d-stp">' + n + " ימים</td><td class=\"d-trt\">" + (tp == null ? "אין רכבת" : '<span class="mo">🚆 </span>' + K.fmt(tp) + " " + K.esc((S.mode === "to" ? "ל" : "מ") + T.names[ti])) + '</td><td class="d-trn">' + (tAct == null ? "" : fm(tAct) + lt(tAct, tp)) +
               '</td><td class="d-gap"><b>' + (gap == null ? "–" : Math.round(gap) + " דק'") + '</b></td><td class="d-cat"><span class="dot" style="background:' + K.CATS[c].c + '"></span>' + K.CATS[c].label + "</td></tr>"; }).join("") + "</tbody></table>";
-        h += '<tr class="det"><td colspan="11"><div class="dw" style="padding:8px 12px"><b>כל הנסיעות בשבוע, בממוצע</b> <span class="mut">· בסוגריים — הפער מהלו"ז</span>' + dayBtns + tbl + "</div></td></tr>";
+        h += '<tr class="det"><td colspan="11"><div class="dw" style="padding:8px 12px"><b>כל הנסיעות, ' + (SUM.days.length === 1 ? "ב" + KINDS[kind()].label + " האחרון" : "בממוצע של " + SUM.days.length + " " + (kind() === "wk" ? "ימי חול" : kind() === "fri" ? "ימי שישי" : "מוצאי שבת")) + '</b> <span class="mut">· בסוגריים — הפער מהלו"ז</span>' + dayBtns + tbl + "</div></td></tr>";
       }
       if (S.open === key && r.rows) {
         h += '<tr class="det"><td colspan="11"><div class="dw"><table><thead><tr><th>' + (S.mode === "to" ? "הגעת האוטובוס" : "יציאת האוטובוס") + "</th><th>בלו\"ז</th><th>תחנה</th><th>" + (S.mode === "to" ? "יציאת הרכבת" : "הגעת הרכבת") + "</th><th>הרכבת</th><th>איחור הרכבת</th><th>פער</th><th></th></tr></thead><tbody>" +
@@ -240,28 +267,27 @@
     $("note").textContent = "זמני הרכבות: נמדדו ב-" + Math.round(100 * K.C.meas) + "% מהתחנות, בשאר לפי התחנה הקרובה שנמדדה. המלצה = ההזזה שמביאה את החציון לאמצע הטווח התקין. " + info + ". נתונים: דאטאבוס. מסלולי הליכה: © OpenStreetMap contributors.";
   }
   $("csv").onclick = () => {
-    const v = view(), hd = ["תחנת רכבת", "הרכבות (יעד)", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
-    const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift, r.conn), r.main ? "כן" : "לא"])));
+    const v = view(), hd = ["תחנת רכבת", "הרכבות (יעד)", "כיוון ת\"א", "קו", "מק\"ט", "מפעיל", "סוג", "נסיעות", "דורש עדכון", "גבולי", "תקין", "לבדיקה", "רחוק", "חציון (דק')", "המלצה", "הכיוון שהקו מותאם אליו"];
+    const taT = (t) => t === 1 ? (S.mode === "to" ? "לת\"א" : "מת\"א") : t === -1 ? "הפוך" : "התחנה בת\"א";
+    const lines = [hd].concat(v.map((r) => [r.stName, r.dir.name, taT(r.dir.ta), r.num, r.R[3], r.op, r.feed === 2 ? "מזין" : r.feed === 1 ? "מסוף" : "", r.n].concat(r.cnt, [r.med == null ? "" : Math.round(r.med), K.shiftText(r.shift, r.conn), r.main ? "כן" : "לא"])));
     const blob = new Blob(["﻿" + lines.map((l) => l.map((x) => '"' + String(x).replace(/"/g, '""') + '"').join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "feeder-" + (S.day === "week" && SUM && isDefault() ? "week-" + SUM.days[SUM.days.length - 1] : K.C.day) + ".csv"; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "feeder-" + (kind() && SUM && isDefault() ? kind() + "-" + SUM.days[SUM.days.length - 1] : K.C.day) + "-" + S.dir.replace(":", "") + ".csv"; a.click();
   };
-  $("mode").querySelectorAll("button").forEach((b) => b.onclick = () => { S.mode = b.dataset.m; S.open = null; $("mode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); run(); });
+  $("mode").querySelectorAll("button").forEach((b) => b.onclick = () => { S.mode = b.dataset.m; S.open = null; if (S.dir.startsWith("dk:")) S.dir = "ta"; $("mode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); run(); });
   $("lines").onchange = (e) => { S.lines = +e.target.value; run(); };
   $("walk").onchange = (e) => { S.walk = +e.target.value; run(); };
   $("op").onchange = (e) => { S.op = e.target.value; draw(); };
-  $("allDirs").onchange = (e) => { S.allDirs = e.target.checked; S.open = null; stList(); draw(); };
+  $("dir").onchange = (e) => { S.dir = e.target.value; S.open = null; stList(); draw(); };
   $("q").oninput = (e) => { S.q = e.target.value; stList(); };
   $("day").onchange = (e) => { S.day = e.target.value; S.open = null; run(); };
   (async () => {
     thUI();
-    try { const r = await fetch("../bus/data/feeder/summary.json", { cache: "no-cache" }); if (r.ok) SUM = await r.json(); } catch (e) { SUM = null; }
-    if (SUM && SUM.days && SUM.days.length) {
-      const r = await fetch("../rail/data/stations.json", { cache: "no-cache" }); K.C.STN = await r.json();
-      $("day").innerHTML = '<option value="week">השבוע · ' + K.fmtD(SUM.days[0]).slice(0, 5) + "–" + K.fmtD(SUM.days[SUM.days.length - 1]).slice(0, 5) + "</option>" + SUM.days.slice().reverse().map((d) => '<option value="' + d + '">' + K.fmtD(d) + "</option>").join("");
-    } else {
-      const ds = await K.days(); S.day = ds[0];
-      $("day").innerHTML = ds.map((d) => '<option value="' + d + '">' + K.fmtD(d) + "</option>").join("");
-    }
+    // שלושת הסיכומים (ימי חול, שישי, מוצ"ש) והימים הבודדים
+    await Promise.all(Object.entries(KINDS).map(async ([k, x]) => { try { const r = await fetch("../bus/data/feeder/" + x.file, { cache: "no-cache" }); SUMS[k] = r.ok ? await r.json() : false; } catch (e) { SUMS[k] = false; } }));
+    ALL = await K.days();
+    const opt = Object.entries(KINDS).filter(([k]) => SUMS[k] && SUMS[k].days && SUMS[k].days.length).map(([k, x]) => '<option value="' + k + '">' + x.label + " · ממוצע " + nd(SUMS[k].days.length) + "</option>");
+    if (!opt.length) S.day = ALL[0];
+    $("day").innerHTML = opt.join("") + '<optgroup label="יום בודד">' + ALL.map((d) => '<option value="' + d + '"' + (d === S.day ? " selected" : "") + ">" + dayLabel(d) + "</option>").join("") + "</optgroup>";
     await calc();
   })().catch((e) => $("tbl").innerHTML = '<div class="msg">' + K.esc(e.message) + "</div>");
 })();
