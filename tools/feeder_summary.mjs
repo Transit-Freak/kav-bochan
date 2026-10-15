@@ -56,10 +56,10 @@ for (const d of days) {
       let a = agg[mode].get(key);
       if (!a) {
         a = { st: r.st, dk: r.dir.dk, rid: r.rid, num: r.num, op: r.op, from: r.from, to: r.to, feed: r.feed, mkt: r.R[3],
-          name: r.dir.name, via: r.dir.via, ta: r.dir.ta, cnt: [0, 0, 0, 0, 0], gaps: [], hours: {}, days: {}, trips: {} };
+          name: r.dir.name, via: r.dir.via, ta: r.dir.ta, pass: new Set(), cnt: [0, 0, 0, 0, 0], gaps: [], hours: {}, days: {}, trips: {} };
         agg[mode].set(key, a);
       }
-      a.name = r.dir.name; a.feed = Math.max(a.feed, r.feed);
+      a.name = r.dir.name; a.feed = Math.max(a.feed, r.feed); r.dir.pass.forEach((q) => a.pass.add(q));
       r.cnt.forEach((v, i) => a.cnt[i] += v);
       for (const x of r.rows) if (x.c < 4) a.gaps.push(Math.round(x.gap * 10) / 10);
       // לכל נסיעה בלו"ז (לפי השעה המתוכננת) — הזמנים בפועל על פני השבוע, והרכבת שהיא מתחברת אליה
@@ -118,12 +118,12 @@ for (const mode of ['to', 'from']) {
   out.modes[mode] = rows.filter((a) => a.cnt.some((v) => v)).map((a) => {
     const m = main.has(a), k = keep(a);
     out.routes[a.rid] = [a.num, a.op, a.from, a.to, a.feed, a.mkt];
-    (out.dirs[mode] = out.dirs[mode] || {})[a.st + '|' + a.dk] = [a.name, a.via, a.ta];
+    (out.dirs[mode] = out.dirs[mode] || {})[a.st + '|' + a.dk] = [a.name, a.via, a.ta, [...a.pass].sort()];
     return [a.st, a.dk, a.rid, m ? 1 : 0, ...a.cnt, a.med == null ? null : Math.round(a.med * 10) / 10, a.shift,
       k ? hourStr(a.hours) : '', k ? days.map((d) => a.days[d] || [0, 0]) : 0];
   });
 }
-out.cols = { row: 'st,dk,rid,main,upd,edge,ok,chk,far,med,shift,hours(05–23: 0–4 קטגוריה, - אין),days([דורש עדכון, חיבורים] לכל יום ב-days)', routes: 'rid → [קו, מפעיל, מגיע מ, נוסע ל, 2 מזין/1 מסוף, מק"ט]', dirs: 'מצב → תחנה|כיוון → [יעדי הרכבות, התחנה הבאה/הקודמת, 1 לת"א / -1 הפוך / 0 התחנה בת"א]' };
+out.cols = { row: 'st,dk,rid,main,upd,edge,ok,chk,far,med,shift,hours(05–23: 0–4 קטגוריה, - אין),days([דורש עדכון, חיבורים] לכל יום ב-days)', routes: 'rid → [קו, מפעיל, מגיע מ, נוסע ל, 2 מזין/1 מסוף, מק"ט]', dirs: 'מצב → תחנה|כיוון → [יעדי הרכבות, התחנה הבאה/הקודמת, 1 לת"א / -1 הפוך / 0 התחנה בת"א, התחנות שהרכבות ממשיכות אליהן / הגיעו מהן]' };
 const SFX = KINDS[KIND].sfx;
 fs.writeFileSync(path.join(FD, 'summary' + SFX + '.json'), JSON.stringify(out));
 const TD = path.join(FD, 'trips' + SFX);

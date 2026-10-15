@@ -68,8 +68,9 @@ window.FeederCore = (function () {
         const t = (TR[String(s[i][0])] = TR[String(s[i][0])] || { dep: [], arr: [] });
         // ta: 1 = לכיוון ת"א (ביציאה) / מכיוון ת"א (בהגעה), -1 = הכיוון ההפוך, 0 = התחנה עצמה בת"א
         const inTA = TA.has(String(s[i][0]));
-        if (i < n - 1) t.dep.push(Object.assign({ t: p + Math.max(0, delay), dk: String(s[i + 1][0]), ta: inTA ? 0 : taA[i] ? 1 : -1 }, e));
-        if (i > 0) t.arr.push(Object.assign({ t: p + delay, dk: String(s[i - 1][0]), ta: inTA ? 0 : taB[i] ? 1 : -1 }, e));
+        // s, i — הרצף של הרכבת והמקום בו, כדי לדעת לאילו תחנות היא ממשיכה (או מאילו הגיעה) — לבחירה ידנית של כיוון
+        if (i < n - 1) t.dep.push(Object.assign({ t: p + Math.max(0, delay), dk: String(s[i + 1][0]), ta: inTA ? 0 : taA[i] ? 1 : -1, s, i }, e));
+        if (i > 0) t.arr.push(Object.assign({ t: p + delay, dk: String(s[i - 1][0]), ta: inTA ? 0 : taB[i] ? 1 : -1, s, i }, e));
       }
     }
     for (const t of Object.values(TR)) { t.dep.sort((a, b) => a.t - b.t); t.arr.sort((a, b) => a.t - b.t); }
@@ -132,7 +133,10 @@ window.FeederCore = (function () {
       const name = all.slice(0, 2).join(" / ") + (all.length > 2 ? " ועוד" : ""), via = (C.STN[dk] || ["?"])[0];
       // הכיוון של רוב הרכבות: לת"א (1), הפוך (-1), או התחנה בת"א (0)
       const sum = trains.reduce((a, x) => a + x.ta, 0), ta = sum > 0 ? 1 : sum < 0 ? -1 : 0;
-      return { dk, trains, name, via, ta, label: (mode === "to" ? "רכבות ל" : "רכבות מ") + name, sub: (mode === "to" ? "התחנה הבאה: " : "התחנה הקודמת: ") + via, n: trains.length };
+      // pass — התחנות שהרכבות בכיוון הזה ממשיכות אליהן (ביציאה) או הגיעו מהן (בהגעה)
+      const pass = new Set();
+      trains.forEach((x) => (mode === "to" ? x.s.slice(x.i + 1) : x.s.slice(0, x.i)).forEach((q) => pass.add(String(q[0]))));
+      return { dk, trains, name, via, ta, pass: [...pass], label: (mode === "to" ? "רכבות ל" : "רכבות מ") + name, sub: (mode === "to" ? "התחנה הבאה: " : "התחנה הקודמת: ") + via, n: trains.length };
     }).sort((a, b) => b.n - a.n);
   }
 
@@ -188,12 +192,22 @@ window.FeederCore = (function () {
   const walkText = (wk) => Math.max(1, Math.round(wk.min)) + " דק' הליכה" + (wk.real ? "" : " (משוער)");
 
   // בחירת השורות לפי כיוון הרכבת. dir: "ta" לכיוון ת"א (ברירת המחדל) · "away" הכיוון ההפוך · "main" הכיוון שהקו
-  // מותאם אליו · "all" · "dk:<קוד>" כיוון מסוים בתחנה st. בתחנה שאין בה כיוון כזה (תחנות ת"א עצמן) — הכיוון של הקו,
+  // מותאם אליו · "all" · "dk:<קוד>" כיוון מסוים בתחנה st · "via:<קוד>" לתחנה מסוימת (שלמה 15.10: "מדימונה לבאר שבע"). בתחנה שאין בה כיוון כזה (תחנות ת"א עצמן) — הכיוון של הקו,
   // מסומן fb. שורה = {st, rid, dir:{dk, ta}, main, conn, n}
   function pick(rows, dir, st) {
     if (dir === "all") return rows;
     if (dir === "main") return rows.filter((r) => r.main);
     if (dir.startsWith("dk:")) return rows.filter((r) => r.st === st && r.dir.dk === dir.slice(3));
+    // "via:<תחנה>" — בחירה ידנית: רכבות שנוסעות לתחנה הזו (או מגיעות ממנה), בכל תחנה; לכל קו הכיוון עם הכי הרבה חיבורים
+    if (dir.startsWith("via:")) {
+      const q = dir.slice(4).split(","), best = new Map();   // תחנה אחת, או כמה (כל התחנות בעיר)
+      for (const r of rows) {
+        if (!q.some((c) => (r.dir.pass || []).includes(c))) continue;
+        const k = r.st + "|" + r.rid, b = best.get(k);
+        if (!b || r.conn > b.conn || (r.conn === b.conn && r.n > b.n)) best.set(k, r);
+      }
+      return [...best.values()];
+    }
     const want = dir === "away" ? -1 : 1, best = new Map(), main = new Map();
     for (const r of rows) {
       const k = r.st + "|" + r.rid;
