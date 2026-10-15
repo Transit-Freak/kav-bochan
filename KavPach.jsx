@@ -844,7 +844,7 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
-          {/* הקו המזין — עמוד עצמאי בתיקיית feeder/, כלי למתכננים: אוטובוסים ליד תחנות רכבת מול הרכבות, בפועל (רעיון של משה דודק, ממונה מחוז דרום, 14.10) */}
+          {/* הקו המזין — עמוד עצמאי בתיקיית feeder/, כלי למתכננים: אוטובוסים ליד תחנות רכבת מול הרכבות, בפועל */}
           <a
             href="feeder/"
             className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
