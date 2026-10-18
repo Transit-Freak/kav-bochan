@@ -543,10 +543,6 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .lowgrp .ch { margin-inline-start: auto; color: #94a3b8; }
 .lowgrp.open { border-style: solid; }
 
-/* שינוי זמני — שורה בציר הזמן של הקו, נפתחת במקום (useTempEvents / TempEv) */
-.tmpev { cursor: pointer; }
-.tmpev .tmpsum { color: #7c2d12; }
-.tmpev .tmparr { font-size: 10px; color: #c2410c; margin-inline-start: 4px; }
-.tmpev .tmplive { color: #15803d; }
-.tmpev .tmpbody { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; line-height: 1.6; cursor: auto; }
-.tmpev .tmptxt { white-space: pre-wrap; max-height: 320px; overflow: auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+/* שינוי זמני — אירוע רגיל בציר הזמן; רק נוסח ההודעה נפתח בלחיצה (TempEv) */
+.tmpev .tmpmore { color: #6d28d9; font-weight: 800; }
+.tmpev .tmptxt { white-space: pre-wrap; max-height: 320px; overflow: auto; font-weight: 400; font-size: 13px; color: #334155; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; cursor: auto; }

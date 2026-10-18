@@ -73,7 +73,7 @@
         (isNow(a) ? '<span class="now">פעיל עכשיו</span>' : "") + "<span>" + esc(span(a)) + "</span></div>" +
         '<div class="h">' + esc(a.h || "התראה") + "</div>" +
         '<div class="meta">' + (n.length ? "<span>" + n.slice(0, 12).map(function (x) { return '<span class="ln">' + esc(x) + "</span>"; }).join("") + (n.length > 12 ? " +" + (n.length - 12) : "") + "</span>" : "") +
-        (a.rm && a.rm.length ? "<span>" + a.rm.length + " תחנות מבוטלות</span>" : "") +
+        (a.rm && a.rm.length ? "<span>" + a.rm.length + " תחנות בוטלו זמנית</span>" : "") +
         (a.map ? "<span>🗺 מפה</span>" : "") + (a.dep && a.dep.length ? "<span>שינוי בשעות</span>" : "") + "</div></div>";
     }).join("");
     Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) {
@@ -112,7 +112,7 @@
       (lnL && !a.map ? '<div><h3>הקווים</h3><div class="lns">' + lnL + "</div></div>" : "") +
       (a.map ? '<div class="routes" id="routes"></div><div id="map"></div><div class="legend" id="legend"></div><div id="vbox"></div>' : "") +
       '<div><h3>נוסח ההודעה</h3><div class="txt">' + esc(a.d || "אין פירוט בהודעה.") + "</div></div>" +
-      (rmL || adL ? '<div class="two">' + (rmL ? '<div><h3>תחנות מבוטלות</h3><ul class="st">' + rmL + "</ul></div>" : "") + (adL ? '<div><h3>תחנות חלופיות</h3><ul class="st">' + adL + "</ul></div>" : "") + "</div>" : "") +
+      (rmL || adL ? '<div class="two">' + (rmL ? '<div><h3>תחנות שבוטלו זמנית</h3><ul class="st">' + rmL + "</ul></div>" : "") + (adL ? '<div><h3>תחנות חלופיות</h3><ul class="st">' + adL + "</ul></div>" : "") + "</div>" : "") +
       (dep ? '<div><h3>שינויים בשעות היציאה</h3><table class="dep"><tr><th>קו</th><th>שעות שנוספו / בוטלו</th></tr>' + dep + "</table></div>" : "");
     $("back").onclick = function () {
       document.body.classList.remove("sel"); sel = null;

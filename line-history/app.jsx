@@ -1075,7 +1075,7 @@ function TipTag({ cls, tip, children }) {
   );
 }
 
-/* "שינוי זמני" — קטגוריה בציר הזמן של הקו (שלמה 18.10): עבודות, עקיפות ותחנות שלא נעשו לזמן
+/* "שינוי זמני" — קטגוריה בציר הזמן של הקו (שלמה 18.10): עבודות, עקיפות ותחנות שבוטלו זמנית
    קצר, מהודעות משרד התחבורה. נשמרים רק שינויים שכבר התחילו, ונשארים בהיסטוריה גם אחרי שנגמרו.
    הנתונים: data/temp/<מק"ט>.json (tools/alerts_fetch.py). שורה קצרה, ולחיצה פותחת את ההודעה המלאה. */
 const tmpT = (x) => { if (!x) return null; const t = typeof x === "number" ? x * 1000 : Date.parse(x); return isFinite(t) ? t : null; };
@@ -1096,27 +1096,28 @@ function useTempEvents(rd) {
   return list;
 }
 function TempEv({ t }) {
+  // אותו מבנה כמו שאר האירועים בציר הזמן (שלמה 18.10): תאריך, תגית, שורת תיאור, מקור, תחנות
   const [open, setOpen] = useState(false);
   const s = tmpT(t.s), e = tmpT(t.e), now = Date.now();
   const dates = s && e && tmpDM(s) !== tmpDM(e) ? fmtD(t.d) + " – " + tmpDM(e) : fmtD(t.d);
-  const rm = (t.rm || []).length;
-  const bits = [t.cl, rm ? (rm === 1 ? "תחנה אחת בוטלה" : rm + " תחנות בוטלו") : "", t.k === "route" ? "מסלול עוקף" : t.k === "times" ? "שינוי בשעות" : ""].filter(Boolean);
   const live = s && s <= now && (!e || e >= now);
+  const lbl = (l) => l.map((x) => x[1] + (x[0] ? " (" + x[0] + ")" : "")).join(", ");
   return (
-    <div className={"ev tmpev" + (open ? " on" : "")} onClick={() => setOpen(!open)}>
-      <div className="d"><span>{dates}</span>{live && <b className="tmplive"> · פעיל עכשיו</b>}</div>
+    <div className={"ev tmpev" + (open ? " sel" : "")} onClick={() => setOpen(!open)}>
+      <div className="d"><span>{dates}</span>{live ? " · פעיל עכשיו" : ""}</div>
       <div className="t">
         <button className="k kbtn" style={{ background: KINDS.temp.color }} aria-expanded={open}
           onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}>{KINDS.temp.label}</button>
-        <span className="tmpsum">{bits.join(" · ") || t.h}</span> <span className="tmparr">{open ? "▲" : "▼"}</span>
+        <span className="evnote"> {t.cl ? t.cl + " — " : ""}{t.h}</span>
       </div>
-      {open && <div className="tmpbody" onClick={(ev) => ev.stopPropagation()}>
-        <b>{t.h}</b>
-        {t.d2 && t.d2 !== t.h && <div className="tmptxt">{t.d2}</div>}
-        {rm > 0 && <div><span className="mut">תחנות שבוטלו: </span>{t.rm.map((x) => x[1] + " (" + x[0] + ")").join(", ")}</div>}
-        {(t.add || []).length > 0 && <div><span className="mut">תחנות חלופיות: </span>{t.add.map((x) => x[1] + " (" + x[0] + ")").join(", ")}</div>}
-        <span className="mut">המקור: הודעת משרד התחבורה, דרך bus-alerts.com</span>
+      <div className="evsrc">הודעת משרד התחבורה על שינוי זמני, דרך bus-alerts.com</div>
+      {((t.rm || []).length > 0 || (t.add || []).length > 0) && <div className="sub">
+        {(t.rm || []).length > 0 && <div>➖ תחנות שבוטלו זמנית: {lbl(t.rm)}</div>}
+        {(t.add || []).length > 0 && <div>➕ תחנות חלופיות: {lbl(t.add)}</div>}
       </div>}
+      {t.d2 && t.d2 !== t.h && <div className="sub">{open
+        ? <div className="tmptxt" onClick={(ev) => ev.stopPropagation()}>{t.d2}</div>
+        : <span className="tmpmore">נוסח ההודעה ⌄</span>}</div>}
     </div>
   );
 }

@@ -873,7 +873,7 @@ function ChoiceScreen({ onPick }) {
                 <img src="alerts/icon.svg" alt="" width="84" height="84" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
               </div>
               <h2 className="text-3xl font-[900] text-fuchsia-100">הקו המודיע</h2>
-              <p className="text-fuchsia-100/80 font-bold mt-2 text-sm leading-relaxed">עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שלא ייעשו, ומה האוטובוסים עשו בפועל</p>
+              <p className="text-fuchsia-100/80 font-bold mt-2 text-sm leading-relaxed">עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שבוטלו זמנית והתחנות החלופיות, ומה האוטובוסים עשו בפועל</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-fuchsia-200 text-fuchsia-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </a>
