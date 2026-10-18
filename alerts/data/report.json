@@ -1,26 +1,26 @@
 {
  "causes": {
-  "works": 208,
-  "event": 18,
-  "other": 9,
-  "accident": 10,
-  "fault": 6,
-  "police": 3,
+  "works": 229,
+  "relocate": 2,
+  "other": 7,
+  "event": 21,
+  "police": 1,
+  "accident": 1,
   "stuck": 1
  },
  "route": {
-  "ok": 8,
   "no-cut": 1,
-  "no-match": 18,
-  "no-text": 22,
-  "osm": 1,
-  "time": 17
+  "ok": 26,
+  "no-text": 6,
+  "osm": 2,
+  "no-match": 1,
+  "time": 14
  },
  "kinds": {
-  "route": 90,
-  "info": 47,
-  "stops": 118
+  "route": 96,
+  "info": 31,
+  "stops": 135
  },
- "gen": "2026-10-18T14:12+00:00",
- "n": 255
+ "gen": "2026-10-18T22:04+00:00",
+ "n": 262
 }
