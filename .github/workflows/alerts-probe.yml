@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
       - name: fetch
         env: { OUT: out, MAX_MIN: '20' }
         run: python3 tools/alerts_fetch.py 2>&1 | tail -80
