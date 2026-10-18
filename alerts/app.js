@@ -4,7 +4,7 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var CAUSE_COLOR = { works: "#B45309", police: "#1E3A8A", protest: "#7C3AED", event: "#0E7490", accident: "#BE123C",
-    stuck: "#9A3412", weather: "#0369A1", strike: "#4B5563", traffic: "#A16207", fault: "#57534E", other: "#6B7280" };
+    stuck: "#9A3412", weather: "#0369A1", strike: "#4B5563", traffic: "#A16207", fault: "#57534E", relocate: "#0F766E", other: "#6B7280" };
   var ALL = [], CAUSES = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
   var TZ = "Asia/Jerusalem";
   var fmtD = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric" }).format(new Date(t * 1000)); };
@@ -30,13 +30,26 @@
     if (fmtD(s) === fmtD(e)) return fmtD(s) + " · " + fmtT(s) + "–" + fmtT(e) + multi;
     return fmtD(s) + " " + fmtT(s) + " – " + fmtD(e) + " " + fmtT(e) + multi;
   }
-  function nums(a) { var seen = {}, out = []; (a.lines || []).forEach(function (l) { if (l[0] && !seen[l[0]]) { seen[l[0]] = 1; out.push(l[0]); } }); return out; }
+  // מספרי הקווים בהתראה, ממוינים לפי המספר: 3, 5, 5א, 6, 32, 80, 80א
+  var lineKey = function (x) { var m = /^(\d+)/.exec(x); return [m ? +m[1] : 1e9, x]; };
+  function nums(a) {
+    var seen = {}, out = [];
+    (a.lines || []).forEach(function (l) { if (l[0] && !seen[l[0]]) { seen[l[0]] = 1; out.push(String(l[0])); } });
+    return out.sort(function (x, y) { var p = lineKey(x), q = lineKey(y); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0); });
+  }
+  // חיפוש לפי מילים (שלמה 18.10: "16 אשדוד" לא מצא כלום): כל מילה צריכה להתאים —
+  // מספר קו בדיוק (16 לא מוצא 160), ומילה — בכותרת, בנוסח, בשמות התחנות או ביעד
   function matches(a, q) {
     if (!q) return true;
-    if (/^\d+[א-ת]?$/.test(q)) return nums(a).indexOf(q) >= 0;
-    var hay = [a.h, a.d, (a.ag || []).join(" "), (a.rm || []).map(function (s) { return s.join(" "); }).join(" "),
-      (a.add || []).map(function (s) { return s.join(" "); }).join(" "), (a.lines || []).map(function (l) { return l[2]; }).join(" ")].join(" ");
-    return hay.indexOf(q) >= 0;
+    var hay = null, ns = null;
+    return q.split(/\s+/).every(function (w) {
+      w = w.replace(/^קו$/, "");
+      if (!w) return true;
+      if (/^\d+[א-ת]?$/.test(w)) return (ns = ns || nums(a)).indexOf(w) >= 0;
+      hay = hay || [a.h, a.d, (a.ag || []).join(" "), (a.rm || []).map(function (s) { return s.join(" "); }).join(" "),
+        (a.add || []).map(function (s) { return s.join(" "); }).join(" "), (a.lines || []).map(function (l) { return l[2]; }).join(" ")].join(" ");
+      return hay.indexOf(w) >= 0;
+    });
   }
   function visible() {
     var q = $("q").value.trim(), only = $("onlyMap").checked;
@@ -119,6 +132,7 @@
     getJSON("data/rc/" + id + ".json").then(function (rc) {
       if (sel !== id) return;
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
+      rc.routes.sort(function (x, y) { var p = lineKey(String(x.num || "")), q = lineKey(String(y.num || "")); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0) || String(x.to || "").localeCompare(String(y.to || ""), "he"); });
       cur = { a: a, rc: rc };
       $("routes").innerHTML = rc.routes.map(function (r, i) {
         return '<button type="button" data-i="' + i + '">קו ' + esc(r.num) + " ← " + esc(r.to || "") + (r.alt && r.alt !== "#" ? " · " + esc(r.alt) : "") + "</button>";
@@ -137,6 +151,9 @@
     var r = cur.rc.routes[i], stops = cur.rc.stops || {};
     Array.prototype.forEach.call($("routes").querySelectorAll("button"), function (b) { b.classList.toggle("on", +b.getAttribute("data-i") === i); });
     if (!window.L) { $("map").innerHTML = '<p class="note" style="padding:12px">המפה לא נטענה.</p>'; return; }
+    // כל התראה בונה את #map מחדש — מפה שנוצרה על האלמנט הקודם כבר לא בדף, ומה שמצויר
+    // עליה לא נראה (שלמה 18.10: מהתראה שנייה והלאה — ריבוע אפור)
+    if (map && map.getContainer() !== $("map")) { map.remove(); map = null; layer = null; }
     if (!map) {
       map = L.map("map", { scrollWheelZoom: !(window.matchMedia && window.matchMedia("(pointer: coarse)").matches) });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19 }).addTo(map);

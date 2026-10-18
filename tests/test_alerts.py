@@ -78,7 +78,9 @@ class CauseTests(unittest.TestCase):
             'חיפה - פעילות משטרתית בשדרות הנשיא': 'police',
             'באר שבע, תאונת דרכים ברגר': 'accident',
             'נתניה - רכב תקוע ברחוב הרצל': 'stuck',
-            'העתקת תחנה בצומת ויצמן/פנקס': 'other',
+            'תל אביב – העתקת תחנה בצומת ויצמן/פנקס - החל מתאריך - 12.10.2026': 'relocate',
+            'רמת גן, תחנה זמנית ברחוב ביאליק עקב עבודות': 'relocate',
+            'מודיעין - שינוי בלוח הזמנים': 'other',
         }
         for h, want in cases.items():
             self.assertEqual(want, AF.cause_of(h, ''), h)
