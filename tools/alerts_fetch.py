@@ -13,7 +13,7 @@
   state.json       מה כבר נמשך (hash לכל התראה) — כדי לא למשוך שוב מפה שלא השתנתה
   report.json      סיכום הריצה: כמה התראות מכל סוג, לכמה נמצא מסלול לפי הנוסח ולמה לא
 
-env: MAX_MIN (תקציב זמן, ברירת מחדל 12), OUT (ברירת מחדל alerts/data)
+env: MAX_MIN (תקציב זמן, ברירת מחדל 25), OUT (ברירת מחדל alerts/data)
 """
 import datetime
 import hashlib
@@ -30,7 +30,9 @@ import alerts_route as AR  # noqa: E402
 
 SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
-MAX_MIN = float(os.environ.get('MAX_MIN', '12'))
+MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
+# גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
+PARSE_V = 2
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -259,7 +261,11 @@ def main():
                 lines.append([num, mk])
         has_map = a.get('use_case') in (5, 6, 7, 9) and not a.get('is_national') and (a.get('removed_stop_ids') or a.get('added_stop_ids'))
         rc_file = f'{OUT}/rc/{aid}.json'
-        if has_map and (st.get('h') != h or not os.path.exists(rc_file)) and left() > 60:
+        # נמשך שוב: התראה חדשה או שהשתנתה, מפה שלא נשמרה, חישוב שלא הסתיים (נגמר הזמן / מפת הרחובות
+        # לא ענתה) — אחרת הוא נשאר כך עד שנוסח ההודעה ישתנה — ו"לא נמצא" אחרי שקריאת הנוסח השתפרה
+        redo = (st.get('status') in ('osm', 'time')
+                or (st.get('status') in ('no-match', 'no-cut') and st.get('pv') != PARSE_V))
+        if has_map and (st.get('h') != h or not os.path.exists(rc_file) or redo) and left() > 60:
             rc = get_json(f'{SRC}/api/get_route_changes?id={urllib.parse.quote(aid)}')
             time.sleep(2)
             if rc and rc.get('route_changes'):
@@ -306,7 +312,7 @@ def main():
                     r.pop('cut', None)
                 json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status},
                           open(rc_file, 'w'), ensure_ascii=False, separators=(',', ':'))
-                st = {'h': h, 'map': True, 'status': status, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
+                st = {'h': h, 'map': True, 'status': status, 'pv': PARSE_V, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
             else:
                 st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
         elif not has_map:
