@@ -77,6 +77,7 @@ const KINDS = {
   freq:        { label: "שינוי מספר הרכבים באותה נסיעה", color: "#b45309" },
   sched:       { label: "שינוי לו\"ז", color: "#4338ca" },
   times:       { label: "הלו\"ז האחרון", color: "#0e7490" },
+  temp:        { label: "שינוי זמני", color: "#ea580c" },   // הודעות משרד התחבורה — useTempEvents
 };
 // הגדרת המשתמש: "שינוי מספר הרכבים" = רק תגבור (שני רכבים באותה דקה
 // שהשתנו). כל שאר שינויי הכמות/שעות — תחת שינוי לו"ז.
@@ -861,6 +862,11 @@ const dedupCount = (arr) => {
   return [...m.values()];
 };
 function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly }) {
+  // בצילומי אתרי המידע לנוסעים לתחנות אין מיקום ([קוד, שם, null, null]) — מפה עם נקודות null
+  // קרסה (L.latLngBounds של רשימה ריקה / circleMarker([null,null])) והורידה את כל הדף
+  const finite = (s) => Number.isFinite(s[2]) && Number.isFinite(s[3]);
+  curStops = useMemo(() => (curStops ? curStops.filter(finite) : curStops), [curStops]);
+  prevStops = useMemo(() => (prevStops ? prevStops.filter(finite) : prevStops), [prevStops]);
   const ref = useRef(null);
   const mapRef = useRef(null);
   // קטעי-שינוי ששולפו מהארכיון (v.sg) — הגאומטריה האמיתית של מה שירד
@@ -897,7 +903,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
   const [focus, setFocus] = useState(true);
   const canFocus = focusPts.length > 0;
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !window.L) return;   // Leaflet לא נטען (unpkg חסום/נפל) — בלי מפה, הדף ממשיך
     const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
     const map = L.map(ref.current, { scrollWheelZoom: !coarse });
     mapRef.current = map;
@@ -1069,6 +1075,53 @@ function TipTag({ cls, tip, children }) {
   );
 }
 
+/* "שינוי זמני" — קטגוריה בציר הזמן של הקו (שלמה 18.10): עבודות, עקיפות ותחנות שבוטלו זמנית
+   קצר, מהודעות משרד התחבורה. נשמרים רק שינויים שכבר התחילו, ונשארים בהיסטוריה גם אחרי שנגמרו.
+   הנתונים: data/temp/<מק"ט>.json (tools/alerts_fetch.py). שורה קצרה, ולחיצה פותחת את ההודעה המלאה. */
+const tmpT = (x) => { if (!x) return null; const t = typeof x === "number" ? x * 1000 : Date.parse(x); return isFinite(t) ? t : null; };
+const tmpDM = (t) => { try { return new Intl.DateTimeFormat("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", year: "numeric" }).format(new Date(t)); } catch (e) { return ""; } };
+function useTempEvents(rd) {
+  const [list, setList] = useState([]);
+  useEffect(() => {
+    let ok = true;
+    setList([]);
+    const mk = String(rd || "").split("-")[0];
+    if (!/^\d+$/.test(mk)) return undefined;
+    fetch("data/temp/" + mk + ".json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!ok || !d || !Array.isArray(d.ev)) return;
+      setList(d.ev.filter((t) => t && t.d && (!t.rds || t.rds.includes(rd))).sort((a, b) => (a.d < b.d ? 1 : -1)));
+    }).catch(() => {});
+    return () => { ok = false; };
+  }, [rd]);
+  return list;
+}
+function TempEv({ t }) {
+  // אותו מבנה כמו שאר האירועים בציר הזמן (שלמה 18.10): תאריך, תגית, שורת תיאור, מקור, תחנות
+  const [open, setOpen] = useState(false);
+  const s = tmpT(t.s), e = tmpT(t.e), now = Date.now();
+  const dates = s && e && tmpDM(s) !== tmpDM(e) ? fmtD(t.d) + " – " + tmpDM(e) : fmtD(t.d);
+  const live = s && s <= now && (!e || e >= now);
+  const lbl = (l) => l.map((x) => x[1] + (x[0] ? " (" + x[0] + ")" : "")).join(", ");
+  return (
+    <div className={"ev tmpev" + (open ? " sel" : "")} onClick={() => setOpen(!open)}>
+      <div className="d"><span>{dates}</span>{live ? " · פעיל עכשיו" : ""}</div>
+      <div className="t">
+        <button className="k kbtn" style={{ background: KINDS.temp.color }} aria-expanded={open}
+          onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}>{KINDS.temp.label}</button>
+        <span className="evnote"> {t.cl ? t.cl + " — " : ""}{t.h}</span>
+      </div>
+      <div className="evsrc">הודעת משרד התחבורה על שינוי זמני, דרך bus-alerts.com</div>
+      {((t.rm || []).length > 0 || (t.add || []).length > 0) && <div className="sub">
+        {(t.rm || []).length > 0 && <div>➖ תחנות שבוטלו זמנית: {lbl(t.rm)}</div>}
+        {(t.add || []).length > 0 && <div>➕ תחנות חלופיות: {lbl(t.add)}</div>}
+      </div>}
+      {t.d2 && t.d2 !== t.h && <div className="sub">{open
+        ? <div className="tmptxt" onClick={(ev) => ev.stopPropagation()}>{t.d2}</div>
+        : <span className="tmpmore">נוסח ההודעה ⌄</span>}</div>}
+    </div>
+  );
+}
+
 /* הודעת כשל רשת אחידה עם כפתור ניסיון חוזר — במקום "אין נתונים" מטעה */
 function NetErr({ onRetry }) {
   return (
@@ -1180,6 +1233,8 @@ function variantFrequency(patterns, date) {
   return total;
 }
 function variantBase(item, items, historical) {
+  // החלופות עוד נטענות (הרשימה כבר מוצגת מהתיאורים המוכנים) — אין עדיין מול מה להשוות
+  if(!Array.isArray(items)) return null;
   if(!historical) {
     const dir=items.filter(x=>variantDirection(x)===variantDirection(item));
     const hash=dir.find(x=>variantPart(x)==='#');
@@ -1461,6 +1516,14 @@ function loadAltDesc(fam){
   if(!altDescCache[k])altDescCache[k]=dfetch('data/alt-desc/'+k+'.json').then(r=>r.ok?r.json():{}).catch(()=>{delete altDescCache[k];return {};});
   return altDescCache[k].then(m=>m[fam]||null);
 }
+// שגיאה בבוחר החלופות לא מפילה את כל הדף (שלמה 18.10: לחיצה על "החלפת חלופה" השאירה דף ריק) —
+// מוצגת שורה קצרה, ומעבר לקו או לגרסה אחרת מנסה שוב
+class SafeBox extends React.Component {
+  constructor(p){super(p);this.state={err:null};}
+  static getDerivedStateFromError(err){return {err};}
+  componentDidCatch(err){console.error('AlternativeSelector:',err);}
+  render(){return this.state.err ? <div className="sibdesc">רשימת החלופות לא נטענה. רעננו את הדף או בחרו גרסה אחרת.</div> : this.props.children;}
+}
 function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const [open,setOpen]=useState(false),[items,setItems]=useState(null),[areas,setAreas]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
   const historical=sibs.some(s=>s.hgroup),key=sibs.map(s=>s.rd).join('|');
@@ -1525,7 +1588,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
       {!usePre && error && <div className="sibdesc">{error}</div>}
       {!shown ? <div className="sibdesc">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</div> : <div className="siblist">
         {shown.map(s=>{
-          const base=usePre ? null : variantBase(s,items,historical),selected=s.rd===rd;
+          const base=usePre || !items ? null : variantBase(s,items,historical),selected=s.rd===rd;
           return <div key={s.rd} className="sibitem">
             <div className="sibinfo">
               <span className="sibwrap">
@@ -1935,6 +1998,8 @@ const KIND_GROUPS_N = [
   { tag: "kg_new", label: "קווים חדשים", kinds: ["new"] },
   { tag: "kg_route", label: "מסלול ותחנות", kinds: ["route", "redraw", "extend", "shorten", "terminal", "stops", "stops-add", "stops-del"] },
   { tag: "kg_ident", label: "יעד, מספר ומפעיל", kinds: ["dest", "renum", "renamed", "operator", "mode"] },
+  // הקו המודיע (שלמה 18.10): עבודות, עקיפות ותחנות שבוטלו לזמן קצר — tools/alerts_push.py
+  { tag: "kg_temp", label: "שינויים זמניים (עבודות ועקיפות)", kinds: [] },
 ];
 // בכל כניסה לאתר: ההרשמות שנשמרו בדפדפן הזה נשלחות שוב לספק (שלמה 07.09: אצל
 // הספק נמצא תג עיר אחד מתוך חמש). בלי בקשת הרשאה — רק אם כבר אושרה.
@@ -2247,6 +2312,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   // מחדל, 8 השינויים הראשונים ו"עוד", ובטלפון המפה של שינוי שנבחר נפתחת בתוך הכרטיס שלו
   const [impOnly, setImpOnly] = useState(true);
   const [ltMore, setLtMore] = useState(false);
+  const temps = useTempEvents(rd);
   useEffect(() => { setImpOnly(true); setLtMore(false); }, [rd]);
   const [isPhone, setIsPhone] = useState(() => { try { return matchMedia("(max-width: 860px)").matches; } catch (e) { return false; } });
   useEffect(() => { try { const m = matchMedia("(max-width: 860px)"); const f = () => setIsPhone(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); } catch (e) { return undefined; } }, []);
@@ -2336,6 +2402,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           const vs2 = m.versions || [], keep = new Set(), all = new Set();
           vs2.forEach((x, i) => { if (x.hid) return; const dk = dispKind(x, i, vs2); all.add(dk); if (cats.some((c) => evInCat(x, i, vs2, c))) keep.add(dk); });
           if (keep.size && keep.size < all.size) setOffK(new Set([...all].filter((k) => !keep.has(k))));
+          if (!cats.includes("temp")) setOffK((p) => new Set([...p, "temp"]));
         } else {
           // ברירת המחדל (שלמה 08.10): כל סוגי השינויים בסרגל, אבל השגרתיים (לו"ז, תגבור, תיקוני רישום)
           // כבויים — לחיצה על הקטגוריה מדליקה אותה. השינוי שהקישור הוביל אליו נשאר דלוק תמיד,
@@ -2386,8 +2453,19 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       const e = c.get(g) || { n: 0, kinds: new Set() };
       e.n += 1; e.kinds.add(dk); c.set(g, e);
     });
+    if (temps.length) c.set("temp", { n: temps.length, kinds: new Set(["temp"]) });
     return [...c.entries()].sort((a, b) => b[1].n - a[1].n);
   })();
+  // ציר הזמן: האירועים של הקו, ובתוכם לפי התאריך השינויים הזמניים (אם הקטגוריה דלוקה)
+  const tlRows = (() => {
+    const cut = shownL.length < shown.length && shownL.length ? shownL[shownL.length - 1].v.d : "";
+    const tt = offK.has("temp") ? [] : temps.filter((t) => (!mon || t.d.slice(0, 7) === mon) && t.d >= cut);
+    const out = []; let k = 0;
+    shownL.forEach((row) => { while (k < tt.length && tt[k].d >= row.v.d) out.push({ t: tt[k++] }); out.push(row); });
+    while (k < tt.length) out.push({ t: tt[k++] });
+    return out;
+  })();
+  const rowD = (r) => (r.t ? r.t.d : r.v.d);
   const toggleK = (ks, wasOff) => setOffK((prev) => {
     const n = new Set(prev);
     ks.forEach((k) => (wasOff ? n.delete(k) : n.add(k)));
@@ -2969,8 +3047,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
@@ -3069,9 +3147,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
               אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {shownL.map(({ v: x, i }, si) => (
+          {tlRows.map((row, si) => row.t ? (
+            <React.Fragment key={"t" + row.t.id}>
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
+            <TempEv t={row.t} />
+            </React.Fragment>
+          ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || shownL[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
             <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
               onClick={() => selectEvent(i, x)}>
               <div className="d">
@@ -3153,7 +3236,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
             </div>
             </React.Fragment>
-          ))}
+          ))(row))}
         </div>
         {lite && shownL.length < shown.length && <button className="ltmore" onClick={() => setLtMore(true)}>עוד {(shown.length - shownL.length).toLocaleString()} שינויים ⌄</button>}
         {ltStops && <LtAcc icon="📍" title="התחנות" sub={ltStops.length + " תחנות"}>
@@ -3343,8 +3426,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               : <div className="mut">טוען…</div>)}
           </div>
         )}
-        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
@@ -3425,9 +3508,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
               אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {shownL.map(({ v: x, i }, si) => (
+          {tlRows.map((row, si) => row.t ? (
+            <React.Fragment key={"t" + row.t.id}>
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
+            <TempEv t={row.t} />
+            </React.Fragment>
+          ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || shownL[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
             <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
               onClick={() => selectEvent(i, x)}>
               <div className="d">
@@ -3509,7 +3597,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
             </div>
             </React.Fragment>
-          ))}
+          ))(row))}
         </div>
       </div>
       {mainEl}
@@ -3522,7 +3610,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
 function StopEvMap({ ev }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !window.L) return;
     const map = L.map(ref.current, { scrollWheelZoom: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
@@ -3551,7 +3639,7 @@ function StopEvMap({ ev }) {
 function Map2012({ stops, shape, year = "2012", estimatedLocations = false }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !window.L) return;
     const map = L.map(ref.current, { scrollWheelZoom: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
@@ -4356,7 +4444,7 @@ function LinesAtStop({ code, onClose }) {
   ev.forEach((e) => { lastByRd[e[2]] = e; });
   // "היום" = יש לו"ז לשבוע הקרוב (d.a, מפרסום הרישוי ל-10 הימים; נבנה בצינור).
   // וריאנט שהתיעוד אומר שהוא עוצר כאן אבל אין לו לו"ז אינו פעיל (שלמה 07.09)
-  const active = Array.isArray(d.a) ? new Set(d.a) : null;
+  const active = Array.isArray(d && d.a) ? new Set(d.a) : null;   // הקובץ של היום נכשל אבל של 2012 נטען
   const nowMap = new Map();
   Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
   const now = [...nowMap.entries()].sort((a, b) => (parseInt(a[0]) || 9e9) - (parseInt(b[0]) || 9e9) || String(a[0]).localeCompare(b[0]));
@@ -5026,7 +5114,7 @@ function MapTab({ idx, openLine, cities }) {
   }, [cityLines, mode, monthEnd, mon]);
   // המפה
   useEffect(() => {
-    if (!mapRef.current || mapObj.current) return;
+    if (!mapRef.current || mapObj.current || !window.L) return;
     const map = L.map(mapRef.current, { scrollWheelZoom: true, preferCanvas: true });   // canvas — מאות מסלולים בלי להיחנק
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
@@ -5487,7 +5575,9 @@ function RecheckNotice() {
 
 // Recovered sources use the same line pages and maps as the rest of הקו בזמן.
 // ‎#t=rail@2013-12-18@33‎ — קישור ישיר ליום בארכיון הרכבת ולנסיעה בו
-function railHash(){const m=/^#t=rail@(\d{4}-\d{2}-\d{2})(?:@(\w+))?/.exec(decodeURIComponent(location.hash||""));return m?{day:m[1],no:m[2]||null}:null;}
+// קישור שנחתך באמצע קידוד (%D7%9 בלי ההמשך) — decodeURIComponent זורק URIError והדף כולו נפל
+function safeHash(){const h=location.hash||"";try{return decodeURIComponent(h);}catch(e){return h;}}
+function railHash(){const m=/^#t=rail@(\d{4}-\d{2}-\d{2})(?:@(\w+))?/.exec(safeHash());return m?{day:m[1],no:m[2]||null}:null;}
 // קובץ יומי בארכיון הרכבת מסודר לפי שעות היום: בתחילתו סוף רכבות הלילה של אתמול (אחרי חצות),
 // וההמשך אחרי חצות של רכבות הערב נמצא בקובץ של מחר. כאן מרכיבים "יום שירות":
 // מוציאים את זנב הלילה של אתמול (שורות לפני 04:00 שנגמרות בתחנה אחרונה) ומצרפים את הזנב ממחר.
@@ -5779,7 +5869,7 @@ function App() {
   const [err, setErr] = useState(null);
   // ‎#t=stops‎ וכד' — הטאב נשמר בכתובת, כדי שריענון לא יחזיר לעמוד הראשי
   const [tab, setTab] = useState(() => {
-    const h = decodeURIComponent((location.hash || "").slice(1));
+    const h = safeHash().slice(1);
     if (h.startsWith("stop=")) return "stops";
     if (h.startsWith("t=")) {
       const t = h.slice(2).split("@")[0];
@@ -5795,12 +5885,12 @@ function App() {
   // דף קו נכנס להיסטוריית הדפדפן (וגם לקישור, אחרי ה-#) — כפתור "אחורה"
   // בטלפון חוזר לרשימה במקום לצאת מהאתר, וקישור לקו נפתח ישירות עליו.
   // ‎#2012/<k>‎ הוא כתובת של קו 2012 בלי מקבילה של היום — נפתח בפיד.
-  const H0 = decodeURIComponent((location.hash || "").slice(1));
+  const H0 = safeHash().slice(1);
   const isStopH = (h) => h.startsWith("stop=");
   // ‎#מקט@תאריך‎ — קישור מציר תחנה שנוחת ישר על גרסת השינוי
   const splitRdDate = (h) => { const i = h.lastIndexOf("@"); return i > 0 ? [h.slice(0, i), h.slice(i + 1)] : [h, null]; };
   const isDigestH = (h) => h.startsWith("digest=");
-  const parseDigest = (h) => { const [c, d] = h.slice(7).split("@"); return { city: c, days: parseInt(d) || 7 }; };
+  const parseDigest = (h) => { const [c, d] = h.slice(7).split("@"); return { city: c, days: Math.min(Math.max(parseInt(d) || 7, 1), 3650) }; };
   const [dig, setDig] = useState(() => (isDigestH(H0) ? parseDigest(H0) : null));
   const _plainH = H0 && !H0.startsWith("2012/") && !isStopH(H0) && !isDigestH(H0) && !H0.startsWith("t=");
   const [rd, setRd] = useState(() => (_plainH ? splitRdDate(H0)[0] : null));
@@ -5832,7 +5922,7 @@ function App() {
   useEffect(() => {
     const onPop = (e) => { setRd((e.state && e.state.rd) || null); setK12((e.state && e.state.k12) || null); };
     const onHash = () => {
-      const h = decodeURIComponent((location.hash || "").slice(1));
+      const h = safeHash().slice(1);
       if (h.startsWith("2012/")) { setRd(null); setK12(h.slice(5)); return; }
       if (isStopH(h)) { setRd(null); setStopSel(h.slice(5)); setStopSelN((n) => n + 1); setTab("stops"); return; }
       if (isDigestH(h)) { setRd(null); setK12(null); setDig(parseDigest(h)); return; }
@@ -6146,4 +6236,19 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+// רשת ביטחון לכל הדף (שלמה 18.10): בלי זה, שגיאה בכל רכיב מורידה את העמוד כולו ומשאירה דף ריק.
+// עם זה מוצגת הודעה קצרה עם כפתור רענון, והשגיאה נכתבת לקונסול.
+class RootSafe extends React.Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err, info) { console.error('RootSafe:', err, info && info.componentStack); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return <div dir="rtl" style={{ maxWidth: 520, margin: '15vh auto', padding: '24px 20px', textAlign: 'center', font: '16px/1.6 system-ui, sans-serif' }}>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>משהו השתבש בדף</div>
+      <div style={{ opacity: .75, marginBottom: 16 }}>רענון של הדף בדרך כלל פותר את זה.</div>
+      <button type="button" onClick={() => location.reload()} style={{ font: 'inherit', fontWeight: 700, padding: '10px 22px', borderRadius: 12, border: 0, background: '#0f172a', color: '#fff', cursor: 'pointer' }}>רענון</button>
+    </div>;
+  }
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<RootSafe><App /></RootSafe>);

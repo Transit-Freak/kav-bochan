@@ -24,6 +24,23 @@ if (typeof document !== 'undefined' && !document.getElementById('heebo-font')) {
 
 // ── XLSX loader ──────────────────────────────────────────────────────────────
 let _xlsxLoaded = false;
+// רשת ביטחון לכל הדף (שלמה 18.10): בלי זה, שגיאה בכל רכיב מורידה את העמוד כולו ומשאירה דף ריק.
+// עם זה מוצגת הודעה קצרה עם כפתור רענון, והשגיאה נכתבת לקונסול.
+class RootSafe extends React.Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err, info) { console.error('RootSafe:', err, info && info.componentStack); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return <div dir="rtl" style={{ maxWidth: 520, margin: '15vh auto', padding: '24px 20px', textAlign: 'center', font: '16px/1.6 system-ui, sans-serif' }}>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>משהו השתבש בדף</div>
+      <div style={{ opacity: .75, marginBottom: 16 }}>רענון של הדף בדרך כלל פותר את זה.</div>
+      <button type="button" onClick={() => location.reload()} style={{ font: 'inherit', fontWeight: 700, padding: '10px 22px', borderRadius: 12, border: 0, background: '#0f172a', color: '#fff', cursor: 'pointer' }}>רענון</button>
+    </div>;
+  }
+}
+if (typeof window !== 'undefined') window.RootSafe = RootSafe;   // index.html עוטף בו את KavPach
+
 const loadXLSX = () => {
   if (_xlsxLoaded) return Promise.resolve();
   return new Promise((res, rej) => {
@@ -841,6 +858,23 @@ function ChoiceScreen({ onPick }) {
               <h2 className="text-3xl font-[900] text-violet-100">קליטה ברכבת</h2>
               <p className="text-violet-100/80 font-bold mt-2 text-sm leading-relaxed">איפה יש קליטה סלולרית ברכבת ואיפה לא: כל 100 מטר מסילה לפי האנטנות של כל חברה, המנהרות, מהירות הנסיעה בפועל וסוג הקרון — פלאפון, סלקום, פרטנר והוט, דור 4 ודור 5</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-violet-200 text-violet-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
+
+          {/* הקו המודיע — עמוד עצמאי בתיקיית alerts/: שינויי שירות זמניים של משרד התחבורה דרך bus-alerts.com (שלמה 18.10) */}
+          <a
+            href="alerts/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#9333EA 70%,#DB2777 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#f9a8d4' }} />
+            <div className="relative">
+              <div className="flex items-center mb-6 h-28">
+                <img src="alerts/icon.svg" alt="" width="84" height="84" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
+              </div>
+              <h2 className="text-3xl font-[900] text-fuchsia-100">הקו המודיע</h2>
+              <p className="text-fuchsia-100/80 font-bold mt-2 text-sm leading-relaxed">עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שבוטלו זמנית והתחנות החלופיות, ומה האוטובוסים עשו בפועל</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-fuchsia-200 text-fuchsia-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
           </a>
 
@@ -3270,7 +3304,8 @@ const DAYS_FILTER = [
     setTab("redundant");
   };
 
-  const exportAreaToExcel = (areaName, viewMode) => {
+  const exportAreaToExcel = async (areaName, viewMode) => {
+    await loadXLSX();   // הספרייה נטענת ברקע — בלי לחכות לה, לחיצה מוקדמת לא עשתה כלום
     // סינון הקווים הרלוונטיים לאזור שנבחר, ורק אלו שחשודים כמיותרים (ציון 80 ומעלה) כדי שיתאים לתצוגה.
     // קווים שכבר בוטלו מוחרגים — בדיוק כמו בספירה שעל הכרטיס (areaStats),
     // אחרת הקובץ המיוצא מכיל יותר שורות מהמספר שהכרטיס מציג
@@ -3633,8 +3668,9 @@ const DAYS_FILTER = [
     setSimLoading(false);
   };
 
-  const exportOptimizationsToExcel = () => {
+  const exportOptimizationsToExcel = async () => {
     if (optimizations.length === 0) return;
+    await loadXLSX();
     const dataToExport = showAllTripsInSimulator ? optimizations : optimizations.filter(o => o.type !== 'ok');
     const exportData = dataToExport.map(opt => {
       const metricName = opt.usedMetric === 'peakLoad' ? 'עומס שיא' : 'נוסעים';
