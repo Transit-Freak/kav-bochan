@@ -1,0 +1,35 @@
+name: alerts-probe
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/alerts-probe.yml']
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - name: fetch (fresh, new parser)
+        env: { OUT: out, MAX_MIN: '45', TEMP_DIR: /tmp/temp }
+        run: python3 tools/alerts_fetch.py 2>&1 | grep -v "ניסיון" | tail -20
+      - name: summary per agency
+        run: |
+          python3 - <<'PY'
+          import json, glob, collections
+          al = {a['id']: a for a in json.load(open('out/alerts.json'))['alerts']}
+          tot = collections.defaultdict(collections.Counter)
+          for f in glob.glob('out/rc/*.json'):
+              rc = json.load(open(f)); a = al.get(rc['id'])
+              if not a: continue
+              ag = (a.get('ag') or ['?'])[0]
+              for r in rc['routes']:
+                  tot[ag]['routes'] += 1
+                  tot[ag]['est' if r.get('est') else (r.get('why') or '?')] += 1
+          for ag, c in sorted(tot.items(), key=lambda kv: -kv[1]['routes']):
+              print(ag, dict(c))
+          print('ALL', dict(sum(tot.values(), collections.Counter())))
+          PY
