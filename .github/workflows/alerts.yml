@@ -9,8 +9,7 @@ name: alerts
 # 17:00 בישראל) מאז המשיכה הקודמת. כך יש בדיוק שתי משיכות ביום, גם כשההפעלה מתעכבת וגם
 # אחרי מעבר השעון.
 #
-# אחרי המשיכה: מה האוטובוסים עשו בפועל (alerts_gps.py, דאטאבוס) והתראות דפדפן על שינויים
-# חדשים (alerts_push.py — אותה מערכת התראות של הקו בזמן; בלי המפתחות יוצא בשקט).
+# אחרי המשיכה: התראות דפדפן על שינויים חדשים (alerts_push.py — אותה מערכת התראות של הקו בזמן; בלי המפתחות יוצא בשקט).
 
 on:
   schedule:
@@ -21,7 +20,6 @@ on:
       - '.github/workflows/alerts.yml'
       - 'tools/alerts_fetch.py'
       - 'tools/alerts_route.py'
-      - 'tools/alerts_gps.py'
       - 'tools/alerts_push.py'
   workflow_dispatch:
     inputs:
@@ -81,10 +79,6 @@ jobs:
 
       - name: משיכת ההתראות והמסלול המשוער
         run: python3 tools/alerts_fetch.py
-
-      - name: מה האוטובוסים עשו בפועל
-        continue-on-error: true
-        run: python3 tools/alerts_gps.py
 
       - name: התראות דפדפן על שינויים חדשים
         continue-on-error: true

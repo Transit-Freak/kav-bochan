@@ -1,16 +1,10 @@
 /* הקו המודיע — רשימת התראות השירות ומפה לכל התראה (שלמה 18.10.2026).
-   הנתונים: data/alerts.json (כל ההתראות), data/rc/<id>.json (מסלולים ותחנות), data/gps/<id>.json (בפועל). */
+   הנתונים: data/alerts.json (כל ההתראות), data/rc/<id>.json (מסלולים ותחנות). */
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var CAUSE_COLOR = { works: "#B45309", police: "#1E3A8A", protest: "#7C3AED", event: "#0E7490", accident: "#BE123C",
     stuck: "#9A3412", weather: "#0369A1", strike: "#4B5563", traffic: "#A16207", fault: "#57534E", other: "#6B7280" };
-  var VERDICT = {
-    detour: ["v-detour", "בפועל: האוטובוסים נסעו לפי המסלול החלופי של ההודעה."],
-    regular: ["v-regular", "בפועל: האוטובוסים המשיכו לנסוע בקטע שאמור להיות סגור."],
-    avoided: ["v-detour", "בפועל: האוטובוסים עקפו את הקטע הסגור."],
-    other: ["v-other", "בפועל: האוטובוסים לא נסעו בקטע הסגור, אבל גם לא בדיוק לפי הנוסח של ההודעה."]
-  };
   var ALL = [], CAUSES = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
   var TZ = "Asia/Jerusalem";
   var fmtD = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric" }).format(new Date(t * 1000)); };
@@ -122,11 +116,10 @@
     };
     if (matchMedia("(max-width: 900px)").matches) window.scrollTo(0, 0);
     if (!a.map) return;
-    Promise.all([getJSON("data/rc/" + id + ".json"), getJSON("data/gps/" + id + ".json")]).then(function (res) {
+    getJSON("data/rc/" + id + ".json").then(function (rc) {
       if (sel !== id) return;
-      var rc = res[0], gps = res[1] || {};
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
-      cur = { a: a, rc: rc, gps: gps };
+      cur = { a: a, rc: rc };
       $("routes").innerHTML = rc.routes.map(function (r, i) {
         return '<button type="button" data-i="' + i + '">קו ' + esc(r.num) + " ← " + esc(r.to || "") + (r.alt && r.alt !== "#" ? " · " + esc(r.alt) : "") + "</button>";
       }).join("");
@@ -176,22 +169,9 @@
       focus = focus.concat(est);
       legend.push('<span><svg viewBox="0 0 26 12"><path d="M1 6H25" stroke="#E2531F" stroke-width="4" fill="none"/></svg>מסלול חלופי משוער, לפי ההודעה</span>');
     } else {
-      // בלי מסלול לפי הנוסח: סדר התחנות החדש, קו ישר בין תחנה לתחנה סביב התחנות שנוספו
-      var ai = []; seq.forEach(function (s, k) { if (s[1]) ai.push(k); });
-      if (ai.length) {
-        var pts = seq.slice(Math.max(0, ai[0] - 1), ai[ai.length - 1] + 2).map(function (s) { return stops[s[0]].slice(0, 2); });
-        L.polyline(pts, { color: "#E2531F", weight: 4, dashArray: "2 8", lineCap: "round" }).addTo(layer);
-        focus = focus.concat(pts);
-        legend.push('<span><svg viewBox="0 0 26 12"><path d="M1 6H25" stroke="#E2531F" stroke-width="3" stroke-dasharray="2 5" fill="none"/></svg>סדר התחנות החדש (קו ישר בין תחנות)</span>');
-      }
+      // בלי מסלול לפי הנוסח — רק התחנות, בלי קו ישר ביניהן (שלמה 18.10)
       note = r.why === "no-text" ? "בהודעה אין תיאור של המסלול החלופי, ולכן אין מסלול על המפה — רק התחנות."
-        : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה" }[r.why] || "לא ידוע") + "). מוצגות רק התחנות.";
-    }
-    // GPS בפועל
-    var g = cur.gps[r.rd || r.rid];
-    if (g && g.rides && g.rides.length) {
-      g.rides.forEach(function (rd) { L.polyline(rd.pts, { color: "#1D5FD1", weight: 2.5, opacity: 0.85 }).addTo(layer); rd.pts.forEach(function (p) { L.circleMarker(p, { radius: 2.5, color: "#1D5FD1", weight: 1, fillOpacity: 1 }).addTo(layer); }); });
-      legend.push('<span><svg viewBox="0 0 26 12"><path d="M1 6H25" stroke="#1D5FD1" stroke-width="2.5" fill="none"/></svg>בפועל, לפי GPS</span>');
+        : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why] || "לא ידוע") + "). מוצגות רק התחנות.";
     }
     del.forEach(function (s) {
       var st = stops[s];
@@ -209,10 +189,7 @@
     if (del.length) legend.push('<span><div class="xm"></div>תחנה מבוטלת</span>');
     if (seq.some(function (s) { return s[1]; })) legend.push('<span><div class="am"></div>תחנה חלופית</span>');
     $("legend").innerHTML = legend.join("");
-    var vb = "";
-    if (g && VERDICT[g.verdict]) vb = '<div class="verdict ' + VERDICT[g.verdict][0] + '">' + VERDICT[g.verdict][1] + (g.rides && g.rides.length ? " (" + g.rides.length + " נסיעות נבדקו)" : "") + "</div>";
-    else if (g && g.verdict === "unknown") vb = '<p class="note">בשידורי המיקום אין מספיק נקודות באזור השינוי כדי לדעת איך האוטובוסים נסעו.</p>';
-    $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") + vb +
+    $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") +
       (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
     var b = L.latLngBounds(focus.length > 1 ? focus : shape);
     if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
