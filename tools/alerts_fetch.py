@@ -363,7 +363,19 @@ def main():
     json.dump(state, open(f'{OUT}/state.json', 'w'), separators=(',', ':'), sort_keys=True)
     report['gen'] = now
     report['n'] = len(alerts)
-    archive_temp(alerts, datetime.datetime.now(datetime.timezone.utc).timestamp())
+    # התראות שפג תוקפן ועוד לא נמחקו — כבר לא מוצגות בהקו המודיע, אבל קרו: גם הן לארכיון של הקו בזמן
+    past = []
+    he = lambda o: (o or {}).get('he') or ''   # noqa: E731
+    for a in data['alerts']:
+        if not a.get('is_expired') or a.get('is_deleted') or str(a['id']) in seen:
+            continue
+        lines = [[str(pk).partition('_')[0], str(pk).partition('_')[2], '', False]
+                 for pks in (a.get('relevant_lines') or {}).values() for pk in pks]
+        past.append({'id': str(a['id']), 'cause': cause_of(he(a.get('header')), he(a.get('description'))),
+                     'kind': 'stops' if a.get('removed_stops') else 'info', 'h': he(a.get('header')), 'd': he(a.get('description')),
+                     's': a.get('first_start_time'), 'e': a.get('last_end_time'), 'lines': lines,
+                     'rm': a.get('removed_stops') or [], 'add': a.get('added_stops') or []})
+    archive_temp(alerts + past, datetime.datetime.now(datetime.timezone.utc).timestamp())
     json.dump(report, open(f'{OUT}/report.json', 'w'), ensure_ascii=False, indent=1)
     print(json.dumps(report, ensure_ascii=False))
 
