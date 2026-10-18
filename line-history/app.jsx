@@ -861,6 +861,11 @@ const dedupCount = (arr) => {
   return [...m.values()];
 };
 function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly }) {
+  // בצילומי אתרי המידע לנוסעים לתחנות אין מיקום ([קוד, שם, null, null]) — מפה עם נקודות null
+  // קרסה (L.latLngBounds של רשימה ריקה / circleMarker([null,null])) והורידה את כל הדף
+  const finite = (s) => Number.isFinite(s[2]) && Number.isFinite(s[3]);
+  curStops = useMemo(() => (curStops ? curStops.filter(finite) : curStops), [curStops]);
+  prevStops = useMemo(() => (prevStops ? prevStops.filter(finite) : prevStops), [prevStops]);
   const ref = useRef(null);
   const mapRef = useRef(null);
   // קטעי-שינוי ששולפו מהארכיון (v.sg) — הגאומטריה האמיתית של מה שירד
@@ -897,7 +902,7 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
   const [focus, setFocus] = useState(true);
   const canFocus = focusPts.length > 0;
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !window.L) return;   // Leaflet לא נטען (unpkg חסום/נפל) — בלי מפה, הדף ממשיך
     const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
     const map = L.map(ref.current, { scrollWheelZoom: !coarse });
     mapRef.current = map;
@@ -3532,7 +3537,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
 function StopEvMap({ ev }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !window.L) return;
     const map = L.map(ref.current, { scrollWheelZoom: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
@@ -3561,7 +3566,7 @@ function StopEvMap({ ev }) {
 function Map2012({ stops, shape, year = "2012", estimatedLocations = false }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !window.L) return;
     const map = L.map(ref.current, { scrollWheelZoom: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
@@ -4366,7 +4371,7 @@ function LinesAtStop({ code, onClose }) {
   ev.forEach((e) => { lastByRd[e[2]] = e; });
   // "היום" = יש לו"ז לשבוע הקרוב (d.a, מפרסום הרישוי ל-10 הימים; נבנה בצינור).
   // וריאנט שהתיעוד אומר שהוא עוצר כאן אבל אין לו לו"ז אינו פעיל (שלמה 07.09)
-  const active = Array.isArray(d.a) ? new Set(d.a) : null;
+  const active = Array.isArray(d && d.a) ? new Set(d.a) : null;   // הקובץ של היום נכשל אבל של 2012 נטען
   const nowMap = new Map();
   Object.values(lastByRd).forEach((e) => { if (e[3] !== "out" && e[3] !== "mvout" && e[1] && (!active || active.has(e[2]))) nowMap.set(e[1], e[2]); });
   const now = [...nowMap.entries()].sort((a, b) => (parseInt(a[0]) || 9e9) - (parseInt(b[0]) || 9e9) || String(a[0]).localeCompare(b[0]));
@@ -5036,7 +5041,7 @@ function MapTab({ idx, openLine, cities }) {
   }, [cityLines, mode, monthEnd, mon]);
   // המפה
   useEffect(() => {
-    if (!mapRef.current || mapObj.current) return;
+    if (!mapRef.current || mapObj.current || !window.L) return;
     const map = L.map(mapRef.current, { scrollWheelZoom: true, preferCanvas: true });   // canvas — מאות מסלולים בלי להיחנק
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
@@ -5497,7 +5502,9 @@ function RecheckNotice() {
 
 // Recovered sources use the same line pages and maps as the rest of הקו בזמן.
 // ‎#t=rail@2013-12-18@33‎ — קישור ישיר ליום בארכיון הרכבת ולנסיעה בו
-function railHash(){const m=/^#t=rail@(\d{4}-\d{2}-\d{2})(?:@(\w+))?/.exec(decodeURIComponent(location.hash||""));return m?{day:m[1],no:m[2]||null}:null;}
+// קישור שנחתך באמצע קידוד (%D7%9 בלי ההמשך) — decodeURIComponent זורק URIError והדף כולו נפל
+function safeHash(){const h=location.hash||"";try{return decodeURIComponent(h);}catch(e){return h;}}
+function railHash(){const m=/^#t=rail@(\d{4}-\d{2}-\d{2})(?:@(\w+))?/.exec(safeHash());return m?{day:m[1],no:m[2]||null}:null;}
 // קובץ יומי בארכיון הרכבת מסודר לפי שעות היום: בתחילתו סוף רכבות הלילה של אתמול (אחרי חצות),
 // וההמשך אחרי חצות של רכבות הערב נמצא בקובץ של מחר. כאן מרכיבים "יום שירות":
 // מוציאים את זנב הלילה של אתמול (שורות לפני 04:00 שנגמרות בתחנה אחרונה) ומצרפים את הזנב ממחר.
@@ -5789,7 +5796,7 @@ function App() {
   const [err, setErr] = useState(null);
   // ‎#t=stops‎ וכד' — הטאב נשמר בכתובת, כדי שריענון לא יחזיר לעמוד הראשי
   const [tab, setTab] = useState(() => {
-    const h = decodeURIComponent((location.hash || "").slice(1));
+    const h = safeHash().slice(1);
     if (h.startsWith("stop=")) return "stops";
     if (h.startsWith("t=")) {
       const t = h.slice(2).split("@")[0];
@@ -5805,12 +5812,12 @@ function App() {
   // דף קו נכנס להיסטוריית הדפדפן (וגם לקישור, אחרי ה-#) — כפתור "אחורה"
   // בטלפון חוזר לרשימה במקום לצאת מהאתר, וקישור לקו נפתח ישירות עליו.
   // ‎#2012/<k>‎ הוא כתובת של קו 2012 בלי מקבילה של היום — נפתח בפיד.
-  const H0 = decodeURIComponent((location.hash || "").slice(1));
+  const H0 = safeHash().slice(1);
   const isStopH = (h) => h.startsWith("stop=");
   // ‎#מקט@תאריך‎ — קישור מציר תחנה שנוחת ישר על גרסת השינוי
   const splitRdDate = (h) => { const i = h.lastIndexOf("@"); return i > 0 ? [h.slice(0, i), h.slice(i + 1)] : [h, null]; };
   const isDigestH = (h) => h.startsWith("digest=");
-  const parseDigest = (h) => { const [c, d] = h.slice(7).split("@"); return { city: c, days: parseInt(d) || 7 }; };
+  const parseDigest = (h) => { const [c, d] = h.slice(7).split("@"); return { city: c, days: Math.min(Math.max(parseInt(d) || 7, 1), 3650) }; };
   const [dig, setDig] = useState(() => (isDigestH(H0) ? parseDigest(H0) : null));
   const _plainH = H0 && !H0.startsWith("2012/") && !isStopH(H0) && !isDigestH(H0) && !H0.startsWith("t=");
   const [rd, setRd] = useState(() => (_plainH ? splitRdDate(H0)[0] : null));
@@ -5842,7 +5849,7 @@ function App() {
   useEffect(() => {
     const onPop = (e) => { setRd((e.state && e.state.rd) || null); setK12((e.state && e.state.k12) || null); };
     const onHash = () => {
-      const h = decodeURIComponent((location.hash || "").slice(1));
+      const h = safeHash().slice(1);
       if (h.startsWith("2012/")) { setRd(null); setK12(h.slice(5)); return; }
       if (isStopH(h)) { setRd(null); setStopSel(h.slice(5)); setStopSelN((n) => n + 1); setTab("stops"); return; }
       if (isDigestH(h)) { setRd(null); setK12(null); setDig(parseDigest(h)); return; }
@@ -6156,4 +6163,19 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+// רשת ביטחון לכל הדף (שלמה 18.10): בלי זה, שגיאה בכל רכיב מורידה את העמוד כולו ומשאירה דף ריק.
+// עם זה מוצגת הודעה קצרה עם כפתור רענון, והשגיאה נכתבת לקונסול.
+class RootSafe extends React.Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err, info) { console.error('RootSafe:', err, info && info.componentStack); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return <div dir="rtl" style={{ maxWidth: 520, margin: '15vh auto', padding: '24px 20px', textAlign: 'center', font: '16px/1.6 system-ui, sans-serif' }}>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>משהו השתבש בדף</div>
+      <div style={{ opacity: .75, marginBottom: 16 }}>רענון של הדף בדרך כלל פותר את זה.</div>
+      <button type="button" onClick={() => location.reload()} style={{ font: 'inherit', fontWeight: 700, padding: '10px 22px', borderRadius: 12, border: 0, background: '#0f172a', color: '#fff', cursor: 'pointer' }}>רענון</button>
+    </div>;
+  }
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<RootSafe><App /></RootSafe>);

@@ -430,7 +430,8 @@
           }
           var boot = document.getElementById('boot-loader');
           if (boot) boot.remove();
-          ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(KavPach));
+          var app = React.createElement(KavPach);
+          ReactDOM.createRoot(document.getElementById('root')).render(typeof RootSafe !== 'undefined' ? React.createElement(RootSafe, null, app) : app);
         })();
       };
       var fallback = function () {
