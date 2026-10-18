@@ -1074,6 +1074,59 @@ function TipTag({ cls, tip, children }) {
   );
 }
 
+/* "שינוי זמני" — מהקו המודיע (שלמה 18.10): עבודות, עקיפות ותחנות שלא יוקרו לזמן קצר.
+   סגור: שורה קצרה (סיבה, תאריכים, כמה תחנות). לחיצה: הנוסח המלא של ההודעה וקישור למפה.
+   הנתונים: ../alerts/data/by-rd.json (מק"ט-כיוון-חלופה או מק"ט → מזהים) ו-alerts.json. */
+let _tmpIdx = null, _tmpAll = null;
+const tmpJSON = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+const tmpT = (x) => { if (!x) return null; const t = typeof x === "number" ? x * 1000 : Date.parse(x); return isFinite(t) ? t : null; };
+const tmpDM = (t) => { try { return new Intl.DateTimeFormat("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" }).format(new Date(t)); } catch (e) { return ""; } };
+function TempChange({ rd }) {
+  const [list, setList] = useState(null);
+  const [open, setOpen] = useState(null);
+  useEffect(() => {
+    let ok = true;
+    setList(null); setOpen(null);
+    (_tmpIdx = _tmpIdx || tmpJSON("../alerts/data/by-rd.json")).then((idx) => {
+      if (!idx || !rd) return null;
+      const ids = [...new Set([...(idx[rd] || []), ...(idx[String(rd).split("-")[0]] || [])])];
+      if (!ids.length) return null;
+      return (_tmpAll = _tmpAll || tmpJSON("../alerts/data/alerts.json")).then((d) => {
+        if (!ok || !d || !Array.isArray(d.alerts)) return;
+        const now = Date.now(), causes = d.causes || {};
+        const out = d.alerts.filter((a) => a && ids.includes(a.id) && !(tmpT(a.e) && tmpT(a.e) < now))
+          .map((a) => ({ ...a, cl: a.cause && a.cause !== "other" ? causes[a.cause] : "" }));
+        setList(out);
+      });
+    }).catch(() => {});
+    return () => { ok = false; };
+  }, [rd]);
+  if (!list || !list.length) return null;
+  return (
+    <div className="tmpbox">
+      {list.map((a) => {
+        const s = tmpT(a.s), e = tmpT(a.e), now = Date.now();
+        const dates = s && e && tmpDM(s) !== tmpDM(e) ? tmpDM(s) + "–" + tmpDM(e) : s ? tmpDM(s) : "";
+        const rm = (a.rm || []).length, isOpen = open === a.id;
+        const bits = [a.cl, dates && ((s && s > now ? "מתוכנן " : "") + dates), rm ? (rm === 1 ? "תחנה אחת לא תיעשה" : rm + " תחנות לא ייעשו") : "",
+          a.kind === "route" ? "מסלול עוקף" : a.kind === "times" ? "שינוי בשעות" : ""].filter(Boolean);
+        return (
+          <div key={a.id} className={"tmpitem" + (isOpen ? " on" : "")}>
+            <button className="tmphead" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : a.id)}>
+              <b>⚠ שינוי זמני</b> <span>{bits.join(" · ")}</span> <span className="tmparr">{isOpen ? "▲" : "▼"}</span>
+            </button>
+            {isOpen && <div className="tmpbody">
+              <b>{a.h}</b>
+              {a.d && a.d !== a.h && <div className="tmptxt">{a.d}</div>}
+              <a href={"../alerts/#" + encodeURIComponent(a.id)}>{a.kind === "route" ? "המסלול על המפה, בהקו המודיע ←" : "לפרטים בהקו המודיע ←"}</a>
+            </div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* הודעת כשל רשת אחידה עם כפתור ניסיון חוזר — במקום "אין נתונים" מטעה */
 function NetErr({ onRetry }) {
   return (
@@ -1950,6 +2003,8 @@ const KIND_GROUPS_N = [
   { tag: "kg_new", label: "קווים חדשים", kinds: ["new"] },
   { tag: "kg_route", label: "מסלול ותחנות", kinds: ["route", "redraw", "extend", "shorten", "terminal", "stops", "stops-add", "stops-del"] },
   { tag: "kg_ident", label: "יעד, מספר ומפעיל", kinds: ["dest", "renum", "renamed", "operator", "mode"] },
+  // הקו המודיע (שלמה 18.10): עבודות, עקיפות ותחנות שבוטלו לזמן קצר — tools/alerts_push.py
+  { tag: "kg_temp", label: "שינויים זמניים (עבודות ועקיפות)", kinds: [] },
 ];
 // בכל כניסה לאתר: ההרשמות שנשמרו בדפדפן הזה נשלחות שוב לספק (שלמה 07.09: אצל
 // הספק נמצא תג עיר אחד מתוך חמש). בלי בקשת הרשאה — רק אם כבר אושרה.
@@ -2950,6 +3005,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
             (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
+        <TempChange rd={rd} />
         {why && <div className="whybox" id="why">
           <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
           <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
@@ -3261,6 +3317,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
             (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
+        <TempChange rd={rd} />
         {why && <div className="whybox" id="why">
           <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
           <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}

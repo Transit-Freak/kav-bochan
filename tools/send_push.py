@@ -137,7 +137,7 @@ def parse_sub(tags):
     else:
         s['watch'] = cs
     s['lines'] = {t[1:] for t, v in tags.items() if v == '1' and re.match(r'^l\d+$', t)}
-    g = {t for t in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident') if tags.get(t) == '1'}
+    g = {t for t in ('kg_rem', 'kg_new', 'kg_route', 'kg_ident', 'kg_temp') if tags.get(t) == '1'}
     s['groups'] = g or None
     return s
 

@@ -861,6 +861,23 @@ function ChoiceScreen({ onPick }) {
             </div>
           </a>
 
+          {/* הקו המודיע — עמוד עצמאי בתיקיית alerts/: שינויי שירות זמניים של משרד התחבורה דרך bus-alerts.com (שלמה 18.10) */}
+          <a
+            href="alerts/"
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#9333EA 70%,#DB2777 100%)' }}
+          >
+            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#f9a8d4' }} />
+            <div className="relative">
+              <div className="flex items-center mb-6 h-28">
+                <img src="alerts/icon.svg" alt="" width="84" height="84" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
+              </div>
+              <h2 className="text-3xl font-[900] text-fuchsia-100">הקו המודיע</h2>
+              <p className="text-fuchsia-100/80 font-bold mt-2 text-sm leading-relaxed">עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שלא ייעשו, ומה האוטובוסים עשו בפועל</p>
+              <span className="inline-flex items-center gap-2 mt-5 bg-fuchsia-200 text-fuchsia-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
+            </div>
+          </a>
+
           {/* הקו המזין — עמוד עצמאי בתיקיית feeder/, כלי למתכננים: אוטובוסים ליד תחנות רכבת מול הרכבות, בפועל */}
           <a
             href="feeder/"

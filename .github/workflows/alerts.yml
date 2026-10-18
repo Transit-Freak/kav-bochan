@@ -1,0 +1,110 @@
+name: alerts
+
+# הקו המודיע — שינויי השירות הזמניים של משרד התחבורה (עבודות, אירועים, הפגנות, חסימות),
+# דרך bus-alerts.com (קוד פתוח בנחלת הכלל). שלמה 18.10.2026: שתי משיכות ביום, כמו שתי
+# הבדיקות של האתר — 00:00 ו-17:00 בשעון ישראל.
+#
+# GitHub מפעיל ריצות מתוזמנות באיחור של כמה שעות, ו-cron לא מכיר שעון קיץ/חורף. לכן כמו
+# במדד הדיוק: בדיקה קצרה כל שעה (need), שמושכת רק אם עברה נקודת המשיכה האחרונה (00:00 או
+# 17:00 בישראל) מאז המשיכה הקודמת. כך יש בדיוק שתי משיכות ביום, גם כשההפעלה מתעכבת וגם
+# אחרי מעבר השעון.
+#
+# אחרי המשיכה: מה האוטובוסים עשו בפועל (alerts_gps.py, דאטאבוס) והתראות דפדפן על שינויים
+# חדשים (alerts_push.py — אותה מערכת התראות של הקו בזמן; בלי המפתחות יוצא בשקט).
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/alerts.yml'
+      - 'tools/alerts_fetch.py'
+      - 'tools/alerts_route.py'
+      - 'tools/alerts_gps.py'
+      - 'tools/alerts_push.py'
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: 'התראות בהרצה יבשה (1 = רק להדפיס)'
+        required: false
+        default: '0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alerts-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  need:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      go: ${{ steps.g.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: alerts/data/report.json
+          sparse-checkout-cone-mode: false
+      - name: עברה נקודת משיכה מאז הפעם הקודמת?
+        id: g
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import datetime, json, os
+          from zoneinfo import ZoneInfo
+          tz = ZoneInfo('Asia/Jerusalem')
+          now = datetime.datetime.now(tz)
+          # נקודת המשיכה האחרונה: 17:00 היום, 00:00 היום, או 17:00 אתמול
+          cands = [now.replace(hour=17, minute=0, second=0, microsecond=0),
+                   now.replace(hour=0, minute=0, second=0, microsecond=0)]
+          slot = max(c for c in cands if c <= now)
+          try:
+              last = datetime.datetime.fromisoformat(json.load(open('alerts/data/report.json'))['gen'])
+          except Exception:
+              last = None
+          go = os.environ['EVENT'] != 'schedule' or last is None or last < slot
+          print(f'נקודה: {slot:%d.%m %H:%M} · משיכה אחרונה: {last.astimezone(tz).strftime("%d.%m %H:%M") if last else "אין"}', file=__import__('sys').stderr)
+          print('go=' + ('yes' if go else 'no'))
+          EOF
+
+  run:
+    needs: need
+    if: needs.need.outputs.go == 'yes' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: משיכת ההתראות והמסלול המשוער
+        run: python3 tools/alerts_fetch.py
+
+      - name: מה האוטובוסים עשו בפועל
+        continue-on-error: true
+        run: python3 tools/alerts_gps.py
+
+      - name: התראות דפדפן על שינויים חדשים
+        continue-on-error: true
+        env:
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          ONESIGNAL_API_KEY: ${{ secrets.ONESIGNAL_API_KEY }}
+          DRY: ${{ github.event.inputs.dry || '0' }}
+        run: python3 tools/alerts_push.py
+
+      - name: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A alerts/data
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -q -m "data: הקו המודיע — שינויי שירות זמניים"
+          for i in 1 2 3 4 5 6; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            echo "push rejected — retry $i"; sleep 15
+          done
+          echo "הדחיפה נכשלה"; exit 1
