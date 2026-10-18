@@ -1,14 +1,14 @@
 {
- "checked": "2026-10-11 15:36",
+ "checked": "2026-10-18 13:13",
  "thresholds": {
   "planned": 12,
   "partial": 40
  },
  "rule": "טרם נבנה: שטח 0.3 קמ\"ר ומעלה, בלי מבנים, בלי רשת כבישים פנימית, בלי תחנות/מתקנים/עסקים. שטח קטן יותר (לרוב רק פיסה מהתב\"ע) או מתקן שאין בו מבנים מטבעו (מחצבה, בית זיקוק) — אינו מסומן בכלל, כי אין די ראיות להכרעה.",
  "summary": {
-  "built": 205,
-  "לא-מסומן": 172,
-  "partial": 35,
+  "built": 286,
+  "לא-מסומן": 76,
+  "partial": 50,
   "planned": 2
  },
  "zones": [
@@ -861,13 +861,15 @@
    "la": 31.223,
    "lo": 34.8013,
    "area": 0.31,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 22,
+   "bpk": 71.0,
+   "constr": 1,
    "stops_in": 8,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    22
+   ]
   },
   {
    "name": "אזור תעשייה עמק שרה",
@@ -875,13 +877,15 @@
    "la": 31.22,
    "lo": 34.8105,
    "area": 1.26,
-   "bld": null,
-   "bpk": null,
+   "bld": 236,
+   "bpk": 187.3,
    "constr": 0,
    "stops_in": 21,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    236
+   ]
   },
   {
    "name": "באר שבע צפון",
@@ -889,13 +893,18 @@
    "la": 31.2514,
    "lo": 34.8148,
    "area": 4.4,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 644,
+   "bpk": 146.4,
+   "constr": 3,
    "stops_in": 47,
-   "st": "",
+   "st": "built",
    "nparts": 4,
-   "bparts": null
+   "bparts": [
+    605,
+    39,
+    0,
+    0
+   ]
   },
   {
    "name": "מע״ר באר שבע",
@@ -903,13 +912,15 @@
    "la": 31.2439,
    "lo": 34.7995,
    "area": 0.54,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 69,
+   "bpk": 127.8,
+   "constr": 2,
    "stops_in": 18,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    69
+   ]
   },
   {
    "name": "בוקעתה",
@@ -917,13 +928,17 @@
    "la": 33.2013,
    "lo": 35.7715,
    "area": 0.19,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 1,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "ביר אל מכסור",
@@ -931,13 +946,16 @@
    "la": 32.7875,
    "lo": 35.2327,
    "area": 0.08,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "ביר הדאג",
@@ -945,13 +963,16 @@
    "la": 31.0208,
    "lo": 34.72,
    "area": 0.2,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "בית יהושע",
@@ -959,13 +980,15 @@
    "la": 32.2599,
    "lo": 34.8574,
    "area": 0.22,
-   "bld": null,
-   "bpk": null,
+   "bld": 26,
+   "bpk": 118.2,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    26
+   ]
   },
   {
    "name": "תל יצחק",
@@ -973,13 +996,15 @@
    "la": 32.2522,
    "lo": 34.8716,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 9,
+   "bpk": 90.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    9
+   ]
   },
   {
    "name": "בית-שאן",
@@ -987,13 +1012,17 @@
    "la": 32.5134,
    "lo": 35.499,
    "area": 0.64,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 70,
+   "bpk": 109.4,
+   "constr": 1,
    "stops_in": 6,
-   "st": "",
+   "st": "built",
    "nparts": 3,
-   "bparts": null
+   "bparts": [
+    70,
+    0,
+    0
+   ]
   },
   {
    "name": "מפעלי שאן",
@@ -1001,13 +1030,15 @@
    "la": 32.4975,
    "lo": 35.5196,
    "area": 0.33,
-   "bld": null,
-   "bpk": null,
+   "bld": 54,
+   "bpk": 163.6,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    54
+   ]
   },
   {
    "name": "אזור תעשיה ברוש מערב",
@@ -1015,13 +1046,15 @@
    "la": 31.7349,
    "lo": 34.9564,
    "area": 0.54,
-   "bld": null,
-   "bpk": null,
+   "bld": 63,
+   "bpk": 116.7,
    "constr": 0,
    "stops_in": 8,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    63
+   ]
   },
   {
    "name": "אזור תעשיה הרטוב",
@@ -1029,13 +1062,15 @@
    "la": 31.7683,
    "lo": 34.9898,
    "area": 1.11,
-   "bld": null,
-   "bpk": null,
+   "bld": 117,
+   "bpk": 105.4,
    "constr": 0,
    "stops_in": 15,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    117
+   ]
   },
   {
    "name": "איזור תעשיה צפוני",
@@ -1043,13 +1078,15 @@
    "la": 31.7552,
    "lo": 34.9946,
    "area": 0.17,
-   "bld": null,
-   "bpk": null,
+   "bld": 49,
+   "bpk": 288.2,
    "constr": 0,
    "stops_in": 2,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    49
+   ]
   },
   {
    "name": "בית שמש - א\"ת מערבי",
@@ -1057,13 +1094,18 @@
    "la": 31.7429,
    "lo": 34.9712,
    "area": 0.13,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    0,
+    0
+   ],
+   "roads": 1,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "ביתר עילית",
@@ -1071,13 +1113,19 @@
    "la": 31.6968,
    "lo": 35.1274,
    "area": 0.08,
-   "bld": null,
-   "bpk": null,
+   "bld": 3,
+   "bpk": 37.5,
    "constr": 0,
    "stops_in": 2,
    "st": "",
    "nparts": 3,
-   "bparts": null
+   "bparts": [
+    3,
+    0,
+    0
+   ],
+   "roads": 7,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "בני ברק - אזור תעסוקה",
@@ -1085,13 +1133,15 @@
    "la": 32.1027,
    "lo": 34.8369,
    "area": 0.79,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 120,
+   "bpk": 151.9,
+   "constr": 8,
    "stops_in": 18,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    120
+   ]
   },
   {
    "name": "בני ברק - אזור תעשיה ישן אהר",
@@ -1099,13 +1149,15 @@
    "la": 32.0902,
    "lo": 34.8383,
    "area": 0.09,
-   "bld": null,
-   "bpk": null,
+   "bld": 35,
+   "bpk": 388.9,
    "constr": 0,
    "stops_in": 7,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    35
+   ]
   },
   {
    "name": "בני ברק - א״ת דרומי",
@@ -1113,13 +1165,15 @@
    "la": 32.0786,
    "lo": 34.8409,
    "area": 0.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 61,
+   "bpk": 435.7,
    "constr": 0,
    "stops_in": 4,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    61
+   ]
   },
   {
    "name": "פארק תעשיות ראם",
@@ -1127,13 +1181,15 @@
    "la": 31.7719,
    "lo": 34.754,
    "area": 1.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 90,
+   "bpk": 78.9,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    90
+   ]
   },
   {
    "name": "דביר",
@@ -1141,13 +1197,16 @@
    "la": 31.4177,
    "lo": 34.7909,
    "area": 0.36,
-   "bld": null,
-   "bpk": null,
+   "bld": 12,
+   "bpk": 33.3,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    3,
+    9
+   ]
   },
   {
    "name": "חצרים",
@@ -1155,13 +1214,15 @@
    "la": 31.2383,
    "lo": 34.7167,
    "area": 0.35,
-   "bld": null,
-   "bpk": null,
+   "bld": 43,
+   "bpk": 122.9,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    43
+   ]
   },
   {
    "name": "מרחבים",
@@ -1169,13 +1230,17 @@
    "la": 31.3556,
    "lo": 34.6331,
    "area": 0.01,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 1,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "מרכז אזורי בני שמעון",
@@ -1183,13 +1248,16 @@
    "la": 31.4404,
    "lo": 34.7584,
    "area": 0.36,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 22,
+   "bpk": 61.1,
+   "constr": 1,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    22,
+    0
+   ]
   },
   {
    "name": "תראבין א צאנע",
@@ -1197,13 +1265,17 @@
    "la": 31.3466,
    "lo": 34.7348,
    "area": 0.07,
-   "bld": null,
-   "bpk": null,
+   "bld": 1,
+   "bpk": 14.3,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    1
+   ],
+   "roads": 11,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "אזור תעשייה בנימינה",
@@ -1211,13 +1283,15 @@
    "la": 32.5142,
    "lo": 34.9482,
    "area": 0.08,
-   "bld": null,
-   "bpk": null,
+   "bld": 30,
+   "bpk": 375.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    30
+   ]
   },
   {
    "name": "בנימינה",
@@ -1225,13 +1299,19 @@
    "la": 32.5463,
    "lo": 34.9565,
    "area": 0.69,
-   "bld": null,
-   "bpk": null,
+   "bld": 7,
+   "bpk": 10.1,
    "constr": 0,
    "stops_in": 5,
-   "st": "",
+   "st": "partial",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    7,
+    0
+   ],
+   "roads": 27,
+   "biz": 8,
+   "alive": "5 תחנות בפנים, 8 עסקים, רשת כבישים (39/קמ\"ר)"
   },
   {
    "name": "כפר גליקסון",
@@ -1239,13 +1319,15 @@
    "la": 32.5076,
    "lo": 35.0053,
    "area": 0.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 24,
+   "bpk": 171.4,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    24
+   ]
   },
   {
    "name": "בחן",
@@ -1253,13 +1335,17 @@
    "la": 32.3485,
    "lo": 35.022,
    "area": 0.33,
-   "bld": null,
-   "bpk": null,
+   "bld": 1,
+   "bpk": 3.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    1
+   ],
+   "roads": 2,
+   "alive": "רשת כבישים (6/קמ\"ר)"
   },
   {
    "name": "בת תפר",
@@ -1267,13 +1353,17 @@
    "la": 32.3414,
    "lo": 35.0099,
    "area": 0.09,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 0,
+   "bpk": 0.0,
+   "constr": 1,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 13,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "יד חנה",
@@ -1281,13 +1371,15 @@
    "la": 32.3234,
    "lo": 35.0065,
    "area": 0.2,
-   "bld": null,
-   "bpk": null,
+   "bld": 17,
+   "bpk": 85.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    17
+   ]
   },
   {
    "name": "בת ים",
@@ -1295,13 +1387,15 @@
    "la": 32.008,
    "lo": 34.7471,
    "area": 0.8,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 182,
+   "bpk": 227.5,
+   "constr": 3,
    "stops_in": 27,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    182
+   ]
   },
   {
    "name": "ג'דידה מכר",
@@ -1309,13 +1403,17 @@
    "la": 32.9267,
    "lo": 35.1352,
    "area": 0.07,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 3,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "ירכא",
@@ -1323,13 +1421,17 @@
    "la": 32.9509,
    "lo": 35.1783,
    "area": 0.03,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 2,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "גוש חלב",
@@ -1337,13 +1439,15 @@
    "la": 33.022,
    "lo": 35.4519,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 11,
+   "bpk": 110.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    11
+   ]
   },
   {
    "name": "באקה אל גרביה - תעשיה ומלאכ",
@@ -1351,13 +1455,17 @@
    "la": 32.404,
    "lo": 35.0498,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 1,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 14,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "ג'ת",
@@ -1365,13 +1473,18 @@
    "la": 32.3929,
    "lo": 35.0441,
    "area": 0.09,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 5,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 7,
+   "biz": 1,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "מגל",
@@ -1379,13 +1492,15 @@
    "la": 32.3869,
    "lo": 35.0334,
    "area": 0.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 26,
+   "bpk": 185.7,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    26
+   ]
   },
   {
    "name": "גברעם",
@@ -1393,13 +1508,15 @@
    "la": 31.593,
    "lo": 34.6141,
    "area": 0.23,
-   "bld": null,
-   "bpk": null,
+   "bld": 33,
+   "bpk": 143.5,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    33
+   ]
   },
   {
    "name": "גדרה",
@@ -1407,13 +1524,17 @@
    "la": 31.8001,
    "lo": 34.768,
    "area": 0.3,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 2,
+   "bpk": 6.7,
+   "constr": 1,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    2
+   ],
+   "roads": 11,
+   "alive": "רשת כבישים (37/קמ\"ר)"
   },
   {
    "name": "פארק תעשיה כנות",
@@ -1421,13 +1542,15 @@
    "la": 31.8014,
    "lo": 34.7593,
    "area": 0.54,
-   "bld": null,
-   "bpk": null,
+   "bld": 55,
+   "bpk": 101.9,
    "constr": 0,
    "stops_in": 4,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    55
+   ]
   },
   {
    "name": "אזור תעשיה בני יהודה",
@@ -1435,13 +1558,15 @@
    "la": 32.8027,
    "lo": 35.717,
    "area": 0.17,
-   "bld": null,
-   "bpk": null,
+   "bld": 20,
+   "bpk": 117.6,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    20
+   ]
   },
   {
    "name": "מרום גולן",
@@ -1449,13 +1574,15 @@
    "la": 33.1307,
    "lo": 35.7778,
    "area": 0.06,
-   "bld": null,
-   "bpk": null,
+   "bld": 24,
+   "bpk": 400.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    24
+   ]
   },
   {
    "name": "גזית",
@@ -1463,13 +1590,17 @@
    "la": 32.6344,
    "lo": 35.4445,
    "area": 0.08,
-   "bld": null,
-   "bpk": null,
+   "bld": 2,
+   "bpk": 25.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    2
+   ],
+   "roads": 4,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "גזר",
@@ -1477,13 +1608,15 @@
    "la": 31.8759,
    "lo": 34.9226,
    "area": 0.18,
-   "bld": null,
-   "bpk": null,
+   "bld": 22,
+   "bpk": 122.2,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    22
+   ]
   },
   {
    "name": "חולדה",
@@ -1491,13 +1624,15 @@
    "la": 31.8294,
    "lo": 34.8831,
    "area": 0.19,
-   "bld": null,
-   "bpk": null,
+   "bld": 10,
+   "bpk": 52.6,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    10
+   ]
   },
   {
    "name": "משמר דוד",
@@ -1505,13 +1640,16 @@
    "la": 31.8197,
    "lo": 34.9014,
    "area": 0.05,
-   "bld": null,
-   "bpk": null,
+   "bld": 5,
+   "bpk": 100.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    3,
+    2
+   ]
   },
   {
    "name": "גן יבנה",
@@ -1519,13 +1657,15 @@
    "la": 31.775,
    "lo": 34.7034,
    "area": 0.22,
-   "bld": null,
-   "bpk": null,
+   "bld": 27,
+   "bpk": 122.7,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    27
+   ]
   },
   {
    "name": "דאלית אל כרמל",
@@ -1533,13 +1673,15 @@
    "la": 32.6864,
    "lo": 35.059,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 5,
+   "bpk": 50.0,
+   "constr": 1,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    5
+   ]
   },
   {
    "name": "לבון",
@@ -1547,13 +1689,15 @@
    "la": 32.9434,
    "lo": 35.2816,
    "area": 0.08,
-   "bld": null,
-   "bpk": null,
+   "bld": 6,
+   "bpk": 75.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    6
+   ]
   },
   {
    "name": "דיר חנא",
@@ -3271,13 +3415,17 @@
    "la": 32.9701,
    "lo": 35.3136,
    "area": 0.3,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 3,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 12,
+   "alive": "3 תחנות בפנים, רשת כבישים (40/קמ\"ר)"
   },
   {
    "name": "כסייפה",
@@ -3285,13 +3433,17 @@
    "la": 31.2406,
    "lo": 35.1082,
    "area": 0.28,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 0,
+   "bpk": 0.0,
+   "constr": 1,
    "stops_in": 2,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 8,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "אזור תעשייה בפר אדומים",
@@ -3299,13 +3451,15 @@
    "la": 31.8179,
    "lo": 35.3439,
    "area": 0.04,
-   "bld": null,
-   "bpk": null,
+   "bld": 11,
+   "bpk": 275.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    11
+   ]
   },
   {
    "name": "חורשים",
@@ -3313,13 +3467,17 @@
    "la": 32.1401,
    "lo": 34.9695,
    "area": 0.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 3,
+   "bpk": 21.4,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    3
+   ],
+   "roads": 6,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "כפר ברא",
@@ -3327,13 +3485,15 @@
    "la": 32.1324,
    "lo": 34.9637,
    "area": 0.16,
-   "bld": null,
-   "bpk": null,
+   "bld": 19,
+   "bpk": 118.8,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    19
+   ]
   },
   {
    "name": "ג'וליס",
@@ -3341,13 +3501,17 @@
    "la": 32.938,
    "lo": 35.17,
    "area": 0.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 1,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 3,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "כפר יונה",
@@ -3355,13 +3519,18 @@
    "la": 32.3195,
    "lo": 34.9097,
    "area": 0.2,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 4,
+   "bpk": 20.0,
+   "constr": 3,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    4
+   ],
+   "roads": 2,
+   "biz": 1,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "תנובות",
@@ -3369,13 +3538,16 @@
    "la": 32.3119,
    "lo": 34.9621,
    "area": 0.22,
-   "bld": null,
-   "bpk": null,
+   "bld": 19,
+   "bpk": 86.4,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    19,
+    0
+   ]
   },
   {
    "name": "כדורי",
@@ -3383,13 +3555,22 @@
    "la": 32.7063,
    "lo": 35.4063,
    "area": 0.07,
-   "bld": null,
-   "bpk": null,
+   "bld": 18,
+   "bpk": 257.1,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 8,
-   "bparts": null
+   "bparts": [
+    18,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
   },
   {
    "name": "אזור תעשייה ציפורית",
@@ -3397,13 +3578,15 @@
    "la": 32.7583,
    "lo": 35.3177,
    "area": 1.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 119,
+   "bpk": 108.2,
    "constr": 0,
    "stops_in": 15,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    119
+   ]
   },
   {
    "name": "כפר כנא",
@@ -3411,13 +3594,17 @@
    "la": 32.7574,
    "lo": 35.3335,
    "area": 0.31,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 6,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 10,
+   "alive": "6 תחנות בפנים, רשת כבישים (32/קמ\"ר)"
   },
   {
    "name": "משהד",
@@ -3425,13 +3612,18 @@
    "la": 32.7602,
    "lo": 35.3263,
    "area": 0.77,
-   "bld": null,
-   "bpk": null,
+   "bld": 1,
+   "bpk": 1.3,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    1
+   ],
+   "roads": 4,
+   "biz": 2,
+   "alive": "רשת כבישים (5/קמ\"ר)"
   },
   {
    "name": "כפר סבא - אבו סנינא",
@@ -3439,13 +3631,15 @@
    "la": 32.1866,
    "lo": 34.9518,
    "area": 0.43,
-   "bld": null,
-   "bpk": null,
+   "bld": 25,
+   "bpk": 58.1,
    "constr": 0,
    "stops_in": 2,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    25
+   ]
   },
   {
    "name": "כפר סבא - אזור תעשיה ישן",
@@ -3453,13 +3647,15 @@
    "la": 32.1749,
    "lo": 34.9303,
    "area": 0.63,
-   "bld": null,
-   "bpk": null,
+   "bld": 115,
+   "bpk": 182.5,
    "constr": 0,
    "stops_in": 11,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    115
+   ]
   },
   {
    "name": "נווה ימין",
@@ -3467,13 +3663,17 @@
    "la": 32.1773,
    "lo": 34.9517,
    "area": 0.33,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 0,
+   "bpk": 0.0,
+   "constr": 1,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 11,
+   "alive": "רשת כבישים (33/קמ\"ר)"
   },
   {
    "name": "ניר אליהו",
@@ -3481,13 +3681,15 @@
    "la": 32.1953,
    "lo": 34.9505,
    "area": 0.22,
-   "bld": null,
-   "bpk": null,
+   "bld": 17,
+   "bpk": 77.3,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    17
+   ]
   },
   {
    "name": "ערב-שבלי",
@@ -3495,13 +3697,16 @@
    "la": 32.6829,
    "lo": 35.4071,
    "area": 0.01,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "אזור תעשייה כרמיאל",
@@ -3509,13 +3714,15 @@
    "la": 32.9237,
    "lo": 35.3255,
    "area": 2.38,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 219,
+   "bpk": 92.0,
+   "constr": 4,
    "stops_in": 25,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    219
+   ]
   },
   {
    "name": "הרחבה כרמיאל",
@@ -3523,13 +3730,23 @@
    "la": 32.9268,
    "lo": 35.3349,
    "area": 0.63,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "partial",
    "nparts": 7,
-   "bparts": null
+   "bparts": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "roads": 4,
+   "alive": "רשת כבישים (6/קמ\"ר)"
   },
   {
    "name": "כרמיה",
@@ -3537,13 +3754,15 @@
    "la": 31.6038,
    "lo": 34.5448,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 27,
+   "bpk": 270.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    27
+   ]
   },
   {
    "name": "להבות חביבה",
@@ -3551,13 +3770,15 @@
    "la": 32.3977,
    "lo": 35.0097,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 9,
+   "bpk": 90.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    9
+   ]
   },
   {
    "name": "עידן הנגב דרום",
@@ -3565,13 +3786,17 @@
    "la": 31.3648,
    "lo": 34.7891,
    "area": 2.34,
-   "bld": null,
-   "bpk": null,
+   "bld": 1,
+   "bpk": 0.4,
    "constr": 0,
    "stops_in": 2,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    1
+   ],
+   "roads": 7,
+   "alive": "2 תחנות בפנים"
   },
   {
    "name": "לאה גולדברג - לוד",
@@ -3579,13 +3804,15 @@
    "la": 31.9545,
    "lo": 34.8908,
    "area": 0.17,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 29,
+   "bpk": 170.6,
+   "constr": 1,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    29
+   ]
   },
   {
    "name": "לוד - מתחם הרכבת",
@@ -3593,13 +3820,15 @@
    "la": 31.9456,
    "lo": 34.8772,
    "area": 0.05,
-   "bld": null,
-   "bpk": null,
+   "bld": 13,
+   "bpk": 260.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    13
+   ]
   },
   {
    "name": "לוד צפון",
@@ -3607,13 +3836,15 @@
    "la": 31.9669,
    "lo": 34.892,
    "area": 1.23,
-   "bld": null,
-   "bpk": null,
+   "bld": 89,
+   "bpk": 72.4,
    "constr": 0,
    "stops_in": 10,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    89
+   ]
   },
   {
    "name": "לוטן",
@@ -4053,13 +4284,15 @@
    "la": 32.0695,
    "lo": 35.4153,
    "area": 0.09,
-   "bld": null,
-   "bpk": null,
+   "bld": 24,
+   "bpk": 266.7,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    24
+   ]
   },
   {
    "name": "גורן",
@@ -4067,13 +4300,15 @@
    "la": 33.0573,
    "lo": 35.2421,
    "area": 0.28,
-   "bld": null,
-   "bpk": null,
+   "bld": 34,
+   "bpk": 121.4,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    34
+   ]
   },
   {
    "name": "מעיליא",
@@ -4081,13 +4316,21 @@
    "la": 33.023,
    "lo": 35.2637,
    "area": 0.1,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 2,
    "st": "",
    "nparts": 5,
-   "bparts": null
+   "bparts": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "roads": 3,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "פארק תעשיות קורן",
@@ -4095,13 +4338,15 @@
    "la": 33.0195,
    "lo": 35.2754,
    "area": 0.74,
-   "bld": null,
-   "bpk": null,
+   "bld": 111,
+   "bpk": 150.0,
    "constr": 0,
    "stops_in": 12,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    111
+   ]
   },
   {
    "name": "אזור תעשיה ברקן",
@@ -4109,13 +4354,15 @@
    "la": 32.1051,
    "lo": 35.117,
    "area": 1.04,
-   "bld": null,
-   "bpk": null,
+   "bld": 181,
+   "bpk": 174.0,
    "constr": 0,
    "stops_in": 9,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    181
+   ]
   },
   {
    "name": "אריאל מערב",
@@ -4123,13 +4370,16 @@
    "la": 32.0935,
    "lo": 35.1219,
    "area": 0.88,
-   "bld": null,
-   "bpk": null,
+   "bld": 70,
+   "bpk": 79.5,
    "constr": 0,
    "stops_in": 4,
-   "st": "",
+   "st": "built",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    70,
+    0
+   ]
   },
   {
    "name": "אזור תעשייה מצפה רמון",
@@ -4137,13 +4387,17 @@
    "la": 30.624,
    "lo": 34.8107,
    "area": 0.16,
-   "bld": null,
-   "bpk": null,
+   "bld": 2,
+   "bpk": 12.5,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    2
+   ],
+   "roads": 4,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "אור הגנוז",
@@ -4151,13 +4405,16 @@
    "la": 33.0033,
    "lo": 35.4462,
    "area": 0.01,
-   "bld": null,
-   "bpk": null,
+   "bld": 2,
+   "bpk": 100.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    2
+   ],
+   "roads": 1
   },
   {
    "name": "אזור תעשייה דלתון",
@@ -4165,13 +4422,15 @@
    "la": 33.027,
    "lo": 35.479,
    "area": 0.47,
-   "bld": null,
-   "bpk": null,
+   "bld": 100,
+   "bpk": 212.8,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    100
+   ]
   },
   {
    "name": "מירון",
@@ -4179,13 +4438,15 @@
    "la": 33.0014,
    "lo": 35.4389,
    "area": 0.07,
-   "bld": null,
-   "bpk": null,
+   "bld": 19,
+   "bpk": 271.4,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    19
+   ]
   },
   {
    "name": "משמר הנגב",
@@ -4193,13 +4454,15 @@
    "la": 31.3678,
    "lo": 34.7194,
    "area": 0.17,
-   "bld": null,
-   "bpk": null,
+   "bld": 12,
+   "bpk": 70.6,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    12
+   ]
   },
   {
    "name": "אזור תעשייה נאות חובב",
@@ -4207,13 +4470,15 @@
    "la": 31.1376,
    "lo": 34.7906,
    "area": 3.28,
-   "bld": null,
-   "bpk": null,
+   "bld": 570,
+   "bpk": 173.8,
    "constr": 0,
    "stops_in": 7,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    570
+   ]
   },
   {
    "name": "אזור תעשייה",
@@ -4221,13 +4486,16 @@
    "la": 33.0351,
    "lo": 35.1036,
    "area": 0.5,
-   "bld": null,
-   "bpk": null,
+   "bld": 74,
+   "bpk": 148.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    26,
+    48
+   ]
   },
   {
    "name": "נווה זוהר",
@@ -4235,13 +4503,15 @@
    "la": 31.1479,
    "lo": 35.3661,
    "area": 0.15,
-   "bld": null,
-   "bpk": null,
+   "bld": 8,
+   "bpk": 53.3,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    8
+   ]
   },
   {
    "name": "אזור תעשייה נוף הגליל",
@@ -4249,13 +4519,15 @@
    "la": 32.717,
    "lo": 35.3349,
    "area": 0.55,
-   "bld": null,
-   "bpk": null,
+   "bld": 61,
+   "bpk": 110.9,
    "constr": 0,
    "stops_in": 12,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    61
+   ]
   },
   {
    "name": "איכסאל",
@@ -4263,13 +4535,17 @@
    "la": 32.6755,
    "lo": 35.311,
    "area": 0.12,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 5,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "עין מאהל",
@@ -4277,13 +4553,17 @@
    "la": 32.7208,
    "lo": 35.3444,
    "area": 0.05,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    0,
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "חפץ חיים",
@@ -4291,13 +4571,15 @@
    "la": 31.7867,
    "lo": 34.8018,
    "area": 0.3,
-   "bld": null,
-   "bpk": null,
+   "bld": 27,
+   "bpk": 90.0,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    27
+   ]
   },
   {
    "name": "יסודות",
@@ -4305,13 +4587,15 @@
    "la": 31.8177,
    "lo": 34.8659,
    "area": 0.23,
-   "bld": null,
-   "bpk": null,
+   "bld": 31,
+   "bpk": 134.8,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    31
+   ]
   },
   {
    "name": "פארק תעסוקה יואב",
@@ -4319,13 +4603,15 @@
    "la": 31.7579,
    "lo": 34.7887,
    "area": 0.37,
-   "bld": null,
-   "bpk": null,
+   "bld": 48,
+   "bpk": 129.7,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    48
+   ]
   },
   {
    "name": "בארות יצחק",
@@ -4333,13 +4619,18 @@
    "la": 32.044,
    "lo": 34.9109,
    "area": 0.39,
-   "bld": null,
-   "bpk": null,
+   "bld": 7,
+   "bpk": 17.9,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 4,
-   "bparts": null
+   "bparts": [
+    7,
+    0,
+    0,
+    0
+   ]
   },
   {
    "name": "נחשולים",
@@ -4347,13 +4638,15 @@
    "la": 32.6141,
    "lo": 34.9242,
    "area": 0.12,
-   "bld": null,
-   "bpk": null,
+   "bld": 30,
+   "bpk": 250.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    30
+   ]
   },
   {
    "name": "אזור תעשייה אלון תבור",
@@ -4361,13 +4654,15 @@
    "la": 32.6348,
    "lo": 35.362,
    "area": 1.69,
-   "bld": null,
-   "bpk": null,
+   "bld": 130,
+   "bpk": 76.9,
    "constr": 0,
    "stops_in": 5,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    130
+   ]
   },
   {
    "name": "טול כרם",
@@ -4375,13 +4670,15 @@
    "la": 32.3072,
    "lo": 35.0144,
    "area": 0.22,
-   "bld": null,
-   "bpk": null,
+   "bld": 46,
+   "bpk": 209.1,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    46
+   ]
   },
   {
    "name": "אזור תעשיה א",
@@ -4389,13 +4686,15 @@
    "la": 31.9231,
    "lo": 34.8001,
    "area": 0.11,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 33,
+   "bpk": 300.0,
+   "constr": 1,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    33
+   ]
   },
   {
    "name": "אזור תעשייה ב",
@@ -4862,13 +5161,15 @@
    "la": 32.1709,
    "lo": 35.1523,
    "area": 0.11,
-   "bld": null,
-   "bpk": null,
+   "bld": 19,
+   "bpk": 172.7,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    19
+   ]
   },
   {
    "name": "פארק תעשיה עמנואל",
@@ -4876,13 +5177,15 @@
    "la": 32.1753,
    "lo": 35.153,
    "area": 0.12,
-   "bld": null,
-   "bpk": null,
+   "bld": 28,
+   "bpk": 233.3,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    28
+   ]
   },
   {
    "name": "אשדות יעקב (מאוחד)",
@@ -4890,13 +5193,15 @@
    "la": 32.6661,
    "lo": 35.5803,
    "area": 0.14,
-   "bld": null,
-   "bpk": null,
+   "bld": 16,
+   "bpk": 114.3,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    16
+   ]
   },
   {
    "name": "פארק אדיסון (ספן)",
@@ -4904,13 +5209,15 @@
    "la": 32.6619,
    "lo": 35.5738,
    "area": 0.09,
-   "bld": null,
-   "bpk": null,
+   "bld": 19,
+   "bpk": 211.1,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    19
+   ]
   },
   {
    "name": "צמח מפעלים",
@@ -4918,13 +5225,15 @@
    "la": 32.7035,
    "lo": 35.5855,
    "area": 0.15,
-   "bld": null,
-   "bpk": null,
+   "bld": 26,
+   "bpk": 173.3,
    "constr": 0,
    "stops_in": 4,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    26
+   ]
   },
   {
    "name": "מעברות",
@@ -4932,13 +5241,16 @@
    "la": 32.3571,
    "lo": 34.906,
    "area": 0.2,
-   "bld": null,
-   "bpk": null,
+   "bld": 5,
+   "bpk": 25.0,
    "constr": 0,
    "stops_in": 3,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    5
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "אזור תעשייה עפולה",
@@ -4946,13 +5258,15 @@
    "la": 32.6042,
    "lo": 35.2966,
    "area": 0.54,
-   "bld": null,
-   "bpk": null,
+   "bld": 135,
+   "bpk": 250.0,
    "constr": 0,
    "stops_in": 17,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    135
+   ]
   },
   {
    "name": "עפולה",
@@ -4960,13 +5274,15 @@
    "la": 32.6343,
    "lo": 35.3354,
    "area": 0.19,
-   "bld": null,
-   "bpk": null,
+   "bld": 36,
+   "bpk": 189.5,
    "constr": 0,
    "stops_in": 4,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    36
+   ]
   },
   {
    "name": "עפולה עלית",
@@ -4974,13 +5290,16 @@
    "la": 32.6268,
    "lo": 35.3166,
    "area": 0.48,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 18,
+   "bpk": 37.5,
+   "constr": 1,
    "stops_in": 5,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    18
+   ],
+   "alive": "5 תחנות בפנים, 18 מבנים"
   },
   {
    "name": "עראבה",
@@ -4988,13 +5307,16 @@
    "la": 32.8604,
    "lo": 35.3436,
    "area": 0.04,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "ערד",
@@ -5002,13 +5324,17 @@
    "la": 31.2409,
    "lo": 35.1987,
    "area": 4.82,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 210,
+   "bpk": 43.6,
+   "constr": 1,
    "stops_in": 17,
-   "st": "",
+   "st": "built",
    "nparts": 3,
-   "bparts": null
+   "bparts": [
+    210,
+    0,
+    0
+   ]
   },
   {
    "name": "ערערה",
@@ -5016,13 +5342,18 @@
    "la": 32.4934,
    "lo": 35.0793,
    "area": 0.11,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 1,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 2,
+   "biz": 2,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "אבו קרינאת",
@@ -5030,13 +5361,17 @@
    "la": 31.1442,
    "lo": 34.9787,
    "area": 0.36,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "roads": 26,
+   "alive": "רשת כבישים (72/קמ\"ר)"
   },
   {
    "name": "ערוער",
@@ -5044,13 +5379,18 @@
    "la": 31.1626,
    "lo": 35.0169,
    "area": 0.08,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 1,
    "st": "",
    "nparts": 2,
-   "bparts": null
+   "bparts": [
+    0,
+    0
+   ],
+   "roads": 17,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "מחלף עתלית - אזור תעסוקה",
@@ -5058,13 +5398,18 @@
    "la": 32.7082,
    "lo": 34.95,
    "area": 0.19,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 1,
+   "bpk": 5.3,
+   "constr": 1,
    "stops_in": 5,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    1
+   ],
+   "roads": 17,
+   "biz": 3,
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "עין כרמל",
@@ -5072,13 +5417,15 @@
    "la": 32.6757,
    "lo": 34.9551,
    "area": 0.17,
-   "bld": null,
-   "bpk": null,
+   "bld": 46,
+   "bpk": 270.6,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    46
+   ]
   },
   {
    "name": "פארק תעשיות עמק חפר",
@@ -5086,13 +5433,15 @@
    "la": 32.4018,
    "lo": 34.8957,
    "area": 1.04,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 144,
+   "bpk": 138.5,
+   "constr": 1,
    "stops_in": 6,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    144
+   ]
   },
   {
    "name": "פארק תעשיות קדמת גליל",
@@ -5100,13 +5449,15 @@
    "la": 32.7854,
    "lo": 35.4626,
    "area": 0.74,
-   "bld": null,
-   "bpk": null,
+   "bld": 149,
+   "bpk": 201.4,
    "constr": 0,
    "stops_in": 5,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    149
+   ]
   },
   {
    "name": "פורייה - נווה עובד",
@@ -5114,13 +5465,22 @@
    "la": 32.7366,
    "lo": 35.5394,
    "area": 0.04,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 7,
-   "bparts": null
+   "bparts": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "פוריידיס צפון -אזור תעסוקה",
@@ -5128,13 +5488,16 @@
    "la": 32.6067,
    "lo": 34.9533,
    "area": 0.06,
-   "bld": null,
-   "bpk": null,
+   "bld": 0,
+   "bpk": 0.0,
    "constr": 0,
    "stops_in": 0,
    "st": "",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    0
+   ],
+   "note": "שטח קטן מדי להכרעה"
   },
   {
    "name": "פלמחים",
@@ -5142,13 +5505,18 @@
    "la": 31.9354,
    "lo": 34.7144,
    "area": 0.33,
-   "bld": null,
-   "bpk": null,
+   "bld": 4,
+   "bpk": 12.1,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    4
+   ],
+   "roads": 17,
+   "works": 2,
+   "alive": "2 מתקני תעשייה, רשת כבישים (52/קמ\"ר)"
   },
   {
    "name": "איזור תעשיה קיסריה",
@@ -5156,13 +5524,15 @@
    "la": 32.4803,
    "lo": 34.9469,
    "area": 2.27,
-   "bld": null,
-   "bpk": null,
-   "constr": 0,
+   "bld": 231,
+   "bpk": 101.8,
+   "constr": 1,
    "stops_in": 43,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    231
+   ]
   },
   {
    "name": "גן שמואל",
@@ -5170,13 +5540,15 @@
    "la": 32.4511,
    "lo": 34.9532,
    "area": 0.31,
-   "bld": null,
-   "bpk": null,
+   "bld": 9,
+   "bpk": 29.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "partial",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    9
+   ]
   },
   {
    "name": "משמרות",
@@ -5184,13 +5556,15 @@
    "la": 32.4871,
    "lo": 34.9816,
    "area": 0.21,
-   "bld": null,
-   "bpk": null,
+   "bld": 19,
+   "bpk": 90.5,
    "constr": 0,
    "stops_in": 1,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    19
+   ]
   },
   {
    "name": "עין שמר",
@@ -5198,13 +5572,15 @@
    "la": 32.4613,
    "lo": 35.009,
    "area": 0.2,
-   "bld": null,
-   "bpk": null,
+   "bld": 39,
+   "bpk": 195.0,
    "constr": 0,
    "stops_in": 0,
-   "st": "",
+   "st": "built",
    "nparts": 1,
-   "bparts": null
+   "bparts": [
+    39
+   ]
   },
   {
    "name": "פרדס חנה-כרכור",
