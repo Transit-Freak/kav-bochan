@@ -1,0 +1,25 @@
+{
+ "causes": {
+  "works": 196,
+  "event": 17,
+  "other": 8,
+  "accident": 9,
+  "police": 1,
+  "stuck": 1
+ },
+ "route": {
+  "osm": 2,
+  "no-cut": 1,
+  "no-text": 17,
+  "no-match": 2,
+  "ok": 6,
+  "time": 22
+ },
+ "kinds": {
+  "route": 50,
+  "info": 34,
+  "stops": 148
+ },
+ "gen": "2026-10-18T12:51+00:00",
+ "n": 232
+}
