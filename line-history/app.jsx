@@ -1180,6 +1180,8 @@ function variantFrequency(patterns, date) {
   return total;
 }
 function variantBase(item, items, historical) {
+  // החלופות עוד נטענות (הרשימה כבר מוצגת מהתיאורים המוכנים) — אין עדיין מול מה להשוות
+  if(!Array.isArray(items)) return null;
   if(!historical) {
     const dir=items.filter(x=>variantDirection(x)===variantDirection(item));
     const hash=dir.find(x=>variantPart(x)==='#');
@@ -1461,6 +1463,14 @@ function loadAltDesc(fam){
   if(!altDescCache[k])altDescCache[k]=dfetch('data/alt-desc/'+k+'.json').then(r=>r.ok?r.json():{}).catch(()=>{delete altDescCache[k];return {};});
   return altDescCache[k].then(m=>m[fam]||null);
 }
+// שגיאה בבוחר החלופות לא מפילה את כל הדף (שלמה 18.10: לחיצה על "החלפת חלופה" השאירה דף ריק) —
+// מוצגת שורה קצרה, ומעבר לקו או לגרסה אחרת מנסה שוב
+class SafeBox extends React.Component {
+  constructor(p){super(p);this.state={err:null};}
+  static getDerivedStateFromError(err){return {err};}
+  componentDidCatch(err){console.error('AlternativeSelector:',err);}
+  render(){return this.state.err ? <div className="sibdesc">רשימת החלופות לא נטענה. רעננו את הדף או בחרו גרסה אחרת.</div> : this.props.children;}
+}
 function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const [open,setOpen]=useState(false),[items,setItems]=useState(null),[areas,setAreas]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
   const historical=sibs.some(s=>s.hgroup),key=sibs.map(s=>s.rd).join('|');
@@ -1525,7 +1535,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
       {!usePre && error && <div className="sibdesc">{error}</div>}
       {!shown ? <div className="sibdesc">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</div> : <div className="siblist">
         {shown.map(s=>{
-          const base=usePre ? null : variantBase(s,items,historical),selected=s.rd===rd;
+          const base=usePre || !items ? null : variantBase(s,items,historical),selected=s.rd===rd;
           return <div key={s.rd} className="sibitem">
             <div className="sibinfo">
               <span className="sibwrap">
@@ -2969,8 +2979,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
@@ -3343,8 +3353,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               : <div className="mut">טוען…</div>)}
           </div>
         )}
-        {sibs && sibs.length > 1 && <AlternativeSelector sibs={sibs} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} />}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibs} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
