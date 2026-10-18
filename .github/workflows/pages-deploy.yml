@@ -31,6 +31,7 @@ on:
       - gis-layers
       - fleet-registry
       - update-weekly
+      - alerts   # הקו המודיע — שתי משיכות ביום (שלמה 18.10)
     types: [completed]
     branches: [main]
   schedule:
