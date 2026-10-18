@@ -1,0 +1,28 @@
+name: alerts-probe
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/alerts-probe.yml']
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - name: overpass eilat
+        run: |
+          python3 - <<'PY'
+          import sys, json, gzip, base64
+          sys.path.insert(0, 'tools')
+          import alerts_fetch as AF
+          ways = AF.overpass((29.532769, 34.913765, 29.556611, 34.942465))
+          print('ways', len(ways or []))
+          b = base64.b64encode(gzip.compress(json.dumps(ways, ensure_ascii=False).encode())).decode()
+          for i in range(0, len(b), 60000):
+              print('@@CHUNK'); print(b[i:i+60000])
+          print('@@END')
+          PY
