@@ -31,6 +31,8 @@ import alerts_route as AR  # noqa: E402
 SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '12'))
+# הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
+TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
 T0 = time.time()
 S3 = 'https://openbus-stride-public.s3.eu-west-1.amazonaws.com'
@@ -171,6 +173,59 @@ def estimate_routes(alert, rc_routes, stops):
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
 
 
+def iso_ts(x):
+    try:
+        return datetime.datetime.fromisoformat(str(x).replace('Z', '+00:00')).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def archive_temp(alerts, now_ts):
+    """הקו בזמן שומר רק שינויים שהיו: התראה נכנסת לארכיון של הקו כשהיא כבר התחילה, ומתעדכנת
+    כל עוד היא בפיד (תאריכים, נוסח). קובץ לכל מק"ט: {'ev': [...]}, ובכל אירוע rds — הכיוונים
+    והחלופות שההתראה חלה עליהם, או None כשההודעה מציינת רק את הקו."""
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo('Asia/Jerusalem')
+    by_mk = {}
+    for a in alerts:
+        st = iso_ts(a.get('s'))
+        if not st or st > now_ts or not a.get('lines'):
+            continue
+        groups = {}
+        for _, rd, *_ in a['lines']:
+            rd = str(rd or '')
+            mk = rd.split('-')[0]
+            if not mk.isdigit():
+                continue
+            g = groups.setdefault(mk, set())
+            g.add(rd if '-' in rd else None)
+        for mk, rds in groups.items():
+            by_mk.setdefault(mk, []).append({
+                'id': a['id'], 'd': datetime.datetime.fromtimestamp(st, tz).date().isoformat(),
+                's': a.get('s'), 'e': a.get('e'), 'c': a.get('cause'), 'cl': CAUSE_LABEL.get(a.get('cause'), '') if a.get('cause') != 'other' else '',
+                'h': a.get('h'), 'd2': a.get('d'), 'rm': a.get('rm') or [], 'add': a.get('add') or [], 'k': a.get('kind'),
+                'rds': None if None in rds else sorted(rds)})
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    n = 0
+    for mk, evs in by_mk.items():
+        f = f'{TEMP_DIR}/{mk}.json'
+        try:
+            old = json.load(open(f)).get('ev') or []
+        except Exception:
+            old = []
+        cur = {e['id']: e for e in old}
+        changed = False
+        for e in evs:
+            if cur.get(e['id']) != e:
+                cur[e['id']] = e
+                changed = True
+        if changed:
+            json.dump({'ev': sorted(cur.values(), key=lambda e: (e['d'], e['id']))}, open(f, 'w'),
+                      ensure_ascii=False, separators=(',', ':'))
+            n += 1
+    print(f'הארכיון של הקו בזמן: {n} קבצי קו עודכנו ({len(by_mk)} קווים עם שינוי זמני שהתחיל)')
+
+
 # ------------------------------------------------------------------ main
 def main():
     os.makedirs(f'{OUT}/rc', exist_ok=True)
@@ -308,6 +363,7 @@ def main():
     json.dump(state, open(f'{OUT}/state.json', 'w'), separators=(',', ':'), sort_keys=True)
     report['gen'] = now
     report['n'] = len(alerts)
+    archive_temp(alerts, datetime.datetime.now(datetime.timezone.utc).timestamp())
     json.dump(report, open(f'{OUT}/report.json', 'w'), ensure_ascii=False, indent=1)
     print(json.dumps(report, ensure_ascii=False))
 

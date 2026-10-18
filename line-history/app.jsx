@@ -77,6 +77,7 @@ const KINDS = {
   freq:        { label: "שינוי מספר הרכבים באותה נסיעה", color: "#b45309" },
   sched:       { label: "שינוי לו\"ז", color: "#4338ca" },
   times:       { label: "הלו\"ז האחרון", color: "#0e7490" },
+  temp:        { label: "שינוי זמני", color: "#ea580c" },   // הודעות משרד התחבורה — useTempEvents
 };
 // הגדרת המשתמש: "שינוי מספר הרכבים" = רק תגבור (שני רכבים באותה דקה
 // שהשתנו). כל שאר שינויי הכמות/שעות — תחת שינוי לו"ז.
@@ -1074,57 +1075,48 @@ function TipTag({ cls, tip, children }) {
   );
 }
 
-/* "שינוי זמני" — מהקו המודיע (שלמה 18.10): עבודות, עקיפות ותחנות שלא יוקרו לזמן קצר.
-   סגור: שורה קצרה (סיבה, תאריכים, כמה תחנות). לחיצה: הנוסח המלא של ההודעה וקישור למפה.
-   הנתונים: ../alerts/data/by-rd.json (מק"ט-כיוון-חלופה או מק"ט → מזהים) ו-alerts.json. */
-let _tmpIdx = null, _tmpAll = null;
-const tmpJSON = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+/* "שינוי זמני" — קטגוריה בציר הזמן של הקו (שלמה 18.10): עבודות, עקיפות ותחנות שלא נעשו לזמן
+   קצר, מהודעות משרד התחבורה. נשמרים רק שינויים שכבר התחילו, ונשארים בהיסטוריה גם אחרי שנגמרו.
+   הנתונים: data/temp/<מק"ט>.json (tools/alerts_fetch.py). שורה קצרה, ולחיצה פותחת את ההודעה המלאה. */
 const tmpT = (x) => { if (!x) return null; const t = typeof x === "number" ? x * 1000 : Date.parse(x); return isFinite(t) ? t : null; };
-const tmpDM = (t) => { try { return new Intl.DateTimeFormat("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" }).format(new Date(t)); } catch (e) { return ""; } };
-function TempChange({ rd }) {
-  const [list, setList] = useState(null);
-  const [open, setOpen] = useState(null);
+const tmpDM = (t) => { try { return new Intl.DateTimeFormat("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", year: "numeric" }).format(new Date(t)); } catch (e) { return ""; } };
+function useTempEvents(rd) {
+  const [list, setList] = useState([]);
   useEffect(() => {
     let ok = true;
-    setList(null); setOpen(null);
-    (_tmpIdx = _tmpIdx || tmpJSON("../alerts/data/by-rd.json")).then((idx) => {
-      if (!idx || !rd) return null;
-      const ids = [...new Set([...(idx[rd] || []), ...(idx[String(rd).split("-")[0]] || [])])];
-      if (!ids.length) return null;
-      return (_tmpAll = _tmpAll || tmpJSON("../alerts/data/alerts.json")).then((d) => {
-        if (!ok || !d || !Array.isArray(d.alerts)) return;
-        const now = Date.now(), causes = d.causes || {};
-        const out = d.alerts.filter((a) => a && ids.includes(a.id) && !(tmpT(a.e) && tmpT(a.e) < now))
-          .map((a) => ({ ...a, cl: a.cause && a.cause !== "other" ? causes[a.cause] : "" }));
-        setList(out);
-      });
+    setList([]);
+    const mk = String(rd || "").split("-")[0];
+    if (!/^\d+$/.test(mk)) return undefined;
+    fetch("data/temp/" + mk + ".json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!ok || !d || !Array.isArray(d.ev)) return;
+      setList(d.ev.filter((t) => t && t.d && (!t.rds || t.rds.includes(rd))).sort((a, b) => (a.d < b.d ? 1 : -1)));
     }).catch(() => {});
     return () => { ok = false; };
   }, [rd]);
-  if (!list || !list.length) return null;
-  const many = list.length > 1;
+  return list;
+}
+function TempEv({ t }) {
+  const [open, setOpen] = useState(false);
+  const s = tmpT(t.s), e = tmpT(t.e), now = Date.now();
+  const dates = s && e && tmpDM(s) !== tmpDM(e) ? fmtD(t.d) + " – " + tmpDM(e) : fmtD(t.d);
+  const rm = (t.rm || []).length;
+  const bits = [t.cl, rm ? (rm === 1 ? "תחנה אחת בוטלה" : rm + " תחנות בוטלו") : "", t.k === "route" ? "מסלול עוקף" : t.k === "times" ? "שינוי בשעות" : ""].filter(Boolean);
+  const live = s && s <= now && (!e || e >= now);
   return (
-    <div className="tmpbox">
-      {many && <div className="tmptitle">⚠ {list.length} שינויים זמניים בקו</div>}
-      {list.map((a) => {
-        const s = tmpT(a.s), e = tmpT(a.e), now = Date.now();
-        const dates = s && e && tmpDM(s) !== tmpDM(e) ? tmpDM(s) + "–" + tmpDM(e) : s ? tmpDM(s) : "";
-        const rm = (a.rm || []).length, isOpen = open === a.id;
-        const bits = [a.cl, dates && ((s && s > now ? "מתוכנן " : "") + dates), rm ? (rm === 1 ? "תחנה אחת לא תיעשה" : rm + " תחנות לא ייעשו") : "",
-          a.kind === "route" ? "מסלול עוקף" : a.kind === "times" ? "שינוי בשעות" : ""].filter(Boolean);
-        return (
-          <div key={a.id} className={"tmpitem" + (isOpen ? " on" : "")}>
-            <button className="tmphead" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : a.id)}>
-              {!many && <b>⚠ שינוי זמני</b>}<span>{bits.join(" · ") || "פרטים"}</span><span className="tmparr">{isOpen ? "▲" : "▼"}</span>
-            </button>
-            {isOpen && <div className="tmpbody">
-              <b>{a.h}</b>
-              {a.d && a.d !== a.h && <div className="tmptxt">{a.d}</div>}
-              <a href={"../alerts/#" + encodeURIComponent(a.id)}>{a.kind === "route" ? "המסלול על המפה, בהקו המודיע ←" : "לפרטים בהקו המודיע ←"}</a>
-            </div>}
-          </div>
-        );
-      })}
+    <div className={"ev tmpev" + (open ? " on" : "")} onClick={() => setOpen(!open)}>
+      <div className="d"><span>{dates}</span>{live && <b className="tmplive"> · פעיל עכשיו</b>}</div>
+      <div className="t">
+        <button className="k kbtn" style={{ background: KINDS.temp.color }} aria-expanded={open}
+          onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}>{KINDS.temp.label}</button>
+        <span className="tmpsum">{bits.join(" · ") || t.h}</span> <span className="tmparr">{open ? "▲" : "▼"}</span>
+      </div>
+      {open && <div className="tmpbody" onClick={(ev) => ev.stopPropagation()}>
+        <b>{t.h}</b>
+        {t.d2 && t.d2 !== t.h && <div className="tmptxt">{t.d2}</div>}
+        {rm > 0 && <div><span className="mut">תחנות שבוטלו: </span>{t.rm.map((x) => x[1] + " (" + x[0] + ")").join(", ")}</div>}
+        {(t.add || []).length > 0 && <div><span className="mut">תחנות חלופיות: </span>{t.add.map((x) => x[1] + " (" + x[0] + ")").join(", ")}</div>}
+        <span className="mut">המקור: הודעת משרד התחבורה, דרך bus-alerts.com</span>
+      </div>}
     </div>
   );
 }
@@ -2319,6 +2311,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   // מחדל, 8 השינויים הראשונים ו"עוד", ובטלפון המפה של שינוי שנבחר נפתחת בתוך הכרטיס שלו
   const [impOnly, setImpOnly] = useState(true);
   const [ltMore, setLtMore] = useState(false);
+  const temps = useTempEvents(rd);
   useEffect(() => { setImpOnly(true); setLtMore(false); }, [rd]);
   const [isPhone, setIsPhone] = useState(() => { try { return matchMedia("(max-width: 860px)").matches; } catch (e) { return false; } });
   useEffect(() => { try { const m = matchMedia("(max-width: 860px)"); const f = () => setIsPhone(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); } catch (e) { return undefined; } }, []);
@@ -2408,6 +2401,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           const vs2 = m.versions || [], keep = new Set(), all = new Set();
           vs2.forEach((x, i) => { if (x.hid) return; const dk = dispKind(x, i, vs2); all.add(dk); if (cats.some((c) => evInCat(x, i, vs2, c))) keep.add(dk); });
           if (keep.size && keep.size < all.size) setOffK(new Set([...all].filter((k) => !keep.has(k))));
+          if (!cats.includes("temp")) setOffK((p) => new Set([...p, "temp"]));
         } else {
           // ברירת המחדל (שלמה 08.10): כל סוגי השינויים בסרגל, אבל השגרתיים (לו"ז, תגבור, תיקוני רישום)
           // כבויים — לחיצה על הקטגוריה מדליקה אותה. השינוי שהקישור הוביל אליו נשאר דלוק תמיד,
@@ -2458,8 +2452,19 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       const e = c.get(g) || { n: 0, kinds: new Set() };
       e.n += 1; e.kinds.add(dk); c.set(g, e);
     });
+    if (temps.length) c.set("temp", { n: temps.length, kinds: new Set(["temp"]) });
     return [...c.entries()].sort((a, b) => b[1].n - a[1].n);
   })();
+  // ציר הזמן: האירועים של הקו, ובתוכם לפי התאריך השינויים הזמניים (אם הקטגוריה דלוקה)
+  const tlRows = (() => {
+    const cut = shownL.length < shown.length && shownL.length ? shownL[shownL.length - 1].v.d : "";
+    const tt = offK.has("temp") ? [] : temps.filter((t) => (!mon || t.d.slice(0, 7) === mon) && t.d >= cut);
+    const out = []; let k = 0;
+    shownL.forEach((row) => { while (k < tt.length && tt[k].d >= row.v.d) out.push({ t: tt[k++] }); out.push(row); });
+    while (k < tt.length) out.push({ t: tt[k++] });
+    return out;
+  })();
+  const rowD = (r) => (r.t ? r.t.d : r.v.d);
   const toggleK = (ks, wasOff) => setOffK((prev) => {
     const n = new Set(prev);
     ks.forEach((k) => (wasOff ? n.delete(k) : n.add(k)));
@@ -3007,7 +3012,6 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
             (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
-        <TempChange rd={rd} />
         {why && <div className="whybox" id="why">
           <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
           <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
@@ -3142,9 +3146,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
               אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {shownL.map(({ v: x, i }, si) => (
+          {tlRows.map((row, si) => row.t ? (
+            <React.Fragment key={"t" + row.t.id}>
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
+            <TempEv t={row.t} />
+            </React.Fragment>
+          ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || shownL[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
             <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
               onClick={() => selectEvent(i, x)}>
               <div className="d">
@@ -3226,7 +3235,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
             </div>
             </React.Fragment>
-          ))}
+          ))(row))}
         </div>
         {lite && shownL.length < shown.length && <button className="ltmore" onClick={() => setLtMore(true)}>עוד {(shown.length - shownL.length).toLocaleString()} שינויים ⌄</button>}
         {ltStops && <LtAcc icon="📍" title="התחנות" sub={ltStops.length + " תחנות"}>
@@ -3319,7 +3328,6 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {/* "עירוני" פעם אחת בלבד (שלמה 06.09): כשהוא מופיע ליד "נגיש" — התג הנפרד לא מוצג */}
         {/* סוג הקו מרשימת האשכולות של המשרד (ltc), ואם אין — מקובץ הנוסעים (ty); ייחודיות
             (תלמידים/לילה/מזין) ואשכול המכרז — tools/linehistory_ltype.py (שלמה 07.09) */}
-        <TempChange rd={rd} />
         {why && <div className="whybox" id="why">
           <b><span className="whymark">!</span> למה הרכבת הזו?</b> {why.text}{" "}
           <span className="mut">פעלה {fmtD(why.first)} – {fmtD(why.last)}.</span>{" "}
@@ -3499,9 +3507,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           {/* בחירת אירוע חייבת לעבוד גם במקלדת ובקורא מסך (סעיף 4) —
               אבל בלי כפתור-בתוך-כפתור: השורה נשארת לחיצה לעכבר בלבד,
               ותגית הסוג היא הכפתור האמיתי (nested-interactive מהביקורת) */}
-          {shownL.map(({ v: x, i }, si) => (
+          {tlRows.map((row, si) => row.t ? (
+            <React.Fragment key={"t" + row.t.id}>
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
+            <TempEv t={row.t} />
+            </React.Fragment>
+          ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
-            {lite && (si === 0 || shownL[si - 1].v.d.slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
+            {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== x.d.slice(0, 4)) && <div className="yh">{x.d.slice(0, 4)}</div>}
             <div className={"ev" + (i === vs.indexOf(v) ? " sel" : "")}
               onClick={() => selectEvent(i, x)}>
               <div className="d">
@@ -3583,7 +3596,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               {lite && isPhone && sel != null && i === vs.indexOf(v) && <div className="evslot" ref={setEvSlot} onClick={(e) => e.stopPropagation()} />}
             </div>
             </React.Fragment>
-          ))}
+          ))(row))}
         </div>
       </div>
       {mainEl}

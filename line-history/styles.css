@@ -543,15 +543,10 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .lowgrp .ch { margin-inline-start: auto; color: #94a3b8; }
 .lowgrp.open { border-style: solid; }
 
-/* שינוי זמני מהקו המודיע — תיבה אחת, שורה קצרה לכל שינוי, נפתחת בלחיצה */
-.tmpbox { background: #fff7ed; border: 1px solid #fdba74; border-radius: 12px; margin: 8px 0; overflow: hidden; }
-.tmptitle { padding: 7px 12px 2px; font-weight: 800; color: #c2410c; font-size: 14px; }
-.tmpitem + .tmpitem { border-top: 1px solid #fed7aa; }
-.tmphead { all: unset; box-sizing: border-box; width: 100%; padding: 7px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; line-height: 1.45; color: #7c2d12; font-size: 14px; }
-.tmphead b { color: #c2410c; white-space: nowrap; }
-.tmphead:hover { background: #ffedd5; }
-.tmphead:focus-visible { outline: 2px solid #c2410c; outline-offset: -2px; }
-.tmparr { margin-inline-start: auto; font-size: 10px; color: #c2410c; }
-.tmpbody { padding: 0 12px 10px; display: flex; flex-direction: column; gap: 6px; line-height: 1.6; }
-.tmptxt { white-space: pre-wrap; max-height: 320px; overflow: auto; background: #fff; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
-.tmpbody a { color: #c2410c; font-weight: 600; }
+/* שינוי זמני — שורה בציר הזמן של הקו, נפתחת במקום (useTempEvents / TempEv) */
+.tmpev { cursor: pointer; }
+.tmpev .tmpsum { color: #7c2d12; }
+.tmpev .tmparr { font-size: 10px; color: #c2410c; margin-inline-start: 4px; }
+.tmpev .tmplive { color: #15803d; }
+.tmpev .tmpbody { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; line-height: 1.6; cursor: auto; }
+.tmpev .tmptxt { white-space: pre-wrap; max-height: 320px; overflow: auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
