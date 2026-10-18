@@ -96,14 +96,30 @@
         (d[3] || []).map(function (h) { return '<span class="add">+' + esc(h) + "</span>"; }).join(" ") + " " +
         (d[4] || []).map(function (h) { return '<span class="rem">' + esc(h) + "</span>"; }).join(" ") + "</td></tr>";
     }).join("");
+    // הקווים בהתראה — כל אחד מקשר לדף שלו בהקו בזמן (כשידוע הכיוון והחלופה)
+    var seen = {}, lnL = (a.lines || []).filter(function (l) { var k = l[0] + "|" + (l[2] || ""); if (!l[0] || seen[k]) return false; seen[k] = 1; return true; })
+      .sort(function (x, y) { return (parseInt(x[0], 10) || 1e9) - (parseInt(y[0], 10) || 1e9) || String(x[0]).localeCompare(String(y[0])); })
+      .map(function (l) {
+        var t = '<b>' + esc(l[0]) + "</b>" + (l[2] ? " ← " + esc(l[2]) : "");
+        return /-/.test(l[1] || "") ? '<a class="lnk" href="../line-history/#' + encodeURIComponent(l[1]) + '" title="ההיסטוריה של הקו בהקו בזמן">' + t + "</a>" : '<span class="lnk">' + t + "</span>";
+      }).join("");
+    document.body.classList.add("sel");
     $("det").innerHTML =
+      '<button type="button" class="back" id="back">→ לכל ההתראות</button>' +
       '<div class="meta"><span class="cz" style="background:' + (CAUSE_COLOR[a.cause] || "#888") + '">' + esc(CAUSES[a.cause] || "") + "</span>" +
       (isNow(a) ? '<span class="now">פעיל עכשיו</span>' : "") + "<span>" + esc(span(a)) + "</span>" + (a.ag && a.ag.length ? "<span>" + esc(a.ag.join(", ")) + "</span>" : "") + "</div>" +
       "<h2>" + esc(a.h || "התראה") + "</h2>" +
+      (lnL && !a.map ? '<div><h3>הקווים</h3><div class="lns">' + lnL + "</div></div>" : "") +
       (a.map ? '<div class="routes" id="routes"></div><div id="map"></div><div class="legend" id="legend"></div><div id="vbox"></div>' : "") +
       '<div><h3>נוסח ההודעה</h3><div class="txt">' + esc(a.d || "אין פירוט בהודעה.") + "</div></div>" +
       (rmL || adL ? '<div class="two">' + (rmL ? '<div><h3>תחנות מבוטלות</h3><ul class="st">' + rmL + "</ul></div>" : "") + (adL ? '<div><h3>תחנות חלופיות</h3><ul class="st">' + adL + "</ul></div>" : "") + "</div>" : "") +
       (dep ? '<div><h3>שינויים בשעות היציאה</h3><table class="dep"><tr><th>קו</th><th>שעות שנוספו / בוטלו</th></tr>' + dep + "</table></div>" : "");
+    $("back").onclick = function () {
+      document.body.classList.remove("sel"); sel = null;
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
+      Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) { c.classList.remove("on"); if (c.getAttribute("data-id") === id) c.scrollIntoView({ block: "center" }); });
+    };
+    if (matchMedia("(max-width: 900px)").matches) window.scrollTo(0, 0);
     if (!a.map) return;
     Promise.all([getJSON("data/rc/" + id + ".json"), getJSON("data/gps/" + id + ".json")]).then(function (res) {
       if (sel !== id) return;
@@ -196,7 +212,7 @@
     if (g && VERDICT[g.verdict]) vb = '<div class="verdict ' + VERDICT[g.verdict][0] + '">' + VERDICT[g.verdict][1] + (g.rides && g.rides.length ? " (" + g.rides.length + " נסיעות נבדקו)" : "") + "</div>";
     else if (g && g.verdict === "unknown") vb = '<p class="note">בשידורי המיקום אין מספיק נקודות באזור השינוי כדי לדעת איך האוטובוסים נסעו.</p>';
     $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") + vb +
-      (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">הקו בהקו בזמן ←</a></p>' : "");
+      (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
     var b = L.latLngBounds(focus.length > 1 ? focus : shape);
     if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
   }
@@ -218,5 +234,7 @@
     $("q").oninput = drawList; $("onlyMap").onchange = drawList;
     drawChips(); drawList();
     if (h) open(h, false);
+    // במחשב: בלי התראה בקישור — הראשונה ברשימה נפתחת, במקום חלון ריק ליד הרשימה
+    else if (!matchMedia("(max-width: 900px)").matches) { var f = $("list").querySelector(".card"); if (f) open(f.getAttribute("data-id"), false); }
   });
 })();

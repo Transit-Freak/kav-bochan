@@ -1102,8 +1102,10 @@ function TempChange({ rd }) {
     return () => { ok = false; };
   }, [rd]);
   if (!list || !list.length) return null;
+  const many = list.length > 1;
   return (
     <div className="tmpbox">
+      {many && <div className="tmptitle">⚠ {list.length} שינויים זמניים בקו</div>}
       {list.map((a) => {
         const s = tmpT(a.s), e = tmpT(a.e), now = Date.now();
         const dates = s && e && tmpDM(s) !== tmpDM(e) ? tmpDM(s) + "–" + tmpDM(e) : s ? tmpDM(s) : "";
@@ -1113,7 +1115,7 @@ function TempChange({ rd }) {
         return (
           <div key={a.id} className={"tmpitem" + (isOpen ? " on" : "")}>
             <button className="tmphead" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : a.id)}>
-              <b>⚠ שינוי זמני</b> <span>{bits.join(" · ")}</span> <span className="tmparr">{isOpen ? "▲" : "▼"}</span>
+              {!many && <b>⚠ שינוי זמני</b>}<span>{bits.join(" · ") || "פרטים"}</span><span className="tmparr">{isOpen ? "▲" : "▼"}</span>
             </button>
             {isOpen && <div className="tmpbody">
               <b>{a.h}</b>
