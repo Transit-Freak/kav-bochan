@@ -145,10 +145,12 @@ class Streets:
         """השמות ברשת שמתאימים לרחוב מההודעה ("לדנמרק" → "דנמרק", "ז'בוטינסקי" → "זבוטינסקי")."""
         s = norm(street)
         cands = [s]
+        # "לדרך הרים" → "דרך הרים" → "הרים": אחרי הורדת ל/ב/ו מנרמלים שוב, כדי שגם "דרך"/"שדרות"
+        # שאחריה ירדו (אילת, 18.10: לא נמצא מסלול לקווים 5, 32, 80)
         if len(s) > 3 and s[0] in "לבו":
-            cands.append(s[1:])
+            cands.append(norm(s[1:]))
         if len(s) > 4 and s[:2] in ("לה", "בה"):
-            cands.append(s[1:])
+            cands.append(norm(s[1:]))
         out = set()
         for c in cands:
             if len(c) < 2:

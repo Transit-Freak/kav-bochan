@@ -69,6 +69,15 @@ class ParseTests(unittest.TestCase):
         self.assertEqual('בני ברית', AR.clean_street("שמאלה שד' בני ברית"))
 
 
+class StreetMatchTests(unittest.TestCase):
+    def test_prefix_then_road_word(self):
+        # "לדרך הרים" בנוסח, "הרים" במפה (אילת 18.10) — אחרי הורדת ה-ל גם "דרך" יורדת
+        net = AR.Streets([({'name': 'הרים', 'highway': 'primary'}, [(29.54, 34.93), (29.545, 34.935)]),
+                          ({'name': 'שדרות ששת הימים', 'highway': 'primary'}, [(29.55, 34.94), (29.551, 34.941)])])
+        self.assertEqual({'הרים'}, net.match('לדרך הרים'))
+        self.assertEqual({'ששת הימים'}, net.match('לשדרות ששת הימים'))
+
+
 class CauseTests(unittest.TestCase):
     def test_causes(self):
         cases = {
