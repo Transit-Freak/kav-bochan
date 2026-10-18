@@ -184,6 +184,8 @@ def estimate_routes(alert, rc_routes, stops):
                 best = res
         if best:
             r['est'], r['why'] = best, 'ok'
+        elif not cand:
+            r['why'] = 'no-text'   # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים")
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
 
@@ -294,9 +296,10 @@ def main():
                             shape = [[round(p[1], 6), round(p[0], 6)] for p in c['shape']]
                             seq = c.get('updated_stop_sequence') or []
                             dele = c.get('deleted_stop_ids') or []
-                            # הקטע המבוטל על השרטוט: מהתחנה המבוטלת/החדשה הראשונה עד האחרונה
+                            # הקטע המבוטל על השרטוט: מהתחנה המבוטלת הראשונה עד האחרונה. תחנות חלופיות רק
+                            # כשאין מבוטלות — הן ברחובות העקיפה, ועל השרטוט הן יכולות ליפול הרבה לפני הצומת
                             sfm = rc.get('stops_for_map') or {}
-                            touched = [s for s in dele if s in sfm] + [s for s, add in seq if add and s in sfm]
+                            touched = [s for s in dele if s in sfm] or [s for s, add in seq if add and s in sfm]
                             cut = None
                             if touched:
                                 idx = []

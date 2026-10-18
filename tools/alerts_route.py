@@ -353,17 +353,21 @@ def _densify(pts, step=6.0):
 def _exit_point(net, para, shape, cut0, cut1, first):
     """נקודת היציאה מהמסלול: (מקום על השרטוט, הצמתים ברחוב הראשון שליד המקום, i_out) או None."""
     if para.get("start"):
-        # צומת היציאה ("עד א/ב"): הנקודות של שני רחובות הצומת שקרובות זו לזו וגם קרובות למסלול סביב
-        # תחילת הקטע המבוטל (התחנה המבוטלת הראשונה יכולה להיות ממש לפני הצומת)
+        # צומת היציאה ("עד א/ב"): הנקודות של שני רחובות הצומת שקרובות זו לזו וגם קרובות למסלול, לפני
+        # הקטע המבוטל או בתוכו (התחנה המבוטלת הראשונה יכולה להיות לפני הצומת)
         a, b = para["start"]
         na, nb = net.match(a), net.match(b)
         lo = max(0, cut0 - 400)
-        before = shape[lo:min(cut0 + 30, cut1) + 1]
+        before = shape[lo:cut1 + 1]
         if na and nb and before:
             jn = net.near(net.nodes_of(na), net.nodes_of(nb), 40) | net.near(net.nodes_of(nb), net.nodes_of(na), 40)
             dense = _densify(before[::2])
             near_route = [n for n in jn if min(meters(n, q) for q in dense) < 70]
             if near_route:
+                # כמה מקומות על המסלול (קו שעובר באותו צומת פעמיים) — זה שהכי קרוב לתחילת הקטע המבוטל
+                at = {n: min(range(len(before)), key=lambda i: meters(before[i], n)) for n in near_route}
+                pick = min(near_route, key=lambda n: abs(at[n] - (cut0 - lo)))
+                near_route = [n for n in near_route if meters(n, pick) < 60]
                 cpt = (sum(n[0] for n in near_route) / len(near_route), sum(n[1] for n in near_route) / len(near_route))
                 start_c = [n for n in net.nodes_of(first) if meters(n, cpt) < 60 and net.adj[n]]
                 if start_c:
