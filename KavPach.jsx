@@ -2134,7 +2134,8 @@ function computeDeadheadCounts(trips, lineStopsMap, dset) {
       Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k]); });
       // הגנות — נקודות שמופחתות
       const protections = [];
-      if (PP.night > 0 && (a.isNightLine || b.isNightLine || a.timeMins < 5 * 60)) protections.push({ name: 'קו לילה', value: PP.night });
+      // קו לילה = רק קו שהמשרד מגדיר כקו לילה (ייחודיות "לילה"), לא נסיעה מוקדמת של קו יום (שלמה 15.10)
+      if (PP.night > 0 && (a.isNightLine || b.isNightLine)) protections.push({ name: 'קו לילה', value: PP.night });
       const wk = (a.daysList || []);
       if (PP.weekend > 0 && wk.length && wk.every(d => d === 6 || d === 7)) protections.push({ name: 'קו סופ"ש', value: PP.weekend });
       if (PP.rare > 0 && weekly <= 1) protections.push({ name: 'זוג בודד בשבוע', value: PP.rare });
@@ -2300,7 +2301,9 @@ function computeDeadhead(trips, lineStopsMap, dset, obs) {
     const rawScore = normScore(parts.obs + parts.tight + parts.hot + parts.crush + parts.empty, maxSum);
     Object.keys(parts).forEach(k => { parts[k] = Math.round(parts[k]); });
     const protections = [];
-    const nightShare = ex.length ? ex.filter(x => x.depB < 5 * 3600 || x.depB >= 24 * 3600).length / ex.length : 0;
+    // קו לילה = רק קו שהמשרד מגדיר כקו לילה, לא לפי שעת היציאה (שלמה 15.10)
+    const isNightMk = (m) => !!((byMakat.get(String(m)) || [])[0] || {}).isNightLine;
+    const nightShare = ex.length ? ex.filter(x => isNightMk(x.mkA) || isNightMk(x.mkB)).length / ex.length : 0;
     if (PP.night > 0 && nightShare >= 0.6) protections.push({ name: 'קו לילה', value: PP.night });
     const wkShare = ex.length ? ex.filter(x => { const d = new Date(x.day + 'T12:00:00').getDay(); return d === 5 || d === 6; }).length / ex.length : 0;
     if (PP.weekend > 0 && ex.length && wkShare >= 0.6) protections.push({ name: 'סופ"ש', value: PP.weekend });
@@ -2741,7 +2744,8 @@ const DAYS_FILTER = [
             cost,
             weeklyKm: 0,
             isNightLine: uniqueness.includes("לילה"),
-            isEilatPrebooked: origin.includes("אילת") || dest.includes("אילת"),
+            // כמו ב-xlsx-worker: רק בינעירוני ארוך לאילת וממנה, לא הקווים העירוניים בתוך אילת
+            isEilatPrebooked: (origin.includes("אילת") || dest.includes("אילת")) && lineType.includes("בינעירוני") && distance > 45,
             isFeedingLine: uniqueness.includes("מזין"),
             opGroup: "",
             uniquenessVal: uniqueness || "",
@@ -3468,7 +3472,7 @@ const DAYS_FILTER = [
         }
         
         const maxGapMerge = !isNaN(customGapValue) && customGapValue > 0 ? customGapValue : defaultMaxGap;
-        const isNight = t1.isNightLine || t1.period === 'לילה';
+        const isNight = t1.isNightLine;   // רק קו שהמשרד מגדיר כקו לילה, לא לפי השעה (שלמה 15.10)
         const hasCustomGap = !isNaN(customGapValue) && customGapValue > 0;
 
         if (isNight) cancelGapCheck = 60;
@@ -3964,12 +3968,16 @@ const DAYS_FILTER = [
                     <div className="space-y-3">
                       <div className="text-[12px] font-black text-slate-900">הגנות — נקודות שמופחתות מהציון (0 = בלי הגנה):</div>
                       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-slate-700 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
-                        {[['exclusive', 'תחנות ייחודיות'], ['train', 'מותאם רכבת'], ['school', 'תלמידים בשעות בי"ס'], ['prebook', 'הזמנה מראש (אילת)'], ['weekend', 'קו סופ"ש'], ['newLine', 'קו חדש בהרצה'], ['reduced', 'כבר צומצם'], ['noAlt', 'אין חפיפת תחנות משמעותית']].map(([k, lbl]) => (
+                        {[['exclusive', 'תחנות ייחודיות'], ['train', 'מותאם רכבת'], ['school', 'תלמידים בשעות בי"ס'], ['weekend', 'קו סופ"ש'], ['newLine', 'קו חדש בהרצה'], ['reduced', 'כבר צומצם'], ['noAlt', 'אין חפיפת תחנות משמעותית']].map(([k, lbl]) => (
                           <label key={k} className="inline-flex items-center gap-2">{lbl}
                             <NumField value={pset.p[k]} onChange={v => updPset(s => ({ ...s, p: { ...s.p, [k]: v == null ? 0 : Math.max(0, Math.min(100, v)) } }))} min={0} max={100} width="w-16" suffix="נק׳" />
                           </label>
                         ))}
                       </div>
+                      <label className="flex items-start gap-2 text-[12px] font-bold text-slate-700 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                        <input type="checkbox" className="mt-0.5" checked={pset.p.prebook > 0} onChange={e => updPset(s => ({ ...s, p: { ...s.p, prebook: e.target.checked ? 20 : 0 } }))} />
+                        <span>קווים לאילת (הזמנה מראש): בלי הרכיבים שנשענים על ספירת הנוסעים, כי חלק גדול מהנוסעים לא נספר בתיקופים</span>
+                      </label>
                       <label className="inline-flex items-center gap-2 text-[12px] font-bold text-slate-700 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3">נכנס לרשימה מציון של לפחות
                         <NumField value={pset.minScore} onChange={v => updPset(s => ({ ...s, minScore: v == null ? 0 : Math.max(0, Math.min(100, v)) }))} min={0} max={100} suffix="מתוך 100" />
                       </label>
@@ -4093,6 +4101,12 @@ const DAYS_FILTER = [
                             </span>
                           )}
                         </div>
+
+                        {res.uncounted && (
+                          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 text-[12px] font-bold text-amber-800 leading-relaxed">
+                            אין ספירה אמינה: לאילת מזמינים מקום מראש, וחלק גדול מהנוסעים לא נספר בתיקופים. לכן הנוסעים, הנסיעות החלשות, הק"מ המבוזבזים והעלות לנוסע לא נכנסים לציון. נשאר רק מה שנמדד בשידורי האוטובוסים.
+                          </div>
+                        )}
 
                         {(() => {
                           const ov = kavPachVisibleOverlaps(overlapMap && overlapMap[String(res.makat || '').replace(/^0+/, '').trim()]);
@@ -4361,7 +4375,7 @@ const DAYS_FILTER = [
                     <div className="space-y-3">
                       <div className="text-[12px] font-black text-slate-900">הגנות — נקודות שמופחתות מהציון (0 = בלי הגנה):</div>
                       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-slate-700 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
-                        {[['night', 'קו לילה (רוב החזרות לפני 05:00)'], ['weekend', 'סופ"ש'], ['rare', 'תצפית בודדת']].map(([k, lbl]) => (
+                        {[['night', 'קו לילה (מוגדר כך במשרד)'], ['weekend', 'סופ"ש'], ['rare', 'תצפית בודדת']].map(([k, lbl]) => (
                           <label key={k} className="inline-flex items-center gap-2">{lbl}
                             <NumField value={dset.p[k]} onChange={v => updDset(s2 => ({ ...s2, p: { ...s2.p, [k]: v == null ? 0 : Math.max(0, Math.min(100, v)) } }))} min={0} max={100} width="w-16" suffix="נק׳" />
                           </label>
@@ -5021,6 +5035,7 @@ const DAYS_FILTER = [
                         <li><strong>עלות תפעולית לנוסע (עד {pset.c.cost.on ? pset.c.cost.max : 0} נק&apos;):</strong> יחס לבנצ&apos;מרק הקטגוריה (₪31.8 לאזורי, ₪9.4 לעירוני תדירות גבוהה, וכו&apos;).</li>
                         <li><strong>ממוצע נוסעים ועומס שיא (עד {pset.c.riders.on ? pset.c.riders.max : 0} נק&apos;):</strong> ביחס לקיבולת הרכב — מיניבוס (19), מידי (35), רגיל (50), מפרקי (90).</li>
                         <li><strong>נסיעה תפעולית במסווה (עד {pset.c.deadhead && pset.c.deadhead.on ? pset.c.deadhead.max : 0} נק&apos;):</strong> כמה פעמים בשבוע נצפה בשידורים רכב שהגיע לקצה הקו וחזר תוך 15 דקות — הסעת רכב שנרשמה כשירות. 7 בשבוע ומעלה = מלוא הנקודות. הפירוט בלשונית &quot;נסיעות תפעוליות&quot;.</li>
+                        <li><strong>קווים לאילת (הזמנה מראש):</strong> חלק גדול מהנוסעים לא נספר בתיקופים, אז ארבעת הרכיבים שנשענים על הספירה (נסיעות שפל, ק&quot;מ מבוזבז, עלות לנוסע, נוסעים ועומס) לא נכנסים לציון שלהם. נשארת רק הנסיעה התפעולית, שנמדדת מהשידורים.</li>
                         <li className="text-slate-500">אלה ברירות המחדל{psetDefault ? '' : ' — כרגע פועלות ההגדרות שלכם'}. בטאב &quot;קווים לא יעילים&quot; יש לוח ⚙️ שבו כל אחד קובע לעצמו כמה נקודות כל דבר נותן, מתחת לכמה נוסעים קו נחשב ריק, ואילו הגנות פועלות.</li>
                       </ul>
                     </div>
@@ -5047,7 +5062,6 @@ const DAYS_FILTER = [
                         <li><strong>תחנות בלעדיות / יעד ייחודי (−15):</strong> הקו משרת תחנות שאין אליהן קו אחר.</li>
                         <li><strong>מותאם רכבת (−10):</strong> עמודת "ייחודיות" מציינת זאת במפורש.</li>
                         <li><strong>תלמידים בשעות בי&quot;ס (−10):</strong> 60%+ מהנסיעות ב-7:00–8:30 או 13:00–15:30.</li>
-                        <li><strong>הזמנה מראש (−20):</strong> בקווים בהזמנה מראש (אילת) התיקופים חלקיים בהגדרה — העומס בפועל גבוה מהנמדד.</li>
                         <li><strong>קו סופ&quot;ש (−10):</strong> 60%+ מהנסיעות בשישי-שבת, שבהם דפוס הביקוש שונה מקווי חול.</li>
                         <li><strong>קו חדש בהרצה (−10):</strong> הקו הופיע לראשונה בשנה האחרונה — מעט נוסעים זה שלב בניית הביקוש, לא בזבוז. מזוהה מארכיון "הקו בזמן".</li>
                         <li><strong>כבר צומצם (−10):</strong> שני צמצומי שירות ומעלה בשנה האחרונה — הצמצום כבר קרה. מזוהה מהארכיון.</li>

@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-11T11:42Z",
+ "updated": "2026-10-18T10:00Z",
  "source": "data.gov.il — משרד התחבורה",
  "topics": [
   "תחבורה ציבורית",
@@ -971,6 +971,11 @@
   {
    "dataset": "interchange_areas",
    "title": "שטחים כלואים במחלפים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "interchange_codes",
+   "title": "קוד מחלף",
    "reason": "ההורדה נכשלה"
   },
   {
