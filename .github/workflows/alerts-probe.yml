@@ -1,0 +1,28 @@
+name: alerts-probe
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/alerts-probe.yml']
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch
+        env: { OUT: out, MAX_MIN: '20' }
+        run: python3 tools/alerts_fetch.py 2>&1 | tail -80
+      - name: gps
+        env: { OUT: out, MAX_MIN: '10' }
+        run: python3 tools/alerts_gps.py 2>&1 | tail -80 || true
+      - name: dump
+        run: |
+          du -sh out; ls out | head; ls out/rc | wc -l; ls out/gps 2>/dev/null | wc -l
+          tar czf d.tgz out
+          ls -la d.tgz
+          base64 -w 0 d.tgz > d.b64
+          split -b 60000 d.b64 part_
+          for f in part_*; do echo "@@CHUNK $f"; cat $f; echo; done
+          echo "@@END"

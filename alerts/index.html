@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="../nav-restore.js"></script><script src="../home-link.js" data-home="/"></script>
+<script src="../version.js" defer></script>
+<meta name="theme-color" content="#FFFFFF">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="הקו המודיע — הקו הבוחן">
+<meta property="og:description" content="כל שינויי השירות הזמניים בתחבורה הציבורית: עבודות, אירועים, הפגנות וחסימות. לכל שינוי — המסלול החלופי על המפה, התחנות המבוטלות, ומה האוטובוסים עשו בפועל.">
+<title>הקו המודיע — הקו הבוחן</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root{--bg:#F5F3F0;--panel:#fff;--ink:#1F2328;--mut:#5E6570;--dim:#9AA1AB;--line:#E6E2DC;--acc:#7C3AED;--acc2:#F1E9FE;
+    --route:#64748B;--det:#E2531F;--gps:#1D5FD1;--x:#B4132C;--add:#1D5FD1}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 'Rubik',Arial,sans-serif;overflow-x:hidden}
+  header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 18px 10px 200px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;position:sticky;top:0;z-index:600}
+  @media(max-width:760px){header{padding:52px 14px 10px}}
+  header .logo{width:36px;height:36px;flex:none}
+  header h1{font-size:20px;margin:0;font-weight:700}
+  header .tag{font-size:12px;color:var(--acc);background:var(--acc2);border-radius:6px;padding:2px 8px;font-weight:600}
+  header .upd{font-size:12px;color:var(--mut)}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px 0;max-width:1500px;margin:0 auto}
+  .bar input[type=search],.bar select{font:500 14px 'Rubik';border:1px solid var(--line);border-radius:9px;padding:7px 11px;background:var(--panel);color:var(--ink)}
+  .bar input[type=search]{flex:1;min-width:200px;max-width:380px}
+  .tg{display:inline-flex;background:#ECE8E2;border-radius:9px;padding:3px}
+  .tg button{border:0;background:none;font:600 13px 'Rubik';padding:6px 11px;border-radius:7px;cursor:pointer;color:var(--mut)}
+  .tg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px #0002}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px 0;max-width:1500px;margin:0 auto}
+  .chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 10px;font:600 12.5px 'Rubik';cursor:pointer;color:var(--mut);display:inline-flex;gap:6px;align-items:center}
+  .chip b{color:var(--ink)}
+  .chip.on{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+  .chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .lay{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;padding:12px 18px 24px;max-width:1500px;margin:0 auto}
+  @media(max-width:900px){.lay{grid-template-columns:minmax(0,1fr)}}
+  .list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 190px);overflow:auto;padding:2px}
+  @media(max-width:900px){.list{max-height:none}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:5px;text-align:right}
+  .card:hover{border-color:#D6CFC6}
+  .card.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc2)}
+  .card .h{font-weight:600;font-size:14px;line-height:1.4}
+  .meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--mut);align-items:center}
+  .cz{font:600 11.5px 'Rubik';border-radius:6px;padding:1px 7px;color:#fff}
+  .ln{display:inline-block;font:700 12px 'Rubik';background:#EEF0F3;color:var(--ink);border-radius:5px;padding:0 6px;margin:1px}
+  .now{color:#0F7B3F;font-weight:700}
+  .det{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+  .det h2{margin:0;font-size:19px;line-height:1.35}
+  .routes{display:flex;flex-wrap:wrap;gap:6px}
+  .routes button{font:600 13px 'Rubik';border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 10px;cursor:pointer;color:var(--ink)}
+  .routes button.on{background:var(--det);border-color:var(--det);color:#fff}
+  #map{height:440px;border-radius:12px;border:1px solid var(--line);background:#E9E6E1}
+  @media(max-width:600px){#map{height:360px}}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--mut)}
+  .legend span{display:inline-flex;gap:6px;align-items:center}
+  .legend svg{width:26px;height:12px}
+  .verdict{border-radius:10px;padding:8px 11px;font-size:13.5px;border:1px solid}
+  .v-detour{background:#E8F6EE;border-color:#B7E2C8;color:#0F5E32}
+  .v-regular{background:#FDECEC;border-color:#F3C0C0;color:#8E1B1B}
+  .v-other{background:#FFF6E0;border-color:#F0D995;color:#7A5300}
+  .note{font-size:13px;color:var(--mut);margin:0}
+  .txt{white-space:pre-wrap;font-size:14px;line-height:1.65;background:#FAF8F5;border:1px solid var(--line);border-radius:10px;padding:10px 12px;max-height:360px;overflow:auto}
+  .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+  .two h3,.det h3{font-size:12.5px;color:var(--mut);margin:0 0 4px;font-weight:700;letter-spacing:.02em}
+  ul.st{list-style:none;margin:0;padding:0;display:grid;gap:3px;font-size:13.5px}
+  ul.st li{display:flex;gap:8px}
+  ul.st .c{font-variant-numeric:tabular-nums;color:var(--mut);min-width:46px}
+  table.dep{border-collapse:collapse;font-size:13px;width:100%}
+  table.dep td,table.dep th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:right;vertical-align:top}
+  .hrs{font-variant-numeric:tabular-nums}
+  .hrs .add{color:#0F7B3F}.hrs .rem{color:var(--x);text-decoration:line-through}
+  .empty{color:var(--mut);padding:30px 10px;text-align:center}
+  footer{max-width:1500px;margin:0 auto;padding:0 18px 26px;font-size:12.5px;color:var(--mut)}
+  footer a{color:var(--mut)}
+  .xm{width:16px;height:16px;border-radius:50%;background:#fff;border:2.5px solid var(--x);position:relative}
+  .xm:before,.xm:after{content:"";position:absolute;left:5px;top:1px;width:2px;height:9px;background:var(--x);transform:rotate(45deg)}
+  .xm:after{transform:rotate(-45deg)}
+  .am{width:12px;height:12px;border-radius:3px;background:var(--add);border:2px solid #fff;box-shadow:0 0 0 1px var(--add)}
+  .sm{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--route)}
+  button:focus-visible,input:focus-visible,select:focus-visible,.card:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="icon.svg" alt="" width="36" height="36">
+  <h1>הקו המודיע</h1>
+  <span class="tag">שינויי שירות זמניים</span>
+  <span class="upd" id="upd"></span>
+</header>
+<div class="bar">
+  <input type="search" id="q" placeholder="חיפוש: מספר קו, עיר, רחוב או תחנה" aria-label="חיפוש">
+  <div class="tg" id="when" role="group" aria-label="מתי">
+    <button type="button" data-v="now" class="on">פעיל עכשיו</button>
+    <button type="button" data-v="today">היום</button>
+    <button type="button" data-v="all">הכול, כולל עתידי</button>
+  </div>
+  <label class="note"><input type="checkbox" id="onlyMap"> רק עם שינוי מסלול</label>
+</div>
+<div class="chips" id="causes"></div>
+<div class="lay">
+  <div class="list" id="list" aria-live="polite"></div>
+  <section class="det" id="det"><div class="empty">בחרו התראה מהרשימה</div></section>
+</div>
+<footer>
+  המקור: התראות השירות של משרד התחבורה, דרך <a href="https://bus-alerts.com/" target="_blank" rel="noopener">bus-alerts.com</a> (קוד פתוח בנחלת הכלל). מתעדכן פעמיים ביום.
+  המסלול המשוער מחושב מנוסח ההודעה על מפת הרחובות של OpenStreetMap, ולכן בפניות עצמן ייתכן הבדל מהדרך שהנהג נוסע בה.
+  "בפועל" — שידורי המיקום של האוטובוסים בזמן ההתראה, דרך דאטאבוס.
+</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
