@@ -8,13 +8,13 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: tools
       - name: fetch
-        env: { OUT: out, MAX_MIN: '20' }
+        env: { OUT: out, MAX_MIN: '35' }
         run: python3 tools/alerts_fetch.py 2>&1 | tail -80
       - name: gps
         env: { OUT: out, MAX_MIN: '10' }

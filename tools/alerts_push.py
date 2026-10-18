@@ -102,7 +102,7 @@ def main():
         if DRY:
             return
         json.dump({'seen': sorted((seen | {a['id'] for a in fresh}) & ids),
-                   'at': datetime.datetime.utcnow().isoformat(timespec='minutes')},
+                   'at': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')},
                   open(pfile, 'w'), separators=(',', ':'))
 
     if first:

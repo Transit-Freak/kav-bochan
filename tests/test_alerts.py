@@ -49,6 +49,18 @@ class ParseTests(unittest.TestCase):
         ps = AR.parse('עד הרצל/בגין, ימינה בגין, לא פונים שמאלה לויצמן, שמאלה ז\'בוטינסקי והמשך מסלול רגיל.')
         self.assertEqual(['בגין', "ז'בוטינסקי"], ps[0]['steps'])
 
+    def test_dates_are_not_junctions(self):
+        # "29/10/2026" נראה כמו "רחוב/רחוב" — לא נקודת התחלה
+        self.assertEqual([], AR.parse('החל מיום ראשון 6/9/2026 ועד יום חמישי 29/10/2026 תיחסם לתנועה דרך הרים, בקטע: עין יהב – שרה אמנו'))
+
+    def test_more_lines_after_slash_and_extra_junction_part(self):
+        ps = AR.parse('קו 359 דימונה / 373 רחובות / 378 ת"א\nיגיע עד בית וגן / פרי מגדים , ימשיך ישר לסיירת שקד , בכיכר ימינה להמשך סיירת שקד , ימינה מבצע הראל , שמאלה פרי מגדים חזרה למסלול')
+        self.assertEqual({'359', '373', '378'}, ps[0]['lines'])
+        self.assertEqual(['לסיירת שקד', 'סיירת שקד', 'מבצע הראל', 'פרי מגדים'], ps[0]['steps'])
+        ps = AR.parse('קו 14 לרעננה\nיגיע עד המגדל / המחתרת / ימינה המחתרת , שמאלה הנשיאים , ימינה חפץ חיים חזרה למסלול')
+        self.assertEqual(('המגדל', 'המחתרת'), ps[0]['start'])
+        self.assertEqual(['המחתרת', 'הנשיאים', 'חפץ חיים'], ps[0]['steps'])
+
     def test_street_names(self):
         self.assertEqual('הרצל', AR.clean_street('ימינה לרחוב הרצל'))
         self.assertEqual('בני ברית', AR.clean_street("שמאלה שד' בני ברית"))

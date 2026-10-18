@@ -6,7 +6,9 @@
 באזור השינוי. ואז הכרעה פשוטה:
   detour   — האוטובוסים נסעו לפי המסלול המשוער של ההודעה (רוב הנקודות לידו, כמעט אף אחת בקטע הסגור)
   regular  — האוטובוסים המשיכו בקטע שאמור להיות סגור
-  other    — נסעו בדרך אחרת: לא בקטע הסגור וגם לא לפי הנוסח
+  avoided  — אין מסלול משוער, אבל האוטובוסים לא נסעו בקטע הסגור
+  other    — נסעו בדרך אחרת: לא בקטע הסגור וגם לא לפי המסלול המשוער
+רק בקווים עם עקיפה אמיתית (נוספו תחנות חלופיות) — בביטול תחנות בלבד אין מה להשוות.
   unknown  — אין מספיק נקודות
 פלט: alerts/data/gps/<id>.json. נמשך פעם אחת לכל קו בהתראה (אחרי שעבר יום מההתחלה), ומתעדכן
 רק אם ההתראה השתנתה. תקציב זמן: MAX_MIN (ברירת מחדל 8).
@@ -57,7 +59,8 @@ def judge(points, est, closed):
         return 'regular', st
     if est and on_est >= 0.6 * n:
         return 'detour', st
-    return 'other', st
+    # בלי מסלול משוער אין למה להשוות — רק שהקטע הסגור לא נסוע
+    return ('other' if est else 'avoided'), st
 
 
 def main():
@@ -90,7 +93,9 @@ def main():
         changed = False
         for r in rc['routes']:
             key = r.get('rd') or r.get('rid')
-            if not r.get('rid') or key in g or not r.get('del'):
+            # רק עקיפה אמיתית (נוספו תחנות חלופיות): בביטול תחנות בלבד האוטובוס עובר באותו רחוב
+            # בלי לעצור, ואז "נסע בקטע הסגור" לא אומר כלום
+            if not r.get('rid') or key in g or not r.get('del') or not any(add for _, add in r.get('seq') or []):
                 continue
             s, e = pers[-1]
             e = min(e or now.timestamp(), now.timestamp())

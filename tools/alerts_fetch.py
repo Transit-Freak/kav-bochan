@@ -105,7 +105,8 @@ def overpass(bbox):
     q = (f'[out:json][timeout:90];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|'
          f'living_street|service|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|busway)$"]'
          f'({s:.5f},{w:.5f},{n:.5f},{e:.5f});out geom tags;')
-    for url in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'):
+    for url in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter',
+                'https://overpass.private.coffee/api/interpreter'):
         d = get_json(url, tries=2, timeout=150, data=urllib.parse.urlencode({'data': q}).encode())
         if d and 'elements' in d:
             return [(el.get('tags', {}), [(p['lat'], p['lon']) for p in el['geometry']])
@@ -305,11 +306,11 @@ def main():
                     r.pop('cut', None)
                 json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status},
                           open(rc_file, 'w'), ensure_ascii=False, separators=(',', ':'))
-                st = {'h': h, 'map': True, 'status': status, 'first': st.get('first') or datetime.datetime.utcnow().isoformat(timespec='minutes')}
+                st = {'h': h, 'map': True, 'status': status, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
             else:
-                st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.utcnow().isoformat(timespec='minutes')}
+                st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
         elif not has_map:
-            st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.utcnow().isoformat(timespec='minutes')}
+            st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
         state[aid] = st
         # הקווים ברשומה: מהמפה אם יש (מק"ט-כיוון-חלופה ויעד), אחרת מרשימת הקווים של ההתראה
         rlines = []

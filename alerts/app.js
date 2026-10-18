@@ -8,6 +8,7 @@
   var VERDICT = {
     detour: ["v-detour", "בפועל: האוטובוסים נסעו לפי המסלול החלופי של ההודעה."],
     regular: ["v-regular", "בפועל: האוטובוסים המשיכו לנסוע בקטע שאמור להיות סגור."],
+    avoided: ["v-detour", "בפועל: האוטובוסים עקפו את הקטע הסגור."],
     other: ["v-other", "בפועל: האוטובוסים לא נסעו בקטע הסגור, אבל גם לא בדיוק לפי הנוסח של ההודעה."]
   };
   var ALL = [], CAUSES = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
