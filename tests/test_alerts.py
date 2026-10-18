@@ -30,6 +30,9 @@ class ParseTests(unittest.TestCase):
         self.assertEqual({'16', '20', '350'}, AR.line_numbers('קווים 16, 20 ו-350'))
         self.assertEqual({'5א', '6'}, AR.line_numbers('קוים 5א,6'))
         self.assertEqual({'3'}, AR.line_numbers('קו 3 משחמון'))
+        # מילה שמתארת את הקווים בין "קווי" למספרים (אילת, 18.10)
+        self.assertEqual({'5', '5א', '80', '80א'}, AR.line_numbers('קווים 5, 5א משחמון וקווי התלמידים 80, 80א לשחמון'))
+        self.assertEqual({'32', '80א'}, AR.line_numbers('קו 32 לנמל תעופה רמון וקו תלמידים 80א לתיכון גולדווטר'))
 
     def test_paragraphs_keep_their_lines(self):
         ps = AR.parse(ASHDOD)

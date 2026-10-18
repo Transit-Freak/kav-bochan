@@ -73,7 +73,7 @@ jobs:
     needs: need
     if: needs.need.outputs.go == 'yes' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
