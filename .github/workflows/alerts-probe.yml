@@ -14,7 +14,7 @@ jobs:
         with:
           sparse-checkout: tools
       - name: diag (why no-match)
-        env: { OUT: out, MAX_MIN: '45', TEMP_DIR: /tmp/temp }
+        env: { OUT: out, MAX_MIN: '50', TEMP_DIR: /tmp/temp }
         run: |
           cat > diag.py <<'PY'
           # אבחון: למה route_detour מחזיר None. מריצים את alerts_fetch עם גרסה מסומנת של הפונקציה.
@@ -76,6 +76,23 @@ jobs:
 
           PY
           python3 diag.py 2>&1 | grep -v "ניסיון" | tail -8
+      - name: summary per agency
+        run: |
+          python3 - <<'PY'
+          import json, glob, collections
+          al = {a['id']: a for a in json.load(open('out/alerts.json'))['alerts']}
+          tot = collections.defaultdict(collections.Counter)
+          for f in glob.glob('out/rc/*.json'):
+              rc = json.load(open(f)); a = al.get(rc['id'])
+              if not a: continue
+              ag = (a.get('ag') or ['?'])[0]
+              for r in rc['routes']:
+                  tot[ag]['routes'] += 1
+                  tot[ag]['est' if r.get('est') else (r.get('why') or '?')] += 1
+          for ag, c in sorted(tot.items(), key=lambda kv: -kv[1]['routes']):
+              print(ag, dict(c))
+          print('ALL', dict(sum(tot.values(), collections.Counter())))
+          PY
       - name: dump
         run: |
           python3 -c "import json;d=json.load(open('diag.json'));print(len(d), sum(len(a['routes']) for a in d))"

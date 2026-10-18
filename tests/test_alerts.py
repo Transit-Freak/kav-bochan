@@ -111,6 +111,49 @@ class StreetMatchTests(unittest.TestCase):
         self.assertEqual({'הרים'}, net.match('לדרך הרים'))
         self.assertEqual({'ששת הימים'}, net.match('לשדרות ששת הימים'))
 
+    def test_road_number_and_typo(self):
+        net = AR.Streets([({'name': 'יהושע שטמפפר', 'highway': 'secondary'}, [(32.09, 34.88), (32.091, 34.881)]),
+                          ({'name': '', 'ref': '461', 'highway': 'primary'}, [(32.03, 34.86), (32.031, 34.861)])])
+        self.assertEqual({'יהושע שטמפפר'}, net.match('שמפפר'))
+        self.assertEqual({'כביש 461'}, net.match('לכביש 461'))
+        self.assertEqual({'כביש 461'}, net.match("כביש מס' 461"))
+
+
+class DetourTests(unittest.TestCase):
+    """רשת קטנה: הראשי (מזרח-מערב) חסום באמצע; עוקפים דרך אחד ← הצפוני ← שתיים."""
+
+    def setUp(self):
+        lon = lambda i: round(34.8 + 0.001 * i, 6)  # noqa: E731
+        self.net = AR.Streets([
+            ({'name': 'הראשי', 'highway': 'primary'}, [(32.0, lon(i)) for i in range(11)]),
+            ({'name': 'הצפוני', 'highway': 'residential'}, [(32.002, lon(i)) for i in range(11)]),
+            ({'name': 'אחד', 'highway': 'residential'}, [(32.0, lon(3)), (32.001, lon(3)), (32.002, lon(3))]),
+            ({'name': 'שתיים', 'highway': 'residential'}, [(32.0, lon(7)), (32.001, lon(7)), (32.002, lon(7))]),
+        ])
+        self.shape = [(32.0, round(34.8 + 0.0002 * i, 6)) for i in range(51)]
+
+    def route(self, start, steps):
+        return AR.route_detour(self.net, {'start': start, 'steps': steps}, self.shape, 20, 30)
+
+    def test_by_junction(self):
+        r = self.route(('הראשי', 'אחד'), ['לאחד', 'הצפוני', 'שתיים'])
+        self.assertIsNotNone(r)
+        self.assertIn((32.002, 34.805), [tuple(p) for p in r['path']])
+        self.assertEqual(35, r['i_in'])
+
+    def test_unknown_junction_falls_back_to_first_street(self):
+        self.assertIsNotNone(self.route(('הראשי', 'לא קיים'), ['אחד', 'הצפוני', 'שתיים']))
+
+    def test_typo_and_skipped_street(self):
+        self.assertIsNotNone(self.route(('הראשי', 'אחד'), ['אחד', 'הצפני', 'שתיים']))
+        self.assertIsNotNone(self.route(('הראשי', 'אחד'), ['אחד', 'שתיים']))
+
+    def test_two_streets_in_one_step(self):
+        self.assertIsNotNone(self.route(None, ['אחד', 'הצפוני ושתיים']))
+
+    def test_mostly_unknown_streets_give_nothing(self):
+        self.assertIsNone(self.route(('הראשי', 'אחד'), ['אחד', 'מחלף א', 'מחלף ב', 'מחלף ג']))
+
 
 class CauseTests(unittest.TestCase):
     def test_causes(self):

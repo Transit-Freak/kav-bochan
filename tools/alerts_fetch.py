@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 4
+PARSE_V = 5
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -135,7 +135,7 @@ def estimate_routes(alert, rc_routes, stops):
             r['est'] = None
             r['why'] = 'no-text'
         return 'no-text'
-    # אזור הניתוב: הקטע המבוטל של כל הקווים + 700 מ'
+    # אזור הניתוב: הקטע המבוטל של כל הקווים + כ-1 ק"מ (עקיפות ארוכות, כמו ברחובות ראשון לציון)
     pts = []
     for r in rc_routes:
         sh = r['shape']
@@ -148,7 +148,7 @@ def estimate_routes(alert, rc_routes, stops):
         return 'no-cut'
     la = [p[0] for p in pts]
     lo = [p[1] for p in pts]
-    pad = 0.0065
+    pad = 0.009
     bbox = (min(la) - pad, min(lo) - pad * 1.2, max(la) + pad, max(lo) + pad * 1.2)
     if (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > 0.012:   # אזור ענק (יותר מ-~10×12 ק"מ) — לא מנתבים
         for r in rc_routes:
@@ -169,6 +169,10 @@ def estimate_routes(alert, rc_routes, stops):
             r['why'] = 'no-cut'
             continue
         cand = [p for p in paras if not p['lines'] or r['num'] in p['lines']]
+        # "78" בהודעה ו-78א במפה, או "6מ'" בהודעה ו-6 במפה — אותו קו, כשאין לו פסקה משלו
+        if not cand:
+            base = re.sub(r'[א-ת]$', '', r['num'])
+            cand = [p for p in paras if any(re.sub(r'[א-ת]$', '', x) == base for x in p['lines'])]
         best = None
         for p in cand:
             try:
