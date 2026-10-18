@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 2
+PARSE_V = 5
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -62,18 +62,26 @@ CAUSES = [
     ('works', 'עבודות', r'עבודות|עבודה|תשתית|חפיר|סליל|ריבוד|שיפוץ|הנחת צנרת|רכבת קלה|קו (?:ה)?סגול|קו (?:ה)?ירוק|הקמת|בנייה|בניה|גשר חדש|הסדרי תנועה זמניים'),
     ('police', 'משטרה וביטחון', r'משטר|ביטחונ|בטחונ|חפץ חשוד|פיגוע|אירוע חריג|סגירה ביטחונית|הנחיית (?:ה)?משטרה|פינוי|תרגיל'),
     ('protest', 'הפגנות', r'הפגנ|מחאה|מחאת|עצרת|חסימת כבישים'),
-    ('event', 'אירועים', r'מרתון|מירוץ|מרוץ|ריצת|ריצה|אופניים|טקס|הלוויה|הלויה|פסטיבל|הופעה|משחק|אצטדיון|מצעד|תהלוכ|הקפות|יום הזיכרון|יום הזכרון|יום העצמאות|ל"ג בעומר|לג בעומר|ביקור|כנס|אירוע|חגיגות|הדלקת|יריד|קרנבל|אדלאידע|עדלאידע'),
+    ('event', 'אירועים', r'מרתון|מירוץ|מרוץ|ריצת|ריצה|אופניים|טקס|הלוויה|הלויה|פסטיבל|הופעה|משחק|אצטדיון|מצעד|תהלוכ|הקפות|יום הזיכרון|יום הזכרון|יום העצמאות|ל"ג בעומר|לג בעומר|ביקור|כנס|אירוע|חגיגות|הדלקת|יריד|קרנבל|אדלאידע|עדלאידע|הילולה|הילולת|עלייה לקבר|תפילה המונית'),
     ('accident', 'תאונה', r'תאונ'),
     ('stuck', 'רכב תקוע או חסימה', r'תקוע|תקועה|נתקע|חסימת רכבים|רכב חוסם|משאית'),
     ('weather', 'מזג אוויר', r'הצפ|שיטפון|שטפון|גשם|שלג|סערה|מזג האוויר|מזג אוויר'),
     ('strike', 'שביתה או השבתה', r'שביתה|שביתת|השבתה|עיצומים'),
     ('traffic', 'עומסי תנועה', r'עומס|פקק'),
     ('fault', 'תקלה', r'תקלה|תקלת|תקלות|קריסת|נזק'),
+    # שלמה 18.10: "סיבה: העתקת תחנה" — לא "לא צוינה סיבה"
+    ('relocate', 'העתקת תחנה', r'העתקת (?:ה)?תחנ|העתקה של (?:ה)?תחנ|תועתק (?:ה)?תחנ|תועתקנה|הזזת (?:ה)?תחנ|תחנה זמנית|תחנות זמניות|מיקום (?:ה)?תחנה'),
 ]
 CAUSE_LABEL = dict((k, l) for k, l, _ in CAUSES) | {'other': 'לא צוינה סיבה'}
 
 
+RELOCATE = dict((k, p) for k, _, p in CAUSES)['relocate']
+
+
 def cause_of(header, desc):
+    # כשהכותרת עצמה אומרת "העתקת תחנה" — זו הסיבה, גם אם בנוסח מוזכרות עבודות
+    if re.search(RELOCATE, header or ''):
+        return 'relocate'
     t = f'{header}\n{desc}'
     for key, _, pat in CAUSES:
         if re.search(pat, t):
@@ -127,7 +135,7 @@ def estimate_routes(alert, rc_routes, stops):
             r['est'] = None
             r['why'] = 'no-text'
         return 'no-text'
-    # אזור הניתוב: הקטע המבוטל של כל הקווים + 700 מ'
+    # אזור הניתוב: הקטע המבוטל של כל הקווים + כ-1 ק"מ (עקיפות ארוכות, כמו ברחובות ראשון לציון)
     pts = []
     for r in rc_routes:
         sh = r['shape']
@@ -140,7 +148,7 @@ def estimate_routes(alert, rc_routes, stops):
         return 'no-cut'
     la = [p[0] for p in pts]
     lo = [p[1] for p in pts]
-    pad = 0.0065
+    pad = 0.009
     bbox = (min(la) - pad, min(lo) - pad * 1.2, max(la) + pad, max(lo) + pad * 1.2)
     if (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > 0.012:   # אזור ענק (יותר מ-~10×12 ק"מ) — לא מנתבים
         for r in rc_routes:
@@ -161,6 +169,10 @@ def estimate_routes(alert, rc_routes, stops):
             r['why'] = 'no-cut'
             continue
         cand = [p for p in paras if not p['lines'] or r['num'] in p['lines']]
+        # "78" בהודעה ו-78א במפה, או "6מ'" בהודעה ו-6 במפה — אותו קו, כשאין לו פסקה משלו
+        if not cand:
+            base = re.sub(r'[א-ת]$', '', r['num'])
+            cand = [p for p in paras if any(re.sub(r'[א-ת]$', '', x) == base for x in p['lines'])]
         best = None
         for p in cand:
             try:
@@ -172,6 +184,8 @@ def estimate_routes(alert, rc_routes, stops):
                 best = res
         if best:
             r['est'], r['why'] = best, 'ok'
+        elif not cand:
+            r['why'] = 'no-text'   # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים")
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
 
@@ -282,9 +296,10 @@ def main():
                             shape = [[round(p[1], 6), round(p[0], 6)] for p in c['shape']]
                             seq = c.get('updated_stop_sequence') or []
                             dele = c.get('deleted_stop_ids') or []
-                            # הקטע המבוטל על השרטוט: מהתחנה המבוטלת/החדשה הראשונה עד האחרונה
+                            # הקטע המבוטל על השרטוט: מהתחנה המבוטלת הראשונה עד האחרונה. תחנות חלופיות רק
+                            # כשאין מבוטלות — הן ברחובות העקיפה, ועל השרטוט הן יכולות ליפול הרבה לפני הצומת
                             sfm = rc.get('stops_for_map') or {}
-                            touched = [s for s in dele if s in sfm] + [s for s, add in seq if add and s in sfm]
+                            touched = [s for s in dele if s in sfm] or [s for s, add in seq if add and s in sfm]
                             cut = None
                             if touched:
                                 idx = []

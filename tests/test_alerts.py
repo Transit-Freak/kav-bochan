@@ -64,9 +64,95 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(('המגדל', 'המחתרת'), ps[0]['start'])
         self.assertEqual(['המחתרת', 'הנשיאים', 'חפץ חיים'], ps[0]['steps'])
 
+    def test_metropolin_sentence_broken_over_lines(self):
+        # מטרופולין: כותרת עם כמה קווים ויעד לכל אחד, והוראה שנשברת באמצע משפט
+        ps = AR.parse("""המסלול החלופי לקוים 12 לכיוון מכללת לוינסקי, 
+604 לכיוון תל אביב:
+נוסעים במסלול הרגיל עד לכיכר רוזנפלד/ג'ורג' וייז, לא 
+ממשיכים ישר ברח' רוזנפלד אלא פונים ימינה לרח' ג'ורג' וייז, 
+שמאלה להמשך רח' ג'ורג' וייז, שמאלה לרח' חיים לבנון
+וממשיכים במסלול הרגיל.
+אין תחנות מבוטלות!""")
+        self.assertEqual(1, len(ps))
+        self.assertEqual({'12', '604'}, ps[0]['lines'])
+        self.assertEqual(('רוזנפלד', "ג'ורג' וייז"), ps[0]['start'])
+        self.assertEqual(["ג'ורג' וייז", "ג'ורג' וייז", 'חיים לבנון'], ps[0]['steps'])
+
+    def test_metropolin_dates_line_is_not_a_junction(self):
+        self.assertEqual([], AR.parse("בימים ראשון עד חמישי 18-22/10 ייחסם לתנועה רח' גלבוע,\nהחסימה תחל בשעה 7:00 ועד לשעה 16:00."))
+
+    def test_kavim_turns_without_start(self):
+        # קווים: ההוראה מתחילה בפנייה, בלי "עד…"; קווים עם לוכסן
+        ps = AR.parse("""אי לכך, קווים: 476/479 ישנו את מסלולם.
+קו 476 מכיוון תל אביב: 
+יפנו ימינה ליגאל אלון, ימינה אל חיים בר לב, שמאלה אל שד' בן גוריון וימשיכו במסלולם המקורי.""")
+        self.assertEqual(1, len(ps))
+        self.assertEqual({'476'}, ps[0]['lines'])
+        self.assertIsNone(ps[0]['start'])
+        self.assertEqual(['ליגאל אלון', 'חיים בר לב', 'בן גוריון'], ps[0]['steps'])
+        self.assertEqual({'476', '479'}, AR.line_numbers('אי לכך, קווים: 476/479 ישנו את מסלולם.'))
+
+    def test_extra_dash_list(self):
+        # אקסטרה ירושלים: "ייסעו דרך הרחבות חנה - אלי הכהן - גרוסברג"
+        ps = AR.parse("קו 3 לכיוון בנייני האומה (כיוון 3)\nמסלול חלופי: ייסעו דרך הרחבות חנה - אלי הכהן - גרוסברג - אהלי יוסף להמשך מסלולם.")
+        self.assertEqual({'3'}, ps[0]['lines'])
+        self.assertEqual(['חנה', 'אלי הכהן', 'גרוסברג', 'אהלי יוסף'], ps[0]['steps'])
+
     def test_street_names(self):
         self.assertEqual('הרצל', AR.clean_street('ימינה לרחוב הרצל'))
         self.assertEqual('בני ברית', AR.clean_street("שמאלה שד' בני ברית"))
+
+
+class StreetMatchTests(unittest.TestCase):
+    def test_prefix_then_road_word(self):
+        # "לדרך הרים" בנוסח, "הרים" במפה (אילת 18.10) — אחרי הורדת ה-ל גם "דרך" יורדת
+        net = AR.Streets([({'name': 'הרים', 'highway': 'primary'}, [(29.54, 34.93), (29.545, 34.935)]),
+                          ({'name': 'שדרות ששת הימים', 'highway': 'primary'}, [(29.55, 34.94), (29.551, 34.941)])])
+        self.assertEqual({'הרים'}, net.match('לדרך הרים'))
+        self.assertEqual({'ששת הימים'}, net.match('לשדרות ששת הימים'))
+
+    def test_road_number_and_typo(self):
+        net = AR.Streets([({'name': 'יהושע שטמפפר', 'highway': 'secondary'}, [(32.09, 34.88), (32.091, 34.881)]),
+                          ({'name': '', 'ref': '461', 'highway': 'primary'}, [(32.03, 34.86), (32.031, 34.861)])])
+        self.assertEqual({'יהושע שטמפפר'}, net.match('שמפפר'))
+        self.assertEqual({'כביש 461'}, net.match('לכביש 461'))
+        self.assertEqual({'כביש 461'}, net.match("כביש מס' 461"))
+
+
+class DetourTests(unittest.TestCase):
+    """רשת קטנה: הראשי (מזרח-מערב) חסום באמצע; עוקפים דרך אחד ← הצפוני ← שתיים."""
+
+    def setUp(self):
+        lon = lambda i: round(34.8 + 0.001 * i, 6)  # noqa: E731
+        self.net = AR.Streets([
+            ({'name': 'הראשי', 'highway': 'primary'}, [(32.0, lon(i)) for i in range(11)]),
+            ({'name': 'הצפוני', 'highway': 'residential'}, [(32.002, lon(i)) for i in range(11)]),
+            ({'name': 'אחד', 'highway': 'residential'}, [(32.0, lon(3)), (32.001, lon(3)), (32.002, lon(3))]),
+            ({'name': 'שתיים', 'highway': 'residential'}, [(32.0, lon(7)), (32.001, lon(7)), (32.002, lon(7))]),
+        ])
+        self.shape = [(32.0, round(34.8 + 0.0002 * i, 6)) for i in range(51)]
+
+    def route(self, start, steps):
+        return AR.route_detour(self.net, {'start': start, 'steps': steps}, self.shape, 20, 30)
+
+    def test_by_junction(self):
+        r = self.route(('הראשי', 'אחד'), ['לאחד', 'הצפוני', 'שתיים'])
+        self.assertIsNotNone(r)
+        self.assertIn((32.002, 34.805), [tuple(p) for p in r['path']])
+        self.assertEqual(35, r['i_in'])
+
+    def test_unknown_junction_falls_back_to_first_street(self):
+        self.assertIsNotNone(self.route(('הראשי', 'לא קיים'), ['אחד', 'הצפוני', 'שתיים']))
+
+    def test_typo_and_skipped_street(self):
+        self.assertIsNotNone(self.route(('הראשי', 'אחד'), ['אחד', 'הצפני', 'שתיים']))
+        self.assertIsNotNone(self.route(('הראשי', 'אחד'), ['אחד', 'שתיים']))
+
+    def test_two_streets_in_one_step(self):
+        self.assertIsNotNone(self.route(None, ['אחד', 'הצפוני ושתיים']))
+
+    def test_mostly_unknown_streets_give_nothing(self):
+        self.assertIsNone(self.route(('הראשי', 'אחד'), ['אחד', 'מחלף א', 'מחלף ב', 'מחלף ג']))
 
 
 class CauseTests(unittest.TestCase):
@@ -78,7 +164,9 @@ class CauseTests(unittest.TestCase):
             'חיפה - פעילות משטרתית בשדרות הנשיא': 'police',
             'באר שבע, תאונת דרכים ברגר': 'accident',
             'נתניה - רכב תקוע ברחוב הרצל': 'stuck',
-            'העתקת תחנה בצומת ויצמן/פנקס': 'other',
+            'תל אביב – העתקת תחנה בצומת ויצמן/פנקס - החל מתאריך - 12.10.2026': 'relocate',
+            'רמת גן, תחנה זמנית ברחוב ביאליק עקב עבודות': 'relocate',
+            'מודיעין - שינוי בלוח הזמנים': 'other',
         }
         for h, want in cases.items():
             self.assertEqual(want, AF.cause_of(h, ''), h)
