@@ -117,19 +117,54 @@ def stop_names():
 
 
 # ------------------------------------------------------------------ מסלול לפי הנוסח
-def overpass(bbox):
-    s, w, n, e = bbox
+# מפת הרחובות נשמרת במשבצות של 0.02° (כ-2 ק"מ) בין ריצה לריצה (actions/cache): שרת המפות עונה לפעמים
+# אחרי 5–10 דקות, ובלי שמירה כל ריצה נגמרת לפני שכל ההודעות חושבו (שלמה 19.10: "עוד לא חושב")
+OSM_DIR = os.environ.get('OSM_DIR', '.osm-cache')
+TILE = 0.02
+TILE_DAYS = 30
+
+
+def overpass_box(s, w, n, e):
     q = (f'[out:json][timeout:90];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|'
          f'living_street|service|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|busway)$"]'
          f'({s:.5f},{w:.5f},{n:.5f},{e:.5f});out geom tags;')
     for url in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter',
                 'https://overpass.private.coffee/api/interpreter'):
-        d = get_json(url, tries=2, timeout=150, data=urllib.parse.urlencode({'data': q}).encode())
+        d = get_json(url, tries=1, timeout=100, data=urllib.parse.urlencode({'data': q}).encode())
         if d and 'elements' in d:
-            return [(el.get('tags', {}), [(p['lat'], p['lon']) for p in el['geometry']])
+            return [[el.get('id'), el.get('tags', {}), [(p['lat'], p['lon']) for p in el['geometry']]]
                     for el in d['elements'] if el.get('type') == 'way' and el.get('geometry')]
-        time.sleep(5)
+        time.sleep(3)
     return None
+
+
+def overpass(bbox):
+    """הרחובות באזור, ממשבצות שמורות; משבצת חסרה (או בת יותר מחודש) נמשכת מ-Overpass."""
+    import gzip
+    import math as _m
+    s, w, n, e = bbox
+    os.makedirs(OSM_DIR, exist_ok=True)
+    ways = {}
+    for i in range(_m.floor(s / TILE), _m.floor(n / TILE) + 1):
+        for j in range(_m.floor(w / TILE), _m.floor(e / TILE) + 1):
+            f = f'{OSM_DIR}/{i}_{j}.json.gz'
+            tile = None
+            if os.path.exists(f) and time.time() - os.path.getmtime(f) < TILE_DAYS * 86400:
+                try:
+                    tile = json.load(gzip.open(f, 'rt'))
+                except Exception:
+                    tile = None
+            if tile is None:
+                if left() < 90:
+                    return None
+                tile = overpass_box(i * TILE, j * TILE, (i + 1) * TILE, (j + 1) * TILE)
+                if tile is None:
+                    return None
+                json.dump(tile, gzip.open(f, 'wt'), ensure_ascii=False, separators=(',', ':'))
+                time.sleep(2)
+            for wid, tags, geom in tile:
+                ways[wid] = (tags, [tuple(p) for p in geom])
+    return list(ways.values())
 
 
 OSM_CACHE = []   # (bbox, ways) שכבר נטענו בריצה הזו
@@ -172,7 +207,6 @@ def estimate_routes(alert, rc_routes, stops):
     ways = next((w for b, w in OSM_CACHE if b[0] <= bbox[0] and b[1] <= bbox[1] and b[2] >= bbox[2] and b[3] >= bbox[3]), None)
     if ways is None:
         ways = overpass(bbox)
-        time.sleep(3)
         if ways:
             OSM_CACHE.append((bbox, ways))
     if not ways:

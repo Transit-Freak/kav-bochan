@@ -4,3 +4,4 @@ package-lock.json
 .claude/
 __pycache__/
 tenders/qa.json
+.osm-cache/

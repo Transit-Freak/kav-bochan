@@ -77,6 +77,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # מפת הרחובות במשבצות, בין ריצה לריצה — לא נכנסת למאגר (tools/alerts_fetch.py, OSM_DIR)
+      - uses: actions/cache@v4
+        with:
+          path: .osm-cache
+          key: alerts-osm-${{ github.run_id }}
+          restore-keys: alerts-osm-
+
       - name: משיכת ההתראות והמסלול המשוער
         # 40 דקות: אחרי שיפור בקריאת הנוסח כל ההודעות עם מפה מחושבות שוב (שלמה 19.10: 22 נשארו "עוד לא חושב")
         env: { MAX_MIN: '40' }
