@@ -22,13 +22,27 @@
   function periods(a) { return (a.per || []).map(function (p) { return [p[0] || 0, p[1] || 4e9]; }); }
   function isNow(a) { var t = now(); return periods(a).some(function (p) { return p[0] <= t && t <= p[1]; }); }
   function isToday(a) { var b = dayBounds(); return periods(a).some(function (p) { return p[0] < b[1] && p[1] > b[0]; }); }
+  // התאריכים והשעות (שלמה 19.10: "14.10 05:00 – 20.10 23:30" מבלבל — מספרים צמודים בלי מילים):
+  // כמה פעמים באותן שעות → "14.10–20.10, כל לילה 23:30–05:00"; תקופה אחת → "מ-14.10 בשעה 05:00 עד 20.10 בשעה 23:30"
   function span(a) {
     var ps = periods(a); if (!ps.length) return "";
     var s = Math.min.apply(null, ps.map(function (p) { return p[0]; })), e = Math.max.apply(null, ps.map(function (p) { return p[1]; }));
-    var multi = ps.length > 1 ? " · " + ps.length + " פעמים" : "";
-    if (e > 3.9e9) return "מ-" + fmtD(s) + " " + fmtT(s) + ", עד הודעה חדשה" + multi;
-    if (fmtD(s) === fmtD(e)) return fmtD(s) + " · " + fmtT(s) + "–" + fmtT(e) + multi;
-    return fmtD(s) + " " + fmtT(s) + " – " + fmtD(e) + " " + fmtT(e) + multi;
+    var open = e > 3.9e9;
+    if (ps.length > 1 && !open) {
+      var hrs = {}; ps.forEach(function (p) { hrs[fmtT(p[0]) + "|" + fmtT(p[1])] = 1; });
+      var keys = Object.keys(hrs);
+      if (keys.length === 1) {
+        var t0 = fmtT(ps[0][0]), t1 = fmtT(ps[0][1]), night = fmtD(ps[0][0]) !== fmtD(ps[0][1]);
+        var dd = fmtD(s) === fmtD(e - (night ? 86400 : 0)) ? fmtD(s) : fmtD(s) + "–" + fmtD(e - (night ? 86400 : 0));
+        return dd + ", " + (night ? "כל לילה " : "כל יום ") + t0 + "–" + t1;
+      }
+    }
+    // כמה פעמים בשעות שונות (שישי קצר יותר, למשל) — התאריכים, ומספר הפעמים; השעות של כל פעם בנוסח
+    if (ps.length > 1 && !open) return (fmtD(s) === fmtD(e) ? fmtD(s) : fmtD(s) + "–" + fmtD(e)) + ", " + ps.length + " פעמים בשעות שונות";
+    var multi = ps.length > 1 ? " (" + ps.length + " פעמים)" : "";
+    if (open) return "מ-" + fmtD(s) + " בשעה " + fmtT(s) + ", עד הודעה חדשה" + multi;
+    if (fmtD(s) === fmtD(e)) return fmtD(s) + ", " + fmtT(s) + "–" + fmtT(e) + multi;
+    return "מ-" + fmtD(s) + " בשעה " + fmtT(s) + " עד " + fmtD(e) + " בשעה " + fmtT(e) + multi;
   }
   // מספרי הקווים בהתראה, ממוינים לפי המספר: 3, 5, 5א, 6, 32, 80, 80א
   var lineKey = function (x) { var m = /^(\d+)/.exec(x); return [m ? +m[1] : 1e9, x]; };
