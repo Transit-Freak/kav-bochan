@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 5
+PARSE_V = 6
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -90,6 +90,9 @@ def cause_of(header, desc):
 
 
 # ------------------------------------------------------------------ תחנות (שם ומק"ט לפי stop_id)
+STOP_POS = {}   # stop_id → (lat, lon), מאותו stops.txt — לתחנה מבוטלת שאתר המקור לא שייך לקו
+
+
 def stop_names():
     """stop_id → (code, name) מתוך stops.txt של קובץ ה-GTFS האחרון בארכיון (קריאה של איבר אחד בלבד)."""
     import backfill_geo as BG
@@ -102,6 +105,10 @@ def stop_names():
             out = {}
             for r in rows:
                 out[r[idx['stop_id']]] = (r[idx['stop_code']], r[idx['stop_name']])
+                try:
+                    STOP_POS[r[idx['stop_id']]] = (float(r[idx['stop_lat']]), float(r[idx['stop_lon']]))
+                except (KeyError, ValueError):
+                    pass
             print(f'תחנות: {len(out):,} מ-GTFS של {ds}')
             return out
         except BaseException as e:   # BG.http עושה SystemExit כשאין קובץ ליום הזה
@@ -188,6 +195,13 @@ def estimate_routes(alert, rc_routes, stops):
             r['why'] = 'no-text'   # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים")
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
+
+
+def pos_of(s, sfm):
+    """מיקום תחנה: מתשובת אתר המקור, ואם אין — מ-GTFS."""
+    if s in sfm:
+        return (sfm[s]['stop_lat'], sfm[s]['stop_lon'])
+    return STOP_POS.get(s)
 
 
 def iso_ts(x):
@@ -277,8 +291,9 @@ def main():
         rc_file = f'{OUT}/rc/{aid}.json'
         # נמשך שוב: התראה חדשה או שהשתנתה, מפה שלא נשמרה, חישוב שלא הסתיים (נגמר הזמן / מפת הרחובות
         # לא ענתה) — אחרת הוא נשאר כך עד שנוסח ההודעה ישתנה — ו"לא נמצא" אחרי שקריאת הנוסח השתפרה
+        # (כל התראה עם מפה, גם כשחלק מהקווים כבר קיבלו מסלול — אילת 19.10: 3 מתוך 11 נשארו מגרסה ישנה)
         redo = (st.get('status') in ('osm', 'time')
-                or (st.get('status') in ('no-match', 'no-cut') and st.get('pv') != PARSE_V))
+                or (st.get('map') and st.get('pv') != PARSE_V))
         if has_map and (st.get('h') != h or not os.path.exists(rc_file) or redo) and left() > 60:
             rc = get_json(f'{SRC}/api/get_route_changes?id={urllib.parse.quote(aid)}')
             time.sleep(2)
@@ -300,11 +315,19 @@ def main():
                             # כשאין מבוטלות — הן ברחובות העקיפה, ועל השרטוט הן יכולות ליפול הרבה לפני הצומת
                             sfm = rc.get('stops_for_map') or {}
                             touched = [s for s in dele if s in sfm] or [s for s, add in seq if add and s in sfm]
+                            # אתר המקור לא שייך את התחנה המבוטלת לקו (נס ציונה 19.10: "דרך יצחק רבין/תרמ"ג",
+                            # קווים 313, 330) — תחנה מבוטלת של ההתראה שנמצאת על השרטוט של הקו
+                            if not touched:
+                                for s in sorted(rmset):
+                                    q = pos_of(s, sfm)
+                                    if q and min(AR.meters(p, q) for p in shape) < 60:
+                                        touched.append(s)
+                                dele = dele + [s for s in touched if s not in dele]
                             cut = None
                             if touched:
                                 idx = []
                                 for s in touched:
-                                    q = (sfm[s]['stop_lat'], sfm[s]['stop_lon'])
+                                    q = pos_of(s, sfm)
                                     idx.append(min(range(len(shape)), key=lambda i: AR.meters(shape[i], q)))
                                 cut = [min(idx), max(idx)]
                             used.update(s for s, _ in seq)
@@ -317,9 +340,10 @@ def main():
                 sfm = rc.get('stops_for_map') or {}
                 out_stops = {}
                 for s in used:
-                    if s in sfm:
+                    q = pos_of(s, sfm)
+                    if q:
                         code, name = (stops or {}).get(s, ('', ''))
-                        out_stops[s] = [round(sfm[s]['stop_lat'], 6), round(sfm[s]['stop_lon'], 6), code, name]
+                        out_stops[s] = [round(q[0], 6), round(q[1], 6), code, name]
                 for r in routes:
                     full = r.pop('shape')
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)
