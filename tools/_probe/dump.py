@@ -29,11 +29,11 @@ for a in data['alerts']:
                     need.update(s for s, _ in (c.get('updated_stop_sequence') or []))
         if pts:
             la = [p[0] for p in pts]; lo = [p[1] for p in pts]
-            # ריבוע של כ-4 ק"מ סביב התחנות המבוטלות (בבדיקה הקודמת 6 ק"מ היו איטיים מדי)
+            # ריבוע של כ-3 ק"מ סביב התחנות המבוטלות (בבדיקה הקודמת 6 ק"מ היו איטיים מדי)
             rm = [F.STOP_POS[s] for s in (a.get('removed_stop_ids') or []) if s in F.STOP_POS] or pts
             cy = sum(p[0] for p in rm) / len(rm); cx = sum(p[1] for p in rm) / len(rm)
-            bbox = (cy - 0.02, cx - 0.024, cy + 0.02, cx + 0.024)
-            if time.time() - T0 > 55 * 60:
+            bbox = (cy - 0.014, cx - 0.017, cy + 0.014, cx + 0.017)
+            if time.time() - T0 > 45 * 60:
                 print('נגמר הזמן', aid); bbox = None
             t = time.time()
             ways = F.overpass(bbox) if bbox else None
