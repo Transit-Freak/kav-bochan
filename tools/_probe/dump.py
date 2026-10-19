@@ -3,6 +3,7 @@ import gzip, json, os, sys, time, urllib.parse
 sys.path.insert(0, 'tools')
 import alerts_fetch as F, alerts_route as AR
 os.makedirs('dump', exist_ok=True)
+T0 = time.time()
 data = F.get_json(f'{F.SRC}/api/all_alerts')
 json.dump(data, gzip.open('dump/all.json.gz', 'wt'), ensure_ascii=False)
 stops = F.stop_names()
@@ -28,12 +29,14 @@ for a in data['alerts']:
                     need.update(s for s, _ in (c.get('updated_stop_sequence') or []))
         if pts:
             la = [p[0] for p in pts]; lo = [p[1] for p in pts]
-            # כל השרטוט מוגבל לריבוע של 6 ק"מ סביב התחנות המבוטלות
+            # ריבוע של כ-4 ק"מ סביב התחנות המבוטלות (בבדיקה הקודמת 6 ק"מ היו איטיים מדי)
             rm = [F.STOP_POS[s] for s in (a.get('removed_stop_ids') or []) if s in F.STOP_POS] or pts
             cy = sum(p[0] for p in rm) / len(rm); cx = sum(p[1] for p in rm) / len(rm)
-            bbox = (cy - 0.03, cx - 0.036, cy + 0.03, cx + 0.036)
+            bbox = (cy - 0.02, cx - 0.024, cy + 0.02, cx + 0.024)
+            if time.time() - T0 > 55 * 60:
+                print('נגמר הזמן', aid); bbox = None
             t = time.time()
-            ways = F.overpass(bbox)
+            ways = F.overpass(bbox) if bbox else None
             print(aid, 'overpass', round(time.time() - t), 's', len(ways or []), flush=True)
             if ways:
                 rec['ways'] = [[tg.get('name', ''), tg.get('ref', ''), tg.get('highway', ''), tg.get('oneway', ''), tg.get('junction', ''),

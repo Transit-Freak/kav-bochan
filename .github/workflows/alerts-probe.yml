@@ -1,5 +1,5 @@
 name: alerts-probe
-# זמני — קלט גולמי של הקו המודיע לבדיקה מקומית. יימחק לפני מיזוג.
+# זמני (ניסיון 2) — קלט גולמי של הקו המודיע לבדיקה מקומית. יימחק לפני מיזוג.
 on:
   push:
     branches: [claude/stoic-allen-3g21ru]
@@ -19,6 +19,13 @@ jobs:
           du -sh dump; ls dump | wc -l
           git config user.name probe; git config user.email probe@users.noreply.github.com
           mkdir -p tools/_probe/dump && mv dump/* tools/_probe/dump/
-          git add tools/_probe/dump
-          git commit -qm "probe dump (זמני, יימחק)"
-          git push origin HEAD:claude/stoic-allen-3g21ru
+          # הנתונים נכנסים מעל הראש העדכני של הענף (גם אם נדחף אליו משהו בזמן הריצה)
+          for i in 1 2 3; do
+            git fetch -q --depth=1 origin claude/stoic-allen-3g21ru
+            GIT_INDEX_FILE=/tmp/idx git read-tree FETCH_HEAD
+            GIT_INDEX_FILE=/tmp/idx git add --sparse tools/_probe/dump
+            t=$(GIT_INDEX_FILE=/tmp/idx git write-tree)
+            c=$(git commit-tree "$t" -p FETCH_HEAD -m "probe dump (זמני, יימחק)")
+            git push origin "$c:refs/heads/claude/stoic-allen-3g21ru" && break
+            sleep 5
+          done
