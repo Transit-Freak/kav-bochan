@@ -180,7 +180,7 @@ def parse(desc):
         if _NOT_ROUTE.match(clean):
             continue
         if m:
-            start = (clean_street(m.group(1)), clean_street(m.group(2)))
+            start = tuple(re.sub(r"^(?:תחנת|התחנה)\s+", "", clean_street(g)) for g in (m.group(1), m.group(2)))
             rest = clean[m.end():]
         else:
             start = None
@@ -279,8 +279,10 @@ class Streets:
         cands = [s]
         # "לדרך הרים" → "דרך הרים" → "הרים": אחרי הורדת ל/ב/ו מנרמלים שוב, כדי שגם "דרך"/"שדרות"
         # שאחריה ירדו (אילת, 18.10: לא נמצא מסלול לקווים 5, 32, 80)
-        if len(s) > 3 and s[0] in "לבו":
+        if len(s) > 3 and s[0] in "לבומ":
             cands.append(norm(s[1:]))
+        # "א"ס בית"ר" — במפה "דרך אגודת ספורט בית"ר" (ירושלים 19.10)
+        cands += [norm(re.sub(r"(^|\s)ל?אס(?=\s)", r"\1אגודת ספורט", c)) for c in list(cands) if re.search(r"(^|\s)ל?אס\s", c)]
         if len(s) > 4 and s[:2] in ("לה", "בה"):
             cands.append(norm(s[1:]))
         out = set()
@@ -290,6 +292,15 @@ class Streets:
             for n in self.names:
                 if n == c or set(n.split(" ")) == set(c.split(" ")) or (len(c) >= 3 and (c in n.split(" ") or n.endswith(" " + c) or n.startswith(c + " ") or (len(c) >= 5 and c in n))):
                     out.add(n)
+        # כינוי במקום השם הפרטי ("מוטה גור" — במפה "מרדכי גור", גבעת שמואל 19.10): שם המשפחה,
+        # כשיש במפה רחוב אחד בלבד שנגמר בו ושהשם הפרטי שלו מתחיל באותה אות
+        if not out:
+            for c in cands:
+                w = c.split(" ")
+                if len(w) == 2 and len(w[1]) >= 3:
+                    hit = {n for n in self.names if len(n.split(" ")) == 2 and n.split(" ")[1] == w[1] and n[0] == c[0]}
+                    if len(hit) == 1:
+                        out |= hit
         # שגיאת כתיב של אות אחת ("שמפפר", "שמטפפר" — שטמפפר)
         if not out:
             for c in cands:
@@ -374,6 +385,7 @@ def _plan(net, steps):
     רחוב שלא נמצא במפה (שם של מחלף, כביש מחוץ לאזור) נשמט, כל עוד רוב הרחובות נמצאו; אותו רחוב
     פעמיים ברצף ("ימינה בגין, המשך שמאלה לכיון בגין") — פעם אחת."""
     out = []
+    missing = 0
     for st in steps:
         names = net.match(st)
         parts = [(st, names)] if names else []
@@ -381,10 +393,13 @@ def _plan(net, steps):
             sub = [clean_street(x) for x in re.split(r"\s+ו(?=[א-ת])", st)]
             if len(sub) > 1 and all(net.match(x) for x in sub):
                 parts = [(x, net.match(x)) for x in sub]
+        missing += not parts
         for x, nm in parts:
             if not out or out[-1][1] != nm:
                 out.append((x, nm))
-    if not out or 2 * len(out) < len(steps):
+    # רחוב אחד לכל היותר שלא נמצא, ורק כשבהוראה שלושה רחובות ומעלה. בהוראה של שניים, רחוב חסר
+    # הוא חצי מהדרך, והמסלול יוצא סיבוב בכיכר (גבעת שמואל 19.10)
+    if not out or missing > (1 if len(steps) >= 3 else 0):
         return None
     return out
 
