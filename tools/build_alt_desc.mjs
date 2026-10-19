@@ -18,6 +18,10 @@ function grab(name) {
     if (i < 0) throw new Error('missing ' + name);
     if (/;\s*(\/\/.*)?$/.test(L[i])) return L[i];
   }
+  // פונקציה בשורה אחת ("function fmtD(d) { return …; }") — רק השורה עצמה. בלי זה השליפה רצה עד
+  // ה-"}" הבא בקובץ ולקחה איתה הגדרות שאחריה (19.10: NOTE_HOW הוגדר פעמיים והסריקה נפלה)
+  const opened = (L[i].match(/\{/g) || []).length, closed = (L[i].match(/\}/g) || []).length;
+  if (opened > 0 && opened === closed) return L[i];
   let j = i + 1;
   while (j < L.length && !/^\}\)?;?\s*$/.test(L[j])) j++;
   return L.slice(i, j + 1).join('\n');
