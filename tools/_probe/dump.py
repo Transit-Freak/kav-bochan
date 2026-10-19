@@ -4,6 +4,7 @@ sys.path.insert(0, 'tools')
 import alerts_fetch as F, alerts_route as AR
 os.makedirs('dump', exist_ok=True)
 T0 = time.time()
+IDS = set(filter(None, os.environ.get('IDS', '').split(',')))
 data = F.get_json(f'{F.SRC}/api/all_alerts')
 json.dump(data, gzip.open('dump/all.json.gz', 'wt'), ensure_ascii=False)
 stops = F.stop_names()
@@ -14,6 +15,8 @@ for a in data['alerts']:
     if not (a.get('use_case') in (5, 6, 7, 9) and not a.get('is_national') and (a.get('removed_stop_ids') or a.get('added_stop_ids'))):
         continue
     aid = str(a['id'])
+    if IDS and aid not in IDS:
+        continue
     rc = F.get_json(f'{F.SRC}/api/get_route_changes?id={urllib.parse.quote(aid)}')
     time.sleep(1)
     rec = {'rc': rc}
@@ -32,7 +35,7 @@ for a in data['alerts']:
             # ריבוע של כ-3 ק"מ סביב התחנות המבוטלות (בבדיקה הקודמת 6 ק"מ היו איטיים מדי)
             rm = [F.STOP_POS[s] for s in (a.get('removed_stop_ids') or []) if s in F.STOP_POS] or pts
             cy = sum(p[0] for p in rm) / len(rm); cx = sum(p[1] for p in rm) / len(rm)
-            bbox = (cy - 0.014, cx - 0.017, cy + 0.014, cx + 0.017)
+            bbox = (cy - 0.018, cx - 0.022, cy + 0.018, cx + 0.022)
             if time.time() - T0 > 45 * 60:
                 print('נגמר הזמן', aid); bbox = None
             t = time.time()
