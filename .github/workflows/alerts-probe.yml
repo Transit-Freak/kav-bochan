@@ -1,0 +1,24 @@
+name: alerts-probe
+# זמני — קלט גולמי של הקו המודיע לבדיקה מקומית. יימחק לפני מיזוג.
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/alerts-probe.yml']
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - run: python3 tools/_probe/dump.py 2>&1 | grep -v 'ניסיון' | tail -150
+      - run: |
+          du -sh dump; ls dump | wc -l
+          git config user.name probe; git config user.email probe@users.noreply.github.com
+          mkdir -p tools/_probe/dump && mv dump/* tools/_probe/dump/
+          git add tools/_probe/dump
+          git commit -qm "probe dump (זמני, יימחק)"
+          git push origin HEAD:claude/stoic-allen-3g21ru
