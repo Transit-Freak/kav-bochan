@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 12
+PARSE_V = 13
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}

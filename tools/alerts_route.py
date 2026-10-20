@@ -638,9 +638,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         cx, cy = int(n[0] * 2000), int(n[1] * 2000)
         ks = [k for dx in (-1, 0, 1) for dy in (-1, 0, 1) for k in grid.get((cx + dx, cy + dy), ())]
         return min((along[k] for k in ks if meters(n, dense_tail[k]) < 35), default=acc)
-    # פי 4: דילוג על חלק מהמסלול הרגיל יקר יותר מנסיעה ברחוב שלא כתוב בהודעה — אחרת, כשרחוב מההודעה
-    # חסר במפה ("בימת תל חי"), העקיפה "חזרה" ללולאה של השכונה מהצד השני ודילגה עליה (קריית שמונה 20.10)
-    back = {n: 4 * tail_pos(n) for n in back}
+    back = {n: tail_pos(n) for n in back}
     legs, streets, cur = [], [], src
     no_tunnel = bool(re.search(r"(?:לא|אין)\s+(?:להיכנס|לרדת|לנסוע)?\s*(?:ל|ב)?(?:שיקוע|מנהרה)", para.get("text", "")))
     for k, (st, names) in enumerate(plan):
@@ -677,7 +675,8 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
-    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 40:
+    # (60 מ' — נקודת החיבור נבחרת עד 45 מ' מסוף העקיפה, במעבר הראשון)
+    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 60:
         return None
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:
