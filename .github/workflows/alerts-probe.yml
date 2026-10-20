@@ -1,0 +1,27 @@
+name: alerts-probe
+# זמני — אבחון הודעה אחת מקובץ מפת ישראל. יימחק.
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/alerts-probe.yml']
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/cache/restore@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: kavbug-osm-none
+          restore-keys: kavbug-osm-
+      - run: |
+          sudo apt-get install -y -qq osmium-tool >/dev/null
+          pip install -q osmium
+          osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
+      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14566720982', NUMS: '22' }
+        run: python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at" | head -40
