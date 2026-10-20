@@ -577,9 +577,12 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     path = path[k:m + 1]
 
     def near(j, a, b):
+        # הנקודה הקרובה; כשיש שתיים קרובות כמעט באותה מידה (הלוך וחזור באותו רחוב) — זו שבאותו כיוון
         d = heading(j)
-        cands = [i for i in range(a, min(b, len(shape) - 1)) if same_way(i, d)] or list(range(a, b))
-        return min(cands, key=lambda i: meters(shape[i], path[j]))
+        dist = {i: meters(shape[i], path[j]) for i in range(a, b)}
+        best = min(dist.values())
+        cands = [i for i in dist if dist[i] <= best + 25 and (i + 1 >= len(shape) or same_way(i, d))]
+        return min(cands or dist, key=dist.get)
     i_out = near(0, lo, min(hi, i_in))
     a = max(i_out + 1, c1)
     i_in = near(len(path) - 1, a, hi) if a < hi else i_in
@@ -648,9 +651,9 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     path = [n for leg in legs for n in leg]
     # המקום על השרטוט שבו העקיפה חוזרת — מבין הקטעים שנוסעים בהם באותו כיוון (לולאה שחוזרת באותו רחוב)
     d = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1]) if len(path) > 1 else (0, 0)
-    near_i = [i for i in range(min(len(tail), 1200) - 1)
-              if meters(tail[i], cur) < 40 and not _opposite((tail[i], tail[i + 1]), d)]
-    i_in = cut1 + 1 + min(near_i or range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
+    dist = [meters(q, cur) for q in tail[:1200]]
+    near_i = [i for i in range(len(dist) - 1) if dist[i] <= min(dist) + 25 and not _opposite((tail[i], tail[i + 1]), d)]
+    i_in = cut1 + 1 + min(near_i or range(len(dist)), key=dist.__getitem__)
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
