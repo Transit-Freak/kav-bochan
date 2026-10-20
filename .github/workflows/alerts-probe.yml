@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install -y -qq osmium-tool >/dev/null
           pip install -q osmium
           osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
-      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14554731087,14566594958,14566738591,14575228275,14582570000,14566680732,14575709262,14579357718,14575521944', NUMS: '5,12,41,1,66,268,119,99,17,200,16,2,18,40', WALK: '14566594958,14566738591,14575228275,14582570000' }
+      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14582570000,14566738591', NUMS: '5,12,41,1,66,268,119,99,17,200,16,2,18,40', WALK: '14582570000,14566738591', RDBG: '1' }
         run: |
           true
-          python3 tools/_probe/one.py 2>&1 | grep -E "TRIM|XADD|ROUTE|WALK|   CUT|   DET|   REG|   PLAN|   EXIT|ניתוב נכשל|Traceback|Error" | head -260
+          python3 tools/_probe/one.py 2>&1 | grep -E "RDBG|TRIM|XADD|ROUTE|WALK|   CUT|   DET|   REG|   PLAN|   EXIT|ניתוב נכשל|Traceback|Error" | head -260
