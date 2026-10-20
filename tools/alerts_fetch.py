@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 8
+PARSE_V = 9
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -245,11 +245,14 @@ def estimate_routes(alert, rc_routes, stops):
             r['est'] = None
             r['why'] = 'area'
         return 'area'
-    # אותו אזור כבר נטען בריצה הזו (כמה הודעות על אותן עבודות) — בלי לפנות שוב לשרת המפות
-    ways = next((w for b, w in OSM_CACHE if b[0] <= bbox[0] and b[1] <= bbox[1] and b[2] >= bbox[2] and b[3] >= bbox[3]), None)
+    # אותו אזור כבר נטען בריצה הזו — רק כשהרחובות מ-Overpass. מקובץ המפה כל הודעה חותכת את האזור שלה
+    # (פחות משנייה): אזור גדול יותר של הודעה אחרת מביא רחובות נוספים, ו"מוטה גור" כבר לא חד-משמעי
+    # (גבעת שמואל 20.10: נמצא בבדיקה לבד, לא נמצא בריצה המלאה)
+    local = bool(OSM_PBF and os.path.exists(OSM_PBF))
+    ways = None if local else next((w for b, w in OSM_CACHE if b[0] <= bbox[0] and b[1] <= bbox[1] and b[2] >= bbox[2] and b[3] >= bbox[3]), None)
     if ways is None:
         ways = overpass(bbox)
-        if ways:
+        if ways and not local:
             OSM_CACHE.append((bbox, ways))
     if not ways:
         for r in rc_routes:
@@ -680,10 +683,12 @@ def main():
                 # וגם תחנות חלופיות של ההודעה שאתר המקור לא שייך לאף קו (תחנת מוצא חדשה, קו 126)
                 xadd = [by_code[c] for c in text_new_stops(he(a.get('description'))) if c in by_code] + list(a.get('added_stop_ids') or [])
                 xadd = list(dict.fromkeys(xadd))
-                xadd = [x for x in xadd if x not in have and x not in out_stops and STOP_POS.get(x)]
+                # (גם תחנה שכבר במסלול הקבוע של הקו — ויצמן/פנקס: התחנה "החדשה" 25898 היא תחנה קיימת)
+                xadd = [x for x in xadd if x not in have and STOP_POS.get(x)]
                 for x in xadd:
-                    q = STOP_POS[x]
-                    out_stops[x] = [round(q[0], 6), round(q[1], 6), stops[x][0], stops[x][1]]
+                    if x not in out_stops:
+                        q = STOP_POS[x]
+                        out_stops[x] = [round(q[0], 6), round(q[1], 6), *(stops or {}).get(x, ('', ''))]
                 for r in routes:
                     full = r.pop('shape')
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)
