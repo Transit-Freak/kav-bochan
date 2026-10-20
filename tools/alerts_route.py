@@ -153,10 +153,17 @@ def parse(desc):
     start=None — הוראה בלי "עד…" ("יפנו ימינה ל…"): היציאה מהמסלול היא במקום שבו הרחוב הראשון חוצה אותו."""
     out = []
     cur_lines = set()
+    cur_dir = None
     for line in _logical_lines(desc):
         nums = line_numbers(line)
+        # הכיוון ("לכיוון עתידים:", "מכיוון עתידים:") — מהכותרת שלפני הנקודתיים, כשיש בה כיוון אחד בלבד
+        head = line.split(":", 1)[0] if ":" in line else line
+        dirs = re.findall(r"(ל|מ)כיוון\s+([^:()]{2,60})", head)
+        line_dir = (("to" if dirs[0][0] == "ל" else "from"), dirs[0][1].strip()) if len(dirs) == 1 else None
         # תאריכים ושעות ("29/10/2026", "17:00") נראים כמו צומת "א/ב" — מוחקים לפני החיפוש
         clean = re.sub(r"\b\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\b|\b\d{1,2}:\d{2}\b", " ", line)
+        # "עד כיכר פעולות האיבה (יהודה הלוי/ האצ"ל)" — שם הכיכר לא רחוב; הצומת הוא מה שבסוגריים (קריית שמונה 19.10)
+        clean = re.sub(r"(עד\s+(?:ל)?(?:ה)?(?:כיכר|צומת)\s+)[^,()/]{2,40}?\s*\(([^()/]{2,30}/[^()]{2,30})\)", r"\1\2", clean)
         m = _START.search(clean)
         body = re.sub(r"^.*?מסלול חלופי\s*:?\s*", "", clean) if "מסלול חלופי" in clean else clean
         driving = bool(_DRIVE.search(" " + body)) and not _NOT_ROUTE.match(body.strip())
@@ -166,11 +173,14 @@ def parse(desc):
                 hdr = nums | (_header_numbers(line) if re.match(r"^(?:המסלול החלופי|ו?קו(?:ו?ים|ו?י)?\b)", line) else set())
                 if hdr:
                     cur_lines = hdr
+                    cur_dir = line_dir
+            elif line_dir and len(line) < 60:
+                cur_dir = line_dir   # "מכיוון עתידים:" בשורה משלה (דן)
             continue
         if _NOT_ROUTE.match(clean):
             continue
         if m:
-            start = (clean_street(m.group(1)), clean_street(m.group(2)))
+            start = tuple(re.sub(r"^(?:תחנת|התחנה)\s+", "", clean_street(g)) for g in (m.group(1), m.group(2)))
             rest = clean[m.end():]
         else:
             start = None
@@ -182,8 +192,29 @@ def parse(desc):
         if start is None and len(steps) < 1:
             continue
         if steps:
-            out.append({"lines": set(nums or cur_lines), "start": start, "steps": steps, "text": line})
+            out.append({"lines": set(nums or cur_lines), "start": start, "steps": steps, "text": line,
+                        "dir": (line_dir if ":" in line else None) or cur_dir})
     return out
+
+
+def template(desc, paras=None):
+    """לאיזה סוג הודעה הנוסח הכי קרוב (שלמה 19.10) — ולפיו איך מחפשים את המסלול:
+      junction  "עד צומת א/ב, ימינה X, שמאלה Y…" — יוצאים מהמסלול בצומת, ואז רחוב אחרי רחוב
+      turns     "יפנו ימינה ל-X, שמאלה ל-Y…" בלי צומת — יוצאים איפה שהרחוב הראשון חוצה את המסלול
+      skip      "ידלג על תחנה…" — הקו נשאר במסלול, רק תחנה בוטלה
+      stops     רשימת תחנות שבוטלו בלבד, בלי תיאור של דרך
+      general   הודעה כללית (אירוע, עומס) בלי תחנות ובלי דרך"""
+    paras = parse(desc) if paras is None else paras
+    if any(p["start"] for p in paras):
+        return "junction"
+    if paras:
+        return "turns"
+    t = desc or ""
+    if re.search(r"ידלג|ידלגו|דילוג", t):
+        return "skip"
+    if re.search(r"(?<!\d)\d{5}(?!\d)|תחנ(?:ה|ות) (?:מבוטל|בוטל)", t):
+        return "stops"
+    return "general"
 
 
 # ------------------------------------------------------------------ גרף רחובות
@@ -248,8 +279,10 @@ class Streets:
         cands = [s]
         # "לדרך הרים" → "דרך הרים" → "הרים": אחרי הורדת ל/ב/ו מנרמלים שוב, כדי שגם "דרך"/"שדרות"
         # שאחריה ירדו (אילת, 18.10: לא נמצא מסלול לקווים 5, 32, 80)
-        if len(s) > 3 and s[0] in "לבו":
+        if len(s) > 3 and s[0] in "לבומ":
             cands.append(norm(s[1:]))
+        # "א"ס בית"ר" — במפה "דרך אגודת ספורט בית"ר" (ירושלים 19.10)
+        cands += [norm(re.sub(r"(^|\s)ל?אס(?=\s)", r"\1אגודת ספורט", c)) for c in list(cands) if re.search(r"(^|\s)ל?אס\s", c)]
         if len(s) > 4 and s[:2] in ("לה", "בה"):
             cands.append(norm(s[1:]))
         out = set()
@@ -259,6 +292,15 @@ class Streets:
             for n in self.names:
                 if n == c or set(n.split(" ")) == set(c.split(" ")) or (len(c) >= 3 and (c in n.split(" ") or n.endswith(" " + c) or n.startswith(c + " ") or (len(c) >= 5 and c in n))):
                     out.add(n)
+        # כינוי במקום השם הפרטי ("מוטה גור" — במפה "מרדכי גור", גבעת שמואל 19.10): שם המשפחה,
+        # כשיש במפה רחוב אחד בלבד שנגמר בו ושהשם הפרטי שלו מתחיל באותה אות
+        if not out:
+            for c in cands:
+                w = c.split(" ")
+                if len(w) == 2 and len(w[1]) >= 3:
+                    hit = {n for n in self.names if len(n.split(" ")) == 2 and n.split(" ")[1] == w[1] and n[0] == c[0]}
+                    if len(hit) == 1:
+                        out |= hit
         # שגיאת כתיב של אות אחת ("שמפפר", "שמטפפר" — שטמפפר)
         if not out:
             for c in cands:
@@ -287,17 +329,20 @@ class Streets:
         return out
 
     def dijkstra(self, src, names, targets, pen=6.0, limit=12000):
-        """הדרך הקצרה מ-src לאחד היעדים, כשקטע שלא ברחוב הנוכחי עולה פי pen."""
-        dist = {src: 0.0}
+        """הדרך הקצרה מ-src לאחד היעדים, כשקטע שלא ברחוב הנוכחי עולה פי pen.
+        src — צומת, או {צומת: עלות התחלה} כשיש כמה נקודות יציאה (שדרה עם שני מסלולים חד-סטריים)."""
+        srcs = src if isinstance(src, dict) else {src: 0.0}
+        dist = dict(srcs)
         prev = {}
-        pq = [(0.0, src)]
+        pq = [(c, n) for n, c in srcs.items()]
+        heapq.heapify(pq)
         while pq:
             d, u = heapq.heappop(pq)
             if d > dist.get(u, 1e18):
                 continue
             if u in targets:
                 path = [u]
-                while path[-1] != src:
+                while path[-1] in prev:
                     path.append(prev[path[-1]])
                 return path[::-1], d
             if d > limit:
@@ -322,11 +367,25 @@ def seg_dist(p, a, b):
     return math.hypot(ax + t * dx, ay + t * dy)
 
 
+def dir_fits(para, to):
+    """האם הכיוון שבפסקה מתאים ליעד של הקו: True / False, או None כשאין בפסקה כיוון או שאי אפשר לדעת."""
+    d = para.get("dir")
+    if not d or not to:
+        return None
+    # "לכיוון חולון, פתח תקווה" (שני קווים, יעד לכל אחד) — מספיק שאחד מהם מתאים
+    words = [w for part in re.split(r",|\sו", d[1]) for w in norm(part).split() if len(w) >= 3]
+    if not words:
+        return None
+    hit = any(w in norm(to) for w in words)
+    return hit if d[0] == "to" else not hit
+
+
 def _plan(net, steps):
     """הרחובות שאפשר לנתב בהם, כל אחד עם השמות שלו במפה. "ישראל גלילי ולוי אשכול" — שני רחובות;
     רחוב שלא נמצא במפה (שם של מחלף, כביש מחוץ לאזור) נשמט, כל עוד רוב הרחובות נמצאו; אותו רחוב
     פעמיים ברצף ("ימינה בגין, המשך שמאלה לכיון בגין") — פעם אחת."""
     out = []
+    missing = 0
     for st in steps:
         names = net.match(st)
         parts = [(st, names)] if names else []
@@ -334,10 +393,13 @@ def _plan(net, steps):
             sub = [clean_street(x) for x in re.split(r"\s+ו(?=[א-ת])", st)]
             if len(sub) > 1 and all(net.match(x) for x in sub):
                 parts = [(x, net.match(x)) for x in sub]
+        missing += not parts
         for x, nm in parts:
             if not out or out[-1][1] != nm:
                 out.append((x, nm))
-    if not out or 2 * len(out) < len(steps):
+    # רחוב אחד לכל היותר שלא נמצא, ורק כשבהוראה שלושה רחובות ומעלה. בהוראה של שניים, רחוב חסר
+    # הוא חצי מהדרך, והמסלול יוצא סיבוב בכיכר (גבעת שמואל 19.10)
+    if not out or missing > (1 if len(steps) >= 3 else 0):
         return None
     return out
 
@@ -406,20 +468,23 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     if not ex:
         return None
     cpt, start_c, i_out = ex
-    src = min(start_c, key=lambda n: meters(n, cpt))
+    # כל הצמתים של הרחוב הראשון ליד היציאה, לא רק הקרוב: בשדרה עם שני מסלולים הקרוב יכול להיות
+    # במסלול של הכיוון ההפוך, ואז הדרך עוברת לאורך כל הרחוב וחוזרת (רחובות 19.10, קו 10 ברחוב הרצל)
+    src = {n: meters(n, cpt) * 3 for n in start_c}
     # החזרה למסלול: צמתים שעל השרטוט אחרי הקטע המבוטל
     dense_tail = _densify(tail[:600])
     back = net.near(set(net.pos), dense_tail, 12) or net.near(set(net.pos), dense_tail, 30)
     legs, streets, cur = [], [], src
     for k, (st, names) in enumerate(plan):
+        cur_set = set(cur) if isinstance(cur, dict) else {cur}
         if k + 1 < len(plan):
             nodes_next = net.nodes_of(plan[k + 1][1])
-            tg = net.near(net.nodes_of(names), nodes_next, 40) - {cur}
+            tg = net.near(net.nodes_of(names), nodes_next, 40) - cur_set
             # הרחוב הבא לא נוגע בזה במפה (ההודעה דילגה על רחוב קצר) — נוסעים אליו בדרך הקצרה
             if not tg:
-                tg = nodes_next - {cur}
+                tg = nodes_next - cur_set
         else:
-            tg = back - {cur}
+            tg = back - cur_set
         if not tg:
             return None
         p, _ = net.dijkstra(cur, names, tg)

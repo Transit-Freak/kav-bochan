@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 6
+PARSE_V = 7
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -117,30 +117,71 @@ def stop_names():
 
 
 # ------------------------------------------------------------------ מסלול לפי הנוסח
-def overpass(bbox):
-    s, w, n, e = bbox
+# מפת הרחובות נשמרת במשבצות של 0.02° (כ-2 ק"מ) בין ריצה לריצה (actions/cache): שרת המפות עונה לפעמים
+# אחרי 5–10 דקות, ובלי שמירה כל ריצה נגמרת לפני שכל ההודעות חושבו (שלמה 19.10: "עוד לא חושב")
+OSM_DIR = os.environ.get('OSM_DIR', '.osm-cache')
+TILE = 0.02
+TILE_DAYS = 30
+
+
+def overpass_box(s, w, n, e):
     q = (f'[out:json][timeout:90];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|'
          f'living_street|service|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|busway)$"]'
          f'({s:.5f},{w:.5f},{n:.5f},{e:.5f});out geom tags;')
     for url in ('https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter',
                 'https://overpass.private.coffee/api/interpreter'):
-        d = get_json(url, tries=2, timeout=150, data=urllib.parse.urlencode({'data': q}).encode())
+        d = get_json(url, tries=1, timeout=100, data=urllib.parse.urlencode({'data': q}).encode())
         if d and 'elements' in d:
-            return [(el.get('tags', {}), [(p['lat'], p['lon']) for p in el['geometry']])
+            return [[el.get('id'), el.get('tags', {}), [(p['lat'], p['lon']) for p in el['geometry']]]
                     for el in d['elements'] if el.get('type') == 'way' and el.get('geometry')]
-        time.sleep(5)
+        time.sleep(3)
     return None
+
+
+def overpass(bbox):
+    """הרחובות באזור, ממשבצות שמורות; משבצת חסרה (או בת יותר מחודש) נמשכת מ-Overpass."""
+    import gzip
+    import math as _m
+    s, w, n, e = bbox
+    os.makedirs(OSM_DIR, exist_ok=True)
+    ways = {}
+    for i in range(_m.floor(s / TILE), _m.floor(n / TILE) + 1):
+        for j in range(_m.floor(w / TILE), _m.floor(e / TILE) + 1):
+            f = f'{OSM_DIR}/{i}_{j}.json.gz'
+            tile = None
+            if os.path.exists(f) and time.time() - os.path.getmtime(f) < TILE_DAYS * 86400:
+                try:
+                    tile = json.load(gzip.open(f, 'rt'))
+                except Exception:
+                    tile = None
+            if tile is None:
+                if left() < 90:
+                    return None
+                tile = overpass_box(i * TILE, j * TILE, (i + 1) * TILE, (j + 1) * TILE)
+                if tile is None:
+                    return None
+                json.dump(tile, gzip.open(f, 'wt'), ensure_ascii=False, separators=(',', ':'))
+                time.sleep(2)
+            for wid, tags, geom in tile:
+                ways[wid] = (tags, [tuple(p) for p in geom])
+    return list(ways.values())
+
+
+OSM_CACHE = []   # (bbox, ways) שכבר נטענו בריצה הזו
 
 
 def estimate_routes(alert, rc_routes, stops):
     """לכל קו בהתראה: ניסיון למצוא את המסלול החלופי לפי הנוסח. לא מתעקשים: אם אין הוראה
     מפורשת, או שהרחובות לא נמצאו במפה, נשארים עם סדר התחנות החדש — ואומרים את זה."""
-    paras = AR.parse(alert['description'].get('he', ''))
+    desc = alert['description'].get('he', '')
+    paras = AR.parse(desc)
+    # סוג ההודעה קובע את הדרך: בלי הוראות נסיעה — אין מה לנתב, ואומרים למה (רק תחנות / דילוג)
+    alert['_tpl'] = AR.template(desc, paras)
     why = {}
     if not paras:
         for r in rc_routes:
             r['est'] = None
-            r['why'] = 'no-text'
+            r['why'] = {'skip': 'skip', 'stops': 'stops-only'}.get(alert['_tpl'], 'no-text')
         return 'no-text'
     # אזור הניתוב: הקטע המבוטל של כל הקווים + כ-1 ק"מ (עקיפות ארוכות, כמו ברחובות ראשון לציון)
     pts = []
@@ -162,8 +203,12 @@ def estimate_routes(alert, rc_routes, stops):
             r['est'] = None
             r['why'] = 'area'
         return 'area'
-    ways = overpass(bbox)
-    time.sleep(3)
+    # אותו אזור כבר נטען בריצה הזו (כמה הודעות על אותן עבודות) — בלי לפנות שוב לשרת המפות
+    ways = next((w for b, w in OSM_CACHE if b[0] <= bbox[0] and b[1] <= bbox[1] and b[2] >= bbox[2] and b[3] >= bbox[3]), None)
+    if ways is None:
+        ways = overpass(bbox)
+        if ways:
+            OSM_CACHE.append((bbox, ways))
     if not ways:
         for r in rc_routes:
             r['est'] = None
@@ -180,6 +225,10 @@ def estimate_routes(alert, rc_routes, stops):
         if not cand:
             base = re.sub(r'[א-ת]$', '', r['num'])
             cand = [p for p in paras if any(re.sub(r'[א-ת]$', '', x) == base for x in p['lines'])]
+        # כמה פסקאות לאותו קו (כיוון הלוך וכיוון חזור): לפי "לכיוון X" / "מכיוון X" מול היעד של הקו
+        fit = [p for p in cand if AR.dir_fits(p, r.get('to')) is not False]
+        if fit and len(fit) < len(cand):
+            cand = fit
         best = None
         for p in cand:
             try:
@@ -211,12 +260,119 @@ def iso_ts(x):
         return None
 
 
-def archive_temp(alerts, now_ts):
+def merge_dups(alerts):
+    """אותו שינוי בכמה הודעות (שלמה 19.10): לרוב אחת עם רשימת תחנות בלבד ואחת מפורטת, עם הפניות
+    ("ימינה X, שמאלה Y"). המפורטת נשארת והשנייה מתאחדת לתוכה: הקווים, התחנות והמפה שלה עוברים אליה,
+    והקישור הישן מפנה אליה. אותו שינוי = כל התחנות שבוטלו בהודעה החלשה בוטלו גם במפורטת, יש קו משותף,
+    והתאריכים חופפים. שתי הודעות באותה רמת פירוט — נשארת זו עם הנוסח הארוך יותר."""
+    turns = re.compile(r'ימינה|שמאלה|יפנו|יפנה|ייסעו|ייסע|יסעו|יצא|ייצאו|מסלול חלופי|המסלול החלופי')
+    det = {a['id']: (2 if AR.parse(a['d']) or turns.search(a['d'] or '') else 1 if (a['rm'] or a['add'] or a['map']) else 0)
+           for a in alerts}
+    rmc = {a['id']: {str(x[0]) for x in a['rm']} for a in alerts}
+    # מה שהמפורטת מכסה: התחנות שבוטלו בפיד, וגם מספרי תחנות שכתובים בנוסח שלה (קריית שמונה 19.10:
+    # תחנה 53865 בנוסח ולא ברשימה)
+    cover = {a['id']: rmc[a['id']] | set(re.findall(r'(?<!\d)\d{5}(?!\d)', a['d'] or '')) for a in alerts}
+    nums = {a['id']: {str(x[0]) for x in a['lines'] if x[0]} for a in alerts}
+    per = {a['id']: [(p[0] or 0, p[1] or 4e9) for p in a['per']] or [(0, 4e9)] for a in alerts}
+    num = lambda i: int(i) if i.isdigit() else 0   # noqa: E731
+    into = {}
+    for a in alerts:
+        i = a['id']
+        if not rmc[i]:
+            continue
+        cands = []
+        for b in alerts:
+            j = b['id']
+            if j == i or not rmc[i] <= cover[j] or not nums[i] & nums[j]:
+                continue
+            # התאריכים של ההודעה החלשה בתוך התקופה של המפורטת (שלוש שעות לכל צד), כדי שלא ילכו לאיבוד
+            if not (min(p[0] for p in per[j]) - 10800 <= min(p[0] for p in per[i])
+                    and max(p[1] for p in per[i]) <= max(p[1] for p in per[j]) + 10800):
+                continue
+            # באותה רמת פירוט: הנוסח הארוך יותר, ואם הם שווים — החדשה
+            same = (det[j] == det[i] and rmc[i] == rmc[j] and nums[i] <= nums[j]
+                    and (len(b['d'] or ''), num(j)) > (len(a['d'] or ''), num(i)))
+            if det[j] > det[i] or same:
+                cands.append((det[j], len(nums[i] & nums[j]), num(j), j))
+        if cands:
+            into[i] = max(cands)[3]
+    for i in list(into):   # שרשרת (א → ב → ג): הכול לאחרונה
+        while into[i] in into:
+            into[i] = into[into[i]]
+    by_id = {a['id']: a for a in alerts}
+    for i, j in sorted(into.items()):
+        a, b = by_id[i], by_id[j]
+        have = {(x[0], x[1]) for x in b['lines']}
+        b['lines'] += [x for x in a['lines'] if (x[0], x[1]) not in have]
+        for k in ('rm', 'add'):
+            ids = {str(x[0]) for x in b[k]}
+            b[k] += [x for x in a[k] if str(x[0]) not in ids]
+        b['ag'] = b['ag'] + [x for x in a['ag'] if x not in b['ag']]
+        b['dep'] += a['dep']
+        b['also'] = b.get('also', []) + [i]
+        b['rcs'] = b.get('rcs', [j] if b['map'] else []) + ([i] if a['map'] else [])
+        b['map'] = bool(b['rcs'])
+        if b['map']:
+            b['kind'] = 'route'
+    return [a for a in alerts if a['id'] not in into], into
+
+
+def load_rc(a):
+    """מפת השינויים של ההתראה — וגם של הודעות שאוחדו לתוכה (קווים שאין במפה שלה)."""
+    out = None
+    for i in a.get('rcs') or ([a['id']] if a.get('map') else []):
+        try:
+            rc = json.load(open(f'{OUT}/rc/{i}.json'))
+        except Exception:
+            continue
+        if out is None:
+            out = rc
+            continue
+        have = {r.get('rd') for r in out['routes']}
+        out['routes'] += [r for r in rc['routes'] if r.get('rd') not in have]
+        out['stops'] = {**rc.get('stops', {}), **out.get('stops', {})}
+    return out
+
+
+def temp_map(rc):
+    """מפה קטנה לכל קו בהתראה, לארכיון של הקו בזמן (שלמה 19.10): השרטוט רק סביב השינוי (כ-1.5 ק"מ לכל
+    צד), אינדקס הקטע שנסגר, המסלול המשוער ותחנות שבוטלו/נוספו — [lat, lon, מק"ט, שם]."""
+    stops = rc.get('stops') or {}
+    out = []
+    for r in rc.get('routes') or []:
+        sh = r.get('shape') or []
+        if len(sh) < 2:
+            continue
+        near = lambda q: min(range(len(sh)), key=lambda i: AR.meters(sh[i], q))   # noqa: E731
+        x = [stops[s] for s in r.get('del') or [] if s in stops]
+        a = [stops[s] for s, add in r.get('seq') or [] if add and s in stops]
+        est = (r.get('est') or {}).get('path')
+        idx = [near(q[:2]) for q in x]
+        c = [min(idx), max(idx)] if idx else None
+        if est:
+            c0 = near(est[0])
+            c = [c0, max(c0, near(est[-1]))]
+        lo, hi = (c[0], c[1]) if c else (near((a or x or [sh[0]])[0][:2]),) * 2
+        acc = 0
+        while lo > 0 and acc < 1500:
+            acc += AR.meters(sh[lo], sh[lo - 1])
+            lo -= 1
+        acc = 0
+        while hi < len(sh) - 1 and acc < 1500:
+            acc += AR.meters(sh[hi], sh[hi + 1])
+            hi += 1
+        out.append({'rd': r.get('rd'), 'sh': sh[lo:hi + 1], 'c': [c[0] - lo, c[1] - lo] if c else None,
+                    'est': est, 'x': x, 'a': a})
+    return out
+
+
+def archive_temp(alerts, now_ts, merged=()):
     """הקו בזמן שומר רק שינויים שהיו: התראה נכנסת לארכיון של הקו כשהיא כבר התחילה, ומתעדכנת
     כל עוד היא בפיד (תאריכים, נוסח). קובץ לכל מק"ט: {'ev': [...]}, ובכל אירוע rds — הכיוונים
     והחלופות שההתראה חלה עליהם, או None כשההודעה מציינת רק את הקו."""
     from zoneinfo import ZoneInfo
     tz = ZoneInfo('Asia/Jerusalem')
+    os.makedirs(f'{TEMP_DIR}-map', exist_ok=True)
     by_mk = {}
     for a in alerts:
         st = iso_ts(a.get('s'))
@@ -230,12 +386,27 @@ def archive_temp(alerts, now_ts):
                 continue
             g = groups.setdefault(mk, set())
             g.add(rd if '-' in rd else None)
+        # מפת השינוי נשמרת לצד הארכיון, כי rc/<id>.json נמחק כשההתראה יורדת מהפיד
+        has_m = False
+        if a.get('map'):
+            try:
+                tm = temp_map(load_rc(a))
+            except Exception:
+                tm = []
+            if tm:
+                f = f'{TEMP_DIR}-map/{a["id"]}.json'
+                body = json.dumps({'r': tm}, ensure_ascii=False, separators=(',', ':'))
+                if not os.path.exists(f) or open(f).read() != body:
+                    open(f, 'w').write(body)
+                has_m = True
+            elif os.path.exists(f'{TEMP_DIR}-map/{a["id"]}.json'):
+                has_m = True
         for mk, rds in groups.items():
             by_mk.setdefault(mk, []).append({
                 'id': a['id'], 'd': datetime.datetime.fromtimestamp(st, tz).date().isoformat(),
                 's': a.get('s'), 'e': a.get('e'), 'c': a.get('cause'), 'cl': CAUSE_LABEL.get(a.get('cause'), '') if a.get('cause') != 'other' else '',
                 'h': a.get('h'), 'd2': a.get('d'), 'rm': a.get('rm') or [], 'add': a.get('add') or [], 'k': a.get('kind'),
-                'rds': None if None in rds else sorted(rds)})
+                'rds': None if None in rds else sorted(rds), **({'m': 1} if has_m else {})})
     os.makedirs(TEMP_DIR, exist_ok=True)
     n = 0
     for mk, evs in by_mk.items():
@@ -244,8 +415,8 @@ def archive_temp(alerts, now_ts):
             old = json.load(open(f)).get('ev') or []
         except Exception:
             old = []
-        cur = {e['id']: e for e in old}
-        changed = False
+        cur = {e['id']: e for e in old if e['id'] not in merged}
+        changed = len(cur) != len(old)
         for e in evs:
             if cur.get(e['id']) != e:
                 cur[e['id']] = e
@@ -268,6 +439,8 @@ def main():
     if not data or 'alerts' not in data:
         raise SystemExit('לא התקבלו התראות מ-bus-alerts.com')
     raw = [a for a in data['alerts'] if not a.get('is_deleted') and not a.get('is_expired')]
+    # הקרובות קודם: כשנגמר הזמן, מה שנשאר לעדכון הבא הוא ההודעות הרחוקות
+    raw.sort(key=lambda a: str(a.get('first_start_time') or ''))
     print(f'התראות: {len(raw)} (מתוך {len(data["alerts"])})')
     stops = None
     alerts, by_rd, report = [], {}, {'causes': {}, 'route': {}, 'kinds': {}}
@@ -336,6 +509,9 @@ def main():
                                            'ag': c.get('agency_name'), 'dir': c.get('dir_name'), 'alt': c.get('alt_name'),
                                            'shape': shape, 'seq': seq, 'del': dele, 'cut': cut})
                 status = estimate_routes(a, routes, stops) if left() > 120 else 'time'
+                if status == 'time':
+                    for r in routes:
+                        r['est'], r['why'] = None, 'time'
                 report['route'][status] = report['route'].get(status, 0) + 1
                 sfm = rc.get('stops_for_map') or {}
                 out_stops = {}
@@ -349,7 +525,11 @@ def main():
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)
                     r['shape'] = [[p[0], p[1]] for p in r['shape']]
                     r.pop('cut', None)
-                json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status},
+                tpl = a.pop('_tpl', None)
+                if tpl:
+                    report.setdefault('tpl', {}).setdefault(tpl, {})
+                    report['tpl'][tpl][status] = report['tpl'][tpl].get(status, 0) + 1
+                json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status, 'tpl': tpl},
                           open(rc_file, 'w'), ensure_ascii=False, separators=(',', ':'))
                 st = {'h': h, 'map': True, 'status': status, 'pv': PARSE_V, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
             else:
@@ -393,6 +573,10 @@ def main():
             'lines': rlines, 'rm': a.get('removed_stops') or [], 'add': a.get('added_stops') or [],
             'dep': dep, 'map': os.path.exists(rc_file), 'first': st.get('first'),
         })
+    alerts, merged = merge_dups(alerts)
+    report['merged'] = len(merged)
+    for k, ids in by_rd.items():
+        by_rd[k] = [merged.get(i, i) for i in ids]
     # ניקוי: התראות שירדו מהפיד
     for aid in list(state):
         if aid not in seen:
@@ -403,7 +587,7 @@ def main():
                 pass
     alerts.sort(key=lambda x: (x['s'] or '', x['id']))
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')
-    json.dump({'gen': now, 'src': 'bus-alerts.com', 'causes': CAUSE_LABEL, 'alerts': alerts},
+    json.dump({'gen': now, 'src': 'bus-alerts.com', 'causes': CAUSE_LABEL, 'alerts': alerts, 'alias': merged},
               open(f'{OUT}/alerts.json', 'w'), ensure_ascii=False, separators=(',', ':'))
     json.dump({k: sorted(set(v)) for k, v in sorted(by_rd.items())}, open(f'{OUT}/by-rd.json', 'w'), separators=(',', ':'))
     json.dump(state, open(f'{OUT}/state.json', 'w'), separators=(',', ':'), sort_keys=True)
@@ -421,7 +605,7 @@ def main():
                      'kind': 'stops' if a.get('removed_stops') else 'info', 'h': he(a.get('header')), 'd': he(a.get('description')),
                      's': a.get('first_start_time'), 'e': a.get('last_end_time'), 'lines': lines,
                      'rm': a.get('removed_stops') or [], 'add': a.get('added_stops') or []})
-    archive_temp(alerts + past, datetime.datetime.now(datetime.timezone.utc).timestamp())
+    archive_temp(alerts + past, datetime.datetime.now(datetime.timezone.utc).timestamp(), merged)
     json.dump(report, open(f'{OUT}/report.json', 'w'), ensure_ascii=False, indent=1)
     print(json.dumps(report, ensure_ascii=False))
 

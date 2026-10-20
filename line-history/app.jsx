@@ -1101,7 +1101,67 @@ function useTempEvents(rd) {
   }, [rd]);
   return list;
 }
-function TempEv({ t }) {
+/* מפת השינוי הזמני (שלמה 19.10): המסלול הרגיל ליד השינוי, הקטע שנסגר, המסלול החלופי המשוער
+   ותחנות שבוטלו או נוספו — כמו בהקו המודיע. data/temp-map/<מזהה ההודעה>.json, נשמר גם אחרי שההודעה ירדה. */
+function TempMap({ id, rd }) {
+  const ref = useRef(null);
+  const [m, setM] = useState(undefined);
+  useEffect(() => {
+    let ok = true;
+    fetch("data/temp-map/" + id + ".json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (ok) setM(d && (d.r || []).find((x) => x.rd === rd) || (d && d.r && d.r.length === 1 ? d.r[0] : null)); })
+      .catch(() => ok && setM(null));
+    return () => { ok = false; };
+  }, [id, rd]);
+  useEffect(() => {
+    if (!m || !ref.current || !window.L) return undefined;
+    const map = L.map(ref.current, { scrollWheelZoom: false });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', maxZoom: 19,
+    }).addTo(map);
+    const sh = m.sh || [], c0 = m.c ? m.c[0] : -1, c1 = m.c ? m.c[1] : -1;
+    const grey = { color: "#64748B", weight: 4, opacity: 0.8 };
+    if (c0 >= 0) {
+      L.polyline(sh.slice(0, c0 + 1), grey).addTo(map);
+      L.polyline(sh.slice(c0, c1 + 1), { ...grey, opacity: 0.7, dashArray: "6 7" }).addTo(map);
+      L.polyline(sh.slice(c1), grey).addTo(map);
+    } else L.polyline(sh, grey).addTo(map);
+    let focus = c0 >= 0 ? sh.slice(Math.max(0, c0 - 3), c1 + 4) : sh.slice();
+    if (m.est) {
+      L.polyline(m.est, { color: "#fff", weight: 9, opacity: 0.9 }).addTo(map);
+      L.polyline(m.est, { color: "#E2531F", weight: 5 }).addTo(map);
+      focus = focus.concat(m.est);
+    }
+    (m.x || []).forEach((st) => {
+      L.circleMarker([st[0], st[1]], { radius: 7, color: "#B91C1C", weight: 3, fillColor: "#fff", fillOpacity: 1 })
+        .addTo(map).bindTooltip(esc(st[3] || "") + (st[2] ? " · " + st[2] : "") + " · מבוטלת");
+      focus.push([st[0], st[1]]);
+    });
+    (m.a || []).forEach((st) => {
+      L.circleMarker([st[0], st[1]], { radius: 6, color: "#fff", weight: 2, fillColor: "#1D4ED8", fillOpacity: 1 })
+        .addTo(map).bindTooltip(esc(st[3] || "") + (st[2] ? " · " + st[2] : "") + " · תחנה חלופית");
+      focus.push([st[0], st[1]]);
+    });
+    const b = L.latLngBounds(focus.length > 1 ? focus : sh);
+    if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
+    return () => map.remove();
+  }, [m]);
+  if (m === undefined) return <div className="sub">המפה נטענת…</div>;
+  if (!m) return null;
+  return (
+    <div onClick={(ev) => ev.stopPropagation()}>
+      <div className="smap" ref={ref} role="img" aria-label="מפה: השינוי הזמני במסלול" />
+      <div className="tmpleg">
+        <span><i style={{ borderTop: "3px solid #64748B" }} />המסלול הרגיל</span>
+        {m.c && <span><i style={{ borderTop: "3px dashed #64748B" }} />הקטע שנסגר</span>}
+        {m.est && <span><i style={{ borderTop: "4px solid #E2531F" }} />מסלול חלופי משוער, לפי ההודעה</span>}
+        {(m.x || []).length > 0 && <span><b style={{ color: "#B91C1C" }}>○</b> תחנה מבוטלת</span>}
+        {(m.a || []).length > 0 && <span><b style={{ color: "#1D4ED8" }}>●</b> תחנה חלופית</span>}
+      </div>
+    </div>
+  );
+}
+function TempEv({ t, rd }) {
   // אותו מבנה כמו שאר האירועים בציר הזמן (שלמה 18.10): תאריך, תגית, שורת תיאור, מקור, תחנות
   const [open, setOpen] = useState(false);
   const s = tmpT(t.s), e = tmpT(t.e), now = Date.now();
@@ -1121,6 +1181,7 @@ function TempEv({ t }) {
         {(t.rm || []).length > 0 && <div>➖ תחנות שבוטלו זמנית: {lbl(t.rm)}</div>}
         {(t.add || []).length > 0 && <div>➕ תחנות חלופיות: {lbl(t.add)}</div>}
       </div>}
+      {t.m && (open ? <TempMap id={t.id} rd={rd} /> : <div className="sub"><span className="tmpmore">🗺 מפת השינוי ⌄</span></div>)}
       {t.d2 && t.d2 !== t.h && <div className="sub">{open
         ? <div className="tmptxt" onClick={(ev) => ev.stopPropagation()}>{t.d2}</div>
         : <span className="tmpmore">נוסח ההודעה ⌄</span>}</div>}
@@ -3156,7 +3217,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           {tlRows.map((row, si) => row.t ? (
             <React.Fragment key={"t" + row.t.id}>
             {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
-            <TempEv t={row.t} />
+            <TempEv t={row.t} rd={rd} />
             </React.Fragment>
           ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>
@@ -3517,7 +3578,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           {tlRows.map((row, si) => row.t ? (
             <React.Fragment key={"t" + row.t.id}>
             {lite && (si === 0 || rowD(tlRows[si - 1]).slice(0, 4) !== row.t.d.slice(0, 4)) && <div className="yh">{row.t.d.slice(0, 4)}</div>}
-            <TempEv t={row.t} />
+            <TempEv t={row.t} rd={rd} />
             </React.Fragment>
           ) : (({ v: x, i }) => (
             <React.Fragment key={x.d + x.k + i}>

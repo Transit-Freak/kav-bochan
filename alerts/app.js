@@ -5,7 +5,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var CAUSE_COLOR = { works: "#B45309", police: "#1E3A8A", protest: "#7C3AED", event: "#0E7490", accident: "#BE123C",
     stuck: "#9A3412", weather: "#0369A1", strike: "#4B5563", traffic: "#A16207", fault: "#57534E", relocate: "#0F766E", other: "#6B7280" };
-  var ALL = [], CAUSES = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
+  var ALL = [], CAUSES = {}, ALIAS = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
   var TZ = "Asia/Jerusalem";
   var fmtD = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric" }).format(new Date(t * 1000)); };
   var fmtT = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(t * 1000)); };
@@ -90,22 +90,26 @@
     if (!v.length) { $("list").innerHTML = '<div class="empty">אין התראות שמתאימות לחיפוש</div>'; return; }
     $("list").innerHTML = v.map(function (a) {
       var n = nums(a);
-      return '<div class="card' + (sel === a.id ? " on" : "") + '" tabindex="0" role="button" data-id="' + a.id + '">' +
+      // קישור אמיתי (שלמה 19.10): לחיצה ארוכה או גלגלת פותחות את ההתראה בכרטיסייה חדשה
+      return '<a class="card' + (sel === a.id ? " on" : "") + '" href="#' + esc(a.id) + '" data-id="' + a.id + '">' +
         '<div class="meta"><span class="cz" style="background:' + (CAUSE_COLOR[a.cause] || "#888") + '">' + esc(CAUSES[a.cause] || "") + "</span>" +
         (isNow(a) ? '<span class="now">פעיל עכשיו</span>' : "") + "<span>" + esc(span(a)) + "</span></div>" +
         '<div class="h">' + esc(a.h || "התראה") + "</div>" +
         '<div class="meta">' + (n.length ? "<span>" + n.slice(0, 12).map(function (x) { return '<span class="ln">' + esc(x) + "</span>"; }).join("") + (n.length > 12 ? " +" + (n.length - 12) : "") + "</span>" : "") +
         (a.rm && a.rm.length ? "<span>" + a.rm.length + " תחנות בוטלו זמנית</span>" : "") +
-        (a.map ? "<span>🗺 מפה</span>" : "") + (a.dep && a.dep.length ? "<span>שינוי בשעות</span>" : "") + "</div></div>";
+        (a.map ? "<span>🗺 מפה</span>" : "") + (a.dep && a.dep.length ? "<span>שינוי בשעות</span>" : "") + "</div></a>";
     }).join("");
     Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) {
-      var go = function () { open(c.getAttribute("data-id"), true); };
-      c.onclick = go; c.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+      c.onclick = function (e) {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button > 0) return;   // כרטיסייה או חלון חדש — הדפדפן מטפל
+        e.preventDefault(); open(c.getAttribute("data-id"), true);
+      };
     });
   }
   function getJSON(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
 
   function open(id, push) {
+    if (ALIAS[id]) id = ALIAS[id];   // הודעה שאוחדה להודעה מפורטת יותר על אותו שינוי
     var a = ALL.filter(function (x) { return x.id === id; })[0];
     if (!a) return;
     sel = id;
@@ -133,7 +137,8 @@
       "<h2>" + esc(a.h || "התראה") + "</h2>" +
       (lnL && !a.map ? '<div><h3>הקווים</h3><div class="lns">' + lnL + "</div></div>" : "") +
       (a.map ? '<div class="routes" id="routes"></div><div id="map"></div><div class="legend" id="legend"></div><div id="vbox"></div>' : "") +
-      '<div><h3>נוסח ההודעה</h3><div class="txt">' + esc(a.d || "אין פירוט בהודעה.") + "</div></div>" +
+      '<div><h3>נוסח ההודעה</h3><div class="txt">' + esc(a.d || "אין פירוט בהודעה.") + "</div>" +
+      (a.also && a.also.length ? '<p class="note">' + (a.also.length === 1 ? "הודעה נוספת על אותו שינוי, עם פחות פרטים, אוחדה לכאן." : a.also.length + " הודעות נוספות על אותו שינוי, עם פחות פרטים, אוחדו לכאן.") + "</p>" : "") + "</div>" +
       (rmL || adL ? '<div class="two">' + (rmL ? '<div><h3>תחנות שבוטלו זמנית</h3><ul class="st">' + rmL + "</ul></div>" : "") + (adL ? '<div><h3>תחנות חלופיות</h3><ul class="st">' + adL + "</ul></div>" : "") + "</div>" : "") +
       (dep ? '<div><h3>שינויים בשעות היציאה</h3><table class="dep"><tr><th>קו</th><th>שעות שנוספו / בוטלו</th></tr>' + dep + "</table></div>" : "");
     $("back").onclick = function () {
@@ -143,8 +148,17 @@
     };
     if (matchMedia("(max-width: 900px)").matches) window.scrollTo(0, 0);
     if (!a.map) return;
-    getJSON("data/rc/" + id + ".json").then(function (rc) {
+    // המפה של ההתראה, ושל הודעות שאוחדו אליה — קווים שאין במפה שלה מתווספים
+    Promise.all((a.rcs || [id]).map(function (x) { return getJSON("data/rc/" + x + ".json"); })).then(function (all) {
       if (sel !== id) return;
+      var rc = null;
+      all.forEach(function (x) {
+        if (!x || !x.routes) return;
+        if (!rc) { rc = x; return; }
+        var have = {}; rc.routes.forEach(function (r) { have[r.rd] = 1; });
+        rc.routes = rc.routes.concat(x.routes.filter(function (r) { return !have[r.rd]; }));
+        rc.stops = Object.assign({}, x.stops || {}, rc.stops || {});
+      });
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
       rc.routes.sort(function (x, y) { var p = lineKey(String(x.num || "")), q = lineKey(String(y.num || "")); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0) || String(x.to || "").localeCompare(String(y.to || ""), "he"); });
       cur = { a: a, rc: rc };
@@ -202,7 +216,9 @@
     } else {
       // בלי מסלול לפי הנוסח — רק התחנות, בלי קו ישר ביניהן (שלמה 18.10)
       note = r.why === "no-text" ? "בהודעה אין תיאור של המסלול החלופי, ולכן אין מסלול על המפה — רק התחנות."
-        : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why] || "לא ידוע") + "). מוצגות רק התחנות.";
+        : r.why === "stops-only" ? "בהודעה יש רק רשימה של תחנות שבוטלו, בלי תיאור של המסלול החלופי. לכן על המפה רק התחנות."
+        : r.why === "skip" ? "לפי ההודעה הקו נשאר במסלול שלו ורק לא עוצר בתחנה שבוטלה."
+        : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why || "time"] || "לא ידוע") + "). מוצגות רק התחנות.";
     }
     del.forEach(function (s) {
       var st = stops[s];
@@ -228,10 +244,11 @@
 
   getJSON("data/alerts.json").then(function (d) {
     if (!d) { $("list").innerHTML = '<div class="empty">הנתונים לא נטענו. נסו לרענן.</div>'; return; }
-    ALL = d.alerts || []; CAUSES = d.causes || {};
+    ALL = d.alerts || []; CAUSES = d.causes || {}; ALIAS = d.alias || {};
     if (d.gen) $("upd").textContent = "עודכן " + new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(d.gen));
     var h = "";
     try { h = decodeURIComponent((location.hash || "").slice(1)); } catch (e) { h = ""; }
+    if (ALIAS[h]) h = ALIAS[h];
     if (h && ALL.some(function (a) { return a.id === h; })) {
       var a = ALL.filter(function (x) { return x.id === h; })[0];
       if (!isNow(a)) { when = isToday(a) ? "today" : "all"; }
@@ -242,6 +259,10 @@
     });
     $("q").oninput = drawList; $("onlyMap").onchange = drawList;
     drawChips(); drawList();
+    window.addEventListener("hashchange", function () {
+      var k = ""; try { k = decodeURIComponent((location.hash || "").slice(1)); } catch (e) { k = ""; }
+      if (k && k !== sel) open(k, false);
+    });
     if (h) open(h, false);
     // במחשב: בלי התראה בקישור — הראשונה ברשימה נפתחת, במקום חלון ריק ליד הרשימה
     else if (!matchMedia("(max-width: 900px)").matches) { var f = $("list").querySelector(".card"); if (f) open(f.getAttribute("data-id"), false); }

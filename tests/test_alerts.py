@@ -103,6 +103,60 @@ class ParseTests(unittest.TestCase):
         self.assertEqual('בני ברית', AR.clean_street("שמאלה שד' בני ברית"))
 
 
+    def test_roundabout_name_with_junction_in_brackets(self):
+        # קריית שמונה 19.10: שם הכיכר לא רחוב — הצומת הוא מה שבסוגריים
+        p = AR.parse('קווים 5, 5א: ייסעו על פי המסלולים הקיימים עד כיכר פעולות האיבה (יהודה הלוי/ האצ"ל), '
+                     'ימשיכו ישר לרחוב יהודה הלוי, יפנו שמאלה לרחוב יקותיאל אדם ויתחברו להמשך המסלולים הקיימים.')
+        self.assertEqual(('יהודה הלוי', 'האצ"ל'), p[0]['start'])
+
+    def test_direction_picks_the_right_paragraph(self):
+        # גבעת שמואל 19.10 (דן): פסקה לכל כיוון, מכיוון עתידים / לכיוון עתידים
+        p = AR.parse('מכיוון עתידים:\nעד הכיכר ברח' + "'" + ' בגין פינת מוטה גור ללא שינוי, שמאלה מוטה גור, שמאלה יוני נתניהו והמשך במסלול הרגיל.\n\n'
+                     'לכיוון עתידים:\nעד הכיכר ברח' + "'" + ' יוני נתניהו פינת מוטה גור ללא שינוי, ימינה מוטה גור, ימינה בגין והמשך במסלול הרגיל.')
+        self.assertEqual(2, len(p))
+        to = 'תל אביב יפו - קריית עתידים'
+        self.assertEqual([False, True], [AR.dir_fits(x, to) for x in p])
+        self.assertEqual([True, False], [AR.dir_fits(x, 'גבעת שמואל - הרב שלמה גורן') for x in p])
+        # "לכיוון חולון, פתח תקווה" — שני קווים, יעד לכל אחד
+        self.assertTrue(AR.dir_fits({'dir': ('to', 'חולון, פתח תקווה')}, 'פתח תקווה - מסוף'))
+
+    def test_template(self):
+        self.assertEqual('junction', AR.template(ASHDOD))
+        self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))
+        self.assertEqual('skip', AR.template('קו 73 ידלג על תחנה 36358 - המלאכה/הרוקמים'))
+        self.assertEqual('general', AR.template('עקב אירוע צפויים עיכובים בקווים באזור.'))
+
+
+class MergeTests(unittest.TestCase):
+    """הודעה עם רשימת תחנות בלבד ועוד הודעה מפורטת על אותו שינוי — נשארת המפורטת (שלמה 19.10)."""
+
+    def alert(self, i, d, rm, lines, per, mp=False):
+        return {'id': i, 'd': d, 'rm': [[x, ''] for x in rm], 'add': [], 'lines': [[n, '', '', False] for n in lines],
+                'per': per, 'ag': ['אגד'], 'dep': [], 'map': mp, 'kind': 'stops'}
+
+    def test_stops_only_merges_into_detailed(self):
+        det = self.alert('2', 'קווים 10, 10א: ייסעו על פי המסלולים הקיימים עד צומת הרחובות הרצל/ הירדן, ימשיכו ברחוב הרצל, '
+                              'יפנו ימינה לרחוב הגליל ויתחברו להמשך המסלולים הקיימים. (תחנה 34763)',
+                         ['34761', '34762'], ['10', '10א'], [[100, 200], [300, 400]], mp=True)
+        weak = self.alert('3', 'עקב עבודות התחנות הבאות מבוטלות זמנית', ['34761', '34763'], ['10', '18'], [[300, 400]], mp=True)
+        out, merged = AF.merge_dups([det, weak])
+        self.assertEqual({'3': '2'}, merged)
+        self.assertEqual(['2'], [a['id'] for a in out])
+        self.assertEqual({'10', '10א', '18'}, {x[0] for x in out[0]['lines']})
+        self.assertEqual(['2', '3'], out[0]['rcs'])
+        self.assertEqual(['3'], out[0]['also'])
+
+    def test_not_merged_when_dates_would_be_lost(self):
+        det = self.alert('2', 'עד הרצל/הירדן, ימינה הגליל והמשך מסלול רגיל.', ['1'], ['10'], [[300000, 400000]])
+        weak = self.alert('3', 'התחנה מבוטלת', ['1'], ['10'], [[100000, 400000]])
+        self.assertEqual({}, AF.merge_dups([det, weak])[1])
+
+    def test_same_detail_keeps_the_longer_text(self):
+        a = self.alert('5', 'עקב עבודות התחנה הבאה מבוטלת זמנית', ['1'], ['5'], [[1, 2]])
+        b = self.alert('4', 'קו 5 ידלג על תחנה 43727 ויחזור אחרי תחנת פורטק', ['1'], ['5'], [[1, 2]])
+        self.assertEqual({'5': '4'}, AF.merge_dups([a, b])[1])
+
+
 class StreetMatchTests(unittest.TestCase):
     def test_prefix_then_road_word(self):
         # "לדרך הרים" בנוסח, "הרים" במפה (אילת 18.10) — אחרי הורדת ה-ל גם "דרך" יורדת
