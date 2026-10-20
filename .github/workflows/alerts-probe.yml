@@ -1,11 +1,11 @@
 name: alerts-probe
-# זמני — קלט של הודעה אחת מקובץ מפת ישראל. יימחק.
+# זמני — אבחון הודעה אחת מקובץ מפת ישראל. יימחק.
 on:
   push:
     branches: [claude/stoic-allen-3g21ru]
     paths: ['.github/workflows/alerts-probe.yml']
 permissions:
-  contents: write
+  contents: read
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -23,14 +23,5 @@ jobs:
           sudo apt-get install -y -qq osmium-tool >/dev/null
           pip install -q osmium
           osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
-      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14566487405' }
-        run: python3 tools/_probe/one.py
-      - run: |
-          git config user.name probe; git config user.email probe@users.noreply.github.com
-          rm -rf tools/_probe/dump3 && mv dump3 tools/_probe/dump3
-          git fetch -q --depth=1 origin claude/stoic-allen-3g21ru
-          GIT_INDEX_FILE=/tmp/idx git read-tree FETCH_HEAD
-          GIT_INDEX_FILE=/tmp/idx git add --sparse tools/_probe/dump3
-          t=$(GIT_INDEX_FILE=/tmp/idx git write-tree)
-          c=$(git commit-tree "$t" -p FETCH_HEAD -m "probe dump (זמני, יימחק)")
-          git push origin "$c:refs/heads/claude/stoic-allen-3g21ru"
+      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14566487405', TEMP_DIR: /tmp/t }
+        run: python3 tools/_probe/one.py 2>&1 | grep -E "PARA|ROUTE|try|exit|start match|->" | head -80

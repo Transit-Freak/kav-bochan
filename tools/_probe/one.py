@@ -1,20 +1,37 @@
-# זמני — הקלט של הודעה אחת כמו בריצה האמיתית (מפת השינויים + הרחובות מקובץ המפה), לבדיקה מקומית
-import gzip, json, os, sys, urllib.parse
+# זמני — אבחון של הודעה אחת בריצה כמו באמת (הרחובות מקובץ המפה), עם הדפסה של כל שלב בניתוב
+import json, os, sys, tempfile
 sys.path.insert(0, 'tools')
-import alerts_fetch as F
-os.makedirs('dump3', exist_ok=True)
-data = F.get_json(f'{F.SRC}/api/all_alerts')
-json.dump(data, gzip.open('dump3/all.json.gz', 'wt'), ensure_ascii=False)
-F.stop_names()
-for aid in os.environ['IDS'].split(','):
-    rc = F.get_json(f'{F.SRC}/api/get_route_changes?id={urllib.parse.quote(aid)}')
-    pts = [[p[1], p[0]] for per in rc['route_changes'].values() for chs in per.values() for c in chs for p in (c.get('shape') or [])]
-    a = next(x for x in data['alerts'] if str(x['id']) == aid)
-    rm = [F.STOP_POS[s] for s in (a.get('removed_stop_ids') or []) if s in F.STOP_POS] or pts
-    cy = sum(p[0] for p in rm) / len(rm); cx = sum(p[1] for p in rm) / len(rm)
-    bbox = (cy - 0.018, cx - 0.022, cy + 0.018, cx + 0.022)
-    ways = F.overpass(bbox)
-    print(aid, len(ways or []), 'ways')
-    rec = {'rc': rc, 'ways': [[tg.get('name', ''), tg.get('ref', ''), tg.get('highway', ''), tg.get('oneway', ''), tg.get('junction', ''),
-                               [[round(p[0], 6), round(p[1], 6)] for p in g]] for tg, g in ways or []]}
-    json.dump(rec, gzip.open(f'dump3/{aid}.json.gz', 'wt'), ensure_ascii=False, separators=(',', ':'))
+IDS = os.environ['IDS'].split(',')
+os.environ['OUT'] = tempfile.mkdtemp(); os.environ['TEMP_DIR'] = tempfile.mkdtemp()
+import alerts_fetch as F, alerts_route as AR
+orig_get = F.get_json
+def get_json(url, **k):
+    d = orig_get(url, **k)
+    if d and 'all_alerts' in url:
+        d['alerts'] = [a for a in d['alerts'] if str(a['id']) in IDS]
+    return d
+F.get_json = get_json
+orig_est = F.estimate_routes
+def est(alert, routes, stops):
+    res = orig_est(alert, routes, stops)
+    paras = AR.parse(alert['description']['he'])
+    for p in paras:
+        print('PARA', sorted(p['lines']), p['start'], p['steps'], p.get('dir'))
+    for r in routes:
+        print('ROUTE', r['num'], r['to'], 'cut', r['cut'], 'len', len(r['shape']), r['why'], r['est'] and r['est']['streets'])
+    return res
+F.estimate_routes = est
+orig_route = AR.route_detour
+def rd(net, para, shape, c0, c1, **k):
+    plan = AR._plan(net, para['steps'])
+    print('  try', para['start'], para['steps'], 'plan', plan and [(a, sorted(b)) for a, b in plan])
+    if plan:
+        ex = AR._exit_point(net, para, shape, c0, c1, plan[0][1])
+        print('  exit', ex and (ex[0], len(ex[1]), ex[2]))
+        if para.get('start'):
+            a, b = para['start']; print('  start match', sorted(net.match(a)), sorted(net.match(b)))
+    r = orig_route(net, para, shape, c0, c1, **k)
+    print('  ->', r and (r['streets'], r['len']))
+    return r
+AR.route_detour = rd
+F.main()
