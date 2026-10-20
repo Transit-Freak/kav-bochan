@@ -154,10 +154,24 @@ def parse(desc):
     out = []
     cur_lines = set()
     cur_dir = None
+    stops_mode = None   # אחרי "תחנות מבוטלות:" — המק"טים שייכים לפסקה האחרונה
     for line in _logical_lines(desc):
+        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}(?:מבוטל|בוטל)", line):
+            stops_mode = "rm" if out else None
+            continue
+        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}חלופי", line):
+            stops_mode = None
+            continue
+        code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line)
+        if code and stops_mode == "rm":
+            out[-1].setdefault("rm", set()).add(code.group(1))
+            continue
         nums = line_numbers(line)
         # הכיוון ("לכיוון עתידים:", "מכיוון עתידים:") — מהכותרת שלפני הנקודתיים, כשיש בה כיוון אחד בלבד
-        head = line.split(":", 1)[0] if ":" in line else line
+        # "קו: 3 מכיוון הטייסים:" (שתי כותרות שהתחברו לשורה אחת) — כל מה שלפני הנקודתיים האחרונות, בלי שעות
+        # (תל אביב 20.10, קרליבך: בלי זה הפסקה של "מכיוון" נשארה בלי כיוון ונבחרה לשני הכיוונים)
+        segs = re.sub(r"\b\d{1,2}:\d{2}\b", " ", line).split(":")
+        head = " ".join(segs[:-1]) if len(segs) > 1 else line
         dirs = re.findall(r"(ל|מ)כיוון\s+([^:()]{2,60})", head)
         line_dir = (("to" if dirs[0][0] == "ל" else "from"), dirs[0][1].strip()) if len(dirs) == 1 else None
         # "קו 201 מתל אביב-יפו לרחובות:" — בלי המילה "לכיוון" (אגד, 20.10)
@@ -201,6 +215,7 @@ def parse(desc):
         if steps:
             out.append({"lines": set(nums or cur_lines), "start": start, "steps": steps, "text": line,
                         "dir": (line_dir if ":" in line else None) or cur_dir})
+            stops_mode = None
     return out
 
 
@@ -254,6 +269,7 @@ class Streets:
     def __init__(self, ways):
         self.pos = {}
         self.adj = collections.defaultdict(list)
+        self.adj_any = collections.defaultdict(list)   # בלי חד-סטרי — רק כשהדרך לפי החד-סטרי מסתובבת
         self.by_name = collections.defaultdict(set)
         self.names = set()
         for tags, geom in ways:
@@ -279,6 +295,8 @@ class Streets:
                     self.adj[a].append((b, d, nn, hw))
                 if back:
                     self.adj[b].append((a, d, nn, hw))
+                self.adj_any[a].append((b, d, nn, hw))
+                self.adj_any[b].append((a, d, nn, hw))
 
     def match(self, street):
         """השמות ברשת שמתאימים לרחוב מההודעה ("לדנמרק" → "דנמרק", "ז'בוטינסקי" → "זבוטינסקי")."""
@@ -335,10 +353,11 @@ class Streets:
                 out.add(p)
         return out
 
-    def dijkstra(self, src, names, targets, pen=6.0, limit=12000):
+    def dijkstra(self, src, names, targets, pen=6.0, limit=12000, any_dir=False, no_tunnel=False):
         """הדרך הקצרה מ-src לאחד היעדים, כשקטע שלא ברחוב הנוכחי עולה פי pen.
         src — צומת, או {צומת: עלות התחלה} כשיש כמה נקודות יציאה (שדרה עם שני מסלולים חד-סטריים)."""
         srcs = src if isinstance(src, dict) else {src: 0.0}
+        best = None
         dist = dict(srcs)
         prev = {}
         pq = [(c, n) for n, c in srcs.items()]
@@ -348,20 +367,64 @@ class Streets:
             if d > dist.get(u, 1e18):
                 continue
             if u in targets:
-                path = [u]
-                while path[-1] in prev:
-                    path.append(prev[path[-1]])
-                return path[::-1], d
+                # targets כמילון {צומת: תוספת} — יעד מאוחר במסלול עולה יותר; ממשיכים עד שאין יעד זול יותר
+                extra = targets[u] if isinstance(targets, dict) else 0.0
+                if best is None or d + extra < best[0]:
+                    best = (d + extra, u, d)
+                if not isinstance(targets, dict):
+                    break
+            if best is not None and d > best[0]:
+                break
             if d > limit:
                 break
-            for v, w, nm, hw in self.adj[u]:
+            for v, w, nm, hw in (self.adj_any if any_dir else self.adj)[u]:
                 c = w * (1 if nm & names else pen) + (500 if hw in ("service", "track", "footway", "path") else 0)
+                # "לא להיכנס לשיקוע" — מנהרה רק אם אין דרך אחרת (תל אביב 20.10, מנהרת קרליבך)
+                if no_tunnel and any(x.startswith("מנהרת") for x in nm):
+                    c *= 20
                 nd = d + c
                 if nd < dist.get(v, 1e18):
                     dist[v] = nd
                     prev[v] = u
                     heapq.heappush(pq, (nd, v))
+        if best is not None:
+            path = [best[1]]
+            while path[-1] in prev:
+                path.append(prev[path[-1]])
+            return path[::-1], best[2]
         return None, None
+
+
+def cut_range(shape, stops, slack=30.0):
+    """הקטע המבוטל על השרטוט: מהתחנה המבוטלת הראשונה עד האחרונה. קו שעובר באותו רחוב פעמיים (הלוך
+    ובחזרה בלולאה) — לכל תחנה כמה מקומות אפשריים, ובוחרים את הקטע הקצר ביותר שמכיל את כולן
+    (חולון 20.10, קו 22: התחנה בהסתדרות/ויצמן "נפלה" על המעבר השני, והקטע הסגור יצא קילומטרים)."""
+    stops = [q for q in stops if q]
+    if not stops:
+        return None
+    ev = []
+    for k, q in enumerate(stops):
+        d = [meters(p, q) for p in shape]
+        lim = min(d) + slack
+        ev += [(i, k) for i, x in enumerate(d) if x <= lim]
+    ev.sort()
+    need, cnt, have, best, j = len(stops), collections.Counter(), 0, None, 0
+    for i, k in ev:
+        cnt[k] += 1
+        have += cnt[k] == 1
+        while have == need:
+            lo = ev[j][0]
+            if best is None or i - lo < best[1] - best[0]:
+                best = (lo, i)
+            kk = ev[j][1]
+            cnt[kk] -= 1
+            have -= cnt[kk] == 0
+            j += 1
+    return list(best)
+
+
+def _length(path):
+    return sum(meters(a, b) for a, b in zip(path, path[1:]))
 
 
 def seg_dist(p, a, b):
@@ -383,7 +446,11 @@ def dir_fits(para, to):
     words = [w for part in re.split(r",|/|\sו", d[1]) for w in norm(part.replace("-", " ")).split() if len(w) >= 3]
     if not words:
         return None
-    hit = any(w in norm(to.replace("-", " ")) for w in words)
+    # כתיב מלא וחסר: "רידינג" בהודעה, "מסוף רדינג" ביעד
+    def bare(x):
+        return re.sub(r"(?<=\S)[יו](?=\S)", "", x)
+    dest = bare(norm(to.replace("-", " ")))
+    hit = any(bare(w) in dest for w in words)
     return hit if d[0] == "to" else not hit
 
 
@@ -463,15 +530,19 @@ def _exit_point(net, para, shape, cut0, cut1, first):
     return cpt, start_c, lo + best_i
 
 
-def _trim_shared(path, shape, i_out, i_in, tol=15.0):
+def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     """המסלול החלופי מתחיל איפה שהוא באמת עוזב את המסלול הרגיל, ונגמר איפה שהוא חוזר אליו. בלי זה
     נקודת היציאה (הקרובה לצומת) יכולה ליפול בצד השני של הכיכר, והקו הכתום חוזר לאורך האפור
     (אילת 20.10, קו 5 בכיכר עין יהב/ששת הימים)."""
     lo, hi = max(0, i_out - 300), min(len(shape), i_in + 300)
-    seg = shape[lo:hi]
+    # רק המסלול הרגיל שלפני הקטע הסגור ואחריו: קו שעובר באותו רחוב פעמיים (בקטע הסגור ואחריו) "חזר" לתוך
+    # הקטע הסגור (חולון 20.10, קו 22)
+    c1 = i_in if cut1 is None else max(lo, min(cut1, i_in))
+    parts = [shape[lo:min(i_out + 1, c1)], shape[c1:hi]]
+    pairs = [(a, b) for seg in parts for a, b in zip(seg, seg[1:])]
 
     def off(p):
-        return min(seg_dist(p, a, b) for a, b in zip(seg, seg[1:])) if len(seg) > 1 else 0
+        return min(seg_dist(p, a, b) for a, b in pairs) if pairs else 0
 
     k = 0
     while k < len(path) - 2 and off(path[k + 1]) < tol:
@@ -484,7 +555,8 @@ def _trim_shared(path, shape, i_out, i_in, tol=15.0):
     path = path[k:m + 1]
     near = lambda q, a, b: min(range(a, b), key=lambda i: meters(shape[i], q))   # noqa: E731
     i_out = near(path[0], lo, min(hi, i_in))
-    i_in = near(path[-1], i_out + 1, hi) if i_out + 1 < hi else i_in
+    a = max(i_out + 1, c1)
+    i_in = near(path[-1], a, hi) if a < hi else i_in
     return path, i_out, i_in
 
 
@@ -506,7 +578,23 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     # החזרה למסלול: צמתים שעל השרטוט אחרי הקטע המבוטל
     dense_tail = _densify(tail[:600])
     back = net.near(set(net.pos), dense_tail, 12) or net.near(set(net.pos), dense_tail, 30)
+    # החזרה למסלול כמה שיותר קרוב לסוף הקטע הסגור: כל מטר לאורך המסלול אחרי הקטע הסגור עולה כמו
+    # מטר נסיעה. בלי זה הניתוב "חזר" לחלק מאוחר של הקו ודילג על הרחוב שבהודעה (חולון 20.10, קו 22)
+    along, acc = [], 0.0
+    for a, b in zip(dense_tail, dense_tail[1:] + dense_tail[-1:]):
+        along.append(acc)
+        acc += meters(a, b)
+    grid = collections.defaultdict(list)
+    for k, q in enumerate(dense_tail):
+        grid[(int(q[0] * 2000), int(q[1] * 2000))].append(k)
+
+    def tail_pos(n):
+        cx, cy = int(n[0] * 2000), int(n[1] * 2000)
+        ks = [k for dx in (-1, 0, 1) for dy in (-1, 0, 1) for k in grid.get((cx + dx, cy + dy), ())]
+        return min((along[k] for k in ks if meters(n, dense_tail[k]) < 35), default=acc)
+    back = {n: tail_pos(n) for n in back}
     legs, streets, cur = [], [], src
+    no_tunnel = bool(re.search(r"(?:לא|אין)\s+(?:להיכנס|לרדת|לנסוע)?\s*(?:ל|ב)?(?:שיקוע|מנהרה)", para.get("text", "")))
     for k, (st, names) in enumerate(plan):
         cur_set = set(cur) if isinstance(cur, dict) else {cur}
         if k + 1 < len(plan):
@@ -516,10 +604,16 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
             if not tg:
                 tg = nodes_next - cur_set
         else:
-            tg = back - cur_set
+            tg = {n: c for n, c in back.items() if n not in cur_set}
         if not tg:
             return None
-        p, _ = net.dijkstra(cur, names, tg)
+        p, c = net.dijkstra(cur, names, tg, no_tunnel=no_tunnel)
+        # הדרך לפי החד-סטרי מסתובבת ברחובות שלא בהודעה (פנייה שמאלה שלא מחוברת במפה, ואז לולאה של
+        # קילומטר וחצי מעבר לאיילון — תל אביב 20.10, בגין ← קפלן): מציירים את הפנייה כמו שכתוב בהודעה
+        if not p or c > 1.5 * _length(p) + 100:
+            p2, c2 = net.dijkstra(cur, names, tg, any_dir=True, no_tunnel=no_tunnel)
+            if p2 and (not p or c2 * 2 < c):
+                p = p2
         if not p:
             return None
         legs.append(p)
@@ -527,7 +621,11 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         cur = p[-1]
     path = [n for leg in legs for n in leg]
     i_in = cut1 + 1 + min(range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
-    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in)
+    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
+    # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
+    # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
+    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 40:
+        return None
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:
         return None

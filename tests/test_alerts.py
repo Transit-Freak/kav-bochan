@@ -129,6 +129,16 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([True, False], [AR.dir_fits(x, 'רחובות - תחנה מרכזית') for x in p])
         self.assertEqual([False, True], [AR.dir_fits(x, 'תל אביב יפו - מסוף כרמלית') for x in p])
 
+    def test_direction_after_line_number_and_cancelled_stops(self):
+        # תל אביב 20.10 (קרליבך): "קו: 3" ו"מכיוון הטייסים:" התחברו לשורה אחת — הכיוון נשמר, ולכל פסקה
+        # התחנות המבוטלות שלה (לא התחנות החלופיות)
+        p = AR.parse('קו: 3\nמכיוון הטייסים:\nעד יצחק שדה פינת המסגר ללא שינוי, ימינה המסגר, המשך בגין, שמאלה קפלן.\n\n'
+                     'תחנות מבוטלות:\n21237 - יצחק שדה/המסגר\n20731 - קניון טי.אל.וי/קרליבך\n\n'
+                     'לכיוון הטייסים:\nעד החשמונאים פינת יהודה הלוי ללא שינוי, ימינה יהודה הלוי, שמאלה לינקולן.\n'
+                     'תחנות מבוטלות:\n21729 - החשמונאים/קרליבך\nתחנות חלופיות זמניות:\n36855 מקווה ישראל/אריה שנקר')
+        self.assertEqual([('from', 'הטייסים'), ('to', 'הטייסים')], [x['dir'] for x in p])
+        self.assertEqual([{'21237', '20731'}, {'21729'}], [x['rm'] for x in p])
+
     def test_template(self):
         self.assertEqual('junction', AR.template(ASHDOD))
         self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))
@@ -243,6 +253,25 @@ class DetourTests(unittest.TestCase):
 
     def test_two_streets_in_one_step(self):
         self.assertIsNotNone(self.route(None, ['אחד', 'הצפוני ושתיים']))
+
+    def test_one_way_against_the_text_still_follows_the_text(self):
+        # הצפוני חד-סטרי מערבה במפה, וההודעה אומרת לנסוע בו מזרחה (פנייה שלא מחוברת במפה) — בלי זה הדרך
+        # מסתובבת או לא נמצאת (תל אביב 20.10, בגין ← קפלן)
+        lon = lambda i: round(34.8 + 0.001 * i, 6)  # noqa: E731
+        net = AR.Streets([
+            ({'name': 'הראשי', 'highway': 'primary'}, [(32.0, lon(i)) for i in range(11)]),
+            ({'name': 'הצפוני', 'highway': 'residential', 'oneway': '-1'}, [(32.002, lon(i)) for i in range(11)]),
+            ({'name': 'אחד', 'highway': 'residential'}, [(32.0, lon(3)), (32.001, lon(3)), (32.002, lon(3))]),
+            ({'name': 'שתיים', 'highway': 'residential'}, [(32.0, lon(7)), (32.001, lon(7)), (32.002, lon(7))]),
+        ])
+        r = AR.route_detour(net, {'start': ('הראשי', 'אחד'), 'steps': ['לאחד', 'הצפוני', 'שתיים']}, self.shape, 20, 30)
+        self.assertIsNotNone(r)
+        self.assertLess(r['len'], 1000)
+
+    def test_cut_on_a_route_that_passes_twice(self):
+        # הלוך מזרחה ובחזרה מערבה באותו רחוב: שתי תחנות סמוכות — הקטע הקצר, לא מההלוך עד החזור
+        sh = [(32.0, 34.80 + 0.0005 * i) for i in range(20)] + [(32.0001, 34.80 + 0.0005 * i) for i in range(19, -1, -1)]
+        self.assertEqual([4, 8], AR.cut_range(sh, [(32.0, 34.802), (32.0, 34.804)]))
 
     def test_mostly_unknown_streets_give_nothing(self):
         self.assertIsNone(self.route(('הראשי', 'אחד'), ['אחד', 'מחלף א', 'מחלף ב', 'מחלף ג']))
