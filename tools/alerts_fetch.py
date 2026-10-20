@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 7
+PARSE_V = 8
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -222,7 +222,8 @@ def estimate_routes(alert, rc_routes, stops):
     if not paras:
         for r in rc_routes:
             r['est'] = None
-            r['why'] = {'skip': 'skip', 'stops': 'stops-only'}.get(alert['_tpl'], 'no-text')
+            r['why'] = 'relocate' if re.search(RELOCATE, desc + (alert.get('header') or {}).get('he', '')) else \
+                {'skip': 'skip', 'stops': 'stops-only'}.get(alert['_tpl'], 'no-text')
         return 'no-text'
     # אזור הניתוב: הקטע המבוטל של כל הקווים + כ-1 ק"מ (עקיפות ארוכות, כמו ברחובות ראשון לציון)
     pts = []
@@ -285,6 +286,25 @@ def estimate_routes(alert, rc_routes, stops):
             r['why'] = 'no-text'   # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים")
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
+
+
+def text_new_stops(desc):
+    """מספרי תחנות חלופיות / חדשות / זמניות שכתובים רק בנוסח ("מקט תחנה חדשה: 25898", "תחנה חלופית: …
+    (תחנה 19637)") — אתר המקור לא תמיד מוסיף אותן לרשימה (תל אביב ויצמן/פנקס, 20.10)."""
+    out = []
+    on = False   # כותרת "תחנות חדשה:" בשורה משלה — המספרים בשורות שאחריה (קו 126, 20.10)
+    for line in re.split(r"\n|\.\s", desc or ""):
+        line = re.sub(r"\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b|\b\d{1,2}:\d{2}\b", " ", line)   # תאריכים ושעות
+        if re.search(r"מבוטל|בוטל", line):
+            on = False
+            continue
+        if re.search(r"חלופי|חדשה|חדשות|זמני|תועתק|הועתק", line):
+            on = True
+        elif not line.strip() or not re.search(r"\d{4,6}", line):
+            on = False   # שורה ריקה או בלי מספר תחנה — סוף הרשימה
+        if on:
+            out += [c for c in re.findall(r"(?<!\d)(\d{4,6})(?!\d)", line) if c not in out]
+    return out
 
 
 def pos_of(s, sfm):
@@ -390,6 +410,13 @@ def temp_map(rc):
         est = (r.get('est') or {}).get('path')
         idx = [near(q[:2]) for q in x]
         c = [min(idx), max(idx)] if idx else None
+        # תחנת המוצא או הסוף בוטלה — הקטע עד התחנה הראשונה (או מהאחרונה) שנשארה, כמו בהקו המודיע
+        kept = [near(stops[s][:2]) for s, add in r.get('seq') or [] if not add and s in stops]
+        if c and kept and not est:
+            if c[1] < min(kept):
+                c = [0, min(kept)]
+            elif c[0] > max(kept):
+                c = [max(kept), len(sh) - 1]
         if est:
             c0 = near(est[0])
             c = [c0, max(c0, near(est[-1]))]
@@ -561,6 +588,16 @@ def main():
                     if q:
                         code, name = (stops or {}).get(s, ('', ''))
                         out_stops[s] = [round(q[0], 6), round(q[1], 6), code, name]
+                # תחנות חלופיות שכתובות רק בנוסח: לפי המק"ט ב-GTFS, אם לא כבר על המפה כתחנה חלופית
+                have = {x for r in routes for x, add in r['seq'] if add}
+                by_code = {v[0]: k for k, v in (stops or {}).items()}
+                # וגם תחנות חלופיות של ההודעה שאתר המקור לא שייך לאף קו (תחנת מוצא חדשה, קו 126)
+                xadd = [by_code[c] for c in text_new_stops(he(a.get('description'))) if c in by_code] + list(a.get('added_stop_ids') or [])
+                xadd = list(dict.fromkeys(xadd))
+                xadd = [x for x in xadd if x not in have and x not in out_stops and STOP_POS.get(x)]
+                for x in xadd:
+                    q = STOP_POS[x]
+                    out_stops[x] = [round(q[0], 6), round(q[1], 6), stops[x][0], stops[x][1]]
                 for r in routes:
                     full = r.pop('shape')
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)
@@ -570,7 +607,7 @@ def main():
                 if tpl:
                     report.setdefault('tpl', {}).setdefault(tpl, {})
                     report['tpl'][tpl][status] = report['tpl'][tpl].get(status, 0) + 1
-                json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status, 'tpl': tpl},
+                json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status, 'tpl': tpl, 'xadd': xadd},
                           open(rc_file, 'w'), ensure_ascii=False, separators=(',', ':'))
                 st = {'h': h, 'map': True, 'status': status, 'pv': PARSE_V, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
             else:
@@ -602,6 +639,13 @@ def main():
                     dep.append([c.get('line_number'), c.get('route_desc'), c.get('to_text'), c.get('added_hours') or [], c.get('removed_hours') or []])
                     if c.get('route_desc'):
                         by_rd.setdefault(c['route_desc'], []).append(aid)
+        add_list = a.get('added_stops') or []
+        if not add_list and os.path.exists(rc_file):
+            try:
+                rcj = json.load(open(rc_file))
+                add_list = [[rcj['stops'][x][2], rcj['stops'][x][3]] for x in rcj.get('xadd') or [] if x in rcj['stops']]
+            except Exception:
+                pass
         kind = 'route' if os.path.exists(rc_file) else ('times' if dep else ('stops' if a.get('removed_stops') else 'info'))
         report['kinds'][kind] = report['kinds'].get(kind, 0) + 1
         alerts.append({
@@ -611,7 +655,7 @@ def main():
             'per': (a.get('active_periods') or {}).get('raw') or [],
             'nat': bool(a.get('is_national')),
             'ag': [x.get('agency_name') for x in (a.get('relevant_agencies') or [])],
-            'lines': rlines, 'rm': a.get('removed_stops') or [], 'add': a.get('added_stops') or [],
+            'lines': rlines, 'rm': a.get('removed_stops') or [], 'add': add_list,
             'dep': dep, 'map': os.path.exists(rc_file), 'first': st.get('first'),
         })
     alerts, merged = merge_dups(alerts)
