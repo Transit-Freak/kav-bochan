@@ -11,7 +11,6 @@
 רק התחנות (שלמה 18.10: "מסלול משוער רק לפי ההודעה").
 """
 import collections
-import os
 import heapq
 import math
 import re
@@ -676,9 +675,8 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
-    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 40:
-        if os.environ.get('RDBG'):
-            print('RDBG reject', 'i_out', i_out, 'i_in', i_in, 'cut', cut0, cut1, 'end-dist', round(meters(path[-1], shape[i_in])), 'len', len(path))
+    # (60 מ' — נקודת החיבור נבחרת עד 45 מ' מסוף העקיפה, במעבר הראשון)
+    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 60:
         return None
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:
