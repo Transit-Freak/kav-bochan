@@ -339,6 +339,7 @@ class Streets:
         """הדרך הקצרה מ-src לאחד היעדים, כשקטע שלא ברחוב הנוכחי עולה פי pen.
         src — צומת, או {צומת: עלות התחלה} כשיש כמה נקודות יציאה (שדרה עם שני מסלולים חד-סטריים)."""
         srcs = src if isinstance(src, dict) else {src: 0.0}
+        best = None
         dist = dict(srcs)
         prev = {}
         pq = [(c, n) for n, c in srcs.items()]
@@ -348,10 +349,14 @@ class Streets:
             if d > dist.get(u, 1e18):
                 continue
             if u in targets:
-                path = [u]
-                while path[-1] in prev:
-                    path.append(prev[path[-1]])
-                return path[::-1], d
+                # targets כמילון {צומת: תוספת} — יעד מאוחר במסלול עולה יותר; ממשיכים עד שאין יעד זול יותר
+                extra = targets[u] if isinstance(targets, dict) else 0.0
+                if best is None or d + extra < best[0]:
+                    best = (d + extra, u, d)
+                if not isinstance(targets, dict):
+                    break
+            if best is not None and d > best[0]:
+                break
             if d > limit:
                 break
             for v, w, nm, hw in self.adj[u]:
@@ -361,6 +366,11 @@ class Streets:
                     dist[v] = nd
                     prev[v] = u
                     heapq.heappush(pq, (nd, v))
+        if best is not None:
+            path = [best[1]]
+            while path[-1] in prev:
+                path.append(prev[path[-1]])
+            return path[::-1], best[2]
         return None, None
 
 
@@ -506,6 +516,21 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     # החזרה למסלול: צמתים שעל השרטוט אחרי הקטע המבוטל
     dense_tail = _densify(tail[:600])
     back = net.near(set(net.pos), dense_tail, 12) or net.near(set(net.pos), dense_tail, 30)
+    # החזרה למסלול כמה שיותר קרוב לסוף הקטע הסגור: כל מטר לאורך המסלול אחרי הקטע הסגור עולה כמו
+    # מטר נסיעה. בלי זה הניתוב "חזר" לחלק מאוחר של הקו ודילג על הרחוב שבהודעה (חולון 20.10, קו 22)
+    along, acc = [], 0.0
+    for a, b in zip(dense_tail, dense_tail[1:] + dense_tail[-1:]):
+        along.append(acc)
+        acc += meters(a, b)
+    grid = collections.defaultdict(list)
+    for k, q in enumerate(dense_tail):
+        grid[(int(q[0] * 2000), int(q[1] * 2000))].append(k)
+
+    def tail_pos(n):
+        cx, cy = int(n[0] * 2000), int(n[1] * 2000)
+        ks = [k for dx in (-1, 0, 1) for dy in (-1, 0, 1) for k in grid.get((cx + dx, cy + dy), ())]
+        return min((along[k] for k in ks if meters(n, dense_tail[k]) < 35), default=acc)
+    back = {n: tail_pos(n) for n in back}
     legs, streets, cur = [], [], src
     for k, (st, names) in enumerate(plan):
         cur_set = set(cur) if isinstance(cur, dict) else {cur}
@@ -516,7 +541,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
             if not tg:
                 tg = nodes_next - cur_set
         else:
-            tg = back - cur_set
+            tg = {n: c for n, c in back.items() if n not in cur_set}
         if not tg:
             return None
         p, _ = net.dijkstra(cur, names, tg)

@@ -23,5 +23,7 @@ jobs:
           sudo apt-get install -y -qq osmium-tool >/dev/null
           pip install -q osmium
           osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
-      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14566720982', NUMS: '22' }
-        run: python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at" | head -40
+      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14566720982,14566525662', NUMS: '22,2' }
+        run: |
+          OLD=1 python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at|PARA" | head -60
+          python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at" | head -40
