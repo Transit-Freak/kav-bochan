@@ -120,6 +120,15 @@ class ParseTests(unittest.TestCase):
         # "לכיוון חולון, פתח תקווה" — שני קווים, יעד לכל אחד
         self.assertTrue(AR.dir_fits({'dir': ('to', 'חולון, פתח תקווה')}, 'פתח תקווה - מסוף'))
 
+    def test_direction_from_x_to_y(self):
+        # אגד, 20.10: "קו 201 מתל אביב-יפו לרחובות:" — בלי "לכיוון"
+        p = AR.parse('קו 201 מתל אביב-יפו לרחובות: ייסע על פי המסלול הקיים עד צומת הרחובות נחלת בנימין/ יהודה הלוי, '
+                     'ימשיך ישר ברחוב נחלת בנימין, יפנה ימינה לדרך יפו ויתחבר להמשך המסלול הקיים.\n\n'
+                     'קו 201 מרחובות לתל אביב-יפו: ייסע על פי המסלול הקיים עד צומת הרצל/ דרך קיבוץ גלויות, '
+                     'ימשיך ישר ברחוב הרצל, יפנה ימינה לדרך שלמה ויתחבר להמשך המסלול הקיים.')
+        self.assertEqual([True, False], [AR.dir_fits(x, 'רחובות - תחנה מרכזית') for x in p])
+        self.assertEqual([False, True], [AR.dir_fits(x, 'תל אביב יפו - מסוף כרמלית') for x in p])
+
     def test_template(self):
         self.assertEqual('junction', AR.template(ASHDOD))
         self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))

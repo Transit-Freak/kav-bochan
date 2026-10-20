@@ -271,6 +271,13 @@ def estimate_routes(alert, rc_routes, stops):
         fit = [p for p in cand if AR.dir_fits(p, r.get('to')) is not False]
         if fit and len(fit) < len(cand):
             cand = fit
+        # תחנה חלופית של הקו שהמסלול לא עובר לידה — סימן שזו הפסקה של כיוון אחר (קו 201, 20.10):
+        # מעדיפים את המסלול שעובר ליד הכי הרבה תחנות חלופיות, ורק אחר כך את הקצר
+        alt_pos = [STOP_POS[sid] for sid, add in r['seq'] if add and sid in STOP_POS]
+
+        def near_alts(res):
+            pts = AR._densify([tuple(x) for x in res['path']], 15.0)
+            return sum(1 for q in alt_pos if min(AR.meters(q, x) for x in pts) < 80)
         best = None
         for p in cand:
             try:
@@ -278,8 +285,12 @@ def estimate_routes(alert, rc_routes, stops):
             except Exception as e:   # הנוסח לא תמיד צפוי — לא מפילים את הריצה בגלל הודעה אחת
                 print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
                 res = None
-            if res and (best is None or res['len'] < best['len']):
+            if res:
+                res['_k'] = (-near_alts(res), res['len'])
+            if res and (best is None or res['_k'] < best['_k']):
                 best = res
+        if best:
+            best.pop('_k', None)
         if best:
             r['est'], r['why'] = best, 'ok'
         elif not cand:

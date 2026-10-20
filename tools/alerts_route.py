@@ -160,6 +160,13 @@ def parse(desc):
         head = line.split(":", 1)[0] if ":" in line else line
         dirs = re.findall(r"(ל|מ)כיוון\s+([^:()]{2,60})", head)
         line_dir = (("to" if dirs[0][0] == "ל" else "from"), dirs[0][1].strip()) if len(dirs) == 1 else None
+        # "קו 201 מתל אביב-יפו לרחובות:" — בלי המילה "לכיוון" (אגד, 20.10)
+        if not line_dir and ":" in line:
+            h2 = re.sub(r"\([^)]*\)", " ", head)
+            h2 = re.sub(r"^.*?קו(?:ו?ים|ו?י)?\s+(?:(?:ה)?\S+\s+)?[\d\sא-ת,'׳\"]*?\d[א-ת]?['׳]?\s+", "", h2)
+            fm = re.match(r"^מ(\S.*?)\s+ל(\S.*?)\s*$", h2.strip())
+            if fm:
+                line_dir = ("to", fm.group(2))
         # תאריכים ושעות ("29/10/2026", "17:00") נראים כמו צומת "א/ב" — מוחקים לפני החיפוש
         clean = re.sub(r"\b\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\b|\b\d{1,2}:\d{2}\b", " ", line)
         # "עד כיכר פעולות האיבה (יהודה הלוי/ האצ"ל)" — שם הכיכר לא רחוב; הצומת הוא מה שבסוגריים (קריית שמונה 19.10)
@@ -373,10 +380,10 @@ def dir_fits(para, to):
     if not d or not to:
         return None
     # "לכיוון חולון, פתח תקווה" (שני קווים, יעד לכל אחד) — מספיק שאחד מהם מתאים
-    words = [w for part in re.split(r",|\sו", d[1]) for w in norm(part).split() if len(w) >= 3]
+    words = [w for part in re.split(r",|/|\sו", d[1]) for w in norm(part.replace("-", " ")).split() if len(w) >= 3]
     if not words:
         return None
-    hit = any(w in norm(to) for w in words)
+    hit = any(w in norm(to.replace("-", " ")) for w in words)
     return hit if d[0] == "to" else not hit
 
 
