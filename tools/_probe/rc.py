@@ -11,6 +11,33 @@ def gj(url, **k):
         d['alerts'] = [a for a in d['alerts'] if str(a['id']) in IDS]
     return d
 F.get_json = gj
+NETS = []
+_S = AR.Streets
+class Cap(_S):
+    def __init__(self, ways):
+        super().__init__(ways); NETS.append(self)
+AR.Streets = Cap
+oe = F.estimate_routes
+def est(alert, routes, stops):
+    res = oe(alert, routes, stops)
+    net = NETS[-1] if NETS else None
+    for r in routes:
+        sh = [tuple(x) for x in r['shape']]
+        print('  E', r['rd'], 'cut', r['cut'], 'why', r['why'])
+        for p in AR.parse(alert['description']['he']):
+            pl = AR._plan(net, p['steps']) if net else None
+            print('    PLAN', p['steps'], '->', [(x[0], sorted(x[1])[:3]) for x in pl] if pl else pl)
+            for st in p['steps']:
+                print('      match', st, sorted(net.match(st))[:5] if net else '')
+            if pl and r['cut']:
+                ex = AR._exit_point(net, p, sh, r['cut'][0], r['cut'][1], pl[0][1])
+                print('    EXIT', ex and (ex[0], ex[2]))
+                try:
+                    print('    RD', AR.route_detour(net, p, sh, r['cut'][0], r['cut'][1]))
+                except Exception as e:
+                    print('    RD ERR', e)
+    return res
+F.estimate_routes = est
 F.main()
 for f in glob.glob(os.environ['OUT'] + '/rc/*.json'):
     rc = json.load(open(f)); st = rc['stops']
