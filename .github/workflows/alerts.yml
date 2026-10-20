@@ -84,9 +84,33 @@ jobs:
           key: alerts-osm-${{ github.run_id }}
           restore-keys: alerts-osm-
 
+      # מפת ישראל מ-Geofabrik — אותו קובץ שהסריקה היומית של הקו בזמן שומרת לקו באג (מטמון kavbug-osm-).
+      # הרחובות של כל הודעה נחתכים ממנו מקומית; Overpass רק כשאין קובץ (שלמה 20.10: שלושת השרתים לא ענו)
+      - uses: actions/cache/restore@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: kavbug-osm-none
+          restore-keys: kavbug-osm-
+
+      - name: מפת ישראל — רחובות בלבד
+        continue-on-error: true
+        run: |
+          set -e
+          sudo apt-get install -y -qq osmium-tool >/dev/null
+          pip install -q osmium
+          mkdir -p /tmp/osrm && cd /tmp/osrm
+          if [ ! -s il.osm.pbf ]; then
+            curl -fsSL --connect-timeout 20 --max-time 300 --retry 2 --retry-all-errors \
+              -o il.osm.pbf.new https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf \
+              && [ "$(stat -c%s il.osm.pbf.new)" -gt 1000000 ] && mv il.osm.pbf.new il.osm.pbf || true
+          fi
+          [ -s il.osm.pbf ] || { echo "::warning::אין קובץ מפה — הרחובות מ-Overpass"; exit 0; }
+          osmium tags-filter il.osm.pbf w/highway -o il-hw.osm.pbf --overwrite --no-progress
+          ls -la il.osm.pbf il-hw.osm.pbf
+
       - name: משיכת ההתראות והמסלול המשוער
         # 40 דקות: אחרי שיפור בקריאת הנוסח כל ההודעות עם מפה מחושבות שוב (שלמה 19.10: 22 נשארו "עוד לא חושב")
-        env: { MAX_MIN: '40' }
+        env: { MAX_MIN: '40', OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
         run: python3 tools/alerts_fetch.py
 
       - name: התראות דפדפן על שינויים חדשים

@@ -138,8 +138,49 @@ def overpass_box(s, w, n, e):
     return None
 
 
+# מפת ישראל כקובץ (Geofabrik, אותו קובץ שהסריקה היומית מורידה לקו באג): כשהוא קיים, הרחובות
+# נחתכים ממנו מקומית, בלי שרת חיצוני (שלמה 20.10: שלושת שרתי Overpass לא ענו בכל ריצת הבוקר)
+OSM_PBF = os.environ.get('OSM_PBF', '')
+HIGHWAYS = set('motorway trunk primary secondary tertiary unclassified residential living_street service motorway_link '
+               'trunk_link primary_link secondary_link tertiary_link busway'.split())
+
+
+def read_ways(path):
+    """הרחובות מקובץ OSM (pbf או xml): [(tags, [(lat, lon), ...]), ...]."""
+    import osmium
+    out = []
+    for o in osmium.FileProcessor(path).with_locations():
+        if not o.is_way() or o.tags.get('highway') not in HIGHWAYS:
+            continue
+        try:
+            geom = [(nd.lat, nd.lon) for nd in o.nodes]
+        except Exception:   # צומת בלי מיקום (קצה החיתוך)
+            continue
+        if len(geom) > 1:
+            out.append(({t.k: t.v for t in o.tags}, geom))
+    return out
+
+
+def local_ways(bbox):
+    import subprocess
+    import tempfile
+    s, w, n, e = bbox
+    with tempfile.TemporaryDirectory() as d:
+        box = f'{d}/box.osm.pbf'
+        subprocess.run(['osmium', 'extract', '-b', f'{w},{s},{e},{n}', '-s', 'complete_ways', OSM_PBF, '-o', box,
+                        '--overwrite', '--no-progress'], check=True, timeout=180, capture_output=True)
+        return read_ways(box)
+
+
 def overpass(bbox):
-    """הרחובות באזור, ממשבצות שמורות; משבצת חסרה (או בת יותר מחודש) נמשכת מ-Overpass."""
+    """הרחובות באזור: מקובץ מפת ישראל כשיש, אחרת ממשבצות שמורות; משבצת חסרה (או בת יותר מחודש) נמשכת מ-Overpass."""
+    if OSM_PBF and os.path.exists(OSM_PBF):
+        try:
+            ways = local_ways(bbox)
+            if ways:
+                return ways
+        except Exception as ex:
+            print(f'  חיתוך מקובץ המפה נכשל: {ex}', file=sys.stderr)
     import gzip
     import math as _m
     s, w, n, e = bbox
