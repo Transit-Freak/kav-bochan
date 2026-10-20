@@ -139,6 +139,15 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([('from', 'הטייסים'), ('to', 'הטייסים')], [x['dir'] for x in p])
         self.assertEqual([{'21237', '20731'}, {'21729'}], [x['rm'] for x in p])
 
+    def test_alternative_stops_per_paragraph(self):
+        # תל אביב 20.10, אבן גבירול: 25621 חלופית בפסקה של 149 ומבוטלת בפסקה של 445
+        p = AR.parse('המסלול החלופי לקו 149 לכיוון כפר סבא:\nנוסעים במסלול הרגיל עד לצומת קרליבך/אבן גבירול, ממשיכים ישר ברח' + "'" + ' מרמורק.\n'
+                     'תחנות מבוטלות:\n25625 לונדון מיניסטור/אבן גבירול\nתחנות זמניות חלופיות:\n25621 הבימה/שד' + "'" + ' בן ציון\n\n'
+                     'המסלול החלופי לקו 445 לכיוון תל אביב:\nנוסעים במסלול הרגיל עד לצומת אליעזר קפלן/ליאונרדו דה וינצ' + "'" + 'י, ממשיכים ישר ברח' + "'" + ' אליעזר קפלן.\n'
+                     'תחנה מבוטלת:\n25621 הבימה-שד' + "'" + ' בן ציון\nתחנה חלופית זמנית:\n25615 הבימה-שד' + "'" + ' תרס"ט')
+        self.assertEqual([{'25625'}, {'25621'}], [x['rm'] for x in p])
+        self.assertEqual([{'25621'}, {'25615'}], [x['add'] for x in p])
+
     def test_template(self):
         self.assertEqual('junction', AR.template(ASHDOD))
         self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))
@@ -272,6 +281,12 @@ class DetourTests(unittest.TestCase):
         # הלוך מזרחה ובחזרה מערבה באותו רחוב: שתי תחנות סמוכות — הקטע הקצר, לא מההלוך עד החזור
         sh = [(32.0, 34.80 + 0.0005 * i) for i in range(20)] + [(32.0001, 34.80 + 0.0005 * i) for i in range(19, -1, -1)]
         self.assertEqual([4, 8], AR.cut_range(sh, [(32.0, 34.802), (32.0, 34.804)]))
+
+    def test_first_pass_through_a_junction(self):
+        # קו שעובר באותה צומת בכניסה לשכונה וביציאה ממנה: החזרה למסלול — במעבר הראשון (קריית שמונה 20.10)
+        dist = {10: 30.0, 11: 20.0, 12: 35.0, 80: 2.0, 81: 5.0}
+        self.assertEqual(11, AR._first_pass(list(dist), dist))
+        self.assertEqual(80, AR._first_pass(list(dist), dist, last=True))
 
     def test_mostly_unknown_streets_give_nothing(self):
         self.assertIsNone(self.route(('הראשי', 'אחד'), ['אחד', 'מחלף א', 'מחלף ב', 'מחלף ג']))

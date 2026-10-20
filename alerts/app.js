@@ -274,8 +274,11 @@
         .bindTooltip((st[3] || "") + (st[2] ? " · " + st[2] : "") + " · תחנה חלופית").addTo(layer);
       focus.push(st.slice(0, 2));
     });
-    // תחנות חלופיות שכתובות רק בנוסח ההודעה (xadd)
-    var xadd = (cur.rc.xadd || []).filter(function (s) { return stops[s]; });
+    // תחנות חלופיות שכתובות רק בנוסח ההודעה (xadd): של הפסקה של הקו כשיש (r.xadd), אחרת של ההודעה —
+    // ולא תחנה שמבוטלת בקו הזה (תל אביב 20.10, אבן גבירול: 25621 חלופית לקו 149 ומבוטלת בקו 445)
+    var xadd = (r.xadd || cur.rc.xadd || []).filter(function (s) {
+      return stops[s] && del.indexOf(s) < 0 && !seq.some(function (q) { return q[0] === s && q[1]; });
+    });
     xadd.forEach(function (s) {
       var st = stops[s];
       L.marker(st.slice(0, 2), { icon: L.divIcon({ className: "", html: '<div class="am"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }) })

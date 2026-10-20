@@ -156,15 +156,19 @@ def parse(desc):
     cur_dir = None
     stops_mode = None   # אחרי "תחנות מבוטלות:" — המק"טים שייכים לפסקה האחרונה
     for line in _logical_lines(desc):
-        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}(?:מבוטל|בוטל)", line):
-            stops_mode = "rm" if out else None
-            continue
-        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}חלופי", line):
-            stops_mode = None
+        # "תחנות מבוטלות:" / "תחנות זמניות חלופיות:" — המק"טים שאחריהן (או באותה שורה: "האצ"ל/ נוף חרמון
+        # (תחנה 53696), …", קריית שמונה) שייכים לפסקה האחרונה: rm — מבוטלות, add — חלופיות (תל אביב 20.10,
+        # אבן גבירול: התחנה החלופית של קו 149 היא התחנה המבוטלת של קו 445)
+        hdr = re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,25}?(מבוטל|בוטל|חלופי)", line)
+        if hdr:
+            stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out else None
+            if stops_mode and ":" in line:
+                for c in re.findall(r"(?<!\d)\d{5}(?!\d)", line.split(":", 1)[1]):
+                    out[-1].setdefault(stops_mode, set()).add(c)
             continue
         code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line)
-        if code and stops_mode == "rm":
-            out[-1].setdefault("rm", set()).add(code.group(1))
+        if code and stops_mode:
+            out[-1].setdefault(stops_mode, set()).add(code.group(1))
             continue
         nums = line_numbers(line)
         # הכיוון ("לכיוון עתידים:", "מכיוון עתידים:") — מהכותרת שלפני הנקודתיים, כשיש בה כיוון אחד בלבד
@@ -423,6 +427,29 @@ def cut_range(shape, stops, slack=30.0):
     return list(best)
 
 
+def _first_pass(idx, dist, last=False):
+    """קו שעובר באותה צומת פעמיים (נכנס לשכונה ויוצא באותה דרך): מבין המקומות הקרובים על השרטוט — המעבר
+    הראשון אחרי הקטע הסגור (או האחרון לפניו, ביציאה), ובתוכו הנקודה הקרובה (קריית שמונה 20.10, האצ"ל)."""
+    idx = sorted(idx)
+    runs, cur = [], [idx[0]]
+    for i in idx[1:]:
+        if i - cur[-1] > 3:
+            runs.append(cur)
+            cur = []
+        cur.append(i)
+    runs.append(cur)
+    return min(runs[-1 if last else 0], key=dist.get)
+
+
+def _opposite(seg, d):
+    """קטע של השרטוט שנוסעים בו בכיוון ההפוך ל-d (זווית של יותר מ-120°). פנייה בניצב — לא הפוך."""
+    (a, b), k = seg, 0.84   # cos(קו רוחב 33°) — מעלות אורך קצרות ממעלות רוחב
+    u = (b[0] - a[0], (b[1] - a[1]) * k)
+    v = (d[0], d[1] * k)
+    nu, nv = math.hypot(*u), math.hypot(*v)
+    return nu > 0 and nv > 0 and (u[0] * v[0] + u[1] * v[1]) / (nu * nv) < -0.5
+
+
 def _length(path):
     return sum(meters(a, b) for a, b in zip(path, path[1:]))
 
@@ -538,25 +565,44 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     # רק המסלול הרגיל שלפני הקטע הסגור ואחריו: קו שעובר באותו רחוב פעמיים (בקטע הסגור ואחריו) "חזר" לתוך
     # הקטע הסגור (חולון 20.10, קו 22)
     c1 = i_in if cut1 is None else max(lo, min(cut1, i_in))
-    parts = [shape[lo:min(i_out + 1, c1)], shape[c1:hi]]
-    pairs = [(a, b) for seg in parts for a, b in zip(seg, seg[1:])]
+    rngs = [range(lo, min(i_out + 1, c1) - 1), range(c1, hi - 1)]
 
-    def off(p):
-        return min(seg_dist(p, a, b) for a, b in pairs) if pairs else 0
+    # רק קטע של המסלול הרגיל שנוסעים בו באותו כיוון: קו שעושה לולאה וחוזר באותו רחוב בכיוון ההפוך —
+    # העקיפה שנוסעת בו בכיוון ההלוך היא לא "חזרה למסלול" (קריית שמונה 20.10, קו 5 ביקותיאל אדם)
+    def same_way(i, d):
+        return not _opposite((shape[i], shape[i + 1]), d)
+
+    def heading(k):
+        a, b = (path[k], path[k + 1]) if k + 1 < len(path) else (path[k - 1], path[k])
+        return (b[0] - a[0], b[1] - a[1])
+
+    def off(k):
+        d = heading(k)
+        return min((seg_dist(path[k], shape[i], shape[i + 1]) for r in rngs for i in r if same_way(i, d)), default=1e9)
 
     k = 0
-    while k < len(path) - 2 and off(path[k + 1]) < tol:
+    while k < len(path) - 2 and off(k + 1) < tol:
         k += 1
     m = len(path) - 1
-    while m > k + 1 and off(path[m - 1]) < tol:
+    while m > k + 1 and off(m - 1) < tol:
         m -= 1
     if k == 0 and m == len(path) - 1:
         return path, i_out, i_in
+    # הכיוון שבו העקיפה נסעה לאורך המסלול הרגיל בחלק שנחתך — הוא הכיוון של המסלול בנקודת החיבור
+    d_out = (path[k][0] - path[k - 1][0], path[k][1] - path[k - 1][1]) if k > 0 else None
+    d_in = (path[m + 1][0] - path[m][0], path[m + 1][1] - path[m][1]) if m + 1 < len(path) else None
     path = path[k:m + 1]
-    near = lambda q, a, b: min(range(a, b), key=lambda i: meters(shape[i], q))   # noqa: E731
-    i_out = near(path[0], lo, min(hi, i_in))
+
+    def near(j, a, b):
+        # הנקודה הקרובה; כשיש שתיים קרובות כמעט באותה מידה (הלוך וחזור באותו רחוב) — זו שבאותו כיוון
+        d = (d_out if j == 0 else d_in) or heading(j)
+        dist = {i: meters(shape[i], path[j]) for i in range(a, b)}
+        best = min(dist.values())
+        cands = [i for i in dist if dist[i] <= max(best + 25, 45) and (i + 1 >= len(shape) or same_way(i, d))]
+        return _first_pass(cands, dist, last=j == 0) if cands else min(dist, key=dist.get)
+    i_out = near(0, lo, min(hi, i_in))
     a = max(i_out + 1, c1)
-    i_in = near(path[-1], a, hi) if a < hi else i_in
+    i_in = near(len(path) - 1, a, hi) if a < hi else i_in
     return path, i_out, i_in
 
 
@@ -592,7 +638,9 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         cx, cy = int(n[0] * 2000), int(n[1] * 2000)
         ks = [k for dx in (-1, 0, 1) for dy in (-1, 0, 1) for k in grid.get((cx + dx, cy + dy), ())]
         return min((along[k] for k in ks if meters(n, dense_tail[k]) < 35), default=acc)
-    back = {n: tail_pos(n) for n in back}
+    # פי 4: דילוג על חלק מהמסלול הרגיל יקר יותר מנסיעה ברחוב שלא כתוב בהודעה — אחרת, כשרחוב מההודעה
+    # חסר במפה ("בימת תל חי"), העקיפה "חזרה" ללולאה של השכונה מהצד השני ודילגה עליה (קריית שמונה 20.10)
+    back = {n: 4 * tail_pos(n) for n in back}
     legs, streets, cur = [], [], src
     no_tunnel = bool(re.search(r"(?:לא|אין)\s+(?:להיכנס|לרדת|לנסוע)?\s*(?:ל|ב)?(?:שיקוע|מנהרה)", para.get("text", "")))
     for k, (st, names) in enumerate(plan):
@@ -620,7 +668,12 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         streets.append(st)
         cur = p[-1]
     path = [n for leg in legs for n in leg]
-    i_in = cut1 + 1 + min(range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
+    # המקום על השרטוט שבו העקיפה חוזרת — מבין הקטעים שנוסעים בהם באותו כיוון (לולאה שחוזרת באותו רחוב)
+    d = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1]) if len(path) > 1 else (0, 0)
+    dist = dict(enumerate(meters(q, cur) for q in tail[:1200]))
+    lim = max(min(dist.values()) + 25, 45)
+    near_i = [i for i in range(len(dist) - 1) if dist[i] <= lim and not _opposite((tail[i], tail[i + 1]), d)]
+    i_in = cut1 + 1 + (_first_pass(near_i, dist) if near_i else min(dist, key=dist.get))
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
