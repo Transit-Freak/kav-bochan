@@ -5,7 +5,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var CAUSE_COLOR = { works: "#B45309", police: "#1E3A8A", protest: "#7C3AED", event: "#0E7490", accident: "#BE123C",
     stuck: "#9A3412", weather: "#0369A1", strike: "#4B5563", traffic: "#A16207", fault: "#57534E", relocate: "#0F766E", other: "#6B7280" };
-  var ALL = [], CAUSES = {}, ALIAS = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
+  var ALL = [], CAUSES = {}, ALIAS = {}, GROUPS = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
   var TZ = "Asia/Jerusalem";
   var fmtD = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric" }).format(new Date(t * 1000)); };
   var fmtT = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(t * 1000)); };
@@ -77,6 +77,8 @@
   }
   function drawChips() {
     var base = ALL.filter(function (a) { return (when === "all" || (when === "now" ? isNow(a) : isToday(a))); });
+    // הודעות מקובצות נספרות פעם אחת, כמו בכרטיסים
+    var g = {}; base = base.filter(function (a) { var k = a.grp && GROUPS[a.grp] && GROUPS[a.grp].length > 1 ? "g" + a.grp : a.id; if (g[k]) return false; g[k] = 1; return true; });
     var cnt = {}; base.forEach(function (a) { cnt[a.cause] = (cnt[a.cause] || 0) + 1; });
     var keys = Object.keys(cnt).sort(function (x, y) { return cnt[y] - cnt[x]; });
     $("causes").innerHTML = '<button type="button" class="chip' + (cause ? "" : " on") + '" data-c="">הכול <b>' + base.length + "</b></button>" +
@@ -85,16 +87,40 @@
       b.onclick = function () { cause = b.getAttribute("data-c") || null; drawChips(); drawList(); };
     });
   }
+  // כמה הודעות של חברות שונות על אותן עבודות (grp, tools/alerts_fetch.py group_alerts) — כרטיס אחד
+  // ודף אחד: כל הקווים על מפה אחת, והנוסח של כל חברה בנפרד (שלמה 20.10)
+  function members(a) { return a.grp && GROUPS[a.grp] && GROUPS[a.grp].length > 1 ? GROUPS[a.grp] : [a]; }
+  function combine(a) {
+    var ms = members(a);
+    if (ms.length < 2) return a;
+    var uniq = function (arr, key) { var seen = {}; return arr.filter(function (x) { var k = key(x); if (seen[k]) return false; seen[k] = 1; return true; }); };
+    var cat = function (f) { return [].concat.apply([], ms.map(f)); };
+    return Object.assign({}, a, {
+      ms: ms,
+      lines: uniq(cat(function (m) { return m.lines || []; }), function (l) { return l[0] + "|" + l[1]; }),
+      rm: uniq(cat(function (m) { return m.rm || []; }), function (x) { return x[0]; }),
+      add: uniq(cat(function (m) { return m.add || []; }), function (x) { return x[0]; }),
+      ag: uniq(cat(function (m) { return m.ag || []; }), function (x) { return x; }),
+      dep: cat(function (m) { return m.dep || []; }),
+      per: cat(function (m) { return m.per || []; }),
+      rcs: uniq(cat(function (m) { return m.rcs || (m.map ? [m.id] : []); }), function (x) { return x; }),
+      map: ms.some(function (m) { return m.map; }),
+    });
+  }
   function drawList() {
-    var v = visible();
+    var seenG = {};
+    var v = visible().filter(function (a) { if (!a.grp || !GROUPS[a.grp] || GROUPS[a.grp].length < 2) return true; if (seenG[a.grp]) return false; seenG[a.grp] = 1; return true; })
+      .map(combine);
     if (!v.length) { $("list").innerHTML = '<div class="empty">אין התראות שמתאימות לחיפוש</div>'; return; }
     $("list").innerHTML = v.map(function (a) {
       var n = nums(a);
       // קישור אמיתי (שלמה 19.10): לחיצה ארוכה או גלגלת פותחות את ההתראה בכרטיסייה חדשה
-      return '<a class="card' + (sel === a.id ? " on" : "") + '" href="#' + esc(a.id) + '" data-id="' + a.id + '">' +
+      var ids = (a.ms || [a]).map(function (m) { return m.id; });
+      return '<a class="card' + (ids.indexOf(sel) >= 0 ? " on" : "") + '" href="#' + esc(a.id) + '" data-id="' + a.id + '" data-ids="' + ids.join(" ") + '">' +
         '<div class="meta"><span class="cz" style="background:' + (CAUSE_COLOR[a.cause] || "#888") + '">' + esc(CAUSES[a.cause] || "") + "</span>" +
         (isNow(a) ? '<span class="now">פעיל עכשיו</span>' : "") + "<span>" + esc(span(a)) + "</span></div>" +
         '<div class="h">' + esc(a.h || "התראה") + "</div>" +
+        (a.ms ? '<div class="meta"><span class="grp">' + a.ms.length + " הודעות על אותן עבודות · " + esc(a.ag.join(", ")) + "</span></div>" : "") +
         '<div class="meta">' + (n.length ? "<span>" + n.slice(0, 12).map(function (x) { return '<span class="ln">' + esc(x) + "</span>"; }).join("") + (n.length > 12 ? " +" + (n.length - 12) : "") + "</span>" : "") +
         (a.rm && a.rm.length ? "<span>" + a.rm.length + " תחנות בוטלו זמנית</span>" : "") +
         (a.map ? "<span>🗺 מפה</span>" : "") + (a.dep && a.dep.length ? "<span>שינוי בשעות</span>" : "") + "</div></a>";
@@ -112,9 +138,10 @@
     if (ALIAS[id]) id = ALIAS[id];   // הודעה שאוחדה להודעה מפורטת יותר על אותו שינוי
     var a = ALL.filter(function (x) { return x.id === id; })[0];
     if (!a) return;
+    a = combine(a);
     sel = id;
     if (push) { try { history.replaceState(null, "", "#" + id); } catch (e) { /* ignore */ } }
-    Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) { c.classList.toggle("on", c.getAttribute("data-id") === id); });
+    Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) { c.classList.toggle("on", (c.getAttribute("data-ids") || "").split(" ").indexOf(id) >= 0); });
     var rmL = (a.rm || []).map(function (s) { return '<li><span class="c">' + esc(s[0]) + "</span><span>" + esc(s[1]) + "</span></li>"; }).join("");
     var adL = (a.add || []).map(function (s) { return '<li><span class="c">' + esc(s[0]) + "</span><span>" + esc(s[1]) + "</span></li>"; }).join("");
     var dep = (a.dep || []).map(function (d) {
@@ -137,14 +164,17 @@
       "<h2>" + esc(a.h || "התראה") + "</h2>" +
       (lnL && !a.map ? '<div><h3>הקווים</h3><div class="lns">' + lnL + "</div></div>" : "") +
       (a.map ? '<div class="routes" id="routes"></div><div id="map"></div><div class="legend" id="legend"></div><div id="vbox"></div>' : "") +
-      '<div><h3>נוסח ההודעה</h3><div class="txt">' + esc(a.d || "אין פירוט בהודעה.") + "</div>" +
+      (a.ms ? '<div><h3>נוסח ההודעות (' + a.ms.length + ")</h3>" + a.ms.map(function (m) {
+        return '<details class="msg"' + (m.id === id ? " open" : "") + "><summary><b>" + esc((m.ag || []).join(", ") || "הודעה") + "</b> · " + esc(m.h || "") +
+          ' <span class="when">' + esc(span(m)) + '</span></summary><div class="txt">' + esc(m.d || "אין פירוט בהודעה.") + "</div></details>";
+      }).join("") : '<div><h3>נוסח ההודעה</h3><div class="txt">' + esc(a.d || "אין פירוט בהודעה.") + "</div>") +
       (a.also && a.also.length ? '<p class="note">' + (a.also.length === 1 ? "הודעה נוספת על אותו שינוי, עם פחות פרטים, אוחדה לכאן." : a.also.length + " הודעות נוספות על אותו שינוי, עם פחות פרטים, אוחדו לכאן.") + "</p>" : "") + "</div>" +
       (rmL || adL ? '<div class="two">' + (rmL ? '<div><h3>תחנות שבוטלו זמנית</h3><ul class="st">' + rmL + "</ul></div>" : "") + (adL ? '<div><h3>תחנות חלופיות</h3><ul class="st">' + adL + "</ul></div>" : "") + "</div>" : "") +
       (dep ? '<div><h3>שינויים בשעות היציאה</h3><table class="dep"><tr><th>קו</th><th>שעות שנוספו / בוטלו</th></tr>' + dep + "</table></div>" : "");
     $("back").onclick = function () {
       document.body.classList.remove("sel"); sel = null;
       try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
-      Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) { c.classList.remove("on"); if (c.getAttribute("data-id") === id) c.scrollIntoView({ block: "center" }); });
+      Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) { c.classList.remove("on"); if ((c.getAttribute("data-ids") || "").split(" ").indexOf(id) >= 0) c.scrollIntoView({ block: "center" }); });
     };
     if (matchMedia("(max-width: 900px)").matches) window.scrollTo(0, 0);
     if (!a.map) return;
@@ -158,6 +188,7 @@
         var have = {}; rc.routes.forEach(function (r) { have[r.rd] = 1; });
         rc.routes = rc.routes.concat(x.routes.filter(function (r) { return !have[r.rd]; }));
         rc.stops = Object.assign({}, x.stops || {}, rc.stops || {});
+        rc.xadd = (rc.xadd || []).concat((x.xadd || []).filter(function (s) { return (rc.xadd || []).indexOf(s) < 0; }));
       });
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
       rc.routes.sort(function (x, y) { var p = lineKey(String(x.num || "")), q = lineKey(String(y.num || "")); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0) || String(x.to || "").localeCompare(String(y.to || ""), "he"); });
@@ -263,6 +294,7 @@
   getJSON("data/alerts.json").then(function (d) {
     if (!d) { $("list").innerHTML = '<div class="empty">הנתונים לא נטענו. נסו לרענן.</div>'; return; }
     ALL = d.alerts || []; CAUSES = d.causes || {}; ALIAS = d.alias || {};
+    ALL.forEach(function (a) { if (a.grp) (GROUPS[a.grp] = GROUPS[a.grp] || []).push(a); });
     if (d.gen) $("upd").textContent = "עודכן " + new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(d.gen));
     var h = "";
     try { h = decodeURIComponent((location.hash || "").slice(1)); } catch (e) { h = ""; }

@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 8
+PARSE_V = 9
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -245,11 +245,14 @@ def estimate_routes(alert, rc_routes, stops):
             r['est'] = None
             r['why'] = 'area'
         return 'area'
-    # אותו אזור כבר נטען בריצה הזו (כמה הודעות על אותן עבודות) — בלי לפנות שוב לשרת המפות
-    ways = next((w for b, w in OSM_CACHE if b[0] <= bbox[0] and b[1] <= bbox[1] and b[2] >= bbox[2] and b[3] >= bbox[3]), None)
+    # אותו אזור כבר נטען בריצה הזו — רק כשהרחובות מ-Overpass. מקובץ המפה כל הודעה חותכת את האזור שלה
+    # (פחות משנייה): אזור גדול יותר של הודעה אחרת מביא רחובות נוספים, ו"מוטה גור" כבר לא חד-משמעי
+    # (גבעת שמואל 20.10: נמצא בבדיקה לבד, לא נמצא בריצה המלאה)
+    local = bool(OSM_PBF and os.path.exists(OSM_PBF))
+    ways = None if local else next((w for b, w in OSM_CACHE if b[0] <= bbox[0] and b[1] <= bbox[1] and b[2] >= bbox[2] and b[3] >= bbox[3]), None)
     if ways is None:
         ways = overpass(bbox)
-        if ways:
+        if ways and not local:
             OSM_CACHE.append((bbox, ways))
     if not ways:
         for r in rc_routes:
@@ -271,6 +274,13 @@ def estimate_routes(alert, rc_routes, stops):
         fit = [p for p in cand if AR.dir_fits(p, r.get('to')) is not False]
         if fit and len(fit) < len(cand):
             cand = fit
+        # תחנה חלופית של הקו שהמסלול לא עובר לידה — סימן שזו הפסקה של כיוון אחר (קו 201, 20.10):
+        # מעדיפים את המסלול שעובר ליד הכי הרבה תחנות חלופיות, ורק אחר כך את הקצר
+        alt_pos = [STOP_POS[sid] for sid, add in r['seq'] if add and sid in STOP_POS]
+
+        def near_alts(res):
+            pts = AR._densify([tuple(x) for x in res['path']], 15.0)
+            return sum(1 for q in alt_pos if min(AR.meters(q, x) for x in pts) < 80)
         best = None
         for p in cand:
             try:
@@ -278,8 +288,12 @@ def estimate_routes(alert, rc_routes, stops):
             except Exception as e:   # הנוסח לא תמיד צפוי — לא מפילים את הריצה בגלל הודעה אחת
                 print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
                 res = None
-            if res and (best is None or res['len'] < best['len']):
+            if res:
+                res['_k'] = (-near_alts(res), res['len'])
+            if res and (best is None or res['_k'] < best['_k']):
                 best = res
+        if best:
+            best.pop('_k', None)
         if best:
             r['est'], r['why'] = best, 'ok'
         elif not cand:
@@ -376,6 +390,81 @@ def merge_dups(alerts):
         if b['map']:
             b['kind'] = 'route'
     return [a for a in alerts if a['id'] not in into], into
+
+
+# מילים בכותרת שלא מעידות על אותו מקום
+_GENERIC = set("עבודות עבודה עבודת יום לילה תשתית תשתיות רחוב רחובות רח שדרות שד דרך קטע מקטע הכיוונים כיוון "
+               "הסדרי תנועה חסימת חסימה רציפה סגירת אירוע אירועי מקומי עקב ימים בין החל תחנה תחנות העתקת ביטול "
+               "זמני זמנית שינוי שינויים מסלול מסלולים קווים קו כביש צומת כיכר מחלף תאונה עומסים כבדים צירים סמוכים "
+               "צפון דרום מזרח מערב ראשון שני שלישי רביעי חמישי שישי מבוטלת מבוטלות הוספת עתידיות "
+               "ריבוי מבקרים מועדים מיוחדים בזמן לצפון לדרום למזרח למערב מצפון מדרום".split())
+
+
+# מילים שמופיעות בשמות של כמה רחובות שונים ("המלך ג'ורג'", "דוד המלך", "שאול המלך") — לבד הן לא מספיקות
+_WEAK = set("מלך המלך דוד יהודה אבן שאול הרב רבי שדרת עין גבעת נוה נווה כפר קרית קריית".split())
+
+
+def _place_words(h):
+    out = set()
+    for x in re.sub(r"[\"'׳״`.,:;()\-–/+0-9]", " ", h or "").split():
+        # מילה כללית, גם עם אות יחס או ידיעה לפניה ("ברחוב", "בקטע", "לכיוון", "ובצומת", "העבודות")
+        if any(x[k:] in _GENERIC for k in range(0, 3) if x[:k] and all(c in "ובלמהש" for c in x[:k]) or k == 0):
+            continue
+        if len(x) >= 3 and x not in ("ברח", "וברח", "רח", "יפו", "ושני"):
+            out.add(x)
+    return out
+
+
+def _city(h):
+    """המקום בתחילת הכותרת, עד הפסיק או המקף המפריד: "תל-אביב – …" ו"תל אביב יפו - …" → "תל אביב"."""
+    c = re.split(r"\s*,\s*|\s+[–-]\s+|\s+[–-](?=\S)|(?<=\S)[–]\s+", (h or "").strip(), 1)[0]
+    c = re.sub(r"[-–]", " ", c)
+    c = re.sub(r"\s+יפו$|ראשל\"?צ", lambda m: "" if "יפו" in m.group(0) else "ראשון לציון", c).strip()
+    return re.sub(r"\s+", " ", c)
+
+
+def group_alerts(alerts, stops):
+    """כמה הודעות על אותן עבודות מחברות שונות (שלמה 20.10: גבעת שמואל — דן על 17, אפיקים על 18/48/69, ועוד
+    חברה על 145). אף אחת לא מכילה את השנייה, אז הן לא מתאחדות (merge_dups) — הן מקובצות לכרטיס אחד.
+    אותו שינוי = אותה עיר (המילה הראשונה בכותרת), עוד מילה משותפת בכותרת (רחוב / מקום), תאריכים חופפים,
+    ותחנות שבוטלו עד 400 מ' זו מזו (או שבשתיהן אין תחנות). מסמן a['grp'] = מזהה הקבוצה."""
+    by_code = {v[0]: k for k, v in (stops or {}).items()}
+    pos = {}
+    for a in alerts:
+        pos[a['id']] = [STOP_POS[by_code[str(c)]] for c, _ in a['rm'] if str(c) in by_code and by_code[str(c)] in STOP_POS]
+    per = {a['id']: [(p[0] or 0, p[1] or 4e9) for p in a['per']] or [(0, 4e9)] for a in alerts}
+    city = {a['id']: _city(a['h']) for a in alerts}
+    words = {a['id']: _place_words(a['h']) - _place_words(city[a['id']]) - {'אביב', 'ראשון', 'לציון', 'יפו', 'ראשלצ'}
+             for a in alerts}
+    def same(i, j):
+        common = words[i] & words[j]
+        if not city[i] or city[i] != city[j] or not (common - _WEAK or len(common) >= 2):
+            return False
+        if not any(x0 < y1 and y0 < x1 for x0, x1 in per[i] for y0, y1 in per[j]):
+            return False
+        if pos[i] and pos[j]:
+            return min(AR.meters(p, q) for p in pos[i] for q in pos[j]) <= 400
+        return not (pos[i] or pos[j])
+    # כל הודעה בקבוצה דומה לכל האחרות, לא רק לאחת מהן — אחרת עבודות ברחובות סמוכים בתל אביב
+    # נשרשרות לקבוצה אחת ענקית (קרליבך ← המלך ג'ורג' ← דיזנגוף ← …)
+    groups = []
+    for a in sorted(alerts, key=lambda x: (x['s'] or '', x['id'])):
+        for g in groups:
+            if all(same(a['id'], m) for m in g):
+                g.append(a['id'])
+                break
+        else:
+            groups.append([a['id']])
+    groups = {g[0]: g for g in groups}
+    n = 0
+    by_id = {a['id']: a for a in alerts}
+    for members in groups.values():
+        if len(members) > 1:
+            g = min(members)
+            for i in members:
+                by_id[i]['grp'] = g
+            n += 1
+    return n
 
 
 def load_rc(a):
@@ -594,10 +683,12 @@ def main():
                 # וגם תחנות חלופיות של ההודעה שאתר המקור לא שייך לאף קו (תחנת מוצא חדשה, קו 126)
                 xadd = [by_code[c] for c in text_new_stops(he(a.get('description'))) if c in by_code] + list(a.get('added_stop_ids') or [])
                 xadd = list(dict.fromkeys(xadd))
-                xadd = [x for x in xadd if x not in have and x not in out_stops and STOP_POS.get(x)]
+                # (גם תחנה שכבר במסלול הקבוע של הקו — ויצמן/פנקס: התחנה "החדשה" 25898 היא תחנה קיימת)
+                xadd = [x for x in xadd if x not in have and STOP_POS.get(x)]
                 for x in xadd:
-                    q = STOP_POS[x]
-                    out_stops[x] = [round(q[0], 6), round(q[1], 6), stops[x][0], stops[x][1]]
+                    if x not in out_stops:
+                        q = STOP_POS[x]
+                        out_stops[x] = [round(q[0], 6), round(q[1], 6), *(stops or {}).get(x, ('', ''))]
                 for r in routes:
                     full = r.pop('shape')
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)
@@ -660,6 +751,9 @@ def main():
         })
     alerts, merged = merge_dups(alerts)
     report['merged'] = len(merged)
+    if stops is None:
+        stops = stop_names()
+    report['groups'] = group_alerts(alerts, stops)
     for k, ids in by_rd.items():
         by_rd[k] = [merged.get(i, i) for i in ids]
     # ניקוי: התראות שירדו מהפיד
