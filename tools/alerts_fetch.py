@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 11
+PARSE_V = 12
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -663,7 +663,12 @@ def main():
                                 dele = dele + [s for s in touched if s not in dele]
                             cut = None
                             if touched:
-                                cut = AR.cut_range(shape, [pos_of(s, sfm) for s in touched])
+                                # אתר המקור מצמיד לכל קו את כל התחנות שבפסקה, גם תחנה ברחוב אחר שהקו לא עובר
+                                # בו (קריית שמונה 20.10, "האצ"ל ג" 120 מ' מקו 5) — היא "נפלה" על סוף הלולאה,
+                                # והקטע הסגור יצא כמעט כל הקו. תחנה רחוקה מהשרטוט לא קובעת את הקטע
+                                pts = [pos_of(s, sfm) for s in touched]
+                                on = [q for q in pts if q and min(AR.meters(p, q) for p in shape) < 60]
+                                cut = AR.cut_range(shape, on or pts)
                             used.update(s for s, _ in seq)
                             used.update(dele)
                             routes.append({'num': c.get('line_number'), 'rd': c.get('route_desc'), 'rid': c.get('route_id'), 'to': c.get('to_text'),

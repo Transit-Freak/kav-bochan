@@ -158,6 +158,10 @@ def parse(desc):
     for line in _logical_lines(desc):
         if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}(?:מבוטל|בוטל)", line):
             stops_mode = "rm" if out else None
+            # "תחנות מבוטלות זמנית: האצ"ל/ נוף חרמון (תחנה 53696), …" — המק"טים באותה שורה (קריית שמונה)
+            if out and ":" in line:
+                for c in re.findall(r"(?<!\d)\d{5}(?!\d)", line.split(":", 1)[1]):
+                    out[-1].setdefault("rm", set()).add(c)
             continue
         if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}חלופי", line):
             stops_mode = None
