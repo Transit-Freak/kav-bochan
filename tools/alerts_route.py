@@ -269,6 +269,7 @@ class Streets:
     def __init__(self, ways):
         self.pos = {}
         self.adj = collections.defaultdict(list)
+        self.adj_any = collections.defaultdict(list)   # בלי חד-סטרי — רק כשהדרך לפי החד-סטרי מסתובבת
         self.by_name = collections.defaultdict(set)
         self.names = set()
         for tags, geom in ways:
@@ -294,6 +295,8 @@ class Streets:
                     self.adj[a].append((b, d, nn, hw))
                 if back:
                     self.adj[b].append((a, d, nn, hw))
+                self.adj_any[a].append((b, d, nn, hw))
+                self.adj_any[b].append((a, d, nn, hw))
 
     def match(self, street):
         """השמות ברשת שמתאימים לרחוב מההודעה ("לדנמרק" → "דנמרק", "ז'בוטינסקי" → "זבוטינסקי")."""
@@ -350,7 +353,7 @@ class Streets:
                 out.add(p)
         return out
 
-    def dijkstra(self, src, names, targets, pen=6.0, limit=12000):
+    def dijkstra(self, src, names, targets, pen=6.0, limit=12000, any_dir=False, no_tunnel=False):
         """הדרך הקצרה מ-src לאחד היעדים, כשקטע שלא ברחוב הנוכחי עולה פי pen.
         src — צומת, או {צומת: עלות התחלה} כשיש כמה נקודות יציאה (שדרה עם שני מסלולים חד-סטריים)."""
         srcs = src if isinstance(src, dict) else {src: 0.0}
@@ -374,8 +377,11 @@ class Streets:
                 break
             if d > limit:
                 break
-            for v, w, nm, hw in self.adj[u]:
+            for v, w, nm, hw in (self.adj_any if any_dir else self.adj)[u]:
                 c = w * (1 if nm & names else pen) + (500 if hw in ("service", "track", "footway", "path") else 0)
+                # "לא להיכנס לשיקוע" — מנהרה רק אם אין דרך אחרת (תל אביב 20.10, מנהרת קרליבך)
+                if no_tunnel and any(x.startswith("מנהרת") for x in nm):
+                    c *= 20
                 nd = d + c
                 if nd < dist.get(v, 1e18):
                     dist[v] = nd
@@ -387,6 +393,38 @@ class Streets:
                 path.append(prev[path[-1]])
             return path[::-1], best[2]
         return None, None
+
+
+def cut_range(shape, stops, slack=30.0):
+    """הקטע המבוטל על השרטוט: מהתחנה המבוטלת הראשונה עד האחרונה. קו שעובר באותו רחוב פעמיים (הלוך
+    ובחזרה בלולאה) — לכל תחנה כמה מקומות אפשריים, ובוחרים את הקטע הקצר ביותר שמכיל את כולן
+    (חולון 20.10, קו 22: התחנה בהסתדרות/ויצמן "נפלה" על המעבר השני, והקטע הסגור יצא קילומטרים)."""
+    stops = [q for q in stops if q]
+    if not stops:
+        return None
+    ev = []
+    for k, q in enumerate(stops):
+        d = [meters(p, q) for p in shape]
+        lim = min(d) + slack
+        ev += [(i, k) for i, x in enumerate(d) if x <= lim]
+    ev.sort()
+    need, cnt, have, best, j = len(stops), collections.Counter(), 0, None, 0
+    for i, k in ev:
+        cnt[k] += 1
+        have += cnt[k] == 1
+        while have == need:
+            lo = ev[j][0]
+            if best is None or i - lo < best[1] - best[0]:
+                best = (lo, i)
+            kk = ev[j][1]
+            cnt[kk] -= 1
+            have -= cnt[kk] == 0
+            j += 1
+    return list(best)
+
+
+def _length(path):
+    return sum(meters(a, b) for a, b in zip(path, path[1:]))
 
 
 def seg_dist(p, a, b):
@@ -556,6 +594,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         return min((along[k] for k in ks if meters(n, dense_tail[k]) < 35), default=acc)
     back = {n: tail_pos(n) for n in back}
     legs, streets, cur = [], [], src
+    no_tunnel = bool(re.search(r"(?:לא|אין)\s+(?:להיכנס|לרדת|לנסוע)?\s*(?:ל|ב)?(?:שיקוע|מנהרה)", para.get("text", "")))
     for k, (st, names) in enumerate(plan):
         cur_set = set(cur) if isinstance(cur, dict) else {cur}
         if k + 1 < len(plan):
@@ -568,7 +607,13 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
             tg = {n: c for n, c in back.items() if n not in cur_set}
         if not tg:
             return None
-        p, _ = net.dijkstra(cur, names, tg)
+        p, c = net.dijkstra(cur, names, tg, no_tunnel=no_tunnel)
+        # הדרך לפי החד-סטרי מסתובבת ברחובות שלא בהודעה (פנייה שמאלה שלא מחוברת במפה, ואז לולאה של
+        # קילומטר וחצי מעבר לאיילון — תל אביב 20.10, בגין ← קפלן): מציירים את הפנייה כמו שכתוב בהודעה
+        if not p or c > 1.5 * _length(p) + 100:
+            p2, c2 = net.dijkstra(cur, names, tg, any_dir=True, no_tunnel=no_tunnel)
+            if p2 and (not p or c2 * 2 < c):
+                p = p2
         if not p:
             return None
         legs.append(p)

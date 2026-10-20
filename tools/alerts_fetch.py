@@ -663,11 +663,7 @@ def main():
                                 dele = dele + [s for s in touched if s not in dele]
                             cut = None
                             if touched:
-                                idx = []
-                                for s in touched:
-                                    q = pos_of(s, sfm)
-                                    idx.append(min(range(len(shape)), key=lambda i: AR.meters(shape[i], q)))
-                                cut = [min(idx), max(idx)]
+                                cut = AR.cut_range(shape, [pos_of(s, sfm) for s in touched])
                             used.update(s for s, _ in seq)
                             used.update(dele)
                             routes.append({'num': c.get('line_number'), 'rd': c.get('route_desc'), 'rid': c.get('route_id'), 'to': c.get('to_text'),
