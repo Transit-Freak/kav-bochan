@@ -427,6 +427,15 @@ def cut_range(shape, stops, slack=30.0):
     return list(best)
 
 
+def _opposite(seg, d):
+    """קטע של השרטוט שנוסעים בו בכיוון ההפוך ל-d (זווית של יותר מ-120°). פנייה בניצב — לא הפוך."""
+    (a, b), k = seg, 0.84   # cos(קו רוחב 33°) — מעלות אורך קצרות ממעלות רוחב
+    u = (b[0] - a[0], (b[1] - a[1]) * k)
+    v = (d[0], d[1] * k)
+    nu, nv = math.hypot(*u), math.hypot(*v)
+    return nu > 0 and nv > 0 and (u[0] * v[0] + u[1] * v[1]) / (nu * nv) < -0.5
+
+
 def _length(path):
     return sum(meters(a, b) for a, b in zip(path, path[1:]))
 
@@ -547,8 +556,7 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     # רק קטע של המסלול הרגיל שנוסעים בו באותו כיוון: קו שעושה לולאה וחוזר באותו רחוב בכיוון ההפוך —
     # העקיפה שנוסעת בו בכיוון ההלוך היא לא "חזרה למסלול" (קריית שמונה 20.10, קו 5 ביקותיאל אדם)
     def same_way(i, d):
-        a, b = shape[i], shape[i + 1]
-        return (b[0] - a[0]) * d[0] + (b[1] - a[1]) * d[1] * 0.7 > 0
+        return not _opposite((shape[i], shape[i + 1]), d)
 
     def heading(k):
         a, b = (path[k], path[k + 1]) if k + 1 < len(path) else (path[k - 1], path[k])
@@ -641,8 +649,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     # המקום על השרטוט שבו העקיפה חוזרת — מבין הקטעים שנוסעים בהם באותו כיוון (לולאה שחוזרת באותו רחוב)
     d = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1]) if len(path) > 1 else (0, 0)
     near_i = [i for i in range(min(len(tail), 1200) - 1)
-              if (tail[i + 1][0] - tail[i][0]) * d[0] + (tail[i + 1][1] - tail[i][1]) * d[1] * 0.7 > 0
-              and meters(tail[i], cur) < 40]
+              if meters(tail[i], cur) < 40 and not _opposite((tail[i], tail[i + 1]), d)]
     i_in = cut1 + 1 + min(near_i or range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
