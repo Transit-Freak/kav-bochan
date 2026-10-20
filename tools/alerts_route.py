@@ -553,6 +553,11 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     path = [n for leg in legs for n in leg]
     i_in = cut1 + 1 + min(range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in)
+    # מסלול שחוזר לנקודה שממנה יצא (סיבוב סביב בלוק וחזרה לאותו מקום במסלול) — זו כנראה הפסקה של הכיוון
+    # ההפוך, לא עקיפה (תל אביב 20.10, דיזנגוף, קו 2 להארגזים)
+    skipped = sum(meters(shape[i], shape[i + 1]) for i in range(i_out, max(i_out, i_in)))
+    if meters(path[0], path[-1]) < 60 and skipped < 150:
+        return None
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:
         return None
