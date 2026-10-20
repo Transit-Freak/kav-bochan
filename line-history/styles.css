@@ -549,3 +549,6 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .tmpev .tmpleg span { display: inline-flex; align-items: center; gap: 5px; }
 .tmpev .tmpleg i { display: inline-block; width: 22px; }
 .tmpev .tmptxt { white-space: pre-wrap; max-height: 320px; overflow: auto; font-weight: 400; font-size: 13px; color: #334155; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; cursor: auto; }
+
+/* תוויות מפה בדף RTL: שכבת התוויות LTR כדי ש-Leaflet יחשב נכון את המיקום ליד הסמן, והטקסט עצמו RTL (שלמה 20.10) */
+.leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}

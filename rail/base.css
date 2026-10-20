@@ -134,3 +134,6 @@ button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(
   .rs{grid-template-columns:20px 1fr 52px 52px 70px;gap:5px}
   .rs .rt,.rs .ra,.rs .rd{font-size:12.5px}
 }
+
+/* תוויות מפה בדף RTL: שכבת התוויות LTR כדי ש-Leaflet יחשב נכון את המיקום ליד הסמן, והטקסט עצמו RTL (שלמה 20.10) */
+.leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}

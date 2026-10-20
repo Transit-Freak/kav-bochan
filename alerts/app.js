@@ -197,6 +197,15 @@
     var c0 = ci.length ? Math.min.apply(null, ci) : -1, c1 = ci.length ? Math.max.apply(null, ci) : -1;
     var est = r.est && r.est.path;
     if (est) { c0 = nearestIdx(shape, est[0]); c1 = Math.max(c0, nearestIdx(shape, est[est.length - 1])); }
+    else if (ci.length) {
+      // תחנת המוצא (או הסוף) בוטלה: הקו מתחיל בתחנה הראשונה שנשארה, והקטע שלפניה לא נסוע (שלמה 20.10:
+      // סומנה רק התחנה המבוטלת, בלי הקטע)
+      var kept = seq.filter(function (s) { return !s[1]; }).map(function (s) { return nearestIdx(shape, stops[s[0]]); });
+      if (kept.length) {
+        var kmin = Math.min.apply(null, kept), kmax = Math.max.apply(null, kept);
+        if (c1 < kmin) { c0 = 0; c1 = kmin; } else if (c0 > kmax) { c0 = kmax; c1 = shape.length - 1; }
+      }
+    }
     if (c0 >= 0) {
       L.polyline(shape.slice(0, c0 + 1), { color: "#64748B", weight: 4, opacity: 0.8 }).addTo(layer);
       L.polyline(shape.slice(c0, c1 + 1), { color: "#64748B", weight: 4, opacity: 0.7, dashArray: "6 7" }).addTo(layer);
@@ -218,6 +227,7 @@
       note = r.why === "no-text" ? "בהודעה אין תיאור של המסלול החלופי, ולכן אין מסלול על המפה — רק התחנות."
         : r.why === "stops-only" ? "בהודעה יש רק רשימה של תחנות שבוטלו, בלי תיאור של המסלול החלופי. לכן על המפה רק התחנות."
         : r.why === "skip" ? "לפי ההודעה הקו נשאר במסלול שלו ורק לא עוצר בתחנה שבוטלה."
+        : r.why === "relocate" ? "התחנה הועתקה למקום אחר, והקו נשאר במסלול שלו."
         : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why || "time"] || "לא ידוע") + "). מוצגות רק התחנות.";
     }
     del.forEach(function (s) {
@@ -233,8 +243,16 @@
         .bindTooltip((st[3] || "") + (st[2] ? " · " + st[2] : "") + " · תחנה חלופית").addTo(layer);
       focus.push(st.slice(0, 2));
     });
+    // תחנות חלופיות שכתובות רק בנוסח ההודעה (xadd)
+    var xadd = (cur.rc.xadd || []).filter(function (s) { return stops[s]; });
+    xadd.forEach(function (s) {
+      var st = stops[s];
+      L.marker(st.slice(0, 2), { icon: L.divIcon({ className: "", html: '<div class="am"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }) })
+        .bindTooltip((st[3] || "") + (st[2] ? " · " + st[2] : "") + " · תחנה חלופית").addTo(layer);
+      focus.push(st.slice(0, 2));
+    });
     if (del.length) legend.push('<span><div class="xm"></div>תחנה מבוטלת</span>');
-    if (seq.some(function (s) { return s[1]; })) legend.push('<span><div class="am"></div>תחנה חלופית</span>');
+    if (xadd.length || seq.some(function (s) { return s[1]; })) legend.push('<span><div class="am"></div>תחנה חלופית</span>');
     $("legend").innerHTML = legend.join("");
     $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") +
       (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
