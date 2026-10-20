@@ -116,6 +116,9 @@ def _steps(rest):
     # הוראה שלילית ("לא פונים שמאלה לויצמן") נמחקת עד הפסיק; "לא X אלא Y" — נשאר Y
     rest = re.sub(r"(?:(?<=[\s,;(])|^)ו?לא\s[^,;)]*?(?=\sאלא\s|[,;)]|$)", "", rest)
     rest = re.sub(r"(?:(?<=[\s,;(])|^)אלא\s", "", rest)
+    # מילות קישור בין פניות ("שמאלה לשדרות יצחק רבין ולאחר מכן שמאלה לכביש בגין צפון, ומשם ימשיך…",
+    # ירושלים 20.10) — לא חלק משם הרחוב
+    rest = re.sub(r"\s+ו?(?:לאחר מכן|אחר כך|אחרי כן|משם)(?=[\s,;]|$)", ",", rest)
     steps = []
     # פסיק, ו"ו" לפני פנייה, פנייה בלי פסיק לפניה ("המשך ביאליק ימינה אבא הלל"), ורשימה במקפים
     # ("ייסעו דרך חנה - אלי הכהן - גרוסברג", אקסטרה ירושלים)
@@ -163,10 +166,16 @@ def parse(desc):
         if hdr:
             stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out else None
             if stops_mode and ":" in line:
-                for c in re.findall(r"(?<!\d)\d{5}(?!\d)", line.split(":", 1)[1]):
+                # מק"ט של 3–6 ספרות ("תחנה מבוטלת: 3007 – שערי ירושלים/ליפתא", ירושלים)
+                # כשכתוב "(תחנה 38428)" — רק אלה; מספר אחרי "כביש"/"מס'" הוא כביש, לא תחנה (ראשון לציון, יהוד 20.10)
+                tail = line.split(":", 1)[1]
+                cs = re.findall(r"תחנה\s+(\d{3,6})(?!\d)", tail) or re.findall(
+                    r"(?<![\d./:])\d{3,6}(?![\d./:])", re.sub(r"(?:כביש|מס['׳]?)\s*(?:מס['׳]?\s*)?\d+", " ", tail))
+                for c in cs:
                     out[-1].setdefault(stops_mode, set()).add(c)
             continue
-        code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line)
+        # מק"ט בתחילת שורה; של 3 ספרות רק כשאחריו מקף ושם תחנה — "143 לכיוון חולון:" הוא מספר קו (בת ים 20.10)
+        code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line) or re.match(r"^\s*(\d{3})\s*[-–]\s*\S", line)
         if code and stops_mode:
             out[-1].setdefault(stops_mode, set()).add(code.group(1))
             continue
@@ -314,6 +323,8 @@ class Streets:
         cands += [norm(re.sub(r"(^|\s)ל?אס(?=\s)", r"\1אגודת ספורט", c)) for c in list(cands) if re.search(r"(^|\s)ל?אס\s", c)]
         if len(s) > 4 and s[:2] in ("לה", "בה"):
             cands.append(norm(s[1:]))
+        # "לכביש בגין" — במפה "שדרות מנחם בגין" (ירושלים 20.10): "כביש" לפני שם, לא לפני מספר
+        cands += [norm(re.sub(r"^ל?כביש\s+(?=[א-ת])", "", c)) for c in list(cands) if re.match(r"^ל?כביש\s+[א-ת]", c)]
         out = set()
         for c in cands:
             if len(c) < 2:
@@ -448,6 +459,20 @@ def _opposite(seg, d):
     v = (d[0], d[1] * k)
     nu, nv = math.hypot(*u), math.hypot(*v)
     return nu > 0 and nv > 0 and (u[0] * v[0] + u[1] * v[1]) / (nu * nv) < -0.5
+
+
+def _despike(path):
+    """הלוך-חזור באותה דרך בתוך המסלול (נכנס לרחוב צדדי וחוזר, בין שתי פניות) — לא נסיעה אמיתית,
+    רק תוצאה של חיבור שני קטעים בצומת (ירושלים 20.10, קו 616 בהרצל/יצחק רבין)."""
+    out = []
+    for p in path:
+        if out and p == out[-1]:
+            continue
+        if len(out) >= 2 and p == out[-2]:
+            out.pop()
+            continue
+        out.append(p)
+    return out
 
 
 def _length(path):
@@ -615,6 +640,14 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     if not plan or not tail:
         return None
     ex = _exit_point(net, para, shape, cut0, cut1, plan[0][1])
+    # "הקו ימשיך בשדרות X, יפנה ימינה ל-Y…" כש-X לא נמצא במפה: הרחוב הראשון שנמצא לא נוגע במסלול — יוצאים
+    # רגע לפני הקטע הסגור, וממשיכים ישר עד Y (ירושלים 20.10, קו 616 בשערי ירושלים)
+    if not ex and not para.get("start") and para["steps"] and not net.match(para["steps"][0]):
+        i0 = max(0, cut0 - 3)
+        cpt = tuple(shape[i0])
+        start_c = [n for n in net.near(set(net.pos), [cpt], 40) if net.adj[n]]
+        if start_c:
+            ex = (cpt, start_c, i0)
     if not ex:
         return None
     cpt, start_c, i_out = ex
@@ -665,7 +698,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         legs.append(p)
         streets.append(st)
         cur = p[-1]
-    path = [n for leg in legs for n in leg]
+    path = _despike([n for leg in legs for n in leg])
     # המקום על השרטוט שבו העקיפה חוזרת — מבין הקטעים שנוסעים בהם באותו כיוון (לולאה שחוזרת באותו רחוב)
     d = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1]) if len(path) > 1 else (0, 0)
     dist = dict(enumerate(meters(q, cur) for q in tail[:1200]))
