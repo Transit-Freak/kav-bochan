@@ -282,6 +282,12 @@ class DetourTests(unittest.TestCase):
         sh = [(32.0, 34.80 + 0.0005 * i) for i in range(20)] + [(32.0001, 34.80 + 0.0005 * i) for i in range(19, -1, -1)]
         self.assertEqual([4, 8], AR.cut_range(sh, [(32.0, 34.802), (32.0, 34.804)]))
 
+    def test_first_pass_through_a_junction(self):
+        # קו שעובר באותה צומת בכניסה לשכונה וביציאה ממנה: החזרה למסלול — במעבר הראשון (קריית שמונה 20.10)
+        dist = {10: 30.0, 11: 20.0, 12: 35.0, 80: 2.0, 81: 5.0}
+        self.assertEqual(11, AR._first_pass(list(dist), dist))
+        self.assertEqual(80, AR._first_pass(list(dist), dist, last=True))
+
     def test_mostly_unknown_streets_give_nothing(self):
         self.assertIsNone(self.route(('הראשי', 'אחד'), ['אחד', 'מחלף א', 'מחלף ב', 'מחלף ג']))
 
