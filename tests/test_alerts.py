@@ -157,6 +157,36 @@ class MergeTests(unittest.TestCase):
         self.assertEqual({'5': '4'}, AF.merge_dups([a, b])[1])
 
 
+class GroupTests(unittest.TestCase):
+    """הודעות של חברות שונות על אותן עבודות — כרטיס אחד; עבודות ברחובות סמוכים לא משורשרות (שלמה 20.10)."""
+
+    def alert(self, i, h, codes, per=((100, 200),)):
+        return {'id': i, 'h': h, 's': '2026-10-18', 'rm': [[c, ''] for c in codes], 'per': [list(p) for p in per]}
+
+    def setUp(self):
+        AF.STOP_POS.update({'s1': (32.075, 34.853), 's2': (32.0752, 34.8533), 's3': (32.10, 34.80), 's4': (32.0751, 34.8531)})
+        self.stops = {'s1': ('1', ''), 's2': ('2', ''), 's3': ('3', ''), 's4': ('4', '')}
+
+    def test_same_works_different_operators(self):
+        al = [self.alert('a', 'גבעת שמואל – עבודות יום ברחוב יוני נתניהו בקטע מוטה גור/זבולון המר', ['1']),
+              self.alert('b', "גבעת שמואל, עבודות יום, רח' יוני נתניהו 18-20/10/26.", ['2']),
+              self.alert('c', 'גבעת שמואל, עבודות תשתית, רחוב יוני נתניהו, 18.10.26', ['4'])]
+        self.assertEqual(1, AF.group_alerts(al, self.stops))
+        self.assertEqual({'a'}, {x['grp'] for x in al})
+
+    def test_far_apart_or_other_street_or_other_dates_not_grouped(self):
+        al = [self.alert('a', "תל-אביב – עבודות לילה ברח' קרליבך", ['1']),
+              self.alert('b', "תל אביב, עבודות לילה, רח' קרליבך", ['3']),            # רחוק
+              self.alert('c', "תל אביב, עבודות לילה, רח' המלך ג'ורג'", ['2']),       # רחוב אחר
+              self.alert('d', "תל אביב, עבודות לילה, רח' קרליבך", ['4'], ((300, 400),))]   # תאריכים אחרים
+        self.assertEqual(0, AF.group_alerts(al, self.stops))
+
+    def test_city_spelling(self):
+        self.assertEqual('תל אביב', AF._city('תל-אביב – עבודות'))
+        self.assertEqual('תל אביב', AF._city('תל אביב יפו - עבודות'))
+        self.assertEqual('ראשון לציון', AF._city('ראשל"צ - חסימה'))
+
+
 class StreetMatchTests(unittest.TestCase):
     def test_prefix_then_road_word(self):
         # "לדרך הרים" בנוסח, "הרים" במפה (אילת 18.10) — אחרי הורדת ה-ל גם "דרך" יורדת

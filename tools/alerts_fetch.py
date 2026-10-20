@@ -378,6 +378,81 @@ def merge_dups(alerts):
     return [a for a in alerts if a['id'] not in into], into
 
 
+# מילים בכותרת שלא מעידות על אותו מקום
+_GENERIC = set("עבודות עבודה עבודת יום לילה תשתית תשתיות רחוב רחובות רח שדרות שד דרך קטע מקטע הכיוונים כיוון "
+               "הסדרי תנועה חסימת חסימה רציפה סגירת אירוע אירועי מקומי עקב ימים בין החל תחנה תחנות העתקת ביטול "
+               "זמני זמנית שינוי שינויים מסלול מסלולים קווים קו כביש צומת כיכר מחלף תאונה עומסים כבדים צירים סמוכים "
+               "צפון דרום מזרח מערב ראשון שני שלישי רביעי חמישי שישי מבוטלת מבוטלות הוספת עתידיות "
+               "ריבוי מבקרים מועדים מיוחדים בזמן לצפון לדרום למזרח למערב מצפון מדרום".split())
+
+
+# מילים שמופיעות בשמות של כמה רחובות שונים ("המלך ג'ורג'", "דוד המלך", "שאול המלך") — לבד הן לא מספיקות
+_WEAK = set("מלך המלך דוד יהודה אבן שאול הרב רבי שדרת עין גבעת נוה נווה כפר קרית קריית".split())
+
+
+def _place_words(h):
+    out = set()
+    for x in re.sub(r"[\"'׳״`.,:;()\-–/+0-9]", " ", h or "").split():
+        # מילה כללית, גם עם אות יחס או ידיעה לפניה ("ברחוב", "בקטע", "לכיוון", "ובצומת", "העבודות")
+        if any(x[k:] in _GENERIC for k in range(0, 3) if x[:k] and all(c in "ובלמהש" for c in x[:k]) or k == 0):
+            continue
+        if len(x) >= 3 and x not in ("ברח", "וברח", "רח", "יפו", "ושני"):
+            out.add(x)
+    return out
+
+
+def _city(h):
+    """המקום בתחילת הכותרת, עד הפסיק או המקף המפריד: "תל-אביב – …" ו"תל אביב יפו - …" → "תל אביב"."""
+    c = re.split(r"\s*,\s*|\s+[–-]\s+|\s+[–-](?=\S)|(?<=\S)[–]\s+", (h or "").strip(), 1)[0]
+    c = re.sub(r"[-–]", " ", c)
+    c = re.sub(r"\s+יפו$|ראשל\"?צ", lambda m: "" if "יפו" in m.group(0) else "ראשון לציון", c).strip()
+    return re.sub(r"\s+", " ", c)
+
+
+def group_alerts(alerts, stops):
+    """כמה הודעות על אותן עבודות מחברות שונות (שלמה 20.10: גבעת שמואל — דן על 17, אפיקים על 18/48/69, ועוד
+    חברה על 145). אף אחת לא מכילה את השנייה, אז הן לא מתאחדות (merge_dups) — הן מקובצות לכרטיס אחד.
+    אותו שינוי = אותה עיר (המילה הראשונה בכותרת), עוד מילה משותפת בכותרת (רחוב / מקום), תאריכים חופפים,
+    ותחנות שבוטלו עד 400 מ' זו מזו (או שבשתיהן אין תחנות). מסמן a['grp'] = מזהה הקבוצה."""
+    by_code = {v[0]: k for k, v in (stops or {}).items()}
+    pos = {}
+    for a in alerts:
+        pos[a['id']] = [STOP_POS[by_code[str(c)]] for c, _ in a['rm'] if str(c) in by_code and by_code[str(c)] in STOP_POS]
+    per = {a['id']: [(p[0] or 0, p[1] or 4e9) for p in a['per']] or [(0, 4e9)] for a in alerts}
+    city = {a['id']: _city(a['h']) for a in alerts}
+    words = {a['id']: _place_words(a['h']) - _place_words(city[a['id']]) - {'אביב', 'ראשון', 'לציון', 'יפו', 'ראשלצ'}
+             for a in alerts}
+    def same(i, j):
+        common = words[i] & words[j]
+        if not city[i] or city[i] != city[j] or not (common - _WEAK or len(common) >= 2):
+            return False
+        if not any(x0 < y1 and y0 < x1 for x0, x1 in per[i] for y0, y1 in per[j]):
+            return False
+        if pos[i] and pos[j]:
+            return min(AR.meters(p, q) for p in pos[i] for q in pos[j]) <= 400
+        return not (pos[i] or pos[j])
+    # כל הודעה בקבוצה דומה לכל האחרות, לא רק לאחת מהן — אחרת עבודות ברחובות סמוכים בתל אביב
+    # נשרשרות לקבוצה אחת ענקית (קרליבך ← המלך ג'ורג' ← דיזנגוף ← …)
+    groups = []
+    for a in sorted(alerts, key=lambda x: (x['s'] or '', x['id'])):
+        for g in groups:
+            if all(same(a['id'], m) for m in g):
+                g.append(a['id'])
+                break
+        else:
+            groups.append([a['id']])
+    groups = {g[0]: g for g in groups}
+    n = 0
+    by_id = {a['id']: a for a in alerts}
+    for members in groups.values():
+        if len(members) > 1:
+            g = min(members)
+            for i in members:
+                by_id[i]['grp'] = g
+            n += 1
+    return n
+
+
 def load_rc(a):
     """מפת השינויים של ההתראה — וגם של הודעות שאוחדו לתוכה (קווים שאין במפה שלה)."""
     out = None
@@ -660,6 +735,9 @@ def main():
         })
     alerts, merged = merge_dups(alerts)
     report['merged'] = len(merged)
+    if stops is None:
+        stops = stop_names()
+    report['groups'] = group_alerts(alerts, stops)
     for k, ids in by_rd.items():
         by_rd[k] = [merged.get(i, i) for i in ids]
     # ניקוי: התראות שירדו מהפיד
