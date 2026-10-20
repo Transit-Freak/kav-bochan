@@ -621,6 +621,14 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     if not plan or not tail:
         return None
     ex = _exit_point(net, para, shape, cut0, cut1, plan[0][1])
+    # "הקו ימשיך בשדרות X, יפנה ימינה ל-Y…" כש-X לא נמצא במפה: הרחוב הראשון שנמצא לא נוגע במסלול — יוצאים
+    # רגע לפני הקטע הסגור, וממשיכים ישר עד Y (ירושלים 20.10, קו 616 בשערי ירושלים)
+    if not ex and not para.get("start") and para["steps"] and not net.match(para["steps"][0]):
+        i0 = max(0, cut0 - 3)
+        cpt = tuple(shape[i0])
+        start_c = [n for n in net.near(set(net.pos), [cpt], 40) if net.adj[n]]
+        if start_c:
+            ex = (cpt, start_c, i0)
     if not ex:
         return None
     cpt, start_c, i_out = ex
