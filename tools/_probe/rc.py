@@ -1,16 +1,24 @@
-# זמני — מה אתר המקור מחזיר להודעה בלי תחנות
-import json, sys
+# זמני — הודעה אחת מהקוד, עם מפה מהקו בזמן כשאין מאתר המקור
+import json, os, sys, glob, tempfile
 sys.path.insert(0, 'tools')
-import alerts_fetch as F
-for aid in sys.argv[1:]:
-    rc = F.get_json(f'{F.SRC}/api/get_route_changes?id={aid}')
-    print('RC', aid, 'keys', list((rc or {}).keys()))
-    for ag, per in ((rc or {}).get('route_changes') or {}).items():
-        for pk, chs in per.items():
-            for c in chs:
-                print('  CH', ag, pk, {k: (v if not isinstance(v, list) else len(v)) for k, v in c.items() if k != 'shape'}, 'shape', len(c.get('shape') or []))
-    print('  SFM', len((rc or {}).get('stops_for_map') or {}))
-    al = F.get_json(f'{F.SRC}/api/all_alerts')
-    for a in (al or {}).get('alerts', []):
-        if str(a['id']) == aid:
-            print('  ALERT', {k: v for k, v in a.items() if k not in ('description', 'header')})
+IDS = sys.argv[1:]
+os.environ['OUT'] = tempfile.mkdtemp(); os.environ['TEMP_DIR'] = tempfile.mkdtemp()
+import alerts_fetch as F, alerts_route as AR
+og = F.get_json
+def gj(url, **k):
+    d = og(url, **k)
+    if d and 'all_alerts' in url:
+        d['alerts'] = [a for a in d['alerts'] if str(a['id']) in IDS]
+    return d
+F.get_json = gj
+F.main()
+for f in glob.glob(os.environ['OUT'] + '/rc/*.json'):
+    rc = json.load(open(f)); st = rc['stops']
+    print('RC', rc['id'], rc['status'], rc.get('tpl'), 'xadd', [st[x][2] for x in rc.get('xadd') or []])
+    for r in rc['routes']:
+        e = r.get('est')
+        print('  R', r['num'], r['rd'], r['to'], r['why'], 'del', [st[x][2:] for x in r['del'] if x in st], 'xadd', [st[x][2] for x in r.get('xadd', [])],
+              e and (e['streets'], e['len'], e['path'][0], e['path'][-1]), 'shape', len(r['shape']))
+al = json.load(open(os.environ['OUT'] + '/alerts.json'))
+for a in al['alerts']:
+    print('A', a['id'], a['kind'], a['map'], a['lines'])

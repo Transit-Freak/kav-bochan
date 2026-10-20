@@ -148,11 +148,26 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([{'25625'}, {'25621'}], [x['rm'] for x in p])
         self.assertEqual([{'25621'}, {'25615'}], [x['add'] for x in p])
 
+    def test_short_stop_codes_and_connecting_words(self):
+        # ירושלים 20.10, קו 616: מק"טים של 3–4 ספרות, ו"ולאחר מכן" / "ומשם" בין הפניות
+        p = AR.parse('קו מושפע: 616 לכיוון ירושלים.\n\nשינוי מסלול:\nהקו ימשיך בשדרות בן גוריון, יפנה ימינה לשדרות הרצל, '
+                     'שמאלה לשדרות יצחק רבין ולאחר מכן שמאלה לכביש בגין צפון, ומשם ימשיך במסלולו הרגיל.\n\n'
+                     'תחנה מבוטלת: 3007 – שערי ירושלים/ליפתא.\nתחנה חלופית: 645 – ויצמן/גבעת שאול.')
+        self.assertEqual(1, len(p))
+        self.assertEqual(['בן גוריון', 'הרצל', 'יצחק רבין', 'לכביש בגין'], p[0]['steps'])
+        self.assertEqual(({'3007'}, {'645'}), (p[0]['rm'], p[0]['add']))
+
     def test_template(self):
         self.assertEqual('junction', AR.template(ASHDOD))
         self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))
         self.assertEqual('skip', AR.template('קו 73 ידלג על תחנה 36358 - המלאכה/הרוקמים'))
         self.assertEqual('general', AR.template('עקב אירוע צפויים עיכובים בקווים באזור.'))
+
+
+class HistoryShapeTests(unittest.TestCase):
+    def test_decode_polyline(self):
+        # הדוגמה של Google: (38.5,-120.2), (40.7,-120.95), (43.252,-126.453)
+        self.assertEqual([(38.5, -120.2), (40.7, -120.95), (43.252, -126.453)], AF.decode_poly('_p~iF~ps|U_ulLnnqC_mqNvxq`@'))
 
 
 class MergeTests(unittest.TestCase):

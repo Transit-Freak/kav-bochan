@@ -16,6 +16,7 @@
 env: MAX_MIN (תקציב זמן, ברירת מחדל 25), OUT (ברירת מחדל alerts/data)
 """
 import datetime
+import glob
 import hashlib
 import json
 import os
@@ -32,7 +33,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 13
+PARSE_V = 14
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -332,7 +333,84 @@ def text_new_stops(desc):
             on = False   # שורה ריקה או בלי מספר תחנה — סוף הרשימה
         if on:
             out += [c for c in re.findall(r"(?<!\d)(\d{4,6})(?!\d)", line) if c not in out]
+            # "תחנה חלופית: 645 – ויצמן/גבעת שאול" — מק"ט של 3 ספרות, אחרי הנקודתיים (ירושלים 20.10)
+            if ":" in line:
+                out += [c for c in re.findall(r"(?<![\d./:])(\d{3})(?![\d./:])", line.split(":", 1)[1]) if c not in out]
     return out
+
+
+LINES_DIR = os.environ.get('LINES_DIR', 'line-history/data/lines')
+
+
+def decode_poly(enc):
+    """polyline מקודד (דיוק 5), כמו בקבצי הקו בזמן → [(lat, lon), ...]."""
+    pts, i, la, lo = [], 0, 0, 0
+    while i < len(enc):
+        vals = []
+        for _ in (0, 1):
+            shift = res = 0
+            while True:
+                b = ord(enc[i]) - 63
+                i += 1
+                res |= (b & 0x1f) << shift
+                shift += 5
+                if b < 0x20:
+                    break
+            vals.append(~(res >> 1) if res & 1 else res >> 1)
+        la, lo = la + vals[0], lo + vals[1]
+        pts.append((la / 1e5, lo / 1e5))
+    return pts
+
+
+def history_rc(a, lines, desc, stops):
+    """אתר המקור לא החזיר מסלול להודעה בלי תחנות משויכות (ירושלים 20.10, קו 616 בשערי ירושלים): השרטוט
+    והתחנות של הקו מקבצי הקו בזמן, והתחנה המבוטלת מהנוסח. רק וריאנט שהתחנה המבוטלת על השרטוט שלו —
+    הכיוון שבהודעה — ואחד לכל כיוון (הראשי, -0 / -#, כשיש)."""
+    by_code = {v[0]: k for k, v in (stops or {}).items()}
+    rm = set().union(*(p.get('rm', set()) for p in AR.parse(desc)))
+    rm_ids = [by_code[c] for c in sorted(rm) if c in by_code and STOP_POS.get(by_code[c])]
+    if not rm_ids:
+        return None
+    ag = next((x.get('agency_name') for x in a.get('relevant_agencies') or []), '') or ''
+    out = {}
+    for num, mk in lines:
+        best = {}
+        for f in sorted(glob.glob(f'{LINES_DIR}/{mk}-*.json')) if mk else []:
+            rd = os.path.basename(f)[:-5]
+            try:
+                lf = json.load(open(f, encoding='utf-8'))
+            except (OSError, ValueError):
+                continue
+            vs = lf.get('versions') or []
+            if not vs or vs[-1].get('k') == 'removed':
+                continue
+            v = next((v for v in reversed(vs) if isinstance(v.get('shp'), int) and v['shp'] > 0 and v.get('stops')), None)
+            spool, pool = lf.get('spool') or [], lf.get('pool') or []
+            if not v or v['shp'] >= len(spool):
+                continue
+            shape = decode_poly(spool[v['shp']])
+            on = [s for s in rm_ids if min(AR.meters(p, STOP_POS[s]) for p in shape) < 60]
+            if not on:
+                continue
+            parts = rd.split('-')
+            score = (len(on), parts[-1] in ('0', '#'))
+            if parts[1] not in best or score > best[parts[1]][0]:
+                codes = [pool[i][0] for i in v['stops'] if isinstance(i, int) and i < len(pool)]
+                best[parts[1]] = (score, rd, lf, shape, codes, on)
+        for _, rd, lf, shape, codes, on in best.values():
+            # "...-בית שמש<->הרטום/שדרות גולדה מאיר-ירושלים-20" → "ירושלים - הרטום/שדרות גולדה מאיר"
+            to = re.sub(r'-\d+$', '', (lf.get('dest') or '').split('<->')[-1])
+            place, _, city = to.rpartition('-')
+            out.setdefault(ag, {}).setdefault(f'{num}_{mk}', []).append({
+                'line_number': num, 'route_desc': rd, 'route_id': None, 'agency_name': ag,
+                'to_text': f'{city} - {place}' if place else to,
+                'shape': [[round(p[1], 6), round(p[0], 6)] for p in shape],
+                'updated_stop_sequence': [[by_code[c], False] for c in codes if c in by_code and by_code[c] not in on],
+                'deleted_stop_ids': on})
+    if not out:
+        return None
+    return {'route_changes': out,
+            'stops_for_map': {s: {'stop_lat': STOP_POS[s][0], 'stop_lon': STOP_POS[s][1]} for s in rm_ids}}
 
 
 def pos_of(s, sfm):
@@ -632,6 +710,9 @@ def main():
                 num, _, mk = str(pk).partition('_')
                 lines.append([num, mk])
         has_map = a.get('use_case') in (5, 6, 7, 9) and not a.get('is_national') and (a.get('removed_stop_ids') or a.get('added_stop_ids'))
+        # בלי תחנות משויכות, אבל בנוסח יש קו ותחנה מבוטלת — המפה מהקו בזמן (history_rc)
+        if not has_map and a.get('use_case') in (5, 6, 7, 9) and not a.get('is_national') and any(mk for _, mk in lines):
+            has_map = any(p.get('rm') for p in AR.parse(he(a.get('description'))))
         rc_file = f'{OUT}/rc/{aid}.json'
         # נמשך שוב: התראה חדשה או שהשתנתה, מפה שלא נשמרה, חישוב שלא הסתיים (נגמר הזמן / מפת הרחובות
         # לא ענתה) — אחרת הוא נשאר כך עד שנוסח ההודעה ישתנה — ו"לא נמצא" אחרי שקריאת הנוסח השתפרה
@@ -641,6 +722,10 @@ def main():
         if has_map and (st.get('h') != h or not os.path.exists(rc_file) or redo) and left() > 60:
             rc = get_json(f'{SRC}/api/get_route_changes?id={urllib.parse.quote(aid)}')
             time.sleep(2)
+            if not (rc and rc.get('route_changes')) and os.path.isdir(LINES_DIR):
+                if stops is None:
+                    stops = stop_names()
+                rc = history_rc(a, lines, he(a.get('description')), stops) or rc
             if rc and rc.get('route_changes'):
                 if stops is None:
                     stops = stop_names()

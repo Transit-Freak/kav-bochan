@@ -116,6 +116,9 @@ def _steps(rest):
     # הוראה שלילית ("לא פונים שמאלה לויצמן") נמחקת עד הפסיק; "לא X אלא Y" — נשאר Y
     rest = re.sub(r"(?:(?<=[\s,;(])|^)ו?לא\s[^,;)]*?(?=\sאלא\s|[,;)]|$)", "", rest)
     rest = re.sub(r"(?:(?<=[\s,;(])|^)אלא\s", "", rest)
+    # מילות קישור בין פניות ("שמאלה לשדרות יצחק רבין ולאחר מכן שמאלה לכביש בגין צפון, ומשם ימשיך…",
+    # ירושלים 20.10) — לא חלק משם הרחוב
+    rest = re.sub(r"\s+ו?(?:לאחר מכן|אחר כך|אחרי כן|משם)(?=[\s,;]|$)", ",", rest)
     steps = []
     # פסיק, ו"ו" לפני פנייה, פנייה בלי פסיק לפניה ("המשך ביאליק ימינה אבא הלל"), ורשימה במקפים
     # ("ייסעו דרך חנה - אלי הכהן - גרוסברג", אקסטרה ירושלים)
@@ -163,10 +166,11 @@ def parse(desc):
         if hdr:
             stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out else None
             if stops_mode and ":" in line:
-                for c in re.findall(r"(?<!\d)\d{5}(?!\d)", line.split(":", 1)[1]):
+                # מק"ט של 3–6 ספרות ("תחנה מבוטלת: 3007 – שערי ירושלים/ליפתא", ירושלים)
+                for c in re.findall(r"(?<![\d./:])\d{3,6}(?![\d./:])", line.split(":", 1)[1]):
                     out[-1].setdefault(stops_mode, set()).add(c)
             continue
-        code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line)
+        code = re.match(r"^\s*(\d{3,6})(?!\d)(?![./:])", line)
         if code and stops_mode:
             out[-1].setdefault(stops_mode, set()).add(code.group(1))
             continue

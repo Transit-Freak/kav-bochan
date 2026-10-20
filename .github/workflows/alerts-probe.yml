@@ -9,9 +9,22 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: tools
-      - run: python3 tools/_probe/rc.py 14575751299 14575633193
+          sparse-checkout: |
+            tools
+            line-history/data/lines/11616-*
+          sparse-checkout-cone-mode: false
+      - uses: actions/cache/restore@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: kavbug-osm-none
+          restore-keys: kavbug-osm-
+      - run: |
+          sudo apt-get install -y -qq osmium-tool >/dev/null
+          pip install -q osmium
+          osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
+      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
+        run: python3 tools/_probe/rc.py 14575751299 14575633193 2>&1 | grep -E "^RC|^  R|^A |Traceback|Error|ניתוב" | head -40
