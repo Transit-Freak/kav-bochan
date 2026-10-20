@@ -1,0 +1,46 @@
+name: alerts-probe
+# זמני — בדיקה שחיתוך הרחובות מקובץ מפת ישראל עובד. יימחק לפני מיזוג.
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/alerts-probe.yml']
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/cache/restore@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: kavbug-osm-none
+          restore-keys: kavbug-osm-
+      - name: מפת ישראל — רחובות בלבד
+        run: |
+          set -e
+          sudo apt-get install -y -qq osmium-tool >/dev/null
+          pip install -q osmium
+          mkdir -p /tmp/osrm && cd /tmp/osrm
+          ls -la
+          if [ ! -s il.osm.pbf ]; then
+            curl -fsSL --connect-timeout 20 --max-time 300 --retry 2 --retry-all-errors \
+              -o il.osm.pbf.new https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf \
+              && [ "$(stat -c%s il.osm.pbf.new)" -gt 1000000 ] && mv il.osm.pbf.new il.osm.pbf || true
+          fi
+          time osmium tags-filter il.osm.pbf w/highway -o il-hw.osm.pbf --overwrite --no-progress
+          ls -la
+      - name: חיתוך לגבעת שמואל ולקריית שמונה
+        env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
+        run: |
+          python3 - <<'PY'
+          import sys, time
+          sys.path.insert(0, 'tools')
+          import alerts_fetch as F, alerts_route as AR
+          for name, bbox in [('givat-shmuel', (32.065, 34.835, 32.085, 34.86)), ('kiryat-shmona', (33.195, 35.56, 33.22, 35.59))]:
+              t = time.time(); w = F.overpass(bbox); net = AR.Streets(w)
+              print(name, len(w), 'ways', round(time.time() - t, 1), 's', sorted(net.match('מוטה גור')), sorted(net.match('יקותיאל אדם')), sorted(net.match('יהודה הלוי')))
+          PY
