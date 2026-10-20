@@ -25,5 +25,5 @@ jobs:
           osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
       - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14566720982,14566525662,14566629662,14455262371,14566487405,14562841129', NUMS: '22,2,5,3,9,23,39,63,238,189,17,201' }
         run: |
-          OLD=1 python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at|PARA" | head -150
+          OLD=1 python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at|PARA" | head -151
           python3 tools/_probe/one.py 2>&1 | grep -E "ROUTE|meters|shape at" | head -90
