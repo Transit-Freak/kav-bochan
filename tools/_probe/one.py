@@ -71,6 +71,17 @@ def est2(alert, routes, stops):
     for r in routes:
         e = r['est']
         if not e:
+            if r['cut']:
+                sh = r['shape']
+                print('WALK', r['num'], r['to'], 'NO EST cut', r['cut'])
+                print('   REG ', ' > '.join(names_along(net, sh[max(0, r['cut'][0] - 60):r['cut'][1] + 60])))
+                print('   CUT ', ' > '.join(names_along(net, sh[r['cut'][0]:r['cut'][1] + 1])))
+                for p in AR.parse(alert['description']['he']):
+                    if r['num'] in p['lines']:
+                        pl = AR._plan(net, p['steps'])
+                        print('   PLAN', [x[0] for x in pl] if pl else pl)
+                        ex = AR._exit_point(net, p, [tuple(x) for x in sh], r['cut'][0], r['cut'][1], pl[0][1]) if pl else None
+                        print('   EXIT', ex and (ex[0], ex[2]))
             continue
         sh = r['shape']
         print('WALK', r['num'], r['to'], 'cut', r['cut'])
