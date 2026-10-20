@@ -26,4 +26,4 @@ jobs:
       - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, IDS: '14554731087,14566720982,14566525662,14566629662,14455262371,14566487405,14562841129', NUMS: '5,5א,12,78,83,87א,91,96,22,2,3,17,201,9', WALK: '14554731087,14582425964' }
         run: |
           true
-          python3 tools/_probe/one.py 2>&1 | grep -E "TRIM|XADD|ROUTE|WALK|   CUT|   DET|   REG|   PLAN|   EXIT|ניתוב נכשל|Traceback|Error" | head -260
+          python3 tools/_probe/one.py 2>&1 | grep -E "TRIM|XADD|ROUTE|WALK|   CUT|   DET|   REG|   PLAN|   EXIT|ניתוב נכשל|Traceback|Error" | head -261
