@@ -219,6 +219,8 @@ const CAT_GROUPS = [
   { title: "רישום ופרטים", items: ["new", "operator", "dest", "renum", "mode", "platform", "vehicle", "ltype"] },
   { title: "שינויים שלא נכנסו לפעול", items: ["planned-new", "planned-route"] },
   { title: "שינויים טכניים", items: ["redraw"] },
+  // הודעות משרד התחבורה (הקו המודיע) — עבודות, עקיפות ותחנות שבוטלו זמנית (שלמה 20.10)
+  { title: "שינויים זמניים", items: ["temp"] },
 ];
 const CAT_LABELS = {
   "removed-year": "מבוטל — מעל שנה לא חזר",
@@ -244,6 +246,7 @@ const CAT_LABELS = {
   "planned-route": "שינוי תחנות שפורסם ולא נכנס לפעול — ירד מהרישום לפני שנכנס",
   freq: "שינוי מספר הרכבים באותה נסיעה (תגבור)",
   sched: "שינוי שעות היציאה (לו\"ז)",
+  temp: "שינוי זמני — עבודות, עקיפות ותחנות שבוטלו זמנית",
 };
 const CAT_COLORS = { "removed-now": "#dc2626", "removed-past": "#f59e0b",
                      endpoint: "#a21caf" };
@@ -252,6 +255,7 @@ const ENDPOINT_KINDS = ["extend", "shorten", "terminal"];
 // שלוש קטגוריות הביטול זרות זו לזו: קו שלא חזר מעל שנה הוא מבוטל בפועל,
 // ואילו ביטול טרי עוד עשוי להתברר כהפסקה. ההבחנה נשארה לבקשת המשתמש.
 function catMatch(l, k) {
+  if (k === "temp") return !!l.tmp;   // data/temp/index.json — מצורף לקווים בטעינת האינדקס
   if (k === "removed-year") return isRemovedYear(l);
   if (k === "removed-now") return !!lineGoneAt(l) && !isRemovedYear(l);
   if (k === "removed-past") return !lineGoneAt(l) && (l.ks || []).includes("removed");
@@ -285,7 +289,9 @@ const REMOVAL_CATS = new Set(["removed-year", "removed-now", "removed-past"]);
    למספר אחד, והמספר "קפץ" 12→17→8→16→3 בראשל"צ בלי שרציף נוסף או בוטל.
    האירועים החדשים (pv=2, tools/platforms.py) נבנים מהשורות עצמן — רציף
    שקיבל קווים / נשאר בלי קווים בתחנה, וקו שעבר רציף — ומוצגים. */
-const hiddenEv = (e) => e && (e.hid || (e.k === "platform" && !e.pv));
+// "אין נסיעות בקובץ" לא מוצג בציר הזמן ובסרגל (שלמה 20.10: "הקטגוריה אין נסיעות בקובץ תסיר!") —
+// האירועים נשארים בנתונים, ומצב הקו (מבוטל / לא נצפה) עדיין מחושב לפיהם
+const hiddenEv = (e) => e && (e.hid || (e.k === "platform" && !e.pv) || e.k === "notrips");
 const SKINDS = {
   new:     { label: "חדשה", color: "#15803d" },
   del:     { label: "בוטלה", color: "#dc2626" },
@@ -2469,6 +2475,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           const vs2 = m.versions || [], keep = new Set(), all = new Set();
           vs2.forEach((x, i) => { if (x.hid) return; const dk = dispKind(x, i, vs2); all.add(dk); if (cats.some((c) => evInCat(x, i, vs2, c))) keep.add(dk); });
           if (keep.size && keep.size < all.size) setOffK(new Set([...all].filter((k) => !keep.has(k))));
+          // נכנסו מהקטגוריה "שינוי זמני" בלבד — מוצגים רק השינויים הזמניים
+          else if (!keep.size && cats.every((c) => c === "temp")) setOffK(new Set(all));
           if (!cats.includes("temp")) setOffK((p) => new Set([...p, "temp"]));
         } else {
           // ברירת המחדל (שלמה 08.10): כל סוגי השינויים בסרגל, אבל השגרתיים (לו"ז, תגבור, תיקוני רישום)
@@ -6025,6 +6033,9 @@ function App() {
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(async d => {
         const groups = await dfetch("data/historical-groups-2012.json").then(r => r.ok ? r.json() : {}).catch(() => ({}));
+        // קווים עם שינוי זמני (הקו המודיע) — לקטגוריה "שינוי זמני"
+        const tmp = await fetch("data/temp/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : []).catch(() => []);
+        if (tmp.length && d && d.lines) { const ts = new Set(tmp); d.lines.forEach((l) => { if (l.rd && ts.has(l.rd.split("-")[0])) l.tmp = 1; }); }
         DATA_GEN = d.gen || null;
         setKnownCities(d && d.lines);
         setIdx(attach2012Groups(d, groups));

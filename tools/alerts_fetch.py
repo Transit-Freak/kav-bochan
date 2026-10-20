@@ -681,6 +681,9 @@ def archive_temp(alerts, now_ts, merged=()):
             json.dump({'ev': sorted(cur.values(), key=lambda e: (e['d'], e['id']))}, open(f, 'w'),
                       ensure_ascii=False, separators=(',', ':'))
             n += 1
+    # רשימת המק"טים שיש להם שינוי זמני — לקטגוריה "שינוי זמני" בחיפוש של הקו בזמן (שלמה 20.10)
+    mks = sorted(os.path.basename(f)[:-5] for f in glob.glob(f'{TEMP_DIR}/*.json') if not f.endswith('/index.json'))
+    json.dump(mks, open(f'{TEMP_DIR}/index.json', 'w'), separators=(',', ':'))
     print(f'הארכיון של הקו בזמן: {n} קבצי קו עודכנו ({len(by_mk)} קווים עם שינוי זמני שהתחיל)')
 
 
