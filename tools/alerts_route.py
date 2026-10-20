@@ -167,10 +167,15 @@ def parse(desc):
             stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out else None
             if stops_mode and ":" in line:
                 # מק"ט של 3–6 ספרות ("תחנה מבוטלת: 3007 – שערי ירושלים/ליפתא", ירושלים)
-                for c in re.findall(r"(?<![\d./:])\d{3,6}(?![\d./:])", line.split(":", 1)[1]):
+                # כשכתוב "(תחנה 38428)" — רק אלה; מספר אחרי "כביש"/"מס'" הוא כביש, לא תחנה (ראשון לציון, יהוד 20.10)
+                tail = line.split(":", 1)[1]
+                cs = re.findall(r"תחנה\s+(\d{3,6})(?!\d)", tail) or re.findall(
+                    r"(?<![\d./:])\d{3,6}(?![\d./:])", re.sub(r"(?:כביש|מס['׳]?)\s*(?:מס['׳]?\s*)?\d+", " ", tail))
+                for c in cs:
                     out[-1].setdefault(stops_mode, set()).add(c)
             continue
-        code = re.match(r"^\s*(\d{3,6})(?!\d)(?![./:])", line)
+        # מק"ט בתחילת שורה; של 3 ספרות רק כשאחריו מקף ושם תחנה — "143 לכיוון חולון:" הוא מספר קו (בת ים 20.10)
+        code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line) or re.match(r"^\s*(\d{3})\s*[-–]\s*\S", line)
         if code and stops_mode:
             out[-1].setdefault(stops_mode, set()).add(code.group(1))
             continue

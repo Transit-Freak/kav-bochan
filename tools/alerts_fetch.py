@@ -335,7 +335,8 @@ def text_new_stops(desc):
             out += [c for c in re.findall(r"(?<!\d)(\d{4,6})(?!\d)", line) if c not in out]
             # "תחנה חלופית: 645 – ויצמן/גבעת שאול" — מק"ט של 3 ספרות, אחרי הנקודתיים (ירושלים 20.10)
             if ":" in line:
-                out += [c for c in re.findall(r"(?<![\d./:])(\d{3})(?![\d./:])", line.split(":", 1)[1]) if c not in out]
+                tail = re.sub(r"(?:כביש|מס['׳]?|קו(?:ו?ים)?)\s*(?:מס['׳]?\s*)?[\d,\s]+", " ", line.split(":", 1)[1])
+                out += [c for c in re.findall(r"(?<![\d./:])(\d{3})(?![\d./:])", tail) if c not in out]
     return out
 
 

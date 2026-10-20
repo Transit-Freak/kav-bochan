@@ -157,6 +157,12 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(['בן גוריון', 'הרצל', 'יצחק רבין', 'לכביש בגין'], p[0]['steps'])
         self.assertEqual(({'3007'}, {'645'}), (p[0]['rm'], p[0]['add']))
 
+    def test_line_number_after_stop_list_is_not_a_stop(self):
+        # בת ים 20.10: "143 לכיוון חולון:" אחרי רשימת התחנות החלופיות — מספר קו, לא מק"ט
+        p = AR.parse('קו 143 לכיוון פתח תקווה:\nייסע במסלולו המקורי עד בלפור פינת העצמאות, ימינה העצמאות, ימינה ירושלים.\n'
+                     'תחנה חלופית:\n\n35502 - בלפור/רוטשילד\n\n143 לכיוון חולון:\n\nללא שינו במסלול הנסיעה')
+        self.assertEqual({'35502'}, p[0]['add'])
+
     def test_template(self):
         self.assertEqual('junction', AR.template(ASHDOD))
         self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))
