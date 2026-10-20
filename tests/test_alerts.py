@@ -303,6 +303,10 @@ class DetourTests(unittest.TestCase):
         self.assertEqual(11, AR._first_pass(list(dist), dist))
         self.assertEqual(80, AR._first_pass(list(dist), dist, last=True))
 
+    def test_despike(self):
+        a, b, c, d = (0, 0), (0, 1), (0, 2), (1, 2)
+        self.assertEqual([a, b, d], AR._despike([a, b, c, c, b, d]))
+
     def test_mostly_unknown_streets_give_nothing(self):
         self.assertIsNone(self.route(('הראשי', 'אחד'), ['אחד', 'מחלף א', 'מחלף ב', 'מחלף ג']))
 

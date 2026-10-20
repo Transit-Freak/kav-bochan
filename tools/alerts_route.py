@@ -456,6 +456,20 @@ def _opposite(seg, d):
     return nu > 0 and nv > 0 and (u[0] * v[0] + u[1] * v[1]) / (nu * nv) < -0.5
 
 
+def _despike(path):
+    """הלוך-חזור באותה דרך בתוך המסלול (נכנס לרחוב צדדי וחוזר, בין שתי פניות) — לא נסיעה אמיתית,
+    רק תוצאה של חיבור שני קטעים בצומת (ירושלים 20.10, קו 616 בהרצל/יצחק רבין)."""
+    out = []
+    for p in path:
+        if out and p == out[-1]:
+            continue
+        if len(out) >= 2 and p == out[-2]:
+            out.pop()
+            continue
+        out.append(p)
+    return out
+
+
 def _length(path):
     return sum(meters(a, b) for a, b in zip(path, path[1:]))
 
@@ -679,7 +693,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         legs.append(p)
         streets.append(st)
         cur = p[-1]
-    path = [n for leg in legs for n in leg]
+    path = _despike([n for leg in legs for n in leg])
     # המקום על השרטוט שבו העקיפה חוזרת — מבין הקטעים שנוסעים בהם באותו כיוון (לולאה שחוזרת באותו רחוב)
     d = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1]) if len(path) > 1 else (0, 0)
     dist = dict(enumerate(meters(q, cur) for q in tail[:1200]))

@@ -1,5 +1,5 @@
 name: alerts-probe
-# זמני. יימחק.
+# זמני — כל ההודעות עם הקוד החדש. יימחק.
 on:
   push:
     branches: [claude/stoic-allen-3g21ru]
@@ -9,13 +9,13 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
             tools
-            line-history/data/lines/11616-*
+            line-history/data/lines
           sparse-checkout-cone-mode: false
       - uses: actions/cache/restore@v4
         with:
@@ -26,5 +26,5 @@ jobs:
           sudo apt-get install -y -qq osmium-tool >/dev/null
           pip install -q osmium
           osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
-      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
-        run: python3 tools/_probe/rc.py 14575751299 14575633193 2>&1 | grep -E "^RC|^  R|^  E|^    |^A |Traceback|Error|ניתוב" | head -60
+      - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf, MAX_MIN: '60' }
+        run: python3 tools/_probe/all.py 2>&1 | grep -E "^ROW |Traceback|Error" > /tmp/rows.txt; wc -l /tmp/rows.txt; cat /tmp/rows.txt
