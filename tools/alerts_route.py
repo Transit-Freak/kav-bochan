@@ -318,6 +318,8 @@ class Streets:
         cands += [norm(re.sub(r"(^|\s)ל?אס(?=\s)", r"\1אגודת ספורט", c)) for c in list(cands) if re.search(r"(^|\s)ל?אס\s", c)]
         if len(s) > 4 and s[:2] in ("לה", "בה"):
             cands.append(norm(s[1:]))
+        # "לכביש בגין" — במפה "שדרות מנחם בגין" (ירושלים 20.10): "כביש" לפני שם, לא לפני מספר
+        cands += [norm(re.sub(r"^ל?כביש\s+(?=[א-ת])", "", c)) for c in list(cands) if re.match(r"^ל?כביש\s+[א-ת]", c)]
         out = set()
         for c in cands:
             if len(c) < 2:

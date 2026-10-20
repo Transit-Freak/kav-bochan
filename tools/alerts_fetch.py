@@ -389,14 +389,20 @@ def history_rc(a, lines, desc, stops):
             if not v or v['shp'] >= len(spool):
                 continue
             shape = decode_poly(spool[v['shp']])
-            on = [s for s in rm_ids if min(AR.meters(p, STOP_POS[s]) for p in shape) < 60]
-            if not on:
+            codes = [pool[i][0] for i in v['stops'] if isinstance(i, int) and i < len(pool)]
+            # התחנה המבוטלת ברצף התחנות של הווריאנט — זה הכיוון שלה; אחרת קרובה לשרטוט (תחנה בצד השני של
+            # הכביש קרובה גם לשרטוט של הכיוון ההפוך)
+            on = [s for s in rm_ids if (stops or {}).get(s, ('',))[0] in codes]
+            near = [s for s in rm_ids if min(AR.meters(p, STOP_POS[s]) for p in shape) < 60]
+            if not (on or near):
                 continue
             parts = rd.split('-')
-            score = (len(on), parts[-1] in ('0', '#'))
+            score = (len(on), len(near), parts[-1] in ('0', '#'))
             if parts[1] not in best or score > best[parts[1]][0]:
-                codes = [pool[i][0] for i in v['stops'] if isinstance(i, int) and i < len(pool)]
-                best[parts[1]] = (score, rd, lf, shape, codes, on)
+                best[parts[1]] = (score, rd, lf, shape, codes, on or near)
+        # כשיש כיוון שהתחנה ברצף שלו — רק הוא
+        if any(b[0][0] for b in best.values()):
+            best = {k: b for k, b in best.items() if b[0][0]}
         for _, rd, lf, shape, codes, on in best.values():
             # "...-בית שמש<->הרטום/שדרות גולדה מאיר-ירושלים-20" → "ירושלים - הרטום/שדרות גולדה מאיר"
             to = re.sub(r'-\d+$', '', (lf.get('dest') or '').split('<->')[-1])

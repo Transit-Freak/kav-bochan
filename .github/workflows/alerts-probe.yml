@@ -27,4 +27,4 @@ jobs:
           pip install -q osmium
           osmium tags-filter /tmp/osrm/il.osm.pbf w/highway -o /tmp/osrm/il-hw.osm.pbf --overwrite --no-progress
       - env: { OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
-        run: python3 tools/_probe/rc.py 14575751299 14575633193 2>&1 | grep -E "^RC|^  R|^  E|^    |^A |Traceback|Error|ניתוב" | head -60
+        run: python3 tools/_probe/rc.py 14575751299 14575633193 2>&1 | grep -E "^RC|^  R|^  E|^    |^A |Traceback|Error|ניתוב" | head -61
