@@ -463,6 +463,31 @@ def _exit_point(net, para, shape, cut0, cut1, first):
     return cpt, start_c, lo + best_i
 
 
+def _trim_shared(path, shape, i_out, i_in, tol=15.0):
+    """המסלול החלופי מתחיל איפה שהוא באמת עוזב את המסלול הרגיל, ונגמר איפה שהוא חוזר אליו. בלי זה
+    נקודת היציאה (הקרובה לצומת) יכולה ליפול בצד השני של הכיכר, והקו הכתום חוזר לאורך האפור
+    (אילת 20.10, קו 5 בכיכר עין יהב/ששת הימים)."""
+    lo, hi = max(0, i_out - 300), min(len(shape), i_in + 300)
+    seg = shape[lo:hi]
+
+    def off(p):
+        return min(seg_dist(p, a, b) for a, b in zip(seg, seg[1:])) if len(seg) > 1 else 0
+
+    k = 0
+    while k < len(path) - 2 and off(path[k + 1]) < tol:
+        k += 1
+    m = len(path) - 1
+    while m > k + 1 and off(path[m - 1]) < tol:
+        m -= 1
+    if k == 0 and m == len(path) - 1:
+        return path, i_out, i_in
+    path = path[k:m + 1]
+    near = lambda q, a, b: min(range(a, b), key=lambda i: meters(shape[i], q))   # noqa: E731
+    i_out = near(path[0], lo, min(hi, i_in))
+    i_in = near(path[-1], i_out + 1, hi) if i_out + 1 < hi else i_in
+    return path, i_out, i_in
+
+
 def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     """מסלול לפי פסקת הוראה אחת, לקו שהשרטוט שלו shape ([lat,lon]) והקטע המבוטל שלו cut0..cut1.
 
@@ -502,6 +527,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         cur = p[-1]
     path = [n for leg in legs for n in leg]
     i_in = cut1 + 1 + min(range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
+    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in)
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:
         return None
