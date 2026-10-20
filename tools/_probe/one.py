@@ -90,6 +90,24 @@ def est2(alert, routes, stops):
         print('   DET ', ' > '.join(names_along(net, e['path'])))
     return res
 F.estimate_routes = est2
+_ts = AR._trim_shared
+_rd = AR.route_detour
+CTX = {}
+def rd2(net, para, shape, cut0, cut1, max_len=15000):
+    CTX['net'] = net
+    res = _rd(net, para, shape, cut0, cut1, max_len)
+    return res
+def ts2(path, shape, i_out, i_in, cut1=None, tol=15.0):
+    out = _ts(path, shape, i_out, i_in, cut1, tol)
+    if os.environ.get('TRIMDBG') and 400 < len(shape) < 900 and abs(shape[0][0] - 33.2) < 0.05:
+        net = CTX.get('net')
+        print('TRIM in', i_out, i_in, 'cut1', cut1, 'path', ' > '.join(names_along(net, path)) if net else len(path))
+        print('TRIM out', out[1], out[2], 'path', ' > '.join(names_along(net, out[0])) if net else len(out[0]))
+        print('TRIM shape after cut1', ' > '.join(names_along(net, shape[cut1:cut1 + 60])) if net else '')
+        print('TRIM shape at out i_in', ' > '.join(names_along(net, shape[max(0, out[2] - 15):out[2] + 15])) if net else '')
+    return out
+AR._trim_shared = ts2
+AR.route_detour = rd2
 F.main()
 import glob
 for f in glob.glob(os.environ['OUT'] + '/rc/*.json'):
