@@ -290,6 +290,11 @@ def estimate_routes(alert, rc_routes, stops):
             pts = AR._densify([tuple(x) for x in res['path']], 15.0)
             return sum(1 for q in alt_pos if min(AR.meters(q, x) for x in pts) < 80)
         best = None
+        # התחנות החלופיות של הפסקה של הקו הזה (ולא של כל ההודעה)
+        # (None — בפסקה אין רשימת תחנות חלופיות)
+        if cand:
+            top = [p for p in cand if same_stops(p) == max(same_stops(q) for q in cand)]
+            r['_xa'] = sorted(set().union(*(p['add'] for p in top if 'add' in p))) if any('add' in p for p in top) else None
         for p in cand:
             try:
                 res = AR.route_detour(net, p, [tuple(x) for x in r['shape']], r['cut'][0], r['cut'][1])
@@ -300,6 +305,7 @@ def estimate_routes(alert, rc_routes, stops):
                 res['_k'] = (-same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
             if res and (best is None or res['_k'] < best['_k']):
                 best = res
+                r['_xa'] = sorted(p['add']) if 'add' in p else None
         if best:
             best.pop('_k', None)
         if best:
@@ -698,6 +704,23 @@ def main():
                     if x not in out_stops:
                         q = STOP_POS[x]
                         out_stops[x] = [round(q[0], 6), round(q[1], 6), *(stops or {}).get(x, ('', ''))]
+                # תחנות חלופיות שבנוסח, לכל קו לפי הפסקה שלו — בלי תחנה שמבוטלת בקו הזה או שכבר מסומנת בו
+                # (פסקה בלי רשימה משלה — התחנות של ההודעה, חוץ מאלה שרשומות בפסקה של קווים אחרים)
+                listed = set().union(*(p.get('add', set()) for p in AR.parse(he(a.get('description')))))
+                for r in routes:
+                    if '_xa' not in r:
+                        continue
+                    xa = r.pop('_xa')
+                    mine = {x for x, add in r['seq'] if add} | set(r['del'])
+                    if xa is None:
+                        r['xadd'] = [x for x in xadd if (stops or {}).get(x, ('',))[0] not in listed and x not in mine]
+                    else:
+                        r['xadd'] = [by_code[c] for c in xa if c in by_code and by_code[c] not in mine
+                                     and STOP_POS.get(by_code[c])]
+                    for x in r['xadd']:
+                        if x not in out_stops:
+                            q = STOP_POS[x]
+                            out_stops[x] = [round(q[0], 6), round(q[1], 6), *(stops or {}).get(x, ('', ''))]
                 for r in routes:
                     full = r.pop('shape')
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)

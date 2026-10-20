@@ -156,19 +156,19 @@ def parse(desc):
     cur_dir = None
     stops_mode = None   # אחרי "תחנות מבוטלות:" — המק"טים שייכים לפסקה האחרונה
     for line in _logical_lines(desc):
-        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}(?:מבוטל|בוטל)", line):
-            stops_mode = "rm" if out else None
-            # "תחנות מבוטלות זמנית: האצ"ל/ נוף חרמון (תחנה 53696), …" — המק"טים באותה שורה (קריית שמונה)
-            if out and ":" in line:
+        # "תחנות מבוטלות:" / "תחנות זמניות חלופיות:" — המק"טים שאחריהן (או באותה שורה: "האצ"ל/ נוף חרמון
+        # (תחנה 53696), …", קריית שמונה) שייכים לפסקה האחרונה: rm — מבוטלות, add — חלופיות (תל אביב 20.10,
+        # אבן גבירול: התחנה החלופית של קו 149 היא התחנה המבוטלת של קו 445)
+        hdr = re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,25}?(מבוטל|בוטל|חלופי)", line)
+        if hdr:
+            stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out else None
+            if stops_mode and ":" in line:
                 for c in re.findall(r"(?<!\d)\d{5}(?!\d)", line.split(":", 1)[1]):
-                    out[-1].setdefault("rm", set()).add(c)
-            continue
-        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}חלופי", line):
-            stops_mode = None
+                    out[-1].setdefault(stops_mode, set()).add(c)
             continue
         code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line)
-        if code and stops_mode == "rm":
-            out[-1].setdefault("rm", set()).add(code.group(1))
+        if code and stops_mode:
+            out[-1].setdefault(stops_mode, set()).add(code.group(1))
             continue
         nums = line_numbers(line)
         # הכיוון ("לכיוון עתידים:", "מכיוון עתידים:") — מהכותרת שלפני הנקודתיים, כשיש בה כיוון אחד בלבד
@@ -588,11 +588,14 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
         m -= 1
     if k == 0 and m == len(path) - 1:
         return path, i_out, i_in
+    # הכיוון שבו העקיפה נסעה לאורך המסלול הרגיל בחלק שנחתך — הוא הכיוון של המסלול בנקודת החיבור
+    d_out = (path[k][0] - path[k - 1][0], path[k][1] - path[k - 1][1]) if k > 0 else None
+    d_in = (path[m + 1][0] - path[m][0], path[m + 1][1] - path[m][1]) if m + 1 < len(path) else None
     path = path[k:m + 1]
 
     def near(j, a, b):
         # הנקודה הקרובה; כשיש שתיים קרובות כמעט באותה מידה (הלוך וחזור באותו רחוב) — זו שבאותו כיוון
-        d = heading(j)
+        d = (d_out if j == 0 else d_in) or heading(j)
         dist = {i: meters(shape[i], path[j]) for i in range(a, b)}
         best = min(dist.values())
         cands = [i for i in dist if dist[i] <= best + 25 and (i + 1 >= len(shape) or same_way(i, d))]

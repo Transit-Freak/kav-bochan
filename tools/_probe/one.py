@@ -91,3 +91,12 @@ def est2(alert, routes, stops):
     return res
 F.estimate_routes = est2
 F.main()
+import glob
+for f in glob.glob(os.environ['OUT'] + '/rc/*.json'):
+    rc = json.load(open(f))
+    if str(rc['id']) not in os.environ.get('WALK', ''):
+        continue
+    st = rc['stops']
+    print('XADD', rc['id'], 'global', [st[x][2] for x in rc.get('xadd') or []])
+    for r in rc['routes']:
+        print('XADD  ', r['num'], r['to'], 'route', [st[x][2] for x in r['xadd']] if 'xadd' in r else '-', 'del', [st[x][2] for x in r['del'] if x in st], 'seqadd', [st[x][2] for x, a in r['seq'] if a and x in st])
