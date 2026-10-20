@@ -427,6 +427,20 @@ def cut_range(shape, stops, slack=30.0):
     return list(best)
 
 
+def _first_pass(idx, dist, last=False):
+    """קו שעובר באותה צומת פעמיים (נכנס לשכונה ויוצא באותה דרך): מבין המקומות הקרובים על השרטוט — המעבר
+    הראשון אחרי הקטע הסגור (או האחרון לפניו, ביציאה), ובתוכו הנקודה הקרובה (קריית שמונה 20.10, האצ"ל)."""
+    idx = sorted(idx)
+    runs, cur = [], [idx[0]]
+    for i in idx[1:]:
+        if i - cur[-1] > 3:
+            runs.append(cur)
+            cur = []
+        cur.append(i)
+    runs.append(cur)
+    return min(runs[-1 if last else 0], key=dist.get)
+
+
 def _opposite(seg, d):
     """קטע של השרטוט שנוסעים בו בכיוון ההפוך ל-d (זווית של יותר מ-120°). פנייה בניצב — לא הפוך."""
     (a, b), k = seg, 0.84   # cos(קו רוחב 33°) — מעלות אורך קצרות ממעלות רוחב
@@ -582,7 +596,7 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
         dist = {i: meters(shape[i], path[j]) for i in range(a, b)}
         best = min(dist.values())
         cands = [i for i in dist if dist[i] <= best + 25 and (i + 1 >= len(shape) or same_way(i, d))]
-        return min(cands or dist, key=dist.get)
+        return _first_pass(cands, dist, last=j == 0) if cands else min(dist, key=dist.get)
     i_out = near(0, lo, min(hi, i_in))
     a = max(i_out + 1, c1)
     i_in = near(len(path) - 1, a, hi) if a < hi else i_in
@@ -651,9 +665,9 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     path = [n for leg in legs for n in leg]
     # המקום על השרטוט שבו העקיפה חוזרת — מבין הקטעים שנוסעים בהם באותו כיוון (לולאה שחוזרת באותו רחוב)
     d = (path[-1][0] - path[-2][0], path[-1][1] - path[-2][1]) if len(path) > 1 else (0, 0)
-    dist = [meters(q, cur) for q in tail[:1200]]
-    near_i = [i for i in range(len(dist) - 1) if dist[i] <= min(dist) + 25 and not _opposite((tail[i], tail[i + 1]), d)]
-    i_in = cut1 + 1 + min(near_i or range(len(dist)), key=dist.__getitem__)
+    dist = dict(enumerate(meters(q, cur) for q in tail[:1200]))
+    near_i = [i for i in range(len(dist) - 1) if dist[i] <= min(dist.values()) + 25 and not _opposite((tail[i], tail[i + 1]), d)]
+    i_in = cut1 + 1 + (_first_pass(near_i, dist) if near_i else min(dist, key=dist.get))
     path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
