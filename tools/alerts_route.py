@@ -154,10 +154,24 @@ def parse(desc):
     out = []
     cur_lines = set()
     cur_dir = None
+    stops_mode = None   # אחרי "תחנות מבוטלות:" — המק"טים שייכים לפסקה האחרונה
     for line in _logical_lines(desc):
+        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}(?:מבוטל|בוטל)", line):
+            stops_mode = "rm" if out else None
+            continue
+        if re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,20}חלופי", line):
+            stops_mode = None
+            continue
+        code = re.match(r"^\s*(\d{4,6})(?!\d)(?![./:])", line)
+        if code and stops_mode == "rm":
+            out[-1].setdefault("rm", set()).add(code.group(1))
+            continue
         nums = line_numbers(line)
         # הכיוון ("לכיוון עתידים:", "מכיוון עתידים:") — מהכותרת שלפני הנקודתיים, כשיש בה כיוון אחד בלבד
-        head = line.split(":", 1)[0] if ":" in line else line
+        # "קו: 3 מכיוון הטייסים:" (שתי כותרות שהתחברו לשורה אחת) — כל מה שלפני הנקודתיים האחרונות, בלי שעות
+        # (תל אביב 20.10, קרליבך: בלי זה הפסקה של "מכיוון" נשארה בלי כיוון ונבחרה לשני הכיוונים)
+        segs = re.sub(r"\b\d{1,2}:\d{2}\b", " ", line).split(":")
+        head = " ".join(segs[:-1]) if len(segs) > 1 else line
         dirs = re.findall(r"(ל|מ)כיוון\s+([^:()]{2,60})", head)
         line_dir = (("to" if dirs[0][0] == "ל" else "from"), dirs[0][1].strip()) if len(dirs) == 1 else None
         # "קו 201 מתל אביב-יפו לרחובות:" — בלי המילה "לכיוון" (אגד, 20.10)
@@ -201,6 +215,7 @@ def parse(desc):
         if steps:
             out.append({"lines": set(nums or cur_lines), "start": start, "steps": steps, "text": line,
                         "dir": (line_dir if ":" in line else None) or cur_dir})
+            stops_mode = None
     return out
 
 
@@ -473,15 +488,19 @@ def _exit_point(net, para, shape, cut0, cut1, first):
     return cpt, start_c, lo + best_i
 
 
-def _trim_shared(path, shape, i_out, i_in, tol=15.0):
+def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     """המסלול החלופי מתחיל איפה שהוא באמת עוזב את המסלול הרגיל, ונגמר איפה שהוא חוזר אליו. בלי זה
     נקודת היציאה (הקרובה לצומת) יכולה ליפול בצד השני של הכיכר, והקו הכתום חוזר לאורך האפור
     (אילת 20.10, קו 5 בכיכר עין יהב/ששת הימים)."""
     lo, hi = max(0, i_out - 300), min(len(shape), i_in + 300)
-    seg = shape[lo:hi]
+    # רק המסלול הרגיל שלפני הקטע הסגור ואחריו: קו שעובר באותו רחוב פעמיים (בקטע הסגור ואחריו) "חזר" לתוך
+    # הקטע הסגור (חולון 20.10, קו 22)
+    c1 = i_in if cut1 is None else max(lo, min(cut1, i_in))
+    parts = [shape[lo:min(i_out + 1, c1)], shape[c1:hi]]
+    pairs = [(a, b) for seg in parts for a, b in zip(seg, seg[1:])]
 
     def off(p):
-        return min(seg_dist(p, a, b) for a, b in zip(seg, seg[1:])) if len(seg) > 1 else 0
+        return min(seg_dist(p, a, b) for a, b in pairs) if pairs else 0
 
     k = 0
     while k < len(path) - 2 and off(path[k + 1]) < tol:
@@ -494,7 +513,8 @@ def _trim_shared(path, shape, i_out, i_in, tol=15.0):
     path = path[k:m + 1]
     near = lambda q, a, b: min(range(a, b), key=lambda i: meters(shape[i], q))   # noqa: E731
     i_out = near(path[0], lo, min(hi, i_in))
-    i_in = near(path[-1], i_out + 1, hi) if i_out + 1 < hi else i_in
+    a = max(i_out + 1, c1)
+    i_in = near(path[-1], a, hi) if a < hi else i_in
     return path, i_out, i_in
 
 
@@ -552,11 +572,10 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         cur = p[-1]
     path = [n for leg in legs for n in leg]
     i_in = cut1 + 1 + min(range(min(len(tail), 1200)), key=lambda i: meters(tail[i], cur))
-    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in)
-    # מסלול שחוזר לנקודה שממנה יצא (סיבוב סביב בלוק וחזרה לאותו מקום במסלול) — זו כנראה הפסקה של הכיוון
-    # ההפוך, לא עקיפה (תל אביב 20.10, דיזנגוף, קו 2 להארגזים)
-    skipped = sum(meters(shape[i], shape[i + 1]) for i in range(i_out, max(i_out, i_in)))
-    if meters(path[0], path[-1]) < 60 and skipped < 150:
+    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
+    # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
+    # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
+    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 40:
         return None
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:

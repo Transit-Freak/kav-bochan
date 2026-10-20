@@ -129,6 +129,16 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([True, False], [AR.dir_fits(x, 'רחובות - תחנה מרכזית') for x in p])
         self.assertEqual([False, True], [AR.dir_fits(x, 'תל אביב יפו - מסוף כרמלית') for x in p])
 
+    def test_direction_after_line_number_and_cancelled_stops(self):
+        # תל אביב 20.10 (קרליבך): "קו: 3" ו"מכיוון הטייסים:" התחברו לשורה אחת — הכיוון נשמר, ולכל פסקה
+        # התחנות המבוטלות שלה (לא התחנות החלופיות)
+        p = AR.parse('קו: 3\nמכיוון הטייסים:\nעד יצחק שדה פינת המסגר ללא שינוי, ימינה המסגר, המשך בגין, שמאלה קפלן.\n\n'
+                     'תחנות מבוטלות:\n21237 - יצחק שדה/המסגר\n20731 - קניון טי.אל.וי/קרליבך\n\n'
+                     'לכיוון הטייסים:\nעד החשמונאים פינת יהודה הלוי ללא שינוי, ימינה יהודה הלוי, שמאלה לינקולן.\n'
+                     'תחנות מבוטלות:\n21729 - החשמונאים/קרליבך\nתחנות חלופיות זמניות:\n36855 מקווה ישראל/אריה שנקר')
+        self.assertEqual([('from', 'הטייסים'), ('to', 'הטייסים')], [x['dir'] for x in p])
+        self.assertEqual([{'21237', '20731'}, {'21729'}], [x['rm'] for x in p])
+
     def test_template(self):
         self.assertEqual('junction', AR.template(ASHDOD))
         self.assertEqual('stops', AR.template('עקב עבודות התחנות הבאות מבוטלות זמנית:\n53696 - האצ"ל/נוף חרמון'))

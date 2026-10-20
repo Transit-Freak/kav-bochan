@@ -274,6 +274,14 @@ def estimate_routes(alert, rc_routes, stops):
         fit = [p for p in cand if AR.dir_fits(p, r.get('to')) is not False]
         if fit and len(fit) < len(cand):
             cand = fit
+        # התחנות המבוטלות שכתובות מתחת לכל פסקה — של הכיוון שלה בלבד (בצד השני של הרחוב יש תחנה אחרת).
+        # פסקה שהתחנות שלה על הקו הזה היא הנכונה, גם כשהשם בכיוון לא דומה ליעד ("לכיוון רידינג" — קו 2 לנווה דן)
+        codes = {(stops or {}).get(sid, ('',))[0] for sid in list(r['del']) + [x for x, _ in r['seq']]} - {''}
+
+        def same_stops(p):
+            return len(p.get('rm', set()) & codes)
+        if any(same_stops(p) for p in cand):
+            cand = [p for p in cand if same_stops(p) or not p.get('rm')]
         # תחנה חלופית של הקו שהמסלול לא עובר לידה — סימן שזו הפסקה של כיוון אחר (קו 201, 20.10):
         # מעדיפים את המסלול שעובר ליד הכי הרבה תחנות חלופיות, ורק אחר כך את הקצר
         alt_pos = [STOP_POS[sid] for sid, add in r['seq'] if add and sid in STOP_POS]
@@ -289,7 +297,7 @@ def estimate_routes(alert, rc_routes, stops):
                 print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
                 res = None
             if res:
-                res['_k'] = (-near_alts(res), res['len'])
+                res['_k'] = (-same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
             if res and (best is None or res['_k'] < best['_k']):
                 best = res
         if best:
