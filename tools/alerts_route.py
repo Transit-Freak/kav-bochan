@@ -408,7 +408,11 @@ def dir_fits(para, to):
     words = [w for part in re.split(r",|/|\sו", d[1]) for w in norm(part.replace("-", " ")).split() if len(w) >= 3]
     if not words:
         return None
-    hit = any(w in norm(to.replace("-", " ")) for w in words)
+    # כתיב מלא וחסר: "רידינג" בהודעה, "מסוף רדינג" ביעד
+    def bare(x):
+        return re.sub(r"(?<=\S)[יו](?=\S)", "", x)
+    dest = bare(norm(to.replace("-", " ")))
+    hit = any(bare(w) in dest for w in words)
     return hit if d[0] == "to" else not hit
 
 

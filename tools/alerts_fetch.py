@@ -32,7 +32,7 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 10
+PARSE_V = 11
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -270,18 +270,18 @@ def estimate_routes(alert, rc_routes, stops):
         if not cand:
             base = re.sub(r'[א-ת]$', '', r['num'])
             cand = [p for p in paras if any(re.sub(r'[א-ת]$', '', x) == base for x in p['lines'])]
-        # כמה פסקאות לאותו קו (כיוון הלוך וכיוון חזור): לפי "לכיוון X" / "מכיוון X" מול היעד של הקו
-        fit = [p for p in cand if AR.dir_fits(p, r.get('to')) is not False]
-        if fit and len(fit) < len(cand):
-            cand = fit
-        # התחנות המבוטלות שכתובות מתחת לכל פסקה — של הכיוון שלה בלבד (בצד השני של הרחוב יש תחנה אחרת).
-        # פסקה שהתחנות שלה על הקו הזה היא הנכונה, גם כשהשם בכיוון לא דומה ליעד ("לכיוון רידינג" — קו 2 לנווה דן)
+        # כמה פסקאות לאותו קו (כיוון הלוך וכיוון חזור). קודם לפי התחנות המבוטלות שכתובות מתחת לכל פסקה —
+        # של הכיוון שלה בלבד (בצד השני של הרחוב יש תחנה אחרת), גם כשהשם בכיוון לא דומה ליעד ("לכיוון
+        # רידינג" — קו 2 לנווה דן, תל אביב 20.10). רק כשאין תחנות כאלה — "לכיוון X" / "מכיוון X" מול היעד
         codes = {(stops or {}).get(sid, ('',))[0] for sid in list(r['del']) + [x for x, _ in r['seq']]} - {''}
 
         def same_stops(p):
             return len(p.get('rm', set()) & codes)
         if any(same_stops(p) for p in cand):
             cand = [p for p in cand if same_stops(p) or not p.get('rm')]
+        fit = [p for p in cand if AR.dir_fits(p, r.get('to')) is not False]
+        if fit and len(fit) < len(cand) and not any(same_stops(p) for p in cand):
+            cand = fit
         # תחנה חלופית של הקו שהמסלול לא עובר לידה — סימן שזו הפסקה של כיוון אחר (קו 201, 20.10):
         # מעדיפים את המסלול שעובר ליד הכי הרבה תחנות חלופיות, ורק אחר כך את הקצר
         alt_pos = [STOP_POS[sid] for sid, add in r['seq'] if add and sid in STOP_POS]
