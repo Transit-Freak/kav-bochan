@@ -1,0 +1,85 @@
+name: probe-vehicle-day
+
+# בדיקה חד-פעמית: כל הנסיעות של רכב אחד בדאטאבוס ב-60 הימים האחרונים, ומה הוא עושה
+# אחרי נסיעה של קו מסוים בשעה מסוימת. התוצאה בלוג של הריצה.
+
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: [.github/workflows/probe-vehicle-day.yml]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: בדיקה
+        env:
+          VEH: '56254401'
+          LINE: '51'
+          AT: '11:05'
+          DAYS: '60'
+        run: |
+          python3 - <<'EOF'
+          import json, os, time, urllib.parse, urllib.request, datetime as dt
+          from zoneinfo import ZoneInfo
+          API = 'https://open-bus-stride-api.hasadna.org.il'
+          IL = ZoneInfo('Asia/Jerusalem')
+          def get(path, **p):
+              url = f'{API}{path}?' + urllib.parse.urlencode(p)
+              for a in range(6):
+                  try:
+                      req = urllib.request.Request(url, headers={'User-Agent': 'kav-bochan-probe/1.0'})
+                      with urllib.request.urlopen(req, timeout=180) as r:
+                          return json.load(r)
+                  except Exception as e:
+                      print('retry', a, e, flush=True); time.sleep(10 * 2 ** a)
+              raise SystemExit('API failed')
+          veh, line, at = os.environ['VEH'], os.environ['LINE'], os.environ['AT']
+          frm = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=int(os.environ['DAYS']))).isoformat()
+          rides, off = [], 0
+          while True:
+              rows = get('/siri_rides/list', vehicle_refs=veh, scheduled_start_time_from=frm,
+                         order_by='scheduled_start_time asc', limit=500, offset=off)
+              rides += rows
+              if len(rows) < 500: break
+              off += 500
+          bad = [r for r in rides if (r.get('vehicle_ref') or '').strip() != veh]
+          print('rides', len(rides), 'not-this-vehicle', len(bad))
+          if rides: print('keys', sorted(rides[0].keys()))
+          if bad: raise SystemExit('filter ignored')
+          # שם הקו והיעד: מה-GTFS של הנסיעה, ואם חסר — לפי line_ref
+          routes = {}
+          for r in rides:
+              rid = r.get('siri_route_id')
+              if rid not in routes:
+                  sr = get('/siri_routes/get', id=rid) if rid else {}
+                  lr = sr.get('line_ref')
+                  g = get('/gtfs_routes/list', line_refs=lr, order_by='date desc', limit=1) if lr else []
+                  g = g[0] if g else {}
+                  routes[rid] = (g.get('route_short_name') or '?', g.get('route_long_name') or '', sr.get('operator_ref'))
+          byday = {}
+          for r in rides:
+              t = dt.datetime.fromisoformat(r['scheduled_start_time'].replace('Z', '+00:00')).astimezone(IL)
+              sn = r.get('gtfs_route__route_short_name') or routes[r.get('siri_route_id')][0]
+              ln = r.get('gtfs_route__route_long_name') or routes[r.get('siri_route_id')][1]
+              byday.setdefault(t.date(), []).append((t, sn, ln, r.get('duration_minutes')))
+          h, m = map(int, at.split(':'))
+          print('\n===== לפי יום (שעת יציאה מתוכננת · קו · מסלול · משך בדקות) =====')
+          after = {}
+          for d in sorted(byday):
+              seq = sorted(byday[d])
+              print(f'\n--- {d} ({"אבגדהוש"[(d.isoweekday()) % 7]}) · {len(seq)} נסיעות')
+              for i, (t, sn, ln, du) in enumerate(seq):
+                  mark = ''
+                  if sn == line and abs((t.hour * 60 + t.minute) - (h * 60 + m)) <= 10:
+                      mark = '  <== הנסיעה המבוקשת'
+                      nx = seq[i + 1] if i + 1 < len(seq) else None
+                      key = f'{nx[1]} · {nx[2]}' if nx else 'אין נסיעה נוספת באותו יום'
+                      after.setdefault(key, []).append(f'{d} {nx[0]:%H:%M}' if nx else str(d))
+                  print(f'{t:%H:%M}  {sn:>5}  {ln[:70]}  {du if du is not None else ""}{mark}')
+          print(f'\n===== סיכום: מה הרכב עושה אחרי קו {line} של {at} =====')
+          for k, v in sorted(after.items(), key=lambda x: -len(x[1])):
+              print(len(v), 'פעמים ·', k, '·', ', '.join(v))
+          EOF
