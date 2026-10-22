@@ -1396,8 +1396,8 @@ async function showV(plate){
     <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'}</span>
     <button class="xlsbtn sharebtn" style="padding:7px 13px;font-size:12px" onclick="SHAREV('${plate.replace(/'/g,'')}')" title="מעתיק קישור שפותח את כרטיס הרכב הזה ישירות">שיתוף</button>
     <button class="x" aria-label="סגירה">✕</button></div>${phBlock(clean,recs[0][0].ref,gM(fv))}${rows}</div>`;
-  ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x'))ovl.remove();});
-  document.body.appendChild(ovl);
+  ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;syncUrl();}});
+  document.body.appendChild(ovl);VOPEN=plate;syncUrl();
 }
 
 /* הורדת אקסל (CSV עם BOM — נפתח נכון בעברית) של המסך הנוכחי */
@@ -1503,7 +1503,7 @@ window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu()
 function render(){
   document.body.classList.toggle('inner',!(MODE==='op'&&VIEW.t==='home'));
   $('#view').innerHTML=crumb()+(VIEW.t==='op'?opView(VIEW.ref):home());
-  syncNav();
+  syncNav();syncUrl();
 }
 
 /* ── ניווט (שלמה 08.10: "האתר עמוס מדי וקשה לנווט בו") ──
@@ -1603,7 +1603,10 @@ function SHAREV(plate){
     navigator.clipboard.writeText(u).then(()=>toast('הקישור לכרטיס הרכב הועתק')).catch(()=>prompt('העתקה ידנית:',u));
   else prompt('העתקה ידנית:',u);
 }
-function SHARE(){
+// כתובת ייחודית לכל מסך (שלמה 22.10): הכתובת בשורת הכתובת מתעדכנת בכל מעבר, כך שאפשר
+// להעתיק אותה ישר מהדפדפן — אותם פרמטרים שכפתור השיתוף מייצר ו-applyHash קורא
+let VOPEN=null;
+function stateParams(){
   const p=new URLSearchParams();
   if(MODE!=='op')p.set('m',MODE);
   if(Q)p.set('q',Q);
@@ -1626,6 +1629,16 @@ function SHARE(){
   if(MVK)p.set('mk',MVK);
   if(!MVREAL)p.set('mr','0');
   if(MVD)p.set('md',MVD);
+  return p;
+}
+function syncUrl(){
+  if(!DATA)return;   // לפני שהנתונים נטענו applyHash עוד לא רץ — לא לדרוס את הכתובת שהגיעו איתה
+  const p=stateParams();if(VOPEN)p.set('v',VOPEN);
+  const h=p.toString(),u=location.pathname+location.search+(h?'#'+h:'');
+  if(location.pathname+location.search+location.hash!==u)try{history.replaceState(history.state,'',u);}catch(e){}
+}
+function SHARE(){
+  const p=stateParams();
   const u=location.origin+location.pathname+(p.toString()?'#'+p.toString():'');
   if(navigator.share){navigator.share({url:u}).catch(()=>{});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText)
