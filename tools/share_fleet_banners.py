@@ -73,9 +73,12 @@ if missing:
                 slot = next(((t, a) for t, a in rel if len(a) < CAP), None)
                 if slot is None:
                     t = tag_of(len(rel) + 1)
-                    gh('release', 'create', t, '-R', R, '--title', 'תמונות שיתוף — צי הרכבים (אוטומטי, לא לגעת)',
-                       '--latest=false', '--notes', 'באנרי שיתוף לוואטסאפ של צי הרכבים. נוצר אוטומטית.')
-                    slot = (t, set()); rel.append(slot)
+                    r = gh('release', 'create', t, '-R', R, '--title', 'תמונות שיתוף — צי הרכבים (אוטומטי, לא לגעת)',
+                           '--latest=false', '--notes', 'באנרי שיתוף לוואטסאפ של צי הרכבים. נוצר אוטומטית.', check=False)
+                    have = assets(t)   # כבר קיים (ריצה אחרת יצרה אותו) — ממשיכים איתו
+                    if r.returncode and have is None:
+                        raise RuntimeError('יצירת release נכשלה: ' + r.stderr.strip()[:300])
+                    slot = (t, have or set()); rel.append(slot)
                 t, a = slot
                 batch = todo[:CAP - len(a)]
                 for j in range(0, len(batch), 50):

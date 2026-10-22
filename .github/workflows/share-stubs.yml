@@ -12,6 +12,12 @@ on:
 permissions:
   contents: write
 
+# ריצה אחת בכל פעם (22.10: ריצה מתוזמנת וריצה ידנית רצו יחד, שתיהן ניסו ליצור את אותו release
+# ולדחוף את אותם דפים — אחת נכשלה בדחיפה)
+concurrency:
+  group: share-stubs
+  cancel-in-progress: false
+
 jobs:
   gen:
     runs-on: ubuntu-latest
