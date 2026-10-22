@@ -134,21 +134,23 @@ def main():
     except Exception as e:
         print('רכבות: דילוג —', type(e).__name__, e, file=sys.stderr)
 
-    # --- צי הרכבים: כל רכב ---
+    # --- צי הרכבים: רכב, חברה, דגם, עיר ומעבר (שלמה 22.10) — הכרטיס בצבעי החברה, מ-tools/fleet_share.py.
+    #     באנר שעוד לא צויר (s/fleet-banners.json) — התמונה הכללית של צי הרכבים. סולמית שנוספה לקישור
+    #     (סינון, לשונית) עוברת הלאה לדף, כך שהכפתור "שיתוף" יכול לשתף גם מסך מסונן ---
     try:
-        d = json.load(open('fleet/data/fleet.json', encoding='utf-8'))
-        off = 1 if d.get('v') == 2 else 0
-        for op in d['operators']:
-            for v in op['vehicles']:
-                plate = str(v[0])
-                model = str(v[4 + off] or '') if len(v) > 4 + off else ''
-                title = f'רכב {plate} — צי הרכבים'
-                desc = (f'{model} · {op.get("name") or ""}'.strip(' ·')
-                        or 'כרטיס הרכב המלא') + ' · באתר הקו הבוחן'
-                url = f'{BASE}/fleet/#v={plate}'
-                w += write_stub(f'v-{plate.replace("/", "")}.html', title, desc, url,
-                                f'{BASE}/fleet/icon-180.png', f'{BASE}/fleet/og-image.png')
-                n += 1
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import fleet_share
+        try:
+            fb = json.load(open(f'{OUT}/fleet-banners.json', encoding='utf-8'))
+        except Exception:
+            fb = {}
+        for it in fleet_share.build().values():
+            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/{fb[it["img"]]}/{it["img"]}'
+                   if it['img'] in fb else f'{BASE}/fleet/og-image.png')
+            u = it['url']
+            js = f'var h=location.hash.slice(1),u={json.dumps(u)};location.replace(h?u+(u.indexOf("#")<0?"#":"&")+h:u);'
+            w += write_stub(it['stub'], it['title'], it['desc'], u, f'{BASE}/fleet/icon-180.png', img, js=js)
+            n += 1
     except Exception as e:
         print('צי: דילוג —', type(e).__name__, e, file=sys.stderr)
 
