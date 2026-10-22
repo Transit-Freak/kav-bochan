@@ -59,10 +59,18 @@ def main():
         model = names[k]
         en, code = split(model)
         q = (f'{en} {code}' if en else code).strip()
-        r = get({'action': 'query', 'generator': 'search', 'gsrsearch': f'{q} bus', 'gsrnamespace': 6,
-                 'gsrlimit': 12, 'prop': 'imageinfo', 'iiprop': 'url|extmetadata|mime',
-                 'iiurlwidth': 480, 'iiextmetadatafilter': 'LicenseShortName|Artist|ImageDescription'})
-        pages = sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda p: p.get('index', 99))
+        # קודם תמונות מישראל (צבעי המפעילים כאן), ואחר כך מכל העולם
+        pages, seen = [], set()
+        for term in (f'{q} Israel', f'{code} Israel bus', f'{q} bus'):
+            r = get({'action': 'query', 'generator': 'search', 'gsrsearch': term, 'gsrnamespace': 6,
+                     'gsrlimit': 12, 'prop': 'imageinfo|categories', 'cllimit': 50, 'iiprop': 'url|extmetadata|mime',
+                     'iiurlwidth': 480, 'iiextmetadatafilter': 'LicenseShortName|Artist|ImageDescription'})
+            for p in sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda p: p.get('index', 99)):
+                if p['title'] not in seen:
+                    seen.add(p['title']); pages.append(p)
+            time.sleep(1)
+        isr = lambda p: any('Israel' in c['title'] or 'Egged' in c['title'] or 'Dan bus' in c['title'] for c in p.get('categories') or [])
+        pages.sort(key=lambda p: not isr(p))
         cands = []
         for p in pages:
             ii = (p.get('imageinfo') or [{}])[0]
@@ -72,7 +80,7 @@ def main():
             lic = strip((md.get('LicenseShortName') or {}).get('value'))
             if not FREE.match(lic):
                 continue
-            cands.append({'title': p['title'], 'page': ii.get('descriptionurl'), 'thumb': ii.get('thumburl'),
+            cands.append({'title': p['title'], 'page': ii.get('descriptionurl'), 'thumb': ii.get('thumburl'), 'israel': isr(p),
                           'license': lic, 'artist': strip((md.get('Artist') or {}).get('value'))[:80]})
             if len(cands) >= 4:
                 break
@@ -105,6 +113,8 @@ def sheets(res):
                     t.thumbnail((290, TH - 10))
                     img.paste(t, (20 + j * 300, y + 30))
                     dr.text((24 + j * 300, y + 32), str(j + 1), fill='yellow', font=fb, stroke_width=2, stroke_fill='black')
+                    if c.get('israel'):
+                        dr.text((24 + j * 300, y + 56), 'IL', fill='cyan', font=fb, stroke_width=2, stroke_fill='black')
                 except Exception as e:
                     dr.text((20 + j * 300, y + 40), 'load failed', fill='red', font=f)
                 time.sleep(0.5)
