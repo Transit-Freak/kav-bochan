@@ -358,24 +358,33 @@ const LineGroup = React.memo(function LineGroup({ items, open, onToggle, openSub
 });
 
 /* ---------- אפליקציה ---------- */
+// כתובת ייחודית לכל מסך (שלמה 22.10): החיפוש והסינונים נכתבים לכתובת, כך שהעתקה מהדפדפן
+// פותחת את אותו מסך. קישור ישן בצורת ‎#ק/548‎ ממשיך לעבוד
+const H0 = (() => {
+  const raw = decodeURIComponent((location.hash || "").slice(1));
+  const m = raw.match(/^ק\/(.+)$/);
+  if (m) return new URLSearchParams({ q: m[1] });
+  return new URLSearchParams((location.hash || "").slice(1));
+})();
+const h0 = (k, d) => (H0.has(k) ? H0.get(k) : d);
 function App() {
   const [data, setData] = useState(null);
   const [interD, setInterD] = useState(null);   // קווים לא-עירוניים — נטען רק כשמבקשים
   const [interBusy, setInterBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [city, setCity] = useState("");
-  const [q, setQ] = useState("");
+  const [city, setCity] = useState(h0("city", ""));
+  const [q, setQ] = useState(h0("q", ""));
   const [openKey, setOpenKey] = useState(null);
   const [openSub, setOpenSub] = useState(null);
   const [page, setPage] = useState(1);
-  const [showSys, setShowSys] = useState(false);
-  const [byStop, setByStop] = useState(false); // תצוגה לפי תחנה: כל הקווים שמדלגים עליה יחד
-  const [fOp, setFOp] = useState("");       // מפעיל
-  const [fMahoz, setFMahoz] = useState(""); // מחוז (מהקובץ המצומצם)
-  const [fUniq, setFUniq] = useState(""); // ייחודיות הקו (סדיר/לילה/מזינים)
-  const [fType, setFType] = useState("עירוני"); // סוג קו — עירוני כברירת מחדל
-  const [fGap, setFGap] = useState(0);      // מרחק מזערי מהעצירה הקרובה
-  const [fSkips, setFSkips] = useState(0); // כמה תחנות הקו מדלג (לפחות)
+  const [showSys, setShowSys] = useState(h0("sys", "") === "1");
+  const [byStop, setByStop] = useState(h0("bystop", "") === "1"); // תצוגה לפי תחנה: כל הקווים שמדלגים עליה יחד
+  const [fOp, setFOp] = useState(h0("op", ""));       // מפעיל
+  const [fMahoz, setFMahoz] = useState(h0("mahoz", "")); // מחוז (מהקובץ המצומצם)
+  const [fUniq, setFUniq] = useState(h0("uniq", "")); // ייחודיות הקו (סדיר/לילה/מזינים)
+  const [fType, setFType] = useState(h0("type", "עירוני")); // סוג קו — עירוני כברירת מחדל
+  const [fGap, setFGap] = useState(+h0("gap", 0) || 0);      // מרחק מזערי מהעצירה הקרובה
+  const [fSkips, setFSkips] = useState(+h0("skips", 0) || 0); // כמה תחנות הקו מדלג (לפחות)
   const dq = useDeferredValue(q);
   const goLine = (ln) => { setQ(ln); setOpenKey(null); setOpenSub(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
@@ -390,6 +399,22 @@ function App() {
     window.addEventListener("hashchange", read);
     return () => window.removeEventListener("hashchange", read);
   }, []);
+
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (city) p.set("city", city);
+    if (fOp) p.set("op", fOp);
+    if (fMahoz) p.set("mahoz", fMahoz);
+    if (fUniq) p.set("uniq", fUniq);
+    if (fType !== "עירוני") p.set("type", fType);
+    if (fGap) p.set("gap", fGap);
+    if (fSkips) p.set("skips", fSkips);
+    if (byStop) p.set("bystop", "1");
+    if (showSys) p.set("sys", "1");
+    const h = p.toString(), u = location.pathname + location.search + (h ? "#" + h : "");
+    if (location.pathname + location.search + location.hash !== u) try { history.replaceState(null, "", u); } catch (e) {}
+  }, [q, city, fOp, fMahoz, fUniq, fType, fGap, fSkips, byStop, showSys]);
 
   useEffect(() => {
     fetch("data.json", { cache: "no-cache" })
