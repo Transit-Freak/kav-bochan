@@ -49,7 +49,8 @@ def write_stub(name, title, desc, url, icon, img=None, js=None):
 
 
 def fsafe(rd):
-    return rd.replace('#', 'H').replace('*', 'X').replace(':', '-')
+    # חייב להתאים ל-fsafe ב-line-history/app.jsx — שם הקובץ הוא מה שכפתור השיתוף מחשב
+    return rd.replace('#', 'H').replace('*', 'X').replace(':', '-').replace('/', '_')
 
 
 def main():

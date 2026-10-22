@@ -1,0 +1,20 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>הדף לא נמצא — הקו הבוחן</title>
+<script>
+// קישור שיתוף לרכב/קו חדש מגיע לפני שנוצר לו דף-שיתוף (הדפים ב-s/ נבנים פעם ביום) —
+// במקום "לא נמצא" מעבירים ישר לדף האמיתי (שלמה 22.10)
+(function(){
+  var m=location.pathname.match(/\/s\/([a-z])-(.+)\.html$/);if(!m)return;
+  var k=m[1],id=decodeURIComponent(m[2]),to=null;
+  if(k==='v')to='/fleet/#v='+encodeURIComponent(id);
+  else if(k==='r')to='/ratzif/#st='+encodeURIComponent(id);
+  else if(k==='t')to='/line-history/#t=rail@'+(/^\d{4}-\d\d-\d\d$/.test(location.hash.slice(1))?location.hash.slice(1)+'@':'')+id;
+  else if(k==='k')to='/line-history/#2012/'+id.replace(/_/g,'/');
+  else if(k==='l'){var p=id.split('-'),a=p[p.length-1];p[p.length-1]=a==='H'?'#':a==='X'?'*':a;to='/line-history/#'+p.join('-').replace(/_/g,'/');}
+  if(to)location.replace(to);
+})();
+</script>
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#f4f5f8;color:#1d2433;text-align:center;padding:60px 20px}
+a{color:#1E5BC6;font-weight:700}@media (prefers-color-scheme:dark){body{background:#12151d;color:#e6e8ee}a{color:#7aa7ff}}</style>
+</head><body><h1>הדף לא נמצא</h1><p><a href="/">לדף הבית של הקו הבוחן</a></p></body></html>

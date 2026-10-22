@@ -211,7 +211,12 @@ function stnView(rows){
 function SHR(code,name){
   const u=location.origin+location.pathname.replace(/ratzif\/?[^/]*$/,'')+'s/r-'+encodeURIComponent(code)+'.html';
   if(navigator.share){navigator.share({title:name+' — רציף כפול',url:u}).catch(()=>{});return;}
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>{});
+  // במחשב הקישור הועתק בשקט ונראה כאילו הכפתור לא עובד — עכשיו יש אישור, ובנפילה העתקה ידנית (22.10)
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>{
+    const d=document.createElement('div');d.textContent='הקישור הועתק';
+    d.style.cssText='position:fixed;bottom:24px;right:50%;transform:translateX(50%);background:#1e2440;color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;z-index:99';
+    document.body.appendChild(d);setTimeout(()=>d.remove(),2400);}).catch(()=>prompt('העתקה ידנית:',u));
+  else prompt('העתקה ידנית:',u);
 }
 function occPanel(ix){
   const B=D.occ&&D.occ[ix];if(!B)return'';

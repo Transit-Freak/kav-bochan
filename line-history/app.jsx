@@ -449,6 +449,8 @@ function decodeShape(str) {
 }
 
 function fsafe(rd) { return rd.replace(/#/g, "H").replace(/\//g, "_"); }
+// שם דף-השיתוף ב-s/ — חייב להתאים ל-fsafe ב-tools/share_stubs.py, אחרת הקישור מוביל לדף שלא קיים (22.10)
+function ssafe(rd) { return rd.replace(/#/g, "H").replace(/\*/g, "X").replace(/:/g, "-").replace(/\//g, "_"); }
 function fmtD(d) { return (d || "").split("-").reverse().join("."); }
 // סיומת התאריכים "(2025-07-10 ← 2025-07-11)" בהערות הסריקה מוסתרת
 // בתצוגה (בקשת שלמה): תאריך הביצוע כבר כתוב בכותרת האירוע — זהו
@@ -3072,14 +3074,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           <button className={"sharebtn" + (lite ? " shr" : "")} title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
             onClick={(e) => {
               // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
-              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + fsafe(rd) + ".html";
+              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + ssafe(rd) + ".html";
               const b = e.currentTarget;
               // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
               // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
               if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
               const t = b.textContent;
               const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
-              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("העתקה ידנית:", url));
             }}>{lite ? "🔗" : "🔗 שיתוף"}</button>
           {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
               מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
@@ -3388,14 +3390,14 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           <button className="sharebtn" title="שיתוף הקישור לעמוד הקו הזה — כל ההיסטוריה שלו"
             onClick={(e) => {
               // דף-שיתוף ייעודי: מציג בוואטסאפ את שם הקו וסמל האתר, ומקפיץ לדף (בקשת שלמה)
-              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + fsafe(rd) + ".html";
+              const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/l-" + ssafe(rd) + ".html";
               const b = e.currentTarget;
               // "הועתק" רק אחרי שההעתקה באמת הצליחה; בגיליון השיתוף של
               // הטלפון אין מה להכריז (ציד הבאגים, סבב ב)
               if (navigator.share) { navigator.share({ title: "הקו בזמן — " + (lf.line ? "קו " + lf.line : lf.dest), url }).catch(() => {}); return; }
               const t = b.textContent;
               const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
-              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("העתקה ידנית:", url));
             }}>{lite ? "🔗" : "🔗 שיתוף"}</button>
           {/* מעקב לפי קו בודד הוסר (בקשת שלמה 25.08) — הרשמה ברמת עיר בלבד;
               מדף הקו בוחרים סוגי שינוי ותדירות, כמו במרכז (שלמה 13.09) */}
@@ -3776,12 +3778,12 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
             את מספר הקו ואת סמל האתר — לקווי 2012 לא היה כזה (שלמה 07.09) */}
         <button className="sharebtn" title="שיתוף הקישור לקו הזה כפי שהיה ב-2012"
           onClick={(e) => {
-            const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/k-" + fsafe(k12) + ".html";
+            const url = location.origin + location.pathname.replace(/line-history\/?[^/]*$/, "") + "s/k-" + ssafe(k12) + ".html";
             const b = e.currentTarget;
             if (navigator.share) { navigator.share({ title: "הקו בזמן — קו " + (d.no || k12) + " (2012)", url }).catch(() => {}); return; }
             const t = b.textContent;
             const done = () => { b.textContent = "✓ הועתק"; setTimeout(() => { b.textContent = t; }, 1500); };
-            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => {});
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("העתקה ידנית:", url));
           }}>🔗 שיתוף</button>
       </div>
       <div className="facts">{d.an} · {stops.length} תחנות · {(d.routes || []).length} מסלולים ·
@@ -5868,11 +5870,11 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
               {on&&<div onClick={e=>e.stopPropagation()}>
                 {/* שיתוף כמו בקווי אוטובוס: דף-שיתוף לכל מספר רכבת (s/t-*.html) עם באנר "רכבת N"; היום עובר בסולמית (שלמה 28.09) */}
                 <button className="sharebtn" title="שיתוף הקישור לנסיעה הזו" onClick={e=>{
-                  const url=location.origin+location.pathname.replace(/line-history\/?[^/]*$/,"")+"s/t-"+fsafe(String(t.no))+".html#"+day;
+                  const url=location.origin+location.pathname.replace(/line-history\/?[^/]*$/,"")+"s/t-"+ssafe(String(t.no))+".html#"+day;
                   const b=e.currentTarget;
                   if(navigator.share){navigator.share({title:"הקו בזמן — רכבת "+t.no+" ("+fmtD(day)+")",url}).catch(()=>{});return;}
                   const tx=b.textContent;const done=()=>{b.textContent="✓ הועתק";setTimeout(()=>{b.textContent=tx;},1500);};
-                  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(done,()=>{});
+                  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(done,()=>prompt("העתקה ידנית:",url));
                 }}>🔗 שיתוף</button>
                 {st.length>1&&<EarlyMap stops={st.map(r=>[railSt[r[2]][0],"",railSt[r[2]][1],railSt[r[2]][2]])} shp="" />}
                 <ol className="pdesc" style={{margin:"6px 0",paddingInlineStart:22}}>{t.rows.map((r,j)=>railSt&&railSt[r[2]]?<li key={j}>{railSt[r[2]][0]}</li>:<li key={j} style={{color:"#94a3b8"}}>{r[1].trim()} <small>(נקודה בלי מיקום במפה)</small></li>)}</ol>

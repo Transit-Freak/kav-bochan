@@ -164,6 +164,15 @@
   .st.on{background:var(--ok-bg);color:var(--ok)}.st.off{background:var(--bad-bg);color:var(--bad)}
   .st.mv{background:#FEF3C7;color:#92400E}
   .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .mrow{display:block;width:100%;text-align:right;border:none;background:var(--row);border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer;font-family:inherit;color:var(--ink)}
+  .mrn{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}
+  .mrn b{white-space:nowrap}
+  .mrs{display:block;font-size:12px;color:var(--mut);margin-top:3px}
+  .mvbars{direction:ltr;display:flex;align-items:flex-end;gap:2px;height:70px;margin-top:12px;border-bottom:1px solid var(--line,#e3e6ec)}
+  .mvbars i{flex:1;background:#b9c7e6;border-radius:3px 3px 0 0;cursor:pointer}.mvbars i:hover{background:#7f9bd6}.mvbars i.sel{background:#1E5BC6}
+  .mvax{direction:ltr;display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:3px}.mvax span:nth-child(2){direction:rtl}
+  @media (max-width:640px){.mvax span:nth-child(2){display:none}}
+  .fcount{margin-inline-start:auto;align-self:center;font:700 12.5px 'Rubik',sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
   .fchip{border:none;cursor:pointer;background:var(--chipbg);color:var(--mut);border-radius:999px;padding:6px 13px;font:700 11.5px 'Rubik',sans-serif}
   .mselect{border:none;background:var(--chipbg);color:var(--ink);border-radius:999px;padding:8px 14px;font:700 12.5px 'Rubik',sans-serif;cursor:pointer}
   .fchip.on{background:var(--ink);color:#fff}
@@ -297,7 +306,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -329,9 +338,19 @@ const opBg=(ref,i)=>{const c=opColors(ref,i);if(c.length<2)return c[0];
   const st=c.length===2?[0,62]:[0,56,78];return `linear-gradient(250deg,${c.map((x,k)=>`${x} ${st[k]}% ${k+1<c.length?st[k+1]+'%':'100%'}`).join(',')})`;};
 // כותרת בהירה (צהוב, אפרסק, תכלת) — טקסט כהה, כדי שיהיה קריא
 const isLight=h=>{const [r,g,b]=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return .2126*r+.7152*g+.0722*b>.3;};
-// רכב קבלן = רשום ברישוי כרכב הסעות ('להסע מיוחד'/'הסעות מיוחדות') —
-// בתצוגה 'אוטובוס הסעות'/'מיניבוס הסעות'; 'מיוחד' תופס סיווג שלא במילון
-const isKab=v=>{const t=gT(v);return !!t&&(t.includes('הסעות')||t.includes('מיוחד'));};
+// רכב קבלן (22.10): רכב קו = מופיע במאגר "ציי רכב אוטובוסים" של משרד התחבורה (הצי של החברות).
+// רכב פעיל שלא מופיע בו = רכב קבלן. רכב שירד ולא מופיע בו נקבע לפי סוג הרישוי: הסעות, הסע מיוחד,
+// סיור (טיולית), פרטי — קבלן; עירוני/בין-עירוני — היה רכב קו (המאגר מחזיק רק את הצי של היום).
+// עד שהמאגר נטען — לפי סוג הרישוי בלבד.
+const kabType=t=>!!t&&(t.includes('הסעות')||t.includes('מיוחד')||t.includes('סיור')||t.includes('טיולית')||t.includes('פרטי'));
+const inOfc=v=>!!OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
+const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;return kabType(t)||isActive(v);};
+// חזר לאחרונה לכביש (יצחק 22.10): רכב פעיל שהיעדרות של חודש מלא ומעלה שלו נגמרה
+// בחודשיים האחרונים שנבדקו — כלומר חזר לנסוע בחודשיים-שלושה האחרונים
+const isBack=v=>{if(!v._gp||!GAPS||!GAPS.to||!isActive(v))return false;
+  const [y,m]=GAPS.to.split('-').map(Number),d=new Date(y,m-3,1),from=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return v._gp.some(g=>g[1]>=from);};
+const backBtn=()=>GPOK?`<button class="fchip ${RTF?'on':''}" title="רכבים פעילים שלא שידרו חודש ומעלה וחזרו לנסוע בחודשיים-שלושה האחרונים" onclick="RTF=RTF?null:1;LIMIT=200;render()">חזרו לאחרונה לכביש</button>`:'';
 const op=ref=>DATA.operators.find(o=>o.ref===ref);
 // אותה לוחית יכולה להופיע אצל כמה מפעילים (רכב שהועבר בין חברות) —
 // מפה גלובלית לוחית ← כל רשומות השידור שלה
@@ -354,7 +373,7 @@ function kpis(){
     ${kab?`<div class="kpi bad" title="רכבים מהצי הסדיר שלא שידרו מעל ${DATA.retire_days} יום. רכבי קבלן שירדו מוצגים בנפרד, בכרטיס רכבי הקבלן"><b>${fmt(tot-act-(kab-kabA))}</b><span>ירדו מהשירות (צי סדיר)</span></div>`
         :`<div class="kpi bad"><b>${fmt(tot-act)}</b><span>ירדו מהשירות</span></div>`}
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
-    ${kab?`<div class="kpi" title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
+    ${kab?`<div class="kpi" title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
   </div>
   <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">הנתונים מעודכנים ל-<b>${fd(last)}</b> · העדכון הבא בלילה</div>`;
 }
@@ -562,7 +581,7 @@ function cityHome(f){
   if(CITYSEL&&CITIES.cities[CITYSEL]) return cityView(CITYSEL);
   const hits=all.filter(([c])=>!f||c.includes(f)).sort((a,b)=>(b[1].act??b[1].total)-(a[1].act??a[1].total)).slice(0,30);
   return kpis()+`<div class="cards">${hits.map(([c,d])=>
-    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2>${esc(c)}</h2><div class="n">${d.act!=null?fmt(d.act):fmt(d.total)}</div>
       <div class="lbl">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
       ${d.act!=null?`<div class="pills"><span title='"פעיל" = שידר נסיעות בחודש האחרון'>נצפו בה אי-פעם: ${fmt(d.total)}</span></div>`:''}
@@ -676,6 +695,7 @@ function cityVehRows(c){
   if(STATF!==null) out=out.filter(r=>(isActive(r.v)?1:0)===STATF);
   if(KABF==='k') out=out.filter(r=>isKab(r.v));
   if(KABF==='l') out=out.filter(r=>!isKab(r.v));
+  if(RTF) out=out.filter(r=>isBack(r.v));
   const key={o:r=>r.o.name,p:r=>r.v[0],t:r=>gT(r.v)||'',y:r=>gY(r.v)||0,m:r=>gM(r.v)||'',dd:r=>r.dd||0,rt:r=>r.rt||0,r:r=>gR(r.v)||0,f:r=>r.v[1],l:r=>r.v[2]}[SORTK]||(r=>r.v[2]);
   const dir=SORTK?SORTD:-1;
   return out.slice().sort((a,b)=>{const x=key(a),y=key(b);return (x>y?1:x<y?-1:0)*dir;});
@@ -698,11 +718,13 @@ function cityVehPanel(c){
       ${tR?`<div class="kpi"><b>${fmt(tR)}</b><span>נסיעות שנמדדו בסך הכול</span></div>`:''}
     </div>
     <div class="filters">
-      <button class="fchip ${STATF===null&&KABF===null?'on':''}" onclick="STATF=null;KABF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===null&&KABF===null&&!RTF?'on':''}" onclick="STATF=null;KABF=null;RTF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      ${backBtn()}
+      <span class="fcount">${fmt(n)} רכבים</span>
     </div>
     ${rows.length?`<div class="tblbox"><table><thead><tr>${th('o','חברה')}${th('p','מספר רכב')}${DATA.enriched?th('t','סוג הרכב')+th('y','שנתון')+th('m','יצרן ודגם'):''}${th('dd','ימי פעילות שנמדדו')}${th('rt','נסיעות סה"כ')}${th('r','נסיעות ביום')}${th('f','נצפה לראשונה')}${th('l','נצפה לאחרונה')}<th>מצב</th></tr></thead><tbody>
     ${shown.map(r=>{const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
@@ -757,7 +779,34 @@ function mvSelected(){
   let list=mvAll();
   if(clean) list=list.filter(m=>m.plate.replace(/-/g,'').includes(clean)||(gM(m.v)||'').includes(f));
   if(MVK) list=list.filter(m=>mvType(m.v)===MVK);
-  return {base:list,sel:list.filter(m=>(!MVF||m.from===MVF)&&(!MVT||m.to===MVT))};
+  const pre=list;
+  list=mvWhen(list);
+  return {pre,base:list,sel:list.filter(m=>(!MVF||m.from===MVF)&&(!MVT||m.to===MVT))};
+}
+// סינון לפי זמן (שלמה 22.10): יום אחד, או 7/30 הימים האחרונים לפי תאריך ההגעה ליעד.
+// מעבר בין ערים נרשם רק לפי חודש — ביום אחד מוצגים רק מעברים בין חברות
+const mvAddD=(d,n)=>{const x=new Date(d+'T12:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10);};
+const mvIsDay=()=>!!MVD&&/^\d{4}-\d\d-\d\d$/.test(MVD);
+function mvWhen(list){
+  if(!MVD) return list;
+  if(mvIsDay()) return list.filter(m=>m.arrived===MVD&&mvIsOp(m.from)&&mvIsOp(m.to));
+  const from=mvAddD(String(MOVES.updated).slice(0,10),-(+MVD));
+  return list.filter(m=>m.arrived&&m.arrived>=from);
+}
+function mvWhenHtml(pre){
+  const end=String(MOVES.updated).slice(0,10), N=60, start=mvAddD(end,-(N-1)), cnt={};
+  for(const m of pre){if(!m.arrived||m.arrived<start||!mvIsOp(m.from)||!mvIsOp(m.to))continue;if(MVF&&m.from!==MVF||MVT&&m.to!==MVT)continue;(cnt[m.arrived]=cnt[m.arrived]||new Set()).add(m.plate);}
+  const days=[];for(let i=0;i<N;i++)days.push(mvAddD(start,i));
+  const mx=Math.max(1,...days.map(d=>cnt[d]?cnt[d].size:0));
+  const day=mvIsDay()?MVD:null;
+  const ch=(v,l)=>`<button class="fchip ${MVD===v?'on':''}" onclick="MVD=${v===null?'null':`'${v}'`};LIMIT=200;render()">${l}</button>`;
+  return `<div class="filters" style="margin-top:12px;align-items:center">
+      <b style="font-size:13px;color:var(--mut)">מתי:</b>${ch(null,'כל הזמן')}${ch('7','7 ימים אחרונים')}${ch('30','30 ימים אחרונים')}
+      <input type="date" class="mselect" min="${esc(start)}" max="${esc(end)}" value="${day||''}" onchange="MVD=this.value||null;LIMIT=200;render()" title="בחירת יום">
+      ${day?`<button class="fchip" onclick="MVD=mvAddD(MVD,-1);LIMIT=200;render()">יום קודם</button><button class="fchip" ${day>=end?'disabled':''} onclick="MVD=mvAddD(MVD,1);LIMIT=200;render()">יום הבא</button>`:''}
+    </div>
+    <div class="mvbars" title="מעברים בין חברות בכל יום">${days.map(d=>{const n=cnt[d]?cnt[d].size:0;return `<i class="${d===day?'sel':''}" style="height:${n?Math.max(6,n/mx*100):2}%" title="${fd(d)} · ${n} רכבים" onclick="MVD='${d}';LIMIT=200;render()"></i>`;}).join('')}</div>
+    <div class="mvax"><span>${fd(start)}</span><span>מעברים בין חברות בכל יום · לחיצה על עמודה בוחרת את היום</span><span>${fd(end)}</span></div>`;
 }
 function mvPick(el){const k=el.dataset.k||null;if(el.dataset.mv==='to')MVT=k;else MVF=k;LIMIT=200;render();window.scrollTo({top:0});}
 function mvPair(el){MVF=el.dataset.a;MVT=el.dataset.b;LIMIT=200;render();window.scrollTo({top:0});}
@@ -768,7 +817,7 @@ function movesHome(){
   if(MOVES===null){loadMoves();return kpis()+'<div class="msg">⏳ טוען נתוני מעברים…</div>';}
   if(!window.FleetMoves) return kpis()+'<div class="panel"><div class="empty">קובץ הלוגיקה של המעברים (moves.js) לא נטען — נסו לרענן</div></div>';
   if(!MOVES.m||!Object.keys(MOVES.m).length) return kpis()+'<div class="panel"><div class="empty">נתוני המעברים ייבנו בריצת האיסוף הקרובה</div></div>';
-  const {base,sel}=mvSelected();
+  const {pre,base,sel}=mvSelected();
   const all=mvAll();
   // אפשרויות הבחירה: מקורות שיש מהם מעברים (ליעד שנבחר), ויעדים (מהמקור שנבחר)
   const fromOpts=mvCount(base.filter(m=>!MVT||m.to===MVT),m=>m.from), toOpts=mvCount(base.filter(m=>!MVF||m.from===MVF),m=>m.to);
@@ -797,11 +846,19 @@ function movesHome(){
       ${types.map(([t,n])=>`<button class="fchip ${MVK===t?'on':''}" data-k="${esc(t)}" onclick="MVK=MVK===this.dataset.k?null:this.dataset.k;LIMIT=200;render()">${esc(t)} · ${fmt(n)}</button>`).join('')}
       <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש = הרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש</button>
     </div>
+    ${mvWhenHtml(pre)}
     <p class="note">רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. בין חברות רואים את זה מתחילת המעקב (${fd(MOVES.since)}); רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}</p>
   </div>`;
   const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<button class="type" data-mv="${side}" data-k="${esc(k)}" onclick="mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></button>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
   let body='';
-  if(MVF&&MVT){
+  if(mvIsDay()&&!(MVF&&MVT)){
+    const seen=new Set(),rows=sel.filter(m=>!seen.has(m.plate)&&seen.add(m.plate)),shown=rows.slice(0,LIMIT);
+    body=`<div class="panel"><p class="ptitle">${fd(MVD)} · ${fmt(rows.length)} רכבים עברו בין חברות${MVK?' · '+esc(MVK):''}</p>
+      ${rows.length?`<div class="tblbox"><table><thead><tr><th>מספר רכב</th><th>יצרן ודגם</th><th>מאיפה</th><th>לאן</th><th>נצפה לאחרונה במקור</th></tr></thead><tbody>
+      ${shown.map(m=>`<tr class="v" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${esc(m.plate)}</td><td>${esc(gM(m.v)||'—')}</td><td>${esc(mvLabel(m.from))}</td><td>${esc(mvLabel(m.to))}</td><td>${fd(m.left)}</td></tr>`).join('')}
+      </tbody></table></div>${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">עוד</button>`:''}`:'<div class="empty">אין מעברים בין חברות ביום הזה</div>'}
+      <p class="note">היום = היום הראשון שהרכב שידר בחברה החדשה. מעבר בין ערים נרשם רק לפי חודש, ולכן בבחירת יום מוצגים רק מעברים בין חברות.</p></div>`;
+  }else if(MVF&&MVT){
     const rows=sel.slice().sort((a,b)=>a.arrived<b.arrived?1:a.arrived>b.arrived?-1:0), shown=rows.slice(0,LIMIT);
     const cur=p=>(XPLATE[p]||[]).slice().sort((a,b)=>a[1][2]<b[1][2]?1:-1)[0];
     body=`<div class="panel"><p class="ptitle">${fmt(new Set(rows.map(m=>m.plate)).size)} רכבים עברו מ${esc(mvFull(MVF))} ל${esc(mvFull(MVT))}${MVK?' · '+esc(MVK):''}</p>
@@ -845,15 +902,69 @@ function typeHome(f){
   if(!f) rows=rows.slice(0,MODELS_SHOWN);
   return kpis()+`<div class="filters" style="margin-bottom:10px">
     <button class="fchip ${TSORT==='n'?'on':''}" onclick="TSORT='n';render()">הדגמים הגדולים</button>
+    <button class="fchip ${TSORT==='r'?'on':''}" onclick="TSORT='r';render()" title="לכל דגם: נפילות, ק&quot;מ ונסיעות — רק רכבי קו">מדד אמינות הדגמים</button>
     <button class="fchip ${TSORT==='g'?'on':''}" onclick="TSORT='g';render()" title="דגמים לפי אחוז הרכבים שנעלמו חודש+ וחזרו (תקלה אפשרית) — מ-20 רכבים ומעלה">הכי מקולקלים</button>
     ${GPOK&&GAPS.from?`<span style="font-size:12px;color:var(--mut);align-self:center">נתוני הנפילות נבדקים בטווח ${GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)}–${GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4)} · מתרחב אחורה מדי לילה</span>`:''}
-  </div>${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
+  </div>${TSORT==='r'?modelRel(f):''}${TSORT==='r'?'':`${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
     `<button class="card" style="--c:${TCOLORS[i%TCOLORS.length]}" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2 style="font-size:1.05rem;word-break:break-word">${esc(t)}</h2><div class="n">${TSORT==='g'?Math.round(100*g.gp/g.n)+'%':fmt(g.n)}</div>
       ${TSORT==='g'?`<div class="lbl">נפלו וחזרו — תקלה אפשרית</div>`:''}
       <div class="pills"><span>${fmt(g.act)} פעילים</span>${g.n-g.act?`<span class="r">${fmt(g.n-g.act)} ירדו</span>`:''}${g.gp?`<span>${fmt(g.gp)} נפלו וחזרו</span>`:''}<span>${g.ops.size} חברות</span></div>
     </button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>
-    ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`;
+    ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`}`;
+}
+// מדד אמינות הדגמים (יצחק 22.10): רק רכבי קו — רכבי קבלן נעלמים וחוזרים לפי עבודה ולא לפי תקלה.
+// "OC500RF"/"OC500 RF", "NL323F"/"N.L.323F" הם אותו דגם — מאחדים לפי השם בלי רווחים, נקודות ומקפים
+let RSORT='x';
+function modelRel(f){
+  const med=a=>{if(!a.length)return null;a.sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+  const yr=+String(DATA.updated).slice(0,4), agg={};
+  for(const o of DATA.operators) for(const v of o.vehicles){
+    const t=gM(v); if(!t||isKab(v)) continue;
+    const k=t.replace(/[\s.\-]/g,'');
+    const g=agg[k]||(agg[k]={names:{},n:0,act:0,gp:0,kd:[],oy:[],r:[],ages:[],gpa:[]});
+    g.names[t]=(g.names[t]||0)+1; g.n++; if(isActive(v))g.act++; if(v._gp)g.gp++;
+    if(gY(v)){const a=Math.max(0,yr-gY(v));g.ages.push(a);g.gpa.push([a,v._gp?1:0]);}
+    if(v._kd)g.kd.push(v._kd);
+    if(v._ok&&gY(v))g.oy.push(v._ok/Math.max(1,yr-gY(v)));
+    if(gR(v)!=null)g.r.push(gR(v));
+  }
+  // רכב ישן נעלם יותר בלי קשר לדגם (שלמה 22.10: "זה דופק את המאן") — משווים כל דגם לרכבים
+  // בני אותו גיל: כמה היו נופלים אילו נפלו כמו הממוצע לגילם (קבוצות של 3 שנים), ומה היחס
+  const band=a=>Math.min(Math.floor(a/3),4), bs=[0,0,0,0,0].map(()=>[0,0]);
+  for(const g of Object.values(agg)) for(const [a,x] of g.gpa){bs[band(a)][0]++;bs[band(a)][1]+=x;}
+  const brate=bs.map(b=>b[0]?b[1]/b[0]:0);
+  let rows=Object.values(agg).filter(g=>g.n>=100).map(g=>{
+    const name=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0];
+    const exp=g.gpa.reduce((s,[a])=>s+brate[band(a)],0), obs=g.gpa.reduce((s,[,x])=>s+x,0);
+    return {name,n:g.n,act:g.act,gp:g.gp/g.n,age:g.ages.length?g.ages.reduce((a,b)=>a+b,0)/g.ages.length:null,x:GPOK&&exp>0?obs/exp:null,kd:med(g.kd),oy:med(g.oy),r:g.r.length?g.r.reduce((a,b)=>a+b,0)/g.r.length:null};});
+  if(f) rows=rows.filter(r=>r.name.includes(f));
+  rows.sort((a,b)=>(b[RSORT]??-1)-(a[RSORT]??-1));
+  const mx=Math.max(1,...rows.map(r=>r.kd||0));
+  const xCol=x=>x>=1.4?'#B91C1C':x<=.8?'var(--ok)':'inherit';
+  const relNote='כמה רכבים מכל דגם נעלמו לחודש או יותר וחזרו, לעומת רכבים בני אותו גיל: פי 1 זה רגיל, מעל 1 נופל יותר. רק רכבי קו, דגמים עם 100 רכבים ומעלה.';
+  // בטלפון: שורה קומפקטית לכל דגם במקום טבלה רחבה שגוללת לצדדים
+  if(innerWidth<640){
+    const sorts=[['x','לעומת בני גילו',GPOK],['gp','נפלו וחזרו',GPOK],['kd','ק"מ ליום',KMOK],['oy','ק"מ בשנה',OFCOK],['n','רכבי קו',1]].filter(x=>x[2]);
+    return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
+    <p class="note" style="margin:0 0 8px">${relNote}</p>
+    <div class="filters">${sorts.map(([k,l])=>`<button class="fchip ${RSORT===k?'on':''}" onclick="RSORT='${k}';render()">${l}</button>`).join('')}</div>
+    ${rows.map(r=>`<button class="mrow" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+      <span class="mrn"><span>${esc(r.name)}</span>${r.x!=null?`<b style="color:${xCol(r.x)}">פי ${r.x.toFixed(1)}</b>`:''}</span>
+      <span class="mrs">${GPOK?`${Math.round(r.gp*100)}% נפלו · `:''}${r.age!=null?`גיל ${r.age.toFixed(1)} · `:''}${fmt(r.n)} רכבי קו${KMOK&&r.kd!=null?` · ${fmt(Math.round(r.kd))} ק"מ ליום`:''}${OFCOK&&r.oy!=null?` · ${fmt(Math.round(r.oy))} ק"מ בשנה`:''}${OFF&&r.r!=null?` · ${r.r.toFixed(1)} נסיעות ביום`:''}</span></button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>`;
+  }
+  const th=(k,l,tip)=>`<th onclick="RSORT='${k}';render()"${tip?` title="${tip}"`:''}>${l}${RSORT===k?' ▾':''}</th>`;
+  return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
+    <p class="note" style="margin:0 0 6px">${relNote}</p>
+    <div class="tblbox"><table><thead><tr><th>דגם</th>${th('n','רכבי קו')}${th('age','גיל ממוצע')}${GPOK?th('gp','נפלו וחזרו','אחוז הרכבים שלא שידרו חודש קלנדרי מלא וחזרו — תקלה או מוסך אפשריים')+th('x','לעומת בני גילו','פי 1 = כמו רכבים בני אותו גיל מכל הדגמים. מעל 1 = נופל יותר'):''}${KMOK?th('kd','ק"מ ליום פעילות','חציון. הערכה לפי אורך הקווים שהרכב נסע בהם'):''}${OFCOK?th('oy','ק"מ בשנה (מד ק"מ רשמי)','חציון: מד הק"מ במאגר משרד התחבורה חלקי גיל הרכב'):''}${OFF?th('r','נסיעות ביום'):''}</tr></thead><tbody>
+    ${rows.map(r=>`<tr class="v" tabindex="0" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+      <td>${esc(r.name)}</td><td>${fmt(r.n)} <span style="color:var(--dim);font-weight:400">(${fmt(r.act)} פעילים)</span></td>
+      <td>${r.age!=null?r.age.toFixed(1):'—'}</td>
+      ${GPOK?`<td>${Math.round(r.gp*100)}%</td><td style="color:${r.x!=null?xCol(r.x):'inherit'}">${r.x!=null?'פי '+r.x.toFixed(1):'—'}</td>`:''}
+      ${KMOK?`<td>${r.kd!=null?`<i style="display:inline-block;height:7px;border-radius:4px;background:#1E5BC6;width:${Math.round(r.kd/mx*70)}px;margin-left:6px;vertical-align:middle"></i>${fmt(Math.round(r.kd))}`:'—'}</td>`:''}
+      ${OFCOK?`<td>${r.oy!=null?fmt(Math.round(r.oy)):'—'}</td>`:''}${OFF?`<td>${r.r!=null?r.r.toFixed(1):'—'}</td>`:''}</tr>`).join('')||'<tr><td>לא נמצא דגם</td></tr>'}
+    </tbody></table></div>
+    <p class="note">רכב יכול להיעלם גם כשעבר חברה או עמד ברזרבה, לא רק בתקלה. לחיצה על כותרת ממיינת, לחיצה על דגם פותחת אותו.</p></div>`;
 }
 // רכבי הדגם אחרי הסינונים והמיון שעל המסך — לטבלה ולאקסל
 function typePairs(all){
@@ -929,7 +1040,7 @@ function table(vs,opsArr){
   ${shown.map((v,i)=>{const on=isActive(v);const mv=on?null:movedTo(v);
     return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')">
     ${opsArr?`<td>${esc(opsArr[i].name)}</td>`:''}
-    <td dir="ltr" style="text-align:right">${esc(v[0])}${v._ar?` <span title="${arLbl(v._ar)} — לפי מאגר ציי רכב אוטובוסים" class="tg" style="cursor:help;font-size:10px">מיגון</span>`:''}</td>
+    <td dir="ltr" style="text-align:right">${esc(v[0])}${v._ar&&!enr?` <span title="${arLbl(v._ar)} — לפי מאגר ציי רכב אוטובוסים" class="tg" style="cursor:help;font-size:10px">מיגון</span>`:''}</td>
     ${enr?`<td>${(()=>{
         // סוג הרכב משני המקורות זה לצד זה: הרישוי ("אוטובוס עירוני") והמאגר
         // הרשמי של ציי הרכב ("מידיבוס", "מפרקי 3 דלתות", מיגון) — כדי שבחירת
@@ -961,6 +1072,7 @@ function opVehicles(o){
   if(TYPEF) vs=vs.filter(v=>gT(v)===TYPEF);
   if(KABF==='k') vs=vs.filter(isKab);
   if(KABF==='l') vs=vs.filter(v=>!isKab(v));
+  if(RTF) vs=vs.filter(isBack);
   if(STATF!==null) vs=vs.filter(v=>(isActive(v)?1:0)===STATF);
   if(ARF) vs=vs.filter(v=>v._ar&&(ARF===1||v._ar.includes(ARF)));
   if(BTF) vs=vs.filter(v=>v._bt===BTF);
@@ -1016,7 +1128,7 @@ function opView(ref){
   const armInTypes=OFCOK&&ofCards?'':armCards;   // בלי המאגר הרשמי — המיגון נשאר בשורת הסוגים
   const headH=`<div class="ophead" style="background:${opBg(ref,i)}${isLight(color)?';color:#10172A':''}">
     <div><h2>${esc(o.name)}</h2><div class="sub2">${fmt(o.vehicles.length)} רכבים${avgAge?` · גיל ממוצע ${avgAge}`:''} · עדכון ${fd(DATA.updated)}</div></div>
-    <div class="pills"><span>${fmt(act)} פעילים</span>${ret-(kab-kabA)?`<span class="r">${fmt(ret-(kab-kabA))} ירדו מהשירות</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kab-kabA?` · ${fmt(kab-kabA)} ירדו`:''}</span>`:''}</div>
+    <div class="pills"><span>${fmt(act)} פעילים</span>${ret-(kab-kabA)?`<span class="r">${fmt(ret-(kab-kabA))} ירדו מהשירות</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kab-kabA?` · ${fmt(kab-kabA)} ירדו`:''}</span>`:''}</div>
   </div>`;
   const filtH=`  ${Object.keys(types).length?`<div class="panel chips"><p class="ptitle">לפי סוג רכב</p>
     <div class="types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([t,c])=>
@@ -1035,12 +1147,14 @@ function opView(ref){
       ${(()=>{
         // "הכול" = בלי שום סינון (שלמה 03.09: כשבוחרים משהו אחר, "הכול" לא
         // יכול להישאר מסומן). לחיצה עליו מנקה גם את הסינון מכרטיסי הסוג/המיגון.
-        const none=STATF===null&&KABF===null&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null;
-        return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">הכול</button>`;})()}
+        const none=STATF===null&&KABF===null&&!RTF&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null;
+        return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;RTF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">הכול</button>`;})()}
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
       ${enr&&kab?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      ${backBtn()}
+      <span class="fcount">${fmt(vs.length)} רכבים</span>
     </div>
     ${table(vs,null)}
     <p class="note">לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
@@ -1383,7 +1497,7 @@ function XDL(){
   }
   if(D.length>1) dlCSV(name,D);
 }
-function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render();window.scrollTo({top:0});}
+function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;RTF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render();window.scrollTo({top:0});}
 // חץ "אחורה" של הדפדפן מחזיר למסך הבית במקום לצאת מהאתר
 window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
 function render(){
@@ -1465,7 +1579,7 @@ function pickSug(i){
   if(k==='v'){render();showV(val);return;}
   setMode(k);
   if(k==='op')go(val);
-  else{history.pushState({sub:1},'');if(k==='city'){CITYSEL=val;CITYMON='';}else TYPESEL=val;STATF=null;KABF=null;SORTK=null;LIMIT=200;render();}
+  else{history.pushState({sub:1},'');if(k==='city'){CITYSEL=val;CITYMON='';}else TYPESEL=val;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();}
   window.scrollTo({top:0});
 }
 $('#q').addEventListener('keydown',e=>{
@@ -1504,12 +1618,14 @@ function SHARE(){
   if(BTF)p.set('bt',BTF);
   if(BSF)p.set('bs',BSF);
   if(KABF)p.set('kb',KABF);
+  if(RTF)p.set('rb','1');
   if(TSORT!=='n')p.set('ts',TSORT);
   if(YRF)p.set('yr',YRF);
   if(MVF)p.set('mf',MVF);
   if(MVT)p.set('mt',MVT);
   if(MVK)p.set('mk',MVK);
   if(!MVREAL)p.set('mr','0');
+  if(MVD)p.set('md',MVD);
   const u=location.origin+location.pathname+(p.toString()?'#'+p.toString():'');
   if(navigator.share){navigator.share({url:u}).catch(()=>{});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText)
@@ -1534,20 +1650,22 @@ function applyHash(){
     if(gv('bt'))BTF=gv('bt');
     if(gv('bs'))BSF=gv('bs');
     if(gv('kb'))KABF=gv('kb');
+    if(gv('rb'))RTF=1;
     if(gv('ts'))TSORT=gv('ts');
     if(gv('yr'))YRF=+gv('yr');
     if(gv('mf'))MVF=gv('mf');
     if(gv('mt'))MVT=gv('mt');
     if(gv('mk'))MVK=gv('mk');
     if(gv('mr')==='0')MVREAL=0;
+    if(gv('md'))MVD=gv('md');
     if(gv('tab'))OPTAB=gv('tab');
-    else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF)OPTAB='veh';
+    else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF)OPTAB='veh';
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
   }catch(e){}
 }
 document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
   MODE=b.dataset.m;closeSugg();if(Q){Q='';$('#q').value='';}
-  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;LIMIT=200;render();
+  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;LIMIT=200;render();
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LIMIT=200;render();suggest();});
 
