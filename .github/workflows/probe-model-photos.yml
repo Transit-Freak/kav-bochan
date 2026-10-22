@@ -1,0 +1,35 @@
+name: probe-model-photos
+
+# בדיקה חד-פעמית: תמונות ברישיון חופשי מוויקישיתוף לכל דגם אוטובוס נפוץ (שלמה 22.10).
+# לא משנה כלום באתר — כותב מועמדות ודפי תמונות לבדיקה ב-docs/fetched/model-photos/
+
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: [.github/workflows/probe-model-photos.yml, tools/probe_model_photos.py]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            fleet/data/fleet.json
+            tools/probe_model_photos.py
+          sparse-checkout-cone-mode: false
+      - run: python3 -m pip install -q pillow && sudo apt-get install -y -q fonts-dejavu-core >/dev/null
+      - run: python3 tools/probe_model_photos.py
+      - name: שמירת התוצאות בענף
+        run: |
+          git config user.name kav-bochan-bot
+          git config user.email bot@users.noreply.github.com
+          git sparse-checkout add docs/fetched/model-photos || true
+          git add -f docs/fetched/model-photos
+          git commit -m "probe: תמונות דגמים מוויקישיתוף — מועמדות לבדיקה" || exit 0
+          for i in 1 2 3; do git push && exit 0; git pull --rebase && continue; done
