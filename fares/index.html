@@ -389,7 +389,15 @@ dfetch('data/current.json').then(r=>r.json()).then(d=>{
 // כשהטעינה מסתיימת (או נכשלת) מריצים מחדש את החיפוש — שמשתמש שהקליד
 // בזמן הטעינה יקבל תוצאות בלי להקליד תו נוסף
 dfetch(LH+'lines.json').then(r=>{if(!r.ok)throw 0;return r.json()})
-  .then(d=>{ LINES=d.lines; onSearchLine(); })
+  .then(d=>{ LINES=d.lines; onSearchLine();
+    if (PEND && PEND.get('l')){
+      const l=LINES.find(x=>x.rd===PEND.get('l'));
+      if (!l){ PEND=null; return; }
+      const dest=(l.dest||'').replace(/<->/g,' ↔ ');
+      $('q').value=l.line+' · '+dest;
+      pickLine(l.rd, l.line, dest, l.op||'', l.tt||'');
+    }
+  })
   .catch(()=>{ LINES_ERR=true; onSearchLine(); });
 // המקור הסופי ל"האם הקו הזה קיים היום" — שתי הסריקות היומיות של הקו
 // בזמן יחד: routes-daily-state (אוטובוסים) + routes-tt-2026-state
@@ -422,6 +430,22 @@ function isCurrent(l){
   return l.lk!=='removed' && l.ld && (Date.now()-new Date(l.ld).getTime())/864e5<=60;
 }
 
+// כתובת ייחודית לכל חישוב (שלמה 22.10): הקו והתחנות נכתבים לכתובת, כך שהעתקה מהדפדפן
+// פותחת את אותו חישוב. ‎#l=<קו>&a=<עלייה>&b=<ירידה>‎ או ‎#m=st&f=<תחנה>&t=<תחנה>‎
+let PEND=(()=>{const h=new URLSearchParams(location.hash.slice(1));return (h.get('l')||h.get('m')==='st')?h:null;})();
+function syncUrl(){
+  if (PEND) return;   // באמצע שחזור מהכתובת — לא לדרוס אותה
+  const p=new URLSearchParams();
+  if ($('paneStop').classList.contains('on')){
+    p.set('m','st');
+    if (picked.from) p.set('f',picked.from[0]);
+    if (picked.to) p.set('t',picked.to[0]);
+  } else if (CURRD && POOL){
+    p.set('l',CURRD); p.set('a',$('fromSel').value); p.set('b',$('toSel').value);
+  }
+  const h=p.toString(), u=location.pathname+location.search+(h?'#'+h:'');
+  if (location.pathname+location.search+location.hash!==u) try{ history.replaceState(null,'',u); }catch(e){}
+}
 $('q').addEventListener('input', onSearchLine);
 function onSearchLine(){
   const v=$('q').value.trim();
@@ -512,6 +536,12 @@ function pickLine(rd, line, dest, op, tt){
     }).join('');
     $('fromSel').innerHTML=opts; $('toSel').innerHTML=opts;
     $('fromSel').selectedIndex=0; $('toSel').selectedIndex=POOL.length-1;
+    if (PEND && PEND.get('l')===rd){
+      const a=+PEND.get('a'), b=+PEND.get('b');
+      if (a>=0 && a<POOL.length) $('fromSel').selectedIndex=a;
+      if (b>=0 && b<POOL.length) $('toSel').selectedIndex=b;
+      PEND=null;
+    }
     $('picked').style.display='block';
     computeLine();
   }).catch(()=>{
@@ -532,6 +562,7 @@ $('swapBtn').addEventListener('click', ()=>{
 });
 function computeLine(){
   if (!POOL) return;
+  syncUrl();
   const i=+$('fromSel').value, j=+$('toSel').value;
   if (i===j){ emptyResult('בחרו שתי תחנות שונות'); return; }
   // מרחק אווירי ישיר בין תחנות העלייה והירידה — כך משרד התחבורה קובע
@@ -826,8 +857,10 @@ document.querySelectorAll('.stchip button').forEach(b=>b.addEventListener('click
   b.parentElement.style.display='none';
   removeMarker(key);
   emptyResult('בחרו קו ותחנות, או שתי תחנות — והמחיר יופיע כאן');
+  syncUrl();
 }));
 function computeStops(){
+  syncUrl();
   if (!picked.from || !picked.to) return;
   if (picked.from[0]===picked.to[0]){ emptyResult('בחרו שתי תחנות שונות'); return; }
   const km=hav([picked.from[3],picked.from[4]], [picked.to[3],picked.to[4]]);
@@ -977,6 +1010,7 @@ $('modeLine').addEventListener('click', ()=>{
   $('modeLine').classList.add('on'); $('modeStop').classList.remove('on');
   $('paneLine').classList.add('on'); $('paneStop').classList.remove('on');
   if (POOL) computeLine(); else if (picked.from&&picked.to) computeStops(); else emptyResult('בחרו קו ותחנות, או שתי תחנות — והמחיר יופיע כאן');
+  syncUrl();
 });
 $('modeStop').addEventListener('click', ()=>{
   $('modeStop').classList.add('on'); $('modeLine').classList.remove('on');
@@ -984,6 +1018,18 @@ $('modeStop').addEventListener('click', ()=>{
   loadStops().then(refreshDots).catch(()=>{});
   ensureMap();
   if (picked.from&&picked.to) computeStops(); else emptyResult('בחרו שתי תחנות — והמחיר יופיע כאן');
+  syncUrl();
+});
+// שחזור "לפי תחנות" מהכתובת — אחרי טעינת הדף, כי ספריית המפה (Leaflet) נטענת אחרי הסקריפט הזה
+if (PEND && PEND.get('m')==='st') window.addEventListener('load', ()=>{
+  const h=PEND;
+  $('modeStop').click();
+  loadStops().then(()=>{
+    PEND=null;
+    if (h.get('f') && STOPS[h.get('f')]) selectStop('from',h.get('f'));
+    if (h.get('t') && STOPS[h.get('t')]) selectStop('to',h.get('t'));
+    syncUrl();
+  }).catch(()=>{ PEND=null; });
 });
 
 /* ---------- טופס דיווח על טעות — שליחה מתוך האתר ---------- */

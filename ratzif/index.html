@@ -240,8 +240,19 @@ function occPanel(ix){
   if(!inner)return `<div style="font-size:12px;color:var(--dim)">אין ברציף הזה דקות עמוסות — כל היציאות בודדות ומרווחות</div>`;
   return `<div style="font-size:12px;color:var(--dim);margin-bottom:2px">מתי הרציף תפוס: דקה עם 2 אוטובוסים ומעלה, או יציאות בדקות צמודות · לחיצה על שעה מציגה את הקווים</div>${inner}`;
 }
+// כתובת ייחודית לכל מסך (שלמה 22.10): הסינון והמיון נכתבים לכתובת, כך שהעתקה מהדפדפן
+// פותחת בדיוק את אותו מסך. רק מה ששונה מברירת המחדל נכנס לכתובת
+const FDEF={};
+function syncUrl(){
+  const p=new URLSearchParams();
+  FKEYS.forEach(k=>{const v=$('#'+k).value;if(v!==FDEF[k])p.set(k,v);});
+  if(SORTK!=='sev'||SORTD!==-1){p.set('s',SORTK);p.set('sd',SORTD);}
+  const h=p.toString(),u=location.pathname+location.search+(h?'#'+h:'');
+  if(location.pathname+location.search+location.hash!==u)try{history.replaceState(null,'',u);}catch(e){}
+}
 function render(){
   if(!D)return;
+  syncUrl();
   const view=$('#fView').value;
   const grouped=view==='grp';
   let rows=filt();
@@ -295,6 +306,7 @@ function XDL(){
 }
 // הבחירות נשמרות מקומית — ריענון מחזיר לאותו סינון ותצוגה (בקשת שלמה)
 const FKEYS=['fScope','fCity','fOp','fWin','fSevOp','fSevN','fView','q'];
+FKEYS.forEach(k=>{FDEF[k]=$('#'+k).value;});
 function saveF(){try{const o={};FKEYS.forEach(k=>{o[k]=$('#'+k).value;});localStorage.setItem('rz-f',JSON.stringify(o));}catch(e){}}
 function loadF(){try{const o=JSON.parse(localStorage.getItem('rz-f')||'{}');FKEYS.forEach(k=>{if(o[k]!=null&&$('#'+k))$('#'+k).value=o[k];});}catch(e){}}
 ['fScope','fOp','fWin','fSevOp','fView'].forEach(id=>$('#'+id).addEventListener('change',()=>{LIMIT=100;saveF();render();}));
@@ -313,6 +325,12 @@ fetch('data/conflicts.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw {nd:r.st
   // שחזור הסינון מהביקור הקודם (אחרי אכלוס הרשימות, כדי שהערך ייתפס);
   // קישור שיתוף עם ‎#st=‎ גובר על מה שנשמר
   loadF();
+  // קישור עם סינון בכתובת גובר על מה שנשמר במכשיר
+  const hp=new URLSearchParams(location.hash.slice(1));
+  if(FKEYS.some(k=>hp.has(k))||hp.has('s')){
+    FKEYS.forEach(k=>{$('#'+k).value=hp.has(k)?hp.get(k):FDEF[k];});
+    if(hp.has('s')){SORTK=hp.get('s');SORTD=+hp.get('sd')||-1;}
+  }
   const m0=/st=([^&]+)/.exec(location.hash);
   if(m0){const c0=decodeURIComponent(m0[1]);const hit=D.conflicts.find(x=>x.code===c0);
     if(hit){$('#q').value=hit.name;$('#fScope').value='all';}}

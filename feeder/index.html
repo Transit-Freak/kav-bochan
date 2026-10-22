@@ -255,7 +255,18 @@
     $("op").innerHTML = '<option value="">כל המפעילים</option>' + ops.map((o) => "<option" + (o === S.op ? " selected" : "") + ">" + K.esc(o) + "</option>").join("");
   }
   const view = () => picked().filter((r) => (!S.st || r.st === S.st) && (!S.op || r.op === S.op)).sort((a, b) => (b.feed === 2) - (a.feed === 2) || b.cnt[0] - a.cnt[0] || b.n - a.n);
+  // כתובת ייחודית לכל מסך (שלמה 22.10): הבחירות נכתבות לכתובת, כך שהעתקה מהדפדפן פותחת את אותו מסך
+  const DEF = { m: "to", w: 7, l: 1, st: "", op: "", dir: "ta", day: "wk" };
+  const cur = () => ({ m: S.mode, w: S.walk, l: S.lines, st: S.st, op: S.op, dir: S.dir, day: S.day });
+  function syncUrl() {
+    const p = new URLSearchParams(), c = cur();
+    for (const k in DEF) if (String(c[k]) !== String(DEF[k])) p.set(k, c[k]);
+    if (S.open) p.set("o", S.open);
+    const h = p.toString(), u = location.pathname + location.search + (h ? "#" + h : "");
+    if (location.pathname + location.search + location.hash !== u) try { history.replaceState(null, "", u); } catch (e) {}
+  }
   function draw() {
+    syncUrl();
     const v = view(), tot = [0, 0, 0, 0, 0]; v.forEach((r) => r.cnt.forEach((x, i) => tot[i] += x));
     const conn = tot[0] + tot[1] + tot[2] + tot[3], pc = (a) => conn ? Math.round(100 * a / conn) + "%" : "–";
     $("kpi").innerHTML = "<div><b>" + v.filter((r) => r.shift && r.conn).length + "</b><span>קווים שכדאי להזיז</span></div><div><b style='color:var(--c0)'>" + pc(tot[0]) + "</b><span>דורש עדכון</span></div><div><b style='color:var(--c2)'>" + pc(tot[2]) + "</b><span>תקין</span></div><div><b>" + conn.toLocaleString("he-IL") + "</b><span>חיבורים שנבדקו</span></div>";
@@ -311,6 +322,13 @@
   $("q").oninput = (e) => { S.q = e.target.value; stList(); };
   $("day").onchange = (e) => { S.day = e.target.value; S.open = null; run(); };
   (async () => {
+    // שחזור מהכתובת
+    const H = new URLSearchParams(location.hash.slice(1));
+    if (H.get("m") === "from" || H.get("m") === "to") { S.mode = H.get("m"); $("mode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.m === S.mode)); }
+    if (H.get("w")) { S.walk = +H.get("w"); $("walk").value = S.walk; }
+    if (H.get("l")) { S.lines = +H.get("l"); $("lines").value = S.lines; }
+    ["st", "op", "dir", "day"].forEach((k) => { if (H.get(k) != null) S[k] = H.get(k); });
+    if (H.get("o")) S.open = H.get("o");
     thUI();
     // שלושת הסיכומים (ימי חול, שישי, מוצ"ש) והימים הבודדים
     await Promise.all(Object.entries(KINDS).map(async ([k, x]) => { try { const r = await fetch("../bus/data/feeder/" + x.file, { cache: "no-cache" }); SUMS[k] = r.ok ? await r.json() : false; } catch (e) { SUMS[k] = false; } }));
@@ -318,6 +336,7 @@
     const opt = Object.entries(KINDS).filter(([k]) => SUMS[k] && SUMS[k].days && SUMS[k].days.length).map(([k, x]) => '<option value="' + k + '">' + x.label + " · ממוצע " + nd(SUMS[k].days.length) + "</option>");
     if (!opt.length) S.day = ALL[0];
     $("day").innerHTML = opt.join("") + '<optgroup label="יום בודד">' + ALL.map((d) => '<option value="' + d + '"' + (d === S.day ? " selected" : "") + ">" + dayLabel(d) + "</option>").join("") + "</optgroup>";
+    if ([...$("day").options].some((o) => o.value === S.day)) $("day").value = S.day; else S.day = $("day").value;
     await calc();
   })().catch((e) => $("tbl").innerHTML = '<div class="msg">' + K.esc(e.message) + "</div>");
 })();
