@@ -116,7 +116,7 @@ def main():
     sheets(res)
 
 
-def sheets(res):
+def sheets(res, prefix='sheet'):
     """דפי תמונות לבדיקה: שורה לכל דגם, עד 4 מועמדות ממוספרות."""
     from PIL import Image, ImageDraw, ImageFont
     f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 18)
@@ -143,7 +143,7 @@ def sheets(res):
                 except Exception as e:
                     dr.text((20 + j * 300, y + 40), 'load failed', fill='red', font=f)
                 time.sleep(0.5)
-        img.save(f'{OUT}/sheet-{s // PER + 1}.jpg', quality=82)
+        img.save(f'{OUT}/{prefix}-{s // PER + 1}.jpg', quality=82)
 
 
 if __name__ == '__main__':
