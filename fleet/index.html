@@ -164,6 +164,10 @@
   .st.on{background:var(--ok-bg);color:var(--ok)}.st.off{background:var(--bad-bg);color:var(--bad)}
   .st.mv{background:#FEF3C7;color:#92400E}
   .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .mrow{display:block;width:100%;text-align:right;border:none;background:var(--row);border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer;font-family:inherit;color:var(--ink)}
+  .mrn{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}
+  .mrn b{white-space:nowrap}
+  .mrs{display:block;font-size:12px;color:var(--mut);margin-top:3px}
   .fcount{margin-inline-start:auto;align-self:center;font:700 12.5px 'Rubik',sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
   .fchip{border:none;cursor:pointer;background:var(--chipbg);color:var(--mut);border-radius:999px;padding:6px 13px;font:700 11.5px 'Rubik',sans-serif}
   .mselect{border:none;background:var(--chipbg);color:var(--ink);border-radius:999px;padding:8px 14px;font:700 12.5px 'Rubik',sans-serif;cursor:pointer}
@@ -859,15 +863,59 @@ function typeHome(f){
   if(!f) rows=rows.slice(0,MODELS_SHOWN);
   return kpis()+`<div class="filters" style="margin-bottom:10px">
     <button class="fchip ${TSORT==='n'?'on':''}" onclick="TSORT='n';render()">הדגמים הגדולים</button>
+    <button class="fchip ${TSORT==='r'?'on':''}" onclick="TSORT='r';render()" title="לכל דגם: נפילות, ק&quot;מ ונסיעות — רק רכבי קו">מדד אמינות הדגמים</button>
     <button class="fchip ${TSORT==='g'?'on':''}" onclick="TSORT='g';render()" title="דגמים לפי אחוז הרכבים שנעלמו חודש+ וחזרו (תקלה אפשרית) — מ-20 רכבים ומעלה">הכי מקולקלים</button>
     ${GPOK&&GAPS.from?`<span style="font-size:12px;color:var(--mut);align-self:center">נתוני הנפילות נבדקים בטווח ${GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)}–${GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4)} · מתרחב אחורה מדי לילה</span>`:''}
-  </div>${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
+  </div>${TSORT==='r'?modelRel(f):''}${TSORT==='r'?'':`${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
     `<button class="card" style="--c:${TCOLORS[i%TCOLORS.length]}" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2 style="font-size:1.05rem;word-break:break-word">${esc(t)}</h2><div class="n">${TSORT==='g'?Math.round(100*g.gp/g.n)+'%':fmt(g.n)}</div>
       ${TSORT==='g'?`<div class="lbl">נפלו וחזרו — תקלה אפשרית</div>`:''}
       <div class="pills"><span>${fmt(g.act)} פעילים</span>${g.n-g.act?`<span class="r">${fmt(g.n-g.act)} ירדו</span>`:''}${g.gp?`<span>${fmt(g.gp)} נפלו וחזרו</span>`:''}<span>${g.ops.size} חברות</span></div>
     </button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>
-    ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`;
+    ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`}`;
+}
+// מדד אמינות הדגמים (יצחק 22.10): רק רכבי קו — רכבי קבלן נעלמים וחוזרים לפי עבודה ולא לפי תקלה.
+// "OC500RF"/"OC500 RF", "NL323F"/"N.L.323F" הם אותו דגם — מאחדים לפי השם בלי רווחים, נקודות ומקפים
+let RSORT='gp';
+function modelRel(f){
+  const med=a=>{if(!a.length)return null;a.sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+  const yr=+String(DATA.updated).slice(0,4), agg={};
+  for(const o of DATA.operators) for(const v of o.vehicles){
+    const t=gM(v); if(!t||isKab(v)) continue;
+    const k=t.replace(/[\s.\-]/g,'');
+    const g=agg[k]||(agg[k]={names:{},n:0,act:0,gp:0,kd:[],oy:[],r:[]});
+    g.names[t]=(g.names[t]||0)+1; g.n++; if(isActive(v))g.act++; if(v._gp)g.gp++;
+    if(v._kd)g.kd.push(v._kd);
+    if(v._ok&&gY(v))g.oy.push(v._ok/Math.max(1,yr-gY(v)));
+    if(gR(v)!=null)g.r.push(gR(v));
+  }
+  let rows=Object.values(agg).filter(g=>g.n>=100).map(g=>{
+    const name=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0];
+    return {name,n:g.n,act:g.act,gp:g.gp/g.n,kd:med(g.kd),oy:med(g.oy),r:g.r.length?g.r.reduce((a,b)=>a+b,0)/g.r.length:null};});
+  if(f) rows=rows.filter(r=>r.name.includes(f));
+  rows.sort((a,b)=>(b[RSORT]??-1)-(a[RSORT]??-1));
+  const mx=Math.max(1,...rows.map(r=>r.kd||0));
+  // בטלפון: שורה קומפקטית לכל דגם במקום טבלה רחבה שגוללת לצדדים
+  if(innerWidth<640){
+    const sorts=[['gp','נפלו וחזרו',GPOK],['kd','ק"מ ליום',KMOK],['oy','ק"מ בשנה',OFCOK],['n','רכבי קו',1]].filter(x=>x[2]);
+    return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
+    <p class="note" style="margin:0 0 8px">דגמים עם 100 רכבי קו ומעלה · רכבי קבלן לא נספרים</p>
+    <div class="filters">${sorts.map(([k,l])=>`<button class="fchip ${RSORT===k?'on':''}" onclick="RSORT='${k}';render()">${l}</button>`).join('')}</div>
+    ${rows.map(r=>`<button class="mrow" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+      <span class="mrn"><span>${esc(r.name)}</span>${GPOK?`<b style="color:${r.gp>=.2?'#B91C1C':r.gp<.06?'var(--ok)':'inherit'}">${Math.round(r.gp*100)}% נפלו</b>`:''}</span>
+      <span class="mrs">${fmt(r.n)} רכבי קו${KMOK&&r.kd!=null?` · ${fmt(Math.round(r.kd))} ק"מ ליום`:''}${OFCOK&&r.oy!=null?` · ${fmt(Math.round(r.oy))} ק"מ בשנה`:''}${OFF&&r.r!=null?` · ${r.r.toFixed(1)} נסיעות ביום`:''}</span></button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>`;
+  }
+  const th=(k,l,tip)=>`<th onclick="RSORT='${k}';render()"${tip?` title="${tip}"`:''}>${l}${RSORT===k?' ▾':''}</th>`;
+  return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
+    <p class="note" style="margin:0 0 6px">דגמים עם 100 רכבי קו ומעלה · רכבי קבלן לא נספרים · לחיצה על כותרת ממיינת, לחיצה על דגם פותחת אותו</p>
+    <div class="tblbox"><table><thead><tr><th>דגם</th>${th('n','רכבי קו')}${GPOK?th('gp','נפלו וחזרו','אחוז הרכבים שלא שידרו חודש קלנדרי מלא וחזרו — תקלה או מוסך אפשריים'):''}${KMOK?th('kd','ק"מ ליום פעילות','חציון. הערכה לפי אורך הקווים שהרכב נסע בהם'):''}${OFCOK?th('oy','ק"מ בשנה (מד ק"מ רשמי)','חציון: מד הק"מ במאגר משרד התחבורה חלקי גיל הרכב'):''}${OFF?th('r','נסיעות ביום'):''}</tr></thead><tbody>
+    ${rows.map(r=>`<tr class="v" tabindex="0" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+      <td>${esc(r.name)}</td><td>${fmt(r.n)} <span style="color:var(--dim);font-weight:400">(${fmt(r.act)} פעילים)</span></td>
+      ${GPOK?`<td style="color:${r.gp>=.2?'#B91C1C':r.gp<.06?'var(--ok)':'inherit'}">${Math.round(r.gp*100)}%</td>`:''}
+      ${KMOK?`<td>${r.kd!=null?`<i style="display:inline-block;height:7px;border-radius:4px;background:#1E5BC6;width:${Math.round(r.kd/mx*70)}px;margin-left:6px;vertical-align:middle"></i>${fmt(Math.round(r.kd))}`:'—'}</td>`:''}
+      ${OFCOK?`<td>${r.oy!=null?fmt(Math.round(r.oy)):'—'}</td>`:''}${OFF?`<td>${r.r!=null?r.r.toFixed(1):'—'}</td>`:''}</tr>`).join('')||'<tr><td>לא נמצא דגם</td></tr>'}
+    </tbody></table></div>
+    <p class="note">"נפלו וחזרו" נבדק בטווח ${GPOK&&GAPS.from?GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)+'–'+GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4):''} — דגם חדש יותר היה פחות זמן על הכביש בתקופה הזו.</p></div>`;
 }
 // רכבי הדגם אחרי הסינונים והמיון שעל המסך — לטבלה ולאקסל
 function typePairs(all){
