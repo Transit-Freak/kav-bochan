@@ -876,46 +876,56 @@ function typeHome(f){
 }
 // מדד אמינות הדגמים (יצחק 22.10): רק רכבי קו — רכבי קבלן נעלמים וחוזרים לפי עבודה ולא לפי תקלה.
 // "OC500RF"/"OC500 RF", "NL323F"/"N.L.323F" הם אותו דגם — מאחדים לפי השם בלי רווחים, נקודות ומקפים
-let RSORT='gp';
+let RSORT='x';
 function modelRel(f){
   const med=a=>{if(!a.length)return null;a.sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
   const yr=+String(DATA.updated).slice(0,4), agg={};
   for(const o of DATA.operators) for(const v of o.vehicles){
     const t=gM(v); if(!t||isKab(v)) continue;
     const k=t.replace(/[\s.\-]/g,'');
-    const g=agg[k]||(agg[k]={names:{},n:0,act:0,gp:0,kd:[],oy:[],r:[]});
+    const g=agg[k]||(agg[k]={names:{},n:0,act:0,gp:0,kd:[],oy:[],r:[],ages:[],gpa:[]});
     g.names[t]=(g.names[t]||0)+1; g.n++; if(isActive(v))g.act++; if(v._gp)g.gp++;
+    if(gY(v)){const a=Math.max(0,yr-gY(v));g.ages.push(a);g.gpa.push([a,v._gp?1:0]);}
     if(v._kd)g.kd.push(v._kd);
     if(v._ok&&gY(v))g.oy.push(v._ok/Math.max(1,yr-gY(v)));
     if(gR(v)!=null)g.r.push(gR(v));
   }
+  // רכב ישן נעלם יותר בלי קשר לדגם (שלמה 22.10: "זה דופק את המאן") — משווים כל דגם לרכבים
+  // בני אותו גיל: כמה היו נופלים אילו נפלו כמו הממוצע לגילם (קבוצות של 3 שנים), ומה היחס
+  const band=a=>Math.min(Math.floor(a/3),4), bs=[0,0,0,0,0].map(()=>[0,0]);
+  for(const g of Object.values(agg)) for(const [a,x] of g.gpa){bs[band(a)][0]++;bs[band(a)][1]+=x;}
+  const brate=bs.map(b=>b[0]?b[1]/b[0]:0);
   let rows=Object.values(agg).filter(g=>g.n>=100).map(g=>{
     const name=Object.entries(g.names).sort((a,b)=>b[1]-a[1])[0][0];
-    return {name,n:g.n,act:g.act,gp:g.gp/g.n,kd:med(g.kd),oy:med(g.oy),r:g.r.length?g.r.reduce((a,b)=>a+b,0)/g.r.length:null};});
+    const exp=g.gpa.reduce((s,[a])=>s+brate[band(a)],0), obs=g.gpa.reduce((s,[,x])=>s+x,0);
+    return {name,n:g.n,act:g.act,gp:g.gp/g.n,age:g.ages.length?g.ages.reduce((a,b)=>a+b,0)/g.ages.length:null,x:GPOK&&exp>0?obs/exp:null,kd:med(g.kd),oy:med(g.oy),r:g.r.length?g.r.reduce((a,b)=>a+b,0)/g.r.length:null};});
   if(f) rows=rows.filter(r=>r.name.includes(f));
   rows.sort((a,b)=>(b[RSORT]??-1)-(a[RSORT]??-1));
   const mx=Math.max(1,...rows.map(r=>r.kd||0));
+  const xCol=x=>x>=1.4?'#B91C1C':x<=.8?'var(--ok)':'inherit';
+  const relNote='כמה רכבים מכל דגם נעלמו לחודש או יותר וחזרו, לעומת רכבים בני אותו גיל: פי 1 זה רגיל, מעל 1 נופל יותר. רק רכבי קו, דגמים עם 100 רכבים ומעלה.';
   // בטלפון: שורה קומפקטית לכל דגם במקום טבלה רחבה שגוללת לצדדים
   if(innerWidth<640){
-    const sorts=[['gp','נפלו וחזרו',GPOK],['kd','ק"מ ליום',KMOK],['oy','ק"מ בשנה',OFCOK],['n','רכבי קו',1]].filter(x=>x[2]);
+    const sorts=[['x','לעומת בני גילו',GPOK],['gp','נפלו וחזרו',GPOK],['kd','ק"מ ליום',KMOK],['oy','ק"מ בשנה',OFCOK],['n','רכבי קו',1]].filter(x=>x[2]);
     return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
-    <p class="note" style="margin:0 0 8px">דגמים עם 100 רכבי קו ומעלה · רכבי קבלן לא נספרים</p>
+    <p class="note" style="margin:0 0 8px">${relNote}</p>
     <div class="filters">${sorts.map(([k,l])=>`<button class="fchip ${RSORT===k?'on':''}" onclick="RSORT='${k}';render()">${l}</button>`).join('')}</div>
     ${rows.map(r=>`<button class="mrow" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
-      <span class="mrn"><span>${esc(r.name)}</span>${GPOK?`<b style="color:${r.gp>=.2?'#B91C1C':r.gp<.06?'var(--ok)':'inherit'}">${Math.round(r.gp*100)}% נפלו</b>`:''}</span>
-      <span class="mrs">${fmt(r.n)} רכבי קו${KMOK&&r.kd!=null?` · ${fmt(Math.round(r.kd))} ק"מ ליום`:''}${OFCOK&&r.oy!=null?` · ${fmt(Math.round(r.oy))} ק"מ בשנה`:''}${OFF&&r.r!=null?` · ${r.r.toFixed(1)} נסיעות ביום`:''}</span></button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>`;
+      <span class="mrn"><span>${esc(r.name)}</span>${r.x!=null?`<b style="color:${xCol(r.x)}">פי ${r.x.toFixed(1)}</b>`:''}</span>
+      <span class="mrs">${GPOK?`${Math.round(r.gp*100)}% נפלו · `:''}${r.age!=null?`גיל ${r.age.toFixed(1)} · `:''}${fmt(r.n)} רכבי קו${KMOK&&r.kd!=null?` · ${fmt(Math.round(r.kd))} ק"מ ליום`:''}${OFCOK&&r.oy!=null?` · ${fmt(Math.round(r.oy))} ק"מ בשנה`:''}${OFF&&r.r!=null?` · ${r.r.toFixed(1)} נסיעות ביום`:''}</span></button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>`;
   }
   const th=(k,l,tip)=>`<th onclick="RSORT='${k}';render()"${tip?` title="${tip}"`:''}>${l}${RSORT===k?' ▾':''}</th>`;
   return `<div class="panel"><p class="ptitle">מדד אמינות הדגמים · רק רכבי קו</p>
-    <p class="note" style="margin:0 0 6px">דגמים עם 100 רכבי קו ומעלה · רכבי קבלן לא נספרים · לחיצה על כותרת ממיינת, לחיצה על דגם פותחת אותו</p>
-    <div class="tblbox"><table><thead><tr><th>דגם</th>${th('n','רכבי קו')}${GPOK?th('gp','נפלו וחזרו','אחוז הרכבים שלא שידרו חודש קלנדרי מלא וחזרו — תקלה או מוסך אפשריים'):''}${KMOK?th('kd','ק"מ ליום פעילות','חציון. הערכה לפי אורך הקווים שהרכב נסע בהם'):''}${OFCOK?th('oy','ק"מ בשנה (מד ק"מ רשמי)','חציון: מד הק"מ במאגר משרד התחבורה חלקי גיל הרכב'):''}${OFF?th('r','נסיעות ביום'):''}</tr></thead><tbody>
+    <p class="note" style="margin:0 0 6px">${relNote}</p>
+    <div class="tblbox"><table><thead><tr><th>דגם</th>${th('n','רכבי קו')}${th('age','גיל ממוצע')}${GPOK?th('gp','נפלו וחזרו','אחוז הרכבים שלא שידרו חודש קלנדרי מלא וחזרו — תקלה או מוסך אפשריים')+th('x','לעומת בני גילו','פי 1 = כמו רכבים בני אותו גיל מכל הדגמים. מעל 1 = נופל יותר'):''}${KMOK?th('kd','ק"מ ליום פעילות','חציון. הערכה לפי אורך הקווים שהרכב נסע בהם'):''}${OFCOK?th('oy','ק"מ בשנה (מד ק"מ רשמי)','חציון: מד הק"מ במאגר משרד התחבורה חלקי גיל הרכב'):''}${OFF?th('r','נסיעות ביום'):''}</tr></thead><tbody>
     ${rows.map(r=>`<tr class="v" tabindex="0" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
       <td>${esc(r.name)}</td><td>${fmt(r.n)} <span style="color:var(--dim);font-weight:400">(${fmt(r.act)} פעילים)</span></td>
-      ${GPOK?`<td style="color:${r.gp>=.2?'#B91C1C':r.gp<.06?'var(--ok)':'inherit'}">${Math.round(r.gp*100)}%</td>`:''}
+      <td>${r.age!=null?r.age.toFixed(1):'—'}</td>
+      ${GPOK?`<td>${Math.round(r.gp*100)}%</td><td style="color:${r.x!=null?xCol(r.x):'inherit'}">${r.x!=null?'פי '+r.x.toFixed(1):'—'}</td>`:''}
       ${KMOK?`<td>${r.kd!=null?`<i style="display:inline-block;height:7px;border-radius:4px;background:#1E5BC6;width:${Math.round(r.kd/mx*70)}px;margin-left:6px;vertical-align:middle"></i>${fmt(Math.round(r.kd))}`:'—'}</td>`:''}
       ${OFCOK?`<td>${r.oy!=null?fmt(Math.round(r.oy)):'—'}</td>`:''}${OFF?`<td>${r.r!=null?r.r.toFixed(1):'—'}</td>`:''}</tr>`).join('')||'<tr><td>לא נמצא דגם</td></tr>'}
     </tbody></table></div>
-    <p class="note">"נפלו וחזרו" נבדק בטווח ${GPOK&&GAPS.from?GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)+'–'+GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4):''} — דגם חדש יותר היה פחות זמן על הכביש בתקופה הזו.</p></div>`;
+    <p class="note">רכב יכול להיעלם גם כשעבר חברה או עמד ברזרבה, לא רק בתקלה. לחיצה על כותרת ממיינת, לחיצה על דגם פותחת אותו.</p></div>`;
 }
 // רכבי הדגם אחרי הסינונים והמיון שעל המסך — לטבלה ולאקסל
 function typePairs(all){
