@@ -168,6 +168,10 @@
   .mrn{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}
   .mrn b{white-space:nowrap}
   .mrs{display:block;font-size:12px;color:var(--mut);margin-top:3px}
+  .mvbars{direction:ltr;display:flex;align-items:flex-end;gap:2px;height:70px;margin-top:12px;border-bottom:1px solid var(--line,#e3e6ec)}
+  .mvbars i{flex:1;background:#b9c7e6;border-radius:3px 3px 0 0;cursor:pointer}.mvbars i:hover{background:#7f9bd6}.mvbars i.sel{background:#1E5BC6}
+  .mvax{direction:ltr;display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:3px}.mvax span:nth-child(2){direction:rtl}
+  @media (max-width:640px){.mvax span:nth-child(2){display:none}}
   .fcount{margin-inline-start:auto;align-self:center;font:700 12.5px 'Rubik',sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
   .fchip{border:none;cursor:pointer;background:var(--chipbg);color:var(--mut);border-radius:999px;padding:6px 13px;font:700 11.5px 'Rubik',sans-serif}
   .mselect{border:none;background:var(--chipbg);color:var(--ink);border-radius:999px;padding:8px 14px;font:700 12.5px 'Rubik',sans-serif;cursor:pointer}
@@ -302,7 +306,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -775,7 +779,34 @@ function mvSelected(){
   let list=mvAll();
   if(clean) list=list.filter(m=>m.plate.replace(/-/g,'').includes(clean)||(gM(m.v)||'').includes(f));
   if(MVK) list=list.filter(m=>mvType(m.v)===MVK);
-  return {base:list,sel:list.filter(m=>(!MVF||m.from===MVF)&&(!MVT||m.to===MVT))};
+  const pre=list;
+  list=mvWhen(list);
+  return {pre,base:list,sel:list.filter(m=>(!MVF||m.from===MVF)&&(!MVT||m.to===MVT))};
+}
+// סינון לפי זמן (שלמה 22.10): יום אחד, או 7/30 הימים האחרונים לפי תאריך ההגעה ליעד.
+// מעבר בין ערים נרשם רק לפי חודש — ביום אחד מוצגים רק מעברים בין חברות
+const mvAddD=(d,n)=>{const x=new Date(d+'T12:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10);};
+const mvIsDay=()=>!!MVD&&/^\d{4}-\d\d-\d\d$/.test(MVD);
+function mvWhen(list){
+  if(!MVD) return list;
+  if(mvIsDay()) return list.filter(m=>m.arrived===MVD&&mvIsOp(m.from)&&mvIsOp(m.to));
+  const from=mvAddD(String(MOVES.updated).slice(0,10),-(+MVD));
+  return list.filter(m=>m.arrived&&m.arrived>=from);
+}
+function mvWhenHtml(pre){
+  const end=String(MOVES.updated).slice(0,10), N=60, start=mvAddD(end,-(N-1)), cnt={};
+  for(const m of pre){if(!m.arrived||m.arrived<start||!mvIsOp(m.from)||!mvIsOp(m.to))continue;if(MVF&&m.from!==MVF||MVT&&m.to!==MVT)continue;(cnt[m.arrived]=cnt[m.arrived]||new Set()).add(m.plate);}
+  const days=[];for(let i=0;i<N;i++)days.push(mvAddD(start,i));
+  const mx=Math.max(1,...days.map(d=>cnt[d]?cnt[d].size:0));
+  const day=mvIsDay()?MVD:null;
+  const ch=(v,l)=>`<button class="fchip ${MVD===v?'on':''}" onclick="MVD=${v===null?'null':`'${v}'`};LIMIT=200;render()">${l}</button>`;
+  return `<div class="filters" style="margin-top:12px;align-items:center">
+      <b style="font-size:13px;color:var(--mut)">מתי:</b>${ch(null,'כל הזמן')}${ch('7','7 ימים אחרונים')}${ch('30','30 ימים אחרונים')}
+      <input type="date" class="mselect" min="${esc(start)}" max="${esc(end)}" value="${day||''}" onchange="MVD=this.value||null;LIMIT=200;render()" title="בחירת יום">
+      ${day?`<button class="fchip" onclick="MVD=mvAddD(MVD,-1);LIMIT=200;render()">יום קודם</button><button class="fchip" ${day>=end?'disabled':''} onclick="MVD=mvAddD(MVD,1);LIMIT=200;render()">יום הבא</button>`:''}
+    </div>
+    <div class="mvbars" title="מעברים בין חברות בכל יום">${days.map(d=>{const n=cnt[d]?cnt[d].size:0;return `<i class="${d===day?'sel':''}" style="height:${n?Math.max(6,n/mx*100):2}%" title="${fd(d)} · ${n} רכבים" onclick="MVD='${d}';LIMIT=200;render()"></i>`;}).join('')}</div>
+    <div class="mvax"><span>${fd(start)}</span><span>מעברים בין חברות בכל יום · לחיצה על עמודה בוחרת את היום</span><span>${fd(end)}</span></div>`;
 }
 function mvPick(el){const k=el.dataset.k||null;if(el.dataset.mv==='to')MVT=k;else MVF=k;LIMIT=200;render();window.scrollTo({top:0});}
 function mvPair(el){MVF=el.dataset.a;MVT=el.dataset.b;LIMIT=200;render();window.scrollTo({top:0});}
@@ -786,7 +817,7 @@ function movesHome(){
   if(MOVES===null){loadMoves();return kpis()+'<div class="msg">⏳ טוען נתוני מעברים…</div>';}
   if(!window.FleetMoves) return kpis()+'<div class="panel"><div class="empty">קובץ הלוגיקה של המעברים (moves.js) לא נטען — נסו לרענן</div></div>';
   if(!MOVES.m||!Object.keys(MOVES.m).length) return kpis()+'<div class="panel"><div class="empty">נתוני המעברים ייבנו בריצת האיסוף הקרובה</div></div>';
-  const {base,sel}=mvSelected();
+  const {pre,base,sel}=mvSelected();
   const all=mvAll();
   // אפשרויות הבחירה: מקורות שיש מהם מעברים (ליעד שנבחר), ויעדים (מהמקור שנבחר)
   const fromOpts=mvCount(base.filter(m=>!MVT||m.to===MVT),m=>m.from), toOpts=mvCount(base.filter(m=>!MVF||m.from===MVF),m=>m.to);
@@ -815,11 +846,19 @@ function movesHome(){
       ${types.map(([t,n])=>`<button class="fchip ${MVK===t?'on':''}" data-k="${esc(t)}" onclick="MVK=MVK===this.dataset.k?null:this.dataset.k;LIMIT=200;render()">${esc(t)} · ${fmt(n)}</button>`).join('')}
       <button class="fchip ${MVREAL?'on':''}" style="margin-inline-start:auto" onclick="MVREAL=MVREAL?0:1;LIMIT=200;render()" title="מעבר של ממש = הרכב שידר לפחות 5 ימי פעילות גם במקור וגם ביעד. בלי הסינון נראים גם שידורים של יום-יומיים אצל חברה אחות">${MVREAL?'✓ ':''}רק מעברים של ממש</button>
     </div>
+    ${mvWhenHtml(pre)}
     <p class="note">רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. בין חברות רואים את זה מתחילת המעקב (${fd(MOVES.since)}); רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}</p>
   </div>`;
   const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<button class="type" data-mv="${side}" data-k="${esc(k)}" onclick="mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></button>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
   let body='';
-  if(MVF&&MVT){
+  if(mvIsDay()&&!(MVF&&MVT)){
+    const seen=new Set(),rows=sel.filter(m=>!seen.has(m.plate)&&seen.add(m.plate)),shown=rows.slice(0,LIMIT);
+    body=`<div class="panel"><p class="ptitle">${fd(MVD)} · ${fmt(rows.length)} רכבים עברו בין חברות${MVK?' · '+esc(MVK):''}</p>
+      ${rows.length?`<div class="tblbox"><table><thead><tr><th>מספר רכב</th><th>יצרן ודגם</th><th>מאיפה</th><th>לאן</th><th>נצפה לאחרונה במקור</th></tr></thead><tbody>
+      ${shown.map(m=>`<tr class="v" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${esc(m.plate)}</td><td>${esc(gM(m.v)||'—')}</td><td>${esc(mvLabel(m.from))}</td><td>${esc(mvLabel(m.to))}</td><td>${fd(m.left)}</td></tr>`).join('')}
+      </tbody></table></div>${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">עוד</button>`:''}`:'<div class="empty">אין מעברים בין חברות ביום הזה</div>'}
+      <p class="note">היום = היום הראשון שהרכב שידר בחברה החדשה. מעבר בין ערים נרשם רק לפי חודש, ולכן בבחירת יום מוצגים רק מעברים בין חברות.</p></div>`;
+  }else if(MVF&&MVT){
     const rows=sel.slice().sort((a,b)=>a.arrived<b.arrived?1:a.arrived>b.arrived?-1:0), shown=rows.slice(0,LIMIT);
     const cur=p=>(XPLATE[p]||[]).slice().sort((a,b)=>a[1][2]<b[1][2]?1:-1)[0];
     body=`<div class="panel"><p class="ptitle">${fmt(new Set(rows.map(m=>m.plate)).size)} רכבים עברו מ${esc(mvFull(MVF))} ל${esc(mvFull(MVT))}${MVK?' · '+esc(MVK):''}</p>
@@ -1586,6 +1625,7 @@ function SHARE(){
   if(MVT)p.set('mt',MVT);
   if(MVK)p.set('mk',MVK);
   if(!MVREAL)p.set('mr','0');
+  if(MVD)p.set('md',MVD);
   const u=location.origin+location.pathname+(p.toString()?'#'+p.toString():'');
   if(navigator.share){navigator.share({url:u}).catch(()=>{});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText)
@@ -1617,6 +1657,7 @@ function applyHash(){
     if(gv('mt'))MVT=gv('mt');
     if(gv('mk'))MVK=gv('mk');
     if(gv('mr')==='0')MVREAL=0;
+    if(gv('md'))MVD=gv('md');
     if(gv('tab'))OPTAB=gv('tab');
     else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF)OPTAB='veh';
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
@@ -1624,7 +1665,7 @@ function applyHash(){
 }
 document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
   MODE=b.dataset.m;closeSugg();if(Q){Q='';$('#q').value='';}
-  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;LIMIT=200;render();
+  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;LIMIT=200;render();
 }));
 $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LIMIT=200;render();suggest();});
 
