@@ -298,7 +298,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -337,6 +337,12 @@ const isLight=h=>{const [r,g,b]=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).
 const kabType=t=>!!t&&(t.includes('הסעות')||t.includes('מיוחד')||t.includes('סיור')||t.includes('טיולית')||t.includes('פרטי'));
 const inOfc=v=>!!OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
 const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;return kabType(t)||isActive(v);};
+// חזר לאחרונה לכביש (יצחק 22.10): רכב פעיל שהיעדרות של חודש מלא ומעלה שלו נגמרה
+// בחודשיים האחרונים שנבדקו — כלומר חזר לנסוע בחודשיים-שלושה האחרונים
+const isBack=v=>{if(!v._gp||!GAPS||!GAPS.to||!isActive(v))return false;
+  const [y,m]=GAPS.to.split('-').map(Number),d=new Date(y,m-3,1),from=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return v._gp.some(g=>g[1]>=from);};
+const backBtn=()=>GPOK?`<button class="fchip ${RTF?'on':''}" title="רכבים פעילים שלא שידרו חודש ומעלה וחזרו לנסוע בחודשיים-שלושה האחרונים" onclick="RTF=RTF?null:1;LIMIT=200;render()">חזרו לאחרונה לכביש</button>`:'';
 const op=ref=>DATA.operators.find(o=>o.ref===ref);
 // אותה לוחית יכולה להופיע אצל כמה מפעילים (רכב שהועבר בין חברות) —
 // מפה גלובלית לוחית ← כל רשומות השידור שלה
@@ -567,7 +573,7 @@ function cityHome(f){
   if(CITYSEL&&CITIES.cities[CITYSEL]) return cityView(CITYSEL);
   const hits=all.filter(([c])=>!f||c.includes(f)).sort((a,b)=>(b[1].act??b[1].total)-(a[1].act??a[1].total)).slice(0,30);
   return kpis()+`<div class="cards">${hits.map(([c,d])=>
-    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2>${esc(c)}</h2><div class="n">${d.act!=null?fmt(d.act):fmt(d.total)}</div>
       <div class="lbl">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
       ${d.act!=null?`<div class="pills"><span title='"פעיל" = שידר נסיעות בחודש האחרון'>נצפו בה אי-פעם: ${fmt(d.total)}</span></div>`:''}
@@ -681,6 +687,7 @@ function cityVehRows(c){
   if(STATF!==null) out=out.filter(r=>(isActive(r.v)?1:0)===STATF);
   if(KABF==='k') out=out.filter(r=>isKab(r.v));
   if(KABF==='l') out=out.filter(r=>!isKab(r.v));
+  if(RTF) out=out.filter(r=>isBack(r.v));
   const key={o:r=>r.o.name,p:r=>r.v[0],t:r=>gT(r.v)||'',y:r=>gY(r.v)||0,m:r=>gM(r.v)||'',dd:r=>r.dd||0,rt:r=>r.rt||0,r:r=>gR(r.v)||0,f:r=>r.v[1],l:r=>r.v[2]}[SORTK]||(r=>r.v[2]);
   const dir=SORTK?SORTD:-1;
   return out.slice().sort((a,b)=>{const x=key(a),y=key(b);return (x>y?1:x<y?-1:0)*dir;});
@@ -703,11 +710,12 @@ function cityVehPanel(c){
       ${tR?`<div class="kpi"><b>${fmt(tR)}</b><span>נסיעות שנמדדו בסך הכול</span></div>`:''}
     </div>
     <div class="filters">
-      <button class="fchip ${STATF===null&&KABF===null?'on':''}" onclick="STATF=null;KABF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===null&&KABF===null&&!RTF?'on':''}" onclick="STATF=null;KABF=null;RTF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      ${backBtn()}
       <span class="fcount">${fmt(n)} רכבים</span>
     </div>
     ${rows.length?`<div class="tblbox"><table><thead><tr>${th('o','חברה')}${th('p','מספר רכב')}${DATA.enriched?th('t','סוג הרכב')+th('y','שנתון')+th('m','יצרן ודגם'):''}${th('dd','ימי פעילות שנמדדו')}${th('rt','נסיעות סה"כ')}${th('r','נסיעות ביום')}${th('f','נצפה לראשונה')}${th('l','נצפה לאחרונה')}<th>מצב</th></tr></thead><tbody>
@@ -967,6 +975,7 @@ function opVehicles(o){
   if(TYPEF) vs=vs.filter(v=>gT(v)===TYPEF);
   if(KABF==='k') vs=vs.filter(isKab);
   if(KABF==='l') vs=vs.filter(v=>!isKab(v));
+  if(RTF) vs=vs.filter(isBack);
   if(STATF!==null) vs=vs.filter(v=>(isActive(v)?1:0)===STATF);
   if(ARF) vs=vs.filter(v=>v._ar&&(ARF===1||v._ar.includes(ARF)));
   if(BTF) vs=vs.filter(v=>v._bt===BTF);
@@ -1041,12 +1050,13 @@ function opView(ref){
       ${(()=>{
         // "הכול" = בלי שום סינון (שלמה 03.09: כשבוחרים משהו אחר, "הכול" לא
         // יכול להישאר מסומן). לחיצה עליו מנקה גם את הסינון מכרטיסי הסוג/המיגון.
-        const none=STATF===null&&KABF===null&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null;
-        return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">הכול</button>`;})()}
+        const none=STATF===null&&KABF===null&&!RTF&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null;
+        return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;RTF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">הכול</button>`;})()}
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
       ${enr&&kab?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      ${backBtn()}
       <span class="fcount">${fmt(vs.length)} רכבים</span>
     </div>
     ${table(vs,null)}
@@ -1390,7 +1400,7 @@ function XDL(){
   }
   if(D.length>1) dlCSV(name,D);
 }
-function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render();window.scrollTo({top:0});}
+function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;RTF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render();window.scrollTo({top:0});}
 // חץ "אחורה" של הדפדפן מחזיר למסך הבית במקום לצאת מהאתר
 window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
 function render(){
@@ -1472,7 +1482,7 @@ function pickSug(i){
   if(k==='v'){render();showV(val);return;}
   setMode(k);
   if(k==='op')go(val);
-  else{history.pushState({sub:1},'');if(k==='city'){CITYSEL=val;CITYMON='';}else TYPESEL=val;STATF=null;KABF=null;SORTK=null;LIMIT=200;render();}
+  else{history.pushState({sub:1},'');if(k==='city'){CITYSEL=val;CITYMON='';}else TYPESEL=val;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();}
   window.scrollTo({top:0});
 }
 $('#q').addEventListener('keydown',e=>{
@@ -1511,6 +1521,7 @@ function SHARE(){
   if(BTF)p.set('bt',BTF);
   if(BSF)p.set('bs',BSF);
   if(KABF)p.set('kb',KABF);
+  if(RTF)p.set('rb','1');
   if(TSORT!=='n')p.set('ts',TSORT);
   if(YRF)p.set('yr',YRF);
   if(MVF)p.set('mf',MVF);
@@ -1541,6 +1552,7 @@ function applyHash(){
     if(gv('bt'))BTF=gv('bt');
     if(gv('bs'))BSF=gv('bs');
     if(gv('kb'))KABF=gv('kb');
+    if(gv('rb'))RTF=1;
     if(gv('ts'))TSORT=gv('ts');
     if(gv('yr'))YRF=+gv('yr');
     if(gv('mf'))MVF=gv('mf');
@@ -1548,7 +1560,7 @@ function applyHash(){
     if(gv('mk'))MVK=gv('mk');
     if(gv('mr')==='0')MVREAL=0;
     if(gv('tab'))OPTAB=gv('tab');
-    else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF)OPTAB='veh';
+    else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF)OPTAB='veh';
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
   }catch(e){}
 }
