@@ -1637,9 +1637,21 @@ function syncUrl(){
   const h=p.toString(),u=location.pathname+location.search+(h?'#'+h:'');
   if(location.pathname+location.search+location.hash!==u)try{history.replaceState(history.state,'',u);}catch(e){}
 }
+// דף-שיתוף (s/) למסך של חברה, דגם, עיר או מעבר — כדי שבוואטסאפ יופיע כרטיס בצבעי החברה (שלמה 22.10).
+// השמות תואמים ל-tools/fleet_share.py ול-404.html. שאר הסינון עובר בסולמית, ודף השיתוף מעביר אותו הלאה
+const hex=s=>Array.from(new TextEncoder().encode(s),b=>b.toString(16).padStart(2,'0')).join('');
+function fleetStub(p){
+  const drop=(...k)=>{k.forEach(x=>p.delete(x));return p;};
+  if(VIEW.t==='op')return ['o-'+VIEW.ref,drop('op')];
+  if(MODE==='type'&&TYPESEL)return ['m-'+hex(TYPESEL),drop('m','model')];
+  if(MODE==='city'&&CITYSEL)return ['c-'+hex(CITYSEL),drop('m','city')];
+  if(MODE==='moves'&&MVF&&MVT&&mvIsOp(MVF)&&mvIsOp(MVT))return ['mv-'+MVF.slice(3)+'-'+MVT.slice(3),drop('m','mf','mt')];
+  return null;
+}
 function SHARE(){
-  const p=stateParams();
-  const u=location.origin+location.pathname+(p.toString()?'#'+p.toString():'');
+  const p=stateParams(),st=fleetStub(p);
+  const u=st?location.origin+location.pathname.replace(/fleet\/?[^/]*$/,'')+'s/'+st[0]+'.html'+(st[1].toString()?'#'+st[1].toString():'')
+           :location.origin+location.pathname+(p.toString()?'#'+p.toString():'');
   if(navigator.share){navigator.share({url:u}).catch(()=>{});return;}
   if(navigator.clipboard&&navigator.clipboard.writeText)
     navigator.clipboard.writeText(u).then(()=>toast('הקישור הועתק — הדבקה בכל צ׳אט תפתח את המסך הזה')).catch(()=>prompt('העתקה ידנית:',u));

@@ -5,13 +5,19 @@
 // קישור שיתוף לרכב/קו חדש מגיע לפני שנוצר לו דף-שיתוף (הדפים ב-s/ נבנים פעם ביום) —
 // במקום "לא נמצא" מעבירים ישר לדף האמיתי (שלמה 22.10)
 (function(){
-  var m=location.pathname.match(/\/s\/([a-z])-(.+)\.html$/);if(!m)return;
+  var m=location.pathname.match(/\/s\/([a-z]+)-(.+)\.html$/);if(!m)return;
   var k=m[1],id=decodeURIComponent(m[2]),to=null;
   if(k==='v')to='/fleet/#v='+encodeURIComponent(id);
   else if(k==='r')to='/ratzif/#st='+encodeURIComponent(id);
   else if(k==='t')to='/line-history/#t=rail@'+(/^\d{4}-\d\d-\d\d$/.test(location.hash.slice(1))?location.hash.slice(1)+'@':'')+id;
   else if(k==='k')to='/line-history/#2012/'+id.replace(/_/g,'/');
+  else if(k==='o')to='/fleet/#op='+encodeURIComponent(id);
+  else if(k==='m'||k==='c'){var t=null;try{t=new TextDecoder().decode(new Uint8Array(id.match(/../g).map(function(x){return parseInt(x,16);})));}catch(e){}
+    if(t)to='/fleet/#m='+(k==='m'?'type&model=':'city&city=')+encodeURIComponent(t);}
+  else if(k==='mv'){var ab=id.split('-');to='/fleet/#m=moves&mf=op:'+ab[0]+'&mt=op:'+ab[1];}
   else if(k==='l'){var p=id.split('-'),a=p[p.length-1];p[p.length-1]=a==='H'?'#':a==='X'?'*':a;to='/line-history/#'+p.join('-').replace(/_/g,'/');}
+  // סינון שנוסף בסולמית עובר הלאה (חוץ מהיום של קישורי רכבות, שכבר נכנס לכתובת)
+  if(to&&k!=='t'&&location.hash.length>1)to+=(to.indexOf('#')<0?'#':'&')+location.hash.slice(1);
   if(to)location.replace(to);
 })();
 </script>
