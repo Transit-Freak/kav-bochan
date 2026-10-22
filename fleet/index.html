@@ -164,6 +164,7 @@
   .st.on{background:var(--ok-bg);color:var(--ok)}.st.off{background:var(--bad-bg);color:var(--bad)}
   .st.mv{background:#FEF3C7;color:#92400E}
   .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .fcount{margin-inline-start:auto;align-self:center;font:700 12.5px 'Rubik',sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
   .fchip{border:none;cursor:pointer;background:var(--chipbg);color:var(--mut);border-radius:999px;padding:6px 13px;font:700 11.5px 'Rubik',sans-serif}
   .mselect{border:none;background:var(--chipbg);color:var(--ink);border-radius:999px;padding:8px 14px;font:700 12.5px 'Rubik',sans-serif;cursor:pointer}
   .fchip.on{background:var(--ink);color:#fff}
@@ -329,9 +330,13 @@ const opBg=(ref,i)=>{const c=opColors(ref,i);if(c.length<2)return c[0];
   const st=c.length===2?[0,62]:[0,56,78];return `linear-gradient(250deg,${c.map((x,k)=>`${x} ${st[k]}% ${k+1<c.length?st[k+1]+'%':'100%'}`).join(',')})`;};
 // כותרת בהירה (צהוב, אפרסק, תכלת) — טקסט כהה, כדי שיהיה קריא
 const isLight=h=>{const [r,g,b]=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return .2126*r+.7152*g+.0722*b>.3;};
-// רכב קבלן = רשום ברישוי כרכב הסעות ('להסע מיוחד'/'הסעות מיוחדות') —
-// בתצוגה 'אוטובוס הסעות'/'מיניבוס הסעות'; 'מיוחד' תופס סיווג שלא במילון
-const isKab=v=>{const t=gT(v);return !!t&&(t.includes('הסעות')||t.includes('מיוחד'));};
+// רכב קבלן (22.10): רכב קו = מופיע במאגר "ציי רכב אוטובוסים" של משרד התחבורה (הצי של החברות).
+// רכב פעיל שלא מופיע בו = רכב קבלן. רכב שירד ולא מופיע בו נקבע לפי סוג הרישוי: הסעות, הסע מיוחד,
+// סיור (טיולית), פרטי — קבלן; עירוני/בין-עירוני — היה רכב קו (המאגר מחזיק רק את הצי של היום).
+// עד שהמאגר נטען — לפי סוג הרישוי בלבד.
+const kabType=t=>!!t&&(t.includes('הסעות')||t.includes('מיוחד')||t.includes('סיור')||t.includes('טיולית')||t.includes('פרטי'));
+const inOfc=v=>!!OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
+const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;return kabType(t)||isActive(v);};
 const op=ref=>DATA.operators.find(o=>o.ref===ref);
 // אותה לוחית יכולה להופיע אצל כמה מפעילים (רכב שהועבר בין חברות) —
 // מפה גלובלית לוחית ← כל רשומות השידור שלה
@@ -354,7 +359,7 @@ function kpis(){
     ${kab?`<div class="kpi bad" title="רכבים מהצי הסדיר שלא שידרו מעל ${DATA.retire_days} יום. רכבי קבלן שירדו מוצגים בנפרד, בכרטיס רכבי הקבלן"><b>${fmt(tot-act-(kab-kabA))}</b><span>ירדו מהשירות (צי סדיר)</span></div>`
         :`<div class="kpi bad"><b>${fmt(tot-act)}</b><span>ירדו מהשירות</span></div>`}
     <div class="kpi"><b>${DATA.operators.length}</b><span>מפעילים</span></div>
-    ${kab?`<div class="kpi" title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
+    ${kab?`<div class="kpi" title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות שמופעלים על קווי החברות. המספר הגדול: הפעילים כרגע; מתחתיו: כמה מאלה שנצפו אי-פעם כבר ירדו מהשירות"><b>${fmt(kabA)}</b><span>רכבי קבלן פעילים</span></div>`:''}
   </div>
   <div class="upd" title="הנתונים מתעדכנים כל לילה מעצמם">הנתונים מעודכנים ל-<b>${fd(last)}</b> · העדכון הבא בלילה</div>`;
 }
@@ -703,6 +708,7 @@ function cityVehPanel(c){
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      <span class="fcount">${fmt(n)} רכבים</span>
     </div>
     ${rows.length?`<div class="tblbox"><table><thead><tr>${th('o','חברה')}${th('p','מספר רכב')}${DATA.enriched?th('t','סוג הרכב')+th('y','שנתון')+th('m','יצרן ודגם'):''}${th('dd','ימי פעילות שנמדדו')}${th('rt','נסיעות סה"כ')}${th('r','נסיעות ביום')}${th('f','נצפה לראשונה')}${th('l','נצפה לאחרונה')}<th>מצב</th></tr></thead><tbody>
     ${shown.map(r=>{const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
@@ -1016,7 +1022,7 @@ function opView(ref){
   const armInTypes=OFCOK&&ofCards?'':armCards;   // בלי המאגר הרשמי — המיגון נשאר בשורת הסוגים
   const headH=`<div class="ophead" style="background:${opBg(ref,i)}${isLight(color)?';color:#10172A':''}">
     <div><h2>${esc(o.name)}</h2><div class="sub2">${fmt(o.vehicles.length)} רכבים${avgAge?` · גיל ממוצע ${avgAge}`:''} · עדכון ${fd(DATA.updated)}</div></div>
-    <div class="pills"><span>${fmt(act)} פעילים</span>${ret-(kab-kabA)?`<span class="r">${fmt(ret-(kab-kabA))} ירדו מהשירות</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="אוטובוסים ומיניבוסים הרשומים כרכבי הסעות — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kab-kabA?` · ${fmt(kab-kabA)} ירדו`:''}</span>`:''}</div>
+    <div class="pills"><span>${fmt(act)} פעילים</span>${ret-(kab-kabA)?`<span class="r">${fmt(ret-(kab-kabA))} ירדו מהשירות</span>`:''}${ravg?`<span>${ravg} נסיעות ביום לרכב בממוצע</span>`:''}${kab?`<span title="רכבים שלא מופיעים במאגר ציי רכב אוטובוסים של משרד התחבורה (רכב שירד: לפי סוג הרישוי) — בדרך כלל רכבי קבלני הסעות">🚐 רכבי קבלן: ${fmt(kabA)} פעילים${kab-kabA?` · ${fmt(kab-kabA)} ירדו`:''}</span>`:''}</div>
   </div>`;
   const filtH=`  ${Object.keys(types).length?`<div class="panel chips"><p class="ptitle">לפי סוג רכב</p>
     <div class="types">${Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([t,c])=>
@@ -1041,6 +1047,7 @@ function opView(ref){
       <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
       ${enr&&kab?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      <span class="fcount">${fmt(vs.length)} רכבים</span>
     </div>
     ${table(vs,null)}
     <p class="note">לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
