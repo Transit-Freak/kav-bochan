@@ -64,14 +64,23 @@ def main():
         for term in (f'{q} Israel', f'{code} Israel bus', f'{q} bus'):
             r = get({'action': 'query', 'generator': 'search', 'gsrsearch': term, 'gsrnamespace': 6,
                      'gsrlimit': 12, 'prop': 'imageinfo|categories', 'cllimit': 50, 'iiprop': 'url|extmetadata|mime',
-                     'iiurlwidth': 480, 'iiextmetadatafilter': 'LicenseShortName|Artist|ImageDescription'})
+                     'iiurlwidth': 480, 'iiextmetadatafilter': 'LicenseShortName|LicenseUrl|Artist|Credit|DateTimeOriginal|DateTime|AttributionRequired'})
             for p in sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda p: p.get('index', 99)):
                 if p['title'] not in seen:
                     seen.add(p['title']); pages.append(p)
             time.sleep(1)
         isr = lambda p: any('Israel' in c['title'] or 'Egged' in c['title'] or 'Dan bus' in c['title'] for c in p.get('categories') or [])
-        pages.sort(key=lambda p: not isr(p))
-        cands = []
+        # תמונה שסומנה למחיקה או כבעיית זכויות — לא מועמדת
+        bad = lambda p: any(re.search(r'deletion|copyright violation|copyvio|no permission|no source|no license', c['title'], re.I) for c in p.get('categories') or [])
+        def date(p):
+            md = ((p.get('imageinfo') or [{}])[0].get('extmetadata') or {})
+            v = strip((md.get('DateTimeOriginal') or md.get('DateTime') or {}).get('value'))
+            m = re.search(r'(19|20)\d\d(-\d\d)?(-\d\d)?', v)
+            return m.group(0) if m else ''
+        pages = [p for p in pages if not bad(p)]
+        # מישראל קודם, ובתוך כל קבוצה — החדשה ביותר קודם
+        pages.sort(key=lambda p: (not isr(p), ''.join(chr(255 - ord(ch)) for ch in date(p).ljust(10, '0'))))
+        cands, skipped = [], []
         for p in pages:
             ii = (p.get('imageinfo') or [{}])[0]
             if not str(ii.get('mime', '')).startswith('image/'):
@@ -79,15 +88,31 @@ def main():
             md = ii.get('extmetadata') or {}
             lic = strip((md.get('LicenseShortName') or {}).get('value'))
             if not FREE.match(lic):
+                skipped.append((p['title'], lic or 'no license'))
                 continue
+            tier = 'free-no-conditions' if re.match(r'^(public domain|pd|cc0)', lic, re.I) else ('attribution+share-alike' if re.search(r'sa', lic, re.I) else 'attribution')
             cands.append({'title': p['title'], 'page': ii.get('descriptionurl'), 'thumb': ii.get('thumburl'), 'israel': isr(p),
-                          'license': lic, 'artist': strip((md.get('Artist') or {}).get('value'))[:80]})
+                          'date': date(p), 'license': lic, 'tier': tier,
+                          'license_url': strip((md.get('LicenseUrl') or {}).get('value')),
+                          'artist': strip((md.get('Artist') or {}).get('value'))[:80],
+                          'credit': strip((md.get('Credit') or {}).get('value'))[:120]})
             if len(cands) >= 4:
                 break
         print(f'{n:5} {model} → "{q}": {len(cands)}', flush=True)
-        res.append({'model': model, 'n': n, 'query': q, 'cands': cands})
+        res.append({'model': model, 'n': n, 'query': q, 'cands': cands, 'skipped_not_free': skipped[:5]})
         time.sleep(1)
     json.dump(res, open(f'{OUT}/candidates.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    # טבלה קריאה: לכל דגם — כל מועמדת עם הרישיון, הצלם, התאריך והקישור
+    with open(f'{OUT}/candidates.md', 'w', encoding='utf-8') as f:
+        for i, m in enumerate(res, 1):
+            f.write(f'## #{i} {m["model"]} ({m["n"]} רכבים) — חיפוש: {m["query"]}\n')
+            for j, c in enumerate(m['cands'], 1):
+                f.write(f'{j}. {"🇮🇱 " if c["israel"] else ""}{c["date"] or "?"} · {c["license"]} ({c["tier"]}) · {c["artist"] or "?"} · {c["page"]}\n')
+            if not m['cands']:
+                f.write('אין תמונה חופשית\n')
+            for t, l in m['skipped_not_free']:
+                f.write(f'   ✗ לא חופשי: {t} — {l}\n')
+            f.write('\n')
     sheets(res)
 
 
