@@ -515,7 +515,7 @@ function renderMain(days) {
     <div class="tabsec" data-tab="gps">
     <div class="panel"><div class="ptitle">תדירות שידור מיקום (GPS)</div><p class="pdesc">כל כמה זמן כל אוטובוס משדר את המיקום שלו, בממוצע. מחושב מזמן הדיווח (RecordedAtTime) שבשידורי SIRI: המרווח בין שני דיווחים עוקבים של אותו רכב באותה נסיעה. דיווח שחוזר על עצמו נספר פעם אחת, ופער של יותר מ-10 דקות (רכב מחוץ לשירות או בלי קליטה) לא נספר. שימו לב: השידורים נאספים פעם בדקה, ולכן רכב שמשדר כל 20 או 30 שניות ייראה כאן כ"כל 60 שניות" — המדד תופס בעיקר רכבים שמשדרים לאט מזה או מדלגים על דקות. "מרווחים חסרים": אחוז המרווחים של 90 שניות ומעלה.</p><div id="gps-sum"></div>
       <div class="ptitle" style="margin-top:12px">לפי מפעיל</div><div id="t-gps-ag"></div>
-      <div class="ptitle" style="margin-top:12px">לפי רכב</div><p class="pdesc">חיפוש לפי מספר רכב (לוחית רישוי) או שם מפעיל. ברירת המחדל: הרכבים שמשדרים הכי לאט.</p><div class="filters"><input id="gps-q" type="search" placeholder="מספר רכב או מפעיל" value="${esc(gq)}" style="min-width:200px"></div><div id="t-gps-v"></div></div>
+      <div class="ptitle" style="margin-top:12px">לפי רכב</div><p class="pdesc">חיפוש לפי מספר רכב (לוחית רישוי) או שם מפעיל, או לחיצה על מפעיל בטבלה שלמעלה. ברירת המחדל: הרכבים שמשדרים הכי לאט.</p><div class="filters"><span id="gps-agf"></span><input id="gps-q" type="search" placeholder="מספר רכב או מפעיל" value="${esc(gq)}" style="min-width:200px"></div><div id="t-gps-v"></div></div>
     </div>
     <div class="tabsec" data-tab="worst">
     <div class="panel"><div class="ptitle">הנסיעות שאיחרו הכי הרבה</div><p class="pdesc">נסיעות בודדות שבאחת התחנות איחרו 20 דקות ומעלה, מהגרועה ביותר. לחיצה על נסיעה מציגה אותה תחנה אחרי תחנה: מתוכנן, בפועל והפער.</p><ul class="worst" id="worst"></ul></div>
@@ -1014,7 +1014,7 @@ function renderBunchLines() {
 
 // תדירות שידור GPS (שלמה 29.09: "כל כמה זמן הרכב משדר בממוצע", לפי רכב ולפי מפעיל) — data/gps.json,
 // צבירה של 14 הימים האחרונים, לא תלויה בתקופה שנבחרה למעלה
-let GPS = null, gq = '', gLim = 50, gT = 0;
+let GPS = null, gq = '', gLim = 50, gT = 0, gAg = null;
 const gpsAvg = () => { let s = 0, n = 0; GPS.v.forEach(r => { s += r[2]; n++; }); return n ? Math.round(s / n) : '—'; };
 const secCls = v => v == null ? '' : v >= 120 ? 'd4' : v >= 90 ? 'd3' : v >= 75 ? 'd2' : '';
 function renderGps() {
@@ -1028,9 +1028,12 @@ function renderGps() {
       <div><b>${pct(slowV, GPS.v.length)}</b><span>מהרכבים מדלגים באופן קבוע (לפחות ${Math.round((GPS.slowShare||0.5)*100)}% מהמרווחים ${GPS.slow} שנ׳ ומעלה)</span></div>
       <div><b>${num(GPS.v.length)}</b><span>רכבים שנמדדו · ${GPS.days.length} ימים (${shortDate(d0)}–${shortDate(d1)})</span></div></div>`;
   $('#t-gps-ag').innerHTML = `<div class="tblbox"><table><thead><tr><th>מפעיל</th><th>רכבים</th><th>מרווח ממוצע</th><th>חציון</th><th>רכבים איטיים (לפחות ${Math.round((GPS.slowShare||0.5)*100)}% מהמרווחים ${GPS.slow} שנ׳ ומעלה)</th><th>מרווחים חסרים</th></tr></thead><tbody>` +
-    GPS.agencies.filter(a => a[2] >= 3).map(a => `<tr><td class="nm">${esc(a[1])}</td><td>${num(a[2])}</td><td class="${secCls(a[3])}">${a[3]} שנ׳</td><td>${a[4] == null ? '—' : a[4] + ' שנ׳'}</td><td class="${a[5] > .1 ? 'd4' : a[5] > .03 ? 'd2' : ''}">${Math.round(a[5] * 1000) / 10}%</td><td>${a[6] == null ? '—' : Math.round(a[6] * 1000) / 10 + '%'}</td></tr>`).join('') + '</tbody></table></div>';
+    GPS.agencies.filter(a => a[2] >= 3).map(a => `<tr data-ag="${esc(a[0])}" style="cursor:pointer${gAg === String(a[0]) ? ';background:var(--panel2);box-shadow:inset -3px 0 0 var(--accent)' : ''}" title="לחיצה מציגה למטה רק את הרכבים של ${esc(a[1])}"><td class="nm">${esc(a[1])}${gAg === String(a[0]) ? ' ✓' : ''}</td><td>${num(a[2])}</td><td class="${secCls(a[3])}">${a[3]} שנ׳</td><td>${a[4] == null ? '—' : a[4] + ' שנ׳'}</td><td class="${a[5] > .1 ? 'd4' : a[5] > .03 ? 'd2' : ''}">${Math.round(a[5] * 1000) / 10}%</td><td>${a[6] == null ? '—' : Math.round(a[6] * 1000) / 10 + '%'}</td></tr>`).join('') + '</tbody></table></div>';
   const q = gq.trim().replace(/-/g, '');
   let rows = GPS.v;
+  // לחיצה על מפעיל בטבלה שלמעלה מסננת את הרכבים שלו (שלמה 22.10)
+  if (gAg) rows = rows.filter(r => String(r[1]) === gAg);
+  $('#gps-agf').innerHTML = gAg ? `<button class="fchip on" id="gps-agx">רק ${esc(agName[gAg] || gAg)} ✕</button>` : '';
   if (q) rows = rows.filter(r => r[0].includes(q) || (agName[r[1]] || '').includes(q));
   const total = rows.length;
   // בלי "הצגת הכל": אלפי שורות בבת אחת האטו כל לחיצה בדף (שלמה 30.09) — טוענים עוד 100 בכל פעם
@@ -1041,6 +1044,10 @@ function renderGps() {
     `<div class="mut" style="margin-top:6px">${num(total)} רכבים · רק רכבים עם 20 מרווחים לפחות · החציון מעוגל לסלים של 5 שניות</div>` : '<div class="empty">לא נמצא רכב כזה</div>';
   const inp = $('#gps-q'); if (inp && !inp.oninput) inp.oninput = e => { gq = e.target.value; gLim = 50; clearTimeout(gT); gT = setTimeout(renderGps, 200); };
   const mb = $('#more-gps'); if (mb) mb.onclick = () => { gLim += 100; renderGps(); };
+  const ax = $('#gps-agx'); if (ax) ax.onclick = () => { gAg = null; gLim = 50; renderGps(); };
+  $('#t-gps-ag').onclick = e => { const tr = e.target.closest('tr[data-ag]'); if (!tr) return;
+    gAg = gAg === tr.dataset.ag ? null : tr.dataset.ag; gLim = 50; renderGps();
+    if (gAg) $('#gps-agf').scrollIntoView({behavior: 'smooth', block: 'start'}); };
 }
 function init() {
   $('#method').innerHTML = METHOD;
