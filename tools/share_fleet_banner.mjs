@@ -21,12 +21,13 @@ for (const it of items) {
   const bg = v.col2 ? `linear-gradient(250deg,${v.col2[0]} 0% 50%,${v.col2[1]} 50% 100%)` : bgOf(v.col);
   const main = v.col2 ? v.col2[0] : v.col[0], lt = isLight(main);
   const fg = lt ? '#1c1917' : '#fff', sub = lt ? 'rgba(28,25,23,.75)' : 'rgba(255,255,255,.85)';
-  const fs1 = v.m.length > 22 ? 50 : v.m.length > 18 ? 58 : v.m.length > 12 ? 64 : 84;
+  // שם ארוך (למשל "מרצדס בנץ SPRINTER 907.657") — עובר לשתי שורות, לא נחתך (23.10: נחתך מהצד הלא נכון)
+  const fs1 = v.m.length > 22 ? 54 : v.m.length > 18 ? 58 : v.m.length > 12 ? 64 : 84;
   await p.setContent(`<body style="margin:0"><div dir="rtl" style="width:1200px;height:630px;display:flex;align-items:center;gap:60px;padding:0 90px;box-sizing:border-box;background:${bg};color:${fg};font-family:Arial,'DejaVu Sans',sans-serif;overflow:hidden">
     <div style="flex:1;min-width:0">
       ${v.k ? `<div style="font-size:34px;font-weight:700;color:${sub}">${esc(v.k)}</div>`
             : `<div style="display:inline-block;background:#fbbf24;color:#1c1917;border:5px solid #1c1917;border-radius:14px;font-size:62px;font-weight:900;padding:4px 24px;letter-spacing:2px;direction:ltr">${esc(v.p)}</div>`}
-      <div style="font-size:${fs1}px;font-weight:900;line-height:1.1;margin-top:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.m)}</div>
+      <div style="font-size:${fs1}px;font-weight:900;line-height:1.12;margin-top:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(v.m)}</div>
       <div style="font-size:40px;font-weight:600;color:${sub};margin-top:14px">${esc(v.c)}</div>
     </div>
     <img src="data:image/png;base64,${icon}" style="width:300px;height:300px;border-radius:64px;box-shadow:0 18px 50px rgba(0,0,0,.35);flex-shrink:0">
