@@ -47,15 +47,11 @@ jobs:
           PYEOF
           python3 tools/share_banner_sync.py line lnums.json
           python3 tools/share_banner_sync.py rail rnums.json
-      # צי הרכבים (שלמה 22.10): כרטיס בצבעי החברה לכל רכב, חברה, דגם, עיר ומעבר. מצייר רק מה שהשתנה,
-      # מוחק תמונות שכבר לא בשימוש, ועוצר אחרי 45 דקות — מה שלא הספיק ממשיך בלילה הבא
+      # צי הרכבים (שלמה 22.10): כרטיס בצבעי החברה לכל רכב, חברה, דגם, עיר ומעבר. התמונות מצוירות
+      # בריפו הארכיון (ענף share-fleet, 23.10) — כאן רק קוראים את הרשימה שלהן
       - name: באנרים — צי הרכבים
         continue-on-error: true
-        timeout-minutes: 60
-        env:
-          GH_TOKEN: ${{ github.token }}
-          R: Transit-Freak/kav-bochan
-          BUDGET_MIN: '45'
+        timeout-minutes: 5
         run: python3 tools/share_fleet_banners.py
       - name: יצירת דפי השיתוף
         run: python3 tools/share_stubs.py

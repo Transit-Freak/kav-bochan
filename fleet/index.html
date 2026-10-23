@@ -221,6 +221,14 @@
   .mgrid .k{background:#F8FAFC;font-weight:800;color:var(--mut);white-space:nowrap}
   .mgrid .v2{font-weight:600}
   .note{font-size:11px;color:var(--dim);font-weight:600;line-height:1.6;margin-top:10px}
+  .vttl{font-size:20px;font-weight:900;margin:4px 0 2px}
+  .vsub{font-size:13px;color:var(--mut);font-weight:600;margin-bottom:6px}
+  .vfold{border:1px solid var(--line);border-radius:12px;margin-top:4px}
+  .vfold>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px}
+  .vfold>summary::-webkit-details-marker{display:none}
+  .vfold>summary small{display:block;color:var(--mut);font-size:12px;font-weight:600;margin-top:2px}
+  .vfold>summary .arr{color:#1D4ED8;font-weight:800;white-space:nowrap}
+  .vfold>.vin{padding:0 12px 12px}
   .empty{padding:40px;text-align:center;color:var(--dim);font-weight:700}
   .msg{padding:60px 20px;text-align:center;color:var(--mut);font-weight:800;font-size:16px}
   button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid #10172A;outline-offset:2px}
@@ -276,7 +284,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 23 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 24 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -1371,7 +1379,31 @@ async function showV(plate){
     <div class="k">מצב</div><div class="v2">${on2?'✅ פעיל':recs.length>1&&on?'↩️ כבר לא משדר אצל המפעיל הזה':'🔴 ירד מהשירות'}</div></div>`;
   }
   if(anyKm) rows+=`<p class="note">הערכת הקילומטראז': אורך המסלול המתוכנן של הקווים שבהם הרכב שידר (משרטוטי "הקו בזמן") × הנסיעות שנקלטו. הערכה גסה בלבד — לא ידוע אם כל נסיעה בוצעה במלואה (ייתכנו נסיעות חלקיות או בעיות שידור GPS), לא ידוע כמה נסיעות היו בכל קו, והיא מכסה רק ימים שנסרקו.</p>`;
-  if(recs.length>1) rows+=`<p class="note">הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.</p>`;
+  const kab=isKab(fv);
+  if(recs.length>1) rows+=`<p class="note">${kab?'רכב קבלן נוסע בקווים של כמה חברות לפי עבודה, ולכן הופעה אצל כמה חברות היא רגילה.':'הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.'}</p>`;
+  // כרטיס הרכב (שלמה 22.10: "אנשים יותר מתעניינים במידע כללי על הרכב"): פרטי הרכב פתוחים למעלה,
+  // "איפה הוא נסע" (הפירוט לפי חברה מהשידורים) מקופל לשורה אחת
+  const G=gov||{};
+  const seats=G.mispar_moshavim||G.mispar_mekomot||(ofc&&ofc[1])||'';
+  const typ=G.sug_rechev_nm?fixT(G.sug_rechev_nm):gT(fv);
+  const yr=G.shnat_yitzur||gY(fv)||'';
+  let kmT=0,kmAny=false,dT=0,dAny=false;
+  for(const [o2,v2] of recs){
+    const km=(KM&&KM.km)?KM.km[o2.ref+':'+plate]:null;if(km&&km[1]!=null){kmT+=km[1];kmAny=true;}
+    const dd=DAYS&&DAYS.d?DAYS.d[o2.ref+':'+v2[0]]:null;if(dd){dT+=dd[0];dAny=true;}
+  }
+  const gen=[['יצרן',G.tozeret_nm],['דגם',G.degem_nm||G.kinuy_mishari||gM(fv)],['שנת ייצור',yr],['סוג רכב',typ],['מושבים',seats],
+    ['צבע',G.tzeva_rechev],['משקל כולל',G.mishkal_kolel?fmt(+G.mishkal_kolel)+' ק"ג':''],
+    ['רישיון בתוקף עד',G.tokef_dt?licenseHTML(gov):''],['ק"מ שנמדדו (משוער)',kmAny?'כ-'+fmt(kmT):''],['ימי פעילות שנמדדו',dAny?fmt(dT):'']]
+    .filter(r=>r[1]!=null&&r[1]!=='').map(([k,v],i)=>`<div class="k">${k}</div><div class="v2">${i===7?v:esc(String(v))}</div>`).join('');
+  const cur=recs[0][0],prev=[...new Set(recs.slice(1).map(r=>r[0].name))];
+  const sum=recs.length>1
+    ?`<div><b>${recs.length} חברות</b> · עכשיו אצל <b>${esc(cur.name)}</b> (נצפה לאחרונה ${fd(fv[2])})${prev.length?`<small>לפני כן: ${esc(prev.join(', '))}</small>`:''}</div>`
+    :`<div><b>${esc(cur.name)}</b> · ${fd(fv[1])} – ${fd(fv[2])}</div>`;
+  const head=`<div class="vttl">${esc(gM(fv)||G.degem_nm||'רכב')}</div><div class="vsub">${[typ,yr,seats?seats+' מושבים':''].filter(Boolean).map(x=>esc(String(x))).join(' · ')}</div>`+
+    (gen?`<div class="mgrid">${gen}</div>`:'')+
+    `<div class="msec">איפה הוא נסע</div><details class="vfold"><summary>${sum}<span class="arr">הצגה ▾</span></summary><div class="vin">${rows}</div></details>`;
+  rows='';
   if(ofc){
     rows+=`<div class="msec">ממאגר ציי רכב אוטובוסים — משרד התחבורה${(OFC.gov_updated||OFC.updated)?` (נכון ל-${fd(OFC.gov_updated||OFC.updated)})`:''}</div><div class="mgrid">
     ${ofc[0]!=null?`<div class="k">מד הקילומטרים הרשמי</div><div class="v2"><b>${fmt(ofc[0])}</b> ק"מ</div>`:''}
@@ -1391,11 +1423,11 @@ async function showV(plate){
   }
   const ovl=document.createElement('div');ovl.className='ovl';
   ovl.innerHTML=`<div class="modal"><div class="mhead"><span class="plate">${esc(plate)}</span>
-    ${gT(fv)?`<span class="tg">${esc(gT(fv))}</span>`:''}
+    ${kab?`<span class="tg">רכב קבלן</span>`:gT(fv)?`<span class="tg">${esc(gT(fv))}</span>`:''}
     ${ar?`<span class="st mv" title="לפי מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה${ARM.updated?` (${fd(ARM.updated)})`:''}">${arLbl(ar)}</span>`:''}
     <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'}</span>
     <button class="xlsbtn sharebtn" style="padding:7px 13px;font-size:12px" onclick="SHAREV('${plate.replace(/'/g,'')}')" title="מעתיק קישור שפותח את כרטיס הרכב הזה ישירות">שיתוף</button>
-    <button class="x" aria-label="סגירה">✕</button></div>${phBlock(clean,recs[0][0].ref,gM(fv))}${rows}</div>`;
+    <button class="x" aria-label="סגירה">✕</button></div>${phBlock(clean,recs[0][0].ref,gM(fv))}${head}${rows}</div>`;
   ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;syncUrl();}});
   document.body.appendChild(ovl);VOPEN=plate;syncUrl();
 }

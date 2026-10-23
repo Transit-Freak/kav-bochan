@@ -145,8 +145,10 @@ def main():
         except Exception:
             fb = {}
         for it in fleet_share.build().values():
-            img = (f'https://github.com/Transit-Freak/kav-bochan/releases/download/{fb[it["img"]]}/{it["img"]}'
-                   if it['img'] in fb else f'{BASE}/fleet/og-image.png')
+            t = fb.get(it['img'])
+            img = (f'https://raw.githubusercontent.com/Transit-Freak/kav-bochan-archive/share-fleet/{it["img"]}' if t == 'archive'
+                   else f'https://github.com/Transit-Freak/kav-bochan/releases/download/{t}/{it["img"]}' if t
+                   else f'{BASE}/fleet/og-image.png')
             u = it['url']
             js = f'var h=location.hash.slice(1),u={json.dumps(u)};location.replace(h?u+(u.indexOf("#")<0?"#":"&")+h:u);'
             w += write_stub(it['stub'], it['title'], it['desc'], u, f'{BASE}/fleet/icon-180.png', img, js=js)
