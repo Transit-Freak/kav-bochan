@@ -287,7 +287,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 26 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 27 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -317,7 +317,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, RGF=null;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, RGF=null, CHKF=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -705,6 +705,7 @@ function cityVehRows(c){
   let out=rows;
   if(STATF!==null) out=out.filter(r=>(isActive(r.v)?1:0)===STATF);
   if(RGF) out=out.filter(r=>rgOk(r.v));
+  if(CHKF) out=out.filter(r=>isChk(r.v));
   if(KABF==='k') out=out.filter(r=>isKab(r.v));
   if(KABF==='l') out=out.filter(r=>!isKab(r.v));
   if(RTF) out=out.filter(r=>isBack(r.v));
@@ -730,9 +731,9 @@ function cityVehPanel(c){
       ${tR?`<div class="kpi"><b>${fmt(tR)}</b><span>נסיעות שנמדדו בסך הכול</span></div>`:''}
     </div>
     <div class="filters">
-      <button class="fchip ${STATF===null&&KABF===null&&!RTF?'on':''}" onclick="STATF=null;KABF=null;RTF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===null&&KABF===null&&!RTF&&!CHKF?'on':''}" onclick="STATF=null;KABF=null;RTF=null;CHKF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
-      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}${chkChip(rows.map(r=>r.v))}
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
       ${backBtn()}
@@ -982,6 +983,7 @@ function modelRel(f){
 function typePairs(all){
   let pairs=STATF===null?all:all.filter(p=>isActive(p[1])===!!STATF);
   if(RGF) pairs=pairs.filter(p=>rgOk(p[1]));
+  if(CHKF) pairs=pairs.filter(p=>isChk(p[1]));
   if(YRF) pairs=pairs.filter(p=>gY(p[1])===YRF);
   if(ARF) pairs=pairs.filter(p=>p[1]._ar&&(ARF===1||p[1]._ar.includes(ARF)));
   if(ELF!==null) pairs=pairs.filter(p=>(p[1]._el?1:0)===ELF);
@@ -1018,9 +1020,9 @@ function typeView(t){
       ${yrKeys.map(y=>`<button class="fchip ${YRF===y?'on':''}" onclick="YRF=YRF===${y}?null:${y};LIMIT=200;render()">${y} · ${fmt(yrs[y].n)}${yrs[y].n-yrs[y].act?` (${fmt(yrs[y].n-yrs[y].act)} ירדו)`:''}</button>`).join('')}
     </div>`:''}
     <div class="filters">
-      <button class="fchip ${STATF===null?'on':''}" onclick="STATF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===null&&!CHKF?'on':''}" onclick="STATF=null;CHKF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=1;LIMIT=200;render()">פעילים</button>
-      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}${chkChip(all.map(p=>p[1]))}
       ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()">ממוגנים</button>`:''}
       ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;LIMIT=200;render()">חשמליים</button>
       <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}
@@ -1088,6 +1090,7 @@ function opVehicles(o){
   if(RTF) vs=vs.filter(isBack);
   if(STATF!==null) vs=vs.filter(v=>(isActive(v)?1:0)===STATF);
   if(RGF) vs=vs.filter(rgOk);
+  if(CHKF) vs=vs.filter(isChk);
   if(ARF) vs=vs.filter(v=>v._ar&&(ARF===1||v._ar.includes(ARF)));
   if(BTF) vs=vs.filter(v=>v._bt===BTF);
   if(BSF) vs=vs.filter(v=>v._bs===BSF);
@@ -1161,10 +1164,10 @@ function opView(ref){
       ${(()=>{
         // "הכול" = בלי שום סינון (שלמה 03.09: כשבוחרים משהו אחר, "הכול" לא
         // יכול להישאר מסומן). לחיצה עליו מנקה גם את הסינון מכרטיסי הסוג/המיגון.
-        const none=STATF===null&&KABF===null&&!RTF&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null;
-        return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;RTF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">הכול</button>`;})()}
+        const none=STATF===null&&KABF===null&&!RTF&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null&&!CHKF;
+        return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;RTF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;CHKF=null;LIMIT=200;render()">הכול</button>`;})()}
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
-      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}${chkChip(o.vehicles)}
       ${enr&&kab?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
       ${backBtn()}
@@ -1357,6 +1360,13 @@ function buildBitul(){
   if(!DATA||!BIT) return;
   for(const o of DATA.operators) for(const v of o.vehicles){const b=BIT[v[0].replace(/\D/g,'').replace(/^0+/,'')];if(b)v._bi=b;}
 }
+// "לבדיקה": לפי המאגר (העדכני) בוטל / הורד מהכביש, ובשידורים נצפה נוסע בשבוע האחרון (כמו בכרטיס הרכב)
+const isChk=v=>!!(v._bi&&v._bi!=='לא מבוטל'&&(new Date(DATA.updated)-new Date(v[2]))/864e5<=7);
+// מוצג רק כשבמסך יש רכב כזה (vs — כל הרכבים של המסך, לפני הסינון)
+function chkChip(vs){
+  if(!BIT||!(vs||[]).some(isChk)) return '';
+  return `<button class="fchip ${CHKF?'on':''}" onclick="CHKF=CHKF?null:1;LIMIT=200;render()" title="לפי המאגר הממשלתי הורד מהכביש, ובשידורים עדיין נצפה נוסע — ייתכן איחור במאגר או טעות בזיהוי">לבדיקה</button>`;
+}
 const rgOf=v=>v._bi&&BITUL[v._bi]?BITUL[v._bi][2]:null;
 // "ירדו מהשירות" מתפצל: לא יחזרו (פורקו / אובדן גמור) · עשויים לחזור (מושבתים זמנית)
 const rgOk=v=>!RGF||STATF!==0||rgOf(v)===RGF;
@@ -1411,12 +1421,11 @@ async function showV(plate){
   }
   if(anyKm) rows+=`<p class="note">הערכת הקילומטראז': אורך המסלול המתוכנן של הקווים שבהם הרכב שידר (משרטוטי "הקו בזמן") × הנסיעות שנקלטו. הערכה גסה בלבד — לא ידוע אם כל נסיעה בוצעה במלואה (ייתכנו נסיעות חלקיות או בעיות שידור GPS), לא ידוע כמה נסיעות היו בכל קו, והיא מכסה רק ימים שנסרקו.</p>`;
   const kab=isKab(fv);
-  // "לבדיקה" (שלמה 23.10): לפי המאגר הממשלתי הרכב הורד מהכביש / בוטל, אבל בשידורים נצפה נוסע אחרי
-  // תאריך עדכון המאגר, ובשבוע האחרון. לא קובעים שנוסע בלי רישיון — ייתכן איחור במאגר או טעות בזיהוי
-  const chk=gov&&gov.bitul_nm&&gov.bitul_nm!=='לא מבוטל'&&DATA.gov_updated&&fv[2]>String(DATA.gov_updated).slice(0,10)
-    &&(new Date(DATA.updated)-new Date(fv[2]))/864e5<=7;
+  // "לבדיקה" (שלמה 23.10): לפי המאגר הממשלתי הרכב הורד מהכביש / בוטל, אבל בשידורים נצפה נוסע בשבוע
+  // האחרון. לא קובעים שנוסע בלי רישיון — ייתכן שהורד רק אחרי הנסיעה, איחור במאגר או טעות בזיהוי
+  const chk=gov&&gov.bitul_nm&&gov.bitul_nm!=='לא מבוטל'&&(new Date(DATA.updated)-new Date(fv[2]))/864e5<=7;
   const chkBox=chk?`<div class="vchk">⚠️ לבדיקה: לפי המאגר הממשלתי — ${esc(BITUL[gov.bitul_nm]?BITUL[gov.bitul_nm][0]:gov.bitul_nm)}, אבל בשידורים הרכב נצפה נוסע ב-${fd(fv[2])}
-    <small>לפי המידע הציבורי. ייתכן שהרכב תוקן והמאגר טרם עודכן (עודכן לאחרונה ב-${fd(String(DATA.gov_updated).slice(0,10))}), או שיש טעות בזיהוי.</small></div>`:'';
+    <small>לפי המידע הציבורי (המאגר עודכן ב-${fd(String(DATA.gov_updated||'').slice(0,10))}). ייתכן שהרכב הורד מהכביש רק אחרי הנסיעה, שתוקן והמאגר טרם עודכן, או שיש טעות בזיהוי.</small></div>`:'';
   if(recs.length>1) rows+=`<p class="note">${kab?'רכב קבלן נוסע בקווים של כמה חברות לפי עבודה, ולכן הופעה אצל כמה חברות היא רגילה.':'הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.'}</p>`;
   // כרטיס הרכב (שלמה 22.10: "אנשים יותר מתעניינים במידע כללי על הרכב"): פרטי הרכב פתוחים למעלה,
   // "איפה הוא נסע" (הפירוט לפי חברה מהשידורים) מקופל לשורה אחת
@@ -1567,7 +1576,7 @@ function XDL(){
   }
   if(D.length>1) dlCSV(name,D);
 }
-function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;RTF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render();window.scrollTo({top:0});}
+function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;RTF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;CHKF=null;LIMIT=200;render();window.scrollTo({top:0});}
 // חץ "אחורה" של הדפדפן מחזיר למסך הבית במקום לצאת מהאתר
 window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
 function render(){
@@ -1686,6 +1695,7 @@ function stateParams(){
   if(TYPESEL)p.set('model',TYPESEL);
   if(STATF!==null)p.set('st',STATF);
   if(STATF===0&&RGF)p.set('rg',RGF);
+  if(CHKF)p.set('ck',1);
   if(ARF)p.set('ar',ARF===1?'1':ARF);
   if(ELF!==null)p.set('el',ELF);
   if(TYPEF)p.set('tf',TYPEF);
@@ -1741,6 +1751,7 @@ function applyHash(){
     if(gv('model'))TYPESEL=gv('model');
     if(gv('st')!==null)STATF=+gv('st');
     if(gv('rg')==='f'||gv('rg')==='t')RGF=gv('rg');
+    if(gv('ck'))CHKF=1;
     if(gv('ar'))ARF=gv('ar')==='1'?1:gv('ar');
     if(gv('el')!==null)ELF=+gv('el');
     if(gv('tf'))TYPEF=gv('tf');
@@ -1756,7 +1767,7 @@ function applyHash(){
     if(gv('mr')==='0')MVREAL=0;
     if(gv('md'))MVD=gv('md');
     if(gv('tab'))OPTAB=gv('tab');
-    else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF)OPTAB='veh';
+    else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF||CHKF)OPTAB='veh';
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
   }catch(e){}
 }
