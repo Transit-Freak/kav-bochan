@@ -597,6 +597,51 @@ const TrashBin = ({ className = '' }) => (
   </svg>
 );
 
+// ── נוסעים לפי רבעון (שלמה 23.10) — ממאגר "נסועה בקווי אוטובוס" של משרד התחבורה ──
+// kavpach-ridership.json (tools/kavpach_ridership.py, פעם בשבוע): לכל מק"ט — נוסעים בשבוע לכל רבעון,
+// והמלצת המשרד מהרבעון האחרון. נטען פעם אחת, ברקע; קו בלי נתונים — בלי התיבה.
+let RIDE_P = null;
+const loadRide = () => RIDE_P || (RIDE_P = fetch('kavpach-ridership.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).catch(() => null));
+const QHE = ['', 'א', 'ב', 'ג', 'ד'];
+const RidershipBlock = ({ makat }) => {
+  const [d, setD] = useState(null);
+  useEffect(() => { let on = true; loadRide().then(x => { if (on) setD(x); }); return () => { on = false; }; }, []);
+  const mk = String(makat || '').replace(/^0+/, '');
+  const e = d && d.m && d.m[mk];
+  if (!e) return null;
+  const pts = e.w.map((v, i) => [d.q[i], v]).filter(p => p[1] != null);
+  if (pts.length < 2) return null;
+  const [lq, lv] = pts[pts.length - 1];
+  const ly = +lq.slice(0, 4), lqn = +lq.slice(-1);
+  // מגמה: מול אותו רבעון בשנה שעברה; אם אין — מול הרבעון הקודם שיש לו נתונים
+  const yago = pts.find(p => p[0] === (ly - 1) + '-Q' + lqn);
+  const base = yago || pts[pts.length - 2];
+  const pct = base[1] > 0 ? Math.round((lv / base[1] - 1) * 100) : null;
+  const up = pct != null && pct >= 0;
+  const mx = Math.max(...pts.map(p => p[1]), 1);
+  const lab = q => QHE[+q.slice(-1)] + '/' + q.slice(2, 4);
+  const rec = e.rec ? e.rec.replace(/^לבחון ביטול\/דילול\/שינוי /, '') : '';
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 p-3" style={{ direction: 'rtl' }}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="font-black text-slate-800" style={{ fontSize: 12.5 }}>נוסעים בשבוע לפי רבעון</span>
+        {pct != null && <span className="font-black rounded-full" style={{ fontSize: 11, padding: '2px 8px', whiteSpace: 'nowrap', background: up ? '#dcfce7' : '#fee2e2', color: up ? '#166534' : '#991b1b' }}>
+          {up ? '↑' : '↓'} {Math.abs(pct)}% {yago ? 'משנה שעברה' : 'מהרבעון הקודם'}</span>}
+      </div>
+      <div className="flex items-end gap-1" style={{ height: 78 }}>
+        {pts.map(([q, v], i) => (
+          <div key={q} className="flex-1 flex flex-col items-center gap-0.5 min-w-0">
+            <div className="font-bold text-slate-500" style={{ fontSize: 9.5 }}>{v >= 1000 ? (v / 1000).toFixed(1) + 'K' : v}</div>
+            <div className="w-full rounded" style={{ maxWidth: 22, height: Math.max(3, Math.round(v / mx * 46)), background: i === pts.length - 1 ? (up ? '#16a34a' : '#dc2626') : '#cbd5e1' }} />
+            <div className="text-slate-500" style={{ fontSize: 9.5, whiteSpace: 'nowrap' }}>{lab(q)}</div>
+          </div>))}
+      </div>
+      {(rec || e.add) && <div className="text-slate-700 mt-2" style={{ fontSize: 11.5 }}><b>משרד התחבורה ({lab(lq)}):</b> {rec ? 'לבחון ביטול, דילול או שינוי — ' + rec : 'מסומן לתגבור (דרגה ' + e.add + ' מתוך 3)'}</div>}
+      <div className="text-slate-400 mt-1" style={{ fontSize: 10 }}>מקור: "נסועה בקווי אוטובוס", משרד התחבורה · כל הכיוונים יחד</div>
+    </div>
+  );
+};
+
 // ── ChoiceScreen — מסך פתיחה: בחירה בין קו פח להקו המוזהב ──────────────
 function ChoiceScreen({ onPick }) {
   const [aboutMe, setAboutMe] = useState(false);
@@ -1457,6 +1502,8 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                     </div>
 
                   </div>
+
+                  <div className="mb-4"><RidershipBlock makat={line.makat} /></div>
 
                   <button
                     onClick={() => { setSelectedLine(line); setGoldenTab('expand'); }}
@@ -4268,6 +4315,7 @@ const DAYS_FILTER = [
                       </div>
                       {/* על קו שכבר בוטל אין מה לייעל — הכפתור הוביל לסימולטור
                           שהציג "חשד לנסיעה מיותרת" על קו שאינו קיים */}
+                      <div className="mb-4"><RidershipBlock makat={res.makat} /></div>
                       {res.live && res.live.rm
                         ? <div className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl text-xs font-black text-center">הקו כבר בוטל — הנתונים נשמרים לתיעוד בלבד</div>
                         : <button onClick={() => handleOptimizeLineForm(res.lineNum, res.origin)} className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black hover:bg-black transition-all shadow-md">חפש הזדמנויות התייעלות</button>}
