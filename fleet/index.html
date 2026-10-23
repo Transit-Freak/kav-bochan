@@ -284,7 +284,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 24 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 25 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -314,7 +314,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, RGF=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -701,6 +701,7 @@ function cityVehRows(c){
     const dd=DAYS&&DAYS.d?DAYS.d[k]:null;rows.push({o:p[0],v:p[1],k,dd:dd?dd[0]:null,rt:dd?dd[1]:null});}
   let out=rows;
   if(STATF!==null) out=out.filter(r=>(isActive(r.v)?1:0)===STATF);
+  if(RGF) out=out.filter(r=>rgOk(r.v));
   if(KABF==='k') out=out.filter(r=>isKab(r.v));
   if(KABF==='l') out=out.filter(r=>!isKab(r.v));
   if(RTF) out=out.filter(r=>isBack(r.v));
@@ -728,7 +729,7 @@ function cityVehPanel(c){
     <div class="filters">
       <button class="fchip ${STATF===null&&KABF===null&&!RTF?'on':''}" onclick="STATF=null;KABF=null;RTF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
-      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
       ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
       ${backBtn()}
@@ -977,6 +978,7 @@ function modelRel(f){
 // רכבי הדגם אחרי הסינונים והמיון שעל המסך — לטבלה ולאקסל
 function typePairs(all){
   let pairs=STATF===null?all:all.filter(p=>isActive(p[1])===!!STATF);
+  if(RGF) pairs=pairs.filter(p=>rgOk(p[1]));
   if(YRF) pairs=pairs.filter(p=>gY(p[1])===YRF);
   if(ARF) pairs=pairs.filter(p=>p[1]._ar&&(ARF===1||p[1]._ar.includes(ARF)));
   if(ELF!==null) pairs=pairs.filter(p=>(p[1]._el?1:0)===ELF);
@@ -1015,7 +1017,7 @@ function typeView(t){
     <div class="filters">
       <button class="fchip ${STATF===null?'on':''}" onclick="STATF=null;LIMIT=200;render()">הכול</button>
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=1;LIMIT=200;render()">פעילים</button>
-      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=0;LIMIT=200;render()">ירדו מהשירות</button>
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
       ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()">ממוגנים</button>`:''}
       ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;LIMIT=200;render()">חשמליים</button>
       <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}
@@ -1082,6 +1084,7 @@ function opVehicles(o){
   if(KABF==='l') vs=vs.filter(v=>!isKab(v));
   if(RTF) vs=vs.filter(isBack);
   if(STATF!==null) vs=vs.filter(v=>(isActive(v)?1:0)===STATF);
+  if(RGF) vs=vs.filter(rgOk);
   if(ARF) vs=vs.filter(v=>v._ar&&(ARF===1||v._ar.includes(ARF)));
   if(BTF) vs=vs.filter(v=>v._bt===BTF);
   if(BSF) vs=vs.filter(v=>v._bs===BSF);
@@ -1158,7 +1161,7 @@ function opView(ref){
         const none=STATF===null&&KABF===null&&!RTF&&!ARF&&!TYPEF&&!BTF&&!BSF&&ELF===null;
         return `<button class="fchip ${none?'on':''}" onclick="STATF=null;KABF=null;RTF=null;ARF=null;TYPEF=null;BTF=null;BSF=null;ELF=null;LIMIT=200;render()">הכול</button>`;})()}
       <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
-      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;LIMIT=200;render()">ירדו מהשירות</button>
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
       ${enr&&kab?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
       <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
       ${backBtn()}
@@ -1334,6 +1337,31 @@ function buildArmor(){
   }
   ARMOK=n>0;
 }
+// סטטוס רישום מהמאגר הממשלתי (שלמה 23.10): ניסוח ברור במקום המילה מהמאגר, וסיבת הירידה מהשירות.
+// [ניסוח בכרטיס, קיצור ליד "ירד מהשירות", f = לא יחזור / t = עשוי לחזור]
+const BITUL={'לא מבוטל':['רשום ופעיל','',null],'פרוק':['בוטל: נשלח לפירוק','נשלח לפירוק','f'],
+  'אובדן גמור':['בוטל: אובדן גמור','אובדן גמור','f'],'הפקדה':['מושבת זמנית (הרישיון הופקד)','מושבת זמנית','t'],
+  'הפקדת סוחר':['מושבת זמנית אצל סוחר','מושבת זמנית','t'],'העברה לחול':['יוצא לחו"ל','יוצא לחו"ל',null],
+  'העברה לרשפ':['הועבר לרשות הפלסטינית','הועבר לרש"פ',null],'משטרה בקורת':['הורד מהכביש (משטרה)','הורד מהכביש',null],
+  'משטרה תאונה':['הורד מהכביש (משטרה, אחרי תאונה)','הורד מהכביש',null],'משטרה-תוספת שביעית לפקודה':['הורד מהכביש (משטרה)','הורד מהכביש',null],
+  'הורדה מהכביש-ניידת בטיחות':['הורד מהכביש (פקחי משרד התחבורה)','הורד מהכביש',null]};
+async function loadBitul(){
+  if(BIT!==null) return;
+  try{const r=await fetch('data/fleet-bitul.json',{cache:'no-cache'});BIT=r.ok?await r.json():{};}
+  catch(e){BIT={};}
+}
+function buildBitul(){
+  if(!DATA||!BIT) return;
+  for(const o of DATA.operators) for(const v of o.vehicles){const b=BIT[v[0].replace(/\D/g,'').replace(/^0+/,'')];if(b)v._bi=b;}
+}
+const rgOf=v=>v._bi&&BITUL[v._bi]?BITUL[v._bi][2]:null;
+// "ירדו מהשירות" מתפצל: לא יחזרו (פורקו / אובדן גמור) · עשויים לחזור (מושבתים זמנית)
+const rgOk=v=>!RGF||STATF!==0||rgOf(v)===RGF;
+function rgChips(){
+  if(STATF!==0||!BIT||!Object.keys(BIT).length) return '';
+  return `<button class="fchip ${RGF==='f'?'on':''}" onclick="RGF=RGF==='f'?null:'f';LIMIT=200;render()" title="לפי המאגר הממשלתי: נשלחו לפירוק או אובדן גמור">לא יחזרו</button>
+      <button class="fchip ${RGF==='t'?'on':''}" onclick="RGF=RGF==='t'?null:'t';LIMIT=200;render()" title="לפי המאגר הממשלתי: הרישיון הופקד — מושבתים זמנית">עשויים לחזור</button>`;
+}
 async function shard(d){
   if(SHARDS[d]!==undefined) return SHARDS[d];
   try{const r=await fetch(`data/gov-details-${d}.json`,{cache:'no-cache'});SHARDS[d]=r.ok?await r.json():{};}
@@ -1417,6 +1445,7 @@ async function showV(plate){
     const rest=Object.keys(gov).filter(k=>!(k in LBL)&&!k.startsWith('_'));
     rows+=`<div class="msec">מהמאגר הממשלתי — כל השדות${DATA.gov_updated?` (נכון ל-${fd(DATA.gov_updated)})`:''}</div><div class="mgrid">`+
       [...known,...rest].map(k=>{const show=x=>esc(k==='sug_rechev_nm'?fixT(x):x);const h=(gov._hist||{})[k];const c=h&&h.length&&String(h[h.length-1].current)===String(gov[k])?h[h.length-1]:null;
+        if(k==='bitul_nm'&&BITUL[gov[k]])return `<div class="k">${esc(LBL[k])}</div><div class="v2">${esc(BITUL[gov[k]][0])}<div style="font-size:11px;color:var(--dim)">במאגר: ${esc(gov[k])}</div></div>`;
         return `<div class="k">${esc(LBL[k]||k)}</div><div class="v2">${k==='tokef_dt'?licenseHTML(gov):c?chgHTML(show(gov[k]),[c.previous,c.current,c.detected],k==='sug_rechev_nm'?fixT(c.previous):c.previous):show(gov[k])}</div>`;}).join('')+`</div>`;
   }else{
     rows+=`<div class="msec">המאגר הממשלתי</div><div class="note">הרכב לא נמצא במאגר הרכב הציבורי — ייתכן שהוסר מהרישום, שההעשרה טרם רצה, או שהמזהה בשידור אינו לוחית.</div>`;
@@ -1425,7 +1454,7 @@ async function showV(plate){
   ovl.innerHTML=`<div class="modal"><div class="mhead"><span class="plate">${esc(plate)}</span>
     ${kab?`<span class="tg">רכב קבלן</span>`:gT(fv)?`<span class="tg">${esc(gT(fv))}</span>`:''}
     ${ar?`<span class="st mv" title="לפי מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה${ARM.updated?` (${fd(ARM.updated)})`:''}">${arLbl(ar)}</span>`:''}
-    <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'}</span>
+    <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'+(gov&&BITUL[gov.bitul_nm]&&BITUL[gov.bitul_nm][1]?' · '+BITUL[gov.bitul_nm][1]:'')}</span>
     <button class="xlsbtn sharebtn" style="padding:7px 13px;font-size:12px" onclick="SHAREV('${plate.replace(/'/g,'')}')" title="מעתיק קישור שפותח את כרטיס הרכב הזה ישירות">שיתוף</button>
     <button class="x" aria-label="סגירה">✕</button></div>${phBlock(clean,recs[0][0].ref,gM(fv))}${head}${rows}</div>`;
   ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;syncUrl();}});
@@ -1647,6 +1676,7 @@ function stateParams(){
   if(CITYMON)p.set('mon',CITYMON);
   if(TYPESEL)p.set('model',TYPESEL);
   if(STATF!==null)p.set('st',STATF);
+  if(STATF===0&&RGF)p.set('rg',RGF);
   if(ARF)p.set('ar',ARF===1?'1':ARF);
   if(ELF!==null)p.set('el',ELF);
   if(TYPEF)p.set('tf',TYPEF);
@@ -1701,6 +1731,7 @@ function applyHash(){
     if(gv('mon'))CITYMON=gv('mon');
     if(gv('model'))TYPESEL=gv('model');
     if(gv('st')!==null)STATF=+gv('st');
+    if(gv('rg')==='f'||gv('rg')==='t')RGF=gv('rg');
     if(gv('ar'))ARF=gv('ar')==='1'?1:gv('ar');
     if(gv('el')!==null)ELF=+gv('el');
     if(gv('tf'))TYPEF=gv('tf');
@@ -1728,7 +1759,7 @@ $('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=nu
 
 fetch('data/fleet.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw {nd:r.status===404};return r.json();})
 .then(d=>{d.operators=d.operators.filter(o=>![2,20,21].includes(o.ref)&&!/^מפעיל \d+$/.test(o.name));DATA=d;OFF=d.v===2?1:0;buildX();applyHash();render();
-  Promise.all([loadKM(),loadArmor(),loadOfficial(),loadGaps(),loadPhotos()]).then(()=>{buildKm();buildArmor();buildOfficial();buildGaps();render();});})
+  Promise.all([loadKM(),loadArmor(),loadOfficial(),loadGaps(),loadPhotos(),loadBitul()]).then(()=>{buildKm();buildArmor();buildOfficial();buildGaps();buildBitul();render();});})
 .catch(e=>{
   // תקלת רשת אינה "אין נתונים" — ההודעה הקודמת הטעתה גולש בלי קליטה
   $('#view').innerHTML = (e&&e.nd)
