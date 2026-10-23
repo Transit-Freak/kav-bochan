@@ -222,6 +222,9 @@
   .mgrid .v2{font-weight:600}
   .note{font-size:11px;color:var(--dim);font-weight:600;line-height:1.6;margin-top:10px}
   .vttl{font-size:20px;font-weight:900;margin:4px 0 2px}
+  .st.chk{background:#D93025;color:#fff}
+  .vchk{background:#FDECEA;border:2px solid #D93025;border-radius:12px;padding:10px 12px;margin:2px 0 10px;color:#8B1A12;font-size:13.5px;font-weight:700;line-height:1.5}
+  .vchk small{display:block;font-size:11.5px;font-weight:600;color:#9b4a44;margin-top:3px}
   .vsub{font-size:13px;color:var(--mut);font-weight:600;margin-bottom:6px}
   .vfold{border:1px solid var(--line);border-radius:12px;margin-top:4px}
   .vfold>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px}
@@ -284,7 +287,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 25 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 26 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -1408,6 +1411,12 @@ async function showV(plate){
   }
   if(anyKm) rows+=`<p class="note">הערכת הקילומטראז': אורך המסלול המתוכנן של הקווים שבהם הרכב שידר (משרטוטי "הקו בזמן") × הנסיעות שנקלטו. הערכה גסה בלבד — לא ידוע אם כל נסיעה בוצעה במלואה (ייתכנו נסיעות חלקיות או בעיות שידור GPS), לא ידוע כמה נסיעות היו בכל קו, והיא מכסה רק ימים שנסרקו.</p>`;
   const kab=isKab(fv);
+  // "לבדיקה" (שלמה 23.10): לפי המאגר הממשלתי הרכב הורד מהכביש / בוטל, אבל בשידורים נצפה נוסע אחרי
+  // תאריך עדכון המאגר, ובשבוע האחרון. לא קובעים שנוסע בלי רישיון — ייתכן איחור במאגר או טעות בזיהוי
+  const chk=gov&&gov.bitul_nm&&gov.bitul_nm!=='לא מבוטל'&&DATA.gov_updated&&fv[2]>String(DATA.gov_updated).slice(0,10)
+    &&(new Date(DATA.updated)-new Date(fv[2]))/864e5<=7;
+  const chkBox=chk?`<div class="vchk">⚠️ לבדיקה: לפי המאגר הממשלתי — ${esc(BITUL[gov.bitul_nm]?BITUL[gov.bitul_nm][0]:gov.bitul_nm)}, אבל בשידורים הרכב נצפה נוסע ב-${fd(fv[2])}
+    <small>לפי המידע הציבורי. ייתכן שהרכב תוקן והמאגר טרם עודכן (עודכן לאחרונה ב-${fd(String(DATA.gov_updated).slice(0,10))}), או שיש טעות בזיהוי.</small></div>`:'';
   if(recs.length>1) rows+=`<p class="note">${kab?'רכב קבלן נוסע בקווים של כמה חברות לפי עבודה, ולכן הופעה אצל כמה חברות היא רגילה.':'הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.'}</p>`;
   // כרטיס הרכב (שלמה 22.10: "אנשים יותר מתעניינים במידע כללי על הרכב"): פרטי הרכב פתוחים למעלה,
   // "איפה הוא נסע" (הפירוט לפי חברה מהשידורים) מקופל לשורה אחת
@@ -1454,9 +1463,9 @@ async function showV(plate){
   ovl.innerHTML=`<div class="modal"><div class="mhead"><span class="plate">${esc(plate)}</span>
     ${kab?`<span class="tg">רכב קבלן</span>`:gT(fv)?`<span class="tg">${esc(gT(fv))}</span>`:''}
     ${ar?`<span class="st mv" title="לפי מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה${ARM.updated?` (${fd(ARM.updated)})`:''}">${arLbl(ar)}</span>`:''}
-    <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'+(gov&&BITUL[gov.bitul_nm]&&BITUL[gov.bitul_nm][1]?' · '+BITUL[gov.bitul_nm][1]:'')}</span>
+    <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'+(gov&&BITUL[gov.bitul_nm]&&BITUL[gov.bitul_nm][1]?' · '+BITUL[gov.bitul_nm][1]:'')}</span>${chk?'<span class="st chk">לבדיקה</span>':''}
     <button class="xlsbtn sharebtn" style="padding:7px 13px;font-size:12px" onclick="SHAREV('${plate.replace(/'/g,'')}')" title="מעתיק קישור שפותח את כרטיס הרכב הזה ישירות">שיתוף</button>
-    <button class="x" aria-label="סגירה">✕</button></div>${phBlock(clean,recs[0][0].ref,gM(fv))}${head}${rows}</div>`;
+    <button class="x" aria-label="סגירה">✕</button></div>${chkBox}${phBlock(clean,recs[0][0].ref,gM(fv))}${head}${rows}</div>`;
   ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;syncUrl();}});
   document.body.appendChild(ovl);VOPEN=plate;syncUrl();
 }
