@@ -51,7 +51,7 @@ jobs:
       # בריפו הארכיון (ענף share-fleet, 23.10) — כאן רק קוראים את הרשימה שלהן
       - name: באנרים — צי הרכבים
         continue-on-error: true
-        timeout-minutes: 5
+        timeout-minutes: 25
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/share_fleet_banners.py
