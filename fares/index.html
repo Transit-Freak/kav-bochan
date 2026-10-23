@@ -45,7 +45,7 @@
   <div class="dsc-ovl" id="dscOvl" hidden>
     <div class="dsc" role="dialog" aria-modal="true" aria-labelledby="dscTitle">
       <div class="dsc-head"><b id="dscTitle">מגיעה לי הנחה לפי מקום המגורים?</b><button type="button" class="dsc-x" id="dscX" aria-label="סגירה">✕</button></div>
-      <div class="dsc-sub">הנחת פריפריה ושכונות: בחרו עיר ורחוב ובדקו אם מגיעה לכם הנחה</div>
+      <div class="dsc-sub">הנחת פריפריה ושכונות: בחרו עיר ורחוב ובדקו אם מגיעה לכם הנחה. הבדיקה כאן היא לערים שבהן הזכאות משתנה בין שכונות.</div>
       <input id="dscCity" class="dsc-in" list="dscCities" placeholder="עיר או יישוב" autocomplete="off">
       <datalist id="dscCities"></datalist>
       <div class="dsc-row"><input id="dscStreet" class="dsc-in" list="dscStreets" placeholder="רחוב" autocomplete="off"><input id="dscNum" class="dsc-in dsc-num" inputmode="numeric" placeholder="מס׳ בית" hidden></div>
@@ -1134,7 +1134,7 @@ $('repsend').addEventListener('click', ev=>{
     var c=city.value.trim(), st=DSC.c[c];
     if(st&&document.getElementById('dscStreets').dataset.city!==c){opts(document.getElementById('dscStreets'),Object.keys(st));document.getElementById('dscStreets').dataset.city=c;}
     if(!c){res.innerHTML='';num.hidden=true;return;}
-    if(!st){res.innerHTML='<div class="dsc-msg">'+(Object.keys(DSC.c).some(function(k){return k.indexOf(c)===0;})?'בחרו עיר מהרשימה':'היישוב לא מופיע בקובץ של משרד התחבורה')+'</div>';num.hidden=true;return;}
+    if(!st){res.innerHTML='<div class="dsc-msg">'+(Object.keys(DSC.c).some(function(k){return k.indexOf(c)===0;})?'בחרו עיר מהרשימה':'ביישוב הזה הזכאות לא משתנה בין רחובות, ולכן הוא לא בקובץ. הקובץ של משרד התחבורה מפרט רק '+Object.keys(DSC.c).length+' ערים שבהן הזכאות שונה משכונה לשכונה. את הזכאות לפי היישוב כולו בודקים מול רב-קו.')+'</div>';num.hidden=true;return;}
     var s=street.value.trim(), rows=st[s];
     if(!s){res.innerHTML='';num.hidden=true;return;}
     if(!rows){res.innerHTML='<div class="dsc-msg">'+(Object.keys(st).some(function(k){return k.indexOf(s)>=0;})?'בחרו רחוב מהרשימה':'הרחוב לא מופיע בקובץ של היישוב')+'</div>';num.hidden=true;return;}
