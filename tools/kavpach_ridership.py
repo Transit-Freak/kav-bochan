@@ -49,9 +49,10 @@ def main():
                 continue
             off = 0
             while True:
-                r = get('datastore_search', resource_id=res['id'], limit=5000, offset=off,
-                        fields='RouteID,RouteDirection,year,Q,WeeklyPassengers,המלצה,דרוג הוספה')
-                rows += r['records']; off += 5000
+                # בלי fields: בשנים הישנות אין עמודות המלצה/דירוג, והבקשה נכשלת
+                r = get('datastore_search', resource_id=res['id'], limit=5000, offset=off)
+                rows += [{k: x.get(k) for k in ('RouteID', 'year', 'Q', 'WeeklyPassengers', 'המלצה', 'דרוג הוספה')} for x in r['records']]
+                off += 5000
                 if off >= r['total']:
                     break
                 time.sleep(1)
