@@ -78,6 +78,20 @@ def write_map():
             m[f] = t
     json.dump(dict(sorted(m.items())), open(OUTF, 'w', encoding='utf-8'), ensure_ascii=False)
     print('נכתב', OUTF, len(m), 'מתוך', len(want), '| מהארכיון:', sum(1 for t in m.values() if t == 'archive'))
+    # ה-releases הישנים (share-fleet, share-fleet-2...) — נמחקים רק כשכל הכרטיסים כבר מקבלים תמונה מהארכיון,
+    # כלומר אף דף שיתוף לא מצביע עליהם (שלמה 23.10: "אם זה לא בשימוש תמחוק")
+    if len(want) >= 10000 and all(m.get(f) == 'archive' for f in want):
+        i = 1
+        while True:
+            t = 'share-fleet' if i == 1 else f'share-fleet-{i}'
+            r = subprocess.run(['gh', 'release', 'delete', t, '-R', 'Transit-Freak/kav-bochan', '-y', '--cleanup-tag'],
+                               capture_output=True, text=True)
+            if r.returncode:
+                if 'not found' not in (r.stderr or '').lower():
+                    print('מחיקת', t, 'נכשלה:', r.stderr.strip()[:200])
+                break
+            print('נמחק release ישן:', t)
+            i += 1
 
 
 if __name__ == '__main__':

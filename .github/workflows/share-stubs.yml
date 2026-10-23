@@ -52,6 +52,8 @@ jobs:
       - name: באנרים — צי הרכבים
         continue-on-error: true
         timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 tools/share_fleet_banners.py
       - name: יצירת דפי השיתוף
         run: python3 tools/share_stubs.py
