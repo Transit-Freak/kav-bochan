@@ -40,8 +40,12 @@ def approx(n):
     return 'כ-' + f'{round(n, -1 if n < 1000 else -2):,}'
 
 
+# גרסת העיצוב של הבאנר — שינוי בה מצייר מחדש את כל הבאנרים (והישנים נמחקים). 2: שם ארוך בשתי שורות
+STYLE = 2
+
+
 def banner_name(b):
-    return 'fl-' + hashlib.sha1(json.dumps(b, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16] + '.jpg'
+    return 'fl-' + hashlib.sha1((json.dumps(b, ensure_ascii=False, sort_keys=True) + f'#{STYLE}').encode()).hexdigest()[:16] + '.jpg'
 
 
 def kab_type(t):

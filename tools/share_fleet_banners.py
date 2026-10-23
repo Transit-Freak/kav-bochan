@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import fleet_share
 
 ARCHIVE = 'https://raw.githubusercontent.com/Transit-Freak/kav-bochan-archive/share-fleet/'
+MAIN = 'https://raw.githubusercontent.com/Transit-Freak/kav-bochan/main/'
 OUTF = 's/fleet-banners.json'
 CHUNK = 400
 
@@ -45,7 +46,12 @@ def render(dest):
     if len(want) < 10000:
         print('ניקוי: מדלג — רק', len(want), 'כרטיסים, הנתונים נראים חסרים')
     else:
-        old = sorted(have - set(want))
+        # תמונה שדף שיתוף חי עדיין מצביע עליה נשארת עד הלילה הבא (דפי השיתוף מתעדכנים אחרי הציור)
+        try:
+            live = set(json.load(urllib.request.urlopen(MAIN + OUTF, timeout=60)))
+        except Exception as e:
+            print('ניקוי: מדלג — לא הצלחתי לקרוא את דפי השיתוף החיים:', e); live = have
+        old = sorted(have - set(want) - live)
         print('ניקוי: תמונות ישנות שאין להן שימוש:', len(old))
         for f in old:
             os.remove(os.path.join(dest, f))
