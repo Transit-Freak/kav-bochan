@@ -80,18 +80,33 @@ def write_map():
     print('נכתב', OUTF, len(m), 'מתוך', len(want), '| מהארכיון:', sum(1 for t in m.values() if t == 'archive'))
     # ה-releases הישנים (share-fleet, share-fleet-2...) — נמחקים רק כשכל הכרטיסים כבר מקבלים תמונה מהארכיון,
     # כלומר אף דף שיתוף לא מצביע עליהם (שלמה 23.10: "אם זה לא בשימוש תמחוק")
+    # release עם 990 קבצים נכשל במחיקה אחת (GitHub מחזיר 502, 23.10) — מוחקים קודם את הקבצים במנות
+    # (עד ASSET_MAX בלילה, מגבלת הבקשות של GitHub), ואת ה-release עצמו כשהוא ריק
     if len(want) >= 10000 and all(m.get(f) == 'archive' for f in want):
-        i = 1
-        while True:
+        R, budget = 'Transit-Freak/kav-bochan', int(os.environ.get('ASSET_MAX', '800'))
+        gh = lambda *a: subprocess.run(['gh', *a], capture_output=True, text=True)
+        for i in range(1, 10):
             t = 'share-fleet' if i == 1 else f'share-fleet-{i}'
-            r = subprocess.run(['gh', 'release', 'delete', t, '-R', 'Transit-Freak/kav-bochan', '-y', '--cleanup-tag'],
-                               capture_output=True, text=True)
+            r = gh('api', f'repos/{R}/releases/tags/{t}', '--jq', '.id')
             if r.returncode:
-                if 'not found' not in (r.stderr or '').lower():
-                    print('מחיקת', t, 'נכשלה:', r.stderr.strip()[:200])
+                continue   # כבר נמחק (או לא היה)
+            rid = r.stdout.strip()
+            ids = gh('api', '--paginate', f'repos/{R}/releases/{rid}/assets?per_page=100', '--jq', '.[].id').stdout.split()
+            n = 0
+            for a in ids:
+                if budget <= 0:
+                    break
+                if gh('api', '-X', 'DELETE', f'repos/{R}/releases/assets/{a}').returncode == 0:
+                    n += 1
+                budget -= 1
+            left = len(ids) - n
+            print(f'{t}: נמחקו {n} תמונות ישנות, נשארו {left}')
+            if left == 0:
+                d = gh('release', 'delete', t, '-R', R, '-y', '--cleanup-tag')
+                print('נמחק release ישן:', t) if d.returncode == 0 else print('מחיקת', t, 'נכשלה:', d.stderr.strip()[:200])
+            if budget <= 0:
+                print('המשך המחיקה בלילה הבא')
                 break
-            print('נמחק release ישן:', t)
-            i += 1
 
 
 if __name__ == '__main__':
