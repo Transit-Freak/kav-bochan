@@ -1,0 +1,43 @@
+name: fares-discount
+
+# זכאות להנחה לפי כתובת (שלמה 23.10) — לכפתור "מגיעה לי הנחה?" במחירון. המאגר מתעדכן לעיתים
+# רחוקות, לכן פעם בשבוע מספיק.
+
+on:
+  schedule:
+    - cron: '23 4 * * 0'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tools/fares_discount.py', '.github/workflows/fares-discount.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fares-discount
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout: |
+            tools
+            fares/data
+      - name: זכאות להנחה לפי כתובת
+        run: python3 tools/fares_discount.py
+      - name: שמירה
+        run: |
+          git config user.name 'fares-bot'
+          git config user.email 'noreply@github.com'
+          [ -f fares/data/discount.json ] || exit 0
+          git add fares/data/discount.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'data: זכאות להנחה לפי כתובת (המחירון)'
+          for i in 1 2 3; do git pull --rebase origin main && git push && exit 0; sleep 10; done
+          exit 1
