@@ -129,3 +129,25 @@ html,body{margin:0;font-family:'Assistant','Heebo',system-ui,sans-serif;backgrou
 
 /* תוויות מפה בדף RTL: שכבת התוויות LTR כדי ש-Leaflet יחשב נכון את המיקום ליד הסמן, והטקסט עצמו RTL (שלמה 20.10) */
 .leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
+
+/* מגיעה לי הנחה? (שלמה 23.10) */
+.dscbtn{background:var(--gold);color:var(--ink);border:0;border-radius:9999px;padding:7px 15px;font:900 13px 'Heebo',sans-serif;cursor:pointer;white-space:nowrap}
+.dscbtn:hover{background:#f59e0b}
+.dsc-ovl{position:fixed;inset:0;background:rgba(28,25,23,.55);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:60px 14px 14px;overflow-y:auto}
+.dsc-ovl[hidden]{display:none}
+.dsc{background:var(--card);border-radius:18px;max-width:520px;width:100%;padding:18px 18px 14px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.dsc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:17px}
+.dsc-x{border:0;background:var(--paper);border-radius:10px;width:34px;height:34px;font-size:15px;font-weight:800;cursor:pointer;color:var(--sub)}
+.dsc-sub{font-size:13px;color:var(--sub);margin:4px 0 12px}
+.dsc-in{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:11px 14px;font:700 15px 'Assistant',sans-serif;background:#fff;color:var(--txt);margin-bottom:8px}
+.dsc-row{display:flex;gap:8px}.dsc-num{width:96px;flex:0 0 96px}
+.dsc-msg{font-size:13.5px;color:var(--sub);font-weight:700;padding:6px 2px}
+.dsc-card{background:var(--ink);color:#fff;border-radius:14px;padding:16px 18px;margin-top:4px}
+.dsc-where{color:#fbbf24;font-weight:800;font-size:13px}
+.dsc-big{font-size:30px;font-weight:900;margin:4px 0 2px}.dsc-big.sm{font-size:20px}
+.dsc-mid{color:#e7dfd3;font-weight:700;font-size:14px}
+.dsc-scores{display:flex;gap:8px;margin:12px 0 8px;flex-wrap:wrap}
+.dsc-scores>div{flex:1;min-width:120px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px}
+.dsc-scores span{display:block;font-size:12px;color:#c9bfb2;font-weight:700}.dsc-scores b{font-size:20px;color:#fbbf24}.dsc-scores small{font-size:12px;color:#c9bfb2}
+.dsc-ex{font-size:13px;color:#e7dfd3}
+.dsc-src{font-size:11px;color:var(--sub);margin-top:10px}

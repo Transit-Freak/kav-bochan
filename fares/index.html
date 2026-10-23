@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <!-- העטיפה .wrap נדרשת לכפתור הנגישות: a11y.js מגדיל תצוגה דרך
@@ -39,6 +39,20 @@
   <div class="top">
     <h1>🎫 המחירון</h1>
     <span class="tag">המחיר לפי מרחק הנסיעה בפועל</span>
+    <button type="button" class="dscbtn" id="dscBtn">🏷️ מגיעה לי הנחה?</button>
+  </div>
+  <!-- זכאות להנחה לפי כתובת (שלמה 23.10): עיר + רחוב (+ מספר בית כשצריך) ← זכאי / לא זכאי -->
+  <div class="dsc-ovl" id="dscOvl" hidden>
+    <div class="dsc" role="dialog" aria-modal="true" aria-labelledby="dscTitle">
+      <div class="dsc-head"><b id="dscTitle">מגיעה לי הנחה לפי מקום המגורים?</b><button type="button" class="dsc-x" id="dscX" aria-label="סגירה">✕</button></div>
+      <div class="dsc-sub">הנחת פריפריה ושכונות: בחרו עיר ורחוב ובדקו אם מגיעה לכם הנחה</div>
+      <input id="dscCity" class="dsc-in" list="dscCities" placeholder="עיר או יישוב" autocomplete="off">
+      <datalist id="dscCities"></datalist>
+      <div class="dsc-row"><input id="dscStreet" class="dsc-in" list="dscStreets" placeholder="רחוב" autocomplete="off"><input id="dscNum" class="dsc-in dsc-num" inputmode="numeric" placeholder="מס׳ בית" hidden></div>
+      <datalist id="dscStreets"></datalist>
+      <div id="dscRes"></div>
+      <div class="dsc-src" id="dscSrc"></div>
+    </div>
   </div>
 
   <div class="shell">
@@ -1086,5 +1100,61 @@ $('repsend').addEventListener('click', ev=>{
 <script src="../a11y.js" defer></script>
 <script src="../birthday.js" defer></script>
 <script src="../hagim.js" defer></script>
+<script>
+// ===== מגיעה לי הנחה? (שלמה 23.10) — זכאות להנחה לפי כתובת, מקובץ משרד התחבורה (data/discount.json) =====
+(function(){
+  var DSC=null, btn=document.getElementById('dscBtn'), ovl=document.getElementById('dscOvl');
+  var city=document.getElementById('dscCity'), street=document.getElementById('dscStreet'), num=document.getElementById('dscNum');
+  var res=document.getElementById('dscRes'), src=document.getElementById('dscSrc');
+  function h(t){var d=document.createElement('div');d.textContent=t==null?'':String(t);return d.innerHTML;}
+  function opts(el,list){el.innerHTML=list.map(function(x){return '<option value="'+h(x)+'">';}).join('');}
+  function open(){ovl.hidden=false;city.focus();
+    if(DSC) return;
+    res.innerHTML='<div class="dsc-msg">טוען את הקובץ…</div>';
+    fetch('data/discount.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+      DSC=j&&j.c?j:{c:{}};
+      if(!j){res.innerHTML='<div class="dsc-msg">הנתונים עוד לא זמינים — נסו שוב מאוחר יותר</div>';return;}
+      opts(document.getElementById('dscCities'),Object.keys(DSC.c));
+      src.textContent='לפי קובץ "זכאות להנחה בתחבורה ציבורית" של משרד התחבורה'+(DSC.updated?' (עודכן '+DSC.updated.split('-').reverse().join('.')+')':'')+'. את ההנחה מפעילים בפרופיל ברב-קו.';
+      res.innerHTML='';check();
+    }).catch(function(){DSC=null;res.innerHTML='<div class="dsc-msg">הקובץ לא נטען — נסו לרענן</div>';});
+  }
+  function close(){ovl.hidden=true;}
+  function card(c,s,r){
+    var ok=r[1]===1, se=r[2], pe=r[3];
+    return '<div class="dsc-card'+(ok?'':' no')+'"><div class="dsc-where">'+h(c)+' · '+h(s)+(r[0]!=null?' '+h(r[0]):'')+'</div>'+
+      (ok?'<div class="dsc-big">50% הנחה</div><div class="dsc-mid">בכל התחבורה הציבורית, לתושבי הכתובת</div>'
+         :'<div class="dsc-big sm">לא זכאים להנחה לפי מקום המגורים</div><div class="dsc-mid">ייתכן שמגיעה הנחה אחרת: גיל, סטודנטים, חיילים, נכות</div>')+
+      '<div class="dsc-scores">'+(se!=null?'<div><span>מדד חברתי-כלכלי</span><b>'+se+' <small>מתוך 10</small></b></div>':'')+
+      (pe!=null?'<div><span>מדד פריפריה</span><b>'+pe+' <small>מתוך 10</small></b></div>':'')+'</div>'+
+      (ok?'<div class="dsc-ex">נסיעה בודדת באוטובוס בעיר: <b>4 ₪</b> במקום <s>8 ₪</s></div>':'')+'</div>';
+  }
+  function check(){
+    if(!DSC) return;
+    var c=city.value.trim(), st=DSC.c[c];
+    if(st&&document.getElementById('dscStreets').dataset.city!==c){opts(document.getElementById('dscStreets'),Object.keys(st));document.getElementById('dscStreets').dataset.city=c;}
+    if(!c){res.innerHTML='';num.hidden=true;return;}
+    if(!st){res.innerHTML='<div class="dsc-msg">'+(Object.keys(DSC.c).some(function(k){return k.indexOf(c)===0;})?'בחרו עיר מהרשימה':'היישוב לא מופיע בקובץ של משרד התחבורה')+'</div>';num.hidden=true;return;}
+    var s=street.value.trim(), rows=st[s];
+    if(!s){res.innerHTML='';num.hidden=true;return;}
+    if(!rows){res.innerHTML='<div class="dsc-msg">'+(Object.keys(st).some(function(k){return k.indexOf(s)>=0;})?'בחרו רחוב מהרשימה':'הרחוב לא מופיע בקובץ של היישוב')+'</div>';num.hidden=true;return;}
+    var same=rows.every(function(r){return r[1]===rows[0][1];});
+    if(same){num.hidden=true;res.innerHTML=card(c,s,[null,rows[0][1],rows[0][2],rows[0][3]]);return;}
+    // ברחוב הזה הזכאות תלויה במספר הבית
+    num.hidden=false;
+    var n=parseInt(num.value,10);
+    if(!n){res.innerHTML='<div class="dsc-msg">ברחוב הזה הזכאות תלויה במספר הבית — הקלידו אותו</div>';return;}
+    var hit=rows.filter(function(r){return r[0]===n;})[0];
+    res.innerHTML=hit?card(c,s,hit):'<div class="dsc-msg">מספר הבית לא מופיע בקובץ</div>';
+  }
+  btn.addEventListener('click',open);
+  document.getElementById('dscX').addEventListener('click',close);
+  ovl.addEventListener('click',function(e){if(e.target===ovl)close();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!ovl.hidden)close();});
+  city.addEventListener('input',function(){street.value='';num.value='';check();});
+  street.addEventListener('input',function(){num.value='';check();});
+  num.addEventListener('input',check);
+})();
+</script>
 </body>
 </html>
