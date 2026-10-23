@@ -7,29 +7,13 @@
   "accident": 1,
   "stuck": 1
  },
- "route": {
-  "ok": 15,
-  "no-text": 3,
-  "no-match": 3
- },
+ "route": {},
  "kinds": {
   "route": 119,
   "info": 16
  },
- "tpl": {
-  "junction": {
-   "ok": 15,
-   "no-match": 3
-  },
-  "skip": {
-   "no-text": 1
-  },
-  "stops": {
-   "no-text": 2
-  }
- },
  "merged": 9,
  "groups": 26,
- "gen": "2026-10-23T18:21+00:00",
+ "gen": "2026-10-23T22:03+00:00",
  "n": 126
 }
