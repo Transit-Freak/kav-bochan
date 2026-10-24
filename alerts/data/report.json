@@ -7,13 +7,20 @@
   "accident": 1,
   "stuck": 1
  },
- "route": {},
+ "route": {
+  "no-text": 1
+ },
  "kinds": {
   "route": 119,
   "info": 16
  },
+ "tpl": {
+  "stops": {
+   "no-text": 1
+  }
+ },
  "merged": 9,
  "groups": 26,
- "gen": "2026-10-23T22:03+00:00",
+ "gen": "2026-10-24T14:29+00:00",
  "n": 126
 }
