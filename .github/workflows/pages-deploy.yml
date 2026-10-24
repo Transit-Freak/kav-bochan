@@ -152,7 +152,8 @@ jobs:
         run: bash tools/pages_trim_archive.sh
       - if: steps.arch.outputs.full != 'no'
         name: גיבוי — כל הקבצים
-        timeout-minutes: 20
+        # הורדה מלאה של כ-13GB לוקחת יותר מ-20 דק' (24.10 נכשל כך) — מספיק זמן, בתוך 60 הדקות של הריצה
+        timeout-minutes: 45
         run: |
           git sparse-checkout disable
           test -d line-history/data/early-patterns && echo "הורדו כל הקבצים"

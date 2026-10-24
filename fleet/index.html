@@ -287,7 +287,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 29 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 30 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -416,8 +416,10 @@ function home(){
     const tot=o.vehicles.length||1, kabR=kab-kabA, w=x=>`${(100*x/tot).toFixed(1)}%`;
     return `<button class="card op${isLight(opColor(o.ref,i))?' lt':''}${opColors(o.ref,i).length>1?' mc':''}" style="--c:${opColor(o.ref,i)};--bg:${opBg(o.ref,i)}" onclick="go(${o.ref})">
       <h2>${esc(o.name)}</h2>
-      <div class="body"><div class="n">${fmt(act-kabA)}</div>
-      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">אוטובוסים פעילים</div>
+      ${act-kabA===0&&kabA?`<div class="body"><div class="n">${fmt(kabA)}</div>
+      <div class="lbl" title="לחברה אין רכבים משלה בשידורים — כל הנסיעות ברכבי קבלן">רכבי קבלן פעילים</div>`
+      :`<div class="body"><div class="n">${fmt(act-kabA)}</div>
+      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">אוטובוסים פעילים</div>`}
       <div class="obar" title="מתוך ${fmt(o.vehicles.length)} רכבים שנצפו"><i style="width:${w(act-kabA)}"></i><i class="k" style="width:${w(kabA)}"></i><i class="r" style="width:${w(retReg)}"></i><i class="kr" style="width:${w(kabR)}"></i></div>
       <div class="oleg"><span>${fmt(o.vehicles.length)} רכבים סה"כ</span>${retReg?`<span class="r"><i class="r"></i>${fmt(retReg)} ירדו</span>`:''}${kabA?`<span><i class="k"></i>${fmt(kabA)} רכבי קבלן</span>`:''}${kab?`${kabR?`<span class="r"><i class="kr"></i>${fmt(kabR)} רכבי קבלן ירדו</span>`:''}`:''}</div></div>
     </button>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;

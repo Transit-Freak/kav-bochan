@@ -15,21 +15,24 @@ OUT=${GITHUB_OUTPUT:-/dev/stdout}
 MAX_NEED=${MAX_NEED:-20000}
 full() { echo "::warning::הארכיון לא בשימוש בפרסום הזה: $1 — מעלים את כל הקבצים כמו קודם"; echo "full=yes" >> "$OUT"; exit 0; }
 
-last() {   # התוצאה של הריצה האחרונה של workflow בריפו הארכיון (מחכה עד 15 דק' לריצה שבאמצע)
-  local wf=$1 i st
-  for i in $(seq 1 30); do
-    st=$(gh api "repos/$ARCH/actions/workflows/$wf/runs?per_page=1" --jq '.workflow_runs[0] | .status + " " + (.conclusion // "")' 2>/dev/null) || { echo "unknown"; return; }
-    case "$st" in completed\ *) echo "${st#completed }"; return;; esac
-    sleep 30
-  done
-  echo "running"
+last() {   # התוצאה של הריצה האחרונה *שהסתיימה* של workflow בריפו הארכיון
+  # 24.10: סנכרון גדול רץ שעה; ההמתנה לו נגמרה ב"running" ← הורדה מלאה ← חריגה מזמן הריצה.
+  # ריצה שבאמצע לא משנה את מה שכבר מפורסם באתר הארכיון — לכן לא מחכים לה
+  local wf=$1
+  gh api "repos/$ARCH/actions/workflows/$wf/runs?per_page=10" \
+    --jq '[.workflow_runs[] | select(.status == "completed")][0].conclusion // "none"' 2>/dev/null || echo "unknown"
 }
 s=$(last sync.yml); [ "$s" = success ] || full "הסנכרון האחרון של הארכיון: $s"
 v=$(last verify.yml); [ "$v" = success ] || full "בדיקת אתר הארכיון האחרונה: $v"
 
-rm -rf /tmp/arch
-git clone -q --filter=blob:none --no-checkout --depth 1 "https://github.com/$ARCH.git" /tmp/arch || full "לא הצלחתי לקרוא את הארכיון"
-git -C /tmp/arch ls-tree -r HEAD early-patterns early-stops | awk '{print $3" "$4}' | sort > /tmp/arch.lst
+# משווים מול הגרסה שבאמת מפורסמת באתר הארכיון (הפריסה האחרונה ל-Pages), לא מול HEAD — סנכרון
+# שבאמצע דוחף מנות שעוד לא עלו לאתר, ואותן אסור להוציא מהאתר הראשי
+sha=$(gh api "repos/$ARCH/deployments?environment=github-pages&per_page=1" --jq '.[0].sha' 2>/dev/null)
+[ -n "$sha" ] && [ "$sha" != null ] || full "לא מצאתי את הגרסה המפורסמת של הארכיון"
+echo "הארכיון המפורסם: $sha"
+rm -rf /tmp/arch && git init -q /tmp/arch && git -C /tmp/arch remote add origin "https://github.com/$ARCH.git"
+git -C /tmp/arch fetch -q --depth 1 --filter=blob:none origin "$sha" || full "לא הצלחתי לקרוא את הארכיון"
+git -C /tmp/arch ls-tree -r "$sha" early-patterns early-stops | awk '{print $3" "$4}' | sort > /tmp/arch.lst
 git ls-tree -r HEAD line-history/data/early-patterns line-history/data/early-stops \
   | awk '{sub("^line-history/data/","",$4); print $3" "$4}' | sort > /tmp/main.lst
 total=$(wc -l < /tmp/main.lst)
