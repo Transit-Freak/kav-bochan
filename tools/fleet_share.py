@@ -81,11 +81,13 @@ def build():
             p = str(v[0])
             if p not in recs or v[2] > recs[p][1][2]:
                 recs[p] = (o, v)
+    # חברה שהמאגר לא מכסה בכלל — רכביה לא "קבלן" רק כי אינם במאגר (כמו isKab באתר, 24.10)
+    nocov = {o['ref'] for o in ops if len(o['vehicles']) >= 10 and not any(str(v[0]).replace('-', '').lstrip('0') in ofc for v in o['vehicles'])} if ofc else set()
     for p, (o, v) in recs.items():
         model = short_model(v[4 + off] if len(v) > 4 + off else '')
         typ = v[6 + off] if len(v) > 6 + off else ''
         on = active(v)
-        kab = (p.replace('-', '').lstrip('0') not in ofc) and (kab_type(typ) or on) if ofc else kab_type(typ)
+        kab = (p.replace('-', '').lstrip('0') not in ofc) and (kab_type(typ) or (on and o['ref'] not in nocov)) if ofc else kab_type(typ)
         # בלי מספר הנסיעות ביום: הוא זז כל לילה, וכל שינוי כותב מחדש את דף השיתוף
         if on:
             status = 'פעיל'

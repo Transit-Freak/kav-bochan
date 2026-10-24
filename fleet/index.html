@@ -287,7 +287,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 29 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 30 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -355,7 +355,9 @@ const isLight=h=>{const [r,g,b]=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).
 // עד שהמאגר נטען — לפי סוג הרישוי בלבד.
 const kabType=t=>!!t&&(t.includes('הסעות')||t.includes('מיוחד')||t.includes('סיור')||t.includes('טיולית')||t.includes('פרטי'));
 const inOfc=v=>!!OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
-const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;return kabType(t)||isActive(v);};
+// חברה שהמאגר לא מכסה בכלל (אף רכב שלה לא רשום, למשל דן נתיבים — צי חדש, 24.10) — רכביה לא "קבלן" רק כי
+// אינם במאגר; שם קובעים לפי סוג הרכב בלבד (v._nc, מסומן ב-buildOfficial)
+const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;if(v._nc)return kabType(t);return kabType(t)||isActive(v);};
 // חזר לאחרונה לכביש (יצחק 22.10): רכב פעיל שהיעדרות של חודש מלא ומעלה שלו נגמרה
 // בחודשיים האחרונים שנבדקו — כלומר חזר לנסוע בחודשיים-שלושה האחרונים
 const isBack=v=>{if(!v._gp||!GAPS||!GAPS.to||!isActive(v))return false;
@@ -416,8 +418,10 @@ function home(){
     const tot=o.vehicles.length||1, kabR=kab-kabA, w=x=>`${(100*x/tot).toFixed(1)}%`;
     return `<button class="card op${isLight(opColor(o.ref,i))?' lt':''}${opColors(o.ref,i).length>1?' mc':''}" style="--c:${opColor(o.ref,i)};--bg:${opBg(o.ref,i)}" onclick="go(${o.ref})">
       <h2>${esc(o.name)}</h2>
-      <div class="body"><div class="n">${fmt(act-kabA)}</div>
-      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">אוטובוסים פעילים</div>
+      ${act-kabA===0&&kabA?`<div class="body"><div class="n">${fmt(kabA)}</div>
+      <div class="lbl" title="לחברה אין רכבים משלה בשידורים — כל הנסיעות ברכבי קבלן">רכבי קבלן פעילים</div>`
+      :`<div class="body"><div class="n">${fmt(act-kabA)}</div>
+      <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">אוטובוסים פעילים</div>`}
       <div class="obar" title="מתוך ${fmt(o.vehicles.length)} רכבים שנצפו"><i style="width:${w(act-kabA)}"></i><i class="k" style="width:${w(kabA)}"></i><i class="r" style="width:${w(retReg)}"></i><i class="kr" style="width:${w(kabR)}"></i></div>
       <div class="oleg"><span>${fmt(o.vehicles.length)} רכבים סה"כ</span>${retReg?`<span class="r"><i class="r"></i>${fmt(retReg)} ירדו</span>`:''}${kabA?`<span><i class="k"></i>${fmt(kabA)} רכבי קבלן</span>`:''}${kab?`${kabR?`<span class="r"><i class="kr"></i>${fmt(kabR)} רכבי קבלן ירדו</span>`:''}`:''}</div></div>
     </button>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;
@@ -1300,9 +1304,12 @@ async function loadOfficial(){
 function buildOfficial(){
   if(!DATA||!OFC||!OFC.of) return;
   let n=0;
-  for(const o of DATA.operators) for(const v of o.vehicles){
-    const f=OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
-    if(f){v._bt=f[4]||null;v._bs=f[5]||null;if(f[0]!=null)v._ok=f[0];v._el=(f[3]||'').includes('חשמל')?1:0;n++;}
+  for(const o of DATA.operators){let m=0;
+    for(const v of o.vehicles){
+      const f=OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
+      if(f){v._bt=f[4]||null;v._bs=f[5]||null;if(f[0]!=null)v._ok=f[0];v._el=(f[3]||'').includes('חשמל')?1:0;n++;m++;}
+    }
+    if(!m&&o.vehicles.length>=10) for(const v of o.vehicles) v._nc=1;
   }
   OFCOK=n>0;
 }
