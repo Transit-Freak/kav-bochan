@@ -311,7 +311,8 @@ def main():
         jdump(shard, f'{base_path}-{d}.json')
     # סטטוס רישום (bitul_nm) של רכבים שהרישום שלהם בוטל או הושבת — קובץ קטן לסינון ברשימות
     # ("ירדו מהשירות": לא יחזרו / עשויים לחזור), בלי לטעון את כל הפרטים המלאים
-    jdump({p: r['bitul_nm'] for p, r in sorted(reg.items()) if r.get('bitul_nm') and r['bitul_nm'] != 'לא מבוטל'},
+    # [סטטוס, תאריך הביטול/ההורדה מהכביש (bitul_dt)] — התאריך משמש ל"לבדיקה": נסע אחרי התאריך הזה
+    jdump({p: [r['bitul_nm'], (r.get('bitul_dt') or '')[:10]] for p, r in sorted(reg.items()) if r.get('bitul_nm') and r['bitul_nm'] != 'לא מבוטל'},
           os.path.join(os.path.dirname(OUT), 'fleet-bitul.json'))
     print(f'העשרה: {hit} נמצאו · {miss} לא נמצאו · פרטים מלאים: {DETAILS}', flush=True)
 
