@@ -355,7 +355,9 @@ const isLight=h=>{const [r,g,b]=[1,3,5].map(k=>parseInt(h.slice(k,k+2),16)/255).
 // עד שהמאגר נטען — לפי סוג הרישוי בלבד.
 const kabType=t=>!!t&&(t.includes('הסעות')||t.includes('מיוחד')||t.includes('סיור')||t.includes('טיולית')||t.includes('פרטי'));
 const inOfc=v=>!!OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
-const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;return kabType(t)||isActive(v);};
+// חברה שהמאגר לא מכסה בכלל (אף רכב שלה לא רשום, למשל דן נתיבים — צי חדש, 24.10) — רכביה לא "קבלן" רק כי
+// אינם במאגר; שם קובעים לפי סוג הרכב בלבד (v._nc, מסומן ב-buildOfficial)
+const isKab=v=>{const t=gT(v);if(!OFC||!OFC.of)return kabType(t);if(inOfc(v))return false;if(v._nc)return kabType(t);return kabType(t)||isActive(v);};
 // חזר לאחרונה לכביש (יצחק 22.10): רכב פעיל שהיעדרות של חודש מלא ומעלה שלו נגמרה
 // בחודשיים האחרונים שנבדקו — כלומר חזר לנסוע בחודשיים-שלושה האחרונים
 const isBack=v=>{if(!v._gp||!GAPS||!GAPS.to||!isActive(v))return false;
@@ -1302,9 +1304,12 @@ async function loadOfficial(){
 function buildOfficial(){
   if(!DATA||!OFC||!OFC.of) return;
   let n=0;
-  for(const o of DATA.operators) for(const v of o.vehicles){
-    const f=OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
-    if(f){v._bt=f[4]||null;v._bs=f[5]||null;if(f[0]!=null)v._ok=f[0];v._el=(f[3]||'').includes('חשמל')?1:0;n++;}
+  for(const o of DATA.operators){let m=0;
+    for(const v of o.vehicles){
+      const f=OFC.of[v[0].replace(/\D/g,'').replace(/^0+/,'')];
+      if(f){v._bt=f[4]||null;v._bs=f[5]||null;if(f[0]!=null)v._ok=f[0];v._el=(f[3]||'').includes('חשמל')?1:0;n++;m++;}
+    }
+    if(!m&&o.vehicles.length>=10) for(const v of o.vehicles) v._nc=1;
   }
   OFCOK=n>0;
 }
