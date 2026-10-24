@@ -287,7 +287,7 @@
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 30 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + מאגר הרישוי הממשלתי + מאגר "ציי רכב אוטובוסים" של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 31 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -402,7 +402,14 @@ function home(){
     const clean=f.replace(/-/g,'');
     const hits=plateHits(f);
     return kpis()+`<div class="panel"><p class="ptitle">${clean?`תוצאות למספר רכב "${esc(f)}" · ${fmt(hits.length)}`:`כל הרכבים במעקב · ${fmt(hits.length)}`}</p>
-      <div class="filters">${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()">ממוגנים בלבד</button>`:''}
+      <div class="filters">
+      <button class="fchip ${STATF===null&&KABF===null&&!RTF&&!CHKF&&!ARF&&ELF===null?'on':''}" onclick="STATF=null;KABF=null;RTF=null;CHKF=null;RGF=null;ARF=null;ELF=null;LIMIT=200;render()">הכול</button>
+      <button class="fchip ${STATF===1?'on':''}" onclick="STATF=STATF===1?null:1;LIMIT=200;render()">פעילים</button>
+      <button class="fchip ${STATF===0?'on':''}" onclick="STATF=STATF===0?null:0;RGF=null;LIMIT=200;render()">ירדו מהשירות</button>${rgChips()}
+      ${DATA.enriched?`<button class="fchip ${KABF==='l'?'on':''}" onclick="KABF=KABF==='l'?null:'l';LIMIT=200;render()">רכבי קו</button>
+      <button class="fchip ${KABF==='k'?'on':''}" onclick="KABF=KABF==='k'?null:'k';LIMIT=200;render()">רכבי קבלן</button>`:''}
+      ${backBtn()}${chkChip(DATA.operators.flatMap(o=>o.vehicles))}
+      ${ARMOK?`<button class="fchip ${ARF?'on':''}" onclick="ARF=ARF?null:1;LIMIT=200;render()">ממוגנים בלבד</button>`:''}
       ${OFCOK?`<button class="fchip ${ELF===1?'on':''}" onclick="ELF=ELF===1?null:1;LIMIT=200;render()">חשמליים</button>
       <button class="fchip ${ELF===0?'on':''}" onclick="ELF=ELF===0?null:0;LIMIT=200;render()">לא חשמליים</button>`:''}</div>
       ${hits.length?table(hits.map(h=>h[1]),hits.map(h=>h[0])):'<div class="empty">לא נמצא רכב מתאים</div>'}</div>`;
@@ -698,6 +705,13 @@ function plateHits(f){
   if(SORTK){const key={p:v=>v[0],f:v=>v[1],l:v=>v[2],y:v=>gY(v)||0,m:v=>gM(v)||'',t:v=>gT(v)||'',r:v=>gR(v)||0,kd:v=>v._kd||0,kt:v=>v._kt||0,ok:v=>v._ok||0}[SORTK];
     if(key) hits.sort((a,b)=>{const x=key(a[1]),y=key(b[1]);return (x>y?1:x<y?-1:0)*SORTD;});}
   else hits.sort((a,b)=>a[1][2]<b[1][2]?1:a[1][2]>b[1][2]?-1:0);
+  // אותם סינונים כמו ברשימת הרכבים של חברה (שלמה 24.10: "כל מיני קטגוריות שיש לנו שחסרות")
+  if(STATF!==null) hits=hits.filter(h=>(isActive(h[1])?1:0)===STATF);
+  if(RGF) hits=hits.filter(h=>rgOk(h[1]));
+  if(CHKF) hits=hits.filter(h=>isChk(h[1]));
+  if(KABF==='k') hits=hits.filter(h=>isKab(h[1]));
+  if(KABF==='l') hits=hits.filter(h=>!isKab(h[1]));
+  if(RTF) hits=hits.filter(h=>isBack(h[1]));
   if(ARF) hits=hits.filter(h=>h[1]._ar&&(ARF===1||h[1]._ar.includes(ARF)));
   if(ELF!==null) hits=hits.filter(h=>(h[1]._el?1:0)===ELF);
   return hits;
@@ -1251,7 +1265,7 @@ const LBL={mispar_rechev:'מספר רכב',tozeret_nm:'יצרן',tozeret_cd:'ק�
   koah_sus:'כוח סוס',hanaa_nm:'הנעה',mazgan_ind:'מיזוג',halonot_nm:'חלונות',
   abs_ind:'ABS',mispar_kariot_avir:'כריות אוויר',mispar_mekomot:'מספר מושבים',
   mispar_mekomot_leyd_nahag:'מושבים ליד הנהג',sug_rechev_EU_nm:'סיווג אירופי',
-  bitul_nm:'סטטוס רישום',_source:'מקור הנתון'};
+  bitul_nm:'סטטוס רישום',bitul_dt:'תאריך ביטול / הורדה מהכביש',bitul_cd:'קוד ביטול',_source:'מקור הנתון'};
 function licenseHTML(gov){
   const history=gov._license_history||[];
   const change=history.length?history[history.length-1]:null;
@@ -1405,14 +1419,15 @@ async function loadBitul(){
 }
 function buildBitul(){
   if(!DATA||!BIT) return;
-  for(const o of DATA.operators) for(const v of o.vehicles){const c=v[0].replace(/\D/g,'').replace(/^0+/,'');const b=BIT[c];if(b)v._bi=b;if(BSOF&&BSOF[c])v._bf=BSOF[c];}
+  for(const o of DATA.operators) for(const v of o.vehicles){const c=v[0].replace(/\D/g,'').replace(/^0+/,'');const b=BIT[c];if(b){if(Array.isArray(b)){v._bi=b[0];if(b[1])v._bd=b[1];}else v._bi=b;}if(BSOF&&BSOF[c])v._bf=BSOF[c];}
 }
-// "לבדיקה": לפי המאגר (העדכני) בוטל / הורד מהכביש, ובשידורים נצפה נוסע בשבוע האחרון (כמו בכרטיס הרכב)
-const isChk=v=>!!(v._bi&&v._bi!=='לא מבוטל'&&(new Date(DATA.updated)-new Date(v[2]))/864e5<=7);
+// "לבדיקה" (שלמה 24.10): לפי המאגר הרכב בוטל / הורד מהכביש בתאריך מסוים (bitul_dt), ובשידורים נצפה נוסע
+// *אחרי* התאריך הזה — יום מלא אחרי, כדי שנסיעה באותו יום (לפני ההורדה) לא תיחשב
+const isChk=v=>!!(v._bi&&v._bi!=='לא מבוטל'&&v._bd&&v[2]>v._bd);
 // מוצג רק כשבמסך יש רכב כזה (vs — כל הרכבים של המסך, לפני הסינון)
 function chkChip(vs){
   if(!BIT||!(vs||[]).some(isChk)) return '';
-  return `<button class="fchip ${CHKF?'on':''}" onclick="CHKF=CHKF?null:1;LIMIT=200;render()" title="לפי המאגר הממשלתי הורד מהכביש, ובשידורים עדיין נצפה נוסע — ייתכן איחור במאגר או טעות בזיהוי">לבדיקה</button>`;
+  return `<button class="fchip ${CHKF?'on':''}" onclick="CHKF=CHKF?null:1;LIMIT=200;render()" title="לפי המאגר הממשלתי הורד מהכביש או בוטל בתאריך מסוים, ובשידורים נצפה נוסע אחרי התאריך הזה — ייתכן איחור במאגר או טעות בזיהוי">לבדיקה</button>`;
 }
 const rgOf=v=>v._bf?'f':v._bi&&BITUL[v._bi]?BITUL[v._bi][2]:null;
 // "ירדו מהשירות" מתפצל: לא יחזרו (פורקו / אובדן גמור) · עשויים לחזור (מושבתים זמנית)
@@ -1468,11 +1483,12 @@ async function showV(plate){
   }
   if(anyKm) rows+=`<p class="note">הערכת הקילומטראז': אורך המסלול המתוכנן של הקווים שבהם הרכב שידר (משרטוטי "הקו בזמן") × הנסיעות שנקלטו. הערכה גסה בלבד — לא ידוע אם כל נסיעה בוצעה במלואה (ייתכנו נסיעות חלקיות או בעיות שידור GPS), לא ידוע כמה נסיעות היו בכל קו, והיא מכסה רק ימים שנסרקו.</p>`;
   const kab=isKab(fv);
-  // "לבדיקה" (שלמה 23.10): לפי המאגר הממשלתי הרכב הורד מהכביש / בוטל, אבל בשידורים נצפה נוסע בשבוע
-  // האחרון. לא קובעים שנוסע בלי רישיון — ייתכן שהורד רק אחרי הנסיעה, איחור במאגר או טעות בזיהוי
-  const chk=gov&&gov.bitul_nm&&gov.bitul_nm!=='לא מבוטל'&&(new Date(DATA.updated)-new Date(fv[2]))/864e5<=7;
-  const chkBox=chk?`<div class="vchk">⚠️ לבדיקה: לפי המאגר הממשלתי — ${esc(BITUL[gov.bitul_nm]?BITUL[gov.bitul_nm][0]:gov.bitul_nm)}, אבל בשידורים הרכב נצפה נוסע ב-${fd(fv[2])}
-    <small>לפי המידע הציבורי (המאגר עודכן ב-${fd(String(DATA.gov_updated||'').slice(0,10))}). ייתכן שהרכב הורד מהכביש רק אחרי הנסיעה, שתוקן והמאגר טרם עודכן, או שיש טעות בזיהוי.</small></div>`:'';
+  // "לבדיקה" (שלמה 24.10): לפי המאגר הממשלתי הרכב הורד מהכביש / בוטל בתאריך bitul_dt, אבל בשידורים נצפה
+  // נוסע אחרי התאריך הזה. לא קובעים שנוסע בלי רישיון — ייתכן איחור במאגר או טעות בזיהוי
+  const bdt=gov&&gov.bitul_dt?String(gov.bitul_dt).slice(0,10):'';
+  const chk=gov&&gov.bitul_nm&&gov.bitul_nm!=='לא מבוטל'&&bdt&&fv[2]>bdt;
+  const chkBox=chk?`<div class="vchk">⚠️ לבדיקה: לפי המאגר הממשלתי — ${esc(BITUL[gov.bitul_nm]?BITUL[gov.bitul_nm][0]:gov.bitul_nm)} ב-${fd(bdt)}, אבל בשידורים הרכב נצפה נוסע אחרי התאריך הזה, לאחרונה ב-${fd(fv[2])}
+    <small>לפי המידע הציבורי (המאגר עודכן ב-${fd(String(DATA.gov_updated||'').slice(0,10))}). ייתכן שהרכב תוקן והמאגר טרם עודכן, או שיש טעות בזיהוי.</small></div>`:'';
   if(recs.length>1) rows+=`<p class="note">${kab?'רכב קבלן נוסע בקווים של כמה חברות לפי עבודה, ולכן הופעה אצל כמה חברות היא רגילה.':'הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.'}</p>`;
   // כרטיס הרכב (שלמה 22.10: "אנשים יותר מתעניינים במידע כללי על הרכב"): פרטי הרכב פתוחים למעלה,
   // "איפה הוא נסע" (הפירוט לפי חברה מהשידורים) מקופל לשורה אחת
@@ -1511,7 +1527,8 @@ async function showV(plate){
     const rest=Object.keys(gov).filter(k=>!(k in LBL)&&!k.startsWith('_'));
     rows+=`<div class="msec">מהמאגר הממשלתי — כל השדות${DATA.gov_updated?` (נכון ל-${fd(DATA.gov_updated)})`:''}</div><div class="mgrid">`+
       [...known,...rest].map(k=>{const show=x=>esc(k==='sug_rechev_nm'?fixT(x):x);const h=(gov._hist||{})[k];const c=h&&h.length&&String(h[h.length-1].current)===String(gov[k])?h[h.length-1]:null;
-        if(k==='bitul_nm'&&BITUL[gov[k]])return `<div class="k">${esc(LBL[k])}</div><div class="v2">${esc(BITUL[gov[k]][0])}<div style="font-size:11px;color:var(--dim)">במאגר: ${esc(gov[k])}</div></div>`;
+        if(k==='bitul_nm'&&BITUL[gov[k]])return `<div class="k">${esc(LBL[k])}</div><div class="v2">${esc(BITUL[gov[k]][0])}${gov[k]!=='לא מבוטל'&&gov.bitul_dt?' · ב-'+fd(String(gov.bitul_dt).slice(0,10)):''}<div style="font-size:11px;color:var(--dim)">במאגר: ${esc(gov[k])}</div></div>`;
+        if(k==='bitul_dt')return gov[k]?`<div class="k">${esc(LBL[k])}</div><div class="v2">${fd(String(gov[k]).slice(0,10))}</div>`:'';
         return `<div class="k">${esc(LBL[k]||k)}</div><div class="v2">${k==='tokef_dt'?licenseHTML(gov):c?chgHTML(show(gov[k]),[c.previous,c.current,c.detected],k==='sug_rechev_nm'?fixT(c.previous):c.previous):show(gov[k])}</div>`;}).join('')+`</div>`;
   }else{
     rows+=`<div class="msec">המאגר הממשלתי</div><div class="note">הרכב לא נמצא במאגר הרכב הציבורי — ייתכן שהוסר מהרישום, שההעשרה טרם רצה, או שהמזהה בשידור אינו לוחית.</div>`;
@@ -1520,7 +1537,7 @@ async function showV(plate){
   ovl.innerHTML=`<div class="modal"><div class="mhead"><span class="plate">${esc(plate)}</span>
     ${kab?`<span class="tg">רכב קבלן</span>`:gT(fv)?`<span class="tg">${esc(gT(fv))}</span>`:''}
     ${ar?`<span class="st mv" title="לפי מאגר ״ציי רכב אוטובוסים״ של משרד התחבורה${ARM.updated?` (${fd(ARM.updated)})`:''}">${arLbl(ar)}</span>`:''}
-    <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'+(gov&&BITUL[gov.bitul_nm]&&BITUL[gov.bitul_nm][1]?' · '+BITUL[gov.bitul_nm][1]:sofi?' · בוטל סופית':'')}</span>${chk?'<span class="st chk">לבדיקה</span>':''}
+    <span class="st ${on?'on':'off'}">${on?'פעיל':'ירד מהשירות'+(gov&&BITUL[gov.bitul_nm]&&BITUL[gov.bitul_nm][1]?' · '+BITUL[gov.bitul_nm][1]+(bdt?' ב-'+fd(bdt):''):sofi?' · בוטל סופית':'')}</span>${chk?'<span class="st chk">לבדיקה</span>':''}
     <button class="xlsbtn sharebtn" style="padding:7px 13px;font-size:12px" onclick="SHAREV('${plate.replace(/'/g,'')}')" title="מעתיק קישור שפותח את כרטיס הרכב הזה ישירות">שיתוף</button>
     <button class="x" aria-label="סגירה">✕</button></div>${chkBox}${phBlock(clean,recs[0][0].ref,gM(fv))}${head}${rows}</div>`;
   ovl.addEventListener('click',e=>{if(e.target===ovl||e.target.classList.contains('x')){ovl.remove();VOPEN=null;syncUrl();}});
