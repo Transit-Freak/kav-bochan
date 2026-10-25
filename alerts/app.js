@@ -19,7 +19,19 @@
     var start = noon - 12 * 3600 - (h - 12) * 3600;
     return [start, start + 86400];
   }
+  // מספר היום לפי שעון ישראל (לבדיקה אם ימים רצופים)
+  var dayNum = function (t) { return Math.round(Date.parse(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(t * 1000)) + "T00:00:00Z") / 864e5); };
   function periods(a) { return (a.per || []).map(function (p) { return [p[0] || 0, p[1] || 4e9]; }); }
+  // תאריך שגוי מהמקור (שנת 2030; תאונה מ-11.08 שמופיעה כ-8.11) — לא מציגים כאילו היא עתידית:
+  // התחלה יותר משנה אחרי העדכון, או שכל התאריכים בכותרת יותר מיומיים לפני ההתחלה
+  function badDate(a, gen) {
+    var ps = periods(a); if (!ps.length) return false;
+    var s = Math.min.apply(null, ps.map(function (p) { return p[0]; })), g = Date.parse(gen) / 1000;
+    if (g && s > g + 365 * 86400) return true;
+    var hd = [], re = /(^|[^\d])(\d{1,2})[./](\d{1,2})[./](\d{4}|\d{2})(?!\d)/g, m;
+    while ((m = re.exec(a.h || ""))) { var y = +m[4]; hd.push(Date.UTC(y < 100 ? 2000 + y : y, m[3] - 1, +m[2], 10) / 1000); }
+    return hd.length > 0 && hd.every(function (t) { return t < s - 2 * 86400; });
+  }
   function isNow(a) { var t = now(); return periods(a).some(function (p) { return p[0] <= t && t <= p[1]; }); }
   function isToday(a) { var b = dayBounds(); return periods(a).some(function (p) { return p[0] < b[1] && p[1] > b[0]; }); }
   // התאריכים והשעות (שלמה 19.10: "14.10 05:00 – 20.10 23:30" מבלבל — מספרים צמודים בלי מילים):
@@ -34,6 +46,12 @@
       if (keys.length === 1) {
         var t0 = fmtT(ps[0][0]), t1 = fmtT(ps[0][1]), night = fmtD(ps[0][0]) !== fmtD(ps[0][1]);
         var dd = fmtD(s) === fmtD(e - (night ? 86400 : 0)) ? fmtD(s) : fmtD(s) + "–" + fmtD(e - (night ? 86400 : 0));
+        // ימים לא רצופים (25, 26, 28, 29.10) — לא "25.10–29.10, כל יום": רצף אחרי רצף
+        var dn = {}; ps.forEach(function (p) { dn[dayNum(p[0])] = p[0]; });
+        var ds = Object.keys(dn).map(Number).sort(function (x, y) { return x - y; }), runs = [];
+        ds.forEach(function (n, i) { if (i && n === ds[i - 1] + 1) runs[runs.length - 1][1] = n; else runs.push([n, n]); });
+        if (runs.length > 4) dd = ds.length + " ימים בין " + fmtD(dn[ds[0]]) + " ל-" + fmtD(dn[ds[ds.length - 1]]);
+        else if (runs.length > 1) dd = runs.map(function (r) { return r[0] === r[1] ? fmtD(dn[r[0]]) : fmtD(dn[r[0]]) + "–" + fmtD(dn[r[1]]); }).join(", ");
         return dd + ", " + (night ? "כל לילה " : "כל יום ") + t0 + "–" + t1;
       }
     }
@@ -102,7 +120,7 @@
       add: uniq(cat(function (m) { return m.add || []; }), function (x) { return x[0]; }),
       ag: uniq(cat(function (m) { return m.ag || []; }), function (x) { return x; }),
       dep: cat(function (m) { return m.dep || []; }),
-      per: cat(function (m) { return m.per || []; }),
+      per: uniq(cat(function (m) { return m.per || []; }), function (p) { return p[0] + "|" + p[1]; }),
       rcs: uniq(cat(function (m) { return m.rcs || (m.map ? [m.id] : []); }), function (x) { return x; }),
       map: ms.some(function (m) { return m.map; }),
     });
@@ -142,8 +160,11 @@
     sel = id;
     if (push) { try { history.replaceState(null, "", "#" + id); } catch (e) { /* ignore */ } }
     Array.prototype.forEach.call($("list").querySelectorAll(".card"), function (c) { c.classList.toggle("on", (c.getAttribute("data-ids") || "").split(" ").indexOf(id) >= 0); });
-    var rmL = (a.rm || []).map(function (s) { return '<li><span class="c">' + esc(s[0]) + "</span><span>" + esc(s[1]) + "</span></li>"; }).join("");
-    var adL = (a.add || []).map(function (s) { return '<li><span class="c">' + esc(s[0]) + "</span><span>" + esc(s[1]) + "</span></li>"; }).join("");
+    // תחנה שגם בוטלה וגם חלופית (המקור לא אומר באיזה קו) — "בחלק מהקווים" בשתי הרשימות
+    var both = {}; (a.rm || []).forEach(function (s) { if ((a.add || []).some(function (x) { return x[0] === s[0]; })) both[s[0]] = 1; });
+    var stL = function (s) { return '<li><span class="c">' + esc(s[0]) + "</span><span>" + esc(s[1]) + (both[s[0]] ? " (בחלק מהקווים)" : "") + "</span></li>"; };
+    var rmL = (a.rm || []).map(stL).join("");
+    var adL = (a.add || []).map(stL).join("");
     var dep = (a.dep || []).map(function (d) {
       return "<tr><td><b>" + esc(d[0]) + "</b> " + esc(d[2] || "") + '</td><td class="hrs">' +
         (d[3] || []).map(function (h) { return '<span class="add">+' + esc(h) + "</span>"; }).join(" ") + " " +
@@ -193,8 +214,16 @@
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
       rc.routes.sort(function (x, y) { var p = lineKey(String(x.num || "")), q = lineKey(String(y.num || "")); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0) || String(x.to || "").localeCompare(String(y.to || ""), "he"); });
       cur = { a: a, rc: rc };
+      var lab = function (r) { return "קו " + (r.num == null ? "" : r.num) + " ← " + (r.to || "") + (r.alt && r.alt !== "#" ? " · " + r.alt : ""); };
+      // כמה חלופות של אותו קו לאותו יעד — מבדילים לפי הכיוון, ואם הוא זהה — לפי החלופה
+      var same = {}; rc.routes.forEach(function (r) { (same[lab(r)] = same[lab(r)] || []).push(String(r.rd || "").split("-")); });
       $("routes").innerHTML = rc.routes.map(function (r, i) {
-        return '<button type="button" data-i="' + i + '">קו ' + esc(r.num) + " ← " + esc(r.to || "") + (r.alt && r.alt !== "#" ? " · " + esc(r.alt) : "") + "</button>";
+        var g = same[lab(r)], k = String(r.rd || "").split("-"), x = "";
+        if (g.length > 1) {
+          var dirs = {}; g.forEach(function (q) { dirs[q[1]] = 1; });
+          x = Object.keys(dirs).length === g.length ? " · כיוון " + k[1] : (k[2] === "#" || k[2] === "0" || k[2] == null ? " · ראשית" : " · חלופה " + k[2]);
+        }
+        return '<button type="button" data-i="' + i + '">' + esc(lab(r) + x) + "</button>";
       }).join("");
       Array.prototype.forEach.call($("routes").querySelectorAll("button"), function (b) { b.onclick = function () { showRoute(+b.getAttribute("data-i")); }; });
       showRoute(0);
@@ -205,6 +234,31 @@
     var best = 0, bd = 1e18;
     for (var i = 0; i < shape.length; i++) { var dx = shape[i][0] - p[0], dy = (shape[i][1] - p[1]) * 0.85, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i; } }
     return best;
+  }
+  // הקטע הסגור לפי העקיפה. קו שעובר באותו מקום פעמיים (הלוך וחזור, לולאה): לא הנקודה הקרובה הראשונה —
+  // מכל הנקודות הקרובות (עד 40 מ' יותר מהקרובה ביותר) זוג שבו היציאה לפני החזרה, שמכסה הכי הרבה
+  // תחנות מבוטלות, ואחר כך הכי קרוב. est.k (אם נשמר) — האינדקסים המוכנים.
+  function closedRange(shape, est, dels) {
+    var k = est.k || est.c;
+    if (k && k.length === 2 && k[0] < k[1] && k[1] < shape.length) return k;
+    var m = function (q, p) { var dx = q[0] - p[0], dy = (q[1] - p[1]) * 0.85; return Math.sqrt(dx * dx + dy * dy) * 111320; };
+    var cand = function (p) {
+      var d = shape.map(function (q) { return m(q, p); }), lo = Math.min.apply(null, d), out = [];
+      d.forEach(function (x, i) { if (x <= lo + 40 && (i === 0 || x <= d[i - 1]) && (i === d.length - 1 || x <= d[i + 1])) out.push([i, x]); });
+      return out;
+    };
+    var A = cand(est.path[0]), B = cand(est.path[est.path.length - 1]), best = null;
+    A.forEach(function (a) {
+      B.forEach(function (b) {
+        if (b[0] <= a[0]) return;
+        var n = dels.filter(function (q) { for (var j = a[0]; j <= b[0]; j++) if (m(shape[j], q) < 40) return true; return false; }).length;
+        var sc = [-n, a[1] + b[1], b[0] - a[0]];
+        if (!best || sc[0] < best[2][0] || (sc[0] === best[2][0] && (sc[1] < best[2][1] || (sc[1] === best[2][1] && sc[2] < best[2][2])))) best = [a[0], b[0], sc];
+      });
+    });
+    if (best) return [best[0], best[1]];
+    var c0 = nearestIdx(shape, est.path[0]);
+    return [c0, Math.max(c0, nearestIdx(shape, est.path[est.path.length - 1]))];
   }
   function showRoute(i) {
     var r = cur.rc.routes[i], stops = cur.rc.stops || {};
@@ -227,7 +281,7 @@
     var ci = del.map(function (s) { return nearestIdx(shape, stops[s]); });
     var c0 = ci.length ? Math.min.apply(null, ci) : -1, c1 = ci.length ? Math.max.apply(null, ci) : -1;
     var est = r.est && r.est.path;
-    if (est) { c0 = nearestIdx(shape, est[0]); c1 = Math.max(c0, nearestIdx(shape, est[est.length - 1])); }
+    if (est) { var cc = closedRange(shape, r.est, del.map(function (s) { return stops[s]; })); c0 = cc[0]; c1 = cc[1]; }
     else if (ci.length) {
       // תחנת המוצא (או הסוף) בוטלה: הקו מתחיל בתחנה הראשונה שנשארה, והקטע שלפניה לא נסוע (שלמה 20.10:
       // סומנה רק התחנה המבוטלת, בלי הקטע)
@@ -258,6 +312,7 @@
       note = r.why === "no-text" ? "בהודעה אין תיאור של המסלול החלופי, ולכן אין מסלול על המפה — רק התחנות."
         : r.why === "stops-only" ? "בהודעה יש רק רשימה של תחנות שבוטלו, בלי תיאור של המסלול החלופי. לכן על המפה רק התחנות."
         : r.why === "skip" ? "לפי ההודעה הקו נשאר במסלול שלו ורק לא עוצר בתחנה שבוטלה."
+        : r.why === "short" ? "הקו מקוצר: מסתיים או מתחיל בתחנה אחרת, בלי מסלול חלופי."
         : r.why === "relocate" ? "התחנה הועתקה למקום אחר, והקו נשאר במסלול שלו."
         : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why || "time"] || "לא ידוע") + "). מוצגות רק התחנות.";
     }
@@ -296,7 +351,7 @@
 
   getJSON("data/alerts.json").then(function (d) {
     if (!d) { $("list").innerHTML = '<div class="empty">הנתונים לא נטענו. נסו לרענן.</div>'; return; }
-    ALL = d.alerts || []; CAUSES = d.causes || {}; ALIAS = d.alias || {};
+    ALL = (d.alerts || []).filter(function (a) { return !badDate(a, d.gen); }); CAUSES = d.causes || {}; ALIAS = d.alias || {};
     ALL.forEach(function (a) { if (a.grp) (GROUPS[a.grp] = GROUPS[a.grp] || []).push(a); });
     if (d.gen) $("upd").textContent = "עודכן " + new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(d.gen));
     var h = "";

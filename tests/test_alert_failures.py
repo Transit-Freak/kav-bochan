@@ -2,6 +2,7 @@ import datetime
 import importlib.util
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -42,20 +43,30 @@ class ExplainTests(unittest.TestCase):
 
 
 class StaleTests(unittest.TestCase):
-    def check(self, bus_last, gen, today):
+    def check(self, bus_last, gen, today, alerts_gen='2026-10-04T21:10+00:00'):
         with tempfile.TemporaryDirectory() as d:
-            os.makedirs(f'{d}/bus/data'); os.makedirs(f'{d}/line-history/data')
+            os.makedirs(f'{d}/bus/data'); os.makedirs(f'{d}/line-history/data'); os.makedirs(f'{d}/alerts/data')
             json.dump({'days': [{'d': bus_last}]}, open(f'{d}/bus/data/index.json', 'w'))
             json.dump({'gen': gen}, open(f'{d}/line-history/data/lines.json', 'w'))
+            json.dump({'gen': alerts_gen}, open(f'{d}/alerts/data/report.json', 'w'))
             cwd = os.getcwd(); os.chdir(d)
             try:
-                return dict(alert.stale_checks(today))
+                return dict(alert.stale_checks(today, datetime.datetime(2026, 10, 5, 9, tzinfo=datetime.timezone.utc)))
             finally:
                 os.chdir(cwd)
 
     def test_fresh_data_is_quiet(self):
         out = self.check('2026-10-03', '2026-10-04', datetime.date(2026, 10, 5))
-        self.assertEqual([None, None], list(out.values()))
+        self.assertEqual([None, None, None], list(out.values()))
+
+    def test_alerts_not_pulled_for_a_day(self):
+        out = self.check('2026-10-03', '2026-10-04', datetime.date(2026, 10, 5), '2026-10-04T08:00+00:00')
+        self.assertIn('04.10.2026 11:00', out['⚠️ לא מתעדכן: הקו המודיע'])
+
+    def test_every_workflow_in_the_yml_is_watched(self):
+        yml = (Path(__file__).parents[1] / '.github/workflows/alert-failures.yml').read_text(encoding='utf-8')
+        listed = set(re.findall(r'^      - ([\w-]+)$', yml.split('types:')[0], re.M))
+        self.assertEqual(listed, set(alert.WATCHED))
 
     def test_line_history_stuck_since_02_10(self):
         out = self.check('2026-10-03', '2026-10-02', datetime.date(2026, 10, 5))
@@ -97,6 +108,10 @@ class ReportTests(unittest.TestCase):
             self.assertIn('Fetch GTFS', issues[0]['body'])
             self.assertIn(('POST', 'issues/1/comments'), calls)
             state['c'] = 'success'
+            jobs = [{'id': 7, 'name': 'need', 'conclusion': 'success'}, {'id': 8, 'name': 'run', 'conclusion': 'skipped'}]
+            with patch.object(alert, 'api', lambda p, *a, **k: {'jobs': jobs} if p.endswith('/jobs?per_page=50') else fake_api(p, *a, **k)):
+                alert.on_run(1)   # בדיקה שעתית שלא משכה כלום — התקלה נשארת פתוחה
+            self.assertEqual('open', issues[0]['state'])
             alert.on_run(1)
         self.assertEqual('closed', issues[0]['state'])
 

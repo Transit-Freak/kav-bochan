@@ -5,7 +5,7 @@ name: alert-failures
 # בלי שרת מייל: tools/alert_failures.py פותח Issue (אחד לכל צינור) שמזכיר את בעל המאגר,
 # ו-GitHub שולח אותו למייל. תקלה חוזרת = תגובה באותו Issue; ריצה מוצלחת סוגרת אותו.
 # workflow_run מופעל מיד כשהריצה מסתיימת — לא מתעכב כמו cron.
-# בנוסף, בדיקה כל שעתיים שהנתונים באתר לא ישנים (מדד הדיוק, הקו בזמן) גם כשאף ריצה לא נכשלה.
+# בנוסף, בדיקה כל שעתיים שהנתונים באתר לא ישנים (מדד הדיוק, הקו בזמן, הקו המודיע) גם כשאף ריצה לא נכשלה.
 
 on:
   workflow_run:
@@ -25,6 +25,7 @@ on:
       - update-weekly
       - update-monthly
       - pages-deploy
+      - alerts
     types: [completed]
   schedule:
     - cron: '10 */2 * * *'
@@ -47,6 +48,7 @@ jobs:
             tools/alert_failures.py
             bus/data/index.json
             line-history/data/lines.json
+            alerts/data/report.json
           sparse-checkout-cone-mode: false
       - name: התראה
         env:

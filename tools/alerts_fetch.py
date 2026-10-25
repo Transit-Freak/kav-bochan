@@ -33,7 +33,9 @@ SRC = 'https://bus-alerts.com'
 OUT = os.environ.get('OUT', 'alerts/data')
 MAX_MIN = float(os.environ.get('MAX_MIN', '25'))
 # גרסת קריאת הנוסח: כשהיא עולה, התראות ש"לא נמצא בהן מסלול" מחושבות שוב (שלמה 18.10, אילת)
-PARSE_V = 14
+PARSE_V = 15
+# PARSE_LOCK=1 (alerts.yml, כשבדיקת הרגרסיה נכשלה): לא מחשבים שוב את כל ההתראות בגלל PARSE_V — רק חדשות ושהשתנו
+PARSE_LOCK = os.environ.get('PARSE_LOCK') == '1'
 # הארכיון של הקו בזמן: שינויים זמניים שכבר התחילו, לפי מק"ט — נשמרים גם אחרי שההתראה ירדה (שלמה 18.10)
 TEMP_DIR = os.environ.get('TEMP_DIR', 'line-history/data/temp')
 UA = {'User-Agent': 'kavbochan.app alerts mirror (twice a day; github.com/Transit-Freak/kav-bochan)'}
@@ -63,7 +65,7 @@ CAUSES = [
     ('works', 'עבודות', r'עבודות|עבודה|תשתית|חפיר|סליל|ריבוד|שיפוץ|הנחת צנרת|רכבת קלה|קו (?:ה)?סגול|קו (?:ה)?ירוק|הקמת|בנייה|בניה|גשר חדש|הסדרי תנועה זמניים'),
     ('police', 'משטרה וביטחון', r'משטר|ביטחונ|בטחונ|חפץ חשוד|פיגוע|אירוע חריג|סגירה ביטחונית|הנחיית (?:ה)?משטרה|פינוי|תרגיל'),
     ('protest', 'הפגנות', r'הפגנ|מחאה|מחאת|עצרת|חסימת כבישים'),
-    ('event', 'אירועים', r'מרתון|מירוץ|מרוץ|ריצת|ריצה|אופניים|טקס|הלוויה|הלויה|פסטיבל|הופעה|משחק|אצטדיון|מצעד|תהלוכ|הקפות|יום הזיכרון|יום הזכרון|יום העצמאות|ל"ג בעומר|לג בעומר|ביקור|כנס|אירוע|חגיגות|הדלקת|יריד|קרנבל|אדלאידע|עדלאידע|הילולה|הילולת|עלייה לקבר|תפילה המונית'),
+    ('event', 'אירועים', r'מרתון|מירוץ|מרוץ|ריצת|ריצה|אופניים|טקס|הלוויה|הלויה|פסטיבל|הופעה|משחק|אצטדיון|מצעד|תהלוכ|הקפות|יום הזיכרון|יום הזכרון|יום העצמאות|ל"ג בעומר|לג בעומר|ביקור|(?<![א-ת])(?:[בהולמש]|וב|ול|וה)?כנס(?:ים)?(?![א-ת])|הכנסת ספר תורה|אירוע|חגיגות|הדלקת|יריד|קרנבל|אדלאידע|עדלאידע|הילולה|הילולת|עלייה לקבר|תפילה המונית'),
     ('accident', 'תאונה', r'תאונ'),
     ('stuck', 'רכב תקוע או חסימה', r'תקוע|תקועה|נתקע|חסימת רכבים|רכב חוסם|משאית'),
     ('weather', 'מזג אוויר', r'הצפ|שיטפון|שטפון|גשם|שלג|סערה|מזג האוויר|מזג אוויר'),
@@ -220,10 +222,18 @@ def estimate_routes(alert, rc_routes, stops):
     # סוג ההודעה קובע את הדרך: בלי הוראות נסיעה — אין מה לנתב, ואומרים למה (רק תחנות / דילוג)
     alert['_tpl'] = AR.template(desc, paras)
     why = {}
+    # קווים שהמסלול שלהם מקוצר ("יסיים בתחנה X" / "יתחיל מתחנה Y") — אין עקיפה לחפש
+    short = AR.short_lines(desc)
+
+    def is_short(r):   # 78א כשכתוב 78, כמו בפסקאות; "1-2" — רק לכיוון 2 של קו 1
+        ns = {r['num'], re.sub(r'[א-ת]$', '', r['num'])}
+        d = (r.get('rd') or '').split('-')[1:2]
+        return bool((ns | {f'{n}-{d[0]}' for n in ns if d} | {'*'}) & short)
     if not paras:
         for r in rc_routes:
             r['est'] = None
             r['why'] = 'relocate' if re.search(RELOCATE, desc + (alert.get('header') or {}).get('he', '')) else \
+                'short' if is_short(r) else \
                 {'skip': 'skip', 'stops': 'stops-only'}.get(alert['_tpl'], 'no-text')
         return 'no-text'
     # אזור הניתוב: הקטע המבוטל של כל הקווים + כ-1 ק"מ (עקיפות ארוכות, כמו ברחובות ראשון לציון)
@@ -268,9 +278,22 @@ def estimate_routes(alert, rc_routes, stops):
             continue
         cand = [p for p in paras if not p['lines'] or r['num'] in p['lines']]
         # "78" בהודעה ו-78א במפה, או "6מ'" בהודעה ו-6 במפה — אותו קו, כשאין לו פסקה משלו
+        # (אבל לא פסקה של 72א לקו 72, כשגם 72א בהודעה)
         if not cand:
             base = re.sub(r'[א-ת]$', '', r['num'])
-            cand = [p for p in paras if any(re.sub(r'[א-ת]$', '', x) == base for x in p['lines'])]
+            nums = {x['num'] for x in rc_routes}
+            cand = [p for p in paras if any(re.sub(r'[א-ת]$', '', x) == base and not (x != base and x in nums) for x in p['lines'])]
+        # "לקו 4-3" — רק לכיוון 3 של קו 4
+        rdir = (r.get('rd') or '').split('-')[1:2]
+        b0 = re.sub(r'[א-ת]$', '', r['num'])
+        cand = [p for p in cand if (p.get('dnum') or {}).get(r['num'], (p.get('dnum') or {}).get(b0)) in (None, *rdir)]
+        # קו שכתוב במפורש שהוא מקוצר, ואין לו פסקה עם המספר שלו — לא מקבל עקיפה של פסקה בלי מספר קו
+        # (קו 297 בטכניון קיבל את המסלול של 796/774, 25.10). קו 50 שם: כיוון אחד מקוצר, לשני יש פסקה משלו.
+        # '*' (קיצור בלי מספר) לא עוצר — אחרת כל הקווים בהודעה נעצרים
+        ns = {r['num'], b0}
+        if ((ns | {f'{n}-{d}' for n in ns for d in rdir}) & (short - {'*'})) and not any(p['lines'] for p in cand):
+            r['why'] = 'short'
+            continue
         # כמה פסקאות לאותו קו (כיוון הלוך וכיוון חזור). קודם לפי התחנות המבוטלות שכתובות מתחת לכל פסקה —
         # של הכיוון שלה בלבד (בצד השני של הרחוב יש תחנה אחרת), גם כשהשם בכיוון לא דומה ליעד ("לכיוון
         # רידינג" — קו 2 לנווה דן, תל אביב 20.10). רק כשאין תחנות כאלה — "לכיוון X" / "מכיוון X" מול היעד
@@ -313,8 +336,27 @@ def estimate_routes(alert, rc_routes, stops):
             r['est'], r['why'] = best, 'ok'
         elif not cand:
             r['why'] = 'no-text'   # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים")
+            if is_short(r):
+                r['why'] = 'short'
+            # "קו 43 ישנה את מסלולו… וידלג על תחנה" — כשלקו אחר בהודעה יש הוראה
+            elif re.search(rf'(?<!\d){re.escape(r["num"])}(?![\dא-ת])[^\n]*ידלג', desc):
+                r['why'] = 'skip'
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
+
+
+def text_lines(desc):
+    """מספרי קווים שכתובים בנוסח ולא תמיד ברשימה של המקור: רשימה מפורשת ("קווים מושפעים: 680, 690",
+    "שינוי מסלול בקוים: …") וכותרות הפסקאות — לא כל מספר בטקסט (תאריך, שעה, כביש, מק"ט)."""
+    out = set()
+    for line in AR._logical_lines(desc):
+        m = re.search(r'קווים מושפעים|הקווים הבאים|שינוי (?:ה)?מסלול(?:ים)? (?:ב|ל)קו(?:ו?ים|ו?י)?', line)
+        if m:
+            tail = re.sub(r'כביש\s*\d+', ' ', line[m.end():])
+            out |= set(re.findall(r'(?<![\d/:.\-])\d{1,3}[א-ת]?(?![\d/:.\-א-ת])', tail))
+    for p in AR.parse(desc):
+        out |= p['lines']
+    return out
 
 
 def text_new_stops(desc):
@@ -496,7 +538,7 @@ _GENERIC = set("עבודות עבודה עבודת יום לילה תשתית ת
                "הסדרי תנועה חסימת חסימה רציפה סגירת אירוע אירועי מקומי עקב ימים בין החל תחנה תחנות העתקת ביטול "
                "זמני זמנית שינוי שינויים מסלול מסלולים קווים קו כביש צומת כיכר מחלף תאונה עומסים כבדים צירים סמוכים "
                "צפון דרום מזרח מערב ראשון שני שלישי רביעי חמישי שישי מבוטלת מבוטלות הוספת עתידיות "
-               "ריבוי מבקרים מועדים מיוחדים בזמן לצפון לדרום למזרח למערב מצפון מדרום".split())
+               "ריבוי מבקרים מועדים מיוחדים בזמן לצפון לדרום למזרח למערב מצפון מדרום תאריך תאריכים".split())
 
 
 # מילים שמופיעות בשמות של כמה רחובות שונים ("המלך ג'ורג'", "דוד המלך", "שאול המלך") — לבד הן לא מספיקות
@@ -688,6 +730,13 @@ def archive_temp(alerts, now_ts, merged=()):
 
 
 # ------------------------------------------------------------------ main
+def drop_rc(f):
+    try:
+        os.remove(f)
+    except FileNotFoundError:
+        pass
+
+
 def main():
     os.makedirs(f'{OUT}/rc', exist_ok=True)
     try:
@@ -712,7 +761,6 @@ def main():
                                      a.get('added_stop_ids'), a.get('removed_stop_ids'), a.get('relevant_route_ids')],
                                     ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:12]
         cause = cause_of(he(a.get('header')), he(a.get('description')))
-        report['causes'][cause] = report['causes'].get(cause, 0) + 1
         st = state.get(aid) or {}
         lines = []
         for ag, pks in (a.get('relevant_lines') or {}).items():
@@ -727,8 +775,9 @@ def main():
         # נמשך שוב: התראה חדשה או שהשתנתה, מפה שלא נשמרה, חישוב שלא הסתיים (נגמר הזמן / מפת הרחובות
         # לא ענתה) — אחרת הוא נשאר כך עד שנוסח ההודעה ישתנה — ו"לא נמצא" אחרי שקריאת הנוסח השתפרה
         # (כל התראה עם מפה, גם כשחלק מהקווים כבר קיבלו מסלול — אילת 19.10: 3 מתוך 11 נשארו מגרסה ישנה)
-        redo = (st.get('status') in ('osm', 'time')
-                or (st.get('map') and st.get('pv') != PARSE_V))
+        # (fetch / gtfs — משיכת המסלולים או קובץ התחנות נכשלו בריצה הקודמת)
+        redo = (st.get('status') in ('osm', 'time', 'fetch', 'gtfs')
+                or (st.get('map') and st.get('pv') != PARSE_V and not PARSE_LOCK))
         if has_map and (st.get('h') != h or not os.path.exists(rc_file) or redo) and left() > 60:
             rc = get_json(f'{SRC}/api/get_route_changes?id={urllib.parse.quote(aid)}')
             time.sleep(2)
@@ -736,9 +785,15 @@ def main():
                 if stops is None:
                     stops = stop_names()
                 rc = history_rc(a, lines, he(a.get('description')), stops) or rc
-            if rc and rc.get('route_changes'):
-                if stops is None:
-                    stops = stop_names()
+            if rc and rc.get('route_changes') and stops is None:
+                stops = stop_names()
+            if rc and rc.get('route_changes') and not stops:
+                # קובץ התחנות לא נמשך (S3 לא ענה) — לא שומרים מפה בלי שמות ומק"טים. המפה הקודמת נשארת,
+                # ונמשך שוב בריצה הבאה
+                print(f'::warning::הקו המודיע: GTFS לא נמשך — ההתראה {aid} לא חושבה מחדש', file=sys.stderr)
+                st = dict(st, status='gtfs') if os.path.exists(rc_file) else \
+                    {'h': h, 'map': False, 'status': 'gtfs', 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
+            elif rc and rc.get('route_changes'):
                 rmset = set(a.get('removed_stop_ids') or [])
                 routes = []
                 used = set()
@@ -779,7 +834,6 @@ def main():
                 if status == 'time':
                     for r in routes:
                         r['est'], r['why'] = None, 'time'
-                report['route'][status] = report['route'].get(status, 0) + 1
                 sfm = rc.get('stops_for_map') or {}
                 out_stops = {}
                 for s in used:
@@ -822,15 +876,20 @@ def main():
                     r['shape'] = [[p[0], p[1]] for p in r['shape']]
                     r.pop('cut', None)
                 tpl = a.pop('_tpl', None)
-                if tpl:
-                    report.setdefault('tpl', {}).setdefault(tpl, {})
-                    report['tpl'][tpl][status] = report['tpl'][tpl].get(status, 0) + 1
                 json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status, 'tpl': tpl, 'xadd': xadd},
                           open(rc_file, 'w'), ensure_ascii=False, separators=(',', ':'))
                 st = {'h': h, 'map': True, 'status': status, 'pv': PARSE_V, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
+            elif rc is None and st.get('h') == h and os.path.exists(rc_file):
+                # המשיכה נכשלה, הנוסח לא השתנה — המפה הקודמת נשארת, ונמשך שוב בריצה הבאה
+                st = dict(st, status='fetch')
             else:
+                # אין מפה לנוסח הזה (או שהמשיכה נכשלה אחרי שהנוסח השתנה) — מפה ישנה לא נשארת
+                drop_rc(rc_file)
                 st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
+                if rc is None:
+                    st['status'] = 'fetch'
         elif not has_map:
+            drop_rc(rc_file)
             st = {'h': h, 'map': False, 'first': st.get('first') or datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')}
         state[aid] = st
         # הקווים ברשומה: מהמפה אם יש (מק"ט-כיוון-חלופה ויעד), אחרת מרשימת הקווים של ההתראה
@@ -850,6 +909,9 @@ def main():
             for n, mk in lines:
                 if mk:
                     by_rd.setdefault(str(mk), []).append(aid)
+        # קווים שכתובים בנוסח וחסרים ברשימה (בלי מק"ט — לחיפוש)
+        have = {str(x[0]) for x in rlines}
+        rlines += [[n, '', '', False] for n in sorted(text_lines(he(a.get('description'))) - have)]
         dep = []
         for ag, per in (a.get('departure_changes') or {}).items():
             for pk, chs in per.items():
@@ -865,7 +927,6 @@ def main():
             except Exception:
                 pass
         kind = 'route' if os.path.exists(rc_file) else ('times' if dep else ('stops' if a.get('removed_stops') else 'info'))
-        report['kinds'][kind] = report['kinds'].get(kind, 0) + 1
         alerts.append({
             'id': aid, 'uc': a.get('use_case'), 'cause': cause, 'kind': kind,
             'h': he(a.get('header')), 'd': he(a.get('description')),
@@ -899,6 +960,26 @@ def main():
     json.dump(state, open(f'{OUT}/state.json', 'w'), separators=(',', ':'), sort_keys=True)
     report['gen'] = now
     report['n'] = len(alerts)
+    # הסיכום לפי המצב הסופי (אחרי האיחוד והניקוי), לא רק מה שחושב בריצה הזו
+    report['causes'], report['kinds'], report['route'], report['tpl'] = {}, {}, {}, {}
+    for x in alerts:
+        report['causes'][x['cause']] = report['causes'].get(x['cause'], 0) + 1
+        report['kinds'][x['kind']] = report['kinds'].get(x['kind'], 0) + 1
+    for f in glob.glob(f'{OUT}/rc/*.json'):
+        try:
+            rcj = json.load(open(f))
+        except Exception:
+            continue
+        s, t = rcj.get('status') or '', rcj.get('tpl')
+        report['route'][s] = report['route'].get(s, 0) + 1
+        if t:
+            report['tpl'].setdefault(t, {})
+            report['tpl'][t][s] = report['tpl'][t].get(s, 0) + 1
+    # התראות שהמפה שלהן לא חושבה מחדש בריצה הזו (משיכה / GTFS נכשלו) — ייבדקו שוב בריצה הבאה
+    report['fail'] = {}
+    for x in state.values():
+        if x.get('status') in ('fetch', 'gtfs'):
+            report['fail'][x['status']] = report['fail'].get(x['status'], 0) + 1
     # התראות שפג תוקפן ועוד לא נמחקו — כבר לא מוצגות בהקו המודיע, אבל קרו: גם הן לארכיון של הקו בזמן
     past = []
     he = lambda o: (o or {}).get('he') or ''   # noqa: E731

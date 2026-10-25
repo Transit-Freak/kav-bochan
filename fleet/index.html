@@ -1713,7 +1713,7 @@ function lineDep(l,c){
   let res='';
   const a=LNT&&times[LNT];
   if(a){
-    const n=a[0], pc=x=>{const p=100*x/(n||1);return p>0&&p<1?p.toFixed(1)+'%':Math.round(p)+'%';};
+    const n=a[0], pc=x=>{const p=100*x/(n||1);return p>0&&p<0.1?'<bdi>&lt;0.1%</bdi>':p>0&&p<1?p.toFixed(1)+'%':Math.round(p)+'%';};
     const br={};for(let i=2;i<a.length;i+=2){const b=lnBrand(D.models[a[i]]);br[b]=(br[b]||0)+a[i+1];}
     const brs=Object.entries(br).sort((x,y)=>y[1]-x[1]), mx=brs.length?brs[0][1]:1;
     const ms=[];for(let i=2;i<a.length;i+=2)ms.push([D.models[a[i]],a[i+1]]);
@@ -1725,16 +1725,19 @@ function lineDep(l,c){
   }
   return `<div class="panel"><p class="ptitle">נסיעה מסוימת — באיזה אוטובוס היא יוצאת?</p>
     ${dirs.length>1?`<div class="filters" style="margin-bottom:8px">${dirs.map((x,i)=>chip(i===di,dl(x),`LNDIR=${i};LNT=null;render()`)).join('')}</div>`:`<p class="note" style="margin:0 0 8px">${dl(dir)}</p>`}
-    <div class="filters">${tk.map(t=>chip(t===LNT,t,`LNT=LNT==='${t}'?null:'${t}';render()`)).join('')}</div>
+    <select onchange="LNT=this.value||null;render()" aria-label="שעת יציאה" style="font:inherit;font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);min-width:170px">
+      <option value="">בחרו שעת יציאה (${tk.length})</option>${tk.map(t=>`<option value="${t}"${t===LNT?' selected':''}>${t} · ${fmt(times[t][0])} פעמים</option>`).join('')}</select>
     ${res||'<p class="note">בחרו שעת יציאה כדי לראות באילו אוטובוסים הנסיעה נעשתה.</p>'}</div>`;
 }
 function lineView(l){
   const [ref,no,lab,tv,tt,ms,el,nw]=l, T=LNBY==='t', tot=T?tt:tv, ix=T?2:1, c=opColor(ref,0);
-  const pc=x=>{const p=100*x/(tot||1);return p>0&&p<1?p.toFixed(1)+'%':Math.round(p)+'%';};
+  const pc=x=>{const p=100*x/(tot||1);return p>0&&p<0.1?'<bdi>&lt;0.1%</bdi>':p>0&&p<1?p.toFixed(1)+'%':Math.round(p)+'%';};
   const models=LINES.models||[];
   const br={};for(const m of ms){const b=lnBrand(models[m[0]]);br[b]=(br[b]||0)+m[ix];}
   const brs=Object.entries(br).sort((a,b)=>b[1]-a[1]);const bmx=brs.length?brs[0][1]:1;
-  const mrows=[...ms].sort((a,b)=>b[ix]-a[ix]);const mmx=mrows.length?mrows[0][ix]:1;
+  // אותו דגם משתי ארצות ייצור (מאן פולין / מאן גרמניה) — שורה אחת; הלחיצה פותחת את הנפוץ מביניהם
+  const mg={};for(const m of ms){const nm=models[m[0]]||'',k=lnModel(nm)||'';const g=mg[k]||(mg[k]=[m[0],0,0,0]);g[1]+=m[1];g[2]+=m[2];if(m[ix]>g[3]){g[0]=m[0];g[3]=m[ix];}}
+  const mrows=Object.values(mg).sort((a,b)=>b[ix]-a[ix]);const mmx=mrows.length?mrows[0][ix]:1;
   const seg=(k,t)=>`<button onclick="LNBY='${k}';render()" style="flex:1;border:0;border-radius:10px;padding:7px;font:inherit;font-weight:800;font-size:12.5px;cursor:pointer;background:${LNBY===k?'var(--ink)':'transparent'};color:${LNBY===k?'#fff':'var(--mut)'}">${t}</button>`;
   const box=(n,t,sub,col)=>`<div style="flex:1;min-width:110px;background:var(--chipbg);border-radius:12px;padding:10px 12px"><b style="font-size:22px${col?';color:'+col:''}">${n}</b><div style="font-size:12.5px;font-weight:700">${t}</div>${sub?`<div style="font-size:11px;color:var(--dim)">${sub}</div>`:''}</div>`;
   const per=LINES.from?`מ-${fd(LINES.from)} עד ${fd(LINES.to)}`:'';

@@ -360,6 +360,125 @@ class PushTests(unittest.TestCase):
         s = AP.SP.parse_sub({'kb': 'f=1|g=rem,temp|c=cabc'})
         self.assertIn('kg_temp', s['groups'])
 
+    def test_merged_then_split_is_not_sent_again(self):
+        import json
+        import tempfile
+        from unittest import mock
+        A = dict(self.A, e='2099-01-01T00:00+02:00')
+        B = dict(A, id='2')
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(AP, 'OUT', d), mock.patch.object(AP, 'DRY', False), \
+                mock.patch.object(AP.SP, 'APP_ID', ''), mock.patch.object(AP.SP, 'API_KEY', ''):
+            def run(alerts, alias):
+                json.dump({'alerts': alerts, 'alias': alias}, open(f'{d}/alerts.json', 'w'))
+                AP.main()
+                return json.load(open(f'{d}/push.json'))['seen']
+            json.dump({'seen': ['1']}, open(f'{d}/push.json', 'w'))   # הפורמט הישן (רשימה)
+            run([A], {})
+            self.assertIn('1', run([dict(B, also=['1'])], {'1': '2'}))   # 1 אוחד לתוך 2 — נשאר בזיכרון
+            import contextlib
+            import io
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                seen = run([A, B], {})                                  # ונפרד — לא חדש
+            self.assertIn('· 0 חדשות', buf.getvalue())
+            self.assertEqual({'1', '2'}, set(seen))
+            self.assertIn('1', run([B], {}))                             # ירד מהפיד לריצה אחת — עדיין זוכרים
+
+
+class PipelineTests(unittest.TestCase):
+    """main() של alerts_fetch בלי רשת: נוסח שהשתנה, משיכה שנכשלה, GTFS שלא נמשך."""
+    RC = {'route_changes': {'דן': {'5_1234': [{'shape': [[34.80, 32.00], [34.81, 32.01]], 'line_number': '5',
+                                                 'route_desc': '1234-1-0', 'deleted_stop_ids': ['s1'],
+                                                 'updated_stop_sequence': [['s1', False]]}]}},
+          'stops_for_map': {'s1': {'stop_lat': 32.005, 'stop_lon': 34.805}}}
+
+    def alert(self, d):
+        return {'id': 1, 'use_case': 5, 'header': {'he': 'עיר - עבודות'}, 'description': {'he': d},
+                'removed_stop_ids': ['s1'], 'relevant_lines': {'דן': ['5_1234']}, 'first_start_time': '2026-10-20T05:00+03:00'}
+
+    def run_main(self, d, rc, stops):
+        import json
+        import os
+        from unittest import mock
+        feed = {'alerts': [self.alert(d)]}
+        get = lambda url, **k: feed if 'all_alerts' in url else rc   # noqa: E731
+        with mock.patch.object(AF, 'get_json', get), mock.patch.object(AF, 'stop_names', lambda: dict(stops)), \
+                mock.patch.object(AF, 'estimate_routes', lambda a, r, s: 'ok'), mock.patch('time.sleep'):
+            AF.main()
+        st = json.load(open(f'{AF.OUT}/state.json'))['1']
+        return st, os.path.exists(f'{AF.OUT}/rc/1.json'), json.load(open(f'{AF.OUT}/alerts.json'))['alerts'][0]
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.old = AF.OUT, AF.TEMP_DIR, AF.LINES_DIR
+        AF.OUT, AF.TEMP_DIR, AF.LINES_DIR = f'{self.tmp.name}/a', f'{self.tmp.name}/t', f'{self.tmp.name}/none'
+        import os
+        os.makedirs(AF.TEMP_DIR)
+
+    def tearDown(self):
+        AF.OUT, AF.TEMP_DIR, AF.LINES_DIR = self.old
+        self.tmp.cleanup()
+
+    def test_changed_text_and_failed_fetch_drops_old_map(self):
+        st, has, a = self.run_main('נוסח א', self.RC, {'s1': ('111', 'תחנה')})
+        self.assertTrue(has and st['map'] and a['kind'] == 'route')
+        st, has, a = self.run_main('נוסח ב', None, {'s1': ('111', 'תחנה')})
+        self.assertFalse(has)
+        self.assertEqual((st['map'], st.get('status')), (False, 'fetch'))
+        self.assertNotEqual(a['kind'], 'route')
+        st, has, a = self.run_main('נוסח ב', self.RC, {'s1': ('111', 'תחנה')})
+        self.assertTrue(has and st['map'])
+
+    def test_report_matches_final_state(self):
+        import json
+        self.run_main('נוסח א', self.RC, {'s1': ('111', 'תחנה')})
+        self.run_main('נוסח א', self.RC, {'s1': ('111', 'תחנה')})   # בלי חישוב — הסיכום עדיין מלא
+        r = json.load(open(f'{AF.OUT}/report.json'))
+        self.assertEqual(sum(r['kinds'].values()), r['n'])
+        self.assertEqual(sum(r['causes'].values()), r['n'])
+        self.assertEqual(r['route'], {'ok': 1})
+
+    def test_failed_fetch_same_text_keeps_map(self):
+        self.run_main('נוסח א', self.RC, {'s1': ('111', 'תחנה')})
+        import json
+        f = f'{AF.OUT}/state.json'
+        s = json.load(open(f))
+        s['1']['pv'] = -1   # קריאת הנוסח השתנתה — מחשבים שוב
+        json.dump(s, open(f, 'w'))
+        st, has, _ = self.run_main('נוסח א', None, {})
+        self.assertTrue(has and st['map'])
+        self.assertEqual(st['status'], 'fetch')
+
+    def test_parse_lock_keeps_existing_maps(self):
+        import json
+        from unittest import mock
+        self.run_main('נוסח א', self.RC, {'s1': ('111', 'תחנה')})
+        f = f'{AF.OUT}/state.json'
+        s = json.load(open(f))
+        s['1']['pv'] = -1
+        json.dump(s, open(f, 'w'))
+        with mock.patch.object(AF, 'PARSE_LOCK', True):
+            st, has, _ = self.run_main('נוסח א', None, {})   # לא נמשך בכלל — אחרת היה status=fetch
+        self.assertEqual((st['pv'], st['status']), (-1, 'ok'))
+
+    def test_gtfs_failure_keeps_previous_map_and_retries(self):
+        import json
+        self.run_main('נוסח א', self.RC, {'s1': ('111', 'תחנה')})
+        before = open(f'{AF.OUT}/rc/1.json').read()
+        st, has, _ = self.run_main('נוסח ב', self.RC, {})
+        self.assertTrue(has)
+        self.assertEqual(open(f'{AF.OUT}/rc/1.json').read(), before)
+        self.assertEqual(st['status'], 'gtfs')
+        st, has, _ = self.run_main('נוסח ב', self.RC, {'s1': ('111', 'תחנה')})
+        self.assertEqual(st['status'], 'ok')
+        self.assertEqual(json.load(open(f'{AF.OUT}/rc/1.json'))['stops']['s1'][2], '111')
+        # בלי תחנות ובלי מפה קודמת — לא נשמרת מפה פגומה
+        self.tearDown(); self.setUp()
+        st, has, _ = self.run_main('נוסח א', self.RC, {})
+        self.assertFalse(has)
+        self.assertEqual((st['map'], st['status']), (False, 'gtfs'))
+
 
 if __name__ == '__main__':
     unittest.main()

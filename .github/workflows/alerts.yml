@@ -108,9 +108,20 @@ jobs:
           osmium tags-filter il.osm.pbf w/highway -o il-hw.osm.pbf --overwrite --no-progress
           ls -la il.osm.pbf il-hw.osm.pbf
 
+      # לפני החישוב: קריאת הנוסח מול כל ההודעות האמיתיות (tools/testdata) ובדיקות היחידה. אם נכשלה —
+      # מושכים רק התראות חדשות ושהשתנו, בלי לחשב שוב את כל הקיימות (PARSE_LOCK), והריצה מסומנת כתקלה בסוף.
+      # בלי Invariants: הוא בודק את המפות של הריצה הקודמת, והודעה חדשה מהלילה הייתה עוצרת את החישוב
+      - name: בדיקת רגרסיה — הקו המודיע
+        id: reg
+        continue-on-error: true
+        run: python3 tools/test_alerts_regression.py ParseSnapshot Fixtures && python3 tests/test_alerts.py
+
       - name: משיכת ההתראות והמסלול המשוער
         # 40 דקות: אחרי שיפור בקריאת הנוסח כל ההודעות עם מפה מחושבות שוב (שלמה 19.10: 22 נשארו "עוד לא חושב")
-        env: { MAX_MIN: '40', OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
+        env:
+          MAX_MIN: '40'
+          OSM_PBF: /tmp/osrm/il-hw.osm.pbf
+          PARSE_LOCK: ${{ steps.reg.outcome == 'failure' && '1' || '0' }}
         run: python3 tools/alerts_fetch.py
 
       - name: התראות דפדפן על שינויים חדשים
@@ -135,3 +146,8 @@ jobs:
             echo "push rejected — retry $i"; sleep 15
           done
           echo "הדחיפה נכשלה"; exit 1
+
+      # הנתונים נשמרו; הריצה נכשלת כדי שתגיע הודעה למייל (alert-failures.yml)
+      - name: תוצאת בדיקת הרגרסיה
+        if: steps.reg.outcome == 'failure'
+        run: echo "::error::בדיקת הרגרסיה של הקו המודיע נכשלה — ההתראות הקיימות לא חושבו מחדש"; exit 1
