@@ -26,7 +26,7 @@ jobs:
             return out};
           const hoods=await all(34);
           console.log('HOODS',JSON.stringify(hoods.map(f=>f.attributes)));
-          const ch=hoods.filter(f=>/חב"?ד|חבד|חב״ד/.test(JSON.stringify(f.attributes)));
+          const ch=hoods.filter(f=>/^חב["״]?ד$/.test(String(f.attributes.NAME||'').trim()));
           console.log('CHABAD',ch.length,JSON.stringify(ch.map(f=>f.attributes)));
           const inRing=(x,y,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
           const inside=(x,y)=>ch.some(f=>{let c=false;for(const r of (f.geometry||{}).rings||[])if(inRing(x,y,r))c=!c;return c});
@@ -41,4 +41,4 @@ jobs:
           JS
           node p.js
           git config user.name probe; git config user.email probe@users.noreply.github.com
-          git add out/chabad.json && git commit -qm "probe: תוצאה" && git push -q origin HEAD:probe-gisnet || true
+          git add --sparse out/chabad.json && git commit -qm "probe: תוצאה" && git push -q origin HEAD:probe-gisnet || true
