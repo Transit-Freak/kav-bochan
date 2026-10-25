@@ -39,10 +39,14 @@ WATCHED = {
     'update-weekly': 'רענון יומי של התחנות',
     'update-monthly': 'רענון חודשי של התחנות',
     'pages-deploy': 'פרסום האתר',
+    'alerts': 'הקו המודיע — שינויי השירות הזמניים',
 }
 
 # (pattern in the log, explanation). The first match wins, so specific causes come first.
 CAUSES = [
+    (r'בדיקת הרגרסיה של הקו המודיע נכשלה',
+     'שינוי בקוד של קריאת הנוסח שינה הודעות שלא היו אמורות להשתנות (tools/test_alerts_regression.py). '
+     'התראות חדשות נמשכו כרגיל, אבל ההתראות הקיימות לא חושבו מחדש עד שהבדיקה תעבור.'),
     (r'Failed to connect to [\w.-]*gov\.il|Could not resolve host: [\w.-]*gov\.il|gov\.il.*(Timeout|timed out)',
      'אתר ממשלתי (gov.il) לא ענה לשרת של GitHub. זה קורה מדי פעם — אתרי הממשלה חוסמים או לא עונים לשרתים בחו"ל. '
      'בדרך כלל זה עובר לבד עד הריצה הבאה.'),
@@ -194,6 +198,10 @@ def on_run(run_id):
     title = f'⚠️ תקלה: {WATCHED[name]}'
     jobs = api(f'actions/runs/{run_id}/jobs?per_page=50').get('jobs', [])
     timed_out = is_timeout(run, jobs)
+    # בדיקה שעתית (need) שהחליטה שאין מה למשוך — לא ריצה אמיתית, לא סוגרת תקלה פתוחה (הקו המודיע, מדד הדיוק)
+    if run['conclusion'] == 'success' and any(j.get('name') == 'need' for j in jobs) and \
+            all(j.get('conclusion') == 'skipped' for j in jobs if j.get('name') != 'need'):
+        print(f'{name}: nothing ran'); return
     if run['conclusion'] == 'success':
         resolve(title, f"✅ חזר לעבוד — הריצה של {il_time(run['run_started_at'])} הצליחה.\n\n[הריצה]({run['html_url']})")
         print(f'{name}: success'); return
@@ -220,7 +228,7 @@ def on_run(run_id):
     print(f'{name}: reported in #{n}')
 
 
-def stale_checks(today):
+def stale_checks(today, now=None):
     """(title, problem or None) for the data the site shows."""
     out = []
     yesterday = (today - datetime.timedelta(days=1)).isoformat()
@@ -246,6 +254,15 @@ def stale_checks(today):
                     f'הסריקה האחרונה שנשמרה היא מ-{gen}. שינויים שבוצעו אחריה לא מופיעים באתר.' if gen < yesterday else None))
     except Exception as e:
         out.append(('⚠️ לא מתעדכן: הקו בזמן', f'לא הצלחתי לקרוא את line-history/data/lines.json ({e}).'))
+    # הקו המודיע: שתי משיכות ביום (00:00 ו-17:00 בישראל) — עד 17 שעות בין משיכות, ועוד איחור של GitHub
+    title = '⚠️ לא מתעדכן: הקו המודיע'
+    try:
+        gen = datetime.datetime.fromisoformat(json.load(open('alerts/data/report.json', encoding='utf-8'))['gen'])
+        now = now or datetime.datetime.now(datetime.timezone.utc)
+        out.append((title, f'המשיכה האחרונה שנשמרה היא מ-{il_time(gen.isoformat())}. שינויי שירות חדשים לא מופיעים באתר.'
+                    if now - gen > datetime.timedelta(hours=20) else None))
+    except Exception as e:
+        out.append((title, f'לא הצלחתי לקרוא את alerts/data/report.json ({e}).'))
     return out
 
 

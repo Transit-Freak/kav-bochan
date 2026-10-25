@@ -89,19 +89,27 @@ def main():
     alerts, causes = d.get('alerts') or [], d.get('causes') or {}
     now = datetime.datetime.now(datetime.timezone.utc).timestamp()
     pfile = f'{OUT}/push.json'
+    # seen: מזהה → התאריך האחרון שנראה (גם כמאוחד לתוך הודעה אחרת). נשמר 30 יום אחרי שירד מהפיד —
+    # הודעה שאוחדה ואחר כך נפרדה, או שנעלמה לריצה אחת, לא נשלחת שוב
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     try:
-        seen = set(json.load(open(pfile)).get('seen') or [])
+        seen = json.load(open(pfile)).get('seen') or {}
+        if isinstance(seen, list):
+            seen = dict.fromkeys(seen, today)
         first = False
     except Exception:
-        seen, first = set(), True
-    ids = {a['id'] for a in alerts}
+        seen, first = {}, True
+    ids = {a['id'] for a in alerts} | set(d.get('alias') or {})
     fresh = [a for a in alerts if a['id'] not in seen and a.get('lines') and not (ts(a.get('e')) and ts(a['e']) < now)]
     print(f'{len(alerts)} התראות · {len(fresh)} חדשות עם קווים')
 
     def save():
         if DRY:
             return
-        json.dump({'seen': sorted((seen | {a['id'] for a in fresh}) & ids),
+        old = (datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=30)).isoformat()
+        out = {k: v for k, v in seen.items() if v >= old}
+        out.update(dict.fromkeys(ids & (set(seen) | {x for a in fresh for x in [a['id'], *(a.get('also') or [])]}), today))
+        json.dump({'seen': dict(sorted(out.items())),
                    'at': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='minutes')},
                   open(pfile, 'w'), separators=(',', ':'))
 
