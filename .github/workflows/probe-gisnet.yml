@@ -12,19 +12,18 @@ jobs:
           cat > p.js <<'JS'
           const {chromium}=require('playwright');(async()=>{
           const b=await chromium.launch();const p=await b.newPage();
+          let info=null;
+          p.on('response',async r=>{const u=r.url();if(/k_malachi_Public\/MapServer\?f=json/.test(u)){try{info=JSON.parse(await r.text())}catch(e){}}
+            if(/\/query\?/.test(u)){console.log('PAGEQ',r.status(),u.slice(0,600))}});
+          p.on('request',r=>{if(/\/query\?/.test(r.url()))console.log('HDRS',JSON.stringify(r.headers()))});
           await p.goto('https://v5.gis-net.co.il/v5/K_Malachi',{waitUntil:'networkidle',timeout:90000}).catch(e=>console.log('goto',e.message));
-          await p.waitForTimeout(5000);
+          await p.waitForTimeout(8000);
+          if(info&&info.layers) for(const l of info.layers) console.log('LAYER',l.id,l.name,l.parentLayerId);
           const P='https://v5.gis-net.co.il/proxy/proxy.ashx?http://arcgis005/arcgis/rest/services/K_malachi/k_malachi_Public/MapServer';
-          const get=async(path)=>p.evaluate(async u=>{const r=await fetch(u);return [r.status,await r.text()]},P+path);
-          let [s,t]=await get('?f=json&guid=x');console.log('INFO',s,t.slice(0,300));
-          let info;try{info=JSON.parse(t)}catch(e){[s,t]=await get('?f=json');info=JSON.parse(t)}
-          for(const l of info.layers) console.log('LAYER',l.id,l.name);
-          for(const l of info.layers.filter(l=>/שכונ|מספר|בית|בתים|כתוב/.test(l.name))){
-            const [s2,t2]=await get('/'+l.id+'?f=json');const d=JSON.parse(t2);
-            console.log('FIELDS',l.id,l.name,d.geometryType,JSON.stringify((d.fields||[]).map(f=>[f.name,f.alias])));
-            const [s3,t3]=await get('/'+l.id+'/query?f=json&where=1%3D1&returnGeometry=false&outFields=*&resultRecordCount=3');
-            console.log('SAMPLE',l.id,t3.slice(0,1500));
-          }
+          const get=async(path)=>p.evaluate(async u=>{const r=await fetch(u,{headers:{'X-Requested-With':'XMLHttpRequest'}});return [r.status,await r.text()]},P+path);
+          for(const q of ['/28/query?f=json&where=1%3D1&returnGeometry=false&spatialRel=esriSpatialRelIntersects&outFields=StName&returnDistinctValues=true&orderByFields=StName&resultOffset=0&resultRecordCount=5',
+                          '/28?f=json','/28/query?f=json&where=1%3D1&outFields=*&resultRecordCount=2&returnGeometry=true']){
+            const [s,t]=await get(q);console.log('TRY',s,q.slice(0,60),t.slice(0,800));}
           await b.close()})()
           JS
           node p.js
