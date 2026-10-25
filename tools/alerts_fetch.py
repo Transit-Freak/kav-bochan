@@ -318,9 +318,6 @@ def estimate_routes(alert, rc_routes, stops):
             except Exception as e:   # הנוסח לא תמיד צפוי — לא מפילים את הריצה בגלל הודעה אחת
                 print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
                 res = None
-            # עקיפה של כמה מטרים — לא נמצאה עקיפה (קו 4-3, 3 מ')
-            if res and res['len'] < 20:
-                res = None
             if res:
                 res['_k'] = (-same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
             if res and (best is None or res['_k'] < best['_k']):
