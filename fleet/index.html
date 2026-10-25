@@ -220,6 +220,12 @@
   .mgrid div{padding:7px 12px;border-bottom:1px solid var(--row);min-width:0;overflow-wrap:anywhere}
   .mgrid .k{background:#F8FAFC;font-weight:800;color:var(--mut);white-space:nowrap}
   .mgrid .v2{font-weight:600}
+  .lnrow{display:flex;align-items:center;gap:10px;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:9px 0;font:inherit;color:var(--ink);cursor:pointer;text-align:inherit}
+  .lnrow:first-of-type{border-top:0}
+  .lnno{color:#fff;font-weight:800;border-radius:8px;min-width:44px;text-align:center;padding:3px 8px;font-size:14px}
+  .lnt{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lnc{font-size:12px;color:var(--mut);white-space:nowrap}
+  .yrow.lnm{grid-template-columns:minmax(0,1.3fr) 1fr 52px;margin-bottom:8px}
   .note{font-size:11px;color:var(--dim);font-weight:600;line-height:1.6;margin-top:10px}
   .vttl{font-size:20px;font-weight:900;margin:4px 0 2px}
   .st.chk{background:#D93025;color:#fff}
@@ -285,9 +291,10 @@
     <button class="mode" data-m="plate" hidden>כל הרכבים</button>
     <button class="mode" data-m="moves" hidden>מעברים</button>
     <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
+    <button class="mode" data-m="line" hidden>לפי קו</button>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
-  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 31 · הדף מתעדכן מעצמו</span></details></div>
+  <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 32 · הדף מתעדכן מעצמו</span></details></div>
   <div id="view"><div class="msg">⏳ טוען נתונים…</div></div>
 </div>
 
@@ -317,7 +324,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null, LINES=null, LNSEL=null, LNBY='t', LNDEP={}, LNDIR=0, LNT=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -397,6 +404,7 @@ function home(){
   if(MODE==='type') return typeHome(f);
   if(MODE==='moves') return movesHome();
   if(MODE==='cluster') return clusterHome(f);
+  if(MODE==='line') return lineHome(f);
   if(MODE==='plate'){
     // בלי חיפוש: כל רשימת הרכבים (לא רשימת החברות) — מהחדש שנצפה לישן
     const clean=f.replace(/-/g,'');
@@ -1643,33 +1651,128 @@ function XDL(){
 }
 function go(ref){if(ref!==null)history.pushState({sub:1},'');VIEW=ref===null?{t:'home'}:{t:'op',ref};OPTAB='ov';FSHEET=false;TYPEF=null;KABF=null;RTF=null;STATF=null;YEARF=null;SORTK=null;ARF=null;BTF=null;BSF=null;ELF=null;CHKF=null;LIMIT=200;render();window.scrollTo({top:0});}
 // חץ "אחורה" של הדפדפן מחזיר למסך הבית במקום לצאת מהאתר
-window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
+window.addEventListener('popstate',()=>{VIEW={t:'home'};FSHEET=false;closeMenu();CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';LIMIT=200;render();window.scrollTo({top:0});});
 function render(){
   document.body.classList.toggle('inner',!(MODE==='op'&&VIEW.t==='home'));
   $('#view').innerHTML=crumb()+(VIEW.t==='op'?opView(VIEW.ref):home());
   syncNav();syncUrl();
 }
 
+/* מצב "לפי קו" (שלמה 25.10): אילו אוטובוסים נוסעים בכל קו — לפי נסיעות ולפי רכבים, בשלושת
+   החודשים האחרונים. הנתונים: data/fleet-lines.json (tools/fleet_line_trips.py). שורת קו:
+   [מפעיל, מספר, ערים, רכבים, נסיעות, [[דגם, רכבים, נסיעות]...], [חשמליים: רכבים, נסיעות], [חדשים: רכבים, נסיעות]] */
+async function loadLines(){
+  if(LINES!==null) return;
+  try{const r=await fetch('data/fleet-lines.json',{cache:'no-cache'});LINES=r.ok?await r.json():{lines:[]};}
+  catch(e){LINES={lines:[]};}
+  render();
+}
+const lnId=l=>l[0]+'|'+l[1]+'|'+l[2];
+const lnKey=id=>{const a=String(id).split('|');return [+a[0],a[1],a.slice(2).join('|')];};
+// יצרן מתוך "יצרן ודגם" ברישוי: המילים שלפני הארץ או הדגם הלועזי ("הייגר סין KLQ…" → הייגר)
+const LN_CTRY=new Set(['סין','סי','שבדיה','ספרד','טורקיה','גרמניה','גרמנ','פולין','צרפת','בלגיה','הולנד','ישראל','איטליה','יפן','פורטוגל','אנגליה','הונגריה','צ\'כיה','קוריאה','בריטניה','אוסטריה']);
+function lnBrand(m){
+  const w=[];for(const x of String(m||'').split(/\s+/)){if(!x||/[A-Za-z0-9]/.test(x)||LN_CTRY.has(x))break;w.push(x);}
+  return w.length?w.join(' '):(m||'לא ידוע');
+}
+const lnModel=m=>String(m||'').split(/\s+/).filter(x=>!LN_CTRY.has(x)).join(' ');
+function lineHome(f){
+  if(LINES===null){loadLines();return '<div class="msg">⏳ טוען את הקווים…</div>';}
+  const L=LINES.lines||[];
+  if(!L.length) return '<div class="panel"><div class="empty">הנתונים של הקווים ייבנו בריצת האיסוף הקרובה</div></div>';
+  if(LNSEL){const l=L.find(x=>lnId(x)===LNSEL);if(l)return lineView(l);}
+  const q=f.trim(), per=LINES.from?`מ-${fd(LINES.from)} עד ${fd(LINES.to)}`:'';
+  let hits;
+  if(q){hits=L.filter(l=>l[1].startsWith(q)||l[2].includes(q)||opName(l[0]).includes(q));
+    hits.sort((a,b)=>(a[1]===q?0:1)-(b[1]===q?0:1)||b[4]-a[4]);}
+  else hits=[...L].sort((a,b)=>b[4]-a[4]);
+  const rows=hits.slice(0,LIMIT);
+  return `<div class="panel"><p class="ptitle">${q?`${fmt(hits.length)} קווים`:'הקווים העמוסים ביותר — חיפוש למעלה מוצא כל קו'}</p>
+    ${rows.length?rows.map(l=>`<button class="lnrow" onclick="history.pushState({sub:1},'');LNSEL=${JSON.stringify(lnId(l)).replace(/"/g,'&quot;')};LNDIR=0;LNT=null;render();window.scrollTo({top:0})">
+        <span class="lnno" style="background:${opColor(l[0],0)}">${esc(l[1])}</span><span class="lnt"><b>${esc(opName(l[0]))}</b>${l[2]?' · '+esc(l[2]):''}</span><span class="lnc">${fmt(l[3])} רכבים</span></button>`).join(''):'<div class="empty">לא נמצא קו כזה</div>'}
+    ${hits.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,hits.length-LIMIT))} מתוך ${fmt(hits.length-LIMIT)} שנותרו</button>`:''}
+    ${per?`<p class="note">לפי שידורי האוטובוסים, ${per}.</p>`:''}</div>`;
+}
+// נסיעה מסוימת (שלמה 25.10: "לבחור נסיעה לבדוק"): כיוון ← שעת יציאה ← באילו דגמים היא נעשתה.
+// קובץ קטן לכל מספר קו: data/lines/<מפעיל>-<מספר ב-hex>.json (tools/fleet_line_trips.py)
+async function loadDep(fn){
+  if(LNDEP[fn]!==undefined) return;
+  LNDEP[fn]=null;
+  try{const r=await fetch('data/lines/'+fn,{cache:'no-cache'});LNDEP[fn]=r.ok?await r.json():false;}
+  catch(e){LNDEP[fn]=false;}
+  render();
+}
+function lineDep(l,c){
+  const fn=l[0]+'-'+hex(l[1])+'.json', D=LNDEP[fn];
+  if(D===undefined){loadDep(fn);return '';}
+  if(!D) return '';
+  const dirs=(D.g||{})[lnId(l)]; if(!dirs||!dirs.length) return '';
+  const di=Math.min(LNDIR,dirs.length-1), dir=dirs[di], times=dir[4]||{}, tk=Object.keys(times).sort();
+  const dl=x=>`${esc(x[0]||x[1])} ← ${esc(x[2]||x[3])}${x[2]&&x[3]?` <span style="color:var(--dim);font-weight:500">(${esc(x[3])})</span>`:''}`;
+  const chip=(on,t,fn)=>`<button class="fchip ${on?'on':''}" onclick="${fn}">${t}</button>`;
+  let res='';
+  const a=LNT&&times[LNT];
+  if(a){
+    const n=a[0], pc=x=>{const p=100*x/(n||1);return p>0&&p<1?p.toFixed(1)+'%':Math.round(p)+'%';};
+    const br={};for(let i=2;i<a.length;i+=2){const b=lnBrand(D.models[a[i]]);br[b]=(br[b]||0)+a[i+1];}
+    const brs=Object.entries(br).sort((x,y)=>y[1]-x[1]), mx=brs.length?brs[0][1]:1;
+    const ms=[];for(let i=2;i<a.length;i+=2)ms.push([D.models[a[i]],a[i+1]]);
+    res=`<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+      <p class="ptitle">הנסיעה של ${esc(LNT)} · נצפתה ${fmt(n)} פעמים</p>
+      ${brs.map(([b,k])=>`<div class="yrow lbl2"><span style="font-weight:700">${esc(b)}</span><div class="ybar"><i style="width:${Math.max(3,k/mx*100)}%;background:${c}"></i></div><span class="c">${pc(k)}</span></div>`).join('')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><div style="flex:1;min-width:110px;background:var(--chipbg);border-radius:12px;padding:10px 12px"><b style="font-size:22px;color:var(--ok)">${pc(a[1])}</b><div style="font-size:12.5px;font-weight:700">באוטובוס חשמלי</div></div></div>
+      <p class="note">הדגמים: ${ms.map(([m,k])=>esc(lnModel(m)||'לא ידוע')+' '+pc(k)).join(' · ')}</p></div>`;
+  }
+  return `<div class="panel"><p class="ptitle">נסיעה מסוימת — באיזה אוטובוס היא יוצאת?</p>
+    ${dirs.length>1?`<div class="filters" style="margin-bottom:8px">${dirs.map((x,i)=>chip(i===di,dl(x),`LNDIR=${i};LNT=null;render()`)).join('')}</div>`:`<p class="note" style="margin:0 0 8px">${dl(dir)}</p>`}
+    <div class="filters">${tk.map(t=>chip(t===LNT,t,`LNT=LNT==='${t}'?null:'${t}';render()`)).join('')}</div>
+    ${res||'<p class="note">בחרו שעת יציאה כדי לראות באילו אוטובוסים הנסיעה נעשתה.</p>'}</div>`;
+}
+function lineView(l){
+  const [ref,no,lab,tv,tt,ms,el,nw]=l, T=LNBY==='t', tot=T?tt:tv, ix=T?2:1, c=opColor(ref,0);
+  const pc=x=>{const p=100*x/(tot||1);return p>0&&p<1?p.toFixed(1)+'%':Math.round(p)+'%';};
+  const models=LINES.models||[];
+  const br={};for(const m of ms){const b=lnBrand(models[m[0]]);br[b]=(br[b]||0)+m[ix];}
+  const brs=Object.entries(br).sort((a,b)=>b[1]-a[1]);const bmx=brs.length?brs[0][1]:1;
+  const mrows=[...ms].sort((a,b)=>b[ix]-a[ix]);const mmx=mrows.length?mrows[0][ix]:1;
+  const seg=(k,t)=>`<button onclick="LNBY='${k}';render()" style="flex:1;border:0;border-radius:10px;padding:7px;font:inherit;font-weight:800;font-size:12.5px;cursor:pointer;background:${LNBY===k?'var(--ink)':'transparent'};color:${LNBY===k?'#fff':'var(--mut)'}">${t}</button>`;
+  const box=(n,t,sub,col)=>`<div style="flex:1;min-width:110px;background:var(--chipbg);border-radius:12px;padding:10px 12px"><b style="font-size:22px${col?';color:'+col:''}">${n}</b><div style="font-size:12.5px;font-weight:700">${t}</div>${sub?`<div style="font-size:11px;color:var(--dim)">${sub}</div>`:''}</div>`;
+  const per=LINES.from?`מ-${fd(LINES.from)} עד ${fd(LINES.to)}`:'';
+  const openM=m=>`history.pushState({sub:1},'');MODE='type';TYPESEL=${JSON.stringify(m).replace(/"/g,'&quot;')};LNSEL=null;VIEW={t:'home'};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})`;
+  return `<div class="ophead" style="background:${c}">
+    <div><h2>קו ${esc(no)} · ${esc(opName(ref))}</h2><div class="sub2">${lab?esc(lab)+' · ':''}${fmt(tt)} נסיעות של ${fmt(tv)} אוטובוסים שונים${per?' · '+per:''}</div></div>
+  </div>
+  <div class="panel"><p class="ptitle">על איזה אוטובוס תעלה?</p>
+    <div style="display:flex;gap:4px;background:var(--chipbg);border-radius:12px;padding:4px;margin-bottom:10px">${seg('t','לפי נסיעות')}${seg('v','לפי רכבים')}</div>
+    ${brs.map(([b,n])=>`<div class="yrow lbl2"><span style="font-weight:700">${esc(b)}</span><div class="ybar"><i style="width:${Math.max(3,n/bmx*100)}%;background:${c}"></i></div><span class="c">${pc(n)}</span></div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${box(pc(el[T?1:0]),'חשמליים',fmt(el[0])+' רכבים','var(--ok)')}${box(pc(nw[T?1:0]),'חדשים','שנתון '+LINES.newy+' ואילך')}</div>
+    <p class="note">${T?'מתוך כל הנסיעות בקו — כמה מהן נעשו בכל סוג.':'כמה אוטובוסים שונים מכל סוג נראו בקו (גם רכב שנסע בו פעם אחת נספר).'}</p></div>
+  ${lineDep(l,c)}
+  <div class="panel"><p class="ptitle">הדגמים בקו — לחיצה פותחת את הדגם</p>
+    ${mrows.map(m=>{const nm=models[m[0]]||'';return `<div class="yrow lnm"${nm?` style="cursor:pointer" onclick="${openM(nm)}"`:''}><span style="font-weight:700" title="${esc(nm||'לא ידוע')}">${esc(lnModel(nm)||'לא ידוע')}</span><div class="ybar"><i style="width:${Math.max(3,m[ix]/mmx*100)}%;background:#1B7A3D"></i></div><span class="c">${T?pc(m[2]):fmt(m[1])}</span></div>`;}).join('')}</div>`;
+}
+
 /* ── ניווט (שלמה 08.10: "האתר עמוס מדי וקשה לנווט בו") ──
    חיפוש אחד שמציע חברה, עיר, דגם או רכב; ארבע לשוניות; שאר הכלים בתפריט "⋯";
    שורת "איפה אני" בדפים הפנימיים; ודף החברה בלשוניות סקירה / רכבים / שנתונים. */
-const MODE_NAME={op:'חברות',city:'ערים',type:'דגמים',plate:'כל הרכבים',moves:'מעברים',cluster:'אשכול ביום'};
-const EXTRA_MODES=['plate','moves','cluster'];
+const MODE_NAME={op:'חברות',city:'ערים',type:'דגמים',plate:'כל הרכבים',moves:'מעברים',cluster:'אשכול ביום',line:'לפי קו'};
+const EXTRA_MODES=['plate','moves','cluster','line'];
 let OPTAB='ov', FSHEET=false, SUG=[], SUGI=-1, MODELS=null;
-const phText=()=>MODE==='moves'?'סינון לפי מספר רכב או דגם…':MODE==='cluster'?'חיפוש אשכול או עיר…':MODE==='plate'?'חיפוש מספר רכב…':'חיפוש: חברה, עיר, דגם או מספר רכב';
+const phText=()=>MODE==='line'?'חיפוש מספר קו, עיר או חברה…':MODE==='moves'?'סינון לפי מספר רכב או דגם…':MODE==='cluster'?'חיפוש אשכול או עיר…':MODE==='plate'?'חיפוש מספר רכב…':'חיפוש: חברה, עיר, דגם או מספר רכב';
 function syncNav(){
   document.querySelectorAll('.nav .mode').forEach(x=>{x.classList.toggle('on',x.dataset.m===MODE);if(EXTRA_MODES.includes(x.dataset.m))x.hidden=x.dataset.m!==MODE;});
   $('#q').placeholder=phText();
 }
 function setMode(m){closeMenu();closeSugg();const b=document.querySelector('.mode[data-m="'+m+'"]');if(b)b.click();window.scrollTo({top:0});}
 // חזרה לרשימה של הלשונית (בלי history.back — מי שנכנס מקישור משותף לא ייצא מהאתר)
-function upTo(){VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';FSHEET=false;LIMIT=200;render();window.scrollTo({top:0});}
+function upTo(){VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';FSHEET=false;LIMIT=200;render();window.scrollTo({top:0});}
 function crumb(){
   const L=(t,fn)=>`<button onclick="${fn}">${t}</button>`;
   let path=null;
   if(VIEW.t==='op'){const o=op(VIEW.ref);path=[L('חברות','upTo()'),`<b>${esc(o?o.name:'')}</b>`];}
   else if(MODE==='city'&&CITYSEL)path=[L('ערים','upTo()'),`<b>${esc(CITYSEL)}</b>`];
   else if(MODE==='type'&&TYPESEL)path=[L('דגמים','upTo()'),`<b>${esc(TYPESEL)}</b>`];
+  else if(MODE==='line'&&LNSEL&&LINES&&LINES.lines)path=[L('לפי קו','upTo()'),`<b>קו ${esc(lnKey(LNSEL)[1])} · ${esc(opName(lnKey(LNSEL)[0]))}</b>`];
   else if(EXTRA_MODES.includes(MODE))path=[`<b>${MODE_NAME[MODE]}</b>`];
   return path?`<nav class="crumb" aria-label="איפה אני">${[L('צי הרכבים',"setMode('op')"),...path].join(' ‹ ')}</nav>`:'';
 }
@@ -1685,6 +1788,7 @@ function MENU(){
   sheet('עוד',
     it('מעברים','מאיפה לאן עברו רכבים — בין חברות ובין ערים',"setMode('moves')")+
     it('אשכול ביום','כמה אוטובוסים עבדו בכל יום, לפי אשכול מכרז ועיר',"setMode('cluster')")+
+    it('לפי קו','אילו אוטובוסים נוסעים בכל קו, ומה הסיכוי לכל דגם',"setMode('line')")+
     it('כל הרכבים','רשימת כל הרכבים במעקב, לפי מספר רכב',"setMode('plate')")+
     it('⬇ הורדה לאקסל','הטבלה של המסך הנוכחי, כקובץ שנפתח באקסל',"closeMenu();XDL()")+
     it('🔗 שיתוף','קישור שפותח בדיוק את המסך הזה',"closeMenu();SHARE()")+
@@ -1775,6 +1879,10 @@ function stateParams(){
   if(MVK)p.set('mk',MVK);
   if(!MVREAL)p.set('mr','0');
   if(MVD)p.set('md',MVD);
+  if(MODE==='line'&&LNSEL)p.set('ln',LNSEL);
+  if(MODE==='line'&&LNBY!=='t')p.set('lb',LNBY);
+  if(MODE==='line'&&LNSEL&&LNDIR)p.set('ld',LNDIR);
+  if(MODE==='line'&&LNSEL&&LNT)p.set('lt',LNT);
   return p;
 }
 function syncUrl(){
@@ -1831,6 +1939,10 @@ function applyHash(){
     if(gv('mk'))MVK=gv('mk');
     if(gv('mr')==='0')MVREAL=0;
     if(gv('md'))MVD=gv('md');
+    if(gv('ln'))LNSEL=gv('ln');
+    if(gv('lb')==='v')LNBY='v';
+    if(gv('ld'))LNDIR=+gv('ld')||0;
+    if(gv('lt'))LNT=gv('lt');
     if(gv('tab'))OPTAB=gv('tab');
     else if(TYPEF||ARF||BTF||BSF||ELF!==null||STATF!==null||KABF||RTF||CHKF)OPTAB='veh';
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
@@ -1838,9 +1950,9 @@ function applyHash(){
 }
 document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
   MODE=b.dataset.m;closeSugg();if(Q){Q='';$('#q').value='';}
-  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;LIMIT=200;render();
+  VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;LIMIT=200;render();
 }));
-$('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LIMIT=200;render();suggest();});
+$('#q').addEventListener('input',e=>{Q=e.target.value;VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;LIMIT=200;render();suggest();});
 
 fetch('data/fleet.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw {nd:r.status===404};return r.json();})
 .then(d=>{d.operators=d.operators.filter(o=>![2,20,21].includes(o.ref)&&!/^מפעיל \d+$/.test(o.name));DATA=d;OFF=d.v===2?1:0;buildX();applyHash();render();

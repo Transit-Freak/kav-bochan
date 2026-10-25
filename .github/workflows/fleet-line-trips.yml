@@ -1,0 +1,62 @@
+name: fleet-line-trips
+
+# צי הרכבים — "לפי קו" (שלמה 25.10): כמה נסיעות כל רכב עשה בכל קו, בשלושת החודשים האחרונים.
+# כל לילה נספר אתמול (אחרי הסריקה הלילית של צי הרכבים). המילוי הראשון של שלושת החודשים
+# ארוך מריצה אחת — chain=true מזניק את ההמשך עד שהחלון מלא (רק אם הריצה התקדמה —
+# כשדאטאבוס לא עונה, לא מזניקים שוב ושוב; הלילה הבא ממשיך).
+
+on:
+  schedule:
+    - cron: '10 4 * * *'   # 04:10 UTC = ‏06:10–07:10 בבוקר בישראל
+  workflow_dispatch:
+    inputs:
+      max_min:
+        description: 'עצירה נקייה אחרי X דקות'
+        required: false
+        default: '300'
+      chain:
+        description: 'שרשור — בסיום, הזנקת ההמשך עד שהחלון מלא'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: fleet-line-trips
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: ספירת נסיעות לכל קו
+        id: scan
+        env:
+          MAX_MIN: ${{ github.event.inputs.max_min || '120' }}
+          PAUSE: '0.3'   # לא להעמיס על דאטאבוס
+        run: python3 tools/fleet_line_trips.py
+
+      - name: commit
+        run: |
+          git config user.name 'fleet-bot'
+          git config user.email 'noreply@github.com'
+          git add fleet/data/fleet-line-trips-state.json.gz fleet/data/fleet-lines.json fleet/data/lines
+          git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
+          git commit -m 'data: fleet — נסיעות לפי קו'
+          for i in 1 2 3 4; do git pull --rebase -X theirs origin main && git push && exit 0; sleep 10; done
+          exit 1
+
+      - name: המשך מילוי (chain)
+        if: github.event.inputs.chain == 'true' && steps.scan.outputs.left != '0' && steps.scan.outputs.scanned != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "נשארו ${{ steps.scan.outputs.left }} ימים — מזניק את ההמשך"
+          gh workflow run fleet-line-trips.yml --ref main -f chain=true -f max_min=300
