@@ -2,28 +2,43 @@ name: probe-gisnet
 on:
   push:
     branches: [probe-gisnet]
+permissions:
+  contents: write
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+        with: { ref: probe-gisnet, sparse-checkout: .github }
       - run: |
           npm i -s playwright@1.48.2 >/dev/null 2>&1 && npx playwright install chromium >/dev/null 2>&1
           cat > p.js <<'JS'
-          const {chromium}=require('playwright');(async()=>{
+          const fs=require('fs');const {chromium}=require('playwright');(async()=>{
           const b=await chromium.launch();const p=await b.newPage();
-          let info=null;
-          p.on('response',async r=>{const u=r.url();if(/k_malachi_Public\/MapServer\?f=json/.test(u)){try{info=JSON.parse(await r.text())}catch(e){}}
-            if(/\/query\?/.test(u)){console.log('PAGEQ',r.status(),u.slice(0,600))}});
-          p.on('request',r=>{if(/\/query\?/.test(r.url()))console.log('HDRS',JSON.stringify(r.headers()))});
           await p.goto('https://v5.gis-net.co.il/v5/K_Malachi',{waitUntil:'networkidle',timeout:90000}).catch(e=>console.log('goto',e.message));
-          await p.waitForTimeout(8000);
-          if(info&&info.layers) for(const l of info.layers) console.log('LAYER',l.id,l.name,l.parentLayerId);
+          await p.waitForTimeout(5000);
           const P='https://v5.gis-net.co.il/proxy/proxy.ashx?http://arcgis005/arcgis/rest/services/K_malachi/k_malachi_Public/MapServer';
-          const get=async(path)=>p.evaluate(async u=>{const r=await fetch(u,{headers:{'X-Requested-With':'XMLHttpRequest'}});return [r.status,await r.text()]},P+path);
-          for(const q of ['/28/query?f=json&where=1%3D1&returnGeometry=false&spatialRel=esriSpatialRelIntersects&outFields=StName&returnDistinctValues=true&orderByFields=StName&resultOffset=0&resultRecordCount=5',
-                          '/28?f=json','/28/query?f=json&where=1%3D1&outFields=*&resultRecordCount=2&returnGeometry=true']){
-            const [s,t]=await get(q);console.log('TRY',s,q.slice(0,60),t.slice(0,800));}
+          const get=async(path)=>JSON.parse(await p.evaluate(async u=>{const r=await fetch(u,{headers:{'X-Requested-With':'XMLHttpRequest'}});return await r.text()},P+path));
+          const all=async(id)=>{let out=[],off=0;for(;;){const d=await get(`/${id}/query?f=json&where=1%3D1&outFields=*&returnGeometry=true&outSR=2039&resultOffset=${off}&resultRecordCount=1000`);
+            if(d.error){console.log('ERR',id,JSON.stringify(d.error));break}
+            const n=(d.features||[]).length;out=out.concat(d.features||[]);console.log('page',id,off,n);if(!n||(!d.exceededTransferLimit&&n<1000))break;off+=n;}
+            return out};
+          const hoods=await all(34);
+          console.log('HOODS',JSON.stringify(hoods.map(f=>f.attributes)));
+          const ch=hoods.filter(f=>/חב"?ד|חבד|חב״ד/.test(JSON.stringify(f.attributes)));
+          console.log('CHABAD',ch.length,JSON.stringify(ch.map(f=>f.attributes)));
+          const inRing=(x,y,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
+          const inside=(x,y)=>ch.some(f=>{let c=false;for(const r of (f.geometry||{}).rings||[])if(inRing(x,y,r))c=!c;return c});
+          const res={};
+          for(const id of [28,35]){const fs_=await all(id);
+            const hit=fs_.filter(f=>f.geometry&&inside(f.geometry.x,f.geometry.y));
+            console.log('LAYER',id,'total',fs_.length,'in chabad',hit.length);
+            res[id]=hit.map(f=>Object.assign({},f.attributes,{_x:f.geometry.x,_y:f.geometry.y}));}
+          fs.mkdirSync('out',{recursive:true});
+          fs.writeFileSync('out/chabad.json',JSON.stringify({hoods:ch.map(f=>f.attributes),poly:ch.map(f=>f.geometry),layers:res}));
           await b.close()})()
           JS
           node p.js
+          git config user.name probe; git config user.email probe@users.noreply.github.com
+          git add out/chabad.json && git commit -qm "probe: תוצאה" && git push -q origin HEAD:probe-gisnet || true
