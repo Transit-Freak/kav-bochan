@@ -47,7 +47,7 @@ jobs:
         run: |
           git config user.name 'fleet-bot'
           git config user.email 'noreply@github.com'
-          git add fleet/data/fleet-line-trips-state.json.gz fleet/data/fleet-lines.json
+          git add fleet/data/fleet-line-trips-state.json.gz fleet/data/fleet-lines.json fleet/data/lines
           git diff --cached --quiet && { echo 'אין שינוי'; exit 0; }
           git commit -m 'data: fleet — נסיעות לפי קו'
           for i in 1 2 3 4; do git pull --rebase -X theirs origin main && git push && exit 0; sleep 10; done
