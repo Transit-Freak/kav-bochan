@@ -8,20 +8,23 @@ jobs:
     timeout-minutes: 20
     steps:
       - run: |
-          python3 - <<'PY'
-          import json, urllib.request, urllib.parse, csv, sys
-          P = 'https://v5.gis-net.co.il/proxy/proxy.ashx?http://arcgis005/arcgis/rest/services/K_malachi/k_malachi_Public/MapServer'
-          H = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://v5.gis-net.co.il/v5/K_Malachi'}
-          def get(path, **q):
-              u = P + path + ('?' + urllib.parse.urlencode(q) if q else '')
-              return json.load(urllib.request.urlopen(urllib.request.Request(u, headers=H), timeout=120))
-          info = get('', f='json')
-          for l in info['layers']:
-              print('LAYER', l['id'], l['name'], l.get('geometryType', ''))
-          def find(*words):
-              return [l for l in info['layers'] if any(w in l['name'] for w in words)]
-          for l in find('שכונ', 'מספר', 'בית', 'כתוב'):
-              d = get(f"/{l['id']}", f='json')
-              print('\nFIELDS', l['id'], l['name'], d.get('geometryType'), [(f['name'], f.get('alias')) for f in d.get('fields') or []])
-          json.dump(info, open('info.json', 'w'))
-          PY
+          npm i -s playwright@1.48.2 >/dev/null 2>&1 && npx playwright install chromium >/dev/null 2>&1
+          cat > p.js <<'JS'
+          const {chromium}=require('playwright');(async()=>{
+          const b=await chromium.launch();const p=await b.newPage();
+          await p.goto('https://v5.gis-net.co.il/v5/K_Malachi',{waitUntil:'networkidle',timeout:90000}).catch(e=>console.log('goto',e.message));
+          await p.waitForTimeout(5000);
+          const P='https://v5.gis-net.co.il/proxy/proxy.ashx?http://arcgis005/arcgis/rest/services/K_malachi/k_malachi_Public/MapServer';
+          const get=async(path)=>p.evaluate(async u=>{const r=await fetch(u);return [r.status,await r.text()]},P+path);
+          let [s,t]=await get('?f=json&guid=x');console.log('INFO',s,t.slice(0,300));
+          let info;try{info=JSON.parse(t)}catch(e){[s,t]=await get('?f=json');info=JSON.parse(t)}
+          for(const l of info.layers) console.log('LAYER',l.id,l.name);
+          for(const l of info.layers.filter(l=>/שכונ|מספר|בית|בתים|כתוב/.test(l.name))){
+            const [s2,t2]=await get('/'+l.id+'?f=json');const d=JSON.parse(t2);
+            console.log('FIELDS',l.id,l.name,d.geometryType,JSON.stringify((d.fields||[]).map(f=>[f.name,f.alias])));
+            const [s3,t3]=await get('/'+l.id+'/query?f=json&where=1%3D1&returnGeometry=false&outFields=*&resultRecordCount=3');
+            console.log('SAMPLE',l.id,t3.slice(0,1500));
+          }
+          await b.close()})()
+          JS
+          node p.js
