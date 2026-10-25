@@ -1,0 +1,20 @@
+name: probe-441
+on:
+  push:
+    branches: [probe-441]
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          python3 - <<'PY'
+          import json,urllib.request,urllib.parse
+          A='https://data.gov.il/api/3/action/'
+          g=lambda a,**q: json.load(urllib.request.urlopen(urllib.request.Request(A+a+'?'+urllib.parse.urlencode(q),headers={'User-Agent':'kav-bochan'}),timeout=120))['result']
+          for res in g('package_show',id='ridership')['resources']:
+              if not res.get('datastore_active'): continue
+              r=g('datastore_search',resource_id=res['id'],limit=50,q='12441')
+              print('==',res.get('name'),'| fields:',[f['id'] for f in r['fields']])
+              for x in r['records']:
+                  if str(x.get('RouteID','')).split('.')[0].lstrip('0')=='12441': print(json.dumps(x,ensure_ascii=False))
+          PY
