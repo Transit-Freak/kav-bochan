@@ -276,6 +276,12 @@ def estimate_routes(alert, rc_routes, stops):
         if not r['cut']:
             r['why'] = 'no-cut'
             continue
+        # קו שכתוב במפורש שהוא מקוצר לא מקבל עקיפה של פסקה בלי מספר קו (קו 297 בטכניון קיבל את
+        # המסלול של 796/774, 25.10). '*' (קיצור בלי מספר) לא עוצר — אחרת כל הקווים בהודעה נעצרים
+        ns = {r['num'], re.sub(r'[א-ת]$', '', r['num'])}
+        if (ns | {f'{n}-{d}' for n in ns for d in (r.get('rd') or '').split('-')[1:2]}) & (short - {'*'}):
+            r['why'] = 'short'
+            continue
         cand = [p for p in paras if not p['lines'] or r['num'] in p['lines']]
         # "78" בהודעה ו-78א במפה, או "6מ'" בהודעה ו-6 במפה — אותו קו, כשאין לו פסקה משלו
         # (אבל לא פסקה של 72א לקו 72, כשגם 72א בהודעה)
