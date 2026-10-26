@@ -2,43 +2,31 @@ name: probe-gisnet
 on:
   push:
     branches: [probe-gisnet]
-permissions:
-  contents: write
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with: { ref: probe-gisnet, sparse-checkout: .github }
       - run: |
           npm i -s playwright@1.48.2 >/dev/null 2>&1 && npx playwright install chromium >/dev/null 2>&1
           cat > p.js <<'JS'
-          const fs=require('fs');const {chromium}=require('playwright');(async()=>{
+          const {chromium}=require('playwright');(async()=>{
           const b=await chromium.launch();const p=await b.newPage();
-          await p.goto('https://v5.gis-net.co.il/v5/K_Malachi',{waitUntil:'networkidle',timeout:90000}).catch(e=>console.log('goto',e.message));
-          await p.waitForTimeout(5000);
-          const P='https://v5.gis-net.co.il/proxy/proxy.ashx?http://arcgis005/arcgis/rest/services/K_malachi/k_malachi_Public/MapServer';
-          const get=async(path)=>JSON.parse(await p.evaluate(async u=>{const r=await fetch(u,{headers:{'X-Requested-With':'XMLHttpRequest'}});return await r.text()},P+path));
-          const all=async(id)=>{let out=[],off=0;for(;;){const d=await get(`/${id}/query?f=json&where=1%3D1&outFields=*&returnGeometry=true&outSR=2039&resultOffset=${off}&resultRecordCount=1000`);
-            if(d.error){console.log('ERR',id,JSON.stringify(d.error));break}
-            const n=(d.features||[]).length;out=out.concat(d.features||[]);console.log('page',id,off,n);if(!n||(!d.exceededTransferLimit&&n<1000))break;off+=n;}
-            return out};
-          const hoods=await all(34);
-          console.log('HOODS',JSON.stringify(hoods.map(f=>f.attributes)));
-          const ch=hoods.filter(f=>/^חב["״]?ד$/.test(String(f.attributes.NAME||'').trim()));
-          console.log('CHABAD',ch.length,JSON.stringify(ch.map(f=>f.attributes)));
-          const inRing=(x,y,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
-          const inside=(x,y)=>ch.some(f=>{let c=false;for(const r of (f.geometry||{}).rings||[])if(inRing(x,y,r))c=!c;return c});
-          const res={};
-          for(const id of [28,35]){const fs_=await all(id);
-            const hit=fs_.filter(f=>f.geometry&&inside(f.geometry.x,f.geometry.y));
-            console.log('LAYER',id,'total',fs_.length,'in chabad',hit.length);
-            res[id]=hit.map(f=>Object.assign({},f.attributes,{_x:f.geometry.x,_y:f.geometry.y}));}
-          fs.mkdirSync('out',{recursive:true});
-          fs.writeFileSync('out/chabad.json',JSON.stringify({hoods:ch.map(f=>f.attributes),poly:ch.map(f=>f.geometry),layers:res}));
+          const KW=/תנאי|תקנון|שימוש|זכויות|יוצרים|בינה מלאכותית|AI|לימוד מכונה|למידת מכונה|סריקה|איסוף אוטומטי|scrap|crawl|bot|רובוט|מאגר|העתק|הורד|מסחרי|אסור|Complot|קומפלוט/i;
+          const urls=['https://www.complot.co.il/','https://complot.co.il/','https://www.gis-net.co.il/','https://gis-net.co.il/','https://v5.gis-net.co.il/',
+            'https://v5.gis-net.co.il/v5/K_Malachi','https://www.k-malachi.muni.il/','https://www.kiryat-malachi.muni.il/'];
+          for(const u of urls){
+            try{await p.goto(u,{waitUntil:'networkidle',timeout:45000});}catch(e){console.log('\n###',u,'ERR',e.message.slice(0,120));continue}
+            console.log('\n###',u,'→',p.url(),'|',await p.title());
+            const links=await p.$$eval('a',as=>as.map(a=>[a.innerText.trim(),a.href]).filter(([t,h])=>/תנאי|תקנון|שימוש|privacy|terms|נגישות|מדריך|אודות|about/i.test(t+' '+h)));
+            console.log('LINKS',JSON.stringify(links.slice(0,25)));
+            const txt=await p.evaluate(()=>document.body.innerText);
+            const hits=txt.split(/\n+/).filter(l=>KW.test(l)).slice(0,25);console.log('HITS',JSON.stringify(hits).slice(0,2500));
+            for(const [t,h] of links.filter(([t,h])=>/תנאי|תקנון|terms|מדריך/i.test(t+' '+h)).slice(0,4)){
+              try{const q=await b.newPage();await q.goto(h,{waitUntil:'networkidle',timeout:45000});const tx=await q.evaluate(()=>document.body.innerText);
+                console.log('\n  >>> SUB',t,h,'len',tx.length);console.log('  TEXT',tx.replace(/\s+/g,' ').slice(0,6000));await q.close();}catch(e){console.log('  SUB ERR',h,e.message.slice(0,100))}
+            }
+          }
           await b.close()})()
           JS
           node p.js
-          git config user.name probe; git config user.email probe@users.noreply.github.com
-          git add --sparse out/chabad.json && git commit -qm "probe: תוצאה" && git push -q origin HEAD:probe-gisnet || true
