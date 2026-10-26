@@ -1,45 +1,28 @@
 name: probe-gisnet
 on:
   push:
-    branches: [probe-gisnet]
+    branches: [probe-terms]
 jobs:
   p:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - run: |
-          python3 - <<'PY'
-          # כל המאגרים ב-data.gov.il: איפה יש רחוב + מספר בית + קואורדינטות (גם כשהמאגר לא נקרא "כתובות")
-          import json,urllib.request,urllib.parse,time,re
-          A='https://data.gov.il/api/3/action/'
-          def g(a,**q):
-              for i in range(3):
-                  try: return json.load(urllib.request.urlopen(urllib.request.Request(A+a+'?'+urllib.parse.urlencode(q),headers={'User-Agent':'kav-bochan'}),timeout=90))['result']
-                  except Exception as e:
-                      if i==2: return None
-                      time.sleep(5)
-          pk=[];off=0
-          while True:
-              r=g('package_search',rows=1000,start=off)
-              if not r: break
-              pk+=r['results'];off+=1000
-              if off>=r['count']: break
-          print('מאגרים:',len(pk))
-          ST=re.compile(r'street|רחוב|shem_rechov|rechov|st_name|stname',re.I)
-          HN=re.compile(r'house|בית|bayit|mispar_bayit|housenum|num|מספר',re.I)
-          XY=re.compile(r'^(x|y|lat|lon|lng|latitude|longitude|קו.?רוחב|קו.?אורך|נ\.?צ|itm|coord|קואורדינט|x_coord|y_coord|easting|northing)',re.I)
-          hits=[]
-          for p in pk:
-              for res in p.get('resources',[]):
-                  if not res.get('datastore_active'): continue
-                  d=g('datastore_search',resource_id=res['id'],limit=1)
-                  time.sleep(0.15)
-                  if not d: continue
-                  f=[x['id'] for x in d.get('fields',[]) if x['id']!='_id']
-                  st=[x for x in f if ST.search(x)]; hn=[x for x in f if HN.search(x)]; xy=[x for x in f if XY.search(x.strip())]
-                  if st and xy:
-                      hits.append((d.get('total',0),p['title'],p.get('organization',{}).get('title',''),p['name'],res.get('name'),st,hn[:3],xy))
-          hits.sort(key=lambda h:-h[0])
-          print('\nמאגרים עם רחוב וקואורדינטות:',len(hits))
-          for h in hits: print(f'{h[0]:>9} | {h[1]} | {h[2]} | {h[3]} | {h[4]} | רחוב={h[5]} מספר={h[6]} xy={h[7]}')
-          PY
+          npm i -s playwright@1.48.2 >/dev/null 2>&1 && npx playwright install chromium >/dev/null 2>&1
+          cat > p.js <<'JS'
+          const {chromium}=require('playwright');(async()=>{
+          const b=await chromium.launch();const p=await b.newPage();
+          const urls=['https://www.k-m.org.il/','https://www.complot.co.il/','http://www.complot.co.il/','https://v5.gis-net.co.il/v5/K_Malachi'];
+          for(const u of urls){
+            try{await p.goto(u,{waitUntil:'domcontentloaded',timeout:90000});await p.waitForTimeout(6000);}catch(e){console.log('\n###',u,'ERR',e.message.slice(0,150));continue}
+            console.log('\n###',u,'→',p.url(),'|',await p.title());
+            const links=await p.$$eval('a',as=>as.map(a=>[a.innerText.trim().slice(0,40),a.href]).filter(([t,h])=>/תנאי|תקנון|privacy|terms|פרטיות|מדריך|זכויות/i.test(t+' '+h)));
+            console.log('LINKS',JSON.stringify(links.slice(0,20)));
+            for(const [t,h] of links.filter(([t,h])=>/תנאי|תקנון|terms|מדריך/i.test(t+' '+h)).slice(0,3)){
+              try{const q=await b.newPage();await q.goto(h,{waitUntil:'domcontentloaded',timeout:60000});await q.waitForTimeout(4000);const tx=await q.evaluate(()=>document.body.innerText);
+                console.log('\n  >>> SUB',t,h,'len',tx.length);console.log('  TEXT',tx.replace(/\s+/g,' ').slice(0,8000));await q.close();}catch(e){console.log('  SUB ERR',h,e.message.slice(0,100))}
+            }
+          }
+          await b.close()})()
+          JS
+          node p.js
