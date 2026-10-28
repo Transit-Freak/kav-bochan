@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <!-- העטיפה .wrap נדרשת לכפתור הנגישות: a11y.js מגדיל תצוגה דרך
@@ -39,7 +39,6 @@
   <div class="top">
     <h1>🎫 המחירון</h1>
     <span class="tag">המחיר לפי מרחק הנסיעה בפועל</span>
-    <button type="button" class="dscbtn" id="dscBtn">🏷️ מגיעה לי הנחה?</button>
   </div>
   <!-- זכאות להנחה לפי כתובת (שלמה 23.10): עיר + רחוב (+ מספר בית כשצריך) ← זכאי / לא זכאי -->
   <div class="dsc-ovl" id="dscOvl" hidden>
@@ -61,9 +60,14 @@
         <div class="calc-head">
           <span class="step">בחרו איך לחפש</span>
           <div class="how">בחלק מהקווים המחיר אחיד לכל הקו, ובשאר הוא תלוי במרחק בין תחנת העלייה לירידה — הכלי מזהה לבד את סוג הקו ומציג את המחיר הנכון. אפשר לחפש לפי קו ותחנות שלו, או ישירות לפי שתי תחנות בכל הארץ.</div>
-          <div class="modeSeg">
-            <button class="on" id="modeLine">לפי קו</button>
-            <button id="modeStop">לפי תחנות</button>
+          <div class="moderow">
+            <div class="modeSeg">
+              <button class="on" id="modeLine">לפי קו</button>
+              <button id="modeStop">לפי תחנות</button>
+              <button id="modeRail">לפי רכבת</button>
+            </div>
+            <!-- כפתור ההנחה אחרי בחירת אופן החיפוש (שלמה 28.10) -->
+            <button type="button" class="dscbtn" id="dscBtn">🏷️ מגיעה לי הנחה?</button>
           </div>
         </div>
         <div class="calc-body">
@@ -87,6 +91,14 @@
                   <select id="toSel"></select>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- לפי רכבת (שלמה 28.10): שתי תחנות רכבת ← המחיר מהמחירון הרשמי של הזוג -->
+          <div class="mpane" id="paneRail">
+            <div class="selrow">
+              <div class="fld"><label for="rFrom">מתחנת רכבת</label><select id="rFrom"><option value="">בחרו תחנה…</option></select></div>
+              <div class="fld"><label for="rTo">לתחנת רכבת</label><select id="rTo"><option value="">בחרו תחנה…</option></select></div>
             </div>
           </div>
 
@@ -268,7 +280,7 @@ function eilatPrice(v){ return v==null ? null : Math.floor(v/1.18*100)/100; }
 // הרכבת המלא לפי זוג תחנות, flat = קווים בתעריף אחיד לכל הקו
 let FIX=null;
 dfetch('data/fixes.json').then(r=>{ if(!r.ok) throw 0; return r.json(); })
-  .then(d=>{ FIX=d; computeLine(); computeStops(); }).catch(()=>{});
+  .then(d=>{ FIX=d; computeLine(); computeStops(); if (RST) computeRail(); }).catch(()=>{});
 function pairKey(a,b){ return (a.length<b.length || (a.length===b.length && a<b)) ? a+'|'+b : b+'|'+a; }
 
 // טבלת הייחוס הסטטית
@@ -447,10 +459,16 @@ function isCurrent(l){
 // כתובת ייחודית לכל חישוב (שלמה 22.10): הקו והתחנות נכתבים לכתובת, כך שהעתקה מהדפדפן
 // פותחת את אותו חישוב. ‎#l=<קו>&a=<עלייה>&b=<ירידה>‎ או ‎#m=st&f=<תחנה>&t=<תחנה>‎
 let PEND=(()=>{const h=new URLSearchParams(location.hash.slice(1));return (h.get('l')||h.get('m')==='st')?h:null;})();
+// ‎#m=rail&f=<תחנה>&t=<תחנה>‎ — שחזור "לפי רכבת"
+const PENDR=(()=>{const h=new URLSearchParams(location.hash.slice(1));return h.get('m')==='rail'?h:null;})();
 function syncUrl(){
   if (PEND) return;   // באמצע שחזור מהכתובת — לא לדרוס אותה
   const p=new URLSearchParams();
-  if ($('paneStop').classList.contains('on')){
+  if ($('paneRail').classList.contains('on')){
+    p.set('m','rail');
+    if ($('rFrom').value) p.set('f',$('rFrom').value);
+    if ($('rTo').value) p.set('t',$('rTo').value);
+  } else if ($('paneStop').classList.contains('on')){
     p.set('m','st');
     if (picked.from) p.set('f',picked.from[0]);
     if (picked.to) p.set('t',picked.to[0]);
@@ -1020,19 +1038,57 @@ function removeMarker(key){
 }
 
 /* ---------- מעבר בין המצבים ---------- */
+const MODES=['Line','Stop','Rail'];
+function setMode(m){
+  for (const x of MODES){ $('mode'+x).classList.toggle('on', x===m); $('pane'+x).classList.toggle('on', x===m); }
+}
 $('modeLine').addEventListener('click', ()=>{
-  $('modeLine').classList.add('on'); $('modeStop').classList.remove('on');
-  $('paneLine').classList.add('on'); $('paneStop').classList.remove('on');
+  setMode('Line');
   if (POOL) computeLine(); else if (picked.from&&picked.to) computeStops(); else emptyResult('בחרו קו ותחנות, או שתי תחנות — והמחיר יופיע כאן');
   syncUrl();
 });
 $('modeStop').addEventListener('click', ()=>{
-  $('modeStop').classList.add('on'); $('modeLine').classList.remove('on');
-  $('paneStop').classList.add('on'); $('paneLine').classList.remove('on');
+  setMode('Stop');
   loadStops().then(refreshDots).catch(()=>{});
   ensureMap();
   if (picked.from&&picked.to) computeStops(); else emptyResult('בחרו שתי תחנות — והמחיר יופיע כאן');
   syncUrl();
+});
+/* ---------- מצב 3: לפי רכבת — מחירון רכבת ישראל לפי זוג תחנות ---------- */
+let RST=null;
+function loadRail(){
+  if (RST) return Promise.resolve(RST);
+  return dfetch('../rail/data/stations.json').then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(d=>{
+    // רק תחנות שיש להן מחיר במחירון הרשמי
+    const have=new Set(Object.keys((FIX&&FIX.rail)||{}).flatMap(k=>k.split('|')));
+    RST=Object.entries(d).filter(([c])=>!have.size||have.has(c)).map(([c,v])=>[c,String(v[0]).replace(/''/g,'"'),v[1],v[2]])
+      .sort((a,b)=>a[1].localeCompare(b[1],'he'));
+    for (const id of ['rFrom','rTo']) $(id).insertAdjacentHTML('beforeend', RST.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join(''));
+    return RST;
+  });
+}
+function computeRail(){
+  if (!$('paneRail').classList.contains('on')) return;
+  const a=$('rFrom').value, b=$('rTo').value;
+  if (!a||!b){ emptyResult('בחרו שתי תחנות רכבת — והמחיר יופיע כאן'); return; }
+  if (a===b){ emptyResult('בחרו שתי תחנות שונות'); return; }
+  const A=RST.find(x=>x[0]===a), B=RST.find(x=>x[0]===b);
+  const km=hav([A[2],A[3]],[B[2],B[3]]);
+  const fx=fixFor(a, b, km, null, +A[2], +B[2]);
+  // זוג שלא נמצא במחירון הרשמי — מחיר לפי המרחק, ונאמר במפורש
+  renderResult(km, 'רכבת ישראל · '+A[1]+' ← '+B[1]+(fx.railExact==null ? ' · הזוג הזה לא נמצא במחירון הרשמי, המחיר משוער לפי המרחק' : ''), true, fx);
+  syncUrl();
+}
+['rFrom','rTo'].forEach(id=>$(id).addEventListener('change', computeRail));
+$('modeRail').addEventListener('click', ()=>{
+  setMode('Rail');
+  emptyResult('טוען את תחנות הרכבת…');
+  loadRail().then(computeRail).catch(()=>emptyResult('תחנות הרכבת לא נטענו. נסו שוב.'));
+  syncUrl();
+});
+if (PENDR) window.addEventListener('load', ()=>{
+  setMode('Rail');
+  loadRail().then(()=>{ if (PENDR.get('f')) $('rFrom').value=PENDR.get('f'); if (PENDR.get('t')) $('rTo').value=PENDR.get('t'); computeRail(); }).catch(()=>{});
 });
 // שחזור "לפי תחנות" מהכתובת — אחרי טעינת הדף, כי ספריית המפה (Leaflet) נטענת אחרי הסקריפט הזה
 if (PEND && PEND.get('m')==='st') window.addEventListener('load', ()=>{
