@@ -233,11 +233,13 @@ def main():
         for dr, bym in dirs.items():
             versions, prev = [], None
             yms = sorted(bym)
-            for ym, day in yms:
-                rows = bym[(ym, day)]
-                cnt = collections.Counter((x[3], x[4]) for x in rows)
-                (seq, shp), _ = cnt.most_common(1)[0]
-                if seq != prev:
+            mains = [collections.Counter(x[3] for x in bym[k]).most_common(1)[0][0] for k in yms]
+            for j, (ym, day) in enumerate(yms):
+                seq = mains[j]
+                # מסלול רגיל חדש נרשם רק כשהוא נמשך לפחות שני חודשים — שינוי של חודש אחד
+                # (עבודות, מלחמה) נשאר בהערות של הלו"ז ולא נרשם כשינוי בקו
+                lasting = j + 1 >= len(yms) or mains[j + 1] == seq
+                if seq != prev and (prev is None or lasting):
                     stops = [[s, names.get(s, s), st.get(s, [0, 0, 0])[1], st.get(s, [0, 0, 0])[2]] for s in seq.split('|')]
                     v = {'d': day, 'k': 'baseline' if prev is None else 'snapshot', 'src': 'rail-now', 'stops': stops,
                          'note': NOTE if prev is None else 'המסלול הרגיל של הקו השתנה (התחנות שבהן עוצרות רוב הרכבות)'}
