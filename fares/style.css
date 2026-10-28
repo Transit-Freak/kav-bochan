@@ -151,3 +151,5 @@ html,body{margin:0;font-family:'Assistant','Heebo',system-ui,sans-serif;backgrou
 .dsc-scores span{display:block;font-size:12px;color:#c9bfb2;font-weight:700}.dsc-scores b{font-size:20px;color:#fbbf24}.dsc-scores small{font-size:12px;color:#c9bfb2}
 .dsc-ex{font-size:13px;color:#e7dfd3}
 .dsc-src{font-size:11px;color:var(--sub);margin-top:10px}
+.moderow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 18px 0}
+.moderow .modeSeg{margin:0}

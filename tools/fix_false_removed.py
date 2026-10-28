@@ -43,6 +43,8 @@ def main():
         vs = lf.get('versions') or []
         if not vs or vs[-1].get('k') != 'removed' or vs[-1].get('d') < SINCE:
             continue
+        if vs[-1].get('src') == 'rail-now':   # קווי הרכבת מ-2021 (rail_now.py) — ביטול מהלו"ז, לא מהסורק
+            continue
         rd = lf.get('rd')
         if rd in tracked:
             kept += 1          # הסורק אכן ראה אותו חי — הביטול אמיתי
