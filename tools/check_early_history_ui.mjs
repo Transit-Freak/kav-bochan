@@ -25,13 +25,13 @@ try{
  if(await p.getByRole('tab',{name:/ארכיון/}).count())throw Error('Separate archive tab still exists');
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
  await p.getByRole('button',{name:'2012',exact:true}).click();
- await p.getByRole('button',{name:'07.2012',exact:true}).click();
+ await p.getByRole('button',{name:/^07\.2012( · מסלול מפורט)?$/}).click();
  await firstRow(p);
  if(await p.getByRole('heading',{name:/תכנון וביצוע/}).count())throw Error('Rail data leaked into buses');
  await p.getByRole('tab',{name:'🚏 תחנות',exact:true}).click();
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Period selector remains in stops');
  await p.getByRole('button',{name:'2012',exact:true}).click();
- await p.getByRole('button',{name:'07.2012',exact:true}).click();
+ await p.getByRole('button',{name:/^07\.2012( · מסלול מפורט)?$/}).click();
  await p.getByText('24,362 תחנות',{exact:true}).waitFor({timeout:60000});
  if(await p.getByLabel('תאריך צילום',{exact:true}).count())throw Error('Snapshot date selector remains');
  await p.getByRole('tab',{name:'🚆 רכבת',exact:true}).click();
@@ -56,7 +56,7 @@ try{
  if(await p.getByRole('button',{name:'2012',exact:true}).count())throw Error('Empty taxi year 2012 is offered');
  await p.getByRole('tab',{name:'🚌 קווים',exact:true}).click();
  if(await p.getByLabel('תקופה',{exact:true}).count())throw Error('Duplicate period selector in lines');
- await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
+ await p.getByRole('button',{name:/^07\.2012( · מסלול מפורט)?$/}).waitFor();
  await (await firstRow(p)).click();
  await p.getByText('תיעוד היסטורי',{exact:true}).waitFor({timeout:30000});
  if(await p.locator('.tl details,.tl .early-detail').count())throw Error('Custom archive panels remain in timeline');
@@ -93,13 +93,15 @@ try{
  const mapLines=p.getByRole('button',{name:'2012 · קווים',exact:true});
  const mapStops=p.getByRole('button',{name:'2012 · תחנות OpenStreetMap',exact:true});
  await mapLines.click();
- await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
- if(await mapLines.getAttribute('aria-pressed')!=='true'||await mapStops.getAttribute('aria-pressed')!=='false')throw Error('Map selects both 2012 sources');
+ await p.getByRole('button',{name:/^07\.2012( · מסלול מפורט)?$/}).waitFor();
+ // כפתור התחנות של 2012 מוצג רק במצב "תחנות שהשתנו" (שלמה 28.10)
+ if(await mapLines.getAttribute('aria-pressed')!=='true'||await mapStops.count())throw Error('Map selects both 2012 sources');
+ await p.getByRole('tab',{name:/תחנות שהשתנו/}).click();
  await mapStops.click();
  if(await mapLines.getAttribute('aria-pressed')!=='false'||await mapStops.getAttribute('aria-pressed')!=='true')throw Error('Map snapshot selection overlaps');
- if(await p.getByRole('button',{name:'07.2012',exact:true}).count())throw Error('Snapshot retains unrelated month selection');
+ if(await p.getByRole('button',{name:/^07\.2012( · מסלול מפורט)?$/}).count())throw Error('Snapshot retains unrelated month selection');
  await mapLines.click();
- await p.getByRole('button',{name:'07.2012',exact:true}).waitFor();
+ await p.getByRole('button',{name:/^07\.2012( · מסלול מפורט)?$/}).waitFor();
  if(errors.length)throw Error(errors.join('\n'));
  console.log('PASS: integrated category years, mode separation, 2012 lines/stops, 2013 railway, saved year and line details');
 }finally{await browser?.close();srv.close();}
