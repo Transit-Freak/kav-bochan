@@ -38,7 +38,8 @@ jobs:
           python - <<'PY'
           import json,os,pathlib
           p=pathlib.Path('line-history/data/early-progress.json')
-          done=json.loads(p.read_text()).get('done',{}) if p.exists() else {}
+          pr=json.loads(p.read_text()) if p.exists() else {}
+          done={**pr.get('done',{}),**pr.get('skipped',{})}
           c=json.load(open('line-history/data/early-sources.json'))['snapshots']
           needed=any(s['id'] not in done for s in c) or not pathlib.Path('line-history/data/early-rail/index.json').exists()
           with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('needed='+str(needed).lower()+'\n')
