@@ -552,3 +552,8 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 
 /* תוויות מפה בדף RTL: שכבת התוויות LTR כדי ש-Leaflet יחשב נכון את המיקום ליד הסמן, והטקסט עצמו RTL (שלמה 20.10) */
 .leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
+.railsched td { line-height: 1.5; font-size: 13px; }
+.railsched td.rt { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
+.railsched td.rt a { color: #0f172a; text-decoration: none; border-bottom: 1px dotted #94a3b8; }
+.railsched tr.me td { background: #f5f3ff; }
+.railsched tr.me td.rt a { color: #5b21b6; }

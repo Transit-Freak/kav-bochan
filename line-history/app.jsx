@@ -1675,6 +1675,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
                 {!selected && <button type="button" className="sibcmp" aria-label="השוואה" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===s.rd?null:s.rd)}>{altRd===s.rd?'✕':'⇄'}</button>}
               </span>
               {desc(s) ? <span className="sibdesc">{label(s)}</span> : (!usePre && !areas ? <span className="sibdesc">טוען תיאור מסלול…</span> : null)}
+              {s.merged > 1 && <span className="sibdesc">מאחדת {s.merged} חלופות עם אותן תחנות באותה תקופה</span>}
               {historical && <span className="sibdesc">{base?.rd===s.rd?'הראשית לפי התדירות · ':''}{s.frequency==null?'נתוני התדירות לא זמינים':s.frequency+' נסיעות בשבעה ימים מ־'+fmtD(date||s.snapshot?.d)}{s.snapshot?'':' · אין נתונים למועד הזה'}</span>}
             </div>
           </div>;
@@ -1760,6 +1761,74 @@ const schedDayOf = (note) => {
   return { "ראשון": "א", "שני": "ב", "שלישי": "ג", "רביעי": "ד",
            "חמישי": "ה", "שישי": "ו", "שבת": "ש" }[m && m[1]] || null;
 };
+// "ראשון–חמישי", "ראשון וחמישי", "ראשון–שלישי וחמישי" — ימים עם אותו לו"ז בשורה אחת
+// חודשים לפני 2015 שיש להם קובץ GTFS מלא מהארכיון (early-sources: miu12) — השאר מצילומי האתר
+// הישן. מ-2015 כל החודשים מהארכיון, ולכן אין צורך לסמן (שלמה 28.10).
+const DETAILED_EARLY = new Set(["2012-07"]);
+
+function schedDaysLbl(ds) {
+  const items = [];
+  for (let i = 0; i < ds.length;) {
+    let j = i;
+    while (j + 1 < ds.length && SCHED_DAYS.indexOf(ds[j + 1]) === SCHED_DAYS.indexOf(ds[j]) + 1) j++;
+    if (j - i >= 2) items.push(SCHED_LBL[ds[i]] + "–" + SCHED_LBL[ds[j]]);
+    else for (let k = i; k <= j; k++) items.push(SCHED_LBL[ds[k]]);
+    i = j + 1;
+  }
+  return items.length === 1 ? items[0] : items.slice(0, -1).join(", ") + " ו" + items[items.length - 1];
+}
+
+/* לו"ז הרכבת ההיסטורי (שלמה 28.10): בקו רכבת כמעט כל רכבת היא חלופה משלה, ולכן הטבלה
+   מציגה את כל הרכבות של הכיוון בשבוע האחרון שבו החלופה הזו פעלה — שעה, ומה שונה בה
+   מהמסלול הרגיל (ריק = כמו הרגיל). הרכבות של החלופה הזו מודגשות; לחיצה על שעה פותחת
+   את החלופה של אותה רכבת. data/rail-sched/<מק"ט>.json — tools/rail_hist_sched.py */
+function RailSched({ rd }) {
+  const [d, setD] = useState(undefined), [why, setWhy] = useState({});
+  const [mk, dr, ...rest] = String(rd).split("-"), alt = rest.join("-");
+  // רכבת שהסיבה שלה תועדה (שינוי זמני — rail-reasons.json): הסיבה מופיעה בשורה שלה
+  useEffect(() => { let on = true; getRailWhy().then((w) => { if (on) setWhy(w.rd || {}); }); return () => { on = false; }; }, []);
+  useEffect(() => {
+    let ok = true;
+    setD(undefined);
+    dfetch("data/rail-sched/" + mk + ".json")
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (ok) setD(j); })
+      .catch(() => { if (ok) setD(null); });
+    return () => { ok = false; };
+  }, [mk]);
+  if (d === undefined) return <div className="mut">טוען את הלו״ז…</div>;
+  const has = (p) => p.dirs[dr] && Object.values(p.dirs[dr].days).some((rs) => rs.some((x) => x[1] === alt));
+  const p = d && (d.p || []).filter(has).pop();
+  if (!p) return <div className="mut">אין לו״ז לחלופה הזו בארכיון.</div>;
+  const x = p.dirs[dr], groups = new Map();
+  for (const b of SCHED_DAYS) {
+    const rs = x.days[b];
+    if (!rs || !rs.length) continue;
+    const key = JSON.stringify(rs);
+    if (!groups.has(key)) groups.set(key, { rs, days: [] });
+    groups.get(key).days.push(b);
+  }
+  return (
+    <details className="schedbox" open>
+      <summary>🕐 הלו״ז של הקו בשבוע של {fmtD(p.d)}</summary>
+      <div className="schednote">
+        כל הרכבות של הכיוון {x.from} ← {x.to} בשבוע האחרון שבו החלופה הזו פעלה, לפי ארכיון משרד התחבורה.
+        הרכבות של החלופה הזו מודגשות. "דרך / שינוי" ריק = המסלול הרגיל. מספרי הרכבות לא נשמרו בקבצים של אותן שנים.
+      </div>
+      {[...groups.values()].map((g) => (
+        <table key={g.days.join("")} className="tsnap railsched"><tbody>
+          <tr><th colSpan={2}>{schedDaysLbl(g.days)} · {g.rs.length} רכבות</th></tr>
+          {g.rs.map(([t, a, n], i) => (
+            <tr key={i} className={a === alt ? "me" : ""}>
+              <td className="rt"><a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a></td>
+              <td>{n >= 0 ? x.n[n] : ""}{why[mk + "-" + dr + "-" + a] ? <div className="mut">❗ {why[mk + "-" + dr + "-" + a].text}</div> : null}</td>
+            </tr>
+          ))}
+        </tbody></table>
+      ))}
+    </details>
+  );
+}
+
 function SchedBox({ rd, vs, selD, isLast, gone }) {
   const [d, setD] = useState(null);
   useEffect(() => {
@@ -1831,17 +1900,7 @@ function SchedBox({ rd, vs, selD, isLast, gone }) {
             groups.get(key).days.push(b);
           }
           const rows = [...groups.values()];
-          const lbl = (ds) => {
-            const items = [];
-            for (let i = 0; i < ds.length;) {
-              let j = i;
-              while (j + 1 < ds.length && SCHED_DAYS.indexOf(ds[j + 1]) === SCHED_DAYS.indexOf(ds[j]) + 1) j++;
-              if (j - i >= 2) items.push(SCHED_LBL[ds[i]] + "–" + SCHED_LBL[ds[j]]);
-              else for (let k = i; k <= j; k++) items.push(SCHED_LBL[ds[k]]);
-              i = j + 1;
-            }
-            return items.length === 1 ? items[0] : items.slice(0, -1).join(", ") + " ו" + items[items.length - 1];
-          };
+          const lbl = schedDaysLbl;
           return rows.map((r) => (
             <tr key={r.days.join("")}>
               <th>{lbl(r.days)}{past && r.days.some((b) => touched.has(b)) ? " ✱" : ""}</th>
@@ -2419,6 +2478,22 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   useEffect(() => {
     setShow12(false); setD12(null); setR12(0); setS12(null); setAltRd(null);
   }, [rd]);
+  // רכבת (שלמה 28.10): חלופות עם אותן תחנות שפעלו באותה תקופה — שורה אחת בבוחר החלופות.
+  // נשארת הנציגה (זו שפעלה אחרונה) עם מספר החלופות שהיא מאחדת; החלופה הפתוחה תמיד נשארת.
+  const [railG, setRailG] = useState(null);
+  const isRail = String(rd).split("-").length >= 3 && sibs && sibs.length > 1 && (lf || {}).tt === "rail";
+  useEffect(() => {
+    setRailG(null); if (!isRail) return undefined; let ok = true;
+    dfetch("data/rail-groups/" + rd.split("-")[0] + ".json").then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (ok) setRailG(j && j.g ? j.g : {}); }).catch(() => { if (ok) setRailG({}); });
+    return () => { ok = false; };
+  }, [rd.split("-")[0], isRail]);
+  const sibsShown = useMemo(() => {
+    if (!isRail || !railG || !sibs) return sibs;
+    const hide = new Set(), n = {};
+    for (const [rep, ms] of Object.entries(railG)) { n[rep] = ms.length; for (const m of ms) if (m !== rep) hide.add(m); }
+    return sibs.filter((s) => !hide.has(s.rd) || s.rd === rd).map((s) => (n[s.rd] ? { ...s, merged: n[s.rd] } : s));
+  }, [sibs, railG, isRail, rd]);
   // המסלול המשוער על הכבישים נשמר בקובץ נפרד לכל קו 2012 — קיים רק למה שחושב
   useEffect(() => {
     if (!show12 || s12 || !anc) return;
@@ -3125,7 +3200,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibs} rd={rd}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibsShown} rd={rd}
           date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
@@ -3324,8 +3399,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
             באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
             יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
-        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
-          isLast={sel == null || sel >= vs.length - 1} />}
+        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && (lf.tt === "rail" ? <RailSched rd={rd} /> : <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
+          isLast={sel == null || sel >= vs.length - 1} />)}
         </LtAcc>
         {SHOW_2012_BOX && (((mot12 && mot12.length > 0) || anc) && !NO_2012.has(lf.tt || "") || lf.magihim2012Match || lf.earlyRelated?.length > 0) && <LtAcc icon="🗂️" title="תיעוד היסטורי" sub={mot12 && mot12.length ? "2012 · " + mot12.length + (mot12.length > 1 ? " מסלולים" : " מסלול") : anc ? "2012" : ""}>
         {SHOW_2012_BOX && mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
@@ -3458,8 +3533,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
         {/* הלו"ז השבועי המלא. כשנבחר במפורש אירוע לו"ז/תדירות — במקומו טבלת לפני/אחרי של אותו יום.
             באירוע האחרון (שעליו נפתח הקו) תמיד מוצג, גם כשהוא עצמו שינוי לו"ז: אחרת קו עם שינוי
             יומי בתגבור נראה בלי לו"ז בכלל (שלמה 06.10, קו 470: "למה אין לו"ז?") */}
-        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
-          isLast={sel == null || sel >= vs.length - 1} />}
+        {(sel == null || sel >= vs.reduce((l, x, i) => x.hid ? l : i, 0) || (v.k !== "sched" && v.k !== "freq")) && (lf.tt === "rail" ? <RailSched rd={rd} /> : <SchedBox rd={rd} vs={vs} gone={!!goneD} selD={sel != null && vs[sel] ? vs[sel].d : null}
+          isLast={sel == null || sel >= vs.length - 1} />)}
         {SHOW_2012_BOX && mot12 && mot12.length > 0 && !NO_2012.has(lf.tt || "") && (
           <div className="a2012">
             <b>2012 · משרד התחבורה</b>{mot12.length > 1 ? ` · ${mot12.length} מסלולים תואמים` : ""}
@@ -3504,7 +3579,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               : <div className="mut">טוען…</div>)}
           </div>
         )}
-        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibs} rd={rd}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibsShown} rd={rd}
           date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
@@ -5317,7 +5392,9 @@ function MapTab({ idx, openLine, cities }) {
         <div className="months">
           <button className={"mchip" + (mon === "Y:" + yr ? " on" : "")} aria-pressed={mon === "Y:" + yr} title={"כל השינויים של שנת " + yr + " יחד"} onClick={() => setMon("Y:" + yr)}>🗓️ כל {yr}</button>
           {months.filter((m) => m.startsWith(yr)).slice().reverse().map((m) => (
-            <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}>{m.split("-").reverse().join(".")}</button>
+            <button key={m} className={"mchip" + (mon === m ? " on" : "")} aria-pressed={mon === m} onClick={() => setMon(m)}
+              title={DETAILED_EARLY.has(m) ? "החודש היחיד לפני 2015 עם קובץ מלא מארכיון משרד התחבורה — מסלולים ותחנות מפורטים, לא מצילומי האתר" : undefined}>
+              {m.split("-").reverse().join(".")}{DETAILED_EARLY.has(m) ? " · מסלול מפורט" : ""}</button>
           ))}
         </div>
       )}
