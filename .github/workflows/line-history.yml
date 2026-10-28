@@ -380,6 +380,8 @@ jobs:
             OUTDIR=line-history/data node tools/build_alt_desc.mjs
             # קישור ישיר לקווי 2012 של משרד התחבורה (קודם למגיעים) — שלמה 26.09
             OUTDIR=line-history/data python3 tools/link_mot2012.py
+            # קו ממשיך — השערה: איזה קו החליף קו שבוטל, לפי התחנות (שלמה 28.10)
+            OUTDIR=line-history/data python3 tools/line_successors.py || echo "line_successors נכשל — ההשערות מאתמול נשארות"
             # היסטוריה לפי תחנה: אילו קווים עצרו בכל תחנה ומתי זה השתנה
             OUTDIR=line-history/data python3 tools/build_stop_history.py
             OUTDIR=line-history/data python3 tools/build_city_search.py

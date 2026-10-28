@@ -221,8 +221,11 @@ const CAT_GROUPS = [
   { title: "שינויים טכניים", items: ["redraw"] },
   // הודעות משרד התחבורה (הקו המודיע) — עבודות, עקיפות ותחנות שבוטלו זמנית (שלמה 20.10)
   { title: "שינויים זמניים", items: ["temp"] },
+  // השערה לפי התחנות, לא מידע רשמי (שלמה 28.10) — tools/line_successors.py
+  { title: "השערות — לפי התחנות, לא מידע רשמי", items: ["succ"] },
 ];
 const CAT_LABELS = {
+  succ: "🔮 קו ממשיך — השערה: איזה קו החליף אותו",
   "removed-year": "מבוטל — מעל שנה לא חזר",
   "removed-now": "מבוטל כרגע — פחות משנה",
   "removed-past": "בוטל בעבר וחזר לפעול",
@@ -248,7 +251,7 @@ const CAT_LABELS = {
   sched: "שינוי שעות היציאה (לו\"ז)",
   temp: "שינוי זמני — עבודות, עקיפות ותחנות שבוטלו זמנית",
 };
-const CAT_COLORS = { "removed-now": "#dc2626", "removed-past": "#f59e0b",
+const CAT_COLORS = { "removed-now": "#dc2626", "removed-past": "#f59e0b", succ: "#7c3aed",
                      endpoint: "#a21caf" };
 function catColor(k) { return CAT_COLORS[k] || (KINDS[k] || {}).color || "#64748b"; }
 const ENDPOINT_KINDS = ["extend", "shorten", "terminal"];
@@ -256,6 +259,7 @@ const ENDPOINT_KINDS = ["extend", "shorten", "terminal"];
 // ואילו ביטול טרי עוד עשוי להתברר כהפסקה. ההבחנה נשארה לבקשת המשתמש.
 function catMatch(l, k) {
   if (k === "temp") return !!l.tmp;   // data/temp/index.json — מצורף לקווים בטעינת האינדקס
+  if (k === "succ") return !!l.succ;  // data/successors/index.json — מצורף בטעינת האינדקס
   if (k === "removed-year") return isRemovedYear(l);
   if (k === "removed-now") return !!lineGoneAt(l) && !isRemovedYear(l);
   if (k === "removed-past") return !lineGoneAt(l) && (l.ks || []).includes("removed");
@@ -1766,6 +1770,42 @@ const schedDayOf = (note) => {
 // הישן. מ-2015 כל החודשים מהארכיון, ולכן אין צורך לסמן (שלמה 28.10).
 const DETAILED_EARLY = new Set(["2012-07"]);
 
+/* "קו ממשיך — השערה" (שלמה 28.10): איזה קו החליף קו שבוטל, או איך מסלול של 2012 נמשך —
+   לפי התחנות המשותפות, לא לפי רישום רשמי. data/successors/<2 תווים>.json (tools/line_successors.py) */
+function SuccBox({ rd }) {
+  const [e, setE] = useState(null);
+  useEffect(() => {
+    let ok = true; setE(null);
+    dfetch("data/successors/" + fsafe(rd).slice(0, 2) + ".json").then((r) => (r.ok ? r.json() : {}))
+      .then((m) => { if (ok) setE(m[rd] || null); }).catch(() => {});
+    return () => { ok = false; };
+  }, [rd]);
+  if (!e) return null;
+  const lk = (t) => <a href={lineHref(t[1])}>קו {t[0] || "?"}</a>;
+  const join = (xs) => xs.map((x, i) => <React.Fragment key={i}>{i ? (i === xs.length - 1 ? " ו" : ", ") : ""}{x}</React.Fragment>);
+  const how = (t) => t[2] === t[3] && t[2] === t[4] ? `אותן ${t[2]} תחנות` : `${t[2]} מתוך ${t[3]} התחנות משותפות`;
+  const sent = (x, when) => {
+    const to = x.to || [];
+    if (!to.length) return null;
+    if (x.k === "פוצל") {
+      const ts = [...to].sort((a, b) => (parseInt(a[0]) || 0) - (parseInt(b[0]) || 0));
+      return <>פוצל כנראה {when} לקווים {join(ts.map((t) => <a key={t[1]} href={lineHref(t[1])}>{t[0] || "?"}</a>))}</>;
+    }
+    if (x.k === "אותו קו") return <>המשיך כנראה {when} כ{lk(to[0])} ({how(to[0])})</>;
+    if (x.k === "אותו מספר, מסלול שונה") return <>המשיך כנראה {when} כ{lk(to[0])}, עם מסלול שונה ({how(to[0])})</>;
+    return <>{x.k === "הוחלף" ? "הוחלף כנראה" : "השתנה כנראה"} {when} ב{lk(to[0])} ({how(to[0])})</>;
+  };
+  const when = (x) => x.d === "2015" ? "ב-2015" : "ב-" + fmtD(x.d);
+  return (
+    <div className="succbox">
+      <b>🔮 השערה לפי התחנות</b>
+      {e.to && <div>{sent(e, when(e))}{e.then ? <>, ואחר כך {sent(e.then, when(e.then))}</> : null}.</div>}
+      {e.from && <div>כנראה מחליף את {join(e.from.map((f) => <a key={f[1]} href={lineHref(f[1])}>קו {f[0] || "?"}</a>))} שבוטל ב-{fmtD(e.from[0][3])}.</div>}
+      <div className="mut">לא מידע רשמי: משרד התחבורה לא רושם איזה קו החליף איזה. ההשערה מבוססת על התחנות המשותפות ועל תאריכי הביטול והפתיחה.</div>
+    </div>
+  );
+}
+
 function schedDaysLbl(ds) {
   const items = [];
   for (let i = 0; i < ds.length;) {
@@ -3212,6 +3252,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
           )}
           {!lf.observationOnly && mkTag(lf.rd)} · {vs.length} גרסאות מתועדות</div>
+        <SuccBox rd={rd} />
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}
@@ -3528,6 +3569,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
           )}
           {!lf.observationOnly && mkTag(lf.rd)} · {vs.length} גרסאות מתועדות</div>
+        <SuccBox rd={rd} />
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}
@@ -6140,6 +6182,9 @@ function App() {
         // קווים עם שינוי זמני (הקו המודיע) — לקטגוריה "שינוי זמני"
         const tmp = await fetch("data/temp/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : []).catch(() => []);
         if (tmp.length && d && d.lines) { const ts = new Set(tmp); d.lines.forEach((l) => { if (l.rd && ts.has(l.rd.split("-")[0])) l.tmp = 1; }); }
+        // קו ממשיך — השערה (tools/line_successors.py)
+        const suc = await fetch("data/successors/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : []).catch(() => []);
+        if (suc.length && d && d.lines) { const ss = new Set(suc); d.lines.forEach((l) => { if (ss.has(l.rd)) l.succ = 1; }); }
         DATA_GEN = d.gen || null;
         setKnownCities(d && d.lines);
         setIdx(attach2012Groups(d, groups));
