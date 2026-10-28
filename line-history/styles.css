@@ -556,8 +556,6 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .rtbl { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid #cbd5e1; }
 .rtbl th { background: #ecfeff; color: #155e75; font-weight: 800; padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right; }
 .rtbl td { padding: 5px 8px; border: 1px solid #e2e8f0; vertical-align: top; }
-.rtbl tbody tr:nth-child(even) td { background: #f8fafc; }
 .rtbl td.t { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
 .rtbl td.t a { color: #5b21b6; text-decoration: underline dotted; }
-.rtbl tr.me td { background: #f5f3ff; }
-.rtbl tr.me td.t a { color: #4c1d95; }
+.rtbl tr.me td.t a { color: #4c1d95; font-weight: 900; }

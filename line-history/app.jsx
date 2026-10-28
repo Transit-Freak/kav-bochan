@@ -1798,6 +1798,8 @@ function RailSched({ rd }) {
   if (d === undefined) return <div className="mut">טוען את הלו״ז…</div>;
   const has = (p) => p.dirs[dr] && Object.values(p.dirs[dr].days).some((rs) => rs.some((x) => x[1] === alt));
   const p = d && (d.p || []).filter(has).pop();
+  // בלי קובץ (עוד לא נבנה) — לא מציגים כלום; קובץ בלי החלופה — אומרים
+  if (!d) return null;
   if (!p) return <div className="mut">אין לו״ז לחלופה הזו בארכיון.</div>;
   const x = p.dirs[dr], groups = new Map();
   for (const b of SCHED_DAYS) {
@@ -1812,7 +1814,7 @@ function RailSched({ rd }) {
       <summary>🕐 הלו״ז של הקו בשבוע של {fmtD(p.d)}</summary>
       <div className="schednote">
         כל הרכבות של הכיוון {x.from} ← {x.to} בשבוע האחרון שבו החלופה הזו פעלה, לפי ארכיון משרד התחבורה.
-        הרכבות של החלופה הזו מודגשות. "דרך / שינוי" ריק = המסלול הרגיל. מספרי הרכבות לא נשמרו בקבצים של אותן שנים.
+        השעות של החלופה הזו מודגשות. "דרך / שינוי" ריק = המסלול הרגיל. מספרי הרכבות לא נשמרו בקבצים של אותן שנים.
       </div>
       {/* טבלה של ממש — עמודות וקווי הפרדה (שלמה 28.10: "שיראה יותר כמו טבלה") */}
       {[...groups.values()].map((g) => (
