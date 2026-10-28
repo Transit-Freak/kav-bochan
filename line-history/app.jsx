@@ -1814,16 +1814,19 @@ function RailSched({ rd }) {
         כל הרכבות של הכיוון {x.from} ← {x.to} בשבוע האחרון שבו החלופה הזו פעלה, לפי ארכיון משרד התחבורה.
         הרכבות של החלופה הזו מודגשות. "דרך / שינוי" ריק = המסלול הרגיל. מספרי הרכבות לא נשמרו בקבצים של אותן שנים.
       </div>
+      {/* טבלה של ממש — עמודות וקווי הפרדה (שלמה 28.10: "שיראה יותר כמו טבלה") */}
       {[...groups.values()].map((g) => (
-        <table key={g.days.join("")} className="tsnap railsched"><tbody>
-          <tr><th colSpan={2}>{schedDaysLbl(g.days)} · {g.rs.length} רכבות</th></tr>
-          {g.rs.map(([t, a, n], i) => (
-            <tr key={i} className={a === alt ? "me" : ""}>
-              <td className="rt"><a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a></td>
-              <td>{n >= 0 ? x.n[n] : ""}{why[mk + "-" + dr + "-" + a] ? <div className="mut">❗ {why[mk + "-" + dr + "-" + a].text}</div> : null}</td>
-            </tr>
-          ))}
-        </tbody></table>
+        <div key={g.days.join("")}>
+          <div className="rgrp">{schedDaysLbl(g.days)} · {g.rs.length} רכבות</div>
+          <table className="rtbl"><thead><tr><th>שעה</th><th>דרך / שינוי</th></tr></thead><tbody>
+            {g.rs.map(([t, a, n], i) => (
+              <tr key={i} className={a === alt ? "me" : ""}>
+                <td className="t"><a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a></td>
+                <td>{n >= 0 ? x.n[n] : ""}{why[mk + "-" + dr + "-" + a] ? <div className="mut">❗ {why[mk + "-" + dr + "-" + a].text}</div> : null}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
       ))}
     </details>
   );

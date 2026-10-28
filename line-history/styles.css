@@ -552,8 +552,12 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 
 /* תוויות מפה בדף RTL: שכבת התוויות LTR כדי ש-Leaflet יחשב נכון את המיקום ליד הסמן, והטקסט עצמו RTL (שלמה 20.10) */
 .leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
-.railsched td { line-height: 1.5; font-size: 13px; }
-.railsched td.rt { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
-.railsched td.rt a { color: #0f172a; text-decoration: none; border-bottom: 1px dotted #94a3b8; }
-.railsched tr.me td { background: #f5f3ff; }
-.railsched tr.me td.rt a { color: #5b21b6; }
+.rgrp { font-weight: 800; color: #155e75; margin: 14px 0 6px; font-size: 14px; }
+.rtbl { width: 100%; border-collapse: collapse; font-size: 13.5px; border: 1px solid #cbd5e1; }
+.rtbl th { background: #ecfeff; color: #155e75; font-weight: 800; padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right; }
+.rtbl td { padding: 5px 8px; border: 1px solid #e2e8f0; vertical-align: top; }
+.rtbl tbody tr:nth-child(even) td { background: #f8fafc; }
+.rtbl td.t { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
+.rtbl td.t a { color: #5b21b6; text-decoration: underline dotted; }
+.rtbl tr.me td { background: #f5f3ff; }
+.rtbl tr.me td.t a { color: #4c1d95; }
