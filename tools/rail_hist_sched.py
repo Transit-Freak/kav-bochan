@@ -86,19 +86,41 @@ def city_of(desc):
     return m.group(1).strip() if m else ''
 
 
+# עיר לפי תחילת שם התחנה — כשבקובץ אין עיר בתיאור התחנה (בחלק מהשנים)
+CITY_PREFIX = [('צומת חולון', 'חולון'), ('חולון', 'חולון'), ('בת ים', 'בת ים'), ('תל אביב', 'תל אביב'),
+               ('חיפה', 'חיפה'), ('בת גלים', 'חיפה'), ('חוף הכרמל', 'חיפה'), ('לב המפרץ', 'חיפה'),
+               ('באר שבע', 'באר שבע'), ('ירושלים', 'ירושלים'), ('רשל"צ', 'ראשון לציון'),
+               ('ראשון לציון', 'ראשון לציון'), ('ראשונים', 'ראשון לציון'), ('פתח תקווה', 'פתח תקווה'),
+               ('נתניה', 'נתניה'), ('אשדוד', 'אשדוד'), ('מודיעין', 'מודיעין'), ('כפר סבא', 'כפר סבא'),
+               ('ראש העין', 'ראש העין'), ('חדרה', 'חדרה'), ('הרצליה', 'הרצליה'), ('רחובות', 'רחובות')]
+
+
+def city_name(sid, names, cities):
+    if cities.get(sid):
+        return cities[sid]
+    nm = names.get(sid, '')
+    return next((c for p, c in CITY_PREFIX if nm.startswith(p)), '')
+
+
+def join_he(xs):
+    return xs[0] if len(xs) == 1 else ', '.join(xs[:-1]) + ' ו' + xs[-1]
+
+
 def phrase(ids, main, names, cities):
-    """רשימת תחנות לטקסט; כמה תחנות של עיר שהן כל תחנותיה במסלול הרגיל → "כל תחנות X"."""
+    """רשימת תחנות לטקסט; כמה תחנות של עיר שהן כל תחנותיה במסלול הרגיל → "כל תחנות X ו-Y"."""
     by = collections.OrderedDict()
     for s in ids:
-        by.setdefault(cities.get(s, ''), []).append(s)
-    parts = []
+        by.setdefault(city_name(s, names, cities), []).append(s)
+    whole, parts = [], []
     for c, ss in by.items():
-        allc = [s for s in main if cities.get(s, '') == c]
+        allc = [s for s in main if city_name(s, names, cities) == c]
         if c and len(ss) >= 2 and set(ss) >= set(allc):
-            parts.append('כל תחנות ' + c)
+            whole.append(c)
         else:
             parts.extend(names.get(s, s) for s in ss)
-    return ', '.join(parts)
+    if whole:
+        parts.insert(0, 'כל תחנות ' + join_he(whole))
+    return join_he(parts) if len(parts) > 1 else (parts[0] if parts else '')
 
 
 def diff_note(seq, main, names, cities):
@@ -115,12 +137,13 @@ def diff_note(seq, main, names, cities):
     have = set(seq)
     skip = [s for s in span if s not in have]
     extra = [s for s in seq if s not in set(main)]
-    if len(skip) > max(3, len(span) // 2):
+    if extra and len(skip) >= 3:
+        # מסלול אחר (למשל דרך קרית גת במקום החוף): מה כן — לא רשימת כל מה שהוא מדלג עליו
+        notes.append('מסלול אחר: דרך ' + phrase(extra, main, names, cities))
+    elif len(skip) > max(3, len(span) // 2):
         # רוב התחנות של המסלול הרגיל חסרות: לא רשימת "לא עוצרת", אלא מה כן
         mid = seq[1:-1]
-        if extra:
-            notes.append('מסלול אחר: דרך ' + phrase(extra, main, names, cities))
-        elif mid:
+        if mid:
             notes.append('מהירה: עוצרת רק ב' + phrase(mid, main, names, cities))
         else:
             notes.append('ישירה, בלי עצירות בדרך')
