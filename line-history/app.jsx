@@ -1103,7 +1103,8 @@ function useTempEvents(rd) {
     if (!/^\d+$/.test(mk)) return undefined;
     fetch("data/temp/" + mk + ".json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => {
       if (!ok || !d || !Array.isArray(d.ev)) return;
-      setList(d.ev.filter((t) => t && t.d && (!t.rds || t.rds.includes(rd))).sort((a, b) => (a.d < b.d ? 1 : -1)));
+      // רק שינוי מסלול או תחנות — לא פקקים, תאונות ועיכובים (k:"info"; שלמה 28.10)
+      setList(d.ev.filter((t) => t && t.d && t.k !== "info" && (!t.rds || t.rds.includes(rd))).sort((a, b) => (a.d < b.d ? 1 : -1)));
     }).catch(() => {});
     return () => { ok = false; };
   }, [rd]);
@@ -5306,7 +5307,8 @@ function MapTab({ idx, openLine, cities }) {
           ))}
         </div>
       )}
-      {months && <div className="months" style={{borderTop:"1px solid #e2e8f0",paddingTop:10}}>
+      {/* צילום התחנות של 2012 — רק במצב "תחנות" (שלמה 28.10) */}
+      {months && mode === "stops" && <div className="months" style={{borderTop:"1px solid #e2e8f0",paddingTop:10}}>
           <span className="pdesc">צילום תחנות ממקור נוסף:</span>
           <button className={"mchip" + (is2012 ? " on" : "")} aria-pressed={is2012} title="כל התחנות שהיו בעיר (או בכל הארץ) ברישום התחנות של משרד התחבורה מ-2012"
             onClick={() => { setYr("2012"); setMon("snapshot2012"); setMode("stops"); setKinds(new Set()); }}>2012 · תחנות OpenStreetMap</button>

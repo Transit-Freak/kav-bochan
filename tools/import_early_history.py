@@ -51,6 +51,7 @@ def download(url, target):
             time.sleep(2*(attempt+1))
 
 MAX_ORPHAN_TRIPS = 50
+SKIP_AFTER = 3
 
 def load_snapshot(paths):
     """Merge overlapping regional feeds by primary key; conflicts fail loudly."""
@@ -297,7 +298,7 @@ def main():
     for source in catalog['snapshots']:
         if source['kind']=='websiteArchive':continue
         sid=source['id']
-        if sid in progress['done'] or (args.only and sid!=args.only):continue
+        if sid in progress['done'] or sid in progress.get('skipped',{}) or (args.only and sid!=args.only):continue
         if time.monotonic()>deadline or (args.limit and count>=args.limit):break
         print('Importing',sid,flush=True)
         failed=False
@@ -318,6 +319,17 @@ def main():
             print(sid,result,flush=True)
         except Exception as e:
             progress['errors'][sid]=str(e);print('FAILED',sid,str(e),flush=True);failed=True
+            # קובץ פגום נכשל באותה שגיאה בכל ריצה (obus-2018-06-28: חסרים קווים) — אחרי
+            # SKIP_AFTER ניסיונות מדלגים עליו (נרשם ב-skipped) וממשיכים לצילום הבא, במקום
+            # להיתקע עליו ולשלוח שגיאה כל שעה. ההשוואה עוברת לצילום שלפניו.
+            # רק שגיאת נתונים (ValueError) נספרת — תקלת רשת או הורדה תמיד מנוסה שוב.
+            tries=progress.setdefault('attempts',{})
+            if isinstance(e,ValueError):tries[sid]=tries.get(sid,0)+1
+            if tries.get(sid,0)>=SKIP_AFTER:
+                progress.setdefault('skipped',{})[sid]={'error':str(e),'attempts':tries[sid],
+                    'at':datetime.date.today().isoformat()}
+                progress['errors'].pop(sid,None);tries.pop(sid,None);failed=False
+                print('SKIPPED',sid,'after',progress['skipped'][sid]['attempts'],'attempts',flush=True)
         progress['updatedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat()
         write(PROGRESS,progress);count+=1
         if failed: break  # keep chronological comparison; retry before advancing

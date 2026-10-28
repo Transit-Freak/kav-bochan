@@ -724,7 +724,14 @@ def archive_temp(alerts, now_ts, merged=()):
                       ensure_ascii=False, separators=(',', ':'))
             n += 1
     # רשימת המק"טים שיש להם שינוי זמני — לקטגוריה "שינוי זמני" בחיפוש של הקו בזמן (שלמה 20.10)
-    mks = sorted(os.path.basename(f)[:-5] for f in glob.glob(f'{TEMP_DIR}/*.json') if not f.endswith('/index.json'))
+    # רק קווים שהיה להם שינוי מסלול או תחנות — לא פקקים ותאונות בלבד (kind 'info'; שלמה 28.10)
+    def _route_change(f):
+        try:
+            return any(e.get('k') != 'info' for e in json.load(open(f)).get('ev') or [])
+        except Exception:
+            return False
+    mks = sorted(os.path.basename(f)[:-5] for f in glob.glob(f'{TEMP_DIR}/*.json')
+                 if not f.endswith('/index.json') and _route_change(f))
     json.dump(mks, open(f'{TEMP_DIR}/index.json', 'w'), separators=(',', ':'))
     print(f'הארכיון של הקו בזמן: {n} קבצי קו עודכנו ({len(by_mk)} קווים עם שינוי זמני שהתחיל)')
 
