@@ -54,7 +54,7 @@ def rail_variants():
     מהשבוע האחרון שבו פעלה (החלופות של קו רכבת פעלו בתקופות שונות)."""
     last = {}
     for l in json.load(open(f'{OUTDIR}/lines.json', encoding='utf-8'))['lines']:
-        if l.get('tt') != 'rail' or '-' not in l['rd']:
+        if l.get('tt') != 'rail' or '-' not in l['rd'] or l['rd'].startswith('R'):   # R… = rail_now.py
             continue
         mk = l['rd']
         try:
@@ -255,7 +255,7 @@ def build_groups():
     הנציגה = זו שפעלה אחרונה. נבנה מקובצי הקווים בלבד, בלי רשת."""
     info = {}
     for l in json.load(open(f'{OUTDIR}/lines.json', encoding='utf-8'))['lines']:
-        if l.get('tt') != 'rail' or '-' not in l['rd']:
+        if l.get('tt') != 'rail' or '-' not in l['rd'] or l['rd'].startswith('R'):   # R… = rail_now.py
             continue
         try:
             f = json.load(open(f'{OUTDIR}/lines/{fsafe(l["rd"])}.json', encoding='utf-8'))

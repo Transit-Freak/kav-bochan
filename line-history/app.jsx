@@ -1783,7 +1783,7 @@ function schedDaysLbl(ds) {
    מהמסלול הרגיל (ריק = כמו הרגיל). הרכבות של החלופה הזו מודגשות; לחיצה על שעה פותחת
    את החלופה של אותה רכבת. data/rail-sched/<מק"ט>.json — tools/rail_hist_sched.py */
 function RailSched({ rd }) {
-  const [d, setD] = useState(undefined), [why, setWhy] = useState({});
+  const [d, setD] = useState(undefined), [why, setWhy] = useState({}), [pi, setPi] = useState(null);
   const [mk, dr, ...rest] = String(rd).split("-"), alt = rest.join("-");
   // רכבת שהסיבה שלה תועדה (שינוי זמני — rail-reasons.json): הסיבה מופיעה בשורה שלה
   useEffect(() => { let on = true; getRailWhy().then((w) => { if (on) setWhy(w.rd || {}); }); return () => { on = false; }; }, []);
@@ -1795,13 +1795,16 @@ function RailSched({ rd }) {
       .catch(() => { if (ok) setD(null); });
     return () => { ok = false; };
   }, [mk]);
+  useEffect(() => { setPi(null); }, [rd]);
   if (d === undefined) return <div className="mut">טוען את הלו״ז…</div>;
   const has = (p) => p.dirs[dr] && Object.values(p.dirs[dr].days).some((rs) => rs.some((x) => x[1] === alt));
-  const p = d && (d.p || []).filter(has).pop();
+  // קווי הרכבת מ-2021 (rail_now.py, m=1): צילום לכל חודש — בוחרים חודש, ברירת המחדל האחרון
+  const monthly = !!(d && d.m), ps = d ? (d.p || []).filter(has) : [];
+  const p = monthly && pi != null && ps[pi] ? ps[pi] : ps[ps.length - 1];
   // בלי קובץ (עוד לא נבנה) — לא מציגים כלום; קובץ בלי החלופה — אומרים
   if (!d) return null;
   if (!p) return <div className="mut">אין לו״ז לחלופה הזו בארכיון.</div>;
-  const x = p.dirs[dr], groups = new Map();
+  const x = p.dirs[dr], groups = new Map(), withTn = monthly;
   for (const b of SCHED_DAYS) {
     const rs = x.days[b];
     if (!rs || !rs.length) continue;
@@ -1812,18 +1815,28 @@ function RailSched({ rd }) {
   return (
     <details className="schedbox" open>
       <summary>🕐 הלו״ז של הקו בשבוע של {fmtD(p.d)}</summary>
-      <div className="schednote">
+      {monthly ? <div className="schednote">
+        כל הרכבות בכיוון {x.from} ← {x.to} לפי הלו"ז שפורסם, שבוע אחד בכל חודש. "דרך / שינוי" ריק = המסלול הרגיל.
+      </div> : <div className="schednote">
         כל הרכבות של הכיוון {x.from} ← {x.to} בשבוע האחרון שבו החלופה הזו פעלה, לפי ארכיון משרד התחבורה.
         השעות של החלופה הזו מודגשות. "דרך / שינוי" ריק = המסלול הרגיל. מספרי הרכבות לא נשמרו בקבצים של אותן שנים.
-      </div>
+      </div>}
+      {monthly && ps.length > 1 && <div className="months" style={{ margin: "8px 0" }}>
+        <span className="pdesc">חודש:</span>
+        {ps.map((q, i) => i).reverse().map((i) => (
+          <button key={i} className={"mchip" + (ps[i] === p ? " on" : "")} aria-pressed={ps[i] === p} onClick={() => setPi(i)}>
+            {String(ps[i].ym || ps[i].d.slice(0, 7)).split("-").reverse().join(".")}</button>
+        ))}
+      </div>}
       {/* טבלה של ממש — עמודות וקווי הפרדה (שלמה 28.10: "שיראה יותר כמו טבלה") */}
       {[...groups.values()].map((g) => (
         <div key={g.days.join("")}>
           <div className="rgrp">{schedDaysLbl(g.days)} · {g.rs.length} רכבות</div>
-          <table className="rtbl"><thead><tr><th>שעה</th><th>דרך / שינוי</th></tr></thead><tbody>
-            {g.rs.map(([t, a, n], i) => (
-              <tr key={i} className={a === alt ? "me" : ""}>
-                <td className="t"><a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a></td>
+          <table className="rtbl"><thead><tr><th>שעה</th>{withTn && <th>רכבת</th>}<th>דרך / שינוי</th></tr></thead><tbody>
+            {g.rs.map(([t, a, n, tn], i) => (
+              <tr key={i} className={a === alt && !withTn ? "me" : ""}>
+                <td className="t">{withTn ? t : <a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a>}</td>
+                {withTn && <td className="t">{tn}</td>}
                 <td>{n >= 0 ? x.n[n] : ""}{why[mk + "-" + dr + "-" + a] ? <div className="mut">❗ {why[mk + "-" + dr + "-" + a].text}</div> : null}</td>
               </tr>
             ))}

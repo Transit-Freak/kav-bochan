@@ -82,6 +82,8 @@ def pending_variants(today):
         if not lf or not lf.get('versions'):
             continue
         rd = lf.get('rd') or fn[:-5].replace('H', '#')
+        if rd.startswith('R'):   # קווי הרכבת מ-2021 (rail_now.py) — הלו"ז שלהם ב-rail-sched
+            continue
         if TEST_RD and rd != TEST_RD:
             continue
         if RDS and rd not in RDS:
