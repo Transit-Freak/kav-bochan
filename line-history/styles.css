@@ -559,3 +559,7 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .rtbl td.t { width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
 .rtbl td.t a { color: #5b21b6; text-decoration: underline dotted; }
 .rtbl tr.me td.t a { color: #4c1d95; font-weight: 900; }
+.succbox { margin: 10px 0; padding: 9px 12px; border: 1px dashed #a78bfa; border-radius: 10px; background: #faf5ff; font-size: 13.5px; line-height: 1.6; }
+.succbox b { color: #6d28d9; }
+.succbox a { color: #5b21b6; font-weight: 700; }
+.succbox .mut { font-size: 12px; margin-top: 4px; }
