@@ -67,9 +67,11 @@ def month_days():
             if c:
                 out.append((ym, f'{c[0][:4]}-{c[0][4:6]}-{c[0][6:]}', TF.format(ds=c[0])))
         else:
-            dd = datetime.date(d.year, d.month, 10)
-            if dd < today - datetime.timedelta(days=1):
-                out.append((ym, dd.isoformat(), OB.format(y=dd.year, m=dd.month, d=dd.day)))
+            # כמה ימים חלופיים — יום שחסר בארכיון (404) לא מפיל את החודש
+            c = [datetime.date(d.year, d.month, x) for x in (10, 11, 12, 13, 14, 15)]
+            c = [x for x in c if x < today - datetime.timedelta(days=1)]
+            if c:
+                out.append((ym, c[0].isoformat(), [(x.isoformat(), OB.format(y=x.year, m=x.month, d=x.day)) for x in c]))
         d = (d.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
     return out
 
@@ -168,16 +170,17 @@ def main():
         f = f'{CACHE}/now-{ym}.json' if CACHE else None
         if f and os.path.exists(f):
             return ym, day, json.load(open(f, encoding='utf-8'))
-        for attempt in range(3):
-            try:
-                res = scan(day, url, i == len(months) - 1)
+        res = None
+        for day, url in (url if isinstance(url, list) else [(day, url)]):
+            for attempt in range(2):
+                try:
+                    res = scan(day, url, i == len(months) - 1)
+                    break
+                except (Exception, SystemExit) as e:  # noqa: BLE001 — backfill_geo.http יוצא ב-SystemExit על 404
+                    print('נכשל', ym, day, attempt + 1, e, flush=True)
+            if res:
                 break
-            except urllib.error.HTTPError as e:
-                print('לא זמין', ym, e, flush=True)
-                return ym, day, None
-            except Exception as e:  # noqa: BLE001
-                print('נכשל', ym, attempt + 1, e, flush=True)
-        else:
+        if not res:
             return ym, day, None
         if f:
             json.dump(res, open(f, 'w', encoding='utf-8'), ensure_ascii=False)
