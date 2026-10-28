@@ -1821,12 +1821,13 @@ function RailSched({ rd }) {
         כל הרכבות של הכיוון {x.from} ← {x.to} בשבוע האחרון שבו החלופה הזו פעלה, לפי ארכיון משרד התחבורה.
         השעות של החלופה הזו מודגשות. "דרך / שינוי" ריק = המסלול הרגיל. מספרי הרכבות לא נשמרו בקבצים של אותן שנים.
       </div>}
-      {monthly && ps.length > 1 && <div className="months" style={{ margin: "8px 0" }}>
-        <span className="pdesc">חודש:</span>
-        {ps.map((q, i) => i).reverse().map((i) => (
-          <button key={i} className={"mchip" + (ps[i] === p ? " on" : "")} aria-pressed={ps[i] === p} onClick={() => setPi(i)}>
-            {String(ps[i].ym || ps[i].d.slice(0, 7)).split("-").reverse().join(".")}</button>
-        ))}
+      {/* ~60 חודשים — רשימה נפתחת ולא שורת כפתורים */}
+      {monthly && ps.length > 1 && <div style={{ margin: "8px 0" }}>
+        <label className="pdesc">חודש: <select value={ps.indexOf(p)} onChange={(e) => setPi(+e.target.value)}>
+          {ps.map((q, i) => i).reverse().map((i) => (
+            <option key={i} value={i}>{String(ps[i].ym || ps[i].d.slice(0, 7)).split("-").reverse().join(".")}</option>
+          ))}
+        </select></label>
       </div>}
       {/* טבלה של ממש — עמודות וקווי הפרדה (שלמה 28.10: "שיראה יותר כמו טבלה") */}
       {[...groups.values()].map((g) => (
@@ -3210,7 +3211,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
               {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
           )}
-          {!lf.observationOnly && <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span></>} · {vs.length} גרסאות מתועדות</div>
+          {!lf.observationOnly && mkTag(lf.rd)} · {vs.length} גרסאות מתועדות</div>
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}
@@ -3526,7 +3527,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             <span title="מספר הנסיעות המתוכננות לחלופה הזו בפיד של היום, לפי לוחות הזמנים שבתוקף">
               {" · "}{ntr === 1 ? "נסיעה אחת ביום" : `${ntr.toLocaleString()} נסיעות ביום`}</span>
           )}
-          {!lf.observationOnly && <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(lf.rd)}</span></>} · {vs.length} גרסאות מתועדות</div>
+          {!lf.observationOnly && mkTag(lf.rd)} · {vs.length} גרסאות מתועדות</div>
         {/* תקופות שבהן הקו לא היה ברישום וחזר — כרטיס "בוטל וחזר" בציר הזמן
             (materializeLf), לא פס טקסט כאן (שלמה 06.09). ביטול שעדיין לא נגמר
             מוצג בהודעת הסטטוס למטה. */}
@@ -4386,12 +4387,12 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                     <span className="badge sm">{c.line || TT_ICON[m.tt] || "—"}</span>
                     {lite ? <>
                       {/* כמו "החשובים של היום" בדף הראשי (שלמה 08.10): "עיר – עיר", החברה בקטן, סוג השינוי בסוף */}
-                      <span className="ldest">{m.dest ? routeTitle(m.dest, m) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op ? m.op + " · " : ""}מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></small></span>
+                      <span className="ldest">{m.dest ? routeTitle(m.dest, m) : idx ? rdTxt(c.rd) : "…"}<small className="lop">{m.op || ""}{mkTag(c.rd)}</small></span>
                       {kk}
                     </> : <>
                       {kk}
                       <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
-                      <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
+                      <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
                     </>}
                     {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
@@ -4556,7 +4557,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
                 <span className="badge sm">{c.line}</span>
                 <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
                 <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
-                <span className="lmeta">{m.op || ""} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(c.rd)}</span></span>
+                <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
                 {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
@@ -5470,7 +5471,11 @@ const SHOW_2012_BOX = false;
 const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", demand: "🚐" };
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
+// קווי הרכבת מ-2021 (R… — rail_now.py) הם זוג תחנות קצה, אין להם מק"ט של משרד התחבורה
+const mkTag = (rd) => String(rd).startsWith("R") ? null : <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(rd)}</span></>;
+
 const SRC_LABEL = {
+  "rail-now": "מקור: לוחות הזמנים של רכבת ישראל שפורסמו — ארכיון TransitFeeds (עד 2022) והארכיון של דאטאבוס, צילום אחד בכל חודש",
   websiteArchive: "מקור: אתר מידע לנוסעים שנשמר ב־Internet Archive. כיסוי חלקי; צילום אינו הודעת שינוי.",
   miu12: "מקור: ארכיון מרחב ו־Internet Archive.",
   obusOld: "מקור: ארכיון אוטובוס פתוח / הסדנא לידע ציבורי.",
@@ -5700,7 +5705,7 @@ function ModesTab({ idx, openLine, spec }) {
               </span>
             )}
             <span className="ldest">{l.dest}</span>
-            <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
+            <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
           </a>
         ))}
         {list.length === 0 && <div className="empty">לא נמצא קו תואם.</div>}
@@ -5940,7 +5945,7 @@ function HistoricalDay({ idx, openLine, mode, catalog, progress, snapshot, day, 
         {stops===null ? <p role="status">טוען תחנות…</p> : <><p>{ss.length.toLocaleString()} תחנות</p>{ss.slice(0,lim).map(s=><button className="early-result" key={s.id} onClick={()=>setPoint(s)}>{s.c} · {s.n}<small>{s.desc}</small></button>)}</>}
         {point&&<div><h4>{point.c} · {point.n}</h4><EarlyMap stops={[[point.c,point.n,point.la,point.lo]]} shp="" /></div>}
       </> : <>
-        {routes===null||!idx ? <p role="status">טוען קווים…</p> : <><p>{lines.length.toLocaleString()} קווים</p><div className="llist">{lines.slice(0,lim).map(l=><a className="lrow" key={l.rd} href={lineHref(l.rd)} onClick={e=>{if(!plainClick(e))return;e.preventDefault();openLine(l.rd);}}><span className="badge sm">{l.line||TT_ICON[l.tt]||"—"}</span><span className="ldest">{l.dest}</span><span className="lmeta">{l.op} · מק״ט {rdTxt(l.rd)}</span></a>)}</div>{!lines.length&&<p>לא נמצאו {label} תואמים בצילום הזה.</p>}</>}
+        {routes===null||!idx ? <p role="status">טוען קווים…</p> : <><p>{lines.length.toLocaleString()} קווים</p><div className="llist">{lines.slice(0,lim).map(l=><a className="lrow" key={l.rd} href={lineHref(l.rd)} onClick={e=>{if(!plainClick(e))return;e.preventDefault();openLine(l.rd);}}><span className="badge sm">{l.line||TT_ICON[l.tt]||"—"}</span><span className="ldest">{l.dest}</span><span className="lmeta">{l.op}{mkTag(l.rd)}</span></a>)}</div>{!lines.length&&<p>לא נמצאו {label} תואמים בצילום הזה.</p>}</>}
       </>}
       {(lines.length>lim||ss.length>lim)&&<button className="morebtn" onClick={()=>setLim(lim+100)}>הצגת עוד תוצאות</button>}
     </>}
@@ -6331,7 +6336,7 @@ function App() {
                     </span>
                   ))}
                   <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
-                  <span className="lmeta">{l.op} · מק״ט <span className="rdnum" dir="ltr">{rdTxt(l.rd)}</span> · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
+                  <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
                 </a>);

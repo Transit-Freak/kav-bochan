@@ -53,6 +53,19 @@ def encode_shape(pts):
     return ''.join(out)
 
 
+def s3_days(y, m):
+    """הימים שיש להם קובץ בארכיון של דאטאבוס בחודש (רשימת הדלי הציבורי); ריק = לא ידוע"""
+    import re
+    import urllib.request
+    url = (f'https://openbus-stride-public.s3.eu-west-1.amazonaws.com/?list-type=2'
+           f'&prefix=gtfs_archive/{y}/{m:02d}/&max-keys=1000')
+    try:
+        x = urllib.request.urlopen(url, timeout=60).read().decode()
+    except Exception:  # noqa: BLE001
+        return set()
+    return {int(d) for d in re.findall(r'gtfs_archive/\d{4}/\d{2}/(\d{2})/israel-public-transportation\.zip', x)}
+
+
 def month_days():
     """[(YYYY-MM, url)] — יום אחד בכל חודש: יום TransitFeeds הראשון מה-10 בחודש עד סוף 2022,
     ואחר כך ה-10 בחודש בארכיון של דאטאבוס."""
@@ -61,14 +74,18 @@ def month_days():
     today = datetime.date.today()
     while d <= today:
         ym = d.strftime('%Y-%m')
+        # הקרוב ל-10 בחודש קודם, ואחריו כל שאר ימי החודש — יום שחסר בארכיון (404) או קובץ
+        # בלי רכבות לא מפיל את החודש (שלמה 28.10: "בדקת גם ב-S3?")
+        order = list(range(10, 16)) + list(range(9, 0, -1)) + list(range(16, 29))
         if d.year <= 2022:
-            c = [x for x in tf if x.startswith(d.strftime('%Y%m')) and x[6:] >= '10'] or \
-                [x for x in tf if x.startswith(d.strftime('%Y%m'))]
+            have = {int(x[6:]): x for x in tf if x.startswith(d.strftime('%Y%m'))}
+            c = [have[x] for x in order if x in have]
             if c:
-                out.append((ym, f'{c[0][:4]}-{c[0][4:6]}-{c[0][6:]}', TF.format(ds=c[0])))
+                out.append((ym, f'{c[0][:4]}-{c[0][4:6]}-{c[0][6:]}',
+                            [(f'{x[:4]}-{x[4:6]}-{x[6:]}', TF.format(ds=x)) for x in c[:6]]))
         else:
-            # כמה ימים חלופיים — יום שחסר בארכיון (404) לא מפיל את החודש
-            c = [datetime.date(d.year, d.month, x) for x in (10, 11, 12, 13, 14, 15)]
+            have = s3_days(d.year, d.month)
+            c = [datetime.date(d.year, d.month, x) for x in order if not have or x in have]
             c = [x for x in c if x < today - datetime.timedelta(days=1)]
             if c:
                 out.append((ym, c[0].isoformat(), [(x.isoformat(), OB.format(y=x.year, m=x.month, d=x.day)) for x in c]))
@@ -175,6 +192,9 @@ def main():
             for attempt in range(2):
                 try:
                     res = scan(day, url, i == len(months) - 1)
+                    if not res['pairs']:
+                        print('אין רכבות בקובץ', ym, day, flush=True)
+                        res = None
                     break
                 except (Exception, SystemExit) as e:  # noqa: BLE001 — backfill_geo.http יוצא ב-SystemExit על 404
                     print('נכשל', ym, day, attempt + 1, e, flush=True)
@@ -233,11 +253,13 @@ def main():
         for dr, bym in dirs.items():
             versions, prev = [], None
             yms = sorted(bym)
-            for ym, day in yms:
-                rows = bym[(ym, day)]
-                cnt = collections.Counter((x[3], x[4]) for x in rows)
-                (seq, shp), _ = cnt.most_common(1)[0]
-                if seq != prev:
+            mains = [collections.Counter(x[3] for x in bym[k]).most_common(1)[0][0] for k in yms]
+            for j, (ym, day) in enumerate(yms):
+                seq = mains[j]
+                # מסלול רגיל חדש נרשם רק כשהוא נמשך לפחות שני חודשים — שינוי של חודש אחד
+                # (עבודות, מלחמה) נשאר בהערות של הלו"ז ולא נרשם כשינוי בקו
+                lasting = j + 1 >= len(yms) or mains[j + 1] == seq
+                if seq != prev and (prev is None or lasting):
                     stops = [[s, names.get(s, s), st.get(s, [0, 0, 0])[1], st.get(s, [0, 0, 0])[2]] for s in seq.split('|')]
                     v = {'d': day, 'k': 'baseline' if prev is None else 'snapshot', 'src': 'rail-now', 'stops': stops,
                          'note': NOTE if prev is None else 'המסלול הרגיל של הקו השתנה (התחנות שבהן עוצרות רוב הרכבות)'}
