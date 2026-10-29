@@ -207,6 +207,19 @@ def build(n=DAYS):
             continue
         med = sorted(meta[ds]['used'] for ds in ds_t)[len(ds_t) // 2]
         keep[t] = [ds for ds in ds_t if meta[ds]['used'] >= 0.75 * med]
+    # היום האחרון (לא שבת) — "אתמול" מול הממוצע החודשי, כדי לראות מה היה חריג באותו יום (שלמה 29.10)
+    yd = next((ds for ds in reversed(have) if typ[ds]), None)
+    yday = {}
+    if yd:
+        m = load(yd)
+        g = m['geo']
+        for i, h, n, sv, slow in m['rows']:
+            k = tuple(g[i][:3])
+            a = yday.get(k)
+            if a is None:
+                a = yday[k] = [0] * 48
+            a[2 * h] += n; a[2 * h + 1] += sv
+        del m, g
     # לכל מקום: [דגימות, Σרוחב, Σאורך, Σsin, Σcos, [דגימות, Σמהירות] × 24 שעות × (א'–ה', שישי)]
     acc = {}
     for t, dss in keep.items():
@@ -246,7 +259,7 @@ def build(n=DAYS):
     for (cy, cx, s) in keep_k:
         n, sla, slo, ssin, scos, hrs = acc[(cy, cx, s)]
         la, lo = sla / n, slo / n
-        # [רוחב, אורך, כיוון, דגימות, מהירות לכל שעה א'–ה' (מחרוזת, ריק = מעט מדי), שישי, צומת, הקו לאורך הכביש: [רוחב×10⁵, אורך×10⁵, ואז הפרשים] או 0]
+        # [רוחב, אורך, כיוון, דגימות, מהירות לכל שעה א'–ה' (מחרוזת, ריק = מעט מדי), שישי, צומת, הקו לאורך הכביש: [רוחב×10⁵, אורך×10⁵, ואז הפרשים] או 0, אתמול]
         rec = [round(la, 5), round(lo, 5), round(math.degrees(math.atan2(ssin, scos)) % 360), n]
         for t in ('wd', 'fr'):
             o = 0 if t == 'wd' else 48
@@ -254,6 +267,8 @@ def build(n=DAYS):
             rec.append(','.join(sp).rstrip(','))
         rec.append(1 if len(kinds[(cy, cx)]) > 1 else 0)
         rec.append(geoms.get((cy, cx, s), 0))
+        y = yday.get((cy, cx, s))   # אתמול: שעה עם 2 דגימות ומעלה (יום אחד — פחות דגימות מהחודש)
+        rec.append(','.join(str(round(y[2 * h + 1] / y[2 * h])) if y and y[2 * h] >= 2 else '' for h in range(24)).rstrip(',') if y else '')
         tiles[(math.floor(la / TILE), math.floor(lo / TILE))].append(rec)
     os.makedirs(OUT, exist_ok=True)
     cities(acc)
@@ -263,7 +278,7 @@ def build(n=DAYS):
     for (ty, tx), recs in tiles.items():
         with open(f'{OUT}/t/{ty}_{tx}.json', 'w') as f:
             json.dump(recs, f, separators=(',', ':'))
-    info = {'tile': TILE, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles),
+    info = {'yday': yd, 'ytype': typ.get(yd) if yd else None, 'tile': TILE, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles),
             'days': {t: v for t, v in keep.items()}, 'skipped': [ds for ds in have if typ[ds] and ds not in keep[typ[ds]]],
             'cells': sum(len(v) for v in tiles.values()), 'built': datetime.date.today().isoformat()}
     with open(f'{OUT}/meta.json', 'w') as f:
