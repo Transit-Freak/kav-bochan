@@ -50,30 +50,29 @@ for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
     refs = sorted({str(x['line_ref']) for x in gr if str(x.get('route_direction')) == dirn} | {rid})
     print('קודי תחנות:', stops[a[1]]['stop_code'], stops[b[1]]['stop_code'])
     print(f'\n=== התחלה {start[:5]} · לו"ז: מוצא {adep[:5]} יעד {barr[:5]} · line_refs {refs}')
+    import math
+    pa = (float(stops[a[1]]['stop_lat']), float(stops[a[1]]['stop_lon']))
+    pb = (float(stops[b[1]]['stop_lat']), float(stops[b[1]]['stop_lon']))
+    dist = lambda p, q: math.hypot((p[0] - q[0]) * 111000, (p[1] - q[1]) * 94000)
+    TZ = ZoneInfo('Asia/Jerusalem')
     for back in range(1, 16):
         d = today - datetime.timedelta(days=back)
         h, m = int(start[:2]), int(start[3:5])
-        t0 = datetime.datetime(d.year, d.month, d.day, h % 24, m) + datetime.timedelta(days=h // 24)
+        t0 = datetime.datetime(d.year, d.month, d.day, h % 24, m, tzinfo=TZ) + datetime.timedelta(days=h // 24)
         rides = get('/siri_rides/list', siri_route__line_refs=','.join(refs), limit=20,
-                    scheduled_start_time_from=(t0 - datetime.timedelta(minutes=3)).isoformat() + '+02:00',
-                    scheduled_start_time_to=(t0 + datetime.timedelta(minutes=3)).isoformat() + '+02:00')
+                    scheduled_start_time_from=(t0 - datetime.timedelta(minutes=3)).isoformat(),
+                    scheduled_start_time_to=(t0 + datetime.timedelta(minutes=3)).isoformat())
         if not rides:
-            w = get('/siri_rides/list', siri_route__line_refs=','.join(refs), limit=50,
-                    scheduled_start_time_from=f'{d}T19:00:00+02:00', scheduled_start_time_to=f'{d}T22:30:00+02:00')
-            print(f'{d} {d.strftime("%a")}: אין נסיעה · נסיעות 19:00–22:30: {sorted(il(x.get("scheduled_start_time")) for x in w)}'); continue
+            print(f'{d} {d.strftime("%a")}: אין נסיעה'); continue
         for ride in rides[:2]:
-            rs = get('/siri_ride_stops/list', siri_ride_ids=ride['id'], limit=500)
-            if back == 1:
-                for x in sorted(rs, key=lambda y: y.get('order') or 0)[:70]:
-                    print('   ', x.get('order'), x.get('siri_stop__code'), x.get('gtfs_stop__code'), x.get('gtfs_stop__name'), il(x.get('nearest_siri_vehicle_location__recorded_at_time')), x.get('nearest_siri_vehicle_location__distance_from_siri_ride_stop_meters'))
-            got = {}
-            for x in rs:
-                nm = x.get('gtfs_stop__name') or ''
-                cd = str(x.get('siri_stop__code') or x.get('gtfs_stop__code') or '')
-                for key, tag, code in ((A_KEY, 'A', stops[a[1]]['stop_code']), (B_KEY, 'B', stops[b[1]]['stop_code'])):
-                    if key in nm or cd == code:
-                        got[tag] = (x.get('nearest_siri_vehicle_location__recorded_at_time'),
-                                    x.get('nearest_siri_vehicle_location__distance_from_siri_ride_stop_meters'),
-                                    x.get('gtfs_ride_stop__arrival_time'))
-            fmt = lambda v: f"{il(v[0])} ({v[1]}מ', לו\"ז {il(v[2])})" if v and v[0] else '—'
-            print(f'{d} {d.strftime("%a")}: רכב {ride.get("vehicle_ref")} · התחלה {il(ride.get("scheduled_start_time"))} · תחנות {len(rs)} · מוצא {fmt(got.get("A"))} · יעד {fmt(got.get("B"))}')
+            locs = get('/siri_vehicle_locations/list', siri_rides__ids=ride['id'], limit=5000)
+            pts = [((float(x['lat']), float(x['lon'])), datetime.datetime.fromisoformat(str(x['recorded_at_time']).replace('Z', '+00:00')))
+                   for x in locs if x.get('lat') and x.get('recorded_at_time')]
+            pts.sort(key=lambda x: x[1])
+            def near(pt, after=None):
+                c = [(dist(q, pt), t) for q, t in pts if after is None or t >= after]
+                return min(c) if c else None
+            na = near(pa)
+            nb = near(pb, na[1] if na else None)
+            f = lambda n: f"{n[1].astimezone(TZ):%H:%M} ({n[0]:.0f}מ')" if n and n[0] < 400 else ('—' if not n else f"? ({n[0]:.0f}מ')")
+            print(f'{d} {d.strftime("%a")}: רכב {ride.get("vehicle_ref")} · התחלה {il(ride.get("scheduled_start_time"))} · שידורים {len(pts)} · מסעף ק. מלאכי {f(na)} · קניותר {f(nb)}')
