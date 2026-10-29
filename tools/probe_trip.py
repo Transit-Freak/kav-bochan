@@ -31,38 +31,42 @@ for tid, ss in seq.items():
     b = [x for x in ss if B_KEY in stops[x[1]]['stop_name']]
     if a and b and a[0][0] < b[-1][0] and '20:30:00' <= a[0][3] <= '21:20:00':
         cand[tid] = (trips[tid], a[0], b[-1], ss[0][3])
+# נסיעות שונות (לפי שעה) — פעם אחת כל אחת
+uniq = {}
 for tid, (rid, a, b, start) in cand.items():
     r = routes[rid]
-    print(f'נסיעה {tid} · route_id {rid} · {r["route_long_name"]} · מתחילה {start}')
-    print(f'   מוצא: {stops[a[1]]["stop_name"]} ({stops[a[1]]["stop_code"]}) {a[3]} → יעד: {stops[b[1]]["stop_name"]} ({stops[b[1]]["stop_code"]}) {b[2]}')
-if not cand:
-    for rid, r in routes.items(): print('מסלול', rid, r['route_long_name'])
+    k = (start, a[3], b[2], rid)
+    if k not in uniq:
+        uniq[k] = (r, a, b)
+        print(f'route_id {rid} · מק"ט {r["route_desc"]} · {r["route_long_name"]} · התחלה {start} · מוצא {stops[a[1]]["stop_name"]} {a[3]} · יעד {stops[b[1]]["stop_name"]} {b[2]}')
+if not uniq:
+    for rid, r in routes.items(): print('מסלול', rid, r['route_desc'], r['route_long_name'])
     sys.exit()
-for tid, (rid, a, b, start) in cand.items():
-    codes = {stops[a[1]]['stop_code']: 'A', stops[b[1]]['stop_code']: 'B'}
-    sr = get('/siri_routes/list', line_refs=rid, limit=10)
-    sids = ','.join(str(x['id']) for x in sr)
-    print(f'\n=== route {rid} (siri_route {sids}) · לו"ז: יציאה {a[3][:5]} הגעה {b[2][:5]}')
-    first = True
+il = lambda t: datetime.datetime.fromisoformat(str(t).replace('Z', '+00:00')).astimezone(ZoneInfo('Asia/Jerusalem')).strftime('%H:%M') if t else '—'
+today = datetime.date.today()
+for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
+    mkt, dirn = r['route_desc'].split('-')[0], r['route_desc'].split('-')[1]
+    gr = get('/gtfs_routes/list', route_mkt=mkt, date_from=(today - datetime.timedelta(days=16)).isoformat(), date_to=today.isoformat(), limit=500)
+    refs = sorted({str(x['line_ref']) for x in gr if str(x.get('route_direction')) == dirn} | {rid})
+    print(f'\n=== התחלה {start[:5]} · לו"ז: מוצא {adep[:5]} יעד {barr[:5]} · line_refs {refs}')
     for back in range(1, 16):
-        d = datetime.date.today() - datetime.timedelta(days=back)
+        d = today - datetime.timedelta(days=back)
         h, m = int(start[:2]), int(start[3:5])
         t0 = datetime.datetime(d.year, d.month, d.day, h % 24, m) + datetime.timedelta(days=h // 24)
-        rides = get('/siri_rides/list', siri_route_ids=sids, limit=20,
-                    scheduled_start_time_from=(t0 - datetime.timedelta(minutes=2)).isoformat() + '+02:00',
-                    scheduled_start_time_to=(t0 + datetime.timedelta(minutes=2)).isoformat() + '+02:00')
+        rides = get('/siri_rides/list', siri_route__line_refs=','.join(refs), limit=20,
+                    scheduled_start_time_from=(t0 - datetime.timedelta(minutes=3)).isoformat() + '+02:00',
+                    scheduled_start_time_to=(t0 + datetime.timedelta(minutes=3)).isoformat() + '+02:00')
         if not rides:
-            print(f'{d} {d.strftime("%a")}: אין נסיעה ב-SIRI'); continue
-        ride = rides[0]
-        rs = get('/siri_ride_stops/list', siri_ride_ids=ride['id'], limit=300)
-        if first and rs:
-            print('שדות:', sorted(rs[0].keys())); first = False
-        got = {}
-        for x in rs:
-            code = str(x.get('siri_stop__code') or x.get('gtfs_stop__code') or '')
-            if code in codes:
-                got[codes[code]] = (x.get('nearest_siri_vehicle_location__recorded_at_time'),
-                                    x.get('nearest_siri_vehicle_location__distance_from_siri_ride_stop_meters'))
-        il = lambda t: datetime.datetime.fromisoformat(str(t).replace('Z', '+00:00')).astimezone(ZoneInfo('Asia/Jerusalem')).strftime('%H:%M') if t else '—'
-        fmt = lambda v: (il(v[0]) + f' ({v[1]}מ\')') if v and v[0] else '—'
-        print(f'{d} {d.strftime("%a")}: רכב {ride.get("vehicle_ref")} · התחלה מתוכננת {il(ride.get("scheduled_start_time"))} · מוצא {fmt(got.get("A"))} · יעד {fmt(got.get("B"))}')
+            print(f'{d} {d.strftime("%a")}: אין נסיעה'); continue
+        for ride in rides[:2]:
+            rs = get('/siri_ride_stops/list', siri_ride_ids=ride['id'], limit=500)
+            got = {}
+            for x in rs:
+                nm = x.get('gtfs_stop__name') or ''
+                for key, tag in ((A_KEY, 'A'), (B_KEY, 'B')):
+                    if key in nm:
+                        got[tag] = (x.get('nearest_siri_vehicle_location__recorded_at_time'),
+                                    x.get('nearest_siri_vehicle_location__distance_from_siri_ride_stop_meters'),
+                                    x.get('gtfs_ride_stop__arrival_time'))
+            fmt = lambda v: f"{il(v[0])} ({v[1]}מ', לו\"ז {il(v[2])})" if v and v[0] else '—'
+            print(f'{d} {d.strftime("%a")}: רכב {ride.get("vehicle_ref")} · התחלה {il(ride.get("scheduled_start_time"))} · תחנות {len(rs)} · מוצא {fmt(got.get("A"))} · יעד {fmt(got.get("B"))}')
