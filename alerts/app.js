@@ -223,13 +223,28 @@
         if (!gmap[key]) { gmap[key] = { lab: lab(r), dir: k[1], rs: [] }; GRP.push(gmap[key]); }
         gmap[key].rs.push(r);
       });
-      GRP.forEach(function (g) {
-        var isMain = function (r) { var a = String(r.rd || "").split("-")[2]; return a === "#" || a === "0" || a == null; };
+      // מאחדים רק חלופות שהשינוי הזמני שלהן זהה (שלמה 29.10): אותו מסלול חלופי משוער (אין קטע שונה
+      // בין שני המסלולים), או — כשאין מסלול — אותן תחנות מבוטלות. חלופה ששונה — כפתור משלה
+      var isMain = function (r) { var a = String(r.rd || "").split("-")[2]; return a === "#" || a === "0" || a == null; };
+      var sameTemp = function (x, y) {
+        var px = x.est && x.est.path, py = y.est && y.est.path;
+        if (!!px !== !!py) return false;
+        if (px) return !diffRuns(px, py).length && !diffRuns(py, px).length;
+        return (x.del || []).slice().sort().join() === (y.del || []).slice().sort().join();
+      };
+      GRP = [].concat.apply([], GRP.map(function (g) {
         g.rs.sort(function (x, y) { return (isMain(y) ? 1 : 0) - (isMain(x) ? 1 : 0); });
-      });
-      var nl = {}; GRP.forEach(function (g) { nl[g.lab] = (nl[g.lab] || 0) + 1; });
+        var subs = [];
+        g.rs.forEach(function (r) {
+          var t = subs.filter(function (q) { return sameTemp(q.rs[0], r); })[0];
+          if (t) t.rs.push(r); else subs.push({ lab: g.lab, dir: g.dir, rs: [r] });
+        });
+        if (subs.length > 1) subs.forEach(function (q) { var a = String(q.rs[0].rd || "").split("-")[2]; q.alt = isMain(q.rs[0]) ? "ראשית" : "חלופה " + a; });
+        return subs;
+      }));
       $("routes").innerHTML = GRP.map(function (g, i) {
-        var x = (nl[g.lab] > 1 && g.dir ? " · כיוון " + g.dir : "") + (g.rs.length > 1 ? " · " + g.rs.length + " חלופות" : "");
+        var dirs = {}; GRP.forEach(function (q) { if (q.lab === g.lab) dirs[q.dir] = 1; });
+        var x = (Object.keys(dirs).length > 1 && g.dir ? " · כיוון " + g.dir : "") + (g.alt ? " · " + g.alt : "") + (g.rs.length > 1 ? " · " + g.rs.length + " חלופות" : "");
         return '<button type="button" data-i="' + i + '">' + esc(g.lab + x) + "</button>";
       }).join("");
       Array.prototype.forEach.call($("routes").querySelectorAll("button"), function (b) { b.onclick = function () { showRoute(+b.getAttribute("data-i")); }; });
@@ -268,6 +283,7 @@
     return [c0, Math.max(c0, nearestIdx(shape, est.path[est.path.length - 1]))];
   }
   // הקטעים של מסלול שרחוקים (יותר מ-35 מ') מהמסלול של הראשית — רק שם החלופה נוסעת אחרת
+  function isMainR(r) { var a = String(r.rd || "").split("-")[2]; return a === "#" || a === "0" || a == null; }
   function diffRuns(path, base) {
     if (!path || path.length < 2) return [];
     if (!base || !base.length) return [path];
@@ -373,31 +389,14 @@
         .bindTooltip((st[3] || "") + (st[2] ? " · " + st[2] : "") + " · תחנה חלופית").addTo(layer);
       focus.push(st.slice(0, 2));
     });
-    // שאר החלופות של הקו: רק הקטע שבו כל אחת נוסעת אחרת מהראשית — בסגול
-    var altNote = [];
-    g.rs.slice(1).forEach(function (m) {
-      var name = "חלופה " + (String(m.rd || "").split("-")[2] || "");
-      var mine = (m.est && m.est.path) || m.shape || [], base = est || shape;
-      var runs = diffRuns(mine, base);
-      runs.forEach(function (run) {
-        L.polyline(run, { color: "#fff", weight: 8, opacity: 0.9 }).addTo(layer);
-        L.polyline(run, { color: "#7C3AED", weight: 4, dashArray: m.est ? null : "2 6" }).bindTooltip(name + " — נוסעת כאן אחרת").addTo(layer);
-        focus = focus.concat(run);
-      });
-      (m.del || []).forEach(function (s2) {
-        if (!stops[s2] || del.indexOf(s2) >= 0) return;
-        L.marker(stops[s2].slice(0, 2), { icon: L.divIcon({ className: "", html: '<div class="xm"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) })
-          .bindTooltip((stops[s2][3] || "") + " · מבוטלת ב" + name).addTo(layer);
-      });
-      altNote.push(name + (runs.length ? " — נוסעת אחרת בקטע המסומן בסגול" : " — אותו מסלול כמו הראשית"));
-    });
-    if (altNote.length && altNote.some(function (t) { return t.indexOf("סגול") >= 0; }))
-      legend.push('<span><svg viewBox="0 0 26 12"><path d="M1 6H25" stroke="#7C3AED" stroke-width="4" fill="none"/></svg>קטע שבו חלופה אחרת של הקו נוסעת אחרת</span>');
+    // חלופות שאוחדו לכפתור הזה — אותו שינוי זמני בדיוק (ראו sameTemp), ולכן המפה של אחת מתאימה לכולן
+    var altNote = g.rs.length > 1 ? ["ההודעה חלה על " + g.rs.length + " חלופות של הקו באותו שינוי זמני: " +
+      g.rs.map(function (m) { return isMainR(m) ? "ראשית" : "חלופה " + String(m.rd || "").split("-")[2]; }).join(", ") + "."] : [];
     if (del.length) legend.push('<span><div class="xm"></div>תחנה מבוטלת</span>');
     if (xadd.length || seq.some(function (s) { return s[1]; })) legend.push('<span><div class="am"></div>תחנה חלופית</span>');
     $("legend").innerHTML = legend.join("");
     $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") +
-      (altNote.length ? '<p class="note">ההודעה חלה על ' + (altNote.length + 1) + " חלופות של הקו. המפה מציגה את הראשית; " + esc(altNote.join(" · ")) + ".</p>" : "") +
+      (altNote.length ? '<p class="note">' + esc(altNote[0]) + "</p>" : "") +
       (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
     var b = L.latLngBounds(focus.length > 1 ? focus : shape);
     if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
