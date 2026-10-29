@@ -15,6 +15,7 @@
 
 env: MAX_MIN (תקציב זמן, ברירת מחדל 25), OUT (ברירת מחדל alerts/data)
 """
+import collections
 import datetime
 import glob
 import hashlib
@@ -221,7 +222,8 @@ def estimate_routes(alert, rc_routes, stops):
     # קו בלי מספר (רכבת, מונית, או מטמון ישן) — מחרוזת ריקה ולא None: 28.10 הריצה נפלה על re.sub(None)
     for r in rc_routes:
         r['num'] = str(r.get('num') or '')
-    paras = AR.parse(desc)
+    allp = AR.parse(desc, kinds=True)
+    paras = [p for p in allp if not p.get('kind')]
     # סוג ההודעה קובע את הדרך: בלי הוראות נסיעה — אין מה לנתב, ואומרים למה (רק תחנות / דילוג)
     alert['_tpl'] = AR.template(desc, paras)
     why = {}
@@ -232,11 +234,17 @@ def estimate_routes(alert, rc_routes, stops):
         ns = {r['num'], re.sub(r'[א-ת]$', '', r['num'])}
         d = (r.get('rd') or '').split('-')[1:2]
         return bool((ns | {f'{n}-{d[0]}' for n in ns if d} | {'*'}) & short)
+
+    def kind_of(r):   # פסקה בלי רחובות לקו הזה — פניית פרסה / קיצור (לא "אין תיאור", ולא לניתוב)
+        ns = {r['num'], re.sub(r'[א-ת]$', '', r['num'])}
+        d = (r.get('rd') or '').split('-')[1:2]
+        return next((p['kind'] for p in allp if p.get('kind') and (not p['lines'] or ns & p['lines'])
+                     and next((p['dnum'][n] for n in ns if n in p['dnum']), None) in (None, *d)), None)
     if not paras:
         for r in rc_routes:
             r['est'] = None
             r['why'] = 'relocate' if re.search(RELOCATE, desc + (alert.get('header') or {}).get('he', '')) else \
-                'short' if is_short(r) else \
+                'short' if is_short(r) else kind_of(r) or \
                 {'skip': 'skip', 'stops': 'stops-only'}.get(alert['_tpl'], 'no-text')
         return 'no-text'
     # אזור הניתוב: הקטע המבוטל של כל הקווים + כ-1 ק"מ (עקיפות ארוכות, כמו ברחובות ראשון לציון)
@@ -276,10 +284,15 @@ def estimate_routes(alert, rc_routes, stops):
     net = AR.Streets(ways)
     for r in rc_routes:
         r['est'], r['why'] = None, 'no-match'
+        # קו שנבנה מהנוסח (text_routes) בלי תחנה מבוטלת — הקטע הסגור מהצומת שבפסקה שלו
+        if not r['cut'] and r.get('_para') is not None:
+            r['cut'] = AR.junction_cut(net, paras[r['_para']], [tuple(x) for x in r['shape']])
         if not r['cut']:
             r['why'] = 'no-cut'
             continue
         cand = [p for p in paras if not p['lines'] or r['num'] in p['lines']]
+        if r.get('_para') is not None:
+            cand = [paras[r['_para']]]
         # "78" בהודעה ו-78א במפה, או "6מ'" בהודעה ו-6 במפה — אותו קו, כשאין לו פסקה משלו
         # (אבל לא פסקה של 72א לקו 72, כשגם 72א בהודעה)
         if not cand:
@@ -322,27 +335,50 @@ def estimate_routes(alert, rc_routes, stops):
         if cand:
             top = [p for p in cand if same_stops(p) == max(same_stops(q) for q in cand)]
             r['_xa'] = sorted(set().union(*(p['add'] for p in top if 'add' in p))) if any('add' in p for p in top) else None
-        for p in cand:
-            try:
-                res = AR.route_detour(net, p, [tuple(x) for x in r['shape']], r['cut'][0], r['cut'][1])
-            except Exception as e:   # הנוסח לא תמיד צפוי — לא מפילים את הריצה בגלל הודעה אחת
-                print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
-                res = None
-            if res:
-                res['_k'] = (-same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
-            if res and (best is None or res['_k'] < best['_k']):
-                best = res
-                r['_xa'] = sorted(p['add']) if 'add' in p else None
+        shape = [tuple(x) for x in r['shape']]
+        why_d = []
+
+        def route_all(c0, c1, tag=''):
+            best, xa = None, r.get('_xa')
+            for p in cand:
+                dg = {}
+                try:
+                    res = AR.route_detour(net, p, shape, c0, c1, diag=dg)
+                except Exception as e:   # הנוסח לא תמיד צפוי — לא מפילים את הריצה בגלל הודעה אחת
+                    print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
+                    res, dg = None, {'why': 'error'}
+                if not res:
+                    why_d.append(f'{tag}p{paras.index(p)} {dg.get("why")}')
+                if res:
+                    res['_k'] = (-same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
+                if res and (best is None or res['_k'] < best['_k']):
+                    best = res
+                    xa = sorted(p['add']) if 'add' in p else None
+            return best, xa
+        best, xa = route_all(*r['cut'])
+        # קו סיבובי שעובר ליד התחנה המבוטלת כמה פעמים — כשהמעבר שנבחר לא מצליח, המעברים האחרים
+        # (העקיפה בכיוון ההפוך עדיין נפסלת ב-route_detour)
+        for k, c in enumerate([] if best or not cand else r.get('cuts') or []):
+            best, xa = route_all(*c, tag=f'c{k + 1} ')
+            if best:
+                r['cut'] = c
+                break
         if best:
+            r['_xa'] = xa
             best.pop('_k', None)
+        elif why_d:
+            r['why_d'] = why_d   # לאבחון בלבד
         if best:
             r['est'], r['why'] = best, 'ok'
-        elif not cand:
-            r['why'] = 'no-text'   # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים")
-            if is_short(r):
+        else:
+            # אין בהודעה הוראה לקו הזה ("קווים 350, 355: ע"פ המסלולים המקוריים"); יש הוראה והניתוב נכשל —
+            # עדיין "מקוצר" / "מדלג" כשכתוב כך על הקו (רמת גן 43, טכניון 297-2: לא "לא הצלחנו למצוא")
+            if not cand:
+                r['why'] = kind_of(r) or 'no-text'
+            if is_short(r) if not cand else (ns | {f'{n}-{d}' for n in ns for d in rdir}) & (short - {'*'}):
                 r['why'] = 'short'
             # "קו 43 ישנה את מסלולו… וידלג על תחנה" — כשלקו אחר בהודעה יש הוראה
-            elif re.search(rf'(?<!\d){re.escape(r["num"])}(?![\dא-ת])[^\n]*ידלג', desc):
+            elif re.search(rf'(?<!\d){re.escape(r["num"])}(?![\dא-ת])[^\n]*(?:ידלג|מדלג)', desc):
                 r['why'] = 'skip'
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'
@@ -369,7 +405,9 @@ def text_new_stops(desc):
     on = False   # כותרת "תחנות חדשה:" בשורה משלה — המספרים בשורות שאחריה (קו 126, 20.10)
     for line in re.split(r"\n|\.\s", desc or ""):
         line = re.sub(r"\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b|\b\d{1,2}:\d{2}\b", " ", line)   # תאריכים ושעות
-        if re.search(r"מבוטל|בוטל", line):
+        # "ויסיים את מסלול נסיעתו זמנית בתחנה זו (תחנה 41174)" — תחנת הסיום של הקו המקוצר, לא תחנה חלופית
+        # של ההודעה (חיפה 29.10: תחנות הסיום של 37 ו-148 סומנו כחלופיות לקו 200). ראו short_stops
+        if re.search(r"מבוטל|בוטל", line) or AR._is_short(line):
             on = False
             continue
         if re.search(r"חלופי|חדשה|חדשות|זמני|תועתק|הועתק", line):
@@ -383,6 +421,36 @@ def text_new_stops(desc):
                 tail = re.sub(r"(?:כביש|מס['׳]?|קו(?:ו?ים)?)\s*(?:מס['׳]?\s*)?[\d,\s]+", " ", line.split(":", 1)[1])
                 out += [c for c in re.findall(r"(?<![\d./:])(\d{3})(?![\d./:])", tail) if c not in out]
     return out
+
+
+def short_stops(desc):
+    """התחנות של קו מקוצר ("קו 37…: עד תחנת אבא חושי/טהון (תחנה 41174) ויסיים את מסלול נסיעתו זמנית בתחנה זו")
+    — [(מספרי הקווים, מק"טים)], רק לקווים האלה."""
+    out = []
+    for ll in AR._logical_lines(desc or ""):   # הכותרת "קווים 4, 114 מכיוון X" ושורת הקיצור שאחריה — שורה אחת
+        nums = AR.line_numbers(ll)
+        for line in re.split(r"\.\s", ll):
+            if nums and AR._is_short(line):
+                line = re.sub(r"\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b|\b\d{1,2}:\d{2}\b", " ", line)
+                codes = re.findall(r"(?<!\d)(\d{4,6})(?!\d)", line)
+                if codes:
+                    out.append((nums, codes))
+    return out
+
+
+def line_xadd(r, xadd, xa, listed, npara, sst, stops, by_code):
+    """התחנות החלופיות שבנוסח לקו אחד: של הפסקה שלו (xa); פסקה בלי רשימה משלה — של ההודעה, חוץ מאלה
+    שרשומות בפסקה של קווים אחרים, ורק כשבהודעה פסקה אחת (כפר קאסם 29.10: לכל קו כל ארבע התחנות הזמניות);
+    קו מקוצר — תחנות הקיצור שלו (sst)."""
+    mine = {x for x, add in r['seq'] if add} | set(r['del'])
+    if xa == 'none':
+        nb = {r['num'], re.sub(r'[א-ת]$', '', r['num'])}
+        out = [by_code[c] for ns, cs in sst if ns & nb for c in cs if c in by_code]
+    elif xa is None:
+        out = [x for x in xadd if (stops or {}).get(x, ('',))[0] not in listed] if npara < 2 else []
+    else:
+        out = [by_code[c] for c in xa if c in by_code]
+    return [x for x in dict.fromkeys(out) if x not in mine and STOP_POS.get(x)]
 
 
 LINES_DIR = os.environ.get('LINES_DIR', 'line-history/data/lines')
@@ -413,7 +481,7 @@ def history_rc(a, lines, desc, stops):
     והתחנות של הקו מקבצי הקו בזמן, והתחנה המבוטלת מהנוסח. רק וריאנט שהתחנה המבוטלת על השרטוט שלו —
     הכיוון שבהודעה — ואחד לכל כיוון (הראשי, -0 / -#, כשיש)."""
     by_code = {v[0]: k for k, v in (stops or {}).items()}
-    rm = set().union(*(p.get('rm', set()) for p in AR.parse(desc)))
+    rm = set().union(*(p.get('rm', set()) for p in AR.parse(desc, kinds=True)))
     rm_ids = [by_code[c] for c in sorted(rm) if c in by_code and STOP_POS.get(by_code[c])]
     if not rm_ids:
         return None
@@ -463,6 +531,152 @@ def history_rc(a, lines, desc, stops):
         return None
     return {'route_changes': out,
             'stops_for_map': {s: {'stop_lat': STOP_POS[s][0], 'stop_lon': STOP_POS[s][1]} for s in rm_ids}}
+
+
+LINES_INDEX = os.environ.get('LINES_INDEX', os.path.join(os.path.dirname(LINES_DIR), 'lines.json'))
+_INDEX = []
+
+
+def lines_index():
+    """[{'rd','line','dest','op','lk'}, ...] — רשימת הקווים של הקו בזמן (נטענת פעם אחת)."""
+    if not _INDEX:
+        try:
+            _INDEX.extend(json.load(open(LINES_INDEX, encoding='utf-8')).get('lines') or [])
+        except (OSError, ValueError):
+            pass
+    return _INDEX
+
+
+def dest_to(dest):
+    """"...-בית שמש<->הרטום/שדרות גולדה מאיר-ירושלים-20" → "ירושלים - הרטום/שדרות גולדה מאיר" (כמו history_rc)."""
+    to = re.sub(r'-[\d#]+[א-ת]?$', '', (dest or '').split('<->')[-1])
+    place, _, city = to.rpartition('-')
+    return f'{city} - {place}' if place else to
+
+
+def _fits(p, to):
+    """AR.dir_fits, ועם כיוון של מילים קצרות ("לכיוון בת-ים" — dir_fits מדלג על מילים של פחות משלוש
+    אותיות) — כל הביטוי כמחרוזת ביעד."""
+    f = AR.dir_fits(p, to)
+    d = p.get('dir')
+    if f is None and d and to and not re.search(r'[,/]|\sו', d[1]):
+        ph = AR.norm(d[1].replace('-', ' '))
+        if len(ph) >= 4:
+            hit = ph in AR.norm(to.replace('-', ' '))
+            f = hit if d[0] == 'to' else not hit
+    return f
+
+
+def para_dir(p, num, dirs):
+    """הכיוון של הקו בפסקה ({כיוון: יעד} → כיוון), רק כשהפסקה מזהה כיוון אחד בבירור: "לקו 4-3", או
+    "לכיוון X" / "מכיוון X" שמתאים ליעד של כיוון אחד בלבד, ולא מתאים לשאר. אחרת None."""
+    dn = p.get('dnum') or {}
+    d = dn.get(num, dn.get(re.sub(r'[א-ת]$', '', num)))
+    if d:
+        return d if d in dirs else None
+    # כותרת של כמה קווים, יעד לכל אחד ("לקוים 12 לכיוון מכללת לוינסקי, 604 לכיוון תל אביב") — היעד של הקו הזה
+    pd = p.get('dir')
+    if pd and re.search(r',\s*\d', pd[1]):
+        n = re.escape(num)
+        m = re.search(rf'(?<![\d])(?:\d{{1,3}}[א-ת]?\s*,\s*)*{n}(?![\d])(?:\s*,\s*\d{{1,3}}[א-ת]?)*\s+(ל|מ)כיוון\s+([^,]+)', pd[1])
+        if m:
+            pd = ('to' if m.group(1) == 'ל' else 'from', m.group(2).strip())
+        elif re.search(rf'(?<![\d]){n}(?![\d])', pd[1]):
+            return None
+        else:
+            pd = (pd[0], re.split(r',\s*\d', pd[1])[0].strip())
+        p = dict(p, dir=pd)
+    fits = {k: _fits(p, to) for k, to in dirs.items()}
+    hit = [k for k, f in fits.items() if f is True]
+    if len(hit) == 1 and all(f is False for k, f in fits.items() if k != hit[0]):
+        return hit[0]
+    return None
+
+
+def _variant(rd):
+    """השרטוט ([lat,lon]) והמק"טים של הגרסה האחרונה של וריאנט בקו בזמן, או None. (בשם הקובץ "#" הוא "H")"""
+    try:
+        lf = json.load(open(f'{LINES_DIR}/{rd.replace("#", "H")}.json', encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    vs = lf.get('versions') or []
+    if not vs or vs[-1].get('k') == 'removed':
+        return None
+    v = next((v for v in reversed(vs) if isinstance(v.get('shp'), int) and v['shp'] > 0 and v.get('stops')), None)
+    spool, pool = lf.get('spool') or [], lf.get('pool') or []
+    if not v or v['shp'] >= len(spool):
+        return None
+    return decode_poly(spool[v['shp']]), [pool[i][0] for i in v['stops'] if isinstance(i, int) and i < len(pool)]
+
+
+def text_routes(a, routes, lines, desc, stops, near_m=1500):
+    """קווים וכיוונים שיש להם פסקה בנוסח ואין להם route_change במקור (אתר המקור מוסיף רק כיוון עם תחנה
+    מבוטלת — תל אביב 29.10, 604 בג'ורג' וייז, 25/289 לבת ים): השרטוט והתחנות מהקו בזמן, כמו history_rc.
+    רק כשהפסקה מזהה כיוון אחד בבירור (para_dir), כשיש מק"ט אחד לקו (לפי המפעיל, וקרוב לאזור ההודעה), ורק
+    פסקה אחת לאותו קו וכיוון. הקטע הסגור — מתחנה מבוטלת של הפסקה שעל השרטוט, ואם אין — מהצומת
+    (estimate_routes, AR.junction_cut)."""
+    if not os.path.isdir(LINES_DIR):
+        return []
+    paras = AR.parse(desc)
+    have = {(r['num'], ((r.get('rd') or '').split('-') + ['', ''])[1]) for r in routes}
+    ags = ({x.get('agency_name') for x in a.get('relevant_agencies') or []} | {r.get('ag') for r in routes}) - {None, ''}
+    mks = collections.defaultdict(set)
+    for num, mk in lines:
+        if mk:
+            mks[str(num)].add(str(mk))
+    for r in routes:
+        if r.get('rd'):
+            mks[r['num']].add(r['rd'].split('-')[0])
+    # אזור ההודעה: הקטעים הסגורים של הקווים שכבר יש, והתחנות המבוטלות
+    area = [tuple(r['shape'][i]) for r in routes if r.get('cut') for i in r['cut']]
+    area += [STOP_POS[s] for s in a.get('removed_stop_ids') or [] if STOP_POS.get(s)]
+    if not area:
+        return []
+    by_code = {v[0]: k for k, v in (stops or {}).items()}
+    want = collections.defaultdict(list)   # (קו, כיוון) → [(פסקה, וריאנט, יעד, מפעיל)]
+    for num in sorted({n for p in paras for n in p['lines']}):
+        rows = [x for x in lines_index() if x.get('line') == num and x.get('lk') != 'removed'
+                and re.match(r'^\d+-\d-[^-]+$', x.get('rd') or '')
+                and (not ags or x.get('op') in ags) and (not mks.get(num) or x['rd'].split('-')[0] in mks[num])]
+        # וריאנט אחד לכל כיוון, לכל מק"ט: הראשי (-0 / -#), ואם אין לו שרטוט — החלופה הראשונה שיש לה;
+        # מק"ט רחוק מההודעה (אותו מספר בעיר אחרת) — לא
+        by_mk = collections.defaultdict(dict)
+        for x in sorted(rows, key=lambda x: (x['rd'].split('-')[2] not in ('0', '#'), x['rd'].split('-')[2].zfill(3))):
+            mk, d = x['rd'].split('-')[:2]
+            if d not in by_mk[mk]:
+                sv = _variant(x['rd'])
+                if sv:
+                    by_mk[mk][d] = (x, sv)
+        near = {}
+        for mk, dv in by_mk.items():
+            if any(min(AR.meters(q, c) for q in sv[0] for c in area) < near_m for _, sv in dv.values()):
+                near[mk] = ({d: x for d, (x, _) in dv.items()}, {d: sv for d, (_, sv) in dv.items()})
+        if len(near) != 1:
+            continue
+        ds, v = next(iter(near.values()))
+        dirs = {d: dest_to(x.get('dest')) for d, x in ds.items()}
+        for i, p in enumerate(paras):
+            if num not in p['lines']:
+                continue
+            d = para_dir(p, num, dirs)
+            if d and (num, d) not in have and v.get(d):
+                want[(num, d)].append((i, ds[d], v[d]))
+    out = []
+    for (num, d), hits in sorted(want.items()):
+        if len(hits) != 1:
+            continue
+        i, x, (shape, codes) = hits[0]
+        if min(AR.meters(q, c) for q in shape for c in area) >= near_m:
+            continue
+        rm = [by_code[c] for c in sorted(paras[i].get('rm', ())) if c in by_code and STOP_POS.get(by_code[c])]
+        on = [s for s in rm if min(AR.meters(q, STOP_POS[s]) for q in shape) < 60]
+        cut = AR.cut_range(shape, [STOP_POS[s] for s in on]) if on else None
+        out.append({'num': num, 'rd': x['rd'], 'rid': None, 'to': dest_to(x.get('dest')), 'ag': x.get('op'),
+                    'dir': None, 'alt': None, 'src': 'text',
+                    'shape': [[round(q[0], 6), round(q[1], 6)] for q in shape],
+                    'seq': [[by_code[c], False] for c in codes if c in by_code and by_code[c] not in on],
+                    'del': on, 'cut': cut, 'cuts': [], '_para': i})
+    return out
 
 
 def pos_of(s, sfm):
@@ -584,7 +798,9 @@ def group_alerts(alerts, stops):
         common = words[i] & words[j]
         if not city[i] or city[i] != city[j] or not (common - _WEAK or len(common) >= 2):
             return False
-        if not any(x0 < y1 and y0 < x1 for x0, x1 in per[i] for y0, y1 in per[j]):
+        # חפיפה ממשית: לפחות חצי מהחלון הקצר, ולא רק שעות בקצה (תל אביב 29.10: חסימת פניות 25–29 מול
+        # סגירת הצומת בלילה של 29/10 — אירועים שונים, וקו 12 קיבל את המסלול של הלילה)
+        if not any(min(x1, y1) - max(x0, y0) >= min(x1 - x0, y1 - y0) / 2 for x0, x1 in per[i] for y0, y1 in per[j]):
             return False
         if pos[i] and pos[j]:
             return min(AR.meters(p, q) for p in pos[i] for q in pos[j]) <= 400
@@ -780,7 +996,7 @@ def main():
         has_map = a.get('use_case') in (5, 6, 7, 9) and not a.get('is_national') and (a.get('removed_stop_ids') or a.get('added_stop_ids'))
         # בלי תחנות משויכות, אבל בנוסח יש קו ותחנה מבוטלת — המפה מהקו בזמן (history_rc)
         if not has_map and a.get('use_case') in (5, 6, 7, 9) and not a.get('is_national') and any(mk for _, mk in lines):
-            has_map = any(p.get('rm') for p in AR.parse(he(a.get('description'))))
+            has_map = any(p.get('rm') for p in AR.parse(he(a.get('description')), kinds=True))   # כמו history_rc
         rc_file = f'{OUT}/rc/{aid}.json'
         # נמשך שוב: התראה חדשה או שהשתנתה, מפה שלא נשמרה, חישוב שלא הסתיים (נגמר הזמן / מפת הרחובות
         # לא ענתה) — אחרת הוא נשאר כך עד שנוסח ההודעה ישתנה — ו"לא נמצא" אחרי שקריאת הנוסח השתפרה
@@ -827,7 +1043,7 @@ def main():
                                     if q and min(AR.meters(p, q) for p in shape) < 60:
                                         touched.append(s)
                                 dele = dele + [s for s in touched if s not in dele]
-                            cut = None
+                            cut, cuts = None, []
                             if touched:
                                 # אתר המקור מצמיד לכל קו את כל התחנות שבפסקה, גם תחנה ברחוב אחר שהקו לא עובר
                                 # בו (קריית שמונה 20.10, "האצ"ל ג" 120 מ' מקו 5) — היא "נפלה" על סוף הלולאה,
@@ -835,11 +1051,17 @@ def main():
                                 pts = [pos_of(s, sfm) for s in touched]
                                 on = [q for q in pts if q and min(AR.meters(p, q) for p in shape) < 60]
                                 cut = AR.cut_range(shape, on or pts)
+                                cuts = AR.cut_passes(shape, on or pts, cut)
                             used.update(s for s, _ in seq)
                             used.update(dele)
                             routes.append({'num': str(c.get('line_number') or ''), 'rd': c.get('route_desc'), 'rid': c.get('route_id'), 'to': c.get('to_text'),
                                            'ag': c.get('agency_name'), 'dir': c.get('dir_name'), 'alt': c.get('alt_name'),
-                                           'shape': shape, 'seq': seq, 'del': dele, 'cut': cut})
+                                           'shape': shape, 'seq': seq, 'del': dele, 'cut': cut, 'cuts': cuts})
+                # קו או כיוון שיש לו פסקה בנוסח ואין לו route_change במקור (אין בו תחנה מבוטלת) — מהקו בזמן
+                for r in text_routes(a, routes, lines, he(a.get('description')), stops):
+                    used.update(s for s, _ in r['seq'])
+                    used.update(r['del'])
+                    routes.append(r)
                 status = estimate_routes(a, routes, stops) if left() > 120 else 'time'
                 if status == 'time':
                     for r in routes:
@@ -865,17 +1087,15 @@ def main():
                         out_stops[x] = [round(q[0], 6), round(q[1], 6), *(stops or {}).get(x, ('', ''))]
                 # תחנות חלופיות שבנוסח, לכל קו לפי הפסקה שלו — בלי תחנה שמבוטלת בקו הזה או שכבר מסומנת בו
                 # (פסקה בלי רשימה משלה — התחנות של ההודעה, חוץ מאלה שרשומות בפסקה של קווים אחרים)
-                listed = set().union(*(p.get('add', set()) for p in AR.parse(he(a.get('description')))))
+                ps = AR.parse(he(a.get('description')))
+                listed = set().union(*(p.get('add', set()) for p in ps))
+                sst = short_stops(he(a.get('description')))
                 for r in routes:
-                    if '_xa' not in r:
+                    # קו בלי פסקה (מקוצר, או שלא נמצאה לו) — בהודעה עם כמה פסקאות לא נופל לרשימה של ההודעה
+                    # (app.js לוקח את ה-xadd של ההודעה רק כשאין לקו xadd בכלל)
+                    if '_xa' not in r and len(ps) < 2 and not sst:
                         continue
-                    xa = r.pop('_xa')
-                    mine = {x for x, add in r['seq'] if add} | set(r['del'])
-                    if xa is None:
-                        r['xadd'] = [x for x in xadd if (stops or {}).get(x, ('',))[0] not in listed and x not in mine]
-                    else:
-                        r['xadd'] = [by_code[c] for c in xa if c in by_code and by_code[c] not in mine
-                                     and STOP_POS.get(by_code[c])]
+                    r['xadd'] = line_xadd(r, xadd, r.pop('_xa', 'none'), listed, len(ps), sst, stops, by_code)
                     for x in r['xadd']:
                         if x not in out_stops:
                             q = STOP_POS[x]
@@ -885,6 +1105,8 @@ def main():
                     r['shape'] = AR.simplify([tuple(p) for p in full], 4.0)
                     r['shape'] = [[p[0], p[1]] for p in r['shape']]
                     r.pop('cut', None)
+                    r.pop('cuts', None)
+                    r.pop('_para', None)
                 tpl = a.pop('_tpl', None)
                 json.dump({'id': aid, 'routes': routes, 'stops': out_stops, 'status': status, 'tpl': tpl, 'xadd': xadd},
                           open(rc_file, 'w'), ensure_ascii=False, separators=(',', ':'))

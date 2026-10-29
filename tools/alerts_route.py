@@ -23,7 +23,7 @@ _LEAD = re.compile(r"^(?:(?:ו?(?:ימינה|שמאלה|ישר|המשך|ממשי
                    r"חזרה|חזרה ל|וחוזר|חוזרים|ויחזור|יחזור|בנסיעה|בנסיעה ב|להמשך|הרחובות|הכיכר|הכיכר ב|בצומת|צומת|אל|ייכנס|ייכנסו|נכנסים|דרך הרחובות|דרך הרחבות|הרחבות|"
                    r"יפנו|ימשיכו|ייסעו|ממשיך|ימשיך|ישר|לכיון|את נסיעתו|את נסיעתם|\"?במזלג\"?)\s+))+")
 _END = re.compile(r"(ו?ימשי(?:ך|כו) (?:על פי |לפי |ב)(?:ה)?מסלול(?:ים)? (?:ה)?(?:קיים|קיימים|רגיל|מקורי)(?! עד)|והמשך|ויתחבר|ויתחברו|להמשך (?:ה)?(?:מסלול|הקו)|ממשיכים במסלול|וממשיכים במסלול|ונמשך במסלול|ו?חזרה למסלול|ו?יסיים|ו?יסיימו|"
-                  r"ו?בחזרה למסלול|ו?יחזרו למסלול|ו?יחזור למסלול|ו?ימשיכו במסלול|ו?ימשיך במסלול|ו?חוזרים למסלול|ו?מסיימים|ו?נוסעים במסלול|ונוסעים|במסלולו המקורי|במסלולם|במסלולים המקוריים|במסלול המקורי|ו(?:ע\"פ|על פי) המסלול)")
+                  r"ו?בחזרה למסלול|ו?(?:כל קו )?ממשי(?:ך|כים) (?:ב|לפי )?מסלול(?:ו|ם)?(?: רגיל| המקורי)?(?!(?: רגיל| המקורי)? עד)|ו?יחזרו למסלול|ו?יחזור למסלול|ו?ימשיכו במסלול|ו?ימשיך במסלול|ו?חוזרים למסלול|ו?מסיימים|ו?נוסעים במסלול|ונוסעים|במסלולו המקורי|במסלולם|במסלולים המקוריים|במסלול המקורי|ו(?:ע\"פ|על פי) המסלול)")
 _START = re.compile(r"עד\s+(?:לפני\s+)?(?:ל(?=כיכר|צומת))?(?:כיכר\s+|צומת\s+הרחובות\s+|צומת\s+|הרחובות\s+|הכיכר\s+)?([^,/()]{2,40}?)(?:\s*/\s*|\s*\\\s*|\s+פינת\s+|\s+פינה\s+|\s+[–-]\s*|\s*–\s+)([^,()/]{2,40}?)"
                     r"\s*(?:\([^)]*\))?\s*(?:ללא שינוי|כרגיל)?\s*(?:,|$|(?=/))")
 _LINES = re.compile(r"קו(?:ים|י)?\s+([\d\sא-ת,ו׳'\"]+?)(?=\s*(?:לכיוון|מ|ל|:|ו?קווי|$))")
@@ -33,6 +33,8 @@ def norm(s):
     """שם רחוב להשוואה: בלי גרשיים, בלי "רחוב/שד'", יוד ו-וו כפולות כמו ברישום."""
     s = str(s or "")
     s = re.sub(r"[\"'׳״`.]", "", s)
+    # "דה-וינצ'י" — במפה "ליאונרדו דה וינצ'י"
+    s = re.sub(r"[-־]", " ", s)
     s = re.sub(r"^כביש\s+מס\s*", "כביש ", s.strip())
     s = re.sub(r"^(?:רחוב|רח|שדרות|שד|שדרת|דרך)\s+", "", s.strip())
     s = s.replace("יי", "י").replace("וו", "ו")
@@ -44,13 +46,17 @@ def clean_street(tok):
     t = re.sub(r"\([^)]*\)", " ", tok)
     t = re.sub(r"\(.*$", " ", t)   # סוגריים שלא נסגרו: "ירושלים (כביש 40"
     t = re.sub(r"\s+", " ", t).strip(" .;:/")
+    # "בהלוך- מרחוב שז"ר", "בחזור- משדרות בנימין" — הכיוון לא חלק מהשם
+    t = re.sub(r"^ב?(?:הלוך|חזור)(?:-\s*|\s+|$)", "", t)
     t = _LEAD.sub("", t).strip()
     t = re.sub(r"\s+(?:עד|ללא שינוי|לכיוון.*)$", "", t).strip()
     # "ששת הימים – עד לתחנה הסופית" — השם הוא רק עד המקף או "עד"
     t = re.split(r"\s[–-]\s|\sעד\s", t)[0].strip()
     t = re.sub(r"\s+(?:ממשיך|ממשיכים|ימשיך|ימשיכו)(?:\s+ישר)?$", "", t).strip()
     # "בן גוריון ומיד", "לכביש 5 למזרח", "כביש 4 צפון"
-    t = re.sub(r"\s+(?:ו?מיד|ל?(?:מזרח|מערב|צפון|דרום))$", "", t).strip()
+    t = re.sub(r"\s+(?:ו?מיד|ל?(?:מזרח|מערב|צפון|דרום))$|^ו?מיד$", "", t).strip()
+    # "ימינה ברודצקי לכל אורכו"
+    t = re.sub(r"\s+לכל אורכו$", "", t).strip()
     # "לכביש 651 דרך הים" — מספר הכביש מספיק
     t = re.sub(r"^(ל|ב)?(כביש\s+(?:מס['׳]?\s*)?\d+)\s+\S.*$", r"\1\2", t).strip(" )")
     # "בגין דרך הנת"צ הימני" (דן) — הנתיב לא חלק משם הרחוב
@@ -60,8 +66,11 @@ def clean_street(tok):
 
 # "לקו 4-3 (סיבובי)" — קו 4 כיוון 3, לא קווים 4 ו-3 (הוד השרון 25.10)
 # "1-2" — קו 1 כיוון 2; גם בצורת המק"ט "796-1-0" (קו-כיוון-חלופה), בכל מספר ברשימה ("קווים: 796-1-0  774-1-0").
+# "קו 65 כיוון 1, 69 כיוון 2" — אותו דבר במילים (נתניה 31.10)
+# ("קו 12 כיוון 2:" — גם עם נקודתיים; "קווים 2, 6, 9 כיוון 1" — לכל הרשימה, לוד 01.11)
 # רק בשורה שכתוב בה "קו" — שלא ייתפסו תאריכים ושעות
-_LINE_DNUM = re.compile(r"(?<![\d/:.\-])(\d{1,3}[א-ת]?)-([1-3])(?:-[0-9#א-ת])?(?![\d/:.\-])")
+_LINE_DNUM = re.compile(r"(?<![\d/:.\-])(\d{1,3}[א-ת]?)(?:-([1-3])(?:-[0-9#א-ת])?(?![\d/:.\-])|\s+כיוון\s+([1-3])(?![\d/.\-]))")
+_LIST_DNUM = re.compile(r"(?<![\d/:.\-])(?<!כיוון\s)((?:\d{1,3}[א-ת]?\s*,\s*)+)\d{1,3}[א-ת]?\s+כיוון\s+([1-3])(?![\d/.\-])")
 
 
 def _dnum_sub(text):
@@ -70,7 +79,13 @@ def _dnum_sub(text):
 
 def line_dnum(text):
     """הכיוון של כל קו שכתוב לידו ("לקוים 1-2 …, 65 …" → {'1': '2'}) — לא של שאר הקווים בכותרת."""
-    return {m.group(1): m.group(2) for m in _LINE_DNUM.finditer(text)} if "קו" in text else {}
+    if "קו" not in text:
+        return {}
+    out = {m.group(1): m.group(2) or m.group(3) for m in _LINE_DNUM.finditer(text)}
+    for m in _LIST_DNUM.finditer(text):
+        for n in re.findall(r"\d{1,3}[א-ת]?", m.group(1)):
+            out.setdefault(n, m.group(2))
+    return out
 
 
 def _with_dnum(nums, dn):
@@ -93,7 +108,9 @@ def line_numbers(text):
 
 # שורה שמתחילה פריט חדש (ולא ממשיכה את המשפט שלפניה): מק"ט תחנה, "תחנות…", כותרת "המסלול החלופי…",
 # "קו 5 …", תבליט
-_NEW_ITEM = re.compile(r"^(?:\d{4,6}\b|תחנ|המסלול|מסלול חלופי|ו?קו(?:ו?ים|ו?י)?\s*:?\s*\d|[•*·▪-]\s|אין\s|ללא\s|בברכת|הנהלת)")
+# "לכיוון תל אביב: עד…", "קו מושפע 121"
+_NEW_ITEM = re.compile(r"^(?:\d{4,6}\b|תחנ|המסלול|מסלול חלופי|ו?קו(?:ו?ים|ו?י)?\s*:?\s*\d|[•*·▪-]\s|אין\s|ללא\s|בברכת|הנהלת"
+                       r"|(?:ל|מ)כיוון\s[^:]{2,40}:|קו(?:ו?ים)?\s+מושפע)")
 # הוראת נסיעה בלי "עד…" (קווים, אקסטרה, דן בדרום): פועל נסיעה או פנייה
 _DRIVE = re.compile(r"(?:^|[\s:])(?:ו?(?:יפנה|יפנו|פונים|ייסע|ייסעו|יסעו|ימשיך|ימשיכו|ממשיכים|ממשיך|נוסעים|יציאה)|ו?ימינה|ו?שמאלה)(?=\s)")
 # משפטים שמתארים את החסימה עצמה, לא את הדרך
@@ -128,7 +145,10 @@ def _logical_lines(desc):
     """שורות לוגיות: הודעות של מטרופולין שוברות משפט אחד לכמה שורות ("…עד לצומת א/ב, לא" ⏎ "פונים ימינה…").
     שורה ממשיכה את הקודמת כשהקודמת לא נגמרה בנקודה/נקודתיים והשורה לא מתחילה פריט חדש."""
     out, buf = [], ""
-    for raw in (desc or "").split("\n"):
+    # "…ממסלולם, קו מושפע 121" ו-"25077- מוזאון… לכיוון אריאל: עד…" באמצע שורה — פריט חדש (תל אביב 29.10)
+    # ("קו 5 לכיוון X: עד…" — לא: הכיוון של הקו שלפניו)
+    desc = re.sub(r"(?<![\d \t])(?<!\d[א-ת])[ \t]+(?=(?:ל|מ)כיוון\s[^:\n]{2,40}:\s*עד\s|קו(?:ו?ים)?\s+מושפע)", "\n", desc or "")
+    for raw in desc.split("\n"):
         line = raw.strip()
         if not line:
             if buf:
@@ -148,7 +168,8 @@ def _logical_lines(desc):
 
 def _header_numbers(line):
     """כותרת "המסלול החלופי לקוים 12 לכיוון מכללת לוינסקי, 604 לכיוון תל אביב:" — כל מספרי הקווים בה."""
-    line = _dnum_sub(line)
+    # "(כיוון 3)" בלי מספר קו לפניו — הכיוון, לא קו
+    line = re.sub(r"כיוון\s+[1-3](?![\d/:.])", " ", _dnum_sub(line))
     out = set(re.findall(r"(?<![\d/:.])(\d{1,3}(?:[א-ת](?![א-ת]))?)(?![\d/:.])", line))
     return {x for x in out if not re.match(r"^0", x)}
 
@@ -161,16 +182,22 @@ def _steps(rest):
         rest = rest[:e.start()]
     # "(אין המשך ישר לולנברג)" — הוראה שלילית בסוגריים, נמחקת כולה
     rest = re.sub(r"\((?:אין|ללא|לא)\s[^)]*\)", " ", rest)
+    # "לא פונים שמאלה לרח' חיים לבנון אלא ימינה" — בלי רחוב אחרי "אלא": פונים ימינה לאותו רחוב
+    rest = re.sub(r"(?:(?<=[\s,;(])|^)ו?לא\s+(?:פונים|יפנה|יפנו)\s+(?:ימינה|שמאלה)\s+(?:ל|ב)(?:רח['׳]|רחוב|שד['׳]|שדרות)?\s*"
+                  r"([^,;)]+?)\s+אלא\s+(?:פונים\s+)?(ימינה|שמאלה)(?=\s*(?:[,;)]|$))", r"\2 \1", rest)
     # הוראה שלילית ("לא פונים שמאלה לויצמן") נמחקת עד הפסיק; "לא X אלא Y" — נשאר Y
     rest = re.sub(r"(?:(?<=[\s,;(])|^)ו?לא\s[^,;)]*?(?=\sאלא\s|[,;)]|$)", "", rest)
     rest = re.sub(r"(?:(?<=[\s,;(])|^)אלא\s", "", rest)
     # מילות קישור בין פניות ("שמאלה לשדרות יצחק רבין ולאחר מכן שמאלה לכביש בגין צפון, ומשם ימשיך…",
     # ירושלים 20.10) — לא חלק משם הרחוב
     rest = re.sub(r"\s+ו?(?:לאחר מכן|אחר כך|אחרי כן|משם)(?=[\s,;]|$)", ",", rest)
+    # "עד טום לנטוס- בנגמין- ימינה…" — הצומת, לא שני רחובות בדרך
+    rest = re.sub(r"(?<=\sעד\s)([^,;\-–]{2,30}?)[-–]\s+-?([^,;\-–\s][^,;\-–]{0,30}?)(?=[-–]\s)", r"\1/\2", rest)
     steps = []
     # פסיק, ו"ו" לפני פנייה, פנייה בלי פסיק לפניה ("המשך ביאליק ימינה אבא הלל"), ורשימה במקפים
-    # ("ייסעו דרך חנה - אלי הכהן - גרוסברג", אקסטרה ירושלים)
-    for tok in re.split(r",|;|\.\s|\s[-–]\s|\sו(?=(?:ימינה|שמאלה|ישר|המשך|יפנה|יפנו|ימשיך|ימשיכו|פונים))|\s(?=(?:ימינה|שמאלה|ישר)\s)", rest):
+    # ("ייסעו דרך חנה - אלי הכהן - גרוסברג", אקסטרה ירושלים), גם מקף צמוד למילה שלפניו ("5611- בנגמין- טום לנטוס-")
+    # — לא מקף בתוך שם ("בר-אילן")
+    for tok in re.split(r",|;|\.\s|\s[-–]\s|(?<=[\w\"׳])[-–]\s+|\sו(?=(?:ימינה|שמאלה|ישר|המשך|יפנה|יפנו|ימשיך|ימשיכו|פונים))|\s(?=(?:ימינה|שמאלה|ישר)\s)", rest):
         t = tok.strip()
         # "פרסה בכיכר" — לא רחוב; "לא…" — הוראה שלילית; "עד X" באמצע ההוראה — סימון צומת, לא רחוב לנסוע בו
         if re.search(r"פרסה|סיבוב|יסתובב", t) or re.match(r"^(?:ו?לא|אלא|אין|עד)\b", t):
@@ -183,8 +210,12 @@ def _steps(rest):
             t = y.group(1)
         if re.match(r"^ללא שינוי", t):
             continue
+        # "קווים מושפעים:16+3+5+44 דרך חלופית: המשך…" — מה שלפני הנקודתיים לא חלק מהדרך
+        t = re.sub(r"^[^:]*:\s*(?=ו?(?:המשך|ימינה|שמאלה|ישר|יפנה|יפנו|פונים|ממשיכים|ממשיך)\b)", "", t)
+        if t.endswith(":"):
+            continue
         # "משדרות בן גוריון יפנה ימינה…" / "יציאה ממקיף ב ימינה…" — מאיפה יוצאים, לא רחוב בדרך
-        if re.search(r"\s(?:יפנה|יפנו|ימשיך|ימשיכו|ייסע|ייסעו|פונים)$", t) or re.match(r"^(?:יציאה|יוצאים|יוצא|נוסעים במסלול)\b", t):
+        if re.search(r"\s(?:יפנה|יפנו|ימשיך|ימשיכו|ייסע|ייסעו|פונים|יש לפנות)$", t) or re.match(r"^(?:יציאה|יוצאים|יוצא|נוסעים במסלול)\b", t):
             continue
         st = clean_street(t)
         # הוראת נתיב או שיקוע ("ייצמד לנתיבים", "יעברו דרך המנהרה", "לשיקוע") — לא רחוב
@@ -198,29 +229,34 @@ def _steps(rest):
                 or re.match(r"^ו?קו(?:ו?ים|ו?י)?\s+\d", st) or re.fullmatch(r"[\d\s\-/,]+[א-ת]?", st) or "/" in st):
             continue
         # פועל בלי רחוב ("יפנה"), ומשפט שלם במקום שם רחוב (יותר מחמש מילים, או מספר תחנה/שעה) — לא שלב
-        if (st and len(norm(st)) >= 2 and not re.match(r"^ו?(?:ישר|ימינה|שמאלה|יפנה|יפנו|ימשיך|ימשיכו|פונים|ממשיכים|ממשיך|נוסעים|בכיכר|בצומת|במסלול הרגיל|כרגיל)$", st)
+        if (st and len(norm(st)) >= 2 and not re.match(r"^ו?(?:ישר|ימינה|שמאלה|יפנה|יפנו|ימשיך|ימשיכו|פונים|פונה|ממשיכים|ממשיך|נוסעים|בכיכר|בצומת|במסלול הרגיל|כרגיל)$", st)
                 and len(st.split()) <= 5 and not re.search(r"מק\"?ט|תחנה|\d{3,}|:", re.sub(r"כביש\s+(?:מס['׳]?\s*)?\d+", "", st))):
             steps.append(st)
     return steps
 
 
-def parse(desc):
+def parse(desc, kinds=False):
     """פסקאות הוראה מתוך נוסח ההודעה: [{'lines': {...}, 'start': (A, B) או None, 'steps': [רחוב, ...], 'text': ...}].
-    start=None — הוראה בלי "עד…" ("יפנו ימינה ל…"): היציאה מהמסלול היא במקום שבו הרחוב הראשון חוצה אותו."""
+    start=None — הוראה בלי "עד…" ("יפנו ימינה ל…"): היציאה מהמסלול היא במקום שבו הרחוב הראשון חוצה אותו.
+    kinds=True — גם פסקאות בלי רחובות ('kind': 'short' — קיצור, 'uturn' — פניית פרסה), שהתחנות שמתחתיהן
+    שייכות להן ולא לפסקה שלפניהן (הוד השרון 25.10)."""
     out = []
+    blk = False         # הפסקה האחרונה היא של הכותרת הנוכחית (אחרי כותרת חדשה — "תחנות מבוטלות" לא שלה)
     cur_lines = set()
     cur_dir = None
     cur_dnum = {}       # {קו: כיוון} מהכותרת ("לקו 4-3")
     stops_mode = None   # אחרי "תחנות מבוטלות:" — המק"טים שייכים לפסקה האחרונה
     prev_hdr = False    # השורה הקודמת הייתה כותרת "קו N לכיוון…:"
+    cont = None         # השורה הקודמת הייתה הוראה עם מספרי קווים משלה
     for line in _logical_lines(desc):
         was_hdr, prev_hdr = prev_hdr, False
+        was_cont, cont = cont, None
         # "תחנות מבוטלות:" / "תחנות זמניות חלופיות:" — המק"טים שאחריהן (או באותה שורה: "האצ"ל/ נוף חרמון
         # (תחנה 53696), …", קריית שמונה) שייכים לפסקה האחרונה: rm — מבוטלות, add — חלופיות (תל אביב 20.10,
         # אבן גבירול: התחנה החלופית של קו 149 היא התחנה המבוטלת של קו 445)
         hdr = re.match(r"^\s*תחנ(?:ה|ות)\b[^:]{0,25}?(מבוטל|בוטל|חלופי)", line)
         if hdr:
-            stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out else None
+            stops_mode = ("add" if hdr.group(1) == "חלופי" else "rm") if out and blk else None
             if stops_mode and ":" in line:
                 # מק"ט של 3–6 ספרות ("תחנה מבוטלת: 3007 – שערי ירושלים/ליפתא", ירושלים)
                 # כשכתוב "(תחנה 38428)" — רק אלה; מספר אחרי "כביש"/"מס'" הוא כביש, לא תחנה (ראשון לציון, יהוד 20.10)
@@ -254,24 +290,44 @@ def parse(desc):
         clean = re.sub(r"\b\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\b|\b\d{1,2}:\d{2}\b", " ", line)
         # "עד כיכר פעולות האיבה (יהודה הלוי/ האצ"ל)" — שם הכיכר לא רחוב; הצומת הוא מה שבסוגריים (קריית שמונה 19.10)
         clean = re.sub(r"(עד\s+(?:ל)?(?:ה)?(?:כיכר|צומת)\s+)[^,()/]{2,40}?\s*\(([^()/]{2,30}/[^()]{2,30})\)", r"\1\2", clean)
+        # "עד תחנה האוניברסיטה/חיים לבנון ימינה לרחוב איינשטיין" — בלי פסיק אחרי הצומת (תל אביב 29.10)
+        clean = re.sub(r"(עד\s+(?:תחנה\s+)?[^,/()]{2,40}?/[^,/()\-–]{2,40}?)\s+(?=(?:ימינה|שמאלה)\s)", r"\1, ", clean)
         m = _START.search(clean)
         body = re.sub(r"^.*?מסלול חלופי\s*:?\s*", "", clean) if "מסלול חלופי" in clean else clean
         driving = bool(_DRIVE.search(" " + body)) and not _NOT_ROUTE.match(body.strip())
         if _is_short(line):
+            c_lines, c_dnum = was_cont or (cur_lines, cur_dnum)
+            out.append({"lines": set(nums or c_lines), "start": None, "steps": [], "text": line, "kind": "short",
+                        "dir": (line_dir if ":" in line else None) or (None if nums else cur_dir),
+                        "dnum": line_dnum(line) if nums else c_dnum})
+            stops_mode, blk = None, True
             continue
         # "המסלול החלופי לכל שאר הקוים:" — פסקה בלי קווים (חלה על כל מי שאין לו פסקה משלו)
         if re.match(r"^(?:המסלול החלופי|מסלול חלופי)\s+ל?(?:כל\s+)?(?:שאר|יתר)\s+ה?קו", line):
             cur_lines, cur_dir, cur_dnum = set(), None, {}
+            stops_mode, blk = None, False
             continue
         # כותרת ("קו 5 לכיוון…:", "המסלול החלופי לקוים 12 לכיוון…, 604 לכיוון…:") — חלה על השורות הבאות
         if not m and not driving:
             if nums or re.match(r"^(?:המסלול החלופי|מסלול חלופי)", line):
                 hdr = nums | (_header_numbers(line) if re.match(r"^(?:המסלול החלופי|ו?קו(?:ו?ים|ו?י)?\b)", line) else set())
-                own = bool(re.match(r"^ו?קו(?:ו?ים|ו?י)?\s*:?\s*\d[^:]*:\s*$", line))
-                if hdr and was_hdr and own:
-                    # כמה כותרות ברצף ("קו 63 לכיוון ספיר:" ⏎ "קו 64 לכיוון ספיר:") — ההוראה שאחריהן לכולן
+                # פתיח ("בעקבות החסימה… בקוים 35, 59", "קו 143 ישנה את מסלולו וידלג…") — לא כותרת שמתאחדת עם זו שאחריו
+                own = not _NOT_ROUTE.match(clean) and not re.search(r"(?:^|\s)ו?(?:ישנ(?:ה|ו)|ידלג(?:ו)?|יחול(?:ו)?)\s", line)
+                if hdr:
+                    stops_mode, blk = None, False
+                # רק כשהקווים לא חופפים — "שינוי מסלול לקווים 3, 5, 7:" ⏎ "קו 5 לכיוון חיפה:" — הכותרת היא של 5
+                if hdr and was_hdr and own and not (hdr & cur_lines):
+                    # כמה כותרות ברצף ("קו 63 לכיוון ספיר:" ⏎ "קו 64 לכיוון ספיר:", "המסלול החלופי לקו 35," ⏎
+                    # "קוים 59,236 …", "קו 65 כיוון 1" ⏎ "קו 69 כיוון 1") — ההוראה שאחריהן לכולן
+                    # כיוונים שונים — יעד לכל קו ("35 לכיוון רמת גן, 59,236 לכיוון אור יהודה"), כמו בכותרת אחת
+                    if cur_dir and line_dir and cur_dir != line_dir:
+                        cur_dir = (cur_dir[0], ", ".join(
+                            d[1].strip(" ,.") if re.search(r",\s*\d", d[1]) else
+                            f"{','.join(sorted(ls))} {'ל' if d[0] == 'to' else 'מ'}כיוון {d[1].strip(' ,.')}"
+                            for ls, d in ((cur_lines, cur_dir), (hdr, line_dir))))
+                    elif cur_dir != line_dir:
+                        cur_dir = None
                     cur_lines = cur_lines | hdr
-                    cur_dir = cur_dir if cur_dir == line_dir else None
                     dn = line_dnum(line)
                     cur_dnum = {k: v for k, v in {**cur_dnum, **dn}.items() if cur_dnum.get(k, v) == dn.get(k, v)}
                     prev_hdr = True
@@ -282,11 +338,12 @@ def parse(desc):
                     prev_hdr = own
             elif line_dir and len(line) < 60:
                 cur_dir = line_dir   # "מכיוון עתידים:" בשורה משלה (דן)
+                stops_mode, blk = None, False
             continue
         if _NOT_ROUTE.match(clean):
             continue
         if m:
-            start = tuple(re.sub(r"^(?:תחנת|התחנה)\s+", "", clean_street(g)) for g in (m.group(1), m.group(2)))
+            start = tuple(re.sub(r"^(?:תחנת|התחנה|תחנה)\s+", "", clean_street(g)) for g in (m.group(1), m.group(2)))
             rest = clean[m.end():]
         else:
             start = None
@@ -295,14 +352,19 @@ def parse(desc):
             if ":" in rest and nums:
                 rest = rest.split(":", 1)[1]
         steps = _steps(rest)
-        if start is None and len(steps) < 1:
-            continue
-        if steps:
-            out.append({"lines": set(nums or cur_lines), "start": start, "steps": steps, "text": line,
+        # "לא פונים שמאלה לרח' החרמון אלא מבצעים פניית פרסה" — בלי רחובות, אבל פסקה משלה (הוד השרון 25.10)
+        kind = "uturn" if not steps and re.search(r"פרסה|יסתובב", rest) else None
+        if steps or kind:
+            c_lines, c_dnum = was_cont or (cur_lines, cur_dnum)
+            out.append({"lines": set(nums or c_lines), "start": start, "steps": steps, "text": line,
                         "dir": (line_dir if ":" in line else None) or cur_dir,
-                        "dnum": line_dnum(line) if nums else cur_dnum})
-            stops_mode = None
-    return out
+                        "dnum": line_dnum(line) if nums else c_dnum, **({"kind": kind} if kind else {})})
+            stops_mode, blk = None, True
+        # "קווים: 796-1-0 774-1-0 עד צומת…" ⏎ "שמאלה לחשמל…" — השורה הבאה ממשיכה אותם, לא את הכותרת שלפניהם
+        # (טכניון 25.10). רק השורה שמיד אחריה: אחרי רשימת תחנות — שוב הכותרת (ירושלים, "בכיוון מגוש עציון…")
+        if nums:
+            cont = (set(nums), line_dnum(line))
+    return [p for p in out if kinds or not p.get("kind")]
 
 
 def template(desc, paras=None):
@@ -322,7 +384,7 @@ def template(desc, paras=None):
     if short_lines(t):
         return "short"
     # "יעברו דרך המנהרה בשיקוע" — אותו רחוב מתחת לצומת, הקו לא יוצא מהמסלול
-    if re.search(r"ידלג|ידלגו|דילוג|(?:יעבור|יעברו) דרך (?:ה)?מנהר|ימשי(?:ך|כו) ישר ב(?:ה)?שיקוע", t):
+    if re.search(r"ידלג|ידלגו|מדלג(?:ים|ת)?|דילוג|(?:יעבור|יעברו) דרך (?:ה)?מנהר|ימשי(?:ך|כו) ישר ב(?:ה)?שיקוע", t):
         return "skip"
     if re.search(r"(?<!\d)\d{5}(?!\d)|תחנ(?:ה|ות) (?:מבוטל|בוטל)", t):
         return "stops"
@@ -418,6 +480,16 @@ class Streets:
                     hit = {n for n in self.names if len(n.split(" ")) == 2 and n.split(" ")[1] == w[1] and n[0] == c[0]}
                     if len(hit) == 1:
                         out |= hit
+        # בלי ה' הידיעה ("הלח"י" — במפה "לח"י"), ובלי ו/י/א באמצע מילה ("לה גרדיה" — "לה גווארדיה")
+        if not out:
+            for c in cands:
+                if len(c) > 3 and c[0] == "ה":
+                    out |= {n for n in self.names if n == c[1:] or n.endswith(" " + c[1:])}
+        if not out:
+            sk = lambda x: re.sub(r"(?<=\S)[ויא]", "", x)
+            for c in cands:
+                if len(sk(c)) >= 4:
+                    out |= {n for n in self.names if sk(n) == sk(c)}
         # שגיאת כתיב של אות אחת ("שמפפר", "שמטפפר" — שטמפפר)
         if not out:
             for c in cands:
@@ -513,6 +585,75 @@ def cut_range(shape, stops, slack=30.0):
             have -= cnt[kk] == 0
             j += 1
     return list(best)
+
+
+def cut_passes(shape, stops, best, slack=30.0, extra=300.0, gap=150.0):
+    """קו סיבובי שעובר ליד התחנה המבוטלת כמה פעמים: שאר המעברים (מלבד best של cut_range), כל אחד
+    [מ, עד], לפי הסדר על השרטוט — לא חופפים ל-best או זה לזה, ולא ארוכים מ-best ביותר מ-extra מטרים."""
+    stops = [q for q in stops if q]
+    if not stops or not best:
+        return []
+    ev = []
+    for k, q in enumerate(stops):
+        d = [meters(p, q) for p in shape]
+        lim = min(d) + slack
+        ev += [(i, k) for i, x in enumerate(d) if x <= lim]
+    ev.sort()
+    need, cnt, have, j, wins = len(stops), collections.Counter(), 0, 0, []
+    for i, k in ev:
+        cnt[k] += 1
+        have += cnt[k] == 1
+        while have == need:
+            wins.append((ev[j][0], i))
+            kk = ev[j][1]
+            cnt[kk] -= 1
+            have -= cnt[kk] == 0
+            j += 1
+
+    cum = [0.0]
+    for a, b in zip(shape, shape[1:]):
+        cum.append(cum[-1] + meters(a, b))
+    lim = cum[best[1]] - cum[best[0]] + extra
+    out, taken = [], [tuple(best)]
+    for w in sorted(set(wins), key=lambda w: (cum[w[1]] - cum[w[0]], w[0])):
+        # מעבר אחר: לא חופף לקטע שכבר נבחר, ורחוק ממנו לפחות gap מטרים על השרטוט (לא אותו מעבר, נקודה הלאה)
+        if any(cum[w[0]] <= cum[t[1]] + gap and cum[t[0]] <= cum[w[1]] + gap for t in taken) or cum[w[1]] - cum[w[0]] > lim:
+            continue
+        taken.append(w)
+        out.append(list(w))
+    return sorted(out)
+
+
+def one_pass(shape, pts, tol=40.0, span=80.0):
+    """המקום היחיד על השרטוט שקרוב (tol) לנקודות (צומת, או הרחוב הראשון): אינדקס, או None כשאין, או כשיש
+    כמה מעברים / קטע ארוך מ-span מטרים (הקו נוסע לאורך הרחוב — לא ברור איפה יוצאים)."""
+    pts = list(pts)
+    if not pts or len(shape) < 2:
+        return None
+    near = {i: min(seg_dist(q, shape[i], shape[i + 1]) for q in pts) for i in range(len(shape) - 1)}
+    idx = [i for i, d in near.items() if d < tol]
+    if not idx or sum(meters(shape[x], shape[x + 1]) for x in range(idx[0], idx[-1])) > span:
+        return None
+    return min(range(idx[0], idx[-1] + 2), key=lambda i: min(meters(q, shape[i]) for q in pts))
+
+
+def junction_cut(net, para, shape, after=60.0):
+    """הקטע הסגור לקו שנבנה מהנוסח, בלי תחנה מבוטלת: מהצומת שבפסקה ("עד א/ב" או "מצומת א/ב"), ובלי צומת —
+    מהמקום שבו הרחוב הראשון חוצה את השרטוט; עד after מטרים אחריו. רק כשיש מקום אחד כזה על השרטוט."""
+    jn = para.get("start") or junction_of(para.get("text"))
+    if jn:
+        pts = junction_pts(net, *jn)
+    else:
+        nm = net.match(para["steps"][0]) if para.get("steps") else set()
+        pts = net.nodes_of(nm) if nm else set()
+    j = one_pass(shape, pts)
+    if j is None:
+        return None
+    acc, k = 0.0, j
+    while k + 1 < len(shape) - 1 and acc < after:
+        acc += meters(shape[k], shape[k + 1])
+        k += 1
+    return [j, k] if k > j else None
 
 
 def _first_pass(idx, dist, last=False):
@@ -708,14 +849,70 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     return path, i_out, i_in
 
 
-def route_detour(net, para, shape, cut0, cut1, max_len=15000):
+def route_detour(net, para, shape, cut0, cut1, max_len=15000, diag=None):
     """מסלול לפי פסקת הוראה אחת, לקו שהשרטוט שלו shape ([lat,lon]) והקטע המבוטל שלו cut0..cut1.
 
-    מחזיר {'path','i_out','i_in','streets','len'} או None כשאי אפשר לנתב לפי הנוסח."""
+    מחזיר {'path','i_out','i_in','streets','len'} או None כשאי אפשר לנתב לפי הנוסח. diag (dict) — למה None
+    (diag['why'], לאבחון בלבד): no-plan:<רחובות שלא נמצאו>, no-tail, no-exit, no-leg:<רחוב>, out-in-cut
+    (היציאה אחרי הקטע הסגור), no-back (לא חוזר לשרטוט), too-long.
+    בלי "עד…" אבל עם "מצומת א/ב" בנוסח, כשהצומת עד 400 מ' לפני הקטע הסגור — ניסיון שני מהצומת."""
+    res = _route_detour(net, para, shape, cut0, cut1, max_len, diag)
+    if res is None and not para.get("start"):
+        jn = junction_of(para.get("text"))
+        j = extend_cut(shape, cut0, junction_pts(net, *jn)) if jn else None
+        if j is not None and j < cut0:
+            d2 = {}
+            res = _route_detour(net, dict(para, start=jn), shape, j, cut1, max_len, d2)
+            if diag is not None and res is None:
+                diag["why"] = f"{diag.get('why')} / jn {d2.get('why')}"
+    return res
+
+
+# "מצומת חיים לבנון/רדינג פונה שמאלה" — צומת היציאה בלי "עד" (ה-start של parse ריק)
+_FROM_JN = re.compile(r"מ(?:צומת|כיכר)\s+(?:הרחובות\s+)?([^,/()]{2,40}?)\s*/\s*([^,()/]{2,40}?)"
+                      r"(?=\s+(?:ו?(?:פונ|יפנ|ממשי|ימשי|ישר|ימינה|שמאלה))|\s*,)")
+
+
+def junction_of(text):
+    """("א", "ב") מ"מצומת א/ב פונה…", או None."""
+    m = _FROM_JN.search(re.sub(r"\b\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\b", " ", text or ""))
+    return tuple(clean_street(g) for g in m.groups()) if m else None
+
+
+def junction_pts(net, a, b):
+    """הצמתים במפה שבהם שני רחובות הצומת נפגשים (עד 40 מ')."""
+    na, nb = net.match(a), net.match(b)
+    if not (na and nb):
+        return set()
+    return net.near(net.nodes_of(na), net.nodes_of(nb), 40) | net.near(net.nodes_of(nb), net.nodes_of(na), 40)
+
+
+def extend_cut(shape, cut0, pts, max_m=400.0, tol=70.0):
+    """תחילת הקטע הסגור מוקדמת עד הצומת שבפסקה: הנקודה על השרטוט הקרובה ביותר לצומת (עד tol), עד cut0 ולא
+    יותר מ-max_m מטרים לפניו. None — אין כזו."""
+    acc, best = 0.0, None
+    for j in range(min(cut0, len(shape) - 1), -1, -1):
+        if j < cut0:
+            acc += meters(shape[j], shape[j + 1])
+        if acc > max_m:
+            break
+        d = min((meters(q, shape[j]) for q in pts), default=1e9)
+        if d < tol and (best is None or d < best[0]):
+            best = (d, j)
+    return best[1] if best else None
+
+
+def _route_detour(net, para, shape, cut0, cut1, max_len, diag):
+    def fail(why):
+        if diag is not None:
+            diag["why"] = why
+        return None
     plan = _plan(net, para["steps"])
     tail = shape[cut1 + 1:]
-    if not plan or not tail:
-        return None
+    if not plan:
+        return fail("no-plan:" + ",".join(x for x in para["steps"] if not net.match(x)))
+    if not tail:
+        return fail("no-tail")
     ex = _exit_point(net, para, shape, cut0, cut1, plan[0][1])
     # "הקו ימשיך בשדרות X, יפנה ימינה ל-Y…" כש-X לא נמצא במפה: הרחוב הראשון שנמצא לא נוגע במסלול — יוצאים
     # רגע לפני הקטע הסגור, וממשיכים ישר עד Y (ירושלים 20.10, קו 616 בשערי ירושלים)
@@ -726,7 +923,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         if start_c:
             ex = (cpt, start_c, i0)
     if not ex:
-        return None
+        return fail("no-exit")
     cpt, start_c, i_out = ex
     # כל הצמתים של הרחוב הראשון ליד היציאה, לא רק הקרוב: בשדרה עם שני מסלולים הקרוב יכול להיות
     # במסלול של הכיוון ההפוך, ואז הדרך עוברת לאורך כל הרחוב וחוזרת (רחובות 19.10, קו 10 ברחוב הרצל)
@@ -762,7 +959,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
         else:
             tg = {n: c for n, c in back.items() if n not in cur_set}
         if not tg:
-            return None
+            return fail("no-leg:" + st)
         p, c = net.dijkstra(cur, names, tg, no_tunnel=no_tunnel)
         # הדרך לפי החד-סטרי מסתובבת ברחובות שלא בהודעה (פנייה שמאלה שלא מחוברת במפה, ואז לולאה של
         # קילומטר וחצי מעבר לאיילון — תל אביב 20.10, בגין ← קפלן): מציירים את הפנייה כמו שכתוב בהודעה
@@ -771,7 +968,7 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
             if p2 and (not p or c2 * 2 < c):
                 p = p2
         if not p:
-            return None
+            return fail("no-leg:" + st)
         legs.append(p)
         streets.append(st)
         cur = p[-1]
@@ -786,11 +983,13 @@ def route_detour(net, para, shape, cut0, cut1, max_len=15000):
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
     # (60 מ' — נקודת החיבור נבחרת עד 45 מ' מסוף העקיפה, במעבר הראשון)
-    if i_out >= cut1 or meters(path[-1], shape[i_in]) > 60:
-        return None
+    if i_out >= cut1:
+        return fail("out-in-cut")
+    if meters(path[-1], shape[i_in]) > 60:
+        return fail("no-back")
     length = sum(meters(x, y) for x, y in zip(path, path[1:]))
     if length > max_len:
-        return None
+        return fail("too-long")
     return {"path": [[round(p[0], 6), round(p[1], 6)] for p in [tuple(shape[i_out])] + path + [tuple(shape[i_in])]],
             "i_out": i_out, "i_in": i_in, "streets": streets, "len": round(length)}
 
