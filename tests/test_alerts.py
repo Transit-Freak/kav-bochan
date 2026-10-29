@@ -548,7 +548,7 @@ class ClosedCheckTests(unittest.TestCase):
         self.assertEqual(got, want)
 
     def test_estimate_skips_bad_closed(self):
-        # פסקה ראשונה — קטע סגור של כ-4.6 ק"מ לעקיפה של 100 מ'; השנייה תקינה — נבחרת השנייה
+        # פסקה ראשונה — קטע סגור של כ-4.6 ק"מ לעקיפה של 100 מ'; השנייה תקינה — נבחרת השנייה (קטע סגור תקין עדיף)
         from unittest import mock
         sh = [[32.0, 34.8 + i * 0.001] for i in range(60)]
         d = ('קו 2 לכיוון X:\nנוסעים במסלול הרגיל עד לכיכר תל חי/בן גוריון, ימינה לרח\' רוטשילד וממשיכים במסלול הרגיל.\n'
@@ -569,9 +569,9 @@ class ClosedCheckTests(unittest.TestCase):
             return r
         r = run(True)
         self.assertEqual((r['why'], r['est']['streets']), ('ok', ['הרצל']))
+        # אין פסקה תקינה — העקיפה נשארת (שלמה 29.10: לא להעלים מסלולים), בלי קטע סגור
         r = run(False)
-        self.assertEqual(r['why'], 'no-match')
-        self.assertIn('p0 closed-long', r['why_d'])
+        self.assertEqual((r['why'], r['est']['streets'], r['est']['nocut']), ('ok', ['רוטשילד'], 'closed-long'))
 
 
 class TrimSharedRoundaboutTests(unittest.TestCase):

@@ -367,7 +367,9 @@
     var ci = del.map(function (s) { return nearestIdx(shape, stops[s]); });
     var c0 = ci.length ? Math.min.apply(null, ci) : -1, c1 = ci.length ? Math.max.apply(null, ci) : -1;
     var est = r.est && r.est.path;
-    if (est) { var cc = closedRange(shape, r.est, del.map(function (s) { return stops[s]; })); c0 = cc[0]; c1 = cc[1]; }
+    // nocut: הקטע הסגור שחושב לעקיפה הזו לא תקין (ארוך מדי / לא עובר בתחנה המבוטלת) — מציגים את העקיפה בלי מקווקו
+    if (est && r.est.nocut) { c0 = -1; c1 = -1; }
+    else if (est) { var cc = closedRange(shape, r.est, del.map(function (s) { return stops[s]; })); c0 = cc[0]; c1 = cc[1]; }
     else if (ci.length) {
       // תחנת המוצא (או הסוף) בוטלה: הקו מתחיל בתחנה הראשונה שנשארה, והקטע שלפניה לא נסוע (שלמה 20.10:
       // סומנה רק התחנה המבוטלת, בלי הקטע)

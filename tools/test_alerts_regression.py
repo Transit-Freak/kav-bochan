@@ -215,7 +215,7 @@ def invariants(snap):
             if hit:
                 bad['est-through-del'][key] = hit
             shape = r.get('shape') or []
-            if len(shape) < 2:
+            if len(shape) < 2 or r['est'].get('nocut'):   # nocut — האתר לא מצייר קטע סגור לעקיפה הזו
                 continue
             c0, c1 = closed_range(r, stops)
             closed = _len(shape[c0:c1 + 1])

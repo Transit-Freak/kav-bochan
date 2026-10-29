@@ -350,14 +350,17 @@ def estimate_routes(alert, rc_routes, stops):
                 # הקטע הסגור שהאתר יסמן לעקיפה הזו — ארוך מדי (מעבר לא נכון בקו סיבובי, קו 70 בנתניה),
                 # או בלי התחנה המבוטלת (חזרה למסלול לפניה, קו 35 בתל אביב): עדיף בלי מפה
                 # (פתוח, לבדוק מול OSM: לפצל את cut לפי מעבר, cut1 בהיטל התחנה ולא בקצה ה-slack, "ובחזרה מסלול" ב-_END)
+                # שלמה 29.10: לא לפסול את כל העקיפה בגלל זה — מסלולים נכונים נעלמו (קו 40044, 14100). העקיפה
+                # נשמרת עם nocut: האתר לא מצייר את הקטע הסגור, ופסקה או מעבר אחרים עם קטע תקין עדיפים
                 if res:
                     bad = AR.closed_check(shape, res['path'], [STOP_POS[s] for s in r['del'] if s in STOP_POS], res['len'])
                     if bad:
-                        res, dg = None, {'why': bad}
+                        res['nocut'] = bad
+                        why_d.append(f'{tag}p{paras.index(p)} {bad} (בלי קטע סגור)')
                 if not res:
                     why_d.append(f'{tag}p{paras.index(p)} {dg.get("why")}')
                 if res:
-                    res['_k'] = (-same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
+                    res['_k'] = (1 if res.get('nocut') else 0, -same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
                 if res and (best is None or res['_k'] < best['_k']):
                     best = res
                     xa = sorted(p['add']) if 'add' in p else None
@@ -365,11 +368,13 @@ def estimate_routes(alert, rc_routes, stops):
         best, xa = route_all(*r['cut'])
         # קו סיבובי שעובר ליד התחנה המבוטלת כמה פעמים — כשהמעבר שנבחר לא מצליח, המעברים האחרים
         # (העקיפה בכיוון ההפוך עדיין נפסלת ב-route_detour)
-        for k, c in enumerate([] if best or not cand else r.get('cuts') or []):
-            best, xa = route_all(*c, tag=f'c{k + 1} ')
-            if best:
+        for k, c in enumerate([] if (best and not best.get('nocut')) or not cand else r.get('cuts') or []):
+            b2, xa2 = route_all(*c, tag=f'c{k + 1} ')
+            if b2 and (not best or (best.get('nocut') and not b2.get('nocut'))):
+                best, xa = b2, xa2
                 r['cut'] = c
-                break
+                if not best.get('nocut'):
+                    break
         if best:
             r['_xa'] = xa
             best.pop('_k', None)
