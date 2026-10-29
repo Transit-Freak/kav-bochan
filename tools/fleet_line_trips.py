@@ -160,8 +160,9 @@ def gtfs_routes():
     out = {}
     for r in rows:
         nm = r[c['route_long_name']] or ''
+        mkt = (r[c['route_desc']] or '').split('-')[0].strip() if 'route_desc' in c else ''
         out[r[c['route_id']]] = [r[c['agency_id']], (r[c['route_short_name']] or '').strip(),
-                                 label(nm), direction(nm)]
+                                 label(nm), direction(nm), mkt]
     print(f'GTFS: {len(out)} מסלולים', flush=True)
     return out
 
@@ -246,11 +247,69 @@ def build(st):
     build_dep(st, rkey, shown)
 
 
+VRANK = ('מיניבוס', 'מידיבוס', 'אוטובוס', 'מפרקי')
+
+
+def model_types():
+    """דגם → [סוג רכב, דלק] (שלמה 29.10: "לבדוק גם את סוג הרכב") — הנפוץ בין הרכבים מאותו דגם.
+    הסוג והדלק מהמאגר הרשמי "ציי רכב אוטובוסים" (fleet-official.json, שדות 5 ו-3); בלעדיו — סוג
+    לפי סיווג הרישוי בצי הרכבים (מפרק → מפרקי, זעיר → מיניבוס, אחרת אוטובוס)."""
+    fleet = json.load(open(f'{OUTDIR}/fleet.json', encoding='utf-8'))
+    try:
+        of = json.load(open(f'{OUTDIR}/fleet-official.json', encoding='utf-8')).get('of') or {}
+    except Exception:  # noqa: BLE001
+        of = {}
+    off = 1 if fleet.get('v') == 2 else 0
+    cnt = {}
+    for o in fleet['operators']:
+        for v in o['vehicles']:
+            m = v[5] if len(v) > 5 else None
+            if not m:
+                continue
+            row = of.get(v[0]) or []
+            t = str(row[5] or '') if len(row) > 5 else ''
+            size = 'מפרקי' if t.startswith('מפרקי') else t if t in VRANK else None
+            if not size:
+                t = str(v[6 + off] or '') if len(v) > 6 + off else ''
+                size = ('מפרקי' if 'מפרק' in t else 'מיניבוס' if 'זעיר' in t or 'זעצ' in t else 'אוטובוס') if t else None
+            f = str(row[3] or '') if len(row) > 3 else ''
+            fuel = 'חשמל' if 'חשמל' in f else 'גז' if 'גז' in f else 'דיזל' if ('דיזל' in f or 'סולר' in f) else f or None
+            c = cnt.setdefault(m, [{}, {}])
+            if size:
+                c[0][size] = c[0].get(size, 0) + 1
+            if fuel:
+                c[1][fuel] = c[1].get(fuel, 0) + 1
+    top = lambda d: max(d.items(), key=lambda x: x[1])[0] if d else ''  # noqa: E731
+    return {m: [top(a), top(b)] for m, (a, b) in cnt.items()}
+
+
+def registered_sizes():
+    """מק"ט → סוג הרכב שנקבע לקו: המקור הרשמי היומי (רישוי מערך האוטובוסים, כמו במדד האמינות),
+    ובהיעדרו קובץ הקווים של האתר (data-main.json עמודה 13)."""
+    try:
+        import bus_reliability as br
+        sizes, used = br.load_rishui_sizes((TODAY - datetime.timedelta(days=1)).isoformat())
+        if sizes:
+            print(f'סוג הרכב לקו: רישוי מערך האוטובוסים {used} ({len(sizes)} מק"טים)', flush=True)
+            return sizes
+    except Exception as e:  # noqa: BLE001
+        print(f'::warning::מאגר הרישוי לא נטען ({e}) — data-main.json', flush=True)
+    out = {}
+    try:
+        for r in json.load(open('data-main.json', encoding='utf-8')):
+            if len(r) > 13 and r[13] in VRANK:
+                out[str(r[0])] = r[13]
+    except Exception as e:  # noqa: BLE001
+        print(f'::warning::data-main.json לא נטען ({e})', flush=True)
+    return out
+
+
 def build_dep(st, rkey, shown):
-    """lines/<מפעיל>-<מספר>.json: {"models": [...], "g": {מזהה קו: [[מעיר, מתחנה, לעיר, לתחנה, {"HH:MM":
-    [נסיעות, חשמליות, דגם, נסיעות...]}], ...]}} — קובץ לכל מספר קו של מפעיל (קטן — נטען רק כשפותחים קו).
-    כיוונים וחלופות עם אותו מוצא ויעד מתאחדים."""
-    per = {}
+    """lines/<מפעיל>-<מספר>.json: {"models": [...], "mt": {דגם: [סוג, דלק]}, "g": {מזהה קו: [[מעיר, מתחנה,
+    לעיר, לתחנה, {"HH:MM": [נסיעות, חשמליות, דגם, נסיעות...]}, סוג הרכב שנקבע לכיוון], ...]}} — קובץ לכל
+    מספר קו של מפעיל (קטן — נטען רק כשפותחים קו). כיוונים וחלופות עם אותו מוצא ויעד מתאחדים."""
+    mtypes, reg = model_types(), registered_sizes()
+    per, regs = {}, {}
     for mon in st.get('dep', {}).values():
         for line, times in mon.items():
             key = rkey.get(line)
@@ -258,6 +317,11 @@ def build_dep(st, rkey, shown):
                 continue
             d4 = tuple(st['routes'][line][3]) if len(st['routes'][line]) > 3 else ('', '', '', '')
             dirs = per.setdefault((key[0], key[1]), {}).setdefault(shown[key], {}).setdefault(d4, {})
+            rt = st['routes'][line]
+            size = reg.get(rt[4]) if len(rt) > 4 else None
+            if size:   # הסוג שנקבע — של המק"ט עם הכי הרבה נסיעות בכיוון
+                rs = regs.setdefault((shown[key], d4), {})
+                rs[size] = rs.get(size, 0) + sum(a[0] for a in times.values())
             for t, arr in times.items():
                 cur = dirs.setdefault(t, [0, 0, {}])
                 cur[0] += arr[0]
@@ -271,12 +335,14 @@ def build_dep(st, rkey, shown):
         out = {}
         for lid, dirs in g.items():
             out[lid] = [list(d4) + [{t: c[:2] + [x for m, n in sorted(c[2].items(), key=lambda y: -y[1]) for x in (m, n)]
-                                     for t, c in sorted(dirs[d4].items())}]
+                                     for t, c in sorted(dirs[d4].items())},
+                                    max((regs.get((lid, d4)) or {'': 0}).items(), key=lambda x: x[1])[0]]
                         for d4 in sorted(dirs, key=lambda x: -sum(c[0] for c in dirs[x].values()))]
         fn = f"{op}-{no.encode('utf-8').hex()}.json"
         keep.add(fn)
         used = sorted({x[4][t][i] for v in out.values() for x in v for t in x[4] for i in range(2, len(x[4][t]), 2)})
-        fs.jdump({'updated': TODAY.isoformat(), 'models': {i: st['models'][i] for i in used}, 'g': out}, os.path.join(d, fn))
+        fs.jdump({'updated': TODAY.isoformat(), 'models': {i: st['models'][i] for i in used},
+                  'mt': {i: mtypes.get(st['models'][i]) or ['', ''] for i in used}, 'g': out}, os.path.join(d, fn))
     for fn in os.listdir(d):
         if fn.endswith('.json') and fn not in keep:
             os.remove(os.path.join(d, fn))
