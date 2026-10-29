@@ -13,7 +13,10 @@
     if (/\/rail\/reception\//.test(p)) return "reception";
     var m = p.match(/\/(line-history|fleet|bus|rail|fares|ratzif|skip-stops|next-station|feeder|alerts)\//);
     if (m) return m[1];
-    return /^#(פח|מוזהב)/.test(decodeURIComponent(location.hash || "")) ? "kavpach" : "home";
+    // קו פח והקו המוזהב: מסך הבחירה כותב ‎#kavpach / #golden‎, וקישור לקו — ‎#פח/… / #מוזהב/…‎ (שלמה 29.10:
+    // בכניסה מהמסך נפתח "מה חדש" של האתר כולו)
+    var h = ""; try { h = decodeURIComponent(location.hash || ""); } catch (e) { h = location.hash || ""; }
+    return /^#(פח|מוזהב|kavpach|golden)(\/|$)/.test(h) ? "kavpach" : "home";
   }
   var DATA = null;
   var CSS = "#kb-ver{display:flex;justify-content:center;padding:14px 12px 22px;direction:rtl}" +
