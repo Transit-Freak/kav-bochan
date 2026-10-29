@@ -489,7 +489,7 @@ function gapDays(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5);
 // נחשב תו ניטרלי ומקבל את כיוון הפסקה (שלמה 07.09). בתצוגה עוזר dir=ltr, אבל
 // טקסט שמעתיקים לוואטסאפ מאבד אותו — לכן בתוך הטקסט עצמו יש תווי כיוון
 // בלתי-נראים (LRE…PDF) שנוסעים יחד עם ההעתקה ומחזיקים את הסדר בכל מקום.
-const rdTxt = (rd) => "\u202A" + String(rd || "") + "\u202C";
+const rdTxt = (rd) => String(rd || "");   // מזהה גולמי; בתצוגה ליד "מק״ט" — mkShow
 // חיפוש: מק"ט שהודבק עם תווי הכיוון האלה חייב עדיין להתאים
 const sQ = (t) => String(t || "").replace(/[׳״'"\u200e\u200f\u202a-\u202e\u2066-\u2069]+/g, "");
 
@@ -3437,7 +3437,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
                 // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
                 // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
                 const rn = splitRenumbers(pm.add, pm.rem, i);
-                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
+                // אירוע שכל השינוי בו הוא החלפת מק"ט (אותו שם ומיקום) — אומרים את זה, אחרת הכרטיס
+                // "שינוי מסלול / שינוי תחנות" נשאר בלי שום פירוט (שלמה 29.10, קו 55 פרדס חנה)
+                if (!pm.moves.length && !rn.add.length && !rn.rem.length)
+                  return rn.moves.length ? <div className="sub">
+                    {rn.moves.map((m, k) => <div key={k}>🔁 התחנה {m.name} קיבלה מספר חדש ({m.from} ← {m.to}), באותו שם ובאותו מקום</div>)}
+                    <div className="mut">{x.k === "route" || x.k === "redraw" ? "התחנות לא השתנו לנוסע; שרטוט המסלול עודכן." : "אין שינוי לנוסע."}</div>
+                  </div> : null;
                 return (
                   <div className="sub">
                     {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
@@ -3799,7 +3805,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
                 // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
                 // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
                 const rn = splitRenumbers(pm.add, pm.rem, i);
-                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
+                // אירוע שכל השינוי בו הוא החלפת מק"ט (אותו שם ומיקום) — אומרים את זה, אחרת הכרטיס
+                // "שינוי מסלול / שינוי תחנות" נשאר בלי שום פירוט (שלמה 29.10, קו 55 פרדס חנה)
+                if (!pm.moves.length && !rn.add.length && !rn.rem.length)
+                  return rn.moves.length ? <div className="sub">
+                    {rn.moves.map((m, k) => <div key={k}>🔁 התחנה {m.name} קיבלה מספר חדש ({m.from} ← {m.to}), באותו שם ובאותו מקום</div>)}
+                    <div className="mut">{x.k === "route" || x.k === "redraw" ? "התחנות לא השתנו לנוסע; שרטוט המסלול עודכן." : "אין שינוי לנוסע."}</div>
+                  </div> : null;
                 return (
                   <div className="sub">
                     {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
@@ -5514,7 +5526,10 @@ const TT_ICON = { rail: "🚆", taxi: "🚕", lightrail: "🚊", cable: "🚡", 
 // מקור האירוע — שלושה מקורות שונים לחלוטין, וכל אחד עם דיוק אחר. בלי
 // לנקוב בשם, "מארכיון הפיד הארצי" לא אומר מי מדד ומתי.
 // קווי הרכבת מ-2021 (R… — rail_now.py) הם זוג תחנות קצה, אין להם מק"ט של משרד התחבורה
-const mkTag = (rd) => String(rd).startsWith("R") ? null : <>{" · מק״ט "}<span className="rdnum" dir="ltr">{rdTxt(rd)}</span></>;
+// המק"ט בתצוגה: "42055-#-2" — המק"ט, החלופה (# = ראשית) באמצע, והכיוון בסוף (שלמה 29.10).
+// נבנה בסדר המוצג ומוצג משמאל לימין, כדי שהדפדפן לא יערבב את החלקים בתוך השורה העברית.
+const mkShow = (rd) => { const p = String(rd || "").split("-"); return p.length === 3 && /^\d+$/.test(p[0]) ? `${p[0]}-${p[2]}-${p[1]}` : String(rd || ""); };
+const mkTag = (rd) => String(rd).startsWith("R") ? null : <>{" · מק״ט "}<span className="rdnum" dir="ltr">{mkShow(rd)}</span></>;
 
 const SRC_LABEL = {
   "rail-now": "מקור: לוחות הזמנים של רכבת ישראל שפורסמו — ארכיון TransitFeeds (עד 2022) והארכיון של דאטאבוס, צילום אחד בכל חודש",
