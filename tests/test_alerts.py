@@ -491,3 +491,163 @@ def test_route_without_line_number():
     rs = [{'num': None, 'rd': '12345-1-#', 'shape': [], 'seq': [], 'del': [], 'cut': None}]
     F.estimate_routes(a, rs, {})
     assert rs[0]['num'] == ''
+
+
+class ClosedCheckTests(unittest.TestCase):
+    """עקיפה שהקטע הסגור שלה באתר שגוי — נפסלת בזמן הניתוב (AR.closed_check)."""
+    RC = Path(__file__).parents[1] / 'alerts' / 'data' / 'rc'
+
+    def route(self, aid, rd):
+        import json
+        f = self.RC / f'{aid}.json'
+        if not f.exists():
+            self.skipTest(f'{f.name} לא בנתונים')
+        rc = json.load(open(f))
+        r = next((r for r in rc['routes'] if r['rd'] == rd), None)
+        if r is None:
+            self.skipTest(f'{rd} לא ב-{f.name}')
+        st = rc['stops']
+        return [tuple(p) for p in r['shape']], [st[s][:2] for s in r['del'] if s in st]
+
+    def test_line70_round_trip_long(self):
+        # 14587894314 קו 70 בנתניה: יציאה מבנימין במעבר הראשון וחזרה אחרי השני — קטע סגור של כ-12.9 ק"מ
+        sh, dels = self.route('14587894314', '34070-3-#')
+        self.assertEqual(AR.closed_check(sh, [sh[21], sh[101]], dels, 1555), 'closed-long')
+
+    def test_line35_back_before_last_del(self):
+        # 14592923027 קו 35 בתל אביב: חזרה למסלול לפני התחנה המבוטלת האחרונה (חיל השריון/גולומב)
+        sh, dels = self.route('14592923027', '36035-1-#')
+        self.assertEqual(AR.closed_check(sh, [(32.0480, 34.7934), sh[99]], dels, 1369), 'closed-misses-del')
+        # חזרה בצומת קיבוץ גלויות/חיל השריון — תקין
+        self.assertIsNone(AR.closed_check(sh, [(32.0480, 34.7934), (32.04722, 34.78260)], dels, 1369))
+
+    def test_matches_regression_rules(self):
+        # אותו חישוב כמו closed-long / closed-misses-del בבדיקת הרגרסיה, על כל מה שחושב
+        import glob
+        import json
+        sys.path.insert(0, str(TOOLS))
+        import test_alerts_regression as T
+        bad = T.invariants({})
+        want = set(bad['closed-long']) | set(bad['closed-misses-del'])
+        got = set()
+        for f in sorted(glob.glob(str(self.RC / '*.json'))):
+            rc = json.load(open(f))
+            st, seen = rc.get('stops') or {}, {}
+            for r in rc['routes']:
+                key = f"{rc['id']}/{r.get('rd')}"
+                seen[key] = seen.get(key, 0) + 1
+                if seen[key] > 1:
+                    key += f'#{seen[key]}'
+                est = r.get('est')
+                if not est or not est.get('path') or len(r.get('shape') or []) < 2:
+                    continue
+                path = [tuple(p) for p in est['path']]
+                dels = [st[s][:2] for s in r.get('del') or [] if s in st]
+                if AR.closed_check(r['shape'], path, dels, T._len(path)):
+                    got.add(key)
+        self.assertEqual(got, want)
+
+    def test_estimate_skips_bad_closed(self):
+        # פסקה ראשונה — קטע סגור של כ-4.6 ק"מ לעקיפה של 100 מ'; השנייה תקינה — נבחרת השנייה
+        from unittest import mock
+        sh = [[32.0, 34.8 + i * 0.001] for i in range(60)]
+        d = ('קו 2 לכיוון X:\nנוסעים במסלול הרגיל עד לכיכר תל חי/בן גוריון, ימינה לרח\' רוטשילד וממשיכים במסלול הרגיל.\n'
+             'קו 2 לכיוון Y:\nנוסעים במסלול הרגיל עד לכיכר תל חי/בן גוריון, ימינה לרח\' הרצל וממשיכים במסלול הרגיל.')
+
+        def run(ok_second):
+            def fake(net, p, shape, c0, c1, diag=None):
+                if 'רוטשילד' in ' '.join(p['steps']):
+                    return {'path': [sh[1], [32.0005, 34.825], sh[50]], 'streets': ['רוטשילד'], 'len': 100}
+                if ok_second:
+                    return {'path': [sh[20], [32.0005, 34.821], sh[22]], 'streets': ['הרצל'], 'len': 150}
+                diag['why'] = 'no-plan'
+                return None
+            r = {'num': '2', 'rd': '1-1-#', 'shape': sh, 'cut': [20, 22], 'cuts': [], 'seq': [], 'del': [], 'to': ''}
+            with mock.patch.object(AF, 'overpass', return_value=[1]), mock.patch.object(AF.AR, 'Streets'), \
+                    mock.patch.object(AF.AR, 'route_detour', side_effect=fake):
+                AF.estimate_routes({'id': 'x', 'description': {'he': d}}, [r], {})
+            return r
+        r = run(True)
+        self.assertEqual((r['why'], r['est']['streets']), ('ok', ['הרצל']))
+        r = run(False)
+        self.assertEqual(r['why'], 'no-match')
+        self.assertIn('p0 closed-long', r['why_d'])
+
+
+class TrimSharedRoundaboutTests(unittest.TestCase):
+    """תחילת העקיפה בכיכר: נקודת היציאה נפלה בצד השני של הכיכר (AR._trim_shared)."""
+
+    def test_eilat_line3_exit_moves_back(self):
+        # אילת 14455262371, קו 3 משחמון: היציאה הייתה 36.7 מ' מהצומת הראשון של העקיפה (לכיוון שרה אמנו)
+        import json
+        f = json.load(open(TOOLS / 'testdata' / 'alerts-trim-roundabout.json'))
+        sh = [tuple(p) for p in f['shape']]
+        p = [tuple(x) for x in f['path']]
+        _, i_out, i_in = AR._trim_shared(p[1:-1], sh, f['i_out'], f['i_in'])
+        self.assertEqual(i_in, f['i_in'])
+        self.assertLess(i_out, f['i_out'])
+        self.assertAlmostEqual(AR.meters(sh[f['i_out']], p[1]), 36.7, delta=0.5)
+        self.assertLess(AR.meters(sh[i_out], p[1]), 16)
+
+    def straight(self, first):
+        # שרטוט ישר מערבה-מזרחה (כל נקודה כ-10 מ'), יציאה ב-20; העקיפה יוצאת צפונה מ-first
+        sh = [(32.0, 34.8 + i * 0.0001) for i in range(60)]
+        path = [first, (first[0] + 0.0003, first[1]), (first[0] + 0.0006, first[1]),
+                (32.0006, sh[40][1]), (32.0003, sh[40][1]), sh[40]]
+        return sh, path
+
+    def test_exit_at_junction_unchanged(self):
+        sh, path = self.straight((32.0, 34.8 + 20 * 0.0001))
+        self.assertEqual(AR._trim_shared(path, sh, 20, 40)[1], 20)
+
+    def test_small_gain_unchanged(self):
+        # הצומת הראשון כ-9 מ' מצפון לנקודה 19: נקודה 19 קרובה אליו רק בכ-4 מ' יותר מ-20 — לא זזים
+        sh, path = self.straight((32.00008, 34.8 + 19 * 0.0001))
+        d20, d19 = AR.meters(sh[20], path[0]), AR.meters(sh[19], path[0])
+        self.assertTrue(3 < d20 - d19 < 6)
+        self.assertEqual(AR._trim_shared(path, sh, 20, 40)[1], 20)
+
+
+class LoopSkipTests(unittest.TestCase):
+    """דילוג על לולאה: הקו עובר באותו צומת לפני הקטע הסגור ואחריו (AR._trim_shared עם cut0).
+    נתניה 14594603230, קו 64 כיוון 2: "מהגביש שמאלה להארי טרומן" — רשת רחובות מלאכותית מהשרטוט."""
+
+    @classmethod
+    def setUpClass(cls):
+        import json
+        f = json.load(open(TOOLS / 'testdata' / 'alerts-loop-skip.json'))
+        S = [tuple(p) for p in f['shape']]
+        cls.shape = [(round(a, 6), round(b, 6)) for a, b in AR._densify(S, 8.0)]
+        cls.cut0, cls.cut1 = AR.cut_range(cls.shape, [tuple(x) for x in f['del']])
+        J = (32.28672, 34.86296)  # הגביש/הארי טרומן
+        ways = [
+            ({'name': 'הגביש', 'highway': 'secondary'}, [S[9], J, S[10], S[21], S[20]]),
+            ({'name': 'המחשב', 'highway': 'residential'}, S[10:16]),
+            ({'name': 'הצורן', 'highway': 'residential'}, S[15:19]),
+            ({'name': 'המחקר', 'highway': 'residential'}, S[18:21]),
+            ({'name': 'הארי טרומן', 'highway': 'secondary'}, [J] + S[24:32]),
+        ]
+        cls.net = AR.Streets([(t, [(round(a, 6), round(b, 6)) for a, b in AR._densify(g, 10.0)]) for t, g in ways])
+
+    def route(self, steps):
+        dg = {}
+        return AR.route_detour(self.net, {'steps': steps, 'start': None}, self.shape, self.cut0, self.cut1, diag=dg), dg
+
+    def test_skip_loop_ok(self):
+        r, dg = self.route(['מהגביש', 'להארי טרומן'])
+        self.assertIsNotNone(r, dg)
+        self.assertLess(r['i_out'], self.cut0)
+        self.assertGreater(r['i_in'], self.cut1)
+        # יוצאים וחוזרים באותו צומת, והקטע הסגור הוא הלולאה כולה
+        self.assertLess(AR.meters(self.shape[r['i_out']], self.shape[r['i_in']]), 40)
+
+    def test_one_street_unchanged(self):
+        r, _ = self.route(['מהגביש'])
+        self.assertEqual((r['i_out'], r['i_in']), (164, 278))
+
+    def test_no_pass_before_cut_unchanged(self):
+        # עקיפה קצרה שנגמרת אחרי הקטע הסגור, בלי מעבר בסביבה לפני הקטע הסגור (הכיוון ההפוך) — לא זזים
+        sh = [(32.0, round(34.8 + 0.0001 * i, 6)) for i in range(60)]
+        path = [sh[45], (32.0001, sh[45][1]), (32.0001, sh[46][1]), sh[46]]
+        _, i_out, _ = AR._trim_shared(path, sh, 45, 46, 30, cut0=20)
+        self.assertGreaterEqual(i_out, 30)

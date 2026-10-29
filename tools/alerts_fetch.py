@@ -347,6 +347,13 @@ def estimate_routes(alert, rc_routes, stops):
                 except Exception as e:   # הנוסח לא תמיד צפוי — לא מפילים את הריצה בגלל הודעה אחת
                     print(f'  ניתוב נכשל ({alert["id"]} קו {r["num"]}): {e}', file=sys.stderr)
                     res, dg = None, {'why': 'error'}
+                # הקטע הסגור שהאתר יסמן לעקיפה הזו — ארוך מדי (מעבר לא נכון בקו סיבובי, קו 70 בנתניה),
+                # או בלי התחנה המבוטלת (חזרה למסלול לפניה, קו 35 בתל אביב): עדיף בלי מפה
+                # (פתוח, לבדוק מול OSM: לפצל את cut לפי מעבר, cut1 בהיטל התחנה ולא בקצה ה-slack, "ובחזרה מסלול" ב-_END)
+                if res:
+                    bad = AR.closed_check(shape, res['path'], [STOP_POS[s] for s in r['del'] if s in STOP_POS], res['len'])
+                    if bad:
+                        res, dg = None, {'why': bad}
                 if not res:
                     why_d.append(f'{tag}p{paras.index(p)} {dg.get("why")}')
                 if res:

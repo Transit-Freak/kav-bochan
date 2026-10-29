@@ -351,7 +351,8 @@ def parse(desc, kinds=False):
             # "קו 5 לכיוון X: יפנה…" באותה שורה — מה שאחרי הנקודתיים
             if ":" in rest and nums:
                 rest = rest.split(":", 1)[1]
-        steps = _steps(rest)
+        # "וכל קו ממשיך לפי מסלולו (16 ממשיך…, 5 ממשיכים…)" — לכל קו המשך אחר, לא עקיפה אחת (14589940828)
+        steps = [] if re.search(r"כל קו ממשי(?:ך|כים)[^\n(]*\([^)]*ממשיכ", line) else _steps(rest)
         # "לא פונים שמאלה לרח' החרמון אלא מבצעים פניית פרסה" — בלי רחובות, אבל פסקה משלה (הוד השרון 25.10)
         kind = "uturn" if not steps and re.search(r"פרסה|יסתובב", rest) else None
         if steps or kind:
@@ -624,6 +625,67 @@ def cut_passes(shape, stops, best, slack=30.0, extra=300.0, gap=150.0):
     return sorted(out)
 
 
+def nearest_idx(shape, p):
+    """כמו nearestIdx ב-alerts/app.js."""
+    best, bd = 0, 1e18
+    for i, q in enumerate(shape):
+        dx, dy = q[0] - p[0], (q[1] - p[1]) * 0.85
+        d = dx * dx + dy * dy
+        if d < bd:
+            bd, best = d, i
+    return best
+
+
+def closed_range(shape, est, dels):
+    """הקטע הסגור שהאתר מסמן — פורט אחד-לאחד של closedRange ב-alerts/app.js (לעדכן יחד).
+    est.k / est.c אם נשמרו; אחרת זוג נקודות קרובות (עד 40 מ' יותר מהקרובה) שבו היציאה לפני החזרה,
+    שמכסה הכי הרבה תחנות מבוטלות (dels — מיקומים), ואחר כך הכי קרוב והכי קצר."""
+    path = est['path']
+    k = est.get('k') or est.get('c')
+    if isinstance(k, (list, tuple)) and len(k) == 2 and k[0] < k[1] < len(shape):
+        return k[0], k[1]
+
+    def m(q, p):
+        return ((q[0] - p[0]) ** 2 + ((q[1] - p[1]) * 0.85) ** 2) ** 0.5 * 111320
+
+    def cand(p):
+        d = [m(q, p) for q in shape]
+        lo = min(d)
+        return [(i, x) for i, x in enumerate(d) if x <= lo + 40 and (i == 0 or x <= d[i - 1]) and (i == len(d) - 1 or x <= d[i + 1])]
+    best = None
+    for a, da in cand(path[0]):
+        for b, db in cand(path[-1]):
+            if b <= a:
+                continue
+            n = sum(1 for q in dels if any(m(shape[j], q) < 40 for j in range(a, b + 1)))
+            sc = (-n, da + db, b - a)
+            if best is None or sc < best[2]:
+                best = (a, b, sc)
+    if best:
+        return best[0], best[1]
+    c0 = nearest_idx(shape, path[0])
+    return c0, max(c0, nearest_idx(shape, path[-1]))
+
+
+def closed_check(shape, path, dels, ln):
+    """הקטע הסגור שהאתר יסמן לעקיפה הזו (על השרטוט המפושט שנשמר) — None, או מה לא בסדר בו:
+    'closed-long' (ארוך מ-max(3 ק"מ, פי 4 מהעקיפה) — כמעט תמיד מעבר לא נכון בקו שעובר פעמיים),
+    'closed-misses-del' (תחנה מבוטלת על השרטוט שמחוץ לקטע). אותם כללים כמו ב-test_alerts_regression."""
+    s = simplify([tuple(p) for p in shape], 4.0)
+    if len(s) < 2 or not path:
+        return None
+    c0, c1 = closed_range(s, {'path': path}, dels)
+    if c1 > c0 and _length(s[c0:c1 + 1]) > max(3000, 4 * ln):
+        return 'closed-long'
+    for q in dels:
+        q = tuple(q[:2])
+        j = nearest_idx(s, q)
+        if meters(q, tuple(s[j])) < 40 and not c0 <= j <= c1 and \
+                not any(meters(q, tuple(x)) < 40 for x in s[c0:c1 + 1]):
+            return 'closed-misses-del'
+    return None
+
+
 def one_pass(shape, pts, tol=40.0, span=80.0):
     """המקום היחיד על השרטוט שקרוב (tol) לנקודות (צומת, או הרחוב הראשון): אינדקס, או None כשאין, או כשיש
     כמה מעברים / קטע ארוך מ-span מטרים (הקו נוסע לאורך הרחוב — לא ברור איפה יוצאים)."""
@@ -800,7 +862,7 @@ def _exit_point(net, para, shape, cut0, cut1, first):
     return cpt, start_c, lo + best_i
 
 
-def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
+def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0, cut0=None):
     """המסלול החלופי מתחיל איפה שהוא באמת עוזב את המסלול הרגיל, ונגמר איפה שהוא חוזר אליו. בלי זה
     נקודת היציאה (הקרובה לצומת) יכולה ליפול בצד השני של הכיכר, והקו הכתום חוזר לאורך האפור
     (אילת 20.10, קו 5 בכיכר עין יהב/ששת הימים)."""
@@ -829,6 +891,19 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     m = len(path) - 1
     while m > k + 1 and off(m - 1) < tol:
         m -= 1
+    if k == 0:
+        # היציאה נפלה בצד השני של הכיכר (אילת 29.10, קו 3 בכיכר ששת הימים/שרה אמנו): אחורה על השרטוט,
+        # עד 60 מ', יש נקודה קרובה הרבה יותר לצומת הראשון של העקיפה
+        d0 = meters(shape[i_out], path[0])
+        j, back, best_j, best_d = i_out, 0.0, i_out, d0
+        while j > lo and back < 60:
+            back += meters(shape[j - 1], shape[j])
+            j -= 1
+            d = meters(shape[j], path[0])
+            if d < best_d:
+                best_j, best_d = j, d
+        if best_j != i_out and best_d < 2 * tol and d0 - best_d > 10:
+            i_out = best_j
     if k == 0 and m == len(path) - 1:
         return path, i_out, i_in
     # הכיוון שבו העקיפה נסעה לאורך המסלול הרגיל בחלק שנחתך — הוא הכיוון של המסלול בנקודת החיבור
@@ -846,6 +921,13 @@ def _trim_shared(path, shape, i_out, i_in, cut1=None, tol=15.0):
     i_out = near(0, lo, min(hi, i_in))
     a = max(i_out + 1, c1)
     i_in = near(len(path) - 1, a, hi) if a < hi else i_in
+    # דילוג על לולאה: הקו עובר באותו צומת לפני הקטע הסגור ואחריו, והעקיפה כולה בצומת — יוצאים במעבר
+    # שלפני הקטע הסגור ולא במעבר בזנב (נתניה 29.10, קווים 63א/64/68 בהגביש/הארי טרומן)
+    if cut0 is not None and cut1 is not None and i_out >= cut1 and _length(path) < 60:
+        pre = {i: meters(shape[i], path[0]) for i in range(lo, min(cut0 + 1, len(shape)))}
+        j = min(pre, key=pre.get) if pre else None
+        if j is not None and pre[j] < 25 and meters(shape[j], shape[i_in]) < 40:
+            i_out = j
     return path, i_out, i_in
 
 
@@ -979,7 +1061,7 @@ def _route_detour(net, para, shape, cut0, cut1, max_len, diag):
     lim = max(min(dist.values()) + 25, 45)
     near_i = [i for i in range(len(dist) - 1) if dist[i] <= lim and not _opposite((tail[i], tail[i + 1]), d)]
     i_in = cut1 + 1 + (_first_pass(near_i, dist) if near_i else min(dist, key=dist.get))
-    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1)
+    path, i_out, i_in = _trim_shared(path, shape, i_out, i_in, cut1, cut0=cut0)
     # העקיפה לא חוזרת למסלול אחרי הקטע הסגור (נגמרת באמצעו) — כנראה הפסקה של הכיוון ההפוך
     # (תל אביב 20.10, דיזנגוף, קו 2 להארגזים: סיבוב של 1.4 ק"מ שחזר לאותה נקודה)
     # (60 מ' — נקודת החיבור נבחרת עד 45 מ' מסוף העקיפה, במעבר הראשון)

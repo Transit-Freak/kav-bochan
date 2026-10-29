@@ -148,47 +148,14 @@ def diff_alert(old, new):
 
 
 # ------------------------------------------------------------------ ב. כללים
-def nearest_idx(shape, p):
-    """כמו nearestIdx ב-alerts/app.js."""
-    best, bd = 0, 1e18
-    for i, q in enumerate(shape):
-        dx, dy = q[0] - p[0], (q[1] - p[1]) * 0.85
-        d = dx * dx + dy * dy
-        if d < bd:
-            bd, best = d, i
-    return best
+# הקטע הסגור — מ-alerts_route, אותו חישוב שהצינור פוסל לפיו עקיפות (closed_check)
+nearest_idx = AR.nearest_idx
 
 
 def closed_range(r, stops):
-    """הקטע הסגור שהאתר מסמן (alerts/app.js, closedRange) כשיש est. אם הקובץ שומר אינדקסים מוכנים
-    (est.k / est.c), לפיהם; אחרת — זוג נקודות קרובות (עד 40 מ' יותר מהקרובה) שבו היציאה לפני החזרה,
-    שמכסה הכי הרבה תחנות מבוטלות, ואחר כך הכי קרוב והכי קצר."""
-    shape, est = r.get('shape') or [], r['est']['path']
-    k = r['est'].get('k') or r['est'].get('c')
-    if isinstance(k, list) and len(k) == 2 and k[0] < k[1] < len(shape):
-        return k[0], k[1]
-
-    def m(q, p):
-        return ((q[0] - p[0]) ** 2 + ((q[1] - p[1]) * 0.85) ** 2) ** 0.5 * 111320
-
-    def cand(p):
-        d = [m(q, p) for q in shape]
-        lo = min(d)
-        return [(i, x) for i, x in enumerate(d) if x <= lo + 40 and (i == 0 or x <= d[i - 1]) and (i == len(d) - 1 or x <= d[i + 1])]
+    """הקטע הסגור שהאתר מסמן (alerts/app.js, closedRange) — AR.closed_range על הקו מ-rc."""
     dels = [stops[s][:2] for s in r.get('del') or [] if s in stops]
-    best = None
-    for a, da in cand(est[0]):
-        for b, db in cand(est[-1]):
-            if b <= a:
-                continue
-            n = sum(1 for q in dels if any(m(shape[j], q) < 40 for j in range(a, b + 1)))
-            sc = (-n, da + db, b - a)
-            if best is None or sc < best[2]:
-                best = (a, b, sc)
-    if best:
-        return best[0], best[1]
-    c0 = nearest_idx(shape, est[0])
-    return c0, max(c0, nearest_idx(shape, est[-1]))
+    return AR.closed_range(r.get('shape') or [], r['est'], dels)
 
 
 def _len(pts):
@@ -569,12 +536,20 @@ class Fixtures(unittest.TestCase):
         self.assertEqual(_steps_of(d), ['אמנון ליפקין שחק', 'יוני נתניהו'])
 
     def test_end_forms(self):
-        # 14594603230: "וממשיך מסלול רגיל" (בלי ב-); 14589940828: "וכל קו ממשיך לפי מסלולו";
-        # "ממשיך במסלול המקורי עד X" — לא סוף העקיפה
+        # 14594603230: "וממשיך מסלול רגיל" (בלי ב-); "ממשיך במסלול המקורי עד X" — לא סוף העקיפה;
+        # "וכל קו ממשיך במסלולו" — סוף העקיפה; 14589940828 (עם סוגריים של המשך אחר לכל קו) — לא פסקה
         d = 'קו 63 כיוון 1:\nמהארי טרומן ימינה לישעיהו וממשיך מסלול רגיל (תחנה חלופית ישעיהו).'
         self.assertEqual(AR.norm(_steps_of(d)[-1]), 'לישעיהו')
         self.assertEqual(AR._steps('ימינה למנחם אריאב וכל קו ממשיך לפי מסלולו'), ['למנחם אריאב'])
+        d = 'קווים 5, 7:\nמהרצל ימינה לבלפור, שמאלה לויצמן וכל קו ממשיך במסלולו.'
+        self.assertEqual([AR.norm(x) for x in _steps_of(d)], ['מהרצל', 'לבלפור', 'לויצמן'])
+        self.assertEqual(AR._steps('ימינה לבלפור וממשיכים במסלולם'), ['לבלפור'])
         self.assertEqual(AR._steps('ממשיך במסלול המקורי עד הרצל, ימינה לבלפור'), ['לבלפור'])
+        # 14589940828 כולו: בלי פסקה חלקית (16+5 מהסוגריים) — נשאר "רק תחנות"
+        d = next((a['d'] for a in _load(CORPUS, {}).get('alerts', []) if a['id'] == '14589940828'), None)
+        if d is not None:
+            self.assertEqual(AR.parse(d), [])
+            self.assertEqual(AR.template(d), 'stops')
 
     def test_street_junk(self):
         # 14598209597 "לכל אורכו"; 14587894314 "בהלוך-"; 14594480959 "משפירא יש לפנות", "מיד"; 14589940828 "דרך חלופית:"
