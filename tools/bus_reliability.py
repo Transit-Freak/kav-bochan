@@ -1351,6 +1351,7 @@ def main():
     B_route = collections.defaultdict(lambda: [0, 0, 0])
     B_stop = collections.defaultdict(lambda: [0, 0, 0])     # (route_id, stop_id)
     B_hours = collections.defaultdict(lambda: [0, 0])
+    B_sh = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0]))   # תחנה → שעה (למפה של איפה האוטובוס נתקע)
     B_ex = []                                               # דוגמאות: [route_id, מק"ט, מתוכנן א, מתוכנן ב, בפועל א, בפועל ב]
     for (rid, sid), lst in BP.items():
         if len(lst) < 2:
@@ -1369,6 +1370,10 @@ def main():
                 acc[0] += 1
                 if kind:
                     acc[kind] += 1
+            sh = B_sh[sid][(s2 // 3600) % 24]
+            sh[0] += 1
+            if kind:
+                sh[kind] += 1
             hb = B_hours[(s2 // 3600) % 24]
             hb[0] += 1
             if kind == 1:
@@ -1376,6 +1381,28 @@ def main():
                 if len(B_ex) < 400:
                     B_ex.append([rid, stops.get(sid, ('',))[0], s1, s2, a1, a2])
     B_ex.sort(key=lambda e: (e[5] - e[4]) - (e[3] - e[2]))
+    # התקבצות לכל תחנה ושעה — שכבה נפרדת במפה של "איפה האוטובוס נתקע" (שלמה 29.10). נכתב רק כש-BUNCH_DIR
+    # מוגדר, ל-BUNCH_DIR/D.bunch.json.gz (מועלה ל-release של bus-speed — לא בגיט). BUNCH_ONLY=1: רק זה, ויציאה
+    # (מילוי לאחור בלי לשנות את שאר קובצי היום). המבנה:
+    # {מק"ט: [רוחב, אורך, [[שעה, זוגות, צמודים, רווח כפול]…], [[route_id, זוגות, צמודים]… עד 4 הקווים הצמודים ביותר]]}
+    by_sid = collections.defaultdict(list)
+    for (rid, sid), v in B_stop.items():
+        by_sid[sid].append([rid, v[0], v[1]])
+    bunch_stops = {}
+    for sid, hrs in B_sh.items():
+        st = stops.get(sid)
+        if not st or not st[2] or sum(v[0] for v in hrs.values()) < 2:
+            continue
+        top = sorted(by_sid[sid], key=lambda x: (-x[2], -x[1]))[:4]
+        bunch_stops[st[0]] = [round(st[2], 5), round(st[3], 5), [[h, *v] for h, v in sorted(hrs.items())], top]
+    if os.environ.get('BUNCH_DIR'):
+        import gzip
+        os.makedirs(os.environ['BUNCH_DIR'], exist_ok=True)
+        with gzip.open(f"{os.environ['BUNCH_DIR']}/{day}.bunch.json.gz", 'wt') as f:
+            json.dump(bunch_stops, f, separators=(',', ':'))
+        print(f'התקבצות לכל תחנה: {len(bunch_stops):,} תחנות', flush=True)
+        if os.environ.get('BUNCH_ONLY') == '1':
+            return
     print(f'התקבצות: {B_tot[1]:,} זוגות צמודים ו-{B_tot[2]:,} רווחים כפולים מתוך {B_tot[0]:,} זוגות נסיעות עוקבות (עד 20 דק׳ בלו"ז)', flush=True)
 
     def stats(d):

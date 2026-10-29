@@ -29,6 +29,10 @@ on:
         description: 'חישוב מחדש גם לימים שכבר קיימים (1)'
         required: false
         default: ''
+      bunch_only:
+        description: 'רק התקבצות לכל תחנה (1) — מילוי לאחור לאיפה האוטובוס נתקע, בלי לשנות את bus/data'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -90,6 +94,9 @@ jobs:
           FROM: ${{ needs.need.outputs.from }}
           TO: ${{ needs.need.outputs.to }}
           REDO: ${{ github.event.inputs.redo }}
+          # התקבצות לכל תחנה ושעה — לשכבה במפה של איפה האוטובוס נתקע; מועלה ל-release ולא נשמר בגיט
+          BUNCH_DIR: /tmp/bunch
+          BUNCH_ONLY: ${{ github.event.inputs.bunch_only }}
         run: |
           set -euo pipefail
           B="https://openbus-stride-public.s3.eu-west-1.amazonaws.com"
@@ -97,7 +104,7 @@ jobs:
           TO=${TO:-$FROM}
           d="$FROM"
           while [ "$d" \< "$TO" ] || [ "$d" = "$TO" ]; do
-            if [ -f "bus/data/days/$d.json" ] && [ "$REDO" != "1" ]; then
+            if [ -f "bus/data/days/$d.json" ] && [ "$REDO" != "1" ] && [ "$BUNCH_ONLY" != "1" ]; then
               echo "== $d כבר קיים =="; d=$(date -u -d "$d + 1 day" +%F); continue
             fi
             echo "== $d =="
@@ -131,7 +138,18 @@ jobs:
           done
           rm -rf siri gtfs.zip clusters.zip list.txt
 
+      - name: התקבצות לכל תחנה — ל-release של איפה האוטובוס נתקע
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls /tmp/bunch/*.gz >/dev/null 2>&1 || { echo "אין קובצי התקבצות"; exit 0; }
+          gh release view bus-speed-days -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create bus-speed-days -R "$GITHUB_REPOSITORY" \
+            --title "מהירות האוטובוסים — סיכומים יומיים" --notes "קבצי ביניים של tools/bus_speed.py (לא להורדה)"
+          gh release upload bus-speed-days -R "$GITHUB_REPOSITORY" /tmp/bunch/*.gz --clobber
+
       - name: commit
+        if: github.event.inputs.bunch_only != '1'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"

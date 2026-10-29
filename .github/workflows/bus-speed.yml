@@ -86,6 +86,8 @@ jobs:
             /tools/
             /bus-speed/
             /gis/data/own/bus-stops.json
+            /bus/data/routes.json
+            /bus/data/stops.json
       - name: הורדת הסיכומים היומיים
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,6 +96,7 @@ jobs:
           for i in $(seq 1 35); do
             d=$(TZ=Asia/Jerusalem date -d "-$i day" +%F)
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.json.gz" -D /tmp/days 2>/dev/null || true
+            gh release download "$REL" -R "${{ github.repository }}" -p "$d.bunch.json.gz" -D /tmp/days 2>/dev/null || true
           done
           ls /tmp/days | wc -l
           # ימים ישנים מ-40 יום — נמחקים מה-release
