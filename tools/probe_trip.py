@@ -48,6 +48,7 @@ for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
     mkt, dirn = r['route_desc'].split('-')[0], r['route_desc'].split('-')[1]
     gr = get('/gtfs_routes/list', route_mkt=mkt, date_from=(today - datetime.timedelta(days=16)).isoformat(), date_to=today.isoformat(), limit=500)
     refs = sorted({str(x['line_ref']) for x in gr if str(x.get('route_direction')) == dirn} | {rid})
+    print('קודי תחנות:', stops[a[1]]['stop_code'], stops[b[1]]['stop_code'])
     print(f'\n=== התחלה {start[:5]} · לו"ז: מוצא {adep[:5]} יעד {barr[:5]} · line_refs {refs}')
     for back in range(1, 16):
         d = today - datetime.timedelta(days=back)
@@ -57,14 +58,20 @@ for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
                     scheduled_start_time_from=(t0 - datetime.timedelta(minutes=3)).isoformat() + '+02:00',
                     scheduled_start_time_to=(t0 + datetime.timedelta(minutes=3)).isoformat() + '+02:00')
         if not rides:
-            print(f'{d} {d.strftime("%a")}: אין נסיעה'); continue
+            w = get('/siri_rides/list', siri_route__line_refs=','.join(refs), limit=50,
+                    scheduled_start_time_from=f'{d}T19:00:00+02:00', scheduled_start_time_to=f'{d}T22:30:00+02:00')
+            print(f'{d} {d.strftime("%a")}: אין נסיעה · נסיעות 19:00–22:30: {sorted(il(x.get("scheduled_start_time")) for x in w)}'); continue
         for ride in rides[:2]:
             rs = get('/siri_ride_stops/list', siri_ride_ids=ride['id'], limit=500)
+            if back == 1:
+                for x in sorted(rs, key=lambda y: y.get('order') or 0)[:70]:
+                    print('   ', x.get('order'), x.get('siri_stop__code'), x.get('gtfs_stop__code'), x.get('gtfs_stop__name'), il(x.get('nearest_siri_vehicle_location__recorded_at_time')), x.get('nearest_siri_vehicle_location__distance_from_siri_ride_stop_meters'))
             got = {}
             for x in rs:
                 nm = x.get('gtfs_stop__name') or ''
-                for key, tag in ((A_KEY, 'A'), (B_KEY, 'B')):
-                    if key in nm:
+                cd = str(x.get('siri_stop__code') or x.get('gtfs_stop__code') or '')
+                for key, tag, code in ((A_KEY, 'A', stops[a[1]]['stop_code']), (B_KEY, 'B', stops[b[1]]['stop_code'])):
+                    if key in nm or cd == code:
                         got[tag] = (x.get('nearest_siri_vehicle_location__recorded_at_time'),
                                     x.get('nearest_siri_vehicle_location__distance_from_siri_ride_stop_meters'),
                                     x.get('gtfs_ride_stop__arrival_time'))
