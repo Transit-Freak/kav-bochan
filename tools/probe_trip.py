@@ -45,6 +45,10 @@ if not uniq:
 il = lambda t: datetime.datetime.fromisoformat(str(t).replace('Z', '+00:00')).astimezone(ZoneInfo('Asia/Jerusalem')).strftime('%H:%M') if t else '—'
 today = datetime.date.today()
 for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
+    if not adep.startswith('20:55'):
+        continue
+    tid0 = next(t for t, v in cand.items() if v[3] == start and v[1][3] == adep)
+    route_stops = seq[tid0]
     mkt, dirn = r['route_desc'].split('-')[0], r['route_desc'].split('-')[1]
     gr = get('/gtfs_routes/list', route_mkt=mkt, date_from=(today - datetime.timedelta(days=16)).isoformat(), date_to=today.isoformat(), limit=500)
     refs = sorted({str(x['line_ref']) for x in gr if str(x.get('route_direction')) == dirn} | {rid})
@@ -55,6 +59,7 @@ for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
     pb = (float(stops[b[1]]['stop_lat']), float(stops[b[1]]['stop_lon']))
     dist = lambda p, q: math.hypot((p[0] - q[0]) * 111000, (p[1] - q[1]) * 94000)
     TZ = ZoneInfo('Asia/Jerusalem')
+    DELAYS = {}
     for back in range(1, 16):
         d = today - datetime.timedelta(days=back)
         h, m = int(start[:2]), int(start[3:5])
@@ -72,7 +77,29 @@ for (start, adep, barr, rid), (r, a, b) in sorted(uniq.items()):
             def near(pt, after=None):
                 c = [(dist(q, pt), t) for q, t in pts if after is None or t >= after]
                 return min(c) if c else None
+            # כל התחנות לאורך הדרך: הזמן שבו האוטובוס היה הכי קרוב לתחנה (אחרי התחנה הקודמת)
+            after, row = None, []
+            for sq, sid, arr, dep in route_stops:
+                q = (float(stops[sid]['stop_lat']), float(stops[sid]['stop_lon']))
+                n = near(q, after)
+                hh, mm, ss = map(int, dep.split(':'))
+                sch = datetime.datetime(d.year, d.month, d.day, tzinfo=TZ) + datetime.timedelta(hours=hh, minutes=mm, seconds=ss)
+                if n and n[0] < 250:
+                    after = n[1]
+                    row.append((sid, round((n[1] - sch).total_seconds() / 60, 1)))
+                else:
+                    row.append((sid, None))
+            DELAYS.setdefault(d, row)
             na = near(pa)
             nb = near(pb, na[1] if na else None)
             f = lambda n: f"{n[1].astimezone(TZ):%H:%M} ({n[0]:.0f}מ')" if n and n[0] < 400 else ('—' if not n else f"? ({n[0]:.0f}מ')")
             print(f'{d} {d.strftime("%a")}: רכב {ride.get("vehicle_ref")} · התחלה {il(ride.get("scheduled_start_time"))} · שידורים {len(pts)} · מסעף ק. מלאכי {f(na)} · קניותר {f(nb)}')
+
+    # טבלה: עיכוב (דקות) בכל תחנה, לכל יום, וממוצע — רק ימי חול (ראשון–חמישי)
+    days = [d for d in sorted(DELAYS) if d.weekday() not in (4, 5)]
+    print('\n=== עיכוב בכל תחנה (דקות, + = מאחר) · ימים:', ' '.join(f'{d:%d.%m}' for d in days))
+    for k, (sq, sid, arr, dep) in enumerate(route_stops):
+        vals = [DELAYS[d][k][1] for d in days]
+        ok = [v for v in vals if v is not None]
+        avg = f'{sum(ok) / len(ok):+.1f}' if ok else '—'
+        print(f'{k + 1:2d} {dep[:5]} {stops[sid]["stop_name"][:28]:28s} ממוצע {avg:>6s} | ' + ' '.join('  —' if v is None else f'{v:+3.0f}' for v in vals))
