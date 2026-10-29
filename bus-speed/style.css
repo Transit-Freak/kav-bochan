@@ -176,3 +176,20 @@ table.t tbody tr:hover { background: var(--acc-bg); }
 .strip i { min-width: 3px; }
 .strip i.me { box-shadow: inset 0 0 0 2px #0ea5e9; }
 .sm { font-size: 11px; }
+.lyr { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.lyr input { margin-top: 3px; accent-color: var(--acc); }
+.lg .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #0f172a; display: inline-block; }
+#dpick { display: flex; flex-direction: column; gap: 6px; }
+/* לוח השנה של "לפי יום" — כמו במדד הדיוק */
+.calhead { display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 13px; }
+.cnav { border: 1px solid var(--line); background: var(--panel); color: var(--mut); border-radius: 4px; width: 28px; height: 26px; cursor: pointer; font: 800 15px 'Heebo', sans-serif; }
+.cnav:hover:not(:disabled) { color: var(--ink); border-color: var(--acc); }
+.cnav:disabled { opacity: .3; cursor: default; }
+.calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
+.calgrid i { font-style: normal; font-size: 10.5px; color: var(--faint); font-weight: 700; }
+.cd { height: 30px; border-radius: 4px; font: 600 12.5px 'Heebo', sans-serif; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.cd.off { color: var(--line); }
+button.cd { border: none; background: var(--soft); color: var(--ink); cursor: pointer; }
+button.cd:hover { background: var(--soft2); }
+button.cd.on { background: var(--acc); color: #fff; }
+table.bt td { white-space: normal; } table.bt td.n { white-space: nowrap; }

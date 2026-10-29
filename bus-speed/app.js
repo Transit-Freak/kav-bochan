@@ -4,7 +4,7 @@
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const D = 'data/';
-const S = { h: 8, d: 'wd', m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all' };
+const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all', lay: { sp: 1, bn: 0 } };
 const MINZ = 13;   // מתחת לזה — עיגול לכל יישוב
 let META = null, CITIES = [], TILE = 0.05;
 const tiles = new Map();          // מפתח אריח → רשומות (או Promise בזמן טעינה)
@@ -19,8 +19,9 @@ const colSp = v => v == null ? null : SP.find(x => v <= x[0])[1];
 const colSl = p => p == null ? null : SL.find(x => p < x[0])[1];
 
 // ---------- רשומה ----------
-function hours(r, d) {                 // מחרוזת "35,71,,…" → מערך 24 (null = מעט מדי); d: wd / fr / y (אתמול)
-  const k = d === 'fr' ? 5 : d === 'y' ? 8 : 4;
+function hours(r, d) {                 // מחרוזת "35,71,,…" → מערך 24 (null = מעט מדי); d: wd / fr / y (הימים שנבחרו)
+  if (d === 'y') return dayHours(r);
+  const k = d === 'fr' ? 5 : 4;
   if (!r['_' + k]) { const a = (r[k] || '').split(','); r['_' + k] = Array.from({ length: 24 }, (_, i) => a[i] ? +a[i] : null); }
   return r['_' + k];
 }
@@ -31,8 +32,30 @@ const best = a => {
   return v.length ? Math.round(v.reduce((x, y) => x + y, 0) / v.length * 10) / 10 : null;
 };
 function slowPct(a, h) { const b = best(a); return a[h] == null || !b ? null : Math.max(0, Math.round(100 * (1 - a[h] / b))); }
-// "אתמול" מושווה לממוצע החודשי של אותו סוג יום (א'–ה' או שישי)
-const ytype = () => (META && META.ytype) || 'wd';
+// "לפי יום": הימים שנבחרו (S.dsel). כמה ימים — ממוצע שלהם בכל שעה. מושווים לממוצע החודשי של אותו סוג יום
+const DD = () => (META && META.dd) || [];
+const ytype = () => S.dsel.length && S.dsel.every(d => (DD().find(x => x[0] === d) || [])[1] === 'fr') ? 'fr' : 'wd';
+function dayHours(r) {
+  const key = '_y' + S.dsel.join();
+  if (!r[key] || !S.dsel.every(d => r._dd && d in r._dd)) {   // לא שומרים תוצאה לפני שכל הימים נטענו
+    const arrs = S.dsel.map(d => ((r._dd || {})[d] || '').split(','));
+    r[key] = Array.from({ length: 24 }, (_, h) => {
+      const v = arrs.map(a => a[h]).filter(x => x).map(Number);
+      return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+    });
+  }
+  return r[key];
+}
+const dtiles = new Map();   // "תאריך/אריח" → Promise
+function loadDays(ks) {     // מהירויות הימים שנבחרו לאריחים שבתצוגה — מוצמדות לרשומות לפי הסדר באריח
+  return Promise.all(ks.flatMap(k => S.dsel.map(d => {
+    const id = d + '/' + k;
+    if (!dtiles.has(id)) dtiles.set(id, Promise.all([loadTile(k), fetch(D + 'd/' + id + '.json').then(r => r.json()).catch(() => [])]).then(([recs, arr]) => {
+      recs.forEach((r, i) => { (r._dd = r._dd || {})[d] = arr[i] || ''; });
+    }));
+    return dtiles.get(id);
+  })));
+}
 const baseD = () => S.d === 'y' ? ytype() : S.d;
 // האטה של אתמול: לעומת הממוצע החודשי באותה שעה — כך רואים מה היה חריג באותו יום
 function yPct(r, h) {
@@ -89,12 +112,12 @@ function shift(p, m) {      // הזזת קו שבור m מטרים ימינה מ
   return out;
 }
 const tkey = (la, lo) => `${Math.floor(la / TILE)}_${Math.floor(lo / TILE)}`;
-function needTiles() {
+function needTiles(set) {
   const b = map.getBounds(), out = [];
   for (let y = Math.floor(b.getSouth() / TILE); y <= Math.floor(b.getNorth() / TILE); y++)
     for (let x = Math.floor(b.getWest() / TILE); x <= Math.floor(b.getEast() / TILE); x++) {
       const k = `${y}_${x}`;
-      if (META.tilesSet.has(k)) out.push(k);
+      if ((set || META.tilesSet).has(k)) out.push(k);
     }
   return out;
 }
@@ -119,11 +142,12 @@ async function draw() {
   if (ks.length > 30) { msg('התקרבו עוד קצת'); return; }
   msg(ks.some(k => !Array.isArray(tiles.get(k))) ? 'טוען…' : '');
   const all = (await Promise.all(ks.map(loadTile))).flat();
+  if (S.d === 'y') await loadDays(ks);
   if (seq !== drawSeq) return;
   msg('');
   const b = map.getBounds().pad(0.15), w = z >= 16 ? 5 : z >= 15 ? 4 : 3;
   const vis = new Set();
-  for (const r of all) {
+  for (const r of S.lay.sp ? all : []) {
     if (!b.contains([r[0], r[1]])) continue;
     if (!r[7] && r[6]) continue;   // צומת בלי מסלול שעובר בו — קו ישר שם נראה כמו X
     vis.add(r);
@@ -139,7 +163,91 @@ async function draw() {
   }
   for (const [r, ln] of shown) if (!vis.has(r)) { segG.removeLayer(ln); shown.delete(r); }
   summary([...vis]);
+  drawBunch(seq);
 }
+
+// ---------- שכבת ההתקבצות ----------
+// לכל תחנה: כמה זוגות של שני אוטובוסים עוקבים של אותו קו הגיעו צמודים — פחות מ-30% מהמרווח המתוכנן
+// (אותה הגדרה כמו במדד דיוק האוטובוסים). [רוחב, אורך, מק"ט, שם, זוגות, צמודים, רווח כפול, "זוגות לשעה", "צמודים לשעה", קווים]
+let BMETA = null;
+const btiles = new Map(), bshown = new Map();
+const bunG = L.layerGroup().addTo(map);
+const BN = [[5, '#15803d'], [10, '#84cc16'], [20, '#facc15'], [30, '#f97316'], [999, '#dc2626']];
+const colBn = p => p == null ? null : BN.find(x => p < x[0])[1];
+function bhours(b) {   // [זוגות, צמודים] לכל שעה
+  if (!b._h) { const n = (b[7] || '').split(','), k = (b[8] || '').split(','); b._h = Array.from({ length: 24 }, (_, i) => [+(n[i] || 0), +(k[i] || 0)]); }
+  return b._h;
+}
+const bpct = (b, h) => { const [n, k] = bhours(b)[h]; return n >= 5 ? Math.round(100 * k / n) : null; };
+async function drawBunch(seq) {
+  if (!S.lay.bn || map.getZoom() < MINZ) { bunG.clearLayers(); bshown.clear(); return; }
+  if (!BMETA) BMETA = await fetch(D + 'bunch.json').then(r => r.json()).catch(() => ({ tiles: [] }));
+  const set = new Set(BMETA.tiles), ks = needTiles(set);
+  const all = (await Promise.all(ks.map(k => {
+    if (!btiles.has(k)) btiles.set(k, fetch(D + 'b/' + k + '.json').then(r => r.json()).catch(() => []).then(a => { btiles.set(k, a); return a; }));
+    return btiles.get(k);
+  }))).flat();
+  if (seq !== drawSeq) return;
+  const bb = map.getBounds().pad(0.15), vis = new Set();
+  for (const b of all) {
+    if (!bb.contains([b[0], b[1]])) continue;
+    vis.add(b);
+    let m = bshown.get(b);
+    if (!m) {
+      m = L.circleMarker([b[0], b[1]], { renderer: rend, radius: 6, weight: 1.5, color: '#0f172a' });
+      m.on('click', () => pickStop(b));
+      m.on('mouseover', () => m.bindTooltip(btip(b), { sticky: true }).openTooltip());
+      bshown.set(b, m); bunG.addLayer(m);
+    }
+    styleB(b, m);
+  }
+  for (const [b, m] of bshown) if (!vis.has(b)) { bunG.removeLayer(m); bshown.delete(b); }
+}
+function styleB(b, m) {
+  const p = bpct(b, S.h), c = colBn(p);
+  m.setStyle({ fillColor: c || '#cbd5e1', fillOpacity: c ? .95 : .5, opacity: c ? 1 : .4, radius: c ? 6 : 4 });
+}
+function btip(b) {
+  const p = bpct(b, S.h), [n, k] = bhours(b)[S.h];
+  return `<b>${esc(b[3] || 'תחנה')}</b> <small>(${b[2]})</small><br>${fmt(S.h)}: ${p == null ? 'מעט נסיעות' : `${p}% מהאוטובוסים הגיעו צמודים (${k} מתוך ${n})`}<br><small>לחיצה — כל שעות היום והקווים</small>`;
+}
+function pickStop(b) {
+  lastPick = Date.now();
+  S.spot = { stop: b };
+  hiG.clearLayers();
+  L.circleMarker([b[0], b[1]], { renderer: rend, radius: 13, color: '#0ea5e9', weight: 3, fill: false, interactive: false }).addTo(hiG);
+  tool('spot');
+}
+function stopPane(b) {
+  const H = bhours(b), pct = H.map(([n, k]) => n >= 5 ? Math.round(100 * k / n) : null);
+  const W = 300, Ht = 110, P = 18, mx = Math.max(30, ...pct.filter(x => x != null));
+  const x = h => P + h * (W - P - 4) / 24, y = v => Ht - 16 - v / mx * (Ht - 26);
+  let g = `<svg class="chart" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="התקבצות לפי שעה">`;
+  for (const t of [10, 20, 30, 40, 50].filter(t => t < mx)) g += `<line class="ax" x1="${P}" x2="${W}" y1="${y(t)}" y2="${y(t)}"/><text x="0" y="${y(t) + 3}">${t}%</text>`;
+  pct.forEach((v, h) => { if (v != null) g += `<rect x="${x(h) + 1}" y="${y(v)}" width="${(W - P) / 24 - 2.5}" height="${Ht - 16 - y(v)}" fill="${colBn(v)}"><title>${fmt(h)} · ${v}% (${H[h][1]} מתוך ${H[h][0]})</title></rect>`; });
+  g += `<rect x="${x(S.h)}" y="2" width="${(W - P) / 24}" height="${Ht - 18}" fill="none" stroke="#0ea5e9" stroke-width="1.5"/>`;
+  for (const h of [0, 6, 12, 18, 23]) g += `<text x="${x(h)}" y="${Ht - 3}">${String(h).padStart(2, '0')}</text>`;
+  g += '</svg>';
+  const tot = b[4], pb = Math.round(100 * b[5] / tot), pg = Math.round(100 * b[6] / tot);
+  return `<div class="blk"><h3>${esc(b[3] || 'תחנה')} <span class="mut">· ${b[2]}</span></h3>` +
+    `<div class="mut sm">התקבצות — אחוז הפעמים ששני אוטובוסים עוקבים של אותו קו הגיעו צמודים (פחות משליש מהמרווח שבלו"ז)</div>${g}` +
+    `<div class="kv"><span>${fmt(S.h)}</span><b>${pct[S.h] == null ? 'מעט נסיעות' : pct[S.h] + '%'}</b>` +
+    `<span>כל היום, ימי חול</span><b>${pb}% צמודים · ${pg}% מרווח כפול</b><span>זוגות שנבדקו</span><b>${num(tot)}</b></div></div>` +
+    (b[9] && b[9].length ? `<div class="blk"><h3>הקווים שמתקבצים כאן הכי הרבה</h3><table class="t bt"><thead><tr><th>קו</th><th>לכיוון</th><th>צמודים</th></tr></thead><tbody>` +
+      b[9].map(([ln, to, n, k]) => `<tr><td><b>${esc(ln)}</b></td><td>${esc(to)}</td><td class="n">${n ? Math.round(100 * k / n) : 0}% <span class="mut">(${k}/${n})</span></td></tr>`).join('') + '</tbody></table></div>' : '') +
+    `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. מקור: אותו חישוב של מדד דיוק האוטובוסים, ${BMETA && BMETA.days ? BMETA.days.length : ''} ימי חול אחרונים.</div>`;
+}
+function layersPane() {
+  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים']];
+  $('#layers').innerHTML = `<div class="blk">${it.map(([k, t, d]) => `<label class="lyr"><input type="checkbox" data-l="${k}"${S.lay[k] ? ' checked' : ''}><span><b>${t}</b><br><small class="mut">${d}</small></span></label>`).join('')}</div>` +
+    `<div class="note">שתי השכבות יחד מראות איפה האוטובוס גם איטי וגם מתקבץ — שם בדרך כלל נת"צ או עדיפות ברמזור עוזרים הכי הרבה.</div>`;
+}
+$('#layers').addEventListener('change', e => {
+  const k = e.target.dataset.l; if (!k) return;
+  S.lay[k] = e.target.checked ? 1 : 0;
+  if (!S.lay.sp) { segG.clearLayers(); shown.clear(); }
+  draw(); hash(); if (S.tool === 'legend') legendPane();
+});
 function tip(r) {
   const a = hours(r, S.d), v = a[S.h];
   let t = `<b>לכיוון ${dirName(r[2])}</b><br>${S.d === 'y' ? ylabel() + ', ' : ''}${fmt(S.h)}: ${v == null ? 'מעט נסיעות' : v + ' קמ"ש'}`;
@@ -149,6 +257,7 @@ function tip(r) {
 }
 function recolor() {
   if (map.getZoom() < MINZ) return drawCities();
+  for (const [b, m] of bshown) styleB(b, m);
   for (const [r, ln] of shown) { const c = color(r); ln.setStyle({ color: c || '#94a3b8', opacity: c ? .95 : .25 }); }
   summary([...shown.keys()]);
 }
@@ -177,6 +286,7 @@ function summary(rs) {
 
 // ---------- מקום נבחר ----------
 function pick(r) {
+  lastPick = Date.now();
   // הכיוון ההפוך באותו רחוב: רשומה קרובה (עד 110 מ') שכיוונה הפוך (הפרש 135° ומעלה)
   let opp = null, bd = 110;
   for (const q of shown.keys()) {
@@ -189,8 +299,8 @@ function pick(r) {
   const cor = corridor(r);
   S.spot = { r, opp, cor };
   hiG.clearLayers();
-  for (const q of cor.segs) if (q !== r) L.polyline(geom(q), { weight: 9, color: '#0ea5e9', opacity: .18, interactive: false }).addTo(hiG);
-  for (const q of [r, opp].filter(Boolean)) L.polyline(geom(q), { weight: 11, color: '#0ea5e9', opacity: .35, interactive: false }).addTo(hiG);
+  for (const q of cor.segs) if (q !== r) L.polyline(geom(q), { renderer: rend, weight: 9, color: '#0ea5e9', opacity: .18, interactive: false }).addTo(hiG);
+  for (const q of [r, opp].filter(Boolean)) L.polyline(geom(q), { renderer: rend, weight: 11, color: '#0ea5e9', opacity: .35, interactive: false }).addTo(hiG);
   tool('spot');
 }
 
@@ -280,9 +390,33 @@ function corBlock(cor, r) {
     `<div class="kv"><span>${fmt(S.h)}</span><b>${v == null ? 'מעט נתונים' : `${v} קמ"ש · ${Math.max(1, Math.round(tot / (v / 3.6) / 60))} דק'`}</b>` +
     (day.length ? `<span>הכי איטי ביום</span><b>${fmt(day[0][1])} · ${day[0][0]} קמ"ש · ${Math.round(tot / (day[0][0] / 3.6) / 60)} דק'</b>` : '') + `</div></div>`;
 }
-const ylabel = () => { if (!META || !META.yday) return 'אתמול'; const [y, m, d] = META.yday.split('-'); return `${'ראשון שני שלישי רביעי חמישי שישי שבת'.split(' ')[new Date(META.yday + 'T12:00').getDay()]} ${+d}.${+m}`; };
+const dayName = ds => { const [y, m, d] = ds.split('-'); return `${'ראשון שני שלישי רביעי חמישי שישי שבת'.split(' ')[new Date(ds + 'T12:00').getDay()]} ${+d}.${+m}`; };
+const dayShort = ds => { const [y, m, d] = ds.split('-'); return `${'אבגדהוש'[new Date(ds + 'T12:00').getDay()]}׳ ${+d}.${+m}`; };
+const ylabel = () => S.dsel.length === 1 ? dayName(S.dsel[0]) : `${S.dsel.length} הימים שנבחרו`;
+// "לפי יום": לוח שנה כמו במדד הדיוק — הימים שיש להם נתונים לחיצים; אפשר לסמן כמה ימים (ממוצע שלהם)
+const HEM = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+let calYM = null;
+function dayPicker() {
+  const el = $('#dpick');
+  if (S.d !== 'y' || !DD().length) { el.hidden = true; return; }
+  el.hidden = false;
+  const have = new Map(DD().map(([d, t]) => [d, t]));
+  if (!calYM) { const d = S.dsel[0] || DD()[0][0]; calYM = [+d.slice(0, 4), +d.slice(5, 7) - 1]; }
+  const [y, m] = calYM, nDays = new Date(y, m + 1, 0).getDate(), start = new Date(y, m, 1).getDay(), mm = String(m + 1).padStart(2, '0');
+  const cells = [];
+  for (let i = 0; i < start; i++) cells.push('<span></span>');
+  for (let day = 1; day <= nDays; day++) {
+    const iso = `${y}-${mm}-${String(day).padStart(2, '0')}`;
+    cells.push(have.has(iso) ? `<button class="cd${S.dsel.includes(iso) ? ' on' : ''}" data-dd="${iso}" title="${dayName(iso)}">${day}</button>` : `<span class="cd off">${day}</span>`);
+  }
+  const all = DD().map(x => x[0]).sort(), canPrev = all[0] < `${y}-${mm}-01`, canNext = all[all.length - 1] > `${y}-${mm}-${nDays}`;
+  el.innerHTML = `<div class="calhead"><button class="cnav" data-nav="-1" title="חודש קודם" ${canPrev ? '' : 'disabled'}>‹</button><b>${HEM[m]} ${y}</b><button class="cnav" data-nav="1" title="חודש הבא" ${canNext ? '' : 'disabled'}>›</button></div>` +
+    `<div class="calgrid">${['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(w => `<i>${w}׳</i>`).join('')}${cells.join('')}</div>` +
+    `<div class="mut sm">${S.dsel.length === 1 ? dayName(S.dsel[0]) : `${S.dsel.length} ימים — מוצג הממוצע שלהם`}. אפשר לסמן כמה ימים. אפור: אין נתונים (שבת, או לפני ${dayShort(all[0])}).</div>`;
+}
 function spotPane() {
   const el = $('#spot');
+  if (S.spot && S.spot.stop) { el.innerHTML = stopPane(S.spot.stop); return; }
   if (!S.spot) { el.innerHTML = '<div class="note">לחצו על קו במפה (בזום קרוב) כדי לראות את המהירות שם בכל שעות היום.</div>'; return; }
   const { r, opp, cor } = S.spot, yd = S.d === 'y';
   const one = (q, other) => {
@@ -340,7 +474,10 @@ function legendPane() {
   const it = S.m === 'sp' ? SP.map((x, i) => [x[1], i === 0 ? `עד ${x[0]} קמ"ש` : x[0] === 999 ? `מעל ${SP[i - 1][0]} קמ"ש` : `${SP[i - 1][0]}–${x[0]} קמ"ש`])
     : SL.map((x, i) => [x[1], i === 0 ? `עד ${x[0]}% לאט יותר` : x[0] === 999 ? `מעל ${SL[i - 1][0]}%` : `${SL[i - 1][0]}–${x[0]}%`]);
   $('#legend').innerHTML = `<div class="blk"><h3>${S.m === 'sp' ? 'מהירות ממוצעת' : S.d === 'y' ? `${ylabel()}: כמה לאט יותר מהממוצע החודשי באותה שעה` : 'האטה לעומת השעות בלי עומס ביום (06:00–21:00) באותו מקום'}</h3><div class="lg">` +
-    it.map(([c, t]) => `<div><i style="background:${c}"></i>${t}</div>`).join('') + `<div><i style="background:#94a3b8;opacity:.4"></i>מעט נסיעות בשעה הזו</div></div></div>`;
+    it.map(([c, t]) => `<div><i style="background:${c}"></i>${t}</div>`).join('') + `<div><i style="background:#94a3b8;opacity:.4"></i>מעט נסיעות בשעה הזו</div></div></div>` +
+    (S.lay.bn ? `<div class="blk"><h3>התקבצות בתחנה — אוטובוסים שהגיעו צמודים</h3><div class="lg">` +
+      BN.map((x, i) => `<div><b class="dot" style="background:${x[1]}"></b>${i === 0 ? `פחות מ-${x[0]}%` : x[0] === 999 ? `${BN[i - 1][0]}% ומעלה` : `${BN[i - 1][0]}–${x[0]}%`}</div>`).join('') +
+      `<div><b class="dot" style="background:#cbd5e1"></b>מעט נסיעות בשעה הזו</div></div></div>` : '');
 }
 function aboutPane() {
   const d = META && META.days, n = d ? (d.wd || []).length : 0, f = d ? (d.fr || []).length : 0;
@@ -376,14 +513,14 @@ async function excel() {
 }
 
 // ---------- ממשק ----------
-const TITLES = { map: 'מהירות לפי שעה', spot: 'המקום שנבחר', cities: 'השוואת יישובים', legend: 'מקרא', excel: 'אקסל', about: 'על הנתונים' };
+const TITLES = { layers: 'שכבות', map: 'מהירות לפי שעה', spot: 'המקום שנבחר', cities: 'השוואת יישובים', legend: 'מקרא', excel: 'אקסל', about: 'על הנתונים' };
 function tool(t) {
   if (S.tool === t && !$('#main').classList.contains('nopane') && t !== 'spot') { $('#main').classList.add('nopane'); $$('.tool').forEach(b => b.classList.remove('on')); setTimeout(() => map.invalidateSize(), 50); return; }
   S.tool = t; $('#main').classList.remove('nopane'); $('#main').classList.toggle('wide', t === 'cities');
   $$('.tool').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
   $$('[data-pane]').forEach(s => s.hidden = s.dataset.pane !== t);
   $('#pane-title').textContent = TITLES[t];
-  ({ spot: spotPane, cities: citiesPane, legend: legendPane, about: aboutPane, excel: excelPane })[t]?.();
+  ({ spot: spotPane, layers: layersPane, cities: citiesPane, legend: legendPane, about: aboutPane, excel: excelPane })[t]?.();
   setTimeout(() => map.invalidateSize(), 50);
 }
 $$('.tool').forEach(b => b.onclick = () => tool(b.dataset.tool));
@@ -391,13 +528,23 @@ $('#pane-close').onclick = () => { $('#main').classList.add('nopane'); $$('.tool
 function refresh() {
   $('#hlbl').textContent = fmt(S.h); $('#hour').value = S.h;
   $$('#dtype button').forEach(b => b.classList.toggle('on', b.dataset.v === S.d));
+  dayPicker();
   $$('#mode button').forEach(b => b.classList.toggle('on', b.dataset.v === S.m));
   recolor();
   if (S.tool === 'spot') spotPane(); else if (S.tool === 'cities') citiesPane(); else if (S.tool === 'legend') legendPane();
   hash();
 }
 $('#hour').oninput = e => { S.h = +e.target.value; refresh(); };
-$('#dtype').onclick = e => { const b = e.target.closest('button'); if (b) { S.d = b.dataset.v; refresh(); } };
+$('#dtype').onclick = e => { const b = e.target.closest('button'); if (b) { S.d = b.dataset.v; refresh(); if (S.d === 'y') draw(); } };
+$('#dpick').onclick = e => {
+  const n = e.target.closest('.cnav');
+  if (n && !n.disabled) { let [y, m] = calYM; m += +n.dataset.nav; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } calYM = [y, m]; dayPicker(); return; }
+  const b = e.target.closest('[data-dd]'); if (!b) return;
+  const d = b.dataset.dd, i = S.dsel.indexOf(d);
+  if (i >= 0) { if (S.dsel.length > 1) S.dsel.splice(i, 1); } else S.dsel.push(d);
+  S.dsel.sort().reverse();
+  refresh(); draw();
+};
 $('#mode').onclick = e => { const b = e.target.closest('button'); if (b) { S.m = b.dataset.v; refresh(); } };
 let timer = null;
 $('#play').onclick = () => {
@@ -425,11 +572,16 @@ $('#q').oninput = () => {
 $('#qres').onclick = e => { const d = e.target.closest('[data-c]'); if (d) { goCity(d.dataset.c); $('#qres').hidden = true; $('#q').value = ''; $('#bar').classList.remove('sopen'); } };
 map.on('mousemove', e => $('#s-wgs').textContent = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`);
 map.on('moveend', () => { draw(); hash(); });
+// לחיצה על המפה (לא על קטע או תחנה) — ביטול הבחירה; גם Esc
+let lastPick = 0;
+function unpick() { if (!S.spot) return; S.spot = null; hiG.clearLayers(); if (S.tool === 'spot') tool('map'); }
+map.on('click', () => { if (Date.now() - lastPick > 300) unpick(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') unpick(); });
 
 // כתובת: #h=8&d=wd&m=sp&@31.72,34.74,15
 function hash() {
   const c = map.getCenter();
-  history.replaceState(null, '', `#h=${S.h}&d=${S.d}&m=${S.m}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
+  history.replaceState(null, '', `#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn ? '&l=' + (S.lay.sp ? 'sb' : 'b') : ''}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
 }
 function readHash() {
   const h = location.hash.slice(1); if (!h) return;
@@ -438,7 +590,9 @@ function readHash() {
     const [k, v] = p.split('=');
     if (k === 'h' && v >= 0 && v < 24) S.h = +v;
     if (k === 'd' && (v === 'wd' || v === 'fr' || v === 'y')) S.d = v;
+    if (k === 'dd') S.dsel = v.split(',').filter(x => /^\d{4}-\d\d-\d\d$/.test(x));
     if (k === 'm' && (v === 'sp' || v === 'sl')) S.m = v;
+    if (k === 'l') S.lay = { sp: v.includes('s') ? 1 : 0, bn: v.includes('b') ? 1 : 0 };
   }
 }
 
@@ -448,8 +602,9 @@ function readHash() {
     [META, CITIES] = await Promise.all([fetch(D + 'meta.json').then(r => r.json()), fetch(D + 'cities.json').then(r => r.json()).catch(() => [])]);
   } catch (e) { msg('הנתונים עוד לא מוכנים'); return; }
   TILE = META.tile; META.tilesSet = new Set(META.tiles);
-  if (META.yday) $('#dtype').insertAdjacentHTML('beforeend', `<button data-v="y" title="היום האחרון בנתונים — מול הממוצע החודשי">${ylabel()}</button>`);
-  else if (S.d === 'y') S.d = 'wd';
+  S.dsel = S.dsel.filter(d => DD().some(x => x[0] === d));
+  if (!S.dsel.length && DD().length) S.dsel = [DD()[0][0]];
+  if (!DD().length) { $('#dtype [data-v=y]').remove(); if (S.d === 'y') S.d = 'wd'; }
   const d = (META.days.wd || []).slice().sort();
   $('#s-per').dir = 'ltr';
   if (d.length) $('#s-per').textContent = `${d[0].split('-').reverse().slice(0, 2).join('.')}–${d.at(-1).split('-').reverse().slice(0, 2).join('.')}`;

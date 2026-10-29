@@ -186,7 +186,7 @@ def shape_geoms(need):
 
 
 def build(n=DAYS):
-    have = sorted(f[:10] for f in os.listdir(CACHE) if f.endswith('.json.gz'))[-n:]
+    have = sorted(f[:10] for f in os.listdir(CACHE) if len(f) == 18 and f.endswith('.json.gz'))[-n:]   # בלי D.bunch.json.gz
     def load(ds):
         with gzip.open(f'{CACHE}/{ds}.json.gz', 'rt') as f:
             return json.load(f)
@@ -207,19 +207,6 @@ def build(n=DAYS):
             continue
         med = sorted(meta[ds]['used'] for ds in ds_t)[len(ds_t) // 2]
         keep[t] = [ds for ds in ds_t if meta[ds]['used'] >= 0.75 * med]
-    # היום האחרון (לא שבת) — "אתמול" מול הממוצע החודשי, כדי לראות מה היה חריג באותו יום (שלמה 29.10)
-    yd = next((ds for ds in reversed(have) if typ[ds]), None)
-    yday = {}
-    if yd:
-        m = load(yd)
-        g = m['geo']
-        for i, h, n, sv, slow in m['rows']:
-            k = tuple(g[i][:3])
-            a = yday.get(k)
-            if a is None:
-                a = yday[k] = [0] * 48
-            a[2 * h] += n; a[2 * h + 1] += sv
-        del m, g
     # לכל מקום: [דגימות, Σרוחב, Σאורך, Σsin, Σcos, [דגימות, Σמהירות] × 24 שעות × (א'–ה', שישי)]
     acc = {}
     for t, dss in keep.items():
@@ -256,10 +243,11 @@ def build(n=DAYS):
         keep_k.append((cy, cx, s))
         kinds[(cy, cx)].add(s % 4)
     geoms = shape_geoms(set(keep_k))
+    tkeys = collections.defaultdict(list)
     for (cy, cx, s) in keep_k:
         n, sla, slo, ssin, scos, hrs = acc[(cy, cx, s)]
         la, lo = sla / n, slo / n
-        # [רוחב, אורך, כיוון, דגימות, מהירות לכל שעה א'–ה' (מחרוזת, ריק = מעט מדי), שישי, צומת, הקו לאורך הכביש: [רוחב×10⁵, אורך×10⁵, ואז הפרשים] או 0, אתמול]
+        # [רוחב, אורך, כיוון, דגימות, מהירות לכל שעה א'–ה' (מחרוזת, ריק = מעט מדי), שישי, צומת, הקו לאורך הכביש: [רוחב×10⁵, אורך×10⁵, ואז הפרשים] או 0]
         rec = [round(la, 5), round(lo, 5), round(math.degrees(math.atan2(ssin, scos)) % 360), n]
         for t in ('wd', 'fr'):
             o = 0 if t == 'wd' else 48
@@ -267,10 +255,11 @@ def build(n=DAYS):
             rec.append(','.join(sp).rstrip(','))
         rec.append(1 if len(kinds[(cy, cx)]) > 1 else 0)
         rec.append(geoms.get((cy, cx, s), 0))
-        y = yday.get((cy, cx, s))   # אתמול: שעה עם 2 דגימות ומעלה (יום אחד — פחות דגימות מהחודש)
-        rec.append(','.join(str(round(y[2 * h + 1] / y[2 * h])) if y and y[2 * h] >= 2 else '' for h in range(24)).rstrip(',') if y else '')
-        tiles[(math.floor(la / TILE), math.floor(lo / TILE))].append(rec)
+        t = (math.floor(la / TILE), math.floor(lo / TILE))
+        tiles[t].append(rec)
+        tkeys[t].append((cy, cx, s))
     os.makedirs(OUT, exist_ok=True)
+    bunching(keep.get('wd', []))
     cities(acc)
     os.makedirs(f'{OUT}/t', exist_ok=True)
     for f in os.listdir(f'{OUT}/t'):
@@ -278,12 +267,109 @@ def build(n=DAYS):
     for (ty, tx), recs in tiles.items():
         with open(f'{OUT}/t/{ty}_{tx}.json', 'w') as f:
             json.dump(recs, f, separators=(',', ':'))
-    info = {'yday': yd, 'ytype': typ.get(yd) if yd else None, 'tile': TILE, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles),
+    dd = by_day(have, typ, load, tiles, tkeys)
+    info = {'dd': dd, 'tile': TILE, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles),
             'days': {t: v for t, v in keep.items()}, 'skipped': [ds for ds in have if typ[ds] and ds not in keep[typ[ds]]],
             'cells': sum(len(v) for v in tiles.values()), 'built': datetime.date.today().isoformat()}
     with open(f'{OUT}/meta.json', 'w') as f:
         json.dump(info, f, ensure_ascii=False, separators=(',', ':'))
     print(f'{info["cells"]:,} מקומות ב-{len(tiles)} אריחים · א\'–ה\': {len(keep["wd"])} ימים · שישי: {len(keep["fr"])} · בחוץ: {info["skipped"]}')
+
+
+BYDAY = 14   # כמה ימים אחרונים אפשר לבחור "לפי יום"
+
+
+def by_day(have, typ, load, tiles, tkeys):
+    """"לפי יום" (שלמה 29.10): לכל אחד מ-BYDAY הימים האחרונים (בלי שבת) — קובץ לכל אריח, באותו סדר של
+    המקומות באריח הראשי: מחרוזת מהירויות לכל שעה (שעה עם 2 דגימות ומעלה). OUT/d/<תאריך>/<אריח>.json.
+    הדף מציג יום אחד או ממוצע של כמה ימים שנבחרו. מחזיר [[תאריך, סוג יום]…] מהחדש לישן."""
+    import shutil
+    days = [ds for ds in have if typ[ds]][-BYDAY:]
+    if os.path.isdir(f'{OUT}/d'):
+        for x in os.listdir(f'{OUT}/d'):
+            if x not in days:
+                shutil.rmtree(f'{OUT}/d/{x}')
+    want = {k for ks in tkeys.values() for k in ks}
+    for ds in days:
+        m = load(ds)
+        g = m['geo']
+        hrs = {}
+        for i, h, n, sv, slow in m['rows']:
+            k = tuple(g[i][:3])
+            if k not in want:
+                continue
+            a = hrs.get(k)
+            if a is None:
+                a = hrs[k] = [0] * 48
+            a[2 * h] += n; a[2 * h + 1] += sv
+        del m, g
+        os.makedirs(f'{OUT}/d/{ds}', exist_ok=True)
+        for t, ks in tkeys.items():
+            arr = []
+            for k in ks:
+                a = hrs.get(k)
+                arr.append(','.join(str(round(a[2 * h + 1] / a[2 * h])) if a[2 * h] >= 2 else '' for h in range(24)).rstrip(',') if a else '')
+            with open(f'{OUT}/d/{ds}/{t[0]}_{t[1]}.json', 'w') as f:
+                json.dump(arr, f, separators=(',', ':'))
+    return [[ds, typ[ds]] for ds in reversed(days)]
+
+
+def bunching(days):
+    """שכבת ההתקבצות (שלמה 29.10): לכל תחנה — כמה זוגות של שני אוטובוסים עוקבים של אותו קו הגיעו צמודים
+    (פחות מ-30% מהמרווח המתוכנן), בכל שעה, בימי החול. מקור: D.bunch.json.gz מ-tools/bus_reliability.py
+    (אותה הגדרה כמו במדד דיוק האוטובוסים). פלט: OUT/b/<אריח>.json —
+    [רוחב, אורך, מק"ט, שם, זוגות, צמודים, רווח כפול, "זוגות לכל שעה", "צמודים לכל שעה", [[קו, יעד, זוגות, צמודים]…]]"""
+    acc, used = {}, []
+    for ds in days:
+        p = f'{CACHE}/{ds}.bunch.json.gz'
+        if not os.path.exists(p):
+            continue
+        try:
+            with gzip.open(p, 'rt') as f:
+                day = json.load(f)
+        except Exception:  # noqa: BLE001
+            continue
+        used.append(ds)
+        for code, (la, lo, hrs, top) in day.items():
+            a = acc.get(code)
+            if a is None:
+                a = acc[code] = [la, lo, [0] * 72, {}]
+            for h, n, b, g in hrs:
+                a[2][3 * h] += n; a[2][3 * h + 1] += b; a[2][3 * h + 2] += g
+            for rid, n, b in top:
+                r = a[3].setdefault(rid, [0, 0])
+                r[0] += n; r[1] += b
+    for f in os.listdir(f'{OUT}/b') if os.path.isdir(f'{OUT}/b') else []:
+        os.remove(f'{OUT}/b/{f}')
+    if not used:
+        print('התקבצות: אין עדיין קבצים')
+        return
+    try:
+        routes = json.load(open('bus/data/routes.json', encoding='utf-8'))
+        names = json.load(open('bus/data/stops.json', encoding='utf-8'))
+    except Exception:  # noqa: BLE001
+        routes, names = {}, {}
+    tiles = collections.defaultdict(list)
+    for code, (la, lo, h, top) in acc.items():
+        n, b, g = sum(h[0::3]), sum(h[1::3]), sum(h[2::3])
+        if n < 20:
+            continue
+        rs = []
+        for rid, (rn, rb) in sorted(top.items(), key=lambda x: -x[1][1])[:4]:
+            r = routes.get(rid) or []
+            to = (r[2].split('<->')[-1].rsplit('-', 1)[0] if len(r) > 2 and '<->' in r[2] else '')
+            rs.append([r[1] if len(r) > 1 else '', to, rn, rb])
+        nm = names.get(code)
+        tiles[(math.floor(la / TILE), math.floor(lo / TILE))].append(
+            [la, lo, code, nm if isinstance(nm, str) else (nm[0] if nm else ''), n, b, g,
+             ','.join(str(x) if x else '' for x in h[0::3]).rstrip(','), ','.join(str(x) if x else '' for x in h[1::3]).rstrip(','), rs])
+    os.makedirs(f'{OUT}/b', exist_ok=True)
+    for (ty, tx), recs in tiles.items():
+        with open(f'{OUT}/b/{ty}_{tx}.json', 'w', encoding='utf-8') as f:
+            json.dump(recs, f, ensure_ascii=False, separators=(',', ':'))
+    with open(f'{OUT}/bunch.json', 'w', encoding='utf-8') as f:
+        json.dump({'days': used, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles)}, f, separators=(',', ':'))
+    print(f'התקבצות: {sum(len(v) for v in tiles.values()):,} תחנות מ-{len(used)} ימים')
 
 
 def norm(c):
