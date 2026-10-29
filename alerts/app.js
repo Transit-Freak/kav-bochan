@@ -5,7 +5,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var CAUSE_COLOR = { works: "#B45309", police: "#1E3A8A", protest: "#7C3AED", event: "#0E7490", accident: "#BE123C",
     stuck: "#9A3412", weather: "#0369A1", strike: "#4B5563", traffic: "#A16207", fault: "#57534E", relocate: "#0F766E", other: "#6B7280" };
-  var ALL = [], CAUSES = {}, ALIAS = {}, GROUPS = {}, sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
+  var ALL = [], CAUSES = {}, ALIAS = {}, GROUPS = {}, GRP = [], sel = null, when = "now", cause = null, map = null, layer = null, cur = null;
   var TZ = "Asia/Jerusalem";
   var fmtD = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric" }).format(new Date(t * 1000)); };
   var fmtT = function (t) { return new Intl.DateTimeFormat("he-IL", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(t * 1000)); };
@@ -214,16 +214,23 @@
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
       rc.routes.sort(function (x, y) { var p = lineKey(String(x.num || "")), q = lineKey(String(y.num || "")); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0) || String(x.to || "").localeCompare(String(y.to || ""), "he"); });
       cur = { a: a, rc: rc };
-      var lab = function (r) { return "קו " + (r.num == null ? "" : r.num) + " ← " + (r.to || "") + (r.alt && r.alt !== "#" ? " · " + r.alt : ""); };
-      // כמה חלופות של אותו קו לאותו יעד — מבדילים לפי הכיוון, ואם הוא זהה — לפי החלופה
-      var same = {}; rc.routes.forEach(function (r) { (same[lab(r)] = same[lab(r)] || []).push(String(r.rd || "").split("-")); });
-      $("routes").innerHTML = rc.routes.map(function (r, i) {
-        var g = same[lab(r)], k = String(r.rd || "").split("-"), x = "";
-        if (g.length > 1) {
-          var dirs = {}; g.forEach(function (q) { dirs[q[1]] = 1; });
-          x = Object.keys(dirs).length === g.length ? " · כיוון " + k[1] : (k[2] === "#" || k[2] === "0" || k[2] == null ? " · ראשית" : " · חלופה " + k[2]);
-        }
-        return '<button type="button" data-i="' + i + '">' + esc(lab(r) + x) + "</button>";
+      var lab = function (r) { return "קו " + (r.num == null ? "" : r.num) + " ← " + (r.to || ""); };
+      // חלופות של אותו קו, באותו כיוון ולאותו יעד — כפתור אחד (שלמה 29.10). במפה: הראשית כרגיל, ובחלופה
+      // אחרת רק הקטע שבו היא נוסעת אחרת, בצבע אחר
+      var gmap = {}; GRP = [];
+      rc.routes.forEach(function (r) {
+        var k = String(r.rd || "").split("-"), key = lab(r) + "|" + (k[1] || "");
+        if (!gmap[key]) { gmap[key] = { lab: lab(r), dir: k[1], rs: [] }; GRP.push(gmap[key]); }
+        gmap[key].rs.push(r);
+      });
+      GRP.forEach(function (g) {
+        var isMain = function (r) { var a = String(r.rd || "").split("-")[2]; return a === "#" || a === "0" || a == null; };
+        g.rs.sort(function (x, y) { return (isMain(y) ? 1 : 0) - (isMain(x) ? 1 : 0); });
+      });
+      var nl = {}; GRP.forEach(function (g) { nl[g.lab] = (nl[g.lab] || 0) + 1; });
+      $("routes").innerHTML = GRP.map(function (g, i) {
+        var x = (nl[g.lab] > 1 && g.dir ? " · כיוון " + g.dir : "") + (g.rs.length > 1 ? " · " + g.rs.length + " חלופות" : "");
+        return '<button type="button" data-i="' + i + '">' + esc(g.lab + x) + "</button>";
       }).join("");
       Array.prototype.forEach.call($("routes").querySelectorAll("button"), function (b) { b.onclick = function () { showRoute(+b.getAttribute("data-i")); }; });
       showRoute(0);
@@ -260,8 +267,34 @@
     var c0 = nearestIdx(shape, est.path[0]);
     return [c0, Math.max(c0, nearestIdx(shape, est.path[est.path.length - 1]))];
   }
+  // הקטעים של מסלול שרחוקים (יותר מ-35 מ') מהמסלול של הראשית — רק שם החלופה נוסעת אחרת
+  function diffRuns(path, base) {
+    if (!path || path.length < 2) return [];
+    if (!base || !base.length) return [path];
+    // מרחק לקטעי המסלול (לא רק לנקודות שלו — בשרטוט דליל נקודה באמצע קטע ישר נראתה "רחוקה")
+    var far = path.map(function (p) {
+      var bd = 1e18;
+      for (var j = 0; j + 1 < base.length || j === 0; j++) {
+        var a = base[j], c = base[j + 1] || a;
+        var ax = a[1] * 0.85, ay = a[0], cx = c[1] * 0.85, cy = c[0], px = p[1] * 0.85, py = p[0];
+        var vx = cx - ax, vy = cy - ay, L2 = vx * vx + vy * vy, t = L2 ? Math.max(0, Math.min(1, ((px - ax) * vx + (py - ay) * vy) / L2)) : 0;
+        var dx = px - (ax + t * vx), dy = py - (ay + t * vy), d = dx * dx + dy * dy;
+        if (d < bd) bd = d;
+        if (j + 1 >= base.length) break;
+      }
+      return Math.sqrt(bd) * 111320 > 35;
+    });
+    var runs = [], curRun = null;
+    path.forEach(function (p, k) {
+      if (far[k]) { if (!curRun) { curRun = k > 0 ? [path[k - 1]] : []; runs.push(curRun); } curRun.push(p); }
+      else if (curRun) { curRun.push(p); curRun = null; }
+    });
+    // קטע קצר מ-80 מ' — רעש של השרטוט, לא נסיעה אחרת
+    var len = function (r) { var m = 0; for (var k = 1; k < r.length; k++) { var dx = r[k][0] - r[k - 1][0], dy = (r[k][1] - r[k - 1][1]) * 0.85; m += Math.sqrt(dx * dx + dy * dy) * 111320; } return m; };
+    return runs.filter(function (r) { return r.length >= 2 && len(r) >= 80; });
+  }
   function showRoute(i) {
-    var r = cur.rc.routes[i], stops = cur.rc.stops || {};
+    var g = GRP[i], r = g.rs[0], stops = cur.rc.stops || {};
     Array.prototype.forEach.call($("routes").querySelectorAll("button"), function (b) { b.classList.toggle("on", +b.getAttribute("data-i") === i); });
     if (!window.L) { $("map").innerHTML = '<p class="note" style="padding:12px">המפה לא נטענה.</p>'; return; }
     // כל התראה בונה את #map מחדש — מפה שנוצרה על האלמנט הקודם כבר לא בדף, ומה שמצויר
@@ -340,10 +373,31 @@
         .bindTooltip((st[3] || "") + (st[2] ? " · " + st[2] : "") + " · תחנה חלופית").addTo(layer);
       focus.push(st.slice(0, 2));
     });
+    // שאר החלופות של הקו: רק הקטע שבו כל אחת נוסעת אחרת מהראשית — בסגול
+    var altNote = [];
+    g.rs.slice(1).forEach(function (m) {
+      var name = "חלופה " + (String(m.rd || "").split("-")[2] || "");
+      var mine = (m.est && m.est.path) || m.shape || [], base = est || shape;
+      var runs = diffRuns(mine, base);
+      runs.forEach(function (run) {
+        L.polyline(run, { color: "#fff", weight: 8, opacity: 0.9 }).addTo(layer);
+        L.polyline(run, { color: "#7C3AED", weight: 4, dashArray: m.est ? null : "2 6" }).bindTooltip(name + " — נוסעת כאן אחרת").addTo(layer);
+        focus = focus.concat(run);
+      });
+      (m.del || []).forEach(function (s2) {
+        if (!stops[s2] || del.indexOf(s2) >= 0) return;
+        L.marker(stops[s2].slice(0, 2), { icon: L.divIcon({ className: "", html: '<div class="xm"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) })
+          .bindTooltip((stops[s2][3] || "") + " · מבוטלת ב" + name).addTo(layer);
+      });
+      altNote.push(name + (runs.length ? " — נוסעת אחרת בקטע המסומן בסגול" : " — אותו מסלול כמו הראשית"));
+    });
+    if (altNote.length && altNote.some(function (t) { return t.indexOf("סגול") >= 0; }))
+      legend.push('<span><svg viewBox="0 0 26 12"><path d="M1 6H25" stroke="#7C3AED" stroke-width="4" fill="none"/></svg>קטע שבו חלופה אחרת של הקו נוסעת אחרת</span>');
     if (del.length) legend.push('<span><div class="xm"></div>תחנה מבוטלת</span>');
     if (xadd.length || seq.some(function (s) { return s[1]; })) legend.push('<span><div class="am"></div>תחנה חלופית</span>');
     $("legend").innerHTML = legend.join("");
     $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") +
+      (altNote.length ? '<p class="note">ההודעה חלה על ' + (altNote.length + 1) + " חלופות של הקו. המפה מציגה את הראשית; " + esc(altNote.join(" · ")) + ".</p>" : "") +
       (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
     var b = L.latLngBounds(focus.length > 1 ? focus : shape);
     if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
