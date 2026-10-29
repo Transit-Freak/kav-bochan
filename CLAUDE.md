@@ -14,7 +14,7 @@
 
 - כל כלי מציג בתחתית הדף "שם הכלי · גרסה X.Y", ולחיצה פותחת את מה שהשתנה (`version.js`).
   הנתונים ב-`versions.json` בשורש — מפתח לכל כלי: home (האתר כולו), kavpach, line-history, fleet,
-  bus, rail, reception, feeder, alerts (הקו המודיע), fares, ratzif, skip-stops, next-station, kavbug (קו באג, ריפו נפרד — טוען מכאן).
+  bus, rail, reception, feeder, alerts (הקו המודיע), bus-speed (איפה האוטובוס נתקע), fares, ratzif, skip-stops, next-station, kavbug (קו באג, ריפו נפרד — טוען מכאן).
   נגישות אזורי תעשייה (parks) — בלי גרסה, לבקשת שלמה.
 - **באותו PR** של כל שינוי שהמשתמש רואה בכלי (עיצוב, תכונה, תיקון שנראה באתר) — לעדכן את
   `versions.json`: גרסה חדשה בראש הרשימה של הכלי, עם תאריך ושורות קצרות בעברית פשוטה.

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="../nav-restore.js"></script><script src="../home-link.js"></script>
+<meta name="theme-color" content="#0f172a">
+<meta name="description" content="מהירות האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים: איפה נתקעים, מתי, ואיזה יישוב הכי עמוס">
+<meta property="og:title" content="איפה האוטובוס נתקע — הקו הבוחן">
+<meta property="og:description" content="מהירות האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים">
+<meta property="og:image" content="https://kavbochan.app/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<script src="../version.js" defer></script>
+<title>איפה האוטובוס נתקע</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="26" fill="%230f172a"/><path d="M22 84a40 40 0 1 1 76 0" stroke="%23334155" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M22 84a40 40 0 0 1 22-36" stroke="%23ef4444" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M60 80 44 52" stroke="%23f8fafc" stroke-width="7" stroke-linecap="round"/><circle cx="60" cy="80" r="8" fill="%23f8fafc"/></svg>'>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script>document.write('<link rel="stylesheet" href="style.css?v='+Date.now()+'">');try{if(localStorage.getItem('spd.theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
+</head>
+<body>
+<!-- מהירות האוטובוסים לפי מקום ושעה (שלמה 29.10: "בסגנון GIS"): כותרת כהה, סרגל כלים, לוח צד, מפה ושורת מצב -->
+<div id="app">
+  <header id="bar">
+    <a class="brand" href="../" title="לדף הבית של הקו הבוחן">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="26" fill="#1e293b"/><path d="M22 84a40 40 0 1 1 76 0" stroke="#334155" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M22 84a40 40 0 0 1 22-36" stroke="#ef4444" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M60 80 44 52" stroke="#f8fafc" stroke-width="7" stroke-linecap="round"/><circle cx="60" cy="80" r="8" fill="#f8fafc"/></svg>
+      <h1>איפה האוטובוס נתקע</h1>
+    </a>
+    <div class="search">
+      <svg class="si" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="חיפוש יישוב…" aria-label="חיפוש יישוב">
+      <div id="qres" class="qres" role="listbox" hidden></div>
+    </div>
+    <button id="q-btn" class="hbtn" title="חיפוש" aria-label="חיפוש"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
+    <button id="theme" class="hbtn" title="ערכה כהה / בהירה" aria-label="החלפת ערכת צבעים"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+  </header>
+
+  <main id="main">
+    <nav id="toolbar" aria-label="כלים">
+      <button class="tool" data-tool="map" title="מפה — מהירות לפי שעה"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>מהירות</span></button>
+      <button class="tool" data-tool="spot" title="המקום שנבחר — כל השעות"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span>מקום</span></button>
+      <button class="tool" data-tool="cities" title="השוואת יישובים"><svg viewBox="0 0 24 24"><path d="M3 20.5h18M5 20.5V9l5-3v14.5M10 20.5V4h9v16.5M13 8h3M13 11.5h3M13 15h3"/></svg><span>יישובים</span></button>
+      <button class="tool" data-tool="legend" title="מקרא"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="4" height="3"/><rect x="3.5" y="10.5" width="4" height="3"/><rect x="3.5" y="16.5" width="4" height="3"/><path d="M10.5 6h10M10.5 12h10M10.5 18h10"/></svg><span>מקרא</span></button>
+      <button class="tool" data-tool="excel" title="הורדת סיכום לאקסל"><svg viewBox="0 0 24 24"><path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14 3.5V8h5M9 12l5 5M14 12l-5 5"/></svg><span>אקסל</span></button>
+      <button class="tool" data-tool="about" title="על הנתונים"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.5v.5"/></svg><span>מידע</span></button>
+    </nav>
+
+    <aside id="pane" aria-label="לוח צד">
+      <div class="ph"><h2 id="pane-title"></h2><button class="x" id="pane-close" title="סגירה" aria-label="סגירת הלוח"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+      <div class="pbody">
+        <section data-pane="map">
+          <div class="blk">
+            <div class="seg" id="dtype" role="radiogroup" aria-label="סוג היום"><button data-v="wd" class="on">א׳–ה׳</button><button data-v="fr">שישי</button></div>
+            <div class="seg" id="mode" role="radiogroup" aria-label="מה מציגים"><button data-v="sp" class="on" title="המהירות הממוצעת בשעה שנבחרה">מהירות</button><button data-v="sl" title="כמה לאט יותר מהשעה המהירה ביותר באותו מקום">האטה</button></div>
+          </div>
+          <div class="blk">
+            <div class="hourhead"><b>שעה</b><span id="hlbl" class="big" dir="ltr">08:00</span><button id="play" class="pbtn" title="הפעלה — מעבר על כל שעות היום" aria-label="הפעלה"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></button></div>
+            <input id="hour" type="range" min="0" max="23" value="8" aria-label="שעה">
+            <div class="ticks" dir="ltr"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+          </div>
+          <div class="blk" id="viewsum"></div>
+          <div class="note">כל קטע צבוע הוא כ-100 מ' של רחוב בכיוון נסיעה אחד (בצד ימין של הכביש). לחיצה עליו מציגה את כל שעות היום.</div>
+        </section>
+        <section data-pane="spot" id="spot" hidden></section>
+        <section data-pane="cities" id="cities" hidden></section>
+        <section data-pane="legend" id="legend" hidden></section>
+        <section data-pane="excel" id="excel" hidden></section>
+        <section data-pane="about" id="about" hidden></section>
+      </div>
+    </aside>
+
+    <div id="mapwrap">
+      <div id="map" role="application" aria-label="מפה"></div>
+      <div class="mapctl" aria-label="ניווט במפה">
+        <button id="c-in" title="הגדלה" aria-label="הגדלה"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="c-out" title="הקטנה" aria-label="הקטנה"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <button id="c-home" title="כל הארץ" aria-label="תצוגה ארצית"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button>
+        <button id="c-loc" title="המיקום שלי" aria-label="המיקום שלי"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.8" class="f"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></button>
+      </div>
+      <div class="north" title="צפון" aria-hidden="true"><svg viewBox="0 0 24 30"><path d="M12 2 18 20 12 16 6 20z"/></svg><b>צ</b></div>
+      <div id="modebar" class="modebar" hidden></div>
+    </div>
+  </main>
+
+  <footer id="status">
+    <span class="sc"><b id="s-wgs" dir="ltr">—</b> WGS84</span>
+    <span class="sc">זום <b id="s-zoom">—</b></span>
+    <span class="sc">תקופה <b id="s-per">—</b></span>
+    <span id="s-msg" aria-live="polite"></span>
+    <span id="kb-ver"></span>
+    <span class="src">מקור: מיקומי האוטובוסים (SIRI) של משרד התחבורה דרך דאטאבוס, הסדנא לידע ציבורי · <a href="../">kavbochan.app</a> · <a href="../terms.html#copyright">© 2026 שלמה הרטמן</a></span>
+  </footer>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>document.write('<script src="app.js?v='+Date.now()+'"><\/script>')</script>
+</body>
+</html>

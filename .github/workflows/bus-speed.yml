@@ -1,0 +1,133 @@
+name: bus-speed
+
+# מהירות האוטובוסים לפי מקום ושעה (שלמה 29.10.2026) — מקובצי ה-SIRI הגולמיים של דאטאבוס.
+# כל יום מעובד פעם אחת (כ-2.5 דק') לסיכום יומי, שנשמר כקובץ ב-release "bus-speed-days" (כמו
+# בתמונות הצי — לא בגיט). אחר כך מחברים את 28 הימים האחרונים לאריחים של המפה ולטבלת היישובים.
+# בפעם הראשונה (או אחרי הפסקה) — כל הימים החסרים במקביל.
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bus-speed.yml'
+      - 'tools/bus_speed.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bus-speed
+  cancel-in-progress: false
+
+env:
+  REL: bus-speed-days
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      days: ${{ steps.p.outputs.days }}
+    steps:
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R: ${{ github.repository }}
+        run: |
+          gh release view "$REL" -R "$R" >/dev/null 2>&1 || gh release create "$REL" -R "$R" \
+            --title "מהירות האוטובוסים — סיכומים יומיים" --notes "קבצי ביניים של tools/bus_speed.py (לא להורדה)"
+          have=$(gh release view "$REL" -R "$R" --json assets -q '.assets[].name' | sed 's/.json.gz//' | sort)
+          need=()
+          for i in $(seq 1 30); do
+            d=$(TZ=Asia/Jerusalem date -d "-$i day" +%F)
+            grep -qx "$d" <<<"$have" || need+=("\"$d\"")
+          done
+          echo "חסרים: ${#need[@]} ימים"
+          echo "days=[$(IFS=,; echo "${need[*]}")]" >> "$GITHUB_OUTPUT"
+
+  day:
+    needs: plan
+    if: needs.plan.outputs.days != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        d: ${{ fromJSON(needs.plan.outputs.days) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - run: pip install -q brotli
+      - name: עיבוד היום
+        env:
+          SPEED_CACHE: /tmp/days
+        run: python3 tools/bus_speed.py day ${{ matrix.d }}
+      - name: שמירה ב-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$REL" -R "${{ github.repository }}" /tmp/days/*.json.gz --clobber
+
+  build:
+    needs: [plan, day]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tools/
+            /bus-speed/
+            /gis/data/own/bus-stops.json
+      - name: הורדת הסיכומים היומיים
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/days
+          for i in $(seq 1 35); do
+            d=$(TZ=Asia/Jerusalem date -d "-$i day" +%F)
+            gh release download "$REL" -R "${{ github.repository }}" -p "$d.json.gz" -D /tmp/days 2>/dev/null || true
+          done
+          ls /tmp/days | wc -l
+          # ימים ישנים מ-40 יום — נמחקים מה-release
+          old=$(TZ=Asia/Jerusalem date -d "-40 day" +%F)
+          for a in $(gh release view "$REL" -R "${{ github.repository }}" --json assets -q '.assets[].name'); do
+            [[ "${a%.json.gz}" < "$old" ]] && gh release delete-asset "$REL" "$a" -R "${{ github.repository }}" -y || true
+          done
+      # מסלולי הקווים (shapes.txt) — כדי שהצבע יימשך לאורך הכביש
+      - name: GTFS
+        continue-on-error: true
+        run: |
+          for i in 0 1 2 3; do
+            D=$(date -u -d "-$i day" +%Y/%m/%d)
+            curl -fsS --retry 2 -o /tmp/gtfs.zip "https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/$D/israel-public-transportation.zip" && break
+          done
+          ls -la /tmp/gtfs.zip
+      - name: מספר התושבים (data.gov.il)
+        continue-on-error: true
+        run: python3 tools/bus_speed.py pop
+      - name: אריחים וטבלת יישובים
+        env:
+          SPEED_CACHE: /tmp/days
+          GTFS_ZIP: /tmp/gtfs.zip
+        run: python3 tools/bus_speed.py build
+      - name: שמירה
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A bus-speed/data
+          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+          git commit -q -m "data: מהירות האוטובוסים"
+          for i in 1 2 3 4 5 6; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            echo "push rejected — retry $i"; sleep 15
+          done
+          echo "הדחיפה נכשלה"; exit 1
