@@ -242,7 +242,8 @@ function citiesPane() {
     : k === 'now' || k === 'worstH' ? (p, q) => (p[k] ?? 999) - (q[k] ?? 999) : (p, q) => nn(q[k]) - nn(p[k]));
   const th = (key, t) => `<th data-k="${key}" class="${S.csort === key ? 's' : ''}">${t}</th>`;
   $('#cities').innerHTML = `<div class="blk"><div class="chips" id="cgrp">${GRPS.map(([v, t]) => `<button data-v="${v}" class="${S.cgrp === v ? 'on' : ''}">${t}</button>`).join('')}</div>` +
-    `<div class="mut">משווים יישובים בגודל דומה (לפי מספר התושבים). ימי א׳–ה׳, 06:00–20:00.</div></div>` +
+    `<div class="mut">משווים יישובים בגודל דומה (לפי מספר התושבים). ימי א׳–ה׳, 06:00–20:00.</div>` +
+    `<div class="mut">מספר התושבים: רשות האוכלוסין וההגירה, <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a></div></div>` +
     `<div class="tw"><table class="t"><thead><tr>${th('name', 'יישוב')}${th('pop', 'תושבים')}${th('now', fmt(S.h))}${th('slow', 'האטה')}${th('worstH', 'שעת שיא')}</tr></thead><tbody>` +
     rows.map(r => `<tr data-c="${esc(r.name)}"><td>${esc(r.name)}</td><td class="n">${r.pop ? num(r.pop) : '—'}</td>` +
       `<td class="n"><span class="sw" style="background:${colSp(r.now) || 'transparent'}"></span>${r.now ?? '—'}</td>` +
@@ -268,7 +269,8 @@ function aboutPane() {
   $('#about').innerHTML = `<div class="note"><p>כל דקה משדר כל אוטובוס בנסיעה את המיקום והמהירות שלו. דאטאבוס של הסדנא לידע ציבורי שומר את כל השידורים, ומהם מחושבת כאן המהירות הממוצעת בכל קטע רחוב, בכל כיוון ובכל שעה.</p>` +
     `<p>זו מהירות האוטובוסים, כולל העצירות בתחנות ובאורות אדומים — לא מהירות הרכבים הפרטיים. ככל שהמספר נמוך יותר, האוטובוס נתקע שם יותר.</p>` +
     `<p>התקופה: ${n} ימי חול${f ? ` ו-${f} ימי שישי` : ''} מ-28 הימים האחרונים. חגים וימים חריגים לא נספרים. מתעדכן כל לילה.</p>` +
-    `<p>שעה עם פחות מ-5 דגימות במקום מסוים לא מוצגת.</p></div>`;
+    `<p>שעה עם פחות מ-5 דגימות במקום מסוים לא מוצגת.</p>` +
+    `<p>מספר התושבים בכל יישוב (להשוואת היישובים): רשות האוכלוסין וההגירה, דרך <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a>.</p></div>`;
 }
 function excelPane() {
   $('#excel').innerHTML = `<div class="blk"><h3>הורדת סיכום לאקסל</h3><div class="mut">קובץ עם שלושה גיליונות: היישובים לפי שעה, כל הקטעים שבתחום המפה כרגע, והמקום שנבחר.</div>` +
