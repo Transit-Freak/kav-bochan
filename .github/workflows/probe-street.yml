@@ -1,0 +1,17 @@
+name: probe-street
+on:
+  push:
+    branches: [probe-street]
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd probe && python3 -u street_speed.py 2>&1 | tee out.txt; exit ${PIPESTATUS[0]}
+      - if: always()
+        run: |
+          git config user.name probe; git config user.email noreply@github.com
+          cd probe && rm -f points.json && cd .. && git add probe && git commit -m "probe: תוצאות" && git push || true
