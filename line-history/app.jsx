@@ -3437,7 +3437,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
                 // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
                 // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
                 const rn = splitRenumbers(pm.add, pm.rem, i);
-                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
+                // אירוע שכל השינוי בו הוא החלפת מק"ט (אותו שם ומיקום) — אומרים את זה, אחרת הכרטיס
+                // "שינוי מסלול / שינוי תחנות" נשאר בלי שום פירוט (שלמה 29.10, קו 55 פרדס חנה)
+                if (!pm.moves.length && !rn.add.length && !rn.rem.length)
+                  return rn.moves.length ? <div className="sub">
+                    {rn.moves.map((m, k) => <div key={k}>🔁 התחנה {m.name} קיבלה מספר חדש ({m.from} ← {m.to}), באותו שם ובאותו מקום</div>)}
+                    <div className="mut">{x.k === "route" || x.k === "redraw" ? "התחנות לא השתנו לנוסע; שרטוט המסלול עודכן." : "אין שינוי לנוסע."}</div>
+                  </div> : null;
                 return (
                   <div className="sub">
                     {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
@@ -3799,7 +3805,13 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
                 // החלפת מק"ט (אותו שם, אותו מיקום) היא אירוע של רישום
                 // התחנות, לא של הקו — לא מוצגת כאן בכלל (בקשת שלמה)
                 const rn = splitRenumbers(pm.add, pm.rem, i);
-                if (!pm.moves.length && !rn.add.length && !rn.rem.length) return null;
+                // אירוע שכל השינוי בו הוא החלפת מק"ט (אותו שם ומיקום) — אומרים את זה, אחרת הכרטיס
+                // "שינוי מסלול / שינוי תחנות" נשאר בלי שום פירוט (שלמה 29.10, קו 55 פרדס חנה)
+                if (!pm.moves.length && !rn.add.length && !rn.rem.length)
+                  return rn.moves.length ? <div className="sub">
+                    {rn.moves.map((m, k) => <div key={k}>🔁 התחנה {m.name} קיבלה מספר חדש ({m.from} ← {m.to}), באותו שם ובאותו מקום</div>)}
+                    <div className="mut">{x.k === "route" || x.k === "redraw" ? "התחנות לא השתנו לנוסע; שרטוט המסלול עודכן." : "אין שינוי לנוסע."}</div>
+                  </div> : null;
                 return (
                   <div className="sub">
                     {pm.moves.map((m, k) => <div key={k}>🔀 מעבר רציף: {m.base} — מרציף {m.from} לרציף {m.to}</div>)}
