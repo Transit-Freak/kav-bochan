@@ -482,3 +482,12 @@ class PipelineTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_route_without_line_number():
+    """28.10: קו בלי מספר (line_number = None) הפיל את כל הריצה ב-re.sub"""
+    import alerts_fetch as F
+    a = {'description': {'he': 'קו 5 יסיים את מסלולו בתחנה הרצל.'}, 'header': {'he': ''}}
+    rs = [{'num': None, 'rd': '12345-1-#', 'shape': [], 'seq': [], 'del': [], 'cut': None}]
+    F.estimate_routes(a, rs, {})
+    assert rs[0]['num'] == ''

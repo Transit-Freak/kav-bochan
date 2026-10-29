@@ -218,6 +218,9 @@ def estimate_routes(alert, rc_routes, stops):
     """לכל קו בהתראה: ניסיון למצוא את המסלול החלופי לפי הנוסח. לא מתעקשים: אם אין הוראה
     מפורשת, או שהרחובות לא נמצאו במפה, נשארים עם סדר התחנות החדש — ואומרים את זה."""
     desc = alert['description'].get('he', '')
+    # קו בלי מספר (רכבת, מונית, או מטמון ישן) — מחרוזת ריקה ולא None: 28.10 הריצה נפלה על re.sub(None)
+    for r in rc_routes:
+        r['num'] = str(r.get('num') or '')
     paras = AR.parse(desc)
     # סוג ההודעה קובע את הדרך: בלי הוראות נסיעה — אין מה לנתב, ואומרים למה (רק תחנות / דילוג)
     alert['_tpl'] = AR.template(desc, paras)
@@ -834,7 +837,7 @@ def main():
                                 cut = AR.cut_range(shape, on or pts)
                             used.update(s for s, _ in seq)
                             used.update(dele)
-                            routes.append({'num': c.get('line_number'), 'rd': c.get('route_desc'), 'rid': c.get('route_id'), 'to': c.get('to_text'),
+                            routes.append({'num': str(c.get('line_number') or ''), 'rd': c.get('route_desc'), 'rid': c.get('route_id'), 'to': c.get('to_text'),
                                            'ag': c.get('agency_name'), 'dir': c.get('dir_name'), 'alt': c.get('alt_name'),
                                            'shape': shape, 'seq': seq, 'del': dele, 'cut': cut})
                 status = estimate_routes(a, routes, stops) if left() > 120 else 'time'
