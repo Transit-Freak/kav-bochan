@@ -1,12 +1,12 @@
 {
   "counts": {},
   "audit": {
-    "linesScanned": 35238,
-    "scheduleEventsScanned": 337598,
-    "verifiedArchiveScheduleEvents": 217508,
+    "linesScanned": 35241,
+    "scheduleEventsScanned": 338054,
+    "verifiedArchiveScheduleEvents": 217964,
     "ordinaryEventsWithoutStoredTimes": 13040,
     "ordinaryDifferentTables": 107050,
-    "archiveFeedRowsCorrected": 209
+    "archiveFeedRowsCorrected": 4088
   },
   "examples": []
 }
