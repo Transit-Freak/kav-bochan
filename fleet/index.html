@@ -222,6 +222,7 @@
   .mgrid .v2{font-weight:600}
   .lnrow{display:flex;align-items:center;gap:10px;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:9px 0;font:inherit;color:var(--ink);cursor:pointer;text-align:inherit}
   .lnrow:first-of-type{border-top:0}
+  .lnh th,.lnh td{padding:4px 6px;border-bottom:1px solid var(--line)}.lnh th{background:var(--chipbg);font-weight:800}
   .lnno{color:#fff;font-weight:800;border-radius:8px;min-width:44px;text-align:center;padding:3px 8px;font-size:14px}
   .lnt{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lnc{font-size:12px;color:var(--mut);white-space:nowrap}
@@ -324,7 +325,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null, LINES=null, LNSEL=null, LNBY='t', LNDEP={}, LNDIR=0, LNT=null;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null, LINES=null, LNSEL=null, LNBY='t', LNDEP={}, LNDIR=0, LNT=null, LNFN=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -1703,13 +1704,15 @@ async function loadDep(fn){
   render();
 }
 function lineDep(l,c){
-  const fn=l[0]+'-'+hex(l[1])+'.json', D=LNDEP[fn];
+  const fn=l[0]+'-'+hex(l[1])+'.json', D=LNDEP[fn];LNFN=fn;
   if(D===undefined){loadDep(fn);return '';}
   if(!D) return '';
   const dirs=(D.g||{})[lnId(l)]; if(!dirs||!dirs.length) return '';
   const di=Math.min(LNDIR,dirs.length-1), dir=dirs[di], times=dir[4]||{}, tk=Object.keys(times).sort();
   const dl=x=>`${esc(x[0]||x[1])} ← ${esc(x[2]||x[3])}${x[2]&&x[3]?` <span style="color:var(--dim);font-weight:500">(${esc(x[3])})</span>`:''}`;
   const chip=(on,t,fn)=>`<button class="fchip ${on?'on':''}" onclick="${fn}">${t}</button>`;
+  const dchips=dirs.length>1?`<div class="filters" style="margin-bottom:8px">${dirs.map((x,i)=>chip(i===di,dl(x),`LNDIR=${i};LNT=null;render()`)).join('')}</div>`:`<p class="note" style="margin:0 0 8px">${dl(dir)}</p>`;
+  const MT=D.mt||null, mt=i=>(MT&&MT[i])||['',''];
   let res='';
   const a=LNT&&times[LNT];
   if(a){
@@ -1721,13 +1724,48 @@ function lineDep(l,c){
       <p class="ptitle">הנסיעה של ${esc(LNT)} · נצפתה ${fmt(n)} פעמים</p>
       ${brs.map(([b,k])=>`<div class="yrow lbl2"><span style="font-weight:700">${esc(b)}</span><div class="ybar"><i style="width:${Math.max(3,k/mx*100)}%;background:${c}"></i></div><span class="c">${pc(k)}</span></div>`).join('')}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><div style="flex:1;min-width:110px;background:var(--chipbg);border-radius:12px;padding:10px 12px"><b style="font-size:22px;color:var(--ok)">${pc(a[1])}</b><div style="font-size:12.5px;font-weight:700">באוטובוס חשמלי</div></div></div>
+      ${MT?`<p class="note" style="margin-bottom:0">סוג הרכב: ${lnSplit(a,0).map(([k,x])=>`<b style="color:${lnTcol(k,dir[5])}">${esc(k)}</b> ${pc(x)}`).join(' · ')}<br>דלק: ${lnSplit(a,1).map(([k,x])=>esc(k)+' '+pc(x)).join(' · ')}</p>`:''}
       <p class="note">הדגמים: ${ms.map(([m,k])=>esc(lnModel(m)||'לא ידוע')+' '+pc(k)).join(' · ')}</p></div>`;
   }
-  return `<div class="panel"><p class="ptitle">נסיעה מסוימת — באיזה אוטובוס היא יוצאת?</p>
-    ${dirs.length>1?`<div class="filters" style="margin-bottom:8px">${dirs.map((x,i)=>chip(i===di,dl(x),`LNDIR=${i};LNT=null;render()`)).join('')}</div>`:`<p class="note" style="margin:0 0 8px">${dl(dir)}</p>`}
+  return `${MT?lineTypes(dir,times,dchips,mt,c):''}<div class="panel"><p class="ptitle">נסיעה מסוימת — באיזה אוטובוס היא יוצאת?</p>
+    ${MT?'':dchips}
     <select onchange="LNT=this.value||null;render()" aria-label="שעת יציאה" style="font:inherit;font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);min-width:170px">
       <option value="">בחרו שעת יציאה (${tk.length})</option>${tk.map(t=>`<option value="${t}"${t===LNT?' selected':''}>${t} · ${fmt(times[t][0])} פעמים</option>`).join('')}</select>
     ${res||'<p class="note">בחרו שעת יציאה כדי לראות באילו אוטובוסים הנסיעה נעשתה.</p>'}</div>`;
+}
+// סוג הרכב בקו (שלמה 29.10: "לבדוק גם את סוג הרכב שהיה רשום, כמה נסיעות בממוצע בסוג הרכב לפי שעה"):
+// הסוג שנקבע ברישוי לכיוון (dir[5]) מול הסוג שנסע בפועל — לפי הדגם (D.mt: [סוג, דלק] לכל דגם).
+const LN_VR=['מיניבוס','מידיבוס','אוטובוס','מפרקי'];
+// רכב קטן ממה שנקבע — אדום; גדול יותר — אפור; אותו סוג — ירוק
+function lnTcol(t,reg){const a=LN_VR.indexOf(t),b=LN_VR.indexOf(reg);return a<0||b<0?'var(--mut)':a<b?'var(--bad,#dc2626)':a>b?'var(--mut)':'var(--ok)';}
+// [נסיעות, חשמליות, דגם, נסיעות…] → [[סוג או דלק, נסיעות]…] לפי D.mt (k=0 סוג, k=1 דלק)
+function lnSplit(a,k){const D=LNDEP[LNFN]||{},o={};for(let i=2;i<a.length;i+=2){const t=((D.mt||{})[a[i]]||[])[k]||'לא ידוע';o[t]=(o[t]||0)+a[i+1];}
+  const vr=t=>{const i=LN_VR.indexOf(t);return i<0?9:i;};
+  return Object.entries(o).sort((x,y)=>k?y[1]-x[1]:vr(x[0])-vr(y[0]));}
+function lineTypes(dir,times,dchips,mt,c){
+  const reg=dir[5]||'', nd=LINES.ndays||1, H={}, tot={}, fu={};let all=0;
+  for(const [t,a] of Object.entries(times)){const h=t.slice(0,2);const r=H[h]||(H[h]={});
+    for(let i=2;i<a.length;i+=2){const [ty,f]=mt(a[i]),k=ty||'לא ידוע',n=a[i+1];r[k]=(r[k]||0)+n;tot[k]=(tot[k]||0)+n;fu[f||'לא ידוע']=(fu[f||'לא ידוע']||0)+n;all+=n;}}
+  if(!all) return '';
+  const vr=t=>{const i=LN_VR.indexOf(t);return i<0?9:i;};
+  // סוג שלא ידוע ופחות מאחוז מהנסיעות — בלי עמודה (נספר בסה"כ)
+  const ty=Object.keys(tot).filter(t=>vr(t)<9||tot[t]>=all/100).sort((x,y)=>vr(x)-vr(y));
+  const pc=x=>{const p=100*x/all;return p>0&&p<1?'<bdi>&lt;1%</bdi>':Math.round(p)+'%';};
+  const small=ty.filter(t=>reg&&LN_VR.indexOf(t)>=0&&LN_VR.indexOf(t)<LN_VR.indexOf(reg)).reduce((s,t)=>s+tot[t],0);
+  const fcol={'חשמל':'var(--ok)','דיזל':'#64748b','גז':'#0ea5e9'};
+  const pill=(t,n)=>`<span style="display:inline-block;padding:3px 10px;border-radius:99px;font-weight:800;font-size:13px;background:var(--chipbg);color:${lnTcol(t,reg)}">${esc(t)} ${pc(n)}</span>`;
+  const hs=Object.keys(H).sort(), v=x=>x?(x/nd<0.05?'<bdi>&lt;0.1</bdi>':(x/nd).toFixed(1)):'—';
+  return `<div class="panel"><p class="ptitle">סוג הרכב — מה נקבע ומה נוסע בפועל</p>${dchips}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:14px;margin-bottom:6px">
+      <span>נקבע ברישוי: <b>${reg?esc(reg):'לא ידוע'}</b></span><span style="color:var(--dim)">·</span><span>נסע בפועל:</span>${ty.map(t=>pill(t,tot[t])).join(' ')}</div>
+    ${reg&&small?`<p class="note" style="margin:4px 0;color:var(--bad,#dc2626);font-weight:700">${pc(small)} מהנסיעות ברכב קטן ממה שנקבע לקו</p>`:''}
+    <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:8px 0 4px">${Object.entries(fu).sort((a,b)=>b[1]-a[1]).map(([f,n])=>`<i style="width:${100*n/all}%;background:${fcol[f]||'#cbd5e1'}"></i>`).join('')}</div>
+    <p class="note" style="margin:0 0 10px">דלק: ${Object.entries(fu).sort((a,b)=>b[1]-a[1]).map(([f,n])=>esc(f)+' '+pc(n)).join(' · ')}</p>
+    <div style="overflow-x:auto"><table class="lnh" style="width:100%;border-collapse:collapse;font-size:13px;text-align:center">
+      <tr><th>שעה</th>${ty.map(t=>`<th style="color:${lnTcol(t,reg)}">${esc(t)}</th>`).join('')}<th>סה"כ</th></tr>
+      ${hs.map(h=>{const r=H[h],s=Object.values(r).reduce((x,y)=>x+y,0);return `<tr><td style="font-weight:700">${h}:00</td>${ty.map(t=>{const bad=reg&&r[t]&&lnTcol(t,reg).includes('bad')&&r[t]/nd>=0.5;return `<td${bad?' style="background:color-mix(in srgb,var(--bad,#dc2626) 14%,transparent);font-weight:700"':''}>${v(r[t])}</td>`;}).join('')}<td><b>${v(s)}</b></td></tr>`;}).join('')}
+    </table></div>
+    <p class="note">נסיעות ביום בממוצע, בכל שעה, לפי סוג הרכב שנסע (${fmt(nd)} ימים). ${reg?'באדום: רכב קטן ממה שנקבע לקו ברישוי.':''}</p></div>`;
 }
 function lineView(l){
   const [ref,no,lab,tv,tt,ms,el,nw]=l, T=LNBY==='t', tot=T?tt:tv, ix=T?2:1, c=opColor(ref,0);
