@@ -19,8 +19,8 @@ const colSp = v => v == null ? null : SP.find(x => v <= x[0])[1];
 const colSl = p => p == null ? null : SL.find(x => p < x[0])[1];
 
 // ---------- רשומה ----------
-function hours(r, d) {                 // מחרוזת "35,71,,…" → מערך 24 (null = מעט מדי)
-  const k = d === 'fr' ? 5 : 4;
+function hours(r, d) {                 // מחרוזת "35,71,,…" → מערך 24 (null = מעט מדי); d: wd / fr / y (אתמול)
+  const k = d === 'fr' ? 5 : d === 'y' ? 8 : 4;
   if (!r['_' + k]) { const a = (r[k] || '').split(','); r['_' + k] = Array.from({ length: 24 }, (_, i) => a[i] ? +a[i] : null); }
   return r['_' + k];
 }
@@ -31,9 +31,18 @@ const best = a => {
   return v.length ? Math.round(v.reduce((x, y) => x + y, 0) / v.length * 10) / 10 : null;
 };
 function slowPct(a, h) { const b = best(a); return a[h] == null || !b ? null : Math.max(0, Math.round(100 * (1 - a[h] / b))); }
+// "אתמול" מושווה לממוצע החודשי של אותו סוג יום (א'–ה' או שישי)
+const ytype = () => (META && META.ytype) || 'wd';
+const baseD = () => S.d === 'y' ? ytype() : S.d;
+// האטה של אתמול: לעומת הממוצע החודשי באותה שעה — כך רואים מה היה חריג באותו יום
+function yPct(r, h) {
+  const y = hours(r, 'y')[h], m = hours(r, ytype())[h];
+  return y == null || !m ? null : Math.max(0, Math.round(100 * (1 - y / m)));
+}
 function color(r) {
   const a = hours(r, S.d);
-  return S.m === 'sp' ? colSp(a[S.h]) : colSl(slowPct(a, S.h));
+  if (S.m === 'sp') return colSp(a[S.h]);
+  return colSl(S.d === 'y' ? yPct(r, S.h) : slowPct(a, S.h));
 }
 const DIRS = ['צפון', 'צפון-מזרח', 'מזרח', 'דרום-מזרח', 'דרום', 'דרום-מערב', 'מערב', 'צפון-מערב'];
 const dirName = b => DIRS[Math.round(b / 45) % 8];
@@ -133,8 +142,10 @@ async function draw() {
 }
 function tip(r) {
   const a = hours(r, S.d), v = a[S.h];
-  return `<b>לכיוון ${dirName(r[2])}</b><br>${fmt(S.h)}: ${v == null ? 'מעט נסיעות' : v + ' קמ"ש'}` +
-    (v != null && S.m === 'sl' ? ` · ${slowPct(a, S.h)}% לאט יותר מבלי עומס` : '') + '<br><small>לחיצה — השעות העמוסות</small>';
+  let t = `<b>לכיוון ${dirName(r[2])}</b><br>${S.d === 'y' ? ylabel() + ', ' : ''}${fmt(S.h)}: ${v == null ? 'מעט נסיעות' : v + ' קמ"ש'}`;
+  if (S.d === 'y') { const m = hours(r, ytype())[S.h]; if (m != null) t += ` · בממוצע ${m}`; }
+  else if (v != null && S.m === 'sl') t += ` · ${slowPct(a, S.h)}% לאט יותר מבלי עומס`;
+  return t + '<br><small>לחיצה — השעות העמוסות והמעבר כולו</small>';
 }
 function recolor() {
   if (map.getZoom() < MINZ) return drawCities();
@@ -175,10 +186,57 @@ function pick(r) {
     const d = map.distance([r[0], r[1]], [q[0], q[1]]);
     if (d < bd) { bd = d; opp = q; }
   }
-  S.spot = { r, opp };
+  const cor = corridor(r);
+  S.spot = { r, opp, cor };
   hiG.clearLayers();
+  for (const q of cor.segs) if (q !== r) L.polyline(geom(q), { weight: 9, color: '#0ea5e9', opacity: .18, interactive: false }).addTo(hiG);
   for (const q of [r, opp].filter(Boolean)) L.polyline(geom(q), { weight: 11, color: '#0ea5e9', opacity: .35, interactive: false }).addTo(hiG);
   tool('spot');
+}
+
+// ---------- המעבר כולו ----------
+// קטע אחד הוא 100 מ'. כדי לראות את התמונה המלאה (למשל: מהר על הגשר, ותקוע ברמזור מיד אחריו) — ממשיכים
+// לאורך הרחוב באותו כיוון: הקטע הבא מתחיל איפה שהקודם נגמר (עד 30 מ') וכיוונו דומה. עד ~1 ק"מ לכל צד.
+const segLen = q => { const g = geom(q); let d = 0; for (let i = 1; i < g.length; i++) d += map.distance(g[i - 1], g[i]); return d; };
+const brg = (a, b) => (Math.atan2((b[1] - a[1]) * Math.cos(a[0] * Math.PI / 180), b[0] - a[0]) * 180 / Math.PI + 360) % 360;
+const adiff = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+function loaded() { const out = []; for (const v of tiles.values()) if (Array.isArray(v)) for (const r of v) out.push(r); return out; }
+function corridor(r) {
+  const all = loaded().filter(q => q[7] && map.distance([r[0], r[1]], [q[0], q[1]]) < 1500);
+  if (!r[7]) return { segs: [r] };
+  const endB = q => { const g = geom(q); return brg(g[g.length - 2], g[g.length - 1]); };
+  const startB = q => { const g = geom(q); return brg(g[0], g[1]); };
+  const step = (cur, fwd) => {
+    const g = geom(cur), p = fwd ? g[g.length - 1] : g[0], b = fwd ? endB(cur) : startB(cur);
+    let best = null, bd = 30;
+    for (const q of all) {
+      if (q === cur) continue;
+      const h = geom(q), e = fwd ? h[0] : h[h.length - 1];
+      if (adiff(fwd ? startB(q) : endB(q), b) > 50) continue;
+      const d = map.distance(p, e);
+      if (d < bd) { bd = d; best = q; }
+    }
+    return best;
+  };
+  const segs = [r], seen = new Set([r]);
+  for (const fwd of [true, false]) {
+    let cur = r, len = 0;
+    while (len < 1000) {
+      const q = step(cur, fwd);
+      if (!q || seen.has(q)) break;
+      seen.add(q); fwd ? segs.push(q) : segs.unshift(q); len += segLen(q); cur = q;
+    }
+  }
+  return { segs };
+}
+// מהירות המעבר כולו בכל שעה: האורך הכולל חלקי סכום הזמנים בכל קטע. רק כשיש נתונים ל-80% מהאורך לפחות
+function corSpeeds(segs, d) {
+  const L = segs.map(segLen), tot = L.reduce((a, b) => a + b, 0);
+  return Array.from({ length: 24 }, (_, h) => {
+    let len = 0, t = 0;
+    segs.forEach((q, i) => { const v = hours(q, d)[h]; if (v) { len += L[i]; t += L[i] / (v / 3.6); } });
+    return len >= 0.8 * tot && t ? Math.round(len / t * 3.6 * 10) / 10 : null;
+  });
 }
 function chart(a, b) {      // עמודות לכל שעה; b — הכיוון ההפוך (קו)
   const W = 300, H = 120, P = 18, mx = Math.max(30, ...a.filter(x => x != null), ...(b || []).filter(x => x != null));
@@ -203,23 +261,43 @@ function busyHours(a) {
   for (const h of hs) { const l = rg[rg.length - 1]; if (l && h === l[1] + 1) l[1] = h; else rg.push([h, h]); }
   return '<b>השעות העמוסות:</b> ' + rg.map(([x, y]) => `<bdi>${fmt(x)}–${fmt(y + 1)}</bdi>`).join(' · ');
 }
+// אתמול מול הממוצע החודשי: שעות שבהן נסעו לפחות 40% לאט יותר (ו-5 קמ"ש לפחות) — יום חריג
+function odd(y, m) {
+  const hs = [];
+  for (let h = 5; h <= 23; h++) if (y[h] != null && m[h] && y[h] <= m[h] * 0.6 && m[h] - y[h] >= 5) hs.push(h);
+  if (y.filter(v => v != null).length < 4) return `<span class="mut">${ylabel()}: מעט נסיעות כאן — אי אפשר לדעת</span>`;
+  if (!hs.length) return `<b>${ylabel()}: יום רגיל</b> — בלי איטיות חריגה לעומת הממוצע`;
+  return `<b>${ylabel()}: איטי מהרגיל</b> ` + hs.map(h => `<bdi>${fmt(h)} — ${y[h]} במקום ${m[h]}</bdi>`).join(' · ');
+}
+// המעבר כולו: מהירות וזמן לכל הקטעים הרצופים ברחוב, ופס צבעוני של הקטעים — מהקטע הראשון לאחרון
+function corBlock(cor, r) {
+  if (!cor || cor.segs.length < 3) return '';
+  const segs = cor.segs, L = segs.map(segLen), tot = L.reduce((a, b) => a + b, 0), sp = corSpeeds(segs, S.d), v = sp[S.h];
+  const strip = segs.map((q, i) => { const x = hours(q, S.d)[S.h]; return `<i style="flex:${L[i].toFixed(0)};background:${colSp(x) || '#cbd5e1'}"${q === r ? ' class="me"' : ''} title="${x == null ? 'מעט נסיעות' : x + ' קמ"ש'}"></i>`; }).join('');
+  const day = sp.map((x, h) => [x, h]).filter(x => x[0] != null && x[1] >= 6 && x[1] <= 21).sort((a, b) => a[0] - b[0]);
+  return `<div class="blk cor"><h3>המעבר כולו ברחוב לכיוון ${dirName(r[2])} — ${(tot / 1000).toFixed(1)} ק"מ</h3>` +
+    `<div class="strip" dir="ltr">${strip}</div><div class="mut sm">כל פס הוא קטע; המסומן — הקטע שנבחר. משמאל לימין בכיוון הנסיעה.</div>` +
+    `<div class="kv"><span>${fmt(S.h)}</span><b>${v == null ? 'מעט נתונים' : `${v} קמ"ש · ${Math.max(1, Math.round(tot / (v / 3.6) / 60))} דק'`}</b>` +
+    (day.length ? `<span>הכי איטי ביום</span><b>${fmt(day[0][1])} · ${day[0][0]} קמ"ש · ${Math.round(tot / (day[0][0] / 3.6) / 60)} דק'</b>` : '') + `</div></div>`;
+}
+const ylabel = () => { if (!META || !META.yday) return 'אתמול'; const [y, m, d] = META.yday.split('-'); return `${'ראשון שני שלישי רביעי חמישי שישי שבת'.split(' ')[new Date(META.yday + 'T12:00').getDay()]} ${+d}.${+m}`; };
 function spotPane() {
   const el = $('#spot');
   if (!S.spot) { el.innerHTML = '<div class="note">לחצו על קו במפה (בזום קרוב) כדי לראות את המהירות שם בכל שעות היום.</div>'; return; }
-  const { r, opp } = S.spot;
+  const { r, opp, cor } = S.spot, yd = S.d === 'y';
   const one = (q, other) => {
     const a = hours(q, S.d), sl = a.map((v, h) => [v, h]).filter(x => x[0] != null).sort((p, q2) => p[0] - q2[0]);
-    const worst = sl[0], top = best(a), busy = busyHours(a);
+    const worst = sl[0], top = best(hours(q, baseD())), busy = yd ? odd(a, hours(q, ytype())) : busyHours(a);
     return `<div class="blk"><div class="dirh"><span class="arr" style="transform:rotate(${q[2]}deg)">↑</span><h3>לכיוון ${dirName(q[2])}</h3></div>` +
-      chart(a, other ? hours(other, S.d) : null) +
+      chart(a, yd ? hours(q, ytype()) : other ? hours(other, S.d) : null) +
       `<div class="busy">${busy}</div>` +
       `<div class="kv"><span>${fmt(S.h)}</span><b>${a[S.h] == null ? '—' : a[S.h] + ' קמ"ש'}</b>` +
       (worst ? `<span>השעה האיטית ביותר</span><b>${fmt(worst[1])} · ${worst[0]} קמ"ש</b>` : '') +
       (top ? `<span>בלי עומס (בשעות היום)</span><b>${top} קמ"ש</b>` : '') +
       `<span>דגימות (28 יום)</span><b>${num(q[3])}</b></div></div>`;
   };
-  el.innerHTML = one(r, opp) + (opp ? one(opp, r) : '') +
-    `<div class="note">${opp ? 'הקו הדק בכל גרף הוא הכיוון השני.' : 'אין כאן מספיק נתונים לכיוון השני.'} המהירות כוללת עצירות בתחנות וברמזורים.` +
+  el.innerHTML = corBlock(cor, r) + one(r, opp) + (opp ? one(opp, r) : '') +
+    `<div class="note">${yd ? `העמודות — ${ylabel()}; הקו הדק — הממוצע החודשי.` : opp ? 'הקו הדק בכל גרף הוא הכיוון השני.' : 'אין כאן מספיק נתונים לכיוון השני.'} המהירות כוללת עצירות בתחנות וברמזורים.` +
     ` <a href="https://www.google.com/maps?q=${r[0]},${r[1]}" target="_blank" rel="noopener">במפות Google</a></div>`;
 }
 
@@ -261,7 +339,7 @@ function goCity(n) { const c = CITIES.find(x => x[0] === n); if (c) map.setView(
 function legendPane() {
   const it = S.m === 'sp' ? SP.map((x, i) => [x[1], i === 0 ? `עד ${x[0]} קמ"ש` : x[0] === 999 ? `מעל ${SP[i - 1][0]} קמ"ש` : `${SP[i - 1][0]}–${x[0]} קמ"ש`])
     : SL.map((x, i) => [x[1], i === 0 ? `עד ${x[0]}% לאט יותר` : x[0] === 999 ? `מעל ${SL[i - 1][0]}%` : `${SL[i - 1][0]}–${x[0]}%`]);
-  $('#legend').innerHTML = `<div class="blk"><h3>${S.m === 'sp' ? 'מהירות ממוצעת' : 'האטה לעומת השעות בלי עומס ביום (06:00–21:00) באותו מקום'}</h3><div class="lg">` +
+  $('#legend').innerHTML = `<div class="blk"><h3>${S.m === 'sp' ? 'מהירות ממוצעת' : S.d === 'y' ? `${ylabel()}: כמה לאט יותר מהממוצע החודשי באותה שעה` : 'האטה לעומת השעות בלי עומס ביום (06:00–21:00) באותו מקום'}</h3><div class="lg">` +
     it.map(([c, t]) => `<div><i style="background:${c}"></i>${t}</div>`).join('') + `<div><i style="background:#94a3b8;opacity:.4"></i>מעט נסיעות בשעה הזו</div></div></div>`;
 }
 function aboutPane() {
@@ -359,7 +437,7 @@ function readHash() {
     if (p[0] === '@') { const [la, lo, z] = p.slice(1).split(',').map(Number); if (la && lo) map.setView([la, lo], z || 14); continue; }
     const [k, v] = p.split('=');
     if (k === 'h' && v >= 0 && v < 24) S.h = +v;
-    if (k === 'd' && (v === 'wd' || v === 'fr')) S.d = v;
+    if (k === 'd' && (v === 'wd' || v === 'fr' || v === 'y')) S.d = v;
     if (k === 'm' && (v === 'sp' || v === 'sl')) S.m = v;
   }
 }
@@ -370,7 +448,10 @@ function readHash() {
     [META, CITIES] = await Promise.all([fetch(D + 'meta.json').then(r => r.json()), fetch(D + 'cities.json').then(r => r.json()).catch(() => [])]);
   } catch (e) { msg('הנתונים עוד לא מוכנים'); return; }
   TILE = META.tile; META.tilesSet = new Set(META.tiles);
+  if (META.yday) $('#dtype').insertAdjacentHTML('beforeend', `<button data-v="y" title="היום האחרון בנתונים — מול הממוצע החודשי">${ylabel()}</button>`);
+  else if (S.d === 'y') S.d = 'wd';
   const d = (META.days.wd || []).slice().sort();
+  $('#s-per').dir = 'ltr';
   if (d.length) $('#s-per').textContent = `${d[0].split('-').reverse().slice(0, 2).join('.')}–${d.at(-1).split('-').reverse().slice(0, 2).join('.')}`;
   tool('map'); refresh(); draw();
 })();
