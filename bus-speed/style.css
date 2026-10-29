@@ -1,0 +1,174 @@
+/* איפה האוטובוס נתקע — אותו מראה כמו ה-GIS (שלמה 29.10: "בסגנון GIS"): כותרת כהה, סרגל כלים, לוח צד, מפה ושורת מצב */
+:root {
+  --head: #0f172a; --tbar: #1e293b; --tbar-ink: #cbd5e1;
+  --bg: #f8fafc; --panel: #ffffff; --soft: #f1f5f9; --soft2: #e2e8f0; --line: #cbd5e1; --line2: #e8edf3;
+  --ink: #1e293b; --ink2: #334155; --mut: #64748b; --faint: #94a3b8;
+  --acc: #0ea5e9; --acc-ink: #0284c7; --acc-bg: #e0f2fe; --sel: #06b6d4; --sel-bg: #cffafe;
+  --warn-bg: #fffbeb; --warn-ink: #92400e; --mapbg: #eef1e8;
+  --pane-w: 300px; --tbl-h: 220px; --head-h: 40px; --status-h: 26px; --tb-w: 54px;
+}
+:root[data-theme=dark] {
+  --bg: #111827; --panel: #0f172a; --soft: #1e293b; --soft2: #273449; --line: #334155; --line2: #1f2a3b;
+  --ink: #e2e8f0; --ink2: #cbd5e1; --mut: #94a3b8; --faint: #64748b;
+  --acc-bg: #0c4a6e; --acc-ink: #7dd3fc; --sel-bg: #164e63; --warn-bg: #3a2a0c; --warn-ink: #fcd34d; --mapbg: #1b2230;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--head); font: 12.5px/1.35 'Heebo', system-ui, Arial, sans-serif; color: var(--ink); }
+body { overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+svg { flex: none; }
+[hidden] { display: none !important; }
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: var(--head-h) 1fr var(--status-h); }
+
+/* כותרת */
+#bar { background: var(--head); color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 10px; padding-left: 182px; min-width: 0; }
+/* כפתור "חזרה לקו הבוחן" (home-link.js, בכל כלי) — יושב בתוך הכותרת הכהה */
+.kb-home { top: 6px !important; left: 8px !important; padding: 6px 11px !important; font-size: 12px !important; background: #1e293b !important; }
+.brand { display: flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; white-space: nowrap; }
+.brand svg { width: 26px; height: 26px; }
+.brand h1 { font-size: 14px; font-weight: 800; margin: 0; }
+.search { position: relative; margin-inline-start: auto; width: 360px; max-width: 45vw; }
+.search input { width: 100%; height: 28px; border-radius: 4px; border: 1px solid #334155; background: #1e293b; color: #fff; padding: 0 28px 0 8px; font-size: 12.5px; }
+.search input:focus { outline: none; border-color: var(--acc); }
+.search input::placeholder { color: #94a3b8; }
+.search .si { position: absolute; right: 8px; top: 7px; width: 14px; height: 14px; stroke: #94a3b8; fill: none; stroke-width: 2; pointer-events: none; }
+.hbtn { width: 30px; height: 28px; border: 1px solid transparent; border-radius: 4px; background: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.hbtn:hover { background: #1e293b; }
+.hbtn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+#q-btn { display: none; }
+.qres { position: absolute; top: 32px; right: 0; left: 0; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-height: 60vh; overflow: auto; z-index: 3000; }
+.qres div { padding: 5px 10px; cursor: pointer; border-bottom: 1px solid var(--line2); }
+.qres div:hover, .qres div.sel { background: var(--acc-bg); }
+.qres small { color: var(--mut); margin-inline-start: 6px; }
+.qres .qh { background: var(--soft); font-size: 11px; font-weight: 700; color: var(--mut); cursor: default; padding: 3px 10px; }
+
+/* גוף: סרגל כלים | לוח | מפה */
+#main { display: grid; grid-template-columns: var(--tb-w) var(--pane-w) 1fr; min-height: 0; min-width: 0; }
+#main.nopane { grid-template-columns: var(--tb-w) 0 1fr; }
+#main.nopane #pane { display: none; }
+/* מיקום מפורש בעמודות — כשהלוח סגור (display:none) המפה לא תזוז לעמודה הצרה */
+@media (min-width: 761px) { #main > #toolbar { grid-column: 1; grid-row: 1; } #main > #pane { grid-column: 2; grid-row: 1; } #main > #mapwrap { grid-column: 3; grid-row: 1; } }
+#toolbar { background: var(--tbar); display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 6px; overflow: auto; z-index: 1000; }
+.tool { width: 46px; min-height: 46px; border: 0; border-radius: 4px; background: none; color: var(--tbar-ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10px; padding: 4px 0; }
+.tool svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.tool:hover { background: #334155; color: #fff; }
+.tool.on { background: var(--acc); color: #fff; }
+.tool.mode:not(.on) { box-shadow: inset -3px 0 0 var(--acc); }
+
+#pane { position: relative; background: var(--bg); border-inline-start: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; min-width: 0; z-index: 900; }
+.ph { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 4px; padding-inline-start: 10px; height: 34px; border-bottom: 1px solid var(--line); background: var(--panel); flex: none; }
+.ph h2 { font-size: 13px; font-weight: 800; margin: 0; flex: 1; }
+.x { width: 24px; height: 24px; border: 0; background: none; border-radius: 3px; cursor: pointer; color: var(--mut); display: flex; align-items: center; justify-content: center; padding: 0; }
+.x:hover { background: var(--soft2); color: var(--ink); }
+.x svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+.pbody { flex: 1; overflow: auto; min-height: 0; }
+.rz { position: absolute; top: 0; bottom: 0; left: -3px; width: 6px; cursor: col-resize; z-index: 5; }
+.rz:hover, .rz.drag { background: var(--acc); opacity: .5; }
+
+
+#mapwrap { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+#map { flex: 1; min-height: 0; background: var(--mapbg); }
+.leaflet-container { font-family: 'Heebo', system-ui, sans-serif; background: var(--mapbg); }
+.mapctl { position: absolute; top: 10px; left: 10px; z-index: 800; display: flex; flex-direction: column; gap: 4px; }
+.mapctl button, .north { width: 30px; height: 30px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.mapctl button:hover { background: var(--soft); }
+.mapctl svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mapctl svg .f { fill: currentColor; }
+.north { position: absolute; top: 10px; right: 10px; z-index: 800; flex-direction: column; height: 40px; cursor: default; gap: 0; }
+.north svg { width: 12px; height: 15px; fill: var(--ink); }
+.north b { font-size: 11px; line-height: 1; }
+#status { background: var(--soft); border-top: 1px solid var(--line); color: var(--mut); font-size: 11.5px; display: flex; gap: 16px; align-items: center; padding: 0 10px; white-space: nowrap; overflow: hidden; }
+#status b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+#status .src { margin-inline-start: auto; overflow: hidden; text-overflow: ellipsis; }
+#status a { color: var(--acc-ink); }
+#s-msg { color: #b45309; overflow: hidden; text-overflow: ellipsis; }
+:root[data-theme=dark] #s-msg { color: #fcd34d; }
+:root[data-theme=dark] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+:root[data-theme=dark] .north svg { fill: var(--ink); }
+.modebar { position: absolute; z-index: 850; top: 10px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 5px 10px; border-radius: 4px; display: flex; gap: 10px; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,.3); white-space: nowrap; }
+.modebar b { color: #fde68a; font-size: 14px; }
+.modebar button { background: #334155; color: #fff; border: 0; border-radius: 3px; padding: 2px 9px; cursor: pointer; font-size: 12px; }
+/* תוויות Leaflet בדף RTL — שכבת התוויות LTR כדי שהמיקום ליד הקו יחושב נכון, הטקסט עצמו RTL */
+.leaflet-tooltip-pane { direction: ltr; }
+.leaflet-tooltip { direction: rtl; font: 12px 'Heebo', system-ui, sans-serif; }
+
+/* הלוח */
+.blk { padding: 10px 12px; border-bottom: 1px solid var(--line2); display: flex; flex-direction: column; gap: 8px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { flex: 1; border: 0; background: var(--panel); padding: 5px 4px; cursor: pointer; font-weight: 600; color: var(--ink2); }
+.seg button + button { border-inline-start: 1px solid var(--line); }
+.seg button.on { background: var(--acc); color: #fff; }
+.hourhead { display: flex; align-items: center; gap: 8px; }
+.hourhead .big { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; margin-inline-start: auto; }
+.pbtn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 50%; background: var(--panel); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.pbtn svg { width: 14px; height: 14px; fill: var(--acc-ink); }
+.pbtn.on { background: var(--acc); } .pbtn.on svg { fill: #fff; }
+#hour { width: 100%; accent-color: var(--acc); direction: ltr; }
+.ticks { display: flex; justify-content: space-between; color: var(--faint); font-size: 10.5px; margin-top: -4px; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; }
+.kv b { font-variant-numeric: tabular-nums; }
+.mut { color: var(--mut); }
+h3 { font-size: 12.5px; margin: 0; font-weight: 800; }
+
+/* גרף 24 שעות */
+.chart { width: 100%; height: auto; display: block; direction: ltr; }
+.chart text { font: 10px 'Heebo', sans-serif; fill: var(--mut); }
+.chart .ax { stroke: var(--line); }
+.chart .cur { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.dirh { display: flex; align-items: center; gap: 6px; }
+.dirh .arr { width: 18px; height: 18px; border-radius: 50%; background: var(--soft2); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+
+/* טבלאות */
+.tw { overflow: auto; }
+table.t { border-collapse: collapse; width: 100%; font-size: 12px; }
+table.t th, table.t td { padding: 4px 6px; border-bottom: 1px solid var(--line2); text-align: right; white-space: nowrap; }
+table.t th { position: sticky; top: 0; background: var(--soft); font-weight: 700; color: var(--ink2); cursor: pointer; user-select: none; }
+table.t th.s::after { content: ' ▾'; color: var(--acc-ink); }
+table.t td.n { font-variant-numeric: tabular-nums; text-align: left; }
+table.t tbody tr { cursor: pointer; }
+table.t tbody tr:hover { background: var(--acc-bg); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-inline-end: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips button { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 2px 9px; cursor: pointer; font-size: 11.5px; }
+.chips button.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+
+/* מקרא */
+.lg { display: flex; flex-direction: column; gap: 4px; }
+.lg div { display: flex; align-items: center; gap: 8px; }
+.lg i { width: 26px; height: 5px; border-radius: 3px; }
+.btn { border: 1px solid var(--acc); background: var(--acc); color: #fff; border-radius: 4px; padding: 7px 12px; cursor: pointer; font-weight: 700; }
+.btn:disabled { opacity: .5; cursor: default; }
+.note { padding: 8px 12px; font-size: 12px; color: var(--mut); line-height: 1.5; }
+.note p { margin: 0 0 8px; }
+
+/* טלפון: סרגל כלים תחתון, הלוח כמגירה */
+@media (max-width: 760px) {
+  :root { --tb-h: 54px; }
+  #app { grid-template-rows: var(--head-h) 1fr var(--tb-h) 22px; }
+  #main, #main.nopane { display: contents; }
+  #mapwrap { grid-row: 2; }
+  #toolbar { grid-row: 3; flex-direction: row; padding: 3px 4px; gap: 0; overflow-x: auto; justify-content: space-between; }
+  .tool { width: auto; min-width: 42px; flex: 1 0 42px; min-height: 46px; font-size: 9.5px; }
+  #status { grid-row: 4; font-size: 10.5px; gap: 10px; }
+  #status .src, #status .sc:nth-child(1) { display: none; }
+  #pane { position: fixed; z-index: 1500; left: 0; right: 0; bottom: calc(var(--tb-h) + 22px); height: 50vh; border: 0; border-top: 1px solid var(--line); border-radius: 12px 12px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,.25); overflow: hidden; }
+  #main.nopane #pane { display: none; }
+  #bar { padding-left: 156px; }
+  .kb-home { font-size: 11px !important; padding: 5px 8px !important; }
+  .brand h1 { font-size: 13px; }
+  .search { display: none; position: absolute; right: 44px; left: 156px; top: 6px; width: auto; max-width: none; }
+  #bar.sopen .search { display: block; }
+  #bar.sopen .brand h1 { visibility: hidden; }
+  #q-btn { display: flex; margin-inline-start: auto; }
+}
+#main.wide { --pane-w: 430px; }
+#cities table.t th, #cities table.t td { padding: 4px 5px; }
+/* מפת הרקע דהויה מעט — שהקווים הצבעוניים יבלטו */
+:root:not([data-theme=dark]) .leaflet-tile-pane { filter: saturate(.35) brightness(1.04); }
+/* "מה חדש" (version.js) — בשורת המצב, כי הדף ממלא את כל המסך */
+#status #kb-ver { padding: 0; display: inline-flex; }
+#status #kb-ver button { padding: 1px 9px !important; font-size: 11px !important; }
+@media (max-width: 760px) { #status #kb-ver { margin-inline-start: auto; } }
+.busy { background: var(--warn-bg); color: var(--warn-ink); border-radius: 4px; padding: 6px 8px; font-size: 12.5px; }
+.busy b { color: inherit; }
+.busy bdi { white-space: nowrap; }

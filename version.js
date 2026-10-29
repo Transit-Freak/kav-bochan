@@ -11,7 +11,7 @@
     if (t) return t;
     var p = location.pathname;
     if (/\/rail\/reception\//.test(p)) return "reception";
-    var m = p.match(/\/(line-history|fleet|bus|rail|fares|ratzif|skip-stops|next-station|feeder|alerts)\//);
+    var m = p.match(/\/(line-history|fleet|bus-speed|bus|rail|fares|ratzif|skip-stops|next-station|feeder|alerts)\//);
     if (m) return m[1];
     // קו פח והקו המוזהב: מסך הבחירה כותב ‎#kavpach / #golden‎, וקישור לקו — ‎#פח/… / #מוזהב/…‎ (שלמה 29.10:
     // בכניסה מהמסך נפתח "מה חדש" של האתר כולו)
