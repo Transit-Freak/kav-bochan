@@ -162,22 +162,7 @@ def _len(pts):
     return sum(AR.meters(a, b) for a, b in zip(pts, pts[1:]))
 
 
-def _through_del(path, pos, edge=60.0, tol=15.0):
-    """האם המסלול עובר פחות מ-tol מ' מהתחנה, לא ב-edge המטרים הראשונים או האחרונים."""
-    total = _len(path)
-    cum = 0.0
-    for a, b in zip(path, path[1:]):
-        d = AR.meters(a, b)
-        if cum + d > edge and cum < total - edge and AR.seg_dist(pos, a, b) < tol:
-            # הקטע חוצה את גבול 60 המטרים — בודקים רק את החלק שבפנים
-            n = max(1, int(d / 3))
-            for i in range(n + 1):
-                c = cum + d * i / n
-                q = (a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n)
-                if edge < c < total - edge and AR.meters(pos, q) < tol:
-                    return True
-        cum += d
-    return False
+_through_del = AR.through_del   # אותה בדיקה שהניתוב עצמו משתמש בה
 
 
 VAV = re.compile(r'(?:^|\s)ו$')

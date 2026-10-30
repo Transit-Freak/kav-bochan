@@ -357,10 +357,16 @@ def estimate_routes(alert, rc_routes, stops):
                     if bad:
                         res['nocut'] = bad
                         why_d.append(f'{tag}p{paras.index(p)} {bad} (בלי קטע סגור)')
+                    # עקיפה שעוברת דרך תחנה שבוטלה (קו 10200 בהודעה 14575709262: 1,755 מ' במקום 637) — נשמרת רק
+                    # אם אין פסקה או מעבר אחרים בלי זה (שלמה 29.10)
+                    thru = [s for s in r['del'] if s in STOP_POS and AR.through_del(res['path'], tuple(STOP_POS[s][:2]))]
+                    if thru:
+                        res['thru'] = thru
+                        why_d.append(f'{tag}p{paras.index(p)} עוברת בתחנה שבוטלה {thru}')
                 if not res:
                     why_d.append(f'{tag}p{paras.index(p)} {dg.get("why")}')
                 if res:
-                    res['_k'] = (1 if res.get('nocut') else 0, -same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
+                    res['_k'] = (1 if res.get('thru') else 0, 1 if res.get('nocut') else 0, -same_stops(p), -(AR.dir_fits(p, r.get('to')) is True), -near_alts(res), res['len'])
                 if res and (best is None or res['_k'] < best['_k']):
                     best = res
                     xa = sorted(p['add']) if 'add' in p else None
@@ -368,12 +374,13 @@ def estimate_routes(alert, rc_routes, stops):
         best, xa = route_all(*r['cut'])
         # קו סיבובי שעובר ליד התחנה המבוטלת כמה פעמים — כשהמעבר שנבחר לא מצליח, המעברים האחרים
         # (העקיפה בכיוון ההפוך עדיין נפסלת ב-route_detour)
-        for k, c in enumerate([] if (best and not best.get('nocut')) or not cand else r.get('cuts') or []):
+        flaw = lambda b: (1 if b.get('thru') else 0, 1 if b.get('nocut') else 0)  # noqa: E731
+        for k, c in enumerate([] if (best and not any(flaw(best))) or not cand else r.get('cuts') or []):
             b2, xa2 = route_all(*c, tag=f'c{k + 1} ')
-            if b2 and (not best or (best.get('nocut') and not b2.get('nocut'))):
+            if b2 and (not best or flaw(b2) < flaw(best)):
                 best, xa = b2, xa2
                 r['cut'] = c
-                if not best.get('nocut'):
+                if not any(flaw(best)):
                     break
         if best:
             r['_xa'] = xa
@@ -390,7 +397,8 @@ def estimate_routes(alert, rc_routes, stops):
             if is_short(r) if not cand else (ns | {f'{n}-{d}' for n in ns for d in rdir}) & (short - {'*'}):
                 r['why'] = 'short'
             # "קו 43 ישנה את מסלולו… וידלג על תחנה" — כשלקו אחר בהודעה יש הוראה
-            elif re.search(rf'(?<!\d){re.escape(r["num"])}(?![\dא-ת])[^\n]*(?:ידלג|מדלג)', desc):
+            # רק דילוג על תחנה — "מדלג על שכונה 18" (רהט, 14601166882) הוא שינוי מסלול, לא עצירה שבוטלה
+            elif re.search(rf'(?<!\d){re.escape(r["num"])}(?![\dא-ת])[^\n]*(?:ידלג|מדלג)[^\n]{{0,25}}?תחנ', desc):
                 r['why'] = 'skip'
         why[r['num']] = r['why']
     return 'ok' if any(r['est'] for r in rc_routes) else 'no-match'

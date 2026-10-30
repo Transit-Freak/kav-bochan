@@ -667,6 +667,24 @@ def closed_range(shape, est, dels):
     return c0, max(c0, nearest_idx(shape, path[-1]))
 
 
+def through_del(path, pos, edge=60.0, tol=15.0):
+    """האם העקיפה עוברת פחות מ-tol מ' מתחנה שבוטלה, לא ב-edge המטרים הראשונים או האחרונים
+    (שם היא עוד על המסלול הרגיל). אותה בדיקה כמו הכלל est-through-del ב-test_alerts_regression."""
+    total = sum(meters(a, b) for a, b in zip(path, path[1:]))
+    cum = 0.0
+    for a, b in zip(path, path[1:]):
+        d = meters(a, b)
+        if cum + d > edge and cum < total - edge and seg_dist(pos, a, b) < tol:
+            n = max(1, int(d / 3))
+            for i in range(n + 1):
+                c = cum + d * i / n
+                q = (a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n)
+                if edge < c < total - edge and meters(pos, q) < tol:
+                    return True
+        cum += d
+    return False
+
+
 def closed_check(shape, path, dels, ln):
     """הקטע הסגור שהאתר יסמן לעקיפה הזו (על השרטוט המפושט שנשמר) — None, או מה לא בסדר בו:
     'closed-long' (ארוך מ-max(3 ק"מ, פי 4 מהעקיפה) — כמעט תמיד מעבר לא נכון בקו שעובר פעמיים),
