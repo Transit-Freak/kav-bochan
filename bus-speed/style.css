@@ -106,7 +106,7 @@ svg { flex: none; }
 #hour { width: 100%; accent-color: var(--acc); direction: ltr; }
 .ticks { display: flex; justify-content: space-between; color: var(--faint); font-size: 10.5px; margin-top: -4px; }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; }
-.kv b { font-variant-numeric: tabular-nums; }
+.kv b { font-variant-numeric: tabular-nums; text-align: left; }
 .mut { color: var(--mut); }
 h3 { font-size: 12.5px; margin: 0; font-weight: 800; }
 
@@ -193,3 +193,12 @@ button.cd { border: none; background: var(--soft); color: var(--ink); cursor: po
 button.cd:hover { background: var(--soft2); }
 button.cd.on { background: var(--acc); color: #fff; }
 table.bt td { white-space: normal; } table.bt td.n { white-space: nowrap; }
+
+/* עומס בתחנות — "כל הפרטים" מעל המפה */
+#qx { position: absolute; inset: 16px; z-index: 1000; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.25); display: flex; flex-direction: column; overflow: auto; }
+#qx .qx2 { display: grid; grid-template-columns: 1fr 1fr; }
+#qx table.t tbody tr { cursor: default; }
+#qx table.t th, #qx table.t td, #qx table.t td.n { text-align: center; }
+#qx table.t tr.on { background: var(--acc-bg); }
+#qx .neg { color: #b91c1c; } #qx .pos { color: #15803d; }
+@media (max-width: 760px) { #qx { position: fixed; inset: 6px; z-index: 3000; } #qx .qx2 { grid-template-columns: 1fr; } }

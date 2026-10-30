@@ -4,7 +4,7 @@
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const D = 'data/';
-const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all', lay: { sp: 1, bn: 0 } };
+const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all', lay: { sp: 1, bn: 0, ld: 0 } };
 const MINZ = 13;   // מתחת לזה — עיגול לכל יישוב
 let META = null, CITIES = [], TILE = 0.05;
 const tiles = new Map();          // מפתח אריח → רשומות (או Promise בזמן טעינה)
@@ -164,6 +164,7 @@ async function draw() {
   for (const [r, ln] of shown) if (!vis.has(r)) { segG.removeLayer(ln); shown.delete(r); }
   summary([...vis]);
   drawBunch(seq);
+  drawLoad(seq);
 }
 
 // ---------- שכבת ההתקבצות ----------
@@ -240,8 +241,115 @@ function stopPane(b) {
       (b[9] || []).filter(r => r[2] && r[3] > 0).sort((p, q) => q[3] / q[2] - p[3] / p[2]))) +
     `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. ${BMETA && BMETA.days ? BMETA.days.length + ' ימי חול אחרונים. ' : ''}<a href="../bus/#/bunch/stop=${b[2]}&tile=${tkey(b[0], b[1])}&h=${S.h}">כל הפירוט ורשימת כל הפעמים — במדד דיוק האוטובוסים ←</a></div>`;
 }
+// ---------- שכבת העומס בתחנות ----------
+// כמה אוטובוסים עומדים בתחנה באותה דקה (שלמה 30.10). נספרים רק קווים שעוצרים בתחנה ובכיוון שלה.
+// [רוחב, אורך, מק"ט, שם, עמודים, "% מהזמן עם 3+ לכל שעה", "אוטובוסים בממוצע ×10", "מהירות לפני התחנה עם תור",
+//  "כשפנויה", [[קו, יעד, דקות בתחנה, מהן בתור]…], [[קו, יעד, קו, יעד, פעמים ביום, שעת שיא]…]]
+let QMETA = null;
+const qtiles = new Map(), qshown = new Map();
+const ldG = L.layerGroup().addTo(map);
+const QL = [[5, '#15803d'], [15, '#84cc16'], [25, '#facc15'], [35, '#f97316'], [999, '#dc2626']];
+const colQ = p => p == null ? null : QL.find(x => p < x[0])[1];
+const qarr = (q, i) => { const k = '_' + i; if (!q[k]) { const a = (q[i] || '').split(','); q[k] = Array.from({ length: 24 }, (_, h) => a[h] ? +a[h] : null); } return q[k]; };
+const qpct = (q, h) => qarr(q, 5)[h], qavg = (q, h) => { const v = qarr(q, 6)[h]; return v == null ? null : v / 10; };
+async function drawLoad(seq) {
+  if (!S.lay.ld || map.getZoom() < MINZ) { ldG.clearLayers(); qshown.clear(); return; }
+  if (!QMETA) QMETA = await fetch(D + 'load.json').then(r => r.json()).catch(() => ({ tiles: [] }));
+  const set = new Set(QMETA.tiles), ks = needTiles(set);
+  const all = (await Promise.all(ks.map(k => {
+    if (!qtiles.has(k)) qtiles.set(k, fetch(D + 'q/' + k + '.json').then(r => r.json()).catch(() => []).then(a => { qtiles.set(k, a); return a; }));
+    return qtiles.get(k);
+  }))).flat();
+  if (seq !== drawSeq) return;
+  const bb = map.getBounds().pad(0.15), vis = new Set();
+  for (const q of all) {
+    if (!bb.contains([q[0], q[1]])) continue;
+    vis.add(q);
+    let m = qshown.get(q);
+    if (!m) {
+      m = L.circleMarker([q[0], q[1]], { renderer: rend, weight: 1.5, color: '#0f172a' });
+      m.on('click', () => pickLoad(q));
+      m.on('mouseover', () => m.bindTooltip(qtip(q), { sticky: true }).openTooltip());
+      qshown.set(q, m); ldG.addLayer(m);
+    }
+    styleQ(q, m);
+  }
+  for (const [q, m] of qshown) if (!vis.has(q)) { ldG.removeLayer(m); qshown.delete(q); }
+}
+function styleQ(q, m) {
+  const p = qpct(q, S.h), a = qavg(q, S.h), c = colQ(p);
+  m.setStyle({ fillColor: c || '#cbd5e1', fillOpacity: c ? .9 : .5, opacity: c ? 1 : .4, radius: c ? Math.min(14, 4 + 3 * (a || 0)) : 3 });
+}
+function qtip(q) {
+  const p = qpct(q, S.h);
+  return `<b>${esc(q[3] || 'תחנה')}</b> <small>(${q[2]})</small><br>${fmt(S.h)}: ${p == null ? 'כמעט בלי אוטובוסים' : `ב-${p}% מהזמן עמדו בתחנה 3 אוטובוסים או יותר`}<br><small>לחיצה — כל שעות היום</small>`;
+}
+function pickLoad(q) {
+  lastPick = Date.now();
+  S.spot = { load: q };
+  hiG.clearLayers();
+  L.circleMarker([q[0], q[1]], { renderer: rend, radius: 16, color: '#0ea5e9', weight: 3, fill: false, interactive: false }).addTo(hiG);
+  tool('spot');
+}
+// האם התחנה עצמה מעכבת: בכמה שעות ביום (07:00–19:00) האוטובוסים לפניה איטיים ב-7% ומעלה כשיש בה תור
+function qverdict(q) {
+  const a = qarr(q, 7), b = qarr(q, 8);
+  const hs = [...Array(13).keys()].map(i => i + 7).filter(h => a[h] != null && b[h] != null);
+  if (hs.length < 4) return '<span class="mut">אין כאן מספיק נתונים כדי לדעת אם התור מאט את התנועה</span>';
+  const n = hs.filter(h => a[h] < b[h] * .93).length;
+  return n >= hs.length / 2 ? '<b>התחנה עצמה מעכבת</b> — כשיש בה תור, האוטובוסים לפניה איטיים יותר'
+    : n >= 3 ? '<b>התחנה מעכבת מעט</b> — רק בחלק מהשעות' : '<b>העיכוב כאן מהכביש, לא מהתחנה</b> — המהירות כמעט זהה גם כשיש בה תור';
+}
+function loadPane(q) {
+  const p = qpct(q, S.h), a = qavg(q, S.h);
+  return `<div class="blk"><h3>${esc(q[3] || 'תחנה')} <span class="mut">· ${q[2]}</span></h3>` +
+    `<div class="mut sm">באיזה חלק מהזמן עמדו בתחנה 3 אוטובוסים או יותר</div>${qchart(qarr(q, 5))}` +
+    `<div class="kv"><span>תור בתחנה ב-${fmt(S.h)}</span><b>${p == null ? '—' : p + '% מהזמן'}</b><span>אוטובוסים בממוצע</span><b>${a == null ? '—' : a.toFixed(1)}</b><span>עמודים בתחנה</span><b>${q[4]}</b></div>` +
+    `<div class="busy" style="margin-top:8px">${qverdict(q)}</div>` +
+    `<button class="btn qmore" style="width:100%;margin-top:10px">כל הפרטים — לפי שעה ⤢</button></div>` +
+    `<div class="note">"תור" — 3 אוטובוסים או יותר בתחנה באותה דקה. נספרים רק קווים שעוצרים בתחנה, בכיוון שלה. ${QMETA && QMETA.days ? QMETA.days.length + ' ימי חול אחרונים.' : ''}</div>`;
+}
+function qchart(v) {
+  const W = 300, Ht = 110, P = 18, mx = Math.max(30, ...v.filter(x => x != null));
+  const x = h => P + h * (W - P - 4) / 24, y = t => Ht - 16 - t / mx * (Ht - 26);
+  let g = `<svg class="chart" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="תור בתחנה לפי שעה">`;
+  for (const t of [10, 20, 30, 40, 50, 60].filter(t => t < mx)) g += `<line class="ax" x1="${P}" x2="${W}" y1="${y(t)}" y2="${y(t)}"/><text x="0" y="${y(t) + 3}">${t}%</text>`;
+  g += `<rect x="${x(S.h)}" y="2" width="${(W - P) / 24}" height="${Ht - 18}" fill="#0ea5e9" fill-opacity=".12"/>`;
+  v.forEach((t, h) => { if (t) g += `<rect x="${x(h) + 1}" y="${y(t)}" width="${(W - P) / 24 - 2.5}" height="${Ht - 16 - y(t)}" fill="${colQ(t)}"><title>${fmt(h)} · ${t}%</title></rect>`; });
+  for (const h of [0, 6, 12, 18, 23]) g += `<text x="${x(h)}" y="${Ht - 3}">${String(h).padStart(2, '0')}</text>`;
+  return g + '</svg>';
+}
+function openLoad() {
+  const q = S.spot && S.spot.load; if (!q) return;
+  closeLoad();
+  const pq = qarr(q, 5), av = qarr(q, 6), sq = qarr(q, 7), sf = qarr(q, 8);
+  const hs = [...Array(24).keys()].filter(h => pq[h] != null && (h >= 5 || pq[h]));
+  const rows = hs.map(h => {
+    const d = sq[h] != null && sf[h] ? Math.round(100 * (sq[h] - sf[h]) / sf[h]) : null;
+    return `<tr${h === S.h ? ' class="on"' : ''}><td>${fmt(h)}</td><td class="n">${pq[h]}%</td><td class="n">${(av[h] / 10).toFixed(1)}</td><td class="n">${sf[h] ?? '—'}</td><td class="n">${sq[h] ?? '—'}</td>` +
+      `<td class="n">${d == null ? '—' : `<b dir="ltr" class="${d <= -5 ? 'neg' : d >= 5 ? 'pos' : ''}">${d > 0 ? '+' : ''}${d}%</b>`}</td></tr>`;
+  }).join('');
+  const pairs = (q[10] || []).length ? `<div class="blk"><h3>אילו קווים עומדים כאן יחד</h3><div class="mut sm">שני קווים שעמדו בתחנה באותה דקה — כמה פעמים ביום בממוצע</div>` +
+    `<table class="t"><thead><tr><th>קו</th><th>עם קו</th><th>פעמים ביום</th><th>בעיקר ב-</th></tr></thead><tbody>` +
+    q[10].map(([a, ta, b, tb, n, h]) => `<tr><td><b>${esc(a)}</b> <span class="mut">${ta ? 'ל' + esc(ta) : ''}</span></td><td><b>${esc(b)}</b> <span class="mut">${tb ? 'ל' + esc(tb) : ''}</span></td><td class="n">${n}</td><td class="n">${fmt(h)}</td></tr>`).join('') +
+    '</tbody></table></div>' : '';
+  const lines = (q[9] || []).length ? `<div class="blk"><h3>הקווים בתחנה</h3><div class="mut sm">מתוך הזמן שהקו עמד בתחנה — כמה היה בזמן תור</div>` +
+    `<table class="t"><thead><tr><th>קו</th><th>לכיוון</th><th>בתור</th></tr></thead><tbody>` +
+    q[9].slice().sort((x, y) => y[3] / y[2] - x[3] / x[2]).slice(0, 10).map(([l, t, n, iq]) => `<tr><td><b>${esc(l)}</b></td><td>${esc(t)}</td><td class="n">${Math.round(100 * iq / n)}%</td></tr>`).join('') +
+    '</tbody></table></div>' : '';
+  $('#mapwrap').insertAdjacentHTML('beforeend', `<div id="qx" role="dialog" aria-label="עומס בתחנה — כל הפרטים">
+  <div class="ph"><h2>${esc(q[3] || 'תחנה')} <span class="mut">· ${q[2]} · עומס בתחנה</span></h2><button class="x" id="qx-close" title="סגירה" aria-label="סגירה"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+  <div class="qx2"><div class="blk"><h3>באיזה חלק מהזמן עמדו בתחנה 3+ אוטובוסים</h3>${qchart(pq)}</div>
+   <div class="blk"><h3>מהירות ב-300 מ' לפני התחנה</h3><div class="mut sm">עמודות — כשיש תור · קו — כשהתחנה פנויה</div>${chart(sq, sf)}</div></div>
+  <div class="qx2">${pairs}${lines}</div>
+  <div class="blk"><table class="t qt"><thead><tr><th>שעה</th><th>זמן עם תור</th><th>אוטובוסים בממוצע</th><th>מהירות — פנויה</th><th>מהירות — יש תור</th><th>הפרש</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="note">${qverdict(q).replace(/<[^>]+>/g, '')}. עמודים בתחנה: ${q[4]}. ${QMETA && QMETA.days ? QMETA.days.length + ' ימי חול אחרונים' : ''} · מיקום כל אוטובוס בכל דקה (דאטאבוס).</div></div>`);
+  $('#qx-close').onclick = closeLoad;
+}
+function closeLoad() { const x = $('#qx'); if (x) x.remove(); }
+$('#spot').addEventListener('click', e => { if (e.target.closest('.qmore')) openLoad(); });
 function layersPane() {
-  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים']];
+  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים'], ['ld', 'עומס בתחנות', 'עיגול לכל תחנה — כמה מהזמן עמדו בה 3 אוטובוסים או יותר. גודל העיגול: כמה אוטובוסים בממוצע']];
   $('#layers').innerHTML = `<div class="blk">${it.map(([k, t, d]) => `<label class="lyr"><input type="checkbox" data-l="${k}"${S.lay[k] ? ' checked' : ''}><span><b>${t}</b><br><small class="mut">${d}</small></span></label>`).join('')}</div>` +
     `<div class="note">שתי השכבות יחד מראות איפה האוטובוס גם איטי וגם מתקבץ — שם בדרך כלל נת"צ או עדיפות ברמזור עוזרים הכי הרבה.</div>`;
 }
@@ -261,6 +369,7 @@ function tip(r) {
 function recolor() {
   if (map.getZoom() < MINZ) return drawCities();
   for (const [b, m] of bshown) styleB(b, m);
+  for (const [q, m] of qshown) styleQ(q, m);
   for (const [r, ln] of shown) { const c = color(r); ln.setStyle({ color: c || '#94a3b8', opacity: c ? .95 : .25 }); }
   summary([...shown.keys()]);
 }
@@ -420,6 +529,7 @@ function dayPicker() {
 function spotPane() {
   const el = $('#spot');
   if (S.spot && S.spot.stop) { el.innerHTML = stopPane(S.spot.stop); return; }
+  if (S.spot && S.spot.load) { el.innerHTML = loadPane(S.spot.load); return; }
   if (!S.spot) { el.innerHTML = '<div class="note">לחצו על קו במפה (בזום קרוב) כדי לראות את המהירות שם בכל שעות היום.</div>'; return; }
   const { r, opp, cor } = S.spot, yd = S.d === 'y';
   const one = (q, other) => {
@@ -480,7 +590,10 @@ function legendPane() {
     it.map(([c, t]) => `<div><i style="background:${c}"></i>${t}</div>`).join('') + `<div><i style="background:#94a3b8;opacity:.4"></i>מעט נסיעות בשעה הזו</div></div></div>` +
     (S.lay.bn ? `<div class="blk"><h3>התקבצות בתחנה — אוטובוסים שהגיעו צמודים</h3><div class="lg">` +
       BN.map((x, i) => `<div><b class="dot" style="background:${x[1]}"></b>${i === 0 ? `פחות מ-${x[0]}%` : x[0] === 999 ? `${BN[i - 1][0]}% ומעלה` : `${BN[i - 1][0]}–${x[0]}%`}</div>`).join('') +
-      `<div><b class="dot" style="background:#cbd5e1"></b>מעט נסיעות בשעה הזו</div></div></div>` : '');
+      `<div><b class="dot" style="background:#cbd5e1"></b>מעט נסיעות בשעה הזו</div></div></div>` : '') +
+    (S.lay.ld ? `<div class="blk"><h3>עומס בתחנה — חלק מהזמן שעמדו בה 3 אוטובוסים או יותר</h3><div class="lg">` +
+      QL.map((x, i) => `<div><b class="dot" style="background:${x[1]}"></b>${i === 0 ? `פחות מ-${x[0]}%` : x[0] === 999 ? `${QL[i - 1][0]}% ומעלה` : `${QL[i - 1][0]}–${x[0]}%`}</div>`).join('') +
+      `<div><b class="dot" style="background:#cbd5e1"></b>כמעט בלי אוטובוסים בשעה הזו</div><div class="mut sm">עיגול גדול יותר — יותר אוטובוסים בתחנה בממוצע</div></div></div>` : '');
 }
 function aboutPane() {
   const d = META && META.days, n = d ? (d.wd || []).length : 0, f = d ? (d.fr || []).length : 0;
@@ -577,14 +690,14 @@ map.on('mousemove', e => $('#s-wgs').textContent = `${e.latlng.lat.toFixed(5)}, 
 map.on('moveend', () => { draw(); hash(); });
 // לחיצה על המפה (לא על קטע או תחנה) — ביטול הבחירה; גם Esc
 let lastPick = 0;
-function unpick() { if (!S.spot) return; S.spot = null; hiG.clearLayers(); if (S.tool === 'spot') tool('map'); }
+function unpick() { if (!S.spot) return; S.spot = null; hiG.clearLayers(); closeLoad(); if (S.tool === 'spot') tool('map'); }
 map.on('click', () => { if (Date.now() - lastPick > 300) unpick(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') unpick(); });
 
 // כתובת: #h=8&d=wd&m=sp&@31.72,34.74,15
 function hash() {
   const c = map.getCenter();
-  history.replaceState(null, '', `#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn ? '&l=' + (S.lay.sp ? 'sb' : 'b') : ''}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
+  history.replaceState(null, '', `#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn || S.lay.ld ? '&l=' + (S.lay.sp ? 's' : '') + (S.lay.bn ? 'b' : '') + (S.lay.ld ? 'q' : '') : ''}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
 }
 function readHash() {
   const h = location.hash.slice(1); if (!h) return;
@@ -595,7 +708,7 @@ function readHash() {
     if (k === 'd' && (v === 'wd' || v === 'fr' || v === 'y')) S.d = v;
     if (k === 'dd') S.dsel = v.split(',').filter(x => /^\d{4}-\d\d-\d\d$/.test(x));
     if (k === 'm' && (v === 'sp' || v === 'sl')) S.m = v;
-    if (k === 'l') S.lay = { sp: v.includes('s') ? 1 : 0, bn: v.includes('b') ? 1 : 0 };
+    if (k === 'l') S.lay = { sp: v.includes('s') ? 1 : 0, bn: v.includes('b') ? 1 : 0, ld: v.includes('q') ? 1 : 0 };
   }
 }
 

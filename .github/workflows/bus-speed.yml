@@ -14,6 +14,11 @@ on:
       - '.github/workflows/bus-speed.yml'
       - 'tools/bus_speed.py'
   workflow_dispatch:
+    inputs:
+      redo:
+        description: 'לעבד מחדש את כל 30 הימים (1) — למשל אחרי שינוי בעיבוד היומי'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -42,7 +47,7 @@ jobs:
           need=()
           for i in $(seq 1 30); do
             d=$(TZ=Asia/Jerusalem date -d "-$i day" +%F)
-            grep -qx "$d" <<<"$have" || need+=("\"$d\"")
+            { [ "${{ inputs.redo }}" != "1" ] && grep -qx "$d" <<<"$have"; } || need+=("\"$d\"")
           done
           echo "חסרים: ${#need[@]} ימים"
           echo "days=[$(IFS=,; echo "${need[*]}")]" >> "$GITHUB_OUTPUT"
@@ -98,6 +103,7 @@ jobs:
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.json.gz" -D /tmp/days 2>/dev/null || true
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.bunch.json.gz" -D /tmp/days 2>/dev/null || true
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.bpairs.json.gz" -D /tmp/days 2>/dev/null || true
+            gh release download "$REL" -R "${{ github.repository }}" -p "$d.load.json.gz" -D /tmp/days 2>/dev/null || true
           done
           ls /tmp/days | wc -l
           # ימים ישנים מ-40 יום — נמחקים מה-release
