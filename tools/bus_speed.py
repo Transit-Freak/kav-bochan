@@ -59,8 +59,10 @@ def parse(b):
             mj = v.get('MonitoredVehicleJourney') or {}
             loc = mj.get('VehicleLocation') or {}
             try:
+                mc = mj.get('MonitoredCall') or {}
                 out.append((mj.get('VehicleRef'), v['RecordedAtTime'], float(loc['Latitude']), float(loc['Longitude']),
-                            float(mj.get('Velocity') or 0), float(mj.get('Bearing') or 0), mj.get('OriginAimedDepartureTime') or ''))
+                            float(mj.get('Velocity') or 0), float(mj.get('Bearing') or 0), mj.get('OriginAimedDepartureTime') or '',
+                            mj.get('LineRef') or '', int(mc.get('Order') or 0)))
             except Exception:  # noqa: BLE001
                 continue
     return out
@@ -76,12 +78,16 @@ def day(ds):
     last = {}
     files = recs = used = 0
     st = time.time()
+    RS = route_stops(ds)
+    at = collections.defaultdict(dict)       # (תחנה, דקה) → {רכב: קו} — אוטובוסים בתחנה
+    app = collections.defaultdict(list)      # (תחנה, דקה) → מהירויות בקטע שלפני התחנה
+    mins = set()
     with ThreadPoolExecutor(24) as ex:
         for b in ex.map(fetch, keys):
             if not b:
                 continue
             files += 1
-            for veh, rt, la, lo, vel, br, dep in parse(b):
+            for veh, rt, la, lo, vel, br, dep, line, order in parse(b):
                 recs += 1
                 if not rt.startswith(ds) or last.get(veh) == rt:
                     continue
@@ -97,6 +103,18 @@ def day(ds):
                 a = hrs[(*k, int(rt[11:13]))]
                 a[0] += 1; a[1] += vel; a[2] += vel < 10
                 used += 1
+                # עומס בתחנות: התחנה הבאה של הנסיעה (MonitoredCall.Order = stop_sequence ב-GTFS) — כך נספרים
+                # רק אוטובוסים של קווים שעוצרים בתחנה, ובכיוון שלה (לא בצד השני של הכביש)
+                c = RS[0].get(line, {}).get(order) if RS else None
+                if c:
+                    sla, slo = RS[1][c]
+                    dd = math.hypot((la - sla) * 111000, (lo - slo) * 93000)
+                    if dd <= NEAR:
+                        at[(c, rt[11:16])][veh] = line
+                    elif dd <= APPROACH:
+                        app[(c, rt[11:16])].append(vel)
+                if rt[11:16] not in mins:
+                    mins.add(rt[11:16])
     gk = list(geo)
     ix = {k: i for i, k in enumerate(gk)}
     g = [[*k, a[0], round(a[1], 3), round(a[2], 3), round(a[3], 1), round(a[4], 1)] for k, a in ((k, geo[k]) for k in gk)]
@@ -105,6 +123,8 @@ def day(ds):
     with gzip.open(f'{CACHE}/{ds}.tmp', 'wt') as f:   # שם זמני — build לא יקרא קובץ באמצע כתיבה
         json.dump({'d': ds, 'files': files, 'recs': recs, 'used': used, 'geo': g, 'rows': rows}, f, separators=(',', ':'))
     os.replace(f'{CACHE}/{ds}.tmp', f'{CACHE}/{ds}.json.gz')
+    if RS:
+        stop_load(ds, RS[1], at, app, mins)
     print(f'{ds}: {files} קבצים, {used:,} דגימות, {len(g):,} מקומות, {round(time.time() - st)} שנ\'', flush=True)
 
 
@@ -185,6 +205,111 @@ def shape_geoms(need):
     return out
 
 
+NEAR, APPROACH = 35, 300   # מטרים: בתחנה / הקטע שלפניה
+
+
+def route_stops(ds):
+    """route_id → {stop_sequence: מק"ט}, מק"ט → (רוחב, אורך) — מה-GTFS של אותו יום בארכיון של דאטאבוס ב-S3
+    (או GTFS_ZIP). נסיעה אחת לכל מסלול — לכל המסלולים אותו רצף. None אם אין GTFS."""
+    import csv
+    import io
+    import zipfile
+    zp = os.environ.get('GTFS_ZIP')
+    if not zp or not os.path.exists(zp):
+        d = datetime.date.fromisoformat(ds)
+        zp = f'{CACHE}/gtfs-{ds}.zip'
+        for back in range(4):
+            u = f"https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/{d - datetime.timedelta(days=back):%Y/%m/%d}/israel-public-transportation.zip"
+            try:
+                os.makedirs(CACHE, exist_ok=True)
+                urllib.request.urlretrieve(u, zp)
+                break
+            except Exception:  # noqa: BLE001
+                zp = None
+                time.sleep(3)
+        if not zp:
+            print(f'{ds}: אין GTFS — בלי עומס בתחנות')
+            return None
+    z = zipfile.ZipFile(zp)
+    rd = lambda n: csv.reader(io.TextIOWrapper(z.open(n), 'utf-8-sig'))  # noqa: E731
+    r = rd('stops.txt'); h = next(r)
+    i_id, i_c, i_la, i_lo = h.index('stop_id'), h.index('stop_code'), h.index('stop_lat'), h.index('stop_lon')
+    sid, S = {}, {}
+    for x in r:
+        sid[x[i_id]] = x[i_c]
+        S[x[i_c]] = (float(x[i_la]), float(x[i_lo]))
+    r = rd('trips.txt'); h = next(r)
+    i_r, i_t = h.index('route_id'), h.index('trip_id')
+    want = {}
+    for x in r:
+        want.setdefault(x[i_r], x[i_t])
+    want = {t: rt for rt, t in want.items()}
+    R = collections.defaultdict(dict)
+    with z.open('stop_times.txt') as f:
+        h = f.readline().decode('utf-8-sig').strip().split(',')
+        i_t, i_s, i_q = h.index('trip_id'), h.index('stop_id'), h.index('stop_sequence')
+        mx = max(i_t, i_s, i_q) + 1
+        for ln in f:
+            x = ln.split(b',', mx)
+            rt = want.get(x[i_t].decode())
+            if rt:
+                c = sid.get(x[i_s].decode())
+                if c in S:
+                    R[rt][int(x[i_q])] = c
+    if zp.startswith(f'{CACHE}/gtfs-'):
+        os.remove(zp)
+    return dict(R), S
+
+
+def stop_load(ds, S, at, app, mins):
+    """סיכום היום לשכבת "עומס בתחנות" (שלמה 30.10) → $SPEED_CACHE/D.load.json.gz:
+    {"mins": [דקות עם נתונים לכל שעה], "s": {מק"ט: [רוחב, אורך, [[שעה, דקות עם 3+, Σאוטובוסים, Σמהירות בתור,
+    דגימות, Σמהירות פנויה, דגימות]…], [[קו, דקות בתחנה, מהן בתור]…], [[קו, קו, דקות יחד, "דקות לכל שעה"]…]]}}"""
+    mh = [0] * 24
+    for m in mins:
+        mh[int(m[:2])] += 1
+    H = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0.0, 0, 0.0, 0]))
+    pres = collections.defaultdict(collections.Counter)
+    inq = collections.defaultdict(collections.Counter)
+    pair = collections.defaultdict(collections.Counter)
+    pairh = collections.defaultdict(lambda: collections.defaultdict(lambda: [0] * 24))
+    for (c, m), vs in at.items():
+        h, n = int(m[:2]), len(vs)
+        e = H[c][h]
+        e[1] += n
+        if n >= 3:
+            e[0] += 1
+        ls = sorted(set(vs.values()))
+        for x in ls:
+            pres[c][x] += 1
+            if n >= 3:
+                inq[c][x] += 1
+        for i in range(len(ls)):
+            for j in range(i + 1, len(ls)):
+                pair[c][(ls[i], ls[j])] += 1
+                pairh[c][(ls[i], ls[j])][h] += 1
+    for (c, m), sp in app.items():
+        n = len(at.get((c, m), ()))
+        e = H[c][int(m[:2])]
+        if n >= 3:
+            e[2] += sum(sp); e[3] += len(sp)
+        elif n <= 1:
+            e[4] += sum(sp); e[5] += len(sp)
+    out = {}
+    for c, hs in H.items():
+        if not pres[c]:
+            continue
+        la, lo = S[c]
+        out[c] = [round(la, 5), round(lo, 5),
+                  [[h, e[0], e[1], round(e[2]), e[3], round(e[4]), e[5]] for h, e in sorted(hs.items())],
+                  [[x, n, inq[c][x]] for x, n in pres[c].most_common(40)],
+                  [[a, b, n, ','.join(str(v) if v else '' for v in pairh[c][(a, b)]).rstrip(',')] for (a, b), n in pair[c].most_common(15)]]
+    with gzip.open(f'{CACHE}/{ds}.load.tmp', 'wt') as f:
+        json.dump({'d': ds, 'mins': mh, 's': out}, f, separators=(',', ':'))
+    os.replace(f'{CACHE}/{ds}.load.tmp', f'{CACHE}/{ds}.load.json.gz')
+    print(f'{ds}: עומס בתחנות — {len(out):,} תחנות', flush=True)
+
+
 def build(n=DAYS):
     have = sorted(f[:10] for f in os.listdir(CACHE) if len(f) == 18 and f.endswith('.json.gz'))[-n:]   # בלי D.bunch.json.gz
     def load(ds):
@@ -260,6 +385,7 @@ def build(n=DAYS):
         tkeys[t].append((cy, cx, s))
     os.makedirs(OUT, exist_ok=True)
     bunching(keep.get('wd', []))
+    load_tiles(keep.get('wd', []))
     cities(acc)
     os.makedirs(f'{OUT}/t', exist_ok=True)
     for f in os.listdir(f'{OUT}/t'):
@@ -414,6 +540,98 @@ def pairs_out(days, tile_of, routes):
         with open(f'{out_dir}/{ty}_{tx}.json', 'w', encoding='utf-8') as f:
             json.dump({'days': days, 'r': r, 's': stops}, f, ensure_ascii=False, separators=(',', ':'))
     print(f'זוגות צמודים: {n:,} ב-{sum(len(v) for v in per.values()):,} תחנות, מ-{len(have)} ימים')
+
+
+def load_tiles(days):
+    """שכבת "עומס בתחנות" (שלמה 30.10) — מ-D.load.json.gz של ימי החול. OUT/q/<אריח>.json — לכל תחנה:
+    [רוחב, אורך, מק"ט, שם, עמודים, "% דקות עם 3+ לכל שעה", "אוטובוסים בממוצע ×10 לכל שעה",
+     "מהירות לפני התחנה כשיש תור", "כשפנויה", [[קו, יעד, דקות בתחנה, מהן בתור]…], [[קו, יעד, קו, יעד, ביום, שעת שיא]…]]
+    ושעה עם פחות מ-15 דגימות מהירות — ריקה. רק תחנות שבשעה כלשהי היה בהן תור לפחות 2% מהזמן. OUT/load.json: {"days", "tiles"}."""
+    mins = [0] * 24
+    acc, used = {}, []
+    for ds in days:
+        p = f'{CACHE}/{ds}.load.json.gz'
+        if not os.path.exists(p):
+            continue
+        try:
+            with gzip.open(p, 'rt') as f:
+                day = json.load(f)
+        except Exception:  # noqa: BLE001
+            continue
+        used.append(ds)
+        mins = [a + b for a, b in zip(mins, day['mins'])]
+        for c, (la, lo, hrs, lines, pairs) in day['s'].items():
+            a = acc.get(c)
+            if a is None:
+                a = acc[c] = [la, lo, [[0] * 6 for _ in range(24)], collections.Counter(), collections.Counter(),
+                              collections.Counter(), collections.defaultdict(lambda: [0] * 24)]
+            for h, q, nb, sq, nq, sf, nf in hrs:
+                e = a[2][h]
+                e[0] += q; e[1] += nb; e[2] += sq; e[3] += nq; e[4] += sf; e[5] += nf
+            for x, n, iq in lines:
+                a[3][x] += n; a[4][x] += iq
+            for x, y, n, hh in pairs:
+                a[5][(x, y)] += n
+                ph = a[6][(x, y)]
+                for i, v in enumerate(hh.split(',')):
+                    if v:
+                        ph[i] += int(v)
+    if os.path.isdir(f'{OUT}/q'):
+        for f in os.listdir(f'{OUT}/q'):
+            os.remove(f'{OUT}/q/{f}')
+    if not used:
+        print('עומס בתחנות: אין עדיין קבצים')
+        return
+    try:
+        routes = json.load(open('bus/data/routes.json', encoding='utf-8'))
+        names = json.load(open('bus/data/stops.json', encoding='utf-8'))
+    except Exception:  # noqa: BLE001
+        routes, names = {}, {}
+    # עמודים: תחנות עם אותו שם עד 80 מ' (שדה "רציף" במשרד התחבורה כמעט תמיד ריק)
+    try:
+        rows = json.load(open('gis/data/own/bus-stops.json', encoding='utf-8'))['rows']
+    except Exception:  # noqa: BLE001
+        rows = []
+    byname = collections.defaultdict(list)
+    for r in rows:
+        byname[r[3]].append((r[1], r[0]))
+    def lname(x):
+        r = routes.get(x) or []
+        return [r[1] if len(r) > 1 else '', r[2].split('<->')[-1].rsplit('-', 1)[0] if len(r) > 2 and '<->' in r[2] else '']
+    nd = len(used)
+    tiles = collections.defaultdict(list)
+    for c, (la, lo, H, pres, inq, pair, pairh) in acc.items():
+        qs = [round(100 * e[0] / mins[h]) if mins[h] and e[1] else None for h, e in enumerate(H)]
+        if max((x or 0) for x in qs) < 2:   # כמעט אף פעם לא עמדו בה 3 אוטובוסים — בלי עיגול
+            continue
+        q = ','.join('' if x is None else str(x) for x in qs).rstrip(',')
+        av = ','.join(str(round(10 * e[1] / mins[h])) if mins[h] and e[1] else '' for h, e in enumerate(H)).rstrip(',')
+        sq = ','.join(str(round(e[2] / e[3], 1)) if e[3] >= 15 and e[5] >= 15 else '' for e in H).rstrip(',')
+        sf = ','.join(str(round(e[4] / e[5], 1)) if e[3] >= 15 and e[5] >= 15 else '' for e in H).rstrip(',')
+        nm = names.get(c)
+        nm = nm if isinstance(nm, str) else (nm[0] if nm else '')
+        poles = 1 + sum(1 for y, x in byname.get(nm, []) if 0 < math.hypot((y - la) * 111000, (x - lo) * 93000) <= 80) if nm else 1
+        # כמה מסלולים של אותו קו לאותו יעד (חלופות) — שורה אחת
+        lp, li = collections.Counter(), collections.Counter()
+        for x, n in pres.items():
+            k = tuple(lname(x)); lp[k] += n; li[k] += inq[x]
+        ls = [[*k, n, li[k]] for k, n in lp.most_common(10)]
+        pp, phh = collections.Counter(), collections.defaultdict(lambda: [0] * 24)
+        for (x, y), n in pair.items():
+            k = tuple(sorted((tuple(lname(x)), tuple(lname(y)))))
+            if k[0] == k[1]:
+                continue
+            pp[k] += n
+            phh[k] = [a + b for a, b in zip(phh[k], pairh[(x, y)])]
+        ps = [[*k[0], *k[1], round(n / nd, 1), max(range(24), key=lambda i: phh[k][i])] for k, n in pp.most_common(8) if n >= nd]
+        tiles[(math.floor(la / TILE), math.floor(lo / TILE))].append([la, lo, c, nm, poles, q, av, sq, sf, ls, ps])
+    os.makedirs(f'{OUT}/q', exist_ok=True)
+    for (ty, tx), recs in tiles.items():
+        with open(f'{OUT}/q/{ty}_{tx}.json', 'w', encoding='utf-8') as f:
+            json.dump(recs, f, ensure_ascii=False, separators=(',', ':'))
+    with open(f'{OUT}/load.json', 'w', encoding='utf-8') as f:
+        json.dump({'days': used, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles)}, f, separators=(',', ':'))
+    print(f'עומס בתחנות: {sum(len(v) for v in tiles.values()):,} תחנות מ-{nd} ימים')
 
 
 def norm(c):
