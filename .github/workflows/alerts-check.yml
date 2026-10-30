@@ -1,0 +1,75 @@
+name: alerts-check
+# בדיקה זמנית (29.10, תיקוני הפאנל): הקו המודיע — כל המסלולים מחושבים מאפס פעמיים, בקוד של main ובקוד המתוקן,
+# על אותו פיד, ומושווים. לא נשמר כלום במאגר ולא עולה לאתר.
+on:
+  push:
+    branches: [alerts-check]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - name: הקוד של main (tools בלבד)
+        run: |
+          git fetch -q --depth=1 origin main
+          mkdir -p /tmp/main && git archive FETCH_HEAD tools | tar -x -C /tmp/main
+      - uses: actions/cache/restore@v4
+        with:
+          path: /tmp/osrm/il.osm.pbf
+          key: kavbug-osm-none
+          restore-keys: kavbug-osm-
+      - name: מפת ישראל — רחובות בלבד
+        run: |
+          set -e
+          sudo apt-get install -y -qq osmium-tool >/dev/null
+          pip install -q osmium
+          mkdir -p /tmp/osrm && cd /tmp/osrm
+          if [ ! -s il.osm.pbf ]; then
+            curl -fsSL --connect-timeout 20 --max-time 300 --retry 2 --retry-all-errors -o il.osm.pbf https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+          fi
+          osmium tags-filter il.osm.pbf w/highway -o il-hw.osm.pbf --overwrite --no-progress
+      - name: לפני — הקוד של main
+        env: { OUT: /tmp/before, TEMP_DIR: /tmp/t1, OSM_DIR: /tmp/osm1, MAX_MIN: '150', OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
+        run: mkdir -p /tmp/before /tmp/t1 && python3 /tmp/main/tools/alerts_fetch.py 2>&1 | tail -25
+      - name: אחרי — הקוד המתוקן
+        env: { OUT: /tmp/after, TEMP_DIR: /tmp/t2, OSM_DIR: /tmp/osm2, MAX_MIN: '150', OSM_PBF: /tmp/osrm/il-hw.osm.pbf }
+        run: mkdir -p /tmp/after /tmp/t2 && python3 tools/alerts_fetch.py 2>&1 | tail -25
+      - name: השוואה
+        run: |
+          python3 - <<'PY'
+          import json, glob, os, sys, pathlib
+          sys.path.insert(0, 'tools')
+          import test_alerts_regression as T
+          KNOWN = set(json.loads('["14455262371", "14575709262", "14582273834", "14584669962", "14584901697", "14585281235", "14585291898", "14585293872", "14585304726", "14587781763", "14587805662", "14587822758", "14587835206", "14587894314", "14588008664", "14589830415", "14589940828", "14591272680", "14592460384", "14592600538", "14592919677", "14592923027", "14592925292", "14594480959", "14594543195", "14594594215", "14594603230", "14594606894", "14594646813", "14594658945", "14598209597", "14598256893", "14598355964", "14598456138", "14598559582", "14598563776", "14598911912"]'))
+          def load(d):
+              out = {}
+              for f in glob.glob(d + '/rc/*.json'):
+                  rc = json.load(open(f))
+                  for r in rc['routes']:
+                      e = r.get('est') or {}
+                      out[(rc['id'], r.get('rd'), r.get('alt'))] = (e.get('streets'), round(T._len(e['path'])) if e.get('path') else None, r.get('why') or rc.get('status'))
+              return out
+          def inv(d):
+              T.DATA = pathlib.Path(d)
+              b = T.invariants({})
+              return {k: v for k, v in b.items() if k != 'step-vav'}
+          A, B = load('/tmp/before'), load('/tmp/after')
+          ids = {k[0] for k in A} & {k[0] for k in B}
+          print('הודעות עם מפה בשתי הריצות:', len(ids), '| לפני בלבד:', len({k[0] for k in A} - ids), '| אחרי בלבד:', len({k[0] for k in B} - ids))
+          est = lambda X: sum(1 for k, v in X.items() if k[0] in ids and v[0])
+          print('מסלולים עם עקיפה מחושבת — לפני:', est(A), 'אחרי:', est(B))
+          ia, ib = inv('/tmp/before'), inv('/tmp/after')
+          print('\n== כללים (הפרות) לפני → אחרי')
+          for k in ia:
+              a = {x for x in ia[k] if x.split('/')[0] in ids}; b = {x for x in ib[k] if x.split('/')[0] in ids}
+              print(f'{k}: {len(a)} → {len(b)}  | חדשות: {sorted(b - a)}')
+          print('\n== מסלולים שהשתנו')
+          ch = [k for k in A if k in B and A[k] != B[k] and k[0] in ids]
+          for k in sorted(ch):
+              tag = 'ידוע-שגוי' if k[0] in KNOWN else 'היה-תקין?'
+              print(f'[{tag}] {k[0]} {k[1]} alt={k[2]}\n   לפני: {A[k]}\n   אחרי: {B[k]}')
+          print('\nסה"כ השתנו:', len(ch), '| מתוכם בהודעות שסומנו שגויות:', sum(1 for k in ch if k[0] in KNOWN))
+          print('הודעות שגויות שלא השתנו בכלל:', sorted(i for i in KNOWN & ids if not any(k[0] == i for k in ch)))
+          print('הודעות שגויות שלא נמצאו היום בפיד:', sorted(KNOWN - ids))
+          PY
