@@ -1,10 +1,20 @@
-# בדיקה חד-פעמית (שלמה 30.10): עומס בתחנות — כמה אוטובוסים בתחנה באותה דקה, כמה זמן הם עומדים,
+# בדיקה חד-פעמית (שלמה 30.10, סבב 2: אילו קווים עומדים יחד בתחנה): עומס בתחנות — כמה אוטובוסים בתחנה באותה דקה, כמה זמן הם עומדים,
 # האם זה מאט את הקטע שלפני התחנה, וכמה רציפים לפי משרד התחבורה. מקובצי SIRI הגולמיים ב-S3.
 import collections, concurrent.futures as cf, csv, datetime, io, json, math, os, sys, zipfile, urllib.request
 sys.path.insert(0, 'tools')
 import bus_speed as BS
-STOPS = {'21472': (32.07458, 34.79061), '21675': (32.07228, 34.78961), '21188': (32.09538, 34.79414),
-         '20801': (32.08301, 34.80216), '2896': (31.78066, 35.22486)}
+STOPS = {'21472': (32.07458, 34.79061), '21675': (32.07228, 34.78961), '21188': (32.09538, 34.79414), '20801': (32.08301, 34.80216)}
+import brotli
+def parse(b):
+    try: j = json.loads(brotli.decompress(b))
+    except Exception: return []
+    out = []
+    for sd in j.get('Siri', {}).get('ServiceDelivery', {}).get('StopMonitoringDelivery') or []:
+        for v in sd.get('MonitoredStopVisit') or []:
+            mj = v.get('MonitoredVehicleJourney') or {}; loc = mj.get('VehicleLocation') or {}
+            try: out.append((mj.get('VehicleRef'), v['RecordedAtTime'], float(loc['Latitude']), float(loc['Longitude']), float(mj.get('Velocity') or 0), float(mj.get('Bearing') or 0), str(mj.get('LineRef') or '')))
+            except Exception: continue
+    return out
 NDAYS = int(os.environ.get('NDAYS', '8'))
 NEAR, APP = 35.0, 300.0
 def m(a, b, c, d): return math.hypot((a - c) * 111000, (b - d) * 111000 * math.cos(math.radians(a)))
@@ -23,11 +33,11 @@ for day in days:
     keys = [(t0 + datetime.timedelta(minutes=k)).strftime('%Y/%m/%d/%H/%M') + '.br' for m_ in [0] for k in range(25 * 60)]
     def job(key):
         b = BS.fetch(key)
-        return key, BS.parse(b) if b else []
+        return key, parse(b) if b else []
     with cf.ThreadPoolExecutor(24) as ex:
         for key, recs in ex.map(job, keys):
             mk = key[:-3]
-            for veh, ts, la, lo, vel, br, oad in recs:
+            for veh, ts, la, lo, vel, br, lref in recs:
                 for code, (sla, slo) in STOPS.items():
                     if abs(la - sla) > .004 or abs(lo - slo) > .005: continue
                     dist = m(la, lo, sla, slo)
@@ -37,7 +47,7 @@ for day in days:
                         t = datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(datetime.timezone(datetime.timedelta(hours=2 if day >= datetime.date(2026, 10, 25) else 3)))
                     except Exception: continue
                     if t.date() != day: continue
-                    snap[code][t.strftime('%Y-%m-%d %H:%M')][veh] = (dist, vel, toward)
+                    snap[code][t.strftime('%Y-%m-%d %H:%M')][veh] = (dist, vel, toward, lref)
     print(day, 'נטען', flush=True)
 # רציפים לפי משרד התחבורה: שדה "רציף" ותחנות סמוכות עם אותו שם
 z = None
@@ -86,5 +96,31 @@ for code, (sla, slo) in STOPS.items():
         s = sp.get(h, [None, None, 0, 0])
         print(f'{h:02d} | {n} | {pq}% | {avg} | {s[0]} / {s[1]} ({s[2]}/{s[3]})')
     print('זמן עמידה (דקות רצופות בתחנה → מספר עצירות):', dict(sorted(res[code]['dwell_minutes'].items())))
+
+rt = {r['route_id']: (r['route_short_name'], r['route_long_name'].split('<->')[-1].split('-')[0].strip()) for r in csv.DictReader(io.TextIOWrapper(z.open('routes.txt'), 'utf-8-sig'))} if z else {}
+lines_out = {}
+for code in STOPS:
+    nm = lambda r: rt.get(r, (r, ''))[0]
+    pres = collections.Counter(); inq = collections.Counter(); pair = collections.Counter(); pairh = collections.defaultdict(collections.Counter); qmin = 0
+    for mk, vs in snap[code].items():
+        at = sorted({x[3] for v, x in vs.items() if x[0] <= NEAR and x[3]})
+        for r in at: pres[r] += 1
+        if len([1 for v, x in vs.items() if x[0] <= NEAR]) >= 3:
+            qmin += 1
+            for r in at: inq[r] += 1
+        for i in range(len(at)):
+            for j in range(i + 1, len(at)):
+                pair[(at[i], at[j])] += 1; pairh[(at[i], at[j])][int(mk[11:13])] += 1
+    L = [(nm(r), rt.get(r, ('', ''))[1], pres[r], inq[r]) for r in pres if pres[r] >= 20]
+    L.sort(key=lambda x: -x[3])
+    PR = [(nm(a), rt.get(a, ('', ''))[1], nm(b), rt.get(b, ('', ''))[1], n, pairh[(a, b)].most_common(1)[0][0]) for (a, b), n in pair.most_common(20)]
+    lines_out[code] = {'qmin': qmin, 'lines': L[:25], 'pairs': PR}
+    print(f"\n### {code} — דקות עם תור: {qmin}")
+    print('קו | לכיוון | דקות בתחנה | מהן בזמן תור')
+    for x in L[:25]: print(' | '.join(map(str, x)))
+    print('זוג קווים שעמדו יחד | דקות (8 ימים) | שעת שיא')
+    for a, ta, b, tb, n, h in PR: print(f'{a} ({ta}) + {b} ({tb}) | {n} | {h:02d}')
+print('\nLINES_JSON:', json.dumps(lines_out, ensure_ascii=False))
+
 json.dump(res, open('stopload.json', 'w'), ensure_ascii=False)
 print('\nJSON:', json.dumps(res, ensure_ascii=False)[:20000])
