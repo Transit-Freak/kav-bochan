@@ -1,8 +1,8 @@
 {
   "resource_id": "cf29862d-ca25-4691-84f6-1be60dcb4a1e",
   "url": "https://e.data.gov.il/dataset/840827c2-7420-4687-9f2a-62aeb5602c11/resource/cf29862d-ca25-4691-84f6-1be60dcb4a1e/download/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv",
-  "last_modified": "2026-10-29T03:36:08.537965",
-  "sha256": "74609008e3a33674389d54191b2ce7be1000d582513c196417366ed1fbe562e8",
-  "rows": 66282,
+  "last_modified": "2026-10-30T03:40:25.208067",
+  "sha256": "eb0757f487564c864e05c7aef36756d74169ab4b26f2ab50e1c1dd3ac514bf60",
+  "rows": 66295,
   "method": "datastore_search"
 }

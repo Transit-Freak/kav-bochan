@@ -11,7 +11,7 @@ const BUILD = "197-estimated-website-maps";
 // מחדש נוחתת על אחת הכתובות המקוריות (שלמה 07.09: "מחזיר אותך לדף הקודם").
 (function () {
   try {
-    const K = "kbNav", now = location.href, base = (u) => String(u).split("#")[0];
+    const K = "kbNav", now = location.href, base = (u) => String(u).split("#")[0].split("?")[0];
     let s = null; try { s = JSON.parse(sessionStorage[K] || "null"); } catch (e) { /* ignore */ }
     const nav = performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
     const reload = nav ? nav.type === "reload" : !!(performance.navigation && performance.navigation.type === 1);
@@ -27,6 +27,8 @@ const BUILD = "197-estimated-website-maps";
     const save = () => { try { sessionStorage[K] = JSON.stringify({ origs, url: location.href, ts: Date.now() }); } catch (e) { /* ignore */ } };
     note();
     const push0 = history.pushState.bind(history), rep0 = history.replaceState.bind(history);
+    // קישור עם #: "?" ריק לפני ה-# — אחרת כרום מחליף לגרסת מחשב בלי טעינה וחוזר לנייד (כמו ב-nav-restore.js, שלמה 30.10)
+    if (location.hash && !location.href.includes("?")) rep0(history.state, "", location.pathname + "?" + location.hash);
     history.pushState = function (st, t, u) { push0(st, t, u); note(); save(); };
     history.replaceState = function (st, t, u) { rep0(st, t, u); save(); };
     window.addEventListener("popstate", save);
