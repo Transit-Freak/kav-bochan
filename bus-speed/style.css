@@ -198,6 +198,7 @@ table.bt td { white-space: normal; } table.bt td.n { white-space: nowrap; }
 #qx { position: absolute; inset: 16px; z-index: 1000; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.25); display: flex; flex-direction: column; overflow: auto; }
 #qx .qx2 { display: grid; grid-template-columns: 1fr 1fr; }
 #qx table.t tbody tr { cursor: default; }
+#qx table.t th, #qx table.t td, #qx table.t td.n { text-align: center; }
 #qx table.t tr.on { background: var(--acc-bg); }
 #qx .neg { color: #b91c1c; } #qx .pos { color: #15803d; }
 @media (max-width: 760px) { #qx { position: fixed; inset: 6px; z-index: 3000; } #qx .qx2 { grid-template-columns: 1fr; } }
