@@ -303,6 +303,7 @@ function qverdict(q) {
 function loadPane(q) {
   const p = qpct(q, S.h), a = qavg(q, S.h);
   return `<div class="blk"><h3>${esc(q[3] || 'תחנה')} <span class="mut">· ${q[2]}</span></h3>` +
+    `<div class="mut sm">באיזה חלק מהזמן עמדו בתחנה 3 אוטובוסים או יותר</div>${qchart(qarr(q, 5))}` +
     `<div class="kv"><span>תור בתחנה ב-${fmt(S.h)}</span><b>${p == null ? '—' : p + '% מהזמן'}</b><span>אוטובוסים בממוצע</span><b>${a == null ? '—' : a.toFixed(1)}</b><span>עמודים בתחנה</span><b>${q[4]}</b></div>` +
     `<div class="busy" style="margin-top:8px">${qverdict(q)}</div>` +
     `<button class="btn qmore" style="width:100%;margin-top:10px">כל הפרטים — לפי שעה ⤢</button></div>` +
