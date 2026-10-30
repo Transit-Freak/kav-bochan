@@ -1,53 +1,63 @@
 name: probe-fleet-s3
 
-# בדיקה זמנית (ענף probe בלבד): איך נסיעות ה-API נבנות מקובצי ה-SIRI
+# בדיקה זמנית (ענף probe בלבד): נסיעות ה-SIRI של אותו יום — מה-API של דאטאבוס מול קובצי S3
 on:
   push:
     branches: ['probe-fleet-s3']
 
 jobs:
-  dig:
+  cmp:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        day: ['2026-10-20', '2026-10-27']
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: tools
+          sparse-checkout: |
+            tools
+            fleet/data
       - run: pip install -q brotli
-      - name: רכבים לדוגמה
+      - name: השוואה
+        env:
+          DAY: ${{ matrix.day }}
         run: |
           python3 - <<'PYEOF'
-          import collections, sys, json, datetime, urllib.request, urllib.parse, brotli
+          import collections, os, sys, json, time
           sys.path.insert(0, 'tools')
-          import siri_s3, bus_speed
-          from concurrent.futures import ThreadPoolExecutor
-          API = 'https://open-bus-stride-api.hasadna.org.il'
-          def get(p, **q):
-              with urllib.request.urlopen(f'{API}{p}?' + urllib.parse.urlencode(q), timeout=120) as r:
-                  return json.load(r)
-          day = '2026-10-28'
-          V = ['9292601', '82748601', '18378304', '62965603', '51433903']
-          for v in V:
-              rows = get('/siri_rides/list', limit=200, vehicle_refs=v,
-                         scheduled_start_time_from=f'{day}T00:00:00+02:00', scheduled_start_time_to=f'{day}T23:59:59+02:00')
-              print('API', v, len(rows))
-              for r in sorted(rows, key=lambda r: r['scheduled_start_time']):
-                  print('  ', {k: r.get(k) for k in r if not k.startswith('updated') and r.get(k) is not None})
-          print(json.dumps(get('/siri_rides/list', limit=1), ensure_ascii=False))
-          ks = siri_s3.keys(day)
-          recs = collections.defaultdict(list)
-          with ThreadPoolExecutor(20) as ex:
-              for k, b in zip(ks, ex.map(bus_speed.fetch, ks)):
-                  if not b: continue
-                  j = json.loads(brotli.decompress(b))
-                  for sd in j['Siri']['ServiceDelivery']['StopMonitoringDelivery']:
-                      for x in sd.get('MonitoredStopVisit') or []:
-                          mj = x['MonitoredVehicleJourney']
-                          if mj.get('VehicleRef') in V:
-                              fr = mj.get('FramedVehicleJourneyRef') or {}
-                              recs[(mj.get('VehicleRef'), mj.get('LineRef'), fr.get('DatedVehicleJourneyRef'), fr.get('DataFrameRef'),
-                                    mj.get('OriginAimedDepartureTime'))].append((k[8:16], x['RecordedAtTime'][11:19],
-                                    (mj.get('MonitoredCall') or {}).get('Order')))
-          for k, v in sorted(recs.items(), key=lambda x: (x[0][0], x[1][0])):
-              print('S3', k, len(v), 'distinct rec', len({a[1] for a in v}), v[0], v[-1])
+          import fleet_scan as fs, siri_s3
+          day = os.environ['DAY']
+          routes = fs.route_operator_map()
+          rmap = {}
+          A = []
+          for h in range(24):
+              off = 0
+              while True:
+                  rows = fs.get('/siri_rides/list', limit=1000, offset=off, order_by='id asc',
+                                scheduled_start_time_from=f'{day}T{h:02d}:00:00+02:00', scheduled_start_time_to=f'{day}T{h:02d}:59:59+02:00')
+                  A += rows
+                  if len(rows) < 1000: break
+                  off += 1000
+          S = siri_s3.day_rides(day)
+          def ka(r):
+              op, line = routes.get(r['siri_route_id'], (None, None))
+              return (op, line, r['journey_ref'], (r['vehicle_ref'] or '').strip())
+          def ks(r): return (r['operator_ref'], r['line_ref'], r['journey_ref'], r['vehicle_ref'])
+          a = {ka(r): r['scheduled_start_time'][:19] for r in A}; s = {ks(r): r['scheduled_start_time'][:19] for r in S}
+          print('API', len(A), 'מפתחות', len(a), '| S3', len(S), 'מפתחות', len(s))
+          com = set(a) & set(s)
+          print('משותפות', len(com), '| רק API', len(set(a) - set(s)), '| רק S3', len(set(s) - set(a)))
+          print('שעת יציאה זהה במשותפות:', sum(1 for k in com if a[k] == s[k]), 'שונה:', [(k, a[k], s[k]) for k in com if a[k] != s[k]][:8])
+          print('דוגמאות רק API:', [(k, a[k]) for k in sorted(set(a) - set(s), key=str)[:10]])
+          print('דוגמאות רק S3:', [(k, s[k]) for k in sorted(set(s) - set(a), key=str)[:10]])
+          ha = collections.Counter(v[11:13] for v in a.values()); hs = collections.Counter(v[11:13] for v in s.values())
+          print('לפי שעה (UTC) api/s3:', [(h, ha[h], hs[h]) for h in sorted(set(ha) | set(hs))])
+          z = lambda d: sum(1 for k in d if k[2].endswith('-0'))
+          print('נסיעות journey 0: api', z(a), 's3', z(s))
+          # השוואה רק בשעות שבהן ל-API יש נתונים מלאים (פער של פחות מ-2% בספירה)
+          good = {h for h in ha if hs[h] and abs(ha[h] - hs[h]) / hs[h] < 0.02}
+          aa = {k for k in a if a[k][11:13] in good}; ss = {k for k in s if s[k][11:13] in good}
+          print('שעות מלאות:', sorted(good), '| משותפות', len(aa & ss), 'רק API', len(aa - ss), 'רק S3', len(ss - aa))
           PYEOF

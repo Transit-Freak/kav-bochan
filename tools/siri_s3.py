@@ -43,7 +43,7 @@ def _int(x):
 
 
 def parse(b):
-    """קובץ דקה → {(מפעיל, קו, journey, יציאה, רכב)}."""
+    """קובץ דקה → {(מפעיל, קו, יום, journey, רכב, יציאה)}."""
     import brotli   # pip install brotli
     try:
         j = json.loads(brotli.decompress(b))
@@ -54,36 +54,40 @@ def parse(b):
         for v in sd.get('MonitoredStopVisit') or []:
             mj = v.get('MonitoredVehicleJourney') or {}
             fr = mj.get('FramedVehicleJourneyRef') or {}
-            out.add((mj.get('OperatorRef') or '', mj.get('LineRef') or '', fr.get('DatedVehicleJourneyRef') or '',
-                     mj.get('OriginAimedDepartureTime') or '', (mj.get('VehicleRef') or '').strip()))
+            out.add((mj.get('OperatorRef') or '', mj.get('LineRef') or '', fr.get('DataFrameRef') or '',
+                     fr.get('DatedVehicleJourneyRef') or '', (mj.get('VehicleRef') or '').strip(),
+                     mj.get('OriginAimedDepartureTime') or ''))
     return out
 
 
 def day_rides(day, threads=THREADS):
-    """[{operator_ref, line_ref, journey_ref, scheduled_start_time, vehicle_ref}] — נסיעות היום, בלי כפילויות.
+    """[{operator_ref, line_ref, journey_ref, scheduled_start_time, vehicle_ref}] — נסיעות היום, כמו siri_rides.
+    המפתח של נסיעה אצל דאטאבוס (נבדק מול ה-API, 30.10): מפעיל + קו + journey_ref ("{DataFrameRef}-{Dated
+    VehicleJourneyRef}") + רכב, ושעת היציאה — הראשונה שנראתה. כך כל רשומות ה-"0" (רכב שממתין במסוף עם
+    שעת יציאה שמתעדכנת כל דקה) של רכב בקו נספרות כנסיעה אחת, כמו ב-API, ולא כעשרות.
     operator_ref/line_ref כמספרים, כמו שה-API מחזיר אותם."""
     a, b = window(day)
-    seen = set()
+    first = {}
     files = 0
     st = time.time()
     with ThreadPoolExecutor(threads) as ex:
         for raw in ex.map(fetch, keys(day)):
-            if raw:
-                files += 1
-                seen |= parse(raw)
-    out = []
-    bad = 0
-    for op, line, jr, dep, veh in seen:
-        try:
-            t = datetime.datetime.fromisoformat(dep.replace('Z', '+00:00'))
-        except ValueError:
-            bad += 1
-            continue
-        if t.tzinfo is None:
-            t = t.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=3)))
-        if a <= t < b:
-            out.append({'operator_ref': _int(op), 'line_ref': _int(line), 'journey_ref': jr,
-                        'scheduled_start_time': t.astimezone(UTC).isoformat(), 'vehicle_ref': veh})
+            if not raw:
+                continue
+            files += 1
+            for op, line, frame, jr, veh, dep in parse(raw):
+                try:
+                    t = datetime.datetime.fromisoformat(dep.replace('Z', '+00:00'))
+                except ValueError:
+                    continue
+                if t.tzinfo is None:
+                    t = t.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=3)))
+                k = (op, line, f'{frame}-{jr}', veh)
+                if k not in first or t < first[k]:
+                    first[k] = t
+    out = [{'operator_ref': _int(op), 'line_ref': _int(line), 'journey_ref': jr,
+            'scheduled_start_time': t.astimezone(UTC).isoformat(), 'vehicle_ref': veh}
+           for (op, line, jr, veh), t in first.items() if a <= t < b]
     print(f'{day}: S3 — {files} קבצי דקה, {len(out)} נסיעות ({round(time.time() - st)} שנ\')', flush=True)
     if files < 1400:
         # יום שחסרים בו קבצים רבים (תקלה אצל דאטאבוס) — לא נספר, כדי לא לרשום יום חלקי כמלא
