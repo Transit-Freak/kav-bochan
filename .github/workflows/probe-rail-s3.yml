@@ -1,0 +1,66 @@
+name: probe-rail-s3
+
+# בדיקה זמנית (ענף probe בלבד): מדד אמינות הרכבת — API מול S3 לאותו יום
+on:
+  push:
+    branches: ['probe-rail-s3']
+
+jobs:
+  cmp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        day: ['2026-10-27', '2026-10-28']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - run: pip install -q brotli
+      - name: שני המקורות
+        env:
+          FROM: ${{ matrix.day }}
+          TO: ${{ matrix.day }}
+          REDO: '1'
+        run: |
+          for src in api s3; do
+            echo "=== $src"
+            mkdir -p /tmp/$src
+            RAIL_SRC=$src OUTDIR=/tmp/$src python3 tools/rail_reliability.py 2>&1 | tail -25
+          done
+      - name: השוואה
+        env:
+          DAY: ${{ matrix.day }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, statistics
+          d = os.environ['DAY']
+          A = json.load(open(f'/tmp/api/days/{d}.json')); S = json.load(open(f'/tmp/s3/days/{d}.json'))
+          def key(r): return (r['ln'], r['s'][0][1])
+          a = {key(r): r for r in A['rides']}; s = {key(r): r for r in S['rides']}
+          print('נסיעות: api', len(a), 's3', len(s), 'משותפות', len(set(a) & set(s)))
+          print('רק api', sorted(set(a) - set(s))[:10]); print('רק s3', sorted(set(s) - set(a))[:10])
+          print('n_fix: api', A['n_fix'], 's3', S['n_fix'])
+          same_fi = diff_fi = 0; dd = []; meas_a = meas_s = 0; fx_a = fx_s = 0
+          for k in set(a) & set(s):
+              ra, rs = a[k], s[k]
+              fx_a += ra['fx']; fx_s += rs['fx']
+              ma = [x[2] for x in ra['s'] if x[2] is not None]; ms = [x[2] for x in rs['s'] if x[2] is not None]
+              meas_a += len(ma); meas_s += len(ms)
+              if ra.get('fi') == rs.get('fi'): same_fi += 1
+              else: diff_fi += 1
+              for xa, xs in zip(ra['s'], rs['s']):
+                  if xa[2] is not None and xs[2] is not None: dd.append(abs(xa[2] - xs[2]))
+          print('שידורים בנסיעות משותפות: api', fx_a, 's3', fx_s)
+          print('תחנות שנמדדו: api', meas_a, 's3', meas_s)
+          print('אותה תחנה אחרונה שנמדדה:', same_fi, 'שונה:', diff_fi)
+          if dd:
+              print('הפרש איחור בתחנה (דק׳): ממוצע', round(statistics.mean(dd), 3), 'מקס', max(dd),
+                    'זהה', sum(1 for x in dd if x == 0), 'מתוך', len(dd))
+          ia = json.load(open('/tmp/api/index.json')); is_ = json.load(open('/tmp/s3/index.json'))
+          def summ(i):
+              x = i.get('days') or i
+              return json.dumps(x[-1] if isinstance(x, list) else x, ensure_ascii=False)[:600]
+          print('סיכום api:', summ(ia)); print('סיכום s3:', summ(is_))
+          PYEOF
