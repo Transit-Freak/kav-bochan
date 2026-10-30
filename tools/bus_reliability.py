@@ -1353,6 +1353,7 @@ def main():
     B_hours = collections.defaultdict(lambda: [0, 0])
     B_sh = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 0, 0]))   # תחנה → שעה (למפה של איפה האוטובוס נתקע)
     B_ex = []                                               # דוגמאות: [route_id, מק"ט, מתוכנן א, מתוכנן ב, בפועל א, בפועל ב]
+    B_pairs = collections.defaultdict(list)                 # מק"ט → כל הזוגות הצמודים (שלמה 30.10: "לראות את כל ההתנגשויות")
     for (rid, sid), lst in BP.items():
         if len(lst) < 2:
             continue
@@ -1380,6 +1381,9 @@ def main():
                 hb[1] += 1
                 if len(B_ex) < 400:
                     B_ex.append([rid, stops.get(sid, ('',))[0], s1, s2, a1, a2])
+                code = stops.get(sid, ('',))[0]
+                if code:
+                    B_pairs[code].append([rid, s1, s2, a1, a2])
     B_ex.sort(key=lambda e: (e[5] - e[4]) - (e[3] - e[2]))
     # התקבצות לכל תחנה ושעה — שכבה נפרדת במפה של "איפה האוטובוס נתקע" (שלמה 29.10). נכתב רק כש-BUNCH_DIR
     # מוגדר, ל-BUNCH_DIR/D.bunch.json.gz (מועלה ל-release של bus-speed — לא בגיט). BUNCH_ONLY=1: רק זה, ויציאה
@@ -1401,6 +1405,10 @@ def main():
         with gzip.open(f"{os.environ['BUNCH_DIR']}/{day}.bunch.json.gz", 'wt') as f:
             json.dump(bunch_stops, f, separators=(',', ':'))
         print(f'התקבצות לכל תחנה: {len(bunch_stops):,} תחנות', flush=True)
+        # כל הזוגות הצמודים בכל תחנה — לכרטיס התחנה במדד הדיוק: {מק"ט: [[route_id, מתוכנן א, מתוכנן ב, בפועל א, בפועל ב]…]}
+        with gzip.open(f"{os.environ['BUNCH_DIR']}/{day}.bpairs.json.gz", 'wt') as f:
+            json.dump(B_pairs, f, separators=(',', ':'))
+        print(f'זוגות צמודים: {sum(len(v) for v in B_pairs.values()):,} ב-{len(B_pairs):,} תחנות', flush=True)
         if os.environ.get('BUNCH_ONLY') == '1':
             return
     print(f'התקבצות: {B_tot[1]:,} זוגות צמודים ו-{B_tot[2]:,} רווחים כפולים מתוך {B_tot[0]:,} זוגות נסיעות עוקבות (עד 20 דק׳ בלו"ז)', flush=True)

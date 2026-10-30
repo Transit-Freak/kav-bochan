@@ -370,6 +370,50 @@ def bunching(days):
     with open(f'{OUT}/bunch.json', 'w', encoding='utf-8') as f:
         json.dump({'days': used, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles)}, f, separators=(',', ':'))
     print(f'התקבצות: {sum(len(v) for v in tiles.values()):,} תחנות מ-{len(used)} ימים')
+    pairs_out(used, {r[2]: k for k, recs in tiles.items() for r in recs}, routes)
+
+
+def pairs_out(days, tile_of, routes):
+    """כל הזוגות הצמודים בכל תחנה (שלמה 30.10: "לראות את כל ההתנגשויות") — לכרטיס התחנה במדד הדיוק.
+    מקור: D.bpairs.json.gz (tools/bus_reliability.py). הרבה נתונים (כ-80 אלף זוגות ביום), ולכן לא בגיט של
+    האתר: PAIRS_OUT/<אריח>.json נדחף לענף orphan בשם bunch-pairs (נדרס בכל ריצה) ומוגש מ-raw.githubusercontent.
+    {"days": [ימים], "r": {route_id: [קו, יעד]}, "s": {מק"ט: [[יום, route_id, מתוכנן ב', בפועל ב',
+    מרווח מתוכנן, מרווח בפועל]…]}} — שניות מתחילת היום; מרווח בפועל שלילי: השני עקף את הראשון."""
+    out_dir = os.environ.get('PAIRS_OUT')
+    if not out_dir:
+        return
+    per = collections.defaultdict(lambda: collections.defaultdict(list))
+    have = []
+    for di, ds in enumerate(days):
+        p = f'{CACHE}/{ds}.bpairs.json.gz'
+        if not os.path.exists(p):
+            continue
+        try:
+            with gzip.open(p, 'rt') as f:
+                day = json.load(f)
+        except Exception:  # noqa: BLE001
+            continue
+        have.append(ds)
+        for code, lst in day.items():
+            t = tile_of.get(code)
+            if t is None:
+                continue
+            for rid, s1, s2, a1, a2 in lst:
+                per[t][code].append([di, rid, s2, a2, s2 - s1, a2 - a1])
+    os.makedirs(out_dir, exist_ok=True)
+    n = 0
+    for (ty, tx), stops in per.items():
+        rids = {e[1] for v in stops.values() for e in v}
+        r = {}
+        for rid in rids:
+            x = routes.get(rid) or []
+            r[rid] = [x[1] if len(x) > 1 else '', x[2].split('<->')[-1].rsplit('-', 1)[0] if len(x) > 2 and '<->' in x[2] else '']
+        for v in stops.values():
+            v.sort(key=lambda e: (-e[0], e[2]))
+            n += len(v)
+        with open(f'{out_dir}/{ty}_{tx}.json', 'w', encoding='utf-8') as f:
+            json.dump({'days': days, 'r': r, 's': stops}, f, ensure_ascii=False, separators=(',', ':'))
+    print(f'זוגות צמודים: {n:,} ב-{sum(len(v) for v in per.values()):,} תחנות, מ-{len(have)} ימים')
 
 
 def norm(c):

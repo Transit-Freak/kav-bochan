@@ -97,6 +97,7 @@ jobs:
             d=$(TZ=Asia/Jerusalem date -d "-$i day" +%F)
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.json.gz" -D /tmp/days 2>/dev/null || true
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.bunch.json.gz" -D /tmp/days 2>/dev/null || true
+            gh release download "$REL" -R "${{ github.repository }}" -p "$d.bpairs.json.gz" -D /tmp/days 2>/dev/null || true
           done
           ls /tmp/days | wc -l
           # ימים ישנים מ-40 יום — נמחקים מה-release
@@ -120,7 +121,23 @@ jobs:
         env:
           SPEED_CACHE: /tmp/days
           GTFS_ZIP: /tmp/gtfs.zip
+          PAIRS_OUT: /tmp/bpairs
         run: python3 tools/bus_speed.py build
+      # כל הזוגות הצמודים בכל תחנה (לכרטיס התחנה במדד הדיוק) — הרבה נתונים, ולכן לענף orphan שנדרס בכל
+      # ריצה, ומשם מ-raw.githubusercontent (כמו nahagim-data), ולא לגיט של האתר
+      - name: פרסום הזוגות הצמודים לענף bunch-pairs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ls /tmp/bpairs/*.json >/dev/null 2>&1 || { echo "אין זוגות"; exit 0; }
+          cd /tmp/bpairs
+          git init -q -b bunch-pairs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "bunch-pairs $(date -u +%F): כל הזוגות הצמודים בכל תחנה"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" bunch-pairs
       - name: שמירה
         run: |
           git config user.name "github-actions[bot]"
