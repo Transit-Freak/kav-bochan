@@ -70,8 +70,9 @@ jobs:
             python3 tools/backfill_stops.py
           rm -f line-history/data/.stops-canary
 
+      # כבוי (שלמה 30.10): כל לילה 6 דק' מול ה-API של דאטאבוס ו-0 עוגנים שנוספו ("לא נמצאו בארכיון")
       - name: עוגני ארכיון לקווים שקטים (בלי אף אירוע רישום מאז 2022)
-        if: ${{ inputs.regonly != '1' }}
+        if: ${{ false }}
         run: |
           OUTDIR=line-history/data PAUSE=1.0 MAX_MIN=5 \
             python3 tools/backfill_stop_anchors.py
@@ -82,8 +83,10 @@ jobs:
       - name: אילו קווים עצרו בכל תחנה בתקופת האירוע (מקומי, בלי רשת)
         run: OUTDIR=line-history/data python3 tools/enrich_stop_lines.py
 
+      # כבוי (שלמה 30.10): 10 דק' מול ה-API כל לילה ו-9 פערים בלבד. במקומו: backfill-stop-dates-s3.yml —
+      # כל הפערים מקובצי ה-GTFS בארכיון של דאטאבוס ב-S3, בלי עומס על השרת שלהם
       - name: איתור תאריך לשינויי תחנות — חיפוש בינארי בארכיון
-        if: ${{ inputs.regonly != '1' }}
+        if: ${{ false }}
         run: |
           OUTDIR=line-history/data PAUSE=1.0 MAX_MIN=10 \
             python3 tools/backfill_stop_dates.py

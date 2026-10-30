@@ -1,0 +1,175 @@
+name: backfill-stop-dates-s3
+
+# "הקו בזמן" — איתור תאריך לשינויי תחנות שהתגלו בין שתי רשומות רחוקות, מארכיון ה-GTFS של דאטאבוס
+# ב-S3 (שלמה 30.10: במקום החיפוש הבינארי מול ה-API שלהם ב-backfill-stops.yml, שהספיק 9 פערים בלילה).
+# 1. plan — המטרות (הפערים) מחושבות פעם אחת מקובצי הקו, ונשמרות כקובץ קטן לשאר השלבים.
+# 2. sample — רבעון לכל ריצה, במקביל: לכל שלישי בפער — רצף התחנות של כל קו מקובץ ה-GTFS של אותו יום.
+# 3. apply — איחוד הדגימות, אירוע לכל שינוי שאותר, הפרשי תחנות, אינדקס, ושמירה לענף שהריץ.
+# הרצה חוזרת בטוחה: פער שתוארך מסומן (dated) ופער בלי דגימות נרשם ב-backfill-dates-skip.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'מתאריך (ברירת מחדל: תחילת הארכיון)'
+        required: false
+        default: ''
+      to:
+        description: 'עד תאריך (ברירת מחדל: היום)'
+        required: false
+        default: ''
+      apply:
+        description: 'לשמור את התוצאה בקובצי הקו (1 = כן, 0 = רק דגימות ותקציר)'
+        required: false
+        default: '1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backfill-stop-dates-s3-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FROM: ${{ inputs.from || '2022-01-01' }}
+  TO: ${{ inputs.to || '' }}
+  APPLY: ${{ inputs.apply || '1' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      quarters: ${{ steps.q.outputs.quarters }}
+    steps:
+      # רק מה שצריך לחישוב המטרות — בלי 1.3 מיליון הקבצים של המאגר
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /tools/
+            /line-history/data/lines/
+            /line-history/data/backfill-dates-skip.json
+          sparse-checkout-cone-mode: false
+      - name: המטרות
+        run: OUTDIR=line-history/data python3 tools/backfill_stop_dates_s3.py targets /tmp/targets.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stop-dates-targets
+          path: /tmp/targets.json
+          retention-days: 3
+      - name: רבעונים לדגימה
+        id: q
+        run: |
+          python3 - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          import datetime, json, os
+          a = os.environ['FROM']
+          b = os.environ['TO'] or datetime.date.today().isoformat()
+          out = []
+          y, q = int(a[:4]), (int(a[5:7]) - 1) // 3
+          while True:
+              s = datetime.date(y, q * 3 + 1, 1)
+              if s.isoformat() > b:
+                  break
+              e = (datetime.date(y + (q == 3), (q * 3 + 3) % 12 + 1, 1) - datetime.timedelta(days=1))
+              out.append({'from': max(s.isoformat(), a), 'to': min(e.isoformat(), b), 'name': f'{y}-Q{q + 1}'})
+              y, q = (y + 1, 0) if q == 3 else (y, q + 1)
+          print('quarters=' + json.dumps(out))
+          PYEOF
+          cat "$GITHUB_OUTPUT"
+
+  sample:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        q: ${{ fromJSON(needs.plan.outputs.quarters) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/download-artifact@v4
+        with:
+          name: stop-dates-targets
+          path: /tmp/t
+      - name: דגימה ${{ matrix.q.name }}
+        run: |
+          mkdir -p /tmp/out
+          TARGETS=/tmp/t/targets.json python3 tools/backfill_stop_dates_s3.py sample \
+            "${{ matrix.q.from }}" "${{ matrix.q.to }}" "/tmp/out/${{ matrix.q.name }}.json.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stop-dates-${{ matrix.q.name }}
+          path: /tmp/out/*.json.gz
+          retention-days: 7
+
+  apply:
+    needs: [plan, sample]
+    # גם אם רבעון אחד נכשל — השאר נכנסים (פער בלי דגימות פשוט נשאר לריצה הבאה)
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /tools/
+            /line-history/data/lines/
+            /line-history/data/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: stop-dates-targets
+          path: /tmp/t
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: stop-dates-20*
+          path: /tmp/samples
+          merge-multiple: true
+      - name: איתור התאריכים
+        run: |
+          ls -la /tmp/samples
+          TARGETS=/tmp/t/targets.json OUTDIR=line-history/data \
+            python3 tools/backfill_stop_dates_s3.py apply /tmp/samples
+          git status --short line-history/data | head -20
+          echo "קבצים ששונו: $(git status --short line-history/data | wc -l)"
+
+      - name: הפרשי תחנות ואינדקס
+        run: |
+          OUTDIR=line-history/data python3 tools/enrich_stop_diffs.py
+          OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+
+      - name: Commit (לענף שהריץ)
+        if: env.APPLY == '1'
+        run: |
+          set -euo pipefail
+          BR="${GITHUB_REF_NAME:-main}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # אותו מיזוג לפי קבצים כמו ב-backfill-stops.yml: נשמרים רק הקבצים שהריצה הזו שינתה;
+          # קובץ שהשתנה בינתיים גם ב-origin — origin גובר, והפער שלו ייבדק שוב בריצה הבאה
+          BASE=$(git rev-parse HEAD)
+          git add -A line-history/data
+          git diff --cached --name-only --diff-filter=d -z "$BASE" -- line-history/data > /tmp/bs-changed
+          git diff --cached --name-only --diff-filter=D -z "$BASE" -- line-history/data > /tmp/bs-deleted
+          rm -rf /tmp/bs-out && mkdir -p /tmp/bs-out
+          xargs -0 -r -I{} cp --parents {} /tmp/bs-out/ < /tmp/bs-changed
+          for i in 1 2 3 4; do
+            git fetch origin "$BR" && git reset --hard "origin/$BR"
+            cp -r /tmp/bs-out/. .
+            xargs -0 -r rm -f -- < /tmp/bs-deleted
+            git diff --name-only -z "$BASE" "origin/$BR" -- line-history/data/lines ':(glob)line-history/data/*.json' > /tmp/bs-theirs
+            while IFS= read -r -d '' f; do
+              git checkout "origin/$BR" -- "$f" 2>/dev/null || rm -f -- "$f"
+            done < /tmp/bs-theirs
+            OUTDIR=line-history/data python3 tools/enrich_stop_diffs.py
+            OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+            git add -A line-history/data
+            if git diff --cached --quiet; then
+              echo "unchanged"; break; fi
+            git commit -m "data: תאריכים לשינויי תחנות מארכיון ה-GTFS ב-S3"
+            if git push origin HEAD:"$BR"; then break; fi
+            echo "push rejected — retry $i"; sleep 10
+          done

@@ -63,6 +63,9 @@ jobs:
           EOF
           cat "$GITHUB_OUTPUT" || true
 
+      - run: pip install -q brotli
+        if: steps.chap.outputs.skip != '1'
+
       - name: מילוי חודשים — פרק לילי אחד
         if: steps.chap.outputs.skip != '1'
         env:
@@ -70,7 +73,6 @@ jobs:
           FROM: ${{ steps.chap.outputs.from }}
           TO: ${{ steps.chap.outputs.to }}
           MAX_MIN: ${{ github.event.inputs.max_min || '60' }}
-          PAUSE: '1.0'   # שלמה 05.09: לא להעמיס על דאטאבוס — שנייה בין דפים
         run: python3 tools/fleet_scan.py
 
       - name: שיוך ערים — כולל הספירה החודשית (best-effort)

@@ -28,15 +28,13 @@ import time
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import fleet_scan as fs   # noqa: E402 — אותו API, אותו מיפוי מסלולים, אותו מפתח רכב
+import fleet_scan as fs   # noqa: E402 — אותו מקור נסיעות (S3), אותו מפתח רכב
 
 OUTDIR = os.environ.get('OUTDIR', 'fleet/data')
 STATE = f'{OUTDIR}/fleet-line-trips-state.json.gz'
 OUT = f'{OUTDIR}/fleet-lines.json'
 MAX_MIN = float(os.environ.get('MAX_MIN', '0'))
-PAUSE = float(os.environ.get('PAUSE', '0.3'))
 TODAY = datetime.date.today()
-PAGE = fs.PAGE
 IL = ZoneInfo('Asia/Jerusalem')
 
 
@@ -80,35 +78,19 @@ def hhmm(t):
 
 def scan_day(day, routes):
     """({line_ref: {"op:רכב": נסיעות}}, {line_ref: {"HH:MM": ["op:רכב", ...]}}) ליום אחד —
-    שעה אחר שעה, כמו fleet_scan."""
+    אותן נסיעות כמו ב-fleet_scan (מ-S3, או מה-API ב-SRC=api)."""
     out, dep = {}, {}
     n = 0
-    for h in range(24):
-        frm, to = f'{day}T{h:02d}:00:00+02:00', f'{day}T{h:02d}:59:59+02:00'
-        offset = 0
-        while True:
-            rows = fs.get('/siri_rides/list', limit=PAGE, offset=offset,
-                          scheduled_start_time_from=frm, scheduled_start_time_to=to,
-                          order_by='id asc')
-            for r in rows:
-                v = (r.get('vehicle_ref') or '').strip()
-                if not v or v == '0':
-                    continue
-                ent = routes.get(r.get('siri_route_id'))
-                if not ent or ent[0] is None or not ent[1]:
-                    continue
-                op, line = ent
-                d = out.setdefault(str(line), {})
-                k = f'{op}:{v}'
-                d[k] = d.get(k, 0) + 1
-                t = hhmm(r.get('scheduled_start_time') or '')
-                if t:
-                    dep.setdefault(str(line), {}).setdefault(t, []).append(k)
-            n += len(rows)
-            if len(rows) < PAGE:
-                break
-            offset += PAGE
-            time.sleep(PAUSE)
+    for op, line, v, start in fs.day_rides(day, routes):
+        n += 1
+        if not v or v == '0' or op is None or not line:
+            continue
+        d = out.setdefault(str(line), {})
+        k = f'{op}:{v}'
+        d[k] = d.get(k, 0) + 1
+        t = hhmm(start)
+        if t:
+            dep.setdefault(str(line), {}).setdefault(t, []).append(k)
     print(f'{day}: {n} נסיעות', flush=True)
     return out, dep
 
@@ -368,7 +350,7 @@ def main():
             d -= datetime.timedelta(days=1)
         print(f'חלון {start} → {end} · נספרו {len(done)} ימים · חסרים {len(todo)}', flush=True)
         if todo:
-            routes = fs.route_operator_map()
+            routes = fs.route_operator_map() if fs.SRC == 'api' else {}
             _, vinfo, elec = vehicle_info()
             t0 = time.time()
             for day in todo:
@@ -378,7 +360,7 @@ def main():
                 try:
                     got, dep = scan_day(day, routes)
                 except Exception as e:  # noqa: BLE001 — היום לא נספר וייסרק שוב
-                    print(f'::warning::דאטאבוס לא ענה ב-{day} ({e}) — ממשיך בריצה הבאה', flush=True)
+                    print(f'::warning::הנתונים של {day} לא נקראו ({e}) — ממשיך בריצה הבאה', flush=True)
                     break
                 mon = st['m'].setdefault(day[:7], {})
                 for line, vs in got.items():

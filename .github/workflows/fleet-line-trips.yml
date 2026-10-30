@@ -36,11 +36,12 @@ jobs:
         with:
           ref: main
 
-      - name: ספירת נסיעות לכל קו
+      - run: pip install -q brotli
+
+      - name: ספירת נסיעות לכל קו (מקובצי ה-SIRI ב-S3)
         id: scan
         env:
           MAX_MIN: ${{ github.event.inputs.max_min || '120' }}
-          PAUSE: '0.3'   # לא להעמיס על דאטאבוס
         run: python3 tools/fleet_line_trips.py
 
       - name: commit
