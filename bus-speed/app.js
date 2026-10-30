@@ -224,8 +224,9 @@ function stopPane(b) {
   const x = h => P + h * (W - P - 4) / 24, y = v => Ht - 16 - v / mx * (Ht - 26);
   let g = `<svg class="chart" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="התקבצות לפי שעה">`;
   for (const t of [10, 20, 30, 40, 50].filter(t => t < mx)) g += `<line class="ax" x1="${P}" x2="${W}" y1="${y(t)}" y2="${y(t)}"/><text x="0" y="${y(t) + 3}">${t}%</text>`;
+  // השעה שנבחרה — רקע בהיר מאחורי העמודה (מסגרת בגובה מלא נראתה כמו עמודה של 30%, שלמה 30.10)
+  g += `<rect x="${x(S.h)}" y="2" width="${(W - P) / 24}" height="${Ht - 18}" fill="#0ea5e9" fill-opacity=".12"/>`;
   pct.forEach((v, h) => { if (v != null) g += `<rect x="${x(h) + 1}" y="${y(v)}" width="${(W - P) / 24 - 2.5}" height="${Ht - 16 - y(v)}" fill="${colBn(v)}"><title>${fmt(h)} · ${v}% (${H[h][1]} מתוך ${H[h][0]})</title></rect>`; });
-  g += `<rect x="${x(S.h)}" y="2" width="${(W - P) / 24}" height="${Ht - 18}" fill="none" stroke="#0ea5e9" stroke-width="1.5"/>`;
   for (const h of [0, 6, 12, 18, 23]) g += `<text x="${x(h)}" y="${Ht - 3}">${String(h).padStart(2, '0')}</text>`;
   g += '</svg>';
   const tot = b[4], pb = Math.round(100 * b[5] / tot), pg = Math.round(100 * b[6] / tot);
@@ -233,9 +234,11 @@ function stopPane(b) {
     `<div class="mut sm">התקבצות — אחוז הפעמים ששני אוטובוסים עוקבים של אותו קו הגיעו צמודים (פחות משליש מהמרווח שבלו"ז)</div>${g}` +
     `<div class="kv"><span>${fmt(S.h)}</span><b>${pct[S.h] == null ? 'מעט נסיעות' : pct[S.h] + '%'}</b>` +
     `<span>כל היום, ימי חול</span><b>${pb}% צמודים · ${pg}% מרווח כפול</b><span>זוגות שנבדקו</span><b>${num(tot)}</b></div></div>` +
-    (b[9] && b[9].length ? `<div class="blk"><h3>הקווים שמתקבצים כאן הכי הרבה</h3><table class="t bt"><thead><tr><th>קו</th><th>לכיוון</th><th>צמודים</th></tr></thead><tbody>` +
-      b[9].map(([ln, to, n, k]) => `<tr><td><b>${esc(ln)}</b></td><td>${esc(to)}</td><td class="n">${n ? Math.round(100 * k / n) : 0}% <span class="mut">(${k}/${n})</span></td></tr>`).join('') + '</tbody></table></div>' : '') +
-    `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. מקור: אותו חישוב של מדד דיוק האוטובוסים, ${BMETA && BMETA.days ? BMETA.days.length : ''} ימי חול אחרונים.</div>`;
+    // רק קווים שהגיעו צמודים לפחות פעם אחת — קו עם 0% לא רלוונטי כאן (שלמה 30.10)
+    ((L => L.length ? `<div class="blk"><h3>הקווים שהגיעו כאן צמודים — כל קו לעצמו</h3><table class="t bt"><thead><tr><th>קו</th><th>לכיוון</th><th>צמודים</th></tr></thead><tbody>` +
+      L.map(([ln, to, n, k]) => `<tr><td><b>${esc(ln)}</b></td><td>${esc(to)}</td><td class="n">${Math.max(1, Math.round(100 * k / n))}% <span class="mut">(${k}/${n})</span></td></tr>`).join('') + '</tbody></table></div>' : '')(
+      (b[9] || []).filter(r => r[2] && r[3] > 0).sort((p, q) => q[3] / q[2] - p[3] / p[2]))) +
+    `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. ${BMETA && BMETA.days ? BMETA.days.length + ' ימי חול אחרונים. ' : ''}<a href="../bus/#/bunch" target="_blank" rel="noopener">כל הפירוט — במדד דיוק האוטובוסים ←</a></div>`;
 }
 function layersPane() {
   const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים']];
