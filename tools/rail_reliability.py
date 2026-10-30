@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""מדד אמינות הרכבת — מנתוני דאטאבוס (Stride API), בקשת שלמה 04.09.2026.
+"""מדד אמינות הרכבת — מנתוני דאטאבוס, בקשת שלמה 04.09.2026.
+
+מקור הנתונים (שלמה 30.10): ארכיון ה-GTFS וקובצי ה-SIRI הגולמיים של דאטאבוס ב-S3 (fetch_day_s3),
+בלי עומס על ה-API שלהם. RAIL_SRC=api — המסלול הישן מול ה-API, להשוואה בלבד.
 
 לכל יום נשלפות כל נסיעות רכבת ישראל שבלו"ז (GTFS, מפעיל 2) עם תחנותיהן
 וזמני ההגעה המתוכננים, וכל שידורי המיקום של הרכבות (SIRI, מפעיל 2). שידורי
@@ -73,6 +76,8 @@ ONTIME_MAX = 5.0      # דקות — "בזמן": איחור עד 5 דקות
 FMT = 2
 BUCKETS = ((-1e9, 5), (5, 10), (10, 20), (20, 1e9))   # דקות; הראשון = בזמן
 T0 = time.time()
+# מקור הנתונים: s3 — ארכיון ה-GTFS וקובצי ה-SIRI של דאטאבוס ב-S3 (ברירת מחדל); api — ה-API שלהם (להשוואה)
+SRC = os.environ.get('RAIL_SRC', 's3')
 
 
 def log(*a):
@@ -239,7 +244,27 @@ def archive_schedule(d, start):
     return out
 
 
+def fetch_day_s3(d):
+    """אותו יום בלי ה-API של דאטאבוס (שלמה 30.10): הלו"ז מקובץ ה-GTFS היומי שבארכיון ב-S3
+    (archive_schedule), והשידורים מקובצי ה-SIRI הגולמיים ב-S3 (siri_s3). נסיעת SIRI מוצמדת
+    לנסיעת הלו"ז לפי קו + שעת יציאה (LineRef = route_id, OriginAimedDepartureTime = היציאה מהמוצא)."""
+    import siri_s3
+    start = datetime.datetime.combine(d, datetime.time(0), tzinfo=IL)
+    end = start + datetime.timedelta(days=1)
+    stops = archive_schedule(d, start)
+    s0, s1 = start.timestamp(), end.timestamp()
+    stops = [s for s in stops if s0 - 1 <= (ts(s.get('gtfs_ride__start_time')) or 0) < s1]
+    log(f'  לו"ז (ארכיון GTFS): {len(stops)} תחנות-נסיעה ({elapsed_min():.1f} דק׳)')
+    if not stops:
+        raise ValueError('אין נסיעות רכבת בקובץ ה-GTFS של היום בארכיון — ננסה שוב בריצה הבאה')
+    locs = siri_s3.vehicle_locations(OP, start, end)
+    log(f'  שידורים: {len(locs)} ({elapsed_min():.1f} דק׳)')
+    return start, stops, locs
+
+
 def fetch_day(d):
+    if SRC != 'api':
+        return fetch_day_s3(d)
     start = datetime.datetime.combine(d, datetime.time(0), tzinfo=IL)
     end = start + datetime.timedelta(days=1)
     # מזהי הנסיעות מצמצמים את שאילתת התחנות לפני צירוף טבלאות המסלולים.
