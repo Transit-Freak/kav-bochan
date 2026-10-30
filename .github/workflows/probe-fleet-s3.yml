@@ -1,0 +1,93 @@
+name: probe-fleet-s3
+
+# בדיקה זמנית (ענף probe בלבד): נסיעות ה-SIRI של אותו יום — מה-API של דאטאבוס מול קובצי S3
+on:
+  push:
+    branches: ['probe-fleet-s3']
+
+jobs:
+  cmp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        day: ['2026-10-27', '2026-10-28']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools
+            fleet/data
+      - run: pip install -q brotli
+      - name: השוואה
+        env:
+          DAY: ${{ matrix.day }}
+        run: |
+          python3 - <<'PYEOF'
+          import collections, os, sys, json, time
+          sys.path.insert(0, 'tools')
+          import fleet_scan as fs
+          day = os.environ['DAY']
+          t = time.time()
+          routes = fs.route_operator_map()
+          fs.SRC = 'api'; api = fs.day_rides(day, routes); ta = time.time() - t
+          t = time.time()
+          fs.SRC = 's3'; s3 = fs.day_rides(day, {}); ts = time.time() - t
+          print(f'API: {len(api)} נסיעות ({ta:.0f}s) | S3: {len(s3)} ({ts:.0f}s)')
+          def norm(rows):
+              out = collections.Counter()
+              for op, line, v, st in rows:
+                  if not v or v == '0' or op is None:
+                      continue
+                  out[(op, line, v, st[:19])] += 1
+              return out
+          A, S = norm(api), norm(s3)
+          print('נסיעות תקינות: API', sum(A.values()), 'S3', sum(S.values()))
+          print('כפילויות באותו מפתח: API', sum(n - 1 for n in A.values()), 'S3', sum(n - 1 for n in S.values()))
+          ka, ks = set(A), set(S)
+          print('משותפות', len(ka & ks), '| רק API', len(ka - ks), '| רק S3', len(ks - ka))
+          for nm, x in (('רק API', sorted(ka - ks)[:15]), ('רק S3', sorted(ks - ka)[:15])):
+              print(nm, x)
+          va = collections.Counter(); vs = collections.Counter()
+          for (op, line, v, st), n in A.items(): va[f'{op}:{v}'] += n
+          for (op, line, v, st), n in S.items(): vs[f'{op}:{v}'] += n
+          print('רכבים: API', len(va), 'S3', len(vs), 'משותפים', len(set(va) & set(vs)),
+                'רק API', sorted(set(va) - set(vs))[:20], 'רק S3', sorted(set(vs) - set(va))[:20])
+          diff = [(k, va[k], vs[k]) for k in set(va) | set(vs) if va[k] != vs[k]]
+          print('רכבים עם ספירת נסיעות שונה:', len(diff), sorted(diff, key=lambda x: -abs(x[1] - x[2]))[:20])
+          la = collections.Counter(); ls = collections.Counter()
+          for (op, line, v, st), n in A.items(): la[(f'{op}:{v}', line)] += n
+          for (op, line, v, st), n in S.items(): ls[(f'{op}:{v}', line)] += n
+          dl = [(k, la[k], ls[k]) for k in set(la) | set(ls) if la[k] != ls[k]]
+          print('(רכב, קו) עם ספירה שונה:', len(dl), 'מתוך', len(set(la) | set(ls)), sorted(dl, key=lambda x: -abs(x[1] - x[2]))[:20])
+          ex = sorted(ka - ks)[:3]
+          print('דוגמאות שורות API שחסרות ב-S3:', ex)
+          PYEOF
+      - name: fleet_scan — מצב מלא בשני המקורות
+        env:
+          DAY: ${{ matrix.day }}
+        run: |
+          for src in api s3; do
+            rm -rf /tmp/$src && mkdir -p /tmp/$src && cp fleet/data/fleet-state.json /tmp/$src/
+            python3 - "$src" <<'PYEOF'
+          import json, sys
+          r = json.load(open(f'/tmp/{sys.argv[1]}/fleet-state.json'))
+          r.pop('scanned_to', None)
+          json.dump(r, open(f'/tmp/{sys.argv[1]}/fleet-state.json', 'w'))
+          PYEOF
+            SRC=$src OUTDIR=/tmp/$src FROM=$DAY TO=$DAY python3 tools/fleet_scan.py | tail -3
+          done
+          python3 - <<'PYEOF'
+          import json
+          a = json.load(open('/tmp/api/fleet-state.json'))['vehicles']
+          b = json.load(open('/tmp/s3/fleet-state.json'))['vehicles']
+          print('רכבים במצב: api', len(a), 's3', len(b))
+          same = sum(1 for k in a if b.get(k) == a[k])
+          print('רשומות זהות לגמרי:', same, 'מתוך', len(set(a) | set(b)))
+          d = [k for k in set(a) | set(b) if a.get(k) != b.get(k)]
+          for k in d[:10]:
+              print(k, a.get(k), b.get(k))
+          fa = json.load(open('/tmp/api/fleet.json')); fb = json.load(open('/tmp/s3/fleet.json'))
+          print('fleet.json זהה:', fa['operators'] == fb['operators'])
+          PYEOF

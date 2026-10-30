@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""צי הרכבים — סריקת דאטאבוס (Stride API): אילו רכבים פעלו אצל כל מפעיל ומתי.
+"""צי הרכבים — סריקת שידורי ה-SIRI של דאטאבוס: אילו רכבים פעלו אצל כל מפעיל ומתי.
+
+הנסיעות נקראות מקובצי ה-SIRI הגולמיים ב-S3 של דאטאבוס (siri_s3.py, שלמה 30.10), ולא מה-API
+שלהם (SRC=api — רק להשוואה).
 
 לכל vehicle_ref (בדרך כלל לוחית הרישוי) נשמרים המפעיל, תאריך הצפייה
 הראשון ותאריך הצפייה האחרון בשידורי ה-SIRI. המצב מצטבר בין ריצות
@@ -40,6 +43,8 @@ FLUSH_DAYS = int(os.environ.get('FLUSH_DAYS', '0'))
 # השהיה בין דפים במילוי היסטורי (שניות); fleet-months מעלה ל-1.0 — לא להעמיס על דאטאבוס
 PAUSE = float(os.environ.get('PAUSE', '0.1'))
 PAGE = 1000
+# מקור הנסיעות: s3 — קובצי ה-SIRI הגולמיים (ברירת מחדל); api — /siri_rides/list (להשוואה בלבד)
+SRC = os.environ.get('SRC', 's3')
 
 # שמות מפעילים מובנים (גיבוי) — הרשימה המלאה נטענת בזמן ריצה מ-agency.txt
 OPERATORS = {
@@ -115,72 +120,82 @@ def route_operator_map():
     return m
 
 
-def scan_day(day, routes, state):
-    """כל נסיעות ה-SIRI של יום אחד → ראשון/אחרון + ספירת נסיעות לכל רכב."""
+def rides_api(day, routes):
+    """(מפעיל, קו, רכב, שעת יציאה) לכל נסיעת SIRI של היום — מה-API של דאטאבוס (SRC=api, להשוואה)."""
     # שעה אחר שעה ולא כל היום בבת אחת (07.10): דפדוף עמוק — עשרות אלפי שורות של יום שלם —
     # איטי בשרת של דאטאבוס ונכשל שם ב-500 (4.10 נכשל שוב ושוב). בחלון של שעה ההיסט נשאר קטן
-    windows = [(f'{day}T{h:02d}:00:00+02:00', f'{day}T{h:02d}:59:59+02:00') for h in range(24)]
-    wi = 0
-    frm, to = windows[0]
-    offset, n = 0, 0
-    today = {}   # key -> מספר נסיעות היום
-    while True:
-        rows = get('/siri_rides/list', limit=PAGE, offset=offset,
-                   scheduled_start_time_from=frm, scheduled_start_time_to=to,
-                   order_by='id asc')
-        for r in rows:
-            v = (r.get('vehicle_ref') or '').strip()
-            if not v or v == '0':
-                continue
-            ent = routes.get(r.get('siri_route_id'))
-            if ent is None:
-                continue
-            op, line = ent
-            if op is None:
-                continue
-            key = f'{op}:{v}'
-            cur = state.get(key)
-            if cur is None:
-                cur = state[key] = [day, day, 0, 0, [], 0, {}]
-            else:
-                while len(cur) < 7:   # מצב ישן — הרחבה הדרגתית
-                    cur.append([] if len(cur) == 4 else ({} if len(cur) == 6 else 0))
-                if day < cur[0]:
-                    cur[0] = day
-                if day > cur[1]:
-                    cur[1] = day
-            # באיזה חודש הרכב פעל — ביט במסיכה (לספירה חודשית בערים)
-            mi = int(day[:4]) * 12 + int(day[5:7]) - 1 - MBASE
-            cur[5] |= 1 << mi
-            # אילו קווים הרכב שירת (עד 40 — מספיק לשיוך ערים)
-            if line and line not in cur[4] and len(cur[4]) < 40:
-                cur[4].append(line)
-            # מתי (באילו חודשים) הרכב שירת כל קו: קו → [חודש ראשון, חודש אחרון]
-            # (מדד החודשים כמו במסיכה). זה מה שמאפשר לראות רכב שעבר מעיר
-            # לעיר בתוך אותה חברה — "מעברים" בצי הרכבים (שלמה 16.09). עד 60 קווים.
-            if line:
-                lm = cur[6]
-                ent = lm.get(str(line))
-                if ent is None:
-                    if len(lm) < 60:
-                        lm[str(line)] = [mi, mi]
-                else:
-                    if mi < ent[0]:
-                        ent[0] = mi
-                    if mi > ent[1]:
-                        ent[1] = mi
-            today[key] = today.get(key, 0) + 1
-        n += len(rows)
-        if len(rows) < PAGE:
-            wi += 1
-            if wi == len(windows):
+    for h in range(24):
+        frm, to = f'{day}T{h:02d}:00:00+02:00', f'{day}T{h:02d}:59:59+02:00'
+        offset = 0
+        while True:
+            rows = get('/siri_rides/list', limit=PAGE, offset=offset,
+                       scheduled_start_time_from=frm, scheduled_start_time_to=to,
+                       order_by='id asc')
+            for r in rows:
+                ent = routes.get(r.get('siri_route_id'))
+                if ent is not None:
+                    yield ent[0], ent[1], (r.get('vehicle_ref') or '').strip(), r.get('scheduled_start_time') or ''
+            if len(rows) < PAGE:
                 break
-            frm, to = windows[wi]
-            offset = 0
+            offset += PAGE
+            if MONTHS_ONLY:
+                time.sleep(PAUSE)   # מילוי היסטורי — בעדינות, לא להעמיס על דאטאבוס
+
+
+def rides_s3(day):
+    """אותו דבר מקובצי ה-SIRI הגולמיים ב-S3 (שלמה 30.10: בלי עומס על השרת של דאטאבוס)."""
+    import siri_s3
+    for r in siri_s3.day_rides(day):
+        yield r['operator_ref'], r['line_ref'], r['vehicle_ref'], r['scheduled_start_time']
+
+
+def day_rides(day, routes):
+    """רשימת הנסיעות של היום — מ-S3 (ברירת המחדל) או מה-API (SRC=api)."""
+    return list(rides_api(day, routes) if SRC == 'api' else rides_s3(day))
+
+
+def scan_day(day, routes, state):
+    """כל נסיעות ה-SIRI של יום אחד → ראשון/אחרון + ספירת נסיעות לכל רכב."""
+    n = 0
+    today = {}   # key -> מספר נסיעות היום
+    for op, line, v, _ in day_rides(day, routes):
+        n += 1
+        if not v or v == '0':
             continue
-        offset += PAGE
-        if MONTHS_ONLY:
-            time.sleep(PAUSE)   # מילוי היסטורי — בעדינות, לא להעמיס על דאטאבוס
+        if op is None:
+            continue
+        key = f'{op}:{v}'
+        cur = state.get(key)
+        if cur is None:
+            cur = state[key] = [day, day, 0, 0, [], 0, {}]
+        else:
+            while len(cur) < 7:   # מצב ישן — הרחבה הדרגתית
+                cur.append([] if len(cur) == 4 else ({} if len(cur) == 6 else 0))
+            if day < cur[0]:
+                cur[0] = day
+            if day > cur[1]:
+                cur[1] = day
+        # באיזה חודש הרכב פעל — ביט במסיכה (לספירה חודשית בערים)
+        mi = int(day[:4]) * 12 + int(day[5:7]) - 1 - MBASE
+        cur[5] |= 1 << mi
+        # אילו קווים הרכב שירת (עד 40 — מספיק לשיוך ערים)
+        if line and line not in cur[4] and len(cur[4]) < 40:
+            cur[4].append(line)
+        # מתי (באילו חודשים) הרכב שירת כל קו: קו → [חודש ראשון, חודש אחרון]
+        # (מדד החודשים כמו במסיכה). זה מה שמאפשר לראות רכב שעבר מעיר
+        # לעיר בתוך אותה חברה — "מעברים" בצי הרכבים (שלמה 16.09). עד 60 קווים.
+        if line:
+            lm = cur[6]
+            ent = lm.get(str(line))
+            if ent is None:
+                if len(lm) < 60:
+                    lm[str(line)] = [mi, mi]
+            else:
+                if mi < ent[0]:
+                    ent[0] = mi
+                if mi > ent[1]:
+                    ent[1] = mi
+        today[key] = today.get(key, 0) + 1
     if not MONTHS_ONLY:
         for key, cnt in today.items():   # צבירה: סך נסיעות + ימי פעילות שנמדדו
             cur = state[key]
@@ -295,7 +310,8 @@ def main():
         return
 
     load_agency_names()
-    routes = route_operator_map()
+    # מיפוי המסלולים של ה-API נדרש רק במסלול ה-API (S3 נותן מפעיל וקו בכל רשומה)
+    routes = route_operator_map() if SRC == 'api' else {}
     t0 = time.time()
     start = datetime.date.fromisoformat(frm)
     end = datetime.date.fromisoformat(TO)
@@ -314,7 +330,7 @@ def main():
             # תקלה בשרת: עצירה נקייה ושמירת הימים שהושלמו. היום שנכשל לא מסומן כסרוק
             # ויסרק שוב בריצה הבאה; מה שנכתב ממנו (ראשון/אחרון, קווים, חודשים) לא משתנה
             # בסריקה חוזרת, וספירת הנסיעות נוספת רק בסוף יום שהושלם
-            print(f'::warning::דאטאבוס לא ענה ב-{day} ({e}) — שומר {len(scanned)} ימים שהושלמו וממשיך בריצה הבאה', flush=True)
+            print(f'::warning::הנתונים של {day} לא נקראו ({e}) — שומר {len(scanned)} ימים שהושלמו וממשיך בריצה הבאה', flush=True)
             break
         scanned.append(day.isoformat())
         # אילו ימים כבר נסרקו עם רישום "קו → חודשים" (לכיסוי של מסך המעברים)
