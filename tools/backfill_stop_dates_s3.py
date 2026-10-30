@@ -25,7 +25,7 @@ import urllib.request
 import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from compact_lines import materialize  # noqa: E402
+from compact_lines import compact, materialize  # noqa: E402
 
 OUTDIR = os.environ.get('OUTDIR', 'line-history/data')
 S3 = 'https://openbus-stride-public.s3.eu-west-1.amazonaws.com/gtfs_archive/{d:%Y/%m/%d}/israel-public-transportation.zip'
@@ -97,23 +97,31 @@ def norm_rd(desc):
 
 
 def seqs_on(z, d, want):
-    """לכל rd מתוך want: רצף התחנות של נסיעה אחת שפועלת ביום d, או None."""
+    """לכל rd מתוך want: רצף התחנות של נסיעת הנציג ביום d, או None.
+    אותו כלל בחירה כמו ב-linehistory.py (שממנו הגיעו הרצפים בקובצי הקו): שירות שבתוקף ביום d
+    (חלון התאריכים, בלי דגלי ימי השבוע), התבנית (shape) שרוב הנסיעות רצות בה, ובתוכה מזהה הנסיעה
+    הקטן ביותר. נסיעה שרירותית הייתה מחליפה תבנית מיום ליום ומייצרת "שינויים" שלא קרו."""
     key = {norm_rd(rd): rd for rd in want}
     route_rd = {}
     for r in rows(z, 'routes.txt'):
         k = norm_rd(r.get('route_desc'))
         if k in key:
             route_rd[r['route_id']] = key[k]
-    wd = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')[d.weekday()]
     ds = d.strftime('%Y%m%d')
     active = {c['service_id'] for c in rows(z, 'calendar.txt')
-              if c[wd] == '1' and c['start_date'] <= ds <= c['end_date']}
-    trip_rd, done = {}, set()
+              if (c.get('start_date') or '0') <= ds <= (c.get('end_date') or '9')}
+    cnt = collections.defaultdict(collections.Counter)   # route_id -> {shape: נסיעות}
+    first = {}                                            # (route_id, shape) -> מזהה הנסיעה הקטן ביותר
     for t in rows(z, 'trips.txt'):
-        rd = route_rd.get(t['route_id'])
-        if rd and rd not in done and t['service_id'] in active:
-            trip_rd[t['trip_id']] = rd
-            done.add(rd)
+        rid, sh, tid = t['route_id'], t.get('shape_id') or '', t['trip_id']
+        if rid in route_rd and sh and t['service_id'] in active:
+            cnt[rid][sh] += 1
+            if (rid, sh) not in first or tid < first[(rid, sh)]:
+                first[(rid, sh)] = tid
+    trip_rd = {}
+    for rid, shapes in cnt.items():
+        sh = min(shapes, key=lambda x: (-shapes[x], x))
+        trip_rd[first[(rid, sh)]] = route_rd[rid]
     st = collections.defaultdict(list)
     with z.open('stop_times.txt') as f:
         head = f.readline().decode('utf-8-sig').strip().split(',')
@@ -123,8 +131,14 @@ def seqs_on(z, d, want):
             if c[it] in trip_rd:
                 st[c[it]].append((int(c[iseq]), c[isd]))
     need = {sid for v in st.values() for _, sid in v}
-    stops = {s['stop_id']: [s['stop_code'], s['stop_name'], round(float(s['stop_lat']), 5), round(float(s['stop_lon']), 5)]
-             for s in rows(z, 'stops.txt') if s['stop_id'] in need}
+    stops = {}
+    for s in rows(z, 'stops.txt'):
+        if s['stop_id'] in need:
+            try:
+                stops[s['stop_id']] = [s['stop_code'], ' '.join(s['stop_name'].split()),
+                                       round(float(s['stop_lat']), 5), round(float(s['stop_lon']), 5)]
+            except (TypeError, ValueError):
+                pass
     out = {rd: None for rd in want}
     for tid, lst in st.items():
         seq = [stops[sid] for _, sid in sorted(lst) if sid in stops]
@@ -137,8 +151,16 @@ def sig(seq):
     return hashlib.md5('|'.join(s[0] for s in seq).encode()).hexdigest()[:10]
 
 
+def load_targets():
+    """המטרות מקובץ (TARGETS, שחושב פעם אחת בשלב הראשון של התהליך) או מחישוב מחדש מקובצי הקו."""
+    p = os.environ.get('TARGETS')
+    if p:
+        return [tuple(t) for t in json.load(open(p, encoding='utf-8'))]
+    return targets()
+
+
 def sample(a, b, out):
-    T = targets()
+    T = load_targets()
     print(f'פערים: {len(T)}', flush=True)
     by_date = collections.defaultdict(set)
     for _, _, _, rd, lo, hi in T:
@@ -151,7 +173,9 @@ def sample(a, b, out):
         if not z:
             print(f'{d}: אין קובץ בארכיון', flush=True)
             continue
-        got = seqs_on(z, dd, by_date[d])
+        # הקובץ של יום dd מכיל את הלו"ז מ-dd והלאה; כשנלקח קובץ מאוחר יותר — בודקים לפי היום שלו
+        got = seqs_on(z, max(d, dd), by_date[d])
+        z.close()
         res['src'][d.isoformat()] = dd.isoformat()
         cur = res['dates'][d.isoformat()] = {}
         for rd, seq in got.items():
@@ -164,10 +188,47 @@ def sample(a, b, out):
         json.dump(res, f, ensure_ascii=False, separators=(',', ':'))
 
 
+def codes(seq):
+    return {s[0] for s in seq}
+
+
 def diff(a, b):
-    ac = {s[0] for s in a}
-    bc = {s[0] for s in b}
-    return [s[1] for s in b if s[0] not in ac], [s[1] for s in a if s[0] not in bc]
+    """(נוספו, ירדו) — שמות וגם קודים, כמו ב-enrich_stop_diffs.py (ac/rc מיושרים לשמות)."""
+    ac, bc = codes(a), codes(b)
+    add = [s for s in b if s[0] not in ac]
+    rem = [s for s in a if s[0] not in bc]
+    return [s[1] for s in add], [s[1] for s in rem], [str(s[0]) for s in add], [str(s[0]) for s in rem]
+
+
+def set_diff(v, a, b):
+    add, rem, ac, rc = diff(a, b)
+    for k, x in (('add', add), ('rem', rem), ('ac', ac), ('rc', rc)):
+        if x:
+            v[k] = x
+        else:
+            v.pop(k, None)
+
+
+def fmt(d):
+    return f'{d[8:10]}.{d[5:7]}.{d[:4]}'
+
+
+def changes(samp, lo, lo_seq, hi, hi_seq):
+    """השרשרת: הרשומה הקודמת ← הדגימות השבועיות ← הרשומה עצמה. לכל מעבר שבו קבוצת התחנות השתנתה:
+    (התאריך שבו נראה לראשונה, התאריך האחרון שבו עוד נראה המצב הקודם, רצף לפני, רצף אחרי).
+    "הבהוב" — דגימה בודדת שונה שבין שתי דגימות זהות — לא נספר (נסיעת נציג חריגה בשבוע אחד)."""
+    chain = [(lo, lo_seq)] + [(d, s) for d, s in samp if lo < d < hi] + [(hi, hi_seq)]
+    keep = [chain[0]]
+    for j in range(1, len(chain)):
+        if j + 1 < len(chain) and codes(chain[j][1]) != codes(keep[-1][1]) \
+           and codes(chain[j + 1][1]) == codes(keep[-1][1]):
+            continue
+        keep.append(chain[j])
+    out = []
+    for (d0, s0), (d1, s1) in zip(keep, keep[1:]):
+        if codes(s0) != codes(s1):
+            out.append((d1, d0, s0, s1))
+    return out
 
 
 def apply(dirn):
@@ -186,79 +247,86 @@ def apply(dirn):
     except Exception:  # noqa: BLE001
         skip = {}
     by_file = collections.defaultdict(list)
-    for t in targets():
+    for t in load_targets():
         by_file[t[0]].append(t)
-    n_dated = n_events = n_skip = 0
-    for fn, ts in by_file.items():
+    n = collections.Counter()
+    for fn, ts in sorted(by_file.items()):
         p = f'{OUTDIR}/lines/{fn}'
-        lf = materialize(json.load(open(p, encoding='utf-8')))
+        try:
+            lf = materialize(json.load(open(p, encoding='utf-8')))
+        except Exception:  # noqa: BLE001
+            continue
         vs = lf.get('versions', [])
+        new_evs = []
         changed = False
         for _, i, prev_i, rd, lo, hi in ts:
+            # הקובץ השתנה מאז שחושבו המטרות — מדלגים (ייבדק שוב בריצה הבאה)
+            if i >= len(vs) or prev_i >= len(vs) or vs[i]['d'] != hi or vs[prev_i]['d'] != lo \
+               or lf.get('rd') != rd or vs[i].get('dated') or not (vs[i].get('stops') and vs[prev_i].get('stops')):
+                n['stale'] += 1
+                continue
             v, pv = vs[i], vs[prev_i]
             samp = [(d.isoformat(), dates.get(d.isoformat(), {}).get(rd)) for d in grid(lo, hi)]
-            samp = [(d, h) for d, h in samp if h]
+            samp = [(d, seqs[rd][h]) for d, h in samp if h and h in seqs.get(rd, {})]
             if not samp:
                 skip[f'{rd}|{v["d"]}'] = 'אין דגימות בארכיון ה-GTFS בפער'
-                n_skip += 1
+                n['skip'] += 1
                 continue
-            # רצף ידוע בתחילת הפער: הרשומה הקודמת, אם היא מתוך הארכיון; לפני תחילת הארכיון — לא ידוע
-            res = []
-            prev_d, prev_seq = (lo, pv['stops']) if lo >= ARCHIVE_START else (None, None)
-            for d, h in samp:
-                s = seqs[rd][h]
-                if prev_seq is not None and {x[0] for x in s} != {x[0] for x in prev_seq}:
-                    res.append((d, prev_seq, s))
-                prev_d, prev_seq = d, s
-            # מהדגימה האחרונה לרשומה עצמה
-            if prev_seq is not None and {x[0] for x in v['stops']} != {x[0] for x in prev_seq}:
-                res.append((v['d'], prev_seq, v['stops']))
-            for d_found, s_before, s_after in res:
-                add, rem = diff(s_before, s_after)
-                if not add and not rem or days(d_found, v['d']) <= 7:
+            res = changes(samp, lo, pv['stops'], hi, v['stops'])
+            residual = []
+            for d_found, d_prev, s_before, s_after in res:
+                if days(d_found, v['d']) <= 7:
+                    # השינוי קרה בשבוע של רשומת העוגן — הדיף נשאר עליה
+                    residual.append((d_found, d_prev, s_before, s_after))
                     continue
+                add, rem, ac, rc = diff(s_before, s_after)
                 kind = 'stops' if (add and rem) else ('stops-add' if add else 'stops-del')
-                ev = {'d': d_found, 'k': kind, 'src': 'ob', 'stops': s_after,
-                      'note': 'התאריך אותר בארכיון ה-GTFS — דיוק של עד שבוע'}
-                if add:
-                    ev['add'] = add
-                if rem:
-                    ev['rem'] = rem
-                vs.append(ev)
-                n_events += 1
-            residual = [r for r in res if days(r[0], v['d']) <= 7 and (diff(r[1], r[2])[0] or diff(r[1], r[2])[1])]
-            if not residual and (res or lo >= ARCHIVE_START):
-                for k in ('add', 'rem'):
+                if days(d_prev, d_found) <= 7:
+                    note = 'התאריך אותר בארכיון ה-GTFS — דיוק של עד שבוע'
+                else:
+                    # בין שתי הדגימות אין נתונים (הקו לא פעל, או לפני תחילת הארכיון) — הטווח המלא
+                    note = f'התחנות השתנו מתישהו בין {fmt(d_prev)} ל-{fmt(d_found)} (ארכיון ה-GTFS)'
+                ev = {'d': d_found, 'k': kind, 'src': 'ob', 'stops': s_after, 'note': note}
+                set_diff(ev, s_before, s_after)
+                new_evs.append(ev)
+                n['events'] += 1
+                if days(d_prev, d_found) > 7:
+                    n['events_coarse'] += 1
+            if residual:
+                # נשאר שינוי בשבוע העוגן — מצמצמים את הדיף עליו לשינוי הזה בלבד
+                set_diff(v, residual[-1][2], residual[-1][3])
+                n['residual'] += 1
+            else:
+                for k in ('add', 'rem', 'ac', 'rc'):
                     v.pop(k, None)
-                if v.get('gd'):
-                    v.pop('gd', None)
-                    v.pop('note', None)
-            elif residual:
-                add, rem = diff(residual[-1][1], residual[-1][2])
-                for k, x in (('add', add), ('rem', rem)):
-                    if x:
-                        v[k] = x
-                    else:
-                        v.pop(k, None)
-                if v.get('gd'):
-                    v.pop('note', None)
-                    v.pop('gd', None)
+            if v.get('gd'):
+                v.pop('gd', None)
+                v.pop('note', None)
             v['dated'] = 1
-            n_dated += 1
+            n['dated'] += 1
             changed = True
         if changed:
+            vs.extend(new_evs)
             vs.sort(key=lambda x: x['d'])
             lf['versions'] = vs
-            json.dump(lf, open(p, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+            with open(p, 'w', encoding='utf-8') as f:
+                json.dump(compact(lf), f, ensure_ascii=False, separators=(',', ':'))
+            n['files'] += 1
     json.dump(skip, open(skip_p, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    print(f'סיום: תוארכו {n_dated} פערים | נוצרו {n_events} אירועים | בלי דגימות {n_skip}')
+    print(f"סיום: תוארכו {n['dated']} פערים ב-{n['files']} קבצים | נוצרו {n['events']} אירועים "
+          f"({n['events_coarse']} בטווח של יותר משבוע) | דיף שנשאר על העוגן {n['residual']} | "
+          f"בלי דגימות {n['skip']} | השתנו מאז חישוב המטרות {n['stale']}")
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == 'sample':
+    if sys.argv[1] == 'targets':
+        T = targets()
+        json.dump(T, open(sys.argv[2], 'w', encoding='utf-8'), ensure_ascii=False)
+        print(len(T), 'פערים;', len({d for t in T for d in grid(t[4], t[5])}), 'ימי דגימה')
+    elif sys.argv[1] == 'sample':
         sample(sys.argv[2], sys.argv[3], sys.argv[4])
     elif sys.argv[1] == 'apply':
         apply(sys.argv[2])
     elif sys.argv[1] == 'count':
-        T = targets()
+        T = load_targets()
         print(len(T), 'פערים;', len({d for t in T for d in grid(t[4], t[5])}), 'ימי דגימה')
