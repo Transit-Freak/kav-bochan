@@ -93,7 +93,7 @@ def refresh_corpus():
 def _para(p):
     return {'lines': sorted(p['lines']), 'start': list(p['start']) if p['start'] else None, 'steps': p['steps'],
             'dir': list(p['dir']) if p.get('dir') else None, 'rm': sorted(p.get('rm', ())), 'add': sorted(p.get('add', ())),
-            't': p['text'][:70]}
+            'dnum': p.get('dnum') or {}, 'kind': p.get('kind'), 't': p['text'][:70]}
 
 
 def snapshot(corpus):
@@ -101,7 +101,8 @@ def snapshot(corpus):
     out = {}
     for a in alerts:
         paras = AR.parse(a['d'])
-        out[a['id']] = {'paras': [_para(p) for p in paras], 'tpl': AR.template(a['d'], paras),
+        # גם פסקאות הקיצור והפרסה (kind) — התחנות שמתחתיהן שלהן
+        out[a['id']] = {'paras': [_para(p) for p in AR.parse(a['d'], kinds=True)], 'tpl': AR.template(a['d'], paras),
                         'cause': AF.cause_of(a['h'], a['d']), 'nstops': AF.text_new_stops(a['d']),
                         'city': AF._city(a['h']), 'words': sorted(AF._place_words(a['h']))}
     # קיבוץ ואיחוד — על העותק הקפוא, עם מיקומי התחנות שנשמרו בו (מק"ט במקום stop_id)
@@ -147,69 +148,21 @@ def diff_alert(old, new):
 
 
 # ------------------------------------------------------------------ ב. כללים
-def nearest_idx(shape, p):
-    """כמו nearestIdx ב-alerts/app.js."""
-    best, bd = 0, 1e18
-    for i, q in enumerate(shape):
-        dx, dy = q[0] - p[0], (q[1] - p[1]) * 0.85
-        d = dx * dx + dy * dy
-        if d < bd:
-            bd, best = d, i
-    return best
+# הקטע הסגור — מ-alerts_route, אותו חישוב שהצינור פוסל לפיו עקיפות (closed_check)
+nearest_idx = AR.nearest_idx
 
 
 def closed_range(r, stops):
-    """הקטע הסגור שהאתר מסמן (alerts/app.js, closedRange) כשיש est. אם הקובץ שומר אינדקסים מוכנים
-    (est.k / est.c), לפיהם; אחרת — זוג נקודות קרובות (עד 40 מ' יותר מהקרובה) שבו היציאה לפני החזרה,
-    שמכסה הכי הרבה תחנות מבוטלות, ואחר כך הכי קרוב והכי קצר."""
-    shape, est = r.get('shape') or [], r['est']['path']
-    k = r['est'].get('k') or r['est'].get('c')
-    if isinstance(k, list) and len(k) == 2 and k[0] < k[1] < len(shape):
-        return k[0], k[1]
-
-    def m(q, p):
-        return ((q[0] - p[0]) ** 2 + ((q[1] - p[1]) * 0.85) ** 2) ** 0.5 * 111320
-
-    def cand(p):
-        d = [m(q, p) for q in shape]
-        lo = min(d)
-        return [(i, x) for i, x in enumerate(d) if x <= lo + 40 and (i == 0 or x <= d[i - 1]) and (i == len(d) - 1 or x <= d[i + 1])]
+    """הקטע הסגור שהאתר מסמן (alerts/app.js, closedRange) — AR.closed_range על הקו מ-rc."""
     dels = [stops[s][:2] for s in r.get('del') or [] if s in stops]
-    best = None
-    for a, da in cand(est[0]):
-        for b, db in cand(est[-1]):
-            if b <= a:
-                continue
-            n = sum(1 for q in dels if any(m(shape[j], q) < 40 for j in range(a, b + 1)))
-            sc = (-n, da + db, b - a)
-            if best is None or sc < best[2]:
-                best = (a, b, sc)
-    if best:
-        return best[0], best[1]
-    c0 = nearest_idx(shape, est[0])
-    return c0, max(c0, nearest_idx(shape, est[-1]))
+    return AR.closed_range(r.get('shape') or [], r['est'], dels)
 
 
 def _len(pts):
     return sum(AR.meters(a, b) for a, b in zip(pts, pts[1:]))
 
 
-def _through_del(path, pos, edge=60.0, tol=15.0):
-    """האם המסלול עובר פחות מ-tol מ' מהתחנה, לא ב-edge המטרים הראשונים או האחרונים."""
-    total = _len(path)
-    cum = 0.0
-    for a, b in zip(path, path[1:]):
-        d = AR.meters(a, b)
-        if cum + d > edge and cum < total - edge and AR.seg_dist(pos, a, b) < tol:
-            # הקטע חוצה את גבול 60 המטרים — בודקים רק את החלק שבפנים
-            n = max(1, int(d / 3))
-            for i in range(n + 1):
-                c = cum + d * i / n
-                q = (a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n)
-                if edge < c < total - edge and AR.meters(pos, q) < tol:
-                    return True
-        cum += d
-    return False
+_through_del = AR.through_del   # אותה בדיקה שהניתוב עצמו משתמש בה
 
 
 VAV = re.compile(r'(?:^|\s)ו$')
@@ -247,7 +200,7 @@ def invariants(snap):
             if hit:
                 bad['est-through-del'][key] = hit
             shape = r.get('shape') or []
-            if len(shape) < 2:
+            if len(shape) < 2 or r['est'].get('nocut'):   # nocut — האתר לא מצייר קטע סגור לעקיפה הזו
                 continue
             c0, c1 = closed_range(r, stops)
             closed = _len(shape[c0:c1 + 1])
@@ -501,6 +454,352 @@ class Fixtures(unittest.TestCase):
         # 14589665789: "קווים מושפעים" — המספרים נכנסים לרשימת הקווים; תאריך ושעה לא
         d = 'ב-25-26/10 בשעה 22:00 יחסם הכביש.\nקווים מושפעים :- \n691,695,681,690,680'
         self.assertEqual(AF.text_lines(d), {'691', '695', '681', '690', '680'})
+
+    def test_group_needs_real_overlap(self):
+        # 14585293872 מול 14598563776: חסימת פניות 25–29 (רצוף) מול סגירה בלילה 29/10 — חופפות רק 5 שעות
+        # בקצה, לא אותו אירוע. שני לילות זהים (ההגנה 26+28 מול 28+29) — כן
+        def grp(*pers):
+            al = [{'id': str(i), 'h': 'תל אביב, עבודות לילה, צומת לבנון/רוזנפלד', 'rm': [], 'per': p, 's': str(i)}
+                  for i, p in enumerate(pers)]
+            AF.group_alerts(al, {})
+            return [a.get('grp') for a in al]
+        h = 3600
+        self.assertEqual(grp([[0, 117 * h]], [[112 * h, 123 * h]]), [None, None])
+        self.assertEqual(grp([[0, 7 * h], [48 * h, 55 * h]], [[48 * h, 55 * h], [72 * h, 79 * h]]), ['0', '0'])
+
+    def test_short_stop_not_alt(self):
+        # 14575709262: תחנת הסיום של 37 המקוצר — לא תחנה חלופית של ההודעה (קו 200 קיבל אותה), רק של 37
+        d = ('קו 37 מבת גלים לאוניברסיטת חיפה: ייסע על פי המסלול הקיים עד תחנת שדרות אבא חושי/ טהון (תחנה 41174) '
+             'ויסיים את מסלול נסיעתו זמנית בתחנה זו.\n\nתחנה חלופית: אבא חושי/דניה (תחנה 41190)')
+        self.assertEqual(AF.text_new_stops(d), ['41190'])
+        self.assertEqual(AF.short_stops(d), [({'37'}, ['41174'])])
+
+    def test_line_xadd_no_fallback(self):
+        # 14598456138 / 14575709262: קו בלי רשימה משלו בהודעה עם כמה פסקאות — בלי התחנות של ההודעה;
+        # קו מקוצר — רק תחנות הקיצור שלו; פסקה אחת — התחנות של ההודעה כמו קודם
+        AF.STOP_POS.update({'s1': (32.0, 35.0), 's2': (32.1, 35.0)})
+        self.addCleanup(lambda: [AF.STOP_POS.pop(k, None) for k in ('s1', 's2')])
+        by_code = {'111': 's1', '222': 's2'}
+        r = {'num': '200', 'seq': [], 'del': []}
+        sst = [({'37'}, ['222'])]
+        self.assertEqual(AF.line_xadd(r, ['s1'], None, set(), 2, sst, {}, by_code), [])
+        self.assertEqual(AF.line_xadd(r, ['s1'], None, set(), 1, sst, {}, by_code), ['s1'])
+        self.assertEqual(AF.line_xadd(r, ['s1'], 'none', set(), 1, sst, {}, by_code), [])
+        self.assertEqual(AF.line_xadd(dict(r, num='37'), ['s1'], 'none', set(), 2, sst, {}, by_code), ['s2'])
+
+    def test_skip_word_forms(self):
+        # 14598256893: "מדלגים באופן זמני על התחנות" — skip, לא "אין תיאור"
+        self.assertEqual(AR.template('עקב עבודות תשתית בטכניון , קווים , 173/174/294 , מדלגים באופן זמני על התחנות. '), 'skip')
+
+    def test_skip_short_when_routing_fails(self):
+        # 14592600538 קו 43: יש פסקה, הניתוב נכשל — "מדלג", לא "לא הצלחנו למצוא"; 14584669962 297-2: "מקוצר"
+        from unittest import mock
+        sh = [[32.0, 34.8 + i * 0.001] for i in range(10)]
+
+        def run(desc, num, rd):
+            r = {'num': num, 'rd': rd, 'shape': sh, 'cut': (3, 6), 'seq': [], 'del': [], 'to': ''}
+            with mock.patch.object(AF, 'overpass', return_value=[1]), mock.patch.object(AR, 'Streets'), \
+                    mock.patch.object(AR, 'route_detour', return_value=None):
+                AF.estimate_routes({'id': 'x', 'description': {'he': desc}}, [r], {})
+            return r['why']
+        d = ('קו 43 ישנה את מסלולו וידלג על תחנות \nקו 43 לכיוון רמת גן:\nייסע במסלולו המקורי עד רחוב אלוף שדה פינת '
+             'יצחק רבין, ימשיך לרחוב אלוף שדה וימשיך במסלולו המקורי')
+        self.assertEqual(run(d, '43', '10043-1-#'), 'skip')
+        d = ('קו 297-2-0 \nבדומה לחלופת שבת  297-2-1 מתחיל בתחנה: 42335 מל"ל/קומי. המשך ללא שינוי.\n'
+             'קווים: 796-1-0  774-1-0 297\nעד צומת דרך בר יהודה/פרץ, ללא שינוי. ישר בדרך בר יהודה, שמאלה לחשמל.')
+        self.assertEqual(run(d, '297', '10297-2-0'), 'short')
+        self.assertEqual(run(d, '796', '10796-1-0'), 'no-match')
+
+    def test_not_turn_but_other_side(self):
+        # 14598563776 / 14592925292: "לא פונים שמאלה לרח' Y אלא ימינה" — Y הוא הרחוב הראשון;
+        # "אלא" עם רחוב משלו — כמו קודם
+        d = ('קו 12 לכיוון קריית עתידים:\nנוסעים במסלול הרגיל עד לצומת רדינג/חיים לבנון, לא פונים שמאלה לרח\' '
+             'חיים לבנון אלא ימינה, שמאלה לרח\' נמיר מרדכי, שמאלה לשד\' רוקח וממשיכים במסלול הרגיל.')
+        self.assertEqual(_steps_of(d), ['חיים לבנון', 'נמיר מרדכי', 'רוקח'])
+        d = ('קו 5 לכיוון X:\nנוסעים במסלול הרגיל עד לכיכר יצחק שמיר/מנחם בגין, לא פונים שמאלה לרח\' מנחם בגין '
+             'אלא פונים ימינה לרח\' אמנון ליפקין שחק, שמאלה לרח\' יוני נתניהו וממשיכים במסלול הרגיל.')
+        self.assertEqual(_steps_of(d), ['אמנון ליפקין שחק', 'יוני נתניהו'])
+
+    def test_end_forms(self):
+        # 14594603230: "וממשיך מסלול רגיל" (בלי ב-); "ממשיך במסלול המקורי עד X" — לא סוף העקיפה;
+        # "וכל קו ממשיך במסלולו" — סוף העקיפה; 14589940828 (עם סוגריים של המשך אחר לכל קו) — לא פסקה
+        d = 'קו 63 כיוון 1:\nמהארי טרומן ימינה לישעיהו וממשיך מסלול רגיל (תחנה חלופית ישעיהו).'
+        self.assertEqual(AR.norm(_steps_of(d)[-1]), 'לישעיהו')
+        self.assertEqual(AR._steps('ימינה למנחם אריאב וכל קו ממשיך לפי מסלולו'), ['למנחם אריאב'])
+        d = 'קווים 5, 7:\nמהרצל ימינה לבלפור, שמאלה לויצמן וכל קו ממשיך במסלולו.'
+        self.assertEqual([AR.norm(x) for x in _steps_of(d)], ['מהרצל', 'לבלפור', 'לויצמן'])
+        self.assertEqual(AR._steps('ימינה לבלפור וממשיכים במסלולם'), ['לבלפור'])
+        self.assertEqual(AR._steps('ממשיך במסלול המקורי עד הרצל, ימינה לבלפור'), ['לבלפור'])
+        # 14589940828 כולו: בלי פסקה חלקית (16+5 מהסוגריים) — נשאר "רק תחנות"
+        d = next((a['d'] for a in _load(CORPUS, {}).get('alerts', []) if a['id'] == '14589940828'), None)
+        if d is not None:
+            self.assertEqual(AR.parse(d), [])
+            self.assertEqual(AR.template(d), 'stops')
+
+    def test_street_junk(self):
+        # 14598209597 "לכל אורכו"; 14587894314 "בהלוך-"; 14594480959 "משפירא יש לפנות", "מיד"; 14589940828 "דרך חלופית:"
+        self.assertEqual(AR.clean_street('ימינה ברודצקי לכל אורכו'), 'ברודצקי')
+        self.assertEqual(AR.clean_street('בהלוך- מרחוב שז"ר'), 'מרחוב שז"ר')
+        self.assertEqual(AR.clean_street('בחזור- משדרות בנימין'), 'משדרות בנימין')
+        self.assertEqual(AR._steps('משפירא יש לפנות ימינה אל הפרחים, מיד שמאלה אל משמר נוף'), ['הפרחים', 'משמר נוף'])
+        self.assertEqual(AR._steps('דרך חלופית: ימינה למנחם אריאב'), ['למנחם אריאב'])
+        # "רכסים: תחנת…" — לא הוראה, נשאר כמו שהוא
+        self.assertEqual(AR._steps('עד רכסים: תחנת כיכר המועצה ברחוב הרימונים'), [])
+
+    def test_attached_hyphen_list(self):
+        # 14594603230: "לכביש 5611- בנגמין- טום לנטוס-" — רשימה; "עד טום לנטוס- בנגמין-" — הצומת;
+        # מקף בתוך שם ("בר-אילן", "דה-וינצ'י") — לא מפצלים
+        self.assertEqual(AR._steps('בגביש ימינה לכביש 5611- בנגמין- טום לנטוס- וממשיך מסלול רגיל.'),
+                         ['בגביש', 'לכביש 5611', 'בנגמין', 'טום לנטוס'])
+        self.assertEqual(AR._steps('מסלול רגיל עד טום לנטוס- -בנגמין- ימינה בכיכר לכביש 5611- פונה שמאלה לישעיהו.'),
+                         ['לכביש 5611', 'לישעיהו'])
+        self.assertEqual(AR._steps("ימינה לדרך בר-אילן, שמאלה לרח' דה-וינצ'י"), ['לדרך בר-אילן', "דה-וינצ'י"])
+
+    def test_match_spelling(self):
+        # 14598355964 "דה-וינצ'י"; 14592919677 "הלח"י" (במפה לח"י); 14587835206 "לה גרדיה" (במפה לה גווארדיה);
+        # בלי ה'/ו/י רק כשאין התאמה מדויקת
+        g = [(32.0, 34.8), (32.001, 34.8)]
+        net = AR.Streets([({'name': n, 'highway': 'residential'}, g)
+                          for n in ("ליאונרדו דה וינצ'י", 'לח"י', 'לה גווארדיה', 'הרצל', 'רצל', 'בר-אילן')])
+        self.assertEqual(net.match("דה-וינצ'י"), {'ליאונרדו דה וינצי'})
+        self.assertEqual(net.match('הלח"י'), {'לחי'})
+        self.assertEqual(net.match('לה גרדיה'), {'לה גוארדיה'})
+        self.assertEqual(net.match('הרצל'), {'הרצל'})
+        self.assertEqual(net.match('דרך בר-אילן'), {'בר אילן'})
+        self.assertEqual(net.match('החרש'), set())
+
+    def test_para_dir(self):
+        # 14585293872 "לקוים 12 לכיוון מכללת לוינסקי, 604 לכיוון תל אביב" — לכל קו היעד שלו; 12 (שני הכיוונים
+        # בתל אביב) — לא ברור, לא בונים; 14598355964 "לכיוון בת-ים" (מילים קצרות); "לקו 4-3" — הכיוון מהמספר
+        p = {'dir': ('to', 'מכללת לוינסקי, 604 לכיוון תל אביב'), 'dnum': {}}
+        self.assertEqual(AF.para_dir(p, '604', {'1': 'תל אביב יפו - מסוף רדינג', '2': 'נתניה - ת. מרכזית נתניה'}), '1')
+        self.assertIsNone(AF.para_dir(p, '12', {'1': 'תל אביב יפו - קריית חינוך', '2': 'תל אביב יפו - מסוף עתידים'}))
+        self.assertEqual(AF.para_dir(p, '12', {'1': 'תל אביב יפו - מכללת לוינסקי', '2': 'הרצליה - מלון השרון'}), '1')
+        b = {'1': 'בת ים - מסוף בית העלמין', '2': 'תל אביב יפו - מסוף עתידים'}
+        self.assertEqual(AF.para_dir({'dir': ('to', 'בת-ים')}, '142', b), '1')
+        self.assertEqual(AF.para_dir({'dir': ('from', 'בת-ים')}, '142', b), '2')
+        self.assertIsNone(AF.para_dir({'dir': None}, '142', b))
+        self.assertEqual(AF.para_dir({'dir': None, 'dnum': {'4': '3'}}, '4', {'3': 'x', '1': 'y'}), '3')
+        # 14587708913: "קו 201 מ… לרחובות וקווי הלילה 296, 489 …" — 201 שייך לחלק הראשון
+        p = {'dir': ('to', 'רחובות וקווי הלילה 296, 489 מתל אביב-יפו   לבית דגן/ חולון')}
+        self.assertEqual(AF.para_dir(p, '201', {'1': 'רחובות - ת. מרכזית', '2': 'תל אביב יפו - יוסף לוי'}), '1')
+        self.assertEqual(AF.dest_to('רחובות-רחובות<->מסוף רדינג/הורדה-תל אביב יפו-1#'), 'תל אביב יפו - מסוף רדינג/הורדה')
+
+    def test_text_routes(self):
+        # 14598209597: 25/289 לבת ים/חולון — יש פסקה, אין route_change במקור; הכיוון שכבר יש — לא נבנה שוב
+        from unittest import mock
+        sh = [(32.0 + i * 0.0005, 34.8) for i in range(20)]
+        idx = [{'rd': '15025-1-0', 'line': '25', 'dest': 'x<->חניון-חולון-1', 'op': 'דן', 'lk': 'snapshot'},
+               {'rd': '15025-2-0', 'line': '25', 'dest': 'x<->אוניברסיטה-תל אביב יפו-2', 'op': 'דן', 'lk': 'snapshot'},
+               {'rd': '99025-1-0', 'line': '25', 'dest': 'x<->חולון-חולון-1', 'op': 'אגד', 'lk': 'snapshot'}]
+        d = ('קווים 25, 289 לכיוון בת-ים/חולון:\nעד רוזנפלד פינת וייז ללא שינוי, ימינה וייז, ימינה לבנון, והמשך במסלול הרגיל.\n'
+             'תחנות מבוטלות:\n21385 מכון התקנים/חיים לבנון\n'
+             'קווים 25, 289 לכיוון תל אביב:\nעד לבנון פינת וייז ללא שינוי, ימינה וייז, ימינה רוזנפלד, והמשך במסלול הרגיל.')
+        AF.STOP_POS.update({'s1': sh[5], 's2': sh[10]})
+        self.addCleanup(lambda: [AF.STOP_POS.pop(k, None) for k in ('s1', 's2')])
+        stops = {'s1': ('21385', ''), 's2': ('20000', '')}
+        r0 = {'num': '25', 'rd': '15025-2-0', 'ag': 'דן', 'shape': [list(x) for x in sh], 'cut': [8, 9]}
+        a = {'relevant_agencies': [{'agency_name': 'דן'}], 'removed_stop_ids': []}
+        with mock.patch.object(AF, 'lines_index', return_value=idx), mock.patch.object(AF, '_variant', return_value=(sh, ['20000', '21385'])), \
+                mock.patch.object(AF.os.path, 'isdir', return_value=True):
+            out = AF.text_routes(a, [r0], [['25', '15025']], d, stops)
+        self.assertEqual([(r['num'], r['rd'], r['del'], r['_para']) for r in out], [('25', '15025-1-0', ['s1'], 0)])
+        self.assertEqual(out[0]['seq'], [['s2', False]])
+        self.assertEqual(out[0]['to'], 'חולון - חניון')
+
+    def test_junction_of(self):
+        # 14582273834 קו 633: "מצומת חיים לבנון/רדינג פונה שמאלה" — צומת היציאה בלי "עד"
+        self.assertEqual(AR.junction_of('מצומת חיים לבנון/רדינג פונה שמאלה לרדינג (אין המשך ישר לחיים לבנון), ימינה ברודצקי'),
+                         ('חיים לבנון', 'רדינג'))
+        self.assertIsNone(AR.junction_of('יפנה ימינה לרבין, ימינה הרא"ה'))
+
+    def test_extend_cut(self):
+        # הצומת 200 מ' לפני הקטע הסגור — הקטע מתחיל בו; 600 מ' לפניו — לא
+        sh = [(32.0 + i * 0.0005, 34.8) for i in range(40)]   # כ-55 מ' בין נקודות
+        self.assertEqual(AR.extend_cut(sh, 20, [(32.0 + 16 * 0.0005, 34.8003)]), 16)
+        self.assertIsNone(AR.extend_cut(sh, 20, [(32.0 + 8 * 0.0005, 34.8003)]))
+        self.assertIsNone(AR.extend_cut(sh, 20, [(32.0 + 16 * 0.0005, 34.81)]))
+
+    def test_cut_passes(self):
+        # 14585281235 קווים 2, 3 (סיבוביים): התחנה ליד השרטוט בשני מעברים — cut_range בוחר אחד, cut_passes נותן את השני
+        go = [(32.0 + i * 0.0005, 34.8) for i in range(20)]
+        loop = go + [(go[-1][0], 34.8 + 0.0005 * k) for k in range(1, 6)] + [(32.0 + i * 0.0005, 34.80225) for i in range(19, -1, -1)]
+        q = (32.0 + 10 * 0.0005, 34.80112)
+        best = AR.cut_range(loop, [q], slack=30.0)
+        alt = AR.cut_passes(loop, [q], best)
+        self.assertEqual(len(alt), 1)
+        self.assertGreater(abs(alt[0][0] - best[0]), 10)
+        # קו שעובר פעם אחת — אין מעבר נוסף
+        self.assertEqual(AR.cut_passes(go, [(32.005, 34.8001)], AR.cut_range(go, [(32.005, 34.8001)])), [])
+
+    def test_one_pass(self):
+        sh = [(32.0 + i * 0.0005, 34.8) for i in range(40)]
+        self.assertEqual(AR.one_pass(sh, [(32.0 + 12 * 0.0005, 34.8001)]), 12)
+        # הרחוב לאורך השרטוט (קטע ארוך), או שני מקומות — לא ברור
+        self.assertIsNone(AR.one_pass(sh, [(32.0 + i * 0.0005, 34.8001) for i in range(5, 15)]))
+        self.assertIsNone(AR.one_pass(sh, [(32.0 + 5 * 0.0005, 34.8001), (32.0 + 30 * 0.0005, 34.8001)]))
+
+    def test_junction_cut(self):
+        # קו שנבנה מהנוסח (604 בג'ורג' וייז): הקטע הסגור מתחיל בצומת שבפסקה, ונמשך כ-60 מ'
+        sh = [(32.0 + i * 0.0005, 34.8) for i in range(40)]
+        cross = [(32.0 + 12 * 0.0005, 34.799), sh[12], (32.0 + 12 * 0.0005, 34.801)]
+        net = AR.Streets([({'name': 'רוזנפלד', 'highway': 'residential'}, sh),
+                          ({'name': "ג'ורג' וייז", 'highway': 'residential'}, cross)])
+        para = {'start': ('רוזנפלד', "ג'ורג' וייז"), 'steps': ["ג'ורג' וייז"], 'text': ''}
+        c = AR.junction_cut(net, para, sh)
+        self.assertEqual(c[0], 12)
+        self.assertGreater(c[1], 12)
+
+    def test_detour_why(self):
+        # route_detour: סיבה לכל None (לאבחון) — רחוב שלא במפה
+        g = [(32.0, 34.8), (32.001, 34.8)]
+        net = AR.Streets([({'name': 'הרצל', 'highway': 'residential'}, g)])
+        dg = {}
+        sh = [(32.0 + i * 0.0005, 34.8) for i in range(10)]
+        self.assertIsNone(AR.route_detour(net, {'steps': ['בלפור'], 'start': None, 'text': ''}, sh, 3, 5, diag=dg))
+        self.assertEqual(dg['why'], 'no-plan:בלפור')
+
+    def test_estimate_tries_other_pass(self):
+        # קו סיבובי: המעבר הראשון נכשל, השני מצליח — המסלול מהשני; why_d רק כשלא נמצא כלום
+        from unittest import mock
+        sh = [[32.0, 34.8 + i * 0.001] for i in range(30)]
+        res = {'path': [[32.0, 34.801], [32.001, 34.802]], 'i_out': 20, 'i_in': 24, 'streets': ['x'], 'len': 100}
+
+        def fake(net, p, shape, c0, c1, diag=None):
+            if c0 == 3:
+                diag['why'] = 'out-in-cut'
+                return None
+            return dict(res)
+        d = 'קו 2 לכיוון X:\nנוסעים במסלול הרגיל עד לכיכר תל חי/בן גוריון, ימינה לרח\' רוטשילד וממשיכים במסלול הרגיל.'
+        r = {'num': '2', 'rd': '1-1-#', 'shape': sh, 'cut': [3, 4], 'cuts': [[21, 22]], 'seq': [], 'del': [], 'to': ''}
+        with mock.patch.object(AF, 'overpass', return_value=[1]), mock.patch.object(AR, 'Streets'), \
+                mock.patch.object(AR, 'route_detour', side_effect=fake):
+            AF.estimate_routes({'id': 'x', 'description': {'he': d}}, [r], {})
+        self.assertEqual((r['why'], r['cut']), ('ok', [21, 22]))
+        self.assertNotIn('why_d', r)
+        r = dict(r, cut=[3, 4], cuts=[])
+        with mock.patch.object(AF, 'overpass', return_value=[1]), mock.patch.object(AR, 'Streets'), \
+                mock.patch.object(AR, 'route_detour', side_effect=fake):
+            AF.estimate_routes({'id': 'x', 'description': {'he': d}}, [r], {})
+        self.assertEqual((r['why'], r['why_d']), ('no-match', ['p0 out-in-cut']))
+
+    def test_line_word_direction(self):
+        # 14594603230: "קו 63 כיוון 1, 64 כיוון 1" — קו וכיוון, לא קווים 1 ו-2
+        d = 'קו 63 כיוון 1, 64 כיוון 1, 68 כיוון 1\nמסלול חלופי: מהארי טרומן ימינה לישעיהו וממשיך מסלול רגיל.'
+        p = AR.parse(d)[0]
+        self.assertEqual((p['lines'], p['dnum']), ({'63', '64', '68'}, {'63': '1', '64': '1', '68': '1'}))
+        self.assertEqual(AR._header_numbers('קו 3 לכיוון בנייני האומה (כיוון 3)'), {'3'})
+
+    def test_headers_merge(self):
+        # 14594646813: "המסלול החלופי לקו 35 …," ⏎ "קוים 59,236 …" — הוראה אחת לשלושה; 14594603230: "קו 65 כיוון 1" ⏎
+        # "קו 69 כיוון 1"; פתיח ("קו 143 ישנה את מסלולו…") לא מתאחד עם הכותרת שאחריו
+        d = ('בעקבות החסימה יחול שינוי מסלול לקוים \n35 לכיוון רמת גן\n\nהמסלול החלופי לקו 35 לכיוון רמת גן, \n'
+             'קוים 59,236 לכיוון אור יהודה.\nנוסעים במסלול הרגיל עד לצומת ההגנה/גבעתי, פונים ימינה לרח\' גבעתי, '
+             'שמאלה לרח\' קרייתי וממשיכים במסלול הרגיל.')
+        self.assertEqual(AR.parse(d)[0]['lines'], {'35', '59', '236'})
+        d = 'קו 65 כיוון 1 \nקו 69 כיוון 1\nמסלול חלופי: מסלול רגיל עד טום לנטוס- בנגמין- ימינה בכיכר לכביש 5611.'
+        p = AR.parse(d)[0]
+        self.assertEqual((p['lines'], p['dnum']), ({'65', '69'}, {'65': '1', '69': '1'}))
+        d = ('קו 143 ישנה את מסלולו וידלג על תחנות\nקו 143 לכיוון חולון:\nייסע במסלולו המקורי עד ההסתדרות פינת חנקין, '
+             'ימשיך בהסתדרות, ימינה ויצמן ויתחבר למסלולו המקורי')
+        self.assertEqual(AR.parse(d)[0]['dir'], ('to', 'חולון'))
+
+    def test_direction_header_mid_line(self):
+        # 14591272680: "…ממסלולם, קו מושפע 121 ⏎ לכיוון תל אביב: עד…" — הפסקה לא נבלעת בפתיח;
+        # "25077- מוזאון… לכיוון אריאל: עד…" — הפסקה השנייה מתחילה באמצע השורה
+        d = ('ביום חמישי 29.10.2026 משעה 21:00 ועד 08:00 למחרת,בעקבות עבודות בכביש, ייחסם לתנועה צומת רוזנפלד/חיים לבנון, '
+             'קווי השירות מוסטים ממסלולם, קו מושפע 121 \nלכיוון תל אביב: עד תחנה האוניברסיטה/חיים לבנון ימינה לרחוב '
+             'איינשטיין, שמאלה לברודצקי, בכיכר שמאלה לרדינג להמשך מסלול.\nדילוג תחנות: \n21498- מכון התקנים/חיים לבנון\n'
+             '25077- מוזאון ארץ ישראל/חיים לבנון\nלכיוון אריאל: עד תחנת סמינר הקיבוצים/חיים לבנון, שמאלה לרחוב רדינג, '
+             'בכיכר ימינה לברודצקי, ימינה לרחוב איינשטיין להמשך מסלול.')
+        ps = AR.parse(d)
+        self.assertEqual([p['dir'] for p in ps], [('to', 'תל אביב'), ('to', 'אריאל')])
+        self.assertEqual((ps[0]['start'], ps[0]['steps'][0]), (('האוניברסיטה', 'חיים לבנון'), 'איינשטיין'))
+
+    def test_numbered_line_continues(self):
+        # 14584669962: "שמאלה לחשמל…" ממשיך את "קווים: 796-1-0 774-1-0 …", לא את הפתיח עם 297
+        d = ('אי לכך, קווים: 297/774/796 ישנו את מסלולם בשני הכיוונים.\nקווים: 796-1-0  774-1-0\n'
+             'עד צומת דרך בר יהודה/פרץ, ללא שינוי. ישר בדרך בר יהודה. יציאה למחלף גדוד 21. גשר גדוד 21.\n'
+             'שמאלה לחשמל. ישר ליעקב דורי. ישר לפינסקר. ישר לצפירה. ימינה למל"ל. לא נכנסים לטכניון.')
+        p = AR.parse(d)[-1]
+        self.assertEqual((p['lines'], p['dnum']), ({'796', '774'}, {'796': '1', '774': '1'}))
+        # אחרי רשימת תחנות — שוב הכותרת (14585014358)
+        d = ('קווי לילה 360, 361\n\nבכיוון מירושלים לגוש עציון \nייסעו במסלול המקורי עד אצטדיון טדי/אסב ביתר, '
+             'פניה ימינה לרחוב יצחק מודעי. חזרה למסלול המקורי.\n\nקו 377 372 לכיוון גוש עציון \nייסעו במסלולים המקוריים '
+             'עד אגודת ספורט בית"ר/יצחק מודעי, ימינה יצחק מודעי, והמשך למסלולים המקוריים.\n\nתחנות מבוטלות\n'
+             'מק"ט תחנה\tשם תחנה\n61362\tמחסום המנהרות\n\nבכיוון מגוש עציון לירושלים\nייסעו במסלול המקורי עד כביש '
+             'המנהרות שמאלה לכביש 3755 , ימינה יצחק מודע וחזרה למסלול המקורי.')
+        self.assertEqual(AR.parse(d)[-1]['lines'], {'360', '361'})
+
+    def test_kind_paragraphs(self):
+        # 14585304726: פסקת פרסה (1-3) וקיצור (65/112/570) בלי רחובות — פסקאות משלהן, והתחנות שמתחתיהן שלהן,
+        # לא של 4-3; בניתוב — "פרסה" / "מקוצר", לא "אין תיאור", ובלי route_detour עליהן
+        from unittest import mock
+        d = ('המסלול החלופי לקו 1-3 (סיבובי) לכיוון נווה נאמן:\nנוסעים במסלול הרגיל עד לכיכר ששת הימים/החרמון, \n'
+             'לא פונים שמאלה לרח\' החרמון אלא מבצעים פניית פרסה \nוממשיכים במסלול הרגיל.\nתחנות מבוטלות:\n37191 החרמון/המעגל\n\n'
+             'המסלול החלופי לקו 4-3 (סיבובי) לכיוון קניון מרגליות:\nנוסעים במסלול הרגיל עד לכיכר ששת הימים/החרמון, \n'
+             'לא פונים שמאלה לרח\' החרמון אלא ימינה לרח\' מבוא קדם\nוממשיכים במסלול הרגיל.\nתחנות מבוטלות:\n37192 הגולן/החרמון\n\n'
+             'המסלול החלופי לקוים 65,112,570 לכיוון הוד השרון:\nנוסעים במסלול הרגיל עד לרח\' ששת הימים, ומסיימים \n'
+             'בתחנה ששת הימים/מבצע משה (תחנה שלישית לפני האחרונה) \nתחנות מבוטלות:\n37195 החרמון/המעגל\n'
+             'תחנה קצה חלופית:\n37190 ששת הימים/מבצע משה\n')
+        ps = AR.parse(d)
+        self.assertEqual([(p['lines'], p.get('rm'), p.get('add')) for p in ps], [({'4'}, {'37192'}, None)])
+        self.assertEqual([(p.get('kind'), p['lines'], p.get('rm')) for p in AR.parse(d, kinds=True)],
+                         [('uturn', {'1'}, {'37191'}), (None, {'4'}, {'37192'}), ('short', {'65', '112', '570'}, {'37195'})])
+        self.assertEqual(AR.template(d), 'junction')
+        sh = [[32.0, 34.8 + i * 0.001] for i in range(10)]
+        seen = []
+
+        def fake(net, p, *a, **k):
+            seen.append(p.get('kind'))
+        out = {}
+        for num, rd in (('1', '60001-3-#'), ('65', '10065-1-0'), ('4', '60004-3-#')):
+            r = {'num': num, 'rd': rd, 'shape': sh, 'cut': (3, 6), 'seq': [], 'del': [], 'to': ''}
+            with mock.patch.object(AF, 'overpass', return_value=[1]), mock.patch.object(AR, 'Streets'), \
+                    mock.patch.object(AR, 'route_detour', side_effect=fake):
+                AF.estimate_routes({'id': 'x', 'description': {'he': d}}, [r], {})
+            out[num] = r['why']
+        self.assertEqual(out, {'1': 'uturn', '65': 'short', '4': 'no-match'})
+        self.assertEqual(seen, [None])
+        # 14598456138: "קווים 4, 114 מכיוון כפר קאסם יתחילו…" ו"קווים 4, 114 לכיוון כפר קאסם" (כותרת) — התחנות
+        # שמתחתיהם לא נדבקות לפסקה של 5/13
+        d = ('קווים 5, 13 לכיוון כפר קאסם\nייסעו במסלולים המקוריים עד עמל/עבדאל כרים קאסם, יפנו ימינה לעמל, שמאלה למלאכה '
+             'ויסיימו בתחנת סיום זמנית מרכז תעסוקה לנכה/המלאכה מק"ט 32602.\n\nתחנות מבוטלות:\n38404\tפלפלה\n\n'
+             'קווים 4, 114 מכיוון כפר קאסם\nיתחילו את מסלולם בתחנת מוצא זמנית פארק סיבל/יציאה לכביש 5 מק"ט 32664, '
+             'וימשיכו ע"פ המסלולים המקוריים\nתחנות מבוטלות:\n38575\tדאר גורג\n\nקווים 4, 114 לכיוון כפר קאסם\n'
+             'יסיימו בתחנת סיום זמנית צומת פארק אפק (32600).\nתחנות מבוטלות:\n38539\tאבן רושד\n')
+        self.assertEqual([p.get('rm') for p in AR.parse(d)], [{'38404'}])
+        self.assertEqual([p.get('rm') for p in AR.parse(d, kinds=True)], [{'38404'}, {'38575'}])
+
+    def test_merged_headers_keep_direction(self):
+        # 14594646813: כותרות ברצף לכיוונים שונים — יעד לכל קו, ו-para_dir מפרק לפי קו
+        d = ('המסלול החלופי לקו 35 לכיוון רמת גן,\nקוים 59,236 לכיוון אור יהודה:\n'
+             'נוסעים במסלול הרגיל עד לצומת ההגנה/גבעתי, פונים ימינה לרח\' גבעתי, שמאלה לרח\' קרייתי.')
+        p = AR.parse(d)[0]
+        self.assertEqual(p['lines'], {'35', '59', '236'})
+        dirs = {'1': 'רמת גן', '2': 'אור יהודה'}
+        self.assertEqual((AF.para_dir(p, '35', dirs), AF.para_dir(p, '59', dirs)), ('1', '2'))
+        # פתיח עם רשימת קווים, או כותרת של קו אחר — לא מתאחדים עם הכותרת של קו אחד שאחריהם
+        ins = 'נוסעים במסלול הרגיל עד צומת הרצל/ויצמן, ימינה לסוקולוב, שמאלה לבן גוריון.'
+        for d, want in (('שינוי מסלול לקווים 3, 5, 7:\nקו 5 לכיוון חיפה:\n' + ins, ('חיפה',)),
+                        ('שינוי מסלול לקווים 3, 5, 7:\nקו 5 לכיוון חיפה: עד צומת הרצל/ויצמן, ימינה לסוקולוב.', ('חיפה',)),
+                        ('קווים 3, 5, 7\nקו 5 לכיוון חיפה:\n' + ins, ('חיפה',)),
+                        ('קו 3 לכיוון חיפה:\nקו 5 לכיוון עכו: עד צומת הרצל/ויצמן, ימינה לסוקולוב.', ('עכו',))):
+            p = AR.parse(d)[0]
+            self.assertEqual((p['lines'], p['dir'][1]), ({'5'}, want[0]), d)
+
+    def test_line_word_direction_colon_list(self):
+        # 14594480959: "קווים 2, 6, 9 כיוון 1 – קווים 11, 460 כיוון 2:" — כיוון לכל קו ברשימה; 14585226705: "קו 476 כיוון 1:"
+        self.assertEqual(AR.line_dnum('קווים 2, 6, 9 כיוון 1 – קווים 11, 460 כיוון 2: משפירא ימינה'),
+                         {'2': '1', '6': '1', '9': '1', '11': '2', '460': '2'})
+        self.assertEqual(AR.line_dnum('קו 12 כיוון 2: עד צומת הרצל/בלפור, ימינה לסוקולוב.'), {'12': '2'})
+        self.assertEqual(AR.line_dnum('קו 63 כיוון 1, 64 כיוון 1'), {'63': '1', '64': '1'})
+
+    def test_short_own_number_no_header_dir(self):
+        # פסקת קיצור עם מספר קו משלה — לא מקבלת את הכיוון של הכותרת של קו אחר
+        d = 'קו 5 לכיוון חולון:\nעד צומת הרצל/בלפור, ימינה לסוקולוב.\nקו 6: יסיים את מסלולו בתחנה 22222.'
+        p = AR.parse(d, kinds=True)[-1]
+        self.assertEqual((p['kind'], p['lines'], p['dir']), ('short', {'6'}, None))
 
     # מה שאסור שיישבר בתיקונים (עובד היום)
     def test_guard_ok_paragraphs(self):

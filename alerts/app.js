@@ -156,6 +156,7 @@
     if (ALIAS[id]) id = ALIAS[id];   // הודעה שאוחדה להודעה מפורטת יותר על אותו שינוי
     var a = ALL.filter(function (x) { return x.id === id; })[0];
     if (!a) return;
+    var own = a.rcs || (a.map ? [a.id] : []), ownL = a.lines || [];
     a = combine(a);
     sel = id;
     if (push) { try { history.replaceState(null, "", "#" + id); } catch (e) { /* ignore */ } }
@@ -199,21 +200,16 @@
     };
     if (matchMedia("(max-width: 900px)").matches) window.scrollTo(0, 0);
     if (!a.map) return;
-    // המפה של ההתראה, ושל הודעות שאוחדו אליה — קווים שאין במפה שלה מתווספים
-    Promise.all((a.rcs || [id]).map(function (x) { return getJSON("data/rc/" + x + ".json"); })).then(function (all) {
+    // המפה של ההתראה, ושל הודעות שאוחדו אליה — קווים שאין במפה שלה מתווספים. מהודעה אחרת בקבוצה — רק קו
+    // שאין לו בכלל כפתור בהודעה שנפתחה, ולא קו שכתוב בה (גם בלי מפה): אחרת קו 12 מקבל את המסלול של
+    // סגירה אחרת באותו צומת (תל אביב 29.10). המסלול כזה מסומן (_src) עם התחנות החלופיות של ההודעה שלו
+    var ids = own.concat((a.rcs || [id]).filter(function (x) { return own.indexOf(x) < 0; }));
+    Promise.all(ids.map(function (x) { return getJSON("data/rc/" + x + ".json"); })).then(function (all) {
       if (sel !== id) return;
-      var rc = null;
-      all.forEach(function (x) {
-        if (!x || !x.routes) return;
-        if (!rc) { rc = x; return; }
-        var have = {}; rc.routes.forEach(function (r) { have[r.rd] = 1; });
-        rc.routes = rc.routes.concat(x.routes.filter(function (r) { return !have[r.rd]; }));
-        rc.stops = Object.assign({}, x.stops || {}, rc.stops || {});
-        rc.xadd = (rc.xadd || []).concat((x.xadd || []).filter(function (s) { return (rc.xadd || []).indexOf(s) < 0; }));
-      });
+      var rc = mergeRcs(ids, all, own, ownL), xs = rc ? rc.xs : {};
       if (!rc || !rc.routes || !rc.routes.length) { $("routes").innerHTML = '<p class="note">המפה של ההתראה הזו לא נטענה.</p>'; return; }
       rc.routes.sort(function (x, y) { var p = lineKey(String(x.num || "")), q = lineKey(String(y.num || "")); return p[0] - q[0] || (p[1] < q[1] ? -1 : p[1] > q[1] ? 1 : 0) || String(x.to || "").localeCompare(String(y.to || ""), "he"); });
-      cur = { a: a, rc: rc };
+      cur = { a: a, rc: rc, xs: xs };
       var lab = function (r) { return "קו " + (r.num == null ? "" : r.num) + " ← " + (r.to || ""); };
       // חלופות של אותו קו, באותו כיוון ולאותו יעד — כפתור אחד (שלמה 29.10). במפה: הראשית כרגיל, ובחלופה
       // אחרת רק הקטע שבו היא נוסעת אחרת, בצבע אחר
@@ -247,11 +243,40 @@
         var x = (Object.keys(dirs).length > 1 && g.dir ? " · כיוון " + g.dir : "") + (g.alt ? " · " + g.alt : "") + (g.rs.length > 1 ? " · " + g.rs.length + " חלופות" : "");
         return '<button type="button" data-i="' + i + '">' + esc(g.lab + x) + "</button>";
       }).join("");
+      var nm = noMapLines(a.lines, rc.routes);
+      if (nm.length) $("routes").insertAdjacentHTML("beforeend", '<p class="note">קווים נוספים בהודעה, בלי מפה: ' + esc(nm.join(", ")) + "</p>");
       Array.prototype.forEach.call($("routes").querySelectorAll("button"), function (b) { b.onclick = function () { showRoute(+b.getAttribute("data-i")); }; });
       showRoute(0);
     });
   }
 
+  // המפות של ההודעה (own — היא והודעות שאוחדו אליה) ושל שאר ההודעות בקבוצה. xs — התחנות החלופיות שבנוסח
+  // של כל הודעה אחרת
+  function mergeRcs(ids, all, own, ownL) {
+    var rc = null, mine = {}, xs = {};
+    ownL.forEach(function (l) { if (l[0]) mine[String(l[0])] = 1; });
+    all.forEach(function (x, k) {
+      if (!x || !x.routes) return;
+      var other = own.indexOf(ids[k]) < 0;
+      if (other) { xs[ids[k]] = x.xadd || []; x.routes.forEach(function (r) { r._src = ids[k]; }); }
+      var add = x.routes.filter(function (r) { return !(other && mine[String(r.num)]); });
+      if (!other) x.routes.forEach(function (r) { mine[String(r.num)] = 1; });
+      if (!rc) { rc = x; rc.routes = add; return; }
+      var have = {}; rc.routes.forEach(function (r) { have[r.rd] = 1; });
+      rc.routes = rc.routes.concat(add.filter(function (r) { return !have[r.rd]; }));
+      rc.stops = Object.assign({}, x.stops || {}, rc.stops || {});
+      if (!other) rc.xadd = (rc.xadd || []).concat((x.xadd || []).filter(function (s) { return (rc.xadd || []).indexOf(s) < 0; }));
+    });
+    if (rc) rc.xs = xs;
+    return rc;
+  }
+  // קווים שכתובים בהודעה בלי מסלול (בלי מק"ט-כיוון) ואין להם כפתור במפה
+  function noMapLines(lines, routes) {
+    var has = {}, out = [];
+    (routes || []).forEach(function (r) { has[String(r.num)] = 1; });
+    (lines || []).forEach(function (l) { var n = String(l[0] || ""); if (n && !/-/.test(l[1] || "") && !has[n] && out.indexOf(n) < 0) out.push(n); });
+    return out.sort(function (x, y) { return (parseInt(x, 10) || 1e9) - (parseInt(y, 10) || 1e9) || x.localeCompare(y); });
+  }
   function nearestIdx(shape, p) {
     var best = 0, bd = 1e18;
     for (var i = 0; i < shape.length; i++) { var dx = shape[i][0] - p[0], dy = (shape[i][1] - p[1]) * 0.85, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i; } }
@@ -260,6 +285,7 @@
   // הקטע הסגור לפי העקיפה. קו שעובר באותו מקום פעמיים (הלוך וחזור, לולאה): לא הנקודה הקרובה הראשונה —
   // מכל הנקודות הקרובות (עד 40 מ' יותר מהקרובה ביותר) זוג שבו היציאה לפני החזרה, שמכסה הכי הרבה
   // תחנות מבוטלות, ואחר כך הכי קרוב. est.k (אם נשמר) — האינדקסים המוכנים.
+  // פורט ב-tools/alerts_route.py, closed_range (הצינור פוסל לפיו עקיפות) — לעדכן יחד.
   function closedRange(shape, est, dels) {
     var k = est.k || est.c;
     if (k && k.length === 2 && k[0] < k[1] && k[1] < shape.length) return k;
@@ -283,6 +309,17 @@
     return [c0, Math.max(c0, nearestIdx(shape, est.path[est.path.length - 1]))];
   }
   // הקטעים של מסלול שרחוקים (יותר מ-35 מ') מהמסלול של הראשית — רק שם החלופה נוסעת אחרת
+  // מרחק (מ') מנקודה לקו שבור
+  function distTo(p, pts) {
+    var best = 1e18, ky = 0.85;
+    for (var k = 0; k < pts.length; k++) {
+      var a = pts[k], b = pts[k + 1] || a, dx = b[0] - a[0], dy = (b[1] - a[1]) * ky, L2 = dx * dx + dy * dy;
+      var t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * ky * dy) / L2)) : 0;
+      var ex = p[0] - a[0] - t * dx, ey = (p[1] - a[1]) * ky - t * dy, d = ex * ex + ey * ey;
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best) * 111320;
+  }
   function isMainR(r) { var a = String(r.rd || "").split("-")[2]; return a === "#" || a === "0" || a == null; }
   function diffRuns(path, base) {
     if (!path || path.length < 2) return [];
@@ -330,7 +367,9 @@
     var ci = del.map(function (s) { return nearestIdx(shape, stops[s]); });
     var c0 = ci.length ? Math.min.apply(null, ci) : -1, c1 = ci.length ? Math.max.apply(null, ci) : -1;
     var est = r.est && r.est.path;
-    if (est) { var cc = closedRange(shape, r.est, del.map(function (s) { return stops[s]; })); c0 = cc[0]; c1 = cc[1]; }
+    // nocut: הקטע הסגור שחושב לעקיפה הזו לא תקין (ארוך מדי / לא עובר בתחנה המבוטלת) — מציגים את העקיפה בלי מקווקו
+    if (est && r.est.nocut) { c0 = -1; c1 = -1; }
+    else if (est) { var cc = closedRange(shape, r.est, del.map(function (s) { return stops[s]; })); c0 = cc[0]; c1 = cc[1]; }
     else if (ci.length) {
       // תחנת המוצא (או הסוף) בוטלה: הקו מתחיל בתחנה הראשונה שנשארה, והקטע שלפניה לא נסוע (שלמה 20.10:
       // סומנה רק התחנה המבוטלת, בלי הקטע)
@@ -362,6 +401,7 @@
         : r.why === "stops-only" ? "בהודעה יש רק רשימה של תחנות שבוטלו, בלי תיאור של המסלול החלופי. לכן על המפה רק התחנות."
         : r.why === "skip" ? "לפי ההודעה הקו נשאר במסלול שלו ורק לא עוצר בתחנה שבוטלה."
         : r.why === "short" ? "הקו מקוצר: מסתיים או מתחיל בתחנה אחרת, בלי מסלול חלופי."
+        : r.why === "uturn" ? "לפי ההודעה הקו מבצע פניית פרסה וחוזר למסלול שלו, בלי מסלול חלופי."
         : r.why === "relocate" ? "התחנה הועתקה למקום אחר, והקו נשאר במסלול שלו."
         : "לא הצלחנו למצוא את המסלול החלופי לפי הנוסח של ההודעה (" + ({ "no-match": "הרחובות לא נמצאו במפה או שהנוסח לא מתאים לקו", "no-cut": "לא ברור איפה הקטע שנסגר", area: "האזור גדול מדי", osm: "מפת הרחובות לא נטענה", time: "עוד לא חושב — יושלם בעדכון הבא" }[r.why || "time"] || "לא ידוע") + "). מוצגות רק התחנות.";
     }
@@ -370,6 +410,17 @@
       L.marker(st.slice(0, 2), { icon: L.divIcon({ className: "", html: '<div class="xm"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) })
         .bindTooltip((st[3] || "") + (st[2] ? " · " + st[2] : "") + " · מבוטלת").addTo(layer);
       focus.push(st.slice(0, 2));
+    });
+    // תחנה חלופית של אתר המקור רחוקה (יותר מ-500 מ') מהקטע הסגור ומהמסלול החלופי — כנראה הבדל בין גרסאות
+    // של לוח הזמנים, לא תחנה של העקיפה (קו 271, תל אביב 29.10: המסגר/ריב"ל, 5 ק"מ מהעבודות). מק"ט שכתוב בנוסח נשאר
+    // (רק כשיש מסלול חלופי — בלעדיו תחנות העקיפה יכולות להיות רחוקות מהקטע הסגור)
+    var near = (c0 >= 0 ? [shape.slice(c0, c1 + 1)] : []).concat(est ? [est] : []);
+    var txt = (cur.a.ms || [cur.a]).map(function (m) { return m.d || ""; }).join(" ");
+    seq = seq.filter(function (s) {
+      if (!s[1] || !est) return true;
+      var st = stops[s[0]];
+      if (st[2] && new RegExp("(^|\\D)" + st[2] + "(\\D|$)").test(txt)) return true;
+      return near.some(function (q) { return distTo(st, q) <= 500; });
     });
     seq.forEach(function (s) {
       if (!s[1]) return;
@@ -380,7 +431,7 @@
     });
     // תחנות חלופיות שכתובות רק בנוסח ההודעה (xadd): של הפסקה של הקו כשיש (r.xadd), אחרת של ההודעה —
     // ולא תחנה שמבוטלת בקו הזה (תל אביב 20.10, אבן גבירול: 25621 חלופית לקו 149 ומבוטלת בקו 445)
-    var xadd = (r.xadd || cur.rc.xadd || []).filter(function (s) {
+    var xadd = (r.xadd != null ? r.xadd : r._src ? cur.xs[r._src] : cur.rc.xadd || []).filter(function (s) {
       return stops[s] && del.indexOf(s) < 0 && !seq.some(function (q) { return q[0] === s && q[1]; });
     });
     xadd.forEach(function (s) {
@@ -397,6 +448,7 @@
     $("legend").innerHTML = legend.join("");
     $("vbox").innerHTML = (note ? '<p class="note">' + esc(note) + "</p>" : "") +
       (altNote.length ? '<p class="note">' + esc(altNote[0]) + "</p>" : "") +
+      (r._src ? '<p class="note">לפי הודעה אחרת באותו אזור.</p>' : "") +
       (r.rd ? '<p class="note"><a href="../line-history/#' + encodeURIComponent(r.rd) + '">ההיסטוריה של הקו בהקו בזמן ←</a></p>' : "");
     var b = L.latLngBounds(focus.length > 1 ? focus : shape);
     if (b.isValid()) map.fitBounds(b.pad(0.25), { maxZoom: 17 });
