@@ -423,7 +423,8 @@ function showTab(k, scroll) {
   tab = k;
   document.querySelectorAll('.tabsec').forEach(el => el.classList.toggle('off', el.dataset.tab !== k));
   document.querySelectorAll('#tabbar .tab').forEach(b => { const on = b.dataset.t === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
-  const h = (period === 'day' && dayD ? dayD : '') + (k !== 'overview' ? '/' + k : '');
+  const h = (period === 'day' && dayD ? dayD : '') + (k !== 'overview' ? '/' + k : '') +
+    (k === 'bunch' && STOPQ ? `/stop=${STOPQ.stop}&tile=${STOPQ.tile}${STOPQ.h != null ? '&h=' + STOPQ.h : ''}` : '');
   history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
   if (scroll) { const bar = $('#tabbar'); if (bar) bar.scrollIntoView({behavior: 'smooth', block: 'start'}); }
 }
@@ -972,7 +973,71 @@ function bunchTable(rows, label, btn) {
     rows.map(r => `<tr><td class="nm">${btn ? btn(r) : esc(r.nm)}</td><td>${num(r.n)}</td><td>${bCell(r.b)}</td><td>${r.g == null ? '—' : Math.round(r.g * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
 }
 const bRow = (nm, v, extra) => ({nm, n: v[0], b: v[0] ? v[1] / v[0] : null, g: v[0] ? v[2] / v[0] : null, ...extra});
+/* כרטיס התחנה (שלמה 30.10): נפתח מ"איפה האוטובוס נתקע" עם התחנה והשעה שנבחרו במפה —
+   #<יום>/bunch/stop=<מק"ט>&tile=<אריח>&h=<שעה>. מה הבעיה במשפט, לפי שעה, הקווים, וכל הזוגות הצמודים.
+   הסיכום: ../bus-speed/data/b/<אריח>.json (כל ימי החול האחרונים). הזוגות: ענף bunch-pairs (tools/bus_speed.py). */
+let STOPQ = null, SC = null, scLine = '', scHour = '', scLim = 60;
+const PAIRS_BASE = 'https://raw.githubusercontent.com/Transit-Freak/kav-bochan/bunch-pairs/';
+async function loadStopCard() {
+  if (!STOPQ || (SC && SC.key === STOPQ.stop)) return;
+  SC = {key: STOPQ.stop, b: null, p: null};
+  const [b, p] = await Promise.all([
+    fetch(`../bus-speed/data/b/${STOPQ.tile}.json`, {cache: 'no-cache'}).then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch(PAIRS_BASE + STOPQ.tile + '.json').then(r => r.ok ? r.json() : null).catch(() => null)]);
+  SC.b = (b || []).find(x => String(x[2]) === String(STOPQ.stop)) || false;
+  SC.p = p;
+  if (STOPQ.h != null) scHour = String(STOPQ.h);
+  renderStopCard();
+}
+function renderStopCard() {
+  let box = $('#bunch-stop');
+  if (!STOPQ) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'bunch-stop'; box.className = 'panel'; box.style.outline = '2px solid ' + C.line; $('.tabsec[data-tab="bunch"]').prepend(box); }
+  if (!SC || SC.key !== STOPQ.stop || SC.b === null) { loadStopCard(); box.innerHTML = '<div class="msg">טוען את התחנה…</div>'; return; }
+  const b = SC.b;
+  if (!b) { box.innerHTML = '<div class="empty">אין נתוני התקבצות לתחנה הזו.</div>'; return; }
+  const n = b[7].split(',').map(x => +x || 0), k = b[8].split(',').map(x => +x || 0);
+  while (n.length < 24) n.push(0); while (k.length < 24) k.push(0);
+  const H = STOPQ.h, sh = h => n[h] >= 20 ? k[h] / n[h] : null;
+  const all = b[5] / b[4], bad = [...Array(24).keys()].filter(h => sh(h) != null && sh(h) >= Math.max(.08, all * 1.5));
+  const ranges = []; bad.forEach(h => { const r = ranges[ranges.length - 1]; if (r && r[1] === h - 1) r[1] = h; else ranges.push([h, h]); });
+  const hr = h => String(h).padStart(2, '0') + ':00';
+  const rng = ranges.sort((a, c) => k.slice(c[0], c[1] + 1).reduce((x, y) => x + y) - k.slice(a[0], a[1] + 1).reduce((x, y) => x + y)).slice(0, 2).map(([a, c]) => `${hr(a)}–${hr(c + 1)}`);
+  const lines = (b[9] || []).filter(r => r[3] > 0);
+  const big = lines.filter(r => r[3] / r[2] >= .08).map(r => r[0]).slice(0, 2);
+  const sent = (H != null && sh(H) != null ? `בשעה <b>${hr(H)}</b> בערך <b>${pct(k[H], n[H])}</b> מהאוטובוסים הגיעו לתחנה צמודים לאוטובוס הקודם של אותו קו — שניים יחד, ואחריהם המתנה ארוכה.`
+    : `בימי חול <b>${pct(b[5], b[4])}</b> מהאוטובוסים הגיעו לתחנה צמודים לאוטובוס הקודם של אותו קו.`) +
+    (big.length ? ` זה קורה בעיקר ב${big.map(l => 'קו ' + esc(l)).join(' וב')}.` : '') + (rng.length ? ` השעות הקשות: ${rng.join(' ו-')}.` : '');
+  const P = SC.p, days = P ? P.days : [], R = P ? P.r : {}, ev = P && P.s[STOPQ.stop] ? P.s[STOPQ.stop] : [];
+  const lnOf = rid => (CAT[rid] && CAT[rid][1]) || (R[rid] && R[rid][0]) || rid;
+  const opts = [...new Set(ev.map(e => lnOf(e[1])))].sort((a, c) => (parseInt(a) || 0) - (parseInt(c) || 0));
+  const f = ev.filter(e => (!scLine || lnOf(e[1]) === scLine) && (scHour === '' || Math.floor(e[2] / 3600) % 24 === +scHour));
+  const mins = s => Math.max(0, Math.round(s / 60));
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div class="ptitle">התחנה שבחרת במפה: ${esc(b[3] || 'תחנה')} <small style="color:var(--dim);font-weight:400">${esc(b[2])}</small></div><button class="closebtn" id="sc-x" aria-label="סגירה">✕</button></div>
+    <p class="pdesc"><b>מה הבעיה:</b> ${sent}</p>
+    <div class="rstats">${H != null && sh(H) != null ? `<div><b>${pct(k[H], n[H])}</b><span>צמודים ב-${hr(H)}</span><small>${num(k[H])} מתוך ${num(n[H])} זוגות בשעה הזו</small></div>` : ''}
+      <div><b>${pct(b[5], b[4])}</b><span>צמודים, כל היום</span><small>${num(b[5])} מתוך ${num(b[4])} זוגות</small></div>
+      <div><b>${pct(b[6], b[4])}</b><span>רווח כפול</span><small>הנוסע חיכה פי שניים מהמובטח</small></div></div>
+    <div class="ptitle" style="margin-top:12px">התקבצות לפי השעה ביום</div><div class="chart" id="c-stop"></div>
+    ${lines.length ? `<div class="ptitle" style="margin-top:12px">הקווים שמתקבצים בתחנה</div><div class="tblbox"><table><thead><tr><th>קו</th><th>לכיוון</th><th>זוגות</th><th>צמודים</th></tr></thead><tbody>${lines.map(([l, to, nn, kk]) => `<tr><td><b>${esc(l)}</b></td><td style="font-size:12px;color:var(--mut)">${esc(to)}</td><td>${num(nn)}</td><td>${num(kk)} (${pct(kk, nn)})</td></tr>`).join('')}</tbody></table></div>` : ''}
+    <div class="ptitle" style="margin-top:12px">כל הפעמים שהאוטובוסים הגיעו צמודים</div>
+    ${!P ? '<div class="empty">הרשימה המלאה תתווסף בעדכון הלילי הקרוב.</div>' : !ev.length ? '<div class="empty">לא נמצאו זוגות צמודים בתחנה הזו.</div>' : `
+    <div class="filters"><select id="sc-l"><option value="">כל הקווים</option>${opts.map(o => `<option${o === scLine ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>
+      <select id="sc-h"><option value="">כל השעות</option>${[...Array(24).keys()].map(h => `<option value="${h}"${String(h) === scHour ? ' selected' : ''}>${hr(h)}–${hr(h + 1)}</option>`).join('')}</select>
+      <span style="color:var(--mut);font-size:13px">${num(f.length)} פעמים</span></div>
+    <div class="tblbox"><table><thead><tr><th>יום</th><th>שעה בלו״ז</th><th>קו</th><th>הגיעו בהפרש</th></tr></thead><tbody>${f.slice(0, scLim).map(([d, rid, s2, a2, hs, ha]) => `<tr><td>${shortDate(days[d])}</td><td title="הגיע בפועל ב-${hhmm(a2)}">${hhmm(s2)}</td><td><button class="linebtn" data-rid="${esc(rid)}">${esc(lnOf(rid))}</button></td><td><b>${ha < 0 ? 'השני עקף' : ha < 60 ? 'פחות מדקה' : mins(ha) + ' דק׳'}</b> <small style="color:var(--dim)">(במקום ${mins(hs)})</small></td></tr>`).join('')}</tbody></table></div>
+    ${f.length > scLim ? `<button class="more" id="sc-more">הצגת עוד ${num(Math.min(200, f.length - scLim))} מתוך ${num(f.length - scLim)}</button>` : ''}`}
+    <p class="pdesc" style="margin-top:8px"><a href="../bus-speed/#h=${H != null ? H : 8}&@${b[0]},${b[1]},17">← חזרה למפה</a> · למטה: ההתקבצות בכל הארץ</p>`;
+  const hours = n.map((nn, h) => { const v = sh(h); return {x: String(h).padStart(2, '0'), y: v == null ? null : Math.round(v * 100), color: v == null ? GRID : h === H ? C.line : v >= .2 ? C.bad : v >= .1 ? C.late : v >= .05 ? C.warn : C.ok, tip: `<b>${hr(h)}</b><br>${nn ? pct(k[h], nn) + ' צמודים · ' + num(nn) + ' זוגות' : 'אין נתונים'}`}; });
+  barChart($('#c-stop'), hours, {color: C.line, max: Math.max(20, ...hours.map(x => x.y || 0)), unit: '%'});
+  $('#sc-x').onclick = () => { STOPQ = null; SC = null; renderStopCard(); showTab('bunch'); };
+  if ($('#sc-l')) $('#sc-l').onchange = e => { scLine = e.target.value; scLim = 60; renderStopCard(); };
+  if ($('#sc-h')) $('#sc-h').onchange = e => { scHour = e.target.value; scLim = 60; renderStopCard(); };
+  if ($('#sc-more')) $('#sc-more').onclick = () => { scLim += 200; renderStopCard(); };
+  box.querySelectorAll('.linebtn').forEach(x => x.onclick = () => { openLine = x.dataset.rid; showTab('line'); renderLineDetail(); $('#line-detail').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+}
 function renderBunch() {
+  renderStopCard();
   const box = $('#bunch-sum'); if (!box) return;
   const B = M.Bn;
   if (!B.tot[0]) { box.innerHTML = `<div class="empty">אין נתוני התקבצות לימים שנבחרו (החישוב קיים מ-21.09.2026; ימים קודמים מתמלאים בהדרגה).</div>`; return; }
@@ -1056,7 +1121,8 @@ function init() {
     // רק ימים אמיתיים (YYYY-MM-DD): קובץ ערים שנכנס בטעות לאינדקס הפיל את העמוד (08.09)
     DAYS = (idx.days || []).map(d => typeof d === 'string' ? {d} : d).filter(d => d.d && /^\d{4}-\d{2}-\d{2}$/.test(d.d));
     if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין ימים מחושבים.</div>'; $('#sub').textContent = ''; return; }
-    const [h, t] = decodeURIComponent((location.hash || '').slice(1)).split('/');
+    const [h, t, q] = decodeURIComponent((location.hash || '').slice(1)).split('/');
+    if (q) { const u = new URLSearchParams(q); if (u.get('stop') && u.get('tile')) STOPQ = {stop: u.get('stop'), tile: u.get('tile'), h: u.has('h') ? +u.get('h') : null}; }
     dayD = DAYS.some(d => d.d === h) ? h : DAYS[DAYS.length - 1].d;
     if (t) tab = t;
     period = 'day';

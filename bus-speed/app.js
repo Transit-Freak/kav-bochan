@@ -238,7 +238,7 @@ function stopPane(b) {
     ((L => L.length ? `<div class="blk"><h3>הקווים שהגיעו כאן צמודים — כל קו לעצמו</h3><table class="t bt"><thead><tr><th>קו</th><th>לכיוון</th><th>צמודים</th></tr></thead><tbody>` +
       L.map(([ln, to, n, k]) => `<tr><td><b>${esc(ln)}</b></td><td>${esc(to)}</td><td class="n">${Math.max(1, Math.round(100 * k / n))}% <span class="mut">(${k}/${n})</span></td></tr>`).join('') + '</tbody></table></div>' : '')(
       (b[9] || []).filter(r => r[2] && r[3] > 0).sort((p, q) => q[3] / q[2] - p[3] / p[2]))) +
-    `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. ${BMETA && BMETA.days ? BMETA.days.length + ' ימי חול אחרונים. ' : ''}<a href="../bus/#/bunch" target="_blank" rel="noopener">כל הפירוט — במדד דיוק האוטובוסים ←</a></div>`;
+    `<div class="note">"מרווח כפול" — הפער בפועל גדול פי 2 ומעלה מהמתוכנן: הנוסעים חיכו הרבה, ואז הגיעו שניים יחד. ${BMETA && BMETA.days ? BMETA.days.length + ' ימי חול אחרונים. ' : ''}<a href="../bus/#/bunch/stop=${b[2]}&tile=${tkey(b[0], b[1])}&h=${S.h}">כל הפירוט ורשימת כל הפעמים — במדד דיוק האוטובוסים ←</a></div>`;
 }
 function layersPane() {
   const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים']];
