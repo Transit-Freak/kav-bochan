@@ -33,8 +33,12 @@ def write(p, value):
 def digest(x):
     return hashlib.sha256(json.dumps(x,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
 
+class MissingTable(ValueError):
+    """טבלה שלמה חסרה בקובץ (obus-2018-07-30: אין routes.txt) — לא תופיע בניסיון חוזר."""
+
 def rows(z, name):
     names = [n for n in z.namelist() if n.rsplit('/',1)[-1] == name]
+    if not names: raise MissingTable(f'{name}: expected one member, got 0')
     if len(names) != 1: raise ValueError(f'{name}: expected one member, got {len(names)}')
     with z.open(names[0]) as f:
         yield from csv.DictReader(io.TextIOWrapper(f, encoding='utf-8-sig'))
@@ -325,6 +329,8 @@ def main():
             # רק שגיאת נתונים (ValueError) נספרת — תקלת רשת או הורדה תמיד מנוסה שוב.
             tries=progress.setdefault('attempts',{})
             if isinstance(e,ValueError):tries[sid]=tries.get(sid,0)+1
+            # טבלה שלמה חסרה — אין טעם לחכות לעוד ניסיונות: מדלגים כבר עכשיו (שלמה 01.11)
+            if isinstance(e,MissingTable):tries[sid]=SKIP_AFTER
             if tries.get(sid,0)>=SKIP_AFTER:
                 progress.setdefault('skipped',{})[sid]={'error':str(e),'attempts':tries[sid],
                     'at':datetime.date.today().isoformat()}
@@ -333,6 +339,11 @@ def main():
         progress['updatedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat()
         write(PROGRESS,progress);count+=1
         if failed: break  # keep chronological comparison; retry before advancing
-    if progress['errors']:raise SystemExit(1)
+    # שגיאת נתונים שעוד תנוסה שוב — אזהרה בלבד, בלי ריצה אדומה ומייל בכל ניסיון (שלמה 01.11: "שלא יקרה שוב").
+    # ריצה נכשלת רק על תקלה אחרת (רשת, באג בקוד), שאינה נספרת בניסיונות ואינה מדלגת לבד.
+    tries=progress.get('attempts',{})
+    for sid,err in progress['errors'].items():
+        if sid in tries:print(f'::warning::{sid}: {err} — ניסיון {tries[sid]} מתוך {SKIP_AFTER}, אחר כך מדלגים',flush=True)
+    if any(sid not in tries for sid in progress['errors']):raise SystemExit(1)
 
 if __name__=='__main__':main()

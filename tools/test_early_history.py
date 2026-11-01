@@ -97,4 +97,42 @@ class DuplicateRouteIdentityTest(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'Conflicting shared trip'):
    m.coalesce_identical_routes(tables,times)
 
+
+class BrokenSourceTest(unittest.TestCase):
+ """הדמיה של התקלה מ-01.11: צילום בלי routes.txt נכשל בכל ריצה ושלח מייל, עד שדולג אחרי 3."""
+ def run_main(self,d,download=None,publish=None):
+  argv=['import_early_history.py','--out',d,'--limit','1']
+  patches=[patch.object(m,'CAT',Path(d)/'cat.json'),patch('sys.argv',argv)]
+  if download:patches.append(patch.object(m,'download',download))
+  if publish:patches.append(patch.object(m,'publish',publish))
+  for p in patches:p.start()
+  try:
+   try:m.main();return 0
+   except SystemExit as e:return e.code
+  finally:
+   for p in patches:p.stop()
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory();d=self.d=self.tmp.name
+  m.write(Path(d)/'cat.json',{'snapshots':[{'id':'obus-2018-07-30-x','kind':'obus15','date':'2018-07-30','urls':['https://example/x.zip']}]})
+ def tearDown(self):self.tmp.cleanup()
+ def progress(self):return m.read(Path(self.d)/'early-progress.json')
+ def test_missing_table_is_skipped_at_once_without_failing(self):
+  def no_routes(u,p):
+   with zipfile.ZipFile(p,'w') as z:z.writestr('agency.txt','agency_id\na\n')
+  self.assertEqual(self.run_main(self.d,download=no_routes),0)
+  self.assertIn('obus-2018-07-30-x',self.progress()['skipped'])
+  self.assertEqual(self.progress()['errors'],{})
+ def test_other_data_error_warns_and_skips_after_three(self):
+  def bad(source,paths):raise ValueError('Missing route 1')
+  ok=lambda u,p:p.write_bytes(b'')
+  for i in range(m.SKIP_AFTER-1):
+   self.assertEqual(self.run_main(self.d,download=ok,publish=bad),0)
+   self.assertEqual(self.progress()['attempts']['obus-2018-07-30-x'],i+1)
+  self.assertEqual(self.run_main(self.d,download=ok,publish=bad),0)
+  self.assertIn('obus-2018-07-30-x',self.progress()['skipped'])
+ def test_network_error_still_fails(self):
+  def down(u,p):raise OSError('connection reset')
+  self.assertEqual(self.run_main(self.d,download=down),1)
+  self.assertNotIn('obus-2018-07-30-x',self.progress().get('skipped',{}))
+
 if __name__=='__main__':unittest.main()
