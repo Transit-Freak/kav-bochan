@@ -25,7 +25,7 @@ jobs:
   run:
     if: github.ref == 'refs/heads/main' || github.event_name != 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 150   # Overpass עם סבבי ניסיון חוזר (01.11)
     steps:
       - uses: actions/checkout@v4
 
@@ -45,10 +45,26 @@ jobs:
         run: |
           set -euo pipefail
           Q='[out:json][timeout:700][bbox:29.4,34.2,33.35,35.95];(nwr["amenity"~"^(school|university|college|kindergarten|hospital|clinic|townhall|police|fire_station|library|community_centre|courthouse|theatre|cinema|bus_station|marketplace|fuel|bank|place_of_worship|post_office|grave_yard|social_facility|nursing_home|retirement_home)$"]["name"];nwr["landuse"="cemetery"]["name"];nwr["shop"~"^(mall|department_store|supermarket|convenience)$"]["name"];nwr["railway"="station"]["name"];nwr["leisure"~"^(park|sports_centre|stadium|pitch)$"]["name"];nwr["tourism"~"^(museum|attraction)$"]["name"];nwr["office"="government"]["name"];nwr["public_transport"="station"]["name"];nwr["highway"="motorway_junction"]["name"];nwr["junction"="yes"]["name"];nwr["building"~"^(synagogue|mosque|church|chapel|temple|religious|school|university|college|kindergarten|civic|public|hospital|government)$"]["name"];nwr["place"~"^(neighbourhood|suburb|quarter|village|hamlet)$"]["name"];nwr["barrier"~"^(border_control|checkpoint)$"]["name"];);out center tags;'
-          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
-            if curl -fsS --max-time 800 --data-urlencode "data=$Q" "$ep" -o poi_raw.json; then echo "got $(wc -c < poi_raw.json) bytes"; break; fi
-            echo "endpoint failed, next"; sleep 5
+          # שרתי Overpass עמוסים לפעמים (01.11: 504 בשלושתם) — שלושה סבבים עם המתנה, ואם כולם נכשלו
+          # נשארים נקודות העניין של החודש הקודם, ושאר הרענון החודשי ממשיך (לא נכשל בגלל שרת חיצוני)
+          ok=0
+          for round in 1 2 3; do
+            for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+              rm -f poi_raw.json
+              if curl -fsS --max-time 800 --data-urlencode "data=$Q" "$ep" -o poi_raw.json \
+                 && python3 -c "import json,sys; sys.exit(0 if len(json.load(open('poi_raw.json')).get('elements',[]))>1000 else 1)"; then
+                echo "got $(wc -c < poi_raw.json) bytes from $ep"; ok=1; break 2
+              fi
+              echo "endpoint failed, next"; sleep 5
+            done
+            echo "round $round failed — waiting"; sleep $((120 * round))
           done
+          if [ "$ok" != 1 ]; then
+            echo "::warning::Overpass לא זמין — נקודות העניין נשארות מהרענון הקודם (ענף osm-poi)"
+            curl -fsS --retry 3 -o poi.json https://raw.githubusercontent.com/${{ github.repository }}/osm-poi/poi.json
+            cp poi.json /tmp/poi.json
+            exit 0
+          fi
           python3 - <<'PY'
           import json
           d=json.load(open('poi_raw.json'))
@@ -109,10 +125,25 @@ jobs:
         run: |
           set -euo pipefail
           Q='[out:json][timeout:900][bbox:29.4,34.2,33.35,35.95];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|road)$"]["name"];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link)$"]["ref"][!"name"];);out geom;'
-          for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
-            if curl -fsS --max-time 1000 --data-urlencode "data=$Q" "$ep" -o roads_raw.json; then echo "got $(wc -c < roads_raw.json) bytes"; break; fi
-            echo "endpoint failed, next"; sleep 5
+          # כמו בנקודות העניין: שלושה סבבים, ואם כולם נכשלו — הכבישים מהרענון הקודם (ענף osm-roads)
+          ok=0
+          for round in 1 2 3; do
+            for ep in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+              rm -f roads_raw.json
+              if curl -fsS --max-time 1000 --data-urlencode "data=$Q" "$ep" -o roads_raw.json \
+                 && python3 -c "import json,sys; sys.exit(0 if len(json.load(open('roads_raw.json')).get('elements',[]))>10000 else 1)"; then
+                echo "got $(wc -c < roads_raw.json) bytes from $ep"; ok=1; break 2
+              fi
+              echo "endpoint failed, next"; sleep 5
+            done
+            echo "round $round failed — waiting"; sleep $((120 * round))
           done
+          if [ "$ok" != 1 ]; then
+            echo "::warning::Overpass לא זמין — הכבישים נשארים מהרענון הקודם (ענף osm-roads)"
+            curl -fsS --retry 3 -o roads.json https://raw.githubusercontent.com/${{ github.repository }}/osm-roads/roads.json
+            cp roads.json /tmp/roads.json
+            exit 0
+          fi
           python3 - <<'PY'
           import json
           d=json.load(open('roads_raw.json')); out=[]
