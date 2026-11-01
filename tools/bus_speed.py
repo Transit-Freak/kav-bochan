@@ -386,13 +386,14 @@ def build(n=DAYS):
     os.makedirs(OUT, exist_ok=True)
     bunching(keep.get('wd', []))
     load_tiles(keep.get('wd', []))
-    cities(acc)
+    names = cities(acc)
     os.makedirs(f'{OUT}/t', exist_ok=True)
     for f in os.listdir(f'{OUT}/t'):
         os.remove(f'{OUT}/t/{f}')
     for (ty, tx), recs in tiles.items():
         with open(f'{OUT}/t/{ty}_{tx}.json', 'w') as f:
             json.dump(recs, f, separators=(',', ':'))
+    city_export(names or [], tiles)
     dd = by_day(have, typ, load, tiles, tkeys)
     info = {'dd': dd, 'tile': TILE, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles),
             'days': {t: v for t, v in keep.items()}, 'skipped': [ds for ds in have if typ[ds] and ds not in keep[typ[ds]]],
@@ -634,36 +635,77 @@ def load_tiles(days):
     print(f'עומס בתחנות: {sum(len(v) for v in tiles.values()):,} תחנות מ-{nd} ימים')
 
 
+def city_export(names, tiles):
+    """הורדה לאקסל של כל הקטעים ביישוב (שלמה 01.11) — OUT/xl/<מספר היישוב ב-cities.json>.json:
+    {"n": [שמות תחנות], "t": {אריח: [[מספר הרשומה באריח, מספר שם התחנה הקרובה (עד 200 מ') או -1]…]}}.
+    הדף טוען את האריחים עצמם (data/t) ולוקח מהם את המהירויות — כאן רק השיוך."""
+    import shutil
+    if os.path.isdir(f'{OUT}/xl'):
+        shutil.rmtree(f'{OUT}/xl')
+    lk = stop_lookup()
+    if not lk or not names:
+        return
+    city, stop = lk
+    ix = {c: i for i, c in enumerate(names)}
+    per = collections.defaultdict(lambda: [{}, collections.defaultdict(list)])
+    for (ty, tx), recs in tiles.items():
+        for i, r in enumerate(recs):
+            c = city(r[0], r[1])
+            if c not in ix:
+                continue
+            nm = stop(r[0], r[1])
+            e = per[ix[c]]
+            j = e[0].setdefault(nm, len(e[0])) if nm else -1
+            e[1][f'{ty}_{tx}'].append([i, j])
+    os.makedirs(f'{OUT}/xl', exist_ok=True)
+    for ci, (nm, t) in per.items():
+        with open(f'{OUT}/xl/{ci}.json', 'w', encoding='utf-8') as f:
+            json.dump({'n': list(nm), 't': t}, f, ensure_ascii=False, separators=(',', ':'))
+    print(f'אקסל לפי יישוב: {len(per)} יישובים')
+
+
 def norm(c):
     """שם יישוב להשוואה בין מקורות: בלי גרשיים, מקפים, "יפו" (תל אביב - יפו / תל אביב יפו) ו-יי/וו כפולים."""
     c = str(c).replace('יפו', '').replace('יי', 'י').replace('וו', 'ו')   # קריית/קרית
     return ' '.join(''.join(ch if ch.isalnum() else ' ' for ch in c).split())
 
 
-def cities(acc):
-    """לכל יישוב: מהירות ממוצעת בכל שעה בימי א'–ה' (כל הדגימות בתוך היישוב), ומספר התושבים.
-    מקום שייך ליישוב של התחנה הקרובה אליו (עד 400 מ')."""
+def stop_lookup():
+    """(יישוב לפי מקום, שם התחנה הקרובה) — מהתחנה הקרובה בקובץ התחנות של ה-GIS. None אם אין קובץ."""
     try:
         st = json.load(open('gis/data/own/bus-stops.json', encoding='utf-8'))
     except Exception:  # noqa: BLE001
-        print('אין קובץ תחנות — בלי טבלת יישובים')
-        return
+        return None
     fi = st['fields']
     grid = collections.defaultdict(list)
     for r in st['rows']:
         lo, la, c = r[0], r[1], r[2 + fi.index('city')]
-        if c:
-            grid[(round(la / 0.005), round(lo / 0.005))].append((la, lo, c))
-    def city(la, lo):
-        best, bd = None, 0.0036 ** 2
+        grid[(round(la / 0.005), round(lo / 0.005))].append((la, lo, c, r[2 + fi.index('name')]))
+    def near(la, lo, lim, need_city):
+        best, bd = None, lim ** 2
         gy, gx = round(la / 0.005), round(lo / 0.005)
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
-                for a, b, c in grid.get((gy + dy, gx + dx), ()):
-                    d = (a - la) ** 2 + ((b - lo) * 0.85) ** 2
+                for x in grid.get((gy + dy, gx + dx), ()):
+                    if need_city and not x[2]:
+                        continue
+                    d = (x[0] - la) ** 2 + ((x[1] - lo) * 0.85) ** 2
                     if d < bd:
-                        best, bd = c, d
+                        best, bd = x, d
         return best
+    city = lambda la, lo: (near(la, lo, 0.0036, True) or (0, 0, None))[2]          # noqa: E731 — עד 400 מ'
+    stop = lambda la, lo: (near(la, lo, 0.0018, False) or (0, 0, '', ''))[3]       # noqa: E731 — עד 200 מ'
+    return city, stop
+
+
+def cities(acc):
+    """לכל יישוב: מהירות ממוצעת בכל שעה בימי א'–ה' (כל הדגימות בתוך היישוב), ומספר התושבים.
+    מקום שייך ליישוב של התחנה הקרובה אליו (עד 400 מ')."""
+    lk = stop_lookup()
+    if not lk:
+        print('אין קובץ תחנות — בלי טבלת יישובים')
+        return
+    city = lk[0]
     try:
         pop = json.load(open(f'{OUT}/pop.json', encoding='utf-8'))
     except Exception:  # noqa: BLE001
@@ -692,6 +734,7 @@ def cities(acc):
     with open(f'{OUT}/cities.json', 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
     print(f'{len(out)} יישובים, {sum(1 for r in out if r[1])} עם מספר תושבים')
+    return [r[0] for r in out]
 
 
 def population():

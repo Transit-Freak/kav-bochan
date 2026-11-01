@@ -605,8 +605,38 @@ function aboutPane() {
 }
 function excelPane() {
   $('#excel').innerHTML = `<div class="blk"><h3>הורדת סיכום לאקסל</h3><div class="mut">קובץ עם שלושה גיליונות: היישובים לפי שעה, כל הקטעים שבתחום המפה כרגע, והמקום שנבחר.</div>` +
-    `<button class="btn" id="xl">הורדה (xlsx)</button></div>`;
+    `<button class="btn" id="xl">הורדה (xlsx)</button></div>` +
+    `<div class="blk"><h3>כל הרחובות ביישוב</h3><div class="mut">כל הקטעים ביישוב שיש בהם מספיק נתונים (לפחות 6 שעות ביום), עם התחנה הקרובה לכל קטע — המהירות בכל שעה, א׳–ה׳ ושישי.</div>` +
+    `<select id="xlc" style="width:100%;margin:8px 0;padding:6px;border:1px solid var(--line);border-radius:4px;background:var(--panel)">${CITIES.map((c, i) => [c, i]).sort((a, b) => a[0][0].localeCompare(b[0][0], 'he')).map(([c, i]) => `<option value="${i}">${esc(c[0])}</option>`).join('')}</select>` +
+    `<button class="btn" id="xlcb">הורדת היישוב (xlsx)</button></div>`;
   $('#xl').onclick = excel;
+  $('#xlcb').onclick = excelCity;
+}
+// כל הקטעים ביישוב (שלמה 01.11): data/xl/<מספר היישוב>.json — אילו רשומות בכל אריח שייכות ליישוב, והתחנה הקרובה
+async function excelCity() {
+  const b = $('#xlcb'), ci = +$('#xlc').value, c = CITIES[ci];
+  b.disabled = true; b.textContent = 'מכין…';
+  try {
+    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const x = await fetch(D + 'xl/' + ci + '.json').then(r => { if (!r.ok) throw new Error('אין נתונים ליישוב'); return r.json(); });
+    const H = Array.from({ length: 24 }, (_, h) => fmt(h)), rows = [];
+    for (const [k, lst] of Object.entries(x.t)) {
+      const recs = await loadTile(k);
+      for (const [i, j] of lst) {
+        const r = recs[i]; if (!r) continue;
+        const wd = hours(r, 'wd'), fr = hours(r, 'fr');
+        if (wd.filter(v => v != null).length < 6) continue;
+        rows.push([j >= 0 ? x.n[j] : '', dirName(r[2]), r[3], r[0], r[1], ...wd.map(v => v ?? ''), ...fr.map(v => v ?? '')]);
+      }
+    }
+    rows.sort((p, q) => String(p[0]).localeCompare(String(q[0]), 'he') || String(p[1]).localeCompare(String(q[1]), 'he'));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([['ליד תחנה', 'כיוון', 'דגימות', 'רוחב', 'אורך', ...H.map(h => h + ' א׳–ה׳'), ...H.map(h => h + ' שישי')], ...rows]);
+    ws['!views'] = [{ RTL: true }];
+    XLSX.utils.book_append_sheet(wb, ws, 'קטעים');
+    XLSX.writeFile(wb, `מהירות-האוטובוסים-${c[0]}.xlsx`);
+  } catch (e) { alert('ההורדה נכשלה: ' + e.message); }
+  b.disabled = false; b.textContent = 'הורדת היישוב (xlsx)';
 }
 function loadScript(u) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
 async function excel() {
@@ -615,9 +645,12 @@ async function excel() {
     if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     const H = Array.from({ length: 24 }, (_, h) => fmt(h));
     const wb = XLSX.utils.book_new();
-    const add = (name, rows) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!views'] = [{ RTL: true }]; XLSX.utils.book_append_sheet(wb, ws, name); };
-    add('יישובים', [['יישוב', 'תושבים', 'האטה (%)', 'שעת שיא', 'מהירות בשעת השיא', 'בלי עומס (קמ"ש)', ...H],
+    const add = (name, rows) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!views'] = [{ RTL: true }]; XLSX.utils.book_append_sheet(wb, ws, name); return ws; };
+    const wc = add('יישובים', [['יישוב', 'תושבים', 'האטה (%)', 'שעת שיא', 'מהירות בשעת השיא', 'בלי עומס (קמ"ש)', ...H],
       ...cityRows().map(r => [r.name, r.pop ?? '', r.slow ?? '', r.worstH == null ? '' : fmt(r.worstH), r.worst ?? '', r.top ?? '', ...r.c[5].map(v => v ?? '')])]);
+    // מספר התושבים עם פסיק אלפים (1,118,430) ועמודות רחבות מספיק — אחרת מספר של מיליון נחתך בטלפון
+    for (const k in wc) if (/^B\d+$/.test(k) && k !== 'B1' && typeof wc[k].v === 'number') wc[k].z = '#,##0';
+    wc['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 9 }, { wch: 9 }, { wch: 14 }, { wch: 14 }];
     const dl = S.d === 'fr' ? 'שישי' : 'א׳–ה׳';
     add('קטעים במפה', [['רוחב', 'אורך', 'כיוון', 'דגימות', ...H.map(h => `${h} (${dl})`)],
       ...[...shown.keys()].map(r => [r[0], r[1], dirName(r[2]), r[3], ...hours(r, S.d).map(v => v ?? '')])]);
