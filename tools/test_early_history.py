@@ -102,7 +102,8 @@ class BrokenSourceTest(unittest.TestCase):
  """הדמיה של התקלה מ-01.11: צילום בלי routes.txt נכשל בכל ריצה ושלח מייל, עד שדולג אחרי 3."""
  def run_main(self,d,download=None,publish=None):
   argv=['import_early_history.py','--out',d,'--limit','1']
-  patches=[patch.object(m,'CAT',Path(d)/'cat.json'),patch('sys.argv',argv)]
+  # מטמון ההורדות של הבדיקה עצמה — בריצה ב-GitHub מוגדר EARLY_GTFS_CACHE משותף, ושם נשאר הקובץ מבדיקה קודמת
+  patches=[patch.object(m,'CAT',Path(d)/'cat.json'),patch('sys.argv',argv),patch.dict('os.environ',{'EARLY_GTFS_CACHE':str(Path(d)/'cache')})]
   if download:patches.append(patch.object(m,'download',download))
   if publish:patches.append(patch.object(m,'publish',publish))
   for p in patches:p.start()
