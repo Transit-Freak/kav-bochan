@@ -60,7 +60,8 @@ def parse(b):
             loc = mj.get('VehicleLocation') or {}
             try:
                 mc = mj.get('MonitoredCall') or {}
-                out.append((mj.get('VehicleRef'), v['RecordedAtTime'], float(loc['Latitude']), float(loc['Longitude']),
+                # רכב = מפעיל/מספר: מספרי רכב חוזרים בין מפעילים (רכבת ישראל ומפעיל אחר שולחים שניהם "23")
+                out.append((f"{mj.get('OperatorRef')}/{mj.get('VehicleRef')}", v['RecordedAtTime'], float(loc['Latitude']), float(loc['Longitude']),
                             float(mj.get('Velocity') or 0), float(mj.get('Bearing') or 0), mj.get('OriginAimedDepartureTime') or '',
                             mj.get('LineRef') or '', int(mc.get('Order') or 0)))
             except Exception:  # noqa: BLE001
@@ -82,6 +83,9 @@ def day(ds):
     at = collections.defaultdict(dict)       # (תחנה, דקה) → {רכב: קו} — אוטובוסים בתחנה
     app = collections.defaultdict(list)      # (תחנה, דקה) → מהירויות בקטע שלפני התחנה
     mins = set()
+    good, bad = {}, collections.Counter()   # רכב → המיקום התקין האחרון (זמן, רוחב, אורך) · כמה שידורים חשודים ברצף
+    skip = collections.Counter()
+    ts = lambda x: datetime.datetime.fromisoformat(x).timestamp()  # noqa: E731
     with ThreadPoolExecutor(24) as ex:
         for b in ex.map(fetch, keys):
             if not b:
@@ -95,7 +99,31 @@ def day(ds):
                 if dep and rt < dep:  # ממתין במסוף לפני היציאה (אותו אזור זמן — השוואת מחרוזות)
                     continue
                 if not (29.3 < la < 33.5 and 34.2 < lo < 35.9) or vel > 130:
+                    skip['out'] += 1
                     continue
+                # אוטובוסים ומוניות שירות. בלי GTFS (ההורדה נכשלה) — לפחות בלי רכבת ישראל (מפעיל 2)
+                if (RS and line not in RS[2]) or (not RS and veh.startswith('2/')):
+                    skip['notbus'] += 1
+                    continue
+                t = ts(rt)
+                # נסיעה "תקועה": שידור יותר מ-4 שעות אחרי היציאה המתוכננת — הנהג לא סגר את הנסיעה ונוסע הביתה
+                # (שלמה 02.11: מוניות שירות של קו 16 נספרו בשישי ב-23:00 על הנסיעה של 15:11)
+                if dep and t - ts(dep) > 4 * 3600:
+                    skip['stale'] += 1
+                    continue
+                # זיוף GPS (שלמה 02.11): קפיצה — מעל 130 קמ"ש ומעל 500 מ' מהמיקום התקין האחרון של הרכב. מיקום חדש
+                # מתקבל רק אחרי 4 שידורים חשודים ברצף (רכב שבאמת עבר מקום, למשל אחרי הפסקה ארוכה בשידור).
+                # בדיקת "רחוק מהמסלול" לפי התחנה הבאה נפסלה: התחנה הבאה בשידור מתעדכנת באיחור, ו-6% נפסלו לשווא
+                p = good.get(veh)
+                if p and t > p[0]:
+                    dd = math.hypot((la - p[1]) * 111000, (lo - p[2]) * 93000)
+                    if dd > 500 and dd / (t - p[0]) * 3.6 > 130:
+                        bad[veh] += 1
+                        if bad[veh] < 4:
+                            skip['jump'] += 1
+                            continue
+                good[veh] = (t, la, lo)
+                bad[veh] = 0
                 s = int(((br + 22.5) % 360) // 45)
                 k = (round(la / CY), round(lo / CX), s)
                 g = geo[k]
@@ -121,11 +149,11 @@ def day(ds):
     rows = [[ix[k[:3]], k[3], a[0], round(a[1]), a[2]] for k, a in hrs.items()]
     os.makedirs(CACHE, exist_ok=True)
     with gzip.open(f'{CACHE}/{ds}.tmp', 'wt') as f:   # שם זמני — build לא יקרא קובץ באמצע כתיבה
-        json.dump({'d': ds, 'files': files, 'recs': recs, 'used': used, 'geo': g, 'rows': rows}, f, separators=(',', ':'))
+        json.dump({'d': ds, 'files': files, 'recs': recs, 'used': used, 'skip': skip, 'geo': g, 'rows': rows}, f, separators=(',', ':'))
     os.replace(f'{CACHE}/{ds}.tmp', f'{CACHE}/{ds}.json.gz')
     if RS:
         stop_load(ds, RS[1], at, app, mins)
-    print(f'{ds}: {files} קבצים, {used:,} דגימות, {len(g):,} מקומות, {round(time.time() - st)} שנ\'', flush=True)
+    print(f'{ds}: {files} קבצים, {used:,} דגימות, {len(g):,} מקומות, {round(time.time() - st)} שנ\' · נפסלו: {dict(skip)}', flush=True)
 
 
 def bearing(a, b):
@@ -238,6 +266,9 @@ def route_stops(ds):
     for x in r:
         sid[x[i_id]] = x[i_c]
         S[x[i_c]] = (float(x[i_la]), float(x[i_lo]))
+    r = rd('routes.txt'); h = next(r)
+    i_r, i_y = h.index('route_id'), h.index('route_type')
+    bus = {x[i_r] for x in r if x[i_y] in ('3', '8')}   # אוטובוסים ומוניות שירות (סוג 8, שלמה 02.11) — בלי רכבת ורק"ל
     r = rd('trips.txt'); h = next(r)
     i_r, i_t = h.index('route_id'), h.index('trip_id')
     want = {}
@@ -258,7 +289,7 @@ def route_stops(ds):
                     R[rt][int(x[i_q])] = c
     if zp.startswith(f'{CACHE}/gtfs-'):
         os.remove(zp)
-    return dict(R), S
+    return dict(R), S, bus
 
 
 def stop_load(ds, S, at, app, mins):
