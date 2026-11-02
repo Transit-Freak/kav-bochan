@@ -4,7 +4,7 @@
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const D = 'data/';
-const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all', lay: { sp: 1, bn: 0, ld: 0 } };
+const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all', lay: { sp: 1, bn: 0, ld: 0, gf: 0 } };
 const MINZ = 13;   // מתחת לזה — עיגול לכל יישוב
 let META = null, CITIES = [], TILE = 0.05;
 const tiles = new Map();          // מפתח אריח → רשומות (או Promise בזמן טעינה)
@@ -128,6 +128,7 @@ async function loadTile(k) {
 let drawSeq = 0;
 async function draw() {
   if (!META) return;
+  drawFake();
   const z = map.getZoom(), seq = ++drawSeq;
   $('#s-zoom').textContent = z;
   if (z < MINZ) {
@@ -348,8 +349,57 @@ function openLoad() {
 }
 function closeLoad() { const x = $('#qx'); if (x) x.remove(); }
 $('#spot').addEventListener('click', e => { if (e.target.closest('.qmore')) openLoad(); });
+// ---------- שכבת זיופי GPS ----------
+// מקומות שאוטובוס שידר שהוא נמצא בהם בלי שום רחוב של אוטובוסים לידו (שלמה 02.11). data/gps/<תאריך>.json —
+// [מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך, רוחב אמיתי, אורך אמיתי, ק"מ]. לפי סוג היום / הימים שנבחרו ולפי השעה
+let GQ = null;
+const gdays = new Map(), fakeG = L.layerGroup().addTo(map), fakeSel = L.layerGroup().addTo(map);
+let fakeSeq = 0;
+async function drawFake() {
+  const seq = ++fakeSeq;
+  if (!S.lay.gf) { fakeG.clearLayers(); return; }
+  if (!GQ) GQ = await fetch(D + 'gpsq.json').then(r => r.json()).catch(() => ({ days: [] }));
+  const days = S.d === 'y' ? S.dsel : GQ.days.filter(x => x[1] === S.d).map(x => x[0]);
+  const all = (await Promise.all(days.filter(d => GQ.days.some(x => x[0] === d)).map(d => {
+    if (!gdays.has(d)) gdays.set(d, fetch(D + 'gps/' + d + '.json').then(r => r.json()).catch(() => []).then(a => { a.forEach(f => f.d = d); gdays.set(d, a); return a; }));
+    return gdays.get(d);
+  }))).flat();
+  if (seq !== fakeSeq) return;
+  fakeG.clearLayers();
+  const hh = String(S.h).padStart(2, '0');
+  let n = 0;
+  for (const f of all) {
+    if (f[3].slice(0, 2) !== hh) continue;
+    n++;
+    L.circleMarker([f[5], f[6]], { renderer: rend, radius: 5, weight: 1, color: '#7f1d1d', fillColor: '#dc2626', fillOpacity: .85 })
+      .bindTooltip(`<b>מיקום מזויף</b> · קו ${esc(f[1])} (${esc(f[0])})<br>${f[3].slice(0, 5)}${days.length > 1 ? ', ' + dayShort(f.d) : ''}<br><small>לחיצה — איפה האוטובוס היה באמת</small>`, { sticky: true })
+      .on('click', () => pickFake(f)).addTo(fakeG);
+  }
+  msg(n ? '' : `אין זיופי GPS ב-${fmt(S.h)} בימים שנבחרו`);
+}
+function pickFake(f) {
+  lastPick = Date.now();
+  S.spot = { fake: f };
+  hiG.clearLayers(); fakeSel.clearLayers();
+  L.circleMarker([f[5], f[6]], { radius: 13, color: '#0ea5e9', weight: 3, fill: false, interactive: false }).addTo(fakeSel);
+  tool('spot');
+  if (f[7] == null) { map.setView([f[5], f[6]], Math.max(map.getZoom(), 11)); return; }
+  L.polyline([[f[5], f[6]], [f[7], f[8]]], { color: '#0f172a', weight: 2, dashArray: '6 6', interactive: false }).addTo(fakeSel);
+  L.circleMarker([f[7], f[8]], { radius: 7, color: '#0f172a', weight: 1.5, fillColor: '#15803d', fillOpacity: 1 }).bindTooltip('המיקום האמיתי').addTo(fakeSel);
+  map.fitBounds(L.latLngBounds([[f[5], f[6]], [f[7], f[8]]]).pad(0.4), { maxZoom: 14 });
+}
+function fakePane(f) {
+  const [ag, ln, veh, tm, dep, , , , , km] = f;
+  return `<div class="blk"><h3>מיקום מזויף <span class="mut">· ${dayShort(f.d)}, ${tm.slice(0, 5)}</span></h3>` +
+    `<div class="mut sm">האוטובוס שידר שהוא נמצא כאן — במקום שאין בו שום רחוב שאוטובוסים נוסעים בו</div>` +
+    `<div class="kv"><span>קו</span><b>${esc(ln)}</b><span>מפעיל</span><b>${esc(ag)}</b><span>מספר רכב</span><b dir="ltr">${esc(veh)}</b><span>הנסיעה של</span><b>${esc(dep)}</b></div></div>` +
+    (f[7] == null ? `<div class="blk"><h3>איפה הוא היה באמת</h3><div class="busy">לא ידוע — גם השידור הקודם של הרכב היה במקום בלי רחוב (רצף של שידורים מזויפים). השידור הזה לא נכנס למהירויות</div></div>`
+      : `<div class="blk"><h3>איפה הוא היה באמת</h3><div class="kv"><span>המיקום התקין האחרון</span><b>${km} ק"מ משם</b></div>` +
+        `<div class="busy" style="margin-top:8px"><b>קפיצה של ${km} ק"מ</b> — אי אפשר לנסוע ככה. השידור הזה לא נכנס למהירויות</div></div>`) +
+    `<div class="note">${f[7] == null ? '' : 'ירוק במפה — המיקום האמיתי. '}<a href="../bus/#/gps">כל הזיופים לפי מפעיל, קו ורכב — במדד דיוק האוטובוסים ←</a></div>`;
+}
 function layersPane() {
-  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים'], ['ld', 'עומס בתחנות', 'עיגול לכל תחנה — כמה מהזמן עמדו בה 3 אוטובוסים או יותר. גודל העיגול: כמה אוטובוסים בממוצע']];
+  const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים'], ['ld', 'עומס בתחנות', 'עיגול לכל תחנה — כמה מהזמן עמדו בה 3 אוטובוסים או יותר. גודל העיגול: כמה אוטובוסים בממוצע'], ['gf', 'זיופי GPS', 'נקודה לכל מקום שאוטובוס שידר שהוא נמצא בו — בלי שום רחוב של אוטובוסים לידו (ים, שטח פתוח). לפי הימים והשעה שנבחרו']];
   $('#layers').innerHTML = `<div class="blk">${it.map(([k, t, d]) => `<label class="lyr"><input type="checkbox" data-l="${k}"${S.lay[k] ? ' checked' : ''}><span><b>${t}</b><br><small class="mut">${d}</small></span></label>`).join('')}</div>` +
     `<div class="note">שתי השכבות יחד מראות איפה האוטובוס גם איטי וגם מתקבץ — שם בדרך כלל נת"צ או עדיפות ברמזור עוזרים הכי הרבה.</div>`;
 }
@@ -370,6 +420,7 @@ function recolor() {
   if (map.getZoom() < MINZ) return drawCities();
   for (const [b, m] of bshown) styleB(b, m);
   for (const [q, m] of qshown) styleQ(q, m);
+  drawFake();
   for (const [r, ln] of shown) { const c = color(r); ln.setStyle({ color: c || '#94a3b8', opacity: c ? .95 : .25 }); }
   summary([...shown.keys()]);
 }
@@ -524,7 +575,7 @@ function dayPicker() {
     cells.push(have.has(iso) ? `<button class="cd${S.dsel.includes(iso) ? ' on' : ''}" data-dd="${iso}" title="${dayName(iso)}">${day}</button>` : `<span class="cd off">${day}</span>`);
   }
   const all = DD().map(x => x[0]).sort(), canPrev = all[0] < `${y}-${mm}-01`, canNext = all[all.length - 1] > `${y}-${mm}-${nDays}`;
-  el.innerHTML = `<div class="calhead"><button class="cnav" data-nav="-1" title="חודש קודם" ${canPrev ? '' : 'disabled'}>‹</button><b>${HEM[m]} ${y}</b><button class="cnav" data-nav="1" title="חודש הבא" ${canNext ? '' : 'disabled'}>›</button></div>` +
+  el.innerHTML = `<button class="cd wk" id="lastwk" style="width:100%;margin-bottom:6px">השבוע האחרון (7 ימים)</button><div class="calhead"><button class="cnav" data-nav="-1" title="חודש קודם" ${canPrev ? '' : 'disabled'}>‹</button><b>${HEM[m]} ${y}</b><button class="cnav" data-nav="1" title="חודש הבא" ${canNext ? '' : 'disabled'}>›</button></div>` +
     `<div class="calgrid">${['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(w => `<i>${w}׳</i>`).join('')}${cells.join('')}</div>` +
     `<div class="mut sm">${S.dsel.length === 1 ? dayName(S.dsel[0]) : `${S.dsel.length} ימים — מוצג הממוצע שלהם`}. אפשר לסמן כמה ימים. אפור: אין נתונים (שבת, או לפני ${dayShort(all[0])}).</div>`;
 }
@@ -532,6 +583,7 @@ function spotPane() {
   const el = $('#spot');
   if (S.spot && S.spot.stop) { el.innerHTML = stopPane(S.spot.stop); return; }
   if (S.spot && S.spot.load) { el.innerHTML = loadPane(S.spot.load); return; }
+  if (S.spot && S.spot.fake) { el.innerHTML = fakePane(S.spot.fake); return; }
   if (!S.spot) { el.innerHTML = '<div class="note">לחצו על קו במפה (בזום קרוב) כדי לראות את המהירות שם בכל שעות היום.</div>'; return; }
   const { r, opp, cor } = S.spot, yd = S.d === 'y';
   const one = (q, other) => {
@@ -595,7 +647,8 @@ function legendPane() {
       `<div><b class="dot" style="background:#cbd5e1"></b>מעט נסיעות בשעה הזו</div></div></div>` : '') +
     (S.lay.ld ? `<div class="blk"><h3>עומס בתחנה — חלק מהזמן שעמדו בה 3 אוטובוסים או יותר</h3><div class="lg">` +
       QL.map((x, i) => `<div><b class="dot" style="background:${x[1]}"></b>${i === 0 ? `פחות מ-${x[0]}%` : x[0] === 999 ? `${QL[i - 1][0]}% ומעלה` : `${QL[i - 1][0]}–${x[0]}%`}</div>`).join('') +
-      `<div><b class="dot" style="background:#cbd5e1"></b>כמעט בלי אוטובוסים בשעה הזו</div><div class="mut sm">עיגול גדול יותר — יותר אוטובוסים בתחנה בממוצע</div></div></div>` : '');
+      `<div><b class="dot" style="background:#cbd5e1"></b>כמעט בלי אוטובוסים בשעה הזו</div><div class="mut sm">עיגול גדול יותר — יותר אוטובוסים בתחנה בממוצע</div></div></div>` : '') +
+    (S.lay.gf ? `<div class="blk"><h3>זיופי GPS</h3><div class="lg"><div><b class="dot" style="background:#dc2626"></b>מיקום מזויף בשעה שנבחרה — לחיצה מראה איפה האוטובוס היה באמת</div></div></div>` : '');
 }
 function aboutPane() {
   const d = META && META.days, n = d ? (d.wd || []).length : 0, f = d ? (d.fr || []).length : 0;
@@ -688,6 +741,11 @@ function refresh() {
 $('#hour').oninput = e => { S.h = +e.target.value; refresh(); };
 $('#dtype').onclick = e => { const b = e.target.closest('button'); if (b) { S.d = b.dataset.v; refresh(); if (S.d === 'y') draw(); } };
 $('#dpick').onclick = e => {
+  if (e.target.closest('#lastwk')) {   // שלמה 02.11: לבדוק לפי שבוע — 7 הימים האחרונים בלחיצה אחת
+    const all = DD().map(x => x[0]).sort().reverse(), last = all[0];
+    const from = new Date(Date.parse(last) - 6 * 864e5).toISOString().slice(0, 10);
+    S.dsel = all.filter(d => d >= from); refresh(); draw(); return;
+  }
   const n = e.target.closest('.cnav');
   if (n && !n.disabled) { let [y, m] = calYM; m += +n.dataset.nav; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } calYM = [y, m]; dayPicker(); return; }
   const b = e.target.closest('[data-dd]'); if (!b) return;
@@ -725,14 +783,14 @@ map.on('mousemove', e => $('#s-wgs').textContent = `${e.latlng.lat.toFixed(5)}, 
 map.on('moveend', () => { draw(); hash(); });
 // לחיצה על המפה (לא על קטע או תחנה) — ביטול הבחירה; גם Esc
 let lastPick = 0;
-function unpick() { if (!S.spot) return; S.spot = null; hiG.clearLayers(); closeLoad(); if (S.tool === 'spot') tool('map'); }
+function unpick() { if (!S.spot) return; S.spot = null; hiG.clearLayers(); closeLoad(); fakeSel.clearLayers(); if (S.tool === 'spot') tool('map'); }
 map.on('click', () => { if (Date.now() - lastPick > 300) unpick(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') unpick(); });
 
 // כתובת: #h=8&d=wd&m=sp&@31.72,34.74,15
 function hash() {
   const c = map.getCenter();
-  history.replaceState(null, '', `#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn || S.lay.ld ? '&l=' + (S.lay.sp ? 's' : '') + (S.lay.bn ? 'b' : '') + (S.lay.ld ? 'q' : '') : ''}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
+  history.replaceState(null, '', `#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn || S.lay.ld || S.lay.gf ? '&l=' + (S.lay.sp ? 's' : '') + (S.lay.bn ? 'b' : '') + (S.lay.ld ? 'q' : '') + (S.lay.gf ? 'g' : '') : ''}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
 }
 function readHash() {
   const h = location.hash.slice(1); if (!h) return;
@@ -743,7 +801,7 @@ function readHash() {
     if (k === 'd' && (v === 'wd' || v === 'fr' || v === 'y')) S.d = v;
     if (k === 'dd') S.dsel = v.split(',').filter(x => /^\d{4}-\d\d-\d\d$/.test(x));
     if (k === 'm' && (v === 'sp' || v === 'sl')) S.m = v;
-    if (k === 'l') S.lay = { sp: v.includes('s') ? 1 : 0, bn: v.includes('b') ? 1 : 0, ld: v.includes('q') ? 1 : 0 };
+    if (k === 'l') S.lay = { sp: v.includes('s') ? 1 : 0, bn: v.includes('b') ? 1 : 0, ld: v.includes('q') ? 1 : 0, gf: v.includes('g') ? 1 : 0 };
   }
 }
 

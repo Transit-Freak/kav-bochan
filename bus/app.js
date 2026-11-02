@@ -514,6 +514,7 @@ function renderMain(days) {
     <div class="panel"><div class="ptitle">סוג הרכב מול מה שנקבע לקו</div><p class="pdesc">לכל קו משרד התחבורה קובע גודל רכב: מיניבוס, מידיבוס, אוטובוס או אוטובוס מפרקי. כאן משווים אותו לרכב שהגיע בפועל בכל נסיעה, לפי מספר הרכב בשידור ומאגר ציי הרכב של המשרד. "רכב קטן יותר" הוא למשל מיניבוס בקו שנקבע לו אוטובוס.</p><div id="vt-sum"></div><div class="filters" id="vt-filters"></div><div id="t-vt"></div></div>
     </div>
     <div class="tabsec" data-tab="gps">
+    <div class="panel" id="gq"></div>
     <div class="panel"><div class="ptitle">תדירות שידור מיקום (GPS)</div><p class="pdesc">כל כמה זמן כל אוטובוס משדר את המיקום שלו, בממוצע. מחושב מזמן הדיווח (RecordedAtTime) שבשידורי SIRI: המרווח בין שני דיווחים עוקבים של אותו רכב באותה נסיעה. דיווח שחוזר על עצמו נספר פעם אחת, ופער של יותר מ-10 דקות (רכב מחוץ לשירות או בלי קליטה) לא נספר. שימו לב: השידורים נאספים פעם בדקה, ולכן רכב שמשדר כל 20 או 30 שניות ייראה כאן כ"כל 60 שניות" — המדד תופס בעיקר רכבים שמשדרים לאט מזה או מדלגים על דקות. "מרווחים חסרים": אחוז המרווחים של 90 שניות ומעלה.</p><div id="gps-sum"></div>
       <div class="ptitle" style="margin-top:12px">לפי מפעיל</div><div id="t-gps-ag"></div>
       <div class="ptitle" style="margin-top:12px">לפי רכב</div><p class="pdesc">חיפוש לפי מספר רכב (לוחית רישוי) או שם מפעיל, או לחיצה על מפעיל בטבלה שלמעלה. ברירת המחדל: הרכבים שמשדרים הכי לאט.</p><div class="filters"><span id="gps-agf"></span><input id="gps-q" type="search" placeholder="מספר רכב או מפעיל" value="${esc(gq)}" style="min-width:200px"></div><div id="t-gps-v"></div></div>
@@ -1082,7 +1083,40 @@ function renderBunchLines() {
 let GPS = null, gq = '', gLim = 50, gT = 0, gAg = null;
 const gpsAvg = () => { let s = 0, n = 0; GPS.v.forEach(r => { s += r[2]; n++; }); return n ? Math.round(s / n) : '—'; };
 const secCls = v => v == null ? '' : v >= 120 ? 'd4' : v >= 90 ? 'd3' : v >= 75 ? 'd2' : '';
+// אמינות השידורים (שלמה 02.11) — מ-../bus-speed/data/gpsq.json (tools/bus_speed.py), יום-יום, ומחברים כאן את
+// התקופה שנבחרה (יום / 7 / 30). ציון לכל מפעיל: חצי זיופי GPS לכל 1,000 שידורים, חצי נסיעות ששודרו בשעה אחרת;
+// בכל מרכיב הטוב ביותר 100 והגרוע ביותר 0
+let GQ = null, gqLoading = false;
+function renderGq() {
+  const box = $('#gq'); if (!box) return;
+  if (!GQ) {
+    box.innerHTML = '<div class="ptitle">אמינות השידורים</div><div class="mut">טוען…</div>';
+    if (!gqLoading) { gqLoading = true; fetch('../bus-speed/data/gpsq.json?v=' + encodeURIComponent(IDX.updated || '')).then(r => r.json()).then(j => { GQ = j; renderGq(); }).catch(() => { GQ = { days: [], d: {} }; renderGq(); }); }
+    return;
+  }
+  const days = windowDays().map(d => d.d).filter(d => GQ.d[d]);
+  if (!days.length) { box.innerHTML = '<div class="ptitle">אמינות השידורים</div><div class="empty">אין נתונים לימים שנבחרו</div>'; return; }
+  const sum = (k, f) => { const o = {}; days.forEach(d => Object.entries(GQ.d[d][k] || {}).forEach(([a, v]) => { o[a] = f(o[a], v); })); return o; };
+  const add = (a, v) => (a || 0) + v, addv = (a, v) => (a || [0, 0, 0]).map((x, i) => x + v[i]);
+  const nb = sum('nb', add), tr = sum('trips', addv), fk = sum('fk', add), fl = sum('fl', add), fv = sum('fv', add), tl = sum('tl', add);
+  const ops = Object.keys(nb).filter(a => nb[a] >= 20000 * days.length && tr[a] && tr[a][0] >= 100 * days.length);
+  const fr = {}, lr = {};
+  ops.forEach(a => { fr[a] = 1000 * (fk[a] || 0) / nb[a]; lr[a] = 100 * (tr[a][1] + tr[a][2]) / tr[a][0]; });
+  const sc = (m, a) => { const v = ops.map(x => m[x]), lo = Math.min(...v), hi = Math.max(...v); return hi === lo ? 100 : Math.round(100 - 100 * (m[a] - lo) / (hi - lo)); };
+  const rows = ops.map(a => { const x = sc(fr, a), y = sc(lr, a); return [a, Math.round((x + y) / 2), fk[a] || 0, fr[a], lr[a]]; }).sort((p, q) => q[1] - p[1]);
+  const cls = v => v >= 85 ? '' : v >= 65 ? 'd1' : v >= 45 ? 'd2' : v >= 25 ? 'd3' : 'd4';
+  const top = (o, n) => Object.entries(o).sort((p, q) => q[1] - p[1]).slice(0, n).map(([k, v]) => [...k.split('|'), v]);
+  const t = (h, r) => `<div class="tblbox" style="margin-top:6px;max-height:none"><table><thead><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${r}</tbody></table></div>`;
+  const nf = Object.values(fk).reduce((a, b) => a + b, 0), best = rows[0], worst = rows[rows.length - 1];
+  box.innerHTML = `<div class="ptitle">אמינות השידורים</div><p class="pdesc">ציון מ-0 עד 100 לכל מפעיל. חצי מהציון — זיופי GPS: שידור שהאוטובוס נמצא במקום שאין בו שום רחוב שאוטובוסים נוסעים בו (ים, שטח פתוח). חצי — נסיעות ששודרו בשעה אחרת: השידור הראשון הגיע יותר משעה אחרי שעת היציאה בלו"ז, או שהרכב המשיך לשדר על הנסיעה 4 שעות ומעלה. בכל מרכיב המפעיל הטוב ביותר מקבל 100 והגרוע ביותר 0. את המקומות המזויפים עצמם רואים במפה של <a href="../bus-speed/">איפה האוטובוס נתקע</a> (שכבה "זיופי GPS").</p>` +
+    (rows.length ? `<div class="stat-row"><div><b>${num(nf)}</b><span>זיופי GPS · ${days.length === 1 ? shortDate(days[0]) : days.length + ' ימים'}</span></div><div><b>${esc(best[0])}</b><span>הציון הגבוה ביותר: ${best[1]}</span></div><div><b>${esc(worst[0])}</b><span>הציון הנמוך ביותר: ${worst[1]}</span></div></div>` +
+    t(['מפעיל', 'ציון', 'זיופי GPS', 'זיופים ל-1,000 שידורים', 'נסיעות בשעה אחרת'], rows.map(([a, s, f, r, l]) => `<tr><td class="nm">${esc(a)}</td><td class="${cls(s)}"><b>${s}</b></td><td>${num(f)}</td><td>${Math.round(r * 100) / 100}</td><td>${Math.round(l * 10) / 10}%</td></tr>`).join('')) : '') +
+    `<div class="ptitle" style="margin-top:14px">הקווים עם הכי הרבה זיופי GPS</div>` + t(['קו', 'מפעיל', 'זיופים'], top(fl, 10).map(([l, a, n]) => `<tr><td class="nm"><b>${esc(l)}</b></td><td>${esc(a)}</td><td>${num(n)}</td></tr>`).join('')) +
+    `<div class="ptitle" style="margin-top:14px">הקווים עם הכי הרבה נסיעות בשעה אחרת</div>` + t(['קו', 'מפעיל', 'נסיעות'], top(tl, 10).map(([l, a, n]) => `<tr><td class="nm"><b>${esc(l)}</b></td><td>${esc(a)}</td><td>${num(n)}</td></tr>`).join('')) +
+    `<div class="ptitle" style="margin-top:14px">הרכבים עם הכי הרבה זיופי GPS</div><p class="pdesc">רכב שחוזר שוב ושוב — כנראה מכשיר תקול.</p>` + t(['מספר רכב', 'מפעיל', 'זיופים'], top(fv, 8).map(([v, a, n]) => `<tr><td class="nm" style="direction:ltr;text-align:right">${esc(v)}</td><td>${esc(a)}</td><td>${num(n)}</td></tr>`).join(''));
+}
 function renderGps() {
+  renderGq();
   const box = $('#t-gps-v'); if (!box) return;
   if (!GPS) { $('#gps-sum').innerHTML = '<div class="empty">אין עדיין נתוני שידור (מחושב בריצה הלילית הבאה)</div>'; $('#t-gps-ag').innerHTML = ''; box.innerHTML = ''; return; }
   const agName = {}; GPS.agencies.forEach(a => { agName[a[0]] = a[1]; });
