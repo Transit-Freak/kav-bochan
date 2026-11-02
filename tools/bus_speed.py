@@ -101,7 +101,8 @@ def day(ds):
                 if not (29.3 < la < 33.5 and 34.2 < lo < 35.9) or vel > 130:
                     skip['out'] += 1
                     continue
-                if RS and line not in RS[2]:
+                # רק אוטובוסים. בלי GTFS (ההורדה נכשלה) — לפחות בלי רכבת ישראל (מפעיל 2)
+                if (RS and line not in RS[2]) or (not RS and veh.startswith('2/')):
                     skip['notbus'] += 1
                     continue
                 t = ts(rt)
