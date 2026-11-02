@@ -711,7 +711,7 @@ def cities(acc):
     except Exception:  # noqa: BLE001
         pop = {}
     popn = {norm(k): v for k, v in pop.items()}
-    agg = collections.defaultdict(lambda: [[0, 0] for _ in range(24)])
+    agg = collections.defaultdict(lambda: [[0, 0] for _ in range(48)])   # 24 שעות א'–ה', ואחריהן 24 של שישי
     cen = collections.defaultdict(lambda: [0, 0.0, 0.0])
     for (cy, cx, s), (n, sla, slo, *_ , hrs) in acc.items():
         c = city(sla / n, slo / n)
@@ -719,17 +719,18 @@ def cities(acc):
             continue
         a = agg[c]
         m = cen[c]; m[0] += n; m[1] += sla; m[2] += slo
-        for h in range(24):
+        for h in range(48):
             a[h][0] += hrs[2 * h]; a[h][1] += hrs[2 * h + 1]
     out = []
     for c, a in agg.items():
-        tot = sum(x[0] for x in a)
+        tot = sum(x[0] for x in a[:24])
         if tot < 20000 or (popn and (popn.get(norm(c)) or 0) < 5000):
             continue
         sp = [round(x[1] / x[0], 1) if x[0] >= 200 else None for x in a]
         m = cen[c]
-        # [יישוב, תושבים, דגימות, רוחב, אורך, מהירות ממוצעת בכל שעה בימי א'–ה']
-        out.append([c, popn.get(norm(c)), tot, round(m[1] / m[0], 4), round(m[2] / m[0], 4), sp])
+        # [יישוב, תושבים, דגימות, רוחב, אורך, מהירות בכל שעה בימי א'–ה', בשישי] — שישי נפרד (שלמה 02.11:
+        # בשישי ב-23:00 הוצג עיגול בבני ברק — הממוצע של ימי החול, כי לא היה ליישובים מידע לשישי)
+        out.append([c, popn.get(norm(c)), tot, round(m[1] / m[0], 4), round(m[2] / m[0], 4), sp[:24], sp[24:]])
     out.sort(key=lambda r: -(r[1] or 0))
     with open(f'{OUT}/cities.json', 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
