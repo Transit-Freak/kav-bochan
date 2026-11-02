@@ -101,7 +101,7 @@ def day(ds):
                 if not (29.3 < la < 33.5 and 34.2 < lo < 35.9) or vel > 130:
                     skip['out'] += 1
                     continue
-                # רק אוטובוסים. בלי GTFS (ההורדה נכשלה) — לפחות בלי רכבת ישראל (מפעיל 2)
+                # אוטובוסים ומוניות שירות. בלי GTFS (ההורדה נכשלה) — לפחות בלי רכבת ישראל (מפעיל 2)
                 if (RS and line not in RS[2]) or (not RS and veh.startswith('2/')):
                     skip['notbus'] += 1
                     continue
@@ -268,7 +268,7 @@ def route_stops(ds):
         S[x[i_c]] = (float(x[i_la]), float(x[i_lo]))
     r = rd('routes.txt'); h = next(r)
     i_r, i_y = h.index('route_id'), h.index('route_type')
-    bus = {x[i_r] for x in r if x[i_y] == '3'}   # רק אוטובוסים — בלי רכבת, רק"ל ומוניות שירות (סוג 8)
+    bus = {x[i_r] for x in r if x[i_y] in ('3', '8')}   # אוטובוסים ומוניות שירות (סוג 8, שלמה 02.11) — בלי רכבת ורק"ל
     r = rd('trips.txt'); h = next(r)
     i_r, i_t = h.index('route_id'), h.index('trip_id')
     want = {}
