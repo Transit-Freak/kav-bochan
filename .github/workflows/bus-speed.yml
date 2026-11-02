@@ -104,6 +104,7 @@ jobs:
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.bunch.json.gz" -D /tmp/days 2>/dev/null || true
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.bpairs.json.gz" -D /tmp/days 2>/dev/null || true
             gh release download "$REL" -R "${{ github.repository }}" -p "$d.load.json.gz" -D /tmp/days 2>/dev/null || true
+            gh release download "$REL" -R "${{ github.repository }}" -p "$d.gps.json.gz" -D /tmp/days 2>/dev/null || true
           done
           ls /tmp/days | wc -l
           # ימים ישנים מ-40 יום — נמחקים מה-release

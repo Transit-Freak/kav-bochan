@@ -85,6 +85,10 @@ def day(ds):
     mins = set()
     good, bad = {}, collections.Counter()   # רכב → המיקום התקין האחרון (זמן, רוחב, אורך) · כמה שידורים חשודים ברצף
     skip = collections.Counter()
+    cells = collections.Counter()           # ריבועים של ~200 מ' שאוטובוסים באמת עברו בהם היום (שידורים תקינים)
+    jumps = []                              # קפיצות: [רכב, קו, שעה, יציאה, רוחב, אורך, רוחב קודם, אורך קודם, ק"מ]
+    trip = {}                               # (קו, יציאה, רכב) → [שידור ראשון, אחרון, יציאה] — "נסיעות בשעה אחרת"
+    nb = collections.Counter()              # שידורים לכל מפעיל
     ts = lambda x: datetime.datetime.fromisoformat(x).timestamp()  # noqa: E731
     with ThreadPoolExecutor(24) as ex:
         for b in ex.map(fetch, keys):
@@ -106,6 +110,12 @@ def day(ds):
                     skip['notbus'] += 1
                     continue
                 t = ts(rt)
+                if dep and RS:
+                    e = trip.get((line, dep, veh))
+                    if e is None:
+                        trip[(line, dep, veh)] = [t, t, ts(dep)]
+                    elif t > e[1]:
+                        e[1] = t
                 # נסיעה "תקועה": שידור יותר מ-4 שעות אחרי היציאה המתוכננת — הנהג לא סגר את הנסיעה ונוסע הביתה
                 # (שלמה 02.11: מוניות שירות של קו 16 נספרו בשישי ב-23:00 על הנסיעה של 15:11)
                 if dep and t - ts(dep) > 4 * 3600:
@@ -121,9 +131,13 @@ def day(ds):
                         bad[veh] += 1
                         if bad[veh] < 4:
                             skip['jump'] += 1
+                            jumps.append([veh, line, rt[11:19], dep[11:16], round(la, 5), round(lo, 5), round(p[1], 5), round(p[2], 5), round(dd / 1000, 1)])
                             continue
                 good[veh] = (t, la, lo)
                 bad[veh] = 0
+                cells[(round(la / 0.002), round(lo / 0.002))] += 1
+                if RS:
+                    nb[RS[3].get(line, ('?', ''))[0]] += 1
                 s = int(((br + 22.5) % 360) // 45)
                 k = (round(la / CY), round(lo / CX), s)
                 g = geo[k]
@@ -153,6 +167,7 @@ def day(ds):
     os.replace(f'{CACHE}/{ds}.tmp', f'{CACHE}/{ds}.json.gz')
     if RS:
         stop_load(ds, RS[1], at, app, mins)
+        gps_quality(ds, RS[3], cells, jumps, trip, nb)
     print(f'{ds}: {files} קבצים, {used:,} דגימות, {len(g):,} מקומות, {round(time.time() - st)} שנ\' · נפסלו: {dict(skip)}', flush=True)
 
 
@@ -266,9 +281,15 @@ def route_stops(ds):
     for x in r:
         sid[x[i_id]] = x[i_c]
         S[x[i_c]] = (float(x[i_la]), float(x[i_lo]))
+    r = rd('agency.txt'); h = next(r)
+    agn = {x[h.index('agency_id')]: x[h.index('agency_name')] for x in r}
     r = rd('routes.txt'); h = next(r)
-    i_r, i_y = h.index('route_id'), h.index('route_type')
-    bus = {x[i_r] for x in r if x[i_y] in ('3', '8')}   # אוטובוסים ומוניות שירות (סוג 8, שלמה 02.11) — בלי רכבת ורק"ל
+    i_r, i_y, i_a, i_s = h.index('route_id'), h.index('route_type'), h.index('agency_id'), h.index('route_short_name')
+    bus, RI = set(), {}
+    for x in r:
+        if x[i_y] in ('3', '8'):
+            bus.add(x[i_r])
+            RI[x[i_r]] = (agn.get(x[i_a], x[i_a]), x[i_s])   # אוטובוסים ומוניות שירות (סוג 8, שלמה 02.11) — בלי רכבת ורק"ל
     r = rd('trips.txt'); h = next(r)
     i_r, i_t = h.index('route_id'), h.index('trip_id')
     want = {}
@@ -289,7 +310,42 @@ def route_stops(ds):
                     R[rt][int(x[i_q])] = c
     if zp.startswith(f'{CACHE}/gtfs-'):
         os.remove(zp)
-    return dict(R), S, bus
+    return dict(R), S, bus, RI
+
+
+def gps_quality(ds, RI, cells, jumps, trip, nb):
+    """אמינות השידורים (שלמה 02.11) → $SPEED_CACHE/D.gps.json.gz:
+    "fake": זיופי GPS — מכל קפיצה, הצד שאין לידו שום רחוב שאוטובוסים עברו בו היום (ים, שטח פתוח). קפיצה ששני
+    צדדיה על רחובות — לא זיוף (תקלה בשיוך או בשעון), ולא נספרת. [מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך,
+    רוחב אמיתי, אורך אמיתי, ק"מ]. "trips": לכל מפעיל [נסיעות, הופיעו יותר משעה אחרי היציאה, שידרו 4+ שעות].
+    "tl": לכל מפעיל {קו: נסיעות בשעה אחרת}. "nb": שידורים תקינים לכל מפעיל."""
+    def on(la, lo):
+        k = (round(la / 0.002), round(lo / 0.002))
+        return sum(cells.get((k[0] + a, k[1] + b), 0) for a in (-1, 0, 1) for b in (-1, 0, 1)) >= 20
+    fake = []
+    for veh, line, tm, dep, la, lo, pa, po, km in jumps:
+        ag, ln = RI.get(line, ('?', ''))
+        if not on(la, lo):
+            # גם המיקום הקודם לא על רחוב (למשל רצף שידורים מזויפים) — לא ידוע איפה הרכב היה באמת
+            real = (pa, po) if on(pa, po) else (None, None)
+            fake.append([ag, ln, veh.split('/', 1)[-1], tm, dep, la, lo, *real, km])
+        elif not on(pa, po):
+            fake.append([ag, ln, veh.split('/', 1)[-1], tm, dep, pa, po, la, lo, km])
+    tr = collections.defaultdict(lambda: [0, 0, 0])
+    tl = collections.defaultdict(collections.Counter)
+    for (line, dep, veh), (f, l, d) in trip.items():
+        ag, ln = RI.get(line, ('?', ''))
+        a = tr[ag]
+        a[0] += 1
+        late, stale = f - d > 3600, l - d > 4 * 3600
+        a[1] += late; a[2] += stale
+        if late or stale:
+            tl[ag][ln] += 1
+    with gzip.open(f'{CACHE}/{ds}.gps.tmp', 'wt') as f:
+        json.dump({'d': ds, 'fake': fake, 'nb': nb, 'trips': tr, 'tl': {k: dict(v.most_common(30)) for k, v in tl.items()}},
+                  f, ensure_ascii=False, separators=(',', ':'))
+    os.replace(f'{CACHE}/{ds}.gps.tmp', f'{CACHE}/{ds}.gps.json.gz')
+    print(f'{ds}: אמינות השידורים — {len(fake)} זיופים מ-{len(jumps)} קפיצות, {len(trip):,} נסיעות', flush=True)
 
 
 def stop_load(ds, S, at, app, mins):
@@ -425,6 +481,7 @@ def build(n=DAYS):
         with open(f'{OUT}/t/{ty}_{tx}.json', 'w') as f:
             json.dump(recs, f, separators=(',', ':'))
     city_export(names or [], tiles)
+    gps_files(have, typ)
     dd = by_day(have, typ, load, tiles, tkeys)
     info = {'dd': dd, 'tile': TILE, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles),
             'days': {t: v for t, v in keep.items()}, 'skipped': [ds for ds in have if typ[ds] and ds not in keep[typ[ds]]],
@@ -693,6 +750,42 @@ def city_export(names, tiles):
         with open(f'{OUT}/xl/{ci}.json', 'w', encoding='utf-8') as f:
             json.dump({'n': list(nm), 't': t}, f, ensure_ascii=False, separators=(',', ':'))
     print(f'אקסל לפי יישוב: {len(per)} יישובים')
+
+
+def gps_files(have, typ):
+    """אמינות השידורים לאתר (שלמה 02.11) — מ-D.gps.json.gz:
+    OUT/gps/<תאריך>.json — זיופי היום למפה: [[מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך, רוחב אמיתי, אורך אמיתי, ק"מ]…]
+    OUT/gpsq.json — למדד הדיוק (bus/), יום-יום, כדי שהדף יחבר כל תקופה שנבחרה (יום / 7 / 30):
+    {"days": [[תאריך, סוג יום]…], "d": {תאריך: {"nb": {מפעיל: שידורים}, "trips": {מפעיל: [נסיעות, מאוחרות, 4+ שעות]},
+     "fk": {מפעיל: זיופים}, "fl": {"קו|מפעיל": זיופים}, "fv": {"רכב|מפעיל": זיופים}, "tl": {"קו|מפעיל": נסיעות בשעה אחרת}}}}"""
+    import shutil
+    if os.path.isdir(f'{OUT}/gps'):
+        shutil.rmtree(f'{OUT}/gps')
+    days, per = [], {}
+    for ds in have:
+        p = f'{CACHE}/{ds}.gps.json.gz'
+        if not os.path.exists(p) or not typ.get(ds):
+            continue
+        try:
+            with gzip.open(p, 'rt') as f:
+                g = json.load(f)
+        except Exception:  # noqa: BLE001
+            continue
+        days.append([ds, typ[ds]])
+        os.makedirs(f'{OUT}/gps', exist_ok=True)
+        with open(f'{OUT}/gps/{ds}.json', 'w', encoding='utf-8') as f:
+            json.dump(g['fake'], f, ensure_ascii=False, separators=(',', ':'))
+        fk, fl, fv, tl = collections.Counter(), collections.Counter(), collections.Counter(), collections.Counter()
+        for ag, ln, veh, *_ in g['fake']:
+            fk[ag] += 1; fl[f'{ln}|{ag}'] += 1; fv[f'{veh}|{ag}'] += 1
+        for ag, lines in g['tl'].items():
+            for ln, n in lines.items():
+                tl[f'{ln}|{ag}'] += n
+        per[ds] = {'nb': g['nb'], 'trips': g['trips'], 'fk': fk, 'fl': dict(fl.most_common(40)),
+                   'fv': dict(fv.most_common(40)), 'tl': dict(tl.most_common(40))}
+    with open(f'{OUT}/gpsq.json', 'w', encoding='utf-8') as f:
+        json.dump({'days': days, 'd': per}, f, ensure_ascii=False, separators=(',', ':'))
+    print(f'אמינות השידורים: {len(days)} ימים, {sum(sum(x["fk"].values()) for x in per.values()):,} זיופים')
 
 
 def norm(c):
