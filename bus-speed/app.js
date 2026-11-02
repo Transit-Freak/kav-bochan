@@ -373,10 +373,12 @@ function recolor() {
   for (const [r, ln] of shown) { const c = color(r); ln.setStyle({ color: c || '#94a3b8', opacity: c ? .95 : .25 }); }
   summary([...shown.keys()]);
 }
+// מהירויות היישוב לפי סוג היום שנבחר: שישי — עמודה 6 (בקובץ ישן אין אותה: לא מציגים במקום ימי חול)
+const cityHours = c => S.d === 'fr' ? (c[6] || Array(24).fill(null)) : c[5];
 function drawCities() {
   cityG.clearLayers();
   for (const c of CITIES) {
-    const a = c[5], v = a[S.h], col = S.m === 'sp' ? colSp(v) : colSl(slowPct(a, S.h));
+    const a = cityHours(c), v = a[S.h], col = S.m === 'sp' ? colSp(v) : colSl(slowPct(a, S.h));
     if (!col) continue;
     const r = Math.max(4, Math.min(16, Math.sqrt((c[1] || c[2] / 30) / 1000) * 1.1));
     L.circleMarker([c[3], c[4]], { renderer: rend, radius: r, color: '#0f172a', weight: 1, fillColor: col, fillOpacity: .85 })
@@ -553,7 +555,7 @@ const GRPS = [['all', 'הכל'], ['200', 'מעל 200 אלף'], ['100', '100–20
 const inGrp = (p, g) => g === 'all' || (p != null && (g === '200' ? p >= 2e5 : g === '100' ? p >= 1e5 && p < 2e5 : g === '50' ? p >= 5e4 && p < 1e5 : g === '20' ? p >= 2e4 && p < 5e4 : p < 2e4));
 function cityRows() {
   return CITIES.filter(c => inGrp(c[1], S.cgrp)).map(c => {
-    const a = c[5], top = best(a), day = a.map((v, h) => [v, h]).filter(x => x[0] != null && x[1] >= 6 && x[1] <= 20).sort((p, q) => p[0] - q[0]);
+    const a = cityHours(c), top = best(a), day = a.map((v, h) => [v, h]).filter(x => x[0] != null && x[1] >= 6 && x[1] <= 20).sort((p, q) => p[0] - q[0]);
     const w = day[0];
     return { c, name: c[0], pop: c[1], now: a[S.h], worstH: w ? w[1] : null, worst: w ? w[0] : null, top,
       slow: w && top ? Math.round(100 * (1 - w[0] / top)) : null, nowSlow: slowPct(a, S.h) };
@@ -647,7 +649,7 @@ async function excel() {
     const wb = XLSX.utils.book_new();
     const add = (name, rows) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!views'] = [{ RTL: true }]; XLSX.utils.book_append_sheet(wb, ws, name); return ws; };
     const wc = add('יישובים', [['יישוב', 'תושבים', 'האטה (%)', 'שעת שיא', 'מהירות בשעת השיא', 'בלי עומס (קמ"ש)', ...H],
-      ...cityRows().map(r => [r.name, r.pop ?? '', r.slow ?? '', r.worstH == null ? '' : fmt(r.worstH), r.worst ?? '', r.top ?? '', ...r.c[5].map(v => v ?? '')])]);
+      ...cityRows().map(r => [r.name, r.pop ?? '', r.slow ?? '', r.worstH == null ? '' : fmt(r.worstH), r.worst ?? '', r.top ?? '', ...cityHours(r.c).map(v => v ?? '')])]);
     // מספר התושבים עם פסיק אלפים (1,118,430) ועמודות רחבות מספיק — אחרת מספר של מיליון נחתך בטלפון
     for (const k in wc) if (/^B\d+$/.test(k) && k !== 'B1' && typeof wc[k].v === 'number') wc[k].z = '#,##0';
     wc['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 9 }, { wch: 9 }, { wch: 14 }, { wch: 14 }];
