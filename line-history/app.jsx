@@ -1606,6 +1606,50 @@ class SafeBox extends React.Component {
   componentDidCatch(err){console.error('AlternativeSelector:',err);}
   render(){return this.state.err ? <div className="sibdesc">רשימת החלופות לא נטענה. רעננו את הדף או בחרו גרסה אחרת.</div> : this.props.children;}
 }
+/* רכבת (שלמה 03.11): בבוחר החלופות רק במה הרכבת שונה בתחנות — בשמות התחנות, בלי רחובות
+   וערים — וחלופות עם אותו הבדל באותו כיוון בשורה אחת, ומספרי החלופות מתחת */
+function railList(xs, pre) {
+  const ns = xs.map((x) => pre + x);
+  if (ns.length > 3) return ns.slice(0, 2).join(", ") + " ועוד " + (ns.length - 2) + " תחנות";
+  return ns.length > 1 ? ns.slice(0, -1).join(", ") + " ו" + ns[ns.length - 1] : ns[0];
+}
+// שמות תחנות הרכבת ב-GTFS קצרים ("השלום", "נת-בג") — לתצוגה עם העיר
+const RAIL_NM = { "נת-בג": "נתב״ג", "נתבג": "נתב״ג", "השלום": "תל אביב השלום", "ההגנה": "תל אביב ההגנה", "אוניברסיטה": "תל אביב אוניברסיטה",
+  "סבידור מרכז": "תל אביב סבידור מרכז", "מרכז": "תל אביב סבידור מרכז", "בת גלים": "חיפה בת גלים", "מרכז השמונה": "חיפה מרכז השמונה",
+  "חוף הכרמל": "חיפה חוף הכרמל", "מרכזית המפרץ": "חיפה מרכזית המפרץ", "מרכזית המפרץ קו החוף": "חיפה מרכזית המפרץ", "מרכזית המפרץ - קו החוף": "חיפה מרכזית המפרץ" };
+const railNm = (x) => { const n = String(x?.[1] || "").trim(); return RAIL_NM[n] || RAIL_NM[n.replace(/\s+-\s+/g, " ")] || n.replace(/\s+-\s+/g, " "); };
+function railVariantText(item, base) {
+  const a = item.snapshot?.stops, b = base?.snapshot?.stops;
+  if (!a?.length || !b?.length) return null;
+  if (item.rd === base.rd) return "המסלול הרגיל";
+  const id = (x) => String(x[0]), nm = railNm;
+  const A = new Set(a.map(id)), B = new Set(b.map(id));
+  const fa = a.findIndex((x) => B.has(id(x))), la = a.length - 1 - [...a].reverse().findIndex((x) => B.has(id(x)));
+  const fb = b.findIndex((x) => A.has(id(x))), lb = b.length - 1 - [...b].reverse().findIndex((x) => A.has(id(x)));
+  if (fa < 0) return "מסלול אחר: מ" + nm(a[0]) + " ל" + nm(a[a.length - 1]);
+  const add = a.filter((x, i) => i > fa && i < la && !B.has(id(x))).map(nm);
+  const rem = b.filter((x, i) => i > fb && i < lb && !A.has(id(x))).map(nm);
+  const parts = [];
+  if (id(a[0]) !== id(b[0])) parts.push("מתחילה ב" + nm(a[0]));
+  if (add.length) parts.push("עוצרת גם " + railList(add, "ב"));
+  if (rem.length) parts.push("לא עוצרת " + railList(rem, "ב"));
+  if (id(a[a.length - 1]) !== id(b[b.length - 1])) parts.push("מסתיימת ב" + nm(a[a.length - 1]));
+  return parts.length ? parts.join(" · ") : "המסלול הרגיל";
+}
+// הראשית ברכבת — רק מבין החלופות שיש להן תחנות (שלמה 03.11: חלופה שבוטלה בלי תחנות נבחרה כראשית,
+// וכל השאר הוצגו "בלי פירוט תחנות"). פעילה לפני שבוטלה, #, הכי הרבה נסיעות, הכי הרבה תחנות, האחרונה שפעלה
+function railBase(item, items) {
+  if (!Array.isArray(items)) return null;
+  const dir = items.filter((x) => variantDirection(x) === variantDirection(item) && x.snapshot?.stops?.length);
+  return dir.slice().sort((a, b) => (a.lk === "removed") - (b.lk === "removed") || (variantPart(b) === "#") - (variantPart(a) === "#")
+    || (b.ntr || 0) - (a.ntr || 0) || b.snapshot.stops.length - a.snapshot.stops.length || (b.ld || "").localeCompare(a.ld || "") || a.rd.localeCompare(b.rd))[0] || null;
+}
+function railAltNums(g) {
+  const ns = g.map(variantPart).sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0) || String(a).localeCompare(String(b)));
+  if (ns.length === 1) return "חלופה " + ns[0];
+  if (ns.length > 4) return "חלופות " + ns.slice(0, 3).join(", ") + " ועוד " + (ns.length - 3);
+  return "חלופות " + ns.slice(0, -1).join(", ") + " ו-" + ns[ns.length - 1];
+}
 function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const [open,setOpen]=useState(false),[items,setItems]=useState(null),[areas,setAreas]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
   const historical=sibs.some(s=>s.hgroup),key=sibs.map(s=>s.rd).join('|');
@@ -1613,18 +1657,21 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   // החלופות ואת גבולות השכונות בדפדפן (שלמה 26.09). גרסה ישנה או מסלולי 2012 — חישוב בעמוד כמו קודם.
   const [pre,setPre]=useState(null);
   useEffect(()=>{setPre(null);if(historical)return;let ok=true;loadAltDesc(rd.split('-')[0]).then(m=>{if(ok)setPre(m||{});});return()=>{ok=false;};},[key]);
-  const usePre=!historical && latest && pre && sibs.every(s=>s.rd in pre);
+  const railMode=!historical && sibs.length>1 && sibs.every(s=>s.tt==='rail');
+  const usePre=!railMode && !historical && latest && pre && sibs.every(s=>s.rd in pre);
+  // ברכבת החלופות נטענות מיד (גם כשהרשימה סגורה) — התיאור בכפתור תלוי בהן
+  const loadKey=railMode || open;
   useEffect(()=>{setOpen(false);setError('');},[rd,date]);
   useEffect(()=>{setItems(null);},[key,date]);
   useEffect(()=>{
-    if(!open || usePre)return;
+    if(!loadKey || usePre)return;
     let active=true;setItems(null);setError('');
-    loadVariantAreas().then(x=>{if(active)setAreas(x);}).catch(()=>{if(active){setAreas([]);setError('גבולות השכונות לא נטענו; מוצגים שמות הרחובות.');}});
+    if(railMode) setAreas([]); else loadVariantAreas().then(x=>{if(active)setAreas(x);}).catch(()=>{if(active){setAreas([]);setError('גבולות השכונות לא נטענו; מוצגים שמות הרחובות.');}});
     const results=new Array(sibs.length);let next=0;
     async function worker(){
       while(active && next<sibs.length){const i=next++,s=sibs[i];
         try{
-          const lf=materializeLf(await variantRead('data/lines/'+fsafe(s.rd)+'.json?v='+BUILD)),snapshot=variantSnapshot(lf,date,historical);
+          const lf=materializeLf(await variantRead('data/lines/'+fsafe(s.rd)+'.json?v='+BUILD)),snapshot=variantSnapshot(lf,railMode?null:date,historical);  // ברכבת: המסלול המתועד של כל חלופה, גם אם פעלה בתקופה אחרת
           let frequency=null;
           if(historical && snapshot){
             try{const p=snapshot.earlyPatterns || (snapshot.earlyPatternsFile ? await variantRead('data/early-patterns/'+snapshot.earlyPatternsFile.slice(0,2)+'/'+snapshot.earlyPatternsFile+'.json.gz',true) : null);frequency=variantFrequency(p,date||snapshot.d);}catch(e){/* Do not invent a frequency. */}
@@ -1635,7 +1682,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
     }
     Promise.all(Array.from({length:Math.min(4,sibs.length)},worker)).then(()=>{if(active){setItems(results);if(results.some(s=>!s.snapshot || (historical && s.frequency==null)))setError('לחלק מהחלופות אין נתוני השוואה זמינים במועד הזה.');}});
     return()=>{active=false;};
-  },[open,key,date,retry,usePre]);
+  },[loadKey,key,date,retry,usePre]);
   const current=sibs.find(s=>s.rd===rd);
   // קו מצילומי הארכיון: "לכיוון רחובות" לפי התחנה האחרונה, במקום מספר כיוון של המקור
   const label=s=>historical ? 'מסלול '+(s.rd.match(/archive2012r(\d+)/)?.[1]||s.rd)+' · '+(s.hfrom||'')+' ← '+(s.hto||s.dest||'') : (String(s.rd).startsWith('website') ? (s.dest||'')+(variantPart(s) ? ' · חלופה '+variantPart(s) : '') : 'כיוון '+variantDirection(s)+' · '+(variantPart(s)==='#' ? 'חלופה # · ראשית' : 'חלופה '+(variantPart(s)||'ללא סימון')));
@@ -1647,9 +1694,10 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const NO_BASE='לא נמצאה חלופה ראשית להשוואה במועד הזה';
   // גרסה ישנה (שלמה 29.09: "טוען חלופות" במקום להציג ישר, ו"אין רצף תחנות" לא מובן): עד שהחישוב
   // בעמוד מסתיים מוצגים התיאורים המוכנים; ומה שאין לו תיאור במועד הזה מקבל ניסוח מובן
-  const preAll=!historical && pre && sibs.every(s=>s.rd in pre);
+  const preAll=!railMode && !historical && pre && sibs.every(s=>s.rd in pre);
   const NO_SEQ='אין רצף תחנות להשוואה במועד הזה', NO_BSEQ='אין רצף תחנות לחלופה הראשית במועד הזה';
   const desc=(s)=>{
+    if(railMode){const it=items && items.find(x=>x.rd===s.rd);return (it && railVariantText(it,railBase(it,items))) || '';}
     if(usePre || (!items && preAll)) { const t=pre[s.rd]; return t===NO_BASE?'':(t||''); }
     const it=items && items.find(x=>x.rd===s.rd);
     let t=areas && it ? describeVariant(it,variantBase(it,items,historical),areas) : null;
@@ -1668,8 +1716,31 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
     {/* הפוך מקודם (שלמה 26.09): בכפתור — דרך איפה הקו עובר; מתחת, בקטן — הכיוון והחלופה */}
     {current && desc(current) ? <div className="sibdesc">{label(current)}</div> : null}
     {open && <div id="alternative-options">
-      {!usePre && error && <div className="sibdesc">{error}</div>}
-      {!shown ? <div className="sibdesc">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</div> : <div className="siblist">
+      {!usePre && !railMode && error && <div className="sibdesc">{error}</div>}
+      {railMode && items ? <div className="siblist">{(()=>{
+        // כיוון ← שורות; בכל כיוון: תיאור → החלופות שלו (הרגיל ראשון)
+        const dirs=new Map(),NOST='בלי פירוט תחנות';
+        for(const it of items){const t=desc(it)||NOST,d=variantDirection(it);
+          if(!dirs.has(d))dirs.set(d,new Map());const m=dirs.get(d);if(!m.has(t))m.set(t,[]);m.get(t).push(it);}
+        return [...dirs.entries()].map(([d,m])=>{
+          const b=railBase([...m.values()].flat()[0],items),st=b?.snapshot?.stops;
+          const nm=railNm;
+          return <div key={d}>
+            <div className="sibt" style={{fontWeight:700,margin:'8px 0 4px'}}>{st?.length ? nm(st[0])+' ← '+nm(st[st.length-1]) : 'כיוון '+d}</div>
+            {[...m.entries()].sort((x,y)=>(y[0]==='המסלול הרגיל')-(x[0]==='המסלול הרגיל')||(x[0]===NOST)-(y[0]===NOST)).map(([t,g])=>{
+              const selected=g.some(x=>x.rd===rd),r=g.find(x=>x.rd===rd)||g.find(x=>!lineGoneAt(x))||g[0];
+              return <div key={t} className="sibitem"><div className="sibinfo">
+                <span className="sibwrap">
+                  <a className={"sib"+(selected?" on":"")} href={lineHref(r.rd)} aria-current={selected?'true':undefined}
+                    onClick={e=>{if(!plainClick(e))return;e.preventDefault();setOpen(false);if(!selected)onSwitch(r.rd);}}>
+                    {t}{g.every(x=>lineGoneAt(x)) && <span className="sibx">✖</span>}
+                  </a>
+                  {!selected && <button type="button" className="sibcmp" aria-label="השוואה" title="השוואת התחנות והמסלול" onClick={()=>setAltRd(altRd===r.rd?null:r.rd)}>{altRd===r.rd?'✕':'⇄'}</button>}
+                </span>
+                <span className="sibdesc">{railAltNums(g)}</span>
+              </div></div>;})}
+          </div>;});})()}</div> :
+      !shown ? <div className="sibdesc">טוען חלופות{historical?' ומשווה את תדירות הנסיעות':''}…</div> : <div className="siblist">
         {shown.map(s=>{
           const base=usePre || !items ? null : variantBase(s,items,historical),selected=s.rd===rd;
           return <div key={s.rd} className="sibitem">
@@ -1688,7 +1759,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
           </div>;
         })}
       </div>}
-      <div className="sibt" style={{fontWeight:700,marginTop:6}}>{usePre ? 'התיאורים מחושבים מראש לפי המסלול העדכני של כל חלופה. ' : ''}גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</div>
+      {!railMode && <div className="sibt" style={{fontWeight:700,marginTop:6}}>{usePre ? 'התיאורים מחושבים מראש לפי המסלול העדכני של כל חלופה. ' : ''}גבולות שכונות: מפ״י / GovMap, באמצעות גרסאות לעם, ספטמבר 2026. שמות השכונות אינם שחזור היסטורי. תחנות עד 50 מטר מהגבול מתוארות לפי הרחוב.</div>}
     </div>}
   </div>;
 }
@@ -3240,7 +3311,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
           : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
           {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
@@ -3563,7 +3634,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
           : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
           {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
@@ -4208,6 +4279,11 @@ function hsParts(h) {
 // כותרת הקו. בלי שלטים: "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה".
 // עם היעד לפרסום (m.hs) ומה שכתוב על השלט במוצא (m.hso, לפי קו שמסתיים שם) — כמו על השלטים
 // (שלמה 09.10): "בני ברק, אזור התעשייה – בת ים, מרכז הספורט", "קרית גת: תחנת הרכבת – כרמי גת"
+// "עכו-עכו<->..." (שלמה 03.11): כשהתחנה כבר כוללת את שם העיר — פעם אחת ("עכו", "באר שבע-צפון")
+function destShow(d) {
+  return String(d || "").split("<->").map((x) => { const i = x.lastIndexOf("-"); if (i <= 0) return x;
+    const st = x.slice(0, i).trim(), c = x.slice(i + 1).trim(); return c && (st.includes(c) || st.includes(c.replace(/ יפו$/, ""))) ? st : x; }).join("<->");
+}
 function routeTitle(dest, m) {
   if (!dest) return "";
   const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p.length > 1 ? p[p.length - 1].trim() : "" }; });
@@ -5824,7 +5900,7 @@ function ModesTab({ idx, openLine, spec }) {
                 {isRemovedYear(l) ? "בוטל — מעל שנה" : "בוטל"}
               </span>
             )}
-            <span className="ldest">{l.dest}</span>
+            <span className="ldest">{destShow(l.dest)}</span>
             <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.nalt ? l.nalt + " רכבות שונות — בלו״ז שבעמוד הקו" : l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
           </a>
         ))}
@@ -6458,7 +6534,7 @@ function App() {
                       {isRemovedYear(l) ? "חלופה בוטלה — מעל שנה" : "חלופה בוטלה"}
                     </span>
                   ))}
-                  <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
+                  <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : destShow(l.dest)}{ad && <small className="altdesc">{ad}</small>}</span>
                   <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
