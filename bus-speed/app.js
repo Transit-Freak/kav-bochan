@@ -4,7 +4,7 @@
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const D = 'data/';
-const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cgrp: 'all', lay: { sp: 1, bn: 0, ld: 0, gf: 0 } };
+const S = { h: 8, d: 'wd', dsel: [], m: 'sp', tool: null, spot: null, csort: 'slow', cdir: 1, cgrp: 'all', qd: '', lay: { sp: 1, bn: 0, ld: 0, gf: 0 } };
 const MINZ = 13;   // מתחת לזה — עיגול לכל יישוב
 let META = null, CITIES = [], TILE = 0.05;
 const tiles = new Map();          // מפתח אריח → רשומות (או Promise בזמן טעינה)
@@ -301,10 +301,46 @@ function qverdict(q) {
   return n >= hs.length / 2 ? '<b>התחנה עצמה מעכבת</b> — כשיש בה תור, האוטובוסים לפניה איטיים יותר'
     : n >= 3 ? '<b>התחנה מעכבת מעט</b> — רק בחלק מהשעות' : '<b>העיכוב כאן מהכביש, לא מהתחנה</b> — המהירות כמעט זהה גם כשיש בה תור';
 }
+// עומס בתחנה לפי יום (שלמה 03.11): S.qd — '' ממוצע ימי החול, 'w0'–'w5' יום בשבוע (ממוצע), או תאריך.
+// data/qd/<אריח>.json — לכל תחנה, לכל יום: "% לכל שעה|אוטובוסים ×10 לכל שעה"
+const qdt = new Map();
+function qdLoad(q) {
+  const k = tkey(q[0], q[1]);
+  if (!qdt.has(k)) qdt.set(k, fetch(D + 'qd/' + k + '.json').then(r => r.ok ? r.json() : null).catch(() => null).then(j => { qdt.set(k, j); return j; }));
+  return Promise.resolve(qdt.get(k));
+}
+const qdOf = q => { const j = qdt.get(tkey(q[0], q[1])); return j && !(j instanceof Promise) ? j : null; };
+const WDN = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'שישי'];
+const wdOf = ds => new Date(ds + 'T12:00:00').getDay();
+// [% לכל שעה, אוטובוסים ×10 לכל שעה] לפי הבחירה
+function qsel(q) {
+  const j = S.qd && qdOf(q);
+  if (!j || !j.s[q[2]]) return [qarr(q, 5), qarr(q, 6)];
+  const idx = j.days.map((d, i) => [d, i]).filter(([d]) => S.qd[0] === 'w' ? wdOf(d) === +S.qd.slice(1) : d === S.qd).map(x => x[1]);
+  const sp = [Array(24).fill(0), Array(24).fill(0), Array(24).fill(0)];
+  for (const i of idx) {
+    const v = j.s[q[2]][i]; if (!v) continue;
+    const [a, b] = v.split('|').map(x => x.split(','));
+    for (let h = 0; h < 24; h++) if (a[h]) { sp[0][h] += +a[h]; sp[1][h] += +(b[h] || 0); sp[2][h]++; }
+  }
+  return [sp[0].map((x, h) => sp[2][h] ? Math.round(x / sp[2][h]) : null), sp[1].map((x, h) => sp[2][h] ? Math.round(x / sp[2][h]) : null)];
+}
+function qdSelect(q) {
+  const j = qdOf(q), ds = j ? j.days : [];
+  const wds = [...new Set(ds.map(wdOf))].filter(w => w <= 5).sort();
+  const o = (v, t) => `<option value="${v}"${S.qd === v ? ' selected' : ''}>${t}</option>`;
+  return `<label class="qdl">יום: <select class="qday">${o('', 'ממוצע ימי החול')}` +
+    (wds.length ? `<optgroup label="יום בשבוע">${wds.map(w => o('w' + w, w === 5 ? 'שישי' : 'יום ' + WDN[w])).join('')}</optgroup>` : '') +
+    (ds.length ? `<optgroup label="תאריך">${ds.slice().reverse().map(d => o(d, (wdOf(d) === 5 ? 'שישי' : 'יום ' + WDN[wdOf(d)]) + ' ' + d.slice(8) + '.' + d.slice(5, 7))).join('')}</optgroup>` : '') +
+    `</select></label>`;
+}
+const qdLbl = () => !S.qd ? '' : S.qd[0] === 'w' ? (+S.qd.slice(1) === 5 ? 'שישי' : 'יום ' + WDN[+S.qd.slice(1)]) : S.qd.slice(8) + '.' + S.qd.slice(5, 7);
 function loadPane(q) {
-  const p = qpct(q, S.h), a = qavg(q, S.h);
+  if (!qdOf(q)) qdLoad(q).then(() => { if (S.spot && S.spot.load === q && S.tool === 'spot') spotPane(); });
+  const [pq, avq] = qsel(q), p = pq[S.h], a = avq[S.h] == null ? null : avq[S.h] / 10;
   return `<div class="blk"><h3>${esc(q[3] || 'תחנה')} <span class="mut">· ${q[2]}</span></h3>` +
-    `<div class="mut sm">באיזה חלק מהזמן עמדו בתחנה 3 אוטובוסים או יותר</div>${qchart(qarr(q, 5))}` +
+    qdSelect(q) +
+    `<div class="mut sm">באיזה חלק מהזמן עמדו בתחנה 3 אוטובוסים או יותר${S.qd ? ' · ' + qdLbl() : ''}</div>${qchart(pq)}` +
     `<div class="kv"><span>תור בתחנה ב-${fmt(S.h)}</span><b>${p == null ? '—' : p + '% מהזמן'}</b><span>אוטובוסים בממוצע</span><b>${a == null ? '—' : a.toFixed(1)}</b><span>עמודים בתחנה</span><b>${q[4]}</b></div>` +
     `<div class="busy" style="margin-top:8px">${qverdict(q)}</div>` +
     `<button class="btn qmore" style="width:100%;margin-top:10px">כל הפרטים — לפי שעה ⤢</button></div>` +
@@ -323,8 +359,8 @@ function qchart(v) {
 function openLoad() {
   const q = S.spot && S.spot.load; if (!q) return;
   closeLoad();
-  const pq = qarr(q, 5), av = qarr(q, 6), sq = qarr(q, 7), sf = qarr(q, 8);
-  const hs = [...Array(24).keys()].filter(h => pq[h] != null && (h >= 5 || pq[h]));
+  const [pq, av] = qsel(q), sq = qarr(q, 7), sf = qarr(q, 8);
+  const hs = [...Array(24).keys()].filter(h => pq[h] != null && av[h] != null && (h >= 5 || pq[h]));
   const rows = hs.map(h => {
     const d = sq[h] != null && sf[h] ? Math.round(100 * (sq[h] - sf[h]) / sf[h]) : null;
     return `<tr${h === S.h ? ' class="on"' : ''}><td>${fmt(h)}</td><td class="n">${pq[h]}%</td><td class="n">${(av[h] / 10).toFixed(1)}</td><td class="n">${sf[h] ?? '—'}</td><td class="n">${sq[h] ?? '—'}</td>` +
@@ -340,7 +376,8 @@ function openLoad() {
     '</tbody></table></div>' : '';
   $('#mapwrap').insertAdjacentHTML('beforeend', `<div id="qx" role="dialog" aria-label="עומס בתחנה — כל הפרטים">
   <div class="ph"><h2>${esc(q[3] || 'תחנה')} <span class="mut">· ${q[2]} · עומס בתחנה</span></h2><button class="x" id="qx-close" title="סגירה" aria-label="סגירה"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-  <div class="qx2"><div class="blk"><h3>באיזה חלק מהזמן עמדו בתחנה 3+ אוטובוסים</h3>${qchart(pq)}</div>
+  <div class="blk">${qdSelect(q)}${S.qd ? '<span class="mut sm"> · המהירות והקווים — ממוצע כל ימי החול</span>' : ''}</div>
+  <div class="qx2"><div class="blk"><h3>באיזה חלק מהזמן עמדו בתחנה 3+ אוטובוסים${S.qd ? ' · ' + qdLbl() : ''}</h3>${qchart(pq)}</div>
    <div class="blk"><h3>מהירות ב-300 מ' לפני התחנה</h3><div class="mut sm">עמודות — כשיש תור · קו — כשהתחנה פנויה</div>${chart(sq, sf)}</div></div>
   <div class="qx2">${pairs}${lines}</div>
   <div class="blk"><table class="t qt"><thead><tr><th>שעה</th><th>זמן עם תור</th><th>אוטובוסים בממוצע</th><th>מהירות — פנויה</th><th>מהירות — יש תור</th><th>הפרש</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -349,6 +386,14 @@ function openLoad() {
 }
 function closeLoad() { const x = $('#qx'); if (x) x.remove(); }
 $('#spot').addEventListener('click', e => { if (e.target.closest('.qmore')) openLoad(); });
+// בחירת יום — בכרטיס ובחלון "כל הפרטים"
+document.addEventListener('change', async e => {
+  if (!e.target.classList.contains('qday')) return;
+  const q = S.spot && S.spot.load; if (!q) return;
+  S.qd = e.target.value; await qdLoad(q);
+  if (S.tool === 'spot') spotPane();
+  if ($('#qx')) openLoad();
+});
 // ---------- שכבת זיופי GPS ----------
 // מקומות שאוטובוס שידר שהוא נמצא בהם בלי שום רחוב של אוטובוסים לידו (שלמה 02.11). data/gps/<תאריך>.json —
 // [מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך, רוחב אמיתי, אורך אמיתי, ק"מ]. לפי סוג היום / הימים שנבחרו ולפי השעה
@@ -627,12 +672,13 @@ function cityRows() {
 function citiesPane() {
   const rows = cityRows();
   // יישוב — א'–ב'; שעה ושעה עמוסה — האיטי קודם; תושבים והאטה — הגדול קודם
-  const k = S.csort, nn = v => v ?? -1;
-  rows.sort(k === 'name' ? (p, q) => p.name.localeCompare(q.name, 'he')
-    : k === 'now' || k === 'worstH' ? (p, q) => (p[k] ?? 999) - (q[k] ?? 999) : (p, q) => nn(q[k]) - nn(p[k]));
-  const th = (key, t) => `<th data-k="${key}" class="${S.csort === key ? 's' : ''}">${t}</th>`;
+  const k = S.csort, nn = v => v ?? -1, dr = S.cdir;
+  rows.sort(k === 'name' ? (p, q) => dr * p.name.localeCompare(q.name, 'he')
+    : k === 'now' || k === 'worstH' ? (p, q) => dr * ((p[k] ?? 999) - (q[k] ?? 999)) : (p, q) => dr * (nn(q[k]) - nn(p[k])));
+  // כל עמודה ממיינת (שלמה 03.11: לא היה ברור שאפשר) — ⇅ בכל כותרת, לחיצה שנייה הופכת את הסדר
+  const th = (key, t) => `<th data-k="${key}" class="${S.csort === key ? 's' : ''}" title="מיון לפי ${t}" style="cursor:pointer;white-space:nowrap">${t} <span class="sa">${S.csort === key ? (dr > 0 ? '▾' : '▴') : '⇅'}</span></th>`;
   $('#cities').innerHTML = `<div class="blk"><div class="chips" id="cgrp">${GRPS.map(([v, t]) => `<button data-v="${v}" class="${S.cgrp === v ? 'on' : ''}">${t}</button>`).join('')}</div>` +
-    `<div class="mut">משווים יישובים בגודל דומה (לפי מספר התושבים). ימי א׳–ה׳, 06:00–20:00.</div>` +
+    `<div class="mut">משווים יישובים בגודל דומה (לפי מספר התושבים). ימי א׳–ה׳, 06:00–20:00. למיון — לחצו על כותרת עמודה.</div>` +
     `<div class="mut">מספר התושבים: רשות האוכלוסין וההגירה, <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a></div></div>` +
     `<div class="tw"><table class="t"><thead><tr>${th('name', 'יישוב')}${th('pop', 'תושבים')}${th('now', fmt(S.h))}${th('slow', 'האטה')}${th('worstH', 'שעת שיא')}</tr></thead><tbody>` +
     rows.map(r => `<tr data-c="${esc(r.name)}"><td>${esc(r.name)}</td><td class="n">${r.pop ? num(r.pop) : '—'}</td>` +
@@ -642,7 +688,7 @@ function citiesPane() {
 }
 $('#cities').addEventListener('click', e => {
   const b = e.target.closest('#cgrp button'); if (b) { S.cgrp = b.dataset.v; citiesPane(); return; }
-  const th = e.target.closest('th[data-k]'); if (th) { S.csort = th.dataset.k; citiesPane(); return; }
+  const th = e.target.closest('th[data-k]'); if (th) { if (S.csort === th.dataset.k) S.cdir = -S.cdir; else { S.csort = th.dataset.k; S.cdir = 1; } citiesPane(); return; }
   const tr = e.target.closest('tr[data-c]'); if (tr) goCity(tr.dataset.c);
 });
 function goCity(n) { const c = CITIES.find(x => x[0] === n); if (c) map.setView([c[3], c[4]], 14); }

@@ -486,7 +486,7 @@ def build(n=DAYS):
         tkeys[t].append((cy, cx, s))
     os.makedirs(OUT, exist_ok=True)
     bunching(keep.get('wd', []))
-    load_tiles(keep.get('wd', []))
+    load_tiles(keep.get('wd', []), keep.get('fr', []))
     names = cities(acc)
     os.makedirs(f'{OUT}/t', exist_ok=True)
     for f in os.listdir(f'{OUT}/t'):
@@ -645,7 +645,7 @@ def pairs_out(days, tile_of, routes):
     print(f'זוגות צמודים: {n:,} ב-{sum(len(v) for v in per.values()):,} תחנות, מ-{len(have)} ימים')
 
 
-def load_tiles(days):
+def load_tiles(days, extra=()):
     """שכבת "עומס בתחנות" (שלמה 30.10) — מ-D.load.json.gz של ימי החול. OUT/q/<אריח>.json — לכל תחנה:
     [רוחב, אורך, מק"ט, שם, עמודים, "% דקות עם 3+ לכל שעה", "אוטובוסים בממוצע ×10 לכל שעה",
      "מהירות לפני התחנה כשיש תור", "כשפנויה", [[קו, יעד, דקות בתחנה, מהן בתור]…], [[קו, יעד, קו, יעד, ביום, שעת שיא]…]]
@@ -734,7 +734,48 @@ def load_tiles(days):
             json.dump(recs, f, ensure_ascii=False, separators=(',', ':'))
     with open(f'{OUT}/load.json', 'w', encoding='utf-8') as f:
         json.dump({'days': used, 'tiles': sorted(f'{ty}_{tx}' for ty, tx in tiles)}, f, separators=(',', ':'))
+    load_days(tiles, sorted(set(used) | set(extra)))
     print(f'עומס בתחנות: {sum(len(v) for v in tiles.values()):,} תחנות מ-{nd} ימים')
+
+
+def load_days(tiles, days):
+    """עומס בתחנות לפי יום (שלמה 03.11: "אין אפשרות לבחור לפי תאריך או יום בשבוע") → OUT/qd/<אריח>.json:
+    {"days": [תאריכים], "s": {מק"ט: ["% דקות עם 3+ לכל שעה|אוטובוסים בממוצע ×10 לכל שעה", … לכל יום]}}.
+    רק לתחנות שבשכבה; ימי חול ושישי. יום בלי נתונים לתחנה — מחרוזת ריקה"""
+    where = {r[2]: k for k, recs in tiles.items() for r in recs}
+    per = {c: [] for c in where}
+    used = []
+    for ds in days:
+        p = f'{CACHE}/{ds}.load.json.gz'
+        try:
+            with gzip.open(p, 'rt') as f:
+                day = json.load(f)
+        except Exception:  # noqa: BLE001 — אין קובץ או קובץ פגום: היום לא נכלל
+            continue
+        used.append(ds)
+        m = day['mins']
+        for c, v in per.items():
+            e = day['s'].get(c)
+            if not e:
+                v.append('')
+                continue
+            qs, av = [''] * 24, [''] * 24
+            for h, q, nb, *_ in e[2]:
+                if m[h] and nb:
+                    qs[h] = str(round(100 * q / m[h])); av[h] = str(round(10 * nb / m[h]))
+            v.append(','.join(qs).rstrip(',') + '|' + ','.join(av).rstrip(','))
+        del day
+    if os.path.isdir(f'{OUT}/qd'):
+        for f in os.listdir(f'{OUT}/qd'):
+            os.remove(f'{OUT}/qd/{f}')
+    os.makedirs(f'{OUT}/qd', exist_ok=True)
+    by = collections.defaultdict(dict)
+    for c, k in where.items():
+        by[k][c] = per[c]
+    for (ty, tx), d in by.items():
+        with open(f'{OUT}/qd/{ty}_{tx}.json', 'w', encoding='utf-8') as f:
+            json.dump({'days': used, 's': d}, f, separators=(',', ':'))
+    print(f'עומס בתחנות לפי יום: {len(used)} ימים')
 
 
 def street_lookup():
