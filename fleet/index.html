@@ -325,7 +325,7 @@ const COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','
 // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
 const PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
 const $=s=>document.querySelector(s);
-let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null, LINES=null, LNSEL=null, LNBY='t', LNDEP={}, LNDIR=0, LNT=null, LNFN=null;
+let DATA=null, MODE='op', Q='', VIEW={t:'home'}, TYPEF=null, KABF=null, RTF=null, STATF=null, YEARF=null, SORTK=null, SORTD=-1, LIMIT=200, OFF=0, CITIES=null, CITYSEL=null, TYPESEL=null, KM=null, KMOK=false, CITYMON='', CYF=null, ARM=null, ARMOK=false, ARF=null, OFC=null, OFCOK=false, BTF=null, BSF=null, GAPS=null, GPOK=false, TSORT='n', ELF=null, YRF=null, PH=null, MOVES=null, MVF=null, MVT=null, MVK=null, MVREAL=1, MVD=null, BIT=null, BSOF=null, RGF=null, CHKF=null, LINES=null, LNSEL=null, LNBY='t', LNDEP={}, LNDIR=0, LNT=null, LNFN=null;
 // תווית מיגון לרכב (v._ar: 'y' ירי / 's' אבנים / 'ys' שניהם)
 const arLbl=a=>a==='ys'?'ממוגן ירי ואבנים':(a&&a.includes('y')?'ממוגן ירי':'ממוגן אבנים');
 // שמות מובנים לסוגי הרכב במקום הסיווגים הרשמיים של מאגר הרישוי
@@ -612,7 +612,7 @@ function cityHome(f){
   if(CITYSEL&&CITIES.cities[CITYSEL]) return cityView(CITYSEL);
   const hits=all.filter(([c])=>!f||c.includes(f)).sort((a,b)=>(b[1].act??b[1].total)-(a[1].act??a[1].total)).slice(0,30);
   return kpis()+`<div class="cards">${hits.map(([c,d])=>
-    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';CYF=null;TYPEF=null;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
       <h2>${esc(c)}</h2><div class="n">${d.act!=null?fmt(d.act):fmt(d.total)}</div>
       <div class="lbl">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
       ${d.act!=null?`<div class="pills"><span title='"פעיל" = שידר נסיעות בחודש האחרון'>נצפו בה אי-פעם: ${fmt(d.total)}</span></div>`:''}
@@ -725,7 +725,8 @@ function plateHits(f){
   if(ELF!==null) hits=hits.filter(h=>(h[1]._el?1:0)===ELF);
   return hits;
 }
-function cityVehRows(c){
+// ign: מסננים שלא להחיל — כדי לספור כמה רכבים יש בכל סוג ובכל שנתון (שלמה 03.11: "כמה עירוניים", ולפי שנה)
+function cityVehRows(c,ign){
   const keys=(CVIDX&&CVIDX[c])||[], rows=[];
   for(const k of keys){const p=keyV(k);if(!p)continue;if(CITYMON&&!inMon(CV.v[k][0],CITYMON))continue;
     const dd=DAYS&&DAYS.d?DAYS.d[k]:null;rows.push({o:p[0],v:p[1],k,dd:dd?dd[0]:null,rt:dd?dd[1]:null});}
@@ -736,6 +737,9 @@ function cityVehRows(c){
   if(KABF==='k') out=out.filter(r=>isKab(r.v));
   if(KABF==='l') out=out.filter(r=>!isKab(r.v));
   if(RTF) out=out.filter(r=>isBack(r.v));
+  if(TYPEF&&!(ign&&ign.t)) out=out.filter(r=>(gT(r.v)||'')===TYPEF);
+  if(CYF&&!(ign&&ign.y)) out=out.filter(r=>+gY(r.v)===CYF);
+  if(ign) return out;
   const key={o:r=>r.o.name,p:r=>r.v[0],t:r=>gT(r.v)||'',y:r=>gY(r.v)||0,m:r=>gM(r.v)||'',dd:r=>r.dd||0,rt:r=>r.rt||0,r:r=>gR(r.v)||0,f:r=>r.v[1],l:r=>r.v[2]}[SORTK]||(r=>r.v[2]);
   const dir=SORTK?SORTD:-1;
   return out.slice().sort((a,b)=>{const x=key(a),y=key(b);return (x>y?1:x<y?-1:0)*dir;});
@@ -749,7 +753,7 @@ function cityVehPanel(c){
   const aD=avg(rows.map(r=>r.dd)), aR=avg(rows.map(r=>gR(r.v))), tR=rows.reduce((s,r)=>s+(r.rt||0),0);
   const th=(k,t)=>`<th onclick="srt('${k}')">${t}${SORTK===k?(SORTD>0?' ▲':' ▼'):''}</th>`;
   const shown=rows.slice(0,LIMIT), mon=CITYMON?CITYMON.slice(5)+'.'+CITYMON.slice(0,4):'';
-  return `<div class="panel"><p class="ptitle">הרכבים שפעלו ב${esc(c)}${mon?' · '+mon:''} · ${fmt(n)} רכבים</p>
+  return `<div class="panel"><p class="ptitle">הרכבים שפעלו ב${esc(c)}${mon?' · '+mon:''}${TYPEF?' · '+esc(TYPEF):''}${CYF?' · שנתון '+CYF:''} · ${fmt(n)} רכבים</p>
     <div class="kpis" style="margin-bottom:10px">
       <div class="kpi"><b>${fmt(n)}</b><span>רכבים${mon?' ששידרו ב-'+mon:' שנצפו בעיר'}</span></div>
       <div class="kpi"><b>${fmt(act)}</b><span>מהם פעילים היום</span></div>
@@ -766,6 +770,26 @@ function cityVehPanel(c){
       ${backBtn()}
       <span class="fcount">${fmt(n)} רכבים</span>
     </div>
+    ${DATA.enriched?(()=>{
+      // סוג הרכב ושנתון (שלמה 03.11): כמה מכל סוג, ובתוך הסוג — כמה מכל שנתון
+      const tc={};for(const r of cityVehRows(c,{t:1}))(t=>tc[t]=(tc[t]||0)+1)(gT(r.v)||'');
+      const yc={};for(const r of cityVehRows(c,{y:1})){const y=+gY(r.v);if(y)yc[y]=(yc[y]||0)+1;}
+      const q=x=>JSON.stringify(x).replace(/"/g,'&quot;');
+      const ts=Object.entries(tc).filter(([t])=>t).sort((a,b)=>b[1]-a[1]);
+      const ys=Object.keys(yc).map(Number).sort((a,b)=>b-a);
+      return `<div class="filters" style="align-items:center">
+        <span style="font-size:13px;font-weight:700;color:var(--mut)">סוג:</span>
+        <button class="fchip ${TYPEF?'':'on'}" onclick="TYPEF=null;LIMIT=200;render()">הכול</button>
+        ${ts.map(([t,k])=>`<button class="fchip ${TYPEF===t?'on':''}" onclick="TYPEF=TYPEF===${q(t)}?null:${q(t)};LIMIT=200;render()">${esc(t.replace(/^אוטובוס /,''))} <b>${fmt(k)}</b></button>`).join('')}
+      </div>
+      ${ys.length?`<div class="filters" style="align-items:center">
+        <span style="font-size:13px;font-weight:700;color:var(--mut)">שנתון:</span>
+        <select class="mselect" onchange="CYF=+this.value||null;LIMIT=200;render()">
+          <option value="">כל השנתונים</option>
+          ${ys.map(y=>`<option value="${y}" ${CYF===y?'selected':''}>${y} — ${fmt(yc[y])} רכבים</option>`).join('')}
+        </select>
+        <span style="font-size:12px;color:var(--dim)">למיון לפי שנתון — לחצו על כותרת העמודה "שנתון"</span>
+      </div>`:''}`;})():''}
     ${rows.length?`<div class="tblbox"><table><thead><tr>${th('o','חברה')}${th('p','מספר רכב')}${DATA.enriched?th('t','סוג הרכב')+th('y','שנתון')+th('m','יצרן ודגם'):''}${th('dd','ימי פעילות שנמדדו')}${th('rt','נסיעות סה"כ')}${th('r','נסיעות ביום')}${th('f','נצפה לראשונה')}${th('l','נצפה לאחרונה')}<th>מצב</th></tr></thead><tbody>
     ${shown.map(r=>{const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
       return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')"><td>${esc(r.o.name)}</td><td dir="ltr" style="text-align:right">${esc(v[0])}</td>${DATA.enriched?`<td>${gT(v)?`<span class="tg">${esc(gT(v).replace(/^אוטובוס /,''))}</span>`:'—'}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}<td>${r.dd!=null?fmt(r.dd):'—'}</td><td>${r.rt!=null?fmt(r.rt):'—'}</td><td>${gR(v)!=null?gR(v):'—'}</td><td>${fd(v[1])}</td><td>${fd(v[2])}</td><td><span class="st ${on?'on':mv?'mv':'off'}">${on?'פעיל':mv?'עבר ל'+esc(mv.name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
@@ -1868,7 +1892,7 @@ function pickSug(i){
   if(k==='v'){render();showV(val);return;}
   setMode(k);
   if(k==='op')go(val);
-  else{history.pushState({sub:1},'');if(k==='city'){CITYSEL=val;CITYMON='';}else TYPESEL=val;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();}
+  else{history.pushState({sub:1},'');if(k==='city'){CITYSEL=val;CITYMON='';CYF=null;TYPEF=null;}else TYPESEL=val;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();}
   window.scrollTo({top:0});
 }
 $('#q').addEventListener('keydown',e=>{
