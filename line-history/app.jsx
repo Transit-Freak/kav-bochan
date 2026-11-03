@@ -1636,8 +1636,16 @@ function railVariantText(item, base) {
   if (id(a[a.length - 1]) !== id(b[b.length - 1])) parts.push("מסתיימת ב" + nm(a[a.length - 1]));
   return parts.length ? parts.join(" · ") : "המסלול הרגיל";
 }
+// הראשית ברכבת — רק מבין החלופות שיש להן תחנות (שלמה 03.11: חלופה שבוטלה בלי תחנות נבחרה כראשית,
+// וכל השאר הוצגו "בלי פירוט תחנות"). פעילה לפני שבוטלה, #, הכי הרבה נסיעות, הכי הרבה תחנות, האחרונה שפעלה
+function railBase(item, items) {
+  if (!Array.isArray(items)) return null;
+  const dir = items.filter((x) => variantDirection(x) === variantDirection(item) && x.snapshot?.stops?.length);
+  return dir.slice().sort((a, b) => (a.lk === "removed") - (b.lk === "removed") || (variantPart(b) === "#") - (variantPart(a) === "#")
+    || (b.ntr || 0) - (a.ntr || 0) || b.snapshot.stops.length - a.snapshot.stops.length || (b.ld || "").localeCompare(a.ld || "") || a.rd.localeCompare(b.rd))[0] || null;
+}
 function railAltNums(g) {
-  const ns = g.map(variantPart);
+  const ns = g.map(variantPart).sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0) || String(a).localeCompare(String(b)));
   if (ns.length === 1) return "חלופה " + ns[0];
   if (ns.length > 4) return "חלופות " + ns.slice(0, 3).join(", ") + " ועוד " + (ns.length - 3);
   return "חלופות " + ns.slice(0, -1).join(", ") + " ו-" + ns[ns.length - 1];
@@ -1663,7 +1671,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
     async function worker(){
       while(active && next<sibs.length){const i=next++,s=sibs[i];
         try{
-          const lf=materializeLf(await variantRead('data/lines/'+fsafe(s.rd)+'.json?v='+BUILD)),snapshot=variantSnapshot(lf,date,historical);
+          const lf=materializeLf(await variantRead('data/lines/'+fsafe(s.rd)+'.json?v='+BUILD)),snapshot=variantSnapshot(lf,railMode?null:date,historical);  // ברכבת: המסלול המתועד של כל חלופה, גם אם פעלה בתקופה אחרת
           let frequency=null;
           if(historical && snapshot){
             try{const p=snapshot.earlyPatterns || (snapshot.earlyPatternsFile ? await variantRead('data/early-patterns/'+snapshot.earlyPatternsFile.slice(0,2)+'/'+snapshot.earlyPatternsFile+'.json.gz',true) : null);frequency=variantFrequency(p,date||snapshot.d);}catch(e){/* Do not invent a frequency. */}
@@ -1689,7 +1697,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
   const preAll=!railMode && !historical && pre && sibs.every(s=>s.rd in pre);
   const NO_SEQ='אין רצף תחנות להשוואה במועד הזה', NO_BSEQ='אין רצף תחנות לחלופה הראשית במועד הזה';
   const desc=(s)=>{
-    if(railMode){const it=items && items.find(x=>x.rd===s.rd);return (it && railVariantText(it,variantBase(it,items,false))) || '';}
+    if(railMode){const it=items && items.find(x=>x.rd===s.rd);return (it && railVariantText(it,railBase(it,items))) || '';}
     if(usePre || (!items && preAll)) { const t=pre[s.rd]; return t===NO_BASE?'':(t||''); }
     const it=items && items.find(x=>x.rd===s.rd);
     let t=areas && it ? describeVariant(it,variantBase(it,items,historical),areas) : null;
@@ -1715,7 +1723,7 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
         for(const it of items){const t=desc(it)||NOST,d=variantDirection(it);
           if(!dirs.has(d))dirs.set(d,new Map());const m=dirs.get(d);if(!m.has(t))m.set(t,[]);m.get(t).push(it);}
         return [...dirs.entries()].map(([d,m])=>{
-          const b=variantBase([...m.values()].flat()[0],items,false),st=b?.snapshot?.stops;
+          const b=railBase([...m.values()].flat()[0],items),st=b?.snapshot?.stops;
           const nm=railNm;
           return <div key={d}>
             <div className="sibt" style={{fontWeight:700,margin:'8px 0 4px'}}>{st?.length ? nm(st[0])+' ← '+nm(st[st.length-1]) : 'כיוון '+d}</div>
