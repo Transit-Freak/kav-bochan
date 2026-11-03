@@ -353,6 +353,10 @@ $('#spot').addEventListener('click', e => { if (e.target.closest('.qmore')) open
 // מקומות שאוטובוס שידר שהוא נמצא בהם בלי שום רחוב של אוטובוסים לידו (שלמה 02.11). data/gps/<תאריך>.json —
 // [מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך, רוחב אמיתי, אורך אמיתי, ק"מ]. לפי סוג היום / הימים שנבחרו ולפי השעה
 let GQ = null;
+// שכבה משלה מעל הקווים והעיגולים — אחרת הלחיצה נתפסה בקו הרחוב שמתחת (שלמה 03.11: "לוחץ על האדומים ולא נפתח")
+map.createPane('fake').style.zIndex = 450;
+const frend = L.canvas({ pane: 'fake', padding: 0.3, tolerance: 8 });
+const TOUCH = matchMedia('(pointer: coarse)').matches;   // בטלפון — נקודה גדולה יותר, קל ללחוץ
 const gdays = new Map(), fakeG = L.layerGroup().addTo(map), fakeSel = L.layerGroup().addTo(map);
 let fakeSeq = 0;
 async function drawFake() {
@@ -371,7 +375,7 @@ async function drawFake() {
   for (const f of all) {
     if (f[3].slice(0, 2) !== hh) continue;
     n++;
-    L.circleMarker([f[5], f[6]], { renderer: rend, radius: 5, weight: 1, color: '#7f1d1d', fillColor: '#dc2626', fillOpacity: .85 })
+    L.circleMarker([f[5], f[6]], { renderer: frend, radius: TOUCH ? 9 : 6, weight: 1, color: '#7f1d1d', fillColor: '#dc2626', fillOpacity: .85 })
       .bindTooltip(`<b>מיקום מזויף</b> · קו ${esc(f[1])} (${esc(f[0])})<br>${f[3].slice(0, 5)}${days.length > 1 ? ', ' + dayShort(f.d) : ''}<br><small>לחיצה — איפה האוטובוס היה באמת</small>`, { sticky: true })
       .on('click', () => pickFake(f)).addTo(fakeG);
   }
@@ -428,6 +432,7 @@ function recolor() {
 const cityHours = c => S.d === 'fr' ? (c[6] || Array(24).fill(null)) : c[5];
 function drawCities() {
   cityG.clearLayers();
+  if (!S.lay.sp) return;   // שכבת המהירות כבויה (למשל רק זיופי GPS) — בלי עיגולי היישובים (שלמה 03.11)
   for (const c of CITIES) {
     const a = cityHours(c), v = a[S.h], col = S.m === 'sp' ? colSp(v) : colSl(slowPct(a, S.h));
     if (!col) continue;
@@ -659,39 +664,61 @@ function aboutPane() {
     `<p>מספר התושבים בכל יישוב (להשוואת היישובים): רשות האוכלוסין וההגירה, דרך <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a>.</p></div>`;
 }
 function excelPane() {
+  const inp = 'width:100%;margin:4px 0 8px;padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--ink)';
+  const hsel = (id, v) => `<select id="${id}" style="${inp};width:auto">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === v ? ' selected' : ''}>${fmt(h)}</option>`).join('')}</select>`;
   $('#excel').innerHTML = `<div class="blk"><h3>הורדת סיכום לאקסל</h3><div class="mut">קובץ עם שלושה גיליונות: היישובים לפי שעה, כל הקטעים שבתחום המפה כרגע, והמקום שנבחר.</div>` +
     `<button class="btn" id="xl">הורדה (xlsx)</button></div>` +
-    `<div class="blk"><h3>כל הרחובות ביישוב</h3><div class="mut">כל הקטעים ביישוב שיש בהם מספיק נתונים (לפחות 6 שעות ביום), עם התחנה הקרובה לכל קטע — המהירות בכל שעה, א׳–ה׳ ושישי.</div>` +
-    `<select id="xlc" style="width:100%;margin:8px 0;padding:6px;border:1px solid var(--line);border-radius:4px;background:var(--panel)">${CITIES.map((c, i) => [c, i]).sort((a, b) => a[0][0].localeCompare(b[0][0], 'he')).map(([c, i]) => `<option value="${i}">${esc(c[0])}</option>`).join('')}</select>` +
-    `<button class="btn" id="xlcb">הורדת היישוב (xlsx)</button></div>`;
+    `<div class="blk"><h3>רחובות ביישוב</h3><div class="mut">כל הקטעים שיש בהם מספיק נתונים (לפחות 6 שעות ביום): רחוב, כיוון, המהירות בכל שעה בא׳–ה׳ ובשישי, וממוצע.</div>` +
+    // שלמה 03.11: אפשר להקליד את היישוב והרחוב, ולבחור שעות
+    `<label class="mut sm">יישוב</label><input id="xlc" list="xlc-l" placeholder="להקליד או לבחור" style="${inp}"><datalist id="xlc-l">${CITIES.map(c => c[0]).sort((a, b) => a.localeCompare(b, 'he')).map(n => `<option value="${esc(n)}">`).join('')}</datalist>` +
+    `<label class="mut sm">רחוב (לא חובה — ריק = כל הרחובות)</label><input id="xls" list="xls-l" placeholder="להקליד או לבחור" style="${inp}"><datalist id="xls-l"></datalist>` +
+    `<label class="mut sm">שעות</label><div style="display:flex;gap:8px;align-items:center">מ-${hsel('xlh0', 0)} עד ${hsel('xlh1', 23)}</div>` +
+    `<button class="btn" id="xlcb" style="margin-top:6px">הורדה (xlsx)</button></div>`;
   $('#xl').onclick = excel;
   $('#xlcb').onclick = excelCity;
+  $('#xlc').onchange = async () => {   // רשימת הרחובות של היישוב שנבחר
+    const ci = CITIES.findIndex(c => c[0] === $('#xlc').value.trim()); $('#xls-l').innerHTML = '';
+    if (ci < 0) return;
+    const x = await xlCity(ci).catch(() => null);
+    if (x) $('#xls-l').innerHTML = x.n.filter(Boolean).sort((a, b) => a.localeCompare(b, 'he')).map(n => `<option value="${esc(n)}">`).join('');
+  };
 }
-// כל הקטעים ביישוב (שלמה 01.11): data/xl/<מספר היישוב>.json — אילו רשומות בכל אריח שייכות ליישוב, והתחנה הקרובה
+const xlCache = new Map();
+const xlCity = ci => { if (!xlCache.has(ci)) xlCache.set(ci, fetch(D + 'xl/' + ci + '.json').then(r => { if (!r.ok) throw new Error('אין נתונים ליישוב'); return r.json(); })); return xlCache.get(ci); };
+// רחובות ביישוב (שלמה 01.11): data/xl/<מספר היישוב>.json — אילו רשומות בכל אריח שייכות ליישוב, ושם הרחוב
 async function excelCity() {
-  const b = $('#xlcb'), ci = +$('#xlc').value, c = CITIES[ci];
+  const b = $('#xlcb'), name = $('#xlc').value.trim(), ci = CITIES.findIndex(c => c[0] === name);
+  if (ci < 0) { alert(name ? `לא מצאתי את היישוב "${name}" — בחרו מהרשימה` : 'בחרו יישוב'); return; }
+  const street = $('#xls').value.trim();
+  let h0 = +$('#xlh0').value, h1 = +$('#xlh1').value; if (h1 < h0) [h0, h1] = [h1, h0];
+  const hs = Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i);
   b.disabled = true; b.textContent = 'מכין…';
   try {
     if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-    const x = await fetch(D + 'xl/' + ci + '.json').then(r => { if (!r.ok) throw new Error('אין נתונים ליישוב'); return r.json(); });
-    const H = Array.from({ length: 24 }, (_, h) => fmt(h)), rows = [];
+    const x = await xlCity(ci), rows = [];
+    const avg = a => { const v = a.filter(v => v != null); return v.length ? Math.round(v.reduce((p, q) => p + q, 0) / v.length) : ''; };
     for (const [k, lst] of Object.entries(x.t)) {
       const recs = await loadTile(k);
       for (const [i, j] of lst) {
         const r = recs[i]; if (!r) continue;
+        const nm = j >= 0 ? x.n[j] : '';
+        if (street && !nm.includes(street)) continue;
         const wd = hours(r, 'wd'), fr = hours(r, 'fr');
         if (wd.filter(v => v != null).length < 6) continue;
-        rows.push([j >= 0 ? x.n[j] : '', dirName(r[2]), r[3], r[0], r[1], ...wd.map(v => v ?? ''), ...fr.map(v => v ?? '')]);
+        const w = hs.map(h => wd[h]), f = hs.map(h => fr[h]);
+        rows.push([nm, dirName(r[2]), ...w.map(v => v ?? ''), ...f.map(v => v ?? ''), avg(w), avg(f)]);
       }
     }
+    if (!rows.length) throw new Error(street ? `אין קטעים ברחוב "${street}" ב${name}` : 'אין נתונים ליישוב');
     rows.sort((p, q) => String(p[0]).localeCompare(String(q[0]), 'he') || String(p[1]).localeCompare(String(q[1]), 'he'));
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([['ליד תחנה', 'כיוון', 'דגימות', 'רוחב', 'אורך', ...H.map(h => h + ' א׳–ה׳'), ...H.map(h => h + ' שישי')], ...rows]);
+    const ws = XLSX.utils.aoa_to_sheet([['רחוב', 'כיוון', ...hs.map(h => fmt(h) + ' א׳–ה׳'), ...hs.map(h => fmt(h) + ' שישי'), 'ממוצע א׳–ה׳ (קמ"ש)', 'ממוצע שישי (קמ"ש)'], ...rows]);
+    ws['!cols'] = [{ wch: 22 }, { wch: 10 }];
     ws['!views'] = [{ RTL: true }];
     XLSX.utils.book_append_sheet(wb, ws, 'קטעים');
-    XLSX.writeFile(wb, `מהירות-האוטובוסים-${c[0]}.xlsx`);
+    XLSX.writeFile(wb, `מהירות-האוטובוסים-${name}${street ? '-' + street : ''}.xlsx`);
   } catch (e) { alert('ההורדה נכשלה: ' + e.message); }
-  b.disabled = false; b.textContent = 'הורדת היישוב (xlsx)';
+  b.disabled = false; b.textContent = 'הורדה (xlsx)';
 }
 function loadScript(u) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
 async function excel() {

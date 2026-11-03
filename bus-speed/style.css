@@ -202,3 +202,10 @@ table.bt td { white-space: normal; } table.bt td.n { white-space: nowrap; }
 #qx table.t tr.on { background: var(--acc-bg); }
 #qx .neg { color: #b91c1c; } #qx .pos { color: #15803d; }
 @media (max-width: 760px) { #qx { position: fixed; inset: 6px; z-index: 3000; } #qx .qx2 { grid-template-columns: 1fr; } }
+/* בטלפון — כפתורים ותיבות סימון גדולים יותר, קל ללחוץ (שלמה 03.11) */
+@media (pointer: coarse) {
+  .lyr { padding: 10px 0; }
+  .lyr input { width: 22px; height: 22px; margin-top: 1px; }
+  .seg button, .cnav, #dpick .cd { min-height: 40px; }
+  #pane-close { width: 40px; height: 40px; }
+}
