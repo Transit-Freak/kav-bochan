@@ -1708,18 +1708,18 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
     {/* הפוך מקודם (שלמה 26.09): בכפתור — דרך איפה הקו עובר; מתחת, בקטן — הכיוון והחלופה */}
     {current && desc(current) ? <div className="sibdesc">{label(current)}</div> : null}
     {open && <div id="alternative-options">
-      {!usePre && error && <div className="sibdesc">{error}</div>}
+      {!usePre && !railMode && error && <div className="sibdesc">{error}</div>}
       {railMode && items ? <div className="siblist">{(()=>{
         // כיוון ← שורות; בכל כיוון: תיאור → החלופות שלו (הרגיל ראשון)
-        const dirs=new Map();
-        for(const it of items){const t=desc(it)||label(it),d=variantDirection(it);
+        const dirs=new Map(),NOST='בלי פירוט תחנות';
+        for(const it of items){const t=desc(it)||NOST,d=variantDirection(it);
           if(!dirs.has(d))dirs.set(d,new Map());const m=dirs.get(d);if(!m.has(t))m.set(t,[]);m.get(t).push(it);}
         return [...dirs.entries()].map(([d,m])=>{
-          const b=variantBase([...m.values()][0][0],items,false),st=b?.snapshot?.stops;
+          const b=variantBase([...m.values()].flat()[0],items,false),st=b?.snapshot?.stops;
           const nm=railNm;
           return <div key={d}>
             <div className="sibt" style={{fontWeight:700,margin:'8px 0 4px'}}>{st?.length ? nm(st[0])+' ← '+nm(st[st.length-1]) : 'כיוון '+d}</div>
-            {[...m.entries()].sort((x,y)=>(y[0]==='המסלול הרגיל')-(x[0]==='המסלול הרגיל')).map(([t,g])=>{
+            {[...m.entries()].sort((x,y)=>(y[0]==='המסלול הרגיל')-(x[0]==='המסלול הרגיל')||(x[0]===NOST)-(y[0]===NOST)).map(([t,g])=>{
               const selected=g.some(x=>x.rd===rd),r=g.find(x=>x.rd===rd)||g.find(x=>!lineGoneAt(x))||g[0];
               return <div key={t} className="sibitem"><div className="sibinfo">
                 <span className="sibwrap">
@@ -3303,7 +3303,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
           : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
           {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
@@ -3626,7 +3626,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
           : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
-        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : lf.dest}</span>
+        <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
           {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
           {why && <a className="whymark" href="#why" title="למה הרכבת הזו פעלה רק זמן קצר?"
             onClick={(e) => { e.preventDefault(); const t = document.getElementById("why"); if (t) t.scrollIntoView({ block: "center" }); }}>!</a>}
@@ -4271,6 +4271,11 @@ function hsParts(h) {
 // כותרת הקו. בלי שלטים: "תל אביב יפו – רמת גן", ובקו עירוני "ירושלים: תחנה – תחנה".
 // עם היעד לפרסום (m.hs) ומה שכתוב על השלט במוצא (m.hso, לפי קו שמסתיים שם) — כמו על השלטים
 // (שלמה 09.10): "בני ברק, אזור התעשייה – בת ים, מרכז הספורט", "קרית גת: תחנת הרכבת – כרמי גת"
+// "עכו-עכו<->..." (שלמה 03.11): כשהתחנה כבר כוללת את שם העיר — פעם אחת ("עכו", "באר שבע-צפון")
+function destShow(d) {
+  return String(d || "").split("<->").map((x) => { const i = x.lastIndexOf("-"); if (i <= 0) return x;
+    const st = x.slice(0, i).trim(), c = x.slice(i + 1).trim(); return c && (st.includes(c) || st.includes(c.replace(/ יפו$/, ""))) ? st : x; }).join("<->");
+}
 function routeTitle(dest, m) {
   if (!dest) return "";
   const sides = String(dest).replace(/-\d+[#א-ת]?$/, "").split("<->").map((x) => { const p = x.split("-"); return { stop: (p.length > 1 ? p.slice(0, -1) : p).join("-").trim(), city: p.length > 1 ? p[p.length - 1].trim() : "" }; });
@@ -5887,7 +5892,7 @@ function ModesTab({ idx, openLine, spec }) {
                 {isRemovedYear(l) ? "בוטל — מעל שנה" : "בוטל"}
               </span>
             )}
-            <span className="ldest">{l.dest}</span>
+            <span className="ldest">{destShow(l.dest)}</span>
             <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.nalt ? l.nalt + " רכבות שונות — בלו״ז שבעמוד הקו" : l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
           </a>
         ))}
@@ -6521,7 +6526,7 @@ function App() {
                       {isRemovedYear(l) ? "חלופה בוטלה — מעל שנה" : "חלופה בוטלה"}
                     </span>
                   ))}
-                  <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : l.dest}{ad && <small className="altdesc">{ad}</small>}</span>
+                  <span className="ldest">{lite ? (routeTitle(l.dest, l) || l.dest) : destShow(l.dest)}{ad && <small className="altdesc">{ad}</small>}</span>
                   <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}
                     {l.historicalOnly && !goneStale(l) && <> · תיעוד היסטורי בלבד; מצב נוכחי לא נקבע</>}
                     {lineGoneAt(l) && <> · {goneStale(l) ? <>מבוטל (לא נצפה מאז {fmtD(l.ld)})</> : <>מבוטל מאז {fmtD(l.ld)}</>}</>}</span>
