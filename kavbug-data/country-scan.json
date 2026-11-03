@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-11-02T17:43:29.568Z",
+  "generatedAt": "2026-11-03T15:55:06.720Z",
   "sourceZip": "gtfs.zip",
   "navigationScan": {
     "status": "completed",
-    "pairs": 206403,
-    "requests": 38426,
-    "responses": 38426,
+    "pairs": 206612,
+    "requests": 38436,
+    "responses": 38436,
     "failures": 0,
     "found": 432,
-    "completedAt": "2026-11-02T17:43:09.868Z"
+    "completedAt": "2026-11-03T15:54:47.217Z"
   },
-  "totalLines": 6632,
+  "totalLines": 6643,
   "totalIssues": 671,
   "realCount": 148,
   "totalWasteDayKm": 591,
@@ -399829,8 +399829,8 @@
       "lng": 35.40365,
       "ref": "91",
       "excessKm": 0.269,
-      "tripsDay": 1,
-      "wasteDayKm": 0.3,
+      "tripsDay": 2,
+      "wasteDayKm": 0.5,
       "ratio": 1.59,
       "verdict": "לא ניתן להשוואה",
       "reason": "לא ניתן להשוואה — סדר תחנות שונה: קו 91 עובר דרך 1 תחנת/ות ביניים נוספת/ות בין \"ח'אלת אל שריף ב\" ל-\"שכונה דרומית ח\" (A→…→B), בעוד הקו הנבדק עובר ישירות. זו בחירת תכנון מסלול, לא עיקוף — אין משמעות ליחס-מרחקים.",
