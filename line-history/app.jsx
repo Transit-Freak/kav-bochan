@@ -1824,6 +1824,43 @@ function schedDaysLbl(ds) {
    מציגה את כל הרכבות של הכיוון בשבוע האחרון שבו החלופה הזו פעלה — שעה, ומה שונה בה
    מהמסלול הרגיל (ריק = כמו הרגיל). הרכבות של החלופה הזו מודגשות; לחיצה על שעה פותחת
    את החלופה של אותה רכבת. data/rail-sched/<מק"ט>.json — tools/rail_hist_sched.py */
+// הלו"ז של קו רכבת נטען פעם אחת ומשמש גם את בחירת שעת היציאה וגם את הטבלה
+const RAIL_SCHED = {};
+function getRailSched(mk) {
+  return RAIL_SCHED[mk] || (RAIL_SCHED[mk] = dfetch("data/rail-sched/" + mk + ".json")
+    .then((r) => (r.ok ? r.json() : null)).catch(() => { delete RAIL_SCHED[mk]; return null; }));
+}
+/* רכבת עם לו"ז (שלמה 03.11): כמעט כל רכבת היא חלופה משלה, ולכן אין "החלפת חלופה" — פותחים
+   את הלו"ז ולוחצים על הנסיעה. כאן נשאר רק הכיוון. בלי לו"ז — בוחר החלופות הרגיל */
+function RailWrap({ rail, rd, onSwitch, children }) {
+  return rail ? <RailTimePick rd={rd} onSwitch={onSwitch}>{children}</RailTimePick> : children;
+}
+function RailTimePick({ rd, onSwitch, children }) {
+  const [d, setD] = useState(undefined);
+  const [mk, dr, ...rest] = String(rd).split("-"), alt = rest.join("-");
+  useEffect(() => { let ok = true; setD(undefined); getRailSched(mk).then((j) => { if (ok) setD(j); }); return () => { ok = false; }; }, [mk]);
+  if (d === undefined) return null;
+  const ps = d ? (d.p || []).filter((q) => q.dirs && q.dirs[dr]) : [];
+  const has = (q) => Object.values(q.dirs[dr].days).some((rs) => rs.some((r) => r[1] === alt));
+  const p = [...ps].reverse().find(has) || ps[ps.length - 1];
+  if (!p) return children;
+  // החלופה הנפוצה בכל כיוון — לשם עוברים בלחיצה על הכיוון
+  const common = (k) => { const c = {}; for (const rs of Object.values(p.dirs[k].days)) for (const r of rs) c[r[1]] = (c[r[1]] || 0) + 1;
+    return Object.keys(c).sort((a, b) => c[b] - c[a])[0]; };
+  const keys = Object.keys(p.dirs);
+  if (keys.length < 2) return null;
+  return <div className="alt-selector">
+    <div className="sibs">
+      <span className="sibt">כיוון:</span>
+      {keys.map((k) => (
+        <button key={k} type="button" className={"sib" + (k === dr ? " on" : "")}
+          onClick={() => { const a = common(k), to = mk + "-" + k + "-" + a; if (a != null && to !== rd) onSwitch(to); }}>
+          {p.dirs[k].from} ← {p.dirs[k].to}
+        </button>
+      ))}
+    </div>
+  </div>;
+}
 function RailSched({ rd }) {
   const [d, setD] = useState(undefined), [why, setWhy] = useState({}), [pi, setPi] = useState(null);
   const [mk, dr, ...rest] = String(rd).split("-"), alt = rest.join("-");
@@ -1832,9 +1869,7 @@ function RailSched({ rd }) {
   useEffect(() => {
     let ok = true;
     setD(undefined);
-    dfetch("data/rail-sched/" + mk + ".json")
-      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (ok) setD(j); })
-      .catch(() => { if (ok) setD(null); });
+    getRailSched(mk).then((j) => { if (ok) setD(j); });
     return () => { ok = false; };
   }, [mk]);
   useEffect(() => { setPi(null); }, [rd]);
@@ -1855,8 +1890,8 @@ function RailSched({ rd }) {
     groups.get(key).days.push(b);
   }
   return (
-    <details className="schedbox" open>
-      <summary>🕐 הלו״ז של הקו בשבוע של {fmtD(p.d)}</summary>
+    <details className="schedbox">
+      <summary>🕐 הלו״ז של הקו בשבוע של {fmtD(p.d)} — לחצו כאן כדי להחליף חלופה</summary>
       {monthly ? <div className="schednote">
         כל הרכבות בכיוון {x.from} ← {x.to} לפי הלו"ז שפורסם, שבוע אחד בכל חודש. "דרך / שינוי" ריק = המסלול הרגיל.
       </div> : <div className="schednote">
@@ -1877,8 +1912,9 @@ function RailSched({ rd }) {
           <div className="rgrp">{schedDaysLbl(g.days)} · {g.rs.length} רכבות</div>
           <table className="rtbl"><thead><tr><th>שעה</th>{withTn && <th>רכבת</th>}<th>דרך / שינוי</th></tr></thead><tbody>
             {g.rs.map(([t, a, n, tn], i) => (
-              <tr key={i} className={a === alt && !withTn ? "me" : ""}>
-                <td className="t">{withTn ? t : <a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a>}</td>
+              <tr key={i} className={a === alt ? "me" : ""} style={{ cursor: "pointer" }} title="פתיחת הנסיעה הזו — המסלול והתחנות"
+                onClick={(e) => { if (e.target.closest("a")) return; location.hash = lineHref(mk + "-" + dr + "-" + a); }}>
+                <td className="t">{<a href={lineHref(mk + "-" + dr + "-" + a)} title="פתיחת החלופה של הרכבת הזו — המסלול והתחנות">{t}</a>}</td>
                 {withTn && <td className="t">{tn}</td>}
                 <td>{n >= 0 ? x.n[n] : ""}{why[mk + "-" + dr + "-" + a] ? <div className="mut">❗ {why[mk + "-" + dr + "-" + a].text}</div> : null}</td>
               </tr>
@@ -3262,8 +3298,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
             אחר: הקו יושב בין קווי האוטובוס ונראה רגיל לחלוטין, ואי אפשר
             לדעת ממנו שהנסיעה מותנית בהזמנה. לשאר הסוגים התווית בשורת
             הפרטים כבר אומרת הכל, והערה נוספת היא רעש. */}
-        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibsShown} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><RailWrap rail={(lf || {}).tt === "rail"} rd={rd} onSwitch={onSwitch}><AlternativeSelector sibs={sibsShown} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></RailWrap></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
@@ -3648,8 +3684,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               : <div className="mut">טוען…</div>)}
           </div>
         )}
-        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><AlternativeSelector sibs={sibsShown} rd={rd}
-          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></SafeBox>}
+        {sibs && sibs.length > 1 && <SafeBox key={rd + '|' + (sel != null ? vs[sel]?.d : '')}><RailWrap rail={(lf || {}).tt === "rail"} rd={rd} onSwitch={onSwitch}><AlternativeSelector sibs={sibsShown} rd={rd}
+          date={sel != null ? vs[sel]?.d : null} latest={sel == null || sel === vs.reduce((last, v, i) => (v.hid ? last : i), 0)} onSwitch={onSwitch} altRd={altRd} setAltRd={setAltRd} /></RailWrap></SafeBox>}
         {altRd && (
           <AltCompare rd={rd} altRd={altRd} onClose={() => setAltRd(null)}
             label={(sibs.find((x) => x.rd === altRd) || {}).dest || altRd} />
@@ -4081,6 +4117,10 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
   const [desc, setDesc] = useState(null);
   useEffect(() => { if (!open || !/^\d+$/.test(fam)) return; let ok = true; loadAltDesc(fam).then((m) => { if (ok) setDesc(m || {}); }); return () => { ok = false; }; }, [open, fam]);
   if (g.items.length === 1) return renderRow(g.items[0]);
+  // רכבת (שלמה 03.11): בחיפוש רק החלופה הראשית בכל כיוון (railBetter); שאר הרכבות — בלו"ז בעמוד הקו
+  const rail = g.items.every((l) => l.tt === "rail" && /^\d+-/.test(l.rd));
+  const mains = rail ? Object.values(g.items.reduce((m, l) => { const k = String(l.rd).split("-")[1], b = m[k];
+    if (!b || railBetter(l, b)) m[k] = l; return m; }, {})) : null;
   const live = g.items.filter((l) => !lineGoneAt(l));
   const dirs = new Set(g.items.filter((l) => /^\d+-/.test(l.rd)).map((l) => String(l.rd).split("-")[1])).size;
   // כותרת הקו: עיר מוצא – עיר יעד, וכשחלופה מגיעה לעיר אחרת היא נוספת אחרי לוכסן (שלמה 08.10:
@@ -4118,9 +4158,9 @@ function SearchGroup({ g, open, onToggle, renderRow }) {
         <span className="badge sm">{g.line || TT_ICON[g.items[0].tt] || "—"}</span>
         <span className="lgroute">{route}</span>
         <span className="lgarrow" aria-hidden="true">{open ? "▴" : "▾"}</span>
-        <span className="lgmeta">{g.op}{!live.length && <> · <b className="lggone">הקו בוטל</b></>} · {dirs > 1 ? dirs + " כיוונים · " : ""}{g.items.length} חלופות</span>
+        <span className="lgmeta">{g.op}{!live.length && <> · <b className="lggone">הקו בוטל</b></>} · {dirs > 1 ? dirs + " כיוונים · " : ""}{rail ? "כל הרכבות לפי שעה בעמוד הקו" : g.items.length + " חלופות"}</span>
       </button>
-      {open && <div className="lgitems">{[...g.items].sort((a, b) => (lineGoneAt(a) ? 1 : 0) - (lineGoneAt(b) ? 1 : 0)).map((l) => { const [t, d] = label(l); return renderRow(l, t, d); })}</div>}
+      {open && <div className="lgitems">{rail ? mains.map((l) => renderRow(l, "ראשית", null)) : [...g.items].sort((a, b) => (lineGoneAt(a) ? 1 : 0) - (lineGoneAt(b) ? 1 : 0)).map((l) => { const [t, d] = label(l); return renderRow(l, t, d); })}</div>}
     </div>);
 }
 // סוגי שינוי "שגרתיים": לו"ז, תגבור, צילום ותיקוני רישום. בתצוגה החדשה הם מקופלים כברירת מחדל
@@ -5699,6 +5739,26 @@ const SOURCES = [
 const TT_LABEL = { rail: "רכבת", taxi: "מונית שירות", lightrail: "רכבת קלה",
                    cable: "רכבל/כרמלית", demand: "שירות לפי דרישה" };
 
+// רכבת (שלמה 03.11): כמעט כל רכבת היא חלופה משלה — ברשימה רק החלופה הראשית של כל מק"ט וכיוון:
+// פעילה לפני שבוטלה, חלופה #, ואחר כך זו עם הכי הרבה גרסאות. שאר הרכבות — בלו"ז שבעמוד הקו
+function railMainRank(l) { return [lineGoneAt(l) ? 1 : 0, String(l.rd).split("-")[2] === "#" ? 0 : 1, -(l.v || 0)]; }
+function railBetter(l, b) { const x = railMainRank(l), y = railMainRank(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i]; return false; }
+function collapseRailRows(ls) {
+  const best = new Map(), n = new Map();
+  for (const l of ls) {
+    if (l.tt !== "rail" || !/^\d+-[^-]+-/.test(l.rd)) continue;
+    const k = String(l.rd).split("-").slice(0, 2).join("-");
+    n.set(k, (n.get(k) || 0) + 1);
+    if (!best.has(k) || railBetter(l, best.get(k))) best.set(k, l);
+  }
+  const out = [];
+  for (const l of ls) {
+    if (l.tt !== "rail" || !/^\d+-[^-]+-/.test(l.rd)) { out.push(l); continue; }
+    const k = String(l.rd).split("-").slice(0, 2).join("-");
+    if (best.get(k) === l) out.push(n.get(k) > 1 ? { ...l, nalt: n.get(k) } : l);
+  }
+  return out;
+}
 function ModesTab({ idx, openLine, spec }) {
   const citySearch = useRouteCities();
   const [daily, setDaily] = useState(() => !!(spec.k === "rail" && railHash()));
@@ -5727,7 +5787,7 @@ function ModesTab({ idx, openLine, spec }) {
     }
     const lnum = (l) => parseInt(l.line) || 1e9;
     ls = ls.slice().sort((a, b) => routeSearchRank(a, needle) - routeSearchRank(b, needle) || lnum(a) - lnum(b) || (a.line || "").localeCompare(b.line || "") || a.rd.localeCompare(b.rd));
-    ls = collapse2012Rows(ls);
+    ls = collapseRailRows(collapse2012Rows(ls));
     return { total: ls.length, list: ls.slice(0, lim) };
   }, [mine, spec, sel, dq, lim, citySearch.data]);
 
@@ -5764,7 +5824,7 @@ function ModesTab({ idx, openLine, spec }) {
               </span>
             )}
             <span className="ldest">{l.dest}</span>
-            <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
+            <span className="lmeta">{l.op}{mkTag(l.rd)} · {l.nalt ? l.nalt + " רכבות שונות — בלו״ז שבעמוד הקו" : l.v > 1 ? (l.v - 1) + " שינויים" : "ללא שינויים עדיין"}</span>
           </a>
         ))}
         {list.length === 0 && <div className="empty">לא נמצא קו תואם.</div>}
