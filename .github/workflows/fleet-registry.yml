@@ -23,10 +23,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # בלי כל ההיסטוריה (03.11: "No space left on device" — fetch-depth 0 הוריד את כל המאגר הכבד).
+      # רק הכלים ותיקיית הנתונים של צי הרכבים
       - uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            tools
+            fleet/data
       - name: בדיקת הגנות העדכון
         run: python3 -m unittest discover -s tools -p 'test_fleet_refresh_registry.py'
       - name: הורדה ואימות של מאגר הרישוי הממשלתי
@@ -49,5 +55,9 @@ jobs:
           git add fleet/data/cf29862d-ca25-4691-84f6-1be60dcb4a1e.csv fleet/data/gov-registry-source.json fleet/data/fleet.json fleet/data/gov-details-*.json fleet/data/fleet-bitul.json $(ls fleet/data/fleet-bitul-sofi.json 2>/dev/null) fleet/data/fleet-official.json fleet/data/fleet-armor.json
           git diff --cached --quiet && exit 0
           git commit -m 'data: refresh official fleet registration details'
-          git pull --rebase origin main
-          git push
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && exit 0
+            git rebase --abort 2>/dev/null || true
+            echo "push rejected — retry $i"; sleep 15
+          done
+          exit 1
