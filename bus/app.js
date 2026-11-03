@@ -28,7 +28,28 @@ const hhmm = s => s == null ? '—' : `${String(Math.floor(s / 3600) % 24).padSt
 const dcls = v => v == null ? 'dn' : v < -2 ? 'd0' : v <= 5 ? 'd1' : v <= 10 ? 'd2' : v <= 20 ? 'd3' : 'd4';
 const catOf = v => v == null ? -1 : v < -2 ? 0 : v <= 5 ? 1 : v <= 10 ? 2 : v <= 20 ? 3 : 4;
 const delayTxt = m => m == null ? '—' : (m > 0 ? '+' : '') + fmt1(m);
-function load(url) { return fetch(url + '?v=' + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+// קבצים כבדים שהאתר שומר מכווצים (שלמה 03.11: האתר מתקרב למגבלת הגודל): בפרסום, ‎X.json‎ נשמר כ-‎X.json.gz‎.
+// מנסים קודם את המכווץ, ובלעדיו (או בדפדפן ישן) — את הרגיל. בודקים את סימן ה-gzip (1f 8b) ולא
+// סומכים על כותרות השרת, כי אם השרת כבר פתח את הכיווץ — הגוף הוא JSON רגיל
+async function gzJson(url, q) {
+  if (window.DecompressionStream) {
+    try {
+      const r = await fetch(url + '.gz' + q, { cache: 'no-cache' });
+      if (r.ok) {
+        const b = new Uint8Array(await r.arrayBuffer());
+        if (b[0] === 0x1f && b[1] === 0x8b) return await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).json();
+        return JSON.parse(new TextDecoder().decode(b));
+      }
+    } catch (e) { /* נופלים לקובץ הרגיל */ }
+  }
+  const r = await fetch(url + q);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+function load(url) {
+  if (/(^|\/)days\/[^/]+\.json$/.test(url)) return gzJson(url, '?v=' + Date.now());
+  return fetch(url + '?v=' + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
 const stopName = code => (NAMES && NAMES[code]) || code;
 // יום שבו נצפו פחות מ-30% מהנסיעות המתוכננות — שידור חלקי, מוצג בנפרד
 const partial = d => d.sched > 0 && d.obs < d.sched * 0.3;

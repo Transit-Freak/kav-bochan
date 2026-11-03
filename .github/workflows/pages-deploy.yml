@@ -157,6 +157,14 @@ jobs:
         run: |
           git sparse-checkout disable
           test -d line-history/data/early-patterns && echo "הורדו כל הקבצים"
+      # שתי התיקיות הכבדות שגדלות כל יום (כ-800MB) נשמרות באתר מכווצות — פי 5–7 פחות (שלמה 03.11).
+      # רק בעותק שמתפרסם: במאגר הקבצים נשארים ‎.json‎ לכל הכלים. האתר קורא קודם ‎.json.gz‎
+      # (bus/app.js, gis/app.js — gzJson; line-history — dfetch)
+      - name: כיווץ הקבצים הכבדים
+        run: |
+          du -sh bus/data/days line-history/data/changes 2>/dev/null || true
+          find bus/data/days line-history/data/changes -maxdepth 1 -name '*.json' -print0 2>/dev/null | xargs -0 -r gzip -9 -n -f
+          du -sh bus/data/days line-history/data/changes 2>/dev/null || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
