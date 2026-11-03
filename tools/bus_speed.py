@@ -83,7 +83,7 @@ def day(ds):
     at = collections.defaultdict(dict)       # (תחנה, דקה) → {רכב: קו} — אוטובוסים בתחנה
     app = collections.defaultdict(list)      # (תחנה, דקה) → מהירויות בקטע שלפני התחנה
     mins = set()
-    good, bad = {}, collections.Counter()   # רכב → המיקום התקין האחרון (זמן, רוחב, אורך) · כמה שידורים חשודים ברצף
+    good, bad, pend = {}, collections.Counter(), collections.defaultdict(list)   # רכב → המיקום התקין האחרון (זמן, רוחב, אורך) · כמה שידורים חשודים ברצף
     skip = collections.Counter()
     cells = collections.Counter()           # ריבועים של ~200 מ' שאוטובוסים באמת עברו בהם היום (שידורים תקינים)
     jumps = []                              # קפיצות: [רכב, קו, שעה, יציאה, רוחב, אורך, רוחב קודם, אורך קודם, ק"מ]
@@ -131,8 +131,14 @@ def day(ds):
                         bad[veh] += 1
                         if bad[veh] < 4:
                             skip['jump'] += 1
-                            jumps.append([veh, line, rt[11:19], dep[11:16], round(la, 5), round(lo, 5), round(p[1], 5), round(p[2], 5), round(dd / 1000, 1)])
+                            pend[veh].append([veh, line, rt[11:19], dep[11:16], round(la, 5), round(lo, 5), round(p[1], 5), round(p[2], 5), round(dd / 1000, 1)])
                             continue
+                # זיוף = קפיצה וחזרה (שלמה 03.11): רכב שחזר למקום הקודם — הקפיצות היו מזויפות. רכב שנשאר במקום
+                # החדש (4 שידורים ברצף) באמת עבר שם, למשל בדרך שאוטובוסים לא נוסעים בה בדרך כלל — לא זיוף
+                if pend[veh]:
+                    if bad[veh] < 4:
+                        jumps.extend(pend[veh])
+                    pend[veh] = []
                 good[veh] = (t, la, lo)
                 bad[veh] = 0
                 cells[(round(la / 0.002), round(lo / 0.002))] += 1
@@ -723,9 +729,42 @@ def load_tiles(days):
     print(f'עומס בתחנות: {sum(len(v) for v in tiles.values()):,} תחנות מ-{nd} ימים')
 
 
+def street_lookup():
+    """(רוחב, אורך) → שם הרחוב הקרוב (עד 40 מ'), מקובץ הרחובות של OpenStreetMap שהרענון החודשי שומר בענף
+    osm-roads (ROADS_JSON). None אם אין קובץ."""
+    p = os.environ.get('ROADS_JSON')
+    if not p or not os.path.exists(p):
+        return None
+    try:
+        roads = json.load(open(p, encoding='utf-8'))['roads']
+    except Exception:  # noqa: BLE001
+        return None
+    grid = collections.defaultdict(list)
+    for rd in roads:
+        g = rd['g']
+        for a, b in zip(g, g[1:]):
+            grid[(round(a[0] / 0.003), round(a[1] / 0.003))].append((a, b, rd['n']))
+    def seg(p, a, b):
+        ax, ay, bx, by, px, py = a[1] * 93000, a[0] * 111000, b[1] * 93000, b[0] * 111000, p[1] * 93000, p[0] * 111000
+        dx, dy = bx - ax, by - ay
+        t = 0 if dx == dy == 0 else max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+        return math.hypot(px - ax - t * dx, py - ay - t * dy)
+    def near(la, lo):
+        k, best = (round(la / 0.003), round(lo / 0.003)), (40, '')
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                for a, b, n in grid.get((k[0] + dy, k[1] + dx), ()):
+                    d = seg((la, lo), a, b)
+                    if d < best[0]:
+                        best = (d, n)
+        return best[1]
+    return near
+
+
 def city_export(names, tiles):
     """הורדה לאקסל של כל הקטעים ביישוב (שלמה 01.11) — OUT/xl/<מספר היישוב ב-cities.json>.json:
-    {"n": [שמות תחנות], "t": {אריח: [[מספר הרשומה באריח, מספר שם התחנה הקרובה (עד 200 מ') או -1]…]}}.
+    {"n": [שמות רחובות], "t": {אריח: [[מספר הרשומה באריח, מספר שם הרחוב או -1]…]}}. הרחוב — מ-OpenStreetMap
+    (שלמה 03.11: "רוחב ואורך אף אחד לא מבין"); בלי קובץ רחובות — שם התחנה הקרובה (עד 200 מ').
     הדף טוען את האריחים עצמם (data/t) ולוקח מהם את המהירויות — כאן רק השיוך."""
     import shutil
     if os.path.isdir(f'{OUT}/xl'):
@@ -734,6 +773,7 @@ def city_export(names, tiles):
     if not lk or not names:
         return
     city, stop = lk
+    street = street_lookup() or stop
     ix = {c: i for i, c in enumerate(names)}
     per = collections.defaultdict(lambda: [{}, collections.defaultdict(list)])
     for (ty, tx), recs in tiles.items():
@@ -741,7 +781,7 @@ def city_export(names, tiles):
             c = city(r[0], r[1])
             if c not in ix:
                 continue
-            nm = stop(r[0], r[1])
+            nm = street(r[0], r[1])
             e = per[ix[c]]
             j = e[0].setdefault(nm, len(e[0])) if nm else -1
             e[1][f'{ty}_{tx}'].append([i, j])
@@ -761,16 +801,26 @@ def gps_files(have, typ):
     import shutil
     if os.path.isdir(f'{OUT}/gps'):
         shutil.rmtree(f'{OUT}/gps')
-    days, per = [], {}
+    loaded = {}
     for ds in have:
         p = f'{CACHE}/{ds}.gps.json.gz'
         if not os.path.exists(p) or not typ.get(ds):
             continue
         try:
             with gzip.open(p, 'rt') as f:
-                g = json.load(f)
+                loaded[ds] = json.load(f)
         except Exception:  # noqa: BLE001
             continue
+    # מקום שחוזר בכמה ימים שונים (3 ומעלה, ריבוע של ~1 ק"מ) — שיבוש GPS קבוע באזור, לא זיוף של רכב: לא מוצג
+    # ולא נספר (שלמה 03.11)
+    cd = collections.defaultdict(set)
+    for ds, g in loaded.items():
+        for x in g['fake']:
+            cd[(round(x[5], 2), round(x[6], 2))].add(ds)
+    jam = {k for k, v in cd.items() if len(v) >= 3}
+    days, per = [], {}
+    for ds, g in loaded.items():
+        g['fake'] = [x for x in g['fake'] if (round(x[5], 2), round(x[6], 2)) not in jam]
         days.append([ds, typ[ds]])
         os.makedirs(f'{OUT}/gps', exist_ok=True)
         with open(f'{OUT}/gps/{ds}.json', 'w', encoding='utf-8') as f:
@@ -785,7 +835,7 @@ def gps_files(have, typ):
                    'fv': dict(fv.most_common(40)), 'tl': dict(tl.most_common(40))}
     with open(f'{OUT}/gpsq.json', 'w', encoding='utf-8') as f:
         json.dump({'days': days, 'd': per}, f, ensure_ascii=False, separators=(',', ':'))
-    print(f'אמינות השידורים: {len(days)} ימים, {sum(sum(x["fk"].values()) for x in per.values()):,} זיופים')
+    print(f'אמינות השידורים: {len(days)} ימים, {sum(sum(x["fk"].values()) for x in per.values()):,} זיופים · {len(jam)} מקומות שיבוש קבוע לא נספרו')
 
 
 def norm(c):

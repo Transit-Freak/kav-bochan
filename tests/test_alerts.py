@@ -539,7 +539,8 @@ class ClosedCheckTests(unittest.TestCase):
                 if seen[key] > 1:
                     key += f'#{seen[key]}'
                 est = r.get('est')
-                if not est or not est.get('path') or len(r.get('shape') or []) < 2:
+                # nocut — האתר לא מצייר קטע סגור לעקיפה הזו, ובדיקת הרגרסיה מדלגת עליה (01.11: נכשל על 10 כאלה)
+                if not est or not est.get('path') or est.get('nocut') or len(r.get('shape') or []) < 2:
                     continue
                 path = [tuple(p) for p in est['path']]
                 dels = [st[s][:2] for s in r.get('del') or [] if s in st]
