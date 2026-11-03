@@ -154,12 +154,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A bus-speed/data
-          git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
-          git commit -q -m "data: מהירות האוטובוסים"
+          # בלי rebase: ריצה אחרת (למשל ריצה רגילה בזמן חישוב מחדש) שמרה בינתיים את אותם קבצים, וה-rebase
+          # נתקע בהתנגשויות (03.11). bus-speed/data כולה נבנית בריצה הזו — שומרים עותק, עוברים ל-main
+          # העדכני ומעתיקים אותו מעליה
+          rm -rf /tmp/out && cp -a bus-speed/data /tmp/out
           for i in 1 2 3 4 5 6; do
-            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
-            git rebase --abort 2>/dev/null || true
+            git fetch -q --filter=blob:none origin main && git reset -q --hard origin/main
+            rsync -a --delete /tmp/out/ bus-speed/data/
+            git add -A bus-speed/data
+            git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+            git commit -q -m "data: מהירות האוטובוסים"
+            git push -q origin HEAD:main && exit 0
             echo "push rejected — retry $i"; sleep 15
           done
           echo "הדחיפה נכשלה"; exit 1
