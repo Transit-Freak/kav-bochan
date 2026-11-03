@@ -83,7 +83,7 @@ def day(ds):
     at = collections.defaultdict(dict)       # (תחנה, דקה) → {רכב: קו} — אוטובוסים בתחנה
     app = collections.defaultdict(list)      # (תחנה, דקה) → מהירויות בקטע שלפני התחנה
     mins = set()
-    good, bad, pend = {}, collections.Counter(), collections.defaultdict(list)   # רכב → המיקום התקין האחרון (זמן, רוחב, אורך) · כמה שידורים חשודים ברצף
+    good, pend = {}, collections.defaultdict(list)   # רכב → המיקום התקין האחרון (זמן, רוחב, אורך) · כמה שידורים חשודים ברצף
     skip = collections.Counter()
     cells = collections.Counter()           # ריבועים של ~200 מ' שאוטובוסים באמת עברו בהם היום (שידורים תקינים)
     jumps = []                              # קפיצות: [רכב, קו, שעה, יציאה, רוחב, אורך, רוחב קודם, אורך קודם, ק"מ]
@@ -121,26 +121,26 @@ def day(ds):
                 if dep and t - ts(dep) > 4 * 3600:
                     skip['stale'] += 1
                     continue
-                # זיוף GPS (שלמה 02.11): קפיצה — מעל 130 קמ"ש ומעל 500 מ' מהמיקום התקין האחרון של הרכב. מיקום חדש
-                # מתקבל רק אחרי 4 שידורים חשודים ברצף (רכב שבאמת עבר מקום, למשל אחרי הפסקה ארוכה בשידור).
-                # בדיקת "רחוק מהמסלול" לפי התחנה הבאה נפסלה: התחנה הבאה בשידור מתעדכנת באיחור, ו-6% נפסלו לשווא
+                # זיוף GPS: "אירוע" — מהקפיצה (מעל 130 קמ"ש ו-500 מ' מהמיקום התקין האחרון) ועד שהרכב חוזר למקום שאפשר
+                # להגיע אליו מהמיקום התקין (500 מ' + 90 קמ"ש מאז). כל הנקודות באמצע — מסלול מזויף אחד, גם אם הוא
+                # "נוסע" לאורך דרך (שלמה 03.11: שורת נקודות בשמורה ליד כביש 6 — אוטובוס אחד, לא כמה). לא חזר תוך
+                # 30 דקות — באמת עבר מקום (למשל אחרי הפסקה בשידור), לא זיוף
                 p = good.get(veh)
                 if p and t > p[0]:
                     dd = math.hypot((la - p[1]) * 111000, (lo - p[2]) * 93000)
-                    if dd > 500 and dd / (t - p[0]) * 3.6 > 130:
-                        bad[veh] += 1
-                        if bad[veh] < 4:
+                    if pend[veh]:
+                        if dd > 500 + (t - p[0]) * 25 and t - p[0] < 1800:
                             skip['jump'] += 1
-                            pend[veh].append([veh, line, rt[11:19], dep[11:16], round(la, 5), round(lo, 5), round(p[1], 5), round(p[2], 5), round(dd / 1000, 1)])
+                            pend[veh].append([round(la, 5), round(lo, 5), rt[11:19], round(dd / 1000, 1)])
                             continue
-                # זיוף = קפיצה וחזרה (שלמה 03.11): רכב שחזר למקום הקודם — הקפיצות היו מזויפות. רכב שנשאר במקום
-                # החדש (4 שידורים ברצף) באמת עבר שם, למשל בדרך שאוטובוסים לא נוסעים בה בדרך כלל — לא זיוף
-                if pend[veh]:
-                    if bad[veh] < 4:
-                        jumps.extend(pend[veh])
-                    pend[veh] = []
+                        if dd <= 500 + (t - p[0]) * 25:
+                            jumps.append([veh, line, dep[11:16], round(p[1], 5), round(p[2], 5), pend[veh]])
+                        pend[veh] = []
+                    elif dd > 500 and dd / (t - p[0]) * 3.6 > 130:
+                        skip['jump'] += 1
+                        pend[veh] = [[round(la, 5), round(lo, 5), rt[11:19], round(dd / 1000, 1)]]
+                        continue
                 good[veh] = (t, la, lo)
-                bad[veh] = 0
                 cells[(round(la / 0.002), round(lo / 0.002))] += 1
                 if RS:
                     nb[RS[3].get(line, ('?', ''))[0]] += 1
@@ -321,22 +321,30 @@ def route_stops(ds):
 
 def gps_quality(ds, RI, cells, jumps, trip, nb):
     """אמינות השידורים (שלמה 02.11) → $SPEED_CACHE/D.gps.json.gz:
-    "fake": זיופי GPS — מכל קפיצה, הצד שאין לידו שום רחוב שאוטובוסים עברו בו היום (ים, שטח פתוח). קפיצה ששני
-    צדדיה על רחובות — לא זיוף (תקלה בשיוך או בשעון), ולא נספרת. [מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך,
-    רוחב אמיתי, אורך אמיתי, ק"מ]. "trips": לכל מפעיל [נסיעות, הופיעו יותר משעה אחרי היציאה, שידרו 4+ שעות].
+    "fake": אירועי זיוף GPS — [מפעיל, קו, רכב, יציאה, רוחב אמיתי, אורך אמיתי, [[רוחב, אורך, שעה, ק"מ מהאמיתי]…]].
+    אירוע קצר (עד 3 ק"מ) שכל נקודותיו על רחובות שאוטובוסים עברו בהם היום — רעש GPS בעיר, לא זיוף.
+    "trips": לכל מפעיל [נסיעות, הופיעו יותר משעה אחרי היציאה, שידרו 4+ שעות].
     "tl": לכל מפעיל {קו: נסיעות בשעה אחרת}. "nb": שידורים תקינים לכל מפעיל."""
     def on(la, lo):
         k = (round(la / 0.002), round(lo / 0.002))
         return sum(cells.get((k[0] + a, k[1] + b), 0) for a in (-1, 0, 1) for b in (-1, 0, 1)) >= 20
+    # נקודת זיוף קבועה (למשל בים מול אשדוד): ריבוע של ~1 ק"מ שהרבה רכבים שונים "קופצים" אליו או ממנו. כשה"מיקום
+    # התקין" נמצא בריבוע כזה, שכיח יותר מהצד השני של הקפיצה — הוא המזויף, והמסלול הוא האמיתי
+    cell = lambda a, b: (round(a / 0.01), round(b / 0.01))  # noqa: E731
+    seen = collections.defaultdict(set)
+    for v, _, _, ra, ro, pts in jumps:
+        seen[cell(ra, ro)].add(v); seen[cell(pts[0][0], pts[0][1])].add(v)
+    hot = {k: len(v) for k, v in seen.items()}
     fake = []
-    for veh, line, tm, dep, la, lo, pa, po, km in jumps:
+    for veh, line, dep, ra, ro, pts in jumps:
+        if max(x[3] for x in pts) <= 3 and all(on(x[0], x[1]) for x in pts):
+            continue
+        # הפוך: ה"מיקום התקין" עצמו היה מזויף (למשל השידור הראשון של הרכב — בים), והמסלול הוא האמיתי
+        hr, hp = hot[cell(ra, ro)], hot[cell(pts[0][0], pts[0][1])]
+        if (hr >= 3 and hr > hp) or (not on(ra, ro) and 2 * sum(on(x[0], x[1]) for x in pts) > len(pts)):
+            pts, ra, ro = [[ra, ro, pts[0][2], pts[0][3]]], pts[0][0], pts[0][1]
         ag, ln = RI.get(line, ('?', ''))
-        if not on(la, lo):
-            # גם המיקום הקודם לא על רחוב (למשל רצף שידורים מזויפים) — לא ידוע איפה הרכב היה באמת
-            real = (pa, po) if on(pa, po) else (None, None)
-            fake.append([ag, ln, veh.split('/', 1)[-1], tm, dep, la, lo, *real, km])
-        elif not on(pa, po):
-            fake.append([ag, ln, veh.split('/', 1)[-1], tm, dep, pa, po, la, lo, km])
+        fake.append([ag, ln, veh.split('/', 1)[-1], dep, ra, ro, pts])
     tr = collections.defaultdict(lambda: [0, 0, 0])
     tl = collections.defaultdict(collections.Counter)
     for (line, dep, veh), (f, l, d) in trip.items():
@@ -351,7 +359,7 @@ def gps_quality(ds, RI, cells, jumps, trip, nb):
         json.dump({'d': ds, 'fake': fake, 'nb': nb, 'trips': tr, 'tl': {k: dict(v.most_common(30)) for k, v in tl.items()}},
                   f, ensure_ascii=False, separators=(',', ':'))
     os.replace(f'{CACHE}/{ds}.gps.tmp', f'{CACHE}/{ds}.gps.json.gz')
-    print(f'{ds}: אמינות השידורים — {len(fake)} זיופים מ-{len(jumps)} קפיצות, {len(trip):,} נסיעות', flush=True)
+    print(f'{ds}: אמינות השידורים — {len(fake)} אירועי זיוף ({sum(len(x[6]) for x in fake)} שידורים) מ-{len(jumps)} קפיצות, {len(trip):,} נסיעות', flush=True)
 
 
 def stop_load(ds, S, at, app, mins):
@@ -794,7 +802,7 @@ def city_export(names, tiles):
 
 def gps_files(have, typ):
     """אמינות השידורים לאתר (שלמה 02.11) — מ-D.gps.json.gz:
-    OUT/gps/<תאריך>.json — זיופי היום למפה: [[מפעיל, קו, רכב, שעה, יציאה, רוחב, אורך, רוחב אמיתי, אורך אמיתי, ק"מ]…]
+    OUT/gps/<תאריך>.json — אירועי הזיוף של היום למפה, כמו "fake" ב-gps_quality
     OUT/gpsq.json — למדד הדיוק (bus/), יום-יום, כדי שהדף יחבר כל תקופה שנבחרה (יום / 7 / 30):
     {"days": [[תאריך, סוג יום]…], "d": {תאריך: {"nb": {מפעיל: שידורים}, "trips": {מפעיל: [נסיעות, מאוחרות, 4+ שעות]},
      "fk": {מפעיל: זיופים}, "fl": {"קו|מפעיל": זיופים}, "fv": {"רכב|מפעיל": זיופים}, "tl": {"קו|מפעיל": נסיעות בשעה אחרת}}}}"""
@@ -816,17 +824,19 @@ def gps_files(have, typ):
     cd = collections.defaultdict(set)
     for ds, g in loaded.items():
         for x in g['fake']:
-            cd[(round(x[5], 2), round(x[6], 2))].add(ds)
+            for q in x[6]:
+                cd[(round(q[0], 2), round(q[1], 2))].add(ds)
     jam = {k for k, v in cd.items() if len(v) >= 3}
     days, per = [], {}
     for ds, g in loaded.items():
-        g['fake'] = [x for x in g['fake'] if (round(x[5], 2), round(x[6], 2)) not in jam]
+        # אירוע שרוב הנקודות שלו במקום של שיבוש קבוע — לא מוצג ולא נספר
+        g['fake'] = [x for x in g['fake'] if 2 * sum((round(q[0], 2), round(q[1], 2)) in jam for q in x[6]) < len(x[6])]
         days.append([ds, typ[ds]])
         os.makedirs(f'{OUT}/gps', exist_ok=True)
         with open(f'{OUT}/gps/{ds}.json', 'w', encoding='utf-8') as f:
             json.dump(g['fake'], f, ensure_ascii=False, separators=(',', ':'))
         fk, fl, fv, tl = collections.Counter(), collections.Counter(), collections.Counter(), collections.Counter()
-        for ag, ln, veh, *_ in g['fake']:
+        for ag, ln, veh, *_ in g['fake']:   # אירוע = זיוף אחד
             fk[ag] += 1; fl[f'{ln}|{ag}'] += 1; fv[f'{veh}|{ag}'] += 1
         for ag, lines in g['tl'].items():
             for ln, n in lines.items():
