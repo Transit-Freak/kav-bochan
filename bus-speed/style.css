@@ -209,3 +209,10 @@ table.bt td { white-space: normal; } table.bt td.n { white-space: nowrap; }
   .seg button, .cnav, #dpick .cd { min-height: 40px; }
   #pane-close { width: 40px; height: 40px; }
 }
+/* השוואת יישובים — חץ מיון בכל כותרת (03.11) */
+#cities table.t th.s::after { content: none; }
+#cities .sa { color: var(--mut); font-size: 11px; }
+#cities th.s .sa { color: var(--acc-ink); font-size: inherit; }
+/* עומס בתחנה — בחירת יום */
+.qdl { display: flex; gap: 6px; align-items: center; margin: 4px 0 8px; font-size: 13px; font-weight: 700; }
+.qdl select { flex: 1; min-width: 0; padding: 6px; font-size: 14px; }
