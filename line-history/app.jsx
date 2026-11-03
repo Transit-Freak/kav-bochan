@@ -572,7 +572,20 @@ function routeSearchRank(line, query) {
 // הבדיקה הזו, וכל כניסה הורידה מחדש כ-3.5MB; והבקשה לא הוגבלה בזמן, כך שבקשה שנתקעה ברשת
 // השאירה "טוען…" לתמיד. עכשיו: בלי חותמת (העדכון מגיע עד 10 דק' אחרי הפרסום), ועד 20 שניות
 // לתשובה מהשרת — ואז ניסיון נוסף. הזמן נמדד עד שהשרת עונה, לא עד סוף ההורדה של קובץ גדול.
+// data/changes נשמר בפרסום מכווץ (‎X.json.gz‎, שלמה 03.11 — גודל האתר). מחזירים Response רגיל עם ה-JSON
+// הפתוח, כך שהקוראים (‎.json()‎, ‎r.ok‎) לא משתנים; בלי מכווץ או בדפדפן ישן — הקובץ הרגיל
+const dfetchGz = async (p) => {
+  if (!window.DecompressionStream) return null;
+  try {
+    const r = await fetch(p + ".gz?v=" + BUILD, { cache: "no-cache" });
+    if (!r.ok) return null;
+    const b = new Uint8Array(await r.arrayBuffer());
+    const body = b[0] === 0x1f && b[1] === 0x8b ? await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).text() : new TextDecoder().decode(b);
+    return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+  } catch (e) { return null; }
+};
 const dfetch = async (p, tries = 2) => {
+  if (/^data\/changes\/[^/?]+\.json$/.test(p)) { const z = await dfetchGz(p); if (z) return z; }
   const url = p + (p.includes("?") ? "&" : "?") + "v=" + BUILD;
   for (let i = 1; ; i++) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
