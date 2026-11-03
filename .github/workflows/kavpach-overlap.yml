@@ -59,5 +59,10 @@ jobs:
           git add kavpach-overlap.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'data: refresh KavPach shared stops and directed geometry overlap'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # 02.11: דחיפה אחרת נכנסה בין ה-pull ל-push ("cannot lock ref") — ניסיון חוזר עם rebase
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            echo "push rejected — retry $i"; sleep $((10 * i))
+          done
+          exit 1
