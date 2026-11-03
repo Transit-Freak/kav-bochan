@@ -1891,7 +1891,7 @@ function RailSched({ rd }) {
   }
   return (
     <details className="schedbox">
-      <summary>🕐 הלו״ז של הקו בשבוע של {fmtD(p.d)} — לחצו כאן כדי להחליף חלופה</summary>
+      <summary>🕐 לו״ז הרכבת, לחצו כאן להחליף חלופה <span className="mut">(שבוע של {fmtD(p.d)})</span></summary>
       {monthly ? <div className="schednote">
         כל הרכבות בכיוון {x.from} ← {x.to} לפי הלו"ז שפורסם, שבוע אחד בכל חודש. "דרך / שינוי" ריק = המסלול הרגיל.
       </div> : <div className="schednote">
