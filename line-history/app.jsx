@@ -1653,7 +1653,8 @@ function AlternativeSelector({sibs,rd,date,latest,onSwitch,altRd,setAltRd}) {
     if(usePre || (!items && preAll)) { const t=pre[s.rd]; return t===NO_BASE?'':(t||''); }
     const it=items && items.find(x=>x.rd===s.rd);
     let t=areas && it ? describeVariant(it,variantBase(it,items,historical),areas) : null;
-    if(t===NO_SEQ) t='לא פעלה במועד הזה';
+    // בלי "לא פעלה במועד הזה" (שלמה 03.11: להוריד) — בלי רצף תחנות לא מוצג תיאור, רק הכיוון והחלופה
+    if(t===NO_SEQ) t='';
     else if(t===NO_BSEQ || t===NO_BASE) t=(pre && pre[s.rd] && pre[s.rd]!==NO_BASE) ? pre[s.rd] : '';
     return t||'';
   };
