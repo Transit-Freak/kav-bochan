@@ -370,14 +370,18 @@ async function drawFake() {
   }))).flat();
   if (seq !== fakeSeq) return;
   fakeG.clearLayers();
+  // אירוע זיוף [מפעיל, קו, רכב, יציאה, רוחב אמיתי, אורך אמיתי, [[רוחב, אורך, שעה, ק"מ]…]] — כל הנקודות של
+  // אותו אוטובוס כמסלול אחד (שלמה 03.11: שורת נקודות נראתה כמו כמה אוטובוסים)
   const hh = String(S.h).padStart(2, '0');
   let n = 0;
   for (const f of all) {
-    if (f[3].slice(0, 2) !== hh) continue;
+    const pts = f[6] || [];
+    if (!pts.length || !pts.some(q => q[2].slice(0, 2) === hh)) continue;
     n++;
-    L.circleMarker([f[5], f[6]], { renderer: frend, radius: TOUCH ? 9 : 6, weight: 1, color: '#7f1d1d', fillColor: '#dc2626', fillOpacity: .85 })
-      .bindTooltip(`<b>מיקום מזויף</b> · קו ${esc(f[1])} (${esc(f[0])})<br>${f[3].slice(0, 5)}${days.length > 1 ? ', ' + dayShort(f.d) : ''}<br><small>לחיצה — איפה האוטובוס היה באמת</small>`, { sticky: true })
-      .on('click', () => pickFake(f)).addTo(fakeG);
+    const tip = `<b>מסלול מזויף — אוטובוס אחד</b><br>קו ${esc(f[1])} (${esc(f[0])}) · ${pts[0][2].slice(0, 5)}${pts.length > 1 ? '–' + pts[pts.length - 1][2].slice(0, 5) : ''}${days.length > 1 ? ', ' + dayShort(f.d) : ''}<br><small>לחיצה — איפה האוטובוס היה באמת</small>`;
+    if (pts.length > 1) L.polyline(pts.map(q => [q[0], q[1]]), { renderer: frend, color: '#dc2626', weight: TOUCH ? 6 : 4, opacity: .85 }).bindTooltip(tip, { sticky: true }).on('click', () => pickFake(f)).addTo(fakeG);
+    L.circleMarker([pts[0][0], pts[0][1]], { renderer: frend, radius: TOUCH ? 9 : 6, weight: 1.5, color: '#7f1d1d', fillColor: '#dc2626', fillOpacity: .9 })
+      .bindTooltip(tip, { sticky: true }).on('click', () => pickFake(f)).addTo(fakeG);
   }
   msg(n ? '' : `אין זיופי GPS ב-${fmt(S.h)} בימים שנבחרו`);
 }
@@ -385,22 +389,24 @@ function pickFake(f) {
   lastPick = Date.now();
   S.spot = { fake: f };
   hiG.clearLayers(); fakeSel.clearLayers();
-  L.circleMarker([f[5], f[6]], { radius: 13, color: '#0ea5e9', weight: 3, fill: false, interactive: false }).addTo(fakeSel);
+  const pts = f[6].map(q => [q[0], q[1]]);
+  if (pts.length > 1) L.polyline(pts, { color: '#0ea5e9', weight: 8, opacity: .45, interactive: false }).addTo(fakeSel);
+  L.circleMarker(pts[0], { radius: 13, color: '#0ea5e9', weight: 3, fill: false, interactive: false }).addTo(fakeSel);
+  L.polyline([[f[4], f[5]], pts[0]], { color: '#0f172a', weight: 2, dashArray: '6 6', interactive: false }).addTo(fakeSel);
+  L.circleMarker([f[4], f[5]], { radius: 7, color: '#0f172a', weight: 1.5, fillColor: '#15803d', fillOpacity: 1 }).bindTooltip('המיקום האמיתי').addTo(fakeSel);
   tool('spot');
-  if (f[7] == null) { map.setView([f[5], f[6]], Math.max(map.getZoom(), 11)); return; }
-  L.polyline([[f[5], f[6]], [f[7], f[8]]], { color: '#0f172a', weight: 2, dashArray: '6 6', interactive: false }).addTo(fakeSel);
-  L.circleMarker([f[7], f[8]], { radius: 7, color: '#0f172a', weight: 1.5, fillColor: '#15803d', fillOpacity: 1 }).bindTooltip('המיקום האמיתי').addTo(fakeSel);
-  map.fitBounds(L.latLngBounds([[f[5], f[6]], [f[7], f[8]]]).pad(0.4), { maxZoom: 14 });
+  map.fitBounds(L.latLngBounds([[f[4], f[5]], ...pts]).pad(0.3), { maxZoom: 14 });
 }
 function fakePane(f) {
-  const [ag, ln, veh, tm, dep, , , , , km] = f;
-  return `<div class="blk"><h3>מיקום מזויף <span class="mut">· ${dayShort(f.d)}, ${tm.slice(0, 5)}</span></h3>` +
-    `<div class="mut sm">האוטובוס שידר שהוא נמצא כאן — במקום שאין בו שום רחוב שאוטובוסים נוסעים בו</div>` +
+  const [ag, ln, veh, dep, , , pts] = f, t0 = pts[0][2].slice(0, 5), t1 = pts[pts.length - 1][2].slice(0, 5);
+  const km = Math.max(...pts.map(q => q[3]));
+  const mins = Math.round((Date.parse('2000-01-01T' + pts[pts.length - 1][2]) - Date.parse('2000-01-01T' + pts[0][2])) / 60000);
+  return `<div class="blk"><h3>מיקום מזויף <span class="mut">· ${dayShort(f.d)}, ${t0}${t1 !== t0 ? '–' + t1 : ''}</span></h3>` +
+    `<div class="mut sm">אוטובוס אחד שידר מיקום שהוא לא היה בו${pts.length > 1 ? ` — ${pts.length} שידורים${mins ? ` במשך ${mins} דקות` : ''}, ואז חזר למקום האמיתי` : ', ומיד חזר למקום האמיתי'}</div>` +
     `<div class="kv"><span>קו</span><b>${esc(ln)}</b><span>מפעיל</span><b>${esc(ag)}</b><span>מספר רכב</span><b dir="ltr">${esc(veh)}</b><span>הנסיעה של</span><b>${esc(dep)}</b></div></div>` +
-    (f[7] == null ? `<div class="blk"><h3>איפה הוא היה באמת</h3><div class="busy">לא ידוע — גם השידור הקודם של הרכב היה במקום בלי רחוב (רצף של שידורים מזויפים). השידור הזה לא נכנס למהירויות</div></div>`
-      : `<div class="blk"><h3>איפה הוא היה באמת</h3><div class="kv"><span>המיקום התקין האחרון</span><b>${km} ק"מ משם</b></div>` +
-        `<div class="busy" style="margin-top:8px"><b>קפיצה של ${km} ק"מ</b> — אי אפשר לנסוע ככה. השידור הזה לא נכנס למהירויות</div></div>`) +
-    `<div class="note">${f[7] == null ? '' : 'ירוק במפה — המיקום האמיתי. '}<a href="../bus/#/gps">כל הזיופים לפי מפעיל, קו ורכב — במדד דיוק האוטובוסים ←</a></div>`;
+    `<div class="blk"><h3>איפה הוא היה באמת</h3><div class="kv"><span>המרחק מהמיקום האמיתי</span><b>עד ${km} ק"מ</b></div>` +
+    `<div class="busy" style="margin-top:8px">אי אפשר לנסוע ככה — השידורים האלה לא נכנסים למהירויות</div></div>` +
+    `<div class="note">ירוק במפה — המיקום האמיתי, כחול — המסלול המזויף. <a href="../bus/#/gps">כל הזיופים לפי מפעיל, קו ורכב — במדד דיוק האוטובוסים ←</a></div>`;
 }
 function layersPane() {
   const it = [['sp', 'מהירות האוטובוסים', 'הצבע לאורך הכביש — כמה מהר נוסעים בכל קטע'], ['bn', 'התקבצות בתחנות', 'עיגול לכל תחנה — כמה פעמים שני אוטובוסים של אותו קו הגיעו צמודים'], ['ld', 'עומס בתחנות', 'עיגול לכל תחנה — כמה מהזמן עמדו בה 3 אוטובוסים או יותר. גודל העיגול: כמה אוטובוסים בממוצע'], ['gf', 'זיופי GPS', 'נקודה לכל מקום שאוטובוס שידר שהוא נמצא בו — בלי שום רחוב של אוטובוסים לידו (ים, שטח פתוח). לפי הימים והשעה שנבחרו']];
