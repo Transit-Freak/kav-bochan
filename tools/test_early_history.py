@@ -117,6 +117,16 @@ class BrokenSourceTest(unittest.TestCase):
   m.write(Path(d)/'cat.json',{'snapshots':[{'id':'obus-2018-07-30-x','kind':'obus15','date':'2018-07-30','urls':['https://example/x.zip']}]})
  def tearDown(self):self.tmp.cleanup()
  def progress(self):return m.read(Path(self.d)/'early-progress.json')
+ def test_cluster_to_line_source_is_skipped_without_download(self):
+  # 03.11: קובצי ClusterToLine בקטלוג (לא GTFS, ריקים בארכיון) חסמו את הייבוא — מדלגים בלי להוריד
+  m.write(Path(self.d)/'cat.json',{'snapshots':[{'id':'obus-2018-08-06-x','kind':'obus15','date':'2018-08-06','urls':['https://example/2018-08-06T22-17-55_ClusterToLine-2018-08-06T19-23-36.zip']}]})
+  def no_dl(u,p):raise AssertionError('should not download')
+  self.assertEqual(self.run_main(self.d,download=no_dl),0)
+  self.assertIn('obus-2018-08-06-x',self.progress()['skipped'])
+ def test_empty_source_file_is_skipped_at_once(self):
+  def empty(u,p):open(p,'wb').close()
+  self.assertEqual(self.run_main(self.d,download=empty),0)
+  self.assertIn('obus-2018-07-30-x',self.progress()['skipped'])
  def test_missing_table_is_skipped_at_once_without_failing(self):
   def no_routes(u,p):
    with zipfile.ZipFile(p,'w') as z:z.writestr('agency.txt','agency_id\na\n')
@@ -125,7 +135,7 @@ class BrokenSourceTest(unittest.TestCase):
   self.assertEqual(self.progress()['errors'],{})
  def test_other_data_error_warns_and_skips_after_three(self):
   def bad(source,paths):raise ValueError('Missing route 1')
-  ok=lambda u,p:p.write_bytes(b'')
+  ok=lambda u,p:p.write_bytes(b'x')  # לא ריק: קובץ ריק כבר מדולג מיד
   for i in range(m.SKIP_AFTER-1):
    self.assertEqual(self.run_main(self.d,download=ok,publish=bad),0)
    self.assertEqual(self.progress()['attempts']['obus-2018-07-30-x'],i+1)
