@@ -16,6 +16,7 @@ on:
 permissions:
   contents: write
   pages: write
+  actions: write
 concurrency:
   group: historical-2012-2018-${{ github.ref }}
   cancel-in-progress: false
@@ -77,6 +78,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # מאז pages-deploy.yml הבקשה הזו מיותרת (ונדחית); הפרסום קורה ב-workflow_run
         run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" || true
+      # ההרצה השעתית לפי לוח הזמנים לא תמיד מתחילה (03.11: 3 ריצות ביום במקום 24), והייבוא נמשך שבועות.
+      # כשנשארו צילומים והריצה הצליחה — מפעילים מיד את הריצה הבאה
+      - name: Next batch
+        if: steps.remaining.outputs.needed == 'true' && github.ref == 'refs/heads/main' && success() && steps.import.outputs.source_status == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run early-history.yml -R "$GITHUB_REPOSITORY" --ref main || true
       - name: Report source failures
         if: steps.import.outputs.source_status != '' && steps.import.outputs.source_status != '0'
         run: |

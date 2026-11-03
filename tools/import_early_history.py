@@ -307,6 +307,10 @@ def main():
         print('Importing',sid,flush=True)
         failed=False
         try:
+            # קובץ ClusterToLine (רשימת אשכולות, לא GTFS) נכנס לקטלוג בטעות, ובארכיון הוא ריק (0 בתים).
+            # כל אחד חסם את הייבוא שלוש ריצות (03.11: 10 כאלה בין 08 ל-12.2018) — מדלגים מיד
+            if any('ClusterToLine' in u for u in source['urls']):
+                raise MissingTable('ClusterToLine: not a GTFS file')
             with tempfile.TemporaryDirectory(prefix='early-gtfs-') as tmp:
                 paths=[]
                 for i,u in enumerate(source['urls']):
@@ -317,6 +321,9 @@ def main():
                         p=Path(os.environ.get('EARLY_GTFS_CACHE',tmp))/(digest(u)+'.zip')
                         p.parent.mkdir(parents=True,exist_ok=True)
                         if not p.exists():download(u,p)
+                        # קובץ ריק במקור — לא יהיה בו GTFS גם בניסיון הבא
+                        if p.stat().st_size==0:
+                            p.unlink();raise MissingTable(f'{u.rsplit("/",1)[-1]}: empty file at source')
                     paths.append(p)
                 result=publish(source,paths)
             progress['done'][sid]=result;progress['errors'].pop(sid,None)
