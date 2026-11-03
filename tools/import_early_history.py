@@ -328,7 +328,13 @@ def main():
             # להיתקע עליו ולשלוח שגיאה כל שעה. ההשוואה עוברת לצילום שלפניו.
             # רק שגיאת נתונים (ValueError) נספרת — תקלת רשת או הורדה תמיד מנוסה שוב.
             tries=progress.setdefault('attempts',{})
-            if isinstance(e,ValueError):tries[sid]=tries.get(sid,0)+1
+            # קובץ שאינו ZIP תקין (03.11: obus-2018-08-06 "File is not a zip file") — שגיאת נתונים כמו ValueError:
+            # נספר בניסיונות, ונמחק מהמטמון כדי שהניסיון הבא יוריד אותו מחדש (אולי ההורדה נקטעה)
+            if isinstance(e,zipfile.BadZipFile):
+                for u in source['urls']:
+                    q=Path(os.environ.get('EARLY_GTFS_CACHE','/nonexistent'))/(digest(u)+'.zip')
+                    if q.exists():q.unlink()
+            if isinstance(e,(ValueError,zipfile.BadZipFile)):tries[sid]=tries.get(sid,0)+1
             # טבלה שלמה חסרה — אין טעם לחכות לעוד ניסיונות: מדלגים כבר עכשיו (שלמה 01.11)
             if isinstance(e,MissingTable):tries[sid]=SKIP_AFTER
             if tries.get(sid,0)>=SKIP_AFTER:

@@ -131,6 +131,12 @@ class BrokenSourceTest(unittest.TestCase):
    self.assertEqual(self.progress()['attempts']['obus-2018-07-30-x'],i+1)
   self.assertEqual(self.run_main(self.d,download=ok,publish=bad),0)
   self.assertIn('obus-2018-07-30-x',self.progress()['skipped'])
+ def test_broken_zip_warns_and_skips_after_three(self):
+  bad=lambda u,p:p.write_bytes(b'not a zip')
+  for i in range(m.SKIP_AFTER-1):
+   self.assertEqual(self.run_main(self.d,download=bad),0)
+  self.assertEqual(self.run_main(self.d,download=bad),0)
+  self.assertIn('obus-2018-07-30-x',self.progress()['skipped'])
  def test_network_error_still_fails(self):
   def down(u,p):raise OSError('connection reset')
   self.assertEqual(self.run_main(self.d,download=down),1)
