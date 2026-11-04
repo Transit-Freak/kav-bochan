@@ -41,7 +41,7 @@ const TT={d1:['קו 988 בצפת: קרית גת ← חצור הגלילית','מ
 document.getElementById('t').textContent=TT[dir][0];
 fetch('data.json').then(r=>r.json()).then(D=>{
   const x=D[dir];
-  const map=L.map('map',{zoomControl:false,attributionControl:false});
+  const map=L.map('map',{zoomControl:false,attributionControl:false,zoomSnap:0.1});
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
   const all=[];
   x.old.line.forEach(s=>{L.polyline(s,{color:'#d64532',weight:7,opacity:.85,dashArray:'12 10'}).addTo(map);all.push(...s)});
@@ -49,7 +49,7 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   // המפה מתמקדת בעיר עצמה; צומת עין זיתים וצומת ביריה (מחוץ לעיר) מסומנים בשולי המפה עם חץ לכיוונם
   const far=s=>/עין זיתים|ביריה/.test(s.n);
   const b=L.latLngBounds([...x.old.stops,...x.new.stops].filter(s=>!far(s)).map(s=>[s.la,s.lo]));
-  map.fitBounds(b,{padding:[60,60]});
+  map.fitBounds(b,{padding:[50,50]});
   // תוויות: תחנות צמודות באותו צבע — תווית אחת "שם ועוד N", כדי שלא יעלו זו על זו
   // תחנות: מספר בתוך העיגול, כמו המספר ברשימה מתחת למפה
   // מספרים שנופלים זה על זה (למשל שתי תחנות "צומת עין זיתים" בשני כבישים) — מזיזים הצידה כדי ששניהם ייראו
