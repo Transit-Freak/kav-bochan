@@ -15,10 +15,11 @@ h1{margin:0;font-size:34px}
 .d.a{background:#14955f;border-color:#0c6b44}.d.r{background:#fff;border-color:#d64532}
 #ft{padding:6px 28px 18px;font-size:18px;color:#666}
 .tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}.tt.end{font-size:18px;padding:3px 8px}.tt.nb{background:#1f5fd1;color:#fff;border-color:#1f5fd1}.tt.ob{background:#fff;color:#b3301f;border-color:#d64532}
-.st span{display:inline-block;transform:translate(-50%,-50%);white-space:nowrap;font-size:15px;font-weight:bold;color:#222;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+.st span{display:inline-block;white-space:nowrap;font-size:15px;font-weight:bold;color:#222;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
 .cs span{display:inline-block;transform:translate(-50%,-230%);white-space:nowrap;font-size:17px;font-weight:bold;background:#111;color:#fff;border-radius:6px;padding:3px 8px;box-shadow:0 1px 4px #0006}
 #lists{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;padding:10px 28px 4px;font-size:19px}
 #lists h3{margin:0 0 4px;font-size:21px}#lists h3.r{color:#b3301f}#lists h3.a{color:#0c6b44}
+#lists small{color:#777;font-size:15px}
 #lists ol{margin:0;padding-right:26px;columns:1}
 .nm{width:22px;height:22px;border-radius:50%;font:bold 13px/22px Arial,sans-serif;text-align:center;box-shadow:0 0 0 2px #fff}
 .nm.r{background:#fff;color:#b3301f;border:2px solid #d64532;width:20px;height:20px;line-height:20px}
@@ -45,7 +46,12 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   map.fitBounds(b,{padding:[40,40]});
   // תוויות: תחנות צמודות באותו צבע — תווית אחת "שם ועוד N", כדי שלא יעלו זו על זו
   // תחנות: מספר בתוך העיגול, כמו המספר ברשימה מתחת למפה
-  const num=(s,i,cls)=>L.marker([s.la,s.lo],{zIndexOffset:500,interactive:false,icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="nm ${cls}">${i}</div>`})}).addTo(map);
+  // מספרים שנופלים זה על זה (למשל שתי תחנות "צומת עין זיתים" בשני כבישים) — מזיזים הצידה כדי ששניהם ייראו
+  const nums=[];
+  const num=(s,i,cls)=>{const p=map.latLngToContainerPoint([s.la,s.lo]);let dx=0,dy=0,t=0;
+    while(t<6&&nums.some(q=>Math.hypot(q.x-(p.x+dx),q.y-(p.y+dy))<22)){t++;dx=[0,24,-24,0,24,-24][t]||0;dy=[0,0,0,24,24,24][t]||0;}
+    nums.push({x:p.x+dx,y:p.y+dy});
+    L.marker([s.la,s.lo],{zIndexOffset:500,interactive:false,icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12-dx,12-dy],html:`<div class="nm ${cls}">${i}</div>`})}).addTo(map);};
   x.new.stops.forEach(s=>{if(s.k!=='only')L.circleMarker([s.la,s.lo],{radius:5,color:'#333',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(map)});
   x.old.stops.filter(s=>s.k==='only').forEach((s,i)=>num(s,i+1,'r'));
   x.new.stops.filter(s=>s.k==='only').forEach((s,i)=>num(s,i+1,'a'));
@@ -58,25 +64,26 @@ fetch('data.json').then(r=>r.json()).then(D=>{
     let i0=0;while(i0<pts.length-1&&!inside(P(pts[i0])))i0++;
     let i1=pts.length-1;while(i1>0&&!inside(P(pts[i1])))i1--;
     const ang=(i,j)=>{const a=P(pts[Math.max(0,Math.min(pts.length-1,i))]),c=P(pts[Math.max(0,Math.min(pts.length-1,j))]);return Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI;};
-    [[i0,END[0],ang(i0,i0+6)],[i1,END[1],ang(i1-6,i1)]].forEach(([i,t,an],k)=>{const q=pts[i];
+    [[i0,END[0],ang(i0,i0+20)],[i1,END[1],ang(i1-20,i1)]].forEach(([i,t,an],k)=>{const q=pts[i];
       if(skip&&skip[k]&&P(skip[k]).distanceTo(P(q))<120)return;
       bigArrow(q,an,col);
       L.marker(q,{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:P(q).y<sz.y/2?'bottom':'top',offset:[0,P(q).y<sz.y/2?16:-16],className:'tt end '+cls}).openTooltip();});
     return [pts[i0],pts[i1]];};
   const ne=ends(x.new.line,'#1f5fd1','nb'); ends(x.old.line,'#d64532','ob',ne);
   const arrows=(segs,col)=>segs.forEach(sg=>{let acc=0;for(let i=1;i<sg.length;i++){const a=map.latLngToContainerPoint(sg[i-1]),c=map.latLngToContainerPoint(sg[i]);acc+=a.distanceTo(c);
-    if(acc>170){acc=0;const ang=Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI;
+    if(acc>170&&i>=12){acc=0;const a0=map.latLngToContainerPoint(sg[i-12]);if(a0.distanceTo(c)<20)continue;const ang=Math.atan2(c.y-a0.y,c.x-a0.x)*180/Math.PI;
       L.marker(sg[i],{interactive:false,icon:L.divIcon({className:'',iconSize:[18,18],iconAnchor:[9,9],html:`<div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:13px solid ${col};transform:rotate(${ang}deg);transform-origin:center;margin:2px 0 0 3px"></div>`})}).addTo(map);}}});
   arrows(x.new.line,'#0b3d91');
   // שמות הרחובות שבהם עובר הקו (שלמה 04.11: "רק השמות של הרחובות"), בלי תוויות שעולות זו על זו
   const placed=[];
-  (x.streets||[]).filter(t=>t.c>=12).forEach(t=>{const p=map.latLngToContainerPoint(t.p);
-    if(placed.some(q=>Math.abs(q.x-p.x)<120&&Math.abs(q.y-p.y)<30))return; placed.push(p);
-    L.marker(t.p,{interactive:false,icon:L.divIcon({className:'st',iconSize:null,html:'<span>'+t.n.replace(/''/g,'"')+'</span>'})}).addTo(map);});
+  // רק רחובות שהקו נוסע לאורכם (מעל 110 מ'), והשם כתוב על הרחוב בכיוון שלו
+  (x.streets||[]).forEach(t=>{const p=map.latLngToContainerPoint(t.p);
+    if(placed.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<70))return; placed.push(p);
+    L.marker(t.p,{interactive:false,icon:L.divIcon({className:'st',iconSize:null,html:`<span style="transform:translate(-50%,-50%) rotate(${t.a}deg)">${t.n.replace(/''/g,'"')}</span>`})}).addTo(map);});
   // התחנה המרכזית
   L.marker(D.cs,{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:'cs',iconSize:null,html:'<span>🚏 התחנה המרכזית צפת</span>'})}).addTo(map);
   // רשימת התחנות מתחת למפה, לפי הסדר במסלול
-  const li=(a)=>a.map(s=>'<li>'+s.n.replace(/''/g,'"')+'</li>').join('');
+  const li=(a)=>a.map(s=>'<li>'+s.n.replace(/''/g,'"')+' <small>('+s.c+')</small></li>').join('');
   document.getElementById('lists').innerHTML=
     `<div><h3 class="r">תחנות שהקו לא יעצור בהן (${x.old.stops.filter(s=>s.k==='only').length})</h3><ol>${li(x.old.stops.filter(s=>s.k==='only'))}</ol></div>`+
     `<div><h3 class="a">תחנות חדשות בקו (${x.new.stops.filter(s=>s.k==='only').length})</h3><ol>${li(x.new.stops.filter(s=>s.k==='only'))}</ol></div>`;
