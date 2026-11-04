@@ -1,0 +1,30 @@
+name: map-988
+on:
+  push:
+    branches: [claude/map-988]
+permissions:
+  contents: write
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tmp-map988
+      - name: צילום
+        working-directory: tmp-map988
+        run: |
+          npm i --no-save playwright@1.48.2 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+          python3 -m http.server 8000 >/dev/null 2>&1 &
+          sleep 2
+          node shot.mjs
+          ls -la *.png
+      - name: שמירה
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp-map988/*.png
+          git commit -m "map 988 screenshots"
+          git push origin HEAD:claude/map-988

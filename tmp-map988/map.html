@@ -1,0 +1,44 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+html,body{margin:0;background:#fff;font-family:Arial,"Noto Sans Hebrew",sans-serif;color:#1d2421}
+#hd{padding:22px 28px 10px}
+h1{margin:0;font-size:34px}
+.sub{font-size:22px;color:#555;margin-top:4px}
+#map{width:1080px;height:1150px}
+.leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
+#lg{display:flex;flex-wrap:wrap;gap:10px 28px;padding:14px 28px;font-size:21px;border-top:1px solid #ddd}
+#lg span{display:inline-flex;align-items:center;gap:8px}
+.l{width:44px;border-top:7px solid #1f5fd1;display:inline-block}.l.o{border-top:6px dashed #d64532}
+.d{width:16px;height:16px;border-radius:50%;display:inline-block;border:3px solid #333;background:#fff}
+.d.a{background:#14955f;border-color:#0c6b44}.d.r{background:#fff;border-color:#d64532}
+#ft{padding:6px 28px 18px;font-size:18px;color:#666}
+.tt{font-size:15px;font-weight:bold;padding:1px 5px}
+</style></head><body>
+<div id="hd"><h1 id="t"></h1><div class="sub" id="s"></div></div>
+<div id="map"></div>
+<div id="lg"><span><i class="l o"></i>המסלול היום</span><span><i class="l"></i>המסלול מ-17.11.2026</span>
+<span><i class="d r"></i>תחנה שיורדת</span><span><i class="d a"></i>תחנה חדשה</span><span><i class="d"></i>נשארת</span></div>
+<div id="ft">לפי לוח הזמנים של משרד התחבורה (GTFS) מ-04.11.2026 · מפה: © OpenStreetMap · הוכן ע"י אדם פרטי, לא הודעה רשמית</div>
+<script>
+const dir=new URLSearchParams(location.search).get('d')||'d1';
+const TT={d1:['קו 988 בצפת: קרית גת ← חצור הגלילית','מה משתנה בצפת מ-17.11.2026'],d2:['קו 988 בצפת: חצור הגלילית ← קרית גת','מה משתנה בצפת מ-17.11.2026']};
+document.getElementById('t').textContent=TT[dir][0];
+fetch('data.json').then(r=>r.json()).then(D=>{
+  const x=D[dir];
+  const map=L.map('map',{zoomControl:false,attributionControl:false});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  const all=[];
+  x.old.line.forEach(s=>{L.polyline(s,{color:'#d64532',weight:7,opacity:.85,dashArray:'12 10'}).addTo(map);all.push(...s)});
+  x.new.line.forEach(s=>{L.polyline(s,{color:'#1f5fd1',weight:6,opacity:.9}).addTo(map);all.push(...s)});
+  const seen=new Set();
+  const lab=(m,n)=>m.bindTooltip(n,{permanent:true,direction:'left',offset:[-8,0],className:'tt'});
+  x.old.stops.forEach(s=>{if(s.k==='only'){lab(L.circleMarker([s.la,s.lo],{radius:7,color:'#d64532',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(map),s.n)}});
+  x.new.stops.forEach(s=>{const c=s.k==='only';const m=L.circleMarker([s.la,s.lo],{radius:c?7:5,color:c?'#0c6b44':'#333',weight:c?2:2,fillColor:c?'#14955f':'#fff',fillOpacity:1}).addTo(map);if(c)lab(m,s.n)});
+  const b=L.latLngBounds([...x.old.stops,...x.new.stops].map(s=>[s.la,s.lo]));
+  map.fitBounds(b,{padding:[40,40]});
+  document.getElementById('s').textContent=`${TT[dir][1]} · בצפת: ${x.old.stops.length} תחנות היום, ${x.new.stops.length} מ-17.11 · כל הנסיעה: ${Math.floor(x.old.min/60)}:${String(x.old.min%60).padStart(2,'0')} שעות ← ${Math.floor(x.new.min/60)}:${String(x.new.min%60).padStart(2,'0')}`;
+  setTimeout(()=>document.title='ready',4000);
+});
+</script></body></html>
