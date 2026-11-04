@@ -55,10 +55,15 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   // מספרים שנופלים זה על זה (למשל שתי תחנות "צומת עין זיתים" בשני כבישים) — מזיזים הצידה כדי ששניהם ייראו
   const nums=[];
   // המספר יושב על קו המסלול (העמוד עומד בצד הכביש, והקו מצויר במרכזו — בלי הצמדה נראה כאילו התחנה בצד השני)
-  const snapTo=(s,segs)=>{const c=map.latLngToContainerPoint([s.la,s.lo]);let b=null,bd=1e9;
-    segs.flat().forEach(q=>{const d=map.latLngToContainerPoint(q).distanceTo(c);if(d<bd){bd=d;b=q;}});
-    return bd<35?{...s,la:b[0],lo:b[1]}:s;};
-  const num=(s0,i,cls)=>{const s=snapTo(s0,cls==='r'?x.old.line:x.new.line);const p0=map.latLngToContainerPoint([s.la,s.lo]),SZ=map.getSize();
+  // side: +1 / -1 — תחנה אדומה בצד אחד של הכביש וירוקה בצד השני (שלמה 04.11), 0 — על הקו
+  const snapTo=(s,segs,side=0)=>{const F=segs.flat(),c=map.latLngToContainerPoint([s.la,s.lo]);let bi=-1,bd=1e9;
+    F.forEach((q,i)=>{const d=map.latLngToContainerPoint(q).distanceTo(c);if(d<bd){bd=d;bi=i;}});
+    if(bd>=35)return s;
+    const P0=map.latLngToContainerPoint(F[Math.max(0,bi-6)]),P1=map.latLngToContainerPoint(F[Math.min(F.length-1,bi+6)]),B=map.latLngToContainerPoint(F[bi]);
+    let dx=P1.x-P0.x,dy=P1.y-P0.y;const L0=Math.hypot(dx,dy)||1;let nx=-dy/L0,ny=dx/L0;
+    if(nx<-0.01||(Math.abs(nx)<=0.01&&ny<0)){nx=-nx;ny=-ny;}   // כיוון אחיד, בלי קשר לכיוון הנסיעה
+    const ll=map.containerPointToLatLng(L.point(B.x+side*nx*13,B.y+side*ny*13));return {...s,la:ll.lat,lo:ll.lng};};
+  const num=(s0,i,cls)=>{const s=snapTo(s0,cls==='r'?x.old.line:x.new.line,cls==='r'?1:-1);const p0=map.latLngToContainerPoint([s.la,s.lo]),SZ=map.getSize();
     const p=L.point(Math.min(Math.max(p0.x,30),SZ.x-30),Math.min(Math.max(p0.y,30),SZ.y-30));
     if(!p.equals(p0)){const ang=Math.atan2(p0.y-p.y,p0.x-p.x)*180/Math.PI;
       while(nums.some(q=>Math.abs(q.x-p.x)<40&&Math.abs(q.y-p.y)<30))p.y+=34;
@@ -86,7 +91,12 @@ fetch('data.json').then(r=>r.json()).then(D=>{
       if(k===0){L.circleMarker(q,{radius:8,color:'#fff',weight:3,fillColor:col,fillOpacity:1}).addTo(map);
         const j=Math.min(pts.length-1,i+30);bigArrow(pts[j],ang(j-12,j+8),col);}
       else bigArrow(q,an,col);
-      L.marker(q,{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:P(q).x>sz.x-230?'left':P(q).x<230?'right':(P(q).y<sz.y/2?'bottom':'top'),offset:P(q).x>sz.x-230?[-18,0]:P(q).x<230?[18,0]:[0,P(q).y<sz.y/2?16:-16],className:'tt end '+cls}).openTooltip();});
+      const Q=P(q),W2=t.length*9+30,H2=36,RP=[...x.old.line.flat(),...x.new.line.flat()].map(P);
+      const opts=[['left',[-18,0],Q.x-18-W2,Q.y-H2/2],['right',[18,0],Q.x+18,Q.y-H2/2],['top',[0,-18],Q.x-W2/2,Q.y-18-H2],['bottom',[0,18],Q.x-W2/2,Q.y+18]]
+        .filter(o=>o[2]>4&&o[2]+W2<sz.x-4&&o[3]>4&&o[3]+H2<sz.y-4)
+        .map(o=>[o,RP.filter(r=>r.x>o[2]-6&&r.x<o[2]+W2+6&&r.y>o[3]-6&&r.y<o[3]+H2+6).length]).sort((a,b)=>a[1]-b[1]);
+      const o=(opts[0]||[['top',[0,-18]]])[0];
+      L.marker(q,{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:o[0],offset:o[1],className:'tt end '+cls}).openTooltip();});
     return [pts[i0],pts[i1]];};
   const ne=ends(x.new.line,'#1f5fd1','nb'); ends(x.old.line,'#d64532','ob',ne);
   const arrows=(segs,col)=>segs.forEach(sg=>{let acc=0;for(let i=1;i<sg.length;i++){const a=map.latLngToContainerPoint(sg[i-1]),c=map.latLngToContainerPoint(sg[i]);acc+=a.distanceTo(c);
