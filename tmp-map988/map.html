@@ -62,7 +62,10 @@ fetch('data.json').then(r=>r.json()).then(D=>{
     const P0=map.latLngToContainerPoint(s.hd[0]),P1=map.latLngToContainerPoint(s.hd[1]);
     let dx=P1.x-P0.x,dy=P1.y-P0.y;const L0=Math.hypot(dx,dy)||1;let nx=-dy/L0,ny=dx/L0;
     if(nx<-0.01||(Math.abs(nx)<=0.01&&ny<0)){nx=-nx;ny=-ny;}
-    const ll=map.containerPointToLatLng(L.point(B.x+side*nx*11,B.y+side*ny*11));return {...s,la:ll.lat,lo:ll.lng};};
+    // הצד של הכביש לפי המיקום האמיתי של עמוד התחנה (שלמה 04.11: "3 לא בצד הנכון"); רק כשהעמוד ממש על הקו — צד קבוע לפי הצבע
+    const T=map.latLngToContainerPoint([s.la,s.lo]),cr=(T.x-B.x)*nx+(T.y-B.y)*ny;
+    const sd=Math.abs(cr)>1.2?Math.sign(cr):side;
+    const ll=map.containerPointToLatLng(L.point(B.x+sd*nx*11,B.y+sd*ny*11));return {...s,la:ll.lat,lo:ll.lng};};
   const num=(s0,i,cls)=>{const s=snapTo(s0,cls==='r'?x.old.line:x.new.line,cls==='r'?1:-1);const p0=map.latLngToContainerPoint([s.la,s.lo]),SZ=map.getSize();
     const p=L.point(Math.min(Math.max(p0.x,30),SZ.x-30),Math.min(Math.max(p0.y,30),SZ.y-30));
     if(!p.equals(p0)){const ang=Math.atan2(p0.y-p.y,p0.x-p.x)*180/Math.PI;
