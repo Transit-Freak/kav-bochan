@@ -16,15 +16,18 @@ h1{margin:0;font-size:34px}
 #ft{padding:6px 28px 18px;font-size:18px;color:#666}
 .tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}.tt.end{font-size:18px;padding:3px 8px}.tt.nb{background:#1f5fd1;color:#fff;border-color:#1f5fd1}.tt.ob{background:#fff;color:#b3301f;border-color:#d64532}
 .st span{display:inline-block;transform:translate(-50%,-50%);white-space:nowrap;font-size:15px;font-weight:bold;color:#222;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
-.cs span{display:inline-block;transform:translate(-50%,-150%);white-space:nowrap;font-size:17px;font-weight:bold;background:#111;color:#fff;border-radius:6px;padding:3px 8px;box-shadow:0 1px 4px #0006}
+.cs span{display:inline-block;transform:translate(-50%,-230%);white-space:nowrap;font-size:17px;font-weight:bold;background:#111;color:#fff;border-radius:6px;padding:3px 8px;box-shadow:0 1px 4px #0006}
 #lists{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;padding:10px 28px 4px;font-size:19px}
 #lists h3{margin:0 0 4px;font-size:21px}#lists h3.r{color:#b3301f}#lists h3.a{color:#0c6b44}
 #lists ol{margin:0;padding-right:26px;columns:1}
+.nm{width:22px;height:22px;border-radius:50%;font:bold 13px/22px Arial,sans-serif;text-align:center;box-shadow:0 0 0 2px #fff}
+.nm.r{background:#fff;color:#b3301f;border:2px solid #d64532;width:20px;height:20px;line-height:20px}
+.nm.a{background:#14955f;color:#fff}
 </style></head><body>
 <div id="hd"><h1 id="t"></h1><div class="sub" id="s"></div></div>
 <div id="map"></div>
 <div id="lg"><span><i class="l o"></i>המסלול היום</span><span><i class="l"></i>המסלול מ-17.11.2026</span>
-<span><i class="d r"></i>תחנה שיורדת</span><span><i class="d a"></i>תחנה חדשה</span><span><i class="d"></i>נשארת</span></div>
+<span><i class="nm r" style="display:inline-block">1</i>תחנה שיורדת</span><span><i class="nm a" style="display:inline-block">1</i>תחנה חדשה</span><span><i class="d"></i>תחנה שנשארת</span></div>
 <div id="lists"></div>
 <div id="ft">הוכן על ידי אדם פרטי · לא פרסום רשמי של משרד התחבורה · מפה: © תורמי OpenStreetMap</div>
 <script>
@@ -41,16 +44,25 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   const b=L.latLngBounds([...x.old.stops,...x.new.stops].map(s=>[s.la,s.lo]));
   map.fitBounds(b,{padding:[40,40]});
   // תוויות: תחנות צמודות באותו צבע — תווית אחת "שם ועוד N", כדי שלא יעלו זו על זו
-  const items=[];
-  x.old.stops.forEach(s=>{if(s.k==='only'){L.circleMarker([s.la,s.lo],{radius:7,color:'#d64532',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(map);items.push({s,k:'r'})}});
-  x.new.stops.forEach(s=>{const c=s.k==='only';L.circleMarker([s.la,s.lo],{radius:c?7:5,color:c?'#0c6b44':'#333',weight:2,fillColor:c?'#14955f':'#fff',fillOpacity:1}).addTo(map);if(c)items.push({s,k:'a'})});
+  // תחנות: מספר בתוך העיגול, כמו המספר ברשימה מתחת למפה
+  const num=(s,i,cls)=>L.marker([s.la,s.lo],{zIndexOffset:500,interactive:false,icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12,12],html:`<div class="nm ${cls}">${i}</div>`})}).addTo(map);
+  x.new.stops.forEach(s=>{if(s.k!=='only')L.circleMarker([s.la,s.lo],{radius:5,color:'#333',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(map)});
+  x.old.stops.filter(s=>s.k==='only').forEach((s,i)=>num(s,i+1,'r'));
+  x.new.stops.filter(s=>s.k==='only').forEach((s,i)=>num(s,i+1,'a'));
   // סוף ותחילת המסלול (שלמה 04.11: "שיהיה ברור שהקו הכחול לא נגמר באמצע") — תווית "ממשיך ל..." וחיצי כיוון
   const END={d1:['מגיע מקרית גת','ממשיך לחצור הגלילית'],d2:['מגיע מחצור הגלילית','ממשיך לקרית גת']}[dir];
-  const ends=(segs,col,cls,skip)=>{const f=segs[0][0],l=segs[segs.length-1][segs[segs.length-1].length-1];
-    const P=q=>map.latLngToContainerPoint(q);
-    [[f,'⬤ '+END[0]],[l,END[1]+' ◀']].forEach(([q,t],i)=>{if(skip&&skip[i]&&P(skip[i]).distanceTo(P(q))<90)return;
-      L.marker(q,{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:'top',offset:[0,-6],className:'tt end '+cls}).openTooltip();});
-    return [f,l];};
+  const sz=map.getSize(),P=q=>map.latLngToContainerPoint(q);
+  const inside=pt=>pt.x>70&&pt.x<sz.x-70&&pt.y>50&&pt.y<sz.y-50;
+  const bigArrow=(q,ang,col)=>L.marker(q,{interactive:false,zIndexOffset:900,icon:L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],html:`<div style="width:0;height:0;border-top:12px solid transparent;border-bottom:12px solid transparent;border-left:24px solid ${col};transform:rotate(${ang}deg);margin:3px 0 0 4px;filter:drop-shadow(0 0 2px #fff)"></div>`})}).addTo(map);
+  const ends=(segs,col,cls,skip)=>{const pts=segs.flat();
+    let i0=0;while(i0<pts.length-1&&!inside(P(pts[i0])))i0++;
+    let i1=pts.length-1;while(i1>0&&!inside(P(pts[i1])))i1--;
+    const ang=(i,j)=>{const a=P(pts[Math.max(0,Math.min(pts.length-1,i))]),c=P(pts[Math.max(0,Math.min(pts.length-1,j))]);return Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI;};
+    [[i0,END[0],ang(i0,i0+6)],[i1,END[1],ang(i1-6,i1)]].forEach(([i,t,an],k)=>{const q=pts[i];
+      if(skip&&skip[k]&&P(skip[k]).distanceTo(P(q))<120)return;
+      bigArrow(q,an,col);
+      L.marker(q,{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:P(q).y<sz.y/2?'bottom':'top',offset:[0,P(q).y<sz.y/2?16:-16],className:'tt end '+cls}).openTooltip();});
+    return [pts[i0],pts[i1]];};
   const ne=ends(x.new.line,'#1f5fd1','nb'); ends(x.old.line,'#d64532','ob',ne);
   const arrows=(segs,col)=>segs.forEach(sg=>{let acc=0;for(let i=1;i<sg.length;i++){const a=map.latLngToContainerPoint(sg[i-1]),c=map.latLngToContainerPoint(sg[i]);acc+=a.distanceTo(c);
     if(acc>170){acc=0;const ang=Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI;
