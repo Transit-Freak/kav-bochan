@@ -12,7 +12,7 @@
 set -uo pipefail
 ARCH=Transit-Freak/kav-bochan-archive
 OUT=${GITHUB_OUTPUT:-/dev/stdout}
-MAX_NEED=${MAX_NEED:-20000}
+MAX_NEED=${MAX_NEED:-400000}
 full() { echo "::warning::הארכיון לא בשימוש בפרסום הזה: $1 — מעלים את כל הקבצים כמו קודם"; echo "full=yes" >> "$OUT"; exit 0; }
 
 last() {   # התוצאה של הריצה האחרונה *שהסתיימה* של workflow בריפו הארכיון
@@ -39,14 +39,37 @@ git -C /tmp/arch ls-tree -r "$sha" early-patterns early-stops | awk '{print $3" 
 git ls-tree -r HEAD line-history/data/early-patterns line-history/data/early-stops \
   | awk '{sub("^line-history/data/","",$4); print $3" "$4}' | sort > /tmp/main.lst
 total=$(wc -l < /tmp/main.lst)
-comm -23 /tmp/main.lst /tmp/arch.lst | awk '{print "/line-history/data/"$2}' > /tmp/need.lst
+comm -23 /tmp/main.lst /tmp/arch.lst > /tmp/need.pairs
+awk '{print "/line-history/data/"$2}' /tmp/need.pairs > /tmp/need.lst
 need=$(wc -l < /tmp/need.lst)
 echo "בארכיון $(wc -l < /tmp/arch.lst) קבצים · באתר $total · שאינם בארכיון באותו תוכן: $need"
 [ "$total" -gt 0 ] || full "אין קבצים בתיקיות הארכיון באתר — משהו לא תקין"
 [ "$need" -le "$MAX_NEED" ] || full "$need קבצים חסרים בארכיון (יותר מ-$MAX_NEED)"
+# 04.11: הייבוא ההיסטורי רץ ברצף והוסיף עשרות אלפי קבצים לפני שהארכיון הספיק להסתנכרן (65 אלף).
+# "sparse-checkout add" לרשימת קבצים כזו איטי מאוד, ו"הכל" כבר מעל מגבלת ה-10GB — שתי ריצות נכשלו.
+# במקום זה: מורידים רק את התוכן (blobs) של הקבצים החסרים בבקשה אחת, וכותבים אותם ישר לתיקיית האתר
 if [ "$need" -gt 0 ]; then
   head -5 /tmp/need.lst
-  git sparse-checkout add --stdin < /tmp/need.lst || full "לא הצלחתי להוסיף את הקבצים החסרים"
+  cut -d' ' -f1 /tmp/need.pairs | sort -u | git -c fetch.negotiationAlgorithm=noop fetch -q --stdin --no-tags \
+    --no-write-fetch-head --recurse-submodules=no --filter=blob:none origin || full "לא הצלחתי להוריד את הקבצים החסרים"
+  python3 - <<'PY' || full "לא הצלחתי לכתוב את הקבצים החסרים"
+import os, subprocess
+pairs = [l.rstrip('\n').split(' ', 1) for l in open('/tmp/need.pairs')]
+p = subprocess.Popen(['git', 'cat-file', '--batch'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+total = 0
+for sha, rel in pairs:
+    p.stdin.write((sha + '\n').encode()); p.stdin.flush()
+    head = p.stdout.readline().split()
+    if len(head) < 3 or head[1] != b'blob':
+        raise SystemExit(f'missing blob {sha} {rel}')
+    n = int(head[2]); data = p.stdout.read(n); p.stdout.read(1)
+    path = os.path.join('line-history/data', rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as f: f.write(data)
+    total += n
+p.stdin.close(); p.wait()
+print(f'נכתבו {len(pairs):,} קבצים שאינם בארכיון · {total / 1e6:.0f}MB')
+PY
 fi
 # בדיקה: כל קובץ שאינו בארכיון קיים עכשיו בתיקיית האתר
 missing=0
