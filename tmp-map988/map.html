@@ -16,7 +16,7 @@ h1{margin:0;font-size:34px}
 #ft{padding:6px 28px 18px;font-size:18px;color:#666}
 .tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}.tt.end{font-size:18px;padding:3px 8px}.tt.nb{background:#1f5fd1;color:#fff;border-color:#1f5fd1}.tt.ob{background:#fff;color:#b3301f;border-color:#d64532}
 .st span{display:inline-block;white-space:nowrap;font-size:15px;font-weight:bold;color:#222;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
-.cs span{display:inline-block;transform:translate(-50%,-230%);white-space:nowrap;font-size:17px;font-weight:bold;background:#111;color:#fff;border-radius:6px;padding:3px 8px;box-shadow:0 1px 4px #0006}
+.cs span{display:inline-block;transform:translate(-50%,-115%);white-space:nowrap;font-size:17px;font-weight:bold;background:#111;color:#fff;border-radius:6px;padding:3px 8px;box-shadow:0 1px 4px #0006}
 #lists{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;padding:10px 28px 4px;font-size:19px}
 #lists h3{margin:0 0 4px;font-size:21px}#lists h3.r{color:#b3301f}#lists h3.a{color:#0c6b44}
 #lists small{color:#777;font-size:15px}
@@ -119,7 +119,13 @@ fetch('data.json').then(r=>r.json()).then(D=>{
       busy.push({x:p.x,y:p.y,r:w/2.2});
       L.marker([la,lo],{interactive:false,icon:L.divIcon({className:'st',iconSize:null,html:`<span style="transform:translate(-50%,-50%) rotate(${a}deg)">${t.n.replace(/''/g,'"')}</span>`})}).addTo(map);break;}});
   // התחנה המרכזית
-  L.marker(D.cs,{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:'cs',iconSize:null,html:'<span>🚏 התחנה המרכזית צפת</span>'})}).addTo(map);
+  // התחנה המרכזית: עיגול סביב כל הרציפים שלה (שלמה 04.11), והשם צמוד אליו
+  {const cs=[...x.old.stops,...x.new.stops].filter(s=>/מרכזית צפת/.test(s.n));
+   const c=cs.length?L.latLngBounds(cs.map(s=>[s.la,s.lo])).getCenter():L.latLng(D.cs);
+   const r=Math.max(70,...cs.map(s=>c.distanceTo([s.la,s.lo])))+45;
+   L.circle(c,{radius:r,color:'#111',weight:3,dashArray:'6 5',fill:true,fillColor:'#000',fillOpacity:.06,interactive:false}).addTo(map);
+   const top=map.latLngToContainerPoint(c).subtract([0,map.latLngToContainerPoint(c).distanceTo(map.latLngToContainerPoint(L.latLng(c.lat,c.lng).toBounds(r*2).getNorthEast()))*0.72]);
+   L.marker(map.containerPointToLatLng(top),{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:'cs',iconSize:null,html:'<span>🚏 התחנה המרכזית צפת</span>'})}).addTo(map);}
   // רשימת התחנות מתחת למפה, לפי הסדר במסלול
   const li=(a)=>a.map(s=>'<li>'+s.n.replace(/''/g,'"')+' <small>('+s.c+')</small></li>').join('');
   document.getElementById('lists').innerHTML=
