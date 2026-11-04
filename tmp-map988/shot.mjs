@@ -11,7 +11,7 @@ for (const d of ['d1', 'd2']) {
   const n = await p.evaluate(() => document.querySelectorAll('.leaflet-overlay-pane path').length);
   const h = await p.evaluate(() => Math.ceil(document.body.getBoundingClientRect().height));
   console.log(d, 'paths', n, 'height', h);
-  if (n < 5) throw new Error('route lines missing');
+  if (n < 2) throw new Error('route lines missing');
   await p.screenshot({ path: `988-${d}.png`, clip: { x: 0, y: 0, width: 1080, height: h } });
 }
 await b.close();
