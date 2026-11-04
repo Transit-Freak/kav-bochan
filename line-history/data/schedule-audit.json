@@ -6,7 +6,7 @@
     "verifiedArchiveScheduleEvents": 257427,
     "ordinaryEventsWithoutStoredTimes": 13104,
     "ordinaryDifferentTables": 107050,
-    "archiveFeedRowsCorrected": 5305
+    "archiveFeedRowsCorrected": 227
   },
   "examples": []
 }
