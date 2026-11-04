@@ -14,7 +14,7 @@ h1{margin:0;font-size:34px}
 .d{width:16px;height:16px;border-radius:50%;display:inline-block;border:3px solid #333;background:#fff}
 .d.a{background:#14955f;border-color:#0c6b44}.d.r{background:#fff;border-color:#d64532}
 #ft{padding:6px 28px 18px;font-size:18px;color:#666}
-.tt{font-size:15px;font-weight:bold;padding:1px 5px}
+.tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}
 </style></head><body>
 <div id="hd"><h1 id="t"></h1><div class="sub" id="s"></div></div>
 <div id="map"></div>
@@ -32,13 +32,19 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   const all=[];
   x.old.line.forEach(s=>{L.polyline(s,{color:'#d64532',weight:7,opacity:.85,dashArray:'12 10'}).addTo(map);all.push(...s)});
   x.new.line.forEach(s=>{L.polyline(s,{color:'#1f5fd1',weight:6,opacity:.9}).addTo(map);all.push(...s)});
-  const seen=new Set();
-  const lab=(m,n)=>m.bindTooltip(n,{permanent:true,direction:'left',offset:[-8,0],className:'tt'});
-  x.old.stops.forEach(s=>{if(s.k==='only'){lab(L.circleMarker([s.la,s.lo],{radius:7,color:'#d64532',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(map),s.n)}});
-  x.new.stops.forEach(s=>{const c=s.k==='only';const m=L.circleMarker([s.la,s.lo],{radius:c?7:5,color:c?'#0c6b44':'#333',weight:c?2:2,fillColor:c?'#14955f':'#fff',fillOpacity:1}).addTo(map);if(c)lab(m,s.n)});
   const b=L.latLngBounds([...x.old.stops,...x.new.stops].map(s=>[s.la,s.lo]));
   map.fitBounds(b,{padding:[40,40]});
-  document.getElementById('s').textContent=`${TT[dir][1]} · בצפת: ${x.old.stops.length} תחנות היום, ${x.new.stops.length} מ-17.11 · כל הנסיעה: ${Math.floor(x.old.min/60)}:${String(x.old.min%60).padStart(2,'0')} שעות ← ${Math.floor(x.new.min/60)}:${String(x.new.min%60).padStart(2,'0')}`;
+  // תוויות: תחנות צמודות באותו צבע — תווית אחת "שם ועוד N", כדי שלא יעלו זו על זו
+  const items=[];
+  x.old.stops.forEach(s=>{if(s.k==='only'){L.circleMarker([s.la,s.lo],{radius:7,color:'#d64532',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(map);items.push({s,k:'r'})}});
+  x.new.stops.forEach(s=>{const c=s.k==='only';L.circleMarker([s.la,s.lo],{radius:c?7:5,color:c?'#0c6b44':'#333',weight:2,fillColor:c?'#14955f':'#fff',fillOpacity:1}).addTo(map);if(c)items.push({s,k:'a'})});
+  const groups=[];
+  for(const it of items){const p=map.latLngToContainerPoint([it.s.la,it.s.lo]);
+    const g=groups.find(g=>g.k===it.k&&Math.abs(g.p.x-p.x)<170&&Math.abs(g.p.y-p.y)<38);
+    if(g)g.n++;else groups.push({k:it.k,p,s:it.s,n:0});}
+  for(const g of groups){const t=g.s.n.replace(/''/g,'"')+(g.n?` ועוד ${g.n}`:'');
+    L.marker([g.s.la,g.s.lo],{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:g.k==='r'?'right':'left',offset:g.k==='r'?[6,-8]:[-6,-8],className:'tt '+g.k}).openTooltip();}
+  document.getElementById('s').textContent=`${TT[dir][1]} · בצפת: ${x.old.stops.length} תחנות היום, ${x.new.stops.length} מ-17.11 · כל הנסיעה: היום ${Math.floor(x.old.min/60)}:${String(x.old.min%60).padStart(2,'0')} שעות, מ-17.11 ${Math.floor(x.new.min/60)}:${String(x.new.min%60).padStart(2,'0')}`;
   setTimeout(()=>document.title='ready',4000);
 });
 </script></body></html>
