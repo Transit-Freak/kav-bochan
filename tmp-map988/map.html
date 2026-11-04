@@ -15,11 +15,17 @@ h1{margin:0;font-size:34px}
 .d.a{background:#14955f;border-color:#0c6b44}.d.r{background:#fff;border-color:#d64532}
 #ft{padding:6px 28px 18px;font-size:18px;color:#666}
 .tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}.tt.end{font-size:18px;padding:3px 8px}.tt.nb{background:#1f5fd1;color:#fff;border-color:#1f5fd1}.tt.ob{background:#fff;color:#b3301f;border-color:#d64532}
+.st span{display:inline-block;transform:translate(-50%,-50%);white-space:nowrap;font-size:15px;font-weight:bold;color:#222;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+.cs span{display:inline-block;transform:translate(-50%,-150%);white-space:nowrap;font-size:17px;font-weight:bold;background:#111;color:#fff;border-radius:6px;padding:3px 8px;box-shadow:0 1px 4px #0006}
+#lists{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;padding:10px 28px 4px;font-size:19px}
+#lists h3{margin:0 0 4px;font-size:21px}#lists h3.r{color:#b3301f}#lists h3.a{color:#0c6b44}
+#lists ol{margin:0;padding-right:26px;columns:1}
 </style></head><body>
 <div id="hd"><h1 id="t"></h1><div class="sub" id="s"></div></div>
 <div id="map"></div>
 <div id="lg"><span><i class="l o"></i>המסלול היום</span><span><i class="l"></i>המסלול מ-17.11.2026 (החצים: כיוון הנסיעה)</span>
 <span><i class="d r"></i>תחנה שיורדת</span><span><i class="d a"></i>תחנה חדשה</span><span><i class="d"></i>נשארת</span></div>
+<div id="lists"></div>
 <div id="ft">לפי לוח הזמנים של משרד התחבורה (GTFS) מ-04.11.2026 · מפה: © OpenStreetMap · הוכן ע"י אדם פרטי, לא הודעה רשמית</div>
 <script>
 const dir=new URLSearchParams(location.search).get('d')||'d1';
@@ -50,13 +56,19 @@ fetch('data.json').then(r=>r.json()).then(D=>{
     if(acc>170){acc=0;const ang=Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI;
       L.marker(sg[i],{interactive:false,icon:L.divIcon({className:'',iconSize:[18,18],iconAnchor:[9,9],html:`<div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:13px solid ${col};transform:rotate(${ang}deg);transform-origin:center;margin:2px 0 0 3px"></div>`})}).addTo(map);}}});
   arrows(x.new.line,'#0b3d91');
-  const groups=[];
-  for(const it of items){const p=map.latLngToContainerPoint([it.s.la,it.s.lo]);
-    const g=groups.find(g=>g.k===it.k&&Math.abs(g.p.x-p.x)<170&&Math.abs(g.p.y-p.y)<38);
-    if(g)g.n++;else groups.push({k:it.k,p,s:it.s,n:0});}
-  for(const g of groups){const t=g.s.n.replace(/''/g,'"')+(g.n?` ועוד ${g.n}`:'');
-    L.marker([g.s.la,g.s.lo],{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:g.k==='r'?'right':'left',offset:g.k==='r'?[6,-8]:[-6,-8],className:'tt '+g.k}).openTooltip();}
-  document.getElementById('s').textContent=`${TT[dir][1]} · בצפת: ${x.old.stops.length} תחנות היום, ${x.new.stops.length} מ-17.11 · כל הנסיעה: היום ${Math.floor(x.old.min/60)}:${String(x.old.min%60).padStart(2,'0')} שעות, מ-17.11 ${Math.floor(x.new.min/60)}:${String(x.new.min%60).padStart(2,'0')}`;
+  // שמות הרחובות שבהם עובר הקו (שלמה 04.11: "רק השמות של הרחובות"), בלי תוויות שעולות זו על זו
+  const placed=[];
+  (x.streets||[]).filter(t=>t.c>=12).forEach(t=>{const p=map.latLngToContainerPoint(t.p);
+    if(placed.some(q=>Math.abs(q.x-p.x)<120&&Math.abs(q.y-p.y)<30))return; placed.push(p);
+    L.marker(t.p,{interactive:false,icon:L.divIcon({className:'st',iconSize:null,html:'<span>'+t.n.replace(/''/g,'"')+'</span>'})}).addTo(map);});
+  // התחנה המרכזית
+  L.marker(D.cs,{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:'cs',iconSize:null,html:'<span>🚏 התחנה המרכזית צפת</span>'})}).addTo(map);
+  // רשימת התחנות מתחת למפה, לפי הסדר במסלול
+  const li=(a)=>a.map(s=>'<li>'+s.n.replace(/''/g,'"')+'</li>').join('');
+  document.getElementById('lists').innerHTML=
+    `<div><h3 class="r">תחנות שהקו לא יעצור בהן (${x.old.stops.filter(s=>s.k==='only').length})</h3><ol>${li(x.old.stops.filter(s=>s.k==='only'))}</ol></div>`+
+    `<div><h3 class="a">תחנות חדשות בקו (${x.new.stops.filter(s=>s.k==='only').length})</h3><ol>${li(x.new.stops.filter(s=>s.k==='only'))}</ol></div>`;
+  document.getElementById('s').textContent=`${TT[dir][1]} · תחנות בצפת: ${x.old.stops.length} היום, ${x.new.stops.length} מ-17.11`;
   setTimeout(()=>document.title='ready',4000);
 });
 </script></body></html>
