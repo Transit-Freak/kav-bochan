@@ -14,11 +14,11 @@ h1{margin:0;font-size:34px}
 .d{width:16px;height:16px;border-radius:50%;display:inline-block;border:3px solid #333;background:#fff}
 .d.a{background:#14955f;border-color:#0c6b44}.d.r{background:#fff;border-color:#d64532}
 #ft{padding:6px 28px 18px;font-size:18px;color:#666}
-.tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}
+.tt{font-size:15px;font-weight:bold;padding:1px 5px}.tt.r{color:#b3301f;border-color:#d64532}.tt.a{color:#0c6b44;border-color:#14955f}.tt.end{font-size:18px;padding:3px 8px}.tt.nb{background:#1f5fd1;color:#fff;border-color:#1f5fd1}.tt.ob{background:#fff;color:#b3301f;border-color:#d64532}
 </style></head><body>
 <div id="hd"><h1 id="t"></h1><div class="sub" id="s"></div></div>
 <div id="map"></div>
-<div id="lg"><span><i class="l o"></i>המסלול היום</span><span><i class="l"></i>המסלול מ-17.11.2026</span>
+<div id="lg"><span><i class="l o"></i>המסלול היום</span><span><i class="l"></i>המסלול מ-17.11.2026 (החצים: כיוון הנסיעה)</span>
 <span><i class="d r"></i>תחנה שיורדת</span><span><i class="d a"></i>תחנה חדשה</span><span><i class="d"></i>נשארת</span></div>
 <div id="ft">לפי לוח הזמנים של משרד התחבורה (GTFS) מ-04.11.2026 · מפה: © OpenStreetMap · הוכן ע"י אדם פרטי, לא הודעה רשמית</div>
 <script>
@@ -38,6 +38,18 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   const items=[];
   x.old.stops.forEach(s=>{if(s.k==='only'){L.circleMarker([s.la,s.lo],{radius:7,color:'#d64532',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(map);items.push({s,k:'r'})}});
   x.new.stops.forEach(s=>{const c=s.k==='only';L.circleMarker([s.la,s.lo],{radius:c?7:5,color:c?'#0c6b44':'#333',weight:2,fillColor:c?'#14955f':'#fff',fillOpacity:1}).addTo(map);if(c)items.push({s,k:'a'})});
+  // סוף ותחילת המסלול (שלמה 04.11: "שיהיה ברור שהקו הכחול לא נגמר באמצע") — תווית "ממשיך ל..." וחיצי כיוון
+  const END={d1:['מגיע מקרית גת','ממשיך לחצור הגלילית'],d2:['מגיע מחצור הגלילית','ממשיך לקרית גת']}[dir];
+  const ends=(segs,col,cls,skip)=>{const f=segs[0][0],l=segs[segs.length-1][segs[segs.length-1].length-1];
+    const P=q=>map.latLngToContainerPoint(q);
+    [[f,'⬤ '+END[0]],[l,END[1]+' ◀']].forEach(([q,t],i)=>{if(skip&&skip[i]&&P(skip[i]).distanceTo(P(q))<90)return;
+      L.marker(q,{opacity:0,interactive:false}).addTo(map).bindTooltip(t,{permanent:true,direction:'top',offset:[0,-6],className:'tt end '+cls}).openTooltip();});
+    return [f,l];};
+  const ne=ends(x.new.line,'#1f5fd1','nb'); ends(x.old.line,'#d64532','ob',ne);
+  const arrows=(segs,col)=>segs.forEach(sg=>{let acc=0;for(let i=1;i<sg.length;i++){const a=map.latLngToContainerPoint(sg[i-1]),c=map.latLngToContainerPoint(sg[i]);acc+=a.distanceTo(c);
+    if(acc>170){acc=0;const ang=Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI;
+      L.marker(sg[i],{interactive:false,icon:L.divIcon({className:'',iconSize:[18,18],iconAnchor:[9,9],html:`<div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:13px solid ${col};transform:rotate(${ang}deg);transform-origin:center;margin:2px 0 0 3px"></div>`})}).addTo(map);}}});
+  arrows(x.new.line,'#0b3d91');
   const groups=[];
   for(const it of items){const p=map.latLngToContainerPoint([it.s.la,it.s.lo]);
     const g=groups.find(g=>g.k===it.k&&Math.abs(g.p.x-p.x)<170&&Math.abs(g.p.y-p.y)<38);
