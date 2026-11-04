@@ -26,7 +26,7 @@ h1{margin:0;font-size:34px}
 .nm.a{background:#14955f;color:#fff}
 .tt.uturn{font-size:15px;background:#fff;color:#1f5fd1;border:2px solid #1f5fd1}
 .edge{white-space:nowrap;background:#fff;border:2px solid #999;border-radius:6px;padding:2px 6px;font:bold 15px Arial,sans-serif;display:flex;align-items:center;gap:4px}.edge.r{border-color:#d64532;color:#b3301f}.edge.a{border-color:#14955f;color:#0c6b44}.edge .nm{display:inline-block}
-#ov{position:absolute;left:14px;bottom:14px;width:330px;height:330px;border:3px solid #333;box-shadow:0 2px 8px #0006;z-index:1000;background:#eee}
+#ov{position:absolute;left:14px;bottom:14px;width:380px;height:300px;border:3px solid #333;box-shadow:0 2px 8px #0006;z-index:1000;background:#eee}
 .ovt{font:bold 13px Arial;background:#fffd;padding:1px 4px;border-radius:3px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block}
 </style></head><body>
 <div id="hd"><h1 id="t"></h1><div class="sub" id="s"></div></div>
@@ -118,20 +118,22 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   document.getElementById('s').textContent=`${TT[dir][1]} · תחנות בצפת: ${x.old.stops.length} היום, ${x.new.stops.length} מ-17.11`;
   // מפת התמצאות קטנה בפינה: כל האזור, והמסגרת = החלק שבמפה הגדולה
   // הפינה הפנויה ביותר: הכי מעט נקודות של המסלולים ומספרי תחנות מתחתיה
-  {const SZ=map.getSize(),W=336,cs=[['r','b'],['l','b'],['r','t'],['l','t']];
+  {const SZ=map.getSize(),W=386,cs=[['r','b'],['l','b'],['r','t'],['l','t']];
    const pts=[...x.old.line.flat(),...x.new.line.flat()].map(q=>map.latLngToContainerPoint(q)).concat(nums.map(q=>L.point(q.x,q.y)),nums.map(q=>L.point(q.x,q.y)),nums.map(q=>L.point(q.x,q.y)));
    const cnt=([h,v])=>{const x0=h==='l'?0:SZ.x-W-20,y0=v==='t'?0:SZ.y-W-20;return pts.filter(p=>p.x>=x0&&p.x<=x0+W+20&&p.y>=y0&&p.y<=y0+W+20).length;};
    const best=cs.sort((a,b)=>cnt(a)-cnt(b))[0],el=document.getElementById('ov');
    el.style.left=best[0]==='l'?'14px':'auto';el.style.right=best[0]==='r'?'14px':'auto';el.style.top=best[1]==='t'?'14px':'auto';el.style.bottom=best[1]==='b'?'14px':'auto';}
   const ov=L.map('ov',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false});
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(ov);
-  x.old.line.forEach(sg=>L.polyline(sg,{color:'#d64532',weight:4,dashArray:'7 6'}).addTo(ov));
-  x.new.line.forEach(sg=>L.polyline(sg,{color:'#1f5fd1',weight:4}).addTo(ov));
-  ov.fitBounds(L.latLngBounds([...x.old.line.flat(),...x.new.line.flat()]),{padding:[14,14]});
+  // כל הדרך מצומת עין זיתים דרך צפת ועד חצור הגלילית
+  x.old.ovline.forEach(sg=>L.polyline(sg,{color:'#d64532',weight:4,dashArray:'7 6'}).addTo(ov));
+  x.new.ovline.forEach(sg=>L.polyline(sg,{color:'#1f5fd1',weight:4}).addTo(ov));
+  ov.fitBounds(L.latLngBounds([...x.old.ovline.flat(),...x.new.ovline.flat()]),{padding:[16,16]});
   L.rectangle(map.getBounds(),{color:'#111',weight:2,fill:false,dashArray:'4 3'}).addTo(ov);
   const ovl=(q,t)=>L.marker(q,{interactive:false,icon:L.divIcon({className:'',iconSize:null,html:`<span class="ovt">${t}</span>`})}).addTo(ov);
   const ez=[...x.old.stops,...x.new.stops].find(s=>/עין זיתים/.test(s.n));if(ez)ovl([ez.la+0.0015,ez.lo],'צומת עין זיתים');
   ovl(map.getBounds().getCenter(),'צפת');
+  ovl([D.hz[0]+0.004,D.hz[1]],'חצור הגלילית');
   setTimeout(()=>document.title='ready',4000);
 });
 </script></body></html>
