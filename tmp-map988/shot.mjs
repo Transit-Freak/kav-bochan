@@ -13,5 +13,14 @@ for (const d of ['d1', 'd2']) {
   console.log(d, 'paths', n, 'height', h);
   if (n < 2) throw new Error('route lines missing');
   await p.screenshot({ path: `988-${d}.png`, clip: { x: 0, y: 0, width: 1080, height: h } });
+  // בדיקה: צילום מוגדל של המפה (פי 2) עם המיקום האמיתי של כל תחנה (נקודה צהובה)
+  const chk = await p.evaluate(() => ({ list: window.CHK || [], top: document.getElementById('map').getBoundingClientRect().top }));
+  (await import('fs')).writeFileSync(`chk-${d}.json`, JSON.stringify(chk));
+  const p2 = await b.newPage({ viewport: { width: 1080, height: 2400 }, deviceScaleFactor: 3 });
+  await p2.setExtraHTTPHeaders({ 'Referer': 'https://kavbochan.app/' });
+  await p2.goto('http://localhost:8000/map.html?d=' + d + '&chk=1');
+  await p2.waitForFunction(() => document.title === 'ready', null, { timeout: 60000 });
+  await p2.waitForLoadState('networkidle'); await p2.waitForTimeout(2500);
+  await p2.screenshot({ path: `chk-${d}.png`, clip: { x: 0, y: chk.top, width: 1080, height: 1150 } });
 }
 await b.close();

@@ -56,13 +56,13 @@ fetch('data.json').then(r=>r.json()).then(D=>{
   const nums=[];
   // המספר יושב על קו המסלול (העמוד עומד בצד הכביש, והקו מצויר במרכזו — בלי הצמדה נראה כאילו התחנה בצד השני)
   // side: +1 / -1 — תחנה אדומה בצד אחד של הכביש וירוקה בצד השני (שלמה 04.11), 0 — על הקו
-  const snapTo=(s,segs,side=0)=>{const F=segs.flat(),c=map.latLngToContainerPoint([s.la,s.lo]);let bi=-1,bd=1e9;
-    F.forEach((q,i)=>{const d=map.latLngToContainerPoint(q).distanceTo(c);if(d<bd){bd=d;bi=i;}});
-    if(bd>=35)return s;
-    const P0=map.latLngToContainerPoint(F[Math.max(0,bi-6)]),P1=map.latLngToContainerPoint(F[Math.min(F.length-1,bi+6)]),B=map.latLngToContainerPoint(F[bi]);
+  // ההצמדה לקו נעשתה מראש לפי סדר הנסיעה (sla/slo): כל תחנה על הקטע של המסלול שהאוטובוס עובר בו באותו רגע
+  const snapTo=(s,segs,side=0)=>{if(s.sla==null)return s;
+    const B=map.latLngToContainerPoint([s.sla,s.slo]);if(!side)return {...s,la:s.sla,lo:s.slo};
+    const P0=map.latLngToContainerPoint(s.hd[0]),P1=map.latLngToContainerPoint(s.hd[1]);
     let dx=P1.x-P0.x,dy=P1.y-P0.y;const L0=Math.hypot(dx,dy)||1;let nx=-dy/L0,ny=dx/L0;
-    if(nx<-0.01||(Math.abs(nx)<=0.01&&ny<0)){nx=-nx;ny=-ny;}   // כיוון אחיד, בלי קשר לכיוון הנסיעה
-    const ll=map.containerPointToLatLng(L.point(B.x+side*nx*13,B.y+side*ny*13));return {...s,la:ll.lat,lo:ll.lng};};
+    if(nx<-0.01||(Math.abs(nx)<=0.01&&ny<0)){nx=-nx;ny=-ny;}
+    const ll=map.containerPointToLatLng(L.point(B.x+side*nx*11,B.y+side*ny*11));return {...s,la:ll.lat,lo:ll.lng};};
   const num=(s0,i,cls)=>{const s=snapTo(s0,cls==='r'?x.old.line:x.new.line,cls==='r'?1:-1);const p0=map.latLngToContainerPoint([s.la,s.lo]),SZ=map.getSize();
     const p=L.point(Math.min(Math.max(p0.x,30),SZ.x-30),Math.min(Math.max(p0.y,30),SZ.y-30));
     if(!p.equals(p0)){const ang=Math.atan2(p0.y-p.y,p0.x-p.x)*180/Math.PI;
@@ -73,6 +73,8 @@ fetch('data.json').then(r=>r.json()).then(D=>{
     let dx=0,dy=0,t=0;
     while(t<6&&nums.some(q=>Math.hypot(q.x-(p.x+dx),q.y-(p.y+dy))<22)){t++;dx=[0,24,-24,0,24,-24][t]||0;dy=[0,0,0,24,24,24][t]||0;}
     nums.push({x:p.x+dx,y:p.y+dy});
+    const tp=map.latLngToContainerPoint([s0.la,s0.lo]);(window.CHK=window.CHK||[]).push({cls,i,n:s0.n,c:s0.c,x:p.x+dx,y:p.y+dy,tx:tp.x,ty:tp.y});
+    L.circleMarker([s0.la,s0.lo],{radius:3,color:'#000',weight:1,fillColor:'#ff0',fillOpacity:1,interactive:false,className:'truepos'}).addTo(map);
     L.marker([s.la,s.lo],{zIndexOffset:500,interactive:false,icon:L.divIcon({className:'',iconSize:[24,24],iconAnchor:[12-dx,12-dy],html:`<div class="nm ${cls}">${i}</div>`})}).addTo(map);};
   x.new.stops.forEach(s0=>{const s=snapTo(s0,x.new.line);if(s.k!=='only')L.circleMarker([s.la,s.lo],{radius:5,color:'#333',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(map)});
   x.old.stops.filter(s=>s.k==='only').forEach((s,i)=>num(s,i+1,'r'));
