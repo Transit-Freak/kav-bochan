@@ -1,0 +1,39 @@
+name: bus-ref
+on:
+  push:
+    branches: [claude/bus-ref]
+    paths: [.github/workflows/bus-ref.yml]
+permissions:
+  contents: write
+jobs:
+  r:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: tools/bus-ref}
+      - name: תמונות ייחוס מוויקישיתוף
+        run: |
+          mkdir -p tools/bus-ref
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse, os
+          UA = {'User-Agent': 'kav-bochan-ref/1.0 (https://kavbochan.app)'}
+          def api(**p):
+              p.update(format='json')
+              return json.load(urllib.request.urlopen(urllib.request.Request('https://commons.wikimedia.org/w/api.php?' + urllib.parse.urlencode(p), headers=UA)))
+          out = []
+          for q in ('Merkavim Pioneer Volvo Israel bus', 'Yutong E12 Israel bus', 'BYD electric bus Israel', 'Golden Dragon bus Israel', 'MAN Lion\'s City Israel bus'):
+              r = api(action='query', generator='search', gsrsearch=q + ' filetype:bitmap', gsrnamespace=6, gsrlimit=6, prop='imageinfo', iiprop='url|extmetadata', iiurlwidth=1024)
+              for pg in (r.get('query', {}).get('pages') or {}).values():
+                  ii = pg['imageinfo'][0]; md = ii.get('extmetadata', {})
+                  fn = f"{len(out):02d}.jpg"
+                  try:
+                      open('tools/bus-ref/' + fn, 'wb').write(urllib.request.urlopen(urllib.request.Request(ii['thumburl'], headers=UA)).read())
+                  except Exception as e:
+                      print('skip', e); continue
+                  out.append({'file': fn, 'q': q, 'title': pg['title'], 'license': md.get('LicenseShortName', {}).get('value'), 'artist': md.get('Artist', {}).get('value', '')[:120]})
+          json.dump(out, open('tools/bus-ref/index.json', 'w'), ensure_ascii=False, indent=1)
+          print(len(out))
+          PY
+          git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tools/bus-ref && git commit -qm "bus reference images" && git push -q origin HEAD:claude/bus-ref
