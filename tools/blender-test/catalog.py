@@ -10,8 +10,8 @@ allc = sorted(glob.glob(f'{ud}/data/clothes/**/*.mhclo', recursive=True) + glob.
 allc = sorted(set(allc))
 print('ALL', len(allc))
 KEY = re.compile(r'(female|woman|women|girl|skirt|dress|blouse|top|shirt|sweater|cardigan|jacket|coat|pants|jeans|trouser|legging|tunic|hoodie)', re.I)
-SKIP = re.compile(r'(shoe|boot|sandal|hat|fedora|cap|glasses|helmet|male_|bikini|swim|underwear|bra|lingerie|corset)', re.I)
-items = [c for c in allc if KEY.search(os.path.basename(c)) and not SKIP.search(os.path.basename(c))][:28]
+SKIP = re.compile(r'(shoe|boot|sandal|hat\b|fedora|cap\b|glasses|helmet|(?<!fe)male_|bikini|swim|underwear|bra\b|lingerie|corset)', re.I)
+items = [c for c in allc if KEY.search(os.path.relpath(c, ud)) and not SKIP.search(os.path.relpath(c, ud))][:42]
 print('ITEMS', [os.path.basename(c) for c in items])
 A = lambda rel: glob.glob(f'{ud}/**/{rel}', recursive=True)[0]
 COLS = 14
