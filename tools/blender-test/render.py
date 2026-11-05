@@ -7,6 +7,10 @@ out, objs = argv[0], argv[1:]
 sc = bpy.context.scene
 sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = 128; sc.cycles.use_denoising = True
 sc.render.resolution_x, sc.render.resolution_y = 1600, 900
+try:
+    sc.view_settings.view_transform = 'AgX'; sc.view_settings.look = 'AgX - Medium High Contrast'
+except TypeError as e: print('look', e)
+sc.view_settings.exposure = -0.6
 w = bpy.data.worlds.new('W'); sc.world = w
 bg = next(n for n in w.node_tree.nodes if n.type == 'BACKGROUND')
 sky = w.node_tree.nodes.new('ShaderNodeTexSky')

@@ -43,13 +43,13 @@ def setm(ob, m):
 def smooth(ob):
     for p in ob.data.polygons: p.use_smooth = True
 
-silver = mat('M_Silver', (0.62, 0.64, 0.66), 0.28, metal=0.55, coat=0.6)
+silver = mat('M_Silver', (0.42, 0.44, 0.46), 0.32, metal=0.75, coat=0.5)
 white = mat('M_RoofWhite', (0.85, 0.86, 0.86), 0.35, coat=0.3)
 gloss_black = mat('M_GlossBlack', (0.012, 0.013, 0.015), 0.12, coat=1.0)
-glass = mat('M_Glass', (0.03, 0.04, 0.045), 0.04, alpha=0.42)
+glass = mat('M_Glass', (0.01, 0.012, 0.014), 0.03, alpha=0.78, coat=1.0)
 trim = mat('M_Trim', (0.025, 0.025, 0.025), 0.55)
 rubber = mat('M_Rubber', (0.018, 0.018, 0.018), 0.88)
-steel = mat('M_Steel', (0.7, 0.71, 0.72), 0.35, metal=1.0)
+steel = mat('M_Steel', (0.5, 0.51, 0.52), 0.4, metal=1.0)
 seatm = mat('M_Seat', (0.05, 0.12, 0.3), 0.75)
 yellow = mat('M_Pole', (0.95, 0.72, 0.05), 0.35, metal=0.4)
 floorm = mat('M_Floor', (0.22, 0.23, 0.24), 0.85)
@@ -146,8 +146,10 @@ for sd in (1, -1):
     setm(box(f'SM_Fog{sd}', (0.16, 0.03, 0.08), (sd*(W/2 - 0.3), YF - 0.03, Z0 + 0.2)), lamp)
     setm(box(f'SM_Tail{sd}', (0.16, 0.03, 0.55), (sd*(W/2 - 0.12), YR + 0.01, Z0 + 0.9)), redl)
     # מראות "אוזני ארנב" על זרוע מפינת הגג
-    arm = cyl(f'SM_MirrorArm{sd}', 0.022, 0.55, (sd*(W/2 + 0.12), YF - 0.12, Z0 + 2.55), seg=12, axis='Y'); arm.rotation_euler = (math.radians(70), 0, math.radians(sd*-25)); setm(arm, trim)
-    setm(box(f'SM_Mirror{sd}', (0.2, 0.08, 0.38), (sd*(W/2 + 0.2), YF - 0.36, Z0 + 2.28)), trim)
+    p1 = Vector((sd*(W/2 - 0.08), YF + 0.15, Z0 + H - 0.12)); p2 = Vector((sd*(W/2 + 0.16), YF - 0.32, Z0 + 2.42))
+    d = p2 - p1; arm = box(f'SM_MirrorArm{sd}', (0.035, 0.035, d.length), (p1 + p2) / 2)
+    arm.rotation_euler = d.to_track_quat('Z', 'Y').to_euler(); setm(arm, trim)
+    setm(box(f'SM_Mirror{sd}', (0.22, 0.07, 0.4), (sd*(W/2 + 0.17), YF - 0.34, Z0 + 2.2)), trim)
 setm(box('SM_BumperF', (W - 0.1, 0.12, 0.22), (0, YF - 0.03, Z0 + 0.08)), trim)
 setm(box('SM_BumperR', (W - 0.1, 0.12, 0.22), (0, YR + 0.03, Z0 + 0.08)), trim)
 setm(box('SM_PlateF', (0.52, 0.01, 0.11), (0, YF - 0.095, Z0 + 0.27)), plate)
