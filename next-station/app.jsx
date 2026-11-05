@@ -13,6 +13,24 @@ const CATS = {
 // קטגוריה נפרדת: טעויות בתרגום-האנגלית הרשמי של שם התחנה (מ-GTFS).
 // אינה נספרת ב"סה"כ חשודות" — זו בדיקה שונה (שם↔תרגום, לא שם↔כתובת).
 const TRANS_CAT = { label: "טעויות תרגום לאנגלית", color: "#4f46e5", desc: "שם התחנה שהתרגום הרשמי שלו לאנגלית (GTFS משרד התחבורה) שגוי" };
+
+// כתובות (שלמה 04.11 — פתיחה בלשונית חדשה): ‎#stop=<מספר>&cat=<קטגוריה>&chk=<סוג בדיקה>‎.
+// כל שורה, כרטיס-קטגוריה ובדיקה הם קישור אמיתי; לחיצה רגילה נשארת בתוך הדף
+const H0 = new URLSearchParams((window.location.hash || "").slice(1));
+const validCat = (k) => !!k && (k === "all" || k === "translation" || !!CATS[k] || !!CHECK_CATS[k]);
+function nsHash(stop, cat, chk) {
+  const p = new URLSearchParams();
+  if (stop) p.set("stop", stop);
+  if (cat && cat !== "all") p.set("cat", cat);
+  if (chk) p.set("chk", chk);
+  const h = p.toString();
+  return h ? "#" + h : window.location.pathname + window.location.search;
+}
+// לחיצה רגילה בלבד — Ctrl/Cmd/Shift/גלגלת נשארים לדפדפן (לשונית חדשה)
+const plain = (f) => (e) => {
+  if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  e.preventDefault(); f(e);
+};
 const TRANS_SUBCATS = {
   wrong:   { label: "תרגום שגוי",   color: "#dc2626" },
   missing: { label: "חלק חסר",       color: "#ea580c" },
@@ -122,10 +140,10 @@ function stopText(s) {
 
 // שורה ברשימה — ממורשת (React.memo): נבנית מחדש רק כשהתחנה/הבחירה שלה משתנות,
 // ולא בכל הקלדה בחיפוש או בחירת תחנה אחרת. זה מה שמונע קיפאון בטלפון.
-const Row = React.memo(function Row({ s, on, times, onSel, onRoute, routeBusy, onReport }) {
+const Row = React.memo(function Row({ s, on, times, onSel, onRoute, routeBusy, onReport, hcat }) {
   return (
     <div className={"item" + (on ? " on" : "")}>
-      <button className="it-head" onClick={() => onSel(s)}>
+      <a className="it-head" href={nsHash(s.c, hcat)} onClick={plain(() => onSel(s))}>
         <div className="it-top">
           <span className="badge" style={{ background: CATS[s.k].color }}>{CATS[s.k].label}</span>
           <span className="code">{s.c}</span>
@@ -135,7 +153,7 @@ const Row = React.memo(function Row({ s, on, times, onSel, onRoute, routeBusy, o
           רחוב בכתובת: <b>{s.s}</b>
           {s.t ? " · " + s.t : ""}
         </div>
-      </button>
+      </a>
       <div className="it-detail">
         <StopDetails s={s} inList onRoute={onRoute} routeBusy={routeBusy} times={times} onReport={onReport} />
       </div>
@@ -176,7 +194,8 @@ const TransRow = React.memo(function TransRow({ e }) {
 const CheckRow = React.memo(function CheckRow({ e, on, onSel }) {
   const c = CHECK_CATS[e.k];
   return (
-    <button className={"item check-item" + (on ? " on" : "")} style={{ borderInlineStart: "4px solid " + c.color }} onClick={() => onSel(e)}>
+    <a className={"item check-item" + (on ? " on" : "")} style={{ borderInlineStart: "4px solid " + c.color }}
+      href={nsHash(e.c, e.k, e.k)} onClick={plain(() => onSel(e))}>
       <div className="check-names">
         <span className="check-n">{e.n}</span>
         <span className="code">{e.c}</span>
@@ -188,7 +207,7 @@ const CheckRow = React.memo(function CheckRow({ e, on, onSel }) {
           ? <>מסתיימים כאן בלי תחנת יעד לפרסום: <b>{(e.end || []).join(", ")}</b></>
           : <>{e.why}{e.ln && e.ln.length ? <> · קווים: <b>{e.ln.slice(0, 8).join(", ")}</b>{e.ln.length > 8 ? "…" : ""}</> : null}</>}
       </div>
-    </button>
+    </a>
   );
 });
 
@@ -310,7 +329,7 @@ function StopDetails({ s, inList, onRoute, routeBusy, times, onReport }) {
 
 function App() {
   const [data, setData] = useState(null);
-  const [cat, setCat] = useState("all");
+  const [cat, setCat] = useState(() => (validCat(H0.get("cat")) ? H0.get("cat") : "all"));
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
   const [activeOnly, setActiveOnly] = useState(false);
@@ -400,18 +419,31 @@ function App() {
   }, []);
 
   // קישור ישיר לתחנה: פתיחה עם #stop=<מספר> בוחרת אותה אוטומטית
+  // (‎&chk=<סוג>‎ — שורה מהבדיקות הנפרדות; מחכים לקובץ הבדיקות)
+  const pendStop = useRef(H0.get("stop"));
   useEffect(() => {
-    if (!data) return;
-    const m = /#stop=(\d+)/.exec(window.location.hash || "");
-    if (m) { const s = data.stops.find((x) => x.c === m[1]); if (s) setSel(s); }
-  }, [data]);
+    const c = pendStop.current;
+    if (!c || !data) return;
+    const ck = CHECK_CATS[H0.get("chk")] ? H0.get("chk") : null;
+    if (ck) {
+      if (!checks) return;
+      const e = (checks[ck] || []).find((x) => x.c === c);
+      if (e) setSel({ ...e, k: ck });
+    } else {
+      const s = data.stops.find((x) => x.c === c);
+      if (s) setSel(s);
+    }
+    pendStop.current = null;
+  }, [data, checks]);
   // שומר את התחנה הנבחרת בכתובת — כך שאפשר להעתיק/לשתף את הקישור מסרגל הדפדפן.
   // רק אחרי שהנתונים נטענו — אחרת ה-# של קישור עמוק נמחק לפני שהספקנו לקרוא אותו
   useEffect(() => {
-    if (!data) return;
-    if (sel) history.replaceState(null, "", "#stop=" + sel.c);
-    else if (window.location.hash) history.replaceState(null, "", window.location.pathname + window.location.search);
-  }, [sel, data]);
+    if (!data || (pendStop.current && !sel)) return;   // קישור עמוק שעוד מחכה לנתונים — לא לדרוס
+    const u = nsHash(sel && sel.c, cat, sel && CHECK_CATS[sel.k] ? sel.k : null);
+    if (u !== (window.location.hash || window.location.pathname + window.location.search)) {
+      try { history.replaceState(null, "", u); } catch (e) { /* */ }
+    }
+  }, [sel, data, cat]);
 
   // אתחול מפה
   useEffect(() => {
@@ -651,44 +683,47 @@ function App() {
       </header>
 
       <div className="stats">
-        <button className={"stat" + (cat === "all" ? " on" : "")} onClick={() => setCat("all")}>
+        <a className={"stat" + (cat === "all" ? " on" : "")} href={nsHash(null, "all")} onClick={plain(() => setCat("all"))}>
           <b>{(data.stops.length - (data.counts.closer || 0)).toLocaleString()}</b>
           <span>סה"כ חשודות</span>
-        </button>
+        </a>
         {Object.keys(CATS).map((k) => (
-          <button
+          <a
             key={k}
             className={"stat" + (cat === k ? " on" : "")}
             style={{ "--c": CATS[k].color }}
-            onClick={() => setCat(cat === k ? "all" : k)}
+            href={nsHash(null, cat === k ? "all" : k)}
+            onClick={plain(() => setCat(cat === k ? "all" : k))}
             title={CATS[k].desc}
           >
             <b style={{ color: CATS[k].color }}>{((k === "closer" ? closerValid : data.counts[k]) || 0).toLocaleString()}</b>
             <span>{CATS[k].label}</span>
-          </button>
+          </a>
         ))}
         {trans && trans.count > 0 && (
-          <button
+          <a
             className={"stat" + (cat === "translation" ? " on" : "")}
             style={{ "--c": TRANS_CAT.color }}
-            onClick={() => setCat(cat === "translation" ? "all" : "translation")}
+            href={nsHash(null, cat === "translation" ? "all" : "translation")}
+            onClick={plain(() => setCat(cat === "translation" ? "all" : "translation"))}
             title={TRANS_CAT.desc}
           >
             <b style={{ color: TRANS_CAT.color }}>{trans.count.toLocaleString()}</b>
             <span>🌐 {TRANS_CAT.label}</span>
-          </button>
+          </a>
         )}
         {checks && Object.keys(CHECK_CATS).map((k) => (checks[k] || []).length > 0 && (
-          <button
+          <a
             key={k}
             className={"stat" + (cat === k ? " on" : "")}
             style={{ "--c": CHECK_CATS[k].color }}
-            onClick={() => setCat(cat === k ? "all" : k)}
+            href={nsHash(null, cat === k ? "all" : k)}
+            onClick={plain(() => setCat(cat === k ? "all" : k))}
             title={CHECK_CATS[k].desc}
           >
             <b style={{ color: CHECK_CATS[k].color }}>{checks[k].length.toLocaleString()}</b>
             <span>{CHECK_CATS[k].icon} {CHECK_CATS[k].label}</span>
-          </button>
+          </a>
         ))}
       </div>
 
@@ -759,7 +794,7 @@ function App() {
           </div>
           {inCheck ? (
             <div className="list">
-              <div className="trans-note check-note">{CHECK_CATS[cat].icon} {CHECK_CATS[cat].desc}. בדיקה נפרדת — <b>אינה נספרת ב"סה"כ חשודות"</b>. לפי ה-GTFS ומאגר התחנות של משרד התחבורה, מעודכן ל-{(checks.gen || "").split("-").reverse().join(".")}.</div>
+              <div className="trans-note check-note">{CHECK_CATS[cat].icon} {CHECK_CATS[cat].desc}. בדיקה נפרדת — <b>אינה נספרת ב"סה"כ חשודות"</b>. לפי ה-GTFS ומאגר התחנות של משרד התחבורה, מעודכן ל-{((checks && checks.gen) || "").split("-").reverse().join(".")}.</div>
               {checkShown.map((e) => (
                 <CheckRow key={e.c} e={e} on={!!(sel && sel.c === e.c && sel.k === e.k)} onSel={setSel} />
               ))}
@@ -792,6 +827,7 @@ function App() {
                   on={!!(sel && sel.c === s.c)}
                   times={sel && sel.c === s.c ? poiTimes : null}
                   onSel={setSel}
+                  hcat={cat}
                   onRoute={showRoute}
                   routeBusy={!!(route && route.loading)}
                   onReport={setReportStop}

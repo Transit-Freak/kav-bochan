@@ -35,9 +35,9 @@
   .th i{width:12px;height:12px;border-radius:3px;display:block}
   .th input{width:54px;font:600 13px 'Rubik';border:1px solid var(--line);border-radius:6px;padding:3px 4px;text-align:center}
   .stl{max-height:46vh;overflow:auto;margin:6px -6px 0}
-  .stl button{display:flex;width:100%;justify-content:space-between;gap:8px;border:0;background:none;font:500 13px 'Rubik';padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--ink);text-align:right}
-  .stl button:hover{background:var(--bg)}
-  .stl button.on{background:var(--acc2);color:var(--acc)}
+  .stl button,.stl a{text-decoration:none;box-sizing:border-box;display:flex;width:100%;justify-content:space-between;gap:8px;border:0;background:none;font:500 13px 'Rubik';padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--ink);text-align:right}
+  .stl button:hover,.stl a:hover{background:var(--bg)}
+  .stl button.on,.stl a.on{background:var(--acc2);color:var(--acc)}
   .stl b{color:var(--c0);font-weight:600}
   .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
   .kpi div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
@@ -249,8 +249,9 @@
     const by = {}; picked().forEach((r) => { (by[r.st] = by[r.st] || [r.stName, 0, 0])[1] += r.cnt[0]; by[r.st][2] += r.conn; });
     const q = S.q.trim();
     const list = Object.entries(by).filter(([c, v]) => !q || v[0].includes(q)).sort((a, b) => b[1][1] - a[1][1]);
-    $("stl").innerHTML = '<button class="' + (S.st ? "" : "on") + '" data-c="">כל התחנות</button>' + list.map(([c, v]) => '<button data-c="' + c + '" class="' + (S.st === c ? "on" : "") + '"><span>' + K.esc(v[0]) + "</span><b>" + v[1] + "</b></button>").join("");
-    $("stl").querySelectorAll("button").forEach((b) => b.onclick = () => { S.st = b.dataset.c; S.open = null; if (S.dir.startsWith("dk:")) S.dir = "ta"; stList(); draw(); });
+    // קישורים אמיתיים (שלמה 04.11): כל תחנה ברשימה היא <a href> לכתובת של המסך שלה, כדי שאפשר לפתוח בלשונית חדשה
+    $("stl").innerHTML = '<a class="' + (S.st ? "" : "on") + '" data-c="" href="' + stHref("") + '">כל התחנות</a>' + list.map(([c, v]) => '<a data-c="' + c + '" class="' + (S.st === c ? "on" : "") + '" href="' + stHref(c) + '"><span>' + K.esc(v[0]) + "</span><b>" + v[1] + "</b></a>").join("");
+    $("stl").querySelectorAll("a").forEach((b) => b.onclick = (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button) return; e.preventDefault(); S.st = b.dataset.c; S.open = null; if (S.dir.startsWith("dk:")) S.dir = "ta"; stList(); draw(); });
     const ops = [...new Set(rows.map((r) => r.op))].sort();
     $("op").innerHTML = '<option value="">כל המפעילים</option>' + ops.map((o) => "<option" + (o === S.op ? " selected" : "") + ">" + K.esc(o) + "</option>").join("");
   }
@@ -258,11 +259,17 @@
   // כתובת ייחודית לכל מסך (שלמה 22.10): הבחירות נכתבות לכתובת, כך שהעתקה מהדפדפן פותחת את אותו מסך
   const DEF = { m: "to", w: 7, l: 1, st: "", op: "", dir: "ta", day: "wk" };
   const cur = () => ({ m: S.mode, w: S.walk, l: S.lines, st: S.st, op: S.op, dir: S.dir, day: S.day });
-  function syncUrl() {
-    const p = new URLSearchParams(), c = cur();
+  function urlFor(c, open) {
+    const p = new URLSearchParams();
     for (const k in DEF) if (String(c[k]) !== String(DEF[k])) p.set(k, c[k]);
-    if (S.open) p.set("o", S.open);
-    const h = p.toString(), u = location.pathname + location.search + (h ? "#" + h : "");
+    if (open) p.set("o", open);
+    const h = p.toString();
+    return location.pathname + location.search + (h ? "#" + h : "");
+  }
+  // הכתובת של תחנה ברשימה — כמו הלחיצה: בלי שורה פתוחה, וכיוון "לפי רכבת" חוזר ל"תל אביב"
+  const stHref = (st) => K.esc(urlFor(Object.assign(cur(), { st, dir: S.dir.startsWith("dk:") ? "ta" : S.dir }), null));
+  function syncUrl() {
+    const u = urlFor(cur(), S.open);
     if (location.pathname + location.search + location.hash !== u) try { history.replaceState(null, "", u); } catch (e) {}
   }
   function draw() {
@@ -317,7 +324,7 @@
   $("mode").querySelectorAll("button").forEach((b) => b.onclick = () => { S.mode = b.dataset.m; S.open = null; if (S.dir.startsWith("dk:")) S.dir = "ta"; $("mode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); run(); });
   $("lines").onchange = (e) => { S.lines = +e.target.value; run(); };
   $("walk").onchange = (e) => { S.walk = +e.target.value; run(); };
-  $("op").onchange = (e) => { S.op = e.target.value; draw(); };
+  $("op").onchange = (e) => { S.op = e.target.value; stList(); draw(); };
   $("dir").onchange = (e) => { S.dir = e.target.value; S.open = null; stList(); draw(); };
   $("q").oninput = (e) => { S.q = e.target.value; stList(); };
   $("day").onchange = (e) => { S.day = e.target.value; S.open = null; run(); };

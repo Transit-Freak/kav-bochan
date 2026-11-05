@@ -681,7 +681,7 @@ function citiesPane() {
     `<div class="mut">משווים יישובים בגודל דומה (לפי מספר התושבים). ימי א׳–ה׳, 06:00–20:00. למיון — לחצו על כותרת עמודה.</div>` +
     `<div class="mut">מספר התושבים: רשות האוכלוסין וההגירה, <a href="https://data.gov.il/" target="_blank" rel="noopener">data.gov.il</a></div></div>` +
     `<div class="tw"><table class="t"><thead><tr>${th('name', 'יישוב')}${th('pop', 'תושבים')}${th('now', fmt(S.h))}${th('slow', 'האטה')}${th('worstH', 'שעת שיא')}</tr></thead><tbody>` +
-    rows.map(r => `<tr data-c="${esc(r.name)}"><td>${esc(r.name)}</td><td class="n">${r.pop ? num(r.pop) : '—'}</td>` +
+    rows.map(r => `<tr data-c="${esc(r.name)}"><td><a href="${cityHref(r.name)}" style="color:inherit;text-decoration:none;display:block">${esc(r.name)}</a></td><td class="n">${r.pop ? num(r.pop) : '—'}</td>` +
       `<td class="n"><span class="sw" style="background:${colSp(r.now) || 'transparent'}"></span>${r.now ?? '—'}</td>` +
       `<td class="n">${r.slow == null ? '—' : r.slow + '%'}</td><td class="n">${r.worstH == null ? '—' : fmt(r.worstH)}</td></tr>`).join('') +
     `</tbody></table></div><div class="note">"האטה" — כמה לאט יותר נוסעים בשעה העמוסה ביותר, לעומת השעות בלי עומס ביום (06:00–21:00) באותו יישוב. כך אפשר להשוות בין עיר גדולה לעיר קטנה בלי שמהירות הכבישים הבין-עירוניים תשפיע.</div>`;
@@ -689,9 +689,15 @@ function citiesPane() {
 $('#cities').addEventListener('click', e => {
   const b = e.target.closest('#cgrp button'); if (b) { S.cgrp = b.dataset.v; citiesPane(); return; }
   const th = e.target.closest('th[data-k]'); if (th) { if (S.csort === th.dataset.k) S.cdir = -S.cdir; else { S.csort = th.dataset.k; S.cdir = 1; } citiesPane(); return; }
-  const tr = e.target.closest('tr[data-c]'); if (tr) goCity(tr.dataset.c);
+  const tr = e.target.closest('tr[data-c]'); if (!tr) return;
+  // לחיצה עם Ctrl/Cmd/Shift על שם היישוב — פתיחה בלשונית חדשה (הקישור עצמו)
+  if (e.target.closest('a[href]') && !plainClick(e)) return;
+  e.preventDefault(); goCity(tr.dataset.c);
 });
 function goCity(n) { const c = CITIES.find(x => x[0] === n); if (c) map.setView([c[3], c[4]], 14); }
+// קישור ליישוב — אותה כתובת שהדף כותב, עם מרכז המפה על היישוב (נפתח גם בלשונית חדשה)
+function cityHref(n) { const c = CITIES.find(x => x[0] === n); return c ? hashFor(c[3], c[4], 14) : '#'; }
+function plainClick(e) { return !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0); }
 
 // ---------- מקרא, מידע, אקסל ----------
 function legendPane() {
@@ -854,10 +860,10 @@ $('#q').oninput = () => {
   const q = $('#q').value.trim(), el = $('#qres');
   if (!q) { el.hidden = true; return; }
   const m = CITIES.filter(c => c[0].includes(q)).slice(0, 12);
-  el.innerHTML = m.length ? m.map(c => `<div data-c="${esc(c[0])}">${esc(c[0])}${c[1] ? `<small>${num(c[1])} תושבים</small>` : ''}</div>`).join('') : '<div class="qh">לא נמצא יישוב</div>';
+  el.innerHTML = m.length ? m.map(c => `<a data-c="${esc(c[0])}" href="${hashFor(c[3], c[4], 14)}">${esc(c[0])}${c[1] ? `<small>${num(c[1])} תושבים</small>` : ''}</a>`).join('') : '<div class="qh">לא נמצא יישוב</div>';
   el.hidden = false;
 };
-$('#qres').onclick = e => { const d = e.target.closest('[data-c]'); if (d) { goCity(d.dataset.c); $('#qres').hidden = true; $('#q').value = ''; $('#bar').classList.remove('sopen'); } };
+$('#qres').onclick = e => { const d = e.target.closest('[data-c]'); if (d && !plainClick(e)) return; if (d) { e.preventDefault(); goCity(d.dataset.c); $('#qres').hidden = true; $('#q').value = ''; $('#bar').classList.remove('sopen'); } };
 map.on('mousemove', e => $('#s-wgs').textContent = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`);
 map.on('moveend', () => { draw(); hash(); });
 // לחיצה על המפה (לא על קטע או תחנה) — ביטול הבחירה; גם Esc
@@ -869,7 +875,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') unpick(); })
 // כתובת: #h=8&d=wd&m=sp&@31.72,34.74,15
 function hash() {
   const c = map.getCenter();
-  history.replaceState(null, '', `#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn || S.lay.ld || S.lay.gf ? '&l=' + (S.lay.sp ? 's' : '') + (S.lay.bn ? 'b' : '') + (S.lay.ld ? 'q' : '') + (S.lay.gf ? 'g' : '') : ''}&@${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}`);
+  history.replaceState(null, '', hashFor(c.lat, c.lng, map.getZoom()));
+}
+function hashFor(lat, lng, z) {
+  return (`#h=${S.h}&d=${S.d}${S.d === 'y' ? '&dd=' + S.dsel.join(',') : ''}&m=${S.m}${S.lay.bn || S.lay.ld || S.lay.gf ? '&l=' + (S.lay.sp ? 's' : '') + (S.lay.bn ? 'b' : '') + (S.lay.ld ? 'q' : '') + (S.lay.gf ? 'g' : '') : ''}&@${(+lat).toFixed(4)},${(+lng).toFixed(4)},${z}`);
 }
 function readHash() {
   const h = location.hash.slice(1); if (!h) return;

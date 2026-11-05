@@ -42,6 +42,8 @@
   .lp-sec{font-size:11px;font-weight:900;color:#64748b;margin-top:6px;border-top:1px solid #f1f5f9;padding-top:6px}
   /* כפתורים ב-outline — כמו בשאר האתרים (הנחיית המעצב) */
   .btn{background:#fff;color:var(--brand);border:1.5px solid var(--brand);border-radius:12px;padding:7px 14px;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  a.btn{text-decoration:none}
+  .top a.btn{font-size:14px;font-weight:900;margin:0}   /* מפה/רשימה הם קישורים — לא לקבל את עיצוב קישורי הכותרת */
   .btn svg{flex:0 0 auto}
   .btn.big{font-size:16px;padding:10px 18px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
   /* ---- טבלה ---- */

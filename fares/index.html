@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Heebo:wght@400;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <!-- העטיפה .wrap נדרשת לכפתור הנגישות: a11y.js מגדיל תצוגה דרך
@@ -62,9 +62,9 @@
           <div class="how">בחלק מהקווים המחיר אחיד לכל הקו, ובשאר הוא תלוי במרחק בין תחנת העלייה לירידה — הכלי מזהה לבד את סוג הקו ומציג את המחיר הנכון. אפשר לחפש לפי קו ותחנות שלו, או ישירות לפי שתי תחנות בכל הארץ.</div>
           <div class="moderow">
             <div class="modeSeg">
-              <button class="on" id="modeLine">לפי קו</button>
-              <button id="modeStop">לפי תחנות</button>
-              <button id="modeRail">לפי רכבת</button>
+              <a class="on" id="modeLine" href="./">לפי קו</a>
+              <a id="modeStop" href="#m=st">לפי תחנות</a>
+              <a id="modeRail" href="#m=rail">לפי רכבת</a>
             </div>
             <!-- כפתור ההנחה אחרי בחירת אופן החיפוש (שלמה 28.10) -->
             <button type="button" class="dscbtn" id="dscBtn">🏷️ מגיעה לי הנחה?</button>
@@ -516,11 +516,13 @@ function onSearchLine(){
   box.style.display='block';
   box.innerHTML=matches.map(l=>{
     const k=kindOf(l.tt);
-    return `<div class="resitem" tabindex="0" role="option" data-rd="${l.rd}" data-line="${l.line}" data-dest="${(l.dest||'').replace(/<->/g,' ↔ ')}" data-op="${l.op||''}" data-tt="${l.tt||''}">`+
-    `<span title="${k[1]}">${k[0]}</span><span class="rn">${l.line}</span><span>${(l.dest||'').replace(/<->/g,' ↔ ')}</span><span class="rd2">${l.op||''}</span></div>`;
+    return `<a class="resitem" href="#l=${encodeURIComponent(l.rd)}" tabindex="0" role="option" data-rd="${l.rd}" data-line="${l.line}" data-dest="${(l.dest||'').replace(/<->/g,' ↔ ')}" data-op="${l.op||''}" data-tt="${l.tt||''}">`+
+    `<span title="${k[1]}">${k[0]}</span><span class="rn">${l.line}</span><span>${(l.dest||'').replace(/<->/g,' ↔ ')}</span><span class="rd2">${l.op||''}</span></a>`;
   }).join('');
   box.querySelectorAll('.resitem').forEach(el=>{
-    const act=()=>{
+    const act=e=>{
+      // Ctrl/Cmd/Shift או גלגלת — הדפדפן פותח את הקישור בלשונית חדשה
+      if (e && e.type==='click'){ if (!plainClick(e)) return; e.preventDefault(); }
       box.style.display='none'; $('q').value=el.dataset.line+' · '+el.dataset.dest;
       pickLine(el.dataset.rd, el.dataset.line, el.dataset.dest, el.dataset.op, el.dataset.tt);
     };
@@ -569,7 +571,8 @@ function pickLine(rd, line, dest, op, tt){
     $('fromSel').innerHTML=opts; $('toSel').innerHTML=opts;
     $('fromSel').selectedIndex=0; $('toSel').selectedIndex=POOL.length-1;
     if (PEND && PEND.get('l')===rd){
-      const a=+PEND.get('a'), b=+PEND.get('b');
+      // ‎#l=<קו>‎ בלי a/b (קישור מתוצאות החיפוש) — ברירת המחדל: מהתחנה הראשונה עד האחרונה
+      const a=PEND.has('a')?+PEND.get('a'):-1, b=PEND.has('b')?+PEND.get('b'):-1;
       if (a>=0 && a<POOL.length) $('fromSel').selectedIndex=a;
       if (b>=0 && b<POOL.length) $('toSel').selectedIndex=b;
       PEND=null;
@@ -1038,22 +1041,25 @@ function removeMarker(key){
 }
 
 /* ---------- מעבר בין המצבים ---------- */
+// המצבים הם קישורים (‎./‎, ‎#m=st‎, ‎#m=rail‎) — לחיצה רגילה מחליפה מצב בדף, Ctrl/גלגלת פותחים בלשונית חדשה
+function plainClick(e){ return !(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button!==0); }
+const modeClick=f=>e=>{ if (!plainClick(e)) return; e.preventDefault(); f(); };
 const MODES=['Line','Stop','Rail'];
 function setMode(m){
   for (const x of MODES){ $('mode'+x).classList.toggle('on', x===m); $('pane'+x).classList.toggle('on', x===m); }
 }
-$('modeLine').addEventListener('click', ()=>{
+$('modeLine').addEventListener('click', modeClick(()=>{
   setMode('Line');
   if (POOL) computeLine(); else if (picked.from&&picked.to) computeStops(); else emptyResult('בחרו קו ותחנות, או שתי תחנות — והמחיר יופיע כאן');
   syncUrl();
-});
-$('modeStop').addEventListener('click', ()=>{
+}));
+$('modeStop').addEventListener('click', modeClick(()=>{
   setMode('Stop');
   loadStops().then(refreshDots).catch(()=>{});
   ensureMap();
   if (picked.from&&picked.to) computeStops(); else emptyResult('בחרו שתי תחנות — והמחיר יופיע כאן');
   syncUrl();
-});
+}));
 /* ---------- מצב 3: לפי רכבת — מחירון רכבת ישראל לפי זוג תחנות ---------- */
 let RST=null;
 function loadRail(){
@@ -1080,12 +1086,12 @@ function computeRail(){
   syncUrl();
 }
 ['rFrom','rTo'].forEach(id=>$(id).addEventListener('change', computeRail));
-$('modeRail').addEventListener('click', ()=>{
+$('modeRail').addEventListener('click', modeClick(()=>{
   setMode('Rail');
   emptyResult('טוען את תחנות הרכבת…');
   loadRail().then(computeRail).catch(()=>emptyResult('תחנות הרכבת לא נטענו. נסו שוב.'));
   syncUrl();
-});
+}));
 if (PENDR) window.addEventListener('load', ()=>{
   setMode('Rail');
   loadRail().then(()=>{ if (PENDR.get('f')) $('rFrom').value=PENDR.get('f'); if (PENDR.get('t')) $('rTo').value=PENDR.get('t'); computeRail(); }).catch(()=>{});

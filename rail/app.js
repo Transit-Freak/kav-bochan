@@ -253,7 +253,7 @@ function linesTable(lines) {
   sortRows(rows, sortL);
   const single = period === 'day';
   return `<div class="tblbox"><table id="tl"><thead><tr>${th('קו', 'nm', sortL)}${th('נסיעות', 'rides', sortL)}${th('נמדדו', 'n', sortL)}${th('בזמן', 'on', sortL)}${th('איחור ממוצע', 'avg', sortL)}${single ? th('חציון', 'med', sortL) : ''}${th('מעל 20 דק׳', 'b3', sortL)}</tr></thead><tbody>` +
-    rows.map(r => `<tr class="v" tabindex="0" data-nm="${esc(r.nm)}" title="לחיצה: באיזו תחנה הקו מתעכב"><td class="nm">${esc(r.nm) || '—'} <small class="go">פירוט לפי תחנה ←</small></td><td>${num(r.rides)}</td><td>${num(r.n)}</td><td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}<span class="bar"><i style="width:${Math.round((r.on || 0) * 100)}%"></i></span></td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td>${single ? `<td>${r.med == null ? '—' : fmt1(r.med) + ' דק׳'}</td>` : ''}<td>${r.b3 == null ? '—' : Math.round(r.b3 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
+    rows.map(r => `<tr class="v" tabindex="0" data-nm="${esc(r.nm)}" title="לחיצה: באיזו תחנה הקו מתעכב"><td class="nm"><a class="vl" href="${railHref('lines', {ln: r.nm})}">${esc(r.nm) || '—'}</a> <small class="go">פירוט לפי תחנה ←</small></td><td>${num(r.rides)}</td><td>${num(r.n)}</td><td>${r.on == null ? '—' : Math.round(r.on * 100) + '%'}<span class="bar"><i style="width:${Math.round((r.on || 0) * 100)}%"></i></span></td><td class="${dcls(r.avg)}">${r.avg == null ? '—' : fmt1(r.avg) + ' דק׳'}</td>${single ? `<td>${r.med == null ? '—' : fmt1(r.med) + ' דק׳'}</td>` : ''}<td>${r.b3 == null ? '—' : Math.round(r.b3 * 100) + '%'}</td></tr>`).join('') + '</tbody></table></div>';
 }
 function stationsTable(stations) {
   const rows = Object.entries(stations).map(([c, s]) => ({c, nm: (ST[c] || [])[0] || c, rides: s.rides, n: s.n, on: s.on, avg: s.avg, b3: s.n ? s.b[3] / s.n : null}));
@@ -274,6 +274,17 @@ function tabBadge(k, A, days) {
     case 'stations': return num(Object.keys(A.stations).length) + ' תחנות';
   }
   return '';
+}
+// קישורים אמיתיים (שלמה 04.11): לשוניות, שורות הקווים והנסיעות הם <a href> לכתובת שפותחת את אותו מסך
+// (#יום/לשונית/ln=… · p=תקופה כשלא נבחר יום), כדי שאפשר לפתוח בלשונית חדשה. לחיצה רגילה — כמו קודם
+function nv(e) { if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button) { e.stopPropagation(); return false; } e.preventDefault(); return true; }
+// קישור בתוך שורה: לחיצה רגילה — השורה פותחת את החלון כמו קודם; Ctrl/אמצעית — רק הלשונית החדשה
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('a.vl')) nv(e); }, true);
+function railHref(k, q) {
+  q = Object.assign(period !== 'day' ? {p: period} : {}, q || {});
+  const qs = Object.entries(q).filter(([, v]) => v != null && v !== '').map(([a, v]) => a + '=' + encodeURIComponent(v)).join('&');
+  const h = (period === 'day' && dayD ? dayD : '') + (k !== 'overview' || qs ? '/' + k : '') + (qs ? '/' + qs : '');
+  return esc(h ? '#' + h : location.pathname + location.search);
 }
 function showTab(k) {
   const avail = TABS.filter(([x]) => x !== 'rides' || period === 'day').map(([x]) => x);
@@ -297,7 +308,7 @@ function render() {
   if (period === 'day' && days[0] && partial(days[0])) html += `<div class="warn">ביום זה דאטאבוס קלט שידורי מיקום רק מ-${num(days[0].fix)} מתוך ${num(days[0].rides)} רכבות שבלו״ז. המספרים של היום הזה אינם מייצגים, והוא אינו נכלל בממוצעי התקופה.</div>`;
   html += heroHtml(A.acc, days);
   if (skipped.length) html += `<div class="warn">לא נכללו ${skipped.length} ימים שבהם דאטאבוס קלט שידורים מפחות ממחצית הרכבות: ${skipped.map(d => `${shortDate(d.d)} (${num(d.fix)} מתוך ${num(d.rides)})`).join(', ')}.</div>`;
-  html += `<div class="tabbar" id="tabbar" role="tablist">${TABS.filter(([k]) => k !== 'rides' || period === 'day').map(([k, t]) => { const b = tabBadge(k, A, days); return `<button class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}">${t}${b ? `<small>${b}</small>` : ''}</button>`; }).join('')}</div>`;
+  html += `<div class="tabbar" id="tabbar" role="tablist">${TABS.filter(([k]) => k !== 'rides' || period === 'day').map(([k, t]) => { const b = tabBadge(k, A, days); return `<a class="tab${tab === k ? ' on' : ''}" role="tab" aria-selected="${tab === k}" data-t="${k}" href="${railHref(k)}">${t}${b ? `<small>${b}</small>` : ''}</a>`; }).join('')}</div>`;
   html += `<div class="tabsec" data-tab="overview"><div class="cols2">
     <div class="panel"><p class="ptitle">התפלגות האיחור ביעד <small>${num(A.acc.n)} רכבות</small></p><p class="pdesc">לכל רכבת נספר האיחור בתחנה האחרונה שנמדדה בה. עיכוב באמצע הדרך שנסגר עד היעד לא מופיע כאן.</p>${distHtml(A.acc) || '<div class="empty">אין רכבות שנמדדו</div>'}</div>
     <div class="panel"><p class="ptitle">התפלגות ההגעות לתחנות <small>${num(A.acc.sn)} הגעות, כולל תחנות ביניים</small></p><p class="pdesc">כל הגעה של רכבת לתחנה נספרת פעם אחת, גם בתחנות הביניים. כאן עיכוב באמצע הדרך כן נספר, גם אם הרכבת השלימה אותו עד היעד.</p>${distHtml({n: A.acc.sn, b: A.acc.sb}) || '<div class="empty">אין הגעות שנמדדו</div>'}</div>
@@ -315,7 +326,7 @@ function render() {
   html += `<div class="tabsec" data-tab="gain"><div id="gainbox"><div class="panel"><div class="empty">טוען…</div></div></div></div>`;
   html += `<div class="tabsec" data-tab="stations"><div class="panel"><p class="ptitle">לפי תחנה <small>איחור ההגעה לתחנה, בנסיעות שנמדדו בה</small></p>${stationsTable(A.stations)}</div></div>`;
   app.innerHTML = html;
-  $('#tabbar').onclick = e => { const b = e.target.closest('button.tab'); if (b) showTab(b.dataset.t); };
+  $('#tabbar').onclick = e => { const b = e.target.closest('.tab'); if (b && nv(e)) showTab(b.dataset.t); };
   showTab(tab);
   if (period !== 'day') {
     const wd = windowDays();
@@ -366,7 +377,7 @@ function renderRides() {
   const shown = showAll ? rides : rides.slice(0, 120);
   box.innerHTML = `<div class="tblbox"><table><thead><tr><th>יציאה</th><th>קו</th><th>רכבת</th><th>תחנות שנמדדו</th><th>איחור</th><th></th></tr></thead><tbody>` +
     shown.map(r => { const fd = rideFinal(r); const idx = dayData.rides.indexOf(r); const reach = rideReach(r);
-      return `<tr class="v" data-i="${idx}" tabindex="0"><td class="mono t">${hhmm(r.s[0] ? r.s[0][1] : null)}</td><td class="nm">${esc(r.nm)}</td><td class="mono" style="color:var(--mut)">${esc(r.tn) || '—'}</td><td>${rideMeasured(r)}/${Math.max(0, r.s.length - 1)}</td><td><span class="mono ${dcls(fd)}">${fd == null ? '—' : delayTxt(fd)}</span>${reach ? ` <small style="color:var(--dim)">${esc(reach)}</small>` : ''}</td><td>${statusOf(r)}</td></tr>`; }).join('') +
+      return `<tr class="v" data-i="${idx}" tabindex="0"><td class="mono t"><a class="vl" href="${railHref('rides', {ride: idx})}">${hhmm(r.s[0] ? r.s[0][1] : null)}</a></td><td class="nm">${esc(r.nm)}</td><td class="mono" style="color:var(--mut)">${esc(r.tn) || '—'}</td><td>${rideMeasured(r)}/${Math.max(0, r.s.length - 1)}</td><td><span class="mono ${dcls(fd)}">${fd == null ? '—' : delayTxt(fd)}</span>${reach ? ` <small style="color:var(--dim)">${esc(reach)}</small>` : ''}</td><td>${statusOf(r)}</td></tr>`; }).join('') +
     '</tbody></table></div>' + (rides.length > shown.length ? `<button class="more" id="more">הצגת כל ${num(rides.length)} הנסיעות</button>` : '');
   box.querySelectorAll('tr.v').forEach(tr => { const open = () => openRide(dayData.rides[+tr.dataset.i]); tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; });
   const more = $('#more'); if (more) more.onclick = () => { showAll = true; renderRides(); };
@@ -574,9 +585,9 @@ async function openLine(nm) {
       `<td>${r.dw == null ? '—' : fmt1(r.dw) + ' דק׳'}</td><td>${num(r.n || r.gn)}</td></tr>`).join('') + `</tbody></table></div>
     <p class="note">"איחור בהגעה" — כמה דקות אחרי הלו״ז הרכבת הגיעה לתחנה, בממוצע. "נוסף בקטע שלפניה" — כמה מהאיחור הזה נוצר בדרך מהתחנה הקודמת (כולל העמידה בה). "עמידה" — כמה זמן הרכבת עמדה בתחנה בפועל, לפי GPS. ההגעה נמדדת לפי GPS, ובלי GPS לפי שידור "התחנה הנוכחית" של רכבת ישראל.</p>
     ${meet.length ? `<p class="ptitle" style="margin-top:16px">חיכתה לרכבת אחרת במפגש <small>${num(meet.length)} פעמים</small></p>${meetTable(meet.sort((x, y) => (y.dd || 0) - (x.dd || 0)), ds.length > 1)}${MEET_NOTE}` : ''}
-    <button class="more" id="lgo">לכל הקווים על המפה ←</button>`;
+    <a class="more" id="lgo" href="${railHref('gain', {gl: nm})}">לכל הקווים על המפה ←</a>`;
   LMAP = drawGainMap(seg, 1, 'lmap', LMAP);
-  $('#lgo', ovl).onclick = () => { close(); gLine = nm; showTab('gain'); window.scrollTo({top: $('#tabbar').offsetTop - 10, behavior: 'smooth'}); };
+  $('#lgo', ovl).onclick = e => { if (!nv(e)) return; close(); gLine = nm; showTab('gain'); window.scrollTo({top: $('#tabbar').offsetTop - 10, behavior: 'smooth'}); };
 }
 
 let MAP = null;
@@ -629,12 +640,17 @@ const methodEl = $('#method'); if (methodEl) methodEl.innerHTML = METHOD;
 Promise.all([load(T.data + 'index.json'), load(T.data + 'stations.json').catch(() => ({})), load(T.data + 'segments.json').catch(() => ({}))]).then(([idx, st, seg]) => {
   IDX = idx; ST = st || {}; SEG = (seg && seg.segments) || {}; DAYS = (idx.days || []).filter(d => d.rides).sort((a, b) => a.d < b.d ? -1 : 1);
   if (!DAYS.length) { $('#app').innerHTML = '<div class="msg">עדיין אין נתונים — הריצה הראשונה מתבצעת הלילה</div>'; $('#sub').textContent = ''; return; }
-  const [h, t0] = location.hash.replace('#', '').split('/');
+  const [h, t0, q0] = location.hash.replace('#', '').split('/');
+  const u = new URLSearchParams(q0 || '');
   if (t0) tab = t0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(h) && DAYS.some(d => d.d === h)) { period = 'day'; dayD = h; }
+  else if (['7', '30', '90', 'all'].includes(u.get('p'))) period = u.get('p');
   else if (DAYS.length <= 30) period = 'all';   // כל עוד אין יותר מחודש, 'כל התקופה' היא ברירת המחדל (הכפתור 30 ימים מוסתר)
   dayD = dayD || DAYS[DAYS.length - 1].d;
+  if (u.get('gl')) gLine = u.get('gl');
   render();
+  if (u.get('ln')) openLine(u.get('ln'));
+  if (u.get('ride') && period === 'day') loadDay(dayD).then(() => { const r = dayData && dayData.rides[+u.get('ride')]; if (r) openRide(r); });
 }).catch(e => { $('#app').innerHTML = `<div class="msg">הנתונים לא נטענו (${esc(e.message)})</div>`; $('#sub').textContent = ''; });
 
 // מיון בלחיצה על כותרת בכל טבלה שאין לה מיון משלה (שלמה 17.09: "שיהיה אפשר ללחוץ על כל שורה בטבלה… מלמעלה

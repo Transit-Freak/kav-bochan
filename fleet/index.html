@@ -58,24 +58,24 @@
      הכותרת יורדת מתחתיו (שלמה 08.10: "הכפתור נמצא על הטקסט") */
   @media (min-width:761px) and (max-width:1420px){.wrap{padding-top:56px}}
   .nav{display:flex;border-bottom:2px solid var(--line);margin:8px 0 12px}
-  .nav button{flex:1;border:none;background:none;box-shadow:none;border-radius:0;font:700 15px 'Rubik',sans-serif;padding:11px 4px;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer}
-  .nav button.on{color:var(--ink);background:none;border-bottom-color:var(--ink)}
-  .nav button[hidden]{display:none}
+  .nav button,.nav a{flex:1;text-align:center;text-decoration:none;border:none;background:none;box-shadow:none;border-radius:0;font:700 15px 'Rubik',sans-serif;padding:11px 4px;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer}
+  .nav button.on,.nav a.on{color:var(--ink);background:none;border-bottom-color:var(--ink)}
+  .nav button[hidden],.nav a[hidden]{display:none}
   body.inner .sub,body.inner #view .kpis,body.inner #view .upd{display:none}
   .crumb{font-size:13px;font-weight:700;color:var(--mut);margin:0 0 10px}
-  .crumb button{border:none;background:none;padding:0;font:inherit;color:#1D4ED8;cursor:pointer}
+  .crumb button,.crumb a{text-decoration:none;border:none;background:none;padding:0;font:inherit;color:#1D4ED8;cursor:pointer}
   .crumb b{color:var(--ink)}
   .sugg{position:absolute;inset-inline:0;top:calc(100% + 6px);background:var(--surface);border-radius:14px;box-shadow:var(--shadow-lg);z-index:40;padding:6px 0;max-height:70vh;overflow-y:auto}
   .sugg h4{margin:8px 16px 4px;font-size:11.5px;color:var(--dim);font-weight:800}
-  .sugg button{display:flex;justify-content:space-between;gap:10px;width:100%;border:none;background:none;text-align:inherit;padding:9px 16px;font:600 14.5px 'Rubik',sans-serif;color:var(--ink);cursor:pointer}
-  .sugg button:hover,.sugg button.hi{background:var(--row)}
-  .sugg button span{color:var(--dim);font-size:12.5px;font-weight:600;white-space:nowrap}
+  .sugg button,.sugg a{text-decoration:none;display:flex;justify-content:space-between;gap:10px;width:100%;border:none;background:none;text-align:inherit;padding:9px 16px;font:600 14.5px 'Rubik',sans-serif;color:var(--ink);cursor:pointer}
+  .sugg button:hover,.sugg button.hi,.sugg a:hover,.sugg a.hi{background:var(--row)}
+  .sugg button span,.sugg a span{color:var(--dim);font-size:12.5px;font-weight:600;white-space:nowrap}
   .sugg .none{padding:10px 16px;color:var(--dim);font-size:13px}
   .mitem{display:block;width:100%;border:none;background:none;text-align:inherit;padding:13px 4px;border-bottom:1px solid var(--line);font:700 16px 'Rubik',sans-serif;color:var(--ink);cursor:pointer}
   .mitem small{display:block;font-weight:500;color:var(--mut);font-size:12.5px;margin-top:2px}
   .ctabs{display:flex;gap:6px;margin:12px 0}
-  .ctabs button{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:999px;font:700 13.5px 'Rubik',sans-serif;padding:9px 4px;color:var(--mut);cursor:pointer}
-  .ctabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .ctabs button,.ctabs a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;font:700 13.5px 'Rubik',sans-serif;padding:9px 4px;color:var(--mut);cursor:pointer}
+  .ctabs button.on,.ctabs a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   .ov h3{margin:0 0 12px;font-size:15px}
   .ov .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   .ov .t{background:var(--row);border:none;border-radius:12px;padding:12px;text-align:inherit;font-family:inherit;cursor:pointer;color:var(--ink)}
@@ -154,6 +154,11 @@
   th{text-align:right;font-size:11px;color:var(--dim);font-weight:700;padding:2px 10px;white-space:nowrap;cursor:pointer;user-select:none}
   td{background:var(--row);padding:9px 10px;font-weight:600;white-space:nowrap}
   tr.v{cursor:pointer}
+  /* קישורים אמיתיים לפתיחה בלשונית חדשה — נראים כמו הכפתורים שהיו (שלמה 04.11) */
+  a.card,a.mrow,a.lnrow,a.t,a.mitem,a.linkbtn,a.type,a.yrow,a.vl{text-decoration:none}
+  a.vl{color:inherit}a.yrow{color:inherit}a.lnrow,a.card{box-sizing:border-box}
+  a.card,a.mrow,a.t,a.type{font-size:13.3333px;line-height:normal}   /* כמו ברירת המחדל של כפתור */
+  a.type{color:var(--ink)}a.linkbtn{display:inline-block}
   tr.v:hover td{background:#EDF2F8}
   tr.off td:first-child{color:var(--bad)}
   tr.off td:first-child::before{content:'●';color:#E5484D;margin-inline-end:6px;font-size:9px;vertical-align:2px}
@@ -241,7 +246,7 @@
   .vfold>.vin{padding:0 12px 12px}
   .empty{padding:40px;text-align:center;color:var(--dim);font-weight:700}
   .msg{padding:60px 20px;text-align:center;color:var(--mut);font-weight:800;font-size:16px}
-  button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid #10172A;outline-offset:2px}
+  button:focus-visible,input:focus-visible,tr:focus-visible,a:focus-visible{outline:2px solid #10172A;outline-offset:2px}
   /* ── טלפון: הסרגל העליון נשבר לשורות, הכפתורים גדלים, המודאל הופך לגיליון תחתון ──
      הגורם לגלילה הצידית: שורת החיפוש+מצבים לא נשברה וקיבעה רוחב מינימלי ~574px */
   @media(max-width:640px){
@@ -286,13 +291,13 @@
     </div>
   </div>
   <nav class="nav" aria-label="ניווט באתר">
-    <button class="mode on" data-m="op">חברות</button>
-    <button class="mode" data-m="city">ערים</button>
-    <button class="mode" data-m="type">דגמים</button>
-    <button class="mode" data-m="plate" hidden>כל הרכבים</button>
-    <button class="mode" data-m="moves" hidden>מעברים</button>
-    <button class="mode" data-m="cluster" hidden>אשכול ביום</button>
-    <button class="mode" data-m="line" hidden>לפי קו</button>
+    <a class="mode on" data-m="op" href="./">חברות</a>
+    <a class="mode" data-m="city" href="#m=city">ערים</a>
+    <a class="mode" data-m="type" href="#m=type">דגמים</a>
+    <a class="mode" data-m="plate" href="#m=plate" hidden>כל הרכבים</a>
+    <a class="mode" data-m="moves" href="#m=moves" hidden>מעברים</a>
+    <a class="mode" data-m="cluster" href="#m=cluster" hidden>אשכול ביום</a>
+    <a class="mode" data-m="line" href="#m=line" hidden>לפי קו</a>
     <button id="nmore" onclick="MENU()" aria-haspopup="dialog">עוד ▾</button>
   </nav>
   <div class="sub">כל האוטובוסים שנצפו בשידורי האיכון של משרד התחבורה: לאיזו חברה כל רכב שייך, מאיזו שנה, ואילו ירדו מהשירות. <details class="subx" style="display:inline"><summary>עוד על המקורות</summary> לחיצה על רכב פותחת את כל פרטיו מהמאגר הממשלתי. "מעברים" מראה אילו רכבים עברו מחברה לחברה או מעיר לעיר. "לפי קו" מראה אילו אוטובוסים נוסעים בכל קו בשלושת החודשים האחרונים. מקורות: דאטאבוס (הסדנא לידע ציבורי) + <a href="https://data.gov.il/he/datasets/ministry_of_transport/kli_rechev_ciburiim" target="_blank" rel="noopener">מאגר הרישוי הממשלתי</a> (סוג רכב, דגם, סטטוס ותאריך הורדה מהכביש) + מאגר <a href="https://data.gov.il/he/datasets/ministry_of_transport/bus_fleet" target="_blank" rel="noopener">"ציי רכב אוטובוסים"</a> של משרד התחבורה (מיגון, מד ק"מ ומפרט). <span style="color:var(--dim);font-size:11px">גרסת עמוד 32 · הדף מתעדכן מעצמו</span></details></div>
@@ -432,7 +437,7 @@ function home(){
     const kab=DATA.enriched?o.vehicles.filter(isKab).length:0;
     const kabA=kab?o.vehicles.filter(v=>isKab(v)&&isActive(v)).length:0, retReg=ret-(kab-kabA);
     const tot=o.vehicles.length||1, kabR=kab-kabA, w=x=>`${(100*x/tot).toFixed(1)}%`;
-    return `<button class="card op${isLight(opColor(o.ref,i))?' lt':''}${opColors(o.ref,i).length>1?' mc':''}" style="--c:${opColor(o.ref,i)};--bg:${opBg(o.ref,i)}" onclick="go(${o.ref})">
+    return `<a class="card op${isLight(opColor(o.ref,i))?' lt':''}${opColors(o.ref,i).length>1?' mc':''}" style="--c:${opColor(o.ref,i)};--bg:${opBg(o.ref,i)}" href="${nh({m:MODE!=='op'?MODE:null,op:o.ref})}" onclick="if(nv(event))go(${o.ref})">
       <h2>${esc(o.name)}</h2>
       ${act-kabA===0&&kabA?`<div class="body"><div class="n">${fmt(kabA)}</div>
       <div class="lbl" title="לחברה אין רכבים משלה בשידורים — כל הנסיעות ברכבי קבלן">רכבי קבלן פעילים</div>`
@@ -440,7 +445,7 @@ function home(){
       <div class="lbl" title="רכבי החברה ששידרו נסיעות בחודש האחרון${kabA?' — בלי רכבי קבלן':''}">אוטובוסים פעילים</div>`}
       <div class="obar" title="מתוך ${fmt(o.vehicles.length)} רכבים שנצפו"><i style="width:${w(act-kabA)}"></i><i class="k" style="width:${w(kabA)}"></i><i class="r" style="width:${w(retReg)}"></i><i class="kr" style="width:${w(kabR)}"></i></div>
       <div class="oleg"><span>${fmt(o.vehicles.length)} רכבים סה"כ</span>${retReg?`<span class="r"><i class="r"></i>${fmt(retReg)} ירדו</span>`:''}${kabA?`<span><i class="k"></i>${fmt(kabA)} רכבי קבלן</span>`:''}${kab?`${kabR?`<span class="r"><i class="kr"></i>${fmt(kabR)} רכבי קבלן ירדו</span>`:''}`:''}</div></div>
-    </button>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;
+    </a>`;}).join('')||'<div class="empty">לא נמצאה חברה</div>'}</div>`;
 }
 
 /* ── מצב עיר: אילו רכבים פועלים בכל עיר (נבנה מהקווים ששידר כל רכב) ── */
@@ -612,11 +617,11 @@ function cityHome(f){
   if(CITYSEL&&CITIES.cities[CITYSEL]) return cityView(CITYSEL);
   const hits=all.filter(([c])=>!f||c.includes(f)).sort((a,b)=>(b[1].act??b[1].total)-(a[1].act??a[1].total)).slice(0,30);
   return kpis()+`<div class="cards">${hits.map(([c,d])=>
-    `<button class="card" style="--c:#334155" onclick="history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';CYF=null;TYPEF=null;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<a class="card" style="--c:#334155" href="${nh({m:'city',city:c})}" onclick="if(nv(event)){history.pushState({sub:1},'');CITYSEL=${JSON.stringify(c).replace(/"/g,'&quot;')};CITYMON='';CYF=null;TYPEF=null;STATF=null;KABF=null;RTF=null;SORTK=null;LIMIT=200;render();window.scrollTo({top:0})}">
       <h2>${esc(c)}</h2><div class="n">${d.act!=null?fmt(d.act):fmt(d.total)}</div>
       <div class="lbl">${d.act!=null?'אוטובוסים פעילים עכשיו בעיר':'רכבים פועלים בעיר'}</div>
       ${d.act!=null?`<div class="pills"><span title='"פעיל" = שידר נסיעות בחודש האחרון'>נצפו בה אי-פעם: ${fmt(d.total)}</span></div>`:''}
-    </button>`).join('')||'<div class="empty">לא נמצאה עיר</div>'}</div>`;
+    </a>`).join('')||'<div class="empty">לא נמצאה עיר</div>'}</div>`;
 }
 function cityView(c){
   const d=CITIES.cities[c];
@@ -792,7 +797,7 @@ function cityVehPanel(c){
       </div>`:''}`;})():''}
     ${rows.length?`<div class="tblbox"><table><thead><tr>${th('o','חברה')}${th('p','מספר רכב')}${DATA.enriched?th('t','סוג הרכב')+th('y','שנתון')+th('m','יצרן ודגם'):''}${th('dd','ימי פעילות שנמדדו')}${th('rt','נסיעות סה"כ')}${th('r','נסיעות ביום')}${th('f','נצפה לראשונה')}${th('l','נצפה לאחרונה')}<th>מצב</th></tr></thead><tbody>
     ${shown.map(r=>{const v=r.v,on=isActive(v),mv=on?null:movedTo(v);
-      return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')"><td>${esc(r.o.name)}</td><td dir="ltr" style="text-align:right">${esc(v[0])}</td>${DATA.enriched?`<td>${gT(v)?`<span class="tg">${esc(gT(v).replace(/^אוטובוס /,''))}</span>`:'—'}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}<td>${r.dd!=null?fmt(r.dd):'—'}</td><td>${r.rt!=null?fmt(r.rt):'—'}</td><td>${gR(v)!=null?gR(v):'—'}</td><td>${fd(v[1])}</td><td>${fd(v[2])}</td><td><span class="st ${on?'on':mv?'mv':'off'}">${on?'פעיל':mv?'עבר ל'+esc(mv.name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
+      return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')"><td>${esc(r.o.name)}</td><td dir="ltr" style="text-align:right">${vl(v[0])}</td>${DATA.enriched?`<td>${gT(v)?`<span class="tg">${esc(gT(v).replace(/^אוטובוס /,''))}</span>`:'—'}</td><td>${gY(v)||'—'}</td><td>${esc(gM(v)||'—')}</td>`:''}<td>${r.dd!=null?fmt(r.dd):'—'}</td><td>${r.rt!=null?fmt(r.rt):'—'}</td><td>${gR(v)!=null?gR(v):'—'}</td><td>${fd(v[1])}</td><td>${fd(v[2])}</td><td><span class="st ${on?'on':mv?'mv':'off'}">${on?'פעיל':mv?'עבר ל'+esc(mv.name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
     </tbody></table></div>
     ${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,rows.length-LIMIT))} מתוך ${fmt(rows.length-LIMIT)} שנותרו</button>`:''}`:'<div class="empty">אין רכבים בסינון הזה</div>'}
     <p class="note">ימי הפעילות והנסיעות נמדדו בשידורים בכל הימים שנסרקו, בכל מקום שהרכב פעל — לא רק בעיר הזו. ${mon?'בחירת חודש משאירה רק רכבים ששידרו באותו חודש (בכל מקום); באיזו עיר בדיוק הם היו באותו חודש ייראה כשרישום החודשים לפי קו יתמלא. ':''}לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
@@ -913,13 +918,13 @@ function movesHome(){
     ${mvWhenHtml(pre)}
     <p class="note">רכב "עבר" כשתקופת השידור שלו ביעד התחילה אחרי שהתחילה במקור ונמשכה אחריה. בין חברות רואים את זה מתחילת המעקב (${fd(MOVES.since)}); רכב משויך לעיר לפי הקווים שבהם שידר. ${covTxt}</p>
   </div>`;
-  const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<button class="type" data-mv="${side}" data-k="${esc(k)}" onclick="mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></button>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
+  const cards=(title,opts,side)=>`<div class="panel"><p class="ptitle">${title}</p>${opts.length?`<div class="types">${opts.slice(0,40).map(([k,n])=>`<a class="type" data-mv="${side}" data-k="${esc(k)}" href="${sh(side==='to'?{mt:k}:{mf:k})}" onclick="if(nv(event))mvPick(this)"><b>${fmt(n)}</b><span>${mvIsOp(k)?'🏢':'📍'} ${esc(mvLabel(k))}</span></a>`).join('')}</div>`:'<div class="empty">אין מעברים כאלה</div>'}</div>`;
   let body='';
   if(mvIsDay()&&!(MVF&&MVT)){
     const seen=new Set(),rows=sel.filter(m=>!seen.has(m.plate)&&seen.add(m.plate)),shown=rows.slice(0,LIMIT);
     body=`<div class="panel"><p class="ptitle">${fd(MVD)} · ${fmt(rows.length)} רכבים עברו בין חברות${MVK?' · '+esc(MVK):''}</p>
       ${rows.length?`<div class="tblbox"><table><thead><tr><th>מספר רכב</th><th>יצרן ודגם</th><th>מאיפה</th><th>לאן</th><th>נצפה לאחרונה במקור</th></tr></thead><tbody>
-      ${shown.map(m=>`<tr class="v" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${esc(m.plate)}</td><td>${esc(gM(m.v)||'—')}</td><td>${esc(mvLabel(m.from))}</td><td>${esc(mvLabel(m.to))}</td><td>${fd(m.left)}</td></tr>`).join('')}
+      ${shown.map(m=>`<tr class="v" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${vl(m.plate)}</td><td>${esc(gM(m.v)||'—')}</td><td>${esc(mvLabel(m.from))}</td><td>${esc(mvLabel(m.to))}</td><td>${fd(m.left)}</td></tr>`).join('')}
       </tbody></table></div>${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">עוד</button>`:''}`:'<div class="empty">אין מעברים בין חברות ביום הזה</div>'}
       <p class="note">היום = היום הראשון שהרכב שידר בחברה החדשה. מעבר בין ערים נרשם רק לפי חודש, ולכן בבחירת יום מוצגים רק מעברים בין חברות.</p></div>`;
   }else if(MVF&&MVT){
@@ -928,7 +933,7 @@ function movesHome(){
     body=`<div class="panel"><p class="ptitle">${fmt(new Set(rows.map(m=>m.plate)).size)} רכבים עברו מ${esc(mvFull(MVF))} ל${esc(mvFull(MVT))}${MVK?' · '+esc(MVK):''}</p>
       ${rows.length?`<div class="tblbox"><table><thead><tr><th>מספר רכב</th><th>סוג הרכב</th><th>שנתון</th><th>יצרן ודגם</th><th>נצפה לאחרונה ב${esc(mvLabel(MVF))}</th><th>נצפה לראשונה ב${esc(mvLabel(MVT))}</th><th>היום</th></tr></thead><tbody>
       ${shown.map(m=>{const c=cur(m.plate),on=c&&isActive(c[1]);
-        return `<tr class="v ${on?'':'off'}" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${esc(m.plate)}</td><td><span class="tg">${esc(mvType(m.v))}${m.v._bs&&m.v._bs!=='אוטובוס'&&!mvType(m.v).includes(m.v._bs)?' · '+esc(m.v._bs):''}</span></td><td>${gY(m.v)||'—'}</td><td>${esc(gM(m.v)||'—')}</td><td>${fd(m.left)}</td><td>${fd(m.arrived)}</td><td><span class="st ${on?'on':'off'}">${on?'פעיל · '+esc(c[0].name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
+        return `<tr class="v ${on?'':'off'}" tabindex="0" onclick="showV('${esc(m.plate)}')"><td dir="ltr" style="text-align:right">${vl(m.plate)}</td><td><span class="tg">${esc(mvType(m.v))}${m.v._bs&&m.v._bs!=='אוטובוס'&&!mvType(m.v).includes(m.v._bs)?' · '+esc(m.v._bs):''}</span></td><td>${gY(m.v)||'—'}</td><td>${esc(gM(m.v)||'—')}</td><td>${fd(m.left)}</td><td>${fd(m.arrived)}</td><td><span class="st ${on?'on':'off'}">${on?'פעיל · '+esc(c[0].name):'ירד מהשירות'}</span></td></tr>`;}).join('')}
       </tbody></table></div>${rows.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,rows.length-LIMIT))} מתוך ${fmt(rows.length-LIMIT)} שנותרו</button>`:''}
       <p class="note">התאריכים הם של השידורים: היום האחרון שהרכב נצפה במקור והיום הראשון שנצפה ביעד. חפיפה של כמה שבועות רגילה — בהחלפת חברה הרכב משדר זמן-מה תחת שתי החברות. לחיצה על רכב פותחת את כל פרטיו.</p>`:'<div class="empty">אין מעברים כאלה בסינון הנוכחי</div>'}</div>`;
   }else if(MVF){
@@ -937,7 +942,7 @@ function movesHome(){
     body=cards(`מאילו חברות הגיעו רכבים ל${esc(mvFull(MVT))} — לחיצה מציגה את הרכבים`,fromOpts.filter(([k])=>mvIsOp(k)),'from')+cards(`מאילו ערים הגיעו רכבים ל${esc(mvFull(MVT))}`,fromOpts.filter(([k])=>!mvIsOp(k)),'from');
   }else{
     const pairs=pred=>mvCount(base.filter(pred),m=>m.from+'|'+m.to).slice(0,24);
-    const pairCards=(title,ps)=>`<div class="panel"><p class="ptitle">${title}</p>${ps.length?`<div class="types">${ps.map(([k,n])=>{const [a,b]=k.split('|');return `<button class="type" data-a="${esc(a)}" data-b="${esc(b)}" onclick="mvPair(this)"><b>${fmt(n)}</b><span>מ${esc(mvFull(a))}<br>ל${esc(mvFull(b))}</span></button>`;}).join('')}</div>`:'<div class="empty">אין</div>'}</div>`;
+    const pairCards=(title,ps)=>`<div class="panel"><p class="ptitle">${title}</p>${ps.length?`<div class="types">${ps.map(([k,n])=>{const [a,b]=k.split('|');return `<a class="type" data-a="${esc(a)}" data-b="${esc(b)}" href="${sh({mf:a,mt:b})}" onclick="if(nv(event))mvPair(this)"><b>${fmt(n)}</b><span>מ${esc(mvFull(a))}<br>ל${esc(mvFull(b))}</span></a>`;}).join('')}</div>`:'<div class="empty">אין</div>'}</div>`;
     body=pairCards('המעברים הגדולים בין חברות — לחיצה מציגה את הרכבים',pairs(m=>mvIsOp(m.from)&&mvIsOp(m.to)))+pairCards('המעברים הגדולים בין ערים',pairs(m=>!mvIsOp(m.from)&&!mvIsOp(m.to)));
   }
   return head+body;
@@ -974,13 +979,13 @@ function typeHome(f){
     <button class="fchip ${TSORT==='g'?'on':''}" onclick="TSORT='g';render()" title="דגמים לפי אחוז הרכבים שנעלמו חודש+ וחזרו (תקלה אפשרית) — מ-20 רכבים ומעלה">הכי מקולקלים</button>
     ${GPOK&&GAPS.from?`<span style="font-size:12px;color:var(--mut);align-self:center">נתוני הנפילות נבדקים בטווח ${GAPS.from.slice(5)+'.'+GAPS.from.slice(0,4)}–${GAPS.to.slice(5)+'.'+GAPS.to.slice(0,4)} · מתרחב אחורה מדי לילה</span>`:''}
   </div>${segBar}${TSORT==='r'?modelRel(f):''}${TSORT==='r'?'':`${TSORT==='g'&&!GPOK?`<div class="panel"><div class="empty">נתוני הנפילות עדיין נטענים או לא זמינים — נסו לרענן</div></div>`:''}<div class="cards">${rows.map(([t,g],i)=>
-    `<button class="card" style="--c:${TCOLORS[i%TCOLORS.length]}" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+    `<a class="card" style="--c:${TCOLORS[i%TCOLORS.length]}" href="${nh({m:'type',model:t})}" onclick="if(nv(event)){history.pushState({sub:1},'');TYPESEL=${JSON.stringify(t).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})}">
       <h2 style="font-size:1.05rem;word-break:break-word">${esc(t)}</h2><div class="n">${TSORT==='g'?Math.round(100*g.gp/g.n)+'%':fmt(g.n)}</div>
       ${TSORT==='g'?`<div class="lbl">נפלו וחזרו — תקלה אפשרית</div>`:''}
       <div class="pills"><span>${fmt(g.act)} פעילים</span>${motOn
         ?`${g.bf?`<span class="r">${fmt(g.bf)} בוטלו סופית</span>`:''}${g.rm?`<span>${fmt(g.rm)} הורדו מהכביש</span>`:''}`
         :`${g.n-g.act?`<span class="r">${fmt(g.n-g.act)} ירדו</span>`:''}${g.gp?`<span>${fmt(g.gp)} נפלו וחזרו</span>`:''}`}<span>${g.ops.size} חברות</span></div>
-    </button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>
+    </a>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>
     ${!f&&total>MODELS_SHOWN?`<p class="note">מוצגים ${MODELS_SHOWN} הדגמים הנפוצים מתוך ${fmt(total)} — חיפוש למעלה מוצא כל דגם או יצרן</p>`:''}`}`;
 }
 // מדד אמינות הדגמים (יצחק 22.10): רק רכבי קו — רכבי קבלן נעלמים וחוזרים לפי עבודה ולא לפי תקלה.
@@ -1032,9 +1037,9 @@ function modelRel(f){
     ${segBar}
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px"><details class="note" style="margin:0"><summary style="cursor:pointer;font-weight:800">מה המספרים אומרים?</summary>${relNote}</details>
     <label style="font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap">מיון: <select onchange="RSORT=this.value;render()" style="font:inherit;font-weight:800;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:5px 8px;background:var(--surface)">${sorts.map(([k,l])=>`<option value="${k}"${RSORT===k?' selected':''}>${l}</option>`).join('')}</select></label></div>
-    ${rows.map(r=>`<button class="mrow" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
+    ${rows.map(r=>`<a class="mrow" href="${nh({m:'type',model:r.name})}" onclick="if(nv(event)){history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})}">
       <span class="mrn"><span>${esc(r.name)}</span>${mot?`<b>${Math.round(r.bf*100)}% בוטלו</b>`:r.x!=null?`<b style="color:${xCol(r.x)}">פי ${r.x.toFixed(1)}</b>`:''}</span>
-      <span class="mrs">${mot?`${r.rm?`${r.rm} הורדו מהכביש · `:''}`:`${GPOK?`${Math.round(r.gp*100)}% נפלו · `:''}`}${r.age!=null?`גיל ${r.age.toFixed(1)} · `:''}${fmt(r.n)} רכבי קו${!mot&&KMOK&&r.kd!=null?` · ${fmt(Math.round(r.kd))} ק"מ ליום`:''}${!mot&&OFCOK&&r.oy!=null?` · ${fmt(Math.round(r.oy))} ק"מ בשנה`:''}${!mot&&OFF&&r.r!=null?` · ${r.r.toFixed(1)} נסיעות ביום`:''}</span></button>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>`;
+      <span class="mrs">${mot?`${r.rm?`${r.rm} הורדו מהכביש · `:''}`:`${GPOK?`${Math.round(r.gp*100)}% נפלו · `:''}`}${r.age!=null?`גיל ${r.age.toFixed(1)} · `:''}${fmt(r.n)} רכבי קו${!mot&&KMOK&&r.kd!=null?` · ${fmt(Math.round(r.kd))} ק"מ ליום`:''}${!mot&&OFCOK&&r.oy!=null?` · ${fmt(Math.round(r.oy))} ק"מ בשנה`:''}${!mot&&OFF&&r.r!=null?` · ${r.r.toFixed(1)} נסיעות ביום`:''}</span></a>`).join('')||'<div class="empty">לא נמצא דגם</div>'}</div>`;
   }
   const th=(k,l,tip)=>`<th onclick="RSORT='${k}';render()"${tip?` title="${tip}"`:''}>${l}${RSORT===k?' ▾':''}</th>`;
   if(!motOn&&(RSORT==='bf'||RSORT==='rm')){RSORT='x';rows.sort((a,b)=>(b[RSORT]??-1)-(a[RSORT]??-1));}
@@ -1045,7 +1050,7 @@ function modelRel(f){
     <p class="note" style="margin:0 0 6px">${relNote}</p>
     <div class="tblbox"><table><thead><tr><th>דגם</th>${th('n','רכבי קו')}${th('age','גיל ממוצע')}${GP?th('gp','נפלו וחזרו','אחוז הרכבים שלא שידרו חודש קלנדרי מלא וחזרו — תקלה או מוסך אפשריים')+th('x','לעומת בני גילו','פי 1 = כמו רכבים בני אותו גיל מכל הדגמים. מעל 1 = נופל יותר'):''}${motOn?th('bf','בוטלו סופית','אחוז הרכבים שהרישום שלהם בוטל סופית (פירוק, אובדן גמור וכדומה) — ממאגר משרד התחבורה')+th('rm','הורדו מהכביש','רכבים שלפי המאגר הורדו מהכביש בידי המשטרה או פקחי משרד התחבורה'):''}${KMOK?th('kd','ק"מ ליום פעילות','חציון. הערכה לפי אורך הקווים שהרכב נסע בהם'):''}${OFCOK?th('oy','ק"מ בשנה (מד ק"מ רשמי)','חציון: מד הק"מ במאגר משרד התחבורה חלקי גיל הרכב'):''}${OFF?th('r','נסיעות ביום'):''}</tr></thead><tbody>
     ${rows.map(r=>`<tr class="v" tabindex="0" onclick="history.pushState({sub:1},'');TYPESEL=${JSON.stringify(r.name).replace(/"/g,'&quot;')};STATF=null;SORTK=null;YRF=null;LIMIT=200;render();window.scrollTo({top:0})">
-      <td>${esc(r.name)}</td><td>${fmt(r.n)} <span style="color:var(--dim);font-weight:400">(${fmt(r.act)} פעילים)</span></td>
+      <td><a class="vl" href="${nh({m:'type',model:r.name})}" onclick="nv(event)">${esc(r.name)}</a></td><td>${fmt(r.n)} <span style="color:var(--dim);font-weight:400">(${fmt(r.act)} פעילים)</span></td>
       <td>${r.age!=null?r.age.toFixed(1):'—'}</td>
       ${GP?`<td>${Math.round(r.gp*100)}%</td><td style="color:${r.x!=null?xCol(r.x):'inherit'}">${r.x!=null?'פי '+r.x.toFixed(1):'—'}</td>`:''}
       ${motOn?`<td>${Math.round(r.bf*100)}%</td><td>${r.rm||'—'}</td>`:''}
@@ -1096,7 +1101,7 @@ function typeView(t){
         <div style="display:flex;gap:8px;flex-wrap:wrap">${motOn
           ?box(pc(bf),'בוטלו סופית',fmt(bf)+' רכבים · פירוק, אובדן גמור וכדומה')+box(fmt(rm),'הורדו מהכביש','משטרה או פקחי משרד התחבורה')
           :(GPOK?box(pc(gp),'נפלו וחזרו',fmt(gp)+' רכבים · נעלמו חודש+ וחזרו'):'')+box(pc(ret),'ירדו מהשירות',fmt(ret)+' רכבים · לא שידרו מעל '+DATA.retire_days+' יום')}</div>
-        <p class="note">${motOn?'לפי מאגרי משרד התחבורה. דגם ישן יותר מפורק יותר, בלי קשר לאמינות.':'לפי שידורי האוטובוסים. רכב יכול להיעלם גם כשעבר חברה או עמד ברזרבה.'} <a href="#m=type" onclick="TYPESEL=null;TSORT='r';render();return false">להשוואה לכל הדגמים</a></p></div>`;})()}
+        <p class="note">${motOn?'לפי מאגרי משרד התחבורה. דגם ישן יותר מפורק יותר, בלי קשר לאמינות.':'לפי שידורי האוטובוסים. רכב יכול להיעלם גם כשעבר חברה או עמד ברזרבה.'} <a href="${nh({m:'type',ts:'r'})}" onclick="if(nv(event)){TYPESEL=null;TSORT='r';render();}">להשוואה לכל הדגמים</a></p></div>`;})()}
   </div>
   <div class="panel"><p class="ptitle">כל הרכבים מהדגם הזה</p>
     ${(()=>{if(!PH||!PH.p)return '';const seen=[],raw={};
@@ -1143,7 +1148,7 @@ function table(vs,opsArr){
   ${shown.map((v,i)=>{const on=isActive(v);const mv=on?null:movedTo(v);
     return `<tr class="v ${on||mv?'':'off'}" tabindex="0" onclick="showV('${esc(v[0])}')">
     ${opsArr?`<td>${esc(opsArr[i].name)}</td>`:''}
-    <td dir="ltr" style="text-align:right">${esc(v[0])}${v._ar&&!enr?` <span title="${arLbl(v._ar)} — לפי מאגר ציי רכב אוטובוסים" class="tg" style="cursor:help;font-size:10px">מיגון</span>`:''}</td>
+    <td dir="ltr" style="text-align:right">${vl(v[0])}${v._ar&&!enr?` <span title="${arLbl(v._ar)} — לפי מאגר ציי רכב אוטובוסים" class="tg" style="cursor:help;font-size:10px">מיגון</span>`:''}</td>
     ${enr?`<td>${(()=>{
         // סוג הרכב משני המקורות זה לצד זה: הרישוי ("אוטובוס עירוני") והמאגר
         // הרשמי של ציי הרכב ("מידיבוס", "מפרקי 3 דלתות", מיגון) — כדי שבחירת
@@ -1265,7 +1270,7 @@ function opView(ref){
     <p class="note">לחיצה על כותרת ממיינת · לחיצה על רכב פותחת את כל פרטיו.</p>
   </div>`;
   // דף החברה בלשוניות (שלמה 08.10): סקירה קצרה, רכבים (הסינון בחלון), שנתונים
-  const tabs=`<div class="ctabs" role="tablist" aria-label="דף החברה">${[['ov','סקירה'],['veh','רכבים'],['yr','שנתונים']].map(([k,t])=>`<button role="tab" aria-selected="${OPTAB===k}" class="${OPTAB===k?'on':''}" onclick="OPTAB='${k}';FSHEET=false;render()">${t}</button>`).join('')}</div>`;
+  const tabs=`<div class="ctabs" role="tablist" aria-label="דף החברה">${[['ov','סקירה'],['veh','רכבים'],['yr','שנתונים']].map(([k,t])=>`<a role="tab" aria-selected="${OPTAB===k}" class="${OPTAB===k?'on':''}" href="${sh({tab:k})}" onclick="if(nv(event)){OPTAB='${k}';FSHEET=false;render()}">${t}</a>`).join('')}</div>`;
   if(OPTAB==='yr') return headH+tabs+yrsH;
   if(OPTAB==='veh'){
     const nf=[TYPEF,ARF,BTF,BSF].filter(Boolean).length+(ELF!==null?1:0);
@@ -1274,9 +1279,9 @@ function opView(ref){
     return headH+tabs+bar+tblH+sh;
   }
   const top=Object.entries(types).sort((a,b)=>b[1]-a[1]).slice(0,elc?3:4);
-  const tile=(n,l,fn)=>`<button class="t" onclick="${fn}"><b>${fmt(n)}</b><span>${esc(l)}</span></button>`;
-  const ovH=`<div class="panel ov"><h3>הצי של ${esc(o.name)}</h3>${top.length||elc?`<div class="g">${top.map(([t,c])=>tile(c,t,`TYPEF=${JSON.stringify(t).replace(/"/g,'&quot;')};OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})`)).join('')}${elc?tile(elc,'חשמליים',"ELF=1;OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})"):''}</div>`:''}
-    <p style="margin:12px 0 0;font-size:13px;color:var(--mut);line-height:1.7">${avgAge?`גיל ממוצע ${avgAge} שנים`:''}${ravg?`${avgAge?' · ':''}${ravg} נסיעות ביום לרכב`:''} <button class="linkbtn" onclick="OPTAB='veh';FSHEET=${filtH.trim()?'true':'false'};render()">לרשימת הרכבים ←</button></p></div>`;
+  const tile=(n,l,fn,h)=>`<a class="t" href="${h}" onclick="if(nv(event)){${fn}}"><b>${fmt(n)}</b><span>${esc(l)}</span></a>`;
+  const ovH=`<div class="panel ov"><h3>הצי של ${esc(o.name)}</h3>${top.length||elc?`<div class="g">${top.map(([t,c])=>tile(c,t,`TYPEF=${JSON.stringify(t).replace(/"/g,'&quot;')};OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})`,sh({tab:'veh',tf:t}))).join('')}${elc?tile(elc,'חשמליים',"ELF=1;OPTAB='veh';LIMIT=200;render();window.scrollTo({top:0})",sh({tab:'veh',el:1})):''}</div>`:''}
+    <p style="margin:12px 0 0;font-size:13px;color:var(--mut);line-height:1.7">${avgAge?`גיל ממוצע ${avgAge} שנים`:''}${ravg?`${avgAge?' · ':''}${ravg} נסיעות ביום לרכב`:''} <a class="linkbtn" href="${sh({tab:'veh'})}" onclick="if(nv(event)){OPTAB='veh';FSHEET=${filtH.trim()?'true':'false'};render()}">לרשימת הרכבים ←</a></p></div>`;
   return headH+tabs+ovH;
 }
 
@@ -1713,8 +1718,8 @@ function lineHome(f){
   else hits=[...L].sort((a,b)=>b[4]-a[4]);
   const rows=hits.slice(0,LIMIT);
   return `<div class="panel"><p class="ptitle">${q?`${fmt(hits.length)} קווים`:'הקווים העמוסים ביותר — חיפוש למעלה מוצא כל קו'}</p>
-    ${rows.length?rows.map(l=>`<button class="lnrow" onclick="history.pushState({sub:1},'');LNSEL=${JSON.stringify(lnId(l)).replace(/"/g,'&quot;')};LNDIR=0;LNT=null;render();window.scrollTo({top:0})">
-        <span class="lnno" style="background:${opColor(l[0],0)}">${esc(l[1])}</span><span class="lnt"><b>${esc(opName(l[0]))}</b>${l[2]?' · '+esc(l[2]):''}</span><span class="lnc">${fmt(l[3])} רכבים</span></button>`).join(''):'<div class="empty">לא נמצא קו כזה</div>'}
+    ${rows.length?rows.map(l=>`<a class="lnrow" href="${nh({m:'line',lb:LNBY!=='t'?LNBY:null,ln:lnId(l)})}" onclick="if(nv(event)){history.pushState({sub:1},'');LNSEL=${JSON.stringify(lnId(l)).replace(/"/g,'&quot;')};LNDIR=0;LNT=null;render();window.scrollTo({top:0})}">
+        <span class="lnno" style="background:${opColor(l[0],0)}">${esc(l[1])}</span><span class="lnt"><b>${esc(opName(l[0]))}</b>${l[2]?' · '+esc(l[2]):''}</span><span class="lnc">${fmt(l[3])} רכבים</span></a>`).join(''):'<div class="empty">לא נמצא קו כזה</div>'}
     ${hits.length>LIMIT?`<button class="more" onclick="LIMIT+=400;render()">הצגת עוד ${fmt(Math.min(400,hits.length-LIMIT))} מתוך ${fmt(hits.length-LIMIT)} שנותרו</button>`:''}
     ${per?`<p class="note">לפי שידורי האוטובוסים, ${per}.</p>`:''}</div>`;
 }
@@ -1814,7 +1819,7 @@ function lineView(l){
     <p class="note">${T?'מתוך כל הנסיעות בקו — כמה מהן נעשו בכל סוג.':'כמה אוטובוסים שונים מכל סוג נראו בקו (גם רכב שנסע בו פעם אחת נספר).'}</p></div>
   ${lineDep(l,c)}
   <div class="panel"><p class="ptitle">הדגמים בקו — לחיצה פותחת את הדגם</p>
-    ${mrows.map(m=>{const nm=models[m[0]]||'';return `<div class="yrow lnm"${nm?` style="cursor:pointer" onclick="${openM(nm)}"`:''}><span style="font-weight:700" title="${esc(nm||'לא ידוע')}">${esc(lnModel(nm)||'לא ידוע')}</span><div class="ybar"><i style="width:${Math.max(3,m[ix]/mmx*100)}%;background:#1B7A3D"></i></div><span class="c">${T?pc(m[2]):fmt(m[1])}</span></div>`;}).join('')}</div>`;
+    ${mrows.map(m=>{const nm=models[m[0]]||'';const tg=nm?'a':'div';return `<${tg} class="yrow lnm"${nm?` style="cursor:pointer" href="${nh({m:'type',model:nm})}" onclick="if(nv(event)){${openM(nm)}}"`:''}><span style="font-weight:700" title="${esc(nm||'לא ידוע')}">${esc(lnModel(nm)||'לא ידוע')}</span><div class="ybar"><i style="width:${Math.max(3,m[ix]/mmx*100)}%;background:#1B7A3D"></i></div><span class="c">${T?pc(m[2]):fmt(m[1])}</span></${tg}>`;}).join('')}</div>`;
 }
 
 /* ── ניווט (שלמה 08.10: "האתר עמוס מדי וקשה לנווט בו") ──
@@ -1828,18 +1833,27 @@ function syncNav(){
   document.querySelectorAll('.nav .mode').forEach(x=>{x.classList.toggle('on',x.dataset.m===MODE);if(EXTRA_MODES.includes(x.dataset.m))x.hidden=x.dataset.m!==MODE;});
   $('#q').placeholder=phText();
 }
+// קישורים אמיתיים (שלמה 04.11): כל כרטיס ושורה שפותחים מסך אחר הם <a href> לכתובת של אותו מסך
+// (אותם פרמטרים ש-applyHash קורא), כדי שאפשר לפתוח בלשונית חדשה. לחיצה רגילה ממשיכה כמו קודם;
+// לחיצה עם Ctrl/Cmd/Shift או אמצעית נשארת לדפדפן
+function nv(e){if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button){e.stopPropagation();return false;}e.preventDefault();return true;}
+const hrefP=p=>{const h=p.toString();return esc(location.pathname+location.search+(h?'#'+h:''));};
+function nh(o){const p=new URLSearchParams();for(const k in o)if(o[k]!=null&&o[k]!=='')p.set(k,o[k]);return hrefP(p);}
+function sh(o){const p=stateParams();for(const k in o){if(o[k]==null)p.delete(k);else p.set(k,o[k]);}return hrefP(p);}
+const vh=plate=>sh({v:plate});
+const vl=plate=>`<a class="vl" href="${vh(plate)}" onclick="nv(event)">${esc(plate)}</a>`;
 function setMode(m){closeMenu();closeSugg();const b=document.querySelector('.mode[data-m="'+m+'"]');if(b)b.click();window.scrollTo({top:0});}
 // חזרה לרשימה של הלשונית (בלי history.back — מי שנכנס מקישור משותף לא ייצא מהאתר)
 function upTo(){VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';FSHEET=false;LIMIT=200;render();window.scrollTo({top:0});}
 function crumb(){
-  const L=(t,fn)=>`<button onclick="${fn}">${t}</button>`;
+  const L=(t,fn,h)=>`<a href="${h}" onclick="if(nv(event)){${fn}}">${t}</a>`;
   let path=null;
-  if(VIEW.t==='op'){const o=op(VIEW.ref);path=[L('חברות','upTo()'),`<b>${esc(o?o.name:'')}</b>`];}
-  else if(MODE==='city'&&CITYSEL)path=[L('ערים','upTo()'),`<b>${esc(CITYSEL)}</b>`];
-  else if(MODE==='type'&&TYPESEL)path=[L('דגמים','upTo()'),`<b>${esc(TYPESEL)}</b>`];
-  else if(MODE==='line'&&LNSEL&&LINES&&LINES.lines)path=[L('לפי קו','upTo()'),`<b>קו ${esc(lnKey(LNSEL)[1])} · ${esc(opName(lnKey(LNSEL)[0]))}</b>`];
+  if(VIEW.t==='op'){const o=op(VIEW.ref);path=[L('חברות','upTo()',nh({})),`<b>${esc(o?o.name:'')}</b>`];}
+  else if(MODE==='city'&&CITYSEL)path=[L('ערים','upTo()',nh({m:'city'})),`<b>${esc(CITYSEL)}</b>`];
+  else if(MODE==='type'&&TYPESEL)path=[L('דגמים','upTo()',nh({m:'type'})),`<b>${esc(TYPESEL)}</b>`];
+  else if(MODE==='line'&&LNSEL&&LINES&&LINES.lines)path=[L('לפי קו','upTo()',nh({m:'line'})),`<b>קו ${esc(lnKey(LNSEL)[1])} · ${esc(opName(lnKey(LNSEL)[0]))}</b>`];
   else if(EXTRA_MODES.includes(MODE))path=[`<b>${MODE_NAME[MODE]}</b>`];
-  return path?`<nav class="crumb" aria-label="איפה אני">${[L('צי הרכבים',"setMode('op')"),...path].join(' ‹ ')}</nav>`:'';
+  return path?`<nav class="crumb" aria-label="איפה אני">${[L('צי הרכבים',"setMode('op')",nh({})),...path].join(' ‹ ')}</nav>`:'';
 }
 function closeMenu(){const m=$('#menu');if(m)m.remove();}
 function sheet(title,body){
@@ -1849,12 +1863,12 @@ function sheet(title,body){
   document.body.appendChild(d);const f=d.querySelector('.mitem,.x');if(f)f.focus();
 }
 function MENU(){
-  const it=(t,sub,fn)=>`<button class="mitem" onclick="${fn}">${t}<small>${sub}</small></button>`;
+  const it=(t,sub,fn,h)=>h?`<a class="mitem" href="${h}" onclick="if(nv(event)){${fn}}">${t}<small>${sub}</small></a>`:`<button class="mitem" onclick="${fn}">${t}<small>${sub}</small></button>`;
   sheet('עוד',
-    it('מעברים','מאיפה לאן עברו רכבים — בין חברות ובין ערים',"setMode('moves')")+
-    it('אשכול ביום','כמה אוטובוסים עבדו בכל יום, לפי אשכול מכרז ועיר',"setMode('cluster')")+
-    it('לפי קו','אילו אוטובוסים נוסעים בכל קו, ומה הסיכוי לכל דגם',"setMode('line')")+
-    it('כל הרכבים','רשימת כל הרכבים במעקב, לפי מספר רכב',"setMode('plate')")+
+    it('מעברים','מאיפה לאן עברו רכבים — בין חברות ובין ערים',"setMode('moves')",nh({m:'moves'}))+
+    it('אשכול ביום','כמה אוטובוסים עבדו בכל יום, לפי אשכול מכרז ועיר',"setMode('cluster')",nh({m:'cluster'}))+
+    it('לפי קו','אילו אוטובוסים נוסעים בכל קו, ומה הסיכוי לכל דגם',"setMode('line')",nh({m:'line'}))+
+    it('כל הרכבים','רשימת כל הרכבים במעקב, לפי מספר רכב',"setMode('plate')",nh({m:'plate'}))+
     it('⬇ הורדה לאקסל','הטבלה של המסך הנוכחי, כקובץ שנפתח באקסל',"closeMenu();XDL()")+
     it('🔗 שיתוף','קישור שפותח בדיוק את המסך הזה',"closeMenu();SHARE()")+
     it('על המקורות','מאיפה הנתונים ומתי הם מתעדכנים',"SOURCES()"));
@@ -1883,7 +1897,8 @@ function suggest(){
   if(ps.length)g.push(['מספרי רכב',ps.map(p=>['v',p,'🔢 '+p,esc(XPLATE[p][0][0].name)])]);
   SUG=[];SUGI=-1;
   box.innerHTML=g.length?g.map(([h,items])=>`<h4>${h}</h4>`+items.map(it=>{SUG.push(it);const i=SUG.length-1;
-    return `<button role="option" id="sg${i}" onclick="pickSug(${i})">${esc(it[2])}<span>${it[3]}</span></button>`;}).join('')).join(''):'<div class="none">לא נמצא — נסו שם חברה, עיר, דגם או מספר רכב</div>';
+    const h=it[0]==='v'?sh({q:null,v:it[1]}):it[0]==='op'?nh({op:it[1]}):it[0]==='city'?nh({m:'city',city:it[1]}):nh({m:'type',model:it[1]});
+    return `<a role="option" id="sg${i}" href="${h}" onclick="if(nv(event))pickSug(${i})">${esc(it[2])}<span>${it[3]}</span></a>`;}).join('')).join(''):'<div class="none">לא נמצא — נסו שם חברה, עיר, דגם או מספר רכב</div>';
   box.hidden=false;$('#q').setAttribute('aria-expanded','true');
 }
 function pickSug(i){
@@ -1899,7 +1914,7 @@ $('#q').addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeSugg();return;}
   if(!SUG.length)return;
   if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();SUGI=(SUGI+(e.key==='ArrowDown'?1:-1)+SUG.length)%SUG.length;
-    document.querySelectorAll('#sugg button').forEach((b,i)=>b.classList.toggle('hi',i===SUGI));$('#q').setAttribute('aria-activedescendant','sg'+SUGI);}
+    document.querySelectorAll('#sugg a').forEach((b,i)=>b.classList.toggle('hi',i===SUGI));$('#q').setAttribute('aria-activedescendant','sg'+SUGI);}
   else if(e.key==='Enter'){e.preventDefault();pickSug(SUGI<0?0:SUGI);}
 });
 document.addEventListener('click',e=>{if(!e.target.closest('.qbox'))closeSugg();});
@@ -2013,7 +2028,8 @@ function applyHash(){
     if(gv('v'))setTimeout(()=>showV(gv('v')),400);
   }catch(e){}
 }
-document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',e=>{
+  if(!nv(e))return;
   MODE=b.dataset.m;closeSugg();if(Q){Q='';$('#q').value='';}
   VIEW={t:'home'};CITYSEL=null;TYPESEL=null;LNSEL=null;CITYMON='';ARF=null;BTF=null;BSF=null;ELF=null;YRF=null;MVF=null;MVT=null;MVK=null;MVD=null;LIMIT=200;render();
 }));

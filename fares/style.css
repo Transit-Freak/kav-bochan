@@ -24,8 +24,8 @@ html,body{margin:0;font-family:'Assistant','Heebo',system-ui,sans-serif;backgrou
 .calc-head .how{font-size:12px;font-weight:600;color:var(--sub);margin-top:5px;line-height:1.5}
 
 .modeSeg{display:flex;gap:0;margin:0 18px;margin-top:14px;border:1.5px solid var(--ink);border-radius:9px;overflow:hidden;width:fit-content}
-.modeSeg button{font-family:inherit;font-weight:800;font-size:12.5px;padding:7px 15px;border:none;background:#fff;color:var(--ink);cursor:pointer}
-.modeSeg button.on{background:var(--ink);color:var(--gold-lt)}
+.modeSeg button,.modeSeg a{font-family:inherit;font-weight:800;font-size:12.5px;padding:7px 15px;border:none;background:#fff;color:var(--ink);cursor:pointer;text-decoration:none}
+.modeSeg button.on,.modeSeg a.on{background:var(--ink);color:var(--gold-lt)}
 
 .calc-body{padding:14px 18px 18px}
 .mpane{display:none}
@@ -38,11 +38,12 @@ html,body{margin:0;font-family:'Assistant','Heebo',system-ui,sans-serif;backgrou
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* פוקוס מקלדת נראה — לתוצאות החיפוש ולכפתורי המצב (שקטומים ע"י overflow) */
 .resitem:focus-visible{outline:2px solid var(--gold-dp);outline-offset:-2px;background:var(--gold-lt)}
-.modeSeg button:focus-visible{outline:2px solid var(--gold-dp);outline-offset:-3px}
+.modeSeg button:focus-visible,.modeSeg a:focus-visible{outline:2px solid var(--gold-dp);outline-offset:-3px}
 /* גופן 16px לפקדים במובייל — מתחת לזה ספארי iOS מבצע זום אוטומטי שנתקע */
 @media(max-width:760px){.searchrow input,.stfld input,.selrow select{font-size:16px}}
 .reslist{margin-top:5px;border-radius:8px;overflow:hidden;border:1px solid var(--line);max-height:280px;overflow-y:auto}
 .resitem{padding:9px 12px;cursor:pointer;font-size:13px;font-weight:700;border-top:1px solid #f6efe4;display:flex;gap:8px;align-items:baseline}
+a.resitem{color:inherit;text-decoration:none}
 .resitem:first-child{border-top:none}
 .resitem:hover{background:var(--gold-lt)}
 .resitem .rn{background:var(--ink);color:var(--gold-lt);border-radius:5px;padding:1px 8px;font-size:11.5px;min-width:24px;text-align:center;flex:none}

@@ -210,7 +210,7 @@ const StopGroup = React.memo(function StopGroup({ items, open, onToggle, db, onL
               אבל שווה בדיקה אם התחנה מסומנת נכון.
             </p>
             <p className="mut">לפרטי קו בודד (עצירות לפני/אחרי, רשימת תחנות) — חפשו את מספר הקו בתצוגה הרגילה: {items.slice(0, 12).map((x) => (
-              <button key={x._k} className="chip clk" onClick={() => onLine && onLine(x.line)}>{x.line}</button>
+              <LineLink key={x._k} ln={x.line} onLine={onLine} noByStop />
             ))}</p>
           </div>
         </div>
@@ -218,6 +218,22 @@ const StopGroup = React.memo(function StopGroup({ items, open, onToggle, db, onL
     </div>
   );
 });
+
+/* ---------- קישור לקו ---------- */
+// כל מספר קו הוא קישור אמיתי לכתובת של החיפוש שלו — לחיצה רגילה מחליפה את החיפוש בדף,
+// Ctrl/Cmd/Shift/גלגלת או לחיצה ארוכה בטלפון פותחים אותו בלשונית חדשה
+const LineHrefCtx = React.createContext(null);
+function LineLink({ ln, onLine, title, noByStop }) {
+  const lineHref = React.useContext(LineHrefCtx);
+  const href = lineHref ? lineHref(ln, noByStop) : "#q=" + encodeURIComponent(ln);
+  return (
+    <a className="chip clk" href={href} title={title}
+      onClick={(e) => {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault(); onLine && onLine(ln);
+      }}>{ln}</a>
+  );
+}
 
 /* ---------- פירוט ממצא ---------- */
 function Detail({ it, db, onLine }) {
@@ -258,8 +274,7 @@ function Detail({ it, db, onLine }) {
         <p>
           בתחנה עוצרים <b>{it.onum}</b> קווים אחרים:{" "}
           {shownOthers.map((o) => (
-            <button key={o} className="chip clk" title={"הצגת הממצאים של קו " + o}
-              onClick={() => onLine && onLine(o)}>{o}</button>
+            <LineLink key={o} ln={o} onLine={onLine} title={"הצגת הממצאים של קו " + o} />
           ))}
           {others.length > 12 && (
             <button className="chip more" onClick={() => setAllOthers(!allOthers)}>
@@ -400,9 +415,10 @@ function App() {
     return () => window.removeEventListener("hashchange", read);
   }, []);
 
-  useEffect(() => {
+  // הכתובת של המסך — גם לקישורי הקווים (עם חיפוש של קו אחר, ובלי "לפי תחנה" כשמבקשים)
+  const hashFor = (qq, bs) => {
     const p = new URLSearchParams();
-    if (q) p.set("q", q);
+    if (qq) p.set("q", qq);
     if (city) p.set("city", city);
     if (fOp) p.set("op", fOp);
     if (fMahoz) p.set("mahoz", fMahoz);
@@ -410,9 +426,13 @@ function App() {
     if (fType !== "עירוני") p.set("type", fType);
     if (fGap) p.set("gap", fGap);
     if (fSkips) p.set("skips", fSkips);
-    if (byStop) p.set("bystop", "1");
+    if (bs) p.set("bystop", "1");
     if (showSys) p.set("sys", "1");
-    const h = p.toString(), u = location.pathname + location.search + (h ? "#" + h : "");
+    return p.toString();
+  };
+  const lineHref = (ln, noByStop) => "#" + hashFor(ln, noByStop ? false : byStop);
+  useEffect(() => {
+    const h = hashFor(q, byStop), u = location.pathname + location.search + (h ? "#" + h : "");
     if (location.pathname + location.search + location.hash !== u) try { history.replaceState(null, "", u); } catch (e) {}
   }, [q, city, fOp, fMahoz, fUniq, fType, fGap, fSkips, byStop, showSys]);
 
@@ -573,6 +593,7 @@ function App() {
   const shown = groups.slice(0, page * PAGE);
 
   return (
+    <LineHrefCtx.Provider value={lineHref}>
     <div className="wrap">
       <header>
         <h1>🚌 הקו המדלג</h1>
@@ -721,6 +742,7 @@ function App() {
         הבדיקה מכסה את כל הקווים העירוניים בארץ
       </footer>
     </div>
+    </LineHrefCtx.Provider>
   );
 }
 
