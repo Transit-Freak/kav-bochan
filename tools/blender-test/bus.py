@@ -25,6 +25,7 @@ def cyl(name, r, depth, loc, seg=32, axis='X', c=col):
     bm.to_mesh(me); bm.free()
     ob = bpy.data.objects.new(name, me); c.objects.link(ob)
     if axis == 'X': ob.rotation_euler = (0, math.pi/2, 0)
+    elif axis == 'Z': ob.rotation_euler = (0, 0, 0)
     ob.location = loc
     with bpy.context.temp_override(object=ob, active_object=ob, selected_objects=[ob], selected_editable_objects=[ob]):
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
@@ -44,8 +45,8 @@ def setm(ob, m): ob.data.materials.clear(); ob.data.materials.append(m)
 L, W, H, Z0 = 12.0, 2.55, 2.75, 0.32          # מטרים — אוטובוס עירוני מפרקי לא, 12 מ' רגיל
 paint = mat('M_Paint', (0.86, 0.87, 0.86), 0.32)
 stripe = mat('M_Stripe', (0.05, 0.45, 0.33), 0.35)
-glass = mat('M_Glass', (0.02, 0.03, 0.035), 0.05, metal=0.0)
-glass_b = next(n for n in glass.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); glass_b.inputs['Specular IOR Level'].default_value = 1.0
+glass = mat('M_Glass', (0.05, 0.07, 0.07), 0.05, metal=0.0)
+glass_b = next(n for n in glass.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'); glass_b.inputs['Specular IOR Level'].default_value = 0.5; glass_b.inputs['Alpha'].default_value = 0.35; glass_b.inputs['Roughness'].default_value = 0.08
 black = mat('M_Trim', (0.03, 0.03, 0.03), 0.6)
 rubber = mat('M_Rubber', (0.02, 0.02, 0.02), 0.85)
 alu = mat('M_Rim', (0.75, 0.76, 0.77), 0.3, metal=1.0)
@@ -59,8 +60,9 @@ def cutter(name, size, loc):
     c = box(name, size, loc, cut); c.display_type = 'WIRE'; c.hide_render = True; cutters.append(c.name); return c
 win_z = Z0 + 1.15 + 0.6; win_h = 1.15
 for side in (1, -1):
-    cutter(f'Cut_Win{side}', (0.08, L - 2.2, win_h), (side*(W/2), -0.2, win_z))
-cutter('Cut_Front', (W - 0.25, 0.08, 1.75), (0, -L/2, Z0 + 1.45))         # שמשה קדמית
+    pass
+cutter('Cut_WinThrough', (W + 0.2, L - 2.2, win_h), (0, -0.2, win_z))
+cutter('Cut_Front', (W - 0.25, 1.4, 1.75), (0, -L/2 + 0.5, Z0 + 1.45))         # שמשה קדמית
 cutter('Cut_Rear', (W - 0.5, 0.08, 0.9), (0, L/2, Z0 + 1.95))
 for i, y in enumerate((-4.6, -0.3)):                                        # שתי דלתות כפולות בצד ימין
     cutter(f'Cut_Door{i}', (0.08, 1.25, 2.35), (W/2, y, Z0 + 0.05 + 1.175))
@@ -77,6 +79,7 @@ for side in (1, -1):
     for k in range(7):
         y = -L/2 + 1.3 + k*1.55
         if side == 1 and any(abs(y - d) < 0.8 for d in (-4.6, -0.3)): continue
+        if abs(y) > L/2 - 1.2: continue
         p = box(f'SM_Post{side}{k}', (0.05, 0.09, win_h), (side*(W/2 - 0.005), y, win_z)); setm(p, black)
 g = box('SM_Windshield', (W - 0.3, 0.03, 1.7), (0, -L/2 + 0.02, Z0 + 1.45)); setm(g, glass)
 g = box('SM_RearGlass', (W - 0.55, 0.03, 0.85), (0, L/2 - 0.02, Z0 + 1.95)); setm(g, glass)
@@ -85,6 +88,21 @@ for i, y in enumerate((-4.6, -0.3)):
         d = box(f'SM_DoorLeaf{i}{k}', (0.04, 0.6, 2.3), (W/2 - 0.03, y + k*0.31, Z0 + 1.2)); setm(d, glass)
         f = box(f'SM_DoorFrame{i}{k}', (0.05, 0.6, 2.3), (W/2 - 0.02, y + k*0.31, Z0 + 1.2)); setm(f, black)
         f.modifiers.new('wf', 'WIREFRAME').thickness = 0.05
+# פנים: רצפה, מושבים ומוטות אחיזה
+seat = mat('M_Seat', (0.08, 0.16, 0.32), 0.7)
+pole = mat('M_Pole', (0.9, 0.75, 0.1), 0.3, metal=1.0)
+fl = box('SM_Floor', (W - 0.1, L - 1.0, 0.02), (0, 0, win_z - win_h/2 - 0.005)); setm(fl, mat('M_FloorIn', (0.25, 0.25, 0.27), 0.8))
+for k in range(10):
+    y = -L/2 + 2.2 + k*0.85
+    if any(abs(y - d) < 0.8 for d in (-4.6, -0.3)): sides = (-1,)
+    else: sides = (1, -1)
+    for sd in sides:
+        for xo in (0.32, 0.78):
+            st = box(f'SM_Seat{k}{sd}{xo}', (0.42, 0.45, 0.08), (sd*(W/2 - xo), y, win_z - win_h/2 - 0.05)); setm(st, seat)
+            bk = box(f'SM_Back{k}{sd}{xo}', (0.42, 0.07, 0.62), (sd*(W/2 - xo), y + 0.22, win_z - win_h/2 + 0.24)); setm(bk, seat)
+for k in range(6):
+    p = cyl(f'SM_Pole{k}', 0.02, win_h + 0.1, (0.0 if k % 2 else 0.3, -L/2 + 2.6 + k*1.5, win_z), seg=12, axis='Z'); setm(p, pole)
+rail = box('SM_Rail', (0.03, L - 2.5, 0.03), (0.3, -0.2, win_z + win_h/2 - 0.05)); setm(rail, pole)
 # פס צבע
 for side in (1, -1):
     s = box(f'SM_Stripe{side}', (0.012, L - 0.3, 0.22), (side*(W/2 + 0.003), 0, Z0 + 0.95)); setm(s, stripe)
