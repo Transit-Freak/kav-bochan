@@ -23,6 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # 05.11: "No space left on device" — המאגר עם הארכיון ההיסטורי כבר גדול מהמקום הפנוי בשרת. מפנים כלים שלא בשימוש
+      - name: מקום בדיסק
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          df -h / | tail -1
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -58,11 +63,16 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add kavpach-overlap.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'data: refresh KavPach shared stops and directed geometry overlap'
-          # 02.11: דחיפה אחרת נכנסה בין ה-pull ל-push ("cannot lock ref") — ניסיון חוזר עם rebase
+          # 04.11: ה-rebase נתקע בהתנגשות על אותו קובץ (ריצה אחרת שמרה גרסה משלה). הקובץ נבנה כולו בריצה הזו —
+          # שומרים עותק, עוברים ל-main העדכני ומעתיקים אותו מעליו
+          cp kavpach-overlap.json /tmp/kavpach-overlap.json
           for i in 1 2 3 4 5; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
-            git rebase --abort 2>/dev/null || true
+            git fetch -q origin main && git reset -q --hard origin/main
+            cp /tmp/kavpach-overlap.json kavpach-overlap.json
+            git add kavpach-overlap.json
+            git diff --cached --quiet && exit 0
+            git commit -q -m 'data: refresh KavPach shared stops and directed geometry overlap'
+            git push origin HEAD:main && exit 0
             echo "push rejected — retry $i"; sleep $((10 * i))
           done
           exit 1
