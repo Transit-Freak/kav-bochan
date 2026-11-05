@@ -34,6 +34,7 @@ jobs:
                           r = api(action='query', generator='categorymembers', gcmtitle='Category:' + q, gcmtype='file', gcmlimit=60, prop='imageinfo', iiprop='url|extmetadata', iiurlwidth=600)
                   except Exception as e: print('api', q, e); continue
                   for pg in (r.get('query', {}).get('pages') or {}).values():
+                      if not pg.get('imageinfo'): continue
                       ii = pg['imageinfo'][0]; md = ii.get('extmetadata', {})
                       d = (md.get('DateTimeOriginal', {}).get('value') or '') + ' ' + (md.get('DateTime', {}).get('value') or '')
                       ys = [int(y) for y in re.findall(r'(?<!\d)(19\d\d|20\d\d)(?!\d)', d)]
