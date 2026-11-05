@@ -103,6 +103,12 @@ for k in range(10):
 for k in range(6):
     p = cyl(f'SM_Pole{k}', 0.02, win_h + 0.1, (0.0 if k % 2 else 0.3, -L/2 + 2.6 + k*1.5, win_z), seg=12, axis='Z'); setm(p, pole)
 rail = box('SM_Rail', (0.03, L - 2.5, 0.03), (0.3, -0.2, win_z + win_h/2 - 0.05)); setm(rail, pole)
+# תא נהג: לוח מחוונים, הגה ומושב
+dash = box('SM_Dash', (W - 0.4, 0.45, 0.35), (0, -L/2 + 0.45, Z0 + 0.75)); setm(dash, black)
+wheel = cyl('SM_SteerWheel', 0.22, 0.04, (-0.65, -L/2 + 0.8, Z0 + 1.15), seg=24, axis='Z'); wheel.rotation_euler = (math.radians(55), 0, 0); setm(wheel, black)
+ds = box('SM_DriverSeat', (0.5, 0.5, 0.1), (-0.65, -L/2 + 1.3, Z0 + 0.75)); setm(ds, seat)
+db = box('SM_DriverBack', (0.5, 0.08, 0.7), (-0.65, -L/2 + 1.55, Z0 + 1.1)); setm(db, seat)
+part = box('SM_CabWall', (0.05, 0.9, 1.1), (-0.25, -L/2 + 1.3, Z0 + 1.0)); setm(part, glass)
 # פס צבע
 for side in (1, -1):
     s = box(f'SM_Stripe{side}', (0.012, L - 0.3, 0.22), (side*(W/2 + 0.003), 0, Z0 + 0.95)); setm(s, stripe)

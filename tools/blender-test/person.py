@@ -29,6 +29,8 @@ for fn, pat, kw in (('set_character_skin', 'skins/', {}),):
     try:
         if f: print(fn, f, getattr(HS, fn)(f, bm)); 
     except Exception: traceback.print_exc()
+try: print('rig', HS.add_builtin_rig(bm, 'default', import_weights=True))
+except Exception: traceback.print_exc()
 for kind, pat in (('Eyes', '/eyes/'), ('Eyebrows', '/eyebrows/'), ('Eyelashes', '/eyelashes/'), ('Hair', '/hair/'), ('Clothes', '/clothes/')):
     picks = [a for a in assets if pat in a and a.endswith('.mhclo')]
     print(kind, len(picks), [os.path.basename(p) for p in picks[:30]])
@@ -45,9 +47,10 @@ print('BONES', [b.name for b in rig.pose.bones][:60])
 for pb in rig.pose.bones:
     if pb.name.startswith('upperarm01'):
         h = pb.head.copy(); sgn = 1 if h.x > 0 else -1
-        R = Matrix.Translation(h) @ Matrix.Rotation(sgn * math.radians(62), 4, 'Y') @ Matrix.Translation(-h)
+        R = Matrix.Translation(h) @ Matrix.Rotation(sgn * math.radians(28), 4, 'Y') @ Matrix.Translation(-h)
         pb.matrix = R @ pb.matrix
         bpy.context.view_layer.update()
         print('ARM', pb.name, h[:])
+print('MODS', [(o.name, [m.type for m in o.modifiers]) for o in bpy.data.objects if o.type == 'MESH'])
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/person.blend'))
 print('OBJS', [(o.name, o.type) for o in bpy.data.objects])
