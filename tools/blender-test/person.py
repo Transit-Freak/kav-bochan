@@ -38,8 +38,6 @@ for kind, pat in (('Eyes', '/eyes/'), ('Eyebrows', '/eyebrows/'), ('Eyelashes', 
     for p in take:
         try: print(' add', p, HS.add_mhclo_asset(p, bm, asset_type=kind))
         except Exception: traceback.print_exc()
-try: print('rig', HS.add_builtin_rig(bm, 'default', import_weights=True))
-except Exception: traceback.print_exc()
 # ידיים למטה: סיבוב הזרועות סביב ציר Y של השלד, סביב ראש העצם
 from mathutils import Matrix
 rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
