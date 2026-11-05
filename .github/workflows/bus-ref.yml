@@ -17,42 +17,34 @@ jobs:
           pip install -q pillow
           mkdir -p tools/bus-ref && rm -f tools/bus-ref/*
           python3 - <<'PY'
-          import re, json, urllib.request, io, html
+          import json, urllib.request, urllib.parse, io, time
           from PIL import Image
-          UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36'}
-          PAGES = [
-            'https://www.ynetnews.com/culture/article/bk9ams4ege',
-            'https://magazine.esra.org.il/esramagazine/look-into-it/latest-esramagazine/entry/beer-sheva-kaleidoscopic-mix-at-city-bus-station.html',
-            'https://unsplash.com/s/photos/tel-aviv-yafo%2C-israel',
-            'https://unsplash.com/s/photos/jerusalem-people',
-            'https://unsplash.com/s/photos/israeli-woman',
-            'https://unsplash.com/s/photos/israeli-soldier',
-            'https://theculturetrip.com/middle-east/israel/articles/these-instagram-photos-capture-the-essence-of-everyday-life-in-tel-aviv',
-          ]
-          out = []; n = 0
-          for pg in PAGES:
-              try:
-                  h = urllib.request.urlopen(urllib.request.Request(pg, headers=UA), timeout=30).read().decode('utf-8', 'ignore')
-              except Exception as e:
-                  print('page fail', pg, e); continue
-              urls = re.findall(r'https?://[^\s"\'<>]+?\.(?:jpe?g|webp)(?:\?[^\s"\'<>]*)?', html.unescape(h))
-              urls += re.findall(r'https://images\.unsplash\.com/photo-[^\s"\'<>?]+(?:\?[^\s"\'<>]*)?', html.unescape(h))
-              seen, got = set(), 0
-              for u in urls:
-                  key = u.split('?')[0]
-                  if key in seen or any(k in u.lower() for k in ('logo', 'icon', 'avatar', 'profile', 'sprite')): continue
-                  seen.add(key)
-                  if 'images.unsplash.com' in u: u = key + '?w=1000&q=70'
+          UA = {'User-Agent': 'kav-bochan-ref/1.0 (https://kavbochan.app; reference viewing)'}
+          def api(**p):
+              p.update(format='json')
+              return json.load(urllib.request.urlopen(urllib.request.Request('https://commons.wikimedia.org/w/api.php?' + urllib.parse.urlencode(p), headers=UA), timeout=30))
+          def sheet(name, queries, per=8):
+              ims, caps = [], []
+              for q in queries:
                   try:
-                      b = urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=30).read()
-                      im = Image.open(io.BytesIO(b)).convert('RGB')
-                  except Exception: continue
-                  if im.width < 400 or im.height < 300: continue
-                  im.thumbnail((1000, 1000)); fn = f'{n:02d}.jpg'; im.save('tools/bus-ref/' + fn, quality=75)
-                  out.append({'file': fn, 'page': pg, 'src': key}); n += 1; got += 1
-                  if got >= 12: break
-              print(pg, got)
-          json.dump(out, open('tools/bus-ref/index.json', 'w'), indent=1)
+                      r = api(action='query', generator='search', gsrsearch=q + ' filetype:bitmap', gsrnamespace=6, gsrlimit=per, gsrsort='create_timestamp_desc', prop='imageinfo', iiprop='url', iiurlwidth=600)
+                  except Exception as e: print('api', e); continue
+                  for pg in (r.get('query', {}).get('pages') or {}).values():
+                      try:
+                          b = urllib.request.urlopen(urllib.request.Request(pg['imageinfo'][0]['thumburl'], headers=UA), timeout=20).read()
+                          ims.append(Image.open(io.BytesIO(b)).convert('RGB')); caps.append(pg['title'][5:70])
+                      except Exception: pass
+                      time.sleep(0.2)
+              open(f'tools/bus-ref/{name}.txt', 'w').write('\n'.join(caps))
+              W = 360; th = [im.resize((W, int(im.height * W / im.width))) for im in ims]
+              for s in range(0, len(th), 12):
+                  part = th[s:s+12]; H = min(480, max(t.height for t in part))
+                  sh = Image.new('RGB', (W*4, H*3), 'white')
+                  for i, t in enumerate(part): sh.paste(t.crop((0, 0, W, min(H, t.height))), ((i % 4) * W, (i // 4) * H))
+                  sh.save(f'tools/bus-ref/{name}{s//12}.jpg', quality=75)
+              print(name, len(ims))
+          sheet('sold', ['Israeli soldiers', 'IDF soldier woman', 'Israel Defense Forces soldiers bus', 'IDF soldiers backpack'])
+          sheet('ppl', ['Jerusalem Light Rail passengers', 'Jerusalem Central Bus Station', 'Tel Aviv street people', 'Israel bus stop', 'Haredi women street Jerusalem', 'Israeli students campus 2023'])
           PY
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add tools/bus-ref && git commit -qm "reference photos" && git push -q origin HEAD:claude/bus-ref
