@@ -1,0 +1,48 @@
+name: blender-test
+on:
+  push:
+    branches: [claude/blender-test]
+    paths: [tools/blender-test/**, .github/workflows/blender-test.yml]
+permissions:
+  contents: write
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: tools/blender-test}
+      - name: Blender
+        run: |
+          set -e
+          sudo apt-get update -q && sudo apt-get install -yq libxi6 libxkbcommon0 libsm6 libxrender1 libgl1 libegl1 libxxf86vm1 libxfixes3 > /dev/null
+          V=$(curl -s https://download.blender.org/release/ | grep -oE 'Blender5\.[0-9]+' | sort -Vu | tail -1)
+          F=$(curl -s https://download.blender.org/release/$V/ | grep -oE 'blender-5\.[0-9.]+-linux-x64\.tar\.xz' | sort -Vu | tail -1)
+          echo "$V/$F"; curl -sL https://download.blender.org/release/$V/$F | tar -xJ -C $HOME
+          echo "BL=$(ls -d $HOME/blender-*/)blender" >> $GITHUB_ENV
+          git clone -q --depth=1 https://github.com/EL4CTEO/blender-skills.git $HOME/bsk
+          echo "SK=$HOME/bsk/skills" >> $GITHUB_ENV
+      - name: MPFB
+        continue-on-error: true
+        run: |
+          $BL -b --factory-startup --online-mode --command extension sync || true
+          $BL -b --online-mode --command extension install -s --enable mpfb || $BL -b --online-mode --command extension install --enable blender_org.mpfb
+          UD=$($BL -b --online-mode --python-expr "import bpy;print('UD='+bpy.utils.extension_path_user('bl_ext.blender_org.mpfb', create=True))" | grep '^UD=' | cut -d= -f2)
+          echo "UD=$UD"; mkdir -p "$UD/data"
+          curl -sL -o /tmp/sa.zip http://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip && unzip -qo /tmp/sa.zip -d "$UD/data" && ls "$UD/data" | head
+      - name: Build
+        working-directory: tools/blender-test
+        run: |
+          mkdir -p out
+          $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -vE '^(Fra:|Read )' | tail -40
+          $BL -b out/bus.blend --python-exit-code 1 -P $SK/blender-asset-qa/scripts/qa_check.py -- --objects SM_Bus_Body 2>&1 | tail -15 || true
+          $BL -b out/bus.blend -P render.py -- bus SM_Bus_Body 2>&1 | grep -E 'RENDER|Error|sky' || true
+          $BL -b --online-mode -P person.py 2>&1 | grep -vE '^(Fra:|Read )' | tail -280 || true
+          if [ -f out/person.blend ]; then CAMSCALE=0.25 $BL -b out/person.blend -P render.py -- person Human 2>&1 | grep -E 'RENDER|Error|KeyError' || true; fi
+          ls -la out
+      - name: Save
+        if: always()
+        run: |
+          cd tools/blender-test && rm -f out/*.blend1 && git add out/*.png 2>/dev/null || true
+          git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -qm "blender-test renders" && git push -q origin HEAD:claude/blender-test || true
