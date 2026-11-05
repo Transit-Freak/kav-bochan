@@ -45,7 +45,7 @@ print('BONES', [b.name for b in rig.pose.bones][:60])
 for pb in rig.pose.bones:
     if pb.name.startswith('upperarm01'):
         h = pb.head.copy(); sgn = 1 if h.x > 0 else -1
-        R = Matrix.Translation(h) @ Matrix.Rotation(sgn * math.radians(28), 4, 'Y') @ Matrix.Translation(-h)
+        R = Matrix.Translation(h) @ Matrix.Rotation(sgn * math.radians(38), 4, 'Y') @ Matrix.Translation(-h)
         pb.matrix = R @ pb.matrix
         bpy.context.view_layer.update()
         print('ARM', pb.name, h[:])

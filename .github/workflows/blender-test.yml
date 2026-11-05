@@ -36,7 +36,7 @@ jobs:
           mkdir -p out
           $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -vE '^(Fra:|Read )' | tail -40
           $BL -b out/bus.blend --python-exit-code 1 -P $SK/blender-asset-qa/scripts/qa_check.py -- --objects SM_Bus_Body 2>&1 | tail -15 || true
-          $BL -b out/bus.blend -P render.py -- bus SM_Bus_Body 2>&1 | grep -E 'RENDER|Error|sky' || true
+          CAMSIDE=-1 $BL -b out/bus.blend -P render.py -- bus SM_Body 2>&1 | grep -E 'RENDER|Error|sky' || true
           $BL -b --online-mode -P person.py 2>&1 | grep -vE '^(Fra:|Read )' | tail -280 || true
           if [ -f out/person.blend ]; then CAMSCALE=0.25 $BL -b out/person.blend -P render.py -- person Human 2>&1 | grep -E 'RENDER|Error|KeyError' || true; fi
           ls -la out

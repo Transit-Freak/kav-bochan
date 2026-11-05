@@ -5,7 +5,7 @@ S = os.environ['SK']; sys.path.insert(0, f'{S}/blender-lighting-lookdev/scripts'
 argv = sys.argv[sys.argv.index('--') + 1:]
 out, objs = argv[0], argv[1:]
 sc = bpy.context.scene
-sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = 96; sc.cycles.use_denoising = True
+sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = 128; sc.cycles.use_denoising = True
 sc.render.resolution_x, sc.render.resolution_y = 1600, 900
 w = bpy.data.worlds.new('W'); sc.world = w
 bg = next(n for n in w.node_tree.nodes if n.type == 'BACKGROUND')
@@ -15,7 +15,8 @@ except TypeError as e: print('sky', e)
 w.node_tree.links.new(sky.outputs[0], bg.inputs[0]); bg.inputs[1].default_value = 0.35
 sun = bpy.data.objects.new('Sun', bpy.data.lights.new('Sun', 'SUN')); sc.collection.objects.link(sun)
 sun.data.energy = 4; sun.rotation_euler = (math.radians(50), math.radians(10), math.radians(-35)); sun.data.angle = math.radians(2)
-cams = {'q': ((10, -14, 3.0), 45), 'side': ((14, 2, 1.6), 35), 'front': ((2.5, -12, 1.7), 40)}
+SD = float(os.environ.get('CAMSIDE', '1'))
+cams = {'q': ((10*SD, -14, 3.0), 45), 'side': ((14*SD, 2, 1.6), 35), 'front': ((2.5*SD, -12, 1.7), 40), 'close': ((4.5*SD, -7.5, 1.4), 35)}
 targets = [bpy.data.objects[n] for n in objs if n in bpy.data.objects] or [o for o in bpy.data.objects if o.type == 'MESH' and not o.name.startswith('ENV_') and not o.hide_render]
 bpy.context.view_layer.update()
 pts = [o.matrix_world @ Vector(c) for o in targets for c in o.bound_box]
