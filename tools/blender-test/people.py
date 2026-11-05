@@ -101,8 +101,9 @@ def make(sp, x, y, num, seed):
     clothes = objs.get('Clothes', [])
     hat = [o for o in clothes if 'fedora' in o.name]
     if sp['recol']: recolor([o for o in clothes[:-1] if o not in hat], sp['recol'])
+    if hat: recolor(hat, (0.015, 0.015, 0.018), keep_shading=False)
     bi = body_info(bm, rig, [o for o in clothes if o not in hat])
-    if 'bag' in extra: add_backpack(bi, extra['bag'], extra.get('big'))
+    if 'bag' in extra: add_backpack(bi, extra['bag'], extra.get('big'), [o for o in clothes if o not in hat])
     if 'kippa' in extra: add_kippa(bm, (objs.get('Hair') or [None])[0], rig, extra['kippa'])
     if 'sun' in extra and objs.get('Eyes'): add_sunglasses(objs['Eyes'][0], rig)
     if 'beret' in extra: add_beret(bi, extra['beret'])
@@ -151,8 +152,9 @@ SC.render.resolution_x, SC.render.resolution_y = 700, 700; cam.data.lens = 85
 for ci, (cat, y, xs) in enumerate(rows):
     for (nm, x), sp in zip(xs, CATS[ci][1]):
         if not ({'beard', 'kippa', 'scarf', 'sun'} & set(sp['extra'])): continue
-        top = 1.7 if sp['g'] else 1.58
-        cam.location = (x + 0.3, y - 1.45, top - 0.05)
-        cam.rotation_euler = (Vector((x, y, top - 0.12)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+        rig = next((o for o in bpy.data.objects if o.type == 'ARMATURE' and abs(o.location.x - x) < 0.01 and abs(o.location.y - y) < 0.01), None)
+        hz = (rig.matrix_world @ rig.pose.bones['head'].head).z + 0.08 if rig and 'head' in rig.pose.bones else (1.6 if sp['g'] else 1.5)
+        cam.location = (x + 0.3, y - 1.45, hz + 0.02)
+        cam.rotation_euler = (Vector((x, y, hz)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         SC.render.filepath = os.path.abspath(f'out/face{nm:02d}.png'); bpy.ops.render.render(write_still=True)
 print('RENDER faces done')
