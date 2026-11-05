@@ -97,6 +97,7 @@ bm.faces.new(list(reversed(rings[0]))); bm.faces.new(rings[-1])
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 bm.to_mesh(me); bm.free()
 body = link(bpy.data.objects.new('SM_Body', me)); setm(body, silver)
+sol = body.modifiers.new('Shell', 'SOLIDIFY'); sol.thickness = 0.05; sol.offset = -1.0; sol.use_even_offset = True   # גוף חלול — יש פנים
 
 # ---------- חיתוכים
 cutters = []

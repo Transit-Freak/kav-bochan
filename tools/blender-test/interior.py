@@ -19,5 +19,5 @@ def shot(name, pos, target, lens=18):
     cam.data.lens = lens; cam.data.clip_start = 0.05; cam.location = pos
     cam.rotation_euler = (Vector(target) - Vector(pos)).to_track_quat('-Z', 'Y').to_euler()
     sc.camera = cam; sc.render.filepath = os.path.abspath(f'out/inside_{name}.png'); bpy.ops.render.render(write_still=True); print('RENDER', name)
-shot('fwd_back', (0.15, -4.4, 1.95), (0, 5.0, 1.2))
+shot('fwd_back', (0.0, -3.4, 1.95), (0, 5.0, 1.25))
 shot('mid_front', (0.4, 1.8, 1.9), (0, -6.0, 1.3))
