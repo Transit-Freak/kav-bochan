@@ -13,6 +13,24 @@ function kavPachVisibleOverlaps(rows) {
 
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
+// קישור אמיתי (<a href>) לכל מה שפותח מסך אחר — כדי שאפשר יהיה לפתוח בלשונית חדשה
+// (Ctrl/אמצעית/לחיצה ארוכה בטלפון). לחיצה רגילה נשארת ניווט בתוך הדף.
+const plainClick = (e) => !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button);
+// לשוניות בקישור: ‎#פח/areas‎ · ‎#מוזהב/allTrips‎ (הלשונית הראשונה — בלי סיומת)
+const KP_TABS = ['redundant', 'areas', 'allTrips', 'simulator', 'deadhead', 'about'];
+const GOLD_TABS = ['top', 'areas', 'expand', 'allTrips', 'about'];
+const tabHref = (base, tabs, t) => '#' + base + (t === tabs[0] ? '' : '/' + t);
+// מעדכן את הכתובת ללשונית הנוכחית בלי רשומה חדשה בהיסטוריה (כמו קודם: Back לא עובר בין לשוניות)
+const syncTabHash = (base, tabs, t) => {
+  try {
+    const h = decodeURIComponent((location.hash || '').replace('#', '').trim());
+    if (/\/קו\//.test(h)) return;                       // קישור לקו בודד — לא דורסים
+    const cur = h.split('/')[1] || tabs[0];
+    if (cur === t) return;
+    history.replaceState(history.state, '', tabHref(base, tabs, t));
+  } catch (e) { /* ignore */ }
+};
+
 // ── Google Fonts - Heebo ──────────────────────────────────────────────────
 if (typeof document !== 'undefined' && !document.getElementById('heebo-font')) {
   const fontLink = document.createElement("link");
@@ -680,9 +698,10 @@ function ChoiceScreen({ onPick }) {
 
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* קו פח */}
-          <button
-            onClick={() => onPick('kavpach')}
-            className="group relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+          <a
+            href="#פח"
+            onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onPick('kavpach'); }}
+            className="group relative block overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
           >
             <div className="absolute -left-8 -top-8 w-44 h-44 bg-slate-800 rounded-full opacity-50" />
             <div className="relative">
@@ -701,12 +720,13 @@ function ChoiceScreen({ onPick }) {
               <p className="text-slate-300 font-bold mt-2 text-sm leading-relaxed">קווים ריקים ובזבזניים — מועמדים לביטול או צמצום</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-white text-slate-900 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
-          </button>
+          </a>
 
           {/* הקו המוזהב */}
-          <button
-            onClick={() => onPick('golden')}
-            className="group relative overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+          <a
+            href="#מוזהב"
+            onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onPick('golden'); }}
+            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
             style={{ background: 'linear-gradient(155deg,#1f2937 0%,#3b2f12 52%,#92400e 100%)' }}
           >
             <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#fbbf24' }} />
@@ -718,7 +738,7 @@ function ChoiceScreen({ onPick }) {
               <p className="text-amber-100/80 font-bold mt-2 text-sm leading-relaxed">הקווים המצטיינים — הסטנדרט שאליו כדאי לשאוף</p>
               <span className="inline-flex items-center gap-2 mt-5 bg-amber-400 text-amber-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
             </div>
-          </button>
+          </a>
 
           {/* קו באג — פרויקט עצמאי בריפו נפרד (kav-bug); שם הגרסה החיה והמתעדכנת */}
           <a
@@ -1014,8 +1034,10 @@ function ChoiceScreen({ onPick }) {
 }
 
 // ── GoldenApp — כלי "הקו המוזהב": קווים מצטיינים ─────────────────────────
-function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, liveGen, focusMakat, onClearFocus }) {
-  const [goldenTab, setGoldenTab] = useState('top');
+function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, liveGen, focusMakat, onClearFocus, hashTab }) {
+  const [goldenTab, setGoldenTab] = useState(() => (GOLD_TABS.includes(hashTab) ? hashTab : 'top'));
+  useEffect(() => { if (GOLD_TABS.includes(hashTab)) setGoldenTab(hashTab); }, [hashTab]);
+  useEffect(() => { syncTabHash('מוזהב', GOLD_TABS, goldenTab); }, [goldenTab]);
   const [filterDistrict, setFilterDistrict] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1335,15 +1357,16 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
               {' · הצלבה מול רישום הקווים העדכני: '}{liveGen ? String(liveGen).split('-').reverse().join('.') : <span className="inline-block w-16 h-[1em] align-middle bg-slate-100 rounded" aria-hidden="true" />}
             </p>
           </div>
-          <button type="button" onClick={onBack} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</button>
+          <a href="./" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onBack(); }} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</a>
         </header>
 
         <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
           {[['top', 'star', 'הקווים המצטיינים', 'bg-white text-amber-700 shadow-md'], ['areas', 'chart', 'ניתוח אזורי', 'bg-white text-amber-700 shadow-md'], ['expand', 'zap', 'הזדמנויות הרחבה', 'bg-white text-emerald-700 shadow-md'], ['allTrips', 'list', 'כל הנסיעות', 'bg-white text-rose-600 shadow-md'], ['about', 'info', 'על המערכת', 'bg-white text-indigo-600 shadow-md']].map(([id, icon, label, activeCls]) => (
-            <button key={id} onClick={() => setGoldenTab(id)}
+            <a key={id} href={tabHref('מוזהב', GOLD_TABS, id)} onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setGoldenTab(id); }}
+              aria-current={goldenTab === id ? 'page' : undefined}
               className={`flex-1 min-w-[120px] py-3.5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-2 ${goldenTab === id ? activeCls : 'text-slate-600 hover:text-slate-800'}`}>
               <Ic n={icon} size={16} /> {label}
-            </button>
+            </a>
           ))}
         </nav>
 
@@ -1700,7 +1723,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                     >
                       <Ic n="zap" size={20} /> חפש הזדמנויות
                     </button>
-                    <button onClick={() => setGoldenTab('top')} className="bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 px-6 py-4 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימת המצטיינים</button>
+                    <a href="#מוזהב" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setGoldenTab('top'); }} className="inline-flex items-center justify-center bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 px-6 py-4 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימת המצטיינים</a>
                   </div>
                 </div>
 
@@ -1838,7 +1861,7 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
                       לא היה נגיש יותר בלי רענון של הדף */}
                   <button onClick={() => { setSelectedLine(null); setExpandMatches([]); setExpandSearch(''); setExpandCity(''); setExpandSearched(false); }}
                     className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-2xl font-black text-sm transition-colors shadow-md">🔍 נתח קו אחר</button>
-                  <button onClick={() => setGoldenTab('top')} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימה</button>
+                  <a href="#מוזהב" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setGoldenTab('top'); }} className="inline-block bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl font-black text-sm transition-colors">← חזרה לרשימה</a>
                 </div>
               </div>
 
@@ -2433,10 +2456,15 @@ function KavPach() {
   const parseHash = () => {
     const h = decodeURIComponent((window.location.hash || '').replace('#', '').trim());
     const m = h.match(/^(פח|kavpach|מוזהב|golden)\/קו\/(\S+)$/);
-    if (m) return { mode: (m[1] === 'golden' || m[1] === 'מוזהב') ? 'golden' : 'kavpach', makat: m[2] };
-    if (h === 'golden' || h === 'מוזהב') return { mode: 'golden', makat: null };
-    if (h === 'kavpach' || h === 'פח') return { mode: 'kavpach', makat: null };
-    return { mode: 'choice', makat: null };
+    if (m) return { mode: (m[1] === 'golden' || m[1] === 'מוזהב') ? 'golden' : 'kavpach', makat: m[2], tab: null };
+    // לשונית: ‎#פח/areas‎ · ‎#מוזהב/allTrips‎
+    const t = h.match(/^(פח|kavpach|מוזהב|golden)(?:\/(\w+))?$/);
+    if (t) {
+      const gold = t[1] === 'golden' || t[1] === 'מוזהב';
+      const tab = t[2] && (gold ? GOLD_TABS : KP_TABS).includes(t[2]) ? t[2] : null;
+      return { mode: gold ? 'golden' : 'kavpach', makat: null, tab };
+    }
+    return { mode: 'choice', makat: null, tab: null };
   };
   const [appMode, setAppMode] = useState(() => {
     if (typeof window === 'undefined') return 'choice';
@@ -2446,6 +2474,7 @@ function KavPach() {
     if (typeof window === 'undefined') return null;
     return parseHash().makat;
   });
+  const [hashTab, setHashTab] = useState(() => (typeof window === 'undefined' ? null : parseHash().tab));
   const pickMode = useCallback((m) => {
     try { window.location.hash = m === 'choice' ? '' : m; } catch (e) { /* ignore */ }
     setAppMode(m);
@@ -2454,9 +2483,10 @@ function KavPach() {
   // סנכרון כפתור Back/Forward של הדפדפן עם appMode
   useEffect(() => {
     const onHash = () => {
-      const { mode, makat } = parseHash();
+      const { mode, makat, tab } = parseHash();
       setAppMode(mode);
       setFocusMakat(makat);
+      setHashTab(tab);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -2522,7 +2552,9 @@ function KavPach() {
   const [loadError, setLoadError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  const [tab, setTab] = useState("redundant"); 
+  const [tab, setTab] = useState(() => (appMode === 'kavpach' && KP_TABS.includes(hashTab) ? hashTab : "redundant"));
+  useEffect(() => { if (appMode === 'kavpach' && KP_TABS.includes(hashTab)) setTab(hashTab); }, [hashTab, appMode]);
+  useEffect(() => { if (appMode === 'kavpach') syncTabHash('פח', KP_TABS, tab); }, [tab, appMode]);
   useEffect(() => { if (tab === "deadhead") setDhOpened(true); }, [tab]);
   const [dhOpen, setDhOpen] = useState(null);       // קו פתוח בטבלת הנסיעות התפעוליות
   const [dhSureOnly, setDhSureOnly] = useState(false);
@@ -3891,7 +3923,7 @@ const DAYS_FILTER = [
   // עם הרשומות המחושבות מראש המסך עולה מיד; בלעדיהן (או במוזהב, שצריך נסיעות) מחכים לנסיעות
   const preReady = !!(linesPre && linesPre.length) && appMode === 'kavpach';
   if (!preReady && (initialLoading || trips.length === 0)) return fullLoadingScreen;
-  if (appMode === 'golden') return <GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} liveOf={liveOf} liveGen={liveGen} focusMakat={focusMakat} onClearFocus={() => { setFocusMakat(null); try { window.location.hash = 'מוזהב'; } catch (e) {} }} />;
+  if (appMode === 'golden') return <GoldenApp onBack={() => pickMode('choice')} trips={trips} costBenchmarkTable={costBenchmarkTable} lineCitiesMap={lineCitiesMap} liveOf={liveOf} liveGen={liveGen} focusMakat={focusMakat} hashTab={hashTab} onClearFocus={() => { setFocusMakat(null); try { window.location.hash = 'מוזהב'; } catch (e) {} }} />;
 
   // key נפרד למסך הטעינה ולאפליקציה: בלי זה React השתמש באותו DOM והאלמנט "זז" — Lighthouse: CLS
   return (
@@ -3919,7 +3951,7 @@ const DAYS_FILTER = [
               {' · הצלבה מול רישום הקווים העדכני: '}{liveGen ? String(liveGen).split('-').reverse().join('.') : <span className="inline-block w-16 h-[1em] align-middle bg-slate-100 rounded" aria-hidden="true" />}
             </p>
           </div>
-          <button type="button" onClick={() => pickMode('choice')} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</button>
+          <a href="./" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); pickMode('choice'); }} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</a>
         </header>
 
 
@@ -3997,11 +4029,12 @@ const DAYS_FILTER = [
                 if (tabName === "about") { colorClass = isSelected ? "bg-white text-indigo-600 shadow-md" : "text-slate-600 hover:text-slate-800"; iconName = "info"; label = "על המערכת"; }
 
                 return (
-                  <button key={`nav-${tabName}`} onClick={() => {
+                  <a key={`nav-${tabName}`} href={tabHref('פח', KP_TABS, tabName)} aria-current={isSelected ? 'page' : undefined} onClick={(e) => {
+                    if (!plainClick(e)) return; e.preventDefault();
                     setTab(tabName);
                   }} className={`flex-1 min-w-[120px] py-3.5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-2 ${colorClass}`}>
                     <Ic n={iconName} size={16} /> {label}
-                  </button>
+                  </a>
                 )
               })}
             </nav>

@@ -37,8 +37,9 @@ svg { flex: none; }
 .hbtn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
 #q-btn { display: none; }
 .qres { position: absolute; top: 32px; right: 0; left: 0; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-height: 60vh; overflow: auto; z-index: 3000; }
-.qres div { padding: 5px 10px; cursor: pointer; border-bottom: 1px solid var(--line2); }
-.qres div:hover, .qres div.sel { background: var(--acc-bg); }
+.qres div, .qres a { padding: 5px 10px; cursor: pointer; border-bottom: 1px solid var(--line2); }
+.qres a { display: block; color: inherit; text-decoration: none; }
+.qres div:hover, .qres div.sel, .qres a:hover, .qres a:focus { background: var(--acc-bg); }
 .qres small { color: var(--mut); margin-inline-start: 6px; }
 .qres .qh { background: var(--soft); font-size: 11px; font-weight: 700; color: var(--mut); cursor: default; padding: 3px 10px; }
 

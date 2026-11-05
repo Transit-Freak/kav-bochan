@@ -23,7 +23,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <!-- כל העיצוב יושב בקובץ נפרד כדי שמעצב יוכל לעבוד עליו בלי
      לגעת בלוגיקה. ראו parks/DESIGN.md — כללי העבודה למעצב. -->
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
   <div class="top">
@@ -32,8 +32,8 @@
     <h1 id="homebtn" style="cursor:pointer" title="חזרה למסך הראשי — המפה הארצית">🏭 נגישות אזורי תעשייה</h1>
     <span class="tag">גרסת בטא</span>
     <span class="vseg">
-      <button class="btn" id="heatbtn" title="מפת המצב הארצית">🗺️ מפה</button>
-      <button class="btn" id="backbtn" title="טבלת כל האזורים">📋 רשימה</button>
+      <a class="btn" id="heatbtn" href="./" title="מפת המצב הארצית">🗺️ מפה</a>
+      <a class="btn" id="backbtn" href="#list" title="טבלת כל האזורים">📋 רשימה</a>
     </span>
     <input id="q" type="search" placeholder="חיפוש אזור או יישוב…" title="הקלידו שם אזור תעשייה או יישוב — הרשימה מסתננת תוך כדי הקלדה">
     <!-- עיצוב אור 08.2026: מתג ההיקף עבר מהמפה אל הכותרת, כמו ברפרנס.
@@ -263,6 +263,7 @@ fetch('data/parks.json'+DV).then(r=>{if(!r.ok)throw 0;return r.json()}).then(idx
   renderTable();
   const h=decodeURIComponent((location.hash||'').slice(1));
   if(h && idx.some(p=>p.f===h)) openPark(h,false);
+  else if(h==='list') showTable();   // ‎#list‎ — הטבלה (קישור "רשימה" שנפתח בלשונית חדשה)
   else openHeatmap(true);   // מפת החום היא מסך הפתיחה; "חזרה לרשימה" מוביל לטבלה
 }).catch(()=>{msg.style.display='block';msg.textContent='הנתונים עדיין בהפקה ראשונה — נסו שוב בעוד כמה דקות 🚧'});
 
@@ -518,7 +519,9 @@ function openHeatmap(fit=true){
   },80);
   else if(heatmap._zoom===undefined) heatmap.setView([31.9,35.0],8);   // קריאה ראשונה בלי fit — שלא תישאר מפה אפורה
 }
-heatbtn.onclick=()=>{openHeatmap(true);if(location.hash) history.replaceState(null,'',location.pathname+location.search);};
+// "מפה" ו"רשימה" הם קישורים (‎./‎ ו-‎#list‎): לחיצה רגילה מחליפה תצוגה בדף, Ctrl/גלגלת/לחיצה ארוכה — לשונית חדשה
+const plainClick=e=>!(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button!==0);
+heatbtn.onclick=e=>{if(!plainClick(e))return;e.preventDefault();openHeatmap(true);if(location.hash) history.replaceState(null,'',location.pathname+location.search);};
 // הכותרת = "הביתה" של הכלי: חזרה למפה הארצית מכל מקום (בקשת שלמה ואיריס)
 document.getElementById('homebtn').onclick=()=>{openHeatmap(true);if(location.hash) history.replaceState(null,'',location.pathname+location.search);};
 const layerspanel=document.getElementById('layerspanel');
@@ -736,13 +739,13 @@ function drawRouteEl(el){
 function goList(){
   // מתוך מפת החום — לרשימה; מתוך אזור — חוזרים לאן שממנו נכנסו
   const inHeat=heatview.style.display==='flex';
-  if(inHeat) showTable();
-  else if(FROM=='heat') openHeatmap(false);
-  else showTable();
-  if(location.hash) history.replaceState(null,'',location.pathname+location.search);
+  if(inHeat||FROM!='heat') showTable();
+  else openHeatmap(false);
+  const u=location.pathname+location.search+(tblview.style.display==='block'?'#list':'');
+  if(location.pathname+location.search+location.hash!==u) history.replaceState(null,'',u);
 }
 // לשונית "רשימה": תמיד לטבלה (goList נשאר למחוות החלקה ולכפתור אחורה)
-backbtn.onclick=()=>{showTable();if(location.hash) history.replaceState(null,'',location.pathname+location.search);};
+backbtn.onclick=e=>{if(!plainClick(e))return;e.preventDefault();showTable();if(location.hash!=='#list') history.replaceState(null,'',location.pathname+location.search+'#list');};
 // כפתור "אחורה" של הטלפון/דפדפן מחזיר לרשימה במקום לעזוב את העמוד
 window.addEventListener('popstate',e=>{
   const st=e.state||{};
@@ -754,6 +757,7 @@ window.addEventListener('popstate',e=>{
     return;
   }
   if(st.park) openPark(st.park,false);
+  else if(location.hash==='#list') showTable();
   else if(location.hash&&location.hash.length>2) openPark(location.hash.slice(1),false);
   else if(FROM=='heat') openHeatmap(false);
   else showTable();

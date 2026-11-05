@@ -1087,6 +1087,11 @@ const lineHref = (r) => "#" + encodeURIComponent(r);
 // קורות החיים שלה.
 const stopHref = (c) => "#stop=" + encodeURIComponent(c);
 const plainClick = (e) => !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey);
+// כפתור "חזרה" כקישור אמיתי לרשימה (‎#t=<טאב>‎ או שורש הכלי) — אפשר לפתוח אותו בלשונית חדשה,
+// ולחיצה רגילה נשארת חזרה בתוך הדף (שומרת את החיפוש)
+const BackLink = ({ href, onBack, title, children }) => (
+  <a className="back" href={href || "./"} title={title}
+    onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onBack(); }}>{children}</a>);
 
 /* תגית עם הסבר שנפתח בהקשה: title מוצג רק בריחוף עכבר, ובטלפון אין
    ריחוף — רוב הקהל לא ראה את ההסברים האלה מעולם. הקשה על התגית פותחת
@@ -1938,10 +1943,11 @@ function RailTimePick({ rd, onSwitch, children }) {
     <div className="sibs">
       <span className="sibt">כיוון:</span>
       {keys.map((k) => (
-        <button key={k} type="button" className={"sib" + (k === dr ? " on" : "")}
-          onClick={() => { const a = common(k), to = mk + "-" + k + "-" + a; if (a != null && to !== rd) onSwitch(to); }}>
+        <a key={k} className={"sib sibdir" + (k === dr ? " on" : "")} aria-current={k === dr ? "true" : undefined}
+          href={common(k) != null ? lineHref(mk + "-" + k + "-" + common(k)) : undefined}
+          onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); const a = common(k), to = mk + "-" + k + "-" + a; if (a != null && to !== rd) onSwitch(to); }}>
           {p.dirs[k].from} ← {p.dirs[k].to}
-        </button>
+        </a>
       ))}
     </div>
   </div>;
@@ -2563,7 +2569,7 @@ function NotifyCenter({ cities: allCities }) {
 }
 // עמוד הסיכום שנפתח מהתראת סיכום: כל השינויים בתקופה, מקובצים לפי סוג —
 // קווים עם אותו שינוי באותה שורה, כל אחד בקישור משלו (בקשת שלמה)
-function DigestPage({ city, days, onBack, openLine }) {
+function DigestPage({ city, days, onBack, openLine, backHref }) {
   const [data, setData] = useState(null);
   useEffect(() => {
     fetch("data/digest.json", { cache: "no-cache" }).then((r) => r.json()).then(setData)
@@ -2576,7 +2582,7 @@ function DigestPage({ city, days, onBack, openLine }) {
   items.forEach((x) => { (byKind[x.k] = byKind[x.k] || []).push(x); });
   return (
     <div className="card">
-      <button className="back" onClick={onBack}>→ לחיפוש</button>
+      <BackLink href={backHref} onBack={onBack}>→ לחיפוש</BackLink>
       <h2 style={{ margin: "6px 0" }}>🔔 סיכום השינויים בקווי {String(city || "").split(",").join(", ")} — {days === 7 ? "השבוע האחרון" : `${days} הימים האחרונים`}</h2>
       {!data ? <div>טוען…</div> : !items.length ? <div className="mut">אין שינויים מהותיים בתקופה הזו.</div> : (
         Object.keys(byKind).map((k) => {
@@ -2601,7 +2607,7 @@ function DigestPage({ city, days, onBack, openLine }) {
   );
 }
 
-function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, lite }) {
+function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, lite, backHref }) {
   // "· רציף N" ליד תחנה במסוף — הרציף של הווריאנט הזה לפי שורת הרציף בקובץ
   // התחנות (platforms.json rd), מתעדכן מדי יום
   const plats = usePlatforms();
@@ -2755,7 +2761,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
   // כ"לא נמצאו נתונים" והגולש הסיק שאין מה לראות. סטטוס HTTP (404) הוא
   // באמת קו שאין לו קובץ; כל השאר — תקלה, עם כפתור לנסות שוב.
   if (err) return (
-    <div className="card"><button className="back" onClick={onBack}>→ חזרה</button>
+    <div className="card"><BackLink href={backHref} onBack={onBack}>→ חזרה</BackLink>
       {/^\d+$/.test(String(err.message)) ? <div className="empty">לא נמצאו נתונים לוריאנט הזה.</div>
         : <div className="empty">📡 הנתונים לא ירדו — כנראה תקלת רשת רגעית.{" "}
           <button className="morebtn" onClick={() => setRty((n) => n + 1)}>↻ נסו שוב</button></div>}
@@ -3321,8 +3327,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       {lite ? <>
       <div className="card side lt-top">
         {lite
-          ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
-          : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
+          ? <div className="crumb"><BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">הקו בזמן ‹ קווים</BackLink> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
+          : <BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">→ חזרה לחיפוש</BackLink>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
         <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
           {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
@@ -3644,8 +3650,8 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       </> : <>
       <div className="card side">
         {lite
-          ? <div className="crumb"><button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>הקו בזמן ‹ קווים</button> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
-          : <button className="back" title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר" onClick={onBack}>→ חזרה לחיפוש</button>}
+          ? <div className="crumb"><BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">הקו בזמן ‹ קווים</BackLink> ‹ <b>{lf.line || TT_ICON[lf.tt] || ""}</b></div>
+          : <BackLink href={backHref} onBack={onBack} title="חזרה למסך החיפוש — הטקסט שחיפשתם נשמר">→ חזרה לחיפוש</BackLink>}
         {/* לקווי הרכבת אין מספר קו ב-GTFS — הסמל ממלא את מקומו כדי שהתג לא יופיע ריק */}
         <div className="linehead"><span className="badge">{lf.line || TT_ICON[lf.tt] || "—"}</span><span className="dest">{lite ? routeTitle(lf.dest) : destShow(lf.dest)}</span>
           {lite && <span className="herosub">{lf.op}{vehEl}{goneD ? <b className="herost gone">מבוטל מאז {fmtD(goneD)}</b> : ntr > 0 ? <b className="herost">פעיל · {ntr === 1 ? "נסיעה אחת ביום" : ntr.toLocaleString() + " נסיעות ביום"}</b> : null}</span>}
@@ -4020,7 +4026,7 @@ function Map2012({ stops, shape, year = "2012", estimatedLocations = false }) {
     aria-label={"מפת מסלול " + year + " דרך " + (stops || []).filter((x) => x[5] != null).length + " תחנות שהוצלבו למיקום"} />;
 }
 
-function Line2012Page({ k12, anchorRd, openLine, onBack }) {
+function Line2012Page({ k12, anchorRd, openLine, onBack, backHref }) {
   const [d, setD] = useState(null);
   const [sh, setSh] = useState(null);     // מסלולים משוערים על הכבישים, אם חושבו
   const [ri, setRi] = useState(0);
@@ -4032,7 +4038,7 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
       .then((r) => (r.ok ? r.json() : { routes: {} })).then(setSh).catch(() => setSh({ routes: {} }));
   }, [k12]);
   if (d === null) return <div className="card">טוען…</div>;
-  if (!d) return <div className="card"><button className="back" onClick={onBack}>→ חזרה</button>
+  if (!d) return <div className="card"><BackLink href={backHref} onBack={onBack}>→ חזרה</BackLink>
     <div className="empty">הקו לא נמצא בצילום 2012.</div></div>;
   const r = (d.routes || [])[ri] || (d.routes || [])[0] || { stops: [] };
   const stops = r.stops || [];
@@ -4041,7 +4047,7 @@ function Line2012Page({ k12, anchorRd, openLine, onBack }) {
   const shape = rsh ? decodeShape(rsh.pl) : null;
   return (
     <div className="card">
-      <button className="back" onClick={onBack}>→ חזרה</button>
+      <BackLink href={backHref} onBack={onBack}>→ חזרה</BackLink>
       <div className="linehead">
         <span className="badge">{d.no}</span>
         <span className="dest">{d.dest}</span>
@@ -6335,6 +6341,8 @@ function App() {
     const tt = typeof t === "string" ? t : tab;
     history.replaceState(null, "", tt && tt !== "lines" ? "#t=" + tt : location.pathname + location.search);
   };
+  // כתובת הרשימה של טאב (כמו ש-clearHashKeepTab כותב) — ל-href של הלשוניות ושל "חזרה"
+  const tabHrefLH = (tt) => (tt && tt !== "lines" ? "#t=" + tt : location.pathname + location.search);
   const backToList = (t) => {
     setRd(null);
     clearHashKeepTab(t);
@@ -6453,20 +6461,21 @@ function App() {
       {/* פרסום חדש: גם רשימת החודשים נטענת מחדש, אחרת דף פתוח נשאר עם חודשים ומקורות ישנים מול אינדקס חדש */}
       <WebsiteImportStatus onPublished={()=>{MONTHS_P=null;setRty(n=>n+1);window.dispatchEvent(new Event("website-history-published"));}} />
       <div className="tabs" role="tablist" aria-label="אזורי האתר">
-        <button role="tab" aria-selected={tab === "lines"} className={"tab" + (tab === "lines" ? " on" : "")} title="חיפוש בכל קווי האוטובוס בארץ והיסטוריית השינויים של כל קו" onClick={() => { setTab("lines"); backToList("lines"); }}>🚌 קווים</button>
-        <button role="tab" aria-selected={tab === "stops"} className={"tab" + (tab === "stops" ? " on" : "")} title="חיפוש תחנות והיסטוריית השינויים שלהן — שינוי שם, הזזה, ביטול" onClick={() => { setTab("stops"); backToList("stops"); }}>🚏 תחנות</button>
-        <button role="tab" aria-selected={tab === "map"} className={"tab" + (tab === "map" ? " on" : "")} title="מפה לפי עיר וחודש: תחנות שהשתנו וקווים שהשתנו, כפי שהיו אז" onClick={() => { setTab("map"); backToList("map"); }}>🗺️ מפה</button>
+        {/* לשוניות כקישורים (‎#t=stops‎ וכו') — אפשר לפתוח לשונית בכרטיסייה חדשה */}
+        <a role="tab" aria-selected={tab === "lines"} className={"tab" + (tab === "lines" ? " on" : "")} title="חיפוש בכל קווי האוטובוס בארץ והיסטוריית השינויים של כל קו" href={tabHrefLH("lines")} onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setTab("lines"); backToList("lines"); }}>🚌 קווים</a>
+        <a role="tab" aria-selected={tab === "stops"} className={"tab" + (tab === "stops" ? " on" : "")} title="חיפוש תחנות והיסטוריית השינויים שלהן — שינוי שם, הזזה, ביטול" href={tabHrefLH("stops")} onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setTab("stops"); backToList("stops"); }}>🚏 תחנות</a>
+        <a role="tab" aria-selected={tab === "map"} className={"tab" + (tab === "map" ? " on" : "")} title="מפה לפי עיר וחודש: תחנות שהשתנו וקווים שהשתנו, כפי שהיו אז" href={tabHrefLH("map")} onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setTab("map"); backToList("map"); }}>🗺️ מפה</a>
         {TABS.map((t) => (
-          <button key={t.k} role="tab" aria-selected={tab === t.k} className={"tab" + (tab === t.k ? " on" : "")} title={t.tip}
-            onClick={() => { setTab(t.k); backToList(t.k); }}>{t.icon} {t.label}</button>
+          <a key={t.k} role="tab" aria-selected={tab === t.k} className={"tab" + (tab === t.k ? " on" : "")} title={t.tip} href={tabHrefLH(t.k)}
+            onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); setTab(t.k); backToList(t.k); }}>{t.icon} {t.label}</a>
         ))}
       </div>
       {!rd && !k12 && !dig && <NotifyCenter cities={notifyCities} />}
       {dig ? (
-        <DigestPage city={dig.city} days={dig.days} openLine={openLine}
+        <DigestPage city={dig.city} days={dig.days} openLine={openLine} backHref={tabHrefLH(tab)}
           onBack={() => { setDig(null); clearHashKeepTab(); }} />
       ) : k12 ? (
-        <Line2012Page k12={k12} anchorRd={anc12[k12] || null} openLine={openLine}
+        <Line2012Page k12={k12} anchorRd={anc12[k12] || null} openLine={openLine} backHref={tabHrefLH(tab)}
           onBack={() => { setK12(null); clearHashKeepTab(); }} />
       ) : tab === "stops" ? <StopsTab idx={idx} openLine={openLine} sel={stopSel} selN={stopSelN} /> : tab === "map" && !rd ? <MapTab idx={idx} openLine={openLine} cities={notifyCities} /> : (TABS.some((t) => t.k === tab) && !rd) ? (
         idx ? <ModesTab key={tab} idx={idx} openLine={openLine} spec={TABS.find((t) => t.k === tab)} />
@@ -6476,7 +6485,7 @@ function App() {
            קרס ללבן (הבאג ששלמה מצא): idx עדיין null ו-idx.lines התפוצץ */
         <LinePage rd={rd} lineGone={idx ? (l => !(l?.historicalOnly && !lineGoneAt(l)))(idx.lines.find(l => l.rd === rd)) && !mktAlive[rd.split("-")[0]] : false}
           sibs={lineSiblings(idx, rd)}
-          onSwitch={switchLine} onBack={backToList} initDate={rdDate}
+          onSwitch={switchLine} onBack={backToList} initDate={rdDate} backHref={tabHrefLH(tab)}
           initCats={[...kats].sort().join(",")} lite={false} />
         /* עמוד הקו — בעיצוב הקודם גם בתצוגה החדשה (שלמה 08.10: "הדף הראשי בעיצוב החדש, ובכניסה לקו
            העיצוב הישן"). עמוד הקו "הקל" נשאר בקוד (lite) אם יוחלט לחזור אליו */

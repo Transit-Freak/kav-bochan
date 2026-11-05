@@ -462,8 +462,12 @@
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
       core.src = 'kavpach-core.js?v=94aa7c3d59';
+      // async=false: שני הקבצים רצים לפי הסדר (הליבה קודם) — סקריפט שנוסף בקוד הוא async כברירת מחדל,
+      // ובכניסה ישירה ללשונית (#פח/deadhead) האפליקציה מחשבת מיד עם פונקציות מהליבה
+      core.async = false;
       document.body.appendChild(core);
       var sc = document.createElement('script');
+      sc.async = false;
       sc.src = 'KavPach.js?v=94aa7c3d59';
       sc.onload = mount;
       sc.onerror = fallback;

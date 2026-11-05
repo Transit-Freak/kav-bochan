@@ -563,3 +563,8 @@ body.lite .card > .katbox:not(.notifybox):has(> .katlist) > .kathead { width: 10
 .succbox b { color: #6d28d9; }
 .succbox a { color: #5b21b6; font-weight: 700; }
 .succbox .mut { font-size: 12px; margin-top: 4px; }
+/* לשוניות, "חזרה" ובחירת כיוון — קישורים אמיתיים (פתיחה בכרטיסייה חדשה) באותו מראה של הכפתורים */
+a.tab, a.back { text-decoration: none; display: inline-block; line-height: normal; }
+a.tab { text-align: center; }
+a.sib.sibdir { color: #475569; }
+a.sib.sibdir.on { color: #fff; }
