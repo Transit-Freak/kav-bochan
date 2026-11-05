@@ -17,24 +17,41 @@ jobs:
           pip install -q pillow
           mkdir -p tools/bus-ref && rm -f tools/bus-ref/*
           python3 - <<'PY'
-          import json, urllib.request, urllib.parse, io, time
-          from PIL import Image
+          # רק צילומים חדשים: לפי תאריך הצילום (DateTimeOriginal) משנת 2018 ואילך, ובצבע
+          import json, urllib.request, urllib.parse, io, time, re
+          from PIL import Image, ImageStat
           UA = {'User-Agent': 'kav-bochan-ref/1.0 (https://kavbochan.app; reference viewing)'}
           def api(**p):
               p.update(format='json')
               return json.load(urllib.request.urlopen(urllib.request.Request('https://commons.wikimedia.org/w/api.php?' + urllib.parse.urlencode(p), headers=UA), timeout=30))
-          def sheet(name, queries, per=8):
-              ims, caps = [], []
-              for q in queries:
+          def files(q):
+              out = []
+              for src in ('search', 'cat'):
                   try:
-                      r = api(action='query', generator='search', gsrsearch=q + ' filetype:bitmap', gsrnamespace=6, gsrlimit=per, gsrsort='create_timestamp_desc', prop='imageinfo', iiprop='url', iiurlwidth=600)
-                  except Exception as e: print('api', e); continue
+                      if src == 'search':
+                          r = api(action='query', generator='search', gsrsearch=q + ' filetype:bitmap', gsrnamespace=6, gsrlimit=40, prop='imageinfo', iiprop='url|extmetadata', iiurlwidth=600)
+                      else:
+                          r = api(action='query', generator='categorymembers', gcmtitle='Category:' + q, gcmtype='file', gcmlimit=60, prop='imageinfo', iiprop='url|extmetadata', iiurlwidth=600)
+                  except Exception as e: print('api', q, e); continue
                   for pg in (r.get('query', {}).get('pages') or {}).values():
+                      ii = pg['imageinfo'][0]; md = ii.get('extmetadata', {})
+                      d = (md.get('DateTimeOriginal', {}).get('value') or '') + ' ' + (md.get('DateTime', {}).get('value') or '')
+                      ys = [int(y) for y in re.findall(r'(?<!\d)(19\d\d|20\d\d)(?!\d)', d)]
+                      if not ys or min(ys) < 2018: continue
+                      out.append((pg['title'], ii['thumburl']))
+              return out
+          def sheet(name, queries, cap=24):
+              ims, caps, seen = [], [], set()
+              for q in queries:
+                  for t, u in files(q):
+                      if t in seen or len(ims) >= cap: continue
+                      seen.add(t)
                       try:
-                          b = urllib.request.urlopen(urllib.request.Request(pg['imageinfo'][0]['thumburl'], headers=UA), timeout=20).read()
-                          ims.append(Image.open(io.BytesIO(b)).convert('RGB')); caps.append(pg['title'][5:70])
-                      except Exception: pass
-                      time.sleep(0.2)
+                          im = Image.open(io.BytesIO(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=20).read())).convert('RGB')
+                      except Exception: continue
+                      r_, g_, b_ = ImageStat.Stat(im).mean
+                      if max(abs(r_ - g_), abs(g_ - b_)) < 3: continue        # שחור-לבן
+                      ims.append(im); caps.append(t[5:80]); time.sleep(0.2)
               open(f'tools/bus-ref/{name}.txt', 'w').write('\n'.join(caps))
               W = 360; th = [im.resize((W, int(im.height * W / im.width))) for im in ims]
               for s in range(0, len(th), 12):
@@ -43,8 +60,8 @@ jobs:
                   for i, t in enumerate(part): sh.paste(t.crop((0, 0, W, min(H, t.height))), ((i % 4) * W, (i // 4) * H))
                   sh.save(f'tools/bus-ref/{name}{s//12}.jpg', quality=75)
               print(name, len(ims))
-          sheet('sold', ['Israeli soldiers', 'IDF soldier woman', 'Israel Defense Forces soldiers bus', 'IDF soldiers backpack'])
-          sheet('ppl', ['Jerusalem Light Rail passengers', 'Jerusalem Central Bus Station', 'Tel Aviv street people', 'Israel bus stop', 'Haredi women street Jerusalem', 'Israeli students campus 2023'])
+          sheet('sold', ['Israel Defense Forces soldiers', 'IDF soldiers', 'Female soldiers of the Israel Defense Forces', 'Women in the Israel Defense Forces', 'IDF soldiers bus'])
+          sheet('ppl', ['People of Tel Aviv', 'People in Jerusalem', 'Jaffa Road', 'Dizengoff Street', 'Jerusalem Light Rail', 'Tel Aviv Light Rail', 'Bus stops in Israel', 'Mahane Yehuda Market', 'Carmel Market'])
           PY
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add tools/bus-ref && git commit -qm "reference photos" && git push -q origin HEAD:claude/bus-ref
