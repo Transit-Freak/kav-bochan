@@ -34,7 +34,7 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=94aa7c3d59" />
+<link rel="stylesheet" href="vendor/kavpach.css?v=5a61dcb4e1" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -461,14 +461,14 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=94aa7c3d59';
+      core.src = 'kavpach-core.js?v=5a61dcb4e1';
       // async=false: שני הקבצים רצים לפי הסדר (הליבה קודם) — סקריפט שנוסף בקוד הוא async כברירת מחדל,
       // ובכניסה ישירה ללשונית (#פח/deadhead) האפליקציה מחשבת מיד עם פונקציות מהליבה
       core.async = false;
       document.body.appendChild(core);
       var sc = document.createElement('script');
       sc.async = false;
-      sc.src = 'KavPach.js?v=94aa7c3d59';
+      sc.src = 'KavPach.js?v=5a61dcb4e1';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);
