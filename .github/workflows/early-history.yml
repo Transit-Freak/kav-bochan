@@ -23,10 +23,11 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    # 05.11: ריצה אחת ארוכה במקום הרבה קצרות — ההורדה (7 דק') והעיבוד שאחרי הייבוא (13 דק') קורים פעם אחת
+    timeout-minutes: 170
     env:
       EARLY_GTFS_CACHE: /tmp/early-gtfs-cache
-      BATCH_LIMIT: ${{ github.event_name == 'push' && '1' || '3' }}
+      BATCH_LIMIT: ${{ github.event_name == 'push' && '1' || '60' }}
       CHROMIUM_PATH: /usr/bin/google-chrome
     steps:
       # 04.11: "No space left on device" — המאגר עם הארכיון ההיסטורי ועוד שלושה קובצי GTFS של 150MB
@@ -59,7 +60,7 @@ jobs:
           python tools/test_publish_early_history.py
           python tools/import_early_rail.py
           status=0
-          python tools/import_early_history.py --limit "$BATCH_LIMIT" --max-minutes 10 || status=$?
+          python tools/import_early_history.py --limit "$BATCH_LIMIT" --max-minutes 120 || status=$?
           python tools/link_early_2012.py
           python tools/mark_archive_gone.py
           python tools/rebuild_lines_index.py
