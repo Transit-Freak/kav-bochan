@@ -1637,7 +1637,12 @@ def main():
     # צבירה של 14 הימים האחרונים לקובץ אחד שקו פח קורא — לכל מק"ט: זוגות,
     # ימים, דוגמאות; ולכל זוג בלו"ז (כיוון+שעת יציאה מתוכננת) כמה פעמים נצפה
     agg = {}
-    dh_days = sorted(f[:-14] for f in os.listdir(f'{a.out}/days') if f.endswith('.deadhead.json'))[-14:]
+    dh_all = sorted(f[:-14] for f in os.listdir(f'{a.out}/days') if f.endswith('.deadhead.json'))
+    # קו פח משתמש רק ב-14 הימים האחרונים; קבצי יום ישנים יותר נמחקים (שלמה 05.11: "למה לא למחוק את הנתונים הישנים").
+    # נשארים 21 יום, כמו בהקו המזין — מרווח ליום שחושב מחדש או חסר
+    for old in dh_all[:-21]:
+        os.remove(f'{a.out}/days/{old}.deadhead.json')
+    dh_days = dh_all[-14:]
     for d0 in dh_days:
         try:
             dj = json.load(open(f'{a.out}/days/{d0}.deadhead.json', encoding='utf-8'))
