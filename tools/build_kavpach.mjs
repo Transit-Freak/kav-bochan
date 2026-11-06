@@ -2,7 +2,8 @@
 //   1. KavPach.jsx → KavPach.js בעזרת Babel המצורף (אותה קומפילציה שהדפדפן
 //      עשה בכל ביקור, ~2 שניות בטלפון + 650KB של Babel) — נעשית פעם אחת כאן.
 //   2. Tailwind: CSS מוכן (vendor/kavpach.css) במקום ה-JIT בזמן ריצה.
-//   3. חותמת ?v= ב-index.html לפי hash של הפלט — הדפדפן שומר בקאש ומתחלף רק בשינוי.
+//   3. דף הבית הסטטי ב-index.html נבנה מ-home/home.js (בין <!-- kbh:start --> ל-<!-- kbh:end -->).
+//   4. חותמת ?v= ב-index.html לפי hash של הפלט — הדפדפן שומר בקאש ומתחלף רק בשינוי.
 // הרצה: node tools/build_kavpach.mjs   (דורש node_modules/tailwindcss — npm i tailwindcss@3)
 import fs from 'fs';
 import vm from 'vm';
@@ -44,9 +45,20 @@ const twBin = fs.existsSync(tw) ? tw : (process.env.TAILWIND_BIN || 'tailwindcss
 execSync(`"${twBin}" -c "${cfg}" -i "${inCss}" -o "${path.join(ROOT, 'vendor', 'kavpach.css')}" --minify`, { stdio: 'inherit' });
 fs.unlinkSync(cfg); fs.unlinkSync(inCss);
 
-// 3. חותמת
+// 3. דף הבית הסטטי ב-index.html — נבנה מ-home/home.js (אותו HTML ש-ChoiceScreen מציג), עם הגרסאות מ-versions.json
+const hctx = { window: {}, console };
+vm.createContext(hctx);
+vm.runInContext(rd('home/home.js'), hctx);
+let VER = null;
+try { VER = JSON.parse(rd('versions.json')); } catch (e) { console.warn('versions.json לא נקרא — דף הבית בלי גרסאות'); }
+const homeHtml = hctx.window.KBH.html(VER);
+
+// 4. חותמת
 const h = crypto.createHash('sha1').update(js).update(rd('vendor/kavpach.css')).update(rd('kavpach-core.js')).digest('hex').slice(0, 10);
 let html = rd('index.html');
+html = html.replace(/<!-- kbh:start -->[\s\S]*?<!-- kbh:end -->/, () => '<!-- kbh:start -->\n' + homeHtml + '\n<!-- kbh:end -->');
+const hh = crypto.createHash('sha1').update(rd('home/home.js')).update(rd('home/home.css')).digest('hex').slice(0, 10);
+html = html.replace(/home\/home\.(css|js)\?v=[0-9a-z]+/g, (m, ext) => 'home/home.' + ext + '?v=' + hh);
 html = html.replace(/KavPach\.js\?v=[0-9a-f]+/g, 'KavPach.js?v=' + h).replace(/vendor\/kavpach\.css\?v=[0-9a-f]+/g, 'vendor/kavpach.css?v=' + h).replace(/kavpach-core\.js\?v=[0-9a-f]+/g, 'kavpach-core.js?v=' + h);
 wr('index.html', html);
 console.log('KavPach.js', (js.length / 1024).toFixed(0) + 'KB · kavpach.css', (rd('vendor/kavpach.css').length / 1024).toFixed(0) + 'KB · v=' + h);

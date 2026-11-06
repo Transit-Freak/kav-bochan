@@ -3,12 +3,13 @@ name: kavpach-build
 # קו פח — בנייה וחישוב מוקדם בכל שינוי קוד או נתונים (שלמה 18.09): KavPach.jsx → KavPach.js,
 # והצבירה לכל קו (tools/precompute_kavpach.mjs) → data-lines.json
 # (Babel פעם אחת כאן במקום בכל דפדפן) ו-Tailwind → CSS מוכן, עם חותמת ?v=
-# ב-index.html. תוצרי הבנייה מקומטים חזרה ל-main.
+# ב-index.html, ודף הבית הסטטי ב-index.html מ-home/home.js (עם הגרסאות מ-versions.json).
+# תוצרי הבנייה מקומטים חזרה ל-main.
 
 on:
   push:
     branches: [main]
-    paths: ['KavPach.jsx', 'index.html', 'tools/build_kavpach.mjs', 'kavpach-core.js', 'xlsx-worker.js', 'tools/precompute_kavpach.mjs', 'data-main.json', 'data-schedule.json', 'data-benchmark.json']
+    paths: ['KavPach.jsx', 'index.html', 'home/**', 'versions.json', 'tools/build_kavpach.mjs', 'kavpach-core.js', 'xlsx-worker.js', 'tools/precompute_kavpach.mjs', 'data-main.json', 'data-schedule.json', 'data-benchmark.json']
   # עדכניות: הניקוד המוכן נשען על הארכיון, החפיפות והנסיעות התפעוליות — נבנה מחדש
   # אחרי כל אחד מהתהליכים שמעדכנים אותם, וגם לילית ליתר ביטחון
   workflow_run:
