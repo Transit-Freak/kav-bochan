@@ -6,107 +6,214 @@
   <script src="../nav-restore.js"></script><script src="../home-link.js" data-home="/"></script>
 <script src="../version.js" defer></script>
 <script src="../april.js" defer></script>
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#f7fafd">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="26" fill="%2315803D"/><rect x="14" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="26" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="38" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="50" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="62" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="74" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="86" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><rect x="98" y="88" width="5" height="6" rx="1" fill="%23fff" opacity=".7"/><path d="M6 87 H114" stroke="%23fff" stroke-width="4" stroke-linecap="round"/><path d="M30 32 L40 24 L50 32" stroke="%23fff" stroke-width="3.5" fill="none" stroke-linejoin="round"/><path d="M28 24 H52" stroke="%23fff" stroke-width="3" stroke-linecap="round"/><path d="M8 78 V58 C8 44 18 34 34 34 H64 V78 Z" fill="%23fff"/><path d="M14 52 C16 45 21 41 28 41 V52 Z" fill="%2315803D"/><rect x="33" y="41" width="7" height="9" rx="1.5" fill="%2315803D"/><rect x="43" y="41" width="7" height="9" rx="1.5" fill="%2315803D"/><rect x="53" y="41" width="7" height="9" rx="1.5" fill="%2315803D"/><rect x="10" y="62" width="54" height="3" fill="%2315803D"/><circle cx="16" cy="81" r="4.5" fill="%23fff" stroke="%2315803D" stroke-width="2.5"/><circle cx="25" cy="81" r="4.5" fill="%23fff" stroke="%2315803D" stroke-width="2.5"/><circle cx="47" cy="81" r="4.5" fill="%23fff" stroke="%2315803D" stroke-width="2.5"/><circle cx="56" cy="81" r="4.5" fill="%23fff" stroke="%2315803D" stroke-width="2.5"/><rect x="64" y="70" width="7" height="4" fill="%23fff"/><rect x="71" y="48" width="42" height="32" rx="7" fill="%23fff"/><path d="M75 52 H86 V66 H75 Z" fill="%2315803D"/><rect x="89" y="52" width="5" height="22" rx="1.5" fill="%2315803D"/><rect x="97" y="52" width="6" height="9" rx="1.5" fill="%2315803D"/><rect x="105" y="52" width="5" height="9" rx="1.5" fill="%2315803D"/><circle cx="81" cy="81" r="6.5" fill="%23fff" stroke="%2315803D" stroke-width="3"/><circle cx="104" cy="81" r="6.5" fill="%23fff" stroke="%2315803D" stroke-width="3"/></svg>'>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="https://kavbochan.app/feeder/icon-180.png">
 <meta property="og:title" content="הקו המזין — הקו הבוחן">
 <meta property="og:description" content="כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה להזיז כל קו">
 <title>הקו המזין — הקו הבוחן</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#F3F5F8;--panel:#fff;--ink:#1F2937;--mut:#5B6472;--dim:#9AA3AF;--line:#E3E7ED;--acc:#3B4CCA;--acc2:#E8EBFB;
-    --c0:#D7263D;--c1:#F4B400;--c2:#00A65A;--c3:#1E5BC6;--c4:#C9CED6}
+  /* הקו המזין — אב-טיפוס לעיצוב חדש: בהיר, תכלת של הקו הבוחן + ירוק של הכלי (כמו הכרטיס שלו בדף הבית) */
+  :root{--bg:#f7fafd;--bg2:#eef4fa;--panel:#fff;--surface2:#f8fafc;--ink:#0b1220;--ink2:#1e293b;--mut:#5b6579;--dim:#8a94a8;
+    --line:rgba(15,23,42,.08);--line2:rgba(15,23,42,.14);
+    --brand:#0ea5e9;--brand-ink:#0369a1;--brand-lt:#e0f2fe;--brand-xl:#f0f9ff;
+    --acc:#15803d;--acc2:#16a34a;--acc-lt:#f0fdf4;--acc-ln:#bbf7d0;
+    --c0:#D7263D;--c1:#F4B400;--c2:#00A65A;--c3:#1E5BC6;--c4:#C9CED6;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.05);
+    --shadow:0 1px 2px rgba(15,23,42,.04),0 10px 30px -14px rgba(15,23,42,.18);
+    --shadow-lg:0 2px 4px rgba(15,23,42,.04),0 24px 48px -20px rgba(15,23,42,.28);
+    --ring:0 0 0 3px rgba(14,165,233,.22);
+    --disp:'Heebo','IBM Plex Sans Hebrew',system-ui,sans-serif;color-scheme:light}
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 'Rubik',sans-serif;overflow-x:hidden}
-  header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 18px 10px 200px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;position:sticky;top:0;z-index:5}
-  header h1{font-size:19px;margin:0;font-weight:700}
-  header .tag{font-size:12px;color:var(--acc);background:var(--acc2);border-radius:6px;padding:2px 8px;font-weight:600}
-  header .sp{flex:1}
-  .tg{display:inline-flex;background:var(--bg);border-radius:8px;padding:3px}
-  .tg button{border:0;background:none;font:600 13px 'Rubik';padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--mut)}
-  .tg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px #0002}
-  select,input[type=search]{font:500 13px 'Rubik';border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel);color:var(--ink)}
-  .lay{display:grid;grid-template-columns:270px 1fr;gap:16px;padding:16px 18px;max-width:1500px;margin:0 auto}
-  aside{display:flex;flex-direction:column;gap:12px}
+  html{-webkit-text-size-adjust:100%}
+  html,body{margin:0;background-color:var(--bg);color:var(--ink);font:14px/1.5 'IBM Plex Sans Hebrew','Heebo',system-ui,sans-serif;overflow-x:clip}
+  body{-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(640px 380px at 88% -80px,rgba(56,189,248,.24),transparent 70%),radial-gradient(560px 340px at 10% 20px,rgba(34,197,94,.11),transparent 70%),radial-gradient(760px 420px at 50% 300px,rgba(186,230,253,.30),transparent 70%);
+    background-repeat:no-repeat}
+  ::selection{background:#bae6fd}
+  button,select,input{font-family:inherit}
+
+  /* כותרת עליונה — זכוכית דביקה, כמו בדף הבית */
+  .top{position:sticky;top:0;z-index:500;background:rgba(255,255,255,.72);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid var(--line)}
+  .top-in{max-width:1500px;margin:0 auto;padding:0 18px;height:60px;display:flex;align-items:center;gap:12px}
+  .brand{font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:-.01em;color:var(--ink);text-decoration:none;white-space:nowrap}
+  .brand:hover{color:var(--brand-ink)}
+  .crumb{display:flex;align-items:center;gap:12px;font-size:14.5px;font-weight:600;color:var(--mut);white-space:nowrap}
+  .crumb::before{content:"";width:1px;height:18px;background:var(--line2)}
+  .kb-home{position:fixed !important;top:12px;left:14px;z-index:600 !important;background:rgba(255,255,255,.92);color:var(--brand-ink);border:1px solid var(--line2);box-shadow:var(--shadow-sm);font-family:var(--disp);font-weight:700;padding:10px 14px}
+  .kb-home:hover{background:#fff;color:var(--ink);border-color:rgba(14,165,233,.45)}
+  .kb-home:focus-visible{outline:2px solid var(--brand)}
+  @media(max-width:900px){body{padding-top:0 !important}}
+
+  /* פתיח הכלי + הבחירות הראשיות */
+  .hero{max-width:1500px;margin:0 auto;padding:30px 18px 4px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .hico{width:76px;height:76px;flex:none;border-radius:21px;box-shadow:0 16px 30px -16px rgba(21,128,61,.75),0 0 0 1px rgba(21,128,61,.12)}
+  .hico svg{display:block;width:100%;height:100%}
+  .htxt{min-width:0}
+  .hero h1{margin:0;font-family:var(--disp);font-size:40px;font-weight:900;line-height:1.05;letter-spacing:-.02em;color:var(--ink)}
+  .hero .tag{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--acc-lt);color:var(--acc);border:1px solid var(--acc-ln);padding:4px 12px;border-radius:999px;font-size:13.5px;font-weight:600}
+  .hero .tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc2)}
+  .hero .sp{flex:1}
+  .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:8px;box-shadow:var(--shadow)}
+  .tg{display:inline-flex;gap:3px;padding:4px;background:var(--bg2);border:1px solid var(--line);border-radius:13px}
+  .tg button{border:0;background:transparent;font:700 14px var(--disp);min-height:38px;padding:7px 16px;border-radius:9px;cursor:pointer;color:var(--mut);transition:background .18s,color .18s,box-shadow .18s;white-space:nowrap}
+  .tg button:hover{color:var(--ink)}
+  .tg button.on{background:#fff;color:var(--brand-ink);box-shadow:0 1px 2px rgba(15,23,42,.08),0 6px 14px -8px rgba(14,165,233,.55)}
+  .tg button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+
+  select,input[type=search]{font:500 14px 'IBM Plex Sans Hebrew','Heebo',sans-serif;border:1px solid var(--line2);border-radius:12px;padding:9px 12px;background:#fff;color:var(--ink);box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s}
+  select{-webkit-appearance:none;appearance:none;padding-left:34px;cursor:pointer;background:#fff url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%235b6579" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M6 9l6 6 6-6"/%3E%3C/svg%3E') no-repeat left 11px center/14px}
+  .ctl select{min-height:46px;border-radius:13px;font-weight:600}
+  input[type=search]{padding-right:38px;background:#fff url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238a94a8" stroke-width="2.2" stroke-linecap="round"%3E%3Ccircle cx="11" cy="11" r="6.5"/%3E%3Cpath d="M16 16l4.5 4.5"/%3E%3C/svg%3E') no-repeat right 12px center/17px}
+  input[type=search]::placeholder{color:var(--dim)}
+  select:focus,input:focus{outline:none;border-color:var(--brand);box-shadow:var(--ring)}
+
+  .lay{display:grid;grid-template-columns:290px minmax(0,1fr);gap:20px;padding:22px 18px 8px;max-width:1500px;margin:0 auto}
+  aside{display:flex;flex-direction:column;gap:14px}
+  aside>details{display:flex;flex-direction:column;gap:14px}
+  aside>details>.box+.box{margin-top:14px}
   main{min-width:0}
-  .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
-  .box h3{margin:0 0 8px;font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.02em}
-  .th{display:grid;grid-template-columns:14px 1fr 54px;gap:6px 8px;align-items:center;font-size:13px}
-  .th i{width:12px;height:12px;border-radius:3px;display:block}
-  .th input{width:54px;font:600 13px 'Rubik';border:1px solid var(--line);border-radius:6px;padding:3px 4px;text-align:center}
-  .stl{max-height:46vh;overflow:auto;margin:6px -6px 0}
-  .stl button,.stl a{text-decoration:none;box-sizing:border-box;display:flex;width:100%;justify-content:space-between;gap:8px;border:0;background:none;font:500 13px 'Rubik';padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--ink);text-align:right}
-  .stl button:hover,.stl a:hover{background:var(--bg)}
-  .stl button.on,.stl a.on{background:var(--acc2);color:var(--acc)}
-  .stl b{color:var(--c0);font-weight:600}
-  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
-  .kpi div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-  .kpi b{display:block;font-size:24px;font-weight:700}
-  .kpi span{font-size:12px;color:var(--mut)}
-  .tbar{display:flex;align-items:center;gap:10px;margin:0 0 8px}
-  .tbar h2{font-size:16px;margin:0;font-weight:700}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow)}
+  .box h3{display:flex;align-items:center;gap:9px;margin:0 0 12px;font:800 15.5px var(--disp);color:var(--ink);letter-spacing:-.01em}
+  .box h3::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-lt);flex:none}
+  .box label{font-size:12.5px !important;font-weight:600 !important;color:var(--mut) !important;margin:4px 0 5px !important}
+  .box select{margin-bottom:8px !important}
+  .th{display:grid;grid-template-columns:12px 1fr minmax(58px,auto);gap:8px 10px;align-items:center;font-size:13.5px;font-weight:500;color:var(--ink2)}
+  .th i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:0 0 0 2.5px #fff,0 0 0 3.5px var(--line2)}
+  .th input{width:58px;font:700 14px var(--disp);border:1px solid var(--line2);border-radius:10px;padding:6px 4px;text-align:center;background:#fff;color:var(--ink);font-variant-numeric:tabular-nums}
+  .th .btn{white-space:nowrap;padding:6px 9px !important;font-size:12px !important;border-radius:9px}
+  .stl{max-height:46vh;overflow:auto;margin:10px -6px 0;padding:0 2px}
+  .stl button,.stl a{text-decoration:none;box-sizing:border-box;display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;border:0;background:none;font:500 14px 'IBM Plex Sans Hebrew',sans-serif;padding:8px 10px;border-radius:10px;cursor:pointer;color:var(--ink2);text-align:right;transition:background .12s}
+  .stl button:hover,.stl a:hover{background:var(--brand-xl)}
+  .stl button.on,.stl a.on{background:var(--brand-lt);color:var(--brand-ink);font-weight:700}
+  .stl b{color:#b91c1c;font-weight:700;font-size:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:999px;padding:0 8px;font-variant-numeric:tabular-nums}
+  .stl a:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+
+  /* מדדים — שורה קומפקטית אחת */
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:16px;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+  .kpi div{padding:14px 18px;border-inline-start:1px solid var(--line);position:relative}
+  .kpi div:first-child{border-inline-start:0}
+  .kpi b{display:block;font:800 28px/1.1 var(--disp);letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .kpi span{display:block;margin-top:3px;font-size:13px;font-weight:500;color:var(--mut)}
+
+  .tbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:0 4px}
+  .tbar h2{font:800 20px var(--disp);margin:0;letter-spacing:-.01em;color:var(--ink)}
   .tbar .sp{flex:1}
-  .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;font:600 13px 'Rubik';cursor:pointer}
-  .tw{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto}
-  table{border-collapse:collapse;width:100%;font-size:13px}
-  th{position:sticky;top:0;background:#FAFBFC;color:var(--mut);font-weight:600;font-size:12px;text-align:right;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
-  td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-  tr.r{cursor:pointer}
-  tr.r:hover td{background:#F8F9FC}
-  .n{font-weight:700;display:inline-block;min-width:34px;text-align:center;background:var(--ink);color:#fff;border-radius:5px;padding:1px 6px}
-  .ft{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;margin-inline-start:4px}
-  .ft.f2{background:#E5F6EE;color:#08794A}.ft.f1{background:var(--bg);color:var(--mut)}
-  .mb{display:flex;width:90px;height:8px;border-radius:4px;overflow:hidden;background:var(--c4)}
+  .btn{border:1px solid var(--line2);background:#fff;border-radius:12px;padding:8px 14px;font:700 13.5px var(--disp);color:var(--ink2);cursor:pointer;box-shadow:var(--shadow-sm);transition:background .15s,border-color .15s}
+  .btn:hover{background:var(--brand-xl);border-color:rgba(14,165,233,.45)}
+  .btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+  #csv{white-space:nowrap;flex:none;background:var(--acc-lt);border-color:var(--acc-ln);color:var(--acc);border-radius:999px;padding:9px 16px}
+  #csv:hover{background:#dcfce7;border-color:#86efac}
+  .tw{background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:auto;box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{position:sticky;top:0;background:var(--surface2);color:var(--ink2);font-weight:600;font-size:12.5px;text-align:right;padding:11px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+  td{padding:10px 10px;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--ink2)}
+  tbody>tr:last-child>td{border-bottom:0}
+  tr.r{cursor:pointer;transition:background .12s}
+  tr.r:hover td{background:#f5faff}
+  tr.r td:first-child{font-weight:600;color:var(--ink)}
+  .n{font:800 13.5px var(--disp);display:inline-block;min-width:36px;text-align:center;background:linear-gradient(160deg,#1e293b,#0b1220);color:#fff;border-radius:8px;padding:2px 8px;font-variant-numeric:tabular-nums;box-shadow:0 4px 10px -6px rgba(15,23,42,.6)}
+  .ft{font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 8px;margin-inline-start:6px;border:1px solid transparent;white-space:nowrap}
+  .ft.f2{background:var(--acc-lt);color:var(--acc);border-color:var(--acc-ln)}.ft.f1{background:var(--bg2);color:var(--mut);border-color:var(--line)}
+  .mb{display:flex;width:100px;height:9px;border-radius:999px;overflow:hidden;background:var(--c4);box-shadow:inset 0 0 0 1px rgba(15,23,42,.04)}
   .mb i{display:block;height:100%}
-  .hs{display:flex;gap:1px}
-  .hs i{width:7px;height:16px;border-radius:2px;background:#EEF1F5}
-  .rec{font-weight:600}
-  .est{font-size:10.5px;font-weight:600;color:var(--mut);background:var(--bg);border-radius:4px;padding:0 5px}
+  .hs{display:flex;gap:2px}
+  .hs i{width:7px;height:18px;border-radius:3px;background:#eef1f5}
+  .rec{font-weight:700}
+  .est{font-size:11px;font-weight:600;color:var(--mut);background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:0 6px}
   .rec.e{color:var(--c0)}.rec.l{color:var(--c3)}.rec.k{color:var(--c2)}.rec.x{color:var(--dim)}
-  .det td{background:#FAFBFC;padding:0}
-  .det td td{white-space:normal;padding:5px 8px}
-  .dw{position:sticky;right:0}
+  /* פירוט הקו הפתוח */
+  tr.r:has(+tr.det) td{background:var(--brand-xl);border-bottom-color:transparent}
+  .det>td{background:linear-gradient(180deg,var(--brand-xl),#fff 120px);padding:0;border-bottom:1px solid var(--line2)}
+  .det td td{white-space:normal;padding:7px 9px}
+  .dw{position:sticky;right:0;padding:14px 16px !important}
+  .dw>b:first-child{font:800 15px var(--disp);color:var(--ink)}
+  .dw>div{margin:10px 0 12px !important;gap:7px !important}
+  .btn.dd{border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;font-family:'IBM Plex Sans Hebrew',sans-serif;font-variant-numeric:tabular-nums}
   .c-fr{white-space:normal!important;max-width:210px}
-  .det table{table-layout:auto}
-  .det table{font-size:12.5px;margin:6px 0}
-  .det th{background:none;position:static}
-  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}
+  .det table{table-layout:auto;font-size:13px;margin:6px 0;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;border-collapse:separate;border-spacing:0}
+  .det th{background:var(--surface2);position:static}
+  @media(min-width:901px){.det tbody tr:hover td{background:#f8fbff}}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:6px}
   .mut{color:var(--mut)}
-  .msg{padding:40px;text-align:center;color:var(--mut)}
+  .msg{padding:44px;text-align:center;color:var(--mut);font-weight:500}
+  #note{font-size:12.5px !important;line-height:1.7;margin:12px 6px 0}
   details.side>summary{display:none}
-  .meth{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 16px;margin-top:14px;font-size:13.5px;line-height:1.65}
-  .meth summary{cursor:pointer;font-weight:700;padding:8px 0}
-  .meth ul{margin:4px 0 12px;padding-inline-start:20px}
-  @media (max-width:900px){header{padding:56px 14px 10px;position:static}.lay{grid-template-columns:1fr;padding:12px}.kpi{grid-template-columns:repeat(2,1fr)}.stl{max-height:220px}
-    details.side>summary{display:block;cursor:pointer;font-weight:700;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;list-style:none}
-    details.side>summary::after{content:" ▾";color:var(--mut)}details.side[open]>summary{margin-bottom:12px}
-    .kpi b{font-size:20px}
+  .meth{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:4px 20px;margin-top:16px;font-size:14px;line-height:1.75;box-shadow:var(--shadow);color:var(--ink2)}
+  .meth summary{cursor:pointer;font:800 16px var(--disp);color:var(--ink);padding:14px 0;list-style:none;display:flex;align-items:center;gap:10px}
+  .meth summary::-webkit-details-marker{display:none}
+  .meth summary::after{content:"";width:7px;height:7px;border:solid var(--mut);border-width:0 2px 2px 0;transform:translateY(-2px) rotate(45deg);transition:transform .2s;margin-inline-start:auto}
+  .meth[open] summary::after{transform:translateY(2px) rotate(-135deg)}
+  .meth ul{margin:0 0 16px;padding-inline-start:20px}
+  .meth li{margin-bottom:6px}
+  .meth li::marker{color:var(--acc2)}
+  .meth b{color:var(--ink)}
+  footer,.kb-ver{margin-bottom:24px}
+
+  @media (max-width:900px){
+    .hero{padding:22px 14px 2px;gap:14px}
+    .hico{width:60px;height:60px;border-radius:17px}
+    .hero h1{font-size:31px}
+    .hero .tag{font-size:12.5px;margin-top:7px}
+    .hero .sp{display:none}
+    .ctl{width:100%;padding:8px;gap:8px}
+    .tg{display:flex;width:100%}.tg button{flex:1;padding:7px 6px;font-size:14px}
+    .ctl select{width:100%;font-size:16px}
+    select,input[type=search],.th input{font-size:16px}
+    .lay{grid-template-columns:1fr;padding:16px 14px 8px;gap:14px}.stl{max-height:240px}
+    details.side>summary{display:flex;align-items:center;gap:8px;cursor:pointer;font:800 15px var(--disp);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px 16px;list-style:none;box-shadow:var(--shadow)}
+    details.side>summary::-webkit-details-marker{display:none}
+    details.side>summary::after{content:"";width:7px;height:7px;border:solid var(--mut);border-width:0 2px 2px 0;transform:translateY(-2px) rotate(45deg);transition:transform .2s;margin-inline-start:auto}
+    details.side[open]>summary{margin-bottom:12px}details.side[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
+    .kpi{grid-template-columns:repeat(4,1fr);border-radius:16px;margin-bottom:14px}
+    .kpi div{padding:10px 8px}
+    .kpi b{font-size:19px}
+    .kpi span{font-size:11.5px;line-height:1.3}
+    .tbar h2{font-size:17px}
+    #csv{padding:8px 12px;font-size:12.5px}
+    .tw{border-radius:16px}
     #tbl>table>thead{display:none}#tbl>table,#tbl>table>tbody{display:block}
-    tr.r{display:grid;grid-template-columns:auto 1fr auto;gap:3px 10px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center}
-    tr.r td{border:0;padding:0;white-space:normal}
-    .c-ln{grid-column:1;grid-row:1/3}.c-st{grid-column:2;grid-row:1;font-weight:600}.c-dir{grid-column:2;grid-row:2;font-size:12.5px}
-    .c-pct{grid-column:3;grid-row:1;text-align:left}.c-rec{grid-column:3;grid-row:2;text-align:left;font-size:12.5px}
-    .c-bar{grid-column:1/-1;grid-row:3}.c-bar .mb{width:100%}
+    tr.r{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:center}
+    tr.r td{border:0;padding:0;white-space:normal;background:none!important}
+    tr.r:has(+tr.det){background:var(--brand-xl)}
+    .c-ln{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;align-items:center;gap:4px}.c-ln .ft{margin:0}
+    .c-st{grid-column:2;grid-row:1;font-weight:700}.c-dir{grid-column:2;grid-row:2;font-size:12.5px;color:var(--mut)}
+    .c-pct{grid-column:3;grid-row:1;text-align:left;white-space:nowrap!important}.c-rec{grid-column:3;grid-row:2;text-align:left;font-size:12.5px}
+    .c-bar{grid-column:1/-1;grid-row:3;padding-top:4px!important}.c-bar .mb{width:100%}
     .c-op,.c-fr,.c-n,.c-med,.c-h{display:none}
-    tr.det{display:block}tr.det>td{display:block}.dw{width:auto!important}
-    /* פירוט הנסיעות: כרטיס קטן לכל נסיעה — אוטובוס ופער בשורה הראשונה, הרכבת בשנייה, התחנה בשלישית */
+    tr.det{display:block}tr.det>td{display:block}.dw{width:auto!important;padding:12px 12px !important}
+    .det table{border-radius:12px}
     .det table,.det tbody{display:block}.det thead{display:none}
-    .det tbody tr{display:grid;grid-template-columns:auto auto 1fr auto;gap:2px 8px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);border-inline-start:4px solid var(--cc)}
+    .det tbody tr{display:grid;grid-template-columns:auto auto 1fr auto;gap:2px 8px;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--line);border-inline-start:4px solid var(--cc)}
+    .det tbody tr:last-child{border-bottom:0}
     .det tbody td{border:0;padding:0;white-space:normal}
     .d-bus{grid-column:1;grid-row:1}.d-sch{grid-column:2;grid-row:1;font-size:12px}.d-gap{grid-column:4;grid-row:1;text-align:left}
     .d-trt{grid-column:1;grid-row:2}.d-trn{grid-column:2/4;grid-row:2}.d-cat{grid-column:4;grid-row:2;text-align:left;font-size:12px}
-    .d-dly{grid-column:1/-1;grid-row:3;font-size:12px}.d-stp{grid-column:1/-1;grid-row:4;font-size:12px}}
+    .d-dly{grid-column:1/-1;grid-row:3;font-size:12px}.d-stp{grid-column:1/-1;grid-row:4;font-size:12px}
+    .meth{padding:2px 16px;border-radius:16px}}
   .mo{display:none}
   @media (max-width:900px){.mo{display:inline}}
+  @media(prefers-reduced-motion:reduce){*{transition:none !important}}
+  /* כפתור "חזרה לקו הבוחן" יושב בפס העליון בטלפון — שומרים לו מקום, והשם של הכלי נחתך בשלוש נקודות */
+  @media (max-width:760px){
+    .top-in{padding-inline-end:154px}
+    .top-in .brand,.top-in .kb-brand{flex:none}
+    .crumb{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline-start:12px;border-inline-start:1px solid var(--line2)}
+    .crumb::before{display:none}
+  }
 </style>
 </head>
 <body>
-<header>
-  <svg viewBox="0 0 120 120" width="34" height="34" aria-hidden="true" style="flex:none"><rect width="120" height="120" rx="26" fill="#15803D"/><rect x="14" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="26" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="38" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="50" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="62" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="74" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="86" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="98" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><path d="M6 87 H114" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M30 32 L40 24 L50 32" stroke="#fff" stroke-width="3.5" fill="none" stroke-linejoin="round"/><path d="M28 24 H52" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M8 78 V58 C8 44 18 34 34 34 H64 V78 Z" fill="#fff"/><path d="M14 52 C16 45 21 41 28 41 V52 Z" fill="#15803D"/><rect x="33" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="43" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="53" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="10" y="62" width="54" height="3" fill="#15803D"/><circle cx="16" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><circle cx="25" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><circle cx="47" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><circle cx="56" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><rect x="64" y="70" width="7" height="4" fill="#fff"/><rect x="71" y="48" width="42" height="32" rx="7" fill="#fff"/><path d="M75 52 H86 V66 H75 Z" fill="#15803D"/><rect x="89" y="52" width="5" height="22" rx="1.5" fill="#15803D"/><rect x="97" y="52" width="6" height="9" rx="1.5" fill="#15803D"/><rect x="105" y="52" width="5" height="9" rx="1.5" fill="#15803D"/><circle cx="81" cy="81" r="6.5" fill="#fff" stroke="#15803D" stroke-width="3"/><circle cx="104" cy="81" r="6.5" fill="#fff" stroke="#15803D" stroke-width="3"/></svg><h1>הקו המזין</h1><span class="tag">שולחן עבודה למתכננים</span>
+<header class="top"><div class="top-in"><a class="brand" href="../">הקו הבוחן</a><span class="crumb">הקו המזין</span></div></header>
+<div class="hero"><span class="hico"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><defs><linearGradient id="kb-sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".26"></stop><stop offset="1" stop-color="#fff" stop-opacity="0"></stop></linearGradient><filter id="kb-blur" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="1.8"></feGaussianBlur></filter><filter id="kb-drop" x="-25%" y="-25%" width="150%" height="160%"><feDropShadow dx="0" dy="2.4" stdDeviation="2.2" flood-color="#000" flood-opacity=".32"></feDropShadow></filter><linearGradient id="kb-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46669a"></stop><stop offset="1" stop-color="#121d36"></stop></linearGradient><radialGradient id="kb-tire" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#3b4352"></stop><stop offset="1" stop-color="#0a0e16"></stop></radialGradient><radialGradient id="kb-rim" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#ffffff"></stop><stop offset=".55" stop-color="#b8c2d1"></stop><stop offset="1" stop-color="#5b6678"></stop></radialGradient><linearGradient id="bg-feeder" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22c55e"/><stop offset="1" stop-color="#0f3d21"/></linearGradient><clipPath id="cl-feeder"><rect width="120" height="120" rx="28"/></clipPath></defs><g clip-path="url(#cl-feeder)"><rect width="120" height="120" fill="url(#bg-feeder)"/><circle cx="22" cy="10" r="62" fill="#fff" opacity=".07"/><rect width="120" height="64" fill="url(#kb-sheen)"/><defs><linearGradient id="fdBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d7e3dc"/></linearGradient><clipPath id="fdC"><path d="M6 89 V66 C6 52 16 44 32 44 H62 V89 Z"/></clipPath></defs><path d="M0 34 H66" stroke="#fff" stroke-opacity=".45" stroke-width="1"/><rect x="2" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="11" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="20" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="29" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="38" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="47" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="56" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="65" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="74" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="83" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="92" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="101" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="110" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="119" y="98" width="5" height="4.5" rx="1" fill="#052e16" opacity=".55"/><rect x="0" y="95" width="120" height="3" fill="#dcfce7"/><ellipse cx="60" cy="96" rx="58" ry="2" fill="#000" opacity=".3" filter="url(#kb-blur)"/><path d="M28 44 L36 34.5 L44 44 M27 34.5 H45" stroke="#e2e8f0" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/><g filter="url(#kb-drop)"><path d="M6 89 V66 C6 52 16 44 32 44 H62 V89 Z" fill="url(#fdBody)"/><g clip-path="url(#fdC)"><rect x="0" y="68" width="62" height="3.4" fill="#16a34a"/><rect x="0" y="80" width="62" height="9" fill="#c2d0c8"/><rect x="0" y="80" width="62" height=".8" fill="#fff"/></g><path d="M10.5 63 C12 55.5 18 51 26.5 51 V63Z" fill="url(#kb-glass)"/><path d="M13 62 L20 52.5 h3 L16 62z" fill="#fff" opacity=".22"/><rect x="31" y="51" width="7.5" height="10" rx="1.6" fill="url(#kb-glass)"/><rect x="41" y="51" width="7.5" height="10" rx="1.6" fill="url(#kb-glass)"/><rect x="51" y="51" width="7.5" height="10" rx="1.6" fill="url(#kb-glass)"/><rect x="6.5" y="74" width="4.4" height="3.2" rx="1" fill="#fef9c3"/><path d="M10 46.5 C16 45 22 44.6 32 44.6 H60" stroke="#fff" stroke-width="1.2" fill="none"/><rect x="62" y="80" width="7" height="3.6" rx="1" fill="#334155"/><circle cx="16" cy="90.5" r="4.6" fill="url(#kb-tire)"/><circle cx="16" cy="90.5" r="2.3" fill="url(#kb-rim)"/><circle cx="25" cy="90.5" r="4.6" fill="url(#kb-tire)"/><circle cx="25" cy="90.5" r="2.3" fill="url(#kb-rim)"/><circle cx="43" cy="90.5" r="4.6" fill="url(#kb-tire)"/><circle cx="43" cy="90.5" r="2.3" fill="url(#kb-rim)"/><circle cx="52" cy="90.5" r="4.6" fill="url(#kb-tire)"/><circle cx="52" cy="90.5" r="2.3" fill="url(#kb-rim)"/></g><g transform="translate(68 67) scale(.56)"><defs><linearGradient id="fdB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d8dfe9"/></linearGradient><clipPath id="fdC"><rect x="0" y="4" width="84" height="38" rx="8"/></clipPath></defs><ellipse cx="42" cy="49.5" rx="42" ry="3.2" fill="#000" opacity=".38" filter="url(#kb-blur)"/><rect x="22" y=".6" width="26" height="5.6" rx="2.2" fill="#d8dfe9" stroke="#8391a7" stroke-width=".8"/><rect x="25.5" y="2.3" width="8.5" height="1.3" rx=".65" fill="#8391a7" opacity=".55"/><rect x="36" y="2.3" width="8.5" height="1.3" rx=".65" fill="#8391a7" opacity=".55"/><rect x="0" y="4" width="84" height="38" rx="8" fill="url(#fdB)"/><g clip-path="url(#fdC)"><rect x="0" y="27.6" width="84" height="4" fill="#16a34a"/><rect x="0" y="35" width="84" height="8" fill="#c5cedb"/><rect x="0" y="35" width="84" height=".8" fill="#fff" opacity=".55"/><circle cx="17" cy="41.5" r="9.8" fill="#1b2433"/><circle cx="51" cy="41.5" r="9.8" fill="#1b2433"/></g><rect x=".5" y="4.5" width="83" height="37" rx="7.5" fill="none" stroke="#8391a7" stroke-width="1"/><rect x="5" y="6.1" width="54" height="1.3" rx=".65" fill="#fff" opacity=".85"/><rect x="4" y="10" width="54" height="15" rx="3" fill="url(#kb-glass)"/><rect x="16.5" y="10" width="2" height="15" fill="#ffffff"/><rect x="29" y="10" width="2" height="15" fill="#ffffff"/><rect x="41.5" y="10" width="2" height="15" fill="#ffffff"/><path d="M6 25 L13 10 h4.5 L10.5 25z M32 25 L39 10 h2.4 L34.4 25z" fill="#fff" opacity=".2"/><rect x="61" y="10" width="10.5" height="27" rx="2" fill="url(#kb-glass)"/><path d="M66.25 10.5v26" stroke="#ffffff" stroke-width="1.2"/><rect x="62.6" y="20" width="2" height="6" rx="1" fill="#fff" opacity=".35"/><path d="M74 10 h4 a4 4 0 0 1 4 4 v13 h-8z" fill="url(#kb-glass)"/><path d="M75 26.5 L79 11 h1.6 L76.6 26.5z" fill="#fff" opacity=".22"/><rect x="61" y="5.3" width="21" height="3.7" rx="1.2" fill="#0f172a"/><rect x="63" y="6.45" width="7.5" height="1.4" rx=".7" fill="#fbbf24"/><rect x="72" y="6.45" width="8" height="1.4" rx=".7" fill="#fbbf24" opacity=".7"/><rect x="80" y="32.4" width="3.6" height="3.4" rx="1.2" fill="#fef9c3"/><circle cx="83" cy="34.1" r="4.2" fill="#fef08a" opacity=".22"/><rect x=".4" y="29.3" width="2.4" height="6.2" rx="1" fill="#ef4444"/><path d="M83 13 q4 0 4 4 v2.5" stroke="#334155" stroke-width="1.3" fill="none" stroke-linecap="round"/><rect x="85.5" y="18.5" width="2.8" height="5.6" rx="1.1" fill="#1f2937"/><circle cx="17" cy="41.5" r="7.6" fill="url(#kb-tire)"/><circle cx="17" cy="41.5" r="4.4" fill="url(#kb-rim)"/><circle cx="17" cy="41.5" r="4.4" fill="none" stroke="#1f2937" stroke-opacity=".4" stroke-width=".7"/><circle cx="17" cy="41.5" r="1.5" fill="#475569"/><circle cx="51" cy="41.5" r="7.6" fill="url(#kb-tire)"/><circle cx="51" cy="41.5" r="4.4" fill="url(#kb-rim)"/><circle cx="51" cy="41.5" r="4.4" fill="none" stroke="#1f2937" stroke-opacity=".4" stroke-width=".7"/><circle cx="51" cy="41.5" r="1.5" fill="#475569"/></g><g filter="url(#kb-drop)"><rect x="99.2" y="34" width="1.6" height="16" fill="#dcfce7"/><circle cx="100" cy="26" r="9" fill="#fff"/><circle cx="100" cy="26" r="7" fill="none" stroke="#16a34a" stroke-width="1.4"/><path d="M100 26 V21.5 M100 26 L103.4 27.6" stroke="#14532d" stroke-width="1.5" stroke-linecap="round"/></g></g><rect x=".75" y=".75" width="118.5" height="118.5" rx="27.25" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="1.5"/></svg></span><div class="htxt"><h1>הקו המזין</h1><span class="tag">שולחן עבודה למתכננים</span></div>
   <span class="sp"></span>
-  <div class="tg" id="mode"><button data-m="to" class="on">אוטובוס ← רכבת</button><button data-m="from">רכבת ← אוטובוס</button></div>
-  <select id="day"></select>
-</header>
+  <div class="ctl"><div class="tg" id="mode"><button data-m="to" class="on">אוטובוס ← רכבת</button><button data-m="from">רכבת ← אוטובוס</button></div>
+  <select id="day" aria-label="ימים"></select></div>
+</div>
 <div class="lay">
   <aside><details class="side" id="side"><summary>⚙️ טווחים, סינון ותחנות</summary>
     <div class="box"><h3>טווחי זמן (דקות)</h3><div class="th" id="th"></div></div>

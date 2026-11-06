@@ -16,7 +16,8 @@ const datauri = f => 'data:image/' + (f.endsWith('.svg') ? 'svg+xml' : 'png') + 
 
 // כרטיסי הכלים: [תיקייה, שם, משפט, צבע רקע, צבע תת-כותרת, סמל]
 const TOOLS = {
-  'bus-speed': { name: 'איפה האוטובוס נתקע', sub: 'מהירות האוטובוסים בכל רחוב ובכל שעה', bg: ['#0f172a', '#1e293b', '#B91C1C'], ink: '#fecaca', icon: 'bus-speed/icon.svg' },
+  'bus-speed': { name: 'איפה האוטובוס נתקע', sub: 'מהירות האוטובוסים בכל רחוב ובכל שעה', bg: ['#0f172a', '#1e293b', '#B91C1C'], ink: '#fecaca', icon: 'bus-speed/favicon.svg' },
+  'ratzif': { name: 'רציף כפול', sub: 'שני אוטובוסים שאמורים לצאת מאותו רציף באותה דקה', bg: ['#0b3443', '#0b4f66', '#0891b2'], ink: '#a5f3fc', icon: 'ratzif/favicon.svg' },
 };
 
 function homeTools() {
