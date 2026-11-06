@@ -53,7 +53,7 @@ jobs:
           pip install -q pillow && mkdir -p out tex && rm -rf out/*.png out/walk out/*.mp4 && python3 screens.py tex
           if [ -z "$ONLY_ANIM" ]; then $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -E 'BUS|Error|Traceback' | tail -5
           $BL -b out/bus.blend -P interior.py 2>&1 | grep -E 'RENDER|Error|Traceback' || true; fi
-          if [ -n "$BVH" ]; then mkdir -p out/walk; $BL -b --online-mode -P anim.py 2>&1 | grep -E 'DBG|MATCHED|RENDER|Error|Traceback|line [0-9]' | cut -c1-600 || true fi
+          if [ -n "$BVH" ]; then mkdir -p out/walk; $BL -b --online-mode -P anim.py 2>&1 | grep -E 'DBG|MATCHED|RENDER|Error|Traceback|line [0-9]' | cut -c1-600 || true; fi
           ls -la out
       - name: Save
         if: always()
