@@ -65,10 +65,20 @@ def make(sp, x, y, num, seed):
     bm = HS.create_human(feet_on_ground=True, macro_detail_dict=md)
     rnd = random.Random(1000 + seed)
     root = os.path.dirname(importlib.import_module(base).__file__) + '/data/targets'
-    cands = [q for g_ in ('nose', 'eyes', 'eyebrows', 'mouth', 'chin', 'cheek', 'head') for q in glob.glob(f'{root}/{g_}/*.target.gz')]
-    for pth in rnd.sample(cands, min(12, len(cands))):
-        try: TS.load_target(bm, pth, weight=rnd.uniform(0.15, 0.5))
+    # שלמה 06.11: הפנים נראו "עצבניים" — בלי מאפיינים שמורידים גבות או זוויות פה, ועם חיוך קל וגבות מורמות מעט
+    ANGRY = ('eyebrows-trans-down', 'eyebrows-angle-down', 'eyebrows-angle-up', 'mouth-angles-down', 'eyes-trans-down',
+             'eye-trans-down', 'mouth-lowerlip-ext', 'mouth-scale-vert-decr', 'eyes-height', 'eyes-angle')
+    cands = [q for g_ in ('nose', 'eyes', 'eyebrows', 'mouth', 'chin', 'cheek', 'head') for q in glob.glob(f'{root}/{g_}/*.target.gz')
+             if not any(a in os.path.basename(q) for a in ANGRY)]
+    if seed == 1:
+        print('FACE TARGETS', sorted(os.path.basename(q)[:-10] for q in glob.glob(f'{root}/mouth/*.target.gz') + glob.glob(f'{root}/eyebrows/*.target.gz')))
+    for pth in rnd.sample(cands, min(10, len(cands))):
+        try: TS.load_target(bm, pth, weight=rnd.uniform(0.1, 0.4))
         except Exception: pass
+    for nm_, w_ in (('mouth/mouth-angles-up', 0.45), ('eyebrows/eyebrows-trans-up', 0.25)):
+        for q in glob.glob(f'{root}/{nm_}*.target.gz')[:1]:
+            try: TS.load_target(bm, q, weight=w_)
+            except Exception as e: print('soft face', e)
     HS.add_builtin_rig(bm, 'default', import_weights=True)
     try: HS.set_character_skin(A(f"skins/{sp['skin']}/{sp['skin']}.mhmat"), bm)
     except Exception as e: print('skin', e)

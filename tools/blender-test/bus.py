@@ -256,11 +256,49 @@ for sd in (1, -1):
         y = YF + 2.2 + k*0.62
         sp = box(f'SM_Strap{sd}{k}', (0.03, 0.012, 0.18), (sd*0.42, y, Z0 + H - 0.53)); setm(sp, yellow)
         ring = cyl(f'SM_StrapRing{sd}{k}', 0.045, 0.012, (sd*0.42, y, Z0 + H - 0.66), seg=16, axis='Y'); setm(ring, yellow)
-# מתקפי רב-קו ("ביצה") ליד הדלתות
-for nm, y in (('F', FD[1] + 0.05), ('M1', MD[0] - 0.1), ('M2', MD[1] + 0.1)):
-    eg = box(f'SM_Val{nm}', (0.14, 0.1, 0.24), (R*0.42 + 0.05*(-R), y - 0.07, FLZ + 1.2)); setm(eg, egg)
-    mm = eg.modifiers.new('bev', 'BEVEL'); mm.width = 0.045; mm.segments = 5; smooth(eg)
-    setm(box(f'SM_ValScr{nm}', (0.07, 0.005, 0.1), (R*0.42 + 0.05*(-R), y - 0.123, FLZ + 1.22)), screen)
+# מכשיר התיקוף החדש (לפי תמונות): גוף שחור מלבני מעוגל על המוט הצהוב, מסך לאורך עם כותרת כחולה וכרטיס צהוב,
+# ומתחתיו אזור ההנחה עם סמל ה-NFC. המסכים נוצרים ב-screens.py (tex/)
+def tex_mat(name, path, emit=1.2):
+    m = bpy.data.materials.new(name); nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    t = nt.nodes.new('ShaderNodeTexImage')
+    try: t.image = bpy.data.images.load(os.path.abspath(path))
+    except Exception as e: print('tex', e); return mat(name, (0.1, 0.2, 0.6), 0.3)
+    nt.links.new(t.outputs['Color'], b.inputs['Base Color']); nt.links.new(t.outputs['Color'], b.inputs['Emission Color'])
+    b.inputs['Emission Strength'].default_value = emit; b.inputs['Roughness'].default_value = 0.15
+    return m
+def uv_plane(name, w, h, loc, m):
+    me = bpy.data.meshes.new(name); bmx = bmesh.new()
+    vs = [bmx.verts.new(v) for v in ((-w/2, 0, -h/2), (w/2, 0, -h/2), (w/2, 0, h/2), (-w/2, 0, h/2))]
+    f = bmx.faces.new(vs); uv = bmx.loops.layers.uv.new()
+    for lp, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))): lp[uv].uv = co     # פונה ל--Y; ‎+X מימין לצופה
+    bmx.to_mesh(me); bmx.free(); ob = link(bpy.data.objects.new(name, me)); ob.location = loc; setm(ob, m); return ob
+val_body = mat('M_ValBody', (0.025, 0.025, 0.028), 0.35)
+scr_idle = tex_mat('M_ValScreen', 'tex/screen_idle.png')
+nfc_m = tex_mat('M_ValNFC', 'tex/nfc.png', 0.3)
+for nm, y in (('F', FD[1] + 0.05), ('M1', MD[0] - 0.1)):
+    x = R*0.42; yv = y - 0.06
+    bd = box(f'SM_Val{nm}', (0.19, 0.075, 0.36), (x, yv, FLZ + 1.25)); setm(bd, val_body)
+    mm = bd.modifiers.new('bev', 'BEVEL'); mm.width = 0.03; mm.segments = 5; smooth(bd)
+    uv_plane(f'SM_ValScr{nm}', 0.15, 0.2, (x, yv - 0.039, FLZ + 1.31), scr_idle)
+    uv_plane(f'SM_ValNFC{nm}', 0.13, 0.068, (x, yv - 0.039, FLZ + 1.14), nfc_m)
+    for sx in (-1, 1):                                                     # פסי תאורה בצדי אזור ההנחה
+        setm(box(f'SM_ValLed{nm}{sx}', (0.008, 0.004, 0.05), (x + sx*0.072, yv - 0.039, FLZ + 1.14)), lamp)
+    setm(box(f'SM_ValClamp{nm}', (0.06, 0.05, 0.05), (x, y - 0.015, FLZ + 1.03)), val_body)
+# הדגם השני (לפי תמונות): גוף אפור כהה, מסך לרוחב בראש מוטה לאחור, ומתחתיו משטח הנחה משופע עם סמל ה-NFC
+land_scr = tex_mat('M_ValScreenLand', 'tex/land_idle.png')
+val_grey = mat('M_ValGrey', (0.22, 0.23, 0.25), 0.4)
+x, y = R*0.42, MD[1] + 0.05
+base = box('SM_ValL_Base', (0.22, 0.14, 0.2), (x, y - 0.08, FLZ + 1.02)); setm(base, val_grey)
+head = box('SM_ValL_Head', (0.26, 0.1, 0.2), (x, y - 0.1, FLZ + 1.24), rot=(math.radians(-18), 0, 0)); setm(head, val_grey)
+for o in (base, head):
+    mm = o.modifiers.new('bev', 'BEVEL'); mm.width = 0.035; mm.segments = 5; smooth(o)
+sc_ = uv_plane('SM_ValL_Scr', 0.19, 0.115, (x, y - 0.158, FLZ + 1.25), land_scr); sc_.rotation_euler = (math.radians(-18), 0, 0)
+pad = uv_plane('SM_ValL_NFC', 0.17, 0.085, (x, y - 0.155, FLZ + 1.06), tex_mat('M_ValPad', 'tex/pad_land.png', 0.1)); pad.rotation_euler = (math.radians(-35), 0, 0)
+setm(box('SM_ValL_Led', (0.05, 0.004, 0.008), (x, y - 0.153, FLZ + 1.12)), lamp)
+for k in range(6):                                                         # רמקול מתחת למסך
+    setm(box(f'SM_ValL_Spk{k}', (0.06, 0.004, 0.004), (x, y - 0.152, FLZ + 1.15 - k*0.008)), trim)
+
 # שלט LED פנימי בחזית התקרה, פטישי חירום אדומים
 setm(box('SM_InSign', (1.0, 0.04, 0.12), (0, YF + 1.25, Z0 + H - 0.32)), trim)
 setm(box('SM_InSignTxt', (0.9, 0.005, 0.07), (0, YF + 1.275, Z0 + H - 0.32)), led)

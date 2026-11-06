@@ -35,14 +35,13 @@ jobs:
         run: |
           git clone -q --depth=1 --filter=blob:none --sparse https://github.com/Shriinivas/cmubvh.git $HOME/cmubvh
           cd $HOME/cmubvh && git ls-tree -r --name-only HEAD | head -30
-          F=$(git ls-tree -r --name-only HEAD | grep -E '(^|/)(02_01|07_01|08_01)\.bvh$' | head -1)
-          echo "BVH file: $F"
-          if [ -n "$F" ]; then git sparse-checkout set --no-cone "/$F" && echo "BVH=$HOME/cmubvh/$F" >> $GITHUB_ENV; fi
-          if [ -z "$F" ]; then Z=$(git ls-tree -r --name-only HEAD | grep -iE '\.zip$' | head -3); echo "zips: $Z"; fi
+          Z=$(git ls-tree -r --name-only HEAD | grep -E '/(02_01|07_01|08_01)\.zip$' | head -1)
+          echo "BVH zip: $Z"
+          if [ -n "$Z" ]; then git sparse-checkout set --no-cone "/$Z" && mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh && F=$(find $HOME/bvh -name '*.bvh' | head -1) && echo "BVH=$F" >> $GITHUB_ENV && echo "BVH file: $F"; fi
           python3 - <<'PY'
           import json, urllib.request, urllib.parse
           UA = {'User-Agent': 'kav-bochan-ref/1.0 (https://kavbochan.app)'}
-          q = urllib.parse.urlencode({'action': 'query', 'generator': 'search', 'gsrsearch': 'Rav-Kav logo', 'gsrnamespace': 6, 'gsrlimit': 10, 'prop': 'imageinfo', 'iiprop': 'url|extmetadata', 'iiurlwidth': 800, 'format': 'json'})
+          q = urllib.parse.urlencode({'action': 'query', 'generator': 'search', 'gsrsearch': 'intitle:Rav-Kav OR intitle:"רב-קו" OR intitle:Ravkav', 'gsrnamespace': 6, 'gsrlimit': 10, 'prop': 'imageinfo', 'iiprop': 'url|extmetadata', 'iiurlwidth': 800, 'format': 'json'})
           r = json.load(urllib.request.urlopen(urllib.request.Request('https://commons.wikimedia.org/w/api.php?' + q, headers=UA)))
           for pg in (r.get('query', {}).get('pages') or {}).values():
               ii = (pg.get('imageinfo') or [{}])[0]
@@ -51,7 +50,7 @@ jobs:
       - name: Build
         working-directory: tools/blender-test
         run: |
-          mkdir -p out && rm -f out/*.png
+          mkdir -p out tex && rm -f out/*.png && python3 screens.py tex
           $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -E 'BUS|Error|Traceback' | tail -5
           $BL -b out/bus.blend -P interior.py 2>&1 | grep -E 'RENDER|Error|Traceback' || true
           if [ -n "$BVH" ]; then mkdir -p out/walk; $BL -b --online-mode -P anim.py 2>&1 | grep -E 'RIG BONES|BVH BONES|MATCHED|RENDER|Error|Traceback|line [0-9]' | cut -c1-600 || true
@@ -60,6 +59,6 @@ jobs:
       - name: Save
         if: always()
         run: |
-          cd tools/blender-test && rm -f out/*.blend1 && git add out/*.png out/*.mp4 2>/dev/null || true
+          cd tools/blender-test && rm -f out/*.blend1 && git add -A out 2>/dev/null || true
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git commit -qm "blender-test renders" && git push -q origin HEAD:claude/blender-test || true
