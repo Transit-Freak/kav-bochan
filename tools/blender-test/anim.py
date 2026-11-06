@@ -181,6 +181,24 @@ if iks:
             M = (W3i @ footR[f][n]).to_4x4(); M.translation = pb.matrix.translation
             pb.matrix = M; bpy.context.view_layer.update()
             pb.keyframe_insert('rotation_quaternion' if pb.rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
+    # בצעד, כף הרגל שמאחור נטתה למטה כמעט אנכית ונראתה מסובבת (שלמה 06.11). מגבילים את הנטייה למטה ל-PMIN מעלות
+    PMIN = float(os.environ.get('FOOT_PMIN', '-32'))
+    lo = {}
+    for f in range(f0, f1 + 1):
+        SC.frame_set(f)
+        for s_ in ('Left', 'Right'):
+            n = s_ + 'Foot'
+            if n not in rig.pose.bones: continue
+            pb = rig.pose.bones[n]; W = rig.matrix_world
+            v = (W @ pb.tail) - (W @ pb.head); hz = (v.x ** 2 + v.y ** 2) ** .5
+            ang = math.degrees(math.atan2(v.z, hz)); lo[s_] = min(lo.get(s_, 99), ang)
+            if ang < PMIN and hz > 1e-6:
+                ax = v.cross(Vector((0, 0, 1))).normalized()
+                Rw = Matrix.Rotation(math.radians(PMIN - ang), 3, ax) @ (W.to_3x3() @ pb.matrix.to_3x3())
+                M = (W.to_3x3().inverted() @ Rw).to_4x4(); M.translation = pb.matrix.translation
+                pb.matrix = M; bpy.context.view_layer.update()
+                pb.keyframe_insert('rotation_quaternion' if pb.rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
+    print('DBG foot pitch min before clamp', {k: round(v, 1) for k, v in lo.items()}, 'clamp', PMIN)
     # בדיקה: זווית הבוהן ביחס לרצפה (חיובי = הבוהן למעלה) — בצעד אמיתי כמעט לא עולה מעל 25 מעלות
     mxp = {}
     for f in range(f0, f1 + 1, 2):
