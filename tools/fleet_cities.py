@@ -28,6 +28,53 @@ FLEET = f'{OUTDIR}/fleet.json'
 OUT = f'{OUTDIR}/fleet-cities.json'
 
 
+def lm_covered(root):
+    """מסיכת החודשים שבהם נרשם לכל קו מתי שירת אותו (lm_cov): חודש מכוסה אם נרשמו בו לפחות חצי
+    מהימים — מימי החודש כולו, ובחודש הנוכחי מהימים שעברו עד הסריקה האחרונה."""
+    days = {}
+    cov = root.get('lm_cov') or []
+    last = max((datetime.date.fromisoformat(r[1]) for r in cov), default=None)
+    for a, b in cov:
+        d, e = datetime.date.fromisoformat(a), datetime.date.fromisoformat(b)
+        while d <= e:
+            mi = d.year * 12 + d.month - 1 - MBASE
+            days[mi] = days.get(mi, 0) + 1
+            d += datetime.timedelta(days=1)
+    m = 0
+    for mi, n in days.items():
+        y, mo = divmod(mi + MBASE, 12)
+        first = datetime.date(y, mo + 1, 1)
+        nxt = datetime.date(y + (mo + 1) // 12, (mo + 1) % 12 + 1, 1)
+        span = (min(nxt - datetime.timedelta(days=1), last) - first).days + 1
+        if mi >= 0 and n * 2 >= span:
+            m |= 1 << mi
+    return m
+
+
+def city_masks(vals, rc, covered):
+    """לכל עיר: באילו חודשים הרכב פעל בה (מסיכה).
+    שלמה 06.11: בחירת חודש הציגה בעיר רכבים שפעלו בה רק בחודש אחר.
+    בחודשים המכוסים (covered) — לפי החודשים שבהם הרכב שירת כל קו (vals[6]: קו → [ראשון, אחרון]).
+    בחודשים שלא נרשמו בהם קווים — כמו קודם: כל חודש שבו הרכב פעל נספר לכל הערים שלו."""
+    mask = vals[5] if len(vals) > 5 else 0
+    lm = vals[6] if len(vals) > 6 and isinstance(vals[6], dict) else {}
+    lines = [str(x) for x in (vals[4] if len(vals) > 4 else [])]
+    lines += [x for x in lm if x not in lines]
+    gap = mask & ~covered
+    out = {}
+    for ln in lines:
+        ent = lm.get(ln)
+        m = gap
+        if ent:
+            a, b = ent
+            m |= (((1 << (b + 1)) - 1) ^ ((1 << a) - 1)) & covered
+        m &= mask
+        if not m:
+            continue
+        for c in rc.get(ln, ()):
+            out[c] = out.get(c, 0) | m
+    return out
+
 def route_cities():
     """route_id (=line_ref בסירי) → קבוצת ערים, מתוך ה-GTFS של אתמול."""
     day = datetime.date.today() - datetime.timedelta(days=1)
@@ -53,7 +100,9 @@ def route_cities():
 
 def main():
     with open(STATE, encoding='utf-8') as f:
-        state = json.load(f)['vehicles']
+        root = json.load(f)
+    state = root['vehicles']
+    cov0 = lm_covered(root)
     with open(FLEET, encoding='utf-8') as f:
         fleet = json.load(f)
     # שנת ייצור לפי לוחית (אחרי העשרה, פורמט v2: שנה במקום 4)
@@ -93,9 +142,10 @@ def main():
             vset |= rc.get(str(ln), set())
         if vset:
             linked += 1
-        mask = vals[5] if len(vals) > 5 else 0
+        cmask = city_masks(vals, rc, cov0)
         is_act = key in active
         for city in vset:
+            mask = cmask.get(city, 0)
             ct = cities.setdefault(city,
                                    {'total': 0, 'act': 0, 'ops': {}, 'opsa': {},
                                     'years': {}, 'months': {}, 'opm': {}})
@@ -107,8 +157,7 @@ def main():
             y = year_of.get(key)
             if y:
                 ct['years'][str(y)] = ct['years'].get(str(y), 0) + 1
-            # ספירה חודשית: בכל חודש שבו הרכב פעל הוא נספר לערים שלו.
-            # קירוב מוצהר — הערים הן כלל הקווים שהרכב שירת אי-פעם.
+            # ספירה חודשית: הרכב נספר לעיר רק בחודשים שבהם שירת קו שעובר בה (city_masks).
             # opm = אותה ספירה בפילוח לפי חברה (בקשת שלמה: בחירת חודש
             # מציגה את גרף החברות של אותו חודש)
             om = ct['opm'].setdefault(op, {})
