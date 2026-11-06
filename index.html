@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- האתר תמיד בהיר (שלמה 06.11) — גם כשהטלפון במצב כהה -->
+<meta name="color-scheme" content="light" />
 <!-- מונע מהדפדפן להגיש גרסה ישנה של הדף מה-cache. הקוד עצמו (KavPach.jsx,
      xlsx-worker.js) נטען עם חותמת גרסה (?v=) שמאלצת רענון בכל פריסה. -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -32,9 +34,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
-<noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=5a61dcb4e1" />
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+<noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
+<link rel="stylesheet" href="vendor/kavpach.css?v=2f17fd123e" />
+<!-- דף הבית החדש (העין הבוחנת) ומראה הכלים קו פח והקו המוזהב — home/ -->
+<link rel="stylesheet" href="home/home.css?v=cfffcdaa72" />
+<link rel="preload" as="script" href="home/home.js?v=cfffcdaa72" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -42,6 +47,8 @@
     try {
       var h = decodeURIComponent((location.hash || '').replace('#', '').trim());
       if (/^(פח|kavpach|מוזהב|golden)(\/|$)/.test(h)) document.documentElement.className += ' kb-tool';
+      // כרטיסי דף הבית מופיעים בגלילה (home/home.js) — רק כשיש JS
+      document.documentElement.className += ' kbh-js';
     } catch (e) {}
   })();
 </script>
@@ -51,25 +58,6 @@
   html.kb-tool #static-boot { display: flex; }
 </style>
 <style>
-  /* העין בכותרת בוחנת לכל הכיוונים (שלמה 13.10) */
-  .kb-eye-iris { animation: kb-eye-scan 9s ease-in-out infinite; }
-  @keyframes kb-eye-scan {
-    0%, 8% { transform: translate(0, 0); }
-    14%, 24% { transform: translate(-11px, 0); }
-    30%, 40% { transform: translate(0, -7px); }
-    46%, 56% { transform: translate(11px, 0); }
-    62%, 72% { transform: translate(0, 7px); }
-    78%, 86% { transform: translate(-8px, 5px); }
-    92%, 100% { transform: translate(0, 0); }
-  }
-  /* ובסוף כל סיבוב, אחרי שהאישון חוזר למרכז — מצמוץ איטי (שלמה 13.10) */
-  .kb-eye-lid { transform-box: view-box; transform-origin: 60px 60px; animation: kb-eye-blink 9s ease-in-out infinite; }
-  @keyframes kb-eye-blink {
-    0%, 92.5%, 100% { transform: scaleY(1); }
-    95.5%, 96.5% { transform: scaleY(.08); }
-    99.5% { transform: scaleY(1); }
-  }
-  @media (prefers-reduced-motion: reduce) { .kb-eye-iris, .kb-eye-lid { animation: none; } }
   * { box-sizing: border-box; }
   html { direction: rtl; }
   body {
@@ -103,319 +91,68 @@
   #boot-loader { position: fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#F8FAFC; z-index: 9999; gap: 16px; }
   #boot-loader .ring { width: 44px; height: 44px; border: 3px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; }
   #boot-loader .label { font-size: 14px; color: #64748b; }
-  /* רשת הכרטיסים בפלייסהולדר — חייבת להיות זהה ל-ChoiceScreen של React
-     (Tailwind: grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6) כדי
-     שרוחב הכרטיסים זהה ולא תהיה "קפיצת" מיקום של האיורים בעת עליית React. */
-  .choice-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
-  @media (min-width: 768px) { .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (min-width: 1280px) { .choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 </style>
-<style>.kb-home{position:absolute;top:10px;left:10px;z-index:9999;display:inline-flex;align-items:center;gap:6px;background:#0f172a;color:#fff;text-decoration:none;font:800 12.5px/1 "Rubik","Heebo",system-ui,sans-serif;padding:9px 13px;border-radius:999px;box-shadow:0 2px 10px rgba(15,23,42,.25);border:none;cursor:pointer;direction:rtl}.kb-home:hover{background:#1e293b}@media (max-width:760px){body{padding-top:46px !important}}@media print{.kb-home{display:none}}</style>
 </head>
 <body>
-  <!-- קוד המקור ב-GitHub (שלמה 30.09) — קבוע למעלה משמאל, מעל גם הדף הסטטי וגם React -->
-  <a href="https://github.com/Transit-Freak/kav-bochan" target="_blank" rel="noopener" aria-label="קוד המקור של האתר ב-GitHub" title="קוד המקור ב-GitHub"
-     style="position:absolute;top:12px;left:12px;z-index:50;display:inline-flex;align-items:center;gap:6px;background:#0f172a;color:#fff;text-decoration:none;font:800 12.5px/1 'Heebo',system-ui,sans-serif;padding:8px 12px;border-radius:999px;box-shadow:0 2px 10px rgba(15,23,42,.25)">
-    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-    <span>קוד מקור</span>
-  </a>
   <div id="root">
     <!-- static placeholder — replaced by React on mount -->
     <div id="static-boot" style="min-height:100vh;background:#F8FAFC;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:'Heebo',system-ui,sans-serif;" dir="rtl">
       <div style="width:44px;height:44px;border:3px solid #e2e8f0;border-top-color:#4f46e5;border-radius:50%;animation:spin 1s linear infinite;"></div>
       <div style="font-size:14px;color:#64748b;font-weight:700;">טוען את הכלי…</div>
     </div>
-    <div id="static-choice" style="min-height:100vh;background:linear-gradient(to bottom,#f8fafc,#f1f5f9);display:flex;align-items:center;justify-content:center;padding:16px;font-family:'Heebo',system-ui,sans-serif;" dir="rtl">
-      <div style="max-width:1280px;width:100%;">
-        <div style="text-align:center;margin-bottom:40px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:14px;">
-            <svg viewBox="0 0 120 120" style="width:clamp(44px,8vw,60px);height:clamp(44px,8vw,60px);flex:none;"><rect width="120" height="120" rx="26" fill="#0f172a"/><defs><clipPath id="kb-eye-clip"><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z"/></clipPath></defs><g class="kb-eye-lid"><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" stroke="#38bdf8" stroke-width="6" fill="none" stroke-linejoin="round"/><g clip-path="url(#kb-eye-clip)"><g class="kb-eye-iris"><circle cx="60" cy="60" r="20" fill="#38bdf8"/><circle cx="60" cy="60" r="9.5" fill="#0f172a"/><circle cx="66" cy="54" r="3.5" fill="#fff"/></g></g></g><path d="M22 60 H34 M86 60 H98" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 7"/></svg>
-            <h1 style="font-size:clamp(2.25rem,6vw,3rem);font-weight:900;color:#0f172a;margin:0;letter-spacing:-0.025em;">הקו הבוחן</h1>
-          </div>
-          <p style="color:#64748b;font-weight:700;margin-top:12px;font-size:1.125rem;">חמישה-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
-          <details style="margin-top:12px;">
-            <summary style="cursor:pointer;color:#0369a1;font-weight:900;font-size:.875rem;display:inline-block;">👋 קצת עליי ▼</summary>
-            <div style="max-width:768px;margin:16px auto 0;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 4px 10px -2px rgba(0,0,0,.08);padding:24px;text-align:right;line-height:1.7;color:#334155;font-weight:500;font-size:.9rem;display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
-              <figure style="flex:none;width:200px;margin:0 auto;">
-                <img src="media/shlomi.jpg" alt="שלומי ליד שלט תחנה אישי שקיבל ליום הולדתו" loading="lazy" style="width:100%;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);">
-                <figcaption style="font-size:11px;color:#64748b;font-weight:700;margin-top:8px;line-height:1.45;">התחנה הפרטית שלי 🚏 מתנת יום הולדת 20 מההורים הכי נפלאים בעולם: מספר התחנה הוא תאריך הלידה שלי, והקווים על השלט — קווים ששיניתי.</figcaption>
-              </figure>
-              <div style="flex:1;min-width:260px;">
-                <p style="margin:0;">שלום, שמי שלמה (שלומי) הרטמן, בן 20 מקריית מלאכי. תחבורה ציבורית זורמת אצלי בדם מגיל קטן.</p>
-                <p style="margin:12px 0 0;">בין 2023 ל־2025 ערכתי המון בוויקיפדיה תחת השם <a href="https://he.wikipedia.org/wiki/%D7%9E%D7%A9%D7%AA%D7%9E%D7%A9:%D7%A4%D7%A8%D7%99%D7%A7_%D7%94%D7%AA%D7%97%D7%A6" target="_blank" rel="noopener" style="color:#0369a1;font-weight:900;">פריק התחצ</a>. ב־2026, כשנמאס לי מהתשובות הקבועות של משרד התחבורה — "אין תקציב" — חשבתי לעצמי: למה שלא אבנה אתר שמראה את כל הבזבוז? כך נולד קו פח.</p>
-                <p style="margin:12px 0 0;">בהתחלה הוא היה האתר היחיד, אבל לאט לאט הגיעו עוד רעיונות: קו באג, התחנה הבאה והקו המוזהב. כשנכנסה התחנה הבאה אמרתי לעצמי — למה לא אתר אחד שמרכז את כולם? וכך נוצר הקו הבוחן.</p>
-                <p style="margin:12px 0 0;">והדבר שהכי מדהים אותי: את כל האתרים האלה אני בונה יחד עם בינה מלאכותית (קלוד) — אני מביא את הרעיונות, הידע וההנחיות, והיא את הקוד. ככה קם כלי אחרי כלי בתוך ימים, בזמן שלמשרד התחבורה לוקח שנים להקים אתר אחד.</p>
-                <p style="margin:12px 0 0;">בזכות האתר פנו אליי אנשים מההסתדרות ומהמכון הטכנולוגי חולון — הרגע המאושר בחיי. אולי בעתיד ייצאו איתם אתרים חדשים.</p>
-                <p style="margin:12px 0 0;">יש לכם רעיון לאתר? אשמח לשמוע — <a href="mailto:shlomihartman@gmail.com" style="color:#0369a1;font-weight:900;">כתבו לי</a>. לך תדעו, אולי דווקא הרעיון שלכם יצא לפועל.</p>
-              </div>
-            </div>
-          </details>
-        </div>
-        <div class="choice-grid">
-          <!-- קו פח -->
-          <a href="#פח" data-boot-tool style="display:block;text-decoration:none;background:#0f172a;border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#1e293b;border-radius:50%;opacity:.5;"></div>
-            <div style="position:relative;">
-              <div style="position:relative;height:128px;margin-bottom:20px;">
-                <svg viewBox="0 0 170 96" style="width:128px;position:absolute;z-index:0;filter:drop-shadow(0 20px 13px rgba(0,0,0,.03)) drop-shadow(0 8px 5px rgba(0,0,0,.08));" xmlns="http://www.w3.org/2000/svg">
-                  <defs><linearGradient id="sBusScrap" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#eef2f6"/></linearGradient></defs>
-                  <rect x="8" y="20" width="154" height="50" rx="12" fill="url(#sBusScrap)" stroke="#cbd5e1" stroke-width="3.5"/>
-                  <rect x="8" y="47" width="154" height="7" fill="#e2e8f0" opacity="0.6"/>
-                  <rect x="26" y="27" width="22" height="15" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1.5"/>
-                  <rect x="54" y="27" width="22" height="15" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1.5"/>
-                  <rect x="82" y="27" width="22" height="15" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1.5"/>
-                  <rect x="110" y="27" width="22" height="15" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1.5"/>
-                  <rect x="138" y="27" width="16" height="30" rx="3" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1.5"/>
-                  <circle cx="158" cy="63" r="3" fill="#fbbf24"/>
-                  <circle cx="44" cy="72" r="11" fill="#0f172a"/><circle cx="44" cy="72" r="4.5" fill="#94a3b8"/>
-                  <circle cx="124" cy="72" r="11" fill="#0f172a"/><circle cx="124" cy="72" r="4.5" fill="#94a3b8"/>
-                </svg>
-                <svg viewBox="0 0 120 120" style="width:96px;height:96px;position:absolute;bottom:0;z-index:10;filter:drop-shadow(0 4px 3px rgba(0,0,0,.07)) drop-shadow(0 2px 2px rgba(0,0,0,.06));" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="52" y="18" width="16" height="10" rx="2" fill="#1e293b"/>
-                  <rect x="18" y="26" width="84" height="12" rx="3" fill="#334155"/>
-                  <path d="M26 40 L94 40 L86 112 Q85 116 81 116 L39 116 Q35 116 34 112 Z" fill="#475569"/>
-                  <path d="M46 48 L51 108" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-                  <path d="M60 48 L60 108" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-                  <path d="M74 48 L69 108" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#fff;margin:0;">קו פח</h2>
-              <p style="color:#cbd5e1;font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">קווים ריקים ובזבזניים — מועמדים לביטול או צמצום</p>
-              <span data-cta style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#fff;color:#0f172a;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- הקו המוזהב -->
-          <a href="#מוזהב" data-boot-tool style="display:block;text-decoration:none;background:linear-gradient(155deg,#1f2937 0%,#3b2f12 52%,#92400e 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#fbbf24;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:flex-end;">
-                <svg viewBox="0 0 170 96" style="width:160px;filter:drop-shadow(0 20px 13px rgba(0,0,0,.03)) drop-shadow(0 8px 5px rgba(0,0,0,.08));" xmlns="http://www.w3.org/2000/svg">
-                  <defs><linearGradient id="sBusGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fef3c7"/><stop offset="45%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs>
-                  <rect x="8" y="20" width="154" height="50" rx="12" fill="url(#sBusGold)" stroke="#b45309" stroke-width="3.5"/>
-                  <rect x="8" y="47" width="154" height="7" fill="#b45309" opacity="0.6"/>
-                  <rect x="26" y="27" width="22" height="15" rx="3" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
-                  <rect x="54" y="27" width="22" height="15" rx="3" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
-                  <rect x="82" y="27" width="22" height="15" rx="3" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
-                  <rect x="110" y="27" width="22" height="15" rx="3" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
-                  <rect x="138" y="27" width="16" height="30" rx="3" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
-                  <circle cx="158" cy="63" r="3" fill="#fde68a"/>
-                  <circle cx="44" cy="72" r="11" fill="#0f172a"/><circle cx="44" cy="72" r="4.5" fill="#fbbf24"/>
-                  <circle cx="124" cy="72" r="11" fill="#0f172a"/><circle cx="124" cy="72" r="4.5" fill="#fbbf24"/>
-                  <circle cx="30" cy="31" r="3" fill="#ffffff" opacity="0.85"/>
-                </svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#fcd34d;margin:0;">הקו המוזהב</h2>
-              <p style="color:rgba(254,243,199,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">הקווים המצטיינים — הסטנדרט שאליו כדאי לשאוף</p>
-              <span data-cta style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#fbbf24;color:#451a03;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- קו באג -->
-          <a href="https://transit-freak.github.io/kav-bug/" target="_blank" rel="noopener" style="display:block;text-decoration:none;background:linear-gradient(155deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#6366f1;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:flex-end;">
-                <svg viewBox="0 0 140 90" style="width:160px;filter:drop-shadow(0 20px 13px rgba(0,0,0,.03)) drop-shadow(0 8px 5px rgba(0,0,0,.08));" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="64" x2="122" y2="64" stroke="#1f9d57" stroke-width="10" stroke-linecap="round"/>
-                  <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#ef8a17" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="18" cy="64" r="9" fill="#fff"/>
-                  <circle cx="122" cy="64" r="9" fill="#fff"/>
-                </svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#c7d2fe;margin:0;">קו באג</h2>
-              <p style="color:rgba(224,231,255,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#818cf8;color:#1e1b4b;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- התחנה הבאה -->
-          <a href="next-station/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0b2545 0%,#13386e 52%,#2563eb 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#60a5fa;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                                <span style="font-size:90px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🚏</span>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#bae6fd;margin:0;">התחנה הבאה</h2>
-              <p style="color:rgba(224,242,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">תחנות ששמן אינו תואם לרחוב שבכתובת</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#38bdf8;color:#082f49;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- הקו המדלג -->
-          <a href="skip-stops/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#451a03 0%,#7c2d12 52%,#d97706 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#f59e0b;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                <svg viewBox="4 4 26 26" style="width:96px;height:96px;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 26 L10 26 Q17 15 24 26 L30 26" stroke="#fde68a" stroke-width="2" fill="none" stroke-dasharray="2.5 2" stroke-linecap="round"/>
-                  <circle cx="17" cy="26" r="2.6" fill="#7c2d12" stroke="#fff" stroke-width="1.4"/>
-                  <circle cx="7" cy="26" r="2.6" fill="#fff"/><circle cx="27" cy="26" r="2.6" fill="#fff"/>
-                  <rect x="10" y="6" width="14" height="9" rx="2.5" fill="#fff"/>
-                  <rect x="12" y="8" width="4" height="3.5" rx="1" fill="#d97706"/>
-                  <rect x="18" y="8" width="4" height="3.5" rx="1" fill="#d97706"/>
-                  <circle cx="13" cy="15" r="1.6" fill="#7c2d12"/><circle cx="21" cy="15" r="1.6" fill="#7c2d12"/>
-                </svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#fde68a;margin:0;">הקו המדלג</h2>
-              <p style="color:rgba(254,243,199,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">קווים שחולפים ליד תחנה פעילה — בלי לעצור בה</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#fbbf24;color:#451a03;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- הקו בזמן -->
-          <a href="line-history/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#2e1065 0%,#4c1d95 52%,#7c3aed 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#a78bfa;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:90px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🕰️</span>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#ddd6fe;margin:0;">הקו בזמן</h2>
-              <p style="color:rgba(237,233,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">היסטוריית קווים מ-2003 ועד היום — מסלול, שרטוט, תחנות, שמות ולוחות זמנים</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#c4b5fd;color:#2e1065;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- המחירון -->
-          <a href="fares/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#022c22 0%,#065f46 52%,#059669 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#34d399;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:90px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🎫</span>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#a7f3d0;margin:0;">המחירון</h2>
-              <p style="color:rgba(209,250,229,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">כמה עולה הנסיעה — בודדת, יומי וחודשי, לכל קו או בין שתי תחנות</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#6ee7b7;color:#022c22;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- רציף כפול -->
-          <a href="ratzif/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#083344 0%,#155e75 52%,#0891b2 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#22d3ee;border-radius:50%;opacity:.22;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                <svg width="126" height="96" viewBox="0 0 63 48" style="filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">
-                  <!-- מדרכת הרציף -->
-                  <rect x="2" y="2" width="59" height="9" rx="2.5" fill="#a5f3fc"/>
-                  <text x="31.5" y="9" font-size="6.2" font-weight="800" fill="#083344" text-anchor="middle" font-family="Rubik,Arial">רציף 1</text>
-                  <!-- קווי המפרץ -->
-                  <path d="M14 13v31" stroke="#e0f2fe" stroke-width="2" stroke-dasharray="4 3" fill="none"/>
-                  <path d="M49 13v31" stroke="#e0f2fe" stroke-width="2" stroke-dasharray="4 3" fill="none"/>
-                  <!-- שני אוטובוסים במבט-על, דחוסים באותו מפרץ -->
-                  <g>
-                    <rect x="17.5" y="14" width="13" height="32" rx="4" fill="#f8fafc" stroke="#334155" stroke-width="1.1"/>
-                    <rect x="19.5" y="15.5" width="9" height="3.6" rx="1.6" fill="#1e293b"/>
-                    <rect x="20" y="22" width="8" height="20" rx="2.5" fill="#e2e8f0"/>
-                  </g>
-                  <g>
-                    <rect x="32.5" y="14" width="13" height="32" rx="4" fill="#f8fafc" stroke="#334155" stroke-width="1.1"/>
-                    <rect x="34.5" y="15.5" width="9" height="3.6" rx="1.6" fill="#1e293b"/>
-                    <rect x="35" y="22" width="8" height="20" rx="2.5" fill="#e2e8f0"/>
-                  </g>
-                  <!-- שעון אחד לשניהם -->
-                  <circle cx="31.5" cy="30" r="7.6" fill="#fbbf24" stroke="#78350f" stroke-width="1.2"/>
-                  <path d="M31.5 30 V25.4 M31.5 30 L35 31.8" stroke="#78350f" stroke-width="1.6" stroke-linecap="round" fill="none"/>
-                </svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#a5f3fc;margin:0;">רציף כפול</h2>
-              <p style="color:rgba(207,250,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#67e8f9;color:#083344;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- צי הרכבים -->
-          <a href="fleet/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0b1220 0%,#10172a 52%,#475569 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#94a3b8;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;">
-                <svg width="126" height="90" viewBox="4 14 56 40" style="filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));"><path d="M6 16h16l4 5h32v32H6z" fill="#3b82f6"/><path d="M6 16h16l4 5h32v5H6z" fill="#2563eb"/><rect x="16" y="30" width="32" height="16" rx="4" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M16 39h32" stroke="#fff" stroke-width="2.2"/><circle cx="23" cy="46" r="2.8" fill="#fff"/><circle cx="41" cy="46" r="2.8" fill="#fff"/><rect x="20" y="33" width="6" height="4" rx="1" fill="#fff"/><rect x="28" y="33" width="6" height="4" rx="1" fill="#fff"/><rect x="36" y="33" width="6" height="4" rx="1" fill="#fff"/></svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#e2e8f0;margin:0;">צי הרכבים</h2>
-              <p style="color:rgba(241,245,249,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">כל האוטובוסים שנצפו בשידורי האיכון — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה ומה פרטיו במאגר הרישוי</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#cbd5e1;color:#0f172a;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- מדד אמינות הרכבת -->
-          <a href="rail/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#0369a1 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#7dd3fc;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;">
-                <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🚆</span>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#e0f2fe;margin:0;">מדד אמינות הרכבת</h2>
-              <p style="color:rgba(224,242,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">כל רכבת שבלו"ז מול המיקום ששידרה בפועל: כמה רכבות הגיעו בזמן, איחור לפי קו, תחנה ושעה, וכל נסיעה על המפה — יום אחרי יום, מנתוני דאטאבוס</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#bae6fd;color:#082f49;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- קליטה ברכבת -->
-          <a href="rail/reception/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#6d28d9 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#c4b5fd;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;">
-                <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">📶</span>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#ede9fe;margin:0;">קליטה ברכבת</h2>
-              <p style="color:rgba(237,233,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">איפה יש קליטה סלולרית ברכבת ואיפה לא: כל 100 מטר מסילה לפי האנטנות של כל חברה, המנהרות, מהירות הנסיעה בפועל וסוג הקרון — פלאפון, סלקום, פרטנר והוט, דור 4 ודור 5</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#ddd6fe;color:#2e1065;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- הקו המזין -->
-          <a href="feeder/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#15803D 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#86efac;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;">
-                <svg viewBox="0 0 120 120" width="84" height="84" aria-hidden="true" style="filter:drop-shadow(0 8px 5px rgba(0,0,0,.18))"><rect width="120" height="120" rx="26" fill="#15803D"/><rect x="14" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="26" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="38" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="50" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="62" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="74" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="86" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="98" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><path d="M6 87 H114" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M30 32 L40 24 L50 32" stroke="#fff" stroke-width="3.5" fill="none" stroke-linejoin="round"/><path d="M28 24 H52" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M8 78 V58 C8 44 18 34 34 34 H64 V78 Z" fill="#fff"/><path d="M14 52 C16 45 21 41 28 41 V52 Z" fill="#15803D"/><rect x="33" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="43" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="53" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="10" y="62" width="54" height="3" fill="#15803D"/><circle cx="16" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><circle cx="25" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><circle cx="47" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><circle cx="56" cy="81" r="4.5" fill="#fff" stroke="#15803D" stroke-width="2.5"/><rect x="64" y="70" width="7" height="4" fill="#fff"/><rect x="71" y="48" width="42" height="32" rx="7" fill="#fff"/><path d="M75 52 H86 V66 H75 Z" fill="#15803D"/><rect x="89" y="52" width="5" height="22" rx="1.5" fill="#15803D"/><rect x="97" y="52" width="6" height="9" rx="1.5" fill="#15803D"/><rect x="105" y="52" width="5" height="9" rx="1.5" fill="#15803D"/><circle cx="81" cy="81" r="6.5" fill="#fff" stroke="#15803D" stroke-width="3"/><circle cx="104" cy="81" r="6.5" fill="#fff" stroke="#15803D" stroke-width="3"/></svg>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#dcfce7;margin:0;">הקו המזין</h2>
-              <p style="color:rgba(220,252,231,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#bbf7d0;color:#052e16;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- איפה האוטובוס נתקע -->
-          <a href="bus-speed/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#B91C1C 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#fca5a5;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;">
-                <img src="bus-speed/icon.svg" alt="" width="84" height="84" style="filter:drop-shadow(0 8px 5px rgba(0,0,0,.18))">
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#fee2e2;margin:0;">איפה האוטובוס נתקע</h2>
-              <p style="color:rgba(254,226,226,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">המהירות של האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים: איפה נתקעים, מתי, ואיזה יישוב הכי עמוס</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#fecaca;color:#450a0a;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          <!-- מדד דיוק האוטובוסים -->
-          <a href="bus/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#047857 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#6ee7b7;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <div style="height:112px;margin-bottom:24px;display:flex;align-items:center;">
-                <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🚌</span>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#d1fae5;margin:0;">מדד דיוק האוטובוסים</h2>
-              <p style="color:rgba(209,250,229,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">כל אוטובוס בארץ מול הלו"ז, תחנה אחרי תחנה: כמה הגיעו בזמן, מי יצא מוקדם ומי איחר ואיפה לאורך הקו — לפי קו, מפעיל, אשכול, עיר (עם הקווים שעוברים בה) ושעה, יום אחרי יום, מנתוני דאטאבוס</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#a7f3d0;color:#022c22;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-        </div>
-        <!-- שיתופי פעולה (שלמה 17.09): אזורי התעשייה עם ההסתדרות, וגו אינפו של רם אגמון -->
-        <div id="partners" style="margin-top:48px;padding-top:32px;border-top:1px solid #e2e8f0;">
-          <h2 style="font-size:1.5rem;font-weight:900;color:#1e293b;margin:0 0 24px;">שיתופי פעולה</h2>
-          <div class="choice-grid">
-          <!-- נגישות אזורי תעשייה -->
-          <a href="parks/" style="display:block;text-decoration:none;background:linear-gradient(155deg,#0c1e4a 0%,#1e3a8a 52%,#2563eb 100%);border-radius:40px;padding:32px;text-align:right;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);position:relative;overflow:hidden;">
-            <div style="position:absolute;left:-32px;top:-32px;width:176px;height:176px;background:#93c5fd;border-radius:50%;opacity:.25;"></div>
-            <div style="position:relative;">
-              <!-- הלוגואים נשברים לשורה משלהם כשהכרטיס צר (4 עמודות במחשב): עם גובה קבוע
-                   ובלי שבירה הם נחתכו בקצה הכרטיס (שלמה 13.09) -->
-              <div style="min-height:112px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                <span style="font-size:72px;line-height:1;filter:drop-shadow(0 8px 5px rgba(0,0,0,.18));">🏭</span>
-                <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;flex:1 1 170px;">
-                  <img src="parks/histadrut-logo-96.webp" alt="תחום קידום תחבורה ציבורית — ההסתדרות" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:6px 10px;box-sizing:border-box;">
-                  <img src="parks/rahokim-logo-96.webp" alt="רחוקים אבל שווים" style="height:48px;max-width:100%;object-fit:contain;background:#fff;border-radius:12px;padding:4px 8px;box-sizing:border-box;">
-                </div>
-              </div>
-              <h2 style="font-size:1.875rem;font-weight:900;color:#dbeafe;margin:0;">נגישות אזורי תעשייה</h2>
-              <p style="color:rgba(219,234,254,.8);font-weight:700;margin-top:8px;font-size:.875rem;line-height:1.625;">ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות</p>
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#bfdbfe;color:#172554;padding:10px 20px;border-radius:16px;font-weight:900;font-size:.875rem;">כניסה ←</span>
-            </div>
-          </a>
-          </div>
-        </div>
-        <p data-copyright style="text-align:center;color:#94a3b8;font-weight:700;font-size:.75rem;margin-top:32px;">© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="mailto:shlomihartman@gmail.com" dir="ltr" style="color:#94a3b8;">shlomihartman@gmail.com</a> · <a href="links.html" style="color:#94a3b8;">קישורים</a> · <a href="terms.html#copyright" style="color:#94a3b8;">זכויות יוצרים ותנאי שימוש</a> · <a href="accessibility.html" style="color:#94a3b8;">הצהרת נגישות</a></p>
-      </div>
+    <!-- דף הבית הסטטי — נבנה מ-home/home.js ב-tools/build_kavpach.mjs (לא לערוך כאן). React מאמץ את אותו צומת בדיוק (ChoiceScreen), אז שום דבר לא קופץ -->
+    <div id="static-choice">
+<!-- kbh:start -->
+<div class="kbh" dir="rtl">
+<div class="aurora" aria-hidden="true"></div>
+<header class="top"><div class="wrap">
+<a class="brand" href="./" data-top>הקו הבוחן</a>
+<nav class="nav" aria-label="ניווט ראשי"><a href="#tools">הכלים</a><a href="#g-lines">קווים ותחנות</a><a href="#g-rail">רכבת</a><a href="#partners">שיתופי פעולה</a><a href="#about" data-about>קצת עליי</a></nav>
+<button class="chip-ver" type="button" data-ver-chip title="מה השתנה בגרסה הזו">גרסה 4.0</button>
+<a class="gh" href="https://github.com/Transit-Freak/kav-bochan" target="_blank" rel="noopener" aria-label="קוד המקור של האתר ב-GitHub" title="קוד המקור ב-GitHub"><svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+</div></header>
+<main>
+<section class="hero"><div class="wrap"><div>
+<div class="brandline"><h1 class="nm">הקו הבוחן</h1></div>
+<p class="h1">חמישה-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
+<div class="ctas"><a class="btn btn-p" href="#tools">לכל הכלים <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><button class="btn btn-s" type="button" data-about-btn aria-expanded="false" aria-controls="about">קצת עליי <svg class="car" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+</div>
+<nav class="stage" aria-label="כל הכלים סביב העין הבוחנת"><div class="halo"></div><div class="oring"></div><div class="oring r2"></div><div class="beam"></div><div class="eye"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="kb-eye-bg-stage" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient><radialGradient id="kb-eye-ir-stage" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".6" stop-color="#0ea5e9"/><stop offset="1" stop-color="#0369a1"/></radialGradient><clipPath id="kb-eye-clip-stage"><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z"/></clipPath></defs><rect width="120" height="120" rx="26" fill="url(#kb-eye-bg-stage)"/><rect x=".75" y=".75" width="118.5" height="118.5" rx="25.25" fill="none" stroke="#bae6fd" stroke-width="1.5"/></svg><div class="eye-layer"><svg viewBox="0 0 120 120" aria-hidden="true"><g class=""><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" fill="#fff"/><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" stroke="#0ea5e9" stroke-width="6" fill="none" stroke-linejoin="round"/><g clip-path="url(#kb-eye-clip-stage)"><g class="kb-iris-js"><circle cx="60" cy="60" r="20" fill="url(#kb-eye-ir-stage)"/><circle class="kb-pupil" cx="60" cy="60" r="9.5" fill="#0f172a"/></g><circle cx="66" cy="54" r="3.5" fill="#fff"/></g></g><path d="M22 60 H34 M86 60 H98" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 7"/></svg></div></div><a class="orb" href="#פח" data-pick="kavpach" data-boot-tool data-k="kavpach" data-th="-90" aria-label="קו פח" style="left:calc(50.000% - var(--s) / 2);top:calc(9.500% - var(--s) / 2)"><span data-icon="kavpach"></span><b>קו פח</b></a><a class="orb" href="#מוזהב" data-pick="golden" data-boot-tool data-k="golden" data-th="-67.5" aria-label="הקו המוזהב" style="left:calc(65.499% - var(--s) / 2);top:calc(12.583% - var(--s) / 2)"><span data-icon="golden"></span><b>הקו המוזהב</b></a><a class="orb lb-r" href="https://transit-freak.github.io/kav-bug/" target="_blank" rel="noopener" data-k="kavbug" data-th="-45" aria-label="קו באג" style="left:calc(78.638% - var(--s) / 2);top:calc(21.362% - var(--s) / 2)"><span data-icon="kavbug"></span><b>קו באג</b></a><a class="orb lb-r" href="next-station/" data-k="next-station" data-th="-22.5" aria-label="התחנה הבאה" style="left:calc(87.417% - var(--s) / 2);top:calc(34.501% - var(--s) / 2)"><span data-icon="next-station"></span><b>התחנה הבאה</b></a><a class="orb lb-r" href="skip-stops/" data-k="skip-stops" data-th="0" aria-label="הקו המדלג" style="left:calc(90.500% - var(--s) / 2);top:calc(50.000% - var(--s) / 2)"><span data-icon="skip-stops"></span><b>הקו המדלג</b></a><a class="orb lb-r" href="line-history/" data-k="line-history" data-th="22.5" aria-label="הקו בזמן" style="left:calc(87.417% - var(--s) / 2);top:calc(65.499% - var(--s) / 2)"><span data-icon="line-history"></span><b>הקו בזמן</b></a><a class="orb lb-r" href="bus/" data-k="bus" data-th="45" aria-label="מדד דיוק האוטובוסים" style="left:calc(78.638% - var(--s) / 2);top:calc(78.638% - var(--s) / 2)"><span data-icon="bus"></span><b>מדד דיוק האוטובוסים</b></a><a class="orb" href="bus-speed/" data-k="bus-speed" data-th="67.5" aria-label="איפה האוטובוס נתקע" style="left:calc(65.499% - var(--s) / 2);top:calc(87.417% - var(--s) / 2)"><span data-icon="bus-speed"></span><b>איפה האוטובוס נתקע</b></a><a class="orb" href="alerts/" data-k="alerts" data-th="90" aria-label="הקו המודיע" style="left:calc(50.000% - var(--s) / 2);top:calc(90.500% - var(--s) / 2)"><span data-icon="alerts"></span><b>הקו המודיע</b></a><a class="orb" href="fleet/" data-k="fleet" data-th="112.5" aria-label="צי הרכבים" style="left:calc(34.501% - var(--s) / 2);top:calc(87.417% - var(--s) / 2)"><span data-icon="fleet"></span><b>צי הרכבים</b></a><a class="orb lb-l" href="rail/" data-k="rail" data-th="135" aria-label="מדד אמינות הרכבת" style="left:calc(21.362% - var(--s) / 2);top:calc(78.638% - var(--s) / 2)"><span data-icon="rail"></span><b>מדד אמינות הרכבת</b></a><a class="orb lb-l" href="rail/reception/" data-k="reception" data-th="157.5" aria-label="קליטה ברכבת" style="left:calc(12.583% - var(--s) / 2);top:calc(65.499% - var(--s) / 2)"><span data-icon="reception"></span><b>קליטה ברכבת</b></a><a class="orb lb-l" href="feeder/" data-k="feeder" data-th="180" aria-label="הקו המזין" style="left:calc(9.500% - var(--s) / 2);top:calc(50.000% - var(--s) / 2)"><span data-icon="feeder"></span><b>הקו המזין</b></a><a class="orb lb-l" href="fares/" data-k="fares" data-th="202.5" aria-label="המחירון" style="left:calc(12.583% - var(--s) / 2);top:calc(34.501% - var(--s) / 2)"><span data-icon="fares"></span><b>המחירון</b></a><a class="orb lb-l" href="ratzif/" data-k="ratzif" data-th="225" aria-label="רציף כפול" style="left:calc(21.362% - var(--s) / 2);top:calc(21.362% - var(--s) / 2)"><span data-icon="ratzif"></span><b>רציף כפול</b></a><a class="orb" href="parks/" data-k="parks" data-th="247.5" aria-label="נגישות אזורי תעשייה" style="left:calc(34.501% - var(--s) / 2);top:calc(12.583% - var(--s) / 2)"><span data-icon="parks"></span><b>נגישות אזורי תעשייה</b></a></nav>
+</div></section>
+<div class="wrap"><div class="about" id="about" role="region" aria-label="קצת עליי"><div class="about-card">
+<figure class="about-photo"><img src="media/shlomi.jpg" width="640" height="965" alt="שלומי ליד שלט תחנה אישי שקיבל ליום הולדתו" loading="lazy" decoding="async"><figcaption>התחנה הפרטית שלי 🚏 מתנת יום הולדת 20 מההורים הכי נפלאים בעולם: מספר התחנה הוא תאריך הלידה שלי, והקווים על השלט — קווים ששיניתי.</figcaption></figure>
+<div>
+<p>שלום, שמי שלמה (שלומי) הרטמן, בן 20 מקריית מלאכי. תחבורה ציבורית זורמת אצלי בדם מגיל קטן.</p>
+<p>בין 2023 ל־2025 ערכתי המון בוויקיפדיה תחת השם <a href="https://he.wikipedia.org/wiki/%D7%9E%D7%A9%D7%AA%D7%9E%D7%A9:%D7%A4%D7%A8%D7%99%D7%A7_%D7%94%D7%AA%D7%97%D7%A6" target="_blank" rel="noopener">פריק התחצ</a>. ב־2026, כשנמאס לי מהתשובות הקבועות של משרד התחבורה — "אין תקציב" — חשבתי לעצמי: למה שלא אבנה אתר שמראה את כל הבזבוז? כך נולד קו פח.</p>
+<p>בהתחלה הוא היה האתר היחיד, אבל לאט לאט הגיעו עוד רעיונות: קו באג, התחנה הבאה והקו המוזהב. כשנכנסה התחנה הבאה אמרתי לעצמי — למה לא אתר אחד שמרכז את כולם? וכך נוצר הקו הבוחן.</p>
+<p>והדבר שהכי מדהים אותי: את כל האתרים האלה אני בונה יחד עם בינה מלאכותית (קלוד) — אני מביא את הרעיונות, הידע וההנחיות, והיא את הקוד. ככה קם כלי אחרי כלי בתוך ימים, בזמן שלמשרד התחבורה לוקח שנים להקים אתר אחד.</p>
+<p>יש לכם רעיון לאתר? אשמח לשמוע — <a href="mailto:shlomihartman@gmail.com">כתבו לי</a>. לך תדעו, אולי דווקא הרעיון שלכם יצא לפועל.</p>
+</div></div></div></div>
+<section class="tools" id="tools"><div class="wrap">
+<div class="sec-head"><h2>הכלים</h2><nav class="jump" aria-label="תחומים"><a href="#g-lines">קווים ותחנות</a><a href="#g-live">ביצועים בשטח</a><a href="#g-rail">רכבת</a><a href="#g-plan">מחירים ומסופים</a></nav></div>
+<div class="group" id="g-lines"><div class="g-head"><h3>קווים ותחנות</h3><span class="rule"></span></div><div class="grid wides"><a class="card wide rv" data-k="kavpach" href="#פח" data-pick="kavpach" data-boot-tool style="--acc:#64748b"><span class="ver" data-ver="kavpach">גרסה 4.0</span><div class="ico" data-icon="kavpach"></div><h2>קו פח</h2><p>קווים ריקים ובזבזניים — מועמדים לביטול או צמצום</p><div class="card-foot"><span class="upd" data-upd="kavpach">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card wide rv" data-k="golden" href="#מוזהב" data-pick="golden" data-boot-tool style="--acc:#d97706"><span class="ver" data-ver="kavpach">גרסה 4.0</span><div class="ico" data-icon="golden"></div><h2>הקו המוזהב</h2><p>הקווים המצטיינים — הסטנדרט שאליו כדאי לשאוף</p><div class="card-foot"><span class="upd" data-upd="kavpach">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a></div><div class="grid" style="--cols:4"><a class="card rv" data-k="kavbug" href="https://transit-freak.github.io/kav-bug/" target="_blank" rel="noopener" style="--acc:#6366f1"><span class="ver" data-ver="kavbug">גרסה 5.6</span><div class="ico" data-icon="kavbug"></div><h2>קו באג</h2><p>תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים</p><div class="card-foot"><span class="upd" data-upd="kavbug">עודכן 05.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="next-station" href="next-station/" style="--acc:#2563eb"><span class="ver" data-ver="next-station">גרסה 2.0</span><div class="ico" data-icon="next-station"></div><h2>התחנה הבאה</h2><p>תחנות ששמן אינו תואם לרחוב שבכתובת</p><div class="card-foot"><span class="upd" data-upd="next-station">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="skip-stops" href="skip-stops/" style="--acc:#ea580c"><span class="ver" data-ver="skip-stops">גרסה 3.0</span><div class="ico" data-icon="skip-stops"></div><h2>הקו המדלג</h2><p>קווים שחולפים ליד תחנה פעילה — בלי לעצור בה</p><div class="card-foot"><span class="upd" data-upd="skip-stops">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="line-history" href="line-history/" style="--acc:#7c3aed"><span class="ver" data-ver="line-history">גרסה 4.15</span><div class="ico" data-icon="line-history"></div><h2>הקו בזמן</h2><p>היסטוריית קווים מ-2003 ועד היום — מסלול, שרטוט, תחנות, שמות ולוחות זמנים</p><div class="card-foot"><span class="upd" data-upd="line-history">עודכן 05.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a></div></div>
+<div class="group" id="g-live"><div class="g-head"><h3>ביצועים בשטח</h3><span class="rule"></span></div><div class="grid" style="--cols:4"><a class="card rv" data-k="bus" href="bus/" style="--acc:#059669"><span class="ver" data-ver="bus">גרסה 3.0</span><div class="ico" data-icon="bus"></div><h2>מדד דיוק האוטובוסים</h2><p>כל אוטובוס בארץ מול הלו&quot;ז, תחנה אחרי תחנה: כמה הגיעו בזמן, מי יצא מוקדם ומי איחר ואיפה לאורך הקו — לפי קו, מפעיל, עיר ושעה, יום אחרי יום, מנתוני דאטאבוס</p><div class="card-foot"><span class="upd" data-upd="bus">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="bus-speed" href="bus-speed/" style="--acc:#dc2626"><span class="ver" data-ver="bus-speed">גרסה 2.0</span><div class="ico" data-icon="bus-speed"></div><h2>איפה האוטובוס נתקע</h2><p>המהירות של האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים: איפה נתקעים, מתי, ואיזה יישוב הכי עמוס</p><div class="card-foot"><span class="upd" data-upd="bus-speed">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="alerts" href="alerts/" style="--acc:#c026d3"><span class="ver" data-ver="alerts">גרסה 2.0</span><div class="ico" data-icon="alerts"></div><h2>הקו המודיע</h2><p>עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שבוטלו זמנית והתחנות החלופיות</p><div class="card-foot"><span class="upd" data-upd="alerts">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="fleet" href="fleet/" style="--acc:#2563eb"><span class="ver" data-ver="fleet">גרסה 4.10</span><div class="ico" data-icon="fleet"></div><h2>צי הרכבים</h2><p>כל האוטובוסים שנצפו בשידורי האיכון — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה ומה פרטיו במאגר הרישוי</p><div class="card-foot"><span class="upd" data-upd="fleet">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a></div></div>
+<div class="group" id="g-rail"><div class="g-head"><h3>רכבת</h3><span class="rule"></span></div><div class="grid" style="--cols:3"><a class="card rv" data-k="rail" href="rail/" style="--acc:#0284c7"><span class="ver" data-ver="rail">גרסה 3.0</span><div class="ico" data-icon="rail"></div><h2>מדד אמינות הרכבת</h2><p>כל רכבת שבלו&quot;ז מול המיקום ששידרה בפועל: כמה רכבות הגיעו בזמן, איחור לפי קו, תחנה ושעה, וכל נסיעה על המפה — יום אחרי יום, מנתוני דאטאבוס</p><div class="card-foot"><span class="upd" data-upd="rail">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="reception" href="rail/reception/" style="--acc:#7c3aed"><span class="ver" data-ver="reception">גרסה 2.0</span><div class="ico" data-icon="reception"></div><h2>קליטה ברכבת</h2><p>איפה יש קליטה סלולרית ברכבת ואיפה לא: כל 100 מטר מסילה לפי האנטנות של כל חברה, המנהרות, מהירות הנסיעה בפועל וסוג הקרון — פלאפון, סלקום, פרטנר והוט, דור 4 ודור 5</p><div class="card-foot"><span class="upd" data-upd="reception">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="feeder" href="feeder/" style="--acc:#16a34a"><span class="ver" data-ver="feeder">גרסה 2.0</span><div class="ico" data-icon="feeder"></div><h2>הקו המזין</h2><p>כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז</p><div class="card-foot"><span class="upd" data-upd="feeder">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a></div></div>
+<div class="group" id="g-plan"><div class="g-head"><h3>מחירים ומסופים</h3><span class="rule"></span></div><div class="grid" style="--cols:2"><a class="card rv" data-k="fares" href="fares/" style="--acc:#059669"><span class="ver" data-ver="fares">גרסה 2.5</span><div class="ico" data-icon="fares"></div><h2>המחירון</h2><p>כמה עולה הנסיעה — בודדת, יומי וחודשי, לכל קו או בין שתי תחנות</p><div class="card-foot"><span class="upd" data-upd="fares">עודכן 05.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a><a class="card rv" data-k="ratzif" href="ratzif/" style="--acc:#0891b2"><span class="ver" data-ver="ratzif">גרסה 2.0</span><div class="ico" data-icon="ratzif"></div><h2>רציף כפול</h2><p>שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי</p><div class="card-foot"><span class="upd" data-upd="ratzif">עודכן 06.11.2026</span><span class="go"><span data-cta>כניסה</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a></div></div>
+</div></section>
+<section class="partners" id="partners"><div class="wrap">
+<div class="sec-head"><h2>שיתופי פעולה</h2></div>
+<a class="p-card rv" href="parks/" data-k="parks"><div class="ico" data-icon="parks"></div><div><h3>נגישות אזורי תעשייה</h3><p>ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו&quot;ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות</p><div class="partner-badges"><img class="plogo" src="parks/histadrut-logo-96.webp" width="285" height="96" alt="תחום קידום תחבורה ציבורית — ההסתדרות"><img class="plogo" src="parks/rahokim-logo-96.webp" width="84" height="96" alt="רחוקים אבל שווים"></div></div><span class="p-go">כניסה <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+</div></section>
+</main>
+<footer id="footer"><div class="wrap">
+<div class="f-brand">הקו הבוחן</div>
+<div class="f-copy" data-copyright>© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור</div>
+<div class="f-links"><a href="https://github.com/Transit-Freak/kav-bochan" target="_blank" rel="noopener">קוד מקור</a><span class="sep">·</span><a href="links.html">קישורים</a><span class="sep">·</span><a href="terms.html#copyright">זכויות יוצרים ותנאי שימוש</a><span class="sep">·</span><a href="accessibility.html">הצהרת נגישות</a><span class="sep">·</span><a href="mailto:shlomihartman@gmail.com" dir="ltr">shlomihartman@gmail.com</a></div>
+<div class="f-ver" data-ver-slot></div>
+</div></footer>
+</div>
+<!-- kbh:end -->
     </div>
   </div>
+  <!-- הסמלים, העין והגרסאות של דף הבית — לפני React, כדי שהדף הסטטי יעבוד מיד -->
+  <script src="home/home.js?v=cfffcdaa72"></script>
+  <script>try { KBH.mount(document.querySelector('#static-choice .kbh')); } catch (e) {}</script>
   <!-- KavPach.js מקומפל מראש (tools/build_kavpach.mjs, רץ ב-GitHub Actions בכל
        שינוי של KavPach.jsx) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
   <!-- React ייצור (גרסת הפיתוח איטית משמעותית) — בסוף הדף, כדי שלא יחסמו את הציור הראשון -->
@@ -423,13 +160,7 @@
   <script src="vendor/react-dom.production.min.js"></script>
   <script>
     (function () {
-      // חיווי מיידי בלחיצה על כלי לפני שהאפליקציה עלתה — במקום כפתור מת
-      document.addEventListener('click', function (ev) {
-        var a = ev.target && ev.target.closest && ev.target.closest('a[data-boot-tool]');
-        if (!a || window.__kavpachReady) return;
-        var cta = a.querySelector('[data-cta]');
-        if (cta) cta.textContent = '⏳ טוען את הכלי…';
-      });
+      // חיווי "טוען את הכלי…" בלחיצה על כלי לפני שהאפליקציה עלתה — ב-home/home.js
       // הקוד מקומפל מראש (tools/build_kavpach.mjs → KavPach.js, חותמת ?v= לפי
       // תוכן) — בלי Babel בדפדפן. אם הקובץ חסר, קומפילציה בדפדפן כמו קודם.
       var mount = function () {
@@ -440,6 +171,8 @@
             if (tries++ < 400) return setTimeout(go, 25);
             return;
           }
+          // דף הבית הסטטי עובר כמו שהוא ל-ChoiceScreen (KavPach.jsx) — בלי לבנות אותו מחדש
+          window.__kbhNode = document.querySelector('#static-choice .kbh');
           var boot = document.getElementById('boot-loader');
           if (boot) boot.remove();
           var app = React.createElement(KavPach);
@@ -461,14 +194,14 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=5a61dcb4e1';
+      core.src = 'kavpach-core.js?v=2f17fd123e';
       // async=false: שני הקבצים רצים לפי הסדר (הליבה קודם) — סקריפט שנוסף בקוד הוא async כברירת מחדל,
       // ובכניסה ישירה ללשונית (#פח/deadhead) האפליקציה מחשבת מיד עם פונקציות מהליבה
       core.async = false;
       document.body.appendChild(core);
       var sc = document.createElement('script');
       sc.async = false;
-      sc.src = 'KavPach.js?v=5a61dcb4e1';
+      sc.src = 'KavPach.js?v=2f17fd123e';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);

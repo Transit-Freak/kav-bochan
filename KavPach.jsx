@@ -557,64 +557,6 @@ const RouteFormat = ({ val }) => {
   );
 };
 
-// ── BusArt — אוטובוס SVG. variant: 'scrap' (לבן, לפח) או 'gold' (מוזהב) ──
-const BusArt = ({ variant = 'scrap', className = '' }) => {
-  const gold = variant === 'gold';
-  const gid = gold ? 'busGold' : 'busScrap';
-  const winFill = gold ? '#fffbeb' : '#dbeafe';
-  const winStroke = gold ? '#92400e' : '#bfdbfe';
-  return (
-    <svg viewBox="0 0 170 96" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          {gold ? (
-            <>
-              <stop offset="0%" stopColor="#fef3c7" />
-              <stop offset="45%" stopColor="#fbbf24" />
-              <stop offset="100%" stopColor="#d97706" />
-            </>
-          ) : (
-            <>
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#eef2f6" />
-            </>
-          )}
-        </linearGradient>
-      </defs>
-      {/* גוף */}
-      <rect x="8" y="20" width="154" height="50" rx="12" fill={`url(#${gid})`} stroke={gold ? '#b45309' : '#cbd5e1'} strokeWidth="3.5" />
-      {/* פס צד */}
-      <rect x="8" y="47" width="154" height="7" fill={gold ? '#b45309' : '#e2e8f0'} opacity="0.6" />
-      {/* חלונות */}
-      {[26, 54, 82, 110].map((x, i) => (
-        <rect key={i} x={x} y="27" width="22" height="15" rx="3" fill={winFill} stroke={winStroke} strokeWidth="1.5" />
-      ))}
-      {/* דלת */}
-      <rect x="138" y="27" width="16" height="30" rx="3" fill={winFill} stroke={winStroke} strokeWidth="1.5" />
-      {/* פנס */}
-      <circle cx="158" cy="63" r="3" fill={gold ? '#fde68a' : '#fbbf24'} />
-      {/* גלגלים */}
-      <circle cx="44" cy="72" r="11" fill="#0f172a" />
-      <circle cx="44" cy="72" r="4.5" fill={gold ? '#fbbf24' : '#94a3b8'} />
-      <circle cx="124" cy="72" r="11" fill="#0f172a" />
-      <circle cx="124" cy="72" r="4.5" fill={gold ? '#fbbf24' : '#94a3b8'} />
-      {gold && <circle cx="30" cy="31" r="3" fill="#ffffff" opacity="0.85" />}
-    </svg>
-  );
-};
-
-// ── TrashBin — פח אשפה ────────────────────────────────────────────────
-const TrashBin = ({ className = '' }) => (
-  <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect x="52" y="18" width="16" height="10" rx="2" fill="#1e293b" />
-    <rect x="18" y="26" width="84" height="12" rx="3" fill="#334155" />
-    <path d="M26 40 L94 40 L86 112 Q85 116 81 116 L39 116 Q35 116 34 112 Z" fill="#475569" />
-    <path d="M46 48 L51 108" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
-    <path d="M60 48 L60 108" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
-    <path d="M74 48 L69 108" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
-  </svg>
-);
-
 // ── נוסעים לפי רבעון (שלמה 23.10) — ממאגר "נסועה בקווי אוטובוס" של משרד התחבורה ──
 // kavpach-ridership.json (tools/kavpach_ridership.py, פעם בשבוע): לכל מק"ט — נוסעים בשבוע לכל רבעון,
 // והמלצת המשרד מהרבעון האחרון. נטען פעם אחת, ברקע; קו בלי נתונים — בלי התיבה.
@@ -660,377 +602,65 @@ const RidershipBlock = ({ makat }) => {
   );
 };
 
-// ── ChoiceScreen — מסך פתיחה: בחירה בין קו פח להקו המוזהב ──────────────
-function ChoiceScreen({ onPick }) {
-  const [aboutMe, setAboutMe] = useState(false);
+// ── המראה של קו פח והקו המוזהב (שלמה 06.11) — כמו דף הבית: פס עליון שקוף עם "הקו הבוחן" ושם הכלי,
+// הסמל הגדול של הכלי (KBH.ICON מ-home/home.js) וכותרת. העיצוב עצמו ב-home/home.css, תחת .kbt.
+// כפתור "חזרה לקו הבוחן" יושב בתוך הפס (לא צף מעל הכותרת בטלפון).
+const KbToolBar = ({ name, onHome }) => {
+  const home = (e) => { if (!plainClick(e)) return; e.preventDefault(); onHome(); };
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
-      <div className="max-w-7xl w-full">
-        <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-3.5">
-            {/* העין הבוחנת — הסמל שנבחר לאתר; האישון בוחן לכל הכיוונים ואז העין ממצמצת (.kb-eye-iris, .kb-eye-lid ב-index.html, שלמה 13.10) */}
-            <svg viewBox="0 0 120 120" className="w-11 h-11 md:w-14 md:h-14 flex-none"><rect width="120" height="120" rx="26" fill="#0f172a"/><defs><clipPath id="kb-eye-clip-app"><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z"/></clipPath></defs><g className="kb-eye-lid"><path d="M14 60 Q60 20 106 60 Q60 100 14 60 Z" stroke="#38bdf8" strokeWidth="6" fill="none" strokeLinejoin="round"/><g clipPath="url(#kb-eye-clip-app)"><g className="kb-eye-iris"><circle cx="60" cy="60" r="20" fill="#38bdf8"/><circle cx="60" cy="60" r="9.5" fill="#0f172a"/><circle cx="66" cy="54" r="3.5" fill="#fff"/></g></g></g><path d="M22 60 H34 M86 60 H98" stroke="#38bdf8" strokeWidth="4" strokeLinecap="round" strokeDasharray="1 7"/></svg>
-            <h1 className="text-4xl md:text-5xl font-[900] text-slate-900 tracking-tight">הקו הבוחן</h1>
-          </div>
-          <p className="text-slate-500 font-bold mt-3 text-base md:text-lg">חמישה-עשר כלים לניתוח התחבורה הציבורית — במה לבחור?</p>
-          <button onClick={() => setAboutMe(v => !v)} className="mt-3 text-sm font-black text-sky-700 hover:text-sky-900 hover:underline">
-            👋 קצת עליי {aboutMe ? '▲' : '▼'}
-          </button>
-          {aboutMe && (
-            <div className="max-w-3xl mx-auto mt-4 bg-white rounded-2xl shadow-md border border-slate-200 p-6 text-right leading-relaxed text-slate-700 font-medium text-sm md:text-base md:flex md:gap-6 md:items-start">
-              <figure className="flex-none w-48 md:w-52 mx-auto md:mx-0 mb-4 md:mb-0">
-                <img src="media/shlomi.jpg" alt="שלומי ליד שלט תחנה אישי שקיבל ליום הולדתו" className="w-full rounded-xl shadow-md border border-slate-200" loading="lazy" />
-                <figcaption className="text-[11px] text-slate-500 font-bold mt-2 leading-snug">
-                  התחנה הפרטית שלי 🚏 מתנת יום הולדת 20 מההורים הכי נפלאים בעולם: מספר התחנה הוא תאריך הלידה שלי, והקווים על השלט — קווים ששיניתי.
-                </figcaption>
-              </figure>
-              <div>
-              <p>שלום, שמי שלמה (שלומי) הרטמן, בן 20 מקריית מלאכי. תחבורה ציבורית זורמת אצלי בדם מגיל קטן.</p>
-              <p className="mt-3">בין 2023 ל־2025 ערכתי המון בוויקיפדיה תחת השם <a href="https://he.wikipedia.org/wiki/%D7%9E%D7%A9%D7%AA%D7%9E%D7%A9:%D7%A4%D7%A8%D7%99%D7%A7_%D7%94%D7%AA%D7%97%D7%A6" target="_blank" rel="noopener" className="text-sky-700 font-black hover:underline">פריק התחצ</a>. ב־2026, כשנמאס לי מהתשובות הקבועות של משרד התחבורה — "אין תקציב" — חשבתי לעצמי: למה שלא אבנה אתר שמראה את כל הבזבוז? כך נולד קו פח.</p>
-              <p className="mt-3">בהתחלה הוא היה האתר היחיד, אבל לאט לאט הגיעו עוד רעיונות: קו באג, התחנה הבאה והקו המוזהב. כשנכנסה התחנה הבאה אמרתי לעצמי — למה לא אתר אחד שמרכז את כולם? וכך נוצר הקו הבוחן.</p>
-              <p className="mt-3">והדבר שהכי מדהים אותי: את כל האתרים האלה אני בונה יחד עם בינה מלאכותית (קלוד) — אני מביא את הרעיונות, הידע וההנחיות, והיא את הקוד. ככה קם כלי אחרי כלי בתוך ימים, בזמן שלמשרד התחבורה לוקח שנים להקים אתר אחד.</p>
-              <p className="mt-3">בזכות האתר פנו אליי אנשים מההסתדרות ומהמכון הטכנולוגי חולון — הרגע המאושר בחיי. אולי בעתיד ייצאו איתם אתרים חדשים.</p>
-              <p className="mt-3">יש לכם רעיון לאתר? אשמח לשמוע — <a href="mailto:shlomihartman@gmail.com" className="text-sky-700 font-black hover:underline">כתבו לי</a>. לך תדעו, אולי דווקא הרעיון שלכם יצא לפועל.</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {/* קו פח */}
-          <a
-            href="#פח"
-            onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onPick('kavpach'); }}
-            className="group relative block overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 bg-slate-800 rounded-full opacity-50" />
-            <div className="relative">
-              <div className="relative h-32 mb-5">
-                {/* אוטובוס "גרוטאה" (מאחור) */}
-                <BusArt
-                  variant="scrap"
-                  className="w-32 absolute z-0 drop-shadow-xl transition-transform duration-300 group-hover:translate-y-1.5"
-                />
-                {/* פח אשפה (מקדימה) */}
-                <TrashBin
-                  className="w-24 h-24 absolute bottom-0 z-10 drop-shadow-md"
-                />
-              </div>
-              <h2 className="text-3xl font-[900] text-white">קו פח</h2>
-              <p className="text-slate-300 font-bold mt-2 text-sm leading-relaxed">קווים ריקים ובזבזניים — מועמדים לביטול או צמצום</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-white text-slate-900 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* הקו המוזהב */}
-          <a
-            href="#מוזהב"
-            onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onPick('golden'); }}
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#1f2937 0%,#3b2f12 52%,#92400e 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#fbbf24' }} />
-            <div className="relative">
-              <div className="flex items-center justify-end mb-6 h-28">
-                <BusArt variant="gold" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-2" />
-              </div>
-              <h2 className="text-3xl font-[900] text-amber-300">הקו המוזהב</h2>
-              <p className="text-amber-100/80 font-bold mt-2 text-sm leading-relaxed">הקווים המצטיינים — הסטנדרט שאליו כדאי לשאוף</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-amber-400 text-amber-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* קו באג — פרויקט עצמאי בריפו נפרד (kav-bug); שם הגרסה החיה והמתעדכנת */}
-          <a
-            href="https://transit-freak.github.io/kav-bug/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#6366f1' }} />
-            <div className="relative">
-              <div className="flex items-center justify-end mb-6 h-28">
-                {/* מוטיב המסלול של "קו באג": קו-ייחוס ירוק וזיגזג הסטייה הכתום */}
-                <svg viewBox="0 0 140 90" className="w-40 drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="64" x2="122" y2="64" stroke="#1f9d57" strokeWidth="10" strokeLinecap="round" />
-                  <polyline points="18,64 44,18 70,64 96,18 122,64" fill="none" stroke="#ef8a17" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="18" cy="64" r="9" fill="#fff" />
-                  <circle cx="122" cy="64" r="9" fill="#fff" />
-                </svg>
-              </div>
-              <h2 className="text-3xl font-[900] text-indigo-200">קו באג</h2>
-              <p className="text-indigo-100/80 font-bold mt-2 text-sm leading-relaxed">תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-indigo-400 text-indigo-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* התחנה הבאה — כלי נפרד (אפליקציה עצמאית בתיקיית next-station/) */}
-          <a
-            href="next-station/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0b2545 0%,#13386e 52%,#2563eb 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#60a5fa' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                {/* הסמל של "התחנה הבאה" — זהה לאתר עצמו (אמוג'י תחנת אוטובוס 🚏) */}
-                <span className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" style={{ fontSize: '90px', lineHeight: 1 }}>🚏</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-sky-200">התחנה הבאה</h2>
-              <p className="text-sky-100/80 font-bold mt-2 text-sm leading-relaxed">תחנות ששמן אינו תואם לרחוב שבכתובת</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-sky-400 text-sky-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* הקו המדלג — ניסוי חדש (אפליקציה עצמאית בתיקיית skip-stops/) */}
-          <a
-            href="skip-stops/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#451a03 0%,#7c2d12 52%,#d97706 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#f59e0b' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                {/* הסמל של "הקו המדלג" — אוטובוס מקפץ מעל תחנה (זהה ל-favicon של הכלי) */}
-                <svg viewBox="4 4 26 26" style={{ width: '96px', height: '96px' }} className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 26 L10 26 Q17 15 24 26 L30 26" stroke="#fde68a" strokeWidth="2" fill="none" strokeDasharray="2.5 2" strokeLinecap="round" />
-                  <circle cx="17" cy="26" r="2.6" fill="#7c2d12" stroke="#fff" strokeWidth="1.4" />
-                  <circle cx="7" cy="26" r="2.6" fill="#fff" />
-                  <circle cx="27" cy="26" r="2.6" fill="#fff" />
-                  <rect x="10" y="6" width="14" height="9" rx="2.5" fill="#fff" />
-                  <rect x="12" y="8" width="4" height="3.5" rx="1" fill="#d97706" />
-                  <rect x="18" y="8" width="4" height="3.5" rx="1" fill="#d97706" />
-                  <circle cx="13" cy="15" r="1.6" fill="#7c2d12" />
-                  <circle cx="21" cy="15" r="1.6" fill="#7c2d12" />
-                </svg>
-              </div>
-              <h2 className="text-3xl font-[900] text-amber-200">הקו המדלג</h2>
-              <p className="text-amber-100/80 font-bold mt-2 text-sm leading-relaxed">קווים שחולפים ליד תחנה פעילה — בלי לעצור בה</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-amber-400 text-amber-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* הקו בזמן — אפליקציה עצמאית בתיקיית line-history/ */}
-          <a
-            href="line-history/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#2e1065 0%,#4c1d95 52%,#7c3aed 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#a78bfa' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                <span className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" style={{ fontSize: '90px', lineHeight: 1 }}>🕰️</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-violet-200">הקו בזמן</h2>
-              <p className="text-violet-100/80 font-bold mt-2 text-sm leading-relaxed">היסטוריית קווים מ-2003 ועד היום — מסלול, שרטוט, תחנות, שמות ולוחות זמנים</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-violet-300 text-violet-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* המחירון — מחשבון מחיר הנסיעה (אפליקציה עצמאית בתיקיית fares/) */}
-          <a
-            href="fares/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#022c22 0%,#065f46 52%,#059669 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#34d399' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                {/* הסמל של "המחירון" — כרטיס נסיעה (זהה לכותרת הכלי עצמו) */}
-                <span className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" style={{ fontSize: '90px', lineHeight: 1 }}>🎫</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-emerald-200">המחירון</h2>
-              <p className="text-emerald-100/80 font-bold mt-2 text-sm leading-relaxed">כמה עולה הנסיעה — בודדת, יומי וחודשי, לכל קו או בין שתי תחנות</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-emerald-300 text-emerald-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* רציף כפול — התנגשויות רציף מוצא (אפליקציה עצמאית בתיקיית ratzif/) */}
-          <a
-            href="ratzif/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#083344 0%,#155e75 52%,#0891b2 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-20" style={{ background: '#22d3ee' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                {/* הסמל: רציף אחד, שני אוטובוסים דחוסים בו, שעון אחד לשניהם */}
-                <svg width="126" height="96" viewBox="0 0 63 48" className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">
-                  <rect x="2" y="2" width="59" height="9" rx="2.5" fill="#a5f3fc"/>
-                  <text x="31.5" y="9" fontSize="6.2" fontWeight="800" fill="#083344" textAnchor="middle" fontFamily="Rubik,Arial">רציף 1</text>
-                  <path d="M14 13v31" stroke="#e0f2fe" strokeWidth="2" strokeDasharray="4 3" fill="none"/>
-                  <path d="M49 13v31" stroke="#e0f2fe" strokeWidth="2" strokeDasharray="4 3" fill="none"/>
-                  <rect x="17.5" y="14" width="13" height="32" rx="4" fill="#f8fafc" stroke="#334155" strokeWidth="1.1"/>
-                  <rect x="19.5" y="15.5" width="9" height="3.6" rx="1.6" fill="#1e293b"/>
-                  <rect x="20" y="22" width="8" height="20" rx="2.5" fill="#e2e8f0"/>
-                  <rect x="32.5" y="14" width="13" height="32" rx="4" fill="#f8fafc" stroke="#334155" strokeWidth="1.1"/>
-                  <rect x="34.5" y="15.5" width="9" height="3.6" rx="1.6" fill="#1e293b"/>
-                  <rect x="35" y="22" width="8" height="20" rx="2.5" fill="#e2e8f0"/>
-                  <circle cx="31.5" cy="30" r="7.6" fill="#fbbf24" stroke="#78350f" strokeWidth="1.2"/>
-                  <path d="M31.5 30 V25.4 M31.5 30 L35 31.8" stroke="#78350f" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
-                </svg>
-              </div>
-              <h2 className="text-3xl font-[900] text-cyan-200">רציף כפול</h2>
-              <p className="text-cyan-100/80 font-bold mt-2 text-sm leading-relaxed">שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-cyan-300 text-cyan-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* צי הרכבים — אפליקציה עצמאית בתיקיית fleet/ */}
-          <a
-            href="fleet/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0b1220 0%,#10172a 52%,#475569 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#94a3b8' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6 h-28">
-                <svg width="126" height="90" viewBox="4 14 56 40" className="drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1"><path d="M6 16h16l4 5h32v32H6z" fill="#3b82f6"/><path d="M6 16h16l4 5h32v5H6z" fill="#2563eb"/><rect x="16" y="30" width="32" height="16" rx="4" fill="none" stroke="#fff" strokeWidth="2.6"/><path d="M16 39h32" stroke="#fff" strokeWidth="2.2"/><circle cx="23" cy="46" r="2.8" fill="#fff"/><circle cx="41" cy="46" r="2.8" fill="#fff"/><rect x="20" y="33" width="6" height="4" rx="1" fill="#fff"/><rect x="28" y="33" width="6" height="4" rx="1" fill="#fff"/><rect x="36" y="33" width="6" height="4" rx="1" fill="#fff"/></svg>
-              </div>
-              <h2 className="text-3xl font-[900] text-slate-200">צי הרכבים</h2>
-              <p className="text-slate-100/80 font-bold mt-2 text-sm leading-relaxed">כל האוטובוסים שנצפו בשידורי האיכון — לאיזו חברה כל רכב שייך, מאיזו שנה, מתי נצפה ומה פרטיו במאגר הרישוי</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-slate-300 text-slate-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* מדד אמינות הרכבת — עמוד עצמאי בתיקיית rail/, מנתוני דאטאבוס (שלמה 04.09) */}
-          <a
-            href="rail/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#0369a1 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#7dd3fc' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🚆</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-sky-100">מדד אמינות הרכבת</h2>
-              <p className="text-sky-100/80 font-bold mt-2 text-sm leading-relaxed">כל רכבת שבלו"ז מול המיקום ששידרה בפועל: כמה רכבות הגיעו בזמן, איחור לפי קו, תחנה ושעה, וכל נסיעה על המפה — יום אחרי יום, מנתוני דאטאבוס</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-sky-200 text-sky-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* קליטה ברכבת — עמוד עצמאי בתיקיית rail/reception/: אנטנות המשרד להגנת הסביבה, מנהרות OSM, מהירות מדאטאבוס (שלמה 19.09) */}
-          <a
-            href="rail/reception/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#6d28d9 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#c4b5fd' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">📶</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-violet-100">קליטה ברכבת</h2>
-              <p className="text-violet-100/80 font-bold mt-2 text-sm leading-relaxed">איפה יש קליטה סלולרית ברכבת ואיפה לא: כל 100 מטר מסילה לפי האנטנות של כל חברה, המנהרות, מהירות הנסיעה בפועל וסוג הקרון — פלאפון, סלקום, פרטנר והוט, דור 4 ודור 5</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-violet-200 text-violet-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* הקו המודיע — עמוד עצמאי בתיקיית alerts/: שינויי שירות זמניים של משרד התחבורה דרך bus-alerts.com (שלמה 18.10) */}
-          <a
-            href="alerts/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#9333EA 70%,#DB2777 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#f9a8d4' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <img src="alerts/icon.svg" alt="" width="84" height="84" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
-              </div>
-              <h2 className="text-3xl font-[900] text-fuchsia-100">הקו המודיע</h2>
-              <p className="text-fuchsia-100/80 font-bold mt-2 text-sm leading-relaxed">עבודות, אירועים, הפגנות וחסימות: כל השינויים הזמניים בקווים, עם המסלול העוקף על המפה, התחנות שבוטלו זמנית והתחנות החלופיות</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-fuchsia-200 text-fuchsia-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* איפה האוטובוס נתקע — עמוד עצמאי בתיקיית bus-speed/: מהירות האוטובוסים בכל רחוב ושעה, מנתוני דאטאבוס (שלמה 29.10) */}
-          <a
-            href="bus-speed/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#B91C1C 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#fca5a5' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <img src="bus-speed/icon.svg" alt="" width="84" height="84" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" />
-              </div>
-              <h2 className="text-3xl font-[900] text-red-100">איפה האוטובוס נתקע</h2>
-              <p className="text-red-100/80 font-bold mt-2 text-sm leading-relaxed">המהירות של האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים: איפה נתקעים, מתי, ואיזה יישוב הכי עמוס</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-red-200 text-red-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* הקו המזין — עמוד עצמאי בתיקיית feeder/, כלי למתכננים: אוטובוסים ליד תחנות רכבת מול הרכבות, בפועל */}
-          <a
-            href="feeder/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#15803D 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#86efac' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                {/* הסמל של הקו המזין: רכבת שהקרון האחרון שלה הוא אוטובוס (שלמה 14.10) */}<svg viewBox="0 0 120 120" className="w-[84px] h-[84px] drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1" aria-hidden="true"><rect width="120" height="120" rx="26" fill="#15803D"/><rect x="14" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="26" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="38" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="50" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="62" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="74" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="86" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><rect x="98" y="88" width="5" height="6" rx="1" fill="#fff" opacity=".7"/><path d="M6 87 H114" stroke="#fff" strokeWidth="4" strokeLinecap="round"/><path d="M30 32 L40 24 L50 32" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinejoin="round"/><path d="M28 24 H52" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><path d="M8 78 V58 C8 44 18 34 34 34 H64 V78 Z" fill="#fff"/><path d="M14 52 C16 45 21 41 28 41 V52 Z" fill="#15803D"/><rect x="33" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="43" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="53" y="41" width="7" height="9" rx="1.5" fill="#15803D"/><rect x="10" y="62" width="54" height="3" fill="#15803D"/><circle cx="16" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><circle cx="25" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><circle cx="47" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><circle cx="56" cy="81" r="4.5" fill="#fff" stroke="#15803D" strokeWidth="2.5"/><rect x="64" y="70" width="7" height="4" fill="#fff"/><rect x="71" y="48" width="42" height="32" rx="7" fill="#fff"/><path d="M75 52 H86 V66 H75 Z" fill="#15803D"/><rect x="89" y="52" width="5" height="22" rx="1.5" fill="#15803D"/><rect x="97" y="52" width="6" height="9" rx="1.5" fill="#15803D"/><rect x="105" y="52" width="5" height="9" rx="1.5" fill="#15803D"/><circle cx="81" cy="81" r="6.5" fill="#fff" stroke="#15803D" strokeWidth="3"/><circle cx="104" cy="81" r="6.5" fill="#fff" stroke="#15803D" strokeWidth="3"/></svg>
-              </div>
-              <h2 className="text-3xl font-[900] text-green-100">הקו המזין</h2>
-              <p className="text-green-100/80 font-bold mt-2 text-sm leading-relaxed">כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-green-200 text-green-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          {/* מדד דיוק האוטובוסים — עמוד עצמאי בתיקיית bus/, מ-SIRI גולמי של דאטאבוס (שלמה 06.09) */}
-          <a
-            href="bus/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0f172a 0%,#1e293b 45%,#047857 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#6ee7b7' }} />
-            <div className="relative">
-              <div className="flex items-center mb-6 h-28">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🚌</span>
-              </div>
-              <h2 className="text-3xl font-[900] text-emerald-100">מדד דיוק האוטובוסים</h2>
-              <p className="text-emerald-100/80 font-bold mt-2 text-sm leading-relaxed">כל אוטובוס בארץ מול הלו"ז, תחנה אחרי תחנה: כמה הגיעו בזמן, מי יצא מוקדם ומי איחר ואיפה לאורך הקו — לפי קו, מפעיל, עיר ושעה, יום אחרי יום, מנתוני דאטאבוס</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-emerald-200 text-emerald-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-        </div>
-
-        {/* שיתופי פעולה (שלמה 17.09): אזורי התעשייה עם ההסתדרות, וגו אינפו של רם אגמון — כל אחד מפרסם את של השני */}
-        <div id="partners" className="mt-12 pt-8 border-t border-slate-200">
-          <h2 className="text-2xl font-black text-slate-800 mb-6">שיתופי פעולה</h2>
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {/* נגישות אזורי תעשייה — אפליקציה עצמאית בתיקיית parks/, בשיתוף
-              מחלקת קידום תחבורה ציבורית בהסתדרות (שלמה 03.09: סמלי ההסתדרות בכרטיס) */}
-          <a
-            href="parks/"
-            className="group relative block overflow-hidden rounded-[2.5rem] p-8 text-right shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-            style={{ background: 'linear-gradient(155deg,#0c1e4a 0%,#1e3a8a 52%,#2563eb 100%)' }}
-          >
-            <div className="absolute -left-8 -top-8 w-44 h-44 rounded-full opacity-25" style={{ background: '#93c5fd' }} />
-            <div className="relative">
-              {/* הלוגואים יורדים לשורה משלהם כשהכרטיס צר (4 עמודות במחשב): בגובה קבוע
-                  ובלי שבירה הם נחתכו בקצה הכרטיס (שלמה 13.09) */}
-              <div className="flex flex-wrap items-center justify-between mb-6 min-h-28 gap-3">
-                <span className="text-[72px] leading-none drop-shadow-xl transition-transform duration-300 group-hover:-translate-y-1">🏭</span>
-                <div className="flex flex-wrap items-center justify-end gap-2" style={{ flex: "1 1 170px", minWidth: 0 }}>
-                  <img src="parks/histadrut-logo-96.webp" alt="תחום קידום תחבורה ציבורית — ההסתדרות" className="h-12 max-w-full object-contain bg-white rounded-xl px-2.5 py-1.5 shadow" />
-                  <img src="parks/rahokim-logo-96.webp" alt="רחוקים אבל שווים" className="h-12 max-w-full object-contain bg-white rounded-xl px-2 py-1 shadow" />
-                </div>
-              </div>
-              <h2 className="text-3xl font-[900] text-blue-100">נגישות אזורי תעשייה</h2>
-              <p className="text-blue-100/80 font-bold mt-2 text-sm leading-relaxed">ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות</p>
-              <span className="inline-flex items-center gap-2 mt-5 bg-blue-200 text-blue-950 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3.5 transition-all">כניסה <span>←</span></span>
-            </div>
-          </a>
-
-          </div>
-        </div>
-
-        <p data-copyright="" className="text-center text-slate-500 font-bold text-xs mt-8">© 2026 שלמה הרטמן · נבנה בעזרת בינה מלאכותית לפי הנחיותיו · מותר לצטט ולקשר בציון המקור · <a href="mailto:shlomihartman@gmail.com" className="hover:underline" dir="ltr">shlomihartman@gmail.com</a> · <a href="links.html" className="hover:underline">קישורים</a> · <a href="terms.html#copyright" className="hover:underline">זכויות יוצרים ותנאי שימוש</a> · <a href="accessibility.html" className="hover:underline">הצהרת נגישות</a></p>
+    <header className="kbt-bar">
+      <div className="kbt-bar-in">
+        <span className="kbt-crumbs" data-kb-chrome="">
+          <a className="kbt-brand" href="./" onClick={home}>הקו הבוחן</a>
+          <span className="kbt-slash" aria-hidden="true">/</span>
+          <span className="kbt-tool">{name}</span>
+        </span>
+        <a href="./" onClick={home} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</a>
+        <a className="kbt-gh" data-kb-chrome="" href="https://github.com/Transit-Freak/kav-bochan" target="_blank" rel="noopener" aria-label="קוד המקור של האתר ב-GitHub" title="קוד המקור ב-GitHub"><svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
       </div>
-    </div>
+    </header>
   );
+};
+const KbToolIcon = ({ k }) => {
+  const html = useMemo(() => { try { return window.KBH.ICON[k](); } catch (e) { return ''; } }, [k]);
+  useEffect(() => { try { window.KBH.ensureDefs(); } catch (e) { /* בלי home.js — בלי סמל */ } }, []);
+  return <div className="kbt-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />;
+};
+
+// ── ChoiceScreen — דף הבית של הקו הבוחן (שלמה 06.11): העין הבוחנת וכל הכלים סביבה ─────────
+// ה-HTML, הסמלים, העין ורשימת הכלים — ב-home/home.js (KBH), משותף לדף הסטטי ב-index.html.
+// בטעינה הראשונה React מאמץ את הצומת הסטטי עצמו (window.__kbhNode) — שום דבר לא נבנה מחדש ולא קופץ;
+// וגם בחזרה מכלי מוצג אותו צומת. קו פח והקו המוזהב נפתחים בתוך האפליקציה (onPick), כמו קודם.
+function ChoiceScreen({ onPick }) {
+  const box = useRef(null);
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+  const K = typeof window !== 'undefined' ? window.KBH : null;
+  React.useLayoutEffect(() => {
+    if (!K || !box.current) return;
+    let node = window.__kbhNode;
+    if (!node) {
+      const t = document.createElement('div');
+      t.innerHTML = K.html(null);
+      node = window.__kbhNode = t.firstElementChild;
+    }
+    box.current.appendChild(node);
+    K.mount(node, { onPick: (m, e) => { if (!plainClick(e)) return false; pickRef.current(m); return true; } });
+    return () => { K.unmount(node); if (node.parentNode) node.parentNode.removeChild(node); };
+  }, []);
+  if (!K) {
+    // home/home.js לא נטען — לפחות הכניסה לשני הכלים שבתוך האפליקציה
+    return (
+      <div className="min-h-screen p-6 text-right" dir="rtl">
+        <h1 className="text-4xl font-[900] text-slate-900">הקו הבוחן</h1>
+        <p className="mt-4 flex gap-4 font-black">
+          <a href="#פח" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onPick('kavpach'); }} className="text-sky-700 underline">קו פח</a>
+          <a href="#מוזהב" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onPick('golden'); }} className="text-sky-700 underline">הקו המוזהב</a>
+        </p>
+      </div>
+    );
+  }
+  return <div ref={box} className="kbh-host" />;
 }
 
 // ── GoldenApp — כלי "הקו המוזהב": קווים מצטיינים ─────────────────────────
@@ -1337,27 +967,24 @@ function GoldenApp({ onBack, trips, costBenchmarkTable, lineCitiesMap, liveOf, l
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
+    <div className="kbt kbt-gold min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
+      <KbToolBar name="הקו המוזהב" onHome={onBack} />
       <div className="max-w-6xl mx-auto">
 
-        <header className="mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-center md:text-right">
-            <div className="flex items-center gap-3 justify-center md:justify-end">
-              <div className="bg-slate-900 text-white p-2.5 rounded-2xl rotate-3 shadow-lg">
-                <Ic n="star" size={28} strokeWidth="2" />
-              </div>
-              <h1 className="text-4xl font-[900] text-slate-900 tracking-tighter leading-none">הקו המוזהב</h1>
-              <span className="text-xs font-bold text-slate-500 mr-3">נבנה על ידי שלמה הרטמן</span>
+        <header className="kbt-hero">
+          <KbToolIcon k="golden" />
+          <div className="kbt-hero-txt">
+            <div className="kbt-titlerow">
+              <h1 className="kbt-h1">הקו המוזהב</h1>
+              <span className="kbt-by">נבנה על ידי שלמה הרטמן</span>
             </div>
-            <p className="text-slate-500 text-sm font-bold mt-2 pr-1">מאתרים קווים מצטיינים • יעילות גבוהה, נוסעים רבים</p>
-            {/* אותה חותמת שקיפות כמו בקו פח — שני הכלים נשענים על אותו צילום */}
-            <p className="text-slate-500 text-[11px] font-bold mt-1 pr-1">
+            <p className="kbt-sub">מאתרים קווים מצטיינים • יעילות גבוהה, נוסעים רבים</p>
+            <p className="kbt-meta">
               נתוני נוסעים ועלויות: צילום משרד התחבורה, יוני 2026
               {/* תאריך ההצלבה מגיע מקובץ נפרד — נשמר לו מקום כבר עכשיו, שהכותרת לא תגדל ותדחוף את הדף (Lighthouse: CLS) */}
               {' · הצלבה מול רישום הקווים העדכני: '}{liveGen ? String(liveGen).split('-').reverse().join('.') : <span className="inline-block w-16 h-[1em] align-middle bg-slate-100 rounded" aria-hidden="true" />}
             </p>
           </div>
-          <a href="./" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); onBack(); }} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</a>
         </header>
 
         <nav className="flex bg-slate-200/50 backdrop-blur p-1.5 rounded-[2rem] mb-12 max-w-4xl mx-auto shadow-inner border border-slate-200 overflow-x-auto">
@@ -3887,7 +3514,7 @@ const DAYS_FILTER = [
   // מסך טעינה מלא — מוצג רק כשנכנסים לכלי לפני שהנתונים מוכנים
   // מסך הטעינה מעוגן למעלה (לא ממורכז אנכית): כשהאפליקציה מופיעה הכותרת לא קופצת — Lighthouse: CLS 0.41
   const fullLoadingScreen = (
-    <div key="loading" className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-start gap-6 px-6 pt-24 md:pt-32" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
+    <div key="loading" className="kbt kbt-loading min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-start gap-6 px-6 pt-24 md:pt-32" dir="rtl" style={{ fontFamily: "'Heebo', sans-serif" }}>
       {loadError ? (
         <>
           <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -3927,31 +3554,25 @@ const DAYS_FILTER = [
 
   // key נפרד למסך הטעינה ולאפליקציה: בלי זה React השתמש באותו DOM והאלמנט "זז" — Lighthouse: CLS
   return (
-    <div key="app" className="min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
+    <div key="app" className="kbt kbt-pach min-h-screen bg-[#F8FAFC] text-slate-900 p-4 md:p-6 pb-20" style={{ fontFamily: "'Heebo', sans-serif" }} dir="rtl">
+      <KbToolBar name="קו פח" onHome={() => pickMode('choice')} />
       <CitiesDatalist cities={allCities} />
 
       <div className="max-w-6xl mx-auto">
-        <header className="mb-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-center md:text-right">
-            <div className="flex items-center gap-3 justify-center md:justify-end">
-              <div className="bg-slate-900 text-white p-2.5 rounded-2xl rotate-3 shadow-lg">
-                <Ic n="trash" size={28} />
-              </div>
-              <h1 className="text-4xl font-[900] text-slate-900 tracking-tighter leading-none">קו פח</h1>
-              <div className="relative mr-3 flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-500">נבנה על ידי שלמה הרטמן</span>
-              </div>
+        <header className="kbt-hero">
+          <KbToolIcon k="kavpach" />
+          <div className="kbt-hero-txt">
+            <div className="kbt-titlerow">
+              <h1 className="kbt-h1">קו פח</h1>
+              <span className="kbt-by">נבנה על ידי שלמה הרטמן</span>
             </div>
-            <p className="text-slate-500 text-sm font-bold mt-2 pr-1">מאתרים קווים ריקים • מייעלים את הלו&quot;ז</p>
-            {/* שקיפות: על סמך מה הטענות. בלי זה כל ספקן — או מפעיל שהקו
-                שלו סומן — מתחיל מ"הנתונים בכלל לא עדכניים" וצודק חלקית */}
-            <p className="text-slate-500 text-[11px] font-bold mt-1 pr-1">
+            <p className="kbt-sub">מאתרים קווים ריקים • מייעלים את הלו&quot;ז</p>
+            <p className="kbt-meta">
               נתוני נוסעים ועלויות: צילום משרד התחבורה, יוני 2026
               {/* תאריך ההצלבה מגיע מקובץ נפרד — נשמר לו מקום כבר עכשיו, שהכותרת לא תגדל ותדחוף את הדף (Lighthouse: CLS) */}
               {' · הצלבה מול רישום הקווים העדכני: '}{liveGen ? String(liveGen).split('-').reverse().join('.') : <span className="inline-block w-16 h-[1em] align-middle bg-slate-100 rounded" aria-hidden="true" />}
             </p>
           </div>
-          <a href="./" onClick={(e) => { if (!plainClick(e)) return; e.preventDefault(); pickMode('choice'); }} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</a>
         </header>
 
 

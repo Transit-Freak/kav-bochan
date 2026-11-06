@@ -1,12 +1,13 @@
 // כרטיסי השיתוף (og-image.png) — התמונה שמופיעה בווטסאפ ובשאר הרשתות כששולחים קישור (שלמה 29.10).
-//   og-image.png בשורש — הקו הבוחן: שם, תת-כותרת וכל הכלים שבדף הבית. רשימת הכלים נלקחת מהכרטיסים
-//     ב-KavPach.jsx (כותרת h2 של כל כרטיס כלי), כך שכלי חדש בדף הבית נכנס לבד בהרצה הבאה.
+//   og-image.png בשורש — הקו הבוחן: שם, תת-כותרת וכל הכלים שבדף הבית. רשימת הכלים נלקחת מ-home/home.js
+//     (KBH.GROUPS ו-KBH.PARKS — הכרטיסים של דף הבית), כך שכלי חדש בדף הבית נכנס לבד בהרצה הבאה.
 //   <כלי>/og-image.png — כרטיס לכלי אחד, לפי TOOLS למטה.
 // הרצה: node tools/og_cards.mjs [home] [<תיקיית כלי>…]   (בלי ארגומנטים — הכל)
 // צריך Playwright ורשת לגופן Heebo (Google Fonts).
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 
 const { chromium } = createRequire(import.meta.url)('playwright');   // require — כדי ש-NODE_PATH יעבוד גם בלי node_modules בריפו
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -20,9 +21,13 @@ const TOOLS = {
   'ratzif': { name: 'רציף כפול', sub: 'שני אוטובוסים שאמורים לצאת מאותו רציף באותה דקה', bg: ['#0b3443', '#0b4f66', '#0891b2'], ink: '#a5f3fc', icon: 'ratzif/favicon.svg' },
 };
 
+// רשימת הכלים של דף הבית — מ-home/home.js (KBH.ALL: כל הכרטיסים, וגם נגישות אזורי תעשייה), שממנו נבנים
+// גם ChoiceScreen ב-KavPach.jsx וגם הדף הסטטי ב-index.html
 function homeTools() {
-  const jsx = fs.readFileSync(path.join(ROOT, 'KavPach.jsx'), 'utf8');
-  return [...jsx.matchAll(/<h2 className="text-3xl font-\[900\][^"]*">([^<{]+)<\/h2>/g)].map(m => m[1].trim());
+  const ctx = { window: {}, console };
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'home', 'home.js'), 'utf8'), ctx);
+  return ctx.window.KBH.ALL.map(t => t.n);
 }
 
 const BUS = `<svg width="230" height="120" viewBox="0 0 230 120"><rect x="6" y="6" width="218" height="86" rx="18" fill="#f8fafc" stroke="#14b8a6" stroke-width="10"/><rect x="6" y="56" width="218" height="10" fill="#14b8a6"/><rect x="24" y="20" width="34" height="26" rx="5" fill="#99f6e4"/><rect x="68" y="20" width="34" height="26" rx="5" fill="#99f6e4"/><rect x="112" y="20" width="34" height="26" rx="5" fill="#99f6e4"/><rect x="156" y="20" width="34" height="26" rx="5" fill="#99f6e4"/><circle cx="52" cy="96" r="17" fill="#fff" stroke="#0f172a" stroke-width="6"/><circle cx="176" cy="96" r="17" fill="#fff" stroke="#0f172a" stroke-width="6"/></svg>`;
