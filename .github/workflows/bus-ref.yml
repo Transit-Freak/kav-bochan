@@ -38,7 +38,7 @@ jobs:
                       ii = pg['imageinfo'][0]; md = ii.get('extmetadata', {})
                       d = (md.get('DateTimeOriginal', {}).get('value') or '') + ' ' + (md.get('DateTime', {}).get('value') or '')
                       ys = [int(y) for y in re.findall(r'(?<!\d)(19\d\d|20\d\d)(?!\d)', d)]
-                      if not ys or min(ys) < 2018: continue
+                      if ys and min(ys) < 2010: continue
                       out.append((pg['title'], ii['thumburl']))
               return out
           def sheet(name, queries, cap=24):
@@ -61,8 +61,7 @@ jobs:
                   for i, t in enumerate(part): sh.paste(t.crop((0, 0, W, min(H, t.height))), ((i % 4) * W, (i // 4) * H))
                   sh.save(f'tools/bus-ref/{name}{s//12}.jpg', quality=75)
               print(name, len(ims))
-          sheet('sold', ['Israel Defense Forces soldiers', 'IDF soldiers', 'Female soldiers of the Israel Defense Forces', 'Women in the Israel Defense Forces', 'IDF soldiers bus'])
-          sheet('ppl', ['People of Tel Aviv', 'People in Jerusalem', 'Jaffa Road', 'Dizengoff Street', 'Jerusalem Light Rail', 'Tel Aviv Light Rail', 'Bus stops in Israel', 'Mahane Yehuda Market', 'Carmel Market'])
+          sheet('inside', ['bus interior Israel', 'Golden Dragon bus interior', 'Egged bus interior', 'Dan bus interior', 'Israeli bus interior seats', 'low floor bus interior wheelchair area', 'electric bus interior', 'Rav-Kav validator bus'], cap=36)
           PY
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add tools/bus-ref && git commit -qm "reference photos" && git push -q origin HEAD:claude/bus-ref
