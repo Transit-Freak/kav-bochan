@@ -31,16 +31,6 @@ CATS = [
    P(F, .45, MED, 'middleage_caucasian_female', 'bob01', ['male_casualsuit01'], 'shoes02', recol=(.35, .1, .15)),
    P(F, .24, MED, 'young_caucasian_female2', 'ponytail01', ['male_worksuit01'], 'shoes05', recol=(.1, .1, .12), bag=(.4, .3, .1)),
  ]),
- ('דתיים ודתיות', [
-   P(M, .35, MED, 'young_caucasian_male', 'short04', ['male_casualsuit03'], 'shoes04', kippa=(.15, .35, .6), beard=(.06, .04, .03), blen=.008, bag=(.2, .25, .15)),
-   P(M, .45, MED, 'middleage_caucasian_male', 'short02', ['male_casualsuit01'], 'shoes02', recol=(.85, .85, .85), kippa=(.85, .85, .8), beard=(.05, .04, .03), blen=.015),
-   P(M, .25, MED, 'young_caucasian_male2', 'short01', ['male_casualsuit06'], 'shoes01', kippa=(.6, .15, .1), bag=(.1, .2, .3)),
-   P(M, .30, ETH, 'young_african_male', 'short02', ['male_casualsuit04'], 'shoes03', recol=(.75, .78, .85), kippa=(.1, .1, .1)),
-   P(F, .30, MED, 'young_caucasian_female', 'bob01', ['male_casualsuit05'], 'shoes01', skirt=(.25, .35, .55), scarf=(.55, .25, .3)),
-   P(F, .25, MED, 'young_caucasian_female2', 'long01', ['male_casualsuit01'], 'shoes02', skirt=(.3, .3, .35), bag=(.45, .3, .2)),
-   P(F, .40, MED, 'middleage_caucasian_female', 'bob02', ['male_casualsuit03'], 'shoes03', skirt=(.1, .15, .25), scarf=(.2, .4, .45)),
-   P(F, .22, MED, 'young_caucasian_female', 'ponytail01', ['male_casualsuit06'], 'shoes06', skirt=(.4, .35, .3), bag=(.15, .15, .2)),
- ]),
  ('חרדים וחרדיות', [
    P(M, .55, MED, 'middleage_caucasian_male', 'short02', ['male_elegantsuit01', 'fedora01'], 'shoes02', recol=DARK, beard=(.04, .03, .025), blen=.03),
    P(M, .35, MED, 'young_caucasian_male', 'short04', ['male_elegantsuit01', 'fedora01'], 'shoes02', recol=DARK, beard=(.05, .035, .025), blen=.02),
@@ -103,13 +93,7 @@ def make(sp, x, y, num, seed):
     if sp['recol']: recolor([o for o in clothes[:-1] if o not in hat], sp['recol'])
     if hat: recolor(hat, (0.015, 0.015, 0.018), keep_shading=False)
     bi = body_info(bm, rig, [o for o in clothes if o not in hat])
-    if 'bag' in extra: add_backpack(bi, extra['bag'], extra.get('big'), [o for o in clothes if o not in hat])
-    if 'kippa' in extra: add_kippa(bm, (objs.get('Hair') or [None])[0], rig, extra['kippa'])
-    if 'sun' in extra and objs.get('Eyes'): add_sunglasses(objs['Eyes'][0], rig)
-    if 'beret' in extra: add_beret(bi, extra['beret'])
-    if 'skirt' in extra: add_skirt(bm, rig, extra['skirt'], [o for o in clothes if o not in hat])
-    if 'beard' in extra: add_beard(bm, rig, extra['beard'], extra.get('blen', 0.012))
-    if 'scarf' in extra: add_scarf(bm, (objs.get('Hair') or [None])[0], rig, extra['scarf'])
+    # שלמה 06.11: בלי תוספות שבנינו בעצמנו (חצאית, זקן, מטפחת, כיפה, תיק, משקפיים) — רק מה ש-MPFB מייצר
     t = bpy.data.curves.new(f'N{num}', 'FONT'); t.body = str(num); t.size = 0.2; t.align_x = 'CENTER'
     to = bpy.data.objects.new(f'Num{num}', t); SC.collection.objects.link(to); to.location = (x, y - 0.45, 0.005)
     to.data.materials.append(matc('M_Num', (0.05, 0.05, 0.05), 0.6))
@@ -147,11 +131,12 @@ for ci, (cat, y, xs) in enumerate(rows):
     SC.render.filepath = os.path.abspath(f'out/cat{ci + 1}.png'); bpy.ops.render.render(write_still=True); print('RENDER', ci + 1, cat)
     cam.location = (0, y + dist, 1.0); cam.rotation_euler = (math.radians(89), 0, math.radians(180))
     SC.render.filepath = os.path.abspath(f'out/cat{ci + 1}_back.png'); bpy.ops.render.render(write_still=True)
-# תקריבי פנים לכל מי שיש לו זקן/כיפה/מטפחת
+# תקריבי פנים — לכל אדם שלישי, כדי לראות את איכות הפנים
+num_face_skip = lambda n: n % 3 != 1
 SC.render.resolution_x, SC.render.resolution_y = 700, 700; cam.data.lens = 85
 for ci, (cat, y, xs) in enumerate(rows):
     for (nm, x), sp in zip(xs, CATS[ci][1]):
-        if not ({'beard', 'kippa', 'scarf', 'sun'} & set(sp['extra'])): continue
+        if num_face_skip(nm): continue
         rig = next((o for o in bpy.data.objects if o.type == 'ARMATURE' and abs(o.location.x - x) < 0.01 and abs(o.location.y - y) < 0.01), None)
         hz = (rig.matrix_world @ rig.pose.bones['head'].head).z + 0.08 if rig and 'head' in rig.pose.bones else (1.6 if sp['g'] else 1.5)
         cam.location = (x + 0.3, y - 1.45, hz + 0.02)
