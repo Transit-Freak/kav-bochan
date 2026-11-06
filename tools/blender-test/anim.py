@@ -19,8 +19,23 @@ HS.set_character_skin(A('skins/middleage_caucasian_male/middleage_caucasian_male
 for kind, rel in (('Eyes', 'eyes/high-poly/high-poly.mhclo'), ('Eyebrows', 'eyebrows/eyebrow006/eyebrow006.mhclo'),
                   ('Hair', 'hair/short04/short04.mhclo'), ('Clothes', 'clothes/male_casualsuit01/male_casualsuit01.mhclo'),
                   ('Clothes', 'clothes/shoes02/shoes02.mhclo')):
-    HS.add_mhclo_asset(A(rel), bm, asset_type=kind)
+    ob = HS.add_mhclo_asset(A(rel), bm, asset_type=kind)
+    if kind == 'Hair': hair = ob
 rig = bm.parent
+# הקרקפת בצבצה דרך הרווחים השקופים של השיער (שלמה 06.11): כיפה אטומה בצבע השיער, קצת מתחת לשיער
+try:
+    hair = hair if isinstance(hair, bpy.types.Object) else next(o for o in bpy.data.objects if o.type == 'MESH' and 'short04' in o.name.lower())
+    cap = hair.copy(); cap.data = hair.data.copy(); cap.name = 'hair_cap'; SC.collection.objects.link(cap)
+    m = bpy.data.materials.new('hair_cap'); m.use_nodes = True
+    m.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.025, 0.02, 0.016, 1)
+    m.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.7
+    cap.data.materials.clear(); cap.data.materials.append(m)
+    d = cap.modifiers.new('in', 'DISPLACE'); d.strength = -0.004
+    cap.modifiers.move(len(cap.modifiers) - 1, 0)
+    print('DBG hair cap', hair.name, [md.type for md in cap.modifiers])
+except Exception as e:
+    print('DBG hair cap failed', e)
+SC.cycles.transparent_max_bounces = 32
 print('RIG BONES', [b.name for b in rig.data.bones][:40])
 
 bpy.ops.import_anim.bvh(filepath=BVH, axis_forward='-Z', axis_up='Y', use_fps_scale=True, rotate_mode='NATIVE')
@@ -61,11 +76,23 @@ order = [b.name for b in rig.data.bones if b.name in off]           # מההור
 SC.frame_set(f0); bpy.context.view_layer.update()
 p0_src = src.matrix_world @ src.pose.bones[hips].head
 p0_dst = rig.matrix_world @ rig.pose.bones[hips].head
+# היד נכנסה לירך ולישבן בתנופה לאחור (שלמה 06.11): מרחיקים כל זרוע מהגוף בכמה מעלות, סביב כיוון ההליכה
+SC.frame_set(f1); fwd = (src.matrix_world @ src.pose.bones[hips].head) - p0_src; fwd.z = 0
+fwd = fwd.normalized() if fwd.length > 1e-3 else Vector((0, -1, 0)); SC.frame_set(f0)
+ANG = math.radians(float(os.environ.get('ARM_OUT', '8')))
+ABD = {}
+for side, sg in (('Left', 1), ('Right', -1)):
+    if side + 'Arm' not in rig.data.bones: continue
+    root = rig.data.bones[side + 'Arm']
+    for b in [root] + list(root.children_recursive):
+        if b.name in names: ABD[b.name] = Matrix.Rotation(sg * ANG, 3, fwd)
+# בדיקת כיוון: היד השמאלית צריכה להתרחק מהאגן, לא להתקרב
 for f in range(f0, f1 + 1):
     SC.frame_set(f)
     for n in order:
         pb = rig.pose.bones[n]
         R = (src.matrix_world.to_3x3() @ src.pose.bones[n].matrix.to_3x3()).normalized() @ off[n]
+        if n in ABD: R = ABD[n] @ R
         Rarm = rig.matrix_world.to_3x3().inverted() @ R
         M = Rarm.to_4x4(); M.translation = pb.matrix.translation
         if n == hips:
