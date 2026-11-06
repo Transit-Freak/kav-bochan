@@ -190,7 +190,32 @@ def fabric(name, base, dots):
     ramp.color_ramp.elements[1].color = (*base, 1); ramp.color_ramp.elements[1].position = 0.16
     nt.links.new(vor.outputs['Distance'], ramp.inputs['Fac']); nt.links.new(ramp.outputs['Color'], b.inputs['Base Color'])
     return m
-seat_fab = fabric('M_SeatFabric', (0.04, 0.09, 0.32), (0.55, 0.6, 0.75))
+def tiled(name, path, scale, rough=0.85):
+    m = bpy.data.materials.new(name); nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'); b.inputs['Roughness'].default_value = rough
+    tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale, scale, scale)
+    t = nt.nodes.new('ShaderNodeTexImage')
+    try: t.image = bpy.data.images.load(os.path.abspath(path))
+    except Exception as e: print('tex', e); return mat(name, (0.1, 0.2, 0.5), rough)
+    t.projection = 'BOX'; t.projection_blend = 0.2
+    nt.links.new(tc.outputs['Object'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], t.inputs['Vector'])
+    nt.links.new(t.outputs['Color'], b.inputs['Base Color']); return m
+def tex_mat(name, path, emit=1.2):
+    m = bpy.data.materials.new(name); nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    t = nt.nodes.new('ShaderNodeTexImage')
+    try: t.image = bpy.data.images.load(os.path.abspath(path))
+    except Exception as e: print('tex', e); return mat(name, (0.1, 0.2, 0.6), 0.3)
+    nt.links.new(t.outputs['Color'], b.inputs['Base Color']); nt.links.new(t.outputs['Color'], b.inputs['Emission Color'])
+    b.inputs['Emission Strength'].default_value = emit; b.inputs['Roughness'].default_value = 0.15
+    return m
+def uv_plane(name, w, h, loc, m):
+    me = bpy.data.meshes.new(name); bmx = bmesh.new()
+    vs = [bmx.verts.new(v) for v in ((-w/2, 0, -h/2), (w/2, 0, -h/2), (w/2, 0, h/2), (-w/2, 0, h/2))]
+    f = bmx.faces.new(vs); uv = bmx.loops.layers.uv.new()
+    for lp, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))): lp[uv].uv = co     # פונה ל--Y; ‎+X מימין לצופה
+    bmx.to_mesh(me); bmx.free(); ob = link(bpy.data.objects.new(name, me)); ob.location = loc; setm(ob, m); return ob
+seat_fab = tiled('M_SeatFabric', 'tex/fabric.png', 2.5)
 shell = mat('M_SeatShell', (0.32, 0.33, 0.35), 0.45)
 panel = mat('M_Panel', (0.72, 0.73, 0.74), 0.5)
 blue_btn = mat('M_StopBtn', (0.05, 0.25, 0.75), 0.35)
@@ -210,7 +235,17 @@ for sd in (1, -1):
     setm(box(f'SM_Duct{sd}', (0.32, L - 1.6, 0.22), (sd*(W/2 - 0.22), 0.3, Z0 + H - 0.2)), panel)     # תעלת מיזוג
     for k in range(9):
         setm(box(f'SM_Vent{sd}{k}', (0.12, 0.25, 0.01), (sd*(W/2 - 0.3), YF + 1.6 + k*1.1, Z0 + H - 0.312)), trim)
-setm(box('SM_Ceiling', (W - 0.7, L - 1.2, 0.02), (0, 0.3, Z0 + H - 0.08)), panel)
+setm(box('SM_Ceiling', (W - 0.7, L - 1.2, 0.02), (0, 0.3, Z0 + H - 0.08)), tiled('M_CeilPerf', 'tex/ceiling.png', 3.0, 0.6))
+# פסי נקודות LED לאורך שולי התקרה, ופתחי מיזוג בצבע שמנת (לפי צילום)
+cream = mat('M_VentCream', (0.85, 0.82, 0.72), 0.5)
+for sd in (1, -1):
+    for k in range(40):
+        setm(box(f'SM_LedDot{sd}{k}', (0.03, 0.05, 0.008), (sd*(W/2 - 0.42), YF + 1.4 + k*0.25, Z0 + H - 0.312)), lamp)
+    for k in range(6):
+        v = box(f'SM_VentC{sd}{k}', (0.02, 0.4, 0.14), (sd*(W/2 - 0.075), YF + 2.0 + k*1.6, WZ1 + 0.18)); setm(v, cream)
+        mm = v.modifiers.new('bev', 'BEVEL'); mm.width = 0.03; mm.segments = 4
+        for j in range(4): setm(box(f'SM_VentS{sd}{k}{j}', (0.025, 0.34, 0.012), (sd*(W/2 - 0.086), YF + 2.0 + k*1.6, WZ1 + 0.13 + j*0.032)), trim)
+st_ = uv_plane('SM_QRSticker', 0.3, 0.13, (0.55, YF + 3.0, Z0 + H - 0.095), tex_mat('M_QRSticker', 'tex/qr_sticker.png', 0.2)); st_.rotation_euler = (math.radians(90), 0, 0)
 for k in (-1, 1):                                                 # פסי תאורה
     setm(box(f'SM_Light{k}', (0.12, L - 2.0, 0.015), (k*0.42, 0.3, Z0 + H - 0.095)), lamp)
 
@@ -235,12 +270,22 @@ for k, y in enumerate(ys):
         if FA - 0.6 < y < FA + 0.6 and sd == -R: continue              # מעל הגלגל הקדמי
         for xo in (0.33, 0.77):
             seat(f'SM_Seat{k}_{sd}_{xo}', sd*(W/2 - xo), y)
+usb_m = mat('M_USB', (0.02, 0.02, 0.02), 0.3)
+for k, y in enumerate(ys[::2]):
+    for sd in (1, -1):
+        setm(box(f'SM_USB{k}{sd}', (0.05, 0.08, 0.14), (sd*(W/2 - 0.1), y + 0.3, WZ0 - 0.1)), usb_m)
+        for j in (0, 1): setm(box(f'SM_USBp{k}{sd}{j}', (0.004, 0.02, 0.008), (sd*(W/2 - 0.126), y + 0.3, WZ0 - 0.13 + j*0.05)), steel)
 # אזור כיסא גלגלים: מושב מתקפל, חגורה ושלט כחול
 wy = (MD[0] + MD[1]) / 2
-setm(box('SM_WheelBack', (0.06, 1.2, 0.6), (-R*(W/2 - 0.12), wy, FLZ + 0.75)), shell)
-setm(box('SM_FoldSeat', (0.08, 0.45, 0.4), (-R*(W/2 - 0.17), wy - 0.35, FLZ + 0.65)), seat_fab)
-setm(box('SM_WheelSign', (0.005, 0.22, 0.22), (-R*(W/2 - 0.085), wy + 0.2, FLZ + 1.35)), wheelchair)
-setm(cyl('SM_WheelRail', 0.018, 1.1, (-R*(W/2 - 0.2), wy, FLZ + 0.95), seg=12, axis='Y'), yellow)
+xw = -R*(W/2 - 0.1)
+fs = box('SM_FoldSeat', (0.42, 0.08, 0.62), (xw - (-R)*0.25, wy + 0.45, FLZ + 0.95)); setm(fs, seat_fab)     # מושב מתקפל גבוה
+mm = fs.modifiers.new('bev', 'BEVEL'); mm.width = 0.03; mm.segments = 3
+setm(box('SM_FoldBase', (0.3, 0.2, 0.25), (xw - (-R)*0.25, wy + 0.45, FLZ + 0.13)), trim)
+setm(box('SM_BeltRetractor', (0.04, 0.07, 0.12), (xw - (-R)*0.02, wy - 0.42, FLZ + 0.8)), trim)
+setm(box('SM_Belt', (0.01, 0.04, 0.22), (xw - (-R)*0.03, wy - 0.42, FLZ + 0.62)), trim)
+for zz in (0.85, 1.05):
+    setm(cyl(f'SM_WheelRail{zz}', 0.018, 1.2, (xw - (-R)*0.05, wy, FLZ + zz), seg=12, axis='Y'), yellow)
+bw = box('SM_WallBtn', (0.02, 0.05, 0.07), (xw - (-R)*0.02, wy - 0.7, FLZ + 0.75)); setm(bw, blue_btn)
 # מוטות: אנכיים ליד כל שורה שנייה ובדלתות, מעקות תקרה לכל האורך, רצועות תלויות
 poles = [YF + 1.6, FD[0] + 0.1, FD[1] + 0.05, MD[0] - 0.1, MD[1] + 0.1] + [y + 0.36 for y in ys[1::2]]
 for k, y in enumerate(poles):
@@ -248,8 +293,9 @@ for k, y in enumerate(poles):
         x = sd * 0.42
         setm(cyl(f'SM_Pole{k}{sd}', 0.019, Z0 + H - 0.12 - FLZ, (x, y, (FLZ + Z0 + H - 0.12)/2), seg=14, axis='Z'), yellow)
         if k % 2 == 0:                                                # לחצן עצור על המוט
-            setm(box(f'SM_Btn{k}{sd}', (0.05, 0.035, 0.08), (x - sd*0.03, y, FLZ + 1.25)), blue_btn)
-            setm(box(f'SM_BtnF{k}{sd}', (0.035, 0.005, 0.035), (x - sd*0.03, y - 0.02, FLZ + 1.26)), yel_face)
+            bb = box(f'SM_Btn{k}{sd}', (0.05, 0.045, 0.12), (x, y - 0.03, FLZ + 1.35)); setm(bb, blue_btn)
+            mm = bb.modifiers.new('bev', 'BEVEL'); mm.width = 0.012; mm.segments = 3
+            setm(box(f'SM_BtnF{k}{sd}', (0.03, 0.006, 0.035), (x, y - 0.054, FLZ + 1.36)), yel_face)
 for sd in (1, -1):
     setm(cyl(f'SM_CeilRail{sd}', 0.016, L - 2.6, (sd*0.42, 0.4, Z0 + H - 0.42), seg=12, axis='Y'), yellow)
     for k in range(14):
@@ -258,21 +304,6 @@ for sd in (1, -1):
         ring = cyl(f'SM_StrapRing{sd}{k}', 0.045, 0.012, (sd*0.42, y, Z0 + H - 0.66), seg=16, axis='Y'); setm(ring, yellow)
 # מכשיר התיקוף החדש (לפי תמונות): גוף שחור מלבני מעוגל על המוט הצהוב, מסך לאורך עם כותרת כחולה וכרטיס צהוב,
 # ומתחתיו אזור ההנחה עם סמל ה-NFC. המסכים נוצרים ב-screens.py (tex/)
-def tex_mat(name, path, emit=1.2):
-    m = bpy.data.materials.new(name); nt = m.node_tree
-    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
-    t = nt.nodes.new('ShaderNodeTexImage')
-    try: t.image = bpy.data.images.load(os.path.abspath(path))
-    except Exception as e: print('tex', e); return mat(name, (0.1, 0.2, 0.6), 0.3)
-    nt.links.new(t.outputs['Color'], b.inputs['Base Color']); nt.links.new(t.outputs['Color'], b.inputs['Emission Color'])
-    b.inputs['Emission Strength'].default_value = emit; b.inputs['Roughness'].default_value = 0.15
-    return m
-def uv_plane(name, w, h, loc, m):
-    me = bpy.data.meshes.new(name); bmx = bmesh.new()
-    vs = [bmx.verts.new(v) for v in ((-w/2, 0, -h/2), (w/2, 0, -h/2), (w/2, 0, h/2), (-w/2, 0, h/2))]
-    f = bmx.faces.new(vs); uv = bmx.loops.layers.uv.new()
-    for lp, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))): lp[uv].uv = co     # פונה ל--Y; ‎+X מימין לצופה
-    bmx.to_mesh(me); bmx.free(); ob = link(bpy.data.objects.new(name, me)); ob.location = loc; setm(ob, m); return ob
 val_body = mat('M_ValBody', (0.025, 0.025, 0.028), 0.35)
 scr_idle = tex_mat('M_ValScreen', 'tex/screen_idle.png')
 nfc_m = tex_mat('M_ValNFC', 'tex/nfc.png', 0.3)
@@ -300,8 +331,8 @@ for k in range(6):                                                         # ר�
     setm(box(f'SM_ValL_Spk{k}', (0.06, 0.004, 0.004), (x, y - 0.152, FLZ + 1.15 - k*0.008)), trim)
 
 # שלט LED פנימי בחזית התקרה, פטישי חירום אדומים
-setm(box('SM_InSign', (1.0, 0.04, 0.12), (0, YF + 1.25, Z0 + H - 0.32)), trim)
-setm(box('SM_InSignTxt', (0.9, 0.005, 0.07), (0, YF + 1.275, Z0 + H - 0.32)), led)
+setm(box('SM_LCDFrame', (1.1, 0.05, 0.36), (0, YF + 1.3, Z0 + H - 0.4)), trim)
+lc = uv_plane('SM_LCD', 1.0, 0.3, (0, YF + 1.33, Z0 + H - 0.4), tex_mat('M_LCD', 'tex/lcd.png', 1.0)); lc.rotation_euler = (0, 0, math.pi)
 for k, y in enumerate((YF + 4.0, YF + 8.0)):
     for sd in (1, -1):
         setm(box(f'SM_Hammer{k}{sd}', (0.03, 0.05, 0.12), (sd*(W/2 - 0.09), y, WZ1 - 0.1)), redm)
@@ -313,6 +344,58 @@ setm(box('SM_DriverBack', (0.5, 0.09, 0.75), (-R*0.62, YF + 1.72, FLZ + 0.86)), 
 setm(box('SM_CabScreen', (0.03, 0.95, 1.25), (-R*0.32, YF + 1.45, FLZ + 0.95)), plexi)
 setm(box('SM_TicketMachine', (0.25, 0.2, 0.18), (-R*0.25, YF + 0.95, FLZ + 1.05)), trim)
 setm(box('SM_TicketScr', (0.16, 0.005, 0.1), (-R*0.25, YF + 1.051, FLZ + 1.07)), screen)
+
+# ---------- שילוט לפי "שילוט אוטובוסים אחיד — הנחיות וכללי מפתח מחייבים" (משרד התחבורה, V-01.24):
+# המדבקות נחתכו מהמסמך (signs/signN.png), בגודל ובמיקום שבטבלת היישום לאוטובוס עירוני
+_FACE = {'-Y': 0.0, '+Y': math.pi, '+X': math.pi/2, '-X': -math.pi/2}
+_OFF = {'-Y': (0, -1, 0), '+Y': (0, 1, 0), '+X': (1, 0, 0), '-X': (-1, 0, 0)}
+_sign_mats = {}
+def decal(num, w_cm, h_cm, loc, face, tag=''):
+    if num not in _sign_mats:
+        _sign_mats[num] = tex_mat(f'M_Sign{num}', f'signs/sign{num}.png', 0.08)
+    o = _OFF[face]; x, y, z = loc
+    ob = uv_plane(f'SG_{num}{tag}', w_cm/100, h_cm/100, (x + o[0]*0.006, y + o[1]*0.006, z), _sign_mats[num])
+    ob.rotation_euler = (0, 0, _FACE[face]); return ob
+WALL = W/2 - 0.085                                  # הקיר הפנימי מתחת לחלונות
+# פנים — אזור הנהג: שלט מאוחד (12) ושלט מרכז ידיעת/חובת הנוסע (2) על גב המחיצה, פונים לנוסעים
+decal('12', 15, 20, (-R*0.62, YF + 1.78, FLZ + 1.4), '+Y')
+decal('2', 37, 25, (-R*0.2, YF + 1.98, FLZ + 1.55), '+Y')
+decal('13', 15, 6, (-R*0.62, YF + 1.78, FLZ + 1.18), '+Y')                 # WiFi
+decal('29', 16, 11, (-R*0.62, YF + 0.32, Z0 + H - 0.35), '+Y')            # נתוני מקסימום — מעל הנהג
+decal('30', 7, 7.5, (-R*0.95, YF + 0.78, FLZ + 0.67), '+Y')               # גובה האוטובוס — ליד לוח המחוונים
+decal('22', 6, 6, (-R*0.25, YF + 0.78, FLZ + 0.67), '+Y')                 # עזרה ראשונה — תא הנהג
+# מטף כיבוי ליד המחיצה + שלט 24
+ext = cyl('SM_Extinguisher', 0.075, 0.45, (-R*0.95, YF + 1.85, FLZ + 0.3), seg=24, axis='Z'); setm(ext, redm)
+decal('24', 11, 11, (-R*0.95, YF + 1.92, FLZ + 0.7), '+Y')
+# תיקוף בסלולרי (1, A5): משני צדי מסך המידע, מול אזור כסא הגלגלים, ובמחיצה האחורית
+for k, x in enumerate((-0.72, 0.72)):
+    decal('1', 14.8, 21, (x, YF + 1.33, Z0 + H - 0.4), '+Y', f'lcd{k}')
+decal('1', 14.8, 21, (R*WALL, (MD[0] + MD[1])/2 + 0.9, WZ0 - 0.25), '+X' if R < 0 else '-X', 'opp')
+decal('1', 14.8, 21, (0.5, YR - 0.62, FLZ + 1.5), '-Y', 'rear')
+# אזור כסא גלגלים: טקסט (8), כסא גלגלים (5) ועגלה (7) — על הקיר, פונים פנימה
+wf = '-X' if -R > 0 else '+X'
+decal('8', 20, 13, (-R*WALL, wy - 0.1, FLZ + 1.25), wf)
+decal('5', 13, 13, (-R*WALL, wy - 0.3, FLZ + 0.95), wf, 'w')
+decal('7', 13, 13, (-R*WALL, wy + 0.1, FLZ + 0.95), wf, 'w')
+decal('6', 13, 13, (WALL * (-R), YF + 2.3, WZ0 - 0.15), wf, 'front')       # מקום שמור לבעלי צרכים מיוחדים — מושבים קדמיים
+decal('4', 13, 13, (WALL * (-R), YF + 2.6, WZ0 - 0.15), wf, 'front')       # מקום לעיוור עם כלב
+# זהירות מהדלת (14): על כל כנף, מבפנים
+for nm, (a, b_) in (('Front', FD), ('Mid', MD)):
+    wd = (b_ - a) / 2
+    for k in (0, 1):
+        decal('14', 10, 10, (R*(W/2 - 0.05), a + wd/2 + k*wd, FLZ + 1.0), '+X' if R < 0 else '-X', f'{nm}{k}')
+# פטיש חירום (15) ליד הפטישים, יציאת חירום (16) על שני חלונות בכל צד
+for k, y in enumerate((YF + 4.0, YF + 8.0)):
+    for sd in (1, -1):
+        decal('15', 7.5, 12.5, (sd*(W/2 - 0.09), y + 0.12, WZ1 - 0.12), '-X' if sd > 0 else '+X', f'{k}{sd}')
+        decal('16', 17, 14, (sd*(W/2 - 0.03), y - 0.5, WZ1 - 0.35), '-X' if sd > 0 else '+X', f'{k}{sd}')
+# חוץ: תיקוף בסלולרי משמאל לכל דלת, מצלמה (27), סולר (28), דיווח נהיגה ופליטת עשן (31, 32) מאחור
+for nm, (a, b_) in (('Front', FD), ('Mid', MD)):
+    decal('1', 14.8, 21, (R*(W/2 + 0.002), b_ + 0.18, Z0 + 1.45), '-X' if R < 0 else '+X', f'out{nm}')
+decal('27', 13, 13, (R*(W/2 + 0.002), FD[0] - 0.12, Z0 + 2.0), '-X' if R < 0 else '+X')
+decal('28', 15, 10, (-R*(W/2 + 0.002), YR - 2.4, Z0 + 0.65), '+X' if R < 0 else '-X')
+decal('31', 40, 18, (-0.45, YR + 0.025, Z0 + 1.35), '+Y')
+decal('32', 40, 18, (0.45, YR + 0.025, Z0 + 1.35), '+Y')
 
 # ---------- גלגלים: צמיג 295/80R22.5, חישוק פלדה עם 10 אומים
 for nm, y in (('F', FA), ('R', RA)):
