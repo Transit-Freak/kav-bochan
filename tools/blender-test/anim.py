@@ -137,6 +137,13 @@ print('DBG floor', round(fl_z, 3), 'min', round(min(mins), 3), 'max', round(max(
 # הנעל עלתה גבוה מדי בצעד (שלמה 06.11): IK על השוק, והמטרה היא הקרסול עם גובה מכווץ מעל הגובה שלו בעמידה
 LIFT = float(os.environ.get('LIFT', '0.6'))
 iks = []
+# הנעל נראתה מקופלת לאחור (שלמה 06.11): ה-IK משנה את כיוון השוק, וכף הרגל, שהסיבוב שלה יחסי לשוק, מסתובבת איתה.
+# שומרים את הכיוון בעולם של כף הרגל והבוהן מלפני ה-IK, ומחזירים אותו אחרי האפייה
+FEET = [n for s_ in ('Left', 'Right') for n in (s_ + 'Foot', s_ + 'ToeBase') if n in rig.pose.bones]
+footR = {}
+for f in range(f0, f1 + 1):
+    SC.frame_set(f)
+    footR[f] = {n: (rig.matrix_world.to_3x3() @ rig.pose.bones[n].matrix.to_3x3()).copy() for n in FEET}
 for side in ('Left', 'Right'):
     leg, foot = side + 'Leg', side + 'Foot'
     if leg not in rig.pose.bones or foot not in rig.pose.bones: continue
@@ -166,6 +173,24 @@ if iks:
     bpy.ops.pose.select_all(action='SELECT')
     bpy.ops.nla.bake(frame_start=f0, frame_end=f1, only_selected=True, visual_keying=True, clear_constraints=True, use_current_action=True, bake_types={'POSE'})
     bpy.ops.object.mode_set(mode='OBJECT')
+    W3i = rig.matrix_world.to_3x3().inverted()
+    for f in range(f0, f1 + 1):
+        SC.frame_set(f)
+        for n in FEET:                       # מההורה לילד: קודם כף הרגל, אחר כך הבוהן
+            pb = rig.pose.bones[n]
+            M = (W3i @ footR[f][n]).to_4x4(); M.translation = pb.matrix.translation
+            pb.matrix = M; bpy.context.view_layer.update()
+            pb.keyframe_insert('rotation_quaternion' if pb.rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
+    # בדיקה: זווית הבוהן ביחס לרצפה (חיובי = הבוהן למעלה) — בצעד אמיתי כמעט לא עולה מעל 25 מעלות
+    mxp = {}
+    for f in range(f0, f1 + 1, 2):
+        SC.frame_set(f)
+        for s_ in ('Left', 'Right'):
+            n = s_ + 'Foot'
+            if n in rig.pose.bones:
+                pb = rig.pose.bones[n]; v = (rig.matrix_world @ pb.tail) - (rig.matrix_world @ pb.head)
+                ang = math.degrees(math.atan2(v.z, (v.x ** 2 + v.y ** 2) ** .5)); mxp[s_] = max(mxp.get(s_, -99), ang)
+    print('DBG foot pitch max', {k: round(v, 1) for k, v in mxp.items()})
     SC.frame_set((f0 + f1) // 2)
     for side in ('Left', 'Right'):
         if side + 'Leg' in rig.pose.bones:
