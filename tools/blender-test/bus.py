@@ -179,26 +179,102 @@ for nm, (a, b) in (('Front', FD), ('Mid', MD)):
         setm(box(f'SM_DoorRail{nm}{k}', (0.02, w*0.55, 0.03), (R*(W/2 - 0.08), yc, Z0 + 1.0), rot=(math.radians(35 if k else -35), 0, 0)), yellow)
     setm(box(f'SM_Step{nm}', (0.4, b - a, 0.04), (R*(W/2 - 0.2), (a + b)/2, Z0 + 0.04)), floorm)
 
-# ---------- פנים: רצפה, מושבים, מוטות, תא נהג
-setm(box('SM_FloorIn', (W - 0.1, L - 0.6, 0.03), (0, 0.1, Z0 + 0.36)), floorm)
-for k in range(11):
-    y = YF + 3.0 + k * 0.82
-    if y > YR - 0.8: break
-    for sd in (1, -1):
-        if sd == R and MD[0] - 0.3 < y < MD[1] + 0.5: continue
-        for xo in (0.32, 0.76):
-            setm(box(f'SM_Seat{k}{sd}{xo}', (0.42, 0.44, 0.09), (sd*(W/2 - xo), y, Z0 + 0.85)), seatm)
-            setm(box(f'SM_Back{k}{sd}{xo}', (0.42, 0.07, 0.62), (sd*(W/2 - xo), y + 0.22, Z0 + 1.18)), seatm)
-            setm(cyl(f'SM_Grab{k}{sd}{xo}', 0.016, 0.18, (sd*(W/2 - xo), y + 0.25, Z0 + 1.55), seg=10, axis='X'), steel)
-for k in range(7):
-    setm(cyl(f'SM_Pole{k}', 0.02, 2.0, ((0.35 if k % 2 else -0.35), YF + 2.4 + k*1.35, Z0 + 1.38), seg=12, axis='Z'), yellow)
+# ---------- פנים (לפי תמונות של אוטובוסים עירוניים בישראל): מושבי פלסטיק אפור עם ריפוד כחול מנוקד,
+# מוטות צהובים אנכיים ומעקות תקרה עם רצועות, לחצני "עצור" כחולים, מתקפי רב-קו, שלט LED פנימי,
+# תעלות מיזוג ופסי תאורה בתקרה, אזור כיסא גלגלים מול הדלת האמצעית, תא נהג עם מחיצה
+def fabric(name, base, dots):
+    m = bpy.data.materials.new(name); nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'); b.inputs['Roughness'].default_value = 0.85
+    vor = nt.nodes.new('ShaderNodeTexVoronoi'); vor.inputs['Scale'].default_value = 60
+    ramp = nt.nodes.new('ShaderNodeValToRGB'); ramp.color_ramp.elements[0].color = (*dots, 1); ramp.color_ramp.elements[0].position = 0.12
+    ramp.color_ramp.elements[1].color = (*base, 1); ramp.color_ramp.elements[1].position = 0.16
+    nt.links.new(vor.outputs['Distance'], ramp.inputs['Fac']); nt.links.new(ramp.outputs['Color'], b.inputs['Base Color'])
+    return m
+seat_fab = fabric('M_SeatFabric', (0.04, 0.09, 0.32), (0.55, 0.6, 0.75))
+shell = mat('M_SeatShell', (0.32, 0.33, 0.35), 0.45)
+panel = mat('M_Panel', (0.72, 0.73, 0.74), 0.5)
+blue_btn = mat('M_StopBtn', (0.05, 0.25, 0.75), 0.35)
+yel_face = mat('M_StopFace', (0.95, 0.75, 0.05), 0.3, emit=(0.6, 0.45, 0.02), es=0.6)
+egg = mat('M_Validator', (0.55, 0.56, 0.57), 0.3)
+screen = mat('M_Screen', (0.02, 0.04, 0.08), 0.2, emit=(0.15, 0.4, 0.8), es=1.5)
+plexi = mat('M_Plexi', (0.6, 0.65, 0.7), 0.05, alpha=0.25)
+wheelchair = mat('M_WheelBlue', (0.05, 0.25, 0.7), 0.5)
+redm = mat('M_RedHammer', (0.8, 0.05, 0.03), 0.4)
+FLZ = Z0 + 0.36                                                   # גובה הרצפה (קומה נמוכה)
+setm(box('SM_FloorIn', (W - 0.12, L - 0.5, 0.03), (0, 0.1, FLZ)), floorm)
+for nm, (a, b_) in (('Front', FD), ('Mid', MD)):                 # פס צהוב בשפת הכניסה
+    setm(box(f'SM_StepEdge{nm}', (0.05, b_ - a, 0.005), (R*(W/2 - 0.45), (a + b_)/2, FLZ + 0.017)), yellow)
+# קירות פנימיים מתחת לחלונות ומעליהם
 for sd in (1, -1):
-    setm(cyl(f'SM_HandRail{sd}', 0.018, L - 3.4, (sd*0.55, 0.3, Z0 + 2.3), seg=12, axis='Y'), yellow)
-setm(box('SM_Dash', (W - 0.3, 0.55, 0.4), (0, YF + 0.5, Z0 + 0.82)), trim)
-sw = cyl('SM_SteerWheel', 0.24, 0.04, (0.62, YF + 0.95, Z0 + 1.22), seg=32, axis='Y'); sw.rotation_euler = (math.radians(40), 0, 0); setm(sw, trim)
-setm(box('SM_DriverSeat', (0.5, 0.5, 0.12), (0.62, YF + 1.45, Z0 + 0.82)), seatm)
-setm(box('SM_DriverBack', (0.5, 0.09, 0.75), (0.62, YF + 1.72, Z0 + 1.2)), seatm)
-setm(box('SM_CabScreen', (0.04, 0.9, 1.3), (0.3, YF + 1.5, Z0 + 1.1)), glass)
+    setm(box(f'SM_WallLow{sd}', (0.03, L - 1.2, WZ0 - FLZ), (sd*(W/2 - 0.07), 0.2, (WZ0 + FLZ)/2)), panel)
+    setm(box(f'SM_Duct{sd}', (0.32, L - 1.6, 0.22), (sd*(W/2 - 0.22), 0.3, Z0 + H - 0.2)), panel)     # תעלת מיזוג
+    for k in range(9):
+        setm(box(f'SM_Vent{sd}{k}', (0.12, 0.25, 0.01), (sd*(W/2 - 0.3), YF + 1.6 + k*1.1, Z0 + H - 0.312)), trim)
+setm(box('SM_Ceiling', (W - 0.7, L - 1.2, 0.02), (0, 0.3, Z0 + H - 0.08)), panel)
+for k in (-1, 1):                                                 # פסי תאורה
+    setm(box(f'SM_Light{k}', (0.12, L - 2.0, 0.015), (k*0.42, 0.3, Z0 + H - 0.095)), lamp)
+
+def seat(name, x, y, facing=-1):
+    """מושב עירוני: מעטפת פלסטיק מעוגלת, ריפוד כחול, ידית אחיזה בראש המשענת"""
+    zc = FLZ + 0.46
+    cu = box(name + '_Cush', (0.42, 0.42, 0.06), (x, y, zc), rot=None); setm(cu, seat_fab)
+    sh = box(name + '_Shell', (0.44, 0.06, 0.66), (x, y - facing*0.21, zc + 0.3)); setm(sh, shell)
+    bk = box(name + '_Back', (0.38, 0.02, 0.5), (x, y - facing*0.175, zc + 0.3)); setm(bk, seat_fab)
+    for o in (cu, sh, bk):
+        mm = o.modifiers.new('bev', 'BEVEL'); mm.width = 0.025; mm.segments = 3
+        smooth(o)
+    hd = cyl(name + '_Grab', 0.014, 0.22, (x, y - facing*0.25, zc + 0.66), seg=10, axis='X'); setm(hd, steel)
+    leg = box(name + '_Leg', (0.04, 0.04, 0.42), (x - 0.12, y, FLZ + 0.22)); setm(leg, steel)
+
+ys = [YF + 2.0 + k*0.8 for k in range(12)]
+for k, y in enumerate(ys):
+    if y > YR - 0.9: break
+    for sd in (1, -1):
+        if sd == R and MD[0] - 0.4 < y < MD[1] + 0.3: continue        # מול הדלת האמצעית — רצפה פנויה
+        if sd == -R and MD[0] - 0.3 < y < MD[1] + 0.5: continue       # אזור כיסא גלגלים
+        if FA - 0.6 < y < FA + 0.6 and sd == -R: continue              # מעל הגלגל הקדמי
+        for xo in (0.33, 0.77):
+            seat(f'SM_Seat{k}_{sd}_{xo}', sd*(W/2 - xo), y)
+# אזור כיסא גלגלים: מושב מתקפל, חגורה ושלט כחול
+wy = (MD[0] + MD[1]) / 2
+setm(box('SM_WheelBack', (0.06, 1.2, 0.6), (-R*(W/2 - 0.12), wy, FLZ + 0.75)), shell)
+setm(box('SM_FoldSeat', (0.08, 0.45, 0.4), (-R*(W/2 - 0.17), wy - 0.35, FLZ + 0.65)), seat_fab)
+setm(box('SM_WheelSign', (0.005, 0.22, 0.22), (-R*(W/2 - 0.085), wy + 0.2, FLZ + 1.35)), wheelchair)
+setm(cyl('SM_WheelRail', 0.018, 1.1, (-R*(W/2 - 0.2), wy, FLZ + 0.95), seg=12, axis='Y'), yellow)
+# מוטות: אנכיים ליד כל שורה שנייה ובדלתות, מעקות תקרה לכל האורך, רצועות תלויות
+poles = [YF + 1.6, FD[0] + 0.1, FD[1] + 0.05, MD[0] - 0.1, MD[1] + 0.1] + [y + 0.36 for y in ys[1::2]]
+for k, y in enumerate(poles):
+    for sd in (1, -1):
+        x = sd * 0.42
+        setm(cyl(f'SM_Pole{k}{sd}', 0.019, Z0 + H - 0.12 - FLZ, (x, y, (FLZ + Z0 + H - 0.12)/2), seg=14, axis='Z'), yellow)
+        if k % 2 == 0:                                                # לחצן עצור על המוט
+            setm(box(f'SM_Btn{k}{sd}', (0.05, 0.035, 0.08), (x - sd*0.03, y, FLZ + 1.25)), blue_btn)
+            setm(box(f'SM_BtnF{k}{sd}', (0.035, 0.005, 0.035), (x - sd*0.03, y - 0.02, FLZ + 1.26)), yel_face)
+for sd in (1, -1):
+    setm(cyl(f'SM_CeilRail{sd}', 0.016, L - 2.6, (sd*0.42, 0.4, Z0 + H - 0.42), seg=12, axis='Y'), yellow)
+    for k in range(14):
+        y = YF + 2.2 + k*0.62
+        sp = box(f'SM_Strap{sd}{k}', (0.03, 0.012, 0.18), (sd*0.42, y, Z0 + H - 0.53)); setm(sp, yellow)
+        ring = cyl(f'SM_StrapRing{sd}{k}', 0.045, 0.012, (sd*0.42, y, Z0 + H - 0.66), seg=16, axis='Y'); setm(ring, yellow)
+# מתקפי רב-קו ("ביצה") ליד הדלתות
+for nm, y in (('F', FD[1] + 0.05), ('M1', MD[0] - 0.1), ('M2', MD[1] + 0.1)):
+    eg = box(f'SM_Val{nm}', (0.14, 0.1, 0.24), (R*0.42 + 0.05*(-R), y - 0.07, FLZ + 1.2)); setm(eg, egg)
+    mm = eg.modifiers.new('bev', 'BEVEL'); mm.width = 0.045; mm.segments = 5; smooth(eg)
+    setm(box(f'SM_ValScr{nm}', (0.07, 0.005, 0.1), (R*0.42 + 0.05*(-R), y - 0.123, FLZ + 1.22)), screen)
+# שלט LED פנימי בחזית התקרה, פטישי חירום אדומים
+setm(box('SM_InSign', (1.0, 0.04, 0.12), (0, YF + 1.25, Z0 + H - 0.32)), trim)
+setm(box('SM_InSignTxt', (0.9, 0.005, 0.07), (0, YF + 1.275, Z0 + H - 0.32)), led)
+for k, y in enumerate((YF + 4.0, YF + 8.0)):
+    for sd in (1, -1):
+        setm(box(f'SM_Hammer{k}{sd}', (0.03, 0.05, 0.12), (sd*(W/2 - 0.09), y, WZ1 - 0.1)), redm)
+# תא נהג: לוח מחוונים, הגה, מושב, מחיצת פרספקס ומכונת כרטוס
+setm(box('SM_Dash', (W - 0.3, 0.55, 0.42), (0, YF + 0.5, FLZ + 0.45)), trim)
+sw = cyl('SM_SteerWheel', 0.24, 0.04, (-R*0.62, YF + 0.95, FLZ + 0.86), seg=32, axis='Y'); sw.rotation_euler = (math.radians(40), 0, 0); setm(sw, trim)
+setm(box('SM_DriverSeat', (0.5, 0.5, 0.12), (-R*0.62, YF + 1.45, FLZ + 0.46)), seatm)
+setm(box('SM_DriverBack', (0.5, 0.09, 0.75), (-R*0.62, YF + 1.72, FLZ + 0.86)), seatm)
+setm(box('SM_CabScreen', (0.03, 0.95, 1.25), (-R*0.32, YF + 1.45, FLZ + 0.95)), plexi)
+setm(box('SM_TicketMachine', (0.25, 0.2, 0.18), (-R*0.25, YF + 0.95, FLZ + 1.05)), trim)
+setm(box('SM_TicketScr', (0.16, 0.005, 0.1), (-R*0.25, YF + 1.051, FLZ + 1.07)), screen)
 
 # ---------- גלגלים: צמיג 295/80R22.5, חישוק פלדה עם 10 אומים
 for nm, y in (('F', FA), ('R', RA)):
