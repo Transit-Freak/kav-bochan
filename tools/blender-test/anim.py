@@ -36,7 +36,8 @@ print('MATCHED', len(names), names[:20])
 def wrot(ob, bone_rest_matrix): return (ob.matrix_world.to_3x3() @ bone_rest_matrix.to_3x3()).normalized()
 off = {n: wrot(src, src.data.bones[n].matrix_local).inverted() @ wrot(rig, rig.data.bones[n].matrix_local) for n in names}
 hips = next((n for n in names if n.lower() in ('hips', 'pelvis', 'root')), names[0])
-h_src = (src.matrix_world @ src.data.bones[hips].head_local).z
+SC.frame_set(f0); bpy.context.view_layer.update()
+h_src = (src.matrix_world @ src.pose.bones[hips].head).z          # גובה האגן בתנוחה (במנוחה הוא 0)
 h_dst = (rig.matrix_world @ rig.data.bones[hips].head_local).z
 k = h_dst / h_src if h_src else 1.0
 order = [b.name for b in rig.data.bones if b.name in off]           # מההורה לילד

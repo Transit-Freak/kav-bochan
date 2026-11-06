@@ -215,7 +215,7 @@ def uv_plane(name, w, h, loc, m):
     f = bmx.faces.new(vs); uv = bmx.loops.layers.uv.new()
     for lp, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))): lp[uv].uv = co     # פונה ל--Y; ‎+X מימין לצופה
     bmx.to_mesh(me); bmx.free(); ob = link(bpy.data.objects.new(name, me)); ob.location = loc; setm(ob, m); return ob
-seat_fab = tiled('M_SeatFabric', 'tex/fabric.png', 2.5)
+seat_fab = tiled('M_SeatFabric', 'tex/fabric.png', 6.0)
 shell = mat('M_SeatShell', (0.32, 0.33, 0.35), 0.45)
 panel = mat('M_Panel', (0.72, 0.73, 0.74), 0.5)
 blue_btn = mat('M_StopBtn', (0.05, 0.25, 0.75), 0.35)
@@ -226,7 +226,16 @@ plexi = mat('M_Plexi', (0.6, 0.65, 0.7), 0.05, alpha=0.25)
 wheelchair = mat('M_WheelBlue', (0.05, 0.25, 0.7), 0.5)
 redm = mat('M_RedHammer', (0.8, 0.05, 0.03), 0.4)
 FLZ = Z0 + 0.36                                                   # גובה הרצפה (קומה נמוכה)
-setm(box('SM_FloorIn', (W - 0.12, L - 0.5, 0.03), (0, 0.1, FLZ)), floorm)
+vin = bpy.data.materials.new('M_Vinyl'); nt_ = vin.node_tree; b_ = next(n for n in nt_.nodes if n.type == 'BSDF_PRINCIPLED'); b_.inputs['Roughness'].default_value = 0.6
+nz_ = nt_.nodes.new('ShaderNodeTexNoise'); nz_.inputs['Scale'].default_value = 400; rp_ = nt_.nodes.new('ShaderNodeValToRGB')
+rp_.color_ramp.elements[0].color = (0.16, 0.17, 0.19, 1); rp_.color_ramp.elements[1].color = (0.32, 0.33, 0.35, 1); rp_.color_ramp.elements[0].position = 0.45; rp_.color_ramp.elements[1].position = 0.62
+nt_.links.new(nz_.outputs['Fac'], rp_.inputs['Fac']); nt_.links.new(rp_.outputs['Color'], b_.inputs['Base Color'])
+setm(box('SM_FloorIn', (W - 0.12, L - 0.5, 0.03), (0, 0.1, FLZ)), vin)
+for nm_, y_ in (('F', FA), ('R', RA)):                                  # קופסת קשת הגלגל (במה למושבים)
+    for sd in (1, -1):
+        if nm_ == 'F' and sd == -R: continue
+        pb_ = box(f'SM_ArchBox{nm_}{sd}', (0.75, 1.3, 0.3), (sd*(W/2 - 0.45), y_, FLZ + 0.15)); setm(pb_, panel)
+        mm = pb_.modifiers.new('bev', 'BEVEL'); mm.width = 0.04; mm.segments = 4
 for nm, (a, b_) in (('Front', FD), ('Mid', MD)):                 # פס צהוב בשפת הכניסה
     setm(box(f'SM_StepEdge{nm}', (0.05, b_ - a, 0.005), (R*(W/2 - 0.45), (a + b_)/2, FLZ + 0.017)), yellow)
 # קירות פנימיים מתחת לחלונות ומעליהם
@@ -249,17 +258,36 @@ st_ = uv_plane('SM_QRSticker', 0.3, 0.13, (0.55, YF + 3.0, Z0 + H - 0.095), tex_
 for k in (-1, 1):                                                 # פסי תאורה
     setm(box(f'SM_Light{k}', (0.12, L - 2.0, 0.015), (k*0.42, 0.3, Z0 + H - 0.095)), lamp)
 
+def tube(name, pts, r, m, cyclic=False):
+    """צינור לאורך נקודות (Curve עם עובי) — מוטות מעוקלים, ידיות, טבעות"""
+    cu = bpy.data.curves.new(name, 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 4; cu.use_fill_caps = True
+    sp = cu.splines.new('POLY'); sp.points.add(len(pts) - 1)
+    for p_, q in zip(sp.points, pts): p_.co = (q[0], q[1], q[2], 1)
+    sp.use_cyclic_u = cyclic
+    ob = link(bpy.data.objects.new(name, cu)); ob.data.materials.append(m); return ob
+def arc(c, r, a0, a1, plane, n=10):
+    """נקודות על קשת: plane='XZ' או 'YZ' סביב המרכז c"""
+    out = []
+    for i in range(n + 1):
+        a = a0 + (a1 - a0) * i / n
+        u, v = r*math.cos(a), r*math.sin(a)
+        out.append((c[0] + u, c[1], c[2] + v) if plane == 'XZ' else (c[0], c[1] + u, c[2] + v))
+    return out
 def seat(name, x, y, facing=-1):
-    """מושב עירוני: מעטפת פלסטיק מעוגלת, ריפוד כחול, ידית אחיזה בראש המשענת"""
-    zc = FLZ + 0.46
-    cu = box(name + '_Cush', (0.42, 0.42, 0.06), (x, y, zc), rot=None); setm(cu, seat_fab)
-    sh = box(name + '_Shell', (0.44, 0.06, 0.66), (x, y - facing*0.21, zc + 0.3)); setm(sh, shell)
-    bk = box(name + '_Back', (0.38, 0.02, 0.5), (x, y - facing*0.175, zc + 0.3)); setm(bk, seat_fab)
-    for o in (cu, sh, bk):
-        mm = o.modifiers.new('bev', 'BEVEL'); mm.width = 0.025; mm.segments = 3
+    """מושב עירוני (לפי צילום): מעטפת פלסטיק אפורה מעוגלת ונטויה לאחור, ריפוד כחול, ידית בראש המשענת, תושבת לקיר"""
+    zc = FLZ + 0.45; t = math.radians(-9) * facing
+    cu = box(name + '_Cush', (0.43, 0.43, 0.07), (x, y, zc)); setm(cu, seat_fab)
+    cs = box(name + '_CushShell', (0.45, 0.45, 0.03), (x, y, zc - 0.045)); setm(cs, shell)
+    sh = box(name + '_Shell', (0.45, 0.05, 0.7), (x, y - facing*0.235, zc + 0.36), rot=(t, 0, 0)); setm(sh, shell)
+    bk = box(name + '_Back', (0.39, 0.03, 0.52), (x, y - facing*0.205, zc + 0.33), rot=(t, 0, 0)); setm(bk, seat_fab)
+    for o, w_ in ((cu, 0.03), (cs, 0.015), (sh, 0.06), (bk, 0.03)):
+        mm = o.modifiers.new('bev', 'BEVEL'); mm.width = w_; mm.segments = 5; mm.limit_method = 'NONE'
         smooth(o)
-    hd = cyl(name + '_Grab', 0.014, 0.22, (x, y - facing*0.25, zc + 0.66), seg=10, axis='X'); setm(hd, steel)
-    leg = box(name + '_Leg', (0.04, 0.04, 0.42), (x - 0.12, y, FLZ + 0.22)); setm(leg, steel)
+    gy = y - facing*0.3
+    tube(name + '_Grab', arc((x, gy, zc + 0.68), 0.13, 0.15, math.pi - 0.15, 'XZ', 10), 0.013, steel)    # ידית קשתית
+    sd = 1 if x > 0 else -1
+    setm(box(name + '_Bracket', (0.3, 0.05, 0.05), (sd*(W/2 - 0.22), y, zc - 0.09)), steel)              # תושבת אל הקיר
+    setm(box(name + '_Leg', (0.04, 0.04, 0.4), (x - sd*0.17, y, FLZ + 0.2)), steel)
 
 ys = [YF + 2.0 + k*0.8 for k in range(12)]
 for k, y in enumerate(ys):
@@ -288,20 +316,27 @@ for zz in (0.85, 1.05):
 bw = box('SM_WallBtn', (0.02, 0.05, 0.07), (xw - (-R)*0.02, wy - 0.7, FLZ + 0.75)); setm(bw, blue_btn)
 # מוטות: אנכיים ליד כל שורה שנייה ובדלתות, מעקות תקרה לכל האורך, רצועות תלויות
 poles = [YF + 1.6, FD[0] + 0.1, FD[1] + 0.05, MD[0] - 0.1, MD[1] + 0.1] + [y + 0.36 for y in ys[1::2]]
+ZT = Z0 + H - 0.62                                   # גובה תחילת העיקול
 for k, y in enumerate(poles):
     for sd in (1, -1):
-        x = sd * 0.42
-        setm(cyl(f'SM_Pole{k}{sd}', 0.019, Z0 + H - 0.12 - FLZ, (x, y, (FLZ + Z0 + H - 0.12)/2), seg=14, axis='Z'), yellow)
+        x = sd * 0.5
+        pts = [(x, y, FLZ + 0.01), (x, y, ZT)] + arc((x + sd*0.22, y, ZT), 0.22, math.pi if sd > 0 else 0, math.pi/2, 'XZ', 8)[1:]
+        pts += [(x + sd*0.45, y, ZT + 0.22)]
+        tube(f'SM_Pole{k}{sd}', pts, 0.019, yellow)
+        setm(cyl(f'SM_PoleFoot{k}{sd}', 0.035, 0.03, (x, y, FLZ + 0.025), seg=16, axis='Z'), trim)
         if k % 2 == 0:                                                # לחצן עצור על המוט
             bb = box(f'SM_Btn{k}{sd}', (0.05, 0.045, 0.12), (x, y - 0.03, FLZ + 1.35)); setm(bb, blue_btn)
             mm = bb.modifiers.new('bev', 'BEVEL'); mm.width = 0.012; mm.segments = 3
             setm(box(f'SM_BtnF{k}{sd}', (0.03, 0.006, 0.035), (x, y - 0.054, FLZ + 1.36)), yel_face)
 for sd in (1, -1):
-    setm(cyl(f'SM_CeilRail{sd}', 0.016, L - 2.6, (sd*0.42, 0.4, Z0 + H - 0.42), seg=12, axis='Y'), yellow)
-    for k in range(14):
+    setm(cyl(f'SM_CeilRail{sd}', 0.016, L - 2.6, (sd*0.5, 0.4, ZT - 0.02), seg=12, axis='Y'), yellow)
+    for k in range(14):                                               # רצועות: לולאה צהובה תלויה
         y = YF + 2.2 + k*0.62
-        sp = box(f'SM_Strap{sd}{k}', (0.03, 0.012, 0.18), (sd*0.42, y, Z0 + H - 0.53)); setm(sp, yellow)
-        ring = cyl(f'SM_StrapRing{sd}{k}', 0.045, 0.012, (sd*0.42, y, Z0 + H - 0.66), seg=16, axis='Y'); setm(ring, yellow)
+        setm(box(f'SM_Strap{sd}{k}', (0.028, 0.01, 0.16), (sd*0.5, y, ZT - 0.11)), yellow)
+        tube(f'SM_StrapRing{sd}{k}', arc((sd*0.5, y, ZT - 0.24), 0.05, 0, 2*math.pi, 'XZ', 16), 0.009, yellow, cyclic=True)
+# מוט אופקי בין זוגות המוטות ליד הדלת האמצעית (לפי צילום)
+for y in (MD[0] - 0.1, MD[1] + 0.1):
+    setm(cyl(f'SM_CrossBar{y:.2f}', 0.018, 0.8, (R*0.9, y, FLZ + 1.05), seg=12, axis='X'), yellow)
 # מכשיר התיקוף החדש (לפי תמונות): גוף שחור מלבני מעוגל על המוט הצהוב, מסך לאורך עם כותרת כחולה וכרטיס צהוב,
 # ומתחתיו אזור ההנחה עם סמל ה-NFC. המסכים נוצרים ב-screens.py (tex/)
 val_body = mat('M_ValBody', (0.025, 0.025, 0.028), 0.35)
