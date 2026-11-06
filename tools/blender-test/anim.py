@@ -36,6 +36,17 @@ try:
 except Exception as e:
     print('DBG hair cap failed', e)
 SC.cycles.transparent_max_bounces = 32
+# הכתמים הכתומים בשיער (שלמה 06.11) נשארו גם עם הכיפה — הם מגיעים מהטקסטורה של השיער עצמה.
+# צובעים את השיער בצבע כהה אחיד, ומשאירים רק את השקיפות של הטקסטורה
+try:
+    for ms in hair.material_slots:
+        nt = ms.material.node_tree; pr = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+        for l in list(pr.inputs['Base Color'].links): nt.links.remove(l)
+        pr.inputs['Base Color'].default_value = (0.03, 0.022, 0.016, 1)
+        pr.inputs['Roughness'].default_value = 0.55
+        print('DBG hair recolor', ms.material.name, [i.name for i in pr.inputs if i.is_linked])
+except Exception as e:
+    print('DBG hair recolor failed', e)
 print('RIG BONES', [b.name for b in rig.data.bones][:40])
 
 bpy.ops.import_anim.bvh(filepath=BVH, axis_forward='-Z', axis_up='Y', use_fps_scale=True, rotate_mode='NATIVE')
