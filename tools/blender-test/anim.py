@@ -79,12 +79,56 @@ for f in range(f0, f1 + 1):
         hw = rig.matrix_world @ rig.pose.bones[hips].head
         sw = src.matrix_world @ src.pose.bones[hips].head
         print('DBG', f, 'dst hips', tuple(round(v, 2) for v in hw), 'src hips', tuple(round(v, 2) for v in sw), 'k', round(k, 4), 'rigscale', tuple(round(v, 3) for v in rig.scale), 'mode', rig.pose.bones[hips].rotation_mode)
-toes = [n for n in ('LeftToeBase', 'RightToeBase', 'LeftFoot', 'RightFoot') if n in rig.pose.bones]
-mz = 1e9
-for f in range(f0, f1 + 1, 2):
-    SC.frame_set(f)
-    for n in toes: mz = min(mz, (rig.matrix_world @ rig.pose.bones[n].tail).z)
-rig.location.z -= (mz - 0.03); print('DBG floor offset', round(mz, 3))
+# רצפה: בכל פריים לפחות רגל אחת על הקרקע, אז הנקודה הנמוכה של כל פריים היא הרצפה. לוקחים אחוזון 20
+# (ולא את המינימום הכללי, שנקבע בפריים אחד שבו הבוהן ירדה מתחת — וזה גרם לרגל העומדת לרחף)
+def low_pts():
+    pts = []
+    for n in ('LeftFoot', 'RightFoot', 'LeftToeBase', 'RightToeBase'):
+        if n in rig.pose.bones:
+            pb = rig.pose.bones[n]; pts += [(rig.matrix_world @ pb.head).z, (rig.matrix_world @ pb.tail).z]
+    return min(pts)
+mins = []
+for f in range(f0, f1 + 1):
+    SC.frame_set(f); mins.append(low_pts())
+fl_z = sorted(mins)[len(mins) // 5]
+rig.location.z -= fl_z; bpy.context.view_layer.update()
+print('DBG floor', round(fl_z, 3), 'min', round(min(mins), 3), 'max', round(max(mins), 3))
+# הנעל עלתה גבוה מדי בצעד (שלמה 06.11): IK על השוק, והמטרה היא הקרסול עם גובה מכווץ מעל הגובה שלו בעמידה
+LIFT = float(os.environ.get('LIFT', '0.6'))
+iks = []
+for side in ('Left', 'Right'):
+    leg, foot = side + 'Leg', side + 'Foot'
+    if leg not in rig.pose.bones or foot not in rig.pose.bones: continue
+    pos, knee = [], []
+    for f in range(f0, f1 + 1):
+        SC.frame_set(f)
+        pos.append((rig.matrix_world @ rig.pose.bones[foot].head).copy())
+        knee.append((rig.matrix_world @ rig.pose.bones[leg].head).copy())
+    stand = sorted(p.z for p in pos)[len(pos) // 10]
+    tg = bpy.data.objects.new('ik_' + side, None); SC.collection.objects.link(tg)
+    pole = bpy.data.objects.new('pole_' + side, None); SC.collection.objects.link(pole)
+    mx = 0.0
+    for i, f in enumerate(range(f0, f1 + 1)):
+        q = pos[i].copy(); up = q.z - stand; mx = max(mx, up)
+        if up > 0: q.z = stand + up * LIFT
+        tg.location = q; tg.keyframe_insert('location', frame=f)
+        # הקוטב: מול הברך, כדי שהברך תמשיך להתכופף קדימה
+        fwd = (pos[min(i + 1, len(pos) - 1)] - pos[max(i - 1, 0)]); fwd.z = 0
+        fwd = fwd.normalized() if fwd.length > 1e-4 else Vector((0, -1, 0))
+        pole.location = knee[i] + fwd * 0.6; pole.keyframe_insert('location', frame=f)
+    print('DBG lift', side, 'stand', round(stand, 3), 'max up', round(mx, 3), '->', round(mx * LIFT, 3))
+    c = rig.pose.bones[leg].constraints.new('IK'); c.target = tg; c.pole_target = pole; c.chain_count = 2
+    c.pole_angle = math.radians(-90); iks.append(leg)
+    # כף הרגל שומרת על הכיוון שלה בעולם (אחרת היא מסתובבת עם השוק החדשה)
+if iks:
+    bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='POSE')
+    bpy.ops.pose.select_all(action='SELECT')
+    bpy.ops.nla.bake(frame_start=f0, frame_end=f1, only_selected=True, visual_keying=True, clear_constraints=True, use_current_action=True, bake_types={'POSE'})
+    bpy.ops.object.mode_set(mode='OBJECT')
+    SC.frame_set((f0 + f1) // 2)
+    for side in ('Left', 'Right'):
+        if side + 'Leg' in rig.pose.bones:
+            print('DBG knee', side, tuple(round(v, 2) for v in rig.matrix_world @ rig.pose.bones[side + 'Leg'].head))
 src.hide_render = True; src.hide_viewport = True
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend'))
 
