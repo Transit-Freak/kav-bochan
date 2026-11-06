@@ -325,3 +325,10 @@ footer a { color: var(--brand-ink); font-weight: 600; }
 /* כפתור הנגישות הצף (בפינה התחתונה): שדה שמקבל פוקוס נגלל מעליו ולא מתחתיו */
 input, select, textarea { scroll-margin-bottom: 96px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* כפתור "חזרה לקו הבוחן" יושב בפס העליון בטלפון — שומרים לו מקום, והשם של הכלי נחתך בשלוש נקודות */
+@media (max-width:760px){
+  .kb-top-in{padding-inline-end:154px}
+  .kb-top-in .brand,.kb-top-in .kb-brand{flex:none}
+  .kb-top .kb-crumb{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}

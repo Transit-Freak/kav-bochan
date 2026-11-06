@@ -314,3 +314,27 @@ button:focus-visible,input:focus-visible,tr:focus-visible,a:focus-visible{outlin
   #kb-a11y-btn svg{width:24px !important;height:24px !important}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none !important}}
+
+/* כפתור "חזרה לקו הבוחן" יושב בפס העליון בטלפון — שומרים לו מקום, והשם של הכלי נחתך בשלוש נקודות */
+@media (max-width:760px){
+  .kbtop-in{padding-inline-end:154px}
+  .kbtop-in .brand,.kbtop-in .kb-brand{flex:none}
+  .crumb{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline-start:12px;border-inline-start:1px solid var(--line2)}
+  .crumb::before{display:none}
+}
+
+/* כפתורי טקסט בתוך הטבלאות ("הקווים של החברה ←", "עוד 100 ←") — כפתור גלולה בתכלת, לא כפתור דפדפן */
+button.lnk{display:inline-flex;align-items:center;gap:4px;font:700 12.5px/1.25 var(--disp);color:var(--accent2);background:var(--brand-xl);border:1px solid #bae6fd;border-radius:999px;padding:3px 11px;margin:2px 0;cursor:pointer;text-decoration:none;transition:background .15s,border-color .15s,color .15s}
+button.lnk:hover{background:var(--brand-lt);border-color:rgba(14,165,233,.45);color:var(--ink)}
+button.lnk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* שום דבר לא רחב מהמסך: עמודות הרשת מתכווצות, גרפים וטבלאות נגללים בתוך עצמם */
+.cols2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.cols2>*,.panel,.chart{min-width:0}
+.chart{max-width:100%;overflow-x:auto}
+.panel [id^="t-"]{max-width:100%;overflow-x:auto}
+@media(max-width:760px){.cols2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){
+  .filters select,.filters .search{min-width:0;max-width:100%}
+  .cal{width:min(300px,calc(100vw - 24px));right:50%;transform:translateX(50%)}
+}
