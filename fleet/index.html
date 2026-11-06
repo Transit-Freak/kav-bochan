@@ -706,6 +706,10 @@ function keyV(k){if(!KEYV){KEYV={};for(const o of DATA.operators)for(const v of 
 const monBit=m=>(+m.slice(0,4)-2020)*12+(+m.slice(5,7)-1);
 // האם הרכב שידר בחודש (מסיכת החודשים בהקסה — גדולה מדי למספר רגיל, לכן BigInt)
 const inMon=(hex,m)=>{if(!hex)return false;try{return ((BigInt('0x'+hex)>>BigInt(monBit(m)))&1n)===1n;}catch(e){return false;}};
+// באילו חודשים הרכב פעל בעיר הזו (שלמה 06.11): המסיכה של העיר אם יש, אחרת הכללית
+const cityMask=(e,ci)=>{const j=e[1].indexOf(ci),cm=e[2]&&j>=0?e[2][j]:'';if(cm===''||!CV.cov)return e[0];
+  try{let m=e[0]?BigInt('0x'+e[0]):0n;const p=parseInt(cm,16);
+    CV.cov.forEach((mi,k)=>{const b=1n<<BigInt(mi);m=(p>>k)&1?(m|b):(m&~b);});return m?m.toString(16):'';}catch(x){return e[0];}};
 // "כל הרכבים" / חיפוש מספר רכב: הרשימה שעל המסך (גם לאקסל)
 function plateHits(f){
   const clean=f.replace(/-/g,'');
@@ -733,7 +737,8 @@ function plateHits(f){
 // ign: מסננים שלא להחיל — כדי לספור כמה רכבים יש בכל סוג ובכל שנתון (שלמה 03.11: "כמה עירוניים", ולפי שנה)
 function cityVehRows(c,ign){
   const keys=(CVIDX&&CVIDX[c])||[], rows=[];
-  for(const k of keys){const p=keyV(k);if(!p)continue;if(CITYMON&&!inMon(CV.v[k][0],CITYMON))continue;
+  const ci=CV.cities.indexOf(c);
+  for(const k of keys){const p=keyV(k);if(!p)continue;if(CITYMON&&!inMon(cityMask(CV.v[k],ci),CITYMON))continue;
     const dd=DAYS&&DAYS.d?DAYS.d[k]:null;rows.push({o:p[0],v:p[1],k,dd:dd?dd[0]:null,rt:dd?dd[1]:null});}
   let out=rows;
   if(STATF!==null) out=out.filter(r=>(isActive(r.v)?1:0)===STATF);
