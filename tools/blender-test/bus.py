@@ -312,8 +312,8 @@ setm(box('SM_FoldBase', (0.3, 0.16, 0.43), (xw - (-R)*0.22, wy + 0.45, FLZ + 0.2
 setm(box('SM_FoldFrame', (0.04, 0.06, 0.8), (xw - (-R)*0.02, wy + 0.45, FLZ + 0.8)), steel)              # מסגרת אל הקיר
 setm(box('SM_BeltRetractor', (0.04, 0.07, 0.12), (xw - (-R)*0.02, wy - 0.42, FLZ + 0.8)), trim)
 setm(box('SM_Belt', (0.01, 0.04, 0.22), (xw - (-R)*0.03, wy - 0.42, FLZ + 0.62)), trim)
-for zz in (0.85, 1.05):
-    setm(cyl(f'SM_WheelRail{zz}', 0.018, 1.2, (xw - (-R)*0.05, wy, FLZ + zz), seg=12, axis='Y'), yellow)
+for zz in (0.85, 1.05):                                                # המעקים נעצרים לפני המושב המתקפל
+    setm(cyl(f'SM_WheelRail{zz}', 0.018, 0.75, (xw - (-R)*0.05, wy - 0.2, FLZ + zz), seg=12, axis='Y'), yellow)
 bw = box('SM_WallBtn', (0.02, 0.05, 0.07), (xw - (-R)*0.02, wy - 0.7, FLZ + 0.75)); setm(bw, blue_btn)
 # מוטות: אנכיים ליד כל שורה שנייה ובדלתות, מעקות תקרה לכל האורך, רצועות תלויות
 poles = [YF + 1.6, FD[0] + 0.1, FD[1] + 0.05, MD[0] - 0.1, MD[1] + 0.1] + [y + 0.36 for y in ys[1::2]]

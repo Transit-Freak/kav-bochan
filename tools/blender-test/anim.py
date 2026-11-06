@@ -37,7 +37,10 @@ print('MATCHED', len(names), names[:20])
 def wrot(ob, M): return (ob.matrix_world.to_3x3() @ M.to_3x3()).normalized()
 for pb in rig.pose.bones: pb.matrix_basis.identity()
 bpy.context.view_layer.update()
-order0 = [b.name for b in rig.data.bones if b.name in names]
+# מיישרים רק את הגפיים הארוכות (ידיים ורגליים) לתנוחת T. כפות רגליים, בהונות, מפרקי אגן וידיים נשארים בתנוחת המנוחה
+# של MPFB — יישור שלהם (בלי סיבוב סביב הציר) הוא מה שגרם להליכה "על קצות האצבעות" כמו בבלט
+ALIGN = ('UpLeg', 'Leg', 'Arm', 'ForeArm', 'Shoulder')
+order0 = [b.name for b in rig.data.bones if b.name in names and any(b.name.endswith(a) for a in ALIGN) and 'Hand' not in b.name]
 for n in order0:
     sb = src.data.bones[n]
     t_dir = (src.matrix_world @ sb.tail_local) - (src.matrix_world @ sb.head_local)
@@ -98,7 +101,8 @@ cam.rotation_euler = (mid - cam.location).to_track_quat('-Z', 'Y').to_euler()
 sun = bpy.data.objects.new('Sun', bpy.data.lights.new('Sun', 'SUN')); SC.collection.objects.link(sun); sun.data.energy = 3; sun.rotation_euler = (math.radians(45), 0, math.radians(-30))
 w = bpy.data.worlds.new('W'); SC.world = w; bgn = next(n for n in w.node_tree.nodes if n.type == 'BACKGROUND'); bgn.inputs[0].default_value = (0.8, 0.83, 0.87, 1)
 SC.render.resolution_x, SC.render.resolution_y = 960, 540
-SC.render.engine = 'BLENDER_WORKBENCH'; SC.display.shading.light = 'STUDIO'; SC.display.shading.color_type = 'TEXTURE'
+SC.render.engine = 'CYCLES'; SC.cycles.device = 'CPU'; SC.cycles.samples = 20; SC.cycles.use_denoising = True
+SC.frame_start = f0 + 5   # בלי הפריימים של תנוחת ה-T בתחילת ההקלטה
 SC.render.fps = 30
 try:
     SC.render.image_settings.file_format = 'FFMPEG'; SC.render.ffmpeg.format = 'MPEG4'; SC.render.ffmpeg.codec = 'H264'
