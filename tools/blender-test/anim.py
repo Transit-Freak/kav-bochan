@@ -57,6 +57,10 @@ for f in range(f0, f1 + 1):
         bpy.context.view_layer.update()
         pb.keyframe_insert('rotation_quaternion' if pb.rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
         if n == hips: pb.keyframe_insert('location', frame=f)
+    if f % 10 == 1:
+        hw = rig.matrix_world @ rig.pose.bones[hips].head
+        sw = src.matrix_world @ src.pose.bones[hips].head
+        print('DBG', f, 'dst hips', tuple(round(v, 2) for v in hw), 'src hips', tuple(round(v, 2) for v in sw), 'k', round(k, 4), 'rigscale', tuple(round(v, 3) for v in rig.scale), 'mode', rig.pose.bones[hips].rotation_mode)
 src.hide_render = True; src.hide_viewport = True
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend'))
 
