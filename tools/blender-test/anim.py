@@ -30,8 +30,11 @@ try:
     m.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.025, 0.02, 0.016, 1)
     m.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.7
     cap.data.materials.clear(); cap.data.materials.append(m)
-    d = cap.modifiers.new('in', 'DISPLACE'); d.strength = -0.004
+    # הכתמים נשארו גם עם צבע אחיד: זה העור של הקרקפת שעובר דרך השיער. מרחיקים את השיער 6 מ"מ מהראש, והכיפה מתחתיו
+    d = cap.modifiers.new('in', 'DISPLACE'); d.strength = 0.003
     cap.modifiers.move(len(cap.modifiers) - 1, 0)
+    dh = hair.modifiers.new('out', 'DISPLACE'); dh.strength = 0.006
+    hair.modifiers.move(len(hair.modifiers) - 1, 0)
     print('DBG hair cap', hair.name, [md.type for md in cap.modifiers])
 except Exception as e:
     print('DBG hair cap failed', e)
