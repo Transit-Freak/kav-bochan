@@ -275,7 +275,7 @@ def arc(c, r, a0, a1, plane, n=10):
     return out
 def seat(name, x, y, facing=-1):
     """מושב עירוני (לפי צילום): מעטפת פלסטיק אפורה מעוגלת ונטויה לאחור, ריפוד כחול, ידית בראש המשענת, תושבת לקיר"""
-    zc = FLZ + 0.45; t = math.radians(-9) * facing
+    zc = FLZ + 0.45; t = math.radians(9) * facing      # נטייה לאחור
     cu = box(name + '_Cush', (0.43, 0.43, 0.07), (x, y, zc)); setm(cu, seat_fab)
     cs = box(name + '_CushShell', (0.45, 0.45, 0.03), (x, y, zc - 0.045)); setm(cs, shell)
     sh = box(name + '_Shell', (0.45, 0.05, 0.7), (x, y - facing*0.235, zc + 0.36), rot=(t, 0, 0)); setm(sh, shell)
@@ -284,7 +284,7 @@ def seat(name, x, y, facing=-1):
         mm = o.modifiers.new('bev', 'BEVEL'); mm.width = w_; mm.segments = 5; mm.limit_method = 'NONE'
         smooth(o)
     gy = y - facing*0.3
-    tube(name + '_Grab', arc((x, gy, zc + 0.68), 0.13, 0.15, math.pi - 0.15, 'XZ', 10), 0.013, steel)    # ידית קשתית
+    tube(name + '_Grab', arc((x, gy, zc + 0.69), 0.07, 0.3, math.pi - 0.3, 'XZ', 8), 0.011, shell)    # ידית קשתית
     sd = 1 if x > 0 else -1
     setm(box(name + '_Bracket', (0.3, 0.05, 0.05), (sd*(W/2 - 0.22), y, zc - 0.09)), steel)              # תושבת אל הקיר
     setm(box(name + '_Leg', (0.04, 0.04, 0.4), (x - sd*0.17, y, FLZ + 0.2)), steel)
@@ -306,9 +306,10 @@ for k, y in enumerate(ys[::2]):
 # אזור כיסא גלגלים: מושב מתקפל, חגורה ושלט כחול
 wy = (MD[0] + MD[1]) / 2
 xw = -R*(W/2 - 0.1)
-fs = box('SM_FoldSeat', (0.42, 0.08, 0.62), (xw - (-R)*0.25, wy + 0.45, FLZ + 0.95)); setm(fs, seat_fab)     # מושב מתקפל גבוה
+fs = box('SM_FoldSeat', (0.42, 0.08, 0.78), (xw - (-R)*0.22, wy + 0.45, FLZ + 0.82)); setm(fs, seat_fab)     # מושב מתקפל גבוה
 mm = fs.modifiers.new('bev', 'BEVEL'); mm.width = 0.03; mm.segments = 3
-setm(box('SM_FoldBase', (0.3, 0.2, 0.25), (xw - (-R)*0.25, wy + 0.45, FLZ + 0.13)), trim)
+setm(box('SM_FoldBase', (0.3, 0.16, 0.43), (xw - (-R)*0.22, wy + 0.45, FLZ + 0.215)), trim)
+setm(box('SM_FoldFrame', (0.04, 0.06, 0.8), (xw - (-R)*0.02, wy + 0.45, FLZ + 0.8)), steel)              # מסגרת אל הקיר
 setm(box('SM_BeltRetractor', (0.04, 0.07, 0.12), (xw - (-R)*0.02, wy - 0.42, FLZ + 0.8)), trim)
 setm(box('SM_Belt', (0.01, 0.04, 0.22), (xw - (-R)*0.03, wy - 0.42, FLZ + 0.62)), trim)
 for zz in (0.85, 1.05):
@@ -333,7 +334,7 @@ for sd in (1, -1):
     for k in range(14):                                               # רצועות: לולאה צהובה תלויה
         y = YF + 2.2 + k*0.62
         setm(box(f'SM_Strap{sd}{k}', (0.028, 0.01, 0.16), (sd*0.5, y, ZT - 0.11)), yellow)
-        tube(f'SM_StrapRing{sd}{k}', arc((sd*0.5, y, ZT - 0.24), 0.05, 0, 2*math.pi, 'XZ', 16), 0.009, yellow, cyclic=True)
+        tube(f'SM_StrapRing{sd}{k}', arc((sd*0.5, y, ZT - 0.225), 0.034, 0, 2*math.pi, 'XZ', 16), 0.008, yellow, cyclic=True)
 # מוט אופקי בין זוגות המוטות ליד הדלת האמצעית (לפי צילום)
 for y in (MD[0] - 0.1, MD[1] + 0.1):
     setm(cyl(f'SM_CrossBar{y:.2f}', 0.018, 0.8, (R*0.9, y, FLZ + 1.05), seg=12, axis='X'), yellow)
