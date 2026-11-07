@@ -31,10 +31,20 @@ try:
     m.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.7
     cap.data.materials.clear(); cap.data.materials.append(m)
     # הכתמים נשארו גם עם צבע אחיד: זה העור של הקרקפת שעובר דרך השיער. מרחיקים את השיער 6 מ"מ מהראש, והכיפה מתחתיו
-    d = cap.modifiers.new('in', 'DISPLACE'); d.strength = 0.003
+    # 07.11 (שלמה): "שיער נכנס לאוזן" — ההרחקה דחפה גם את השיער שליד האוזניים החוצה, על האוזן.
+    # מרחיקים רק את החלק העליון של הראש (מעל האוזניים), ובצדדים ההרחקה דועכת לאפס; הכיפה רק שם
+    zs = [v.co.z for v in hair.data.vertices]; top = max(zs); EAR = float(os.environ.get('EAR_DROP', '0.085'))
+    for ob in (hair, cap):
+        vg = ob.vertex_groups.new(name='above_ears')
+        for v in ob.data.vertices:
+            w = max(0.0, min(1.0, (v.co.z - (top - EAR)) / 0.03))
+            if w > 0: vg.add([v.index], w, 'REPLACE')
+    d = cap.modifiers.new('in', 'DISPLACE'); d.strength = 0.003; d.vertex_group = 'above_ears'
     cap.modifiers.move(len(cap.modifiers) - 1, 0)
-    dh = hair.modifiers.new('out', 'DISPLACE'); dh.strength = 0.006
+    msk = cap.modifiers.new('only_top', 'MASK'); msk.vertex_group = 'above_ears'; cap.modifiers.move(len(cap.modifiers) - 1, 1)
+    dh = hair.modifiers.new('out', 'DISPLACE'); dh.strength = 0.006; dh.vertex_group = 'above_ears'
     hair.modifiers.move(len(hair.modifiers) - 1, 0)
+    print('DBG hair top', round(top, 3), 'ear cut', round(top - EAR, 3))
     print('DBG hair cap', hair.name, [md.type for md in cap.modifiers])
 except Exception as e:
     print('DBG hair cap failed', e)
