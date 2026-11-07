@@ -4,6 +4,7 @@
 מסך המכשיר מתחלף ממסך ההמתנה למסך התוצאה ברגע ההנחה. VARIANT: ok (נסיעה טובה) / err (תקלה בכרטיס) / nofunds (אין מספיק כסף).
 מריצים: blender -b --online-mode out/bus.blend -P tap.py  (אחרי bus.py, screens.py ו-card_tex.py)."""
 import bpy, bmesh, os, math, time
+import numpy as np
 from mathutils import Matrix, Vector, Quaternion
 
 T0 = time.time()
@@ -53,7 +54,7 @@ NPAD = Vector((0, -1, 0))
 SC.frame_set(f1); upd()
 p_end = head_w(hips)
 th = math.pi / 2 - math.atan2(fwd.y, fwd.x)
-STAND = Vector((float(os.environ.get('STAND_X', '0.03')), float(os.environ.get('STAND_Y', '-1.12')), FLOOR))
+STAND = Vector((float(os.environ.get('STAND_X', '-0.06')), float(os.environ.get('STAND_Y', '-1.12')), FLOOR))
 Tm = Matrix.Translation(STAND) @ Matrix.Rotation(th, 4, 'Z') @ Matrix.Translation(Vector((-p_end.x, -p_end.y, 0)))
 rig.matrix_world = Tm @ rig.matrix_world; upd()
 print('TAP floor', round(FLOOR, 3), 'pad', tuple(round(v, 3) for v in PAD), 'screen', tuple(round(v, 3) for v in SCR))
@@ -77,10 +78,10 @@ CF = float(os.environ.get('CARD_F', str(round(0.62 * TIP, 3))))     # מרכז �
 CN = float(os.environ.get('CARD_N', '0.024'))                          # מרחק מכף היד (צד כף היד)
 OFF_L = F_L * CF + N_L * CN
 # כיוון היד ברגע ההנחה (בעולם): כף היד אל המשטח (+Y), האצבעות למעלה ומעט החוצה (שמאלה = -X)
-f_w = Vector((-0.22, 0.0, 1.0)).normalized(); n_w = -NPAD; t_w = n_w.cross(f_w)
+f_w = Vector((-float(os.environ.get('FING_TILT', '0.6')), 0.0, 1.0)).normalized(); n_w = -NPAD; t_w = n_w.cross(f_w)
 Bw = Matrix((f_w, n_w, t_w)).transposed(); Bl = Matrix((F_L, N_L, T_L)).transposed()
 RH = Bw @ Bl.transposed()                                               # סיבוב העולם של עצם היד בהנחה
-CARD_AT = PAD + NPAD * 0.007                                            # מרכז הכרטיס 7 מ"מ מול המשטח
+CARD_AT = PAD + NPAD * 0.007 + Vector((0, 0, -0.008))                                            # מרכז הכרטיס 7 מ"מ מול המשטח
 WR_C = CARD_AT - RH @ OFF_L                                             # מיקום פרק היד בהנחה
 
 # ---------- מרחק ההושטה: מזיזים את נקודת העמידה קדימה/אחורה כך שהמרפק יהיה כפוף בנוחות
@@ -89,8 +90,9 @@ S = head_w('LeftArm'); dx, dz = WR_C.x - S.x, WR_C.z - S.z
 want = float(os.environ.get('REACH', '0.84')) * (a_len + b_len)
 dy = math.sqrt(max(0.0, want * want - dx * dx - dz * dz))
 shift = (WR_C.y - S.y) - dy
-shift = min(shift, (PAD.y - 0.30) - head_w(hips).y)                    # האגן לפחות 30 ס"מ מהמשטח
+shift = min(shift, (PAD.y - float(os.environ.get('HIPS_GAP', '0.20'))) - head_w(hips).y)   # האגן לפחות 20 ס"מ ממישור המשטח (המכשיר משמאל לגוף)
 rig.matrix_world = Matrix.Translation(Vector((0, shift, 0))) @ rig.matrix_world; upd()
+print('TAP shoulder', tuple(round(v, 2) for v in head_w('LeftArm')), 'wrist target', tuple(round(v, 2) for v in WR_C))
 print('TAP reach: arm', round(a_len, 3), round(b_len, 3), 'shift', round(shift, 3), 'hips', tuple(round(v, 2) for v in head_w(hips)),
       'dist', round((WR_C - head_w('LeftArm')).length, 3))
 
@@ -198,7 +200,7 @@ for f in range(RA - 8, END + 1):
     wl = w_lean(f)
     if wl > 0:
         R = bone_w('Spine1').to_3x3().normalized()
-        set_world_rot('Spine1', Matrix.Rotation(math.radians(7) * wl, 3, 'Z') @ Matrix.Rotation(math.radians(-5) * wl, 3, 'X') @ R)
+        set_world_rot('Spine1', Matrix.Rotation(math.radians(7) * wl, 3, 'Z') @ Matrix.Rotation(math.radians(-8) * wl, 3, 'X') @ R)
     # ראש: מבט אל המסך
     wk = w_look(f)
     if wk > 0:
@@ -271,8 +273,10 @@ for f in list(range(f0 + 2, END + 1, 4)) + [C]:
     SC.frame_set(f); dg = bpy.context.evaluated_depsgraph_get()
     for o in body_objs:
         e = o.evaluated_get(dg); me = e.to_mesh(); M = e.matrix_world
-        for v in me.vertices[::3]:
-            p = M @ v.co
+        n_ = len(me.vertices); co = np.empty(n_ * 3, dtype=np.float32); me.vertices.foreach_get('co', co)
+        co = co.reshape(-1, 3)[::2] @ np.array(M.to_3x3()).T + np.array(M.translation)
+        for p in co:
+            p = Vector(p)
             for nm, lo, hi in boxes:
                 if lo.x < p.x < hi.x and lo.y < p.y < hi.y and lo.z < p.z < hi.z: hits[(f, nm)] = hits.get((f, nm), 0) + 1
             if p.z < FLOOR + 2.0:
