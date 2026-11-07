@@ -122,6 +122,8 @@ export class Sim {
             this.events.push({ type: 'board', bus: b, p, stop });
           }
         }
+        // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש
+        if ((b.walking || 0) > 0 && b.dw < 90) busy = true;
         if (!busy && b.dw >= BUS.minDwell + BUS.doorTime) b.ph = 'close';
       } else if (b.ph === 'close') {
         b.door = Math.max(0, b.door - h / BUS.doorTime);

@@ -181,7 +181,7 @@ export class PeopleLayer {
     this.max = max;
     this.walkers = []; this.pool = [];
     this.tmpM = new THREE.Matrix4(); this.tmpQ = new THREE.Quaternion(); this.tmpC = new THREE.Color();
-    this.layoutCache = new Map();
+    this.layoutCache = new Map(); this.seats = new Map();
   }
 
   // מקום התחנה: עמוד התחנה (המיקום האמיתי מ-GTFS), כיוון "הרחק מהכביש" וכיוון לאורך הכביש
@@ -205,24 +205,60 @@ export class PeopleLayer {
     const along = (col - 2) * 0.62 + (row % 2) * 0.3, out = 0.45 + row * 0.6;
     return [f.px + f.ux * out + f.tx * along, f.py + f.uy * out + f.ty * along, Math.atan2(-f.ux, f.uy)];
   }
+  // מקום קבוע לכל ממתין: מי שמגיע מקבל את המקום הפנוי הראשון ונשאר בו עד שהוא הולך לאוטובוס
+  // (קודם המקום נקבע לפי הסדר בתור, ולכן כולם קפצו מקום בכל פעם שמישהו עלה)
+  seatOf(stop, pid) {
+    let m = this.seats.get(stop.id);
+    if (!m) { m = new Map(); this.seats.set(stop.id, m); }
+    let i = m.get(pid);
+    if (i === undefined) { const used = new Set(m.values()); i = 0; while (used.has(i)) i++; m.set(pid, i); }
+    return i;
+  }
+  personScale(id) { return 0.92 + hash(id + 9) * 0.14; }
+  personYaw(stop, i, id) { return this.slot(stop, i)[2] + (hash(id) - 0.5) * 0.9; }
 
   update(sim, stops, simDt, busLayer) {
-    // קהל ממתין: לפי תחנה
+    // 1. עולים ויורדים — לפני שמעדכנים את הממתינים, כדי שההולך יתחיל בדיוק מהמקום שבו עמד
+    for (const ev of sim.events) {
+      if (ev.type === 'board') {
+        const path = this.doorPath(busLayer, ev.bus, 'front'); if (!path) continue;
+        const i = this.seatOf(ev.stop, ev.p.id), [x, y] = this.slot(ev.stop, i);
+        this.seats.get(ev.stop.id).delete(ev.p.id);
+        const start = new THREE.Vector3(x, 0.12, -y);
+        this.walk(ev.p.id, [start, path.out, path.in], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id));
+      } else if (ev.type === 'alight') {
+        const path = this.doorPath(busLayer, ev.bus, 'mid'); if (!path) continue;
+        const f = this.stopFrame(ev.stop), side = (hash(ev.p.id) - 0.5) * 2;
+        const dir = side >= 0 ? 1 : -1, far = 14 + Math.abs(side) * 10;
+        const curb = new THREE.Vector3(f.px + f.ux * 2.2 + f.tx * dir * 2, 0.12, -(f.py + f.uy * 2.2 + f.ty * dir * 2));
+        const away = new THREE.Vector3(f.px + f.ux * 2.6 + f.tx * dir * far, 0.12, -(f.py + f.uy * 2.6 + f.ty * dir * far));
+        this.walk(ev.p.id, [path.in, path.out, curb, away], 'alight', ev.bus);
+      }
+    }
+
+    // 2. קהל ממתין: לפי תחנה, כל אחד במקום הקבוע שלו
     const per = new Map();
     for (const L of sim.lines) {
       if (L.visible === false) continue;
       L.queues.forEach((q, k) => { if (!q.length) return; const s = L.stops[k]; const a = per.get(s) || []; for (const p of q) a.push(p); per.set(s, a); });
     }
+    for (const [sid, m] of this.seats) {   // מי שכבר לא בתור (קו שנמחק או הוסתר) — משחררים את המקום
+      const st = [...per.keys()].find(s => s.id === sid), ids = new Set((st ? per.get(st) : []).map(p => p.id));
+      for (const pid of m.keys()) if (!ids.has(pid)) m.delete(pid);
+    }
     let n = 0;
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
     for (const [stop, list] of per) {
-      for (let i = 0; i < list.length && i < 36 && n < this.max; i++, n++) {
-        const [x, y, yaw] = this.slot(stop, i), p = list[i];
-        Q.setFromAxisAngle(up, yaw + (hash(p.id) - 0.5) * 0.9);
-        P.set(x, 0.12, -y); S.setScalar(0.92 + hash(p.id + 9) * 0.14);
+      for (const p of list) {
+        if (n >= this.max) break;
+        const i = this.seatOf(stop, p.id); if (i >= 40) continue;
+        const [x, y] = this.slot(stop, i);
+        Q.setFromAxisAngle(up, this.personYaw(stop, i, p.id));
+        P.set(x, 0.12, -y); S.setScalar(this.personScale(p.id));
         M.compose(P, Q, S);
         const c = personColors(p.id);
         for (const k in this.parts) { this.parts[k].setMatrixAt(n, M); this.parts[k].setColorAt(n, C.setHex(c[k] ?? 0x888888)); }
+        n++;
       }
     }
     for (const k in this.parts) {
@@ -230,44 +266,67 @@ export class PeopleLayer {
     }
     this.crowdCount = n;
 
-    // הולכים: עולים לאוטובוס / יורדים ממנו
-    for (const ev of sim.events) {
-      if (sim.speed > 12) break;
-      if (ev.type === 'board') {
-        const to = busLayer.doorWorld(ev.bus, 'front'); if (!to) continue;
-        const [x, y] = this.slot(ev.stop, 0);
-        this.walk(ev.p.id, new THREE.Vector3(x, 0.12, -y), to.setY(0.12), null);
-      } else if (ev.type === 'alight') {
-        const from = busLayer.doorWorld(ev.bus, 'mid'); if (!from) continue;
-        const f = this.stopFrame(ev.stop), side = (hash(ev.p.id) - 0.5) * 14;
-        const to = new THREE.Vector3(f.px + f.ux * 3 + f.tx * side, 0.12, -(f.py + f.uy * 3 + f.ty * side));
-        this.walk(ev.p.id, from.setY(0.12), to, 'fade');
-      }
-    }
+    // 3. הולכים: לאורך מסלול של כמה נקודות, בקצב הליכה קבוע
     for (let i = this.walkers.length - 1; i >= 0; i--) {
       const w = this.walkers[i];
-      w.t += simDt;
-      const k = Math.min(1, w.t / w.dur);
-      w.obj.position.lerpVectors(w.a, w.b, k);
+      w.d += simDt * 1.35;
+      while (w.seg < w.pts.length - 2 && w.d > w.lens[w.seg]) { w.d -= w.lens[w.seg]; w.seg++; }
+      const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
+      const k = Math.min(1, w.d / L);
+      w.obj.position.lerpVectors(a, b, k);
+      // מסתובבים בהדרגה לכיוון ההליכה
+      const want = Math.atan2(b.x - a.x, b.z - a.z);
+      let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      w.obj.rotation.y += dy * Math.min(1, simDt * 8);
       if (w.mixer) { w.mixer.update(simDt); this.centre(w); }
-      else w.obj.position.y = 0.12 + Math.abs(Math.sin(w.t * 9)) * 0.05;
-      if (k >= 1) { w.obj.visible = false; this.pool.push(w); this.walkers.splice(i, 1); }
+      else w.obj.position.y = 0.12 + Math.abs(Math.sin(w.d * 6.7)) * 0.05;
+      const last = w.seg === w.pts.length - 2;
+      // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
+      if (w.mode === 'alight' && w.counted && w.seg >= 2) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
+      // יורד: נעלם בהדרגה בסוף ההליכה. עולה: נכנס בדלת ונעלם בתוך האוטובוס
+      if (w.mode === 'alight') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
+      if (last && k >= 1) this.finish(w, i);
     }
   }
 
-  walk(id, a, b, mode) {
+  // מסלול הדלת: נקודה מול הדלת על הכביש, ונקודה בפנים (הדלת נמצאת בצד הגוף, ולכן ההולך "נבלע" בה)
+  doorPath(busLayer, bus, which) {
+    const v = busLayer.map.get(bus.id); if (!v) return null;
+    const a = v.anchors[which]; if (!a) return null;
+    v.obj.updateMatrixWorld(true);
+    const out = a.getWorldPosition(new THREE.Vector3()).setY(0.12);
+    const inLocal = a.position.clone(); inLocal.x += 1.4;
+    const inn = a.parent.localToWorld(inLocal).setY(0.12);
+    return { out, in: inn };
+  }
+  finish(w, i) {
+    if (w.bus && w.counted) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
+    w.obj.visible = false; this.setOpacity(w, 1);
+    this.pool.push(w); this.walkers.splice(i, 1);
+  }
+  setOpacity(w, o) {
+    if (w.op === o) return; w.op = o;
+    for (const [m] of w.mats) { m.transparent = o < 1; m.opacity = o; m.depthWrite = o >= 1; }
+  }
+
+  walk(id, pts, mode, bus, yaw0) {
     let w = this.pool.pop();
     if (!w) {
-      if (this.walkers.length > 40) return;
-      w = this.makeWalker();
+      if (this.walkers.length >= 150) {          // הרבה מאוד הולכים בבת אחת: מסיימים את הוותיק ביותר במקום לבטל את החדש
+        const j = this.walkers.findIndex(x => x.mode === 'alight'); if (j < 0) return;
+        this.finish(this.walkers[j], j); w = this.pool.pop();
+      } else w = this.makeWalker();
     }
     const c = personColors(id);
     for (const [m, k] of w.mats) m.color.setHex(c[k] ?? 0x888888);
-    w.a = a.clone(); w.b = b.clone(); w.t = 0;
-    w.dur = Math.max(0.6, a.distanceTo(b) / 1.35);
-    const d = new THREE.Vector3().subVectors(b, a);
-    w.obj.rotation.y = Math.atan2(d.x, d.z);
-    w.obj.position.copy(a); w.obj.visible = true;
+    this.setOpacity(w, 1);
+    w.pts = pts.map(p => p.clone()); w.lens = [];
+    for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
+    w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus;
+    w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
+    w.obj.scale.setScalar(this.personScale(id));
+    w.obj.rotation.y = yaw0 ?? Math.atan2(w.pts[1].x - w.pts[0].x, w.pts[1].z - w.pts[0].z);
+    w.obj.position.copy(w.pts[0]); w.obj.visible = true;
     this.walkers.push(w);
   }
   makeWalker() {
