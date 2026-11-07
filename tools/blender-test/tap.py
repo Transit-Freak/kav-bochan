@@ -249,7 +249,7 @@ card.matrix_parent_inverse = Matrix.Identity(4)
 card.matrix_basis = Matrix.Translation(Vector((0, -HB.length, 0))) @ Matrix.Translation(OFF_L) @ DEV_ROT_L.to_4x4()
 
 # ---------- ציר הזמן (30 פריימים בשנייה)
-RA = int(os.environ.get('REACH_START', str(f1 - 9)))       # תחילת ההושטה: בסוף העצירה
+RA = int(os.environ.get('REACH_START', str(f1 - 22)))      # תחילת ההושטה: כבר בצעד האחרון של העצירה (כך שהיד לא מתנופפת אל המחיצה)
 C = RA + 20                                                  # הכרטיס על המשטח
 HOLD = C + 9
 LE, END = HOLD + 22, HOLD + 56
@@ -264,7 +264,8 @@ for f in range(RA - 8, END + 1):
 SC.frame_set(RA); upd(); WR0 = head_w('LeftHand')
 SC.frame_set(min(LE, f1)); upd(); WR_LE = head_w('LeftHand')
 APP = WR_C + NPAD * 0.075 + Vector((0, 0, -0.02))           # נקודת התקרבות: 7.5 ס"מ מול המשטח
-keys = [(RA, WR0), (RA + 13, APP), (C, WR_C), (HOLD, WR_C), (LE, WR_LE)]
+RET = WR_C + NPAD * 0.12 + Vector((0, 0, -0.06))            # אחרי ההנחה: היד חוזרת אל הגוף ורק אז יורדת (לא דרך עמוד המכשיר)
+keys = [(RA, WR0), (RA + 13, APP), (C, WR_C), (HOLD, WR_C), (HOLD + 8, RET), (LE, WR_LE)]
 def path(f):
     if f <= keys[0][0]: return keys[0][1].copy()
     if f >= keys[-1][0]: return keys[-1][1].copy()
@@ -392,6 +393,8 @@ for f in sorted(set(list(range(f0 + 2, END + 1, 3)) + [C])):
             if 'shoe' in o.name.lower(): lowest[f] = min(lowest.get(f, 9), z - gz)
         e.to_mesh_clear()
 for kk in sorted(hits): print('TAP hit', kk, hits[kk])
+for f in sorted({kk[0] for kk in hits}):
+    SC.frame_set(f); print('TAP at hit frame', f, {n: tuple(round(v, 2) for v in head_w(n)) for n in ('LeftHand', 'RightHand', 'LeftForeArm', 'Head')})
 print('TAP shoe sole height above ground per frame (m):', {f: round(v, 3) for f, v in sorted(lowest.items())})
 for f in range(f0 + 2, END + 1, 6):
     SC.frame_set(f); print('TAP path', f, 'hips', tuple(round(v, 2) for v in head_w(hips)),
@@ -418,13 +421,13 @@ def mk_cam(name, pos, aim, lens):
     c.data.lens = lens; c.data.clip_start = 0.05; c.location = pos; c.rotation_euler = (aim - pos).to_track_quat('-Z', 'Y').to_euler(); return c
 V = lambda e, d: Vector(tuple(float(v) for v in os.environ.get(e, d).split(',')))
 cam = mk_cam('Cam_wide', V('CAM', '-2.95,-6.25,2.05'), V('AIM', '-0.70,-4.85,1.35'), float(os.environ.get('LENS', '24')))
-cam2 = mk_cam('Cam_close', V('CAM2', '-0.30,-4.05,2.15'), V('AIM2', '0.02,-4.68,1.86'), float(os.environ.get('LENS2', '24')))
+cam2 = mk_cam('Cam_close', V('CAM2', '-0.30,-4.05,2.15'), V('AIM2', '0.02,-4.66,1.95'), float(os.environ.get('LENS2', '22')))
 CUT = RA - 4
 SC.camera = cam
 mk = SC.timeline_markers.new('wide', frame=1); mk.camera = cam
 mk = SC.timeline_markers.new('close', frame=CUT); mk.camera = cam2
 print('TAP cut to close-up at', CUT)
-SC.render.resolution_x, SC.render.resolution_y = (640, 360) if PREVIEW else (1280, 720)
+SC.render.resolution_x, SC.render.resolution_y = (640, 360) if PREVIEW else tuple(int(v) for v in os.environ.get('RES', '960x540').split('x'))
 SC.render.resolution_percentage = 100
 SC.render.image_settings.file_format = 'PNG'; SC.render.image_settings.color_mode = 'RGB'
 OUT = 'out/tap' if VAR == 'ok' else f'out/tap_{VAR}'
