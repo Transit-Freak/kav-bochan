@@ -766,34 +766,20 @@ class Actor:
         self.calibrate()
 
     def calibrate(self):
-        """זווית הקוטב לכל IK: בתנוחה כפופה ידועה, הזווית שבה ה-IK משחזר את התנוחה (בלי סיבוב מוזר של הגפה)"""
-        r = self.rig; self.rig.location = (0, 0, 0); upd()
-        for key, L in self.ik.items():
-            self.reset()
-            s = key[-1]; S = 'Left' if s == 'L' else 'Right'
-            mid = f'{S}Leg' if key.startswith('foot') else f'{S}ForeArm'
-            up = f'{S}UpLeg' if key.startswith('foot') else f'{S}Arm'
-            if key.startswith('foot'): rotw(r, mid, (1, 0, 0), math.radians(35))
-            else: rotw(r, mid, (1, 0, 0), math.radians(-45))
-            ref = {n: r.pose.bones[n].matrix.copy() for n in (up, mid)}
-            Pm = r.matrix_world.inverted()
-            a = r.pose.bones[up].head.copy(); m_ = r.pose.bones[mid].head.copy(); e = r.pose.bones[mid].tail.copy()
-            bend = (m_ - (a + e) / 2).normalized()
-            L['tgt'].location = e; L['pole'].location = m_ + bend * 0.5
-            L['con'].influence = 1.0; L['rcon'].influence = 0.0
-            best = None
-            for step in list(range(-180, 180, 10)):
-                L['con'].pole_angle = math.radians(step); upd()
-                err = (r.pose.bones[mid].head - m_).length * 400 + sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref) * 0.05
-                if best is None or err < best[0]: best = (err, step)
-            for step in [best[1] + d for d in (-6, -4, -2, 0, 2, 4, 6)]:
-                L['con'].pole_angle = math.radians(step); upd()
-                err = (r.pose.bones[mid].head - m_).length * 400 + sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref) * 0.05
-                if err < best[0]: best = (err, step)
-            L['con'].pole_angle = math.radians(best[1]); L['con'].influence = 0.0
-            L['con'].pole_angle = math.radians(best[1]); upd()
-            log(self.name, key, 'pole angle', best[1], 'knee/elbow err cm', round((r.pose.bones[mid].head - m_).length * 100, 2))
-        self.reset()
+        """זווית הקוטב: מחושבת מהמנוחה. הברך פונה קדימה (‎-Y) והמרפק אחורה (‎+Y); הזווית היא מציר X של העצם
+        העליונה אל כיוון הכפיפה, סביב ציר העצם. הסימן נקבע כך שלרגליים יוצא ‎-90 (הערך שעבד ב-anim.py)"""
+        B = self.rig.data.bones
+        def ang(bn, d):
+            M = B[bn].matrix_local.to_3x3(); X, Y = M.col[0].normalized(), M.col[1].normalized()
+            d = Vector(d); d = (d - d.dot(Y) * Y).normalized()
+            return math.degrees(math.atan2(X.cross(d).dot(Y), X.dot(d)))
+        phi = {}
+        for s, S, sg in SIDES:
+            phi['foot' + s] = ang(f'{S}UpLeg', (0, -1, 0)); phi['hand' + s] = ang(f'{S}Arm', (0, 1, 0))
+        sgn = -1 if phi['footL'] > 0 else 1
+        for k, L in self.ik.items():
+            L['con'].pole_angle = math.radians(sgn * phi[k]); L['con'].influence = 0.0
+        log(self.name, 'pole angles', {k: round(sgn * v, 1) for k, v in phi.items()})
 
     def hand_rot(self, s, fingers, palm):
         """כיוון כף היד: fingers — לאן האצבעות, palm — לאן פונה כף היד (במערכת ההורה)"""
