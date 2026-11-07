@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>משחק הקווים · קריית מלאכי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="game.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="view" aria-label="מפה תלת־ממדית של קריית מלאכי"></canvas>
+
+<header class="bar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
+  </div>
+  <div class="clock" role="group" aria-label="שעון המשחק">
+    <button id="play" class="icon" title="עצירה / המשך" aria-label="עצירה / המשך">❚❚</button>
+    <span id="time" class="time">06:30</span>
+    <div class="speeds" id="speeds">
+      <button data-s="1">×1</button><button data-s="5" class="on">×5</button><button data-s="20">×20</button><button data-s="60">×60</button>
+    </div>
+  </div>
+  <div class="cams" id="cams" role="group" aria-label="מצלמה"></div>
+</header>
+
+<aside class="panel" id="panel">
+  <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
+  <nav class="tabs">
+    <button data-tab="lines" class="on">הקווים שלי</button>
+    <button data-tab="stop">תחנה</button>
+    <button data-tab="help">איך משחקים</button>
+  </nav>
+  <section data-pane="lines" class="pane on">
+    <button id="newLine" class="primary wide">+ קו חדש</button>
+    <div id="lineList"></div>
+    <p id="emptyLines" class="hint">אין עדיין קווים. לחצו על "קו חדש", והקישו על תחנות במפה לפי הסדר — המסלול יחושב לאורך הרחובות.</p>
+  </section>
+  <section data-pane="stop" class="pane" id="stopPane">
+    <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
+  </section>
+  <section data-pane="help" class="pane">
+    <ol class="help">
+      <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> גרירה בכפתור הימני (או בשתי אצבעות). <b>זום:</b> גלגלת או צביטה.</li>
+      <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". תנו מספר, שם ותדירות.</li>
+      <li>האוטובוסים יוצאים מהתחנה הראשונה לפי התדירות, עוצרים בכל תחנה, פותחים דלתות — עולים מקדימה ויורדים מהאמצע.</li>
+      <li>נוסעים מגיעים לתחנות לאורך היום, יותר בשעות השיא וליד אזורים צפופים.</li>
+      <li>השעון: ❚❚ עוצר, ×1 עד ×60 מאיצים.</li>
+      <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
+    </ol>
+  </section>
+</aside>
+
+<div class="plan" id="plan" hidden>
+  <div class="plan-txt"><b>קו חדש</b> — הקישו על תחנות לפי הסדר <span id="planCount" class="pill">0 תחנות</span></div>
+  <div class="plan-btns">
+    <button id="planUndo">בטל אחרונה</button>
+    <button id="planCancel">ביטול</button>
+    <button id="planDone" class="primary" disabled>המשך</button>
+  </div>
+  <div id="planErr" class="err" hidden></div>
+</div>
+
+<div class="modal" id="lineForm" hidden>
+  <form class="card" id="lineFormCard">
+    <h2>פרטי הקו</h2>
+    <label>מספר קו <input id="fNum" maxlength="4" required inputmode="numeric" placeholder="1"></label>
+    <label>שם <input id="fName" maxlength="40" placeholder="למשל: מרכז — שכונת רמז"></label>
+    <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
+    <div class="swatches" id="fColors" role="radiogroup" aria-label="צבע"></div>
+    <div class="row"><button type="button" id="fBack">חזרה למפה</button><button type="submit" class="primary">שמירה והפעלה</button></div>
+  </form>
+</div>
+
+<div class="modal" id="credits" hidden>
+  <div class="card">
+    <h2>קרדיטים</h2>
+    <ul class="credits">
+      <li>מפות, רחובות ובניינים: © תורמי <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, רישיון ODbL</li>
+      <li>מיקומי התחנות: GTFS של משרד התחבורה</li>
+      <li>האוטובוס והאדם: נבנו ב-Blender; גוף האדם מ-MPFB / MakeHuman (נכסים ב-CC0)</li>
+      <li>תנועת ההליכה: CMU Graphics Lab Motion Capture Database (הקלטה 16_15)</li>
+      <li>מנוע התלת־ממד: three.js (MIT)</li>
+    </ul>
+    <div class="row"><button type="button" id="creditsClose" class="primary">סגירה</button></div>
+  </div>
+</div>
+
+<footer class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <button id="creditsBtn" class="link">קרדיטים</button><span id="fps" hidden></span></footer>
+<div class="toast" id="toast" hidden></div>
+<div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
