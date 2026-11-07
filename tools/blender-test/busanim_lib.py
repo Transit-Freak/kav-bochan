@@ -208,7 +208,7 @@ def setup_bus():
     lights = []
     for k in range(5):
         l = bpy.data.objects.new(f'Ceil{k}', bpy.data.lights.new(f'C{k}', 'AREA')); link(l, body)
-        l.data.shape = 'RECTANGLE'; l.data.size = 0.25; l.data.size_y = 1.6; l.data.energy = 40; l.data.color = (1.0, 0.95, 0.88)
+        l.data.shape = 'RECTANGLE'; l.data.size = 0.25; l.data.size_y = 1.6; l.data.energy = 85; l.data.color = (1.0, 0.95, 0.88)
         l.location = (0, -4.3 + k * 2.1, 2.93); l.rotation_euler = (math.pi, 0, 0); lights.append(l)
     bus = dict(chassis=ch, pitch=pitch, body=body, wheels=wheels, doors=doors, lights=lights)
     bus['ramp'] = make_ramp(body)
@@ -387,7 +387,7 @@ def build_stop(stop_y):
     box('ST_Bench', (0.42, 2.2, 0.05), (x0 + 0.3, stop_y - 0.8, PLAT_Z + 0.46), wood, bev=0.01)
     for y in (stop_y - 1.7, stop_y + 0.1):
         box(f'ST_BenchLeg{y:.1f}', (0.3, 0.05, 0.44), (x0 + 0.3, y, PLAT_Z + 0.22), dark)
-    adm = mat('M_Ad', (0.9, 0.9, 0.95), 0.3, emit=(0.7, 0.8, 0.95), es=1.5)
+    adm = mat('M_Ad', (0.2, 0.45, 0.6), 0.3, emit=(0.15, 0.35, 0.5), es=0.6)
     box('ST_Ad', (1.0, 0.06, 1.6), ((x0 + x1) / 2, y0, PLAT_Z + 1.25), adm)
     # עמוד השלט ליד הדלת הקדמית של האוטובוס כשהוא עוצר
     ys = stop_y - 5.0; xp = CURB_X - 0.5
@@ -410,16 +410,16 @@ def build_stop(stop_y):
     box('ST_SignBack', (0.02, 0.62, 0.86), (xp, ys + 0.32, PLAT_Z + 2.55), dark)
 
 
-def world_and_sun(strength=1.0, sun=4.0):
+def world_and_sun(strength=0.9, sun=5.0):
     w = bpy.data.worlds.new('W'); SC.world = w
     nt = w.node_tree; bg = next(n for n in nt.nodes if n.type == 'BACKGROUND')
     tc = nt.nodes.new('ShaderNodeTexCoord'); sp = nt.nodes.new('ShaderNodeSeparateXYZ'); rp = nt.nodes.new('ShaderNodeValToRGB')
     nt.links.new(tc.outputs['Generated'], sp.inputs[0]); nt.links.new(sp.outputs['Z'], rp.inputs['Fac'])
-    rp.color_ramp.elements[0].position = 0.5; rp.color_ramp.elements[0].color = (0.75, 0.78, 0.8, 1)
-    rp.color_ramp.elements[1].position = 0.75; rp.color_ramp.elements[1].color = (0.35, 0.55, 0.9, 1)
+    rp.color_ramp.elements[0].position = 0.0; rp.color_ramp.elements[0].color = (0.78, 0.84, 0.92, 1)
+    rp.color_ramp.elements[1].position = 0.45; rp.color_ramp.elements[1].color = (0.25, 0.45, 0.85, 1)
     nt.links.new(rp.outputs['Color'], bg.inputs['Color']); bg.inputs['Strength'].default_value = strength
     s = bpy.data.objects.new('Sun', bpy.data.lights.new('Sun', 'SUN')); link(s)
-    s.data.energy = sun; s.data.angle = math.radians(1.0); s.rotation_euler = (math.radians(50), 0, math.radians(-125))
+    s.data.energy = sun; s.data.angle = math.radians(1.0); s.rotation_euler = (math.radians(48), 0, math.radians(62))
     return s
 
 
@@ -623,6 +623,34 @@ def aim(rig, n, d):
     upd()
 
 
+def qang(a, b):
+    x = a.rotation_difference(b).angle
+    return min(x, 2 * math.pi - x)
+
+
+ACTORS = []
+
+
+def qa(frames):
+    """בדיקה: המרחק בין קצה הגפה (שורש כף היד / הקרסול) ליעד ה-IK, וכיוון הברך ביחס לכיוון הגוף"""
+    for a in ACTORS:
+        worst = {}
+        for f in frames:
+            SC.frame_set(f)
+            for k, L in a.ik.items():
+                if L['con'].influence < 0.9: continue
+                pb = a.rig.pose.bones[L['end']]
+                d = ((a.rig.matrix_world @ pb.head) - L['tgt'].matrix_world.translation).length
+                if d > worst.get(k, (0, 0))[0]: worst[k] = (d, f)
+            for S in ('Left', 'Right'):
+                hp = a.rig.matrix_world @ a.rig.pose.bones[S + 'UpLeg'].head; kn = a.rig.matrix_world @ a.rig.pose.bones[S + 'Leg'].head
+                an = a.rig.matrix_world @ a.rig.pose.bones[S + 'Foot'].head
+                fw = (a.rig.matrix_world.to_3x3() @ a.rig.pose.bones['Hips'].matrix.to_3x3() @ a.hrest.to_3x3().inverted() @ Vector((0, -1, 0)))
+                bend = (kn - (hp + an) / 2).dot(fw)
+                if bend < worst.get('knee' + S, (1, 0))[0]: worst['knee' + S] = (bend, f)
+        log('QA', a.name, {k: (round(v[0], 3), v[1]) for k, v in worst.items()})
+
+
 SIDES = (('L', 'Left', 1), ('R', 'Right', -1))     # השמאל של הדמות ב-‎+X (היא מסתכלת ל--Y)
 
 
@@ -641,6 +669,7 @@ class Actor:
         shoes = [o for o in meshes if 'shoe' in o.name.lower()] or meshes
         self.sole = min((o.matrix_world @ v.co).z for o in shoes for v in o.data.vertices)
         self.ik = {}; self.poses = {}; self.parent = None; self.clip = None
+        ACTORS.append(self)
         log(name, 'h0', tuple(round(v, 3) for v in self.h0), 'sole', round(self.sole, 3), 'bones', self.bones)
 
     # --- תנוחות FK
@@ -746,11 +775,11 @@ class Actor:
             best = None
             for step in list(range(-180, 180, 10)):
                 L['con'].pole_angle = math.radians(step); upd()
-                err = sum((r.pose.bones[n].matrix.to_quaternion().rotation_difference(ref[n].to_quaternion())).angle for n in ref)
+                err = sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref)
                 if best is None or err < best[0]: best = (err, step)
             for step in [best[1] + d for d in (-6, -4, -2, 0, 2, 4, 6)]:
                 L['con'].pole_angle = math.radians(step); upd()
-                err = sum((r.pose.bones[n].matrix.to_quaternion().rotation_difference(ref[n].to_quaternion())).angle for n in ref)
+                err = sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref)
                 if err < best[0]: best = (err, step)
             L['con'].pole_angle = math.radians(best[1]); L['con'].influence = 0.0
             log(self.name, key, 'pole angle', best[1], 'err', round(math.degrees(best[0]), 1))

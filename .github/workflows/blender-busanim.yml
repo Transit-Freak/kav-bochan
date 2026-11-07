@@ -66,14 +66,14 @@ jobs:
         run: |
           mkdir -p $HOME/chair && cd $HOME/chair
           curl -sL -A 'Mozilla/5.0 (kav-bochan render)' https://opengameart.org/content/wheelchair -o oga.html; echo "oga page $(wc -c < oga.html)"
-          echo '--- OGA license block'; grep -oiE 'license[^<]{0,80}|CC0|CC-BY[ -0-9.A-Z]*|CC-BY-SA[ 0-9.]*|GPL [0-9.]*|OGA-BY[ 0-9.]*' oga.html | sort | uniq -c | head -20
+          echo '--- OGA license block'; grep -oE "license-name'>[^<]+" oga.html | sort | uniq -c | head -20
           echo '--- OGA author'; grep -oE 'href="/users/[^"]+"[^>]*>[^<]+' oga.html | head -5
           echo '--- OGA title'; grep -oE '<title>[^<]+' oga.html
           echo '--- OGA files'; grep -oE 'https?://opengameart.org/sites/default/files/[^"]+' oga.html | sort -u
           U=$(grep -oE 'https?://opengameart.org/sites/default/files/[^"]+\.(zip|blend|obj|glb|gltf|fbx|stl|7z|rar)' oga.html | sort -u | head -1)
           echo "download: $U"
-          if [ -n "$U" ]; then curl -sL -o "m_$(basename "$U")" "$U"; ls -la; for z in *.zip; do [ -f "$z" ] && unzip -qo "$z" -d x; done; find . -type f | grep -viE '\.html$' | head -40; echo "CHAIR=$HOME/chair" >> $GITHUB_ENV; fi
-          echo '--- BlendSwap'; curl -sL -A 'Mozilla/5.0' https://www.blendswap.com/blend/12634 -o bs.html; echo "bs page $(wc -c < bs.html)"; grep -oiE 'CC-?0|CC-BY[ -0-9.A-Z]*|CC-BY-SA|license[^<]{0,60}|login|sign in' bs.html | sort | uniq -c | head
+          if [ -n "$U" ]; then curl -sL -o "m_$(basename "$U")" "$U"; ls -la; for z in *.zip; do [ -f "$z" ] && unzip -qo "$z" -d x; done; for z in *.7z; do [ -f "$z" ] && 7z x -y -ox "$z" > /dev/null; done; find . -type f | grep -viE '\.html$' | head -40; echo "CHAIR=$HOME/chair" >> $GITHUB_ENV; fi
+          echo '--- BlendSwap'; curl -sL -A 'Mozilla/5.0' https://www.blendswap.com/blend/12634 -o bs.html; echo "bs page $(wc -c < bs.html)"; grep -oiE 'CC-?0|CC-BY|license[^<]{0,60}|login|sign in' bs.html | sort | uniq -c | head
       - name: Render
         working-directory: tools/blender-test
         env:

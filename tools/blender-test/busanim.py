@@ -260,17 +260,18 @@ def shot1():
         drv.key(f, hM, q, limbs, look=V((0.3, -12, 1.8)), look_w=0.4)
     # נוסעת בכיסא גלגלים מחכה בתחנה
     chair = make_chair(); rider = make_chair_user(); prep(rider, chair['root'])
-    chair['root'].location = (-2.75, -0.15, BL.PLAT_Z); chair['root'].rotation_euler = (0, 0, math.pi / 2)
+    chair['root'].location = (-3.35, 0.0, BL.PLAT_Z); chair['root'].rotation_euler = (0, 0, math.pi / 2)
     for f in range(1, N + 1):
         hM, q, limbs = rider_pose(rider, f, None, None, lap=1.0)
         rider.key(f, hM, q, limbs, look=V((0.0, -0.8, 1.15)), look_w=0.5)
-    cam = BL.camera('Cam1', (-6.8, -16.0, 1.75), (0, 10, 1.5), lens=30)
+    cam = BL.camera('Cam1', (-5.4, -9.8, 1.45), (0, 10, 1.5), lens=28)
     for f in range(1, N + 1, 2):
         yb = D - samples.get(f, samples[max(samples)])[0]
-        tgt = V((0.0, yb * 0.85 - 0.5, 1.45))
-        BL.aim_cam(cam, f, (-6.8, -16.0, 1.75), tgt)
+        tgt = V((-0.2, yb * 0.8 - 1.0, 1.25))
+        BL.aim_cam(cam, f, (-5.4, -9.8, 1.45), tgt)
+    close = BL.camera('Cam1b', (-3.9, -6.6, 0.75), (-1.2, -2.2, 0.62), lens=30)
     BL.render_setup(blur=True)
-    return N, lambda f: cam
+    return N, lambda f: cam if f < 97 else close
 
 
 # ---------------------------------------------------------------- כיסא גלגלים ורוכבת
@@ -317,7 +318,7 @@ def ground_s2(x):
 def chair_path(f0):
     """מסלול הכיסא: ישר במעלה הרמפה, קשת ימינה, עצירה ונסיעה לאחור אל המקום. מחזיר רשימת מצבים לפי פריים"""
     segs = []
-    x0, x1 = -2.62, 0.42
+    x0, x1 = -3.35, 0.42
     def vbase(x):
         if x < -2.33: return 0.55
         if x < BL.HINGE_X: return 0.36
@@ -452,9 +453,9 @@ def shot2():
     nD = fold_back(drv, bus, fD)
     N = fD + nD
     for f in range(fD + nD - 18, N + 1): BL.door_open(bus, f, 1 - smooth((f - (fD + nD - 18)) / 16))
-    ext = BL.camera('CamA', (-4.3, -2.6, 1.55), (-1.0, 0.1, 1.15), lens=24)
-    side = BL.camera('CamB', (-3.6, -3.1, 1.15), (-1.7, 0.15, 0.8), lens=26)
-    inn = BL.camera('CamC', (0.3, -2.35, 1.82), (0.25, 0.1, 0.85), lens=20, parent=bus['body'])
+    ext = BL.camera('CamA', (-2.9, -4.7, 1.55), (-1.35, 0.2, 1.0), lens=24)
+    side = BL.camera('CamB', (-2.3, -3.7, 1.2), (-2.0, 0.0, 0.85), lens=24)
+    inn = BL.camera('CamC', (0.0, -1.75, 2.0), (0.15, 0.25, 0.75), lens=20, parent=bus['body'])
     strap_pass(drv, bus)
     log('shot2 cuts', 'B', fB, 'C', fC, 'D', fD, 'N', N)
     BL.render_setup()
@@ -601,9 +602,9 @@ def shot3():
     n5 = 44
     walk(drv, C5, n5, V((0.02, -0.55, FLOOR)), 0.0)
     N = C5 + n5 - 1
-    cams = [(C1, BL.camera('Cam31', (-0.35, -3.05, 1.78), (0.55, -4.65, 1.25), lens=22, parent=bus['body'])),
-            (C2, BL.camera('Cam32', (0.12, 0.55, 1.72), (0.0, -3.0, 1.45), lens=28, parent=bus['body'])),
-            (C3, BL.camera('Cam33', (-0.65, -1.75, 1.8), (0.75, -0.05, 1.05), lens=22, parent=bus['body'])),
+    cams = [(C1, BL.camera('Cam31', (-0.6, -5.3, 1.85), (0.5, -4.5, 1.2), lens=22, parent=bus['body'])),
+            (C2, BL.camera('Cam32', (0.12, 1.2, 1.75), (0.0, -3.0, 1.4), lens=30, parent=bus['body'])),
+            (C3, BL.camera('Cam33', (0.0, -2.0, 2.0), (0.75, -0.1, 0.9), lens=22, parent=bus['body'])),
             (C4, BL.camera('Cam34', (0.95, 1.55, 1.8), (-0.75, -0.1, 1.0), lens=22, parent=bus['body'])),
             (C5, BL.camera('Cam35', (0.25, -3.95, 1.72), (0.0, -0.5, 1.35), lens=26, parent=bus['body']))]
     log('shot3 cuts', [c for c, _ in cams], 'N', N)
@@ -750,7 +751,7 @@ def shot4():
                 limbs['handL'] = hand_state(a, 'L', g, n_.cross(V((0, 0, 1))) * -1, n_, P @ V((0.55, 0.1, 0.6)))
             look = stand_X(a, p, psi) + fw * 3.0 + V((0, 0, 0.6)) + V((0.6 * math.sin(f / 40 + idx), 0, 0))
             a.key(f, hM, q, limbs, look=look, look_w=0.45)
-    c1 = BL.camera('Cam41', (0.38, 0.55, 1.98), (0.0, 3.4, 1.55), lens=24, parent=body)
+    c1 = BL.camera('Cam41', (0.3, -0.3, 2.0), (0.0, 3.0, 1.45), lens=26, parent=body)
     c2 = BL.camera('Cam42', (-0.45, 5.45, 1.95), (0.15, 2.3, 1.45), lens=24, parent=body)
     BL.render_setup()
     return N, (lambda f: c1 if f <= 64 else c2)
@@ -768,6 +769,7 @@ n = len(frames); per = (n + PARTS - 1) // PARTS
 mine = frames[PART * per:(PART + 1) * per]
 if MODE == 'preview':
     BL.SC.render.resolution_x, BL.SC.render.resolution_y = 640, 360; BL.SC.cycles.samples = 10
+BL.qa(list(range(1, N + 1, 6)))
 log('SHOT', SHOT, 'N', N, 'frames', mine[:1], '...', mine[-1:], 'count', len(mine))
 if os.environ.get('SAVE_BLEND') and PART == 0:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(f'out/{SHOT}.blend'), copy=True)
