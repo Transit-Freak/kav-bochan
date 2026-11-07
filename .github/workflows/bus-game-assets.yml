@@ -1,0 +1,71 @@
+name: bus-game-assets
+# משחק האוטובוס (unreleased/bus-game): ייצוא האוטובוס והאדם מ-Blender ל-GLB.
+# קוד הבנייה (bus.py, anim.py, screens.py) נלקח מהענף claude/blender-test; קוד הייצוא — מכאן (unreleased/bus-game/tools).
+# רץ רק בענף claude/bus-game, והפלט נשמר בו (unreleased/bus-game/assets).
+on:
+  push:
+    branches: [claude/bus-game]
+    paths: [.github/workflows/bus-game-assets.yml, unreleased/bus-game/tools/export_*.py]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bus-game-assets-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: unreleased/bus-game}
+      - uses: actions/checkout@v4
+        with: {ref: claude/blender-test, path: bt, sparse-checkout: tools/blender-test}
+      - name: Blender
+        run: |
+          set -e
+          sudo apt-get update -q && sudo apt-get install -yq libxi6 libxkbcommon0 libsm6 libxrender1 libgl1 libegl1 libxxf86vm1 libxfixes3 > /dev/null
+          V=$(curl -s https://download.blender.org/release/ | grep -oE 'Blender5\.[0-9]+' | sort -Vu | tail -1)
+          F=$(curl -s https://download.blender.org/release/$V/ | grep -oE 'blender-5\.[0-9.]+-linux-x64\.tar\.xz' | sort -Vu | tail -1)
+          echo "$V/$F"; curl -sL https://download.blender.org/release/$V/$F | tar -xJ -C $HOME
+          echo "BL=$(ls -d $HOME/blender-*/)blender" >> $GITHUB_ENV
+          git clone -q --depth=1 https://github.com/EL4CTEO/blender-skills.git $HOME/bsk
+          echo "SK=$HOME/bsk/skills" >> $GITHUB_ENV
+      - name: MPFB
+        run: |
+          $BL -b --factory-startup --online-mode --command extension sync || true
+          $BL -b --online-mode --command extension install -s --enable mpfb || $BL -b --online-mode --command extension install --enable blender_org.mpfb
+          UD=$($BL -b --online-mode --python-expr "import bpy;print('UD='+bpy.utils.extension_path_user('bl_ext.blender_org.mpfb', create=True))" | grep '^UD=' | cut -d= -f2)
+          echo "UD=$UD"; mkdir -p "$UD/data"
+          curl -sL -o /tmp/sa.zip http://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip && unzip -qo /tmp/sa.zip -d "$UD/data"
+      - name: CMU 16_15
+        run: |
+          git clone -q --depth=1 --filter=blob:none --sparse https://github.com/Shriinivas/cmubvh.git $HOME/cmubvh
+          cd $HOME/cmubvh && Z=$(git ls-tree -r --name-only HEAD | grep -E '/16_15\.zip$') && git sparse-checkout set --no-cone "/$Z"
+          mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh && echo "BVH=$(find $HOME/bvh -name '*.bvh' | head -1)" >> $GITHUB_ENV
+      - name: Bus
+        working-directory: bt/tools/blender-test
+        run: |
+          set -e
+          pip install -q pillow && mkdir -p out tex && python3 screens.py tex
+          $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -E 'BUS|Error|Traceback' | tail -5
+          $BL -b out/bus.blend --python-exit-code 1 -P $GITHUB_WORKSPACE/unreleased/bus-game/tools/export_bus.py -- $GITHUB_WORKSPACE/unreleased/bus-game/assets/bus.glb 2>&1 | grep -E 'EXPORT tris|BUS GLB|Error|Traceback'
+      - name: Person (walk 16_15 + idle)
+        working-directory: bt/tools/blender-test
+        run: |
+          set -e
+          # anim.py בונה את האדם ומעביר אליו את התנועה; עוצרים אחרי השמירה של anim.blend (בלי הרינדורים)
+          python3 - <<'PY'
+          s = open('anim.py').read(); k = "bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend'))"
+          i = s.index(k); j = s.index('\n', i); open('anim_build.py', 'w').write(s[:j] + '\n')
+          PY
+          $BL -b --online-mode -P anim_build.py 2>&1 | grep -E 'MATCHED|Error|Traceback' | cut -c1-300 || true
+          ls -la out/anim.blend
+          $BL -b --online-mode out/anim.blend --python-exit-code 1 -P $GITHUB_WORKSPACE/unreleased/bus-game/tools/export_person.py -- $GITHUB_WORKSPACE/unreleased/bus-game/assets/person.glb 2>&1 | grep -E 'MESH|WALK|IDLE|TRIS|PERSON|Error|Traceback'
+      - name: Save
+        run: |
+          ls -la unreleased/bus-game/assets
+          git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add unreleased/bus-game/assets/*.glb
+          git commit -qm "משחק האוטובוס: ייצוא האוטובוס והאדם מ-Blender" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin claude/bus-game && git push -q origin HEAD:claude/bus-game && break; sleep 5; done
