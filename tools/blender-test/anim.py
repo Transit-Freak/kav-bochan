@@ -60,6 +60,9 @@ f0, f1 = (int(x) for x in act.frame_range)
 f1 = min(f1, f0 + int(os.environ.get('FRAMES', '160')))
 SC.frame_start, SC.frame_end = f0, f1
 names = [b.name for b in rig.data.bones if b.name in src.data.bones]
+# 07.11: האצבעות מההקלטה נפרשו לגמרי ("הידיים נראות לא טבעיות") — האצבעות נשארות במנוחה של MPFB
+if os.environ.get('KEEP_FINGERS') != '1':
+    names = [n for n in names if not any(x in n for x in ('Finger', 'Thumb', 'HandIndex'))]
 print('MATCHED', len(names), names[:20])
 # תנוחת ייחוס: מסובבים את עצמות MPFB כך שכיוון כל עצם יתאים לכיוון שלה במנוחת ה-BVH (תנוחת T).
 # בלי זה, הפרש בין תנוחת A של MPFB לתנוחת T של CMU מכניס את הידיים לתוך הגוף.
@@ -261,7 +264,7 @@ if shoes:
     rig.location.z -= base; bpy.context.view_layer.update()
     print('DBG shoe floor', round(base, 3), 'lowest', round(lows[0], 3), 'highest', round(lows[-1], 3))
 src.hide_render = True; src.hide_viewport = True
-bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend'))
+(None if os.environ.get('NOHQ') else bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend')))
 
 # תצוגה: Workbench מהיר לסרטון, ו-Cycles לשלוש תמונות
 me = bpy.data.meshes.new('floor'); fl = bpy.data.objects.new('floor', me); SC.collection.objects.link(fl)
@@ -283,10 +286,10 @@ try:
     SC.render.image_settings.file_format = 'FFMPEG'; SC.render.ffmpeg.format = 'MPEG4'; SC.render.ffmpeg.codec = 'H264'
     SC.render.ffmpeg.constant_rate_factor = 'HIGH'; SC.render.filepath = os.path.abspath('out/walk.mp4')
 except Exception as e:
-    print('ffmpeg', e); SC.render.image_settings.file_format = 'PNG'; SC.render.filepath = os.path.abspath('out/walk/f_')
+    print('ffmpeg', e); SC.render.image_settings.file_format = 'PNG'; SC.render.filepath = os.path.abspath(os.environ.get('WALK_OUT', 'out/walk') + '/f_')
 bpy.ops.render.render(animation=True); print('RENDER walk frames', f0, f1)
 SC.render.engine = 'CYCLES'; SC.cycles.device = 'CPU'; SC.cycles.samples = 64; SC.cycles.use_denoising = True
 SC.render.image_settings.file_format = 'PNG'
 for i, f in enumerate(((f0 + f1)//2,)):
-    SC.frame_set(f); SC.render.filepath = os.path.abspath(f'out/walk_hq{i}.png'); bpy.ops.render.render(write_still=True)
+    SC.frame_set(f); SC.render.filepath = os.path.abspath(f'out/walk_hq{i}.png'); (None if os.environ.get('NOHQ') else bpy.ops.render.render(write_still=True))
 print('RENDER hq')
