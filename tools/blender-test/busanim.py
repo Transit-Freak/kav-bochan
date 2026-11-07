@@ -389,7 +389,7 @@ def shot1():
     for f in range(1, N + 1, 2):
         yb = D - samples.get(f, samples[max(samples)])[0]
         k = smooth((f - (F_STOP - 30)) / 40)
-        tgt = V((-0.4, yb - 1.5, 1.4)).lerp(V((-1.4, -1.2, 1.25)), k)
+        tgt = V((-0.4, yb - 1.5, 1.4)).lerp(V((-1.7, -0.4, 1.2)), k)
         BL.aim_cam(cam, f, (-5.2, -9.0, 1.65), tgt)
     BL.render_setup(blur=True)
     return N, lambda f: cam
@@ -580,11 +580,12 @@ def shot2():
     strap_pass(drv, bus)
     log('shot2 cuts', 'B', fB, 'C', fC, 'D', fD, 'N', N)
     BL.render_setup()
+    near = BL.camera('CamD', (-3.4, -1.9, 1.45), (-1.3, 0.15, 1.05), lens=24)
     def cam_for(f):
         if f < fB: return ext
         if f < fC: return side
         if f < fD: return inn
-        return ext
+        return near
     return N, cam_for
 
 
@@ -691,14 +692,14 @@ def shot3():
     footR = [(0, feet0['R'][0], -0.05), (16, feet0['R'][0], -0.05), (25, V((0.30, -4.70, FLOOR + drv.ank_h)), psiE - 0.1), (54, V((0.30, -4.70, FLOOR + drv.ank_h)), psiE - 0.1)]
     psik = [(0, 0.0), (16, 0.0), (32, psiE), (54, psiE)]
     hipk = [(0, seatX), (16, seatX), (30, V((0.52, -4.52, BL.FLZ + 0.62))), (36, V((0.46, -4.55, BL.FLZ + 0.63))), (48, V((0.33, -4.55, FLOOR + drv.stand_h))), (54, V((0.33, -4.55, FLOOR + drv.stand_h)))]
-    bendk = [(0, -0.1), (16, -0.05), (30, 0.1), (38, 0.55), (48, 0.05), (54, 0.0)]
+    bendk = [(0, -0.1), (16, -0.05), (30, 0.1), (38, 0.38), (48, 0.05), (54, 0.0)]
     for d in range(0, 54):
         f = C1 + d
         hM0, q0, limbs0 = seated_driver(drv, f)
         hw = ease_keys([(0, 1.0), (10, 1.0), (20, 0.0)], d)
         psi = ease_keys(psik, d); X = ease_keys(hipk, d); bend = ease_keys(bendk, d)
         hM = hips_at(drv, X, psi, bend)
-        q = arms_pose(drv, 1.0, max(0.0, bend) * 0.8, fist=(0.3 + 0.5 * hw, 0.3 + 0.5 * hw))
+        q = arms_pose(drv, 1.0, max(0.0, bend) * 0.4, fist=(0.3 + 0.5 * hw, 0.3 + 0.5 * hw))
         feet = {'L': step_path(footL, d), 'R': step_path(footR, d)}
         P = Matrix.Translation(V((X.x, X.y, FLOOR))) @ R(psi, 4, 'Z')
         sitting = 1 - smooth((d - 34) / 12)
@@ -706,7 +707,7 @@ def shot3():
         limbs = feet_state(drv, P, feet, poles)
         for s in ('L', 'R'):
             h = dict(limbs0['hand' + s]); h['w'] = hw; h['rw'] = hw; limbs['hand' + s] = h
-        drv.key(f, hM, q, limbs, look=V((0.0, -2.0, 1.9)) if d > 20 else V((0.3, -12, 1.8)), look_w=0.5)
+        drv.key(f, hM, q, limbs, look=V((-0.5, -3.0, 2.0)) if d > 20 else V((0.3, -12, 1.8)), look_w=0.5)
     # C2: הליכה במעבר אל הדלת האמצעית (תנועה מצולמת)
     walk(drv, C2, C3 - C2, V((0.0, -3.75, FLOOR)), math.pi)
     # C3: מקפל את המושב המתקפל
@@ -723,11 +724,11 @@ def shot3():
     n5 = 44
     walk(drv, C5, n5, V((0.02, -0.55, FLOOR)), 0.0)
     N = C5 + n5 - 1
-    cams = [(C1, BL.camera('Cam31', (-0.35, -5.6, 2.35), (0.55, -4.5, 1.35), lens=22, parent=bus['body'])),
+    cams = [(C1, BL.camera('Cam31', (-0.15, -3.75, 2.2), (0.6, -4.7, 1.3), lens=22, parent=bus['body'])),
             (C2, BL.camera('Cam32', (0.12, 1.2, 1.75), (0.0, -3.0, 1.4), lens=30, parent=bus['body'])),
-            (C3, BL.camera('Cam33', (-0.9, -0.3, 1.75), (0.85, -0.1, 0.8), lens=20, parent=bus['body'])),
+            (C3, BL.camera('Cam33', (-1.05, -1.2, 1.9), (0.7, 0.0, 0.9), lens=18, parent=bus['body'])),
             (C4, BL.camera('Cam34', (0.95, 1.55, 1.8), (-0.75, -0.1, 1.0), lens=22, parent=bus['body'])),
-            (C5, BL.camera('Cam35', (0.25, -3.95, 1.72), (0.0, -0.5, 1.35), lens=26, parent=bus['body']))]
+            (C5, BL.camera('Cam35', (0.15, -4.6, 1.85), (0.0, -1.0, 1.3), lens=26, parent=bus['body']))]
     log('shot3 cuts', [c for c, _ in cams], 'N', N)
     BL.render_setup()
     def cam_for(f):
@@ -840,7 +841,7 @@ def shot4():
     BL.upd()
     for idx, a in enumerate(ppl):
         sp = specs[a.name]; p, psi = sp['p'], sp['psi']
-        feet = stand_feet(a, p, psi, 0.02, (0.03 * (idx - 1), -0.05))
+        feet = stand_feet(a, p, psi, -0.035, (0.03 * (idx - 1), -0.05))
         for f in range(1, N + 1):
             y_, lam, gam, th, lat, v_ = S[max(1, f - idx)]
             d = V((lat * 0.6 + breathe(f, 0.004, 100 + 13 * idx, idx), -lam * 0.85, breathe(f, 0.003, 85 + 7 * idx)))
@@ -872,7 +873,7 @@ def shot4():
                 limbs['handL'] = hand_state(a, 'L', g, n_.cross(V((0, 0, 1))) * -1, n_, P @ V((0.55, 0.1, 0.6)))
             look = stand_X(a, p, psi) + fw * 3.0 + V((0, 0, 0.6)) + V((0.6 * math.sin(f / 40 + idx), 0, 0))
             a.key(f, hM, q, limbs, look=look, look_w=0.45)
-    c1 = BL.camera('Cam41', (0.35, 0.1, 2.0), (-0.05, 3.2, 1.35), lens=26, parent=body)
+    c1 = BL.camera('Cam41', (0.3, -0.6, 2.0), (-0.05, 3.0, 1.45), lens=24, parent=body)
     c2 = BL.camera('Cam42', (0.15, 5.6, 2.1), (-0.1, 3.0, 1.4), lens=24, parent=body)
     BL.render_setup()
     return N, (lambda f: c1 if f <= 64 else c2)

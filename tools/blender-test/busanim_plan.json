@@ -1,5 +1,6 @@
-{"mode": "preview", "step": 3, "commit_frames": false,
- "jobs": [{"shot": "s1_drive", "part": 0, "parts": 1},
-          {"shot": "s2_wheelchair", "part": 0, "parts": 2}, {"shot": "s2_wheelchair", "part": 1, "parts": 2},
-          {"shot": "s3_driver", "part": 0, "parts": 2}, {"shot": "s3_driver", "part": 1, "parts": 2},
-          {"shot": "s4_standing", "part": 0, "parts": 1}]}
+{"mode": "final", "step": 1, "commit_frames": true,
+ "jobs": [{"shot": "s1_drive", "part": 0, "parts": 4}, {"shot": "s1_drive", "part": 1, "parts": 4}, {"shot": "s1_drive", "part": 2, "parts": 4}, {"shot": "s1_drive", "part": 3, "parts": 4},
+          {"shot": "s2_wheelchair", "part": 0, "parts": 6}, {"shot": "s2_wheelchair", "part": 1, "parts": 6}, {"shot": "s2_wheelchair", "part": 2, "parts": 6},
+          {"shot": "s2_wheelchair", "part": 3, "parts": 6}, {"shot": "s2_wheelchair", "part": 4, "parts": 6}, {"shot": "s2_wheelchair", "part": 5, "parts": 6},
+          {"shot": "s3_driver", "part": 0, "parts": 4}, {"shot": "s3_driver", "part": 1, "parts": 4}, {"shot": "s3_driver", "part": 2, "parts": 4}, {"shot": "s3_driver", "part": 3, "parts": 4},
+          {"shot": "s4_standing", "part": 0, "parts": 2}, {"shot": "s4_standing", "part": 1, "parts": 2}]}

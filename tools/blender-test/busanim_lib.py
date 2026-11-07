@@ -1013,7 +1013,7 @@ def render_setup(res=(960, 540), samples=24, blur=False):
     except TypeError:
         pass
     SC.render.image_settings.file_format = 'PNG'; SC.render.image_settings.color_mode = 'RGB'
-    SC.render.image_settings.compression = 90
+    SC.render.image_settings.compression = 100
 
 
 def render_frames(shot, frames, cam_for):
