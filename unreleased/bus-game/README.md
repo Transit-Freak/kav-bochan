@@ -23,5 +23,10 @@
 1. **OSM**: ‏`.github/workflows/bus-game-osm.yml` מוריד מ-Overpass את `world/osm_raw.json.gz` (Overpass חסום מסביבת העבודה).
 2. **העיר**: `python3 tools/build_city.py` ← `world/city.json` (בניינים, רחובות, רשת נסיעה, תחנות GTFS מ-`world/gtfs_stops.csv`).
 3. **דגמים**: ‏`.github/workflows/bus-game-assets.yml` מריץ Blender: בונה את האוטובוס ואת האדם בקוד של הענף
-   `claude/blender-test`, ומייצא עם `tools/export_bus.py` ו-`tools/export_person.py` ל-`assets/bus.glb` ו-`assets/person.glb`.
+   `claude/blender-test`, ומייצא עם `tools/export_bus.py` ו-`tools/export_person.py` ל-`assets/bus.glb` ול-`assets/people/person_<n>.glb`.
+   האנשים: כמה אנשים שונים (גברים ונשים, גילים, עור, שיער ובגדים — נכסי MakeHuman CC0 בלבד), מוגדרים ב-`tools/person_variants.py`.
+   כל אחד עם הליכה (CMU 16_15) ועמידה, והטקסטורות המקוריות. רשימת הקבצים: `assets/people/people.json`.
+   הרצה ידנית של חלק מהאנשים: workflow_dispatch עם `only` (למשל `0,3`), והאוטובוס עם `bus`.
+4. **בלי glb**: במקומות שלא מגישים קבצי ‎.glb‏ (התצוגה המקדימה הפרטית) — `python3 tools/glb_to_gltf_json.py assets/bus.glb assets/people/*.glb`
+   יוצר ליד כל קובץ `X.gltf.json`, והמשחק טוען אותו אם ה-glb חסר. לא שומרים אותם בריפו (`.gitignore`).
    אפשר גם מקומית עם `pip install bpy` (חוץ מהאדם, שצריך את התוסף MPFB).

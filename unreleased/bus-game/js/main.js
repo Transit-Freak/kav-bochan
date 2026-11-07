@@ -1,6 +1,7 @@
 // משחק הקווים — קריית מלאכי (אב-טיפוס): חיבור העולם, הסימולציה, התצוגה והממשק
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadCity, buildWorld } from './world.js';
 import { RoadGraph } from './graph.js';
@@ -26,8 +27,16 @@ scene.background = new THREE.Color(0xdbeefc);
 scene.fog = new THREE.Fog(0xdbeefc, 1400, 4200);
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 2, 9000);
 camera.position.set(-260, 520, 560);
-scene.add(new THREE.HemisphereLight(0xeaf6ff, 0xcfc6b2, 1.55));
-const sun = new THREE.DirectionalLight(0xfff4e2, 1.55); sun.position.set(-400, 700, 300); scene.add(sun);
+// תאורה: שמיים רכים מלמעלה ואדמה כהה יותר מלמטה (כך יש לדמויות צד מואר וצד מוצל), ושמש נמוכה יותר מהצד
+scene.add(new THREE.HemisphereLight(0xe4f1ff, 0x8f8574, 1.45));
+const sun = new THREE.DirectionalLight(0xfff1dc, 1.9); sun.position.set(-450, 520, 380); scene.add(sun);
+// סביבה להחזרות: בלעדיה חומרים מתכתיים (הפח הכסוף של האוטובוס, הזכוכית) נראים שטוחים ואפורים.
+// ניתנת רק לחומרי האוטובוס (BusLayer), כל חומר בעוצמה משלו; העיר והאנשים לא משתנים
+{
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.userData.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+}
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.12;
@@ -52,10 +61,10 @@ async function init() {
   graph = new RoadGraph(city);
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
-  const assets = params.has('placeholders') ? { bus: null, person: null } : await loadAssets('assets/');
+  const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
   buses = new BusLayer(scene, assets.bus);
-  people = new PeopleLayer(scene, assets.person, graph);
-  G.assets = { bus: !!assets.bus, person: !!assets.person, crowdFromGlb: people.fromGlb };
+  people = new PeopleLayer(scene, assets.people, graph);
+  G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   sim = new Sim(city.stops);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast });
@@ -63,7 +72,7 @@ async function init() {
   lineDefs = loadLines();
   for (const d of lineDefs) addLine(d, false);
   bindUI(); renderLines();
-  Object.assign(G, { city, graph, sim, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm });
+  Object.assign(G, { city, graph, sim, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm });
   $('#loading').classList.add('gone');
   G.ready = true;
 }

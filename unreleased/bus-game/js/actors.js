@@ -11,8 +11,16 @@ export async function loadAssets(base) {
   const get = url => new Promise(res => loader.load(url, g => res(g), undefined, () => res(null)));
   // .glb, ואם אין — אותו דגם כקובץ JSON (.gltf.json), למקומות שלא מגישים קבצי glb
   const one = async n => (await get(base + n + '.glb')) || get(base + n + '.gltf.json');
-  const [bus, person] = await Promise.all([one('bus'), one('person')]);
-  return { bus, person };
+  // האנשים: כמה דגמים שונים (assets/people/people.json), ואם אין — האדם היחיד הישן
+  const loadPeople = async () => {
+    let names = [];
+    try { const r = await fetch(base + 'people/people.json'); if (r.ok) names = (await r.json()).map(n => 'people/' + n.replace(/\.glb$/, '')); } catch (e) { }
+    const list = (await Promise.all(names.map(one))).filter(Boolean);
+    if (!list.length) { const p = await one('person'); if (p) list.push(p); }
+    return list;
+  };
+  const [bus, people] = await Promise.all([one('bus'), loadPeople()]);
+  return { bus, people, person: people[0] || null };
 }
 
 // ---------- מיקום האוטובוס על הקו: s = מקום הדלת הקדמית; סרן קדמי 1.8 מ' מאחוריה, סרן אחורי 7.75 מ'
@@ -50,6 +58,22 @@ function placeholderBus() {
   return g;
 }
 
+// החומרים של האוטובוס כמו ב-Blender (פח כסוף מתכתי, זכוכית כהה מבריקה). ההחזרות באות ממפת סביבה
+// (RoomEnvironment, ב-main.js) — בהירה יותר מהרחוב של הרינדור, לכן בזכוכית ובשחור המבריק ההחזרה חלשה יותר,
+// אחרת החלונות נראים אפורים
+const BUS_ENV = { M_Glass: 0.25, M_GlossBlack: 0.4, M_Plexi: 0.4, M_Silver: 1.15, M_RoofWhite: 0.8 };
+function tuneBusMaterials(root, env) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m || m.userData.tuned || !m.isMeshStandardMaterial) continue; m.userData.tuned = true;
+      if (env) { m.envMap = env; m.envMapIntensity = BUS_ENV[m.name] ?? 0.7; }
+      if (m.name === 'M_Glass' && m.clearcoat !== undefined) m.clearcoat = 0.3;
+      m.needsUpdate = true;
+    }
+  });
+}
+
 export class BusLayer {
   constructor(scene, asset) {
     this.scene = scene; this.asset = asset; this.map = new Map();
@@ -59,11 +83,7 @@ export class BusLayer {
   make(bus) {
     let obj, mixer = null, action = null;
     if (this.asset) {
-      if (!this.fixed) {   // בלי מפת סביבה, חומר מתכתי נראה שחור — מרככים פעם אחת את החומרים המשותפים
-        this.asset.scene.traverse(o => { if (o.isMesh && o.material?.isMeshStandardMaterial) {
-          const m = o.material; if (m.metalness > 0.2) { m.metalness = 0.15; m.roughness = Math.max(m.roughness, 0.45); } } });
-        this.fixed = true;
-      }
+      if (!this.tuned) { tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
       obj = this.asset.scene.clone(true);
       const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
       if (clip) { mixer = new THREE.AnimationMixer(obj); action = mixer.clipAction(clip); action.play(); action.paused = true; }
@@ -106,6 +126,8 @@ export class BusLayer {
 }
 
 // ---------- אנשים
+// כמה דגמים שונים של אנשים (MPFB), כל אחד עם הטקסטורות שלו. הגיוון הנוסף: גוון עדין לבגדים ושינוי קטן בגובה.
+// במצב ?placeholders — דמויות פשוטות בצבעים אחידים (כמו קודם)
 const SKIN = [0xe9c6aa, 0xd9ab8a, 0xbf8b67, 0x8f5d3e, 0xf2d6c2, 0xc99a78];
 const CLOTH = [0x0ea5e9, 0x1e3a8a, 0xef4444, 0x22c55e, 0xf8fafc, 0x334155, 0xf59e0b, 0x8b5cf6, 0x0f766e, 0xdb2777, 0x94a3b8, 0x7c2d12];
 const HAIR = [0x1c1917, 0x3f2a1d, 0x6b4f2f, 0x0c0a09, 0xa8a29e];
@@ -114,16 +136,34 @@ export function personColors(id) {
   return { skin: SKIN[Math.floor(hash(id) * SKIN.length)], cloth: CLOTH[Math.floor(hash(id + 3) * CLOTH.length)],
     hair: HAIR[Math.floor(hash(id + 5) * HAIR.length)], shoes: 0x27272a };
 }
+// גוונים עדינים לבגדים (כפל על הטקסטורה): אותו בגד בכמה צבעים, בלי צבעים צעקניים
+const CLOTH_TINT = [[1, 1, 1], [1, 1, 1], [1.08, 0.94, 0.84], [0.84, 0.92, 1.06], [0.72, 0.72, 0.74], [1.1, 1.08, 1.04],
+  [0.95, 1.02, 0.9], [1.06, 0.88, 0.88], [0.9, 0.86, 1.0]];
 function partKind(name) {
   const n = name.toLowerCase();
-  if (n.includes('shoe')) return 'shoes';
-  if (n.includes('hair') || n.includes('short0')) return 'hair';
-  if (n.includes('suit') || n.includes('cloth') || n.includes('shirt') || n.includes('pants')) return 'cloth';
-  return 'skin';
+  if (n.includes('shoe') || n.includes('boot')) return 'shoes';
+  if (/hair|short0|long0|bob0|ponytail|braid|afro|brow|lash/.test(n)) return 'hair';
+  if (/eye|cornea|low-poly|high-poly/.test(n)) return 'eyes';
+  if (/body|lips|nail|ears|skin|teeth|tongue/.test(n)) return 'skin';
+  return 'cloth';
+}
+// חומר למשחק: Lambert עם הטקסטורה המקורית. שקיפות "חתוכה" (alphaTest) במקום שקיפות אמיתית —
+// כך שיער וגבות נראים נכון גם בלי למיין את כל הדמויות
+function gameMaterial(m, kind) {
+  const card = kind === 'hair';
+  const out = new THREE.MeshLambertMaterial({
+    name: m.name, map: m.map || null, normalMap: m.normalMap || null, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1),
+    alphaTest: m.map ? 0.5 : 0, transparent: false, side: kind === 'skin' || kind === 'eyes' ? THREE.FrontSide : THREE.DoubleSide,
+  });
+  if (out.map) out.map.anisotropy = 4;
+  if (!card && out.map) out.alphaTest = 0.35;
+  out.userData.kind = kind;
+  return out;
 }
 
-// גוף סטטי בתנוחת עמידה מתוך person.glb (אפוי מהשלד), מחולק לחלקים לפי צבע
-function bakePerson(gltf) {
+// דמות עומדת מתוך הדגם (אפויה מהשלד בתנוחת העמידה), עם UV ונורמלים, מחולקת לפי חומר
+const _m = new THREE.Matrix4(), _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
+function bakeVariant(gltf) {
   const root = SkeletonUtils.clone(gltf.scene);
   const idle = gltf.animations.find(a => /idle/i.test(a.name));
   if (idle) { const mx = new THREE.AnimationMixer(root); mx.clipAction(idle).play(); mx.update(0); }
@@ -131,57 +171,103 @@ function bakePerson(gltf) {
   // ההקלטה זזה קדימה מהמקור — ממרכזים לפי האגן (Hips), כדי שהדמות תעמוד על הנקודה שלה
   const hips = root.getObjectByName('Hips');
   const c0 = hips ? hips.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3();
-  const parts = {};
-  const v = new THREE.Vector3();
+  const byMat = new Map(), v = new THREE.Vector3(), n = new THREE.Vector3();
+  let minY = Infinity;
   root.traverse(o => {
-    if (!o.isSkinnedMesh && !o.isMesh) return;
-    const g = o.geometry, pos = g.attributes.position, out = new Float32Array(pos.count * 3);
+    if (!o.isMesh) return;
+    const g = o.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
+    const P = new Float32Array(pos.count * 3), N = new Float32Array(pos.count * 3);
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
     if (o.isSkinnedMesh) o.skeleton.update();
+    const bm = o.isSkinnedMesh ? o.skeleton.boneMatrices : null;
     for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i);
-      if (o.isSkinnedMesh) o.applyBoneTransform(i, v);
-      v.applyMatrix4(o.matrixWorld); out[i * 3] = v.x - c0.x; out[i * 3 + 1] = v.y; out[i * 3 + 2] = v.z - c0.z;
+      if (bm) {   // אותו חישוב כמו בשיידר: bindMatrixInverse · Σ w·bone · bindMatrix
+        const e = _acc.elements; e.fill(0);
+        for (let j = 0; j < 4; j++) {
+          const w = sw.getComponent(i, j); if (!w) continue;
+          const b = si.getComponent(i, j) * 16;
+          for (let k = 0; k < 16; k++) e[k] += w * bm[b + k];
+        }
+        _full.multiplyMatrices(o.matrixWorld, o.bindMatrixInverse).multiply(_acc).multiply(o.bindMatrix);
+      } else _full.copy(o.matrixWorld);
+      v.fromBufferAttribute(pos, i).applyMatrix4(_full);
+      P[i * 3] = v.x - c0.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z - c0.z;
+      if (nor) { n.fromBufferAttribute(nor, i).applyMatrix3(_nm.getNormalMatrix(_full)).normalize(); N[i * 3] = n.x; N[i * 3 + 1] = n.y; N[i * 3 + 2] = n.z; }
+      if (v.y < minY) minY = v.y;
     }
     const ng = new THREE.BufferGeometry();
-    ng.setAttribute('position', new THREE.BufferAttribute(out, 3));
+    ng.setAttribute('position', new THREE.BufferAttribute(P, 3));
+    if (nor) ng.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+    if (uv) ng.setAttribute('uv', uv.clone());
     if (g.index) ng.setIndex(g.index.clone());
-    ng.computeVertexNormals();
-    const k = partKind(o.name + ' ' + (o.material?.name || ''));
-    (parts[k] = parts[k] || []).push(ng);
+    if (!nor) ng.computeVertexNormals();
+    // חומרים עם אותה טקסטורה (עור, שפתיים, ציפורניים, אוזניים) — רשת אחת
+    const m = o.material, key = (m.map?.source?.uuid || m.map?.uuid || m.uuid) + '|' + partKind(m.name + ' ' + o.name);
+    let e = byMat.get(key);
+    if (!e) byMat.set(key, e = { geos: [], mat: m, kind: partKind(m.name + ' ' + o.name) });
+    e.geos.push(ng);
   });
-  const res = {};
-  for (const k in parts) res[k] = mergeGeometries(parts[k], false);
-  return res;
+  // כפות הרגליים בדיוק על הקרקע
+  const groups = [];
+  for (const e of byMat.values()) {
+    const geo = e.geos.length > 1 ? mergeGeometries(e.geos, false) : e.geos[0];
+    if (!geo) continue;
+    if (isFinite(minY)) geo.translate(0, -minY, 0);
+    geo.computeBoundingSphere();
+    groups.push({ geo, mat: gameMaterial(e.mat, e.kind), kind: e.kind });
+  }
+  return groups;
 }
 function proceduralPerson() {
   const leg = (x) => new THREE.CylinderGeometry(0.075, 0.065, 0.82, 6).translate(x, 0.41 + 0.06, 0);
-  return {
+  const g = {
     shoes: mergeGeometries([new THREE.BoxGeometry(0.11, 0.08, 0.24).translate(-0.1, 0.04, 0.03), new THREE.BoxGeometry(0.11, 0.08, 0.24).translate(0.1, 0.04, 0.03)]),
     cloth: mergeGeometries([leg(-0.1), leg(0.1), new THREE.CylinderGeometry(0.2, 0.17, 0.62, 8).translate(0, 1.18, 0),
       new THREE.CylinderGeometry(0.05, 0.045, 0.6, 5).translate(-0.25, 1.15, 0), new THREE.CylinderGeometry(0.05, 0.045, 0.6, 5).translate(0.25, 1.15, 0)]),
     skin: new THREE.SphereGeometry(0.12, 10, 8).translate(0, 1.62, 0),
     hair: new THREE.SphereGeometry(0.125, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.2).translate(0, 1.65, -0.01),
   };
+  return Object.entries(g).map(([kind, geo]) => ({ geo, kind, flat: true, mat: new THREE.MeshLambertMaterial({ color: 0xffffff }) }));
+}
+// צל רך מתחת לכל אדם (עיגול כהה שקוף) — זול בהרבה ממפת צללים, ומחבר את הדמויות לקרקע
+function blobTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, 'rgba(0,0,0,0.42)'); g.addColorStop(0.55, 'rgba(0,0,0,0.22)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
 export class PeopleLayer {
-  constructor(scene, gltf, graph, max = 1600) {
-    this.scene = scene; this.gltf = gltf; this.graph = graph;
+  constructor(scene, gltfs, graph, max = 1600) {
+    this.scene = scene; this.graph = graph;
+    if (gltfs && !Array.isArray(gltfs)) gltfs = [gltfs];
+    this.gltfs = (gltfs || []).filter(Boolean);
     this.group = new THREE.Group(); this.group.name = 'people'; scene.add(this.group);
-    let geos = null;
-    if (gltf) { try { geos = bakePerson(gltf); } catch (e) { console.warn('bake person failed', e); } }
-    this.fromGlb = !!geos;
-    geos = geos || proceduralPerson();
-    this.parts = {};
-    for (const k of ['skin', 'cloth', 'hair', 'shoes']) {
-      if (!geos[k]) continue;
-      const im = new THREE.InstancedMesh(geos[k], new THREE.MeshLambertMaterial({ color: 0xffffff }), max);
-      im.count = 0; im.frustumCulled = false; im.name = 'crowd-' + k;
-      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.group.add(im); this.parts[k] = im;
+    this.variants = [];
+    for (const g of this.gltfs) {
+      try { this.variants.push({ gltf: g, groups: bakeVariant(g) }); } catch (e) { console.warn('bake person failed', e); }
     }
+    this.fromGlb = this.variants.length > 0;
+    if (!this.fromGlb) { this.gltfs = []; this.variants.push({ gltf: null, groups: proceduralPerson() }); }
+    // לכל דגם ולכל חומר — InstancedMesh אחד
+    for (const [vi, V] of this.variants.entries()) {
+      V.meshes = V.groups.map(gr => {
+        const im = new THREE.InstancedMesh(gr.geo, gr.mat, max);
+        im.count = 0; im.frustumCulled = false; im.name = `crowd-${vi}-${gr.kind}`;
+        im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        im.setColorAt(0, new THREE.Color(1, 1, 1));
+        this.group.add(im); return im;
+      });
+      V.n = 0;
+    }
+    this.blobMat = new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    this.blobGeo = new THREE.PlaneGeometry(0.95, 0.95).rotateX(-Math.PI / 2);
+    this.blobs = new THREE.InstancedMesh(this.blobGeo, this.blobMat, max);
+    this.blobs.count = 0; this.blobs.frustumCulled = false; this.blobs.renderOrder = 1; this.blobs.name = 'crowd-shadows';
+    this.group.add(this.blobs);
     this.max = max;
-    this.walkers = []; this.pool = [];
+    this.walkers = []; this.pools = this.variants.map(() => []);
     this.tmpM = new THREE.Matrix4(); this.tmpQ = new THREE.Quaternion(); this.tmpC = new THREE.Color();
     this.layoutCache = new Map(); this.seats = new Map();
   }
@@ -216,8 +302,16 @@ export class PeopleLayer {
     if (i === undefined) { const used = new Set(m.values()); i = 0; while (used.has(i)) i++; m.set(pid, i); }
     return i;
   }
-  personScale(id) { return 0.92 + hash(id + 9) * 0.14; }
+  personScale(id) { return this.fromGlb ? 0.96 + hash(id + 9) * 0.08 : 0.92 + hash(id + 9) * 0.14; }
   personYaw(stop, i, id) { return this.slot(stop, i)[2] + (hash(id) - 0.5) * 0.9; }
+  variantOf(id) { return Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
+  // הצבע לכל חלק: בדגמים האמיתיים — לבן (הטקסטורה כמו שהיא), חוץ מגוון עדין לבגדים ושינוי קטן בבהירות העור
+  tint(id, kind, flat, out) {
+    if (flat) return out.setHex(personColors(id)[kind] ?? 0x888888);
+    if (kind === 'cloth') { const t = CLOTH_TINT[Math.floor(hash(id + 3) * CLOTH_TINT.length)]; return out.setRGB(t[0], t[1], t[2]); }
+    if (kind === 'skin') { const k = 0.94 + hash(id + 21) * 0.1; return out.setRGB(k, k, k); }
+    return out.setRGB(1, 1, 1);
+  }
 
   update(sim, stops, simDt, busLayer) {
     // 1. עולים ויורדים — לפני שמעדכנים את הממתינים, כדי שההולך יתחיל בדיוק מהמקום שבו עמד
@@ -249,7 +343,9 @@ export class PeopleLayer {
       for (const pid of m.keys()) if (!ids.has(pid)) m.delete(pid);
     }
     let n = 0;
+    for (const V of this.variants) V.n = 0;
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
+    const B = new THREE.Matrix4();
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
@@ -258,14 +354,17 @@ export class PeopleLayer {
         Q.setFromAxisAngle(up, this.personYaw(stop, i, p.id));
         P.set(x, 0.12, -y); S.setScalar(this.personScale(p.id));
         M.compose(P, Q, S);
-        const c = personColors(p.id);
-        for (const k in this.parts) { this.parts[k].setMatrixAt(n, M); this.parts[k].setColorAt(n, C.setHex(c[k] ?? 0x888888)); }
+        const V = this.variants[this.variantOf(p.id)];
+        V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, M); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
+        V.n++;
+        B.makeTranslation(x, 0.135, -y); this.blobs.setMatrixAt(n, B);
         n++;
       }
     }
-    for (const k in this.parts) {
-      const im = this.parts[k]; im.count = n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    for (const V of this.variants) for (const im of V.meshes) {
+      im.count = V.n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
+    this.blobs.count = n; this.blobs.instanceMatrix.needsUpdate = true;
     this.crowdCount = n;
 
     // 3. הולכים: לאורך מסלול של כמה נקודות, בקצב הליכה קבוע
@@ -281,7 +380,7 @@ export class PeopleLayer {
       let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       w.obj.rotation.y += dy * Math.min(1, simDt * 8);
       if (w.mixer) { w.mixer.update(simDt); this.centre(w); }
-      else w.obj.position.y = 0.12 + Math.abs(Math.sin(w.d * 6.7)) * 0.05;
+      else w.body.position.y = Math.abs(Math.sin(w.d * 6.7)) * 0.05;
       const last = w.seg === w.pts.length - 2;
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
       if (w.mode === 'alight' && w.counted && w.seg >= 2) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
@@ -304,62 +403,71 @@ export class PeopleLayer {
   finish(w, i) {
     if (w.bus && w.counted) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
     w.obj.visible = false; this.setOpacity(w, 1);
-    this.pool.push(w); this.walkers.splice(i, 1);
+    this.pools[w.vi].push(w); this.walkers.splice(i, 1);
   }
   setOpacity(w, o) {
     if (w.op === o) return; w.op = o;
     for (const [m] of w.mats) { m.transparent = o < 1; m.opacity = o; m.depthWrite = o >= 1; }
+    w.blob.material.opacity = o;
   }
 
   walk(id, pts, mode, bus, yaw0) {
-    let w = this.pool.pop();
+    const vi = this.variantOf(id);
+    let w = this.pools[vi].pop();
     if (!w) {
       if (this.walkers.length >= 150) {          // הרבה מאוד הולכים בבת אחת: מסיימים את הוותיק ביותר במקום לבטל את החדש
         const j = this.walkers.findIndex(x => x.mode === 'alight'); if (j < 0) return;
-        this.finish(this.walkers[j], j); w = this.pool.pop();
-      } else w = this.makeWalker();
+        this.finish(this.walkers[j], j);
+        w = this.pools[vi].pop();
+      }
+      w = w || this.makeWalker(vi);
     }
-    const c = personColors(id);
-    for (const [m, k] of w.mats) m.color.setHex(c[k] ?? 0x888888);
+    for (const [m, k, flat, base] of w.mats) m.color.copy(base).multiply(this.tint(id, k, flat, this.tmpC));
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
     w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus;
     w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
-    w.obj.scale.setScalar(this.personScale(id));
+    w.body.scale.setScalar(this.personScale(id));
     w.obj.rotation.y = yaw0 ?? Math.atan2(w.pts[1].x - w.pts[0].x, w.pts[1].z - w.pts[0].z);
     w.obj.position.copy(w.pts[0]); w.obj.visible = true;
+    // מתחילים את ההליכה מנקודה אחרת במחזור, כדי שלא כולם ידרכו באותו צעד
+    if (w.mixer) { w.mixer.setTime(hash(id + 31) * 2); this.centre(w); }
     this.walkers.push(w);
   }
-  makeWalker() {
-    const mats = [];
-    let obj, mixer = null;
-    let inner = null, hips = null;
-    if (this.gltf) {
-      inner = SkeletonUtils.clone(this.gltf.scene);
-      obj = new THREE.Group(); obj.add(inner);
+  makeWalker(vi) {
+    const V = this.variants[vi], mats = [];
+    const obj = new THREE.Group(), body = new THREE.Group(); obj.add(body);
+    let mixer = null, inner = null, hips = null;
+    if (V.gltf) {
+      inner = SkeletonUtils.clone(V.gltf.scene);
+      body.add(inner);
       hips = inner.getObjectByName('Hips');
+      const cache = new Map();
       inner.traverse(o => {
         if (!o.isMesh) return;
-        const k = partKind(o.name + ' ' + (o.material?.name || ''));
-        o.material = new THREE.MeshLambertMaterial({ color: 0x888888 }); mats.push([o.material, k]);
-        o.frustumCulled = false;
+        const kind = partKind(o.material.name + ' ' + o.name);
+        let m = cache.get(o.material);
+        if (!m) { m = gameMaterial(o.material, kind); cache.set(o.material, m); mats.push([m, kind, false, m.color.clone()]); }
+        o.material = m; o.frustumCulled = false;
       });
-      const clip = this.gltf.animations.find(a => /walk/i.test(a.name));
+      const clip = V.gltf.animations.find(a => /walk/i.test(a.name));
       if (clip) { mixer = new THREE.AnimationMixer(inner); mixer.clipAction(clip).play(); }
     } else {
-      obj = new THREE.Group();
-      const g = proceduralPerson();
-      for (const k in g) { const m = new THREE.MeshLambertMaterial(); mats.push([m, k]); obj.add(new THREE.Mesh(g[k], m)); }
+      for (const gr of V.groups) {
+        const m = new THREE.MeshLambertMaterial(); mats.push([m, gr.kind, true, new THREE.Color(1, 1, 1)]);
+        body.add(new THREE.Mesh(gr.geo, m));
+      }
     }
+    const blob = new THREE.Mesh(this.blobGeo, this.blobMat.clone()); blob.position.y = 0.015; blob.renderOrder = 1; obj.add(blob);
     this.group.add(obj);
-    return { obj, mixer, mats, inner, hips };
+    return { obj, body, mixer, mats, inner, hips, blob, vi };
   }
   // ההליכה במקום: מזיזים את הדמות כך שהאגן יישאר מעל נקודת ההליכה
   centre(w) {
     if (!w.hips) return;
     w.inner.position.set(0, 0, 0); w.obj.updateMatrixWorld(true);
-    const h = w.obj.worldToLocal(w.hips.getWorldPosition(new THREE.Vector3()));
+    const h = w.body.worldToLocal(w.hips.getWorldPosition(new THREE.Vector3()));
     w.inner.position.set(-h.x, 0, -h.z);
   }
 }
