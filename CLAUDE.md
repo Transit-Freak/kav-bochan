@@ -71,3 +71,15 @@
      את מספר הגרסה בקישור לתמונה ב-`index.html` (`og-image.png?v=N`), כי ווטסאפ שומר תמונה ישנה לפי הכתובת.
   - הרצה: `NODE_PATH=$(npm root -g) node tools/og_cards.mjs` (אפשר רק `home` או רק תיקיית הכלי).
 - כלי שלא עלה לדף הבית (gis/, unreleased/) — בלי כרטיס, ולא מופיע בכרטיס של הקו הבוחן.
+
+## העותק המקומי של הריפו — קטן, בלי נתונים (שלמה 07.11.2026)
+
+- הריפו כבד בגלל עדכוני הנתונים הליליים. עותק מלא בסביבת העבודה גדל בכל משיכה מ-GitHub (פעם הגיע ל-29GB)
+  ומילא את הדיסק. לכן עובדים בעותק "חלקי" לפי ההמלצה של GitHub: מורידים רק את הקוד, וקבצים אחרים יורדים רק כשמבקשים אותם.
+  שום נתון לא הולך לאיבוד — הכל נשאר ב-GitHub ובאתר.
+- יצירה (אם העותק לא קיים או גדל):
+  `git clone --filter=blob:none --sparse --depth 1 https://github.com/Transit-Freak/kav-bochan`
+  ואז `git sparse-checkout set --no-cone '/*' '!/*/data/' '!/*/*/data/' '!/kavbug-data/' '!/gis/' '!/unreleased/' '!/s/' '!/magihim-2012/' '!/reports/' '!/sakachot-lab/' '!/data-*.json' '!/kavpach-*.json' '!/lines/'`
+- משיכה: `git fetch --depth 1 --filter=blob:none origin main` (לא `git pull` רגיל ולא `--unshallow`).
+- צריך קובץ נתונים לבדיקה? `git show origin/main:<נתיב>` או `git sparse-checkout add <תיקייה>` — ולהוריד שוב אחרי הבדיקה.
+- לא מורידים את תיקיות הנתונים כולן ולא מריצים עליהן בדיקות מקומיות כבדות — בשביל זה יש את ה-workflows ב-GitHub.
