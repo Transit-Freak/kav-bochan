@@ -385,19 +385,19 @@ def shot1():
         t = smooth((f - F_OPEN) / 16) * (1 - smooth((f - F_CLOSE) / 16))
         BL.door_open(bus, f, t)
     log('shot1 open', F_OPEN, 'A', fA, endA, 'B', fB, endB, 'close', F_CLOSE)
-    cam = BL.camera('Cam1', (-6.2, -9.6, 1.7), (0, 10, 1.5), lens=30)
+    cam = BL.camera('Cam1', (-5.2, -9.0, 1.65), (0, 10, 1.5), lens=30)
     for f in range(1, N + 1, 2):
         yb = D - samples.get(f, samples[max(samples)])[0]
         k = smooth((f - (F_STOP - 30)) / 40)
         tgt = V((-0.4, yb - 1.5, 1.4)).lerp(V((-1.4, -1.2, 1.25)), k)
-        BL.aim_cam(cam, f, (-6.2, -9.6, 1.7), tgt)
+        BL.aim_cam(cam, f, (-5.2, -9.0, 1.65), tgt)
     BL.render_setup(blur=True)
     return N, lambda f: cam
 
 
 # ---------------------------------------------------------------- כיסא גלגלים ורוכבת
 def make_chair():
-    if CHAIR_SRC:
+    if CHAIR_SRC and os.environ.get('USE_OGA') == '1':     # הדגם מ-OpenGameArt: גלגלים מלאים וצבועים, נראה פחות טוב — כבוי
         try:
             import busanim_chair
             c = busanim_chair.load_chair(CHAIR_SRC)
@@ -576,7 +576,7 @@ def shot2():
     for f in range(fD + nD - 18, N + 1): BL.door_open(bus, f, 1 - smooth((f - (fD + nD - 18)) / 16))
     ext = BL.camera('CamA', (-2.9, -4.7, 1.55), (-1.35, 0.2, 1.0), lens=24)
     side = BL.camera('CamB', (-2.3, -3.7, 1.2), (-2.0, 0.0, 0.85), lens=24)
-    inn = BL.camera('CamC', (0.0, -1.75, 2.0), (0.15, 0.25, 0.75), lens=20, parent=bus['body'])
+    inn = BL.camera('CamC', (-0.3, -1.65, 2.15), (0.55, 0.15, 0.7), lens=18, parent=bus['body'])
     strap_pass(drv, bus)
     log('shot2 cuts', 'B', fB, 'C', fC, 'D', fD, 'N', N)
     BL.render_setup()
@@ -826,8 +826,8 @@ def shot4():
     P1, P2, P3 = ppl
     specs = {
         'Pass1': dict(p=V((-0.12, 2.0, FLOOR)), psi=0.0),
-        'Pass2': dict(p=V((0.05, 3.28, FLOOR)), psi=math.pi / 2),
-        'Pass3': dict(p=V((-0.1, 4.12, FLOOR)), psi=-math.pi / 2),
+        'Pass2': dict(p=V((0.15, 3.3, FLOOR)), psi=math.pi / 2),
+        'Pass3': dict(p=V((-0.2, 4.12, FLOOR)), psi=-math.pi / 2),
     }
     for f in range(1, N + 1):
         y_, lam, gam, th, lat, v_ = S[f]
@@ -872,8 +872,8 @@ def shot4():
                 limbs['handL'] = hand_state(a, 'L', g, n_.cross(V((0, 0, 1))) * -1, n_, P @ V((0.55, 0.1, 0.6)))
             look = stand_X(a, p, psi) + fw * 3.0 + V((0, 0, 0.6)) + V((0.6 * math.sin(f / 40 + idx), 0, 0))
             a.key(f, hM, q, limbs, look=look, look_w=0.45)
-    c1 = BL.camera('Cam41', (0.3, -0.3, 2.0), (0.0, 3.0, 1.45), lens=26, parent=body)
-    c2 = BL.camera('Cam42', (-0.45, 5.45, 1.95), (0.15, 2.3, 1.45), lens=24, parent=body)
+    c1 = BL.camera('Cam41', (0.35, 0.1, 2.0), (-0.05, 3.2, 1.35), lens=26, parent=body)
+    c2 = BL.camera('Cam42', (0.15, 5.6, 2.1), (-0.1, 3.0, 1.4), lens=24, parent=body)
     BL.render_setup()
     return N, (lambda f: c1 if f <= 64 else c2)
 

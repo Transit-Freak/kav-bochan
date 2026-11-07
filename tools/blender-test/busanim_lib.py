@@ -384,13 +384,12 @@ def build_stop(stop_y):
             box(f'ST_Post{x:.1f}{y:.1f}', (0.08, 0.08, 2.45), (x, y, PLAT_Z + 1.225), dark)
     box('ST_Roof', (x1 - x0 + 0.5, y1 - y0 + 0.4, 0.08), ((x0 + x1) / 2 + 0.15, (y0 + y1) / 2, zt + 0.04), roof, bev=0.02)
     box('ST_Back', (0.02, y1 - y0 - 0.1, 1.9), (x0, (y0 + y1) / 2, PLAT_Z + 1.2), glass)
-    box('ST_SideGl', (x1 - x0 - 0.1, 0.02, 1.9), ((x0 + x1) / 2, y1, PLAT_Z + 1.2), glass)
     wood = mat('M_Bench', (0.35, 0.22, 0.12), 0.6)
     box('ST_Bench', (0.42, 2.2, 0.05), (x0 + 0.3, stop_y - 0.8, PLAT_Z + 0.46), wood, bev=0.01)
     for y in (stop_y - 1.7, stop_y + 0.1):
         box(f'ST_BenchLeg{y:.1f}', (0.3, 0.05, 0.44), (x0 + 0.3, y, PLAT_Z + 0.22), dark)
     adm = mat('M_Ad', (0.2, 0.45, 0.6), 0.3, emit=(0.15, 0.35, 0.5), es=0.6)
-    box('ST_Ad', (1.0, 0.06, 1.6), ((x0 + x1) / 2, y0, PLAT_Z + 1.25), adm)
+    box('ST_Ad', (1.0, 0.06, 1.6), ((x0 + x1) / 2, y1, PLAT_Z + 1.25), adm)
     # עמוד השלט ליד הדלת הקדמית של האוטובוס כשהוא עוצר
     ys = stop_y - 5.0; xp = CURB_X - 0.5
     cyl('ST_SignPole', 0.04, 3.0, (xp, ys, PLAT_Z + 1.5), m=dark, seg=16)
