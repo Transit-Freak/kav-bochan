@@ -50,7 +50,8 @@ for n in VAL_NAMES:
 cl = OB.get('SM_ValClampF')
 post_me = bpy.data.meshes.new('ValPost'); bm_ = bmesh.new(); bmesh.ops.create_cube(bm_, size=1.0); bm_.to_mesh(post_me); bm_.free()
 post = OB.new('SM_ValPostTap', post_me); SC.collection.objects.link(post)
-ptop = NEWC.z - 0.18; post.scale = (0.045, 0.045, ptop - FLOOR); post.location = (NEWC.x + 0.015, NEWC.y, (ptop + FLOOR) / 2)
+post.scale = (0.008, 0.07, 0.12); post.location = (NEWC.x + 0.0415, NEWC.y, NEWC.z)   # תושבת קטנה אל המחיצה של תא הנהג (בלי עמוד מהרצפה)
+if cl: cl.hide_render = True                                           # התפס של המוט המקורי — אין כאן מוט
 post.data.materials.append(OB['SM_ValF'].data.materials[0])
 upd()
 pad_ob = OB['SM_ValNFCF']; scr_ob = OB['SM_ValScrF']
@@ -95,6 +96,8 @@ def _terrain_init():
         e0 = EDGE - (STAND.x + dd)
         clr = min(max(s[2] - (e0 + 0.015), (e0 - 0.01) - s[3]) for side in feet for s in feet[side][0])
         if best is None or clr > best[0]: best = (clr, dd)
+    ok_ = [dd for dd in [x * 0.005 for x in range(-4, 9)] if min(max(s[2] - (EDGE - (STAND.x + dd) + 0.015), (EDGE - (STAND.x + dd) - 0.01) - s[3]) for side in feet for s in feet[side][0]) >= 0.04]
+    if ok_: best = (best[0], min(ok_))                                  # הכי פחות קדימה (המחיצה של הנהג), עם 4 ס"מ לפחות משפת המדרגה
     TER['delta'] = best[1]; e0 = EDGE - (STAND.x + best[1])
     n = f1 - f0 + 1; H = {}
     for side, (segs, A) in feet.items():
@@ -186,7 +189,7 @@ else:
 DEV_ROT_L = Matrix((T_L, F_L, -N_L)).transposed()                        # X לרוחב כף היד, Y לאורך האצבעות, Z אל כף היד
 n_w = -NPAD; t_w = n_w.cross(f_w)
 RH = Matrix((f_w, n_w, t_w)).transposed() @ Matrix((F_L, N_L, T_L))      # סיבוב העולם של עצם היד בהנחה
-CARD_AT = PAD + NPAD * 0.009 + Vector((0, 0, -0.008))
+CARD_AT = PAD + NPAD * float(os.environ.get('PAD_GAP', '0.015')) + Vector((0, 0, -0.008))
 if VAR == 'qr':
     # ה-QR "לתיקוף בישומון" בפינה העליונה של מסך המכשיר; מצלמת הטלפון (בגב, ליד הקצה העליון) 11 ס"מ מולו
     RIGHT = -LEFT
