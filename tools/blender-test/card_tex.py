@@ -23,6 +23,31 @@ def card(path, w=856, h=540):
     d.text((w - 64, 470), '0000 0000 0000', font=font(34), fill=(255, 255, 255, 200), anchor='rm')
     im.save(path)
 
+def phone_screen(path, ok=False, w=430, h=884):
+    """מסך טלפון: תשלום רב-קו בקרבה (כחול), או אישור ירוק "נסיעה טובה". מסגרת שחורה דקה ומצלמה קדמית."""
+    im = Image.new('RGB', (w, h), (8, 8, 10)); d = ImageDraw.Draw(im)
+    x0, y0, x1, y1 = 14, 14, w - 14, h - 14
+    if ok:
+        d.rounded_rectangle((x0, y0, x1, y1), 44, fill=(30, 160, 70))
+        d.line((130, 380, 195, 450, 310, 320), fill='white', width=26, joint='curve')
+        d.text((w // 2, 560), rtl('נסיעה טובה'), font=font(46), fill='white', anchor='mm')
+        d.text((w // 2, 625), '8.0 ₪', font=font(34), fill='white', anchor='mm')
+    else:
+        for y in range(y0, y1):
+            t = (y - y0) / (y1 - y0); d.line((x0, y, x1, y), fill=(int(15 + 10 * t), int(80 + 60 * t), int(190 - 40 * t)))
+        m = Image.new('L', (w, h), 0); ImageDraw.Draw(m).rounded_rectangle((x0, y0, x1, y1), 44, fill=255)
+        bg = Image.new('RGB', (w, h), (8, 8, 10)); im = Image.composite(im, bg, m); d = ImageDraw.Draw(im)
+        d.text((w // 2, 190), rtl('רב-קו'), font=font(84), fill='white', anchor='mm')
+        d.rounded_rectangle((70, 300, w - 70, 470), 22, fill=(255, 255, 255))
+        d.text((w // 2, 360), rtl('תשלום בקרבה'), font=font(34), fill=(20, 80, 170), anchor='mm')
+        d.text((w // 2, 420), '8.0 ₪', font=font(34), fill=(20, 80, 170), anchor='mm')
+        for k in (1, 2, 3):
+            r = 34 * k; d.arc((w // 2 - r, 640 - r, w // 2 + r, 640 + r), -60 - 90, 60 - 90, fill='white', width=9)
+        d.text((w // 2, 760), rtl('קרבו את הטלפון לקורא'), font=font(28), fill='white', anchor='mm')
+    d.ellipse((w // 2 - 9, 30, w // 2 + 9, 48), fill=(25, 25, 30))
+    im.save(path)
+
 if __name__ == '__main__':
+    phone_screen(f"{sys.argv[1] if len(sys.argv) > 1 else '.'}/phone_pay.png"); phone_screen(f"{sys.argv[1] if len(sys.argv) > 1 else '.'}/phone_ok.png", ok=True)
     out = sys.argv[1] if len(sys.argv) > 1 else '.'
     card(f'{out}/ravkav_card.png'); print('card ok')

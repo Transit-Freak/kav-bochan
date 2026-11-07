@@ -74,15 +74,35 @@ F_L = Vector((0, 1, 0)); N_L = Mbi @ n_arm; N_L = (N_L - F_L * N_L.dot(F_L)).nor
 tips = [b for b in HB.children_recursive]
 TIP = max([(b.tail_local - HB.head_local).dot(Yr) for b in tips] + [HB.length])
 print('TAP palm n(rest)', tuple(round(v, 2) for v in n_arm), 'flip', flip, 'tip', round(TIP, 3), 'hand len', round(HB.length, 3))
-CF = float(os.environ.get('CARD_F', str(round(0.62 * TIP, 3))))     # מרכז הכרטיס לאורך האצבעות
-CN = float(os.environ.get('CARD_N', '0.024'))                          # מרחק מכף היד (צד כף היד)
-OFF_L = F_L * CF + N_L * CN
-# כיוון היד ברגע ההנחה (בעולם): כף היד אל המשטח (+Y), האצבעות למעלה ומעט החוצה (שמאלה = -X)
-f_w = Vector((-float(os.environ.get('FING_TILT', '0.6')), 0.0, 1.0)).normalized(); n_w = -NPAD; t_w = n_w.cross(f_w)
+DEVICE = 'phone' if VAR in ('phone', 'qr') else 'card'
+RESULT = 'ok' if VAR in ('ok', 'phone', 'qr') else VAR
+tilt = float(os.environ.get('FING_TILT', '0.6'))
+if DEVICE == 'card':
+    # הכרטיס בצד כף היד, כף היד אל המשטח (+Y), האצבעות למעלה ומעט החוצה (שמאלה = -X)
+    CF = float(os.environ.get('CARD_F', str(round(0.62 * TIP, 3))))     # מרכז הכרטיס לאורך האצבעות
+    CN = float(os.environ.get('CARD_N', '0.024'))                          # מרחק מכף היד (צד כף היד)
+    OFF_L = F_L * CF + N_L * CN
+    DEV_ROT_L = Matrix((T_L, F_L, -N_L)).transposed()                    # X לרוחב כף היד, Y לאורך האצבעות
+    CONTACT_L = OFF_L
+    f_w = Vector((-tilt, 0.0, 1.0)).normalized(); n_w = -NPAD
+else:
+    # טלפון: כמו שמחזיקים טלפון באמת — כף היד אל הנוסע, המסך אליו, והחלק העליון של גב הטלפון נוגע במשטח.
+    # הטלפון נשען קדימה מהיד בזווית PH_TH, כך שרק הקצה העליון של הגב נוגע, והיד עצמה נשארת מול המכשיר
+    PTH = math.radians(float(os.environ.get('PH_TH', '28')))
+    g_L = F_L * math.cos(PTH) - N_L * math.sin(PTH)                      # לאורך הטלפון (למעלה)
+    b_L = -N_L * math.cos(PTH) - F_L * math.sin(PTH)                     # גב הטלפון (אל המשטח)
+    P0 = F_L * (0.55 * TIP) + N_L * 0.022                                 # תחתית הטלפון בתוך כף היד
+    PL, PW, PT = 0.147, 0.0715, 0.0085
+    OFF_L = P0 + g_L * (PL / 2) - b_L * (PT / 2)
+    CONTACT_L = P0 + g_L * 0.112                                          # על הגב, ליד הקצה העליון (אנטנת NFC)
+    DEV_ROT_L = Matrix((g_L.cross(-b_L), g_L, -b_L)).transposed()
+    g_w = Vector((-tilt * 0.5, 0.0, 1.0)).normalized(); bk_w = -NPAD
+    f_w = g_w * math.cos(PTH) - bk_w * math.sin(PTH); n_w = -g_w * math.sin(PTH) - bk_w * math.cos(PTH)
+t_w = n_w.cross(f_w)
 Bw = Matrix((f_w, n_w, t_w)).transposed(); Bl = Matrix((F_L, N_L, T_L)).transposed()
 RH = Bw @ Bl.transposed()                                               # סיבוב העולם של עצם היד בהנחה
-CARD_AT = PAD + NPAD * 0.007 + Vector((0, 0, -0.008))                                            # מרכז הכרטיס 7 מ"מ מול המשטח
-WR_C = CARD_AT - RH @ OFF_L                                             # מיקום פרק היד בהנחה
+CARD_AT = PAD + NPAD * (0.007 if DEVICE == 'card' else 0.004) + Vector((0, 0, -0.008))   # נקודת המגע מול המשטח
+WR_C = CARD_AT - RH @ CONTACT_L                                         # מיקום פרק היד בהנחה
 
 # ---------- מרחק ההושטה: מזיזים את נקודת העמידה קדימה/אחורה כך שהמרפק יהיה כפוף בנוחות
 a_len = rig.data.bones['LeftArm'].length; b_len = rig.data.bones['LeftForeArm'].length
@@ -96,14 +116,15 @@ print('TAP shoulder', tuple(round(v, 2) for v in head_w('LeftArm')), 'wrist targ
 print('TAP reach: arm', round(a_len, 3), round(b_len, 3), 'shift', round(shift, 3), 'hips', tuple(round(v, 2) for v in head_w(hips)),
       'dist', round((WR_C - head_w('LeftArm')).length, 3))
 
-# ---------- הכרטיס: מלבן מעוגל 85.6×54 מ"מ, עם ההדפסה בשני הצדדים, צמוד לעצם כף היד
-def card_mesh():
-    w, h, t, r = 0.0856, 0.054, 0.0009, 0.0035
+# ---------- הכרטיס (מלבן מעוגל 85.6×54 מ"מ, הדפסה בשני הצדדים) או הטלפון (לוח כהה מעוגל עם מסך), צמוד לעצם כף היד
+def tex_node(nt, path):
+    t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(os.path.abspath(path)); return t
+def slab(name, w, h, t, r, seg=5):
     ring = []
     for cx, cy, a0 in ((w/2 - r, h/2 - r, 0), (-w/2 + r, h/2 - r, 90), (-w/2 + r, -h/2 + r, 180), (w/2 - r, -h/2 + r, 270)):
-        for i in range(5):
-            a = math.radians(a0 + i * 22.5); ring.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-    me = bpy.data.meshes.new('RavKavCard'); b = bmesh.new()
+        for i in range(seg):
+            a = math.radians(a0 + i * 90 / (seg - 1)); ring.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    me = bpy.data.meshes.new(name); b = bmesh.new()
     top = [b.verts.new((x, y, t/2)) for x, y in ring]; bot = [b.verts.new((x, y, -t/2)) for x, y in ring]
     ft = b.faces.new(top); fb = b.faces.new(list(reversed(bot)))
     sides = [b.faces.new((bot[i], bot[(i + 1) % len(ring)], top[(i + 1) % len(ring)], top[i])) for i in range(len(ring))]
@@ -112,28 +133,43 @@ def card_mesh():
         for lp in f.loops:
             u = (lp.vert.co.x + w/2) / w; v = (lp.vert.co.y + h/2) / h
             lp[uv].uv = (1 - u if mir else u, v)
+    fb.material_index = 1
     for f in sides:
-        f.material_index = 1
+        f.material_index = 2
         for lp in f.loops: lp[uv].uv = (0.5, 0.5)
     b.to_mesh(me); b.free()
-    m = bpy.data.materials.new('M_RavKav'); nt = m.node_tree; bs = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
-    tx = nt.nodes.new('ShaderNodeTexImage'); tx.image = bpy.data.images.load(os.path.abspath('tex/ravkav_card.png'))
-    nt.links.new(tx.outputs['Color'], bs.inputs['Base Color']); bs.inputs['Roughness'].default_value = 0.32
-    me.materials.append(m)
-    e = bpy.data.materials.new('M_CardEdge'); e.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.85, 0.87, 0.9, 1)
-    me.materials.append(e)
-    ob = bpy.data.objects.new('RavKavCard', me); SC.collection.objects.link(ob); return ob
-card = card_mesh()
+    ob = bpy.data.objects.new(name, me); SC.collection.objects.link(ob); return ob
+def pbsdf(m): return next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+if DEVICE == 'card':
+    card = slab('RavKavCard', 0.0856, 0.054, 0.0009, 0.0035)
+    m = bpy.data.materials.new('M_RavKav'); bs = pbsdf(m); tx = tex_node(m.node_tree, 'tex/ravkav_card.png')
+    m.node_tree.links.new(tx.outputs['Color'], bs.inputs['Base Color']); bs.inputs['Roughness'].default_value = 0.32
+    e = bpy.data.materials.new('M_CardEdge'); pbsdf(e).inputs['Base Color'].default_value = (0.85, 0.87, 0.9, 1)
+    for mm_ in (m, m, e): card.data.materials.append(mm_)
+    PHONE_MIX = None
+else:
+    card = slab('Phone', PW, PL, PT, 0.009, seg=7)
+    bev = card.modifiers.new('bev', 'BEVEL'); bev.width = 0.0018; bev.segments = 3; bev.limit_method = 'ANGLE'
+    m = bpy.data.materials.new('M_PhoneScreen'); nt = m.node_tree; bs = pbsdf(m)
+    t1_, t2_ = tex_node(nt, 'tex/phone_pay.png'), tex_node(nt, 'tex/phone_ok.png')
+    PHONE_MIX = nt.nodes.new('ShaderNodeMix'); PHONE_MIX.data_type = 'RGBA'
+    ia = next(x for x in PHONE_MIX.inputs if x.name == 'A' and x.type == 'RGBA'); ib = next(x for x in PHONE_MIX.inputs if x.name == 'B' and x.type == 'RGBA')
+    mo = next(x for x in PHONE_MIX.outputs if x.type == 'RGBA')
+    nt.links.new(t1_.outputs['Color'], ia); nt.links.new(t2_.outputs['Color'], ib)
+    nt.links.new(mo, bs.inputs['Base Color']); nt.links.new(mo, bs.inputs['Emission Color'])
+    bs.inputs['Emission Strength'].default_value = 1.6; bs.inputs['Roughness'].default_value = 0.08
+    bk = bpy.data.materials.new('M_PhoneBack'); pbsdf(bk).inputs['Base Color'].default_value = (0.03, 0.035, 0.045, 1); pbsdf(bk).inputs['Roughness'].default_value = 0.3
+    fr = bpy.data.materials.new('M_PhoneFrame'); pbsdf(fr).inputs['Base Color'].default_value = (0.2, 0.21, 0.23, 1); pbsdf(fr).inputs['Metallic'].default_value = 0.8; pbsdf(fr).inputs['Roughness'].default_value = 0.3
+    for mm_ in (m, bk, fr): card.data.materials.append(mm_)
 card.parent = rig; card.parent_type = 'BONE'; card.parent_bone = 'LeftHand'
 card.matrix_parent_inverse = Matrix.Identity(4)
-CB = Matrix((T_L, F_L, -N_L)).transposed()                 # X של הכרטיס לרוחב כף היד, Y לאורך האצבעות
-card.matrix_basis = Matrix.Translation(Vector((0, -HB.length, 0))) @ Matrix.Translation(OFF_L) @ CB.to_4x4()
+card.matrix_basis = Matrix.Translation(Vector((0, -HB.length, 0))) @ Matrix.Translation(OFF_L) @ DEV_ROT_L.to_4x4()
 
 # ---------- ציר הזמן (30 פריימים בשנייה)
 RA = int(os.environ.get('REACH_START', str(f1 - 7)))       # תחילת ההושטה: ממש בסוף העצירה
 C = RA + 20                                                  # הכרטיס על המשטח
 HOLD = C + 9
-PAUSE = VAR != 'ok'
+PAUSE = VAR in ('err', 'nofunds')
 if PAUSE:
     HOV, HOV_END, LE, END = HOLD + 8, HOLD + 38, HOLD + 60, HOLD + 78
 else:
@@ -221,19 +257,22 @@ for f in range(RA - 8, END + 1):
         set_world_rot('LeftHand', Rgoal)
     for n in base[f]: rig.pose.bones[n].keyframe_insert('rotation_quaternion' if rig.pose.bones[n].rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
     if f in (RA, RA + 13, C, HOLD, LE):
-        cw = card.matrix_world.translation
+        cw = W() @ rig.pose.bones['LeftHand'].matrix @ CONTACT_L
         err_log.append((f, round((head_w('LeftHand') - Wt).length, 3), round((cw - CARD_AT).length, 3)))
 print('TAP wrist err / card-to-pad (m)', err_log)
 SC.frame_set(C); upd()
 cn = (card.matrix_world.to_3x3() @ Vector((0, 0, 1))).normalized()
-print('TAP card at contact', tuple(round(v, 3) for v in card.matrix_world.translation), 'pad', tuple(round(v, 3) for v in CARD_AT),
-      'card normal', tuple(round(v, 2) for v in cn), 'gap to pad plane', round(PAD.y - card.matrix_world.translation.y, 4))
+cp = W() @ rig.pose.bones['LeftHand'].matrix @ CONTACT_L
+dg = bpy.context.evaluated_depsgraph_get(); e_ = card.evaluated_get(dg); me_ = e_.to_mesh()
+ymax = max((e_.matrix_world @ v.co).y for v in me_.vertices); e_.to_mesh_clear()
+print('TAP', DEVICE, 'contact point', tuple(round(v, 3) for v in cp), 'target', tuple(round(v, 3) for v in CARD_AT),
+      'device +Z', tuple(round(v, 2) for v in cn), 'gap device-to-pad plane', round(PAD.y - ymax, 4))
 
 # ---------- מסך המכשיר M1: חומר משלו, מעבר ממסך ההמתנה למסך התוצאה, ופסי התאורה בצבע התוצאה
 def img(p): return bpy.data.images.load(os.path.abspath(p))
 sm = bpy.data.materials.new('M_ValScreenTap'); nt = sm.node_tree; bs = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
 t_idle = nt.nodes.new('ShaderNodeTexImage'); t_idle.image = img('tex/screen_idle.png')
-t_res = nt.nodes.new('ShaderNodeTexImage'); t_res.image = img(f'tex/screen_{VAR}.png')
+t_res = nt.nodes.new('ShaderNodeTexImage'); t_res.image = img(f'tex/screen_{RESULT}.png')
 mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'
 fac = mix.inputs['Factor']; ia = next(s for s in mix.inputs if s.name == 'A' and s.type == 'RGBA'); ib = next(s for s in mix.inputs if s.name == 'B' and s.type == 'RGBA')
 mo = next(s for s in mix.outputs if s.type == 'RGBA')
@@ -243,12 +282,15 @@ bs.inputs['Emission Strength'].default_value = 1.2; bs.inputs['Roughness'].defau
 fac.default_value = 0.0; fac.keyframe_insert('default_value', frame=SWITCH - 1)
 fac.default_value = 1.0; fac.keyframe_insert('default_value', frame=SWITCH)
 scr_ob.data.materials.clear(); scr_ob.data.materials.append(sm)
-LED = (0.1, 1.0, 0.25, 1) if VAR == 'ok' else (1.0, 0.08, 0.05, 1)
+LED = (0.1, 1.0, 0.25, 1) if RESULT == 'ok' else (1.0, 0.08, 0.05, 1)
 lm = bpy.data.materials.new('M_ValLedTap'); lb = next(n for n in lm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
 lb.inputs['Emission Strength'].default_value = 6
 ec = lb.inputs['Emission Color']
 for fr, col in ((SWITCH - 1, (1, 0.98, 0.92, 1)), (SWITCH, LED), (SWITCH + 40, LED), (SWITCH + 41, (1, 0.98, 0.92, 1))):
     ec.default_value = col; ec.keyframe_insert('default_value', frame=fr)
+if PHONE_MIX is not None:
+    pf = PHONE_MIX.inputs['Factor']; pf.default_value = 0.0; pf.keyframe_insert('default_value', frame=SWITCH)
+    pf.default_value = 1.0; pf.keyframe_insert('default_value', frame=SWITCH + 3)
 for o in bpy.data.objects:
     if o.name.startswith('SM_ValLedM1'): o.data.materials.clear(); o.data.materials.append(lm)
 
@@ -278,13 +320,15 @@ for f in list(range(f0 + 2, END + 1, 4)) + [C]:
         for p in co:
             p = Vector(p)
             for nm, lo, hi in boxes:
-                if lo.x < p.x < hi.x and lo.y < p.y < hi.y and lo.z < p.z < hi.z: hits[(f, nm)] = hits.get((f, nm), 0) + 1
+                if lo.x < p.x < hi.x and lo.y < p.y < hi.y and lo.z < p.z < hi.z: hits[(f, nm, o.name[-12:])] = hits.get((f, nm, o.name[-12:]), 0) + 1
             if p.z < FLOOR + 2.0:
                 for nm, px, py in poles:
-                    if (p.x - px) ** 2 + (p.y - py) ** 2 < 0.021 ** 2: hits[(f, nm)] = hits.get((f, nm), 0) + 1
-            if p.z < FLOOR - 0.01: hits[(f, 'floor')] = hits.get((f, 'floor'), 0) + 1
+                    if (p.x - px) ** 2 + (p.y - py) ** 2 < 0.021 ** 2: hits[(f, nm, o.name[-12:])] = hits.get((f, nm, o.name[-12:]), 0) + 1
+            if p.z < FLOOR - 0.01: hits[(f, 'floor', o.name[-12:])] = hits.get((f, 'floor', o.name[-12:]), 0) + 1
         e.to_mesh_clear()
-print('TAP penetration hits (frame, object): count', sorted(hits.items())[:60])
+for kk in sorted(hits): print('TAP hit', kk, hits[kk])
+for f in range(f0 + 2, END + 1, 10):
+    SC.frame_set(f); print('TAP path', f, 'hips', tuple(round(v, 2) for v in head_w(hips)), 'Lhand', tuple(round(v, 2) for v in head_w('LeftHand')), 'Rhand', tuple(round(v, 2) for v in head_w('RightHand')))
 
 # ---------- תאורה ומצלמה (כמו interior.py), Cycles
 SC.render.engine = 'CYCLES'; SC.cycles.device = 'CPU'
@@ -310,10 +354,10 @@ cam.location = CAM; cam.rotation_euler = (AIM - CAM).to_track_quat('-Z', 'Y').to
 SC.render.resolution_x, SC.render.resolution_y = (640, 360) if PREVIEW else (1280, 720)
 SC.render.resolution_percentage = 100
 SC.render.image_settings.file_format = 'PNG'; SC.render.image_settings.color_mode = 'RGB'
-OUT = {'ok': 'out/tap', 'err': 'out/tap_err', 'nofunds': 'out/tap_nofunds'}[VAR]
+OUT = 'out/tap' if VAR == 'ok' else f'out/tap_{VAR}'
 SC.render.filepath = os.path.abspath(OUT + '/f_')
 # הגרסאות (שגיאה / אין כסף) זהות לגרסה הרגילה עד רגע ההנחה, אז מרנדרים רק מקצת לפני ההנחה; את ההתחלה לוקחים מ-out/tap
-SC.frame_start = (f0 + 2) if VAR == 'ok' else C - 4
+SC.frame_start = C - 4 if PAUSE else (f0 + 2)
 SC.frame_end = END
 SC.frame_step = int(os.environ.get('STEP', '2' if PREVIEW else '1'))
 print('TAP render', VAR, SC.frame_start, SC.frame_end, 'step', SC.frame_step, 'setup', round(time.time() - T0), 's')
