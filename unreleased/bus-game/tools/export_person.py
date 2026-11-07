@@ -25,7 +25,7 @@ if bpy.data.filepath == '' and len(argv) >= 2:
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(argv[0])); argv = argv[1:]
 OUT = os.path.abspath(argv[0] if argv else 'out/person.glb')
 RATIO = float(os.environ.get('PERSON_DECIMATE', '0.22'))
-CLOTH_RATIO = float(os.environ.get('PERSON_CLOTH_DECIMATE', '0.4'))
+CLOTH_TRIS = int(os.environ.get('PERSON_CLOTH_TRIS', '2600'))   # בגד קטן מזה לא מוקטן בכלל (שוליים וצווארון בלי קרעים)
 TEX = int(os.environ.get('PERSON_TEX', '512'))
 SC = bpy.context.scene
 
@@ -75,7 +75,8 @@ for o in [o for o in bpy.data.objects if o.type == 'MESH']:
     n0 = len(o.data.polygons); k = kind(o)
     if n0 < 400: print('MESH', o.name, k, n0); continue
     cloth = k.startswith('cloth') and 'shoe' not in o.name.lower()
-    r = 0.55 if (k in ('hair', 'eyebrows') or o.name == 'hair_cap') else CLOTH_RATIO if cloth else RATIO if n0 > 1500 else min(1.0, RATIO * 2.5)
+    r = 0.55 if (k in ('hair', 'eyebrows') or o.name == 'hair_cap') else min(1.0, CLOTH_TRIS / n0) if cloth else RATIO if n0 > 1500 else min(1.0, RATIO * 2.5)
+    if r >= 0.999: print('MESH', o.name, k, n0, 'kept'); continue
     d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = r
     with ctx(o):
         bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)

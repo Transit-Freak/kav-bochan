@@ -35,11 +35,11 @@ VARIANTS = [
          race={'caucasian': 0.05, 'african': 0.9, 'asian': 0.05}, skin=skin('young_african_male'),
          hair=H('short02', 'short01', 'short04'), hair_rgb=(0.02, 0.016, 0.014),
          clothes=[C('male_casualsuit03', 'male_casualsuit02', 'male_casualsuit01'), C('shoes01', 'shoes02')], brows='eyebrow001'),
-    # 3 — אישה מבוגרת, שיער אפור קצר, גוף מלא
+    # 3 — אישה מבוגרת, שיער אפור קצר, גוף מלא. חצאית: משקלות רגליים מתמזגים באמצע, והחצאית נחתכת מתחת לשולי החולצה
     dict(gender=0.0, age=age(64), weight=0.72, height=0.42, muscle=0.4,
          race={'caucasian': 0.9, 'african': 0.03, 'asian': 0.07}, skin=skin('old_caucasian_female'),
          hair=H('bob02', 'bob01', 'short03'), hair_rgb=(0.42, 0.41, 0.4),
-         clothes=[C('female_elegantsuit01', 'female_casualsuit02', 'female_casualsuit01'), C('shoes04', 'shoes03', 'shoes01')], brows='eyebrow012'),
+         clothes=[dict(c=C('female_elegantsuit01', 'female_casualsuit01'), skirt=True, tuck=True), C('shoes04', 'shoes03', 'shoes01')], brows='eyebrow012'),
     # 4 — גבר מבוגר, שיער אפור, חליפה
     dict(gender=1.0, age=age(70), weight=0.66, height=0.48, muscle=0.4,
          race={'caucasian': 0.85, 'african': 0.05, 'asian': 0.1}, skin=skin('old_caucasian_male'),
@@ -110,6 +110,15 @@ def keep_part(ob, part):
     drop = [v for z, comp in isl if (z < mid if part == 'top' else z >= mid) for v in comp]
     bmesh.ops.delete(b_, geom=drop, context='VERTS'); b_.to_mesh(ob.data); b_.free(); ob.data.update()
     print('VARIANT keep', part, ob.name, 'islands', [round(z, 2) for z in zs], 'dropped', len(drop))
+def cut_above(ob, z0, only=None):
+    # מוחקים קודקודים מעל גובה z0 (בעולם); only — פונקציה שבוחרת אילו איים לחתוך
+    import bmesh
+    b_ = bmesh.new(); b_.from_mesh(ob.data); W_ = ob.matrix_world
+    vs = [v for v in b_.verts if (W_ @ v.co).z > z0 and (only is None or only(v))]
+    bmesh.ops.delete(b_, geom=vs, context='VERTS'); b_.to_mesh(ob.data); b_.free(); ob.data.update()
+    print('VARIANT cut', ob.name, 'above', round(z0, 3), len(vs))
+def zs_(ob): return [(ob.matrix_world @ v.co).z for v in ob.data.vertices]
+worn = []; worn_specs = []
 for kind, cands in items_:
     spec = cands if isinstance(cands, dict) else {}
     if spec: cands = spec['c']
@@ -123,6 +132,70 @@ for kind, cands in items_:
     if kind == 'Hair': hair = ob
     if spec.get('keep'): keep_part(ob, spec['keep'])
     if spec.get('tint'): ob['pv_tint'] = list(spec['tint'])   # export_person.py צובע את הטקסטורה של הבגד
+    if kind == 'Clothes': worn.append((ob, spec.get('keep', ''))); worn_specs.append((ob, spec.get('keep', ''), spec))
+def islands_(ob):
+    import bmesh
+    b_ = bmesh.new(); b_.from_mesh(ob.data); b_.verts.ensure_lookup_table(); seen = set(); out = []
+    for v0 in b_.verts:
+        if v0.index in seen: continue
+        st = [v0]; seen.add(v0.index); comp = []
+        while st:
+            v = st.pop(); comp.append(v.index)
+            for e in v.link_edges:
+                w = e.other_vert(v)
+                if w.index not in seen: seen.add(w.index); st.append(w)
+        out.append(comp)
+    b_.free(); return out
+for ob, spec in [(o, s_) for o, k, s_ in worn_specs if s_.get('tuck') or s_.get('skirt')]:
+    zz = zs_(ob); isl = islands_(ob); means = [sum(zz[i] for i in c) / len(c) for c in isl]
+    mid = (min(means) + max(means)) / 2
+    low = set(i for c, m in zip(isl, means) if m < mid for i in c)
+    if spec.get('skirt'):
+        # חצאית: כל צד שלה הולך עם רגל אחרת, ובאמצע הגב נפתח "קרע" בהליכה. באמצע (±10 ס"מ) המשקלות של שתי הרגליים מתמזגים
+        vg = ob.vertex_groups; W_ = ob.matrix_world
+        for a_, b2 in (('LeftUpLeg', 'RightUpLeg'), ('LeftLeg', 'RightLeg')):
+            if a_ not in vg or b2 not in vg: continue
+            ga, gb = vg[a_], vg[b2]
+            for i in low:
+                v = ob.data.vertices[i]; wa = wb = 0.0
+                for g in v.groups:
+                    if g.group == ga.index: wa = g.weight
+                    elif g.group == gb.index: wb = g.weight
+                if wa + wb < 1e-4: continue
+                s2 = min(1.0, abs((W_ @ v.co).x) / 0.10); avg = (wa + wb) / 2
+                ga.add([i], avg + (wa - avg) * s2, 'REPLACE'); gb.add([i], avg + (wb - avg) * s2, 'REPLACE')
+        print('VARIANT skirt weights', ob.name, len(low))
+    if spec.get('tuck'):
+        # החלק התחתון של אותה חליפה בצבץ מעל השוליים של החולצה בהליכה — חותכים אותו מתחת לשוליים
+        hem = min(zz[i] for c, m in zip(isl, means) if m >= mid for i in c)
+        cut_above(ob, hem + 0.035, only=lambda v: v.index in low)
+# חולצה מחליפה אחת ומכנסיים מאחרת: המכנסיים גבוהים יותר מהשוליים של החולצה ובצבצו מעליה (בגב).
+# חותכים את המכנסיים 3.5 ס"מ מתחת לשוליים — עדיין חפיפה, בלי חור
+tops = [o for o, k in worn if k == 'top']; bottoms = [o for o, k in worn if k == 'bottom']
+if tops and bottoms:
+    hem = min(min(zs_(o)) for o in tops)
+    for o in bottoms: cut_above(o, hem + 0.035)
+# הגרביים של הנעליים (איים נפרדים ברשת הנעל, עד אמצע השוק) בצבצו דרך מכנסיים צמודים.
+# כשיש מכנסיים ארוכים — הגרב נחתך קצת מעל השוליים של המכנסיים
+shoes_ = [o for o, k in worn if 'shoe' in o.name.lower()]
+legs_ = [min(zs_(o)) for o, k in worn if 'shoe' not in o.name.lower() and o.data.vertices]
+for o in shoes_:
+    sz = zs_(o); floor_ = min(sz)
+    if legs_ and min(legs_) < floor_ + 0.15:
+        import bmesh
+        b_ = bmesh.new(); b_.from_mesh(o.data); b_.verts.ensure_lookup_table(); W_ = o.matrix_world
+        seen = set(); sock = set()
+        for v0 in b_.verts:
+            if v0.index in seen: continue
+            st = [v0]; seen.add(v0.index); comp = []
+            while st:
+                v = st.pop(); comp.append(v.index)
+                for e in v.link_edges:
+                    w = e.other_vert(v)
+                    if w.index not in seen: seen.add(w.index); st.append(w)
+            if sum(sz[i] for i in comp) / len(comp) > floor_ + 0.08: sock |= set(comp)
+        b_.free()
+        cut_above(o, min(legs_) + 0.035, only=lambda v: v.index in sock)
 rig = bm.parent
 '''
 
