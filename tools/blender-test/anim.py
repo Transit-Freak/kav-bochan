@@ -146,29 +146,31 @@ footR = {}
 for f in range(f0, f1 + 1):
     SC.frame_set(f)
     footR[f] = {n: (rig.matrix_world.to_3x3() @ rig.pose.bones[n].matrix.to_3x3()).copy() for n in FEET}
-for side in (('Left', 'Right') if LIFT < 0.999 else ()):
+# 07.11: הברכיים התכופפו פנימה והרגליים כמעט הצטלבו — הסיבובים של הירך והשוק מה-BVH לא מתאימים לציר הברך של MPFB.
+# במקום להעתיק סיבובים, הרגליים הולכות לפי מיקומים: הקרסול והברך של ההקלטה (יחסית לאגן, בקנה המידה של הדמות),
+# ו-IK על הירך והשוק מגיע אליהם. כך הברך תמיד מתכופפת קדימה, בכיוון שבו היא מתכופפת בהקלטה
+IKSRC = os.environ.get('IKSRC', '1') == '1'
+for side in (('Left', 'Right') if (IKSRC or LIFT < 0.999) else ()):
     leg, foot = side + 'Leg', side + 'Foot'
-    if leg not in rig.pose.bones or foot not in rig.pose.bones: continue
-    pos, knee = [], []
-    for f in range(f0, f1 + 1):
-        SC.frame_set(f)
-        pos.append((rig.matrix_world @ rig.pose.bones[foot].head).copy())
-        knee.append((rig.matrix_world @ rig.pose.bones[leg].head).copy())
-    stand = sorted(p.z for p in pos)[len(pos) // 10]
+    if leg not in rig.pose.bones or foot not in rig.pose.bones or foot not in src.pose.bones: continue
+    up_n = side + 'UpLeg'
     tg = bpy.data.objects.new('ik_' + side, None); SC.collection.objects.link(tg)
     pole = bpy.data.objects.new('pole_' + side, None); SC.collection.objects.link(pole)
-    mx = 0.0
-    for i, f in enumerate(range(f0, f1 + 1)):
-        q = pos[i].copy(); up = q.z - stand; mx = max(mx, up)
-        if up > 0: q.z = stand + up * LIFT
-        tg.location = q; tg.keyframe_insert('location', frame=f)
-        # הקוטב: מול הברך, כדי שהברך תמשיך להתכופף קדימה
-        fwd = (pos[min(i + 1, len(pos) - 1)] - pos[max(i - 1, 0)]); fwd.z = 0
-        fwd = fwd.normalized() if fwd.length > 1e-4 else Vector((0, -1, 0))
-        pole.location = knee[i] + fwd * 0.6; pole.keyframe_insert('location', frame=f)
-    print('DBG lift', side, 'stand', round(stand, 3), 'max up', round(mx, 3), '->', round(mx * LIFT, 3))
+    Ws, Wd = src.matrix_world, rig.matrix_world
+    for f in range(f0, f1 + 1):
+        SC.frame_set(f)
+        hs = Ws @ src.pose.bones[hips].head; hd = Wd @ rig.pose.bones[hips].head
+        ank = hd + ((Ws @ src.pose.bones[foot].head) - hs) * k
+        kn = hd + ((Ws @ src.pose.bones[leg].head) - hs) * k
+        hip = hd + ((Ws @ src.pose.bones[up_n].head) - hs) * k if up_n in src.pose.bones else hd
+        bend = kn - (hip + ank) / 2
+        if bend.length < 0.02:                # רגל ישרה: הקוטב קדימה, בכיוון ההליכה
+            bend = fwd.copy()
+        tg.location = ank; tg.keyframe_insert('location', frame=f)
+        pole.location = kn + bend.normalized() * 0.5; pole.keyframe_insert('location', frame=f)
     c = rig.pose.bones[leg].constraints.new('IK'); c.target = tg; c.pole_target = pole; c.chain_count = 2
-    c.pole_angle = math.radians(-90); iks.append(leg)
+    c.pole_angle = math.radians(float(os.environ.get('POLE_ANGLE', '-90'))); iks.append(leg)
+    print('DBG leg ik', side)
     # כף הרגל שומרת על הכיוון שלה בעולם (אחרת היא מסתובבת עם השוק החדשה)
 if True:
     bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='POSE')
@@ -200,6 +202,16 @@ if True:
                 M = (W.to_3x3().inverted() @ Rw).to_4x4(); M.translation = pb.matrix.translation
                 pb.matrix = M; bpy.context.view_layer.update()
                 pb.keyframe_insert('rotation_quaternion' if pb.rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
+    # בדיקה: כמה רחוקה הברך של הדמות מהברך של ההקלטה (אם הקוטב הפוך, זה יהיה עשרות ס"מ)
+    errs = []
+    for f in range(f0, f1 + 1, 4):
+        SC.frame_set(f)
+        hs = src.matrix_world @ src.pose.bones[hips].head; hd = rig.matrix_world @ rig.pose.bones[hips].head
+        for s_ in ('Left', 'Right'):
+            if s_ + 'Leg' in src.pose.bones:
+                want = hd + ((src.matrix_world @ src.pose.bones[s_ + 'Leg'].head) - hs) * k
+                errs.append(((rig.matrix_world @ rig.pose.bones[s_ + 'Leg'].head) - want).length)
+    if errs: print('DBG knee err avg', round(sum(errs) / len(errs), 3), 'max', round(max(errs), 3))
     print('DBG foot pitch min before clamp', {k: round(v, 1) for k, v in lo.items()}, 'clamp', PMIN)
     # בדיקה: זווית הבוהן ביחס לרצפה (חיובי = הבוהן למעלה) — בצעד אמיתי כמעט לא עולה מעל 25 מעלות
     mxp = {}
