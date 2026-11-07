@@ -47,7 +47,20 @@ def phone_screen(path, ok=False, w=430, h=884):
     d.ellipse((w // 2 - 9, 30, w // 2 + 9, 48), fill=(25, 25, 30))
     im.save(path)
 
+def screen_ok_full(path):
+    """מסך האישור המלא של המכשיר: הכותרת של מסך ההמתנה (מספר הרכב, השעה והתאריך, הקו והיעד) ומתחתיה אישור ירוק."""
+    import screens, os
+    tmp = path + '.idle.png'; screens.idle(tmp); im = Image.open(tmp).convert('RGB'); os.remove(tmp)
+    W_, H_ = im.size; d = ImageDraw.Draw(im)
+    d.rectangle((0, 142, W_, H_), fill=(30, 160, 70))
+    d.line((150, 300, 215, 370, 335, 230), fill='white', width=26, joint='curve')
+    d.text((W_ // 2, 470), rtl('נסיעה טובה'), font=font(52), fill='white', anchor='mm')
+    d.rounded_rectangle((110, 530, W_ - 110, 610), 18, fill=(255, 255, 255))
+    d.text((W_ // 2, 570), '8.0 ₪', font=font(40), fill=(20, 110, 50), anchor='mm')
+    im.save(path)
+
 if __name__ == '__main__':
+    screen_ok_full(f"{sys.argv[1] if len(sys.argv) > 1 else '.'}/screen_ok_full.png")
     phone_screen(f"{sys.argv[1] if len(sys.argv) > 1 else '.'}/phone_pay.png"); phone_screen(f"{sys.argv[1] if len(sys.argv) > 1 else '.'}/phone_ok.png", ok=True)
     out = sys.argv[1] if len(sys.argv) > 1 else '.'
     card(f'{out}/ravkav_card.png'); print('card ok')

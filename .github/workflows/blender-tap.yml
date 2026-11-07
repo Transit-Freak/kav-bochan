@@ -38,19 +38,20 @@ jobs:
           UD=$($BL -b --online-mode --python-expr "import bpy;print('UD='+bpy.utils.extension_path_user('bl_ext.blender_org.mpfb', create=True))" | grep '^UD=' | cut -d= -f2)
           echo "UD=$UD"; mkdir -p "$UD/data"
           curl -sL -o /tmp/sa.zip http://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip && unzip -qo /tmp/sa.zip -d "$UD/data" && ls "$UD/data" | head
-      - name: תנועה מצולמת (CMU 16_34 — הליכה איטית ועצירה)
+      - name: תנועה מצולמת (CMU 16_15 הליכה + 16_34 האטה ועצירה, אותו שחקן)
         run: |
           git clone -q --depth=1 --filter=blob:none --sparse https://github.com/Shriinivas/cmubvh.git $HOME/cmubvh
-          cd $HOME/cmubvh && Z=Sequence-015-019/16/Data/16_34.zip
-          git sparse-checkout set --no-cone "/$Z" && mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh
-          F=$(find $HOME/bvh -name '*.bvh' | head -1); echo "BVH=$F" >> $GITHUB_ENV; echo "BVH file: $F"
+          cd $HOME/cmubvh && git sparse-checkout set --no-cone /Sequence-015-019/16/Data/16_15.zip /Sequence-015-019/16/Data/16_34.zip
+          mkdir -p $HOME/bvh && for z in 16_15 16_34; do unzip -qo Sequence-015-019/16/Data/$z.zip -d $HOME/bvh; done
+          python3 $GITHUB_WORKSPACE/tools/blender-test/bvh_splice.py $(find $HOME/bvh -name 16_15.bvh) $(find $HOME/bvh -name 16_34.bvh) $HOME/bvh/tap_walk.bvh 1.6
+          echo "BVH=$HOME/bvh/tap_walk.bvh" >> $GITHUB_ENV
       - name: Build
         working-directory: tools/blender-test
         run: |
           pip install -q pillow && mkdir -p out tex && python3 screens.py tex && python3 card_tex.py tex
           $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -E 'BUS|Error|Traceback' | tail -5
           D=out/tap; [ "$VARIANT" != ok ] && D=out/tap_$VARIANT; rm -rf $D; mkdir -p $D
-          $BL -b --online-mode out/bus.blend -P tap.py 2>&1 | grep -E 'TAP|DBG|MATCHED|Error|Traceback|line [0-9]|Saved:' | cut -c1-900 || true
+          $BL -b --online-mode out/bus.blend -P tap.py 2>&1 | grep -E 'TAP|DBG|MATCHED|Error|Traceback|line [0-9]|Saved:' | cut -c1-3000 || true
           ls $D | wc -l
       - name: Save
         if: always()

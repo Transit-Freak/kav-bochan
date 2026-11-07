@@ -21,7 +21,7 @@
 
 | מה | יוצר | קישור | רישיון / שימוש |
 |---|---|---|---|
-| תנועה מצולמת (הליכה, הליכה ועצירה — 02_01, 16_34 — ועוד) | CMU Graphics Lab Motion Capture Database | http://mocap.cs.cmu.edu | ללא הגבלות שימוש |
+| תנועה מצולמת (הליכה, הליכה ועצירה — 02_01, 16_15, 16_34 — ועוד) | CMU Graphics Lab Motion Capture Database | http://mocap.cs.cmu.edu | ללא הגבלות שימוש |
 | המרת התנועות ל-BVH | Bruce Hahne (מאגר: Shriinivas) | https://github.com/Shriinivas/cmubvh | ללא הגבלות שימוש |
 | שלטי הפנים והחוץ באוטובוס | משרד התחבורה, "שילוט אוטובוסים אחיד: הנחיות וכללי מפתח מחייבים" (V-01.24) | https://www.gov.il/he/pages/bus-signage | שימוש תיאורי בהדמיה הסברית |
 | מפות ובניינים | © תורמי OpenStreetMap | https://www.openstreetmap.org/copyright | ODbL |
