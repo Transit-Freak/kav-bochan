@@ -494,6 +494,8 @@ const RM = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduc
 const DEFS_INNER = DEFS.replace(/^[\s\S]*?<defs>/, '').replace(/<\/defs>[\s\S]*$/, '');
 const ICON_URI = {};
 function iconImg(k) {
+  /* הסמל של נגישות אזורי תעשייה הוא התמונה המקורית של האתר שלהם — SVG כתמונה לא יכול לטעון תמונה חיצונית, אז ישירות */
+  if (k === 'parks') return '<img alt="" decoding="async" draggable="false" src="parks/icon-180.png" style="background:#fff;border-radius:28%;box-shadow:inset 0 0 0 1.5px rgba(15,23,42,.1)">';
   if (!ICON_URI[k]) {
     const svg = ICON[k]().replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace(/(<svg[^>]*>)/, '$1<defs>' + DEFS_INNER + '</defs>');
     ICON_URI[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
