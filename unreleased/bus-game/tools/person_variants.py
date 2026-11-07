@@ -17,7 +17,7 @@ def skin(kind):  # kind למשל 'middleage_caucasian_male'
 C = lambda *names: [f'clothes/{n}/{n}.mhclo' for n in names]
 H = lambda *names: [f'hair/{n}/{n}.mhclo' for n in names]
 # חצי חליפה (רק החולצה או רק המכנסיים), ואפשר גם צבע אחר לבגד (כפל על גווני האפור של הטקסטורה)
-PART = lambda name, keep, tint=None, **kw: dict(c=C(name), keep=keep, **({'tint': tint} if tint else {}), **kw)
+PART = lambda name, keep, tint=None: dict(c=C(name), keep=keep, **({'tint': tint} if tint else {}))
 
 VARIANTS = [
     # 0 — הגבר הקודם (מכנסי ג'ינס וחולצה, שיער קצר כהה)
@@ -35,12 +35,11 @@ VARIANTS = [
          race={'caucasian': 0.05, 'african': 0.9, 'asian': 0.05}, skin=skin('young_african_male'),
          hair=H('short02', 'short01', 'short04'), hair_rgb=(0.02, 0.016, 0.014),
          clothes=[C('male_casualsuit03', 'male_casualsuit02', 'male_casualsuit01'), C('shoes01', 'shoes02')], brows='eyebrow001'),
-    # 3 — אישה מבוגרת, שיער אפור קצר, גוף מלא. חולצה ארוכה ומכנסי חליפה רחבים (החצאית נקרעה בהליכה: כל צד שלה הולך עם רגל אחרת).
-    # מכנסי החליפה מחליפת גבר: unmask מחזיר את הגוף שהז'קט והחולצה שלה הסתירו (אחרת חור במחשוף)
+    # 3 — אישה מבוגרת, שיער אפור קצר, גוף מלא. חולצה ארוכה ומכנסיים ארוכים שחורים (החצאית נקרעה בהליכה: כל צד שלה הולך עם רגל אחרת)
     dict(gender=0.0, age=age(64), weight=0.72, height=0.42, muscle=0.4,
          race={'caucasian': 0.9, 'african': 0.03, 'asian': 0.07}, skin=skin('old_caucasian_female'),
          hair=H('bob02', 'bob01', 'short03'), hair_rgb=(0.42, 0.41, 0.4),
-         clothes=[PART('female_elegantsuit01', 'top'), PART('male_elegantsuit01', 'bottom', unmask=True), C('shoes04', 'shoes03', 'shoes01')], brows='eyebrow012'),
+         clothes=[PART('female_elegantsuit01', 'top'), PART('female_sportsuit01', 'bottom'), C('shoes04', 'shoes03', 'shoes01')], brows='eyebrow012'),
     # 4 — גבר מבוגר, שיער אפור, חליפה
     dict(gender=1.0, age=age(70), weight=0.66, height=0.48, muscle=0.4,
          race={'caucasian': 0.85, 'african': 0.05, 'asian': 0.1}, skin=skin('old_caucasian_male'),
@@ -111,26 +110,6 @@ def keep_part(ob, part):
     drop = [v for z, comp in isl if (z < mid if part == 'top' else z >= mid) for v in comp]
     bmesh.ops.delete(b_, geom=drop, context='VERTS'); b_.to_mesh(ob.data); b_.free(); ob.data.update()
     print('VARIANT keep', part, ob.name, 'islands', [round(z, 2) for z in zs], 'dropped', len(drop))
-    return mid
-def vg_sets(o):
-    nm = {g.index: g.name for g in o.vertex_groups}; out = {}
-    for v in o.data.vertices:
-        for g in v.groups:
-            if g.weight > 0 and g.group in nm: out.setdefault(nm[g.group], set()).add(v.index)
-    return out
-def unmask(before, part, mid):
-    # הבגד מסתיר (מוחק) את הגוף שמתחתיו בקבוצת קודקודים של מסכה. כשלוקחים רק חצי חליפה,
-    # מחזירים את הגוף בחצי שהושלך (אחרת: חור בגוף, למשל במחשוף, מתחת לחולצה שלא לבשנו)
-    after = vg_sets(bm); W_ = bm.matrix_world; n_ = 0
-    for m in bm.modifiers:
-        if m.type != 'MASK' or m.vertex_group not in bm.vertex_groups: continue
-        g = bm.vertex_groups[m.vertex_group]; a_, b0 = after.get(g.name, set()), before.get(g.name, set())
-        side = lambda i: ((W_ @ bm.data.vertices[i].co).z >= mid) == (part == 'bottom')
-        if m.invert_vertex_group:
-            rm = [i for i in a_ - b0 if side(i)]; g.remove(rm); n_ += len(rm)
-        else:
-            ad = [i for i in b0 - a_ if side(i)]; g.add(ad, 1.0, 'REPLACE'); n_ += len(ad)
-        print('VARIANT unmask', m.name, g.name, 'invert', m.invert_vertex_group, 'restored', n_)
 def cut_above(ob, z0, only=None):
     # מוחקים קודקודים מעל גובה z0 (בעולם); only — פונקציה שבוחרת אילו איים לחתוך
     import bmesh
@@ -145,16 +124,13 @@ for kind, cands in items_:
     if spec: cands = spec['c']
     p_ = A2(cands)
     if not p_: continue
-    before_ = vg_sets(bm) if spec.get('unmask') else None
     try:
         ob = HS.add_mhclo_asset(p_, bm, asset_type=kind)
     except Exception as e_:
         print('VARIANT failed', kind, p_, e_); continue
     print('VARIANT', kind, os.path.relpath(p_, ud), spec.get('keep', ''))
     if kind == 'Hair': hair = ob
-    if spec.get('keep'):
-        mid_ = keep_part(ob, spec['keep'])
-        if before_ is not None: unmask(before_, spec['keep'], mid_)
+    if spec.get('keep'): keep_part(ob, spec['keep'])
     if spec.get('tint'): ob['pv_tint'] = list(spec['tint'])   # export_person.py צובע את הטקסטורה של הבגד
     if kind == 'Clothes': worn.append((ob, spec.get('keep', '')))
 # חולצה מחליפה אחת ומכנסיים מאחרת: המכנסיים גבוהים יותר מהשוליים של החולצה ובצבצו מעליה (בגב).
