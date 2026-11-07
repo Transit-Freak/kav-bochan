@@ -36,10 +36,10 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=2f17fd123e" />
+<link rel="stylesheet" href="vendor/kavpach.css?v=ff435c5ef7" />
 <!-- דף הבית החדש (העין הבוחנת) ומראה הכלים קו פח והקו המוזהב — home/ -->
-<link rel="stylesheet" href="home/home.css?v=cfffcdaa72" />
-<link rel="preload" as="script" href="home/home.js?v=cfffcdaa72" />
+<link rel="stylesheet" href="home/home.css?v=288878b33f" />
+<link rel="preload" as="script" href="home/home.js?v=288878b33f" />
 <script>
   // רענון בתוך כלי (#kavpach / #מוזהב): לא מהבהבים את מסך הבחירה של הקו הבוחן
   // לפני שהאפליקציה עולה — מציגים טעינה מיד (שלמה 18.09)
@@ -108,7 +108,7 @@
 <header class="top"><div class="wrap">
 <a class="brand" href="./" data-top>הקו הבוחן</a>
 <nav class="nav" aria-label="ניווט ראשי"><a href="#tools">הכלים</a><a href="#g-lines">קווים ותחנות</a><a href="#g-rail">רכבת</a><a href="#partners">שיתופי פעולה</a><a href="#about" data-about>קצת עליי</a></nav>
-<button class="chip-ver" type="button" data-ver-chip title="מה השתנה בגרסה הזו">גרסה 4.0</button>
+<button class="chip-ver" type="button" data-ver-chip title="מה השתנה בגרסה הזו">גרסה 4.1</button>
 <a class="gh" href="https://github.com/Transit-Freak/kav-bochan" target="_blank" rel="noopener" aria-label="קוד המקור של האתר ב-GitHub" title="קוד המקור ב-GitHub"><svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
 </div></header>
 <main>
@@ -151,7 +151,7 @@
     </div>
   </div>
   <!-- הסמלים, העין והגרסאות של דף הבית — לפני React, כדי שהדף הסטטי יעבוד מיד -->
-  <script src="home/home.js?v=cfffcdaa72"></script>
+  <script src="home/home.js?v=288878b33f"></script>
   <script>try { KBH.mount(document.querySelector('#static-choice .kbh')); } catch (e) {}</script>
   <!-- KavPach.js מקומפל מראש (tools/build_kavpach.mjs, רץ ב-GitHub Actions בכל
        שינוי של KavPach.jsx) עם חותמת ?v= לפי תוכן — בלי Babel בדפדפן. -->
@@ -194,14 +194,14 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=2f17fd123e';
+      core.src = 'kavpach-core.js?v=ff435c5ef7';
       // async=false: שני הקבצים רצים לפי הסדר (הליבה קודם) — סקריפט שנוסף בקוד הוא async כברירת מחדל,
       // ובכניסה ישירה ללשונית (#פח/deadhead) האפליקציה מחשבת מיד עם פונקציות מהליבה
       core.async = false;
       document.body.appendChild(core);
       var sc = document.createElement('script');
       sc.async = false;
-      sc.src = 'KavPach.js?v=2f17fd123e';
+      sc.src = 'KavPach.js?v=ff435c5ef7';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);
