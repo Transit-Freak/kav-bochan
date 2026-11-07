@@ -13,6 +13,7 @@ PREVIEW = os.environ.get('TAP_PREVIEW', '0') == '1'
 SC = bpy.context.scene
 SC.render.fps = 30                       # לפני ייבוא ה-BVH: 120 פריימים בשנייה → 30
 os.environ.setdefault('FRAMES', '2000')  # כל ההקלטה
+os.environ.setdefault('ARM_OUT', '3')    # המעבר בין המושבים צר: הידיים קרובות יותר לגוף
 for o in bpy.context.selected_objects: o.select_set(False)
 
 # ---------- ההליכה: הקוד של anim.py עד שמירת הקובץ (בלי השורה שמוחקת את כל האובייקטים — כאן יש אוטובוס)
@@ -54,7 +55,7 @@ NPAD = Vector((0, -1, 0))
 SC.frame_set(f1); upd()
 p_end = head_w(hips)
 th = math.pi / 2 - math.atan2(fwd.y, fwd.x)
-STAND = Vector((float(os.environ.get('STAND_X', '-0.06')), float(os.environ.get('STAND_Y', '-1.12')), FLOOR))
+STAND = Vector((float(os.environ.get('STAND_X', '0.0')), float(os.environ.get('STAND_Y', '-1.12')), FLOOR))
 Tm = Matrix.Translation(STAND) @ Matrix.Rotation(th, 4, 'Z') @ Matrix.Translation(Vector((-p_end.x, -p_end.y, 0)))
 rig.matrix_world = Tm @ rig.matrix_world; upd()
 print('TAP floor', round(FLOOR, 3), 'pad', tuple(round(v, 3) for v in PAD), 'screen', tuple(round(v, 3) for v in SCR))
@@ -80,28 +81,29 @@ tilt = float(os.environ.get('FING_TILT', '0.6'))
 if DEVICE == 'card':
     # הכרטיס בצד כף היד, כף היד אל המשטח (+Y), האצבעות למעלה ומעט החוצה (שמאלה = -X)
     CF = float(os.environ.get('CARD_F', str(round(0.62 * TIP, 3))))     # מרכז הכרטיס לאורך האצבעות
-    CN = float(os.environ.get('CARD_N', '0.024'))                          # מרחק מכף היד (צד כף היד)
+    CN = float(os.environ.get('CARD_N', '0.032'))                          # מרחק מכף היד (צד כף היד)
     OFF_L = F_L * CF + N_L * CN
     DEV_ROT_L = Matrix((T_L, F_L, -N_L)).transposed()                    # X לרוחב כף היד, Y לאורך האצבעות
     CONTACT_L = OFF_L
     f_w = Vector((-tilt, 0.0, 1.0)).normalized(); n_w = -NPAD
 else:
-    # טלפון: כמו שמחזיקים טלפון באמת — כף היד אל הנוסע, המסך אליו, והחלק העליון של גב הטלפון נוגע במשטח.
-    # הטלפון נשען קדימה מהיד בזווית PH_TH, כך שרק הקצה העליון של הגב נוגע, והיד עצמה נשארת מול המכשיר
-    PTH = math.radians(float(os.environ.get('PH_TH', '28')))
-    g_L = F_L * math.cos(PTH) - N_L * math.sin(PTH)                      # לאורך הטלפון (למעלה)
-    b_L = -N_L * math.cos(PTH) - F_L * math.sin(PTH)                     # גב הטלפון (אל המשטח)
-    P0 = F_L * (0.55 * TIP) + N_L * 0.022                                 # תחתית הטלפון בתוך כף היד
+    # טלפון: אותה אחיזה כמו בכרטיס — גב הטלפון אל המשטח, המסך אל כף היד; החלק העליון בולט מעל האצבעות ומסכו פונה אל הנוסע
     PL, PW, PT = 0.147, 0.0715, 0.0085
-    OFF_L = P0 + g_L * (PL / 2) - b_L * (PT / 2)
-    CONTACT_L = P0 + g_L * 0.112                                          # על הגב, ליד הקצה העליון (אנטנת NFC)
-    DEV_ROT_L = Matrix((g_L.cross(-b_L), g_L, -b_L)).transposed()
-    g_w = Vector((-tilt * 0.5, 0.0, 1.0)).normalized(); bk_w = -NPAD
-    f_w = g_w * math.cos(PTH) - bk_w * math.sin(PTH); n_w = -g_w * math.sin(PTH) - bk_w * math.cos(PTH)
+    CN = float(os.environ.get('PHONE_N', '0.03'))
+    PF = float(os.environ.get('PHONE_F', str(round(0.85 * TIP, 3))))     # מרכז הטלפון לאורך האצבעות
+    OFF_L = F_L * PF + N_L * (CN + PT / 2)
+    DEV_ROT_L = Matrix((T_L, F_L, -N_L)).transposed()
+    CONTACT_L = F_L * (PF + 0.03) + N_L * (CN + PT)                       # על הגב, ליד הקצה העליון (אנטנת NFC / מצלמה)
+    f_w = Vector((-tilt * 0.5, 0.0, 1.0)).normalized(); n_w = -NPAD
 t_w = n_w.cross(f_w)
 Bw = Matrix((f_w, n_w, t_w)).transposed(); Bl = Matrix((F_L, N_L, T_L)).transposed()
 RH = Bw @ Bl.transposed()                                               # סיבוב העולם של עצם היד בהנחה
-CARD_AT = PAD + NPAD * (0.007 if DEVICE == 'card' else 0.004) + Vector((0, 0, -0.008))   # נקודת המגע מול המשטח
+CARD_AT = PAD + NPAD * 0.009 + Vector((0, 0, -0.008))   # נקודת המגע מול המשטח
+if VAR == 'qr':
+    # סריקת ה-QR "לתיקוף בישומון" שעל מסך המכשיר: המצלמה (בגב הטלפון, ליד הקצה העליון) 11 ס"מ מול הקוד
+    QR = SCR + Vector(((0.28 - 0.5) * 0.15, 0, (0.646 - 0.5) * 0.2))
+    CONTACT_L = F_L * (PF + 0.06) + N_L * (CN + PT)
+    CARD_AT = QR + NPAD * float(os.environ.get('QR_DIST', '0.11'))
 WR_C = CARD_AT - RH @ CONTACT_L                                         # מיקום פרק היד בהנחה
 
 # ---------- מרחק ההושטה: מזיזים את נקודת העמידה קדימה/אחורה כך שהמרפק יהיה כפוף בנוחות
@@ -110,7 +112,7 @@ S = head_w('LeftArm'); dx, dz = WR_C.x - S.x, WR_C.z - S.z
 want = float(os.environ.get('REACH', '0.84')) * (a_len + b_len)
 dy = math.sqrt(max(0.0, want * want - dx * dx - dz * dz))
 shift = (WR_C.y - S.y) - dy
-shift = min(shift, (PAD.y - float(os.environ.get('HIPS_GAP', '0.20'))) - head_w(hips).y)   # האגן לפחות 20 ס"מ ממישור המשטח (המכשיר משמאל לגוף)
+shift = min(shift, (PAD.y - float(os.environ.get('HIPS_GAP', '0.13'))) - head_w(hips).y)   # האגן לפחות 20 ס"מ ממישור המשטח (המכשיר משמאל לגוף)
 rig.matrix_world = Matrix.Translation(Vector((0, shift, 0))) @ rig.matrix_world; upd()
 print('TAP shoulder', tuple(round(v, 2) for v in head_w('LeftArm')), 'wrist target', tuple(round(v, 2) for v in WR_C))
 print('TAP reach: arm', round(a_len, 3), round(b_len, 3), 'shift', round(shift, 3), 'hips', tuple(round(v, 2) for v in head_w(hips)),
@@ -272,7 +274,7 @@ print('TAP', DEVICE, 'contact point', tuple(round(v, 3) for v in cp), 'target', 
 def img(p): return bpy.data.images.load(os.path.abspath(p))
 sm = bpy.data.materials.new('M_ValScreenTap'); nt = sm.node_tree; bs = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
 t_idle = nt.nodes.new('ShaderNodeTexImage'); t_idle.image = img('tex/screen_idle.png')
-t_res = nt.nodes.new('ShaderNodeTexImage'); t_res.image = img(f'tex/screen_{RESULT}.png')
+t_res = nt.nodes.new('ShaderNodeTexImage'); t_res.image = img('tex/screen_idle.png' if VAR == 'qr' else f'tex/screen_{RESULT}.png')
 mix = nt.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'
 fac = mix.inputs['Factor']; ia = next(s for s in mix.inputs if s.name == 'A' and s.type == 'RGBA'); ib = next(s for s in mix.inputs if s.name == 'B' and s.type == 'RGBA')
 mo = next(s for s in mix.outputs if s.type == 'RGBA')
@@ -286,11 +288,12 @@ LED = (0.1, 1.0, 0.25, 1) if RESULT == 'ok' else (1.0, 0.08, 0.05, 1)
 lm = bpy.data.materials.new('M_ValLedTap'); lb = next(n for n in lm.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
 lb.inputs['Emission Strength'].default_value = 6
 ec = lb.inputs['Emission Color']
-for fr, col in ((SWITCH - 1, (1, 0.98, 0.92, 1)), (SWITCH, LED), (SWITCH + 40, LED), (SWITCH + 41, (1, 0.98, 0.92, 1))):
+for fr, col in (((SWITCH - 1, (1, 0.98, 0.92, 1)), (SWITCH, LED), (SWITCH + 40, LED), (SWITCH + 41, (1, 0.98, 0.92, 1))) if VAR != 'qr' else ()):
     ec.default_value = col; ec.keyframe_insert('default_value', frame=fr)
 if PHONE_MIX is not None:
-    pf = PHONE_MIX.inputs['Factor']; pf.default_value = 0.0; pf.keyframe_insert('default_value', frame=SWITCH)
-    pf.default_value = 1.0; pf.keyframe_insert('default_value', frame=SWITCH + 3)
+    PSW = SWITCH + (10 if VAR == 'qr' else 0)          # בסריקה — הטלפון מאשר אחרי שליש שנייה
+    pf = PHONE_MIX.inputs['Factor']; pf.default_value = 0.0; pf.keyframe_insert('default_value', frame=PSW)
+    pf.default_value = 1.0; pf.keyframe_insert('default_value', frame=PSW + 3)
 for o in bpy.data.objects:
     if o.name.startswith('SM_ValLedM1'): o.data.materials.clear(); o.data.materials.append(lm)
 
@@ -346,11 +349,18 @@ for k in range(5):
     l = bpy.data.objects.new(f'Ceil{k}', bpy.data.lights.new(f'C{k}', 'AREA')); SC.collection.objects.link(l)
     l.data.shape = 'RECTANGLE'; l.data.size = 0.25; l.data.size_y = 1.6; l.data.energy = 45; l.data.color = (1.0, 0.95, 0.88)
     l.location = (0, -4.3 + k * 2.1, 2.95); l.rotation_euler = (math.pi, 0, 0)
-cam = bpy.data.objects.new('Cam_tap', bpy.data.cameras.new('C')); SC.collection.objects.link(cam); SC.camera = cam
-CAM = Vector(tuple(float(v) for v in os.environ.get('CAM', '-0.30,-4.30,2.50').split(',')))
-AIM = Vector(tuple(float(v) for v in os.environ.get('AIM', '-0.17,-1.0,1.62').split(',')))
-cam.data.lens = float(os.environ.get('LENS', '26')); cam.data.clip_start = 0.05
-cam.location = CAM; cam.rotation_euler = (AIM - CAM).to_track_quat('-Z', 'Y').to_euler()
+def mk_cam(name, pos, aim, lens):
+    c = bpy.data.objects.new(name, bpy.data.cameras.new(name)); SC.collection.objects.link(c)
+    c.data.lens = lens; c.data.clip_start = 0.05; c.location = pos; c.rotation_euler = (aim - pos).to_track_quat('-Z', 'Y').to_euler(); return c
+V = lambda e, d: Vector(tuple(float(v) for v in os.environ.get(e, d).split(',')))
+cam = mk_cam('Cam_wide', V('CAM', '-0.30,-4.30,2.50'), V('AIM', '-0.17,-1.0,1.62'), float(os.environ.get('LENS', '26')))
+# תקריב: מבט 3/4 מלפנים-משמאל, מעל המושבים, אל היד, משטח ההנחה והמסך
+cam2 = mk_cam('Cam_close', V('CAM2', '-1.00,-1.95,2.20'), V('AIM2', '-0.30,-0.92,1.86'), float(os.environ.get('LENS2', '30')))
+CUT = RA - 4
+SC.camera = cam
+mk = SC.timeline_markers.new('wide', frame=1); mk.camera = cam
+mk = SC.timeline_markers.new('close', frame=CUT); mk.camera = cam2
+print('TAP cut to close-up at', CUT)
 SC.render.resolution_x, SC.render.resolution_y = (640, 360) if PREVIEW else (1280, 720)
 SC.render.resolution_percentage = 100
 SC.render.image_settings.file_format = 'PNG'; SC.render.image_settings.color_mode = 'RGB'

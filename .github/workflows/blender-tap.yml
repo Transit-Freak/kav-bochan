@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [ok, phone]
+        variant: [ok, phone, qr]
     env:
       TAP_PREVIEW: '1'
       VARIANT: ${{ matrix.variant }}
