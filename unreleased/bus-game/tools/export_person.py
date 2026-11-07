@@ -6,7 +6,12 @@
 
 מה עושים:
 - מוחקים את שלד ה-BVH, את עזרי ה-IK ואת הריסים. העיניים (low-poly), הגבות וכיפת השיער נשארים — בלעדיהם הפנים נראות ריקות.
-- מחילים את המסכות (הגוף שמתחת לבגדים נמחק), מורידים subsurf ומקטינים ב-Decimate (שיער וגבות — פחות, כי הם כרטיסים שקופים).
+- מחילים את המסכות (הגוף שמתחת לבגדים נמחק) ואת ההרחקה של השיער מהראש (Displace), מורידים subsurf ומקטינים ב-Decimate
+  (בגדים — פחות מהגוף, כדי שהשוליים לא ייקרעו; שיער וגבות — עוד פחות, כי הם כרטיסים שקופים).
+- צנוע (שלמה 07.11): מוחקים מהגוף את משטחי חומר הפטמה (נשארו מתחת לחולצה צמודה, שאין לה מסכה על החזה).
+- חומרים ב-GLB: גוף ובגדים אטומים (OPAQUE), שיער וגבות עם שקיפות חתוכה (MASK). קודם הכל יצא BLEND,
+  ובכל צופה שמכבד את זה העור והבגדים נראו זה דרך זה (חורים בחצאית, "כתמים" בשיער).
+- בגד עם pv_tint (person_variants.py) נצבע: גווני האפור של הטקסטורה כפול הצבע.
 - "Walk": מחזור הליכה אחד שחוזר על עצמו (מחפשים את שני הפריימים הכי דומים), בלי התקדמות קדימה (in place).
 - "Idle": עמידה — הממוצע של כל עצם לאורך מחזור ההליכה (ידיים לצד הגוף), עם נשימה קלה.
 - טקסטורות עד PERSON_TEX פיקסלים (ברירת מחדל 512), בפורמט WEBP. טקסטורת השיער — בגווני אפור,
@@ -20,6 +25,7 @@ if bpy.data.filepath == '' and len(argv) >= 2:
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(argv[0])); argv = argv[1:]
 OUT = os.path.abspath(argv[0] if argv else 'out/person.glb')
 RATIO = float(os.environ.get('PERSON_DECIMATE', '0.22'))
+CLOTH_RATIO = float(os.environ.get('PERSON_CLOTH_DECIMATE', '0.4'))
 TEX = int(os.environ.get('PERSON_TEX', '512'))
 SC = bpy.context.scene
 
@@ -50,18 +56,26 @@ def kind(o):
 def ctx(o):
     return bpy.context.temp_override(object=o, active_object=o, selected_objects=[o], selected_editable_objects=[o])
 
-# רשתות: מסכות → החלה; subsurf/displace → הסרה; Decimate
+# רשתות: displace (השיער מורחק מהראש, הכיפה מתחתיו) ומסכות → החלה, לפי הסדר; subsurf → הסרה; Decimate
+import bmesh
 for o in [o for o in bpy.data.objects if o.type == 'MESH']:
     if o.data.shape_keys:  # מפתחות הצורה של MPFB (גוף/מגדר) — מקבעים את הצורה הנוכחית
         with ctx(o): bpy.ops.object.shape_key_remove(all=True, apply_mix=True)
     for m in list(o.modifiers):
-        if m.type in ('SUBSURF', 'DISPLACE'): o.modifiers.remove(m)
+        if m.type == 'SUBSURF': o.modifiers.remove(m)
     for m in list(o.modifiers):
-        if m.type == 'MASK':
+        if m.type in ('DISPLACE', 'MASK'):
             with ctx(o): bpy.ops.object.modifier_apply(modifier=m.name)
+    bad = [i for i, ms in enumerate(o.material_slots) if ms.material and 'nipple' in ms.material.name.lower()]
+    if bad:
+        b_ = bmesh.new(); b_.from_mesh(o.data)
+        fs = [f for f in b_.faces if f.material_index in bad]
+        bmesh.ops.delete(b_, geom=fs, context='FACES'); b_.to_mesh(o.data); b_.free(); o.data.update()
+        print('MESH', o.name, 'removed nipple faces', len(fs))
     n0 = len(o.data.polygons); k = kind(o)
     if n0 < 400: print('MESH', o.name, k, n0); continue
-    r = 0.55 if (k in ('hair', 'eyebrows') or o.name == 'hair_cap') else RATIO if n0 > 1500 else min(1.0, RATIO * 2.5)
+    cloth = k.startswith('cloth') and 'shoe' not in o.name.lower()
+    r = 0.55 if (k in ('hair', 'eyebrows') or o.name == 'hair_cap') else CLOTH_RATIO if cloth else RATIO if n0 > 1500 else min(1.0, RATIO * 2.5)
     d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = r
     with ctx(o):
         bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)
@@ -155,12 +169,16 @@ for a in (walk, idle):
 bpy.data.actions.remove(walk_src)
 SC.frame_set(1)
 
-hair_imgs = set()
+hair_imgs = set(); tint_imgs = {}
 for o in bpy.data.objects:
-    if o.type == 'MESH' and kind(o) == 'hair':
-        for ms in o.material_slots:
-            if ms.material and ms.material.node_tree:
-                hair_imgs |= {n.image for n in ms.material.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image}
+    if o.type != 'MESH': continue
+    for ms in o.material_slots:
+        if not (ms.material and ms.material.node_tree): continue
+        ims = {n.image for n in ms.material.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image}
+        if kind(o) == 'hair': hair_imgs |= ims
+        if 'pv_tint' in o:
+            for im in ims:
+                if not any(x in im.name.lower() for x in ('normal', '_ao', 'bump')): tint_imgs[im] = tuple(o['pv_tint'])
 for im in bpy.data.images:
     try:
         if im.size[0] > TEX or im.size[1] > TEX:
@@ -176,6 +194,15 @@ for im in bpy.data.images:
             px[:, 0] = px[:, 1] = px[:, 2] = lum
             im.pixels[:] = px.ravel(); im.update()
             print('HAIR IMG', im.name, 'ref', round(ref, 3))
+        if im in tint_imgs:
+            # בגד בצבע אחר: הבהירות של הטקסטורה (ביחס לחציון) כפול הצבע — הקפלים והתפרים נשארים
+            import numpy as np
+            px = np.array(im.pixels[:], dtype=np.float32).reshape(-1, 4)
+            lum = px[:, :3] @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
+            ref = float(np.median(lum)) or 1.0
+            px[:, :3] = np.clip((lum / ref)[:, None] * np.array(tint_imgs[im], dtype=np.float32)[None, :], 0, 1)
+            im.pixels[:] = px.ravel(); im.update()
+            print('TINT IMG', im.name, tint_imgs[im], 'ref', round(ref, 3))
         print('IMG', im.name, tuple(im.size))
     except Exception as ex:
         print('IMG', im.name, ex)
@@ -190,4 +217,29 @@ for q in ({'export_image_quality': 80}, {'export_jpeg_quality': 80}, {}):
         bpy.ops.export_scene.gltf(**opts, **q); break
     except TypeError as ex:
         print('EXPORT option', q, ex)
+
+# מצב השקיפות בכל חומר: Blender מייצא BLEND לכל חומר שיש לו ערוץ שקיפות, גם לעור ולבגדים.
+# מתקנים ישירות ב-JSON של ה-GLB: עור, בגדים, נעליים וכיפת השיער אטומים; שיער וגבות — חיתוך (MASK); העיניים — חיתוך נמוך
+import json, struct
+def fix_alpha(path):
+    b = open(path, 'rb').read()
+    n = struct.unpack('<I', b[12:16])[0]; j = json.loads(b[20:20 + n]); rest = b[20 + n:]
+    out = []
+    for m in j.get('materials', []):
+        nm = m.get('name', '').lower()
+        hair = any(h in nm for h in HAIRS + ('brow', 'lash')) and nm != 'hair_cap'
+        eye = 'low-poly' in nm or 'high-poly' in nm or 'eye' in nm and not hair
+        skin = any(x in nm for x in ('body', 'lips', 'nail', 'ears', 'teeth', 'tongue'))
+        m.pop('alphaCutoff', None)
+        if hair: m['alphaMode'] = 'MASK'; m['alphaCutoff'] = 0.5; m['doubleSided'] = True
+        elif eye: m['alphaMode'] = 'MASK'; m['alphaCutoff'] = 0.35; m['doubleSided'] = False
+        else:
+            m['alphaMode'] = 'OPAQUE'; m['doubleSided'] = not skin
+        out.append((m.get('name'), m['alphaMode']))
+    js = json.dumps(j, separators=(',', ':')).encode()
+    js += b' ' * (-len(js) % 4)
+    body = struct.pack('<I', len(js)) + b'JSON' + js + rest
+    open(path, 'wb').write(b[:8] + struct.pack('<I', 12 + len(body)) + body)
+    print('EXPORT alpha', out)
+fix_alpha(OUT)
 print('PERSON GLB', OUT, os.path.getsize(OUT), 'walk frames', WALK_LEN)

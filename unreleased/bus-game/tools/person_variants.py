@@ -16,6 +16,8 @@ def skin(kind):  # kind למשל 'middleage_caucasian_male'
 
 C = lambda *names: [f'clothes/{n}/{n}.mhclo' for n in names]
 H = lambda *names: [f'hair/{n}/{n}.mhclo' for n in names]
+# חצי חליפה (רק החולצה או רק המכנסיים), ואפשר גם צבע אחר לבגד (כפל על גווני האפור של הטקסטורה)
+PART = lambda name, keep, tint=None: dict(c=C(name), keep=keep, **({'tint': tint} if tint else {}))
 
 VARIANTS = [
     # 0 — הגבר הקודם (מכנסי ג'ינס וחולצה, שיער קצר כהה)
@@ -43,21 +45,23 @@ VARIANTS = [
          race={'caucasian': 0.85, 'african': 0.05, 'asian': 0.1}, skin=skin('old_caucasian_male'),
          hair=H('short01', 'short03', 'short04'), hair_rgb=(0.36, 0.35, 0.34),
          clothes=[C('male_elegantsuit01', 'male_worksuit01', 'male_casualsuit02'), C('shoes05', 'shoes02')], brows='eyebrow002'),
-    # 5 — אישה, שיער ארוך שחור
+    # 5 — אישה, שיער ארוך שחור. חולצה ארוכה (כחלחלה) ומכנסיים ארוכים שחורים (במקום מכנסיים קצרים)
     dict(gender=0.0, age=age(35), weight=0.5, height=0.45, muscle=0.45,
          race={'caucasian': 0.3, 'african': 0.0, 'asian': 0.7}, skin=skin('middleage_asian_female'),
          hair=H('long01', 'ponytail01', 'bob01'), hair_rgb=(0.018, 0.015, 0.013),
-         clothes=[C('female_casualsuit02', 'female_casualsuit01'), C('shoes06', 'shoes01', 'shoes03')], brows='eyebrow009'),
+         clothes=[PART('female_elegantsuit01', 'top', (0.36, 0.46, 0.72)), PART('female_sportsuit01', 'bottom'),
+                  C('shoes06', 'shoes01', 'shoes03')], brows='eyebrow009'),
     # 6 — נער (בערך 16)
     dict(gender=1.0, age=age(16), weight=0.42, height=0.5, muscle=0.5,
          race={'caucasian': 0.7, 'african': 0.15, 'asian': 0.15}, skin=skin('young_caucasian_male'),
          hair=H('short03', 'short02', 'short04'), hair_rgb=(0.1, 0.06, 0.03),
          clothes=[C('male_casualsuit02', 'male_casualsuit05', 'male_casualsuit06'), C('shoes01', 'shoes02')], brows='eyebrow004'),
-    # 7 — אישה, עור כהה, שיער אפרו
+    # 7 — אישה, עור כהה, שיער אפרו. חולצה (חרדל) שמכסה את הבטן, ומכנסיים ארוכים שחורים
     dict(gender=0.0, age=age(30), weight=0.58, height=0.55, muscle=0.5,
          race={'caucasian': 0.05, 'african': 0.9, 'asian': 0.05}, skin=skin('young_african_female'),
          hair=H('afro01', 'braid01', 'bob01'), hair_rgb=(0.025, 0.018, 0.014),
-         clothes=[C('female_sportsuit01', 'female_casualsuit02'), C('shoes01', 'shoes03')], brows='eyebrow007'),
+         clothes=[PART('female_casualsuit01', 'top', (0.86, 0.6, 0.2)), PART('female_sportsuit01', 'bottom'),
+                  C('shoes01', 'shoes03')], brows='eyebrow007'),
     # 8 — גבר בגיל העמידה, גוף מלא, שיער חום
     dict(gender=1.0, age=age(50), weight=0.78, height=0.45, muscle=0.45,
          race={'caucasian': 0.7, 'african': 0.1, 'asian': 0.2}, skin=skin('middleage_caucasian_male'),
@@ -88,15 +92,37 @@ hair = None
 items_ = [('Eyes', ['eyes/low-poly/low-poly.mhclo', 'eyes/high-poly/high-poly.mhclo']),
           ('Eyebrows', ['eyebrows/%%s/%%s.mhclo' %% (PV['brows'], PV['brows']), 'eyebrows/eyebrow006/eyebrow006.mhclo']),
           ('Hair', PV['hair'])] + [('Clothes', c) for c in PV['clothes']]
+def keep_part(ob, part):
+    # חליפה של MakeHuman = שני חלקים נפרדים ברשת (חולצה ומכנסיים/חצאית). משאירים רק את העליון או התחתון
+    import bmesh
+    b_ = bmesh.new(); b_.from_mesh(ob.data); b_.verts.ensure_lookup_table()
+    W_ = ob.matrix_world; seen = set(); isl = []
+    for v0 in b_.verts:
+        if v0.index in seen: continue
+        st = [v0]; seen.add(v0.index); comp = []
+        while st:
+            v = st.pop(); comp.append(v)
+            for e in v.link_edges:
+                w = e.other_vert(v)
+                if w.index not in seen: seen.add(w.index); st.append(w)
+        isl.append((sum((W_ @ v.co).z for v in comp) / len(comp), comp))
+    zs = [z for z, _ in isl]; mid = (min(zs) + max(zs)) / 2
+    drop = [v for z, comp in isl if (z < mid if part == 'top' else z >= mid) for v in comp]
+    bmesh.ops.delete(b_, geom=drop, context='VERTS'); b_.to_mesh(ob.data); b_.free(); ob.data.update()
+    print('VARIANT keep', part, ob.name, 'islands', [round(z, 2) for z in zs], 'dropped', len(drop))
 for kind, cands in items_:
+    spec = cands if isinstance(cands, dict) else {}
+    if spec: cands = spec['c']
     p_ = A2(cands)
     if not p_: continue
     try:
         ob = HS.add_mhclo_asset(p_, bm, asset_type=kind)
     except Exception as e_:
         print('VARIANT failed', kind, p_, e_); continue
-    print('VARIANT', kind, os.path.relpath(p_, ud))
+    print('VARIANT', kind, os.path.relpath(p_, ud), spec.get('keep', ''))
     if kind == 'Hair': hair = ob
+    if spec.get('keep'): keep_part(ob, spec['keep'])
+    if spec.get('tint'): ob['pv_tint'] = list(spec['tint'])   # export_person.py צובע את הטקסטורה של הבגד
 rig = bm.parent
 '''
 
