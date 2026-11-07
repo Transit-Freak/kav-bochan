@@ -33,11 +33,17 @@ EDGE = min((floor_ob.matrix_world @ Vector(c)).x for c in floor_ob.bound_box)   
 sw = OB['ENV_Sidewalk']; sw.scale.z = PLAT / 0.15; sw.location.z = PLAT / 2; sw.location.x = -1.30 - 2.5
 OB['ENV_Curb'].hide_render = True
 for nm in ('SM_DoorFront0', 'SM_DoorFrFront0', 'SM_DoorRailFront0', 'SM_DoorFront1', 'SM_DoorFrFront1', 'SM_DoorRailFront1'):
-    if nm in OB:                                                       # כנפי הדלת מחליקות החוצה והצידה (דלת פתוחה)
-        o = OB[nm]; o.location.x -= 0.09; o.location.y += (-0.58 if nm.endswith('0') else 0.58)
+    if nm in OB: OB[nm].hide_render = True                             # הדלת הקדמית פתוחה לגמרי (הכנפיים מקופלות)
+FD1 = -4.55                                                            # הקצה האחורי של פתח הדלת הקדמית
+wl = OB.get('SM_WallLow-1')                                            # הקיר הנמוך הפנימי עבר גם על פני הדלת: מתחיל אחריה
+if wl:
+    for v in wl.data.vertices:
+        if wl.location.y + v.co.y < FD1 + 0.02: v.co.y = FD1 + 0.02 - wl.location.y
+for nm in ('SM_TicketMachine', 'SM_TicketScr'):                       # מכונת הכרטוס של הנהג נכנסת לתא הנהג (מאחורי המחיצה)
+    if nm in OB: OB[nm].location.x += 0.25
 VAL_NAMES = [n for n in ('SM_ValF', 'SM_ValScrF', 'SM_ValNFCF', 'SM_ValLedF-1', 'SM_ValLedF1', 'SM_ValClampF') if n in OB]
 piv = OB['SM_ValF'].location.copy()
-NEWC = Vector((float(os.environ.get('VAL_X', '0.18')), float(os.environ.get('VAL_Y', '-4.65')), piv.z))
+NEWC = Vector((float(os.environ.get('VAL_X', '0.26')), float(os.environ.get('VAL_Y', '-4.56')), piv.z + float(os.environ.get('VAL_DZ', '0.10'))))
 Rz = Matrix.Rotation(-math.pi / 2, 3, 'Z')                             # פונה ל--X (אל הדלת)
 for n in VAL_NAMES:
     o = OB[n]; o.location = NEWC + Rz @ (o.location - piv); o.rotation_euler.z -= math.pi / 2
@@ -50,7 +56,7 @@ upd()
 pad_ob = OB['SM_ValNFCF']; scr_ob = OB['SM_ValScrF']
 PAD = pad_ob.matrix_world.translation.copy(); SCR = scr_ob.matrix_world.translation.copy()
 NPAD = Vector((-1, 0, 0)); FWD = Vector((1, 0, 0)); LEFT = Vector((0, 1, 0))
-STAND = Vector((PAD.x - float(os.environ.get('HIPS_GAP', '0.20')), PAD.y - float(os.environ.get('LATERAL', '0.30')), PLAT))
+STAND = Vector((PAD.x - float(os.environ.get('HIPS_GAP', '0.15')), PAD.y - float(os.environ.get('LATERAL', '0.37')), PLAT))
 print('TAP scene: floor', round(FLOOR, 3), 'platform', round(PLAT, 3), 'edge x', round(EDGE, 3), 'pad', tuple(round(v, 3) for v in PAD),
       'screen', tuple(round(v, 3) for v in SCR), 'stand', tuple(round(v, 3) for v in STAND))
 
@@ -85,7 +91,7 @@ def _terrain_init():
     SC.frame_set(cur)
     # הזזה קטנה של נקודת העצירה כך שאף צעד לא ייפול על שפת המדרגה
     best = None
-    for dd in [x * 0.005 for x in range(-10, 7)]:      # לא קדימה מדי: לפני הנוסע מכונת הכרטוס של הנהג
+    for dd in [x * 0.005 for x in range(-4, 9)]:      # לא קדימה מדי: לפני הנוסע מכונת הכרטוס של הנהג
         e0 = EDGE - (STAND.x + dd)
         clr = min(max(s[2] - (e0 + 0.015), (e0 - 0.01) - s[3]) for side in feet for s in feet[side][0])
         if best is None or clr > best[0]: best = (clr, dd)
@@ -163,10 +169,10 @@ if n_arm.dot(inward) < -0.2 and n_arm.z > -0.2: n_arm = -n_arm
 F_L = Vector((0, 1, 0)); N_L = Mbi @ n_arm; N_L = (N_L - F_L * N_L.dot(F_L)).normalized(); T_L = N_L.cross(F_L)
 TIP = max([(b.tail_local - HB.head_local).dot(Yr) for b in HB.children_recursive] + [HB.length])
 DEVICE = 'phone' if VAR in ('phone', 'qr') else 'card'
-tilt = float(os.environ.get('FING_TILT', '0.6'))
+tilt = float(os.environ.get('FING_TILT', '0.9'))
 if DEVICE == 'card':
     # הכרטיס בצד כף היד, כף היד אל המשטח, האצבעות למעלה ומעט החוצה (שמאלה)
-    CF = float(os.environ.get('CARD_F', str(round(0.62 * TIP, 3)))); CN = float(os.environ.get('CARD_N', '0.032'))
+    CF = float(os.environ.get('CARD_F', str(round(TIP + 0.01, 3)))); CN = float(os.environ.get('CARD_N', '0.014'))   # הכרטיס נאחז בקצות האצבעות ובולט מעליהן
     OFF_L = F_L * CF + N_L * CN
     CONTACT_L = OFF_L
     f_w = (LEFT * tilt + Vector((0, 0, 1))).normalized()
@@ -302,7 +308,7 @@ for f in range(RA - 8, END + 1):
     upd()
     wl = w_lean(f)                                            # גו: הטיה קלה קדימה ושמאלה אל המכשיר
     if wl > 0:
-        set_world_rot('Spine1', Matrix.Rotation(math.radians(6) * wl, 3, 'Z') @ Matrix.Rotation(math.radians(8) * wl, 3, LEFT) @ bone_w('Spine1').to_3x3().normalized())
+        set_world_rot('Spine1', Matrix.Rotation(math.radians(6) * wl, 3, 'Z') @ Matrix.Rotation(math.radians(12) * wl, 3, LEFT) @ bone_w('Spine1').to_3x3().normalized())
     wk = w_look(f)                                            # ראש: מבט אל המסך
     if wk > 0:
         Rh_ = bone_w('Head').to_3x3().normalized()
@@ -357,7 +363,7 @@ def under_rig(o):
     return False
 body_objs = [o for o in OB if o.type == 'MESH' and under_rig(o) and o is not card] + [card]
 obst = [o for o in OB if o.type == 'MESH' and (o.name in VAL_NAMES[:1] + ['SM_ValClampF', 'SM_ValPostTap', 'SM_Dash', 'SM_TicketMachine', 'SM_CabScreen']
-        or o.name.startswith(('SM_Seat', 'SM_ArchBox')))]
+        or o.name.startswith(('SM_Seat', 'SM_ArchBox', 'SM_WallLow')))]
 def bbox(o):
     ps = [o.matrix_world @ Vector(c) for c in o.bound_box]
     return Vector((min(p.x for p in ps), min(p.y for p in ps), min(p.z for p in ps))), Vector((max(p.x for p in ps), max(p.y for p in ps), max(p.z for p in ps)))
@@ -412,7 +418,7 @@ def mk_cam(name, pos, aim, lens):
     c.data.lens = lens; c.data.clip_start = 0.05; c.location = pos; c.rotation_euler = (aim - pos).to_track_quat('-Z', 'Y').to_euler(); return c
 V = lambda e, d: Vector(tuple(float(v) for v in os.environ.get(e, d).split(',')))
 cam = mk_cam('Cam_wide', V('CAM', '-2.95,-6.25,2.05'), V('AIM', '-0.70,-4.85,1.35'), float(os.environ.get('LENS', '24')))
-cam2 = mk_cam('Cam_close', V('CAM2', '-0.30,-4.05,2.15'), V('AIM2', '0.0,-4.75,1.78'), float(os.environ.get('LENS2', '24')))
+cam2 = mk_cam('Cam_close', V('CAM2', '-0.30,-4.05,2.15'), V('AIM2', '0.02,-4.68,1.86'), float(os.environ.get('LENS2', '24')))
 CUT = RA - 4
 SC.camera = cam
 mk = SC.timeline_markers.new('wide', frame=1); mk.camera = cam
