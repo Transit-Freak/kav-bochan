@@ -1,0 +1,5 @@
+{"mode": "preview", "step": 3, "commit_frames": false,
+ "jobs": [{"shot": "s1_drive", "part": 0, "parts": 1},
+          {"shot": "s2_wheelchair", "part": 0, "parts": 2}, {"shot": "s2_wheelchair", "part": 1, "parts": 2},
+          {"shot": "s3_driver", "part": 0, "parts": 2}, {"shot": "s3_driver", "part": 1, "parts": 2},
+          {"shot": "s4_standing", "part": 0, "parts": 1}]}
