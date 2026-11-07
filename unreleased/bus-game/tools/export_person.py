@@ -131,6 +131,9 @@ for b in pbs:
     qa = Quaternion(acc); qa.normalize(); ta = tacc / len(loopf)
     if b.name.endswith('Leg') and not b.name.endswith('UpLeg'):
         qa = Quaternion().slerp(qa, 0.45)
+    # בהליכה הגב נוטה קדימה והראש מסתכל למטה — בעמידה מיישרים חלק מזה
+    if any(k in b.name for k in ('Spine', 'LowerBack', 'Neck', 'Head')):
+        qa = Quaternion().slerp(qa, 0.35)
     avg[b.name] = (ta, qa)
 rig.animation_data.action = idle
 src = avg if os.environ.get('IDLE_FRAME') != '1' else cache[fi]
