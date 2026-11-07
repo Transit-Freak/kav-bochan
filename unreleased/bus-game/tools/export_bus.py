@@ -5,13 +5,13 @@
 או עם bpy כמודול פייתון:  python export_bus.py -- out/bus.blend <out.glb>
 
 מה עושים:
-- מוחקים את כלי החיתוך ואת הכביש/המדרכה של הסצנה.
+- מחילים את החיתוכים (חלונות, דלתות, קשתות), ואז מוחקים את כלי החיתוך ואת הכביש/המדרכה של הסצנה.
 - כל כנף דלת (4 כנפיים: קדמית ואמצעית, שתיים לכל דלת) מאוחדת לאובייקט אחד תחת Empty בשם Door_<דלת><כנף>.
 - כל השאר מאוחד לגוף אחד (Bus_Body) — פחות draw calls במשחק.
 - אנימציה "DoorsOpen": הכנפיים יוצאות החוצה ומחליקות לצדדים (דלת נוסעת-מחליקה), 0 עד 1.25 שניות.
   המשחק מחזיק את האנימציה בזמן לפי כמה הדלת פתוחה.
 - נקודות עזר Anchor_DoorFront / Anchor_DoorMid: המקום שבו הנוסעים עולים ויורדים.
-- טקסטורות מוקטנות ל-512 פיקסלים לכל היותר.
+- טקסטורות מוקטנות ל-512 פיקסלים לכל היותר, ב-JPEG (תמונות עם שקיפות נשארות PNG).
 מערכת הצירים ב-glTF: חזית האוטובוס לכיוון ‎+Z, הדלתות בצד ‎-X (ימין הנהג), הגג ב-‎+Y.
 """
 import bpy, sys, os, math
@@ -29,19 +29,21 @@ SC = bpy.context.scene
 def remove(o):
     bpy.data.objects.remove(o, do_unlink=True)
 
-# 1. ניקוי
+# 1. החלת modifiers (bevel/boolean/wireframe) — הופכים כל אובייקט לרשת סופית.
+# קודם מחילים ורק אחר כך מוחקים את כלי החיתוך: כשמחקו אותם קודם, החיתוכים (חלונות, דלתות, קשתות הגלגלים)
+# לא נעשו, והפח הכסוף כיסה את החלונות במשחק
+dg = bpy.context.evaluated_depsgraph_get()
+for o in [o for o in bpy.data.objects if o.type == 'MESH' and not o.name.startswith('Cut_')]:
+    me = bpy.data.meshes.new_from_object(o.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    o.modifiers.clear(); old = o.data; o.data = me
+    if old.users == 0: bpy.data.meshes.remove(old)
+
+# 2. ניקוי
 for o in list(bpy.data.objects):
     if o.name.startswith(('Cut_', 'ENV_')) or o.type in ('LIGHT', 'CAMERA') or o.hide_render:
         remove(o)
 for c in list(bpy.data.collections):
     if c.name == 'Cutters': bpy.data.collections.remove(c)
-
-# 2. החלת modifiers (bevel/boolean/wireframe) — הופכים כל אובייקט לרשת סופית
-dg = bpy.context.evaluated_depsgraph_get()
-for o in [o for o in bpy.data.objects if o.type == 'MESH']:
-    me = bpy.data.meshes.new_from_object(o.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
-    o.modifiers.clear(); old = o.data; o.data = me
-    if old.users == 0: bpy.data.meshes.remove(old)
 # הקלה: המושבים, הלחצנים והצמיגים עם bevel עדין — Decimate (במשחק רואים אותם מרחוק). הגוף: איחוד משטחים שטוחים בלבד
 DEC = float(os.environ.get('BUS_DECIMATE', '0.25'))
 for o in [o for o in bpy.data.objects if o.type == 'MESH']:
@@ -116,6 +118,11 @@ for im in bpy.data.images:
 print('EXPORT objects', [(o.name, o.type) for o in bpy.data.objects])
 print('EXPORT tris', sum(len(p.vertices) - 2 for o in bpy.data.objects if o.type == 'MESH' for p in o.data.polygons))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
-bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_apply=True, export_lights=False, export_cameras=False,
-                          export_animation_mode='NLA_TRACKS', export_image_format='AUTO', export_yup=True)
+opts = dict(filepath=OUT, export_format='GLB', export_apply=True, export_lights=False, export_cameras=False,
+            export_animation_mode='NLA_TRACKS', export_image_format=os.environ.get('BUS_IMG', 'JPEG'), export_yup=True)
+for q in ({'export_image_quality': 85}, {'export_jpeg_quality': 85}, {}):
+    try:
+        bpy.ops.export_scene.gltf(**opts, **q); break
+    except TypeError as ex:
+        print('EXPORT option', q, ex)
 print('BUS GLB', OUT, os.path.getsize(OUT))

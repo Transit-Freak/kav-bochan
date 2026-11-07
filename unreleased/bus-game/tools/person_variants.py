@@ -57,7 +57,7 @@ VARIANTS = [
     dict(gender=0.0, age=age(30), weight=0.58, height=0.55, muscle=0.5,
          race={'caucasian': 0.05, 'african': 0.9, 'asian': 0.05}, skin=skin('young_african_female'),
          hair=H('afro01', 'braid01', 'bob01'), hair_rgb=(0.025, 0.018, 0.014),
-         clothes=[C('female_casualsuit01', 'female_casualsuit02'), C('shoes01', 'shoes03')], brows='eyebrow007'),
+         clothes=[C('female_sportsuit01', 'female_casualsuit02'), C('shoes01', 'shoes03')], brows='eyebrow007'),
     # 8 — גבר בגיל העמידה, גוף מלא, שיער חום
     dict(gender=1.0, age=age(50), weight=0.78, height=0.45, muscle=0.45,
          race={'caucasian': 0.7, 'african': 0.1, 'asian': 0.2}, skin=skin('middleage_caucasian_male'),

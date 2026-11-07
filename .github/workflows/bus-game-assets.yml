@@ -47,7 +47,7 @@ jobs:
           cd $HOME/cmubvh && Z=$(git ls-tree -r --name-only HEAD | grep -E '/16_15\.zip$') && git sparse-checkout set --no-cone "/$Z"
           mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh && echo "BVH=$(find $HOME/bvh -name '*.bvh' | head -1)" >> $GITHUB_ENV
       - name: Bus
-        if: inputs.bus
+        if: github.event_name == 'push' || inputs.bus
         working-directory: bt/tools/blender-test
         run: |
           set -e

@@ -8,7 +8,7 @@
 - מוחקים את שלד ה-BVH, את עזרי ה-IK ואת הריסים. העיניים (low-poly), הגבות וכיפת השיער נשארים — בלעדיהם הפנים נראות ריקות.
 - מחילים את המסכות (הגוף שמתחת לבגדים נמחק), מורידים subsurf ומקטינים ב-Decimate (שיער וגבות — פחות, כי הם כרטיסים שקופים).
 - "Walk": מחזור הליכה אחד שחוזר על עצמו (מחפשים את שני הפריימים הכי דומים), בלי התקדמות קדימה (in place).
-- "Idle": עמידה — הפוזה מתוך ההליכה שבה הרגליים הכי קרובות זו לזו, עם נשימה קלה.
+- "Idle": עמידה — הממוצע של כל עצם לאורך מחזור ההליכה (ידיים לצד הגוף), עם נשימה קלה.
 - טקסטורות עד PERSON_TEX פיקסלים (ברירת מחדל 512), בפורמט WEBP. טקסטורת השיער — בגווני אפור,
   והצבע בא מצבע החומר (כך כל אדם מקבל צבע שיער משלו בלי כתמים מהטקסטורה).
 """
@@ -115,10 +115,25 @@ for i, f in enumerate(frames):
         b.keyframe_insert('location', frame=i + 1); b.keyframe_insert('rotation_quaternion', frame=i + 1)
 WALK_LEN = len(frames)
 
-# Idle: הפריים שבו הרגליים הכי קרובות, ונשימה קלה בחזה
+# Idle: עמידה רגועה — הממוצע של כל עצם לאורך מחזור ההליכה (הידיים נחות לצד הגוף, הרגליים זו ליד זו),
+# הברכיים מיושרות עוד קצת לכיוון המנוחה, ונשימה קלה בחזה. (קודם: פריים אחד מתוך ההליכה — וכולם נראו צועדים במקום)
+from mathutils import Quaternion
 fi = min(range(LA, LB + 1), key=lambda f: feet[f])
+loopf = frames[:-1]
+avg = {}
+for b in pbs:
+    q0 = cache[loopf[0]][b.name][1]; acc = [0.0, 0.0, 0.0, 0.0]; tacc = Vector((0, 0, 0))
+    for f in loopf:
+        t, q = cache[f][b.name]
+        if q.dot(q0) < 0: q = -q
+        for i in range(4): acc[i] += q[i]
+        tacc += t
+    qa = Quaternion(acc); qa.normalize(); ta = tacc / len(loopf)
+    if b.name.endswith('Leg') and not b.name.endswith('UpLeg'):
+        qa = Quaternion().slerp(qa, 0.45)
+    avg[b.name] = (ta, qa)
 rig.animation_data.action = idle
-src = cache[fi]
+src = avg if os.environ.get('IDLE_FRAME') != '1' else cache[fi]
 for k, fr in enumerate((1, 30, 60)):
     for b in pbs:
         t, q = src[b.name]
@@ -126,7 +141,6 @@ for k, fr in enumerate((1, 30, 60)):
             t = t.copy(); dn = drift.normalized() if drift.length > 1e-6 else Vector((0, 0, 0)); t = t - dn * (t - hips0).dot(dn)
         b.location = t; b.rotation_quaternion = q
         if b.name == 'Spine1' and k == 1:
-            from mathutils import Quaternion
             b.rotation_quaternion = q @ Quaternion((1, 0, 0), math.radians(1.5))
         b.keyframe_insert('location', frame=fr); b.keyframe_insert('rotation_quaternion', frame=fr)
 print('IDLE frame', fi, 'feet', round(feet[fi], 3))
