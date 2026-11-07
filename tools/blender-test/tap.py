@@ -27,6 +27,7 @@ OB = bpy.data.objects
 floor_ob = OB['SM_FloorIn']
 FLOOR = max((floor_ob.matrix_world @ Vector(c)).z for c in floor_ob.bound_box)        # 0.675
 STEP = float(os.environ.get('STEP_H', '0.18'))                                          # מדרגה אחת מהרציף אל האוטובוס
+SINK = float(os.environ.get('SINK_FIX', '0.02'))      # בסוף ההקלטה הקרסול נמוך ב-2 ס"מ מבהליכה: מפצים בתוך האוטובוס
 PLAT = FLOOR - STEP
 EDGE = min((floor_ob.matrix_world @ Vector(c)).x for c in floor_ob.bound_box)          # קצה הרצפה בצד הדלתות (-1.215)
 sw = OB['ENV_Sidewalk']; sw.scale.z = PLAT / 0.15; sw.location.z = PLAT / 2; sw.location.x = -1.30 - 2.5
@@ -36,7 +37,7 @@ for nm in ('SM_DoorFront0', 'SM_DoorFrFront0', 'SM_DoorRailFront0', 'SM_DoorFron
         o = OB[nm]; o.location.x -= 0.09; o.location.y += (-0.58 if nm.endswith('0') else 0.58)
 VAL_NAMES = [n for n in ('SM_ValF', 'SM_ValScrF', 'SM_ValNFCF', 'SM_ValLedF-1', 'SM_ValLedF1', 'SM_ValClampF') if n in OB]
 piv = OB['SM_ValF'].location.copy()
-NEWC = Vector((float(os.environ.get('VAL_X', '0.26')), float(os.environ.get('VAL_Y', '-4.65')), piv.z))
+NEWC = Vector((float(os.environ.get('VAL_X', '0.18')), float(os.environ.get('VAL_Y', '-4.65')), piv.z))
 Rz = Matrix.Rotation(-math.pi / 2, 3, 'Z')                             # פונה ל--X (אל הדלת)
 for n in VAL_NAMES:
     o = OB[n]; o.location = NEWC + Rz @ (o.location - piv); o.rotation_euler.z -= math.pi / 2
@@ -49,7 +50,7 @@ upd()
 pad_ob = OB['SM_ValNFCF']; scr_ob = OB['SM_ValScrF']
 PAD = pad_ob.matrix_world.translation.copy(); SCR = scr_ob.matrix_world.translation.copy()
 NPAD = Vector((-1, 0, 0)); FWD = Vector((1, 0, 0)); LEFT = Vector((0, 1, 0))
-STAND = Vector((PAD.x - float(os.environ.get('HIPS_GAP', '0.22')), PAD.y - float(os.environ.get('LATERAL', '0.33')), PLAT))
+STAND = Vector((PAD.x - float(os.environ.get('HIPS_GAP', '0.20')), PAD.y - float(os.environ.get('LATERAL', '0.30')), PLAT))
 print('TAP scene: floor', round(FLOOR, 3), 'platform', round(PLAT, 3), 'edge x', round(EDGE, 3), 'pad', tuple(round(v, 3) for v in PAD),
       'screen', tuple(round(v, 3) for v in SCR), 'stand', tuple(round(v, 3) for v in STAND))
 
@@ -84,14 +85,14 @@ def _terrain_init():
     SC.frame_set(cur)
     # הזזה קטנה של נקודת העצירה כך שאף צעד לא ייפול על שפת המדרגה
     best = None
-    for dd in [x * 0.005 for x in range(-24, 25)]:
+    for dd in [x * 0.005 for x in range(-10, 7)]:      # לא קדימה מדי: לפני הנוסע מכונת הכרטוס של הנהג
         e0 = EDGE - (STAND.x + dd)
         clr = min(max(s[2] - (e0 + 0.015), (e0 - 0.01) - s[3]) for side in feet for s in feet[side][0])
         if best is None or clr > best[0]: best = (clr, dd)
     TER['delta'] = best[1]; e0 = EDGE - (STAND.x + best[1])
     n = f1 - f0 + 1; H = {}
     for side, (segs, A) in feet.items():
-        for s in segs: s.append(STEP if s[2] > e0 else 0.0)
+        for s in segs: s.append(STEP + SINK if s[2] > e0 else 0.0)
         h = [0.0] * n
         for q in range(n):
             prev = [s for s in segs if s[0] <= q]; nxt = [s for s in segs if s[0] > q]
@@ -390,7 +391,7 @@ for f in range(f0 + 2, END + 1, 6):
     SC.frame_set(f); print('TAP path', f, 'hips', tuple(round(v, 2) for v in head_w(hips)),
                            'L/R ankle', tuple(round(v, 2) for v in head_w('LeftFoot')), tuple(round(v, 2) for v in head_w('RightFoot')))
 
-# ---------- תאורה, מצלמות (רחבה מתוך האוטובוס אל הדלת, ותקריב 3/4 של היד, המשטח והמסך), Cycles
+# ---------- תאורה, מצלמות (רחבה מהרציף אל הדלת, ותקריב 3/4 מהצד של היד, המשטח והמסך), Cycles
 SC.render.engine = 'CYCLES'; SC.cycles.device = 'CPU'
 SC.cycles.samples = int(os.environ.get('SAMPLES', '8' if PREVIEW else '16')); SC.cycles.use_denoising = True
 SC.cycles.max_bounces = 6; SC.cycles.transparent_max_bounces = 32
@@ -410,8 +411,8 @@ def mk_cam(name, pos, aim, lens):
     c = OB.new(name, bpy.data.cameras.new(name)); SC.collection.objects.link(c)
     c.data.lens = lens; c.data.clip_start = 0.05; c.location = pos; c.rotation_euler = (aim - pos).to_track_quat('-Z', 'Y').to_euler(); return c
 V = lambda e, d: Vector(tuple(float(v) for v in os.environ.get(e, d).split(',')))
-cam = mk_cam('Cam_wide', V('CAM', '0.12,-4.20,2.30'), V('AIM', '-1.45,-5.10,1.20'), float(os.environ.get('LENS', '20')))
-cam2 = mk_cam('Cam_close', V('CAM2', '-0.85,-4.78,2.30'), V('AIM2', '0.12,-4.72,1.86'), float(os.environ.get('LENS2', '28')))
+cam = mk_cam('Cam_wide', V('CAM', '-2.95,-6.25,2.05'), V('AIM', '-0.70,-4.85,1.35'), float(os.environ.get('LENS', '24')))
+cam2 = mk_cam('Cam_close', V('CAM2', '-0.30,-4.05,2.15'), V('AIM2', '0.0,-4.75,1.78'), float(os.environ.get('LENS2', '24')))
 CUT = RA - 4
 SC.camera = cam
 mk = SC.timeline_markers.new('wide', frame=1); mk.camera = cam
