@@ -21,10 +21,11 @@
 
 | מה | יוצר | קישור | רישיון / שימוש |
 |---|---|---|---|
-| תנועה מצולמת (הליכה ועוד) | CMU Graphics Lab Motion Capture Database | http://mocap.cs.cmu.edu | ללא הגבלות שימוש |
+| תנועה מצולמת (הליכה, הליכה ועצירה — 02_01, 16_34 — ועוד) | CMU Graphics Lab Motion Capture Database | http://mocap.cs.cmu.edu | ללא הגבלות שימוש |
 | המרת התנועות ל-BVH | Bruce Hahne (מאגר: Shriinivas) | https://github.com/Shriinivas/cmubvh | ללא הגבלות שימוש |
 | שלטי הפנים והחוץ באוטובוס | משרד התחבורה, "שילוט אוטובוסים אחיד: הנחיות וכללי מפתח מחייבים" (V-01.24) | https://www.gov.il/he/pages/bus-signage | שימוש תיאורי בהדמיה הסברית |
 | מפות ובניינים | © תורמי OpenStreetMap | https://www.openstreetmap.org/copyright | ODbL |
+| כרטיס הנסיעה בהדמיה | עיצוב כללי בסגנון רב-קו שנוצר בקוד (card_tex.py), בלי הלוגו הרשמי | — | — |
 | תמונות ייחוס (להסתכלות בלבד, לא מועתקות) | ויקישיתוף, וצילומים של שלמה הרטמן | https://commons.wikimedia.org | — |
 
 ההדמיה הוכנה על ידי אדם פרטי ואינה פרסום רשמי של משרד התחבורה או של מפעיל כלשהו.
