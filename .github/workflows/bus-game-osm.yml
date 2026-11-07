@@ -32,6 +32,7 @@ jobs:
           [ "$ok" = 1 ]
           ls -la raw.json
           python3 -c "import json;d=json.load(open('raw.json'));print(len(d['elements']),'elements')"
+          mkdir -p unreleased/bus-game/world
           gzip -9 -c raw.json > unreleased/bus-game/world/osm_raw.json.gz
           ls -la unreleased/bus-game/world
       - name: Save
