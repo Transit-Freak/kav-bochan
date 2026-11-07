@@ -27,7 +27,7 @@ def make_driver():
                       clothes=(('clothes/male_casualsuit01/male_casualsuit01.mhclo',),),
                       shoes=('clothes/shoes02/shoes02.mhclo', 'clothes/shoes01/shoes01.mhclo'),
                       hair_rgb=(0.02, 0.018, 0.016),
-                      cloth_colors=[((0.035, 0.055, 0.11), (0.03, 0.03, 0.035), 'waist'), ((0.02, 0.02, 0.02),)])
+                      cloth_colors=[((0.07, 0.11, 0.24), (0.035, 0.035, 0.04), "waist"), ((0.02, 0.02, 0.02),)])
     return a
 
 
@@ -224,20 +224,113 @@ def seated_driver(a, f, t_breathe=0.0, hands_on_wheel=1.0):
     return hM, q, limbs
 
 
+def bvh(name):
+    """קובץ ההקלטה לפי שם (BVHS מה-workflow), למשל 16_15"""
+    for c in os.environ.get('BVHS', '').split():
+        if c.startswith(name + '='): return c.split('=', 1)[1]
+    return BVH
+
+
+def make_walker(name, gender, age, height, skin, hair, clothes, colors, clip, hair_rgb=(0.03, 0.022, 0.016), weight=0.5):
+    a = BL.make_human(name, gender=gender, age=age, weight=weight, height=height,
+                      race={'caucasian': 0.7, 'african': 0.1, 'asian': 0.2}, skin=skin, hair=hair, clothes=clothes,
+                      shoes=('clothes/shoes02/shoes02.mhclo', 'clothes/shoes01/shoes01.mhclo'), cloth_colors=colors, hair_rgb=hair_rgb)
+    p = bvh(clip)
+    if p: BL.walk_clip(a, p)
+    return a
+
+
+def fk_ankles(a, hM, q):
+    """מיקום הקרסוליים בתנוחת FK נתונה (בלי אילוצים)"""
+    cons = [c for pb in a.rig.pose.bones for c in pb.constraints]
+    old = [c.mute for c in cons]
+    for c in cons: c.mute = True
+    for pb in a.rig.pose.bones:
+        if pb.name != 'Hips': pb.rotation_quaternion = q.get(pb.name, Quaternion())
+    loc, rot, _ = (a.hrest.inverted() @ hM).decompose()
+    pbh = a.rig.pose.bones['Hips']; pbh.location = loc; pbh.rotation_quaternion = rot
+    BL.upd()
+    out = {s: a.rig.pose.bones[f'{S}Foot'].head.copy() for s, S, sg in SIDES}
+    for c, m in zip(cons, old): c.mute = m
+    return out
+
+
+def walk_path(a, f0, start, psi_of, ground_of, n=None, settle=14, hold_to=None, blend_in=0, idle_from=None):
+    """הליכה מההקלטה לאורך מסלול: הכיוון משתנה לפי psi_of(i), הגובה לפי הקרקע מתחת לאגן (מדרגה לרציף/לאוטובוס).
+    בסוף ההקלטה — עצירה: הרגליים ננעלות במקומן (IK), האגן מתיישב מעליהן והידיים יורדות"""
+    clip = a.clip; n = min(n or len(clip), len(clip))
+    P = V((start.x, start.y)); prev = clip[0][0].translation.copy(); last = None
+    relax = a.mix([('fist', 0.25)])
+    for i in range(n):
+        Mh, q = clip[i]
+        d = Mh.translation - prev; prev = Mh.translation.copy()
+        psi = psi_of(i)
+        P += V((d.x * math.cos(psi) - d.y * math.sin(psi), d.x * math.sin(psi) + d.y * math.cos(psi)))
+        loc = Mh.copy(); loc.translation = V((0, 0, Mh.translation.z))
+        z = ground_of(P)
+        hM = Matrix.Translation(V((P.x, P.y, z))) @ R(psi, 4, 'Z') @ loc
+        qq = dict(q); qq.update({k: v for k, v in relax.items() if 'Finger' in k or 'Thumb' in k or 'HandIndex' in k})
+        if i < blend_in and idle_from is not None:
+            t = smooth((i + 1) / (blend_in + 1)); h0, q0 = idle_from
+            l0, r0, _ = h0.decompose(); l1, r1, _ = hM.decompose()
+            hM = Matrix.Translation(l0.lerp(l1, t)) @ r0.slerp(r1, t).to_matrix().to_4x4()
+            qq = {k: q0.get(k, Quaternion()).slerp(v, t) for k, v in qq.items()}
+        a.key(f0 + i, hM, qq, None, look_w=0.0)
+        last = (hM, qq, psi, P.copy(), z)
+    if last is None: return f0
+    hM, qq, psi, Pl, z = last
+    ank = fk_ankles(a, hM, qq)
+    gnd = {s: ground_of(V((ank[s].x, ank[s].y))) for s in ank}
+    feet = {s: (V((ank[s].x, ank[s].y, gnd[s] + a.ank_h)), psi) for s in ank}
+    mid = (feet['L'][0] + feet['R'][0]) / 2
+    Xs = V((mid.x, mid.y, (gnd['L'] + gnd['R']) / 2 + a.stand_h))
+    hS = hips_at(a, Xs, psi)
+    qS = arms_pose(a, 1.0, 0.0, fist=(0.25, 0.25))
+    l0, r0, _ = hM.decompose(); l1, r1, _ = hS.decompose()
+    end = hold_to or (f0 + n + settle)
+    for j in range(1, end - (f0 + n) + 2):
+        f = f0 + n - 1 + j
+        t = smooth(j / settle)
+        h = Matrix.Translation(l0.lerp(l1, t) + V((0, 0, breathe(f, 0.003)))) @ r0.slerp(r1, t).to_matrix().to_4x4()
+        q = {k: qq.get(k, Quaternion()).slerp(v, t) for k, v in qS.items()}
+        w = smooth(j / 4)
+        P_ = Matrix.Translation(V((Xs.x, Xs.y, 0))) @ R(psi, 4, 'Z')
+        limbs = feet_state(a, P_, feet)
+        for k_ in limbs: limbs[k_]['w'] = w; limbs[k_]['rw'] = w
+        a.key(f, h, q, limbs, look=Xs + fwd_of(psi) * 3 + V((0, 0, 0.6)), look_w=0.3 * t)
+    return f0 + n
+
+
+def stand_idle(a, f_from, f_to, p, psi, look=None):
+    hM = None
+    for f in range(f_from, f_to + 1):
+        X = stand_X(a, p, psi) + V((breathe(f, 0.004, 120), 0, breathe(f, 0.003, 85)))
+        hM = hips_at(a, X, psi)
+        q = arms_pose(a, 1.0, 0.0, fist=(0.25, 0.25))
+        a.key(f, hM, q, feet_state(a, a.placement(p, psi), stand_feet(a, p, psi, 0.02)), look=look, look_w=0.4 if look else 0.0)
+    return hM, q
+
+
+def hide_until(a, f_show, f_hide=None):
+    for o in a.meshes + [o for o in bpy.data.objects if o.parent in a.meshes]:
+        for f, h in ((1, True), (f_show, False)) + (((f_hide, True),) if f_hide else ()):
+            o.hide_render = h; o.keyframe_insert('hide_render', frame=f)
+
+
 def shot1():
-    """נסיעה ועצירה בתחנה, מצלמה חיצונית"""
-    bus = scene_common(interior_lights=False)
-    N = 144
-    v0 = 7.5; tb, ts = 1.0, 5.2
+    """האוטובוס מגיע, בולם ועוצר בתחנה ליד העמוד, כורע ופותח דלת; נוסעת יורדת ונוסע עולה; הדלתות נסגרות"""
+    bus = scene_common(interior_lights=True)
+    N = 252
+    v0 = 7.0; tb, ts = 0.6, 4.6
     def wshape(t):
         if t < tb or t > ts: return 0.0
         if t < tb + 0.4: return smooth((t - tb) / 0.4)
-        if t > ts - 0.6: return 1.0 - 0.7 * smooth((t - (ts - 0.6)) / 0.6)
+        if t > ts - 0.7: return 1.0 - 0.75 * smooth((t - (ts - 0.7)) / 0.7)
         return 1.0
     dt = 1 / 480.; ints = sum(wshape(i * dt) * dt for i in range(int(7 / dt)))
     A = v0 / ints
     s = 0.0; v = v0; th = 0.0; thd = 0.0; samples = {}
-    om = 2 * math.pi * 0.9; ze = 0.35; kp = math.radians(0.55)
+    om = 2 * math.pi * 0.9; ze = 0.35; kp = math.radians(0.6)
     for i in range(int((N / 24 + 0.1) / dt)):
         t = i * dt; a_ = A * wshape(t) if v > 0 else 0.0
         v = max(0.0, v - a_ * dt); s += v * dt
@@ -246,32 +339,60 @@ def shot1():
         if abs(fr - round(fr)) < dt * 12 and round(fr) not in samples: samples[round(fr)] = (s, th, v)
     D = max(x[0] for x in samples.values())
     bus['y0'] = D
+    F_STOP = int(ts * 24) + 1; F_OPEN = F_STOP + 6
     for f in range(1, N + 1):
         s_, th_, v_ = samples.get(f, samples[max(samples)])
-        t = (f - 1) / 24
-        kneel = KNEEL * smooth((t - 5.45) / 0.9)
+        kneel = KNEEL * smooth((f - F_STOP - 2) / 18)
         BL.drive(bus, f, D - s_, pitch=th_, kneel=kneel, bounce=0.004 * math.sin(f * 1.7) * min(1, v_ / 3))
-        BL.key_ramp(bus, f, 0.0); BL.key_pan(bus, f, 0.0); BL.door_open(bus, f, 0.0)
-    log('shot1 distance', round(D, 2), 'decel', round(A, 2))
-    # נהג יושב
+        BL.key_ramp(bus, f, 0.0); BL.key_pan(bus, f, 0.0)
+    log('shot1 distance', round(D, 2), 'decel', round(A, 2), 'stop frame', F_STOP)
     drv = make_driver(); prep(drv, bus['body'])
     for f in range(1, N + 1):
-        hM, q, limbs = seated_driver(drv, f)
-        drv.key(f, hM, q, limbs, look=V((0.3, -12, 1.8)), look_w=0.4)
-    # נוסעת בכיסא גלגלים מחכה בתחנה
+        hM, q, limbs = seated_driver(drv, f, hands_on_wheel=1.0 if f < F_STOP + 4 else 0.0 if f > F_STOP + 14 else 1 - (f - F_STOP - 4) / 10)
+        drv.key(f, hM, q, limbs, look=V((0.3, -12, 1.8)) if f < F_STOP + 10 else V((-1.6, -2.5, 1.5)), look_w=0.45)
     chair = make_chair(); rider = make_chair_user(); prep(rider, chair['root'])
-    chair['root'].location = (-3.35, 0.0, BL.PLAT_Z); chair['root'].rotation_euler = (0, 0, math.pi / 2)
+    chair['root'].location = (-3.4, 0.55, BL.PLAT_Z); chair['root'].rotation_euler = (0, 0, math.pi / 2)
     for f in range(1, N + 1):
         hM, q, limbs = rider_pose(rider, f, None, None, lap=1.0)
-        rider.key(f, hM, q, limbs, look=V((0.0, -0.8, 1.15)), look_w=0.5)
-    cam = BL.camera('Cam1', (-5.4, -9.8, 1.45), (0, 10, 1.5), lens=28)
+        rider.key(f, hM, q, limbs, look=V((0.0, -0.3, 1.15)) if f > F_STOP - 30 else V((0.0, 20, 1.2)), look_w=0.5)
+    fl = FLOOR - KNEEL
+    def ground(P):
+        t = smooth((P.x - (-1.55)) / 0.5)            # מהרציף (‎-X) לרצפת האוטובוס
+        return BL.PLAT_Z + (fl - BL.PLAT_Z) * t
+    # נוסעת יורדת
+    wa = make_walker('Exit', 0.0, 0.35, 0.45, ('skins/young_caucasian_female/young_caucasian_female.mhmat',),
+                     ('hair/ponytail01/ponytail01.mhclo', 'hair/bob02/bob02.mhclo'),
+                     (('clothes/female_casualsuit01/female_casualsuit01.mhclo',),), [((0.12, 0.3, 0.45), (0.15, 0.15, 0.2), 'waist'), None], '16_15', hair_rgb=(0.12, 0.07, 0.03))
+    prep(wa, None)
+    fA = F_OPEN + 10
+    pA = V((-0.35, -0.1, fl)); psiA0 = -math.pi / 2
+    hide_until(wa, fA - 8)
+    stand_idle(wa, 1, fA, pA, psiA0)
+    def psiA(i): return psiA0 + (math.pi / 2 - 0.42) * smooth((i - 26) / 26)
+    endA = walk_path(wa, fA + 1, pA, psiA, ground, hold_to=N, blend_in=6, idle_from=None)
+    # נוסע עולה
+    wb = make_walker('Board', 1.0, 0.45, 0.6, ('skins/middleage_caucasian_male/middleage_caucasian_male.mhmat',),
+                     ('hair/short04/short04.mhclo',), (('clothes/male_casualsuit03/male_casualsuit03.mhclo', 'clothes/male_casualsuit01/male_casualsuit01.mhclo'),),
+                     [((0.55, 0.5, 0.42), (0.1, 0.12, 0.18), 'waist'), None], '35_01')
+    prep(wb, None)
+    pB = V((-2.6, 1.2, BL.PLAT_Z)); psiB0 = math.atan2(0.62, 0.78)
+    fB = fA + 30
+    idle = stand_idle(wb, 1, fB, pB, psiB0, look=V((-1.3, 0.0, 1.5)))
+    def psiB(i): return psiB0 + (math.pi / 2 - psiB0) * smooth((i - 6) / 16) - (math.pi / 2) * smooth((i - 40) / 20)
+    endB = walk_path(wb, fB + 1, pB, psiB, ground, hold_to=N, blend_in=6, idle_from=idle)
+    F_CLOSE = fB + 52
+    for f in range(1, N + 1):
+        t = smooth((f - F_OPEN) / 16) * (1 - smooth((f - F_CLOSE) / 16))
+        BL.door_open(bus, f, t)
+    log('shot1 open', F_OPEN, 'A', fA, endA, 'B', fB, endB, 'close', F_CLOSE)
+    cam = BL.camera('Cam1', (-6.2, -9.6, 1.7), (0, 10, 1.5), lens=30)
     for f in range(1, N + 1, 2):
         yb = D - samples.get(f, samples[max(samples)])[0]
-        tgt = V((-0.2, yb * 0.8 - 1.0, 1.25))
-        BL.aim_cam(cam, f, (-5.4, -9.8, 1.45), tgt)
-    close = BL.camera('Cam1b', (-3.9, -6.6, 0.75), (-1.2, -2.2, 0.62), lens=30)
+        k = smooth((f - (F_STOP - 30)) / 40)
+        tgt = V((-0.4, yb - 1.5, 1.4)).lerp(V((-1.4, -1.2, 1.25)), k)
+        BL.aim_cam(cam, f, (-6.2, -9.6, 1.7), tgt)
     BL.render_setup(blur=True)
-    return N, lambda f: cam if f < 97 else close
+    return N, lambda f: cam
 
 
 # ---------------------------------------------------------------- כיסא גלגלים ורוכבת
@@ -557,7 +678,7 @@ def shot3():
     """הנהג קם, הולך לאזור כיסא הגלגלים, מקפל את המושב המתקפל, מוציא את הרמפה וחוזר"""
     bus = scene_common()
     drv = make_driver()
-    if BVH: BL.walk_clip(drv, BVH)
+    if bvh('16_15'): BL.walk_clip(drv, bvh('16_15'))
     prep(drv, bus['body'])
     C1, C2, C3, C4 = 1, 55, 103, 159
     for f in range(1, 330):
@@ -602,9 +723,9 @@ def shot3():
     n5 = 44
     walk(drv, C5, n5, V((0.02, -0.55, FLOOR)), 0.0)
     N = C5 + n5 - 1
-    cams = [(C1, BL.camera('Cam31', (-0.6, -5.3, 1.85), (0.5, -4.5, 1.2), lens=22, parent=bus['body'])),
+    cams = [(C1, BL.camera('Cam31', (-0.35, -5.6, 2.35), (0.55, -4.5, 1.35), lens=22, parent=bus['body'])),
             (C2, BL.camera('Cam32', (0.12, 1.2, 1.75), (0.0, -3.0, 1.4), lens=30, parent=bus['body'])),
-            (C3, BL.camera('Cam33', (0.0, -2.0, 2.0), (0.75, -0.1, 0.9), lens=22, parent=bus['body'])),
+            (C3, BL.camera('Cam33', (-0.9, -0.3, 1.75), (0.85, -0.1, 0.8), lens=20, parent=bus['body'])),
             (C4, BL.camera('Cam34', (0.95, 1.55, 1.8), (-0.75, -0.1, 1.0), lens=22, parent=bus['body'])),
             (C5, BL.camera('Cam35', (0.25, -3.95, 1.72), (0.0, -0.5, 1.35), lens=26, parent=bus['body']))]
     log('shot3 cuts', [c for c, _ in cams], 'N', N)
@@ -704,9 +825,9 @@ def shot4():
     for a in ppl: prep(a, body)
     P1, P2, P3 = ppl
     specs = {
-        'Pass1': dict(p=V((0.12, 1.98, FLOOR)), psi=0.0),
+        'Pass1': dict(p=V((-0.12, 2.0, FLOOR)), psi=0.0),
         'Pass2': dict(p=V((0.05, 3.28, FLOOR)), psi=math.pi / 2),
-        'Pass3': dict(p=V((-0.06, 4.05, FLOOR)), psi=-math.pi / 2),
+        'Pass3': dict(p=V((-0.1, 4.12, FLOOR)), psi=-math.pi / 2),
     }
     for f in range(1, N + 1):
         y_, lam, gam, th, lat, v_ = S[f]
@@ -719,7 +840,7 @@ def shot4():
     BL.upd()
     for idx, a in enumerate(ppl):
         sp = specs[a.name]; p, psi = sp['p'], sp['psi']
-        feet = stand_feet(a, p, psi, 0.05 + 0.02 * idx, (0.03 * (idx - 1), -0.05))
+        feet = stand_feet(a, p, psi, 0.02, (0.03 * (idx - 1), -0.05))
         for f in range(1, N + 1):
             y_, lam, gam, th, lat, v_ = S[max(1, f - idx)]
             d = V((lat * 0.6 + breathe(f, 0.004, 100 + 13 * idx, idx), -lam * 0.85, breathe(f, 0.003, 85 + 7 * idx)))

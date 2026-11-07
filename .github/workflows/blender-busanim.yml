@@ -58,9 +58,10 @@ jobs:
         run: |
           git clone -q --depth=1 --filter=blob:none --sparse https://github.com/Shriinivas/cmubvh.git $HOME/cmubvh
           cd $HOME/cmubvh
-          Z=$(git ls-tree -r --name-only HEAD | grep -E '/02_01\.zip$' | head -1)
-          git sparse-checkout set --no-cone "/$Z" && mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh
-          F=$(find $HOME/bvh -name '*.bvh' | head -1) && echo "BVH=$F" >> $GITHUB_ENV && echo "BVH $F"
+          ZS=$(git ls-tree -r --name-only HEAD | grep -E '/(02_01|16_15|35_01)\.zip$')
+          git sparse-checkout set --no-cone $(for z in $ZS; do echo "/$z"; done) && mkdir -p $HOME/bvh && for z in $ZS; do unzip -qo "$z" -d $HOME/bvh/$(basename $z .zip); done
+          L=""; for d in $HOME/bvh/*/; do F=$(find $d -name '*.bvh' | head -1); [ -n "$F" ] && L="$L $(basename $d)=$F"; done
+          echo "BVHS=$L" >> $GITHUB_ENV; echo "BVH=$(echo $L | tr ' ' '\n' | grep '^02_01=' | cut -d= -f2)" >> $GITHUB_ENV; echo "clips: $L"
       - name: Wheelchair model (OpenGameArt, license check)
         continue-on-error: true
         run: |

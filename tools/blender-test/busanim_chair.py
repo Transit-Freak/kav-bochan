@@ -122,6 +122,7 @@ def load_chair(root, name='Chair'):
     for key, ps in groups.items():
         if not ps: continue
         b2 = bmesh.new(); vmap = {}
+        uv_src = bm.loops.layers.uv.active; uv_dst = b2.loops.layers.uv.new('UVMap') if uv_src else None
         o_ = Vector((wheels[key].location.x, 0, BL.CH_R)) if key != 0 else Vector()
         for p in ps:
             for v in p['verts']: vmap[v] = b2.verts.new(v.co - o_)
@@ -129,13 +130,28 @@ def load_chair(root, name='Chair'):
             if all(v in vmap for v in f.verts):
                 try:
                     nf = b2.faces.new([vmap[v] for v in f.verts]); nf.material_index = f.material_index; nf.smooth = f.smooth
+                    if uv_dst:
+                        for ln, lo in zip(nf.loops, f.loops): ln[uv_dst].uv = lo[uv_src].uv
                 except ValueError: pass
         me2 = bpy.data.meshes.new(f'{name}_{key}'); b2.to_mesh(me2); b2.free()
         for m in mats: me2.materials.append(m)
         ob = BL.link(bpy.data.objects.new(f'{name}_part{key}', me2), root if key == 0 else wheels[key])
     bm.free()
-    # חומר ברירת מחדל אם אין
+    # הקובץ ישן (חומרים בלי צמתים): חומר חדש מהטקסטורות שבחבילה — צבע + שקיפות (החישורים) + מפת נורמלים
+    d = os.path.dirname(path)
+    dif = (glob.glob(f'{d}/**/*D.png', recursive=True) or [None])[0]
+    nrm = (glob.glob(f'{d}/**/*N.png', recursive=True) or [None])[0]
+    m = bpy.data.materials.new('M_ChairTex'); nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'); b.inputs['Roughness'].default_value = 0.45; b.inputs['Metallic'].default_value = 0.3
+    if dif:
+        t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(dif)
+        nt.links.new(t.outputs['Color'], b.inputs['Base Color']); nt.links.new(t.outputs['Alpha'], b.inputs['Alpha'])
+    if nrm:
+        t2 = nt.nodes.new('ShaderNodeTexImage'); t2.image = bpy.data.images.load(nrm); t2.image.colorspace_settings.name = 'Non-Color'
+        nm = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(t2.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], b.inputs['Normal'])
+    BL.log('chair textures', dif, nrm)
     for o in root.children_recursive:
-        if o.type == 'MESH' and not o.data.materials:
-            o.data.materials.append(BL.mat('M_ChairImp', (0.1, 0.1, 0.12), 0.4, 0.6))
+        if o.type == 'MESH':
+            o.data.materials.clear(); o.data.materials.append(m)
+            for p_ in o.data.polygons: p_.material_index = 0
     return dict(root=root, wheels=wheels, casters={}, forks={}, imported=True)

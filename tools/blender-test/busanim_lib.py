@@ -163,8 +163,10 @@ def split_y(name, y0, y1):
 def setup_bus():
     """אחרי טעינת out/bus.blend: מנקה, מתקן, ובונה שלד: Chassis → Pitch (הטיה וכריעה) → Body; גלגלים על השלדה"""
     for o in list(bpy.data.objects):
-        if o.name.startswith(('Cut_', 'ENV_')) or o.type in ('CAMERA', 'LIGHT'):
+        if o.name.startswith('ENV_') or o.type in ('CAMERA', 'LIGHT'):
             bpy.data.objects.remove(o)
+        elif o.name.startswith('Cut_'):
+            o.hide_render = True; o.hide_viewport = True
     # מוטות שעוברים דרך מושב הנהג (תיקון לדגם), ושקע USB בתוך פתח הדלת האמצעית
     for n in ('SM_Pole01', 'SM_Pole21', 'SM_PoleFoot01', 'SM_PoleFoot21', 'SM_Btn01', 'SM_BtnF01', 'SM_Btn21', 'SM_BtnF21',
               'SM_USB2-1', 'SM_USBp2-10', 'SM_USBp2-11'):
@@ -585,8 +587,15 @@ def make_human(name, gender=1.0, age=0.5, weight=0.5, height=0.5, muscle=0.5, ra
         try:
             cap = hair_ob.copy(); cap.data = hair_ob.data.copy(); cap.name = f'{name}_hair_cap'; SC.collection.objects.link(cap)
             m = mat(f'M_{name}_cap', hair_rgb, 0.7); cap.data.materials.clear(); cap.data.materials.append(m)
-            d = cap.modifiers.new('in', 'DISPLACE'); d.strength = 0.003; cap.modifiers.move(len(cap.modifiers) - 1, 0)
-            dh = hair_ob.modifiers.new('out', 'DISPLACE'); dh.strength = 0.006; hair_ob.modifiers.move(len(hair_ob.modifiers) - 1, 0)
+            zs = [v.co.z for v in hair_ob.data.vertices]; top = max(zs)
+            for ob in (hair_ob, cap):
+                vg = ob.vertex_groups.new(name='above_ears')
+                for v in ob.data.vertices:
+                    w = max(0.0, min(1.0, (v.co.z - (top - 0.085)) / 0.03))
+                    if w > 0: vg.add([v.index], w, 'REPLACE')
+            d = cap.modifiers.new('in', 'DISPLACE'); d.strength = 0.003; d.vertex_group = 'above_ears'; cap.modifiers.move(len(cap.modifiers) - 1, 0)
+            msk = cap.modifiers.new('only_top', 'MASK'); msk.vertex_group = 'above_ears'; cap.modifiers.move(len(cap.modifiers) - 1, 1)
+            dh = hair_ob.modifiers.new('out', 'DISPLACE'); dh.strength = 0.006; dh.vertex_group = 'above_ears'; hair_ob.modifiers.move(len(hair_ob.modifiers) - 1, 0)
             for ms in hair_ob.material_slots:
                 nt = ms.material.node_tree; pr = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
                 for l in list(pr.inputs['Base Color'].links): nt.links.remove(l)
@@ -684,7 +693,7 @@ class Actor:
         r = self.rig
         self.reset()
         for s, S, sg in SIDES:
-            aim(r, f'{S}Arm', (sg * 0.2, 0.03, -1)); aim(r, f'{S}ForeArm', (sg * 0.1, -0.28, -1)); aim(r, f'{S}Hand', (sg * 0.06, -0.3, -1))
+            aim(r, f'{S}Arm', (sg * 0.2, 0.03, -1)); aim(r, f'{S}ForeArm', (sg * 0.08, -0.12, -1)); aim(r, f'{S}Hand', (sg * 0.04, -0.1, -1))
         self.poses['arms'] = self.grab(); self.reset()
         for n in ('LowerBack', 'Spine', 'Spine1'): rotw(r, n, (1, 0, 0), math.radians(12))
         self.poses['bend'] = self.grab(); self.reset()
@@ -775,14 +784,15 @@ class Actor:
             best = None
             for step in list(range(-180, 180, 10)):
                 L['con'].pole_angle = math.radians(step); upd()
-                err = sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref)
+                err = (r.pose.bones[mid].head - m_).length * 400 + sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref) * 0.05
                 if best is None or err < best[0]: best = (err, step)
             for step in [best[1] + d for d in (-6, -4, -2, 0, 2, 4, 6)]:
                 L['con'].pole_angle = math.radians(step); upd()
-                err = sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref)
+                err = (r.pose.bones[mid].head - m_).length * 400 + sum(qang(r.pose.bones[n].matrix.to_quaternion(), ref[n].to_quaternion()) for n in ref) * 0.05
                 if err < best[0]: best = (err, step)
             L['con'].pole_angle = math.radians(best[1]); L['con'].influence = 0.0
-            log(self.name, key, 'pole angle', best[1], 'err', round(math.degrees(best[0]), 1))
+            L['con'].pole_angle = math.radians(best[1]); upd()
+            log(self.name, key, 'pole angle', best[1], 'knee/elbow err cm', round((r.pose.bones[mid].head - m_).length * 100, 2))
         self.reset()
 
     def hand_rot(self, s, fingers, palm):
@@ -843,7 +853,7 @@ class Actor:
 
 
 # ---------------------------------------------------------------- הליכה מתנועה מצולמת (מ-anim.py)
-def walk_clip(actor, bvh):
+def walk_clip(actor, bvh, maxf=90):
     """מריץ את העברת התנועה של anim.py על השלד, ושומר כל פריים כתנוחה קנונית: הולך ל--Y מהראשית, רצפה ב-0"""
     rig = actor.rig; src_before = set(bpy.data.objects)
     SC.render.fps = FPS
@@ -851,9 +861,9 @@ def walk_clip(actor, bvh):
     bpy.ops.import_anim.bvh(filepath=bvh, axis_forward='-Z', axis_up='Y', use_fps_scale=True, rotate_mode='NATIVE')
     src = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and o not in src_before)
     act = src.animation_data.action
-    f0, f1 = (int(x) for x in act.frame_range); f1 = min(f1, f0 + 80)
+    f0, f1 = (int(x) for x in act.frame_range); f1 = min(f1, f0 + maxf)
     SC.frame_start, SC.frame_end = f0, f1
-    names = [b.name for b in rig.data.bones if b.name in src.data.bones]
+    names = [b.name for b in rig.data.bones if b.name in src.data.bones and not any(x in b.name for x in ('Finger', 'Thumb', 'HandIndex'))]
 
     def wrot(ob, M): return (ob.matrix_world.to_3x3() @ M.to_3x3()).normalized()
     for pb in rig.pose.bones: pb.matrix_basis.identity()
