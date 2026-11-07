@@ -5,8 +5,11 @@ name: bus-game-assets
 on:
   push:
     branches: [claude/bus-game]
-    paths: [.github/workflows/bus-game-assets.yml, unreleased/bus-game/tools/export_*.py]
+    paths: [.github/workflows/bus-game-assets.yml, unreleased/bus-game/tools/export_*.py, unreleased/bus-game/tools/person_variants.py]
   workflow_dispatch:
+    inputs:
+      bus: {description: 'לייצא גם את האוטובוס', type: boolean, default: false}
+      only: {description: 'רק האנשים האלה (למשל 0,3)', type: string, default: ''}
 permissions:
   contents: write
 concurrency:
@@ -44,28 +47,34 @@ jobs:
           cd $HOME/cmubvh && Z=$(git ls-tree -r --name-only HEAD | grep -E '/16_15\.zip$') && git sparse-checkout set --no-cone "/$Z"
           mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh && echo "BVH=$(find $HOME/bvh -name '*.bvh' | head -1)" >> $GITHUB_ENV
       - name: Bus
+        if: inputs.bus
         working-directory: bt/tools/blender-test
         run: |
           set -e
           pip install -q pillow && mkdir -p out tex && python3 screens.py tex
           $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -E 'BUS|Error|Traceback' | tail -5
           $BL -b out/bus.blend --python-exit-code 1 -P $GITHUB_WORKSPACE/unreleased/bus-game/tools/export_bus.py -- $GITHUB_WORKSPACE/unreleased/bus-game/assets/bus.glb 2>&1 | grep -E 'EXPORT tris|BUS GLB|Error|Traceback'
-      - name: Person (walk 16_15 + idle)
+      - name: People (walk 16_15 + idle)
         working-directory: bt/tools/blender-test
         run: |
           set -e
-          # anim.py בונה את האדם ומעביר אליו את התנועה; עוצרים אחרי השמירה של anim.blend (בלי הרינדורים)
-          python3 - <<'PY'
-          s = open('anim.py').read(); k = "bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend'))"
-          i = s.index(k); j = s.index('\n', i); open('anim_build.py', 'w').write(s[:j] + '\n')
-          PY
-          $BL -b --online-mode -P anim_build.py 2>&1 | grep -E 'MATCHED|Error|Traceback' | cut -c1-300 || true
-          ls -la out/anim.blend
-          $BL -b --online-mode out/anim.blend --python-exit-code 1 -P $GITHUB_WORKSPACE/unreleased/bus-game/tools/export_person.py -- $GITHUB_WORKSPACE/unreleased/bus-game/assets/person.glb 2>&1 | grep -E 'MESH|WALK|IDLE|TRIS|PERSON|Error|Traceback'
+          # כמה אנשים שונים (tools/person_variants.py): anim.py בונה כל אחד ומעביר אליו את התנועה, וייצוא ל-assets/people
+          G=$GITHUB_WORKSPACE/unreleased/bus-game; mkdir -p out $G/assets/people
+          N=$(python3 $G/tools/person_variants.py anim.py .)
+          ONLY="${{ inputs.only }}"
+          for n in $(seq 0 $((N-1))); do
+            if [ -n "$ONLY" ] && ! echo ",$ONLY," | grep -q ",$n,"; then continue; fi
+            echo "::group::person $n"
+            $BL -b --online-mode -P anim_$n.py 2>&1 | grep -E 'ASSETS|VARIANT|MATCHED|shoe floor|Error|Traceback' | cut -c1-6000 || true
+            ls -la out/anim_$n.blend
+            $BL -b --online-mode out/anim_$n.blend --python-exit-code 1 -P $G/tools/export_person.py -- $G/assets/people/person_$n.glb 2>&1 | grep -E 'MESH|WALK|IDLE|TRIS|IMG|EXPORT|PERSON|Error|Traceback'
+            echo "::endgroup::"
+          done
+          (cd $G/assets/people && ls person_*.glb | sort -V | python3 -c "import sys,json;print(json.dumps([l.strip() for l in sys.stdin]))" > people.json && cat people.json)
       - name: Save
         run: |
           ls -la unreleased/bus-game/assets
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add unreleased/bus-game/assets/*.glb
-          git commit -qm "משחק האוטובוס: ייצוא האוטובוס והאדם מ-Blender" || exit 0
+          git add unreleased/bus-game/assets
+          git commit -qm "משחק האוטובוס: ייצוא האנשים (והאוטובוס) מ-Blender" || exit 0
           for i in 1 2 3; do git pull -q --rebase origin claude/bus-game && git push -q origin HEAD:claude/bus-game && break; sleep 5; done
