@@ -17,6 +17,7 @@ export async function loadCity(url) {
   city.nodes = new Float32Array(n.length);
   for (let i = 0; i < n.length; i++) city.nodes[i] = n[i] / 10;
   city.edges = Uint32Array.from(c.graph.edges);
+  city.edgeCls = c.graph.cls || '';     // לכל קשת: m ראשי, t מאסף, n צר (אם חסר — הכל נחשב רחב)
   return city;
 }
 function pairs(a, from, d) {

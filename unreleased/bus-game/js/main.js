@@ -7,6 +7,7 @@ import { loadCity, buildWorld } from './world.js';
 import { RoadGraph } from './graph.js';
 import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
+import { Fleet, TYPES, TYPE_ORDER, FARE, DRIVER_HOUR, SELL_BACK, loadSave, vehiclesNeeded, canUse, money, dayOf, NARROW_LIMIT } from './fleet.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { CameraModes } from './cameras.js';
 
@@ -48,7 +49,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, fps: 0, frames: 0 };
-let city, graph, sim, buses, people, stopsById, lineDefs, lines = [], cams;
+let city, graph, sim, buses, people, stopsById, lineDefs, lines = [], cams, fleet;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -65,14 +66,27 @@ async function init() {
   buses = new BusLayer(scene, assets.bus);
   people = new PeopleLayer(scene, assets.people, graph);
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
-  sim = new Sim(city.stops);
+  // הצי והכסף נשמרים יחד עם שעת המשחק (busgame...save.v2); הקווים — במפתח שלהם כמו קודם
+  const save = loadSave();
+  const t0 = save?.time ?? 6.5 * 3600;
+  fleet = new Fleet(save, t0);
+  sim = new Sim(city.stops, fleet, t0);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast });
   buildCamButtons();
   lineDefs = loadLines();
   for (const d of lineDefs) addLine(d, false);
-  bindUI(); renderLines();
-  Object.assign(G, { city, graph, sim, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm });
+  // מעבר מהגרסה שבלי כסף: מי שכבר בנה קווים מקבל שני אוטובוסים עירוניים לכל קו, כדי שהקווים ימשיכו לנסוע
+  if (!save && lines.length) {
+    for (const L of lines) for (let i = 0; i < 2; i++) fleet.add('city', sim.time, L.id);
+    fleet.save(sim.time);
+    setTimeout(() => toast('חדש: כסף וצי רכבים. קיבלתם 2 אוטובוסים עירוניים לכל קו קיים'), 600);
+  }
+  bindUI(); renderLines(); renderFleet(); renderMoney();
+  Object.assign(G, { city, graph, sim, people, fleet, buses, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm,
+    buy: type => buyVehicle(type), assign: (vid, lineId) => assignVehicle(vid, lineId), sell: vid => sellVehicle(vid), save: () => fleet.save(sim.time),
+    route: stopIds => { const r = computeRoute(graph, stopIds.map(id => stopsById.get(id))); return r.error !== undefined ? null : { length: r.poly.length, narrowM: r.narrowM }; },
+    makeLine: (stopIds, headway = 10, number) => makeLine(stopIds.map(id => stopsById.get(id)), headway, number), showTab, selectBus });
   $('#loading').classList.add('gone');
   G.ready = true;
 }
@@ -156,8 +170,24 @@ canvas.addEventListener('pointerup', e => {
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
   if (moved > 8 || dt > 600) return;
   const s = pickStop(e.clientX, e.clientY);
-  if (s) tapStop(s);
+  if (s) return tapStop(s);
+  if (!planning) { const b = pickBusAt(e.clientX, e.clientY); if (b) selectBus(b); }
 });
+// הקשה על אוטובוס: מעקב אחריו, ופס קטן עם הנוסעים שבתוכו
+const ray = new THREE.Raycaster(); ray.camera = camera;
+function pickBusAt(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1), camera);
+  for (const hit of ray.intersectObject(buses.group, true)) {
+    for (let o = hit.object; o; o = o.parent) if (o.userData.bus) return o.userData.bus;
+  }
+  return null;
+}
+function selectBus(b) {
+  if (!b) return;
+  cams.modes.follow.bus = b;
+  if (cams.current === 'follow') cams.modes.follow.enter(); else cams.set('follow');
+}
 function tapStop(s) {
   if (!s) return;
   if (planning) return planAdd(s);
@@ -232,10 +262,22 @@ function saveLineFromForm() {
     headway: +$('#fHead').value || 10, stopIds: planning.stops.map(s => s.id),
   };
   cancelPlanning();
+  return createLine(def);
+}
+function createLine(def) {
   lineDefs.push(def); saveLines(lineDefs);
   const L = addLine(def, true);
-  selectedLine = L; renderLines(); showTab('lines'); openPanel();
-  toast(`קו ${def.number} יצא לדרך — אוטובוס כל ${def.headway} דקות`);
+  if (!L) return null;
+  selectedLine = L; renderLines(); renderFleet(); showTab('lines'); openPanel();
+  toast(`קו ${def.number} נשמר. כדי שייצאו אוטובוסים — הוסיפו לו רכבים מהמוסך (צריך ${vehiclesNeeded(L)} לתדירות הזו)`);
+  return L;
+}
+// קו בלי המפה (לבדיקות): רשימת תחנות ותדירות
+function makeLine(stops, headway, number) {
+  const used = new Set(lineDefs.map(d => d.number));
+  let num = 1; while (used.has(String(num))) num++;
+  return createLine({ id: 'L' + Date.now().toString(36) + lineDefs.length, number: String(number || num), name: `${stops[0].name} — ${stops[stops.length - 1].name}`.slice(0, 40),
+    color: COLORS[lineDefs.length % COLORS.length], headway, stopIds: stops.map(s => s.id) });
 }
 
 function addLine(def, fresh) {
@@ -252,7 +294,8 @@ function removeLine(L) {
   lineDefs = lineDefs.filter(d => d.id !== L.id); saveLines(lineDefs);
   L.buses = [];
   if (selectedLine === L) selectedLine = null;
-  renderLines();
+  fleet.save(sim.time);
+  renderLines(); renderFleet();
 }
 
 function pickBus(after) {
@@ -284,6 +327,10 @@ function bindUI() {
     if (e.key === 'Escape') cancelPlanning();
   });
   if (params.has('fps')) $('#fps').hidden = false;
+  $('#cash').onclick = () => { showTab('money'); openPanel(); };
+  // שמירה כשיוצאים מהדף (בטלפון — גם כשעוברים לאפליקציה אחרת)
+  addEventListener('pagehide', () => fleet.save(sim.time));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) fleet.save(sim.time); });
 }
 function setSpeed(s) {
   if (s) G.lastSpeed = s;
@@ -294,6 +341,8 @@ function setSpeed(s) {
 function showTab(t) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === t));
+  if (t === 'money') renderMoney();
+  if (t === 'fleet') updateFleet();
 }
 function openPanel() { $('#panel').classList.remove('min'); }
 function buildCamButtons() {
@@ -312,6 +361,13 @@ function buildCamButtons() {
 }
 
 const fmtMin = s => s < 60 ? `${Math.round(s)} שנ'` : `${(s / 60).toFixed(1)} דק'`;
+const M = n => `<bdi dir="ltr" class="m${n < 0 ? ' neg' : ''}">${money(n)}</bdi>`;
+const pct = x => Math.round(x * 100) + '%';
+const HEADWAYS = [5, 10, 15, 20, 30, 60];
+const hwText = h => h === 60 ? 'כל שעה' : `כל ${h} דק'`;
+const narrowLine = L => (L.narrowM || 0) > NARROW_LIMIT;
+
+// ---------- קווים
 function renderLines() {
   const box = $('#lineList'); box.innerHTML = '';
   $('#emptyLines').hidden = lines.length > 0;
@@ -319,45 +375,196 @@ function renderLines() {
     const c = document.createElement('div'); c.className = 'lcard' + (L === selectedLine ? ' sel' : ''); c.dataset.line = L.id;
     c.innerHTML = `<div class="lhead"><span class="num" style="background:${L.color}">${esc(L.def.number)}</span>
       <div style="flex:1;min-width:0"><div class="lname">${esc(L.def.name || 'קו ' + L.def.number)}</div>
-      <div class="lmeta">${L.stops.length} תחנות · ${(L.poly.length / 1000).toFixed(1)} ק"מ · כל ${L.def.headway} דק'</div></div></div>
+      <div class="lmeta">${L.stops.length} תחנות · ${(L.poly.length / 1000).toFixed(1)} ק"מ${narrowLine(L) ? ' · <span class="tag">רחובות צרים</span>' : ''}</div></div></div>
+      <div class="lveh"><select data-a="hw" aria-label="תדירות">${HEADWAYS.map(h => `<option value="${h}"${h === L.def.headway ? ' selected' : ''}>${hwText(h)}</option>`).join('')}</select>
+        <span data-k="veh"></span><button data-a="add" class="small">+ רכב</button></div>
+      <div class="warn" data-k="warn" hidden></div>
       <div class="stats">
         <div class="stat"><b data-k="board">0</b><span>עולים</span></div>
         <div class="stat"><b data-k="alight">0</b><span>יורדים</span></div>
+        <div class="stat"><b data-k="perHour">0</b><span>נוסעים בשעה האחרונה</span></div>
+        <div class="stat"><b data-k="full">0</b><span>עברו מלאים</span></div>
+        <div class="stat"><b data-k="load">—</b><span>תפוסה ממוצעת</span></div>
         <div class="stat"><b data-k="onboard">0</b><span>באוטובוסים כרגע</span></div>
         <div class="stat"><b data-k="waiting">0</b><span>ממתינים בתחנות</span></div>
         <div class="stat"><b data-k="wait">—</b><span>המתנה ממוצעת</span></div>
         <div class="stat"><b data-k="buses">0</b><span>אוטובוסים בדרך</span></div>
       </div>
       <div class="lbtns"><button data-a="follow">מעקב</button><button data-a="vis">${L.visible ? 'הסתרה' : 'הצגה'}</button><button data-a="del" class="del">מחיקה</button></div>`;
+    c.querySelector('[data-a="hw"]').onchange = e => {
+      L.def.headway = +e.target.value; saveLines(lineDefs);
+      L.nextDispatch = Math.min(L.nextDispatch, sim.time + L.def.headway * 60);
+      updateStats();
+    };
     c.onclick = e => {
       const a = e.target.dataset?.a;
+      if (a === 'hw') return;
       selectedLine = L;
-      if (a === 'follow') { cams.modes.follow.bus = pickBus(); cams.current === 'follow' ? cams.modes.follow.enter() : cams.set('follow'); }
+      if (a === 'follow') { const b = pickBus(); if (b) selectBus(b); else toast('אין אוטובוס של הקו בדרך כרגע'); }
       else if (a === 'vis') { L.visible = !L.visible; lineGroups.get(L.id).visible = L.visible; }
-      else if (a === 'del') { if (confirm(`למחוק את קו ${L.def.number}?`)) return removeLine(L); }
+      else if (a === 'del') { if (confirm(`למחוק את קו ${L.def.number}? הרכבים שלו יחזרו למוסך`)) return removeLine(L); }
+      else if (a === 'add') addVehicleTo(L);
       renderLines();
     };
     box.appendChild(c);
   }
   updateStats();
 }
+// "+ רכב": רכב פנוי מהמוסך שעוד לא שויך לקו; מעדיפים עירוני, ומפרקי רק אם הקו מתאים לו
+function addVehicleTo(L) {
+  const free = fleet.vehicles.filter(v => !v.lineId && canUse(v.type, L));
+  const pref = ['city', 'electric', 'artic', 'mini', 'coach'];
+  free.sort((a, b) => pref.indexOf(a.type) - pref.indexOf(b.type) || a.num - b.num);
+  if (!free.length) {
+    const blocked = fleet.vehicles.some(v => !v.lineId);
+    toast(blocked ? `ברחובות הצרים של קו ${L.def.number} מפרקי לא עובר. קנו רכב אחר בלשונית "צי"` : 'אין רכב פנוי במוסך — קנו רכב בלשונית "צי"');
+    return;
+  }
+  assignVehicle(free[0].id, L.id);
+}
 function updateStats() {
   for (const L of lines) {
     const c = document.querySelector(`.lcard[data-line="${L.id}"]`); if (!c) continue;
-    const set = (k, v) => { const e = c.querySelector(`[data-k="${k}"]`); if (e && e.textContent !== String(v)) e.textContent = v; };
+    const set = (k, v) => { const e = c.querySelector(`[data-k="${k}"]`); if (e && e.innerHTML !== String(v)) e.innerHTML = v; };
     set('board', L.stats.board); set('alight', L.stats.alight); set('onboard', L.onboard); set('waiting', L.waiting);
+    set('perHour', sim.perHour(L)); set('full', L.stats.passedFull);
+    set('load', L.stats.loadT > 60 ? pct(L.avgLoad) : '—');
     set('wait', L.stats.waitN ? fmtMin(L.avgWait) : '—');
     set('buses', L.buses.filter(b => b.state !== 'done').length);
+    const have = fleet.ofLine(L.id).length, need = vehiclesNeeded(L);
+    set('veh', `${have} ${have === 1 ? 'רכב' : 'רכבים'} · צריך ${need}`);
+    const w = c.querySelector('[data-k="warn"]');
+    const msg = !have ? 'אין לקו רכבים, ולכן לא יוצאים אוטובוסים. לחצו "+ רכב"'
+      : have < need ? `בתדירות הזו צריך ${need} רכבים, ויש ${have}. האוטובוסים ייצאו באיחור`
+        : L.short ? 'מחכה לרכב פנוי שיחזור למוסך' : '';
+    if (w.textContent !== msg) { w.textContent = msg; w.hidden = !msg; }
   }
   if (selectedStop && $('[data-pane="stop"]').classList.contains('on')) renderStop();
+  if ($('[data-pane="money"]').classList.contains('on')) renderMoney();
+  if ($('[data-pane="fleet"]').classList.contains('on')) updateFleet();
+  updateTop(); updateBusChip();
 }
 function renderStop() {
   const s = selectedStop; if (!s) return;
   const sm = sim.stopSummary(s.id);
   const rows = sm.per.map(x => `<tr><td><span class="num" style="background:${x.line.color};display:inline-grid;min-width:30px;height:22px;font-size:13px">${esc(x.line.def.number)}</span> ממתינים לקו</td><td>${x.waiting}</td></tr>`).join('');
-  $('#stopPane').innerHTML = `<div class="scard"><h3>${esc(s.name)}</h3><div class="code">תחנה ${esc(s.code)} · ביקוש ${Math.round(s.w * 100)}%</div>
-    <table><tr><td>ממתינים עכשיו</td><td>${sm.waiting}</td></tr><tr><td>עלו כאן</td><td>${sm.board}</td></tr><tr><td>ירדו כאן</td><td>${sm.alight}</td></tr>${rows}</table>
+  $('#stopPane').innerHTML = `<div class="scard"><h3>${esc(s.name)}</h3><div class="code">תחנה ${esc(s.code)} · ביקוש ${Math.round(s.w * 100)}%${graph.narrow(s.e) ? ' · רחוב צר' : ''}</div>
+    <table><tr><td>ממתינים עכשיו</td><td>${sm.waiting}</td></tr><tr><td>עלו כאן</td><td>${sm.board}</td></tr><tr><td>ירדו כאן</td><td>${sm.alight}</td></tr>
+    <tr><td>נשארו בתחנה כי האוטובוס היה מלא</td><td>${sm.passedFull}</td></tr>${rows}</table>
     ${sm.per.length ? '' : '<p class="hint">אף קו לא עוצר כאן עדיין.</p>'}</div>`;
+}
+
+// ---------- פס עליון: כסף ונוסעים היום
+function updateTop() {
+  const m = $('#money'), t = money(fleet.money);
+  if (m.textContent !== t) { m.textContent = t; m.classList.toggle('neg', fleet.money < 0); }
+  const p = `${fleet.today.pax.toLocaleString('en-US')} נוסעים היום`;
+  if ($('#paxToday').textContent !== p) $('#paxToday').textContent = p;
+}
+
+// ---------- צי
+const ageText = d => d === 0 ? 'חדש' : d === 1 ? 'בן יום' : `בן ${d} ימים`;
+function buyVehicle(type) {
+  const r = fleet.buy(type, sim.time); toast(r.msg);
+  if (r.ok) { fleet.save(sim.time); renderFleet(); updateStats(); }
+  return r;
+}
+function sellVehicle(id) {
+  const r = fleet.sell(id); toast(r.msg);
+  if (r.ok) { fleet.save(sim.time); renderFleet(); updateStats(); }
+  return r;
+}
+function assignVehicle(id, lineId) {
+  const L = lineId ? lines.find(x => x.id === lineId) : null;
+  if (lineId && !L) return { ok: false, msg: 'אין קו כזה' };
+  const r = fleet.assign(id, L); toast(r.msg);
+  if (r.ok) fleet.save(sim.time);
+  renderFleet(); updateStats();
+  return r;
+}
+function renderFleet() {
+  const shop = $('#shop'); shop.innerHTML = '';
+  for (const k of TYPE_ORDER) {
+    const T = TYPES[k];
+    const d = document.createElement('div'); d.className = 'shopcard'; d.dataset.type = k;
+    d.innerHTML = `<div class="sc-top"><b>${T.name}</b><span class="cap">${T.cap} ${k === 'coach' ? 'מושבים' : 'מקומות'}</span></div>
+      <div class="sc-note">${T.note}</div>
+      <div class="sc-tags">${T.access ? '<span class="tag ok">נגיש</span>' : '<span class="tag no">לא נגיש</span>'}${T.narrow ? '' : '<span class="tag no">בלי רחובות צרים</span>'}</div>
+      <div class="sc-cost">נסיעה <bdi dir="ltr" class="m">₪${T.km}</bdi> לק"מ<br>תחזוקה ${M(T.maint)} ליום</div>
+      <button class="primary small" data-buy="${k}">קנייה ${M(T.price)}</button>`;
+    d.querySelector('button').onclick = () => buyVehicle(k);
+    shop.appendChild(d);
+  }
+  const list = $('#vehList'); list.innerHTML = '';
+  $('#vehCount').textContent = fleet.vehicles.length;
+  $('#noVeh').hidden = fleet.vehicles.length > 0;
+  for (const v of [...fleet.vehicles].sort((a, b) => a.num - b.num)) {
+    const T = TYPES[v.type];
+    const r = document.createElement('div'); r.className = 'veh'; r.dataset.v = v.id;
+    const opts = ['<option value="">בלי קו (במוסך)</option>'].concat(lines.map(L => {
+      const ok = canUse(v.type, L);
+      return `<option value="${L.id}"${v.lineId === L.id ? ' selected' : ''}${ok ? '' : ' disabled'}>קו ${esc(L.def.number)}${ok ? '' : ' — רחובות צרים'}</option>`;
+    }));
+    r.innerHTML = `<div class="v1"><b class="vnum">${v.num}</b><span class="vtype">${T.name}</span><span class="vst" data-k="st"></span></div>
+      <div class="v2"><select data-a="line" aria-label="קו">${opts.join('')}</select><button class="small del" data-a="sell" title="מכירה ב-${money(T.price * SELL_BACK)}">מכירה</button></div>`;
+    r.querySelector('select').onchange = e => assignVehicle(v.id, e.target.value || null);
+    r.querySelector('[data-a="sell"]').onclick = () => { if (confirm(`למכור את רכב ${v.num} ב-${money(T.price * SELL_BACK)}?`)) sellVehicle(v.id); };
+    list.appendChild(r);
+  }
+  updateFleet();
+}
+function updateFleet() {
+  for (const b of document.querySelectorAll('#shop [data-buy]')) b.disabled = fleet.money < TYPES[b.dataset.buy].price;
+  for (const r of document.querySelectorAll('#vehList .veh')) {
+    const v = fleet.get(r.dataset.v); if (!v) continue;
+    const L = v.lineId && lines.find(x => x.id === v.lineId);
+    const st = fleet.status(v, sim.time);
+    const t = `${st}${st === 'בדרך' && L ? ' בקו ' + L.def.number : ''} · ${ageText(fleet.ageDays(v, sim.time))}`;
+    const e = r.querySelector('[data-k="st"]'); if (e.textContent !== t) e.textContent = t;
+    r.querySelector('[data-a="sell"]').disabled = v.status !== 'depot';
+  }
+}
+
+// ---------- כספים: סיכום היום, לפי קו, וימים קודמים
+function renderMoney() {
+  const d = fleet.today, exp = fleet.expensesToday, net = d.fares + d.sell - exp;
+  const row = (t, n, cls = '') => `<tr class="${cls}"><td>${t}</td><td>${M(n)}</td></tr>`;
+  const perLine = lines.map(L => {
+    const x = d.byLine[L.id] || { fares: 0, pax: 0, cost: 0 };
+    return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${x.pax}</td><td>${M(x.fares)}</td><td>${M(-x.cost)}</td><td>${M(x.fares - x.cost)}</td></tr>`;
+  }).join('');
+  const hist = fleet.history.slice(-7).reverse().map(h => {
+    const e = h.drivers + h.energy + h.maint + h.buy;
+    return `<tr><td>יום ${h.day}</td><td>${h.pax}</td><td>${M(h.fares)}</td><td>${M(-e)}</td><td>${M(h.fares + h.sell - e)}</td></tr>`;
+  }).join('');
+  const html = `<div class="cashbox"><span>בקופה</span>${M(fleet.money)}</div>
+    <h4 class="sub">היום · יום ${d.day}</h4>
+    <table class="money">
+      ${row(`כרטיסים · ${d.pax} נוסעים`, d.fares, 'in')}
+      ${row('נהגים', -d.drivers)}
+      ${row('דלק וחשמל', -d.energy)}
+      ${row('תחזוקה', -d.maint)}
+      ${row('רווח מהנסיעות', d.fares - d.drivers - d.energy - d.maint, 'sum')}
+      ${d.buy ? row('קניית רכבים', -d.buy) : ''}
+      ${d.sell ? row('מכירת רכבים', d.sell, 'in') : ''}
+      ${row('מאזן היום', net, 'total')}
+    </table>
+    ${lines.length ? `<h4 class="sub">לפי קו · היום</h4><table class="money grid"><tr><th>קו</th><th>נוסעים</th><th>הכנסות</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
+    ${hist ? `<h4 class="sub">ימים קודמים</h4><table class="money grid"><tr><th>יום</th><th>נוסעים</th><th>הכנסות</th><th>הוצאות</th><th>מאזן</th></tr>${hist}</table>` : ''}
+    <p class="hint">כרטיס ${M(FARE)} לכל נוסע שעולה. נהג ${M(DRIVER_HOUR)} לשעה כל עוד האוטובוס בשירות, גם בדרך הריקה חזרה למוסך. תחזוקה — על כל רכב בצי, גם אם הוא עומד.${fleet.money < 0 ? ' <b>הקופה במינוס — אי אפשר לקנות רכבים.</b>' : ''}</p>`;
+  const p = $('#moneyPane'); if (p.innerHTML !== html) p.innerHTML = html;
+}
+
+// ---------- האוטובוס שבמעקב: כמה נוסעים בתוכו
+function updateBusChip() {
+  const chip = $('#busChip'), b = cams.current === 'follow' ? cams.modes.follow.bus : null;
+  if (!b || b.state === 'gone' || planning) { chip.hidden = true; return; }
+  const T = TYPES[b.type] || TYPES.city;
+  const html = `<span class="num sm" style="background:${b.line.color}">${esc(b.line.def.number)}</span>
+    <span>${T.name}${b.vehicle ? ' ' + b.vehicle.num : ''}</span>
+    <b>${b.pax.length} מתוך ${b.cap}</b><span class="bar2"><i style="width:${Math.min(100, b.pax.length / b.cap * 100).toFixed(0)}%"></i></span><span>${pct(b.pax.length / b.cap)}</span>`;
+  if (chip.innerHTML !== html) chip.innerHTML = html;
+  chip.hidden = false;
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let toastT;
@@ -365,7 +572,7 @@ function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; 
 
 // ---------- לולאה
 const clock = new THREE.Clock();
-let acc = 0, fcount = 0, statT = 0;
+let acc = 0, fcount = 0, statT = 0, saveT = 0;
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.25);
@@ -384,6 +591,7 @@ function tick(dt) {
     updatePins();
     $('#time').textContent = clockText(sim.time);
     statT += dt; if (statT > 0.4) { statT = 0; updateStats(); }
+    saveT += dt; if (saveT > 5) { saveT = 0; fleet.save(sim.time); }
   }
   // שומרים את המצלמה מעל העיר
   const t = controls.target, H = city ? city.meta.half : [3000, 3000];

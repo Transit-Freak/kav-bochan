@@ -21,6 +21,7 @@
     <span class="dot"></span>
     <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
   </div>
+  <button class="cash" id="cash" title="כספים"><b id="money">₪0</b><small id="paxToday">0 נוסעים היום</small></button>
   <div class="clock" role="group" aria-label="שעון המשחק">
     <button id="play" class="icon" title="עצירה / המשך" aria-label="עצירה / המשך">❚❚</button>
     <span id="time" class="time">06:30</span>
@@ -34,15 +35,25 @@
 <aside class="panel" id="panel">
   <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
   <nav class="tabs">
-    <button data-tab="lines" class="on">הקווים שלי</button>
+    <button data-tab="lines" class="on">קווים</button>
+    <button data-tab="fleet">צי</button>
+    <button data-tab="money">כספים</button>
     <button data-tab="stop">תחנה</button>
-    <button data-tab="help">איך משחקים</button>
+    <button data-tab="help">עזרה</button>
   </nav>
   <section data-pane="lines" class="pane on">
     <button id="newLine" class="primary wide">+ קו חדש</button>
     <div id="lineList"></div>
     <p id="emptyLines" class="hint">אין עדיין קווים. לחצו על "קו חדש", והקישו על תחנות במפה לפי הסדר — המסלול יחושב לאורך הרחובות.</p>
   </section>
+  <section data-pane="fleet" class="pane" id="fleetPane">
+    <h4 class="sub">הרכבים שלי <span id="vehCount" class="pill">0</span></h4>
+    <p id="noVeh" class="hint">עוד אין לכם רכבים. קנו רכב, והוא יחכה במוסך עד שתשייכו אותו לקו.</p>
+    <div id="vehList"></div>
+    <h4 class="sub">קניית רכב</h4>
+    <div id="shop" class="shop"></div>
+  </section>
+  <section data-pane="money" class="pane" id="moneyPane"></section>
   <section data-pane="stop" class="pane" id="stopPane">
     <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
   </section>
@@ -50,7 +61,10 @@
     <ol class="help">
       <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> גרירה בכפתור הימני (או בשתי אצבעות). <b>זום:</b> גלגלת או צביטה.</li>
       <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". תנו מספר, שם ותדירות.</li>
-      <li>האוטובוסים יוצאים מהתחנה הראשונה לפי התדירות, עוצרים בכל תחנה, פותחים דלתות — עולים מקדימה ויורדים מהאמצע.</li>
+      <li><b>רכבים:</b> בלשונית "צי" קונים רכבים ומשייכים אותם לקווים. קו בלי רכבים לא נוסע. בכרטיס של הקו כתוב כמה רכבים צריך לתדירות שבחרתם.</li>
+      <li>האוטובוסים יוצאים מהתחנה הראשונה לפי התדירות, עוצרים בכל תחנה, פותחים דלתות — עולים מקדימה ויורדים מהאמצע. בסוף הקו האוטובוס חוזר ריק למוסך, ורק אז יכול לצאת שוב.</li>
+      <li><b>כסף:</b> כל נוסע משלם כרטיס. משלמים על נהגים, דלק ותחזוקה. בלשונית "כספים" — הסיכום של היום.</li>
+      <li>אוטובוס מלא לא לוקח עוד נוסעים — הם נשארים בתחנה ("עברו מלאים"). מפרקי לוקח הרבה, אבל לא נכנס לרחובות צרים.</li>
       <li>נוסעים מגיעים לתחנות לאורך היום, יותר בשעות השיא וליד אזורים צפופים.</li>
       <li>השעון: ❚❚ עוצר, ×1 עד ×60 מאיצים.</li>
       <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
@@ -94,6 +108,7 @@
 </div>
 
 <footer class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <button id="creditsBtn" class="link">קרדיטים</button><span id="fps" hidden></span></footer>
+<div class="buschip" id="busChip" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>
 

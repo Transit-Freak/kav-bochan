@@ -15,11 +15,12 @@ export function saveLines(defs) {
 
 // מסלול לרשימת תחנות. מחזיר null + אינדקס הקטע שנכשל
 export function computeRoute(graph, stops) {
-  let pts = [], stopIdx = [];
+  let pts = [], stopIdx = [], narrowM = 0;
   for (let k = 0; k < stops.length; k++) {
     if (k === 0) { pts.push(graph.stopPoint(stops[0])); stopIdx.push(0); continue; }
     const seg = graph.route(stops[k - 1], stops[k]);
     if (!seg) return { error: k };
+    narrowM += seg.narrowM || 0;
     for (let i = 1; i < seg.length; i++) {
       const p = seg[i], q = pts[pts.length - 1];
       if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.05) pts.push(p);
@@ -29,7 +30,7 @@ export function computeRoute(graph, stops) {
   const off = offsetRight(pts, LANE_OFFSET);
   const poly = new Polyline(off);
   const stopS = stopIdx.map(i => poly.cum[i]);
-  return { poly, stopS, center: pts };
+  return { poly, stopS, center: pts, narrowM };
 }
 
 export class Line {
@@ -38,9 +39,10 @@ export class Line {
     this.stops = def.stopIds.map(id => stopsById.get(id)).filter(Boolean);
     const r = computeRoute(graph, this.stops);
     if (r.error !== undefined) { this.error = r.error; return; }
-    this.poly = r.poly; this.stopS = r.stopS;
+    this.poly = r.poly; this.stopS = r.stopS; this.narrowM = r.narrowM;
     this.profile = speedProfile(this.poly, this.stopS);
-    this.stats = { board: 0, alight: 0, waitSum: 0, waitN: 0 };
+    this.stats = { board: 0, alight: 0, waitSum: 0, waitN: 0, passedFull: 0, loadSum: 0, loadT: 0, late: 0 };
+    this.boardTimes = [];
     this.queues = this.stops.map(() => []);     // ממתינים לפי תחנה
     this.buses = [];
     this.nextDispatch = null;
@@ -51,6 +53,7 @@ export class Line {
   get waiting() { return this.queues.reduce((a, q) => a + q.length, 0); }
   get onboard() { return this.buses.reduce((a, b) => a + b.pax.length, 0); }
   get avgWait() { return this.stats.waitN ? this.stats.waitSum / this.stats.waitN : 0; }
+  get avgLoad() { return this.stats.loadT ? this.stats.loadSum / this.stats.loadT : 0; }
 }
 
 // ---------- ציור הקו: רצועה צבעונית בנתיב, חצים, ומספרי התחנות

@@ -1,13 +1,15 @@
 // הסימולציה: שעון משחק, יציאת אוטובוסים לפי תדירות, נסיעה, עצירה בתחנות, עולים ויורדים, נוסעים ממתינים.
 // אין כאן ציור — רק מצב ואירועים (events) שהתצוגה קוראת.
+// אוטובוס יוצא רק אם יש לקו רכב פנוי (fleet.js); הקיבולת לפי סוג הרכב; כסף נכנס בכל עלייה ויוצא על נהג, דלק ותחזוקה.
+import { TYPES, FARE, DRIVER_HOUR } from './fleet.js';
 export const BUS = {
-  capacity: 80,
+  capacity: 80,           // ברירת מחדל, אם אין רכב (הקיבולת האמיתית — לפי סוג הרכב)
   doorTime: 1.1,          // פתיחה/סגירה (שנ')
   alightEvery: 0.9,       // יורד אחד כל ... (דלת אמצעית)
   boardEvery: 1.7,        // עולה אחד כל ... (דלת קדמית, תיקוף)
   minDwell: 3,
   doorS: 0,               // s של האוטובוס = מקום הדלת הקדמית
-  gap: 18,                // מרחק מינימלי מהאוטובוס שלפניו באותו קו
+  gap: 6,                 // מרחק מינימלי מהאוטובוס שלפניו באותו קו, מעבר לאורך שלו
 };
 const BASE_PER_HOUR = 70;  // נוסעים לשעה בתחנה עם משקל ביקוש 1
 
@@ -20,11 +22,12 @@ export function todFactor(t) {             // שעות שיא בבוקר ואח�
 let PID = 1, BID = 1;
 
 export class Sim {
-  constructor(stops) {
-    this.time = 6.5 * 3600;   // 06:30
+  constructor(stops, fleet, time) {
+    this.time = time ?? 6.5 * 3600;   // 06:30 ביום הראשון
+    this.fleet = fleet;
     this.speed = 5;
     this.lines = [];
-    this.stopStats = new Map(stops.map(s => [s.id, { board: 0, alight: 0 }]));
+    this.stopStats = new Map(stops.map(s => [s.id, { board: 0, alight: 0, passedFull: 0 }]));
     this.events = [];
     this.rand = mulberry(7);
   }
@@ -34,6 +37,7 @@ export class Sim {
   }
   removeLine(line) {
     this.lines = this.lines.filter(l => l !== line);
+    this.fleet?.dropLine(line.id);
   }
 
   step(realDt) {
@@ -46,6 +50,7 @@ export class Sim {
 
   tick(h) {
     this.time += h;
+    this.fleet?.tick(h, this.time);
     const tf = todFactor(this.time);
     for (const L of this.lines) {
       // נוסעים חדשים
@@ -59,13 +64,27 @@ export class Sim {
           this.events.push({ type: 'spawn', p, stop: L.stops[k] });
         }
       }
-      // יציאה מהמסוף
+      // יציאה מהמסוף — רק אם יש רכב פנוי. אין רכב: היציאה מחכה, ויוצאת ברגע שרכב חוזר למוסך
+      const hw = L.def.headway * 60;
+      L.short = false;
       while (this.time >= L.nextDispatch) {
-        if (L.buses.length < 14) {
-          const b = { id: BID++, line: L, s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1 };
-          L.buses.push(b); this.events.push({ type: 'bus', bus: b });
-        }
-        L.nextDispatch += L.def.headway * 60;
+        const veh = this.fleet ? (L.buses.length < 14 ? this.fleet.take(L.id, this.time) : null) : null;
+        if (this.fleet && !veh) { L.short = true; break; }
+        const T = veh ? TYPES[veh.type] : null;
+        const b = { id: BID++, line: L, vehicle: veh, type: veh?.type || 'city', cap: T ? T.cap : BUS.capacity, len: T ? T.len : 12,
+          s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1 };
+        L.buses.push(b); this.events.push({ type: 'bus', bus: b });
+        const late = this.time - L.nextDispatch;
+        if (late > 60) L.stats.late++;
+        // יציאה באיחור גדול: מתחילים את הלוח מחדש מעכשיו, כדי שלא ייצאו כמה אוטובוסים בבת אחת
+        L.nextDispatch = late > hw / 2 ? this.time + hw : L.nextDispatch + hw;
+      }
+      // תפוסה ממוצעת: כמה מהקיבולת תפוסה, לאורך הזמן שהאוטובוסים בדרך; ונהגים — לכל אוטובוס בשירות
+      for (const b of L.buses) if (b.state === 'drive' || b.state === 'dwell') { L.stats.loadSum += b.pax.length / b.cap * h; L.stats.loadT += h; }
+      if (this.fleet) {
+        let inService = 0;
+        for (const b of L.buses) if (b.state !== 'gone') inService++;
+        if (inService) this.fleet.spend('drivers', inService * h / 3600 * DRIVER_HOUR, L.id);
       }
       // אוטובוסים: מהראשון (הכי רחוק) לאחרון
       L.buses.sort((a, b) => b.s - a.s);
@@ -86,10 +105,15 @@ export class Sim {
     if (b.state === 'drive') {
       const target = L.stopS[b.next];
       let v = Math.max(0.8, L.profile.get(b.s + 1.2));
-      if (ahead && ahead.state !== 'done' && ahead.s - b.s < BUS.gap + 4) v = Math.min(v, Math.max(0, (ahead.s - b.s - BUS.gap) * 0.5));
+      const gap = ahead ? ahead.len + BUS.gap : 0;
+      if (ahead && ahead.state !== 'done' && ahead.s - b.s < gap + 4) v = Math.min(v, Math.max(0, (ahead.s - b.s - gap) * 0.5));
       b.v += Math.max(-2.5 * h, Math.min(1.2 * h, v - b.v));
       b.v = Math.max(0, Math.min(v, b.v + 0.0001));
       b.s += b.v * h;
+      if (b.vehicle && this.fleet) {
+        const km = b.v * h / 1000; b.vehicle.km += km;
+        this.fleet.spend('energy', km * TYPES[b.type].km, L.id);
+      }
       if (b.s >= target - 0.05) {
         b.s = target; b.v = 0; b.state = 'dwell'; b.ph = 'open'; b.t = 0; b.dw = 0;
         b.ta = 0; b.tb = 0;
@@ -114,11 +138,13 @@ export class Sim {
           }
         }
         const q = L.queues[k];
-        if (!last && q.length && b.pax.length < BUS.capacity) {
+        if (!last && q.length && b.pax.length < b.cap) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
             b.tb = 0; const p = q.shift(); p.tb = this.time; b.pax.push(p);
             L.stats.board++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
+            L.boardTimes.push(this.time);
+            this.fleet?.earn(FARE, L.id);
             this.events.push({ type: 'board', bus: b, p, stop });
           }
         }
@@ -128,11 +154,15 @@ export class Sim {
       } else if (b.ph === 'close') {
         b.door = Math.max(0, b.door - h / BUS.doorTime);
         if (b.door <= 0) {
-          if (last) { b.state = 'done'; b.t = 0; this.events.push({ type: 'done', bus: b }); }
+          // אוטובוס מלא נוסע ומשאיר ממתינים בתחנה
+          const left = last ? 0 : L.queues[k].length;
+          if (left && b.pax.length >= b.cap) { L.stats.passedFull += left; ss.passedFull += left; this.events.push({ type: 'full', bus: b, stop, n: left }); }
+          if (last) { b.state = 'done'; b.t = 0; this.fleet?.release(b.vehicle, this.time, L); this.events.push({ type: 'done', bus: b }); }
           else { b.state = 'drive'; b.next++; this.events.push({ type: 'depart', bus: b, stop }); }
         }
       }
     } else if (b.state === 'done') {
+      // הנוסעים שבתוך האוטובוס כבר ירדו; הרכב "נעלם" בהדרגה — בפועל הוא נוסע ריק למוסך (fleet.release)
       b.t += h; b.fade = Math.max(0, 1 - b.t / 4);
       if (b.t > 4) b.state = 'gone';
     }
@@ -145,6 +175,13 @@ export class Sim {
       L.stops.forEach((s, k) => { if (s.id === stopId && k < L.stops.length - 1) per.push({ line: L, waiting: L.queues[k].length }); });
     }
     return { per, ...this.stopStats.get(stopId), waiting: per.reduce((a, x) => a + x.waiting, 0) };
+  }
+  // נוסעים בשעה האחרונה (לפי עליות)
+  perHour(L) {
+    const t0 = this.time - 3600, a = L.boardTimes;
+    let i = 0; while (i < a.length && a[i] < t0) i++;
+    if (i) a.splice(0, i);
+    return a.length;
   }
 }
 

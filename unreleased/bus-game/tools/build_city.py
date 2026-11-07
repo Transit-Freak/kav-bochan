@@ -9,7 +9,8 @@
   buildings: [[h_dm, x0,y0,x1,y1,...], ...]           טבעת חיצונית, בלי חזרה על הנקודה הראשונה
   roads:     [[class, width_dm, x0,y0,...], ...]       רחובות (גם שבילים) — לציור
   areas:     [[kind, x0,y0,...], ...]                  פארקים/דשא/מגרשים
-  graph:     {nodes:[x,y,...], edges:[a,b,a,b,...]}    רשת נסיעה מכוונת לאוטובוס (חד-סטרי נשמר)
+  graph:     {nodes:[x,y,...], edges:[a,b,a,b,...],    רשת נסיעה מכוונת לאוטובוס (חד-סטרי נשמר)
+              cls:"mtn..."}                            סוג הרחוב לכל קשת: m ראשי, t רחוב מאסף, n רחוב צר (מגורים/שירות — אוטובוס מפרקי לא נכנס)
   stops:     [{id, code, name, x, y, e, t, w}]         e = קשת ברשת (אינדקס לזוג ב-edges), t = מיקום על הקשת 0..1,
                                                        w = משקל ביקוש (שטח הבנייה בסביבה, מנורמל)
 """
@@ -76,7 +77,9 @@ DRIVE = {'motorway': 14, 'trunk': 13, 'primary': 12, 'secondary': 10.5, 'tertiar
          'primary_link': 7, 'secondary_link': 7, 'tertiary_link': 6.5, 'road': 6, 'bus_guideway': 6, 'busway': 7}
 FOOT = {'footway': 2.2, 'path': 1.8, 'pedestrian': 5, 'cycleway': 2, 'steps': 2}
 roads = []; areas = []
-nodes = {}; nid = []; edges = set()
+nodes = {}; nid = []; edges = {}
+RANK = {'n': 0, 't': 1, 'm': 2}
+NARROW = {'residential', 'living_street', 'service', 'unclassified', 'road'}
 def node(osm_id, x, y):
     if osm_id not in nodes:
         nodes[osm_id] = len(nid); nid.append((x, y))
@@ -113,12 +116,18 @@ for e in EL:
                 ow = t.get('oneway', 'no'); rev = ow == '-1'
                 one = ow in ('yes', '1', 'true', '-1') or t.get('junction') == 'roundabout' or hw in ('motorway', 'motorway_link')
                 if t.get('oneway:bus') == 'no' or t.get('busway') == 'opposite_lane': one = False
+                # רחוב צר: מגורים/שירות, אלא אם יש בו שני נתיבים לכיוון או רוחב מסומן של 6.5 מ' ומעלה
+                ec = 'm' if cls == 'm' else 't'
+                if hw in NARROW and not ((lanes or 0) >= (2 if one else 3) or (hval(t.get('width')) or 0) >= 6.5): ec = 'n'
+                def add_edge(a, b):
+                    prev = edges.get((a, b))      # אותה קשת משתי דרכים — הרחבה קובעת
+                    if prev is None or RANK[ec] > RANK[prev]: edges[(a, b)] = ec
                 ids = e['nodes']
                 for i in range(len(ids) - 1):
                     a = node(ids[i], *g[i]); b = node(ids[i + 1], *g[i + 1])
                     if a == b: continue
-                    if not one or not rev: edges.add((a, b))
-                    if not one or rev: edges.add((b, a))
+                    if not one or not rev: add_edge(a, b)
+                    if not one or rev: add_edge(b, a)
             continue
         for (k, v), kind in AREA_KIND.items():
             if t.get(k) == v and len(g) >= 4 and g[0] == g[-1]:
@@ -211,7 +220,8 @@ out = {
              'built': datetime.date.today().isoformat(), 'osm_timestamp': raw.get('osm3s', {}).get('timestamp_osm_base'),
              'attribution': '© OpenStreetMap contributors (ODbL); תחנות: GTFS משרד התחבורה'},
     'buildings': buildings, 'roads': roads, 'areas': areas,
-    'graph': {'nodes': [v for x, y in gnodes for v in (dm(x), dm(y))], 'edges': [v for e in gedges for v in e]},
+    'graph': {'nodes': [v for x, y in gnodes for v in (dm(x), dm(y))], 'edges': [v for e in gedges for v in e],
+              'cls': ''.join(edges[(keep[a], keep[b])] for a, b in gedges)},
     'stops': stops,
 }
 p = os.path.join(W, 'city.json')

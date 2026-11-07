@@ -5,6 +5,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { labelSprite } from './lines.js';
 import { BUS } from './sim.js';
+import { TYPES } from './fleet.js';
 
 export async function loadAssets(base) {
   const loader = new GLTFLoader();
@@ -42,7 +43,7 @@ export function busPose(poly, s) {
 // ---------- אוטובוס פשוט (אם bus.glb לא נטען)
 function placeholderBus() {
   const g = new THREE.Group();
-  const white = new THREE.MeshLambertMaterial({ color: 0xf2f4f6 }), dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
+  const white = new THREE.MeshLambertMaterial({ color: 0xf2f4f6, name: 'M_Silver' }), dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.55, 2.85, 12), white); body.position.y = 0.3 + 1.425; g.add(body);
   const win = new THREE.Mesh(new THREE.BoxGeometry(2.58, 1.2, 10.6), dark); win.position.set(0, 1.9, -0.3); g.add(win);
   const wind = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.5, 0.05), dark); wind.position.set(0, 1.8, 6.01); g.add(wind);
@@ -74,25 +75,43 @@ function tuneBusMaterials(root, env) {
   });
 }
 
+// סוגי הרכבים: עדיין דגם אחד. מיניבוס, מפרקי ובין־עירוני — אותו אוטובוס מתוח או מקוצר לאורך (הדלת הקדמית
+// נשארת במקומה), ולכל סוג גוון אחר לפח. זה ממלא מקום עד שיהיו דגמים משלהם
+const FRONT_DOOR_Z = 5.15;
+const TYPE_TINT = { mini: 0xfff0c2, electric: 0xb9f0c6, coach: 0xb7cdf2, artic: 0xf5d9d9 };
+const TYPE_LABEL = { mini: 'מיניבוס', artic: 'מפרקי', electric: 'חשמלי', coach: 'בין־עירוני' };
+
 export class BusLayer {
   constructor(scene, asset) {
     this.scene = scene; this.asset = asset; this.map = new Map();
     this.group = new THREE.Group(); this.group.name = 'buses'; scene.add(this.group);
     this.isPlaceholder = !asset;
+    this.tints = new Map();
+  }
+  // חומר הפח בגוון של הסוג (משותף לכל הרכבים מאותו סוג)
+  tinted(m, type) {
+    const key = m.uuid + type;
+    let t = this.tints.get(key);
+    if (!t) { t = m.clone(); t.color.multiply(new THREE.Color(TYPE_TINT[type])); this.tints.set(key, t); }
+    return t;
   }
   make(bus) {
-    let obj, mixer = null, action = null;
+    let inner, mixer = null, action = null;
     if (this.asset) {
       if (!this.tuned) { tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
-      obj = this.asset.scene.clone(true);
+      inner = this.asset.scene.clone(true);
       const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
-      if (clip) { mixer = new THREE.AnimationMixer(obj); action = mixer.clipAction(clip); action.play(); action.paused = true; }
-    } else obj = placeholderBus();
+      if (clip) { mixer = new THREE.AnimationMixer(inner); action = mixer.clipAction(clip); action.play(); action.paused = true; }
+    } else inner = placeholderBus();
+    const type = TYPES[bus.type] ? bus.type : 'city', k = TYPES[type].len / 12;
+    const obj = new THREE.Group(); obj.add(inner);
+    if (Math.abs(k - 1) > 0.01) { inner.scale.z = k; inner.position.z = FRONT_DOOR_Z * (1 - k); }
+    if (TYPE_TINT[type]) inner.traverse(o => { if (o.isMesh && o.material?.name === 'M_Silver') o.material = this.tinted(o.material, type); });
     const doors = obj.children.length ? [] : [];
     obj.traverse(o => { if (/^Door_/.test(o.name)) doors.push({ o, z0: o.position.z, x0: o.position.x, k: /0$/.test(o.name) ? 1 : -1 }); });
     const anchors = {};
     obj.traverse(o => { if (o.name === 'Anchor_DoorFront') anchors.front = o; if (o.name === 'Anchor_DoorMid') anchors.mid = o; });
-    const label = labelSprite('קו ' + bus.line.def.number, bus.line.color, 1.05);
+    const label = labelSprite('קו ' + bus.line.def.number + (TYPE_LABEL[type] ? ' · ' + TYPE_LABEL[type] : ''), bus.line.color, 1.05);
     label.position.set(0, 5.3, 0); obj.add(label);
     obj.userData.bus = bus;
     this.group.add(obj);

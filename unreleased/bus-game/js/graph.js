@@ -3,14 +3,16 @@ export class RoadGraph {
   constructor(city) {
     this.nodes = city.nodes;              // [x,y,...]
     this.edges = city.edges;              // [a,b,...]
+    this.cls = city.edgeCls || '';        // סוג הרחוב לכל קשת (n = צר)
     const N = this.nodes.length / 2;
     this.N = N;
     this.out = Array.from({ length: N }, () => []);
     for (let e = 0; e < this.edges.length / 2; e++) {
       const a = this.edges[2 * e], b = this.edges[2 * e + 1];
-      this.out[a].push([b, this.len(a, b)]);
+      this.out[a].push([b, this.len(a, b), e]);
     }
   }
+  narrow(e) { return this.cls[e] === 'n'; }
   xy(i) { return [this.nodes[2 * i], this.nodes[2 * i + 1]]; }
   len(a, b) { const [ax, ay] = this.xy(a), [bx, by] = this.xy(b); return Math.hypot(bx - ax, by - ay); }
   edge(e) { return [this.edges[2 * e], this.edges[2 * e + 1]]; }
@@ -21,8 +23,8 @@ export class RoadGraph {
   }
 
   dijkstra(src, dst) {
-    if (src === dst) return [src];
-    const N = this.N, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
+    if (src === dst) { const p = [src]; p.edges = []; return p; }
+    const N = this.N, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), prevE = new Int32Array(N).fill(-1);
     const heap = new MinHeap();
     dist[src] = 0; heap.push(0, src);
     const [tx, ty] = this.xy(dst);
@@ -30,24 +32,31 @@ export class RoadGraph {
       const [d, v] = heap.pop();
       if (v === dst) break;
       if (d > dist[v] + 1e-9) continue;
-      for (const [w, l] of this.out[v]) {
+      for (const [w, l, e] of this.out[v]) {
         const nd = dist[v] + l;
-        if (nd < dist[w]) { dist[w] = nd; prev[w] = v; heap.push(nd, w); }
+        if (nd < dist[w]) { dist[w] = nd; prev[w] = v; prevE[w] = e; heap.push(nd, w); }
       }
     }
     if (!isFinite(dist[dst])) return null;
-    const path = []; for (let v = dst; v !== -1; v = prev[v]) path.push(v);
-    return path.reverse();
+    const path = [], pe = [];
+    for (let v = dst; v !== -1; v = prev[v]) { path.push(v); if (prevE[v] >= 0) pe.push(prevE[v]); }
+    path.reverse(); path.edges = pe.reverse();
+    return path;
   }
 
-  // מסלול מתחנה לתחנה: מנקודת התחנה קדימה לסוף הקשת, Dijkstra, ומתחילת הקשת של היעד אל נקודת היעד
+  // מסלול מתחנה לתחנה: מנקודת התחנה קדימה לסוף הקשת, Dijkstra, ומתחילת הקשת של היעד אל נקודת היעד.
+  // narrowM: כמה מטרים מהקטע עוברים ברחובות צרים
   route(sA, sB) {
     const pA = this.stopPoint(sA), pB = this.stopPoint(sB);
     const [a1, b1] = this.edge(sA.e), [a2] = this.edge(sB.e);
-    if (sA.e === sB.e && sB.t >= sA.t) return [pA, pB];
+    const elen = e => this.len(...this.edge(e));
+    if (sA.e === sB.e && sB.t >= sA.t) { const r = [pA, pB]; r.narrowM = this.narrow(sA.e) ? elen(sA.e) * (sB.t - sA.t) : 0; return r; }
     const mid = this.dijkstra(b1, a2);
     if (!mid) return null;
-    return [pA, ...mid.map(v => this.xy(v)), pB];
+    const r = [pA, ...mid.map(v => this.xy(v)), pB];
+    r.narrowM = (this.narrow(sA.e) ? elen(sA.e) * (1 - sA.t) : 0) + (this.narrow(sB.e) ? elen(sB.e) * sB.t : 0)
+      + mid.edges.reduce((a, e) => a + (this.narrow(e) ? elen(e) : 0), 0);
+    return r;
   }
 }
 
