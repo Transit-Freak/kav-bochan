@@ -190,6 +190,17 @@ def resolve(title, body):
         api(f"issues/{issue['number']}", 'PATCH', {'state': 'closed', 'state_reason': 'completed'})
 
 
+def prev_failed(run):
+    """Did the previous completed run of the same workflow (before this one) fail too?"""
+    try:
+        runs = api(f"actions/workflows/{run['workflow_id']}/runs?status=completed&per_page=10").get('workflow_runs', [])
+    except Exception:
+        return True
+    older = [r for r in runs if r['id'] != run['id'] and r['run_started_at'] < run['run_started_at']
+             and r.get('conclusion') in ('success', 'failure', 'timed_out')]
+    return bool(older) and older[0]['conclusion'] != 'success'
+
+
 def on_run(run_id):
     run = api(f'actions/runs/{run_id}')
     name = run['name']
@@ -215,6 +226,10 @@ def on_run(run_id):
             lines = clean(job_log(job['id']))
         except Exception as e:
             lines = [f'(היומן לא נקרא: {e})']
+    # פרסום האתר שנתקע ב-GitHub (Timeout בזמן הסנכרון) עובר לבד בפרסום הבא, שמגיע עם השמירה הבאה.
+    # שלמה קיבל על זה מייל כמעט כל יום (07.11) — מתריעים רק אם גם הפרסום הקודם נכשל
+    if name == 'pages-deploy' and any('Timeout reached, aborting' in l for l in lines) and not prev_failed(run):
+        print(f'{name}: pages sync timeout, previous run ok — not reported'); return
     why = explain(lines, timed_out)
     tail = '\n'.join(l for l in lines if l.strip())[-3000:].split('\n')[-25:]
     body = (f"@{OWNER}\n\n"

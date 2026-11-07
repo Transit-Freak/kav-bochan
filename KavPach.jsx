@@ -2129,7 +2129,12 @@ function KavPach() {
   const [linesPre, setLinesPre] = useState(null);
   const [linesPreDone, setLinesPreDone] = useState(false);
   const [linesPreMeta, setLinesPreMeta] = useState(null);   // deps/src של הקובץ המוכן — לבדיקת עדכניות
+  // הנתונים של קו פח והקו המוזהב (עשרות MB) נטענים רק כשנכנסים לאחד מהם — לא בדף הבית.
+  // הפענוח שלהם תקע את הדפדפן לשניות, והעין בדף הבית נתקעה בסיבוב הראשון (שלמה 07.11)
+  const linesPreStarted = useRef(false);
   useEffect(() => {
+    if (appMode === 'choice' || linesPreStarted.current) return;
+    linesPreStarted.current = true;
     (async () => {
       try {
         const r = await fetch('data-lines.json', { cache: 'no-cache' });
@@ -2148,7 +2153,7 @@ function KavPach() {
       } catch (e) { /* אין קובץ מוכן — המסלול הישן */ }
       finally { setLinesPreDone(true); }
     })();
-  }, []);
+  }, [appMode]);
   // הקבצים הנלווים (ארכיון, חפיפות, נסיעות תפעוליות, ~3MB) נטענים אחרי המסך הראשון:
   // הניקוד המוכן בקובץ כבר כולל אותם, והם נחוצים רק להגדרות מותאמות ולפרטים בכרטיסים
   const [depsStart, setDepsStart] = useState(false);

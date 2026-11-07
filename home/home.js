@@ -489,7 +489,18 @@ ${GROUPS.map(g => { const w = g.tools.filter(t => t.wide), n = g.tools.filter(t 
 
 /* ===== התנהגות ===== */
 const RM = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-function fillIcons(root) { root.querySelectorAll('[data-icon]').forEach(el => { if (!el.firstElementChild && ICON[el.dataset.icon]) el.innerHTML = ICON[el.dataset.icon](); }); }
+/* כל סמל נכנס לדף כתמונה (img של SVG) ולא כ-SVG חי: הדפדפן מצייר אותו פעם אחת ושומר, ואז ההגדלה והזוהר של הסמל
+   שהעין מסתכלת עליו לא מציירים מחדש את כל הצללים והשיפועים בכל פריים (זה מה שגרם ללאג בסיבוב הראשון, שלמה 07.11) */
+const DEFS_INNER = DEFS.replace(/^[\s\S]*?<defs>/, '').replace(/<\/defs>[\s\S]*$/, '');
+const ICON_URI = {};
+function iconImg(k) {
+  if (!ICON_URI[k]) {
+    const svg = ICON[k]().replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace(/(<svg[^>]*>)/, '$1<defs>' + DEFS_INNER + '</defs>');
+    ICON_URI[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  return '<img alt="" decoding="async" draggable="false" src="' + ICON_URI[k] + '">';
+}
+function fillIcons(root) { root.querySelectorAll('[data-icon]').forEach(el => { if (!el.firstElementChild && ICON[el.dataset.icon]) el.innerHTML = iconImg(el.dataset.icon); }); }
 function applyVersions(root, V) {
   root.querySelectorAll('[data-ver]').forEach(el => { el.textContent = verOf(V, el.dataset.ver).v; });
   root.querySelectorAll('[data-upd]').forEach(el => { el.textContent = verOf(V, el.dataset.upd).d; });
@@ -540,7 +551,10 @@ function mount(root, opts) {
   let idx = 0, hold = false;
   const step = () => { if (!hold && live()) { lookAtOrb(orbs[idx]); idx = (idx + 1) % orbs.length; } };
   if (!RM()) {
-    beam.style.opacity = 0; setTimeout(step, 500); setInterval(step, 1800); blinkLoop();
+    beam.style.opacity = 0;
+    /* מתחילים להסתכל רק אחרי שהדף נטען (תמונות, גופנים) — כך גם הסיבוב הראשון חלק */
+    const start = () => { setTimeout(step, 300); setInterval(step, 1800); blinkLoop(); };
+    if (document.readyState === 'complete') start(); else W.addEventListener('load', start, { once: true });
     const on = fn => () => { hold = true; fn(); }, off = () => { hold = false; };
     orbs.forEach(o => {
       o.addEventListener('mouseenter', on(() => lookAtOrb(o))); o.addEventListener('focus', on(() => lookAtOrb(o)));
