@@ -9,7 +9,9 @@ import { BUS } from './sim.js';
 export async function loadAssets(base) {
   const loader = new GLTFLoader();
   const get = url => new Promise(res => loader.load(url, g => res(g), undefined, () => res(null)));
-  const [bus, person] = await Promise.all([get(base + 'bus.glb'), get(base + 'person.glb')]);
+  // .glb, ואם אין — אותו דגם כקובץ JSON (.gltf.json), למקומות שלא מגישים קבצי glb
+  const one = async n => (await get(base + n + '.glb')) || get(base + n + '.gltf.json');
+  const [bus, person] = await Promise.all([one('bus'), one('person')]);
   return { bus, person };
 }
 
