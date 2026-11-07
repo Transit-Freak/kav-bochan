@@ -227,6 +227,39 @@ if True:
     for side in ('Left', 'Right'):
         if side + 'Leg' in rig.pose.bones:
             print('DBG knee', side, tuple(round(v, 2) for v in rig.matrix_world @ rig.pose.bones[side + 'Leg'].head))
+# 07.11 (שלמה): "הנעל פונה הצידה" — כף הרגל מסובבת סביב הציר האנכי לכיוון ההליכה (עד ±YAWMAX מעלות סטייה)
+YAWMAX = float(os.environ.get('FOOT_YAWMAX', '12'))
+wdir = math.atan2(fwd.y, fwd.x); yaw_before = []
+for f in range(f0, f1 + 1):
+    SC.frame_set(f)
+    for s_ in ('Left', 'Right'):
+        n = s_ + 'Foot'
+        if n not in rig.pose.bones: continue
+        pb = rig.pose.bones[n]; W = rig.matrix_world
+        v = (W @ pb.tail) - (W @ pb.head)
+        if (v.x ** 2 + v.y ** 2) < 1e-8: continue
+        d = math.degrees(math.atan2(v.y, v.x) - wdir); d = (d + 180) % 360 - 180; yaw_before.append(abs(d))
+        lim = max(-YAWMAX, min(YAWMAX, d))
+        if abs(d - lim) > 0.5:
+            Rw = Matrix.Rotation(math.radians(lim - d), 3, 'Z') @ (W.to_3x3() @ pb.matrix.to_3x3())
+            M = (W.to_3x3().inverted() @ Rw).to_4x4(); M.translation = pb.matrix.translation
+            pb.matrix = M; bpy.context.view_layer.update()
+            pb.keyframe_insert('rotation_quaternion' if pb.rotation_mode == 'QUATERNION' else 'rotation_euler', frame=f)
+if yaw_before: print('DBG foot yaw vs walk: max', round(max(yaw_before), 1), 'avg', round(sum(yaw_before) / len(yaw_before), 1), 'limit', YAWMAX)
+# "הנעל שוקעת ברצפה": הרצפה נקבעה לפי העצמות, והסוליה נמוכה מהן. עכשיו לפי הנקודה הנמוכה של הנעליים עצמן בכל פריים
+shoes = [o for o in bpy.data.objects if o.type == 'MESH' and 'shoe' in o.name.lower()]
+if shoes:
+    dg = bpy.context.evaluated_depsgraph_get(); lows = []
+    for f in range(f0, f1 + 1, 2):
+        SC.frame_set(f); dg = bpy.context.evaluated_depsgraph_get()
+        z = 1e9
+        for o in shoes:
+            e = o.evaluated_get(dg); me = e.to_mesh(); M = e.matrix_world
+            z = min(z, min((M @ v.co).z for v in me.vertices)); e.to_mesh_clear()
+        lows.append(z)
+    lows.sort(); base = lows[len(lows) // 10]
+    rig.location.z -= base; bpy.context.view_layer.update()
+    print('DBG shoe floor', round(base, 3), 'lowest', round(lows[0], 3), 'highest', round(lows[-1], 3))
 src.hide_render = True; src.hide_viewport = True
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('out/anim.blend'))
 
