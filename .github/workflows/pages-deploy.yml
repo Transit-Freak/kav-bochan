@@ -171,3 +171,6 @@ jobs:
           path: .
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # האתר גדול, ו-GitHub לפעמים מסנכרן אותו יותר מ-10 הדקות של ברירת המחדל (07.11) — 30 דקות
+          timeout: 1800000
