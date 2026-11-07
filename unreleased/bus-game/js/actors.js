@@ -11,7 +11,12 @@ export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
   const get = url => new Promise(res => loader.load(url, g => res(g), undefined, () => res(null)));
   // .glb, ואם אין — אותו דגם כקובץ JSON (.gltf.json), למקומות שלא מגישים קבצי glb
-  const one = async n => (await get(base + n + '.glb')) || get(base + n + '.gltf.json');
+  // דגם בתוך קובץ JSON (base64) — מפענחים כאן, בלי כתובות data: שנחסמות בתצוגה הפרטית בטלפון
+  const parse = buf => new Promise(res => loader.parse(buf, base, g => res(g), () => res(null)));
+  const fromJson = async n => { try { const r = await fetch(base + n + '.glb64.json'); if (!r.ok) return null;
+    const b = atob((await r.json()).glb), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+    return await parse(u.buffer); } catch (e) { return null; } };
+  const one = async n => (await get(base + n + '.glb')) || fromJson(n);
   // האנשים: כמה דגמים שונים (assets/people/people.json), ואם אין — האדם היחיד הישן
   const loadPeople = async () => {
     let names = [];
