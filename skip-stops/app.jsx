@@ -596,7 +596,7 @@ function App() {
     <LineHrefCtx.Provider value={lineHref}>
     <div className="wrap">
       <header>
-        <h1>🚌 הקו המדלג</h1>
+        <h1>הקו המדלג</h1>
         <p className="tag">
           קווים עירוניים שעוברים ממש ליד תחנה פעילה, עוצרים בתחנה שלפניה ובתחנה שאחריה — אבל עליה מדלגים.
         </p>

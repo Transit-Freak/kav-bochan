@@ -6447,7 +6447,7 @@ function App() {
       <RecheckNotice />
       <CitySearchStatus state={citySearch} />
       <header>
-        <h1>🕰️ הקו בזמן</h1>
+        <h1><img src="favicon.svg" alt="" width="34" height="34" style={{ width: "1.4em", height: "1.4em", verticalAlign: "-.38em" }} /> הקו בזמן</h1>
         <button className="dmore" aria-label="עוד אפשרויות" aria-haspopup="dialog" onClick={() => setMenu(true)}>⋯</button>
         <p className="tag">היסטוריית מסלולים ותחנות: צילומי אתרי מידע לנוסעים מ־2003 בכיסוי חלקי, נתוני GTFS מ־2012 ותיעוד רציף ממרץ 2017. צילום בארכיון אינו הודעה על שינוי.</p>
         <div className="stats">
