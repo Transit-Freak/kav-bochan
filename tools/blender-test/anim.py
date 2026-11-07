@@ -135,7 +135,9 @@ fl_z = sorted(mins)[len(mins) // 5]
 rig.location.z -= fl_z; bpy.context.view_layer.update()
 print('DBG floor', round(fl_z, 3), 'min', round(min(mins), 3), 'max', round(max(mins), 3))
 # הנעל עלתה גבוה מדי בצעד (שלמה 06.11): IK על השוק, והמטרה היא הקרסול עם גובה מכווץ מעל הגובה שלו בעמידה
-LIFT = float(os.environ.get('LIFT', '0.6'))
+# 07.11: הכיווץ של גובה הצעד (IK) כופף את הברכיים פנימה והרגליים הצטלבו — כבוי. מה שנראה כמו "נעל שעולה גבוה"
+# היה בעצם כף הרגל שנטתה כמעט אנכית למטה, ואת זה מגבילים בנפרד (FOOT_PMIN). LIFT<1 מחזיר את ה-IK
+LIFT = float(os.environ.get('LIFT', '1'))
 iks = []
 # הנעל נראתה מקופלת לאחור (שלמה 06.11): ה-IK משנה את כיוון השוק, וכף הרגל, שהסיבוב שלה יחסי לשוק, מסתובבת איתה.
 # שומרים את הכיוון בעולם של כף הרגל והבוהן מלפני ה-IK, ומחזירים אותו אחרי האפייה
@@ -144,7 +146,7 @@ footR = {}
 for f in range(f0, f1 + 1):
     SC.frame_set(f)
     footR[f] = {n: (rig.matrix_world.to_3x3() @ rig.pose.bones[n].matrix.to_3x3()).copy() for n in FEET}
-for side in ('Left', 'Right'):
+for side in (('Left', 'Right') if LIFT < 0.999 else ()):
     leg, foot = side + 'Leg', side + 'Foot'
     if leg not in rig.pose.bones or foot not in rig.pose.bones: continue
     pos, knee = [], []
@@ -168,10 +170,10 @@ for side in ('Left', 'Right'):
     c = rig.pose.bones[leg].constraints.new('IK'); c.target = tg; c.pole_target = pole; c.chain_count = 2
     c.pole_angle = math.radians(-90); iks.append(leg)
     # כף הרגל שומרת על הכיוון שלה בעולם (אחרת היא מסתובבת עם השוק החדשה)
-if iks:
+if True:
     bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='POSE')
     bpy.ops.pose.select_all(action='SELECT')
-    bpy.ops.nla.bake(frame_start=f0, frame_end=f1, only_selected=True, visual_keying=True, clear_constraints=True, use_current_action=True, bake_types={'POSE'})
+    if iks: bpy.ops.nla.bake(frame_start=f0, frame_end=f1, only_selected=True, visual_keying=True, clear_constraints=True, use_current_action=True, bake_types={'POSE'})
     bpy.ops.object.mode_set(mode='OBJECT')
     W3i = rig.matrix_world.to_3x3().inverted()
     for f in range(f0, f1 + 1):
