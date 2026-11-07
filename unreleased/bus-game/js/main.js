@@ -396,7 +396,7 @@ function tick(dt) {
     G.fps = fcount / acc; fcount = 0; acc = 0;
     // רזולוציה דינמית: במכשיר חלש מורידים רזולוציה כדי שהמשחק יישאר חלק
     if (G.ready && !params.has('fixedres')) {
-      const pr = G.fps < 24 ? Math.max(0.6, pixelRatio * 0.85) : G.fps > 50 ? Math.min(MAX_PR, pixelRatio * 1.1) : pixelRatio;
+      const pr = G.fps < 24 ? Math.max(isTouch ? 1 : 0.6, pixelRatio * 0.85) : G.fps > 50 ? Math.min(MAX_PR, pixelRatio * 1.1) : pixelRatio;
       if (Math.abs(pr - pixelRatio) > 0.01) { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); }
       G.pixelRatio = pixelRatio;
     }

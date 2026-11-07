@@ -5,9 +5,10 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { labelSprite } from './lines.js';
 import { BUS } from './sim.js';
+import { useBitmapTextures } from './texfix.js';
 
 export async function loadAssets(base) {
-  const loader = new GLTFLoader();
+  const loader = useBitmapTextures(new GLTFLoader());
   const get = url => new Promise(res => loader.load(url, g => res(g), undefined, () => res(null)));
   // .glb, ואם אין — אותו דגם כקובץ JSON (.gltf.json), למקומות שלא מגישים קבצי glb
   const one = async n => (await get(base + n + '.glb')) || get(base + n + '.gltf.json');
