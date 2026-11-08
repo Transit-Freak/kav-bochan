@@ -165,7 +165,7 @@ function mergeParts(parts, name) {
   const g = new THREE.Group(); g.name = name;
   const by = new Map();
   for (const [geo, m] of parts) {
-    let gg = geo.index ? geo.toNonIndexed() : geo;
+    const gg = geo.index ? geo.toNonIndexed() : geo;
     for (const k of Object.keys(gg.attributes)) if (!['position', 'normal', 'uv'].includes(k)) gg.deleteAttribute(k);
     if (!gg.attributes.uv) gg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(gg.attributes.position.count * 2), 2));
     (by.get(m) || by.set(m, []).get(m)).push(gg);
@@ -222,7 +222,6 @@ function driverMaterial(m, kind) {
   return out;
 }
 
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 // מסובבים עצם כך שהעצם הבא אחריו (child) יצביע אל נקודה בעולם
 function aim(bone, child, target) {
   bone.updateWorldMatrix(true, true);
@@ -365,7 +364,7 @@ function bake(root) {
   });
   const group = new THREE.Group(); group.name = 'Driver';
   for (const e of byKey.values()) {
-    const geo = e.geos.length > 1 ? mergeGeometries(e.geos.map(g => g.index ? g : g), false) : e.geos[0];
+    const geo = e.geos.length > 1 ? mergeGeometries(e.geos, false) : e.geos[0];
     if (!geo) continue;
     geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, driverMaterial(e.m, e.kind)); mesh.name = 'Driver_' + e.kind; group.add(mesh);
