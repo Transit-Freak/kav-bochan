@@ -1,6 +1,8 @@
 name: bus-game-hoods
-# משחק האוטובוס (unreleased/bus-game): שכונות קריית מלאכי וגבול העיר מ-OpenStreetMap (ובדיקה קצרה של אזורים סטטיסטיים ב-ArcGIS).
-# Overpass חסום מסביבת העבודה, לכן ההורדה רצה כאן והפלט נשמר בענף claude/bus-game (world/hoods_raw.json.gz).
+# משחק האוטובוס (unreleased/bus-game): גבולות השכונות של קריית מלאכי.
+# OSM (Overpass): שמות השכונות (נקודות), גבול העיר, המושבים ← world/hoods_raw.json.gz
+# הלמ"ס (ArcGIS Online): האזורים הסטטיסטיים 2022 ומפקד 2022 ← world/hoods_cbs.json.gz
+# שניהם חסומים מסביבת העבודה, לכן ההורדה רצה כאן והפלט נשמר בענף claude/bus-game. הבנייה: tools/build_demand.py
 on:
   push:
     branches: [claude/bus-game]
@@ -47,48 +49,36 @@ jobs:
                   print(e['type'], e['id'], t.get('place') or t.get('boundary') or t.get('landuse'), t.get('admin_level', ''), t.get('name:he') or t.get('name'), '|', t.get('name:en', ''))
           EOF
           gzip -9 -c hoods.json > unreleased/bus-game/world/hoods_raw.json.gz
-      - name: ArcGIS (CBS neighbourhoods / statistical areas, brief)
-        continue-on-error: true
+      - name: CBS statistical areas 2022 (ArcGIS)
+        # הלמ"ס: גבולות האזורים הסטטיסטיים 2022 (שכבה רשמית של ISRAEL_CBS_GIS ב-ArcGIS Online),
+        # ומפקד 2022 לפי אזור סטטיסטי (אוכלוסייה ושימוש עיקרי). data.gov.il חסום מכאן — ArcGIS לא.
         run: |
           python3 - <<'EOF'
-          import json, re, gzip, urllib.request, urllib.parse
-          def get(u, t=60):
+          import json, gzip, urllib.request, urllib.parse
+          def get(u, t=120):
               r = urllib.request.urlopen(urllib.request.Request(u, headers={'User-Agent': 'kav-bochan-bus-game/1.0'}), timeout=t)
               return json.loads(r.read().decode('utf-8'))
           ENV = '34.70,31.69,34.79,31.77'
-          svcs = []
-          for org in ['https://services2.arcgis.com/xMRYm7cNgdR5RN6F/arcgis/rest/services']:
-              try:
-                  d = get(org + '?f=json')
-                  for s in d.get('services', []):
-                      print('svc', s.get('name'), s.get('type'))
-                      if s.get('type') == 'FeatureServer' and re.search(r'shchun|neigh|stat|shchunot|schun', s.get('name', ''), re.I):
-                          svcs.append(s['url'])
-              except Exception as e: print('list fail', org, e)
-          svcs += ['https://services8.arcgis.com/JcXY3lLZni6BK4El/arcgis/rest/services/statistical_areas_2022/FeatureServer',
-                   'https://services.arcgis.com/b6zSqPB0TQc3mBgU/arcgis/rest/services/' + urllib.parse.quote('מפקד_2022') + '/FeatureServer']
-          out = {}
-          for u in svcs:
-              try:
-                  meta = get(u + '?f=json')
-                  for L in meta.get('layers', [])[:4]:
-                      q = u + '/%d/query?' % L['id'] + urllib.parse.urlencode({'geometry': ENV, 'geometryType': 'esriGeometryEnvelope', 'inSR': 4326,
-                          'spatialRel': 'esriSpatialRelIntersects', 'outFields': '*', 'outSR': 4326, 'f': 'geojson', 'resultRecordCount': 400})
-                      g = get(q, 120)
-                      fs = g.get('features', [])
-                      print('==', u, L['id'], L.get('name'), len(fs), 'features')
-                      for f in fs[:60]:
-                          pr = f.get('properties', {})
-                          print('   ', json.dumps({k: v for k, v in pr.items() if v not in (None, '') and not str(k).lower().startswith('shape')}, ensure_ascii=False)[:400])
-                      if fs: out[u + '/%d' % L['id']] = g
-              except Exception as e: print('fail', u, e)
-          if out:
-              json.dump(out, gzip.open('unreleased/bus-game/world/hoods_arcgis.json.gz', 'wt', encoding='utf-8'), ensure_ascii=False)
+          def query(u, fields, geo):
+              return get(u + '/query?' + urllib.parse.urlencode({'geometry': ENV, 'geometryType': 'esriGeometryEnvelope', 'inSR': 4326,
+                  'spatialRel': 'esriSpatialRelIntersects', 'outFields': fields, 'outSR': 4326, 'returnGeometry': 'true' if geo else 'false',
+                  'f': 'geojson', 'resultRecordCount': 500}))['features']
+          AREAS = 'https://services2.arcgis.com/xMRYm7cNgdR5RN6F/ArcGIS/rest/services/Statistical__Areas_2022/FeatureServer/0'
+          CENSUS = 'https://services.arcgis.com/b6zSqPB0TQc3mBgU/arcgis/rest/services/' + urllib.parse.quote('מפקד_2022') + '/FeatureServer/0'
+          fs = query(AREAS, 'SEMEL_YISHUV,SHEM_YISHUV,STAT_2022,YISHUV_STAT_2022,COD_TIFKUD', True)
+          cen = {f['properties']['YISHUV_STAT_2022']: f['properties'] for f in query(CENSUS, 'YISHUV_STAT_2022,pop_approx,Main_Function_Txt,Stat2022_Unite', False)}
+          for f in fs:
+              c = cen.get(f['properties']['YISHUV_STAT_2022'], {})
+              f['properties'].update({k: c.get(k) for k in ('pop_approx', 'Main_Function_Txt', 'Stat2022_Unite')})
+              print(f['properties'])
+          out = {'type': 'FeatureCollection', 'source': {'areas': AREAS, 'census': CENSUS}, 'features': fs}
+          json.dump(out, gzip.open('unreleased/bus-game/world/hoods_cbs.json.gz', 'wt', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
           EOF
+          ls -la unreleased/bus-game/world
       - name: Save
         run: |
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add unreleased/bus-game/world/hoods_raw.json.gz
-          [ -f unreleased/bus-game/world/hoods_arcgis.json.gz ] && git add unreleased/bus-game/world/hoods_arcgis.json.gz
-          git commit -qm "משחק האוטובוס: שכונות קריית מלאכי מ-OpenStreetMap" || exit 0
+          git add unreleased/bus-game/world/hoods_cbs.json.gz
+          git commit -qm "משחק האוטובוס: שכונות קריית מלאכי (OSM והלמ\"ס)" || exit 0
           git push -q origin HEAD:claude/bus-game || { git fetch -q --deepen 50 origin claude/bus-game && git rebase -q FETCH_HEAD && git push -q origin HEAD:claude/bus-game; }
