@@ -65,7 +65,7 @@ async function init() {
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
-  buses = new BusLayer(scene, assets.bus);
+  buses = new BusLayer(scene, assets.bus, assets.people);
   people = new PeopleLayer(scene, assets.people, graph);
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   sim = new Sim(city.stops);
@@ -183,7 +183,7 @@ function planAdd(s) {
   const r = computeRoute(graph, P);
   if (r.error !== undefined) {
     P.pop(); const e = $('#planErr'); e.hidden = false;
-    e.textContent = 'אין דרך נסיעה לתחנה הזו מהתחנה הקודמת (רחוב חד-סטרי או מחוץ לרשת). נסו תחנה אחרת.';
+    e.textContent = 'אין דרך להגיע לתחנה הזו בלי פרסה באמצע הרחוב — אוטובוס מסתובב רק בכיכר או בצומת גדולה. נסו תחנה בצד השני של הרחוב או תחנה אחרת.';
     return;
   }
   $('#planErr').hidden = true;

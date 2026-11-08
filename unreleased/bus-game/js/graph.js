@@ -5,11 +5,33 @@ export class RoadGraph {
     this.edges = city.edges;              // [a,b,...]
     const N = this.nodes.length / 2;
     this.N = N;
+    this.E = this.edges.length / 2;
     this.out = Array.from({ length: N }, () => []);
-    for (let e = 0; e < this.edges.length / 2; e++) {
+    for (let e = 0; e < this.E; e++) {
       const a = this.edges[2 * e], b = this.edges[2 * e + 1];
-      this.out[a].push([b, this.len(a, b)]);
+      this.out[a].push([b, this.len(a, b), e]);
     }
+    this.uturnAt = this.findTurnarounds(city.roads || []);
+  }
+  // איפה מותר לאוטובוס להסתובב (פרסה): רק בצומת גדולה — 3 רחובות או יותר שאחד מהם ראשי או רחב (9 מ' ומעלה).
+  // בכיכר לא צריך פרסה: הכיכר חד-סטרית, והאוטובוס מקיף אותה. ברחוב רגיל או ברחוב ללא מוצא — אסור
+  findTurnarounds(roads) {
+    const N = this.N, key = (x, y) => Math.round(x * 10) + ',' + Math.round(y * 10), at = new Map();
+    for (let i = 0; i < N; i++) at.set(key(this.nodes[2 * i], this.nodes[2 * i + 1]), i);
+    const wide = new Uint8Array(N);
+    for (const r of roads) {
+      if (r.cls === 'f' || !(r.cls === 'm' || r.w >= 9)) continue;
+      for (const [x, y] of r.pts) { const i = at.get(key(x, y)); if (i !== undefined) wide[i] = 1; }
+    }
+    const nb = Array.from({ length: N }, () => new Set());
+    for (let e = 0; e < this.E; e++) { const a = this.edges[2 * e], b = this.edges[2 * e + 1]; nb[a].add(b); nb[b].add(a); }
+    const ok = new Uint8Array(N);
+    for (let i = 0; i < N; i++) ok[i] = nb[i].size >= 3 && wide[i] ? 1 : 0;
+    // זנב קצרצר של רחוב במפה (פחות מ-20 מ') שתחנה נצמדה אליו — בפועל זה חלק מהצומת, לא רחוב ללא מוצא
+    // (מותר להסתובב שם רק כשהתחנה עצמה על הזנב — ראו route)
+    this.stub = new Uint8Array(N);
+    for (let i = 0; i < N; i++) if (nb[i].size === 1) { const [j] = nb[i]; if (this.len(i, j) < 20) this.stub[i] = 1; }
+    return ok;
   }
   xy(i) { return [this.nodes[2 * i], this.nodes[2 * i + 1]]; }
   len(a, b) { const [ax, ay] = this.xy(a), [bx, by] = this.xy(b); return Math.hypot(bx - ax, by - ay); }
@@ -20,34 +42,34 @@ export class RoadGraph {
     return [ax + (bx - ax) * stop.t, ay + (by - ay) * stop.t];
   }
 
-  dijkstra(src, dst) {
-    if (src === dst) return [src];
-    const N = this.N, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
-    const heap = new MinHeap();
-    dist[src] = 0; heap.push(0, src);
-    const [tx, ty] = this.xy(dst);
-    while (heap.size) {
-      const [d, v] = heap.pop();
-      if (v === dst) break;
-      if (d > dist[v] + 1e-9) continue;
-      for (const [w, l] of this.out[v]) {
-        const nd = dist[v] + l;
-        if (nd < dist[w]) { dist[w] = nd; prev[w] = v; heap.push(nd, w); }
-      }
-    }
-    if (!isFinite(dist[dst])) return null;
-    const path = []; for (let v = dst; v !== -1; v = prev[v]) path.push(v);
-    return path.reverse();
-  }
-
-  // מסלול מתחנה לתחנה: מנקודת התחנה קדימה לסוף הקשת, Dijkstra, ומתחילת הקשת של היעד אל נקודת היעד
+  // Dijkstra על קשתות (לא על צמתים), כדי לדעת מאיפה הגענו: אסור לחזור באותו רחוב (פרסה), חוץ מבצומת גדולה
   route(sA, sB) {
     const pA = this.stopPoint(sA), pB = this.stopPoint(sB);
-    const [a1, b1] = this.edge(sA.e), [a2] = this.edge(sB.e);
     if (sA.e === sB.e && sB.t >= sA.t) return [pA, pB];
-    const mid = this.dijkstra(b1, a2);
-    if (!mid) return null;
-    return [pA, ...mid.map(v => this.xy(v)), pB];
+    const E = this.E, dist = new Float64Array(E).fill(Infinity), prev = new Int32Array(E).fill(-1);
+    const heap = new MinHeap(), [a1, b1] = this.edge(sA.e);
+    const L1 = this.len(a1, b1) * (1 - sA.t);
+    const relax = (from, u, v, d) => {
+      for (const [w, l, e] of this.out[v]) {
+        if (w === u && !this.uturnAt[v] && !(this.stub[v] && (e === sB.e || from === -1))) continue;
+        if (d + l < dist[e]) { dist[e] = d + l; prev[e] = from; heap.push(d + l, e); }
+      }
+    };
+    relax(-1, a1, b1, L1);
+    let found = false;
+    while (heap.size) {
+      const [d, e] = heap.pop();
+      if (d > dist[e] + 1e-9) continue;
+      if (e === sB.e) { found = true; break; }
+      const [u, v] = this.edge(e);
+      relax(e, u, v, d);
+    }
+    if (!found) return null;
+    const chain = []; for (let e = sB.e; e !== -1; e = prev[e]) chain.push(e);
+    chain.reverse();
+    // הצמתים: סוף הקשת של התחנה הראשונה, ואחריו תחילת כל קשת בשרשרת
+    const mid = chain.map(e => this.xy(this.edge(e)[0]));
+    return [pA, ...mid, pB];
   }
 }
 

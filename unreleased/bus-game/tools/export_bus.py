@@ -76,6 +76,12 @@ for n in DROP:
     o = bpy.data.objects.get(n)
     if o: remove(o)
     else: print('EXPORT missing', n)
+# המטף עמד בתוך המושב הראשון שמאחורי הנהג (הראש האדום בלט מהריפוד). מעבירים אותו לתא הנהג, צמוד לקיר
+# ולמחיצה שמאחורי הנהג, ואת השלט שלו — על המחיצה, לכיוון הנוסעים
+FLZ = Z0 + 0.36
+_ext, _s24 = bpy.data.objects.get('SM_Extinguisher'), bpy.data.objects.get('SG_24')
+if _ext: _ext.location = (W / 2 - 0.175, YF + 1.66, FLZ + 0.3)
+if _s24: _s24.location = (W / 2 - 0.24, YF + 1.786, FLZ + 0.56)
 # הקלה: המושבים, הלחצנים והצמיגים עם bevel עדין — Decimate (במשחק רואים אותם מרחוק). הגוף: איחוד משטחים שטוחים בלבד
 DEC = float(os.environ.get('BUS_DECIMATE', '0.25'))
 for o in [o for o in bpy.data.objects if o.type == 'MESH']:

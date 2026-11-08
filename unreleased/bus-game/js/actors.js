@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { labelSprite } from './lines.js';
 import { BUS } from './sim.js';
 import { useBitmapTextures } from './texfix.js';
+import { addCab } from './driver.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -81,15 +82,18 @@ function tuneBusMaterials(root, env) {
 }
 
 export class BusLayer {
-  constructor(scene, asset) {
-    this.scene = scene; this.asset = asset; this.map = new Map();
+  constructor(scene, asset, people) {
+    this.scene = scene; this.asset = asset; this.people = people || []; this.map = new Map();
     this.group = new THREE.Group(); this.group.name = 'buses'; scene.add(this.group);
     this.isPlaceholder = !asset;
   }
   make(bus) {
     let obj, mixer = null, action = null;
     if (this.asset) {
-      if (!this.tuned) { tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
+      if (!this.tuned) {
+        // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
+        try { addCab(this.asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
+        tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
       obj = this.asset.scene.clone(true);
       const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
       if (clip) { mixer = new THREE.AnimationMixer(obj); action = mixer.clipAction(clip); action.play(); action.paused = true; }
@@ -327,14 +331,15 @@ export class PeopleLayer {
         const i = this.seatOf(ev.stop, ev.p.id), [x, y] = this.slot(ev.stop, i);
         this.seats.get(ev.stop.id).delete(ev.p.id);
         const start = new THREE.Vector3(x, 0.12, -y);
-        this.walk(ev.p.id, [start, path.out, path.in], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id));
+        this.walk(ev.p.id, [start, ...path.toIn], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id));
       } else if (ev.type === 'alight') {
         const path = this.doorPath(busLayer, ev.bus, 'mid'); if (!path) continue;
         const f = this.stopFrame(ev.stop), side = (hash(ev.p.id) - 0.5) * 2;
         const dir = side >= 0 ? 1 : -1, far = 14 + Math.abs(side) * 10;
         const curb = new THREE.Vector3(f.px + f.ux * 2.2 + f.tx * dir * 2, 0.12, -(f.py + f.uy * 2.2 + f.ty * dir * 2));
         const away = new THREE.Vector3(f.px + f.ux * 2.6 + f.tx * dir * far, 0.12, -(f.py + f.uy * 2.6 + f.ty * dir * far));
-        this.walk(ev.p.id, [path.in, path.out, curb, away], 'alight', ev.bus);
+        const toOut = path.toIn.slice().reverse();
+        this.walk(ev.p.id, [...toOut, curb, away], 'alight', ev.bus, undefined, toOut.length);
       }
     }
 
@@ -389,22 +394,22 @@ export class PeopleLayer {
       else w.body.position.y = Math.abs(Math.sin(w.d * 6.7)) * 0.05;
       const last = w.seg === w.pts.length - 2;
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
-      if (w.mode === 'alight' && w.counted && w.seg >= 2) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
+      if (w.mode === 'alight' && w.counted && w.seg >= (w.release || 2)) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
       // יורד: נעלם בהדרגה בסוף ההליכה. עולה: נכנס בדלת ונעלם בתוך האוטובוס
       if (w.mode === 'alight') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
       if (last && k >= 1) this.finish(w, i);
     }
   }
 
-  // מסלול הדלת: נקודה מול הדלת על הכביש, ונקודה בפנים (הדלת נמצאת בצד הגוף, ולכן ההולך "נבלע" בה)
+  // מסלול הדלת, מבחוץ פנימה: מול הדלת על המדרכה ← עלייה למדרגה (0.34 מ') ← עלייה לרצפה (0.66 מ') ← פנימה.
+  // הנקודות קרובות זו לזו, כך שכל עלייה היא צעד קצר למעלה ולא שיפוע
   doorPath(busLayer, bus, which) {
     const v = busLayer.map.get(bus.id); if (!v) return null;
     const a = v.anchors[which]; if (!a) return null;
     v.obj.updateMatrixWorld(true);
-    const out = a.getWorldPosition(new THREE.Vector3()).setY(0.12);
-    const inLocal = a.position.clone(); inLocal.x += 1.4;
-    const inn = a.parent.localToWorld(inLocal).setY(0.12);
-    return { out, in: inn };
+    const at = (dx, y) => { const l = a.position.clone(); l.x += dx; return a.parent.localToWorld(l).setY(y); };
+    const pts = [at(0, 0.12), at(0.5, 0.12), at(0.68, 0.34), at(0.92, 0.34), at(1.1, 0.66), at(1.4, 0.66)];
+    return { out: pts[0], in: pts[pts.length - 1], toIn: pts };
   }
   finish(w, i) {
     if (w.bus && w.counted) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
@@ -417,7 +422,7 @@ export class PeopleLayer {
     w.blob.material.opacity = o;
   }
 
-  walk(id, pts, mode, bus, yaw0) {
+  walk(id, pts, mode, bus, yaw0, release) {
     const vi = this.variantOf(id);
     let w = this.pools[vi].pop();
     if (!w) {
@@ -432,7 +437,7 @@ export class PeopleLayer {
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
-    w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus;
+    w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus; w.release = release;
     w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
     w.body.scale.setScalar(this.personScale(id));
     w.obj.rotation.y = yaw0 ?? Math.atan2(w.pts[1].x - w.pts[0].x, w.pts[1].z - w.pts[0].z);
