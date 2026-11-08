@@ -1,7 +1,7 @@
 name: bus-game-assets
 # משחק האוטובוס (unreleased/bus-game): ייצוא האוטובוס והאדם מ-Blender ל-GLB.
 # קוד הבנייה (bus.py, anim.py, screens.py) נלקח מהענף claude/blender-test; קוד הייצוא — מכאן (unreleased/bus-game/tools).
-# רץ רק בענף claude/bus-game, והפלט נשמר בו (unreleased/bus-game/assets).
+# רץ רק בענף claude/bus-game. הפלט (unreleased/bus-game/assets) נשמר בענף נפרד, bus-game-assets — ראו בסוף.
 on:
   push:
     branches: [claude/bus-game]
@@ -72,9 +72,17 @@ jobs:
           done
           (cd $G/assets/people && ls person_*.glb | sort -V | python3 -c "import sys,json;print(json.dumps([l.strip() for l in sys.stdin]))" > people.json && cat people.json)
       - name: Save
+        # הפלט נשמר בענף נפרד, bus-game-assets, שאין לו PR — כדי שכל ייצוא לא ישלח מייל על ה-PR של המשחק.
+        # מעבירים אותו למשחק ביד: git fetch --depth 1 origin bus-game-assets && git checkout FETCH_HEAD -- unreleased/bus-game/assets
         run: |
           ls -la unreleased/bus-game/assets
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add unreleased/bus-game/assets
-          git commit -qm "משחק האוטובוס: ייצוא האנשים (והאוטובוס) מ-Blender" || exit 0
-          for i in 1 2 3; do git pull -q --rebase origin claude/bus-game && git push -q origin HEAD:claude/bus-game && break; sleep 5; done
+          PARENT=$(git ls-remote origin refs/heads/bus-game-assets | cut -f1)
+          if [ -n "$PARENT" ]; then git fetch -q --depth 1 origin bus-game-assets; fi
+          export GIT_INDEX_FILE=$RUNNER_TEMP/assets.index
+          git add -f unreleased/bus-game/assets
+          TREE=$(git write-tree)
+          if [ -n "$PARENT" ] && [ "$(git rev-parse $PARENT^{tree})" = "$TREE" ]; then echo 'no change'; exit 0; fi
+          C=$(git commit-tree $TREE ${PARENT:+-p $PARENT} -m "משחק האוטובוס: ייצוא האנשים והאוטובוס מ-Blender (מ-${GITHUB_SHA::9})")
+          git push -q origin $C:refs/heads/bus-game-assets
+          echo "saved $C"
