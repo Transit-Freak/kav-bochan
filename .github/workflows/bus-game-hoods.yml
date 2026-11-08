@@ -6,11 +6,6 @@ on:
     branches: [claude/bus-game]
     paths: [.github/workflows/bus-game-hoods.yml]
   workflow_dispatch:
-    inputs:
-      arcgis:
-        description: 'כתובת שאילתת ArcGIS (query) לאזורים סטטיסטיים — לא חובה'
-        required: false
-        default: ''
 permissions:
   contents: write
 concurrency:
@@ -52,21 +47,44 @@ jobs:
                   print(e['type'], e['id'], t.get('place') or t.get('boundary') or t.get('landuse'), t.get('admin_level', ''), t.get('name:he') or t.get('name'), '|', t.get('name:en', ''))
           EOF
           gzip -9 -c hoods.json > unreleased/bus-game/world/hoods_raw.json.gz
-      - name: ArcGIS (statistical areas, brief)
+      - name: ArcGIS (CBS neighbourhoods / statistical areas, brief)
         continue-on-error: true
-        env:
-          ARC: ${{ github.event.inputs.arcgis }}
         run: |
-          for q in "statistical%20areas%20israel" "%D7%90%D7%96%D7%95%D7%A8%D7%99%D7%9D%20%D7%A1%D7%98%D7%98%D7%99%D7%A1%D7%98%D7%99%D7%99%D7%9D" "%D7%A9%D7%9B%D7%95%D7%A0%D7%95%D7%AA%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%9E%D7%9C%D7%90%D7%9B%D7%99" "neighborhoods%20israel" "stat%20areas%20cbs"; do
-            echo "== search $q"
-            curl -sS --max-time 40 "https://www.arcgis.com/sharing/rest/search?q=$q&f=json&num=25" | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)
-          for r in d.get('results',[]): print(r.get('type'),'|',r.get('title'),'|',r.get('owner'),'|',r.get('url'),'|',r.get('id'))" || true
-          done
-          if [ -n "$ARC" ]; then
-            curl -sS --max-time 120 "$ARC" -o arc.json && ls -la arc.json && head -c 600 arc.json && gzip -9 -c arc.json > unreleased/bus-game/world/hoods_arcgis.json.gz
-          fi
+          python3 - <<'EOF'
+          import json, re, gzip, urllib.request, urllib.parse
+          def get(u, t=60):
+              r = urllib.request.urlopen(urllib.request.Request(u, headers={'User-Agent': 'kav-bochan-bus-game/1.0'}), timeout=t)
+              return json.loads(r.read().decode('utf-8'))
+          ENV = '34.70,31.69,34.79,31.77'
+          svcs = []
+          for org in ['https://services2.arcgis.com/xMRYm7cNgdR5RN6F/arcgis/rest/services']:
+              try:
+                  d = get(org + '?f=json')
+                  for s in d.get('services', []):
+                      print('svc', s.get('name'), s.get('type'))
+                      if s.get('type') == 'FeatureServer' and re.search(r'shchun|neigh|stat|shchunot|schun', s.get('name', ''), re.I):
+                          svcs.append(s['url'])
+              except Exception as e: print('list fail', org, e)
+          svcs += ['https://services8.arcgis.com/JcXY3lLZni6BK4El/arcgis/rest/services/statistical_areas_2022/FeatureServer',
+                   'https://services.arcgis.com/b6zSqPB0TQc3mBgU/arcgis/rest/services/' + urllib.parse.quote('מפקד_2022') + '/FeatureServer']
+          out = {}
+          for u in svcs:
+              try:
+                  meta = get(u + '?f=json')
+                  for L in meta.get('layers', [])[:4]:
+                      q = u + '/%d/query?' % L['id'] + urllib.parse.urlencode({'geometry': ENV, 'geometryType': 'esriGeometryEnvelope', 'inSR': 4326,
+                          'spatialRel': 'esriSpatialRelIntersects', 'outFields': '*', 'outSR': 4326, 'f': 'geojson', 'resultRecordCount': 400})
+                      g = get(q, 120)
+                      fs = g.get('features', [])
+                      print('==', u, L['id'], L.get('name'), len(fs), 'features')
+                      for f in fs[:60]:
+                          pr = f.get('properties', {})
+                          print('   ', json.dumps({k: v for k, v in pr.items() if v not in (None, '') and not str(k).lower().startswith('shape')}, ensure_ascii=False)[:400])
+                      if fs: out[u + '/%d' % L['id']] = g
+              except Exception as e: print('fail', u, e)
+          if out:
+              json.dump(out, gzip.open('unreleased/bus-game/world/hoods_arcgis.json.gz', 'wt', encoding='utf-8'), ensure_ascii=False)
+          EOF
       - name: Save
         run: |
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
