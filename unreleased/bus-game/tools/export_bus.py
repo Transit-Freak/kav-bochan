@@ -44,6 +44,16 @@ for o in list(bpy.data.objects):
         remove(o)
 for c in list(bpy.data.collections):
     if c.name == 'Cutters': bpy.data.collections.remove(c)
+# תא הנהג נבנה במשחק (js/driver.js: לוח מחוונים, הגה, מושב, נהג יושב) — מוחקים את הקופסאות הפשוטות של bus.py.
+# וגם מוטות שעומדים בתוך תא הנהג (שלושה בצד ‎+X ליד הדלת הקדמית — אחד מהם עבר דרך מושב הנהג),
+# ומוט כפול בצד הדלת, 10 ס"מ מהמוט של מסגרת הדלת — כל אחד עם הבסיס והלחצן שלו
+DROP = ['SM_Dash', 'SM_SteerWheel', 'SM_DriverSeat', 'SM_DriverBack']
+for k, sd in ((0, 1), (1, 1), (2, 1), (0, -1)):
+    DROP += [f'SM_Pole{k}{sd}', f'SM_PoleFoot{k}{sd}', f'SM_Btn{k}{sd}', f'SM_BtnF{k}{sd}']
+for n in DROP:
+    o = bpy.data.objects.get(n)
+    if o: remove(o)
+    else: print('EXPORT missing', n)
 # הקלה: המושבים, הלחצנים והצמיגים עם bevel עדין — Decimate (במשחק רואים אותם מרחוק). הגוף: איחוד משטחים שטוחים בלבד
 DEC = float(os.environ.get('BUS_DECIMATE', '0.25'))
 for o in [o for o in bpy.data.objects if o.type == 'MESH']:
