@@ -40,17 +40,22 @@ export class Line {
     if (r.error !== undefined) { this.error = r.error; return; }
     this.poly = r.poly; this.stopS = r.stopS;
     this.profile = speedProfile(this.poly, this.stopS);
-    this.stats = { board: 0, alight: 0, waitSum: 0, waitN: 0 };
+    this.resetStats();
+    this.returning = [];                        // מתי כל רכב שחוזר ריק למסוף יהיה פנוי
+    this.dispatches = [];                       // זמני היציאות האחרונות (לתדירות בפועל)
+    this.short = false;                         // מחכים עכשיו לרכב פנוי
     this.queues = this.stops.map(() => []);     // ממתינים לפי תחנה
     this.buses = [];
     this.nextDispatch = null;
     this.visible = true;
   }
+  resetStats() { this.stats = { board: 0, alight: 0, waitSum: 0, waitN: 0, left: 0, gaveUp: 0, loadSum: 0, loadT: 0, km: 0, hours: 0, trips: 0 }; }
   get id() { return this.def.id; }
   get color() { return this.def.color; }
   get waiting() { return this.queues.reduce((a, q) => a + q.length, 0); }
   get onboard() { return this.buses.reduce((a, b) => a + b.pax.length, 0); }
   get avgWait() { return this.stats.waitN ? this.stats.waitSum / this.stats.waitN : 0; }
+  get avgLoad() { return this.stats.loadT ? this.stats.loadSum / this.stats.loadT : 0; }
 }
 
 // ---------- ציור הקו: רצועה צבעונית בנתיב, חצים, ומספרי התחנות

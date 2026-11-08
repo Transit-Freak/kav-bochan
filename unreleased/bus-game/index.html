@@ -21,6 +21,7 @@
     <span class="dot"></span>
     <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
   </div>
+  <button id="money" class="money" title="הקופה" aria-label="הקופה">₪2,000,000</button>
   <div class="clock" role="group" aria-label="שעון המשחק">
     <button id="play" class="icon" title="עצירה / המשך" aria-label="עצירה / המשך">❚❚</button>
     <span id="time" class="time">06:30</span>
@@ -35,6 +36,7 @@
   <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
   <nav class="tabs">
     <button data-tab="lines" class="on">הקווים שלי</button>
+    <button data-tab="money">קופה</button>
     <button data-tab="stop">תחנה</button>
     <button data-tab="help">איך משחקים</button>
   </nav>
@@ -43,16 +45,25 @@
     <div id="lineList"></div>
     <p id="emptyLines" class="hint">אין עדיין קווים. לחצו על "קו חדש", והקישו על תחנות במפה לפי הסדר — המסלול יחושב לאורך הרחובות.</p>
   </section>
+  <section data-pane="money" class="pane" id="moneyPane">
+    <div id="moneyBody"></div>
+    <button id="resetGame" class="del wide">התחלה מחדש</button>
+  </section>
   <section data-pane="stop" class="pane" id="stopPane">
     <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
   </section>
   <section data-pane="help" class="pane">
     <ol class="help">
-      <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> גרירה בכפתור הימני (או בשתי אצבעות). <b>זום:</b> גלגלת או צביטה.</li>
-      <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". תנו מספר, שם ותדירות.</li>
-      <li>האוטובוסים יוצאים מהתחנה הראשונה לפי התדירות, עוצרים בכל תחנה, פותחים דלתות — עולים מקדימה ויורדים מהאמצע.</li>
-      <li>נוסעים מגיעים לתחנות לאורך היום, יותר בשעות השיא וליד אזורים צפופים.</li>
-      <li>השעון: ❚❚ עוצר, ×1 עד ×60 מאיצים.</li>
+      <li><b>המטרה:</b> להסיע כמה שיותר אנשים בלי לפשוט רגל. מתחילים עם ₪2,000,000 בקופה.</li>
+      <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". בוחרים מספר, שם, תדירות, סוג רכב וכמה רכבים לקנות.</li>
+      <li><b>כמה רכבים צריך:</b> אוטובוס נוסע עד התחנה האחרונה, חוזר ריק להתחלה ונח קצת — ורק אז יוצא שוב. בטופס כתוב כמה צריך לתדירות שבחרתם. עם פחות רכבים האוטובוסים יוצאים לאט יותר מהמתוכנן, וזה כתוב בכרטיס של הקו.</li>
+      <li><b>סוגי רכבים:</b> מיניבוס (20 מקומות) זול אבל מתמלא מהר. רגיל — 80. מפרקי — 120 ויקר יותר לנסיעה. חשמלי — 80, יקר לקנות וזול לנסוע.</li>
+      <li><b>תדירות מושכת נוסעים:</b> ככל שהאוטובוס בא יותר תכוף (בפועל, לא רק בתכנון) — יותר אנשים בוחרים לנסוע בקו.</li>
+      <li><b>כסף:</b> כל נוסע שעולה משלם ₪6. כל ק"מ עולה דלק ותחזוקה, וכל שעה בדרך עולה שכר נהג. הכל בלשונית "קופה". מכירת רכב מחזירה 60% מהמחיר.</li>
+      <li><b>אוטובוס מלא:</b> מי שלא נכנס נשאר בתחנה ומחכה לבא ("נשארו"). מי שמחכה יותר מחצי שעה מוותר והולך ברגל — והכרטיס שלו הולך איתו ("ויתרו"). אז כדאי רכב גדול יותר, עוד רכבים או תדירות גבוהה יותר.</li>
+      <li>נוסעים מגיעים לתחנות לאורך היום, הכי הרבה בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
+      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות". <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
+      <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> שתי אצבעות או הכפתור הימני. <b>זום:</b> צביטה או גלגלת. השעון: ❚❚ עוצר, ×1 עד ×60 מאיצים.</li>
       <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
     </ol>
   </section>
@@ -70,13 +81,31 @@
 
 <div class="modal" id="lineForm" hidden>
   <form class="card" id="lineFormCard">
-    <h2>פרטי הקו</h2>
-    <label>מספר קו <input id="fNum" maxlength="4" required inputmode="numeric" placeholder="1"></label>
+    <h2 id="fTitle">פרטי הקו</h2>
+    <div class="frow">
+      <label class="fnum">מספר קו <input id="fNum" maxlength="4" required inputmode="numeric" placeholder="1"></label>
+      <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
+    </div>
     <label>שם <input id="fName" maxlength="40" placeholder="למשל: מרכז — שכונת רמז"></label>
-    <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
     <div class="swatches" id="fColors" role="radiogroup" aria-label="צבע"></div>
-    <div class="row"><button type="button" id="fBack">חזרה למפה</button><button type="submit" class="primary">שמירה והפעלה</button></div>
+    <div class="flabel">סוג הרכב</div>
+    <div class="vtypes" id="fTypes" role="radiogroup" aria-label="סוג הרכב"></div>
+    <div class="fcount">
+      <span class="flabel">כמה רכבים</span>
+      <div class="stepper"><button type="button" id="fMinus" aria-label="פחות">−</button><b id="fN">0</b><button type="button" id="fPlus" aria-label="עוד">+</button></div>
+      <span id="fNeed" class="fneed"></span>
+    </div>
+    <div id="fCost" class="fcost"></div>
+    <div class="row"><button type="button" id="fBack">חזרה</button><button type="submit" id="fSave" class="primary">שמירה והפעלה</button></div>
   </form>
+</div>
+
+<div class="modal" id="daySum" hidden>
+  <div class="card">
+    <h2 id="dayTitle">סיכום היום</h2>
+    <div id="dayBody"></div>
+    <div class="row"><button type="button" id="dayClose" class="primary">ממשיכים</button></div>
+  </div>
 </div>
 
 <div class="modal" id="credits" hidden>

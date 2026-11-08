@@ -4,11 +4,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadCity, buildWorld } from './world.js';
-import { RoadGraph } from './graph.js';
+import { RoadGraph, speedProfile } from './graph.js';
 import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { CameraModes } from './cameras.js';
+import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, START_MONEY, typeOf, lineCycle, vehiclesNeeded, fleetChange, money, dayOf } from './fleet.js';
 import { mapTouch } from './touch.js';
 
 const $ = s => document.querySelector(s);
@@ -51,7 +52,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, fps: 0, frames: 0 };
-let city, graph, sim, buses, people, stopsById, lineDefs, lines = [], cams;
+let city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -68,14 +69,28 @@ async function init() {
   buses = new BusLayer(scene, assets.bus, assets.people);
   people = new PeopleLayer(scene, assets.people, graph);
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
-  sim = new Sim(city.stops);
+  // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
+  const saved = Bank.load();
+  const t0 = typeof saved?.time === 'number' && saved.time > 0 ? saved.time : 6.5 * 3600;
+  bank = new Bank(saved, t0);
+  bank.onDay = showDaySummary;
+  sim = new Sim(city.stops, bank, t0);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast });
   buildCamButtons();
   lineDefs = loadLines();
-  for (const d of lineDefs) addLine(d, false);
-  bindUI(); renderLines();
-  Object.assign(G, { city, graph, sim, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm });
+  // קווים שנשמרו לפני שהיה כסף במשחק: מקבלים אוטובוסים רגילים במתנה, כמה שצריך לתדירות שלהם
+  let gift = 0;
+  for (const d of lineDefs) {
+    const L = addLine(d, false);
+    if (L && d.fleet == null) { d.vtype = 'std'; d.fleet = vehiclesNeeded(L); gift += d.fleet; }
+  }
+  if (gift) { saveLines(lineDefs); setTimeout(() => toast(`הקווים שכבר בניתם קיבלו ${gift} אוטובוסים רגילים במתנה`), 600); }
+  bindUI(); renderLines(); renderMoney();
+  setInterval(() => bank.save(sim.time), 4000);
+  addEventListener('pagehide', () => bank.save(sim.time));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES });
   $('#loading').classList.add('gone');
   G.ready = true;
 }
@@ -205,7 +220,7 @@ function updatePlan() {
 function cancelPlanning() {
   if (!planning) return;
   if (planning.group) scene.remove(planning.group);
-  planning = null; $('#plan').hidden = true; $('#lineForm').hidden = true;
+  planning = null; form = null; $('#plan').hidden = true; $('#lineForm').hidden = true;
   document.body.classList.remove('planning');
 }
 function finishPlanning() {
@@ -217,8 +232,64 @@ function finishPlanning() {
   $('#fName').value = `${a} — ${b}`.slice(0, 40);
   $('#fHead').value = '10';
   renderSwatches(planning.color);
+  // קו זמני רק כדי לחשב זמן סיבוב וכמה רכבים צריך
+  const r = computeRoute(graph, planning.stops);
+  const tmp = { poly: r.poly, stops: planning.stops, profile: speedProfile(r.poly, r.stopS), def: { headway: 10 } };
+  const need = vehiclesNeeded(tmp, 10);
+  form = { line: null, tmp, type: 'std', n: Math.max(0, Math.min(need, Math.floor(bank.money / TYPES.std.price))), touched: false };
+  $('#fTitle').textContent = 'פרטי הקו';
+  $('#fSave').textContent = 'שמירה והפעלה';
+  $('#fColors').hidden = false;
+  renderForm();
   $('#lineForm').hidden = false;
   if (!isTouch) $('#fNum').focus();
+}
+// ---------- טופס הקו: סוג רכב, כמה רכבים, ומה זה עולה
+let form = null;
+function formHeadway() { return +$('#fHead').value || 10; }
+function formNeed() { return vehiclesNeeded(form.line || form.tmp, formHeadway()); }
+function formCost() {
+  const d = form.line?.def;
+  return d ? fleetChange(typeOf(d), d.fleet || 0, form.type, form.n) : { buy: form.n * TYPES[form.type].price, sell: 0 };
+}
+function renderForm() {
+  const box = $('#fTypes'); box.innerHTML = '';
+  for (const id of TYPE_ORDER) {
+    const T = TYPES[id];
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.type = id;
+    b.className = 'vtype' + (id === form.type ? ' on' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', id === form.type);
+    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${money(T.price)}</span>`;
+    b.onclick = () => { form.type = id; renderForm(); };
+    box.appendChild(b);
+  }
+  const need = formNeed();
+  if (!form.touched && !form.line) form.n = Math.max(0, Math.min(need, Math.floor(bank.money / TYPES[form.type].price)));
+  $('#fN').textContent = form.n;
+  $('#fMinus').disabled = form.n <= 0;
+  const T = TYPES[form.type];
+  const cyc = Math.round(lineCycle(form.line || form.tmp).total / 60);
+  $('#fNeed').innerHTML = form.n >= need ? `מספיק לכל ${formHeadway()} דק'` : `<span class="bad">צריך ${need} לכל ${formHeadway()} דק'</span>`;
+  const { buy, sell } = formCost(), after = bank.money - buy + sell;
+  const parts = [];
+  if (buy) parts.push(`קנייה <b>${money(buy)}</b>`);
+  if (sell) parts.push(`מכירה <b class="good">+${money(sell)}</b>`);
+  parts.push(`בקופה אחרי: <b class="${after < 0 ? 'bad' : ''}">${money(after)}</b>`);
+  const err = buy > 0 && after < 0 ? `<div class="bad">אין מספיק כסף. הורידו רכבים או בחרו רכב זול יותר.</div>` : '';
+  const zero = form.n === 0 ? `<div class="bad">בלי רכבים הקו לא יפעל.</div>` : '';
+  $('#fCost').innerHTML = `<div>${parts.join(' · ')}</div>
+    <div class="fsub">סיבוב (הלוך, חזרה ריקה והפסקה) בערך ${cyc} דק'. ${T.cap * form.n ? `נסיעה: ₪${T.km} לק"מ ו-₪${T.hour} לשעת נהג.` : ''}</div>${err}${zero}`;
+  $('#fSave').disabled = buy > 0 && after < 0;
+}
+// עריכת קו קיים: תדירות, סוג רכב וכמה רכבים (המסלול נשאר)
+function openEdit(L) {
+  if (planning) return;
+  form = { line: L, type: typeOf(L.def), n: L.def.fleet || 0, touched: true };
+  $('#fNum').value = L.def.number; $('#fName').value = L.def.name || ''; $('#fHead').value = String(L.def.headway);
+  $('#fTitle').textContent = `קו ${L.def.number}: רכבים ותדירות`;
+  $('#fSave').textContent = 'שמירה';
+  $('#fColors').hidden = true;
+  renderForm();
+  $('#lineForm').hidden = false;
 }
 function renderSwatches(cur) {
   const box = $('#fColors'); box.innerHTML = '';
@@ -228,17 +299,42 @@ function renderSwatches(cur) {
     box.appendChild(b);
   }
 }
-function saveLineFromForm() {
+// o (לבדיקות): { vtype, fleet, headway } במקום מה שבטופס
+function saveLineFromForm(o = {}) {
+  if (!form) return;
+  if (o.vtype) form.type = o.vtype;
+  if (o.fleet != null) form.n = o.fleet;
+  if (o.headway) $('#fHead').value = String(o.headway);
+  const { buy, sell } = formCost();
+  if (buy > 0 && bank.money - buy + sell < 0) { toast('אין מספיק כסף'); return; }
+  const number = ($('#fNum').value || '1').trim().slice(0, 4), name = ($('#fName').value || '').trim().slice(0, 40);
+  if (buy) bank.spend('buy', buy);
+  if (sell) bank.refund(sell);
+  if (form.line) {
+    const L = form.line, d = L.def, hw = formHeadway();
+    if (typeOf(d) !== form.type) L.returning = [];      // הרכבים הישנים נמכרו
+    d.number = number; d.name = name; d.vtype = form.type; d.fleet = form.n;
+    if (hw !== d.headway) {
+      d.headway = hw;
+      const last = L.dispatches[L.dispatches.length - 1];
+      L.nextDispatch = last != null ? Math.max(sim.time, Math.min(L.nextDispatch, last + hw * 60)) : sim.time;
+    }
+    form = null; $('#lineForm').hidden = true;
+    saveLines(lineDefs); bank.save(sim.time);
+    renderLines(); renderMoney();
+    toast(`קו ${d.number}: ${d.fleet} × ${TYPES[d.vtype].name}, כל ${d.headway} דק'`);
+    return L;
+  }
   const def = {
-    id: 'L' + Date.now().toString(36), number: ($('#fNum').value || '1').trim().slice(0, 4),
-    name: ($('#fName').value || '').trim().slice(0, 40), color: planning.color,
-    headway: +$('#fHead').value || 10, stopIds: planning.stops.map(s => s.id),
+    id: 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), number, name, color: planning.color,
+    headway: formHeadway(), stopIds: planning.stops.map(s => s.id), vtype: form.type, fleet: form.n,
   };
   cancelPlanning();
-  lineDefs.push(def); saveLines(lineDefs);
+  lineDefs.push(def); saveLines(lineDefs); bank.save(sim.time);
   const L = addLine(def, true);
-  selectedLine = L; renderLines(); showTab('lines'); openPanel();
-  toast(`קו ${def.number} יצא לדרך — אוטובוס כל ${def.headway} דקות`);
+  selectedLine = L; renderLines(); renderMoney(); showTab('lines'); openPanel();
+  toast(def.fleet ? `קו ${def.number} יצא לדרך — ${def.fleet} × ${TYPES[def.vtype].name}, כל ${def.headway} דק'` : `קו ${def.number} נשמר בלי רכבים — הוסיפו רכבים כדי שיפעל`);
+  return L;
 }
 
 function addLine(def, fresh) {
@@ -249,13 +345,15 @@ function addLine(def, fresh) {
   lineGroups.set(def.id, g); scene.add(g);
   return L;
 }
-function removeLine(L) {
+function removeLine(L, refund = true) {
+  const got = refund && L.def.fleet ? Math.round(L.def.fleet * TYPES[typeOf(L.def)].price * SELL_BACK) : 0;
+  if (got) { bank.refund(got); bank.save(sim.time); toast(`קו ${L.def.number} נמחק. ${L.def.fleet} הרכבים שלו נמכרו ב-${money(got)}`); }
   sim.removeLine(L); lines = lines.filter(x => x !== L);
   scene.remove(lineGroups.get(L.id)); lineGroups.delete(L.id);
   lineDefs = lineDefs.filter(d => d.id !== L.id); saveLines(lineDefs);
   L.buses = [];
   if (selectedLine === L) selectedLine = null;
-  renderLines();
+  renderLines(); renderMoney();
 }
 
 function pickBus(after) {
@@ -273,7 +371,13 @@ function bindUI() {
   $('#planUndo').onclick = () => { if (!planning) return; planning.stops.pop(); drawPlan(planning.stops.length ? computeRoute(graph, planning.stops) : null); updatePlan(); };
   $('#planCancel').onclick = cancelPlanning;
   $('#planDone').onclick = finishPlanning;
-  $('#fBack').onclick = () => { $('#lineForm').hidden = true; };
+  $('#fBack').onclick = () => { $('#lineForm').hidden = true; if (form?.line) form = null; };
+  $('#fMinus').onclick = () => { form.n = Math.max(0, form.n - 1); form.touched = true; renderForm(); };
+  $('#fPlus').onclick = () => { form.n = Math.min(40, form.n + 1); form.touched = true; renderForm(); };
+  $('#fHead').onchange = () => { if (form) renderForm(); };
+  $('#money').onclick = () => { showTab('money'); openPanel(); };
+  $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
+  bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm(); };
   $('#play').onclick = () => setSpeed(sim.speed ? 0 : (G.lastSpeed || 5));
   document.querySelectorAll('#speeds button').forEach(b => b.onclick = () => setSpeed(+b.dataset.s));
@@ -295,6 +399,7 @@ function setSpeed(s) {
   document.querySelectorAll('#speeds button').forEach(b => b.classList.toggle('on', +b.dataset.s === s));
 }
 function showTab(t) {
+  if (t === 'money') renderMoney();
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === t));
 }
@@ -315,26 +420,36 @@ function buildCamButtons() {
 }
 
 const fmtMin = s => s < 60 ? `${Math.round(s)} שנ'` : `${(s / 60).toFixed(1)} דק'`;
+const fmtHw = s => s < 90 ? `${Math.round(s)} שנ'` : `${Math.round(s / 60)} דק'`;
+const num = n => Math.round(n).toLocaleString('en-US');
 function renderLines() {
   const box = $('#lineList'); box.innerHTML = '';
   $('#emptyLines').hidden = lines.length > 0;
   for (const L of lines) {
+    const T = TYPES[typeOf(L.def)];
     const c = document.createElement('div'); c.className = 'lcard' + (L === selectedLine ? ' sel' : ''); c.dataset.line = L.id;
     c.innerHTML = `<div class="lhead"><span class="num" style="background:${L.color}">${esc(L.def.number)}</span>
       <div style="flex:1;min-width:0"><div class="lname">${esc(L.def.name || 'קו ' + L.def.number)}</div>
-      <div class="lmeta">${L.stops.length} תחנות · ${(L.poly.length / 1000).toFixed(1)} ק"מ · כל ${L.def.headway} דק'</div></div></div>
+      <div class="lmeta">${L.stops.length} תחנות · ${(L.poly.length / 1000).toFixed(1)} ק"מ</div></div></div>
+      <div class="fleet"><div><b>${L.def.fleet || 0} × ${T.name}</b> <span class="lmeta">${T.cap} מקומות</span></div><div data-k="need" class="lmeta"></div></div>
+      <div class="hw" data-k="hw"></div>
       <div class="stats">
-        <div class="stat"><b data-k="board">0</b><span>עולים</span></div>
-        <div class="stat"><b data-k="alight">0</b><span>יורדים</span></div>
-        <div class="stat"><b data-k="onboard">0</b><span>באוטובוסים כרגע</span></div>
-        <div class="stat"><b data-k="waiting">0</b><span>ממתינים בתחנות</span></div>
+        <div class="stat"><b data-k="board">0</b><span>עלו היום</span></div>
+        <div class="stat"><b data-k="onboard">0</b><span>באוטובוסים</span></div>
+        <div class="stat"><b data-k="waiting">0</b><span>ממתינים</span></div>
+        <div class="stat" data-w="left"><b data-k="left">0</b><span>נשארו (מלא)</span></div>
+        <div class="stat" data-w="gaveUp"><b data-k="gaveUp">0</b><span>ויתרו והלכו</span></div>
         <div class="stat"><b data-k="wait">—</b><span>המתנה ממוצעת</span></div>
-        <div class="stat"><b data-k="buses">0</b><span>אוטובוסים בדרך</span></div>
+        <div class="stat"><b data-k="load">—</b><span>תפוסה ממוצעת</span></div>
+        <div class="stat"><b data-k="trips">0</b><span>נסיעות היום</span></div>
+        <div class="stat"><b data-k="alight">0</b><span>ירדו היום</span></div>
       </div>
-      <div class="lbtns"><button data-a="follow">מעקב</button><button data-a="vis">${L.visible ? 'הסתרה' : 'הצגה'}</button><button data-a="del" class="del">מחיקה</button></div>`;
+      <div class="lmoney" data-k="money"></div>
+      <div class="lbtns"><button data-a="edit" class="primary">רכבים ותדירות</button><button data-a="follow">מעקב</button><button data-a="vis">${L.visible ? 'הסתרה' : 'הצגה'}</button><button data-a="del" class="del">מחיקה</button></div>`;
     c.onclick = e => {
       const a = e.target.dataset?.a;
       selectedLine = L;
+      if (a === 'edit') return openEdit(L);
       if (a === 'follow') { cams.modes.follow.bus = pickBus(); cams.current === 'follow' ? cams.modes.follow.enter() : cams.set('follow'); }
       else if (a === 'vis') { L.visible = !L.visible; lineGroups.get(L.id).visible = L.visible; }
       else if (a === 'del') {
@@ -353,19 +468,108 @@ function renderLines() {
 function updateStats() {
   for (const L of lines) {
     const c = document.querySelector(`.lcard[data-line="${L.id}"]`); if (!c) continue;
-    const set = (k, v) => { const e = c.querySelector(`[data-k="${k}"]`); if (e && e.textContent !== String(v)) e.textContent = v; };
-    set('board', L.stats.board); set('alight', L.stats.alight); set('onboard', L.onboard); set('waiting', L.waiting);
+    const set = (k, v, html) => { const e = c.querySelector(`[data-k="${k}"]`); if (!e) return; if (html) { if (e.innerHTML !== v) e.innerHTML = v; } else if (e.textContent !== String(v)) e.textContent = v; };
+    set('board', num(L.stats.board)); set('onboard', L.onboard); set('waiting', L.waiting); set('left', num(L.stats.left));
+    set('gaveUp', num(L.stats.gaveUp)); set('trips', L.stats.trips); set('alight', num(L.stats.alight));
+    c.querySelector('[data-w="left"]').classList.toggle('warn', L.stats.left > 0);
+    c.querySelector('[data-w="gaveUp"]').classList.toggle('warn', L.stats.gaveUp > 0);
     set('wait', L.stats.waitN ? fmtMin(L.avgWait) : '—');
-    set('buses', L.buses.filter(b => b.state !== 'done').length);
+    set('load', L.stats.loadT > 60 ? Math.round(L.avgLoad * 100) + '%' : '—');
+    const need = vehiclesNeeded(L), n = L.def.fleet || 0, onRoad = L.buses.filter(b => b.state === 'drive' || b.state === 'dwell').length;
+    const free = Math.max(0, n - onRoad - L.returning.length);
+    set('need', `בדרך: ${onRoad} · חוזרים: ${L.returning.length} · במסוף: ${free}${n < need ? ` · <span class="bad">צריך ${need}</span>` : ''}`, true);
+    const hw = L.def.headway, real = sim.realHeadway(L);
+    let t;
+    if (!n) t = `<span class="bad">אין רכבים — הקו לא פועל</span>`;
+    else if (real == null) t = `מתוכנן כל ${hw} דק'`;
+    else {
+      const bad = real > hw * 60 * 1.2;
+      t = `מתוכנן כל ${hw} דק' · <b class="${bad ? 'bad' : 'good'}">בפועל כל ${fmtHw(real)}</b>${L.short ? ' <span class="lmeta">(מחכה לרכב)</span>' : ''}`;
+    }
+    set('hw', t, true);
+    const m = bank.today.byLine[L.id] || { fares: 0, cost: 0 }, prof = m.fares - m.cost;
+    set('money', `היום: הכנסות ${money(m.fares)} · הוצאות ${money(m.cost)} · <b class="${prof < 0 ? 'bad' : 'good'}">${prof < 0 ? 'הפסד' : 'רווח'} ${money(Math.abs(prof))}</b>`, true);
   }
   if (selectedStop && $('[data-pane="stop"]').classList.contains('on')) renderStop();
+  if ($('[data-pane="money"]').classList.contains('on')) renderMoney();
+}
+function updateMoneyChip() {
+  const e = $('#money'), t = money(bank.money);
+  if (e.textContent !== t) e.textContent = t;
+  e.classList.toggle('neg', bank.money < 0);
+}
+function dayRows(d) {
+  const net = d.fares + d.sell - d.buy - d.km - d.drivers;
+  return `<table class="ledger">
+    <tr><td>כרטיסים <span class="lmeta">${num(d.pax)} נוסעים × ₪${FARE}</span></td><td class="good">+${money(d.fares)}</td></tr>
+    <tr><td>דלק, חשמל ותחזוקה</td><td>−${money(d.km)}</td></tr>
+    <tr><td>שכר נהגים</td><td>−${money(d.drivers)}</td></tr>
+    ${d.buy ? `<tr><td>קניית רכבים</td><td>−${money(d.buy)}</td></tr>` : ''}
+    ${d.sell ? `<tr><td>מכירת רכבים</td><td class="good">+${money(d.sell)}</td></tr>` : ''}
+    <tr class="tot"><td>סה"כ</td><td class="${net < 0 ? 'bad' : 'good'}">${net < 0 ? '−' : '+'}${money(Math.abs(net))}</td></tr>
+  </table>`;
+}
+function renderMoney() {
+  if (!bank) return;
+  updateMoneyChip();
+  const d = bank.today;
+  const fleet = {}; for (const L of lines) { const t = typeOf(L.def); fleet[t] = (fleet[t] || 0) + (L.def.fleet || 0); }
+  const fleetTxt = TYPE_ORDER.filter(t => fleet[t]).map(t => `${fleet[t]} × ${TYPES[t].name}`).join(' · ') || 'אין עדיין רכבים';
+  const perLine = lines.map(L => {
+    const m = d.byLine[L.id] || { fares: 0, cost: 0, pax: 0 }, p = m.fares - m.cost;
+    return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${num(m.pax)}</td><td>${money(m.fares)}</td><td>${money(m.cost)}</td><td class="${p < 0 ? 'bad' : 'good'}">${p < 0 ? '−' : ''}${money(Math.abs(p))}</td></tr>`;
+  }).join('');
+  const prev = bank.history[bank.history.length - 1];
+  const html = `<div class="bigmoney ${bank.money < 0 ? 'neg' : ''}"><span>בקופה</span><b>${money(bank.money)}</b>${bank.money < 0 ? '<small>החברה בחובות — אי אפשר לקנות רכבים</small>' : ''}</div>
+    <h4>היום · יום ${d.day}</h4>${dayRows(d)}
+    ${lines.length ? `<h4>לפי קו, היום <span class="lmeta">(בלי קניית רכבים)</span></h4>
+    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>הכנסות</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
+    <h4>הצי</h4><p class="lmeta big">${fleetTxt}</p>
+    <h4>מחירון רכבים</h4>
+    <table class="prices"><tr><th>סוג</th><th>מקומות</th><th>מחיר</th><th>לק"מ</th><th>לשעה</th></tr>
+    ${TYPE_ORDER.map(t => { const T = TYPES[t]; return `<tr><td>${T.name}</td><td>${T.cap}</td><td>${money(T.price)}</td><td>₪${T.km}</td><td>₪${T.hour}</td></tr>`; }).join('')}</table>
+    <p class="hint">כל נוסע משלם ₪${FARE}. מכירת רכב מחזירה ${Math.round(SELL_BACK * 100)}% מהמחיר.</p>
+    ${prev ? `<h4>אתמול · יום ${prev.day}</h4>${dayRows(prev)}` : ''}`;
+  const body = $('#moneyBody');
+  if (body.dataset.html === html) return;
+  body.dataset.html = html; body.innerHTML = html;
+}
+function bindReset() {
+  $('#resetGame').onclick = e => {
+    if (!e.target.classList.contains('sure')) {
+      e.target.classList.add('sure'); e.target.textContent = 'כל הקווים והכסף יימחקו. לחצו שוב';
+      setTimeout(() => { if (e.target.isConnected) { e.target.classList.remove('sure'); e.target.textContent = 'התחלה מחדש'; } }, 4000);
+      return;
+    }
+    resetGame();
+  };
+}
+function resetGame() {
+  for (const L of [...lines]) removeLine(L, false);
+  sim.time = 6.5 * 3600; sim.resetStops();
+  bank.money = START_MONEY; bank.history = []; bank.today = { day: dayOf(sim.time), fares: 0, pax: 0, buy: 0, sell: 0, km: 0, drivers: 0, byLine: {} };
+  bank.save(sim.time); renderMoney(); showTab('lines');
+  const rb = $('#resetGame'); rb.classList.remove('sure'); rb.textContent = 'התחלה מחדש';
+  toast('מתחילים מחדש: ₪2,000,000 בקופה');
+}
+function showDaySummary(d) {
+  bank.save(sim.time);
+  $('#dayTitle').textContent = `סיכום יום ${d.day}`;
+  const gaveUp = lines.reduce((a, L) => a + L.stats.gaveUp, 0);
+  const best = lines.map(L => [L, d.byLine[L.id]]).filter(x => x[1]).sort((a, b) => b[1].pax - a[1].pax)[0];
+  $('#dayBody').innerHTML = `${dayRows(d)}
+    <p class="hint">${best ? `הקו העמוס ביותר: ${esc(best[0].def.number)} עם ${num(best[1].pax)} נוסעים.` : 'לא נסעו נוסעים היום.'}
+    ${gaveUp ? `<span class="bad">${num(gaveUp)} אנשים ויתרו והלכו.</span>` : ''} בקופה עכשיו: <b>${money(bank.money)}</b></p>`;
+  $('#daySum').hidden = false;
 }
 function renderStop() {
   const s = selectedStop; if (!s) return;
   const sm = sim.stopSummary(s.id);
-  const rows = sm.per.map(x => `<tr><td><span class="num" style="background:${x.line.color};display:inline-grid;min-width:30px;height:22px;font-size:13px">${esc(x.line.def.number)}</span> ממתינים לקו</td><td>${x.waiting}</td></tr>`).join('');
+  const rows = sm.per.map(x => `<tr><td><span class="num sm" style="background:${x.line.color}">${esc(x.line.def.number)}</span> ממתינים לקו</td><td>${x.waiting}</td></tr>`).join('');
   $('#stopPane').innerHTML = `<div class="scard"><h3>${esc(s.name)}</h3><div class="code">תחנה ${esc(s.code)} · ביקוש ${Math.round(s.w * 100)}%</div>
-    <table><tr><td>ממתינים עכשיו</td><td>${sm.waiting}</td></tr><tr><td>עלו כאן</td><td>${sm.board}</td></tr><tr><td>ירדו כאן</td><td>${sm.alight}</td></tr>${rows}</table>
+    <table><tr><td>ממתינים עכשיו</td><td>${sm.waiting}</td></tr><tr><td>עלו כאן היום</td><td>${sm.board}</td></tr><tr><td>ירדו כאן היום</td><td>${sm.alight}</td></tr>
+    <tr><td>נשארו בתחנה כי האוטובוס היה מלא</td><td class="${sm.left ? 'bad' : ''}">${sm.left}</td></tr>
+    <tr><td>ויתרו והלכו (חיכו יותר מחצי שעה)</td><td class="${sm.gaveUp ? 'bad' : ''}">${sm.gaveUp}</td></tr>${rows}</table>
     ${sm.per.length ? '' : '<p class="hint">אף קו לא עוצר כאן עדיין.</p>'}</div>`;
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -392,6 +596,7 @@ function tick(dt) {
     cams.update(dt);
     updatePins();
     $('#time').textContent = clockText(sim.time);
+    updateMoneyChip();
     statT += dt; if (statT > 0.4) { statT = 0; updateStats(); }
   }
   touch.update(dt);

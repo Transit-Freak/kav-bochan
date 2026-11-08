@@ -37,7 +37,7 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .cams button.soon{color:var(--faint);border-style:dashed}
 
 /* לוח צד */
-.panel{position:fixed;top:84px;inset-inline-start:10px;bottom:38px;width:340px;display:flex;flex-direction:column;
+.panel{position:fixed;top:84px;inset-inline-start:10px;bottom:38px;width:360px;display:flex;flex-direction:column;
   background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);z-index:9;overflow:hidden}
 .grip{display:none}
 .tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--line)}
@@ -68,6 +68,61 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .scard table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
 .scard td{padding:5px 2px;border-bottom:1px solid var(--line)}
 .scard td:last-child{text-align:left;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* כסף */
+.money{flex:none;font:700 16px/1 "IBM Plex Sans Hebrew",var(--font);font-variant-numeric:tabular-nums;direction:ltr;padding:8px 12px;
+  background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+.money.neg{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.good{color:#047857}
+.bad{color:#b91c1c}
+.fleet{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:14px}
+.hw{font-size:13.5px;margin-top:3px;color:var(--ink2)}
+.stat.warn{background:#fef2f2}
+.stat.warn b{color:#b91c1c}
+.lmoney{font-size:13px;margin-top:8px;color:var(--ink2);line-height:1.5}
+.num.sm{display:inline-grid;min-width:30px;height:22px;font-size:13px;border-radius:7px;vertical-align:middle}
+.bigmoney{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;background:#ecfdf5;border-radius:14px;padding:10px 14px}
+.bigmoney span{color:var(--muted);font-size:14px}
+.bigmoney b{font:800 26px/1.1 "IBM Plex Sans Hebrew",var(--font);font-variant-numeric:tabular-nums;color:#047857;direction:ltr}
+.bigmoney small{width:100%;color:#b91c1c;font-size:13px}
+.bigmoney.neg{background:#fef2f2}
+.bigmoney.neg b{color:#b91c1c}
+#moneyPane h4{margin:16px 2px 6px;font-size:15px}
+#moneyPane .big{font-size:14px;margin:0 2px}
+#moneyPane table,#dayBody table{width:100%;border-collapse:collapse;font-size:14px}
+#moneyPane td,#moneyPane th,#dayBody td{padding:6px 3px;border-bottom:1px solid var(--line);text-align:start}
+#moneyPane th{font-size:12px;color:var(--muted);font-weight:500}
+.ledger td:last-child{text-align:left;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr}
+.ledger tr.tot td{border-bottom:0;font-size:15px}
+.perline td,.prices td{font-variant-numeric:tabular-nums}
+.perline td:not(:first-child),.prices td:not(:first-child){direction:ltr;text-align:right}
+.prices{font-size:13px!important}
+#resetGame{margin-top:18px;color:#b91c1c}
+#resetGame.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
+#dayBody .hint{margin-top:10px}
+
+/* טופס: סוג רכב וכמות */
+.frow{display:flex;gap:10px}
+.frow label{flex:1}
+.frow .fnum{flex:0 0 96px}
+.flabel{font-size:13.5px;color:var(--muted);margin:2px 0 6px}
+.vtypes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.vtype{border-radius:12px;padding:7px 9px;text-align:start;display:flex;flex-direction:column;gap:1px;line-height:1.3}
+.vtype b{font-size:14.5px}
+.vtype span{font-size:12.5px;color:var(--muted)}
+.vtype .vp{color:var(--ink2);font-variant-numeric:tabular-nums}
+.vtype.on{border-color:var(--brand);background:#e0f2fe;box-shadow:0 0 0 1px var(--brand)}
+.fcount{display:flex;align-items:center;gap:10px;margin:12px 0 6px;flex-wrap:wrap}
+.fcount .flabel{margin:0}
+.swatches[hidden]{display:none}
+.stepper{direction:ltr;display:flex;align-items:center;gap:4px;background:#f1f5f9;border-radius:999px;padding:3px}
+.stepper button{width:36px;height:36px;padding:0;font-size:20px;line-height:1;display:grid;place-items:center}
+.stepper b{min-width:30px;text-align:center;font-size:18px;font-variant-numeric:tabular-nums}
+.fneed{font-size:13px;color:var(--muted)}
+.fcost{font-size:13.5px;line-height:1.55;background:#f8fafc;border-radius:12px;padding:8px 10px;margin-bottom:12px}
+.fcost b{font-variant-numeric:tabular-nums}
+.fsub{color:var(--muted);font-size:12.5px}
+.card{max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow:auto}
 
 /* תכנון קו */
 .plan{position:fixed;top:84px;left:50%;transform:translateX(-50%);z-index:11;display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:center;
@@ -124,6 +179,10 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
   .plan{top:auto;bottom:calc(44vh + 14px);width:calc(100vw - 12px);padding:8px 10px;gap:6px}
   body.planning .plan{bottom:calc(max(6px,env(safe-area-inset-bottom)) + 104px)}
   .plan-txt{font-size:14px}
+  .brand{display:none}
+  .money{font-size:15px;padding:8px 10px}
+  .fleet{font-size:13.5px}
+  .vtype{padding:6px 8px}
   .attr{bottom:auto;top:calc(max(6px,env(safe-area-inset-top)) + 96px);font-size:11px}
   .toast{bottom:calc(44vh + 20px)}
 }

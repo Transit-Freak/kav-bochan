@@ -5,6 +5,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { labelSprite } from './lines.js';
 import { BUS } from './sim.js';
+import { TYPES } from './fleet.js';
 import { useBitmapTextures } from './texfix.js';
 import { addCab } from './driver.js';
 
@@ -116,6 +117,14 @@ export class BusLayer {
     this.scene = scene; this.asset = asset; this.people = people || []; this.map = new Map();
     this.group = new THREE.Group(); this.group.name = 'buses'; scene.add(this.group);
     this.isPlaceholder = !asset;
+    this.tints = new Map();
+  }
+  // סוגי הרכבים: עדיין דגם אחד. מיניבוס, מפרקי וחשמלי — גג בצבע אחר ושם הסוג בשלט מעל האוטובוס
+  tinted(m, color) {
+    const key = m.uuid + ':' + color;
+    let t = this.tints.get(key);
+    if (!t) { t = m.clone(); t.color = new THREE.Color(color); this.tints.set(key, t); }
+    return t;
   }
   make(bus) {
     let obj, mixer = null, action = null;
@@ -133,7 +142,13 @@ export class BusLayer {
     obj.traverse(o => { if (/^Door_/.test(o.name)) doors.push({ o, z0: o.position.z, x0: o.position.x, k: /0$/.test(o.name) ? 1 : -1 }); });
     const anchors = {};
     obj.traverse(o => { if (o.name === 'Anchor_DoorFront') anchors.front = o; if (o.name === 'Anchor_DoorMid') anchors.mid = o; });
-    const label = labelSprite('קו ' + bus.line.def.number, bus.line.color, 1.05);
+    const T = TYPES[bus.type];
+    if (T?.tint) obj.traverse(o => {
+      if (!o.isMesh) return;
+      if (Array.isArray(o.material)) o.material = o.material.map(m => /RoofWhite|Roof/.test(m.name) ? this.tinted(m, T.tint) : m);
+      else if (/RoofWhite|Roof/.test(o.material?.name)) o.material = this.tinted(o.material, T.tint);
+    });
+    const label = labelSprite('קו ' + bus.line.def.number + (T && bus.type !== 'std' ? ' · ' + T.name : ''), bus.line.color, 1.05);
     label.position.set(0, 5.3, 0); obj.add(label);
     obj.userData.bus = bus;
     this.group.add(obj);
