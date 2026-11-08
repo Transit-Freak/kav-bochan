@@ -37,8 +37,9 @@
   <nav class="tabs">
     <button data-tab="lines" class="on">הקווים שלי</button>
     <button data-tab="money">קופה</button>
+    <button data-tab="demand">ביקוש</button>
     <button data-tab="stop">תחנה</button>
-    <button data-tab="help">איך משחקים</button>
+    <button data-tab="help">עזרה</button>
   </nav>
   <section data-pane="lines" class="pane on">
     <button id="newLine" class="primary wide">+ קו חדש</button>
@@ -49,6 +50,7 @@
     <div id="moneyBody"></div>
     <button id="resetGame" class="del wide">התחלה מחדש</button>
   </section>
+  <section data-pane="demand" class="pane" id="demandPane"><div id="demandBody"></div></section>
   <section data-pane="stop" class="pane" id="stopPane">
     <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
   </section>
@@ -58,19 +60,31 @@
       <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". בוחרים מספר, שם, תדירות, סוג רכב וכמה רכבים לקנות.</li>
       <li><b>כמה רכבים צריך:</b> אוטובוס נוסע עד התחנה האחרונה, חוזר ריק להתחלה ונח קצת — ורק אז יוצא שוב. בטופס כתוב כמה צריך לתדירות שבחרתם. עם פחות רכבים האוטובוסים יוצאים לאט יותר מהמתוכנן, וזה כתוב בכרטיס של הקו.</li>
       <li><b>סוגי רכבים:</b> מיניבוס (20 מקומות) זול אבל מתמלא מהר. רגיל — 80. מפרקי — 120 ויקר יותר לנסיעה. חשמלי — 80, יקר לקנות וזול לנסוע.</li>
-      <li><b>תדירות מושכת נוסעים:</b> ככל שהאוטובוס בא יותר תכוף (בפועל, לא רק בתכנון) — יותר אנשים בוחרים לנסוע בקו.</li>
-      <li><b>כסף:</b> כל נוסע שעולה משלם ₪6. כל ק"מ עולה דלק ותחזוקה, וכל שעה בדרך עולה שכר נהג. הכל בלשונית "קופה". מכירת רכב מחזירה 60% מהמחיר.</li>
+      <li><b>מאיפה לאן:</b> לכל נוסע יש בית ויעד — עבודה, לימודים או קניות. בבוקר יוצאים מהשכונות, אחר הצהריים חוזרים. בלשונית "ביקוש" ובכפתור "ביקוש" שעל המפה רואים מאיפה לאן רוצים לנסוע בכל שעה: ירוק — יש קו, כתום — רק לחלק, אדום — אין.</li>
+      <li><b>מי נוסע:</b> רק מי שיש לו קו עד 400 מ' מהבית ועד 400 מ' מהיעד. מי שהדרך שלו ארוכה (הליכה, המתנה, מעברים) — לפעמים מוותר מראש. אוטובוס תכוף (בפועל, לא רק בתכנון) מושך יותר נוסעים.</li>
+      <li><b>מעברים:</b> אם אין קו ישיר, נוסעים יורדים בתחנה משותפת (או הולכים עד 400 מ' לתחנה אחרת) ועולים לקו השני — עד שני מעברים. המעבר בחינם, כמו ברב-קו: משלמים פעם אחת לנסיעה.</li>
+      <li><b>שעות פעילות:</b> לכל קו יש שעת התחלה וסיום (בטופס הקו). מחוץ לשעות לא יוצאים אוטובוסים ואין הוצאות, אבל מי שרצה לנסוע אז נשאר בלי קו. קווים ישנים קיבלו 05:00–24:00.</li>
+      <li><b>כסף:</b> כל נוסע משלם ₪6 (פעם אחת, גם עם מעבר). כל ק"מ עולה דלק ותחזוקה, וכל שעה בדרך עולה שכר נהג. הכל בלשונית "קופה". מכירת רכב מחזירה 60% מהמחיר.</li>
       <li><b>אוטובוס מלא:</b> מי שלא נכנס נשאר בתחנה ומחכה לבא ("נשארו"). מי שמחכה יותר מחצי שעה מוותר והולך ברגל — והכרטיס שלו הולך איתו ("ויתרו"). אז כדאי רכב גדול יותר, עוד רכבים או תדירות גבוהה יותר.</li>
-      <li>נוסעים מגיעים לתחנות לאורך היום, הכי הרבה בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
-      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות". <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
+      <li>הכי הרבה נוסעים בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
+      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" (גם שעות פעילות), ו"מסלול": מקישים על תחנה בקו כדי להסיר או להזיז אותה, או על תחנה חדשה כדי להוסיף (היא נכנסת במקום הכי קצר). אוטובוסים שכבר בדרך מסיימים את המסלול הישן. <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
       <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> שתי אצבעות או הכפתור הימני. <b>זום:</b> צביטה או גלגלת. השעון: ❚❚ עוצר, ×1 עד ×60 מאיצים.</li>
       <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
     </ol>
   </section>
 </aside>
 
+<div class="dlegend" id="dLegend" hidden>
+  <div class="dl-head"><b id="dlTitle">מאיפה לאן</b><button id="dlClose" class="x" aria-label="סגירה">✕</button></div>
+  <div class="dl-hour"><input type="range" id="dlHour" min="0" max="23" step="1" value="7" aria-label="שעה"><button id="dlNow" class="on">עכשיו</button></div>
+  <div class="dl-keys"><span><i style="background:#16a34a"></i>יש קו</span><span><i style="background:#f59e0b"></i>חלקי</span><span><i style="background:#dc2626"></i>אין קו</span></div>
+  <div class="dl-note">עובי = כמה רוצים לנסוע בשעה הזו · החץ — לאן</div>
+</div>
+
 <div class="plan" id="plan" hidden>
-  <div class="plan-txt"><b>קו חדש</b> — הקישו על תחנות לפי הסדר <span id="planCount" class="pill">0 תחנות</span></div>
+  <div class="plan-txt" id="planTxt"><b>קו חדש</b> — הקישו על תחנות לפי הסדר <span id="planCount" class="pill">0 תחנות</span></div>
+  <div id="planInfo" class="plan-info" hidden></div>
+  <div id="planSel" class="plan-sel" hidden></div>
   <div class="plan-btns">
     <button id="planUndo">בטל אחרונה</button>
     <button id="planCancel">ביטול</button>
@@ -87,6 +101,8 @@
       <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
     </div>
     <label>שם <input id="fName" maxlength="40" placeholder="למשל: מרכז — שכונת רמז"></label>
+    <div class="frow hours"><span class="flabel">שעות פעילות</span>
+      <label>מ־<select id="fFrom" aria-label="שעת התחלה"></select></label><label>עד <select id="fTo" aria-label="שעת סיום"></select></label></div>
     <div class="swatches" id="fColors" role="radiogroup" aria-label="צבע"></div>
     <div class="flabel">סוג הרכב</div>
     <div class="vtypes" id="fTypes" role="radiogroup" aria-label="סוג הרכב"></div>

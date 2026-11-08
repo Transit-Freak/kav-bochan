@@ -49,7 +49,11 @@ export class Line {
     this.nextDispatch = null;
     this.visible = true;
   }
-  resetStats() { this.stats = { board: 0, alight: 0, waitSum: 0, waitN: 0, left: 0, gaveUp: 0, loadSum: 0, loadT: 0, km: 0, hours: 0, trips: 0 }; }
+  resetStats() {
+    const z = () => new Float64Array(24);
+    this.stats = { board: 0, alight: 0, waitSum: 0, waitN: 0, left: 0, gaveUp: 0, loadSum: 0, loadT: 0, km: 0, hours: 0, trips: 0, xferIn: 0,
+      hWant: z(), hBoard: z(), hCap: z() };     // לפי שעה: רצו לעלות (לפי המודל), עלו, מקומות שיצאו
+  }
   get id() { return this.def.id; }
   get color() { return this.def.color; }
   get waiting() { return this.queues.reduce((a, q) => a + q.length, 0); }
@@ -59,7 +63,7 @@ export class Line {
 }
 
 // ---------- ציור הקו: רצועה צבעונית בנתיב, חצים, ומספרי התחנות
-export function routeMesh(poly, color, stopPts = []) {
+export function routeMesh(poly, color, stopPts = [], hi = -1) {
   const g = new THREE.Group();
   const pos = [], W = 0.9, H = 0.2, P = poly.pts;
   for (let i = 0; i + 1 < P.length; i++) {
@@ -81,7 +85,7 @@ export function routeMesh(poly, color, stopPts = []) {
   const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -12 });
   const m = new THREE.Mesh(geo, mat); m.renderOrder = 2; g.add(m);
   stopPts.forEach(([x, y], k) => {
-    const sp = labelSprite(String(k + 1), color, 0.9);
+    const sp = k === hi ? labelSprite(String(k + 1), '#0f172a', 1.2) : labelSprite(String(k + 1), color, 0.9);   // hi: התחנה שנבחרה בעריכה
     sp.position.set(x, 5.2, -y); g.add(sp);
   });
   return g;

@@ -1,7 +1,10 @@
 // הסימולציה: שעון משחק, יציאת אוטובוסים לפי תדירות, נסיעה, עצירה בתחנות, עולים ויורדים, נוסעים ממתינים.
 // אין כאן ציור — רק מצב ואירועים (events) שהתצוגה קוראת.
-// אוטובוס יוצא רק אם לקו יש רכב פנוי (def.fleet); הקיבולת לפי סוג הרכב; כסף נכנס בכל עלייה ויוצא על ק"מ ושעות נהג (fleet.js).
+// אוטובוס יוצא רק אם לקו יש רכב פנוי (def.fleet) ורק בשעות הפעילות של הקו; הקיבולת לפי סוג הרכב;
+// כסף נכנס בכל נסיעה (פעם אחת, גם עם מעבר) ויוצא על ק"מ ושעות נהג (fleet.js).
+// הנוסעים באים ממודל הביקוש (demand.js): לכל אחד מוצא ויעד, ומסלול של קו אחד עד שלושה קווים.
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
+import { Network, inHours } from './demand.js';
 export const BUS = {
   capacity: 80,           // ברירת מחדל; הקיבולת האמיתית לפי סוג הרכב (fleet.js)
   doorTime: 1.1,          // פתיחה/סגירה (שנ')
@@ -11,19 +14,16 @@ export const BUS = {
   doorS: 0,               // s של האוטובוס = מקום הדלת הקדמית
   gap: 18,                // מרחק מינימלי מהאוטובוס שלפניו באותו קו
 };
-const BASE_PER_HOUR = 70;  // נוסעים לשעה בתחנה עם משקל ביקוש 1
 export const PATIENCE = 30 * 60;   // מי שמחכה יותר מזה מוותר והולך (והכרטיס שלו הולך איתו)
 
-export function todFactor(t) {             // שעות שיא בבוקר ואחר הצהריים
-  const h = (t / 3600) % 24;
-  const g = (c, w) => Math.exp(-((h - c) ** 2) / (2 * w * w));
-  return 0.35 + 1.2 * g(7.6, 0.9) + 0.9 * g(16.8, 1.3) + 0.35 * g(12.5, 2.2) - (h < 5.5 || h > 23 ? 0.3 : 0);
-}
+const hourOf = t => Math.floor((t / 3600) % 24);
+const emptyToday = Z => ({ pot: new Float64Array(24), ride: new Float64Array(24), none: new Float64Array(24), declined: new Float64Array(24),
+  pairNone: new Float64Array(Z * Z), xfer: new Map(), xferStop: new Map(), trips: 0, xferTrips: 0 });
 
 let PID = 1, BID = 1;
 
 export class Sim {
-  constructor(stops, bank = null, time = null) {
+  constructor(stops, bank = null, time = null, demand = null) {
     this.time = time ?? 6.5 * 3600;   // 06:30 ביום הראשון
     this.bank = bank;
     this.speed = 5;
@@ -32,24 +32,29 @@ export class Sim {
     this.resetStops();
     this.events = [];
     this.rand = mulberry(7);
+    this.demand = demand;
+    this.net = demand ? new Network(demand, this) : null;
+    this.today = emptyToday(demand?.Z || 1);
+    this.pending = [];                 // נוסעים בדרך ברגל לקו הבא (מעבר)
+    this.netT = -1e9; this.netKey = '';
   }
-  resetStops() { this.stopStats = new Map(this.stops.map(s => [s.id, { board: 0, alight: 0, left: 0, gaveUp: 0 }])); }
+  resetToday() { this.today = emptyToday(this.demand?.Z || 1); }
+  resetStops() { this.stopStats = new Map(this.stops.map(s => [s.id, { board: 0, alight: 0, left: 0, gaveUp: 0, xfer: 0 }])); }
   addLine(line) {
     line.nextDispatch = this.time;
     this.lines.push(line);
+    this.net?.invalidate();
   }
+  // הקו שבא במקום קו שנערך (או הקו עצמו)
+  current(L) { while (L.next) L = L.next; return L; }
   // רכבים פנויים לקו: הצי, פחות מה שבדרך, פחות מה שחוזר ריק למסוף. null = בלי הגבלה (בלי צי)
+  // (גם אוטובוסים שעוד מסיימים את המסלול הישן של קו שנערך)
   available(L) {
     if (L.def.fleet == null) return Infinity;
     let busy = L.returning.length;
-    for (const b of L.buses) if (b.state === 'drive' || b.state === 'dwell') busy++;
+    for (const K of this.lines) if (K === L || (K.retired && this.current(K) === L))
+      for (const b of K.buses) if (b.state === 'drive' || b.state === 'dwell') busy++;
     return L.def.fleet - busy;
-  }
-  // מקדם הביקוש לפי התדירות: כל 12 דק' = 1, כל 5 דק' = 1.3, כל 30 דק' = 0.58, כל שעה = 0.38
-  demandK(L) {
-    if (L.def.fleet === 0) return 0;
-    const hw = Math.max(L.def.headway * 60, this.realHeadway(L) ?? 0) / 60;
-    return Math.min(1.3, Math.max(0.3, (12 / hw) ** 0.6));
   }
   // תדירות בפועל (שנ'): ממוצע הפערים בין היציאות האחרונות, ואם מחכים עכשיו לרכב יותר מזה — ההמתנה הנוכחית
   realHeadway(L) {
@@ -61,7 +66,35 @@ export class Sim {
     return avg;
   }
   removeLine(line) {
-    this.lines = this.lines.filter(l => l !== line);
+    this.lines = this.lines.filter(l => l !== line && !(l.retired && this.current(l) === line));
+    this.pending = this.pending.filter(x => !x.p.legs.some(g => this.current(g.L) === line));
+    this.net?.invalidate();
+  }
+  // מסלול חדש לקו (עריכה): הקו הישן ממשיך רק עם האוטובוסים שכבר בדרך, עד סוף המסלול הישן, ואז נעלם.
+  // מי שמחכה בתחנה שנשארה בקו (והיעד שלו עדיין אחריה) — עובר לתור של הקו החדש באותו מקום; האחרים הולכים
+  retire(old, neo) {
+    old.retired = true; old.next = neo;
+    neo.stats = old.stats; neo.returning = old.returning; old.returning = [];
+    neo.dispatches = old.dispatches; neo.nextDispatch = old.nextDispatch; neo.visible = old.visible;
+    this.lines.push(neo);
+    old.queues.forEach((q, k) => {
+      for (const p of q) {
+        const g = this.mapLeg(p.legs[p.leg]);
+        if (g) { p.legs[p.leg] = g; p.from = g.from; p.to = g.to; p.line = neo; neo.queues[g.from].push(p); }
+        else this.events.push({ type: 'giveup', p, stop: old.stops[k] });
+      }
+      q.length = 0;
+    });
+    this.net?.invalidate();
+  }
+  // רגל של נסיעה בקו שנערך ← אותה רגל בקו החדש (לפי מזהי התחנות), או null אם אחת התחנות כבר לא בקו
+  mapLeg(g) {
+    if (!g.L.retired) return g;
+    const L = this.current(g.L), a = g.L.stops[g.from].id, b = g.L.stops[g.to].id;
+    if (!this.lines.includes(L)) return null;
+    const from = L.stops.findIndex((s, k) => s.id === a && k < L.stops.length - 1); if (from < 0) return null;
+    const to = L.stops.findIndex((s, k) => s.id === b && k > from); if (to < 0) return null;
+    return { L, from, to };
   }
 
   step(realDt) {
@@ -76,20 +109,19 @@ export class Sim {
     const day0 = dayOf(this.time);
     this.time += h;
     if (dayOf(this.time) !== day0) this.newDay();
-    const tf = todFactor(this.time);
-    for (const L of this.lines) {
-      // נוסעים חדשים. כמה אנשים בוחרים בקו תלוי בתדירות שלו בפועל: אוטובוס תכוף מושך יותר נוסעים,
-      // ובלי רכבים אף אחד לא מחכה
+    if (this.demand) this.spawn(h);
+    // מי שסיים ללכת לקו הבא (מעבר) נכנס לתור
+    if (this.pending.length) this.pending = this.pending.filter(x => x.at > this.time || (this.joinQueue(x.p), false));
+    const H = hourOf(this.time);
+    for (const L of [...this.lines]) {
       const n = L.stops.length;
-      L.demandK = this.demandK(L);
-      for (let k = 0; k < n - 1; k++) {
-        const lam = BASE_PER_HOUR / 3600 * (L.stops[k].w ?? 0.3) * tf * L.demandK;
-        if (this.rand() < lam * h) {
-          const to = this.pickDest(L, k);
-          const p = { id: PID++, line: L, from: k, to, t0: this.time };
-          L.queues[k].push(p);
-          this.events.push({ type: 'spawn', p, stop: L.stops[k] });
-        }
+      if (L.retired) {
+        for (const b of L.buses) if (b.state === 'drive' || b.state === 'dwell') this.charge(L, b.type, 0, h);
+        L.buses.sort((a, b) => b.s - a.s);
+        for (let i = 0; i < L.buses.length; i++) this.moveBus(L, L.buses[i], L.buses[i - 1], h);
+        L.buses = L.buses.filter(b => b.state !== 'gone');
+        if (!L.buses.length) this.lines = this.lines.filter(x => x !== L);
+        continue;
       }
       // מי שחיכה יותר מדי מוותר. התור לפי סדר ההגעה, אז מספיק לבדוק את הראשונים
       for (let k = 0; k < n - 1; k++) {
@@ -104,13 +136,16 @@ export class Sim {
       // יציאה מהמסוף — רק אם יש רכב פנוי. אין: היציאה מחכה, ויוצאת ברגע שרכב חוזר
       const hw = L.def.headway * 60;
       L.short = false;
-      while (this.time >= L.nextDispatch) {
+      L.off = !inHours(L.def, this.time);
+      // מחוץ לשעות הפעילות לא יוצאים; כשהקו נפתח — היציאה הראשונה מיד, בלי "להשלים" את מה שהיה בלילה
+      if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);
+      while (!L.off && this.time >= L.nextDispatch) {
         if (this.available(L) <= 0 || L.buses.length >= 30) { L.short = true; break; }
         const type = typeOf(L.def), T = TYPES[type];
         const b = { id: BID++, line: L, type, cap: T.cap, s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1 };
         L.buses.push(b); this.events.push({ type: 'bus', bus: b });
         L.dispatches.push(this.time); if (L.dispatches.length > 6) L.dispatches.shift();
-        L.stats.trips++;
+        L.stats.trips++; L.stats.hCap[H] += T.cap;
         // יציאה באיחור גדול: הלוח מתחיל מחדש מעכשיו, כדי שלא ייצאו כמה אוטובוסים בבת אחת
         const late = this.time - L.nextDispatch;
         L.nextDispatch = late > hw / 2 ? this.time + hw : L.nextDispatch + hw;
@@ -127,12 +162,34 @@ export class Sim {
     }
   }
 
-  pickDest(L, k) {
-    const n = L.stops.length; let tot = 0;
-    for (let j = k + 1; j < n; j++) tot += (L.stops[j].w ?? 0.3) + 0.15;
-    let r = this.rand() * tot;
-    for (let j = k + 1; j < n; j++) { r -= (L.stops[j].w ?? 0.3) + 0.15; if (r <= 0) return j; }
-    return n - 1;
+  // נוסעים חדשים לפי מודל הביקוש. כל מי ש"רוצה לנסוע" נספר; נוסע רק מי שיש לו מסלול בקווים שפועלים עכשיו,
+  // ובסיכוי שתלוי בזמן הכולל (תדירות בפועל, הליכה, מעברים)
+  spawn(h) {
+    const D = this.demand, N = D.N;
+    // הטבלה מתעדכנת כשקו נפתח/נסגר, ופעם ב-10 דקות משחק (התדירות בפועל משתנה)
+    if (this.time - this.netT > 600) { this.netT = this.time; this.net.refresh(); }
+    const tab = this.net.table(this.time);
+    let x = D.rateAt(this.time) / 3600 * h;
+    const H = hourOf(this.time), T = this.today;
+    for (; x > 0; x -= 1) {
+      if (this.rand() >= Math.min(1, x)) continue;
+      const k = D.sample(this.time, this.rand);
+      T.pot[H]++;
+      const legs = tab.legs[k];
+      if (!legs) { T.none[H]++; T.pairNone[D.zoneOf[(k / N) | 0] * D.Z + D.zoneOf[k % N]]++; continue; }
+      if (this.rand() >= tab.p[k]) { T.declined[H]++; continue; }
+      T.ride[H]++; T.trips++; if (legs.length > 1) T.xferTrips++;
+      const p = { id: PID++, legs: legs.map(g => ({ ...g })), leg: 0, t0: this.time, paid: false, o: k / N | 0, d: k % N };
+      for (const g of legs) g.L.stats.hWant[H]++;
+      this.joinQueue(p);
+    }
+  }
+  joinQueue(p) {
+    const g = this.mapLeg(p.legs[p.leg]);
+    if (!g || !this.lines.includes(g.L)) return;          // הקו נמחק בינתיים
+    p.legs[p.leg] = g; p.line = g.L; p.from = g.from; p.to = g.to; p.t0 = this.time;
+    g.L.queues[g.from].push(p);
+    this.events.push({ type: 'spawn', p, stop: g.L.stops[g.from] });
   }
 
   moveBus(L, b, ahead, h) {
@@ -165,15 +222,16 @@ export class Sim {
             b.ta = 0; const p = b.pax.splice(off, 1)[0];
             L.stats.alight++; ss.alight++;
             this.events.push({ type: 'alight', bus: b, p, stop });
+            if (p.leg + 1 < p.legs.length) this.transfer(p, L, stop);
           }
         }
-        const q = L.queues[k];
-        if (!last && q.length && b.pax.length < b.cap) {
+        if (!last && b.pax.length < b.cap && (L.queues[k].length || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
-            b.tb = 0; const p = q.shift(); p.tb = this.time; b.pax.push(p);
-            L.stats.board++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
-            this.bank?.earn(FARE, L.id);
+            b.tb = 0; const p = L.queues[k].shift() || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
+            L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
+            // מעבר בחינם (כמו "רב-קו": עד 90 דק') — משלמים רק בעלייה הראשונה
+            if (!p.paid) { p.paid = true; this.bank?.earn(FARE, L.id); } else L.stats.xferIn++;
             this.events.push({ type: 'board', bus: b, p, stop });
           }
         }
@@ -190,7 +248,7 @@ export class Sim {
             b.state = 'done'; b.t = 0; b.doneAt = this.time;
             // הרכב נוסע ריק חזרה לתחנה הראשונה ונח במסוף; רק אז הוא פנוי שוב (את הנסיעה הזו לא מציירים)
             const dead = L.poly.length / DEADHEAD_SPEED;
-            if (L.def.fleet != null) L.returning.push(this.time + dead + LAYOVER);
+            if (L.def.fleet != null) this.current(L).returning.push(this.time + dead + LAYOVER);
             this.charge(L, b.type, L.poly.length, dead + LAYOVER);
             this.events.push({ type: 'done', bus: b });
           }
@@ -201,6 +259,41 @@ export class Sim {
       b.t += h; b.fade = Math.max(0, 1 - b.t / 4);
       if (b.t > 4) b.state = 'gone';
     }
+  }
+
+  // קווים מקבילים: מי שמחכה לקו אחר, והאוטובוס הזה מגיע ישר לאותה תחנת ירידה — עולה גם הוא (לא מחכים דווקא לקו "שלהם").
+  // take=false: רק בודקים אם יש כזה
+  altRider(L, k, stop, take) {
+    for (const M of this.lines) {
+      if (M === L || M.retired) continue;
+      for (let j = 0; j < M.stops.length - 1; j++) {
+        if (M.stops[j] !== stop) continue;
+        const Q = M.queues[j];
+        for (let i = 0; i < Q.length; i++) {
+          const p = Q[i], dest = M.stops[p.to];
+          let t = -1; for (let x = k + 1; x < L.stops.length; x++) if (L.stops[x] === dest) { t = x; break; }
+          if (t < 0) continue;
+          if (!take) return true;
+          Q.splice(i, 1);
+          p.legs[p.leg] = { L, from: k, to: t }; p.line = L; p.from = k; p.to = t;
+          return p;
+        }
+      }
+    }
+    return null;
+  }
+  // ירד באמצע הדרך כדי לעלות לקו הבא: הולך לתחנה של הקו הבא (אם היא אחרת — עד 400 מ') ומחכה שם
+  transfer(p, L, stop) {
+    const next = this.mapLeg(p.legs[p.leg + 1]);
+    if (!next) return;
+    p.leg++; p.legs[p.leg] = next;
+    const to = next.L.stops[next.from];
+    const walk = Math.hypot(to.x - stop.x, to.y - stop.y) * 1.2 / 1.3;
+    this.pending.push({ p, at: this.time + 15 + walk });
+    const key = this.current(L).id + '>' + next.L.id, T = this.today;
+    T.xfer.set(key, (T.xfer.get(key) || 0) + 1);
+    T.xferStop.set(stop.id, (T.xferStop.get(stop.id) || 0) + 1);
+    this.stopStats.get(stop.id).xfer++;
   }
 
   // עלות: מטרים ושניות של רכב מסוג type
@@ -214,14 +307,16 @@ export class Sim {
   // חצות: סיכום היום בקופה, והמונים של הקווים והתחנות מתאפסים
   newDay() {
     this.bank?.roll(this.time);
-    for (const L of this.lines) L.resetStats();
+    for (const L of this.lines) if (!L.retired) L.resetStats();
     this.resetStops();
+    this.yesterday = this.today; this.resetToday();
   }
 
   // סיכום לתחנה: ממתינים לפי קו
   stopSummary(stopId) {
     const per = [];
     for (const L of this.lines) {
+      if (L.retired) continue;
       L.stops.forEach((s, k) => { if (s.id === stopId && k < L.stops.length - 1) per.push({ line: L, waiting: L.queues[k].length }); });
     }
     return { per, ...this.stopStats.get(stopId), waiting: per.reduce((a, x) => a + x.waiting, 0) };

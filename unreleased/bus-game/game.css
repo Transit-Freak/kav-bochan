@@ -157,6 +157,49 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .spin{width:40px;height:40px;border-radius:50%;border:4px solid #bae6fd;border-top-color:var(--brand);animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* ביקוש */
+.cams button.dm{border-color:#fcd34d;background:#fffbeb;color:#92400e;font-weight:700}
+.cams button.dm.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
+.dlegend{position:fixed;top:84px;inset-inline-end:10px;z-index:9;width:250px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px 10px;font-size:13px}
+.dlegend[hidden]{display:none}
+.dl-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.dl-head b{font-size:14px}
+.x{width:28px;height:28px;padding:0;display:grid;place-items:center;font-size:13px;flex:none}
+.dl-hour{display:flex;align-items:center;gap:8px;margin:6px 0}
+.dl-hour input{flex:1;direction:ltr;accent-color:#f59e0b;min-width:0}
+.dl-hour button{padding:3px 10px;font-size:12.5px}
+.dl-hour button.on{background:#f59e0b;border-color:#f59e0b;color:#fff;font-weight:700}
+.dl-keys{display:flex;gap:10px;flex-wrap:wrap}
+.dl-keys i{display:inline-block;width:14px;height:5px;border-radius:3px;margin-inline-end:4px;vertical-align:middle}
+.dl-note{color:var(--muted);font-size:12px;margin-top:3px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tile{background:#f8fafc;border-radius:10px;padding:6px 8px}
+.tile b{display:block;font:700 18px/1.2 "IBM Plex Sans Hebrew",var(--font);font-variant-numeric:tabular-nums}
+.tile span{font-size:11.5px;color:var(--muted)}
+.tile.warn b{color:#b91c1c}
+#demandPane h4{margin:14px 2px 6px;font-size:15px}
+#demandPane h4:first-child{margin-top:2px}
+.dlist{list-style:none;margin:0;padding:0;font-size:13.5px}
+.dlist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px;border-bottom:1px solid var(--line)}
+.dlist li b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.dlist .pair{min-width:0}
+.dlist .none{color:var(--muted)}
+.dchart{margin-top:8px;background:#f8fafc;border-radius:10px;padding:6px 6px 4px}
+.dchart svg{display:block;width:100%;height:auto}
+.dchart .ck{display:flex;gap:9px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:2px}
+.dchart .ck i{display:inline-block;width:10px;height:8px;border-radius:2px;margin-inline-end:3px;vertical-align:middle}
+.dchart .ct{font-size:12.5px;color:var(--ink2);margin-bottom:2px}
+.offnow{display:inline-block;background:#f1f5f9;color:#475569;border-radius:6px;padding:0 6px;font-size:12px;font-weight:600}
+.frow.hours{align-items:flex-end;flex-wrap:wrap}
+.frow.hours .flabel{width:100%;margin:0 0 -4px}
+.plan-info{width:100%;text-align:center;font-size:13px;color:var(--ink2)}
+.plan-info[hidden],.plan-sel[hidden]{display:none}
+.plan-sel{width:100%;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;align-items:center;font-size:13.5px}
+.plan-sel button{padding:5px 11px;font-size:13px}
+.plan-sel .del{color:#b91c1c}
+.plan-sel .sname{width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* טלפון: לוח תחתון נפתח, פס עליון בשתי שורות */
 @media (max-width:820px){
   .bar{top:max(6px,env(safe-area-inset-top));inset-inline:6px;flex-wrap:wrap;gap:6px 8px;padding:7px 9px}
@@ -185,4 +228,8 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
   .vtype{padding:6px 8px}
   .attr{bottom:auto;top:calc(max(6px,env(safe-area-inset-top)) + 96px);font-size:11px}
   .toast{bottom:calc(44vh + 20px)}
+  .tabs{gap:2px;overflow-x:auto;scrollbar-width:none}
+  .tabs button{padding:6px 9px;white-space:nowrap}
+  .dlegend{top:calc(max(6px,env(safe-area-inset-top)) + 92px);inset-inline-end:6px;width:212px;padding:6px 8px;font-size:12px}
+  .dl-note{display:none}
 }

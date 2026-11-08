@@ -168,7 +168,7 @@ export class BusLayer {
         d.o.position.x = d.x0 - 0.1 * Math.min(1, b.door * 3);
         d.o.position.z = d.z0 + d.k * 0.55 * Math.max(0, b.door * 1.2 - 0.2);
       }
-      v.label.visible = L.visible !== false;
+      v.label.visible = L.visible !== false && !this.hideLabels;
     }
     for (const [id, v] of this.map) if (!alive.has(id)) { this.group.remove(v.obj); this.map.delete(id); }
   }
