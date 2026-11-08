@@ -175,9 +175,10 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .dl-keys span{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
 .dl-keys i{display:inline-block;width:16px;height:5px;border-radius:3px;margin-inline-end:2px}
 .dl-keys .u{color:var(--muted)}
-.zg{width:15px;height:15px;flex:none;fill:#1e293b;vertical-align:-3px}
-.zg.bad{fill:#d03b3b}
-.zg.ok{fill:none;stroke:#64748b;stroke-width:2.2;stroke-linejoin:round}
+.zg{width:15px;height:15px;flex:none;vertical-align:-3px}
+.sw{display:inline-block;width:12px!important;height:12px!important;border-radius:3px!important;margin-inline-end:3px;opacity:.55;box-shadow:inset 0 0 0 1px rgba(15,23,42,.18);vertical-align:-1px}
+.dl-keys .dk-u{color:var(--muted);font-size:11.5px}
+.dl-keys .st{width:16px;height:16px;font-size:10px;margin-inline-end:2px}
 .dl-note b.bad{color:#b91c1c}
 .dl-note{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.45}
 .dl-note:empty{display:none}
@@ -201,7 +202,7 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .dlf .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlf .nm .zg{width:13px;height:13px;margin-inline-end:3px;fill:#475569}
 .dlf .dbar{display:block;height:6px;background:#eef2f7;border-radius:3px;overflow:hidden}
-.dlf .dbar i{display:block;height:100%;background:#2a78d6;border-radius:3px 0 0 3px}
+.dlf .dbar i{display:block;height:100%;background:#64748b;border-radius:3px 0 0 3px}
 .dlf .n{font-weight:700;font-variant-numeric:tabular-nums;text-align:left}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .st{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-size:11px;font-weight:700;color:#fff}

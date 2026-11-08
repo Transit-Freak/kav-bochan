@@ -8,6 +8,7 @@
 |---|---|---|
 | רחובות, בניינים, פארקים | © תורמי OpenStreetMap — https://www.openstreetmap.org/copyright | ODbL 1.0 |
 | מיקומי התחנות | GTFS של משרד התחבורה (stops.txt, מהענף gtfs-data בריפו) | מידע ציבורי |
+| גבולות השכונות של קריית מלאכי (`world/neighbourhoods.json`) | מפ"י / GovMap (שכבה 22), באמצעות גרסאות לעם (over.org.il), תמונת מצב ספטמבר 2026 | מידע ציבורי |
 
 ## דגמים ותנועה
 

@@ -1,11 +1,13 @@
 // שכבת הביקוש במפה ("מאיפה לאן"), לפי שכונות:
-//  - כל שכונה היא שטח צבוע על הקרקע (לפי הסוג שלה), עם סמל הסוג והשם: מגורים, עבודה ותעשייה, לימודים, מסחר.
-//  - ליד כל שכונה: סמלים קטנים של סוגי היעדים שאנשים משם רוצים לנסוע אליהם בשעה הזו. סמל אחד = U נוסעים בשעה.
-//    סמל אדום מלא — אין להם קו; סמל אפור חלול — יש קו. (צבע + מילוי, ובמקרא גם מילים — לא צבע לבד.)
-//  - הקשה על שכונה: חיצים ממנה ליעדים (או מהמקורות אליה), עובי לפי נוסעים בשעה, צבע לפי מצב הקו, ומספר על כל חץ.
-// השטחים: כל פיקסל בנוי (בניינים + שוליים) שייך לשכונה של התחנה הקרובה אליו; בין שכונות יש רווח לבן דק.
-// החיצים: עובי בפיקסלים (לא במטרים), כך שהם קריאים בכל זום — shader קטן שמזיז כל קודקוד על המסך.
-// הסמלים, השמות והמספרים מצוירים על קנבס דו־ממדי מעל המפה, עם מניעת חפיפות.
+//  - כל שכונה מצוירת בגבולות האמיתיים שלה (מפ"י / GovMap; המושבים — OSM), בגוון רך לפי השימוש העיקרי
+//    (מגורים / עבודה / לימודים / מסחר — משני, גם במילים), עם רווח לבן דק בין שכנות.
+//  - לכל שכונה סמל משלה (צורה), והוא מסמן אותה בכל מקום: הסיכה במפה, הכרטיס, סמלי הביקוש, החיצים והטבלה.
+//  - מבט על: ליד כל שכונה — סמלים של שכונות היעד (הסמל של היעד עצמו), סמל אחד = U נוסעים בשעה.
+//    המצב של כל יעד: מלא אדום — אין קו, חצי כתום — חלקי, חלול אפור — יש קו (צורה + מילוי, ובמקרא גם מילים — לא צבע לבד).
+//  - הקשה על שכונה: חיצים ממנה ליעדים (או מהמקורות אליה), עובי לפי נוסעים בשעה, צבע לפי מצב הקו,
+//    ובקצה כל חץ — כרטיס עם הסמל של מצב הקו, השם והמספר.
+// החיצים והגבולות: עובי בפיקסלים (לא במטרים), כך שהם קריאים בכל זום — shader קטן שמזיז כל קודקוד על המסך.
+// הסיכות, השמות והמספרים מצוירים על קנבס דו־ממדי מעל המפה, עם מניעת חפיפות.
 import * as THREE from 'three';
 
 // צבעי מצב (status palette) — תמיד יחד עם סמל ותווית במקרא, אף פעם לא צבע לבד
@@ -13,21 +15,64 @@ export const FLOW_COL = { none: '#d03b3b', some: '#ec835a', good: '#94a3b8' };
 export const FLOW_ICON = { none: '✕', some: '½', good: '✓' };
 export const FLOW_TXT = { none: 'אין קו', some: 'חלקי', good: 'יש קו' };
 export const flowClass = share => share >= 0.7 ? 'good' : share >= 0.2 ? 'some' : 'none';
-const SERVED = '#64748b';
+const FILL = { none: 1, some: 0.5, good: 0 };       // כמה מהסמל ממולא: מלא / חצי / חלול
+const INK = '#0f172a', INK2 = '#334155';
+const FONT = 'Heebo, "IBM Plex Sans Hebrew", Arial, sans-serif';
 
-// ארבעה סוגי שכונה/יעד. הצבעים: פלטה קטגורית שנבדקה (כל הזוגות) — ותמיד יחד עם הצורה והשם.
-// הצורות: נתיבי SVG בתיבה 24×24 — אותו ציור במפה (Path2D) ובמקרא (svg).
+// סוג השכונה (משני): גוון רך של השטח, ותמיד גם במילים. פלטה קטגורית שנבדקה ב-validate_palette (כל הזוגות;
+// CVD בטווח 6–8 בין מסחר ללימודים — לכן תמיד גם מילים במקרא ובכרטיס)
 export const ZTYPES = [
-  { txt: 'מגורים', short: 'מגורים', col: '#eda100', d: 'M12 2.5L23 12h-3.2v9.5H4.2V12H1z' },
-  { txt: 'עבודה ותעשייה', short: 'עבודה', col: '#6250d6', d: 'M1.5 21.5V10l6 3.6V10l6 3.6V10l3.3 2V2.5h4.2v19z' },
-  { txt: 'לימודים', short: 'לימודים', col: '#1baf7a', d: 'M12 3.5l11.5 5.5L12 14.5 0.5 9zM5.5 12.6v4.6c0 2.6 13 2.6 13 0v-4.6L12 15.8zM21 9.8h1.6v6.4H21z' },
-  { txt: 'מסחר', short: 'מסחר', col: '#e87ba4', d: 'M3.5 8.5h17l-1.2 13H4.7zM8 8.5V7a4 4 0 0 1 8 0v1.5h-2V7a2 2 0 0 0-4 0v1.5z' },
+  { txt: 'מגורים', short: 'מגורים', col: '#eda100' },
+  { txt: 'עבודה ותעשייה', short: 'עבודה', col: '#2a78d6' },
+  { txt: 'לימודים', short: 'לימודים', col: '#1baf7a' },
+  { txt: 'מסחר', short: 'מסחר', col: '#e87ba4' },
 ];
-export const glyphSvg = (t, cls = '') => `<svg class="zg ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ZTYPES[t].d}"/></svg>`;
-const PATHS = typeof Path2D !== 'undefined' ? ZTYPES.map(z => new Path2D(z.d)) : [];
+
+// ---------- הצורות: נתיבי SVG בתיבה 24×24 — אותו ציור במפה (Path2D) ובממשק (svg)
+const f1 = v => +v.toFixed(2);
+const reg = (n, r, cy = 12, rot = -90) => 'M' + Array.from({ length: n }, (_, k) => {
+  const a = (rot + k * 360 / n) * Math.PI / 180; return `${f1(12 + r * Math.cos(a))} ${f1(cy + r * Math.sin(a))}`; }).join('L') + 'z';
+const star = (R, r, cy) => 'M' + Array.from({ length: 10 }, (_, k) => {
+  const a = (-90 + k * 36) * Math.PI / 180, q = k % 2 ? r : R; return `${f1(12 + q * Math.cos(a))} ${f1(cy + q * Math.sin(a))}`; }).join('L') + 'z';
+export const SHAPES = {
+  circle: 'M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0z',
+  triangle: 'M12 2L22.5 20.5H1.5z',
+  square: 'M3 3h18v18H3z',
+  star: star(11.5, 4.9, 13),
+  diamond: 'M12 1L23 12L12 23L1 12z',
+  plus: 'M8.5 2h7v6.5H22v7h-6.5V22h-7v-6.5H2v-7h6.5z',
+  heart: 'M12 21.5C5 16 1.5 12.2 1.5 7.8A5.3 5.3 0 0 1 12 5.6a5.3 5.3 0 0 1 10.5 2.2c0 4.4-3.5 8.2-10.5 13.7z',
+  hexagon: reg(6, 11, 12, 0),
+  crescent: 'M14.5 2.3A10 10 0 1 0 21.8 15.2A8 8 0 0 1 14.5 2.3z',
+  drop: 'M12 1.5C12 1.5 4 10.5 4 15a8 8 0 0 0 16 0c0-4.5-8-13.5-8-13.5z',
+  flag: 'M4 2h2.6v1.6H21l-4 5.2 4 5.2H6.6V22H4z',
+  bolt: 'M14.5 1L3.5 13.5h7L8.5 23l12-13.5h-7z',
+  tridown: 'M1.5 3.5h21L12 22z',
+  xmark: 'M4.8 1.9L12 9.1l7.2-7.2 2.9 2.9-7.2 7.2 7.2 7.2-2.9 2.9-7.2-7.2-7.2 7.2-2.9-2.9 7.2-7.2-7.2-7.2z',
+  hourglass: 'M3 2h18L12 12 21 22H3l9-10z',
+  shield: 'M12 1.5L21 5v6.5c0 5.5-4 9-9 11-5-2-9-5.5-9-11V5z',
+  semicircle: 'M1.5 17.5a10.5 10.5 0 0 1 21 0z',
+  chevron: 'M12 3L22.5 13.5v7.5L12 10.5 1.5 21v-7.5z',
+  pentagon: reg(5, 11.5, 13),
+  leaf: 'M3 21C3 9 9 3 21 3c0 12-6 18-18 18z',
+  tee: 'M2 3h20v6.5h-6.5V22h-7V9.5H2z',
+  parallelogram: 'M7.5 4H23l-6.5 16H1z',
+};
+const PATHS = {};
+if (typeof Path2D !== 'undefined') for (const k in SHAPES) PATHS[k] = new Path2D(SHAPES[k]);
+// סמל כ-svg לממשק. fill: 1 מלא, 0.5 חצי, 0 חלול; col — צבע (ברירת מחדל: דיו)
+let svgN = 0;
+export function symSvg(sym, cls = '', fill = 1, col = INK2) {
+  const d = SHAPES[sym] || SHAPES.circle;
+  if (fill >= 1) return `<svg class="zg ${cls}" viewBox="-1 -1 26 26" aria-hidden="true"><path d="${d}" fill="${col}" stroke="${col}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+  if (fill <= 0) return `<svg class="zg ${cls}" viewBox="-1 -1 26 26" aria-hidden="true"><path d="${d}" fill="#fff" stroke="${col}" stroke-width="2.6" stroke-linejoin="round"/></svg>`;
+  const id = 'hf' + (++svgN);
+  return `<svg class="zg ${cls}" viewBox="-1 -1 26 26" aria-hidden="true"><defs><clipPath id="${id}"><rect x="-1" y="12" width="26" height="14"/></clipPath></defs>`
+    + `<path d="${d}" fill="#fff"/><path d="${d}" fill="${col}" clip-path="url(#${id})"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linejoin="round"/></svg>`;
+}
+export const statusSvg = (k, sym = 'circle') => symSvg(sym, 'ss-' + k, FILL[k], FLOW_COL[k]);
 
 const HH = 24;          // גובה השכבה מעל הקרקע (מ')
-const CELL = 8;         // רזולוציית השטחים (מ' לפיקסל)
 
 const vert = `
 attribute vec3 color; attribute vec3 dir; attribute vec2 off;
@@ -45,22 +90,35 @@ void main() {
 }`;
 const frag = `varying vec3 vCol; uniform float alpha; void main() { gl_FragColor = vec4(vCol, alpha); }`;
 
+// נקודה בתוך פוליגון (טבעת חיצונית וחורים)
+function inRing(x, y, r) {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [x0, y0] = r[i], [x1, y1] = r[j];
+    if ((y0 > y) !== (y1 > y) && x < (x1 - x0) * (y - y0) / (y1 - y0) + x0) c = !c;
+  }
+  return c;
+}
+const inPart = (x, y, part) => inRing(x, y, part[0]) && !part.slice(1).some(h => inRing(x, y, h));
+const ringArea = r => Math.abs(r.reduce((a, [x0, y0], i) => { const [x1, y1] = r[(i + 1) % r.length]; return a + x0 * y1 - x1 * y0; }, 0) / 2);
+
 export class DemandLayer {
-  // zones: demand.zones (עם type), stops: city.stops (עם zone), buildings: city.buildings
+  // zones: demand.zones (עם type, sym, poly), stops: city.stops (עם zone)
   constructor(scene, zones, stops, buildings, half = [3000, 3000]) {
     this.group = new THREE.Group(); this.group.visible = false; this.group.name = 'demand-layer';
     scene.add(this.group);
     this.zones = zones; this.half = half;
+    this.anchor = zones.map(z => [z.x, z.y]);
+    this.area = zones.map(z => (z.poly || []).reduce((a, p) => a + ringArea(p[0]), 0));
     // העיר מתעמעמת מתחת
     const veil = new THREE.Mesh(new THREE.PlaneGeometry(half[0] * 4, half[1] * 4),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.62, depthTest: false, depthWrite: false }));
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.66, depthTest: false, depthWrite: false }));
     veil.rotation.x = -Math.PI / 2; veil.position.y = HH - 2; veil.renderOrder = 9; this.group.add(veil);
-    this.src = { stops, buildings };      // השטחים נבנים בפעם הראשונה שמציגים את השכבה (לא מאטים את הטעינה)
     const mk = a => new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, transparent: true, depthTest: false, depthWrite: false,
       uniforms: { res: { value: new THREE.Vector2(400, 400) }, alpha: { value: a } }, side: THREE.DoubleSide });
-    this.mat = mk(0.95); this.halo = mk(0.95);
-    this.meshes = [];
-    // שכבה דו־ממדית מעל המפה: סמלים, שמות ומספרים
+    this.mat = mk(0.92); this.halo = mk(0.95); this.lineMat = mk(1);
+    this.meshes = []; this.built = false;
+    // שכבה דו־ממדית מעל המפה: סיכות, שמות, סמלים ומספרים
     const cv = this.cv = document.createElement('canvas');
     cv.id = 'dOverlay'; cv.setAttribute('aria-hidden', 'true');
     cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;display:none';
@@ -68,93 +126,57 @@ export class DemandLayer {
     this.state = null; this.drawKey = '';
   }
 
-  // ---------- שטחי השכונות: מסכה של השטח הבנוי, וכל פיקסל — לשכונה של התחנה הקרובה
-  buildAreas(stops, buildings) {
-    const [hx, hy] = this.half, W = this.gw = Math.ceil(2 * hx / CELL), H = this.gh = Math.ceil(2 * hy / CELL);
-    const m = document.createElement('canvas'); m.width = W; m.height = H;
-    const g = m.getContext('2d', { willReadFrequently: true });
-    g.setTransform(1 / CELL, 0, 0, -1 / CELL, hx / CELL, hy / CELL);      // מטרים ← פיקסלים (צפון למעלה)
-    g.fillStyle = g.strokeStyle = '#000'; g.lineJoin = 'round'; g.lineWidth = 70;
-    for (const b of buildings) {
-      if (b.pts.length < 3) continue;
-      g.beginPath(); b.pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); g.stroke();
-    }
-    for (const s of stops) { g.beginPath(); g.arc(s.x, s.y, 60, 0, Math.PI * 2); g.fill(); }
-    // ריכוך: סוגרים חורים קטנים בין בניינים
-    const m2 = document.createElement('canvas'); m2.width = W; m2.height = H;
-    const g2 = m2.getContext('2d', { willReadFrequently: true });
-    g2.filter = 'blur(3px)'; g2.drawImage(m, 0, 0); g2.filter = 'none';
-    const A = g2.getImageData(0, 0, W, H).data;
-    const mask = this.mask = new Float32Array(W * H);
-    for (let k = 0; k < W * H; k++) { const a = A[k * 4 + 3] / 255; mask[k] = Math.min(1, Math.max(0, (a - 0.3) / 0.35)); }
-    // שכונה לכל פיקסל (התחנה הקרובה, עד 700 מ')
-    const zid = this.zid = new Int8Array(W * H).fill(-1);
-    const sx = stops.map(s => s.x), sy = stops.map(s => s.y), sz = stops.map(s => s.zone ?? -1);
-    for (let r = 0; r < H; r++) {
-      const y = hy - (r + 0.5) * CELL;
-      for (let c = 0; c < W; c++) {
-        const k = r * W + c; if (mask[k] <= 0) continue;
-        const x = -hx + (c + 0.5) * CELL;
-        let bd = 700 * 700, bz = -1;
-        for (let i = 0; i < sx.length; i++) { const dx = sx[i] - x, dy = sy[i] - y, d = dx * dx + dy * dy; if (d < bd && sz[i] >= 0) { bd = d; bz = sz[i]; } }
-        zid[k] = bz;
-      }
-    }
-    // גבול בין שכונות: פיקסל ששכן שלו (עד 2 פיקסלים) שייך לשכונה אחרת
-    const edge = this.edge = new Uint8Array(W * H);
-    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
-      const k = r * W + c, z = zid[k]; if (z < 0) continue;
-      for (let dr = -1; dr <= 1 && !edge[k]; dr++) for (let dc = -1; dc <= 1; dc++) {
-        const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= H || cc >= W) continue;
-        const z2 = zid[rr * W + cc]; if (z2 >= 0 && z2 !== z) { edge[k] = 1; break; }
-      }
-    }
-    // נקודת עיגון לכל שכונה: הפיקסל של השכונה שהכי קרוב למרכז השטח שלה
-    const acc = this.zones.map(() => [0, 0, 0]);
-    for (let k = 0; k < W * H; k++) { const z = zid[k]; if (z < 0) continue; const w = mask[k]; acc[z][0] += (k % W) * w; acc[z][1] += ((k / W) | 0) * w; acc[z][2] += w; }
-    this.anchor = this.zones.map((z, i) => {
-      const [ax, ay, n] = acc[i]; if (!n) return [z.x, z.y];
-      const cc = ax / n, rr = ay / n; let bd = Infinity, bk = -1;
-      for (let k = 0; k < W * H; k++) if (zid[k] === i && !edge[k] && mask[k] > 0.5) {
-        const d = (k % W - cc) ** 2 + ((k / W | 0) - rr) ** 2; if (d < bd) { bd = d; bk = k; } }
-      if (bk < 0) return [z.x, z.y];
-      return [-hx + (bk % W + 0.5) * CELL, hy - ((bk / W | 0) + 0.5) * CELL];
+  // ---------- שטחי השכונות: פוליגון לכל שכונה, וקו לבן דק בין שכנות (בפיקסלים)
+  buildAreas() {
+    this.built = true;
+    this.fills = this.zones.map(z => {
+      const shapes = (z.poly || []).map(part => {
+        const s = new THREE.Shape(part[0].map(([x, y]) => new THREE.Vector2(x, y)));
+        for (const h of part.slice(1)) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
+        return s;
+      });
+      const m = new THREE.Mesh(new THREE.ShapeGeometry(shapes),
+        new THREE.MeshBasicMaterial({ color: ZTYPES[z.type]?.col || '#94a3b8', transparent: true, opacity: 0.2, depthTest: false, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.y = HH - 1; m.renderOrder = 10; m.frustumCulled = false;
+      this.group.add(m); return m;
     });
-    const out = this.areaCv = document.createElement('canvas'); out.width = W; out.height = H;
-    this.areaTex = new THREE.CanvasTexture(out); this.areaTex.colorSpace = THREE.SRGBColorSpace;
-    this.areaTex.minFilter = THREE.LinearFilter; this.areaTex.generateMipmaps = false;
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(W * CELL, H * CELL),
-      new THREE.MeshBasicMaterial({ map: this.areaTex, transparent: true, depthTest: false, depthWrite: false }));
-    plane.rotation.x = -Math.PI / 2; plane.position.set(-hx + W * CELL / 2, HH - 1, -(hy - H * CELL / 2)); plane.renderOrder = 10;
-    this.group.add(plane);
-    this.paintAreas(null);
+    this.edges = this.ribbon(this.zones.flatMap(z => (z.poly || []).flat()), '#ffffff', 2.2, this.lineMat, 10.5);
+    this.group.add(this.edges);
   }
-  // צביעת השטחים. strength: לכל שכונה, כמה חזק (0..1); null = כולן רגיל
-  paintAreas(strength) {
-    const key = strength ? strength.join(',') : '-'; if (key === this.paintKey) return; this.paintKey = key;
-    const W = this.gw, H = this.gh, g = this.areaCv.getContext('2d'), img = g.createImageData(W, H), D = img.data;
-    const cols = this.zones.map(z => new THREE.Color(ZTYPES[z.type].col));
-    for (let k = 0; k < W * H; k++) {
-      const z = this.zid[k]; if (z < 0 || this.edge[k]) continue;
-      const s = strength ? strength[z] : 1; if (!s) continue;
-      const c = cols[z];
-      D[k * 4] = c.r * 255; D[k * 4 + 1] = c.g * 255; D[k * 4 + 2] = c.b * 255; D[k * 4 + 3] = 255 * 0.24 * Math.min(1, s) * this.mask[k] + (s > 1 ? 255 * 0.12 * this.mask[k] : 0);
+  // קו בעובי קבוע בפיקסלים לאורך טבעות סגורות
+  ribbon(rings, color, px, mat, order) {
+    const pos = [], dir3 = [], off = [], col = [], c = new THREE.Color(color).convertLinearToSRGB(), W = px, E = px;
+    const push = (x, y, d, ox, oy) => { pos.push(x, HH, -y); dir3.push(d[0], 0, -d[1]); off.push(ox, oy); col.push(c.r, c.g, c.b); };
+    for (const r of rings) for (let i = 0; i < r.length; i++) {
+      const [x0, y0] = r[i], [x1, y1] = r[(i + 1) % r.length], d = [x1 - x0, y1 - y0];
+      if (!d[0] && !d[1]) continue;
+      push(x0, y0, d, -E, W); push(x0, y0, d, -E, -W); push(x1, y1, d, E, -W);
+      push(x0, y0, d, -E, W); push(x1, y1, d, E, -W); push(x1, y1, d, E, W);
     }
-    g.putImageData(img, 0, 0); this.areaTex.needsUpdate = true;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('dir', new THREE.Float32BufferAttribute(dir3, 3));
+    g.setAttribute('off', new THREE.Float32BufferAttribute(off, 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = order;
+    return m;
+  }
+  // גוון השטחים. strength: לכל שכונה 0..1 (null = כולן רגיל)
+  paintAreas(strength) {
+    this.fills.forEach((m, i) => { m.material.opacity = strength ? [0.06, 0.16, 0.3][strength[i]] : 0.2; });
   }
 
   setVisible(v) {
-    if (v && !this.zid) { this.buildAreas(this.src.stops, this.src.buildings); this.src = null; }
+    if (v && !this.built) this.buildAreas();
     this.group.visible = v; this.cv.style.display = v ? 'block' : 'none'; this.drawKey = ''; }
-  resize(w, h) { for (const m of [this.mat, this.halo]) m.uniforms.res.value.set(w / 2, h / 2); this.drawKey = ''; }
+  resize(w, h) { for (const m of [this.mat, this.halo, this.lineMat]) m.uniforms.res.value.set(w / 2, h / 2); this.drawKey = ''; }
   anchorV(i) { const [x, y] = this.anchor[i]; return new THREE.Vector3(x, HH, -y); }
   screenOf(i, camera, rect) {
     const v = this.anchorV(i).project(camera);
     return { x: rect.left + (v.x + 1) / 2 * rect.width, y: rect.top + (1 - v.y) / 2 * rect.height, ok: v.z < 1 };
   }
-  // איזו שכונה בנקודה הזו על המסך: קודם סמל קרוב, ואחר כך השטח עצמו
+  // איזו שכונה בנקודה הזו על המסך: קודם סיכה קרובה, ואחר כך השטח עצמו (בשתי שכונות — הקטנה)
   pick(cx, cy, camera, rect, near = 26) {
-    if (!this.anchor) return null;
     let best = null, bd = near;
     this.zones.forEach((z, i) => { const p = this.screenOf(i, camera, rect); if (!p.ok) return;
       const d = Math.hypot(p.x - cx, p.y - cy); if (d < bd) { bd = d; best = i; } });
@@ -162,22 +184,22 @@ export class DemandLayer {
     const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((cx - rect.left) / rect.width * 2 - 1, -((cy - rect.top) / rect.height) * 2 + 1), camera);
     const p = new THREE.Vector3();
     if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -(HH - 1)), p)) return null;
-    const c = Math.floor((p.x + this.half[0]) / CELL), r = Math.floor((this.half[1] + p.z) / CELL);
-    if (c < 0 || r < 0 || c >= this.gw || r >= this.gh) return null;
-    const k = r * this.gw + c;
-    return this.zid[k] >= 0 && this.mask[k] > 0.2 ? this.zid[k] : null;
+    const x = p.x, y = -p.z;
+    let hit = null;
+    this.zones.forEach((z, i) => { if ((z.poly || []).some(part => inPart(x, y, part)) && (hit == null || this.area[i] < this.area[hit])) hit = i; });
+    return hit;
   }
 
-  // מבט על: sym[i] = [{t, bad}] (כבר חתוך למקסימום), more[i] — יש עוד
+  // מבט על: sym[i] = [{s, k}] — סמל היעד ומצב הקו (כבר חתוך למקסימום), more[i] — יש עוד
   setOverview({ sym, more }) {
-    this.clearArrows(); this.paintAreas(null);
+    this.clearArrows(); if (this.built) this.paintAreas(null);
     this.state = { mode: 'over', sym, more }; this.drawKey = '';
   }
   // שכונה אחת: rows = [{z, rate, share}], dir 'out' | 'in', maxRate — לעובי
   setFocus({ focus, rows, dir, maxRate }) {
     this.clearArrows();
     const inv = new Set(rows.map(r => r.z));
-    this.paintAreas(this.zones.map((_, i) => i === focus ? 1.25 : inv.has(i) ? 0.85 : 0.3));
+    if (this.built) this.paintAreas(this.zones.map((_, i) => i === focus ? 2 : inv.has(i) ? 1 : 0));
     const order = rows.slice().sort((a, b) => a.rate - b.rate), arrows = [];
     const build = halo => {
       const pos = [], dir3 = [], off = [], col = [], c = new THREE.Color();
@@ -188,19 +210,19 @@ export class DemandLayer {
         // קשת עדינה, כדי שחיצים לכיוונים קרובים לא יתלכדו
         const nx = (by - ay) / L, ny = -(bx - ax) / L, bend = Math.min(0.12 * L, 160);
         const mx = (ax + bx) / 2 + nx * bend, my = (ay + by) / 2 + ny * bend;
-        const w = 2 * (1 + 4 * Math.sqrt(Math.min(1, f.rate / maxRate))), hw = halo ? 4 : 0;     // חצאי פיקסלים: עובי 2–10 פיקסלים
-        c.set(halo ? '#ffffff' : FLOW_COL[flowClass(f.share)]);
+        const w = 2 * (0.75 + 2.75 * Math.sqrt(Math.min(1, f.rate / maxRate))), hw = halo ? 3 : 0;     // חצאי פיקסלים: עובי 1.5–7 פיקסלים
+        c.set(halo ? '#ffffff' : FLOW_COL[flowClass(f.share)]).convertLinearToSRGB();     // ה-shader כותב את הצבע כמו שהוא (sRGB)
         const pts = [], S = 24;
         for (let i = 0; i <= S; i++) {
           const t = i / S, u = 1 - t;
           pts.push(new THREE.Vector3(u * u * ax + 2 * u * t * mx + t * t * bx, HH, -(u * u * ay + 2 * u * t * my + t * t * by)));
         }
         if (!halo) arrows.push({ pts, f });
-        // ההתחלה והסוף נעצרים לפני הסמלים של השכונות (בפיקסלים)
-        const start = 2 * 15, tip = 2 * 15, head = 2 * (6 + w / 4), hwid = w + 2 * 4;
+        // ההתחלה והסוף נעצרים לפני הסיכות של השכונות (בפיקסלים)
+        const start = 2 * 14, tip = 2 * 14, head = 2 * (5 + w / 4), hwid = w + 2 * 3.5;
         for (let i = 0; i < S; i++) {
           const p0 = pts[i], p1 = pts[i + 1], d = p1.clone().sub(p0);
-          const o0 = i === 0 ? start : i === S - 1 ? 0 : 0, o1 = i === S - 1 ? -(tip + head - 2) : 0;
+          const o0 = i === 0 ? start : 0, o1 = i === S - 1 ? -(tip + head - 2) : 0;
           const W = w + hw;
           push(p0, d, o0, W); push(p0, d, o0, -W); push(p1, d, o1, -W);
           push(p0, d, o0, W); push(p1, d, o1, -W); push(p1, d, o1, W);
@@ -217,8 +239,11 @@ export class DemandLayer {
       const m = new THREE.Mesh(g, halo ? this.halo : this.mat); m.frustumCulled = false; m.renderOrder = halo ? 11 : 12;
       this.group.add(m); this.meshes.push(m);
     };
+    // גבול כהה דק סביב השכונה שנבחרה
+    const ring = this.ribbon((this.zones[focus].poly || []).flat(), INK2, 1.2, this.lineMat, 10.7);
+    this.group.add(ring); this.meshes.push(ring);
     if (rows.length) { build(true); build(false); }
-    this.state = { mode: 'focus', focus, rows, dir, arrows, inv }; this.drawKey = '';
+    this.state = { mode: 'focus', focus, rows, dir, arrows, inv, rate: new Map(rows.map(r => [r.z, r])) }; this.drawKey = '';
   }
   clearArrows() { for (const m of this.meshes) { this.group.remove(m); m.geometry.dispose(); } this.meshes = []; }
 
@@ -236,125 +261,121 @@ export class DemandLayer {
     const P = this.zones.map((_, i) => this.screenOf(i, camera, rect));
     const S = this.state, boxes = ui.map(r => ({ x: r.left - 2, y: r.top - 2, w: r.right - r.left + 4, h: r.bottom - r.top + 4 }));
     const hit = b => boxes.some(o => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
-    const R = 11;     // רדיוס סמל השכונה
+    const phone = W <= 820, R = phone ? 10 : 11;     // רדיוס הסיכה
     const vis = i => P[i].ok && P[i].x > -60 && P[i].x < W + 60 && P[i].y > -60 && P[i].y < H + 60;
-    // מספרים על החיצים קודם בתור "תפוסים", כדי ששמות לא יכסו אותם
-    const nums = [];
-    if (S.mode === 'focus') {
-      g.font = '700 12px Heebo, "IBM Plex Sans Hebrew", Arial, sans-serif';
-      for (const a of S.arrows.slice().sort((x, y) => y.f.rate - x.f.rate)) {
-        const txt = Math.round(a.f.rate).toLocaleString('en-US'), w = g.measureText(txt).width + 12, h = 18;
-        for (const t of [0.55, 0.42, 0.68, 0.32, 0.78]) {
-          const v = a.pts[Math.round(t * (a.pts.length - 1))].clone().project(camera);
-          if (v.z >= 1) continue;
-          const x = (v.x + 1) / 2 * W, y = (1 - v.y) / 2 * H, b = { x: x - w / 2, y: y - h / 2, w, h };
-          if (!hit(b) || t === 0.78) { boxes.push(b); nums.push({ b, txt }); break; }
-        }
-      }
-    }
-    // סמלי השכונות תמיד (תפוסים)
     const order = this.zones.map((_, i) => i).filter(vis);
     for (const i of order) boxes.push({ x: P[i].x - R - 2, y: P[i].y - R - 2, w: 2 * R + 4, h: 2 * R + 4 });
-    // סדר עדיפות: בפוקוס — השכונה עצמה ואז היעדים לפי גודל; במבט על — לפי כמות הסמלים
+    // סדר עדיפות לכרטיסים: בפוקוס — השכונה עצמה ואז היעדים לפי גודל; במבט על — לפי כמות הסמלים
     let pri;
     if (S.mode === 'focus') {
       const rank = new Map(S.rows.map((r, k) => [r.z, k]));
       pri = order.filter(i => i === S.focus || rank.has(i)).sort((a, b) => (a === S.focus ? -1 : rank.get(a)) - (b === S.focus ? -1 : rank.get(b)));
-    } else pri = order.slice().sort((a, b) => (S.sym[b]?.length || 0) - (S.sym[a]?.length || 0));
-    // בלוק רק לשכונה שהסמל שלה נראה (לא מחוץ למסך ולא מתחת למקרא/ללוח)
+    } else pri = order.slice().sort((a, b) => (S.sym[b]?.length || 0) - (S.sym[a]?.length || 0) || this.area[b] - this.area[a]);
+    // כרטיס רק לשכונה שהסיכה שלה נראית (לא מחוץ למסך ולא מתחת למקרא/ללוח)
     const inUi = i => ui.some(r => P[i].x > r.left && P[i].x < r.right && P[i].y > r.top && P[i].y < r.bottom);
     pri = pri.filter(i => P[i].x > 0 && P[i].x < W && P[i].y > 0 && P[i].y < H && !inUi(i));
     const blocks = [];
-    const SZ = W > 820 ? 15 : 13, GAP = 2, PER = 6;
+    const SZ = phone ? 12 : 14, GAP = 3, PER = 6;
+    const NAMEF = (b, s) => `${b} ${s}px ${FONT}`;
     for (const i of pri) {
-      const z = this.zones[i], focus = S.mode === 'focus' && i === S.focus;
+      const z = this.zones[i], focus = S.mode === 'focus' && i === S.focus, fr = S.mode === 'focus' && !focus ? S.rate.get(i) : null;
       const sym = S.mode === 'over' ? S.sym[i] || [] : [], more = S.mode === 'over' && S.more[i];
-      g.font = `${focus ? 800 : 700} ${focus ? 13.5 : 12}px Heebo, "IBM Plex Sans Hebrew", Arial, sans-serif`;
-      // שם ארוך — בשתי שורות (חלוקה ברווח הכי קרוב לאמצע)
-      let lines = [z.name];
-      if (!focus && g.measureText(z.name).width > 112 && z.name.includes(' ')) {
-        const sp = [...z.name].map((c, k) => c === ' ' ? k : -1).filter(k => k > 0), mid = z.name.length / 2;
-        const k = sp.reduce((a, b) => Math.abs(b - mid) < Math.abs(a - mid) ? b : a);
-        lines = [z.name.slice(0, k), z.name.slice(k + 1)];
-      }
-      const nameW = Math.max(...lines.map(t => g.measureText(t).width)), nameH = focus ? 17 : 15 * lines.length;
+      g.font = NAMEF(focus ? 800 : 700, focus ? 13.5 : 12);
+      const nameW = g.measureText(z.name).width;
+      g.font = NAMEF(500, 10.5);
+      const type = ZTYPES[z.type]?.short || '', typeW = type ? g.measureText(type).width + 6 : 0;
+      let numTxt = '', numW = 0;
+      if (fr) { numTxt = Math.round(fr.rate).toLocaleString('en-US'); g.font = NAMEF(800, 12); numW = g.measureText(numTxt).width + 6 + 16; }
       const n = sym.length + (more ? 1 : 0), rows = Math.ceil(n / PER), symW = n ? Math.min(n, PER) * (SZ + GAP) - GAP : 0, symH = rows ? rows * (SZ + GAP) - GAP : 0;
-      // כרטיס קטן (שם + סמלים) עם "חוד" לכיוון סמל השכונה, כדי שלא יתבלבלו בין שכונות קרובות
-      const tryPlace = (withName, withSym) => {
-        const bw = Math.max(withName ? nameW : 0, withSym ? symW : 0) + 12, bh = (withName ? nameH : 0) + (withSym ? symH : 0) + (withName && withSym ? 3 : 0) + 8;
-        const { x, y } = P[i], d = R + 7;
+      // כרטיס קטן (שם, סוג, סמלים / מספר) עם "חוד" לכיוון הסיכה
+      const tryPlace = (withName, withType, withSym, noName) => {
+        const lineW = (withName ? (noName ? 0 : nameW) + numW + (withType ? typeW : 0) : 0);
+        const bw = Math.max(lineW, withSym ? symW : 0) + 12, nameH = withName ? (focus ? 18 : 16) : 0;
+        const bh = nameH + (withSym ? symH : 0) + (withName && withSym ? 3 : 0) + 7;
+        const { x, y } = P[i], d = R + 6;
         const cand = [[x - bw / 2, y + d, 0], [x - bw / 2, y - d - bh, 3], [x - d - bw, y - bh / 2, 1], [x + d, y - bh / 2, 2],
-          [x - bw + 16, y + d, 0], [x - 16, y + d, 0], [x - bw + 16, y - d - bh, 3], [x - 16, y - d - bh, 3]];
+          [x - bw + 16, y + d, 0], [x - 16, y + d, 0], [x - bw + 16, y - d - bh, 3], [x - 16, y - d - bh, 3],
+          [x - d - bw, y - bh + 10, 1], [x - d - bw, y - 10, 1], [x + d, y - bh + 10, 2], [x + d, y - 10, 2]];
         for (const [bx, by, side] of cand) {
-          // לא לחתוך בקצה המסך: מזיזים פנימה (אבל לא רחוק מהסמל)
           const sx = side === 0 || side === 3 ? Math.min(Math.max(bx, 4), W - 4 - bw) : bx;
           if (sx < 2 || sx + bw > W - 2 || (side === 0 || side === 3) && (x < sx + 12 || x > sx + bw - 12)) continue;
           const b = { x: sx, y: by, w: bw, h: bh };
-          if (!hit({ x: b.x - 1, y: b.y - 1, w: b.w + 2, h: b.h + 2 })) return { b, withName, withSym, side };
+          if (!hit({ x: b.x - 2, y: b.y - 2, w: b.w + 4, h: b.h + 4 })) return { b, withName, withType, withSym, side, nameH, noName };
         }
         return null;
       };
-      const pl = tryPlace(true, n > 0) || (n ? tryPlace(false, true) : null);
+      // אם אין מקום: בלי הסוג, ואז בלי השם (הסיכה מראה את הצורה של השכונה; בפוקוס נשאר המספר)
+      const pl = tryPlace(true, !fr && !phone, n > 0) || tryPlace(true, false, n > 0) || (fr ? tryPlace(true, false, false, true) : n ? tryPlace(false, false, true) : null);
       if (!pl) continue;
       boxes.push(pl.b);
-      blocks.push({ i, pl, nameW, nameH, symW, symH, sym, more, focus, lines });
+      blocks.push({ i, pl, nameW, typeW, type, numTxt, numW, symW, sym, more, focus, fr });
     }
-    // ציור: סמלי שכונה, ואז הכרטיסים, ואז המספרים
+    // ציור: הסיכות, ואז הכרטיסים
     for (const i of order) {
       const dim = S.mode === 'focus' && i !== S.focus && !S.inv.has(i);
-      this.drawZoneIcon(g, P[i].x, P[i].y, R, this.zones[i].type, dim ? 0.45 : 1, S.mode === 'focus' && i === S.focus);
+      this.drawPin(g, P[i].x, P[i].y, R, this.zones[i].sym, dim ? 0.35 : 1, S.mode === 'focus' && i === S.focus);
     }
     for (const B of blocks) {
-      const { b, withName, withSym, side } = B.pl, p = P[B.i];
-      const bg = B.focus ? '#2a78d6' : 'rgba(255,255,255,.95)';
-      g.fillStyle = bg; g.strokeStyle = B.focus ? '#fff' : 'rgba(15,23,42,.18)'; g.lineWidth = 1;
+      const { b, withName, withType, withSym, side, nameH } = B.pl, p = P[B.i], z = this.zones[B.i];
+      g.fillStyle = B.focus ? INK : 'rgba(255,255,255,.96)'; g.strokeStyle = B.focus ? '#fff' : 'rgba(15,23,42,.16)'; g.lineWidth = 1;
       callout(g, b, side, p); g.fill(); g.stroke();
-      let y = b.y + 4;
-      const cx = b.x + b.w / 2;
+      g.textBaseline = 'middle'; g.direction = 'rtl';
+      let y = b.y + 3.5;
       if (withName) {
-        g.font = `${B.focus ? 800 : 700} ${B.focus ? 13.5 : 12}px Heebo, "IBM Plex Sans Hebrew", Arial, sans-serif`;
-        g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'rtl'; g.fillStyle = B.focus ? '#fff' : '#0f172a';
-        B.lines.forEach((t, k) => g.fillText(t, cx, y + (B.focus ? 9 : 7.5) + 15 * k + 1));
-        y += B.nameH + (withSym ? 3 : 0);
+        const cy = y + nameH / 2 + 0.5;
+        // מימין לשמאל: [מצב] שם · מספר | סוג
+        let xr = b.x + b.w - 6;
+        if (B.fr) {
+          const k = flowClass(B.fr.share);
+          g.beginPath(); g.arc(xr - 7, cy, 7, 0, Math.PI * 2); g.fillStyle = FLOW_COL[k]; g.fill();
+          g.font = `800 9px ${FONT}`; g.textAlign = 'center'; g.fillStyle = '#fff';
+          g.fillText(FLOW_ICON[k], xr - 7, cy + 0.5); xr -= 18;
+        }
+        g.font = `${B.focus ? 800 : 700} ${B.focus ? 13.5 : 12}px ${FONT}`; g.textAlign = 'right'; g.fillStyle = B.focus ? '#fff' : INK;
+        if (!B.pl.noName) { g.fillText(z.name, xr, cy); xr -= B.nameW; }
+        if (B.fr) { g.font = `800 12px ${FONT}`; g.fillStyle = INK; g.fillText(B.numTxt, xr - 6, cy); xr -= B.numW - 16; }
+        if (withType) { g.font = `500 10.5px ${FONT}`; g.fillStyle = B.focus ? '#cbd5e1' : '#64748b'; g.fillText(B.type, xr - 6, cy + 0.5); }
+        y += nameH + (withSym ? 3 : 0);
       }
       if (withSym) {
-        const x0 = cx - B.symW / 2;
-        // מימין לשמאל, כמו הטקסט
+        const x0 = b.x + b.w / 2 - B.symW / 2;
         const items = B.sym.slice(); if (B.more) items.push(null);
-        items.forEach((s, k) => {
+        items.forEach((s, k) => {      // מימין לשמאל, כמו הטקסט
           const col = k % PER, row = (k / PER) | 0;
           const sx = x0 + B.symW - col * (SZ + GAP) - SZ / 2, sy = y + row * (SZ + GAP) + SZ / 2;
-          if (s == null) { g.font = '800 14px Arial, sans-serif'; g.fillStyle = '#0f172a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('+', sx, sy + 1); return; }
-          drawGlyph(g, s.t, sx, sy, SZ, s.bad);
+          if (s == null) { g.font = `800 13px ${FONT}`; g.fillStyle = INK; g.textAlign = 'center'; g.fillText('+', sx, sy + 1); return; }
+          drawShape(g, s.s, sx, sy, SZ, s.k);
         });
       }
     }
-    for (const { b, txt } of nums) {
-      g.fillStyle = '#0f172a'; rr(g, b.x, b.y, b.w, b.h, 9); g.fill();
-      g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
-      g.font = '700 12px Heebo, "IBM Plex Sans Hebrew", Arial, sans-serif'; g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(txt, b.x + b.w / 2, b.y + b.h / 2 + 1);
-    }
   }
-  drawZoneIcon(g, x, y, r, t, alpha, focus) {
+  // הסיכה של שכונה: עיגול לבן עם הסמל שלה בדיו (בשכונה שנבחרה — הפוך)
+  drawPin(g, x, y, r, sym, alpha, focus) {
     g.save(); g.globalAlpha = alpha;
-    g.beginPath(); g.arc(x, y, r + 1.5, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill();
-    g.beginPath(); g.arc(x, y, r - 0.5, 0, Math.PI * 2); g.lineWidth = focus ? 3.5 : 2.5; g.strokeStyle = focus ? '#2a78d6' : ZTYPES[t].col; g.stroke();
-    g.translate(x - r * 0.62, y - r * 0.62); g.scale(r * 1.24 / 24, r * 1.24 / 24);
-    g.fillStyle = '#1e293b'; g.fill(PATHS[t]);
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = focus ? INK : '#fff'; g.fill();
+    g.lineWidth = 1; g.strokeStyle = focus ? '#fff' : 'rgba(15,23,42,.35)'; g.stroke();
+    const s = r * 1.15;
+    g.translate(x - s / 2, y - s / 2); g.scale(s / 24, s / 24);
+    g.fillStyle = focus ? '#fff' : INK2; g.fill(PATHS[sym] || PATHS.circle);
     g.restore();
   }
 }
-// סמל יעד קטן: אדום מלא — אין קו; אפור חלול — יש קו
-function drawGlyph(g, t, cx, cy, s, bad) {
+// סמל קטן במצב קו: none — מלא אדום; some — חצי כתום; good — חלול אפור
+function drawShape(g, sym, cx, cy, s, k) {
+  const path = PATHS[sym] || PATHS.circle, col = FLOW_COL[k], f = FILL[k];
   g.save(); g.translate(cx - s / 2, cy - s / 2); g.scale(s / 24, s / 24);
-  if (bad) { g.fillStyle = FLOW_COL.none; g.fill(PATHS[t]); }
-  else { g.lineWidth = 2.2; g.lineJoin = 'round'; g.strokeStyle = SERVED; g.stroke(PATHS[t]); }
+  g.lineJoin = 'round';
+  g.fillStyle = '#fff'; g.fill(path);
+  if (f > 0) {
+    g.save(); if (f < 1) { g.beginPath(); g.rect(-2, 12, 28, 14); g.clip(); }
+    g.fillStyle = col; g.fill(path); g.restore();
+  }
+  g.lineWidth = f >= 1 ? 1.5 : 2.6; g.strokeStyle = col; g.stroke(path);
   g.restore();
 }
 // מלבן מעוגל עם חוד קטן לכיוון הנקודה p. side: 0 החוד למעלה, 3 למטה, 1 מימין, 2 משמאל
 function callout(g, b, side, p) {
-  const r = 6, k = 6, { x, y, w, h } = b;
+  const r = 6, k = 5, { x, y, w, h } = b;
   const cx = Math.min(Math.max(p.x, x + r + k), x + w - r - k), cy = Math.min(Math.max(p.y, y + r + k), y + h - r - k);
   g.beginPath(); g.moveTo(x + r, y);
   if (side === 0) { g.lineTo(cx - k, y); g.lineTo(cx, y - k); g.lineTo(cx + k, y); }
@@ -365,8 +386,4 @@ function callout(g, b, side, p) {
   g.arcTo(x, y + h, x, y, r);
   if (side === 2) { g.lineTo(x, cy + k); g.lineTo(x - k, cy); g.lineTo(x, cy - k); }
   g.arcTo(x, y, x + w, y, r); g.closePath();
-}
-function rr(g, x, y, w, h, r) {
-  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
