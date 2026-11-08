@@ -9,6 +9,7 @@ import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './l
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { CameraModes } from './cameras.js';
+import { mapTouch } from './touch.js';
 
 const $ = s => document.querySelector(s);
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -43,7 +44,9 @@ controls.enableDamping = true; controls.dampingFactor = 0.12;
 controls.screenSpacePanning = false;
 controls.maxPolarAngle = 1.42; controls.minDistance = 12; controls.maxDistance = 2600;
 controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+// במגע — שליטה בסגנון מפות (touch.js); OrbitControls נשאר לעכבר
+controls.touches = { ONE: -1, TWO: -1 };
+const touch = mapTouch(canvas, camera, controls);
 controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
@@ -334,7 +337,13 @@ function renderLines() {
       selectedLine = L;
       if (a === 'follow') { cams.modes.follow.bus = pickBus(); cams.current === 'follow' ? cams.modes.follow.enter() : cams.set('follow'); }
       else if (a === 'vis') { L.visible = !L.visible; lineGroups.get(L.id).visible = L.visible; }
-      else if (a === 'del') { if (confirm(`למחוק את קו ${L.def.number}?`)) return removeLine(L); }
+      else if (a === 'del') {
+        // confirm() חסום בדף מוטמע — אישור בלחיצה שנייה על אותו כפתור
+        if (e.target.classList.contains('sure')) return removeLine(L);
+        e.target.classList.add('sure'); e.target.textContent = 'בטוח? לחצו שוב';
+        setTimeout(() => { if (e.target.isConnected) { e.target.classList.remove('sure'); e.target.textContent = 'מחיקה'; } }, 4000);
+        return;
+      }
       renderLines();
     };
     box.appendChild(c);
@@ -385,9 +394,11 @@ function tick(dt) {
     $('#time').textContent = clockText(sim.time);
     statT += dt; if (statT > 0.4) { statT = 0; updateStats(); }
   }
+  touch.update(dt);
   // שומרים את המצלמה מעל העיר
   const t = controls.target, H = city ? city.meta.half : [3000, 3000];
-  t.x = THREE.MathUtils.clamp(t.x, -H[0], H[0]); t.z = THREE.MathUtils.clamp(t.z, -H[1], H[1]); t.y = Math.max(0, Math.min(t.y, 20));
+  const cx = THREE.MathUtils.clamp(t.x, -H[0], H[0]) - t.x, cz = THREE.MathUtils.clamp(t.z, -H[1], H[1]) - t.z;
+  t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));
   controls.update();
   renderer.render(scene, camera);
   fcount++; acc += dt; G.frames++;

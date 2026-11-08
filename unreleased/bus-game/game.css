@@ -61,6 +61,7 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .lbtns{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
 .lbtns button{padding:5px 11px;font-size:13px}
 .lbtns .del{color:#b91c1c}
+.lbtns .del.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
 
 .scard h3{margin:0 0 2px;font-size:17px}
 .scard .code{color:var(--muted);font-size:13px}
