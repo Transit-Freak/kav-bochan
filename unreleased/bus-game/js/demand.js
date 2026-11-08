@@ -50,6 +50,14 @@ export class Demand {
       pop[i] = r[1]; A.work[i] = r[2]; A.school[i] = r[3]; A.other[i] = r[4];
       s.zone = r[0]; s.pop = r[1];
     });
+    this.attr = A;
+    // מה יש בכל שכונה: תושבים, ומשקל מקומות העבודה, הלימודים והמסחר — כחלק מכל העיר
+    const tot = k => A[k].reduce((a, b) => a + b, 0) || 1;
+    const T = { work: tot('work'), school: tot('school'), other: tot('other'), pop: pop.reduce((a, b) => a + b, 0) || 1 };
+    for (const z of this.zones) {
+      z.pop = 0; z.work = 0; z.school = 0; z.other = 0;
+      for (const i of z.stops) { z.pop += pop[i]; z.work += A.work[i] / T.work; z.school += A.school[i] / T.school; z.other += A.other[i] / T.other; }
+    }
     // מרחקים (קו אווירי) ושכנים בהליכה
     const dist = this.dist = new Float32Array(N * N);
     this.walkNb = [];

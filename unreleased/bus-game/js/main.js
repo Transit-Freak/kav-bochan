@@ -12,7 +12,7 @@ import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, START_MONEY, typeOf, lineCycle, vehiclesNeeded, fleetChange, money, dayOf } from './fleet.js';
 import { mapTouch } from './touch.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
-import { DemandLayer, FLOW_COL, flowClass } from './demandview.js';
+import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass } from './demandview.js';
 
 const $ = s => document.querySelector(s);
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -79,7 +79,7 @@ async function init() {
   bank.onDay = showDaySummary;
   demand = new Demand(dj, city.stops);
   sim = new Sim(city.stops, bank, t0, demand);
-  dlayer = new DemandLayer(scene, demand.zones); dlayer.resize(innerWidth, innerHeight);
+  dlayer = new DemandLayer(scene, demand.zones, city.meta.half); dlayer.resize(innerWidth, innerHeight);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast });
   buildCamButtons();
@@ -183,9 +183,19 @@ canvas.addEventListener('pointerup', e => {
   if (!down || !e.isPrimary) return;
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
   if (moved > 8 || dt > 600) return;
+  if (dview.on && !planning) {        // במפת הביקוש: הקשה על שכונה מציגה לאן נוסעים ממנה; הקשה במקום ריק מחזירה לכל העיר
+    const z = pickZone(e.clientX, e.clientY);
+    if (z != null || dview.focus != null) { dview.focus = z === dview.focus ? null : z; refreshDemandView(true); return; }
+  }
   const s = pickStop(e.clientX, e.clientY);
   if (s) tapStop(s);
 });
+function pickZone(cx, cy) {
+  const r = canvas.getBoundingClientRect(); let best = null, bd = isTouch ? 34 : 24;
+  demand.zones.forEach((z, i) => { const p = dlayer.screenOf(i, camera, r); if (!p.ok) return;
+    const d = Math.hypot(p.x - cx, p.y - cy); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
 function tapStop(s) {
   if (!s) return;
   if (planning) return planAdd(s);
@@ -498,8 +508,14 @@ function bindUI() {
   $('#planDone').onclick = finishPlanning;
   $('#planSel').onclick = e => { const a = e.target.closest('button')?.dataset.r; if (a) routeAction(a); };
   $('#dlClose').onclick = () => setDemandView(false);
-  $('#dlNow').onclick = () => { dview.now = true; refreshDemandView(true); };
+  $('#dlChips').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.h === 'now') dview.now = true; else { dview.now = false; dview.hour = +b.dataset.h; }
+    refreshDemandView(true); };
   $('#dlHour').oninput = e => { dview.now = false; dview.hour = +e.target.value; refreshDemandView(true); };
+  $('#dLegend').addEventListener('click', e => {
+    const m = e.target.closest('[data-more]'); if (m) { dview.all = !dview.all; refreshDemandView(true); return; }
+    const z = e.target.closest('[data-zone]'); if (z) { dview.focus = z.dataset.zone === '' ? null : +z.dataset.zone; refreshDemandView(true); }
+  });
   $('#demandBody').onclick = e => { if (e.target.closest('#dShow')) setDemandView(!dview.on, null, true); };
   $('#fBack').onclick = () => { $('#lineForm').hidden = true; if (form?.line) form = null; };
   $('#fMinus').onclick = () => { form.n = Math.max(0, form.n - 1); form.touched = true; renderForm(); };
@@ -758,10 +774,10 @@ function flows(h) {
   return f;
 }
 let maxFlow = 0;
-const dview = { on: false, now: true, hour: 7, key: '' };
+const dview = { on: false, now: true, hour: 7, key: '', focus: null, all: false };
 // fit: מבט מלמעלה על כל האזורים (ובטלפון גם מקפלים את הלוח, כדי שהמפה תיראה)
 function setDemandView(on, hour, fit) {
-  dview.on = on;
+  dview.on = on; if (!on) dview.focus = null;
   if (hour != null) { dview.now = false; dview.hour = hour; }
   dlayer.setVisible(on); $('#dLegend').hidden = !on; $('#demandBtn')?.classList.toggle('on', on);
   if (on) refreshDemandView(true);
@@ -790,20 +806,45 @@ function refreshDemandView(force) {
   if (!dview.on || !demand) return;
   const h = dview.now ? hourNow() : dview.hour;
   if (+$('#dlHour').value !== h) $('#dlHour').value = h;
-  $('#dlNow').classList.toggle('on', dview.now);
+  for (const b of $('#dlChips').children) b.classList.toggle('on', b.dataset.h === 'now' ? dview.now : !dview.now && +b.dataset.h === h);
   $('#dlTitle').textContent = `מאיפה לאן · ${span(h * 60, h * 60 + 60)}`;
-  const f = flows(h);
-  if (!force && f.key === dview.key) return;
-  dview.key = f.key;
-  const Z = demand.Z;
-  if (!maxFlow) for (const R of demand.zoneHour) for (let i = 0; i < Z; i++) for (let j = 0; j < Z; j++) if (i !== j) maxFlow = Math.max(maxFlow, R[i * Z + j]);
-  const list = [];
-  for (let i = 0; i < Z; i++) for (let j = 0; j < Z; j++) {
-    const k = i * Z + j, r = f.pot[k];
-    if (i !== j && r >= 1) list.push({ a: i, b: j, rate: r, share: f.cov[k] / r });
+  const f = flows(h), key = f.key + '|' + dview.focus + '|' + dview.all;
+  if (!force && key === dview.key) return;
+  dview.key = key;
+  const Z = demand.Z, zn = demand.zones;
+  // קנה מידה קבוע לכל היום (כך שהעובי בבוקר ובערב בר השוואה)
+  if (!maxFlow) for (const R of demand.zoneHour) for (let i = 0; i < Z; i++) for (let j = i + 1; j < Z; j++) maxFlow = Math.max(maxFlow, R[i * Z + j] + R[j * Z + i]);
+  // שני הכיוונים יחד: קו אחד בין כל שתי שכונות
+  const all = [], tot = new Float64Array(Z);
+  for (let i = 0; i < Z; i++) for (let j = i + 1; j < Z; j++) {
+    const r = f.pot[i * Z + j] + f.pot[j * Z + i]; if (r < 1) continue;
+    const c = f.cov[i * Z + j] + f.cov[j * Z + i];
+    all.push({ a: i, b: j, rate: r, share: c / r, ab: f.pot[i * Z + j], ba: f.pot[j * Z + i] });
+    tot[i] += r; tot[j] += r;
   }
-  list.sort((a, b) => b.rate - a.rate);
-  dlayer.set(list.filter(f => f.rate >= maxFlow * 0.04).slice(0, 36), maxFlow);
+  all.sort((a, b) => b.rate - a.rate);
+  const maxTot = Math.max(1, ...tot), F = dview.focus;
+  let shown, labelled = 5;
+  if (F != null) { shown = all.filter(x => x.a === F || x.b === F).slice(0, 12); labelled = 6; }
+  else shown = dview.all ? all.filter(x => x.rate >= maxFlow * 0.02).slice(0, 45) : all.slice(0, 10);
+  dlayer.set({ flows: shown, maxRate: maxFlow, zoneTot: tot, maxTot, focus: F, labelled });
+  // מקרא: מה רואים, ורשימה (גם כטבלה — לא רק צבע)
+  const need = shown.filter(x => flowClass(x.share) !== 'good').length;
+  $('#dlNote').innerHTML = F != null ? 'עובי הקו = נוסעים בשעה, בשני הכיוונים'
+    : `${dview.all ? 'כל הקווים' : '10 הגדולים'} · עובי = נוסעים בשעה · <button class="link" data-more>${dview.all ? 'רק הגדולים' : 'הצגת הכל'}</button><br>הקישו על שכונה — לאן נוסעים ממנה`;
+  const box = $('#dlFocus');
+  if (F == null) { box.hidden = true; box.innerHTML = ''; return; }
+  const rows = shown.slice(0, 6), mx = Math.max(1, ...rows.map(x => x.rate));
+  box.hidden = false;
+  // מה יש בשכונה — ממנו נובע הביקוש (בניינים לפי סוג וגודל)
+  const zf = zn[F], lvl = v => v >= 0.15 ? 'הרבה' : v >= 0.05 ? 'בינוני' : v > 0.005 ? 'מעט' : '';
+  const has = [['work', 'עבודה ותעשייה'], ['school', 'בתי ספר וגנים'], ['other', 'מסחר ושירותים']].filter(([k]) => lvl(zf[k])).map(([k, t]) => `${t}: ${lvl(zf[k])}`);
+  box.innerHTML = `<div class="dlf-head"><b>${esc(zf.name)}</b><span>${num(tot[F])} נוסעים בשעה</span><button class="link" data-zone="">כל העיר</button></div>
+    <div class="dlf-what">${zf.pop >= 50 ? `כ-${num(Math.round(zf.pop / 50) * 50)} תושבים` : 'כמעט בלי מגורים'}${has.length ? ' · ' + has.join(' · ') : ''}</div>
+    <ul class="dlf">${rows.map(x => { const o = x.a === F ? x.b : x.a, k = flowClass(x.share);
+      return `<li><span class="st st-${k}" title="${FLOW_TXT[k]}">${FLOW_ICON[k]}</span><span class="nm">${esc(zn[o].name)}</span>
+        <span class="dbar"><i style="width:${Math.max(4, x.rate / mx * 100)}%"></i></span><b>${num(x.rate)}</b></li>`; }).join('')}</ul>
+    <div class="dl-note">${need ? `${need === 1 ? 'יעד אחד' : need + ' יעדים'} בלי קו מלא — כדאי לחבר` : 'לכל היעדים הגדולים יש קו'}</div>`;
 }
 function renderDemand() {
   if (!sim) return;

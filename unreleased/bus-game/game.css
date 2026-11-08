@@ -166,13 +166,28 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .dl-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .dl-head b{font-size:14px}
 .x{width:28px;height:28px;padding:0;display:grid;place-items:center;font-size:13px;flex:none}
-.dl-hour{display:flex;align-items:center;gap:8px;margin:6px 0}
-.dl-hour input{flex:1;direction:ltr;accent-color:#f59e0b;min-width:0}
-.dl-hour button{padding:3px 10px;font-size:12.5px}
-.dl-hour button.on{background:#f59e0b;border-color:#f59e0b;color:#fff;font-weight:700}
-.dl-keys{display:flex;gap:10px;flex-wrap:wrap}
-.dl-keys i{display:inline-block;width:14px;height:5px;border-radius:3px;margin-inline-end:4px;vertical-align:middle}
-.dl-note{color:var(--muted);font-size:12px;margin-top:3px}
+.dl-chips{display:flex;gap:4px;margin:6px 0 2px;flex-wrap:wrap}
+.dl-chips button{padding:4px 10px;font-size:12.5px}
+.dl-chips button.on{background:#0f172a;border-color:#0f172a;color:#fff;font-weight:700}
+#dlHour{width:100%;direction:ltr;accent-color:#0f172a;margin:2px 0 4px}
+.dl-keys{display:flex;gap:10px;flex-wrap:wrap;color:var(--ink2)}
+.dl-keys i{display:inline-block;width:16px;height:5px;border-radius:3px;margin-inline-end:4px;vertical-align:middle}
+.dl-note{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.45}
+.dl-note .link{font-size:12px}
+.dl-focus{border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
+.dlf-head{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.dlf-head b{font-size:14px}
+.dlf-head span{color:var(--muted);font-size:12px}
+.dlf-head .link{margin-inline-start:auto;font-size:12px}
+.dlf-what{font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.4}
+.dlf{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.dlf li{display:grid;grid-template-columns:18px minmax(0,1fr) 52px auto;align-items:center;gap:6px;font-size:12.5px}
+.dlf .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlf .dbar{height:6px;background:#eef2f7;border-radius:3px;overflow:hidden}
+.dlf .dbar i{display:block;height:100%;background:#2a78d6;border-radius:3px 0 0 3px}
+.dlf b{font-variant-numeric:tabular-nums;min-width:30px;text-align:left}
+.st{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-size:11px;font-weight:700;color:#fff}
+.st-none{background:#d03b3b}.st-some{background:#ec835a}.st-good{background:#94a3b8}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .tile{background:#f8fafc;border-radius:10px;padding:6px 8px}
 .tile b{display:block;font:700 18px/1.2 "IBM Plex Sans Hebrew",var(--font);font-variant-numeric:tabular-nums}
@@ -231,5 +246,8 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
   .tabs{gap:2px;overflow-x:auto;scrollbar-width:none}
   .tabs button{padding:6px 9px;white-space:nowrap}
   .dlegend{top:calc(max(6px,env(safe-area-inset-top)) + 92px);inset-inline-end:6px;width:212px;padding:6px 8px;font-size:12px}
-  .dl-note{display:none}
+  .dlegend{width:236px}
+  #dlHour{display:none}
+  .dl-chips button{padding:3px 8px;font-size:12px}
+  .dl-keys{gap:8px}
 }

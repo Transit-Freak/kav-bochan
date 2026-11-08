@@ -76,9 +76,15 @@
 
 <div class="dlegend" id="dLegend" hidden>
   <div class="dl-head"><b id="dlTitle">מאיפה לאן</b><button id="dlClose" class="x" aria-label="סגירה">✕</button></div>
-  <div class="dl-hour"><input type="range" id="dlHour" min="0" max="23" step="1" value="7" aria-label="שעה"><button id="dlNow" class="on">עכשיו</button></div>
-  <div class="dl-keys"><span><i style="background:#16a34a"></i>יש קו</span><span><i style="background:#f59e0b"></i>חלקי</span><span><i style="background:#dc2626"></i>אין קו</span></div>
-  <div class="dl-note">עובי = כמה רוצים לנסוע בשעה הזו · החץ — לאן</div>
+  <div class="dl-chips" id="dlChips" role="group" aria-label="שעה">
+    <button data-h="now" class="on">עכשיו</button><button data-h="7">בוקר</button><button data-h="12">צהריים</button><button data-h="16">ערב</button>
+  </div>
+  <input type="range" id="dlHour" min="0" max="23" step="1" value="7" aria-label="שעה">
+  <div class="dl-keys">
+    <span><i style="background:#d03b3b"></i>✕ אין קו</span><span><i style="background:#ec835a"></i>½ חלקי</span><span><i style="background:#94a3b8"></i>✓ יש קו</span>
+  </div>
+  <div class="dl-note" id="dlNote"></div>
+  <div class="dl-focus" id="dlFocus" hidden></div>
 </div>
 
 <div class="plan" id="plan" hidden>
