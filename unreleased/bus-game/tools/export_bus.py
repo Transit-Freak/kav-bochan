@@ -29,6 +29,28 @@ SC = bpy.context.scene
 def remove(o):
     bpy.data.objects.remove(o, do_unlink=True)
 
+# 0. חלון נהג בצד ‎+X: ב-bus.py הצד של הנהג אטום מהשמשה ועד חלון הנוסעים הראשון, ולא רואים את הנהג מהצד.
+# חותכים חלון בגוף (Boolean, מוחל יחד עם שאר החיתוכים בשלב 1), עם זכוכית כמו בשאר החלונות ועמוד שחור
+# בינו לבין חלונות הנוסעים
+def _box(name, size, loc, m):
+    import bmesh
+    me = bpy.data.meshes.new(name); bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0); bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(name, me); SC.collection.objects.link(ob); ob.scale = size; ob.location = loc
+    if m: me.materials.append(m)
+    return ob
+_body, _glass, _black = bpy.data.objects.get('SM_Body'), bpy.data.materials.get('M_Glass'), bpy.data.materials.get('M_GlossBlack')
+if _body and _glass:
+    WZ0, WZ1 = Z0 + 1.02, Z0 + 2.42                 # רצועת החלונות, כמו ב-bus.py
+    y0, y1 = YF + 0.32, YF + 2.2                    # מאחורי עמוד השמשה ועד תחילת חלונות הנוסעים
+    c = _box('Cut_DriverWin', (0.4, y1 - y0, WZ1 - WZ0), (W / 2, (y0 + y1) / 2, (WZ0 + WZ1) / 2), None)
+    c.hide_render = True; c.display_type = 'WIRE'
+    m = _body.modifiers.new('DriverWin', 'BOOLEAN'); m.operation = 'DIFFERENCE'; m.object = c
+    try: m.solver = 'EXACT'
+    except Exception: pass
+    _box('SM_DriverGlass', (0.02, y1 - y0 + 0.04, WZ1 - WZ0), (W / 2 - 0.012, (y0 + y1) / 2, (WZ0 + WZ1) / 2), _glass)
+    if _black: _box('SM_PillarDriver', (0.03, 0.09, WZ1 - WZ0), (W / 2 - 0.005, y1, (WZ0 + WZ1) / 2), _black)
+    print('EXPORT driver window', round(y0, 2), round(y1, 2))
+
 # 1. החלת modifiers (bevel/boolean/wireframe) — הופכים כל אובייקט לרשת סופית.
 # קודם מחילים ורק אחר כך מוחקים את כלי החיתוך: כשמחקו אותם קודם, החיתוכים (חלונות, דלתות, קשתות הגלגלים)
 # לא נעשו, והפח הכסוף כיסה את החלונות במשחק
