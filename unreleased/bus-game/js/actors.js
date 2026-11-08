@@ -81,6 +81,36 @@ function tuneBusMaterials(root, env) {
   });
 }
 
+// חיפוי הקיר התחתון בצד הדלתות (M_Panel, גובה 0.66–1.32) הוא קופסה אחת לכל אורך האוטובוס, גם לרוחב פתחי הדלתות —
+// והנוסעים "נכנסים" בו. מחליפים אותו בקטעים שבין הדלתות
+const DOORWAYS = [[4.565, 5.735], [-0.585, 0.635]];
+function cutDoorPanels(root) {
+  root.updateMatrixWorld(true);
+  const add = [];
+  root.traverse(o => {
+    const m = o.isMesh && [].concat(o.material)[0];
+    if (!m || m.name !== 'M_Panel' || !o.geometry.index) return;
+    const g = o.geometry, pos = g.attributes.position, idx = g.index.array, keep = [], box = new THREE.Box3();
+    const v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    for (let t = 0; t < idx.length; t += 3) {
+      for (let k = 0; k < 3; k++) v[k].fromBufferAttribute(pos, idx[t + k]).applyMatrix4(o.matrixWorld);
+      const wall = v.every(p => p.x < -1.1 && p.y > 0.6 && p.y < 1.4) && Math.max(...v.map(p => p.z)) - Math.min(...v.map(p => p.z)) > 2;
+      if (wall) v.forEach(p => box.expandByPoint(p)); else keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    }
+    if (box.isEmpty()) return;
+    g.setIndex(keep);
+    let cuts = [[box.min.z, box.max.z]];
+    for (const [a, b] of DOORWAYS) cuts = cuts.flatMap(([z0, z1]) => [[z0, Math.min(z1, a)], [Math.max(z0, b), z1]]).filter(([z0, z1]) => z1 - z0 > 0.02);
+    const sx = Math.max(0.02, box.max.x - box.min.x), sy = box.max.y - box.min.y;
+    for (const [z0, z1] of cuts) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, z1 - z0), m);
+      mesh.position.set((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (z0 + z1) / 2); mesh.name = 'DadoPanel';
+      add.push(mesh);
+    }
+  });
+  for (const m of add) root.add(m);
+}
+
 export class BusLayer {
   constructor(scene, asset, people) {
     this.scene = scene; this.asset = asset; this.people = people || []; this.map = new Map();
@@ -93,6 +123,7 @@ export class BusLayer {
       if (!this.tuned) {
         // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
         try { addCab(this.asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
+        cutDoorPanels(this.asset.scene);
         tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
       obj = this.asset.scene.clone(true);
       const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
@@ -133,6 +164,27 @@ export class BusLayer {
     return a.getWorldPosition(new THREE.Vector3());
   }
   objectOf(bus) { return this.map.get(bus.id)?.obj; }
+}
+
+// IK של שני עצמות (ירך-שוק): הברך לכיוון pole
+function aimBone(bone, child, target) {
+  bone.updateWorldMatrix(true, true);
+  const p = bone.getWorldPosition(new THREE.Vector3()), c = child.getWorldPosition(new THREE.Vector3());
+  const q = new THREE.Quaternion().setFromUnitVectors(c.sub(p).normalize(), target.clone().sub(p).normalize());
+  const wq = bone.getWorldQuaternion(new THREE.Quaternion()), pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+  bone.quaternion.copy(pq.invert().multiply(q.multiply(wq)));
+  bone.updateWorldMatrix(false, true);
+}
+function twoBone(a, b, c, target, pole) {
+  a.updateWorldMatrix(true, true);
+  const A = a.getWorldPosition(new THREE.Vector3()), B = b.getWorldPosition(new THREE.Vector3()), C = c.getWorldPosition(new THREE.Vector3());
+  const l1 = A.distanceTo(B), l2 = B.distanceTo(C);
+  const dir = target.clone().sub(A); let d = dir.length(); dir.normalize();
+  d = THREE.MathUtils.clamp(d, Math.abs(l1 - l2) + 1e-3, l1 + l2 - 1e-3);
+  const x = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+  const pn = pole.clone().addScaledVector(dir, -pole.dot(dir)).normalize();
+  aimBone(a, b, A.clone().addScaledVector(dir, x).addScaledVector(pn, h));
+  aimBone(b, c, A.clone().addScaledVector(dir, d));
 }
 
 // ---------- אנשים
@@ -331,7 +383,7 @@ export class PeopleLayer {
         const i = this.seatOf(ev.stop, ev.p.id), [x, y] = this.slot(ev.stop, i);
         this.seats.get(ev.stop.id).delete(ev.p.id);
         const start = new THREE.Vector3(x, 0.12, -y);
-        this.walk(ev.p.id, [start, ...path.toIn], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id));
+        this.walk(ev.p.id, [start, ...path.toIn], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id), undefined, path.door);
       } else if (ev.type === 'alight') {
         const path = this.doorPath(busLayer, ev.bus, 'mid'); if (!path) continue;
         const f = this.stopFrame(ev.stop), side = (hash(ev.p.id) - 0.5) * 2;
@@ -339,7 +391,7 @@ export class PeopleLayer {
         const curb = new THREE.Vector3(f.px + f.ux * 2.2 + f.tx * dir * 2, 0.12, -(f.py + f.uy * 2.2 + f.ty * dir * 2));
         const away = new THREE.Vector3(f.px + f.ux * 2.6 + f.tx * dir * far, 0.12, -(f.py + f.uy * 2.6 + f.ty * dir * far));
         const toOut = path.toIn.slice().reverse();
-        this.walk(ev.p.id, [...toOut, curb, away], 'alight', ev.bus, undefined, toOut.length);
+        this.walk(ev.p.id, [...toOut, curb, away], 'alight', ev.bus, undefined, toOut.length, path.door);
       }
     }
 
@@ -390,7 +442,7 @@ export class PeopleLayer {
       const want = Math.atan2(b.x - a.x, b.z - a.z);
       let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       w.obj.rotation.y += dy * Math.min(1, simDt * 8);
-      if (w.mixer) { w.mixer.update(simDt); this.centre(w); }
+      if (w.mixer) { w.mixer.update(simDt); this.centre(w); if (w.door && w.legs) this.stairs(w, simDt); }
       else w.body.position.y = Math.abs(Math.sin(w.d * 6.7)) * 0.05;
       const last = w.seg === w.pts.length - 2;
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
@@ -408,8 +460,10 @@ export class PeopleLayer {
     const a = v.anchors[which]; if (!a) return null;
     v.obj.updateMatrixWorld(true);
     const at = (dx, y) => { const l = a.position.clone(); l.x += dx; return a.parent.localToWorld(l).setY(y); };
-    const pts = [at(0, 0.12), at(0.5, 0.12), at(0.68, 0.34), at(0.92, 0.34), at(1.1, 0.66), at(1.4, 0.66)];
-    return { out: pts[0], in: pts[pts.length - 1], toIn: pts };
+    const pts = [at(0, 0.12), at(0.7, 0.12), at(1.4, 0.12)];
+    // מסגרת הדלת: נקודת המוצא בחוץ, וכיוון פנימה — לחישוב הגובה מתחת לכל כף רגל
+    const o = at(0, 0), u = at(1, 0).sub(o).normalize();
+    return { out: pts[0], in: pts[pts.length - 1], toIn: pts, door: { o, u } };
   }
   finish(w, i) {
     if (w.bus && w.counted) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
@@ -422,7 +476,7 @@ export class PeopleLayer {
     w.blob.material.opacity = o;
   }
 
-  walk(id, pts, mode, bus, yaw0, release) {
+  walk(id, pts, mode, bus, yaw0, release, door) {
     const vi = this.variantOf(id);
     let w = this.pools[vi].pop();
     if (!w) {
@@ -437,7 +491,7 @@ export class PeopleLayer {
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
-    w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus; w.release = release;
+    w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus; w.release = release; w.door = door || null; w.baseY = pts[0].y;
     w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
     w.body.scale.setScalar(this.personScale(id));
     w.obj.rotation.y = yaw0 ?? Math.atan2(w.pts[1].x - w.pts[0].x, w.pts[1].z - w.pts[0].z);
@@ -449,7 +503,7 @@ export class PeopleLayer {
   makeWalker(vi) {
     const V = this.variants[vi], mats = [];
     const obj = new THREE.Group(), body = new THREE.Group(); obj.add(body);
-    let mixer = null, inner = null, hips = null;
+    let mixer = null, inner = null, hips = null, clip = null;
     if (V.gltf) {
       inner = SkeletonUtils.clone(V.gltf.scene);
       body.add(inner);
@@ -462,7 +516,7 @@ export class PeopleLayer {
         if (!m) { m = gameMaterial(o.material, kind); cache.set(o.material, m); mats.push([m, kind, false, m.color.clone()]); }
         o.material = m; o.frustumCulled = false;
       });
-      const clip = V.gltf.animations.find(a => /walk/i.test(a.name));
+      clip = V.gltf.animations.find(a => /walk/i.test(a.name));
       if (clip) { mixer = new THREE.AnimationMixer(inner); mixer.clipAction(clip).play(); }
     } else {
       for (const gr of V.groups) {
@@ -472,7 +526,37 @@ export class PeopleLayer {
     }
     const blob = new THREE.Mesh(this.blobGeo, this.blobMat.clone()); blob.position.y = 0.015; blob.renderOrder = 1; obj.add(blob);
     this.group.add(obj);
-    return { obj, body, mixer, mats, inner, hips, blob, vi };
+    const legs = inner && ['Left', 'Right'].map(sd => ({ up: inner.getObjectByName(sd + 'UpLeg'), knee: inner.getObjectByName(sd + 'Leg'),
+      foot: inner.getObjectByName(sd + 'Foot'), toe: inner.getObjectByName(sd + 'ToeBase') }));
+    const w = { obj, body, mixer, mats, inner, hips, blob, vi, legs: legs && legs.every(l => l.up && l.knee && l.foot && l.toe) ? legs : null };
+    if (w.legs && mixer) {
+      // הגובה הנמוך ביותר של הקרסול ושל הבוהן בזמן ההליכה (כף הרגל על הרצפה)
+      let ra = Infinity, rt = Infinity; const P = new THREE.Vector3(), dur = clip ? clip.duration : 1.2;
+      for (let k = 0; k < 24; k++) { mixer.setTime(k / 24 * dur); obj.updateMatrixWorld(true);
+        for (const l of w.legs) { ra = Math.min(ra, l.foot.getWorldPosition(P).y); rt = Math.min(rt, l.toe.getWorldPosition(P).y); } }
+      w.rest = { a: ra - obj.position.y, t: rt - obj.position.y };
+    }
+    return w;
+  }
+  // מדרגות בדלת: כל כף רגל נוחתת על הגובה שמתחתיה (מדרכה 0.12, מדרגה 0.34, רצפה 0.66).
+  // הגוף בגובה הרגל הנמוכה, והרגל הגבוהה מתכופפת אליה (IK של ירך-שוק). כך אין רגל שנבלעת במדרגה
+  stairs(w, dt) {
+    const { o, u } = w.door, g = p => { const dx = (p.x - o.x) * u.x + (p.z - o.z) * u.z; return dx < 0.6 ? 0.12 : dx < 1.0 ? 0.34 : 0.66; };
+    const A = this.tmpA || (this.tmpA = new THREE.Vector3()), T = this.tmpT || (this.tmpT = new THREE.Vector3());
+    w.obj.position.y = w.baseY; w.obj.updateMatrixWorld(true);
+    // גם קצת לפני הבוהן: הרגל עולה לפני שפת המדרגה, כדי שהשוק לא תעבור דרך הפינה
+    const ahead = new THREE.Vector3(Math.sin(w.obj.rotation.y), 0, Math.cos(w.obj.rotation.y)).multiplyScalar(0.12);
+    const gr = w.legs.map(l => Math.max(g(l.foot.getWorldPosition(A)), g(l.toe.getWorldPosition(T)), g(T.add(ahead))));
+    const want = Math.min(gr[0], gr[1]);
+    w.baseY += (want - w.baseY) * Math.min(1, dt * 10);
+    w.obj.position.y = w.baseY; w.obj.updateMatrixWorld(true);
+    const fwd = new THREE.Vector3(Math.sin(w.obj.rotation.y), 0, Math.cos(w.obj.rotation.y));
+    w.legs.forEach((l, k) => {
+      l.foot.getWorldPosition(A); l.toe.getWorldPosition(T);
+      const sc = w.body.scale.y;
+      const need = Math.max(gr[k] - (A.y - w.rest.a * sc), gr[k] - (T.y - w.rest.t * sc));
+      if (need > 0.003) twoBone(l.up, l.knee, l.foot, A.clone().setY(A.y + need), fwd);
+    });
   }
   // ההליכה במקום: מזיזים את הדמות כך שהאגן יישאר מעל נקודת ההליכה
   centre(w) {
