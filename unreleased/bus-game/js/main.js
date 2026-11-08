@@ -12,7 +12,7 @@ import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, START_MONEY, typeOf, lineCycle, vehiclesNeeded, fleetChange, money, dayOf } from './fleet.js';
 import { mapTouch } from './touch.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
-import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass } from './demandview.js';
+import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass, ZTYPES, glyphSvg } from './demandview.js';
 
 const $ = s => document.querySelector(s);
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -79,7 +79,8 @@ async function init() {
   bank.onDay = showDaySummary;
   demand = new Demand(dj, city.stops);
   sim = new Sim(city.stops, bank, t0, demand);
-  dlayer = new DemandLayer(scene, demand.zones, city.meta.half); dlayer.resize(innerWidth, innerHeight);
+  dlayer = new DemandLayer(scene, demand.zones, city.stops, city.buildings, city.meta.half); dlayer.resize(innerWidth, innerHeight);
+  dlayer.obstacles = () => ['.bar', '#dLegend', '#dlFocus', '#panel'].map(q => $(q)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.width);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast });
   buildCamButtons();
@@ -100,7 +101,7 @@ async function init() {
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
   Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
-    demand, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
+    demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
 }
@@ -185,17 +186,12 @@ canvas.addEventListener('pointerup', e => {
   if (moved > 8 || dt > 600) return;
   if (dview.on && !planning) {        // במפת הביקוש: הקשה על שכונה מציגה לאן נוסעים ממנה; הקשה במקום ריק מחזירה לכל העיר
     const z = pickZone(e.clientX, e.clientY);
-    if (z != null || dview.focus != null) { dview.focus = z === dview.focus ? null : z; refreshDemandView(true); return; }
+    if (z != null || dview.focus != null) { dview.tapT = performance.now(); focusZone(z === dview.focus ? null : z); return; }
   }
   const s = pickStop(e.clientX, e.clientY);
   if (s) tapStop(s);
 });
-function pickZone(cx, cy) {
-  const r = canvas.getBoundingClientRect(); let best = null, bd = isTouch ? 34 : 24;
-  demand.zones.forEach((z, i) => { const p = dlayer.screenOf(i, camera, r); if (!p.ok) return;
-    const d = Math.hypot(p.x - cx, p.y - cy); if (d < bd) { bd = d; best = i; } });
-  return best;
-}
+function pickZone(cx, cy) { return dlayer.pick(cx, cy, camera, canvas.getBoundingClientRect(), isTouch ? 30 : 22); }
 function tapStop(s) {
   if (!s) return;
   if (planning) return planAdd(s);
@@ -512,9 +508,12 @@ function bindUI() {
     if (b.dataset.h === 'now') dview.now = true; else { dview.now = false; dview.hour = +b.dataset.h; }
     refreshDemandView(true); };
   $('#dlHour').oninput = e => { dview.now = false; dview.hour = +e.target.value; refreshDemandView(true); };
-  $('#dLegend').addEventListener('click', e => {
-    const m = e.target.closest('[data-more]'); if (m) { dview.all = !dview.all; refreshDemandView(true); return; }
-    const z = e.target.closest('[data-zone]'); if (z) { dview.focus = z.dataset.zone === '' ? null : +z.dataset.zone; refreshDemandView(true); }
+  // הלחיצה ה"מדומה" שאחרי מגע במפה עלולה ליפול על הכרטיס שהופיע עכשיו באותו מקום — מתעלמים ממנה
+  $('#dlFocus').addEventListener('click', e => {
+    if (performance.now() - (dview.tapT || 0) < 450) return;
+    const d = e.target.closest('[data-dir]'); if (d) { dview.dir = d.dataset.dir; dview.dirUser = true; refreshDemandView(true); return; }
+    const z = e.target.closest('[data-zone]');
+    if (z) { focusZone(z.dataset.zone === '' ? null : +z.dataset.zone); }
   });
   $('#demandBody').onclick = e => { if (e.target.closest('#dShow')) setDemandView(!dview.on, null, true); };
   $('#fBack').onclick = () => { $('#lineForm').hidden = true; if (form?.line) form = null; };
@@ -773,28 +772,26 @@ function flows(h) {
   if (!f) { f = sim.net.zoneFlows(h); f.key = key; flowCache.clear(); flowCache.set(key, f); }
   return f;
 }
-let maxFlow = 0;
-const dview = { on: false, now: true, hour: 7, key: '', focus: null, all: false };
+let maxDir = 0, symUnit = 0;
+const dview = { on: false, now: true, hour: 7, key: '', focus: null, dir: 'out' };
 // fit: מבט מלמעלה על כל האזורים (ובטלפון גם מקפלים את הלוח, כדי שהמפה תיראה)
 function setDemandView(on, hour, fit) {
   dview.on = on; if (!on) dview.focus = null;
   if (hour != null) { dview.now = false; dview.hour = hour; }
-  dlayer.setVisible(on); $('#dLegend').hidden = !on; $('#demandBtn')?.classList.toggle('on', on);
+  dlayer.setVisible(on); $('#dLegend').hidden = !on; if (!on) $('#dlFocus').hidden = true; $('#demandBtn')?.classList.toggle('on', on);
   if (on) refreshDemandView(true);
   if (on && fit) {
     if (cams.current !== 'free') cams.set('free');
     if (innerWidth <= 820) $('#panel').classList.add('min');
     // העיר עצמה (בלי המושבים הרחוקים — אליהם מגיעים בגרירה), מלמעלה ובהטיה קלה
     const zs = demand.zones, pc = zs.reduce((a, z) => [a[0] + z.x, a[1] + z.y], [0, 0]).map(v => v / zs.length);
-    const core = zs.filter(z => Math.hypot(z.x - pc[0], z.y - pc[1]) < 1700), xs = core.map(z => z.x), ys = core.map(z => z.y);
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    const hw = (Math.max(...xs) - Math.min(...xs)) / 2 + 200, hh = (Math.max(...ys) - Math.min(...ys)) / 2 + 200;
-    const tf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), A = camera.aspect;
-    const h = Math.max(hh / tf, hw / (tf * A)) * (A < 0.8 ? 1 : 1.12);
+    const core = zs.filter(z => Math.hypot(z.x - pc[0], z.y - pc[1]) < 1850);
+    controls.maxDistance = 7500;
+    fitPoints(core.map(z => dlayer.anchor[z.id]), 28, 0);
+    const h = camera.position.y;
     controls.maxDistance = Math.max(2600, h * 1.2);
     scene.fog.near = Math.max(1400, h * 0.9); scene.fog.far = Math.max(4200, h * 2.2);
     camera.far = Math.max(9000, h * 3); camera.updateProjectionMatrix();
-    controls.target.set(cx, 0, -cy - (A < 0.8 ? 0.06 * h : 0)); camera.position.set(cx, h, -cy + h * 0.2);
   }
   // מספרי התחנות ותוויות האוטובוסים מסתירים את קווי הביקוש — מסתירים אותם בזמן הזה
   for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on; });
@@ -802,49 +799,139 @@ function setDemandView(on, hour, fit) {
   if (!on) { controls.maxDistance = 2600; scene.fog.near = 1400; scene.fog.far = 4200; }
   if ($('[data-pane="demand"]').classList.contains('on')) renderDemand();
 }
+// בחירת שכונה (או null — חזרה לכל העיר). הכיוון: מה שיש בו יותר נסיעות בשעה הזו (בוקר בשכונת מגורים — יוצאים; באזור תעשייה — מגיעים)
+function focusZone(z) {
+  dview.focus = z; dview.dirUser = false; dview.fit = true;
+  refreshDemandView(true);
+}
+// המלבן הפנוי במסך (בלי הסרגל, המקרא, הכרטיס והלוח): מכל רכיב חותכים את הצד שמשאיר הכי הרבה מקום
+function freeRect() {
+  let r = { l: 0, t: 0, r: innerWidth, b: innerHeight };
+  for (const el of [$('.bar'), $('#dLegend'), $('#dlFocus'), $('#panel')]) {
+    if (!el || el.hidden) continue;
+    let o = el.getBoundingClientRect();
+    if (el.id === 'panel' && el.classList.contains('min') && innerWidth <= 820) o = { left: o.left, right: o.right, top: o.bottom - 96, bottom: o.bottom, width: o.width };   // בזמן האנימציה
+    if (!o.width || o.right <= r.l || o.left >= r.r || o.bottom <= r.t || o.top >= r.b) continue;
+    const c = [{ ...r, b: Math.min(r.b, o.top) }, { ...r, t: Math.max(r.t, o.bottom) }, { ...r, r: Math.min(r.r, o.left) }, { ...r, l: Math.max(r.l, o.right) }];
+    r = c.reduce((a, x) => (x.r - x.l) * (x.b - x.t) > (a.r - a.l) * (a.b - a.t) ? x : a);
+  }
+  return r;
+}
+// מבט מלמעלה (בהטיה קלה) כך שהנקודות (במטרים) ייכנסו למלבן הפנוי
+function fitPoints(pts, pad = 46, below = 30) {
+  if (!pts.length) return;
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), R = freeRect();
+  R.b -= below;        // מקום לשם שמתחת לסמל האחרון
+  const rw = Math.max(80, R.r - R.l - 2 * pad), rh = Math.max(80, R.b - R.t - 2 * pad);
+  const bw = Math.max(300, Math.max(...xs) - Math.min(...xs)), bh = Math.max(300, Math.max(...ys) - Math.min(...ys));
+  const mpp = Math.max(bw / rw, bh / rh), tf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  let h = Math.min(controls.maxDistance, mpp * innerHeight / (2 * tf)), m = h * 2 * tf / innerHeight;
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  let tx = cx - ((R.l + R.r) / 2 - innerWidth / 2) * m, ty = cy + ((R.t + R.b) / 2 - innerHeight / 2) * m;
+  if (cams.current !== 'free') cams.set('free');
+  const place = () => { controls.target.set(tx, 0, -ty); camera.position.set(tx, h, -ty + h * 0.2); camera.lookAt(controls.target); camera.updateMatrixWorld(); };
+  place();
+  // תיקון לפרספקטיבה: מודדים איפה הנקודות נופלות בפועל, ומזיזים/מגדילים עוד פעמיים
+  const v = new THREE.Vector3();
+  for (let it = 0; it < 3; it++) {
+    let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+    for (const [x, y] of pts) { v.set(x, 24, -y).project(camera); const sx = (v.x + 1) / 2 * innerWidth, sy = (1 - v.y) / 2 * innerHeight;
+      l = Math.min(l, sx); r = Math.max(r, sx); t = Math.min(t, sy); b = Math.max(b, sy); }
+    const k = Math.max((r - l) / rw, (b - t) / rh, 0.3);
+    const nh = Math.min(controls.maxDistance, h * k);
+    tx += ((l + r) / 2 - (R.l + R.r) / 2) * m; ty -= ((t + b) / 2 - (R.t + R.b) / 2) * m;
+    m *= nh / h; h = nh; place();
+  }
+}
 function refreshDemandView(force) {
   if (!dview.on || !demand) return;
   const h = dview.now ? hourNow() : dview.hour;
   if (+$('#dlHour').value !== h) $('#dlHour').value = h;
   for (const b of $('#dlChips').children) b.classList.toggle('on', b.dataset.h === 'now' ? dview.now : !dview.now && +b.dataset.h === h);
   $('#dlTitle').textContent = `מאיפה לאן · ${span(h * 60, h * 60 + 60)}`;
-  const f = flows(h), key = f.key + '|' + dview.focus + '|' + dview.all;
+  const f = flows(h), key = f.key + '|' + dview.focus + '|' + dview.dir;
   if (!force && key === dview.key) return;
   dview.key = key;
-  const Z = demand.Z, zn = demand.zones;
-  // קנה מידה קבוע לכל היום (כך שהעובי בבוקר ובערב בר השוואה)
-  if (!maxFlow) for (const R of demand.zoneHour) for (let i = 0; i < Z; i++) for (let j = i + 1; j < Z; j++) maxFlow = Math.max(maxFlow, R[i * Z + j] + R[j * Z + i]);
-  // שני הכיוונים יחד: קו אחד בין כל שתי שכונות
-  const all = [], tot = new Float64Array(Z);
-  for (let i = 0; i < Z; i++) for (let j = i + 1; j < Z; j++) {
-    const r = f.pot[i * Z + j] + f.pot[j * Z + i]; if (r < 1) continue;
-    const c = f.cov[i * Z + j] + f.cov[j * Z + i];
-    all.push({ a: i, b: j, rate: r, share: c / r, ab: f.pot[i * Z + j], ba: f.pot[j * Z + i] });
-    tot[i] += r; tot[j] += r;
+  const Z = demand.Z, zn = demand.zones, ZP = demand.zonePurp[h];
+  // קנה מידה קבוע לכל היום (כך שבוקר וערב בני השוואה): סמל אחד = symUnit נוסעים בשעה, כך שבשכונה העמוסה ביותר יש עד 12 סמלים
+  if (!symUnit) {
+    let mx = 0;
+    for (const R of demand.zoneHour) for (let i = 0; i < Z; i++) {
+      let t = 0; for (let j = 0; j < Z; j++) if (j !== i) { t += R[i * Z + j]; maxDir = Math.max(maxDir, R[i * Z + j]); }
+      mx = Math.max(mx, t);
+    }
+    symUnit = [5, 10, 20, 25, 50, 100, 200, 250, 500].find(u => mx / u <= 12) || 1000;
+  }
+  const U = symUnit, MAXS = 12, F = dview.focus;
+  // לכל שכונה: יוצאים לפי סוג היעד, וכמה מהם בלי קו (לפי חלק הנסיעות בין שתי השכונות שיש להן קו)
+  const out = zn.map((z, i) => {
+    const pot = [0, 0, 0, 0], un = [0, 0, 0, 0];
+    for (let j = 0; j < Z; j++) {
+      const P = f.pot[i * Z + j]; if (j === i || !P) continue;
+      const miss = 1 - Math.min(1, f.cov[i * Z + j] / P);
+      for (let t = 0; t < 4; t++) { const v = ZP[(i * Z + j) * 4 + t]; pot[t] += v; un[t] += v * miss; }
+    }
+    return { pot, un, tot: pot.reduce((a, b) => a + b, 0), miss: un.reduce((a, b) => a + b, 0) };
+  });
+  const keys = $('#dlKeys'), note = $('#dlNote'), box = $('#dlFocus');
+  if (F == null) {
+    const sym = [], more = [];
+    out.forEach((o, i) => {
+      // סמלים לפי סוג (הגדול קודם), ובתוך כל סוג — קודם מי שאין לו קו
+      let list = [];
+      [0, 1, 2, 3].sort((a, b) => o.pot[b] - o.pot[a]).forEach(t => {
+        const n = Math.round(o.pot[t] / U), bad = Math.min(n, Math.round(o.un[t] / U));
+        for (let k = 0; k < n; k++) list.push({ t, bad: k < bad });
+      });
+      if (!list.length && o.tot >= U * 0.4) { const t = o.pot.indexOf(Math.max(...o.pot)); list.push({ t, bad: o.un[t] > o.pot[t] / 2 }); }
+      more[i] = list.length > MAXS; sym[i] = more[i] ? list.slice(0, MAXS - 1) : list;
+    });
+    dlayer.setOverview({ sym, more });
+    const tot = out.reduce((a, o) => a + o.tot, 0), miss = out.reduce((a, o) => a + o.miss, 0);
+    keys.innerHTML = `<div class="dk-types">${ZTYPES.map((t, k) => `<span title="${t.txt}">${glyphSvg(k)}${t.short}</span>`).join('')}</div>
+      <div class="dk-sym"><span>${glyphSvg(1, 'bad')}אין קו</span><span>${glyphSvg(1, 'ok')}יש קו</span><span class="u">סמל = ${num(U)} נוסעים בשעה</span></div>`;
+    note.innerHTML = `${num(tot)} רוצים לנסוע בין שכונות${tot ? ` · <b class="${miss / tot > 0.5 ? 'bad' : ''}">${Math.round(miss / tot * 100)}% בלי קו</b>` : ''}. הקישו על שכונה לפרטים`;
+    box.hidden = true; box.innerHTML = '';
+    $('#dLegend').classList.remove('focus');
+    if (dview.fit) { dview.fit = false; setDemandView(true, null, true); }
+    return;
+  }
+  // שכונה אחת: חיצים ליעדים (או מהמקורות), מספר על כל חץ, וטבלה.
+  // הכיוון — מה שיש בו יותר נסיעות בשעה הזו (בבוקר משכונת מגורים יוצאים, לאזור תעשייה מגיעים), עד שבוחרים ידנית
+  if (!dview.dirUser) {
+    let o = 0, i = 0;
+    for (let j = 0; j < Z; j++) if (j !== F) { o += f.pot[F * Z + j]; i += f.pot[j * Z + F]; }
+    dview.dir = i > o * 1.2 ? 'in' : 'out';
+  }
+  const dir = dview.dir, all = [];
+  for (let j = 0; j < Z; j++) {
+    if (j === F) continue;
+    const k = dir === 'out' ? F * Z + j : j * Z + F, r = f.pot[k]; if (r < 0.5) continue;
+    all.push({ z: j, rate: r, share: f.cov[k] / r });
   }
   all.sort((a, b) => b.rate - a.rate);
-  const maxTot = Math.max(1, ...tot), F = dview.focus;
-  let shown, labelled = 5;
-  if (F != null) { shown = all.filter(x => x.a === F || x.b === F).slice(0, 12); labelled = 6; }
-  else shown = dview.all ? all.filter(x => x.rate >= maxFlow * 0.02).slice(0, 45) : all.slice(0, 10);
-  dlayer.set({ flows: shown, maxRate: maxFlow, zoneTot: tot, maxTot, focus: F, labelled });
-  // מקרא: מה רואים, ורשימה (גם כטבלה — לא רק צבע)
-  const need = shown.filter(x => flowClass(x.share) !== 'good').length;
-  $('#dlNote').innerHTML = F != null ? 'עובי הקו = נוסעים בשעה, בשני הכיוונים'
-    : `${dview.all ? 'כל הקווים' : '10 הגדולים'} · עובי = נוסעים בשעה · <button class="link" data-more>${dview.all ? 'רק הגדולים' : 'הצגת הכל'}</button><br>הקישו על שכונה — לאן נוסעים ממנה`;
-  const box = $('#dlFocus');
-  if (F == null) { box.hidden = true; box.innerHTML = ''; return; }
-  const rows = shown.slice(0, 6), mx = Math.max(1, ...rows.map(x => x.rate));
+  const total = all.reduce((a, x) => a + x.rate, 0);
+  const arrows = all.filter(x => x.rate >= Math.max(1, all[0]?.rate * 0.08 || 0)).slice(0, 6);
+  dlayer.setFocus({ focus: F, rows: arrows, dir, maxRate: maxDir });
+  $('#dLegend').classList.add('focus');
+  keys.innerHTML = `<div class="dk-sym">${['none', 'some', 'good'].map(k => `<span><i style="background:${FLOW_COL[k]}"></i>${FLOW_ICON[k]} ${FLOW_TXT[k]}</span>`).join('')}</div>`;
+  note.innerHTML = 'עובי החץ והמספר = נוסעים בשעה';
+  const rows = all.slice(0, 8), mx = Math.max(1, ...rows.map(x => x.rate));
   box.hidden = false;
   // מה יש בשכונה — ממנו נובע הביקוש (בניינים לפי סוג וגודל)
   const zf = zn[F], lvl = v => v >= 0.15 ? 'הרבה' : v >= 0.05 ? 'בינוני' : v > 0.005 ? 'מעט' : '';
   const has = [['work', 'עבודה ותעשייה'], ['school', 'בתי ספר וגנים'], ['other', 'מסחר ושירותים']].filter(([k]) => lvl(zf[k])).map(([k, t]) => `${t}: ${lvl(zf[k])}`);
-  box.innerHTML = `<div class="dlf-head"><b>${esc(zf.name)}</b><span>${num(tot[F])} נוסעים בשעה</span><button class="link" data-zone="">כל העיר</button></div>
-    <div class="dlf-what">${zf.pop >= 50 ? `כ-${num(Math.round(zf.pop / 50) * 50)} תושבים` : 'כמעט בלי מגורים'}${has.length ? ' · ' + has.join(' · ') : ''}</div>
-    <ul class="dlf">${rows.map(x => { const o = x.a === F ? x.b : x.a, k = flowClass(x.share);
-      return `<li><span class="st st-${k}" title="${FLOW_TXT[k]}">${FLOW_ICON[k]}</span><span class="nm">${esc(zn[o].name)}</span>
-        <span class="dbar"><i style="width:${Math.max(4, x.rate / mx * 100)}%"></i></span><b>${num(x.rate)}</b></li>`; }).join('')}</ul>
-    <div class="dl-note">${need ? `${need === 1 ? 'יעד אחד' : need + ' יעדים'} בלי קו מלא — כדאי לחבר` : 'לכל היעדים הגדולים יש קו'}</div>`;
+  const need = rows.filter(x => flowClass(x.share) !== 'good').length;
+  box.innerHTML = `<div class="dlf-head">${glyphSvg(zf.type)}<b>${esc(zf.name)}</b><button class="link" data-zone="">כל העיר</button></div>
+    <div class="dlf-what">${ZTYPES[zf.type].txt} · ${zf.pop >= 50 ? `כ-${num(Math.round(zf.pop / 50) * 50)} תושבים` : 'כמעט בלי מגורים'}${has.length ? ' · ' + has.join(' · ') : ''}</div>
+    <div class="dl-chips dir" role="group" aria-label="כיוון"><button data-dir="out" class="${dir === 'out' ? 'on' : ''}">יוצאים מכאן</button><button data-dir="in" class="${dir === 'in' ? 'on' : ''}">מגיעים לכאן</button></div>
+    <div class="dlf-tot">${num(total)} נוסעים בשעה ${dir === 'out' ? 'לשכונות אחרות' : 'משכונות אחרות'}${all.length > arrows.length ? ` · במפה ${arrows.length} הגדולים` : ''}</div>
+    ${rows.length ? `<table class="dlf"><thead><tr><th><span class="vh">מצב</span></th><th>${dir === 'out' ? 'לאן' : 'מאיפה'}</th><th><span class="vh">כמות</span></th><th>בשעה</th></tr></thead><tbody>
+    ${rows.map(x => { const k = flowClass(x.share), z = zn[x.z];
+      return `<tr data-zone="${x.z}"><td><span class="st st-${k}" title="${FLOW_TXT[k]}">${FLOW_ICON[k]}</span></td><td class="nm" title="${ZTYPES[z.type].txt}">${glyphSvg(z.type)}${esc(z.name)}</td>
+        <td><span class="dbar"><i style="width:${Math.max(4, x.rate / mx * 100)}%"></i></span></td><td class="n">${num(x.rate)}</td></tr>`; }).join('')}</tbody></table>` : '<p class="hint">כמעט אין נסיעות בשעה הזו.</p>'}
+    ${rows.length ? `<div class="dl-note">${need ? `${need === 1 ? 'יעד אחד' : need + ' יעדים'} בלי קו מלא — כדאי לחבר` : 'לכל היעדים הגדולים יש קו'}</div>` : ''}`;
+  if (dview.fit) { dview.fit = false; fitPoints([F, ...arrows.map(x => x.z)].map(i => dlayer.anchor[i])); }
 }
 function renderDemand() {
   if (!sim) return;
@@ -912,6 +999,7 @@ function tick(dt) {
   t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));
   controls.update();
   renderer.render(scene, camera);
+  if (dview.on && dlayer) dlayer.draw(camera);
   fcount++; acc += dt; G.frames++;
   if (G.manual) return;
   if (acc >= 1) {

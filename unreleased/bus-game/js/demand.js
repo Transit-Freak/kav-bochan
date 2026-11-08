@@ -57,6 +57,9 @@ export class Demand {
     for (const z of this.zones) {
       z.pop = 0; z.work = 0; z.school = 0; z.other = 0;
       for (const i of z.stops) { z.pop += pop[i]; z.work += A.work[i] / T.work; z.school += A.school[i] / T.school; z.other += A.other[i] / T.other; }
+      // סוג השכונה: מה מייצר בה הכי הרבה נסיעות ביום — יציאות מהבית, או הגעות לעבודה/ללימודים/לקניות
+      const trips = [z.pop * (RATES.work + RATES.school + RATES.other), z.work * T.pop * RATES.work, z.school * T.pop * RATES.school, z.other * T.pop * RATES.other];
+      z.type = trips.indexOf(Math.max(...trips));
     }
     // מרחקים (קו אווירי) ושכנים בהליכה
     const dist = this.dist = new Float32Array(N * N);
@@ -88,16 +91,20 @@ export class Demand {
       }
     }
     // לכל שעה: נסיעות לשעה מכל תחנה לכל תחנה (הלוך + חזור), סכום, והתפלגות מצטברת להגרלה
-    this.hour = []; this.hourTot = new Float64Array(24); this.cdf = []; this.zoneHour = [];
+    // zonePurp[h]: נסיעות לשעה בין אזורים לפי סוג היעד — [(מוצא*Z+יעד)*4 + סוג], סוג: 0 הביתה, 1 עבודה, 2 לימודים, 3 קניות
+    this.hour = []; this.hourTot = new Float64Array(24); this.cdf = []; this.zoneHour = []; this.zonePurp = [];
+    const zo = this.zoneOf;
     for (let h = 0; h < 24; h++) {
-      const R = new Float32Array(N * N);
-      for (const p of Object.keys(RATES)) {
+      const R = new Float32Array(N * N), ZP = new Float32Array(Z * Z * 4);
+      Object.keys(RATES).forEach((p, pi) => {
         const T = daily[p], ko = PROFILES[p].out[h], kb = PROFILES[p].back[h];
         for (let o = 0; o < N; o++) for (let d = 0; d < N; d++) {
           const v = T[o * N + d]; if (!v) continue;
           R[o * N + d] += v * ko; R[d * N + o] += v * kb;
+          ZP[(zo[o] * Z + zo[d]) * 4 + pi + 1] += v * ko; ZP[(zo[d] * Z + zo[o]) * 4] += v * kb;
         }
-      }
+      });
+      this.zonePurp.push(ZP);
       const C = new Float64Array(N * N); let acc = 0;
       const ZR = new Float32Array(Z * Z);
       for (let k = 0; k < N * N; k++) {
