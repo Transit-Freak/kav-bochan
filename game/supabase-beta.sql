@@ -45,3 +45,28 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.beta_count() from public;
 grant execute on function public.beta_count() to anon, authenticated;
+
+-- ===== 09.11.2026: שני בודקים חדשים בכל שבוע (השבוע מתחיל ביום ראשון, שעון ישראל) =====
+create or replace function public.beta_week_start() returns timestamptz
+language sql stable set search_path = public as $$
+  select ((date_trunc('week', (now() at time zone 'Asia/Jerusalem') + interval '1 day') - interval '1 day')
+          at time zone 'Asia/Jerusalem')
+$$;
+
+create or replace function public.beta_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(4242);
+  if (select count(*) from public.beta_testers where created_at >= public.beta_week_start()) >= 2 then
+    raise exception 'beta full';
+  end if;
+  return new;
+end $$;
+
+-- כמה נרשמו השבוע (מספר בלבד) — לדף הבית ולמסך הכניסה
+create or replace function public.beta_count() returns int
+language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.beta_testers where created_at >= public.beta_week_start()
+$$;
+revoke all on function public.beta_count() from public;
+grant execute on function public.beta_count() to anon, authenticated;
