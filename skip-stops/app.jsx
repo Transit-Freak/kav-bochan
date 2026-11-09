@@ -397,11 +397,11 @@ function App() {
   const [fOp, setFOp] = useState(h0("op", ""));       // מפעיל
   const [fMahoz, setFMahoz] = useState(h0("mahoz", "")); // מחוז (מהקובץ המצומצם)
   const [fUniq, setFUniq] = useState(h0("uniq", "")); // ייחודיות הקו (סדיר/לילה/מזינים)
-  const [fType, setFType] = useState(h0("type", "עירוני")); // סוג קו — עירוני כברירת מחדל
+  const [fType, setFType] = useState(h0("exp", "") === "1" ? "exp" : h0("type", "עירוני")); // סוג קו — עירוני כברירת מחדל ("exp" = קווים מהירים בצמתים)
   const [fGap, setFGap] = useState(+h0("gap", 0) || 0);      // מרחק מזערי מהעצירה הקרובה
   const [fSkips, setFSkips] = useState(+h0("skips", 0) || 0); // כמה תחנות הקו מדלג (לפחות)
   // קו מהיר שחולף בצומת חשוב בלי לעצור (בלי עצירה 800 מ' לפני ואחרי) — רשימה נפרדת, מוצגת רק לפי בקשה
-  const [showExp, setShowExp] = useState(h0("exp", "") === "1");
+  const showExp = fType === "exp";
   const [openExp, setOpenExp] = useState(null);
   const [openExpSub, setOpenExpSub] = useState(null);
   const dq = useDeferredValue(q);
@@ -432,14 +432,13 @@ function App() {
     if (fSkips) p.set("skips", fSkips);
     if (bs) p.set("bystop", "1");
     if (showSys) p.set("sys", "1");
-    if (showExp) p.set("exp", "1");
     return p.toString();
   };
   const lineHref = (ln, noByStop) => "#" + hashFor(ln, noByStop ? false : byStop);
   useEffect(() => {
     const h = hashFor(q, byStop), u = location.pathname + location.search + (h ? "#" + h : "");
     if (location.pathname + location.search + location.hash !== u) try { history.replaceState(null, "", u); } catch (e) {}
-  }, [q, city, fOp, fMahoz, fUniq, fType, fGap, fSkips, byStop, showSys, showExp]);
+  }, [q, city, fOp, fMahoz, fUniq, fType, fGap, fSkips, byStop, showSys]);
 
   useEffect(() => {
     fetch("data.json", { cache: "no-cache" })
@@ -491,7 +490,7 @@ function App() {
   // ראה "אין ממצאים בינעירוניים" — מסקנה שגויה בלי שום רמז לתקלה.
   const [interErr, setInterErr] = useState(false);
   useEffect(() => {
-    if (fType === "עירוני" || interD || interBusy || interErr) return;
+    if (fType === "עירוני" || fType === "exp" || interD || interBusy || interErr) return;
     setInterBusy(true);
     fetch("data-inter.json", { cache: "no-cache" })
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
@@ -613,7 +612,6 @@ function App() {
     const needle = dq.trim().toLowerCase();
     const gm = new Map(), out = [];
     expAll.forEach((it) => {
-      if (fType !== "all" && fType !== "עירוני" && (it.ty || "עירוני") !== fType) return;
       if (city && it.city !== city) return;
       if (fOp && it.op !== fOp) return;
       if (fMahoz && it.mahoz !== fMahoz) return;
@@ -624,7 +622,7 @@ function App() {
       gm.get(k).push(it);
     });
     return out;
-  }, [showExp, expAll, dq, fType, city, fOp, fMahoz, fUniq]);
+  }, [showExp, expAll, dq, city, fOp, fMahoz, fUniq]);
   const expDb = expD;
 
   if (err) return <div className="boot">שגיאה בטעינת הנתונים — ייתכן שההרצה הראשונה עוד לא הסתיימה. נסו לרענן מאוחר יותר.</div>;
@@ -678,10 +676,6 @@ function App() {
             title="דילוג ששייך כנראה לתכנון: כמה קווים מדלגים על אותה תחנה, או קו שמדלג על תחנות רבות">
             {showSys ? "מציג" : "מוסתרים"} {sysN} דילוגים שיטתיים
           </button>
-          <button className={"chipf exp" + (showExp ? " on" : "")} onClick={() => setShowExp(!showExp)}
-            title="קו מהיר (בלי עצירה קרובה לפני ואחרי) שחולף בצומת שעוצרים בו קווים בין-עירוניים אחרים — מוצג בנפרד, כי לרוב זה תכנון מכוון">
-            {showExp ? "✓ " : ""}קווים מהירים בצמתים
-          </button>
           <button className={"chipf bystop" + (byStop ? " on" : "")} onClick={() => setByStop(!byStop)}
             title="כרטיס אחד לכל תחנה שכמה קווים מדלגים עליה — כל המסלולים על מפה אחת, בצבע שונה לכל קו">
             🚏 לפי תחנה ({stopN})
@@ -706,6 +700,7 @@ function App() {
               <option value="בינעירוני">קווים בין-עירוניים</option>
               <option value="אזורי">קווים אזוריים</option>
               <option value="all">כל סוגי הקווים</option>
+              <option value="exp">קווים מהירים בצמתים</option>
             </select>
             {ops.length > 0 && (
               <select aria-label="סינון לפי מפעיל" className="fsel" value={fOp} onChange={(e) => setFOp(e.target.value)}>
@@ -747,12 +742,12 @@ function App() {
           <button className="chip clk" onClick={() => setInterErr(false)}>נסו שוב</button>
         </div>
       )}
-      <div className="count">
+      {!showExp && <div className="count">
         {interBusy ? "טוען קווים לא-עירוניים… " : ""}
         {filtered.length === items.length ? "" : filtered.length + " תוצאות (" + groups.length + " קווים)"}
-      </div>
+      </div>}
 
-      <div className="list">
+      {!showExp && <div className="list">
         {shown.map((g) => {
           if (byStop) {
             const sk = "s:" + g[0].code;
@@ -779,14 +774,14 @@ function App() {
             הצגת עוד ({groups.length - shown.length} קווים נוספים)
           </button>
         )}
-      </div>
+      </div>}
 
       {showExp && (
         <section className="exp-sec">
           <h2>קווים מהירים שחולפים בצומת בלי לעצור</h2>
           <p className="mut">
             קו שאין לו עצירה 800 מ' לפני ואחרי, והוא עובר צמוד לתחנה בצומת, מסעף או מחלף שעוצרים בה לפחות 3 קווים בין-עירוניים אחרים,
-            ונוסע ישר באותו כיוון כמו קו שעוצר בה. לרוב זה תכנון מכוון של קו מהיר, ולכן הרשימה נפרדת ולא נספרת בממצאים.
+            ונוסע ישר באותו כיוון כמו קו שעוצר בה. לרוב זה תכנון מכוון של קו מהיר, ולכן זה לא נספר בממצאים הרגילים.
           </p>
           {!expD && !expErr && <div className="count">טוען…</div>}
           {expErr && <div className="count" style={{ color: "#b91c1c" }}>הטעינה נכשלה. <button className="chip clk" onClick={() => setExpErr(false)}>נסו שוב</button></div>}
