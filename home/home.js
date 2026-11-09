@@ -446,7 +446,7 @@ const GROUPS = [
   {k:'fares',n:'המחירון',d:'כמה עולה הנסיעה — בודדת, יומי וחודשי, לכל קו או בין שתי תחנות',h:'fares/',vk:'fares',a:'#059669'},
   {k:'ratzif',n:'רציף כפול',d:'שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי',h:'ratzif/',vk:'ratzif',a:'#0891b2'}]},
  {id:'g-game',name:'משחק',tools:[
-  {k:'game',n:'🔒 משחק הקווים · בטא',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — כניסה רק לשני המשתמשים הראשונים שנרשמים',h:'game/',vk:'game',a:'#e11d48'}]}
+  {k:'game',n:'🔒 משחק הקווים · בטא',on:'🔒 משחק הקווים · בבנייה',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — כניסה רק לשני המשתמשים הראשונים שנרשמים',h:'game/',vk:'game',a:'#e11d48'}]}
 ];
 const PARKS = {k:'parks',n:'נגישות אזורי תעשייה',d:'ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות',h:'parks/'};
 const COUNT = 'שישה-עשר';
@@ -469,7 +469,7 @@ const RAD = 40.5; // מרחק מרכז הסמל ממרכז העין, באחוז�
 function orb(t, i) {
   const th = -90 + i * 360 / ALL.length, c = Math.cos(th * Math.PI / 180), sn = Math.sin(th * Math.PI / 180);
   const cls = 'orb' + (c < -.45 ? ' lb-l' : '') + (c > .45 ? ' lb-r' : '');
-  return `<a class="${cls}" ${linkAttrs(t)} data-k="${t.k}" data-th="${f(th)}" aria-label="${esc(t.n)}" style="left:calc(${(50 + RAD * c).toFixed(3)}% - var(--s) / 2);top:calc(${(50 + RAD * sn).toFixed(3)}% - var(--s) / 2)"><span data-icon="${t.k}"></span><b>${esc(t.n)}</b></a>`;
+  return `<a class="${cls}" ${linkAttrs(t)} data-k="${t.k}" data-th="${f(th)}" aria-label="${esc(t.on || t.n)}" style="left:calc(${(50 + RAD * c).toFixed(3)}% - var(--s) / 2);top:calc(${(50 + RAD * sn).toFixed(3)}% - var(--s) / 2)"><span data-icon="${t.k}"></span><b>${esc(t.on || t.n)}</b></a>`;
 }
 function html(V) {
   const hv = verOf(V, 'home').v;
