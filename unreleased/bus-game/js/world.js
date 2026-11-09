@@ -1,5 +1,6 @@
 // העולם: קרקע, שטחים ירוקים, רחובות עם מדרכות, בניינים מוחלצים, עצים ותחנות — מתוך world/city.json
 import * as THREE from 'three';
+import { keep } from './texkeep.js';
 
 // נקודה בעולם (x מזרחה, y צפונה, במטרים) ← וקטור של three (Y למעלה, ‎-Z צפונה)
 export const V = (x, y, h = 0) => new THREE.Vector3(x, h, -y);
@@ -51,7 +52,7 @@ function noiseTexture(seed, lo, hi, blotch) {
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  return t;
+  return keep(t);
 }
 // קואורדינטות טקסטורה לפי המיקום בעולם (משטחים שטוחים): size מטרים לכל חזרה
 function planarUV(g, size) {
@@ -71,7 +72,7 @@ function windowTexture() {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
-  return t;
+  return keep(t);
 }
 
 function hash(i) { let x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }

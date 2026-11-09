@@ -2,6 +2,7 @@
 // הגאומטריה והחומרים משותפים לכל האוטובוסים, והנהג "אפוי" בתנוחת ישיבה (רשת רגילה, בלי שלד ובלי אנימציה לכל אוטובוס).
 // מערכת הצירים של האוטובוס: ‎+Z קדימה, ‎+Y למעלה, הדלתות בצד ‎-X — ולכן הנהג יושב בצד ‎+X (יד שמאל שלו לכיוון ‎+X).
 import * as THREE from 'three';
+import { keep } from './texkeep.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -68,7 +69,7 @@ function gaugeTexture() {
   x.fillStyle = '#0d2a4a'; x.fillRect(96, 22, 64, 52);
   x.fillStyle = '#7dd3fc'; x.fillRect(102, 30, 40, 6); x.fillRect(102, 44, 52, 4); x.fillRect(102, 56, 30, 4);
   x.fillStyle = '#22c55e'; x.beginPath(); x.arc(128, 12, 4, 0, Math.PI * 2); x.fill();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return keep(t);
 }
 
 // החומרים של תא הנהג: אותם חומרים של האוטובוס מ-Blender (לפי השם), כדי שייראו כמו שאר הפנים

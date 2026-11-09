@@ -1,5 +1,6 @@
 // התצוגה של האוטובוסים והאנשים. נכסים מ-assets/*.glb (ייצוא מ-Blender); אם חסרים — דגמים פשוטים (placeholder)
 import * as THREE from 'three';
+import { keep } from './texkeep.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -340,7 +341,7 @@ function blobTexture() {
   const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
   g.addColorStop(0, 'rgba(0,0,0,0.42)'); g.addColorStop(0.55, 'rgba(0,0,0,0.22)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   x.fillStyle = g; x.fillRect(0, 0, 64, 64);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return keep(t);
 }
 
 export class PeopleLayer {

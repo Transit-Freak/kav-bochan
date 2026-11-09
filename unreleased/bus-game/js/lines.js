@@ -1,5 +1,6 @@
 // קווים: הגדרה, חישוב מסלול על הרשת, ציור, ושמירה ב-localStorage
 import * as THREE from 'three';
+import { keep } from './texkeep.js';
 import { dedupe, offsetRight, Polyline, speedProfile } from './graph.js';
 
 export const LANE_OFFSET = 1.8;           // מרכז הנתיב הימני, מטרים ממרכז הכביש
@@ -105,7 +106,7 @@ export function labelSprite(text, color, scale = 1, fg = '#fff') {
     g.fillStyle = color; roundRect(g, 2, 2, w - 4, 60, 30); g.fill();
     g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.95)'; g.stroke();
     g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, 34);
-    tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.userData.aspect = w / 64;
+    tex = keep(new THREE.CanvasTexture(c)); tex.colorSpace = THREE.SRGBColorSpace; tex.userData.aspect = w / 64;
     spriteCache.set(key, tex);
   }
   // גודל קבוע על המסך (לא גדל כשמתקרבים)

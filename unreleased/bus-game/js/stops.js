@@ -7,6 +7,7 @@
 // השלטים עם הטקסט (שם התחנה, הקווים) — רק לתחנות הקרובות למצלמה: קנבס אחד לכל תחנה (נבנה מחדש רק כשהקווים שלה משתנים).
 // רחוק — אותם שלטים בצבעים בלבד.
 import * as THREE from 'three';
+import { keep } from './texkeep.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // מערכת הצירים של תחנה: a — לאורך הכביש בכיוון הנסיעה (0 = הדלת הקדמית של אוטובוס שעוצר), d — מהשפה פנימה (הרחק מהכביש)
@@ -84,10 +85,10 @@ export const SLOTS = (() => {
 })();
 
 // ---------- חומרים וטקסטורות
-function canvasTex(c, repeat) {
+function canvasTex(c, repeat, live = false) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   if (repeat) { t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; }
-  return t;
+  return live ? t : keep(t);
 }
 // מרצפות: 4 מ' לאורך × 4.4 מ' לעומק. רצועה בהירה ליד השפה, ואחריה אבן אפורה-חמה
 function pavingTexture() {
@@ -508,6 +509,8 @@ export class StopLayer {
     });
     if (changed) for (const im of this.roofMeshes) im.geometry.attributes.aFade.needsUpdate = true;
   }
+  // הקנבסים של השלטים עלולים להימחק כשהדף ברקע — מציירים אותם מחדש
+  refreshSigns() { for (const e of this.near.values()) e.key = null; }
   update(camera, lines, dt = 0) {
     this.fadeRoofs(camera, dt);
     this.t -= dt;
@@ -532,7 +535,7 @@ export class StopLayer {
           if (worst) { worst[1].mesh.geometry.dispose(); worst[1].tex.dispose(); worst[1].mesh.material.dispose(); this.group.remove(worst[1].mesh); this.near.delete(worst[0]); }
         }
         const c = document.createElement('canvas'); c.width = c.height = CS;
-        const tex = canvasTex(c);
+        const tex = canvasTex(c, false, true);      // שלט שמצויר מחדש — נשאר על הקנבס (ומצויר מחדש בחזרה לדף, refreshSigns)
         const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.22, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
         mesh.matrixAutoUpdate = false; mesh.matrix.copy(this.matrices[i]); mesh.name = 'stop-signs-' + s.id;
         this.group.add(mesh);

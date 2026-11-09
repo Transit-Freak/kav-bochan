@@ -2,6 +2,7 @@
 // זול לטלפון: אור שמש אחד עם מפת צל אחת (1024 במגע), בלי עיבוד-אחרי. המסגרת של הצל עוקבת אחרי המצלמה
 // וגדלה במדרגות כשמתרחקים (צל חד מקרוב, רך ממבט גבוה). הצל לא נכבה אף פעם — כיבוי והדלקה מקמפלים מחדש את כל החומרים.
 import * as THREE from 'three';
+import { keep } from './texkeep.js';
 
 export const SKY_TOP = 0xb2d5f1, SKY_HORIZON = 0xe6f0f6;
 
@@ -19,7 +20,7 @@ export function setupLook(renderer, scene, { touch = false } = {}) {
   gr.addColorStop(0.62, '#d0e4f2');
   gr.addColorStop(1, '#' + new THREE.Color(SKY_HORIZON).getHexString());
   g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
-  const sky = new THREE.CanvasTexture(c); sky.colorSpace = THREE.SRGBColorSpace;
+  const sky = keep(new THREE.CanvasTexture(c)); sky.colorSpace = THREE.SRGBColorSpace;
   scene.background = sky;
   scene.fog = new THREE.Fog(SKY_HORIZON, 1400, 4200);
 

@@ -9,6 +9,7 @@ import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './l
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths, frameV } from './stops.js';
+import { refreshAll } from './texkeep.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money } from './fleet.js';
@@ -108,7 +109,7 @@ async function init() {
   bindUI(); renderLines(); renderMoney();
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
-  document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
   Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
@@ -801,6 +802,18 @@ function stepCamAnim(dt) {
   if (k0 >= 1) camAnim = null;
 }
 G.closeLook = id => closeLook(stopsById.get(id));
+// חזרה לדף או שחזור של הקשר הגרפי (טלפון): מעלים מחדש טקסטורות וצל, ומציירים מחדש את השלטים.
+// אם הקשר הגרפי לא חוזר תוך 4 שנ' — שומרים וטוענים את הדף מחדש (הקווים, הצי, הקופה והשעה נשמרים)
+let glLost = false, glLostT = null;
+function refreshGraphics(why) {
+  if (!G.ready) return;
+  const n = refreshAll(scene, renderer, why === 'restored'); stopView.refreshSigns();
+  G.refreshed = (G.refreshed || 0) + 1; G.refreshWhy = why; G.refreshTex = n;
+  if (glLost && !glLostT) glLostT = setTimeout(() => { if (glLost) { try { saveLines(lineDefs); bank.save(sim.time); } catch { } location.reload(); } }, 4000);
+}
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); glLost = true; G.glLost = (G.glLost || 0) + 1;
+  if (!document.hidden) refreshGraphics('lost'); }, false);
+canvas.addEventListener('webglcontextrestored', () => { glLost = false; clearTimeout(glLostT); glLostT = null; G.glRestored = (G.glRestored || 0) + 1; refreshGraphics('restored'); }, false);
 function renderStop() {
   const s = selectedStop; if (!s) return;
   const sm = sim.stopSummary(s.id);
