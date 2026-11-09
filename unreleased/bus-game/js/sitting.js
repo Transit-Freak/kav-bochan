@@ -51,8 +51,6 @@ function pose(gltf, st, hipY, fix, lean = 0, opt = {}) {
   turn(B('LowerBack'), X, -6 - lean);
   if (opt.roll && opt.side) turn(B('LowerBack'), Z, -(Math.sign(W(B(opt.side + 'UpLeg')).x - W(hips).x) || 1) * opt.roll);
   if (opt.flex) { if (B('Spine')) turn(B('Spine'), X, opt.flex * 0.5); if (B('Spine1')) turn(B('Spine1'), X, opt.flex * 0.5); }
-  // הכתפיים רפויות: עצם הבריח קצת למטה
-  for (const s of ['Left', 'Right']) { const sh = B(s + 'Shoulder'); if (sh) turn(sh, Z, -(Math.sign(W(sh).x - W(hips).x) || 1) * 3); }
   turn(B('Head'), X, 4 + lean * 0.7 + (opt.head || 0));
   // רגליים: הירך כמעט אופקית על המושב, הברך בשפת המושב, והשוק נוטה קדימה
   // (כפות הרגליים לפני הברכיים, לא מתחתיהן — אחרת מלמעלה השוקיים נראות כמו מקלות שיורדים ישר מהספסל).
@@ -164,6 +162,9 @@ function snap(root, skinVerts) {
   const nn = V(), cc = V(), seg = new THREE.Line3(), cp = V(), vote = { Left: 0, Right: 0, torso: 0 };
   S.norms = S.tris.map((T, i) => { T.getNormal(nn); T.getMidpoint(cc); const [a, b] = axes[S.part[i]]; seg.set(a, b); seg.closestPointToPoint(cc, true, cp); vote[S.part[i]] += Math.sign(nn.dot(cc.clone().sub(cp))); return nn.clone(); });
   S.norms.forEach((v, i) => { if (vote[S.part[i]] < 0) v.negate(); });
+  // בגד של הגוף שמונח על החיק (כנף של ז'קט, שולי חולצה): הצד שלו למעלה הוא החוץ (הכיוון מציר הגוף לא אמין שם)
+  const hp = axes.torso[0];
+  S.tris.forEach((T, i) => { if (S.part[i] !== 'torso') return; T.getMidpoint(cc); if (cc.y < hp.y + 0.08 && cc.z > hp.z + 0.06 && S.norms[i].y < 0) S.norms[i].negate(); });
   // רשת חיפוש: תאים של 4 ס"מ
   const C = 0.04, grid = new Map(), key = (x, y, z) => x * 73856093 ^ y * 19349663 ^ z * 83492791;
   S.tris.forEach((T, t) => {
@@ -229,49 +230,50 @@ function placeArms(root, st, skinVerts, m, depth, pose, side) {
   // המפשעה: בין הירכיים, הנקודה הקדמית של הגוף בגובה הירכיים
   const crotch = new THREE.Vector3(hips.x, 0, (W('LeftUpLeg').z + W('RightUpLeg').z) / 2 + 0.03);
   const P = {};       // לכל צד: מטרה, כיוון הרמה, כיוון קירוב לכתף, סיבוב כף היד, pole של המרפק, מגע
-  for (const s of SIDES) P[s] = { lift: 0, back: 0, out: 0, curl: 14, thumb: 8, contact: true };
+  for (const s of SIDES) P[s] = { lift: 0, back: 0, out: 0, push: 0, curl: 14, thumb: 8, contact: true };
   let phone = null;
   const lat = s => new THREE.Vector3(sxOf(s), 0, 0);
-  if (pose === 'phone') {
-    // הטלפון: מעל הברכיים, נוטה 40° אל הפנים. הידיים מתחתיו משני הצדדים, כפות הידיים אליו, והאמות על הירכיים
-    const t = D(32), u = new THREE.Vector3(0, Math.sin(t), Math.cos(t)), n = new THREE.Vector3(0, Math.cos(t), -Math.sin(t));
-    const zc = crotch.z + 0.2, top = Math.max(thighTop(W('LeftUpLeg').x, zc), thighTop(W('RightUpLeg').x, zc));
-    phone = { c: new THREE.Vector3(hips.x, top + 0.24, crotch.z + 0.2), u, n, lift: 0, back: 0, fwd: 0 };
-    for (const s of SIDES) {
-      const inw = lat(s).negate();
-      Object.assign(P[s], { contact: false, curl: 8, thumb: 12,
-        Q: handQuat(ax[s], u.clone().addScaledVector(inw, 0.3), n.clone().addScaledVector(inw, 0.3)),
-        base: () => phone.c.clone().addScaledVector(n, -0.025).addScaledVector(lat(s), 0.05).addScaledVector(u, -0.03 - 0.06),
-        pole: () => new THREE.Vector3(sxOf(s) * (0.6 + P[s].out), -0.6, -0.6 + P[s].out * 0.2) });
-    }
-  } else if (pose === 'lap') {
-    // בחיק: היד של side למטה, האצבעות אל הצד השני ומעט קדימה; השנייה עליה. מרכזי כפות הידיים 15+ ס"מ מהמפשעה
-    const s0 = side, s1 = side === 'Left' ? 'Right' : 'Left', zc = crotch.z + 0.23;
-    const top = Math.max(thighTop(hips.x + 0.05, zc + 0.02), thighTop(hips.x - 0.05, zc + 0.02));
-    for (const [s, k] of [[s0, 0], [s1, 1]]) {
-      const f = lat(s).negate().addScaledVector(fwd, k ? 0.25 : 0.45).normalize(), down = up.clone().negate().addScaledVector(fwd, 0.15);
-      const pc = new THREE.Vector3(hips.x + sxOf(s0) * (k ? 0.005 : 0.03), top + 0.03 + k * 0.03, zc + (k ? 0.035 : 0));
-      Object.assign(P[s], { Q: handQuat(ax[s], f, down), base: () => pc.clone().addScaledVector(f, -0.065), top: !!k,
-        pole: () => new THREE.Vector3(sxOf(s) * (0.7 + P[s].out), -0.5, -0.5) });
-    }
-    P.under = s0; P.over = s1;
-  } else {
-    // יד אחת (side) על הספסל ליד הירך, אצבעות קדימה ומעט החוצה; השנייה על הירך שלה, אחרי אמצע הירך
-    const sb = side, so = side === 'Left' ? 'Right' : 'Left', zb = hips.z + 0.03, ob = thighOuter(sb, zb);
+  // יד על הירך שלה, אחרי אמצע הירך, כף היד למטה והאצבעות לאורך הירך
+  const thighHand = (so, inner = 0) => {
+    const A = W(so + 'UpLeg'), K = W(so + 'Leg'), a = K.clone().sub(A).normalize();
+    const zt = Math.max(crotch.z + 0.17, A.z + 0.42 * A.distanceTo(K)), xt = A.x + a.x / a.z * (zt - A.z) - sxOf(so) * inner;
+    const pcT = new THREE.Vector3(xt, thighTop(xt, zt) + 0.03, zt), fT = a.clone().setY(0).addScaledVector(lat(so), -0.12 - inner * 8).normalize();
+    Object.assign(P[so], { away: fwd.clone(), Q: handQuat(ax[so], fT, up.clone().negate().addScaledVector(lat(so), 0.15)), base: () => pcT.clone().addScaledVector(fT, -0.065),
+      pole: () => new THREE.Vector3(sxOf(so) * (0.7 + P[so].out), -0.4 + P[so].out * 0.4, -0.6) });
+  };
+  // יד על הספסל ליד הירך, אצבעות קדימה ומעט החוצה
+  const benchHand = (sb) => {
+    const zb = hips.z + 0.03, ob = thighOuter(sb, zb);
     const pcB = new THREE.Vector3(hips.x + sxOf(sb) * (ob + 0.065), benchY + 0.025, zb);
     const fB = fwd.clone().addScaledVector(lat(sb), 0.25).normalize();
-    Object.assign(P[sb], { Q: handQuat(ax[sb], fB, up.clone().negate()), base: () => pcB.clone().addScaledVector(fB, -0.065),
+    Object.assign(P[sb], { away: lat(sb), Q: handQuat(ax[sb], fB, up.clone().negate()), base: () => pcB.clone().addScaledVector(fB, -0.065),
       pole: () => new THREE.Vector3(sxOf(sb) * (0.8 + P[sb].out), -0.1, -0.9) });
-    const A = W(so + 'UpLeg'), K = W(so + 'Leg'), a = K.clone().sub(A).normalize();
-    const zt = Math.max(crotch.z + 0.17, A.z + 0.42 * A.distanceTo(K)), xt = A.x + a.x / a.z * (zt - A.z);
-    const pcT = new THREE.Vector3(xt, thighTop(xt, zt) + 0.03, zt), fT = a.clone().setY(0).addScaledVector(lat(so), -0.12).normalize();
-    Object.assign(P[so], { Q: handQuat(ax[so], fT, up.clone().negate().addScaledVector(lat(so), 0.15)), base: () => pcT.clone().addScaledVector(fT, -0.065),
-      pole: () => new THREE.Vector3(sxOf(so) * (0.7 + P[so].out), -0.4, -0.6) });
+  };
+  if (pose === 'phone') {
+    // טלפון ביד אחת (side): שוכב על כף היד והאצבעות, נוטה אל הפנים, והאגודל נוגע בו. היד השנייה על הספסל ליד הירך
+    const sh = side, so = side === 'Left' ? 'Right' : 'Left', inw = lat(sh).negate();
+    const t = D(35), u = new THREE.Vector3(0, Math.sin(t), Math.cos(t)), n = new THREE.Vector3(0, Math.cos(t), -Math.sin(t));
+    const zc = crotch.z + 0.2, top = Math.max(thighTop(W('LeftUpLeg').x, zc), thighTop(W('RightUpLeg').x, zc));
+    phone = { c: new THREE.Vector3(hips.x + sxOf(sh) * 0.04, top + 0.17, zc), lift: 0, back: 0, fwd: 0, hold: sh };
+    const f = u.clone().addScaledVector(inw, 0.35).normalize();
+    Object.assign(P[sh], { contact: false, curl: 0, thumb: 0, Q: handQuat(ax[sh], f, n.clone().addScaledVector(inw, 0.15)),
+      base: () => phone.c.clone().addScaledVector(f, -0.065),
+      pole: () => new THREE.Vector3(sxOf(sh) * (0.6 + P[sh].out), -0.6, -0.5) });
+    benchHand(so);
+  } else if (pose === 'lap') {
+    // בחיק: שתי כפות הידיים למטה, רפויות, על הצד הפנימי של הירכיים באמצע, האצבעות קדימה ופנימה
+    for (const s of SIDES) thighHand(s, 0.03);
+  } else {
+    // יד אחת (side) על הספסל ליד הירך, אצבעות קדימה ומעט החוצה; השנייה על הירך שלה, אחרי אמצע הירך
+    const sb = side, so = side === 'Left' ? 'Right' : 'Left';
+    benchHand(sb); thighHand(so);
   }
   // הבסיס של עצמות האצבעות (לפני הצמצום והכיפוף)
   const base = new Map();
   for (const s of SIDES) for (const n of [s + 'FingerBase', s + 'HandFinger1', s === 'Left' ? 'LThumb' : 'RThumb']) { const b = B(n); if (b) base.set(n, [b.quaternion.clone(), b.scale.clone()]); }
-  const target = s => P[s].base().addScaledVector(up, P[s].lift + (phone ? phone.lift : 0)).addScaledVector(B(s + 'Arm').getWorldPosition(V()).sub(P[s].base()).normalize(), P[s].back + (phone ? phone.back : 0));
+  const target = s => { const ph = phone && phone.hold === s, b = P[s].base(), d = B(s + 'Arm').getWorldPosition(V()).sub(b);
+    if (P[s].away) b.addScaledVector(P[s].away, P[s].push);
+    return b.addScaledVector(up, P[s].lift + (ph ? phone.lift : 0)).addScaledVector(d.normalize(), P[s].back + (ph ? phone.back : 0)); };
   const apply = () => {
     for (const s of SIDES) {
       const Q = P[s], hand = B(s + 'Hand');
@@ -292,21 +294,25 @@ function placeArms(root, st, skinVerts, m, depth, pose, side) {
       const axis = fw.clone().cross(pw);
       if (fb) turn(fb, axis, Q.curl * 0.3);
       if (f1) turn(f1, axis, Q.curl * 0.7);
-      if (th) turn(th, fw, (sxOf(s) > 0 ? -1 : 1) * Q.thumb);
+      if (th) { turn(th, fw, (sxOf(s) > 0 ? -1 : 1) * Q.thumb); if (Q.thumbUp) turn(th, fw.clone().cross(pw), Q.thumbUp); }
     }
     root.updateMatrixWorld(true);
     if (phone) {
-      // הטלפון שוכב על כפות הידיים: הגב שלו 3 מ"מ מעל הנקודה הגבוהה של כפות הידיים מתחתיו
-      const pc = B('LeftHand').getWorldPosition(V()).add(B('RightHand').getWorldPosition(V())).multiplyScalar(0.5);
-      const lt = phone.u.clone().cross(phone.n);
-      let h = -Infinity; const S2 = snap(root, skinVerts);
-      for (const s of SIDES) S2.hand[s].forEach((p, i) => { if (/Thumb$/.test(S2.kind[s][i])) return; const q = p.clone().sub(pc); if (Math.abs(q.dot(lt)) < PHONE.w / 2 + 0.005) h = Math.max(h, q.dot(phone.n)); });
-      phone.pos = pc.clone().addScaledVector(phone.u, 0.06).addScaledVector(phone.n, (isFinite(h) ? h : 0) + PHONE.t / 2 + 0.003);
+      // הטלפון שוכב על כף היד והאצבעות של היד שמחזיקה: לאורך האצבעות, והגב שלו 1.5 מ"מ מעל הנקודה הגבוהה של היד מתחתיו
+      const s = phone.hold, hand = B(s + 'Hand'), hq = hand.getWorldQuaternion(new THREE.Quaternion());
+      const fw = ax[s].Fl.clone().applyQuaternion(hq), pw = ax[s].Pl.clone().applyQuaternion(hq), lt = fw.clone().cross(pw);
+      const pc = hand.getWorldPosition(V()).addScaledVector(fw, 0.075);
+      const S2 = snap(root, skinVerts); let h = -Infinity, hp = -Infinity, hf = -Infinity;
+      S2.hand[s].forEach((p, i) => { const k = S2.kind[s][i]; if (/Thumb$/.test(k)) return; const q = p.clone().sub(pc);
+        if (Math.abs(q.dot(lt)) > PHONE.w / 2 || Math.abs(q.dot(fw) - 0.015) > PHONE.l / 2) return;
+        const d = q.dot(pw); h = Math.max(h, d); if (/Finger1$/.test(k)) hf = Math.max(hf, d); else hp = Math.max(hp, d); });
+      phone.u = fw; phone.n = pw; phone.lt = lt; phone.hp = hp; phone.hf = hf;
+      phone.pos = pc.clone().addScaledVector(fw, 0.015).addScaledVector(pw, (isFinite(h) ? h : 0) + PHONE.t / 2 + 0.0015);
       return S2;
     }
     return null;
   };
-  const phonePts = () => { const lt = phone.u.clone().cross(phone.n), out = [];
+  const phonePts = () => { const lt = phone.lt, out = [];
     for (let i = 0; i <= 4; i++) for (let j = 0; j <= 6; j++) for (const k of [-1, 1]) out.push(phone.pos.clone().addScaledVector(lt, (i / 4 - 0.5) * PHONE.w).addScaledVector(phone.u, (j / 6 - 0.5) * PHONE.l).addScaledVector(phone.n, k * PHONE.t / 2));
     return out; };
   // מדידה: לכל צד — היד (מול הירכיים, הגוף והספסל; היד העליונה בחיק — גם מול היד שמתחתיה), האמה, ההחטאה של ה-IK
@@ -314,14 +320,14 @@ function placeArms(root, st, skinVerts, m, depth, pose, side) {
     const R = {};
     for (const s of SIDES) {
       const hmin = (p, t) => { const d = S.sd(p), b = sdBench(p); if (d < 0.003) { if (S.lastPart === 'torso') { if (t) R.torso = true; else R.foreTorso = true; } else if (!t) R.foreThigh = true; } return Math.min(d, b); };
-      const hd = S.hand[s].map(p => hmin(p, true));
+      let mp = null, mv = Infinity; const hd = S.hand[s].map(p => { const v = hmin(p, true); if (v < mv) { mv = v; mp = sdBench(p) <= v ? 'bench' : S.lastPart; } return v; });
       if (P[s].top) {      // היד העליונה: מול הקודקודים של היד שמתחת (עד 1.2 ס"מ לרוחב)
         const under = S.hand[P.under];
         S.hand[s].forEach((p, i) => { let g = Infinity; for (const q of under) if (Math.hypot(p.x - q.x, p.z - q.z) < 0.012) g = Math.min(g, p.y - q.y); hd[i] = Math.min(hd[i], g); });
       }
       const fd = S.fore[s].map(p => hmin(p, false));
       const hand = B(s + 'Hand').getWorldPosition(V());
-      R[s] = { hand: Math.min(...hd), handIn: hd.filter(d => d < 0).length, fore: Math.min(...fd), foreIn: fd.filter(d => d < 0).length,
+      R[s] = { part: mp, hand: Math.min(...hd), handIn: hd.filter(d => d < 0).length, fore: Math.min(...fd), foreIn: fd.filter(d => d < 0).length,
         miss: hand.distanceTo(P[s].T), elbow: angleAt(W(s + 'Arm'), W(s + 'ForeArm'), hand),
         crotch: Math.min(...S.hand[s].map(p => Math.hypot(p.x - crotch.x, p.z - crotch.z))) };
     }
@@ -333,25 +339,62 @@ function placeArms(root, st, skinVerts, m, depth, pose, side) {
     const S2 = apply(); S = S2 || snap(root, skinVerts); R = measureArms(S);
     let done = true;
     for (const s of SIDES) {
-      const r = R[s], Q = P[s];
-      if (r.miss > 0.004 && (phone ? phone.back : Q.back) < 0.25) { if (phone) phone.back += r.miss / 2; else Q.back += r.miss; done = false; continue; }
+      const r = R[s], Q = P[s], ph = phone && phone.hold === s;
+      if (r.miss > 0.004 && (ph ? phone.back : Q.back) < 0.25) { if (ph) phone.back += r.miss / 2; else Q.back += r.miss; done = false; continue; }
       // האמה נכנסת לירך: המרפק החוצה (ובטלפון גם קצת למעלה) — לא מרימים את כף היד, זה רק מוריד את המרפק עוד
-      if (r.fore < 0.003 && phone) { if (R.foreTorso) { if (Q.out < 1) Q.out += 0.15; else if (phone.fwd < 0.12) { phone.c.z += 0.01; phone.fwd += 0.01; } } if (R.foreThigh) phone.lift += 0.004; done = false; }
+      if (r.fore < 0.003 && ph) { if (R.foreTorso) { if (Q.out < 1) Q.out += 0.15; else if (phone.fwd < 0.12) { phone.c.z += 0.01; phone.fwd += 0.01; } } if (R.foreThigh) phone.lift += 0.004; done = false; }
       else if (r.fore < 0.003 && Q.out < 1.5) { Q.out = Math.min(1.5, Q.out + 0.1); done = false; }
-      if (Q.contact) { const e = 0.004 - r.hand; if (Math.abs(e) > 0.0015 && isFinite(r.hand)) { Q.lift += THREE.MathUtils.clamp(e, -0.02, 0.02); done = false; } }
-      else if (r.hand < 0.003) { if (phone) { if (!R.torso) phone.lift += Math.min(0.02, 0.004 - r.hand); } else Q.lift += 0.004 - r.hand; done = false; }
+      // יד שנוגעת בגוף (בטן, ירך של הגוף, כנף ז'קט מלפנים): זזה הלאה מהגוף (קדימה, או הצידה ביד שעל הספסל), לא למעלה
+      if (Q.contact && r.part === 'torso' && r.hand < 0.004 && Q.push < 0.1) { Q.push += 0.01; done = false; }
+      else if (Q.contact) { const e = 0.004 - r.hand; if (Math.abs(e) > 0.0015 && isFinite(r.hand)) { Q.lift += THREE.MathUtils.clamp(e, -0.02, 0.02); done = false; } }
+      else if (r.hand < 0.003) { if (ph) { if (!R.torso) phone.lift += Math.min(0.02, 0.004 - r.hand); } else Q.lift += 0.004 - r.hand; done = false; }
     }
     if (phone && R.phone.min < 0.003 && !R.torso) { phone.lift += Math.min(0.02, 0.004 - R.phone.min); done = false; }
     // טלפון: מה שנוגע בגוף (הבטן) — הטלפון והידיים זזים קדימה, לא למעלה
     if (phone && R.torso && phone.fwd < 0.12) { phone.c.z += 0.01; phone.fwd += 0.01; done = false; }
     if (done) break;
   }
-  const res = { pose, side };
+  // האחיזה בטלפון: כיפוף האצבעות כך שהן בגובה של כף היד מתחת לטלפון (נוגעות בגב שלו), והאגודל — על המסך
+  let grip = null;
+  if (phone) {
+    const s = phone.hold, Q = P[s], th = s === 'Left' ? 'LThumb' : 'RThumb';
+    const thumbState = (S2) => {
+      const hand = B(s + 'Hand').getWorldPosition(V()), pts = S2.hand[s].filter((p, i) => /Thumb$/.test(S2.kind[s][i]));
+      const far = Math.max(...pts.map(p => p.distanceTo(hand))), tip = pts.filter(p => p.distanceTo(hand) > far - 0.025);
+      // מרחק מהקופסה של הטלפון (שלילי — בפנים); האגודל צריך לגעת בו (על המסך או על הצד), לא להיכנס
+      const box = p => { const q = p.clone().sub(phone.pos), a = [Math.abs(q.dot(phone.lt)) - PHONE.w / 2, Math.abs(q.dot(phone.u)) - PHONE.l / 2, Math.abs(q.dot(phone.n)) - PHONE.t / 2];
+        const o = Math.hypot(Math.max(a[0], 0), Math.max(a[1], 0), Math.max(a[2], 0)); return o > 0 ? o : Math.max(...a); };
+      let inside = 0, gap = Infinity, onFace = 0;
+      for (const p of pts) if (box(p) < 0) inside++;
+      for (const p of tip) { const d = box(p); gap = Math.min(gap, d); const q = p.clone().sub(phone.pos); if (q.dot(phone.n) > 0 && Math.abs(q.dot(phone.lt)) < PHONE.w / 2) onFace++; }
+      return { inside, gap, onFace };
+    };
+    let best = null;
+    for (let c = -30; c <= 40; c += 10) { Q.curl = c; const S2 = apply(); const e = Math.abs(phone.hf - phone.hp); if (!best || e < best[1]) best = [c, e]; }
+    Q.curl = best[0];
+    let bt = null;
+    for (let a = -60; a <= 60; a += 15) for (let b = -45; b <= 45; b += 15) {
+      Q.thumb = a; Q.thumbUp = b; const S2 = apply(), T = thumbState(S2);
+      const score = T.inside ? 1e3 + T.inside : Math.abs(T.gap - 0.0015) * 1000 - (T.onFace ? 0.5 : 0);
+      if (!bt || score < bt[2]) bt = [a, b, score];
+    }
+    // סבב עדין סביב הטוב ביותר
+    for (let a = bt[0] - 10; a <= bt[0] + 10; a += 5) for (let b = bt[1] - 10; b <= bt[1] + 10; b += 5) {
+      Q.thumb = a; Q.thumbUp = b; const S2 = apply(), T = thumbState(S2);
+      const score = T.inside ? 1e3 + T.inside : Math.abs(T.gap - 0.0015) * 1000 - (T.onFace ? 0.5 : 0);
+      if (score < bt[2]) bt = [a, b, score];
+    }
+    Q.thumb = bt[0]; Q.thumbUp = bt[1]; S = apply(); R = measureArms(S);
+    const T = thumbState(S);
+    grip = { curl: Q.curl, thumbAngle: Q.thumb, thumbUp: Q.thumbUp, palmGap: +((Math.max(phone.hp, phone.hf) - phone.hp + 0.0015) * 1000).toFixed(1), fingerGap: +((Math.max(phone.hp, phone.hf) - phone.hf + 0.0015) * 1000).toFixed(1),
+      thumbGap: isFinite(T.gap) ? +(T.gap * 1000).toFixed(1) : null, thumbInside: T.inside, thumbOnFace: T.onFace };
+  }
+  const res = { pose, side, grip };
   for (const s of SIDES) {
     const hq = B(s + 'Hand').getWorldQuaternion(new THREE.Quaternion()), lt = ax[s].Fl.clone().applyQuaternion(hq).cross(ax[s].Pl.clone().applyQuaternion(hq)), h0 = B(s + 'Hand').getWorldPosition(V());
     const ws = S.hand[s].filter((p, i) => /Finger1$/.test(S.kind[s][i])).map(p => p.clone().sub(h0).dot(lt)); P[s].width = +((Math.max(...ws) - Math.min(...ws)) * 100).toFixed(1);
   }
-  for (const s of SIDES) { const r = R[s]; res[s] = { width: P[s].width, hand: +(r.hand * 1000).toFixed(1), handIn: r.handIn, fore: +(r.fore * 1000).toFixed(1), foreIn: r.foreIn, miss: +(r.miss * 1000).toFixed(1), elbow: Math.round(r.elbow), crotch: +(r.crotch * 100).toFixed(1) }; }
+  for (const s of SIDES) { const r = R[s]; res[s] = { part: r.part, push: +P[s].push.toFixed(3), back: +P[s].back.toFixed(3), lift: +P[s].lift.toFixed(3), out: +P[s].out.toFixed(2), width: P[s].width, hand: +(r.hand * 1000).toFixed(1), handIn: r.handIn, fore: +(r.fore * 1000).toFixed(1), foreIn: r.foreIn, miss: +(r.miss * 1000).toFixed(1), elbow: Math.round(r.elbow), crotch: +(r.crotch * 100).toFixed(1) }; }
   if (phone) res.phone = { min: +(R.phone.min * 1000).toFixed(1), inside: R.phone.inside, lift: +phone.lift.toFixed(3), back: +phone.back.toFixed(3), c: phone.c.toArray().map(v => +v.toFixed(3)), hips: hips.toArray().map(v => +v.toFixed(3)), pos: phone.pos, u: phone.u, n: phone.n };
   const scales = new Map(); root.traverse(o => { if (o.isBone && (o.scale.x !== 1 || o.scale.y !== 1 || o.scale.z !== 1)) scales.set(o.name, o.scale.clone()); });
   res.scales = scales;
@@ -379,7 +422,7 @@ function measure(root, skinVerts, depth) {
 // בונה את היושב לדגם אחד: seatH — גובה המושב מעל הקרקע, depth — עומק המושב מהקיר.
 // מחזיר את התנוחה (לאפייה ולקימה), ומדידות לבדיקה
 export function buildSitter(gltf, skinVerts, seatH, depth, armPose = 'lap', side = 'Left') {
-  const opt = { phone: { flex: 10, head: 16 }, lap: { flex: 12, head: 8 }, bench: { flex: 8, roll: 7, side } }[armPose] || {};
+  const opt = { phone: { flex: 4, head: 16, roll: 6, side: side === 'Left' ? 'Right' : 'Left' }, lap: { flex: 12, head: 8 }, bench: { flex: 8, roll: 7, side } }[armPose] || {};
   const need = ['Hips', 'LowerBack', 'Head', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'LeftToeBase', 'RightUpLeg', 'RightLeg', 'RightFoot', 'RightToeBase',
     'LeftArm', 'LeftForeArm', 'LeftHand', 'LeftFingerBase', 'RightArm', 'RightForeArm', 'RightHand', 'RightFingerBase'];
   for (const n of need) if (!gltf.scene.getObjectByName(n)) return null;

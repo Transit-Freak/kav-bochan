@@ -212,7 +212,7 @@ const AGE = { person_3: 'old', person_4: 'old', person_2: 'young', person_6: 'yo
 const XFER_MAX = 40;                        // הולכים למעבר בבת אחת לכל היותר (השאר — כמו יורדים רגילים)
 const SIT_MAX = 256, SIT_GAP = 0.012;
 // תנוחת הידיים של היושבים, לפי הדגם (people.json): טלפון ביד, ידיים בחיק, או יד על הספסל; והצד (היד שלמטה / שעל הספסל)
-const POSE_OF = [['phone', 'Left'], ['bench', 'Right'], ['phone', 'Left'], ['bench', 'Left'], ['lap', 'Left'], ['bench', 'Right'], ['phone', 'Left'], ['bench', 'Right'], ['lap', 'Left']];
+const POSE_OF = [['bench', 'Left'], ['lap', 'Left'], ['phone', 'Right'], ['phone', 'Left'], ['phone', 'Left'], ['bench', 'Right'], ['bench', 'Left'], ['lap', 'Left'], ['bench', 'Right']];
 const SKIN = [0xe9c6aa, 0xd9ab8a, 0xbf8b67, 0x8f5d3e, 0xf2d6c2, 0xc99a78];
 const CLOTH = [0x0ea5e9, 0x1e3a8a, 0xef4444, 0x22c55e, 0xf8fafc, 0x334155, 0xf59e0b, 0x8b5cf6, 0x0f766e, 0xdb2777, 0x94a3b8, 0x7c2d12];
 const HAIR = [0x1c1917, 0x3f2a1d, 0x6b4f2f, 0x0c0a09, 0xa8a29e];
