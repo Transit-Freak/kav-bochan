@@ -8,6 +8,7 @@ import { RoadGraph, speedProfile } from './graph.js';
 import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
+import { StopLayer, assignRoadWidths } from './stops.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, START_MONEY, typeOf, lineCycle, vehiclesNeeded, fleetChange, money, dayOf } from './fleet.js';
 import { mapTouch } from './touch.js';
@@ -66,6 +67,7 @@ async function init() {
   await new Promise(r => setTimeout(r, 20));
   buildWorld(scene, city);
   graph = new RoadGraph(city);
+  assignRoadWidths(city, graph);
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
@@ -106,36 +108,23 @@ async function init() {
   G.ready = true;
 }
 
-// ---------- תחנות: עמוד, שלט וסיכה (שגדלה כשמתרחקים, כדי שיהיה קל להקיש)
-let pins, poles, pinBase = [];
+// ---------- תחנות: הסככה, העמוד והשלטים (js/stops.js), וסיכה (שגדלה כשמתרחקים, כדי שיהיה קל להקיש)
+let pins, stopView, pinBase = [];
 const PIN_COL = new THREE.Color(0x0ea5e9), PIN_SEL = new THREE.Color(0xf59e0b), PIN_ON = new THREE.Color(0x0369a1), PIN_USED = new THREE.Color(0x38bdf8);
 function buildStops() {
   const n = city.stops.length;
-  const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.9, 6).translate(0, 1.45, 0);
-  poles = new THREE.InstancedMesh(poleGeo, new THREE.MeshLambertMaterial({ color: 0x94a3b8 }), n);
-  const sign = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.5, 0.06).translate(0, 2.75, 0), new THREE.MeshLambertMaterial({ color: 0x0ea5e9 }), n);
-  // סככה: גג, קיר אחורי שקוף-למחצה ושני עמודים (הצד הפתוח פונה לכביש)
-  const shelterGeo = mergeGeometries([
-    new THREE.BoxGeometry(3.6, 0.08, 1.6).translate(1.6, 2.45, -0.75),
-    new THREE.BoxGeometry(3.4, 1.7, 0.04).translate(1.6, 1.35, -1.45),
-    new THREE.BoxGeometry(0.07, 2.4, 0.07).translate(-0.05, 1.2, -1.45), new THREE.BoxGeometry(0.07, 2.4, 0.07).translate(3.25, 1.2, -1.45),
-    new THREE.BoxGeometry(2.8, 0.06, 0.4).translate(1.6, 0.45, -1.2),
-  ]);
-  const shelter = new THREE.InstancedMesh(shelterGeo, new THREE.MeshLambertMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.85 }), n);
+  stopView = new StopLayer(scene, city.stops, s => people.stopFrame(s));
   const pinGeo = new THREE.SphereGeometry(1, 14, 10);
   pins = new THREE.InstancedMesh(pinGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), n);
   pins.name = 'stop-pins'; pins.renderOrder = 5;
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   city.stops.forEach((s, i) => {
     const f = people.stopFrame(s);
-    q.setFromAxisAngle(up, Math.atan2(-f.ux, f.uy));
     const p = new THREE.Vector3(f.px, 0.12, -f.py);
-    m.compose(p, q, new THREE.Vector3(1, 1, 1));
-    poles.setMatrixAt(i, m); sign.setMatrixAt(i, m); shelter.setMatrixAt(i, m);
     s.world = p; pinBase[i] = p;
     pins.setColorAt(i, PIN_COL);
   });
-  scene.add(poles, sign, shelter, pins);
+  scene.add(pins);
+  G.stopView = stopView;
 }
 function stopIndex(s) { return city.stops.indexOf(s); }
 function updatePins() {
@@ -145,7 +134,7 @@ function updatePins() {
   const sel = new Set(planning ? planning.stops : []), cur = planning?.selStop;
   const m = new THREE.Matrix4(), v = new THREE.Vector3();
   city.stops.forEach((s, i) => {
-    v.copy(pinBase[i]); v.y = 3.6 + k * 1.6;
+    v.copy(pinBase[i]); v.y = 4.3 + k * 1.6;
     const r = (s === cur ? 1.6 : sel.has(s) || s === selectedStop ? 1.25 : 1) * k * 0.9;
     m.makeScale(r, r, r).setPosition(v); pins.setMatrixAt(i, m);
     pins.setColorAt(i, s === cur ? PIN_ON : sel.has(s) ? PIN_SEL : s === selectedStop ? PIN_ON : used.has(s) ? PIN_USED : PIN_COL);
@@ -992,6 +981,7 @@ function tick(dt) {
     sim.events.length = 0;
     cams.update(dt);
     updatePins();
+    stopView.update(camera, lines, dt);
     $('#time').textContent = clockText(sim.time);
     updateMoneyChip();
     statT += dt; if (statT > 0.4) { statT = 0; updateStats(); refreshDemandView(false); }

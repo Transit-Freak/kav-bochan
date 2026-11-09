@@ -8,6 +8,7 @@ import { BUS } from './sim.js';
 import { TYPES } from './fleet.js';
 import { useBitmapTextures } from './texfix.js';
 import { addCab } from './driver.js';
+import { stopFrame, frameV, frameAD } from './stops.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -349,26 +350,12 @@ export class PeopleLayer {
     this.layoutCache = new Map(); this.seats = new Map();
   }
 
-  // מקום התחנה: עמוד התחנה (המיקום האמיתי מ-GTFS), כיוון "הרחק מהכביש" וכיוון לאורך הכביש
-  stopFrame(stop) {
-    let f = this.layoutCache.get(stop.id);
-    if (f) return f;
-    const [rx, ry] = this.graph.stopPoint(stop);
-    const [a, b] = this.graph.edge(stop.e), [ax, ay] = this.graph.xy(a), [bx, by] = this.graph.xy(b);
-    const tl = Math.hypot(bx - ax, by - ay) || 1, tx = (bx - ax) / tl, ty = (by - ay) / tl;
-    // מדרכה בצד ימין של כיוון הנסיעה
-    let ux = ty, uy = -tx;
-    const dpole = Math.hypot(stop.x - rx, stop.y - ry);
-    let px = stop.x, py = stop.y;
-    if (dpole < 4 || ((stop.x - rx) * ux + (stop.y - ry) * uy) < 0) { px = rx + ux * 5.5; py = ry + uy * 5.5; }
-    f = { px, py, ux, uy, tx, ty, rx, ry };
-    this.layoutCache.set(stop.id, f); return f;
-  }
+  // מסגרת התחנה (js/stops.js): השפה, כיוון "הרחק מהכביש" וכיוון לאורך הכביש; px,py — עמוד השלט
+  stopFrame(stop) { return stopFrame(stop, this.graph); }
+  // מקום המתנה קבוע (SLOTS): בין השפה לסככה, בתוך הסככה מול הספסל ובצדדים. כולם פונים לכביש
   slot(stop, i) {
-    const f = this.stopFrame(stop);
-    const col = i % 8, row = Math.floor(i / 8);
-    const along = (col - 2) * 0.62 + (row % 2) * 0.3, out = 0.45 + row * 0.6;
-    return [f.px + f.ux * out + f.tx * along, f.py + f.uy * out + f.ty * along, Math.atan2(-f.ux, f.uy)];
+    const f = this.stopFrame(stop), [a, d] = f.slots[i % f.slots.length], [x, y] = [f.kx + f.tx * a + f.ux * d, f.ky + f.ty * a + f.uy * d];
+    return [x, y, Math.atan2(-f.ux, f.uy), d, a];
   }
   // מקום קבוע לכל ממתין: מי שמגיע מקבל את המקום הפנוי הראשון ונשאר בו עד שהוא הולך לאוטובוס
   // (קודם המקום נקבע לפי הסדר בתור, ולכן כולם קפצו מקום בכל פעם שמישהו עלה)
@@ -395,18 +382,22 @@ export class PeopleLayer {
     for (const ev of sim.events) {
       if (ev.type === 'board') {
         const path = this.doorPath(busLayer, ev.bus, 'front'); if (!path) continue;
-        const i = this.seatOf(ev.stop, ev.p.id), [x, y] = this.slot(ev.stop, i);
+        const i = this.seatOf(ev.stop, ev.p.id), [x, y, , d, a] = this.slot(ev.stop, i);
         this.seats.get(ev.stop.id).delete(ev.p.id);
         const start = new THREE.Vector3(x, 0.12, -y);
-        this.walk(ev.p.id, [start, ...path.toIn], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id), undefined, path.door);
+        // מי שעומד בתוך הסככה או בצדדים — קודם יוצא קדימה, אל מול הסככה, ורק אז הולך לדלת (לא דרך הדופן או הספסל)
+        const via = d > 1.8 ? [frameV(this.stopFrame(ev.stop), a, 1.15, 0.12)] : [];
+        this.walk(ev.p.id, [start, ...via, ...path.toIn], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id), undefined, path.door);
       } else if (ev.type === 'alight') {
         const path = this.doorPath(busLayer, ev.bus, 'mid'); if (!path) continue;
         const f = this.stopFrame(ev.stop), side = (hash(ev.p.id) - 0.5) * 2;
-        const dir = side >= 0 ? 1 : -1, far = 14 + Math.abs(side) * 10;
-        const curb = new THREE.Vector3(f.px + f.ux * 2.2 + f.tx * dir * 2, 0.12, -(f.py + f.uy * 2.2 + f.ty * dir * 2));
-        const away = new THREE.Vector3(f.px + f.ux * 2.6 + f.tx * dir * far, 0.12, -(f.py + f.uy * 2.6 + f.ty * dir * far));
-        const toOut = path.toIn.slice().reverse();
-        this.walk(ev.p.id, [...toOut, curb, away], 'alight', ev.bus, undefined, toOut.length, path.door);
+        const dir = side >= 0 ? 1 : -1, far = 12 + Math.abs(side) * 10;
+        // יורדים אל הרצועה שליד השפה, הולכים לאורכה עד קצה התחנה (לפני העמוד או אחרי הסככה), ומשם מתרחקים
+        const toOut = path.toIn.slice().reverse(), o = toOut[toOut.length - 1], [ad] = frameAD(f, o.x, -o.z);
+        const end = dir > 0 ? Math.max(ad + 0.8, 2.8) : Math.min(ad - 0.8, -7.9);
+        const curb = frameV(f, ad + dir * 0.6, 0.5, 0.12), edge = frameV(f, end, 0.5, 0.12);
+        const away = frameV(f, end + dir * far, 3.2 + Math.abs(side) * 2, 0.12);
+        this.walk(ev.p.id, [...toOut, curb, edge, away], 'alight', ev.bus, undefined, toOut.length, path.door);
       }
     }
 
@@ -427,7 +418,7 @@ export class PeopleLayer {
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
-        const i = this.seatOf(stop, p.id); if (i >= 40) continue;
+        const i = this.seatOf(stop, p.id); if (i >= this.stopFrame(stop).slots.length) continue;
         const [x, y] = this.slot(stop, i);
         Q.setFromAxisAngle(up, this.personYaw(stop, i, p.id));
         P.set(x, 0.12, -y); S.setScalar(this.personScale(p.id));
