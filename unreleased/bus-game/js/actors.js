@@ -140,6 +140,8 @@ export class BusLayer {
       const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
       if (clip) { mixer = new THREE.AnimationMixer(obj); action = mixer.clipAction(clip); action.play(); action.paused = true; }
     } else obj = placeholderBus();
+    // האוטובוס מטיל צל על הכביש (בלי הפנים: תא הנהג, הנהג והמושבים לא נראים בצל מבחוץ)
+    obj.traverse(o => { if (o.isMesh && !/Driver|Cab|Seat|Interior/i.test(o.name)) o.castShadow = true; });
     const doors = obj.children.length ? [] : [];
     obj.traverse(o => { if (/^Door_/.test(o.name)) doors.push({ o, z0: o.position.z, x0: o.position.x, k: /0$/.test(o.name) ? 1 : -1 }); });
     const anchors = {};
