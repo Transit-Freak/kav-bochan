@@ -1,8 +1,8 @@
 /* משחק הקווים · גרסת בטא — הכניסה (שלמה 09.11.2026).
    כניסה והרשמה עם שם משתמש וסיסמה דרך Supabase Auth. Supabase דורש מייל, אז שם המשתמש הופך לכתובת פנימית
    <שם>@players.kavbochan.app שאף אחד לא רואה ולא מקבל אליה דואר (לכן "Confirm email" כבוי בפרויקט).
-   רק שני הנרשמים הראשונים נכנסים: הטבלה public.beta_testers, וטריגר בצד השרת דוחה את השלישי ('beta full'),
-   ואז הנרשם נכנס לרשימת ההמתנה (public.beta_waitlist). ה-SQL ב-supabase-beta.sql.
+   בכל שבוע (מיום ראשון, שעון ישראל) נכנסים 2 בודקים חדשים: הטבלה public.beta_testers, וטריגר בצד השרת דוחה
+   את השלישי באותו שבוע ('beta full'). כשהשבוע מלא, "הרשמה לבודקים" נעלמת (beta_count). ה-SQL ב-supabase-beta.sql.
    המשחק עצמו (js/main.js) נטען רק אחרי שבודק מאושר נכנס.
    חשוב לדעת: קבצי המשחק סטטיים ב-GitHub Pages — הכניסה שולטת בגישה דרך האתר, אבל לא מסתירה את הקבצים עצמם.
    המפתח כאן הוא המפתח הציבורי (publishable) של הפרויקט — מותר שיהיה בדפדפן; ההרשאות נקבעות ב-RLS. */
@@ -12,7 +12,7 @@
   var SB_KEY = 'sb_publishable_XM85T3S1d5WOZrWd6go0hQ_k4R9kWoX';
   var DOMAIN = 'players.kavbochan.app';
   var USER_RE = /^[A-Za-z0-9_]{3,20}$/;
-  var FULL_MSG = 'מקומות הבטא נתפסו — נעדכן כשתיפתח גרסה חדשה';
+  var FULL_MSG = 'המקומות לבודקים השבוע מלאים. בכל שבוע נפתחים 2 מקומות חדשים, ביום ראשון — נסו שוב אז עם אותו שם משתמש וסיסמה.';
 
   var $ = function (s) { return document.querySelector(s); };
   var gate = $('#gate'), wait = $('#gWait'), forms = $('#gForms'), err = $('#gErr'), msg = $('#gMsg');
@@ -85,12 +85,11 @@
     if (r.error) return fail('לא הצלחנו לבדוק את ההרשאה: ' + r.error.message);
     if (r.data) return startGame(user);
     var w = await sb.from('beta_waitlist').select('user_id').eq('user_id', user.id).maybeSingle();
-    if (w.data) return message(FULL_MSG);
-    var name = nameOf(user);
+    var name = nameOf(user);   // גם מי שברשימת ההמתנה מנסה שוב — אולי נפתח מקום השבוע
     var ins = await sb.from('beta_testers').insert({ user_id: user.id, username: name });
     if (!ins.error) return startGame(user);
     if (isFull(ins.error)) {
-      await sb.from('beta_waitlist').insert({ user_id: user.id, username: name });   // כפילות — לא משנה
+      if (!w.data) await sb.from('beta_waitlist').insert({ user_id: user.id, username: name });
       return message(FULL_MSG);
     }
     return fail('לא הצלחנו לרשום אותך לבטא: ' + ins.error.message);
@@ -130,8 +129,19 @@
     finally { busy(fSignup, false); }
   });
 
+  /* מקומות השבוע מלאים — מסתירים את "הרשמה לבודקים" וכותבים את זה בבולט */
+  async function checkFull() {
+    try {
+      var r = await sb.rpc('beta_count');
+      if (typeof r.data === 'number' && r.data >= 2) {
+        $('#gFull').hidden = false; tSignup.hidden = true; tab('login');
+      }
+    } catch (e) { }
+  }
+
   (async function boot() {
     if (!sb) { show('forms'); return setErr('שירות הכניסה לא נטען. נסו לרענן את הדף.'); }
+    checkFull();
     try {
       var s = await sb.auth.getSession();
       var user = s.data && s.data.session && s.data.session.user;

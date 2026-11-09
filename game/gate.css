@@ -34,3 +34,9 @@
 .g-acct{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line,#eef0f4);font-size:13px;color:var(--muted,#5b6579)}
 .g-acct .g-out{all:unset;cursor:pointer;color:#0369a1;text-decoration:underline}
 .g-acct #kb-ver{padding:0;margin-inline-start:auto}
+
+/* מקומות השבוע מלאים: הרשמה לבודקים נעלמת, נשארת רק כניסה */
+.g-full{background:#fef3c7;border:2px solid #f59e0b;color:#78350f;border-radius:12px;padding:14px;margin-bottom:12px;font-size:16px;line-height:1.55}
+.g-full b{font-size:18px;font-weight:800}
+.g-full[hidden]{display:none}
+.g-tabs button[hidden]{display:none}
