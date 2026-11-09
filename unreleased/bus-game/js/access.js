@@ -1,10 +1,10 @@
 // נוסעים בכיסא גלגלים, משטח העלייה בדלת האמצעית, והנהג שיוצא לעזור.
 //
 // מדי פעם (בערך אחד מכל 60 נוסעים, או בכוח — __game.forceWheelchair) נוסע מחכה בתחנה בכיסא גלגלים.
-// כשהוא עולה: הנהג פותח את דלת התא, קם, הולך במעבר לדלת האמצעית, מתכופף והופך את המשטח (לוח מתקפל ברצפה,
-// ציר בשפת הרצפה) החוצה אל המדרכה, יורד, נעמד מאחורי הכיסא, אוחז בידיות ודוחף אותו במעלה המשטח עד המקום
-// לכיסא גלגלים מול הדלת. הנוסע מסתובב לבד אל משענת הגב. הנהג יוצא, מרים את המשטח מהמדרכה ומקפל אותו פנימה,
-// חוזר לתא ומתיישב. בירידה — אותו דבר בכיוון ההפוך (הנוסע יוצא לבד במורד המשטח).
+// כשהוא עולה: הנהג יוצא מהתא ובדלת הקדמית אל המדרכה, הולך לדלת האמצעית, מושך ברצועה ופותח את המשטח (לוח מתקפל
+// ברצפה, ציר בסף) החוצה אל המדרכה, נעמד מאחורי הכיסא ודוחף אותו במעלה המשטח עד מעבר לסף. משם הנוסע נוסע לבד
+// אל המקום שלו. הנהג מקפל את המשטח מבחוץ, חוזר על המדרכה ונכנס בדלת הקדמית. בירידה — הנהג פותח את המשטח מבחוץ,
+// והנוסע יורד לבד. הנהג לא הולך בתוך האוטובוס (חוץ מהצעדים ליד הדלת הקדמית).
 //
 // הכל במערכת הצירים של האוטובוס (‎+Z קדימה, הדלתות בצד ‎-X): הכיסא והנהג הם ילדים של האוטובוס בזמן הרצף.
 // הרצף הוא רשימת קטעים עם זמן התחלה ומשך (בשניות משחק), וכל קטע קובע את המצב שלו באופן מוחלט —
@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { DRIVER_RIG, CAB_DOOR, cabHandle, aim, turn, twoBone, personPart, driverMaterial } from './driver.js';
+import { DRIVER_RIG, aim, turn, twoBone, personPart, driverMaterial } from './driver.js';
 import { frameV, BENCH } from './stops.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -31,15 +31,23 @@ const FL = 0.66, FLOOR = 0.675;                  // FL — גובה הרצפה �
 // הלוח ממורכז על ציר הסיבוב (‎±t/2), כך שהוא בגובה הרצפה גם כשהוא סגור וגם כשהוא פתוח (בלי מדרגה בציר)
 // הציר בסף הדלת (שם נגמרת הרצפה בפועל, x‏ ‎-1.215), באמצע בין כנפי הדלת הפתוחות
 export const RAMP = { hx: -1.215, hy: 0.665, z: 0.1, L: 1.2, W: 0.86, t: 0.024 };
-const SLOPE = Math.asin((RAMP.hy - 0.12 - RAMP.t / 2) / RAMP.L);
-const PHI_OUT = Math.PI + SLOPE;                 // הזווית של המשטח הפתוח (0 = סגור, 90° = זקוף)
+// השיפוע: לפי גובה הקרקע שמתחת לקצה (מדרכה 0.12, או אבן השפה כשהאוטובוס רחוק ממנה) — נקבע לכל תחנה (setSlope)
+const slopeFor = g => Math.asin((RAMP.hy - g - RAMP.t / 2) / RAMP.L);
+let SLOPE = slopeFor(0.12);
+let PHI_OUT = Math.PI + SLOPE;                   // הזווית של המשטח הפתוח (0 = סגור, 90° = זקוף)
+function setSlope(s) { SLOPE = s; PHI_OUT = Math.PI + s; }
 const HANDLE_U = 1.1, HANDLE_Z = 0;             // הידית: ליד הקצה החופשי, באמצע הרוחב           // הידית השקועה: ליד הקצה החופשי, בשוליים שמצד המעבר (הנהג עומד לידו)
-const SEAT = { x: 0.74, z: 4.56 }, STAND = { x: 0.1, z: 4.5 };   // הנהג: הכיסא, והמקום שבו הוא עומד מחוץ לתא
+const SEAT = { x: 0.74, z: 4.56 };               // כיסא הנהג
 // מקום הכיסא: ליד הדלת יש ארבעה עמודים ומתקפים בגובה החזה, ואין מקום לסובב כיסא אל משענת הגב שבדגם; לכן הכיסא
 // נעמד בשטח הפתוח שבין העמודים, מאחורי הדלת. נכנס: מסתובב במקום (הרדיוס פנוי מכל העמודים) ונוסע אליו;
 // יוצא: חוזר לנקודת הסיבוב, מסתובב אל הדלת ויורד לאחור במורד המשטח
 const BAY = { x: 0.0, z: -0.75 };                // בין ארבעת העמודים שליד הדלת, פונה לאחור
-const DOOR_Z = 0.025, LANE = RAMP.z;             // מרכז פתח הדלת; הקו שבו עוברים במשטח
+// מרכז פתח הדלת; הקו שבו עוברים במשטח; PIV — נקודת הסיבוב של הכיסא בפנים (באמצע בין ארבעת העמודים)
+const DOOR_Z = 0.025, LANE = RAMP.z, PIV = 0.19;
+const FRONT_Z = 5.15;                            // מרכז הדלת הקדמית (הנהג יוצא ונכנס דרכה)
+// הרצועה: קשורה לידית שבקצה החופשי, מונחת על הלוח הסגור ונתלית מעל הסף — הנהג מושך בה מהמדרכה
+const XF0 = () => RAMP.hx + RAMP.L * Math.cos(PHI_OUT) - 0.3;   // איפה הנהג עומד כדי להרים את המשטח הפתוח מהקצה
+const STRAP_LOOP = { x: RAMP.hx - 0.09, y: 0.53 };
 
 // גובה הקרקע/הרצפה בנקודה (מערכת האוטובוס): מדרכה, כביש בין השפה לאוטובוס, מדרגת הדלת, רצפה, והמשטח כשהוא פתוח
 function rampTopY(x) {
@@ -55,12 +63,12 @@ function groundAt(x, z, phi) {
     if (x >= x0 && x <= RAMP.hx) return rampTopY(x);
   }
   // הגבהים בפועל בדגם: רצפה 0.675, מדרגת הדלת 0.36, כביש 0.10, אבן השפה 0.165, מרצפות 0.12
-  if (x > RAMP.hx - 0.01) return FLOOR;
-  if (inDoor && x > -1.28) return 0.36;          // פס המדרגה הצר שבין הסף לכנפיים
+  if (x > RAMP.hx - 0.01) return onRamp && phi > 0.05 && x < RAMP.hx + RAMP.L ? FLOOR + 0.006 : FLOOR;   // הגומחה של המשטח (כשהוא פתוח)
+  if ((inDoor || Math.abs(z - FRONT_Z) < 0.585) && x > -1.28) return 0.36;   // פס המדרגה הצר שבין הסף לכנפיים (בשתי הדלתות)
   // בחוץ: לפי המרחק מהשפה של התחנה הזו (האוטובוס לא תמיד עומד צמוד ומקביל לשפה)
   const d = KERB ? KERB.a * x + KERB.b * z + KERB.c : -1.55 - x;
   if (d < 0) return 0.10;
-  if (d < 0.16) return 0.165;
+  if (d < 0.2) return 0.165;                     // אבן השפה: 20 ס"מ רוחב
   return 0.12;
 }
 const groundSmooth = (x, z, phi) => { let s = 0; for (const d of [-0.12, -0.06, 0, 0.06, 0.12]) s += groundAt(x + d, z, phi); return s / 5; };
@@ -86,6 +94,9 @@ export function addRamp(busRoot) {
   for (const s of [-1, 1]) add(alu, bx(L, 0.0045, 0.02, L / 2, -0.0018, s * (W / 2 - 0.01)));
   add(alu, bx(0.02, 0.0045, W, L - 0.01, -0.0018, 0));
   add(alu, bx(0.02, 0.0045, W, 0.01, -0.0018, 0));
+  // פסים צהובים בשוליים גם בצד הזה (כשהמשטח זקוף רואים שזה משטח, לא לוח לבן)
+  for (const s of [-1, 1]) add(yellow, bx(L - 0.06, 0.0048, 0.04, L / 2, -0.0015, s * (W / 2 - 0.045)));
+  add(yellow, bx(0.035, 0.0048, W - 0.13, L - 0.04, -0.0015, 0));
   // ידית שקועה: גומחה כהה ומוט בתוכה
   add(dark, bx(0.075, 0.005, 0.24, HANDLE_U, 0.0005, HANDLE_Z));
   add(alu, new THREE.CylinderGeometry(0.009, 0.009, 0.2, 10).rotateX(Math.PI / 2).translate(HANDLE_U, -0.002, HANDLE_Z));
@@ -101,6 +112,12 @@ export function addRamp(busRoot) {
     mesh.name = 'AccessRamp_' + m.name; g.add(mesh);
   }
   busRoot.add(g);
+  // הרצועה: שלושה קטעים של סרט שחור ולולאה בקצה
+  const sm = new THREE.MeshStandardMaterial({ name: 'M_RampStrap', color: 0x24262a, roughness: 0.8 });
+  const sg = new THREE.Group(); sg.name = 'AccessStrap';
+  for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.004, 1).translate(0, 0, 0.5), sm); m.name = 'AccessStrap_' + i; sg.add(m); }
+  const lp = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.006, 6, 14), sm); lp.name = 'AccessStrap_loop'; sg.add(lp);
+  busRoot.add(sg); setStrap(sg, 0, null);
   cutDoorGlass(busRoot);
   // הגומחה ברצפה מתחת ללוח (נראית רק כשהלוח פתוח)
   const pit = new THREE.Mesh(new THREE.BoxGeometry(L - 0.02, 0.003, W - 0.02), new THREE.MeshStandardMaterial({ name: 'M_RampPit', color: 0x6b6f75, metalness: 0.5, roughness: 0.55, polygonOffset: true, polygonOffsetFactor: -1 }));
@@ -132,12 +149,30 @@ function cutDoorGlass(root) {
   });
   for (const m of add) root.add(m);
 }
+// הרצועה במצב הנוכחי: סגור — על הלוח ומעל הסף; ביד — מהידית אל היד; אחרת — תלויה מתחת לידית
+function setStrap(g, phi, hand) {
+  const A = rampLocal(phi, HANDLE_U, RAMP.t / 2 + 0.003, 0);
+  let pts;
+  if (hand) pts = [A, hand.clone()];
+  else if (phi < 0.02) pts = [A, V3(RAMP.hx - 0.004, RAMP.hy + RAMP.t / 2 + 0.003, RAMP.z), V3(RAMP.hx - 0.022, RAMP.hy - 0.06, RAMP.z), V3(STRAP_LOOP.x, STRAP_LOOP.y + 0.045, RAMP.z)];
+  else pts = [A, rampLocal(phi, 0.03, RAMP.t / 2 + 0.003, 0)];   // מונחת על הלוח (כשהוא פתוח היא מתחתיו)
+  const segs = g.children.filter(m => /_\d$/.test(m.name)), lp = g.getObjectByName('AccessStrap_loop');
+  segs.forEach((m, i) => {
+    const a = pts[i], b = pts[i + 1];
+    if (!b || a.distanceTo(b) < 1e-3) { m.visible = false; return; }
+    m.visible = true; m.position.copy(a); m.scale.set(1, 1, a.distanceTo(b)); m.lookAt(g.parent ? b.clone().applyMatrix4(g.parent.matrixWorld) : b);
+  });
+  const e = pts[pts.length - 1]; lp.position.copy(e); lp.position.y -= hand ? 0 : 0.045; lp.rotation.set(0, 0, 0); lp.visible = !hand && phi < 0.02;
+}
+const endGrip = (phi, s) => { const k = clamp((PHI_OUT - phi) / (PHI_OUT - 1.75), 0, 1); const p = rampLocal(phi, RAMP.L + 0.07, 0, s * 0.3); p.y = Math.max(p.y + 0.14 * (1 - k), groundAt(p.x, p.z, 0) + 0.19 * (1 - k)); return p; };   // מעבר לקצה; כשהמשטח נמוך — גם מעליו
+// האצבעות: כשהמשטח שוכב — למטה אל הקצה; כשהוא מורם — ממשיכות את הלוח החוצה מעבר לקצה (לא נכנסות בו)
+const endDir = phi => { const k = clamp((PHI_OUT - phi) / (PHI_OUT - 1.75), 0, 1), m = ease(clamp((k - 0.1) / 0.7, 0, 1)); return V3(-0.12, -1, 0).normalize().lerp(V3(Math.cos(phi), Math.sin(phi), 0), m).normalize(); };
 const rampLocal = (phi, u, y, z) => { const c = Math.cos(phi), s = Math.sin(phi); return V3(RAMP.hx + u * c - y * s, RAMP.hy + u * s + y * c, RAMP.z + z); };
 
 // ---------- כיסא הגלגלים (ידני): שלדה, שני גלגלים גדולים עם טבעות הנעה, גלגלים קדמיים קטנים, מושב ומשענת, ידיות דחיפה
 // מערכת הכיסא: ‎+Z קדימה, הראשית על הקרקע מתחת לציר הגלגלים האחוריים
 const WC = { R: 0.3, axleZ: 0, wx: 0.315, seatY: 0.515, zb: -0.1, front: 0.36, caster: { x: 0.21, z: 0.42, r: 0.075 }, lift: 0.085 };
-WC.handles = [-1, 1].map(s => V3(s * 0.215, 0.95, WC.zb - 0.18));
+WC.handles = [-1, 1].map(s => V3(s * 0.175, 1.0, WC.zb - 0.165));   // מעל הידית (כף היד עליה, לא בתוכה)
 function tubeG(a, b, r, seg = 10) {
   const d = new THREE.Vector3().subVectors(b, a), g = new THREE.CylinderGeometry(r, r, d.length(), seg);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), d.clone().normalize()));
@@ -325,6 +360,12 @@ class DriverActor {
     this.dur = walk ? walk.duration : 1.33;
     this.measure();
   }
+  // העלמה והופעה (ביציאה מהתא ובחזרה אליו)
+  fade(o) {
+    if ((this.op ?? 1) === o) return; this.op = o;
+    this.inner.traverse(m => { if (m.isMesh) { m.material.transparent = o < 1; m.material.opacity = o; m.material.depthWrite = o >= 0.99; } });
+    this.obj.visible = o > 0.01;
+  }
   // מידות מתנוחת העמידה: אורך הרגל, גובה הקרסול מעל הקרקע, ההפרש בין הקרסול לבוהן (לכיוון כף הרגל), כיוון כף היד
   measure() {
     const B = this.B, W = o => o.getWorldPosition(V3());
@@ -357,10 +398,10 @@ class DriverActor {
     this.mixer.setTime(s.walkT || 0);
     if (!this.snap) this.snap = [...this.bones.values()].map(b => [b, new THREE.Quaternion(), new THREE.Vector3()]);
     for (const [b, q, p] of this.snap) { q.copy(b.quaternion); p.copy(b.position); }
-    const phi = s.phi ?? 0, k = clamp(s.sitK || 0, 0, 1), c = clamp(s.crouch || 0, 0, 1);
+    const phi = s.phi ?? 0, k = clamp(s.sitK || 0, 0, 1), c = clamp(s.crouch || 0, 0, 1.6);   // 1 — כריעה, 1.6 — כריעה עמוקה (להגיע לקרקע)
     const feet = k === 0 ? s.feet : null;
     // הגוף: בגובה הקרקע שמתחת לכפות הרגליים (הנמוכה מביניהן), כך שאף רגל לא נמתחת
-    const baseY = feet ? Math.min(feet[0].y, feet[1].y) - this.restA : groundSmooth(s.x, s.z, phi);
+    const baseY = feet ? (s.baseY ?? Math.min(feet[0].y, feet[1].y) - this.restA) : groundSmooth(s.x, s.z, phi);
     obj.position.set(s.x, baseY, s.z); obj.rotation.set(0, s.yaw, 0);
     inner.position.set(0, 0, 0); obj.updateMatrixWorld(true);
     const h = obj.worldToLocal(B('Hips').getWorldPosition(V3()));
@@ -415,7 +456,7 @@ class DriverActor {
       });
     }
     // במעבר הצר: הזרועות קרוב לגוף
-    if (s.narrow && !s.hands) { if (B('LeftArm')) turn(B('LeftArm'), fwd, 7); if (B('RightArm')) turn(B('RightArm'), fwd, -7); }
+    if (s.narrow && !s.hands) { if (B('LeftArm')) turn(B('LeftArm'), fwd, 13); if (B('RightArm')) turn(B('RightArm'), fwd, -13); }
     // מבט: רק הראש והצוואר, עד 35° מהחזה (הגוף מסתובב בצעדים); הערכים מוחלקים מראש בזמן (head)
     if (s.head && B('Head')) {
       const [yw, pt] = s.head, R = THREE.MathUtils.radToDeg;
@@ -440,6 +481,13 @@ class DriverActor {
       let dir = s.handDir ? bus.localToWorld(s.handDir.clone()).sub(bus.localToWorld(V3())).normalize() : fa.clone();
       if (dir.angleTo(fa) > 0.75) { const ax = V3().crossVectors(fa, dir).normalize(); dir = fa.clone().applyAxisAngle(ax, 0.75); }
       const fb = B(nm + 'FingerBase'); if (fb) aim(hand, fb, hand.getWorldPosition(V3()).add(dir));
+      // כף היד פונה אל הידית (למשל למטה, על ידיות הכיסא) — סיבוב סביב כיוון האצבעות
+      if (s.palmN && this.palm[nm] && fb) {
+        const ax = fb.getWorldPosition(V3()).sub(hand.getWorldPosition(V3())).normalize();
+        const P = this.palm[nm].clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion())), N = bus.localToWorld(s.palmN.clone()).sub(bus.localToWorld(V3())).normalize();
+        P.addScaledVector(ax, -P.dot(ax)); N.addScaledVector(ax, -N.dot(ax));
+        if (P.lengthSq() > 1e-6 && N.lengthSq() > 1e-6) { P.normalize(); N.normalize(); const ang = Math.atan2(V3().crossVectors(P, N).dot(ax), P.dot(N)); turn(hand, ax, THREE.MathUtils.radToDeg(ang)); }
+      }
       if (w > 0.3 && this.palm[nm]) {
         const P = this.palm[nm].clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion())), g = (w - 0.3) / 0.7;
         const curl = (bone, deg) => { if (!bone) return; const d = V3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion())); turn(bone, V3().crossVectors(d, P), deg * g); };
@@ -455,15 +503,23 @@ class DriverActor {
 // לא זזה בכלל; בזמן הצעד היא עוברת בקשת נמוכה למקום הבא. כך אין החלקה, הקצב לפי המהירות, פנייה במקום היא צעדים,
 // ועל משטח או מדרגה כל כף רגל נוחתת בגובה ובשיפוע שמתחתיה. גם המבט מחושב ומוחלק כאן
 const FOOT_W = 0.1, STEP = 0.6, STEP_PUSH = 0.45, TURN_G = 0.3;
+// כף הרגל על הקרקע: השיפוע מתחתיה, וגובה שבו אף נקודה בסוליה (עקב עד קצה האצבעות) לא נכנסת בקרקע
+function fitFoot(x, z, yaw, phi) {
+  const dx = Math.sin(yaw), dz = Math.cos(yaw), g = s => groundAt(x + dx * s, z + dz * s, phi);
+  const pitch = clamp(Math.atan2(g(0.12) - g(-0.08), 0.2), -0.55, 0.55), tp = Math.tan(pitch);
+  let base = -1e9; for (const s of [-0.09, -0.04, 0, 0.05, 0.1, 0.15, 0.19]) base = Math.max(base, g(s) - s * tp);
+  return { base: base + (Math.abs(pitch) > 0.1 ? 0.012 : 0), pitch };
+}
+const badLand = (p, f) => { const sd = f ? -1 : 1, x = p.x + sd * Math.cos(p.yaw) * FOOT_W, z = p.z - sd * Math.sin(p.yaw) * FOOT_W; return Math.abs(z - FRONT_Z) < 0.7 && x > -1.45 && x < -1.05; };
 function buildGait(tl, A) {
   const dt = 1 / 60, total = tl.total, N = Math.ceil(total / dt) + 1;
-  const X = new Float64Array(N), Z = new Float64Array(N), Y = new Float64Array(N), G = new Float64Array(N), loco = new Uint8Array(N), push = new Uint8Array(N);
+  const X = new Float64Array(N), Z = new Float64Array(N), Y = new Float64Array(N), G = new Float64Array(N), loco = new Uint8Array(N), SL = new Float64Array(N).fill(STEP), PHI = new Float64Array(N);
   const HY = new Float64Array(N), HP = new Float64Array(N);
   let g = 0;
   for (let i = 0; i < N; i++) {
     const t = Math.min(i * dt, total), st = { door: 0, phi: 0 }; tl.eval(t, st); const d = st.drv;
     if (!d) continue;
-    X[i] = d.x; Z[i] = d.z; Y[i] = d.yaw; loco[i] = d.sitK > 0 ? 0 : 1; push[i] = d.push ? 1 : 0;
+    X[i] = d.x; Z[i] = d.z; Y[i] = d.yaw; loco[i] = d.sitK > 0 ? 0 : 1; SL[i] = d.step || (d.push ? STEP_PUSH : STEP); PHI[i] = st.phi || 0;
     if (i && loco[i] && loco[i - 1]) g += Math.hypot(X[i] - X[i - 1], Z[i] - Z[i - 1]) + TURN_G * Math.abs(Math.atan2(Math.sin(Y[i] - Y[i - 1]), Math.cos(Y[i] - Y[i - 1])));
     G[i] = g;
     if (d.look) {
@@ -484,11 +540,11 @@ function buildGait(tl, A) {
     const i0 = i - 1; let j = i; while (j + 1 < N && (moving(j + 1) || (j + 2 < N && moving(j + 2) && loco[j + 1]))) j++;
     const S = { i0, i1: j, g0: G[i0], g1: G[j] };
     const at = gq => { let lo = i0, hi = j; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (G[m] < gq) lo = m; else hi = m; }
-      const k = G[hi] > G[lo] ? clamp((gq - G[lo]) / (G[hi] - G[lo]), 0, 1) : 0; return { x: X[lo] + (X[hi] - X[lo]) * k, z: Z[lo] + (Z[hi] - Z[lo]) * k, yaw: angLerp(Y[lo], Y[hi], k), push: push[lo] }; };
+      const k = G[hi] > G[lo] ? clamp((gq - G[lo]) / (G[hi] - G[lo]), 0, 1) : 0; return { x: X[lo] + (X[hi] - X[lo]) * k, z: Z[lo] + (Z[hi] - Z[lo]) * k, yaw: angLerp(Y[lo], Y[hi], k), len: SL[lo] }; };
     // חלונות הצעדים: אורך הצעד לפי מה שהוא עושה באותו מקום (דחיפה — צעדים קצרים); הצעד האחרון מביא את הרגל ליד השנייה
     const wins = [];
     let w = S.g0;
-    while (S.g1 - w > 0.06) { const len = at(w).push ? STEP_PUSH : STEP; let nx = Math.min(S.g1, w + len); if (S.g1 - nx < 0.3 * len) nx = S.g1; wins.push([w, nx]); w = nx; }
+    while (S.g1 - w > 0.06) { const len = at(w).len; let nx = Math.min(S.g1, w + len); if (S.g1 - nx < 0.3 * len) nx = S.g1; wins.push([w, nx]); w = nx; }
     if (wins.length === 1) { const [a, b] = wins[0]; wins[0] = [a, (a + b) / 2]; wins.push([(a + b) / 2, b]); }
     const p0 = at(S.g0);
     S.init = [foot(p0, 1), foot(p0, -1)]; S.steps = [];
@@ -496,10 +552,12 @@ function buildGait(tl, A) {
     if (wins.length) { const p1 = at(wins[0][1]); const lat = (p1.x - p0.x) * Math.cos(p0.yaw) - (p1.z - p0.z) * Math.sin(p0.yaw); first = lat < -0.02 ? 1 : 0; }
     const landG = [S.g0, S.g0];
     wins.forEach(([w0, w1], k) => {
-      const f = (k % 2 === 0) ? first : 1 - first, last = k >= wins.length - 2, nlen = wins[k + 1] ? wins[k + 1][1] - wins[k + 1][0] : 0;
+      const f = (k % 2 === 0) ? first : 1 - first, last = k >= wins.length - 1, nlen = wins[k + 1] ? wins[k + 1][1] - wins[k + 1][0] : 0;
       // נוחתת חצי צעד לפני האגן, אבל לא יותר מצעד ורבע לפני הרגל השנייה (הצעד הראשון מעמידה קצר — בלי "לאנג'");
       // בשני הצעדים האחרונים — במקום הסופי, ליד הרגל השנייה
-      const land = last ? S.g1 : Math.min(S.g1, w1 + 0.5 * nlen, landG[1 - f] + 1.25 * (w1 - w0));
+      let land = last ? S.g1 : Math.min(S.g1, w1 + 0.5 * nlen, landG[1 - f] + 1.25 * (w1 - w0));
+      // לא דורכים על הסף הצר של הדלת הקדמית (שם כף הרגל הייתה נכנסת בדופן): קצת לפני או אחרי
+      if (!last) for (let k2 = 1; k2 <= 8 && badLand(at(land), f); k2++) { const a = land - 0.05 * k2, b2 = land + 0.05 * k2; if (b2 <= S.g1 && !badLand(at(b2), f)) { land = b2; break; } if (a > landG[1 - f] && !badLand(at(a), f)) { land = a; break; } }
       landG[f] = land;
       S.steps.push({ f, w0, w1, to: foot(at(land), f ? -1 : 1) });
     });
@@ -509,9 +567,7 @@ function buildGait(tl, A) {
   }
   const idx = t => clamp(t / dt, 0, N - 1.001);
   const lerpA = (a, t) => { const u = idx(t), i = Math.floor(u), k = u - i; return a[i] + (a[i + 1] - a[i]) * k; };
-  return {
-    // כפות הרגליים בזמן t (או null כשהוא יושב), וזמן ההקלטה לפלג הגוף העליון
-    feet(t, phi) {
+  function feetAt(t, phi) {
       const i = Math.round(idx(t)), si = spanOf[i];
       if (!loco[i]) return null;
       if (si < 0) {   // עומד לפני שהתחיל ללכת: שתי כפות הרגליים זו ליד זו
@@ -522,15 +578,28 @@ function buildGait(tl, A) {
       for (const f of [0, 1]) {
         let plant = S.init[f], sw = null;
         for (const st of S.steps) { if (st.f !== f) continue; if (gq >= st.w1) plant = st.to; else { if (gq > st.w0) sw = { st, s: (gq - st.w0) / (st.w1 - st.w0) }; break; } }
-        let x = plant.x, z = plant.z, yaw = plant.yaw, lift = 0;
-        if (sw) { const e = ease(sw.s); x = plant.x + (sw.st.to.x - plant.x) * e; z = plant.z + (sw.st.to.z - plant.z) * e; yaw = angLerp(plant.yaw, sw.st.to.yaw, e); lift = Math.sin(Math.PI * sw.s); }
-        const gr = Math.max(groundAt(x, z, phi), sw ? Math.max(groundAt(plant.x, plant.z, phi), groundAt(sw.st.to.x, sw.st.to.z, phi)) * Math.min(1, lift * 2) : -1);
-        const fx = Math.sin(yaw), fz = Math.cos(yaw), slope = Math.atan2(groundAt(x + fx * 0.1, z + fz * 0.1, phi) - groundAt(x - fx * 0.1, z - fz * 0.1, phi), 0.2);
-        out.push({ x, z, yaw, y: gr + A.restA + 0.02 + lift * 0.09, pitch: (sw ? 0 : slope) + (sw ? -0.25 * Math.sin(Math.PI * Math.min(1, sw.s * 1.6)) : 0) });
+        if (!sw) { const F = fitFoot(plant.x, plant.z, plant.yaw, phi); out.push({ x: plant.x, z: plant.z, yaw: plant.yaw, y: F.base + A.restA + 0.014, pitch: F.pitch }); continue; }
+        // בצעד: מדרגה למטה — הרגל עוברת קודם את השפה ורק אז יורדת; מדרגה למעלה — קודם עולה ורק אז נכנסת
+        const to = sw.st.to, a = fitFoot(plant.x, plant.z, plant.yaw, phi), b = fitFoot(to.x, to.z, to.yaw, phi), dh = b.base - a.base, s1 = sw.s;
+        const e = dh < -0.15 ? 1 - (1 - s1) ** 2.2 : dh > 0.15 ? ease(clamp((s1 - 0.25) / 0.75, 0, 1)) : ease(s1);
+        const x = plant.x + (to.x - plant.x) * e, z = plant.z + (to.z - plant.z) * e, yaw = angLerp(plant.yaw, to.yaw, e), lift = Math.sin(Math.PI * s1);
+        let h = dh < -0.15 ? a.base + dh * ease(clamp((s1 - 0.5) / 0.5, 0, 1)) : dh > 0.15 ? a.base + dh * ease(clamp(s1 / 0.5, 0, 1)) + 0.05 * lift : a.base + dh * e;
+        const C = fitFoot(x, z, yaw, phi), pitch = a.pitch + (b.pitch - a.pitch) * e;
+        h = Math.max(h, C.base + 0.01) + lift * 0.09;
+        const flat = Math.abs(a.pitch) < 0.05 && Math.abs(b.pitch) < 0.05 && Math.abs(dh) < 0.05;
+        out.push({ x, z, yaw, y: h + A.restA + 0.014, pitch: pitch + (flat ? -0.25 * Math.sin(Math.PI * Math.min(1, s1 * 1.6)) : 0) });
       }
       const ph = ((gq - S.g0) / (2 * S.d) + 0.375) % 1, sp = Math.abs(lerpA(G, t + 0.05) - lerpA(G, t - 0.05)) / 0.1;
       return { feet: out, walkT: ph * A.dur, walkW: clamp(sp / 0.7, 0, 1) };
-    },
+  }
+  // גובה הגוף: הממוצע (±0.3 שנ') של כף הרגל הנמוכה — במדרגה גבוהה הגוף יורד ועולה בהדרגה ולא בבת אחת
+  const MF = new Float64Array(N).fill(NaN);
+  for (let i = 0; i < N; i++) if (loco[i]) { const r = feetAt(i * dt, PHI[i]); if (r) MF[i] = Math.min(r.feet[0].y, r.feet[1].y) - A.restA; }
+  const BY = new Float64Array(N);
+  for (let i = 0; i < N; i++) { if (isNaN(MF[i])) { BY[i] = NaN; continue; } let s2 = 0, n2 = 0; for (let j = Math.max(0, i - 18); j <= Math.min(N - 1, i + 18); j++) if (!isNaN(MF[j])) { s2 += MF[j]; n2++; } BY[i] = Math.max(Math.min(MF[i], s2 / n2), groundAt(X[i], Z[i], PHI[i]) - 0.3); }
+  return {
+    // כפות הרגליים בזמן t (או null כשהוא יושב), זמן ההקלטה לפלג הגוף העליון, וגובה הגוף
+    feet(t, phi) { const r = feetAt(t, phi); if (r) { const b = BY[Math.round(idx(t))]; if (!isNaN(b)) r.baseY = b; } return r; },
     head: t => [lerpA(sHY, t), lerpA(sHP, t)],
     spans,
   };
@@ -552,6 +621,16 @@ class Path {
     const a = this.at(Math.max(0, Math.min(d - w, this.L - 2 * w))), b = this.at(Math.min(this.L, Math.max(d + w, 2 * w)));
     return Math.atan2(b[0] - a[0], b[1] - a[1]);
   }
+}
+// פינות מעוגלות (חיתוך פינות), בלי להזיז את ההתחלה והסוף
+function chaikin(pts, it = 2) {
+  let p = pts;
+  for (let k = 0; k < it; k++) {
+    const o = [p[0]];
+    for (let i = 0; i + 1 < p.length; i++) { const a = p[i], b = p[i + 1]; if (i > 0) o.push([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]]); if (i + 2 < p.length) o.push([0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]]); }
+    o.push(p[p.length - 1]); p = o;
+  }
+  return p;
 }
 function bezier(P0, P1, P2, P3, n = 40) {
   const out = [];
@@ -583,7 +662,8 @@ function chairAlong(tl, t0, pts, o) {
 
 // ---------- רצף: קטעים עם זמן התחלה ומשך. כל קטע כותב את החלק שלו במצב (st), באופן מוחלט
 class Timeline {
-  constructor() { this.segs = []; this.t = 0; }
+  constructor() { this.segs = []; this.t = 0; this.marks = {}; }
+  mark(n) { this.marks[n] = this.t; }
   seq(dur, fn) { this.segs.push({ t0: this.t, dur, fn }); this.t += dur; return this.t; }
   at(t0, dur, fn) { this.segs.push({ t0, dur, fn }); return t0 + dur; }
   get total() { return Math.max(this.t, ...this.segs.map(s => s.t0 + s.dur)); }
@@ -594,12 +674,21 @@ class Timeline {
 }
 
 // המיקום של כיסא במערכת האוטובוס: גובה ונטייה לפי הקרקע מתחת לגלגלים האחוריים ולגלגלים הקדמיים
+// כל גלגל נשען על הנקודה הגבוהה שמתחתיו (לאורך ההיקף שלו) — במעבר בין מדרכה, שפה, משטח ורצפה הגלגל עולה על
+// השפה ולא נכנס בה. tilt — הטיה לאחור (הנהג מרים קצת את הגלגלים הקדמיים לפני המשטח)
+function wheelBase(x, z, dx, dz, lx, lz, r, phi) {
+  let best = -1e9;
+  for (const sd of [-1, 1]) for (let k = -4; k <= 4; k++) {
+    const s = r * k / 4, px = x + dx * s + lx * sd, pz = z + dz * s + lz * sd;
+    best = Math.max(best, groundAt(px, pz, phi) + Math.sqrt(Math.max(0, r * r - s * s)) - r);
+  }
+  return best;
+}
 function chairPose(c, phi, out = { y: 0, pitch: 0 }) {
-  const fx = c.x + Math.sin(c.yaw) * WC.caster.z, fz = c.z + Math.cos(c.yaw) * WC.caster.z;
-  const yr = groundAt(c.x, c.z, phi), yf = groundAt(fx, fz, phi);
-  out.pitch = clamp(Math.atan2(yf - yr, WC.caster.z), -SLOPE - 0.03, SLOPE + 0.03);
-  // בשיפוע הגלגל נוגע במשטח לא מתחת לציר — מרימים אותו כדי שלא ייכנס בו
-  out.y = yr + WC.R * (1 / Math.cos(out.pitch) - 1); return out;
+  const dx = Math.sin(c.yaw), dz = Math.cos(c.yaw), fx = c.x + dx * WC.caster.z, fz = c.z + dz * WC.caster.z;
+  const yr = wheelBase(c.x, c.z, dx, dz, dz * WC.wx, -dx * WC.wx, WC.R, phi), yf = wheelBase(fx, fz, dx, dz, dz * WC.caster.x, -dx * WC.caster.x, WC.caster.r, phi);
+  out.pitch = clamp(Math.atan2(yf - yr, WC.caster.z), -SLOPE - 0.03, SLOPE + 0.03) + (c.tilt || 0);
+  out.y = yr + WC.R * (1 - Math.cos(out.pitch)); return out;
 }
 const _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _ce = new THREE.Euler(0, 0, 0, 'YXZ');
 function chairPoint(c, phi, local) {
@@ -698,14 +787,15 @@ export class AccessLayer {
     // רצף שמחכה לאוטובוס פנוי (שני כיסאות באותה תחנה)
     for (let i = this.pending.length - 1; i >= 0; i--) {
       const ev = this.pending[i];
-      if (!this.seqs.some(q => q.bus === ev.bus)) { this.pending.splice(i, 1); this.start(ev._kind, ev); }
+      if (!this.seqs.some(q => q.bus === ev.bus)) { this.pending.splice(i, 1); this.start(ev._kind, ev); }   // (start מחזיר אותו לרשימה אם עדיין יש מי שהולך)
     }
   }
 
   start(kind, ev) {
     const bus = ev.bus, v = this.busLayer?.map.get(bus.id);
     if (!v) { if (kind === 'alight') this.drop(ev.p.id); bus.access = false; return; }
-    if (this.seqs.some(q => q.bus === bus)) { ev._kind = kind; this.pending.push(ev); bus.access = true; return; }
+    // מחכים שמי שבדרך לדלת הקדמית (או ממנה) יסיים — הנהג יוצא בה
+    if (this.seqs.some(q => q.bus === bus) || ((bus.walking || 0) > 0 && bus.state === 'dwell' && bus.ph === 'xchg' && (ev._wait = (ev._wait || 0) + 1) < 4000)) { ev._kind = kind; if (!this.pending.includes(ev)) this.pending.push(ev); bus.access = true; return; }
     const obj = v.obj;
     // האוטובוס כבר לא עומד בדלתות פתוחות (נדיר: עלה באותו צעד שבו הדלתות נסגרו) — בלי אנימציה
     const live = bus.state === 'dwell' && bus.ph === 'xchg';
@@ -728,10 +818,10 @@ export class AccessLayer {
     }
     bus.access = true;
     const q = { kind, bus, obj, v, chair, pid: ev.p.id, T: 0, slot: kind === 'board' ? this.parkedOn(bus) : 0 };
-    q.ramp = obj.getObjectByName('AccessRamp'); q.door = obj.getObjectByName('CabDoor'); q.baked = obj.getObjectByName('Driver');
+    q.ramp = obj.getObjectByName('AccessRamp'); q.strap = obj.getObjectByName('AccessStrap'); q.door = obj.getObjectByName('CabDoor'); q.baked = obj.getObjectByName('Driver');
     if (DRIVER_RIG && q.baked) {
       q.drv = this.drivers.pop() || (() => { try { return new DriverActor(DRIVER_RIG); } catch (e) { console.warn('driver actor failed', e); return null; } })();
-      if (q.drv) { obj.add(q.drv.obj); q.drv.obj.visible = true; q.baked.visible = false; }
+      if (q.drv) { obj.add(q.drv.obj); q.drv.obj.visible = true; }
     }
     // השפה של התחנה במערכת האוטובוס
     try {
@@ -740,6 +830,8 @@ export class AccessLayer {
       const c = d(0, 0); q.kerb = { a: d(1, 0) - c, b: d(0, 1) - c, c };
     } catch (e) { q.kerb = null; }
     KERB = q.kerb;
+    // הקרקע שמתחת לקצה המשטח הפתוח
+    { setSlope(slopeFor(0.12)); const xe = RAMP.hx - RAMP.L * Math.cos(SLOPE); let g = 0; for (const dz of [-0.35, 0, 0.35]) g = Math.max(g, groundAt(xe - 0.02, RAMP.z + dz, 0), groundAt(xe + 0.04, RAMP.z + dz, 0)); q.slope = slopeFor(g); setSlope(q.slope); }
     const stride = q.drv?.stride || 0.9;
     const c0 = { x: chair.position.x, z: chair.position.z, yaw: Math.atan2(V3(0, 0, 1).applyQuaternion(chair.quaternion).x, V3(0, 0, 1).applyQuaternion(chair.quaternion).z) };
     q.tl = kind === 'board' ? this.boardTimeline(c0, q.slot, stride) : this.alightTimeline(q.slot, stride);
@@ -756,9 +848,11 @@ export class AccessLayer {
   end(q, aborted) {
     q.bus.access = this.pending.some(e => e.bus === q.bus);
     if (q.drv) { q.drv.obj.parent?.remove(q.drv.obj); this.drivers.push(q.drv); }
-    if (q.baked) q.baked.visible = true;
+    if (q.baked) this.fade(q.baked, 1);
     if (q.door) q.door.rotation.y = 0;
     if (q.ramp) q.ramp.rotation.z = 0;
+    if (q.strap) setStrap(q.strap, 0, null);
+    if (q.drv) q.drv.fade(1);
     q.chair.userData.busy = false;
     q.chair.userData.sitter?.arms(q.chair, 0, 0, 0);
     if (q.kind === 'board' && !aborted) { this.park(q.chair, q.slot); this.riding.set(q.pid, { chair: q.chair, bus: q.bus, obj: q.obj }); }
@@ -767,11 +861,12 @@ export class AccessLayer {
 
   // מחיל את המצב בזמן T: דלת התא, המשטח, הכיסא (גלגלים, גלגלים קדמיים שמסתובבים לכיוון התנועה, ידי הנוסע) והנהג
   apply(q, T) {
-    KERB = q.kerb || null;
-    const st = { door: 0, phi: 0, chair: null, drv: null };
+    KERB = q.kerb || null; if (q.slope) setSlope(q.slope);
+    const st = { door: 0, phi: 0, chair: null, drv: null, strap: null };
     q.tl.eval(T, st);
     if (q.door) q.door.rotation.y = st.door;
     if (q.ramp) q.ramp.rotation.z = st.phi;
+    if (q.strap) setStrap(q.strap, st.phi, st.strap);
     const c = st.chair;
     if (c) {
       const p = chairPose(c, st.phi, this.tmp), ch = q.chair;
@@ -799,11 +894,13 @@ export class AccessLayer {
     if (q.drv && st.drv) {
       st.drv.phi = st.phi;
       const gf = q.gait?.feet(T, st.phi);
-      if (gf) { st.drv.feet = gf.feet; st.drv.walkT = gf.walkT; st.drv.walkW = gf.walkW * (st.drv.z > 1.3 && st.drv.x > -0.5 ? 0 : 1); st.drv.narrow = st.drv.z > 1.3 && st.drv.z < 4.3 && st.drv.x > -0.5; }   // במעבר הצר בין המושבים — הידיים קרוב לגוף
+      if (gf) { st.drv.feet = gf.feet; st.drv.walkT = gf.walkT; st.drv.walkW = gf.walkW; st.drv.baseY = gf.baseY; }
       if (q.gait) st.drv.head = q.gait.head(T);
       // קימה וישיבה: כפות הרגליים עוברות אל העמידה במקום שבו מתכנן הצעדים מתחיל (בלי קפיצה)
       if (st.drv.sitK > 0 && st.drv.sitK < 1) { const d = st.drv; d.standFeet = [1, -1].map(sd => { const x = d.x + sd * Math.cos(d.yaw) * FOOT_W, z = d.z - sd * Math.sin(d.yaw) * FOOT_W; return { x, z, y: groundAt(x, z, st.phi) + q.drv.restA }; }); }
-      q.drv.pose(st.drv, q.obj);
+      // יושב בתא: הנהג הרגיל של האוטובוס (כמו תמיד); עומד: הנהג "החי". ההחלפה — בהעלמה והופעה
+      if (st.drv.sitK >= 1) { q.drv.fade(0); if (q.baked) this.fade(q.baked, st.drv.op ?? 1); }
+      else { if (q.baked) this.fade(q.baked, 0); q.drv.pose(st.drv, q.obj); q.drv.fade(st.drv.op ?? 1); }
     }
   }
   fade(ch, o) {
@@ -828,13 +925,14 @@ export class AccessLayer {
       seated(dur) { return tl.seq(dur, (u, st) => set(st, { x: SEAT.x, z: SEAT.z, yaw: 0, sitK: 1, look: V3(SEAT.x, 1.6, 8) })); },
       // הליכה: מאיץ ומאט בהדרגה, הצעדים לפי המרחק (בלי החלקה), הגוף פונה בהדרגה אל הדרך והמבט מקדים אותו
       walk(pts, v = 1.1, o = {}) {
-        const P = new Path([[D.x, D.z], ...pts]), y0 = D.yaw, t0 = D.walkT, pr = profile(P.L, v, o.ta ?? 0.5);
+        // o.keep — בלי להסתובב (צעדים לצד או לאחור); o.step — אורך הצעד; o.round — פינות מעוגלות
+        const P = new Path(o.round === false ? [[D.x, D.z], ...pts] : chaikin([[D.x, D.z], ...pts], 2)), y0 = D.yaw, t0 = D.walkT, pr = profile(P.L, v, o.ta ?? 0.5);
         tl.seq(pr.dur, (u, st) => {
-          const t = u * pr.dur, d = pr.d(t), [x, z] = P.at(d), yw = angLerp(y0, P.yaw(d, 0.35), ease(clamp(d / 0.6, 0, 1)));
+          const t = u * pr.dur, d = pr.d(t), [x, z] = P.at(d), yw = o.keep ? y0 : angLerp(y0, P.yaw(d, 0.35), ease(clamp(d / 0.6, 0, 1)));
           const la = P.at(Math.min(P.L, d + 1.4)), ly = P.yaw(Math.min(P.L, d + 0.8), 0.35);
-          set(st, { x, z, yaw: yw, walkT: t0 + d / stride, walkW: ease(clamp(pr.sp(t) * 1.6, 0, 1)), look: o.look || (P.L - d > 0.5 ? head(la[0], la[1], 1.4) : ahead(ly, x, z)) });
+          set(st, { x, z, yaw: yw, walkT: t0 + d / stride, walkW: ease(clamp(pr.sp(t) * 1.6, 0, 1)), step: typeof o.step === 'function' ? o.step(x, z) : o.step, look: o.look || (o.keep ? ahead(y0, x, z) : P.L - d > 0.5 ? head(la[0], la[1], 1.4) : ahead(ly, x, z)) });
         });
-        const e = P.at(P.L); D.x = e[0]; D.z = e[1]; D.yaw = angLerp(y0, P.yaw(P.L, 0.35), 1); D.walkT = t0 + P.L / stride;
+        const e = P.at(P.L); D.x = e[0]; D.z = e[1]; D.yaw = o.keep ? y0 : angLerp(y0, P.yaw(P.L, 0.35), 1); D.walkT = t0 + P.L / stride;
         return P;
       },
       // פנייה במקום: הראש מקדים, ואז הגוף מסתובב בצעדים קטנים
@@ -847,187 +945,184 @@ export class AccessLayer {
     };
     return K;
   }
-  // יוצא מהתא: מסתכל אחורה-ימינה, מושיט יד לידית ודוחף את הדלת, מסתובב עם הכיסא החוצה, קם תוך כדי שהוא ממשיך לפתוח,
-  // ומשחרר. כל תנועה של הדלת היא תנועה של היד
-  exitCab(tl, K) {
-    const D = K.D, TH1 = 0.62, TH2 = CAB_DOOR.open, SW = -0.55, Y1 = -2.45;
-    const hd = (th) => cabHandle(th, 1.6);
-    const seat = { x: SEAT.x, z: SEAT.z, sitK: 1 };
-    // קצר ופשוט: מבט, יד לידית, דחיפה, ואז מסתובב וקם בתנועה אחת תוך כדי שהוא פותח עד הסוף
-    tl.seq(0.35, (u, st) => K.set(st, { ...seat, yaw: 0, look: hd(0) }));
-    tl.seq(0.55, (u, st) => { st.door = 0; K.set(st, { ...seat, yaw: 0, hands: { R: hd(0) }, handW: ease(u), grip: 0.15, look: hd(0) }); });
-    tl.seq(0.8, (u, st) => { const th = TH1 * ease(u); st.door = th; K.set(st, { ...seat, yaw: 0, hands: { R: hd(th) }, look: hd(th) }); });
-    tl.seq(0.7, (u, st) => { st.door = TH1; K.set(st, { ...seat, yaw: SW * ease(clamp((u - 0.2) / 0.8, 0, 1)), tuck: ease(clamp(u / 0.5, 0, 1)), hands: { R: hd(TH1) }, look: hd(TH1) }); });
-    tl.seq(1.3, (u, st) => {
-      const k = ease(u), th = TH1 + (TH2 - TH1) * ease(clamp(u / 0.6, 0, 1)); st.door = th;
-      const km = ease(clamp((u - 0.25) / 0.75, 0, 1));   // קודם קם (האגן עולה מעל הכיסא), ורק אז יוצא הצידה
-      K.set(st, { x: SEAT.x + (STAND.x - SEAT.x) * km, z: SEAT.z + (STAND.z - SEAT.z) * km, yaw: angLerp(SW, Y1, ease(clamp((u - 0.3) / 0.7, 0, 1))), sitK: 1 - ease(clamp(u * 1.6, 0, 1)), tuck: 1, lean: 12 * Math.sin(Math.PI * clamp(u * 1.2, 0, 1)),
-        hands: { R: hd(th) }, handW: 1 - ease(clamp((u - 0.75) / 0.25, 0, 1)), look: hd(th) });
+  // ---------- הדרך של הנהג: כמעט כולה בחוץ. יוצא בדלת הקדמית, הולך על המדרכה לדלת האמצעית, פותח את המשטח מבחוץ
+  // (מושך ברצועה), ובסוף מקפל אותו מבחוץ וחוזר על המדרכה ובדלת הקדמית. היציאה מהתא והחזרה אליו — בהעלמה קצרה
+  // מקום ההליכה על המדרכה (לפי השפה של התחנה) ומקום העמידה מול הדלת האמצעית
+  lanes() {
+    const kx = (d, z) => KERB && Math.abs(KERB.a) > 0.3 ? (d - KERB.b * z - KERB.c) / KERB.a : -1.55 - d;
+    return { xw: z => clamp(kx(0.42, z), -2.6, -1.95), XS: clamp(kx(0.15, LANE), -2.0, -1.66) };
+  }
+  // יושב, מסתכל אל הדלת, ונעלם; מופיע עומד על המדרכה, ליד הדלת הקדמית (היציאה מהתא והמדרגה הגבוהה — בהעלמה קצרה)
+  fromCab(tl, K) {
+    const { xw } = this.lanes(), D = K.D, seat = { x: SEAT.x, z: SEAT.z, yaw: 0, sitK: 1, look: V3(-1.6, 1.3, 2.5) };
+    tl.seq(0.7, (u, st) => K.set(st, seat));
+    tl.seq(0.35, (u, st) => K.set(st, { ...seat, op: 1 - ease(u) }));
+    const P0 = { x: xw(4.95) + 0.05, z: 4.95, yaw: -2.75, walkT: 0 };
+    tl.seq(0.4, (u, st) => K.set(st, { ...P0, op: ease(u), look: V3(P0.x - 0.6, 1.4, 3.0) }));
+    Object.assign(D, P0);
+  }
+  // הולך על המדרכה אל הדלת הקדמית, נעלם, ומופיע יושב בתא
+  toCab(tl, K) {
+    const { xw } = this.lanes(), D = K.D;
+    K.walk([[xw(3.3), 3.3], [xw(4.2) - 0.05, 4.3], [xw(4.85) + 0.1, 4.85]], 1.0);
+    const P = { x: D.x, z: D.z, yaw: D.yaw, walkT: D.walkT };
+    K.idle(0.2, { look: V3(-1.2, 1.4, 5.1) });
+    tl.seq(0.35, (u, st) => K.set(st, { ...P, op: 1 - ease(u), look: V3(-1.2, 1.4, 5.1) }));
+    tl.seq(0.4, (u, st) => K.set(st, { x: SEAT.x, z: SEAT.z, yaw: 0, sitK: 1, op: ease(u), look: V3(SEAT.x, 1.6, 8) }));
+    K.seated(0.6);
+    tl.mark('cab');
+  }
+  // על המדרכה אל מול הדלת האמצעית (מגיע בקשת רחבה ונעצר מול הסף)
+  toMid(tl, K) {
+    const { xw, XS } = this.lanes();
+    K.walk([[xw(4.0), 3.9], [xw(2.5), 2.5], [xw(1.5), 1.5], [XS - 0.75, 0.75], [XS - 0.75, LANE + 0.05], [XS, LANE]], 1.05);
+  }
+  // פותח את המשטח מבחוץ: מתכופף, אוחז ברצועה שנתלית מעל הסף, מושך והמשטח מתרומם; כשהוא עובר את האנך — תופס את
+  // הקצה בשתי ידיים ומוריד אותו אל המדרכה תוך כדי צעדים לאחור, ומתיישר
+  strapOut(tl, K) {
+    const D = K.D, x0 = D.x, z0 = D.z, y0 = D.yaw, Y = Math.PI / 2;
+    const loop = s => V3(STRAP_LOOP.x - 0.03, STRAP_LOOP.y + 0.05, RAMP.z + s * 0.045);
+    const end = endGrip, lookR = phi => rampLocal(phi, RAMP.L * 0.8, 0, 0);
+    const UP = D2R(100), xb = rampLocal(UP, RAMP.L, 0, 0).x - 0.5;
+    K.idle(0.25, { look: V3(RAMP.hx, 0.6, RAMP.z) });
+    // מתכופף ואוחז ברצועה
+    tl.seq(1.0, (u, st) => { K.set(st, { x: x0, z: z0, yaw: angLerp(y0, Y, ease(clamp(u / 0.6, 0, 1))), crouch: 0.72 * ease(u), lean: 16 * ease(u), hands: { L: loop(-1), R: loop(1) }, handW: ease(clamp(u * 1.5 - 0.5, 0, 1)), grip: 0.55, handDir: V3(0, -1, 0), look: V3(RAMP.hx, 0.5, RAMP.z) }); st.strap = u > 0.85 ? loop(0) : null; });
+    // מושך: מתיישר, הידיים אל החזה, נשען לאחור, ובסוף צעד אחורה
+    tl.seq(1.9, (u, st) => {
+      const phi = UP * ease(u), x = x0 + (xb - x0) * ease(clamp((u - 0.5) / 0.5, 0, 1)), r = ease(clamp(u * 1.4, 0, 1));
+      const H = loop(0).lerp(V3(x + 0.34, 1.12, z0), r);
+      K.set(st, { x, z: z0, yaw: Y, step: 0.26, crouch: 0.72 * (1 - ease(clamp(u * 1.8, 0, 1))), lean: 16 * (1 - r) - 9 * Math.sin(Math.PI * clamp(u * 1.2, 0, 1)), hands: { L: H.clone().setZ(z0 - 0.04), R: H.clone().setZ(z0 + 0.04) }, grip: 0.55, look: lookR(phi) });
+      st.phi = phi; st.strap = H;
     });
-    Object.assign(D, STAND, { yaw: Y1, walkT: 0.1 });
-  }
-  // חוזר לתא: נכנס עם הגב אל הכיסא, אוחז בידית, מתיישב תוך כדי שהוא מושך את הדלת, מסתובב קדימה, סוגר ומחזיר ידיים להגה
-  enterCab(tl, K) {
-    const D = K.D, TH1 = 0.62, TH2 = CAB_DOOR.open, SW = -0.55, Y0 = -1.05;
-    const hd = (th) => cabHandle(th, -1.6), hdIn = (th) => cabHandle(th, 1.6);
-    K.turnTo(Y0, 1.0, hd(TH2));
-    const t = D.walkT;
-    tl.seq(0.5, (u, st) => { st.door = TH2; K.set(st, { x: STAND.x, z: STAND.z, yaw: Y0, walkT: t, hands: { R: hd(TH2) }, handW: ease(u), look: hd(TH2) }); });
-    tl.seq(1.6, (u, st) => {
-      const k = ease(u), th = TH2 + (TH1 - TH2) * ease(clamp((u - 0.45) / 0.55, 0, 1)); st.door = th;
-      const sk = ease(clamp((u - 0.4) / 0.6, 0, 1)), km = ease(clamp(u / 0.75, 0, 1));   // קודם נכנס מעל הכיסא, ואז יורד אליו
-      K.set(st, { x: STAND.x + (SEAT.x - STAND.x) * km, z: STAND.z + (SEAT.z - STAND.z) * km, yaw: angLerp(Y0, SW, km), sitK: sk, tuck: 1, lean: 14 * Math.sin(Math.PI * sk), walkT: t,
-        hands: { R: hd(th).lerp(hdIn(th), k), L: V3(SEAT.x + 0.2, FL + 0.6, SEAT.z + 0.05) }, handWL: Math.sin(Math.PI * clamp(u * 1.1, 0, 1)), look: hd(th) });
+    // עוזב את הרצועה ותופס את הקצה העליון
+    const P1 = UP + D2R(5), Hs = V3(xb + 0.34, 1.12, z0);
+    tl.seq(0.55, (u, st) => {
+      const phi = UP + (P1 - UP) * ease(u), k = ease(u);
+      const arc = V3(-0.14 * Math.sin(Math.PI * u), 0, 0);
+      K.set(st, { x: xb, z: z0, yaw: Y, step: 0.26, hands: { L: Hs.clone().setZ(z0 - 0.04).lerp(end(phi, -1), k).add(arc), R: Hs.clone().setZ(z0 + 0.04).lerp(end(phi, 1), k).add(arc) }, handDir: V3(0.15, 1, 0).normalize().lerp(endDir(phi), k), grip: 0.3, look: lookR(phi) });
+      st.phi = phi; st.strap = u < 0.4 ? Hs : null;
     });
-    tl.seq(0.8, (u, st) => { st.door = TH1; K.set(st, { x: SEAT.x, z: SEAT.z, yaw: SW * (1 - ease(clamp(u / 0.75, 0, 1))), sitK: 1, tuck: 1 - ease(clamp((u - 0.5) / 0.5, 0, 1)), hands: { R: hdIn(TH1) }, look: hdIn(TH1) }); });
-    tl.seq(0.8, (u, st) => { const th = TH1 * (1 - ease(u)); st.door = th; K.set(st, { x: SEAT.x, z: SEAT.z, yaw: 0, sitK: 1, hands: { R: hdIn(th) }, look: hdIn(th) }); });
-    tl.seq(0.6, (u, st) => { st.door = 0; K.set(st, { x: SEAT.x, z: SEAT.z, yaw: 0, sitK: 1, hands: { R: hdIn(0) }, handW: 1 - ease(u), look: hdIn(0).lerp(V3(SEAT.x, 1.6, 8), ease(u)) }); });
-    Object.assign(D, SEAT, { yaw: 0 });
-  }
-  // מהתא אל המשטח: במעבר, ובקשת אל הקצה החופשי של המשטח (בין העמודים, רחוק מהמתקפים), פונה אל הדלת
-  toRamp(tl, K) {
-    K.walk([[-0.12, 4.15], [-0.06, 3.5], [0.0, 1.7], [0.1, 1.0], [0.34, 0.52], [0.32, 0.26], [0.16, LANE]], 1.1);
-    K.turnTo(-Math.PI / 2, 0.8, rampLocal(0, HANDLE_U, 0, 0));
-  }
-  // הנהג הופך את המשטח החוצה מבפנים: מתכופף (ברכיים), אוחז בידית, מרים עם הרגליים ונע אחריו, דוחף מעבר לאנך,
-  // והמשטח נופל אל המדרכה
-  flipOut(tl, K, stride) {
-    const D = K.D, x0 = D.x, z0 = D.z, yaw = D.yaw, t0 = D.walkT;
-    const hand = (phi, s) => rampLocal(phi, HANDLE_U, RAMP.t / 2 + 0.035, HANDLE_Z + s * 0.08), look = phi => rampLocal(phi, HANDLE_U, 0, HANDLE_Z);
-    const hdir = V3(0, -1, 0);
-    K.idle(0.3, { look: look(0) });
-    tl.seq(1.0, (u, st) => { const k = ease(u); st.drv = { x: x0, z: z0, yaw, walkT: t0, crouch: k, hands: { L: hand(0, 1), R: hand(0, -1) }, handW: ease(clamp(u * 1.5 - 0.4, 0, 1)), grip: 0.15, handDir: hdir, look: look(0) }; });
-    tl.seq(0.25, (u, st) => { st.drv = { x: x0, z: z0, yaw, walkT: t0, crouch: 1 - 0.1 * ease(u), hands: { L: hand(0, 1), R: hand(0, -1) }, grip: 0.15, handDir: hdir, look: look(0) }; });
-    const LIFT = D2R(84), xAt = phi => clamp(RAMP.hx + HANDLE_U * Math.cos(phi) + 0.45, -0.72, x0);
-    tl.seq(2.2, (u, st) => {
-      const e = ease(u), phi = LIFT * (e * 0.85 + 0.15 * u * u);
+    // מוריד: צעדים קטנים לאחור, מתכופף; כשהלוח כמעט אופקי — משחרר, והוא נופל את הסנטימטרים האחרונים אל המדרכה
+    const PL = PHI_OUT - 0.42, xl = rampLocal(PL, RAMP.L, 0, 0).x - 0.4;
+    tl.seq(2.1, (u, st) => {
+      const e = ease(u), phi = P1 + (PL - P1) * e, p = rampLocal(phi, RAMP.L, 0, 0), x = clamp(p.x - 0.4, xl, xb);
+      K.set(st, { x, z: z0, yaw: Y, step: 0.26, crouch: 0.9 * ease(clamp((u - 0.4) / 0.6, 0, 1)), lean: 6 * Math.sin(Math.PI * u) + 14 * ease(clamp((u - 0.5) / 0.5, 0, 1)), hands: { L: end(phi, -1), R: end(phi, 1) }, handDir: endDir(phi), grip: 0.05, look: lookR(phi) });
       st.phi = phi;
-      st.drv = { x: xAt(phi), z: z0, yaw, walkT: t0, crouch: 0.9 * (1 - ease(clamp(u * 1.5, 0, 1))), lean: -5 * Math.sin(Math.PI * u),
-        hands: { L: hand(phi, 1), R: hand(phi, -1) }, grip: 0.15, handDir: V3(-Math.sin(phi) * 0.3, -1, 0), look: look(phi) };
     });
-    const x1 = xAt(LIFT);
-    tl.seq(0.75, (u, st) => {
-      const phi = LIFT + D2R(16) * ease(u); st.phi = phi;
-      st.drv = { x: x1, z: z0, yaw, walkT: t0, lean: 8 * Math.sin(Math.PI * u), hands: { L: hand(phi, 1), R: hand(phi, -1) }, grip: 0.15, handW: 1 - ease(clamp((u - 0.45) / 0.55, 0, 1)), look: look(phi) };
+    tl.seq(0.5, (u, st) => {
+      const phi = u < 0.35 ? PL : u < 0.75 ? PL + (PHI_OUT - PL) * ((u - 0.35) / 0.4) ** 2 : PHI_OUT - Math.sin((u - 0.75) / 0.25 * Math.PI) * 0.025;
+      const r = ease(clamp(u / 0.45, 0, 1)), rel = sd => end(PL, sd).lerp(V3(xl + 0.32, 0.62, z0 + sd * 0.2), r);
+      K.set(st, { x: xl, z: z0, yaw: Y, crouch: 0.9, lean: 14, hands: { L: rel(-1), R: rel(1) }, handDir: endDir(PL), handW: 1 - ease(clamp((u - 0.4) / 0.5, 0, 1)), look: lookR(phi) });
+      st.phi = phi;
     });
-    // נופל: מאיץ כמו בכובד, ובסוף קפיצה קטנה על המדרכה. הנהג מסתכל עליו
-    const P0 = LIFT + D2R(16);
-    tl.seq(0.85, (u, st) => {
-      let phi = P0 + (PHI_OUT - P0) * Math.min(1, u * u * 1.25);
-      if (u > 0.8) phi = PHI_OUT - Math.sin((u - 0.8) / 0.2 * Math.PI) * 0.03 * (1 - (u - 0.8) / 0.2);
-      st.phi = phi; st.drv = { x: x1, z: z0, yaw, walkT: t0, look: rampLocal(phi, RAMP.L, 0, 0) };
-    });
-    D.x = x1; D.walkT = t0;
-    K.idle(0.3, { look: rampLocal(PHI_OUT, RAMP.L, 0, 0) });
-    return tl.t;
+    const tDown = tl.t;
+    tl.seq(0.7, (u, st) => { K.set(st, { x: xl, z: z0, yaw: Y, crouch: 0.9 * (1 - ease(u)), lean: 14 * (1 - ease(u)), look: lookR(PHI_OUT) }); st.phi = PHI_OUT; });
+    Object.assign(D, { x: xl, z: z0, yaw: Y });
+    tl.mark('rampOut');
+    return tDown;
   }
-  // הנהג מקפל את המשטח פנימה מהמדרכה: מתכופף לקצה, מרים, דוחף מעבר לאנך, והמשטח נופל אל הרצפה
-  flipIn(tl, K, stride) {
-    const D = K.D;
-    // יורד במשטח, עושה סיבוב קטן על המדרכה (לא מסתובב במקום) ונעמד מול הקצה של המשטח
-    K.walk([...(D.z > 0.6 ? [[0.0, 0.6], [-0.4, 0.3]] : []), [-1.0, LANE], [-2.62, LANE - 0.03], [-3.0, LANE - 0.28], [-3.24, LANE - 0.02], [-3.04, LANE + 0.04]], 1.0);
-    const z0 = D.z, yaw = D.yaw;
-    const end = (phi, s) => rampLocal(phi, RAMP.L - 0.03, 0, s * 0.3), look = phi => rampLocal(phi, RAMP.L, 0, 0);
-    // יתקרב לקצה בצעד קטן
-    K.walk([[-2.82, LANE]], 0.5, { look: look(PHI_OUT), ta: 0.3 });
-    D.yaw = Math.PI / 2;
-    const xa = D.x, ta = D.walkT;
-    tl.seq(1.0, (u, st) => { const k = ease(u); st.phi = PHI_OUT; st.drv = { x: xa, z: z0, yaw, walkT: ta, crouch: k, hands: { L: end(PHI_OUT, -1), R: end(PHI_OUT, 1) }, handW: ease(clamp(u * 1.5 - 0.4, 0, 1)), look: look(PHI_OUT) }; });
+  // מקפל את המשטח מבחוץ: עומד מול הקצה, מתכופף, מרים, דוחף מעבר לאנך, והמשטח נופל אל הרצפה
+  foldIn(tl, K, stride) {
+    const D = K.D, z0 = LANE, y0 = D.yaw, yaw = Math.PI / 2;
+    const xa = XF0(), sx = D.x, sz = D.z, ta = D.walkT;
+    const end = endGrip, look = phi => rampLocal(phi, RAMP.L, 0, 0);
+    tl.seq(1.1, (u, st) => { const k = ease(u), m = ease(clamp(u / 0.6, 0, 1)); st.phi = PHI_OUT; st.drv = { x: sx + (xa - sx) * m, z: sz + (z0 - sz) * m, yaw: angLerp(y0, yaw, m), walkT: ta, crouch: 1.05 * ease(clamp((u - 0.3) / 0.7, 0, 1)), lean: 50 * ease(clamp((u - 0.2) / 0.8, 0, 1)), hands: { L: end(PHI_OUT, -1), R: end(PHI_OUT, 1) }, handDir: endDir(PHI_OUT), handW: ease(clamp(u / 0.45, 0, 1)), look: look(PHI_OUT) }; });
     const UP = D2R(98);
     tl.seq(2.3, (u, st) => {
       const e = ease(u), phi = PHI_OUT + (UP - PHI_OUT) * e, p = rampLocal(phi, RAMP.L, 0, 0);
-      const x = clamp(p.x - 0.5, xa, -1.62);
-      st.phi = phi; st.drv = { x, z: z0, yaw, walkT: ta + (x - xa) / stride, walkW: clamp((x - xa) * 6, 0, 0.9), crouch: Math.max(0, 1 - ease(clamp(u * 1.7, 0, 1))), lean: -8 * Math.sin(Math.PI * clamp(u * 1.4, 0, 1)),
-        hands: { L: end(phi, -1), R: end(phi, 1) }, look: look(phi) };
+      const x = clamp(p.x - 0.3 - 0.2 * Math.sin(Math.PI * clamp(u * 1.5, 0, 1)), xa - 0.3, -1.62), r = ease(clamp(u * 1.7, 0, 1));   // בהתחלה הקצה מתקרב אליו — צעד קטן לאחור
+      st.phi = phi; st.drv = { x, z: z0, yaw, step: 0.26, walkT: ta, crouch: 1.05 * (1 - r), lean: 50 * (1 - r) - 8 * Math.sin(Math.PI * clamp(u * 1.4, 0, 1)),
+        hands: { L: end(phi, -1), R: end(phi, 1) }, handDir: endDir(phi), look: look(phi) };
     });
-    const x1 = clamp(rampLocal(UP, RAMP.L, 0, 0).x - 0.5, xa, -1.62), t1 = ta + (x1 - xa) / stride;
-    tl.seq(0.75, (u, st) => { const phi = UP - D2R(14) * ease(u); st.phi = phi; st.drv = { x: x1 + 0.05 * Math.sin(Math.PI * u), z: z0, yaw, walkT: t1, lean: 9 * Math.sin(Math.PI * u), hands: { L: end(phi, -1), R: end(phi, 1) }, handW: 1 - ease(clamp((u - 0.45) / 0.55, 0, 1)), look: look(phi) }; });
+    const x1 = clamp(rampLocal(UP, RAMP.L, 0, 0).x - 0.4, xa - 0.25, -1.62);
+    tl.seq(0.75, (u, st) => { const phi = UP - D2R(14) * ease(u); st.phi = phi; st.drv = { x: x1, z: z0, yaw, walkT: ta, lean: 9 * Math.sin(Math.PI * u), hands: { L: end(phi, -1), R: end(phi, 1) }, handDir: endDir(phi), handW: 1 - ease(clamp((u - 0.45) / 0.55, 0, 1)), look: look(phi) }; });
     const P0 = UP - D2R(14);
     tl.seq(0.9, (u, st) => {
       let phi = P0 * (1 - Math.min(1, u * u * 1.25));
       if (u > 0.8) phi = Math.sin((u - 0.8) / 0.2 * Math.PI) * 0.025 * (1 - (u - 0.8) / 0.2);
-      st.phi = phi; st.drv = { x: x1 - 0.06 * ease(u), z: z0, yaw, walkT: t1, look: look(phi) };
+      st.phi = phi; st.drv = { x: x1, z: z0, yaw, walkT: ta, look: look(phi) };
     });
-    D.x = x1 - 0.06; D.walkT = t1;
+    Object.assign(D, { x: x1, z: z0, yaw });
     K.idle(0.3, { look: rampLocal(0, 0.6, 0, 0) });
-  }
-  // חזרה מהדלת האמצעית לתא: עולה במדרגה ישר דרך הפתח, פונה אל המעבר, והולך קדימה
-  backToCab(tl, K) {
-    K.walk([[-1.0, LANE], [-0.3, LANE + 0.05], [-0.05, 0.6], [-0.05, 1.5], [0.0, 3.5], [-0.12, 4.15], [STAND.x, STAND.z]], 1.1);
+    tl.mark('rampIn');
   }
 
   boardTimeline(c0, slot, stride) {
     const tl = new Timeline(), K = this.driverKit(tl, stride), D = K.D;
     // הכיסא מחכה במקום (עד שהנהג מגיע)
     tl.at(0, 0, (u, st) => { st.chair = { ...c0, roll: 0 }; });
-    K.seated(0.3);
-    this.exitCab(tl, K);
-    this.toRamp(tl, K);
-    this.flipOut(tl, K, stride);
-    // יורד במשטח ומקיף את הכיסא אל מאחוריו
+    this.fromCab(tl, K);
+    tl.mark('out');
+    this.toMid(tl, K);
+    tl.mark('mid');
+    this.strapOut(tl, K);
+    // אל מאחורי הכיסא: לאורך צד הכיסא שליד האוטובוס, ופנייה רחבה (U) אל מאחוריו. במערכת הכיסא: l לכיוון האוטובוס, f קדימה
     const h = [Math.sin(c0.yaw), Math.cos(c0.yaw)], C = [c0.x, c0.z];
-    const behind = [C[0] - h[0] * 0.86, C[1] - h[1] * 0.86];
-    // יורד במשטח ומקיף את הכיסא מהצד הרחוק מהאוטובוס, ומגיע אליו מאחור (בלי להסתובב במקום)
-    const aw = [h[1] < 0 ? 1 : -1, 0]; if (Math.abs(h[0]) > 0.7) { aw[0] = 0; aw[1] = h[0] > 0 ? 1 : -1; }
-    const P1 = [C[0] + aw[0] * 0.85 + h[0] * 0.35, C[1] + aw[1] * 0.85 + h[1] * 0.35], P2 = [C[0] + aw[0] * 0.65 - h[0] * 1.15, C[1] + aw[1] * 0.65 - h[1] * 1.15];
-    K.walk([[-1.0, LANE], [-2.62, LANE], P1, P2, [behind[0] - h[0] * 0.4, behind[1] - h[1] * 0.4], behind], 1.1);
+    const sg = (h[1] >= 0 ? 1 : -1), lv = [h[1] * sg, -h[0] * sg];   // לכיוון ‎+x (האוטובוס) כשהכיסא פונה קדימה
+    const cf = (l, f) => [C[0] + lv[0] * l + h[0] * f, C[1] + lv[1] * l + h[1] * f];
+    K.walk([cf(0.62, 1.15), cf(0.62, -0.2), cf(0.55, -1.2), cf(0.3, -1.6), cf(0.05, -1.55), cf(0, -1.5), cf(0, -0.86)], 1.0);
     D.yaw = c0.yaw;
+    tl.mark('behind');
     const hold = c => WC.handles.map(p => chairPoint(c, PHI_OUT, p));
-    const hdir = c => { const f = chairPoint(c, PHI_OUT, V3(0, 0, 1)).sub(chairPoint(c, PHI_OUT, V3())); return f.multiplyScalar(0.6).add(V3(0, -0.5, 0)); };
+    const hdir = c => { const f = chairPoint(c, PHI_OUT, V3(0, 0, 1)).sub(chairPoint(c, PHI_OUT, V3())); return f.multiplyScalar(0.6).add(V3(0, -0.06, 0)); };
     const grabX = D.x, grabZ = D.z, gy = D.yaw, gt = D.walkT;
     tl.seq(0.8, (u, st) => {
       const hh = hold(c0), k = ease(u);
-      st.drv = { push: true, x: grabX, z: grabZ, yaw: gy, walkT: gt, hands: { L: hh[1], R: hh[0] }, handW: k, handDir: hdir(c0), lean: 5 * k, look: chairPoint(c0, PHI_OUT, V3(0, 0.9, 0)) };
+      st.drv = { push: true, x: grabX, z: grabZ, yaw: gy, walkT: gt, hands: { L: hh[1], R: hh[0] }, handW: k, handDir: hdir(c0), grip: 0.1, lean: 5 * k, look: chairPoint(c0, PHI_OUT, V3(0, 0.9, 0)) };
     });
-    // דוחף: עקומה עד מול המשטח, ואז ישר במעלה המשטח אל תוך האוטובוס. מאיץ לאט ומאט לפני המקום; נשען קדימה במעלה
-    const F = [-2.25, LANE], dist = Math.hypot(F[0] - C[0], F[1] - C[1]), kc = dist * 0.5;
+    // דוחף: ישר קדימה, פנייה אל המשטח, ובמעלה המשטח רק עד מעבר לסף (את השאר הנוסע עושה לבד)
+    const F = [-2.25, LANE], IN = -0.55, X0R = rampLocal(PHI_OUT, RAMP.L, 0, 0).x;
     const Cs = [C[0] + h[0] * Math.max(0, -1.3 - C[1]), C[1] + h[1] * Math.max(0, -1.3 - C[1])], kc2 = Math.hypot(F[0] - Cs[0], F[1] - Cs[1]) * 0.5;
-    // ישר קדימה, ורק אחר כך הפנייה אל המשטח — כך הנהג שמאחור לא מתקרב לסככה
-    const pts = [C, ...bezier(Cs, [Cs[0] + h[0] * kc2, Cs[1] + h[1] * kc2], [F[0] - kc2, F[1]], F), [0.0, LANE]];
-    const P = new Path(pts), pr = profile(P.L, 0.62, 1.0), head = K.head;
-    const push = (u, st) => {
-      const t = u * pr.dur, d = pr.d(t), [x, z] = P.at(d), yaw = P.yaw(d, 0.08), c = { x, z, yaw, roll: d / WC.R };
+    const pts = [C, ...bezier(Cs, [Cs[0] + h[0] * kc2, Cs[1] + h[1] * kc2], [F[0] - kc2, F[1]], F), [IN, LANE]];
+    const P = new Path(pts), pr = profile(P.L, 0.6, 1.0), head = K.head;
+    const tPush = tl.seq(pr.dur, (u, st) => {
+      const t = u * pr.dur, d = pr.d(t), [x, z] = P.at(d), yaw = P.yaw(d, 0.08), fxc = x + Math.sin(yaw) * WC.caster.z;
+      // לפני המשטח הנהג מטה מעט את הכיסא לאחור, כדי שהגלגלים הקדמיים ומשענות הרגליים יעלו עליו בלי להיתקע
+      const c = { x, z, yaw, roll: d / WC.R, tilt: 0.16 * ease(clamp((fxc - X0R + 0.55) / 0.3, 0, 1)) * (1 - ease(clamp((fxc - X0R - 0.12) / 0.3, 0, 1))) };
       st.chair = c;
-      const hh = hold(c), up = x > -2.4 && x < -0.75 ? 1 : 0;
-      const la = P.at(Math.min(P.L, d + 1.5));
-      st.drv = { push: true, x: x - Math.sin(yaw) * 0.86, z: z - Math.cos(yaw) * 0.86, yaw, walkT: gt + d / stride, walkW: ease(clamp(pr.sp(t) * 2, 0, 1)), lean: 9 + 9 * up * pr.sp(t),
-        hands: { L: hh[1], R: hh[0] }, handDir: hdir(c), look: head(la[0], la[1], 1.0) };
-    };
-    const tPush = tl.seq(pr.dur, push);
-    const end = P.at(P.L), eyaw = P.yaw(P.L, 0.08), roll1 = P.L / WC.R;
+      const hh = hold(c), up = x > -2.4 && x < -0.75 ? 1 : 0, la = P.at(Math.min(P.L, d + 1.5));
+      st.drv = { push: true, x: x - Math.sin(yaw) * 0.86, z: z - Math.cos(yaw) * 0.86, yaw, walkT: gt + d / stride, lean: 9 + 9 * up * pr.sp(t), hands: { L: hh[1], R: hh[0] }, handDir: hdir(c), grip: 0.1, look: head(la[0], la[1], 1.0) };
+    });
+    const end = P.at(P.L), eyaw = P.yaw(P.L, 0.08), roll1 = P.L / WC.R, cE = { x: end[0], z: end[1], yaw: eyaw };
     D.x = end[0] - Math.sin(eyaw) * 0.86; D.z = end[1] - Math.cos(eyaw) * 0.86; D.yaw = eyaw; D.walkT = gt + P.L / stride;
-    // משחרר; הנוסע מסתובב לבד אל המקום שלו (הידיים על טבעות ההנעה)
-    const rx = D.x, rz = D.z, rt = D.walkT, b = this.bay(slot);
-    tl.seq(0.7, (u, st) => { const hh = hold({ x: end[0], z: end[1], yaw: eyaw }); st.drv = { x: rx - 0.12 * ease(u), z: rz, yaw: eyaw, walkT: rt, hands: { L: hh[1], R: hh[0] }, handW: 1 - ease(u), look: chairPoint({ x: end[0], z: end[1], yaw: eyaw }, PHI_OUT, V3(0, 1.0, 0.3)) }; });
-    D.x = rx - 0.12;
-    // הנוסע מסתובב במקום אל האחור ונוסע אל המקום שלו
-    { const t0 = tPush + 0.9; tl.at(t0, 1.8, (u, st) => { const k = ease(u), dy = Math.PI / 2 * k; st.chair = { x: end[0], z: end[1], yaw: eyaw + dy, roll: roll1, rl: roll1 + dy * WC.wx / WC.R, rr: roll1 - dy * WC.wx / WC.R, propel: Math.sin(Math.PI * u) }; });
-      chairAlong(tl, t0 + 1.9, [[end[0], end[1]], [b.x, b.z]], { v: 0.4, roll0: roll1, dl: Math.PI / 2 * WC.wx / WC.R, dr: -Math.PI / 2 * WC.wx / WC.R, ta: 0.5 }); }
-    K.idle(1.2, { look: chairPoint({ x: b.x, z: b.z, yaw: b.yaw }, PHI_OUT, V3(0, 1.1, 0)) });
-    // מסתובב בצעדים (אין מקום לקשת בין הכיסא לעמודים) ויוצא
-    K.turnTo(-Math.PI / 2, 1.2, V3(-1.5, 1.2, LANE));
-    this.flipIn(tl, K, stride);
-    this.backToCab(tl, K);
-    this.enterCab(tl, K);
+    tl.mark('pushed');
+    // משחרר ויורד במשטח בצעדים קטנים לאחור, פונה אל הנוסע
+    const rx = D.x, rz = D.z, rt = D.walkT;
+    tl.seq(0.6, (u, st) => { const hh = hold(cE); st.drv = { x: rx, z: rz, yaw: eyaw, walkT: rt, hands: { L: hh[1], R: hh[0] }, handDir: hdir(cE), grip: 0.1, handW: 1 - ease(u), look: chairPoint(cE, PHI_OUT, V3(0, 1.0, 0.3)) }; });
+    K.walk([[XF0(), LANE]], 0.45, { keep: true, step: 0.34, ta: 0.6, look: V3(0, 1.0, LANE) });
+    // הנוסע: נוסע לבד אל נקודת הסיבוב, מסתובב במקום אל האחור ונוסע אל המקום שלו
+    const b = this.bay(slot);
+    const n1 = chairAlong(tl, tPush + 0.5, [end, [-0.3, LANE], [0.0, PIV]], { v: 0.35, roll0: roll1, ta: 0.5 });
+    const t0 = n1.t + 0.2;
+    const DY = Math.atan2(Math.sin(Math.atan2(b.x, b.z - PIV) - n1.yaw), Math.cos(Math.atan2(b.x, b.z - PIV) - n1.yaw));
+    tl.at(t0, 1.8, (u, st) => { const k = ease(u), dy = DY * k; st.chair = { x: 0.0, z: PIV, yaw: n1.yaw + dy, roll: n1.roll, rl: n1.roll + dy * WC.wx / WC.R, rr: n1.roll - dy * WC.wx / WC.R, propel: Math.sin(Math.PI * u) }; });
+    const n2 = chairAlong(tl, t0 + 1.9, [[0.0, PIV], [b.x, b.z]], { v: 0.4, roll0: n1.roll, dl: DY * WC.wx / WC.R, dr: -DY * WC.wx / WC.R, ta: 0.5 });
+    // מחכה שהנוסע יגיע למקום, ואז מקפל
+    if (n2.t + 0.3 > tl.t) K.idle(n2.t + 0.3 - tl.t, { look: V3(-0.2, 1.0, 0.0) });
+    this.foldIn(tl, K, stride);
+    tl.mark('back');
+    this.toCab(tl, K);
     return tl;
   }
 
   alightTimeline(slot, stride) {
     const tl = new Timeline(), K = this.driverKit(tl, stride), D = K.D, b = this.bay(slot);
     tl.at(0, 0, (u, st) => { st.chair = { x: b.x, z: b.z, yaw: b.yaw, roll: 0 }; });
-    K.seated(0.3);
-    this.exitCab(tl, K);
-    this.toRamp(tl, K);
-    const tOut = this.flipOut(tl, K, stride);
-    // הנהג זז הצידה, אל המעבר, ומסתכל על הנוסע
-    K.walk([[-0.3, 0.5], [0.25, 1.0]], 0.9);
-    K.turnTo(-2.4, 0.8, V3(0, 1.1, 0.2));
+    this.fromCab(tl, K);
+    tl.mark('out');
+    this.toMid(tl, K);
+    tl.mark('mid');
+    const tOut = this.strapOut(tl, K);
+    // הנהג פוסע הצידה (בלי להסתובב) ומחכה ליד המשטח, מסתכל על הנוסע
+    const sx = D.x, side = LANE + 1.35;
+    K.walk([[sx, side]], 0.5, { keep: true, step: 0.34, ta: 0.5, look: V3(-1.0, 1.0, LANE) });
     // הנוסע: לאחור אל נקודת הסיבוב שמול הדלת, מסתובב במקום אל הדלת, ויורד לאחור במורד המשטח אל המדרכה (מטר מהשפה)
-    const t1 = tOut + 0.6, PX = KERB && Math.abs(KERB.a) > 0.3 ? clamp((1.0 - KERB.b * LANE - KERB.c) / KERB.a, -4.5, -2.4) : -2.8;
-    const n1 = chairAlong(tl, t1, [[b.x, b.z], [0.0, LANE]], { v: 0.35, back: true, ta: 0.5 });
+    const t1 = tOut + 0.9, PX = KERB && Math.abs(KERB.a) > 0.3 ? clamp((1.0 - KERB.b * LANE - KERB.c) / KERB.a, -4.5, -2.4) : -2.8;
+    const n1 = chairAlong(tl, t1, [[b.x, b.z], [0.0, PIV]], { v: 0.35, back: true, ta: 0.5 });
     const tp = n1.t + 0.3;
-    tl.at(tp, 1.8, (u, st) => { const k = ease(u), dy = -Math.PI / 2 * k; st.chair = { x: 0.0, z: LANE, yaw: Math.PI + dy, roll: n1.roll, rl: n1.roll + dy * WC.wx / WC.R, rr: n1.roll - dy * WC.wx / WC.R, propel: Math.sin(Math.PI * u) }; });
-    const n2 = chairAlong(tl, tp + 1.9, [[0.0, LANE], [PX, LANE]], { v: 0.45, back: true, roll0: n1.roll, dl: -Math.PI / 2 * WC.wx / WC.R, dr: Math.PI / 2 * WC.wx / WC.R });
+    const Q1 = [-0.6, LANE - 0.03], Y2 = Math.atan2(Q1[0], Q1[1] - PIV) + Math.PI, DY = Math.atan2(Math.sin(Y2 - n1.yaw), Math.cos(Y2 - n1.yaw));
+    tl.at(tp, 1.8, (u, st) => { const k = ease(u), dy = DY * k; st.chair = { x: 0.0, z: PIV, yaw: n1.yaw + dy, roll: n1.roll, rl: n1.roll + dy * WC.wx / WC.R, rr: n1.roll - dy * WC.wx / WC.R, propel: Math.sin(Math.PI * u) }; });
+    const n2 = chairAlong(tl, tp + 1.9, [[0.0, PIV], Q1, [PX, LANE]], { v: 0.45, back: true, roll0: n1.roll, dl: DY * WC.wx / WC.R, dr: -DY * WC.wx / WC.R, propel: 0.35 });   // במורד: הידיים על הטבעות, בולם
     const r1 = n2.roll, t2 = n2.t + 0.3;
     const kd = KERB && Math.hypot(KERB.a, KERB.b) > 0.3 ? (() => { const L = Math.hypot(KERB.a, KERB.b); let dx = -KERB.b / L, dz = KERB.a / L; if (dz > 0) { dx = -dx; dz = -dz; } return [dx, dz]; })() : [0, -1];
     const dyT = Math.atan2(Math.sin(Math.atan2(kd[0], kd[1]) - Math.PI / 2), Math.cos(Math.atan2(kd[0], kd[1]) - Math.PI / 2));
@@ -1035,13 +1130,13 @@ export class AccessLayer {
       st.chair = { x: PX, z: LANE, yaw: Math.PI / 2 + dy, roll: r1, rl: r1 - dy * WC.wx / WC.R, rr: r1 + dy * WC.wx / WC.R, propel: Math.sin(Math.PI * u) }; });
     const t3 = t2 + 1.6;
     chairAlong(tl, t3, [[PX, LANE], [PX + kd[0] * 6.6, LANE + kd[1] * 6.6]], { v: 0.6, roll0: r1, dl: -dyT * WC.wx / WC.R, dr: dyT * WC.wx / WC.R, fade: true, ta: 0.9 });
-    // הנהג מחכה שהנוסע יתרחק מהמשטח, ואז יוצא לקפל אותו
-    const tFree = t3 + 1.2;
-    // הנהג עומד בצד המשטח ומסתכל על הנוסע שעובר לידו
-    if (tFree > tl.t) { const t0 = tl.t, wx = D.x, wz = D.z, wy = D.yaw, wt = D.walkT; tl.seq(tFree - t0, (u, st) => K.set(st, { x: wx, z: wz, yaw: wy, walkT: wt, look: V3(0.2 - 3.0 * ease(clamp(u * 1.6, 0, 1)), 1.0, LANE - 0.6 * ease(clamp(u * 2 - 1, 0, 1))) })); }
-    this.flipIn(tl, K, stride);
-    this.backToCab(tl, K);
-    this.enterCab(tl, K);
+    // מחכה שהנוסע יתרחק, ואז פוסע חזרה אל קצה המשטח ומקפל
+    const tFree = t3 + 1.6;
+    if (tFree > tl.t) { const t0 = tl.t, wx = D.x, wz = D.z, wy = D.yaw, wt = D.walkT; tl.seq(tFree - t0, (u, st) => K.set(st, { x: wx, z: wz, yaw: wy, walkT: wt, look: V3(-1.6 - 0.8 * ease(u), 1.0, LANE - 0.9 * ease(u)) })); }
+    K.walk([[sx, LANE]], 0.5, { keep: true, step: 0.34, ta: 0.5, look: rampLocal(PHI_OUT, RAMP.L, 0, 0) });
+    this.foldIn(tl, K, stride);
+    tl.mark('back');
+    this.toCab(tl, K);
     return tl;
   }
 }

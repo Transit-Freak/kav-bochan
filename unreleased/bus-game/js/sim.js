@@ -252,7 +252,9 @@ export class Sim {
             if (p.leg + 1 < p.legs.length) this.transfer(p, L, stop);
           }
         }
-        if (!last && b.pax.length < b.cap && (L.queues[k].length || this.altRider(L, k, stop, false))) {
+        // כיסא גלגלים (js/access.js): הנהג יוצא ונכנס בדלת הקדמית — בינתיים לא עולים
+        if (b.access) busy = true;
+        else if (!last && b.pax.length < b.cap && (L.queues[k].length || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
             b.tb = 0; const p = L.queues[k].shift() || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
