@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<!-- גרסת בטא קפואה של משחק הקווים (גרסה 18), מאחורי כניסה עם שם משתמש וסיסמה (gate.js).
+     הקבצים כאן לא משתנים — הפיתוח ממשיך בנפרד, והעותק הזה מתעדכן רק כששלמה מבקש. -->
+<title>משחק הקווים · גרסת בטא</title>
+<meta name="description" content="משחק הקווים — מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא לבודקים, בכניסה עם שם משתמש וסיסמה.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="הקו הבוחן">
+<meta property="og:title" content="משחק הקווים · גרסת בטא — הקו הבוחן">
+<meta property="og:description" content="מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד · גרסת בטא לבודקים">
+<meta property="og:url" content="https://kavbochan.app/game/">
+<meta property="og:locale" content="he_IL">
+<meta property="og:image" content="https://kavbochan.app/game/og-image.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://kavbochan.app/game/">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="game.css?v=18">
+<link rel="stylesheet" href="gate.css?v=1">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="view" aria-label="מפה תלת־ממדית של קריית מלאכי"></canvas>
+
+<header class="bar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
+  </div>
+  <span id="modeBadge" class="mode-badge"></span>
+  <button id="money" class="money" title="הקופה" aria-label="הקופה">₪2,000,000</button>
+  <div class="clock" role="group" aria-label="שעון המשחק">
+    <button id="play" class="icon" title="עצירה / המשך" aria-label="עצירה / המשך">❚❚</button>
+    <span id="time" class="time">06:30</span>
+    <div class="speeds" id="speeds">
+      <button data-s="1">×1</button><button data-s="5" class="on">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="200">×200</button>
+    </div>
+  </div>
+  <div class="cams" id="cams" role="group" aria-label="מצלמה"></div>
+</header>
+
+<aside class="panel" id="panel">
+  <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
+  <nav class="tabs">
+    <button data-tab="lines" class="on">הקווים שלי</button>
+    <button data-tab="missions">משימות</button>
+    <button data-tab="money">קופה</button>
+    <button data-tab="demand">ביקוש</button>
+    <button data-tab="stop">תחנה</button>
+    <button data-tab="help">עזרה</button>
+  </nav>
+  <section data-pane="lines" class="pane on">
+    <button id="newLine" class="primary wide">+ קו חדש</button>
+    <div id="lineList"></div>
+    <p id="emptyLines" class="hint">אין עדיין קווים. לחצו על "קו חדש", והקישו על תחנות במפה לפי הסדר — המסלול יחושב לאורך הרחובות.</p>
+  </section>
+  <section data-pane="money" class="pane" id="moneyPane">
+    <div id="moneyBody"></div>
+    <div class="game-box">
+      <h4>משחק</h4>
+      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button></div>
+      <h4>המשחקים השמורים</h4>
+      <div id="slotList"></div>
+    </div>
+  </section>
+  <section data-pane="missions" class="pane" id="missionPane"><div id="missionBody"></div></section>
+  <section data-pane="demand" class="pane" id="demandPane"><div id="demandBody"></div></section>
+  <section data-pane="stop" class="pane" id="stopPane">
+    <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
+  </section>
+  <section data-pane="help" class="pane">
+    <ol class="help">
+      <li><b>המטרה:</b> להסיע כמה שיותר אנשים בלי לפשוט רגל. מתחילים עם ₪60,000 בקופה, ומרוויחים כדי לקנות עוד רכבים ולפתוח עוד קווים.</li>
+      <li><b>שני מצבים:</b> <b>קריירה</b> — הכלכלה הרגילה, ומשרד התחבורה נותן התחייבויות שירות בארבעה שלבים (לשונית "משימות"): בהתחלה שלוש שכונות, אחר כך חצי העיר, שירות לכל היום, ובסוף שירות מלא עם אוטובוס כל 20 דקות בשיא ובלי הפסד. על כל שלב יש פרס בכסף, ושלבים מסוימים פותחים סוגי רכבים (חשמלי, מפרקי). לכל שלב יש מועד בימי משחק: מי שמאחר — הסבסוד לק"מ מצטמצם (עד חצי), אבל המשחק ממשיך. תחנה שמתחילה לשרת קו בפעם הראשונה עולה ₪500. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים מצב ב"התחלה מחדש" (לשונית "קופה").</li>
+      <li><b>כיסוי:</b> מי שגר עד 500 מ' הליכה מתחנה עם קו "מכוסה". הכפתור "כיסוי" שעל המפה מראה בכחול את מה שמכוסה ובנקודות אדומות את מי שעוד לא. רחובות צרים לא חייבים קו.</li>
+      <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". בוחרים מספר, שם, תדירות, סוג רכב וכמה רכבים — בקנייה או בליסינג.</li>
+      <li><b>כמה רכבים צריך:</b> אוטובוס נוסע עד התחנה האחרונה, חוזר ריק להתחלה ונח קצת — ורק אז יוצא שוב. בטופס כתוב כמה צריך לתדירות שבחרתם. עם פחות רכבים האוטובוסים יוצאים לאט יותר מהמתוכנן, וזה כתוב בכרטיס של הקו.</li>
+      <li><b>סוגי רכבים:</b> מיניבוס (20 מקומות) זול אבל מתמלא מהר. רגיל — 80. מפרקי — 120 ויקר יותר לנסיעה. חשמלי — 80, יקר לקנות וזול לנסוע. המחירון בלשונית "קופה".</li>
+      <li><b>קנייה או ליסינג:</b> קנייה — משלמים פעם אחת (רגיל: ₪6,000), ומכירה מחזירה 60%. ליסינג — בלי תשלום מראש, משלמים כל יום (רגיל: ₪600 ליום, גם בלילה) ומחזירים מתי שרוצים. ליסינג טוב כשאין מספיק כסף או כדי לנסות קו; קו שעובד טוב משתלם לקנות.</li>
+      <li><b>מאיפה לאן:</b> לכל נוסע יש בית ויעד — עבודה, לימודים או קניות. בבוקר יוצאים מהשכונות, אחר הצהריים חוזרים. בלשונית "ביקוש" ובכפתור "ביקוש" שעל המפה רואים את השכונות לפי סוג (מגורים, עבודה, לימודים, מסחר), וליד כל שכונה סמלים קטנים — לאן רוצים לנסוע ממנה בשעה הזו. סמל אדום — אין להם קו. הקשה על שכונה מציגה חיצים ליעדים וכמה נוסעים לכל אחד.</li>
+      <li><b>מי נוסע:</b> רק מי שיש לו קו עד 400 מ' מהבית ועד 400 מ' מהיעד. מי שהדרך שלו ארוכה (הליכה, המתנה, מעברים) — לפעמים מוותר מראש. אוטובוס תכוף (בפועל, לא רק בתכנון) מושך יותר נוסעים.</li>
+      <li><b>מעברים:</b> אם אין קו ישיר, נוסעים יורדים בתחנה משותפת (או הולכים עד 400 מ' לתחנה אחרת) ועולים לקו השני — עד שני מעברים. המעבר בחינם, כמו ברב-קו: משלמים פעם אחת לנסיעה.</li>
+      <li><b>שעות פעילות:</b> לכל קו יש שעת התחלה וסיום (בטופס הקו). מחוץ לשעות לא יוצאים אוטובוסים ואין הוצאות, אבל מי שרצה לנסוע אז נשאר בלי קו. קווים ישנים קיבלו 05:00–24:00.</li>
+      <li><b>כסף:</b> כל נוסע משלם ₪6 (פעם אחת, גם עם מעבר). המדינה משלמת ₪10 על כל ק"מ שאוטובוס נוסע בקו, עם נוסעים או בלי (על החזרה הריקה למסוף — לא). כל ק"מ עולה דלק ותחזוקה, וכל שעה בדרך עולה שכר נהג. קו עם ביקוש ותדירות מתאימה מרוויח; קו ריק, או קו עם יותר מדי אוטובוסים — מפסיד. הכל בלשונית "קופה".</li>
+      <li><b>אוטובוס מלא:</b> מי שלא נכנס נשאר בתחנה ומחכה לבא ("נשארו"). מי שמחכה יותר מחצי שעה מוותר והולך ברגל — והכרטיס שלו הולך איתו ("ויתרו"). אז כדאי רכב גדול יותר, עוד רכבים או תדירות גבוהה יותר.</li>
+      <li>הכי הרבה נוסעים בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
+      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" (גם שעות פעילות), ו"מסלול": מקישים על תחנה בקו כדי להסיר או להזיז אותה, או על תחנה חדשה כדי להוסיף (היא נכנסת במקום הכי קצר). אוטובוסים שכבר בדרך מסיימים את המסלול הישן. <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
+      <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> שתי אצבעות או הכפתור הימני. <b>זום:</b> צביטה או גלגלת. השעון: ❚❚ עוצר, ×1 עד ×200 מאיצים. בלילה, כשאף קו לא פועל, השעון רץ ×200 לבד עד הבוקר.</li>
+      <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
+    </ol>
+  </section>
+</aside>
+
+<div class="dlegend" id="dLegend" hidden>
+  <div class="dl-head"><b id="dlTitle">מאיפה לאן</b><button id="dlClose" class="x" aria-label="סגירה">✕</button></div>
+  <div class="dl-chips" id="dlChips" role="group" aria-label="שעה">
+    <button data-h="now" class="on">עכשיו</button><button data-h="7">בוקר</button><button data-h="12">צהריים</button><button data-h="16">ערב</button>
+  </div>
+  <input type="range" id="dlHour" min="0" max="23" step="1" value="7" aria-label="שעה">
+  <div class="dl-keys" id="dlKeys"></div>
+  <div class="dl-note" id="dlNote"></div>
+</div>
+<div class="dfocus" id="dlFocus" hidden></div>
+
+<div class="plan" id="plan" hidden>
+  <div class="plan-txt" id="planTxt"><b>קו חדש</b> — הקישו על תחנות לפי הסדר <span id="planCount" class="pill">0 תחנות</span></div>
+  <div id="planInfo" class="plan-info" hidden></div>
+  <div id="planSel" class="plan-sel" hidden></div>
+  <div class="plan-btns">
+    <button id="planUndo">בטל אחרונה</button>
+    <button id="planCancel">ביטול</button>
+    <button id="planDone" class="primary" disabled>המשך</button>
+  </div>
+  <div id="planErr" class="err" hidden></div>
+</div>
+
+<div class="modal" id="lineForm" hidden>
+  <form class="card" id="lineFormCard">
+    <h2 id="fTitle">פרטי הקו</h2>
+    <div class="frow">
+      <label class="fnum">מספר קו <input id="fNum" maxlength="4" required inputmode="numeric" placeholder="1"></label>
+      <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
+    </div>
+    <label>שם <input id="fName" maxlength="40" placeholder="למשל: מרכז — שכונת רמז"></label>
+    <div class="frow hours"><span class="flabel">שעות פעילות</span>
+      <label>מ־<select id="fFrom" aria-label="שעת התחלה"></select></label><label>עד <select id="fTo" aria-label="שעת סיום"></select></label></div>
+    <div class="swatches" id="fColors" role="radiogroup" aria-label="צבע"></div>
+    <div class="flabel">קנייה או ליסינג</div>
+    <div class="vmode" id="fMode" role="radiogroup" aria-label="קנייה או ליסינג">
+      <button type="button" data-m="buy" role="radio"><b>קנייה</b><span>משלמים פעם אחת, מכירה מחזירה 60%</span></button>
+      <button type="button" data-m="lease" role="radio"><b>ליסינג</b><span>משלמים כל יום, מחזירים מתי שרוצים</span></button>
+    </div>
+    <div class="flabel">סוג הרכב</div>
+    <div class="vtypes" id="fTypes" role="radiogroup" aria-label="סוג הרכב"></div>
+    <div class="fcount">
+      <span class="flabel">כמה רכבים</span>
+      <div class="stepper"><button type="button" id="fMinus" aria-label="פחות">−</button><b id="fN">0</b><button type="button" id="fPlus" aria-label="עוד">+</button></div>
+      <span id="fNeed" class="fneed"></span>
+    </div>
+    <div id="fCost" class="fcost"></div>
+    <div class="row"><button type="button" id="fBack">חזרה</button><button type="submit" id="fSave" class="primary">שמירה והפעלה</button></div>
+    <button type="button" id="fRev" class="frev" hidden>צור גם את הכיוון ההפוך</button>
+  </form>
+</div>
+
+<div class="modal" id="resetAsk" hidden>
+  <div class="card">
+    <h2>התחלה מחדש</h2>
+    <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון.</p>
+    <div class="modepick" role="radiogroup" aria-label="מצב משחק">
+      <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
+      <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
+    </div>
+    <p class="hint">לשמור את המשחק הנוכחי לפני?</p>
+    <div class="col-btns"><button type="button" id="resetSave" class="primary">שמור והתחל מחדש</button><button type="button" id="resetNoSave" class="del">התחל בלי לשמור</button><button type="button" id="resetCancel">ביטול</button></div>
+  </div>
+</div>
+<div class="modal" id="modeAsk" hidden>
+  <div class="card">
+    <h2>משחק חדש</h2>
+    <p class="hint">איך משחקים?</p>
+    <div class="modepick" role="radiogroup" aria-label="מצב משחק">
+      <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
+      <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
+    </div>
+    <div class="row"><button type="button" id="modeGo" class="primary">מתחילים</button></div>
+  </div>
+</div>
+<div class="modal" id="stageModal" hidden>
+  <div class="card">
+    <h2 id="stageTitle">שלב הושלם</h2>
+    <div id="stageBody"></div>
+    <div class="row"><button type="button" id="stageClose" class="primary">ממשיכים</button></div>
+  </div>
+</div>
+<div class="modal" id="daySum" hidden>
+  <div class="card">
+    <h2 id="dayTitle">סיכום היום</h2>
+    <div id="dayBody"></div>
+    <div class="row"><button type="button" id="dayClose" class="primary">ממשיכים</button></div>
+  </div>
+</div>
+
+<div class="modal" id="credits" hidden>
+  <div class="card">
+    <h2>קרדיטים</h2>
+    <ul class="credits">
+      <li>מפות, רחובות ובניינים: © תורמי <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, רישיון ODbL</li>
+      <li>מיקומי התחנות: GTFS של משרד התחבורה</li>
+      <li>גבולות שכונות: מפ"י / GovMap, באמצעות <a href="https://over.org.il/" target="_blank" rel="noopener">גרסאות לעם</a>, ספטמבר 2026</li>
+      <li>האוטובוס והאדם: נבנו ב-Blender; גוף האדם מ-MPFB / MakeHuman (נכסים ב-CC0)</li>
+      <li>תנועת ההליכה: CMU Graphics Lab Motion Capture Database (הקלטה 16_15)</li>
+      <li>מנוע התלת־ממד: three.js (MIT)</li>
+    </ul>
+    <div class="row"><button type="button" id="creditsClose" class="primary">סגירה</button></div>
+  </div>
+</div>
+
+<footer class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <button id="creditsBtn" class="link">קרדיטים</button><span id="fps" hidden></span></footer>
+<div class="toast" id="toast" hidden></div>
+<div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>
+
+<!-- הכניסה לבטא: המשחק (js/main.js) נטען רק אחרי כניסה של בודק מאושר — ראו gate.js -->
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+  <div class="g-card">
+    <h1 id="gTitle">משחק הקווים · גרסת בטא 🔒</h1>
+    <p class="g-sub">מתכננים קווי אוטובוס בקריית מלאכי. הבטא פתוחה לשני בודקים בלבד.</p>
+    <div class="g-wait" id="gWait"><div class="spin"></div><span>בודק כניסה…</span></div>
+    <div id="gForms" hidden>
+      <div class="g-tabs" role="tablist">
+        <button type="button" role="tab" id="tLogin" aria-selected="true" aria-controls="fLogin">כניסה</button>
+        <button type="button" role="tab" id="tSignup" aria-selected="false" aria-controls="fSignup">הרשמה לבודקים</button>
+      </div>
+      <form id="fLogin" class="g-form" role="tabpanel" aria-labelledby="tLogin" novalidate>
+        <label>שם משתמש <input name="u" autocomplete="username" dir="ltr" autocapitalize="none" spellcheck="false" required></label>
+        <label>סיסמה <input name="p" type="password" autocomplete="current-password" dir="ltr" required></label>
+        <button type="submit" class="primary">כניסה</button>
+      </form>
+      <form id="fSignup" class="g-form" role="tabpanel" aria-labelledby="tSignup" novalidate hidden>
+        <label>שם משתמש <input name="u" autocomplete="username" dir="ltr" autocapitalize="none" spellcheck="false" maxlength="20" required>
+          <small>3–20 תווים: אותיות באנגלית, ספרות ו-_</small></label>
+        <label>סיסמה <input name="p" type="password" autocomplete="new-password" dir="ltr" required>
+          <small>לפחות 8 תווים</small></label>
+        <label class="g-check"><input type="checkbox" name="ok" required> <span>קראתי את <a href="privacy.html" target="_blank" rel="noopener">הודעת הפרטיות</a> ומסכים/ה</span></label>
+        <button type="submit" class="primary">הרשמה</button>
+        <p class="g-note">בלי מייל — רק שם משתמש וסיסמה. שימו לב לשמור את הסיסמה: אין שחזור.</p>
+      </form>
+      <div class="g-err" id="gErr" role="alert" hidden></div>
+    </div>
+    <div class="g-msg" id="gMsg" hidden></div>
+    <div class="g-foot">
+      <span id="gWho" hidden></span>
+      <button type="button" id="gOut" class="g-link" hidden>יציאה</button>
+      <a href="privacy.html">פרטיות</a>
+      <a href="../">חזרה לקו הבוחן</a>
+    </div>
+    <div id="kb-ver"></div>
+  </div>
+</div>
+
+<script src="vendor/supabase/supabase.js?v=2.45.4"></script>
+<script src="gate.js?v=1"></script>
+<script src="../version.js" data-tool="game" defer></script>
+</body>
+</html>

@@ -78,7 +78,7 @@ function arc(cx,cy,r,a0,a1){const [x0,y0]=pt(cx,cy,r,a0),[x1,y1]=pt(cx,cy,r,a1);
 function ticks(cx,cy,r0,r1,a0,a1,n,attr){let s='';for(let i=0;i<=n;i++){const a=a0+(a1-a0)*i/n,[x0,y0]=pt(cx,cy,r0,a),[x1,y1]=pt(cx,cy,r1,a);s+=`<path d="M${x0} ${y0} L${x1} ${y1}" ${attr}/>`}return s}
 const FONT=`font-family="Rubik,sans-serif"`;
 
-/* ===== 16 הסמלים ===== */
+/* ===== 17 הסמלים ===== */
 const ICON={
 /* קו פח — אוטובוס לבן מאחורי פח אשפה אפור */
 'kavpach':()=>tile('kavpach','#4b5a70','#0b1220',`
@@ -389,6 +389,27 @@ const ICON={
     <path d="M86 33.5 l4 4 l8 -8.6" stroke="#047857" stroke-width="3.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>`),
 
+/* משחק הקווים (בטא) — עיר קטנה באיזומטריה עם אוטובוס, ומנעול זהב בפינה */
+'game':()=>tile('game','#fb7185','#4c0519',`
+  <defs><linearGradient id="gmGround" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86efac"/><stop offset="1" stop-color="#16a34a"/></linearGradient><linearGradient id="gmLock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1b8"/><stop offset=".5" stop-color="#fbbf24"/><stop offset="1" stop-color="#b45309"/></linearGradient></defs>
+  <ellipse cx="60" cy="104" rx="46" ry="4" fill="#000" opacity=".35" filter="url(#kb-blur)"/>
+  <path d="M60 52 L108 76 L60 100 L12 76Z" fill="#14532d"/><path d="M60 48 L108 72 L60 96 L12 72Z" fill="url(#gmGround)"/>
+  <path d="M36 60 L84 84" stroke="#475569" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M38 61 L82 83" stroke="#fff" stroke-width="1" stroke-dasharray="3 3"/>
+  <g filter="url(#kb-drop)" transform="translate(-8 8)">
+    <path d="M70 52 L80 57 L80 37 L70 32Z" fill="#e2e8f0"/><path d="M80 57 L90 52 L90 32 L80 37Z" fill="#94a3b8"/><path d="M70 32 L80 27 L90 32 L80 37Z" fill="#f8fafc"/>
+    <path d="M73 38 v4 M77 40 v4 M73 46 v4 M77 48 v4" stroke="#38bdf8" stroke-width="2"/>
+  </g>
+  <g filter="url(#kb-drop)" transform="translate(16 -14)">
+    <path d="M26 74 L34 78 L34 64 L26 60Z" fill="#fde68a"/><path d="M34 78 L42 74 L42 60 L34 64Z" fill="#f59e0b"/><path d="M26 60 L34 56 L42 60 L34 64Z" fill="#fef3c7"/>
+  </g>
+  <g transform="translate(60 76) rotate(26.6) scale(.44) translate(-42 -42)" filter="url(#kb-drop)">${busSide('gm',{stripe:'#e11d48',noShadow:1})}</g>
+  <g filter="url(#kb-drop)">
+    <path d="M86 24 v-5 a8 8 0 0 1 16 0 v5" stroke="#e2e8f0" stroke-width="3.6" fill="none"/>
+    <rect x="82" y="23" width="24" height="19" rx="4.5" fill="url(#gmLock)"/>
+    <circle cx="94" cy="31" r="2.6" fill="#78350f"/><rect x="93" y="32" width="2" height="5" rx="1" fill="#78350f"/>
+  </g>`),
+
 /* נגישות אזורי תעשייה — הסמל המקורי של אתר השותפים, על אריח לבן */
 'parks':()=>`<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><defs><clipPath id="cl-parks"><rect width="120" height="120" rx="28"/></clipPath></defs><g clip-path="url(#cl-parks)"><rect width="120" height="120" fill="#fff"/><image href="parks/icon-180.png" x="0" y="0" width="120" height="120"/></g><rect x=".75" y=".75" width="118.5" height="118.5" rx="27.25" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="1.5"/></svg>`
 };
@@ -416,10 +437,12 @@ const GROUPS = [
   {k:'feeder',n:'הקו המזין',d:'כלי למתכננים: האם האוטובוסים ליד תחנות הרכבת מגיעים בזמן לרכבת ויוצאים אחריה, עם המלצה כמה דקות להזיז',h:'feeder/',vk:'feeder',a:'#16a34a'}]},
  {id:'g-plan',name:'מחירים ומסופים',tools:[
   {k:'fares',n:'המחירון',d:'כמה עולה הנסיעה — בודדת, יומי וחודשי, לכל קו או בין שתי תחנות',h:'fares/',vk:'fares',a:'#059669'},
-  {k:'ratzif',n:'רציף כפול',d:'שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי',h:'ratzif/',vk:'ratzif',a:'#0891b2'}]}
+  {k:'ratzif',n:'רציף כפול',d:'שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי',h:'ratzif/',vk:'ratzif',a:'#0891b2'}]},
+ {id:'g-game',name:'משחק',tools:[
+  {k:'game',n:'🔒 משחק הקווים · בטא',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד — גרסת בטא לבודקים, בכניסה עם שם משתמש וסיסמה',h:'game/',vk:'game',a:'#e11d48'}]}
 ];
 const PARKS = {k:'parks',n:'נגישות אזורי תעשייה',d:'ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות',h:'parks/'};
-const COUNT = 'חמישה-עשר';
+const COUNT = 'שישה-עשר';
 const ALL = GROUPS.flatMap(g => g.tools).concat([PARKS]);
 
 /* ===== HTML ===== */
