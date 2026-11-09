@@ -28,3 +28,9 @@
 | Blender 5 | Blender Foundation | https://www.blender.org | GPL |
 
 ההמרה מ-OSM לעולם תלת־ממדי נכתבה כאן (`tools/build_city.py`) ולא השתמשה בקוד של city3d-skill.
+
+## קוד
+
+| מה | מקור | רישיון |
+|---|---|---|
+| supabase-js 2.118.0 (`vendor/supabase/`) | https://github.com/supabase/supabase-js | MIT |

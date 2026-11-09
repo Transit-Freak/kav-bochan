@@ -11,6 +11,7 @@ import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { refreshAll } from './texkeep.js';
 import { INSPECTOR_DAY, FINE, RESERVE_COST } from './ops.js';
+import { Cloud, GOOGLE, userOk, hash } from './cloud.js';
 import { Coverage, Career, CoverageLayer, STAGES, STOP_FEE, newCareer, COVER_M } from './career.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
@@ -63,7 +64,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -120,9 +121,14 @@ async function init() {
   night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); renderLines(); renderMoney();
   setInterval(() => bank.save(sim.time), 4000);
-  addEventListener('pagehide', () => bank.save(sim.time));
+  addEventListener('pagehide', () => { bank.save(sim.time); if (cloud?.on) cloud.beacon(autoPayload(), bank.mode); });
+  // ענן: רק אם השחקן כבר בחר בזה במכשיר הזה (יש חיבור שמור). אחרת — אין גישה לרשת
+  cloud = new Cloud(() => renderAccount());
+  renderAccount();
+  cloud.resume().then(on => { if (on) cloudStart(); });
+  setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -919,12 +925,20 @@ function saveSlot(name) {
     lines: JSON.parse(JSON.stringify(lineDefs)), bank: JSON.parse(JSON.stringify(bank.snapshot(sim.time))) };
   const a = readSlots(); a.unshift(slot);
   if (!writeSlots(a.slice(0, 20))) { toast('לא הצלחתי לשמור — אין מקום בדפדפן'); return null; }
+  if (cloud?.on) cloud.put(slot.id, { ...slot, kind: 'slot', title: slot.name, nl: slot.lines.length }, bank.mode).then(() => cloud.refresh()).then(renderSlots);
   renderSlots(); return slot;
 }
 // טוען משחק: הקווים, הצי, הקופה והשעה כמו שהיו
-function loadSlot(id) {
-  const sl = readSlots().find(x => x.id === id); if (!sl) return;
-  cancelPlanning();
+async function loadSlot(id) {
+  let sl = readSlots().find(x => x.id === id);
+  if (!sl && cloud?.on) { const r = await cloud.get(id); sl = r?.data; if (sl) { sl.id = id; const a = readSlots(); a.unshift(sl); writeSlots(a.slice(0, 20)); } }
+  if (!sl) { toast('לא הצלחתי לטעון את המשחק'); return; }
+  applySave(sl);
+  toast(`נטען: ${sl.name}`);
+}
+// טעינה של משחק שמור (שמירה בשם, או השמירה האוטומטית מהענן): הקווים, הצי, הקופה והשעה
+function applySave(sl) {
+  cancelPlanning(); $('#modeAsk').hidden = true;
   for (const L of [...lines]) removeLine(L, false);
   sim.time = sl.time; sim.resetStops(); sim.resetToday(); sim.pending = [];
   const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
@@ -934,10 +948,99 @@ function loadSlot(id) {
   lineDefs = [];
   for (const d of sl.lines) { const dd = JSON.parse(JSON.stringify(d)); lineDefs.push(dd); addLine(dd, false); }
   saveLines(lineDefs); bank.save(sim.time);
-  renderLines(); renderMoney(); renderSlots(); showTab('lines');
-  toast(`נטען: ${sl.name}`);
+  renderLines(); renderMoney(); renderSlots(); renderMissions(); showTab('lines');
 }
-function deleteSlot(id) { writeSlots(readSlots().filter(x => x.id !== id)); renderSlots(); }
+function deleteSlot(id) { writeSlots(readSlots().filter(x => x.id !== id)); cloud?.del(id); renderSlots(); }
+
+// ---------- ענן (cloud.js): השמירה האוטומטית והשמירות בשם מסונכרנות כשמחוברים; המכשיר נשאר הראשי
+function autoPayload() {
+  return { kind: 'auto', title: 'שמירה אוטומטית', at: Date.now(), time: sim.time, money: bank.money, nl: lineDefs.length,
+    lines: JSON.parse(JSON.stringify(lineDefs)), bank: JSON.parse(JSON.stringify(bank.snapshot(sim.time))) };
+}
+const coreHash = d => hash(JSON.stringify({ l: d.lines, m: Math.round(d.bank?.money ?? d.money), t: Math.round((d.time || 0) / 60), c: d.bank?.career, r: d.bank?.reports?.length }));
+let pushedHash = '';
+async function pushAuto(force) {
+  const d = autoPayload(), h = coreHash(d);
+  if (!force && h === pushedHash) return;
+  const r = await cloud.put('auto', d, bank.mode);
+  if (r) { pushedHash = h; cloud.setMeta({ syncedAt: r.updated_at, syncedHash: h }); }
+}
+// אחרי התחברות / בטעינה: משווים את השמירה האוטומטית בענן לזו שבמכשיר. החדשה מנצחת; אם שתיהן השתנו — שואלים
+async function cloudStart() {
+  await cloud.refresh();
+  const remote = await cloud.get('auto'); renderSlots();
+  const local = autoPayload(), lh = coreHash(local), m = cloud.meta();
+  if (!remote) { await pushAuto(true); return; }
+  const rd = remote.data, rh = coreHash(rd);
+  if (rh === lh) { pushedHash = lh; cloud.setMeta({ syncedAt: remote.updated_at, syncedHash: lh }); return; }
+  const remoteChanged = !m.syncedAt || remote.updated_at > m.syncedAt, localChanged = !m.syncedHash || m.syncedHash !== lh;
+  const empty = !lineDefs.length && bank.history.length === 0;
+  if (remoteChanged && (!localChanged || empty)) { applySave({ ...rd, name: 'השמירה מהענן' }); pushedHash = rh; cloud.setMeta({ syncedAt: remote.updated_at, syncedHash: rh }); toast('נטען המשחק השמור בענן'); return; }
+  if (!remoteChanged) { await pushAuto(true); return; }
+  // שתיהן השתנו — שואלים
+  const desc = d => `יום ${dayOf(d.time)}, ${clockText(d.time)} · ${money(d.money ?? d.bank?.money)} · ${d.nl ?? d.lines.length} קווים`;
+  $('#cloudBody').innerHTML = `<p>המשחק השתנה גם במכשיר הזה וגם בענן (ממכשיר אחר). איזה מהם להמשיך?</p>
+    <p><b>בענן</b> (נשמר ${new Date(remote.updated_at).toLocaleString('he-IL')}): ${desc(rd)}</p><p><b>במכשיר הזה</b>: ${desc(local)}</p>
+    <p class="hint">המשחק שלא נבחר נשמר בשמירות בשם, כדי שלא ילך לאיבוד.</p>`;
+  $('#cloudAsk').hidden = false;
+  $('#cloudRemote').onclick = async () => { $('#cloudAsk').hidden = true; saveSlot('לפני טעינה מהענן'); applySave({ ...rd, name: 'השמירה מהענן' }); pushedHash = rh; cloud.setMeta({ syncedAt: remote.updated_at, syncedHash: rh }); toast('נטען המשחק מהענן'); };
+  $('#cloudLocal').onclick = async () => { $('#cloudAsk').hidden = true; const a = readSlots(); a.unshift({ ...rd, id: 'S' + Date.now().toString(36), name: 'מהענן (לפני החלפה)' }); writeSlots(a.slice(0, 20)); renderSlots(); await pushAuto(true); toast('המשחק מהמכשיר הזה נשמר בענן'); };
+}
+let accMode = '', lastCloudErr = '';
+function renderAccount() {
+  const box = $('#accountBox'); if (!box || !cloud) return;
+  const why = /fetch|network|load/i.test(cloud.err) ? 'אין חיבור לרשת' : cloud.err.slice(0, 80);
+  const err = cloud.err ? `<div class="cnote">הסנכרון לענן לא הצליח (${esc(why)}). המשחק נשמר במכשיר, וננסה שוב בעוד דקה.</div>` : '';
+  const busy = cloud.busy ? '<span class="lmeta"> · רגע…</span>' : '';
+  const privacy = `<p class="hint privacy">שמירה בענן היא לבחירתכם: נשמרים רק שם המשתמש והמשחקים השמורים, והם משמשים רק את המשחק באתר הזה. אפשר למחוק אותם בכל רגע ("מחיקת הנתונים שלי").</p>`;
+  const form = (what) => `<form class="accform" data-form="${what}"><label>שם משתמש <input name="u" autocomplete="username" dir="ltr" placeholder="lowercase, 3–24" required></label>
+    <label>סיסמה <input name="p" type="password" autocomplete="${what === 'in' ? 'current-password' : 'new-password'}" dir="ltr" minlength="6" required></label>
+    <div class="row"><button type="button" data-acc="cancel">ביטול</button><button type="submit" class="primary">${what === 'in' ? 'כניסה' : what === 'up' ? 'הרשמה' : 'שמירת שם וסיסמה'}</button></div>
+    <p class="hint">שם משתמש: אותיות באנגלית, ספרות, נקודה, מקף או קו תחתון.</p></form>`;
+  let html;
+  if (!cloud.on) {
+    html = `<h4>חשבון ושמירה בענן${busy}</h4>${err}${privacy}
+      ${accMode ? form(accMode) : `<div class="col-btns"><button type="button" data-acc="anon" class="primary">שמירה בענן בלי חשבון</button>
+      <div class="row game-btns"><button type="button" data-acc="in">כניסה</button><button type="button" data-acc="up">הרשמה</button></div>
+      ${GOOGLE ? '<button type="button" data-acc="google">כניסה עם Google</button>' : ''}</div>`}`;
+  } else {
+    const m = cloud.meta(), when = m.syncedAt ? new Date(m.syncedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '—';
+    html = `<h4>חשבון ושמירה בענן${busy}</h4>${err}
+      <p>${cloud.anon ? 'מחוברים <b>בלי חשבון</b>. השמירות בענן קשורות למכשיר הזה — כדי לפתוח אותן במכשיר אחר, קבעו שם משתמש וסיסמה.' : `מחוברים בתור <b dir="ltr">${esc(cloud.username)}</b>.`}</p>
+      <p class="lmeta">☁ סונכרן לאחרונה: ${when}. השמירה האוטומטית והשמירות בשם עולות לענן מעצמן.</p>
+      ${accMode ? form(accMode) : `<div class="col-btns">${cloud.anon ? '<button type="button" data-acc="upgrade" class="primary">קביעת שם משתמש וסיסמה</button>' : ''}
+      <div class="row game-btns"><button type="button" data-acc="sync">סנכרון עכשיו</button><button type="button" data-acc="out">התנתקות</button></div>
+      <button type="button" data-acc="wipe" class="del">מחיקת הנתונים שלי</button></div>`}${privacy}`;
+  }
+  if (cloud.err && cloud.err !== lastCloudErr) toast('הסנכרון לענן לא הצליח — המשחק נשמר במכשיר');
+  lastCloudErr = cloud.err;
+  if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
+}
+async function accountAction(a) {
+  if (a === 'anon') { if (await cloud.startAnon()) { toast('המשחק יישמר גם בענן'); cloudStart(); } }
+  else if (a === 'in' || a === 'up' || a === 'upgrade') { accMode = a; renderAccount(); $('#accountBox input')?.focus(); }
+  else if (a === 'cancel') { accMode = ''; renderAccount(); }
+  else if (a === 'google') cloud.google();
+  else if (a === 'sync') { await pushAuto(true); await cloud.refresh(); renderSlots(); if (!cloud.err) toast('סונכרן לענן'); }
+  else if (a === 'out') { await cloud.signOut(); pushedHash = ''; renderSlots(); toast('התנתקתם. המשחק ממשיך במכשיר הזה'); }
+  else if (a === 'wipe') {
+    const b = $('#accountBox [data-acc="wipe"]');
+    if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'כל השמירות בענן יימחקו. לחצו שוב'; return; }
+    if (await cloud.deleteAll()) { pushedHash = ''; renderSlots(); toast('השמירות שלכם בענן נמחקו'); }
+  }
+  renderAccount();
+}
+async function accountSubmit(f) {
+  const u = f.u.value.trim().toLowerCase(), p = f.p.value;
+  if (!userOk(u)) { toast('שם משתמש: 3–24 תווים, אותיות באנגלית, ספרות, נקודה, מקף או קו תחתון'); return; }
+  const what = f.dataset.form;
+  const r = what === 'in' ? await cloud.signIn(u, p) : await cloud.signUp(u, p);
+  if (!r) { toast(what === 'in' ? 'הכניסה לא הצליחה — בדקו את השם והסיסמה' : 'ההרשמה לא הצליחה — אולי השם תפוס'); renderAccount(); return; }
+  accMode = '';
+  if (r === 'confirm') toast('נרשמתם, אבל השרת מבקש אישור במייל — זה עוד לא מוגדר. נסו שוב מאוחר יותר');
+  else { toast(what === 'in' ? `ברוכים הבאים, ${u}` : `נשמר: ${u}`); if (what === 'in') cloudStart(); }
+  renderAccount();
+}
 // פקחים והגדרות (בלשונית "קופה")
 function renderOps() {
   const box = $('#opsBox'); if (!box) return;
@@ -952,8 +1055,11 @@ function renderOps() {
     ${cre ? '' : '<p class="hint">בקריירה הכל פעיל. אפשר לכבות במצב יצירתי.</p>'}`;
 }
 function renderSlots() {
-  const a = readSlots(), box = $('#slotList'); if (!box) return;
-  box.innerHTML = a.length ? a.map(x => `<div class="slot"><div class="sn"><b>${esc(x.name)}</b><span>${x.bank?.mode === 'creative' ? 'יצירתי' : 'קריירה'} · ${dayTime(x.time)} · ${money(x.money)} · ${x.lines.length} קווים</span></div>
+  const loc = readSlots(), box = $('#slotList'); if (!box) return;
+  const cl = cloud?.on ? cloud.list.filter(x => x.name !== 'auto') : [], inCloud = new Set(cl.map(x => x.name));
+  const a = [...loc.map(x => ({ ...x, cloud: inCloud.has(x.id) })),
+    ...cl.filter(x => !loc.some(l => l.id === x.name)).map(x => ({ id: x.name, name: x.title || 'שמירה', time: +x.time || 0, money: +x.money || 0, lines: { length: +x.nl || 0 }, bank: { mode: x.mode }, cloud: true, only: true }))];
+  box.innerHTML = a.length ? a.map(x => `<div class="slot"><div class="sn"><b>${x.cloud ? '<span class="cl" title="בענן">☁</span> ' : ''}${esc(x.name)}</b><span>${x.bank?.mode === 'creative' ? 'יצירתי' : 'קריירה'} · ${dayTime(x.time)} · ${money(x.money)} · ${x.lines.length} קווים</span></div>
     <button type="button" data-load="${x.id}">טעינה</button><button type="button" class="del" data-del="${x.id}">מחיקה</button></div>`).join('')
     : '<p class="hint">אין משחקים שמורים. "שמירה" שומרת את המשחק הנוכחי.</p>';
 }
@@ -968,6 +1074,8 @@ function bindReset() {
   $('#opsBox').onclick = e => { const b = e.target.closest('[data-insp]'); if (!b) return; bank.inspectors = Math.max(0, Math.min(20, (bank.inspectors || 0) + +b.dataset.insp)); bank.save(sim.time); renderOps(); };
   $('#opsBox').onchange = e => { const c = e.target.closest('[data-set]'); if (!c) return; bank.settings[c.dataset.set] = c.checked; bank.save(sim.time); renderOps(); };
   $('#dispBody').onclick = e => dispatchAction(e);
+  $('#accountBox').onclick = e => { const b = e.target.closest('[data-acc]'); if (b) accountAction(b.dataset.acc); };
+  $('#accountBox').addEventListener('submit', e => { e.preventDefault(); accountSubmit(e.target); });
   renderOps();
   $('#saveSlot').onclick = () => { const s = saveSlot(); if (s) toast(`נשמר: ${s.name}`); };
   $('#slotList').onclick = e => {
