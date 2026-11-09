@@ -9,7 +9,7 @@ import { TYPES } from './fleet.js';
 import { useBitmapTextures } from './texfix.js';
 import { addCab, turn } from './driver.js';
 import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
-import { buildSitter } from './sitting.js';
+import { buildSitter, PHONE } from './sitting.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -210,7 +210,9 @@ function twoBone(a, b, c, target, pole) {
 // הגיל של כל דגם (tools/person_variants.py): מבוגרים יושבים ראשונים, צעירים משאירים מקום
 const AGE = { person_3: 'old', person_4: 'old', person_2: 'young', person_6: 'young' };
 const XFER_MAX = 40;                        // הולכים למעבר בבת אחת לכל היותר (השאר — כמו יורדים רגילים)
-const SIT_MAX = 256, SIT_GAP = 0.012;     // יושבים לכל דגם; רווח בין הגב לרפפות
+const SIT_MAX = 256, SIT_GAP = 0.012;
+// תנוחת הידיים של היושבים, לפי הדגם (people.json): טלפון ביד, ידיים בחיק, או יד על הספסל; והצד (היד שלמטה / שעל הספסל)
+const POSE_OF = [['phone', 'Left'], ['bench', 'Right'], ['phone', 'Left'], ['bench', 'Left'], ['lap', 'Left'], ['bench', 'Right'], ['phone', 'Left'], ['bench', 'Right'], ['lap', 'Left']];
 const SKIN = [0xe9c6aa, 0xd9ab8a, 0xbf8b67, 0x8f5d3e, 0xf2d6c2, 0xc99a78];
 const CLOTH = [0x0ea5e9, 0x1e3a8a, 0xef4444, 0x22c55e, 0xf8fafc, 0x334155, 0xf59e0b, 0x8b5cf6, 0x0f766e, 0xdb2777, 0x94a3b8, 0x7c2d12];
 const HAIR = [0x1c1917, 0x3f2a1d, 0x6b4f2f, 0x0c0a09, 0xa8a29e];
@@ -246,7 +248,7 @@ function gameMaterial(m, kind) {
 
 // הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
 const _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
-function skinVerts(root) {
+export function skinVerts(root) {
   root.updateMatrixWorld(true);
   const out = [], v = new THREE.Vector3(), n = new THREE.Vector3();
   root.traverse(o => {
@@ -350,7 +352,8 @@ export class PeopleLayer {
       catch (e) { console.warn('bake person failed', e); continue; }
       // אותו אדם יושב על הספסל: תנוחה אפויה אחת לכל דגם (sitting.js)
       try {
-        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03);
+        const vi = this.variants.length - 1, [armPose, side] = POSE_OF[vi % POSE_OF.length];
+        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side);
         if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache); }
       } catch (e) { console.warn('sitting pose failed', e); }
     }
@@ -375,6 +378,10 @@ export class PeopleLayer {
       });
       V.sn = 0;
     }
+    // טלפון ביד של חלק מהיושבים: מלבן כהה, בלי מסך (קבוצה אחת לכל הדגמים)
+    this.phones = new THREE.InstancedMesh(new THREE.BoxGeometry(PHONE.w, PHONE.t, PHONE.l), new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 0.35, metalness: 0.3 }), SIT_MAX);
+    this.phones.count = 0; this.phones.frustumCulled = false; this.phones.name = 'crowd-phones'; this.phones.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.phones); this.tmpP = new THREE.Matrix4();
     this.blobMat = new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
     this.blobGeo = new THREE.PlaneGeometry(0.95, 0.95).rotateX(-Math.PI / 2);
     this.blobs = new THREE.InstancedMesh(this.blobGeo, this.blobMat, max);
@@ -502,7 +509,7 @@ export class PeopleLayer {
     let n = 0;
     for (const V of this.variants) V.n = V.sn = 0;
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
-    const B = new THREE.Matrix4();
+    const B = new THREE.Matrix4(); let np = 0;
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
@@ -512,6 +519,7 @@ export class PeopleLayer {
           this.sitMatrix(stop, bk, p.id, M);
           V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C)); });
           V.sn++;
+          if (V.sit.phone && np < SIT_MAX) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
           P.copy(V.sit.feet).lerp(V.sit.hip, 0.5).setY(0.015).applyMatrix4(M); B.makeTranslation(P.x, P.y, P.z); this.blobs.setMatrixAt(n, B);
           n++; continue;
         }
@@ -527,6 +535,7 @@ export class PeopleLayer {
         n++;
       }
     }
+    this.phones.count = np; this.phones.instanceMatrix.needsUpdate = true;
     for (const V of this.variants) for (const im of V.sitMeshes) {
       im.count = V.sn; im.visible = V.sn > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
@@ -693,6 +702,8 @@ export class PeopleLayer {
     w.mixer.setTime(r.t0);
     const T = this.tmpQ;
     for (const [name, q] of r.sit.quats) { const b = w.bones.get(name); if (!b) continue; T.copy(b.quaternion); b.quaternion.copy(q).slerp(T, k); }
+    // האצבעות שצומצמו בישיבה (סגורות) חוזרות בהדרגה לרוחב הרגיל
+    if (r.sit.scales) for (const [name, sc] of r.sit.scales) { const b = w.bones.get(name); if (!b) continue; if (!r.orig) r.orig = new Map(); if (!r.orig.has(name)) r.orig.set(name, b.scale.clone()); b.scale.copy(sc).lerp(r.orig.get(name), k); }
     w.body.scale.set(r.s, 1 + (r.s - 1) * k, r.s);
     this.centre(w);
     // האגן: מהמושב (מאחורי כפות הרגליים ונמוך) אל העמידה
