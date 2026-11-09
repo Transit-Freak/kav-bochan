@@ -10,6 +10,7 @@ import { useBitmapTextures } from './texfix.js';
 import { addCab, turn } from './driver.js';
 import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter, PHONE } from './sitting.js';
+import { SIT_PRESETS } from './sitpresets.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -211,8 +212,9 @@ function twoBone(a, b, c, target, pole) {
 const AGE = { person_3: 'old', person_4: 'old', person_2: 'young', person_6: 'young' };
 const XFER_MAX = 40;                        // הולכים למעבר בבת אחת לכל היותר (השאר — כמו יורדים רגילים)
 const SIT_MAX = 256, SIT_GAP = 0.012;
-// תנוחת הידיים של היושבים, לפי הדגם (people.json): טלפון ביד, ידיים בחיק, או יד על הספסל; והצד (היד שלמטה / שעל הספסל)
-const POSE_OF = [['bench', 'Left'], ['lap', 'Left'], ['phone', 'Right'], ['phone', 'Left'], ['phone', 'Left'], ['bench', 'Right'], ['bench', 'Left'], ['lap', 'Left'], ['bench', 'Right']];
+// תנוחת הידיים של היושבים, לפי הדגם (people.json): טלפון ביד אחת (והיד השנייה על הירך), או שתי הידיים על הירכיים;
+// הצד של היד שמחזיקה; והאם יד שהאמה שלה נוגעת בגוף זזה קדימה על הירך (נבחר לכל דגם לפי מה שיוצא בלי חפיפות)
+const POSE_OF = [['phone', 'Right', true], ['thighs', 'Left', false], ['phone', 'Left', true], ['thighs', 'Left', false], ['phone', 'Left', true], ['thighs', 'Left', false], ['thighs', 'Left', false], ['thighs', 'Left', true], ['thighs', 'Left', false]];
 const SKIN = [0xe9c6aa, 0xd9ab8a, 0xbf8b67, 0x8f5d3e, 0xf2d6c2, 0xc99a78];
 const CLOTH = [0x0ea5e9, 0x1e3a8a, 0xef4444, 0x22c55e, 0xf8fafc, 0x334155, 0xf59e0b, 0x8b5cf6, 0x0f766e, 0xdb2777, 0x94a3b8, 0x7c2d12];
 const HAIR = [0x1c1917, 0x3f2a1d, 0x6b4f2f, 0x0c0a09, 0xa8a29e];
@@ -352,9 +354,15 @@ export class PeopleLayer {
       catch (e) { console.warn('bake person failed', e); continue; }
       // אותו אדם יושב על הספסל: תנוחה אפויה אחת לכל דגם (sitting.js)
       try {
-        const vi = this.variants.length - 1, [armPose, side] = POSE_OF[vi % POSE_OF.length];
-        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side);
-        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache); }
+        const vi = this.variants.length - 1, [armPose, side, pushFore] = POSE_OF[vi % POSE_OF.length];
+        // התוצאות של החיפוש שמורות מראש (js/sitpresets.js) — כך הטעינה מהירה; דגם חדש או שונה — מחפשים מחדש
+        const key = `${g.userData.file}|${armPose}|${side}|${pushFore ? 1 : 0}`;
+        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, SIT_PRESETS[key] || null);
+        if (S) S.key = key;
+        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache);
+          // הרוחב של היושב לאורך הספסל (ציר x שלו), לבדיקת השכנים
+          let lo = Infinity, hi = -Infinity; for (const gr of V.sitGroups) { const p = gr.geo.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); if (x < lo) lo = x; if (x > hi) hi = x; } }
+          V.sitExt = [lo, hi]; }
       } catch (e) { console.warn('sitting pose failed', e); }
     }
     this.fromGlb = this.variants.length > 0;
@@ -419,9 +427,26 @@ export class PeopleLayer {
     if (this.seats.get(stop.id)?.has(pid) || !this.stopFrame(stop).shelter) return -1;
     const V = this.variants[this.variantOf(pid)];
     if (!V.sit || V.sn >= SIT_MAX) return -1;
-    const used = new Set(b.values()), free = [0, 1, 2].filter(j => !used.has(j));
+    const used = new Set(b.values()), free = [0, 1, 2].filter(j => !used.has(j) && this.seatFits(stop, j, pid, b));
     if (!free.length || (V.age === 'young' && free.length < 2)) return -1;
     b.set(pid, free[0]); return free[0];
+  }
+  // המקום של היושב לאורך הספסל (a), והרוחב של הגוף שלו (מרפקים, ידיים) לכל צד — מהרשת האפויה, בגודל שלו
+  seatA(k, pid) { return BENCH.seats[k] + (hash(pid + 41) - 0.5) * 0.06; }
+  sitSpan(stop, pid) {
+    const V = this.variants[this.variantOf(pid)], f = this.stopFrame(stop), yaw = Math.atan2(-f.ux, f.uy), s = this.personScale(pid);
+    const [lo, hi] = V.sitExt, sg = Math.sign(Math.cos(yaw) * f.tx + Math.sin(yaw) * f.ty) || 1;
+    return sg > 0 ? [lo * s, hi * s] : [-hi * s, -lo * s];
+  }
+  // יושב חדש רק במקום שבו הגוף שלו לא נוגע בשכנים (לפחות 1 ס"מ ביניהם); אחרת — עומד
+  seatFits(stop, k, pid, b) {
+    const [lo, hi] = this.sitSpan(stop, pid), a = this.seatA(k, pid);
+    for (const [q, j] of b) {
+      const aj = this.seatA(j, q), [ql, qh] = this.sitSpan(stop, q);
+      const gap = a < aj ? (aj + ql) - (a + hi) : (a + lo) - (aj + qh);
+      if (gap < 0.01) return false;
+    }
+    return true;
   }
   // המיקום של היושב: הגב צמוד לקיר הרפפות, פונה לכביש. הגובה לא משתנה עם personScale (האגן על המושב, הרגליים על הקרקע)
   sitMatrix(stop, k, pid, out = new THREE.Matrix4()) {
