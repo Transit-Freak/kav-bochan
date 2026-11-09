@@ -28,7 +28,37 @@ function pairs(a, from, d) {
 // ---------- צבעים (מראה בהיר: לבן, תכלת, אבן)
 const AREA_COL = { park: 0xcfe6bf, grass: 0xd8eacb, pitch: 0xbadfa6, scrub: 0xd9e3c4, farm: 0xece6cf, orchard: 0xd3e4bd,
   wood: 0xbcd9ad, play: 0xe8e0c8, parking: 0xdfe2e7, sand: 0xefe7d2 };
-const WALL_TONES = [0xfbfaf7, 0xf6f2ea, 0xf1ece2, 0xf7f5f1, 0xf3eee6, 0xeef0f2, 0xf8f3ea, 0xe9eef3];
+// קירות: טיח לבן ואבן בהירה בגוונים חמים וקרים מעט שונים — שכונה לא נראית כמו בלוק אחד.
+// גגות: בטון/איטום אפור-בהיר, כהים מעט מהקיר, כך שמלמעלה רואים את צורת הבניין
+const WALL_TONES = [0xfdfcf9, 0xf8f3ea, 0xf3ede2, 0xf9f8f5, 0xf5f0e8, 0xf0f2f4, 0xf8f2e8, 0xebeff3, 0xf3ebdc, 0xf7f5f0];
+const ROOF_TONES = [0xd9d7d2, 0xcfcdc8, 0xdedad1, 0xc9ccd0, 0xd4d0c6, 0xe2e0db];
+
+// רעש עדין ומשותף (טקסטורה קטנה אחת שחוזרת) — מוריד את המראה ה"פלסטיקי" של משטחים גדולים חלקים
+function noiseTexture(seed, lo, hi, blotch) {
+  const N = 128, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d'), img = g.createImageData(N, N);
+  let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  // כתמים גדולים רכים (ערכים חלקים על רשת גסה, עם גלישה) + גרגר דק
+  const G = 8, grid = Array.from({ length: G * G }, rnd);
+  const at = (i, j) => grid[((j + G) % G) * G + ((i + G) % G)];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const fx = x / N * G, fy = y / N * G, i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j;
+    const sm = t => t * t * (3 - 2 * t), su = sm(u), sv = sm(v);
+    const b = (at(i, j) * (1 - su) + at(i + 1, j) * su) * (1 - sv) + (at(i, j + 1) * (1 - su) + at(i + 1, j + 1) * su) * sv;
+    const k = lo + (hi - lo) * ((1 - blotch) * rnd() + blotch * b);
+    const o = (y * N + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = k; img.data[o + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+// קואורדינטות טקסטורה לפי המיקום בעולם (משטחים שטוחים): size מטרים לכל חזרה
+function planarUV(g, size) {
+  const p = g.attributes.position, uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) / size; uv[i * 2 + 1] = p.getZ(i) / size; }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+}
 
 function windowTexture() {
   // תא אחד = קומה אחת × חלון אחד; הפינה (0,0) לבנה — משמשת לגגות
@@ -52,9 +82,9 @@ export function buildWorld(scene, city, opts = {}) {
   const [HX, HY] = city.meta.half;
 
   // קרקע
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2 + 3000, HY * 2 + 3000),
-    new THREE.MeshLambertMaterial({ color: 0xe6ebe0 }));
-  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = false; ground.name = 'ground';
+  const gg = new THREE.PlaneGeometry(HX * 2 + 3000, HY * 2 + 3000).rotateX(-Math.PI / 2);
+  const ground = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ color: 0xe8ebe0 }));
+  ground.receiveShadow = true; ground.name = 'ground';
   group.add(ground);
 
   // שטחים
@@ -73,32 +103,37 @@ export function buildWorld(scene, city, opts = {}) {
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     g.computeVertexNormals();
     const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -0.5, polygonOffsetUnits: -1 }));
-    m.name = 'areas'; group.add(m);
+    m.name = 'areas'; m.receiveShadow = true; group.add(m);
   }
 
   // רחובות: מדרכה רחבה מתחת, אספלט מעליה; עיגולים בפינות ובצמתים
   {
-    const layers = { walk: [], asph: [], asphM: [], foot: [], mark: [] };
+    const layers = { walk: [], kerb: [], asph: [], asphM: [], foot: [], mark: [] };
     const add = (arr, pts, w, h) => ribbon(arr, pts, w, h);
     for (const r of city.roads) {
       if (r.cls === 'f') { add(layers.foot, r.pts, r.w, 0.05); continue; }
       add(layers.walk, r.pts, r.w + (r.w > 5 ? 4.2 : 2.4), 0.06);
+      add(layers.kerb, r.pts, r.w + 0.7, 0.08);   // אבן שפה: קו מתאר כהה מעט בין המדרכה לכביש
       add(r.cls === 'm' ? layers.asphM : layers.asph, r.pts, r.w, r.cls === 'm' ? 0.11 : 0.1);
       if (r.cls === 'm' || r.w >= 9) dashes(layers.mark, r.pts, 0.15, 0.125);
     }
     // השכבות קרובות מאוד בגובה — polygonOffset מונע הבהוב כשמתרחקים
-    const mk = (arr, color, name, k) => {
+    // היררכיה כמו במפה: כביש אפור ניטרלי (בלי גוון — הצבע שמור לקווים), מדרכה בהירה, שפה ביניהם
+    const asphTex = noiseTexture(3, 222, 255, 0.3), walkTex = noiseTexture(5, 236, 255, 0.4);
+    const mk = (arr, color, name, k, map, uvSize) => {
       if (!arr.length) return;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
       g.computeVertexNormals();
-      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color, polygonOffset: true, polygonOffsetFactor: -k, polygonOffsetUnits: -k * 2 }));
-      m.name = name; m.renderOrder = k; group.add(m); return m;
+      if (map) planarUV(g, uvSize);
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color, map: map || null, polygonOffset: true, polygonOffsetFactor: -k, polygonOffsetUnits: -k * 2 }));
+      m.name = name; m.renderOrder = k; m.receiveShadow = true; group.add(m); return m;
     };
-    mk(layers.walk, 0xe4e6ea, 'sidewalks', 1);
-    mk(layers.foot, 0xddd5c6, 'footways', 1);
-    mk(layers.asph, 0x6e747e, 'asphalt', 2);
-    mk(layers.asphM, 0x5f6570, 'asphalt-main', 3);
+    mk(layers.walk, 0xdcdddf, 'sidewalks', 1, walkTex, 9);
+    mk(layers.foot, 0xd9cfbd, 'footways', 1, walkTex, 9);
+    mk(layers.kerb, 0xa9adb3, 'kerbs', 1.5);
+    mk(layers.asph, 0x777b81, 'asphalt', 2, asphTex, 14);
+    mk(layers.asphM, 0x6a6e74, 'asphalt-main', 3, asphTex, 14);
     mk(layers.mark, 0xf4f4f0, 'markings', 4);
   }
 
@@ -106,7 +141,10 @@ export function buildWorld(scene, city, opts = {}) {
   {
     const pos = [], uv = [], col = [], c = new THREE.Color(), cb = new THREE.Color();
     city.buildings.forEach((b, bi) => {
-      const pts = b.pts, n = pts.length, h = b.h;
+      // קירות כלפי חוץ וגג כלפי מעלה (סדר נקודות נגד כיוון השעון) — כך הנורמלים נכונים לאור ולצל
+      let area2 = 0;
+      for (let i = 0, j = b.pts.length - 1; i < b.pts.length; j = i++) area2 += b.pts[j][0] * b.pts[i][1] - b.pts[i][0] * b.pts[j][1];
+      const pts = area2 < 0 ? b.pts.slice().reverse() : b.pts, n = pts.length, h = b.h;
       c.setHex(WALL_TONES[Math.floor(hash(bi) * WALL_TONES.length)]);
       const floors = Math.max(1, Math.round(h / 3));
       const fh = h / floors;
@@ -120,15 +158,15 @@ export function buildWorld(scene, city, opts = {}) {
         const A = [x0, 0, -y0], B = [x1, 0, -y1], C = [x1, h, -y1], D = [x0, h, -y0];
         pos.push(...A, ...B, ...C, ...A, ...C, ...D);
         uv.push(u0, 0, u1, 0, u1, v1, u0, 0, u1, v1, u0, v1);
-        cb.copy(c).multiplyScalar(0.8);
+        cb.copy(c).multiplyScalar(0.86);
         for (const k of [0, 0, 1, 0, 1, 1]) { const cc = k ? c : cb; col.push(cc.r, cc.g, cc.b); }
       }
       // גג
       const contour = pts.map(([x, y]) => new THREE.Vector2(x, y));
       let tris = [];
       try { tris = THREE.ShapeUtils.triangulateShape(contour, []); } catch { }
-      const rc = c.clone().multiplyScalar(0.97);
-      for (const t of tris) for (const k of [t[0], t[2], t[1]]) {
+      const rc = new THREE.Color(ROOF_TONES[Math.floor(hash(bi + 0.5) * ROOF_TONES.length)]);
+      for (const t of tris) for (const k of ((pts[t[1]][0] - pts[t[0]][0]) * (pts[t[2]][1] - pts[t[0]][1]) - (pts[t[1]][1] - pts[t[0]][1]) * (pts[t[2]][0] - pts[t[0]][0]) > 0 ? t : [t[0], t[2], t[1]])) {
         const [x, y] = pts[k]; pos.push(x, h, -y); uv.push(0.05, 0.05); col.push(rc.r, rc.g, rc.b);
       }
     });
@@ -137,8 +175,9 @@ export function buildWorld(scene, city, opts = {}) {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     g.computeVertexNormals();
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: windowTexture(), side: THREE.DoubleSide });
-    const m = new THREE.Mesh(g, mat); m.name = 'buildings';
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: windowTexture() });   // הפאות מכוונות כלפי חוץ — צד אחד מספיק
+    const m = new THREE.Mesh(g, mat); m.name = 'buildings'; m.castShadow = true; m.receiveShadow = true;
+    mat.shadowSide = THREE.BackSide;   // רק הפאות האחוריות נכנסות למפת הצל — בלי פסים ("אקנה") על הגגות
     group.add(m);
   }
 
@@ -243,6 +282,7 @@ function trees(city) {
     m.compose(p, q, s); trunk.setMatrixAt(i, m); crown.setMatrixAt(i, m);
     crown.setColorAt(i, c.setHex(greens[i % greens.length]));
   });
+  trunk.castShadow = crown.castShadow = true;
   g.add(trunk, crown);
   return g;
 }

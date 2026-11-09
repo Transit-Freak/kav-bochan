@@ -425,7 +425,7 @@ export class StopLayer {
         const im = new THREE.InstancedMesh(geo, mats[k], list.length);
         list.forEach((M, i) => im.setMatrixAt(i, M));
         im.name = `stop-${name}-${k}`; im.computeBoundingSphere();
-        if (k === 'glass') im.renderOrder = 1;
+        if (k === 'glass') im.renderOrder = 1; else im.castShadow = true;   // הסככה מטילה צל (הזכוכית לא)
         this.group.add(im);
       }
     }
@@ -433,7 +433,7 @@ export class StopLayer {
     const pad = new THREE.Mesh(pg, new THREE.MeshLambertMaterial({ map: pavingTexture(), polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
     pad.name = 'stop-paving'; pad.renderOrder = 3;
     const kerb = new THREE.Mesh(kg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
-    kerb.name = 'stop-kerb';
+    kerb.name = 'stop-kerb'; pad.receiveShadow = kerb.receiveShadow = true;
     this.group.add(pad, kerb);
     // שלטים קרובים
     this.near = new Map();      // stopId -> {mesh, tex, canvas, key, n}

@@ -9,6 +9,7 @@ import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './l
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths } from './stops.js';
+import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money } from './fleet.js';
 import { NightFast, FAST } from './night.js';
@@ -29,13 +30,12 @@ renderer.setPixelRatio(pixelRatio);
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xdbeefc);
-scene.fog = new THREE.Fog(0xdbeefc, 1400, 4200);
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 2, 9000);
 camera.position.set(-260, 520, 560);
-// תאורה: שמיים רכים מלמעלה ואדמה כהה יותר מלמטה (כך יש לדמויות צד מואר וצד מוצל), ושמש נמוכה יותר מהצד
-scene.add(new THREE.HemisphereLight(0xe4f1ff, 0x8f8574, 1.45));
-const sun = new THREE.DirectionalLight(0xfff1dc, 1.9); sun.position.set(-450, 520, 380); scene.add(sun);
+// תאורה, צללים, שמיים וערפל — js/look.js
+const look = setupLook(renderer, scene, { touch: isTouch });
+if (params.has('noshadow')) { look.sun.castShadow = false; renderer.shadowMap.enabled = false; }
+let slowSec = 0;
 // סביבה להחזרות: בלעדיה חומרים מתכתיים (הפח הכסוף של האוטובוס, הזכוכית) נראים שטוחים ואפורים.
 // ניתנת רק לחומרי האוטובוס (BusLayer), כל חומר בעוצמה משלו; העיר והאנשים לא משתנים
 {
@@ -55,7 +55,7 @@ const touch = mapTouch(canvas, camera, controls);
 controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
-const G = window.__game = { scene, camera, controls, renderer, fps: 0, frames: 0 };
+const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
 let night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
@@ -844,7 +844,7 @@ function setDemandView(on, hour, fit) {
   // מספרי התחנות ותוויות האוטובוסים מסתירים את קווי הביקוש — מסתירים אותם בזמן הזה
   for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on; });
   buses.hideLabels = on;
-  if (!on) { controls.maxDistance = 2600; scene.fog.near = 1400; scene.fog.far = 4200; }
+  if (!on) { controls.maxDistance = 2600; look.fogMin.near = 0; look.fogMin.far = 0; }
   if ($('[data-pane="demand"]').classList.contains('on')) renderDemand();
 }
 // מבט מלמעלה על נקודות רחוקות (גם מעל הגובה הרגיל), והערפל והמצלמה בהתאם
@@ -853,7 +853,7 @@ function fitWide(pts, pad, below) {
   fitPoints(pts, pad, below);
   const h = camera.position.y;
   controls.maxDistance = Math.max(2600, h * 1.2);
-  scene.fog.near = Math.max(1400, h * 0.9); scene.fog.far = Math.max(4200, h * 2.2);
+  look.fogMin.near = Math.max(1400, h * 0.9); look.fogMin.far = Math.max(4200, h * 2.2);
   camera.far = Math.max(9000, h * 3); camera.updateProjectionMatrix();
 }
 // בחירת שכונה (או null — חזרה לכל העיר). הכיוון: מה שיש בו יותר נסיעות בשעה הזו (בוקר בשכונת מגורים — יוצאים; באזור תעשייה — מגיעים)
@@ -1058,6 +1058,7 @@ function tick(dt) {
   const cx = THREE.MathUtils.clamp(t.x, -H[0], H[0]) - t.x, cz = THREE.MathUtils.clamp(t.z, -H[1], H[1]) - t.z;
   t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));
   controls.update();
+  updateLook(look, camera, controls.target);
   renderer.render(scene, camera);
   if (dview.on && dlayer) dlayer.draw(camera);
   fcount++; acc += dt; G.frames++;
@@ -1067,6 +1068,9 @@ function tick(dt) {
     // רזולוציה דינמית: במכשיר חלש מורידים רזולוציה כדי שהמשחק יישאר חלק
     if (G.ready && !params.has('fixedres')) {
       const pr = G.fps < 24 ? Math.max(isTouch ? 1 : 0.6, pixelRatio * 0.85) : G.fps > 50 ? Math.min(MAX_PR, pixelRatio * 1.1) : pixelRatio;
+      // מכשיר חלש מאוד: כבר ברזולוציה הנמוכה ועדיין איטי 4 שניות ברצף — מוותרים על הצל (פעם אחת)
+      slowSec = G.fps < 20 && pr <= (isTouch ? 1 : 0.6) + 0.01 ? slowSec + 1 : 0;
+      if (slowSec >= 4 && look.sun.castShadow) { look.sun.castShadow = false; renderer.shadowMap.enabled = false; G.noShadow = true; }
       if (Math.abs(pr - pixelRatio) > 0.01) { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); }
       G.pixelRatio = pixelRatio;
     }
