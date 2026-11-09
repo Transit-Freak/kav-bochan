@@ -1,0 +1,53 @@
+# מה שלא עולה לאתר (kavbochan.app). pages-deploy.yml מעתיק את המאגר ל-_site בלי הנתיבים האלה
+# (rsync --exclude-from), ומעלה רק את _site. הקבצים נשארים במאגר — הצינורות הליליים כותבים לכאן.
+# GitHub Pages: האתר המלא עבר 960MB מכווץ, והפרסום נתקע ב-syncing_files (09.11, issue #380).
+# לפני שמוסיפים כאן נתיב — לוודא שאף דף לא טוען אותו (fetch, src, href, קישור להורדה).
+# שורה שמתחילה ב-/ — מתחילת המאגר; / בסוף — תיקייה.
+
+# git והגדרות
+/.git/
+/.github/
+/_site/
+/.gitignore
+/.gitattributes
+/CLAUDE.md
+
+# כלים שלא עלו לאתר (לא מקושרים מהאתר)
+/gis/
+/unreleased/
+/sakachot-lab/
+/reports/
+
+# קוד, בדיקות ותיעוד של הצינורות
+/tools/
+/tests/
+/docs/
+*.py
+
+# קו באג טוען את הנתונים מהאתר שלו (ריפו kav-bug), לא מכאן
+/kavbug-data/
+
+# הקו בזמן — קבצי ביניים ומצב של הצינורות, שהאתר לא קורא
+/line-history/data/website-cache/
+/line-history/data/website-home/
+/line-history/data/website-catalogs/
+/line-history/data/y2017/
+/line-history/data/website-map-cache.json.gz
+/line-history/data/website-seed-cache.json.gz
+/line-history/data/stops-lines-snap.json
+/line-history/data/state-routes.json
+/line-history/data/*-skip.json
+/line-history/data/*-seen.json
+/line-history/data/early-seen.json
+# קובצי מצב (‎*-state.json‎), חוץ משניים שהמחירון קורא (fares/index.html)
++ /line-history/data/routes-daily-state.json
++ /line-history/data/routes-tt-2026-state.json
+/line-history/data/*-state.json
+
+# נגישות אזורי תעשייה — קובצי מקור ובדיקות (הדוח עצמו, parks/report, נשאר)
+/parks/sources/
+/parks/checks/
+/parks/osm-check/
+
+# המחירון — בדיקות
+/fares/checks/
