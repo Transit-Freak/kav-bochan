@@ -404,10 +404,17 @@ const ICON={
     <path d="M26 74 L34 78 L34 64 L26 60Z" fill="#fde68a"/><path d="M34 78 L42 74 L42 60 L34 64Z" fill="#f59e0b"/><path d="M26 60 L34 56 L42 60 L34 64Z" fill="#fef3c7"/>
   </g>
   <g transform="translate(60 76) rotate(26.6) scale(.44) translate(-42 -42)" filter="url(#kb-drop)">${busSide('gm',{stripe:'#e11d48',noShadow:1})}</g>
+  <rect width="120" height="120" rx="26" fill="#0f172a" opacity=".45"/>
+  <g stroke-linecap="round" filter="url(#kb-drop)">
+    <path d="M6 30 L114 96 M6 96 L114 30" stroke="#64748b" stroke-width="9"/>
+    <path d="M6 30 L114 96 M6 96 L114 30" stroke="#cbd5e1" stroke-width="5" stroke-dasharray="8 5"/>
+  </g>
   <g filter="url(#kb-drop)">
-    <path d="M86 24 v-5 a8 8 0 0 1 16 0 v5" stroke="#e2e8f0" stroke-width="3.6" fill="none"/>
-    <rect x="82" y="23" width="24" height="19" rx="4.5" fill="url(#gmLock)"/>
-    <circle cx="94" cy="31" r="2.6" fill="#78350f"/><rect x="93" y="32" width="2" height="5" rx="1" fill="#78350f"/>
+    <path d="M40 56 v-14 a20 20 0 0 1 40 0 v14" stroke="#e2e8f0" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M40 56 v-14 a20 20 0 0 1 40 0 v14" stroke="#94a3b8" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+    <rect x="26" y="52" width="68" height="54" rx="11" fill="url(#gmLock)"/>
+    <rect x="26" y="52" width="68" height="54" rx="11" fill="none" stroke="#92400e" stroke-width="2"/>
+    <circle cx="60" cy="74" r="7" fill="#78350f"/><rect x="57" y="76" width="6" height="15" rx="3" fill="#78350f"/>
   </g>`),
 
 /* נגישות אזורי תעשייה — הסמל המקורי של אתר השותפים, על אריח לבן */
@@ -439,7 +446,7 @@ const GROUPS = [
   {k:'fares',n:'המחירון',d:'כמה עולה הנסיעה — בודדת, יומי וחודשי, לכל קו או בין שתי תחנות',h:'fares/',vk:'fares',a:'#059669'},
   {k:'ratzif',n:'רציף כפול',d:'שני אוטובוסים או יותר שאמורים לצאת מאותו רציף מוצא באותה דקה — לפי לוח הרישוי הרשמי',h:'ratzif/',vk:'ratzif',a:'#0891b2'}]},
  {id:'g-game',name:'משחק',tools:[
-  {k:'game',n:'🔒 משחק הקווים · בטא',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד — גרסת בטא לבודקים, בכניסה עם שם משתמש וסיסמה',h:'game/',vk:'game',a:'#e11d48'}]}
+  {k:'game',n:'🔒 משחק הקווים · בטא',on:'🔒 משחק הקווים · בבנייה',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — כניסה רק לשני המשתמשים הראשונים שנרשמים',h:'game/',vk:'game',a:'#e11d48'}]}
 ];
 const PARKS = {k:'parks',n:'נגישות אזורי תעשייה',d:'ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות',h:'parks/'};
 const COUNT = 'שישה-עשר';
@@ -462,7 +469,7 @@ const RAD = 40.5; // מרחק מרכז הסמל ממרכז העין, באחוז�
 function orb(t, i) {
   const th = -90 + i * 360 / ALL.length, c = Math.cos(th * Math.PI / 180), sn = Math.sin(th * Math.PI / 180);
   const cls = 'orb' + (c < -.45 ? ' lb-l' : '') + (c > .45 ? ' lb-r' : '');
-  return `<a class="${cls}" ${linkAttrs(t)} data-k="${t.k}" data-th="${f(th)}" aria-label="${esc(t.n)}" style="left:calc(${(50 + RAD * c).toFixed(3)}% - var(--s) / 2);top:calc(${(50 + RAD * sn).toFixed(3)}% - var(--s) / 2)"><span data-icon="${t.k}"></span><b>${esc(t.n)}</b></a>`;
+  return `<a class="${cls}" ${linkAttrs(t)} data-k="${t.k}" data-th="${f(th)}" aria-label="${esc(t.on || t.n)}" style="left:calc(${(50 + RAD * c).toFixed(3)}% - var(--s) / 2);top:calc(${(50 + RAD * sn).toFixed(3)}% - var(--s) / 2)"><span data-icon="${t.k}"></span><b>${esc(t.on || t.n)}</b></a>`;
 }
 function html(V) {
   const hv = verOf(V, 'home').v;
@@ -590,6 +597,15 @@ function mount(root, opts) {
       c.addEventListener('mouseleave', off); c.addEventListener('blur', off);
     });
   } else beam.style.display = 'none';
+
+  /* משחק הקווים · בטא: כששני המקומות נתפסו — כותבים את זה בכרטיס (מספר הנרשמים בלבד, מ-Supabase) */
+  try {
+    const gc = root.querySelector('.card[data-k="game"] p');
+    if (gc && W.fetch) fetch('https://nisqpjkxrltodvuicieg.supabase.co/rest/v1/rpc/beta_count', { method: 'POST',
+      headers: { apikey: 'sb_publishable_XM85T3S1d5WOZrWd6go0hQ_k4R9kWoX', 'Content-Type': 'application/json' }, body: '{}' })
+      .then(r => r.ok ? r.json() : null).then(n => { if (typeof n === 'number' && n >= 2) gc.textContent = 'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — כבר נרשמו שני משתמשים, וההרשמה סגורה'; })
+      .catch(() => {});
+  } catch (e) { }
 
   /* קצת עליי */
   const ab = root.querySelector('.about'), abtn = root.querySelector('[data-about-btn]');
