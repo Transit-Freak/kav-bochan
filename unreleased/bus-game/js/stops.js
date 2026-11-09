@@ -16,6 +16,8 @@ const DB = 3.5, DF = 1.7, H = 2.62;       // הקיר האחורי, קצה הג�
 const DP = 2.0;                           // קצה דופן הזכוכית מקדימה
 export const POLE = { a: 1.9, d: 0.9 };   // עמוד השלט — בראש התחנה, לפני חזית האוטובוס
 const PAD = { a0: -12.5, a1: 3.4, d1: 4.3, y: 0.12 };
+// הספסל בסככה: המושב (גובה עליון y, מ-d0 מקדימה עד d1 ליד הקיר), חזית הרפפות (wall), ושלושה מקומות ישיבה לאורכו (seats, לפי a)
+export const BENCH = { h: 0.43, y: PAD.y + 0.43, d0: 2.95, d1: DB - 0.05, wall: DB - 0.03, seats: [AC - 0.64, AC + 0.64, AC] };
 const BOARD = { a: -1.62, y: 1.55, w: 1.0, h: 1.25 };
 const SIGN = { y: 3.0, w: 0.8, h: 0.95 };
 const PLATE = { w: 0.25, h: 0.125, y0: 1.66, step: 0.137 };
@@ -190,15 +192,15 @@ function shelterParts() {
     bevelBox(steel, 0.1, 0.3, span + 0.055, a, 2.32, dc - 0.027, 0.01);
     box(glass, 0.014, 2.0, span - 0.02, a, 1.15, dc);
   }
-  // ספסל נירוסטה מחורר, תלוי על הקיר, עם מסגרות צד משופעות
-  const b0 = AC - 1.0, b1 = AC + 1.0, sd0 = 2.95, sd1 = DB - 0.05;
-  box(bench, b1 - b0, 0.018, sd1 - sd0, AC, 0.45, (sd0 + sd1) / 2);
-  box(bench, b1 - b0, 0.05, 0.018, AC, 0.43, sd0);
+  // ספסל נירוסטה מחורר, תלוי על הקיר, עם מסגרות צד משופעות. המושב 0.43 מ' מעל המרצפות (PAD.y)
+  const b0 = AC - 1.0, b1 = AC + 1.0, sd0 = BENCH.d0, sd1 = BENCH.d1, sy = BENCH.y - 0.009;
+  box(bench, b1 - b0, 0.018, sd1 - sd0, AC, sy, (sd0 + sd1) / 2);
+  box(bench, b1 - b0, 0.05, 0.018, AC, sy - 0.02, sd0);
   for (const a of [b0, b1]) {
-    const pts = [[sd1, 0.41], [sd0 - 0.02, 0.41], [sd0 - 0.12, 0.58], [sd0 - 0.02, 0.73], [sd1, 0.73]];
+    const pts = [[sd1, sy - 0.04], [sd0 - 0.02, sy - 0.04], [sd0 - 0.12, sy + 0.13], [sd0 - 0.02, sy + 0.28], [sd1, sy + 0.28]];
     for (let k = 0; k + 1 < pts.length; k++) bar(bench, [a, pts[k][1], pts[k][0]], [a, pts[k + 1][1], pts[k + 1][0]], 0.034);
   }
-  box(bench, 0.04, 0.4, 0.03, AC, 0.3, DB - 0.04);
+  box(bench, 0.04, sy - PAD.y, 0.03, AC, (sy + PAD.y) / 2, DB - 0.04);
   // לוח המידע על הרפפות: מסגרת ופנים לבנים (הטקסט — בשלט הקרוב)
   bevelBox(steel, BOARD.w + 0.07, BOARD.h + 0.07, 0.035, BOARD.a, BOARD.y, DB - 0.062, 0.008);
   quad(paint, BOARD.w, BOARD.h, BOARD.a, BOARD.y, DB - 0.0805, '-z', 0xf2f3f4);

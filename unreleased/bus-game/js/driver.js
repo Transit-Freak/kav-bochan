@@ -223,7 +223,7 @@ function driverMaterial(m, kind) {
 }
 
 // מסובבים עצם כך שהעצם הבא אחריו (child) יצביע אל נקודה בעולם
-function aim(bone, child, target) {
+export function aim(bone, child, target) {
   bone.updateWorldMatrix(true, true);
   const p = bone.getWorldPosition(new THREE.Vector3()), c = child.getWorldPosition(new THREE.Vector3());
   const d0 = c.sub(p).normalize(), d1 = target.clone().sub(p).normalize();
@@ -233,7 +233,7 @@ function aim(bone, child, target) {
   bone.updateWorldMatrix(false, true);
 }
 // סיבוב עצם בזווית סביב ציר בעולם
-function turn(bone, axis, deg) {
+export function turn(bone, axis, deg) {
   bone.updateWorldMatrix(true, false);
   const q = new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), THREE.MathUtils.degToRad(deg));
   const wq = bone.getWorldQuaternion(new THREE.Quaternion()), pq = bone.parent.getWorldQuaternion(new THREE.Quaternion());
@@ -241,7 +241,7 @@ function turn(bone, axis, deg) {
   bone.updateWorldMatrix(false, true);
 }
 // IK של שני עצמים (ירך-שוק, זרוע-אמה): המפרק האמצעי לכיוון pole
-function twoBone(a, b, c, target, pole) {
+export function twoBone(a, b, c, target, pole) {
   a.updateWorldMatrix(true, true);
   const A = a.getWorldPosition(new THREE.Vector3()), B = b.getWorldPosition(new THREE.Vector3()), C = c.getWorldPosition(new THREE.Vector3());
   const l1 = A.distanceTo(B), l2 = B.distanceTo(C);

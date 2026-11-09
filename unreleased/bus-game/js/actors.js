@@ -7,8 +7,9 @@ import { labelSprite } from './lines.js';
 import { BUS } from './sim.js';
 import { TYPES } from './fleet.js';
 import { useBitmapTextures } from './texfix.js';
-import { addCab } from './driver.js';
-import { stopFrame, frameV, frameAD } from './stops.js';
+import { addCab, turn } from './driver.js';
+import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
+import { buildSitter } from './sitting.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -24,7 +25,7 @@ export async function loadAssets(base) {
   const loadPeople = async () => {
     let names = [];
     try { const r = await fetch(base + 'people/people.json'); if (r.ok) names = (await r.json()).map(n => 'people/' + n.replace(/\.glb$/, '')); } catch (e) { }
-    const list = (await Promise.all(names.map(one))).filter(Boolean);
+    const list = (await Promise.all(names.map(async n => { const g = await one(n); if (g) g.userData.file = n; return g; }))).filter(Boolean);
     if (!list.length) { const p = await one('person'); if (p) list.push(p); }
     return list;
   };
@@ -206,6 +207,9 @@ function twoBone(a, b, c, target, pole) {
 // ---------- אנשים
 // כמה דגמים שונים של אנשים (MPFB), כל אחד עם הטקסטורות שלו. הגיוון הנוסף: גוון עדין לבגדים ושינוי קטן בגובה.
 // במצב ?placeholders — דמויות פשוטות בצבעים אחידים (כמו קודם)
+// הגיל של כל דגם (tools/person_variants.py): מבוגרים יושבים ראשונים, צעירים משאירים מקום
+const AGE = { person_3: 'old', person_4: 'old', person_2: 'young', person_6: 'young' };
+const SIT_MAX = 256, SIT_GAP = 0.012;     // יושבים לכל דגם; רווח בין הגב לרפפות
 const SKIN = [0xe9c6aa, 0xd9ab8a, 0xbf8b67, 0x8f5d3e, 0xf2d6c2, 0xc99a78];
 const CLOTH = [0x0ea5e9, 0x1e3a8a, 0xef4444, 0x22c55e, 0xf8fafc, 0x334155, 0xf59e0b, 0x8b5cf6, 0x0f766e, 0xdb2777, 0x94a3b8, 0x7c2d12];
 const HAIR = [0x1c1917, 0x3f2a1d, 0x6b4f2f, 0x0c0a09, 0xa8a29e];
@@ -239,27 +243,20 @@ function gameMaterial(m, kind) {
   return out;
 }
 
-// דמות עומדת מתוך הדגם (אפויה מהשלד בתנוחת העמידה), עם UV ונורמלים, מחולקת לפי חומר
-const _m = new THREE.Matrix4(), _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
-function bakeVariant(gltf) {
-  const root = SkeletonUtils.clone(gltf.scene);
-  const idle = gltf.animations.find(a => /idle/i.test(a.name));
-  if (idle) { const mx = new THREE.AnimationMixer(root); mx.clipAction(idle).play(); mx.update(0); }
+// הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
+const _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
+function skinVerts(root) {
   root.updateMatrixWorld(true);
-  // ההקלטה זזה קדימה מהמקור — ממרכזים לפי האגן (Hips), כדי שהדמות תעמוד על הנקודה שלה
-  const hips = root.getObjectByName('Hips');
-  const c0 = hips ? hips.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3();
-  const byMat = new Map(), v = new THREE.Vector3(), n = new THREE.Vector3();
-  let minY = Infinity;
+  const out = [], v = new THREE.Vector3(), n = new THREE.Vector3();
   root.traverse(o => {
     if (!o.isMesh) return;
-    const g = o.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
-    const P = new Float32Array(pos.count * 3), N = new Float32Array(pos.count * 3);
+    const g = o.geometry, pos = g.attributes.position, nor = g.attributes.normal;
+    const P = new Float32Array(pos.count * 3), N = nor ? new Float32Array(pos.count * 3) : null;
     const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
     if (o.isSkinnedMesh) o.skeleton.update();
     const bm = o.isSkinnedMesh ? o.skeleton.boneMatrices : null;
     for (let i = 0; i < pos.count; i++) {
-      if (bm) {   // אותו חישוב כמו בשיידר: bindMatrixInverse · Σ w·bone · bindMatrix
+      if (bm) {   // bindMatrixInverse · Σ w·bone · bindMatrix
         const e = _acc.elements; e.fill(0);
         for (let j = 0; j < 4; j++) {
           const w = sw.getComponent(i, j); if (!w) continue;
@@ -268,31 +265,54 @@ function bakeVariant(gltf) {
         }
         _full.multiplyMatrices(o.matrixWorld, o.bindMatrixInverse).multiply(_acc).multiply(o.bindMatrix);
       } else _full.copy(o.matrixWorld);
-      v.fromBufferAttribute(pos, i).applyMatrix4(_full);
-      P[i * 3] = v.x - c0.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z - c0.z;
-      if (nor) { n.fromBufferAttribute(nor, i).applyMatrix3(_nm.getNormalMatrix(_full)).normalize(); N[i * 3] = n.x; N[i * 3 + 1] = n.y; N[i * 3 + 2] = n.z; }
-      if (v.y < minY) minY = v.y;
+      v.fromBufferAttribute(pos, i).applyMatrix4(_full); P[i * 3] = v.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z;
+      if (N) { n.fromBufferAttribute(nor, i).applyMatrix3(_nm.getNormalMatrix(_full)).normalize(); N[i * 3] = n.x; N[i * 3 + 1] = n.y; N[i * 3 + 2] = n.z; }
     }
+    out.push({ o, P, N, kind: partKind(o.material.name + ' ' + o.name) });
+  });
+  return out;
+}
+// דמות אפויה (רשת רגילה, בלי שלד), מחולקת לפי חומר. בלי posed — בתנוחת העמידה, ממורכזת לפי האגן
+// וכפות הרגליים על הקרקע. עם posed ({root, origin}) — שלד שכבר הוזז לתנוחה אחרת (ישיבה), יחסית ל-origin
+function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים משותפים לעמידה ולישיבה
+  let root, c0;
+  if (posed) { root = posed.root; c0 = posed.origin; }
+  else {
+    root = SkeletonUtils.clone(gltf.scene);
+    const idle = gltf.animations.find(a => /idle/i.test(a.name));
+    if (idle) { const mx = new THREE.AnimationMixer(root); mx.clipAction(idle).play(); mx.update(0); }
+    root.updateMatrixWorld(true);
+    // ההקלטה זזה קדימה מהמקור — ממרכזים לפי האגן (Hips), כדי שהדמות תעמוד על הנקודה שלה
+    const hips = root.getObjectByName('Hips');
+    c0 = hips ? hips.getWorldPosition(new THREE.Vector3()).setY(0) : new THREE.Vector3();
+  }
+  const verts = skinVerts(root);
+  let minY = Infinity;
+  if (!posed) for (const { P } of verts) for (let i = 1; i < P.length; i += 3) minY = Math.min(minY, P[i]);
+  const byMat = new Map();
+  for (const { o, P, N, kind } of verts) {
+    const g = o.geometry, uv = g.attributes.uv, Q = new Float32Array(P.length);
+    const dy = posed ? c0.y : minY;   // בעמידה — כפות הרגליים בדיוק על הקרקע
+    for (let i = 0; i < P.length; i += 3) { Q[i] = P[i] - c0.x; Q[i + 1] = P[i + 1] - dy; Q[i + 2] = P[i + 2] - c0.z; }
     const ng = new THREE.BufferGeometry();
-    ng.setAttribute('position', new THREE.BufferAttribute(P, 3));
-    if (nor) ng.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+    ng.setAttribute('position', new THREE.BufferAttribute(Q, 3));
+    if (N) ng.setAttribute('normal', new THREE.BufferAttribute(N, 3));
     if (uv) ng.setAttribute('uv', uv.clone());
     if (g.index) ng.setIndex(g.index.clone());
-    if (!nor) ng.computeVertexNormals();
+    if (!N) ng.computeVertexNormals();
     // חומרים עם אותה טקסטורה (עור, שפתיים, ציפורניים, אוזניים) — רשת אחת
-    const m = o.material, key = (m.map?.source?.uuid || m.map?.uuid || m.uuid) + '|' + partKind(m.name + ' ' + o.name);
+    const m = o.material, key = (m.map?.source?.uuid || m.map?.uuid || m.uuid) + '|' + kind;
     let e = byMat.get(key);
-    if (!e) byMat.set(key, e = { geos: [], mat: m, kind: partKind(m.name + ' ' + o.name) });
+    if (!e) byMat.set(key, e = { geos: [], mat: m, kind, key });
     e.geos.push(ng);
-  });
-  // כפות הרגליים בדיוק על הקרקע
+  }
   const groups = [];
   for (const e of byMat.values()) {
     const geo = e.geos.length > 1 ? mergeGeometries(e.geos, false) : e.geos[0];
     if (!geo) continue;
-    if (isFinite(minY)) geo.translate(0, -minY, 0);
     geo.computeBoundingSphere();
-    groups.push({ geo, mat: gameMaterial(e.mat, e.kind), kind: e.kind });
+    if (!cache.has(e.key)) cache.set(e.key, gameMaterial(e.mat, e.kind));
+    groups.push({ geo, mat: cache.get(e.key), kind: e.kind });
   }
   return groups;
 }
@@ -324,7 +344,14 @@ export class PeopleLayer {
     this.group = new THREE.Group(); this.group.name = 'people'; scene.add(this.group);
     this.variants = [];
     for (const g of this.gltfs) {
-      try { this.variants.push({ gltf: g, groups: bakeVariant(g) }); } catch (e) { console.warn('bake person failed', e); }
+      const cache = new Map();
+      try { this.variants.push({ gltf: g, groups: bakeVariant(g, null, cache), age: AGE[(g.userData.file || '').replace(/^.*\//, '')] || '' }); }
+      catch (e) { console.warn('bake person failed', e); continue; }
+      // אותו אדם יושב על הספסל: תנוחה אפויה אחת לכל דגם (sitting.js)
+      try {
+        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03);
+        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache); }
+      } catch (e) { console.warn('sitting pose failed', e); }
     }
     this.fromGlb = this.variants.length > 0;
     if (!this.fromGlb) { this.gltfs = []; this.variants.push({ gltf: null, groups: proceduralPerson() }); }
@@ -338,6 +365,14 @@ export class PeopleLayer {
         this.group.add(im); return im;
       });
       V.n = 0;
+      V.sitMeshes = (V.sitGroups || []).map(gr => {
+        const im = new THREE.InstancedMesh(gr.geo, gr.mat, SIT_MAX);
+        im.count = 0; im.frustumCulled = false; im.name = `crowd-${vi}-sit-${gr.kind}`;
+        im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        im.setColorAt(0, new THREE.Color(1, 1, 1));
+        this.group.add(im); return im;
+      });
+      V.sn = 0;
     }
     this.blobMat = new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
     this.blobGeo = new THREE.PlaneGeometry(0.95, 0.95).rotateX(-Math.PI / 2);
@@ -347,7 +382,7 @@ export class PeopleLayer {
     this.max = max;
     this.walkers = []; this.pools = this.variants.map(() => []);
     this.tmpM = new THREE.Matrix4(); this.tmpQ = new THREE.Quaternion(); this.tmpC = new THREE.Color();
-    this.layoutCache = new Map(); this.seats = new Map();
+    this.layoutCache = new Map(); this.seats = new Map(); this.benches = new Map();
   }
 
   // מסגרת התחנה (js/stops.js): השפה, כיוון "הרחק מהכביש" וכיוון לאורך הכביש; px,py — עמוד השלט
@@ -366,6 +401,27 @@ export class PeopleLayer {
     if (i === undefined) { const used = new Set(m.values()); i = 0; while (used.has(i)) i++; m.set(pid, i); }
     return i;
   }
+  // ישיבה על הספסל: מי שמגיע לתחנה עם סככה ויש מקום פנוי — יושב, ונשאר על הספסל עד שהאוטובוס שלו מגיע.
+  // מבוגרים יושבים בכל מקום פנוי; צעירים — רק כשנשארו לפחות שני מקומות. מי שכבר עומד לא עובר לשבת (בלי קפיצות).
+  // מחזיר את מספר המקום על הספסל, או ‎-1
+  benchOf(stop, pid) {
+    let b = this.benches.get(stop.id);
+    if (!b) { b = new Map(); this.benches.set(stop.id, b); }
+    const k = b.get(pid); if (k !== undefined) return k;
+    if (this.seats.get(stop.id)?.has(pid) || !this.stopFrame(stop).shelter) return -1;
+    const V = this.variants[this.variantOf(pid)];
+    if (!V.sit || V.sn >= SIT_MAX) return -1;
+    const used = new Set(b.values()), free = [0, 1, 2].filter(j => !used.has(j));
+    if (!free.length || (V.age === 'young' && free.length < 2)) return -1;
+    b.set(pid, free[0]); return free[0];
+  }
+  // המיקום של היושב: הגב צמוד לקיר הרפפות, פונה לכביש. הגובה לא משתנה עם personScale (האגן על המושב, הרגליים על הקרקע)
+  sitMatrix(stop, k, pid, out = new THREE.Matrix4()) {
+    const f = this.stopFrame(stop), s = this.personScale(pid);
+    const p = frameV(f, BENCH.seats[k] + (hash(pid + 41) - 0.5) * 0.06, BENCH.wall - SIT_GAP, 0.12);
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-f.ux, f.uy));
+    return out.compose(p, q, new THREE.Vector3(s, 1, s));
+  }
   personScale(id) { return this.fromGlb ? 0.96 + hash(id + 9) * 0.08 : 0.92 + hash(id + 9) * 0.14; }
   personYaw(stop, i, id) { return this.slot(stop, i)[2] + (hash(id) - 0.5) * 0.9; }
   variantOf(id) { return Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
@@ -382,6 +438,15 @@ export class PeopleLayer {
     for (const ev of sim.events) {
       if (ev.type === 'board') {
         const path = this.doorPath(busLayer, ev.bus, 'front'); if (!path) continue;
+        const bm = this.benches.get(ev.stop.id), bk = bm?.get(ev.p.id);
+        if (bk !== undefined) {
+          // קם מהספסל (במקום, מעל כפות הרגליים), יוצא קדימה אל מול הסככה, ומשם הולך לדלת
+          bm.delete(ev.p.id);
+          const V = this.variants[this.variantOf(ev.p.id)], f = this.stopFrame(ev.stop), M = this.sitMatrix(ev.stop, bk, ev.p.id);
+          const start = V.sit.feet.clone().applyMatrix4(M), [a] = frameAD(f, start.x, -start.z);
+          this.walk(ev.p.id, [start, frameV(f, a, 1.15, 0.12), ...path.toIn], 'board', ev.bus, Math.atan2(-f.ux, f.uy), undefined, path.door, V.sit);
+          continue;
+        }
         const i = this.seatOf(ev.stop, ev.p.id), [x, y, , d, a] = this.slot(ev.stop, i);
         this.seats.get(ev.stop.id).delete(ev.p.id);
         const start = new THREE.Vector3(x, 0.12, -y);
@@ -410,14 +475,25 @@ export class PeopleLayer {
     for (const [sid, m] of this.seats) {   // מי שכבר לא בתור (קו שנמחק או הוסתר) — משחררים את המקום
       const st = [...per.keys()].find(s => s.id === sid), ids = new Set((st ? per.get(st) : []).map(p => p.id));
       for (const pid of m.keys()) if (!ids.has(pid)) m.delete(pid);
+      const b = this.benches.get(sid);
+      if (b) for (const pid of b.keys()) if (!ids.has(pid)) b.delete(pid);
     }
     let n = 0;
-    for (const V of this.variants) V.n = 0;
+    for (const V of this.variants) V.n = V.sn = 0;
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
     const B = new THREE.Matrix4();
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
+        const bk = this.benchOf(stop, p.id);
+        if (bk >= 0) {
+          const V = this.variants[this.variantOf(p.id)];
+          this.sitMatrix(stop, bk, p.id, M);
+          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C)); });
+          V.sn++;
+          P.copy(V.sit.feet).lerp(V.sit.hip, 0.5).setY(0.015).applyMatrix4(M); B.makeTranslation(P.x, P.y, P.z); this.blobs.setMatrixAt(n, B);
+          n++; continue;
+        }
         const i = this.seatOf(stop, p.id); if (i >= this.stopFrame(stop).slots.length) continue;
         const [x, y] = this.slot(stop, i);
         Q.setFromAxisAngle(up, this.personYaw(stop, i, p.id));
@@ -430,6 +506,9 @@ export class PeopleLayer {
         n++;
       }
     }
+    for (const V of this.variants) for (const im of V.sitMeshes) {
+      im.count = V.sn; im.visible = V.sn > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
     for (const V of this.variants) for (const im of V.meshes) {
       im.count = V.n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
@@ -439,6 +518,7 @@ export class PeopleLayer {
     // 3. הולכים: לאורך מסלול של כמה נקודות, בקצב הליכה קבוע
     for (let i = this.walkers.length - 1; i >= 0; i--) {
       const w = this.walkers[i];
+      if (w.rise && this.rising(w, simDt)) continue;
       w.d += simDt * 1.35;
       while (w.seg < w.pts.length - 2 && w.d > w.lens[w.seg]) { w.d -= w.lens[w.seg]; w.seg++; }
       const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
@@ -482,7 +562,7 @@ export class PeopleLayer {
     w.blob.material.opacity = o;
   }
 
-  walk(id, pts, mode, bus, yaw0, release, door) {
+  walk(id, pts, mode, bus, yaw0, release, door, sit) {
     const vi = this.variantOf(id);
     let w = this.pools[vi].pop();
     if (!w) {
@@ -504,6 +584,9 @@ export class PeopleLayer {
     w.obj.position.copy(w.pts[0]); w.obj.visible = true;
     // מתחילים את ההליכה מנקודה אחרת במחזור, כדי שלא כולם ידרכו באותו צעד
     if (w.mixer) { w.mixer.setTime(hash(id + 31) * 2); this.centre(w); }
+    // קם מהספסל: מתחילים בתנוחת הישיבה, ובשנייה הראשונה עוברים בהדרגה לעמידה (rising)
+    w.rise = sit && w.mixer && w.bones ? { t: 0, dur: 0.8, sit, t0: hash(id + 31) * 2, s: this.personScale(id) } : null;
+    if (w.rise) this.rising(w, 0);
     this.walkers.push(w);
   }
   makeWalker(vi) {
@@ -534,7 +617,8 @@ export class PeopleLayer {
     this.group.add(obj);
     const legs = inner && ['Left', 'Right'].map(sd => ({ up: inner.getObjectByName(sd + 'UpLeg'), knee: inner.getObjectByName(sd + 'Leg'),
       foot: inner.getObjectByName(sd + 'Foot'), toe: inner.getObjectByName(sd + 'ToeBase') }));
-    const w = { obj, body, mixer, mats, inner, hips, blob, vi, legs: legs && legs.every(l => l.up && l.knee && l.foot && l.toe) ? legs : null };
+    const bones = inner && new Map(); if (inner) inner.traverse(o => { if (o.isBone) bones.set(o.name, o); });
+    const w = { obj, body, mixer, mats, inner, hips, blob, vi, bones, legs: legs && legs.every(l => l.up && l.knee && l.foot && l.toe) ? legs : null };
     if (w.legs && mixer) {
       // הגובה הנמוך ביותר של הקרסול ושל הבוהן בזמן ההליכה (כף הרגל על הרצפה)
       let ra = Infinity, rt = Infinity; const P = new THREE.Vector3(), dur = clip ? clip.duration : 1.2;
@@ -563,6 +647,41 @@ export class PeopleLayer {
       const need = Math.max(gr[k] - (A.y - w.rest.a * sc), gr[k] - (T.y - w.rest.t * sc));
       if (need > 0.003) twoBone(l.up, l.knee, l.foot, A.clone().setY(A.y + need), fwd);
     });
+  }
+  // קימה מהספסל: כל עצם עובר מתנוחת הישיבה (האפויה) אל הצעד הראשון של ההליכה, האגן עולה ומתקדם אל מעל כפות הרגליים,
+  // והגב נוטה קדימה באמצע (כמו שקמים באמת). כפות הרגליים נשארות על הקרקע. מחזיר true כל עוד הקימה נמשכת
+  rising(w, dt) {
+    const r = w.rise; r.t += dt;
+    const k0 = Math.min(1, r.t / r.dur), k = k0 * k0 * (3 - 2 * k0);
+    w.mixer.setTime(r.t0);
+    const T = this.tmpQ;
+    for (const [name, q] of r.sit.quats) { const b = w.bones.get(name); if (!b) continue; T.copy(b.quaternion); b.quaternion.copy(q).slerp(T, k); }
+    w.body.scale.set(r.s, 1 + (r.s - 1) * k, r.s);
+    this.centre(w);
+    // האגן: מהמושב (מאחורי כפות הרגליים ונמוך) אל העמידה
+    const h = w.body.worldToLocal(w.hips.getWorldPosition(new THREE.Vector3()));
+    const want = r.sit.hip.clone().sub(r.sit.feet);
+    w.inner.position.addScaledVector(want.sub(h), 1 - k);
+    w.obj.updateMatrixWorld(true);
+    // נטייה קדימה באמצע הקימה
+    const lb = w.bones.get('LowerBack');
+    if (lb) turn(lb, new THREE.Vector3(Math.cos(w.obj.rotation.y), 0, -Math.sin(w.obj.rotation.y)), 26 * Math.sin(Math.PI * k0) * (1 - k0 * 0.5));
+    // כפות הרגליים: נשארות במקום שבו היו בישיבה, ועוברות בהדרגה למקום של הצעד הראשון
+    if (w.legs) {
+      const fwd = new THREE.Vector3(Math.sin(w.obj.rotation.y), 0, Math.cos(w.obj.rotation.y));
+      w.legs.forEach((l, j) => {
+        const sitA = r.sit.ankles[j]; if (!sitA) return;
+        const A0 = w.body.localToWorld(sitA.clone().sub(r.sit.feet));
+        const A1 = l.foot.getWorldPosition(new THREE.Vector3());
+        const fq = l.foot.getWorldQuaternion(new THREE.Quaternion());
+        twoBone(l.up, l.knee, l.foot, A0.lerp(A1, k), fwd.clone().add(new THREE.Vector3(0, 0.3, 0)));
+        // כף הרגל שומרת על הכיוון שלה בעולם (שטוחה על הקרקע)
+        const pq = l.foot.parent.getWorldQuaternion(new THREE.Quaternion());
+        l.foot.quaternion.copy(pq.invert().multiply(fq)); l.foot.updateWorldMatrix(false, true);
+      });
+    }
+    if (k0 >= 1) { w.rise = null; w.body.scale.setScalar(r.s); return false; }
+    return true;
   }
   // ההליכה במקום: מזיזים את הדמות כך שהאגן יישאר מעל נקודת ההליכה
   centre(w) {
