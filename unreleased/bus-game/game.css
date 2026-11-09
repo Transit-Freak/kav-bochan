@@ -305,3 +305,28 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .slot button{padding:6px 11px;font-size:13px}
 .slot .del{color:#b91c1c}
 .slot .del.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
+
+/* מצבי משחק ושלבים */
+.mode-badge{flex:none;font:700 12px/1 var(--font);color:var(--brand-ink);background:#e0f2fe;border-radius:999px;padding:6px 9px}
+.mode-badge:empty{display:none}
+.modepick{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.modepick button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:right;padding:10px 12px;border-radius:14px}
+.modepick button span{color:var(--muted);font-size:13px;line-height:1.45}
+.modepick button.on{border-color:var(--brand);background:#e0f2fe}
+.vtype.locked{opacity:.5}
+.mission .mhead{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.checks{list-style:none;margin:8px 0 0;padding:0}
+.checks li{padding:7px 0;border-bottom:1px solid var(--line)}
+.checks .crow{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.checks li.ok .crow span{color:#15803d}
+.mbar{height:7px;border-radius:5px;background:#e5e9ef;overflow:hidden;margin-top:5px}
+.mbar i{display:block;height:100%;background:#2a78d6;border-radius:5px}
+.mbar i.ok{background:#1baf7a}
+.reward{margin-top:10px;font-size:14px}
+.zcov .zrow{display:grid;grid-template-columns:7.5em 1fr 3em;align-items:center;gap:8px;font-size:13.5px;padding:3px 0}
+.zcov .zrow .mbar{margin:0}
+.zcov .zrow b{text-align:left;font-variant-numeric:tabular-nums}
+#stageBody .big{font-size:40px;text-align:center;margin:4px 0}
+.cams .cv.on{background:#2a78d6;color:#fff;border-color:#2a78d6}
+.cams button.dm.cv{border-color:#93c5fd;background:#eff6ff;color:#1e40af}
+.cams button.dm.cv.on{background:#2a78d6;border-color:#2a78d6;color:#fff}

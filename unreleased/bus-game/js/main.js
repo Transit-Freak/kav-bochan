@@ -10,6 +10,7 @@ import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { refreshAll } from './texkeep.js';
+import { Coverage, Career, CoverageLayer, STAGES, STOP_FEE, newCareer, COVER_M } from './career.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf } from './fleet.js';
@@ -61,7 +62,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -84,7 +85,7 @@ async function init() {
   const saved = Bank.load();
   const t0 = typeof saved?.time === 'number' && saved.time > 0 ? saved.time : 6.5 * 3600;
   bank = new Bank(saved, t0);
-  bank.onDay = showDaySummary;
+  bank.onDay = d => { showDaySummary(d); career?.newDay(d.day + 1); };
   demand = new Demand(dj, city.stops);
   sim = new Sim(city.stops, bank, t0, demand);
   dlayer = new DemandLayer(scene, demand.zones, city.stops, city.buildings, city.meta.half); dlayer.resize(innerWidth, innerHeight);
@@ -105,12 +106,22 @@ async function init() {
   if (bank.migrated) setTimeout(() => toast(`המחירים השתנו: רכבים זולים יותר, ויש סבסוד לכל ק"מ. הקופה הותאמה: ${money(bank.money)}`), 600);
   else if (gift) setTimeout(() => toast(`הקווים שכבר בניתם קיבלו ${gift} אוטובוסים רגילים במתנה`), 600);
   else if (hrs) setTimeout(() => toast('לקווים שלכם נקבעו שעות פעילות 05:00–24:00. משנים ב"רכבים ותדירות"'), 600);
+  // מצבי משחק ושלבים (career.js). שמירה ישנה — קריירה, והשלבים שכבר מתקיימים מושלמים בשקט; התחנות של הקווים הקיימים "שולמו"
+  coverage = new Coverage(demand, city);
+  covLayer = new CoverageLayer(scene, city.meta.half);
+  career = new Career({ bank, sim, lines: () => lines, coverage, served: servedStops, toast, onDone: stageDone, onMiss: stageMissed });
+  if (bank.mode === 'career' && !bank.career) {
+    bank.career = newCareer();
+    career.payStops(lineDefs.flatMap(d => d.stopIds));
+    if (bank.legacy) career.tick(true);
+  }
+  if (!saved && !lineDefs.length) setTimeout(() => askMode(true), 400);
   night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); renderLines(); renderMoney();
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -353,6 +364,10 @@ function updateRouteEdit() {
 function saveRouteEdit() {
   const old = planning.edit, P = planning.stops;
   if (P.length < 2 || computeRoute(graph, P).error !== undefined) return;
+  // קריירה: תחנות שנוספו ועוד לא שירתו אף קו — ₪500 כל אחת
+  const sf = career.stopFee(P.map(s => s.id));
+  if (sf.fee && bank.money < sf.fee) { planError(`אין מספיק כסף ל-${sf.n} התחנות החדשות (${money(sf.fee)}).`); return; }
+  if (sf.fee) { bank.spend('buy', sf.fee); career.payStops(sf.ids); toast(`${sf.n} תחנות חדשות: ${money(sf.fee)}`); }
   if (planning.group) scene.remove(planning.group);
   planning = null; $('#plan').hidden = true; document.body.classList.remove('planning');
   const d = old.def; d.stopIds = P.map(s => s.id);
@@ -405,18 +420,25 @@ function formHeadway() { return +$('#fHead').value || 10; }
 function formNeed() { return vehiclesNeeded(form.line || form.tmp, formHeadway()); }
 function formCost() {
   const d = form.line?.def;
-  return fleetChange(d && { type: typeOf(d), n: d.fleet || 0, lease: isLease(d) }, { type: form.type, n: form.n, lease: form.lease });
+  const c = fleetChange(d && { type: typeOf(d), n: d.fleet || 0, lease: isLease(d) }, { type: form.type, n: form.n, lease: form.lease });
+  // קריירה: תחנה שעוד לא שירתה אף קו — ₪500 בפעם הראשונה
+  const sf = form.line ? { n: 0, fee: 0, ids: [] } : career.stopFee(form.tmp.stops.map(s => s.id));
+  c.fee = sf.fee; c.feeN = sf.n; c.feeIds = sf.ids;
+  return c;
 }
-// ליסינג: אין תשלום מראש, אבל חברה בחובות לא מקבלת רכבים חדשים
-const formBlocked = ({ buy, sell, added }) => buy > 0 ? bank.money - buy + sell < 0 : added > 0 && bank.money + sell < 0;
+// ליסינג: אין תשלום מראש, אבל חברה בחובות לא מקבלת רכבים חדשים. במצב יצירתי — אין הגבלה
+const formBlocked = ({ buy, sell, added, fee = 0 }) => career.creative ? false : buy + fee > 0 ? bank.money - buy - fee + sell < 0 : added > 0 && bank.money + sell < 0;
 function renderForm() {
   const box = $('#fTypes'); box.innerHTML = '';
   for (const id of TYPE_ORDER) {
     const T = TYPES[id];
     const b = document.createElement('button'); b.type = 'button'; b.dataset.type = id;
     b.className = 'vtype' + (id === form.type ? ' on' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', id === form.type);
-    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
-    b.onclick = () => { form.type = id; renderForm(); };
+    const locked = !career.unlocked(id) && !(form.line && typeOf(form.line.def) === id);
+    const at = STAGES.findIndex(S => S.unlock.includes(id));
+    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${locked ? `נפתח אחרי שלב ${at + 1}` : form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
+    if (locked) { b.disabled = true; b.classList.add('locked'); }
+    b.onclick = () => { if (locked) return; form.type = id; renderForm(); };
     box.appendChild(b);
   }
   $('#fMode').querySelectorAll('button').forEach(b => { const on = (b.dataset.m === 'lease') === form.lease; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
@@ -427,9 +449,10 @@ function renderForm() {
   const T = TYPES[form.type];
   const cyc = Math.round(lineCycle(form.line || form.tmp).total / 60);
   $('#fNeed').innerHTML = form.n >= need ? `מספיק לכל ${formHeadway()} דק'` : `<span class="bad">צריך ${need} לכל ${formHeadway()} דק'</span>`;
-  const c = formCost(), { buy, sell, leaseDay } = c, after = bank.money - buy + sell, blocked = formBlocked(c);
+  const c = formCost(), { buy, sell, leaseDay, fee } = c, after = bank.money - buy - fee + sell, blocked = formBlocked(c);
   const parts = [];
   if (buy) parts.push(`קנייה <b>${money(buy)}</b>`);
+  if (fee) parts.push(`${c.feeN} תחנות חדשות <b>${money(fee)}</b>`);
   if (sell) parts.push(`מכירה <b class="good">+${money(sell)}</b>`);
   if (leaseDay) parts.push(`ליסינג <b>${money(leaseDay)} ליום</b>`);
   parts.push(`בקופה אחרי: <b class="${after < 0 ? 'bad' : ''}">${money(after)}</b>`);
@@ -479,8 +502,10 @@ function saveLineFromForm(o = {}) {
   if (o.headway) $('#fHead').value = String(o.headway);
   if (o.hours) setHoursForm(o.hours);
   const hours = formHours();
-  const cost = formCost(), { buy, sell } = cost;
+  const cost = formCost(), { buy, sell, fee } = cost;
   if (formBlocked(cost)) { toast('אין מספיק כסף'); return; }
+  if (fee) { bank.spend('buy', fee); }
+  career.payStops(cost.feeIds || []);
   if (hours[1] <= hours[0]) { toast('שעת הסיום צריכה להיות אחרי שעת ההתחלה'); return; }
   const number = ($('#fNum').value || '1').trim().slice(0, 4), name = ($('#fName').value || '').trim().slice(0, 40);
   if (buy) bank.spend('buy', buy);
@@ -603,6 +628,7 @@ function setSpeed(s, auto = false) {
 function showTab(t) {
   if (t === 'money') renderMoney();
   if (t === 'demand') renderDemand();
+  if (t === 'missions') renderMissions();
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === t));
 }
@@ -622,6 +648,9 @@ function buildCamButtons() {
   const dm = document.createElement('button'); dm.id = 'demandBtn'; dm.className = 'dm'; dm.textContent = 'ביקוש';
   dm.title = 'מאיפה לאן רוצים לנסוע'; dm.onclick = () => setDemandView(!dview.on, null, true);
   box.prepend(dm);
+  const cv = document.createElement('button'); cv.id = 'coverBtn'; cv.className = 'dm cv'; cv.textContent = 'כיסוי';
+  cv.title = `מה שבטווח ${COVER_M} מ' הליכה מתחנה עם קו`; cv.onclick = () => setCoverView(!covLayer.visible);
+  dm.after(cv);
   cams.onChange(sync); sync('free');
 }
 
@@ -707,6 +736,8 @@ function updateStats() {
 }
 function updateMoneyChip() {
   const e = $('#money'), t = money(bank.money);
+  const mb = $('#modeBadge'), mt = career?.creative ? 'יצירתי' : bank.career ? (STAGES[bank.career.stage] ? `שלב ${bank.career.stage + 1}/${STAGES.length}` : 'כל השלבים ✓') : '';
+  if (mb && mb.textContent !== mt) mb.textContent = mt;
   if (e.textContent !== t) e.textContent = t;
   e.classList.toggle('neg', bank.money < 0);
 }
@@ -751,6 +782,74 @@ function renderMoney() {
   if (body.dataset.html === html) return;
   body.dataset.html = html; body.innerHTML = html;
 }
+// ---------- מצבי משחק, שלבים וכיסוי (career.js)
+function activeLines() { return lines.filter(L => !L.retired && L.def.fleet > 0); }
+function servedStops() { const set = new Set(); for (const L of activeLines()) for (const s of L.stops) set.add(stopIndex(s)); return set; }
+function setCoverView(on) {
+  covLayer.visible = on; $('#coverBtn')?.classList.toggle('on', on);
+  if (on) { drawCover(); toast(`כחול — עד ${COVER_M} מ' הליכה מתחנה עם קו. נקודות אדומות — תושבים בלי תחנה קרובה`); }
+}
+function drawCover() {
+  const served = servedStops(), key = [...served].sort().join(',');
+  coverage.compute(served); covLayer.draw(coverage, [...served].map(i => city.stops[i]), key);
+}
+const bar = (v, t, done) => `<div class="mbar"><i style="width:${Math.min(100, Math.round(v / (t || 1) * 100))}%" class="${done ? 'ok' : ''}"></i></div>`;
+function renderMissions() {
+  const box = $('#missionBody'); if (!box) return;
+  let html = '';
+  if (career.creative) {
+    const c = coverage.compute(servedStops());
+    html = `<div class="scard"><h3>מצב יצירתי</h3><p class="hint">כסף בלי הגבלה, כל סוגי הרכבים, ואין משימות. אפשר לבנות כל רשת שרוצים. הכלכלה מוצגת רק לידיעה.</p>
+      <table><tr><td>תושבים עם תחנה קרובה</td><td>${Math.round(c.res * 100)}%</td></tr><tr><td>מקומות עבודה עם תחנה קרובה</td><td>${Math.round(c.jobs * 100)}%</td></tr></table></div>`;
+  } else {
+    career.tick();
+    const r = career.status(), st = bank.career, day = dayOf(sim.time);
+    if (r.finished) html = `<div class="scard"><h3>סיימתם את כל השלבים 🎉</h3><p class="hint">משרד התחבורה מרוצה. אפשר להמשיך לשפר את הרשת, או להתחיל משחק חדש.</p></div>`;
+    else {
+      const left = st.deadline - day + 1;
+      html = `<div class="scard mission"><div class="mhead"><span class="pill">שלב ${r.stage + 1} מתוך ${STAGES.length}${r.S.hard ? ' · קשה' : ''}</span><span class="${left <= 1 ? 'bad' : 'lmeta'}">${left > 0 ? `עוד ${left} ימים` : 'היום האחרון'}</span></div>
+        <h3>${esc(r.S.title)}</h3><p class="hint">${esc(r.S.desc)}</p>
+        <ul class="checks">${r.items.map(i => `<li class="${i.done ? 'ok' : ''}"><div class="crow"><span>${i.done ? '✓' : '○'} ${esc(i.label)}</span><b>${esc(i.txt)}</b></div>${bar(i.v, i.target, i.done)}</li>`).join('')}</ul>
+        <div class="reward">פרס: <b>${money(r.S.reward)}</b>${r.S.unlock.length ? ` · נפתח: ${r.S.unlock.map(t => TYPES[t].name).join(', ')}` : ''}</div>
+        ${st.subsidyK < 1 ? `<div class="bad">הסבסוד מצומצם ל-${Math.round(st.subsidyK * 100)}% כי מועד עבר (${st.misses}).</div>` : ''}</div>`;
+    }
+    html += `<p class="hint">שלבים שהושלמו: ${st.done.length ? st.done.map(d => `${d.stage + 1}. ${esc(STAGES[d.stage].title)}`).join(' · ') : 'עדיין אין'}. תחנה שמתחילה לשרת קו בפעם הראשונה עולה ${money(STOP_FEE)}.</p>`;
+  }
+  const c = coverage.compute(servedStops());
+  html += `<h4>כיסוי לפי שכונה</h4><div class="zcov">${c.zones.filter(z => z.hood && z.pop > 30).sort((a, b) => b.pop - a.pop).map(z => `<div class="zrow"><span>${esc(z.name)}</span>${bar(z.cov, 1, z.cov >= 0.7)}<b>${Math.round(z.cov * 100)}%</b></div>`).join('')}</div>
+    <p class="hint">כיסוי: תושבים שיש להם תחנה עם קו עד ${COVER_M} מ' הליכה. רחובות צרים לא חייבים קו. בכפתור "כיסוי" שעל המפה — מה מכוסה ומי עוד לא.</p>`;
+  if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
+}
+function updateMissions() {
+  career.tick();
+  if ($('[data-pane="missions"]')?.classList.contains('on')) renderMissions();
+  if (covLayer.visible) drawCover();
+}
+function stageDone(S, next) {
+  bank.save(sim.time); renderMoney(); renderMissions();
+  $('#stageTitle').textContent = `שלב הושלם: ${S.title}`;
+  $('#stageBody').innerHTML = `<p class="big">🎉</p><p>משרד התחבורה מאשר. קיבלתם <b>${money(S.reward)}</b>${S.unlock.length ? `, ועכשיו אפשר לקנות ${S.unlock.map(t => TYPES[t].name).join(' ו')}` : ''}.</p>
+    ${STAGES[next] ? `<p class="hint">השלב הבא: <b>${esc(STAGES[next].title)}</b> — ${esc(STAGES[next].desc)}</p>` : '<p class="hint">זה היה השלב האחרון. כל הכבוד!</p>'}`;
+  $('#stageModal').hidden = false;
+}
+function stageMissed(S, st) {
+  bank.save(sim.time);
+  $('#stageTitle').textContent = `המועד עבר: ${S.title}`;
+  $('#stageBody').innerHTML = `<p>השלב לא הושלם בזמן, ולכן משרד התחבורה מקצץ בסבסוד: מעכשיו <b>${Math.round(st.subsidyK * 100)}%</b> מהסבסוד לק"מ.</p>
+    <p class="hint">המשחק ממשיך — יש עוד ${st.deadline - dayOf(sim.time) + 1} ימים להשלים את השלב. הסבסוד לא יורד מתחת ל-50%.</p>`;
+  $('#stageModal').hidden = false;
+}
+// בחירת מצב: במשחק חדש, ובהתחלה מחדש
+let modePick = 'career';
+function askMode(fresh) {
+  modePick = career?.creative ? 'creative' : 'career'; syncModePick();
+  $('#modeAsk').dataset.fresh = fresh ? '1' : ''; $('#modeAsk').hidden = false;
+}
+function syncModePick() { document.querySelectorAll('[data-mode]').forEach(b => { const on = b.dataset.mode === modePick; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); }); }
+function startMode(mode, save) {
+  if (save && !saveSlot()) return;
+  resetGame(!!save, mode);
+}
 // ---------- משחק: התחלה מחדש, ושמירות בשם (נוסף לשמירה האוטומטית). הכל ב-localStorage בתוך try/catch
 const SLOTS_KEY = 'busgame.kiryat-malachi.slots.v1';
 function readSlots() { try { const a = JSON.parse(localStorage.getItem(SLOTS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
@@ -759,7 +858,7 @@ const dayTime = t => `יום ${dayOf(t)}, ${clockText(t)}`;
 function saveSlot(name) {
   const now = new Date(), stamp = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   const slot = { id: 'S' + Date.now().toString(36), name: name || `${stamp} · ${money(bank.money)}`, at: Date.now(), time: sim.time, money: bank.money,
-    lines: JSON.parse(JSON.stringify(lineDefs)), bank: { v: 2, time: sim.time, money: bank.money, today: bank.today, history: bank.history } };
+    lines: JSON.parse(JSON.stringify(lineDefs)), bank: JSON.parse(JSON.stringify(bank.snapshot(sim.time))) };
   const a = readSlots(); a.unshift(slot);
   if (!writeSlots(a.slice(0, 20))) { toast('לא הצלחתי לשמור — אין מקום בדפדפן'); return null; }
   renderSlots(); return slot;
@@ -771,6 +870,8 @@ function loadSlot(id) {
   for (const L of [...lines]) removeLine(L, false);
   sim.time = sl.time; sim.resetStops(); sim.resetToday(); sim.pending = [];
   const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
+  bank.mode = nb.mode; bank.career = nb.career || (nb.mode === 'career' ? newCareer() : null);
+  if (nb.mode === 'career' && !nb.career) { career.payStops(sl.lines.flatMap(d => d.stopIds)); }
   lineDefs = [];
   for (const d of sl.lines) { const dd = JSON.parse(JSON.stringify(d)); lineDefs.push(dd); addLine(dd, false); }
   saveLines(lineDefs); bank.save(sim.time);
@@ -780,15 +881,18 @@ function loadSlot(id) {
 function deleteSlot(id) { writeSlots(readSlots().filter(x => x.id !== id)); renderSlots(); }
 function renderSlots() {
   const a = readSlots(), box = $('#slotList'); if (!box) return;
-  box.innerHTML = a.length ? a.map(x => `<div class="slot"><div class="sn"><b>${esc(x.name)}</b><span>${dayTime(x.time)} · ${money(x.money)} · ${x.lines.length} קווים</span></div>
+  box.innerHTML = a.length ? a.map(x => `<div class="slot"><div class="sn"><b>${esc(x.name)}</b><span>${x.bank?.mode === 'creative' ? 'יצירתי' : 'קריירה'} · ${dayTime(x.time)} · ${money(x.money)} · ${x.lines.length} קווים</span></div>
     <button type="button" data-load="${x.id}">טעינה</button><button type="button" class="del" data-del="${x.id}">מחיקה</button></div>`).join('')
     : '<p class="hint">אין משחקים שמורים. "שמירה" שומרת את המשחק הנוכחי.</p>';
 }
 function bindReset() {
-  $('#resetGame').onclick = () => { $('#resetAsk').hidden = false; };
+  $('#resetGame').onclick = () => { modePick = bank.mode; syncModePick(); $('#resetAsk').hidden = false; };
   $('#resetCancel').onclick = () => { $('#resetAsk').hidden = true; };
-  $('#resetNoSave').onclick = () => { $('#resetAsk').hidden = true; resetGame(); };
-  $('#resetSave').onclick = () => { $('#resetAsk').hidden = true; if (saveSlot()) resetGame(true); };
+  $('#resetNoSave').onclick = () => { $('#resetAsk').hidden = true; startMode(modePick, false); };
+  $('#resetSave').onclick = () => { $('#resetAsk').hidden = true; startMode(modePick, true); };
+  document.querySelectorAll('.modepick').forEach(g => g.onclick = e => { const b = e.target.closest('[data-mode]'); if (b) { modePick = b.dataset.mode; syncModePick(); } });
+  $('#modeGo').onclick = () => { $('#modeAsk').hidden = true; if (modePick !== bank.mode || !$('#modeAsk').dataset.fresh) resetGame(false, modePick); };
+  $('#stageClose').onclick = () => { $('#stageModal').hidden = true; };
   $('#saveSlot').onclick = () => { const s = saveSlot(); if (s) toast(`נשמר: ${s.name}`); };
   $('#slotList').onclick = e => {
     const l = e.target.closest('[data-load]'), d = e.target.closest('[data-del]');
@@ -797,13 +901,15 @@ function bindReset() {
   };
   renderSlots();
 }
-function resetGame(saved) {
+function resetGame(saved, mode = bank.mode) {
   cancelPlanning();
   for (const L of [...lines]) removeLine(L, false);
   sim.time = 6.5 * 3600; sim.resetStops(); sim.resetToday(); sim.pending = [];
-  bank.reset(sim.time);
+  bank.reset(sim.time, mode, mode === 'career' ? newCareer() : null);
+  if (mode === 'creative') bank.money = 10_000_000;
+  covLayer && drawCover(); renderMissions();
   bank.save(sim.time); renderMoney(); renderSlots(); showTab('lines');
-  toast(`${saved ? 'המשחק נשמר. ' : ''}מתחילים מחדש: ${money(bank.money)} בקופה`);
+  toast(mode === 'creative' ? `${saved ? 'המשחק נשמר. ' : ''}מצב יצירתי: כסף בלי הגבלה וכל הרכבים` : `${saved ? 'המשחק נשמר. ' : ''}קריירה, שלב 1: ${money(bank.money)} בקופה`);
 }
 function showDaySummary(d) {
   bank.save(sim.time);
@@ -1106,7 +1212,7 @@ function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; 
 
 // ---------- לולאה
 const clock = new THREE.Clock();
-let acc = 0, fcount = 0, statT = 0;
+let acc = 0, fcount = 0, statT = 0, missionT = 0;
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.25);
@@ -1127,7 +1233,7 @@ function tick(dt) {
     stopView.update(camera, lines, dt);
     $('#time').textContent = clockText(sim.time);
     updateMoneyChip();
-    statT += dt; if (statT > 0.4) { statT = 0; updateStats(); refreshDemandView(false); }
+    statT += dt; if (statT > 0.4) { statT = 0; updateStats(); refreshDemandView(false); missionT++; if (missionT % 5 === 0) updateMissions(); }
   }
   touch.update(dt);
   stepCamAnim(dt);

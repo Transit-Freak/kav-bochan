@@ -21,6 +21,7 @@
     <span class="dot"></span>
     <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
   </div>
+  <span id="modeBadge" class="mode-badge"></span>
   <button id="money" class="money" title="הקופה" aria-label="הקופה">₪2,000,000</button>
   <div class="clock" role="group" aria-label="שעון המשחק">
     <button id="play" class="icon" title="עצירה / המשך" aria-label="עצירה / המשך">❚❚</button>
@@ -36,6 +37,7 @@
   <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
   <nav class="tabs">
     <button data-tab="lines" class="on">הקווים שלי</button>
+    <button data-tab="missions">משימות</button>
     <button data-tab="money">קופה</button>
     <button data-tab="demand">ביקוש</button>
     <button data-tab="stop">תחנה</button>
@@ -55,6 +57,7 @@
       <div id="slotList"></div>
     </div>
   </section>
+  <section data-pane="missions" class="pane" id="missionPane"><div id="missionBody"></div></section>
   <section data-pane="demand" class="pane" id="demandPane"><div id="demandBody"></div></section>
   <section data-pane="stop" class="pane" id="stopPane">
     <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
@@ -62,6 +65,8 @@
   <section data-pane="help" class="pane">
     <ol class="help">
       <li><b>המטרה:</b> להסיע כמה שיותר אנשים בלי לפשוט רגל. מתחילים עם ₪60,000 בקופה, ומרוויחים כדי לקנות עוד רכבים ולפתוח עוד קווים.</li>
+      <li><b>שני מצבים:</b> <b>קריירה</b> — הכלכלה הרגילה, ומשרד התחבורה נותן התחייבויות שירות בארבעה שלבים (לשונית "משימות"): בהתחלה שלוש שכונות, אחר כך חצי העיר, שירות לכל היום, ובסוף שירות מלא עם אוטובוס כל 20 דקות בשיא ובלי הפסד. על כל שלב יש פרס בכסף, ושלבים מסוימים פותחים סוגי רכבים (חשמלי, מפרקי). לכל שלב יש מועד בימי משחק: מי שמאחר — הסבסוד לק"מ מצטמצם (עד חצי), אבל המשחק ממשיך. תחנה שמתחילה לשרת קו בפעם הראשונה עולה ₪500. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים מצב ב"התחלה מחדש" (לשונית "קופה").</li>
+      <li><b>כיסוי:</b> מי שגר עד 500 מ' הליכה מתחנה עם קו "מכוסה". הכפתור "כיסוי" שעל המפה מראה בכחול את מה שמכוסה ובנקודות אדומות את מי שעוד לא. רחובות צרים לא חייבים קו.</li>
       <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". בוחרים מספר, שם, תדירות, סוג רכב וכמה רכבים — בקנייה או בליסינג.</li>
       <li><b>כמה רכבים צריך:</b> אוטובוס נוסע עד התחנה האחרונה, חוזר ריק להתחלה ונח קצת — ורק אז יוצא שוב. בטופס כתוב כמה צריך לתדירות שבחרתם. עם פחות רכבים האוטובוסים יוצאים לאט יותר מהמתוכנן, וזה כתוב בכרטיס של הקו.</li>
       <li><b>סוגי רכבים:</b> מיניבוס (20 מקומות) זול אבל מתמלא מהר. רגיל — 80. מפרקי — 120 ויקר יותר לנסיעה. חשמלי — 80, יקר לקנות וזול לנסוע. המחירון בלשונית "קופה".</li>
@@ -135,8 +140,31 @@
 <div class="modal" id="resetAsk" hidden>
   <div class="card">
     <h2>התחלה מחדש</h2>
-    <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון. לשמור את המשחק הנוכחי לפני?</p>
+    <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון.</p>
+    <div class="modepick" role="radiogroup" aria-label="מצב משחק">
+      <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
+      <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
+    </div>
+    <p class="hint">לשמור את המשחק הנוכחי לפני?</p>
     <div class="col-btns"><button type="button" id="resetSave" class="primary">שמור והתחל מחדש</button><button type="button" id="resetNoSave" class="del">התחל בלי לשמור</button><button type="button" id="resetCancel">ביטול</button></div>
+  </div>
+</div>
+<div class="modal" id="modeAsk" hidden>
+  <div class="card">
+    <h2>משחק חדש</h2>
+    <p class="hint">איך משחקים?</p>
+    <div class="modepick" role="radiogroup" aria-label="מצב משחק">
+      <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
+      <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
+    </div>
+    <div class="row"><button type="button" id="modeGo" class="primary">מתחילים</button></div>
+  </div>
+</div>
+<div class="modal" id="stageModal" hidden>
+  <div class="card">
+    <h2 id="stageTitle">שלב הושלם</h2>
+    <div id="stageBody"></div>
+    <div class="row"><button type="button" id="stageClose" class="primary">ממשיכים</button></div>
   </div>
 </div>
 <div class="modal" id="daySum" hidden>

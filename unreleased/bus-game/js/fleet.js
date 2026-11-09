@@ -62,13 +62,20 @@ export class Bank {
     this.today = !this.migrated && save?.today?.day === dayOf(time) ? { ...emptyDay(save.today.day), ...save.today } : emptyDay(dayOf(time));
     this.history = !this.migrated && Array.isArray(save?.history) ? save.history.slice(-14).map(d => ({ ...emptyDay(d.day), ...d })) : [];
     this.onDay = null;            // נקרא עם סיכום היום שהסתיים
+    // מצב המשחק: 'career' (ברירת המחדל, גם לשמירות ישנות) או 'creative'; והמצב של השלבים (career.js)
+    this.mode = save?.mode === 'creative' ? 'creative' : 'career';
+    this.career = save?.career && typeof save.career === 'object' ? save.career : null;
+    this.legacy = !!save && !save.mode;          // שמירה מלפני השלבים — השלבים שכבר מתקיימים מושלמים בשקט
   }
   static load() {
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); return s && typeof s === 'object' ? s : null; } catch { return null; }
   }
   static clear() { try { localStorage.removeItem(KEY); } catch { } }
   save(time) {
-    try { localStorage.setItem(KEY, JSON.stringify({ v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history })); } catch { }
+    try { localStorage.setItem(KEY, JSON.stringify(this.snapshot(time))); } catch { }
+  }
+  snapshot(time) {
+    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, career: this.career };
   }
   line(id) { return this.today.byLine[id] || (this.today.byLine[id] = { fares: 0, pax: 0, cost: 0, subsidy: 0 }); }
   earn(amount, lineId) {
@@ -77,7 +84,7 @@ export class Bank {
   }
   // סבסוד ממשלתי: ק"מ בשירות (עם נוסעים או בלי)
   subsidize(km, lineId) {
-    const a = km * SUBSIDY_KM;
+    const a = km * SUBSIDY_KM * (this.career?.subsidyK ?? 1);     // מועד שעבר בשלב — הסבסוד מצטמצם
     this.money += a; this.today.subsidy += a;
     const l = this.line(lineId); l.subsidy = (l.subsidy || 0) + a;
   }
@@ -98,7 +105,7 @@ export class Bank {
   get costToday() { const d = this.today; return d.km + d.drivers + d.lease; }
   // תוצאת יום: הכנסות פחות הוצאות, כולל קנייה ומכירה של רכבים
   static net(d) { return d.fares + (d.subsidy || 0) + d.sell - d.buy - d.km - d.drivers - (d.lease || 0); }
-  reset(time) { this.money = START_MONEY; this.history = []; this.today = emptyDay(dayOf(time)); }
+  reset(time, mode = this.mode, career = null) { this.money = START_MONEY; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; }
   // מעבר יום: שומרים את הסיכום ומתחילים יום חדש
   roll(time) {
     const d = dayOf(time);
