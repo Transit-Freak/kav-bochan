@@ -17,6 +17,7 @@ export const BUS = {
 export const PATIENCE = 30 * 60;   // מי שמחכה יותר מזה מוותר והולך (והכרטיס שלו הולך איתו)
 
 const hourOf = t => Math.floor((t / 3600) % 24);
+const DECEL = 1.2;       // בלימה (מ/ש²) — כמו בפרופיל המהירות
 const emptyToday = Z => ({ pot: new Float64Array(24), ride: new Float64Array(24), none: new Float64Array(24), declined: new Float64Array(24),
   pairNone: new Float64Array(Z * Z), xfer: new Map(), xferStop: new Map(), trips: 0, xferTrips: 0 });
 
@@ -192,16 +193,39 @@ export class Sim {
     this.events.push({ type: 'spawn', p, stop: g.L.stops[g.from] });
   }
 
+  // האם האוטובוס צריך לעצור בתחנה k
+  needStop(L, b, k) {
+    if (k === 0 || k === L.stops.length - 1) return true;
+    if (b.pax.some(p => p.to === k)) return true;
+    if (b.pax.length >= b.cap) return false;
+    return L.queues[k].length > 0 || !!this.altRider(L, k, L.stops[k], false);
+  }
+
   moveBus(L, b, ahead, h) {
     if (b.state === 'drive') {
-      const target = L.stopS[b.next];
-      let v = Math.max(0.8, L.profile.get(b.s + 1.2));
+      let target = L.stopS[b.next];
+      // עוצרים רק כשצריך: מישהו יורד, או מישהו מחכה לקו ויש מקום. ההחלטה נקבעת כשמגיעים למרחק בלימה
+      // (מי שמגיע לתחנה אחרי זה — מפספס). התחנה הראשונה והאחרונה — תמיד.
+      if (b.decided !== b.next && (target - b.s <= b.v * b.v / (2 * DECEL) + 30)) {
+        b.decided = b.next;
+        b.stopHere = this.needStop(L, b, b.next);
+      }
+      if (b.decided === b.next && !b.stopHere && b.s >= target - 0.05) {
+        // חולפים על פני התחנה. אוטובוס מלא שמשאיר ממתינים — נספר כ"נשארו"
+        const stop = L.stops[b.next], ss = this.stopStats.get(stop.id), left = L.queues[b.next].length;
+        if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); }
+        this.events.push({ type: 'pass', bus: b, stop });
+        b.next++; target = L.stopS[b.next];
+      }
+      const stopping = b.decided !== b.next || b.stopHere;
+      let v = Math.max(0.8, (L.profileFree || L.profile).get(b.s + 1.2));
+      if (stopping) v = Math.min(v, Math.sqrt(2 * DECEL * Math.max(0, target - b.s)) + 0.25);
       if (ahead && ahead.state !== 'done' && ahead.s - b.s < BUS.gap + 4) v = Math.min(v, Math.max(0, (ahead.s - b.s - BUS.gap) * 0.5));
       b.v += Math.max(-2.5 * h, Math.min(1.2 * h, v - b.v));
       b.v = Math.max(0, Math.min(v, b.v + 0.0001));
       b.s += b.v * h;
       this.charge(L, b.type, b.v * h, 0);
-      if (b.s >= target - 0.05) {
+      if (stopping && b.s >= target - 0.05) {
         b.s = target; b.v = 0; b.state = 'dwell'; b.ph = 'open'; b.t = 0; b.dw = 0;
         b.ta = 0; b.tb = 0;
         this.events.push({ type: 'arrive', bus: b, stop: L.stops[b.next] });

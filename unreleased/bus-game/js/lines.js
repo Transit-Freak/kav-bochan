@@ -40,6 +40,8 @@ export class Line {
     if (r.error !== undefined) { this.error = r.error; return; }
     this.poly = r.poly; this.stopS = r.stopS;
     this.profile = speedProfile(this.poly, this.stopS);
+    // בלי עצירה בתחנות (רק פניות, ההתחלה והסוף) — לאוטובוס שלא צריך לעצור בתחנה
+    this.profileFree = speedProfile(this.poly, []);
     this.resetStats();
     this.returning = [];                        // מתי כל רכב שחוזר ריק למסוף יהיה פנוי
     this.dispatches = [];                       // זמני היציאות האחרונות (לתדירות בפועל)
