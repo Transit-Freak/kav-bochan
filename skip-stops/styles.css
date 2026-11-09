@@ -121,6 +121,11 @@ header h1 {
 .city-sel:hover, .fsel:hover { border-color: rgba(14,165,233,.5); }
 .city-sel:focus, .fsel:focus, .search:focus, .fnum input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(14,165,233,.18); }
 .chipf.sys { border-style: dashed; color: var(--muted); font-size: 13.5px; background: #fff; }
+.chipf.exp { border-style: dashed; color: var(--muted); font-size: 13.5px; background: #fff; }
+.chipf.exp.on { background: #7c3aed; border-color: #7c3aed; border-style: solid; color: #fff; box-shadow: none; }
+.tag-sys.exp { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
+.exp-sec { margin-top: 22px; }
+.exp-sec h2 { font-size: 17px; margin: 0 0 6px; }
 .chipf.sys.on { background: #475569; border-color: #475569; border-style: solid; color: #fff; box-shadow: none; }
 .search {
   flex: 1; min-width: 220px; height: 44px; border: 1px solid var(--line2); border-radius: 14px;
