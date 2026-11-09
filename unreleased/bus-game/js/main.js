@@ -12,7 +12,7 @@ import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { refreshAll } from './texkeep.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
-import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money } from './fleet.js';
+import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf } from './fleet.js';
 import { NightFast, FAST } from './night.js';
 import { mapTouch } from './touch.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
@@ -110,7 +110,7 @@ async function init() {
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -751,23 +751,59 @@ function renderMoney() {
   if (body.dataset.html === html) return;
   body.dataset.html = html; body.innerHTML = html;
 }
-function bindReset() {
-  $('#resetGame').onclick = e => {
-    if (!e.target.classList.contains('sure')) {
-      e.target.classList.add('sure'); e.target.textContent = 'כל הקווים והכסף יימחקו. לחצו שוב';
-      setTimeout(() => { if (e.target.isConnected) { e.target.classList.remove('sure'); e.target.textContent = 'התחלה מחדש'; } }, 4000);
-      return;
-    }
-    resetGame();
-  };
+// ---------- משחק: התחלה מחדש, ושמירות בשם (נוסף לשמירה האוטומטית). הכל ב-localStorage בתוך try/catch
+const SLOTS_KEY = 'busgame.kiryat-malachi.slots.v1';
+function readSlots() { try { const a = JSON.parse(localStorage.getItem(SLOTS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
+function writeSlots(a) { try { localStorage.setItem(SLOTS_KEY, JSON.stringify(a)); return true; } catch { return false; } }
+const dayTime = t => `יום ${dayOf(t)}, ${clockText(t)}`;
+function saveSlot(name) {
+  const now = new Date(), stamp = now.toLocaleDateString('he-IL') + ' ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const slot = { id: 'S' + Date.now().toString(36), name: name || `${stamp} · ${money(bank.money)}`, at: Date.now(), time: sim.time, money: bank.money,
+    lines: JSON.parse(JSON.stringify(lineDefs)), bank: { v: 2, time: sim.time, money: bank.money, today: bank.today, history: bank.history } };
+  const a = readSlots(); a.unshift(slot);
+  if (!writeSlots(a.slice(0, 20))) { toast('לא הצלחתי לשמור — אין מקום בדפדפן'); return null; }
+  renderSlots(); return slot;
 }
-function resetGame() {
+// טוען משחק: הקווים, הצי, הקופה והשעה כמו שהיו
+function loadSlot(id) {
+  const sl = readSlots().find(x => x.id === id); if (!sl) return;
+  cancelPlanning();
+  for (const L of [...lines]) removeLine(L, false);
+  sim.time = sl.time; sim.resetStops(); sim.resetToday(); sim.pending = [];
+  const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
+  lineDefs = [];
+  for (const d of sl.lines) { const dd = JSON.parse(JSON.stringify(d)); lineDefs.push(dd); addLine(dd, false); }
+  saveLines(lineDefs); bank.save(sim.time);
+  renderLines(); renderMoney(); renderSlots(); showTab('lines');
+  toast(`נטען: ${sl.name}`);
+}
+function deleteSlot(id) { writeSlots(readSlots().filter(x => x.id !== id)); renderSlots(); }
+function renderSlots() {
+  const a = readSlots(), box = $('#slotList'); if (!box) return;
+  box.innerHTML = a.length ? a.map(x => `<div class="slot"><div class="sn"><b>${esc(x.name)}</b><span>${dayTime(x.time)} · ${money(x.money)} · ${x.lines.length} קווים</span></div>
+    <button type="button" data-load="${x.id}">טעינה</button><button type="button" class="del" data-del="${x.id}">מחיקה</button></div>`).join('')
+    : '<p class="hint">אין משחקים שמורים. "שמירה" שומרת את המשחק הנוכחי.</p>';
+}
+function bindReset() {
+  $('#resetGame').onclick = () => { $('#resetAsk').hidden = false; };
+  $('#resetCancel').onclick = () => { $('#resetAsk').hidden = true; };
+  $('#resetNoSave').onclick = () => { $('#resetAsk').hidden = true; resetGame(); };
+  $('#resetSave').onclick = () => { $('#resetAsk').hidden = true; if (saveSlot()) resetGame(true); };
+  $('#saveSlot').onclick = () => { const s = saveSlot(); if (s) toast(`נשמר: ${s.name}`); };
+  $('#slotList').onclick = e => {
+    const l = e.target.closest('[data-load]'), d = e.target.closest('[data-del]');
+    if (l) loadSlot(l.dataset.load);
+    if (d) { if (d.classList.contains('sure')) deleteSlot(d.dataset.del); else { d.classList.add('sure'); d.textContent = 'בטוח?'; } }
+  };
+  renderSlots();
+}
+function resetGame(saved) {
+  cancelPlanning();
   for (const L of [...lines]) removeLine(L, false);
   sim.time = 6.5 * 3600; sim.resetStops(); sim.resetToday(); sim.pending = [];
   bank.reset(sim.time);
-  bank.save(sim.time); renderMoney(); showTab('lines');
-  const rb = $('#resetGame'); rb.classList.remove('sure'); rb.textContent = 'התחלה מחדש';
-  toast(`מתחילים מחדש: ${money(bank.money)} בקופה`);
+  bank.save(sim.time); renderMoney(); renderSlots(); showTab('lines');
+  toast(`${saved ? 'המשחק נשמר. ' : ''}מתחילים מחדש: ${money(bank.money)} בקופה`);
 }
 function showDaySummary(d) {
   bank.save(sim.time);

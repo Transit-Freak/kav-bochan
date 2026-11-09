@@ -48,7 +48,12 @@
   </section>
   <section data-pane="money" class="pane" id="moneyPane">
     <div id="moneyBody"></div>
-    <button id="resetGame" class="del wide">התחלה מחדש</button>
+    <div class="game-box">
+      <h4>משחק</h4>
+      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button></div>
+      <h4>המשחקים השמורים</h4>
+      <div id="slotList"></div>
+    </div>
   </section>
   <section data-pane="demand" class="pane" id="demandPane"><div id="demandBody"></div></section>
   <section data-pane="stop" class="pane" id="stopPane">
@@ -127,6 +132,13 @@
   </form>
 </div>
 
+<div class="modal" id="resetAsk" hidden>
+  <div class="card">
+    <h2>התחלה מחדש</h2>
+    <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון. לשמור את המשחק הנוכחי לפני?</p>
+    <div class="col-btns"><button type="button" id="resetSave" class="primary">שמור והתחל מחדש</button><button type="button" id="resetNoSave" class="del">התחל בלי לשמור</button><button type="button" id="resetCancel">ביטול</button></div>
+  </div>
+</div>
 <div class="modal" id="daySum" hidden>
   <div class="card">
     <h2 id="dayTitle">סיכום היום</h2>

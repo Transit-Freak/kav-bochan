@@ -289,3 +289,19 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
   .dlf-what,.dlf-tot{font-size:11.5px;line-height:1.35}
   .dfocus .dl-chips.dir{margin:4px 0 0}
 }
+
+/* משחק: שמירה, התחלה מחדש ומשחקים שמורים */
+.game-box{margin-top:14px;border-top:1px solid var(--line);padding-top:4px}
+.game-btns{justify-content:stretch}
+.game-btns button{flex:1;padding:10px}
+#resetGame{color:#b91c1c}
+.col-btns{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.col-btns button{padding:11px}
+.col-btns .del{color:#b91c1c}
+.slot{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)}
+.slot .sn{flex:1;min-width:0}
+.slot .sn b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot .sn span{color:var(--muted);font-size:12.5px}
+.slot button{padding:6px 11px;font-size:13px}
+.slot .del{color:#b91c1c}
+.slot .del.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
