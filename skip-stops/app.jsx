@@ -337,7 +337,7 @@ const Row = React.memo(function Row({ it, open, onToggle, db, inner, onLine }) {
       <button className="it-head" onClick={onToggle} aria-expanded={open}>
         {!inner && <span className="line-badge">{it.line}</span>}
         <span className="it-main">
-          <span className="it-title">מדלג על: {it.stop} <span className="code">({it.code})</span></span>
+          <span className="it-title">{it.exp ? "חולף בלי לעצור ב:" : "מדלג על:"} {it.stop} <span className="code">({it.code})</span></span>
           <span className="it-sub">{it.city} · עוצר {fmtM(it.before)} לפני ו-{fmtM(it.after)} אחרי · {it.onum} קווים כן עוצרים{it._new ? <span className="tag-sys new">חדש</span> : null}{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty">{it.ty}</span> : null}{it._sys ? <span className="tag-sys">שיטתי</span> : null}</span>
         </span>
         <span className="arrow">{open ? "▲" : "▼"}</span>
@@ -348,14 +348,14 @@ const Row = React.memo(function Row({ it, open, onToggle, db, inner, onLine }) {
 });
 
 /* ---------- קבוצה: כל הדילוגים של אותו קו באותה עיר תחת כרטיס אחד ---------- */
-const LineGroup = React.memo(function LineGroup({ items, open, onToggle, openSub, setOpenSub, db, onLine }) {
+const LineGroup = React.memo(function LineGroup({ items, open, onToggle, openSub, setOpenSub, db, onLine, exp }) {
   const it = items[0];
   return (
     <div className={"it grp" + (open ? " open" : "")}>
       <button className="it-head" onClick={onToggle} aria-expanded={open}>
         <span className="line-badge">{it.line}</span>
         <span className="it-main">
-          <span className="it-title">מדלג על {items.length} תחנות{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty">{it.ty}</span> : null}</span>
+          <span className="it-title">{exp ? (items.length === 1 ? "חולף בלי לעצור בצומת" : "חולף בלי לעצור ב-" + items.length + " צמתים") : "מדלג על " + items.length + " תחנות"}{exp ? <span className="tag-sys exp">קו מהיר</span> : null}{it.ty && it.ty !== "עירוני" ? <span className="tag-sys ty">{it.ty}</span> : null}</span>
           <span className="it-sub">{it.city} · {items.slice(0, 3).map((x) => x.stop).join(" · ")}{items.length > 3 ? " · …" : ""}</span>
         </span>
         <span className="arrow">{open ? "▲" : "▼"}</span>
@@ -400,6 +400,10 @@ function App() {
   const [fType, setFType] = useState(h0("type", "עירוני")); // סוג קו — עירוני כברירת מחדל
   const [fGap, setFGap] = useState(+h0("gap", 0) || 0);      // מרחק מזערי מהעצירה הקרובה
   const [fSkips, setFSkips] = useState(+h0("skips", 0) || 0); // כמה תחנות הקו מדלג (לפחות)
+  // קו מהיר שחולף בצומת חשוב בלי לעצור (בלי עצירה 800 מ' לפני ואחרי) — רשימה נפרדת, מוצגת רק לפי בקשה
+  const [showExp, setShowExp] = useState(h0("exp", "") === "1");
+  const [openExp, setOpenExp] = useState(null);
+  const [openExpSub, setOpenExpSub] = useState(null);
   const dq = useDeferredValue(q);
   const goLine = (ln) => { setQ(ln); setOpenKey(null); setOpenSub(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
@@ -428,13 +432,14 @@ function App() {
     if (fSkips) p.set("skips", fSkips);
     if (bs) p.set("bystop", "1");
     if (showSys) p.set("sys", "1");
+    if (showExp) p.set("exp", "1");
     return p.toString();
   };
   const lineHref = (ln, noByStop) => "#" + hashFor(ln, noByStop ? false : byStop);
   useEffect(() => {
     const h = hashFor(q, byStop), u = location.pathname + location.search + (h ? "#" + h : "");
     if (location.pathname + location.search + location.hash !== u) try { history.replaceState(null, "", u); } catch (e) {}
-  }, [q, city, fOp, fMahoz, fUniq, fType, fGap, fSkips, byStop, showSys]);
+  }, [q, city, fOp, fMahoz, fUniq, fType, fGap, fSkips, byStop, showSys, showExp]);
 
   useEffect(() => {
     fetch("data.json", { cache: "no-cache" })
@@ -587,6 +592,41 @@ function App() {
     return out;
   }, [filtered, byStop]);
 
+  // קו מהיר: אותם מסננים (עיר, מפעיל, מחוז, רישוי, חיפוש). סוג הקו מסנן רק כשנבחר סוג לא-עירוני,
+  // כי רוב הקווים המהירים בין-עירוניים
+  // הקובץ נטען רק כשלוחצים על הכפתור
+  const [expD, setExpD] = useState(null);
+  const [expErr, setExpErr] = useState(false);
+  useEffect(() => {
+    if (!showExp || expD || expErr) return;
+    fetch("data-exp.json", { cache: "no-cache" })
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(setExpD).catch(() => setExpErr(true));
+  }, [showExp, expD, expErr]);
+  const expAll = useMemo(() => {
+    const a = (expD && expD.items) || [];
+    return a.map((it, i) => ({ ...it, _exp: true, _k: "x@" + it.line + "@" + it.sid + "@" + (it.skey || i),
+      _q: (it.line + " " + it.stop + " " + it.code + " " + it.city).toLowerCase() }));
+  }, [expD]);
+  const expGroups = useMemo(() => {
+    if (!showExp) return [];
+    const needle = dq.trim().toLowerCase();
+    const gm = new Map(), out = [];
+    expAll.forEach((it) => {
+      if (fType !== "all" && fType !== "עירוני" && (it.ty || "עירוני") !== fType) return;
+      if (city && it.city !== city) return;
+      if (fOp && it.op !== fOp) return;
+      if (fMahoz && it.mahoz !== fMahoz) return;
+      if (fUniq && (it.uniq || "סדיר") !== fUniq) return;
+      if (needle && it.line !== needle && !it._q.includes(needle)) return;
+      const k = it.line + "@" + (it.dest || "") + "@" + (it.ty || "");
+      if (!gm.has(k)) { gm.set(k, []); out.push(gm.get(k)); }
+      gm.get(k).push(it);
+    });
+    return out;
+  }, [showExp, expAll, dq, fType, city, fOp, fMahoz, fUniq]);
+  const expDb = expD;
+
   if (err) return <div className="boot">שגיאה בטעינת הנתונים — ייתכן שההרצה הראשונה עוד לא הסתיימה. נסו לרענן מאוחר יותר.</div>;
   if (!data) return <div className="boot">טוען נתונים…</div>;
 
@@ -637,6 +677,10 @@ function App() {
           <button className={"chipf sys" + (showSys ? " on" : "")} onClick={() => setShowSys(!showSys)}
             title="דילוג ששייך כנראה לתכנון: כמה קווים מדלגים על אותה תחנה, או קו שמדלג על תחנות רבות">
             {showSys ? "מציג" : "מוסתרים"} {sysN} דילוגים שיטתיים
+          </button>
+          <button className={"chipf exp" + (showExp ? " on" : "")} onClick={() => setShowExp(!showExp)}
+            title="קו מהיר (בלי עצירה קרובה לפני ואחרי) שחולף בצומת שעוצרים בו קווים בין-עירוניים אחרים — מוצג בנפרד, כי לרוב זה תכנון מכוון">
+            {showExp ? "✓ " : ""}קווים מהירים בצמתים
           </button>
           <button className={"chipf bystop" + (byStop ? " on" : "")} onClick={() => setByStop(!byStop)}
             title="כרטיס אחד לכל תחנה שכמה קווים מדלגים עליה — כל המסלולים על מפה אחת, בצבע שונה לכל קו">
@@ -736,6 +780,29 @@ function App() {
           </button>
         )}
       </div>
+
+      {showExp && (
+        <section className="exp-sec">
+          <h2>קווים מהירים שחולפים בצומת בלי לעצור</h2>
+          <p className="mut">
+            קו שאין לו עצירה 800 מ' לפני ואחרי, והוא עובר צמוד לתחנה בצומת, מסעף או מחלף שעוצרים בה לפחות 3 קווים בין-עירוניים אחרים,
+            ונוסע ישר באותו כיוון כמו קו שעוצר בה. לרוב זה תכנון מכוון של קו מהיר, ולכן הרשימה נפרדת ולא נספרת בממצאים.
+          </p>
+          {!expD && !expErr && <div className="count">טוען…</div>}
+          {expErr && <div className="count" style={{ color: "#b91c1c" }}>הטעינה נכשלה. <button className="chip clk" onClick={() => setExpErr(false)}>נסו שוב</button></div>}
+          <div className="list">
+            {expGroups.map((g) => {
+              const gk = "x:" + g[0].line + "@" + (g[0].dest || "") + "@" + (g[0].ty || "");
+              return (
+                <LineGroup key={gk} exp items={g} open={openExp === gk} db={expDb} onLine={goLine}
+                  openSub={openExpSub} setOpenSub={setOpenExpSub}
+                  onToggle={() => setOpenExp(openExp === gk ? null : gk)} />
+              );
+            })}
+            {expD && expGroups.length === 0 && <div className="empty">אין קווים מהירים בסינון הנוכחי.</div>}
+          </div>
+        </section>
+      )}
 
       <footer>
         במסגרת <a href="../">הקו הבוחן</a> · הנתונים: GTFS + הקובץ המצומצם של משרד התחבורה ·
