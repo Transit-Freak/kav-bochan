@@ -105,7 +105,7 @@ async function init() {
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -200,6 +200,42 @@ function startPlanning() {
   $('#plan').hidden = false; $('#planErr').hidden = true; updatePlan();
   document.body.classList.add('planning');
   if (innerWidth <= 820) $('#panel').classList.add('min');
+}
+// ---------- הכיוון ההפוך של קו: תחנות GTFS הן לכיוון נסיעה אחד, אז לכל תחנה מחפשים את התחנה שמולה —
+// הקרובה ביותר (עד 150 מ') שהאוטובוס עובר בה בכיוון ההפוך. תחנה בלי תחנה מולה — מדלגים עליה, חוץ מהמסוף
+// (אז נשארת אותה תחנה). קטע שאין אליו דרך (פרסה) — מורידים את התחנה שבאמצע
+function oppositeStop(s) {
+  const f = people.stopFrame(s); let best = null, bd = 150;
+  for (const c of city.stops) {
+    if (c === s) continue;
+    const g = people.stopFrame(c), d = Math.hypot(c.x - s.x, c.y - s.y);
+    if (d < bd && f.tx * g.tx + f.ty * g.ty < -0.5) { bd = d; best = c; }
+  }
+  return best;
+}
+function reverseStops(L) {
+  const src = [...L.stops].reverse(), n = src.length;
+  let out = [];
+  src.forEach((s, i) => { const c = oppositeStop(s) || ((i === 0 || i === n - 1) ? s : null); if (c && out[out.length - 1] !== c) out.push(c); });
+  for (let guard = 0; out.length >= 2 && guard < 40; guard++) {
+    const r = computeRoute(graph, out); if (r.error === undefined) return out;
+    const k = r.error;
+    out.splice(k < out.length - 1 ? k : k - 1 > 0 ? k - 1 : k, 1);
+  }
+  return out.length >= 2 && computeRoute(graph, out).error === undefined ? out : null;
+}
+// פותח תכנון של הקו בכיוון ההפוך, כבר עם התחנות, כדי שהשחקן יראה את המסלול לפני שהוא מאשר.
+// "המשך" פותח את טופס הקו עם אותו מספר, השם הפוך, ואותם שעות, תדירות, סוג רכב וקנייה/ליסינג
+function startReverse(L) {
+  if (planning || !L) return;
+  const stops = reverseStops(L);
+  if (!stops) { toast('לא מצאתי מסלול בכיוון ההפוך — אפשר לתכנן אותו ידנית'); return; }
+  startPlanning();
+  planning.stops = stops; planning.color = L.color; planning.rev = L;
+  $('#planTxt').innerHTML = `<b>קו ${esc(L.def.number)} — הכיוון ההפוך</b>. אפשר להוסיף תחנות או לבטל את האחרונה <span id="planCount" class="pill"></span>`;
+  drawPlan(computeRoute(graph, stops)); updatePlan();
+  const pts = stops.map(s => s.world); if (pts.length) fitPoints(pts.map(p => [p.x, -p.z]));
+  return stops;
 }
 const NO_ROUTE = 'אין דרך להגיע לתחנה הזו בלי פרסה באמצע הרחוב — אוטובוס מסתובב רק בכיכר או בצומת גדולה. נסו תחנה בצד השני של הרחוב או תחנה אחרת.';
 function planAdd(s) {
@@ -337,15 +373,23 @@ function finishPlanning() {
   const a = planning.stops[0].name, b = planning.stops[planning.stops.length - 1].name;
   $('#fName').value = `${a} — ${b}`.slice(0, 40);
   $('#fHead').value = '10'; setHoursForm(DEFAULT_HOURS);
+  const R = planning.rev?.def;
+  if (R) {      // הכיוון ההפוך: אותו מספר, השם הפוך, ואותם שעות ותדירות
+    $('#fNum').value = R.number;
+    const parts = (R.name || '').split(' — ');
+    if (parts.length === 2) $('#fName').value = `${parts[1]} — ${parts[0]}`.slice(0, 40);
+    if ([...$('#fHead').options].some(o => +o.value === R.headway)) $('#fHead').value = String(R.headway);
+    setHoursForm(hoursOf(R));
+  }
   renderSwatches(planning.color);
   // קו זמני רק כדי לחשב זמן סיבוב וכמה רכבים צריך
   const r = computeRoute(graph, planning.stops);
   const tmp = { poly: r.poly, stops: planning.stops, profile: speedProfile(r.poly, r.stopS), def: { headway: 10 } };
-  const need = vehiclesNeeded(tmp, 10);
-  form = { line: null, tmp, type: 'std', lease: false, n: 0, touched: false };
+  form = { line: null, tmp, type: R ? typeOf(R) : 'std', lease: R ? isLease(R) : false, n: 0, touched: false };
   $('#fTitle').textContent = 'פרטי הקו';
   $('#fSave').textContent = 'שמירה והפעלה';
   $('#fColors').hidden = false;
+  $('#fRev').hidden = !!planning.rev;
   renderForm();
   $('#lineForm').hidden = false;
   if (!isTouch) $('#fNum').focus();
@@ -391,7 +435,7 @@ function renderForm() {
   const hrs = badH ? `<div class="bad">שעת הסיום צריכה להיות אחרי שעת ההתחלה.</div>` : '';
   $('#fCost').innerHTML = `<div>${parts.join(' · ')}</div>
     <div class="fsub">סיבוב (הלוך, חזרה ריקה והפסקה) בערך ${cyc} דק'. ${T.cap * form.n ? `נסיעה: ₪${T.km} לק"מ ו-₪${T.hour} לשעת נהג. סבסוד: ₪${SUBSIDY_KM} לכל ק"מ בקו.` : ''}</div>${err}${zero}${hrs}`;
-  $('#fSave').disabled = blocked || badH;
+  $('#fSave').disabled = $('#fRev').disabled = blocked || badH;
 }
 // עריכת קו קיים: תדירות, סוג רכב וכמה רכבים (המסלול נשאר)
 function openEdit(L) {
@@ -400,7 +444,7 @@ function openEdit(L) {
   $('#fNum').value = L.def.number; $('#fName').value = L.def.name || ''; $('#fHead').value = String(L.def.headway); setHoursForm(hoursOf(L.def));
   $('#fTitle').textContent = `קו ${L.def.number}: רכבים ותדירות`;
   $('#fSave').textContent = 'שמירה';
-  $('#fColors').hidden = true;
+  $('#fColors').hidden = true; $('#fRev').hidden = true;
   renderForm();
   $('#lineForm').hidden = false;
 }
@@ -527,6 +571,8 @@ function bindUI() {
   $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
   bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm(); };
+  // קו חדש: שומרים אותו, ומיד פותחים את הכיוון ההפוך לבדיקה (רק כשהשחקן מבקש)
+  $('#fRev').onclick = () => { const L = saveLineFromForm(); if (L && startReverse(L)) toast(`קו ${L.def.number} יצא לדרך. עכשיו הכיוון ההפוך: בדקו את המסלול ולחצו "המשך"`); };
   $('#play').onclick = () => { night.manual(); setSpeed(sim.speed ? 0 : (G.lastSpeed || 5)); };
   document.querySelectorAll('#speeds button').forEach(b => b.onclick = () => { night.manual(); setSpeed(+b.dataset.s); });
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
@@ -598,12 +644,13 @@ function renderLines() {
         <div class="stat"><b data-k="alight">0</b><span>ירדו היום</span></div>
       </div>
       <div class="lmoney" data-k="money"></div>
-      <div class="lbtns"><button data-a="edit" class="primary">רכבים ותדירות</button><button data-a="route">מסלול</button><button data-a="follow">מעקב</button><button data-a="vis">${L.visible ? 'הסתרה' : 'הצגה'}</button><button data-a="del" class="del">מחיקה</button></div>`;
+      <div class="lbtns"><button data-a="edit" class="primary">רכבים ותדירות</button><button data-a="route">מסלול</button><button data-a="rev">כיוון הפוך</button><button data-a="follow">מעקב</button><button data-a="vis">${L.visible ? 'הסתרה' : 'הצגה'}</button><button data-a="del" class="del">מחיקה</button></div>`;
     c.onclick = e => {
       const a = e.target.dataset?.a;
       selectedLine = L;
       if (a === 'edit') return openEdit(L);
       if (a === 'route') return editRoute(L);
+      if (a === 'rev') return startReverse(L);
       if (a === 'follow') { cams.modes.follow.bus = pickBus(); cams.current === 'follow' ? cams.modes.follow.enter() : cams.set('follow'); }
       else if (a === 'vis') { L.visible = !L.visible; lineGroups.get(L.id).visible = L.visible; }
       else if (a === 'del') {
