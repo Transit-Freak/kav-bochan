@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { labelSprite } from './lines.js';
+import { ROLE } from './ops.js';
 import { BUS } from './sim.js';
 import { TYPES } from './fleet.js';
 import { useBitmapTextures } from './texfix.js';
@@ -156,9 +157,11 @@ export class BusLayer {
     });
     const label = labelSprite('קו ' + bus.line.def.number + (T && bus.type !== 'std' ? ' · ' + T.name : ''), bus.line.color, 1.05);
     label.position.set(0, 5.3, 0); obj.add(label);
+    // תקלה (ops.js): סימן אזהרה מעל האוטובוס
+    const warn = labelSprite('⚠ תקלה', '#d03b3b', 1.05); warn.position.set(0, 7.2, 0); warn.visible = false; obj.add(warn);
     obj.userData.bus = bus;
     this.group.add(obj);
-    const v = { obj, mixer, action, doors, anchors, label };
+    const v = { obj, mixer, action, doors, anchors, label, warn };
     this.map.set(bus.id, v); return v;
   }
   update(lines) {
@@ -175,6 +178,7 @@ export class BusLayer {
         d.o.position.z = d.z0 + d.k * 0.55 * Math.max(0, b.door * 1.2 - 0.2);
       }
       v.label.visible = L.visible !== false && !this.hideLabels;
+      v.warn.visible = !!b.broken && L.visible !== false;
     }
     for (const [id, v] of this.map) if (!alive.has(id)) { this.group.remove(v.obj); this.map.delete(id); }
   }
@@ -463,6 +467,8 @@ export class PeopleLayer {
   variantOf(id) { return Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
   // הצבע לכל חלק: בדגמים האמיתיים — לבן (הטקסטורה כמו שהיא), חוץ מגוון עדין לבגדים ושינוי קטן בבהירות העור
   tint(id, kind, flat, out) {
+    // פקח: אפוד צהוב (הבגדים בגוון צהוב-כתום חזק). מבקר סמוי — כמו כולם
+    if (ROLE.get(id) === 'insp' && kind === 'cloth') return flat ? out.setHex(0xf2c414) : out.setRGB(1.8, 1.5, 0.22);
     if (flat) return out.setHex(personColors(id)[kind] ?? 0x888888);
     if (kind === 'cloth') { const t = CLOTH_TINT[Math.floor(hash(id + 3) * CLOTH_TINT.length)]; return out.setRGB(t[0], t[1], t[2]); }
     if (kind === 'skin') { const k = 0.94 + hash(id + 21) * 0.1; return out.setRGB(k, k, k); }

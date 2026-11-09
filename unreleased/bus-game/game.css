@@ -330,3 +330,40 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .cams .cv.on{background:#2a78d6;color:#fff;border-color:#2a78d6}
 .cams button.dm.cv{border-color:#93c5fd;background:#eff6ff;color:#1e40af}
 .cams button.dm.cv.on{background:#2a78d6;border-color:#2a78d6;color:#fff}
+
+/* שבע לשוניות בטלפון בלי גלילה */
+@media (max-width:520px){ .tabs{gap:0;padding:4px 4px 6px;overflow:visible} .tabs button{flex:1 1 0;min-width:0;padding:6px 1px;font-size:12.5px;white-space:nowrap} }
+/* סדרן */
+.dline{border-bottom:1px solid var(--line);padding:8px 0}
+.dhead{display:flex;align-items:center;gap:8px;font-size:13px}
+.dhead .lmeta{flex:1}
+.dres{padding:5px 9px;font-size:12.5px}
+.dstrip{width:100%;height:44px;display:block}
+.dstrip .track{stroke:#c3c9d1;stroke-width:4;stroke-linecap:round}
+.dstrip line:not(.track){stroke:#5f6872;stroke-width:1.5}
+.dstrip .bunch{fill:rgba(208,59,59,.22)}
+.dstrip .gap{fill:rgba(237,161,0,.25)}
+.dstrip .jam{fill:repeating-linear-gradient(45deg,#f97316,#f97316 3px,transparent 3px,transparent 6px);fill:#f97316;opacity:.55}
+.dstrip .bus circle{stroke:#fff;stroke-width:2}
+.dstrip .bus.sel circle:first-child{stroke:#0f172a;stroke-width:2.5}
+.dstrip .bus text{fill:#fff;font:800 11px/1 var(--font)}
+.dstrip .hit{fill:transparent;stroke:none!important}
+.dsel{font-size:13px;margin-top:2px}
+.dbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.dbtns button{padding:6px 10px;font-size:13px}
+.dkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin:8px 0}
+.dkey i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:4px;vertical-align:-1px}
+.dkey i.kb{background:rgba(208,59,59,.35);border-radius:2px;width:16px}
+.dkey i.kg{background:rgba(237,161,0,.4);border-radius:2px;width:16px}
+.dkey i.kj{background:#f97316;opacity:.6;border-radius:2px;width:16px}
+.dlog{list-style:none;padding:0;margin:4px 0;font-size:13px}
+.dlog li{padding:4px 0;border-bottom:1px solid var(--line)}
+.warnt{color:#b45309}
+/* דוחות ופקחים */
+.report{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0;font-size:13px}
+.report .rhead{display:flex;align-items:center;gap:8px}
+.report .rhead .lmeta{flex:1}
+.report .grade{font-size:18px}
+.report ul{margin:4px 0 2px;padding-inline-start:18px}
+.tog{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin:6px 0}
+#opsBox .fcount{margin-top:4px}

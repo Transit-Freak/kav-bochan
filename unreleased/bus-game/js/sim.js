@@ -5,6 +5,7 @@
 // הנוסעים באים ממודל הביקוש (demand.js): לכל אחד מוצא ויעד, ומסלול של קו אחד עד שלושה קווים.
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
 import { Network, inHours, lineTimes } from './demand.js';
+import { Ops, ROLE } from './ops.js';
 export const BUS = {
   capacity: 80,           // ברירת מחדל; הקיבולת האמיתית לפי סוג הרכב (fleet.js)
   doorTime: 1.1,          // פתיחה/סגירה (שנ')
@@ -39,6 +40,7 @@ export class Sim {
     this.today = emptyToday(demand?.Z || 1);
     this.pending = [];                 // נוסעים בדרך ברגל לקו הבא (מעבר)
     this.netT = -1e9; this.netKey = '';
+    this.ops = new Ops(this);
   }
   resetToday() { this.today = emptyToday(this.demand?.Z || 1); }
   resetStops() { this.stopStats = new Map(this.stops.map(s => [s.id, { board: 0, alight: 0, left: 0, gaveUp: 0, xfer: 0 }])); }
@@ -112,6 +114,7 @@ export class Sim {
     this.time += h;
     if (dayOf(this.time) !== day0) this.newDay();
     this.bank?.accrue(this.lines, h);
+    this.ops.tick(h); this.ops.spawnInspectors(h);
     if (this.demand) this.spawn(h);
     // מי שסיים ללכת לקו הבא (מעבר) נכנס לתור
     if (this.pending.length) this.pending = this.pending.filter(x => x.at > this.time || (this.joinQueue(x.p), false));
@@ -151,6 +154,7 @@ export class Sim {
         const b = { id: BID++, line: L, type, cap: T.cap, s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1 };
         L.buses.push(b); this.events.push({ type: 'bus', bus: b });
         this.dispatched(L, T.cap);
+        this.ops.onDispatch(L, b);
       }
       // תפוסה ממוצעת, ושעות נהג לכל אוטובוס בדרך
       for (const b of L.buses) if (b.state === 'drive' || b.state === 'dwell') {
@@ -175,6 +179,7 @@ export class Sim {
   // קו מעגלי (התחנה האחרונה היא גם הראשונה): האוטובוס שהגיע לסוף לא נעלם — ממשיך מאותו מקום כנסיעה הבאה,
   // והדלתות נשארות פתוחות כדי שהממתינים יעלו. מי שעלה "מסביב" (wrap) ממשיך לנסוע
   turnaround(L, b) {
+    this.ops.onDone(L, b); b.born = this.time; b.express = false;
     b.lay = false; b.goOn = undefined; b.s = L.stopS[0]; b.next = 0; b.dw = 0; b.ta = 0; b.tb = 0; b.v = 0;
     b.state = 'dwell'; if (b.ph !== 'open') b.ph = b.door >= 1 ? 'xchg' : 'open';
     b.decided = 0; b.stopHere = true;
@@ -212,6 +217,14 @@ export class Sim {
       this.joinQueue(p);
     }
   }
+  // פקח או מבקר סמוי: נוסע מיוחד בתור (לא נספר בסטטיסטיקה ולא משלם)
+  makeRider(L, from, to, role) {
+    if (!L || from < 0 || to <= from || to >= L.stops.length) return null;
+    const p = { id: PID++, legs: [{ L, from, to }], leg: 0, t0: this.time, paid: true, role, from, to, line: L, o: -1, d: -1 };
+    ROLE.set(p.id, role); if (ROLE.size > 400) ROLE.delete(ROLE.keys().next().value);
+    L.queues[from].push(p); this.events.push({ type: 'spawn', p, stop: L.stops[from] });
+    return p;
+  }
   joinQueue(p) {
     const g = this.mapLeg(p.legs[p.leg]);
     if (!g || !this.lines.includes(g.L)) return;          // הקו נמחק בינתיים
@@ -224,7 +237,8 @@ export class Sim {
   needStop(L, b, k) {
     if (k === 0 || k === L.stops.length - 1) return true;
     if (b.pax.some(p => p.to === k)) return true;
-    if (b.pax.length >= b.cap) return false;
+    if (b.holdNext) return true;                       // הסדרן ביקש להחזיק בתחנה הבאה
+    if (b.pax.length >= b.cap || b.express) return false;
     return L.queues[k].length > 0 || !!this.sameRider(L, b, k, false) || !!this.altRider(L, k, L.stops[k], false);
   }
 
@@ -244,12 +258,15 @@ export class Sim {
       if (b.decided === b.next && !b.stopHere && b.s >= target - 0.05) {
         // חולפים על פני התחנה. אוטובוס מלא שמשאיר ממתינים — נספר כ"נשארו"
         const stop = L.stops[b.next], ss = this.stopStats.get(stop.id), left = L.queues[b.next].length;
-        if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); }
+        if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); for (const p of L.queues[b.next]) p.skips = (p.skips || 0) + 1; }
+        this.ops.onPass(L, b, b.next, left > 0);
         this.events.push({ type: 'pass', bus: b, stop });
         b.next++; target = L.stopS[b.next];
       }
       const stopping = b.decided !== b.next || b.stopHere;
-      let v = Math.max(0.8, (L.profileFree || L.profile).get(b.s + 1.2));
+      // תקלה או נהג מאחר: האוטובוס עומד
+      if (this.ops.stalled(b)) { b.v = 0; return; }
+      let v = Math.max(0.8, (L.profileFree || L.profile).get(b.s + 1.2)) * this.ops.speedK(L, b);
       if (stopping) v = Math.min(v, Math.sqrt(2 * DECEL * Math.max(0, target - b.s)) + 0.25);
       if (ahead && ahead.state !== 'done' && ahead.s - b.s < BUS.gap + 4) v = Math.min(v, Math.max(0, (ahead.s - b.s - BUS.gap) * 0.5));
       b.v += Math.max(-2.5 * h, Math.min(1.2 * h, v - b.v));
@@ -260,6 +277,7 @@ export class Sim {
         b.s = target; b.v = 0; b.state = 'dwell'; b.ph = 'open'; b.t = 0; b.dw = 0;
         b.ta = 0; b.tb = 0;
         this.events.push({ type: 'arrive', bus: b, stop: L.stops[b.next] });
+        this.ops.onArrive(L, b, b.next);
       }
     } else if (b.state === 'dwell') {
       const k = b.next, last = k === L.stops.length - 1, stop = L.stops[k], ss = this.stopStats.get(stop.id);
@@ -277,22 +295,30 @@ export class Sim {
           busy = true;
           if (b.ta >= BUS.alightEvery) {
             b.ta = 0; const p = b.pax.splice(off, 1)[0];
-            L.stats.alight++; ss.alight++;
+            if (!p.role) { L.stats.alight++; ss.alight++; }       // פקח / מבקר: לא נוסע רגיל
             const ev = { type: 'alight', bus: b, p, stop }; this.events.push(ev);
-            if (p.wrap) { p.wrap = false; p.legs[p.leg] = { L, from: 0, to: p.to }; this.joinQueue(p); }   // האוטובוס לא ממשיך: מחכים לבא
+            if (!p.role && !p.wrap && p.leg + 1 >= p.legs.length) this.ops.rate(p, L, b, k);
+            if (p.role) { }
+            else if (p.wrap) { p.wrap = false; p.legs[p.leg] = { L, from: 0, to: p.to }; this.joinQueue(p); }   // האוטובוס לא ממשיך: מחכים לבא
             else if (p.leg + 1 < p.legs.length) { const x = this.transfer(p, L, stop); if (x) { ev.xfer = x.to; ev.at = x.at; } }   // מעבר: התצוגה מראה אותו הולך לתחנה הבאה
           }
         }
-        if (!last && b.pax.length < b.cap && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
+        if (!last && !b.express && b.pax.length < b.cap && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
             b.tb = 0; const p = L.queues[k].shift() || this.sameRider(L, b, k, true) || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
-            L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
-            // מעבר בחינם (כמו "רב-קו": עד 90 דק') — משלמים רק בעלייה הראשונה
-            if (!p.paid) { p.paid = true; this.bank?.earn(FARE, L.id); } else L.stats.xferIn++;
+            p.wait = this.time - p.t0; p.load = b.pax.length / b.cap;
+            if (!p.role) {
+              L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
+              // מעבר בחינם (כמו "רב-קו": עד 90 דק') — משלמים רק בעלייה הראשונה. חלק מהנוסעים לא משלמים (ops.pays)
+              if (!p.paid) { p.paid = true; if (this.ops.pays(L)) this.bank?.earn(FARE, L.id); } else L.stats.xferIn++;
+            }
+            this.ops.onLoad(b);
             this.events.push({ type: 'board', bus: b, p, stop });
           }
         }
+        // הסדרן מחזיק את האוטובוס בתחנה
+        if (b.hold > this.time) busy = true;
         // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש
         if ((b.walking || 0) > 0 && b.dw < 90) busy = true;
         if (!busy && last && b.goOn && off < 0) {
@@ -309,8 +335,9 @@ export class Sim {
         if (b.door <= 0) {
           // אוטובוס מלא נוסע ומשאיר אנשים בתחנה
           const left = last ? 0 : L.queues[k].length;
-          if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); }
+          if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); for (const p of L.queues[k]) p.skips = (p.skips || 0) + 1; }
           if (last) {
+            this.ops.onDone(L, b);
             b.state = 'done'; b.t = 0; b.doneAt = this.time;
             // הרכב נוסע ריק חזרה לתחנה הראשונה ונח במסוף; רק אז הוא פנוי שוב (את הנסיעה הזו לא מציירים)
             const dead = L.poly.length / DEADHEAD_SPEED;

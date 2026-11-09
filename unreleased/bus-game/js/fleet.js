@@ -51,7 +51,7 @@ export const isLease = def => !!def?.lease;
 export const fleetValue = def => isLease(def) || !def?.fleet ? 0 : Math.round(def.fleet * TYPES[typeOf(def)].price * SELL_BACK);
 
 const KEY = 'busgame.kiryat-malachi.money.v1';
-export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, byLine: {} });
+export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
 
 export class Bank {
   constructor(save, time) {
@@ -65,7 +65,11 @@ export class Bank {
     // מצב המשחק: 'career' (ברירת המחדל, גם לשמירות ישנות) או 'creative'; והמצב של השלבים (career.js)
     this.mode = save?.mode === 'creative' ? 'creative' : 'career';
     this.career = save?.career && typeof save.career === 'object' ? save.career : null;
-    this.legacy = !!save && !save.mode;          // שמירה מלפני השלבים — השלבים שכבר מתקיימים מושלמים בשקט
+    this.legacy = !!save && !save.mode;
+    // תפעול (ops.js): פקחים שנשכרו, דוחות ביקורת, והגדרות (במצב יצירתי אפשר לכבות אירועים ודוחות)
+    this.inspectors = save?.inspectors | 0;
+    this.reports = Array.isArray(save?.reports) ? save.reports.slice(0, 30) : [];
+    this.settings = { incidents: true, audits: true, ...(save?.settings || {}) };          // שמירה מלפני השלבים — השלבים שכבר מתקיימים מושלמים בשקט
   }
   static load() {
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); return s && typeof s === 'object' ? s : null; } catch { return null; }
@@ -75,7 +79,7 @@ export class Bank {
     try { localStorage.setItem(KEY, JSON.stringify(this.snapshot(time))); } catch { }
   }
   snapshot(time) {
-    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, career: this.career };
+    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
   }
   line(id) { return this.today.byLine[id] || (this.today.byLine[id] = { fares: 0, pax: 0, cost: 0, subsidy: 0 }); }
   earn(amount, lineId) {
@@ -104,8 +108,8 @@ export class Bank {
   refund(amount) { this.money += amount; this.today.sell += amount; }
   get costToday() { const d = this.today; return d.km + d.drivers + d.lease; }
   // תוצאת יום: הכנסות פחות הוצאות, כולל קנייה ומכירה של רכבים
-  static net(d) { return d.fares + (d.subsidy || 0) + d.sell - d.buy - d.km - d.drivers - (d.lease || 0); }
-  reset(time, mode = this.mode, career = null) { this.money = START_MONEY; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; }
+  static net(d) { return d.fares + (d.subsidy || 0) + (d.fineIn || 0) + (d.bonus || 0) + d.sell - d.buy - d.km - d.drivers - (d.lease || 0) - (d.insp || 0) - (d.penalty || 0); }
+  reset(time, mode = this.mode, career = null) { this.money = START_MONEY; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; this.inspectors = 0; this.reports = []; }
   // מעבר יום: שומרים את הסיכום ומתחילים יום חדש
   roll(time) {
     const d = dayOf(time);
