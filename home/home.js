@@ -598,6 +598,15 @@ function mount(root, opts) {
     });
   } else beam.style.display = 'none';
 
+  /* משחק הקווים · בטא: כששני המקומות נתפסו — כותבים את זה בכרטיס (מספר הנרשמים בלבד, מ-Supabase) */
+  try {
+    const gc = root.querySelector('.card[data-k="game"] p');
+    if (gc && W.fetch) fetch('https://nisqpjkxrltodvuicieg.supabase.co/rest/v1/rpc/beta_count', { method: 'POST',
+      headers: { apikey: 'sb_publishable_XM85T3S1d5WOZrWd6go0hQ_k4R9kWoX', 'Content-Type': 'application/json' }, body: '{}' })
+      .then(r => r.ok ? r.json() : null).then(n => { if (typeof n === 'number' && n >= 2) gc.textContent = 'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — כבר נרשמו שני משתמשים, וההרשמה סגורה'; })
+      .catch(() => {});
+  } catch (e) { }
+
   /* קצת עליי */
   const ab = root.querySelector('.about'), abtn = root.querySelector('[data-about-btn]');
   function toggleAbout(force) {

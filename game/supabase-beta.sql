@@ -37,3 +37,11 @@ create trigger beta_limit before insert on public.beta_testers
 
 -- שמירה בענן במשחק: שמירה אחת בכל שם לכל משתמש
 create unique index if not exists saves_user_name on public.saves (user_id, name);
+
+-- דף הבית: רק מספר הנרשמים לבטא (בלי שמות), כדי לכתוב בכרטיס כשההרשמה נסגרה
+create or replace function public.beta_count() returns int
+language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.beta_testers
+$$;
+revoke all on function public.beta_count() from public;
+grant execute on function public.beta_count() to anon, authenticated;
