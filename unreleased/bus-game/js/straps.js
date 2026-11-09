@@ -79,16 +79,18 @@ function shared(poleMat) {
 export function addStraps(busRoot) {
   if (!busRoot || busRoot.getObjectByName('Straps')) return 0;
   busRoot.updateMatrixWorld(true);
-  const spots = [];
+  const spots = [], rings = [];
   let poleMat = null;
   busRoot.traverse(o => {
     if (!/^SM_StrapRing/.test(o.name)) return;
     const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
+    o.visible = false; rings.push(new THREE.Vector3(Math.sign(c.x) * 0.5, RAIL_Y, c.z));
+    // מעל הדלת האמצעית והמשטח (שם הנהג עובד ונכנס כיסא גלגלים) — בלי רצועות
+    if (c.z > -0.35 && c.z < 1.15) return;
     spots.push(new THREE.Vector3(Math.sign(c.x) * 0.5, RAIL_Y, c.z));
-    o.visible = false;
     o.traverse(m => { if (m.isMesh && !poleMat) poleMat = [].concat(m.material)[0]; });
   });
-  if (!spots.length) return 0;
+  if (!rings.length) return 0;
   // המוטות הקצרים (M_Pole בגוף האוטובוס) בין המוט לטבעת: משולשים קטנים מתחת למוט, ליד כל טבעת
   busRoot.traverse(o => {
     const m = o.isMesh && [].concat(o.material)[0];
@@ -99,7 +101,7 @@ export function addStraps(busRoot) {
     for (let t = 0; t < idx.length; t += 3) {
       for (let k = 0; k < 3; k++) v[k].fromBufferAttribute(pos, idx[t + k]).applyMatrix4(o.matrixWorld);
       const stem = v.every(p => p.y > 2.3 && p.y < RAIL_Y - RAIL_R + 0.003 && Math.abs(Math.abs(p.x) - 0.5) < 0.03) &&
-        spots.some(s => v.every(p => Math.abs(p.z - s.z) < 0.03 && Math.sign(p.x) === Math.sign(s.x)));
+        rings.some(s => v.every(p => Math.abs(p.z - s.z) < 0.03 && Math.sign(p.x) === Math.sign(s.x)));
       if (stem) cut++; else keep.push(idx[t], idx[t + 1], idx[t + 2]);
     }
     if (cut) g.setIndex(keep);

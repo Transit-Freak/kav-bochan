@@ -130,9 +130,9 @@ function buildCab(M) {
 // מושב הנהג, לפי מידות הנהג אחרי הישיבה (seatY — גובה הריפוד, back — המשענת)
 function buildSeat(M, seatY, back) {
   const parts = [], add = (m, g) => { if (m && g) parts.push([g, m]); };
-  const cz = HIP.z + 0.1;
-  add(M.seat, at(rbox(0.5, 0.11, 0.5, 0.045), DX, seatY - 0.055, cz, -0.06));            // ריפוד
-  add(M.trim, at(rbox(0.46, 0.06, 0.46, 0.02), DX, seatY - 0.135, cz));                   // מסגרת
+  const cz = HIP.z + 0.05;                                                              // הריפוד נגמר לפני הברכיים (השוקיים לא נכנסות בו)
+  add(M.seat, at(rbox(0.5, 0.11, 0.44, 0.045), DX, seatY - 0.075, cz, -0.03));           // ריפוד (קצת מתחת לירכיים)
+  add(M.trim, at(rbox(0.42, 0.06, 0.3, 0.02), DX, seatY - 0.155, cz - 0.06));             // מסגרת (מאחורי השוקיים)
   // משענת: נוטה לאחור, צמודה לגב של הנהג
   const bh = 0.62, ba = back.angle, bz = back.z0;
   const bg = rbox(0.5, bh, 0.11, 0.045); bg.translate(0, bh / 2, -0.055);
@@ -364,7 +364,7 @@ function poseDriver(gltf, hip) {
     const P = palm[s].clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
     const curl = (bone, deg2) => { if (!bone) return; const d = new THREE.Vector3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()));
       turn(bone, new THREE.Vector3().crossVectors(d, P), deg2); };
-    curl(fb, 12); curl(f1, 80); curl(th, 35);
+    curl(fb, 10); curl(f1, 58); curl(th, 28);                // אצבעות סביב ההגה, בלי להיכנס בו
   }
   // הראש: מסתכל קדימה על הכביש, קצת למטה
   turn(B('Neck'), X, -4); turn(B('Head'), X, 6);
@@ -382,7 +382,6 @@ function buildPedals(M, feet) {
   const pedal = (x, c, len, w) => {
     add(M.rubber, at(box(w, len, 0.022), x, c.y, c.z, ang));
     const foot = c.clone().addScaledVector(d, -len / 2); foot.x = x;   // הקצה התחתון, אל הרצפה
-    add(M.trim, at(box(w * 0.7, Math.max(0.02, foot.y - FL + 0.01), 0.05), x, (foot.y + FL) / 2, foot.z));
   };
   const c = ank.clone().add(toe).multiplyScalar(0.5).addScaledVector(up, -0.075);
   pedal(ank.x, c, 0.24, 0.08);                                        // גז
