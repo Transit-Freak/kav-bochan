@@ -1209,15 +1209,17 @@ function TempEv({ t, rd }) {
           onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}>{KINDS.temp.label}</button>
         <span className="evnote"> {t.cl ? t.cl + " — " : ""}{t.h}</span>
       </div>
-      <div className="evsrc">הודעת משרד התחבורה על שינוי זמני, דרך bus-alerts.com</div>
-      {((t.rm || []).length > 0 || (t.add || []).length > 0) && <div className="sub">
-        {(t.rm || []).length > 0 && <div>➖ תחנות שבוטלו זמנית: {lbl(t.rm)}</div>}
-        {(t.add || []).length > 0 && <div>➕ תחנות חלופיות: {lbl(t.add)}</div>}
-      </div>}
-      {t.m && (open ? <TempMap id={t.id} rd={rd} /> : <div className="sub"><span className="tmpmore">🗺 מפת השינוי ⌄</span></div>)}
-      {t.d2 && t.d2 !== t.h && <div className="sub">{open
-        ? <div className="tmptxt" onClick={(ev) => ev.stopPropagation()}>{t.d2}</div>
-        : <span className="tmpmore">נוסח ההודעה ⌄</span>}</div>}
+      {/* סגור: רק התאריך והכותרת (שלמה 09.11). לחיצה פותחת את התחנות, המפה ונוסח ההודעה */}
+      {!open && <div className="sub"><span className="tmpmore">פרטי השינוי ⌄</span></div>}
+      {open && <>
+        <div className="evsrc">הודעת משרד התחבורה על שינוי זמני, דרך bus-alerts.com</div>
+        {((t.rm || []).length > 0 || (t.add || []).length > 0) && <div className="sub">
+          {(t.rm || []).length > 0 && <div>➖ תחנות שבוטלו זמנית: {lbl(t.rm)}</div>}
+          {(t.add || []).length > 0 && <div>➕ תחנות חלופיות: {lbl(t.add)}</div>}
+        </div>}
+        {!!t.m && <TempMap id={t.id} rd={rd} />}
+        {t.d2 && t.d2 !== t.h && <div className="sub"><div className="tmptxt" onClick={(ev) => ev.stopPropagation()}>{t.d2}</div></div>}
+      </>}
     </div>
   );
 }
