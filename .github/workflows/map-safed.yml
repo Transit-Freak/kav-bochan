@@ -1,0 +1,25 @@
+name: map-safed
+on:
+  push:
+    branches: [claude/map-safed]
+    paths: [tmp-mapsafed/fetch_tiles.py, .github/workflows/map-safed.yml]
+permissions:
+  contents: write
+jobs:
+  tiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tmp-mapsafed
+      - name: tiles
+        working-directory: tmp-mapsafed
+        run: python3 fetch_tiles.py
+      - name: save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp-mapsafed/tiles.tgz
+          git commit -m "safed map tiles"
+          git push origin HEAD:claude/map-safed
