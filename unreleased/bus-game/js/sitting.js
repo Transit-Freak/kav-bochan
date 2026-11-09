@@ -41,7 +41,7 @@ function standing(gltf, skinVerts) {
 
 // תנוחת ישיבה: האגן בגובה hipY מעל הקרקע, כפות הרגליים על הקרקע (fix — תיקון לגובה הקרסול).
 // lean — כמה מעלות הגב נשען אחורה (מעבר לבסיס), כדי שהאגן יתקדם על המושב
-function pose(gltf, st, hipY, fix, lean = 0) {
+function pose(gltf, st, hipY, fix, lean = 0, lift = { Left: 0, Right: 0 }) {
   const root = idleRoot(gltf), B = n => root.getObjectByName(n), W = o => o.getWorldPosition(V());
   const hips = B('Hips');
   root.position.sub(W(hips).setY(W(hips).y - hipY)); root.updateMatrixWorld(true);
@@ -76,7 +76,7 @@ function pose(gltf, st, hipY, fix, lean = 0) {
     const { A, K, sx } = knees[s];
     const hand = B(s + 'Hand'), fb = B(s + 'FingerBase'), f1 = B(s + 'HandFinger1'), th = B(s === 'Left' ? 'LThumb' : 'RThumb');
     const along = K.clone().sub(A).normalize();
-    const wrist = A.clone().lerp(K, 0.3).add(new THREE.Vector3(sx * 0.035, 0.105, 0));
+    const wrist = A.clone().lerp(K, 0.3).add(new THREE.Vector3(sx * 0.035, 0.105 + lift[s], 0));
     twoBone(B(s + 'Arm'), B(s + 'ForeArm'), hand, wrist, new THREE.Vector3(sx * 0.6, -0.3, -0.8));
     const h = along.clone().add(new THREE.Vector3(-sx * 0.12, -0.3, 0)).normalize();
     aim(hand, fb, W(hand).add(h));
@@ -92,6 +92,39 @@ function pose(gltf, st, hipY, fix, lean = 0) {
   }
   root.updateMatrixWorld(true);
   return root;
+}
+
+// כמה צריך להרים (או להוריד) כל כף יד כדי שתהיה מונחת על הירך, 5 מ"מ מעליה (מ', לכל צד).
+// מרכז כף היד: 8 ס"מ מפרק היד לכיוון האצבעות. מתחתיו — הנקודה הגבוהה של הירך (קודקודים של הירך, עור ובגד,
+// עד 2.5 ס"מ ממנו), ומולה — הנקודה הנמוכה של כף היד (קודקודים של היד והאצבעות לפי משקלי השלד, עד 3 ס"מ ממנו)
+function handGap(root, skinVerts) {
+  const out = {}, ctr = {};
+  for (const s of ['Left', 'Right']) {
+    const h = root.getObjectByName(s + 'Hand').getWorldPosition(V()), f = root.getObjectByName(s + 'FingerBase').getWorldPosition(V());
+    ctr[s] = h.clone().lerp(f, 0.5).add(f.clone().sub(h).normalize().multiplyScalar(0.03));
+  }
+  const top = { Left: -Infinity, Right: -Infinity }, palm = { Left: Infinity, Right: Infinity };
+  for (const { o, P, kind } of skinVerts(root)) {
+    if (!o.isSkinnedMesh || (kind !== 'cloth' && kind !== 'skin')) continue;
+    const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight, bones = o.skeleton.bones;
+    for (let i = 0; i < P.length / 3; i++) {
+      const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+      let near = null;
+      for (const s of ['Left', 'Right']) if (Math.hypot(x - ctr[s].x, z - ctr[s].z) < 0.04) near = s;
+      if (!near) continue;
+      let hand = 0, leg = 0;
+      for (let j = 0; j < 4; j++) {
+        const w = sw.getComponent(i, j); if (!w) continue;
+        const n = bones[si.getComponent(i, j)].name;
+        if (/Hand|Finger|Thumb/.test(n) && !/Arm/.test(n)) hand += w; else if (/UpLeg$/.test(n)) leg += w;
+      }
+      const r = Math.hypot(x - ctr[near].x, z - ctr[near].z);
+      if (hand >= 0.5 && r < 0.03) palm[near] = Math.min(palm[near], y);
+      else if (leg >= 0.5 && r < 0.025) top[near] = Math.max(top[near], y);
+    }
+  }
+  for (const s of ['Left', 'Right']) out[s] = isFinite(top[s]) && isFinite(palm[s]) ? top[s] + 0.005 - palm[s] : 0;
+  return out;
 }
 
 // מדידות בתנוחה: התחתית של הישבן (על המושב, עד depth קדימה מהגב), הנקודה האחורית ביותר, התחתית של הנעליים
@@ -135,10 +168,20 @@ export function buildSitter(gltf, skinVerts, seatH, depth) {
       }
     }
   }
+  // הידיים: כל כף יד מונחת על הירך — לא נכנסת לתוכה ולא מרחפת מעליה (עובי הירך שונה בכל דגם)
+  const lift = { Left: 0, Right: 0 };
+  for (let k = 0; k < 5; k++) {
+    const g = handGap(root, skinVerts);
+    if (Math.abs(g.Left) < 0.001 && Math.abs(g.Right) < 0.001) break;
+    for (const s of ['Left', 'Right']) lift[s] = THREE.MathUtils.clamp(lift[s] + g[s], 0, 0.12);
+    root = pose(gltf, st, hipY, fix, lean, lift);
+  }
+  m = measure(root, skinVerts, depth);
+  const clip = handGap(root, skinVerts);
   const origin = new THREE.Vector3(m.hips.x, m.butt - seatH, m.back);
   const quats = new Map();
   root.traverse(o => { if (o.isBone) quats.set(o.name, o.quaternion.clone()); });
   const W = n => root.getObjectByName(n).getWorldPosition(V()).sub(origin);
   const feet = W('LeftFoot').add(W('RightFoot')).multiplyScalar(0.5).setY(0);
-  return { root, origin, quats, hip: W('Hips'), feet, ankles: [W('LeftFoot'), W('RightFoot')], err: { ground: m.butt - seatH, shoe: m.shoe - origin.y }, lean, knee: (W('LeftLeg').z + W('RightLeg').z) / 2 };
+  return { root, origin, quats, hip: W('Hips'), feet, ankles: [W('LeftFoot'), W('RightFoot')], err: { ground: m.butt - seatH, shoe: m.shoe - origin.y }, lean, lift, clip, knee: (W('LeftLeg').z + W('RightLeg').z) / 2 };
 }
