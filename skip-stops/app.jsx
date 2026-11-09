@@ -625,6 +625,17 @@ function App() {
   }, [showExp, expAll, dq, city, fOp, fMahoz, fUniq]);
   const expDb = expD;
 
+  // כשאין תוצאות בגלל סינון — אומרים איזה, עם כפתור להסרה (אחרת נדמה שאין ממצאים בכלל)
+  const activeF = (main) => [city && "עיר: " + city, fOp && "מפעיל: " + fOp, fMahoz && "מחוז: " + fMahoz, fUniq && "רישוי: " + fUniq,
+    main && fGap ? "מרחק מהעצירות לפחות " + fGap + " מ'" : "", main && fSkips ? "מדלג על פחות מ-" + fSkips + " תחנות" : ""].filter(Boolean);
+  const clearF = () => { setCity(""); setFOp(""); setFMahoz(""); setFUniq(""); setFGap(0); setFSkips(0); };
+  const emptyMsg = (what, main) => {
+    const f = activeF(main);
+    return f.length
+      ? <div className="empty">{what} בסינון: {f.join(" · ")}.{" "}<button className="chip clk" onClick={clearF}>הצגה בלי הסינון</button></div>
+      : <div className="empty">{what}.</div>;
+  };
+
   if (err) return <div className="boot">שגיאה בטעינת הנתונים — ייתכן שההרצה הראשונה עוד לא הסתיימה. נסו לרענן מאוחר יותר.</div>;
   if (!data) return <div className="boot">טוען נתונים…</div>;
 
@@ -768,7 +779,7 @@ function App() {
         })}
         {shown.length === 0 && (showOnlyNew
           ? <div className="empty">אין ממצאים חדשים בסינון הנוכחי — לחצו שוב על "מציג רק חדשים" כדי לראות את כל הממצאים.</div>
-          : <div className="empty">לא נמצאו תוצאות.</div>)}
+          : emptyMsg("לא נמצאו תוצאות", true))}
         {groups.length > shown.length && (
           <button className="more-btn" onClick={() => setPage(page + 1)}>
             הצגת עוד ({groups.length - shown.length} קווים נוספים)
@@ -794,7 +805,7 @@ function App() {
                   onToggle={() => setOpenExp(openExp === gk ? null : gk)} />
               );
             })}
-            {expD && expGroups.length === 0 && <div className="empty">אין קווים מהירים בסינון הנוכחי.</div>}
+            {expD && expGroups.length === 0 && emptyMsg("אין קווים מהירים", false)}
           </div>
         </section>
       )}
