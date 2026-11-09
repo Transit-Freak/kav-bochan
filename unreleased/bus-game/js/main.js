@@ -10,7 +10,8 @@ import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths } from './stops.js';
 import { CameraModes } from './cameras.js';
-import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, START_MONEY, typeOf, lineCycle, vehiclesNeeded, fleetChange, money, dayOf } from './fleet.js';
+import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money } from './fleet.js';
+import { NightFast, FAST } from './night.js';
 import { mapTouch } from './touch.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
 import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass, ZTYPES, symSvg, statusSvg } from './demandview.js';
@@ -55,7 +56,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, fps: 0, frames: 0 };
-let city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -96,14 +97,16 @@ async function init() {
     if (L && d.fleet == null) { d.vtype = 'std'; d.fleet = vehiclesNeeded(L); gift += d.fleet; }
   }
   if (gift || hrs) saveLines(lineDefs);
-  if (gift) setTimeout(() => toast(`הקווים שכבר בניתם קיבלו ${gift} אוטובוסים רגילים במתנה`), 600);
+  if (bank.migrated) setTimeout(() => toast(`המחירים השתנו: רכבים זולים יותר, ויש סבסוד לכל ק"מ. הקופה הותאמה: ${money(bank.money)}`), 600);
+  else if (gift) setTimeout(() => toast(`הקווים שכבר בניתם קיבלו ${gift} אוטובוסים רגילים במתנה`), 600);
   else if (hrs) setTimeout(() => toast('לקווים שלכם נקבעו שעות פעילות 05:00–24:00. משנים ב"רכבים ותדירות"'), 600);
+  night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); renderLines(); renderMoney();
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
   Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
-    demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
+    night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
 }
@@ -339,7 +342,7 @@ function finishPlanning() {
   const r = computeRoute(graph, planning.stops);
   const tmp = { poly: r.poly, stops: planning.stops, profile: speedProfile(r.poly, r.stopS), def: { headway: 10 } };
   const need = vehiclesNeeded(tmp, 10);
-  form = { line: null, tmp, type: 'std', n: Math.max(0, Math.min(need, Math.floor(bank.money / TYPES.std.price))), touched: false };
+  form = { line: null, tmp, type: 'std', lease: false, n: 0, touched: false };
   $('#fTitle').textContent = 'פרטי הקו';
   $('#fSave').textContent = 'שמירה והפעלה';
   $('#fColors').hidden = false;
@@ -353,42 +356,47 @@ function formHeadway() { return +$('#fHead').value || 10; }
 function formNeed() { return vehiclesNeeded(form.line || form.tmp, formHeadway()); }
 function formCost() {
   const d = form.line?.def;
-  return d ? fleetChange(typeOf(d), d.fleet || 0, form.type, form.n) : { buy: form.n * TYPES[form.type].price, sell: 0 };
+  return fleetChange(d && { type: typeOf(d), n: d.fleet || 0, lease: isLease(d) }, { type: form.type, n: form.n, lease: form.lease });
 }
+// ליסינג: אין תשלום מראש, אבל חברה בחובות לא מקבלת רכבים חדשים
+const formBlocked = ({ buy, sell, added }) => buy > 0 ? bank.money - buy + sell < 0 : added > 0 && bank.money + sell < 0;
 function renderForm() {
   const box = $('#fTypes'); box.innerHTML = '';
   for (const id of TYPE_ORDER) {
     const T = TYPES[id];
     const b = document.createElement('button'); b.type = 'button'; b.dataset.type = id;
     b.className = 'vtype' + (id === form.type ? ' on' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', id === form.type);
-    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${money(T.price)}</span>`;
+    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
     b.onclick = () => { form.type = id; renderForm(); };
     box.appendChild(b);
   }
+  $('#fMode').querySelectorAll('button').forEach(b => { const on = (b.dataset.m === 'lease') === form.lease; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
   const need = formNeed();
-  if (!form.touched && !form.line) form.n = Math.max(0, Math.min(need, Math.floor(bank.money / TYPES[form.type].price)));
+  if (!form.touched && !form.line) form.n = form.lease ? need : Math.max(0, Math.min(need, Math.floor(bank.money / TYPES[form.type].price)));
   $('#fN').textContent = form.n;
   $('#fMinus').disabled = form.n <= 0;
   const T = TYPES[form.type];
   const cyc = Math.round(lineCycle(form.line || form.tmp).total / 60);
   $('#fNeed').innerHTML = form.n >= need ? `מספיק לכל ${formHeadway()} דק'` : `<span class="bad">צריך ${need} לכל ${formHeadway()} דק'</span>`;
-  const { buy, sell } = formCost(), after = bank.money - buy + sell;
+  const c = formCost(), { buy, sell, leaseDay } = c, after = bank.money - buy + sell, blocked = formBlocked(c);
   const parts = [];
   if (buy) parts.push(`קנייה <b>${money(buy)}</b>`);
   if (sell) parts.push(`מכירה <b class="good">+${money(sell)}</b>`);
+  if (leaseDay) parts.push(`ליסינג <b>${money(leaseDay)} ליום</b>`);
   parts.push(`בקופה אחרי: <b class="${after < 0 ? 'bad' : ''}">${money(after)}</b>`);
-  const err = buy > 0 && after < 0 ? `<div class="bad">אין מספיק כסף. הורידו רכבים או בחרו רכב זול יותר.</div>` : '';
+  const err = !blocked ? '' : buy > 0 ? `<div class="bad">אין מספיק כסף. הורידו רכבים, בחרו רכב זול יותר או ליסינג.</div>`
+    : `<div class="bad">החברה בחובות — אי אפשר לקחת עוד רכבים.</div>`;
   const zero = form.n === 0 ? `<div class="bad">בלי רכבים הקו לא יפעל.</div>` : '';
   const [ha, hb] = formHours(), badH = hb <= ha;
   const hrs = badH ? `<div class="bad">שעת הסיום צריכה להיות אחרי שעת ההתחלה.</div>` : '';
   $('#fCost').innerHTML = `<div>${parts.join(' · ')}</div>
-    <div class="fsub">סיבוב (הלוך, חזרה ריקה והפסקה) בערך ${cyc} דק'. ${T.cap * form.n ? `נסיעה: ₪${T.km} לק"מ ו-₪${T.hour} לשעת נהג.` : ''}</div>${err}${zero}${hrs}`;
-  $('#fSave').disabled = (buy > 0 && after < 0) || badH;
+    <div class="fsub">סיבוב (הלוך, חזרה ריקה והפסקה) בערך ${cyc} דק'. ${T.cap * form.n ? `נסיעה: ₪${T.km} לק"מ ו-₪${T.hour} לשעת נהג. סבסוד: ₪${SUBSIDY_KM} לכל ק"מ בקו.` : ''}</div>${err}${zero}${hrs}`;
+  $('#fSave').disabled = blocked || badH;
 }
 // עריכת קו קיים: תדירות, סוג רכב וכמה רכבים (המסלול נשאר)
 function openEdit(L) {
   if (planning) return;
-  form = { line: L, type: typeOf(L.def), n: L.def.fleet || 0, touched: true };
+  form = { line: L, type: typeOf(L.def), lease: isLease(L.def), n: L.def.fleet || 0, touched: true };
   $('#fNum').value = L.def.number; $('#fName').value = L.def.name || ''; $('#fHead').value = String(L.def.headway); setHoursForm(hoursOf(L.def));
   $('#fTitle').textContent = `קו ${L.def.number}: רכבים ותדירות`;
   $('#fSave').textContent = 'שמירה';
@@ -417,20 +425,22 @@ function renderSwatches(cur) {
 function saveLineFromForm(o = {}) {
   if (!form) return;
   if (o.vtype) form.type = o.vtype;
+  if (o.lease != null) form.lease = !!o.lease;
   if (o.fleet != null) form.n = o.fleet;
   if (o.headway) $('#fHead').value = String(o.headway);
   if (o.hours) setHoursForm(o.hours);
   const hours = formHours();
-  const { buy, sell } = formCost();
-  if (buy > 0 && bank.money - buy + sell < 0) { toast('אין מספיק כסף'); return; }
+  const cost = formCost(), { buy, sell } = cost;
+  if (formBlocked(cost)) { toast('אין מספיק כסף'); return; }
   if (hours[1] <= hours[0]) { toast('שעת הסיום צריכה להיות אחרי שעת ההתחלה'); return; }
   const number = ($('#fNum').value || '1').trim().slice(0, 4), name = ($('#fName').value || '').trim().slice(0, 40);
   if (buy) bank.spend('buy', buy);
   if (sell) bank.refund(sell);
   if (form.line) {
     const L = form.line, d = L.def, hw = formHeadway();
-    if (typeOf(d) !== form.type) L.returning = [];      // הרכבים הישנים נמכרו
+    if (typeOf(d) !== form.type || isLease(d) !== form.lease) L.returning = [];      // הרכבים הישנים נמכרו / הוחזרו
     d.number = number; d.name = name; d.vtype = form.type; d.fleet = form.n; d.hours = hours;
+    if (form.lease) d.lease = true; else delete d.lease;
     sim.net.invalidate();
     if (hw !== d.headway) {
       d.headway = hw;
@@ -440,18 +450,19 @@ function saveLineFromForm(o = {}) {
     form = null; $('#lineForm').hidden = true;
     saveLines(lineDefs); bank.save(sim.time);
     renderLines(); renderMoney();
-    toast(`קו ${d.number}: ${d.fleet} × ${TYPES[d.vtype].name}, כל ${d.headway} דק', ${span(hours[0], hours[1])}`);
+    toast(`קו ${d.number}: ${d.fleet} × ${TYPES[d.vtype].name}${d.lease ? ' בליסינג' : ''}, כל ${d.headway} דק', ${span(hours[0], hours[1])}`);
     return L;
   }
   const def = {
     id: 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), number, name, color: planning.color,
     headway: formHeadway(), stopIds: planning.stops.map(s => s.id), vtype: form.type, fleet: form.n, hours,
   };
+  if (form.lease) def.lease = true;
   cancelPlanning();
   lineDefs.push(def); saveLines(lineDefs); bank.save(sim.time);
   const L = addLine(def, true);
   selectedLine = L; renderLines(); renderMoney(); showTab('lines'); openPanel();
-  toast(def.fleet ? `קו ${def.number} יצא לדרך — ${def.fleet} × ${TYPES[def.vtype].name}, כל ${def.headway} דק'` : `קו ${def.number} נשמר בלי רכבים — הוסיפו רכבים כדי שיפעל`);
+  toast(def.fleet ? `קו ${def.number} יצא לדרך — ${def.fleet} × ${TYPES[def.vtype].name}${def.lease ? ' בליסינג' : ''}, כל ${def.headway} דק'` : `קו ${def.number} נשמר בלי רכבים — הוסיפו רכבים כדי שיפעל`);
   return L;
 }
 
@@ -465,8 +476,9 @@ function addLine(def, fresh) {
   return L;
 }
 function removeLine(L, refund = true) {
-  const got = refund && L.def.fleet ? Math.round(L.def.fleet * TYPES[typeOf(L.def)].price * SELL_BACK) : 0;
+  const got = refund ? fleetValue(L.def) : 0;
   if (got) { bank.refund(got); bank.save(sim.time); toast(`קו ${L.def.number} נמחק. ${L.def.fleet} הרכבים שלו נמכרו ב-${money(got)}`); }
+  else if (refund && L.def.fleet && isLease(L.def)) toast(`קו ${L.def.number} נמחק. ${L.def.fleet} הרכבים בליסינג הוחזרו`);
   sim.removeLine(L); lines = lines.filter(x => x !== L);
   for (const K of sim.lines) if (K.retired && sim.current(K) === L) K.buses = [];
   scene.remove(lineGroups.get(L.id)); lineGroups.delete(L.id);
@@ -506,6 +518,7 @@ function bindUI() {
   });
   $('#demandBody').onclick = e => { if (e.target.closest('#dShow')) setDemandView(!dview.on, null, true); };
   $('#fBack').onclick = () => { $('#lineForm').hidden = true; if (form?.line) form = null; };
+  $('#fMode').onclick = e => { const m = e.target.closest('button')?.dataset.m; if (!m || !form) return; form.lease = m === 'lease'; renderForm(); };
   $('#fMinus').onclick = () => { form.n = Math.max(0, form.n - 1); form.touched = true; renderForm(); };
   $('#fPlus').onclick = () => { form.n = Math.min(40, form.n + 1); form.touched = true; renderForm(); };
   $('#fHead').onchange = () => { if (form) renderForm(); };
@@ -514,8 +527,8 @@ function bindUI() {
   $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
   bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm(); };
-  $('#play').onclick = () => setSpeed(sim.speed ? 0 : (G.lastSpeed || 5));
-  document.querySelectorAll('#speeds button').forEach(b => b.onclick = () => setSpeed(+b.dataset.s));
+  $('#play').onclick = () => { night.manual(); setSpeed(sim.speed ? 0 : (G.lastSpeed || 5)); };
+  document.querySelectorAll('#speeds button').forEach(b => b.onclick = () => { night.manual(); setSpeed(+b.dataset.s); });
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
   $('#grip').onclick = () => $('#panel').classList.toggle('min');
   $('#creditsBtn').onclick = () => { $('#credits').hidden = false; };
@@ -527,8 +540,8 @@ function bindUI() {
   });
   if (params.has('fps')) $('#fps').hidden = false;
 }
-function setSpeed(s) {
-  if (s) G.lastSpeed = s;
+function setSpeed(s, auto = false) {
+  if (s && !auto) G.lastSpeed = s;
   sim.speed = s;
   $('#play').textContent = s ? '❚❚' : '▶';
   document.querySelectorAll('#speeds button').forEach(b => b.classList.toggle('on', +b.dataset.s === s));
@@ -570,7 +583,7 @@ function renderLines() {
     c.innerHTML = `<div class="lhead"><span class="num" style="background:${L.color}">${esc(L.def.number)}</span>
       <div style="flex:1;min-width:0"><div class="lname">${esc(L.def.name || 'קו ' + L.def.number)}</div>
       <div class="lmeta">${L.stops.length} תחנות · ${(L.poly.length / 1000).toFixed(1)} ק"מ</div></div></div>
-      <div class="fleet"><div><b>${L.def.fleet || 0} × ${T.name}</b> <span class="lmeta">${T.cap} מקומות</span></div><div data-k="need" class="lmeta"></div></div>
+      <div class="fleet"><div><b>${L.def.fleet || 0} × ${T.name}</b> <span class="lmeta">${T.cap} מקומות${isLease(L.def) ? ' · ליסינג' : ''}</span></div><div data-k="need" class="lmeta"></div></div>
       <div class="hw" data-k="hw"></div>
       <div class="dchart" data-k="chart"></div>
       <div class="stats">
@@ -630,8 +643,8 @@ function updateStats() {
     }
     set('hw', hrs + t, true);
     set('chart', lineChart(L), true);
-    const m = bank.today.byLine[L.id] || { fares: 0, cost: 0 }, prof = m.fares - m.cost;
-    set('money', `היום: הכנסות ${money(m.fares)} · הוצאות ${money(m.cost)} · <b class="${prof < 0 ? 'bad' : 'good'}">${prof < 0 ? 'הפסד' : 'רווח'} ${money(Math.abs(prof))}</b>`, true);
+    const m = bank.today.byLine[L.id] || { fares: 0, cost: 0 }, sub = m.subsidy || 0, prof = m.fares + sub - m.cost;
+    set('money', `היום: כרטיסים ${money(m.fares)} · סבסוד ${money(sub)} · הוצאות ${money(m.cost)} · <b class="${prof < 0 ? 'bad' : 'good'}">${prof < 0 ? 'הפסד' : 'רווח'} ${money(Math.abs(prof))}</b>`, true);
   }
   if (selectedStop && $('[data-pane="stop"]').classList.contains('on')) renderStop();
   if ($('[data-pane="money"]').classList.contains('on')) renderMoney();
@@ -643,11 +656,14 @@ function updateMoneyChip() {
   e.classList.toggle('neg', bank.money < 0);
 }
 function dayRows(d) {
-  const net = d.fares + d.sell - d.buy - d.km - d.drivers;
+  const net = Bank.net(d), op = net + d.buy - d.sell;
   return `<table class="ledger">
     <tr><td>כרטיסים <span class="lmeta">${num(d.pax)} נוסעים × ₪${FARE}</span></td><td class="good">+${money(d.fares)}</td></tr>
+    <tr><td>סבסוד ממשלתי לק"מ <span class="lmeta">₪${SUBSIDY_KM} לק"מ בקו</span></td><td class="good">+${money(d.subsidy || 0)}</td></tr>
     <tr><td>דלק, חשמל ותחזוקה</td><td>−${money(d.km)}</td></tr>
     <tr><td>שכר נהגים</td><td>−${money(d.drivers)}</td></tr>
+    ${d.lease ? `<tr><td>ליסינג</td><td>−${money(d.lease)}</td></tr>` : ''}
+    ${d.buy || d.sell ? `<tr class="sub"><td>רווח מהקווים</td><td class="${op < 0 ? 'bad' : 'good'}">${op < 0 ? '−' : '+'}${money(Math.abs(op))}</td></tr>` : ''}
     ${d.buy ? `<tr><td>קניית רכבים</td><td>−${money(d.buy)}</td></tr>` : ''}
     ${d.sell ? `<tr><td>מכירת רכבים</td><td class="good">+${money(d.sell)}</td></tr>` : ''}
     <tr class="tot"><td>סה"כ</td><td class="${net < 0 ? 'bad' : 'good'}">${net < 0 ? '−' : '+'}${money(Math.abs(net))}</td></tr>
@@ -657,22 +673,24 @@ function renderMoney() {
   if (!bank) return;
   updateMoneyChip();
   const d = bank.today;
-  const fleet = {}; for (const L of lines) { const t = typeOf(L.def); fleet[t] = (fleet[t] || 0) + (L.def.fleet || 0); }
-  const fleetTxt = TYPE_ORDER.filter(t => fleet[t]).map(t => `${fleet[t]} × ${TYPES[t].name}`).join(' · ') || 'אין עדיין רכבים';
+  const fleet = {}, leased = {};
+  for (const L of lines) { const t = typeOf(L.def), o = isLease(L.def) ? leased : fleet; o[t] = (o[t] || 0) + (L.def.fleet || 0); }
+  const fleetTxt = [...TYPE_ORDER.filter(t => fleet[t]).map(t => `${fleet[t]} × ${TYPES[t].name}`),
+    ...TYPE_ORDER.filter(t => leased[t]).map(t => `${leased[t]} × ${TYPES[t].name} בליסינג`)].join(' · ') || 'אין עדיין רכבים';
   const perLine = lines.map(L => {
-    const m = d.byLine[L.id] || { fares: 0, cost: 0, pax: 0 }, p = m.fares - m.cost;
-    return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${num(m.pax)}</td><td>${money(m.fares)}</td><td>${money(m.cost)}</td><td class="${p < 0 ? 'bad' : 'good'}">${p < 0 ? '−' : ''}${money(Math.abs(p))}</td></tr>`;
+    const m = d.byLine[L.id] || { fares: 0, cost: 0, pax: 0 }, sub = m.subsidy || 0, p = m.fares + sub - m.cost;
+    return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${num(m.pax)}</td><td>${money(m.fares)}</td><td>${money(sub)}</td><td>${money(m.cost)}</td><td class="${p < 0 ? 'bad' : 'good'}">${p < 0 ? '−' : ''}${money(Math.abs(p))}</td></tr>`;
   }).join('');
   const prev = bank.history[bank.history.length - 1];
   const html = `<div class="bigmoney ${bank.money < 0 ? 'neg' : ''}"><span>בקופה</span><b>${money(bank.money)}</b>${bank.money < 0 ? '<small>החברה בחובות — אי אפשר לקנות רכבים</small>' : ''}</div>
     <h4>היום · יום ${d.day}</h4>${dayRows(d)}
     ${lines.length ? `<h4>לפי קו, היום <span class="lmeta">(בלי קניית רכבים)</span></h4>
-    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>הכנסות</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
+    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>כרטיסים</th><th>סבסוד</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
     <h4>הצי</h4><p class="lmeta big">${fleetTxt}</p>
     <h4>מחירון רכבים</h4>
-    <table class="prices"><tr><th>סוג</th><th>מקומות</th><th>מחיר</th><th>לק"מ</th><th>לשעה</th></tr>
-    ${TYPE_ORDER.map(t => { const T = TYPES[t]; return `<tr><td>${T.name}</td><td>${T.cap}</td><td>${money(T.price)}</td><td>₪${T.km}</td><td>₪${T.hour}</td></tr>`; }).join('')}</table>
-    <p class="hint">כל נוסע משלם ₪${FARE}. מכירת רכב מחזירה ${Math.round(SELL_BACK * 100)}% מהמחיר.</p>
+    <table class="prices"><tr><th>סוג</th><th>מקומות</th><th>קנייה</th><th>ליסינג ליום</th><th>לק"מ</th><th>לשעה</th></tr>
+    ${TYPE_ORDER.map(t => { const T = TYPES[t]; return `<tr><td>${T.name}</td><td>${T.cap}</td><td>${money(T.price)}</td><td>${money(T.lease)}</td><td>₪${T.km}</td><td>₪${T.hour}</td></tr>`; }).join('')}</table>
+    <p class="hint">כל נוסע משלם ₪${FARE}, והמדינה משלמת ₪${SUBSIDY_KM} על כל ק"מ שאוטובוס נוסע בקו (לא על החזרה הריקה). מכירת רכב קנוי מחזירה ${Math.round(SELL_BACK * 100)}% מהמחיר. רכב בליסינג משלמים עליו כל יום ומחזירים מתי שרוצים, בלי החזר.</p>
     ${prev ? `<h4>אתמול · יום ${prev.day}</h4>${dayRows(prev)}` : ''}`;
   const body = $('#moneyBody');
   if (body.dataset.html === html) return;
@@ -691,10 +709,10 @@ function bindReset() {
 function resetGame() {
   for (const L of [...lines]) removeLine(L, false);
   sim.time = 6.5 * 3600; sim.resetStops(); sim.resetToday(); sim.pending = [];
-  bank.money = START_MONEY; bank.history = []; bank.today = { day: dayOf(sim.time), fares: 0, pax: 0, buy: 0, sell: 0, km: 0, drivers: 0, byLine: {} };
+  bank.reset(sim.time);
   bank.save(sim.time); renderMoney(); showTab('lines');
   const rb = $('#resetGame'); rb.classList.remove('sure'); rb.textContent = 'התחלה מחדש';
-  toast('מתחילים מחדש: ₪2,000,000 בקופה');
+  toast(`מתחילים מחדש: ${money(bank.money)} בקופה`);
 }
 function showDaySummary(d) {
   bank.save(sim.time);
@@ -975,6 +993,7 @@ function frame() {
 G.advance = dt => tick(dt);
 function tick(dt) {
   if (G.ready) {
+    night.update();
     const simDt = sim.step(dt);
     buses.update(sim.lines);
     people.update(sim, city.stops, simDt, buses);

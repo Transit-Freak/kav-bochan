@@ -1,7 +1,7 @@
 // הסימולציה: שעון משחק, יציאת אוטובוסים לפי תדירות, נסיעה, עצירה בתחנות, עולים ויורדים, נוסעים ממתינים.
 // אין כאן ציור — רק מצב ואירועים (events) שהתצוגה קוראת.
 // אוטובוס יוצא רק אם לקו יש רכב פנוי (def.fleet) ורק בשעות הפעילות של הקו; הקיבולת לפי סוג הרכב;
-// כסף נכנס בכל נסיעה (פעם אחת, גם עם מעבר) ויוצא על ק"מ ושעות נהג (fleet.js).
+// כסף נכנס בכל נסיעה (פעם אחת, גם עם מעבר) ומהסבסוד לכל ק"מ בשירות, ויוצא על ק"מ, שעות נהג וליסינג (fleet.js).
 // הנוסעים באים ממודל הביקוש (demand.js): לכל אחד מוצא ויעד, ומסלול של קו אחד עד שלושה קווים.
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
 import { Network, inHours, lineTimes } from './demand.js';
@@ -111,6 +111,7 @@ export class Sim {
     const day0 = dayOf(this.time);
     this.time += h;
     if (dayOf(this.time) !== day0) this.newDay();
+    this.bank?.accrue(this.lines, h);
     if (this.demand) this.spawn(h);
     // מי שסיים ללכת לקו הבא (מעבר) נכנס לתור
     if (this.pending.length) this.pending = this.pending.filter(x => x.at > this.time || (this.joinQueue(x.p), false));
@@ -314,7 +315,7 @@ export class Sim {
             // הרכב נוסע ריק חזרה לתחנה הראשונה ונח במסוף; רק אז הוא פנוי שוב (את הנסיעה הזו לא מציירים)
             const dead = L.poly.length / DEADHEAD_SPEED;
             if (L.def.fleet != null) this.current(L).returning.push(this.time + dead + LAYOVER);
-            this.charge(L, b.type, L.poly.length, dead + LAYOVER);
+            this.charge(L, b.type, L.poly.length, dead + LAYOVER, true);
             this.events.push({ type: 'done', bus: b });
           }
           else { b.state = 'drive'; b.next++; b.goOn = undefined; this.events.push({ type: 'depart', bus: b, stop }); }
@@ -394,12 +395,13 @@ export class Sim {
     return x;
   }
 
-  // עלות: מטרים ושניות של רכב מסוג type
-  charge(L, type, m, sec) {
+  // עלות: מטרים ושניות של רכב מסוג type. dead — חזרה ריקה למסוף (בלי סבסוד)
+  charge(L, type, m, sec, dead = false) {
     const T = TYPES[type];
     L.stats.km += m / 1000; L.stats.hours += sec / 3600;
     if (!this.bank || L.def.fleet == null) return;
     if (m) this.bank.spend('km', m / 1000 * T.km, L.id);
+    if (m && !dead) this.bank.subsidize(m / 1000, L.id);
     if (sec) this.bank.spend('drivers', sec / 3600 * T.hour, L.id);
   }
   // חצות: סיכום היום בקופה, והמונים של הקווים והתחנות מתאפסים
