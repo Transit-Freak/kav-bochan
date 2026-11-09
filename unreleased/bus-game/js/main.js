@@ -34,6 +34,8 @@ const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 2, 9000
 camera.position.set(-260, 520, 560);
 // תאורה, צללים, שמיים וערפל — js/look.js
 const look = setupLook(renderer, scene, { touch: isTouch });
+if (params.has('noshadow')) { look.sun.castShadow = false; renderer.shadowMap.enabled = false; }
+let slowSec = 0;
 // סביבה להחזרות: בלעדיה חומרים מתכתיים (הפח הכסוף של האוטובוס, הזכוכית) נראים שטוחים ואפורים.
 // ניתנת רק לחומרי האוטובוס (BusLayer), כל חומר בעוצמה משלו; העיר והאנשים לא משתנים
 {
@@ -1019,6 +1021,9 @@ function tick(dt) {
     // רזולוציה דינמית: במכשיר חלש מורידים רזולוציה כדי שהמשחק יישאר חלק
     if (G.ready && !params.has('fixedres')) {
       const pr = G.fps < 24 ? Math.max(isTouch ? 1 : 0.6, pixelRatio * 0.85) : G.fps > 50 ? Math.min(MAX_PR, pixelRatio * 1.1) : pixelRatio;
+      // מכשיר חלש מאוד: כבר ברזולוציה הנמוכה ועדיין איטי 4 שניות ברצף — מוותרים על הצל (פעם אחת)
+      slowSec = G.fps < 20 && pr <= (isTouch ? 1 : 0.6) + 0.01 ? slowSec + 1 : 0;
+      if (slowSec >= 4 && look.sun.castShadow) { look.sun.castShadow = false; renderer.shadowMap.enabled = false; G.noShadow = true; }
       if (Math.abs(pr - pixelRatio) > 0.01) { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); }
       G.pixelRatio = pixelRatio;
     }
