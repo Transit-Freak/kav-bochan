@@ -2,6 +2,7 @@
 // כל קו מחזיק צי משלו מסוג אחד (def.vtype, def.fleet), קנוי או בליסינג (def.lease).
 // sim.js קורא ל-earn() בכל עלייה, ל-spend() על נסיעה ונהגים, ל-subsidize() על כל ק"מ בשירות ול-accrue() בכל צעד (ליסינג).
 
+import { MODES, normMode, modeOf } from './difficulty.js';
 export const START_MONEY = 60_000;
 export const FARE = 6;                 // ₪ לכל עלייה (נסיעה בודדת)
 export const SUBSIDY_KM = 10;          // ₪ מהמדינה לכל ק"מ בשירות (כמו במכרזים). לא על החזרה הריקה למסוף
@@ -20,6 +21,14 @@ export const TYPES = {
   elec:  { name: 'חשמלי', cap: 80, price: 7_500, lease: 750, km: 0.8, hour: 100, tint: 0x7fd99a },
 };
 export const TYPE_ORDER = ['mini', 'std', 'artic', 'elec'];
+// מחירי הרכבים לפי רמת הקושי (קל ×0.7, קשה ×1.2): משנים את TYPES במקום, מהמחירים הבסיסיים
+const BASE = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, { price: v.price, lease: v.lease }]));
+export function applyPrices(mode) {
+  const k = MODES[normMode(mode)].price;
+  for (const t of Object.keys(TYPES)) { TYPES[t].price = Math.round(BASE[t].price * k / 100) * 100; TYPES[t].lease = Math.round(BASE[t].lease * k / 10) * 10; }
+}
+// סבסוד לק"מ בפועל: לפי רמת הקושי ולפי הקיצוץ על מועדים שעברו
+export const subsidyKm = bank => SUBSIDY_KM * modeOf(bank).subsidy * (bank?.career?.subsidyK ?? 1);
 export const typeOf = def => TYPES[def?.vtype] ? def.vtype : 'std';
 
 // זמן סיבוב משוער: נסיעה לפי פרופיל המהירות, עצירות, חזרה ריקה והפסקה במסוף
@@ -63,7 +72,8 @@ export class Bank {
     this.history = !this.migrated && Array.isArray(save?.history) ? save.history.slice(-14).map(d => ({ ...emptyDay(d.day), ...d })) : [];
     this.onDay = null;            // נקרא עם סיכום היום שהסתיים
     // מצב המשחק: 'career' (ברירת המחדל, גם לשמירות ישנות) או 'creative'; והמצב של השלבים (career.js)
-    this.mode = save?.mode === 'creative' ? 'creative' : 'career';
+    this.mode = normMode(save?.mode);            // שמירה ישנה: career/בלי → medium
+    applyPrices(this.mode);
     this.career = save?.career && typeof save.career === 'object' ? save.career : null;
     this.legacy = !!save && !save.mode;
     // תפעול (ops.js): פקחים שנשכרו, דוחות ביקורת, והגדרות (במצב יצירתי אפשר לכבות אירועים ודוחות)
@@ -88,7 +98,7 @@ export class Bank {
   }
   // סבסוד ממשלתי: ק"מ בשירות (עם נוסעים או בלי)
   subsidize(km, lineId) {
-    const a = km * SUBSIDY_KM * (this.career?.subsidyK ?? 1);     // מועד שעבר בשלב — הסבסוד מצטמצם
+    const a = km * subsidyKm(this);              // רמת הקושי, ומועד שעבר בשלב — הסבסוד מצטמצם
     this.money += a; this.today.subsidy += a;
     const l = this.line(lineId); l.subsidy = (l.subsidy || 0) + a;
   }
@@ -109,7 +119,7 @@ export class Bank {
   get costToday() { const d = this.today; return d.km + d.drivers + d.lease; }
   // תוצאת יום: הכנסות פחות הוצאות, כולל קנייה ומכירה של רכבים
   static net(d) { return d.fares + (d.subsidy || 0) + (d.fineIn || 0) + (d.bonus || 0) + d.sell - d.buy - d.km - d.drivers - (d.lease || 0) - (d.insp || 0) - (d.penalty || 0); }
-  reset(time, mode = this.mode, career = null) { this.money = START_MONEY; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; this.inspectors = 0; this.reports = []; }
+  reset(time, mode = this.mode, career = null) { mode = normMode(mode); applyPrices(mode); this.money = MODES[mode].money; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; this.inspectors = 0; this.reports = []; }
   // מעבר יום: שומרים את הסיכום ומתחילים יום חדש
   roll(time) {
     const d = dayOf(time);

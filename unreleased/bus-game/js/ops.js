@@ -3,6 +3,7 @@
 // הכל זול: הסתברויות קטנות בכל צעד, בלי מבני נתונים כבדים. במצב יצירתי אפשר לכבות אירועים ודוחות (bank.settings).
 import { FARE, dayOf } from './fleet.js';
 import { lineTimes } from './demand.js';
+import { modeOf } from './difficulty.js';
 
 export const INSPECTOR_DAY = 350;          // ₪ ליום לפקח
 export const FINE = 60;                    // ₪ קנס למי שנתפס בלי כרטיס
@@ -20,9 +21,11 @@ export class Ops {
   get bank() { return this.sim.bank; }
   get settings() { return this.bank?.settings || {}; }
   // במצב קריירה הכל פעיל; ביצירתי — לפי ההגדרות
-  get incidents() { return this.bank?.mode !== 'creative' || this.settings.incidents !== false; }
-  get audits() { return this.bank?.mode !== 'creative' || this.settings.audits !== false; }
-  get inspectors() { return this.bank?.inspectors || 0; }
+  // רמת הקושי (difficulty.js): כמה תקלות, התחמקות, ביקורת. ביצירתי ובקל אפשר לכבות אירועים ודוחות (הגדרות)
+  get M() { return modeOf(this.bank); }
+  get incidents() { return !this.M.toggles || this.settings.incidents !== false; }
+  get audits() { if (this.M.audits === false) return false; return !this.M.toggles || this.settings.audits !== false; }
+  get inspectors() { return this.M.inspectors ? this.bank?.inspectors || 0 : 0; }
   note(type, L, txt, bus) {
     this.log.unshift({ t: this.sim.time, type, line: L?.def.number ?? '', color: L?.color, txt, bus: bus?.id });
     if (this.log.length > 60) this.log.length = 60;
@@ -37,7 +40,7 @@ export class Ops {
     if (!this.incidents) return;
     for (const L of S.lines) {
       if (L.retired || L.off || !L.buses.length) continue;
-      if (this.rand() < h / (JAM_H * 3600) && L.stops.length > 2) {
+      if (this.rand() < h * this.M.jamK / (JAM_H * 3600) && L.stops.length > 2) {
         const k = Math.floor(this.rand() * (L.stops.length - 1));
         if (!this.jams.some(j => j.L === L && j.k === k)) {
           this.jams.push({ L, k, until: t + 900 + this.rand() * 900, f: 0.35 });
@@ -46,7 +49,7 @@ export class Ops {
       }
       for (const b of L.buses) {
         if (b.state !== 'drive' || b.broken || b.s < 30) continue;
-        if (this.rand() < h / (BREAK_H * 3600)) {
+        if (this.rand() < h * this.M.breakK / (BREAK_H * 3600)) {
           b.broken = true; b.stall = t + 600 + this.rand() * 420;
           this.note('break', L, 'תקלה באוטובוס — עומד בצד ומחכה לרכב חלופי', b);
         }
@@ -68,7 +71,7 @@ export class Ops {
   // יציאה מהמסוף: לפעמים הנהג מאחר; לפעמים מבקר סמוי עולה לנסיעה כולה
   onDispatch(L, b) {
     const t = this.sim.time;
-    if (this.incidents && this.rand() < LATE_P) { b.stall = t + 180 + this.rand() * 240; this.note('late', L, `הנהג מאחר — היציאה מתעכבת בכ-${mm(b.stall - t)} דק'`, b); }
+    if (this.incidents && this.rand() < LATE_P * this.M.lateK) { b.stall = t + 180 + this.rand() * 240; this.note('late', L, `הנהג מאחר — היציאה מתעכבת בכ-${mm(b.stall - t)} דק'`, b); }
     const d = dayOf(t); if (this.auditsDay.day !== d) this.auditsDay = { day: d, n: 0 };
     if (this.audits && this.auditsDay.n < 2 && this.rand() < 0.08) {
       this.auditsDay.n++;
@@ -87,7 +90,8 @@ export class Ops {
   // כרטיס: מי שלא משלם — הכנסה שהולכת לאיבוד; פקחים תופסים חלק וגובים קנס
   pays(L) {
     if (!this.incidents) return true;
-    const e = Math.max(0.01, EVADE - 0.012 * this.inspectors);
+    if (!this.M.evade) return true;
+    const e = Math.max(0.01, this.M.evade - 0.012 * this.inspectors);
     if (this.rand() >= e) return true;
     const T = this.bank?.today; if (T) T.evaded = (T.evaded || 0) + FARE;
     if (this.inspectors && this.rand() < Math.min(0.6, 0.07 * this.inspectors)) {
@@ -129,9 +133,10 @@ export class Ops {
     if (a.skipped) f.push(`לא עצר ב-${a.skipped} תחנות שחיכו בהן נוסעים`);
     if (a.broke) f.push('הייתה תקלה בדרך');
     const r = { day: dayOf(this.sim.time), t: this.sim.time, line: L.def.number, color: L.color, grade, sc, find: f, money: 0 };
-    if (this.bank.mode === 'career') {
-      if (grade >= 85) { r.money = 2000; this.bank.money += 2000; this.bank.today.bonus = (this.bank.today.bonus || 0) + 2000; }
-      else if (grade < 60) { r.money = -3000; this.bank.spend('penalty', 3000); }
+    const M = this.M;
+    if (M.stages) {
+      if (M.bonusFrom != null && grade >= M.bonusFrom) { r.money = 2000; this.bank.money += 2000; this.bank.today.bonus = (this.bank.today.bonus || 0) + 2000; }
+      else if (M.fineBelow != null && grade < M.fineBelow) { r.money = -3000; this.bank.spend('penalty', 3000); }
     }
     const R = this.bank.reports || (this.bank.reports = []); R.unshift(r); if (R.length > 30) R.length = 30;
     this.note('report', L, `דוח ביקורת: ${grade}`, b);

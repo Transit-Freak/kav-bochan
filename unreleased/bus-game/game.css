@@ -376,3 +376,10 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .privacy{font-size:12.5px}
 .slot .cl{color:#2a78d6}
 #accountBox .del.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
+
+/* רמה "קל" (body.simple): רק הבסיס — מסתירים לשוניות, כפתורים ופרטים מתקדמים */
+.fadv-btn{display:none;width:100%;margin-top:8px;background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline}
+body.simple .fadv-btn{display:block}
+body.simple #lineFormCard:not(.showadv) .fadv{display:none}
+body.simple .nolease,body.simple .adv,body.simple .cams .soon,body.simple #demandBtn,body.simple #opsBox,body.simple .full-help{display:none}
+body:not(.simple) .easy-help{display:none}

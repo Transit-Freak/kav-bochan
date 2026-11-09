@@ -7,11 +7,11 @@
 import * as THREE from 'three';
 import { TYPE_ORDER, money, dayOf, lineCycle } from './fleet.js';
 import { hoursOf } from './demand.js';
+import { modeOf } from './difficulty.js';
 
 export const COVER_M = 500;                   // הליכה, מטרים
 const COVER_R = COVER_M / 1.2;                // בקו אווירי
 const WIDE = 6;                               // רחוב רחב (מטרים): תחנה עליו "נדרשת"
-export const STOP_FEE = 500;                  // קריירה: הפעלה ראשונה של תחנה קיימת
 const START_TYPES = ['mini', 'std'];
 
 function inRing(x, y, pts) {
@@ -78,28 +78,33 @@ export class Coverage {
 // ---------- השלבים
 // כל שלב: כותרת, תיאור, ימים (עד המועד), פרס (כסף + סוגי רכבים שנפתחים), ובדיקה שמחזירה רשימת סעיפים
 const pct = v => Math.round(v * 100) + '%';
-const zoneItem = (name, target) => c => { const z = c.cov.zones.find(x => x.name === name); const v = z ? z.cov : 0; return { label: `שכונת ${name}: ${pct(target)} מהתושבים`, v, target, txt: pct(v) }; };
+// היעדים לפי רמת הקושי: M.target מוסיף או מוריד נקודות אחוז (קל −10, קשה +5), M.headway — התדירות בשלב 4 (null — בלי)
+const T = (base, M) => Math.min(0.97, Math.max(0.05, base + (M?.target || 0)));
+const zoneItem = (name, base) => (c, M) => { const t = T(base, M), z = c.cov.zones.find(x => x.name === name); const v = z ? z.cov : 0; return { label: `שכונת ${name}: ${pct(t)} מהתושבים`, v, target: t, txt: pct(v) }; };
+const resItem = base => (c, M) => { const t = T(base, M); return { label: 'תושבים עם תחנה קרובה', v: c.cov.res, target: t, txt: pct(c.cov.res) }; };
 export const STAGES = [
   { title: 'השכונות הראשונות', days: 3, reward: 25000, unlock: [],
-    desc: 'משרד התחבורה מבקש קו שמשרת את מרכז העיר ואת השכונות שלידו. מספיק קו אחד שעובר בשלוש השכונות.',
+    desc: M => 'משרד התחבורה מבקש קו שמשרת את מרכז העיר ואת השכונות שלידו. מספיק קו אחד שעובר בשלוש השכונות.',
     items: [zoneItem('מרכז העיר', 0.6), zoneItem('חב"ד', 0.6), zoneItem('המ"ג', 0.6)] },
   { title: 'חצי העיר', days: 5, reward: 40000, unlock: ['elec'],
-    desc: 'עכשיו חצי מתושבי העיר צריכים תחנה עם קו עד 500 מ\' הליכה מהבית. רחובות צרים לא חייבים קו.',
-    items: [c => ({ label: 'תושבים עם תחנה קרובה', v: c.cov.res, target: 0.5, txt: pct(c.cov.res) })] },
+    desc: M => `עכשיו ${pct(T(0.5, M))} מתושבי העיר צריכים תחנה עם קו עד 500 מ' הליכה מהבית. רחובות צרים לא חייבים קו.`,
+    items: [resItem(0.5)] },
   { title: 'שירות לכל היום', days: 7, reward: 60000, unlock: ['artic'],
-    desc: 'רוב העיר, וגם אזורי העבודה. כל הקווים צריכים לפעול לפחות מ-06:00 עד 22:00.',
-    items: [c => ({ label: 'תושבים עם תחנה קרובה', v: c.cov.res, target: 0.7, txt: pct(c.cov.res) }),
-      c => ({ label: 'מקומות עבודה עם תחנה קרובה', v: c.cov.jobs, target: 0.6, txt: pct(c.cov.jobs) }),
+    desc: M => 'רוב העיר, וגם אזורי העבודה. כל הקווים צריכים לפעול לפחות מ-06:00 עד 22:00.',
+    items: [resItem(0.7),
+      (c, M) => { const t = T(0.6, M); return { label: 'מקומות עבודה עם תחנה קרובה', v: c.cov.jobs, target: t, txt: pct(c.cov.jobs) }; },
       c => { const n = c.active.length, ok = c.active.filter(L => { const [a, b] = hoursOf(L.def); return a <= 360 && b >= 1320; }).length;
         return { label: 'קווים שפועלים 06:00–22:00', v: n ? ok / n : 0, target: 1, txt: `${ok} מתוך ${n}` }; }] },
   { title: 'שירות מלא', days: 10, reward: 100000, unlock: [], hard: true,
-    desc: 'השלב הקשה: כמעט כל העיר, אוטובוס לפחות כל 20 דקות בשעות השיא בכל הקווים, ובלי הפסד שלושה ימים ברציפות.',
-    items: [c => ({ label: 'תושבים עם תחנה קרובה', v: c.cov.res, target: 0.85, txt: pct(c.cov.res) }),
-      c => { const n = c.active.length, ok = c.active.filter(L => L.def.headway <= 20 && (L.def.fleet || 0) * 1200 >= lineCycle(L).total).length;
-        return { label: 'קווים עם אוטובוס כל 20 דק\' לפחות בשיא', v: n ? ok / n : 0, target: 1, txt: `${ok} מתוך ${n}` }; },
+    desc: M => `השלב הקשה: כמעט כל העיר${M?.headway ? `, אוטובוס לפחות כל ${M.headway} דקות בשעות השיא בכל הקווים` : ''}, ובלי הפסד שלושה ימים ברציפות.`,
+    items: [resItem(0.85),
+      (c, M) => { if (!M?.headway) return null; const H = M.headway, n = c.active.length, ok = c.active.filter(L => L.def.headway <= H && (L.def.fleet || 0) * H * 60 >= lineCycle(L).total).length;
+        return { label: `קווים עם אוטובוס כל ${H} דק' לפחות בשיא`, v: n ? ok / n : 0, target: 1, txt: `${ok} מתוך ${n}` }; },
       c => { const h = c.days3; return { label: 'רווח בשלושת הימים האחרונים (כל יום)', v: h.n / 3 * (h.ok ? 1 : 0), target: 1,
         txt: h.n < 3 ? `${h.n} מתוך 3 ימים` : h.ok ? 'בלי הפסד' : 'היה הפסד' }; }] },
 ];
+// כמה ימים לשלב, לפי רמת הקושי
+export const stageDays = (S, M) => Math.max(2, Math.round(S.days * (M?.deadlineK ?? 1)));
 
 export const newCareer = () => ({ stage: 0, deadline: null, misses: 0, subsidyK: 1, paidStops: [], done: [], unlocked: [...START_TYPES] });
 
@@ -108,7 +113,8 @@ export class Career {
   constructor(game) { this.g = game; }                 // { bank, sim, lines(), coverage, served(), onDone, onMiss, toast }
   get st() { return this.g.bank.career; }
   get mode() { return this.g.bank.mode; }
-  get creative() { return this.mode === 'creative'; }
+  get M() { return modeOf(this.g.bank); }
+  get creative() { return !this.M.stages; }
   unlocked(type) { return this.creative || !this.st || (this.st.unlocked || START_TYPES).includes(type); }
   // ההקשר לבדיקה: כיסוי, הקווים הפעילים, והימים האחרונים בקופה
   context() {
@@ -120,40 +126,42 @@ export class Career {
   status() {
     if (this.creative || !this.st) return null;
     const s = this.st, S = STAGES[s.stage]; if (!S) return { finished: true, ctx: this.context() };
-    const ctx = this.context(), items = S.items.map(f => { const r = f(ctx); r.done = r.v >= r.target - 1e-9; return r; });
+    const M = this.M, ctx = this.context(), items = S.items.map(f => f(ctx, M)).filter(Boolean);
+    for (const r of items) r.done = r.v >= r.target - 1e-9;
     return { stage: s.stage, S, items, ctx, done: items.every(i => i.done) };
   }
   // נקרא מדי פעם: שלב שהושלם — פרס ושלב הבא. silent — טעינה של שמירה ישנה (בלי כסף ובלי חלון)
   tick(silent = false) {
     if (this.creative || !this.st) return;
     const s = this.st, day = dayOf(this.g.sim.time);
-    if (s.deadline == null && STAGES[s.stage]) { s.deadline = day + STAGES[s.stage].days - 1; s.since = day; }
+    if (s.deadline == null && STAGES[s.stage]) { s.deadline = day + stageDays(STAGES[s.stage], this.M) - 1; s.since = day; }
     for (let guard = 0; guard < STAGES.length; guard++) {
       const r = this.status(); if (!r || r.finished || !r.done) break;
       const S = r.S;
       for (const t of S.unlock) if (!s.unlocked.includes(t)) s.unlocked.push(t);
       s.done.push({ stage: s.stage, day, silent });
+      if (this.M.restore && s.subsidyK < 1) s.subsidyK = 1;          // קשה: הקיצוץ נגמר כשהשלב מושלם
       if (!silent) { this.g.bank.money += S.reward; this.g.bank.today.bonus = (this.g.bank.today.bonus || 0) + S.reward; }
       s.stage++; s.since = day;
-      s.deadline = STAGES[s.stage] ? day + STAGES[s.stage].days - 1 : null;
+      s.deadline = STAGES[s.stage] ? day + stageDays(STAGES[s.stage], this.M) - 1 : null;
       if (!silent) this.g.onDone(S, s.stage);
     }
   }
-  // חצות: מועד שעבר — הסבסוד יורד (עד חצי) ויש עוד זמן; יום לפני המועד — אזהרה. אף פעם לא "הפסדתם"
+  // חצות: מועד שעבר — הסבסוד יורד (עד חצי, או עד missFloor) ויש עוד זמן; יום לפני המועד — אזהרה. אף פעם לא "הפסדתם"
   newDay(day) {
     if (this.creative || !this.st) return;
     const s = this.st, S = STAGES[s.stage]; if (!S || s.deadline == null) return;
     if (day > s.deadline) {
-      s.misses++; s.subsidyK = Math.max(0.5, +(s.subsidyK - 0.2).toFixed(2));
-      s.deadline = day + Math.ceil(S.days / 2);
+      s.misses++; s.subsidyK = Math.max(this.M.missFloor ?? 0.5, +(s.subsidyK - this.M.missCut).toFixed(2));
+      s.deadline = day + Math.ceil(stageDays(S, this.M) / 2);
       this.g.onMiss(S, s);
-    } else if (day === s.deadline) this.g.toast(`נשאר יום אחד לשלב "${S.title}". אחרי זה משרד התחבורה יקצץ בסבסוד.`);
+    } else if (day === s.deadline) this.g.toast(`נשאר יום אחד לשלב "${S.title}".${this.M.missCut ? ' אחרי זה משרד התחבורה יקצץ בסבסוד.' : ''}`);
   }
   // תחנות חדשות (קריירה): כמה תחנות בקו הזה עוד לא שירתו אף פעם, וכמה זה עולה
   stopFee(stopIds) {
     if (this.creative || !this.st) return { n: 0, fee: 0, ids: [] };
     const paid = new Set(this.st.paidStops), ids = [...new Set(stopIds)].filter(id => !paid.has(id));
-    return { n: ids.length, fee: ids.length * STOP_FEE, ids };
+    return { n: ids.length, fee: ids.length * this.M.stopFee, ids };
   }
   payStops(ids) { if (!this.st) return; for (const id of ids) if (!this.st.paidStops.includes(id)) this.st.paidStops.push(id); }
 }
@@ -183,7 +191,8 @@ export class CoverageLayer {
     d.globalCompositeOperation = 'source-over';
     g.strokeStyle = 'rgba(42,120,214,.55)'; g.lineWidth = 1.5;
     for (const s of servedStops) { const [x, y] = px(s.x, s.y); g.beginPath(); g.arc(x, y, COVER_R / M, 0, 7); g.stroke(); }
-    // תושבים בלי כיסוי (רק מי שנדרש): נקודה לכל בניין, השטח לפי מספר התושבים
+    // תושבים בלי כיסוי (רק מי שנדרש): נקודה לכל בניין, השטח לפי מספר התושבים. ברמה "קל" (simple) — רק הכחול
+    if (this.simple) { this.tex.needsUpdate = true; return; }
     g.fillStyle = 'rgba(208,59,59,.85)';
     for (const q of cov.res) if (q.req && !q.cov && q.pop > 0.5) { const [x, y] = px(q.x, q.y); g.beginPath(); g.arc(x, y, Math.min(3.2, 0.9 + Math.sqrt(q.pop) * 0.3), 0, 7); g.fill(); }
     this.tex.needsUpdate = true;
