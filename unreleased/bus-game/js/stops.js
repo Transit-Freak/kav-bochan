@@ -167,15 +167,17 @@ function concreteBench(list, a, d) {
 
 function shelterParts() {
   const P = parts(), { steel, paint, glass, bench } = P;
+  // הגג (קורה עליונה, הגג עצמו, הצד התחתון, הצלעות והשפה) — בנפרד: הוא דוהה כשמסתכלים מלמעלה (roofFade)
+  const R = { steel: [], paint: [] };
   // שני עמודים מרובעים בפינות האחוריות
   for (const a of [A0 + 0.075, A1 - 0.075]) bevelBox(steel, 0.15, H, 0.15, a, H / 2, DB, 0.014);
   // קורה עליונה, גג דק: פלדה כהה מלמעלה, לבן מלמטה עם כמה צלעות, ושפה מקופלת מקדימה
-  bevelBox(steel, LEN, 0.26, 0.12, AC, H - 0.13, DB, 0.01);
+  bevelBox(R.steel, LEN, 0.26, 0.12, AC, H - 0.13, DB, 0.01);
   const RD0 = DF, RD1 = DB + 0.16;
-  bevelBox(steel, LEN + 0.22, 0.085, RD1 - RD0, AC, H + 0.042, (RD0 + RD1) / 2, 0.012);
-  quad(paint, LEN + 0.16, RD1 - RD0 - 0.05, AC, H - 0.004, (RD0 + RD1) / 2, '-y', 0xe6eefc, 1.9);   // מוארת רק מלמטה (אור הקרקע העמום) — מבהירים
-  for (const d of [2.15, 2.6, 3.05]) box(steel, LEN + 0.12, 0.03, 0.035, AC, H - 0.02, d);
-  box(steel, LEN + 0.22, 0.055, 0.03, AC, H - 0.02, RD0 + 0.015);
+  bevelBox(R.steel, LEN + 0.22, 0.085, RD1 - RD0, AC, H + 0.042, (RD0 + RD1) / 2, 0.012);
+  quad(R.paint, LEN + 0.16, RD1 - RD0 - 0.05, AC, H - 0.004, (RD0 + RD1) / 2, '-y', 0xe6eefc, 1.9);   // מוארת רק מלמטה (אור הקרקע העמום) — מבהירים
+  for (const d of [2.15, 2.6, 3.05]) box(R.steel, LEN + 0.12, 0.03, 0.035, AC, H - 0.02, d);
+  box(R.steel, LEN + 0.22, 0.055, 0.03, AC, H - 0.02, RD0 + 0.015);
   // קיר הרפפות: מסגרת, שתי חלוקות אנכיות ופסים אופקיים מוטים
   const wa0 = A0 + 0.15, wa1 = A1 - 0.15, wl = wa1 - wa0, wc = (wa0 + wa1) / 2;
   box(steel, wl, 0.05, 0.06, wc, 0.24, DB); box(steel, wl, 0.05, 0.06, wc, 2.3, DB);
@@ -206,6 +208,7 @@ function shelterParts() {
   quad(paint, BOARD.w, BOARD.h, BOARD.a, BOARD.y, DB - 0.0805, '-z', 0xf2f3f4);
   // שני ספסלי בטון לבנים בצורת גל, מאחורי הסככה (כמו בתמונה)
   for (const a of [-8.85, -9.95]) concreteBench(paint, a, 3.45);
+  P.roof = R;
   return P;
 }
 // עמוד ושלט התחנה (דו-צדדי, פונה לאורך הכביש) — בכל תחנה, גם בלי סככה
@@ -400,6 +403,27 @@ function padAndKerb(frames) {
   return [pg, kg];
 }
 
+// חומר של הגג עם שקיפות לכל מופע (aFade)
+function fadeMaterial(base) {
+  const m = base.clone(); m.name = base.name + '-roof'; m.transparent = true;
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = 'attribute float aFade;\nvarying float vFade;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFade = aFade;');
+    sh.fragmentShader = 'varying float vFade;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n  gl_FragColor.a *= vFade;');
+  };
+  m.customProgramCacheKey = () => 'roofFade-' + base.name;
+  return m;
+}
+// הצל של הגג: גג שקוף מטיל צל חלש יותר — פיקסלים של הצל נזרקים באקראי לפי השקיפות (הצל הרך מחליק את זה)
+function fadeDepthMaterial() {
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = 'attribute float aFade;\nvarying float vFade;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFade = aFade;');
+    sh.fragmentShader = 'varying float vFade;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n  if (vFade < 0.999 && vFade * 0.8 < fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453)) discard;');
+  };
+  m.customProgramCacheKey = () => 'roofFadeDepth';
+  return m;
+}
+
 export class StopLayer {
   constructor(scene, stops, frameOf) {
     this.scene = scene; this.stops = stops; this.frameOf = frameOf;
@@ -417,9 +441,25 @@ export class StopLayer {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
     this.matrices = frames.map(f => m.clone().compose(new THREE.Vector3(f.kx, 0, -f.ky), q.setFromAxisAngle(up, Math.atan2(f.ty, f.tx)), one));
     const withShelter = this.matrices.filter((M, i) => frames[i].shelter);
-    for (const [name, P, list] of [['shelter', shelterParts(), withShelter], ['pole', poleParts(), this.matrices]]) {
+    const SP = shelterParts();
+    // הגג: חומרים משלו עם שקיפות לכל סככה (aFade), כדי שאפשר יהיה לראות מלמעלה את מי שמתחת לגג
+    this.shelterIdx = frames.map((f, i) => f.shelter ? i : -1).filter(i => i >= 0);
+    this.roofFade = new Float32Array(this.shelterIdx.length).fill(1);
+    this.roofMeshes = [];
+    if (withShelter.length) for (const k of ['steel', 'paint']) {
+      const geo = mergeGeometries(SP.roof[k]);
+      if (k !== 'paint') geo.deleteAttribute('color');
+      const fade = new THREE.InstancedBufferAttribute(this.roofFade, 1); fade.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('aFade', fade);
+      const im = new THREE.InstancedMesh(geo, fadeMaterial(mats[k]), withShelter.length);
+      withShelter.forEach((M, i) => im.setMatrixAt(i, M));
+      im.customDepthMaterial = fadeDepthMaterial();
+      im.name = `stop-roof-${k}`; im.computeBoundingSphere(); im.castShadow = true; im.renderOrder = 2;
+      this.group.add(im); this.roofMeshes.push(im);
+    }
+    for (const [name, P, list] of [['shelter', SP, withShelter], ['pole', poleParts(), this.matrices]]) {
       for (const k of Object.keys(P)) {
-        if (!P[k].length || !list.length) continue;
+        if (k === 'roof' || !P[k].length || !list.length) continue;
         const geo = mergeGeometries(P[k]);
         if (k !== 'paint') geo.deleteAttribute('color');
         const im = new THREE.InstancedMesh(geo, mats[k], list.length);
@@ -452,7 +492,24 @@ export class StopLayer {
     }
     return out.sort((a, b) => (parseInt(a.num) || 0) - (parseInt(b.num) || 0) || a.num.localeCompare(b.num));
   }
+  // הגג דוהה כשמסתכלים עליו מלמעלה ומקרוב (עד 25%): לכל סככה לפי זווית הגובה של המצלמה מעליה ולפי המרחק.
+  // מתחת ל-30° מעל האופק רואים מתחת לגג — הגג מלא; מעל 42° הגג מסתיר את היושבים — שקוף. רחוק (300 מ'+) לא רואים אנשים — מלא
+  fadeRoofs(camera, dt) {
+    if (!this.roofMeshes.length) return;
+    const cam = camera.position, ss = THREE.MathUtils.smoothstep, k = dt > 0 ? Math.min(1, dt * 6) : 1;
+    let changed = false;
+    this.shelterIdx.forEach((si, j) => {
+      const f = this.frameOf(this.stops[si]), [x, y] = frameXY(f, AC, 2.6);
+      const dx = cam.x - x, dz = cam.z + y, hd = Math.hypot(dx, dz), up = cam.y - H, dist = Math.hypot(hd, up);
+      const elev = Math.atan2(up, hd);
+      const want = 1 - 0.75 * ss(elev, 0.52, 0.73) * (1 - ss(dist, 220, 320));
+      const cur = this.roofFade[j], nxt = Math.abs(want - cur) < 0.003 ? want : cur + (want - cur) * k;
+      if (nxt !== cur) { this.roofFade[j] = nxt; changed = true; }
+    });
+    if (changed) for (const im of this.roofMeshes) im.geometry.attributes.aFade.needsUpdate = true;
+  }
   update(camera, lines, dt = 0) {
+    this.fadeRoofs(camera, dt);
     this.t -= dt;
     // הקווים השתנו (קו חדש, מסלול שנערך, קו שנמחק או הוסתר) — כל השלטים הקרובים מתעדכנים מיד, לא אחרי חצי שנייה
     const sig = lines.map(L => L.id + ':' + L.def.number + ':' + (L.visible !== false) + ':' + L.stops.map(s => s.id).join(',')).join('|');

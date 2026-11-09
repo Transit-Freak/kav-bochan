@@ -64,6 +64,7 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .lbtns .del.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
 
 .scard h3{margin:0 0 2px;font-size:17px}
+.scard .closeLook{float:left;margin:0 0 6px 8px;padding:7px 12px;font-size:14px}
 .scard .code{color:var(--muted);font-size:13px}
 .scard table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
 .scard td{padding:5px 2px;border-bottom:1px solid var(--line)}

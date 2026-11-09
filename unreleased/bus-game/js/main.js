@@ -8,7 +8,7 @@ import { RoadGraph, speedProfile } from './graph.js';
 import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
-import { StopLayer, assignRoadWidths } from './stops.js';
+import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money } from './fleet.js';
@@ -51,7 +51,11 @@ controls.maxPolarAngle = 1.42; controls.minDistance = 12; controls.maxDistance =
 controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
 // במגע — שליטה בסגנון מפות (touch.js); OrbitControls נשאר לעכבר
 controls.touches = { ONE: -1, TWO: -1 };
-const touch = mapTouch(canvas, camera, controls);
+// טיפ פעם אחת: בשתי אצבעות אפשר גם להטות את המבט (כדי להסתכל לתוך הסככה)
+const touch = mapTouch(canvas, camera, controls, { onTwoFingers: () => {
+  let seen = false; try { seen = localStorage.getItem('busgame.tiltHint') === '1'; localStorage.setItem('busgame.tiltHint', '1'); } catch { }
+  if (!seen) toast('טיפ: גוררים בשתי אצבעות יחד למעלה או למטה כדי להטות את המבט');
+} });
 controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
@@ -569,6 +573,9 @@ function bindUI() {
   $('#fFrom').onchange = $('#fTo').onchange = () => { if (form) renderForm(); };
   $('#money').onclick = () => { showTab('money'); openPanel(); };
   $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
+  $('#stopPane').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeLook(selectedStop); });
+  canvas.addEventListener('pointerdown', () => { camAnim = null; });
+  canvas.addEventListener('wheel', () => { camAnim = null; }, { passive: true });
   bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm(); };
   // קו חדש: שומרים אותו, ומיד פותחים את הכיוון ההפוך לבדיקה (רק כשהשחקן מבקש)
@@ -773,12 +780,33 @@ function showDaySummary(d) {
     ${gaveUp ? `<span class="bad">${num(gaveUp)} אנשים ויתרו והלכו.</span>` : ''} בקופה עכשיו: <b>${money(bank.money)}</b></p>`;
   $('#daySum').hidden = false;
 }
+// מבט מקרוב על תחנה: המצלמה עוברת בתנועה רכה למבט נמוך באלכסון, מהכביש אל הסככה (או אל העמוד בתחנה בלי סככה)
+let camAnim = null;
+function closeLook(s) {
+  if (!s) return;
+  const f = people.stopFrame(s), a = f.shelter ? -3.15 : 0.5;
+  const tgt = frameV(f, a, f.shelter ? 2.4 : 1.2, 0.9), pos = frameV(f, a + 5.5, -10, 4.4);
+  if (cams.current !== 'free') cams.set('free');
+  if (innerWidth <= 820) $('#panel').classList.add('min');
+  camAnim = { t: 0, dur: 1.1, p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt };
+}
+function stepCamAnim(dt) {
+  if (!camAnim) return;
+  const A = camAnim; A.t = Math.min(A.dur, A.t + dt);
+  const k0 = A.t / A.dur, k = k0 * k0 * (3 - 2 * k0);
+  // דרך קשת: באמצע המעבר המצלמה קצת גבוהה יותר, כדי שלא תעבור דרך בניינים
+  const lift = Math.sin(Math.PI * k0) * Math.min(60, A.p0.distanceTo(A.p1) * 0.15);
+  camera.position.lerpVectors(A.p0, A.p1, k); camera.position.y += lift;
+  controls.target.lerpVectors(A.t0, A.t1, k);
+  if (k0 >= 1) camAnim = null;
+}
+G.closeLook = id => closeLook(stopsById.get(id));
 function renderStop() {
   const s = selectedStop; if (!s) return;
   const sm = sim.stopSummary(s.id);
   const rows = sm.per.map(x => `<tr><td><span class="num sm" style="background:${x.line.color}">${esc(x.line.def.number)}</span> ממתינים לקו</td><td>${x.waiting}</td></tr>`).join('');
   const z = demand.zones[s.zone];
-  $('#stopPane').innerHTML = `<div class="scard"><h3>${esc(s.name)}</h3><div class="code">תחנה ${esc(s.code)} · ${esc(z?.name || '')} · כ-${num(s.pop || 0)} תושבים קרובים</div>
+  $('#stopPane').innerHTML = `<div class="scard"><button type="button" class="primary closeLook" data-close="1">מבט מקרוב</button><h3>${esc(s.name)}</h3><div class="code">תחנה ${esc(s.code)} · ${esc(z?.name || '')} · כ-${num(s.pop || 0)} תושבים קרובים</div>
     <table><tr><td>ממתינים עכשיו</td><td>${sm.waiting}</td></tr><tr><td>עלו כאן היום</td><td>${sm.board}</td></tr><tr><td>ירדו כאן היום</td><td>${sm.alight}</td></tr>
     <tr><td>נשארו בתחנה כי האוטובוס היה מלא</td><td class="${sm.left ? 'bad' : ''}">${sm.left}</td></tr>
     <tr><td>ויתרו והלכו (חיכו יותר מחצי שעה)</td><td class="${sm.gaveUp ? 'bad' : ''}">${sm.gaveUp}</td></tr>
@@ -1053,6 +1081,7 @@ function tick(dt) {
     statT += dt; if (statT > 0.4) { statT = 0; updateStats(); refreshDemandView(false); }
   }
   touch.update(dt);
+  stepCamAnim(dt);
   // שומרים את המצלמה מעל העיר
   const t = controls.target, H = city ? city.meta.half : [3000, 3000];
   const cx = THREE.MathUtils.clamp(t.x, -H[0], H[0]) - t.x, cz = THREE.MathUtils.clamp(t.z, -H[1], H[1]) - t.z;

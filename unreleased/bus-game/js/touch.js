@@ -1,14 +1,15 @@
 // שליטה במגע בסגנון מפות: אצבע אחת גוררת (הנקודה נשארת מתחת לאצבע), שתי אצבעות —
-// צביטה לזום, סיבוב האצבעות מסובב את המפה, גרירה של שתיהן למעלה/למטה מטה את המבט.
+// צביטה לזום, סיבוב האצבעות מסובב את המפה, גרירה של שתיהן למעלה/למטה מטה את המבט (עד המגבלה של OrbitControls,
+// שקרוב לקרקע מאפשרת מבט כמעט מהצד — לתוך הסככה). opts.onTwoFingers — נקרא פעם אחת כשמתחילה מחווה של שתי אצבעות.
 import * as THREE from 'three';
 
 export function mapTouch(canvas, camera, controls, opts = {}) {
   const minDist = opts.minDist ?? controls.minDistance, maxDist = opts.maxDist ?? controls.maxDistance;
-  const minPolar = 0.05, maxPolar = controls.maxPolarAngle;
+  const minPolar = 0.05;
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   const pts = new Map();
-  let prev = null, start = null, mode = null, vel = new THREE.Vector3(), lastT = 0;
+  let prev = null, start = null, mode = null, vel = new THREE.Vector3(), lastT = 0, told = false;
 
   function ground(x, y, out) {
     const r = canvas.getBoundingClientRect();
@@ -46,7 +47,7 @@ export function mapTouch(canvas, camera, controls, opts = {}) {
   function tilt(dy) {
     off.subVectors(camera.position, controls.target);
     const s = new THREE.Spherical().setFromVector3(off);
-    s.phi = THREE.MathUtils.clamp(s.phi - dy * 0.006, minPolar, maxPolar);
+    s.phi = THREE.MathUtils.clamp(s.phi - dy * 0.007, minPolar, controls.maxPolarAngle);
     off.setFromSpherical(s); camera.position.copy(controls.target).add(off);
   }
 
@@ -68,11 +69,15 @@ export function mapTouch(canvas, camera, controls, opts = {}) {
     } else {
       // סוג המחווה נקבע פעם אחת בתחילתה: שתי אצבעות שזזות יחד למעלה/למטה = הטיה, אחרת מפה
       if (!mode) {
+        // ההחלטה אחרי 14 פיקסלים: שתי האצבעות זזות לאותו כיוון, בעיקר אנכית, והמרחק ביניהן כמעט לא משתנה — הטיה.
+        // (קודם היה צריך תנועה כמעט אנכית לגמרי, ובטלפון זה כמעט לא קרה)
         const dyP = cur.p.y - start.p.y, dyQ = cur.q.y - start.q.y, dxP = cur.p.x - start.p.x, dxQ = cur.q.x - start.q.x;
         const mv = Math.max(Math.hypot(dxP, dyP), Math.hypot(dxQ, dyQ));
-        if (mv < 12) { prev = cur; return; }
-        mode = dyP * dyQ > 0 && Math.abs(dyP) > 1.5 * Math.abs(dxP) && Math.abs(dyQ) > 1.5 * Math.abs(dxQ)
-          && Math.abs(cur.d - start.d) < 0.4 * (Math.abs(dyP) + Math.abs(dyQ)) / 2 ? 'tilt' : 'map';
+        if (mv < 14) { prev = cur; return; }
+        const dy = (dyP + dyQ) / 2, dx = (dxP + dxQ) / 2;
+        mode = dyP * dyQ > 0 && Math.abs(dy) > 1.1 * Math.abs(dx) && Math.abs(cur.d - start.d) < 0.6 * Math.abs(dy)
+          && Math.abs(cur.ang - start.ang) < 0.25 ? 'tilt' : 'map';
+        if (!told) { told = true; opts.onTwoFingers?.(mode); }
         prev = start;
       }
       const same = mode === 'tilt';
