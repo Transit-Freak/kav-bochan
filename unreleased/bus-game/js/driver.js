@@ -88,6 +88,7 @@ function busMaterials(root) {
     screen: std('M_Screen', 0x05080f, 0.2),
     // לוח מחוונים: פלסטיק כהה מט, קצת בהיר מהשחור של המסגרות כדי שיהיו צורות
     dash: new THREE.MeshStandardMaterial({ name: 'M_CabDash', color: 0x1b1d20, roughness: 0.7 }),
+    frost: new THREE.MeshStandardMaterial({ name: 'M_CabFrost', color: 0xe4eaee, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.62 }),
     gauges: (t => new THREE.MeshStandardMaterial({ name: 'M_CabGauges', map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.7, roughness: 0.35 }))(gaugeTexture()),
   };
 }
@@ -130,9 +131,9 @@ function buildCab(M) {
 // מושב הנהג, לפי מידות הנהג אחרי הישיבה (seatY — גובה הריפוד, back — המשענת)
 function buildSeat(M, seatY, back) {
   const parts = [], add = (m, g) => { if (m && g) parts.push([g, m]); };
-  const cz = HIP.z + 0.1;
-  add(M.seat, at(rbox(0.5, 0.11, 0.5, 0.045), DX, seatY - 0.055, cz, -0.06));            // ריפוד
-  add(M.trim, at(rbox(0.46, 0.06, 0.46, 0.02), DX, seatY - 0.135, cz));                   // מסגרת
+  const cz = HIP.z + 0.05;                                                              // הריפוד נגמר לפני הברכיים (השוקיים לא נכנסות בו)
+  add(M.seat, at(rbox(0.5, 0.11, 0.44, 0.045), DX, seatY - 0.075, cz, -0.03));           // ריפוד (קצת מתחת לירכיים)
+  add(M.trim, at(rbox(0.42, 0.06, 0.3, 0.02), DX, seatY - 0.155, cz - 0.06));             // מסגרת (מאחורי השוקיים)
   // משענת: נוטה לאחור, צמודה לגב של הנהג
   const bh = 0.62, ba = back.angle, bz = back.z0;
   const bg = rbox(0.5, bh, 0.11, 0.045); bg.translate(0, bh / 2, -0.055);
@@ -159,6 +160,63 @@ function buildBackWall(M) {
   add(M.trim, at(box(0.88, 0.035, 0.04), 0.76, FL + 0.73, 4.235));
   add(M.plexi, at(box(0.86, 0.85, 0.012), 0.76, FL + 1.17, 4.235));
   return parts;
+}
+
+// הדלת של תא הנהג (בצד המעבר, בין המחיצה האחורית לקונסולה): פח למטה, פרספקס למעלה, מסגרת שחורה.
+// ציר אנכי בקצה הקדמי; סגורה — לאורך ‎-Z, פתוחה — מסתובבת החוצה אל אזור הדלת הקדמית (rotation.y חיובי), כך שהמעבר נשאר פנוי.
+// כל אוטובוס מקבל עותק משלו (בשכפול), עם אותה גאומטריה
+export const CAB_DOOR = { x: 0.345, z: 4.95, w: 0.62, open: 1.45, handle: { y: 0.95, back: 0.56, out: 0.055 } };
+// הידית של דלת התא במערכת האוטובוס, כשהדלת פתוחה בזווית th (רדיאנים). side: ‎+1 — מצד התא, ‎-1 — מצד המעבר
+export function cabHandle(th, side = 1, out = new THREE.Vector3()) {
+  const x = side * CAB_DOOR.handle.out, z = -CAB_DOOR.handle.back, c = Math.cos(th), s = Math.sin(th);
+  return out.set(CAB_DOOR.x + x * c + z * s, FL + CAB_DOOR.handle.y, CAB_DOOR.z - x * s + z * c);
+}
+function buildCabDoor(M) {
+  const g = new THREE.Group(); g.name = 'CabDoor';
+  g.position.set(CAB_DOOR.x, FL, CAB_DOOR.z);
+  const W = CAB_DOOR.w, parts = [], add = (m, geo) => { if (m && geo) parts.push([geo, m]); };
+  add(M.panel, at(box(0.02, 0.72, W - 0.04), 0, 0.38, -W / 2));
+  add(M.trim, at(box(0.03, 0.035, W), 0, 0.03, -W / 2));                      // מסגרת תחתונה
+  add(M.trim, at(box(0.034, 0.04, W), 0, 0.76, -W / 2));                      // אמצע
+  add(M.trim, at(box(0.034, 0.035, W), 0, 1.45, -W / 2));                     // עליונה
+  add(M.trim, at(box(0.036, 1.47, 0.035), 0, 0.735, -0.0175));                // צד הציר
+  add(M.trim, at(box(0.036, 1.47, 0.035), 0, 0.735, -W + 0.0175));            // צד הידית
+  // פרספקס חלבי (לא שקוף כמו חלון), כדי שייראה כמו דלת
+  add(M.frost, at(box(0.008, 0.66, W - 0.07), 0, 1.105, -W / 2));
+  for (const sx of [-1, 1]) add(M.steel, at(rbox(0.022, 0.12, 0.022, 0.008, 1), sx * CAB_DOOR.handle.out, CAB_DOOR.handle.y, -CAB_DOOR.handle.back)); // ידיות משני הצדדים
+  for (const y of [0.2, 1.25]) add(M.steel, at(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 8), 0, y, 0));   // צירים
+  g.add(mergeParts(parts, 'CabDoorParts'));
+  return g;
+}
+
+// בדגם יש לוח פרספקס קבוע בצד המעבר של תא הנהג, בדיוק במקום של הדלת — מוחקים אותו (הדלת באה במקומו)
+function removeCabSidePanel(root) {
+  root.updateMatrixWorld(true);
+  const v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  root.traverse(o => {
+    const m = o.isMesh && [].concat(o.material)[0];
+    if (!m || m.name !== 'M_Plexi' || !o.geometry.index) return;
+    const g = o.geometry, pos = g.attributes.position, idx = g.index.array, keep = [];
+    for (let t = 0; t < idx.length; t += 3) {
+      for (let k = 0; k < 3; k++) v[k].fromBufferAttribute(pos, idx[t + k]).applyMatrix4(o.matrixWorld);
+      if (!v.every(p => p.x > 0.27 && p.x < 0.38 && p.z > 4.05 && p.z < 5.06)) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    }
+    if (keep.length !== idx.length) g.setIndex(keep);
+  });
+  // השלט לנוסעים (M_Sign2) תלוי בדגם באוויר מעל המעבר, בגובה הראש (z‏ 4.01) — מעבירים אותו אל המחיצה שמאחורי הנהג
+  root.traverse(o => {
+    const m = o.isMesh && [].concat(o.material)[0];
+    if (!m || m.name !== 'M_Sign2') return;
+    const b = new THREE.Box3().setFromObject(o);
+    if (!(b.min.z > 3.95 && b.max.z < 4.05 && b.min.x < 0.1)) return;
+    const inv = o.matrixWorld.clone().invert(), pos = o.geometry.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      v.x += 0.42; v.y -= 0.2; v.z = 4.222;
+      v.applyMatrix4(inv); pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true; o.geometry.computeBoundingSphere();
+  });
 }
 
 // איחוד לפי חומר — כמה רשתות בודדות לכל תא הנהג
@@ -307,7 +365,7 @@ function poseDriver(gltf, hip) {
     const P = palm[s].clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
     const curl = (bone, deg2) => { if (!bone) return; const d = new THREE.Vector3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()));
       turn(bone, new THREE.Vector3().crossVectors(d, P), deg2); };
-    curl(fb, 12); curl(f1, 80); curl(th, 35);
+    curl(fb, 10); curl(f1, 58); curl(th, 28);                // אצבעות סביב ההגה, בלי להיכנס בו
   }
   // הראש: מסתכל קדימה על הכביש, קצת למטה
   turn(B('Neck'), X, -4); turn(B('Head'), X, 6);
@@ -325,7 +383,6 @@ function buildPedals(M, feet) {
   const pedal = (x, c, len, w) => {
     add(M.rubber, at(box(w, len, 0.022), x, c.y, c.z, ang));
     const foot = c.clone().addScaledVector(d, -len / 2); foot.x = x;   // הקצה התחתון, אל הרצפה
-    add(M.trim, at(box(w * 0.7, Math.max(0.02, foot.y - FL + 0.01), 0.05), x, (foot.y + FL) / 2, foot.z));
   };
   const c = ank.clone().add(toe).multiplyScalar(0.5).addScaledVector(up, -0.075);
   pedal(ank.x, c, 0.24, 0.08);                                        // גז
@@ -393,9 +450,15 @@ function pickDriver(people) {
   return people.find(g => g && has(g, /male_casualsuit01/)) || people.find(g => g && has(g, /male_casualsuit04/)) || null;
 }
 
+// הנהג "הלא אפוי" (js/access.js): הדגם ותנוחת הישיבה (סיבובי העצמות ומיקום השורש), כדי לבנות עותק עם שלד
+// שקם מהכיסא בדיוק מאותה תנוחה
+export let DRIVER_RIG = null;
+export { bake as bakePosed, partKind as personPart, driverMaterial };
+
 export function addCab(busRoot, people) {
   if (!busRoot || busRoot.getObjectByName('Cab')) return;
   const M = busMaterials(busRoot);
+  removeCabSidePanel(busRoot);
   clearerGlass(busRoot);
   const parts = [...buildCab(M), ...buildBackWall(M)];
   const cab = new THREE.Group(); cab.name = 'Cab';
@@ -405,6 +468,8 @@ export function addCab(busRoot, people) {
     try {
       const posed = poseDriver(gltf, HIP);
       if (posed) {
+        const quats = new Map(); posed.root.traverse(o => { if (o.isBone) quats.set(o.name, o.quaternion.clone()); });
+        DRIVER_RIG = { gltf, quats, rootPos: posed.root.position.clone(), hip: HIP.clone(), feet: posed.feet };
         const { group, all } = bake(posed.root);
         parts.push(...buildPedals(M, posed.feet));
         const m = measure(all);
@@ -420,6 +485,7 @@ export function addCab(busRoot, people) {
   }
   parts.push(...buildSeat(M, seat.seatY, seat.back));
   cab.add(mergeParts(parts, 'CabParts'));
+  cab.add(buildCabDoor(M));
   busRoot.add(cab);
   return cab;
 }

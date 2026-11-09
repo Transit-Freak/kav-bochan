@@ -291,11 +291,14 @@ export class Sim {
         // קו מעגלי: בתחנה האחרונה האוטובוס ממשיך כנסיעה הבאה (או מחכה לה), ומי שעלה "מסביב" נשאר
         if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay);
         const off = b.pax.findIndex(p => p.to === k || (last && !(p.wrap && b.goOn)));
-        if (off >= 0) {
+        // כיסא גלגלים (js/access.js): בזמן שהנהג מוציא ומקפל את המשטח, היורדים מחכים
+        if (off >= 0 && b.access) busy = true;
+        else if (off >= 0) {
           busy = true;
           if (b.ta >= BUS.alightEvery) {
             b.ta = 0; const p = b.pax.splice(off, 1)[0];
             if (!p.role) { L.stats.alight++; ss.alight++; }       // פקח / מבקר: לא נוסע רגיל
+            if (p.wheel) b.access = true;      // נוסע בכיסא גלגלים יורד: האוטובוס מחכה לנהג ולמשטח (access.js)
             const ev = { type: 'alight', bus: b, p, stop }; this.events.push(ev);
             if (!p.role && !p.wrap && p.leg + 1 >= p.legs.length) this.ops.rate(p, L, b, k);
             if (p.role) { }
@@ -303,10 +306,13 @@ export class Sim {
             else if (p.leg + 1 < p.legs.length) { const x = this.transfer(p, L, stop); if (x) { ev.xfer = x.to; ev.at = x.at; } }   // מעבר: התצוגה מראה אותו הולך לתחנה הבאה
           }
         }
-        if (!last && !b.express && b.pax.length < b.cap && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
+        // כיסא גלגלים (js/access.js): הנהג יוצא ונכנס בדלת הקדמית — בינתיים לא עולים
+        if (b.access) busy = true;
+        else if (!last && !b.express && b.pax.length < b.cap && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
             b.tb = 0; const p = L.queues[k].shift() || this.sameRider(L, b, k, true) || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
+            if (p.wheel) b.access = true;      // עולה בכיסא גלגלים: האוטובוס מחכה עד שהנהג חוזר למקום (access.js)
             p.wait = this.time - p.t0; p.load = b.pax.length / b.cap;
             if (!p.role) {
               L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
@@ -321,6 +327,7 @@ export class Sim {
         if (b.hold > this.time) busy = true;
         // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש
         if ((b.walking || 0) > 0 && b.dw < 90) busy = true;
+        if (b.access && b.dw < 600) busy = true;
         if (!busy && last && b.goOn && off < 0) {
           // קו מעגלי במסוף: כולם ירדו. יוצאים לנסיעה הבאה אם הגיע הזמן (או קצת לפני), ואם לא — מחכים עם דלתות פתוחות.
           // אוטובוס של הקו שמתקרב מאחור — יוצאים מיד, כדי לא לחסום אותו
