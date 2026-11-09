@@ -8,6 +8,7 @@ import { RoadGraph, speedProfile } from './graph.js';
 import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
+import { AccessLayer } from './access.js';
 import { StopLayer, assignRoadWidths } from './stops.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, START_MONEY, typeOf, lineCycle, vehiclesNeeded, fleetChange, money, dayOf } from './fleet.js';
@@ -55,7 +56,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, fps: 0, frames: 0 };
-let city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let city, graph, sim, bank, buses, people, access, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -73,6 +74,7 @@ async function init() {
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
   buses = new BusLayer(scene, assets.bus, assets.people);
   people = new PeopleLayer(scene, assets.people, graph);
+  access = new AccessLayer(scene, people);   // כיסאות גלגלים, המשטח בדלת האמצעית והנהג שעוזר
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
   const saved = Bank.load();
@@ -102,7 +104,7 @@ async function init() {
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, access, forceWheelchair: id => access.forceAt(sim, id), planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -976,7 +978,8 @@ G.advance = dt => tick(dt);
 function tick(dt) {
   if (G.ready) {
     const simDt = sim.step(dt);
-    buses.update(sim.lines);
+    buses.update(sim.lines, simDt, dt);
+    access.update(sim, simDt, buses);
     people.update(sim, city.stops, simDt, buses);
     sim.events.length = 0;
     cams.update(dt);

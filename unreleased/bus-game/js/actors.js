@@ -10,6 +10,8 @@ import { useBitmapTextures } from './texfix.js';
 import { addCab, turn } from './driver.js';
 import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter } from './sitting.js';
+import { addStraps, swayStraps } from './straps.js';
+import { addRamp } from './access.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -134,6 +136,9 @@ export class BusLayer {
       if (!this.tuned) {
         // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
         try { addCab(this.asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
+        // רצועות האחיזה (js/straps.js) ומשטח העלייה לכיסא גלגלים בדלת האמצעית (js/access.js)
+        try { addStraps(this.asset.scene); } catch (e) { console.warn('straps failed', e); }
+        try { addRamp(this.asset.scene); } catch (e) { console.warn('ramp failed', e); }
         cutDoorPanels(this.asset.scene);
         tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
       obj = this.asset.scene.clone(true);
@@ -157,7 +162,8 @@ export class BusLayer {
     const v = { obj, mixer, action, doors, anchors, label };
     this.map.set(bus.id, v); return v;
   }
-  update(lines) {
+  // simDt — זמן המשחק שעבר, dt — זמן אמיתי (לנדנוד הרצועות)
+  update(lines, simDt = 0, dt = 0) {
     const alive = new Set();
     for (const L of lines) for (const b of L.buses) {
       alive.add(b.id);
@@ -171,6 +177,7 @@ export class BusLayer {
         d.o.position.z = d.z0 + d.k * 0.55 * Math.max(0, b.door * 1.2 - 0.2);
       }
       v.label.visible = L.visible !== false && !this.hideLabels;
+      if (dt && v.obj.visible) swayStraps(v, b, p.yaw, simDt, dt);
     }
     for (const [id, v] of this.map) if (!alive.has(id)) { this.group.remove(v.obj); this.map.delete(id); }
   }
@@ -436,6 +443,7 @@ export class PeopleLayer {
   update(sim, stops, simDt, busLayer) {
     // 1. עולים ויורדים — לפני שמעדכנים את הממתינים, כדי שההולך יתחיל בדיוק מהמקום שבו עמד
     for (const ev of sim.events) {
+      if (ev.p?.wheel && (ev.type === 'board' || ev.type === 'alight')) continue;   // כיסא גלגלים — js/access.js
       if (ev.type === 'board') {
         const path = this.doorPath(busLayer, ev.bus, 'front'); if (!path) continue;
         const bm = this.benches.get(ev.stop.id), bk = bm?.get(ev.p.id);
@@ -485,6 +493,7 @@ export class PeopleLayer {
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
+        if (p.wheel) continue;                 // כיסא גלגלים — js/access.js
         const bk = this.benchOf(stop, p.id);
         if (bk >= 0) {
           const V = this.variants[this.variantOf(p.id)];

@@ -240,11 +240,14 @@ export class Sim {
         b.ta += h; b.tb += h;
         let busy = false;
         const off = b.pax.findIndex(p => p.to === k || last);
-        if (off >= 0) {
+        // כיסא גלגלים (js/access.js): בזמן שהנהג מוציא ומקפל את המשטח, היורדים מחכים
+        if (off >= 0 && b.access) busy = true;
+        else if (off >= 0) {
           busy = true;
           if (b.ta >= BUS.alightEvery) {
             b.ta = 0; const p = b.pax.splice(off, 1)[0];
             L.stats.alight++; ss.alight++;
+            if (p.wheel) b.access = true;      // נוסע בכיסא גלגלים יורד: האוטובוס מחכה לנהג ולמשטח (access.js)
             this.events.push({ type: 'alight', bus: b, p, stop });
             if (p.leg + 1 < p.legs.length) this.transfer(p, L, stop);
           }
@@ -253,6 +256,7 @@ export class Sim {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
             b.tb = 0; const p = L.queues[k].shift() || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
+            if (p.wheel) b.access = true;      // עולה בכיסא גלגלים: האוטובוס מחכה עד שהנהג חוזר למקום (access.js)
             L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
             // מעבר בחינם (כמו "רב-קו": עד 90 דק') — משלמים רק בעלייה הראשונה
             if (!p.paid) { p.paid = true; this.bank?.earn(FARE, L.id); } else L.stats.xferIn++;
@@ -261,6 +265,7 @@ export class Sim {
         }
         // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש
         if ((b.walking || 0) > 0 && b.dw < 90) busy = true;
+        if (b.access && b.dw < 600) busy = true;
         if (!busy && b.dw >= BUS.minDwell + BUS.doorTime) b.ph = 'close';
       } else if (b.ph === 'close') {
         b.door = Math.max(0, b.door - h / BUS.doorTime);

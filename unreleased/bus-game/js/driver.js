@@ -160,6 +160,27 @@ function buildBackWall(M) {
   return parts;
 }
 
+// הדלת של תא הנהג (בצד המעבר, בין המחיצה האחורית לקונסולה): פח למטה, פרספקס למעלה, מסגרת שחורה.
+// ציר אנכי בקצה הקדמי; סגורה — לאורך ‎-Z, פתוחה — מסתובבת החוצה אל אזור הדלת הקדמית (rotation.y חיובי), כך שהמעבר נשאר פנוי.
+// כל אוטובוס מקבל עותק משלו (בשכפול), עם אותה גאומטריה
+export const CAB_DOOR = { x: 0.345, z: 4.95, w: 0.7, open: 1.65 };
+function buildCabDoor(M) {
+  const g = new THREE.Group(); g.name = 'CabDoor';
+  g.position.set(CAB_DOOR.x, FL, CAB_DOOR.z);
+  const W = CAB_DOOR.w, parts = [], add = (m, geo) => { if (m && geo) parts.push([geo, m]); };
+  add(M.panel, at(box(0.02, 0.72, W - 0.04), 0, 0.38, -W / 2));
+  add(M.trim, at(box(0.03, 0.035, W), 0, 0.03, -W / 2));                      // מסגרת תחתונה
+  add(M.trim, at(box(0.034, 0.04, W), 0, 0.76, -W / 2));                      // אמצע
+  add(M.trim, at(box(0.034, 0.035, W), 0, 1.45, -W / 2));                     // עליונה
+  add(M.trim, at(box(0.036, 1.47, 0.035), 0, 0.735, -0.0175));                // צד הציר
+  add(M.trim, at(box(0.036, 1.47, 0.035), 0, 0.735, -W + 0.0175));            // צד הידית
+  add(M.plexi, at(box(0.008, 0.66, W - 0.07), 0, 1.105, -W / 2));
+  add(M.steel, at(rbox(0.035, 0.12, 0.022, 0.01, 1), -0.03, 0.95, -W + 0.07)); // ידית
+  for (const y of [0.2, 1.25]) add(M.steel, at(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 8), 0, y, 0));   // צירים
+  g.add(mergeParts(parts, 'CabDoorParts'));
+  return g;
+}
+
 // איחוד לפי חומר — כמה רשתות בודדות לכל תא הנהג
 function mergeParts(parts, name) {
   const g = new THREE.Group(); g.name = name;
@@ -392,6 +413,11 @@ function pickDriver(people) {
   return people.find(g => g && has(g, /male_casualsuit01/)) || people.find(g => g && has(g, /male_casualsuit04/)) || null;
 }
 
+// הנהג "הלא אפוי" (js/access.js): הדגם ותנוחת הישיבה (סיבובי העצמות ומיקום השורש), כדי לבנות עותק עם שלד
+// שקם מהכיסא בדיוק מאותה תנוחה
+export let DRIVER_RIG = null;
+export { bake as bakePosed, partKind as personPart, driverMaterial };
+
 export function addCab(busRoot, people) {
   if (!busRoot || busRoot.getObjectByName('Cab')) return;
   const M = busMaterials(busRoot);
@@ -404,6 +430,8 @@ export function addCab(busRoot, people) {
     try {
       const posed = poseDriver(gltf, HIP);
       if (posed) {
+        const quats = new Map(); posed.root.traverse(o => { if (o.isBone) quats.set(o.name, o.quaternion.clone()); });
+        DRIVER_RIG = { gltf, quats, rootPos: posed.root.position.clone(), hip: HIP.clone(), feet: posed.feet };
         const { group, all } = bake(posed.root);
         parts.push(...buildPedals(M, posed.feet));
         const m = measure(all);
@@ -419,6 +447,7 @@ export function addCab(busRoot, people) {
   }
   parts.push(...buildSeat(M, seat.seatY, seat.back));
   cab.add(mergeParts(parts, 'CabParts'));
+  cab.add(buildCabDoor(M));
   busRoot.add(cab);
   return cab;
 }
