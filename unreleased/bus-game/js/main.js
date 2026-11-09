@@ -102,7 +102,7 @@ async function init() {
   setInterval(() => bank.save(sim.time), 4000);
   addEventListener('pagehide', () => bank.save(sim.time));
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;

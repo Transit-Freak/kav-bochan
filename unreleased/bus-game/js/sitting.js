@@ -47,18 +47,19 @@ function pose(gltf, st, hipY, fix) {
   // הגב כמעט זקוף, נשען מעט לאחור אל הקיר; הראש קצת למטה
   turn(B('LowerBack'), X, -3);
   turn(B('Head'), X, 4);
-  // רגליים: הירך כמעט אופקית (יורדת קצת אל הברך אצל הנמוכים), השוק כמעט אנכית, כפות הרגליים שטוחות על הקרקע.
-  // הברכיים מעט פתוחות לצדדים
+  // רגליים: הירך כמעט אופקית (יורדת קצת אל הברך אצל הנמוכים), הברך קצת לפני שפת המושב, והשוק נוטה קדימה
+  // (כפות הרגליים לפני הברכיים, לא מתחתיהן — אחרת מלמעלה השוקיים נראות כמו מקלות שיורדים ישר מהספסל).
+  // רגל אחת קצת יותר קדימה מהשנייה, הברכיים מעט פתוחות לצדדים, וכפות הרגליים שטוחות על הקרקע
   const knees = {};
   for (const s of ['Left', 'Right']) {
     const L = st.legs[s], up = B(s + 'UpLeg'), kn = B(s + 'Leg'), ft = B(s + 'Foot'), toe = B(s + 'ToeBase');
     const A = W(up), sx = Math.sign(A.x - W(hips).x) || 1;
-    const ankY = L.ankle + fix, dy = A.y - ankY, phi0 = D(4);
+    const ankY = L.ankle + fix, dy = A.y - ankY, phi0 = D(s === 'Left' ? 19 : 12);
     const sinT = THREE.MathUtils.clamp((dy - L.l2 * Math.cos(phi0)) / L.l1, -0.26, 0.42), cosT = Math.sqrt(1 - sinT * sinT);
     const cosP = THREE.MathUtils.clamp((dy - L.l1 * sinT) / L.l2, -1, 1), sinP = Math.sqrt(1 - cosP * cosP);
-    const dir = new THREE.Vector3(sx * 0.1, -sinT, cosT).normalize();
+    const dir = new THREE.Vector3(sx * 0.13, -sinT, cosT).normalize();
     const K = A.clone().addScaledVector(dir, L.l1);
-    const F = K.clone().add(new THREE.Vector3(sx * 0.015, -L.l2 * cosP, L.l2 * sinP));
+    const F = K.clone().add(new THREE.Vector3(sx * 0.03, -L.l2 * cosP, L.l2 * sinP));
     twoBone(up, kn, ft, F, new THREE.Vector3(0, 0.4, 1));
     const f = W(ft);
     aim(ft, toe, f.clone().add(new THREE.Vector3(sx * 0.02, L.toe - L.ankle, L.len)));

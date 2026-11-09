@@ -4,7 +4,7 @@
 // כסף נכנס בכל נסיעה (פעם אחת, גם עם מעבר) ויוצא על ק"מ ושעות נהג (fleet.js).
 // הנוסעים באים ממודל הביקוש (demand.js): לכל אחד מוצא ויעד, ומסלול של קו אחד עד שלושה קווים.
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
-import { Network, inHours } from './demand.js';
+import { Network, inHours, lineTimes } from './demand.js';
 export const BUS = {
   capacity: 80,           // ברירת מחדל; הקיבולת האמיתית לפי סוג הרכב (fleet.js)
   doorTime: 1.1,          // פתיחה/סגירה (שנ')
@@ -15,6 +15,7 @@ export const BUS = {
   gap: 18,                // מרחק מינימלי מהאוטובוס שלפניו באותו קו
 };
 export const PATIENCE = 30 * 60;   // מי שמחכה יותר מזה מוותר והולך (והכרטיס שלו הולך איתו)
+const SAME_SLACK = 5 * 60;         // אותו קו באותה תחנה: עולים לאוטובוס שהגיע אם הוא מביא ליעד עד 5 דק' אחרי זה שאחריו
 
 const hourOf = t => Math.floor((t / 3600) % 24);
 const DECEL = 1.2;       // בלימה (מ/ש²) — כמו בפרופיל המהירות
@@ -141,15 +142,14 @@ export class Sim {
       // מחוץ לשעות הפעילות לא יוצאים; כשהקו נפתח — היציאה הראשונה מיד, בלי "להשלים" את מה שהיה בלילה
       if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);
       while (!L.off && this.time >= L.nextDispatch) {
+        // קו מעגלי: אוטובוס שמחכה במסוף (הגיע לתחנה האחרונה, שהיא גם הראשונה) יוצא לנסיעה הבאה
+        const lay = L.buses.find(o => o.lay);
+        if (lay) { this.turnaround(L, lay); continue; }
         if (this.available(L) <= 0 || L.buses.length >= 30) { L.short = true; break; }
         const type = typeOf(L.def), T = TYPES[type];
         const b = { id: BID++, line: L, type, cap: T.cap, s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1 };
         L.buses.push(b); this.events.push({ type: 'bus', bus: b });
-        L.dispatches.push(this.time); if (L.dispatches.length > 6) L.dispatches.shift();
-        L.stats.trips++; L.stats.hCap[H] += T.cap;
-        // יציאה באיחור גדול: הלוח מתחיל מחדש מעכשיו, כדי שלא ייצאו כמה אוטובוסים בבת אחת
-        const late = this.time - L.nextDispatch;
-        L.nextDispatch = late > hw / 2 ? this.time + hw : L.nextDispatch + hw;
+        this.dispatched(L, T.cap);
       }
       // תפוסה ממוצעת, ושעות נהג לכל אוטובוס בדרך
       for (const b of L.buses) if (b.state === 'drive' || b.state === 'dwell') {
@@ -161,6 +161,32 @@ export class Sim {
       for (let i = 0; i < L.buses.length; i++) this.moveBus(L, L.buses[i], L.buses[i - 1], h);
       L.buses = L.buses.filter(b => b.state !== 'gone');
     }
+  }
+
+  // רישום יציאה מהמסוף. יציאה באיחור גדול: הלוח מתחיל מחדש מעכשיו, כדי שלא ייצאו כמה אוטובוסים בבת אחת
+  dispatched(L, cap) {
+    const hw = L.def.headway * 60;
+    L.dispatches.push(this.time); if (L.dispatches.length > 6) L.dispatches.shift();
+    L.stats.trips++; L.stats.hCap[hourOf(this.time)] += cap;
+    const late = this.time - L.nextDispatch;
+    L.nextDispatch = late > hw / 2 ? this.time + hw : L.nextDispatch + hw;
+  }
+  // קו מעגלי (התחנה האחרונה היא גם הראשונה): האוטובוס שהגיע לסוף לא נעלם — ממשיך מאותו מקום כנסיעה הבאה,
+  // והדלתות נשארות פתוחות כדי שהממתינים יעלו. מי שעלה "מסביב" (wrap) ממשיך לנסוע
+  turnaround(L, b) {
+    b.lay = false; b.goOn = undefined; b.s = L.stopS[0]; b.next = 0; b.dw = 0; b.ta = 0; b.tb = 0; b.v = 0;
+    b.state = 'dwell'; if (b.ph !== 'open') b.ph = b.door >= 1 ? 'xchg' : 'open';
+    b.decided = 0; b.stopHere = true;
+    for (const p of b.pax) p.wrap = false;
+    this.dispatched(L, b.cap);
+  }
+  // האם הקו מעגלי: התחנה האחרונה היא הראשונה, וההתחלה והסוף באותה נקודה (בלי קפיצה)
+  cyclic(L) {
+    if (L._cyc === undefined) {
+      const n = L.stops.length, a = L.poly.pts[0], z = L.poly.pts[L.poly.pts.length - 1];
+      L._cyc = n > 2 && L.stops[0] === L.stops[n - 1] && Math.hypot(a[0] - z[0], a[1] - z[1]) < 1.5;
+    }
+    return L._cyc;
   }
 
   // נוסעים חדשים לפי מודל הביקוש. כל מי ש"רוצה לנסוע" נספר; נוסע רק מי שיש לו מסלול בקווים שפועלים עכשיו,
@@ -198,7 +224,7 @@ export class Sim {
     if (k === 0 || k === L.stops.length - 1) return true;
     if (b.pax.some(p => p.to === k)) return true;
     if (b.pax.length >= b.cap) return false;
-    return L.queues[k].length > 0 || !!this.altRider(L, k, L.stops[k], false);
+    return L.queues[k].length > 0 || !!this.sameRider(L, b, k, false) || !!this.altRider(L, k, L.stops[k], false);
   }
 
   moveBus(L, b, ahead, h) {
@@ -208,6 +234,10 @@ export class Sim {
       // (מי שמגיע לתחנה אחרי זה — מפספס). התחנה הראשונה והאחרונה — תמיד.
       if (b.decided !== b.next && (target - b.s <= b.v * b.v / (2 * DECEL) + 30)) {
         b.decided = b.next;
+        b.stopHere = this.needStop(L, b, b.next);
+      } else if (b.decided === b.next && !b.stopHere && target - b.s > b.v * b.v / (2 * 2.2) + 1 && ((b.recheck = (b.recheck || 0) + h) >= 1)) {
+        // מישהו הגיע לתחנה אחרי ההחלטה: אם עוד אפשר לבלום בנחת — עוצרים בכל זאת
+        b.recheck = 0;
         b.stopHere = this.needStop(L, b, b.next);
       }
       if (b.decided === b.next && !b.stopHere && b.s >= target - 0.05) {
@@ -239,20 +269,23 @@ export class Sim {
       } else if (b.ph === 'xchg') {
         b.ta += h; b.tb += h;
         let busy = false;
-        const off = b.pax.findIndex(p => p.to === k || last);
+        // קו מעגלי: בתחנה האחרונה האוטובוס ממשיך כנסיעה הבאה (או מחכה לה), ומי שעלה "מסביב" נשאר
+        if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay);
+        const off = b.pax.findIndex(p => p.to === k || (last && !(p.wrap && b.goOn)));
         if (off >= 0) {
           busy = true;
           if (b.ta >= BUS.alightEvery) {
             b.ta = 0; const p = b.pax.splice(off, 1)[0];
             L.stats.alight++; ss.alight++;
-            this.events.push({ type: 'alight', bus: b, p, stop });
-            if (p.leg + 1 < p.legs.length) this.transfer(p, L, stop);
+            const ev = { type: 'alight', bus: b, p, stop }; this.events.push(ev);
+            if (p.wrap) { p.wrap = false; p.legs[p.leg] = { L, from: 0, to: p.to }; this.joinQueue(p); }   // האוטובוס לא ממשיך: מחכים לבא
+            else if (p.leg + 1 < p.legs.length) { const x = this.transfer(p, L, stop); if (x) { ev.xfer = x.to; ev.at = x.at; } }   // מעבר: התצוגה מראה אותו הולך לתחנה הבאה
           }
         }
-        if (!last && b.pax.length < b.cap && (L.queues[k].length || this.altRider(L, k, stop, false))) {
+        if (!last && b.pax.length < b.cap && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
-            b.tb = 0; const p = L.queues[k].shift() || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
+            b.tb = 0; const p = L.queues[k].shift() || this.sameRider(L, b, k, true) || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
             L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
             // מעבר בחינם (כמו "רב-קו": עד 90 דק') — משלמים רק בעלייה הראשונה
             if (!p.paid) { p.paid = true; this.bank?.earn(FARE, L.id); } else L.stats.xferIn++;
@@ -261,6 +294,14 @@ export class Sim {
         }
         // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש
         if ((b.walking || 0) > 0 && b.dw < 90) busy = true;
+        if (!busy && last && b.goOn && off < 0) {
+          // קו מעגלי במסוף: כולם ירדו. יוצאים לנסיעה הבאה אם הגיע הזמן (או קצת לפני), ואם לא — מחכים עם דלתות פתוחות.
+          // אוטובוס של הקו שמתקרב מאחור — יוצאים מיד, כדי לא לחסום אותו
+          const W = Math.min(L.def.headway * 30, 300), behind = L.buses.some(o => o !== b && o.state === 'drive' && o.next === k && L.stopS[k] - o.s < 70);
+          if (L.retired || L.off) { b.goOn = false; b.lay = false; return; }   // הקו נסגר: מי שעלה "מסביב" יורד, והאוטובוס נגמר
+          else if (this.time >= L.nextDispatch - W || behind) { this.turnaround(L, b); return; }
+          else { b.lay = true; return; }
+        }
         if (!busy && b.dw >= BUS.minDwell + BUS.doorTime) b.ph = 'close';
       } else if (b.ph === 'close') {
         b.door = Math.max(0, b.door - h / BUS.doorTime);
@@ -276,7 +317,7 @@ export class Sim {
             this.charge(L, b.type, L.poly.length, dead + LAYOVER);
             this.events.push({ type: 'done', bus: b });
           }
-          else { b.state = 'drive'; b.next++; this.events.push({ type: 'depart', bus: b, stop }); }
+          else { b.state = 'drive'; b.next++; b.goOn = undefined; this.events.push({ type: 'depart', bus: b, stop }); }
         }
       }
     } else if (b.state === 'done') {
@@ -285,6 +326,38 @@ export class Sim {
     }
   }
 
+  // אותו קו עובר באותה תחנה פעמיים (הלוך וחזור דרך אותן תחנות, או קו מעגלי): מי שמחכה לפעם האחרת עולה כבר עכשיו,
+  // אם האוטובוס הזה הוא הראשון שיגיע אליו (אין אוטובוס של הקו לפניו בדרך) — כך הוא מגיע ליעד באותו זמן, ולא נשאר בתחנה
+  // כשהאוטובוס של הקו שלו עוצר מולו. היעד אחרי התחנה הזו בנסיעה הנוכחית, או (בקו מעגלי) בנסיעה הבאה — "מסביב".
+  sameRider(L, b, k, take) {
+    const stop = L.stops[k], n = L.stops.length;
+    let T = null;
+    for (let j = 0; j < n - 1; j++) {
+      if (j === k || L.stops[j] !== stop || !L.queues[j].length) continue;
+      T = T || lineTimes(L);
+      // האוטובוס הראשון של הקו שיגיע לממתין בפעם האחרת (j), ובכמה זמן הוא יביא אותו ליעד
+      let first = null;
+      for (const o of L.buses) if (o !== b && (o.state === 'drive' || o.state === 'dwell') && o.s > b.s && (j < k || o.s <= L.stopS[j]) && (!first || (j > k ? o.s > first.s : o.s < first.s))) first = o;
+      const Q = L.queues[j];
+      for (let i = 0; i < Q.length; i++) {
+        const p = Q[i], dest = L.stops[p.to];
+        let t = -1;
+        for (let x = k + 1; x < n; x++) if (L.stops[x] === dest) { t = x; break; }
+        const wrap = t < 0 && j < k && this.cyclic(L) && !L.retired;      // מסביב: יורד בנסיעה הבאה, ב-p.to
+        if (t < 0 && !wrap) continue;
+        // הזמן עד היעד באוטובוס הזה, לעומת האוטובוס שלפניו. עולים אם זה לא מאחר ביותר מ-5 דקות
+        const mine = wrap ? T[n - 1] - T[k] + T[p.to] : T[t] - T[k];
+        const theirs = !first ? Infinity : j > k ? T[p.to] - T[Math.min(first.next, j)] : T[n - 1] - T[Math.min(first.next, n - 1)] + T[p.to];
+        if (mine - theirs > SAME_SLACK) continue;
+        if (!take) return true;
+        Q.splice(i, 1);
+        if (wrap) { p.wrap = true; p.from = k; }
+        else { p.legs[p.leg] = { L, from: k, to: t }; p.from = k; p.to = t; }
+        return p;
+      }
+    }
+    return null;
+  }
   // קווים מקבילים: מי שמחכה לקו אחר, והאוטובוס הזה מגיע ישר לאותה תחנת ירידה — עולה גם הוא (לא מחכים דווקא לקו "שלהם").
   // take=false: רק בודקים אם יש כזה
   altRider(L, k, stop, take) {
@@ -312,12 +385,13 @@ export class Sim {
     if (!next) return;
     p.leg++; p.legs[p.leg] = next;
     const to = next.L.stops[next.from];
-    const walk = Math.hypot(to.x - stop.x, to.y - stop.y) * 1.2 / 1.3;
-    this.pending.push({ p, at: this.time + 15 + walk });
+    const walk = Math.hypot(to.x - stop.x, to.y - stop.y) * 1.2 / 1.3, x = { p, at: this.time + 15 + walk, to };
+    this.pending.push(x);
     const key = this.current(L).id + '>' + next.L.id, T = this.today;
     T.xfer.set(key, (T.xfer.get(key) || 0) + 1);
     T.xferStop.set(stop.id, (T.xferStop.get(stop.id) || 0) + 1);
     this.stopStats.get(stop.id).xfer++;
+    return x;
   }
 
   // עלות: מטרים ושניות של רכב מסוג type

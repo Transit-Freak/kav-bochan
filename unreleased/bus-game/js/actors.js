@@ -209,6 +209,7 @@ function twoBone(a, b, c, target, pole) {
 // במצב ?placeholders — דמויות פשוטות בצבעים אחידים (כמו קודם)
 // הגיל של כל דגם (tools/person_variants.py): מבוגרים יושבים ראשונים, צעירים משאירים מקום
 const AGE = { person_3: 'old', person_4: 'old', person_2: 'young', person_6: 'young' };
+const XFER_MAX = 40;                        // הולכים למעבר בבת אחת לכל היותר (השאר — כמו יורדים רגילים)
 const SIT_MAX = 256, SIT_GAP = 0.012;     // יושבים לכל דגם; רווח בין הגב לרפפות
 const SKIN = [0xe9c6aa, 0xd9ab8a, 0xbf8b67, 0x8f5d3e, 0xf2d6c2, 0xc99a78];
 const CLOTH = [0x0ea5e9, 0x1e3a8a, 0xef4444, 0x22c55e, 0xf8fafc, 0x334155, 0xf59e0b, 0x8b5cf6, 0x0f766e, 0xdb2777, 0x94a3b8, 0x7c2d12];
@@ -461,6 +462,25 @@ export class PeopleLayer {
         const toOut = path.toIn.slice().reverse(), o = toOut[toOut.length - 1], [ad] = frameAD(f, o.x, -o.z);
         const end = dir > 0 ? Math.max(ad + 0.8, 2.8) : Math.min(ad - 0.8, -7.9);
         const curb = frameV(f, ad + dir * 0.6, 0.5, 0.12), edge = frameV(f, end, 0.5, 0.12);
+        // מעבר לקו אחר: הולך מהדלת אל התחנה של הקו הבא (בקו ישר), ומצטרף שם לממתינים כשהוא מגיע
+        if (ev.xfer && this.walkers.reduce((n, w) => n + (w.mode === 'xfer'), 0) < XFER_MAX) {
+          const g = this.stopFrame(ev.xfer);
+          const pts = [...toOut, frameV(f, ad, 0.9, 0.12)];
+          if (ev.xfer === ev.stop) pts.push(frameV(f, -2.2 + (hash(ev.p.id) - 0.5) * 3, 1.5, 0.12));
+          else {
+            const A = frameV(f, ad, 1.0, 0.12), B = frameV(g, 0.6, 1.0, 0.12), Bk = frameV(g, -2.5 + (hash(ev.p.id) - 0.5) * 3, 1.5, 0.12);
+            const far = A.distanceTo(B) > 400;      // רחוק: הולכים קטע ונעלמים בהדרגה
+            if (far) { pts.push(A, A.clone().lerp(B, 60 / A.distanceTo(B)).setY(0.07)); }
+            else pts.push(A, A.clone().lerp(B, 0.15).setY(0.07), A.clone().lerp(B, 0.85).setY(0.07), B, Bk);
+            if (far) { this.walk(ev.p.id, pts, 'alight', ev.bus, undefined, toOut.length, path.door); continue; }
+          }
+          let len = 0; for (let j = 0; j + 1 < pts.length; j++) len += pts[j].distanceTo(pts[j + 1]);
+          // הקצב: כך שיגיע בערך כשהסימולציה מכניסה אותו לתור (בין הליכה איטית לזריזה); אם הקדים — מחכה במקום
+          const left = Math.max(1, ev.at - sim.time - 1);
+          const w = this.walk(ev.p.id, pts, 'xfer', ev.bus, undefined, toOut.length, path.door); if (!w) continue;
+          w.speed = THREE.MathUtils.clamp(len / left, 0.9, 1.8); w.p = ev.p; w.sim = sim;
+          continue;
+        }
         const away = frameV(f, end + dir * far, 3.2 + Math.abs(side) * 2, 0.12);
         this.walk(ev.p.id, [...toOut, curb, edge, away], 'alight', ev.bus, undefined, toOut.length, path.door);
       }
@@ -472,11 +492,12 @@ export class PeopleLayer {
       if (L.visible === false) continue;
       L.queues.forEach((q, k) => { if (!q.length) return; const s = L.stops[k]; const a = per.get(s) || []; for (const p of q) a.push(p); per.set(s, a); });
     }
-    for (const [sid, m] of this.seats) {   // מי שכבר לא בתור (קו שנמחק או הוסתר) — משחררים את המקום
-      const st = [...per.keys()].find(s => s.id === sid), ids = new Set((st ? per.get(st) : []).map(p => p.id));
-      for (const pid of m.keys()) if (!ids.has(pid)) m.delete(pid);
-      const b = this.benches.get(sid);
-      if (b) for (const pid of b.keys()) if (!ids.has(pid)) b.delete(pid);
+    // מי שכבר לא בתור בתחנה הזו (עלה, ויתר, קו שנמחק או הוסתר) — משחררים את המקום שלו, גם על הספסל
+    // (גם בתחנה שבה כולם ישבו, ולכן אין לה רשימת מקומות עמידה)
+    const ids = new Map(); for (const [s, list] of per) ids.set(s.id, new Set(list.map(p => p.id)));
+    for (const M of [this.seats, this.benches]) for (const [sid, m] of M) {
+      const here = ids.get(sid);
+      for (const pid of m.keys()) if (!here || !here.has(pid)) m.delete(pid);
     }
     let n = 0;
     for (const V of this.variants) V.n = V.sn = 0;
@@ -519,7 +540,13 @@ export class PeopleLayer {
     for (let i = this.walkers.length - 1; i >= 0; i--) {
       const w = this.walkers[i];
       if (w.rise && this.rising(w, simDt)) continue;
-      w.d += simDt * 1.35;
+      const lastSeg = w.seg === w.pts.length - 2 && w.d >= w.lens[w.seg];
+      // מעבר: הגיע לתחנה הבאה לפני שהסימולציה הכניסה אותו לתור — עומד ומחכה (עד 20 שנ')
+      if (w.mode === 'xfer' && lastSeg && w.sim.pending.some(x => x.p === w.p) && (w.hold = (w.hold || 0) + simDt) < 20) {
+        if (w.mixer) { w.mixer.setTime(0.02); this.centre(w); }
+        continue;
+      }
+      w.d += simDt * (w.speed || 1.35);
       while (w.seg < w.pts.length - 2 && w.d > w.lens[w.seg]) { w.d -= w.lens[w.seg]; w.seg++; }
       const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
       const k = Math.min(1, w.d / L);
@@ -532,13 +559,22 @@ export class PeopleLayer {
       else w.body.position.y = Math.abs(Math.sin(w.d * 6.7)) * 0.05;
       const last = w.seg === w.pts.length - 2;
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
-      if (w.mode === 'alight' && w.counted && w.seg >= (w.release || 2)) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
+      if (w.mode !== 'board' && w.counted && w.seg >= (w.release || 2)) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
       // יורד: נעלם בהדרגה בסוף ההליכה. עולה: נכנס בדלת ונעלם בתוך האוטובוס
       if (w.mode === 'alight') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
       if (last && k >= 1) this.finish(w, i);
     }
   }
 
+  // בדיקה (לבדיקות ולקונסולה): כל מי שמצויר יושב או עומד בתחנה — נוסע שנמצא עכשיו בתור באותה תחנה. מחזיר את החריגים
+  audit(sim) {
+    const at = new Map();
+    for (const L of sim.lines) L.queues.forEach((q, k) => { for (const p of q) at.set(p.id, L.stops[k].id); });
+    const bad = [];
+    for (const [name, M] of [['seat', this.seats], ['bench', this.benches]])
+      for (const [sid, m] of M) for (const pid of m.keys()) if (at.get(pid) !== sid) bad.push({ name, sid, pid, at: at.get(pid) });
+    return bad;
+  }
   // מסלול הדלת, מבחוץ פנימה: מול הדלת על המדרכה ← עלייה למדרגה (0.34 מ') ← עלייה לרצפה (0.66 מ') ← פנימה.
   // הנקודות קרובות זו לזו, כך שכל עלייה היא צעד קצר למעלה ולא שיפוע
   doorPath(busLayer, bus, which) {
@@ -577,7 +613,7 @@ export class PeopleLayer {
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
-    w.seg = 0; w.d = 0; w.mode = mode; w.bus = bus; w.release = release; w.door = door || null; w.baseY = pts[0].y;
+    w.seg = 0; w.d = 0; w.speed = 0; w.hold = 0; w.p = null; w.sim = null; w.mode = mode; w.bus = bus; w.release = release; w.door = door || null; w.baseY = pts[0].y;
     w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
     w.body.scale.setScalar(this.personScale(id));
     w.obj.rotation.y = yaw0 ?? Math.atan2(w.pts[1].x - w.pts[0].x, w.pts[1].z - w.pts[0].z);
@@ -588,6 +624,7 @@ export class PeopleLayer {
     w.rise = sit && w.mixer && w.bones ? { t: 0, dur: 0.8, sit, t0: hash(id + 31) * 2, s: this.personScale(id) } : null;
     if (w.rise) this.rising(w, 0);
     this.walkers.push(w);
+    return w;
   }
   makeWalker(vi) {
     const V = this.variants[vi], mats = [];

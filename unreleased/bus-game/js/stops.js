@@ -454,6 +454,9 @@ export class StopLayer {
   }
   update(camera, lines, dt = 0) {
     this.t -= dt;
+    // הקווים השתנו (קו חדש, מסלול שנערך, קו שנמחק או הוסתר) — כל השלטים הקרובים מתעדכנים מיד, לא אחרי חצי שנייה
+    const sig = lines.map(L => L.id + ':' + L.def.number + ':' + (L.visible !== false) + ':' + L.stops.map(s => s.id).join(',')).join('|');
+    if (sig !== this.sig) { this.sig = sig; this.t = 0; for (const e of this.near.values()) e.key = null; }
     const cam = camera.position, far = 85, maxN = 8;
     // קרובות: לפי מרחק מהמצלמה, עד 8
     const cand = [];
@@ -479,8 +482,10 @@ export class StopLayer {
         e = { mesh, tex, canvas: c, key: null, n: -1, idle: 0 };
         this.near.set(s.id, e);
       }
+      // שלט שחוזר לתמונה אחרי שלא נראה — נבדק מיד (אולי הקווים שלו השתנו בינתיים)
+      const back = e.idle > 0;
       e.mesh.visible = true; e.idle = 0;
-      if (e.key === null || this.t <= 0) {
+      if (e.key === null || this.t <= 0 || back) {
         const rows = this.rowsOf(s, lines);
         const key = (this.fontsOk ? 'f' : 'x') + rows.map(r => r.num + '>' + r.dest).join('|');
         if (key !== e.key) {
