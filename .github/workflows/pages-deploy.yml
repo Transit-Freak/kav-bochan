@@ -165,10 +165,34 @@ jobs:
           du -sh bus/data/days line-history/data/changes 2>/dev/null || true
           find bus/data/days line-history/data/changes -maxdepth 1 -name '*.json' -print0 2>/dev/null | xargs -0 -r gzip -9 -n -f
           du -sh bus/data/days line-history/data/changes 2>/dev/null || true
+      # מעלים רק את מה שהאתר צריך (09.11, issue #380): כל המאגר הגיע ל-963MB מכווץ, ושני פרסומים
+      # ברצף נתקעו ב-syncing_files. הנתיבים שלא עולים — ב-.pagesignore (כלים שלא עלו לאתר, קוד
+      # הצינורות, קובצי ביניים ומצב). העתקה בקישורים קשיחים (link-dest), בלי מקום נוסף בדיסק.
+      # במאגר עצמו לא נמחק כלום.
+      - name: רק קבצי האתר — _site
+        run: |
+          rm -rf _site
+          rsync -a --link-dest="$PWD" --exclude-from=.pagesignore ./ _site/
+          files=$(find _site -type f | wc -l); mb=$(du -sm --apparent-size _site | cut -f1)
+          echo "באתר: $files קבצים · ${mb}MB (לפני כיווץ)"
+          bad=""
+          for f in index.html CNAME 404.html .nojekyll versions.json version.js KavPach.js \
+                   line-history/index.html line-history/app.jsx line-history/data/lines.json \
+                   bus/index.html bus/data/index.json fleet/index.html; do
+            [ -e "_site/$f" ] || bad="$bad $f"
+          done
+          [ -z "$bad" ] || { echo "::error::חסרים באתר:$bad"; exit 1; }
+          for d in gis unreleased tools .git; do
+            [ ! -e "_site/$d" ] || { echo "::error::$d לא אמור לעלות לאתר"; exit 1; }
+          done
+          # האתר כ-2.9GB ו-130 אלף קבצים (09.11). הרבה פחות — כנראה .pagesignore מוציא משהו שהאתר צריך
+          if [ "$files" -lt 80000 ] || [ "$mb" -lt 1500 ]; then
+            echo "::error::האתר קטן מדי ($files קבצים, ${mb}MB) — לבדוק את .pagesignore"; exit 1
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
         with:
