@@ -259,7 +259,62 @@ function gameMaterial(m, kind) {
   if (out.map) out.map.anisotropy = 4;
   if (!card && out.map) out.alphaTest = 0.35;
   out.userData.kind = kind;
+  if (kind === 'cloth') vestShader(out);
   return out;
+}
+// פקח: אפוד זוהר צהוב על הגו ותג כהה על החזה — רק בבגדים, רק למי שהגוון שלו מסומן (INSP_FLAG, ראו tint).
+// איפה האפוד והתג — בתכונה vest של כל קודקוד (markVest). שאר הבגד נשאר כמו שהוא
+export const INSP_FLAG = 4;
+const VEST = new THREE.Color(0xd8f00c), BADGE = new THREE.Color(0x15171c);
+function vestShader(m) {
+  m.onBeforeCompile = sh => {
+    sh.uniforms.vestC = { value: VEST }; sh.uniforms.badgeC = { value: BADGE };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 vest;\nvarying vec3 vVest;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVest = vest;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vVest;\nuniform vec3 vestC;\nuniform vec3 badgeC;')
+      .replace('#include <color_fragment>', `float inspF = step(2.5, diffuse.r);
+#ifdef USE_COLOR
+inspF = max(inspF, step(2.5, vColor.r));
+#endif
+#include <color_fragment>
+if (inspF > 0.5) {
+  vec3 base = diffuseColor.rgb / ${INSP_FLAG.toFixed(1)};
+  float lum = dot(base, vec3(0.299, 0.587, 0.114));
+  if (vVest.x > 0.5) diffuseColor.rgb = max(abs(vVest.y), abs(vVest.z)) < 1.0 ? badgeC : vestC * (0.82 + 0.35 * lum);
+  else diffuseColor.rgb = base;
+}`);
+  };
+  m.customProgramCacheKey = () => 'vest';
+}
+// מסמן בכל רשת של הדגם את הקודקודים של האפוד (x=1: הגו — עמוד השדרה והכתפיים, בלי הזרועות והאגן), ולכל קודקוד
+// בחזית — המקום שלו ביחס לתג (y,z: ‎-1..1 בתוך התג; מלבן חלק, לא לפי משולשים). התג בצד שמאל של החזה. התכונה נשמרת בגאומטריה המקורית — משותפת להולכים, לעומדים וליושבים
+const TORSO = /^(LowerBack|Spine|Spine1|LeftShoulder|RightShoulder)$/, ARM = /^(LeftArm|RightArm|LeftForeArm|RightForeArm)$/;
+function markVest(gltf) {
+  const root = gltf.scene; if (root.userData.vest) return; root.userData.vest = true;
+  const idle = gltf.animations.find(a => /idle/i.test(a.name));
+  const R = SkeletonUtils.clone(root);
+  if (idle) { const mx = new THREE.AnimationMixer(R); mx.clipAction(idle).play(); mx.update(0); }
+  const verts = skinVerts(R), srcs = []; root.traverse(o => { if (o.isMesh) srcs.push(o); });
+  const hips = R.getObjectByName('Hips'), c = hips ? hips.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3();
+  const all = [];
+  verts.forEach(({ o, P, N, kind }, k) => {
+    const g = srcs[k].geometry, n = g.attributes.position.count, A = new Float32Array(n * 3).fill(9);
+    for (let i = 0; i < n; i++) A[i * 3] = 0;
+    g.setAttribute('vest', new THREE.BufferAttribute(A, 3));
+    if (kind !== 'cloth' || !o.isSkinnedMesh) return;
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
+    for (let i = 0; i < n; i++) {
+      let t = 0, a = 0;
+      for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (!w) continue; const nm = bones[si.getComponent(i, j)]?.name || ''; if (TORSO.test(nm)) t += w; else if (ARM.test(nm)) a += w; }
+      if (t >= 0.5 && a < 0.25) { A[i * 3] = 1; all.push([A, i, P[i * 3] - c.x, P[i * 3 + 1], P[i * 3 + 2] - c.z, N ? N[i * 3 + 2] : 0]); }
+    }
+  });
+  if (!all.length) return;
+  let lo = Infinity, hi = -Infinity, zf = -Infinity;
+  for (const v of all) { lo = Math.min(lo, v[3]); hi = Math.max(hi, v[3]); zf = Math.max(zf, v[4]); }
+  // התג: גובה החזה, צד שמאל של הפקח (הדמות פונה ל-‎+z, ושמאלה שלה ‎+x), רק הצד הקדמי
+  const by = lo + (hi - lo) * 0.68, bx = 0.085, W = 0.035, H = 0.045;
+  for (const [A, i, x, y, z, nz] of all) if (nz > 0.2 && z > zf - 0.15) { A[i * 3 + 1] = (x - bx) / W; A[i * 3 + 2] = (y - by) / H; }
 }
 
 // הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
@@ -317,6 +372,7 @@ function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים 
     ng.setAttribute('position', new THREE.BufferAttribute(Q, 3));
     if (N) ng.setAttribute('normal', new THREE.BufferAttribute(N, 3));
     if (uv) ng.setAttribute('uv', uv.clone());
+    ng.setAttribute('vest', g.attributes.vest ? g.attributes.vest.clone() : new THREE.BufferAttribute(new Float32Array(P.length), 3));
     if (g.index) ng.setIndex(g.index.clone());
     if (!N) ng.computeVertexNormals();
     // חומרים עם אותה טקסטורה (עור, שפתיים, ציפורניים, אוזניים) — רשת אחת
@@ -364,6 +420,7 @@ export class PeopleLayer {
     this.variants = [];
     for (const g of this.gltfs) {
       const cache = new Map();
+      try { markVest(g); } catch (e) { console.warn('vest failed', e); }
       try { this.variants.push({ gltf: g, groups: bakeVariant(g, null, cache), age: AGE[(g.userData.file || '').replace(/^.*\//, '')] || '' }); }
       catch (e) { console.warn('bake person failed', e); continue; }
       // אותו אדם יושב על הספסל: תנוחה אפויה אחת לכל דגם (sitting.js)
@@ -474,8 +531,8 @@ export class PeopleLayer {
   variantOf(id) { return Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
   // הצבע לכל חלק: בדגמים האמיתיים — לבן (הטקסטורה כמו שהיא), חוץ מגוון עדין לבגדים ושינוי קטן בבהירות העור
   tint(id, kind, flat, out) {
-    // פקח: אפוד צהוב (הבגדים בגוון צהוב-כתום חזק). מבקר סמוי — כמו כולם
-    if (ROLE.get(id) === 'insp' && kind === 'cloth') return flat ? out.setHex(0xf2c414) : out.setRGB(1.8, 1.5, 0.22);
+    // פקח: גוון-סימן (INSP_FLAG) — השיידר של הבגד מצייר אפוד זוהר ותג (vestShader). מבקר סמוי — כמו כולם
+    if (ROLE.get(id) === 'insp' && kind === 'cloth') return flat ? out.setHex(0xf2c414) : out.setRGB(INSP_FLAG, INSP_FLAG, INSP_FLAG);
     if (flat) return out.setHex(personColors(id)[kind] ?? 0x888888);
     if (kind === 'cloth') { const t = CLOTH_TINT[Math.floor(hash(id + 3) * CLOTH_TINT.length)]; return out.setRGB(t[0], t[1], t[2]); }
     if (kind === 'skin') { const k = 0.94 + hash(id + 21) * 0.1; return out.setRGB(k, k, k); }
