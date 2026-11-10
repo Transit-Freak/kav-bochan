@@ -285,7 +285,7 @@ const CLOTH_TINT = [[1, 1, 1], [1, 1, 1], [1.08, 0.94, 0.84], [0.84, 0.92, 1.06]
   [0.95, 1.02, 0.9], [1.06, 0.88, 0.88], [0.9, 0.86, 1.0]];
 // המראות של הנוסעים — כמו באוטובוס עירוני בארץ: חיילים במדים זיתיים עם תיק גב גדול (בלי סמלים), תלמידים בחולצת
 // בית ספר תכלת/לבנה עם סמל קטן ותיק גדול, סטודנטים עם תיק מחשב, מבוגרים עם שקית קניות, עובדים באפוד זוהר,
-// כיפה סרוגה לחלק מהגברים ומטפחת לחלק מהנשים, ובגדים יומיומיים. לכל דגם (vi) כמה מראות, בלי לשנות שלד או תנועה.
+// כיפה סרוגה לחלק מהגברים (דגמים 0, 4, 6, 8) ומטפחת לחלק מהנשים (1, 2, 3), ובגדים יומיומיים. לכל דגם (vi) כמה מראות, בלי לשנות שלד או תנועה.
 // shirt/pants — מהפלטות SHIRTS/PANTS_P (null — הבגד המקורי בגוון עדין); pat: 1 פסים, 2 אפוד זוהר, 3 בית ספר, 4 מדים, 5 משבצות;
 // short — שרוול קצר; strap: 1 תיק גב, 2 תיק צד; acc — אביזרים (markInsp: out.acc); hair/shoes — גוון לשיער ולנעליים; w — משקל
 const L_ = (vi, name, o = {}) => ({ vi, name, shirt: null, pants: 0, pat: 0, short: false, strap: 0, acc: [], hair: null, shoes: null, w: 1, ...o });
@@ -293,7 +293,7 @@ const ARMY = { shirt: 2, pants: 2, pat: 4, strap: 1, acc: ['army'], shoes: 0x5a4
 export const LOOKS = [
   L_(0, 'יומיומי', { w: 2 }), L_(0, 'חייל', ARMY), L_(0, 'כיפה, חולצה לבנה', { shirt: 0, pants: 1, acc: ['kippah'] }), L_(0, 'עובד באפוד זוהר', { shirt: 3, pants: 0, pat: 2 }), L_(0, 'סטודנט', { shirt: 5, pants: 0, short: true, strap: 2, acc: ['side'], hair: 0x8a6a4a }),
   L_(1, 'יומיומית', { w: 2 }), L_(1, 'תלמידה', { shirt: 1, pants: 0, pat: 3, short: true, strap: 1, acc: ['school'] }), L_(1, 'חיילת', ARMY), L_(1, 'סטודנטית', { shirt: 12, pants: 0, short: true, strap: 2, acc: ['side'], hair: 0x5a3a26 }), L_(1, 'מטפחת', { shirt: 9, pants: 6, acc: ['scarf'] }),
-  L_(2, 'יומיומי', { w: 2 }), L_(2, 'עובד', { shirt: 4, pants: 4, pat: 2 }), L_(2, 'כיפה', { shirt: 1, pants: 5, acc: ['kippah'] }), L_(2, 'חולצה ירוקה', { shirt: 8, pants: 0, short: true }),
+  L_(2, 'יומיומית', { w: 2 }), L_(2, 'עובדת', { shirt: 4, pants: 4, pat: 2 }), L_(2, 'מטפחת', { shirt: 1, pants: 5, acc: ['scarf'] }), L_(2, 'חולצה ירוקה', { shirt: 8, pants: 0, short: true }),
   L_(3, 'יומיומית', { w: 2 }), L_(3, 'מטפחת', { shirt: 6, pants: 1, acc: ['scarf'] }), L_(3, 'עם קניות', { shirt: 9, pants: 4, acc: ['shop'] }), L_(3, 'מטפחת וקניות', { shirt: 11, pants: 1, acc: ['scarf', 'shop'] }),
   L_(4, 'חליפה', { w: 2 }), L_(4, 'חליפה וכיפה', { acc: ['kippah'] }), L_(4, 'עם קניות', { shirt: 5, pants: 3, acc: ['shop'] }), L_(4, 'כיפה, חולצה לבנה', { shirt: 0, pants: 1, acc: ['kippah'] }),
   L_(5, 'יומיומית', { w: 2 }), L_(5, 'חיילת', ARMY), L_(5, 'סטודנטית', { shirt: 13, pants: 0, strap: 2, acc: ['side'] }), L_(5, 'חולצה אדומה', { shirt: 7, pants: 1, short: true, hair: 0x6a4a30 }),
@@ -301,11 +301,12 @@ export const LOOKS = [
   L_(7, 'יומיומית', { w: 2 }), L_(7, 'חולצה ירוקה', { shirt: 8, pants: 0, short: true }), L_(7, 'סטודנטית', { shirt: 14, pants: 1, strap: 2, acc: ['side'] }), L_(7, 'חיילת', ARMY),
   L_(8, 'יומיומי', { w: 2 }), L_(8, 'חייל', ARMY), L_(8, 'כיפה', { shirt: 0, pants: 1, acc: ['kippah'] }), L_(8, 'עובד', { shirt: 3, pants: 4, pat: 2 }), L_(8, 'משבצות', { shirt: 7, pants: 0, pat: 5 }),
 ];
-const ACC_COLOR = { kippah: [0x1d2a44, 0xf0f0f0, 0x3a3a3a, 0x7a2a2a], scarf: [0x6e2337, 0x22324f, 0x3f6d6a, 0x9a7b5a, 0x4a3d6b], pack: [0x23272e, 0x1f3a5f, 0x7a2a2a], school: [0xd23a3a, 0x2b6cb0, 0x3f8a4a, 0xe08a1e], army: [0x4f5638], side: [0x1d1e22, 0x3a3f47], shop: [0xf4f4f2, 0xe8e2c8] };
+const ACC_COLOR = { kippah: [0x1d2a44, 0xf0f0f0, 0x3a3a3a, 0x7a2a2a], scarf: [0x6e2337, 0x22324f, 0x3f6d6a, 0x9a7b5a, 0x4a3d6b], pack: [0x23272e, 0x1f3a5f, 0x7a2a2a], school: [0xd23a3a, 0x2b6cb0, 0x3f8a4a, 0xe08a1e], army: [0x4f5638], side: [0x1d1e22, 0x3a3f47], shop: [0xf2f2ee, 0xcfe3f2, 0xf2d6dc] };
 function partKind(name) {
   const n = name.toLowerCase();
   if (n.includes('shoe') || n.includes('boot')) return 'shoes';
-  if (/hair|short0|long0|bob0|ponytail|braid|afro|brow|lash/.test(n)) return 'hair';
+  if (/brow|lash/.test(n)) return 'brow';            // גבות וריסים — נפרדים מהשיער (מטפחת מסתירה את השיער, לא את הגבות)
+  if (/hair|short0|long0|bob0|ponytail|braid|afro/.test(n)) return 'hair';
   if (/eye|cornea|low-poly|high-poly/.test(n)) return 'eyes';
   if (/body|lips|nail|ears|skin|teeth|tongue/.test(n)) return 'skin';
   return 'cloth';
@@ -474,7 +475,7 @@ function markInsp(gltf) {
     // כיפה סרוגה: עיגול קטן ושטוח על החלק האחורי-עליון של הראש
     put('kippah', 'Head', new THREE.Matrix4().compose(new THREE.Vector3(Hf.cx, Hf.top - 0.012, Hf.cz - 0.04), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.5), new THREE.Vector3(0.066, 0.03, 0.066)));
     // מטפחת: מכסה את השיער מעל המצח ועד העורף (כיפה עמוקה שנוטה לאחור)
-    put('scarf', 'Head', new THREE.Matrix4().compose(new THREE.Vector3(Hf.cx, Hf.base - 0.005, Hf.cz - 0.03), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.8), new THREE.Vector3(Hf.rad * 1.06, Math.max(Hf.hCap, 0.09) * 1.3, Hf.rad * 1.12)));
+    { const cy = Hf.top - 0.112; put('scarf', 'Head', new THREE.Matrix4().compose(new THREE.Vector3(Hf.cx, cy, Hf.cz - 0.008), new THREE.Quaternion(), new THREE.Vector3(Hf.rad * 0.98, Hf.top + 0.012 - cy, Hf.rad * 1.06))); }
   }
   // תיקי גב: על הגב העליון, צמודים (לפי הקודקודים של הגב בגובה השכמות)
   let zBack = 0; for (const [A, i, z] of torso) { const v = A[i * 3 + 2]; if (v > top * 0.35 && v < top * 0.8) zBack = Math.min(zBack, z); }
@@ -483,8 +484,8 @@ function markInsp(gltf) {
     put(name, sp, new THREE.Matrix4().compose(new THREE.Vector3(c.x, c.y + top * 0.6 - (name === 'army' ? 0.04 : 0), c.z + zBack - d / 2 - 0.006), new THREE.Quaternion(), new THREE.Vector3(w, h, d)));
   // תיק צד (מחשב נייד): בפינה האחורית של הירך השמאלית, ברצועה באלכסון
   put('side', 'Hips', new THREE.Matrix4().compose(new THREE.Vector3(c.x + 0.15, c.y - 0.01, c.z - 0.12), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.92), new THREE.Vector3(0.06, 0.27, 0.36)));
-  // שקית קניות ביד שמאל, מתחת לכף היד ומעט החוצה
-  const lh = bone('LeftHand'); if (lh) { const hp = lh.getWorldPosition(new THREE.Vector3()); put('shop', 'LeftHand', new THREE.Matrix4().compose(new THREE.Vector3(hp.x + 0.045, hp.y - 0.17, hp.z + 0.01), new THREE.Quaternion(), new THREE.Vector3(0.1, 0.27, 0.24))); }
+  // שקית ניילון ביד שמאל: הידיות באחיזה של כף היד, השקית תלויה מתחתיה, לאורך הרגל
+  const lh = bone('LeftHand'); if (lh) { const hp = lh.getWorldPosition(new THREE.Vector3()); put('shop', 'LeftHand', new THREE.Matrix4().compose(new THREE.Vector3(hp.x + 0.008, hp.y - 0.1, hp.z + 0.012), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2), new THREE.Vector3(1, 1, 1))); }
   return (root.userData.insp = out);
 }
 // הצבע הממוצע של העור (מהטקסטורה של הגוף) — לאמה החשופה של הפקח
@@ -498,13 +499,35 @@ function skinColor(groups) {
   } catch { return null; }
 }
 // הכובע (כיפה ומצחייה, פונה ל-‎+z) ומכשיר הבדיקה: גאומטריות משותפות
+// מטפחת (טישל) ביחידות של הראש (רדיוס 1, המרכז בגובה האוזניים): מכסה את הקודקוד, המצח עד קו השיער, הצדדים עד
+// מתחת לאוזניים והעורף; בעורף — קשר עם נפח. השפה התחתונה נמוכה מאחור וגבוהה מלפנים (לפי הכיוון)
+function scarfGeo() {
+  const g = new THREE.SphereGeometry(1, 64, 40), P = g.attributes.position, I = g.index, keep = [];
+  // גובה השפה (sin של הזווית) לפי הכיוון: מלפנים (z=1) 0.42, בצדדים -0.25, מאחור -0.55
+  const rim = (x, z) => { const a = Math.atan2(x, z), c = Math.cos(a); return c > 0 ? -0.25 + 0.67 * c * c : -0.25 - 0.3 * c * c; };
+  for (let i = 0; i < I.count; i += 3) { const ids = [I.getX(i), I.getX(i + 1), I.getX(i + 2)];
+    if (ids.every(k => P.getY(k) > rim(P.getX(k), P.getZ(k)) - 0.04)) keep.push(...ids); }
+  g.setIndex(keep);
+  const knot = new THREE.SphereGeometry(0.34, 12, 8).scale(1.1, 0.8, 0.75).translate(0, -0.42, -0.95).toNonIndexed();
+  const tail = new THREE.SphereGeometry(0.22, 10, 6).scale(0.8, 1.4, 0.6).translate(0.05, -0.78, -0.92).toNonIndexed();
+  return mergeGeometries([g.toNonIndexed(), knot, tail].map(x => { x.deleteAttribute('uv'); return x; }), false);
+}
+// שקית ניילון (במטרים, הראשית בנקודת האחיזה): גוף שמתרחב למטה, וידיות מהשקית אל היד
+function shopGeo() {
+  const body = new THREE.BoxGeometry(0.25, 0.27, 0.1, 4, 4, 2), P = body.attributes.position;
+  for (let i = 0; i < P.count; i++) { const y = P.getY(i), k = 0.78 + 0.22 * (0.5 - y / 0.27); P.setX(i, P.getX(i) * k); P.setZ(i, P.getZ(i) * (0.55 + 0.45 * (0.5 - y / 0.27))); }
+  body.translate(0, -0.075 - 0.135, 0); body.computeVertexNormals();
+  const h1 = new THREE.TorusGeometry(0.055, 0.007, 4, 10, Math.PI).translate(0, -0.075, 0.025), h2 = h1.clone().translate(0, 0, -0.05);
+  return mergeGeometries([body.toNonIndexed(), h1.toNonIndexed(), h2.toNonIndexed()].map(x => { x.deleteAttribute('uv'); return x; }), false);
+}
 // אביזרי הנוסעים (בגודל יחידה; הגודל והמקום — במטריצה של כל דגם, markInsp: out.acc)
 const ACC_GEO = {
   kippah: new THREE.SphereGeometry(1, 16, 5, 0, Math.PI * 2, 0, Math.PI * 0.5),
-  scarf: new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.7),
+  scarf: scarfGeo(),
   box: new THREE.BoxGeometry(1, 1, 1),
+  shop: shopGeo(),
 };
-const ACC_KIND = { kippah: 'kippah', scarf: 'scarf', pack: 'box', school: 'box', army: 'box', side: 'box', shop: 'box' };
+const ACC_KIND = { kippah: 'kippah', scarf: 'scarf', pack: 'box', school: 'box', army: 'box', side: 'box', shop: 'shop' };
 const ACC_HEAD = new Set(['kippah', 'scarf']);           // נשארים גם בישיבה (את התיקים מורידים כשמתיישבים)
 const capGeo = (() => {          // בגודל יחידה (רדיוס הכיפה 1): כיפה, מצחייה מעוקלת קדימה ומעט למטה, וכפתור למעלה
   const d = new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.82, 1.06);
@@ -691,6 +714,8 @@ export class PeopleLayer {
     for (const [t, a] of Object.entries(V.insp?.acc || {})) { const b = root.getObjectByName(a.bone); if (b) out[t] = b.matrixWorld.clone().multiply(a.local).premultiply(T); }
     return (V.accP[key] = out);
   }
+  // מי שלובשת מטפחת: השיער מוסתר (מטריצה אפס) — המטפחת מכסה את הראש עד המצח והאוזניים
+  hairM(id, kind, M) { if (kind !== 'hair') return M; const lk = ROLE.get(id) === 'insp' ? null : this.lookFor(id); return lk?.acc.includes('scarf') ? (this._zeroM || (this._zeroM = new THREE.Matrix4().makeScale(0, 0, 0))) : M; }
   // מוסיף את האביזרים של הנוסע (לפי המראה שלו) במקום M; mats — המטריצות של התנוחה; seated — רק מה שעל הראש
   emitAcc(id, mats, M, seated) {
     if (ROLE.get(id) === 'insp') return;
@@ -952,7 +977,7 @@ export class PeopleLayer {
     this.waitPos = new Map();                 // ממתינים: הראש בעולם (להקשה — כרטיס נוסע)
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
     const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0, nb = 0; const A = new THREE.Matrix4();
-    this.accN = { kippah: 0, scarf: 0, box: 0 }; this.tmpA2 = this.tmpA2 || new THREE.Matrix4(); this.tmpC2 = this.tmpC2 || new THREE.Color();
+    this.accN = { kippah: 0, scarf: 0, box: 0, shop: 0 }; this.tmpA2 = this.tmpA2 || new THREE.Matrix4(); this.tmpC2 = this.tmpC2 || new THREE.Color();
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
@@ -960,7 +985,7 @@ export class PeopleLayer {
         if (bk >= 0) {
           const V = this.variants[this.variantOf(p.id)];
           this.sitMatrix(stop, bk, p.id, M);
-          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C, true)); });
+          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, this.hairM(p.id, V.sitGroups[g].kind, M)); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C, true)); });
           V.sn++; this.waitPos.set(p.id, { p, pos: V.sit.hip.clone().applyMatrix4(M).add(new THREE.Vector3(0, 0.55, 0)) });
           if (V.sit.root) this.emitAcc(p.id, this.accPose(V, 'bench', V.sit.root, V.sit.origin), M, true);
           const insp = ROLE.get(p.id) === 'insp';
@@ -976,7 +1001,7 @@ export class PeopleLayer {
         P.set(x, 0.12, -y); S.setScalar(this.personScale(p.id));
         M.compose(P, Q, S);
         const V = this.variants[this.variantOf(p.id)];
-        V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, M); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
+        V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, this.hairM(p.id, V.groups[g].kind, M)); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
         V.n++; this.waitPos.set(p.id, { p, pos: new THREE.Vector3(x, 1.45, -y) });
         if (V.insp?.acc) { V.accStand = V.accStand || Object.fromEntries(Object.entries(V.insp.acc).map(([t, a]) => [t, a.stand])); this.emitAcc(p.id, V.accStand, M, false); }
         if (ROLE.get(p.id) === 'insp' && V.insp) {
@@ -1003,7 +1028,7 @@ export class PeopleLayer {
         // מי שמגיש עכשיו רב-קו לפקח (this.reach מ-inspfp.js): בתנוחת ההגשה במקום התנוחה הרגילה
         const R = this.reach?.pid === p.id && this.reach.frac > 0 ? this.reach : null;
         const show = (pose, x, y, z, sxN = 1) => { M.makeScale(sxN, 1, 1).setPosition(x, y, z).premultiply(OM);
-          pose.meshes.forEach((im, g) => { im.setMatrixAt(0, M); im.setColorAt(0, this.tint(p.id, pose.groups[g].kind, false, C, pose.seated)); im.count = 1; im.visible = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; this.reachShown.add(im); });
+          pose.meshes.forEach((im, g) => { im.setMatrixAt(0, this.hairM(p.id, pose.groups[g].kind, M)); im.setColorAt(0, this.tint(p.id, pose.groups[g].kind, false, C, pose.seated)); im.count = 1; im.visible = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; this.reachShown.add(im); });
           if (R.card && pose.card) { this.card.matrix.multiplyMatrices(M, pose.card); this.card.matrixWorldNeedsUpdate = true; this.card.visible = true; } };
         if (k < 0) {                          // אין מושב: עומד ליד הדלת האמצעית ומחזיק בעמוד
           const j = ob.standOf(p.id), sp = ob.stands[j], S = sp && V.stand?.[sp[3]];
@@ -1012,7 +1037,7 @@ export class PeopleLayer {
           const pm = this.accPose(V, 'pole' + sp[3], S.st.root, S.st.origin);
           if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pm, M, false); this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(sp[0], sp[1] + 0.62, sp[2])).applyMatrix4(OM)); continue; }
           M.makeTranslation(sp[0], sp[1], sp[2]).premultiply(OM);
-          S.meshes.forEach((im, g) => { im.setMatrixAt(S.n, M); im.setColorAt(S.n, this.tint(p.id, S.groups[g].kind, false, C)); });
+          S.meshes.forEach((im, g) => { im.setMatrixAt(S.n, this.hairM(p.id, S.groups[g].kind, M)); im.setColorAt(S.n, this.tint(p.id, S.groups[g].kind, false, C)); });
           this.emitAcc(p.id, pm, M, false);
           S.n++;
           this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0)).applyMatrix4(M));
@@ -1025,7 +1050,7 @@ export class PeopleLayer {
         const bm = V.bus?.sit?.root ? this.accPose(V, 'bus', V.bus.sit.root, V.bus.sit.origin) : null;
         if (pose) { show(pose, st[0], st[1], st[2], sxN); this.emitAcc(p.id, bm, M, true); this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(st[0], st[1] + 0.62, st[2] + 0.02)).applyMatrix4(OM)); continue; }
         M.makeScale(sxN, 1, 1).setPosition(st[0], st[1], st[2]).premultiply(OM);
-        V.bus.meshes.forEach((im, g) => { im.setMatrixAt(V.bus.n, M); im.setColorAt(V.bus.n, this.tint(p.id, V.bus.groups[g].kind, false, C, true)); });
+        V.bus.meshes.forEach((im, g) => { im.setMatrixAt(V.bus.n, this.hairM(p.id, V.bus.groups[g].kind, M)); im.setColorAt(V.bus.n, this.tint(p.id, V.bus.groups[g].kind, false, C, true)); });
         this.emitAcc(p.id, bm, M, true);
         V.bus.n++;
         this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(0, 0.62, 0.02)).applyMatrix4(M));
@@ -1154,6 +1179,7 @@ export class PeopleLayer {
       w = w || this.makeWalker(vi);
     }
     for (const [m, k, flat, base] of w.mats) { this.tint(id, k, flat, this.tmpC); if (this.tmpC.r > 9.5) m.color.copy(this.tmpC); else m.color.copy(base).multiply(this.tmpC); }
+    { const sc = ROLE.get(id) !== 'insp' && !!this.lookFor(id)?.acc.includes('scarf'); for (const [m, k] of w.mats) if (k === 'hair') m.visible = !sc; }
     for (const a of w.acc || []) a.visible = ROLE.get(id) === 'insp';
     { const lk = ROLE.get(id) === 'insp' ? null : this.lookFor(id); for (const [t, m] of Object.entries(w.lookAcc || {})) { m.visible = !!lk?.acc.includes(t); if (m.visible) m.material.color.setHex(ACC_COLOR[t][Math.floor(hash(id + 41) * ACC_COLOR[t].length)]); } }
     this.setOpacity(w, 1);
