@@ -1,5 +1,6 @@
 // איפה האוטובוס נתקע — מהירות האוטובוסים לפי מקום ושעה (נתוני דאטאבוס, tools/bus_speed.py).
-// אריחים (data/t/<y>_<x>.json): [רוחב, אורך, כיוון, דגימות, "מהירויות א'–ה' לכל שעה", "שישי", צומת, הקו לאורך הכביש].
+// אריחים (data/t/<y>_<x>.json): [רוחב, אורך, כיוון, דגימות, "מהירויות א'–ה' לכל שעה", "שישי", צומת, הקו לאורך הכביש,
+//   "דגימות לכל שעה א'–ה'|שישי" (תו לכל שעה, n ≈ 2^(q/4); בנתונים ישנים — אין)].
 // יישובים (data/cities.json): [יישוב, תושבים, דגימות, רוחב, אורך, [מהירות בכל שעה]].
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -45,6 +46,14 @@ function dayHours(r) {
     });
   }
   return r[key];
+}
+// מספר הדגימות בשעה (כמה זמן אוטובוסים היו בקטע) — המשקל בממוצע "בתחום המפה". undefined: אין בקובץ (נתונים ישנים)
+const CNT = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function counts(r, d) {
+  if (r[8] == null) return undefined;
+  const k = d === 'fr' ? 1 : 0;
+  if (!r._c) r._c = String(r[8]).split('|').map(x => Array.from({ length: 24 }, (_, i) => { const q = x[i] ? CNT.indexOf(x[i]) : -1; return q < 0 ? null : 2 ** (q / 4); }));
+  return r._c[k] || Array(24).fill(null);
 }
 const dtiles = new Map();   // "תאריך/אריח" → Promise
 function loadDays(ks) {     // מהירויות הימים שנבחרו לאריחים שבתצוגה — מוצמדות לרשומות לפי הסדר באריח
@@ -495,14 +504,32 @@ function drawCities() {
 }
 function msg(t) { $('#s-msg').textContent = t; }
 
-// סיכום מה שבתצוגה
+// סיכום מה שבתצוגה — ממוצע לפי זמן, כמו בטבלת היישובים: כל קטע לפי מספר הדגימות בו באותה שעה (כמה זמן
+// אוטובוסים היו בו), ולא כל קטע שווה (שלמה 10.11: אלעד — 31 קמ"ש במפה מול 11–15 בטבלה, בגלל קטעים מהירים
+// בכביש הראשי). "לפי יום" — משקל הקטע בממוצע החודשי של אותו סוג יום. בלי מספרי דגימות (נתונים ישנים) —
+// ממוצע הרמוני (זמן שווה לכל קטע של 100 מ')
+function viewAvg(rs, d, h) {
+  const cd = d === 'y' ? ytype() : d;
+  let n = 0, w = 0, s = 0, sl = 0, hw = 0, hsl = 0, all = true;
+  for (const r of rs) {
+    const v = hours(r, d)[h];
+    if (v == null) continue;
+    n++;
+    const t = 1 / Math.max(v, 0.5); hw += t; hsl += v < 12 ? t : 0;
+    const c = counts(r, cd);
+    if (c === undefined) { all = false; continue; }
+    const k = c[h] || 5;   // שעה בלי מספר (מעט דגימות בממוצע החודשי) — המשקל הקטן ביותר
+    w += k; s += k * v; sl += v < 12 ? k : 0;
+  }
+  if (!n) return { n: 0 };
+  return all ? { n, v: s / w, slow: sl / w } : { n, v: n / hw, slow: hsl / hw };
+}
 function summary(rs) {
   const el = $('#viewsum');
   if (!rs.length) { el.innerHTML = '<div class="mut">' + (map.getZoom() < MINZ ? 'מוצגים היישובים. התקרבו כדי לראות כל רחוב.' : 'אין נתונים בתחום המפה') + '</div>'; return; }
-  let n = 0, s = 0, slow = 0;
-  for (const r of rs) { const v = hours(r, S.d)[S.h]; if (v == null) continue; n++; s += v; if (v < 12) slow++; }
+  const { n, v, slow } = viewAvg(rs, S.d, S.h);
   el.innerHTML = `<h3>בתחום המפה, ${fmt(S.h)}</h3><div class="kv"><span>מקטעים עם נתונים</span><b>${num(n)}</b>` +
-    `<span>מהירות ממוצעת</span><b>${n ? (s / n).toFixed(1) + ' קמ"ש' : '—'}</b><span>מתחת ל-12 קמ"ש</span><b>${n ? Math.round(100 * slow / n) + '%' : '—'}</b></div>`;
+    `<span>מהירות ממוצעת</span><b>${n ? v.toFixed(1) + ' קמ"ש' : '—'}</b><span>מתחת ל-12 קמ"ש</span><b>${n ? Math.round(100 * slow) + '%' : '—'}</b></div>`;
 }
 
 // ---------- מקום נבחר ----------

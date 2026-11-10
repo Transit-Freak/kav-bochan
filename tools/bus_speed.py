@@ -10,7 +10,7 @@
   python3 tools/bus_speed.py build [ימים]       → bus-speed/data (ברירת מחדל: 28 הימים האחרונים במטמון)
 
 המפתח: ריבוע (0.0009° רוחב × 0.00105° אורך, ~100×100 מ'), כיוון נסיעה (8 כיוונים), שעה.
-לא נספרים: אוטובוס שממתין במסוף לפני היציאה, ונקודה שלא התעדכנה מהדקה הקודמת.
+לא נספרים: אוטובוס שממתין במסוף לפני היציאה או אחרי שהגיע לתחנה האחרונה, ונקודה שלא התעדכנה מהדקה הקודמת.
 """
 import collections
 import datetime
@@ -33,6 +33,38 @@ TILE = 0.05          # קובץ לכל ~5×5 ק"מ
 DAYS = 28
 MIN_N = 5            # פחות דגימות בשעה — לא מציגים את השעה
 MIN_TOTAL = 40       # פחות דגימות בכל היום — לא מציגים את המקום
+ARRIVE = 150         # מטרים מהתחנה האחרונה: אוטובוס שעומד כאן — הגיע למסוף
+CNT = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+
+
+def cnt_enc(n):
+    """מספר הדגימות בתו אחד (לשקלול לפי זמן בדף): q = 4·log2(n), כלומר דיוק של כ-±9%. הדף: n ≈ 2^(q/4)."""
+    return CNT[max(0, min(len(CNT) - 1, round(4 * math.log2(max(n, 1)))))]
+
+
+def last_stops(RS):
+    """route_id → (stop_sequence של התחנה האחרונה, רוחב, אורך)"""
+    out = {}
+    for rt, sq in (RS[0] if RS else {}).items():
+        m = max(sq)
+        out[rt] = (m, *RS[1][sq[m]])
+    return out
+
+
+def arrived(done, last, veh, dep, line, order, vel, la, lo):
+    """אוטובוס שהגיע לתחנה האחרונה ועומד שם, והנסיעה עדיין פתוחה (מהירות ~0) — לא נספר במהירות, וגם כל
+    השידורים הבאים של אותה נסיעה. "הגיע": התחנה הבאה (MonitoredCall.Order) היא האחרונה, הוא עד ARRIVE מ'
+    ממנה, ועומד (פחות מ-5 קמ"ש). done: קבוצת (רכב, יציאה) שכבר הגיעו."""
+    if not dep:
+        return False
+    k = (veh, dep)
+    if k in done:
+        return True
+    e = last.get(line)
+    if e and order >= e[0] and vel < 5 and math.hypot((la - e[1]) * 111000, (lo - e[2]) * 93000) <= ARRIVE:
+        done.add(k)
+        return True
+    return False
 
 
 def fetch(key):
@@ -80,6 +112,7 @@ def day(ds):
     files = recs = used = 0
     st = time.time()
     RS = route_stops(ds)
+    LAST, done = last_stops(RS), set()   # התחנה האחרונה של כל קו · נסיעות שכבר הגיעו אליה
     at = collections.defaultdict(dict)       # (תחנה, דקה) → {רכב: קו} — אוטובוסים בתחנה
     app = collections.defaultdict(list)      # (תחנה, דקה) → מהירויות בקטע שלפני התחנה
     mins = set()
@@ -144,13 +177,16 @@ def day(ds):
                 cells[(round(la / 0.002), round(lo / 0.002))] += 1
                 if RS:
                     nb[RS[3].get(line, ('?', ''))[0]] += 1
-                s = int(((br + 22.5) % 360) // 45)
-                k = (round(la / CY), round(lo / CX), s)
-                g = geo[k]
-                g[0] += 1; g[1] += la; g[2] += lo; g[3] += math.sin(math.radians(br)); g[4] += math.cos(math.radians(br))
-                a = hrs[(*k, int(rt[11:13]))]
-                a[0] += 1; a[1] += vel; a[2] += vel < 10
-                used += 1
+                if arrived(done, LAST, veh, dep, line, order, vel, la, lo):
+                    skip['arrived'] += 1   # רק המהירות — בעומס בתחנות הוא עדיין נספר
+                else:
+                    s = int(((br + 22.5) % 360) // 45)
+                    k = (round(la / CY), round(lo / CX), s)
+                    g = geo[k]
+                    g[0] += 1; g[1] += la; g[2] += lo; g[3] += math.sin(math.radians(br)); g[4] += math.cos(math.radians(br))
+                    a = hrs[(*k, int(rt[11:13]))]
+                    a[0] += 1; a[1] += vel; a[2] += vel < 10
+                    used += 1
                 # עומס בתחנות: התחנה הבאה של הנסיעה (MonitoredCall.Order = stop_sequence ב-GTFS) — כך נספרים
                 # רק אוטובוסים של קווים שעוצרים בתחנה, ובכיוון שלה (לא בצד השני של הכביש)
                 c = RS[0].get(line, {}).get(order) if RS else None
@@ -473,7 +509,8 @@ def build(n=DAYS):
     for (cy, cx, s) in keep_k:
         n, sla, slo, ssin, scos, hrs = acc[(cy, cx, s)]
         la, lo = sla / n, slo / n
-        # [רוחב, אורך, כיוון, דגימות, מהירות לכל שעה א'–ה' (מחרוזת, ריק = מעט מדי), שישי, צומת, הקו לאורך הכביש: [רוחב×10⁵, אורך×10⁵, ואז הפרשים] או 0]
+        # [רוחב, אורך, כיוון, דגימות, מהירות לכל שעה א'–ה' (מחרוזת, ריק = מעט מדי), שישי, צומת, הקו לאורך הכביש: [רוחב×10⁵, אורך×10⁵, ואז הפרשים] או 0,
+        #  "דגימות לכל שעה א'–ה'|שישי" — תו לכל שעה (cnt_enc, "." = אין), לממוצע לפי זמן בדף]
         rec = [round(la, 5), round(lo, 5), round(math.degrees(math.atan2(ssin, scos)) % 360), n]
         for t in ('wd', 'fr'):
             o = 0 if t == 'wd' else 48
@@ -481,6 +518,7 @@ def build(n=DAYS):
             rec.append(','.join(sp).rstrip(','))
         rec.append(1 if len(kinds[(cy, cx)]) > 1 else 0)
         rec.append(geoms.get((cy, cx, s), 0))
+        rec.append('|'.join(''.join(cnt_enc(hrs[o + 2 * h]) if hrs[o + 2 * h] >= MIN_N else '.' for h in range(24)).rstrip('.') for o in (0, 48)))
         t = (math.floor(la / TILE), math.floor(lo / TILE))
         tiles[t].append(rec)
         tkeys[t].append((cy, cx, s))
