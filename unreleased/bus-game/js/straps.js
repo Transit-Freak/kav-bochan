@@ -112,7 +112,7 @@ export function addStraps(busRoot) {
     if (!/^SM_StrapRing/.test(o.name)) return;
     const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
     o.visible = false; rings.push(new THREE.Vector3(Math.sign(c.x) * 0.5, RAIL_Y, c.z));
-    // מעל הדלת האמצעית והמשטח (שם הנהג עובד ונכנס כיסא גלגלים) — בלי רצועות
+    // מעל הדלת האמצעית (אזור פתוח לעגלות ולעומדים) — בלי רצועות
     if (c.z > -0.35 && c.z < 1.15) return;
     spots.push(new THREE.Vector3(Math.sign(c.x) * 0.5, RAIL_Y, c.z));
     o.traverse(m => { if (m.isMesh && !poleMat) poleMat = [].concat(m.material)[0]; });

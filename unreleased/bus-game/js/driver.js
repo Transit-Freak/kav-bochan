@@ -455,7 +455,7 @@ function pickDriver(people) {
   return people.find(g => g && has(g, /male_casualsuit01/)) || people.find(g => g && has(g, /male_casualsuit04/)) || null;
 }
 
-// הנהג "הלא אפוי" (js/access.js): הדגם ותנוחת הישיבה (סיבובי העצמות ומיקום השורש), כדי לבנות עותק עם שלד
+// הנהג "הלא אפוי" (שימש את אנימציית כיסא הגלגלים, שהוסרה): הדגם ותנוחת הישיבה (סיבובי העצמות ומיקום השורש), כדי לבנות עותק עם שלד
 // שקם מהכיסא בדיוק מאותה תנוחה
 export let DRIVER_RIG = null;
 export { bake as bakePosed, partKind as personPart, driverMaterial };

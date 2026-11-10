@@ -14,7 +14,9 @@ import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
-import { addRamp, KNEEL, kneelDrop } from './access.js';
+// כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
+export const KNEEL = { th: 0.0304, far: 1.25 };
+export const kneelDrop = (k, x) => k * KNEEL.th * (KNEEL.far - x);
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -139,9 +141,8 @@ export class BusLayer {
       if (!this.tuned) {
         // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
         try { addCab(this.asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
-        // רצועות האחיזה (js/straps.js) ומשטח העלייה לכיסא גלגלים בדלת האמצעית (js/access.js)
+        // רצועות האחיזה (js/straps.js)
         try { addStraps(this.asset.scene); } catch (e) { console.warn('straps failed', e); }
-        try { addRamp(this.asset.scene); } catch (e) { console.warn('ramp failed', e); }
         cutDoorPanels(this.asset.scene);
         tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
       obj = this.asset.scene.clone(true);
@@ -176,7 +177,7 @@ export class BusLayer {
       alive.add(b.id);
       const v = this.map.get(b.id) || this.make(b);
       const p = busPose(L.poly, b.s);
-      // כריעה (כיסא גלגלים, js/access.js): הצד של הדלתות יורד, הצד השני נשאר
+      // כריעה: הצד של הדלתות יורד, הצד השני נשאר
       const kn = b.kneel ? b.kneel * KNEEL.th : 0;
       v.obj.position.set(p.x, -kn * KNEEL.far, -p.y); v.obj.rotation.set(0, p.yaw, kn);
       v.obj.visible = b.state !== 'done' || b.t < 1.2;
@@ -544,7 +545,6 @@ export class PeopleLayer {
   update(sim, stops, simDt, busLayer) {
     // 1. עולים ויורדים — לפני שמעדכנים את הממתינים, כדי שההולך יתחיל בדיוק מהמקום שבו עמד
     for (const ev of sim.events) {
-      if (ev.p?.wheel && (ev.type === 'board' || ev.type === 'alight')) continue;   // כיסא גלגלים — js/access.js
       if (ev.type === 'board') {
         const path = this.doorPath(busLayer, ev.bus, 'front'); if (!path) continue;
         const bm = this.benches.get(ev.stop.id), bk = bm?.get(ev.p.id);
@@ -614,7 +614,6 @@ export class PeopleLayer {
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
-        if (p.wheel) continue;                 // כיסא גלגלים — js/access.js
         const bk = this.benchOf(stop, p.id);
         if (bk >= 0) {
           const V = this.variants[this.variantOf(p.id)];

@@ -8,7 +8,6 @@ import { RoadGraph, speedProfile } from './graph.js';
 import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
-import { AccessLayer } from './access.js';
 import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { refreshAll } from './texkeep.js';
 import { INSPECTOR_DAY, FINE, RESERVE_COST } from './ops.js';
@@ -66,7 +65,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let access, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -84,7 +83,6 @@ async function init() {
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
   buses = new BusLayer(scene, assets.bus, assets.people);
   people = new PeopleLayer(scene, assets.people, graph);
-  access = new AccessLayer(scene, people);   // כיסאות גלגלים, המשטח בדלת האמצעית והנהג שעוזר
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
   const saved = Bank.load();
@@ -132,7 +130,7 @@ async function init() {
   cloud.resume().then(on => { if (on) cloudStart(); });
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, buses, lines: () => lines, stopsById, cams, access, forceWheelchair: id => access.forceAt(sim, id), planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, buses, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -1481,7 +1479,6 @@ function tick(dt) {
     night.update();
     const simDt = sim.step(dt);
     buses.update(sim.lines, simDt, dt);
-    access.update(sim, simDt, buses);
     people.update(sim, city.stops, simDt, buses);
     sim.events.length = 0;
     cams.update(dt);
