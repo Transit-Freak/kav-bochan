@@ -567,6 +567,65 @@ export function skinVerts(root) {
   });
   return out;
 }
+// כפות ידיים מול הגוף של אותו אדם: קודקודי כף היד והאצבעות (העצם העיקרי שלהם — יד/אצבעות/אגודל) מול המשולשים של
+// האגן, הירכיים, השוקיים והגו (עור ובגדים). מחזיר לכל צד: כמה קודקודים בתוך הגוף ועד כמה עמוק
+const HAND_B = /^(Left|Right)(Hand|FingerBase|HandFinger1)$|^(L|R)Thumb$/, BODY_B = /^(Hips|LHipJoint|RHipJoint|LowerBack|Spine|Spine1|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg)$/;
+export function handPen(root, verts = skinVerts(root)) {
+  const C = 0.03, grid = new Map(), tris = [], hands = [];
+  const key = (x, y, z) => `${Math.floor(x / C)},${Math.floor(y / C)},${Math.floor(z / C)}`;
+  for (const { o, P, N, kind } of verts) {
+    if (!o.isSkinnedMesh || (kind !== 'skin' && kind !== 'cloth')) continue;
+    const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones, n = g.attributes.position.count;
+    const dom = new Array(n);
+    for (let i = 0; i < n; i++) { let bw = 0, bn = ''; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]?.name || ''; } } dom[i] = bn; }
+    for (let i = 0; i < n; i++) if (kind === 'skin' && HAND_B.test(dom[i])) hands.push([P[i * 3], P[i * 3 + 1], P[i * 3 + 2], dom[i].startsWith('L') ? 'Left' : 'Right']);
+    const I = g.index, m = I ? I.count : n;
+    for (let t = 0; t < m; t += 3) {
+      const a = I ? I.getX(t) : t, b = I ? I.getX(t + 1) : t + 1, c = I ? I.getX(t + 2) : t + 2;
+      if (!BODY_B.test(dom[a]) || !BODY_B.test(dom[b]) || !BODY_B.test(dom[c])) continue;
+      const tr = new THREE.Triangle(new THREE.Vector3(P[a * 3], P[a * 3 + 1], P[a * 3 + 2]), new THREE.Vector3(P[b * 3], P[b * 3 + 1], P[b * 3 + 2]), new THREE.Vector3(P[c * 3], P[c * 3 + 1], P[c * 3 + 2]));
+      // הכיוון החוצה — מהנורמלים של הקודקודים (סדר הקודקודים במשולש לא תמיד אחיד)
+      const nf = tr.getNormal(new THREE.Vector3());
+      if (N) { const nv = new THREE.Vector3(N[a * 3] + N[b * 3] + N[c * 3], N[a * 3 + 1] + N[b * 3 + 1] + N[c * 3 + 1], N[a * 3 + 2] + N[b * 3 + 2] + N[c * 3 + 2]); if (nv.dot(nf) < 0) nf.negate(); }
+      const id = tris.push({ tr, n: nf }) - 1, M = tr.getMidpoint(new THREE.Vector3());
+      const k = key(M.x, M.y, M.z); (grid.get(k) || grid.set(k, []).get(k)).push(id);
+    }
+  }
+  const out = { Left: { n: 0, depth: 0, gap: 1 }, Right: { n: 0, depth: 0, gap: 1 } }, q = new THREE.Vector3(), cp = new THREE.Vector3();
+  for (const [x, y, z, side] of hands) {
+    q.set(x, y, z); let best = null, bd = 0.05;
+    const gx = Math.floor(x / C), gy = Math.floor(y / C), gz = Math.floor(z / C);
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) { const ids = grid.get(`${gx + dx},${gy + dy},${gz + dz}`); if (!ids) continue;
+      for (const id of ids) { tris[id].tr.closestPointToPoint(q, cp); const d = cp.distanceTo(q); if (d < bd) { bd = d; best = { id, d: q.clone().sub(cp).dot(tris[id].n) }; } } }
+    if (best) out[side].gap = Math.min(out[side].gap, best.d);
+    if (best && best.d < -0.001) { out[side].n++; out[side].depth = Math.max(out[side].depth, -best.d); }
+  }
+  out.n = out.Left.n + out.Right.n;
+  return out;
+}
+// מוציא כפות ידיים מתוך הגוף: מרים את פרק היד (בגובה החדירה + 1.5 ס"מ) ומעט החוצה מהגוף, באותו IK של זרוע-אמה,
+// בלי לשנות את כיוון כף היד. עד 6 סבבים; מחזיר כמה קודקודים היו בפנים לפני ואחרי
+export function unsinkHands(root) {
+  const B = n => root.getObjectByName(n), W = o => o.getWorldPosition(new THREE.Vector3());
+  const hips = B('Hips'); if (!hips) return { before: 0, after: 0 };
+  // כף יד שמונחת על הירך: לא בתוכה ולא צמודה — לפחות 6 מ"מ מעל הבד (מרימים את פרק היד 1–2 ס"מ)
+  const GAP = 0.006, need = P => P.n || P.gap < GAP;
+  let pen = handPen(root); const before = pen.n, gap0 = Math.min(pen.Left.gap, pen.Right.gap);
+  for (let it = 0; it < 6 && (need(pen.Left) || need(pen.Right)); it++) {
+    for (const side of ['Left', 'Right']) {
+      const P = pen[side]; if (!need(P)) continue;
+      const arm = B(side + 'Arm'), fore = B(side + 'ForeArm'), hd = B(side + 'Hand'); if (!arm || !fore || !hd) continue;
+      root.updateMatrixWorld(true);
+      const hq = hd.getWorldQuaternion(new THREE.Quaternion()), h = W(hd), sh = W(arm), el = W(fore), out = Math.sign(h.x - W(hips).x) || 1;
+      const pole = el.clone().sub(sh.clone().add(h).multiplyScalar(0.5));
+      twoBone(arm, fore, hd, h.clone().add(new THREE.Vector3(0, Math.min(0.04, Math.max(P.depth, -Math.min(0, P.gap)) + GAP - Math.max(0, Math.min(GAP, P.gap)) + 0.006), 0)), pole);
+      const pq = hd.parent.getWorldQuaternion(new THREE.Quaternion()); hd.quaternion.copy(pq.invert().multiply(hq));
+    }
+    root.updateMatrixWorld(true);
+    pen = handPen(root);
+  }
+  return { before, after: pen.n, gap0: +gap0.toFixed(4), gap: +Math.min(pen.Left.gap, pen.Right.gap).toFixed(4) };
+}
 // דמות אפויה (רשת רגילה, בלי שלד), מחולקת לפי חומר. בלי posed — בתנוחת העמידה, ממורכזת לפי האגן
 // וכפות הרגליים על הקרקע. עם posed ({root, origin}) — שלד שכבר הוזז לתנוחה אחרת (ישיבה), יחסית ל-origin
 function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים משותפים לעמידה ולישיבה
@@ -577,6 +636,7 @@ function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים 
     const idle = gltf.animations.find(a => /idle/i.test(a.name));
     if (idle) { const mx = new THREE.AnimationMixer(root); mx.clipAction(idle).play(); mx.update(0); }
     root.updateMatrixWorld(true);
+    try { (gltf.userData.unsink = gltf.userData.unsink || {}).stand = unsinkHands(root); } catch (e) { console.warn('unsink failed', e); }
     // ההקלטה זזה קדימה מהמקור — ממרכזים לפי האגן (Hips), כדי שהדמות תעמוד על הנקודה שלה
     const hips = root.getObjectByName('Hips');
     c0 = hips ? hips.getWorldPosition(new THREE.Vector3()).setY(0) : new THREE.Vector3();
@@ -651,7 +711,7 @@ export class PeopleLayer {
         const key = `${g.userData.file}|${armPose}|${side}|${pushFore ? 1 : 0}`;
         const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, SIT_PRESETS[key] || null);
         if (S) S.key = key;
-        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache);
+        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; try { (g.userData.unsink = g.userData.unsink || {}).bench = unsinkHands(S.root); } catch (e) { console.warn(e); } V.sitGroups = bakeVariant(g, S, cache);
           const hp = S.root.getObjectByName('Hips'); if (hp && IM?.bagLocal) { S.root.updateMatrixWorld(true); V.bagSit = hp.matrixWorld.clone().multiply(IM.bagSitLocal || IM.bagLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           const hb = S.root.getObjectByName('Head'); if (hb && IM?.capLocal) { S.root.updateMatrixWorld(true); V.capSit = hb.matrixWorld.clone().multiply(IM.capLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           // הרוחב של היושב לאורך הספסל (ציר x שלו), לבדיקת השכנים
@@ -714,6 +774,12 @@ export class PeopleLayer {
     for (const [t, a] of Object.entries(V.insp?.acc || {})) { const b = root.getObjectByName(a.bone); if (b) out[t] = b.matrixWorld.clone().multiply(a.local).premultiply(T); }
     return (V.accP[key] = out);
   }
+  // הרוחב של היושב באוטובוס (x מינימלי ומקסימלי של הגוף בגובה המרפקים והכתפיים, יחסית למרכז המושב)
+  busExt(V) {
+    if (V.busExt) return V.busExt; let lo = 0, hi = 0;
+    for (const g of V.bus?.groups || []) { if (g.kind === 'hair' || g.kind === 'brow') continue; const P = g.geo.attributes.position; for (let i = 0; i < P.count; i++) { const y = P.getY(i); if (y < 0.75 || y > 1.3) continue; const x = P.getX(i); if (x < lo) lo = x; if (x > hi) hi = x; } }
+    return (V.busExt = [lo, hi]);
+  }
   // מי שלובשת מטפחת: השיער מוסתר (מטריצה אפס) — המטפחת מכסה את הראש עד המצח והאוזניים
   hairM(id, kind, M) { if (kind !== 'hair') return M; const lk = ROLE.get(id) === 'insp' ? null : this.lookFor(id); return lk?.acc.includes('scarf') ? (this._zeroM || (this._zeroM = new THREE.Matrix4().makeScale(0, 0, 0))) : M; }
   // מוסיף את האביזרים של הנוסע (לפי המראה שלו) במקום M; mats — המטריצות של התנוחה; seated — רק מה שעל הראש
@@ -743,18 +809,18 @@ export class PeopleLayer {
     const hand = slot.kind === 'seat' ? (aisle < 0 ? 'Right' : 'Left') : (slot.grip === 'Right' ? 'Left' : 'Right');
     const arm = B(hand + 'Arm'), fore = B(hand + 'ForeArm'), hd = B(hand + 'Hand'), fb = B(hand + 'FingerBase');
     if (!arm || !fore || !hd || !fb) return (V.reach[key] = null);
-    const saved = []; arm.traverse(b => saved.push([b, b.quaternion.clone()]));
+    const saved = []; for (const sd of ['Left', 'Right']) B(sd + 'Arm')?.traverse(b => saved.push([b, b.quaternion.clone()]));   // שתי הזרועות (unsinkHands עשוי להזיז גם את השנייה)
     root.updateMatrixWorld(true);
     const o = base.origin, sh = W(arm), h0 = W(hd);
     // עם כרטיס: האמה עולה לגובה החזה, קדימה ואל המעבר, והאצבעות למעלה — הכרטיס זקוף מול הפקח.
     // בלי כרטיס: כף יד ריקה ופתוחה לפני הגוף, נמוך יותר (בלי להושיט)
-    const out = slot.kind === 'seat' ? aisle * (Math.abs(slot.x) - (win ? 0.52 : 0.31)) : aisle * 0.08;
+    const out = slot.kind === 'seat' ? aisle * (Math.abs(slot.x) - (win ? 0.48 : 0.31)) : aisle * 0.2;
     // ליד החלון: היד עוברת לפני החזה של השכן (קדימה יותר, המרפק קדימה) ולא דרכו
-    const full = empty ? new THREE.Vector3(sh.x - aisle * 0.06, sh.y - 0.2, sh.z + (slot.kind === 'seat' ? 0.3 : 0.18))
-      : new THREE.Vector3(o.x + out, sh.y - (win ? 0.08 : 0.06), sh.z + (win ? 0.4 : slot.kind === 'seat' ? 0.36 : 0.3));
+    const full = empty ? new THREE.Vector3(sh.x - aisle * 0.06, sh.y - 0.2, sh.z + (slot.kind === 'seat' ? 0.3 : 0.15))
+      : new THREE.Vector3(o.x + out, sh.y - (win ? 0.04 : slot.kind === 'seat' ? 0.06 : 0.1), sh.z + (win ? 0.5 : slot.kind === 'seat' ? 0.36 : 0.3));
     // קודם למעלה ואל המעבר, ורק בסוף קדימה (כך היד לא עוברת דרך המשענת שלפניו); ליד החלון — קודם קדימה, ורק אז אל המעבר
     const T = h0.clone().lerp(full, frac);
-    if (win) T.x = h0.x + (full.x - h0.x) * frac * frac; else T.z = h0.z + (full.z - h0.z) * frac * frac;
+    if (win || slot.kind === 'stand') { T.x = h0.x + (full.x - h0.x) * frac * frac; if (slot.kind === 'stand') T.z += 0.06 * Math.sin(Math.PI * frac); } else T.z = h0.z + (full.z - h0.z) * frac * frac;   // בעמידה: קודם קדימה (לא דרך הירך), ורק אז אל המעבר
     twoBone(arm, fore, hd, T, win ? new THREE.Vector3(-aisle * 0.2, -0.5, 1) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));
     const fdir = empty ? new THREE.Vector3(aisle * 0.2, 0.25, 1) : new THREE.Vector3(aisle * 0.35, 1, 0.35);
     const dir = T.clone().sub(W(fore)).normalize().lerp(fdir.normalize(), frac).normalize();
@@ -764,6 +830,7 @@ export class PeopleLayer {
     fb.traverse(b => { const r = V.idleRef.getObjectByName(b.name); if (r && b !== fb) b.quaternion.copy(r.quaternion); });
     { const th = B(hand === 'Left' ? 'LThumb' : 'RThumb'), r = th && V.idleRef.getObjectByName(th.name); if (r) th.quaternion.copy(r.quaternion); }
     root.updateMatrixWorld(true);
+    const us = unsinkHands(root);
     const groups = bakeVariant(V.gltf, base, V.cache);
     // הכרטיס (8.5×5.4 ס"מ) זקוף בין האגודל לאצבעות, הפנים שלו אל הפקח שבמעבר
     const hp = W(hd), fp = W(fb), d = fp.clone().sub(hp).normalize();
@@ -772,7 +839,7 @@ export class PeopleLayer {
     for (const [b, q] of saved) b.quaternion.copy(q);
     root.updateMatrixWorld(true);
     const meshes = groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 1); im.count = 0; im.visible = false; im.frustumCulled = false; im.name = `crowd-${vi}-reach-${gr.kind}`; im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
-    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), seated: slot.kind === 'seat' });
+    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), seated: slot.kind === 'seat', unsink: us });
   }
   busSitters(seatH, depth) {
     if (this.busSit) return this.busSit;
@@ -784,6 +851,7 @@ export class PeopleLayer {
         const key = `bus|${V.gltf.userData.file}|${armPose === 'phone' ? 'thighs' : armPose}|${side}|${pushFore ? 1 : 0}`;
         const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, SIT_PRESETS[key] || null); if (!S) return;
         S.key = key;
+        try { (V.gltf.userData.unsink = V.gltf.userData.unsink || {}).bus = unsinkHands(S.root); } catch (e) { console.warn(e); }
         V.bus = { sit: S, groups: bakeVariant(V.gltf, S, V.cache), n: 0 };
         const inst = (groups, tag) => groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 24); im.count = 0; im.frustumCulled = false; im.name = `crowd-${vi}-${tag}-${gr.kind}`; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
         V.bus.meshes = inst(V.bus.groups, 'bus');
@@ -791,6 +859,7 @@ export class PeopleLayer {
         V.stand = {};
         for (const hand of ['Left', 'Right']) {
           const T = buildStander(V.gltf, hand, (hand === 'Right' ? -1 : 1) * STAND_POLE.dx, STAND_POLE.dz, null); if (!T) continue;
+          try { (V.gltf.userData.unsink = V.gltf.userData.unsink || {})['pole' + hand] = unsinkHands(T.root); } catch (e) { console.warn(e); }
           const groups = bakeVariant(V.gltf, T, V.cache);
           V.stand[hand] = { st: T, groups, meshes: inst(groups, 'stand' + hand), n: 0 };
         }
@@ -1018,6 +1087,7 @@ export class PeopleLayer {
     this.onboardPos = new Map();
     for (const im of this.reachShown || []) { im.count = 0; im.visible = false; }
     this.reachShown = new Set(); if (this.card) this.card.visible = false;
+    this.cardWorld = null; this.reachHandWorld = null; this.onboardShapes = [];
     for (const V of this.variants) { if (V.bus) V.bus.n = 0; for (const S of Object.values(V.stand || {})) S.n = 0; }
     const ob = this.onboard;
     if (ob?.obj && ob.bus) {
@@ -1029,7 +1099,8 @@ export class PeopleLayer {
         const R = this.reach?.pid === p.id && this.reach.frac > 0 ? this.reach : null;
         const show = (pose, x, y, z, sxN = 1) => { M.makeScale(sxN, 1, 1).setPosition(x, y, z).premultiply(OM);
           pose.meshes.forEach((im, g) => { im.setMatrixAt(0, this.hairM(p.id, pose.groups[g].kind, M)); im.setColorAt(0, this.tint(p.id, pose.groups[g].kind, false, C, pose.seated)); im.count = 1; im.visible = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; this.reachShown.add(im); });
-          if (R.card && pose.card) { this.card.matrix.multiplyMatrices(M, pose.card); this.card.matrixWorldNeedsUpdate = true; this.card.visible = true; } };
+          if (R.card && pose.card) { this.card.matrix.multiplyMatrices(M, pose.card); this.card.matrixWorldNeedsUpdate = true; this.card.visible = true; this.cardWorld = new THREE.Vector3().setFromMatrixPosition(this.card.matrix); }
+          this.reachHandWorld = pose.hand.clone().applyMatrix4(M); this.onboardShapes.push({ pid: p.id, groups: pose.groups, M: M.clone(), key: 'r' + R.frac + (R.card ? 'c' : 'e') }); };
         if (k < 0) {                          // אין מושב: עומד ליד הדלת האמצעית ומחזיק בעמוד
           const j = ob.standOf(p.id), sp = ob.stands[j], S = sp && V.stand?.[sp[3]];
           if (!S || S.n >= 24) continue;
@@ -1039,19 +1110,26 @@ export class PeopleLayer {
           M.makeTranslation(sp[0], sp[1], sp[2]).premultiply(OM);
           S.meshes.forEach((im, g) => { im.setMatrixAt(S.n, this.hairM(p.id, S.groups[g].kind, M)); im.setColorAt(S.n, this.tint(p.id, S.groups[g].kind, false, C)); });
           this.emitAcc(p.id, pm, M, false);
+          this.onboardShapes.push({ pid: p.id, groups: S.groups, M: M.clone(), key: 'p' });
           S.n++;
           this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0)).applyMatrix4(M));
           continue;
         }
         if (k >= ob.seats.length || !V.bus || V.bus.n >= 24) continue;
         const st = ob.seats[k];               // [x, רצפה, z של הגב בגובה האגן]
-        const sxN = ob.shared?.(k) ? ob.narrow : 1;
+        // זוג תפוס: שני היושבים מצטמצמים לרוחב יחד, לפי הרוחב של שניהם בצד שפונה אל השכן (בגובה המרפקים והכתפיים)
+        let sxN = 1; const qp = ob.partner?.(k);
+        if (qp != null) { const Vq = this.variants[this.variantOf(qp)], kq = ob.seatOf(qp), dx = Math.abs(ob.seats[kq][0] - st[0]);
+          const inner = (VV, toward) => { const e = this.busExt(VV); return toward > 0 ? e[1] : -e[0]; };
+          const w = inner(V, ob.seats[kq][0] - st[0]) + inner(Vq, st[0] - ob.seats[kq][0]); sxN = Math.min(1, (dx - 0.012) / w); }
+        (this.onboardSX || (this.onboardSX = new Map())).set(p.id, sxN);
         const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'seat', x: st[0] }, R.frac, !R.card);
         const bm = V.bus?.sit?.root ? this.accPose(V, 'bus', V.bus.sit.root, V.bus.sit.origin) : null;
         if (pose) { show(pose, st[0], st[1], st[2], sxN); this.emitAcc(p.id, bm, M, true); this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(st[0], st[1] + 0.62, st[2] + 0.02)).applyMatrix4(OM)); continue; }
         M.makeScale(sxN, 1, 1).setPosition(st[0], st[1], st[2]).premultiply(OM);
         V.bus.meshes.forEach((im, g) => { im.setMatrixAt(V.bus.n, this.hairM(p.id, V.bus.groups[g].kind, M)); im.setColorAt(V.bus.n, this.tint(p.id, V.bus.groups[g].kind, false, C, true)); });
         this.emitAcc(p.id, bm, M, true);
+        this.onboardShapes.push({ pid: p.id, groups: V.bus.groups, M: M.clone(), key: 's' });
         V.bus.n++;
         this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(0, 0.62, 0.02)).applyMatrix4(M));
       }
@@ -1071,6 +1149,7 @@ export class PeopleLayer {
     this.crowdCount = n;
 
     // 3. הולכים: לאורך מסלול של כמה נקודות, בקצב הליכה קבוע
+    this.fpBlock = null;
     for (let i = this.walkers.length - 1; i >= 0; i--) {
       const w = this.walkers[i];
       if (w.mode === 'ride') { this.riding(w, i, simDt, busLayer); continue; }
@@ -1086,13 +1165,24 @@ export class PeopleLayer {
       // בדלת: צעדים קצרים ואיטיים במדרגה (בלי "לעוף" מהרצפה למדרכה), ואז שוב בקצב הליכה
       let slow = 1;
       if (w.door && w.legs) { const { o, u } = w.door, P = w.obj.position, dx = (P.x - o.x) * u.x + (P.z - o.z) * u.z; if (dx > 0.2 && dx < 1.2) slow = 0.38; }
+      // במבט הפקח: מי שהולך במעבר לא נכנס בפקח — מחכה מולו (inspfp.js זז הצידה במעבר)
+      if (this.fpEye && this.onboard && w.bus === this.onboard.bus) {
+        const P0 = w.obj.position, nx = w.pts[w.seg + 1], ex = this.fpEye.x - P0.x, ez = this.fpEye.z - P0.z, d = Math.hypot(ex, ez);
+        const mx = nx.x - P0.x, mz = nx.z - P0.z, ml = Math.hypot(mx, mz) || 1;
+        // אחרי 2.5 ש' (הפקח זז הצידה) עובר לידו במעבר — אבל לא קרוב מ-40 ס"מ
+        // הצעד הבא מקרב אותו לפקח: במרחק 75 ס"מ — מחכה (עד 2.5 ש'), ואחר כך עובר לידו (נדחק הצידה, לא קרוב מ-38 ס"מ)
+        const st = 0.08, qx = P0.x + mx / ml * st - this.fpEye.x, qz = P0.z + mz / ml * st - this.fpEye.z, dn = Math.hypot(qx, qz);
+        if (dn < d && d < 0.75 && (w.waitFP || 0) < 2.5) { w.waitFP = (w.waitFP || 0) + simDt; this.fpBlock = w; slow = 0; } else if (d >= 0.9) w.waitFP = 0;
+      }
       w.d += simDt * (w.speed || 1.35) * slow;
-      if (w.mixer && slow < 1) w.mixer.timeScale = (w.running ? 1.65 : 1) * 0.6; else if (w.mixer && w.slowed) w.mixer.timeScale = w.running ? 1.65 : 1;
+      if (w.mixer && slow < 1) w.mixer.timeScale = slow === 0 ? 0.05 : (w.running ? 1.65 : 1) * 0.6; else if (w.mixer && w.slowed) w.mixer.timeScale = w.running ? 1.65 : 1;
       w.slowed = slow < 1;
       while (w.seg < w.pts.length - 2 && w.d > w.lens[w.seg]) { w.d -= w.lens[w.seg]; w.seg++; }
       const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
       const k = Math.min(1, w.d / L);
       w.obj.position.lerpVectors(a, b, k);
+      if (this.fpEye && w.waitFP > 2.5 && this.onboard && w.bus === this.onboard.bus) { const P1 = w.obj.position, ex = P1.x - this.fpEye.x, ez = P1.z - this.fpEye.z, d1 = Math.hypot(ex, ez);
+        if (d1 < 0.38 && d1 > 1e-4) { P1.x = this.fpEye.x + ex / d1 * 0.38; P1.z = this.fpEye.z + ez / d1 * 0.38; } }
       // מסתובבים בהדרגה לכיוון ההליכה
       const want = Math.atan2(b.x - a.x, b.z - a.z);
       let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
