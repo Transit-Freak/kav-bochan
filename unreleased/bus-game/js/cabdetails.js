@@ -52,11 +52,6 @@ function atlas() {
   // פתיחת דלת בחירום
   { const [X, Y, W, H] = R.emergency; x.fillStyle = '#d0021b'; rr(x, X + 4, Y + 4, W - 8, H - 8, 14); x.fill();
     text(x, 'פתיחת דלת בחירום', X + W / 2, Y + 50, 44, '#fff'); text(x, 'סובבו את הידית ודחפו', X + W / 2, Y + 96, 30, '#fee2e2', 500); }
-  // מתגי הדלתות בקונסולה: שש תוויות (שתי שורות של שלוש), כל אחת מתחת למתג
-  { const [X, Y, W, H] = R.switches; x.fillStyle = '#16181c'; x.fillRect(X, Y, W, H);
-    const L = [['דלת 1', '#22c55e'], ['דלת 2', '#22c55e'], ['כריעה', '#f59e0b'], ['משטח', '#3b82f6'], ['תאורה', '#e5e7eb'], ['חירום', '#ef4444']];
-    L.forEach(([s, c], i) => { const col = i % 3, row = Math.floor(i / 3), cx = X + W - 85 - col * 170, cy = Y + 50 + row * 96;
-      x.strokeStyle = c; x.lineWidth = 4; rr(x, cx - 70, cy - 34, 140, 68, 12); x.stroke(); text(x, s, cx, cy, 34, '#f8fafc'); }); }
   // מכשיר רב-קו: מסך
   { const [X, Y, W, H] = R.ravkav; x.fillStyle = '#0f172a'; x.fillRect(X, Y, W, H);
     x.fillStyle = '#1d4ed8'; x.fillRect(X + 10, Y + 10, W - 20, 50); text(x, 'רב-קו', X + W / 2, Y + 36, 34, '#fff');
@@ -122,13 +117,14 @@ export function addCabDetails(cab, M) {
   for (const z of [0.07, 5.2]) gs.push(sign(R.emergency, 0.36, 0.09, V(-1.15, 2.42, z), V(1, 0, 0)));
   // מחוון כריעה ליד הדלת האמצעית
   gs.push(sign(R.kneel, 0.2, 0.05, V(-1.17, 2.28, 0.07), V(1, 0, 0)));
-  // תוויות מתגי הדלתות על הקונסולה (שוכבות, הטקסט קריא לנהג שמסתכל קדימה)
-  gs.push(sign(R.switches, 0.27, 0.1, V(0.17, FL + 0.7215, 5.4), V(0, 1, 0), V(0, 0, 1)));
   // מכשיר רב-קו על הזרוע שמעל הקונסולה: גוף, מסך שפונה אל הדלת והנהג
   const dir = V(-0.55, 0.25, -0.8).normalize();
   gs.push(sign(R.ravkav, 0.13, 0.1, V(0.2, 1.47, 5.3).addScaledVector(dir, 0.031), dir));
   // מגן שמש מעל הנהג, ותווית עליו
   gs.push(sign(R.visorTag, 0.2, 0.075, V(0.6, 2.47, 5.86).addScaledVector(V(0, -0.5, -0.87), 0.012), V(0, -0.5, -0.87)));
+  // לוח המתגים בקונסולה (רשת נפרדת: במבט נהג לוחצים עליו, והמתגים הפעילים נדלקים — js/drivectl.js)
+  const plate = new THREE.Mesh(sign([0, 0, S, S], PLATE.w, PLATE.d, V(PLATE.x, FL + 0.7215, PLATE.z), V(0, 1, 0), V(0, 0, 1)), switchPlate().mat);
+  plate.name = 'CabSwitchPlate'; cab.add(plate);
   const geo = mergeGeometries(gs.map(g => g.toNonIndexed()), false);
   const signs = new THREE.Mesh(geo, mat); signs.name = 'CabSigns'; cab.add(signs);
   // גוף מכשיר רב-קו ומגן השמש (מגן כהה ושקוף למחצה)
@@ -160,4 +156,30 @@ export function lineDisplay() {
       t.needsUpdate = true;
     },
   };
+}
+
+// לוח המתגים: שישה מתגים (שתי שורות של שלוש) — מעליהם הכפתורים של התא (driver.js: ‎x = 0.08 + 0.09·col, ‎z = 5.36 + 0.08·row).
+// הלוח שוכב, "למעלה" של הטקסט קדימה (‎+Z), ולכן ציר u של הטקסטורה הולך לכיוון ‎-X
+export const SWITCHES = [['front', 'דלת 1', '#22c55e'], ['mid', 'דלת 2', '#22c55e'], ['kneel', 'כריעה', '#f59e0b'], ['lights', 'פנסים', '#e5e7eb'], ['wipers', 'מגבים', '#38bdf8'], ['hazard', 'מהבהבים', '#ef4444']];
+export const PLATE = { x: 0.17, z: 5.4, w: 0.27, d: 0.1 };
+export const switchAt = (x, z) => { const col = Math.round((x - 0.08) / 0.09), row = z > PLATE.z ? 1 : 0; return col >= 0 && col < 3 ? SWITCHES[row * 3 + col] : null; };
+export function switchPlate() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 192;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; keep(t);
+  const mat = new THREE.MeshStandardMaterial({ name: 'M_CabSwitches', map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.5 });
+  let key = null;
+  const draw = (on = {}) => {
+    const k = JSON.stringify(on); if (k === key) return; key = k;
+    const x = c.getContext('2d'); x.fillStyle = '#16181c'; x.fillRect(0, 0, 512, 192);
+    SWITCHES.forEach(([id, s, col], i) => {
+      const cc = i % 3, row = Math.floor(i / 3), wx = 0.08 + 0.09 * cc, wz = 5.36 + 0.08 * row;
+      const cx = (PLATE.x + PLATE.w / 2 - wx) / PLATE.w * 512, cy = (1 - (wz - (PLATE.z - PLATE.d / 2)) / PLATE.d) * 192;
+      x.fillStyle = on[id] ? col : '#16181c'; rr(x, cx - 74, cy - 40, 148, 80, 14); x.fill();
+      x.strokeStyle = col; x.lineWidth = 5; rr(x, cx - 74, cy - 40, 148, 80, 14); x.stroke();
+      text(x, s, cx, cy + 2, s.length > 5 ? 30 : 36, on[id] ? '#111' : '#f8fafc');
+    });
+    t.needsUpdate = true;
+  };
+  draw();
+  return { mat, draw };
 }

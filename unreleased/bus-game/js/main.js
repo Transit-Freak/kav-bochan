@@ -16,6 +16,7 @@ import { Coverage, Career, CoverageLayer, STAGES, newCareer, COVER_M } from './c
 import { MODES, MODE_ORDER, modeOf, normMode, HARD_GONE } from './difficulty.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
+import { DriveControls } from './drivectl.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
 import { NightFast, FAST } from './night.js';
 import { mapTouch } from './touch.js';
@@ -65,7 +66,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let drive, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -95,6 +96,7 @@ async function init() {
   dlayer.obstacles = () => ['.bar', '#dLegend', '#dlFocus', '#panel'].map(q => $(q)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.width);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast, onDriver, renderer, scene, clock: () => clockText(sim.time) });
+  drive = new DriveControls({ canvas, camera, toast, ui: { root: $('#drvCtl'), stop: $('#dhStop') } });
   buildCamButtons();
   lineDefs = loadLines();
   // קווים שנשמרו לפני שהיה כסף במשחק: מקבלים אוטובוסים רגילים במתנה, כמה שצריך לתדירות שלהם
@@ -201,6 +203,7 @@ canvas.addEventListener('pointerup', e => {
   if (!down || !e.isPrimary) return;
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
   if (moved > 8 || dt > 600) return;
+  if (cams?.current === 'driver') return;        // במבט נהג הקשה על המסך היא על מתגי התא (drivectl.js)
   if (dview.on && !planning) {        // במפת הביקוש: הקשה על שכונה מציגה לאן נוסעים ממנה; הקשה במקום ריק מחזירה לכל העיר
     const z = pickZone(e.clientX, e.clientY);
     if (z != null || dview.focus != null) { dview.tapT = performance.now(); focusZone(z === dview.focus ? null : z); return; }
@@ -579,10 +582,15 @@ function onDriver(on, bus) {
   driverBus = on ? bus : null;
   document.body.classList.toggle('driving', on);
   $('#drvHud').hidden = !on;
-  if (on) { cancelPlanning(); $('#panel').classList.add('min'); placeDriverHud(); updateDriverHud(); }
+  if (on) { cancelPlanning(); $('#panel').classList.add('min'); placeDriverHud(); updateDriverHud(); const o = buses.objectOf(bus); if (o) drive.attach(bus, o); }
+  else drive.detach();
 }
 // התצוגה למעלה, מתחת לסרגל (בתחתית רואים את לוח השעונים)
-function placeDriverHud() { const r = document.querySelector('.bar')?.getBoundingClientRect(); $('#drvHud').style.top = `${Math.round((r?.bottom || 60) + 8)}px`; }
+function placeDriverHud() {
+  const r = document.querySelector('.bar')?.getBoundingClientRect(), top = Math.round((r?.bottom || 60) + 8);
+  $('#drvHud').style.top = `${top}px`;
+  $('#drvCtl').style.setProperty('--dc-top', `${top + ($('#drvHud').offsetHeight || 52) + 6}px`);
+}
 addEventListener('resize', () => { if (driverBus) placeDriverHud(); });
 function updateDriverHud() {
   const b = driverBus; if (!b) return;
@@ -1482,6 +1490,7 @@ function tick(dt) {
     people.update(sim, city.stops, simDt, buses);
     sim.events.length = 0;
     cams.update(dt);
+    if (drive?.on) { const o = buses.objectOf(drive.bus); if (o && o !== drive.obj) drive.attach(drive.bus, o); drive.update(dt); }
     updatePins();
     stopView.update(camera, lines, dt);
     $('#time').textContent = clockText(sim.time);

@@ -394,3 +394,18 @@ body.driving #panel,body.driving .attr{display:none}
 .drvhud .dh-txt small{font-size:12.5px;color:#cbd5e1}
 .drvhud button{flex:none}
 body.driving .brand,body.driving .cams{display:none}
+.drvhud .dh-stop{flex:none;font-size:12px;font-weight:800;padding:3px 8px;border-radius:999px;background:#3f1d1d;color:#7f5a5a}
+.drvhud .dh-stop.on{background:#ef4444;color:#fff;box-shadow:0 0 10px #ef4444}
+/* מתגי הנהג ודוושות (מבט נהג) — הכפתורים למעלה, הדוושות בפינות למטה, ולוח השעונים באמצע נשאר גלוי */
+.drvctl{position:fixed;inset:0;pointer-events:none;z-index:19}
+.drvctl[hidden]{display:none}
+.drvctl .dc-btns{position:absolute;top:var(--dc-top,170px);inset-inline:10px;max-width:520px;margin-inline:auto;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;pointer-events:auto}
+.drvctl .dc-btns button{font-size:11.5px;font-weight:700;line-height:1.15;padding:7px 2px;min-height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(15,23,42,.62);color:#fff;backdrop-filter:blur(4px)}
+.drvctl .dc-btns button.on{background:#f59e0b;color:#111;border-color:#fbbf24}
+.drvctl .dc-btns button.blink{background:#22c55e;color:#062;border-color:#4ade80}
+.drvctl .pedal{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));width:84px;height:118px;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;
+  border-radius:18px;border:2px solid rgba(255,255,255,.5);color:#fff;font-size:20px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.drvctl .pedal.brake{left:12px;background:rgba(185,28,28,.72)}
+.drvctl .pedal.gas{right:12px;background:rgba(21,128,61,.72)}
+.drvctl .pedal.on{transform:scale(.94);filter:brightness(1.35)}

@@ -242,7 +242,14 @@ export class Sim {
     return L.queues[k].length > 0 || !!this.sameRider(L, b, k, false) || !!this.altRider(L, k, L.stops[k], false);
   }
 
+  // נהיגה ידנית (מבט נהג, js/drivectl.js): b.ctl = { gas, brake, manual, front, mid, kneel, warn(txt) }.
+  // בלי לגעת — הכל כרגיל (אוטומטי). גז: נוסעים לפי המסלול במהירות הדרך, בלי לעצור בתחנות (חוץ מהאחרונה).
+  // בלם: האוטובוס נעצר; עצירה עד 15 מ' לפני תחנה — עצירה בתחנה. בתחנה, אחרי לחיצה על כפתור דלת — הדלתות בידי הנהג:
+  // עולים רק בדלת הקדמית הפתוחה, יורדים בדלת פתוחה, ונוסעים רק כשהדלתות סגורות (אחרת — אזהרה)
   moveBus(L, b, ahead, h) {
+    const c = b.ctl;
+    // כריעה: רק בעמידה; בנסיעה האוטובוס עולה
+    if (c || b.kneel) { const want = c?.kneel && b.v < 0.1 ? 1 : 0; b.kneel = Math.max(0, Math.min(1, (b.kneel || 0) + Math.sign(want - (b.kneel || 0)) * h / 1.5)); }
     if (b.state === 'drive') {
       let target = L.stopS[b.next];
       // עוצרים רק כשצריך: מישהו יורד, או מישהו מחכה לקו ויש מקום. ההחלטה נקבעת כשמגיעים למרחק בלימה
@@ -255,7 +262,8 @@ export class Sim {
         b.recheck = 0;
         b.stopHere = this.needStop(L, b, b.next);
       }
-      if (b.decided === b.next && !b.stopHere && b.s >= target - 0.05) {
+      const lastStop = b.next === L.stops.length - 1;
+      if ((b.decided === b.next && !b.stopHere || (c?.gas && !lastStop)) && b.s >= target - 0.05) {
         // חולפים על פני התחנה. אוטובוס מלא שמשאיר ממתינים — נספר כ"נשארו"
         const stop = L.stops[b.next], ss = this.stopStats.get(stop.id), left = L.queues[b.next].length;
         if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); for (const p of L.queues[b.next]) p.skips = (p.skips || 0) + 1; }
@@ -263,18 +271,20 @@ export class Sim {
         this.events.push({ type: 'pass', bus: b, stop });
         b.next++; target = L.stopS[b.next];
       }
-      const stopping = b.decided !== b.next || b.stopHere;
+      const stopping = (b.decided !== b.next || b.stopHere) && !(c?.gas && !lastStop);
       // תקלה או נהג מאחר: האוטובוס עומד
       if (this.ops.stalled(b)) { b.v = 0; return; }
       let v = Math.max(0.8, (L.profileFree || L.profile).get(b.s + 1.2)) * this.ops.speedK(L, b);
       if (stopping) v = Math.min(v, Math.sqrt(2 * DECEL * Math.max(0, target - b.s)) + 0.25);
       if (ahead && ahead.state !== 'done' && ahead.s - b.s < BUS.gap + 4) v = Math.min(v, Math.max(0, (ahead.s - b.s - BUS.gap) * 0.5));
-      b.v += Math.max(-2.5 * h, Math.min(1.2 * h, v - b.v));
+      if (c?.brake) v = 0;
+      b.v += Math.max(-(c?.brake ? 3.2 : 2.5) * h, Math.min((c?.gas ? 1.6 : 1.2) * h, v - b.v));
       b.v = Math.max(0, Math.min(v, b.v + 0.0001));
       b.s += b.v * h;
       this.charge(L, b.type, b.v * h, 0);
-      if (stopping && b.s >= target - 0.05) {
-        b.s = target; b.v = 0; b.state = 'dwell'; b.ph = 'open'; b.t = 0; b.dw = 0;
+      const braked = c?.brake && b.v < 0.05 && target - b.s < 15 && target - b.s >= -0.05;
+      if (braked || (stopping && b.s >= target - 0.05)) {
+        if (!braked) b.s = target; b.v = 0; b.state = 'dwell'; b.ph = 'open'; b.t = 0; b.dw = 0;
         b.ta = 0; b.tb = 0;
         this.events.push({ type: 'arrive', bus: b, stop: L.stops[b.next] });
         this.ops.onArrive(L, b, b.next);
@@ -282,6 +292,12 @@ export class Sim {
     } else if (b.state === 'dwell') {
       const k = b.next, last = k === L.stops.length - 1, stop = L.stops[k], ss = this.stopStats.get(stop.id);
       b.dw += h;
+      const man = c?.manual;
+      if (man) {        // הדלתות בידי הנהג: כל דלת לחוד
+        const to = (v, open) => Math.max(0, Math.min(1, (v ?? b.door) + (open ? 1 : -1) * h / BUS.doorTime));
+        b.dF = to(b.dF, c.front); b.dM = to(b.dM, c.mid); b.door = Math.max(b.dF, b.dM);
+        if (b.ph === 'open' || b.ph === 'close') b.ph = 'xchg';
+      }
       if (b.ph === 'open') {
         b.door = Math.min(1, b.door + h / BUS.doorTime);
         if (b.door >= 1) b.ph = 'xchg';
@@ -291,7 +307,8 @@ export class Sim {
         // קו מעגלי: בתחנה האחרונה האוטובוס ממשיך כנסיעה הבאה (או מחכה לה), ומי שעלה "מסביב" נשאר
         if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay);
         const off = b.pax.findIndex(p => p.to === k || (last && !(p.wrap && b.goOn)));
-        if (off >= 0) {
+        if (off >= 0 && man && b.dM < 1 && b.dF < 1) busy = true;       // יורדים רק כשדלת פתוחה
+        else if (off >= 0) {
           busy = true;
           if (b.ta >= BUS.alightEvery) {
             b.ta = 0; const p = b.pax.splice(off, 1)[0];
@@ -303,7 +320,7 @@ export class Sim {
             else if (p.leg + 1 < p.legs.length) { const x = this.transfer(p, L, stop); if (x) { ev.xfer = x.to; ev.at = x.at; } }   // מעבר: התצוגה מראה אותו הולך לתחנה הבאה
           }
         }
-        if (!last && !b.express && b.pax.length < b.cap && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
+        if (!last && !b.express && b.pax.length < b.cap && (!man || b.dF >= 1) && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
             b.tb = 0; const p = L.queues[k].shift() || this.sameRider(L, b, k, true) || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
@@ -321,7 +338,7 @@ export class Sim {
         if (b.hold > this.time) busy = true;
         // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש
         if ((b.walking || 0) > 0 && b.dw < 90) busy = true;
-        if (!busy && last && b.goOn && off < 0) {
+        if (!busy && !man && last && b.goOn && off < 0) {
           // קו מעגלי במסוף: כולם ירדו. יוצאים לנסיעה הבאה אם הגיע הזמן (או קצת לפני), ואם לא — מחכים עם דלתות פתוחות.
           // אוטובוס של הקו שמתקרב מאחור — יוצאים מיד, כדי לא לחסום אותו
           const W = Math.min(L.def.headway * 30, 300), behind = L.buses.some(o => o !== b && o.state === 'drive' && o.next === k && L.stopS[k] - o.s < 70);
@@ -329,7 +346,11 @@ export class Sim {
           else if (this.time >= L.nextDispatch - W || behind) { this.turnaround(L, b); return; }
           else { b.lay = true; return; }
         }
-        if (!busy && b.dw >= BUS.minDwell + BUS.doorTime) b.ph = 'close';
+        if (man) {
+          // הנהג סוגר את שתי הדלתות — נוסעים. גז עם דלת פתוחה — אזהרה, לא זזים
+          if (b.dF <= 0 && b.dM <= 0) { b.door = 0; b.ph = 'close'; c.manual = false; }
+          else if (c.gas) c.warn?.('סגרו את הדלתות לפני הנסיעה');
+        } else if (!busy && b.dw >= BUS.minDwell + BUS.doorTime) b.ph = 'close';
       } else if (b.ph === 'close') {
         b.door = Math.max(0, b.door - h / BUS.doorTime);
         if (b.door <= 0) {
@@ -346,6 +367,8 @@ export class Sim {
             this.events.push({ type: 'done', bus: b });
           }
           else { b.state = 'drive'; b.next++; b.goOn = undefined; this.events.push({ type: 'depart', bus: b, stop }); }
+          if (c) c.manual = false;
+          b.dF = b.dM = undefined;
         }
       }
     } else if (b.state === 'done') {

@@ -98,7 +98,8 @@
       <li>הכי הרבה נוסעים בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
       <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" (גם שעות פעילות), ו"מסלול": מקישים על תחנה בקו כדי להסיר או להזיז אותה, או על תחנה חדשה כדי להוסיף (היא נכנסת במקום הכי קצר). אוטובוסים שכבר בדרך מסיימים את המסלול הישן. <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
       <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> שתי אצבעות או הכפתור הימני. <b>זום:</b> צביטה או גלגלת. השעון: ❚❚ עוצר, ×1 עד ×200 מאיצים. בלילה, כשאף קו לא פועל, השעון רץ ×200 לבד עד הבוקר.</li>
-      <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
+      <li><b>מצלמה:</b> "חופשי", "מעקב אחרי אוטובוס" או "נהג". פקח ונוסע — בשלב הבא.</li>
+      <li><b>מבט נהג:</b> בלשונית "סדרן" בוחרים אוטובוס ו"מבט נהג". גז ובלם בפינות המסך (או החצים ורווח במקלדת); בלי לגעת — האוטובוס נוהג לבד. בתחנה אפשר לפתוח ולסגור כל דלת לחוד (עולים בדלת הקדמית), ונוסעים רק כשהדלתות סגורות. עוד: כריעה, איתות, מהבהבים, צופר, פנסים, מגבים והודעת תחנה — גם בלוח המתגים שבתא. "יציאה" חוזרת למפה.</li>
     </ol>
   </section>
 </aside>
@@ -224,7 +225,16 @@
 <div class="drvhud" id="drvHud" hidden>
   <span class="num" id="dhNum">1</span>
   <div class="dh-txt"><b id="dhNext"></b><small id="dhPax"></small></div>
+  <span class="dh-stop" id="dhStop" title="נוסע ביקש לעצור">עצירה</span>
   <button type="button" id="dhExit" class="primary">יציאה</button>
+</div>
+<div class="drvctl" id="drvCtl" hidden>
+  <div class="dc-btns" role="group" aria-label="מתגי הנהג">
+    <button type="button" data-c="front">דלת קדמית</button><button type="button" data-c="mid">דלת אחורית</button><button type="button" data-c="kneel">כריעה</button><button type="button" data-c="left">◀ איתות</button><button type="button" data-c="right">איתות ▶</button>
+    <button type="button" data-c="hazard">מהבהבים</button><button type="button" data-c="horn">צופר</button><button type="button" data-c="lights">פנסים</button><button type="button" data-c="wipers">מגבים</button><button type="button" data-c="announce">הודעת תחנה</button>
+  </div>
+  <button type="button" class="pedal brake" data-p="brake" aria-label="בלם">בלם</button>
+  <button type="button" class="pedal gas" data-p="gas" aria-label="גז">גז</button>
 </div>
 <div class="toast" id="toast" hidden></div>
 <div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>

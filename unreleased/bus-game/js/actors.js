@@ -147,7 +147,12 @@ export class BusLayer {
         tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
       obj = this.asset.scene.clone(true);
       const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
-      if (clip) { mixer = new THREE.AnimationMixer(obj); action = mixer.clipAction(clip); action.play(); action.paused = true; }
+      if (clip) {
+        // שתי הדלתות לחוד (במבט נהג פותחים כל אחת בנפרד): הקליפ מתפצל לדלת הקדמית ולאמצעית
+        mixer = new THREE.AnimationMixer(obj);
+        const sp = this.doorClips || (this.doorClips = ['Front', 'Mid'].map(k => new THREE.AnimationClip('Doors' + k, clip.duration, clip.tracks.filter(t => t.name.includes(k)))));
+        action = sp.map(c => { const a = mixer.clipAction(c); a.play(); a.paused = true; return a; });
+      }
     } else obj = placeholderBus();
     // האוטובוס מטיל צל על הכביש (בלי הפנים: תא הנהג, הנהג והמושבים לא נראים בצל מבחוץ)
     obj.traverse(o => { if (o.isMesh && !/Driver|Cab|Seat|Interior/i.test(o.name)) o.castShadow = true; });
@@ -181,7 +186,7 @@ export class BusLayer {
       const kn = b.kneel ? b.kneel * KNEEL.th : 0;
       v.obj.position.set(p.x, -kn * KNEEL.far, -p.y); v.obj.rotation.set(0, p.yaw, kn);
       v.obj.visible = b.state !== 'done' || b.t < 1.2;
-      if (v.action) { v.action.time = b.door * v.action.getClip().duration * 0.999; v.mixer.update(0); }
+      if (v.action) { const [aF, aM] = v.action, d = aF.getClip().duration * 0.999; aF.time = (b.dF ?? b.door) * d; aM.time = (b.dM ?? b.door) * d; v.mixer.update(0); }
       else for (const d of v.doors) { // placeholder: יציאה החוצה והחלקה
         d.o.position.x = d.x0 - 0.1 * Math.min(1, b.door * 3);
         d.o.position.z = d.z0 + d.k * 0.55 * Math.max(0, b.door * 1.2 - 0.2);
