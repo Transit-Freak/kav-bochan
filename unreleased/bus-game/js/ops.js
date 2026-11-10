@@ -11,7 +11,9 @@ const EVADE = 0.06;                        // התחמקות מתשלום בלי
 const BREAK_H = 40;                        // תקלה: בממוצע פעם ב-40 שעות נסיעה של אוטובוס
 const JAM_H = 10;                          // פקק: בממוצע פעם ב-10 שעות פעילות של קו
 const LATE_P = 0.04;                       // נהג מאחר: 4% מהיציאות
-export const RESERVE_COST = 300;           // רכב חלופי לאוטובוס תקוע
+export const RESERVE_COST = 300;
+const DOORS = { mini: 1, std: 2, elec: 2, artic: 3 };                  // דלתות לכל סוג רכב — כמה פקחים לכל היותר בקבוצה
+const DOOR_NAMES = ['front', 'mid', 'mid'];                           // לדגם יש שתי דלתות; השלישית (מפרקי) — גם באמצעית           // רכב חלופי לאוטובוס תקוע
 export const ROLE = new Map();             // id של נוסע ← 'insp' (פקח עם אפוד) / 'ctl' (מבקר סמוי — נראה כמו כולם)
 const DAY = 86400;
 const mm = s => Math.round(s / 60);
@@ -149,7 +151,9 @@ export class Ops {
     const act = this.sim.lines.filter(L => !L.retired && !L.off && L.def.fleet > 0 && L.stops.length > 2);
     if (!act.length) return;
     const L = act[Math.floor(this.rand() * act.length)], k = Math.floor(this.rand() * (L.stops.length - 2));
-    this.sim.makeRider(L, k, Math.min(L.stops.length - 1, k + 2 + Math.floor(this.rand() * 3)), 'insp');
+    // קבוצה: עד פקח אחד לכל דלת (מיניבוס — 1, רגיל וחשמלי — 2, מפרקי — 3), וכל אחד עולה בדלת אחרת
+    const n = 1 + Math.floor(this.rand() * (DOORS[L.def.vtype] || 2)), to = Math.min(L.stops.length - 1, k + 2 + Math.floor(this.rand() * 3));
+    for (let i = 0; i < n; i++) { const p = this.sim.makeRider(L, k, to, 'insp'); if (p) p.door = DOOR_NAMES[i]; }
   }
   // ---------- פעולות הסדרן
   hold(b, sec = 60) { if (b.state === 'dwell') b.hold = Math.max(b.hold || 0, this.sim.time) + sec; else b.holdNext = (b.holdNext || 0) + sec; this.note('hold', b.line, `הסדרן: החזקה ${mm(sec)} דק' בתחנה`, b); }

@@ -270,61 +270,111 @@ function gameMaterial(m, kind) {
   if (kind === 'cloth') vestShader(out);
   return out;
 }
-// פקח: אפוד זוהר צהוב על הגו ותג כהה על החזה — רק בבגדים, רק למי שהגוון שלו מסומן (INSP_FLAG, ראו tint).
-// איפה האפוד והתג — בתכונה vest של כל קודקוד (markVest). שאר הבגד נשאר כמו שהוא
-export const INSP_FLAG = 4;
-const VEST = new THREE.Color(0xd8f00c), BADGE = new THREE.Color(0x15171c);
+// פקח (כמו פקחי התחבורה הציבורית בארץ): חולצה תכלת בשרוול קצר, מכנסיים ונעליים שחורים, כובע מצחייה שחור,
+// רצועה שחורה באלכסון מהכתף לירך עם תיק קטן, מצלמת גוף על החזה, ולפעמים עניבה כהה; בעמידה — מכשיר בדיקה ביד.
+// הבגדים — בשיידר של הבגד, רק למי שהגוון שלו מסומן (INSP_FLAG; עם עניבה — INSP_TIE), לפי האזור של כל קודקוד
+// (markInsp: גו, זרוע עליונה, אמה, רגליים) ומיקומו על הגו. הכובע והמכשיר — רשתות קטנות (PeopleLayer). הפנים והידיים — כמו תמיד
+export const INSP_FLAG = 4, INSP_TIE = 5;
+const SHIRT = new THREE.Color(0xbcd4ee), PANTS = new THREE.Color(0x15171b), DARK = new THREE.Color(0x0c0d10), TIE = new THREE.Color(0x1f2a44);
 function vestShader(m) {
+  const U = m.userData.insp = { skinC: { value: new THREE.Color(0.75, 0.56, 0.44) }, vTop: { value: 0.5 } };
   m.onBeforeCompile = sh => {
-    sh.uniforms.vestC = { value: VEST }; sh.uniforms.badgeC = { value: BADGE };
+    Object.assign(sh.uniforms, { shirtC: { value: SHIRT }, pantsC: { value: PANTS }, darkC: { value: DARK }, tieC: { value: TIE }, skinC: U.skinC, vTop: U.vTop });
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 vest;\nvarying vec3 vVest;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVest = vest;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vVest;\nuniform vec3 vestC;\nuniform vec3 badgeC;')
-      .replace('#include <color_fragment>', `float inspF = step(2.5, diffuse.r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vVest;\nuniform vec3 shirtC, pantsC, darkC, tieC, skinC;\nuniform float vTop;')
+      .replace('#include <color_fragment>', `float inspF = diffuse.r;
 #ifdef USE_COLOR
-inspF = max(inspF, step(2.5, vColor.r));
+inspF = max(inspF, vColor.r);
 #endif
 #include <color_fragment>
-if (inspF > 0.5) {
-  vec3 base = diffuseColor.rgb / ${INSP_FLAG.toFixed(1)};
-  float lum = dot(base, vec3(0.299, 0.587, 0.114));
-  if (vVest.x > 0.5) diffuseColor.rgb = max(abs(vVest.y), abs(vVest.z)) < 1.0 ? badgeC : vestC * (0.82 + 0.35 * lum);
-  else diffuseColor.rgb = base;
+if (inspF > 2.5) {
+  vec3 base = diffuseColor.rgb / inspF;
+  float lum = dot(base, vec3(0.299, 0.587, 0.114)), sh = 0.8 + 0.35 * lum;
+  float reg = floor(vVest.x + 0.01), front = step(0.25, vVest.x - reg);
+  float u = vVest.y, v = vVest.z / max(0.2, vTop);
+  if (reg > 0.5 && reg < 2.5) {
+    vec3 c = shirtC * sh;
+    // רצועה באלכסון: מהכתף השמאלית (‎+u) לירך הימנית, מלפנים ומאחור; תיק קטן בירך; מצלמת גוף; עניבה
+    float ul = -0.16 + 0.32 * clamp((v - 0.06) / 0.9, 0.0, 1.0);
+    if (reg < 1.5 && abs(u - ul) < 0.026 && v > 0.04) c = darkC;
+    if (reg < 1.5 && u < -0.1 && u > -0.23 && v > -0.02 && v < 0.15) c = darkC * 1.6;            // התיק הקטן בקצה הרצועה
+    if (reg < 1.5 && front > 0.5 && u < -0.05 && u > -0.11 && v > 0.62 && v < 0.72) c = darkC;   // מצלמת גוף — בצד ימין של החזה (הרצועה בשמאל)
+    if (reg < 1.5 && front > 0.5 && inspF > 4.5 && abs(u) < 0.028 + 0.012 * step(0.86, v) && v > 0.22 && v < 0.96) c = tieC;
+    diffuseColor.rgb = c;
+  } else if (reg > 2.5 && reg < 3.5) diffuseColor.rgb = skinC * (0.85 + 0.25 * lum);     // אמה חשופה (שרוול קצר)
+  else diffuseColor.rgb = pantsC * (0.9 + 0.4 * lum);
 }`);
   };
-  m.customProgramCacheKey = () => 'vest';
+  m.customProgramCacheKey = () => 'insp2';
 }
-// מסמן בכל רשת של הדגם את הקודקודים של האפוד (x=1: הגו — עמוד השדרה והכתפיים, בלי הזרועות והאגן), ולכל קודקוד
-// בחזית — המקום שלו ביחס לתג (y,z: ‎-1..1 בתוך התג; מלבן חלק, לא לפי משולשים). התג בצד שמאל של החזה. התכונה נשמרת בגאומטריה המקורית — משותפת להולכים, לעומדים וליושבים
-const TORSO = /^(LowerBack|Spine|Spine1|LeftShoulder|RightShoulder)$/, ARM = /^(LeftArm|RightArm|LeftForeArm|RightForeArm)$/;
-function markVest(gltf) {
-  const root = gltf.scene; if (root.userData.vest) return; root.userData.vest = true;
+// לכל קודקוד בבגדים: האזור (0 אגן ורגליים, 1 גו, 2 זרוע עליונה, 3 אמה; +0.5 — מלפנים. הסדר חשוב: הערך עובר אינטרפולציה בין
+// קודקודים, ולכן אזורים שנוגעים זה בזה צמודים במספרים — בלי פס של אזור אחר בגבול) ומיקומו ביחס לאגן
+// (u — לרוחב, שמאלה של הדמות חיובי; v — גובה מעל האגן), בתנוחת העמידה. נשמר בגאומטריה המקורית (vest) — משותף לכולם
+const REGION = [[/^(LowerBack|Spine|Spine1|LeftShoulder|RightShoulder|Neck|Neck1)$/, 1], [/^(LeftArm|RightArm)$/, 2], [/^(LeftForeArm|RightForeArm|LeftHand|RightHand|LThumb|RThumb|LeftFingerBase|RightFingerBase|LeftHandFinger1|RightHandFinger1)$/, 3]];
+function markInsp(gltf) {
+  const root = gltf.scene; if (root.userData.insp) return root.userData.insp; 
   const idle = gltf.animations.find(a => /idle/i.test(a.name));
   const R = SkeletonUtils.clone(root);
   if (idle) { const mx = new THREE.AnimationMixer(R); mx.clipAction(idle).play(); mx.update(0); }
   const verts = skinVerts(R), srcs = []; root.traverse(o => { if (o.isMesh) srcs.push(o); });
   const hips = R.getObjectByName('Hips'), c = hips ? hips.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3();
-  const all = [];
+  let top = 0, zf = -Infinity, minY = Infinity; const torso = [], hd = { n: 0, x: 0, z: 0, top: -Infinity };
   verts.forEach(({ o, P, N, kind }, k) => {
-    const g = srcs[k].geometry, n = g.attributes.position.count, A = new Float32Array(n * 3).fill(9);
-    for (let i = 0; i < n; i++) A[i * 3] = 0;
+    for (let i = 1; i < P.length; i += 3) minY = Math.min(minY, P[i]);
+    // הראש: קודקודי עור ושיער ששייכים לעצם הראש — המרכז והגובה העליון (לכובע)
+    if ((kind === 'skin' || kind === 'hair') && o.isSkinnedMesh) {
+      const gg = srcs[k].geometry, si0 = gg.attributes.skinIndex, sw0 = gg.attributes.skinWeight, bs = o.skeleton.bones;
+      for (let i = 0; i < gg.attributes.position.count; i++) { let h = 0; for (let j = 0; j < 4; j++) if (bs[si0.getComponent(i, j)]?.name === 'Head') h += sw0.getComponent(i, j);
+        if (h < 0.6) continue; const y = P[i * 3 + 1]; if (kind === 'skin') { hd.n++; hd.x += P[i * 3]; hd.z += P[i * 3 + 2]; } hd.top = Math.max(hd.top, y); }
+    }
+    const g = srcs[k].geometry, n = g.attributes.position.count, A = new Float32Array(n * 3);
     g.setAttribute('vest', new THREE.BufferAttribute(A, 3));
     if (kind !== 'cloth' || !o.isSkinnedMesh) return;
     const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
     for (let i = 0; i < n; i++) {
-      let t = 0, a = 0;
-      for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (!w) continue; const nm = bones[si.getComponent(i, j)]?.name || ''; if (TORSO.test(nm)) t += w; else if (ARM.test(nm)) a += w; }
-      if (t >= 0.5 && a < 0.25) { A[i * 3] = 1; all.push([A, i, P[i * 3] - c.x, P[i * 3 + 1], P[i * 3 + 2] - c.z, N ? N[i * 3 + 2] : 0]); }
+      const w = [0, 0, 0, 0];
+      for (let j = 0; j < 4; j++) { const ww = sw.getComponent(i, j); if (!ww) continue; const nm = bones[si.getComponent(i, j)]?.name || ''; const r = REGION.find(([re]) => re.test(nm)); w[r ? r[1] : 0] += ww; }
+      let reg = 0; if (w[1] >= 0.5) reg = 1; else if (w[2] >= Math.max(w[1], w[3], w[0])) reg = 2; else if (w[3] >= 0.5) reg = 3; else if (w[1] > w[0]) reg = 1;
+      const u = P[i * 3] - c.x, v = P[i * 3 + 1] - c.y, z = P[i * 3 + 2] - c.z;
+      A[i * 3] = reg; A[i * 3 + 1] = u; A[i * 3 + 2] = v;
+      if (reg === 1) { top = Math.max(top, v); zf = Math.max(zf, z); torso.push([A, i, z, N ? N[i * 3 + 2] : 0]); }
     }
   });
-  if (!all.length) return;
-  let lo = Infinity, hi = -Infinity, zf = -Infinity;
-  for (const v of all) { lo = Math.min(lo, v[3]); hi = Math.max(hi, v[3]); zf = Math.max(zf, v[4]); }
-  // התג: גובה החזה, צד שמאל של הפקח (הדמות פונה ל-‎+z, ושמאלה שלה ‎+x), רק הצד הקדמי
-  const by = lo + (hi - lo) * 0.68, bx = 0.085, W = 0.035, H = 0.045;
-  for (const [A, i, x, y, z, nz] of all) if (nz > 0.2 && z > zf - 0.15) { A[i * 3 + 1] = (x - bx) / W; A[i * 3 + 2] = (y - by) / H; }
+  for (const [A, i, z, nz] of torso) if (nz > 0.15 && z > zf - 0.16) A[i * 3] += 0.5;
+  // הראש והיד הימנית בתנוחת העמידה (לכובע ולמכשיר), יחסית לאגן
+  R.updateMatrixWorld(true);
+  const bone = n => R.getObjectByName(n), head = bone('Head'), hand = bone('RightHand');
+  const out = { vTop: top * 0.92 }, off = new THREE.Vector3(c.x, minY, c.z);
+  if (head && hd.n) {
+    const capW = new THREE.Matrix4().makeTranslation(hd.x / hd.n, hd.top - 0.058, hd.z / hd.n + 0.01);
+    out.capLocal = head.matrixWorld.clone().invert().multiply(capW);                       // בתוך עצם הראש (להולכים ולישיבה)
+    out.capStand = capW.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z));
+  }
+  if (hand) {
+    const hp = hand.getWorldPosition(new THREE.Vector3()), rW = new THREE.Matrix4().makeTranslation(hp.x - 0.01, hp.y - 0.075, hp.z + 0.045);
+    out.readerLocal = hand.matrixWorld.clone().invert().multiply(rW);
+    out.readerStand = rW.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z));
+  }
+  return (root.userData.insp = out);
 }
-
+// הצבע הממוצע של העור (מהטקסטורה של הגוף) — לאמה החשופה של הפקח
+function skinColor(groups) {
+  const m = groups.find(g => g.kind === 'skin')?.mat?.map, img = m?.image; if (!img) return null;
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 32, 32);
+    const d = x.getImageData(0, 0, 32, 32).data, acc = [0, 0, 0]; let n = 0;
+    for (let i = 0; i < d.length; i += 4) { const l = d[i] + d[i + 1] + d[i + 2]; if (d[i + 3] < 200 || l < 90 || l > 720) continue; acc[0] += d[i]; acc[1] += d[i + 1]; acc[2] += d[i + 2]; n++; }
+    return n ? new THREE.Color().setRGB(acc[0] / n / 255, acc[1] / n / 255, acc[2] / n / 255, THREE.SRGBColorSpace) : null;
+  } catch { return null; }
+}
+// הכובע (כיפה ומצחייה, פונה ל-‎+z) ומכשיר הבדיקה: גאומטריות משותפות
+const capGeo = (() => { const d = new THREE.SphereGeometry(0.104, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.72, 1.06);
+  const b = new THREE.CylinderGeometry(0.075, 0.075, 0.008, 18, 1, false, -Math.PI / 2, Math.PI).scale(1.1, 1, 1.25).translate(0, 0.002, 0.085);
+  const btn = new THREE.SphereGeometry(0.011, 8, 4).translate(0, 0.075, 0);
+  return mergeGeometries([d, b, btn].map(g => { const n = g.toNonIndexed(); n.deleteAttribute('uv'); return n; }), false); })();
+const readerGeo = new THREE.BoxGeometry(0.068, 0.118, 0.022);
+const ACC_MAT = new THREE.MeshStandardMaterial({ color: 0x0b0c0f, roughness: 0.55 });
 // הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
 const _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
 export function skinVerts(root) {
@@ -428,8 +478,8 @@ export class PeopleLayer {
     this.variants = [];
     for (const g of this.gltfs) {
       const cache = new Map();
-      try { markVest(g); } catch (e) { console.warn('vest failed', e); }
-      try { this.variants.push({ gltf: g, groups: bakeVariant(g, null, cache), age: AGE[(g.userData.file || '').replace(/^.*\//, '')] || '' }); }
+      let IM = null; try { IM = markInsp(g); } catch (e) { console.warn('inspector look failed', e); }
+      try { this.variants.push({ gltf: g, groups: bakeVariant(g, null, cache), age: AGE[(g.userData.file || '').replace(/^.*\//, '')] || '', insp: IM }); }
       catch (e) { console.warn('bake person failed', e); continue; }
       // אותו אדם יושב על הספסל: תנוחה אפויה אחת לכל דגם (sitting.js)
       try {
@@ -439,12 +489,18 @@ export class PeopleLayer {
         const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, SIT_PRESETS[key] || null);
         if (S) S.key = key;
         if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache);
+          const hb = S.root.getObjectByName('Head'); if (hb && IM?.capLocal) { S.root.updateMatrixWorld(true); V.capSit = hb.matrixWorld.clone().multiply(IM.capLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           // הרוחב של היושב לאורך הספסל (ציר x שלו), לבדיקת השכנים
           let lo = Infinity, hi = -Infinity; for (const gr of V.sitGroups) { const p = gr.geo.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); if (x < lo) lo = x; if (x > hi) hi = x; } }
           V.sitExt = [lo, hi]; }
       } catch (e) { console.warn('sitting pose failed', e); }
     }
     this.fromGlb = this.variants.length > 0;
+    // פקח: צבע העור של כל דגם (לאמה החשופה) וגובה הכתפיים — במשתנים של חומר הבגד
+    for (const V of this.variants) { V.skin = skinColor(V.groups); for (const gr of [...V.groups, ...(V.sitGroups || [])]) { const U = gr.mat.userData.insp; if (!U) continue; if (V.skin) U.skinC.value.copy(V.skin); if (V.insp) U.vTop.value = V.insp.vTop; } }
+    // הכובע ומכשיר הבדיקה של הפקחים (מעטים — עד 96)
+    this.caps = new THREE.InstancedMesh(capGeo, ACC_MAT, 96); this.readers = new THREE.InstancedMesh(readerGeo, ACC_MAT, 96);
+    for (const im of [this.caps, this.readers]) { im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.name = 'crowd-insp'; this.group.add(im); }
     if (!this.fromGlb) { this.gltfs = []; this.variants.push({ gltf: null, groups: proceduralPerson() }); }
     // לכל דגם ולכל חומר — InstancedMesh אחד
     for (const [vi, V] of this.variants.entries()) {
@@ -539,8 +595,12 @@ export class PeopleLayer {
   variantOf(id) { return Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
   // הצבע לכל חלק: בדגמים האמיתיים — לבן (הטקסטורה כמו שהיא), חוץ מגוון עדין לבגדים ושינוי קטן בבהירות העור
   tint(id, kind, flat, out) {
-    // פקח: גוון-סימן (INSP_FLAG) — השיידר של הבגד מצייר אפוד זוהר ותג (vestShader). מבקר סמוי — כמו כולם
-    if (ROLE.get(id) === 'insp' && kind === 'cloth') return flat ? out.setHex(0xf2c414) : out.setRGB(INSP_FLAG, INSP_FLAG, INSP_FLAG);
+    // פקח: גוון-סימן (INSP_FLAG, ולשליש מהם עניבה — INSP_TIE) — השיידר של הבגד מצייר את המדים (vestShader); נעליים שחורות.
+    // מבקר סמוי — כמו כולם
+    if (ROLE.get(id) === 'insp') {
+      if (kind === 'cloth') { const f = hash(id + 77) < 0.34 ? INSP_TIE : INSP_FLAG; return flat ? out.setHex(0xbcd4ee) : out.setRGB(f, f, f); }
+      if (kind === 'shoes') return out.setRGB(0.16, 0.16, 0.17);
+    }
     if (flat) return out.setHex(personColors(id)[kind] ?? 0x888888);
     if (kind === 'cloth') { const t = CLOTH_TINT[Math.floor(hash(id + 3) * CLOTH_TINT.length)]; return out.setRGB(t[0], t[1], t[2]); }
     if (kind === 'skin') { const k = 0.94 + hash(id + 21) * 0.1; return out.setRGB(k, k, k); }
@@ -551,7 +611,7 @@ export class PeopleLayer {
     // 1. עולים ויורדים — לפני שמעדכנים את הממתינים, כדי שההולך יתחיל בדיוק מהמקום שבו עמד
     for (const ev of sim.events) {
       if (ev.type === 'board') {
-        const path = this.doorPath(busLayer, ev.bus, 'front'); if (!path) continue;
+        const path = this.doorPath(busLayer, ev.bus, ev.p.door || 'front'); if (!path) continue;    // פקחים בקבוצה — כל אחד בדלת אחרת
         const bm = this.benches.get(ev.stop.id), bk = bm?.get(ev.p.id);
         if (bk !== undefined) {
           // קם מהספסל (במקום, מעל כפות הרגליים), יוצא קדימה אל מול הסככה, ומשם הולך לדלת
@@ -615,7 +675,7 @@ export class PeopleLayer {
     let n = 0;
     for (const V of this.variants) V.n = V.sn = 0;
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
-    const B = new THREE.Matrix4(); let np = 0;
+    const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0; const A = new THREE.Matrix4();
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
@@ -625,7 +685,9 @@ export class PeopleLayer {
           this.sitMatrix(stop, bk, p.id, M);
           V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C)); });
           V.sn++;
-          if (V.sit.phone && np < SIT_MAX) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
+          const insp = ROLE.get(p.id) === 'insp';
+          if (V.sit.phone && np < SIT_MAX && !insp) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
+          if (insp && V.capSit && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.capSit));
           P.copy(V.sit.feet).lerp(V.sit.hip, 0.5).setY(0.015).applyMatrix4(M); B.makeTranslation(P.x, P.y, P.z); this.blobs.setMatrixAt(n, B);
           n++; continue;
         }
@@ -637,11 +699,16 @@ export class PeopleLayer {
         const V = this.variants[this.variantOf(p.id)];
         V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, M); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
         V.n++;
+        if (ROLE.get(p.id) === 'insp' && V.insp) {
+          if (V.insp.capStand && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.insp.capStand));
+          if (V.insp.readerStand && nr < 96) this.readers.setMatrixAt(nr++, A.multiplyMatrices(M, V.insp.readerStand));
+        }
         B.makeTranslation(x, 0.135, -y); this.blobs.setMatrixAt(n, B);
         n++;
       }
     }
     this.phones.count = np; this.phones.instanceMatrix.needsUpdate = true;
+    this.caps.count = nc; this.readers.count = nr; this.caps.instanceMatrix.needsUpdate = this.readers.instanceMatrix.needsUpdate = true;
     for (const V of this.variants) for (const im of V.sitMeshes) {
       im.count = V.sn; im.visible = V.sn > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
@@ -727,6 +794,7 @@ export class PeopleLayer {
       w = w || this.makeWalker(vi);
     }
     for (const [m, k, flat, base] of w.mats) m.color.copy(base).multiply(this.tint(id, k, flat, this.tmpC));
+    for (const a of w.acc || []) a.visible = ROLE.get(id) === 'insp';
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
@@ -773,6 +841,13 @@ export class PeopleLayer {
       foot: inner.getObjectByName(sd + 'Foot'), toe: inner.getObjectByName(sd + 'ToeBase') }));
     const bones = inner && new Map(); if (inner) inner.traverse(o => { if (o.isBone) bones.set(o.name, o); });
     const w = { obj, body, mixer, mats, inner, hips, blob, vi, bones, legs: legs && legs.every(l => l.up && l.knee && l.foot && l.toe) ? legs : null };
+    // פקח: כובע על עצם הראש ומכשיר ביד ימין (מוסתרים, ומופיעים רק לפקח); וצבע העור לאמה
+    for (const [m] of mats) { const U = m.userData.insp; if (!U) continue; if (V.skin) U.skinC.value.copy(V.skin); if (V.insp) U.vTop.value = V.insp.vTop; }
+    w.acc = [];
+    for (const [bn, geo, L] of [['Head', capGeo, V.insp?.capLocal], ['RightHand', readerGeo, V.insp?.readerLocal]]) {
+      const b = bones?.get(bn); if (!b || !L) continue;
+      const m = new THREE.Mesh(geo, ACC_MAT); m.matrixAutoUpdate = false; m.matrix.copy(L); m.visible = false; m.frustumCulled = false; b.add(m); w.acc.push(m);
+    }
     if (w.legs && mixer) {
       // הגובה הנמוך ביותר של הקרסול ושל הבוהן בזמן ההליכה (כף הרגל על הרצפה)
       let ra = Infinity, rt = Infinity; const P = new THREE.Vector3(), dur = clip ? clip.duration : 1.2;
