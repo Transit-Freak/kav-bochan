@@ -1,10 +1,9 @@
 // רמות הקושי — כל המספרים במקום אחד, כדי שקל לכוון.
-// creative — יצירתי (בלי שלבים, כסף בלי הגבלה); easy / medium / hard — קריירה עם שלבים (career.js) ברמות שונות.
+// creative — יצירתי (בלי שלבים, כסף בלי הגבלה); easy / medium — קריירה עם שלבים (career.js) ברמות שונות.
 // medium הוא בדיוק המשחק שהיה ("קריירה"). שמירות ישנות: career → medium, creative → creative.
 // simple — רמה "קל": רק הבסיס. מוסתרים סדרן, ביקוש, פקחים, מבקרים ודוחות, אירועים, שביעות רצון, ליסינג,
 // דמי תחנה וההגדרות; בטופס הקו — שם, צבע ושעות תחת "מתקדם". audits: false — אין מבקרים סמויים. lease: false — רק קנייה.
-// קשה נבדק בסימולציה (שחקן סביר משלים את כל השלבים בזמן ומרוויח). כדי שלא ייכנס לסחרור: התקלות ×1.5 ולא יותר,
-// קיצוץ על מועד שעבר לא יורד מתחת ל-missFloor (75%), והסבסוד חוזר למלא כשהשלב מושלם (restore). בלי missFloor — עד 50%.
+// הייתה גם רמה "קשה" — הוסרה (שלמה 10.11.2026). שמירות שלה נטענות כבינוני (normMode, ובטעינה — הודעה פעם אחת).
 export const MODES = {
   creative: {
     label: 'יצירתי', desc: 'כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.',
@@ -24,13 +23,8 @@ export const MODES = {
     breakK: 1, jamK: 1, lateK: 1, evade: 0.06, inspectors: true, fineBelow: 60, bonusFrom: 85,
     deadlineK: 1, missCut: 0.2, target: 0, headway: 20, toggles: false,
   },
-  hard: {
-    label: 'קשה', desc: '₪40,000 בלבד, רכבים יקרים, סבסוד נמוך, יותר תקלות, ביקורת קפדנית ומועדים קצרים.',
-    stages: true, money: 40_000, subsidy: 0.75, price: 1.2, stopFee: 800, simple: false, audits: true, lease: true,
-    breakK: 1.5, jamK: 1.5, lateK: 1.5, evade: 0.10, inspectors: true, fineBelow: 70, bonusFrom: 85,
-    deadlineK: 0.75, missCut: 0.25, missFloor: 0.75, restore: true, target: 0.05, headway: 15, toggles: false,
-  },
 };
-export const MODE_ORDER = ['easy', 'medium', 'hard', 'creative'];
-export const normMode = m => (m === 'career' || !MODES[m]) ? 'medium' : m;
+export const MODE_ORDER = ['easy', 'medium', 'creative'];
+export const normMode = m => (m === 'career' || m === 'hard' || !MODES[m]) ? 'medium' : m;
+export const HARD_GONE = 'רמת קשה הוסרה — המשחק ממשיך ברמה בינונית';
 export const modeOf = bank => MODES[normMode(bank?.mode)];

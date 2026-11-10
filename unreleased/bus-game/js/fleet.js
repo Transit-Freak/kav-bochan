@@ -21,7 +21,7 @@ export const TYPES = {
   elec:  { name: 'חשמלי', cap: 80, price: 7_500, lease: 750, km: 0.8, hour: 100, tint: 0x7fd99a },
 };
 export const TYPE_ORDER = ['mini', 'std', 'artic', 'elec'];
-// מחירי הרכבים לפי רמת הקושי (קל ×0.7, קשה ×1.2): משנים את TYPES במקום, מהמחירים הבסיסיים
+// מחירי הרכבים לפי רמת הקושי (קל ×0.7): משנים את TYPES במקום, מהמחירים הבסיסיים
 const BASE = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, { price: v.price, lease: v.lease }]));
 export function applyPrices(mode) {
   const k = MODES[normMode(mode)].price;
@@ -73,6 +73,7 @@ export class Bank {
     this.onDay = null;            // נקרא עם סיכום היום שהסתיים
     // מצב המשחק: 'career' (ברירת המחדל, גם לשמירות ישנות) או 'creative'; והמצב של השלבים (career.js)
     this.mode = normMode(save?.mode);            // שמירה ישנה: career/בלי → medium
+    this.wasHard = save?.mode === 'hard';          // רמה "קשה" הוסרה — ממשיכים בבינוני (הודעה ב-main.js)
     applyPrices(this.mode);
     this.career = save?.career && typeof save.career === 'object' ? save.career : null;
     this.legacy = !!save && !save.mode;

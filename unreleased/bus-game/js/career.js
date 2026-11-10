@@ -78,7 +78,7 @@ export class Coverage {
 // ---------- השלבים
 // כל שלב: כותרת, תיאור, ימים (עד המועד), פרס (כסף + סוגי רכבים שנפתחים), ובדיקה שמחזירה רשימת סעיפים
 const pct = v => Math.round(v * 100) + '%';
-// היעדים לפי רמת הקושי: M.target מוסיף או מוריד נקודות אחוז (קל −10, קשה +5), M.headway — התדירות בשלב 4 (null — בלי)
+// היעדים לפי רמת הקושי: M.target מוסיף או מוריד נקודות אחוז (קל −10), M.headway — התדירות בשלב 4 (null — בלי)
 const T = (base, M) => Math.min(0.97, Math.max(0.05, base + (M?.target || 0)));
 const zoneItem = (name, base) => (c, M) => { const t = T(base, M), z = c.cov.zones.find(x => x.name === name); const v = z ? z.cov : 0; return { label: `שכונת ${name}: ${pct(t)} מהתושבים`, v, target: t, txt: pct(v) }; };
 const resItem = base => (c, M) => { const t = T(base, M); return { label: 'תושבים עם תחנה קרובה', v: c.cov.res, target: t, txt: pct(c.cov.res) }; };
@@ -140,19 +140,18 @@ export class Career {
       const S = r.S;
       for (const t of S.unlock) if (!s.unlocked.includes(t)) s.unlocked.push(t);
       s.done.push({ stage: s.stage, day, silent });
-      if (this.M.restore && s.subsidyK < 1) s.subsidyK = 1;          // קשה: הקיצוץ נגמר כשהשלב מושלם
       if (!silent) { this.g.bank.money += S.reward; this.g.bank.today.bonus = (this.g.bank.today.bonus || 0) + S.reward; }
       s.stage++; s.since = day;
       s.deadline = STAGES[s.stage] ? day + stageDays(STAGES[s.stage], this.M) - 1 : null;
       if (!silent) this.g.onDone(S, s.stage);
     }
   }
-  // חצות: מועד שעבר — הסבסוד יורד (עד חצי, או עד missFloor) ויש עוד זמן; יום לפני המועד — אזהרה. אף פעם לא "הפסדתם"
+  // חצות: מועד שעבר — הסבסוד יורד (עד חצי) ויש עוד זמן; יום לפני המועד — אזהרה. אף פעם לא "הפסדתם"
   newDay(day) {
     if (this.creative || !this.st) return;
     const s = this.st, S = STAGES[s.stage]; if (!S || s.deadline == null) return;
     if (day > s.deadline) {
-      s.misses++; s.subsidyK = Math.max(this.M.missFloor ?? 0.5, +(s.subsidyK - this.M.missCut).toFixed(2));
+      s.misses++; s.subsidyK = Math.max(0.5, +(s.subsidyK - this.M.missCut).toFixed(2));
       s.deadline = day + Math.ceil(stageDays(S, this.M) / 2);
       this.g.onMiss(S, s);
     } else if (day === s.deadline) this.g.toast(`נשאר יום אחד לשלב "${S.title}".${this.M.missCut ? ' אחרי זה משרד התחבורה יקצץ בסבסוד.' : ''}`);

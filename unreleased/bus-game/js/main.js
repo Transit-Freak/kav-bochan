@@ -14,7 +14,7 @@ import { refreshAll } from './texkeep.js';
 import { INSPECTOR_DAY, FINE, RESERVE_COST } from './ops.js';
 import { Cloud, GOOGLE, userOk, hash } from './cloud.js';
 import { Coverage, Career, CoverageLayer, STAGES, newCareer, COVER_M } from './career.js';
-import { MODES, MODE_ORDER, modeOf, normMode } from './difficulty.js';
+import { MODES, MODE_ORDER, modeOf, normMode, HARD_GONE } from './difficulty.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
@@ -108,6 +108,7 @@ async function init() {
     if (L && d.fleet == null) { d.vtype = 'std'; d.fleet = vehiclesNeeded(L); gift += d.fleet; }
   }
   if (gift || hrs) saveLines(lineDefs);
+  if (bank.wasHard) { bank.wasHard = false; bank.save(t0); setTimeout(() => toast(HARD_GONE), 700); }
   if (bank.migrated) setTimeout(() => toast(`המחירים השתנו: רכבים זולים יותר, ויש סבסוד לכל ק"מ. הקופה הותאמה: ${money(bank.money)}`), 600);
   else if (gift) setTimeout(() => toast(`הקווים שכבר בניתם קיבלו ${gift} אוטובוסים רגילים במתנה`), 600);
   else if (hrs) setTimeout(() => toast('לקווים שלכם נקבעו שעות פעילות 05:00–24:00. משנים ב"רכבים ותדירות"'), 600);
@@ -863,7 +864,7 @@ function stageMissed(S, st) {
   bank.save(sim.time);
   $('#stageTitle').textContent = `המועד עבר: ${S.title}`;
   $('#stageBody').innerHTML = modeOf(bank).missCut ? `<p>השלב לא הושלם בזמן, ולכן משרד התחבורה מקצץ בסבסוד: מעכשיו <b>${Math.round(st.subsidyK * 100)}%</b> מהסבסוד לק"מ.</p>
-    <p class="hint">המשחק ממשיך — יש עוד ${st.deadline - dayOf(sim.time) + 1} ימים להשלים את השלב. ${modeOf(bank).restore ? `הסבסוד לא יורד מתחת ל-${Math.round(modeOf(bank).missFloor * 100)}%, וחוזר למלא כשהשלב מושלם.` : 'הסבסוד לא יורד מתחת ל-50%.'}</p>`
+    <p class="hint">המשחק ממשיך — יש עוד ${st.deadline - dayOf(sim.time) + 1} ימים להשלים את השלב. הסבסוד לא יורד מתחת ל-50%.</p>`
     : `<p>השלב לא הושלם בזמן. ברמה "קל" אין קנס — קיבלתם עוד ${st.deadline - dayOf(sim.time) + 1} ימים.</p>`;
   $('#stageModal').hidden = false;
 }
@@ -971,6 +972,7 @@ function applySave(sl) {
   const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
   bank.mode = nb.mode; applyPrices(nb.mode); bank.career = nb.career || (MODES[nb.mode].stages ? newCareer() : null);
   bank.inspectors = nb.inspectors; bank.reports = nb.reports; bank.settings = nb.settings; renderOps();
+  if (nb.wasHard) setTimeout(() => toast(HARD_GONE), 3400);          // אחרי ההודעה על הטעינה
   if (MODES[nb.mode].stages && !nb.career) { career.payStops(sl.lines.flatMap(d => d.stopIds)); }
   lineDefs = [];
   for (const d of sl.lines) { const dd = JSON.parse(JSON.stringify(d)); lineDefs.push(dd); addLine(dd, false); }
