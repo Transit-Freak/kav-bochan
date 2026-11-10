@@ -483,7 +483,7 @@ export class Sim {
   }
   // חצות: סיכום היום בקופה, והמונים של הקווים והתחנות מתאפסים
   newDay() {
-    this.bank?.roll(this.time);
+    this.bank?.roll(this.time); this.ops.roll();
     for (const L of this.lines) if (!L.retired) L.resetStats();
     this.resetStops();
     this.yesterday = this.today; this.resetToday();

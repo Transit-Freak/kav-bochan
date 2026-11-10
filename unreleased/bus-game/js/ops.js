@@ -90,10 +90,16 @@ export class Ops {
   onPass(L, b, k, waiting) { if (b.audit && waiting) b.audit.skipped++; }
   onLoad(b) { if (b.audit) b.audit.maxLoad = Math.max(b.audit.maxLoad, b.pax.length / b.cap); if (b.broken && b.audit) b.audit.broke = true; }
   // כרטיס: מי שלא משלם — הכנסה שהולכת לאיבוד; פקחים תופסים חלק וגובים קנס
+  // התחמקות "חכמה": לכל קו — איזה חלק מהנסיעות שלו נבדקו לאחרונה (היום, אתמול ושלשום במשקל יורד; bank.inspHist),
+  // וככל שיותר — פחות מעזים לנסוע בלי לשלם. רצפה: 1.5%. (הפקחים שנשכרים משפיעים דרך הביקורות שהם עושים)
+  risk(L) { const h = this.bank?.inspHist?.[L.def?.id || L.id]; if (!h) return 0; const trips = Math.max(10, 960 / (L.def?.headway || 20)); return (h[0] + 0.7 * h[1] + 0.4 * h[2]) / (2.1 * trips); }
+  evadeRate(L) { return Math.max(0.015, this.M.evade * Math.exp(-3 * this.risk(L))); }
+  noteInspection(L) { if (!this.bank) return; const H = this.bank.inspHist || (this.bank.inspHist = {}), k = L.def?.id || L.id; (H[k] || (H[k] = [0, 0, 0]))[0]++; }
+  roll() { const H = this.bank?.inspHist; if (!H) return; for (const k of Object.keys(H)) { const h = H[k]; h.unshift(0); h.length = 3; if (!h[0] && !h[1] && !h[2]) delete H[k]; } }
   pays(L) {
     if (!this.incidents) return true;
     if (!this.M.evade) return true;
-    const e = Math.max(0.01, this.M.evade - 0.012 * this.inspectors);
+    const e = this.evadeRate(L);
     if (this.rand() >= e) return true;
     const T = this.bank?.today; if (T) T.evaded = (T.evaded || 0) + FARE;
     if (this.inspectors && this.rand() < Math.min(0.6, 0.07 * this.inspectors)) {
@@ -154,6 +160,7 @@ export class Ops {
     // קבוצה: עד פקח אחד לכל דלת (מיניבוס — 1, רגיל וחשמלי — 2, מפרקי — 3), וכל אחד עולה בדלת אחרת
     const n = 1 + Math.floor(this.rand() * (DOORS[L.def.vtype] || 2)), to = Math.min(L.stops.length - 1, k + 2 + Math.floor(this.rand() * 3));
     for (let i = 0; i < n; i++) { const p = this.sim.makeRider(L, k, to, 'insp'); if (p) p.door = DOOR_NAMES[i]; }
+    this.noteInspection(L);
   }
   // ---------- פעולות הסדרן
   hold(b, sec = 60) { if (b.state === 'dwell') b.hold = Math.max(b.hold || 0, this.sim.time) + sec; else b.holdNext = (b.holdNext || 0) + sec; this.note('hold', b.line, `הסדרן: החזקה ${mm(sec)} דק' בתחנה`, b); }

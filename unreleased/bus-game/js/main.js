@@ -839,6 +839,9 @@ function renderMoney() {
     <h4>היום · יום ${d.day}</h4>${dayRows(d)}
     ${lines.length ? `<h4>לפי קו, היום <span class="lmeta">(בלי קניית רכבים)</span></h4>
     <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>כרטיסים</th><th>סבסוד</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
+    ${M.evade && lines.length ? `<h4>התחמקות מתשלום לפי קו</h4><table class="perline"><tr><th>קו</th><th>ביקורות (3 ימים)</th><th>מתחמקים</th></tr>${lines.filter(L => !L.retired).map(L => { const h = bank.inspHist?.[L.def.id] || [0, 0, 0];
+      return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${h[0] + h[1] + h[2]}</td><td>${(sim.ops.evadeRate(L) * 100).toFixed(1)}%</td></tr>`; }).join('')}</table>
+    <p class="hint">בקו שיש בו הרבה ביקורות, פחות נוסעים מעזים לנסוע בלי לשלם.</p>` : ''}
     <h4>הצי</h4><p class="lmeta big">${fleetTxt}</p>
     <h4>מחירון רכבים</h4>
     <table class="prices"><tr><th>סוג</th><th>מקומות</th><th>קנייה</th>${M.lease ? '<th>ליסינג ליום</th>' : ''}<th>לק"מ</th><th>לשעה</th></tr>
@@ -1053,6 +1056,7 @@ function boardFP() {
   const b = cams.modes.follow.bus; if (!b) { toast('אין אוטובוס'); return; }
   if (b.state !== 'dwell') { toast('עולים כשהאוטובוס עומד בתחנה'); return; }
   cams.set('free'); $('#inspHud').hidden = true; document.body.classList.add('fpview'); plannerLayers(false);
+  sim.ops.noteInspection(b.line);
   if (!fp.enter(b)) { toast('לא הצלחתי לעלות'); fp.g.onExit(); }
   const r = document.querySelector('.bar')?.getBoundingClientRect(); $('#ifp').style.setProperty('--ifp-top', `${Math.round((r?.bottom || 60) + 8)}px`);
 }
