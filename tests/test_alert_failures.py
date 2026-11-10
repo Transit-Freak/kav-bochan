@@ -63,10 +63,18 @@ class StaleTests(unittest.TestCase):
         out = self.check('2026-10-03', '2026-10-04', datetime.date(2026, 10, 5), '2026-10-04T08:00+00:00')
         self.assertIn('04.10.2026 11:00', out['⚠️ לא מתעדכן: הקו המודיע'])
 
-    def test_every_workflow_in_the_yml_is_watched(self):
+    def test_yml_runs_the_daily_digest_only(self):
+        # מ-10.11 אין התראה על כל ריצה (workflow_run) — רק סיכום יומי אחד בסוף היום
         yml = (Path(__file__).parents[1] / '.github/workflows/alert-failures.yml').read_text(encoding='utf-8')
-        listed = set(re.findall(r'^      - ([\w-]+)$', yml.split('types:')[0], re.M))
-        self.assertEqual(listed, set(alert.WATCHED))
+        on = yml.split('\non:')[1].split('\npermissions:')[0]
+        self.assertNotIn('workflow_run', on)
+        self.assertRegex(yml, r"cron: '\d+ \d+ \* \* \*'")
+        self.assertIn('alert_failures.py --digest', yml)
+
+    def test_every_watched_workflow_exists(self):
+        wf = Path(__file__).parents[1] / '.github/workflows'
+        names = {re.search(r'^name:\s*(\S+)', f.read_text(encoding='utf-8'), re.M).group(1) for f in wf.glob('*.yml')}
+        self.assertEqual(set(), set(alert.WATCHED) - names)
 
     def test_line_history_stuck_since_02_10(self):
         out = self.check('2026-10-03', '2026-10-02', datetime.date(2026, 10, 5))
