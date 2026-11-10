@@ -588,6 +588,10 @@ function onDriver(on, bus) {
   $('#drvHud').hidden = !on;
   if (on) { cancelPlanning(); $('#panel').classList.add('min'); placeDriverHud(); updateDriverHud(); const o = buses.objectOf(bus); if (o) drive.attach(bus, o); }
   else drive.detach();
+  // במבט נהג — בלי שכבות של המתכנן: הקווים הצבועים על הכביש, הסיכות של התחנות, השלטים מעל האוטובוסים, הביקוש והכיסוי
+  for (const g of lineGroups.values()) g.visible = on ? false : (lines.find(L => lineGroups.get(L.id) === g)?.visible !== false);
+  if (pins) pins.visible = !on; buses.hideLabels = on || dview.on;
+  if (on && dview.on) setDemandView(false); if (on && covLayer.visible) setCoverView(false);
 }
 // התצוגה למעלה, מתחת לסרגל (בתחתית רואים את לוח השעונים)
 function placeDriverHud() {
@@ -601,10 +605,10 @@ function updateDriverHud() {
   const L = b.line, at = b.state === 'dwell' && b.ph === 'xchg', S = L.stops[Math.min(L.stops.length - 1, b.next)];
   const n = b.pax.filter(p => !p.role).length;
   const num = $('#dhNum'); num.textContent = L.def.number; num.style.background = L.color;
-  const nx = S ? `${at ? 'בתחנה' : 'התחנה הבאה'}: ${S.name}` : 'נוסע למסוף';
+  const nx = S ? `${at ? 'בתחנה' : 'הבאה'}: ${S.name}` : 'נוסע למסוף';
   if ($('#dhNext').textContent !== nx) $('#dhNext').textContent = nx;
   $('#dhPax').textContent = `${n} נוסעים · ${Math.round((b.v || 0) * 3.6)} קמ"ש`;
-  if (shift?.on) { const st = shift.status(); $('#dhDutyTxt').textContent = st; $('#dhSkip').hidden = !/הפסקה/.test(st); }
+  if (shift?.on) { const st = shift.short(); $('#dhDutyTxt').textContent = st; $('#dhSkip').hidden = !/הפסקה/.test(st); }
 }
 function pickBus(after) {
   const all = lines.flatMap(L => L.buses.filter(b => b.state === 'drive' || b.state === 'dwell'));

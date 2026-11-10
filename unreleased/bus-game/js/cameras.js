@@ -100,8 +100,8 @@ function driverMode(cm) {
       const e = eyeOf(o);
       o.updateMatrixWorld(true);
       // קצת מעל העיניים ומעט קדימה — כך רואים את השעונים מעל ההגה
-      P.set(e.x + sw.x + 0.003 * Math.sin(sw.t * 0.7), e.y + 0.05 + bob, e.z + 0.07 + sw.z);
-      T.set(e.x + sw.x * 0.3, e.y + 0.05 - (cm.camera.aspect > 1 ? 2.1 : 1.25), e.z + 9);
+      P.set(e.x + sw.x + 0.003 * Math.sin(sw.t * 0.7), e.y + 0.08 + bob, e.z + 0.07 + sw.z);
+      T.set(e.x + sw.x * 0.3, e.y + 0.08 - (cm.camera.aspect > 1 ? 2.1 : 1.4), e.z + 9);
       o.localToWorld(P); o.localToWorld(T);
       cm.camera.position.copy(P); cm.camera.lookAt(T);
       cm.controls.target.copy(T);

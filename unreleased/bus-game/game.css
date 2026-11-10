@@ -446,3 +446,17 @@ table.duty tr.brk td{color:var(--muted);font-size:12.5px;text-align:center;borde
 .qbox b{font-size:17px;line-height:1.35}
 .qbox .q-btns{display:grid;gap:6px}
 .qbox .q-btns button{padding:10px;border-radius:12px;font-size:15px;font-weight:700}
+
+/* מבט נהג: רצועה דקה אחת למעלה — השמשה נשארת פנויה */
+.drvhud.slim{flex-wrap:nowrap;gap:6px;padding:4px 6px;border-radius:12px;font-size:12.5px;min-height:34px}
+.drvhud.slim .x{background:transparent;color:#fff;border:0;font-size:15px;padding:2px 6px;flex:none}
+.drvhud.slim .dh-next{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.drvhud.slim .dh-duty{flex:none;flex-basis:auto;border:0;padding:0;margin:0;color:#fde68a;font-size:12px;white-space:nowrap;display:flex;gap:4px;align-items:center}
+.drvhud.slim .dh-duty button{font-size:11px;padding:2px 6px}
+.drvhud.slim .dh-stop,.drvhud.slim .dh-score{font-size:11px;padding:2px 6px}
+/* הדוושות: קטנות ושקופות למחצה, בשולי המסך — השעונים והידיים נראים */
+.drvctl .pedal{width:58px;height:84px;font-size:15px;bottom:auto;top:58vh;opacity:.62;border-radius:14px}
+.drvctl .pedal.brake{left:4px}.drvctl .pedal.gas{right:4px}
+.drvctl .pedal.on{opacity:.9}
+/* נהג (תפקיד): בלי הקופה ותג הרמה */
+body.role-driver #money,body.role-driver #modeBadge{display:none}

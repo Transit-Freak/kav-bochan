@@ -253,13 +253,14 @@
 </div>
 
 <footer class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <button id="creditsBtn" class="link">קרדיטים</button><span id="fps" hidden></span></footer>
-<div class="drvhud" id="drvHud" hidden>
-  <span class="num" id="dhNum">1</span>
-  <div class="dh-txt"><b id="dhNext"></b><small id="dhPax"></small></div>
+<div class="drvhud slim" id="drvHud" hidden>
+  <button type="button" id="dhExit" class="x" aria-label="יציאה ממבט הנהג">✕</button>
+  <span class="num sm" id="dhNum">1</span>
+  <b class="dh-next" id="dhNext"></b>
+  <span class="dh-duty" id="dhDuty" hidden><span id="dhDutyTxt"></span><button type="button" id="dhSkip" hidden>דילוג</button></span>
   <span class="dh-stop" id="dhStop" title="נוסע ביקש לעצור">עצירה</span>
   <span class="dh-score" id="dhScore" title="ניקוד"></span>
-  <div class="dh-duty" id="dhDuty" hidden><span id="dhDutyTxt"></span><button type="button" id="dhSkip" hidden>דילוג להפסקה</button></div>
-  <button type="button" id="dhExit" class="primary">יציאה</button>
+  <small id="dhPax" hidden></small>
 </div>
 <div class="drvhud insphud" id="inspHud" hidden>
   <span class="num" id="ihNum">1</span>

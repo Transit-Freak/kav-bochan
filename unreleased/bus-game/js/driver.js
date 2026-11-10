@@ -107,7 +107,8 @@ function buildCab(M) {
   hub.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), WHEEL.n));
   add(M.trim, hub.translate(WHEEL.c.x, WHEEL.c.y, WHEEL.c.z));
   for (const deg of [0, 180, 270]) add(M.trim, rod(WHEEL.c, rimPoint(deg), 0.014, 8));
-  const col0 = WHEEL.c.clone().addScaledVector(WHEEL.n, -0.03), col1 = WHEEL.c.clone().addScaledVector(WHEEL.n, -0.36);
+  // עמוד ההגה יורד מהטבור קדימה ולמטה, אל מתחת ללוח השעונים (כך המסך שבאמצע נראה מעל הטבור)
+  const col0 = WHEEL.c.clone().addScaledVector(WHEEL.n, -0.03), col1 = WHEEL.c.clone().add(new THREE.Vector3(0, -0.32, 0.12));
   add(M.dash, rod(col0, col1, 0.055, 14));
   add(M.trim, rod(col1, col1.clone().add(new THREE.Vector3(0, -0.05, 0.12)), 0.075, 14));
   return parts;

@@ -114,6 +114,14 @@ export class DriverShift {
       this.g.toast(ok ? '😊 הנוסע מודה לך' : `😠 תלונה: התשובה הנכונה — ${q.a[q.ok]}`);
     };
   }
+  // קצר, לרצועה העליונה במבט נהג
+  short() {
+    const t = this.trip; if (!t) return '';
+    const sim = this.g.sim, n = `${this.i + 1}/${this.trips.length}`;
+    if (!t.bus || t.bus.state !== 'drive' && t.bus.state !== 'dwell') return `${n} · הפסקה עד ${clockText(t.dep)}`;
+    if (t.actual == null) { const m = Math.round((sim.time - t.dep) / 60); return `${n} · יציאה ${clockText(t.dep)}${m > 0 ? ` (+${m})` : ''}`; }
+    const d = Math.round((t.actual - t.dep) / 60); return `${n} · ${d === 0 ? 'בזמן ✓' : d > 0 ? `+${d} דק'` : `${d} דק'`}`;
+  }
   // שורה קטנה בתצוגה: הנסיעה הנוכחית או ההפסקה
   status() {
     const t = this.trip; if (!t) return '';

@@ -13,6 +13,7 @@ const R = {
   noTalk: [0, 0, 512, 160], noSmoke: [512, 0, 160, 160], cctv2: [672, 0, 352, 160],
   doorBtn: [0, 160, 256, 160], emergency: [256, 160, 512, 128], switches: [0, 336, 512, 192],
   ravkav: [512, 336, 256, 192], visorTag: [768, 160, 256, 96], kneel: [768, 256, 256, 64],
+  cctv: [0, 528, 384, 256], radio: [384, 528, 256, 128], hold: [640, 528, 384, 128], speed: [384, 656, 160, 160], lic: [544, 656, 320, 128],
 };
 
 function rr(x, X, Y, W, H, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + W, Y, X + W, Y + H, r); x.arcTo(X + W, Y + H, X, Y + H, r); x.arcTo(X, Y + H, X, Y, r); x.arcTo(X, Y, X + W, Y, r); x.closePath(); }
@@ -61,6 +62,25 @@ function atlas() {
   { const [X, Y, W, H] = R.visorTag; x.fillStyle = '#facc15'; x.fillRect(X, Y, W, H); text(x, 'זהירות — שטח מת', X + W / 2, Y + 32, 28, '#111'); text(x, 'בדקו במראות', X + W / 2, Y + 68, 26, '#111', 500); }
   // מחוון "כריעה" ליד הדלת (ירוק — האוטובוס כורע)
   { const [X, Y, W, H] = R.kneel; x.fillStyle = '#052e16'; x.fillRect(X, Y, W, H); text(x, '▼ האוטובוס כורע', X + W / 2, Y + H / 2, 30, '#4ade80'); }
+  // מסך המצלמות של הנהג: ארבע תמונות (הדלתות, הפנים, אחור)
+  { const [X, Y, W, H] = R.cctv; x.fillStyle = '#05070a'; x.fillRect(X, Y, W, H);
+    [['דלת 1', '#3b4a5a'], ['דלת 2', '#46525e'], ['פנים', '#2f3d4c'], ['אחור', '#3a4654']].forEach(([s, col], i) => {
+      const cx = X + 8 + (i % 2) * (W / 2), cy = Y + 8 + Math.floor(i / 2) * (H / 2), w = W / 2 - 16, h = H / 2 - 16;
+      x.fillStyle = col; x.fillRect(cx, cy, w, h); x.fillStyle = '#5b6b7a'; x.fillRect(cx, cy + h * 0.62, w, h * 0.38);
+      x.fillStyle = '#93a3b3'; for (let k = 0; k < 3; k++) x.fillRect(cx + 16 + k * 50, cy + 30, 22, 46);
+      text(x, s, cx + w - 38, cy + 18, 20, '#e2e8f0'); x.fillStyle = '#ef4444'; x.beginPath(); x.arc(cx + 14, cy + 14, 5, 0, 7); x.fill(); }); }
+  // מכשיר הקשר עם המוקד
+  { const [X, Y, W, H] = R.radio; x.fillStyle = '#111317'; x.fillRect(X, Y, W, H); x.fillStyle = '#0f2a1a'; x.fillRect(X + 10, Y + 10, 140, 50);
+    text(x, 'מוקד · ערוץ 3', X + 80, Y + 36, 22, '#4ade80'); for (let i = 0; i < 4; i++) { x.fillStyle = ['#ef4444', '#e5e7eb', '#e5e7eb', '#22c55e'][i]; x.beginPath(); x.arc(X + 30 + i * 36, Y + 92, 12, 0, 7); x.fill(); }
+    text(x, 'קשר', X + 205, Y + 36, 30, '#e5e7eb'); }
+  // מדבקה: נוסעים, החזיקו במאחזים
+  { const [X, Y, W, H] = R.hold; x.fillStyle = '#facc15'; rr(x, X + 4, Y + 4, W - 8, H - 8, 14); x.fill(); text(x, 'נוסעים יקרים —', X + W / 2, Y + 42, 32, '#111'); text(x, 'החזיקו במאחזים בזמן הנסיעה', X + W / 2, Y + 88, 28, '#111', 500); }
+  // מהירות מרבית
+  { const [X, Y, W, H] = R.speed; x.fillStyle = '#fff'; x.fillRect(X, Y, W, H); x.strokeStyle = '#d0021b'; x.lineWidth = 16; x.beginPath(); x.arc(X + W / 2, Y + H / 2, 66, 0, 7); x.stroke();
+    x.fillStyle = '#111'; x.font = `800 64px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.direction = 'ltr'; x.fillText('80', X + W / 2, Y + H / 2 + 4); }
+  // רישיון קו (מודבק בפינת השמשה)
+  { const [X, Y, W, H] = R.lic; x.fillStyle = '#e0f2fe'; x.fillRect(X, Y, W, H); x.strokeStyle = '#0369a1'; x.lineWidth = 6; x.strokeRect(X + 4, Y + 4, W - 8, H - 8);
+    text(x, 'רישיון קו — משרד התחבורה', X + W / 2, Y + 40, 26, '#0c4a6e'); text(x, 'קריית מלאכי · עירוני', X + W / 2, Y + 86, 26, '#0c4a6e', 500); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return keep(t);
 }
 
@@ -126,9 +146,19 @@ export function addCabDetails(cab, M) {
   // לוח המתגים בקונסולה (רשת נפרדת: במבט נהג לוחצים עליו, והמתגים הפעילים נדלקים — js/drivectl.js)
   const plate = new THREE.Mesh(sign([0, 0, S, S], PLATE.w, PLATE.d, V(PLATE.x, FL + 0.7215, PLATE.z), V(0, 1, 0), V(0, 0, 1)), switchPlate().mat);
   plate.name = 'CabSwitchPlate'; cab.add(plate);
+  // בלוח, מימין לשעונים: מסך המצלמות; משמאל: מכשיר הקשר. על השמשה: רישיון קו ומדבקה לנוסעים; על העמוד: מהירות מרבית
+  const toDriver = V(0.1, 0.35, -1).normalize();
+  gs.push(sign(R.cctv, 0.17, 0.113, V(0.36, 1.45, 5.36), toDriver));
+  gs.push(sign(R.radio, 0.14, 0.07, V(1.08, 1.33, 5.33).addScaledVector(V(-0.25, 0.3, -1).normalize(), 0.026), V(-0.25, 0.3, -1).normalize()));
+  gs.push(sign(R.lic, 0.2, 0.08, V(-0.62, 2.42, 6.02), V(0, -0.15, -1)));
+  gs.push(sign(R.hold, 0.3, 0.1, V(-0.2, 2.42, 6.02), V(0, -0.15, -1)));
+  gs.push(sign(R.speed, 0.1, 0.1, V(1.1, 1.95, 5.93), V(-0.6, 0, -0.8)));
   const geo = mergeGeometries(gs.map(g => g.toNonIndexed()), false);
   const signs = new THREE.Mesh(geo, mat); signs.name = 'CabSigns'; cab.add(signs);
   // גוף מכשיר רב-קו ומגן השמש (מגן כהה ושקוף למחצה)
+  // גוף מסך המצלמות ומכשיר הקשר
+  const cam = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.13, 0.03), M.dash); cam.position.set(0.36, 1.45, 5.36).addScaledVector(toDriver, -0.016); cam.lookAt(cam.position.clone().add(toDriver)); cab.add(cam);
+  const rad = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.05), M.dash); rad.position.set(1.08, 1.33, 5.33); rad.lookAt(rad.position.clone().add(V(-0.25, 0.3, -1))); cab.add(rad);
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.13, 0.06), M.dash);
   body.position.set(0.2, 1.47, 5.3); body.lookAt(body.position.clone().add(dir)); body.name = 'RavKavReader'; cab.add(body);
   const visor = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.22, 0.012), new THREE.MeshStandardMaterial({ name: 'M_CabVisor', color: 0x1a1d22, roughness: 0.5, transparent: true, opacity: 0.88 }));
