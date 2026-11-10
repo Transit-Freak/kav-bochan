@@ -383,3 +383,14 @@ body.simple .fadv-btn{display:block}
 body.simple #lineFormCard:not(.showadv) .fadv{display:none}
 body.simple .nolease,body.simple .adv,body.simple .cams .soon,body.simple #demandBtn,body.simple #opsBox,body.simple .full-help{display:none}
 body:not(.simple) .easy-help{display:none}
+
+/* מבט נהג: בלי הלוח, ותצוגה קטנה למעלה (מתחת לסרגל) — מספר הקו, התחנה הבאה, נוסעים, ויציאה */
+body.driving #panel,body.driving .attr{display:none}
+.drvhud{position:fixed;inset-inline:10px;top:110px;display:flex;align-items:center;gap:10px;
+  padding:6px 10px;background:rgba(15,23,42,.72);color:#fff;border-radius:16px;backdrop-filter:blur(6px);z-index:20;max-width:520px;margin-inline:auto}
+.drvhud[hidden]{display:none}
+.drvhud .dh-txt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.drvhud .dh-txt b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drvhud .dh-txt small{font-size:12.5px;color:#cbd5e1}
+.drvhud button{flex:none}
+body.driving .brand,body.driving .cams{display:none}

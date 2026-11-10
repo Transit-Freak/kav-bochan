@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { keep } from './texkeep.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { addCabDetails, gaugeTexture as gaugeTextureHD } from './cabdetails.js';
 
 const FL = 0.66;                 // גובה הרצפה בפנים
 const DX = 0.74;                 // קו האמצע של הנהג, ההגה והמושב
@@ -54,23 +55,7 @@ const at = (g, x, y, z, rx = 0, ry = 0, rz = 0) => {
   return g.translate(x, y, z);
 };
 
-// לוח השעונים: שני שעונים עגולים ומסך קטן ביניהם (טקסטורה מצוירת)
-function gaugeTexture() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 96;
-  const x = c.getContext('2d');
-  x.fillStyle = '#07090c'; x.fillRect(0, 0, 256, 96);
-  for (const cx of [48, 208]) {
-    x.strokeStyle = '#b9c2cc'; x.lineWidth = 3; x.beginPath(); x.arc(cx, 50, 36, 0, Math.PI * 2); x.stroke();
-    x.strokeStyle = '#e5e7eb'; x.lineWidth = 2;
-    for (let i = 0; i <= 10; i++) { const a = Math.PI * (0.75 + i * 0.15); x.beginPath(); x.moveTo(cx + Math.cos(a) * 28, 50 + Math.sin(a) * 28); x.lineTo(cx + Math.cos(a) * 33, 50 + Math.sin(a) * 33); x.stroke(); }
-    const a = Math.PI * (cx < 128 ? 1.3 : 1.05);
-    x.strokeStyle = '#ef4444'; x.lineWidth = 3; x.beginPath(); x.moveTo(cx, 50); x.lineTo(cx + Math.cos(a) * 30, 50 + Math.sin(a) * 30); x.stroke();
-  }
-  x.fillStyle = '#0d2a4a'; x.fillRect(96, 22, 64, 52);
-  x.fillStyle = '#7dd3fc'; x.fillRect(102, 30, 40, 6); x.fillRect(102, 44, 52, 4); x.fillRect(102, 56, 30, 4);
-  x.fillStyle = '#22c55e'; x.beginPath(); x.arc(128, 12, 4, 0, Math.PI * 2); x.fill();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return keep(t);
-}
+// לוח השעונים — js/cabdetails.js (gaugeTextureHD)
 
 // החומרים של תא הנהג: אותם חומרים של האוטובוס מ-Blender (לפי השם), כדי שייראו כמו שאר הפנים
 function busMaterials(root) {
@@ -89,7 +74,7 @@ function busMaterials(root) {
     // לוח מחוונים: פלסטיק כהה מט, קצת בהיר מהשחור של המסגרות כדי שיהיו צורות
     dash: new THREE.MeshStandardMaterial({ name: 'M_CabDash', color: 0x1b1d20, roughness: 0.7 }),
     frost: new THREE.MeshStandardMaterial({ name: 'M_CabFrost', color: 0xe4eaee, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.62 }),
-    gauges: (t => new THREE.MeshStandardMaterial({ name: 'M_CabGauges', map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.7, roughness: 0.35 }))(gaugeTexture()),
+    gauges: (t => new THREE.MeshStandardMaterial({ name: 'M_CabGauges', map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.35 }))(gaugeTextureHD()),
   };
 }
 
@@ -101,7 +86,7 @@ function buildCab(M) {
   add(M.trim, at(rbox(0.92, 0.03, 0.72, 0.012), 0.77, 1.255, 5.6));                    // משטח עליון כהה
   add(M.dash, at(box(0.9, 0.29, 0.05), 0.77, FL + 0.145, 5.52));                     // הקיר הקדמי של גומחת הרגליים
   add(M.dash, at(rbox(0.5, 0.16, 0.24, 0.05), DX, 1.32, 5.34));                       // מכסה השעונים
-  const gp = new THREE.PlaneGeometry(0.34, 0.1); gp.rotateY(Math.PI); gp.rotateX(0.12);
+  const gp = new THREE.PlaneGeometry(0.44, 0.1375); gp.rotateY(Math.PI); gp.rotateX(0.12);
   add(M.gauges, gp.translate(DX - 0.03, 1.325, 5.214));
   // הקונסולה האמצעית בין הנהג לדלת (מתגים, מסך קטן), עד הרצפה
   add(M.dash, at(rbox(0.3, 0.7, 0.74, 0.035), 0.17, FL + 0.35, 5.59));
@@ -220,6 +205,26 @@ function removeCabSidePanel(root) {
 }
 
 // איחוד לפי חומר — כמה רשתות בודדות לכל תא הנהג
+// ---------- מראות צד בקרני איל (כמו באוטובוס עירוני): זרוע מעוקלת מפינת הגג, וראש המראה לפני פינות השמשה.
+// צד הנהג (‎+X) נראה דרך השמשה גם בטלפון לאורך; צד הדלתות (‎-X) — לרוחב. המשטח של המראה: ‎Mirror_L / ‎Mirror_R —
+// במבט נהג (cameras.js) הוא מקבל תמונה חיה מאחור; אחרת — מתכת מבריקה
+export const MIRRORS = { L: { x: 1.22 }, R: { x: -1.3 }, y: 2.45, z: 6.74, w: 0.2, h: 0.32 };
+function buildMirrors(M) {
+  const g = new THREE.Group(); g.name = 'Mirrors';
+  const face = new THREE.MeshStandardMaterial({ name: 'M_MirrorFace', color: 0xaab4bd, roughness: 0.08, metalness: 0.95 });
+  for (const [k, sd] of [['L', 1], ['R', -1]]) {
+    const x = MIRRORS[k].x, y = MIRRORS.y, z = MIRRORS.z, top = y + MIRRORS.h / 2;
+    const arm = new THREE.CatmullRomCurve3([V(sd * 1.12, 3.0, 6.2), V(x + sd * 0.03, 3.02, 6.5), V(x, 2.92, z - 0.02), V(x, top + 0.02, z + 0.01)]);
+    const am = new THREE.Mesh(new THREE.TubeGeometry(arm, 16, 0.018, 8), M.gloss); am.name = 'MirrorArm_' + k; g.add(am);
+    const hm = new THREE.Mesh(rbox(MIRRORS.w + 0.03, MIRRORS.h + 0.03, 0.07, 0.025), M.gloss); hm.position.set(x, y, z + 0.035); hm.name = 'MirrorHead_' + k; g.add(hm);
+    const fm = new THREE.Mesh(new THREE.PlaneGeometry(MIRRORS.w, MIRRORS.h).rotateY(Math.PI), face); fm.position.set(x, y, z - 0.002); fm.name = 'Mirror_' + k;
+    // פונה מעט פנימה אל הנהג
+    fm.rotation.y = sd * 0.18; hm.rotation.y = sd * 0.18; g.add(fm);
+  }
+  return g;
+}
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
 function mergeParts(parts, name) {
   const g = new THREE.Group(); g.name = name;
   const by = new Map();
@@ -365,7 +370,7 @@ function poseDriver(gltf, hip) {
     const P = palm[s].clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
     const curl = (bone, deg2) => { if (!bone) return; const d = new THREE.Vector3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()));
       turn(bone, new THREE.Vector3().crossVectors(d, P), deg2); };
-    curl(fb, 10); curl(f1, 58); curl(th, 28);                // אצבעות סביב ההגה, בלי להיכנס בו
+    curl(fb, 32); curl(f1, 74); curl(th, 46);                // אצבעות סגורות סביב ההגה (מקיפות את הטבעת), בלי להיכנס בה
   }
   // הראש: מסתכל קדימה על הכביש, קצת למטה
   turn(B('Neck'), X, -4); turn(B('Head'), X, 6);
@@ -486,6 +491,8 @@ export function addCab(busRoot, people) {
   parts.push(...buildSeat(M, seat.seatY, seat.back));
   cab.add(mergeParts(parts, 'CabParts'));
   cab.add(buildCabDoor(M));
+  cab.add(buildMirrors(M));
+  try { addCabDetails(cab, M); } catch (e) { console.warn('cab details failed', e); }
   busRoot.add(cab);
   return cab;
 }
