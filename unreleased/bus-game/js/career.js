@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { TYPE_ORDER, money, dayOf, lineCycle } from './fleet.js';
 import { hoursOf } from './demand.js';
-import { modeOf, rewardOf } from './difficulty.js';
+import { modeOf } from './difficulty.js';
 
 export const COVER_M = 500;                   // הליכה, מטרים
 const COVER_R = COVER_M / 1.2;                // בקו אווירי
@@ -141,7 +141,7 @@ export class Career {
       for (const t of S.unlock) if (!s.unlocked.includes(t)) s.unlocked.push(t);
       s.done.push({ stage: s.stage, day, silent });
       if (this.M.restore && s.subsidyK < 1) s.subsidyK = 1;          // קשה: הקיצוץ נגמר כשהשלב מושלם
-      if (!silent) { const R = rewardOf(S, this.M); this.g.bank.money += R; this.g.bank.today.bonus = (this.g.bank.today.bonus || 0) + R; }
+      if (!silent) { this.g.bank.money += S.reward; this.g.bank.today.bonus = (this.g.bank.today.bonus || 0) + S.reward; }
       s.stage++; s.since = day;
       s.deadline = STAGES[s.stage] ? day + stageDays(STAGES[s.stage], this.M) - 1 : null;
       if (!silent) this.g.onDone(S, s.stage);

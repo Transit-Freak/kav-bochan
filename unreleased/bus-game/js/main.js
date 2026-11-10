@@ -14,7 +14,7 @@ import { refreshAll } from './texkeep.js';
 import { INSPECTOR_DAY, FINE, RESERVE_COST } from './ops.js';
 import { Cloud, GOOGLE, userOk, hash } from './cloud.js';
 import { Coverage, Career, CoverageLayer, STAGES, newCareer, COVER_M } from './career.js';
-import { MODES, MODE_ORDER, modeOf, normMode, rewardOf } from './difficulty.js';
+import { MODES, MODE_ORDER, modeOf, normMode } from './difficulty.js';
 import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
@@ -832,7 +832,7 @@ function renderMissions() {
       html = `<div class="scard mission"><div class="mhead"><span class="pill">שלב ${r.stage + 1} מתוך ${STAGES.length}${r.S.hard ? ' · קשה' : ''}</span><span class="${left <= 1 ? 'bad' : 'lmeta'}">${left > 0 ? `עוד ${left} ימים` : 'היום האחרון'}</span></div>
         <h3>${esc(r.S.title)}</h3><p class="hint">${esc(r.S.desc(modeOf(bank)))}</p>
         <ul class="checks">${r.items.map(i => `<li class="${i.done ? 'ok' : ''}"><div class="crow"><span>${i.done ? '✓' : '○'} ${esc(i.label)}</span><b>${esc(i.txt)}</b></div>${bar(i.v, i.target, i.done)}</li>`).join('')}</ul>
-        <div class="reward">פרס: <b>${money(rewardOf(r.S, modeOf(bank)))}</b>${r.S.unlock.length ? ` · נפתח: ${r.S.unlock.map(t => TYPES[t].name).join(', ')}` : ''}</div>
+        <div class="reward">פרס: <b>${money(r.S.reward)}</b>${r.S.unlock.length ? ` · נפתח: ${r.S.unlock.map(t => TYPES[t].name).join(', ')}` : ''}</div>
         ${st.subsidyK < 1 ? `<div class="bad">הסבסוד מצומצם ל-${Math.round(st.subsidyK * 100)}% כי מועד עבר (${st.misses}).</div>` : ''}</div>`;
     }
     html += `<p class="hint">שלבים שהושלמו: ${st.done.length ? st.done.map(d => `${d.stage + 1}. ${esc(STAGES[d.stage].title)}`).join(' · ') : 'עדיין אין'}. רמת קושי: <b>${modeOf(bank).label}</b>.${modeOf(bank).stopFee ? ` תחנה שמתחילה לשרת קו בפעם הראשונה עולה ${money(modeOf(bank).stopFee)}.` : ''}</p>`;
@@ -855,7 +855,7 @@ function updateMissions() {
 function stageDone(S, next) {
   bank.save(sim.time); renderMoney(); renderMissions();
   $('#stageTitle').textContent = `שלב הושלם: ${S.title}`;
-  $('#stageBody').innerHTML = `<p class="big">🎉</p><p>משרד התחבורה מאשר. קיבלתם <b>${money(rewardOf(S, modeOf(bank)))}</b>${S.unlock.length ? `, ועכשיו אפשר לקנות ${S.unlock.map(t => TYPES[t].name).join(' ו')}` : ''}.</p>
+  $('#stageBody').innerHTML = `<p class="big">🎉</p><p>משרד התחבורה מאשר. קיבלתם <b>${money(S.reward)}</b>${S.unlock.length ? `, ועכשיו אפשר לקנות ${S.unlock.map(t => TYPES[t].name).join(' ו')}` : ''}.</p>
     ${STAGES[next] ? `<p class="hint">השלב הבא: <b>${esc(STAGES[next].title)}</b> — ${esc(STAGES[next].desc(modeOf(bank)))}</p>` : '<p class="hint">זה היה השלב האחרון. כל הכבוד!</p>'}`;
   $('#stageModal').hidden = false;
 }
