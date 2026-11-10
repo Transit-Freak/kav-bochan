@@ -5,7 +5,7 @@
 
 GitHub sends an email for every issue and comment that mentions the repository
 owner, so no mail server or password is needed:
-- a watched workflow fails (or runs out of time) -> one open issue per workflow,
+- a watched workflow fails (or runs out of time) 3 times in a row (STREAK) -> one open issue per workflow,
   with what broke in plain Hebrew, the failing step and the last log lines;
   further failures add a comment to the same issue;
 - the next successful run closes the issue with a short "חזר לעבוד" comment;
@@ -190,15 +190,26 @@ def resolve(title, body):
         api(f"issues/{issue['number']}", 'PATCH', {'state': 'closed', 'state_reason': 'completed'})
 
 
-def prev_failed(run):
-    """Did the previous completed run of the same workflow (before this one) fail too?"""
+def fail_streak(run):
+    """How many completed runs of this workflow in a row (this one included) did not succeed."""
     try:
-        runs = api(f"actions/workflows/{run['workflow_id']}/runs?status=completed&per_page=10").get('workflow_runs', [])
+        runs = api(f"actions/workflows/{run['workflow_id']}/runs?status=completed&per_page=20").get('workflow_runs', [])
     except Exception:
-        return True
-    older = [r for r in runs if r['id'] != run['id'] and r['run_started_at'] < run['run_started_at']
-             and r.get('conclusion') in ('success', 'failure', 'timed_out')]
-    return bool(older) and older[0]['conclusion'] != 'success'
+        return STREAK
+    older = sorted((r for r in runs if r['id'] != run['id'] and r['run_started_at'] <= run['run_started_at']
+                    and r.get('conclusion') in ('success', 'failure', 'timed_out')),
+                   key=lambda r: r['run_started_at'], reverse=True)
+    n = 1
+    for r in older:
+        if r['conclusion'] == 'success':
+            break
+        n += 1
+    return n
+
+
+# מייל רק כשאותה תקלה חוזרת (שלמה 10.11: "מה כל התקלות האלה?") — נפילה בודדת שעוברת בריצה הבאה
+# (פרסום שנתקע ב-GitHub, תקלה רגעית של GitHub) לא שולחת מייל. תקלה שכבר דווחה ממשיכה להתעדכן באותו נושא.
+STREAK = 3
 
 
 def on_run(run_id):
@@ -228,13 +239,15 @@ def on_run(run_id):
             lines = [f'(היומן לא נקרא: {e})']
     # פרסום האתר שנתקע ב-GitHub (Timeout בזמן הסנכרון) עובר לבד בפרסום הבא, שמגיע עם השמירה הבאה.
     # שלמה קיבל על זה מייל כמעט כל יום (07.11) — מתריעים רק אם גם הפרסום הקודם נכשל
-    if name == 'pages-deploy' and any('Timeout reached, aborting' in l for l in lines) and not prev_failed(run):
-        print(f'{name}: pages sync timeout, previous run ok — not reported'); return
+    streak = fail_streak(run)
+    if streak < STREAK and not open_issue(title):
+        print(f'{name}: failed {streak} time(s) in a row — not reported yet'); return
     why = explain(lines, timed_out)
     tail = '\n'.join(l for l in lines if l.strip())[-3000:].split('\n')[-25:]
     body = (f"@{OWNER}\n\n"
             f"**{WATCHED[name]}**: {'הריצה בוטלה כי נגמר לה הזמן' if timed_out else 'הריצה נכשלה'} — {il_time(run['run_started_at'])} (שעון ישראל).\n\n"
-            f"**מה קרה:** {why}\n\n"
+            + (f"**נכשל {streak} פעמים ברצף.**\n\n" if streak >= STREAK else '')
+            + f"**מה קרה:** {why}\n\n"
             + (f"**השלב שנכשל:** {step}\n\n" if step else '')
             + f"[לריצה ב-GitHub]({run['html_url']})\n\n"
             "<details><summary>השורות האחרונות ביומן</summary>\n\n```\n" + '\n'.join(tail) + "\n```\n</details>\n\n"
