@@ -117,7 +117,11 @@ export class Sim {
     this.ops.tick(h); this.ops.spawnInspectors(h);
     if (this.demand) this.spawn(h);
     // מי שסיים ללכת לקו הבא (מעבר) נכנס לתור
-    if (this.pending.length) this.pending = this.pending.filter(x => x.at > this.time || (this.joinQueue(x.p), false));
+    if (this.pending.length) {
+      // ריצה לאוטובוס: מי שבדרך לקו הבא ורואה אותו עומד בתחנה (עוד פחות מחצי דקה הליכה) — רץ (מגיע מהר יותר)
+      for (const x of this.pending) if (!x.run && x.at - this.time < 30) { const g = x.p.legs[x.p.leg]; if (g && g.L.buses.some(o => o.state === 'dwell' && o.next === g.from)) { x.run = true; this.runs = (this.runs || 0) + 1; x.at = this.time + (x.at - this.time) / 1.8; } }
+      this.pending = this.pending.filter(x => x.at > this.time || (this.joinQueue(x.p), false));
+    }
     const H = hourOf(this.time);
     for (const L of [...this.lines]) {
       const n = L.stops.length;
@@ -233,6 +237,26 @@ export class Sim {
     this.events.push({ type: 'spawn', p, stop: g.L.stops[g.from] });
   }
 
+  // מי בתור עולה לאוטובוס הזה: האוטובוס כמעט מלא, והבא של אותו קו מגיע תוך 8 דק' — חלק מהממתינים מעדיפים לחכות לו
+  // (ההחלטה פעם אחת לכל אוטובוס; נספר ב-L.stats.waitNext). מחזיר את המקום בתור, או ‎-1
+  boarder(L, b, k) {
+    const Q = L.queues[k]; if (!Q.length) return -1;
+    if (this.noWaitNext) return 0;                      // לבדיקות: בלי ההחלטה (כמו קודם)
+    const load = b.pax.length / b.cap; if (load < 0.8) return 0;
+    let eta = null;
+    for (let i = 0; i < Q.length; i++) {
+      const p = Q[i]; if (p.role) return i;
+      if (p.skipBus === b.id) continue;
+      if (p.decBus !== b.id) {
+        p.decBus = b.id;
+        if (eta == null) { const nx = L.buses.filter(o => o !== b && (o.state === 'drive' || o.state === 'dwell') && o.s < L.stopS[k]).sort((a, c) => c.s - a.s)[0];
+          eta = nx ? (L.stopS[k] - nx.s) / 7 + 20 : (L.nextDispatch - this.time) + L.stopS[k] / 7; }
+        if (eta < 480 && Math.random() < Math.min(0.7, (load - 0.8) / 0.2 * 0.7)) { p.skipBus = b.id; L.stats.waitNext = (L.stats.waitNext || 0) + 1; continue; }
+      }
+      return i;
+    }
+    return -1;
+  }
   // האם האוטובוס צריך לעצור בתחנה k
   needStop(L, b, k) {
     if (k === 0 || k === L.stops.length - 1) return true;
@@ -320,10 +344,11 @@ export class Sim {
             else if (p.leg + 1 < p.legs.length) { const x = this.transfer(p, L, stop); if (x) { ev.xfer = x.to; ev.at = x.at; } }   // מעבר: התצוגה מראה אותו הולך לתחנה הבאה
           }
         }
-        if (!last && !b.express && b.pax.length < b.cap && (!man || b.dF >= 1) && (L.queues[k].length || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
+        const qi = this.boarder(L, b, k);
+        if (!last && !b.express && b.pax.length < b.cap && (!man || b.dF >= 1) && (qi >= 0 || this.sameRider(L, b, k, false) || this.altRider(L, k, stop, false))) {
           busy = true;
           if (b.tb >= BUS.boardEvery) {
-            b.tb = 0; const p = L.queues[k].shift() || this.sameRider(L, b, k, true) || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
+            b.tb = 0; const p = (qi >= 0 ? L.queues[k].splice(qi, 1)[0] : null) || this.sameRider(L, b, k, true) || this.altRider(L, k, stop, true); p.tb = this.time; b.pax.push(p);
             p.wait = this.time - p.t0; p.load = b.pax.length / b.cap;
             if (!p.role) {
               L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
@@ -334,6 +359,8 @@ export class Sim {
             this.events.push({ type: 'board', bus: b, p, stop });
           }
         }
+        // מי שרץ לאוטובוס (מעבר, ומגיע תוך כמה שניות) — האוטובוס מחכה לו, עד דקה בתחנה
+        if (!last && b.dw < 60 && this.pending.some(x => x.run && x.at - this.time < 12 && x.p.legs[x.p.leg]?.L === L && x.p.legs[x.p.leg].from === k)) busy = true;
         // הסדרן מחזיק את האוטובוס בתחנה
         if (b.hold > this.time) busy = true;
         // מחכים שכל מי שהולך לדלת (או יוצא ממנה) יסיים, כדי שאף אחד לא יישאר באמצע הכביש

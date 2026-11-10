@@ -763,6 +763,8 @@ export class PeopleLayer {
         if (w.mixer) { w.mixer.setTime(0.02); this.centre(w); }
         continue;
       }
+      // ריצה לאוטובוס (sim.js: x.run): אותה הליכה, מהר יותר — צעדים מהירים יותר וגם תנועה מהירה יותר
+      if (w.mode === 'xfer' && !w.running && w.sim?.pending.some(x => x.p === w.p && x.run)) { w.running = true; w.speed = Math.min(3.4, (w.speed || 1.35) * 1.8); if (w.mixer) w.mixer.timeScale = 1.65; }
       w.d += simDt * (w.speed || 1.35);
       while (w.seg < w.pts.length - 2 && w.d > w.lens[w.seg]) { w.d -= w.lens[w.seg]; w.seg++; }
       const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
@@ -859,7 +861,7 @@ export class PeopleLayer {
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
     if (w.obj.parent !== this.group) this.group.add(w.obj);
-    this.setIdle(w, false); w.pid = id;
+    this.setIdle(w, false); w.pid = id; w.running = false; if (w.mixer) w.mixer.timeScale = 1;
     w.seg = 0; w.d = 0; w.speed = 0; w.hold = 0; w.p = null; w.sim = null; w.mode = mode; w.bus = bus; w.release = release; w.door = door || null; w.baseY = pts[0].y;
     w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
     w.body.scale.setScalar(this.personScale(id));
