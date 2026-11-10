@@ -28,9 +28,11 @@ export const MODES = {
     label: 'קשה', desc: '₪40,000 בלבד, רכבים יקרים, סבסוד נמוך, יותר תקלות, ביקורת קפדנית ומועדים קצרים.',
     stages: true, money: 40_000, subsidy: 0.75, price: 1.2, stopFee: 800, simple: false, audits: true, lease: true,
     breakK: 1.5, jamK: 1.5, lateK: 1.5, evade: 0.10, inspectors: true, fineBelow: 70, bonusFrom: 85,
-    deadlineK: 0.75, missCut: 0.25, missFloor: 0.75, restore: true, target: 0.05, headway: 15, toggles: false,
+    deadlineK: 0.75, missCut: 0.25, missFloor: 0.75, restore: true, rewardK: 0.3, target: 0.05, headway: 15, toggles: false,
   },
 };
+// פרס של שלב לפי הרמה (rewardK; בלי — הפרס המלא). בקשה הפרסים קטנים, כדי שהכסף יגביל גם בימים הראשונים
+export const rewardOf = (S, M) => Math.round(S.reward * (M?.rewardK ?? 1) / 500) * 500;
 export const MODE_ORDER = ['easy', 'medium', 'hard', 'creative'];
 export const normMode = m => (m === 'career' || !MODES[m]) ? 'medium' : m;
 export const modeOf = bank => MODES[normMode(bank?.mode)];
