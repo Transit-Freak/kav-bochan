@@ -1,7 +1,7 @@
 // מבט פקח (תפקיד "פקח"): עולים לאוטובוס בדלת הקדמית ובודקים כרטיסים בגוף ראשון.
 // המצלמה בגובה העיניים (1.65 מ' מעל הרצפה) ונעה רק לאורך מסלול קבוע במעבר (קו האמצע — לא דרך עמודים ומושבים):
 // גרירה למעלה/למטה או ▲▼ — קדימה ואחורה; גרירה לצדדים — מבט ימינה ושמאלה. רואים רק יד שמחזיקה את מכשיר הרב-קו.
-// הנוסעים יושבים במקומם (PeopleLayer.onboard). הקשה על נוסע עד 2.5 מ' — המכשיר מצפצף, ומעל הראש ✓ (יש כרטיס) או ✗ (אין —
+// הנוסעים יושבים במקומם (PeopleLayer.onboard). הקשה על נוסע עד 1.2 מ' (צריך להתקרב אליו) — המכשיר מצפצף, ומעל הראש ✓ (יש כרטיס) או ✗ (אין —
 // לפי ההתחמקות בסימולציה, p.noTicket). בלי כרטיס: "קנס" או "אזהרה"; המכשיר מראה אם הנוסע כבר קיבל אזהרה (נשמר בשמירה,
 // לפי "אדם" — מוצא, יעד וסוג נוסע — כדי שאותו נוסע יחזור בימים אחרים). ניקוד: נבדק +1, תפיסה +5, החלטה נכונה (אזהרה לראשונה,
 // קנס לחוזר) +10, השנייה +3 (אזהרה שנייה — −5). בתחנה הבאה — סיכום, וירידה או המשך.
@@ -10,7 +10,8 @@ import { FINE } from './ops.js';
 import { dayOf } from './fleet.js';
 import { STAND_POLE } from './actors.js';
 
-const FLOOR = 0.675, EYE = FLOOR + 1.65;
+// העיניים 1.57 מ' מעל רצפת האוטובוס (אדם בגובה ממוצע). אותה מערכת צירים של האוטובוס כמו במבט הנהג (הרצפה ב-0.675 מעל הכביש)
+const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
 // המעבר: מהדלת הקדמית, ליד המתקף, ואז לאורך האמצע עד המושבים האחרונים
 const PATH = [[-0.95, 5.15], [-0.3, 4.98], [0, 4.3], [0, -4.9]];       // עוקף את העמוד המעוקל שליד הדלת (z ≈ 4.5) ואת המתקף
 // המושבים (מתוך ידיות האחיזה בדגם: מושב מול כל משענת, פונה קדימה) וכמה מקומות עמידה ליד הדלת האמצעית
@@ -18,7 +19,12 @@ const PATH = [[-0.95, 5.15], [-0.3, 4.98], [0, 4.3], [0, -4.9]];       // עוק
 // זוג מושבים בכל צד: מעבר (x ≈ 0.58) וחלון (x ≈ 0.87). [x, הרצפה, z של הגב]
 const ROWS = [3.7, 2.9, 2.1, 1.3, -1.9, -2.7, -3.5, -4.3, -5.1], SIDES = { 3.7: [-1], 2.9: [-1] };
 export const SEAT_H = 1.14 - FLOOR, SEAT_DEPTH = 0.37;
-const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x, FLOOR, z + 0.125]));
+// המושבים צרים (29 ס"מ בין מרכזים) — כתפיים של שני אנשים לא נכנסות בהם. לכן היושב במעבר זז מעט אל המעבר (10 ס"מ)
+// וזה שליד החלון מעט אל החלון (5 ס"מ), כמו שאנשים יושבים באמת, וכך אין חפיפה בין השכנים
+const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x + Math.sign(x) * (Math.abs(x) > 0.7 ? 0.05 : -0.1), FLOOR, z + 0.125]));
+// השכן באותו זוג מושבים, ומושבים בשורות הסמוכות באותו צד
+const PAIR = SEATS.map(a => SEATS.findIndex(b => b !== a && b[2] === a[2] && Math.sign(b[0]) === Math.sign(a[0])));
+const NEAR = SEATS.map(a => SEATS.map((b, k) => k).filter(k => SEATS[k] !== a && Math.sign(SEATS[k][0]) === Math.sign(a[0]) && Math.abs(SEATS[k][2] - a[2]) < 0.9));
 // מקומות העמידה ליד הדלת האמצעית: מאחורי העמודים האנכיים שבשפת המעבר (x = ±0.50, z = 1.24 / 0.75 / -0.36 / -0.70;
 // מימין, מול הדלת, יש משענת מתקפלת ב-z ≈ -0.4 — שם עומדים מאחוריה, ליד העמוד של z = -0.70),
 // פונים קדימה, והיד שבצד המעבר על העמוד (STAND_POLE ב-actors.js). [x, הרצפה, z של האגן, היד]
@@ -41,19 +47,40 @@ export class InspectorFP {
     this.prevState = bus.state; this.lastStop = bus.next; this.sumAt = 0;
     const seat = new Map(), stand = new Map();
     // מקום קבוע לכל נוסע: מושב פנוי לפי הסדר (קודם מושבים, אחר כך עמידה)
-    const seatOf = id => { if (!seat.has(id)) { const used = new Set(seat.values()); let k = Math.floor(hash(id) * SEATS.length), n = 0; while (used.has(k) && n++ < SEATS.length) k = (k + 1) % SEATS.length; seat.set(id, used.size >= SEATS.length ? -1 : k); } return seat.get(id); };
-    const standOf = id => { if (!stand.has(id)) { const used = new Set(stand.values()); let j = 0; while (used.has(j)) j++; stand.set(id, j < STANDS.length ? j : -1); } return stand.get(id); };
+    // מי שעולה בוחר כמו באמת: קודם זוג מושבים ריק, ולא ליד מי שנראה בדיוק כמוהו (אותו דגם ואותם בגדים)
+    const look = id => this.g.people.lookOf ? this.g.people.lookOf(id) : this.g.people.variantOf(id);
+    const seatOf = id => {
+      if (seat.has(id)) return seat.get(id);
+      const who = new Map(); for (const [q, k] of seat) if (k >= 0) who.set(k, q);
+      if (who.size >= SEATS.length) { seat.set(id, -1); return -1; }
+      const me = look(id), k0 = Math.floor(hash(id) * SEATS.length); let best = -1, bs = Infinity;
+      for (let n = 0; n < SEATS.length; n++) { const k = (k0 + n) % SEATS.length; if (who.has(k)) continue;
+        const pr = PAIR[k] >= 0 && who.has(PAIR[k]);
+        const sc = (pr ? 10 : 0) + (pr && look(who.get(PAIR[k])) === me ? 50 : 0) + NEAR[k].reduce((a, j) => a + (who.has(j) && look(who.get(j)) === me ? 5 : 0), 0);
+        if (sc < bs) { bs = sc; best = k; } }
+      seat.set(id, best); return best; };
+    const standOf = id => { if (!stand.has(id)) { const used = new Map(); for (const [q, j] of stand) used.set(j, q);
+      // מקום עמידה פנוי, לא צמוד למי שנראה בדיוק כמוהו (המקומות באותו צד זה ליד זה)
+      let j = -1; for (const pass of [0, 1]) { for (let i = 0; i < STANDS.length && j < 0; i++) { if (used.has(i)) continue;
+        if (!pass && [...used].some(([jj, q]) => look(q) === look(id) && Math.sign(STANDS[jj][0]) === Math.sign(STANDS[i][0]))) continue; j = i; } if (j >= 0) break; }
+      stand.set(id, j); } return stand.get(id); };
     this.g.people.busSitters(SEAT_H, SEAT_DEPTH);
-    this.g.people.onboard = { bus, obj: o, seats: SEATS, stands: STANDS, floor: FLOOR, seatOf, standOf };
+    // זוג מושבים תפוס בשניהם: שני היושבים "מצטמצמים" מעט לרוחב (כתפיים צמודות), אחרת הכתפיים נכנסות זו בזו
+    const shared = k => PAIR[k] >= 0 && [...seat.values()].includes(PAIR[k]);
+    this.g.people.onboard = { bus, obj: o, seats: SEATS, stands: STANDS, floor: FLOOR, seatOf, standOf, shared, narrow: 0.78 };
     const c = this.g.camera;
     this.saved = { near: c.near, far: c.far, fov: c.fov };
     c.near = 0.05; c.far = 2500; c.fov = THREE.MathUtils.clamp(2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(42)) / c.aspect)), 70, 100); c.updateProjectionMatrix();
     this.g.scene.add(c); c.add(this.reader.group); this.reader.show('רב-קו · מוכן לבדיקה', 'הקישו על נוסע', null);
+    // בגוף ראשון — בזמן אמת (×1): במהירות גבוהה היורדים "נורים" מהדלת. ביציאה חוזרים למהירות הקודמת
+    this.speed0 = this.g.speed(); this.g.setSpeed(1);
     this.g.ui.root.hidden = false; this.render(); return true;
   }
   exit() {
     if (!this.bus) return;
     for (const sp of this.icons.values()) sp.parent?.remove(sp); this.icons.clear();
+    this.anim = null; this.g.people.reach = null; this.reader.group.position.set(0, 0, 0);
+    if (this.speed0 > 1 && this.g.speed() === 1) this.g.setSpeed(this.speed0);
     this.g.people.onboard = null; this.reader.group.parent?.remove(this.reader.group);
     const c = this.g.camera, s = this.saved; this.g.scene.remove(c);
     if (s) { c.near = s.near; c.far = s.far; c.fov = s.fov; c.updateProjectionMatrix(); }
@@ -90,25 +117,44 @@ export class InspectorFP {
     // תחנה: סיכום (פעם אחת לכל תחנה)
     if (b.state === 'dwell' && this.prevState === 'drive' && this.stats.checked > this.sumAt) this.summary(false);
     if (this.prevState !== b.state) this.prevState = b.state;
+    this.animate(dt);
     this.render();
   }
-  // הקשה על המסך: הנוסע הקרוב ביותר לנקודה (עד 2.5 מ')
+  // הקשה על המסך: הנוסע הקרוב ביותר לנקודה (עד REACH — צריך להתקרב)
   tap(x, y) {
-    if (!this.bus || !this.g.ui.decide.hidden || !this.g.ui.sum.hidden) return;
+    if (!this.bus || this.anim || !this.g.ui.decide.hidden || !this.g.ui.sum.hidden) return;
     const r = this.g.canvas.getBoundingClientRect(), c = this.g.camera, cam = c.position;
     let best = null, bd = 70;
     for (const [pid, h] of this.g.people.onboardPos || []) {
-      if (h.distanceTo(cam) > 2.5) continue;
+      if (h.distanceTo(cam) > REACH) continue;
       const v = h.clone().add(new THREE.Vector3(0, -0.25, 0)).project(c); if (v.z > 1) continue;
       const sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * r.height, d = Math.hypot(sx - x, sy - y);
       if (d < bd) { bd = d; best = pid; }
     }
-    if (best == null) { const near = [...(this.g.people.onboardPos || []).values()].some(h => h.distanceTo(cam) <= 2.5); if (!near) this.g.toast('אין נוסע קרוב — התקרבו (▲▼)'); return; }
+    if (best == null) { const near = [...(this.g.people.onboardPos || []).values()].some(h => h.distanceTo(cam) <= REACH); if (!near) this.g.toast('אין נוסע קרוב — התקרבו אליו (▲▼)'); return; }
     this.check(best);
   }
+  // הבדיקה (כשנייה): הנוסע מרים יד אל המעבר — עם רב-קו, או יד ריקה כשאין לו — המכשיר מתקרב לכרטיס, צפצוף, ואז התוצאה
   check(pid) {
     const p = this.bus.pax.find(q => q.id === pid); if (!p) return;
     if (p.checked) { this.reader.show(p.noTicketSeen ? '✗ נבדק — בלי כרטיס' : '✓ כבר נבדק', '', p.noTicketSeen ? 'bad' : 'ok'); return; }
+    this.anim = { pid, t: 0, done: false }; this.g.people.reach = { pid, frac: 0, card: !p.noTicket };
+    this.reader.show('רב-קו · מחכה לכרטיס', '', null);
+  }
+  animate(dt) {
+    const A = this.anim; if (!A) return;
+    A.t += dt; const t = A.t, R = this.g.people.reach;
+    // שלבי היד: עולה (0–0.3 ש'), מחזיקה, יורדת (1.25–1.5 ש')
+    const n = t < 1.25 ? Math.min(3, 1 + Math.floor(t / 0.1)) : Math.max(0, 2 - Math.floor((t - 1.25) / 0.08));
+    if (R) R.frac = [0, 0.33, 0.66, 1][n];
+    // המכשיר זז מעט קדימה אל הכרטיס ובחזרה
+    const k = t < 0.35 ? 0 : t < 0.7 ? (t - 0.35) / 0.35 : t < 1.1 ? 1 : Math.max(0, 1 - (t - 1.1) / 0.3);
+    this.reader.group.position.set(-0.02 * k, 0.03 * k, -0.07 * k);
+    if (!A.done && t >= 0.75) { A.done = true; this.result(A.pid); }
+    if (t >= 1.5) { this.anim = null; this.g.people.reach = null; this.reader.group.position.set(0, 0, 0); }
+  }
+  result(pid) {
+    const p = this.bus.pax.find(q => q.id === pid); if (!p) return;
     p.checked = true; this.stats.checked++; this.stats.pts += 1; beep(!p.noTicket);
     if (!p.noTicket) { this.reader.show('✓ כרטיס בתוקף', this.g.info?.(p.who)?.lives || 'רב-קו · חוזה פעיל', 'ok'); this.icon(pid, true); this.render(); return; }
     p.noTicketSeen = true; this.stats.caught++; this.stats.pts += 5; this.icon(pid, false);
@@ -192,6 +238,10 @@ function buildReader() {
   seg(t0, t1, 0.0105); seg(t1, t2, 0.0095);
   // שורש כף היד והאמה — יורדים אל מחוץ למסך
   seg(V(0.012, -0.055, -D / 2 - 0.02), V(0.05, -0.2, -0.03), 0.024);
+  // שפת השרוול הקצר של חולצת הפקח (תכלת) בקצה האמה, בשולי המסך
+  { const a = V(0.042, -0.17, -0.028), b = V(0.07, -0.27, -0.035), d = new THREE.Vector3().subVectors(b, a);
+    const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.037, d.length(), 14, 1, false), new THREE.MeshStandardMaterial({ color: 0xa9c6e6, roughness: 0.8 }));
+    sl.position.copy(a).add(b).multiplyScalar(0.5); sl.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize()); dev.add(sl); }
   for (const m of group.children) m.renderOrder = 10;
   group.traverse(m => { if (m.isMesh) { m.frustumCulled = false; m.renderOrder = 10; } });
   const show = (a, b, kind) => {
