@@ -283,6 +283,25 @@ export function personColors(id) {
 // גוונים עדינים לבגדים (כפל על הטקסטורה): אותו בגד בכמה צבעים, בלי צבעים צעקניים
 const CLOTH_TINT = [[1, 1, 1], [1, 1, 1], [1.08, 0.94, 0.84], [0.84, 0.92, 1.06], [0.72, 0.72, 0.74], [1.1, 1.08, 1.04],
   [0.95, 1.02, 0.9], [1.06, 0.88, 0.88], [0.9, 0.86, 1.0]];
+// המראות של הנוסעים — כמו באוטובוס עירוני בארץ: חיילים במדים זיתיים עם תיק גב גדול (בלי סמלים), תלמידים בחולצת
+// בית ספר תכלת/לבנה עם סמל קטן ותיק גדול, סטודנטים עם תיק מחשב, מבוגרים עם שקית קניות, עובדים באפוד זוהר,
+// כיפה סרוגה לחלק מהגברים ומטפחת לחלק מהנשים, ובגדים יומיומיים. לכל דגם (vi) כמה מראות, בלי לשנות שלד או תנועה.
+// shirt/pants — מהפלטות SHIRTS/PANTS_P (null — הבגד המקורי בגוון עדין); pat: 1 פסים, 2 אפוד זוהר, 3 בית ספר, 4 מדים, 5 משבצות;
+// short — שרוול קצר; strap: 1 תיק גב, 2 תיק צד; acc — אביזרים (markInsp: out.acc); hair/shoes — גוון לשיער ולנעליים; w — משקל
+const L_ = (vi, name, o = {}) => ({ vi, name, shirt: null, pants: 0, pat: 0, short: false, strap: 0, acc: [], hair: null, shoes: null, w: 1, ...o });
+const ARMY = { shirt: 2, pants: 2, pat: 4, strap: 1, acc: ['army'], shoes: 0x5a4632 };
+export const LOOKS = [
+  L_(0, 'יומיומי', { w: 2 }), L_(0, 'חייל', ARMY), L_(0, 'כיפה, חולצה לבנה', { shirt: 0, pants: 1, acc: ['kippah'] }), L_(0, 'עובד באפוד זוהר', { shirt: 3, pants: 0, pat: 2 }), L_(0, 'סטודנט', { shirt: 5, pants: 0, short: true, strap: 2, acc: ['side'], hair: 0x8a6a4a }),
+  L_(1, 'יומיומית', { w: 2 }), L_(1, 'תלמידה', { shirt: 1, pants: 0, pat: 3, short: true, strap: 1, acc: ['school'] }), L_(1, 'חיילת', ARMY), L_(1, 'סטודנטית', { shirt: 12, pants: 0, short: true, strap: 2, acc: ['side'], hair: 0x5a3a26 }), L_(1, 'מטפחת', { shirt: 9, pants: 6, acc: ['scarf'] }),
+  L_(2, 'יומיומי', { w: 2 }), L_(2, 'עובד', { shirt: 4, pants: 4, pat: 2 }), L_(2, 'כיפה', { shirt: 1, pants: 5, acc: ['kippah'] }), L_(2, 'חולצה ירוקה', { shirt: 8, pants: 0, short: true }),
+  L_(3, 'יומיומית', { w: 2 }), L_(3, 'מטפחת', { shirt: 6, pants: 1, acc: ['scarf'] }), L_(3, 'עם קניות', { shirt: 9, pants: 4, acc: ['shop'] }), L_(3, 'מטפחת וקניות', { shirt: 11, pants: 1, acc: ['scarf', 'shop'] }),
+  L_(4, 'חליפה', { w: 2 }), L_(4, 'חליפה וכיפה', { acc: ['kippah'] }), L_(4, 'עם קניות', { shirt: 5, pants: 3, acc: ['shop'] }), L_(4, 'כיפה, חולצה לבנה', { shirt: 0, pants: 1, acc: ['kippah'] }),
+  L_(5, 'יומיומית', { w: 2 }), L_(5, 'חיילת', ARMY), L_(5, 'סטודנטית', { shirt: 13, pants: 0, strap: 2, acc: ['side'] }), L_(5, 'חולצה אדומה', { shirt: 7, pants: 1, short: true, hair: 0x6a4a30 }),
+  L_(6, 'יומיומי', { w: 2 }), L_(6, 'תלמיד', { shirt: 0, pants: 5, pat: 3, short: true, strap: 1, acc: ['school'] }), L_(6, 'תלמיד עם כיפה', { shirt: 1, pants: 1, pat: 3, short: true, strap: 1, acc: ['school', 'kippah'] }), L_(6, 'חולצה כתומה', { shirt: 4, pants: 0, short: true, hair: 0x3a2618 }),
+  L_(7, 'יומיומית', { w: 2 }), L_(7, 'חולצה ירוקה', { shirt: 8, pants: 0, short: true }), L_(7, 'סטודנטית', { shirt: 14, pants: 1, strap: 2, acc: ['side'] }), L_(7, 'חיילת', ARMY),
+  L_(8, 'יומיומי', { w: 2 }), L_(8, 'חייל', ARMY), L_(8, 'כיפה', { shirt: 0, pants: 1, acc: ['kippah'] }), L_(8, 'עובד', { shirt: 3, pants: 4, pat: 2 }), L_(8, 'משבצות', { shirt: 7, pants: 0, pat: 5 }),
+];
+const ACC_COLOR = { kippah: [0x1d2a44, 0xf0f0f0, 0x3a3a3a, 0x7a2a2a], scarf: [0x6e2337, 0x22324f, 0x3f6d6a, 0x9a7b5a, 0x4a3d6b], pack: [0x23272e, 0x1f3a5f, 0x7a2a2a], school: [0xd23a3a, 0x2b6cb0, 0x3f8a4a, 0xe08a1e], army: [0x4f5638], side: [0x1d1e22, 0x3a3f47], shop: [0xf4f4f2, 0xe8e2c8] };
 function partKind(name) {
   const n = name.toLowerCase();
   if (n.includes('shoe') || n.includes('boot')) return 'shoes';
@@ -311,19 +330,50 @@ function gameMaterial(m, kind) {
 // (markInsp: גו, זרוע עליונה, אמה, רגליים) ומיקומו על הגו. הכובע והמכשיר — רשתות קטנות (PeopleLayer). הפנים והידיים — כמו תמיד
 export const INSP_FLAG = 4, INSP_TIE = 5;
 const SHIRT = new THREE.Color(0xbcd4ee), PANTS = new THREE.Color(0x15171b), DARK = new THREE.Color(0x0c0d10), TIE = new THREE.Color(0x1f2a44);
+// בגדים של נוסעים (LOOKS): צבע לחולצה ולמכנסיים מתוך הפלטות, ודוגמה. מקודדים בגוון של הבגד (ערכים מ-10 ומעלה):
+// r = 10 + חולצה, g = 10 + מכנסיים (+50 — שרוול קצר), b = 10 + דוגמה (+10 — רצועות תיק גב, +20 — רצועה באלכסון)
+export const SHIRTS = [0xf4f4f2, 0xa9cdec, 0x5d6440, 0xd9ff3a, 0xff8a1e, 0x8d9096, 0x22324f, 0xb3312c, 0x3f7d4a, 0xcdbb98, 0x1d1e22, 0x6e2337, 0xe39ab3, 0x2b8a8a, 0xe7d36a, 0x7a5a9e];
+export const PANTS_P = [0x2f4a72, 0x16171a, 0x55593a, 0xc8b38c, 0x5c5f66, 0x1f2b44, 0x3b2f2a];
+const SHIRT_U = SHIRTS.map(c => new THREE.Color(c)), PANTS_U = PANTS_P.map(c => new THREE.Color(c));
 function vestShader(m) {
   const U = m.userData.insp = { skinC: { value: new THREE.Color(0.75, 0.56, 0.44) }, vTop: { value: 0.5 } };
   m.onBeforeCompile = sh => {
-    Object.assign(sh.uniforms, { shirtC: { value: SHIRT }, pantsC: { value: PANTS }, darkC: { value: DARK }, tieC: { value: TIE }, skinC: U.skinC, vTop: U.vTop });
+    Object.assign(sh.uniforms, { shirtC: { value: SHIRT }, pantsC: { value: PANTS }, darkC: { value: DARK }, tieC: { value: TIE }, skinC: U.skinC, vTop: U.vTop, shirtP: { value: SHIRT_U }, pantsP: { value: PANTS_U } });
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 vest;\nvarying vec3 vVest;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVest = vest;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vVest;\nuniform vec3 shirtC, pantsC, darkC, tieC, skinC;\nuniform float vTop;')
-      .replace('#include <color_fragment>', `float inspF = diffuse.r;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vVest;\nuniform vec3 shirtC, pantsC, darkC, tieC, skinC;\nuniform vec3 shirtP[16];\nuniform vec3 pantsP[7];\nuniform float vTop;')
+      .replace('#include <color_fragment>', `float inspF = diffuse.r; vec3 code = diffuse;
 #ifdef USE_COLOR
-inspF = max(inspF, vColor.r);
+if (vColor.r > inspF) { inspF = vColor.r; code = vColor.rgb; }
 #endif
 #include <color_fragment>
-if (inspF > 2.5) {
+if (inspF > 9.5) {
+  // נוסע בבגדים מהפלטה (LOOKS): הצבע מהפלטה, הקפלים מהטקסטורה
+  vec3 base = diffuseColor.rgb / max(code, vec3(1.0));
+  float lum = clamp(dot(base, vec3(0.299, 0.587, 0.114)), 0.0, 1.0), sh = 0.72 + 0.45 * lum;
+  float si = floor(code.r + 0.01) - 10.0, gi = floor(code.g + 0.01) - 10.0, bi = floor(code.b + 0.01) - 10.0;
+  float shortS = step(49.5, gi); gi -= 50.0 * shortS;
+  float strap = floor(bi / 10.0 + 0.001); float pat = bi - 10.0 * strap;
+  vec3 sc = shirtP[int(clamp(si, 0.0, 15.0))], pc = pantsP[int(clamp(gi, 0.0, 6.0))];
+  float reg = floor(vVest.x + 0.01), front = step(0.25, vVest.x - reg);
+  float u = vVest.y, v = vVest.z / max(0.2, vTop);
+  if (reg > 0.5 && reg < 3.5) {
+    vec3 c = sc;
+    if (pat > 0.5 && pat < 1.5 && fract(v * 9.0) < 0.42) c = mix(sc, vec3(0.95), 0.75);                       // פסים
+    if (pat > 1.5 && pat < 2.5 && reg < 2.5 && (abs(v - 0.38) < 0.035 || abs(v - 0.58) < 0.035)) c = vec3(0.86, 0.88, 0.9);   // אפוד זוהר: פסים מחזירי אור
+    if (pat > 2.5 && pat < 3.5 && reg < 1.5 && front > 0.5 && length(vec2(u - 0.08, v - 0.66)) < 0.045) c = vec3(0.12, 0.28, 0.6);   // חולצת בית ספר: סמל קטן
+    if (pat > 3.5 && pat < 4.5 && fract(u * 11.0 + v * 3.0) < 0.5 && fract(v * 7.0 - u * 2.0) < 0.5) c = sc * 0.82;   // מנומר עדין (מדים)
+    if (pat > 4.5 && pat < 5.5 && (fract(v * 8.0) < 0.2 || fract(u * 8.0) < 0.2)) c = sc * 0.7;                     // משבצות
+    if (reg < 1.5 && strap > 0.5 && strap < 1.5 && abs(abs(u) - 0.09) < 0.022 && v > 0.45) c = vec3(0.1);            // רצועות תיק גב
+    if (reg < 1.5 && strap > 1.5 && abs(u - (0.16 - 0.32 * clamp((v - 0.06) / 0.9, 0.0, 1.0))) < 0.02 && v > 0.04) c = vec3(0.1);   // רצועה באלכסון
+    if (reg > 2.5 && shortS > 0.5) c = skinC * (0.85 + 0.25 * lum) / sh;
+    diffuseColor.rgb = c * sh;
+  } else {
+    vec3 c = pc;
+    if (pat > 3.5 && pat < 4.5 && fract(u * 11.0 + v * 3.0) < 0.5 && fract(v * 7.0 - u * 2.0) < 0.5) c = pc * 0.82;
+    diffuseColor.rgb = c * (0.8 + 0.45 * lum);
+  }
+} else if (inspF > 2.5) {
   vec3 base = diffuseColor.rgb / inspF;
   float lum = dot(base, vec3(0.299, 0.587, 0.114)), sh = 0.8 + 0.35 * lum;
   float reg = floor(vVest.x + 0.01), front = step(0.25, vVest.x - reg);
@@ -340,7 +390,7 @@ if (inspF > 2.5) {
   else diffuseColor.rgb = pantsC * (0.9 + 0.4 * lum);
 }`);
   };
-  m.customProgramCacheKey = () => 'insp2';
+  m.customProgramCacheKey = () => 'insp3';
 }
 // לכל קודקוד בבגדים: האזור (0 אגן ורגליים, 1 גו, 2 זרוע עליונה, 3 אמה; +0.5 — מלפנים. הסדר חשוב: הערך עובר אינטרפולציה בין
 // קודקודים, ולכן אזורים שנוגעים זה בזה צמודים במספרים — בלי פס של אזור אחר בגבול) ומיקומו ביחס לאגן
@@ -398,6 +448,7 @@ function markInsp(gltf) {
     const base = hd.top - 0.062;
     let rRim = 0; for (let i = 0; i < hd.pts.length; i += 3) { const y = hd.pts[i + 1]; if (y > base - 0.004 && y < base + 0.035) rRim = Math.max(rRim, Math.hypot(hd.pts[i] - cx, hd.pts[i + 2] - cz)); }
     const rad = THREE.MathUtils.clamp(Math.max(rS + 0.006, rRim + 0.005), 0.092, 0.15), hCap = Math.max(rad * 0.72, top + 0.01 - base);
+    out.headFit = { cx, cz, base, top, rad, hCap };
     out.capFit = { rS: +rS.toFixed(3), rH: +rH.toFixed(3), rRim: +rRim.toFixed(3), rad: +rad.toFixed(3), hCap: +hCap.toFixed(3) };
     const capW = new THREE.Matrix4().compose(new THREE.Vector3(cx, base, cz + 0.004), new THREE.Quaternion(), new THREE.Vector3(rad, hCap / 0.82, rad));
     out.capLocal = head.matrixWorld.clone().invert().multiply(capW);                       // בתוך עצם הראש (להולכים ולישיבה)
@@ -415,6 +466,25 @@ function markInsp(gltf) {
     out.bagLocal = hips.matrixWorld.clone().invert().multiply(bW);
     // בישיבה: התיק על הספסל ליד הירך הימנית (מאחורי הירך הוא היה נכנס בקיר)
     out.bagSitLocal = hips.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(c.x - 0.25, c.y + 0.015, c.z + 0.02)); out.bagStand = bW.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z)); }
+  // אביזרים של נוסעים (LOOKS): לכל אחד — העצם שהוא צמוד אליו, המטריצה בתוכו, והמטריצה בעמידה (יחסית לאגן ולקרקע)
+  out.acc = {};
+  const put = (name, boneName, W) => { const b = bone(boneName); if (!b) return; out.acc[name] = { bone: boneName, local: b.matrixWorld.clone().invert().multiply(W), stand: W.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z)) }; };
+  const Hf = out.headFit;
+  if (Hf) {
+    // כיפה סרוגה: עיגול קטן ושטוח על החלק האחורי-עליון של הראש
+    put('kippah', 'Head', new THREE.Matrix4().compose(new THREE.Vector3(Hf.cx, Hf.top - 0.012, Hf.cz - 0.04), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.5), new THREE.Vector3(0.066, 0.03, 0.066)));
+    // מטפחת: מכסה את השיער מעל המצח ועד העורף (כיפה עמוקה שנוטה לאחור)
+    put('scarf', 'Head', new THREE.Matrix4().compose(new THREE.Vector3(Hf.cx, Hf.base - 0.005, Hf.cz - 0.03), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.8), new THREE.Vector3(Hf.rad * 1.06, Math.max(Hf.hCap, 0.09) * 1.3, Hf.rad * 1.12)));
+  }
+  // תיקי גב: על הגב העליון, צמודים (לפי הקודקודים של הגב בגובה השכמות)
+  let zBack = 0; for (const [A, i, z] of torso) { const v = A[i * 3 + 2]; if (v > top * 0.35 && v < top * 0.8) zBack = Math.min(zBack, z); }
+  const sp = bone('Spine1') ? 'Spine1' : 'Spine';
+  for (const [name, w, h, d] of [['pack', 0.29, 0.37, 0.13], ['school', 0.31, 0.4, 0.17], ['army', 0.36, 0.52, 0.22]])
+    put(name, sp, new THREE.Matrix4().compose(new THREE.Vector3(c.x, c.y + top * 0.6 - (name === 'army' ? 0.04 : 0), c.z + zBack - d / 2 - 0.006), new THREE.Quaternion(), new THREE.Vector3(w, h, d)));
+  // תיק צד (מחשב נייד): בפינה האחורית של הירך השמאלית, ברצועה באלכסון
+  put('side', 'Hips', new THREE.Matrix4().compose(new THREE.Vector3(c.x + 0.15, c.y - 0.01, c.z - 0.12), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.92), new THREE.Vector3(0.06, 0.27, 0.36)));
+  // שקית קניות ביד שמאל, מתחת לכף היד ומעט החוצה
+  const lh = bone('LeftHand'); if (lh) { const hp = lh.getWorldPosition(new THREE.Vector3()); put('shop', 'LeftHand', new THREE.Matrix4().compose(new THREE.Vector3(hp.x + 0.045, hp.y - 0.17, hp.z + 0.01), new THREE.Quaternion(), new THREE.Vector3(0.1, 0.27, 0.24))); }
   return (root.userData.insp = out);
 }
 // הצבע הממוצע של העור (מהטקסטורה של הגוף) — לאמה החשופה של הפקח
@@ -428,6 +498,14 @@ function skinColor(groups) {
   } catch { return null; }
 }
 // הכובע (כיפה ומצחייה, פונה ל-‎+z) ומכשיר הבדיקה: גאומטריות משותפות
+// אביזרי הנוסעים (בגודל יחידה; הגודל והמקום — במטריצה של כל דגם, markInsp: out.acc)
+const ACC_GEO = {
+  kippah: new THREE.SphereGeometry(1, 16, 5, 0, Math.PI * 2, 0, Math.PI * 0.5),
+  scarf: new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.7),
+  box: new THREE.BoxGeometry(1, 1, 1),
+};
+const ACC_KIND = { kippah: 'kippah', scarf: 'scarf', pack: 'box', school: 'box', army: 'box', side: 'box', shop: 'box' };
+const ACC_HEAD = new Set(['kippah', 'scarf']);           // נשארים גם בישיבה (את התיקים מורידים כשמתיישבים)
 const capGeo = (() => {          // בגודל יחידה (רדיוס הכיפה 1): כיפה, מצחייה מעוקלת קדימה ומעט למטה, וכפתור למעלה
   const d = new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.82, 1.06);
   const b = new THREE.CylinderGeometry(0.82, 0.82, 0.05, 20, 1, false, -Math.PI / 2, Math.PI).scale(1, 1, 0.95).translate(0, 0, 0.62 - 0.95).rotateX(0.16).translate(0, 0.012, 0.95);   // המצחייה יוצאת משפת הכיפה (מסתובבת סביב השפה)
@@ -566,6 +644,9 @@ export class PeopleLayer {
     this.card = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.054, 0.004), new THREE.MeshStandardMaterial({ color: 0x1e88e5, emissive: 0x0b4fa8, emissiveIntensity: 0.45, roughness: 0.45 })); this.card.visible = false; this.card.frustumCulled = false; this.card.matrixAutoUpdate = false; this.group.add(this.card);
     this.caps = new THREE.InstancedMesh(capGeo, CAP_MAT, 96); this.readers = new THREE.InstancedMesh(readerGeo, ACC_MAT, 96); this.bags = new THREE.InstancedMesh(bagGeo, ACC_MAT, 96);
     for (const im of [this.caps, this.readers, this.bags]) { im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.name = 'crowd-insp'; this.group.add(im); }
+    // אביזרי הנוסעים (LOOKS) בקהל, בישיבה ובאוטובוס של הפקח — InstancedMesh לכל צורה, הצבע לכל אחד
+    this.accIM = {};
+    for (const k of Object.keys(ACC_GEO)) { const im = new THREE.InstancedMesh(ACC_GEO[k], new THREE.MeshLambertMaterial({ color: 0xffffff, side: k === 'box' ? THREE.FrontSide : THREE.DoubleSide }), 512); im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.setColorAt(0, new THREE.Color(1, 1, 1)); im.name = 'crowd-acc-' + k; this.group.add(im); this.accIM[k] = im; }
     if (!this.fromGlb) { this.gltfs = []; this.variants.push({ gltf: null, groups: proceduralPerson() }); }
     // לכל דגם ולכל חומר — InstancedMesh אחד
     for (const [vi, V] of this.variants.entries()) {
@@ -603,6 +684,24 @@ export class PeopleLayer {
 
   // יושבים במושב אוטובוס (מבט פקח): אותו חיפוש תנוחה של הספסל (sitting.js) — עם גובה המושב והעומק של מושב האוטובוס.
   // נבנה פעם אחת לכל דגם, כשנכנסים לאוטובוס בפעם הראשונה. הראשית: הרצפה, מתחת לגב (z=0 — הגב), הדמות פונה ל-‎+z
+  // האביזרים של דגם בתנוחה מסוימת (root עם origin): העצם בתנוחה × המטריצה בתוך העצם, יחסית ל-origin. נשמר לפי key
+  accPose(V, key, root, origin) {
+    V.accP = V.accP || {}; if (V.accP[key]) return V.accP[key];
+    const out = {}, T = new THREE.Matrix4().makeTranslation(-origin.x, -origin.y, -origin.z); root.updateMatrixWorld(true);
+    for (const [t, a] of Object.entries(V.insp?.acc || {})) { const b = root.getObjectByName(a.bone); if (b) out[t] = b.matrixWorld.clone().multiply(a.local).premultiply(T); }
+    return (V.accP[key] = out);
+  }
+  // מוסיף את האביזרים של הנוסע (לפי המראה שלו) במקום M; mats — המטריצות של התנוחה; seated — רק מה שעל הראש
+  emitAcc(id, mats, M, seated) {
+    if (ROLE.get(id) === 'insp') return;
+    const lk = this.lookFor(id); if (!lk || !lk.acc.length || !mats) return;
+    for (const t of lk.acc) {
+      if (seated && !ACC_HEAD.has(t)) continue;
+      const L = mats[t], im = this.accIM[ACC_KIND[t]]; if (!L || !im || this.accN[ACC_KIND[t]] >= 512) continue;
+      const n = this.accN[ACC_KIND[t]]++, cols = ACC_COLOR[t];
+      im.setMatrixAt(n, this.tmpA2.multiplyMatrices(M, L)); im.setColorAt(n, this.tmpC2.setHex(cols[Math.floor(hash(id + 41) * cols.length)]));
+    }
+  }
   // מגישים רב-קו לפקח (מבט פקח): ביושב — היד שבצד המעבר עולה אל המעבר, מעט קדימה ובגובה הכתף; בעומד — היד הפנויה
   // (זו שלא מחזיקה בעמוד) עוברת לפני הגוף אל המעבר. frac — כמה מהדרך (0.33 / 0.66 / 1, לתנועה של שלבים).
   // אותו IK של שתי עצמות כמו בשאר התנוחות, על השלד של תנוחת הישיבה/העמידה; כל תנוחה נבנית פעם אחת ונשמרת.
@@ -648,7 +747,7 @@ export class PeopleLayer {
     for (const [b, q] of saved) b.quaternion.copy(q);
     root.updateMatrixWorld(true);
     const meshes = groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 1); im.count = 0; im.visible = false; im.frustumCulled = false; im.name = `crowd-${vi}-reach-${gr.kind}`; im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
-    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o) });
+    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), seated: slot.kind === 'seat' });
   }
   busSitters(seatH, depth) {
     if (this.busSit) return this.busSit;
@@ -688,7 +787,14 @@ export class PeopleLayer {
     let m = this.seats.get(stop.id);
     if (!m) { m = new Map(); this.seats.set(stop.id, m); }
     let i = m.get(pid);
-    if (i === undefined) { const used = new Set(m.values()); i = 0; while (used.has(i)) i++; m.set(pid, i); }
+    if (i === undefined) {
+      // מקום פנוי — ולא צמוד למי שנראה בדיוק כמוהו (אותו דגם ואותם בגדים: "תאומים")
+      const at = new Map(); for (const [q, j] of m) at.set(j, q); const me = this.lookOf(pid);
+      const twin = j => [j - 1, j + 1].some(k => at.has(k) && this.lookOf(at.get(k)) === me);
+      const nS = this.stopFrame(stop).slots.length;
+      i = 0; while (i < nS && (at.has(i) || twin(i))) i++;
+      if (i >= nS) { i = 0; while (at.has(i)) i++; }
+      m.set(pid, i); }
     return i;
   }
   // ישיבה על הספסל: מי שמגיע לתחנה עם סככה ויש מקום פנוי — יושב, ונשאר על הספסל עד שהאוטובוס שלו מגיע.
@@ -731,9 +837,22 @@ export class PeopleLayer {
   }
   personScale(id) { return this.fromGlb ? 0.96 + hash(id + 9) * 0.08 : 0.92 + hash(id + 9) * 0.14; }
   personYaw(stop, i, id) { return this.slot(stop, i)[2] + (hash(id) - 0.5) * 0.9; }
-  variantOf(id) { return Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
+  variantOf(id) { const L = this.lookList(); return L ? L[this.lookIndex(id)].vi : Math.floor(hash(id * 1.37 + 17.1) * this.variants.length) % this.variants.length; }
+  // המראה של כל נוסע (LOOKS) — לפי משקל; רק לדגמים שנטענו (בלי ?placeholders)
+  lookList() {
+    if (this._looks !== undefined) return this._looks;
+    if (this.fromGlb === undefined) return null;                  // עוד לא נטענו
+    if (!this.fromGlb || this.variants.length < 9) return (this._looks = null);
+    const L = LOOKS.filter(l => l.vi < this.variants.length); let tot = 0; for (const l of L) tot += l.w;
+    let acc = 0; this._cum = L.map(l => (acc += l.w) / tot);
+    return (this._looks = L);
+  }
+  lookIndex(id) { const L = this.lookList(); if (!L) return this.variantOf(id); const r = hash(id * 1.37 + 17.1); let i = 0; while (i < this._cum.length - 1 && r > this._cum[i]) i++; return i; }
+  get looks() { return this.lookList(); }
+  lookOf(id) { return this.lookList() ? this.lookIndex(id) : this.variantOf(id); }
+  lookFor(id) { const L = this.lookList(); return L ? L[this.lookIndex(id)] : null; }
   // הצבע לכל חלק: בדגמים האמיתיים — לבן (הטקסטורה כמו שהיא), חוץ מגוון עדין לבגדים ושינוי קטן בבהירות העור
-  tint(id, kind, flat, out) {
+  tint(id, kind, flat, out, seated = false) {
     // פקח: גוון-סימן (INSP_FLAG, ולשליש מהם עניבה — INSP_TIE) — השיידר של הבגד מצייר את המדים (vestShader); נעליים שחורות.
     // מבקר סמוי — כמו כולם
     if (ROLE.get(id) === 'insp') {
@@ -741,6 +860,10 @@ export class PeopleLayer {
       if (kind === 'shoes') return out.setRGB(0.16, 0.16, 0.17);
     }
     if (flat) return out.setHex(personColors(id)[kind] ?? 0x888888);
+    const lk = this.lookFor(id);
+    if (kind === 'cloth' && lk && lk.shirt != null) return out.setRGB(10 + lk.shirt, 10 + lk.pants + (lk.short ? 50 : 0), 10 + lk.pat + (seated && lk.strap === 1 ? 0 : 10 * lk.strap));
+    if (kind === 'hair' && lk?.hair != null) return out.setHex(lk.hair).multiplyScalar(1.6);
+    if (kind === 'shoes' && lk?.shoes != null) return out.setHex(lk.shoes).multiplyScalar(2.2);
     if (kind === 'cloth') { const t = CLOTH_TINT[Math.floor(hash(id + 3) * CLOTH_TINT.length)]; return out.setRGB(t[0], t[1], t[2]); }
     if (kind === 'skin') { const k = 0.94 + hash(id + 21) * 0.1; return out.setRGB(k, k, k); }
     return out.setRGB(1, 1, 1);
@@ -829,6 +952,7 @@ export class PeopleLayer {
     this.waitPos = new Map();                 // ממתינים: הראש בעולם (להקשה — כרטיס נוסע)
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
     const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0, nb = 0; const A = new THREE.Matrix4();
+    this.accN = { kippah: 0, scarf: 0, box: 0 }; this.tmpA2 = this.tmpA2 || new THREE.Matrix4(); this.tmpC2 = this.tmpC2 || new THREE.Color();
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
@@ -836,8 +960,9 @@ export class PeopleLayer {
         if (bk >= 0) {
           const V = this.variants[this.variantOf(p.id)];
           this.sitMatrix(stop, bk, p.id, M);
-          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C)); });
+          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C, true)); });
           V.sn++; this.waitPos.set(p.id, { p, pos: V.sit.hip.clone().applyMatrix4(M).add(new THREE.Vector3(0, 0.55, 0)) });
+          if (V.sit.root) this.emitAcc(p.id, this.accPose(V, 'bench', V.sit.root, V.sit.origin), M, true);
           const insp = ROLE.get(p.id) === 'insp';
           if (V.sit.phone && np < SIT_MAX && !insp) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
           if (insp && V.capSit && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.capSit));
@@ -853,6 +978,7 @@ export class PeopleLayer {
         const V = this.variants[this.variantOf(p.id)];
         V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, M); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
         V.n++; this.waitPos.set(p.id, { p, pos: new THREE.Vector3(x, 1.45, -y) });
+        if (V.insp?.acc) { V.accStand = V.accStand || Object.fromEntries(Object.entries(V.insp.acc).map(([t, a]) => [t, a.stand])); this.emitAcc(p.id, V.accStand, M, false); }
         if (ROLE.get(p.id) === 'insp' && V.insp) {
           if (V.insp.capStand && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.insp.capStand));
           if (V.insp.readerStand && nr < 96) this.readers.setMatrixAt(nr++, A.multiplyMatrices(M, V.insp.readerStand));
@@ -877,15 +1003,17 @@ export class PeopleLayer {
         // מי שמגיש עכשיו רב-קו לפקח (this.reach מ-inspfp.js): בתנוחת ההגשה במקום התנוחה הרגילה
         const R = this.reach?.pid === p.id && this.reach.frac > 0 ? this.reach : null;
         const show = (pose, x, y, z, sxN = 1) => { M.makeScale(sxN, 1, 1).setPosition(x, y, z).premultiply(OM);
-          pose.meshes.forEach((im, g) => { im.setMatrixAt(0, M); im.setColorAt(0, this.tint(p.id, pose.groups[g].kind, false, C)); im.count = 1; im.visible = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; this.reachShown.add(im); });
+          pose.meshes.forEach((im, g) => { im.setMatrixAt(0, M); im.setColorAt(0, this.tint(p.id, pose.groups[g].kind, false, C, pose.seated)); im.count = 1; im.visible = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; this.reachShown.add(im); });
           if (R.card && pose.card) { this.card.matrix.multiplyMatrices(M, pose.card); this.card.matrixWorldNeedsUpdate = true; this.card.visible = true; } };
         if (k < 0) {                          // אין מושב: עומד ליד הדלת האמצעית ומחזיק בעמוד
           const j = ob.standOf(p.id), sp = ob.stands[j], S = sp && V.stand?.[sp[3]];
           if (!S || S.n >= 24) continue;
           const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'stand', x: sp[0], grip: sp[3] }, R.frac, !R.card);
-          if (pose) { show(pose, sp[0], sp[1], sp[2]); this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(sp[0], sp[1] + 0.62, sp[2])).applyMatrix4(OM)); continue; }
+          const pm = this.accPose(V, 'pole' + sp[3], S.st.root, S.st.origin);
+          if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pm, M, false); this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(sp[0], sp[1] + 0.62, sp[2])).applyMatrix4(OM)); continue; }
           M.makeTranslation(sp[0], sp[1], sp[2]).premultiply(OM);
           S.meshes.forEach((im, g) => { im.setMatrixAt(S.n, M); im.setColorAt(S.n, this.tint(p.id, S.groups[g].kind, false, C)); });
+          this.emitAcc(p.id, pm, M, false);
           S.n++;
           this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0)).applyMatrix4(M));
           continue;
@@ -894,9 +1022,11 @@ export class PeopleLayer {
         const st = ob.seats[k];               // [x, רצפה, z של הגב בגובה האגן]
         const sxN = ob.shared?.(k) ? ob.narrow : 1;
         const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'seat', x: st[0] }, R.frac, !R.card);
-        if (pose) { show(pose, st[0], st[1], st[2], sxN); this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(st[0], st[1] + 0.62, st[2] + 0.02)).applyMatrix4(OM)); continue; }
+        const bm = V.bus?.sit?.root ? this.accPose(V, 'bus', V.bus.sit.root, V.bus.sit.origin) : null;
+        if (pose) { show(pose, st[0], st[1], st[2], sxN); this.emitAcc(p.id, bm, M, true); this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(st[0], st[1] + 0.62, st[2] + 0.02)).applyMatrix4(OM)); continue; }
         M.makeScale(sxN, 1, 1).setPosition(st[0], st[1], st[2]).premultiply(OM);
-        V.bus.meshes.forEach((im, g) => { im.setMatrixAt(V.bus.n, M); im.setColorAt(V.bus.n, this.tint(p.id, V.bus.groups[g].kind, false, C)); });
+        V.bus.meshes.forEach((im, g) => { im.setMatrixAt(V.bus.n, M); im.setColorAt(V.bus.n, this.tint(p.id, V.bus.groups[g].kind, false, C, true)); });
+        this.emitAcc(p.id, bm, M, true);
         V.bus.n++;
         this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(0, 0.62, 0.02)).applyMatrix4(M));
       }
@@ -904,6 +1034,7 @@ export class PeopleLayer {
     for (const V of this.variants) if (V.bus) for (const im of V.bus.meshes) { im.count = V.bus.n; im.visible = V.bus.n > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
     for (const V of this.variants) for (const S of Object.values(V.stand || {})) for (const im of S.meshes) { im.count = S.n; im.visible = S.n > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
     this.phones.count = np; this.phones.instanceMatrix.needsUpdate = true;
+    for (const [k, im] of Object.entries(this.accIM)) { im.count = this.accN[k]; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
     this.caps.count = nc; this.readers.count = nr; this.bags.count = nb; this.caps.instanceMatrix.needsUpdate = this.readers.instanceMatrix.needsUpdate = this.bags.instanceMatrix.needsUpdate = true;
     for (const V of this.variants) for (const im of V.sitMeshes) {
       im.count = V.sn; im.visible = V.sn > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -1022,8 +1153,9 @@ export class PeopleLayer {
       }
       w = w || this.makeWalker(vi);
     }
-    for (const [m, k, flat, base] of w.mats) m.color.copy(base).multiply(this.tint(id, k, flat, this.tmpC));
+    for (const [m, k, flat, base] of w.mats) { this.tint(id, k, flat, this.tmpC); if (this.tmpC.r > 9.5) m.color.copy(this.tmpC); else m.color.copy(base).multiply(this.tmpC); }
     for (const a of w.acc || []) a.visible = ROLE.get(id) === 'insp';
+    { const lk = ROLE.get(id) === 'insp' ? null : this.lookFor(id); for (const [t, m] of Object.entries(w.lookAcc || {})) { m.visible = !!lk?.acc.includes(t); if (m.visible) m.material.color.setHex(ACC_COLOR[t][Math.floor(hash(id + 41) * ACC_COLOR[t].length)]); } }
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
@@ -1079,6 +1211,13 @@ export class PeopleLayer {
     for (const [bn, geo, L] of [['Head', capGeo, V.insp?.capLocal], ['RightHand', readerGeo, V.insp?.readerLocal], ['Hips', bagGeo, V.insp?.bagLocal]]) {
       const b = bones?.get(bn); if (!b || !L) continue;
       const m = new THREE.Mesh(geo, geo === capGeo ? CAP_MAT : ACC_MAT); m.name = 'insp-' + bn; m.matrixAutoUpdate = false; m.matrix.copy(L); m.visible = false; m.frustumCulled = false; b.add(m); w.acc.push(m);
+    }
+    // אביזרי הנוסעים (LOOKS): צמודים לעצמות, מוסתרים; walk() מראה את אלה של המראה של מי שהולך
+    w.lookAcc = {};
+    for (const [t, a] of Object.entries(V.insp?.acc || {})) {
+      const b = bones?.get(a.bone); if (!b) continue;
+      const m = new THREE.Mesh(ACC_GEO[ACC_KIND[t]], new THREE.MeshLambertMaterial({ color: 0xffffff, side: ACC_KIND[t] === 'box' ? THREE.FrontSide : THREE.DoubleSide }));
+      m.name = 'acc-' + t; m.matrixAutoUpdate = false; m.matrix.copy(a.local); m.visible = false; m.frustumCulled = false; b.add(m); w.lookAcc[t] = m;
     }
     if (w.legs && mixer) {
       // הגובה הנמוך ביותר של הקרסול ושל הבוהן בזמן ההליכה (כף הרגל על הרצפה)
