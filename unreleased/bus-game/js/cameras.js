@@ -78,6 +78,10 @@ function driverMode(cm) {
     drive(bus) { m.bus = bus; if (cm.current === 'driver') m.enter(); else cm.set('driver'); },
     update(dt) {
       if (!alive(m.bus)) {
+        // סידור עבודה (duty.js): הנסיעה הבאה — או הפסקה (נשארים במקום עד שהאוטובוס הבא יוצא)
+        const nx = cm.game.nextDriverBus?.(m.bus);
+        if (nx === false) return;
+        if (nx) { m.bus = nx; cm.game.onDriver?.(true, m.bus); return; }
         const L = m.bus?.line, next = L?.buses.find(alive) || cm.game.pickBus();
         if (!next) { cm.set('free'); return; }
         m.bus = next; cm.game.onDriver?.(true, m.bus);

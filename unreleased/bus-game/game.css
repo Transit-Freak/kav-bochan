@@ -409,3 +409,40 @@ body.driving .brand,body.driving .cams{display:none}
 .drvctl .pedal.brake{left:12px;background:rgba(185,28,28,.72)}
 .drvctl .pedal.gas{right:12px;background:rgba(21,128,61,.72)}
 .drvctl .pedal.on{transform:scale(.94);filter:brightness(1.35)}
+/* בחירת תפקיד: ארבעה כרטיסים גדולים */
+.rolepick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.rolepick button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:16px;text-align:center;min-height:132px}
+.rolepick i{font-style:normal;font-size:34px;line-height:1}
+.rolepick b{font-size:18px}
+.rolepick span{font-size:12.5px;color:var(--muted);line-height:1.35}
+.drvhud .dh-score{flex:none;font-size:12px;font-weight:800;padding:3px 8px;border-radius:999px;background:#1e3a5f;color:#bfdbfe}
+.drvhud .dh-score:empty{display:none}
+/* פקח: אותה תצוגה קטנה, עם כפתורי בדיקה */
+.insphud{flex-wrap:wrap}
+.insphud .dh-txt{flex:1 1 60%}
+.insphud button{font-size:13px;padding:7px 12px;flex:1 1 auto}
+.insphud #ihNext{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.insphud .x{flex:none;background:transparent;color:#fff;border:0;font-size:16px;padding:4px 6px;order:-1}
+body.role-inspector #newLine,body.role-driver #newLine{display:none}
+/* סדרן: בלי בניית קווים ועריכת מסלולים */
+body.role-dispatcher #newLine,body.role-dispatcher .lbtns [data-a="route"],body.role-dispatcher .lbtns [data-a="del"],body.role-dispatcher .lbtns [data-a="rev"],
+body.role-dispatcher #resetGame{display:none}
+/* נהג: בחירת קו, סידור עבודה, ושאלה של נוסע */
+.linepick{display:grid;gap:8px;max-height:60vh;overflow:auto}
+.linepick button{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;text-align:start}
+.linepick span:last-child{display:flex;flex-direction:column;font-weight:700}
+.linepick small{font-weight:400;color:var(--muted);font-size:12.5px}
+table.duty{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 10px}
+table.duty th{font-size:12px;color:var(--muted);text-align:start;padding:4px}
+table.duty td{padding:6px 4px;border-top:1px solid var(--line)}
+table.duty tr.brk td{color:var(--muted);font-size:12.5px;text-align:center;border-top:0;padding:2px}
+.drvhud .dh-duty{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#fde68a;border-top:1px solid rgba(255,255,255,.15);padding-top:4px;margin-top:2px}
+.drvhud .dh-duty[hidden]{display:none}
+.drvhud .dh-duty button{font-size:12px;padding:3px 8px;margin-inline-start:auto}
+.drvhud{flex-wrap:wrap}
+.qbox{position:fixed;inset-inline:14px;top:40%;z-index:40;background:#fff;border-radius:18px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.35);max-width:440px;margin-inline:auto;display:flex;flex-direction:column;gap:8px}
+.qbox[hidden]{display:none}
+.qbox .q-who{font-size:13px;color:var(--muted)}
+.qbox b{font-size:17px;line-height:1.35}
+.qbox .q-btns{display:grid;gap:6px}
+.qbox .q-btns button{padding:10px;border-radius:12px;font-size:15px;font-weight:700}

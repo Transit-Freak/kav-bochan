@@ -13,6 +13,8 @@ const LAMP = { front: 6.062, rear: -6.045 };            // פני החזית ו�
 export class DriveControls {
   constructor(g) {          // { canvas, camera, toast, sim, clock, ui: {root, hud} }
     this.g = g; this.st = { gas: false, brake: false, blink: 0, hazard: false, lights: false, wipers: false, kneel: false };
+    // ניקוד: עצירה בזמן בתחנה (+10, באיחור +4), בלימה חדה (‎-3), אזהרה — למשל נסיעה עם דלת פתוחה (‎-5)
+    this.score = { pts: 0, stops: 0, ontime: 0, harsh: 0, warns: 0 };
     this.held = new Set(); this.t = 0; this.wipe = 0; this.plate = switchPlate(); this.lastWarn = 0;
     this.bindUI(); this.bindKeys(); this.bindCanvas();
   }
@@ -66,8 +68,10 @@ export class DriveControls {
     chime(); this.g.toast(`📢 ${txt}`);
     try { const u = new SpeechSynthesisUtterance(txt); u.lang = 'he-IL'; u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch { }
   }
-  warn(t) { const now = performance.now(); if (now - this.lastWarn < 2500) return; this.lastWarn = now; this.g.toast(`⚠ ${t}`); }
-  setPedal(p, v) { this.st[p] = v; if (this.bus) { this.bus.ctl.gas = this.st.gas; this.bus.ctl.brake = this.st.brake; } this.sync(); }
+  warn(t) { const now = performance.now(); if (now - this.lastWarn < 2500) return; this.lastWarn = now; this.g.toast(`⚠ ${t}`); this.score.warns++; this.score.pts -= 5; }
+  setPedal(p, v) {
+    if (p === 'brake' && v && !this.st.brake && this.bus && this.bus.v > 11) { this.score.harsh++; this.score.pts -= 3; }
+    this.st[p] = v; if (this.bus) { this.bus.ctl.gas = this.st.gas; this.bus.ctl.brake = this.st.brake; } this.sync(); }
 
   // ---------- ממשק: כפתורים, דוושות, מקלדת, ולוח המתגים בתא
   bindUI() {
@@ -108,6 +112,9 @@ export class DriveControls {
   update(dt) {
     const b = this.bus; if (!b) return;
     this.t += dt;
+    if (b.state === 'dwell' && this._prev === 'drive') { const S = this.score, ok = Math.abs(b.delay || 0) < 120; S.stops++; if (ok) S.ontime++; S.pts += ok ? 10 : 4; }
+    this._prev = b.state;
+    this.g.ui.score.textContent = `ניקוד ${this.score.pts}`;
     const S = this.st, c = b.ctl, blinkOn = Math.floor(this.t * 2.6) % 2 === 0;
     const L = S.hazard || S.blink === 1, R = S.hazard || S.blink === -1;
     const Lm = this.lamps;

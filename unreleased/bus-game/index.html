@@ -53,7 +53,7 @@
     <div id="moneyBody"></div>
     <div class="game-box">
       <h4>משחק</h4>
-      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button></div>
+      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button><button type="button" id="switchRole">החלף תפקיד</button></div>
       <h4>המשחקים השמורים</h4>
       <div id="slotList"></div>
     </div>
@@ -173,6 +173,37 @@
     <div class="col-btns"><button type="button" id="resetSave" class="primary">שמור והתחל מחדש</button><button type="button" id="resetNoSave" class="del">התחל בלי לשמור</button><button type="button" id="resetCancel">ביטול</button></div>
   </div>
 </div>
+<div class="modal" id="roleAsk" hidden>
+  <div class="card">
+    <h2>מי אתה רוצה להיות?</h2>
+    <div class="rolepick" role="group" aria-label="תפקיד">
+      <button type="button" data-role="driver"><i>🚌</i><b>נהג</b><span>נוהגים באוטובוס בקו מוכן: עצירות, דלתות, בזמן</span></button>
+      <button type="button" data-role="planner"><i>🗺️</i><b>מתכנן</b><span>בונים קווים ורשת לכל העיר, עם תקציב ומשימות</span></button>
+      <button type="button" data-role="dispatcher"><i>🎧</i><b>סדרן</b><span>הרשת כבר פועלת: מטפלים בתקלות ובצפיפות</span></button>
+      <button type="button" data-role="inspector"><i>🦺</i><b>פקח</b><span>עולים לאוטובוסים ובודקים כרטיסים</span></button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="lineAsk" hidden>
+  <div class="card">
+    <h2>באיזה קו נוהגים היום?</h2>
+    <p class="hint">הקווים העירוניים של קריית מלאכי.</p>
+    <div class="linepick" id="linePick"></div>
+  </div>
+</div>
+<div class="modal" id="dutyAsk" hidden>
+  <div class="card">
+    <h2>סידור העבודה שלך</h2>
+    <p class="hint">הסדרן שיבץ אותך לארבע נסיעות. צאו מהמסוף בזמן — כל יציאה בזמן שווה נקודות.</p>
+    <div id="dutyBody"></div>
+    <div class="row"><button type="button" id="dutyGo" class="primary">מתחילים</button></div>
+  </div>
+</div>
+<div class="qbox" id="qBox" hidden>
+  <div class="q-who">🧍 נוסע שואל:</div>
+  <b id="qText"></b>
+  <div class="q-btns" id="qBtns"></div>
+</div>
 <div class="modal" id="modeAsk" hidden>
   <div class="card">
     <h2>משחק חדש</h2>
@@ -226,7 +257,16 @@
   <span class="num" id="dhNum">1</span>
   <div class="dh-txt"><b id="dhNext"></b><small id="dhPax"></small></div>
   <span class="dh-stop" id="dhStop" title="נוסע ביקש לעצור">עצירה</span>
+  <span class="dh-score" id="dhScore" title="ניקוד"></span>
+  <div class="dh-duty" id="dhDuty" hidden><span id="dhDutyTxt"></span><button type="button" id="dhSkip" hidden>דילוג להפסקה</button></div>
   <button type="button" id="dhExit" class="primary">יציאה</button>
+</div>
+<div class="drvhud insphud" id="inspHud" hidden>
+  <span class="num" id="ihNum">1</span>
+  <div class="dh-txt"><b id="ihTxt">פקח</b><small id="ihStat"></small></div>
+  <button type="button" id="ihCheck" class="primary">בדיקת כרטיסים</button>
+  <button type="button" id="ihNext">אוטובוס הבא</button>
+  <button type="button" id="ihExit" class="x" aria-label="החלפת תפקיד">✕</button>
 </div>
 <div class="drvctl" id="drvCtl" hidden>
   <div class="dc-btns" role="group" aria-label="מתגי הנהג">

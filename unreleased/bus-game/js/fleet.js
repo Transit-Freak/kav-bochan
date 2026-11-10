@@ -73,7 +73,9 @@ export class Bank {
     this.onDay = null;            // נקרא עם סיכום היום שהסתיים
     // מצב המשחק: 'career' (ברירת המחדל, גם לשמירות ישנות) או 'creative'; והמצב של השלבים (career.js)
     this.mode = normMode(save?.mode);            // שמירה ישנה: career/בלי → medium
-    this.wasHard = save?.mode === 'hard';          // רמה "קשה" הוסרה — ממשיכים בבינוני (הודעה ב-main.js)
+    this.wasHard = save?.mode === 'hard';
+    // התפקיד (main.js: נהג / מתכנן / סדרן / פקח). שמירה ישנה — מתכנן
+    this.role = ['driver', 'planner', 'dispatcher', 'inspector'].includes(save?.role) ? save.role : 'planner';          // רמה "קשה" הוסרה — ממשיכים בבינוני (הודעה ב-main.js)
     applyPrices(this.mode);
     this.career = save?.career && typeof save.career === 'object' ? save.career : null;
     this.legacy = !!save && !save.mode;
@@ -90,7 +92,7 @@ export class Bank {
     try { localStorage.setItem(KEY, JSON.stringify(this.snapshot(time))); } catch { }
   }
   snapshot(time) {
-    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
+    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
   }
   line(id) { return this.today.byLine[id] || (this.today.byLine[id] = { fares: 0, pax: 0, cost: 0, subsidy: 0 }); }
   earn(amount, lineId) {

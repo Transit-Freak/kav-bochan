@@ -328,7 +328,7 @@ export class Sim {
             if (!p.role) {
               L.stats.board++; L.stats.hBoard[hourOf(this.time)]++; ss.board++; L.stats.waitSum += this.time - p.t0; L.stats.waitN++;
               // מעבר בחינם (כמו "רב-קו": עד 90 דק') — משלמים רק בעלייה הראשונה. חלק מהנוסעים לא משלמים (ops.pays)
-              if (!p.paid) { p.paid = true; if (this.ops.pays(L)) this.bank?.earn(FARE, L.id); } else L.stats.xferIn++;
+              if (!p.paid) { p.paid = true; if (this.ops.pays(L)) this.bank?.earn(FARE, L.id); else p.noTicket = true; } else L.stats.xferIn++;   // noTicket — לפקח (main.js)
             }
             this.ops.onLoad(b);
             this.events.push({ type: 'board', bus: b, p, stop });
