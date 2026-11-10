@@ -19,6 +19,7 @@ import { CameraModes } from './cameras.js';
 import { DriveControls } from './drivectl.js';
 import { DriverShift } from './duty.js';
 import { InspectorFP } from './inspfp.js';
+import { Residents } from './residents.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
 import { NightFast, FAST } from './night.js';
 import { mapTouch } from './touch.js';
@@ -68,7 +69,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let residents, drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -93,14 +94,15 @@ async function init() {
   bank = new Bank(saved, t0);
   bank.onDay = d => { showDaySummary(d); career?.newDay(d.day + 1); };
   demand = new Demand(dj, city.stops);
-  sim = new Sim(city.stops, bank, t0, demand);
+  residents = makeResidents();
+  sim = new Sim(city.stops, bank, t0, demand); sim.residents = residents;
   dlayer = new DemandLayer(scene, demand.zones, city.stops, city.buildings, city.meta.half); dlayer.resize(innerWidth, innerHeight);
   dlayer.obstacles = () => ['.bar', '#dLegend', '#dlFocus', '#panel'].map(q => $(q)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.width);
   buildStops();
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast, onDriver, renderer, scene, clock: () => clockText(sim.time), nextDriverBus: prev => shift.on ? shift.next(prev) : undefined });
   shift = new DriverShift({ sim, lines: () => lines, toast, demand, setSpeed, speed: () => sim.speed || G.lastSpeed || 1, score: n => { drive.score.pts += n; },
     ui: { qBox: $('#qBox'), qText: $('#qText'), qBtns: $('#qBtns') }, ended: () => { $('#dhDuty').hidden = true; } });
-  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, busObject: b => buses.objectOf(b), toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
+  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
     ui: { root: $('#ifp'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
     onExit: () => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow'); } });
@@ -141,7 +143,7 @@ async function init() {
   cloud.resume().then(on => { if (on) cloudStart(); });
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, buses, fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, buses, residents: () => residents, paxCardAt: (x, y) => paxCardAt(x, y), fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -213,6 +215,7 @@ canvas.addEventListener('pointerup', e => {
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
   if (moved > 8 || dt > 600) return;
   if (cams?.current === 'driver' || fp?.on) return;        // במבט נהג / פקח הקשה על המסך היא על התא או על הנוסעים
+  if (!planning && paxCardAt(e.clientX, e.clientY)) return;
   if (dview.on && !planning) {        // במפת הביקוש: הקשה על שכונה מציגה לאן נוסעים ממנה; הקשה במקום ריק מחזירה לכל העיר
     const z = pickZone(e.clientX, e.clientY);
     if (z != null || dview.focus != null) { dview.tapT = performance.now(); focusZone(z === dview.focus ? null : z); return; }
@@ -847,7 +850,8 @@ function renderMoney() {
     <table class="prices"><tr><th>סוג</th><th>מקומות</th><th>קנייה</th>${M.lease ? '<th>ליסינג ליום</th>' : ''}<th>לק"מ</th><th>לשעה</th></tr>
     ${TYPE_ORDER.map(t => { const T = TYPES[t]; return `<tr><td>${T.name}</td><td>${T.cap}</td><td>${money(T.price)}</td>${M.lease ? `<td>${money(T.lease)}</td>` : ''}<td>₪${T.km}</td><td>₪${T.hour}</td></tr>`; }).join('')}</table>
     <p class="hint">כל נוסע משלם ₪${FARE}, והמדינה משלמת ₪${+subsidyKm(bank).toFixed(1)} על כל ק"מ שאוטובוס נוסע בקו (לא על החזרה הריקה). מכירת רכב קנוי מחזירה ${Math.round(SELL_BACK * 100)}% מהמחיר.${M.lease ? ' רכב בליסינג משלמים עליו כל יום ומחזירים מתי שרוצים, בלי החזר.' : ''}</p>
-    ${prev ? `<h4>אתמול · יום ${prev.day}</h4>${dayRows(prev)}` : ''}`;
+    ${prev ? `<h4>אתמול · יום ${prev.day}</h4>${dayRows(prev)}` : ''}
+    ${bank.cityNews?.length ? `<h4>מה חדש בעיר</h4><ul class="dlist">${bank.cityNews.slice(0, 8).map(n => `<li><span class="lmeta">יום ${n.day}</span> ${esc(n.t)}</li>`).join('')}</ul>` : ''}`;
   const body = $('#moneyBody');
   if (body.dataset.html === html) return;
   body.dataset.html = html; body.innerHTML = html;
@@ -945,6 +949,26 @@ function startMode(mode, save) {
   if (save && !saveSlot()) return;
   resetGame(!!save, mode);
 }
+// ---------- תושבים קבועים ומבקרים (residents.js): נבנים מה-seed שבשמירה, ומגיעים ליום הנוכחי (מעברי דירה ועבודה)
+function makeResidents() {
+  const t0 = performance.now(), R = new Residents(demand, city.stops, bank.resSeed);
+  R.catchUp((sim ? dayOf(sim.time) : bank.today.day) + 1); G.residentsMs = Math.round(performance.now() - t0);
+  return R;
+}
+function resetResidents(newSeed) { if (newSeed) bank.resSeed = ((Math.random() * 4294967295) >>> 0) || 1; residents = makeResidents(); sim.residents = residents; sim.schedDay = null; }
+// כרטיס של נוסע (הקשה על ממתין בתחנה): איפה גר, לאן נוסע, מתי יוצא בדרך כלל
+function paxCardAt(x, y) {
+  const P = people.waitPos; if (!P?.size) return false;
+  const r = canvas.getBoundingClientRect(); let best = null, bd = 28;
+  for (const [, w] of P) { const v = w.pos.clone().project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; best = w; } }
+  if (!best) return false;
+  const info = residents?.info(best.p.who) || { lives: 'נוסע מזדמן', goes: 'קניות וסידורים', out: null }, c = $('#paxCard');
+  c.innerHTML = `<b>${esc(info.lives)}</b>${info.goes ? `<span>${esc(info.goes)}</span>` : ''}${info.out ? `<span>יוצא בדרך כלל ב-${info.out}</span>` : ''}${ROLE_INSP(best.p) ? '<span class="lmeta">פקח</span>' : ''}`;
+  c.style.left = `${Math.min(innerWidth - 200, Math.max(8, x - 90))}px`; c.style.top = `${Math.max(70, y - 110)}px`; c.hidden = false;
+  clearTimeout(paxCardAt.t); paxCardAt.t = setTimeout(() => { c.hidden = true; }, 4500);
+  return true;
+}
+const ROLE_INSP = p => p.role === 'insp';
 // ---------- תפקידים: נהג, מתכנן, סדרן, פקח. מתכנן — המשחק המלא (בחירת רמה, בניית קווים). שאר התפקידים — על רשת
 // מוכנה (או על הרשת שכבר בנויה במשחק): נהג — מבט נהג עם השליטה (drivectl.js), סדרן — לשונית "סדרן" בלי בניית קווים,
 // פקח — מעקב אחרי אוטובוס ובדיקת כרטיסים בתחנות. התפקיד נשמר בשמירה (שמירה ישנה — מתכנן)
@@ -1154,6 +1178,7 @@ function applySave(sl) {
   const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
   bank.mode = nb.mode; applyPrices(nb.mode); bank.career = nb.career || (MODES[nb.mode].stages ? newCareer() : null);
   bank.inspectors = nb.inspectors; bank.reports = nb.reports; bank.settings = nb.settings; bank.role = nb.role; renderOps();
+  bank.resSeed = nb.resSeed; bank.cityNews = nb.cityNews; bank.warnings = nb.warnings; bank.inspHist = nb.inspHist; resetResidents(false);
   if (nb.wasHard) setTimeout(() => toast(HARD_GONE), 3400);          // אחרי ההודעה על הטעינה
   if (MODES[nb.mode].stages && !nb.career) { career.payStops(sl.lines.flatMap(d => d.stopIds)); }
   lineDefs = [];
@@ -1308,9 +1333,9 @@ function bindReset() {
 function resetGame(saved, mode = bank.mode) {
   cancelPlanning();
   for (const L of [...lines]) removeLine(L, false);
-  sim.time = 6.5 * 3600; sim.resetStops(); sim.resetToday(); sim.pending = [];
+  sim.time = 6.5 * 3600; sim.resetStops(); sim.resetToday(); sim.pending = []; bank.cityNews = [];
   mode = normMode(mode);
-  bank.reset(sim.time, mode, MODES[mode].stages ? newCareer() : null);
+  bank.reset(sim.time, mode, MODES[mode].stages ? newCareer() : null); resetResidents(true);
   sim.ops.log.length = 0; sim.ops.jams.length = 0; renderOps(); applyModeUI();
   covLayer && drawCover(); renderMissions();
   bank.save(sim.time); renderMoney(); renderSlots(); showTab('lines');

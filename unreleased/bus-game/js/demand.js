@@ -92,7 +92,9 @@ export class Demand {
     }
     // לכל שעה: נסיעות לשעה מכל תחנה לכל תחנה (הלוך + חזור), סכום, והתפלגות מצטברת להגרלה
     // zonePurp[h]: נסיעות לשעה בין אזורים לפי סוג היעד — [(מוצא*Z+יעד)*4 + סוג], סוג: 0 הביתה, 1 עבודה, 2 לימודים, 3 קניות
+    this.daily = daily;                   // לתושבים הקבועים (residents.js)
     this.hour = []; this.hourTot = new Float64Array(24); this.cdf = []; this.zoneHour = []; this.zonePurp = [];
+    this.cdfOther = []; this.hourTotOther = new Float64Array(24);
     const zo = this.zoneOf;
     for (let h = 0; h < 24; h++) {
       const R = new Float32Array(N * N), ZP = new Float32Array(Z * Z * 4);
@@ -112,6 +114,10 @@ export class Demand {
         if (R[k]) ZR[this.zoneOf[(k / N) | 0] * Z + this.zoneOf[k % N]] += R[k];
       }
       this.hour.push(R); this.cdf.push(C); this.hourTot[h] = acc; this.zoneHour.push(ZR);
+      // רק "קניות ושונות" (כשיש תושבים קבועים — עבודה ולימודים באים מהם)
+      const T = daily.other, ko = PROFILES.other.out[h], kb = PROFILES.other.back[h], CO = new Float64Array(N * N); let ao = 0;
+      for (let k = 0; k < N * N; k++) { const o = (k / N) | 0, d = k % N; ao += T[k] * ko + T[d * N + o] * kb; CO[k] = ao; }
+      this.cdfOther.push(CO); this.hourTotOther[h] = ao;
     }
     this.dayTot = this.hourTot.reduce((a, b) => a + b, 0);
   }
@@ -120,6 +126,17 @@ export class Demand {
     const x = ((t / 3600) % 24) - 0.5, h0 = Math.floor(x), f = x - h0;
     const a = this.hourTot[(h0 + 24) % 24], b = this.hourTot[(h0 + 1) % 24];
     return a + (b - a) * f;
+  }
+  rateAtOther(t) {
+    const x = ((t / 3600) % 24) - 0.5, h0 = Math.floor(x), f = x - h0;
+    const a = this.hourTotOther[(h0 + 24) % 24], b = this.hourTotOther[(h0 + 1) % 24];
+    return a + (b - a) * f;
+  }
+  sampleOther(t, rand) {
+    const h = Math.floor((t / 3600) % 24), C = this.cdfOther[h], r = rand() * C[C.length - 1];
+    let lo = 0, hi = C.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (C[m] < r) lo = m + 1; else hi = m; }
+    return lo;
   }
   // הגרלת זוג מוצא-יעד לפי השעה. מחזיר o*N+d
   sample(t, rand) {

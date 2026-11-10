@@ -684,6 +684,7 @@ export class PeopleLayer {
     }
     let n = 0;
     for (const V of this.variants) V.n = V.sn = 0;
+    this.waitPos = new Map();                 // ממתינים: הראש בעולם (להקשה — כרטיס נוסע)
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
     const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0, nb = 0; const A = new THREE.Matrix4();
     for (const [stop, list] of per) {
@@ -694,7 +695,7 @@ export class PeopleLayer {
           const V = this.variants[this.variantOf(p.id)];
           this.sitMatrix(stop, bk, p.id, M);
           V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C)); });
-          V.sn++;
+          V.sn++; this.waitPos.set(p.id, { p, pos: V.sit.hip.clone().applyMatrix4(M).add(new THREE.Vector3(0, 0.55, 0)) });
           const insp = ROLE.get(p.id) === 'insp';
           if (V.sit.phone && np < SIT_MAX && !insp) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
           if (insp && V.capSit && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.capSit));
@@ -709,7 +710,7 @@ export class PeopleLayer {
         M.compose(P, Q, S);
         const V = this.variants[this.variantOf(p.id)];
         V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, M); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
-        V.n++;
+        V.n++; this.waitPos.set(p.id, { p, pos: new THREE.Vector3(x, 1.45, -y) });
         if (ROLE.get(p.id) === 'insp' && V.insp) {
           if (V.insp.capStand && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.insp.capStand));
           if (V.insp.readerStand && nr < 96) this.readers.setMatrixAt(nr++, A.multiplyMatrices(M, V.insp.readerStand));

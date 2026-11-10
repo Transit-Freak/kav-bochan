@@ -84,6 +84,8 @@ export class Bank {
     this.reports = Array.isArray(save?.reports) ? save.reports.slice(0, 30) : [];
     this.settings = { incidents: true, audits: true, ...(save?.settings || {}) };
     this.warnings = save?.warnings && typeof save.warnings === 'object' ? save.warnings : {};
+    this.resSeed = (save?.resSeed >>> 0) || ((Math.random() * 4294967295) >>> 0) || 1;   // התושבים הקבועים (residents.js)
+    this.cityNews = Array.isArray(save?.cityNews) ? save.cityNews.slice(0, 40) : [];      // "מה חדש בעיר"
     this.inspHist = save?.inspHist && typeof save.inspHist === 'object' ? save.inspHist : {};       // ביקורות לפי קו: [היום, אתמול, שלשום]       // פקח: מי כבר קיבל אזהרה (מפתח אדם ← יום)          // שמירה מלפני השלבים — השלבים שכבר מתקיימים מושלמים בשקט
   }
   static load() {
@@ -94,7 +96,7 @@ export class Bank {
     try { localStorage.setItem(KEY, JSON.stringify(this.snapshot(time))); } catch { }
   }
   snapshot(time) {
-    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, warnings: this.warnings, inspHist: this.inspHist, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
+    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, resSeed: this.resSeed, cityNews: this.cityNews, warnings: this.warnings, inspHist: this.inspHist, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
   }
   line(id) { return this.today.byLine[id] || (this.today.byLine[id] = { fares: 0, pax: 0, cost: 0, subsidy: 0 }); }
   earn(amount, lineId) {

@@ -477,3 +477,6 @@ body.role-inspector #money,body.role-inspector #modeBadge{display:none}
 table.isum{width:100%;border-collapse:collapse;font-size:15px}
 table.isum td{padding:6px 4px;border-top:1px solid var(--line)}
 table.isum tr.tot td{font-size:17px;border-top:2px solid var(--line2)}
+.paxcard{position:fixed;z-index:30;width:190px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:2px;font-size:13px;pointer-events:none}
+.paxcard[hidden]{display:none}
+.paxcard b{font-size:14px}

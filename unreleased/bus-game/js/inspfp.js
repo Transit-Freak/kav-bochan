@@ -18,7 +18,8 @@ const SEATS = ROWS.flatMap(z => [0.95, 0.5, -0.5, -0.95].filter(x => !SIDES[z] |
 const STANDS = [[-0.8, 0, 0.35, -Math.PI / 2], [-0.85, 0, -0.25, -Math.PI / 2], [0.75, 0, -0.1, Math.PI / 2], [0.8, 0, 0.45, Math.PI / 2]];
 const hash = i => { const x = Math.sin(i * 77.7 + 3.1) * 43758.5453; return x - Math.floor(x); };
 const day2date = d => { const t = new Date(2026, 10, 1 + (d - 1)); return `${String(t.getDate()).padStart(2, '0')}.${String(t.getMonth() + 1).padStart(2, '0')}`; };
-export const personKey = p => (p.o >= 0 && p.d >= 0 ? `${p.o}-${p.d}-${p.id % 3}` : `x${p.id}`);
+// אותו אדם בכל הימים: תושב קבוע או עובד מבחוץ (residents.js) — לפי המספר שלו; אחרים — לפי מוצא, יעד וסוג
+export const personKey = p => (p.who != null && p.who > -1e6 ? `r${p.who}` : p.o >= 0 && p.d >= 0 ? `${p.o}-${p.d}-${p.id % 3}` : `x${p.id}`);
 
 export class InspectorFP {
   constructor(g) {          // g: { camera, scene, canvas, people, sim, bank, busObject(b), toast, ui:{...}, setSpeed, speed(), onExit() }
@@ -101,7 +102,7 @@ export class InspectorFP {
     const p = this.bus.pax.find(q => q.id === pid); if (!p) return;
     if (p.checked) { this.reader.show(p.noTicketSeen ? '✗ נבדק — בלי כרטיס' : '✓ כבר נבדק', '', p.noTicketSeen ? 'bad' : 'ok'); return; }
     p.checked = true; this.stats.checked++; this.stats.pts += 1; beep(!p.noTicket);
-    if (!p.noTicket) { this.reader.show('✓ כרטיס בתוקף', 'רב-קו · חוזה פעיל', 'ok'); this.icon(pid, true); this.render(); return; }
+    if (!p.noTicket) { this.reader.show('✓ כרטיס בתוקף', this.g.info?.(p.who)?.lives || 'רב-קו · חוזה פעיל', 'ok'); this.icon(pid, true); this.render(); return; }
     p.noTicketSeen = true; this.stats.caught++; this.stats.pts += 5; this.icon(pid, false);
     const W = this.g.bank.warnings || (this.g.bank.warnings = {}), k = personKey(p), prev = W[k];
     const hist = prev ? `קיבל כבר אזהרה ב-${day2date(prev)}` : 'אזהרה ראשונה';

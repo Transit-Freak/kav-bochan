@@ -205,21 +205,32 @@ export class Sim {
     const D = this.demand, N = D.N;
     // הטבלה מתעדכנת כשקו נפתח/נסגר, ופעם ב-10 דקות משחק (התדירות בפועל משתנה)
     if (this.time - this.netT > 600) { this.netT = this.time; this.net.refresh(); }
-    const tab = this.net.table(this.time);
-    let x = D.rateAt(this.time) / 3600 * h;
-    const H = hourOf(this.time), T = this.today;
+    const tab = this.net.table(this.time), R = this.residents;
+    // עם תושבים קבועים (residents.js): אקראי — רק קניות ושונות; עבודה, לימודים ומבקרים — לפי לוח הנסיעות של היום
+    let x = (R ? D.rateAtOther(this.time) : D.rateAt(this.time)) / 3600 * h;
     for (; x > 0; x -= 1) {
       if (this.rand() >= Math.min(1, x)) continue;
-      const k = D.sample(this.time, this.rand);
-      T.pot[H]++;
-      const legs = tab.legs[k];
-      if (!legs) { T.none[H]++; T.pairNone[D.zoneOf[(k / N) | 0] * D.Z + D.zoneOf[k % N]]++; continue; }
-      if (this.rand() >= tab.p[k]) { T.declined[H]++; continue; }
-      T.ride[H]++; T.trips++; if (legs.length > 1) T.xferTrips++;
-      const p = { id: PID++, legs: legs.map(g => ({ ...g })), leg: 0, t0: this.time, paid: false, o: k / N | 0, d: k % N };
-      for (const g of legs) g.L.stats.hWant[H]++;
-      this.joinQueue(p);
+      this.trip(tab, R ? D.sampleOther(this.time, this.rand) : D.sample(this.time, this.rand), null);
     }
+    if (R) {
+      const day = dayOf(this.time), t = this.time - (day - 1) * 86400;
+      if (this.schedDay !== day) { this.schedDay = day; this.sched = R.schedule(day); this.si = 0; while (this.si < this.sched.length && this.sched[this.si][0] < t - 60) this.si++; }
+      const S = this.sched;
+      while (this.si < S.length && S[this.si][0] <= t) { const [, o, d, who] = S[this.si++]; this.trip(tab, o * N + d, who); }
+    }
+  }
+  // נסיעה אחת (זוג מוצא-יעד k): יש מסלול? נוסעים? — ונכנסים לתור. who — מי זה (תושב קבוע / עובד מבחוץ / מבקר)
+  trip(tab, k, who) {
+    const D = this.demand, N = D.N, H = hourOf(this.time), T = this.today;
+    T.pot[H]++;
+    const legs = tab.legs[k];
+    if (!legs) { T.none[H]++; T.pairNone[D.zoneOf[(k / N) | 0] * D.Z + D.zoneOf[k % N]]++; return; }
+    if (this.rand() >= tab.p[k]) { T.declined[H]++; return; }
+    T.ride[H]++; T.trips++; if (legs.length > 1) T.xferTrips++;
+    const p = { id: PID++, legs: legs.map(g => ({ ...g })), leg: 0, t0: this.time, paid: false, o: k / N | 0, d: k % N };
+    if (who != null) p.who = who;
+    for (const g of legs) g.L.stats.hWant[H]++;
+    this.joinQueue(p);
   }
   // פקח או מבקר סמוי: נוסע מיוחד בתור (לא נספר בסטטיסטיקה ולא משלם)
   makeRider(L, from, to, role) {
@@ -484,6 +495,8 @@ export class Sim {
   // חצות: סיכום היום בקופה, והמונים של הקווים והתחנות מתאפסים
   newDay() {
     this.bank?.roll(this.time); this.ops.roll();
+    // תושבים: מעברי דירה ועבודה של היום שהתחיל — ליומן "מה חדש בעיר"
+    if (this.residents && this.bank) { const day = dayOf(this.time); for (const t of this.residents.catchUp(day + 1).slice(0, 6)) this.bank.cityNews.unshift({ day, t }); this.bank.cityNews.length = Math.min(this.bank.cityNews.length, 40); }
     for (const L of this.lines) if (!L.retired) L.resetStats();
     this.resetStops();
     this.yesterday = this.today; this.resetToday();
