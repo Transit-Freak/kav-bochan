@@ -341,7 +341,7 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .dstrip{width:100%;height:44px;display:block}
 .dstrip .track{stroke:#c3c9d1;stroke-width:4;stroke-linecap:round}
 .dstrip line:not(.track){stroke:#5f6872;stroke-width:1.5}
-.dstrip .bunch{fill:rgba(208,59,59,.22)}
+.dstrip .bunch{fill:rgba(208,59,59,.34)}
 .dstrip .gap{fill:rgba(237,161,0,.25)}
 .dstrip .jam{fill:repeating-linear-gradient(45deg,#f97316,#f97316 3px,transparent 3px,transparent 6px);fill:#f97316;opacity:.55}
 .dstrip .bus circle{stroke:#fff;stroke-width:2}

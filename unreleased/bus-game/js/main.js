@@ -911,13 +911,23 @@ function renderDispatch(force) {
     const len = L.poly.length, x = s => X1 - (X1 - X0) * s / len;          // מימין לשמאל, כמו הקריאה
     const cyc = lineCycle(L), plan = len * L.def.headway * 60 / Math.max(60, cyc.run);
     const bs = L.buses.filter(b => b.state === 'drive' || b.state === 'dwell').sort((a, b) => b.s - a.s);
+    // אוטובוסים כמעט באותו מקום (למשל שלושה באותה תחנה): הנקודות נפרשות זו לצד זו (12 לפחות ביניהן), כדי שכל אחד ייראה
+    const px = bs.map(b => x(b.s)), MIN = 12;
+    for (let i = 0; i < px.length;) {
+      let j = i; while (j + 1 < px.length && px[j + 1] - px[j] < MIN) j++;
+      if (j > i) { const c = (px[i] + px[j]) / 2; for (let k = i; k <= j; k++) px[k] = Math.min(X1, Math.max(X0, c + (k - i - (j - i) / 2) * MIN)); }
+      i = j + 1;
+    }
     let bands = '';
     for (let i = 1; i < bs.length; i++) { const g = bs[i - 1].s - bs[i].s, cls = g < plan * 0.4 ? 'bunch' : g > plan * 1.8 ? 'gap' : '';
-      if (cls) bands += `<rect class="${cls}" x="${x(bs[i - 1].s)}" y="15" width="${x(bs[i].s) - x(bs[i - 1].s)}" height="14" rx="4"/>`; }
+      // הרצועה מכסה את שתי הנקודות ועוד קצת מכל צד — גם כשהן צמודות
+      if (cls) { const a = px[i - 1] - (cls === 'bunch' ? 10 : 0), b = px[i] + (cls === 'bunch' ? 10 : 0); bands += `<rect class="${cls}" x="${a.toFixed(1)}" y="13" width="${(b - a).toFixed(1)}" height="18" rx="6"/>`; } }
     const jams = sim.ops.jams.filter(j => j.L === L).map(j => `<rect class="jam" x="${x(L.stopS[j.k + 1])}" y="18" width="${x(L.stopS[j.k]) - x(L.stopS[j.k + 1])}" height="8"/>`).join('');
     const ticks = L.stopS.map(s => `<line x1="${x(s)}" x2="${x(s)}" y1="17" y2="27"/>`).join('');
-    const dots = bs.map(b => { const d = (b.delay || 0) / 60, col = b.broken ? '#d03b3b' : d > 5 ? '#d03b3b' : d > 2 ? '#eda100' : '#1baf7a';
-      return `<g class="bus${dispSel === b.id ? ' sel' : ''}" data-bus="${b.id}"><circle cx="${x(b.s)}" cy="22" r="${dispSel === b.id ? 9 : 7}" fill="${col}"/>${b.broken ? `<text x="${x(b.s)}" y="26" text-anchor="middle">!</text>` : ''}<circle class="hit" cx="${x(b.s)}" cy="22" r="16"/></g>`; }).join('');
+    // תקלה ואיחור מצוירים אחרונים (מעל), והנבחר — הכי למעלה
+    const rank = b => (dispSel === b.id ? 4 : 0) + (b.broken ? 2 : 0) + ((b.delay || 0) > 120 ? 1 : 0);
+    const dots = bs.map((b, i) => [b, px[i]]).sort((p, q) => rank(p[0]) - rank(q[0])).map(([b, cx]) => { const d = (b.delay || 0) / 60, col = b.broken ? '#d03b3b' : d > 5 ? '#d03b3b' : d > 2 ? '#eda100' : '#1baf7a';
+      return `<g class="bus${dispSel === b.id ? ' sel' : ''}" data-bus="${b.id}"><circle cx="${cx.toFixed(1)}" cy="22" r="${dispSel === b.id ? 9 : 7}" fill="${col}"/>${b.broken ? `<text x="${cx.toFixed(1)}" y="26" text-anchor="middle">!</text>` : ''}<circle class="hit" cx="${cx.toFixed(1)}" cy="22" r="${Math.min(16, MIN / 2 + 1)}"/></g>`; }).join('');
     const sel = bs.find(b => b.id === dispSel);
     const late = bs.filter(b => (b.delay || 0) > 120).length, bunch = (bands.match(/bunch/g) || []).length, gaps = (bands.match(/class="gap/g) || []).length;
     const info = sel ? `<div class="dsel"><b>אוטובוס ${sel.id}</b> · ${sel.broken ? '<span class="bad">תקלה</span>' : `איחור ${Math.round((sel.delay || 0) / 60)} דק'`} · ${sel.pax.filter(p => !p.role).length} נוסעים${sel.express ? ' · ישר למסוף' : ''}
