@@ -6,29 +6,13 @@ name: alert-failures
 # ו-GitHub שולח אותו למייל. תקלה חוזרת = תגובה באותו Issue; ריצה מוצלחת סוגרת אותו.
 # workflow_run מופעל מיד כשהריצה מסתיימת — לא מתעכב כמו cron.
 # בנוסף, בדיקה כל שעתיים שהנתונים באתר לא ישנים (מדד הדיוק, הקו בזמן, הקו המודיע) גם כשאף ריצה לא נכשלה.
+#
+# מ-10.11 (שלמה: "שהוא יגיע בסוף היום אם משהו לא הצליח"): אין מייל על כל תקלה. פעם ביום, בערך ב-21:00 בישראל,
+# נשלח סיכום אחד — רק מה שעדיין לא תקין בסוף היום. אם הכל תקין, אין מייל.
 
 on:
-  workflow_run:
-    workflows:
-      - line-history
-      - bus-reliability
-      - rail-reliability
-      - rail-trace
-      - kavpach-build
-      # line-hub (מרכז הקווים) — כבוי, לא נבדק (שלמה 13.10)
-      - gis-layers
-      - fleet-registry
-      - ratzif
-      # tenders-collect (מסכם המכרזים) — לא פעיל כרגע, לא נבדק (שלמה 05.10)
-      - historical-passenger-websites
-      - notify-push
-      - update-weekly
-      - update-monthly
-      - pages-deploy
-      - alerts
-    types: [completed]
   schedule:
-    - cron: '10 */2 * * *'
+    - cron: '50 18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -38,7 +22,6 @@ permissions:
 
 jobs:
   alert:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -53,7 +36,4 @@ jobs:
       - name: התראה
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-        run: |
-          if [ -n "$RUN_ID" ]; then python3 tools/alert_failures.py --run "$RUN_ID"
-          else python3 tools/alert_failures.py --stale; fi
+        run: python3 tools/alert_failures.py --digest

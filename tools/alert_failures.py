@@ -16,6 +16,7 @@ owner, so no mail server or password is needed:
   python tools/alert_failures.py --stale            # from the scheduled freshness check
 """
 import argparse, datetime, json, os, re, sys
+from zoneinfo import ZoneInfo
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from urllib.error import HTTPError
 
@@ -310,15 +311,65 @@ def on_stale():
             resolve(title, '✅ הנתונים מעודכנים שוב.')
 
 
+DIGEST = '📋 סיכום תקלות היום'
+
+
+def on_digest():
+    """מייל אחד בסוף היום (שלמה 10.11: "שהוא יגיע בסוף היום אם משהו לא הצליח"):
+    רק צינורות שהריצה האחרונה שלהם עדיין נכשלה, ונתונים שלא מתעדכנים. אם הכל תקין — אין מייל."""
+    flows = {w['name']: w for w in api('actions/workflows?per_page=100').get('workflows', [])}
+    rows = []
+    for name, label in WATCHED.items():
+        w = flows.get(name)
+        if not w:
+            continue
+        runs = [r for r in api(f"actions/workflows/{w['id']}/runs?status=completed&per_page=20").get('workflow_runs', [])
+                if r.get('conclusion') in ('success', 'failure', 'timed_out')]
+        if not runs or runs[0]['conclusion'] == 'success':
+            continue
+        last = runs[0]
+        n = next((i for i, r in enumerate(runs) if r['conclusion'] == 'success'), len(runs))
+        why = ''
+        try:
+            jobs = api(f"actions/runs/{last['id']}/jobs?per_page=50").get('jobs', [])
+            job = next((j for j in jobs if j.get('conclusion') in ('failure', 'cancelled', 'timed_out')), None)
+            if job:
+                why = explain(clean(job_log(job['id'])), is_timeout(last, jobs))
+        except Exception:
+            pass
+        rows.append(f"- **{label}** — נכשל {n} {'פעם' if n == 1 else 'פעמים'} ברצף, האחרונה {il_time(last['run_started_at'])}. "
+                    f"{why} [לריצה]({last['html_url']})")
+    stale = [(t.replace('⚠️ לא מתעדכן: ', ''), p) for t, p in stale_checks(datetime.date.today()) if p]
+    rows += [f"- **{t}** — {p}" for t, p in stale]
+    for issue in api('issues?state=open&per_page=100'):
+        if 'pull_request' in issue:
+            continue
+        # הסיכום הקודם, ונושאי התקלה הישנים (אחד לכל צינור) — נסגרים; מעכשיו יש רק סיכום אחד ביום
+        if issue['title'].startswith(DIGEST) or issue['title'].startswith('⚠️ '):
+            api(f"issues/{issue['number']}", 'PATCH', {'state': 'closed', 'state_reason': 'completed'})
+    if not rows:
+        print('digest: all good — no mail'); return
+    today = datetime.datetime.now(ZoneInfo('Asia/Jerusalem')).strftime('%d.%m.%Y')
+    body = (f"@{OWNER}\n\nבסוף היום, אלה עדיין לא תקינים:\n\n" + '\n'.join(rows) +
+            "\n\n_סיכום אוטומטי, פעם ביום. מה שנכשל ועבר לבד בריצה הבאה לא מופיע כאן._")
+    try:
+        n = api('issues', 'POST', {'title': f'{DIGEST} — {today}', 'body': body, 'labels': [LABEL]})['number']
+    except HTTPError:
+        n = api('issues', 'POST', {'title': f'{DIGEST} — {today}', 'body': body})['number']
+    print(f'digest: #{n}, {len(rows)} item(s)')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--run', type=int)
     ap.add_argument('--stale', action='store_true')
+    ap.add_argument('--digest', action='store_true')
     a = ap.parse_args()
-    if a.run:
-        on_run(a.run)
-    if a.stale:
-        on_stale()
+    # מ-10.11 אין מייל על כל תקלה — רק הסיכום היומי (--digest). --run ו---stale נשארים לבדיקה ידנית
+    if a.digest:
+        on_digest()
+    elif a.run or a.stale:
+        print('per-event alerts are off — see --digest')
 
 
 if __name__ == '__main__':
