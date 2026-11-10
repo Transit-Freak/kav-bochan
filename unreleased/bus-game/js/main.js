@@ -18,6 +18,7 @@ import { setupLook, updateLook } from './look.js';
 import { CameraModes } from './cameras.js';
 import { DriveControls } from './drivectl.js';
 import { DriverShift } from './duty.js';
+import { InspectorFP } from './inspfp.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
 import { NightFast, FAST } from './night.js';
 import { mapTouch } from './touch.js';
@@ -67,7 +68,7 @@ controls.target.set(0, 0, 0);
 
 // ---------- מצב המשחק
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
-let drive, shift, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+let drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
 let planning = null, selectedStop = null, selectedLine = null;
 
@@ -99,6 +100,10 @@ async function init() {
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast, onDriver, renderer, scene, clock: () => clockText(sim.time), nextDriverBus: prev => shift.on ? shift.next(prev) : undefined });
   shift = new DriverShift({ sim, lines: () => lines, toast, demand, setSpeed, speed: () => sim.speed || G.lastSpeed || 1, score: n => { drive.score.pts += n; },
     ui: { qBox: $('#qBox'), qText: $('#qText'), qBtns: $('#qBtns') }, ended: () => { $('#dhDuty').hidden = true; } });
+  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, busObject: b => buses.objectOf(b), toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
+    ui: { root: $('#ifp'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
+      decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
+    onExit: () => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow'); } });
   drive = new DriveControls({ canvas, camera, toast, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   buildCamButtons();
   lineDefs = loadLines();
@@ -136,7 +141,7 @@ async function init() {
   cloud.resume().then(on => { if (on) cloudStart(); });
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, buses, shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, buses, fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -207,7 +212,7 @@ canvas.addEventListener('pointerup', e => {
   if (!down || !e.isPrimary) return;
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
   if (moved > 8 || dt > 600) return;
-  if (cams?.current === 'driver') return;        // במבט נהג הקשה על המסך היא על מתגי התא (drivectl.js)
+  if (cams?.current === 'driver' || fp?.on) return;        // במבט נהג / פקח הקשה על המסך היא על התא או על הנוסעים
   if (dview.on && !planning) {        // במפת הביקוש: הקשה על שכונה מציגה לאן נוסעים ממנה; הקשה במקום ריק מחזירה לכל העיר
     const z = pickZone(e.clientX, e.clientY);
     if (z != null || dview.focus != null) { dview.tapT = performance.now(); focusZone(z === dview.focus ? null : z); return; }
@@ -588,10 +593,14 @@ function onDriver(on, bus) {
   $('#drvHud').hidden = !on;
   if (on) { cancelPlanning(); $('#panel').classList.add('min'); placeDriverHud(); updateDriverHud(); const o = buses.objectOf(bus); if (o) drive.attach(bus, o); }
   else drive.detach();
-  // במבט נהג — בלי שכבות של המתכנן: הקווים הצבועים על הכביש, הסיכות של התחנות, השלטים מעל האוטובוסים, הביקוש והכיסוי
-  for (const g of lineGroups.values()) g.visible = on ? false : (lines.find(L => lineGroups.get(L.id) === g)?.visible !== false);
-  if (pins) pins.visible = !on; buses.hideLabels = on || dview.on;
-  if (on && dview.on) setDemandView(false); if (on && covLayer.visible) setCoverView(false);
+  plannerLayers(!on && bank.role !== 'inspector');
+}
+// שכבות של המתכנן: הקווים הצבועים על הכביש, הסיכות של התחנות, השלטים מעל האוטובוסים, הביקוש והכיסוי —
+// במבט נהג ובתפקיד הפקח מוסתרות (כביש רגיל)
+function plannerLayers(show) {
+  for (const L of lines) { const g = lineGroups.get(L.id); if (g) g.visible = show && L.visible !== false; }
+  if (pins) pins.visible = show; buses.hideLabels = !show || dview.on;
+  if (!show && dview.on) setDemandView(false); if (!show && covLayer.visible) setCoverView(false);
 }
 // התצוגה למעלה, מתחת לסרגל (בתחתית רואים את לוח השעונים)
 function placeDriverHud() {
@@ -998,7 +1007,8 @@ function applyRoleUI(fresh) {
   $('#inspHud').hidden = r !== 'inspector';
   if (r === 'dispatcher') { showTab('dispatch'); openPanel(); if (fresh) toast('אתם בתפקיד הסדרן: הקישו על אוטובוס ברצועה כדי להחזיק, לשלוח למסוף או להזמין רכב חלופי'); }
   if (r === 'driver') { if (fresh) askLine(); else setTimeout(() => { const b = pickBus(); if (b) cams.modes.driver.drive(b); else toast('אין אוטובוס בדרך'); }, 1500); }
-  if (r === 'inspector') { $('#panel').classList.add('min'); setTimeout(() => cams.set('follow'), fresh ? 30 : 1500); if (fresh) toast('אתם הפקחים: כשהאוטובוס עומד בתחנה — "בדיקת כרטיסים"'); }
+  plannerLayers(r !== 'inspector' && cams.current !== 'driver');
+  if (r === 'inspector') { $('#panel').classList.add('min'); placeInspHud(); setTimeout(() => cams.set('follow'), fresh ? 30 : 1500); if (fresh) toast('אתם הפקחים: כשהאוטובוס עומד בתחנה — "בדיקת כרטיסים"'); }
 }
 // נהג: בוחרים קו (מהקווים האמיתיים), מקבלים סידור עבודה, ומתחילים מהיציאה הראשונה
 function askLine() {
@@ -1036,6 +1046,16 @@ function inspCheck() {
   toast(pax.length ? `נבדקו ${pax.length} נוסעים${c ? ` · ${c} בלי כרטיס — קנס ${money(c * FINE)}` : ' · לכולם היה כרטיס'}` : 'אין נוסעים חדשים לבדוק');
   renderInsp();
 }
+function placeInspHud() { const r = document.querySelector('.bar')?.getBoundingClientRect(); $('#inspHud').style.top = `${Math.round((r?.bottom || 60) + 8)}px`; }
+addEventListener('resize', () => { if (!$('#inspHud').hidden) placeInspHud(); });
+// עלייה לאוטובוס במבט פקח (js/inspfp.js) — כשהאוטובוס עומד בתחנה
+function boardFP() {
+  const b = cams.modes.follow.bus; if (!b) { toast('אין אוטובוס'); return; }
+  if (b.state !== 'dwell') { toast('עולים כשהאוטובוס עומד בתחנה'); return; }
+  cams.set('free'); $('#inspHud').hidden = true; document.body.classList.add('fpview'); plannerLayers(false);
+  if (!fp.enter(b)) { toast('לא הצלחתי לעלות'); fp.g.onExit(); }
+  const r = document.querySelector('.bar')?.getBoundingClientRect(); $('#ifp').style.setProperty('--ifp-top', `${Math.round((r?.bottom || 60) + 8)}px`);
+}
 function renderInsp() {
   if ($('#inspHud').hidden) return;
   const b = cams.modes.follow.bus, L = b?.line;
@@ -1043,7 +1063,7 @@ function renderInsp() {
   const S = L && L.stops[Math.min(L.stops.length - 1, b.next)];
   $('#ihTxt').textContent = !b ? 'מחפשים אוטובוס…' : b.state === 'dwell' ? `בתחנה: ${S?.name || ''}` : `בדרך אל: ${S?.name || ''}`;
   $('#ihStat').textContent = `${b ? b.pax.filter(p => !p.role).length : 0} נוסעים · נבדקו ${insp.checked} · נתפסו ${insp.caught} · ניקוד ${insp.pts}`;
-  $('#ihCheck').disabled = !b || b.state !== 'dwell' || b.inspAt === b.next;
+  $('#ihCheck').disabled = !b || b.state !== 'dwell';
 }
 // ---------- סדרן: כל קו כרצועה — תחנות כקווים קטנים, אוטובוסים כנקודות לפי האיחור; צפיפות ופערים מסומנים.
 // הקשה על אוטובוס בוחרת אותו: החזקה בתחנה, ישר למסוף, רכב חלופי (בתקלה). לכל קו: "אוטובוס נוסף"
@@ -1267,7 +1287,7 @@ function bindReset() {
   $('#dhSkip').onclick = () => { shift.skip(); updateDriverHud(); };
   $('#switchRole').onclick = () => askRole();
   $('#roleAsk').onclick = e => { const b = e.target.closest('[data-role]'); if (b) chooseRole(b.dataset.role); };
-  $('#ihCheck').onclick = () => inspCheck();
+  $('#ihCheck').onclick = () => boardFP();
   $('#ihNext').onclick = () => cams.modes.follow.next();
   $('#ihExit').onclick = () => { cams.set('free'); askRole(); };
   $('#accountBox').onclick = e => { const b = e.target.closest('[data-acc]'); if (b) accountAction(b.dataset.acc); };
@@ -1619,6 +1639,7 @@ function tick(dt) {
     if (shift?.on && driverBus) shift.update(driverBus, sim.events);
     sim.events.length = 0;
     cams.update(dt);
+    if (fp?.on) fp.update(dt);
     if (drive?.on) { const o = buses.objectOf(drive.bus); if (o && o !== drive.obj) drive.attach(drive.bus, o); drive.update(dt); }
     updatePins();
     stopView.update(camera, lines, dt);
@@ -1629,7 +1650,7 @@ function tick(dt) {
   touch.update(dt);
   stepCamAnim(dt);
   // שומרים את המצלמה מעל העיר (במבט נהג המצלמה צמודה לאוטובוס — בלי OrbitControls)
-  if (cams?.current !== 'driver') {
+  if (cams?.current !== 'driver' && !fp?.on) {
     const t = controls.target, H = city ? city.meta.half : [3000, 3000];
     const cx = THREE.MathUtils.clamp(t.x, -H[0], H[0]) - t.x, cz = THREE.MathUtils.clamp(t.z, -H[1], H[1]) - t.z;
     t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));

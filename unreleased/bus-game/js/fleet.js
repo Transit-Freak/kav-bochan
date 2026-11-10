@@ -82,7 +82,8 @@ export class Bank {
     // תפעול (ops.js): פקחים שנשכרו, דוחות ביקורת, והגדרות (במצב יצירתי אפשר לכבות אירועים ודוחות)
     this.inspectors = save?.inspectors | 0;
     this.reports = Array.isArray(save?.reports) ? save.reports.slice(0, 30) : [];
-    this.settings = { incidents: true, audits: true, ...(save?.settings || {}) };          // שמירה מלפני השלבים — השלבים שכבר מתקיימים מושלמים בשקט
+    this.settings = { incidents: true, audits: true, ...(save?.settings || {}) };
+    this.warnings = save?.warnings && typeof save.warnings === 'object' ? save.warnings : {};       // פקח: מי כבר קיבל אזהרה (מפתח אדם ← יום)          // שמירה מלפני השלבים — השלבים שכבר מתקיימים מושלמים בשקט
   }
   static load() {
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); return s && typeof s === 'object' ? s : null; } catch { return null; }
@@ -92,7 +93,7 @@ export class Bank {
     try { localStorage.setItem(KEY, JSON.stringify(this.snapshot(time))); } catch { }
   }
   snapshot(time) {
-    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
+    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, warnings: this.warnings, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
   }
   line(id) { return this.today.byLine[id] || (this.today.byLine[id] = { fares: 0, pax: 0, cost: 0, subsidy: 0 }); }
   earn(amount, lineId) {

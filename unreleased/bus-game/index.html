@@ -265,9 +265,29 @@
 <div class="drvhud insphud" id="inspHud" hidden>
   <span class="num" id="ihNum">1</span>
   <div class="dh-txt"><b id="ihTxt">פקח</b><small id="ihStat"></small></div>
-  <button type="button" id="ihCheck" class="primary">בדיקת כרטיסים</button>
+  <button type="button" id="ihCheck" class="primary">עלייה לאוטובוס</button>
   <button type="button" id="ihNext">אוטובוס הבא</button>
   <button type="button" id="ihExit" class="x" aria-label="החלפת תפקיד">✕</button>
+</div>
+<div class="ifp" id="ifp" hidden>
+  <div class="drvhud slim ifp-top" id="ifpTop">
+    <button type="button" id="ifpExit" class="x" aria-label="ירידה מהאוטובוס">✕</button>
+    <span class="num sm" id="ifpNum">1</span>
+    <b class="dh-next" id="ifpNext"></b>
+    <span class="dh-score" id="ifpStat"></span>
+  </div>
+  <div class="ifp-move"><button type="button" id="ifpUp" aria-label="קדימה">▲</button><button type="button" id="ifpDown" aria-label="אחורה">▼</button></div>
+  <div class="ifp-decide" id="ifpDecide" hidden>
+    <b>אין כרטיס תקף</b><span id="ifpHist"></span>
+    <div class="row"><button type="button" data-d="fine" class="del">קנס ₪60</button><button type="button" data-d="warn" class="primary">אזהרה</button></div>
+  </div>
+</div>
+<div class="modal" id="ifpSum" hidden>
+  <div class="card">
+    <h2>סיכום בדיקה</h2>
+    <div id="ifpSumBody"></div>
+    <div class="row"><button type="button" id="ifpLeave">לרדת בתחנה</button><button type="button" id="ifpStay" class="primary">להמשיך באוטובוס</button></div>
+  </div>
 </div>
 <div class="drvctl" id="drvCtl" hidden>
   <div class="dc-btns" role="group" aria-label="מתגי הנהג">

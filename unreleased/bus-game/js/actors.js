@@ -326,7 +326,7 @@ function markInsp(gltf) {
     if ((kind === 'skin' || kind === 'hair') && o.isSkinnedMesh) {
       const gg = srcs[k].geometry, si0 = gg.attributes.skinIndex, sw0 = gg.attributes.skinWeight, bs = o.skeleton.bones;
       for (let i = 0; i < gg.attributes.position.count; i++) { let h = 0; for (let j = 0; j < 4; j++) if (bs[si0.getComponent(i, j)]?.name === 'Head') h += sw0.getComponent(i, j);
-        if (h < 0.6) continue; const y = P[i * 3 + 1]; if (kind === 'skin') { hd.n++; hd.x += P[i * 3]; hd.z += P[i * 3 + 2]; } hd.top = Math.max(hd.top, y); }
+        if (h < 0.6) continue; const y = P[i * 3 + 1]; if (kind === 'skin') { hd.n++; hd.x += P[i * 3]; hd.z += P[i * 3 + 2]; hd.top = Math.max(hd.top, y); } }
     }
     const g = srcs[k].geometry, n = g.attributes.position.count, A = new Float32Array(n * 3);
     g.setAttribute('vest', new THREE.BufferAttribute(A, 3));
@@ -347,7 +347,7 @@ function markInsp(gltf) {
   const bone = n => R.getObjectByName(n), head = bone('Head'), hand = bone('RightHand');
   const out = { vTop: top * 0.92 }, off = new THREE.Vector3(c.x, minY, c.z);
   if (head && hd.n) {
-    const capW = new THREE.Matrix4().makeTranslation(hd.x / hd.n, hd.top - 0.058, hd.z / hd.n + 0.01);
+    const capW = new THREE.Matrix4().makeTranslation(hd.x / hd.n, hd.top - 0.035, hd.z / hd.n + 0.005);     // לפי ראש העור (לא השיער), כדי שהכובע יישב על הראש
     out.capLocal = head.matrixWorld.clone().invert().multiply(capW);                       // בתוך עצם הראש (להולכים ולישיבה)
     out.capStand = capW.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z));
   }
@@ -356,6 +356,9 @@ function markInsp(gltf) {
     out.readerLocal = hand.matrixWorld.clone().invert().multiply(rW);
     out.readerStand = rW.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z));
   }
+  // התיק: על הירך הימנית (‎-x), מעט קדימה — יחסית לעצם האגן
+  if (hips) { const bW = new THREE.Matrix4().makeTranslation(c.x - 0.2, c.y + 0.02, c.z + 0.03);
+    out.bagLocal = hips.matrixWorld.clone().invert().multiply(bW); out.bagStand = bW.clone().premultiply(new THREE.Matrix4().makeTranslation(-off.x, -off.y, -off.z)); }
   return (root.userData.insp = out);
 }
 // הצבע הממוצע של העור (מהטקסטורה של הגוף) — לאמה החשופה של הפקח
@@ -369,11 +372,12 @@ function skinColor(groups) {
   } catch { return null; }
 }
 // הכובע (כיפה ומצחייה, פונה ל-‎+z) ומכשיר הבדיקה: גאומטריות משותפות
-const capGeo = (() => { const d = new THREE.SphereGeometry(0.104, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.72, 1.06);
-  const b = new THREE.CylinderGeometry(0.075, 0.075, 0.008, 18, 1, false, -Math.PI / 2, Math.PI).scale(1.1, 1, 1.25).translate(0, 0.002, 0.085);
+const capGeo = (() => { const d = new THREE.SphereGeometry(0.112, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2).scale(1.02, 0.8, 1.1);
+  const b = new THREE.CylinderGeometry(0.085, 0.085, 0.01, 18, 1, false, -Math.PI / 2, Math.PI).scale(1.15, 1, 1.35).translate(0, 0.0, 0.1);
   const btn = new THREE.SphereGeometry(0.011, 8, 4).translate(0, 0.075, 0);
   return mergeGeometries([d, b, btn].map(g => { const n = g.toNonIndexed(); n.deleteAttribute('uv'); return n; }), false); })();
-const readerGeo = new THREE.BoxGeometry(0.068, 0.118, 0.022);
+const readerGeo = new THREE.BoxGeometry(0.075, 0.14, 0.026);
+const bagGeo = new THREE.BoxGeometry(0.06, 0.15, 0.2);        // התיק הקטן בקצה הרצועה, על הירך הימנית
 const ACC_MAT = new THREE.MeshStandardMaterial({ color: 0x0b0c0f, roughness: 0.55 });
 // הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
 const _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
@@ -489,6 +493,7 @@ export class PeopleLayer {
         const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, SIT_PRESETS[key] || null);
         if (S) S.key = key;
         if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; V.sitGroups = bakeVariant(g, S, cache);
+          const hp = S.root.getObjectByName('Hips'); if (hp && IM?.bagLocal) { S.root.updateMatrixWorld(true); V.bagSit = hp.matrixWorld.clone().multiply(IM.bagLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           const hb = S.root.getObjectByName('Head'); if (hb && IM?.capLocal) { S.root.updateMatrixWorld(true); V.capSit = hb.matrixWorld.clone().multiply(IM.capLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           // הרוחב של היושב לאורך הספסל (ציר x שלו), לבדיקת השכנים
           let lo = Infinity, hi = -Infinity; for (const gr of V.sitGroups) { const p = gr.geo.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); if (x < lo) lo = x; if (x > hi) hi = x; } }
@@ -499,8 +504,8 @@ export class PeopleLayer {
     // פקח: צבע העור של כל דגם (לאמה החשופה) וגובה הכתפיים — במשתנים של חומר הבגד
     for (const V of this.variants) { V.skin = skinColor(V.groups); for (const gr of [...V.groups, ...(V.sitGroups || [])]) { const U = gr.mat.userData.insp; if (!U) continue; if (V.skin) U.skinC.value.copy(V.skin); if (V.insp) U.vTop.value = V.insp.vTop; } }
     // הכובע ומכשיר הבדיקה של הפקחים (מעטים — עד 96)
-    this.caps = new THREE.InstancedMesh(capGeo, ACC_MAT, 96); this.readers = new THREE.InstancedMesh(readerGeo, ACC_MAT, 96);
-    for (const im of [this.caps, this.readers]) { im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.name = 'crowd-insp'; this.group.add(im); }
+    this.caps = new THREE.InstancedMesh(capGeo, ACC_MAT, 96); this.readers = new THREE.InstancedMesh(readerGeo, ACC_MAT, 96); this.bags = new THREE.InstancedMesh(bagGeo, ACC_MAT, 96);
+    for (const im of [this.caps, this.readers, this.bags]) { im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.name = 'crowd-insp'; this.group.add(im); }
     if (!this.fromGlb) { this.gltfs = []; this.variants.push({ gltf: null, groups: proceduralPerson() }); }
     // לכל דגם ולכל חומר — InstancedMesh אחד
     for (const [vi, V] of this.variants.entries()) {
@@ -628,7 +633,12 @@ export class PeopleLayer {
         const via = d > 1.8 ? [frameV(this.stopFrame(ev.stop), a, 1.15, 0.12)] : [];
         this.walk(ev.p.id, [start, ...via, ...path.toIn], 'board', ev.bus, this.personYaw(ev.stop, i, ev.p.id), undefined, path.door);
       } else if (ev.type === 'alight') {
-        const path = this.doorPath(busLayer, ev.bus, 'mid'); if (!path) continue;
+        const insp = ROLE.get(ev.p.id) === 'insp';
+        const path = this.doorPath(busLayer, ev.bus, insp && ev.p.door ? ev.p.door : 'mid'); if (!path) continue;
+        // פקח שנסע בתוך האוטובוס (ride): יוצא מהמקום שבו עמד
+        const rw = insp && this.walkers.find(x => x.mode === 'ride' && x.pid === ev.p.id);
+        const pre = rw ? [rw.obj.getWorldPosition(new THREE.Vector3())] : [];
+        if (rw) this.finish(rw, this.walkers.indexOf(rw));
         const f = this.stopFrame(ev.stop), side = (hash(ev.p.id) - 0.5) * 2;
         const dir = side >= 0 ? 1 : -1, far = 12 + Math.abs(side) * 10;
         // יורדים אל הרצועה שליד השפה, הולכים לאורכה עד קצה התחנה (לפני העמוד או אחרי הסככה), ומשם מתרחקים
@@ -655,7 +665,7 @@ export class PeopleLayer {
           continue;
         }
         const away = frameV(f, end + dir * far, 3.2 + Math.abs(side) * 2, 0.12);
-        this.walk(ev.p.id, [...toOut, curb, edge, away], 'alight', ev.bus, undefined, toOut.length, path.door);
+        this.walk(ev.p.id, [...pre, ...toOut, curb, edge, away], 'alight', ev.bus, undefined, toOut.length + pre.length, path.door);
       }
     }
 
@@ -675,7 +685,7 @@ export class PeopleLayer {
     let n = 0;
     for (const V of this.variants) V.n = V.sn = 0;
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
-    const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0; const A = new THREE.Matrix4();
+    const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0, nb = 0; const A = new THREE.Matrix4();
     for (const [stop, list] of per) {
       for (const p of list) {
         if (n >= this.max) break;
@@ -688,6 +698,7 @@ export class PeopleLayer {
           const insp = ROLE.get(p.id) === 'insp';
           if (V.sit.phone && np < SIT_MAX && !insp) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
           if (insp && V.capSit && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.capSit));
+          if (insp && V.bagSit && nb < 96) this.bags.setMatrixAt(nb++, A.multiplyMatrices(M, V.bagSit));
           P.copy(V.sit.feet).lerp(V.sit.hip, 0.5).setY(0.015).applyMatrix4(M); B.makeTranslation(P.x, P.y, P.z); this.blobs.setMatrixAt(n, B);
           n++; continue;
         }
@@ -702,13 +713,36 @@ export class PeopleLayer {
         if (ROLE.get(p.id) === 'insp' && V.insp) {
           if (V.insp.capStand && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.insp.capStand));
           if (V.insp.readerStand && nr < 96) this.readers.setMatrixAt(nr++, A.multiplyMatrices(M, V.insp.readerStand));
+          if (V.insp.bagStand && nb < 96) this.bags.setMatrixAt(nb++, A.multiplyMatrices(M, V.insp.bagStand));
         }
         B.makeTranslation(x, 0.135, -y); this.blobs.setMatrixAt(n, B);
         n++;
       }
     }
+    // נוסעים בתוך האוטובוס של הפקח (מבט פקח, js/inspfp.js): יושבים במושבים, ועוד כמה עומדים ליד הדלת האמצעית
+    this.onboardPos = new Map();
+    const ob = this.onboard;
+    if (ob?.obj && ob.bus) {
+      const OM = ob.obj.matrixWorld, H = new THREE.Vector3();
+      for (const p of ob.bus.pax) {
+        if (p.role) continue;
+        const V = this.variants[this.variantOf(p.id)], k = ob.seatOf(p.id);
+        if (k >= 0 && k < ob.seats.length && V.sit) {
+          if (V.sn >= SIT_MAX) continue;
+          const st = ob.seats[k]; M.makeTranslation(st[0] - V.sit.hip.x, st[1] - BENCH.h, st[2] - V.sit.hip.z).premultiply(OM);
+          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, M); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C)); });
+          V.sn++; if (V.sit.phone && np < SIT_MAX && hash(p.id + 3) < 0.5) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
+          this.onboardPos.set(p.id, H.set(st[0], st[1] + 0.62, st[2] + 0.05).applyMatrix4(OM).clone());
+        } else {
+          const j = ob.standOf(p.id); if (j < 0 || V.n >= this.max) continue;
+          const sp = ob.stands[j]; Q.setFromAxisAngle(up, sp[3]); P.set(sp[0], ob.floor, sp[2]); S.setScalar(this.personScale(p.id)); M.compose(P, Q, S).premultiply(OM);
+          V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, M); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
+          V.n++; this.onboardPos.set(p.id, H.set(sp[0], ob.floor + 1.62, sp[2]).applyMatrix4(OM).clone());
+        }
+      }
+    }
     this.phones.count = np; this.phones.instanceMatrix.needsUpdate = true;
-    this.caps.count = nc; this.readers.count = nr; this.caps.instanceMatrix.needsUpdate = this.readers.instanceMatrix.needsUpdate = true;
+    this.caps.count = nc; this.readers.count = nr; this.bags.count = nb; this.caps.instanceMatrix.needsUpdate = this.readers.instanceMatrix.needsUpdate = this.bags.instanceMatrix.needsUpdate = true;
     for (const V of this.variants) for (const im of V.sitMeshes) {
       im.count = V.sn; im.visible = V.sn > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
@@ -721,6 +755,7 @@ export class PeopleLayer {
     // 3. הולכים: לאורך מסלול של כמה נקודות, בקצב הליכה קבוע
     for (let i = this.walkers.length - 1; i >= 0; i--) {
       const w = this.walkers[i];
+      if (w.mode === 'ride') { this.riding(w, i, simDt, busLayer); continue; }
       if (w.rise && this.rising(w, simDt)) continue;
       const lastSeg = w.seg === w.pts.length - 2 && w.d >= w.lens[w.seg];
       // מעבר: הגיע לתחנה הבאה לפני שהסימולציה הכניסה אותו לתור — עומד ומחכה (עד 20 שנ')
@@ -744,8 +779,32 @@ export class PeopleLayer {
       if (w.mode !== 'board' && w.counted && w.seg >= (w.release || 2)) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
       // יורד: נעלם בהדרגה בסוף ההליכה. עולה: נכנס בדלת ונעלם בתוך האוטובוס
       if (w.mode === 'alight') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
+      // פקח שעלה: לא נעלם — נשאר לעמוד ליד הדלת ובודק כרטיסים עד שהוא יורד
+      if (last && k >= 1 && w.mode === 'board' && ROLE.get(w.pid) === 'insp' && this.ride(w, busLayer)) continue;
       if (last && k >= 1) this.finish(w, i);
     }
+  }
+  // פקח בתוך האוטובוס: נצמד לאוטובוס במקום שבו נגמרה העלייה (מעבר, ליד הדלת), עומד ומסתובב לאט אל הנוסעים
+  ride(w, busLayer) {
+    const v = busLayer?.map.get(w.bus.id); if (!v) return false;
+    if (w.counted) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
+    v.obj.updateMatrixWorld(true); v.obj.attach(w.obj);
+    w.obj.position.y = 0.675; w.mode = 'ride'; w.rideT = hash(w.pid + 5) * 10;
+    w.rideYaw = w.door && w.obj.position.z > 2 ? Math.PI : (hash(w.pid) < 0.5 ? 0 : Math.PI);     // ליד הדלת הקדמית — פונה אחורה
+    w.obj.rotation.set(0, w.rideYaw, 0); this.setIdle(w, true);
+    return true;
+  }
+  riding(w, i, dt, busLayer) {
+    const v = busLayer?.map.get(w.bus.id);
+    if (!v || w.obj.parent !== v.obj || w.bus.state === 'done' || w.bus.state === 'gone') { this.finish(w, i); return; }
+    w.rideT += dt;
+    w.obj.rotation.y = w.rideYaw + 0.55 * Math.sin(w.rideT * 0.45);
+    if (w.mixer) { w.mixer.update(dt); this.centre(w); }
+  }
+  setIdle(w, on) {
+    if (!w.mixer || !w.walkAct) return;
+    if (on && w.idleClip) { w.idleAct = w.idleAct || w.mixer.clipAction(w.idleClip); w.walkAct.stop(); w.idleAct.reset().play(); }
+    else { w.idleAct?.stop(); if (!w.walkAct.isRunning()) w.walkAct.reset().play(); }
   }
 
   // בדיקה (לבדיקות ולקונסולה): כל מי שמצויר יושב או עומד בתחנה — נוסע שנמצא עכשיו בתור באותה תחנה. מחזיר את החריגים
@@ -774,6 +833,7 @@ export class PeopleLayer {
   finish(w, i) {
     if (w.bus && w.counted) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
     w.obj.visible = false; this.setOpacity(w, 1);
+    if (w.obj.parent !== this.group) this.group.add(w.obj);
     this.pools[w.vi].push(w); this.walkers.splice(i, 1);
   }
   setOpacity(w, o) {
@@ -798,6 +858,8 @@ export class PeopleLayer {
     this.setOpacity(w, 1);
     w.pts = pts.map(p => p.clone()); w.lens = [];
     for (let j = 0; j < w.pts.length - 1; j++) w.lens.push(Math.max(0.05, w.pts[j].distanceTo(w.pts[j + 1])));
+    if (w.obj.parent !== this.group) this.group.add(w.obj);
+    this.setIdle(w, false); w.pid = id;
     w.seg = 0; w.d = 0; w.speed = 0; w.hold = 0; w.p = null; w.sim = null; w.mode = mode; w.bus = bus; w.release = release; w.door = door || null; w.baseY = pts[0].y;
     w.counted = !!bus; if (bus) bus.walking = (bus.walking || 0) + 1;
     w.body.scale.setScalar(this.personScale(id));
@@ -828,7 +890,7 @@ export class PeopleLayer {
         o.material = m; o.frustumCulled = false;
       });
       clip = V.gltf.animations.find(a => /walk/i.test(a.name));
-      if (clip) { mixer = new THREE.AnimationMixer(inner); mixer.clipAction(clip).play(); }
+      if (clip) { mixer = new THREE.AnimationMixer(inner); var walkAct = mixer.clipAction(clip); walkAct.play(); }
     } else {
       for (const gr of V.groups) {
         const m = new THREE.MeshLambertMaterial(); mats.push([m, gr.kind, true, new THREE.Color(1, 1, 1)]);
@@ -840,11 +902,12 @@ export class PeopleLayer {
     const legs = inner && ['Left', 'Right'].map(sd => ({ up: inner.getObjectByName(sd + 'UpLeg'), knee: inner.getObjectByName(sd + 'Leg'),
       foot: inner.getObjectByName(sd + 'Foot'), toe: inner.getObjectByName(sd + 'ToeBase') }));
     const bones = inner && new Map(); if (inner) inner.traverse(o => { if (o.isBone) bones.set(o.name, o); });
-    const w = { obj, body, mixer, mats, inner, hips, blob, vi, bones, legs: legs && legs.every(l => l.up && l.knee && l.foot && l.toe) ? legs : null };
+    const w = { obj, body, mixer, mats, inner, hips, blob, vi, bones, legs: legs && legs.every(l => l.up && l.knee && l.foot && l.toe) ? legs : null,
+      walkAct: walkAct || null, idleClip: V.gltf?.animations.find(a => /idle/i.test(a.name)) || null };
     // פקח: כובע על עצם הראש ומכשיר ביד ימין (מוסתרים, ומופיעים רק לפקח); וצבע העור לאמה
     for (const [m] of mats) { const U = m.userData.insp; if (!U) continue; if (V.skin) U.skinC.value.copy(V.skin); if (V.insp) U.vTop.value = V.insp.vTop; }
     w.acc = [];
-    for (const [bn, geo, L] of [['Head', capGeo, V.insp?.capLocal], ['RightHand', readerGeo, V.insp?.readerLocal]]) {
+    for (const [bn, geo, L] of [['Head', capGeo, V.insp?.capLocal], ['RightHand', readerGeo, V.insp?.readerLocal], ['Hips', bagGeo, V.insp?.bagLocal]]) {
       const b = bones?.get(bn); if (!b || !L) continue;
       const m = new THREE.Mesh(geo, ACC_MAT); m.matrixAutoUpdate = false; m.matrix.copy(L); m.visible = false; m.frustumCulled = false; b.add(m); w.acc.push(m);
     }
