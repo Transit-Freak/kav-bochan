@@ -5,7 +5,12 @@
 // מערכת הצירים של האוטובוס: ‎+Z קדימה, ‎+Y למעלה.
 import * as THREE from 'three';
 
-const RAIL_Y = 2.51, RAIL_R = 0.016;                // המוט האורכי בתקרה (בדגם, x = ±0.5)
+const RAIL0 = 2.51, RAIL_R = 0.016;                 // המוט האורכי בתקרה כמו שהוא בדגם (x = ±0.5) — נמוך מדי
+// מגביהים את המוט ואת הקשתות (liftPoles): תחתית הלולאה כ-1.83 מ' מעל הרצפה (0.675), כמו באוטובוס אמיתי
+const FLOOR = 0.675, LIFT_FROM = 1.95, TOP0 = RAIL0 + 0.02, TOP1 = 2.85, ARCH0 = 2.78, ARCH1 = 3.0;
+const lift = y => y <= LIFT_FROM ? y : y <= TOP0 ? LIFT_FROM + (y - LIFT_FROM) * (TOP1 - LIFT_FROM) / (TOP0 - LIFT_FROM)
+  : TOP1 + (Math.min(y, ARCH0) - TOP0) * (ARCH1 - TOP1) / (ARCH0 - TOP0) + Math.max(0, y - ARCH0);
+const RAIL_Y = lift(RAIL0);
 const HOLD = { w: 0.042, h: 0.06, d: 0.052 };        // המחזיק: רוחב (x), גובה, אורך לאורך המוט (z)
 const LOOP = 0.30, BOTTOM_W = 0.12, BAND_W = 0.025;  // אורך הלולאה מתחת למחזיק, רוחב התחתית, רוחב הרצועה
 
@@ -65,6 +70,28 @@ function loopGeometry() {
   return g;
 }
 
+// המוטות הצהובים (M_Pole) מעל LIFT_FROM נמתחים למעלה: המוט האורכי ל-TOP1, והחלק של הקשתות שמעליו נדחס עד מתחת לתקרה (3.06).
+// מה שמתחת ל-LIFT_FROM (מוטות אנכיים, ידיות במושבים, הדלתות) לא זז. כל רשת מקבלת עותק משלה של הגאומטריה
+function liftPoles(busRoot) {
+  busRoot.updateMatrixWorld(true);
+  const v = new THREE.Vector3(), inv = new THREE.Matrix4();
+  busRoot.traverse(o => {
+    const m = o.isMesh && [].concat(o.material)[0];
+    if (!m || m.name !== 'M_Pole' || /^SM_StrapRing/.test(o.name)) return;
+    const pos = o.geometry.attributes.position; let hit = false;
+    for (let i = 0; i < pos.count && !hit; i++) if (v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).y > LIFT_FROM) hit = true;
+    if (!hit) return;
+    o.geometry = o.geometry.clone();
+    const P = o.geometry.attributes.position; inv.copy(o.matrixWorld).invert();
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld);
+      if (v.y <= LIFT_FROM) continue;
+      v.y = lift(v.y); v.applyMatrix4(inv); P.setXYZ(i, v.x, v.y, v.z);
+    }
+    P.needsUpdate = true; o.geometry.computeBoundingSphere(); o.geometry.computeBoundingBox();
+  });
+}
+
 let SHARED = null;
 function shared(poleMat) {
   if (SHARED) return SHARED;
@@ -100,12 +127,13 @@ export function addStraps(busRoot) {
     let cut = 0;
     for (let t = 0; t < idx.length; t += 3) {
       for (let k = 0; k < 3; k++) v[k].fromBufferAttribute(pos, idx[t + k]).applyMatrix4(o.matrixWorld);
-      const stem = v.every(p => p.y > 2.3 && p.y < RAIL_Y - RAIL_R + 0.003 && Math.abs(Math.abs(p.x) - 0.5) < 0.03) &&
+      const stem = v.every(p => p.y > 2.3 && p.y < RAIL0 - 0.004 && Math.abs(Math.abs(p.x) - 0.5) < 0.03) &&
         rings.some(s => v.every(p => Math.abs(p.z - s.z) < 0.03 && Math.sign(p.x) === Math.sign(s.x)));
       if (stem) cut++; else keep.push(idx[t], idx[t + 1], idx[t + 2]);
     }
     if (cut) g.setIndex(keep);
   });
+  liftPoles(busRoot);
   const S = shared(poleMat);
   const grp = new THREE.Group(); grp.name = 'Straps';
   const hold = new THREE.InstancedMesh(S.holder, S.black, spots.length), loop = new THREE.InstancedMesh(S.loop, S.yellow, spots.length);

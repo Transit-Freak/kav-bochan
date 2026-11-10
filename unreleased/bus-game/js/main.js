@@ -132,7 +132,7 @@ async function init() {
   cloud.resume().then(on => { if (on) cloudStart(); });
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, lines: () => lines, stopsById, cams, access, forceWheelchair: id => access.forceAt(sim, id), planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, buses, lines: () => lines, stopsById, cams, access, forceWheelchair: id => access.forceAt(sim, id), planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
