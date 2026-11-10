@@ -14,7 +14,7 @@ import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
-import { addRamp } from './access.js';
+import { addRamp, KNEEL, kneelDrop } from './access.js';
 
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -176,7 +176,9 @@ export class BusLayer {
       alive.add(b.id);
       const v = this.map.get(b.id) || this.make(b);
       const p = busPose(L.poly, b.s);
-      v.obj.position.set(p.x, 0, -p.y); v.obj.rotation.y = p.yaw;
+      // כריעה (כיסא גלגלים, js/access.js): הצד של הדלתות יורד, הצד השני נשאר
+      const kn = b.kneel ? b.kneel * KNEEL.th : 0;
+      v.obj.position.set(p.x, -kn * KNEEL.far, -p.y); v.obj.rotation.set(0, p.yaw, kn);
       v.obj.visible = b.state !== 'done' || b.t < 1.2;
       if (v.action) { v.action.time = b.door * v.action.getClip().duration * 0.999; v.mixer.update(0); }
       else for (const d of v.doors) { // placeholder: יציאה החוצה והחלקה
@@ -691,7 +693,9 @@ export class PeopleLayer {
     const a = v.anchors[which]; if (!a) return null;
     v.obj.updateMatrixWorld(true);
     const at = (dx, y) => { const l = a.position.clone(); l.x += dx; return a.parent.localToWorld(l).setY(y); };
-    const pts = [at(0, 0.12), at(0.7, 0.12), at(1.4, 0.12)];
+    // גובה הנקודות כמו במדרגות (stairs): מדרכה בחוץ, רצפת האוטובוס בפנים — כך מי שיורד מתחיל על הרצפה ולא בתוכה
+    const kn = bus.kneel || 0, fl = dx => 0.675 - kneelDrop(kn, dx - 1.875);
+    const pts = [at(0, 0.12), at(0.7, fl(0.7)), at(1.4, fl(1.4))];
     // מסגרת הדלת: נקודת המוצא בחוץ, וכיוון פנימה — לחישוב הגובה מתחת לכל כף רגל
     const o = at(0, 0), u = at(1, 0).sub(o).normalize();
     return { out: pts[0], in: pts[pts.length - 1], toIn: pts, door: { o, u } };
@@ -774,10 +778,12 @@ export class PeopleLayer {
     }
     return w;
   }
-  // מדרגות בדלת: כל כף רגל נוחתת על הגובה שמתחתיה (מדרכה 0.12, מדרגה 0.34, רצפה 0.66).
+  // מדרגות בדלת: כל כף רגל נוחתת על הגובה שמתחתיה — כמו בדגם: מדרכה 0.12 עד הסף, מדרגה צרה 0.36 (‎x‏ ‎-1.275 עד ‎-1.2),
+  // ורצפה 0.675. העוגן של הדלת ב-x‏ ‎-1.875, ולכן dx = x + 1.875. כשהאוטובוס כורע — הרצפה והמדרגה נמוכות יותר.
   // הגוף בגובה הרגל הנמוכה, והרגל הגבוהה מתכופפת אליה (IK של ירך-שוק). כך אין רגל שנבלעת במדרגה
   stairs(w, dt) {
-    const { o, u } = w.door, g = p => { const dx = (p.x - o.x) * u.x + (p.z - o.z) * u.z; return dx < 0.6 ? 0.12 : dx < 1.0 ? 0.34 : 0.66; };
+    const { o, u } = w.door, kn = w.bus?.kneel || 0;
+    const g = p => { const dx = (p.x - o.x) * u.x + (p.z - o.z) * u.z, x = dx - 1.875; return dx < 0.6 ? 0.12 : (dx < 0.675 ? 0.36 : 0.675) - kneelDrop(kn, x); };
     const A = this.tmpA || (this.tmpA = new THREE.Vector3()), T = this.tmpT || (this.tmpT = new THREE.Vector3());
     w.obj.position.y = w.baseY; w.obj.updateMatrixWorld(true);
     // גם קצת לפני הבוהן: הרגל עולה לפני שפת המדרגה, כדי שהשוק לא תעבור דרך הפינה

@@ -56,6 +56,12 @@ function rampTopY(x) {
 }
 // מערכת השפה של התחנה הנוכחית: d (המרחק מהשפה לכיוון המדרכה) = a·x + b·z + c במערכת האוטובוס
 let KERB = null;
+// "כריעה": כשהמשטח נפתח האוטובוס מוריד את הצד של הדלתות — סיבוב קטן סביב הציר האורכי, כשהצד השני (x = far) נשאר
+// במקומו. הסף של הדלת יורד כ-7.5 ס"מ, והמשטח פחות תלול. bus.kneel (0..1) — BusLayer מסובב את האוטובוס לפיו.
+// במערכת האוטובוס הקרקע שבחוץ "עולה" בהתאם: ‎+th·k·(far − x)
+export const KNEEL = { th: 0.0304, far: 1.25, dur: 1.4 };
+let KNEEL_K = 0;
+export const kneelDrop = (k, x) => k * KNEEL.th * (KNEEL.far - x);
 function groundAt(x, z, phi) {
   const inDoor = Math.abs(z - DOOR_Z) < 0.62, onRamp = Math.abs(z - RAMP.z) < RAMP.W / 2 + 0.05;
   if (onRamp && phi > PHI_OUT - 0.05) {
@@ -67,9 +73,10 @@ function groundAt(x, z, phi) {
   if ((inDoor || Math.abs(z - FRONT_Z) < 0.585) && x > -1.28) return 0.36;   // פס המדרגה הצר שבין הסף לכנפיים (בשתי הדלתות)
   // בחוץ: לפי המרחק מהשפה של התחנה הזו (האוטובוס לא תמיד עומד צמוד ומקביל לשפה)
   const d = KERB ? KERB.a * x + KERB.b * z + KERB.c : -1.55 - x;
-  if (d < 0) return 0.10;
-  if (d < 0.2) return 0.165;                     // אבן השפה: 20 ס"מ רוחב
-  return 0.12;
+  const up = kneelDrop(KNEEL_K, x);
+  if (d < 0) return 0.10 + up;
+  if (d < 0.2) return 0.165 + up;                // אבן השפה: 20 ס"מ רוחב
+  return 0.12 + up;
 }
 const groundSmooth = (x, z, phi) => { let s = 0; for (const d of [-0.12, -0.06, 0, 0.06, 0.12]) s += groundAt(x + d, z, phi); return s / 5; };
 
@@ -829,9 +836,11 @@ export class AccessLayer {
       const d = (lx, lz) => { const w = obj.localToWorld(V3(lx, 0, lz)); return (w.x - f.kx) * f.ux + (-w.z - f.ky) * f.uy; };
       const c = d(0, 0); q.kerb = { a: d(1, 0) - c, b: d(0, 1) - c, c };
     } catch (e) { q.kerb = null; }
-    KERB = q.kerb;
-    // הקרקע שמתחת לקצה המשטח הפתוח
-    { setSlope(slopeFor(0.12)); const xe = RAMP.hx - RAMP.L * Math.cos(SLOPE); let g = 0; for (const dz of [-0.35, 0, 0.35]) g = Math.max(g, groundAt(xe - 0.02, RAMP.z + dz, 0), groundAt(xe + 0.04, RAMP.z + dz, 0)); q.slope = slopeFor(g); setSlope(q.slope); }
+    KERB = q.kerb; KNEEL_K = 1;          // המשטח פתוח והנהג בחוץ רק כשהאוטובוס כבר כורע
+    // הקרקע שמתחת לקצה המשטח הפתוח: הנקודה הגבוהה מבין הפינות והאמצע (כשהאוטובוס עומד באלכסון לשפה, פינה אחת
+    // יכולה להיות על אבן השפה והשנייה בכביש — הלוח קשיח ונשען על הגבוהה). שני סבבים, כי הקצה זז עם השיפוע
+    { setSlope(slopeFor(0.12));
+      for (let it = 0; it < 2; it++) { const xe = RAMP.hx - RAMP.L * Math.cos(SLOPE); let g = 0; for (const dz of [-RAMP.W / 2, -0.2, 0, 0.2, RAMP.W / 2]) g = Math.max(g, groundAt(xe - 0.02, RAMP.z + dz, 0), groundAt(xe + 0.04, RAMP.z + dz, 0)); q.slope = slopeFor(g); setSlope(q.slope); } }
     const stride = q.drv?.stride || 0.9;
     const c0 = { x: chair.position.x, z: chair.position.z, yaw: Math.atan2(V3(0, 0, 1).applyQuaternion(chair.quaternion).x, V3(0, 0, 1).applyQuaternion(chair.quaternion).z) };
     q.tl = kind === 'board' ? this.boardTimeline(c0, q.slot, stride) : this.alightTimeline(q.slot, stride);
@@ -845,7 +854,10 @@ export class AccessLayer {
   park(chair, slot) { const b = this.bay(slot); chair.position.set(b.x, FLOOR, b.z); chair.rotation.set(0, b.yaw, 0); }
   drop(pid) { const r = this.riding.get(pid); if (r) { r.chair.parent?.remove(r.chair); this.riding.delete(pid); } }
 
+  // הכריעה לאורך הרצף: יורדת בהתחלה (כשהנהג עוד בתא), ועולה בסוף
+  kneelAt(q, T) { const D = KNEEL.dur, tot = q.tl.total; return ease(clamp(Math.min(T / D, (tot - T) / D), 0, 1)); }
   end(q, aborted) {
+    q.bus.kneel = 0;
     q.bus.access = this.pending.some(e => e.bus === q.bus);
     if (q.drv) { q.drv.obj.parent?.remove(q.drv.obj); this.drivers.push(q.drv); }
     if (q.baked) this.fade(q.baked, 1);
@@ -862,6 +874,7 @@ export class AccessLayer {
   // מחיל את המצב בזמן T: דלת התא, המשטח, הכיסא (גלגלים, גלגלים קדמיים שמסתובבים לכיוון התנועה, ידי הנוסע) והנהג
   apply(q, T) {
     KERB = q.kerb || null; if (q.slope) setSlope(q.slope);
+    KNEEL_K = q.bus.kneel = this.kneelAt(q, T);
     const st = { door: 0, phi: 0, chair: null, drv: null, strap: null };
     q.tl.eval(T, st);
     if (q.door) q.door.rotation.y = st.door;
