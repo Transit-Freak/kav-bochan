@@ -8,14 +8,21 @@
 import * as THREE from 'three';
 import { FINE } from './ops.js';
 import { dayOf } from './fleet.js';
+import { STAND_POLE } from './actors.js';
 
 const FLOOR = 0.675, EYE = FLOOR + 1.65;
 // המעבר: מהדלת הקדמית, ליד המתקף, ואז לאורך האמצע עד המושבים האחרונים
 const PATH = [[-0.95, 5.15], [-0.3, 4.98], [0, 4.3], [0, -4.9]];       // עוקף את העמוד המעוקל שליד הדלת (z ≈ 4.5) ואת המתקף
 // המושבים (מתוך ידיות האחיזה בדגם: מושב מול כל משענת, פונה קדימה) וכמה מקומות עמידה ליד הדלת האמצעית
-const ROWS = [3.7, 2.9, 2.1, 1.3, -1.9, -2.7, -3.5, -4.3, -5.1], SIDES = { 2.9: [-1] };
-const SEATS = ROWS.flatMap(z => [0.95, 0.5, -0.5, -0.95].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x, FLOOR + 0.455, z + 0.16]));
-const STANDS = [[-0.8, 0, 0.35, -Math.PI / 2], [-0.85, 0, -0.25, -Math.PI / 2], [0.75, 0, -0.1, Math.PI / 2], [0.8, 0, 0.45, Math.PI / 2]];
+// המושבים (נמדדו בדגם): לכל שורה — ידית האחיזה בראש המשענת (z), הכרית בגובה 1.14 ומ-z+0.10 עד z+0.50, והגב בגובה האגן ב-z+0.12.
+// זוג מושבים בכל צד: מעבר (x ≈ 0.58) וחלון (x ≈ 0.87). [x, הרצפה, z של הגב]
+const ROWS = [3.7, 2.9, 2.1, 1.3, -1.9, -2.7, -3.5, -4.3, -5.1], SIDES = { 3.7: [-1], 2.9: [-1] };
+export const SEAT_H = 1.14 - FLOOR, SEAT_DEPTH = 0.37;
+const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x, FLOOR, z + 0.125]));
+// מקומות העמידה ליד הדלת האמצעית: מאחורי העמודים האנכיים שבשפת המעבר (x = ±0.50, z = 1.24 / 0.75 / -0.36 / -0.70;
+// מימין, מול הדלת, יש משענת מתקפלת ב-z ≈ -0.4 — שם עומדים מאחוריה, ליד העמוד של z = -0.70),
+// פונים קדימה, והיד שבצד המעבר על העמוד (STAND_POLE ב-actors.js). [x, הרצפה, z של האגן, היד]
+const STANDS = [[1, 0.75], [-1, 0.75], [1, -0.70], [-1, -0.36], [1, 1.24], [-1, 1.24]].map(([sx, pz]) => [sx * (0.5 + STAND_POLE.dx), FLOOR, pz - STAND_POLE.dz, sx > 0 ? 'Right' : 'Left']);
 const hash = i => { const x = Math.sin(i * 77.7 + 3.1) * 43758.5453; return x - Math.floor(x); };
 const day2date = d => { const t = new Date(2026, 10, 1 + (d - 1)); return `${String(t.getDate()).padStart(2, '0')}.${String(t.getMonth() + 1).padStart(2, '0')}`; };
 // אותו אדם בכל הימים: תושב קבוע או עובד מבחוץ (residents.js) — לפי המספר שלו; אחרים — לפי מוצא, יעד וסוג
@@ -36,6 +43,7 @@ export class InspectorFP {
     // מקום קבוע לכל נוסע: מושב פנוי לפי הסדר (קודם מושבים, אחר כך עמידה)
     const seatOf = id => { if (!seat.has(id)) { const used = new Set(seat.values()); let k = Math.floor(hash(id) * SEATS.length), n = 0; while (used.has(k) && n++ < SEATS.length) k = (k + 1) % SEATS.length; seat.set(id, used.size >= SEATS.length ? -1 : k); } return seat.get(id); };
     const standOf = id => { if (!stand.has(id)) { const used = new Set(stand.values()); let j = 0; while (used.has(j)) j++; stand.set(id, j < STANDS.length ? j : -1); } return stand.get(id); };
+    this.g.people.busSitters(SEAT_H, SEAT_DEPTH);
     this.g.people.onboard = { bus, obj: o, seats: SEATS, stands: STANDS, floor: FLOOR, seatOf, standOf };
     const c = this.g.camera;
     this.saved = { near: c.near, far: c.far, fov: c.fov };
@@ -163,15 +171,27 @@ function buildReader() {
   const skin = new THREE.MeshStandardMaterial({ color: 0xc99a78, roughness: 0.7 }), black = new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.5 });
   const c = document.createElement('canvas'); c.width = 256; c.height = 200; const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const screen = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
-  const dev = new THREE.Group(); dev.position.set(0.085, -0.13, -0.3); dev.rotation.set(-0.55, -0.12, 0.05); group.add(dev);
-  dev.add(new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.15, 0.022), black));
-  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.072, 0.056), screen); scr.position.set(0, 0.035, 0.0115); dev.add(scr);
-  const pad = new THREE.Mesh(new THREE.CircleGeometry(0.018, 20), new THREE.MeshBasicMaterial({ color: 0x1e3a8a })); pad.position.set(0, -0.035, 0.0115); dev.add(pad);
-  // יד: כף, ארבע אצבעות שעוטפות את המכשיר מהצד, ואגודל מקדימה
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.085, 0.07), skin); palm.position.set(0.055, -0.02, -0.01); dev.add(palm);
-  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0085, 0.035, 4, 8), skin); f.rotation.z = Math.PI / 2; f.position.set(0.035, -0.055 + i * 0.022, -0.016); dev.add(f); }
-  const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.03, 4, 8), skin); th.rotation.set(0, 0, 0.9); th.position.set(0.04, 0.0, 0.016); dev.add(th);
-  const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.16, 4, 10), skin); arm.position.set(0.1, -0.08, 0.07); arm.rotation.set(1.1, 0, -0.35); dev.add(arm);
+  // המכשיר: קטן מעט, בפינה הימנית התחתונה, נוטה אל העיניים
+  const dev = new THREE.Group(); dev.position.set(0.09, -0.135, -0.32); dev.rotation.set(-0.5, -0.18, 0.06); group.add(dev);
+  const W = 0.066, H = 0.118, D = 0.018;
+  dev.add(new THREE.Mesh(new THREE.BoxGeometry(W, H, D), black));
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.86, H * 0.38), screen); scr.position.set(0, H * 0.2, D / 2 + 0.0005); dev.add(scr);
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(0.014, 20), new THREE.MeshBasicMaterial({ color: 0x1e3a8a })); pad.position.set(0, -H * 0.24, D / 2 + 0.0005); dev.add(pad);
+  // יד ימין (פשוטה, כמו של הנהג): כף מאחורי המכשיר, ארבע אצבעות שעוטפות את הצד השמאלי שלו (שלוש פרקים כל אחת), אגודל בצד הימני מלפנים
+  const seg = (a, b, r) => { const d = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.001, d.length() - 2 * r * 0.2), 4, 8), skin);
+    m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); dev.add(m); return m; };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.085, 0.028), skin); palm.position.set(0.006, -0.012, -D / 2 - 0.016); dev.add(palm);
+  const pr = [0.0085, 0.009, 0.0085, 0.0075];
+  for (let k = 0; k < 4; k++) {
+    const y = 0.022 - k * 0.019, r = pr[k];
+    const a = V(-0.012, y, -D / 2 - 0.018), b = V(-W / 2 - 0.004, y + 0.002, -D / 2 - 0.012), c = V(-W / 2 - 0.009, y + 0.003, 0.002), d = V(-W / 2 + 0.006, y + 0.003, D / 2 + 0.008);
+    seg(a, b, r); seg(b, c, r * 0.95); seg(c, d, r * 0.9);
+  }
+  const t0 = V(W / 2 - 0.004, -0.04, -D / 2 - 0.006), t1 = V(W / 2 + 0.004, -0.012, D / 2 + 0.004), t2 = V(W / 2 - 0.012, 0.012, D / 2 + 0.009);
+  seg(t0, t1, 0.0105); seg(t1, t2, 0.0095);
+  // שורש כף היד והאמה — יורדים אל מחוץ למסך
+  seg(V(0.012, -0.055, -D / 2 - 0.02), V(0.05, -0.2, -0.03), 0.024);
   for (const m of group.children) m.renderOrder = 10;
   group.traverse(m => { if (m.isMesh) { m.frustumCulled = false; m.renderOrder = 10; } });
   const show = (a, b, kind) => {
@@ -193,4 +213,4 @@ function beep(ok) {
   try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = 'square'; o.frequency.value = ok ? 1320 : 440; g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + (ok ? 0.12 : 0.35)); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + 0.4); } catch { }
 }
-export { PATH as INSP_PATH, EYE as INSP_EYE };
+export { PATH as INSP_PATH, EYE as INSP_EYE, SEATS as INSP_SEATS };
