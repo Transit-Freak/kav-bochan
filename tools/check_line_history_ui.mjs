@@ -137,10 +137,14 @@ await page.route('**://unpkg.com/**', (route) => {
 await page.route('**://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
 await page.route('**://fonts.gstatic.com/**', (r) => r.fulfill({ body: '' }));
 
+// לשוניות האתר הן קישורים (<a role="tab">) מאז "פתיחה בלשונית חדשה" (05.11) — לא כפתורים.
+// מגבילים לשורת הלשוניות הראשית, כדי שלא יתפסו גם "תחנות שהשתנו" שבמפה.
+const SITE_TAB = '.tabs[aria-label="אזורי האתר"] .tab';
+
 // שחזור המסך האחרון (app.jsx, ההחלפה "אתר למחשב") היה מחזיר את הבדיקה למסך הקודם — הבדיקה מנקה אותו לפני כל ניווט
 await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
 await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
-await page.click('button.tab:has-text("תחנות")', { timeout: 30000 });
+await page.click(`${SITE_TAB}:has-text("תחנות")`, { timeout: 30000 });
 // הצ'יפים מצוירים רק אחרי ש-months.json נטען — חובה לחכות להם
 await page.waitForSelector('.months .mchip', { timeout: 30000 })
   .catch(() => fail('בוחר החודשים לא הופיע בכלל בטאב התחנות'));
@@ -289,7 +293,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
 {
   await page.evaluate(() => { try { sessionStorage.removeItem('kbNav'); } catch (e) { /* about:blank */ } }).catch(() => {});
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
-  await page.click('button.tab:has-text("קווים")');
+  await page.click(`${SITE_TAB}:has-text("קווים")`);
   await page.fill('input.search', '');
   await page.waitForSelector('.recent .lrow', { timeout: 30000 })
     .catch(() => fail('מסך הפתיחה לא הציג את השינויים האחרונים'));
@@ -352,7 +356,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
 // חיפוש "548" החזיר את הקו כפי שהוא היום בלבד. הגרסה של 2012 — קו אחר
 // לגמרי, מקרית מלאכי לבני ברק — קיימת בנתונים ולא הופיעה בתוצאות.
 {
-  await page.click('button.tab:has-text("קווים")');
+  await page.click(`${SITE_TAB}:has-text("קווים")`);
   await page.fill('input.search', '548');
   await page.waitForSelector('.r12 .lrow', { timeout: 30000 })
     .catch(() => fail('חיפוש 548 לא הציג את קווי 2012'));
@@ -379,7 +383,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
 // היא הייתה מסך בפני עצמו עם כותרת ושורת שנים משלו — קטגוריה בתוך קטגוריה.
 // הבדיקה מוודאת שסימון התיבה מחזיר את הרשימה הרגילה.
 {
-  await page.click('button.tab:has-text("קווים")');
+  await page.click(`${SITE_TAB}:has-text("קווים")`);
   await page.fill('input.search', '');
   await page.click('button.kathead:has-text("קטגוריות לבחירה")', { timeout: 30000 });
   await page.locator('.katrow', { hasText: 'מבוטל' }).first().locator('input').check();
@@ -398,7 +402,7 @@ console.log(`✓ ממשק: החודש הכי ישן (${om}.${oy}) נגיש ומ�
 
 // ---- שלב ג': פיד "שינויים לפי יום" של הקווים — החודש הכי ישן נגיש ----
 if (oldestL) {
-  await page.click('button.tab:has-text("קווים")');
+  await page.click(`${SITE_TAB}:has-text("קווים")`);
   await page.click('button.kathead:has-text("שינויים לפי יום")', { timeout: 30000 });
   await page.waitForSelector('.months .mchip', { timeout: 30000 })
     .catch(() => fail('פיד הקווים: בוחר החודשים לא הופיע'));
@@ -440,7 +444,7 @@ const MODE_TABS = [
 for (const t of MODE_TABS) {
   const n = idxLines.filter((l) => t.tts.includes(l.tt)).length;
   if (!n) { console.log(`· ${t.label}: אין עדיין קווים כאלה באינדקס — מדלגים`); continue; }
-  await page.click(`button.tab:has-text("${t.label}")`, { timeout: 30000 });
+  await page.click(`${SITE_TAB}:has-text("${t.label}")`, { timeout: 30000 });
   await page.waitForSelector('.llist .lrow', { timeout: 30000 })
     .catch(() => fail(`${t.label}: לא הופיעה אף שורת קו למרות ${n} באינדקס`));
   const shown = await page.locator('.llist .lrow').count();
@@ -457,10 +461,10 @@ for (const t of MODE_TABS) {
     fail(`${t.label}: סוג התחבורה לא מופיע בעמוד הקו — "${(facts || '').slice(0, 60)}"`);
   // "חזרה לחיפוש" מקו רכבת/מונית חייבת לנחות באותה קטגוריה ולא ב"קווים":
   // הטאב אינו בכתובת, וללא גזירה מסוג הקו המשתמש הועף לרשימת האוטובוסים
-  await page.click('button.back');
+  await page.locator('a.back').first().click();   // "חזרה" גם הוא קישור (BackLink)
   await page.waitForSelector('.llist .lrow', { timeout: 30000 })
     .catch(() => fail(`${t.label}: חזרה מעמוד הקו לא הציגה רשימה`));
-  const onTab = await page.locator('button.tab.on').textContent();
+  const onTab = await page.locator(`${SITE_TAB}.on`).textContent();
   if (!(onTab || '').includes(t.label))
     fail(`${t.label}: חזרה מעמוד הקו נחתה בטאב "${(onTab || '').trim()}" במקום "${t.label}"`);
   console.log(`✓ ${t.label}: ${n} באינדקס, ${shown} מוצגים, הסוג מוצג, חזרה נשארת בקטגוריה`);
