@@ -21,14 +21,17 @@ const ROWS = [3.7, 2.9, 2.1, 1.3, -1.9, -2.7, -3.5, -4.3, -5.1], SIDES = { 3.7: 
 export const SEAT_H = 1.14 - FLOOR, SEAT_DEPTH = 0.37;
 // המושבים צרים (29 ס"מ בין מרכזים) — כתפיים של שני אנשים לא נכנסות בהם. לכן היושב במעבר זז מעט אל המעבר (10 ס"מ)
 // וזה שליד החלון מעט אל החלון (5 ס"מ), כמו שאנשים יושבים באמת, וכך אין חפיפה בין השכנים
-const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x + Math.sign(x) * (Math.abs(x) > 0.7 ? 0.05 : -0.1), FLOOR, z + 0.125]));
+// העמודים האנכיים בשפת המעבר (z): ליד חלון שיש עמוד 30–80 ס"מ לפניו — היד מושטת יותר למעלה ופחות קדימה (מעל העמוד, לא דרכו)
+const POLES_Z = [5.65, 4.5, 2.84, 1.24, 0.75, -0.36, -0.7, -1.96, -3.56, -5.16];
+const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x + Math.sign(x) * (Math.abs(x) > 0.7 ? 0.05 : -0.1), FLOOR, z + 0.125,
+  Math.abs(x) > 0.7 && POLES_Z.some(pz => pz - (z + 0.125) > 0.25 && pz - (z + 0.125) < 0.85) ? 1 : 0]));
 // השכן באותו זוג מושבים, ומושבים בשורות הסמוכות באותו צד
 const PAIR = SEATS.map(a => SEATS.findIndex(b => b !== a && b[2] === a[2] && Math.sign(b[0]) === Math.sign(a[0])));
 const NEAR = SEATS.map(a => SEATS.map((b, k) => k).filter(k => SEATS[k] !== a && Math.sign(SEATS[k][0]) === Math.sign(a[0]) && Math.abs(SEATS[k][2] - a[2]) < 0.9));
 // מקומות העמידה ליד הדלת האמצעית: מאחורי העמודים האנכיים שבשפת המעבר (x = ±0.50, z = 0.75 / -0.36 / -0.70 — לא ליד העמוד של z = 1.24, צמוד מדי למושבים;
 // מימין, מול הדלת, יש משענת מתקפלת ב-z ≈ -0.4 — שם עומדים מאחוריה, ליד העמוד של z = -0.70),
 // פונים קדימה, והיד שבצד המעבר על העמוד (STAND_POLE ב-actors.js). [x, הרצפה, z של האגן, היד]
-const STANDS = [[1, 0.75], [-1, 0.75], [1, -0.70], [-1, -0.36]].map(([sx, pz]) => [sx * (0.5 + STAND_POLE.dx), FLOOR, pz - STAND_POLE.dz, sx > 0 ? 'Right' : 'Left']);
+const STANDS = [[1, 0.75], [-1, 0.75], [1, -0.70], [-1, -0.36]].map(([sx, pz]) => [sx * (0.5 + (sx > 0 ? STAND_POLE.dx : STAND_POLE.dxL)), FLOOR, pz - STAND_POLE.dz, sx > 0 ? 'Right' : 'Left']);
 const hash = i => { const x = Math.sin(i * 77.7 + 3.1) * 43758.5453; return x - Math.floor(x); };
 const day2date = d => { const t = new Date(2026, 10, 1 + (d - 1)); return `${String(t.getDate()).padStart(2, '0')}.${String(t.getMonth() + 1).padStart(2, '0')}`; };
 // אותו אדם בכל הימים: תושב קבוע או עובד מבחוץ (residents.js) — לפי המספר שלו; אחרים — לפי מוצא, יעד וסוג
@@ -220,7 +223,9 @@ export class InspectorFP {
     const hw = this.anim && this.g.people.onboardPos?.get(this.anim.pid), head = hw ? o.worldToLocal(hw.clone()) : null;
     const seg = new THREE.Line3(), cp = new THREE.Vector3();
     if (head) seg.set(head.clone().add(new THREE.Vector3(0, -0.62, 0.05)), head.clone().add(new THREE.Vector3(0, -0.18, 0)));
-    const inBody = q => head && (q.distanceTo(head) < 0.13 || seg.closestPointToPoint(q, true, cp).distanceTo(q) < 0.16);
+    // וגם הידיים והרגליים שלו (כל תא של הנוסע הזה), חוץ מ-40 ס"מ סביב הכרטיס — שם היד שמגישה (כף היד והאמה) פוגשת את המכשיר
+    const inBody = q => { if (head && (q.distanceTo(head) < 0.13 || seg.closestPointToPoint(q, true, cp).distanceTo(q) < 0.16)) return true;
+      if (card && q.distanceTo(card) < 0.4) return false; const i = this.occ.idx(q.x, q.y, q.z); return i >= 0 && this.occ.pp[i] === 2; };
     const test = () => { g.position.copy(this.cur); g.updateMatrixWorld(true); let n = 0; const q = new THREE.Vector3();
       const armP = this.reader.aimArm(), cm = g.parent.matrixWorld;
       for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if ((this.occ.hard(q.x, q.y, q.z) && !(card && q.distanceTo(card) < 0.15)) || inBody(q)) n++; }
