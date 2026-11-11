@@ -12,6 +12,7 @@ const lift = y => y <= LIFT_FROM ? y : y <= TOP0 ? LIFT_FROM + (y - LIFT_FROM) *
   : TOP1 + (Math.min(y, ARCH0) - TOP0) * (ARCH1 - TOP1) / (ARCH0 - TOP0) + Math.max(0, y - ARCH0);
 const RAIL_Y = lift(RAIL0);
 const HOLD = { w: 0.042, h: 0.06, d: 0.052 };        // המחזיק: רוחב (x), גובה, אורך לאורך המוט (z)
+export const HELD_TILT = Math.asin(0.03 / 0.32);    // הזווית של רצועה שמישהו מחזיק בה ומושך אליו
 const LOOP = 0.30, BOTTOM_W = 0.12, BAND_W = 0.025;  // אורך הלולאה מתחת למחזיק, רוחב התחתית, רוחב הרצועה
 
 // מחזיק: תיבה מעוגלת סביב המוט, קצת צרה למטה, עם חריץ שממנו יוצאת הרצועה
@@ -175,6 +176,7 @@ export function swayStraps(v, bus, yaw, simDt, dt) {
     const f = grp.userData.held?.has(i) ? 0 : 0.85 + ((i * 0.618) % 1) * 0.3;   // רצועה שמישהו מחזיק — לא מתנדנדת (היד עליה)
     const j = f ? moving * 0.03 * Math.sin(st.t * (5.3 + f) + i * 1.7) : 0;
     _E.set(THREE.MathUtils.clamp(st.a * f + j, -0.5, 0.5), 0, THREE.MathUtils.clamp(st.b * f + j * 0.5, -0.4, 0.4));
+    if (!f) _E.set(0, 0, Math.sign(x) * HELD_TILT);   // רצועה שמחזיקים בה: נמשכת מעט אל העומד (3 ס"מ בתחתית), מתוחה
     _M.compose(_P.set(x, y, zz), _Q.setFromEuler(_E), _S);
     loop.setMatrixAt(i, _M);
     // המחזיק מסתובב רק מעט סביב המוט (הוא מהודק)
