@@ -466,8 +466,8 @@ body.role-inspector #money,body.role-inspector #modeBadge{display:none}
 .ifp{position:fixed;inset:0;pointer-events:none;z-index:19}
 .ifp[hidden]{display:none}
 .ifp-top{position:absolute;top:var(--ifp-top,92px);pointer-events:auto}
-.ifp-move{position:absolute;left:8px;top:46vh;display:flex;flex-direction:column;gap:8px;pointer-events:auto}
-.ifp-move button{width:54px;height:54px;border-radius:14px;font-size:20px;background:rgba(15,23,42,.6);color:#fff;border:1px solid rgba(255,255,255,.3);touch-action:none}
+.ifp-move{position:absolute;left:8px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.ifp-move button{width:46px;height:46px;border-radius:12px;font-size:17px;background:rgba(15,23,42,.35);color:#fff;border:1px solid rgba(255,255,255,.3);touch-action:none}
 .ifp-decide{position:absolute;inset-inline:14px;bottom:calc(150px + env(safe-area-inset-bottom));pointer-events:auto;background:#fff;border-radius:16px;padding:12px;
   display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 30px rgba(0,0,0,.35);max-width:420px;margin-inline:auto}
 .ifp-decide[hidden]{display:none}

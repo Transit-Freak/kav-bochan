@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { FINE } from './ops.js';
 import { dayOf } from './fleet.js';
-import { STAND_POLE } from './actors.js';
+import { STAND_POLE, STRAP } from './actors.js';
 
 // העיניים 1.57 מ' מעל רצפת האוטובוס (אדם בגובה ממוצע). אותה מערכת צירים של האוטובוס כמו במבט הנהג (הרצפה ב-0.675 מעל הכביש)
 const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
@@ -19,20 +19,23 @@ const PATH = [[-0.95, 5.15], [-0.3, 4.98], [0, 4.3], [0, -4.9]];       // עוק
 // המושבים (נמדדו בדגם): לכל שורה — ידית האחיזה בראש המשענת (z), הכרית בגובה 1.14 ומ-z+0.10 עד z+0.50, והגב בגובה האגן ב-z+0.12.
 // זוג מושבים בכל צד: מעבר (x ≈ 0.58) וחלון (x ≈ 0.87). [x, הרצפה, z של הגב]
 const ROWS = [3.7, 2.9, 2.1, 1.3, -1.9, -2.7, -3.5, -4.3, -5.1], SIDES = { 3.7: [-1], 2.9: [-1] };
-export const SEAT_H = 1.14 - FLOOR, SEAT_DEPTH = 0.37;
+export const SEAT_H = 1.14 + 0.012 - FLOOR, SEAT_DEPTH = 0.37;   // 1.2 ס"מ מעל הכרית (הבד נמעך קצת — בלי לשקוע בתוכה)
 // המושבים צרים (29 ס"מ בין מרכזים) — כתפיים של שני אנשים לא נכנסות בהם. לכן היושב במעבר זז מעט אל המעבר (10 ס"מ)
 // וזה שליד החלון מעט אל החלון (5 ס"מ), כמו שאנשים יושבים באמת, וכך אין חפיפה בין השכנים
 // העמודים האנכיים בשפת המעבר (z): ליד חלון שיש עמוד 30–80 ס"מ לפניו — היד מושטת יותר למעלה ופחות קדימה (מעל העמוד, לא דרכו)
 const POLES_Z = [5.65, 4.5, 2.84, 1.24, 0.75, -0.36, -0.7, -1.96, -3.56, -5.16];
-const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x + Math.sign(x) * (Math.abs(x) > 0.7 ? 0.05 : -0.1), FLOOR, z + 0.125,
+const SEATS = ROWS.flatMap(z => [0.872, 0.578, -0.578, -0.872].filter(x => !SIDES[z] || SIDES[z].includes(Math.sign(x))).map(x => [x + Math.sign(x) * (Math.abs(x) > 0.7 ? 0.05 : -0.1), FLOOR, z + 0.137,
   Math.abs(x) > 0.7 && POLES_Z.some(pz => pz - (z + 0.125) > 0.25 && pz - (z + 0.125) < 0.85) ? 1 : 0]));
 // השכן באותו זוג מושבים, ומושבים בשורות הסמוכות באותו צד
 const PAIR = SEATS.map(a => SEATS.findIndex(b => b !== a && b[2] === a[2] && Math.sign(b[0]) === Math.sign(a[0])));
 const NEAR = SEATS.map(a => SEATS.map((b, k) => k).filter(k => SEATS[k] !== a && Math.sign(SEATS[k][0]) === Math.sign(a[0]) && Math.abs(SEATS[k][2] - a[2]) < 0.9));
-// מקומות העמידה ליד הדלת האמצעית: מאחורי העמודים האנכיים שבשפת המעבר (x = ±0.50, z = 0.75 / -0.36 / -0.70 — לא ליד העמוד של z = 1.24, צמוד מדי למושבים;
+// מקום העמידה בעמוד ליד הדלת האמצעית: מאחורי העמוד האנכי שבשפת המעבר (x = 0.50, z = -0.70)
 // מימין, מול הדלת, יש משענת מתקפלת ב-z ≈ -0.4 — שם עומדים מאחוריה, ליד העמוד של z = -0.70),
 // פונים קדימה, והיד שבצד המעבר על העמוד (STAND_POLE ב-actors.js). [x, הרצפה, z של האגן, היד]
-const STANDS = [[1, 0.75], [-1, 0.75], [1, -0.70], [-1, -0.36]].map(([sx, pz]) => [sx * (0.5 + (sx > 0 ? STAND_POLE.dx : STAND_POLE.dxL)), FLOOR, pz - STAND_POLE.dz, sx > 0 ? 'Right' : 'Left']);
+// העומדים הראשונים מחזיקים ברצועה תלויה (straps.js, x = ±0.50, z = 0.08 — בין העמודים ליד הדלת); מי שבא אחריהם, ומי שנמוך
+// ולא מגיע לרצועה (STRAP ב-actors.js) — בעמוד של z = -0.70. בלי עומד לפני מי שמחזיק ברצועה: היד שמושיטה כרטיס יוצאת קדימה
+const STRAPS = [[1, 0.08], [-1, 0.08]].map(([sx, rz]) => [sx * (0.5 + STRAP.dx), FLOOR, rz - STRAP.dz, sx > 0 ? 'StrapR' : 'StrapL']);
+const STANDS = [...STRAPS, ...[[1, -0.70]].map(([sx, pz]) => [sx * (0.5 + (sx > 0 ? STAND_POLE.dx : STAND_POLE.dxL)), FLOOR, pz - (sx > 0 ? STAND_POLE.dz : STAND_POLE.dzL), sx > 0 ? 'Right' : 'Left'])];
 const hash = i => { const x = Math.sin(i * 77.7 + 3.1) * 43758.5453; return x - Math.floor(x); };
 const day2date = d => { const t = new Date(2026, 10, 1 + (d - 1)); return `${String(t.getDate()).padStart(2, '0')}.${String(t.getMonth() + 1).padStart(2, '0')}`; };
 // אותו אדם בכל הימים: תושב קבוע או עובד מבחוץ (residents.js) — לפי המספר שלו; אחרים — לפי מוצא, יעד וסוג
@@ -82,6 +85,7 @@ export class InspectorFP {
   enter(bus) {
     const o = this.g.busObject(bus); if (!o) return false;
     this.bus = bus; this.obj = o; this.s = 0; this.yaw = 0; this.v = 0;
+    document.body.classList.add('fpview');   // מבט פקח: בלי לוח המתכנן, הכפתורים והקרדיטים (game.css) — בכל דרך שנכנסים
     this.stats = { checked: 0, caught: 0, fines: 0, warns: 0, pts: 0, t0: performance.now() };
     this.prevState = bus.state; this.lastStop = bus.next; this.sumAt = 0;
     const seat = new Map(), stand = new Map();
@@ -100,7 +104,8 @@ export class InspectorFP {
       seat.set(id, best); return best; };
     const standOf = id => { if (!stand.has(id)) { const used = new Map(); for (const [q, j] of stand) used.set(j, q);
       // מקום עמידה פנוי, לא צמוד למי שנראה בדיוק כמוהו (המקומות באותו צד זה ליד זה)
-      let j = -1; for (const pass of [0, 1]) { for (let i = 0; i < STANDS.length && j < 0; i++) { if (used.has(i)) continue;
+      const can = i => { const V = this.g.people.variants?.[this.g.people.variantOf(id)]; return !V?.stand || !!V.stand[STANDS[i][3]]; };   // מגיע לידית?
+      let j = -1; for (const pass of [0, 1]) { for (let i = 0; i < STANDS.length && j < 0; i++) { if (used.has(i) || !can(i)) continue;
         if (!pass && [...used].some(([jj, q]) => look(q) === look(id) && Math.sign(STANDS[jj][0]) === Math.sign(STANDS[i][0]))) continue; j = i; } if (j >= 0) break; }
       stand.set(id, j); } return stand.get(id); };
     this.g.people.busSitters(SEAT_H, SEAT_DEPTH);
@@ -200,7 +205,8 @@ export class InspectorFP {
     this.reader.group.visible = this.s >= this.sMin - 0.01;   // ליד הדלת, מחיצת הנהג ומכונת הכרטיסים — בלי היד והמכשיר
     this.occ.people(PL.onboardShapes || [], inv, this.anim?.pid);   // מי שמגיש מסומן בנפרד: המצלמה לא נכנסת בו, היד מתקרבת לכרטיס שלו
     // הסמלים מעל הראש של מי שנבדק — עוקבים אחרי המקום שלו
-    for (const [pid, sp] of this.icons) { const h = this.g.people.onboardPos?.get(pid); if (!h || !b.pax.some(p => p.id === pid)) { sp.parent?.remove(sp); this.icons.delete(pid); continue; } sp.position.copy(h).add(new THREE.Vector3(0, 0.32, 0)); }
+    for (const [pid, sp] of this.icons) { const h = this.g.people.onboardPos?.get(pid); if (!h || !b.pax.some(p => p.id === pid)) { sp.parent?.remove(sp); this.icons.delete(pid); continue; } sp.position.copy(h).add(new THREE.Vector3(0, 0.32, 0));
+      sp.scale.setScalar(0.16 * THREE.MathUtils.clamp(sp.position.distanceTo(this.g.camera.position) / 1.6, 0.2, 1)); }   // קרוב למצלמה — לא גדל (גודל קבוע במסך)
     // תחנה: סיכום (פעם אחת לכל תחנה)
     if (b.state === 'dwell' && this.prevState === 'drive' && this.stats.checked > this.sumAt) this.summary(false);
     if (this.prevState !== b.state) this.prevState = b.state;
@@ -226,8 +232,8 @@ export class InspectorFP {
     const seg = new THREE.Line3(), cp = new THREE.Vector3();
     if (head) seg.set(head.clone().add(new THREE.Vector3(0, -0.62, 0.05)), head.clone().add(new THREE.Vector3(0, -0.18, 0)));
     // וגם הידיים והרגליים שלו (כל תא של הנוסע הזה), חוץ מ-40 ס"מ סביב הכרטיס — שם היד שמגישה (כף היד והאמה) פוגשת את המכשיר
-    const inBody = q => { if (head && (q.distanceTo(head) < 0.13 || seg.closestPointToPoint(q, true, cp).distanceTo(q) < 0.16)) return true;
-      if (card && q.distanceTo(card) < 0.4) return false; const i = this.occ.idx(q.x, q.y, q.z); return i >= 0 && this.occ.pp[i] === 2; };
+    const inBody = q => { if (card && q.distanceTo(card) < 0.1) return false; if (head && (q.distanceTo(head) < 0.11 || seg.closestPointToPoint(q, true, cp).distanceTo(q) < 0.16)) return true;
+      if (card && q.distanceTo(card) < 0.45) return false; const i = this.occ.idx(q.x, q.y, q.z); return i >= 0 && this.occ.pp[i] === 2; };
     const test = () => { g.position.copy(this.cur); g.updateMatrixWorld(true); let n = 0; const q = new THREE.Vector3();
       const armP = this.reader.aimArm(), cm = g.parent.matrixWorld;
       for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if ((this.occ.hard(q.x, q.y, q.z) && !(card && q.distanceTo(card) < 0.15)) || inBody(q)) n++; }
@@ -266,7 +272,7 @@ export class InspectorFP {
     if (hw && this.obj) { const h = this.obj.worldToLocal(hw.clone()), P = this.pathAt(this.s), far = Math.abs(h.x) > 0.66;
       this.latTo = (far ? 1 : -1) * Math.sign(h.x) * (far ? 0.18 : 0.1);
       // ליד השורה שלו (מעט לפניו) — המבט מהמעבר אל הפנים, לא מעל המשענת שלפניו; ולא לפני מחיצת הנהג
-      this.slideTo = THREE.MathUtils.clamp(this.sOfZ(Math.min(AISLE_Z1, h.z + 0.5)), this.sMin, this.len);   // ליד המשענת של השורה שלפניו, מבט אחורה אל הפנים
+      this.slideTo = THREE.MathUtils.clamp(this.sOfZ(Math.min(AISLE_Z1, h.z + (far ? 0.9 : 0.75))), this.sMin, this.len);   // לפני הברכיים שלו, מעל המשענת של השורה שלפניו — מבט אחורה אל הפנים
       this.lookPid = pid; }
     this.reader.show('רב-קו · מחכה לכרטיס', '', null);
   }
@@ -279,7 +285,7 @@ export class InspectorFP {
     const card = PL.cardWorld, rest = this.reader.rest;
     if (!A.off) A.off = new THREE.Vector3();
     if (card && A.down == null && t > 0.3) {
-      const cl = c.worldToLocal(card.clone()), want = cl.clone().sub(this.reader.faceRest.clone().add(new THREE.Vector3(A.side || 0, 0, 0))).addScaledVector(cl.clone().normalize(), -0.02); if (want.length() > 0.8) want.setLength(0.8); want.x = Math.max(want.x, -0.22);
+      const cl = c.worldToLocal(card.clone()), want = cl.clone().sub(this.reader.faceRest.clone().add(new THREE.Vector3(A.side || 0, 0, 0))).addScaledVector(cl.clone().normalize(), -0.02); if (want.length() > 0.8) want.setLength(0.8); want.x = Math.max(want.x, -0.34);
       A.off.lerp(want, Math.min(1, dt * 7));
     } else if (A.down != null) A.off.multiplyScalar(Math.max(0, 1 - dt * 6));
     // המכשיר מגיע מהצד שבו הכרטיס (כרטיס משמאל — המכשיר עובר לשמאל המסך), לא מעל הראש של הנוסע
@@ -393,12 +399,12 @@ function buildReader() {
   group.add(fore, sleeve);
   const WRIST = V(0.012, -0.055, -D / 2 - 0.02), SHOULDER = V(0.18, -0.32, 0.1), up = V(0, 1, 0);
   const aimArm = () => { const w = WRIST.clone().applyQuaternion(dev.quaternion).add(dev.position), sh = SHOULDER.clone().sub(group.position), d = sh.clone().sub(w), L = d.length(); d.normalize();
-    // אמה עד 30 ס"מ מהפרק, ואחריה שרוול (10 ס"מ) — מעבר לזה מחוץ למסך
-    const fl = Math.min(0.3, L), q = new THREE.Quaternion().setFromUnitVectors(up, d);
+    // אמה עד 60 ס"מ מהפרק (יוצאת מהמסך), ואחריה שרוול (10 ס"מ); הבדיקה מול מכשולים — 40 ס"מ הראשונים
+    const fl = Math.min(0.6, L), q = new THREE.Quaternion().setFromUnitVectors(up, d);   // אמה ארוכה — יוצאת מהמסך, בלי "גדם"
     fore.position.copy(w).addScaledVector(d, fl / 2); fore.quaternion.copy(q); fore.scale.set(1, fl, 1);
     sleeve.position.copy(w).addScaledVector(d, fl + 0.05); sleeve.quaternion.copy(q); sleeve.scale.set(1, 0.1, 1);
-    sleeve.visible = sleeve.position.clone().add(group.position).length() > 0.3;   // צמוד למצלמה — לא מציירים (אחרת גליל ענק במסך)
-    const out = []; for (let k = 0; k <= 6; k++) out.push(w.clone().addScaledVector(d, (fl + 0.1) * k / 6).add(group.position)); return out; };
+    { const sp = sleeve.position.clone().add(group.position); sleeve.visible = sp.length() > 0.35 && sp.y < -0.22; }   // השרוול רק בתחתית התמונה — לא גליל ענק כשהיד מורמת
+    const out = []; for (let k = 0; k <= 6; k++) out.push(w.clone().addScaledVector(d, (Math.min(0.3, L) + 0.1) * k / 6).add(group.position)); return out; };
   for (const m of group.children) m.renderOrder = 10;
   group.traverse(m => { if (m.isMesh) { m.frustumCulled = false; m.renderOrder = 10; } });
   const show = (a, b, kind) => {

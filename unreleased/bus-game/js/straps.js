@@ -112,8 +112,8 @@ export function addStraps(busRoot) {
     if (!/^SM_StrapRing/.test(o.name)) return;
     const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
     o.visible = false; rings.push(new THREE.Vector3(Math.sign(c.x) * 0.5, RAIL_Y, c.z));
-    // מעל הדלת האמצעית (אזור פתוח לעגלות ולעומדים) — בלי רצועות
-    if (c.z > -0.35 && c.z < 1.15) return;
+    // ליד העמוד האנכי שמעל הדלת האמצעית (z = 0.75) — בלי רצועה (הטבעת של z = 0.70 נוגעת בו)
+    if (c.z > 0.4 && c.z < 1.15) return;
     spots.push(new THREE.Vector3(Math.sign(c.x) * 0.5, RAIL_Y, c.z));
     o.traverse(m => { if (m.isMesh && !poleMat) poleMat = [].concat(m.material)[0]; });
   });
@@ -172,8 +172,8 @@ export function swayStraps(v, bus, yaw, simDt, dt) {
   const moving = Math.min(1, (bus.v || 0) / 6);
   const hold = grp.children[0], loop = grp.children[1], spots = grp.userData.spots;
   spots.forEach(([x, y, zz], i) => {
-    const f = 0.85 + ((i * 0.618) % 1) * 0.3;
-    const j = moving * 0.03 * Math.sin(st.t * (5.3 + f) + i * 1.7);
+    const f = grp.userData.held?.has(i) ? 0 : 0.85 + ((i * 0.618) % 1) * 0.3;   // רצועה שמישהו מחזיק — לא מתנדנדת (היד עליה)
+    const j = f ? moving * 0.03 * Math.sin(st.t * (5.3 + f) + i * 1.7) : 0;
     _E.set(THREE.MathUtils.clamp(st.a * f + j, -0.5, 0.5), 0, THREE.MathUtils.clamp(st.b * f + j * 0.5, -0.4, 0.4));
     _M.compose(_P.set(x, y, zz), _Q.setFromEuler(_E), _S);
     loop.setMatrixAt(i, _M);
