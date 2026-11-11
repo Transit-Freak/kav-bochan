@@ -795,11 +795,12 @@ export class PeopleLayer {
   // מי שלובשת מטפחת: השיער מוסתר (מטריצה אפס) — המטפחת מכסה את הראש עד המצח והאוזניים
   hairM(id, kind, M) { if (kind !== 'hair') return M; const lk = ROLE.get(id) === 'insp' ? null : this.lookFor(id); return lk?.acc.includes('scarf') ? (this._zeroM || (this._zeroM = new THREE.Matrix4().makeScale(0, 0, 0))) : M; }
   // מוסיף את האביזרים של הנוסע (לפי המראה שלו) במקום M; mats — המטריצות של התנוחה; seated — רק מה שעל הראש
-  emitAcc(id, mats, M, seated) {
+  emitAcc(id, mats, M, seated, noHand = false) {   // noHand: היד מחזיקה בעמוד או מושיטה — שקית הקניות על הרצפה, לא ביד
     if (ROLE.get(id) === 'insp') return;
     const lk = this.lookFor(id); if (!lk || !lk.acc.length || !mats) return;
     for (const t of lk.acc) {
       if (seated && !ACC_HEAD.has(t)) continue;
+      if (noHand && t === 'shop') continue;
       const L = mats[t], im = this.accIM[ACC_KIND[t]]; if (!L || !im || this.accN[ACC_KIND[t]] >= 512) continue;
       const n = this.accN[ACC_KIND[t]]++, cols = ACC_COLOR[t];
       im.setMatrixAt(n, this.tmpA2.multiplyMatrices(M, L)); im.setColorAt(n, this.tmpC2.setHex(cols[Math.floor(hash(id + 41) * cols.length)]));
@@ -1135,10 +1136,10 @@ export class PeopleLayer {
           if (!S || S.n >= 24) continue;
           const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'stand', x: sp[0], grip: sp[3] }, R.frac, !R.card);
           const pm = this.accPose(V, 'pole' + sp[3], S.st.root, S.st.origin);
-          if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pose.acc, M, false); this.onboardPos.set(p.id, (pose.head ? pose.head.clone().add(new THREE.Vector3(0, -0.08, 0)) : S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0))).applyMatrix4(M)); continue; }
+          if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pose.acc, M, false, true); this.onboardPos.set(p.id, (pose.head ? pose.head.clone().add(new THREE.Vector3(0, -0.08, 0)) : S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0))).applyMatrix4(M)); continue; }
           M.makeTranslation(sp[0], sp[1], sp[2]).premultiply(OM);
           S.meshes.forEach((im, g) => { im.setMatrixAt(S.n, this.hairM(p.id, S.groups[g].kind, M)); im.setColorAt(S.n, this.tint(p.id, S.groups[g].kind, false, C)); });
-          this.emitAcc(p.id, pm, M, false);
+          this.emitAcc(p.id, pm, M, false, true);
           this.onboardShapes.push({ pid: p.id, groups: S.groups, M: M.clone(), key: 'p' });
           S.n++;
           this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0)).applyMatrix4(M));

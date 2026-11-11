@@ -12,6 +12,7 @@ import { STAND_POLE } from './actors.js';
 
 // העיניים 1.57 מ' מעל רצפת האוטובוס (אדם בגובה ממוצע). אותה מערכת צירים של האוטובוס כמו במבט הנהג (הרצפה ב-0.675 מעל הכביש)
 const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
+const AISLE_Z1 = 3.55;   // הקצה הקדמי של המעבר — מאחורי מחיצת הנהג ומכונת הכרטיסים; הפקח לא עובר אותו
 // המעבר: מהדלת הקדמית, ליד המתקף, ואז לאורך האמצע עד המושבים האחרונים
 const PATH = [[-0.95, 5.15], [-0.3, 4.98], [0, 4.3], [0, -4.9]];       // עוקף את העמוד המעוקל שליד הדלת (z ≈ 4.5) ואת המתקף
 // המושבים (מתוך ידיות האחיזה בדגם: מושב מול כל משענת, פונה קדימה) וכמה מקומות עמידה ליד הדלת האמצעית
@@ -119,7 +120,8 @@ export class InspectorFP {
     o.updateMatrixWorld(true);
     const ws = this.g.people.walkers.filter(w => w.obj.visible && w.bus === bus).map(w => o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())));
     // מתחילים במעבר עצמו (אחרי מחיצת הנהג ומכונת הכרטיסים), כדי שהיד והמכשיר לא יצוירו על המחיצה
-    for (let t = 1.45; t <= this.len; t += 0.1) { const P = this.pathAt(t); if (ws.every(w => Math.hypot(w.x - P.x, w.z - P.z) >= 0.5)) { this.s = t; break; } }
+    this.sMin = this.sOfZ(AISLE_Z1); this.s = Math.max(this.s, this.sMin);
+    for (let t = this.sMin; t <= this.len; t += 0.1) { const P = this.pathAt(t); if (ws.every(w => Math.hypot(w.x - P.x, w.z - P.z) >= 0.5)) { this.s = t; break; } }
     this.g.ui.root.hidden = false; this.render(); return true;
   }
   exit() {
@@ -157,7 +159,7 @@ export class InspectorFP {
     const PL = this.g.people, inv = o.matrixWorld.clone().invert();
     // מי שהולך במעבר (יורד/עולה) ומחכה מול הפקח יותר מ-0.6 ש' — הפקח זז ממנו במעבר, עד שיש מקום
     const blk = PL.fpBlock && PL.fpBlock.waitFP > 0.6 ? o.worldToLocal(PL.fpBlock.obj.getWorldPosition(new THREE.Vector3())) : null;
-    let ns = THREE.MathUtils.clamp(this.s + this.v * dt, 0, this.len);
+    let ns = THREE.MathUtils.clamp(this.s + this.v * dt, this.sMin, this.len);
     if (this.slideTo != null) { const d = this.slideTo - this.s; if (Math.abs(d) < 0.01) this.slideTo = null; else ns = this.s + Math.sign(d) * Math.min(Math.abs(d), 1.2 * dt); }
     if (blk) { const P0 = this.pathAt(this.s), P1 = this.pathAt(Math.min(this.len, this.s + 0.2)); const away = (P1.x - P0.x) * (blk.x - P0.x) + (P1.z - P0.z) * (blk.z - P0.z) > 0 ? -1 : 1; ns = THREE.MathUtils.clamp(this.s + away * 0.8 * dt, 0, this.len); }
     // המצלמה לא נכנסת בגוף: לא מתקרבים לפחות מ-40 ס"מ ממי שהולך במעבר, ולא לתוך תא תפוס
@@ -171,7 +173,7 @@ export class InspectorFP {
     if ((!near(E) || near(E0)) && (okHead || blk) && !this.occ.has(E.x, E.y, E.z)) this.s = ns; else { this.v = 0; this.slideTo = null; }
     // מחכה כבר 3 ש' ואין לאן לזוז: הפקח נכנס לשורה הפנויה הקרובה — במעבר שמאחורי היורד (קפיצה קצרה של המבט), והיורד ממשיך
     if (blk && PL.fpBlock.waitFP > 3) { const w = PL.fpBlock, nx = o.worldToLocal(w.pts[w.seg + 1].clone()), dirz = Math.sign(nx.z - blk.z) || 1;
-      this.s = THREE.MathUtils.clamp(this.sOfZ(blk.z - dirz * 0.8), 0, this.len); w.waitFP = 0; this.v = 0; }
+      this.s = THREE.MathUtils.clamp(this.sOfZ(blk.z - dirz * 0.8), this.sMin, this.len); w.waitFP = 0; this.v = 0; }
     if (blk && PL.fpBlock.waitFP > 2) this.latTo = -Math.sign(blk.x || 1) * 0.12;
     else if (!this.anim && !blk) this.latTo = 0;
     const P = this.pathAt(this.s), A = this.pathAt(Math.min(this.len, this.s + 0.3)), dir = A.clone().sub(P); if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
@@ -185,7 +187,7 @@ export class InspectorFP {
     const base = Math.atan2(dir.x, dir.z) + (this.s < 0.4 ? 0 : 0);
     // בבדיקה: המבט מסתובב אל החזה של הנוסע (בעדינות), כדי שהכרטיס והמכשיר ייפגשו לפניו ולא מעל הפנים
     if (this.anim && this.lookPid === this.anim.pid) { const hw = this.g.people.onboardPos?.get(this.anim.pid);
-      if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.3) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += THREE.MathUtils.clamp(d * Math.min(1, dt * 3), -1.2 * dt, 1.2 * dt); } }
+      if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.3) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += THREE.MathUtils.clamp(d * Math.min(1, dt * 3), -1.2 * dt, 1.2 * dt); this.yaw = THREE.MathUtils.clamp(this.yaw, -1.4, 1.4); } }   // לא מסתובבים אל קדמת האוטובוס (מחיצת הנהג)
     const yaw = base + this.yaw;
     o.updateMatrixWorld(true);
     // המבט למטה: רגיל 0.28 (כ-16°); בבדיקה — מעט יותר אל הכרטיס, עד כ-20°, בהדרגה (רואים את הפנים ואת היד)
@@ -195,7 +197,7 @@ export class InspectorFP {
     const c = this.g.camera, T = P.clone().add(new THREE.Vector3(Math.sin(yaw), this.slope, Math.cos(yaw)));
     c.position.copy(o.localToWorld(P.clone())); c.lookAt(o.localToWorld(T)); c.updateMatrixWorld(true);
     PL.fpEye = c.position.clone();
-    this.reader.group.visible = this.s > 1.3;   // ליד הדלת, מחיצת הנהג ומכונת הכרטיסים — בלי היד והמכשיר
+    this.reader.group.visible = this.s >= this.sMin - 0.01;   // ליד הדלת, מחיצת הנהג ומכונת הכרטיסים — בלי היד והמכשיר
     this.occ.people(PL.onboardShapes || [], inv, this.anim?.pid);   // מי שמגיש מסומן בנפרד: המצלמה לא נכנסת בו, היד מתקרבת לכרטיס שלו
     // הסמלים מעל הראש של מי שנבדק — עוקבים אחרי המקום שלו
     for (const [pid, sp] of this.icons) { const h = this.g.people.onboardPos?.get(pid); if (!h || !b.pax.some(p => p.id === pid)) { sp.parent?.remove(sp); this.icons.delete(pid); continue; } sp.position.copy(h).add(new THREE.Vector3(0, 0.32, 0)); }
@@ -263,7 +265,8 @@ export class InspectorFP {
     const hw = this.g.people.onboardPos?.get(pid);
     if (hw && this.obj) { const h = this.obj.worldToLocal(hw.clone()), P = this.pathAt(this.s), far = Math.abs(h.x) > 0.66;
       this.latTo = (far ? 1 : -1) * Math.sign(h.x) * (far ? 0.18 : 0.1);
-      { const dx = Math.abs(h.x) - 0.1; this.slideTo = THREE.MathUtils.clamp(this.sOfZ(Math.min(4.2, far ? h.z + 0.42 : h.z + Math.sqrt(Math.max(0.09, 0.4 - dx * dx)))), 0, this.len); }
+      // ליד השורה שלו (מעט לפניו) — המבט מהמעבר אל הפנים, לא מעל המשענת שלפניו; ולא לפני מחיצת הנהג
+      this.slideTo = THREE.MathUtils.clamp(this.sOfZ(Math.min(AISLE_Z1, h.z + 0.5)), this.sMin, this.len);   // ליד המשענת של השורה שלפניו, מבט אחורה אל הפנים
       this.lookPid = pid; }
     this.reader.show('רב-קו · מחכה לכרטיס', '', null);
   }
