@@ -476,14 +476,18 @@ function buildReader() {
       const st = Math.max(1, Math.floor(P.count / 40)); for (let i = 0; i < P.count; i += st) pts.push(q.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld).applyMatrix4(gi).clone()); }); };
   // היד האמיתית: כף יד ימין של אחד הדגמים (אותו עור ואותה רשת כמו של הנוסעים), עוטפת את המכשיר — כף היד מאחוריו, ארבע
   // האצבעות סביב הצד השמאלי אל החזית, והאגודל על הצד הימני
-  const fDir = V(-0.7, 0.71, 0).normalize(), pDir = V(0, 0, 1), aDir = new THREE.Vector3().crossVectors(pDir, fDir), hO = V(0, -0.03, -D / 2 - 0.026);
+  const fDir = V(-0.7, 0.71, 0).normalize(), pDir = V(0, 0, 1), aDir = new THREE.Vector3().crossVectors(pDir, fDir), hO = V(0.004, -0.018, -D / 2 - 0.026);
   const toHand = d => { const r = d.clone().sub(hO); return V(r.dot(aDir), r.dot(fDir), r.dot(pDir)); };
-  const cfg = { curl: [55, 70, 30], thumb: V(W / 2 + 0.017, -0.012, D / 2 + 0.004) };
+  const cfg = { curl: [50, 62, 15], thumb: V(W / 2 + 0.017, -0.012, D / 2 + 0.004) };
   const handPose = () => ({ fingers: { ...FINGERS.phone, curl: [0, 1, 2, 3].map(k => [cfg.curl[0] + k * 2.5, cfg.curl[1] + (k === 1 || k === 2 ? 2 : 0), cfg.curl[2]]) }, thumbTo: toHand(cfg.thumb) });
   let handM = null;
   const setHand = h => { for (const m of blocks) dev.remove(m); if (handM) dev.remove(handM);
     const mat = new THREE.MeshStandardMaterial({ map: h.map || null, color: h.map ? 0xffffff : 0xc99a78, roughness: 0.75 });
     const hm = new THREE.Mesh(h.geo, mat); hm.matrixAutoUpdate = false; hm.matrix.makeBasis(aDir, fDir, pDir).setPosition(hO); hm.userData.hand = true; hm.frustumCulled = false; hm.renderOrder = 10; dev.add(hm); handM = hm;
+    // שום קודקוד של היד לא בתוך המכשיר: מה שנכנס לקופסה שלו (ועוד מ"מ) נדחף אל הדופן הקרובה
+    { const P = h.geo.attributes.position, inv = hm.matrix.clone().invert(), v = new THREE.Vector3(), ex = [W / 2 + 0.003, H / 2 + 0.003, D / 2 + 0.003];
+      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(hm.matrix); const d = [ex[0] - Math.abs(v.x), ex[1] - Math.abs(v.y), ex[2] - Math.abs(v.z)]; if (d[0] <= 0 || d[1] <= 0 || d[2] <= 0) continue;
+        const k = d[0] < d[1] && d[0] < d[2] ? 'x' : d[2] <= d[1] ? 'z' : 'y'; v[k] = Math.sign(v[k] || 1) * ex[k === 'x' ? 0 : k === 'y' ? 1 : 2]; v.applyMatrix4(inv); P.setXYZ(i, v.x, v.y, v.z); } P.needsUpdate = true; }
     if (h.color) skin.color.copy(h.color);
     WRIST = h.wrist.clone().applyMatrix4(hm.matrix); samplePts(); aimArm(); };
   aimArm();

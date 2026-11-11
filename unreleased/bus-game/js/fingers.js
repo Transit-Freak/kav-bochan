@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 
 const JOINT = [0.04, 0.46, 0.74], BLEND = 0.007;   // מקום הפרקים לאורך האצבע (חלק מהאורך), וחצי רוחב אזור הכיפוף (מ')
-const CACHE = new Map();
+const CACHE = new Map(), SMOOTH = new Map();
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const dominant = (g, i) => { let bw = 0, bj = -1; for (let j = 0; j < 4; j++) { const w = g.attributes.skinWeight.getComponent(i, j); if (w > bw) { bw = w; bj = g.attributes.skinIndex.getComponent(i, j); } } return bj; };
 
@@ -71,8 +71,8 @@ function bend(info, pose, f, s, p, n) {
 }
 // מחיל את תנוחת האצבעות על הקודקודים שכבר חושבו לפי השלד (verts מ-skinVerts: [{ o, P, N }], בקואורדינטות העולם)
 export function applyFingers(root, verts) {
-  const FP = root.userData.fingerPose; if (!FP) return;
-  const meshes = verts.filter(e => e.o.isSkinnedMesh), p = new THREE.Vector3(), n = new THREE.Vector3(), M = new THREE.Matrix4(), Mi = new THREE.Matrix4(), N3 = new THREE.Matrix3(), N3i = new THREE.Matrix3();
+  const FP = root.userData.fingerPose; const meshes = verts.filter(e => e.o.isSkinnedMesh); if (!FP) return;
+  const p = new THREE.Vector3(), n = new THREE.Vector3(), M = new THREE.Matrix4(), Mi = new THREE.Matrix4(), N3 = new THREE.Matrix3(), N3i = new THREE.Matrix3();
   for (const hand of ['Left', 'Right']) { const pose = FP[hand]; if (!pose) continue; const info = handInfo(root, hand); if (!info || info.nm !== meshes.length) continue;
     const run = (bone, list, fn) => { if (!bone) return; M.copy(bone.matrixWorld); Mi.copy(M).invert(); N3.setFromMatrix4(M); N3i.setFromMatrix4(Mi);
       for (const q of list) { const e = meshes[q.mi], i3 = q.i * 3; p.set(e.P[i3], e.P[i3 + 1], e.P[i3 + 2]).applyMatrix4(Mi); const hasN = !!e.N; if (hasN) n.set(e.N[i3], e.N[i3 + 1], e.N[i3 + 2]).applyMatrix3(N3i).normalize();
@@ -82,6 +82,22 @@ export function applyFingers(root, verts) {
     if (pose.thumb) { const sk = info.thumb.L * 0.5, c = new THREE.Vector3(0, sk, 0);
       run(root.getObjectByName(info.TH), info.tv, (q, p, n) => { const w = sstep(sk - BLEND, sk + BLEND, q.p.y); if (!w) return; _q.setFromAxisAngle(info.thumb.ax, THREE.MathUtils.degToRad(pose.thumb) * w); p.sub(c).applyQuaternion(_q).add(c); if (n) n.applyQuaternion(_q); }); }
   }
+  smoothHands(root, meshes);
+}
+// נורמלים חלקים לידיים אחרי הכיפוף: לכל קודקוד של כף היד, האצבעות והאגודל — ממוצע הנורמלים של המשולשים סביבו,
+// ומאחדים קודקודים שנמצאים באותו מקום (תפרים של הטקסטורה) — בלי "פינות" על האצבעות
+function smoothHands(root, meshes) {
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+  for (const e of meshes) { const g = e.o.geometry, I = g.index; if (!I || !e.N || !g.attributes.skinIndex) continue;
+    const bs = e.o.skeleton.bones, hb = new Set(); bs.forEach((bn, i) => { if (/^(Left|Right)(Hand|FingerBase|HandFinger1)$|^[LR]Thumb$/.test(bn.name)) hb.add(i); }); if (!hb.size) continue;
+    const cnt = g.attributes.position.count; let inS = SMOOTH.get(g.uuid); if (inS === undefined) { inS = new Uint8Array(cnt); let any = false; for (let i = 0; i < cnt; i++) if (hb.has(dominant(g, i))) { inS[i] = 1; any = true; } if (!any) inS = null; SMOOTH.set(g.uuid, inS); } if (!inS) continue;
+    const acc = new Map(), key = i => `${Math.round(e.P[i * 3] * 5000)},${Math.round(e.P[i * 3 + 1] * 5000)},${Math.round(e.P[i * 3 + 2] * 5000)}`, P = (v, i) => v.set(e.P[i * 3], e.P[i * 3 + 1], e.P[i * 3 + 2]);
+    for (let t = 0; t < I.count; t += 3) { const i0 = I.getX(t), i1 = I.getX(t + 1), i2 = I.getX(t + 2); if (!inS[i0] && !inS[i1] && !inS[i2]) continue;
+      P(a, i0); P(b, i1); P(c, i2); n.crossVectors(b.sub(a), c.sub(a));   // לפי השטח
+      // הכיוון החוצה לפי הנורמל הקיים (סדר הקודקודים לא תמיד אחיד)
+      if (n.x * (e.N[i0 * 3] + e.N[i1 * 3] + e.N[i2 * 3]) + n.y * (e.N[i0 * 3 + 1] + e.N[i1 * 3 + 1] + e.N[i2 * 3 + 1]) + n.z * (e.N[i0 * 3 + 2] + e.N[i1 * 3 + 2] + e.N[i2 * 3 + 2]) < 0) n.negate();
+      for (const i of [i0, i1, i2]) if (inS[i]) { const k = key(i), v = acc.get(k); if (v) v.add(n); else acc.set(k, n.clone()); } }
+    for (let i = 0; i < cnt; i++) if (inS[i]) { const v = acc.get(key(i)); if (!v || v.lengthSq() < 1e-16) continue; n.copy(v).normalize(); e.N[i * 3] = n.x; e.N[i * 3 + 1] = n.y; e.N[i * 3 + 2] = n.z; } }
 }
 // נקודה על אצבע f (0 — המורה) בתנוחה הנוכחית, בעולם: frac — לאורך האצבע (1 — הקצה), pad — כמה לצד כף היד (מ')
 export function fingerPoint(root, hand, f, frac, pad = 0) {
@@ -99,7 +115,7 @@ export function fingerDirs(root, hand, f) {
 export const FINGERS = {
   relaxed: { curl: [[10, 20, 10], [14, 26, 14], [18, 32, 18], [22, 38, 20]], add: 0.5, thumb: 10 },
   hook: { curl: [[0, 92, 55], [0, 93, 56], [0, 94, 57], [0, 95, 58]], add: 1, thumb: 30 },                       // רצועה תלויה: האצבעות נסגרות מעל הצלע התחתונה (שורש האצבעות — בעצם)
-  wrap: { curl: [[0, 75, 40], [0, 77, 41], [0, 79, 42], [0, 81, 43]], add: 1, thumb: 30 },                       // עמוד: האצבעות מקיפות אותו
+  wrap: { curl: [[0, 78, 62], [0, 80, 63], [0, 82, 64], [0, 84, 65]], add: 1, thumb: 30 },                       // עמוד: האצבעות מקיפות אותו
   pinch: c => ({ curl: [[c, 28, 8], [c + 4, 30, 8], [86, 98, 55], [88, 100, 55]], add: 1, thumb: 0 }),           // כרטיס: אגודל מול המורה והאמה, הקמיצה והזרת מקופלות
   phone: { curl: [[55, 70, 25], [58, 72, 25], [60, 72, 25], [62, 70, 25]], add: 0.9, thumb: 18 },                // הפקח מחזיק את המכשיר
 };

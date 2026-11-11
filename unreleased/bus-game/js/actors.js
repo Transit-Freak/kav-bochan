@@ -262,7 +262,7 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
     // מעל הצלע התחתונה ונסגרות סביבה כלפי מטה; כף היד כמעט אופקית מעל הצלע (עד 17°) ופונה אליה
     const sg = Math.sign(h.x) || 1, a = Math.min(0.3, Math.atan2(h.y, Math.abs(h.x))); hh.set(sg * Math.cos(a), Math.sin(a), 0); n = new THREE.Vector3(sg * Math.sin(a), -Math.cos(a), 0); }
   // הרצועה/העמוד בקפל שבין כף היד לאצבעות: 1.4 ס"מ (רצועה) אחרי שורש האצבעות, וציר היד עובר מעליו בעובי האצבע
-  const wrist = pole.clone().addScaledVector(hh, -(Lw + (axis ? 0.014 : 0.0))).addScaledVector(n, -(poleR + (axis ? 0.014 : 0.011)));
+  const wrist = pole.clone().addScaledVector(hh, -(Lw + (axis ? 0.014 : 0.002))).addScaledVector(n, -(axis ? poleR + 0.014 : 0.02 + 0.012));   // עמוד (רדיוס 2 ס"מ): צמוד לכף היד, מול שורש האצבעות — האצבעות יוצאות לידו ומקיפות אותו
   // זרוע קצרה מדי בשביל להקיף את העמוד מהמקום הזה: העומד מתקרב אליו (shift — כמה, במישור; מוסיפים למקום שלו באוטובוס)
   const shift = new THREE.Vector3(); { const d = wrist.clone().sub(sh), ex = d.length() - armLen * 0.95; if (ex > 0 && !axis) { d.y = 0; d.normalize(); shift.copy(d).multiplyScalar(ex / Math.max(0.3, Math.hypot(wrist.x - sh.x, wrist.z - sh.z) / wrist.distanceTo(sh))); wrist.sub(shift); pole.sub(shift); } }
   twoBone(B(hand + 'Arm'), B(hand + 'ForeArm'), hd, wrist, new THREE.Vector3(hand === 'Right' ? -0.6 : 0.6, -1, -0.3));
@@ -272,7 +272,10 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
   const P = palm.clone().applyQuaternion(hd.getWorldQuaternion(new THREE.Quaternion()));
   const curl = (bone, deg) => { if (!bone) return; const d = new THREE.Vector3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion())); turn(bone, new THREE.Vector3().crossVectors(d, P), deg); };
   // האצבעות נסגרות סביב: שורש האצבעות (העצם), ואחריו הפרקים (fingers.js); האגודל נסגר מהצד השני
-  if (axis) { curl(f1, 22); curl(th, 35); } else { curl(f1, 55); curl(th, 40); }   // רצועה: שורש האצבעות כמעט ישר (עוברות מעל הצלע), והפרקים נסגרים למטה סביבה
+  if (axis) curl(f1, 22); else curl(f1, 32);
+  // האגודל נסגר מהצד השני: מכוון אל מתחת לצלע של הרצועה / אל הצד הרחוק של העמוד
+  if (th) { root.updateMatrixWorld(true); const tb = W(th), cur = new THREE.Vector3(0, 1, 0).applyQuaternion(th.getWorldQuaternion(new THREE.Quaternion())), tg = pole.clone().addScaledVector(n, axis ? poleR + 0.016 : 0.02 + 0.014).addScaledVector(hh, axis ? 0.0 : -0.005);
+    const q = new THREE.Quaternion().setFromUnitVectors(cur, tg.sub(tb).normalize()), wq = th.getWorldQuaternion(new THREE.Quaternion()), pq = th.parent.getWorldQuaternion(new THREE.Quaternion()); th.quaternion.copy(pq.invert().multiply(q.multiply(wq))); }   // רצועה: שורש האצבעות כמעט ישר (עוברות מעל הצלע), והפרקים נסגרים למטה סביבה
   root.userData.fingerPose = { [hand]: axis ? FINGERS.hook : FINGERS.wrap, [hand === 'Left' ? 'Right' : 'Left']: FINGERS.relaxed };
   root.updateMatrixWorld(true);
   return { root, origin, hip: W(hips).sub(origin), hand: W(hd).sub(origin), shift };
@@ -966,11 +969,11 @@ export class PeopleLayer {
       if (tips) { const tb = W(th), cur = th.localToWorld(tips.th.clone()).sub(tb).normalize(), want = to(P.thumbTo).sub(tb).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(cur, want), wq = th.getWorldQuaternion(new THREE.Quaternion()), pq = th.parent.getWorldQuaternion(new THREE.Quaternion());
         th.quaternion.copy(pq.invert().multiply(q.multiply(wq))); root.updateMatrixWorld(true); } }
-    const keepB = new Set([hd, B('RightFingerBase'), f1, th]), wrist = W(hd), geos = []; let map = null;
+    const keepB = new Set([hd, B('RightFingerBase'), f1, th]), wrist = W(hd), geos = [], wristUV = []; let map = null;
     for (const { o, P: Q, N, kind } of skinVerts(root)) { if (!o.isSkinnedMesh || kind !== 'skin') continue;
       const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones, n = g.attributes.position.count, ok = new Uint8Array(n), v = new THREE.Vector3();
       for (let i = 0; i < n; i++) { let bw = 0, bn = null; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]; } }
-        ok[i] = keepB.has(bn) || (bn === fa && v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]).distanceTo(wrist) < 0.07) ? 1 : 0; }
+        ok[i] = keepB.has(bn) || (bn === fa && v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]).distanceTo(wrist) < 0.07) ? 1 : 0; if (ok[i] && bn === fa && g.attributes.uv) wristUV.push([g.attributes.uv.getX(i), g.attributes.uv.getY(i)]); }
       const I = g.index, idx = []; for (let t = 0; t < I.count; t += 3) { const a = I.getX(t), b = I.getX(t + 1), c = I.getX(t + 2); if (ok[a] && ok[b] && ok[c]) idx.push(a, b, c); }
       if (!idx.length) continue;
       const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
@@ -980,7 +983,12 @@ export class PeopleLayer {
       ng.setAttribute('uv', g.attributes.uv ? g.attributes.uv.clone() : new THREE.BufferAttribute(new Float32Array(n * 2), 2)); ng.setIndex(idx); geos.push(ng); map = map || o.material.map; }
     if (!geos.length) return null;
     const wl = wrist.clone().sub(F.o);
-    return { geo: geos.length > 1 ? mergeGeometries(geos, false) : geos[0], map, color: V.skin || null, wrist: new THREE.Vector3(wl.dot(F.x), wl.dot(F.y), wl.dot(F.z)) };
+    // צבע האמה (הגליל שממשיך את היד): הצבע של הטקסטורה בקודקודי פרק היד — בלי תפר בין כף היד לאמה
+    let color = V.skin || null;
+    try { const img = map?.image, c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 128, 128); const d = x.getImageData(0, 0, 128, 128).data, acc = [0, 0, 0]; let n = 0;
+      for (const [u, v] of wristUV) { const i = (Math.min(127, Math.max(0, Math.floor((map.flipY ? 1 - v : v) * 128))) * 128 + Math.min(127, Math.max(0, Math.floor(u * 128)))) * 4; if (d[i + 3] < 200) continue; acc[0] += d[i]; acc[1] += d[i + 1]; acc[2] += d[i + 2]; n++; }
+      if (n) color = new THREE.Color().setRGB(acc[0] / n / 255, acc[1] / n / 255, acc[2] / n / 255, THREE.SRGBColorSpace); } catch { }
+    return { geo: geos.length > 1 ? mergeGeometries(geos, false) : geos[0], map, color, wrist: new THREE.Vector3(wl.dot(F.x), wl.dot(F.y), wl.dot(F.z)) };
   }
   // קצה האגודל וקצה האצבע (המורה) של כל דגם, במערכת הצירים של העצם שלהם — מהקודקודים של היד בתנוחת המנוחה
   handTips(V, hand) {
