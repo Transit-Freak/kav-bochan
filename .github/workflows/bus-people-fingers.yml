@@ -52,9 +52,9 @@ jobs:
           n=0
           $BL -b --online-mode -P anim_$n.py 2>&1 | grep -E 'FINGERS|VARIANT|MATCHED|shoe floor|knee err|Error|Traceback|line [0-9]' | cut -c1-3000 || true
           ls -la out/anim_$n.blend
-          for hm in none keep inv; do
-            echo "== hands: $hm"
-            PERSON_HANDS=$([ $hm = none ] || echo $hm) $BL -b --online-mode out/anim_$n.blend --python-exit-code 1 -P fingers/export_person.py -- $O/person_${n}_$hm.glb 2>&1 | grep -E 'MESH base|WALK|TRIS|PERSON|Error|Traceback'
+          for hr in 0.3 0.45 0.6; do
+            echo "== hands ratio: $hr"
+            PERSON_HANDS=$hr $BL -b --online-mode out/anim_$n.blend --python-exit-code 1 -P fingers/export_person.py -- $O/person_${n}_h$hr.glb 2>&1 | grep -E 'MESH base|WALK|TRIS|PERSON|Error|Traceback'
           done
           ls -la $O
       - uses: actions/upload-artifact@v4

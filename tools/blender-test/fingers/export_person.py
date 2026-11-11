@@ -77,11 +77,24 @@ for o in [o for o in bpy.data.objects if o.type == 'MESH']:
     cloth = k.startswith('cloth') and 'shoe' not in o.name.lower()
     r = 0.55 if (k in ('hair', 'eyebrows') or o.name == 'hair_cap') else min(1.0, CLOTH_TRIS / n0) if cloth else RATIO if n0 > 1500 else min(1.0, RATIO * 2.5)
     if r >= 0.999: print('MESH', o.name, k, n0, 'kept'); continue
+    # אצבעות: כפות הידיים (קבוצת pv_hands מ-fingers_rig.py) מוקטנות פחות משאר הגוף, כדי שהפרקים יתכופפו חלק.
+    # בשני שלבים, כי Decimate עם קבוצת קודקודים מקטין קודם כל את מה שבקבוצה: קודם רק הגוף, ואז רק הידיים (PERSON_HANDS = היחס לידיים)
+    HR = float(os.environ.get('PERSON_HANDS', '0') or 0)
+    if HR > 0 and 'pv_hands' in o.vertex_groups:
+        def hand_tris():
+            gi = o.vertex_groups['pv_hands'].index
+            hs = {v.index for v in o.data.vertices if any(g.group == gi and g.weight > 0.5 for g in v.groups)}
+            t = [len(p.vertices) - 2 for p in o.data.polygons]; h = [len(p.vertices) - 2 for p in o.data.polygons if all(i in hs for i in p.vertices)]
+            return sum(h), sum(t)
+        for inv_, f_ in ((True, lambda nh, nt: (nh + r * (nt - nh)) / nt), (False, lambda nh, nt: ((nt - nh) + HR * nh) / nt)):
+            nh, nt = hand_tris()
+            d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = min(1.0, f_(nh, nt)); d.vertex_group = 'pv_hands'; d.invert_vertex_group = inv_; d.vertex_group_factor = 10
+            with ctx(o):
+                bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)
+                bpy.ops.object.modifier_apply(modifier='dec')
+            print('MESH base pass', 'body' if inv_ else 'hands', (nh, nt), '->', hand_tris())
+        continue
     d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = r
-    # ניסיון אצבעות: PERSON_HANDS=keep/inv — קבוצת הקודקודים של כפות הידיים (pv_hands) משפיעה על ההקטנה
-    HM = os.environ.get('PERSON_HANDS', '')
-    if HM and 'pv_hands' in o.vertex_groups:
-        d.vertex_group = 'pv_hands'; d.invert_vertex_group = (HM == 'inv'); d.vertex_group_factor = float(os.environ.get('PERSON_HANDS_F', '10'))
     with ctx(o):
         bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)
         bpy.ops.object.modifier_apply(modifier='dec')
