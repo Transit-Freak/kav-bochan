@@ -53,7 +53,7 @@
     <div id="moneyBody"></div>
     <div class="game-box">
       <h4>משחק</h4>
-      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button><button type="button" id="switchRole">החלף תפקיד</button></div>
+      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame">משחק חדש</button><button type="button" id="startOver" class="del">התחל מחדש</button><button type="button" id="switchRole">החלף תפקיד</button></div>
       <h4>המשחקים השמורים</h4>
       <div id="slotList"></div>
     </div>
@@ -74,11 +74,11 @@
       <li><b>כסף:</b> כל נוסע משלם ₪6, והמדינה משלמת על כל ק"מ בקו. דלק ונהגים עולים כסף. בלשונית "קופה" רואים אם מרוויחים.</li>
       <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" ו"מסלול". אוטובוס מלא? עוד רכבים, רכב גדול יותר או תדירות גבוהה יותר.</li>
       <li><b>מפה ושעון:</b> גרירה מזיזה, שתי אצבעות מסובבות, צביטה מקרבת. ❚❚ עוצר, ×1 עד ×200 מאיצים.</li>
-      <li>רוצים עוד אתגר (תקלות, פקחים, סדרן, ליסינג)? "התחלה מחדש" בלשונית "קופה" ורמה "בינוני".</li>
+      <li>רוצים עוד אתגר (תקלות, פקחים, סדרן, ליסינג)? "משחק חדש" בלשונית "קופה" ורמה "בינוני".</li>
     </ol>
     <ol class="help full-help">
       <li><b>המטרה:</b> להסיע כמה שיותר אנשים בלי לפשוט רגל. מתחילים עם ₪60,000 בקופה, ומרוויחים כדי לקנות עוד רכבים ולפתוח עוד קווים.</li>
-      <li><b>שלוש רמות:</b> <b>קל</b> — רק הבסיס: קווים, רכבים ומשימות. ₪150,000, רכבים זולים ב-30% וסבסוד ×1.5. אין תקלות, פקחים, מבקרים, סדרן, ליסינג ודמי תחנה, פי שניים זמן לכל שלב ויעדים נמוכים ב-10 נקודות. <b>בינוני</b> — ₪60,000 והכלכלה הרגילה, עם כל מה שמתואר כאן. בשתי הרמות משרד התחבורה נותן משימות בארבעה שלבים (לשונית "משימות"), עם פרס בכסף וסוגי רכבים שנפתחים. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים רמה במשחק חדש וב"התחלה מחדש" (לשונית "קופה").</li>
+      <li><b>שלוש רמות:</b> <b>קל</b> — רק הבסיס: קווים, רכבים ומשימות. ₪150,000, רכבים זולים ב-30% וסבסוד ×1.5. אין תקלות, פקחים, מבקרים, סדרן, ליסינג ודמי תחנה, פי שניים זמן לכל שלב ויעדים נמוכים ב-10 נקודות. <b>בינוני</b> — ₪60,000 והכלכלה הרגילה, עם כל מה שמתואר כאן. בשתי הרמות משרד התחבורה נותן משימות בארבעה שלבים (לשונית "משימות"), עם פרס בכסף וסוגי רכבים שנפתחים. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים רמה ב"משחק חדש" (לשונית "קופה").</li>
       <li><b>שמירה בענן:</b> בלשונית "קופה", תחת "חשבון". אפשר בלי חשבון (רק במכשיר הזה), או עם שם משתמש וסיסמה — ואז אפשר להמשיך את המשחק במכשיר אחר. המשחק נשמר תמיד גם במכשיר, ועובד גם בלי אינטרנט. השמירות שבענן מסומנות ב-☁. "מחיקת הנתונים שלי" מוחקת את כל השמירות בענן.</li>
       <li><b>שביעות רצון:</b> כל נסיעה מקבלת ציון (0–100) לפי ההמתנה לעומת התדירות, הצפיפות, אוטובוס מלא שעבר בלי לעצור, איחור ומעברים. הממוצע — בכרטיס של כל קו ובלשונית "תחנה".</li>
       <li><b>אירועים:</b> לפעמים אוטובוס מתקלקל (עומד עד שמגיע רכב חלופי), נהג מאחר ליציאה, יש פקק בקטע של קו, או נוסעים לא משלמים. הכל ביומן בלשונית "סדרן".</li>
@@ -163,7 +163,7 @@
 
 <div class="modal" id="resetAsk" hidden>
   <div class="card">
-    <h2>התחלה מחדש</h2>
+    <h2>משחק חדש</h2>
     <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון.</p>
     <div class="modepick" role="radiogroup" aria-label="מצב משחק">
       <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
@@ -182,6 +182,25 @@
       <button type="button" data-role="dispatcher"><i>🎧</i><b>סדרן</b><span>הרשת כבר פועלת: מטפלים בתקלות ובצפיפות</span></button>
       <button type="button" data-role="inspector"><i>🎫</i><b>פקח</b><span>עולים לאוטובוסים ובודקים כרטיסים</span></button>
     </div>
+    <button type="button" class="link-del" id="roleStartOver">התחל מחדש — למחוק את כל ההתקדמות</button>
+  </div>
+</div>
+<div class="modal" id="wipeAsk" hidden>
+  <div class="card">
+    <h2>להתחיל מחדש?</h2>
+    <p><b>הכל יימחק מהמכשיר הזה:</b> הקווים, הכסף, השלב בקריירה, המשמרת, השעה, הסטטיסטיקה והמשחקים השמורים. אי אפשר לבטל את זה.</p>
+    <div id="wipeCloudBox" hidden>
+      <label class="chk"><input type="checkbox" id="wipeCloud"> למחוק גם את השמירות בענן</label>
+      <p class="hint">בלי הסימון — המשחק שבענן נשאר שם, כשמירה בשם "לפני התחלה מחדש".</p>
+    </div>
+    <div class="col-btns"><button type="button" id="wipeGo" class="del">למחוק הכל ולהתחיל מחדש</button><button type="button" id="wipeCancel">ביטול</button></div>
+  </div>
+</div>
+<div class="modal" id="confirmAsk" hidden>
+  <div class="card">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmBody"></p>
+    <div class="row"><button type="button" id="confirmOk" class="primary"></button><button type="button" id="confirmNo">ביטול</button></div>
   </div>
 </div>
 <div class="modal" id="lineAsk" hidden>
@@ -191,12 +210,12 @@
     <div class="linepick" id="linePick"></div>
   </div>
 </div>
-<div class="modal" id="dutyAsk" hidden>
+<div class="modal sheet" id="dutyAsk" hidden>
   <div class="card">
     <h2>סידור העבודה שלך</h2>
-    <p class="hint">הסדרן שיבץ אותך לארבע נסיעות. צאו מהמסוף בזמן — כל יציאה בזמן שווה נקודות.</p>
+    <p class="hint">הסדרן שיבץ אותך לארבע נסיעות. צאו מהמסוף בזמן — כל יציאה בזמן שווה נקודות. המסלול מסומן במפה.</p>
     <div id="dutyBody"></div>
-    <div class="row"><button type="button" id="dutyGo" class="primary">מתחילים</button></div>
+    <div class="row"><button type="button" id="dutyGo" class="primary">מתחילים</button><button type="button" id="dutyOther">קו אחר</button></div>
   </div>
 </div>
 <div class="qbox" id="qBox" hidden>
@@ -294,8 +313,8 @@
     <button type="button" data-c="front">דלת קדמית</button><button type="button" data-c="mid">דלת אחורית</button><button type="button" data-c="kneel">כריעה</button><button type="button" data-c="left">◀ איתות</button><button type="button" data-c="right">איתות ▶</button>
     <button type="button" data-c="hazard">מהבהבים</button><button type="button" data-c="horn">צופר</button><button type="button" data-c="lights">פנסים</button><button type="button" data-c="wipers">מגבים</button><button type="button" data-c="announce">הודעת תחנה</button>
   </div>
-  <button type="button" class="pedal brake" data-p="brake" aria-label="בלם">בלם</button>
-  <button type="button" class="pedal gas" data-p="gas" aria-label="גז">גז</button>
+  <button type="button" class="pedal brake" data-p="brake" aria-label="בלם"><i class="lv"></i><span>בלם</span><b class="pv"></b></button>
+  <button type="button" class="pedal gas" data-p="gas" aria-label="גז"><i class="lv"></i><span>גז</span><b class="pv"></b></button>
 </div>
 <div class="paxcard" id="paxCard" hidden></div>
 <div class="toast" id="toast" hidden></div>

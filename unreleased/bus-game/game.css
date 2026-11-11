@@ -455,9 +455,15 @@ table.duty tr.brk td{color:var(--muted);font-size:12.5px;text-align:center;borde
 .drvhud.slim .dh-duty button{font-size:11px;padding:2px 6px}
 .drvhud.slim .dh-stop,.drvhud.slim .dh-score{font-size:11px;padding:2px 6px}
 /* הדוושות: קטנות ושקופות למחצה, בשולי המסך — השעונים והידיים נראים */
-.drvctl .pedal{width:58px;height:84px;font-size:15px;bottom:auto;top:58vh;opacity:.62;border-radius:14px}
-.drvctl .pedal.brake{left:4px}.drvctl .pedal.gas{right:4px}
-.drvctl .pedal.on{opacity:.9}
+/* דוושה יחסית: גובה האצבע על הדוושה = עומק (למטה מעט, למעלה הרבה); המילוי מראה כמה לחוץ, עם קווים כל 25% */
+.drvctl .pedal{width:62px;height:min(178px,30vh);font-size:14px;bottom:auto;top:52vh;opacity:.72;border-radius:14px;overflow:hidden;padding:0;
+  background-image:repeating-linear-gradient(to top,transparent 0 calc(25% - 1px),rgba(255,255,255,.28) calc(25% - 1px) 25%)}
+.drvctl .pedal.brake{left:4px;background-color:rgba(127,29,29,.62)}.drvctl .pedal.gas{right:4px;background-color:rgba(20,83,45,.62)}
+.drvctl .pedal .lv{position:absolute;inset-inline:0;bottom:0;height:calc(var(--lvl,0) * 100%);pointer-events:none}
+.drvctl .pedal.brake .lv{background:linear-gradient(to top,#ef4444,#fca5a5)}.drvctl .pedal.gas .lv{background:linear-gradient(to top,#16a34a,#86efac)}
+.drvctl .pedal span{position:absolute;top:6px;inset-inline:0;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000}
+.drvctl .pedal .pv{position:absolute;bottom:6px;inset-inline:0;text-align:center;font-size:13px;pointer-events:none;text-shadow:0 1px 2px #000}
+.drvctl .pedal.on{opacity:.95;transform:none;filter:none}
 /* נהג (תפקיד): בלי הקופה ותג הרמה */
 body.role-driver #money,body.role-driver #modeBadge{display:none}
 /* מבט פקח: רצועה עליונה דקה, ▲▼ בצד, והחלטה על נוסע בלי כרטיס */
@@ -480,3 +486,14 @@ table.isum tr.tot td{font-size:17px;border-top:2px solid var(--line2)}
 .paxcard{position:fixed;z-index:30;width:190px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:2px;font-size:13px;pointer-events:none}
 .paxcard[hidden]{display:none}
 .paxcard b{font-size:14px}
+/* התחל מחדש (מחיקת הכל) ואישור כללי */
+.link-del{display:block;margin:12px auto 0;background:none;border:0;color:#b91c1c;font-size:13px;text-decoration:underline;padding:6px}
+#wipeAsk .chk{display:flex;gap:8px;align-items:center;font-weight:700;margin-top:6px}
+#wipeAsk .chk input{width:20px;height:20px}
+/* סידור העבודה (נהג): גיליון בתחתית, והמפה עם המסלול המסומן נשארת גלויה מעליו */
+.modal.sheet{place-items:end center;background:transparent;pointer-events:none;padding:0 8px calc(8px + env(safe-area-inset-bottom))}
+.modal.sheet .card{pointer-events:auto;max-height:40vh;overflow:auto;width:min(520px,100%);box-shadow:0 -6px 30px rgba(0,0,0,.3)}
+.modal.sheet .card h2{margin-bottom:4px}
+.duty-line{display:flex;align-items:center;gap:8px;font-weight:700;margin:4px 0}
+.duty-line .num{color:#fff;border-radius:8px;padding:2px 8px;font-weight:800}
+body:has(#dutyAsk:not([hidden])) #panel{visibility:hidden}

@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadCity, buildWorld } from './world.js';
 import { RoadGraph, speedProfile } from './graph.js';
-import { Line, loadLines, saveLines, computeRoute, routeMesh, COLORS } from './lines.js';
+import { Line, loadLines, saveLines, computeRoute, routeMesh, labelSprite, COLORS } from './lines.js';
 import { Sim, clockText } from './sim.js';
 import { loadAssets, BusLayer, PeopleLayer } from './actors.js';
 import { StopLayer, assignRoadWidths, frameV } from './stops.js';
@@ -106,7 +106,7 @@ async function init() {
     ui: { root: $('#ifp'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
     onExit: () => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow'); } });
-  drive = new DriveControls({ canvas, camera, toast, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
+  drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   buildCamButtons();
   lineDefs = loadLines();
   // קווים שנשמרו לפני שהיה כסף במשחק: מקבלים אוטובוסים רגילים במתנה, כמה שצריך לתדירות שלהם
@@ -131,18 +131,20 @@ async function init() {
     career.payStops(lineDefs.flatMap(d => d.stopIds));
     if (bank.legacy) career.tick(true);
   }
-  if (!saved && !lineDefs.length) setTimeout(() => askRole(), 400);
+  // משחק ריק שעוד לא נבחר בו תפקיד (פעם ראשונה, או אחרי "התחל מחדש" ורענון) — מסך הפתיחה
+  let picked = false; try { picked = localStorage.getItem('busgame.rolePicked') === '1'; } catch { }
+  if (!lineDefs.length && (!saved || !picked)) setTimeout(() => askRole(), 400);
   night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); applyModeUI(); renderLines(); renderMoney();
   if (saved && bank.role !== 'planner') applyRoleUI(false);
-  setInterval(() => bank.save(sim.time), 4000);
-  addEventListener('pagehide', () => { bank.save(sim.time); if (cloud?.on) cloud.beacon(autoPayload(), bank.mode); });
+  setInterval(() => { if (!wiping) bank.save(sim.time); }, 4000);
+  addEventListener('pagehide', () => { if (wiping) return; bank.save(sim.time); if (cloud?.on) cloud.beacon(autoPayload(), bank.mode); });
   // ענן: רק אם השחקן כבר בחר בזה במכשיר הזה (יש חיבור שמור). אחרת — אין גישה לרשת
   cloud = new Cloud(() => renderAccount());
   renderAccount();
   cloud.resume().then(on => { if (on) cloudStart(); });
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) bank.save(sim.time); else refreshGraphics('visible'); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && !wiping) bank.save(sim.time); else refreshGraphics('visible'); });
   Object.assign(G, { city, graph, sim, bank, people, buses, residents: () => residents, paxCardAt: (x, y) => paxCardAt(x, y), fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
@@ -520,8 +522,43 @@ function renderSwatches(cur) {
   }
 }
 // o (לבדיקות): { vtype, fleet, headway } במקום מה שבטופס
+// קו חדש שכמעט זהה לקו קיים — באותו כיוון, או בכיוון ההפוך (בדרך כלל בתחנות שמעבר לרחוב, לכן לפי מרחק ולא לפי מזהה):
+// כל תחנה מותאמת לתחנה הקרובה של הקו הקיים (עד 120 מ', או באותו שם). הפוך — ההתחלה ליד הסוף שלו והסוף ליד ההתחלה,
+// ולפחות 70% מהתחנות בסדר הפוך. אותו כיוון — ההתחלה והסוף ליד שלו, ולפחות 70% מהתחנות (של שניהם) באותו סדר. רק אזהרה
+function similarLine(stops, skipRev) {
+  const n = stops.length; if (n < 2) return null;
+  const dist = (a, b) => Math.hypot(a.world.x - b.world.x, a.world.z - b.world.z);
+  const near = (a, b, r) => a === b || dist(a, b) <= r || (a.name && a.name === b.name);
+  const seq = (js, cmp) => { const best = []; for (const j of js) { if (j < 0) continue; let k = 0; while (k < best.length && cmp(best[k], j)) k++; best[k] = j; } return best.length; };   // הרצף הארוך ביותר (עולה / יורד)
+  for (const L of lines) {
+    if (L.retired || L.stops.length < 2) continue;
+    const S = L.stops, m = S.length;
+    const js = stops.map(a => { let bj = -1, bd = Infinity; S.forEach((b, j) => { const d = a === b || (a.name && a.name === b.name) ? 0 : dist(a, b); if (d <= 120 && d < bd) { bd = d; bj = j; } }); return bj; });
+    if (L !== skipRev && near(stops[0], S[m - 1], 250) && near(stops[n - 1], S[0], 250) && seq(js, (x, j) => x > j) >= 0.7 * n) return { L, rev: true };
+    const inc = seq(js, (x, j) => x < j);
+    if (near(stops[0], S[0], 250) && near(stops[n - 1], S[m - 1], 250) && inc >= 0.7 * n && inc >= 0.7 * m) return { L, rev: false };
+  }
+  return null;
+}
+// אישור כללי: כותרת, טקסט, כפתור לביצוע וכפתור ביטול
+function askConfirm(title, body, okText, onOk) {
+  $('#confirmTitle').textContent = title; $('#confirmBody').textContent = body; $('#confirmOk').textContent = okText;
+  $('#confirmOk').onclick = () => { $('#confirmAsk').hidden = true; onOk(); };
+  $('#confirmNo').onclick = () => { $('#confirmAsk').hidden = true; };
+  $('#confirmAsk').hidden = false;
+}
 function saveLineFromForm(o = {}) {
   if (!form) return;
+  // שמירה מהטופס של קו חדש: אם יש כבר קו כמעט זהה (או בכיוון ההפוך) — שואלים קודם
+  if (o.check && !form.line && planning) {
+    const hit = similarLine(planning.stops, planning.rev);
+    if (hit) {
+      const D = hit.L, from = D.stops[0].name, to = D.stops[D.stops.length - 1].name;
+      askConfirm('קו דומה כבר קיים', hit.rev ? `יש כבר קו בכיוון ההפוך: קו ${D.def.number} (מ-${from} ל-${to}). ליצור בכל זאת?` : `יש כבר קו כמעט זהה באותו כיוון: קו ${D.def.number} (מ-${from} ל-${to}). ליצור בכל זאת?`,
+        'צור בכל זאת', () => { const L = saveLineFromForm({ ...o, check: false }); if (L) o.then?.(L); });
+      return;
+    }
+  }
   if (o.vtype) form.type = o.vtype;
   if (o.lease != null) form.lease = !!o.lease;
   if (o.fleet != null) form.n = o.fleet;
@@ -617,7 +654,9 @@ function updateDriverHud() {
   const L = b.line, at = b.state === 'dwell' && b.ph === 'xchg', S = L.stops[Math.min(L.stops.length - 1, b.next)];
   const n = b.pax.filter(p => !p.role).length;
   const num = $('#dhNum'); num.textContent = L.def.number; num.style.background = L.color;
-  const nx = S ? `${at ? 'בתחנה' : 'הבאה'}: ${S.name}` : 'נוסע למסוף';
+  // בנסיעה, קרוב לתחנה — כמה מטרים נשארו (לעצירה מדויקת)
+  const left = b.state === 'drive' ? L.stopS[b.next] - b.s : null, far = left != null && left < 300 ? ` בעוד ${Math.max(0, Math.round(left))} מ'` : '';
+  const nx = S ? `${at ? 'בתחנה' : 'הבאה'}${far}: ${S.name}` : 'נוסע למסוף';
   if ($('#dhNext').textContent !== nx) $('#dhNext').textContent = nx;
   $('#dhPax').textContent = `${n} נוסעים · ${Math.round((b.v || 0) * 3.6)} קמ"ש`;
   if (shift?.on) { const st = shift.short(); $('#dhDutyTxt').textContent = st; $('#dhSkip').hidden = !/הפסקה/.test(st); }
@@ -664,9 +703,9 @@ function bindUI() {
   canvas.addEventListener('pointerdown', () => { camAnim = null; });
   canvas.addEventListener('wheel', () => { camAnim = null; }, { passive: true });
   bindReset();
-  $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm(); };
+  $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm({ check: true }); };
   // קו חדש: שומרים אותו, ומיד פותחים את הכיוון ההפוך לבדיקה (רק כשהשחקן מבקש)
-  $('#fRev').onclick = () => { const L = saveLineFromForm(); if (L && startReverse(L)) toast(`קו ${L.def.number} יצא לדרך. עכשיו הכיוון ההפוך: בדקו את המסלול ולחצו "המשך"`); };
+  $('#fRev').onclick = () => { const then = L => { if (L && startReverse(L)) toast(`קו ${L.def.number} יצא לדרך. עכשיו הכיוון ההפוך: בדקו את המסלול ולחצו "המשך"`); }; then(saveLineFromForm({ check: true, then })); };
   $('#play').onclick = () => { night.manual(); setSpeed(sim.speed ? 0 : (G.lastSpeed || 5)); };
   document.querySelectorAll('#speeds button').forEach(b => b.onclick = () => { night.manual(); setSpeed(+b.dataset.s); });
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
@@ -986,6 +1025,7 @@ const ROLE_NAME = { driver: 'נהג', planner: 'מתכנן', dispatcher: 'סדר
 function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; $('#roleAsk').hidden = false; }
 async function chooseRole(role) {
   $('#roleAsk').hidden = true;
+  try { localStorage.setItem('busgame.rolePicked', '1'); } catch { }
   if (role === 'planner') {
     // ממשיכים משחק של מתכנן; אחרת (רשת מוכנה או משחק ריק) — משחק חדש עם בחירת רמה
     if (bank.role === 'planner' && lineDefs.length) { applyRoleUI(false); return; }
@@ -1045,12 +1085,60 @@ function askLine() {
   $('#linePick').onclick = e => { const b = e.target.closest('[data-l]'); if (!b) return; $('#lineAsk').hidden = true; startShift(lines.find(L => L.id === b.dataset.l)); };
   $('#lineAsk').hidden = false;
 }
+// הקו שבוחרים (נהג): המסלול שלו במפה — קו עבה בצבע הקו עם שוליים לבנים, שאר הקווים דהויים, והתחנות בעיגולים
+// ממוספרים עם השם. המפה מתמקדת בקו, וסידור העבודה בגיליון בתחתית
+let routeHi = null;
+function highlightRoute(L, below = 0) {
+  clearRouteHi();
+  // המפה על כל הקו (גם מעל הגובה הרגיל), ורוחב הקו לפי הגובה — כ-7 פיקסלים על המסך
+  fitWide(L.stops.map(s => [s.world.x, -s.world.z]), 44, below);
+  const px = camera.position.y * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight;
+  const g = new THREE.Group(), P = L.poly.pts;
+  const ribbon = (W, color, y, order) => {
+    const pos = [];
+    for (let i = 0; i + 1 < P.length; i++) {
+      const [x0, y0] = P[i], [x1, y1] = P[i + 1], d = Math.hypot(x1 - x0, y1 - y0); if (d < 0.01) continue;
+      const nx = -(y1 - y0) / d * W, ny = (x1 - x0) / d * W;
+      pos.push(x0 + nx, y, -(y0 + ny), x0 - nx, y, -(y0 - ny), x1 - nx, y, -(y1 - ny), x0 + nx, y, -(y0 + ny), x1 - nx, y, -(y1 - ny), x1 + nx, y, -(y1 + ny));
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -16 }));
+    m.renderOrder = order; g.add(m);
+  };
+  ribbon(Math.max(9, px * 6.5), 0xffffff, 0.5, 3); ribbon(Math.max(6, px * 4.5), L.color, 0.55, 4);
+  // השמות: רק כשיש להם מקום על המסך (קודם הראשונה והאחרונה, ואז לפי הסדר) — בלי ערימה של תוויות זו על זו
+  camera.updateMatrixWorld(); const v = new THREE.Vector3(), scr = st => { v.set(st.world.x, 8, st.world.z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; };
+  const dots = L.stops.map(scr), taken = [];
+  const order = L.stops.map((st, k) => k).sort((a, b) => (b === 0 || b === L.stops.length - 1) - (a === 0 || a === L.stops.length - 1) || a - b);
+  for (const k of order) {
+    const st = L.stops[k], n = labelSprite(String(k + 1), L.color, 1.05); n.position.set(st.world.x, 8, st.world.z); g.add(n);
+    const x = dots[k][0], y = dots[k][1] - 24, w = st.name.length * 6.5 + 18, hh = 20;
+    if (taken.some(r => Math.abs(r.x - x) < (r.w + w) / 2 && Math.abs(r.y - y) < hh + 2)) continue;
+    if (dots.some((d, j) => j !== k && Math.abs(d[0] - x) < w / 2 + 12 && Math.abs(d[1] - y) < hh / 2 + 12)) continue;   // לא על עיגול של תחנה אחרת
+    taken.push({ x, y, w });
+    const t = labelSprite(st.name, 'rgba(255,255,255,.93)', 0.62, '#0f172a'); t.center.set(0.5, -0.75); t.position.copy(n.position); g.add(t);
+  }
+  scene.add(g); routeHi = { g, fade: [], labels: buses.hideLabels }; buses.hideLabels = true;
+  // שאר הקווים: דהויים, בלי המספרים
+  for (const [id, lg] of lineGroups) if (id !== L.id) lg.children.forEach(c => { routeHi.fade.push([c, c.visible, c.material.opacity]); if (c.isSprite) c.visible = false; else c.material.opacity = 0.18; });
+  const og = lineGroups.get(L.id); if (og) { routeHi.own = [og, og.visible]; og.visible = false; }
+}
+function clearRouteHi() {
+  if (!routeHi) return;
+  scene.remove(routeHi.g); routeHi.g.traverse(o => { o.geometry?.dispose(); if (o.isMesh) o.material.dispose(); else if (o.isSprite) o.material.dispose(); });
+  for (const [c, vis, op] of routeHi.fade) { c.visible = vis; c.material.opacity = op; }
+  if (routeHi.own) routeHi.own[0].visible = routeHi.own[1];
+  buses.hideLabels = routeHi.labels; routeHi = null;
+  controls.maxDistance = 2600; look.fogMin.near = 0; look.fogMin.far = 0;
+}
 function startShift(L) {
   shift.plan(L);
-  $('#dutyBody').innerHTML = shift.sheetHTML();
+  $('#dutyBody').innerHTML = `<p class="duty-line"><span class="num" style="background:${L.color}">${esc(L.def.number)}</span> אל ${esc(L.def.real?.dest || L.stops[L.stops.length - 1].name)} · ${L.stops.length} תחנות</p>${shift.sheetHTML()}`;
   $('#dutyAsk').hidden = false;
+  $('#dutyAsk .card').scrollTop = 0; $('#panel').classList.add('min'); highlightRoute(L, 20);
+  $('#dutyOther').onclick = () => { $('#dutyAsk').hidden = true; clearRouteHi(); askLine(); };
   $('#dutyGo').onclick = () => {
-    $('#dutyAsk').hidden = true;
+    $('#dutyAsk').hidden = true; clearRouteHi();
     // קדימה עד היציאה הראשונה, ונכנסים לאוטובוס שיוצא מהמסוף
     const t = shift.trip; while (sim.time < t.dep + 3600 && !(sim.time >= t.dep && shift.busFor(t))) { sim.tick(0.5); sim.events.length = 0; }
     buses.update(sim.lines, 0, 0);         // האוטובוס נוצר עכשיו — צריך את הדגם שלו לפני שנכנסים
@@ -1195,7 +1283,8 @@ function autoPayload() {
     lines: JSON.parse(JSON.stringify(lineDefs)), bank: JSON.parse(JSON.stringify(bank.snapshot(sim.time))) };
 }
 const coreHash = d => hash(JSON.stringify({ l: d.lines, m: Math.round(d.bank?.money ?? d.money), t: Math.round((d.time || 0) / 60), c: d.bank?.career, r: d.bank?.reports?.length }));
-let pushedHash = '';
+let pushedHash = '', wiping = false;
+const CLOUD_META = 'busgame.cloud.meta.v1';
 async function pushAuto(force) {
   const d = autoPayload(), h = coreHash(d);
   if (!force && h === pushedHash) return;
@@ -1207,6 +1296,15 @@ async function cloudStart() {
   await cloud.refresh();
   const remote = await cloud.get('auto'); renderSlots();
   const local = autoPayload(), lh = coreHash(local), m = cloud.meta();
+  // אחרי "התחל מחדש" (בלי מחיקת הענן): המשחק שבענן נשמר שם כשמירה בשם, ולא נטען בחזרה. בלי רשת — ננסה בפעם הבאה
+  if (m.reset) {
+    if (remote?.data?.lines) {
+      const id = 'S' + Date.now().toString(36), nm = 'לפני התחלה מחדש';
+      if (!(await cloud.put(id, { ...remote.data, kind: 'slot', id, name: nm, title: nm, nl: remote.data.lines.length }, remote.mode))) return;
+      await cloud.refresh(); renderSlots();
+    }
+    cloud.setMeta({ reset: 0 }); await pushAuto(true); return;
+  }
   if (!remote) { await pushAuto(true); return; }
   const rd = remote.data, rh = coreHash(rd);
   if (rh === lh) { pushedHash = lh; cloud.setMeta({ syncedAt: remote.updated_at, syncedHash: lh }); return; }
@@ -1304,6 +1402,9 @@ function bindReset() {
   buildModePickers();
   $('#resetGame').onclick = () => { modePick = normMode(bank.mode); syncModePick(); $('#resetAsk').hidden = false; };
   $('#resetCancel').onclick = () => { $('#resetAsk').hidden = true; };
+  $('#startOver').onclick = askStartOver; $('#roleStartOver').onclick = askStartOver;
+  $('#wipeCancel').onclick = () => { $('#wipeAsk').hidden = true; };
+  $('#wipeGo').onclick = () => startOver($('#wipeCloud').checked);
   $('#resetNoSave').onclick = () => { $('#resetAsk').hidden = true; startMode(modePick, false); };
   $('#resetSave').onclick = () => { $('#resetAsk').hidden = true; startMode(modePick, true); };
   document.querySelectorAll('.modepick').forEach(g => g.onclick = e => { const b = e.target.closest('[data-mode]'); if (b) { modePick = b.dataset.mode; syncModePick(); } });
@@ -1329,6 +1430,27 @@ function bindReset() {
     if (d) { if (d.classList.contains('sure')) deleteSlot(d.dataset.del); else { d.classList.add('sure'); d.textContent = 'בטוח?'; } }
   };
   renderSlots();
+}
+// ---------- התחל מחדש: מוחקים את כל ההתקדמות במכשיר (כל המפתחות busgame.* — קווים, קופה וקריירה, שמירות בשם…)
+// וטוענים את הדף מחדש — מסך הפתיחה, כמו בפעם הראשונה. החיבור לענן נשאר (busgame.auth*). השמירות בענן נמחקות רק אם
+// השחקן סימן את זה; אחרת cloudStart שומר את המשחק מהענן כשמירה בשם ולא טוען אותו בחזרה (cloud meta: reset)
+function askStartOver() {
+  $('#wipeCloud').checked = false; $('#wipeCloudBox').hidden = !cloud?.on;
+  $('#wipeAsk').hidden = false;
+}
+async function startOver(delCloud) {
+  const go = $('#wipeGo'); go.disabled = true;
+  if (delCloud && cloud?.on && !(await cloud.deleteAll())) { go.disabled = false; toast('לא הצלחתי למחוק את השמירות בענן — לא נמחק כלום'); return; }
+  let hasAuth = false;
+  try {
+    hasAuth = Object.keys(localStorage).some(k => k.startsWith('busgame.auth'));
+    const keep = k => k.startsWith('busgame.auth') || (hasAuth && k === CLOUD_META);
+    for (const k of Object.keys(localStorage)) if (k.startsWith('busgame.') && !keep(k)) localStorage.removeItem(k);
+    if (hasAuth && !delCloud) cloud.setMeta({ reset: Date.now() });
+  } catch { }
+  // מכאן לא נשמר כלום (השמירה האוטומטית, היציאה מהדף) — עד הטעינה מחדש
+  wiping = true; sim.speed = 0;
+  location.reload();
 }
 function resetGame(saved, mode = bank.mode) {
   cancelPlanning();
@@ -1478,7 +1600,7 @@ function focusZone(z) {
 // המלבן הפנוי במסך (בלי הסרגל, המקרא, הכרטיס והלוח): מכל רכיב חותכים את הצד שמשאיר הכי הרבה מקום
 function freeRect() {
   let r = { l: 0, t: 0, r: innerWidth, b: innerHeight };
-  for (const el of [$('.bar'), $('#dLegend'), $('#dlFocus'), $('#panel')]) {
+  for (const el of [$('.bar'), $('#dLegend'), $('#dlFocus'), $('#panel'), $('#dutyAsk').hidden ? null : $('#dutyAsk .card')]) {
     if (!el || el.hidden) continue;
     let o = el.getBoundingClientRect();
     if (el.id === 'panel' && el.classList.contains('min') && innerWidth <= 820) o = { left: o.left, right: o.right, top: o.bottom - 96, bottom: o.bottom, width: o.width };   // בזמן האנימציה
