@@ -52,6 +52,13 @@ jobs:
           needed=any(s['id'] not in done for s in c) or not pathlib.Path('line-history/data/early-rail/index.json').exists()
           with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('needed='+str(needed).lower()+'\n')
           PY
+      # 11.2026: הייבוא הסתיים (1,276 צילומים), ו-early-patterns/early-stops עברו לריפו kav-bochan-archive.
+      # ייבוא חדש היה כותב אותן מחדש לריפו הזה, ושום דבר כבר לא מעתיק אותן לארכיון — לכן עוצרים ומודיעים
+      - name: Historical import finished — folders live in the archive repo
+        if: steps.remaining.outputs.needed == 'true'
+        run: |
+          echo '::error::יש צילומים חדשים לייבוא, אבל early-patterns/early-stops נמצאות עכשיו רק ב-kav-bochan-archive. ייבוא חדש צריך קודם התאמה (לכתוב לריפו הארכיון).'
+          exit 1
       - name: Import railway records and next GTFS batch
         if: steps.remaining.outputs.needed == 'true'
         id: import

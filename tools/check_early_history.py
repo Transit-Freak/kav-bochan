@@ -4,6 +4,7 @@ import gzip,json,sys
 from pathlib import Path
 from import_early_history import OUT,read
 from compact_lines import materialize
+import early_archive
 
 def main():
     website_only='--websites-only' in sys.argv
@@ -22,7 +23,7 @@ def main():
                 assert any(v['d']==cat[sid]['date'] and v['src']=='websiteArchive' for v in d['versions'])
                 assert all(v['k']=='snapshot' and not v.get('add') and not v.get('rem') and not v.get('shp') for v in d['versions'])
             continue
-        stops=json.loads(gzip.decompress((OUT/'early-stops'/(sid+'.json.gz')).read_bytes()))['stops']
+        stops=early_archive.stops(OUT,sid)['stops']
         assert len(routes)==summary['routes'] and len(stops)==summary['stops']
         assert set(routes)<=idx, f'{sid}: routes missing from search index'
         for rd in routes:
@@ -41,7 +42,7 @@ def main():
             key=v['earlyPatternsFile']
             if key in checked:continue
             checked.add(key)
-            data=json.loads(gzip.decompress((OUT/'early-patterns'/key[:2]/(key+'.json.gz')).read_bytes()))
+            data=early_archive.patterns(OUT,key)
             for pattern in data:
                 assert len(pattern['stops'])==len(pattern['boarding'])
                 assert sum(len(s['departures']) for s in pattern['services'])==pattern['trips']
