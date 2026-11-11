@@ -816,7 +816,8 @@ export class PeopleLayer {
     if (!base) return (V.reach[key] = null);
     const root = base.root, B = n => root.getObjectByName(n), W = o => o.getWorldPosition(new THREE.Vector3());
     // ‎-x היא צד ימין של הדמות (פונה ל-‎+z)
-    const hand = slot.kind === 'seat' ? (aisle < 0 ? 'Right' : 'Left') : (slot.grip === 'Right' ? 'Left' : 'Right');
+    // עומד: עוזב לרגע את העמוד ומושיט ביד הזו (שבצד המעבר) — היד השנייה, שליד החלון, הייתה עוברת דרך העמוד
+    const hand = slot.kind === 'seat' ? (aisle < 0 ? 'Right' : 'Left') : slot.grip;
     const arm = B(hand + 'Arm'), fore = B(hand + 'ForeArm'), hd = B(hand + 'Hand'), fb = B(hand + 'FingerBase');
     if (!arm || !fore || !hd || !fb) return (V.reach[key] = null);
     const saved = []; root.traverse(b => { if (b.isBone) saved.push([b, b.quaternion.clone()]); });   // כל השלד (גם הגו נוטה)
@@ -827,18 +828,19 @@ export class PeopleLayer {
     // בלי כרטיס: כף יד ריקה ופתוחה לפני הגוף, נמוך (בלי להושיט ובלי לנטות)
     if (!empty) {
       const lb = B('LowerBack'), s1 = B('Spine1') || B('Spine'), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
-      const side = (win ? 12 : slot.kind === 'seat' ? 6 : 4) * frac, twist = (win ? 24 : slot.kind === 'seat' ? 12 : 14) * frac, fwd = (win ? 26 : 6) * frac;
+      const side = (win ? 8 : slot.kind === 'seat' ? 6 : 0) * frac, twist = (win ? 18 : slot.kind === 'seat' ? 12 : 0) * frac, fwd = (win ? 6 : slot.kind === 'seat' ? 0 : 0) * frac;   // כמעט בלי להתכופף קדימה — הגו נשאר מאחורי המשענת שלפניו
       if (lb) { turn(lb, Z, -aisle * side); turn(lb, X, fwd); }
       if (s1) turn(s1, Y, aisle * twist);
       root.updateMatrixWorld(true);
     }
     const sh = W(arm), L = W(arm).distanceTo(W(fore)) + W(fore).distanceTo(W(hd));
-    const dirF = (win ? new THREE.Vector3(aisle * 0.4, 0.34, 0.86) : slot.kind === 'seat' ? new THREE.Vector3(aisle * 0.6, -0.22, 0.77) : new THREE.Vector3(aisle * 0.62, -0.08, 0.78)).normalize();
-    const full = empty ? new THREE.Vector3(sh.x - aisle * 0.06, sh.y - 0.2, sh.z + (slot.kind === 'seat' ? 0.3 : 0.18))
+    const dirF = (win ? new THREE.Vector3(aisle * 0.4, 0.42, 0.86) : slot.kind === 'seat' ? new THREE.Vector3(aisle * 0.6, -0.22, 0.77) : new THREE.Vector3(aisle * 0.55, -0.1, 0.83)).normalize();   // עומד: אל המעבר וקדימה, מעבר לעמוד
+    const full = empty ? new THREE.Vector3(sh.x - aisle * 0.06, sh.y - 0.2, sh.z + (slot.kind === 'seat' ? 0.3 : 0.1))
       : sh.clone().addScaledVector(dirF, L * 0.93);
     // קודם למעלה ואל המעבר, ורק בסוף קדימה (כך היד לא עוברת דרך המשענת שלפניו); ליד החלון ובעמידה — קודם קדימה, ורק אז אל המעבר
     const T = h0.clone().lerp(full, frac);
-    if (win || slot.kind === 'stand') { T.x = h0.x + (full.x - h0.x) * frac * frac; if (slot.kind === 'stand') T.z += 0.06 * Math.sin(Math.PI * frac); } else T.z = h0.z + (full.z - h0.z) * frac * frac;
+    if (slot.kind === 'stand') { T.z = h0.z + (full.z - h0.z) * frac * frac - 0.1 * Math.sin(Math.PI * frac); T.y += 0.08 * Math.sin(Math.PI * frac); }   // עומד: היד יוצאת מהעמוד אחורה ולמעלה, ורק אז קדימה
+    else if (win) { T.x = h0.x + (full.x - h0.x) * frac * frac; } else T.z = h0.z + (full.z - h0.z) * frac * frac;
     twoBone(arm, fore, hd, T, win ? new THREE.Vector3(-aisle * 0.2, -0.5, 1) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));
     const fdir = empty ? new THREE.Vector3(aisle * 0.2, 0.25, 1) : new THREE.Vector3(aisle * 0.35, 1, 0.35);
     const dir = T.clone().sub(W(fore)).normalize().lerp(fdir.normalize(), frac).normalize();
@@ -1143,7 +1145,7 @@ export class PeopleLayer {
           const inner = (VV, toward) => { const e = this.busExt(VV); return toward > 0 ? e[1] : -e[0]; };
           const w = inner(V, ob.seats[kq][0] - st[0]) + inner(Vq, st[0] - ob.seats[kq][0]); sxN = Math.min(1, (dx - 0.012) / w); }
         // השכן שליד החלון מושיט כרטיס לפני החזה שלו: היושב במעבר מצטמצם עוד מעט (מפנה מקום ליד)
-        if (qp != null && this.reach?.pid === qp && this.reach.frac > 0 && this.reach.card && Math.abs(ob.seats[ob.seatOf(qp)][0]) > 0.7) sxN *= 0.9;
+        if (qp != null && this.reach?.pid === qp && this.reach.frac > 0 && this.reach.card && Math.abs(ob.seats[ob.seatOf(qp)][0]) > 0.7) sxN *= 0.84;
         (this.onboardSX || (this.onboardSX = new Map())).set(p.id, sxN);
         const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'seat', x: st[0] }, R.frac, !R.card);
         const bm = V.bus?.sit?.root ? this.accPose(V, 'bus', V.bus.sit.root, V.bus.sit.origin) : null;

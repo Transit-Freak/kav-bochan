@@ -115,7 +115,8 @@ export class InspectorFP {
     // לא נכנסים לאוטובוס לתוך מי שעולה או יורד: מתחילים בנקודה הראשונה במעבר שרחוקה 50 ס"מ לפחות מכל הולך
     o.updateMatrixWorld(true);
     const ws = this.g.people.walkers.filter(w => w.obj.visible && w.bus === bus).map(w => o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())));
-    for (let t = 0; t <= this.len; t += 0.1) { const P = this.pathAt(t); if (ws.every(w => Math.hypot(w.x - P.x, w.z - P.z) >= 0.5)) { this.s = t; break; } }
+    // מתחילים במעבר עצמו (אחרי מחיצת הנהג ומכונת הכרטיסים), כדי שהיד והמכשיר לא יצוירו על המחיצה
+    for (let t = 1.45; t <= this.len; t += 0.1) { const P = this.pathAt(t); if (ws.every(w => Math.hypot(w.x - P.x, w.z - P.z) >= 0.5)) { this.s = t; break; } }
     this.g.ui.root.hidden = false; this.render(); return true;
   }
   exit() {
@@ -162,7 +163,7 @@ export class InspectorFP {
     // ולא מתקרבים לראש של נוסע יושב/עומד לפחות מ-35 ס"מ (במישור) — הפקח עומד במעבר, לא מעל הכתף של אף אחד
     const heads = [...(PL.onboardPos || new Map()).values()].map(h => o.worldToLocal(h.clone()));
     const hd = q => heads.reduce((m, h) => Math.min(m, Math.hypot(h.x - q.x, h.z - q.z)), 9);
-    const okHead = (hd(E) >= 0.35 || hd(E) >= hd(E0)) && (!this.occ.ring(E.x, E.z, 1.65, E.y, 0.15) || this.occ.ring(E0.x, E0.z, 1.65, E0.y, 0.15));
+    const okHead = (hd(E) >= 0.35 || hd(E) >= hd(E0)) && (!this.occ.ring(E.x, E.z, 1.5, E.y, 0.12) || this.occ.ring(E0.x, E0.z, 1.5, E0.y, 0.12));
     // מפנים את הדרך למי שיורד/עולה גם אם זה מקרב לראש של יושב (הפקח עובר לידו במעבר); ואם הוא מחכה כבר 2 ש' — גם הצידה
     if ((!near(E) || near(E0)) && (okHead || blk) && !this.occ.has(E.x, E.y, E.z)) this.s = ns; else { this.v = 0; this.slideTo = null; }
     if (blk && PL.fpBlock.waitFP > 2) this.latTo = -Math.sign(blk.x || 1) * 0.12;
@@ -171,23 +172,24 @@ export class InspectorFP {
     // בבדיקה: הפקח זז לצד השני של המעבר (עד 10–12 ס"מ מהמרכז — לא יוצא מהמעבר ולא נצמד לכתפיים של היושבים), כדי לעמוד במרחק מהנוסע
     { const nl = (this.lat || 0) + ((this.latTo || 0) - (this.lat || 0)) * Math.min(1, dt * 4);
       // לא זזים הצידה אל כתף או ראש של נוסע (בטבעת של 15 ס"מ, מגובה הכתפיים של יושב)
-      const okL = l => !this.occ.ring(P.x + l, P.z, 1.65, P.y, 0.15);
+      const okL = l => !this.occ.ring(P.x + l, P.z, 1.45, P.y, 0.17);
       if (okL(nl) || !okL(this.lat || 0)) this.lat = nl; else this.latTo = this.lat;
       if (!okL(this.lat) && okL(0)) this.lat *= 0.8; }
     if (P.z < 4.2) P.x += this.lat;
     const base = Math.atan2(dir.x, dir.z) + (this.s < 0.4 ? 0 : 0);
     // בבדיקה: המבט מסתובב אל החזה של הנוסע (בעדינות), כדי שהכרטיס והמכשיר ייפגשו לפניו ולא מעל הפנים
     if (this.anim && this.lookPid === this.anim.pid) { const hw = this.g.people.onboardPos?.get(this.anim.pid);
-      if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.3) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += d * Math.min(1, dt * 5); } }
+      if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.3) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += THREE.MathUtils.clamp(d * Math.min(1, dt * 3), -1.2 * dt, 1.2 * dt); } }
     const yaw = base + this.yaw;
     o.updateMatrixWorld(true);
-    // המבט למטה: רגיל 0.28; בבדיקה — אל הכרטיס (בין 0.28 ל-0.9), כדי שהכרטיס והמכשיר ייפגשו במרכז התמונה
+    // המבט למטה: רגיל 0.28 (כ-16°); בבדיקה — מעט יותר אל הכרטיס, עד כ-20°, בהדרגה (רואים את הפנים ואת היד)
     let slope = -0.28; const cw = this.anim && this.g.people.cardWorld;
-    if (cw) { const cl = o.worldToLocal(cw.clone()), hz = Math.hypot(cl.x - P.x, cl.z - P.z) || 0.3; slope = THREE.MathUtils.clamp((cl.y - P.y) / hz * 0.85, -0.9, -0.28); }
-    this.slope = (this.slope ?? -0.28) + (slope - (this.slope ?? -0.28)) * Math.min(1, dt * 5);
+    if (cw) { const cl = o.worldToLocal(cw.clone()), hz = Math.hypot(cl.x - P.x, cl.z - P.z) || 0.3; slope = THREE.MathUtils.clamp((cl.y - P.y) / hz * 0.85, -0.36, -0.28); }
+    this.slope = (this.slope ?? -0.28) + THREE.MathUtils.clamp((slope - (this.slope ?? -0.28)) * Math.min(1, dt * 3), -0.3 * dt, 0.3 * dt);
     const c = this.g.camera, T = P.clone().add(new THREE.Vector3(Math.sin(yaw), this.slope, Math.cos(yaw)));
     c.position.copy(o.localToWorld(P.clone())); c.lookAt(o.localToWorld(T)); c.updateMatrixWorld(true);
     PL.fpEye = c.position.clone();
+    this.reader.group.visible = this.s > 1.3;   // ליד הדלת, מחיצת הנהג ומכונת הכרטיסים — בלי היד והמכשיר
     this.occ.people(PL.onboardShapes || [], inv, this.anim?.pid);   // מי שמגיש מסומן בנפרד: המצלמה לא נכנסת בו, היד מתקרבת לכרטיס שלו
     // הסמלים מעל הראש של מי שנבדק — עוקבים אחרי המקום שלו
     for (const [pid, sp] of this.icons) { const h = this.g.people.onboardPos?.get(pid); if (!h || !b.pax.some(p => p.id === pid)) { sp.parent?.remove(sp); this.icons.delete(pid); continue; } sp.position.copy(h).add(new THREE.Vector3(0, 0.32, 0)); }
@@ -203,7 +205,7 @@ export class InspectorFP {
     const o = this.obj, c = this.g.camera; if (!o) return null; const e = o.worldToLocal(c.position.clone());
     let wmin = 9; for (const w of this.g.people.walkers) { if (!w.obj.visible || w.mode === 'ride') continue; const l = o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())); wmin = Math.min(wmin, Math.hypot(l.x - e.x, l.z - e.z)); }
     const hm = [...(this.g.people.onboardPos || new Map()).values()].reduce((m, h) => { const l = o.worldToLocal(h.clone()); return Math.min(m, Math.hypot(l.x - e.x, l.z - e.z)); }, 9);
-    const ringOcc = this.occ.ring(e.x, e.z, 1.65, e.y, 0.15);
+    const ringOcc = this.occ.ring(e.x, e.z, 1.5, e.y, 0.12);
     return { ringOcc, headMin: +hm.toFixed(2), camOcc: !!this.occ.has(e.x, e.y, e.z), walkerMin: +wmin.toFixed(2), readerHits: this.lastHits || 0, pull: +(this.lastPull || 0).toFixed(2), anim: this.anim ? +this.anim.t.toFixed(2) : null };
   }
   // היד והמכשיר של הפקח לא נכנסים בשום דבר: נקודות על פני המכשיר, היד והאמה — באף אחת מהן אין גוף או אוטובוס? אם יש, מקרבים
@@ -266,7 +268,7 @@ export class InspectorFP {
     const card = PL.cardWorld, rest = this.reader.rest;
     if (!A.off) A.off = new THREE.Vector3();
     if (card && A.down == null && t > 0.3) {
-      const cl = c.worldToLocal(card.clone()), want = cl.clone().sub(this.reader.faceRest.clone().add(new THREE.Vector3(A.side || 0, 0, 0))).addScaledVector(cl.clone().normalize(), -0.02); if (want.length() > 0.8) want.setLength(0.8);
+      const cl = c.worldToLocal(card.clone()), want = cl.clone().sub(this.reader.faceRest.clone().add(new THREE.Vector3(A.side || 0, 0, 0))).addScaledVector(cl.clone().normalize(), -0.02); if (want.length() > 0.8) want.setLength(0.8); want.x = Math.max(want.x, -0.22);
       A.off.lerp(want, Math.min(1, dt * 7));
     } else if (A.down != null) A.off.multiplyScalar(Math.max(0, 1 - dt * 6));
     // המכשיר מגיע מהצד שבו הכרטיס (כרטיס משמאל — המכשיר עובר לשמאל המסך), לא מעל הראש של הנוסע
@@ -278,7 +280,7 @@ export class InspectorFP {
       if (d < 0.08) { A.done = true; const hw = PL.reachHandWorld; const hl = hw && this.obj ? this.obj.worldToLocal(hw.clone()) : null;
         const f3 = v => v.toArray().map(x => +x.toFixed(2)), hh = PL.onboardPos?.get(A.pid);
         this.beeps.push({ pid: A.pid, t: +t.toFixed(2), cardDist: +d.toFixed(3), handAboveSeat: hl ? +(hl.y - (FLOOR + SEAT_H)).toFixed(3) : null,
-          cam: f3(this.obj.worldToLocal(c.position.clone())), head: hh ? f3(this.obj.worldToLocal(hh.clone())) : null, card: f3(this.obj.worldToLocal(card.clone())) }); this.result(A.pid, true); A.down = t + 0.45; }
+          cam: f3(this.obj.worldToLocal(c.position.clone())), head: hh ? f3(this.obj.worldToLocal(hh.clone())) : null, card: f3(this.obj.worldToLocal(card.clone())) }); this.result(A.pid, true); A.down = t + 0.15; }
     }
     // בלי כרטיס: יד ריקה; התוצאה בלי צפצוף
     if (!A.done && !R?.card && t > 0.9) { A.done = true; this.result(A.pid, false); A.down = t + 0.3; }
