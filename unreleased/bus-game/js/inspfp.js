@@ -51,8 +51,8 @@ class OccGrid {
   ring(x, z, y0, y1, r) { for (let y = y0; y <= y1; y += 0.1) for (let a = 0; a < 12; a++) { const t = a / 12 * Math.PI * 2, i = this.idx(x + Math.cos(t) * r, y, z + Math.sin(t) * r); if (i >= 0 && this.pp[i] === 1) return true; } return false; }
   has(x, y, z) { const i = this.idx(x, y, z); return i >= 0 && (this.st[i] || this.pp[i]); }
   // משולש: דגימות כל 2 ס"מ על פני השטח
-  tri(A, a, b, c) { const e = Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)), n = Math.max(1, Math.ceil(e / 0.02)), q = new THREE.Vector3();
-    for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { q.set(0, 0, 0).addScaledVector(a, i / n).addScaledVector(b, j / n).addScaledVector(c, 1 - (i + j) / n); const k = this.idx(q.x, q.y, q.z); if (k >= 0) A[k] = 1; } }
+  tri(A, a, b, c, v = 1) { const e = Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)), n = Math.max(1, Math.ceil(e / 0.02)), q = this.tq || (this.tq = new THREE.Vector3());
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { q.set(0, 0, 0).addScaledVector(a, i / n).addScaledVector(b, j / n).addScaledVector(c, 1 - (i + j) / n); const k = this.idx(q.x, q.y, q.z); if (k >= 0 && A[k] !== 1) A[k] = v; } }
   bus(o) {
     o.updateMatrixWorld(true); const inv = o.matrixWorld.clone().invert(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
     o.traverse(m => { if (!m.isMesh || m.isInstancedMesh || m.isSkinnedMesh || /^Leaf_|Windshield/i.test(m.name)) return;
@@ -62,15 +62,19 @@ class OccGrid {
         if (Math.max(a.y, b.y, c.y) < 0.7 || Math.min(a.y, b.y, c.y) > 2.55) continue;
         this.tri(this.st, a, b, c); } });
   }
-  // הנוסעים: הקודקודים של כל אחד בתנוחה שלו (עם מעט "עובי" — גם התאים השכנים)
+  // הנוסעים: המשולשים של כל אחד בתנוחה שלו (כל פני השטח, לא רק הקודקודים — בגו המשולשים גדולים מהתאים)
   people(shapes, inv, active) {
     const key = shapes.map(s => s.pid + s.key + Math.round(s.M.elements[12] * 100)).join('|') + '/' + active; if (key === this.key) return; this.key = key;
     this.pp.fill(0); const q = new THREE.Vector3(), M = new THREE.Matrix4();
     for (const s of shapes) { M.multiplyMatrices(inv, s.M); const v = s.pid === active ? 2 : 1;
-      for (const g of s.groups) { const P = g.geo.attributes.position; for (let i = 0; i < P.count; i++) { q.fromBufferAttribute(P, i).applyMatrix4(M); const k = this.idx(q.x, q.y, q.z); if (k >= 0 && this.pp[k] !== 1) this.pp[k] = v; } } }
+      for (const g of s.groups) { const P = g.geo.attributes.position, I = g.geo.index, n = I ? I.count : P.count, a = q, b = this.tb || (this.tb = new THREE.Vector3()), c = this.tc || (this.tc = new THREE.Vector3());
+        for (let t = 0; t + 2 < n; t += 3) { a.fromBufferAttribute(P, I ? I.getX(t) : t).applyMatrix4(M); b.fromBufferAttribute(P, I ? I.getX(t + 1) : t + 1).applyMatrix4(M); c.fromBufferAttribute(P, I ? I.getX(t + 2) : t + 2).applyMatrix4(M); this.tri(this.pp, a, b, c, v); } } }
   }
   // בשביל היד והמכשיר: גוף האוטובוס או נוסע אחר (לא מי שמגיש — הוא נבדק לפי הראש והגו, ליד הכרטיס מותר)
   hard(x, y, z) { const i = this.idx(x, y, z); return i >= 0 && (this.st[i] || this.pp[i] === 1); }
+  // "צינור" ברדיוס r מ-a ל-b (במערכת האוטובוס) נוגע בגוף האוטובוס (עמוד, משענת, מחיצה)? — לבחירת המקום שהפקח עומד בו
+  tube(a, b, r) { const d = a.distanceTo(b), n = Math.ceil(d / 0.015), q = new THREE.Vector3();
+    for (let i = 0; i <= n; i++) { q.lerpVectors(a, b, i / n); for (const [dx, dy, dz] of [[0, 0, 0], [r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]]) { const k = this.idx(q.x + dx, q.y + dy, q.z + dz); if (k >= 0 && this.st[k]) return true; } } return false; }
   // הקו מ-a ל-b (במערכת האוטובוס) עובר דרך משהו תפוס? (צעדים של 1.5 ס"מ; skip — נקודה שליד הכרטיס לא נבדקת)
   blocked(a, b, skip) { const d = a.distanceTo(b), n = Math.ceil(d / 0.015), q = new THREE.Vector3();
     for (let i = 1; i <= n; i++) { q.lerpVectors(a, b, i / n); if (skip && q.distanceTo(skip) < 0.2) continue; if (this.has(q.x, q.y, q.z)) return true; } return false; }
@@ -192,7 +196,9 @@ export class InspectorFP {
     const base = Math.atan2(dir.x, dir.z) + (this.s < 0.4 ? 0 : 0);
     // בבדיקה: המבט מסתובב אל החזה של הנוסע (בעדינות), כדי שהכרטיס והמכשיר ייפגשו לפניו ולא מעל הפנים
     if (this.anim && this.lookPid === this.anim.pid) { const hw = this.g.people.onboardPos?.get(this.anim.pid);
-      if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.3) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += THREE.MathUtils.clamp(d * Math.min(1, dt * 3), -1.2 * dt, 1.2 * dt); this.yaw = THREE.MathUtils.clamp(this.yaw, -1.4, 1.4); } }   // לא מסתובבים אל קדמת האוטובוס (מחיצת הנהג)
+      if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.3) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += THREE.MathUtils.clamp(d * Math.min(1, dt * 6), -2.4 * dt, 2.4 * dt); this.yaw = THREE.MathUtils.clamp(this.yaw, -1.4, 1.4); } }   // לא מסתובבים אל קדמת האוטובוס (מחיצת הנהג)
+    // אחרי בדיקה המבט חוזר בהדרגה אל כיוון ההליכה (עד שגוררים את המבט ביד)
+    if (this.yawHome && !this.anim) { this.yaw *= Math.exp(-dt * 3.5); if (Math.abs(this.yaw) < 0.01) { this.yaw = 0; this.yawHome = false; } }
     const yaw = base + this.yaw;
     o.updateMatrixWorld(true);
     // המבט למטה: רגיל 0.28 (כ-16°); בבדיקה — מעט יותר אל הכרטיס, עד כ-20°, בהדרגה (רואים את הפנים ואת היד)
@@ -211,7 +217,7 @@ export class InspectorFP {
     if (b.state === 'dwell' && this.prevState === 'drive' && this.stats.checked > this.sumAt) this.summary(false);
     if (this.prevState !== b.state) this.prevState = b.state;
     this.animate(dt);
-    this.clearance(o, inv);
+    this.clearance(o, inv, dt);
     this.render();
   }
   // לבדיקות: המצלמה בתוך משהו? המרחק להולך הקרוב; כמה נקודות של היד/המכשיר חסומות (אחרי התיקון)
@@ -222,30 +228,29 @@ export class InspectorFP {
     const ringOcc = this.occ.ring(e.x, e.z, 1.5, e.y, 0.12);
     return { ringOcc, headMin: +hm.toFixed(2), camOcc: !!this.occ.has(e.x, e.y, e.z), walkerMin: +wmin.toFixed(2), readerHits: this.lastHits || 0, pull: +(this.lastPull || 0).toFixed(2), anim: this.anim ? +this.anim.t.toFixed(2) : null };
   }
-  // היד והמכשיר של הפקח לא נכנסים בשום דבר: נקודות על פני המכשיר, היד והאמה — באף אחת מהן אין גוף או אוטובוס? אם יש, מקרבים
-  // את היד אל הגוף (עד 30 ס"מ), ואם עדיין חסום — מורידים אותה מהמסך. ליד הכרטיס המושט (20 ס"מ — היד שמחזיקה אותו) לא בודקים
-  clearance(o, inv) {
-    const g = this.reader.group, c = this.g.camera, eye = o.worldToLocal(c.position.clone()), card = this.g.people.cardWorld ? o.worldToLocal(this.g.people.cardWorld.clone()) : null;
-    const base = this.readerOff || new THREE.Vector3(), dir = this.reader.rest.clone().normalize();
-    // מי שמגיש: הראש (כדור 13 ס"מ) והגו (מהאגן עד הצוואר, 16 ס"מ) — המכשיר והיד לא נכנסים בהם
+  // היד והמכשיר של הפקח לא נכנסים בשום דבר — לא באוטובוס, לא בנוסעים, וגם לא ביד של מי שמגיש את הכרטיס (המכשיר עוצר
+  // לפני הכרטיס): נקודות על פני המכשיר, כף היד והאמה (עם העובי שלה) — באף אחת מהן אין תא תפוס. אם יש, היד נסוגה אל הגוף
+  // (עד 30 ס"מ, בצעדים של 2 ס"מ), ואם עדיין חסום — יורדת בהדרגה אל מתחת למסך. התנועה רציפה, בלי קפיצות
+  clearance(o, inv, dt = 1 / 30) {
+    const g = this.reader.group, base = this.readerOff || new THREE.Vector3(), dir = this.reader.rest.clone().normalize(), q = new THREE.Vector3();
+    // מי שמגיש: גם מרווח מהראש (11 ס"מ) ומהגו (16 ס"מ)
     const hw = this.anim && this.g.people.onboardPos?.get(this.anim.pid), head = hw ? o.worldToLocal(hw.clone()) : null;
     const seg = new THREE.Line3(), cp = new THREE.Vector3();
     if (head) seg.set(head.clone().add(new THREE.Vector3(0, -0.62, 0.05)), head.clone().add(new THREE.Vector3(0, -0.18, 0)));
-    // וגם הידיים והרגליים שלו (כל תא של הנוסע הזה), חוץ מ-40 ס"מ סביב הכרטיס — שם היד שמגישה (כף היד והאמה) פוגשת את המכשיר
-    const inBody = q => { if (card && q.distanceTo(card) < 0.1) return false; if (head && (q.distanceTo(head) < 0.11 || seg.closestPointToPoint(q, true, cp).distanceTo(q) < 0.16)) return true;
-      if (card && q.distanceTo(card) < 0.45) return false; const i = this.occ.idx(q.x, q.y, q.z); return i >= 0 && this.occ.pp[i] === 2; };
-    const test = () => { g.position.copy(this.cur); g.updateMatrixWorld(true); let n = 0; const q = new THREE.Vector3();
+    const hit = q => this.occ.has(q.x, q.y, q.z) || (head && (q.distanceTo(head) < 0.11 || seg.closestPointToPoint(q, true, cp).distanceTo(q) < 0.16));
+    const test = pos => { g.position.copy(pos); g.updateMatrixWorld(true); let n = 0;
       const armP = this.reader.aimArm(), cm = g.parent.matrixWorld;
-      for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if ((this.occ.hard(q.x, q.y, q.z) && !(card && q.distanceTo(card) < 0.15)) || inBody(q)) n++; }
-      for (const p of armP.slice(0, 5)) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (card && q.distanceTo(card) < 0.15) continue; if (this.occ.hard(q.x, q.y, q.z) || inBody(q)) n++; } return n; };
-    this.cur = this.cur || new THREE.Vector3();
-    { this.cur.copy(base); g.position.copy(this.cur); g.updateMatrixWorld(true); const q = new THREE.Vector3(); let st = 0, pp = 0, bd = 0;
-      for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if (card && q.distanceTo(card) < 0.15) continue; const i = this.occ.idx(q.x, q.y, q.z); if (i >= 0 && this.occ.st[i]) { st++; if (!this.hitP) this.hitP = q.toArray().map(v => +v.toFixed(2)); } else if (i >= 0 && this.occ.pp[i] === 1) pp++; else if (inBody(q)) bd++; }
-      this.hitDbg = { st, pp, bd, at: this.hitP }; this.hitP = null; }
-    let hits = 0, pull = 0;
-    for (pull = 0; pull <= 0.3001; pull += 0.06) { this.cur.copy(base).addScaledVector(dir, -pull); hits = test(); if (!hits) break; }
-    if (hits) { this.cur.copy(base).add(new THREE.Vector3(0, -0.45, 0.1)); test(); }
-    this.lastHits = hits; this.lastPull = Math.min(pull, 0.3);
+      const why = (q, t) => { if (n === 1) { const i = this.occ.idx(q.x, q.y, q.z); this.hitDbg = `${t} st${i >= 0 ? this.occ.st[i] : -1} pp${i >= 0 ? this.occ.pp[i] : -1} @${q.toArray().map(v => v.toFixed(2))}`; } };
+      for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'dev'); } }
+      for (const p of armP) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'arm'); } } return n; };
+    this.cur = this.cur || new THREE.Vector3(); const at = pull => this.cur.copy(base).addScaledVector(dir, -pull);
+    let need = null; for (let pull = 0; pull <= 0.3001; pull += 0.02) if (!test(at(pull))) { need = pull; break; }
+    this.pullS = this.pullS || 0; this.drop = this.drop || 0;
+    if (need != null) { const back = Math.max(need, this.pullS - 0.6 * dt); this.pullS = need >= this.pullS || test(at(back)) ? need : back; }
+    this.drop = THREE.MathUtils.clamp(this.drop + (need == null ? 8 : -5) * dt, 0, 1);
+    at(this.pullS); if (this.drop > 0) this.cur.lerp(new THREE.Vector3(0, -0.5, 0), this.drop);
+    g.position.copy(this.cur); g.updateMatrixWorld(true); this.reader.aimArm();
+    this.lastHits = need == null ? 1 : 0; this.lastPull = need == null ? 0.3 : this.pullS;
   }
   // הקשה על המסך: הנוסע הקרוב ביותר לנקודה (עד REACH — צריך להתקרב)
   tap(x, y) {
@@ -265,7 +270,7 @@ export class InspectorFP {
   check(pid) {
     const p = this.bus.pax.find(q => q.id === pid); if (!p) return;
     if (p.checked) { this.reader.show(p.noTicketSeen ? '✗ נבדק — בלי כרטיס' : '✓ כבר נבדק', '', p.noTicketSeen ? 'bad' : 'ok'); return; }
-    this.anim = { pid, t: 0, done: false }; this.g.people.reach = { pid, frac: 0, card: !p.noTicket };
+    this.anim = { pid, t: 0, done: false }; this.yawHome = false; this.g.people.reach = { pid, frac: 0, card: !p.noTicket };
     // הפקח עומד במעבר מול הנוסע: ליד המעבר — בצד השני של המעבר, כ-63 ס"מ מהראש, מעט לפניו; ליד החלון או עומד ליד
     // הדלת — בצד שלו של המעבר (עד 12 ס"מ מהמרכז) וקרוב יותר לשורה, כי הוא מושיט מרחוק. ולפני הבדיקה המבט מסתובב אליו
     const hw = this.g.people.onboardPos?.get(pid);
@@ -273,28 +278,41 @@ export class InspectorFP {
       this.latTo = (far ? 1 : -1) * Math.sign(h.x) * (far ? 0.18 : 0.1);
       // ליד השורה שלו (מעט לפניו) — המבט מהמעבר אל הפנים, לא מעל המשענת שלפניו; ולא לפני מחיצת הנהג
       this.slideTo = THREE.MathUtils.clamp(this.sOfZ(Math.min(AISLE_Z1, h.z + (far ? 0.9 : 0.75))), this.sMin, this.len);   // לפני הברכיים שלו, מעל המשענת של השורה שלפניו — מבט אחורה אל הפנים
+      // עומד: הכרטיס יוצא בין העמודים שבשפת המעבר. הפקח עומד במקום הקרוב ביותר ל-60 ס"מ לפני העומד שממנו גם היד
+      // (מהכתף אל הכרטיס) וגם המבט (אל הכרטיס ואל הפנים) לא עוברים דרך עמוד או משענת, והכרטיס בהישג יד
+      const pv = this.g.people.reachPreview?.(pid);
+      if (pv) { let bz = null, bd = 9; const lx = THREE.MathUtils.clamp(this.latTo, -0.12, 0.12);
+        for (let dz = 0.25; dz <= 1.0001; dz += 0.05) { const E = new THREE.Vector3(lx, EYE, Math.min(AISLE_Z1, h.z + dz)), d = E.distanceTo(pv.card); if (d > 0.78 || d < 0.42) continue;
+          // הכתף הימנית והמכשיר במנוחה — כשהמבט אל הכרטיס (ימין = קדימה × למעלה)
+          const f = new THREE.Vector3(pv.card.x - E.x, 0, pv.card.z - E.z).normalize(), r = new THREE.Vector3(-f.z, 0, f.x);
+          const sh = E.clone().addScaledVector(r, 0.18).addScaledVector(f, -0.1).add(new THREE.Vector3(0, -0.32, 0)), rest = E.clone().addScaledVector(r, 0.09).addScaledVector(f, 0.32).add(new THREE.Vector3(0, -0.135, 0));
+          if (this.occ.tube(sh, pv.card, 0.09) || this.occ.tube(rest, pv.card, 0.09) || this.occ.tube(E, pv.card, 0.06) || (pv.head && this.occ.tube(E, pv.head, 0.06))) continue;
+          if (Math.abs(dz - 0.6) < bd) { bd = Math.abs(dz - 0.6); bz = E.z; } }
+        if (bz != null) this.slideTo = THREE.MathUtils.clamp(this.sOfZ(bz), this.sMin, this.len); }
       this.lookPid = pid; }
     this.reader.show('רב-קו · מחכה לכרטיס', '', null);
   }
   animate(dt) {
     const A = this.anim; if (!A) { this.readerOff = null; return; }
     A.t += dt; const t = A.t, R = this.g.people.reach, PL = this.g.people, c = this.g.camera;
-    // היד של הנוסע: עולה בשלושה שלבים (0–0.2 ש'), מחזיקה, ויורדת אחרי התוצאה
-    if (R) { if (A.down == null) R.frac = [0.33, 0.66, 1][Math.min(2, Math.floor(t / 0.1))]; else R.frac = [0.66, 0.33, 0][Math.min(2, Math.floor((t - A.down) / 0.08))]; }
-    // המכשיר יוצא אל הכרטיס (כשהיד למעלה), עד 80 ס"מ מהמקום שלו (יד מושטת) (יד מושטת); הגב של המכשיר עוצר 2 ס"מ לפני הכרטיס
+    // היד של הנוסע: עולה בשלושה שלבים (0–0.2 ש'), מחזיקה עד שהמכשיר חוזר, ויורדת אחרי התוצאה
+    if (R) { if (A.down == null) R.frac = [0.33, 0.66, 1][Math.min(2, Math.floor(t / 0.1))]; else R.frac = t < A.down + 0.25 ? 1 : [0.66, 0.33, 0][Math.min(2, Math.floor((t - A.down - 0.25) / 0.08))]; }   // היד יורדת רק אחרי שהמכשיר התרחק ממנה
+    // המכשיר יוצא אל הכרטיס (כשהיד למעלה), עד 80 ס"מ מהמקום שלו (יד מושטת); הגב של המכשיר עוצר 5 ס"מ לפני הכרטיס — לא נוגע באצבעות שמחזיקות אותו
     const card = PL.cardWorld, rest = this.reader.rest;
     if (!A.off) A.off = new THREE.Vector3();
-    if (card && A.down == null && t > 0.3) {
-      const cl = c.worldToLocal(card.clone()), want = cl.clone().sub(this.reader.faceRest.clone().add(new THREE.Vector3(A.side || 0, 0, 0))).addScaledVector(cl.clone().normalize(), -0.02); if (want.length() > 0.8) want.setLength(0.8); want.x = Math.max(want.x, -0.34);
+    // המכשיר יוצא רק כשהכרטיס כבר בתוך התמונה (המבט הסתובב אליו) — רואים את המכשיר מגיע אל הכרטיס
+    if (card && !A.seen) { const cl = c.worldToLocal(card.clone()); A.seen = cl.z < 0 && Math.abs(cl.x) < 0.5 * -cl.z; }
+    if (card && A.down == null && t > 0.3 && A.seen) {
+      const cl = c.worldToLocal(card.clone()), want = cl.clone().sub(this.reader.faceRest.clone().add(new THREE.Vector3(A.side || 0, 0, 0))).addScaledVector(cl.clone().normalize(), -0.05); if (want.length() > 0.8) want.setLength(0.8); want.x = Math.max(want.x, -0.34);
       A.off.lerp(want, Math.min(1, dt * 7));
     } else if (A.down != null) A.off.multiplyScalar(Math.max(0, 1 - dt * 6));
     // המכשיר מגיע מהצד שבו הכרטיס (כרטיס משמאל — המכשיר עובר לשמאל המסך), לא מעל הראש של הנוסע
     if (card) { const cl = c.worldToLocal(card.clone()); A.side = (A.side || 0) + ((cl.x < -0.02 ? -0.17 : 0) - (A.side || 0)) * Math.min(1, dt * 6); }
     this.readerOff = A.off.clone().add(new THREE.Vector3(A.side || 0, 0, 0));
-    // צפצוף רק כשהכרטיס באמת ליד המכשיר (פחות מ-8 ס"מ)
+    // צפצוף רק כשהכרטיס באמת ליד המכשיר (פחות מ-10 ס"מ, קריאה בלי מגע)
     if (!A.done && card && A.down == null) {
       const face = this.reader.face.getWorldPosition(new THREE.Vector3()), d = face.distanceTo(card);
-      if (d < 0.08) { A.done = true; const hw = PL.reachHandWorld; const hl = hw && this.obj ? this.obj.worldToLocal(hw.clone()) : null;
+      if (d < 0.1) { A.done = true; const hw = PL.reachHandWorld; const hl = hw && this.obj ? this.obj.worldToLocal(hw.clone()) : null;
         const f3 = v => v.toArray().map(x => +x.toFixed(2)), hh = PL.onboardPos?.get(A.pid);
         this.beeps.push({ pid: A.pid, t: +t.toFixed(2), cardDist: +d.toFixed(3), handAboveSeat: hl ? +(hl.y - (FLOOR + SEAT_H)).toFixed(3) : null,
           cam: f3(this.obj.worldToLocal(c.position.clone())), head: hh ? f3(this.obj.worldToLocal(hh.clone())) : null, card: f3(this.obj.worldToLocal(card.clone())) }); this.result(A.pid, true); A.down = t + 0.15; }
@@ -306,7 +324,7 @@ export class InspectorFP {
     if (!A.done && card && A.down == null && t > 1.1 && (this.lastPull || 0) > 0 && (A.tries || 0) < 2 && this.slideTo == null) {
       A.tries = (A.tries || 0) + 1; this.slideTo = THREE.MathUtils.clamp(this.s + (A.tries === 1 ? 0.18 : -0.36), 0, this.len); A.t = 0.6; }
     if (!A.done && t > 2.4) { A.done = true; A.down = t; this.reader.show('רב-קו · רחוק מדי', 'התקרבו לנוסע', 'warn'); }
-    if (A.down != null && t >= A.down + 0.3) { this.anim = null; this.g.people.reach = null; this.readerOff = null; this.latTo = 0; }
+    if (A.down != null && t >= A.down + 0.55) { this.anim = null; this.g.people.reach = null; this.readerOff = null; this.latTo = 0; this.yawHome = true; }   // והמבט חוזר קדימה
   }
   result(pid, ok) {
     const p = this.bus.pax.find(q => q.id === pid); if (!p) return;
@@ -358,7 +376,7 @@ export class InspectorFP {
     // גרירה על המסך: למעלה/למטה — הליכה, לצדדים — מבט; הקשה קצרה — בדיקה
     const cv = this.g.canvas; let d = null;
     cv.addEventListener('pointerdown', e => { if (this.bus) d = { x: e.clientX, y: e.clientY, s: this.s, yaw: this.yaw, t: performance.now() }; });
-    cv.addEventListener('pointermove', e => { if (!this.bus || !d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    cv.addEventListener('pointermove', e => { if (!this.bus || !d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (Math.abs(dx) > 8) this.yawHome = false;
       this.yaw = THREE.MathUtils.clamp(d.yaw - dx * 0.006, -1.3, 1.3); this.s = THREE.MathUtils.clamp(d.s - dy * 0.012, 0, this.len); });
     cv.addEventListener('pointerup', e => { if (!this.bus || !d) return; const moved = Math.hypot(e.clientX - d.x, e.clientY - d.y); d = null; if (moved < 8) this.tap(e.clientX, e.clientY); });
     addEventListener('keydown', e => { if (!this.bus) return; if (e.key === 'ArrowUp') this.hold = 1; else if (e.key === 'ArrowDown') this.hold = -1; else if (e.key === 'ArrowLeft') this.yaw = Math.min(1.3, this.yaw + 0.2); else if (e.key === 'ArrowRight') this.yaw = Math.max(-1.3, this.yaw - 0.2); });
@@ -404,7 +422,11 @@ function buildReader() {
     fore.position.copy(w).addScaledVector(d, fl / 2); fore.quaternion.copy(q); fore.scale.set(1, fl, 1);
     sleeve.position.copy(w).addScaledVector(d, fl + 0.05); sleeve.quaternion.copy(q); sleeve.scale.set(1, 0.1, 1);
     { const sp = sleeve.position.clone().add(group.position); sleeve.visible = sp.length() > 0.35 && sp.y < -0.22; }   // השרוול רק בתחתית התמונה — לא גליל ענק כשהיד מורמת
-    const out = []; for (let k = 0; k <= 6; k++) out.push(w.clone().addScaledVector(d, (Math.min(0.3, L) + 0.1) * k / 6).add(group.position)); return out; };
+    // נקודות לבדיקת החסימה: לאורך האמה מפרק היד (עד 45 ס"מ, ובלי 20 הס"מ שליד הכתף — שם הגוף של הפקח עצמו), כל 3 ס"מ — הציר וארבע נקודות על ההיקף
+    const out = [], e1 = new THREE.Vector3().crossVectors(d, up).normalize(), e2 = new THREE.Vector3().crossVectors(d, e1), al = Math.max(0.1, Math.min(0.45, L - 0.2)), n = Math.ceil(al / 0.03);
+    for (let k = 0; k <= n; k++) { const c = w.clone().addScaledVector(d, al * k / n).add(group.position); out.push(c);
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) out.push(c.clone().addScaledVector(e1, a * 0.028).addScaledVector(e2, b * 0.028)); }
+    return out; };
   for (const m of group.children) m.renderOrder = 10;
   group.traverse(m => { if (m.isMesh) { m.frustumCulled = false; m.renderOrder = 10; } });
   const show = (a, b, kind) => {
@@ -413,7 +435,7 @@ function buildReader() {
     x.font = '500 22px Heebo, Arial'; x.fillStyle = '#e2e8f0'; x.fillText(b || '', 128, 128); tex.needsUpdate = true;
   };
   // לבדיקת החסימה: הפינות של כל חלק (מכשיר, כף יד, אצבעות, אמה), ונקודת הפנים של המכשיר (לצפצוף)
-  const face = new THREE.Object3D(); face.position.set(0, 0.01, -D / 2); dev.add(face);   // הגב של המכשיר — הצד שנוגע בכרטיס
+  const face = new THREE.Object3D(); face.position.set(0, H / 2 - 0.012, -D / 2); dev.add(face);   // הקצה העליון של גב המכשיר (מעל כף היד שמחזיקה אותו) — הצד שמתקרב לכרטיס
   group.updateMatrixWorld(true); const pts = [], q = new THREE.Vector3();
   dev.traverse(m => { if (!m.isMesh) return; const P = m.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 40));
     for (let i = 0; i < P.count; i += st) pts.push(q.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld).clone()); });
