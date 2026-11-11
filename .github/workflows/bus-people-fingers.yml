@@ -1,5 +1,5 @@
 name: bus-people-fingers
-# ניסיון (שלב 1): אדם אחד עם פרקי אצבעות. anim.py + fingers_rig.py מכאן, person_variants.py מהענף claude/bus-game,
+# ניסיון (שלב 1), 11.11: אדם אחד עם פרקי אצבעות. anim.py + fingers_rig.py מכאן, person_variants.py מהענף claude/bus-game,
 # הייצוא — tools/blender-test/fingers/export_person.py (עותק של זה שבמשחק, עם שמירה על כפות הידיים בהקטנה).
 # הפלט נשמר בענף הזה, ב-tools/blender-test/out_fingers.
 on:
