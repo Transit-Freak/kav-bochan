@@ -471,6 +471,8 @@ body.role-inspector #money,body.role-inspector #modeBadge{display:none}
 .ifp-decide{position:absolute;inset-inline:14px;bottom:calc(150px + env(safe-area-inset-bottom));pointer-events:auto;background:#fff;border-radius:16px;padding:12px;
   display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 30px rgba(0,0,0,.35);max-width:420px;margin-inline:auto}
 .ifp-decide[hidden]{display:none}
+.ifp-mark{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font:800 17px/1 Arial,sans-serif;font-style:normal;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff;box-sizing:border-box;pointer-events:none}
+.ifp-mark.ok{background:#16a34a}.ifp-mark.bad{background:#dc2626}.ifp-mark[hidden]{display:none}
 .ifp-decide b{color:#b91c1c;font-size:16px}
 .ifp-decide span{font-size:15px;font-weight:700}
 .ifp-decide span.repeat{color:#b45309}
