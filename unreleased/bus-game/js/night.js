@@ -13,7 +13,7 @@ export class NightFast {
   }
   // אין מה לראות: יש קווים עם רכבים, אף אחד מהם לא בשעות הפעילות, ואין אוטובוס בדרך
   quiet() {
-    const L = this.lines().filter(l => l.def.fleet > 0);
+    const L = this.lines().filter(l => this.sim.inService ? this.sim.inService(l) : l.def.fleet > 0);
     if (!L.length) return false;
     if (L.some(l => inHours(l.def, this.sim.time))) return false;
     return !this.sim.lines.some(l => l.buses.some(b => b.state === 'drive' || b.state === 'dwell'));

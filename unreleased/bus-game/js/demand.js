@@ -246,13 +246,14 @@ export class Network {
   // תדירות "מורגשת" (דק'): המתוכננת, או מה שהצי מאפשר, או מה שקורה בפועל — הגרוע מביניהם
   hwOf(L) {
     const d = L.def, cyc = lineCycle(L).total / 60;
-    let hw = Math.max(d.headway, d.fleet ? cyc / d.fleet : Infinity);
+    // לפי הסידור (sched.js): הנסיעות שלא בוטלו סביב השעה הזו. בלי סידור — לפי מספר הרכבים של הקו
+    let hw = this.sim.roster?.managed(L) ? Math.max(d.headway * 0.5, this.sim.roster.hwOf(L, this.sim.time)) : Math.max(d.headway, d.fleet ? cyc / d.fleet : Infinity);
     const real = this.sim.realHeadway(L);
     if (real != null) hw = Math.max(hw, Math.min(real / 60, hw * 3));
     return Math.min(hw, 120);
   }
   active(at) {      // at: זמן (שנ'), או null = כל הקווים שיש להם רכבים, בלי קשר לשעות
-    return this.sim.lines.filter(L => !L.retired && L.def.fleet > 0 && (at == null || inHours(L.def, at)));
+    return this.sim.lines.filter(L => this.sim.inService(L) && (at == null || inHours(L.def, at)));
   }
   table(at = null) {
     const act = this.active(at), key = act.map(L => L.id).join(',') || '-';

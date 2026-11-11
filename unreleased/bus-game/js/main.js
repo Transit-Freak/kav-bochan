@@ -22,6 +22,7 @@ import { InspectorFP } from './inspfp.js';
 import { Residents } from './residents.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
 import { NightFast, FAST } from './night.js';
+import { Scheduler, DRIVER_HIRE, DRIVER_WAGE, SIZE, MAX_DRIVE, MAX_SHIFT, BREAK } from './sched.js';
 import { mapTouch } from './touch.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
 import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass, ZTYPES, symSvg, statusSvg } from './demandview.js';
@@ -96,6 +97,9 @@ async function init() {
   demand = new Demand(dj, city.stops);
   residents = makeResidents();
   sim = new Sim(city.stops, bank, t0, demand); sim.residents = residents;
+  // סידור רכבים ונהגים לכל הקווים יחד (sched.js). נסיעה ריקה בין מסופים — לפי אורך הדרך ברשת
+  sim.roster = new Scheduler(sim);
+  sim.roster.routeLen = (a, b) => { const r = graph.route(a, b); if (!r) return null; let s = 0; for (let i = 1; i < r.length; i++) s += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]); return s; };
   dlayer = new DemandLayer(scene, demand.zones, city.stops, city.buildings, city.meta.half); dlayer.resize(innerWidth, innerHeight);
   dlayer.obstacles = () => ['.bar', '#dLegend', '#dlFocus', '#panel'].map(q => $(q)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.width);
   buildStops();
@@ -118,6 +122,9 @@ async function init() {
     if (L && d.fleet == null) { d.vtype = 'std'; d.fleet = vehiclesNeeded(L); gift += d.fleet; }
   }
   if (gift || hrs) saveLines(lineDefs);
+  // שמירה מלפני המאגר המשותף והנהגים: הרכבים של כל קו נכנסים למאגר (הם כבר נספרים לפי סוג), והנהגים שהקווים צריכים נרשמים
+  sim.roster.ensure();
+  if (bank.driversMigrated) { const n = bank.driversMigrated; bank.driversMigrated = 0; bank.save(t0); if (n) setTimeout(() => toast(`הרכבים של כל הקווים עברו למאגר משותף, ו-${n} הנהגים שלכם נרשמו בסידור (לשונית "סדרן")`), 900); }
   if (bank.wasHard) { bank.wasHard = false; bank.save(t0); setTimeout(() => toast(HARD_GONE), 700); }
   if (bank.migrated) setTimeout(() => toast(`המחירים השתנו: רכבים זולים יותר, ויש סבסוד לכל ק"מ. הקופה הותאמה: ${money(bank.money)}`), 600);
   else if (gift) setTimeout(() => toast(`הקווים שכבר בניתם קיבלו ${gift} אוטובוסים רגילים במתנה`), 600);
@@ -145,7 +152,7 @@ async function init() {
   cloud.resume().then(on => { if (on) cloudStart(); });
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden && !wiping) bank.save(sim.time); else refreshGraphics('visible'); });
-  Object.assign(G, { city, graph, sim, bank, people, buses, residents: () => residents, paxCardAt: (x, y) => paxCardAt(x, y), fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES,
+  Object.assign(G, { city, graph, sim, bank, people, buses, residents: () => residents, paxCardAt: (x, y) => paxCardAt(x, y), fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES, sched: () => sim.roster, hireDrivers, setDispView: v => { dispView = v; renderDispatch(true); },
     night, demand, dlayer, net: sim.net, editRoute, routeAction, saveRoute: () => finishPlanning(), cancelPlanning, setDemandView, renderDemand, showTab, planning: () => planning });
   $('#loading').classList.add('gone');
   G.ready = true;
@@ -485,11 +492,11 @@ function renderForm() {
   parts.push(`בקופה אחרי: <b class="${after < 0 ? 'bad' : ''}">${money(after)}</b>`);
   const err = !blocked ? '' : buy > 0 ? `<div class="bad">אין מספיק כסף. הורידו רכבים${modeOf(bank).lease ? ', בחרו רכב זול יותר או ליסינג' : ' או בחרו רכב זול יותר'}.</div>`
     : `<div class="bad">החברה בחובות — אי אפשר לקחת עוד רכבים.</div>`;
-  const zero = form.n === 0 ? `<div class="bad">בלי רכבים הקו לא יפעל.</div>` : '';
+  const zero = form.n === 0 ? `<div class="bad">בלי רכבים משלו הקו יפעל רק אם יש רכבים פנויים במאגר.</div>` : '';
   const [ha, hb] = formHours(), badH = hb <= ha;
   const hrs = badH ? `<div class="bad">שעת הסיום צריכה להיות אחרי שעת ההתחלה.</div>` : '';
   $('#fCost').innerHTML = `<div>${parts.join(' · ')}</div>
-    <div class="fsub">סיבוב (הלוך, חזרה ריקה והפסקה) בערך ${cyc} דק'. ${T.cap * form.n ? `נסיעה: ₪${T.km} לק"מ ו-₪${T.hour} לשעת נהג. סבסוד: ₪${+subsidyKm(bank).toFixed(1)} לכל ק"מ בקו.` : ''}</div>${err}${zero}${hrs}`;
+    <div class="fsub">הרכבים נכנסים למאגר המשותף, והסידור משבץ אותם גם בקווים אחרים. סיבוב (הלוך, חזרה ריקה והפסקה) בערך ${cyc} דק'. ${T.cap * form.n ? `נסיעה: ₪${T.km} לק"מ ו-₪${T.hour} לשעת נהג. סבסוד: ₪${+subsidyKm(bank).toFixed(1)} לכל ק"מ בקו.` : ''}</div>${err}${zero}${hrs}`;
   $('#fSave').disabled = $('#fRev').disabled = blocked || badH;
 }
 // עריכת קו קיים: תדירות, סוג רכב וכמה רכבים (המסלול נשאר)
@@ -585,7 +592,7 @@ function saveLineFromForm(o = {}) {
       L.nextDispatch = last != null ? Math.max(sim.time, Math.min(L.nextDispatch, last + hw * 60)) : sim.time;
     }
     form = null; $('#lineForm').hidden = true;
-    saveLines(lineDefs); bank.save(sim.time);
+    saveLines(lineDefs); autoHire(); bank.save(sim.time);
     renderLines(); renderMoney();
     toast(`קו ${d.number}: ${d.fleet} × ${TYPES[d.vtype].name}${d.lease ? ' בליסינג' : ''}, כל ${d.headway} דק', ${span(hours[0], hours[1])}`);
     return L;
@@ -598,8 +605,9 @@ function saveLineFromForm(o = {}) {
   cancelPlanning();
   lineDefs.push(def); saveLines(lineDefs); bank.save(sim.time);
   const L = addLine(def, true);
+  autoHire(); bank.save(sim.time);
   selectedLine = L; renderLines(); renderMoney(); showTab('lines'); openPanel();
-  toast(def.fleet ? `קו ${def.number} יצא לדרך — ${def.fleet} × ${TYPES[def.vtype].name}${def.lease ? ' בליסינג' : ''}, כל ${def.headway} דק'` : `קו ${def.number} נשמר בלי רכבים — הוסיפו רכבים כדי שיפעל`);
+  toast(!def.fleet && sim.roster.serves(L) ? `קו ${def.number} יצא לדרך ברכבים פנויים מהמאגר המשותף, כל ${def.headway} דק'` : def.fleet ? `קו ${def.number} יצא לדרך — ${def.fleet} × ${TYPES[def.vtype].name}${def.lease ? ' בליסינג' : ''}, כל ${def.headway} דק'` : `קו ${def.number} נשמר בלי רכבים — הוסיפו רכבים כדי שיפעל`);
   return L;
 }
 
@@ -620,7 +628,7 @@ function removeLine(L, refund = true) {
   for (const K of sim.lines) if (K.retired && sim.current(K) === L) K.buses = [];
   scene.remove(lineGroups.get(L.id)); lineGroups.delete(L.id);
   lineDefs = lineDefs.filter(d => d.id !== L.id); saveLines(lineDefs);
-  L.buses = [];
+  L.buses = []; sim.roster.dirty = true;
   if (selectedLine === L) selectedLine = null;
   renderLines(); renderMoney();
 }
@@ -818,11 +826,13 @@ function updateStats() {
     set('sat', L.stats.satN ? Math.round(L.stats.satSum / L.stats.satN) : '—');
     const need = vehiclesNeeded(L), n = L.def.fleet || 0, onRoad = L.buses.filter(b => b.state === 'drive' || b.state === 'dwell').length;
     const free = Math.max(0, n - onRoad - L.returning.length);
-    set('need', `בדרך: ${onRoad} · חוזרים: ${L.returning.length} · במסוף: ${free}${n < need ? ` · <span class="bad">צריך ${need}</span>` : ''}`, true);
+    const cx = sim.roster.managed(L) ? (sim.roster.plan?.byLine.get(L.id) || []).filter(x => x.cancel).length : 0;
+    if (sim.roster.managed(L)) set('need', `בדרך: ${onRoad} · מהמאגר המשותף${cx ? ` · <span class="bad">${cx} נסיעות בוטלו היום</span>` : ''}`, true);
+    else set('need', `בדרך: ${onRoad} · חוזרים: ${L.returning.length} · במסוף: ${free}${n < need ? ` · <span class="bad">צריך ${need}</span>` : ''}`, true);
     const hw = L.def.headway, real = sim.realHeadway(L), [ha, hb] = hoursOf(L.def);
     const hrs = `<span class="lmeta">${span(ha, hb)}</span>${L.off ? ' <span class="offnow">לא פועל עכשיו</span>' : ''}<br>`;
     let t;
-    if (!n) t = `<span class="bad">אין רכבים — הקו לא פועל</span>`;
+    if (!sim.inService(L)) t = `<span class="bad">${n ? 'אין רכב או נהג — הקו לא פועל' : 'אין רכבים — הקו לא פועל'}</span>`;
     else if (real == null) t = `מתוכנן כל ${hw} דק'`;
     else {
       const bad = real > hw * 60 * 1.2;
@@ -845,7 +855,7 @@ function updateMoneyChip() {
   e.classList.toggle('neg', bank.money < 0);
 }
 function dayRows(d) {
-  const net = Bank.net(d), op = net + d.buy - d.sell;
+  const net = Bank.net(d), op = net + d.buy + (d.hire || 0) - d.sell;
   return `<table class="ledger">
     <tr><td>כרטיסים <span class="lmeta">${num(d.pax)} נוסעים × ₪${FARE}</span></td><td class="good">+${money(d.fares)}</td></tr>
     <tr><td>סבסוד ממשלתי לק"מ <span class="lmeta">₪${+subsidyKm(bank).toFixed(1)} לק"מ בקו</span></td><td class="good">+${money(d.subsidy || 0)}</td></tr>
@@ -857,8 +867,9 @@ function dayRows(d) {
     ${d.evaded ? `<tr><td class="lmeta">נסעו בלי לשלם (הכנסה שלא נכנסה)</td><td class="lmeta">${money(d.evaded)}</td></tr>` : ''}
     ${d.bonus ? `<tr><td>מענקים ובונוסים</td><td class="good">+${money(d.bonus)}</td></tr>` : ''}
     ${d.penalty ? `<tr><td>קנסות מהמשרד ורכב חלופי</td><td>−${money(d.penalty)}</td></tr>` : ''}
-    ${d.buy || d.sell ? `<tr class="sub"><td>רווח מהקווים</td><td class="${op < 0 ? 'bad' : 'good'}">${op < 0 ? '−' : '+'}${money(Math.abs(op))}</td></tr>` : ''}
+    ${d.buy || d.sell || d.hire ? `<tr class="sub"><td>רווח מהקווים</td><td class="${op < 0 ? 'bad' : 'good'}">${op < 0 ? '−' : '+'}${money(Math.abs(op))}</td></tr>` : ''}
     ${d.buy ? `<tr><td>קניית רכבים</td><td>−${money(d.buy)}</td></tr>` : ''}
+    ${d.hire ? `<tr><td>גיוס נהגים</td><td>−${money(d.hire)}</td></tr>` : ''}
     ${d.sell ? `<tr><td>מכירת רכבים</td><td class="good">+${money(d.sell)}</td></tr>` : ''}
     <tr class="tot"><td>סה"כ</td><td class="${net < 0 ? 'bad' : 'good'}">${net < 0 ? '−' : '+'}${money(Math.abs(net))}</td></tr>
   </table>`;
@@ -896,7 +907,7 @@ function renderMoney() {
   body.dataset.html = html; body.innerHTML = html;
 }
 // ---------- מצבי משחק, שלבים וכיסוי (career.js)
-function activeLines() { return lines.filter(L => !L.retired && L.def.fleet > 0); }
+function activeLines() { return lines.filter(L => sim.inService(L)); }
 function servedStops() { const set = new Set(); for (const L of activeLines()) for (const s of L.stops) set.add(stopIndex(s)); return set; }
 function setCoverView(on) {
   covLayer.visible = on; $('#coverBtn')?.classList.toggle('on', on);
@@ -1184,11 +1195,12 @@ function renderInsp() {
 // ---------- סדרן: כל קו כרצועה — תחנות כקווים קטנים, אוטובוסים כנקודות לפי האיחור; צפיפות ופערים מסומנים.
 // הקשה על אוטובוס בוחרת אותו: החזקה בתחנה, ישר למסוף, רכב חלופי (בתקלה). לכל קו: "אוטובוס נוסף"
 let dispSel = null, dispT = 0;
-const ICON = { break: '⚠', late: '⏱', jam: '🚦', report: '📋', fixed: '✓', hold: '⏸', express: '⏩', reserve: '🚌' };
+const ICON = { cancel: '✕', break: '⚠', late: '⏱', jam: '🚦', report: '📋', fixed: '✓', hold: '⏸', express: '⏩', reserve: '🚌' };
 function renderDispatch(force) {
   if (!$('[data-pane="dispatch"]')?.classList.contains('on')) return;
   const now = performance.now(); if (!force && now - dispT < 900) return; dispT = now;
-  const act = lines.filter(L => !L.retired && L.def.fleet > 0);
+  if (dispView === 'sched') { renderSched(); return; }
+  const act = lines.filter(L => sim.inService(L));
   const W = 360, X0 = 12, X1 = W - 12;
   const strips = act.map(L => {
     const len = L.poly.length, x = s => X1 - (X1 - X0) * s / len;          // מימין לשמאל, כמו הקריאה
@@ -1220,12 +1232,80 @@ function renderDispatch(force) {
       <svg viewBox="0 0 ${W} 44" class="dstrip"><line class="track" x1="${X0}" x2="${X1}" y1="22" y2="22"/>${jams}${bands}${ticks}${dots}</svg>${info}</div>`;
   }).join('');
   const log = sim.ops.log.slice(0, 12).map(e => `<li><span class="lmeta">${clockText(e.t)}</span> ${ICON[e.type] || '•'} ${e.line ? `<span class="num sm" style="background:${e.color}">${esc(e.line)}</span> ` : ''}${esc(e.txt)}</li>`).join('');
-  const html = `${act.length ? strips : '<p class="hint">אין קווים פעילים.</p>'}
+  const html = `${dispSwitch()}${act.length ? strips : '<p class="hint">אין קווים פעילים.</p>'}
     <div class="dkey"><span><i style="background:#1baf7a"></i>בזמן</span><span><i style="background:#eda100"></i>איחור 2–5 דק'</span><span><i style="background:#d03b3b"></i>איחור / תקלה</span><span><i class="kb"></i>צפיפות</span><span><i class="kg"></i>פער</span><span><i class="kj"></i>פקק</span></div>
     <h4>יומן אירועים</h4>${log ? `<ul class="dlog">${log}</ul>` : `<p class="hint">${modeOf(bank).toggles && bank.settings.incidents === false ? 'האירועים כבויים (הגדרות בלשונית "קופה").' : 'עוד אין אירועים.'}</p>`}`;
   const box = $('#dispBody'); if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
 }
+// ---------- סידור רכבים ונהגים (sched.js): סיכום, וגאנט לכל רכב ולכל נהג. הזמן מימין לשמאל, כמו הרצועות של הסדרן
+let dispView = 'live';
+const SHORT = { mini: 'מיניבוס', std: 'רגיל', artic: 'מפרקי', elec: 'חשמלי' };
+const dispSwitch = () => `<div class="dsw" role="tablist"><button type="button" data-dv="live" class="${dispView === 'live' ? 'on' : ''}">מצב הקווים</button><button type="button" data-dv="sched" class="${dispView === 'sched' ? 'on' : ''}">סידור רכבים ונהגים</button></div>`;
+// נהגים חסרים (קו חדש או שינוי): מגייסים אותם יחד עם השמירה, בדמי גיוס
+function autoHire() {
+  const S = sim.roster; S.dirty = true; S.ensure();
+  const need = S.plan?.ideal.drvPool || 0, have = bank.drivers || 0;
+  if (need > have) hireDrivers(need - have, true);
+}
+function hireDrivers(n, auto) {
+  const S = sim.roster, have = bank.drivers || 0;
+  if (n < 0) { bank.drivers = Math.max(0, have + n); S.dirty = true; toast(`נהג שוחרר. נשארו ${bank.drivers} נהגים`); bank.save(sim.time); return; }
+  if (!n) { n = Math.max(0, (S.plan?.ideal.drvPool || 0) - have); if (!n) { toast('יש מספיק נהגים לסידור של היום'); return; } }
+  const cost = n * DRIVER_HIRE;
+  if (!career.creative && bank.money - cost < 0) { toast(auto ? `אין כסף לגייס ${n} נהגים — חלק מהנסיעות יבוטלו (לשונית "סדרן")` : 'אין מספיק כסף לגיוס'); return; }
+  bank.spend('hire', cost); bank.drivers = have + n; S.dirty = true; bank.save(sim.time);
+  toast(`גויסו ${n} נהגים (${money(cost)}). יש ${bank.drivers} נהגים`);
+  renderMoney();
+}
+function renderSched() {
+  const S = sim.roster; S.ensure();
+  const P = S.plan, c = S.stats(), box = $('#dispBody');
+  if (!P || !P.trips.length) { const html = `${dispSwitch()}<p class="hint">אין עדיין נסיעות לסדר. קווים עם רכבים יופיעו כאן.</p>`; if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; } return; }
+  const byId = new Map(lines.map(L => [L.id, L]));
+  const t0 = Math.floor(Math.min(...P.trips.map(x => x.dep)) / 3600) * 3600, t1 = Math.ceil(Math.max(...P.trips.map(x => x.arr)) / 3600) * 3600, span_ = Math.max(3600, t1 - t0);
+  const pos = t => ((t - t0) / span_ * 100).toFixed(2);
+  const w = (a, b) => Math.max(0.5, (b - a) / span_ * 100).toFixed(2);
+  const step = span_ > 12 * 3600 ? 3 : 2, ticks = [];
+  for (let t = t0; t <= t1; t += 3600 * step) ticks.push(`<span style="right:${pos(t)}%">${clockText(t).slice(0, 2)}</span>`);
+  const now = sim.time >= t0 && sim.time <= t1 ? `<i class="gnow" style="right:${pos(sim.time)}%"></i>` : '';
+  const blk = x => { const L = byId.get(x.lid) || x.L, st = x.cancel ? ' gx' : x.status === 'done' || x.status === 'run' ? '' : ' gp';
+    return `<b class="gb${st}${x.up ? ' gup' : ''}" style="right:${pos(x.dep)}%;width:${w(x.dep, x.arr)}%;background:${L.color}" title="קו ${esc(L.def.number)} ${clockText(x.dep)}–${clockText(x.arr)}${x.up ? ' · רכב גדול יותר' : ''}">${x.up ? '↑' : x.swap ? '⇄' : ''}</b>`; };
+  const typeRank = t => SIZE[t] * 10 + TYPE_ORDER.indexOf(t);
+  const vRows = [...P.vehicles].sort((a, b) => typeRank(a.type) - typeRank(b.type) || a.n - b.n).map(v => {
+    const live = v.bus ? ' · בדרך' : '';
+    return `<div class="grow"><span class="glab">${SHORT[v.type]} ${v.n}<small>${v.trips.length} נסיעות${live}</small></span><span class="gtrk">${now}${v.trips.map(blk).join('')}</span></div>`; }).join('');
+  const me = shift?.on && shift.duty ? shift.duty.id : null;
+  const aud = new Map(S.constructor.audit(P).map(a => [a.id, a]));
+  const dRows = P.drivers.map(d => { const a = aud.get(d.id), h = a ? (a.shift / 3600).toFixed(1) : '0', mc = a ? (a.maxCont / 3600).toFixed(1) : '0';
+    return `<div class="grow${me === d.id ? ' gme' : ''}"><span class="glab">נהג ${d.id}${me === d.id ? ' (אתם)' : ''}<small>${h} ש' · רצוף ${mc}</small></span><span class="gtrk">${now}<em class="gsh" style="right:${pos(d.start)}%;width:${w(d.start, d.end)}%"></em>${d.trips.map(blk).join('')}</span></div>`; }).join('');
+  const cx = P.trips.filter(x => x.cancel);
+  const cRow = cx.length ? `<div class="grow"><span class="glab">בוטלו<small>${cx.length} נסיעות</small></span><span class="gtrk">${now}${cx.map(blk).join('')}</span></div>` : '';
+  const types = TYPE_ORDER.filter(t => P.pool[t] || P.used[t] || P.ideal.veh[t]).map(t => `${TYPES[t].name}: ${P.used[t]} בשימוש מתוך ${P.pool[t]}${P.ideal.veh[t] > P.pool[t] ? ` <span class="bad">(צריך ${P.ideal.veh[t]})</span>` : ''}`).join(' · ');
+  const why = Object.entries(c.why).map(([r, n]) => `${r}: ${n}`).join(' · ');
+  // אזהרה: הביקוש בשעת השיא גדול מהמקומות בסוג הרכב של הקו (הסידור לא מחליף לרכב גדול לבד)
+  const warn = lines.filter(L => S.managed(L)).map(L => {
+    const a = P.byLine.get(L.id) || []; let worst = null;
+    for (let h = 0; h < 24; h++) { const want = L.stats.hWant[h]; if (want < 15) continue; const cap = a.filter(x => !x.cancel && Math.floor((x.dep % 86400) / 3600) === h).length * TYPES[typeOf(L.def)].cap; if (want > cap && (!worst || want - cap > worst.d)) worst = { h, want, cap, d: want - cap }; }
+    return worst ? `<li><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span> בשעה ${String(worst.h).padStart(2, '0')}:00 רצו לעלות ${num(worst.want)} ויש מקום ל-${num(worst.cap)} ב${TYPES[typeOf(L.def)].name}. כדאי רכב גדול יותר או תדירות גבוהה יותר</li>` : '';
+  }).join('');
+  const html = `${dispSwitch()}
+    <div class="sgrid">
+      <div class="scell"><b>${c.vehUsed}</b><span>רכבים בסידור · ${c.owned} בצי</span><small>צריך ${c.vehNeed} לכל הנסיעות · בלי שיתוף בין קווים: ${c.alone}</small></div>
+      <div class="scell"><b>${c.drvUsed}</b><span>נהגים בסידור · ${c.hired === Infinity ? '—' : c.hired} מגויסים</span><small>צריך ${P.ideal.drvPool} לרכבים שיש</small></div>
+      <div class="scell${c.cancel ? ' sbad' : ''}"><b>${c.cancel}</b><span>נסיעות בוטלו היום · מתוך ${c.trips}</span><small>${why || 'אין ביטולים'}</small></div>
+    </div>
+    <p class="lmeta">${types}${c.up ? ` · ${c.up} נסיעות ברכב גדול מהקו (↑)` : ''}</p>
+    <div class="dbtns"><button data-hire="1">גיוס נהג (${money(DRIVER_HIRE)})</button><button data-hire="-1" ${bank.drivers ? '' : 'disabled'}>שחרור נהג</button>${P.ideal.drvPool > (bank.drivers || 0) ? `<button class="primary" data-hire="0">גיוס החסרים (${P.ideal.drvPool - (bank.drivers || 0)})</button>` : ''}</div>
+    ${warn ? `<ul class="dlist swarn">${warn}</ul>` : ''}
+    <div class="glegend">${lines.filter(L => S.managed(L) && P.byLine.has(L.id)).map(L => `<span><i style="background:${L.color}"></i>${esc(L.def.number)}${L.def.real ? ` אל ${esc(L.def.real.dest)}` : ''}</span>`).join('')}${P.trips.some(x => x.up && !x.cancel) ? '<span><i class="gupk">↑</i>רכב גדול מהקו</span>' : ''}<span><i class="gxk"></i>בוטלה</span></div>
+    <h4>רכבים</h4><div class="gantt"><div class="gax">${ticks.join('')}</div>${vRows || '<p class="hint">אין רכבים בסידור.</p>'}${cRow}</div>
+    <h4>נהגים</h4><div class="gantt"><div class="gax">${ticks.join('')}</div>${dRows || '<p class="hint">אין נהגים בסידור.</p>'}</div>
+    <p class="hint">נהג נוהג עד ${MAX_DRIVE / 3600} שעות ברצף ואז הפסקה של ${BREAK / 60} דק' לפחות (או החלפה במסוף), ומשמרת עד ${MAX_SHIFT / 3600} שעות. רכב שמסיים נסיעה לוקח את הנסיעה הבאה מאותו מסוף או ממסוף קרוב, גם בקו אחר. ↑ — רכב גדול מהסוג של הקו (רק כשזה חוסך רכב או מונע ביטול). ⇄ — חשמלי במקום רגיל או להפך. שכר נהג ₪${DRIVER_WAGE} לכל שעה במשמרת (גם הפסקות והמתנה), וגיוס עולה ${money(DRIVER_HIRE)} לנהג.</p>`;
+  if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
+}
 function dispatchAction(e) {
+  const sw = e.target.closest('[data-dv]'); if (sw) { dispView = sw.dataset.dv; renderDispatch(true); return; }
+  const hb = e.target.closest('[data-hire]'); if (hb) { hireDrivers(+hb.dataset.hire); renderDispatch(true); return; }
   const g = e.target.closest('[data-bus]'); if (g) { dispSel = dispSel === +g.dataset.bus ? null : +g.dataset.bus; renderDispatch(true); return; }
   const a = e.target.closest('[data-act]'); if (!a) return;
   const L = lines.find(x => x.id === a.dataset.l), b = L?.buses.find(x => x.id === +a.dataset.b);
@@ -1265,7 +1345,7 @@ function applySave(sl) {
   sim.time = sl.time; sim.resetStops(); sim.resetToday(); sim.pending = [];
   const nb = new Bank(sl.bank, sl.time); bank.money = nb.money; bank.today = nb.today; bank.history = nb.history;
   bank.mode = nb.mode; applyPrices(nb.mode); bank.career = nb.career || (MODES[nb.mode].stages ? newCareer() : null);
-  bank.inspectors = nb.inspectors; bank.reports = nb.reports; bank.settings = nb.settings; bank.role = nb.role; renderOps();
+  bank.inspectors = nb.inspectors; bank.drivers = nb.drivers; sim.roster.plan = null; sim.roster.dirty = true; bank.reports = nb.reports; bank.settings = nb.settings; bank.role = nb.role; renderOps();
   bank.resSeed = nb.resSeed; bank.cityNews = nb.cityNews; bank.warnings = nb.warnings; bank.inspHist = nb.inspHist; resetResidents(false);
   if (nb.wasHard) setTimeout(() => toast(HARD_GONE), 3400);          // אחרי ההודעה על הטעינה
   if (MODES[nb.mode].stages && !nb.career) { career.payStops(sl.lines.flatMap(d => d.stopIds)); }
@@ -1458,6 +1538,7 @@ function resetGame(saved, mode = bank.mode) {
   sim.time = 6.5 * 3600; sim.resetStops(); sim.resetToday(); sim.pending = []; bank.cityNews = [];
   mode = normMode(mode);
   bank.reset(sim.time, mode, MODES[mode].stages ? newCareer() : null); resetResidents(true);
+  sim.roster.plan = null; sim.roster.dirty = true;
   sim.ops.log.length = 0; sim.ops.jams.length = 0; renderOps(); applyModeUI();
   covLayer && drawCover(); renderMissions();
   bank.save(sim.time); renderMoney(); renderSlots(); showTab('lines');
@@ -1530,7 +1611,8 @@ function lineChart(L) {
   const cap = [], board = [], on = [];
   for (let h = 0; h < 24; h++) {
     on.push(inHours(L.def, h * 3600 + 1800));
-    cap.push(h < H ? st.hCap[h] : on[h] ? perH * T.cap : 0);      // שעות שעברו — מה שיצא בפועל; מעכשיו — לפי התכנון
+    const P = sim.roster.plan, pt = sim.roster.managed(L) && P ? P.byLine.get(L.id)?.filter(x => !x.cancel && Math.floor((x.dep % 86400) / 3600) === h).reduce((a, x) => a + TYPES[x.veh?.type || typeOf(L.def)].cap, 0) || 0 : null;
+    cap.push(h < H ? st.hCap[h] : pt != null ? pt : on[h] ? perH * T.cap : 0);      // שעות שעברו — מה שיצא בפועל; מעכשיו — לפי התכנון
     board.push(h <= H ? st.hBoard[h] : 0);
   }
   const max = Math.max(10, ...want, ...board) * 1.15;

@@ -17,8 +17,21 @@ export class DriverShift {
   pair(L) { return this.g.lines().find(K => K !== L && K.def.real && K.def.number === L.def.number && K.def.real.dir !== L.def.real.dir) || L; }
   // היציאה הבאה של קו L מהמסוף, לא לפני t (לפי התדירות של כל שעה — כמו ה-sim)
   nextDep(L, t) { let d = L.nextDispatch; const hw = () => (L.def.headway || 20) * 60; while (d < t) d += hw(); return d; }
+  // הסידור: משמרת אמיתית מתוך סידור הנהגים של כל הקווים (sched.js) — הנסיעות הבאות של נהג שעובד בקו הזה,
+  // גם אם הן בקווים אחרים. בלי סידור (או שאין נהג לקו) — ארבע נסיעות לסירוגין בשני הכיוונים, כמו קודם
   plan(L) {
     const sim = this.g.sim, trips = [];
+    const S = sim.roster, d = S?.managed(L) ? S.dutyFor(L, sim.time + 60, this.pair(L)) : null;
+    if (d) {
+      const cur = id => this.g.lines().find(K => K.id === id && !K.retired);
+      for (const x of d.trips.slice(0, TRIPS)) { const K = cur(x.lid); if (K) trips.push({ L: K, dep: x.dep, arr: x.arr, key: x.key, up: x.up, vt: x.veh?.type, veh: x.veh ? x.veh.n : null, bus: null, actual: null }); }
+      if (trips.length) {
+        this.trips = trips; this.i = 0; this.asked = new Set(); this.stats = { ontime: 0, late: 0, early: 0, right: 0, wrong: 0 };
+        this.duty = { id: d.driver.id, n: d.driver.trips.length, start: d.driver.start, end: d.driver.end };
+        return trips;
+      }
+    }
+    this.duty = null;
     let cur = L, t = this.nextDep(L, sim.time + 60);
     for (let i = 0; i < TRIPS; i++) {
       const run = lineCycle(cur).run;
@@ -29,15 +42,21 @@ export class DriverShift {
     return trips;
   }
   sheetHTML() {
-    return `<table class="duty"><tr><th>#</th><th>קו</th><th>כיוון</th><th>יציאה</th><th>סיום</th></tr>${this.trips.map((t, i) => {
+    const D = this.duty;
+    return `${D ? `<p class="lmeta">משמרת נהג ${D.id} בסידור: ${clockText(D.start)}–${clockText(D.end)}, ${D.n} נסיעות (כאן ${this.trips.length} הנסיעות הבאות שלך)</p>` : ''}<table class="duty"><tr><th>#</th><th>קו</th><th>כיוון</th><th>יציאה</th><th>סיום</th></tr>${this.trips.map((t, i) => {
       const brk = i ? Math.round((t.dep - this.trips[i - 1].arr) / 60) : 0;
-      return `${i ? `<tr class="brk"><td colspan="5">הפסקה ${brk} דק'</td></tr>` : ''}<tr><td>${i + 1}</td><td><span class="num sm" style="background:${t.L.color}">${t.L.def.number}</span></td><td>אל ${t.L.def.real?.dest || ''}</td><td><b>${clockText(t.dep)}</b></td><td>${clockText(t.arr)}</td></tr>`; }).join('')}</table>`;
+      return `${i ? `<tr class="brk"><td colspan="5">הפסקה ${brk} דק'</td></tr>` : ''}<tr><td>${i + 1}</td><td><span class="num sm" style="background:${t.L.color}">${t.L.def.number}</span>${t.up ? ' <span title="רכב גדול מהרגיל בקו">↑</span>' : ''}</td><td>אל ${t.L.def.real?.dest || ''}</td><td><b>${clockText(t.dep)}</b></td><td>${clockText(t.arr)}</td></tr>`; }).join('')}</table>`;
   }
   get trip() { return this.trips?.[this.i] || null; }
   // האוטובוס של הנסיעה הנוכחית: זה שיצא מהמסוף בזמן של הנסיעה (או false — עוד לא יצא, הפסקה)
   busFor(t) {
     if (t.bus) return t.bus;
     const live = b => b.state === 'drive' || b.state === 'dwell';
+    if (t.key) {        // לפי הסידור: האוטובוס שיצא לנסיעה הזו (נסיעה שבוטלה — מסומנת, ו-next() מדלג עליה)
+      for (const K of this.g.sim.lines) for (const b of K.buses) if (b.trip?.key === t.key && live(b)) t.bus = b;
+      if (!t.bus && this.g.sim.roster?.plan?.trips.some(x => x.key === t.key && x.status === 'cancel')) t.cancelled = true;
+      return t.bus || null;
+    }
     t.bus = t.L.buses.find(b => Math.abs(b.born - t.dep) < 90 && live(b)) || null;
     // התדירות השתנתה בינתיים (שעה אחרת): האוטובוס שיצא הכי קרוב לזמן — והזמן בסידור מתעדכן אליו
     if (!t.bus && this.g.sim.time > t.dep + 120) { const c = t.L.buses.filter(b => live(b) && b.next <= 1 && b.born >= t.dep - 900).sort((a, b) => Math.abs(a.born - t.dep) - Math.abs(b.born - t.dep))[0]; if (c) { t.bus = c; t.dep = c.born; } }
@@ -48,6 +67,8 @@ export class DriverShift {
     if (!this.trips) return undefined;
     const t = this.trip;
     if (t && t.bus === prev && prev && prev.state !== 'drive' && prev.state !== 'dwell') { this.i++; if (!this.trip) { this.finish(); return null; } }
+    while (this.trip && !this.trip.bus && (this.busFor(this.trip), this.trip.cancelled)) { this.g.toast(`הנסיעה של ${clockText(this.trip.dep)} בוטלה`); this.i++; }
+    if (!this.trip) { this.finish(); return null; }
     const n = this.trip; return n ? (this.busFor(n) || false) : null;
   }
   // דילוג עד היציאה הבאה (בהפסקה)

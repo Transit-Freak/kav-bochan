@@ -6,6 +6,7 @@
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
 import { Network, inHours, lineTimes } from './demand.js';
 import { Ops, ROLE } from './ops.js';
+import { DRIVER_WAGE } from './sched.js';
 export const BUS = {
   capacity: 80,           // ברירת מחדל; הקיבולת האמיתית לפי סוג הרכב (fleet.js)
   doorTime: 1.1,          // פתיחה/סגירה (שנ')
@@ -116,6 +117,7 @@ export class Sim {
     const day0 = dayOf(this.time);
     this.time += h;
     if (dayOf(this.time) !== day0) this.newDay();
+    this.roster?.ensure(); this.roster?.pay(h);
     this.bank?.accrue(this.lines, h);
     this.ops.tick(h); this.ops.spawnInspectors(h);
     if (this.demand) this.spawn(h);
@@ -151,8 +153,9 @@ export class Sim {
       L.short = false;
       L.off = !inHours(L.def, this.time);
       // מחוץ לשעות הפעילות לא יוצאים; כשהקו נפתח — היציאה הראשונה מיד, בלי "להשלים" את מה שהיה בלילה
-      if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);
-      while (!L.off && this.time >= L.nextDispatch) {
+      if (this.roster?.managed(L)) this.dispatchSched(L);
+      else if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);
+      while (!this.roster?.managed(L) && !L.off && this.time >= L.nextDispatch) {
         // קו מעגלי: אוטובוס שמחכה במסוף (הגיע לתחנה האחרונה, שהיא גם הראשונה) יוצא לנסיעה הבאה
         const lay = L.buses.find(o => o.lay);
         if (lay) { this.turnaround(L, lay); continue; }
@@ -175,6 +178,36 @@ export class Sim {
     }
   }
 
+  // יציאות לפי הסידור (sched.js): כל נסיעה שהגיע זמנה — יוצאת ברכב שלה, או מבוטלת עם סיבה.
+  // הרכב עוד לא חזר מהנסיעה הקודמת — מחכים לו (הקו "חסר רכב"), ואחרי 20 דק' הנסיעה מבוטלת
+  dispatchSched(L) {
+    const S = this.roster;
+    // קו מעגלי: אוטובוס שמחכה במסוף, והנסיעה הבאה לא שלו (בוטלה / רכב אחר) — מסיים כאן
+    for (const o of L.buses) if (o.lay) { const n = S.nextOf(L); if (!n || n.cancel || n.veh !== o.veh) { o.lay = false; o.goOn = false; } }
+    for (let x = S.nextOf(L); x && x.dep <= this.time; x = S.nextOf(L)) {
+      if (x.cancel) { S.cancel(x, x.reason); continue; }
+      const v = x.veh;
+      const lay = L.buses.find(o => o.lay);
+      if (lay && lay.veh === v) { if (lay.trip) { lay.trip.status = 'done'; lay.trip.end = this.time; } this.turnaround(L, lay); lay.trip = x; lay.sdep = x.dep; v.bus = lay; x.status = 'run'; x.actual = this.time; continue; }
+      if (!S.vehReady(v, x) || L.buses.length >= 30) {
+        if (this.time > x.dep + 1200) { S.cancel(x, 'הרכב לא חזר בזמן'); continue; }
+        L.short = true; break;
+      }
+      // נסיעה ריקה מהמסוף שבו הרכב עמד (ק"מ ושעות, בלי סבסוד)
+      if (v.endAt != null) { const dh = S.dh(v.at, x.from); if (dh > 0) this.charge(L, v.type, dh * DEADHEAD_SPEED, dh, true); }
+      if (v.endAt != null) this.charge(L, v.type, 0, LAYOVER, true);
+      const T = TYPES[v.type];
+      const b = { id: BID++, line: L, type: v.type, cap: T.cap, s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1, trip: x, veh: v, sdep: x.dep };
+      v.bus = b; x.status = 'run'; x.actual = this.time;
+      L.buses.push(b); this.events.push({ type: 'bus', bus: b });
+      this.dispatched(L, T.cap);
+      this.ops.onDispatch(L, b);
+    }
+    const n = S.nextOf(L);
+    L.nextDispatch = n ? n.dep : this.time + 86400;
+  }
+  // הקו פועל (לחישובי ביקוש וכיסוי): לפי הסידור, ובלי סידור — אם יש לו רכבים
+  inService(L) { return !L.retired && (this.roster?.managed(L) ? this.roster.serves(L) : L.def.fleet > 0); }
   // רישום יציאה מהמסוף. יציאה באיחור גדול: הלוח מתחיל מחדש מעכשיו, כדי שלא ייצאו כמה אוטובוסים בבת אחת
   dispatched(L, cap) {
     const hw = L.def.headway * 60;
@@ -340,7 +373,8 @@ export class Sim {
         b.ta += h; b.tb += h;
         let busy = false;
         // קו מעגלי: בתחנה האחרונה האוטובוס ממשיך כנסיעה הבאה (או מחכה לה), ומי שעלה "מסביב" נשאר
-        if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay);
+        if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay)
+          && (!b.trip || (() => { const n = this.roster?.nextOf(L); return !!n && !n.cancel && n.veh === b.veh && b.veh?.bus === b; })());
         const off = b.pax.findIndex(p => p.to === k || (last && !(p.wrap && b.goOn)));
         if (off >= 0 && man && b.dM < 1 && b.dF < 1) busy = true;       // יורדים רק כשדלת פתוחה
         else if (off >= 0) {
@@ -381,6 +415,7 @@ export class Sim {
           // אוטובוס של הקו שמתקרב מאחור — יוצאים מיד, כדי לא לחסום אותו
           const W = Math.min(L.def.headway * 30, 300), behind = L.buses.some(o => o !== b && o.state === 'drive' && o.next === k && L.stopS[k] - o.s < 70);
           if (L.retired || L.off) { b.goOn = false; b.lay = false; return; }   // הקו נסגר: מי שעלה "מסביב" יורד, והאוטובוס נגמר
+          else if (b.trip) { b.lay = true; return; }                          // לפי הסידור: הנסיעה הבאה יוצאת בזמן שלה (dispatchSched)
           else if (this.time >= L.nextDispatch - W || behind) { this.turnaround(L, b); return; }
           else { b.lay = true; return; }
         }
@@ -403,8 +438,11 @@ export class Sim {
             b.state = 'done'; b.t = 0; b.doneAt = this.time;
             // הרכב נוסע ריק חזרה לתחנה הראשונה ונח במסוף; רק אז הוא פנוי שוב (את הנסיעה הזו לא מציירים)
             const dead = L.poly.length / DEADHEAD_SPEED;
-            if (L.def.fleet != null) this.current(L).returning.push(this.time + dead + LAYOVER);
-            this.charge(L, b.type, L.poly.length, dead + LAYOVER, true);
+            if (b.trip) this.roster?.done(b, L);          // לפי הסידור: הרכב עומד במסוף האחרון; הנסיעה הריקה נרשמת כשהוא יוצא שוב
+            else {
+              if (L.def.fleet != null) this.current(L).returning.push(this.time + dead + LAYOVER);
+              this.charge(L, b.type, L.poly.length, dead + LAYOVER, true);
+            }
             this.events.push({ type: 'done', bus: b });
           }
           else { b.state = 'drive'; b.next++; b.goOn = undefined; this.events.push({ type: 'depart', bus: b, stop }); }
@@ -543,7 +581,8 @@ export class Sim {
     if (!this.bank || L.def.fleet == null) return;
     if (m) this.bank.spend('km', m / 1000 * T.km, L.id);
     if (m && !dead) this.bank.subsidize(m / 1000, L.id);
-    if (sec) this.bank.spend('drivers', sec / 3600 * T.hour, L.id);
+    // לפי הסידור: הנהגים מקבלים שכר לשעת משמרת (sched.js pay), וכאן רק החלק של הרכב (תחזוקה)
+    if (sec) { if (this.roster?.managed(L)) this.bank.spend('km', sec / 3600 * Math.max(0, T.hour - DRIVER_WAGE), L.id); else this.bank.spend('drivers', sec / 3600 * T.hour, L.id); }
   }
   // חצות: סיכום היום בקופה, והמונים של הקווים והתחנות מתאפסים
   newDay() {
