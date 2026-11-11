@@ -314,7 +314,7 @@ function partKind(name) {
 // חומר למשחק: Lambert עם הטקסטורה המקורית. שקיפות "חתוכה" (alphaTest) במקום שקיפות אמיתית —
 // כך שיער וגבות נראים נכון גם בלי למיין את כל הדמויות
 function gameMaterial(m, kind) {
-  const card = kind === 'hair';
+  const card = kind === 'hair' || kind === 'brow';   // שיער, גבות וריסים — שקיפות חתוכה של 0.5
   const out = new THREE.MeshLambertMaterial({
     name: m.name, map: m.map || null, normalMap: m.normalMap || null, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1),
     alphaTest: m.map ? 0.5 : 0, transparent: false, side: kind === 'skin' || kind === 'eyes' ? THREE.FrontSide : THREE.DoubleSide,
@@ -603,6 +603,16 @@ export function handPen(root, verts = skinVerts(root)) {
   out.n = out.Left.n + out.Right.n;
   return out;
 }
+// אצבעות רפויות: מקרבים את עצמות האצבעות והאגודל אל תנוחת המנוחה של הדגם (k — כמה, 0..1), כדי שכף היד תונח שטוחה
+// על הירך ולא תיראה כמו טפרים
+export function relaxFingers(root, gltf, k = 0.6) {
+  const ref = gltf.scene, q = new THREE.Quaternion();
+  for (const n of ['LeftFingerBase', 'LeftHandFinger1', 'LThumb', 'RightFingerBase', 'RightHandFinger1', 'RThumb']) {
+    const b = root.getObjectByName(n), r = ref.getObjectByName(n); if (!b || !r) continue;
+    b.quaternion.slerp(q.copy(r.quaternion), k);
+  }
+  root.updateMatrixWorld(true);
+}
 // מוציא כפות ידיים מתוך הגוף: מרים את פרק היד (בגובה החדירה + 1.5 ס"מ) ומעט החוצה מהגוף, באותו IK של זרוע-אמה,
 // בלי לשנות את כיוון כף היד. עד 6 סבבים; מחזיר כמה קודקודים היו בפנים לפני ואחרי
 export function unsinkHands(root) {
@@ -636,7 +646,7 @@ function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים 
     const idle = gltf.animations.find(a => /idle/i.test(a.name));
     if (idle) { const mx = new THREE.AnimationMixer(root); mx.clipAction(idle).play(); mx.update(0); }
     root.updateMatrixWorld(true);
-    try { (gltf.userData.unsink = gltf.userData.unsink || {}).stand = unsinkHands(root); } catch (e) { console.warn('unsink failed', e); }
+    try { relaxFingers(root, gltf, 0.3); (gltf.userData.unsink = gltf.userData.unsink || {}).stand = unsinkHands(root); } catch (e) { console.warn('unsink failed', e); }
     // ההקלטה זזה קדימה מהמקור — ממרכזים לפי האגן (Hips), כדי שהדמות תעמוד על הנקודה שלה
     const hips = root.getObjectByName('Hips');
     c0 = hips ? hips.getWorldPosition(new THREE.Vector3()).setY(0) : new THREE.Vector3();
@@ -711,7 +721,7 @@ export class PeopleLayer {
         const key = `${g.userData.file}|${armPose}|${side}|${pushFore ? 1 : 0}`;
         const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, SIT_PRESETS[key] || null);
         if (S) S.key = key;
-        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; try { (g.userData.unsink = g.userData.unsink || {}).bench = unsinkHands(S.root); } catch (e) { console.warn(e); } V.sitGroups = bakeVariant(g, S, cache);
+        if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; try { relaxFingers(S.root, g, 0.85); (g.userData.unsink = g.userData.unsink || {}).bench = unsinkHands(S.root); } catch (e) { console.warn(e); } V.sitGroups = bakeVariant(g, S, cache);
           const hp = S.root.getObjectByName('Hips'); if (hp && IM?.bagLocal) { S.root.updateMatrixWorld(true); V.bagSit = hp.matrixWorld.clone().multiply(IM.bagSitLocal || IM.bagLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           const hb = S.root.getObjectByName('Head'); if (hb && IM?.capLocal) { S.root.updateMatrixWorld(true); V.capSit = hb.matrixWorld.clone().multiply(IM.capLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           // הרוחב של היושב לאורך הספסל (ציר x שלו), לבדיקת השכנים
@@ -809,18 +819,26 @@ export class PeopleLayer {
     const hand = slot.kind === 'seat' ? (aisle < 0 ? 'Right' : 'Left') : (slot.grip === 'Right' ? 'Left' : 'Right');
     const arm = B(hand + 'Arm'), fore = B(hand + 'ForeArm'), hd = B(hand + 'Hand'), fb = B(hand + 'FingerBase');
     if (!arm || !fore || !hd || !fb) return (V.reach[key] = null);
-    const saved = []; for (const sd of ['Left', 'Right']) B(sd + 'Arm')?.traverse(b => saved.push([b, b.quaternion.clone()]));   // שתי הזרועות (unsinkHands עשוי להזיז גם את השנייה)
+    const saved = []; root.traverse(b => { if (b.isBone) saved.push([b, b.quaternion.clone()]); });   // כל השלד (גם הגו נוטה)
     root.updateMatrixWorld(true);
-    const o = base.origin, sh = W(arm), h0 = W(hd);
-    // עם כרטיס: האמה עולה לגובה החזה, קדימה ואל המעבר, והאצבעות למעלה — הכרטיס זקוף מול הפקח.
-    // בלי כרטיס: כף יד ריקה ופתוחה לפני הגוף, נמוך יותר (בלי להושיט)
-    const out = slot.kind === 'seat' ? aisle * (Math.abs(slot.x) - (win ? 0.48 : 0.31)) : aisle * 0.2;
-    // ליד החלון: היד עוברת לפני החזה של השכן (קדימה יותר, המרפק קדימה) ולא דרכו
-    const full = empty ? new THREE.Vector3(sh.x - aisle * 0.06, sh.y - 0.2, sh.z + (slot.kind === 'seat' ? 0.3 : 0.15))
-      : new THREE.Vector3(o.x + out, sh.y - (win ? 0.04 : slot.kind === 'seat' ? 0.06 : 0.1), sh.z + (win ? 0.5 : slot.kind === 'seat' ? 0.36 : 0.3));
-    // קודם למעלה ואל המעבר, ורק בסוף קדימה (כך היד לא עוברת דרך המשענת שלפניו); ליד החלון — קודם קדימה, ורק אז אל המעבר
+    const o = base.origin, h0 = W(hd);
+    // עם כרטיס: הגו נוטה אל המעבר ומסתובב אליו (ליד החלון יותר — הכתף זזה 10–15 ס"מ), והזרוע נשלחת כמעט עד הסוף,
+    // בגובה החזה, קדימה ואל המעבר; ליד החלון — לפני החזה של השכן (קדימה יותר). עומד — יד מתוחה אל הפקח.
+    // בלי כרטיס: כף יד ריקה ופתוחה לפני הגוף, נמוך (בלי להושיט ובלי לנטות)
+    if (!empty) {
+      const lb = B('LowerBack'), s1 = B('Spine1') || B('Spine'), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
+      const side = (win ? 12 : slot.kind === 'seat' ? 6 : 4) * frac, twist = (win ? 24 : slot.kind === 'seat' ? 12 : 14) * frac, fwd = (win ? 26 : 6) * frac;
+      if (lb) { turn(lb, Z, -aisle * side); turn(lb, X, fwd); }
+      if (s1) turn(s1, Y, aisle * twist);
+      root.updateMatrixWorld(true);
+    }
+    const sh = W(arm), L = W(arm).distanceTo(W(fore)) + W(fore).distanceTo(W(hd));
+    const dirF = (win ? new THREE.Vector3(aisle * 0.4, 0.34, 0.86) : slot.kind === 'seat' ? new THREE.Vector3(aisle * 0.6, -0.22, 0.77) : new THREE.Vector3(aisle * 0.62, -0.08, 0.78)).normalize();
+    const full = empty ? new THREE.Vector3(sh.x - aisle * 0.06, sh.y - 0.2, sh.z + (slot.kind === 'seat' ? 0.3 : 0.18))
+      : sh.clone().addScaledVector(dirF, L * 0.93);
+    // קודם למעלה ואל המעבר, ורק בסוף קדימה (כך היד לא עוברת דרך המשענת שלפניו); ליד החלון ובעמידה — קודם קדימה, ורק אז אל המעבר
     const T = h0.clone().lerp(full, frac);
-    if (win || slot.kind === 'stand') { T.x = h0.x + (full.x - h0.x) * frac * frac; if (slot.kind === 'stand') T.z += 0.06 * Math.sin(Math.PI * frac); } else T.z = h0.z + (full.z - h0.z) * frac * frac;   // בעמידה: קודם קדימה (לא דרך הירך), ורק אז אל המעבר
+    if (win || slot.kind === 'stand') { T.x = h0.x + (full.x - h0.x) * frac * frac; if (slot.kind === 'stand') T.z += 0.06 * Math.sin(Math.PI * frac); } else T.z = h0.z + (full.z - h0.z) * frac * frac;
     twoBone(arm, fore, hd, T, win ? new THREE.Vector3(-aisle * 0.2, -0.5, 1) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));
     const fdir = empty ? new THREE.Vector3(aisle * 0.2, 0.25, 1) : new THREE.Vector3(aisle * 0.35, 1, 0.35);
     const dir = T.clone().sub(W(fore)).normalize().lerp(fdir.normalize(), frac).normalize();
@@ -833,13 +851,15 @@ export class PeopleLayer {
     const us = unsinkHands(root);
     const groups = bakeVariant(V.gltf, base, V.cache);
     // הכרטיס (8.5×5.4 ס"מ) זקוף בין האגודל לאצבעות, הפנים שלו אל הפקח שבמעבר
+    const headP = B('Head') ? W(B('Head')).sub(o) : null;
+    const accM = {}; { const T0 = new THREE.Matrix4().makeTranslation(-o.x, -o.y, -o.z); for (const [t, a] of Object.entries(V.insp?.acc || {})) { const bb = B(a.bone); if (bb) accM[t] = bb.matrixWorld.clone().multiply(a.local).premultiply(T0); } }
     const hp = W(hd), fp = W(fb), d = fp.clone().sub(hp).normalize();
     const Z = new THREE.Vector3(aisle * 0.8, 0.1, 0.6).normalize(), Y = new THREE.Vector3(0, 1, 0).addScaledVector(Z, -Z.y).normalize(), X = new THREE.Vector3().crossVectors(Y, Z);
     const card = new THREE.Matrix4().makeBasis(X, Y, Z).setPosition(fp.clone().addScaledVector(d, 0.03).addScaledVector(Y, 0.025).addScaledVector(Z, 0.03).sub(o));   // לפני האצבעות, אל הפקח
     for (const [b, q] of saved) b.quaternion.copy(q);
     root.updateMatrixWorld(true);
     const meshes = groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 1); im.count = 0; im.visible = false; im.frustumCulled = false; im.name = `crowd-${vi}-reach-${gr.kind}`; im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
-    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), seated: slot.kind === 'seat', unsink: us });
+    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), head: headP, acc: accM, seated: slot.kind === 'seat', unsink: us });
   }
   busSitters(seatH, depth) {
     if (this.busSit) return this.busSit;
@@ -851,7 +871,7 @@ export class PeopleLayer {
         const key = `bus|${V.gltf.userData.file}|${armPose === 'phone' ? 'thighs' : armPose}|${side}|${pushFore ? 1 : 0}`;
         const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, SIT_PRESETS[key] || null); if (!S) return;
         S.key = key;
-        try { (V.gltf.userData.unsink = V.gltf.userData.unsink || {}).bus = unsinkHands(S.root); } catch (e) { console.warn(e); }
+        try { relaxFingers(S.root, V.gltf, 0.85); (V.gltf.userData.unsink = V.gltf.userData.unsink || {}).bus = unsinkHands(S.root); } catch (e) { console.warn(e); }
         V.bus = { sit: S, groups: bakeVariant(V.gltf, S, V.cache), n: 0 };
         const inst = (groups, tag) => groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 24); im.count = 0; im.frustumCulled = false; im.name = `crowd-${vi}-${tag}-${gr.kind}`; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
         V.bus.meshes = inst(V.bus.groups, 'bus');
@@ -859,7 +879,7 @@ export class PeopleLayer {
         V.stand = {};
         for (const hand of ['Left', 'Right']) {
           const T = buildStander(V.gltf, hand, (hand === 'Right' ? -1 : 1) * STAND_POLE.dx, STAND_POLE.dz, null); if (!T) continue;
-          try { (V.gltf.userData.unsink = V.gltf.userData.unsink || {})['pole' + hand] = unsinkHands(T.root); } catch (e) { console.warn(e); }
+          try { relaxFingers(T.root, V.gltf, 0.4); (V.gltf.userData.unsink = V.gltf.userData.unsink || {})['pole' + hand] = unsinkHands(T.root); } catch (e) { console.warn(e); }
           const groups = bakeVariant(V.gltf, T, V.cache);
           V.stand[hand] = { st: T, groups, meshes: inst(groups, 'stand' + hand), n: 0 };
         }
@@ -1106,7 +1126,7 @@ export class PeopleLayer {
           if (!S || S.n >= 24) continue;
           const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'stand', x: sp[0], grip: sp[3] }, R.frac, !R.card);
           const pm = this.accPose(V, 'pole' + sp[3], S.st.root, S.st.origin);
-          if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pm, M, false); this.onboardPos.set(p.id, S.st.hip.clone().add(new THREE.Vector3(sp[0], sp[1] + 0.62, sp[2])).applyMatrix4(OM)); continue; }
+          if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pose.acc, M, false); this.onboardPos.set(p.id, (pose.head ? pose.head.clone().add(new THREE.Vector3(0, -0.08, 0)) : S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0))).applyMatrix4(M)); continue; }
           M.makeTranslation(sp[0], sp[1], sp[2]).premultiply(OM);
           S.meshes.forEach((im, g) => { im.setMatrixAt(S.n, this.hairM(p.id, S.groups[g].kind, M)); im.setColorAt(S.n, this.tint(p.id, S.groups[g].kind, false, C)); });
           this.emitAcc(p.id, pm, M, false);
@@ -1122,10 +1142,12 @@ export class PeopleLayer {
         if (qp != null) { const Vq = this.variants[this.variantOf(qp)], kq = ob.seatOf(qp), dx = Math.abs(ob.seats[kq][0] - st[0]);
           const inner = (VV, toward) => { const e = this.busExt(VV); return toward > 0 ? e[1] : -e[0]; };
           const w = inner(V, ob.seats[kq][0] - st[0]) + inner(Vq, st[0] - ob.seats[kq][0]); sxN = Math.min(1, (dx - 0.012) / w); }
+        // השכן שליד החלון מושיט כרטיס לפני החזה שלו: היושב במעבר מצטמצם עוד מעט (מפנה מקום ליד)
+        if (qp != null && this.reach?.pid === qp && this.reach.frac > 0 && this.reach.card && Math.abs(ob.seats[ob.seatOf(qp)][0]) > 0.7) sxN *= 0.9;
         (this.onboardSX || (this.onboardSX = new Map())).set(p.id, sxN);
         const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'seat', x: st[0] }, R.frac, !R.card);
         const bm = V.bus?.sit?.root ? this.accPose(V, 'bus', V.bus.sit.root, V.bus.sit.origin) : null;
-        if (pose) { show(pose, st[0], st[1], st[2], sxN); this.emitAcc(p.id, bm, M, true); this.onboardPos.set(p.id, V.bus.sit.hip.clone().add(new THREE.Vector3(st[0], st[1] + 0.62, st[2] + 0.02)).applyMatrix4(OM)); continue; }
+        if (pose) { show(pose, st[0], st[1], st[2], sxN); this.emitAcc(p.id, pose.acc, M, true); this.onboardPos.set(p.id, (pose.head ? pose.head.clone().add(new THREE.Vector3(0, -0.08, 0)) : V.bus.sit.hip.clone().add(new THREE.Vector3(0, 0.62, 0.02))).applyMatrix4(M)); continue; }
         M.makeScale(sxN, 1, 1).setPosition(st[0], st[1], st[2]).premultiply(OM);
         V.bus.meshes.forEach((im, g) => { im.setMatrixAt(V.bus.n, this.hairM(p.id, V.bus.groups[g].kind, M)); im.setColorAt(V.bus.n, this.tint(p.id, V.bus.groups[g].kind, false, C, true)); });
         this.emitAcc(p.id, bm, M, true);
