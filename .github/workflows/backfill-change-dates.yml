@@ -30,15 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
-      # בלי הארכיון הכבד (early-patterns, early-stops — כ-4.5GB, הסקריפט לא קורא אותם): ב-31.10 נגמר
-      # המקום בדיסק של הריצה באמצע ההורדה המלאה של הריפו
+      # 31.10: המקום בדיסק נגמר באמצע ההורדה המלאה של הריפו. מאז הארכיון הכבד (early-patterns, early-stops,
+      # כ-5.7GB) עבר לריפו kav-bochan-archive, וההורדה המלאה קטנה בהתאם
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /*
-            !/line-history/data/early-patterns/
-            !/line-history/data/early-stops/
 
       - name: Date the undated route changes from the archive
         run: |

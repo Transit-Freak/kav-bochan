@@ -1585,14 +1585,11 @@ function describeVariant(item, base, areas) {
     .map(t=>fixq(t).replace(/^דרך דרך /,'דרך ').replace(/ב?דרך דרך /g,'דרך ')).join(' · ');
 }
 // הארכיון הכבד (early-patterns / early-stops, כ-4.5GB) מתפרסם מריפו נפרד, kav-bochan-archive (שלמה 11.10),
-// כדי שהאתר הראשי לא יעלה אותו מחדש בכל עדכון. קובץ שעוד לא סונכרן לשם (הייבוא השעתי) — נטען מכאן.
-// בהרצה מקומית (בדיקות) קוראים רק מכאן.
+// כדי שהאתר הראשי לא יעלה אותו מחדש בכל עדכון. מאז שהייבוא ההיסטורי הסתיים (11.2026) שתי התיקיות
+// נמצאות רק שם — גם בהרצה מקומית (בדיקות) קוראים מהארכיון.
 const ARCHIVE_BASE="https://transit-freak.github.io/kav-bochan-archive/";
-async function archFetch(url,opts){
-  if(/^data\/early-(patterns|stops)\//.test(url)&&!/^(localhost|127\.)/.test(location.hostname)){
-    try{const r=await fetch(ARCHIVE_BASE+url.slice(5),opts);if(r.ok)return r;}catch(e){if(opts&&opts.signal&&opts.signal.aborted)throw e;}
-  }
-  return fetch(url,opts);
+function archFetch(url,opts){
+  return fetch(/^data\/early-(patterns|stops)\//.test(url)?ARCHIVE_BASE+url.slice(5):url,opts);
 }
 async function variantRead(url, compressed=false) {
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);

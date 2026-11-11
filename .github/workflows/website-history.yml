@@ -41,8 +41,6 @@ jobs:
             /vendor/
             /magihim-2012/data/stops-2012.json
             /magihim-2012/data/manual.json
-            !/line-history/data/early-patterns/
-            !/line-history/data/early-stops/
             !/line-history/data/early-rail/
       - run: pip install lxml
       - name: Prepare browser verification
