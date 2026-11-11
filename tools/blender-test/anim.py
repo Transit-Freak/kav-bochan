@@ -22,6 +22,9 @@ for kind, rel in (('Eyes', 'eyes/high-poly/high-poly.mhclo'), ('Eyebrows', 'eyeb
     ob = HS.add_mhclo_asset(A(rel), bm, asset_type=kind)
     if kind == 'Hair': hair = ob
 rig = bm.parent
+# פרקי אצבעות (ניסיון, 11.11): 15 עצמות לכל יד מהשלד game_engine של MPFB, מעל השלד cmu_mb — ראו fingers_rig.py
+if os.environ.get('FINGERS', '1') == '1':
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import fingers_rig; fingers_rig.add(bm, rig, HS, md)
 # הקרקפת בצבצה דרך הרווחים השקופים של השיער (שלמה 06.11): כיפה אטומה בצבע השיער, קצת מתחת לשיער
 try:
     hair = hair if isinstance(hair, bpy.types.Object) else next(o for o in bpy.data.objects if o.type == 'MESH' and 'short04' in o.name.lower())
