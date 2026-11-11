@@ -1194,9 +1194,9 @@ export class PeopleLayer {
         const P0 = w.obj.position, nx = w.pts[w.seg + 1], ex = this.fpEye.x - P0.x, ez = this.fpEye.z - P0.z, d = Math.hypot(ex, ez);
         const mx = nx.x - P0.x, mz = nx.z - P0.z, ml = Math.hypot(mx, mz) || 1;
         // אחרי 2.5 ש' (הפקח זז הצידה) עובר לידו במעבר — אבל לא קרוב מ-40 ס"מ
-        // הצעד הבא מקרב אותו לפקח: במרחק 75 ס"מ — מחכה (עד 2.5 ש'), ואחר כך עובר לידו (נדחק הצידה, לא קרוב מ-38 ס"מ)
+        // הצעד הבא מקרב אותו לפקח: במרחק 75 ס"מ — מחכה, והפקח מפנה לו את הדרך במעבר (inspfp.js)
         const st = 0.08, qx = P0.x + mx / ml * st - this.fpEye.x, qz = P0.z + mz / ml * st - this.fpEye.z, dn = Math.hypot(qx, qz);
-        if (dn < d && d < 0.75 && (w.waitFP || 0) < 2.5) { w.waitFP = (w.waitFP || 0) + simDt; this.fpBlock = w; slow = 0; } else if (d >= 0.9) w.waitFP = 0;
+        if (dn < d && d < 0.75) { w.waitFP = (w.waitFP || 0) + simDt; this.fpBlock = w; slow = 0; } else if (d >= 0.9) w.waitFP = 0;
       }
       w.d += simDt * (w.speed || 1.35) * slow;
       if (w.mixer && slow < 1) w.mixer.timeScale = slow === 0 ? 0.05 : (w.running ? 1.65 : 1) * 0.6; else if (w.mixer && w.slowed) w.mixer.timeScale = w.running ? 1.65 : 1;
@@ -1205,8 +1205,6 @@ export class PeopleLayer {
       const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
       const k = Math.min(1, w.d / L);
       w.obj.position.lerpVectors(a, b, k);
-      if (this.fpEye && w.waitFP > 2.5 && this.onboard && w.bus === this.onboard.bus) { const P1 = w.obj.position, ex = P1.x - this.fpEye.x, ez = P1.z - this.fpEye.z, d1 = Math.hypot(ex, ez);
-        if (d1 < 0.38 && d1 > 1e-4) { P1.x = this.fpEye.x + ex / d1 * 0.38; P1.z = this.fpEye.z + ez / d1 * 0.38; } }
       // מסתובבים בהדרגה לכיוון ההליכה
       const want = Math.atan2(b.x - a.x, b.z - a.z);
       let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));

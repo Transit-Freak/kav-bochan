@@ -166,6 +166,9 @@ export class InspectorFP {
     const okHead = (hd(E) >= 0.35 || hd(E) >= hd(E0)) && (!this.occ.ring(E.x, E.z, 1.5, E.y, 0.12) || this.occ.ring(E0.x, E0.z, 1.5, E0.y, 0.12));
     // מפנים את הדרך למי שיורד/עולה גם אם זה מקרב לראש של יושב (הפקח עובר לידו במעבר); ואם הוא מחכה כבר 2 ש' — גם הצידה
     if ((!near(E) || near(E0)) && (okHead || blk) && !this.occ.has(E.x, E.y, E.z)) this.s = ns; else { this.v = 0; this.slideTo = null; }
+    // מחכה כבר 3 ש' ואין לאן לזוז: הפקח נכנס לשורה הפנויה הקרובה — במעבר שמאחורי היורד (קפיצה קצרה של המבט), והיורד ממשיך
+    if (blk && PL.fpBlock.waitFP > 3) { const w = PL.fpBlock, nx = o.worldToLocal(w.pts[w.seg + 1].clone()), dirz = Math.sign(nx.z - blk.z) || 1;
+      this.s = THREE.MathUtils.clamp(this.sOfZ(blk.z - dirz * 0.8), 0, this.len); w.waitFP = 0; this.v = 0; }
     if (blk && PL.fpBlock.waitFP > 2) this.latTo = -Math.sign(blk.x || 1) * 0.12;
     else if (!this.anim && !blk) this.latTo = 0;
     const P = this.pathAt(this.s), A = this.pathAt(Math.min(this.len, this.s + 0.3)), dir = A.clone().sub(P); if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
