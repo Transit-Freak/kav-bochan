@@ -1043,27 +1043,38 @@ function paxDetails(p) {
 const HW_STEPS = [5, 10, 15, 20, 30, 60];
 function paxOpinion(p, D) {
   const g = p.legs?.[p.leg]; if (!g || p.role) return null;
-  const pick = a => a[p.id % a.length], wait = Math.max(0, (sim.time - p.t0) / 60), hw = g.L.def.headway || 20, S = demand?.stops;
+  const pick = a => a[p.id % a.length], wait = Math.max(0, (sim.time - p.t0) / 60), CL = sim.commonLines?.(p) || [g.L], hw = Math.max(2, Math.round(1 / CL.reduce((x, l) => x + 1 / (l.def.headway || 20), 0))), S = demand?.stops;   // התדירות המשולבת של כל הקווים שמתאימים לו
   const dzName = D.dz ? inZone(D.dz).replace(/^ב/, '') : 'היעד', dest = D.shop ? D.mall.name || 'המרכז המסחרי' : dzName;
   let ride = 0; for (const l of p.legs) ride += Math.abs(l.L.stopS[l.to] - l.L.stopS[l.from]);
   const o = S && p.o >= 0 ? S[p.o] : null, d = S && p.d >= 0 ? S[p.d] : null, straight = o && d ? Math.hypot(o.x - d.x, o.y - d.y) : 0;
   const first = p.legs[0], bs = first.L.stops[first.from], walk = D.home && p.leg === 0 && p.d !== p.o ? Math.hypot(D.home.x - bs.x, D.home.y - bs.y) : 0;
   const m = Math.round(wait), faster = HW_STEPS.filter(x => x < hw).pop();
-  if (p.skips > 0) return { key: 'full', face: '😠', text: pick([`אוטובוס כבר עבר מלא והשאיר אותי בתחנה`, `לא היה מקום באוטובוס הקודם, נשארתי לחכות`, `האוטובוס הגיע מלא ולא עליתי`]), tip: pick([`אוטובוס גדול יותר בקו ${g.L.def.number}`, `עוד נסיעה של קו ${g.L.def.number} בשעה הזו`]), sum: `יותר מקום בקו ${g.L.def.number}` };
-  if (wait > Math.max(10, hw * 0.8)) return { key: 'wait', face: '😐', text: pick([`מחכה כבר ${m} דקות, הקו הזה מגיע רק כל ${hw} דקות`, `${m} דקות בתחנה. קו ${g.L.def.number} לא מגיע מספיק`, `כבר ${m} דקות כאן, והאוטובוס עוד לא בא`]), tip: faster ? `קו ${g.L.def.number} כל ${faster} דקות במקום כל ${hw}` : `קו ${g.L.def.number} שיוצא בזמן`, sum: `תדירות טובה יותר בקו ${g.L.def.number}` };
-  if (p.legs.length > 1) return { key: 'xfer', face: '😐', text: pick([`צריך להחליף קו בדרך, זה מאריך את הנסיעה`, `אין לי קו ישיר, אני מחליף באמצע`, `שני אוטובוסים בשביל נסיעה אחת`]), tip: `קו ישיר ל${dest}, בלי החלפה`, sum: `קו ישיר ל${dest}` };
-  if (straight > 400 && ride > straight * 2.3) return { key: 'detour', face: '😐', text: pick([`הקו עושה סיבוב גדול עד שהוא מגיע`, `הנסיעה ארוכה, האוטובוס עובר בכל העיר בדרך`, `בקו ישר זה קרוב, באוטובוס זה לוקח הרבה יותר`]), tip: `מסלול קצר יותר ל${dest}`, sum: `מסלול קצר יותר ל${dest}` };
-  if (walk > 350) return { key: 'far', face: '😐', text: pick([`התחנה רחוקה מהבית, ${Math.round(walk / 10) * 10} מטר ברגל`, `הולך ${Math.round(walk / 10) * 10} מטר עד התחנה`]), tip: D.home.street ? `תחנה קרובה יותר ל${inStreet(D.home.street).replace(/^ב/, '')}` : 'תחנה קרובה יותר לבית', sum: D.home.street ? `תחנה ליד ${inStreet(D.home.street).replace(/^ב/, '')}` : 'תחנה קרובה יותר לבית' };
-  return { key: 'ok', face: '🙂', text: pick([walk && walk < 200 ? 'נוח לי, התחנה ליד הבית' : 'נוח לי, קו ישיר ליעד', `הקו הזה מתאים לי${m <= 3 ? ', וכמעט לא מחכים' : ''}`, `מגיע ישר ל${dest}, בלי החלפות`]), tip: '', sum: '' };
+  // תלונה רק על בעיה של ממש (שלמה: הנוסעים היו מפונקים מדי): המתנה — יותר מפי 1.5 מהתדירות וגם יותר מ-12 דקות; החלפה —
+  // רק שתי החלפות או המתנה של יותר מ-8 דקות בתחנת ההחלפה; מסלול ארוך — יותר מ-12 דקות מעבר לנסיעה ישירה בכבישים (בערך
+  // פי 1.3 מהקו הישר, 330 מ' בדקה); תחנה רחוקה — יותר מ-500 מ' מהבית. ולפעמים מילה טובה לפני התלונה
+  const extraMin = straight > 0 ? (ride - straight * 1.3) / 330 : 0;
+  const soft = t => (p.id % 3 === 0 ? pick(['הנהג נחמד, אבל ', 'האוטובוס נקי ונעים, אבל ', 'בסך הכול בסדר, רק ש']) + t : t.replace(/^./, c => c));
+  if (p.skips > 0) return { key: 'full', face: '😕', text: soft(pick([`האוטובוס הקודם היה מלא ונשארתי בתחנה`, `לא היה מקום באוטובוס הקודם`, `האוטובוס הגיע מלא ולא עליתי`])), tip: pick([`אוטובוס גדול יותר בקו ${g.L.def.number}`, `עוד נסיעה של קו ${g.L.def.number} בשעה הזו`]), sum: `יותר מקום בקו ${g.L.def.number}` };
+  if (wait > hw * 1.5 && wait > 12) return { key: 'wait', face: '😐', text: soft(pick([`מחכה כבר ${m} דקות, והקו אמור להגיע כל ${hw}`, `${m} דקות בתחנה, יותר מהרגיל`, `האוטובוס מתעכב, כבר ${m} דקות כאן`])), tip: faster && wait > hw * 2 ? `קו ${g.L.def.number} כל ${faster} דקות במקום כל ${hw}` : `קו ${g.L.def.number} שמגיע בזמן`, sum: `קו ${g.L.def.number} בזמן ובתדירות טובה יותר` };
+  if (p.legs.length > 2) return { key: 'xfer', face: '😐', text: soft(pick([`שתי החלפות בשביל נסיעה אחת, זה הרבה`, `מחליף פעמיים בדרך`])), tip: `קו ישיר ל${dest}, או לפחות החלפה אחת`, sum: `קו ישיר ל${dest}` };
+  if (p.leg > 0 && wait > 8) return { key: 'xfer', face: '😐', text: soft(pick([`מחכה כבר ${m} דקות בהחלפה`, `ההחלפה לקו ${g.L.def.number} לוקחת ${m} דקות`])), tip: `שקו ${g.L.def.number} יחכה למי שמחליף, או קו ישיר ל${dest}`, sum: `החלפה קצרה יותר לקו ${g.L.def.number}` };
+  if (extraMin > 12) return { key: 'detour', face: '😐', text: soft(pick([`הנסיעה ארוכה בערך ב-${Math.round(extraMin / 5) * 5} דקות ממה שהייתה יכולה להיות`, `הקו עושה סיבוב גדול בדרך`, `האוטובוס עובר בחצי עיר עד שהוא מגיע`])), tip: `מסלול קצר יותר ל${dest}`, sum: `מסלול קצר יותר ל${dest}` };
+  if (walk > 500) return { key: 'far', face: '😐', text: soft(pick([`התחנה רחוקה מהבית, ${Math.round(walk / 50) * 50} מטר ברגל`, `הולך ${Math.round(walk / 50) * 50} מטר עד התחנה`])), tip: D.home.street ? `תחנה קרובה יותר ל${inStreet(D.home.street).replace(/^ב/, '')}` : 'תחנה קרובה יותר לבית', sum: D.home.street ? `תחנה ליד ${inStreet(D.home.street).replace(/^ב/, '')}` : 'תחנה קרובה יותר לבית' };
+  // אין בעיה של ממש. ניטרלי (mid): משהו קטן שלא מתלוננים עליו — החלפה אחת, המתנה קצת ארוכה, נסיעה קצת ארוכה, הליכה לתחנה
+  if (p.legs.length > 1) return { key: 'mid', face: '🙂', text: pick([`החלפה אחת בדרך, זה בסדר`, `מחליף פעם אחת ומגיע ל${dest}`]), tip: '', sum: '' };
+  if (wait > 8 && wait > hw * 0.8) return { key: 'mid', face: '🙂', text: pick([`מחכה קצת, ${m} דקות, אבל זה בסדר`, `עוד מעט האוטובוס מגיע`]), tip: '', sum: '' };
+  if (extraMin > 6) return { key: 'mid', face: '🙂', text: pick([`הנסיעה קצת ארוכה, אבל מגיעים`, `יש סיבוב קטן בדרך, לא נורא`]), tip: '', sum: '' };
+  if (walk > 350) return { key: 'mid', face: '🙂', text: pick([`כמה דקות הליכה לתחנה, סביר`, `התחנה לא ממש ליד הבית, אבל בסדר`]), tip: '', sum: '' };
+  return { key: 'ok', face: '😊', text: pick([walk && walk < 250 ? 'נוח לי, התחנה ליד הבית' : 'נוח לי, קו ישיר ליעד', `הקו הזה מתאים לי${m <= 3 ? ', וכמעט לא מחכים' : ''}`, `מגיע ישר ל${dest}, בלי החלפות`]), tip: '', sum: '' };
 }
 G.pax = { details: p => paxDetails(p), opinion: (p, D) => paxOpinion(p, D), homes: () => homes };   // לבדיקות ולקונסולה
 // סיכום ההצעות של כל מי שמחכה עכשיו בתחנות (ללשונית "ביקוש")
 function paxSummaryHTML() {
-  const cnt = new Map(); let n = 0, okN = 0;
-  for (const L of lines) for (const q of L.queues || []) for (const p of q) { if (p.role) continue; const O = paxOpinion(p, paxDetails(p)); if (!O) continue; n++; if (!O.sum) { okN++; continue; } cnt.set(O.sum, (cnt.get(O.sum) || 0) + 1); }
+  const cnt = new Map(); let n = 0, okN = 0, midN = 0;
+  for (const L of lines) for (const q of L.queues || []) for (const p of q) { if (p.role) continue; const O = paxOpinion(p, paxDetails(p)); if (!O) continue; n++; if (!O.sum) { if (O.key === 'mid') midN++; else okN++; continue; } cnt.set(O.sum, (cnt.get(O.sum) || 0) + 1); }
   if (!n) return '';
   const top = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `<li><b>${v}</b> מבקשים: ${esc(k)}</li>`).join('');
-  return `<h4>מה הנוסעים מבקשים · עכשיו בתחנות</h4>${top ? `<ul class="dlist">${top}</ul>` : ''}<p class="hint">${okN} מתוך ${n} שמחכים עכשיו מרוצים מהקו שלהם. הקישו על נוסע בתחנה כדי לשמוע אותו.</p>`;
+  return `<h4>מה הנוסעים אומרים · עכשיו בתחנות</h4><p><b>${Math.round(100 * okN / n)}% מרוצים</b> · ${Math.round(100 * midN / n)}% בסדר · ${Math.round(100 * (n - okN - midN) / n)}% מתלוננים (${n} מחכים עכשיו)</p>${top ? `<ul class="dlist">${top}</ul>` : ''}<p class="hint">הקישו על נוסע בתחנה כדי לשמוע אותו.</p>`;
 }
 function paxClear() { paxSel = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
 function paxCardAt(x, y) {

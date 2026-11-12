@@ -17,6 +17,7 @@ export const BUS = {
   gap: 18,                // מרחק מינימלי מהאוטובוס שלפניו באותו קו
 };
 export const PATIENCE = 30 * 60;   // מי שמחכה יותר מזה מוותר והולך (והכרטיס שלו הולך איתו)
+const COMMON_WALK = 300, COMMON_SLACK = 5 * 60;   // קווים משותפים: יעד עד 300 מ' מהתחנה המתוכננת, ועד 5 דקות יותר מהקו המתוכנן
 const SAME_SLACK = 5 * 60;         // אותו קו באותה תחנה: עולים לאוטובוס שהגיע אם הוא מביא ליעד עד 5 דק' אחרי זה שאחריו
 
 const hourOf = t => Math.floor((t / 3600) % 24);
@@ -538,26 +539,53 @@ export class Sim {
     }
     return null;
   }
-  // קווים מקבילים: מי שמחכה לקו אחר, והאוטובוס הזה מגיע ישר לאותה תחנת ירידה — עולה גם הוא (לא מחכים דווקא לקו "שלהם").
-  // take=false: רק בודקים אם יש כזה
+  // קווים משותפים: מי שמחכה בתחנה לקו אחר עולה גם לאוטובוס הזה, אם הוא מביא אותו לתחנת היעד שלו או לתחנה במרחק הליכה
+  // ממנה (עד COMMON_WALK), ולא מאחר בהרבה לעומת הקו שתוכנן לו (עד COMMON_SLACK, כולל ההליכה וההמתנה הצפויה לקו שלו).
+  // מי שתוכנן עם החלפה עולה לקו ישיר ליעד הסופי, ושאר ההחלפות מתבטלות. take=false: רק בודקים אם יש כזה.
+  // (קודם: רק אותה תחנת ירידה בדיוק, רק לקטע הנוכחי, ובלי בדיקת זמן. this.noCommon — ההתנהגות הקודמת, להשוואה)
+  reach(L, k, dest) {
+    let best = -1, bd = this.noCommon ? 0.5 : COMMON_WALK;
+    for (let x = k + 1; x < L.stops.length; x++) { const s = L.stops[x]; if (s === dest) return [x, 0]; const d = Math.hypot(s.x - dest.x, s.y - dest.y); if (d < bd) { bd = d; best = x; } }
+    return best < 0 ? null : [best, bd];
+  }
   altRider(L, k, stop, take) {
+    let T = null;
     for (const M of this.lines) {
       if (M === L || M.retired) continue;
       for (let j = 0; j < M.stops.length - 1; j++) {
         if (M.stops[j] !== stop) continue;
         const Q = M.queues[j];
         for (let i = 0; i < Q.length; i++) {
-          const p = Q[i], dest = M.stops[p.to];
-          let t = -1; for (let x = k + 1; x < L.stops.length; x++) if (L.stops[x] === dest) { t = x; break; }
-          if (t < 0) continue;
+          const p = Q[i]; if (p.role) continue;
+          const legs = p.legs, lastLeg = legs && legs[legs.length - 1], more = !this.noCommon && legs && p.leg < legs.length - 1 && lastLeg?.L;
+          // קודם — ישר ליעד הסופי (בלי ההחלפות שנשארו); אם לא — לתחנת הירידה של הקטע הנוכחי
+          let direct = false, r = more ? this.reach(L, k, lastLeg.L.stops[lastLeg.to]) : null;
+          if (r) direct = true; else r = this.reach(L, k, M.stops[p.to]);
+          if (!r) continue;
+          if (!this.noCommon) {
+            T = T || lineTimes(L);
+            const mine = T[r[0]] - T[k] + r[1] / 1.3, wait = l => (l.def.headway || 20) * 30, TM = lineTimes(M);
+            let plan = wait(M) + TM[p.to] - TM[j];
+            if (direct) for (let q = p.leg + 1; q < legs.length; q++) { const g = legs[q], TG = g.L.stopS ? lineTimes(g.L) : null; if (TG) plan += wait(g.L) + TG[g.to] - TG[g.from]; }
+            if (mine - plan > COMMON_SLACK) continue;
+          }
           if (!take) return true;
           Q.splice(i, 1);
-          p.legs[p.leg] = { L, from: k, to: t }; p.line = L; p.from = k; p.to = t;
+          if (direct) { legs.length = p.leg + 1; }
+          p.legs[p.leg] = { L, from: k, to: r[0] }; p.line = L; p.from = k; p.to = r[0];
+          this.altN = (this.altN || 0) + 1; if (direct) this.altDirect = (this.altDirect || 0) + 1;
           return p;
         }
       }
     }
     return null;
+  }
+  // הקווים שמתאימים לנוסע שמחכה (הקו שלו, וכל קו אחר בתחנה שמביא אותו ליעד) — לתדירות המשולבת בדעה שלו (main.js)
+  commonLines(p) {
+    const g = p.legs?.[p.leg]; if (!g) return [];
+    const stop = g.L.stops[g.from], dest = g.L.stops[g.to], out = [g.L];
+    for (const M of this.lines) { if (M === g.L || M.retired || M.off) continue; const k = M.stops.indexOf(stop); if (k >= 0 && k < M.stops.length - 1 && this.reach(M, k, dest)) out.push(M); }
+    return out;
   }
   // ירד באמצע הדרך כדי לעלות לקו הבא: הולך לתחנה של הקו הבא (אם היא אחרת — עד 400 מ') ומחכה שם
   transfer(p, L, stop) {
