@@ -22,12 +22,13 @@ export const kneelDrop = (k, x) => k * KNEEL.th * (KNEEL.far - x);
 // גובה אמיתי לכל דמות (13.11): [הגובה של הדגם כמו שיוצא מ-Blender, הגובה הרצוי], במטרים, מכף הרגל עד קודקוד הראש.
 // הדגמים יצאו בגבהים לא אמיתיים (צעיר של 1.97 מ', אישה של 1.50) — מתקנים במקום אחד, בטעינה: קנה המידה של השלד.
 // (גבר כ-1.76, אישה כ-1.62, נער כ-1.57, מבוגרת כ-1.58; גיוון של כמה ס"מ). תנוחות הישיבה שחושבו מראש (sitpresets.js)
-// מתאימות רק לדגם שלא שונה ביותר מ-1.2% — לאחרים התנוחה מחושבת בטעינה
+// חושבו עם הגבהים האלה — אחרי שינוי כאן צריך לחשב אותן מחדש (‎?nopresets, וההוראות ב-sitpresets.js)
 const HEIGHT = { person_0: [1.808, 1.76], person_1: [1.595, 1.62], person_2: [1.966, 1.80], person_3: [1.548, 1.58], person_4: [1.731, 1.74], person_5: [1.505, 1.58], person_6: [1.505, 1.57], person_7: [1.705, 1.65], person_8: [1.708, 1.72] };
+const NO_PRESETS = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nopresets');   // ?nopresets — לחשב את תנוחות הישיבה מחדש (לעדכון sitpresets.js)
 function fitHeight(g) {
   const h = HEIGHT[(g.userData.file || '').replace(/^.*\//, '')]; if (!h) return;
   const k = h[1] / h[0], rig = g.scene.children.find(c => c.getObjectByName && c.getObjectByName('Hips')) || g.scene.children[0]; if (!rig) return;
-  rig.scale.multiplyScalar(k); g.scene.updateMatrixWorld(true); g.userData.fit = k; g.userData.refit = Math.abs(k - 1) > 0.012;
+  rig.scale.multiplyScalar(k); g.scene.updateMatrixWorld(true); g.userData.fit = k;
 }
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
@@ -242,7 +243,7 @@ function twoBone(a, b, c, target, pole) {
 // אגרוף סביב עמוד: האמה קדימה, האגודל למעלה, כף היד אל העמוד והאצבעות מקיפות אותו. origin — הרצפה מתחת לאגן
 // ידית תלויה (טבעת צהובה מהמוט שבתקרה): axis — כיוון המוט שהיד סוגרת עליו (הצלע התחתונה של הטבעת, לאורך x), palm — לאן פונה כף היד (קדימה);
 // maxReach — אם הכתף רחוקה מדי מהידית (נוסע נמוך) מחזירים null, והוא מחזיק בעמוד
-function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, palmHint = null, maxReach = 0) {   // רדיוס העמוד 2 ס"מ + עובי האצבעות
+function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, palmHint = null, maxReach = 0, rail = false) {   // rail: מוט אופקי עבה — האצבעות עוטפות אותו כמו עמוד   // רדיוס העמוד 2 ס"מ + עובי האצבעות
   const root = SkeletonUtils.clone(gltf.scene);
   const idle = gltf.animations.find(a => /idle/i.test(a.name));
   if (idle) { const mx = new THREE.AnimationMixer(root); mx.clipAction(idle).play(); mx.update(0); }
@@ -271,14 +272,14 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
   let n = new THREE.Vector3().crossVectors(ax, h).normalize().multiplyScalar(hand === 'Right' ? 1 : -1); // כף היד פונה אל העמוד (האגודל למעלה)
   if (palmHint && n.dot(palmHint) < 0) n.negate();
   const armLen = W(B(hand + 'Arm')).distanceTo(W(B(hand + 'ForeArm'))) + W(B(hand + 'ForeArm')).distanceTo(W(hd));
-  if (maxReach && sh.distanceTo(pole) - W(hd).distanceTo(W(fb)) > armLen * maxReach) return null;
+  if (maxReach && sh.distanceTo(pole) - W(hd).distanceTo(W(f1 || fb)) > armLen * maxReach) return null;
   const Lw = W(hd).distanceTo(W(f1 || fb)), X = new THREE.Vector3(1, 0, 0);
   let hh = h.clone();
   if (axis) {   // רצועה תלויה (אחיזת וו): היד עולה מהצד, פרק היד כפוף מעט (כף היד שטוחה יותר מהאמה), האצבעות עוברות דרך הלולאה
     // מעל הצלע התחתונה ונסגרות סביבה כלפי מטה; כף היד כמעט אופקית מעל הצלע (עד 17°) ופונה אליה
     const sg = Math.sign(h.x) || 1, a = Math.min(1.25, Math.atan2(h.y, Math.abs(h.x))); hh.set(sg * Math.cos(a), Math.sin(a), 0); n = new THREE.Vector3(sg * Math.sin(a), -Math.cos(a), 0); }
   // הרצועה/העמוד בקפל שבין כף היד לאצבעות: 1.4 ס"מ (רצועה) אחרי שורש האצבעות, וציר היד עובר מעליו בעובי האצבע
-  const wrist = pole.clone().addScaledVector(hh, -(Lw + (axis ? 0.014 : 0.002))).addScaledVector(n, -(axis ? poleR + 0.014 : 0.02 + 0.012));   // עמוד (רדיוס 2 ס"מ): צמוד לכף היד, מול שורש האצבעות — האצבעות יוצאות לידו ומקיפות אותו
+  const wrist = pole.clone().addScaledVector(hh, -(Lw + (axis && !rail ? 0.014 : 0.002))).addScaledVector(n, -(axis && !rail ? poleR + 0.014 : rail ? poleR + 0.012 : 0.02 + 0.012));   // עמוד (רדיוס 2 ס"מ): צמוד לכף היד, מול שורש האצבעות — האצבעות יוצאות לידו ומקיפות אותו
   // זרוע קצרה מדי בשביל להקיף את העמוד מהמקום הזה: העומד מתקרב אליו (shift — כמה, במישור; מוסיפים למקום שלו באוטובוס)
   { const d = wrist.clone().sub(sh), ex = d.length() - armLen * 0.95; if (ex > 0 && !axis) { d.y = 0; d.normalize(); shift.copy(d).multiplyScalar(ex / Math.max(0.3, Math.hypot(wrist.x - sh.x, wrist.z - sh.z) / wrist.distanceTo(sh))); wrist.sub(shift); pole.sub(shift); } }
   twoBone(B(hand + 'Arm'), B(hand + 'ForeArm'), hd, wrist, new THREE.Vector3(hand === 'Right' ? -0.6 : 0.6, -1, -0.3));
@@ -288,13 +289,14 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
   const P = palm.clone().applyQuaternion(hd.getWorldQuaternion(new THREE.Quaternion()));
   const curl = (bone, deg) => { if (!bone) return; const d = new THREE.Vector3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion())); turn(bone, new THREE.Vector3().crossVectors(d, P), deg); };
   // האצבעות נסגרות סביב: שורש האצבעות (העצם), ואחריו הפרקים (fingers.js); האגודל נסגר מהצד השני
-  if (axis) curl(f1, 22); else curl(f1, 32);
+  if (axis && !rail) curl(f1, 22); else curl(f1, 32);
   // האגודל נסגר מהצד השני: מכוון אל מתחת לצלע של הרצועה / אל הצד הרחוק של העמוד
   if (th) { root.updateMatrixWorld(true); const tb = W(th), cur = new THREE.Vector3(0, 1, 0).applyQuaternion(th.getWorldQuaternion(new THREE.Quaternion())), tg = pole.clone().addScaledVector(n, axis ? poleR + 0.016 : 0.02 + 0.014).addScaledVector(hh, axis ? 0.0 : -0.005);
     const q = new THREE.Quaternion().setFromUnitVectors(cur, tg.sub(tb).normalize()), wq = th.getWorldQuaternion(new THREE.Quaternion()), pq = th.parent.getWorldQuaternion(new THREE.Quaternion()); th.quaternion.copy(pq.invert().multiply(q.multiply(wq))); }   // רצועה: שורש האצבעות כמעט ישר (עוברות מעל הצלע), והפרקים נסגרים למטה סביבה
-  root.userData.fingerPose = { [hand]: axis ? FINGERS.hook : FINGERS.wrap, [hand === 'Left' ? 'Right' : 'Left']: FINGERS.relaxed };
+  root.userData.fingerPose = { [hand]: axis && !rail ? FINGERS.hook : FINGERS.wrap, [hand === 'Left' ? 'Right' : 'Left']: FINGERS.relaxed };
   root.updateMatrixWorld(true);
-  return { root, origin, hip: W(hips).sub(origin), hand: W(hd).sub(origin), shift };
+  if (rail) shift.z += 0.1;   // ליד המחזיק של הרצועה, לא עליו
+  return { root, origin, hip: W(hips).sub(origin), hand: W(hd).sub(origin), shift, rail };
 }
 
 // ---------- אנשים
@@ -309,7 +311,8 @@ export const STAND_POLE = { dx: 0.34, dxL: 0.24, dz: 0.12, dzL: 0.16 };   // ל�
 // הרצועה התלויה (straps.js): לולאה צהובה במישור y-z מתחת למוט שבתקרה (x = ±0.50), התחתית 1.83 מ' מעל הרצפה.
 // העומד לצידה, מחוץ למעבר (האגן 25 ס"מ ממנה ו-4 ס"מ מאחוריה), והיד שבצד המעבר סוגרת על הצד הקרוב של הלולאה,
 // 7 ס"מ מעל התחתית (side — חצי הרוחב שם), כמו על עמוד: אגרוף סביב הרצועה, האגודל למעלה
-export const STRAP = { dx: 0.25, dz: 0.04, pull: 0.03, h: 1.824, r: 0.009, side: 0.14 };   // h — הצלע התחתונה של הלולאה; pull — כמה היא נמשכת אל העומד (הרצועה מתוחה מעט)
+export const STRAP = { dx: 0.25, dz: 0.04, pull: 0.03, h: 1.80, r: 0.009, side: 0.14 };
+export const RAIL_H = 2.0, RAIL_GRIP_R = 0.016;   // המוט האורכי שממנו תלויות הרצועות (straps.js): גבוהים מחזיקים בו, בזרוע כמעט ישרה   // h — הצלע התחתונה של הלולאה; pull — כמה היא נמשכת אל העומד (הרצועה מתוחה מעט)
 export const gripHand = g => (g === 'Right' || g === 'StrapR' ? 'Right' : 'Left');
 // העמוד ביחס לאגן של העומד: לצד המעבר ולפניו (בצד הדלת — קרוב יותר, כדי שהיד השנייה לא תהיה מאחורי מאחז הדלת)
 // תנוחת הידיים של היושבים, לפי הדגם (people.json): טלפון ביד אחת (והיד השנייה על הירך), או שתי הידיים על הירכיים;
@@ -822,7 +825,7 @@ export class PeopleLayer {
         const vi = this.variants.length - 1, [armPose, side, pushFore] = POSE_OF[vi % POSE_OF.length];
         // התוצאות של החיפוש שמורות מראש (js/sitpresets.js) — כך הטעינה מהירה; דגם חדש או שונה — מחפשים מחדש
         const key = `${g.userData.file}|${armPose}|${side}|${pushFore ? 1 : 0}`;
-        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, (!g.userData.refit && SIT_PRESETS[key]) || null);
+        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, (!NO_PRESETS && SIT_PRESETS[key]) || null);
         if (S) S.key = key;
         if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; try { relaxFingers(S.root, g, 0.6); (g.userData.unsink = g.userData.unsink || {}).bench = unsinkHands(S.root); } catch (e) { console.warn(e); } V.sitGroups = bakeVariant(g, S, cache);
           const hp = S.root.getObjectByName('Hips'); if (hp && IM?.bagLocal) { S.root.updateMatrixWorld(true); V.bagSit = hp.matrixWorld.clone().multiply(IM.bagSitLocal || IM.bagLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
@@ -1099,7 +1102,7 @@ reachPreview(pid, hasCard = true) {
       try {
         const [armPose, side, pushFore] = POSE_OF[vi % POSE_OF.length];
         const key = `bus|${V.gltf.userData.file}|${armPose === 'phone' ? 'thighs' : armPose}|${side}|${pushFore ? 1 : 0}`;
-        const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, (!V.gltf.userData.refit && SIT_PRESETS[key]) || null); if (!S) return;
+        const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, (!NO_PRESETS && SIT_PRESETS[key]) || null); if (!S) return;
         S.key = key;
         // באוטובוס: הראש מורם (מסתכל קדימה, לא אל הברכיים) — כך הפנים רחוקות מהמשענת ומהידית של המושב שלפניו
         { const nk = S.root.getObjectByName('Neck') || S.root.getObjectByName('Head'), hd = S.root.getObjectByName('Head'), X = new THREE.Vector3(1, 0, 0);
@@ -1124,7 +1127,9 @@ reachPreview(pid, hasCard = true) {
         // ורוב העומדים — ביד אחת על ידית תלויה (StrapR/StrapL — היד שבצד המעבר), אם הם מגיעים אליה בלי למתוח את הכתף
         for (const grip of ['Left', 'Right', 'StrapL', 'StrapR']) {
           const hand = gripHand(grip), strap = grip.startsWith('Strap'), sg = hand === 'Right' ? -1 : 1;
-          const T = strap ? buildStander(V.gltf, hand, sg * (STRAP.dx - STRAP.pull), STRAP.dz, STRAP.h, STRAP.r, new THREE.Vector3(0, 0, 1), null, 0.92)
+          // כלל האחיזה: מי שמגיע למוט עצמו בזרוע כמעט ישרה (גבוהים) מחזיק בו; אחרת ברצועה; ומי שלא מגיע גם אליה — בעמוד
+          const T = strap ? (buildStander(V.gltf, hand, sg * STRAP.dx, STRAP.dz, RAIL_H, RAIL_GRIP_R, new THREE.Vector3(0, 0, 1), null, 0.97, true)
+              || buildStander(V.gltf, hand, sg * (STRAP.dx - STRAP.pull), STRAP.dz, STRAP.h, STRAP.r, new THREE.Vector3(0, 0, 1), null, 0.97))
             : buildStander(V.gltf, hand, hand === 'Right' ? -STAND_POLE.dx : STAND_POLE.dxL, hand === 'Right' ? STAND_POLE.dz : STAND_POLE.dzL, null);
           if (!T) continue;
           try { (V.gltf.userData.unsink = V.gltf.userData.unsink || {})['pole' + grip] = unsinkHands(T.root); } catch (e) { console.warn(e); }
@@ -1374,7 +1379,7 @@ reachPreview(pid, hasCard = true) {
         if (k < 0) {                          // אין מושב: עומד ליד הדלת האמצעית ומחזיק בעמוד
           const j = ob.standOf(p.id), sp0 = ob.stands[j], S = sp0 && V.stand?.[sp0[3]], sp = S ? [sp0[0] + S.st.shift.x, sp0[1], sp0[2] + S.st.shift.z, sp0[3]] : sp0;
           if (!S || S.n >= 24) continue;
-          if (SG && /Strap/.test(sp[3])) { const i = SG.userData.spots.findIndex(q => Math.sign(q[0]) === Math.sign(sp[0]) && Math.abs(q[2] - (sp[2] + STRAP.dz)) < 0.05); if (i >= 0) SG.userData.held.add(i); }
+          if (SG && /Strap/.test(sp[3]) && !S?.st.rail) { const i = SG.userData.spots.findIndex(q => Math.sign(q[0]) === Math.sign(sp[0]) && Math.abs(q[2] - (sp[2] + STRAP.dz)) < 0.05); if (i >= 0) SG.userData.held.add(i); }
           const pose = R && this.reachPose(this.variantOf(p.id), { kind: 'stand', x: sp[0], grip: sp[3] }, R.frac, !R.card, R.look || 0);
           const pm = this.accPose(V, 'pole' + sp[3], S.st.root, S.st.origin);
           if (pose) { show(pose, sp[0], sp[1], sp[2]); this.emitAcc(p.id, pose.acc, M, false, true); this.onboardPos.set(p.id, (pose.head ? pose.head.clone().add(new THREE.Vector3(0, -0.08, 0)) : S.st.hip.clone().add(new THREE.Vector3(0, 0.62, 0))).applyMatrix4(M)); continue; }

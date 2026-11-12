@@ -6,14 +6,15 @@
 import * as THREE from 'three';
 
 const RAIL0 = 2.51, RAIL_R = 0.016;                 // המוט האורכי בתקרה כמו שהוא בדגם (x = ±0.5) — נמוך מדי
-// מגביהים את המוט ואת הקשתות (liftPoles): תחתית הלולאה כ-1.83 מ' מעל הרצפה (0.675), כמו באוטובוס אמיתי
-const FLOOR = 0.675, LIFT_FROM = 1.95, TOP0 = RAIL0 + 0.02, TOP1 = 2.85, ARCH0 = 2.78, ARCH1 = 3.0;
+// מגביהים את המוט ואת הקשתות (liftPoles): המוט 2.0 מ' מעל הרצפה (0.675) ותחתית הלולאה 1.80, כמו באוטובוס אמיתי
+// (13.11: המוט היה ב-2.15 עם לולאה של 30 ס"מ — גבוה מדי; גבוהים מחזיקים במוט עצמו, RAIL_H ב-actors.js)
+const FLOOR = 0.675, LIFT_FROM = 1.95, TOP0 = RAIL0 + 0.02, TOP1 = 2.70, ARCH0 = 2.78, ARCH1 = 3.0;
 const lift = y => y <= LIFT_FROM ? y : y <= TOP0 ? LIFT_FROM + (y - LIFT_FROM) * (TOP1 - LIFT_FROM) / (TOP0 - LIFT_FROM)
   : TOP1 + (Math.min(y, ARCH0) - TOP0) * (ARCH1 - TOP1) / (ARCH0 - TOP0) + Math.max(0, y - ARCH0);
 const RAIL_Y = lift(RAIL0);
 const HOLD = { w: 0.042, h: 0.06, d: 0.052 };        // המחזיק: רוחב (x), גובה, אורך לאורך המוט (z)
-export const HELD_TILT = Math.asin(0.03 / 0.32);    // הזווית של רצועה שמישהו מחזיק בה ומושך אליו
-const LOOP = 0.30, BOTTOM_W = 0.12, BAND_W = 0.025;  // אורך הלולאה מתחת למחזיק, רוחב התחתית, רוחב הרצועה
+export const HELD_TILT = Math.asin(0.03 / 0.20);    // הזווית של רצועה שמישהו מחזיק בה ומושך אליו
+const LOOP = 0.18, BOTTOM_W = 0.10, BAND_W = 0.025;  // אורך הלולאה מתחת למחזיק, רוחב התחתית, רוחב הרצועה
 
 // מחזיק: תיבה מעוגלת סביב המוט, קצת צרה למטה, עם חריץ שממנו יוצאת הרצועה
 function holderGeometry() {
@@ -39,7 +40,7 @@ function holderGeometry() {
 function loopGeometry() {
   const top = -(HOLD.h - RAIL_R - 0.012) + 0.012;      // קצת בתוך המחזיק
   const L = LOOP, a = BOTTOM_W / 2;
-  const half = [[0.008, top], [0.012, top - 0.03], [0.022, top - 0.09], [0.036, top - 0.16], [0.05, top - 0.22],
+  const half = [[0.008, top], [0.012, top - 0.1 * L], [0.022, top - 0.3 * L], [0.036, top - 0.53 * L], [a * 0.9, top - 0.72 * L],
     [a, top - L + 0.05], [a * 0.82, top - L + 0.017], [a * 0.42, top - L + 0.002], [0, top - L]];
   const pts = [...half.map(([z, y]) => new THREE.Vector3(0, y, -z)), ...half.slice(0, -1).reverse().map(([z, y]) => new THREE.Vector3(0, y, z))];
   const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
