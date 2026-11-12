@@ -14,7 +14,7 @@ import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
-import { applyFingers, fingerPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
+import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
 export const KNEEL = { th: 0.0304, far: 1.25 };
 export const kneelDrop = (k, x) => k * KNEEL.th * (KNEEL.far - x);
@@ -450,7 +450,7 @@ function markInsp(gltf) {
     const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
     for (let i = 0; i < n; i++) {
       const w = [0, 0, 0, 0];
-      for (let j = 0; j < 4; j++) { const ww = sw.getComponent(i, j); if (!ww) continue; const nm = bones[si.getComponent(i, j)]?.name || ''; const r = REGION.find(([re]) => re.test(nm)); w[r ? r[1] : 0] += ww; }
+      for (let j = 0; j < 4; j++) { const ww = sw.getComponent(i, j); if (!ww) continue; const nm = legacyBone(bones[si.getComponent(i, j)]?.name || ''); const r = REGION.find(([re]) => re.test(nm)); w[r ? r[1] : 0] += ww; }
       let reg = 0; if (w[1] >= 0.5) reg = 1; else if (w[2] >= Math.max(w[1], w[3], w[0])) reg = 2; else if (w[3] >= 0.5) reg = 3; else if (w[1] > w[0]) reg = 1;
       const u = P[i * 3] - c.x, v = P[i * 3 + 1] - c.y, z = P[i * 3 + 2] - c.z;
       A[i * 3] = reg; A[i * 3 + 1] = u; A[i * 3 + 2] = v;
@@ -571,6 +571,7 @@ const CAP_MAT = new THREE.MeshStandardMaterial({ color: 0x1d2a44, roughness: 0.7
 // הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
 const _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
 export function skinVerts(root) {
+  poseFingers(root);   // תנוחת האצבעות (fingers.js) — על העצמות, לפני חישוב הקודקודים
   root.updateMatrixWorld(true);
   const out = [], v = new THREE.Vector3(), n = new THREE.Vector3();
   root.traverse(o => {
@@ -595,7 +596,7 @@ export function skinVerts(root) {
     }
     out.push({ o, P, N, kind: partKind(o.material.name + ' ' + o.name) });
   });
-  applyFingers(root, out);   // כיפוף האצבעות (fingers.js) — אחרי השלד
+  applyFingers(root, out);   // נורמלים חלקים לידיים שכופפו
   relaxBrows(root, out);
   return out;
 }
@@ -628,7 +629,7 @@ export function handPen(root, verts = skinVerts(root)) {
     if (!o.isSkinnedMesh || (kind !== 'skin' && kind !== 'cloth')) continue;
     const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones, n = g.attributes.position.count;
     const dom = new Array(n);
-    for (let i = 0; i < n; i++) { let bw = 0, bn = ''; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]?.name || ''; } } dom[i] = bn; }
+    for (let i = 0; i < n; i++) { let bw = 0, bn = ''; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]?.name || ''; } } dom[i] = legacyBone(bn); }
     for (let i = 0; i < n; i++) if (kind === 'skin' && HAND_B.test(dom[i])) hands.push([P[i * 3], P[i * 3 + 1], P[i * 3 + 2], dom[i].startsWith('L') ? 'Left' : 'Right']);
     const I = g.index, m = I ? I.count : n;
     for (let t = 0; t < m; t += 3) {
@@ -965,21 +966,45 @@ export class PeopleLayer {
       return { o: W(hd).lerp(W(f1), 0.6), x: new THREE.Vector3().crossVectors(z, y), y, z }; };
     let F = frame(); const to = p => F.o.clone().addScaledVector(F.x, p.x).addScaledVector(F.y, p.y).addScaledVector(F.z, p.z);
     const P = pose(to); root.userData.fingerPose = { Right: P.fingers };
+    const off = new THREE.Vector3();   // כמה כף היד זזה לאחור (במערכת היד) כדי שלא תיכנס למכשיר
+    const FPz = P.sdf ? (root.userData.fingerPose.Right = { ...P.fingers, curl: [0, 1, 2, 3].map(() => [0, 0, 0]), thumb: 0 }) : null;
+    const toH = w => { const r = w.sub(F.o); return new THREE.Vector3(r.dot(F.x), r.dot(F.y), r.dot(F.z)).add(off); };
+    if (P.sdf) {
+      // קודם כף היד עצמה (בלי האצבעות): אם היא נכנסת למכשיר — כל היד זזה לאחור, בכיוון ההפוך מכף היד
+      for (let it = 0; it < 3; it++) { let mn = Infinity; const v = new THREE.Vector3();
+        for (const { o, P: Q, kind } of skinVerts(root)) { if (!o.isSkinnedMesh || kind !== 'skin') continue; const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones;
+          for (let i = 0; i < g.attributes.position.count; i++) { let bw = 0, bn = ''; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]?.name || ''; } }
+            if (bn === 'RightHand' || bn === 'RightFingerBase' || bn === 'RightHandThumb1') mn = Math.min(mn, P.sdf(toH(v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2])))); } }
+        if (mn >= 0.003) break; off.z -= 0.004 - mn; } }
     if (P.thumbTo) { if (!V.idleRef) { V.idleRef = SkeletonUtils.clone(V.gltf.scene); V.idleRef.updateMatrixWorld(true); } const tips = this.handTips(V, hand);
-      if (tips) { const tb = W(th), cur = th.localToWorld(tips.th.clone()).sub(tb).normalize(), want = to(P.thumbTo).sub(tb).normalize();
+      if (tips) { const tb = W(th), cur = th.localToWorld(tips.th.clone()).sub(tb).normalize(), want = to(P.thumbTo.clone().sub(off)).sub(tb).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(cur, want), wq = th.getWorldQuaternion(new THREE.Quaternion()), pq = th.parent.getWorldQuaternion(new THREE.Quaternion());
         th.quaternion.copy(pq.invert().multiply(q.multiply(wq))); root.updateMatrixWorld(true); } }
-    const keepB = new Set([hd, B('RightFingerBase'), f1, th]), wrist = W(hd), geos = [], wristUV = []; let map = null;
+    // האצבעות נסגרות על המכשיר עד שהן נוגעות בו (P.sdf — המרחק מנקודה במערכת היד אל המכשיר): כל פרק בתורו, מהשורש
+    // אל הקצה, מתכופף עד שהאצבע שאחריו מגיעה למכשיר. כך האצבעות עוטפות אותו ולא חודרות לתוכו. אצבע שלא מגיעה למכשיר
+    // (הזרת, מתחת לקצה שלו) מתכופפת כמו האצבע שלידה
+    if (P.sdf) {
+      const RAD = [0.0085, 0.009, 0.0085, 0.0075], MAX = [85, 100, 70], GAP = 0.003;
+      info.fingers.forEach((Fg, f) => { const fr0 = [0, Fg.seg[0] / Fg.L, (Fg.seg[0] + Fg.seg[1]) / Fg.L], c = FPz.curl[f];
+        const hit = k => { for (let j = 1; j <= 8; j++) if (P.sdf(toH(fingerPoint(root, hand, f, fr0[k] + (1 - fr0[k]) * j / 8))) < RAD[f] + GAP) return true; return false; };
+        for (let k = 0; k < 3; k++) { let found = false; for (let a = 0; a < MAX[k]; a += 3) { c[k] = a + 3; if (hit(k)) { c[k] = a; found = true; break; } }
+          if (!found) { c[k] = f > 0 ? FPz.curl[f - 1][k] : P.fingers.curl[f][k]; while (c[k] > 0 && hit(k)) c[k] -= 3; } } });
+      const thit = () => { for (let j = 3; j <= 8; j++) if (P.sdf(toH(thumbPoint(root, hand, j / 8))) < 0.0095 + GAP) return true; return false; };
+      FPz.thumb = P.fingers.thumb || 0; while (FPz.thumb > 0 && thit()) FPz.thumb -= 3;
+      this.inspHand = { curl: FPz.curl.map(c => [...c]), thumb: FPz.thumb, off: off.toArray() }; }
+    const keepB = new Set(['RightHand', 'RightFingerBase', 'RightHandFinger1', 'RThumb']), wrist = W(hd), geos = [], wristUV = []; let map = null;
     for (const { o, P: Q, N, kind } of skinVerts(root)) { if (!o.isSkinnedMesh || kind !== 'skin') continue;
       const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones, n = g.attributes.position.count, ok = new Uint8Array(n), v = new THREE.Vector3();
       for (let i = 0; i < n; i++) { let bw = 0, bn = null; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]; } }
-        ok[i] = keepB.has(bn) || (bn === fa && v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]).distanceTo(wrist) < 0.07) ? 1 : 0; if (ok[i] && bn === fa && g.attributes.uv) wristUV.push([g.attributes.uv.getX(i), g.attributes.uv.getY(i)]); }
+        ok[i] = keepB.has(legacyBone(bn?.name)) || (bn === fa && v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]).distanceTo(wrist) < 0.07) ? 1 : 0; if (ok[i] && bn === fa && g.attributes.uv) wristUV.push([g.attributes.uv.getX(i), g.attributes.uv.getY(i)]); }
       const I = g.index, idx = []; for (let t = 0; t < I.count; t += 3) { const a = I.getX(t), b = I.getX(t + 1), c = I.getX(t + 2); if (ok[a] && ok[b] && ok[c]) idx.push(a, b, c); }
       if (!idx.length) continue;
       const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) { v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]).sub(F.o); pos[i * 3] = v.dot(F.x); pos[i * 3 + 1] = v.dot(F.y); pos[i * 3 + 2] = v.dot(F.z);
+      for (let i = 0; i < n; i++) { v.set(Q[i * 3], Q[i * 3 + 1], Q[i * 3 + 2]).sub(F.o); pos[i * 3] = v.dot(F.x) + off.x; pos[i * 3 + 1] = v.dot(F.y) + off.y; pos[i * 3 + 2] = v.dot(F.z) + off.z;
         if (N) { v.set(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]); nor[i * 3] = v.dot(F.x); nor[i * 3 + 1] = v.dot(F.y); nor[i * 3 + 2] = v.dot(F.z); } }
       const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.BufferAttribute(pos, 3)); ng.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      // blend: 0 באמה (5 ס"מ לפני פרק היד) → 1 בפרק היד: שם הטקסטורה של העור עוברת בהדרגה לצבע האחיד של האמה — בלי תפר
+      { const bl = new Float32Array(n), wl0 = wrist.clone().sub(F.o).dot(F.y); for (let i = 0; i < n; i++) { const t = Math.min(1, Math.max(0, (pos[i * 3 + 1] - off.y - wl0 + 0.05) / 0.06)); bl[i] = t * t * (3 - 2 * t); } ng.setAttribute('blend', new THREE.BufferAttribute(bl, 1)); }
       ng.setAttribute('uv', g.attributes.uv ? g.attributes.uv.clone() : new THREE.BufferAttribute(new Float32Array(n * 2), 2)); ng.setIndex(idx); geos.push(ng); map = map || o.material.map; }
     if (!geos.length) return null;
     const wl = wrist.clone().sub(F.o);
@@ -988,7 +1013,7 @@ export class PeopleLayer {
     try { const img = map?.image, c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 128, 128); const d = x.getImageData(0, 0, 128, 128).data, acc = [0, 0, 0]; let n = 0;
       for (const [u, v] of wristUV) { const i = (Math.min(127, Math.max(0, Math.floor((map.flipY ? 1 - v : v) * 128))) * 128 + Math.min(127, Math.max(0, Math.floor(u * 128)))) * 4; if (d[i + 3] < 200) continue; acc[0] += d[i]; acc[1] += d[i + 1]; acc[2] += d[i + 2]; n++; }
       if (n) color = new THREE.Color().setRGB(acc[0] / n / 255, acc[1] / n / 255, acc[2] / n / 255, THREE.SRGBColorSpace); } catch { }
-    return { geo: geos.length > 1 ? mergeGeometries(geos, false) : geos[0], map, color, wrist: new THREE.Vector3(wl.dot(F.x), wl.dot(F.y), wl.dot(F.z)) };
+    return { geo: geos.length > 1 ? mergeGeometries(geos, false) : geos[0], map, color, wrist: new THREE.Vector3(wl.dot(F.x), wl.dot(F.y), wl.dot(F.z)).add(off) };
   }
   // קצה האגודל וקצה האצבע (המורה) של כל דגם, במערכת הצירים של העצם שלהם — מהקודקודים של היד בתנוחת המנוחה
   handTips(V, hand) {
@@ -999,7 +1024,7 @@ export class PeopleLayer {
     for (const { o, P, kind } of skinVerts(ref)) { if (!o.isSkinnedMesh || kind !== 'skin') continue;
       const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones;
       for (let i = 0; i < g.attributes.position.count; i++) { let bw = 0, bn = null; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]; } }
-        if (bn === th) TH.push(new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])); else if (bn === f1) FI.push(new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])); } }
+        const ln = legacyBone(bn?.name); if (ln === th.name) TH.push(new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])); else if (ln === f1.name) FI.push(new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])); } }
     if (TH.length < 8 || FI.length < 8) return (V.tips[hand] = null);
     const mean = a => a.reduce((s, v) => s.add(v), new THREE.Vector3()).multiplyScalar(1 / a.length);
     const far = (a, from, dir, k) => { const d = dir.clone().normalize(); return [...a].sort((p, q) => q.clone().sub(from).dot(d) - p.clone().sub(from).dot(d)).slice(0, Math.max(3, Math.round(a.length * k))); };

@@ -479,10 +479,17 @@ function buildReader() {
   const fDir = V(-0.7, 0.71, 0).normalize(), pDir = V(0, 0, 1), aDir = new THREE.Vector3().crossVectors(pDir, fDir), hO = V(0.004, -0.018, -D / 2 - 0.026);
   const toHand = d => { const r = d.clone().sub(hO); return V(r.dot(aDir), r.dot(fDir), r.dot(pDir)); };
   const cfg = { curl: [50, 62, 15], thumb: V(W / 2 + 0.017, -0.012, D / 2 + 0.004) };
-  const handPose = () => ({ fingers: { ...FINGERS.phone, curl: [0, 1, 2, 3].map(k => [cfg.curl[0] + k * 2.5, cfg.curl[1] + (k === 1 || k === 2 ? 2 : 0), cfg.curl[2]]) }, thumbTo: toHand(cfg.thumb) });
+  const handPose = () => ({ fingers: { ...FINGERS.phone, curl: [0, 1, 2, 3].map(k => [cfg.curl[0] + k * 2.5, cfg.curl[1] + (k === 1 || k === 2 ? 2 : 0), cfg.curl[2]]) }, thumbTo: toHand(cfg.thumb),
+    // המרחק מנקודה (במערכת היד) אל הקופסה של המכשיר — שלילי בפנים. האצבעות נסגרות עד שהן נוגעות (handMesh ב-actors.js)
+    sdf: p => { const d = hO.clone().addScaledVector(aDir, p.x).addScaledVector(fDir, p.y).addScaledVector(pDir, p.z), q = [Math.abs(d.x) - W / 2, Math.abs(d.y) - H / 2, Math.abs(d.z) - D / 2];
+      return Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0)) + Math.min(Math.max(q[0], q[1], q[2]), 0); } });
   let handM = null;
   const setHand = h => { for (const m of blocks) dev.remove(m); if (handM) dev.remove(handM);
     const mat = new THREE.MeshStandardMaterial({ map: h.map || null, color: h.map ? 0xffffff : 0xc99a78, roughness: 0.75 });
+    // ליד פרק היד הטקסטורה עוברת בהדרגה לצבע האחיד של האמה (blend מ-handMesh) — אותו צבע עור, בלי תפר
+    if (h.geo.attributes.blend && h.color) mat.onBeforeCompile = sh => { sh.uniforms.uSkin = { value: skin.color };
+      sh.vertexShader = 'attribute float blend;\nvarying float vBlend;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBlend = blend;');
+      sh.fragmentShader = 'uniform vec3 uSkin;\nvarying float vBlend;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb = mix(uSkin, diffuseColor.rgb, vBlend);'); };
     const hm = new THREE.Mesh(h.geo, mat); hm.matrixAutoUpdate = false; hm.matrix.makeBasis(aDir, fDir, pDir).setPosition(hO); hm.userData.hand = true; hm.frustumCulled = false; hm.renderOrder = 10; dev.add(hm); handM = hm;
     // שום קודקוד של היד לא בתוך המכשיר: מה שנכנס לקופסה שלו (ועוד מ"מ) נדחף אל הדופן הקרובה
     { const P = h.geo.attributes.position, inv = hm.matrix.clone().invert(), v = new THREE.Vector3(), ex = [W / 2 + 0.003, H / 2 + 0.003, D / 2 + 0.003];

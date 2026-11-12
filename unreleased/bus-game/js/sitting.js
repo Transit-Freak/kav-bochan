@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { aim, turn, twoBone } from './driver.js';
+import { legacyBone } from './fingers.js';
 
 const X = new THREE.Vector3(1, 0, 0), Z = new THREE.Vector3(0, 0, 1);
 const D = THREE.MathUtils.degToRad;
@@ -116,7 +117,7 @@ const DOMS = new WeakMap(), PARTS = new WeakMap();
 function domBone(o, i) {
   const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight;
   let bi = 0, bw = -1; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bi = si.getComponent(i, j); } }
-  return o.skeleton.bones[bi].name;
+  return legacyBone(o.skeleton.bones[bi].name);   // עצמות האצבעות החדשות נחשבות כמו העצמות הישנות (אצבעות / אגודל)
 }
 export function doms(o) {
   let d = DOMS.get(o.geometry);
