@@ -725,21 +725,23 @@ export function skinVerts(root) {
     // מרפק ופרק יד שלא נמעכים: המשקלים של עצמות הזרוע (זרוע, אמה, כף יד) מתמזגים כסיבוב אחד (קווטרניון כפול) ולא
     // כממוצע של מטריצות — ממוצע של שני סיבובים רחוקים מכווץ את העור במפרק ("המרפק נמעך", שלמה 12.11). שאר העצמות כרגיל
     const dq = bm && SKIN_OPT.dq ? o.skeleton.bones.map((b, k) => { if (!ARM_DQ.test(b.name)) return null; _dm.fromArray(bm, k * 16).decompose(_dp, _dqr, _ds);
-      return [_dqr.x, _dqr.y, _dqr.z, _dqr.w, 0.5 * (_dp.x * _dqr.w + _dp.y * _dqr.z - _dp.z * _dqr.y), 0.5 * (-_dp.x * _dqr.z + _dp.y * _dqr.w + _dp.z * _dqr.x), 0.5 * (_dp.x * _dqr.y - _dp.y * _dqr.x + _dp.z * _dqr.w), -0.5 * (_dp.x * _dqr.x + _dp.y * _dqr.y + _dp.z * _dqr.z)]; }) : null;
+      return [_dqr.x, _dqr.y, _dqr.z, _dqr.w, 0.5 * (_dp.x * _dqr.w + _dp.y * _dqr.z - _dp.z * _dqr.y), 0.5 * (-_dp.x * _dqr.z + _dp.y * _dqr.w + _dp.z * _dqr.x), 0.5 * (_dp.x * _dqr.y - _dp.y * _dqr.x + _dp.z * _dqr.w), -0.5 * (_dp.x * _dqr.x + _dp.y * _dqr.y + _dp.z * _dqr.z), (_ds.x + _ds.y + _ds.z) / 3]; }) : null;   // [8] — קנה המידה של העצם
     const D = new Float64Array(8);
     for (let i = 0; i < pos.count; i++) {
       if (bm) {   // bindMatrixInverse · Σ w·bone · bindMatrix
-        const e = _acc.elements; e.fill(0); let wd = 0, first = null;
+        const e = _acc.elements; e.fill(0); let wd = 0, first = null, dsc = 0;
         for (let j = 0; j < 4; j++) {
           const w = sw.getComponent(i, j); if (!w) continue;
           const bi = si.getComponent(i, j), b = bi * 16, q = dq && dq[bi];
-          if (q) { if (!first) { first = q; D.fill(0); } const sg = q[0] * first[0] + q[1] * first[1] + q[2] * first[2] + q[3] * first[3] < 0 ? -w : w; for (let k = 0; k < 8; k++) D[k] += sg * q[k]; wd += w; continue; }
+          if (q) { if (!first) { first = q; D.fill(0); dsc = 0; } dsc += w * q[8]; const sg = q[0] * first[0] + q[1] * first[1] + q[2] * first[2] + q[3] * first[3] < 0 ? -w : w; for (let k = 0; k < 8; k++) D[k] += sg * q[k]; wd += w; continue; }
           for (let k = 0; k < 16; k++) e[k] += w * bm[b + k];
         }
         if (wd) { const n = Math.hypot(D[0], D[1], D[2], D[3]) || 1; for (let k = 0; k < 8; k++) D[k] /= n;
           _dqr.set(D[0], D[1], D[2], D[3]);   // ההזזה: 2 · d · q*
           _dp.set(2 * (-D[7] * D[0] + D[4] * D[3] - D[5] * D[2] + D[6] * D[1]), 2 * (-D[7] * D[1] + D[4] * D[2] + D[5] * D[3] - D[6] * D[0]), 2 * (-D[7] * D[2] - D[4] * D[1] + D[5] * D[0] + D[6] * D[3]));
-          const m = _dm.compose(_dp, _dqr, _ds.set(1, 1, 1)).elements; for (let k = 0; k < 16; k++) e[k] += wd * m[k]; }
+          // קנה המידה של הדמות (fitHeight מקטין או מגדיל את כל השלד) נשמר גם כאן. קודם הוא נזרק (1), ואצל דמות שהוקטנה
+          // הכתפיים והזרועות נשארו בגודל המקורי ועלו למעלה — "כתפיים מורמות" (ככל שהדמות הוקטנה יותר)
+          const m = _dm.compose(_dp, _dqr, _ds.setScalar(dsc / wd)).elements; for (let k = 0; k < 16; k++) e[k] += wd * m[k]; }
         _full.multiplyMatrices(o.matrixWorld, o.bindMatrixInverse).multiply(_acc).multiply(o.bindMatrix);
       } else _full.copy(o.matrixWorld);
       v.fromBufferAttribute(pos, i).applyMatrix4(_full); P[i * 3] = v.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z;
