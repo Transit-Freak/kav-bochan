@@ -56,6 +56,73 @@ def kind(o):
 def ctx(o):
     return bpy.context.temp_override(object=o, active_object=o, selected_objects=[o], selected_editable_objects=[o])
 
+# כיפת שיער חדשה (11.11, שלמה: "משולש בצבע עור בתוך השיער" ו"קו שיער חתוך ברקה"). הכיפה הישנה הייתה עותק אטום של
+# רשת השיער, חתוך מעל האוזניים: השוליים המצולעים שלה בלטו ברקה, ומתחת לקו הזה כל חור בשיער הראה את הקרקפת.
+# עכשיו הכיפה היא הקרקפת עצמה: משטחי הגוף שהשיער באמת מכסה (קרן מכל קודקוד החוצה, ובודקים את השקיפות של טקסטורת
+# השיער בנקודת הפגיעה), בצבע השיער, 1.5 מ"מ מעל העור. כך היא עוקבת אחרי קו השיער האמיתי ולא בולטת ממנו.
+def scalp_cap():
+    import numpy as np
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+    body = next((o for o in meshes if 'pv_hands' in o.vertex_groups or kind(o) == 'basemesh'), None)
+    hairs = [o for o in meshes if kind(o) == 'hair' and o.name != 'hair_cap']
+    oldc = bpy.data.objects.get('hair_cap')
+    if not body or not hairs or 'Head' not in rig.data.bones: print('MESH hair_cap skipped', bool(body), len(hairs)); return
+    mat = oldc.data.materials[0] if oldc and oldc.data.materials else None
+    if oldc: bpy.data.objects.remove(oldc, do_unlink=True)
+    if mat is None:
+        mat = bpy.data.materials.new('hair_cap'); mat.use_nodes = True
+    rig.data.pose_position = 'REST'; bpy.context.view_layer.update(); dg = bpy.context.evaluated_depsgraph_get()
+    verts, tris, meta, alph = [], [], [], {}
+    for h in hairs:
+        for i, ms in enumerate(h.material_slots):
+            im = next((n.image for n in ms.material.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image and not any(x in n.image.name.lower() for x in ('normal', 'bump', 'spec'))), None) if ms.material and ms.material.node_tree else None
+            if im and im.size[0]: alph[(h.name, i)] = np.array(im.pixels[:], dtype=np.float32).reshape(im.size[1], im.size[0], -1)[:, :, -1]
+        e = h.evaluated_get(dg); me = e.to_mesh(); me.calc_loop_triangles(); M = e.matrix_world; b0 = len(verts)
+        verts += [M @ v.co for v in me.vertices]; uvl = me.uv_layers.active.data if me.uv_layers.active else None
+        for lt in me.loop_triangles:
+            tris.append(tuple(b0 + i for i in lt.vertices)); meta.append(([uvl[l].uv.copy() for l in lt.loops] if uvl else None, (h.name, lt.material_index)))
+        e.to_mesh_clear()
+    bvh = BVHTree.FromPolygons(verts, tris)
+    def covered(p, n):
+        o = p + n * 0.0005; left = 0.035
+        for _ in range(10):
+            loc, _n, idx, dist = bvh.ray_cast(o, n, left)
+            if loc is None: return False
+            uvs, key = meta[idx]; A = alph.get(key)
+            if A is None or uvs is None: return True
+            w = poly_3d_calc([verts[i] for i in tris[idx]], loc); u = sum(uvs[i].x * w[i] for i in range(3)) % 1.0; v = sum(uvs[i].y * w[i] for i in range(3)) % 1.0
+            if A[min(A.shape[0] - 1, int(v * A.shape[0])), min(A.shape[1] - 1, int(u * A.shape[1]))] > 0.5: return True
+            o = loc + n * 0.0003; left -= dist + 0.0003
+            if left <= 0: return False
+        return False
+    cap = body.copy(); cap.data = body.data.copy(); cap.name = 'hair_cap'; SC.collection.objects.link(cap)
+    if cap.data.shape_keys:
+        with ctx(cap): bpy.ops.object.shape_key_remove(all=True, apply_mix=True)
+    for m in list(cap.modifiers):
+        if m.type == 'MASK':
+            with ctx(cap): bpy.ops.object.modifier_apply(modifier=m.name)
+        elif m.type != 'ARMATURE': cap.modifiers.remove(m)
+    if 'pv_hands' in cap.vertex_groups: cap.vertex_groups.remove(cap.vertex_groups['pv_hands'])
+    W = cap.matrix_world; W3 = W.to_3x3(); sc = W.to_scale().x or 1.0
+    zmin = (rig.matrix_world @ rig.data.bones['Head'].head_local).z - 0.02
+    cov = set()
+    for v in cap.data.vertices:
+        p = W @ v.co
+        if p.z > zmin and covered(p, (W3 @ v.normal).normalized()): cov.add(v.index)
+    b_ = bmesh.new(); b_.from_mesh(cap.data); n_all = len(b_.faces)
+    bmesh.ops.delete(b_, geom=[f for f in b_.faces if not all(v.index in cov for v in f.verts)], context='FACES')
+    for v in b_.verts: v.co += v.normal * (0.0015 / sc)
+    n_cap = len(b_.faces); b_.to_mesh(cap.data); b_.free()
+    cap.data.materials.clear(); cap.data.materials.append(mat)
+    for p in cap.data.polygons: p.material_index = 0
+    cap.data.update(); rig.data.pose_position = 'POSE'; bpy.context.view_layer.update()
+    print('MESH hair_cap scalp faces', n_cap, 'of', n_all, 'hair', [h.name for h in hairs], 'alpha maps', len(alph))
+    if not n_cap: bpy.data.objects.remove(cap, do_unlink=True)
+import bmesh
+if os.environ.get('SCALP_CAP', '1') == '1': scalp_cap()
+
 # רשתות: displace (השיער מורחק מהראש, הכיפה מתחתיו) ומסכות → החלה, לפי הסדר; subsurf → הסרה; Decimate
 import bmesh
 for o in [o for o in bpy.data.objects if o.type == 'MESH']:
@@ -79,7 +146,7 @@ for o in [o for o in bpy.data.objects if o.type == 'MESH']:
     if r >= 0.999: print('MESH', o.name, k, n0, 'kept'); continue
     # אצבעות: כפות הידיים (קבוצת pv_hands מ-fingers_rig.py) מוקטנות פחות משאר הגוף, כדי שהפרקים יתכופפו חלק.
     # בשני שלבים, כי Decimate עם קבוצת קודקודים מקטין קודם כל את מה שבקבוצה: קודם רק הגוף, ואז רק הידיים (PERSON_HANDS = היחס לידיים)
-    HR = float(os.environ.get('PERSON_HANDS', '0') or 0)
+    HR = float(os.environ.get('PERSON_HANDS', '0.3') or 0)
     if HR > 0 and 'pv_hands' in o.vertex_groups:
         def hand_tris():
             gi = o.vertex_groups['pv_hands'].index

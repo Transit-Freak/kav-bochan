@@ -1,7 +1,8 @@
 name: bus-people-fingers
-# ניסיון (שלב 1), 11.11: אדם אחד עם פרקי אצבעות. anim.py + fingers_rig.py מכאן, person_variants.py מהענף claude/bus-game,
-# הייצוא — tools/blender-test/fingers/export_person.py (עותק של זה שבמשחק, עם שמירה על כפות הידיים בהקטנה).
-# הפלט נשמר בענף הזה, ב-tools/blender-test/out_fingers.
+# האנשים של משחק האוטובוס עם פרקי אצבעות (שלב 2): כל 9 האנשים, כל אחד ב-job משלו.
+# anim.py + fingers_rig.py מכאן, person_variants.py מהענף claude/bus-game (קריאה בלבד),
+# הייצוא — tools/blender-test/fingers/export_person.py (עותק של זה שבמשחק + ידיים מוקטנות פחות + כיפת שיער מהקרקפת).
+# הפלט נשמר בענף הזה, ב-tools/blender-test/out_fingers/people.
 on:
   push:
     branches: [claude/bus-people-fingers]
@@ -12,9 +13,13 @@ concurrency:
   group: bus-people-fingers
   cancel-in-progress: true
 jobs:
-  export:
+  person:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
         with: {sparse-checkout: tools/blender-test}
@@ -35,32 +40,37 @@ jobs:
           UD=$($BL -b --online-mode --python-expr "import bpy;print('UD='+bpy.utils.extension_path_user('bl_ext.blender_org.mpfb', create=True))" | grep '^UD=' | cut -d= -f2)
           echo "UD=$UD"; mkdir -p "$UD/data"
           curl -sL -o /tmp/sa.zip http://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip && unzip -qo /tmp/sa.zip -d "$UD/data"
-          # בדיקה לשלב מאוחר (חיוך): אילו מטרות הבעה יש ב-MPFB עצמו
-          EXT=$(dirname "$UD")/../../extensions; find $HOME/.config/blender -type d \( -iname '*express*' -o -iname '*viseme*' -o -iname 'faceunits*' \) | head -10 || true
-          find $HOME/.config/blender -iname '*smile*' | head -10 || true
       - name: CMU 16_15
         run: |
           git clone -q --depth=1 --filter=blob:none --sparse https://github.com/Shriinivas/cmubvh.git $HOME/cmubvh
           cd $HOME/cmubvh && Z=$(git ls-tree -r --name-only HEAD | grep -E '/16_15\.zip$') && git sparse-checkout set --no-cone "/$Z"
           mkdir -p $HOME/bvh && unzip -qo "$Z" -d $HOME/bvh && echo "BVH=$(find $HOME/bvh -name '*.bvh' | head -1)" >> $GITHUB_ENV
-      - name: Person 0 with fingers
+      - name: Person ${{ matrix.n }}
         working-directory: tools/blender-test
         run: |
           set -e
-          G=$GITHUB_WORKSPACE/game/unreleased/bus-game; O=$PWD/out_fingers; mkdir -p out $O; rm -f $O/*
+          G=$GITHUB_WORKSPACE/game/unreleased/bus-game; O=$RUNNER_TEMP/people; mkdir -p out $O
           python3 $G/tools/person_variants.py anim.py .
-          n=0
-          $BL -b --online-mode -P anim_$n.py 2>&1 | grep -E 'FINGERS|VARIANT|MATCHED|shoe floor|knee err|Error|Traceback|line [0-9]' | cut -c1-3000 || true
+          n=${{ matrix.n }}
+          $BL -b --online-mode -P anim_$n.py 2>&1 | grep -E 'FINGERS|VARIANT|MATCHED|shoe floor|knee err|Error|Traceback|line [0-9]' | cut -c1-1500 || true
           ls -la out/anim_$n.blend
-          for hr in 0.3 0.45 0.6; do
-            echo "== hands ratio: $hr"
-            PERSON_HANDS=$hr $BL -b --online-mode out/anim_$n.blend --python-exit-code 1 -P fingers/export_person.py -- $O/person_${n}_h$hr.glb 2>&1 | grep -E 'MESH base|WALK|TRIS|PERSON|Error|Traceback'
-          done
+          $BL -b --online-mode out/anim_$n.blend --python-exit-code 1 -P fingers/export_person.py -- $O/person_$n.glb 2>&1 | grep -E 'MESH|WALK|TRIS|PERSON|Error|Traceback|line [0-9]' | cut -c1-400
           ls -la $O
       - uses: actions/upload-artifact@v4
-        with: {name: person-fingers, path: tools/blender-test/out_fingers, retention-days: 7}
+        with: {name: person-${{ matrix.n }}, path: '${{ runner.temp }}/people', retention-days: 7}
+  save:
+    needs: person
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {sparse-checkout: tools/blender-test}
+      - uses: actions/download-artifact@v4
+        with: {pattern: person-*, merge-multiple: true, path: '${{ runner.temp }}/people'}
       - name: Save
         run: |
-          cd tools/blender-test && git add -f out_fingers
+          cd tools/blender-test && git rm -rq --ignore-unmatch out_fingers && mkdir -p out_fingers/people && cp $RUNNER_TEMP/people/person_*.glb out_fingers/people/
+          (cd out_fingers/people && ls person_*.glb | sort -V | python3 -c "import sys,json;print(json.dumps([l.strip() for l in sys.stdin]))" > people.json && cat people.json && ls -la)
+          git add -f out_fingers
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -qm "ניסיון אצבעות: ייצוא אדם 0 (מ-${GITHUB_SHA::9})" && git pull -q --rebase origin claude/bus-people-fingers && git push -q origin HEAD:claude/bus-people-fingers || true
+          git commit -qm "אנשים עם אצבעות: ייצוא (מ-${GITHUB_SHA::9})" && git push -q origin HEAD:claude/bus-people-fingers
