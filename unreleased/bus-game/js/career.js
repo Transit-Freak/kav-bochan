@@ -30,7 +30,7 @@ export class Coverage {
     const stops = city.stops, N = stops.length, Z = demand.zones;
     this.stops = stops; this.zones = Z;
     this.hood = Z.map(z => z.kind === 'hood');
-    const wide = stops.map(s => (s.hw ?? 4.5) * 2 >= WIDE);
+    const wide = stops.map(s => (s.hw0 ?? s.hw ?? 4.5) * 2 >= WIDE);
     const near = (x, y) => { const a = []; for (let i = 0; i < N; i++) if (Math.hypot(stops[i].x - x, stops[i].y - y) <= COVER_R) a.push(i); return a; };
     // הבניינים: שכונה, משקל, והתחנות שבהישג יד
     const B = city.buildings.map(b => {
@@ -38,7 +38,7 @@ export class Coverage {
       for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const c = p[j][0] * p[i][1] - p[i][0] * p[j][1]; A += c; x += (p[j][0] + p[i][0]) * c; y += (p[j][1] + p[i][1]) * c; }
       if (Math.abs(A) < 1e-6) { x = p[0][0]; y = p[0][1]; A = 1; } else { x /= 3 * A; y /= 3 * A; }
       const z = Z.findIndex(zz => inZone(zz, x, y));
-      return { x, y, w: Math.abs(A / 2) * Math.max(1, b.h / 3), z, pop: 0 };
+      return { x, y, w: Math.abs(A / 2) * Math.max(1, (b.hp ?? b.h) / 3), z, pop: 0 };   // hp — הגובה שקבע את האוכלוסייה (בלי קשר למראה)
     }).filter(b => b.z >= 0);
     // התושבים של כל תחנת ביקוש — לבניינים של השכונה שלה שהיא הכי קרובה אליהם
     const byZone = Z.map(() => []);

@@ -11,7 +11,8 @@ import { keep } from './texkeep.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // מערכת הצירים של תחנה: a — לאורך הכביש בכיוון הנסיעה (0 = הדלת הקדמית של אוטובוס שעוצר), d — מהשפה פנימה (הרחק מהכביש)
-export const KERB = 3.35;                 // שפת המדרכה בתחנה, מטרים ממרכז הכביש (האוטובוס נוסע 1.8 מהמרכז, רוחבו 2.55)
+export const KERB = 3.35;                 // שפת המדרכה בתחנה, מטרים ממרכז הכביש (האוטובוס נוסע 1.8 מהמרכז, רוחבו 2.55).
+                                          // בחד-סטרי צר האוטובוס נוסע קרוב יותר למרכז (graph.lane) — והשפה זזה איתו: lane + 1.55
 const A0 = -5.35, A1 = -0.95, AC = (A0 + A1) / 2, LEN = A1 - A0;   // הסככה: 4.4 מ', מאחורי הדלת הקדמית
 const DB = 3.5, DF = 1.7, H = 2.62;       // הקיר האחורי, קצה הגג מקדימה, גובה הגג
 const DP = 2.0;                           // קצה דופן הזכוכית מקדימה
@@ -31,15 +32,16 @@ export function assignRoadWidths(city, graph) {
   BLDG = city.buildings.map(b => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of b.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return { pts: b.pts, x0, y0, x1, y1 }; });
   for (const s of city.stops) {
     const [rx, ry] = graph.stopPoint(s);
-    let best = 1e9, w = 9;
+    let best = 1e9, w = 9, w0 = 9;
     for (const r of ROADS) for (let i = 0; i + 1 < r.pts.length; i++) {
       const [x0, y0] = r.pts[i], [x1, y1] = r.pts[i + 1];
       const L2 = (x1 - x0) ** 2 + (y1 - y0) ** 2 || 1;
       const k = Math.max(0, Math.min(1, ((rx - x0) * (x1 - x0) + (ry - y0) * (y1 - y0)) / L2));
       const dd = Math.hypot(x0 + k * (x1 - x0) - rx, y0 + k * (y1 - y0) - ry);
-      if (dd < best) { best = dd; w = r.w; }
+      if (dd < best) { best = dd; w = r.w; w0 = r.w0 ?? r.w; }
     }
-    s.hw = w / 2;
+    s.hw = w / 2;            // הרוחב המצויר (אחרי ההרחבה לאוטובוס)
+    s.hw0 = w0 / 2;          // הרוחב המקורי ב-OSM — למשחק ("רחוב רחב" בכיסוי), כדי שההרחבה לא תשנה אותו
   }
 }
 export function stopFrame(stop, graph) {
@@ -48,8 +50,9 @@ export function stopFrame(stop, graph) {
   const [a, b] = graph.edge(stop.e), [ax, ay] = graph.xy(a), [bx, by] = graph.xy(b);
   const tl = Math.hypot(bx - ax, by - ay) || 1, tx = (bx - ax) / tl, ty = (by - ay) / tl;
   const ux = ty, uy = -tx;                 // המדרכה בצד ימין של כיוון הנסיעה
-  const kx = rx + ux * KERB, ky = ry + uy * KERB;
-  const f = { rx, ry, tx, ty, ux, uy, kx, ky, hw: stop.hw ?? 4.5 };
+  const kerb = graph.lane ? graph.lane[stop.e] + (KERB - 1.8) : KERB;
+  const kx = rx + ux * kerb, ky = ry + uy * kerb;
+  const f = { rx, ry, tx, ty, ux, uy, kx, ky, kerb, hw: stop.hw ?? 4.5 };
   f.px = kx + tx * POLE.a + ux * POLE.d; f.py = ky + ty * POLE.a + uy * POLE.d;
   // כמה מקום יש מאחורי השפה עד בניין. מדרכה צרה מדי — רק עמוד, בלי סככה (כמו בהרבה תחנות אמיתיות)
   const near = BLDG.filter(b => b.x1 > kx - 20 && b.x0 < kx + 20 && b.y1 > ky - 20 && b.y0 < ky + 20);
@@ -361,7 +364,7 @@ function padAndKerb(frames) {
   const w = (f, a, d, y) => { const [x, z] = frameXY(f, a, d); return [x, y, -z]; };
   for (const f of frames) {
     // כשהכביש רחב (האוטובוס נוסע רחוק מהשפה) — המדרכה בולטת אל הכביש עד האוטובוס, עם קצוות משופעים
-    const bulge = Math.max(0, f.hw - KERB), T = bulge > 0.25 ? bulge * 1.6 : 0, Dd = T ? bulge : 0;
+    const bulge = Math.max(0, f.hw - f.kerb), T = bulge > 0.25 ? bulge * 1.6 : 0, Dd = T ? bulge : 0;
     const D1 = Math.max(f.depth, Dd + 0.5), poly = [[PAD.a0 - T, D1], [PAD.a0 - T, Dd], [PAD.a0, 0], [PAD.a1, 0], [PAD.a1 + T, Dd], [PAD.a1 + T, D1]];
     const c = [(PAD.a0 + PAD.a1) / 2, D1 * 0.6];
     for (let i = 0; i < poly.length; i++) {

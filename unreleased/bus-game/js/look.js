@@ -9,7 +9,7 @@ export const SKY_TOP = 0xb2d5f1, SKY_HORIZON = 0xe6f0f6;
 export function setupLook(renderer, scene, { touch = false } = {}) {
   // מיפוי טונים ניטרלי: שומר על הגוונים הבהירים (קירות לבנים, צבעי הקווים) ורק מרכך את האור החזק
   renderer.toneMapping = THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = touch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
@@ -25,15 +25,15 @@ export function setupLook(renderer, scene, { touch = false } = {}) {
   scene.fog = new THREE.Fog(SKY_HORIZON, 1400, 4200);
 
   // מילוי: שמיים קרירים מלמעלה, החזר חם של אבן ואדמה מלמטה; שמש חמה נמוכה מדרום-מערב
-  const hemi = new THREE.HemisphereLight(0xe2efff, 0xd2cbbb, 1.6);
-  const sun = new THREE.DirectionalLight(0xfff0de, 2.2);
+  const hemi = new THREE.HemisphereLight(0xdde8ff, 0xb3a68c, 1.15);
+  const sun = new THREE.DirectionalLight(0xffeacc, 3.0);
   sun.castShadow = true;
   const S = touch ? 1024 : 2048;
   sun.shadow.mapSize.set(S, S);
   sun.shadow.bias = -0.0004;
   sun.shadow.camera.near = 10; sun.shadow.camera.far = 1600;
   scene.add(hemi, sun, sun.target);
-  const dir = new THREE.Vector3(-450, 520, 380).normalize();
+  const dir = new THREE.Vector3(700, 1350, 1000).normalize();   // שמש מדרום-מזרח, כמו בתצוגה שאושרה: הצללים נופלים לצפון-מערב
   return { sun, hemi, dir, mapSize: S, fog: scene.fog, fogMin: { near: 0, far: 0 } };
 }
 

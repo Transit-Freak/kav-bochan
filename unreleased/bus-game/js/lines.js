@@ -1,9 +1,9 @@
 // קווים: הגדרה, חישוב מסלול על הרשת, ציור, ושמירה ב-localStorage
 import * as THREE from 'three';
 import { keep } from './texkeep.js';
-import { dedupe, offsetRight, Polyline, speedProfile } from './graph.js';
+import { dedupe, lanePath, offsetRight, Polyline, speedProfile } from './graph.js';
 
-export const LANE_OFFSET = 1.8;           // מרכז הנתיב הימני, מטרים ממרכז הכביש
+export const LANE_OFFSET = 1.8;           // מרכז הנתיב הימני, מטרים ממרכז הכביש (בחד-סטרי צר — פחות: graph.lane)
 export const COLORS = ['#0ea5e9', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
 const KEY = 'busgame.kiryat-malachi.lines.v1';
 
@@ -16,21 +16,24 @@ export function saveLines(defs) {
 
 // מסלול לרשימת תחנות. מחזיר null + אינדקס הקטע שנכשל
 export function computeRoute(graph, stops) {
-  let pts = [], stopIdx = [];
+  let pts = [], stopIdx = [], dseg = [];
+  const lane = e => graph.lane ? graph.lane[e] : LANE_OFFSET;
   for (let k = 0; k < stops.length; k++) {
     if (k === 0) { pts.push(graph.stopPoint(stops[0])); stopIdx.push(0); continue; }
     const seg = graph.route(stops[k - 1], stops[k]);
     if (!seg) return { error: k };
     for (let i = 1; i < seg.length; i++) {
       const p = seg[i], q = pts[pts.length - 1];
-      if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.05) pts.push(p);
+      if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.05) { pts.push(p); dseg.push(lane(seg.edges ? seg.edges[i - 1] : -1)); }
     }
     stopIdx.push(pts.length - 1);
   }
-  const off = offsetRight(pts, LANE_OFFSET);
-  const poly = new Polyline(off);
-  const stopS = stopIdx.map(i => poly.cum[i]);
-  return { poly, stopS, center: pts };
+  if (pts.length < 2) { const poly = new Polyline(offsetRight(pts, LANE_OFFSET)); return { poly, stopS: stopIdx.map(i => poly.cum[i]), center: pts }; }
+  // בחד-סטרי צר האוטובוס נוסע קרוב יותר למרכז (כדי להישאר על האספלט); המעבר — ב-8 מ' ליד הצומת
+  const lp = lanePath(pts, dseg);
+  const poly = new Polyline(offsetRight(lp.pts, lp.offs));
+  const stopS = stopIdx.map(i => poly.cum[lp.idx[i]]);
+  return { poly, stopS, center: lp.pts };
 }
 
 export class Line {

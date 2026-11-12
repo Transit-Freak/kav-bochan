@@ -3,6 +3,7 @@ export class RoadGraph {
   constructor(city) {
     this.nodes = city.nodes;              // [x,y,...]
     this.edges = city.edges;              // [a,b,...]
+    this.lane = city.lane;                // לכל קשת: כמה ימינה ממרכז הכביש נוסע האוטובוס (1.8 מ'; בחד-סטרי צר — פחות)
     const N = this.nodes.length / 2;
     this.N = N;
     this.E = this.edges.length / 2;
@@ -45,7 +46,7 @@ export class RoadGraph {
   // Dijkstra על קשתות (לא על צמתים), כדי לדעת מאיפה הגענו: אסור לחזור באותו רחוב (פרסה), חוץ מבצומת גדולה
   route(sA, sB) {
     const pA = this.stopPoint(sA), pB = this.stopPoint(sB);
-    if (sA.e === sB.e && sB.t >= sA.t) return [pA, pB];
+    if (sA.e === sB.e && sB.t >= sA.t) return Object.assign([pA, pB], { edges: [sA.e] });
     const E = this.E, dist = new Float64Array(E).fill(Infinity), prev = new Int32Array(E).fill(-1);
     const heap = new MinHeap(), [a1, b1] = this.edge(sA.e);
     const L1 = this.len(a1, b1) * (1 - sA.t);
@@ -68,8 +69,9 @@ export class RoadGraph {
     const chain = []; for (let e = sB.e; e !== -1; e = prev[e]) chain.push(e);
     chain.reverse();
     // הצמתים: סוף הקשת של התחנה הראשונה, ואחריו תחילת כל קשת בשרשרת
+    // edges: הקשת של כל קטע (הקטע הראשון — על הקשת של התחנה הראשונה)
     const mid = chain.map(e => this.xy(this.edge(e)[0]));
-    return [pA, ...mid, pB];
+    return Object.assign([pA, ...mid, pB], { edges: [sA.e, ...chain] });
   }
 }
 
@@ -101,10 +103,36 @@ export function dedupe(pts) {
   return out;
 }
 
-// הזזה ימינה (נסיעה בימין) — נתיב האוטובוס, לא קו המרכז של הכביש
-export function offsetRight(pts, d) {
+// נתיב האוטובוס על קו המרכז: לכל קטע — ההזזה של הקשת שלו (dseg). בנקודה בין שני קטעים — הקטנה מביניהן,
+// והמעבר מהזזה אחת לשנייה נעשה ב-8 המטרים הקרובים לנקודה (נוספות נקודות ביניים). מחזיר נקודות, הזזה לכל נקודה,
+// ולכל נקודה מקורית — האינדקס החדש שלה. אותו חישוב בדיוק כמו lane_path ב-tools/build_city.py
+export const TAPER = 8;
+export function lanePath(pts, dseg) {
+  const n = pts.length, dv = pts.map((_, i) => i === 0 ? dseg[0] : i === n - 1 ? dseg[n - 2] : Math.min(dseg[i - 1], dseg[i]));
+  const out = [], offs = [], idx = [];
+  for (let i = 0; i + 1 < n; i++) {
+    idx.push(out.length); out.push(pts[i]); offs.push(dv[i]);
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1], L = Math.hypot(bx - ax, by - ay), d = dseg[i];
+    if (L < 1) continue;
+    const ts = [];
+    if (dv[i] < d - 1e-6) ts.push(Math.min(TAPER, L / 2));
+    if (dv[i + 1] < d - 1e-6) ts.push(Math.max(L - TAPER, L / 2));
+    ts.sort((a, b) => a - b);
+    let last = -1;
+    for (const t of ts) {
+      if (t - last < 0.5 || t < 0.5 || t > L - 0.5) continue;
+      out.push([ax + (bx - ax) * t / L, ay + (by - ay) * t / L]); offs.push(d); last = t;
+    }
+  }
+  idx.push(out.length); out.push(pts[n - 1]); offs.push(dv[n - 1]);
+  return { pts: out, offs, idx };
+}
+
+// הזזה ימינה (נסיעה בימין) — נתיב האוטובוס, לא קו המרכז של הכביש. d — מספר, או הזזה לכל נקודה
+export function offsetRight(pts, dd) {
   const n = pts.length, out = [];
   for (let i = 0; i < n; i++) {
+    const d = typeof dd === 'number' ? dd : dd[i];
     const p = pts[i], a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
     let d1x = p[0] - a[0], d1y = p[1] - a[1], d2x = b[0] - p[0], d2y = b[1] - p[1];
     const l1 = Math.hypot(d1x, d1y) || 1, l2 = Math.hypot(d2x, d2y) || 1;
