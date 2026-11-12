@@ -88,8 +88,9 @@ export class InspectorFP {
   }
   get on() { return !!this.bus; }
   enter(bus) {
+    this.g.useStd?.(bus, true);          // מיניבוס ומפרקי: מבפנים — הדגם הרגיל (actors.js: useStd)
     const o = this.g.busObject(bus); if (!o) return false;
-    this.bus = bus; this.obj = o; this.s = 0; this.yaw = 0; this.v = 0;
+    this.bus = bus; this.obj = o; this.s = 0; this.yaw = 0; this.v = 0; this.endTurn = 0;
     document.body.classList.add('fpview');   // מבט פקח: בלי לוח המתכנן, הכפתורים והקרדיטים (game.css) — בכל דרך שנכנסים
     this.stats = { checked: 0, caught: 0, fines: 0, warns: 0, pts: 0, t0: performance.now() };
     this.prevState = bus.state; this.lastStop = bus.next; this.sumAt = 0;
@@ -143,6 +144,7 @@ export class InspectorFP {
     this.g.people.onboard = null; this.reader.group.parent?.remove(this.reader.group);
     const c = this.g.camera, s = this.saved; this.g.scene.remove(c);
     if (s) { c.near = s.near; c.far = s.far; c.fov = s.fov; c.updateProjectionMatrix(); }
+    this.g.useStd?.(this.bus, false);
     this.bus = null; this.obj = null; this.g.ui.root.hidden = true; this.g.ui.decide.hidden = true; this.g.ui.sum.hidden = true;
     this.g.onExit?.();
   }
@@ -206,7 +208,9 @@ export class InspectorFP {
       if (hw) { const cw = this.g.people.cardWorld, h = cw ? o.worldToLocal(cw.clone()).lerp(o.worldToLocal(hw.clone()), 0.45) : o.worldToLocal(hw.clone()), want = Math.atan2(h.x - P.x, h.z - P.z) - base; let d = Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)); this.yaw += THREE.MathUtils.clamp(d * Math.min(1, dt * 6), -2.4 * dt, 2.4 * dt); this.yaw = THREE.MathUtils.clamp(this.yaw, -1.4, 1.4); } }   // לא מסתובבים אל קדמת האוטובוס (מחיצת הנהג)
     // אחרי בדיקה (ואחרי ההחלטה על קנס/אזהרה) המבט חוזר בהדרגה אל כיוון ההליכה (עד שגוררים את המבט ביד)
     if (this.yawHome && !this.anim && this.g.ui.decide.hidden) { this.yaw *= Math.exp(-dt * 3.5); if (Math.abs(this.yaw) < 0.01) { this.yaw = 0; this.yawHome = false; } }
-    const yaw = base + this.yaw;
+    // בסוף המעבר (הקיר האחורי): המבט מסתובב בחזרה אל המעבר, ולא נשאר מול הקיר והחלון
+    { const want = !this.anim && this.g.ui.decide.hidden && this.s > this.len - 0.35 ? 1 : 0; this.endTurn = (this.endTurn || 0) + (want - (this.endTurn || 0)) * Math.min(1, dt * 3); if (Math.abs(this.endTurn - want) < 0.002) this.endTurn = want; }
+    const yaw = base + this.yaw + (this.endTurn || 0) * Math.PI * (1 - Math.abs(this.yaw) / Math.PI);
     o.updateMatrixWorld(true);
     // המבט למטה: רגיל 0.28 (כ-16°); בבדיקה — מעט יותר אל הכרטיס, עד כ-20°, בהדרגה (רואים את הפנים ואת היד)
     let slope = -0.28; const cw = this.anim && this.g.people.cardWorld;
@@ -241,7 +245,9 @@ export class InspectorFP {
     let wmin = 9; for (const w of this.g.people.walkers) { if (!w.obj.visible || w.mode === 'ride') continue; const l = o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())); wmin = Math.min(wmin, Math.hypot(l.x - e.x, l.z - e.z)); }
     const hm = [...(this.g.people.onboardPos || new Map()).values()].reduce((m, h) => { const l = o.worldToLocal(h.clone()); return Math.min(m, Math.hypot(l.x - e.x, l.z - e.z)); }, 9);
     const ringOcc = this.occ.ring(e.x, e.z, 1.5, e.y, 0.12);
-    return { ringOcc, headMin: +hm.toFixed(2), camOcc: !!this.occ.has(e.x, e.y, e.z), walkerMin: +wmin.toFixed(2), readerHits: this.lastHits || 0, pull: +(this.lastPull || 0).toFixed(2), anim: this.anim ? +this.anim.t.toFixed(2) : null };
+    // המכשיר על המסך: מרכז הפנים שלו בתוך התמונה (לא מעבר לקצה), כשהוא מוצג ולא ירד מתחת למסך
+    let readerOn = null; if (this.reader.group.visible && !((this.drop || 0) > 0.5)) { const f = this.reader.face.getWorldPosition(new THREE.Vector3()).project(c); readerOn = Math.abs(f.x) < 0.9 && Math.abs(f.y) < 0.95 && f.z < 1; }
+    return { readerOn, ringOcc, headMin: +hm.toFixed(2), camOcc: !!this.occ.has(e.x, e.y, e.z), walkerMin: +wmin.toFixed(2), readerHits: this.lastHits || 0, pull: +(this.lastPull || 0).toFixed(2), anim: this.anim ? +this.anim.t.toFixed(2) : null };
   }
   // היד והמכשיר של הפקח לא נכנסים בשום דבר — לא באוטובוס, לא בנוסעים, וגם לא ביד של מי שמגיש את הכרטיס (המכשיר עוצר
   // לפני הכרטיס): נקודות על פני המכשיר, כף היד והאמה (עם העובי שלה) — באף אחת מהן אין תא תפוס. אם יש, היד נסוגה אל הגוף
@@ -301,9 +307,11 @@ export class InspectorFP {
         const heads = [...(this.g.people.onboardPos || new Map())].map(([q, v]) => [q, this.obj.worldToLocal(v.clone())]);
         // (קודם עם מרווח של 10 ס"מ סביב הקו אל הפנים — כל הראש פנוי; אם אין מקום כזה — 6 ס"מ; ואם גם לא — מרווח קטן יותר ליד, למשל
         // כשהכרטיס של עומד צמוד לעמוד. בכל מקרה היד עצמה נבדקת בכל פריים ב-clearance)
-        for (const [fr, tr, se] of [[0.1, 0.09, 0.1], [0.06, 0.09, 0.1], [0.06, 0.06, 0.18]]) { if (best) break; for (let dz = -0.5; dz <= 1.2501; dz += 0.05) for (const lx of [0, 0.06, -0.06, 0.12, -0.12]) {
+        // maxA — הזווית בין כיוון ההליכה לנוסע: לא עומדים לצדו (מבט של 90°: המכשיר והיד יוצאים מהקצה של המסך), אלא אם אין מקום אחר
+        for (const [fr, tr, se, maxA] of [[0.1, 0.09, 0.1, 1.05], [0.06, 0.09, 0.1, 1.05], [0.06, 0.06, 0.18, 1.05], [0.06, 0.06, 0.18, 9]]) { if (best) break; for (let dz = -0.5; dz <= 1.2501; dz += 0.05) for (const lx of [0, 0.06, -0.06, 0.12, -0.12]) {
           const E = new THREE.Vector3(lx, EYE, h.z + dz); if (E.z > AISLE_Z1 || E.z < PATH[PATH.length - 1][1]) continue;
           const dh = Math.hypot(E.x - face.x, E.z - face.z); if (dh < 0.5 || dh > 1.25) continue;
+          if (Math.atan2(Math.abs(face.x - E.x), E.z - face.z) > maxA) continue;
           if (heads.some(([q, v]) => q !== pid && Math.hypot(v.x - E.x, v.z - E.z) < 0.4) || this.occ.has(E.x, E.y, E.z) || this.occ.ring(E.x, E.z, 1.45, E.y, 0.17)) continue;
           if (this.occ.tube(E, face, fr, 0.14) || this.occ.blocked(E, face, face, 0.28)) continue;
           let cost = Math.abs(Math.atan2(E.x - face.x, E.z - face.z)) / (Math.PI / 2) + Math.abs(dh - 0.8) * 0.4 + Math.abs(lx) * 0.5;
@@ -416,7 +424,13 @@ export class InspectorFP {
 // ---------- היד והמכשיר (ילדים של המצלמה, בתחתית המסך)
 function buildReader() {
   const group = new THREE.Group(); group.name = 'InspReader';
-  const skin = new THREE.MeshStandardMaterial({ color: 0xc99a78, roughness: 0.7 }), black = new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.5 });
+  // היד, האמה, השרוול והמכשיר של הפקח מוארים באור קבוע משלהם (מלמעלה-משמאל, במערכת המצלמה) ולא באור של הסצנה: השמש
+  // האירה את כף היד ואת האמה אחרת לפי הכיוון של האוטובוס, וכף היד יצאה כהה מהאמה. הצבע ב-emissive, והצללה לפי הנורמל
+  const SHADE = 'totalEmissiveRadiance *= 0.6 + 0.4 * clamp(dot(normalize(normal), normalize(vec3(-0.35, 0.6, 0.72))), 0.0, 1.0);';
+  const selfLit = (hex, extraV = '', extraF = '', uni = null) => { const m = new THREE.MeshLambertMaterial({ color: 0x000000, emissive: hex });
+    m.onBeforeCompile = sh => { if (uni) Object.assign(sh.uniforms, uni); if (extraV) sh.vertexShader = extraV[0] + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + extraV[1]);
+      sh.fragmentShader = (extraF ? extraF[0] : '') + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (extraF ? extraF[1] : '') + SHADE); }; return m; };
+  const skin = selfLit(0xc99a78), black = selfLit(0x0c0d10);
   const c = document.createElement('canvas'); c.width = 256; c.height = 200; const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const screen = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
   // המכשיר: קטן מעט, בפינה הימנית התחתונה, נוטה אל העיניים
@@ -444,7 +458,7 @@ function buildReader() {
   // האמה והשרוול: מפרק היד אל הכתף של הפקח (מתחת למצלמה, מימין) — מתכוונים מחדש בכל פריים (aimArm), כך שכשהיד
   // נשלחת אל הכרטיס האמה הולכת אחריה מהכתף, ולא נשארת תלויה למטה (דרך המושבים)
   const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.024, 1, 4, 8), skin);
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.04, 1, 14, 1, false), new THREE.MeshStandardMaterial({ color: 0xa9c6e6, roughness: 0.8 }));
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.04, 1, 14, 1, false), selfLit(0xa9c6e6));
   group.add(fore, sleeve);
   let WRIST = V(0.012, -0.055, -D / 2 - 0.02); const SHOULDER = V(0.18, -0.32, 0.1), up = V(0, 1, 0);
   const aimArm = () => { const w = WRIST.clone().applyQuaternion(dev.quaternion).add(dev.position), sh = SHOULDER.clone().sub(group.position), d = sh.clone().sub(w), L = d.length(); d.normalize();
@@ -485,17 +499,16 @@ function buildReader() {
       return Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0)) + Math.min(Math.max(q[0], q[1], q[2]), 0); } });
   let handM = null;
   const setHand = h => { for (const m of blocks) dev.remove(m); if (handM) dev.remove(handM);
-    const mat = new THREE.MeshStandardMaterial({ map: h.map || null, color: h.map ? 0xffffff : 0xc99a78, roughness: 0.75 });
     // ליד פרק היד הטקסטורה עוברת בהדרגה לצבע האחיד של האמה (blend מ-handMesh) — אותו צבע עור, בלי תפר
-    if (h.geo.attributes.blend && h.color) mat.onBeforeCompile = sh => { sh.uniforms.uSkin = { value: skin.color };
-      sh.vertexShader = 'attribute float blend;\nvarying float vBlend;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBlend = blend;');
-      sh.fragmentShader = 'uniform vec3 uSkin;\nvarying float vBlend;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb = mix(uSkin, diffuseColor.rgb, vBlend);'); };
+    const bl = !!(h.geo.attributes.blend && h.color);
+    const mat = selfLit(h.map ? 0xffffff : 0xc99a78, bl ? ['attribute float blend;\nvarying float vBlend;\n', '  vBlend = blend;'] : '', bl ? ['uniform vec3 uSkin;\nvarying float vBlend;\n', 'totalEmissiveRadiance = mix(uSkin, totalEmissiveRadiance, vBlend);\n'] : '', bl ? { uSkin: { value: skin.emissive } } : null);
+    mat.emissiveMap = h.map || null;
     const hm = new THREE.Mesh(h.geo, mat); hm.matrixAutoUpdate = false; hm.matrix.makeBasis(aDir, fDir, pDir).setPosition(hO); hm.userData.hand = true; hm.frustumCulled = false; hm.renderOrder = 10; dev.add(hm); handM = hm;
     // שום קודקוד של היד לא בתוך המכשיר: מה שנכנס לקופסה שלו (ועוד מ"מ) נדחף אל הדופן הקרובה
     { const P = h.geo.attributes.position, inv = hm.matrix.clone().invert(), v = new THREE.Vector3(), ex = [W / 2 + 0.003, H / 2 + 0.003, D / 2 + 0.003];
       for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(hm.matrix); const d = [ex[0] - Math.abs(v.x), ex[1] - Math.abs(v.y), ex[2] - Math.abs(v.z)]; if (d[0] <= 0 || d[1] <= 0 || d[2] <= 0) continue;
         const k = d[0] < d[1] && d[0] < d[2] ? 'x' : d[2] <= d[1] ? 'z' : 'y'; v[k] = Math.sign(v[k] || 1) * ex[k === 'x' ? 0 : k === 'y' ? 1 : 2]; v.applyMatrix4(inv); P.setXYZ(i, v.x, v.y, v.z); } P.needsUpdate = true; }
-    if (h.color) skin.color.copy(h.color);
+    if (h.color) skin.emissive.copy(h.color);
     WRIST = h.wrist.clone().applyMatrix4(hm.matrix); samplePts(); aimArm(); };
   aimArm();
   return { group, show, face, pts, aimArm, setHand, handPose, cfg, hO, rest: dev.position.clone(), faceRest: face.getWorldPosition(new THREE.Vector3()) };

@@ -30,6 +30,7 @@ function fitHeight(g) {
   const k = h[1] / h[0], rig = g.scene.children.find(c => c.getObjectByName && c.getObjectByName('Hips')) || g.scene.children[0]; if (!rig) return;
   rig.scale.multiplyScalar(k); g.scene.updateMatrixWorld(true); g.userData.fit = k;
 }
+const VARIANT_TYPES = ['mini', 'artic', 'elec'];
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
   const get = url => new Promise(res => loader.load(url, g => res(g), undefined, () => res(null)));
@@ -48,12 +49,16 @@ export async function loadAssets(base) {
     if (!list.length) { const p = await one('person'); if (p) list.push(p); }
     return list;
   };
-  const [bus, people] = await Promise.all([one('bus'), loadPeople()]);
-  return { bus, people, person: people[0] || null };
+  // דגם לכל סוג רכב (assets/bus_variants.md). סוג שהדגם שלו לא נטען — מוצג בדגם הרגיל עם גג צבוע
+  const [bus, people, ...vs] = await Promise.all([one('bus'), loadPeople(), ...VARIANT_TYPES.map(t => one('bus_' + t))]);
+  const busVariants = {}; VARIANT_TYPES.forEach((t, i) => { if (vs[i]) busVariants[t] = vs[i]; });
+  return { bus, busVariants, people, person: people[0] || null };
 }
 
 // ---------- מיקום האוטובוס על הקו: s = מקום הדלת הקדמית; סרן קדמי 1.8 מ' מאחוריה, סרן אחורי 7.75 מ'
 const FRONT_AXLE = 1.8, REAR_AXLE = 7.75, REAR_TO_CENTER = 2.6;
+// מיניבוס: הסרן האחורי ב-z = -0.015. מפרקי: המפרק ב-z = -4.1 והסרן השלישי ב-z = -8.38 (מרחק מחזית המסלול, כמו REAR_AXLE)
+const MINI_REAR = 0.015, ARTIC_JOINT = 5.15 + 4.1, ARTIC_REAR = 5.15 + 8.38;
 function atExt(poly, s, out) {
   if (s >= 0 && s <= poly.length) return poly.at(s, out);
   const P = poly.pts, n = P.length;
@@ -62,10 +67,11 @@ function atExt(poly, s, out) {
   const base = s < 0 ? P[0] : P[n - 1], d = s < 0 ? s : s - poly.length;
   out[0] = base[0] + dx / L * d; out[1] = base[1] + dy / L * d; return out;
 }
-export function busPose(poly, s) {
-  const f = atExt(poly, s - FRONT_AXLE, [0, 0]), r = atExt(poly, s - REAR_AXLE, [0, 0]);
+// rear — כמה הסרן האחורי מאחורי מרכז הדגם (מיניבוס: הסרן כמעט במרכז הדגם, כי החזית של כל הדגמים באותו מקום)
+export function busPose(poly, s, rear = REAR_TO_CENTER) {
+  const f = atExt(poly, s - FRONT_AXLE, [0, 0]), r = atExt(poly, s - REAR_AXLE + REAR_TO_CENTER - rear, [0, 0]);
   const dx = f[0] - r[0], dy = f[1] - r[1], L = Math.hypot(dx, dy) || 1;
-  return { x: r[0] + dx / L * REAR_TO_CENTER, y: r[1] + dy / L * REAR_TO_CENTER, yaw: Math.atan2(dx / L, -dy / L), dir: [dx / L, dy / L] };
+  return { x: r[0] + dx / L * rear, y: r[1] + dy / L * rear, yaw: Math.atan2(dx / L, -dy / L), dir: [dx / L, dy / L] };
 }
 
 // ---------- אוטובוס פשוט (אם bus.glb לא נטען)
@@ -134,13 +140,16 @@ function cutDoorPanels(root) {
 }
 
 export class BusLayer {
-  constructor(scene, asset, people) {
+  constructor(scene, asset, people, variants) {
     this.scene = scene; this.asset = asset; this.people = people || []; this.map = new Map();
+    this.variants = variants || {}; this.tunedSet = new Set(); this.clipsOf = new Map(); this.stdOnly = new Set();
     this.group = new THREE.Group(); this.group.name = 'buses'; scene.add(this.group);
     this.isPlaceholder = !asset;
     this.tints = new Map();
   }
-  // סוגי הרכבים: עדיין דגם אחד. מיניבוס, מפרקי וחשמלי — גג בצבע אחר ושם הסוג בשלט מעל האוטובוס
+  // סוגי הרכבים: לכל סוג דגם משלו (bus_mini / bus_artic / bus_elec) ושם הסוג בשלט מעל האוטובוס. אם הדגם לא נטען —
+  // הדגם הרגיל עם גג בצבע אחר. במבט מבפנים (פקח) המיניבוס והמפרקי מוצגים בדגם הרגיל (useStd): המושבים, מקומות
+  // העמידה והמסלול של הפקח מחושבים לפנים הרגיל
   tinted(m, color) {
     const key = m.uuid + ':' + color;
     let t = this.tints.get(key);
@@ -149,20 +158,23 @@ export class BusLayer {
   }
   make(bus) {
     let obj, mixer = null, action = null;
-    if (this.asset) {
-      if (!this.tuned) {
+    const kind = !this.stdOnly.has(bus.id) && this.variants[bus.type] ? bus.type : 'std', asset = kind === 'std' ? this.asset : this.variants[kind];
+    if (asset) {
+      if (!this.tunedSet.has(kind)) {
         // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
-        try { addCab(this.asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
-        // רצועות האחיזה (js/straps.js)
-        try { addStraps(this.asset.scene); } catch (e) { console.warn('straps failed', e); }
-        cutDoorPanels(this.asset.scene);
-        tuneBusMaterials(this.asset.scene, this.scene.userData.envMap); this.tuned = true; }
-      obj = this.asset.scene.clone(true);
-      const clip = this.asset.animations.find(a => /DoorsOpen/i.test(a.name)) || this.asset.animations[0];
+        try { addCab(asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
+        // רצועות האחיזה (js/straps.js) — בדגם הרגיל ובחשמלי (אותו פנים). במיניבוס הגג נמוך יותר ובמפרקי יש קטע אחורי: בלי רצועות
+        if (kind === 'std' || kind === 'elec') try { addStraps(asset.scene); } catch (e) { console.warn('straps failed', e); }
+        if (kind === 'std') cutDoorPanels(asset.scene);       // בדגמים החדשים החיפוי כבר חתוך בפתחי הדלתות
+        tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind); }
+      // המפוח של המפרקי הוא SkinnedMesh — שכפול רגיל היה מכופף את אותו מפוח בכל האוטובוסים
+      obj = kind === 'artic' ? SkeletonUtils.clone(asset.scene) : asset.scene.clone(true);
+      const clip = asset.animations.find(a => /DoorsOpen/i.test(a.name)) || asset.animations[0];
       if (clip) {
-        // שתי הדלתות לחוד (במבט נהג פותחים כל אחת בנפרד): הקליפ מתפצל לדלת הקדמית ולאמצעית
+        // הדלתות לחוד (במבט נהג פותחים כל אחת בנפרד): הקליפ מתפצל לדלת הקדמית ולאחרות (אמצעית, ובמפרקי גם השלישית)
         mixer = new THREE.AnimationMixer(obj);
-        const sp = this.doorClips || (this.doorClips = ['Front', 'Mid'].map(k => new THREE.AnimationClip('Doors' + k, clip.duration, clip.tracks.filter(t => t.name.includes(k)))));
+        let sp = this.clipsOf.get(kind);
+        if (!sp) this.clipsOf.set(kind, sp = [t => t.name.includes('Front'), t => !t.name.includes('Front')].map((f, i) => new THREE.AnimationClip('Doors' + i, clip.duration, clip.tracks.filter(f))));
         action = sp.map(c => { const a = mixer.clipAction(c); a.play(); a.paused = true; return a; });
       }
     } else obj = placeholderBus();
@@ -172,8 +184,9 @@ export class BusLayer {
     obj.traverse(o => { if (/^Door_/.test(o.name)) doors.push({ o, z0: o.position.z, x0: o.position.x, k: /0$/.test(o.name) ? 1 : -1 }); });
     const anchors = {};
     obj.traverse(o => { if (o.name === 'Anchor_DoorFront') anchors.front = o; if (o.name === 'Anchor_DoorMid') anchors.mid = o; });
+    if (!anchors.mid) anchors.mid = anchors.front;          // מיניבוס: דלת אחת — יורדים ממנה
     const T = TYPES[bus.type];
-    if (T?.tint) obj.traverse(o => {
+    if (T?.tint && kind === 'std') obj.traverse(o => {
       if (!o.isMesh) return;
       if (Array.isArray(o.material)) o.material = o.material.map(m => /RoofWhite|Roof/.test(m.name) ? this.tinted(m, T.tint) : m);
       else if (/RoofWhite|Roof/.test(o.material?.name)) o.material = this.tinted(o.material, T.tint);
@@ -184,7 +197,7 @@ export class BusLayer {
     const warn = labelSprite('⚠ תקלה', '#d03b3b', 1.05); warn.position.set(0, 7.2, 0); warn.visible = false; obj.add(warn);
     obj.userData.bus = bus;
     this.group.add(obj);
-    const v = { obj, mixer, action, doors, anchors, label, warn };
+    const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null };
     this.map.set(bus.id, v); return v;
   }
   // simDt — זמן המשחק שעבר, dt — זמן אמיתי (לנדנוד הרצועות)
@@ -193,7 +206,10 @@ export class BusLayer {
     for (const L of lines) for (const b of L.buses) {
       alive.add(b.id);
       const v = this.map.get(b.id) || this.make(b);
-      const p = busPose(L.poly, b.s);
+      const p = busPose(L.poly, b.s, v.kind === 'mini' ? MINI_REAR : REAR_TO_CENTER);
+      // מפרקי: הקטע האחורי מסתובב סביב המפרק לפי הכיוון של הסרן השלישי על המסלול
+      if (v.rear) { const j = atExt(L.poly, b.s - ARTIC_JOINT, [0, 0]), r = atExt(L.poly, b.s - ARTIC_REAR, [0, 0]), yr = Math.atan2(j[0] - r[0], -(j[1] - r[1]));
+        let d = yr - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); v.rear.rotation.y = Math.max(-0.9, Math.min(0.9, d)); }
       // כריעה: הצד של הדלתות יורד, הצד השני נשאר
       const kn = b.kneel ? b.kneel * KNEEL.th : 0;
       v.obj.position.set(p.x, -kn * KNEEL.far, -p.y); v.obj.rotation.set(0, p.yaw, kn);
@@ -205,7 +221,7 @@ export class BusLayer {
       }
       v.label.visible = L.visible !== false && !this.hideLabels;
       v.warn.visible = !!b.broken && L.visible !== false;
-      if (dt && v.obj.visible) swayStraps(v, b, p.yaw, simDt, dt);
+      if (dt && v.obj.visible && (v.kind === 'std' || v.kind === 'elec')) swayStraps(v, b, p.yaw, simDt, dt);
     }
     for (const [id, v] of this.map) if (!alive.has(id)) { this.group.remove(v.obj); this.map.delete(id); }
   }
@@ -216,6 +232,13 @@ export class BusLayer {
     return a.getWorldPosition(new THREE.Vector3());
   }
   objectOf(bus) { return this.map.get(bus.id)?.obj; }
+  // מבט מבפנים: מיניבוס ומפרקי מוצגים בדגם הרגיל כל עוד נמצאים בתוכם (on), וחוזרים לדגם שלהם ביציאה
+  useStd(bus, on) {
+    const v = this.map.get(bus.id), want = on && (bus.type === 'mini' || bus.type === 'artic');
+    if (want === this.stdOnly.has(bus.id)) return;
+    if (want) this.stdOnly.add(bus.id); else this.stdOnly.delete(bus.id);
+    if (v) { this.group.remove(v.obj); this.map.delete(bus.id); }
+  }
 }
 
 // IK של שני עצמות (ירך-שוק): הברך לכיוון pole

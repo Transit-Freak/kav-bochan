@@ -86,7 +86,7 @@ async function init() {
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
-  buses = new BusLayer(scene, assets.bus, assets.people);
+  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants);
   people = new PeopleLayer(scene, assets.people, graph);
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
@@ -106,7 +106,7 @@ async function init() {
   cams = new CameraModes(camera, controls, { pickBus, busObject: b => buses.objectOf(b), toast, onDriver, renderer, scene, clock: () => clockText(sim.time), nextDriverBus: prev => shift.on ? shift.next(prev) : undefined });
   shift = new DriverShift({ sim, lines: () => lines, toast, demand, setSpeed, speed: () => sim.speed || G.lastSpeed || 1, score: n => { drive.score.pts += n; },
     ui: { qBox: $('#qBox'), qText: $('#qText'), qBtns: $('#qBtns') }, ended: () => { $('#dhDuty').hidden = true; } });
-  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
+  fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), useStd: (b, on) => { buses.useStd(b, on); if (!buses.objectOf(b)) buses.update(sim.lines, 0, 0); }, toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
     ui: { root: $('#ifp'), top: $('#ifpTop'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
     onExit: () => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow'); } });
