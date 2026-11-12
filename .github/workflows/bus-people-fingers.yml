@@ -57,7 +57,10 @@ jobs:
           $BL -b --online-mode out/anim_$n.blend --python-exit-code 1 -P fingers/export_person.py -- $O/person_$n.glb 2>&1 | grep -E 'MESH|WALK|TRIS|PERSON|Error|Traceback|line [0-9]' | cut -c1-400
           ls -la $O
       - uses: actions/upload-artifact@v4
-        with: {name: person-${{ matrix.n }}, path: '${{ runner.temp }}/people', retention-days: 7}
+        with:
+          name: person-${{ matrix.n }}
+          path: ${{ runner.temp }}/people
+          retention-days: 7
   save:
     needs: person
     if: always()
@@ -66,7 +69,10 @@ jobs:
       - uses: actions/checkout@v4
         with: {sparse-checkout: tools/blender-test}
       - uses: actions/download-artifact@v4
-        with: {pattern: person-*, merge-multiple: true, path: '${{ runner.temp }}/people'}
+        with:
+          pattern: person-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/people
       - name: Save
         run: |
           cd tools/blender-test && git rm -rq --ignore-unmatch out_fingers && mkdir -p out_fingers/people && cp $RUNNER_TEMP/people/person_*.glb out_fingers/people/
