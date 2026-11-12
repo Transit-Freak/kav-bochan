@@ -251,6 +251,12 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
   // כף היד האמיתית (הצד שאליו האצבעות מתכופפות — fingers.js), במערכת של עצם היד
   const hi = f1 ? handInfo(root, hand) : null; if (hi) palm = hi.palm.clone().transformDirection(f1.matrixWorld).applyQuaternion(wq0.clone().invert()).normalize();
   const pole = origin.clone().add(new THREE.Vector3(dx, gripH ?? (W(B(hand + 'Arm')).y - ground - 0.17), dz)), up = new THREE.Vector3(0, 1, 0);
+  // רצועה (13.11): הזרוע כמה שיותר ישרה. העומד מתרחק מהרצועה לרוחב עד שהמרחק מהכתף לאחיזה הוא כמעט אורך הזרוע
+  // (עד STRAP.side — אחריו הקיר), וכף היד ממשיכה את קו האמה (פרק היד ישר) במקום לשכב אופקית מעל הצלע
+  const shift = new THREE.Vector3();
+  if (axis) { const s0 = W(B(hand + 'Arm')), aL = s0.distanceTo(W(B(hand + 'ForeArm'))) + W(B(hand + 'ForeArm')).distanceTo(W(hd)), D = 0.95 * aL + W(hd).distanceTo(W(f1 || fb));
+    const dy = pole.y - s0.y, lat = Math.abs(pole.x - s0.x), need = Math.sqrt(Math.max(0, D * D - dy * dy));
+    shift.x = -Math.sign(dx || 1) * THREE.MathUtils.clamp(need - lat, 0, STRAP.side); pole.sub(shift); }
   const sh = W(B(hand + 'Arm')), ax = axis || up, h = pole.clone().sub(sh); h.addScaledVector(ax, -h.dot(ax)).normalize();   // האמה והיד — אל העמוד (ניצב לו)
   let n = new THREE.Vector3().crossVectors(ax, h).normalize().multiplyScalar(hand === 'Right' ? 1 : -1); // כף היד פונה אל העמוד (האגודל למעלה)
   if (palmHint && n.dot(palmHint) < 0) n.negate();
@@ -260,11 +266,11 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
   let hh = h.clone();
   if (axis) {   // רצועה תלויה (אחיזת וו): היד עולה מהצד, פרק היד כפוף מעט (כף היד שטוחה יותר מהאמה), האצבעות עוברות דרך הלולאה
     // מעל הצלע התחתונה ונסגרות סביבה כלפי מטה; כף היד כמעט אופקית מעל הצלע (עד 17°) ופונה אליה
-    const sg = Math.sign(h.x) || 1, a = Math.min(0.3, Math.atan2(h.y, Math.abs(h.x))); hh.set(sg * Math.cos(a), Math.sin(a), 0); n = new THREE.Vector3(sg * Math.sin(a), -Math.cos(a), 0); }
+    const sg = Math.sign(h.x) || 1, a = Math.min(1.25, Math.atan2(h.y, Math.abs(h.x))); hh.set(sg * Math.cos(a), Math.sin(a), 0); n = new THREE.Vector3(sg * Math.sin(a), -Math.cos(a), 0); }
   // הרצועה/העמוד בקפל שבין כף היד לאצבעות: 1.4 ס"מ (רצועה) אחרי שורש האצבעות, וציר היד עובר מעליו בעובי האצבע
   const wrist = pole.clone().addScaledVector(hh, -(Lw + (axis ? 0.014 : 0.002))).addScaledVector(n, -(axis ? poleR + 0.014 : 0.02 + 0.012));   // עמוד (רדיוס 2 ס"מ): צמוד לכף היד, מול שורש האצבעות — האצבעות יוצאות לידו ומקיפות אותו
   // זרוע קצרה מדי בשביל להקיף את העמוד מהמקום הזה: העומד מתקרב אליו (shift — כמה, במישור; מוסיפים למקום שלו באוטובוס)
-  const shift = new THREE.Vector3(); { const d = wrist.clone().sub(sh), ex = d.length() - armLen * 0.95; if (ex > 0 && !axis) { d.y = 0; d.normalize(); shift.copy(d).multiplyScalar(ex / Math.max(0.3, Math.hypot(wrist.x - sh.x, wrist.z - sh.z) / wrist.distanceTo(sh))); wrist.sub(shift); pole.sub(shift); } }
+  { const d = wrist.clone().sub(sh), ex = d.length() - armLen * 0.95; if (ex > 0 && !axis) { d.y = 0; d.normalize(); shift.copy(d).multiplyScalar(ex / Math.max(0.3, Math.hypot(wrist.x - sh.x, wrist.z - sh.z) / wrist.distanceTo(sh))); wrist.sub(shift); pole.sub(shift); } }
   twoBone(B(hand + 'Arm'), B(hand + 'ForeArm'), hd, wrist, new THREE.Vector3(hand === 'Right' ? -0.6 : 0.6, -1, -0.3));
   aimBone(hd, f1 || fb, W(hd).add(hh));
   const pw = palm.clone().applyQuaternion(hd.getWorldQuaternion(new THREE.Quaternion())); pw.addScaledVector(hh, -pw.dot(hh)).normalize();
@@ -293,7 +299,7 @@ export const STAND_POLE = { dx: 0.34, dxL: 0.24, dz: 0.12, dzL: 0.16 };   // ל�
 // הרצועה התלויה (straps.js): לולאה צהובה במישור y-z מתחת למוט שבתקרה (x = ±0.50), התחתית 1.83 מ' מעל הרצפה.
 // העומד לצידה, מחוץ למעבר (האגן 25 ס"מ ממנה ו-4 ס"מ מאחוריה), והיד שבצד המעבר סוגרת על הצד הקרוב של הלולאה,
 // 7 ס"מ מעל התחתית (side — חצי הרוחב שם), כמו על עמוד: אגרוף סביב הרצועה, האגודל למעלה
-export const STRAP = { dx: 0.25, dz: 0.04, pull: 0.03, h: 1.824, r: 0.009 };   // h — הצלע התחתונה של הלולאה; pull — כמה היא נמשכת אל העומד (הרצועה מתוחה מעט)
+export const STRAP = { dx: 0.25, dz: 0.04, pull: 0.03, h: 1.824, r: 0.009, side: 0.14 };   // h — הצלע התחתונה של הלולאה; pull — כמה היא נמשכת אל העומד (הרצועה מתוחה מעט)
 export const gripHand = g => (g === 'Right' || g === 'StrapR' ? 'Right' : 'Left');
 // העמוד ביחס לאגן של העומד: לצד המעבר ולפניו (בצד הדלת — קרוב יותר, כדי שהיד השנייה לא תהיה מאחורי מאחז הדלת)
 // תנוחת הידיים של היושבים, לפי הדגם (people.json): טלפון ביד אחת (והיד השנייה על הירך), או שתי הידיים על הירכיים;
