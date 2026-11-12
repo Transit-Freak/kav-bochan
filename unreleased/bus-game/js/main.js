@@ -143,6 +143,9 @@ async function init() {
   if (!lineDefs.length && (!saved || !picked)) setTimeout(() => askRole(), 400);
   night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); applyModeUI(); renderLines(); renderMoney();
+  // תפקיד הפקח מוסתר בגרסה הזו (עוד בעבודה). שמירה ישנה של פקח — עוברת לסדרן
+  for (const r of ROLE_OFF) document.querySelector(`#roleAsk [data-role="${r}"]`)?.remove();
+  if (ROLE_OFF.has(bank.role)) bank.role = 'dispatcher';
   if (saved && bank.role !== 'planner') applyRoleUI(false);
   setInterval(() => { if (!wiping) bank.save(sim.time); }, 4000);
   addEventListener('pagehide', () => { if (wiping) return; bank.save(sim.time); if (cloud?.on) cloud.beacon(autoPayload(), bank.mode); });
@@ -1032,9 +1035,11 @@ const HW_OPTS = [5, 10, 15, 20, 30, 60];
 const snapHw = m => HW_OPTS.reduce((a, b) => Math.abs(b - m) < Math.abs(a - m) ? b : a, 20);
 const realHw = (def, h) => { const m = def.real?.hw?.[h]; return m ? snapHw(m) : null; };
 const LINE_COLOR = { 1: '#0ea5e9', 2: '#ef4444', 3: '#22c55e', 11: '#f59e0b' };
+const ROLE_OFF = new Set(['inspector']);
 const ROLE_NAME = { driver: 'נהג', planner: 'מתכנן', dispatcher: 'סדרן', inspector: 'פקח' };
 function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; $('#roleAsk').hidden = false; }
 async function chooseRole(role) {
+  if (ROLE_OFF.has(role)) return;
   $('#roleAsk').hidden = true;
   try { localStorage.setItem('busgame.rolePicked', '1'); } catch { }
   if (role === 'planner') {
