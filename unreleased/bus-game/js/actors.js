@@ -304,13 +304,15 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
       // קו שורשי האצבעות מקביל לציר המוט (אחרת המוט חוצה את כף היד באלכסון והזרת נשארת פתוחה)
       { const acr = W(B(S + 'Pinky1')).sub(W(B(S + 'Index1'))).normalize(), tg = ax.clone().multiplyScalar(Math.sign(acr.dot(ax)) || 1), q = new THREE.Quaternion().setFromUnitVectors(acr, tg);
         hd.quaternion.copy(hd.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q.multiply(hd.getWorldQuaternion(new THREE.Quaternion())))); root.updateMatrixWorld(true); }
-      const c = W(B(S + 'Index1')).add(W(B(S + 'Pinky1'))).multiplyScalar(0.5).addScaledVector(hi.palm.clone().transformDirection(f1.matrixWorld), 0.009 + Rr).addScaledVector(hi.dm.clone().transformDirection(f1.matrixWorld), 0.01);
+      const c = W(B(S + 'Index1')).add(W(B(S + 'Pinky1'))).multiplyScalar(0.5).addScaledVector(hi.palm.clone().transformDirection(f1.matrixWorld), 0.009 + Rr).addScaledVector(hi.dm.clone().transformDirection(f1.matrixWorld), 0.01 - Rr);   // מוט עבה יושב עמוק יותר בכף היד (מתחת לשורשי האצבעות), כך שגם הפרק הראשון נסגר סביבו
       const d = perp(c).negate(); if (d.length() < 0.0008) break;
       const hq = hd.getWorldQuaternion(new THREE.Quaternion()); twoBone(B(hand + 'Arm'), B(hand + 'ForeArm'), hd, W(hd).add(d), hint); root.updateMatrixWorld(true);
       hd.quaternion.copy(hd.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(hq)); }
-    const FPg = root.userData.fingerPose[hand] = { curl: [0, 1, 2, 3].map(() => [0, 0, 0]), add: 0.6, thumb: 0 }, pre = (axis && !rail ? FINGERS.hook : FINGERS.wrap).curl;
+    const FPg = root.userData.fingerPose[hand] = { curl: [0, 1, 2, 3].map(() => [0, 0, 0]), add: 0.9, thumb: 0 }, pre = (axis && !rail ? FINGERS.hook : FINGERS.wrap).curl;
     hi.fingers.forEach((Fg, f) => { const fr0 = [0, Fg.seg[0] / Fg.L, (Fg.seg[0] + Fg.seg[1]) / Fg.L], c = FPg.curl[f];
-      const hit = k => { for (let j = 1; j <= 8; j++) if (perp(fingerPoint(root, hand, f, fr0[k] + (1 - fr0[k]) * j / 8)).length() < Rr + RAD[f] + GAP) return true; return false; };
+      // מגע נבדק רק על הפרק שנסגר עכשיו: כשהוא משיק למוט, הפרקים שאחריו (עדיין ישרים) מחוץ לו, והם נסגרים בתורם —
+      // כך האצבע מקיפה את המוט עד הקצה ולא נעצרת כשהקצה הישר נוגע בו ראשון
+      const fr1 = [fr0[1], fr0[2], 1], hit = k => { for (let j = 1; j <= 6; j++) if (perp(fingerPoint(root, hand, f, fr0[k] + (fr1[k] - fr0[k]) * j / 6)).length() < Rr + RAD[f] + GAP) return true; return false; };
       for (let k = 0; k < 3; k++) { let found = false; for (let a = 0; a < MAX[k]; a += 2) { c[k] = a + 2; if (hit(k)) { c[k] = a; found = true; break; } }
         if (!found) { c[k] = f > 0 ? FPg.curl[f - 1][k] : pre[f][k]; while (c[k] > 0 && hit(k)) c[k] -= 2; } } });
     const thit = () => { for (let j = 3; j <= 8; j++) if (perp(thumbPoint(root, hand, j / 8)).length() < Rr + 0.0095 + GAP) return true; return false; };
