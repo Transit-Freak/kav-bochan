@@ -570,6 +570,29 @@ const ACC_MAT = new THREE.MeshStandardMaterial({ color: 0x0b0c0f, roughness: 0.5
 const CAP_MAT = new THREE.MeshStandardMaterial({ color: 0x1d2a44, roughness: 0.75 });   // כובע כחול כהה (לא שחור מלא — רואים את הכיפה)
 // הקודקודים של כל רשת בדגם בתנוחה הנוכחית של השלד (אותו חישוב כמו בשיידר), בקואורדינטות העולם
 const _acc = new THREE.Matrix4(), _full = new THREE.Matrix4(), _nm = new THREE.Matrix3();
+// תיקון מרפק מכופף (אחרי חישוב הקודקודים, לכל תנוחה אפויה): (1) שום קודקוד של הזרוע לא עובר לצד של האמה ולהפך —
+// המישור שחוצה את זווית המרפק הוא הקפל, ומה שחצה אותו חוזר אליו (בלי "זרוע בתוך אמה"); (2) הצד החיצוני של המרפק
+// מקבל נפח: נדחף החוצה, יותר ככל שהמרפק מכופף, ודועך לאורך הזרוע — המרפק לא נשאר פינה דקה.
+const ELB = new WeakMap();
+function fixElbows(root, verts) {
+  const W = n => { const b = root.getObjectByName(n); return b ? b.getWorldPosition(new THREE.Vector3()) : null; };
+  for (const side of ['Left', 'Right']) { const S = W(side + 'Arm'), E = W(side + 'ForeArm'), H = W(side + 'Hand'); if (!S || !E || !H) continue;
+    const u = S.clone().sub(E).normalize(), f = H.clone().sub(E).normalize(), bend = Math.PI - Math.acos(THREE.MathUtils.clamp(u.dot(f), -1, 1)); if (bend < 0.5) continue;   // פחות מ-30° — בלי תיקון
+    const k = Math.sin(bend / 2), nP = u.clone().sub(f).normalize(), outw = u.clone().add(f).multiplyScalar(-1).normalize(), R = 0.11, p = new THREE.Vector3();
+    for (const e of verts) { if (!e.o.isSkinnedMesh || (e.kind !== 'skin' && e.kind !== 'cloth')) continue;
+      let L = ELB.get(e.o.geometry); if (!L) { L = {}; ELB.set(e.o.geometry, L); }
+      let ws = L[side]; if (!ws) { const g = e.o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = e.o.skeleton.bones, n = g.attributes.position.count; ws = L[side] = { i: [], a: [] };
+        const iA = bs.findIndex(b => b.name === side + 'Arm'), fo = new Set([side + 'ForeArm', side + 'Hand']);
+        for (let i = 0; i < n; i++) { let a = 0, fw = 0; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (!w) continue; const bi = si.getComponent(i, j); if (bi === iA) a += w; else if (fo.has(legacyBone(bs[bi].name)) || fo.has(bs[bi].name)) fw += w; }
+          if (a + fw > 0.6 && (a > 0.02 || fw > 0.02)) { ws.i.push(i); ws.a.push(a / (a + fw)); } } }
+      for (let q = 0; q < ws.i.length; q++) { const i3 = ws.i[q] * 3; p.set(e.P[i3] - E.x, e.P[i3 + 1] - E.y, e.P[i3 + 2] - E.z); const d = p.length(); if (d > R) continue;
+        const fall = 1 - d / R, sd = p.dot(nP), upper = ws.a[q] >= 0.5;
+        if (upper ? sd < 0.001 : sd > -0.001) p.addScaledVector(nP, (upper ? 0.001 : -0.001) - sd);          // חצה את הקפל — חוזר אליו
+        const o = p.dot(outw); if (o > -0.01) p.addScaledVector(outw, 0.016 * k * k * fall * fall * Math.min(1, (o + 0.01) / 0.03));   // נפח בצד החיצוני
+        e.P[i3] = p.x + E.x; e.P[i3 + 1] = p.y + E.y; e.P[i3 + 2] = p.z + E.z; } } }
+}
+const ARM_DQ = /^(Left|Right)(Arm|ForeArm|Hand)$/, _dm = new THREE.Matrix4(), _dp = new THREE.Vector3(), _dqr = new THREE.Quaternion(), _ds = new THREE.Vector3();
+export const SKIN_OPT = { dq: !(typeof location !== 'undefined' && new URLSearchParams(location.search).has('nodq')) };   // ?nodq — בלי התיקון (להשוואה)
 export function skinVerts(root) {
   poseFingers(root);   // תנוחת האצבעות (fingers.js) — על העצמות, לפני חישוב הקודקודים
   root.updateMatrixWorld(true);
@@ -581,14 +604,24 @@ export function skinVerts(root) {
     const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
     if (o.isSkinnedMesh) o.skeleton.update();
     const bm = o.isSkinnedMesh ? o.skeleton.boneMatrices : null;
+    // מרפק ופרק יד שלא נמעכים: המשקלים של עצמות הזרוע (זרוע, אמה, כף יד) מתמזגים כסיבוב אחד (קווטרניון כפול) ולא
+    // כממוצע של מטריצות — ממוצע של שני סיבובים רחוקים מכווץ את העור במפרק ("המרפק נמעך", שלמה 12.11). שאר העצמות כרגיל
+    const dq = bm && SKIN_OPT.dq ? o.skeleton.bones.map((b, k) => { if (!ARM_DQ.test(b.name)) return null; _dm.fromArray(bm, k * 16).decompose(_dp, _dqr, _ds);
+      return [_dqr.x, _dqr.y, _dqr.z, _dqr.w, 0.5 * (_dp.x * _dqr.w + _dp.y * _dqr.z - _dp.z * _dqr.y), 0.5 * (-_dp.x * _dqr.z + _dp.y * _dqr.w + _dp.z * _dqr.x), 0.5 * (_dp.x * _dqr.y - _dp.y * _dqr.x + _dp.z * _dqr.w), -0.5 * (_dp.x * _dqr.x + _dp.y * _dqr.y + _dp.z * _dqr.z)]; }) : null;
+    const D = new Float64Array(8);
     for (let i = 0; i < pos.count; i++) {
       if (bm) {   // bindMatrixInverse · Σ w·bone · bindMatrix
-        const e = _acc.elements; e.fill(0);
+        const e = _acc.elements; e.fill(0); let wd = 0, first = null;
         for (let j = 0; j < 4; j++) {
           const w = sw.getComponent(i, j); if (!w) continue;
-          const b = si.getComponent(i, j) * 16;
+          const bi = si.getComponent(i, j), b = bi * 16, q = dq && dq[bi];
+          if (q) { if (!first) { first = q; D.fill(0); } const sg = q[0] * first[0] + q[1] * first[1] + q[2] * first[2] + q[3] * first[3] < 0 ? -w : w; for (let k = 0; k < 8; k++) D[k] += sg * q[k]; wd += w; continue; }
           for (let k = 0; k < 16; k++) e[k] += w * bm[b + k];
         }
+        if (wd) { const n = Math.hypot(D[0], D[1], D[2], D[3]) || 1; for (let k = 0; k < 8; k++) D[k] /= n;
+          _dqr.set(D[0], D[1], D[2], D[3]);   // ההזזה: 2 · d · q*
+          _dp.set(2 * (-D[7] * D[0] + D[4] * D[3] - D[5] * D[2] + D[6] * D[1]), 2 * (-D[7] * D[1] + D[4] * D[2] + D[5] * D[3] - D[6] * D[0]), 2 * (-D[7] * D[2] - D[4] * D[1] + D[5] * D[0] + D[6] * D[3]));
+          const m = _dm.compose(_dp, _dqr, _ds.set(1, 1, 1)).elements; for (let k = 0; k < 16; k++) e[k] += wd * m[k]; }
         _full.multiplyMatrices(o.matrixWorld, o.bindMatrixInverse).multiply(_acc).multiply(o.bindMatrix);
       } else _full.copy(o.matrixWorld);
       v.fromBufferAttribute(pos, i).applyMatrix4(_full); P[i * 3] = v.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z;
@@ -596,6 +629,7 @@ export function skinVerts(root) {
     }
     out.push({ o, P, N, kind: partKind(o.material.name + ' ' + o.name) });
   });
+  if (SKIN_OPT.dq) fixElbows(root, out);
   applyFingers(root, out);   // נורמלים חלקים לידיים שכופפו
   relaxBrows(root, out);
   return out;
