@@ -243,6 +243,7 @@ function twoBone(a, b, c, target, pole) {
 // אגרוף סביב עמוד: האמה קדימה, האגודל למעלה, כף היד אל העמוד והאצבעות מקיפות אותו. origin — הרצפה מתחת לאגן
 // ידית תלויה (טבעת צהובה מהמוט שבתקרה): axis — כיוון המוט שהיד סוגרת עליו (הצלע התחתונה של הטבעת, לאורך x), palm — לאן פונה כף היד (קדימה);
 // maxReach — אם הכתף רחוקה מדי מהידית (נוסע נמוך) מחזירים null, והוא מחזיק בעמוד
+const GRIP_NEW = !(typeof location !== 'undefined' && new URLSearchParams(location.search).has('oldgrip'));   // ?oldgrip — האחיזה הקודמת (להשוואה)
 function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, palmHint = null, maxReach = 0, rail = false) {   // rail: מוט אופקי עבה — האצבעות עוטפות אותו כמו עמוד   // רדיוס העמוד 2 ס"מ + עובי האצבעות
   const root = SkeletonUtils.clone(gltf.scene);
   const idle = gltf.animations.find(a => /idle/i.test(a.name));
@@ -289,11 +290,34 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
   const P = palm.clone().applyQuaternion(hd.getWorldQuaternion(new THREE.Quaternion()));
   const curl = (bone, deg) => { if (!bone) return; const d = new THREE.Vector3(0, 1, 0).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion())); turn(bone, new THREE.Vector3().crossVectors(d, P), deg); };
   // האצבעות נסגרות סביב: שורש האצבעות (העצם), ואחריו הפרקים (fingers.js); האגודל נסגר מהצד השני
-  if (axis && !rail) curl(f1, 22); else curl(f1, 32);
+  if (!(hi && GRIP_NEW)) { if (axis && !rail) curl(f1, 22); else curl(f1, 32); }   // בדגם עם עצמות אצבע — האצבעות נסגרות פרק אחר פרק (למטה)
   // האגודל נסגר מהצד השני: מכוון אל מתחת לצלע של הרצועה / אל הצד הרחוק של העמוד
   if (th) { root.updateMatrixWorld(true); const tb = W(th), cur = new THREE.Vector3(0, 1, 0).applyQuaternion(th.getWorldQuaternion(new THREE.Quaternion())), tg = pole.clone().addScaledVector(n, axis ? poleR + 0.016 : 0.02 + 0.014).addScaledVector(hh, axis ? 0.0 : -0.005);
     const q = new THREE.Quaternion().setFromUnitVectors(cur, tg.sub(tb).normalize()), wq = th.getWorldQuaternion(new THREE.Quaternion()), pq = th.parent.getWorldQuaternion(new THREE.Quaternion()); th.quaternion.copy(pq.invert().multiply(q.multiply(wq))); }   // רצועה: שורש האצבעות כמעט ישר (עוברות מעל הצלע), והפרקים נסגרים למטה סביבה
   root.userData.fingerPose = { [hand]: axis && !rail ? FINGERS.hook : FINGERS.wrap, [hand === 'Left' ? 'Right' : 'Left']: FINGERS.relaxed };
+  // אחיזה אמיתית (13.11): המוט / העמוד / הצלע התחתונה של הלולאה עוברים בתוך כף היד, בקו של שורשי האצבעות. נקודת האחיזה
+  // מחושבת מהעצמות (האמצע בין שורש המורה לשורש הזרת, מוזז אל כף היד ברדיוס המוט ועובי האצבע), פרק היד זז עד שהיא על ציר
+  // המוט, ואז כל אצבע נסגרת פרק אחר פרק עד מגע (כמו היד של הפקח על המכשיר), והאגודל נסגר מהצד הנגדי
+  if (hi && GRIP_NEW) { const Rr = axis ? poleR : 0.02, S = hand + 'Hand', RAD = [0.0085, 0.009, 0.0085, 0.0075], MAX = [95, 110, 85], GAP = 0.0015, hint = new THREE.Vector3(hand === 'Right' ? -0.6 : 0.6, -1, -0.3);
+    const perp = p => { const r = p.sub(pole); return r.addScaledVector(ax, -r.dot(ax)); };
+    for (let it = 0; it < 4; it++) { root.updateMatrixWorld(true);
+      // קו שורשי האצבעות מקביל לציר המוט (אחרת המוט חוצה את כף היד באלכסון והזרת נשארת פתוחה)
+      { const acr = W(B(S + 'Pinky1')).sub(W(B(S + 'Index1'))).normalize(), tg = ax.clone().multiplyScalar(Math.sign(acr.dot(ax)) || 1), q = new THREE.Quaternion().setFromUnitVectors(acr, tg);
+        hd.quaternion.copy(hd.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q.multiply(hd.getWorldQuaternion(new THREE.Quaternion())))); root.updateMatrixWorld(true); }
+      const c = W(B(S + 'Index1')).add(W(B(S + 'Pinky1'))).multiplyScalar(0.5).addScaledVector(hi.palm.clone().transformDirection(f1.matrixWorld), 0.009 + Rr).addScaledVector(hi.dm.clone().transformDirection(f1.matrixWorld), 0.01);
+      const d = perp(c).negate(); if (d.length() < 0.0008) break;
+      const hq = hd.getWorldQuaternion(new THREE.Quaternion()); twoBone(B(hand + 'Arm'), B(hand + 'ForeArm'), hd, W(hd).add(d), hint); root.updateMatrixWorld(true);
+      hd.quaternion.copy(hd.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(hq)); }
+    const FPg = root.userData.fingerPose[hand] = { curl: [0, 1, 2, 3].map(() => [0, 0, 0]), add: 0.6, thumb: 0 }, pre = (axis && !rail ? FINGERS.hook : FINGERS.wrap).curl;
+    hi.fingers.forEach((Fg, f) => { const fr0 = [0, Fg.seg[0] / Fg.L, (Fg.seg[0] + Fg.seg[1]) / Fg.L], c = FPg.curl[f];
+      const hit = k => { for (let j = 1; j <= 8; j++) if (perp(fingerPoint(root, hand, f, fr0[k] + (1 - fr0[k]) * j / 8)).length() < Rr + RAD[f] + GAP) return true; return false; };
+      for (let k = 0; k < 3; k++) { let found = false; for (let a = 0; a < MAX[k]; a += 2) { c[k] = a + 2; if (hit(k)) { c[k] = a; found = true; break; } }
+        if (!found) { c[k] = f > 0 ? FPg.curl[f - 1][k] : pre[f][k]; while (c[k] > 0 && hit(k)) c[k] -= 2; } } });
+    const thit = () => { for (let j = 3; j <= 8; j++) if (perp(thumbPoint(root, hand, j / 8)).length() < Rr + 0.0095 + GAP) return true; return false; };
+    for (let t = 0; t < 70; t += 2) { FPg.thumb = t + 2; if (thit()) { FPg.thumb = t; break; } }
+    if (FPg.thumb >= 70) FPg.thumb = 30;
+    // לבדיקות: כמה כל אצבע מקיפה את המוט (מעלות סביב הציר, משורש האצבע עד הקצה) והמרחק של ציר האצבע ממרכז המוט
+    root.userData.grip = { curl: FPg.curl.map(c => [...c]), thumb: FPg.thumb, R: Rr, wrap: hi.fingers.map((Fg, f) => { const a = perp(fingerPoint(root, hand, f, 0)), b = perp(fingerPoint(root, hand, f, 1)); return [Math.round(Math.acos(THREE.MathUtils.clamp(a.clone().normalize().dot(b.clone().normalize()), -1, 1)) * 57.3), +a.length().toFixed(3), +b.length().toFixed(3)]; }) }; }
   root.updateMatrixWorld(true);
   if (rail) shift.z += 0.1;   // ליד המחזיק של הרצועה, לא עליו
   return { root, origin, hip: W(hips).sub(origin), hand: W(hd).sub(origin), shift, rail };
