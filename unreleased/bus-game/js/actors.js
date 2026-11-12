@@ -19,6 +19,16 @@ import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerD
 export const KNEEL = { th: 0.0304, far: 1.25 };
 export const kneelDrop = (k, x) => k * KNEEL.th * (KNEEL.far - x);
 
+// גובה אמיתי לכל דמות (13.11): [הגובה של הדגם כמו שיוצא מ-Blender, הגובה הרצוי], במטרים, מכף הרגל עד קודקוד הראש.
+// הדגמים יצאו בגבהים לא אמיתיים (צעיר של 1.97 מ', אישה של 1.50) — מתקנים במקום אחד, בטעינה: קנה המידה של השלד.
+// (גבר כ-1.76, אישה כ-1.62, נער כ-1.57, מבוגרת כ-1.58; גיוון של כמה ס"מ). תנוחות הישיבה שחושבו מראש (sitpresets.js)
+// מתאימות רק לדגם שלא שונה ביותר מ-1.2% — לאחרים התנוחה מחושבת בטעינה
+const HEIGHT = { person_0: [1.808, 1.76], person_1: [1.595, 1.62], person_2: [1.966, 1.80], person_3: [1.548, 1.58], person_4: [1.731, 1.74], person_5: [1.505, 1.58], person_6: [1.505, 1.57], person_7: [1.705, 1.65], person_8: [1.708, 1.72] };
+function fitHeight(g) {
+  const h = HEIGHT[(g.userData.file || '').replace(/^.*\//, '')]; if (!h) return;
+  const k = h[1] / h[0], rig = g.scene.children.find(c => c.getObjectByName && c.getObjectByName('Hips')) || g.scene.children[0]; if (!rig) return;
+  rig.scale.multiplyScalar(k); g.scene.updateMatrixWorld(true); g.userData.fit = k; g.userData.refit = Math.abs(k - 1) > 0.012;
+}
 export async function loadAssets(base) {
   const loader = useBitmapTextures(new GLTFLoader());
   const get = url => new Promise(res => loader.load(url, g => res(g), undefined, () => res(null)));
@@ -33,7 +43,7 @@ export async function loadAssets(base) {
   const loadPeople = async () => {
     let names = [];
     try { const r = await fetch(base + 'people/people.json'); if (r.ok) names = (await r.json()).map(n => 'people/' + n.replace(/\.glb$/, '')); } catch (e) { }
-    const list = (await Promise.all(names.map(async n => { const g = await one(n); if (g) g.userData.file = n; return g; }))).filter(Boolean);
+    const list = (await Promise.all(names.map(async n => { const g = await one(n); if (g) { g.userData.file = n; fitHeight(g); } return g; }))).filter(Boolean);
     if (!list.length) { const p = await one('person'); if (p) list.push(p); }
     return list;
   };
@@ -812,7 +822,7 @@ export class PeopleLayer {
         const vi = this.variants.length - 1, [armPose, side, pushFore] = POSE_OF[vi % POSE_OF.length];
         // התוצאות של החיפוש שמורות מראש (js/sitpresets.js) — כך הטעינה מהירה; דגם חדש או שונה — מחפשים מחדש
         const key = `${g.userData.file}|${armPose}|${side}|${pushFore ? 1 : 0}`;
-        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, SIT_PRESETS[key] || null);
+        const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, (!g.userData.refit && SIT_PRESETS[key]) || null);
         if (S) S.key = key;
         if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; try { relaxFingers(S.root, g, 0.6); (g.userData.unsink = g.userData.unsink || {}).bench = unsinkHands(S.root); } catch (e) { console.warn(e); } V.sitGroups = bakeVariant(g, S, cache);
           const hp = S.root.getObjectByName('Hips'); if (hp && IM?.bagLocal) { S.root.updateMatrixWorld(true); V.bagSit = hp.matrixWorld.clone().multiply(IM.bagSitLocal || IM.bagLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
@@ -1089,7 +1099,7 @@ reachPreview(pid, hasCard = true) {
       try {
         const [armPose, side, pushFore] = POSE_OF[vi % POSE_OF.length];
         const key = `bus|${V.gltf.userData.file}|${armPose === 'phone' ? 'thighs' : armPose}|${side}|${pushFore ? 1 : 0}`;
-        const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, SIT_PRESETS[key] || null); if (!S) return;
+        const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, (!V.gltf.userData.refit && SIT_PRESETS[key]) || null); if (!S) return;
         S.key = key;
         // באוטובוס: הראש מורם (מסתכל קדימה, לא אל הברכיים) — כך הפנים רחוקות מהמשענת ומהידית של המושב שלפניו
         { const nk = S.root.getObjectByName('Neck') || S.root.getObjectByName('Head'), hd = S.root.getObjectByName('Head'), X = new THREE.Vector3(1, 0, 0);
