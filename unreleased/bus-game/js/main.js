@@ -86,7 +86,7 @@ async function init() {
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
-  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants);
+  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants); buses.camera = camera;
   people = new PeopleLayer(scene, assets.people, graph);
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
@@ -1010,16 +1010,48 @@ function makeResidents() {
 }
 function resetResidents(newSeed) { if (newSeed) bank.resSeed = ((Math.random() * 4294967295) >>> 0) || 1; residents = makeResidents(); sim.residents = residents; sim.schedDay = null; }
 // כרטיס של נוסע (הקשה על ממתין בתחנה): איפה גר, לאן נוסע, מתי יוצא בדרך כלל
+// כרטיס נוסע: הקשה על מי שמחכה בתחנה — מי הוא (residents.js), לאן הוא נוסע ובאיזה קו (המסלול שלו בסימולציה), וכמה זמן
+// הוא מחכה. הנוסע מסומן בטבעת שעוקבת אחריו, והכרטיס נשאר מעליו עד שמקישים במקום אחר או שהוא עולה לאוטובוס
+let paxSel = null, paxRing = null;
+function paxClear() { paxSel = null; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
 function paxCardAt(x, y) {
-  const P = people.waitPos; if (!P?.size) return false;
+  const P = people.waitPos; if (!P?.size) { if (paxSel) paxClear(); return false; }
   const r = canvas.getBoundingClientRect(); let best = null, bd = 28;
   for (const [, w] of P) { const v = w.pos.clone().project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; best = w; } }
-  if (!best) return false;
-  const info = residents?.info(best.p.who) || { lives: 'נוסע מזדמן', goes: 'קניות וסידורים', out: null }, c = $('#paxCard');
-  c.innerHTML = `<b>${esc(info.lives)}</b>${info.goes ? `<span>${esc(info.goes)}</span>` : ''}${info.out ? `<span>יוצא בדרך כלל ב-${info.out}</span>` : ''}${ROLE_INSP(best.p) ? '<span class="lmeta">פקח</span>' : ''}`;
-  c.style.left = `${Math.min(innerWidth - 200, Math.max(8, x - 90))}px`; c.style.top = `${Math.max(70, y - 110)}px`; c.hidden = false;
-  clearTimeout(paxCardAt.t); paxCardAt.t = setTimeout(() => { c.hidden = true; }, 4500);
+  if (!best) { if (paxSel) paxClear(); return false; }
+  const p = best.p, info = residents?.info(p.who) || { lives: 'נוסע מזדמן', goes: 'קניות וסידורים', out: null }, c = $('#paxCard');
+  const g = p.legs?.[p.leg], last = p.legs?.[p.legs.length - 1], nx = p.legs?.[p.leg + 1], Z = demand?.zones, zo = demand?.zoneOf;
+  const dz = Z && p.d >= 0 ? Z[zo[p.d]] : null, home = p.who >= 0 && residents?.home ? residents.home[p.who] : p.who == null || p.who > -1e6 ? -1 : p.o;
+  const rows = [`<b>${esc(info.lives)}</b>`];
+  if (ROLE_INSP(p)) rows.push('<span class="lmeta">פקח</span>');
+  if (info.goes) rows.push(`<span>${esc(info.goes)}${info.out ? ` · יוצא בדרך כלל ב-${info.out}` : ''}</span>`);
+  if (last) rows.push(`<span>נוסע אל <u>${esc(last.L.stops[last.to].name)}</u>${dz ? ` (${esc(dz.name)})` : ''}</span>`);
+  if (g) rows.push(`<span>מחכה לקו <span class="num sm" style="background:${g.L.color}">${esc(g.L.def.number)}</span>${nx ? ` · יורד ב${esc(g.L.stops[g.to].name)} ומחליף לקו ${esc(nx.L.def.number)}` : ''}</span>`);
+  rows.push(`<span>מחכה כבר <i data-w>0</i> דק'${p.leg > 0 && p.paid ? ' · מעבר, בלי תשלום נוסף' : ''}</span>`);
+  const hs = home >= 0 ? demand?.stops?.[home] : null;
+  if (hs && !fp?.on && cams?.current === 'free') rows.push(`<button type="button" data-home="${home}">${p.who >= 0 ? 'הצג איפה הוא גר' : 'הצג מאיפה הוא בא'}</button>`);
+  c.innerHTML = rows.join(''); c.hidden = false;
+  c.onclick = e => { const b = e.target.closest('[data-home]'); if (!b) return; const s = demand.stops[+b.dataset.home], z = Z?.[zo[+b.dataset.home]]; paxClear();
+    const h = 170; controls.target.set(s.x, 0, -s.y); camera.position.set(s.x, h, -s.y + h * 0.75); camera.lookAt(controls.target); camera.updateMatrixWorld();
+    paxMark(s.x, -s.y, 14); clearTimeout(paxCardAt.t); paxCardAt.t = setTimeout(() => { if (!paxSel && paxRing) paxRing.visible = false; }, 6000);
+    toast(z ? `${z.kind === 'hood' ? 'שכונת ' + z.name : z.name} — ליד תחנת ${s.name}` : `ליד תחנת ${s.name}`); };
+  paxSel = { pid: p.id, t0: p.t0 }; paxUpdate();
   return true;
+}
+function paxMark(x, z, k) {
+  if (!paxRing) { paxRing = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.62, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.95, depthTest: false, side: THREE.DoubleSide })); paxRing.renderOrder = 30; paxRing.name = 'pax-ring'; scene.add(paxRing); }
+  paxRing.position.set(x, 0.08, z); paxRing.scale.setScalar(k); paxRing.visible = true;
+}
+// בכל פריים: הטבעת מתחת לנוסע שנבחר, והכרטיס מעל הראש שלו (ואם אין מקום למעלה — מתחת לרגליים), בלי לכסות אותו
+function paxUpdate() {
+  if (!paxSel) return;
+  const w = people.waitPos?.get(paxSel.pid), c = $('#paxCard');
+  if (!w || fp?.on || cams?.current === 'driver') { paxClear(); return; }
+  paxMark(w.pos.x, w.pos.z, Math.max(1, camera.position.distanceTo(w.pos) / 22) * (1 + 0.08 * Math.sin(performance.now() / 180)));   // ממרחק — טבעת גדולה יותר, שתיראה
+  const r = canvas.getBoundingClientRect(), v = w.pos.clone().project(camera), sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * r.height, ch = c.offsetHeight || 120, cw = c.offsetWidth || 210;
+  const top = sy - ch - 46 > 64 ? sy - ch - 46 : sy + 70;
+  c.style.left = `${Math.min(innerWidth - cw - 6, Math.max(6, sx - cw / 2))}px`; c.style.top = `${Math.min(innerHeight - ch - 6, top)}px`;
+  const el = c.querySelector('[data-w]'); if (el) { const m = String(Math.max(0, Math.round((sim.time - w.p.t0) / 60))); if (el.textContent !== m) el.textContent = m; }
 }
 const ROLE_INSP = p => p.role === 'insp';
 // ---------- תפקידים: נהג, מתכנן, סדרן, פקח. מתכנן — המשחק המלא (בחירת רמה, בניית קווים). שאר התפקידים — על רשת
@@ -1487,7 +1519,7 @@ function bindReset() {
   buildModePickers();
   $('#resetGame').onclick = () => { modePick = normMode(bank.mode); syncModePick(); $('#resetAsk').hidden = false; };
   $('#resetCancel').onclick = () => { $('#resetAsk').hidden = true; };
-  $('#startOver').onclick = askStartOver; $('#roleStartOver').onclick = askStartOver;
+  $('#startOver').onclick = askStartOver; $('#roleStartOver').onclick = askStartOver; $('#barRestart').onclick = askStartOver;
   $('#wipeCancel').onclick = () => { $('#wipeAsk').hidden = true; };
   $('#wipeGo').onclick = () => startOver($('#wipeCloud').checked);
   $('#resetNoSave').onclick = () => { $('#resetAsk').hidden = true; startMode(modePick, false); };
@@ -1874,6 +1906,7 @@ function tick(dt) {
     const simDt = sim.step(dt);
     buses.update(sim.lines, simDt, dt);
     people.update(sim, city.stops, simDt, buses);
+    paxUpdate();
     if (shift?.on && driverBus) shift.update(driverBus, sim.events);
     sim.events.length = 0;
     cams.update(dt);

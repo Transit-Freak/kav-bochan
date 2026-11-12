@@ -488,7 +488,9 @@ body.role-inspector #money,body.role-inspector #modeBadge{display:none}
 table.isum{width:100%;border-collapse:collapse;font-size:15px}
 table.isum td{padding:6px 4px;border-top:1px solid var(--line)}
 table.isum tr.tot td{font-size:17px;border-top:2px solid var(--line2)}
-.paxcard{position:fixed;z-index:30;width:190px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:2px;font-size:13px;pointer-events:none}
+.paxcard{position:fixed;z-index:30;width:214px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:3px;font-size:12.5px;line-height:1.3;pointer-events:none;border:2px solid #f59e0b}
+.paxcard u{text-decoration:none;font-weight:700}.paxcard i{font-style:normal;font-weight:700}
+.paxcard button{pointer-events:auto;align-self:flex-start;margin-top:3px;padding:4px 9px;font-size:12px;border-radius:9px}
 .paxcard[hidden]{display:none}
 .paxcard b{font-size:14px}
 /* התחל מחדש (מחיקת הכל) ואישור כללי */
@@ -532,3 +534,10 @@ body:has(#dutyAsk:not([hidden])) #panel{visibility:hidden}
 .glegend i.gxk{background:repeating-linear-gradient(45deg,#d03b3b 0 3px,#f6b4b4 3px 6px)}
 .gb.gup{color:#0f172a;box-shadow:inset 0 3px 0 #0f172a;font-size:11px;line-height:14px}
 .glegend i.gupk{background:#cbd5e1;box-shadow:inset 0 3px 0 #0f172a;color:#0f172a;font:700 9px/11px var(--font);text-align:center;font-style:normal;height:12px}
+
+/* "התחל מחדש" בפס העליון — בכל תפקיד; פותח את חלון האישור הקיים (#wipeAsk) */
+.bar-restart{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px 8px;border-radius:12px;border:1px solid var(--line,#d8dee6);background:#fff;color:#334155;font:inherit;cursor:pointer;line-height:1;flex:none}
+.bar-restart i{font-style:normal;font-size:17px;line-height:1}
+.bar-restart span{font-size:10.5px;font-weight:700;white-space:nowrap}
+.bar-restart:hover{background:#fef2f2;border-color:#fca5a5;color:#b91c1c}
+@media (max-width:520px){.bar-restart{padding:2px 6px}.bar-restart span{font-size:9.5px}}

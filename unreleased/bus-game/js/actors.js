@@ -139,10 +139,50 @@ function cutDoorPanels(root) {
   for (const m of add) root.add(m);
 }
 
+// העלאה לכרטיס המסך של מה שבשימוש בלבד: קודם כל InstancedMesh העלה בכל פריים את כל הקיבולת שלו (13MB לפריים בסך הכול),
+// גם כשהוא ריק. עכשיו — רק n המופעים הראשונים, וכלום כשאין מופעים (three.js: addUpdateRange)
+export function flushIM(im, n) {
+  im.count = n; if (!n) return;
+  for (const [a, k] of [[im.instanceMatrix, 16], [im.instanceColor, 3]]) { if (!a) continue; a.clearUpdateRanges(); a.addUpdateRange(0, n * k); a.needsUpdate = true; }
+}
+
+// ---------- אוטובוס רחוק: מעט קריאות ציור
+// בדגם של האוטובוס כ-150 חלקים (כל מושב, עמוד ושלט בנפרד), וכל אוטובוס צויר ב-150 קריאות ציור. לאוטובוס שרחוק מהמצלמה
+// מציירים במקומם גרסה ממוזגת: כל החלקים הקבועים של אותו חומר — חלק אחד, ובלי הפרטים הקטנים שבפנים (שלטים, מתקפים).
+// הדלתות, הרצועות והמפוח (שזזים) נשארים כמו שהם. החלקים המקוריים לא נמחקים — עוברים לשכבה 1, שהמצלמה לא מציירת.
+const LITE_SKIP = /^M_(Sign|Val|USB|QRSticker|StopBtn|StopFace|Plate|RedHammer|Screen|LCD|Vent|Plexi|Lamp|CeilPerf)/;
+const LITE_SHADOW = /^M_(Silver|BodyWhite|RoofWhite|Glass|GlossBlack|Rubber|EVAccent)/;
+const LITE_KEEP = /^(Door_|Leaf_|Mirror_|Wiper|Steer)|^(Straps|Cab_Windshield|CabSwitchPlate|Joint_Bellows)$/;
+const _camP = new THREE.Vector3();
+const LITE_FAR = 60, LITE_NEAR = 48;      // מטרים מהמצלמה: מעבר ל-60 — הגרסה הממוזגת; חוזרים למלאה מתחת ל-48
+function liteStatic(o, animated) {
+  if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || Array.isArray(o.material) || o.material.vertexColors || !o.geometry.attributes.position) return false;
+  for (let q = o; q; q = q.parent) if (LITE_KEEP.test(q.name) || animated.has(q.name)) return false;
+  return true;
+}
+function buildLite(scene, animated) {
+  scene.updateMatrixWorld(true);
+  const rear = scene.getObjectByName('Section_Rear'), inv = rear ? rear.matrixWorld.clone().invert() : null, sets = { root: new Map(), rear: new Map() }, M = new THREE.Matrix4();
+  scene.traverse(o => {
+    if (!liteStatic(o, animated) || LITE_SKIP.test(o.material.name)) return;
+    let inRear = false; for (let q = o; q; q = q.parent) if (q === rear) inRear = true;
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
+    g.morphAttributes = {};
+    if (!g.attributes.normal) g.computeVertexNormals();
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    g.applyMatrix4(inRear ? M.multiplyMatrices(inv, o.matrixWorld) : o.matrixWorld);
+    const S = inRear ? sets.rear : sets.root; if (!S.has(o.material)) S.set(o.material, []); S.get(o.material).push(g);
+  });
+  const out = {};
+  for (const k of ['root', 'rear']) out[k] = [...sets[k]].map(([mat, gs]) => { const geo = gs.length > 1 ? mergeGeometries(gs, false) : gs[0]; return geo ? { geo, mat } : null; }).filter(Boolean);
+  return out;
+}
+
 export class BusLayer {
   constructor(scene, asset, people, variants) {
     this.scene = scene; this.asset = asset; this.people = people || []; this.map = new Map();
-    this.variants = variants || {}; this.tunedSet = new Set(); this.clipsOf = new Map(); this.stdOnly = new Set();
+    this.variants = variants || {}; this.tunedSet = new Set(); this.clipsOf = new Map(); this.stdOnly = new Set(); this.liteOf = new Map(); this.animOf = new Map(); this.camera = null;
     this.group = new THREE.Group(); this.group.name = 'buses'; scene.add(this.group);
     this.isPlaceholder = !asset;
     this.tints = new Map();
@@ -166,7 +206,9 @@ export class BusLayer {
         // רצועות האחיזה (js/straps.js) — בדגם הרגיל ובחשמלי (אותו פנים). במיניבוס הגג נמוך יותר ובמפרקי יש קטע אחורי: בלי רצועות
         if (kind === 'std' || kind === 'elec') try { addStraps(asset.scene); } catch (e) { console.warn('straps failed', e); }
         if (kind === 'std') cutDoorPanels(asset.scene);       // בדגמים החדשים החיפוי כבר חתוך בפתחי הדלתות
-        tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind); }
+        tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind);
+        // הגרסה הממוזגת לאוטובוס רחוק (buildLite) — פעם אחת לדגם
+        try { const an = new Set(); for (const c of asset.animations) for (const t of c.tracks) an.add(t.name.replace(/\.[^.]*$/, '')); this.animOf.set(kind, an); this.liteOf.set(kind, buildLite(asset.scene, an)); } catch (e) { console.warn('lite bus failed', e); } }
       // המפוח של המפרקי הוא SkinnedMesh — שכפול רגיל היה מכופף את אותו מפוח בכל האוטובוסים
       obj = kind === 'artic' ? SkeletonUtils.clone(asset.scene) : asset.scene.clone(true);
       const clip = asset.animations.find(a => /DoorsOpen/i.test(a.name)) || asset.animations[0];
@@ -197,7 +239,12 @@ export class BusLayer {
     const warn = labelSprite('⚠ תקלה', '#d03b3b', 1.05); warn.position.set(0, 7.2, 0); warn.visible = false; obj.add(warn);
     obj.userData.bus = bus;
     this.group.add(obj);
-    const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null };
+    const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null, lite: null, isLite: false };
+    // הגרסה הממוזגת (לא לדגם הרגיל עם גג צבוע — שם החומרים שונים לכל אוטובוס)
+    const LT = asset && !(T?.tint && kind === 'std') ? this.liteOf.get(kind) : null;
+    if (LT) { const an = this.animOf.get(kind), statics = []; obj.traverse(o => { if (liteStatic(o, an)) statics.push(o); });
+      const mk = (list, parent) => list.map(({ geo, mat }) => { const m = new THREE.Mesh(geo, mat); m.name = 'Lite'; m.visible = false; m.castShadow = LITE_SHADOW.test(mat.name); m.receiveShadow = false; parent.add(m); return m; });
+      v.lite = { statics, meshes: [...mk(LT.root, obj), ...(v.rear ? mk(LT.rear, v.rear) : [])] }; }
     this.map.set(bus.id, v); return v;
   }
   // simDt — זמן המשחק שעבר, dt — זמן אמיתי (לנדנוד הרצועות)
@@ -214,6 +261,9 @@ export class BusLayer {
       const kn = b.kneel ? b.kneel * KNEEL.th : 0;
       v.obj.position.set(p.x, -kn * KNEEL.far, -p.y); v.obj.rotation.set(0, p.yaw, kn);
       v.obj.visible = b.state !== 'done' || b.t < 1.2;
+      // רחוק מהמצלמה — הגרסה הממוזגת (עם מרווח בין הספים, כדי שלא יתחלף הלוך ושוב)
+      if (v.lite && this.camera && v.obj.visible) { const d = this.camera.getWorldPosition(_camP).distanceTo(v.obj.position), want = v.isLite ? d > LITE_NEAR : d > LITE_FAR;
+        if (want !== v.isLite) { v.isLite = want; for (const m of v.lite.statics) m.layers.set(want ? 1 : 0); for (const m of v.lite.meshes) m.visible = want; } }
       if (v.action) { const [aF, aM] = v.action, d = aF.getClip().duration * 0.999; aF.time = (b.dF ?? b.door) * d; aM.time = (b.dM ?? b.door) * d; v.mixer.update(0); }
       else for (const d of v.doors) { // placeholder: יציאה החוצה והחלקה
         d.o.position.x = d.x0 - 0.1 * Math.min(1, b.door * 3);
@@ -1464,18 +1514,18 @@ reachPreview(pid, hasCard = true) {
         this.onboardPos.set(p.id, (V.bus.headP ? V.bus.headP.clone() : V.bus.sit.hip.clone().add(new THREE.Vector3(0, 0.62, 0.02))).applyMatrix4(M));
       }
     }
-    for (const V of this.variants) if (V.bus) for (const BP of [V.bus, ...Object.values(V.bus.alt || {})]) for (const im of BP.meshes) { im.count = BP.n; im.visible = BP.n > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
-    for (const V of this.variants) for (const S of Object.values(V.stand || {})) for (const im of S.meshes) { im.count = S.n; im.visible = S.n > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
-    this.phones.count = np; this.phones.instanceMatrix.needsUpdate = true;
-    for (const [k, im] of Object.entries(this.accIM)) { im.count = this.accN[k]; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
-    this.caps.count = nc; this.readers.count = nr; this.bags.count = nb; this.caps.instanceMatrix.needsUpdate = this.readers.instanceMatrix.needsUpdate = this.bags.instanceMatrix.needsUpdate = true;
+    for (const V of this.variants) if (V.bus) for (const BP of [V.bus, ...Object.values(V.bus.alt || {})]) for (const im of BP.meshes) { im.visible = BP.n > 0; flushIM(im, BP.n); }
+    for (const V of this.variants) for (const S of Object.values(V.stand || {})) for (const im of S.meshes) { im.visible = S.n > 0; flushIM(im, S.n); }
+    flushIM(this.phones, np);
+    for (const [k, im] of Object.entries(this.accIM)) { flushIM(im, this.accN[k]); }
+    flushIM(this.caps, nc); flushIM(this.readers, nr); flushIM(this.bags, nb);
     for (const V of this.variants) for (const im of V.sitMeshes) {
-      im.count = V.sn; im.visible = V.sn > 0; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      im.visible = V.sn > 0; flushIM(im, V.sn);
     }
     for (const V of this.variants) for (const im of V.meshes) {
-      im.count = V.n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      flushIM(im, V.n);
     }
-    this.blobs.count = n; this.blobs.instanceMatrix.needsUpdate = true;
+    flushIM(this.blobs, n);
     this.crowdCount = n;
 
     // 3. הולכים: לאורך מסלול של כמה נקודות, בקצב הליכה קבוע

@@ -320,8 +320,8 @@ const TILE = 800;
 function trees(city) {
   const T = city.trees, n = T.length / 4;
   const g = new THREE.Group(); g.name = 'trees';
-  const crownGeo = new THREE.DodecahedronGeometry(3.2, 0).scale(1, 0.85, 1).translate(0, 5.2, 0);   // 36 משולשים לנוף
-  const trunkGeo = new THREE.CylinderGeometry(0.28, 0.38, 3.2, 5, 1, true).translate(0, 1.6, 0);
+  const crownGeo = new THREE.IcosahedronGeometry(3.2, 0).scale(1, 0.85, 1).translate(0, 5.2, 0);   // 20 משולשים לנוף (קודם דודקהדרון, 36): יש כ-15,000 עצים
+  const trunkGeo = new THREE.CylinderGeometry(0.28, 0.38, 3.2, 4, 1, true).translate(0, 1.6, 0);
   const crownMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a5a3f });
   const tiles = new Map();
