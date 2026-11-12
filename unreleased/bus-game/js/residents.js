@@ -15,7 +15,9 @@ const OUT_SHARE = 0.06, VIS_SHARE = 0.06, MOVE_P = 0.002;
 
 function rng(seed) { let a = seed >>> 0 || 1; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // "בשכונת המייסדים" / "באזור תעשייה"
-const inZone = z => !z ? 'במקום אחר' : z.kind === 'hood' ? `בשכונת ${z.name}` : `ב${z.name}`;
+// "בשכונת X"; אזור תעשייה ומרכז העיר אינם שכונה: "באזור התעשייה", "במרכז העיר"
+export const inZone = z => !z ? 'במקום אחר' : /^אזור תעשייה/.test(z.name) ? 'ב' + z.name.replace(/^אזור תעשייה/, 'אזור התעשייה') : /^מרכז /.test(z.name) ? 'ב' + z.name : z.kind === 'hood' ? `בשכונת ${z.name}` : `ב${z.name}`;
+export const isIndustry = z => !!z && /^אזור תעשייה/.test(z.name);
 const pickCdf = (C, r) => { const x = r * C[C.length - 1]; let lo = 0, hi = C.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (C[m] < x) lo = m + 1; else hi = m; } return lo; };
 const cum = a => { const C = new Float64Array(a.length); let s = 0; for (let i = 0; i < a.length; i++) C[i] = s += a[i]; return C; };
 // דקה ביום לפי פרופיל שעתי (סכום 1), אחידה בתוך השעה
@@ -107,6 +109,6 @@ export class Residents {
     if (who <= -1e6) return { lives: 'מבקר בעיר', goes: 'קניות, משפחה או השוק', out: null };
     if (who < 0) { const i = -1 - who; return { lives: `גר ב${TOWNS[this.oTown[i]]}`, goes: `עובד ${inZone(Z[zo[this.oDest[i]]])}`, out: hm(this.oOut[i]) }; }
     const k = this.kind[who];
-    return { lives: `גר ${inZone(Z[zo[this.home[who]]])}`, goes: k === 1 ? `עובד ${inZone(Z[zo[this.dest[who]]])}` : k === 2 ? `לומד ${inZone(Z[zo[this.dest[who]]])}` : '', out: k ? hm(this.out[who]) : null };
+    return { lives: isIndustry(Z[zo[this.home[who]]]) ? `גר ליד ${Z[zo[this.home[who]]].name.replace(/^אזור תעשייה/, 'אזור התעשייה')}` : `גר ${inZone(Z[zo[this.home[who]]])}`, goes: k === 1 ? `עובד ${inZone(Z[zo[this.dest[who]]])}` : k === 2 ? `לומד ${inZone(Z[zo[this.dest[who]]])}` : '', out: k ? hm(this.out[who]) : null };
   }
 }

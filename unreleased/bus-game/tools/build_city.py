@@ -10,6 +10,7 @@
   bstyle:    [code, ...]                               לכל בניין: גוון הקיר (code >> 4) והגג (code & 15) — ראו world.js
   bpop:      [h_dm, ...]                               הגובה "הישן" — רק למשקל האוכלוסייה בכיסוי (career.js), כדי שהמשחק לא ישתנה
   roads:     [[class, width_dm, x0,y0,...], ...]       רחובות (גם שבילים) — לציור. הרוחב כבר כולל הרחבה לאוטובוס
+  rnames:    [שם רחוב, ...], rname: [אינדקס או -1 לכל רחוב];  bres: [1 מגורים / 2 לא ידוע / 0 אחר לכל בניין]
   rinfo:     [[kind, bus, width0_dm], ...]             לכל רחוב: סוג (מפתח ב-ROAD_KIND), 1 = אוטובוס נוסע בו דו-סטרי,
                                                        2 = חד-סטרי לאוטובוס, 0 = לא ברשת; הרוחב המקורי (לפני ההרחבה)
   patches:   [[x0,y0,...], ...]                        אספלט נוסף בפניות (המקום שהאוטובוס "חותך" בפנייה)
@@ -132,7 +133,7 @@ FOOT = {'footway': 2.2, 'path': 1.8, 'pedestrian': 5, 'cycleway': 2, 'steps': 2,
 # סוג הרחוב לציור (גוון האספלט) — אותו סדר כמו ROAD_KIND ב-js/world.js
 ROAD_KIND = {'motorway': 3, 'trunk': 3, 'primary': 3, 'secondary': 3, 'trunk_link': 3, 'primary_link': 3, 'secondary_link': 3,
              'motorway_link': 3, 'tertiary': 2, 'tertiary_link': 2, 'service': 0, 'track': 5}
-rrec = []; areas = []
+rrec = []; areas = []; places_raw = []
 nodes = {}; nid = []; einfo = {}
 def node(osm_id, x, y):
     if osm_id not in nodes:
@@ -161,6 +162,9 @@ for e in EL:
     t = e.get('tags', {})
     if e['type'] == 'way' and 'geometry' in e:
         g = [P(p['lat'], p['lon']) for p in e['geometry'] if p]
+        # מרכזים מסחריים ואזורי תעשייה (לכתובות וליעדים של הנוסעים, ולמטיילים): קניון (shop=mall), מסחר (landuse=retail/commercial), תעשייה
+        pk = 'mall' if t.get('shop') == 'mall' or t.get('landuse') in ('retail', 'commercial') else 'ind' if t.get('landuse') == 'industrial' else None
+        if pk and len(g) >= 3 and t.get('power') != 'plant' and any(inside(x, y, 100) for x, y in g): places_raw.append((pk, (t.get('name') or '').strip(), g))
         if 'building' in t and t.get('building') != 'no':
             add_building(e['id'], t, g, e['id']); continue
         hw = t.get('highway')
@@ -173,7 +177,7 @@ for e in EL:
             if hw == 'service' and t.get('service') in ('parking_aisle', 'driveway'): w = 3.5
             cls = 'd' if hw in DRIVE else 'f'
             if hw in ('primary', 'secondary', 'trunk', 'motorway'): cls = 'm'
-            rec = {'cls': cls, 'w': w, 'w0': w, 'pts': g, 'kind': ROAD_KIND.get(hw, 4 if hw in FOOT else 1), 'pairs': [], 'one': False}
+            rec = {'cls': cls, 'w': w, 'w0': w, 'pts': g, 'kind': ROAD_KIND.get(hw, 4 if hw in FOOT else 1), 'pairs': [], 'one': False, 'name': (t.get('name') or '').strip()}
             rrec.append(rec)
             # רשת הנסיעה: בלי חניונים, דרכים פרטיות ו"שירות" צרות; האוטובוס לא נוסע בשבילים
             if hw in DRIVE and t.get('access') not in ('private', 'no') and t.get('service') not in ('parking_aisle', 'driveway', 'drive-through'):
@@ -643,6 +647,25 @@ for b in buildings:
             solar.append((x, y, b['h'], (rnd(f"{b['id']}o", 0, 1) - 0.5) * 0.3)); got += 1
 print('solar', len(solar))
 
+RNAMES = sorted({r['name'] for r in rrec if r.get('name')})
+# מקומות: מאחדים חלקים באותו שם (קניון שממופה בכמה מבנים); המרכז — מרכז הכובד; r — רדיוס שמכסה את המקום
+def _places():
+    grp = {}
+    for i, (k, nm, g) in enumerate(places_raw): grp.setdefault((k, nm) if nm else (k, i), []).append(g)
+    res = []
+    for (k, nm), gs in grp.items():
+        polys = [Polygon(g).buffer(0) for g in gs if len(g) >= 3]; u = unary_union(polys)
+        if u.is_empty or u.area < 400: continue
+        c = u.centroid; r = max(math.hypot(x - c.x, y - c.y) for g in gs for x, y in g)
+        res.append({'kind': k, 'name': nm if isinstance(nm, str) else '', 'x': round(c.x, 1), 'y': round(c.y, 1), 'r': round(r, 1), 'geom': u})
+    return res
+PLACES = _places()
+_nonres = [prep(p['geom'].buffer(3)) for p in PLACES]
+def _bres(b):
+    if b['t'] in RES_TAGS: return 1
+    if b['t'] != 'yes' or b['a'] > 1500 or any(g.contains(Point(b['cx'], b['cy'])) for g in _nonres): return 0
+    return 2
+RES_TAGS = ('apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow')
 out = {
     'meta': {'city': 'קריית מלאכי', 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
              'built': datetime.date.today().isoformat(), 'osm_timestamp': raw.get('osm3s', {}).get('timestamp_osm_base'),
@@ -652,6 +675,12 @@ out = {
     'bpop': [dm(b['hp']) for b in buildings],
     'roads': [[r['cls'], dm(r['w'])] + [dm(v) for p in r['pts'] for v in p] for r in rrec],
     'rinfo': [[r['kind'], r['bus'], dm(r['w0'])] for r in rrec],
+    # שמות הרחובות (תג name ב-OSM): rnames — הרשימה, rname — לכל רחוב אינדקס ברשימה (או -1). לכתובת של הנוסעים במשחק
+    'rnames': RNAMES, 'rname': [RNAMES.index(r['name']) if r.get('name') else -1 for r in rrec],
+    # לכל בניין: 1 = מגורים (apartments / residential / house...), 2 = לא ידוע (building=yes), 0 = לא מגורים (תג אחר, מבנה גדול, או בתוך מרכז מסחרי / אזור תעשייה)
+    'bres': [_bres(b) for b in buildings],
+    # מרכזים מסחריים (mall) ואזורי תעשייה (ind): שם (אם יש ב-OSM), מרכז ורדיוס במטרים
+    'places': [{k: p[k] for k in ('kind', 'name', 'x', 'y', 'r')} for p in PLACES],
     'patches': [[dm(v) for p in list(g.exterior.coords)[:-1] for v in p] for g in patch_list],
     'areas': areas,
     'trees': [v for x, y, s, k in trees for v in (dm(x), dm(y), int(round(s * 100)), k)],

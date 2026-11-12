@@ -19,7 +19,9 @@ import { CameraModes } from './cameras.js';
 import { DriveControls } from './drivectl.js';
 import { DriverShift } from './duty.js';
 import { InspectorFP } from './inspfp.js';
-import { Residents } from './residents.js';
+import { Residents, inZone, isIndustry } from './residents.js';
+import { Homes, inStreet } from './homes.js';
+import { Strollers } from './stroll.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
 import { NightFast, FAST } from './night.js';
 import { Scheduler, DRIVER_HIRE, DRIVER_WAGE, SIZE, MAX_DRIVE, MAX_SHIFT, BREAK } from './sched.js';
@@ -1012,39 +1014,86 @@ function resetResidents(newSeed) { if (newSeed) bank.resSeed = ((Math.random() *
 // כרטיס של נוסע (הקשה על ממתין בתחנה): איפה גר, לאן נוסע, מתי יוצא בדרך כלל
 // כרטיס נוסע: הקשה על מי שמחכה בתחנה — מי הוא (residents.js), לאן הוא נוסע ובאיזה קו (המסלול שלו בסימולציה), וכמה זמן
 // הוא מחכה. הנוסע מסומן בטבעת שעוקבת אחריו, והכרטיס נשאר מעליו עד שמקישים במקום אחר או שהוא עולה לאוטובוס
-let paxSel = null, paxRing = null;
-function paxClear() { paxSel = null; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
+let paxSel = null, paxRing = null, paxHomeT = 0, homes = null, strollers = null;
+// מי הנוסע ולאן הוא נוסע — הכול מהסימולציה: התושב (residents.js), הבניין והרחוב שלו (homes.js), היעד של הנסיעה הזו (p.d)
+function paxDetails(p) {
+  const Z = demand?.zones, zo = demand?.zoneOf, who = p.who, R = residents, zOf = i => (Z && i >= 0 ? Z[zo[i]] : null);
+  if (!homes && demand?.stops) homes = new Homes(city, demand.stops);
+  const info = R?.info(who) || { lives: 'נוסע מזדמן', goes: '', out: null }, D = { lives: info.lives, trip: '', home: null, zoneName: '', dz: zOf(p.d), mall: null, shop: false };
+  const last = p.legs?.[p.legs.length - 1], dz = D.dz, mall = p.d >= 0 ? homes?.mallNear(p.d) : null; D.mall = mall;
+  const toStop = last ? ` (תחנת ${esc(last.L.stops[last.to].name)})` : '';
+  if (who >= 0 && R?.home) {                         // תושב העיר
+    const hs = R.home[who], hz = zOf(hs), H = homes?.homeOf(who, hs); D.home = H; D.zoneName = hz ? (isIndustry(hz) ? 'ליד ' + hz.name.replace(/^אזור תעשייה/, 'אזור התעשייה') : hz.kind === 'hood' && !/^מרכז /.test(hz.name) ? 'שכונת ' + hz.name : hz.name) : '';
+    const where = isIndustry(hz) ? `ליד ${hz.name.replace(/^אזור תעשייה/, 'אזור התעשייה')}` : hz ? inZone(hz).replace(/^ב/, '') : '';
+    D.lives = H?.street ? `גר ${inStreet(H.street)}${where ? ', ' + where : ''}` : info.lives;
+    const k = R.kind[who];
+    if (p.d === hs) D.trip = 'חוזר הביתה' + toStop;
+    else if (k && p.d === R.dest[who]) D.trip = (k === 1 ? 'נוסע לעבודה ' : 'נוסע ללימודים ') + esc(inZone(dz)) + toStop + (info.out ? ` · יוצא בדרך כלל ב-${info.out}` : '');
+    else if (mall) D.shop = true, D.trip = `נוסע לקניות ${mall.name ? 'ב' + esc(mall.name) : 'במרכז המסחרי'}` + toStop;
+    else D.trip = `נוסע לסידורים ${esc(inZone(dz))}` + toStop;
+  } else if (who != null && who > -1e6) {            // עובד שגר מחוץ לעיר
+    D.trip = (R?.oDest && p.d === R.oDest[-1 - who] ? 'נוסע לעבודה ' + esc(inZone(dz)) : 'חוזר הביתה, מחוץ לעיר') + toStop;
+  } else {                                           // מבקר / נוסע מזדמן
+    D.shop = !!mall; D.trip = (mall ? `נוסע לקניות ${mall.name ? 'ב' + esc(mall.name) : 'במרכז המסחרי'}` : `נוסע ${esc(inZone(dz))} — ביקור או סידורים`) + toStop;
+  }
+  return D;
+}
+// הדעה של הנוסע על הקו — נגזרת ממה שקרה לו בסימולציה: אוטובוס מלא שהשאיר אותו (p.skips), כמה הוא מחכה מול התדירות,
+// החלפת קו, מסלול ארוך ביחס לקו ישר, ומרחק התחנה מהבית. הבעיה הראשונה ברשימה היא העיקרית, וההצעה נגזרת ממנה
+const HW_STEPS = [5, 10, 15, 20, 30, 60];
+function paxOpinion(p, D) {
+  const g = p.legs?.[p.leg]; if (!g || p.role) return null;
+  const pick = a => a[p.id % a.length], wait = Math.max(0, (sim.time - p.t0) / 60), hw = g.L.def.headway || 20, S = demand?.stops;
+  const dzName = D.dz ? inZone(D.dz).replace(/^ב/, '') : 'היעד', dest = D.shop ? D.mall.name || 'המרכז המסחרי' : dzName;
+  let ride = 0; for (const l of p.legs) ride += Math.abs(l.L.stopS[l.to] - l.L.stopS[l.from]);
+  const o = S && p.o >= 0 ? S[p.o] : null, d = S && p.d >= 0 ? S[p.d] : null, straight = o && d ? Math.hypot(o.x - d.x, o.y - d.y) : 0;
+  const first = p.legs[0], bs = first.L.stops[first.from], walk = D.home && p.leg === 0 && p.d !== p.o ? Math.hypot(D.home.x - bs.x, D.home.y - bs.y) : 0;
+  const m = Math.round(wait), faster = HW_STEPS.filter(x => x < hw).pop();
+  if (p.skips > 0) return { key: 'full', face: '😠', text: pick([`אוטובוס כבר עבר מלא והשאיר אותי בתחנה`, `לא היה מקום באוטובוס הקודם, נשארתי לחכות`, `האוטובוס הגיע מלא ולא עליתי`]), tip: pick([`אוטובוס גדול יותר בקו ${g.L.def.number}`, `עוד נסיעה של קו ${g.L.def.number} בשעה הזו`]), sum: `יותר מקום בקו ${g.L.def.number}` };
+  if (wait > Math.max(10, hw * 0.8)) return { key: 'wait', face: '😐', text: pick([`מחכה כבר ${m} דקות, הקו הזה מגיע רק כל ${hw} דקות`, `${m} דקות בתחנה. קו ${g.L.def.number} לא מגיע מספיק`, `כבר ${m} דקות כאן, והאוטובוס עוד לא בא`]), tip: faster ? `קו ${g.L.def.number} כל ${faster} דקות במקום כל ${hw}` : `קו ${g.L.def.number} שיוצא בזמן`, sum: `תדירות טובה יותר בקו ${g.L.def.number}` };
+  if (p.legs.length > 1) return { key: 'xfer', face: '😐', text: pick([`צריך להחליף קו בדרך, זה מאריך את הנסיעה`, `אין לי קו ישיר, אני מחליף באמצע`, `שני אוטובוסים בשביל נסיעה אחת`]), tip: `קו ישיר ל${dest}, בלי החלפה`, sum: `קו ישיר ל${dest}` };
+  if (straight > 400 && ride > straight * 2.3) return { key: 'detour', face: '😐', text: pick([`הקו עושה סיבוב גדול עד שהוא מגיע`, `הנסיעה ארוכה, האוטובוס עובר בכל העיר בדרך`, `בקו ישר זה קרוב, באוטובוס זה לוקח הרבה יותר`]), tip: `מסלול קצר יותר ל${dest}`, sum: `מסלול קצר יותר ל${dest}` };
+  if (walk > 350) return { key: 'far', face: '😐', text: pick([`התחנה רחוקה מהבית, ${Math.round(walk / 10) * 10} מטר ברגל`, `הולך ${Math.round(walk / 10) * 10} מטר עד התחנה`]), tip: D.home.street ? `תחנה קרובה יותר ל${inStreet(D.home.street).replace(/^ב/, '')}` : 'תחנה קרובה יותר לבית', sum: D.home.street ? `תחנה ליד ${inStreet(D.home.street).replace(/^ב/, '')}` : 'תחנה קרובה יותר לבית' };
+  return { key: 'ok', face: '🙂', text: pick([walk && walk < 200 ? 'נוח לי, התחנה ליד הבית' : 'נוח לי, קו ישיר ליעד', `הקו הזה מתאים לי${m <= 3 ? ', וכמעט לא מחכים' : ''}`, `מגיע ישר ל${dest}, בלי החלפות`]), tip: '', sum: '' };
+}
+G.pax = { details: p => paxDetails(p), opinion: (p, D) => paxOpinion(p, D), homes: () => homes };   // לבדיקות ולקונסולה
+// סיכום ההצעות של כל מי שמחכה עכשיו בתחנות (ללשונית "ביקוש")
+function paxSummaryHTML() {
+  const cnt = new Map(); let n = 0, okN = 0;
+  for (const L of lines) for (const q of L.queues || []) for (const p of q) { if (p.role) continue; const O = paxOpinion(p, paxDetails(p)); if (!O) continue; n++; if (!O.sum) { okN++; continue; } cnt.set(O.sum, (cnt.get(O.sum) || 0) + 1); }
+  if (!n) return '';
+  const top = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `<li><b>${v}</b> מבקשים: ${esc(k)}</li>`).join('');
+  return `<h4>מה הנוסעים מבקשים · עכשיו בתחנות</h4>${top ? `<ul class="dlist">${top}</ul>` : ''}<p class="hint">${okN} מתוך ${n} שמחכים עכשיו מרוצים מהקו שלהם. הקישו על נוסע בתחנה כדי לשמוע אותו.</p>`;
+}
+function paxClear() { paxSel = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
 function paxCardAt(x, y) {
   const P = people.waitPos; if (!P?.size) { if (paxSel) paxClear(); return false; }
   const r = canvas.getBoundingClientRect(); let best = null, bd = 28;
   for (const [, w] of P) { const v = w.pos.clone().project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; best = w; } }
   if (!best) { if (paxSel) paxClear(); return false; }
-  const p = best.p, info = residents?.info(p.who) || { lives: 'נוסע מזדמן', goes: 'קניות וסידורים', out: null }, c = $('#paxCard');
-  const g = p.legs?.[p.leg], last = p.legs?.[p.legs.length - 1], nx = p.legs?.[p.leg + 1], Z = demand?.zones, zo = demand?.zoneOf;
-  const dz = Z && p.d >= 0 ? Z[zo[p.d]] : null, home = p.who >= 0 && residents?.home ? residents.home[p.who] : p.who == null || p.who > -1e6 ? -1 : p.o;
-  const rows = [`<b>${esc(info.lives)}</b>`];
+  const p = best.p, c = $('#paxCard'), D = paxDetails(p), O = paxOpinion(p, D);
+  const g = p.legs?.[p.leg], nx = p.legs?.[p.leg + 1];
+  const rows = [`<b>${esc(D.lives)}</b>`];
   if (ROLE_INSP(p)) rows.push('<span class="lmeta">פקח</span>');
-  if (info.goes) rows.push(`<span>${esc(info.goes)}${info.out ? ` · יוצא בדרך כלל ב-${info.out}` : ''}</span>`);
-  if (last) rows.push(`<span>נוסע אל <u>${esc(last.L.stops[last.to].name)}</u>${dz ? ` (${esc(dz.name)})` : ''}</span>`);
-  if (g) rows.push(`<span>מחכה לקו <span class="num sm" style="background:${g.L.color}">${esc(g.L.def.number)}</span>${nx ? ` · יורד ב${esc(g.L.stops[g.to].name)} ומחליף לקו ${esc(nx.L.def.number)}` : ''}</span>`);
-  rows.push(`<span>מחכה כבר <i data-w>0</i> דק'${p.leg > 0 && p.paid ? ' · מעבר, בלי תשלום נוסף' : ''}</span>`);
-  const hs = home >= 0 ? demand?.stops?.[home] : null;
-  if (hs && !fp?.on && cams?.current === 'free') rows.push(`<button type="button" data-home="${home}">${p.who >= 0 ? 'הצג איפה הוא גר' : 'הצג מאיפה הוא בא'}</button>`);
+  if (D.trip) rows.push(`<span>${D.trip}</span>`);
+  if (g) rows.push(`<span>מחכה לקו <span class="num sm" style="background:${g.L.color}">${esc(g.L.def.number)}</span> כבר <i data-w>0</i> דק'${nx ? ` · מחליף ב${esc(g.L.stops[g.to].name)} לקו ${esc(nx.L.def.number)}` : ''}${p.leg > 0 && p.paid ? ' · מעבר, בלי תשלום נוסף' : ''}</span>`);
+  if (O) rows.push(`<span class="op">${O.face} ${esc(O.text)}</span>${O.tip ? `<span class="tip">היה עוזר: ${esc(O.tip)}</span>` : ''}`);
+  if (D.home && !fp?.on && cams?.current === 'free') rows.push(`<button type="button" data-home="1">הצג איפה הוא גר</button>`);
   c.innerHTML = rows.join(''); c.hidden = false;
-  c.onclick = e => { const b = e.target.closest('[data-home]'); if (!b) return; const s = demand.stops[+b.dataset.home], z = Z?.[zo[+b.dataset.home]]; paxClear();
-    const h = 170; controls.target.set(s.x, 0, -s.y); camera.position.set(s.x, h, -s.y + h * 0.75); camera.lookAt(controls.target); camera.updateMatrixWorld();
-    paxMark(s.x, -s.y, 14); clearTimeout(paxCardAt.t); paxCardAt.t = setTimeout(() => { if (!paxSel && paxRing) paxRing.visible = false; }, 6000);
-    toast(z ? `${z.kind === 'hood' ? 'שכונת ' + z.name : z.name} — ליד תחנת ${s.name}` : `ליד תחנת ${s.name}`); };
+  c.onclick = e => { if (!e.target.closest('[data-home]')) return; const H = D.home; paxClear();
+    const h = 75; controls.target.set(H.x, 0, -H.y); camera.position.set(H.x + h * 0.25, h, -H.y + h * 0.8); camera.lookAt(controls.target); camera.updateMatrixWorld();
+    paxMark(H.x, -H.y, Math.max(8, H.r / 0.5), H.h + 0.4); paxHomeT = performance.now() + 7000;
+    toast(`${H.street ? inStreet(H.street).replace(/^ב/, '') + ' · ' : ''}${D.zoneName || ''}`.replace(/ · $/, '') || 'כאן הוא גר'); };
   paxSel = { pid: p.id, t0: p.t0 }; paxUpdate();
   return true;
 }
-function paxMark(x, z, k) {
+function paxMark(x, z, k, y = 0.08) {
   if (!paxRing) { paxRing = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.62, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.95, depthTest: false, side: THREE.DoubleSide })); paxRing.renderOrder = 30; paxRing.name = 'pax-ring'; scene.add(paxRing); }
-  paxRing.position.set(x, 0.08, z); paxRing.scale.setScalar(k); paxRing.visible = true;
+  paxRing.position.set(x, y, z); paxRing.scale.setScalar(k); paxRing.visible = true;
 }
 // בכל פריים: הטבעת מתחת לנוסע שנבחר, והכרטיס מעל הראש שלו (ואם אין מקום למעלה — מתחת לרגליים), בלי לכסות אותו
 function paxUpdate() {
-  if (!paxSel) return;
+  if (!paxSel) { if (paxRing?.visible && paxHomeT) { if (performance.now() > paxHomeT) { paxRing.visible = false; paxHomeT = 0; } else paxRing.scale.multiplyScalar(1 + 0.004 * Math.sin(performance.now() / 150)); } return; }
   const w = people.waitPos?.get(paxSel.pid), c = $('#paxCard');
   if (!w || fp?.on || cams?.current === 'driver') { paxClear(); return; }
   paxMark(w.pos.x, w.pos.z, Math.max(1, camera.position.distanceTo(w.pos) / 22) * (1 + 0.08 * Math.sin(performance.now() / 180)));   // ממרחק — טבעת גדולה יותר, שתיראה
@@ -1872,7 +1921,7 @@ function renderDemand() {
     <h4>מעברים בין קווים · היום</h4>
     ${xf ? `<ul class="dlist">${xf}</ul>` : '<p class="hint">עוד לא היו מעברים. מעבר קורה כשאין קו ישיר, ושני קווים נפגשים באותה תחנה או בתחנות קרובות (עד 400 מטר).</p>'}
     ${xs ? `<h4>איפה מחליפים קו</h4><ul class="dlist">${xs}</ul>` : ''}
-    <p class="hint">המעבר בחינם: משלמים ₪${FARE} פעם אחת לנסיעה.</p>`;
+    <p class="hint">המעבר בחינם: משלמים ₪${FARE} פעם אחת לנסיעה.</p>${paxSummaryHTML()}`;
   const body = $('#demandBody');
   if (body.dataset.html === html) return;
   body.dataset.html = html; body.innerHTML = html;
@@ -1907,6 +1956,7 @@ function tick(dt) {
     buses.update(sim.lines, simDt, dt);
     people.update(sim, city.stops, simDt, buses);
     paxUpdate();
+    (strollers || (strollers = new Strollers(city, people, camera))).update(dt);
     if (shift?.on && driverBus) shift.update(driverBus, sim.events);
     sim.events.length = 0;
     cams.update(dt);

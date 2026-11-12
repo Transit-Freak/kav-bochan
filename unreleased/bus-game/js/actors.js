@@ -1554,24 +1554,27 @@ reachPreview(pid, hasCard = true) {
         const st = 0.08, qx = P0.x + mx / ml * st - this.fpEye.x, qz = P0.z + mz / ml * st - this.fpEye.z, dn = Math.hypot(qx, qz);
         if (dn < d && d < 0.75) { w.waitFP = (w.waitFP || 0) + simDt; this.fpBlock = w; slow = 0; } else if (d >= 0.9) w.waitFP = 0;
       }
+      // מטייל (stroll.js): הולך לאט, ובחלק מהפינות נעצר לכמה שניות ומסתכל סביב
+      if (w.mode === 'stroll' && w.pause > 0) { w.pause -= simDt; slow = 0; w.obj.rotation.y += simDt * 0.5 * (hash(w.pid) > 0.5 ? 1 : -1); if (w.pause <= 0) this.setIdle(w, false); }
       w.d += simDt * (w.speed || 1.35) * slow;
-      if (w.mixer && slow < 1) w.mixer.timeScale = slow === 0 ? 0.05 : (w.running ? 1.65 : 1) * 0.6; else if (w.mixer && w.slowed) w.mixer.timeScale = w.running ? 1.65 : 1;
+      if (w.mixer && slow < 1) w.mixer.timeScale = slow === 0 ? 0.05 : (w.running ? 1.65 : 1) * 0.6; else if (w.mixer && w.slowed) w.mixer.timeScale = w.mode === 'stroll' ? 0.6 : w.running ? 1.65 : 1;
       w.slowed = slow < 1;
       while (w.seg < w.pts.length - 2 && w.d > w.lens[w.seg]) { w.d -= w.lens[w.seg]; w.seg++; }
+      if (w.mode === 'stroll' && w.seg !== w.lastSeg) { w.lastSeg = w.seg; if (hash(w.pid + w.seg * 7.3) < 0.6) { w.pause = 2 + hash(w.pid + w.seg * 3.1) * 4; this.setIdle(w, true); } }
       const a = w.pts[w.seg], b = w.pts[w.seg + 1], L = w.lens[w.seg];
       const k = Math.min(1, w.d / L);
       w.obj.position.lerpVectors(a, b, k);
       // מסתובבים בהדרגה לכיוון ההליכה
       const want = Math.atan2(b.x - a.x, b.z - a.z);
       let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-      w.obj.rotation.y += dy * Math.min(1, simDt * 8);
+      if (!(w.mode === 'stroll' && w.pause > 0)) w.obj.rotation.y += dy * Math.min(1, simDt * 8);
       if (w.mixer) { w.mixer.update(simDt); this.centre(w); if (w.door && w.legs) this.stairs(w, simDt); }
       else w.body.position.y = Math.abs(Math.sin(w.d * 6.7)) * 0.05;
       const last = w.seg === w.pts.length - 2;
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
       if (w.mode !== 'board' && w.counted && w.seg >= (w.release || 2)) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
       // יורד: נעלם בהדרגה בסוף ההליכה. עולה: נכנס בדלת ונעלם בתוך האוטובוס
-      if (w.mode === 'alight') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
+      if (w.mode === 'alight' || w.mode === 'stroll') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
       // פקח שעלה: לא נעלם — נשאר לעמוד ליד הדלת ובודק כרטיסים עד שהוא יורד
       if (last && k >= 1 && w.mode === 'board' && ROLE.get(w.pid) === 'insp' && this.ride(w, busLayer)) continue;
       if (last && k >= 1) this.finish(w, i);

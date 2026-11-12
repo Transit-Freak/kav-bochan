@@ -19,11 +19,12 @@ export async function loadCity(url) {
 export function parseCity(c) {
   const d = v => v / 10;
   const city = { meta: c.meta, stops: c.stops };
-  city.buildings = c.buildings.map((b, i) => ({ h: d(b[0]), pts: pairs(b, 1, d), st: c.bstyle?.[i] ?? 0, hp: c.bpop ? d(c.bpop[i]) : d(b[0]) }));
+  city.buildings = c.buildings.map((b, i) => ({ h: d(b[0]), pts: pairs(b, 1, d), st: c.bstyle?.[i] ?? 0, hp: c.bpop ? d(c.bpop[i]) : d(b[0]), res: c.bres?.[i] ?? 2 }));   // res: 1 מגורים, 2 לא ידוע, 0 לא מגורים
   city.roads = c.roads.map((r, i) => {
     const inf = c.rinfo?.[i];
-    return { cls: r[0], w: d(r[1]), pts: pairs(r, 2, d), kind: inf ? inf[0] : (r[0] === 'm' ? 3 : r[0] === 'f' ? 4 : 1), bus: inf ? inf[1] : 0, w0: inf ? d(inf[2]) : d(r[1]) };
+    return { cls: r[0], w: d(r[1]), pts: pairs(r, 2, d), kind: inf ? inf[0] : (r[0] === 'm' ? 3 : r[0] === 'f' ? 4 : 1), bus: inf ? inf[1] : 0, w0: inf ? d(inf[2]) : d(r[1]), name: c.rname && c.rname[i] >= 0 ? c.rnames[c.rname[i]] : '' };
   });
+  city.places = c.places || [];          // מרכזים מסחריים (mall) ואזורי תעשייה (ind): שם, מרכז ורדיוס — tools/build_city.py
   city.areas = c.areas.map(a => ({ kind: a[0], pts: pairs(a, 1, d) }));
   city.patches = (c.patches || []).map(p => pairs(p, 0, d));
   city.trees = c.trees || [];

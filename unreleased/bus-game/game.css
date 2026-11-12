@@ -488,7 +488,8 @@ body.role-inspector #money,body.role-inspector #modeBadge{display:none}
 table.isum{width:100%;border-collapse:collapse;font-size:15px}
 table.isum td{padding:6px 4px;border-top:1px solid var(--line)}
 table.isum tr.tot td{font-size:17px;border-top:2px solid var(--line2)}
-.paxcard{position:fixed;z-index:30;width:214px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:3px;font-size:12.5px;line-height:1.3;pointer-events:none;border:2px solid #f59e0b}
+.paxcard{position:fixed;z-index:30;width:236px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:3px;font-size:12.5px;line-height:1.3;pointer-events:none;border:2px solid #f59e0b}
+.paxcard .op{margin-top:2px;padding-top:4px;border-top:1px solid #eef1f5}.paxcard .tip{color:#0f766e;font-weight:700}
 .paxcard u{text-decoration:none;font-weight:700}.paxcard i{font-style:normal;font-weight:700}
 .paxcard button{pointer-events:auto;align-self:flex-start;margin-top:3px;padding:4px 9px;font-size:12px;border-radius:9px}
 .paxcard[hidden]{display:none}
