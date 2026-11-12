@@ -1,0 +1,2370 @@
+{
+ "mini": {
+  "file": "bus_mini.glb",
+  "tris": 41296,
+  "bytes": 2355412,
+  "type": "mini",
+  "length": 8.79,
+  "width": 2.55,
+  "roofY": 2.9,
+  "floorY": 0.675,
+  "frontZ": 6,
+  "rearZ": -2.615,
+  "axles": [
+   3.35,
+   -0.015
+  ],
+  "wheelRadius": 0.53,
+  "roofLower": {
+   "from": 2.1,
+   "scale": 0.7619
+  },
+  "doors": [
+   {
+    "name": "Front",
+    "z0": 4.565,
+    "z1": 5.735,
+    "anchor": "Anchor_DoorFront"
+   }
+  ],
+  "validators": [
+   {
+    "name": "Validator_Front",
+    "door": "Front",
+    "p": [
+     -0.42,
+     1.91,
+     4.56
+    ]
+   }
+  ],
+  "wheelchair": {
+   "x": [
+    0.6,
+    1.25
+   ],
+   "z": [
+    1.09,
+    2.51
+   ]
+  },
+  "standArea": {
+   "x": [
+    -1,
+    1
+   ],
+   "z": [
+    0.75,
+    2.85
+   ]
+  },
+  "seats": [
+   {
+    "grab": "SM_Seat0_1_0.33_Grab",
+    "x": 0.945,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_01"
+   },
+   {
+    "grab": "SM_Seat0_1_0.77_Grab",
+    "x": 0.505,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_02"
+   },
+   {
+    "grab": "SM_Seat0_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_03"
+   },
+   {
+    "grab": "SM_Seat0_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_04"
+   },
+   {
+    "grab": "SM_Seat1_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 3.2,
+    "back": 3.025,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 3.2,
+    "name": "Seat_05"
+   },
+   {
+    "grab": "SM_Seat1_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 3.2,
+    "back": 3.025,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 3.2,
+    "name": "Seat_06"
+   },
+   {
+    "grab": "SM_Seat8_1_0.33_Grab",
+    "x": 0.945,
+    "z": 0.185,
+    "back": 0.01,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 0.185,
+    "name": "Seat_07"
+   },
+   {
+    "grab": "SM_Seat8_1_0.77_Grab",
+    "x": 0.505,
+    "z": 0.185,
+    "back": 0.01,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 0.185,
+    "name": "Seat_08"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 0.185,
+    "back": 0.01,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 0.185,
+    "name": "Seat_09"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 0.185,
+    "back": 0.01,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 0.185,
+    "name": "Seat_10"
+   },
+   {
+    "grab": "SM_Seat9_1_0.33_Grab",
+    "x": 0.945,
+    "z": -0.615,
+    "back": -0.79,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -0.615,
+    "name": "Seat_11"
+   },
+   {
+    "grab": "SM_Seat9_1_0.77_Grab",
+    "x": 0.505,
+    "z": -0.615,
+    "back": -0.79,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -0.615,
+    "name": "Seat_12"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -0.615,
+    "back": -0.79,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -0.615,
+    "name": "Seat_13"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -0.615,
+    "back": -0.79,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -0.615,
+    "name": "Seat_14"
+   },
+   {
+    "grab": "SM_Seat11_1_0.33_Grab",
+    "x": 0.945,
+    "z": -1.415,
+    "back": -1.59,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -1.415,
+    "name": "Seat_15"
+   },
+   {
+    "grab": "SM_Seat11_1_0.77_Grab",
+    "x": 0.505,
+    "z": -1.415,
+    "back": -1.59,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -1.415,
+    "name": "Seat_16"
+   },
+   {
+    "grab": "SM_Seat11_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -1.415,
+    "back": -1.59,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -1.415,
+    "name": "Seat_17"
+   },
+   {
+    "grab": "SM_Seat11_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -1.415,
+    "back": -1.59,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -1.415,
+    "name": "Seat_18"
+   }
+  ],
+  "poles": [
+   {
+    "name": "SM_Pole1-1",
+    "x": -0.5,
+    "z": 5.65,
+    "section": "front",
+    "zBus": 5.65
+   },
+   {
+    "name": "SM_Pole2-1",
+    "x": -0.5,
+    "z": 4.5,
+    "section": "front",
+    "zBus": 4.5
+   },
+   {
+    "name": "SM_Pole5-1",
+    "x": -0.5,
+    "z": 2.84,
+    "section": "front",
+    "zBus": 2.84
+   },
+   {
+    "name": "SM_Pole51",
+    "x": 0.5,
+    "z": 2.84,
+    "section": "front",
+    "zBus": 2.84
+   },
+   {
+    "name": "SM_Pole8-1",
+    "x": -0.5,
+    "z": 0.625,
+    "section": "front",
+    "zBus": 0.625
+   },
+   {
+    "name": "SM_Pole81",
+    "x": 0.5,
+    "z": 0.625,
+    "section": "front",
+    "zBus": 0.625
+   },
+   {
+    "name": "SM_Pole9-1",
+    "x": -0.5,
+    "z": -0.975,
+    "section": "front",
+    "zBus": -0.975
+   },
+   {
+    "name": "SM_Pole91",
+    "x": 0.5,
+    "z": -0.975,
+    "section": "front",
+    "zBus": -0.975
+   },
+   {
+    "name": "SM_Pole10-1",
+    "x": -0.5,
+    "z": -1.775,
+    "section": "front",
+    "zBus": -1.775
+   },
+   {
+    "name": "SM_Pole101",
+    "x": 0.5,
+    "z": -1.775,
+    "section": "front",
+    "zBus": -1.775
+   }
+  ],
+  "strapRings": [
+   [
+    0.5,
+    2.256,
+    3.8
+   ],
+   [
+    0.5,
+    2.256,
+    3.18
+   ],
+   [
+    0.5,
+    2.256,
+    2.56
+   ],
+   [
+    0.5,
+    2.256,
+    1.94
+   ],
+   [
+    0.5,
+    2.256,
+    1.425
+   ],
+   [
+    0.5,
+    2.256,
+    0.805
+   ],
+   [
+    0.5,
+    2.256,
+    0.185
+   ],
+   [
+    0.5,
+    2.256,
+    -0.435
+   ],
+   [
+    0.5,
+    2.256,
+    -1.055
+   ],
+   [
+    -0.5,
+    2.256,
+    3.8
+   ],
+   [
+    -0.5,
+    2.256,
+    3.18
+   ],
+   [
+    -0.5,
+    2.256,
+    2.56
+   ],
+   [
+    -0.5,
+    2.256,
+    1.94
+   ],
+   [
+    -0.5,
+    2.256,
+    1.425
+   ],
+   [
+    -0.5,
+    2.256,
+    0.805
+   ],
+   [
+    -0.5,
+    2.256,
+    0.185
+   ],
+   [
+    -0.5,
+    2.256,
+    -0.435
+   ],
+   [
+    -0.5,
+    2.256,
+    -1.055
+   ]
+  ]
+ },
+ "artic": {
+  "file": "bus_artic.glb",
+  "tris": 87290,
+  "bytes": 4168324,
+  "type": "artic",
+  "length": 17.96,
+  "width": 2.55,
+  "roofY": 3.15,
+  "floorY": 0.675,
+  "frontZ": 6,
+  "rearZ": -11.78,
+  "pivotZ": -4.1000000000000005,
+  "joint": {
+   "front": -3.7,
+   "rear": -4.5,
+   "turntableR": 0.86
+  },
+  "axles": [
+   3.35,
+   -2.6,
+   -8.38
+  ],
+  "doors": [
+   {
+    "name": "Front",
+    "z0": 4.565,
+    "z1": 5.735,
+    "anchor": "Anchor_DoorFront",
+    "section": "front"
+   },
+   {
+    "name": "Mid",
+    "z0": -0.585,
+    "z1": 0.635,
+    "anchor": "Anchor_DoorMid",
+    "section": "front"
+   },
+   {
+    "name": "Rear",
+    "z0": -6.365,
+    "z1": -5.145,
+    "anchor": "Anchor_DoorRear",
+    "section": "rear",
+    "zLocal": [
+     -2.265,
+     -1.045
+    ]
+   }
+  ],
+  "validators": [
+   {
+    "name": "Validator_Front",
+    "door": "Front",
+    "p": [
+     -0.42,
+     1.91,
+     4.56
+    ],
+    "section": "front"
+   },
+   {
+    "name": "Validator_Mid",
+    "door": "Mid",
+    "p": [
+     -0.42,
+     1.91,
+     0.81
+    ],
+    "section": "front"
+   },
+   {
+    "name": "Validator_Mid2",
+    "door": "Mid",
+    "p": [
+     -0.42,
+     1.88,
+     -0.55
+    ],
+    "section": "front"
+   },
+   {
+    "name": "Validator_Rear",
+    "door": "Rear",
+    "p": [
+     -0.42,
+     1.91,
+     -4.97
+    ],
+    "section": "rear"
+   },
+   {
+    "name": "Validator_Rear2",
+    "door": "Rear",
+    "p": [
+     -0.42,
+     1.88,
+     -6.33
+    ],
+    "section": "rear"
+   }
+  ],
+  "seats": [
+   {
+    "grab": "SM_Seat0_1_0.33_Grab",
+    "x": 0.945,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_01"
+   },
+   {
+    "grab": "SM_Seat0_1_0.77_Grab",
+    "x": 0.505,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_02"
+   },
+   {
+    "grab": "SM_Seat0_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_03"
+   },
+   {
+    "grab": "SM_Seat0_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_04"
+   },
+   {
+    "grab": "SM_Seat1_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 3.2,
+    "back": 3.025,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 3.2,
+    "name": "Seat_05"
+   },
+   {
+    "grab": "SM_Seat1_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 3.2,
+    "back": 3.025,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 3.2,
+    "name": "Seat_06"
+   },
+   {
+    "grab": "SM_Seat2_1_0.33_Grab",
+    "x": 0.945,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_07"
+   },
+   {
+    "grab": "SM_Seat2_1_0.77_Grab",
+    "x": 0.505,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_08"
+   },
+   {
+    "grab": "SM_Seat2_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_09"
+   },
+   {
+    "grab": "SM_Seat2_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_10"
+   },
+   {
+    "grab": "SM_Seat3_1_0.33_Grab",
+    "x": 0.945,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_11"
+   },
+   {
+    "grab": "SM_Seat3_1_0.77_Grab",
+    "x": 0.505,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_12"
+   },
+   {
+    "grab": "SM_Seat3_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_13"
+   },
+   {
+    "grab": "SM_Seat3_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_14"
+   },
+   {
+    "grab": "SM_Seat7_1_0.33_Grab",
+    "x": 0.945,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_15"
+   },
+   {
+    "grab": "SM_Seat7_1_0.77_Grab",
+    "x": 0.505,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_16"
+   },
+   {
+    "grab": "SM_Seat7_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_17"
+   },
+   {
+    "grab": "SM_Seat7_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_18"
+   },
+   {
+    "grab": "SM_Seat8_1_0.33_Grab",
+    "x": 0.945,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_19"
+   },
+   {
+    "grab": "SM_Seat8_1_0.77_Grab",
+    "x": 0.505,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_20"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_21"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_22"
+   },
+   {
+    "grab": "SM_Seat9_1_0.33_Grab",
+    "x": 0.945,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_23"
+   },
+   {
+    "grab": "SM_Seat9_1_0.77_Grab",
+    "x": 0.505,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_24"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_25"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_26"
+   },
+   {
+    "grab": "SM_Seat7_1_0.33_Grab",
+    "x": 0.945,
+    "z": -3.28,
+    "back": -3.455,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -7.38,
+    "name": "Seat_27"
+   },
+   {
+    "grab": "SM_Seat7_1_0.77_Grab",
+    "x": 0.505,
+    "z": -3.28,
+    "back": -3.455,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -7.38,
+    "name": "Seat_28"
+   },
+   {
+    "grab": "SM_Seat7_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -3.28,
+    "back": -3.455,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -7.38,
+    "name": "Seat_29"
+   },
+   {
+    "grab": "SM_Seat7_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -3.28,
+    "back": -3.455,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -7.38,
+    "name": "Seat_30"
+   },
+   {
+    "grab": "SM_Seat8_1_0.33_Grab",
+    "x": 0.945,
+    "z": -4.08,
+    "back": -4.255,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -8.18,
+    "name": "Seat_31"
+   },
+   {
+    "grab": "SM_Seat8_1_0.77_Grab",
+    "x": 0.505,
+    "z": -4.08,
+    "back": -4.255,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -8.18,
+    "name": "Seat_32"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -4.08,
+    "back": -4.255,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -8.18,
+    "name": "Seat_33"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -4.08,
+    "back": -4.255,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -8.18,
+    "name": "Seat_34"
+   },
+   {
+    "grab": "SM_Seat9_1_0.33_Grab",
+    "x": 0.945,
+    "z": -4.88,
+    "back": -5.055,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -8.98,
+    "name": "Seat_35"
+   },
+   {
+    "grab": "SM_Seat9_1_0.77_Grab",
+    "x": 0.505,
+    "z": -4.88,
+    "back": -5.055,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -8.98,
+    "name": "Seat_36"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -4.88,
+    "back": -5.055,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -8.98,
+    "name": "Seat_37"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -4.88,
+    "back": -5.055,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -8.98,
+    "name": "Seat_38"
+   },
+   {
+    "grab": "SM_Seat10_1_0.33_Grab",
+    "x": 0.945,
+    "z": -5.68,
+    "back": -5.855,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -9.78,
+    "name": "Seat_39"
+   },
+   {
+    "grab": "SM_Seat10_1_0.77_Grab",
+    "x": 0.505,
+    "z": -5.68,
+    "back": -5.855,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -9.78,
+    "name": "Seat_40"
+   },
+   {
+    "grab": "SM_Seat10_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -5.68,
+    "back": -5.855,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -9.78,
+    "name": "Seat_41"
+   },
+   {
+    "grab": "SM_Seat10_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -5.68,
+    "back": -5.855,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -9.78,
+    "name": "Seat_42"
+   },
+   {
+    "grab": "SM_Seat11_1_0.33_Grab",
+    "x": 0.945,
+    "z": -6.48,
+    "back": -6.655,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -10.58,
+    "name": "Seat_43"
+   },
+   {
+    "grab": "SM_Seat11_1_0.77_Grab",
+    "x": 0.505,
+    "z": -6.48,
+    "back": -6.655,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -10.58,
+    "name": "Seat_44"
+   },
+   {
+    "grab": "SM_Seat11_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -6.48,
+    "back": -6.655,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "rear",
+    "zBus": -10.58,
+    "name": "Seat_45"
+   },
+   {
+    "grab": "SM_Seat11_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -6.48,
+    "back": -6.655,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "rear",
+    "zBus": -10.58,
+    "name": "Seat_46"
+   }
+  ],
+  "poles": [
+   {
+    "name": "SM_Pole1-1",
+    "x": -0.5,
+    "z": 5.65,
+    "section": "front",
+    "zBus": 5.65
+   },
+   {
+    "name": "SM_Pole2-1",
+    "x": -0.5,
+    "z": 4.5,
+    "section": "front",
+    "zBus": 4.5
+   },
+   {
+    "name": "SM_Pole5-1",
+    "x": -0.5,
+    "z": 2.84,
+    "section": "front",
+    "zBus": 2.84
+   },
+   {
+    "name": "SM_Pole51",
+    "x": 0.5,
+    "z": 2.84,
+    "section": "front",
+    "zBus": 2.84
+   },
+   {
+    "name": "SM_Pole6-1",
+    "x": -0.5,
+    "z": 1.24,
+    "section": "front",
+    "zBus": 1.24
+   },
+   {
+    "name": "SM_Pole61",
+    "x": 0.5,
+    "z": 1.24,
+    "section": "front",
+    "zBus": 1.24
+   },
+   {
+    "name": "SM_Pole3-1",
+    "x": -0.5,
+    "z": 0.75,
+    "section": "front",
+    "zBus": 0.75
+   },
+   {
+    "name": "SM_Pole31",
+    "x": 0.5,
+    "z": 0.75,
+    "section": "front",
+    "zBus": 0.75
+   },
+   {
+    "name": "SM_Pole7-1",
+    "x": -0.5,
+    "z": -0.36,
+    "section": "front",
+    "zBus": -0.36
+   },
+   {
+    "name": "SM_Pole71",
+    "x": 0.5,
+    "z": -0.36,
+    "section": "front",
+    "zBus": -0.36
+   },
+   {
+    "name": "SM_Pole4-1",
+    "x": -0.5,
+    "z": -0.7,
+    "section": "front",
+    "zBus": -0.7
+   },
+   {
+    "name": "SM_Pole41",
+    "x": 0.5,
+    "z": -0.7,
+    "section": "front",
+    "zBus": -0.7
+   },
+   {
+    "name": "SM_Pole8-1",
+    "x": -0.5,
+    "z": -1.96,
+    "section": "front",
+    "zBus": -1.96
+   },
+   {
+    "name": "SM_Pole81",
+    "x": 0.5,
+    "z": -1.96,
+    "section": "front",
+    "zBus": -1.96
+   },
+   {
+    "name": "SM_Pole9-1",
+    "x": -0.5,
+    "z": -3.56,
+    "section": "front",
+    "zBus": -3.56
+   },
+   {
+    "name": "SM_Pole91",
+    "x": 0.5,
+    "z": -3.56,
+    "section": "front",
+    "zBus": -3.56
+   },
+   {
+    "name": "SM_Pole3-1",
+    "x": -0.5,
+    "z": -5.03,
+    "section": "rear",
+    "zBus": -5.03,
+    "zLocal": -0.93
+   },
+   {
+    "name": "SM_Pole31",
+    "x": 0.5,
+    "z": -5.03,
+    "section": "rear",
+    "zBus": -5.03,
+    "zLocal": -0.93
+   },
+   {
+    "name": "SM_Pole7-1",
+    "x": -0.5,
+    "z": -6.14,
+    "section": "rear",
+    "zBus": -6.14,
+    "zLocal": -2.04
+   },
+   {
+    "name": "SM_Pole71",
+    "x": 0.5,
+    "z": -6.14,
+    "section": "rear",
+    "zBus": -6.14,
+    "zLocal": -2.04
+   },
+   {
+    "name": "SM_Pole4-1",
+    "x": -0.5,
+    "z": -6.48,
+    "section": "rear",
+    "zBus": -6.48,
+    "zLocal": -2.38
+   },
+   {
+    "name": "SM_Pole41",
+    "x": 0.5,
+    "z": -6.48,
+    "section": "rear",
+    "zBus": -6.48,
+    "zLocal": -2.38
+   },
+   {
+    "name": "SM_Pole8-1",
+    "x": -0.5,
+    "z": -7.74,
+    "section": "rear",
+    "zBus": -7.74,
+    "zLocal": -3.64
+   },
+   {
+    "name": "SM_Pole81",
+    "x": 0.5,
+    "z": -7.74,
+    "section": "rear",
+    "zBus": -7.74,
+    "zLocal": -3.64
+   },
+   {
+    "name": "SM_Pole9-1",
+    "x": -0.5,
+    "z": -9.34,
+    "section": "rear",
+    "zBus": -9.34,
+    "zLocal": -5.24
+   },
+   {
+    "name": "SM_Pole91",
+    "x": 0.5,
+    "z": -9.34,
+    "section": "rear",
+    "zBus": -9.34,
+    "zLocal": -5.24
+   },
+   {
+    "name": "SM_Pole10-1",
+    "x": -0.5,
+    "z": -10.94,
+    "section": "rear",
+    "zBus": -10.94,
+    "zLocal": -6.84
+   },
+   {
+    "name": "SM_Pole101",
+    "x": 0.5,
+    "z": -10.94,
+    "section": "rear",
+    "zBus": -10.94,
+    "zLocal": -6.84
+   }
+  ],
+  "strapRings": [
+   [
+    0.5,
+    2.305,
+    3.8
+   ],
+   [
+    0.5,
+    2.305,
+    3.18
+   ],
+   [
+    0.5,
+    2.305,
+    2.56
+   ],
+   [
+    0.5,
+    2.305,
+    1.94
+   ],
+   [
+    0.5,
+    2.305,
+    1.32
+   ],
+   [
+    0.5,
+    2.305,
+    0.7
+   ],
+   [
+    0.5,
+    2.305,
+    0.08
+   ],
+   [
+    0.5,
+    2.305,
+    -0.54
+   ],
+   [
+    0.5,
+    2.305,
+    -1.16
+   ],
+   [
+    0.5,
+    2.305,
+    -1.78
+   ],
+   [
+    0.5,
+    2.305,
+    -2.4
+   ],
+   [
+    0.5,
+    2.305,
+    -3.02
+   ],
+   [
+    0.5,
+    2.305,
+    -3.64
+   ],
+   [
+    -0.5,
+    2.305,
+    3.8
+   ],
+   [
+    -0.5,
+    2.305,
+    3.18
+   ],
+   [
+    -0.5,
+    2.305,
+    2.56
+   ],
+   [
+    -0.5,
+    2.305,
+    1.94
+   ],
+   [
+    -0.5,
+    2.305,
+    1.32
+   ],
+   [
+    -0.5,
+    2.305,
+    0.7
+   ],
+   [
+    -0.5,
+    2.305,
+    0.08
+   ],
+   [
+    -0.5,
+    2.305,
+    -0.54
+   ],
+   [
+    -0.5,
+    2.305,
+    -1.16
+   ],
+   [
+    -0.5,
+    2.305,
+    -1.78
+   ],
+   [
+    -0.5,
+    2.305,
+    -2.4
+   ],
+   [
+    -0.5,
+    2.305,
+    -3.02
+   ],
+   [
+    -0.5,
+    2.305,
+    -3.64
+   ],
+   [
+    0.5,
+    2.305,
+    -5.08
+   ],
+   [
+    0.5,
+    2.305,
+    -5.7
+   ],
+   [
+    0.5,
+    2.305,
+    -6.32
+   ],
+   [
+    0.5,
+    2.305,
+    -6.94
+   ],
+   [
+    0.5,
+    2.305,
+    -7.56
+   ],
+   [
+    0.5,
+    2.305,
+    -8.18
+   ],
+   [
+    0.5,
+    2.305,
+    -8.8
+   ],
+   [
+    0.5,
+    2.305,
+    -9.42
+   ],
+   [
+    0.5,
+    2.305,
+    -10.04
+   ],
+   [
+    -0.5,
+    2.305,
+    -5.08
+   ],
+   [
+    -0.5,
+    2.305,
+    -5.7
+   ],
+   [
+    -0.5,
+    2.305,
+    -6.32
+   ],
+   [
+    -0.5,
+    2.305,
+    -6.94
+   ],
+   [
+    -0.5,
+    2.305,
+    -7.56
+   ],
+   [
+    -0.5,
+    2.305,
+    -8.18
+   ],
+   [
+    -0.5,
+    2.305,
+    -8.8
+   ],
+   [
+    -0.5,
+    2.305,
+    -9.42
+   ],
+   [
+    -0.5,
+    2.305,
+    -10.04
+   ]
+  ],
+  "note": "Section_Rear ו-Section_Front הם עצמות (Bone) של המפוח — לשכפל עם SkeletonUtils.clone ולא עם scene.clone"
+ },
+ "elec": {
+  "file": "bus_elec.glb",
+  "tris": 59510,
+  "bytes": 2969876,
+  "type": "elec",
+  "length": 12.19,
+  "width": 2.55,
+  "roofY": 3.53,
+  "floorY": 0.675,
+  "frontZ": 6,
+  "rearZ": -6,
+  "axles": [
+   3.35,
+   -2.6
+  ],
+  "doors": [
+   {
+    "name": "Front",
+    "z0": 4.565,
+    "z1": 5.735,
+    "anchor": "Anchor_DoorFront"
+   },
+   {
+    "name": "Mid",
+    "z0": -0.585,
+    "z1": 0.635,
+    "anchor": "Anchor_DoorMid"
+   }
+  ],
+  "validators": [
+   {
+    "name": "Validator_Front",
+    "door": "Front",
+    "p": [
+     -0.42,
+     1.91,
+     4.56
+    ]
+   },
+   {
+    "name": "Validator_Mid",
+    "door": "Mid",
+    "p": [
+     -0.42,
+     1.91,
+     0.81
+    ]
+   },
+   {
+    "name": "Validator_Mid2",
+    "door": "Mid",
+    "p": [
+     -0.42,
+     1.88,
+     -0.55
+    ]
+   }
+  ],
+  "seats": [
+   {
+    "grab": "SM_Seat0_1_0.33_Grab",
+    "x": 0.945,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_01"
+   },
+   {
+    "grab": "SM_Seat0_1_0.77_Grab",
+    "x": 0.505,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_02"
+   },
+   {
+    "grab": "SM_Seat0_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_03"
+   },
+   {
+    "grab": "SM_Seat0_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 4,
+    "back": 3.825,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 4,
+    "name": "Seat_04"
+   },
+   {
+    "grab": "SM_Seat1_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 3.2,
+    "back": 3.025,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 3.2,
+    "name": "Seat_05"
+   },
+   {
+    "grab": "SM_Seat1_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 3.2,
+    "back": 3.025,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 3.2,
+    "name": "Seat_06"
+   },
+   {
+    "grab": "SM_Seat2_1_0.33_Grab",
+    "x": 0.945,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_07"
+   },
+   {
+    "grab": "SM_Seat2_1_0.77_Grab",
+    "x": 0.505,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_08"
+   },
+   {
+    "grab": "SM_Seat2_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_09"
+   },
+   {
+    "grab": "SM_Seat2_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 2.4,
+    "back": 2.225,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 2.4,
+    "name": "Seat_10"
+   },
+   {
+    "grab": "SM_Seat3_1_0.33_Grab",
+    "x": 0.945,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_11"
+   },
+   {
+    "grab": "SM_Seat3_1_0.77_Grab",
+    "x": 0.505,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_12"
+   },
+   {
+    "grab": "SM_Seat3_-1_0.77_Grab",
+    "x": -0.505,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_13"
+   },
+   {
+    "grab": "SM_Seat3_-1_0.33_Grab",
+    "x": -0.945,
+    "z": 1.6,
+    "back": 1.425,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": 1.6,
+    "name": "Seat_14"
+   },
+   {
+    "grab": "SM_Seat7_1_0.33_Grab",
+    "x": 0.945,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_15"
+   },
+   {
+    "grab": "SM_Seat7_1_0.77_Grab",
+    "x": 0.505,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_16"
+   },
+   {
+    "grab": "SM_Seat7_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_17"
+   },
+   {
+    "grab": "SM_Seat7_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -1.6,
+    "back": -1.775,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -1.6,
+    "name": "Seat_18"
+   },
+   {
+    "grab": "SM_Seat8_1_0.33_Grab",
+    "x": 0.945,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_19"
+   },
+   {
+    "grab": "SM_Seat8_1_0.77_Grab",
+    "x": 0.505,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_20"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_21"
+   },
+   {
+    "grab": "SM_Seat8_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -2.4,
+    "back": -2.575,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -2.4,
+    "name": "Seat_22"
+   },
+   {
+    "grab": "SM_Seat9_1_0.33_Grab",
+    "x": 0.945,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_23"
+   },
+   {
+    "grab": "SM_Seat9_1_0.77_Grab",
+    "x": 0.505,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_24"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_25"
+   },
+   {
+    "grab": "SM_Seat9_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -3.2,
+    "back": -3.375,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -3.2,
+    "name": "Seat_26"
+   },
+   {
+    "grab": "SM_Seat10_1_0.33_Grab",
+    "x": 0.945,
+    "z": -4,
+    "back": -4.175,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -4,
+    "name": "Seat_27"
+   },
+   {
+    "grab": "SM_Seat10_1_0.77_Grab",
+    "x": 0.505,
+    "z": -4,
+    "back": -4.175,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -4,
+    "name": "Seat_28"
+   },
+   {
+    "grab": "SM_Seat10_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -4,
+    "back": -4.175,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -4,
+    "name": "Seat_29"
+   },
+   {
+    "grab": "SM_Seat10_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -4,
+    "back": -4.175,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -4,
+    "name": "Seat_30"
+   },
+   {
+    "grab": "SM_Seat11_1_0.33_Grab",
+    "x": 0.945,
+    "z": -4.8,
+    "back": -4.975,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "window",
+    "section": "front",
+    "zBus": -4.8,
+    "name": "Seat_31"
+   },
+   {
+    "grab": "SM_Seat11_1_0.77_Grab",
+    "x": 0.505,
+    "z": -4.8,
+    "back": -4.975,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "driver",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -4.8,
+    "name": "Seat_32"
+   },
+   {
+    "grab": "SM_Seat11_-1_0.77_Grab",
+    "x": -0.505,
+    "z": -4.8,
+    "back": -4.975,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "aisle",
+    "section": "front",
+    "zBus": -4.8,
+    "name": "Seat_33"
+   },
+   {
+    "grab": "SM_Seat11_-1_0.33_Grab",
+    "x": -0.945,
+    "z": -4.8,
+    "back": -4.975,
+    "cushionY": 1.14,
+    "floorY": 0.675,
+    "side": "door",
+    "pos": "window",
+    "section": "front",
+    "zBus": -4.8,
+    "name": "Seat_34"
+   }
+  ],
+  "poles": [
+   {
+    "name": "SM_Pole1-1",
+    "x": -0.5,
+    "z": 5.65,
+    "section": "front",
+    "zBus": 5.65
+   },
+   {
+    "name": "SM_Pole2-1",
+    "x": -0.5,
+    "z": 4.5,
+    "section": "front",
+    "zBus": 4.5
+   },
+   {
+    "name": "SM_Pole5-1",
+    "x": -0.5,
+    "z": 2.84,
+    "section": "front",
+    "zBus": 2.84
+   },
+   {
+    "name": "SM_Pole51",
+    "x": 0.5,
+    "z": 2.84,
+    "section": "front",
+    "zBus": 2.84
+   },
+   {
+    "name": "SM_Pole6-1",
+    "x": -0.5,
+    "z": 1.24,
+    "section": "front",
+    "zBus": 1.24
+   },
+   {
+    "name": "SM_Pole61",
+    "x": 0.5,
+    "z": 1.24,
+    "section": "front",
+    "zBus": 1.24
+   },
+   {
+    "name": "SM_Pole3-1",
+    "x": -0.5,
+    "z": 0.75,
+    "section": "front",
+    "zBus": 0.75
+   },
+   {
+    "name": "SM_Pole31",
+    "x": 0.5,
+    "z": 0.75,
+    "section": "front",
+    "zBus": 0.75
+   },
+   {
+    "name": "SM_Pole7-1",
+    "x": -0.5,
+    "z": -0.36,
+    "section": "front",
+    "zBus": -0.36
+   },
+   {
+    "name": "SM_Pole71",
+    "x": 0.5,
+    "z": -0.36,
+    "section": "front",
+    "zBus": -0.36
+   },
+   {
+    "name": "SM_Pole4-1",
+    "x": -0.5,
+    "z": -0.7,
+    "section": "front",
+    "zBus": -0.7
+   },
+   {
+    "name": "SM_Pole41",
+    "x": 0.5,
+    "z": -0.7,
+    "section": "front",
+    "zBus": -0.7
+   },
+   {
+    "name": "SM_Pole8-1",
+    "x": -0.5,
+    "z": -1.96,
+    "section": "front",
+    "zBus": -1.96
+   },
+   {
+    "name": "SM_Pole81",
+    "x": 0.5,
+    "z": -1.96,
+    "section": "front",
+    "zBus": -1.96
+   },
+   {
+    "name": "SM_Pole9-1",
+    "x": -0.5,
+    "z": -3.56,
+    "section": "front",
+    "zBus": -3.56
+   },
+   {
+    "name": "SM_Pole91",
+    "x": 0.5,
+    "z": -3.56,
+    "section": "front",
+    "zBus": -3.56
+   },
+   {
+    "name": "SM_Pole10-1",
+    "x": -0.5,
+    "z": -5.16,
+    "section": "front",
+    "zBus": -5.16
+   },
+   {
+    "name": "SM_Pole101",
+    "x": 0.5,
+    "z": -5.16,
+    "section": "front",
+    "zBus": -5.16
+   }
+  ],
+  "strapRings": [
+   [
+    0.5,
+    2.305,
+    3.8
+   ],
+   [
+    0.5,
+    2.305,
+    3.18
+   ],
+   [
+    0.5,
+    2.305,
+    2.56
+   ],
+   [
+    0.5,
+    2.305,
+    1.94
+   ],
+   [
+    0.5,
+    2.305,
+    1.32
+   ],
+   [
+    0.5,
+    2.305,
+    0.7
+   ],
+   [
+    0.5,
+    2.305,
+    0.08
+   ],
+   [
+    0.5,
+    2.305,
+    -0.54
+   ],
+   [
+    0.5,
+    2.305,
+    -1.16
+   ],
+   [
+    0.5,
+    2.305,
+    -1.78
+   ],
+   [
+    0.5,
+    2.305,
+    -2.4
+   ],
+   [
+    0.5,
+    2.305,
+    -3.02
+   ],
+   [
+    0.5,
+    2.305,
+    -3.64
+   ],
+   [
+    0.5,
+    2.305,
+    -4.26
+   ],
+   [
+    -0.5,
+    2.305,
+    3.8
+   ],
+   [
+    -0.5,
+    2.305,
+    3.18
+   ],
+   [
+    -0.5,
+    2.305,
+    2.56
+   ],
+   [
+    -0.5,
+    2.305,
+    1.94
+   ],
+   [
+    -0.5,
+    2.305,
+    1.32
+   ],
+   [
+    -0.5,
+    2.305,
+    0.7
+   ],
+   [
+    -0.5,
+    2.305,
+    0.08
+   ],
+   [
+    -0.5,
+    2.305,
+    -0.54
+   ],
+   [
+    -0.5,
+    2.305,
+    -1.16
+   ],
+   [
+    -0.5,
+    2.305,
+    -1.78
+   ],
+   [
+    -0.5,
+    2.305,
+    -2.4
+   ],
+   [
+    -0.5,
+    2.305,
+    -3.02
+   ],
+   [
+    -0.5,
+    2.305,
+    -3.64
+   ],
+   [
+    -0.5,
+    2.305,
+    -4.26
+   ]
+  ]
+ }
+}

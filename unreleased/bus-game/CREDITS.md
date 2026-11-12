@@ -15,6 +15,7 @@
 | מה | יוצר | קישור | רישיון |
 |---|---|---|---|
 | האוטובוס (`assets/bus.glb`) | נבנה ב-Blender בקוד (`tools/blender-test/bus.py`, ענף claude/blender-test) | — | — |
+| מיניבוס, מפרקי וחשמלי (`assets/bus_mini.glb`, `bus_artic.glb`, `bus_elec.glb`) | נבנו בקוד מתוך האוטובוס (`tools/build_bus_variants.mjs`), עם אותם שלטים מהקלסר "שילוט אוטובוסים אחיד" של משרד התחבורה | — | — |
 | האנשים: גוף, עור, עיניים, גבות, שיער ובגדים (`assets/people/`) | MPFB / MakeHuman Community | https://github.com/makehumancommunity/mpfb2 | הנכסים: CC0; התוסף: GPL |
 | תנועת ההליכה (הקלטה 16_15) | CMU Graphics Lab Motion Capture Database | http://mocap.cs.cmu.edu | ללא הגבלות שימוש |
 | המרת ההקלטות ל-BVH | Bruce Hahne (מאגר: Shriinivas/cmubvh) | https://github.com/Shriinivas/cmubvh | ללא הגבלות שימוש |
