@@ -838,7 +838,8 @@ function mvAll(){
   if(MVCACHE&&MVCACHE.real===MVREAL&&MVCACHE.src===MOVES) return MVCACHE.list;
   const list=[],FM=window.FleetMoves;
   if(FM&&MOVES&&MOVES.m) for(const plate in MOVES.m){
-    const recs=(XPLATE[plate]||[]).map(([o,v])=>{const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;return {op:o.ref,first:v[1],last:v[2],days:dd?dd[0]:null};})
+    const occ=occSet(XPLATE[plate]||[]);
+    const recs=(XPLATE[plate]||[]).filter(r=>!occ.has(r)).map(([o,v])=>{const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;return {op:o.ref,first:v[1],last:v[2],days:dd?dd[0]:null};})
       .sort((a,b)=>a.first<b.first?-1:a.first>b.first?1:0);
     if(!recs.length) continue;
     const v=XPLATE[plate][0][1];
@@ -1352,6 +1353,22 @@ async function loadDays(){
   try{const r=await fetch('data/fleet-days.json',{cache:'no-cache'});DAYS=r.ok?await r.json():{};}
   catch(e){DAYS={};}
 }
+// נסיעות בודדות (שלמה 12.11, בעקבות דיווח על "מפרקיות שעברו מאקסטרה לאגד"): רשומה קטנה של הרכב אצל
+// חברה שנייה, כולה בתוך התקופה שבה הוא פעל בחברה הראשית — למשל רכב של אגד שדווח ב-SIRI בכמה נסיעות בקוד
+// של אקסטרה (נסיעה בודדת על קו שלה, או ערב העברת אשכול). זה לא מעבר בין חברות: מוצג כ"נסיעות בודדות"
+// ולא נספר ב"מעברים". לא חל על רכבי קבלן — הם נוסעים בקווים של כמה חברות לפי עבודה.
+const OCC_MAX=60;
+function occTrips(o,v){const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;return dd?dd[1]:null;}
+function occSet(recs){
+  const out=new Set();if(recs.length<2||isKab(recs[0][1]))return out;
+  let main=null,mt=0;for(const r of recs){const t=occTrips(r[0],r[1])||0;if(t>mt){mt=t;main=r;}}
+  if(!main)return out;
+  for(const r of recs){if(r===main)continue;const t=occTrips(r[0],r[1]);
+    if(t!=null&&t<=OCC_MAX&&t<mt*0.05&&r[1][1]>=main[1][1]&&r[1][2]<=main[1][2])out.add(r);}
+  return out;
+}
+function occLine(o,v){const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;
+  return `נסיעות בודדות אצל ${esc(o.name)} · ${dd?fmt(dd[1])+' נסיעות ב-'+fmt(dd[0])+' ימים, ':''}בין ${fd(v[1])} ל-${fd(v[2])}`;}
 // המפרט הרשמי ממאגר "ציי רכב אוטובוסים": מד ק"מ, מושבים, ארץ, הנעה, סוג, גודל
 async function loadOfficial(){
   if(OFC!==null) return;
@@ -1504,8 +1521,10 @@ async function showV(plate){
   const ofc=OFC&&OFC.of?OFC.of[clean]:null;
   const ar=ARM&&ARM.armor?ARM.armor[clean]:null;
   const on=recs.some(([,v])=>isActive(v));
+  const occ=occSet(recs), real=recs.filter(r=>!occ.has(r));
   let rows='',anyKm=false;
-  for(const [o2,v2] of recs){
+  for(const rec of recs){const [o2,v2]=rec;
+    if(occ.has(rec)){rows+=`<div class="msec">נסיעות בודדות — ${esc(o2.name)}</div><p class="note" style="margin-top:4px">${occLine(o2,v2)}. הרכב דווח בשידורים בכמה נסיעות בקוד של החברה הזו, בתוך התקופה שבה פעל ב${esc(real[0][0].name)} — זה לא מעבר בין חברות.</p>`;continue;}
     const on2=isActive(v2);
     const km=(KM&&KM.km)?KM.km[o2.ref+':'+plate]:null;
     if(km) anyKm=true;
@@ -1532,7 +1551,7 @@ async function showV(plate){
   const chk=gov&&gov.bitul_nm&&gov.bitul_nm!=='לא מבוטל'&&bdt&&fv[2]>bdt;
   const chkBox=chk?`<div class="vchk">⚠️ לבדיקה: לפי המאגר הממשלתי — ${esc(BITUL[gov.bitul_nm]?BITUL[gov.bitul_nm][0]:gov.bitul_nm)} ב-${fd(bdt)}, אבל בשידורים הרכב נצפה נוסע אחרי התאריך הזה, לאחרונה ב-${fd(fv[2])}
     <small>לפי המידע הציבורי (המאגר עודכן ב-${fd(String(DATA.gov_updated||'').slice(0,10))}). ייתכן שהרכב תוקן והמאגר טרם עודכן, או שיש טעות בזיהוי.</small></div>`:'';
-  if(recs.length>1) rows+=`<p class="note">${kab?'רכב קבלן נוסע בקווים של כמה חברות לפי עבודה, ולכן הופעה אצל כמה חברות היא רגילה.':'הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.'}</p>`;
+  if(real.length>1) rows+=`<p class="note">${kab?'רכב קבלן נוסע בקווים של כמה חברות לפי עבודה, ולכן הופעה אצל כמה חברות היא רגילה.':'הרכב שידר תחת יותר ממפעיל אחד — כנראה הועבר בין חברות באותה קבוצה.'}</p>`;
   // כרטיס הרכב (שלמה 22.10: "אנשים יותר מתעניינים במידע כללי על הרכב"): פרטי הרכב פתוחים למעלה,
   // "איפה הוא נסע" (הפירוט לפי חברה מהשידורים) מקופל לשורה אחת
   const G=gov||{};
@@ -1549,10 +1568,11 @@ async function showV(plate){
     ['צבע',G.tzeva_rechev],['משקל כולל',G.mishkal_kolel?fmt(+G.mishkal_kolel)+' ק"ג':''],
     ['רישיון בתוקף עד',G.tokef_dt&&!sofi?licenseHTML(gov):''],['ק"מ שנמדדו (משוער)',kmAny?'כ-'+fmt(kmT):''],['ימי פעילות שנמדדו',dAny?fmt(dT):''],['בוטל סופית',sofi?fd(sofi)+' (לפי המאגר הממשלתי)':'']]
     .filter(r=>r[1]!=null&&r[1]!=='').map(([k,v])=>`<div class="k">${k}</div><div class="v2">${k==='רישיון בתוקף עד'?v:esc(String(v))}</div>`).join('');
-  const cur=recs[0][0],prev=[...new Set(recs.slice(1).map(r=>r[0].name))];
-  const sum=recs.length>1
-    ?`<div><b>${recs.length} חברות</b> · עכשיו אצל <b>${esc(cur.name)}</b> (נצפה לאחרונה ${fd(fv[2])})${prev.length?`<small>לפני כן: ${esc(prev.join(', '))}</small>`:''}</div>`
-    :`<div><b>${esc(cur.name)}</b> · ${fd(fv[1])} – ${fd(fv[2])}</div>`;
+  const cur=real[0][0],cv=real[0][1],prev=[...new Set(real.slice(1).map(r=>r[0].name))];
+  const occS=[...occ].map(([o,v])=>`<small>${occLine(o,v)}</small>`).join('');
+  const sum=real.length>1
+    ?`<div><b>${real.length} חברות</b> · עכשיו אצל <b>${esc(cur.name)}</b> (נצפה לאחרונה ${fd(cv[2])})${prev.length?`<small>לפני כן: ${esc(prev.join(', '))}</small>`:''}${occS}</div>`
+    :`<div><b>${esc(cur.name)}</b> · ${fd(cv[1])} – ${fd(cv[2])}${occS}</div>`;
   const head=`<div class="vttl">${esc(gM(fv)||G.degem_nm||'רכב')}</div><div class="vsub">${[typ,yr,seats?seats+' מושבים':''].filter(Boolean).map(x=>esc(String(x))).join(' · ')}</div>`+
     (gen?`<div class="mgrid">${gen}</div>`:'')+
     `<div class="msec">איפה הוא נסע</div><details class="vfold"><summary>${sum}<span class="arr">הצגה ▾</span></summary><div class="vin">${rows}</div></details>`;
