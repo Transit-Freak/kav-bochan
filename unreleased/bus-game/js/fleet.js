@@ -60,7 +60,7 @@ export const isLease = def => !!def?.lease;
 export const fleetValue = def => isLease(def) || !def?.fleet ? 0 : Math.round(def.fleet * TYPES[typeOf(def)].price * SELL_BACK);
 
 const KEY = 'busgame.kiryat-malachi.money.v1';
-export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
+export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, hire: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
 
 export class Bank {
   constructor(save, time) {
@@ -81,6 +81,8 @@ export class Bank {
     this.legacy = !!save && !save.mode;
     // תפעול (ops.js): פקחים שנשכרו, דוחות ביקורת, והגדרות (במצב יצירתי אפשר לכבות אירועים ודוחות)
     this.inspectors = save?.inspectors | 0;
+    // נהגים שגויסו (sched.js). שמירה מלפני הנהגים: null — בסידור הראשון נרשמים כמה שהקווים צריכים, בחינם
+    this.drivers = typeof save?.drivers === 'number' ? Math.max(0, save.drivers | 0) : null;
     this.reports = Array.isArray(save?.reports) ? save.reports.slice(0, 30) : [];
     this.settings = { incidents: true, audits: true, ...(save?.settings || {}) };
     this.warnings = save?.warnings && typeof save.warnings === 'object' ? save.warnings : {};
@@ -96,7 +98,7 @@ export class Bank {
     try { localStorage.setItem(KEY, JSON.stringify(this.snapshot(time))); } catch { }
   }
   snapshot(time) {
-    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, resSeed: this.resSeed, cityNews: this.cityNews, warnings: this.warnings, inspHist: this.inspHist, career: this.career, inspectors: this.inspectors, reports: this.reports, settings: this.settings };
+    return { v: 2, time, money: Math.round(this.money * 100) / 100, today: this.today, history: this.history, mode: this.mode, role: this.role, resSeed: this.resSeed, cityNews: this.cityNews, warnings: this.warnings, inspHist: this.inspHist, career: this.career, inspectors: this.inspectors, drivers: this.drivers, reports: this.reports, settings: this.settings };
   }
   line(id) { return this.today.byLine[id] || (this.today.byLine[id] = { fares: 0, pax: 0, cost: 0, subsidy: 0 }); }
   earn(amount, lineId) {
@@ -117,16 +119,16 @@ export class Bank {
       this.spend('lease', d.fleet * TYPES[typeOf(d)].lease * sec / DAY, L.id);
     }
   }
-  // cat: km | drivers | lease | buy
+  // cat: km | drivers | lease | buy | hire (גיוס נהגים)
   spend(cat, amount, lineId) {
     this.money -= amount; this.today[cat] += amount;
-    if (lineId && cat !== 'buy') this.line(lineId).cost += amount;
+    if (lineId && cat !== 'buy' && cat !== 'hire') this.line(lineId).cost += amount;
   }
   refund(amount) { this.money += amount; this.today.sell += amount; }
   get costToday() { const d = this.today; return d.km + d.drivers + d.lease; }
   // תוצאת יום: הכנסות פחות הוצאות, כולל קנייה ומכירה של רכבים
-  static net(d) { return d.fares + (d.subsidy || 0) + (d.fineIn || 0) + (d.bonus || 0) + d.sell - d.buy - d.km - d.drivers - (d.lease || 0) - (d.insp || 0) - (d.penalty || 0); }
-  reset(time, mode = this.mode, career = null) { mode = normMode(mode); applyPrices(mode); this.money = MODES[mode].money; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; this.inspectors = 0; this.reports = []; }
+  static net(d) { return d.fares + (d.subsidy || 0) + (d.fineIn || 0) + (d.bonus || 0) + d.sell - d.buy - d.km - d.drivers - (d.lease || 0) - (d.hire || 0) - (d.insp || 0) - (d.penalty || 0); }
+  reset(time, mode = this.mode, career = null) { mode = normMode(mode); applyPrices(mode); this.money = MODES[mode].money; this.history = []; this.today = emptyDay(dayOf(time)); this.mode = mode; this.career = career; this.legacy = false; this.inspectors = 0; this.drivers = 0; this.reports = []; }
   // מעבר יום: שומרים את הסיכום ומתחילים יום חדש
   roll(time) {
     const d = dayOf(time);

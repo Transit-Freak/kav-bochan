@@ -98,7 +98,7 @@ export const STAGES = [
   { title: 'שירות מלא', days: 10, reward: 100000, unlock: [], hard: true,
     desc: M => `השלב הקשה: כמעט כל העיר${M?.headway ? `, אוטובוס לפחות כל ${M.headway} דקות בשעות השיא בכל הקווים` : ''}, ובלי הפסד שלושה ימים ברציפות.`,
     items: [resItem(0.85),
-      (c, M) => { if (!M?.headway) return null; const H = M.headway, n = c.active.length, ok = c.active.filter(L => L.def.headway <= H && (L.def.fleet || 0) * H * 60 >= lineCycle(L).total).length;
+      (c, M) => { if (!M?.headway) return null; const H = M.headway, n = c.active.length, ok = c.active.filter(L => L.def.headway <= H && (c.sched?.managed(L) ? c.sched.full(L) : (L.def.fleet || 0) * H * 60 >= lineCycle(L).total)).length;
         return { label: `קווים עם אוטובוס כל ${H} דק' לפחות בשיא`, v: n ? ok / n : 0, target: 1, txt: `${ok} מתוך ${n}` }; },
       c => { const h = c.days3; return { label: 'רווח בשלושת הימים האחרונים (כל יום)', v: h.n / 3 * (h.ok ? 1 : 0), target: 1,
         txt: h.n < 3 ? `${h.n} מתוך 3 ימים` : h.ok ? 'בלי הפסד' : 'היה הפסד' }; }] },
@@ -118,10 +118,10 @@ export class Career {
   unlocked(type) { return this.creative || !this.st || (this.st.unlocked || START_TYPES).includes(type); }
   // ההקשר לבדיקה: כיסוי, הקווים הפעילים, והימים האחרונים בקופה
   context() {
-    const served = this.g.served(), active = this.g.lines().filter(L => !L.retired && L.def.fleet > 0);
+    const served = this.g.served(), active = this.g.lines().filter(L => this.g.sim.inService(L));
     const st = this.st, from = st?.since ?? 0, h = this.g.bank.history.filter(d => d.day >= from).slice(-3);
     const net = d => (d.fares + (d.subsidy || 0)) - (d.km + d.drivers + (d.lease || 0));
-    return { cov: this.g.coverage.compute(served), active, days3: { n: h.length, ok: h.length >= 3 && h.every(d => net(d) >= 0) } };
+    return { sched: this.g.sim.roster, cov: this.g.coverage.compute(served), active, days3: { n: h.length, ok: h.length >= 3 && h.every(d => net(d) >= 0) } };
   }
   status() {
     if (this.creative || !this.st) return null;

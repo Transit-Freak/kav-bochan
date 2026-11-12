@@ -6,6 +6,7 @@
 import { TYPES, FARE, DEADHEAD_SPEED, LAYOVER, typeOf, dayOf } from './fleet.js';
 import { Network, inHours, lineTimes } from './demand.js';
 import { Ops, ROLE } from './ops.js';
+import { DRIVER_WAGE } from './sched.js';
 export const BUS = {
   capacity: 80,           // ברירת מחדל; הקיבולת האמיתית לפי סוג הרכב (fleet.js)
   doorTime: 1.1,          // פתיחה/סגירה (שנ')
@@ -20,6 +21,9 @@ const SAME_SLACK = 5 * 60;         // אותו קו באותה תחנה: עול�
 
 const hourOf = t => Math.floor((t / 3600) % 24);
 const DECEL = 1.2;       // בלימה (מ/ש²) — כמו בפרופיל המהירות
+// מבט נהג (handDrive): תאוצה בגז מלא, בלימה בבלם מלא (מ/ש²), קצב שינוי התאוצה (מ/ש³), זחילה (מ/ש), האטה בלי דוושה,
+// בלימה של המגביל, ותחום העצירה בתחנה (מטרים לפני / אחרי)
+export const DRIVE = { acc: 1.4, accV: 5, brake: 4, jerkUp: 2, jerkDown: 3.5, creep: 1.4, coast: 0.25, auto: 2, before: 15, past: 3 };
 const emptyToday = Z => ({ pot: new Float64Array(24), ride: new Float64Array(24), none: new Float64Array(24), declined: new Float64Array(24),
   pairNone: new Float64Array(Z * Z), xfer: new Map(), xferStop: new Map(), trips: 0, xferTrips: 0 });
 
@@ -113,6 +117,7 @@ export class Sim {
     const day0 = dayOf(this.time);
     this.time += h;
     if (dayOf(this.time) !== day0) this.newDay();
+    this.roster?.ensure(); this.roster?.pay(h);
     this.bank?.accrue(this.lines, h);
     this.ops.tick(h); this.ops.spawnInspectors(h);
     if (this.demand) this.spawn(h);
@@ -148,8 +153,9 @@ export class Sim {
       L.short = false;
       L.off = !inHours(L.def, this.time);
       // מחוץ לשעות הפעילות לא יוצאים; כשהקו נפתח — היציאה הראשונה מיד, בלי "להשלים" את מה שהיה בלילה
-      if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);
-      while (!L.off && this.time >= L.nextDispatch) {
+      if (this.roster?.managed(L)) this.dispatchSched(L);
+      else if (L.off) L.nextDispatch = Math.max(L.nextDispatch, this.time + 1);
+      while (!this.roster?.managed(L) && !L.off && this.time >= L.nextDispatch) {
         // קו מעגלי: אוטובוס שמחכה במסוף (הגיע לתחנה האחרונה, שהיא גם הראשונה) יוצא לנסיעה הבאה
         const lay = L.buses.find(o => o.lay);
         if (lay) { this.turnaround(L, lay); continue; }
@@ -172,6 +178,36 @@ export class Sim {
     }
   }
 
+  // יציאות לפי הסידור (sched.js): כל נסיעה שהגיע זמנה — יוצאת ברכב שלה, או מבוטלת עם סיבה.
+  // הרכב עוד לא חזר מהנסיעה הקודמת — מחכים לו (הקו "חסר רכב"), ואחרי 20 דק' הנסיעה מבוטלת
+  dispatchSched(L) {
+    const S = this.roster;
+    // קו מעגלי: אוטובוס שמחכה במסוף, והנסיעה הבאה לא שלו (בוטלה / רכב אחר) — מסיים כאן
+    for (const o of L.buses) if (o.lay) { const n = S.nextOf(L); if (!n || n.cancel || n.veh !== o.veh) { o.lay = false; o.goOn = false; } }
+    for (let x = S.nextOf(L); x && x.dep <= this.time; x = S.nextOf(L)) {
+      if (x.cancel) { S.cancel(x, x.reason); continue; }
+      const v = x.veh;
+      const lay = L.buses.find(o => o.lay);
+      if (lay && lay.veh === v) { if (lay.trip) { lay.trip.status = 'done'; lay.trip.end = this.time; } this.turnaround(L, lay); lay.trip = x; lay.sdep = x.dep; v.bus = lay; x.status = 'run'; x.actual = this.time; continue; }
+      if (!S.vehReady(v, x) || L.buses.length >= 30) {
+        if (this.time > x.dep + 1200) { S.cancel(x, 'הרכב לא חזר בזמן'); continue; }
+        L.short = true; break;
+      }
+      // נסיעה ריקה מהמסוף שבו הרכב עמד (ק"מ ושעות, בלי סבסוד)
+      if (v.endAt != null) { const dh = S.dh(v.at, x.from); if (dh > 0) this.charge(L, v.type, dh * DEADHEAD_SPEED, dh, true); }
+      if (v.endAt != null) this.charge(L, v.type, 0, LAYOVER, true);
+      const T = TYPES[v.type];
+      const b = { id: BID++, line: L, type: v.type, cap: T.cap, s: 0, v: 0, next: 0, state: 'drive', pax: [], door: 0, t: 0, ph: null, born: this.time, fade: 1, trip: x, veh: v, sdep: x.dep };
+      v.bus = b; x.status = 'run'; x.actual = this.time;
+      L.buses.push(b); this.events.push({ type: 'bus', bus: b });
+      this.dispatched(L, T.cap);
+      this.ops.onDispatch(L, b);
+    }
+    const n = S.nextOf(L);
+    L.nextDispatch = n ? n.dep : this.time + 86400;
+  }
+  // הקו פועל (לחישובי ביקוש וכיסוי): לפי הסידור, ובלי סידור — אם יש לו רכבים
+  inService(L) { return !L.retired && (this.roster?.managed(L) ? this.roster.serves(L) : L.def.fleet > 0); }
   // רישום יציאה מהמסוף. יציאה באיחור גדול: הלוח מתחיל מחדש מעכשיו, כדי שלא ייצאו כמה אוטובוסים בבת אחת
   dispatched(L, cap) {
     const hw = L.def.headway * 60;
@@ -277,14 +313,16 @@ export class Sim {
     return L.queues[k].length > 0 || !!this.sameRider(L, b, k, false) || !!this.altRider(L, k, L.stops[k], false);
   }
 
-  // נהיגה ידנית (מבט נהג, js/drivectl.js): b.ctl = { gas, brake, manual, front, mid, kneel, warn(txt) }.
-  // בלי לגעת — הכל כרגיל (אוטומטי). גז: נוסעים לפי המסלול במהירות הדרך, בלי לעצור בתחנות (חוץ מהאחרונה).
-  // בלם: האוטובוס נעצר; עצירה עד 15 מ' לפני תחנה — עצירה בתחנה. בתחנה, אחרי לחיצה על כפתור דלת — הדלתות בידי הנהג:
-  // עולים רק בדלת הקדמית הפתוחה, יורדים בדלת פתוחה, ונוסעים רק כשהדלתות סגורות (אחרת — אזהרה)
+  // מבט נהג (js/drivectl.js): b.ctl = { drv: true, hands, gas, brake (0–1), front, mid, arrive, kneel, warn(txt) }.
+  // הדלתות תמיד בידי הנהג: נפתחות רק בלחיצה על כפתור הדלת, ורק כשעומדים בתחנה. עולים רק בדלת הקדמית הפתוחה,
+  // יורדים בדלת פתוחה; דלתות סגורות — אף אחד לא עולה. נסיעה עם דלת פתוחה — אזהרה, והדלתות נסגרות.
+  // מהירות: עד שנוגעים בדוושה האוטובוס נוסע לבד ועוצר בתחנות (handDrive — אחרי הנגיעה הראשונה הכל בידי הנהג).
+  // בלי b.ctl (כל האוטובוסים האחרים) — הכל כרגיל.
   moveBus(L, b, ahead, h) {
-    const c = b.ctl;
+    const c = b.ctl?.drv ? b.ctl : null;      // (b.ctl של אוטובוס עם מבקר סמוי הוא הנוסע — ops.js — לא שליטה)
     // כריעה: רק בעמידה; בנסיעה האוטובוס עולה
     if (c || b.kneel) { const want = c?.kneel && b.v < 0.1 ? 1 : 0; b.kneel = Math.max(0, Math.min(1, (b.kneel || 0) + Math.sign(want - (b.kneel || 0)) * h / 1.5)); }
+    if (b.state === 'drive' && c?.hands) { this.handDrive(L, b, ahead, h, c); return; }
     if (b.state === 'drive') {
       let target = L.stopS[b.next];
       // עוצרים רק כשצריך: מישהו יורד, או מישהו מחכה לקו ויש מקום. ההחלטה נקבעת כשמגיעים למרחק בלימה
@@ -297,8 +335,7 @@ export class Sim {
         b.recheck = 0;
         b.stopHere = this.needStop(L, b, b.next);
       }
-      const lastStop = b.next === L.stops.length - 1;
-      if ((b.decided === b.next && !b.stopHere || (c?.gas && !lastStop)) && b.s >= target - 0.05) {
+      if (b.decided === b.next && !b.stopHere && b.s >= target - 0.05) {
         // חולפים על פני התחנה. אוטובוס מלא שמשאיר ממתינים — נספר כ"נשארו"
         const stop = L.stops[b.next], ss = this.stopStats.get(stop.id), left = L.queues[b.next].length;
         if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); for (const p of L.queues[b.next]) p.skips = (p.skips || 0) + 1; }
@@ -306,32 +343,28 @@ export class Sim {
         this.events.push({ type: 'pass', bus: b, stop });
         b.next++; target = L.stopS[b.next];
       }
-      const stopping = (b.decided !== b.next || b.stopHere) && !(c?.gas && !lastStop);
+      const stopping = b.decided !== b.next || b.stopHere;
       // תקלה או נהג מאחר: האוטובוס עומד
       if (this.ops.stalled(b)) { b.v = 0; return; }
+      const v0 = b.v;
       let v = Math.max(0.8, (L.profileFree || L.profile).get(b.s + 1.2)) * this.ops.speedK(L, b);
       if (stopping) v = Math.min(v, Math.sqrt(2 * DECEL * Math.max(0, target - b.s)) + 0.25);
       if (ahead && ahead.state !== 'done' && ahead.s - b.s < BUS.gap + 4) v = Math.min(v, Math.max(0, (ahead.s - b.s - BUS.gap) * 0.5));
-      if (c?.brake) v = 0;
-      b.v += Math.max(-(c?.brake ? 3.2 : 2.5) * h, Math.min((c?.gas ? 1.6 : 1.2) * h, v - b.v));
+      b.v += Math.max(-2.5 * h, Math.min(1.2 * h, v - b.v));
       b.v = Math.max(0, Math.min(v, b.v + 0.0001));
       b.s += b.v * h;
       this.charge(L, b.type, b.v * h, 0);
-      const braked = c?.brake && b.v < 0.05 && target - b.s < 15 && target - b.s >= -0.05;
-      if (braked || (stopping && b.s >= target - 0.05)) {
-        if (!braked) b.s = target; b.v = 0; b.state = 'dwell'; b.ph = 'open'; b.t = 0; b.dw = 0;
-        b.ta = 0; b.tb = 0;
-        this.events.push({ type: 'arrive', bus: b, stop: L.stops[b.next] });
-        this.ops.onArrive(L, b, b.next);
-      }
+      if (c) b.a = (b.v - v0) / h;
+      if (stopping && b.s >= target - 0.05) { b.s = target; this.arrive(L, b, c); }
     } else if (b.state === 'dwell') {
       const k = b.next, last = k === L.stops.length - 1, stop = L.stops[k], ss = this.stopStats.get(stop.id);
       b.dw += h;
-      const man = c?.manual;
-      if (man) {        // הדלתות בידי הנהג: כל דלת לחוד
+      const man = !!c;
+      if (man) {        // הדלתות בידי הנהג: כל דלת לחוד, ונפתחות רק כשהוא לוחץ
         const to = (v, open) => Math.max(0, Math.min(1, (v ?? b.door) + (open ? 1 : -1) * h / BUS.doorTime));
         b.dF = to(b.dF, c.front); b.dM = to(b.dM, c.mid); b.door = Math.max(b.dF, b.dM);
-        if (b.ph === 'open' || b.ph === 'close') b.ph = 'xchg';
+        if (b.door >= 0.5) b.opened = true;
+        if (b.ph === 'open') b.ph = 'xchg';
       }
       if (b.ph === 'open') {
         b.door = Math.min(1, b.door + h / BUS.doorTime);
@@ -340,7 +373,8 @@ export class Sim {
         b.ta += h; b.tb += h;
         let busy = false;
         // קו מעגלי: בתחנה האחרונה האוטובוס ממשיך כנסיעה הבאה (או מחכה לה), ומי שעלה "מסביב" נשאר
-        if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay);
+        if (last && b.goOn === undefined) b.goOn = this.cyclic(L) && !L.retired && !L.off && !L.buses.some(o => o !== b && o.lay)
+          && (!b.trip || (() => { const n = this.roster?.nextOf(L); return !!n && !n.cancel && n.veh === b.veh && b.veh?.bus === b; })());
         const off = b.pax.findIndex(p => p.to === k || (last && !(p.wrap && b.goOn)));
         if (off >= 0 && man && b.dM < 1 && b.dF < 1) busy = true;       // יורדים רק כשדלת פתוחה
         else if (off >= 0) {
@@ -381,13 +415,17 @@ export class Sim {
           // אוטובוס של הקו שמתקרב מאחור — יוצאים מיד, כדי לא לחסום אותו
           const W = Math.min(L.def.headway * 30, 300), behind = L.buses.some(o => o !== b && o.state === 'drive' && o.next === k && L.stopS[k] - o.s < 70);
           if (L.retired || L.off) { b.goOn = false; b.lay = false; return; }   // הקו נסגר: מי שעלה "מסביב" יורד, והאוטובוס נגמר
+          else if (b.trip) { b.lay = true; return; }                          // לפי הסידור: הנסיעה הבאה יוצאת בזמן שלה (dispatchSched)
           else if (this.time >= L.nextDispatch - W || behind) { this.turnaround(L, b); return; }
           else { b.lay = true; return; }
         }
         if (man) {
-          // הנהג סוגר את שתי הדלתות — נוסעים. גז עם דלת פתוחה — אזהרה, לא זזים
-          if (b.dF <= 0 && b.dM <= 0) { b.door = 0; b.ph = 'close'; c.manual = false; }
-          else if (c.gas) c.warn?.('סגרו את הדלתות לפני הנסיעה');
+          // גז עם דלת פתוחה — אזהרה (וניקוד), והדלתות נסגרות; האוטובוס יוצא כשהן סגורות.
+          // יוצאים מהתחנה: בגז כשהדלתות סגורות; בנהיגה לבד (בלי נגיעה בדוושה) — כשהנהג סגר את הדלתות אחרי שפתח;
+          // בתחנה האחרונה — כשכולם ירדו והדלתות סגורות
+          const shut = b.dF <= 0 && b.dM <= 0;
+          if (!shut && c.gas > 0.05) { if (c.front || c.mid) c.warn?.('נסיעה עם דלת פתוחה — הדלתות נסגרות'); c.front = c.mid = false; }
+          if (shut && (last ? off < 0 && (b.opened || c.gas > 0.05) : c.hands ? c.gas > 0.05 : b.opened)) { b.door = 0; b.ph = 'close'; }
         } else if (!busy && b.dw >= BUS.minDwell + BUS.doorTime) b.ph = 'close';
       } else if (b.ph === 'close') {
         b.door = Math.max(0, b.door - h / BUS.doorTime);
@@ -400,19 +438,72 @@ export class Sim {
             b.state = 'done'; b.t = 0; b.doneAt = this.time;
             // הרכב נוסע ריק חזרה לתחנה הראשונה ונח במסוף; רק אז הוא פנוי שוב (את הנסיעה הזו לא מציירים)
             const dead = L.poly.length / DEADHEAD_SPEED;
-            if (L.def.fleet != null) this.current(L).returning.push(this.time + dead + LAYOVER);
-            this.charge(L, b.type, L.poly.length, dead + LAYOVER, true);
+            if (b.trip) this.roster?.done(b, L);          // לפי הסידור: הרכב עומד במסוף האחרון; הנסיעה הריקה נרשמת כשהוא יוצא שוב
+            else {
+              if (L.def.fleet != null) this.current(L).returning.push(this.time + dead + LAYOVER);
+              this.charge(L, b.type, L.poly.length, dead + LAYOVER, true);
+            }
             this.events.push({ type: 'done', bus: b });
           }
           else { b.state = 'drive'; b.next++; b.goOn = undefined; this.events.push({ type: 'depart', bus: b, stop }); }
-          if (c) c.manual = false;
-          b.dF = b.dM = undefined;
+          if (c) c.front = c.mid = false;
+          b.dF = b.dM = undefined; b.opened = false;
         }
       }
     } else if (b.state === 'done') {
       b.t += h; b.fade = Math.max(0, 1 - b.t / 4);
       if (b.t > 4) b.state = 'gone';
     }
+  }
+
+  // הגעה לתחנה. במבט נהג — הדלתות נשארות סגורות עד שהנהג לוחץ
+  arrive(L, b, c) {
+    b.v = 0; b.a = 0; b.state = 'dwell'; b.t = 0; b.dw = 0; b.ta = 0; b.tb = 0;
+    if (c) { b.ph = 'xchg'; b.door = 0; b.dF = b.dM = 0; b.opened = false; c.arrive = false; }
+    else b.ph = 'open';
+    this.events.push({ type: 'arrive', bus: b, stop: L.stops[b.next] });
+    this.ops.onArrive(L, b, b.next);
+  }
+  // נהיגה בידי הנהג: תאוצה ובלימה לפי עומק הדוושה (0–1), עם שינוי הדרגתי של התאוצה (jerk) כמו באוטובוס עירוני.
+  // בלי דוושה: מתחת ל-5 קמ"ש האוטובוס זוחל (תיבה אוטומטית), מעל — מאט לאט; כשעומד — נשאר במקום (בלם עצירה).
+  // המהירות לא עולה על מהירות הדרך (מגביל), ולא מתקרבים לאוטובוס שלפנים. עוצרים עד 15 מ' לפני התחנה (או 3 מ' אחריה)
+  // ולוחצים על דלת — זו עצירה בתחנה. מי שעובר 3 מ' אחרי התחנה — חלף עליה. בתחנה האחרונה האוטובוס נעצר בכל מקרה.
+  handDrive(L, b, ahead, h, c) {
+    let k = b.next, target = L.stopS[k];
+    const last = k === L.stops.length - 1;
+    if (!last && b.s > target + DRIVE.past) {
+      const stop = L.stops[k], ss = this.stopStats.get(stop.id), left = L.queues[k].length;
+      if (left && b.pax.length >= b.cap) { L.stats.left += left; ss.left += left; this.events.push({ type: 'full', bus: b, stop, n: left }); for (const p of L.queues[k]) p.skips = (p.skips || 0) + 1; }
+      this.ops.onPass(L, b, k, left > 0);
+      this.events.push({ type: 'pass', bus: b, stop });
+      b.next = ++k; target = L.stopS[k];
+    }
+    if (this.ops.stalled(b)) { b.v = 0; b.a = 0; return; }
+    const gas = c.gas || 0, brake = c.brake || 0;
+    let want;
+    if (brake > 0.01) want = -DRIVE.brake * brake;
+    else if (gas > 0.01) want = DRIVE.acc * gas * Math.min(1, DRIVE.accV / Math.max(b.v, 0.1));   // בגז מלא: מעל ~18 קמ"ש התאוצה יורדת (הספק המנוע)
+    else if (b.v < 0.05) want = 0;                                   // עומד: נשאר במקום
+    else if (b.v < DRIVE.creep) want = Math.min(0.5, (DRIVE.creep - b.v) * 0.6);   // זחילה
+    else want = -DRIVE.coast;
+    // מגביל: מהירות הדרך (עם תנועה), מרחק מהאוטובוס שלפנים, ועצירה בסוף הקו
+    let vmax = Math.max(0.8, (L.profileFree || L.profile).get(b.s + 1.2)) * this.ops.speedK(L, b);
+    if (last) vmax = Math.min(vmax, Math.sqrt(2 * DRIVE.auto * Math.max(0, target - b.s)));
+    if (ahead && ahead.state !== 'done') vmax = Math.min(vmax, Math.max(0, (ahead.s - b.s - BUS.gap) * 0.5));
+    if (b.v > vmax) want = Math.min(want, Math.max(-DRIVE.auto, (vmax - b.v) * 1.5));
+    else if (want > 0) want = Math.min(want, (vmax - b.v) * 1.5);
+    const a0 = b.a || 0, J = want < a0 ? DRIVE.jerkDown : DRIVE.jerkUp;
+    b.a = a0 + Math.max(-J * h, Math.min(J * h, want - a0));
+    if (b.v > vmax + 1.5 && b.a > -DRIVE.auto) b.a = Math.min(b.a, -DRIVE.auto * 0.5);   // נכנסים מהר מדי לעיקול — בולמים בכל זאת
+    b.v += b.a * h;
+    if (b.v <= 0) { b.v = 0; if (b.a < 0) b.a = 0; }
+    b.s += b.v * h;
+    if (ahead && ahead.state !== 'done' && b.s > ahead.s - BUS.gap) { b.s = Math.max(b.s - b.v * h, ahead.s - BUS.gap); b.v = Math.min(b.v, ahead.v || 0); }
+    if (last && b.s > target) { b.s = target; b.v = 0; b.a = 0; }
+    this.charge(L, b.type, b.v * h, 0);
+    // עצירה בתחנה: עומדים בטווח, והנהג לחץ על דלת
+    const d = target - b.s;
+    if (c.arrive) { c.arrive = false; if (b.v < 0.05 && d <= DRIVE.before && d >= -DRIVE.past) this.arrive(L, b, c); }
   }
 
   // אותו קו עובר באותה תחנה פעמיים (הלוך וחזור דרך אותן תחנות, או קו מעגלי): מי שמחכה לפעם האחרת עולה כבר עכשיו,
@@ -490,7 +581,8 @@ export class Sim {
     if (!this.bank || L.def.fleet == null) return;
     if (m) this.bank.spend('km', m / 1000 * T.km, L.id);
     if (m && !dead) this.bank.subsidize(m / 1000, L.id);
-    if (sec) this.bank.spend('drivers', sec / 3600 * T.hour, L.id);
+    // לפי הסידור: הנהגים מקבלים שכר לשעת משמרת (sched.js pay), וכאן רק החלק של הרכב (תחזוקה)
+    if (sec) { if (this.roster?.managed(L)) this.bank.spend('km', sec / 3600 * Math.max(0, T.hour - DRIVER_WAGE), L.id); else this.bank.spend('drivers', sec / 3600 * T.hour, L.id); }
   }
   // חצות: סיכום היום בקופה, והמונים של הקווים והתחנות מתאפסים
   newDay() {

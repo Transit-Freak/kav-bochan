@@ -83,7 +83,7 @@ export class Ops {
   }
   // הגעה לתחנה: איחור לעומת הלוח (זמן היציאה + זמן הנסיעה המתוכנן)
   onArrive(L, b, k) {
-    const T = lineTimes(L); b.delay = this.sim.time - (b.born + T[k]);
+    const T = lineTimes(L); b.delay = this.sim.time - ((b.sdep ?? b.born) + T[k]);
     if (b.holdNext) { b.hold = this.sim.time + b.holdNext; b.holdNext = 0; }
     if (b.audit) { b.audit.delays.push(b.delay); b.audit.stops++; }
   }
@@ -154,7 +154,7 @@ export class Ops {
     if (!this.inspectors) return;
     this.inspT -= h; if (this.inspT > 0) return;
     this.inspT = 2400 / this.inspectors;
-    const act = this.sim.lines.filter(L => !L.retired && !L.off && L.def.fleet > 0 && L.stops.length > 2);
+    const act = this.sim.lines.filter(L => !L.off && this.sim.inService(L) && L.stops.length > 2);
     if (!act.length) return;
     const L = act[Math.floor(this.rand() * act.length)], k = Math.floor(this.rand() * (L.stops.length - 2));
     // קבוצה: עד פקח אחד לכל דלת (מיניבוס — 1, רגיל וחשמלי — 2, מפרקי — 3), וכל אחד עולה בדלת אחרת
@@ -170,7 +170,8 @@ export class Ops {
       if (this.bank) this.bank.spend('penalty', RESERVE_COST);
       b.stall = Math.min(b.stall, this.sim.time + 120); this.note('reserve', L, `הסדרן: רכב חלופי בדרך (${RESERVE_COST} ₪)`, b); return true;
     }
-    if (this.sim.available(L) <= 0) return false;
+    if (this.sim.roster?.managed(L)) { if (!this.sim.roster.extra(L)) return false; }
+    else if (this.sim.available(L) <= 0) return false;
     L.nextDispatch = this.sim.time; this.note('reserve', L, 'הסדרן: אוטובוס נוסף יוצא מהמסוף', null); return true;
   }
 }
