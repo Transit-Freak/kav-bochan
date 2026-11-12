@@ -1576,7 +1576,7 @@ reachPreview(pid, hasCard = true) {
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
       if (w.mode !== 'board' && w.counted && w.seg >= (w.release || 2)) { w.bus.walking = Math.max(0, (w.bus.walking || 0) - 1); w.counted = false; }
       // יורד: נעלם בהדרגה בסוף ההליכה. עולה: נכנס בדלת ונעלם בתוך האוטובוס
-      if (w.mode === 'alight' || w.mode === 'stroll') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
+      if (w.mode === 'alight' || w.mode === 'stroll' || w.mode === 'commute') this.setOpacity(w, last ? Math.min(1, (1 - k) * 3) : 1);
       // פקח שעלה: לא נעלם — נשאר לעמוד ליד הדלת ובודק כרטיסים עד שהוא יורד
       if (last && k >= 1 && w.mode === 'board' && ROLE.get(w.pid) === 'insp' && this.ride(w, busLayer)) continue;
       if (last && k >= 1) this.finish(w, i);

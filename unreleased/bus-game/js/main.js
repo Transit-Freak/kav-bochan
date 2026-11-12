@@ -22,6 +22,7 @@ import { InspectorFP } from './inspfp.js';
 import { Residents, inZone, isIndustry } from './residents.js';
 import { Homes, inStreet } from './homes.js';
 import { Strollers } from './stroll.js';
+import { Commuters } from './commute.js';
 import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle, vehiclesNeeded, fleetChange, fleetValue, isLease, money, dayOf, subsidyKm, applyPrices } from './fleet.js';
 import { NightFast, FAST } from './night.js';
 import { Scheduler, DRIVER_HIRE, DRIVER_WAGE, SIZE, MAX_DRIVE, MAX_SHIFT, BREAK } from './sched.js';
@@ -1014,7 +1015,7 @@ function resetResidents(newSeed) { if (newSeed) bank.resSeed = ((Math.random() *
 // כרטיס של נוסע (הקשה על ממתין בתחנה): איפה גר, לאן נוסע, מתי יוצא בדרך כלל
 // כרטיס נוסע: הקשה על מי שמחכה בתחנה — מי הוא (residents.js), לאן הוא נוסע ובאיזה קו (המסלול שלו בסימולציה), וכמה זמן
 // הוא מחכה. הנוסע מסומן בטבעת שעוקבת אחריו, והכרטיס נשאר מעליו עד שמקישים במקום אחר או שהוא עולה לאוטובוס
-let paxSel = null, paxRing = null, paxHomeT = 0, homes = null, strollers = null;
+let paxSel = null, paxRing = null, paxHomeT = 0, homes = null, strollers = null, commuters = null;
 // מי הנוסע ולאן הוא נוסע — הכול מהסימולציה: התושב (residents.js), הבניין והרחוב שלו (homes.js), היעד של הנסיעה הזו (p.d)
 function paxDetails(p) {
   const Z = demand?.zones, zo = demand?.zoneOf, who = p.who, R = residents, zOf = i => (Z && i >= 0 ? Z[zo[i]] : null);
@@ -1068,7 +1069,7 @@ function paxOpinion(p, D) {
   if (walk > 350) return { key: 'mid', face: '🙂', text: pick([`כמה דקות הליכה לתחנה, סביר`, `התחנה לא ממש ליד הבית, אבל בסדר`]), tip: '', sum: '' };
   return { key: 'ok', face: '😊', text: pick([walk && walk < 250 ? 'נוח לי, התחנה ליד הבית' : 'נוח לי, קו ישיר ליעד', `הקו הזה מתאים לי${m <= 3 ? ', וכמעט לא מחכים' : ''}`, `מגיע ישר ל${dest}, בלי החלפות`]), tip: '', sum: '' };
 }
-G.pax = { setDetour: v => { DETOUR_MIN = v; }, details: p => paxDetails(p), opinion: (p, D) => paxOpinion(p, D), homes: () => homes };   // לבדיקות ולקונסולה
+G.pax = { setDetour: v => { DETOUR_MIN = v; }, commuters: () => commuters, details: p => paxDetails(p), opinion: (p, D) => paxOpinion(p, D), homes: () => homes };   // לבדיקות ולקונסולה
 // סיכום ההצעות של כל מי שמחכה עכשיו בתחנות (ללשונית "ביקוש")
 function paxSummaryHTML() {
   const cnt = new Map(); let n = 0, okN = 0, midN = 0;
@@ -1079,8 +1080,13 @@ function paxSummaryHTML() {
 }
 function paxClear() { paxSel = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
 function paxCardAt(x, y) {
-  const P = people.waitPos; if (!P?.size) { if (paxSel) paxClear(); return false; }
-  const r = canvas.getBoundingClientRect(); let best = null, bd = 28;
+  const P = people.waitPos, r = canvas.getBoundingClientRect(); let best = null, bd = 28;
+  // מי שהולך עכשיו לתחנה או ממנה (commute.js)
+  let wk = null; for (const c of commuters?.act || []) { const v = c.w.obj.position.clone().setY(1.3).project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; wk = c; } }
+  if (wk) { const p = { id: wk.id, who: wk.who, o: wk.o, d: wk.d, legs: wk.legs, leg: 0, t0: sim.time }, D = paxDetails(p), c = $('#paxCard');
+    c.innerHTML = `<b>${esc(D.lives)}</b>${D.trip ? `<span>${D.trip}</span>` : ''}<span class="op">🚶 ${wk.from ? (D.shop ? 'ירד מהאוטובוס והולך לקניות' : 'ירד מהאוטובוס והולך הביתה') : `בדרך לתחנה ${esc(wk.stop.name)} · עוד <i data-eta>1</i> דק'`}</span>`;
+    c.onclick = null; c.hidden = false; paxSel = { walker: wk }; paxUpdate(); return true; }
+  if (!P?.size) { if (paxSel) paxClear(); return false; }
   for (const [, w] of P) { const v = w.pos.clone().project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; best = w; } }
   if (!best) { if (paxSel) paxClear(); return false; }
   const p = best.p, c = $('#paxCard'), D = paxDetails(p), O = paxOpinion(p, D);
@@ -1106,12 +1112,13 @@ function paxMark(x, z, k, y = 0.08) {
 // בכל פריים: הטבעת מתחת לנוסע שנבחר, והכרטיס מעל הראש שלו (ואם אין מקום למעלה — מתחת לרגליים), בלי לכסות אותו
 function paxUpdate() {
   if (!paxSel) { if (paxRing?.visible && paxHomeT) { if (performance.now() > paxHomeT) { paxRing.visible = false; paxHomeT = 0; } else paxRing.scale.multiplyScalar(1 + 0.004 * Math.sin(performance.now() / 150)); } return; }
-  const w = people.waitPos?.get(paxSel.pid), c = $('#paxCard');
+  const wk = paxSel.walker, w = wk ? (commuters.act.includes(wk) ? { pos: wk.w.obj.position.clone().setY(1.45), p: { t0: sim.time } } : null) : people.waitPos?.get(paxSel.pid), c = $('#paxCard');
   if (!w || fp?.on || cams?.current === 'driver') { paxClear(); return; }
   paxMark(w.pos.x, w.pos.z, Math.max(1, camera.position.distanceTo(w.pos) / 22) * (1 + 0.08 * Math.sin(performance.now() / 180)));   // ממרחק — טבעת גדולה יותר, שתיראה
   const r = canvas.getBoundingClientRect(), v = w.pos.clone().project(camera), sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * r.height, ch = c.offsetHeight || 120, cw = c.offsetWidth || 210;
   const top = sy - ch - 46 > 64 ? sy - ch - 46 : sy + 70;
   c.style.left = `${Math.min(innerWidth - cw - 6, Math.max(6, sx - cw / 2))}px`; c.style.top = `${Math.min(innerHeight - ch - 6, top)}px`;
+  { const ee = wk && c.querySelector('[data-eta]'); if (ee) { const m = String(Math.max(1, Math.round((wk.rem || 0) / 1.35 / 60))); if (ee.textContent !== m) ee.textContent = m; } }
   const el = c.querySelector('[data-w]'); if (el) { const m = String(Math.max(0, Math.round((sim.time - w.p.t0) / 60))); if (el.textContent !== m) el.textContent = m; }
 }
 const ROLE_INSP = p => p.role === 'insp';
@@ -1966,6 +1973,9 @@ function tick(dt) {
     night.update();
     const simDt = sim.step(dt);
     buses.update(sim.lines, simDt, dt);
+    // הולכים מהבית לתחנה ומהתחנה ליעד (commute.js) — לפני people.update, כי הוא קורא את אירועי הירידה של הפריים
+    if (!homes && demand?.stops) homes = new Homes(city, demand.stops);
+    (commuters || (commuters = new Commuters({ city, sim, people, camera, demand, homes: () => homes, residents: () => residents }))).update(dt);
     people.update(sim, city.stops, simDt, buses);
     paxUpdate();
     (strollers || (strollers = new Strollers(city, people, camera))).update(dt);

@@ -18,6 +18,7 @@ export const BUS = {
 };
 export const PATIENCE = 30 * 60;   // מי שמחכה יותר מזה מוותר והולך (והכרטיס שלו הולך איתו)
 const COMMON_WALK = 300, COMMON_SLACK = 5 * 60;   // קווים משותפים: יעד עד 300 מ' מהתחנה המתוכננת, ועד 5 דקות יותר מהקו המתוכנן
+export const COMMUTE_LOOK = 240;   // כמה שניות לפני הנסיעה נקבע אם התושב ייסע (ואז הוא יוצא מהבית והולך לתחנה)
 const SAME_SLACK = 5 * 60;         // אותו קו באותה תחנה: עולים לאוטובוס שהגיע אם הוא מביא ליעד עד 5 דק' אחרי זה שאחריו
 
 const hourOf = t => Math.floor((t / 3600) % 24);
@@ -251,20 +252,29 @@ export class Sim {
     }
     if (R) {
       const day = dayOf(this.time), t = this.time - (day - 1) * 86400;
-      if (this.schedDay !== day) { this.schedDay = day; this.sched = R.schedule(day); this.si = 0; while (this.si < this.sched.length && this.sched[this.si][0] < t - 60) this.si++; }
+      if (this.schedDay !== day) { this.schedDay = day; this.sched = R.schedule(day); this.si = 0; while (this.si < this.sched.length && this.sched[this.si][0] < t - 60) this.si++; this.pi = this.si; }
       const S = this.sched;
-      while (this.si < S.length && S[this.si][0] <= t) { const [, o, d, who] = S[this.si++]; this.trip(tab, o * N + d, who); }
+      // הגרלה מראש, COMMUTE_LOOK שניות לפני הנסיעה: ההחלטה אם התושב ייסע (e[4]) והמזהה של הנוסע (e[5]) נקבעים כבר כשהוא
+      // יוצא מהבית, כדי שאפשר יהיה להראות אותו הולך לתחנה (commute.js). זה נעשה לכל הנסיעות, בלי קשר למצלמה — הסימולציה
+      // זהה בכל מבט; הנוסע נכנס לתור באותו רגע כמו קודם
+      if (this.pi == null || this.pi < this.si) this.pi = this.si;
+      while (this.pi < S.length && S[this.pi][0] <= t + COMMUTE_LOOK) { const e = S[this.pi++]; e[4] = this.rand(); e[5] = PID++; }
+      while (this.si < S.length && S[this.si][0] <= t) { const e = S[this.si++]; this.trip(tab, e[1] * N + e[2], e[3], e); }
     }
   }
   // נסיעה אחת (זוג מוצא-יעד k): יש מסלול? נוסעים? — ונכנסים לתור. who — מי זה (תושב קבוע / עובד מבחוץ / מבקר)
-  trip(tab, k, who) {
+  // הנסיעות הקרובות שכבר הוגרלו (commute.js): הלוח של היום, מאיזה אינדקס עד איזה, ותחילת היום בשניות
+  upcoming() { return this.sched ? { S: this.sched, from: this.si, to: this.pi ?? this.si, base: (this.schedDay - 1) * 86400 } : null; }
+  // האם הנסיעה הזו תצא לדרך (יש מסלול, וההגרלה שלה עברה) — המסלול, או null
+  preview(e) { const D = this.demand, k = e[1] * D.N + e[2], tab = this.net.table(this.time), legs = tab.legs[k]; return legs && e[4] != null && e[4] < tab.p[k] ? legs : null; }
+  trip(tab, k, who, pre) {
     const D = this.demand, N = D.N, H = hourOf(this.time), T = this.today;
     T.pot[H]++;
     const legs = tab.legs[k];
     if (!legs) { T.none[H]++; T.pairNone[D.zoneOf[(k / N) | 0] * D.Z + D.zoneOf[k % N]]++; return; }
-    if (this.rand() >= tab.p[k]) { T.declined[H]++; return; }
+    if ((pre && pre[4] != null ? pre[4] : this.rand()) >= tab.p[k]) { T.declined[H]++; return; }
     T.ride[H]++; T.trips++; if (legs.length > 1) T.xferTrips++;
-    const p = { id: PID++, legs: legs.map(g => ({ ...g })), leg: 0, t0: this.time, paid: false, o: k / N | 0, d: k % N };
+    const p = { id: pre && pre[5] != null ? pre[5] : PID++, legs: legs.map(g => ({ ...g })), leg: 0, t0: this.time, paid: false, o: k / N | 0, d: k % N };
     if (who != null) p.who = who;
     for (const g of legs) g.L.stats.hWant[H]++;
     this.joinQueue(p);
