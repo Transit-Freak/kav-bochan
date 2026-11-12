@@ -146,20 +146,37 @@ for o in [o for o in bpy.data.objects if o.type == 'MESH']:
     if r >= 0.999: print('MESH', o.name, k, n0, 'kept'); continue
     # אצבעות: כפות הידיים (קבוצת pv_hands מ-fingers_rig.py) מוקטנות פחות משאר הגוף, כדי שהפרקים יתכופפו חלק.
     # בשני שלבים, כי Decimate עם קבוצת קודקודים מקטין קודם כל את מה שבקבוצה: קודם רק הגוף, ואז רק הידיים (PERSON_HANDS = היחס לידיים)
-    HR = float(os.environ.get('PERSON_HANDS', '0.3') or 0)
-    if HR > 0 and 'pv_hands' in o.vertex_groups:
-        def hand_tris():
-            gi = o.vertex_groups['pv_hands'].index
+    HR = float(os.environ.get('PERSON_HANDS', '0.3') or 0); JR = float(os.environ.get('PERSON_JOINTS', '0.6') or 0)
+    has_h = HR > 0 and 'pv_hands' in o.vertex_groups
+    # מרפקים ופרקי ידיים (12.11): גם שם ההקטנה חלשה יותר (PERSON_JOINTS), בגוף ובשרוולים — עם מעט קודקודים המרפק המכופף יוצא פינה חדה
+    jv = []
+    if JR > 0 and (k == 'basemesh' or cloth or has_h):
+        W_, Wr = o.matrix_world, rig.matrix_world
+        js = [(Wr @ rig.data.bones[n].head_local, rad) for n, rad in (('LeftForeArm', 0.075), ('RightForeArm', 0.075), ('LeftHand', 0.05), ('RightHand', 0.05)) if n in rig.data.bones]
+        gh = o.vertex_groups['pv_hands'].index if has_h else -1
+        for v in o.data.vertices:
+            if gh >= 0 and any(g.group == gh and g.weight > 0.5 for g in v.groups): continue
+            pw = W_ @ v.co
+            if any((pw - c).length < rad for c, rad in js): jv.append(v.index)
+        if len(jv) < 12: jv = []
+    if has_h or jv:
+        if jv: o.vertex_groups.new(name='pv_joints').add(jv, 1.0, 'REPLACE')
+        hv = [v.index for v in o.data.vertices if any(g.group == o.vertex_groups['pv_hands'].index and g.weight > 0.5 for g in v.groups)] if has_h else []
+        o.vertex_groups.new(name='pv_keep').add(jv + hv, 1.0, 'REPLACE')
+        def grp_tris(name):
+            gi = o.vertex_groups[name].index
             hs = {v.index for v in o.data.vertices if any(g.group == gi and g.weight > 0.5 for g in v.groups)}
-            t = [len(p.vertices) - 2 for p in o.data.polygons]; h = [len(p.vertices) - 2 for p in o.data.polygons if all(i in hs for i in p.vertices)]
-            return sum(h), sum(t)
-        for inv_, f_ in ((True, lambda nh, nt: (nh + r * (nt - nh)) / nt), (False, lambda nh, nt: ((nt - nh) + HR * nh) / nt)):
-            nh, nt = hand_tris()
-            d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = min(1.0, f_(nh, nt)); d.vertex_group = 'pv_hands'; d.invert_vertex_group = inv_; d.vertex_group_factor = 10
+            return sum(len(p.vertices) - 2 for p in o.data.polygons if all(i in hs for i in p.vertices)), sum(len(p.vertices) - 2 for p in o.data.polygons)
+        def dec(name, inv_, ratio):
+            d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = min(1.0, ratio); d.vertex_group = name; d.invert_vertex_group = inv_; d.vertex_group_factor = 10
             with ctx(o):
                 bpy.ops.object.modifier_move_to_index(modifier='dec', index=0)
                 bpy.ops.object.modifier_apply(modifier='dec')
-            print('MESH base pass', 'body' if inv_ else 'hands', (nh, nt), '->', hand_tris())
+        # בשלבים, כי Decimate עם קבוצת קודקודים מקטין קודם כל את מה שבקבוצה: קודם רק הגוף, אחר כך רק הידיים, ואז רק המפרקים
+        n0_ = grp_tris('pv_keep'); dec('pv_keep', True, (n0_[0] + r * (n0_[1] - n0_[0])) / n0_[1])
+        if has_h: nh, nt = grp_tris('pv_hands'); dec('pv_hands', False, ((nt - nh) + HR * nh) / nt)
+        if jv and JR < 0.999: nj, nt = grp_tris('pv_joints'); dec('pv_joints', False, ((nt - nj) + JR * nj) / nt)
+        print('MESH', o.name, k, 'keep', n0_, '-> hands', grp_tris('pv_hands') if has_h else None, 'joints', grp_tris('pv_joints') if jv else None)
         continue
     d = o.modifiers.new('dec', 'DECIMATE'); d.ratio = r
     with ctx(o):
