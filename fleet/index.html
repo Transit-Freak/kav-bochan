@@ -278,6 +278,7 @@
     .mhead{position:relative;padding-inline-end:46px}
     .x{position:absolute;inset-inline-end:0;top:0;margin:0;width:40px;height:40px}
   }
+.occ{display:block;margin-top:4px;font-size:12px;color:var(--mut);font-weight:400}.occ b{font-weight:700}
 </style>
 </head>
 <body>
@@ -1368,7 +1369,7 @@ function occSet(recs){
   return out;
 }
 function occLine(o,v){const dd=DAYS&&DAYS.d?DAYS.d[o.ref+':'+v[0]]:null;
-  return `נסיעות בודדות אצל ${esc(o.name)} · ${dd?fmt(dd[1])+' נסיעות ב-'+fmt(dd[0])+' ימים, ':''}בין ${fd(v[1])} ל-${fd(v[2])}`;}
+  return `<span class="occ">↪ נסיעות בודדות אצל <b>${esc(o.name)}</b>: ${dd?fmt(dd[1])+' נסיעות ב-'+fmt(dd[0])+' ימים, ':''}מ-${fd(v[1])} עד ${fd(v[2])}</span>`;}
 // המפרט הרשמי ממאגר "ציי רכב אוטובוסים": מד ק"מ, מושבים, ארץ, הנעה, סוג, גודל
 async function loadOfficial(){
   if(OFC!==null) return;
@@ -1572,7 +1573,7 @@ async function showV(plate){
   const occS=[...occ].map(([o,v])=>`<small>${occLine(o,v)}</small>`).join('');
   const sum=real.length>1
     ?`<div><b>${real.length} חברות</b> · עכשיו אצל <b>${esc(cur.name)}</b> (נצפה לאחרונה ${fd(cv[2])})${prev.length?`<small>לפני כן: ${esc(prev.join(', '))}</small>`:''}${occS}</div>`
-    :`<div><b>${esc(cur.name)}</b> · ${fd(cv[1])} – ${fd(cv[2])}${occS}</div>`;
+    :`<div><b>${esc(cur.name)}</b> · מ-${fd(cv[1])} עד ${fd(cv[2])}${occS}</div>`;
   const head=`<div class="vttl">${esc(gM(fv)||G.degem_nm||'רכב')}</div><div class="vsub">${[typ,yr,seats?seats+' מושבים':''].filter(Boolean).map(x=>esc(String(x))).join(' · ')}</div>`+
     (gen?`<div class="mgrid">${gen}</div>`:'')+
     `<div class="msec">איפה הוא נסע</div><details class="vfold"><summary>${sum}<span class="arr">הצגה ▾</span></summary><div class="vin">${rows}</div></details>`;
