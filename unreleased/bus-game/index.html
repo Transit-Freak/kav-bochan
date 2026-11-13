@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>משחק הקווים · קריית מלאכי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="game.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="view" aria-label="מפה תלת־ממדית של קריית מלאכי"></canvas>
+
+<header class="bar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
+  </div>
+  <span id="modeBadge" class="mode-badge"></span>
+  <button id="money" class="money" title="הקופה" aria-label="הקופה">₪2,000,000</button>
+  <div class="clock" role="group" aria-label="שעון המשחק">
+    <button id="play" class="icon" title="עצירה / המשך" aria-label="עצירה / המשך">❚❚</button>
+    <span id="time" class="time">06:30</span>
+    <div class="speeds" id="speeds">
+      <button data-s="1">×1</button><button data-s="5" class="on">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="200">×200</button>
+    </div>
+  </div>
+  <div class="cams" id="cams" role="group" aria-label="מצלמה"></div>
+</header>
+
+<aside class="panel" id="panel">
+  <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
+  <nav class="tabs">
+    <button data-tab="lines" class="on">קווים</button>
+    <button data-tab="missions">משימות</button>
+    <button data-tab="dispatch" class="adv">סדרן</button>
+    <button data-tab="money">קופה</button>
+    <button data-tab="demand" class="adv">ביקוש</button>
+    <button data-tab="stop">תחנה</button>
+    <button data-tab="help">עזרה</button>
+  </nav>
+  <section data-pane="lines" class="pane on">
+    <button id="newLine" class="primary wide">+ קו חדש</button>
+    <div id="lineList"></div>
+    <p id="emptyLines" class="hint">אין עדיין קווים. לחצו על "קו חדש", והקישו על תחנות במפה לפי הסדר — המסלול יחושב לאורך הרחובות.</p>
+  </section>
+  <section data-pane="money" class="pane" id="moneyPane">
+    <div id="moneyBody"></div>
+    <div class="game-box">
+      <h4>משחק</h4>
+      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button><button type="button" id="switchRole">החלף תפקיד</button></div>
+      <h4>המשחקים השמורים</h4>
+      <div id="slotList"></div>
+    </div>
+    <div class="game-box" id="accountBox"></div>
+    <div class="game-box" id="opsBox"></div>
+  </section>
+  <section data-pane="missions" class="pane" id="missionPane"><div id="missionBody"></div></section>
+  <section data-pane="dispatch" class="pane" id="dispPane"><div id="dispBody"></div></section>
+  <section data-pane="demand" class="pane" id="demandPane"><div id="demandBody"></div></section>
+  <section data-pane="stop" class="pane" id="stopPane">
+    <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
+  </section>
+  <section data-pane="help" class="pane">
+    <ol class="help easy-help">
+      <li><b>המטרה:</b> להסיע אנשים ברחבי העיר ולהשלים את המשימות של משרד התחבורה (לשונית "משימות"). על כל שלב מקבלים פרס.</li>
+      <li><b>קו חדש:</b> "+ קו חדש", מקישים על תחנות במפה לפי הסדר, ו"המשך". בוחרים מספר, תדירות, סוג רכב וכמה רכבים — בטופס כתוב כמה צריך.</li>
+      <li><b>כיסוי:</b> מי שגר עד 500 מ' הליכה מתחנה עם קו "מכוסה". הכפתור "כיסוי" שעל המפה מראה בכחול את מה שמכוסה.</li>
+      <li><b>כסף:</b> כל נוסע משלם ₪6, והמדינה משלמת על כל ק"מ בקו. דלק ונהגים עולים כסף. בלשונית "קופה" רואים אם מרוויחים.</li>
+      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" ו"מסלול". אוטובוס מלא? עוד רכבים, רכב גדול יותר או תדירות גבוהה יותר.</li>
+      <li><b>מפה ושעון:</b> גרירה מזיזה, שתי אצבעות מסובבות, צביטה מקרבת. ❚❚ עוצר, ×1 עד ×200 מאיצים.</li>
+      <li>רוצים עוד אתגר (תקלות, פקחים, סדרן, ליסינג)? "התחלה מחדש" בלשונית "קופה" ורמה "בינוני".</li>
+    </ol>
+    <ol class="help full-help">
+      <li><b>המטרה:</b> להסיע כמה שיותר אנשים בלי לפשוט רגל. מתחילים עם ₪60,000 בקופה, ומרוויחים כדי לקנות עוד רכבים ולפתוח עוד קווים.</li>
+      <li><b>שלוש רמות:</b> <b>קל</b> — רק הבסיס: קווים, רכבים ומשימות. ₪150,000, רכבים זולים ב-30% וסבסוד ×1.5. אין תקלות, פקחים, מבקרים, סדרן, ליסינג ודמי תחנה, פי שניים זמן לכל שלב ויעדים נמוכים ב-10 נקודות. <b>בינוני</b> — ₪60,000 והכלכלה הרגילה, עם כל מה שמתואר כאן. בשתי הרמות משרד התחבורה נותן משימות בארבעה שלבים (לשונית "משימות"), עם פרס בכסף וסוגי רכבים שנפתחים. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים רמה במשחק חדש וב"התחלה מחדש" (לשונית "קופה").</li>
+      <li><b>שמירה בענן:</b> בלשונית "קופה", תחת "חשבון". אפשר בלי חשבון (רק במכשיר הזה), או עם שם משתמש וסיסמה — ואז אפשר להמשיך את המשחק במכשיר אחר. המשחק נשמר תמיד גם במכשיר, ועובד גם בלי אינטרנט. השמירות שבענן מסומנות ב-☁. "מחיקת הנתונים שלי" מוחקת את כל השמירות בענן.</li>
+      <li><b>שביעות רצון:</b> כל נסיעה מקבלת ציון (0–100) לפי ההמתנה לעומת התדירות, הצפיפות, אוטובוס מלא שעבר בלי לעצור, איחור ומעברים. הממוצע — בכרטיס של כל קו ובלשונית "תחנה".</li>
+      <li><b>אירועים:</b> לפעמים אוטובוס מתקלקל (עומד עד שמגיע רכב חלופי), נהג מאחר ליציאה, יש פקק בקטע של קו, או נוסעים לא משלמים. הכל ביומן בלשונית "סדרן".</li>
+      <li><b>פקחים ומבקרים:</b> פקחים (בלשונית "קופה", בתשלום יומי) עולים לאוטובוסים באפוד צהוב, מורידים את ההתחמקות מתשלום וגובים קנסות. מבקרים סמויים של משרד התחבורה נוסעים בלי להודיע וכותבים "דוח ביקורת" (לשונית "משימות"): ניקיון, דיוק, התנהגות הנהג, צפיפות ועצירה בכל תחנה. בקריירה ציון טוב נותן בונוס וציון חלש — קנס. במצב יצירתי אפשר לכבות אירועים ודוחות ב"הגדרות".</li>
+      <li><b>סדרן:</b> בלשונית "סדרן" כל קו הוא רצועה: התחנות כקווים קטנים והאוטובוסים כנקודות (ירוק — בזמן, כתום — איחור, אדום — איחור גדול או תקלה). אדום בין אוטובוסים — צפיפות, כתום — פער גדול. הקשה על אוטובוס: "החזקה" בתחנה כדי לפזר אוטובוסים צפופים, "ישר למסוף" (רק מוריד נוסעים), או "רכב חלופי" לאוטובוס תקוע. "אוטובוס נוסף" שולח רכב מהמסוף אם יש פנוי.</li>
+      <li><b>כיסוי:</b> מי שגר עד 500 מ' הליכה מתחנה עם קו "מכוסה". הכפתור "כיסוי" שעל המפה מראה בכחול את מה שמכוסה ובנקודות אדומות את מי שעוד לא. רחובות צרים לא חייבים קו.</li>
+      <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". בוחרים מספר, שם, תדירות, סוג רכב וכמה רכבים — בקנייה או בליסינג.</li>
+      <li><b>כמה רכבים צריך:</b> אוטובוס נוסע עד התחנה האחרונה, חוזר ריק להתחלה ונח קצת — ורק אז יוצא שוב. בטופס כתוב כמה צריך לתדירות שבחרתם. עם פחות רכבים האוטובוסים יוצאים לאט יותר מהמתוכנן, וזה כתוב בכרטיס של הקו.</li>
+      <li><b>סוגי רכבים:</b> מיניבוס (20 מקומות) זול אבל מתמלא מהר. רגיל — 80. מפרקי — 120 ויקר יותר לנסיעה. חשמלי — 80, יקר לקנות וזול לנסוע. המחירון בלשונית "קופה".</li>
+      <li><b>קנייה או ליסינג:</b> קנייה — משלמים פעם אחת (רגיל: ₪6,000), ומכירה מחזירה 60%. ליסינג — בלי תשלום מראש, משלמים כל יום (רגיל: ₪600 ליום, גם בלילה) ומחזירים מתי שרוצים. ליסינג טוב כשאין מספיק כסף או כדי לנסות קו; קו שעובד טוב משתלם לקנות.</li>
+      <li><b>מאיפה לאן:</b> לכל נוסע יש בית ויעד — עבודה, לימודים או קניות. בבוקר יוצאים מהשכונות, אחר הצהריים חוזרים. בלשונית "ביקוש" ובכפתור "ביקוש" שעל המפה רואים את השכונות לפי סוג (מגורים, עבודה, לימודים, מסחר), וליד כל שכונה סמלים קטנים — לאן רוצים לנסוע ממנה בשעה הזו. סמל אדום — אין להם קו. הקשה על שכונה מציגה חיצים ליעדים וכמה נוסעים לכל אחד.</li>
+      <li><b>מי נוסע:</b> רק מי שיש לו קו עד 400 מ' מהבית ועד 400 מ' מהיעד. מי שהדרך שלו ארוכה (הליכה, המתנה, מעברים) — לפעמים מוותר מראש. אוטובוס תכוף (בפועל, לא רק בתכנון) מושך יותר נוסעים.</li>
+      <li><b>מעברים:</b> אם אין קו ישיר, נוסעים יורדים בתחנה משותפת (או הולכים עד 400 מ' לתחנה אחרת) ועולים לקו השני — עד שני מעברים. המעבר בחינם, כמו ברב-קו: משלמים פעם אחת לנסיעה.</li>
+      <li><b>שעות פעילות:</b> לכל קו יש שעת התחלה וסיום (בטופס הקו). מחוץ לשעות לא יוצאים אוטובוסים ואין הוצאות, אבל מי שרצה לנסוע אז נשאר בלי קו. קווים ישנים קיבלו 05:00–24:00.</li>
+      <li><b>כסף:</b> כל נוסע משלם ₪6 (פעם אחת, גם עם מעבר). המדינה משלמת ₪10 על כל ק"מ שאוטובוס נוסע בקו, עם נוסעים או בלי (על החזרה הריקה למסוף — לא). כל ק"מ עולה דלק ותחזוקה, וכל שעה בדרך עולה שכר נהג. קו עם ביקוש ותדירות מתאימה מרוויח; קו ריק, או קו עם יותר מדי אוטובוסים — מפסיד. הכל בלשונית "קופה".</li>
+      <li><b>אוטובוס מלא:</b> מי שלא נכנס נשאר בתחנה ומחכה לבא ("נשארו"). מי שמחכה יותר מחצי שעה מוותר והולך ברגל — והכרטיס שלו הולך איתו ("ויתרו"). אז כדאי רכב גדול יותר, עוד רכבים או תדירות גבוהה יותר.</li>
+      <li>הכי הרבה נוסעים בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
+      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" (גם שעות פעילות), ו"מסלול": מקישים על תחנה בקו כדי להסיר או להזיז אותה, או על תחנה חדשה כדי להוסיף (היא נכנסת במקום הכי קצר). אוטובוסים שכבר בדרך מסיימים את המסלול הישן. <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
+      <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> שתי אצבעות או הכפתור הימני. <b>זום:</b> צביטה או גלגלת. השעון: ❚❚ עוצר, ×1 עד ×200 מאיצים. בלילה, כשאף קו לא פועל, השעון רץ ×200 לבד עד הבוקר.</li>
+      <li><b>מצלמה:</b> "חופשי", "מעקב אחרי אוטובוס" או "נהג". פקח ונוסע — בשלב הבא.</li>
+      <li><b>מבט נהג:</b> בלשונית "סדרן" בוחרים אוטובוס ו"מבט נהג". גז ובלם בפינות המסך (או החצים ורווח במקלדת); בלי לגעת — האוטובוס נוהג לבד. בתחנה אפשר לפתוח ולסגור כל דלת לחוד (עולים בדלת הקדמית), ונוסעים רק כשהדלתות סגורות. עוד: כריעה, איתות, מהבהבים, צופר, פנסים, מגבים והודעת תחנה — גם בלוח המתגים שבתא. "יציאה" חוזרת למפה.</li>
+    </ol>
+  </section>
+</aside>
+
+<div class="dlegend" id="dLegend" hidden>
+  <div class="dl-head"><b id="dlTitle">מאיפה לאן</b><button id="dlClose" class="x" aria-label="סגירה">✕</button></div>
+  <div class="dl-chips" id="dlChips" role="group" aria-label="שעה">
+    <button data-h="now" class="on">עכשיו</button><button data-h="7">בוקר</button><button data-h="12">צהריים</button><button data-h="16">ערב</button>
+  </div>
+  <input type="range" id="dlHour" min="0" max="23" step="1" value="7" aria-label="שעה">
+  <div class="dl-keys" id="dlKeys"></div>
+  <div class="dl-note" id="dlNote"></div>
+</div>
+<div class="dfocus" id="dlFocus" hidden></div>
+
+<div class="plan" id="plan" hidden>
+  <div class="plan-txt" id="planTxt"><b>קו חדש</b> — הקישו על תחנות לפי הסדר <span id="planCount" class="pill">0 תחנות</span></div>
+  <div id="planInfo" class="plan-info" hidden></div>
+  <div id="planSel" class="plan-sel" hidden></div>
+  <div class="plan-btns">
+    <button id="planUndo">בטל אחרונה</button>
+    <button id="planCancel">ביטול</button>
+    <button id="planDone" class="primary" disabled>המשך</button>
+  </div>
+  <div id="planErr" class="err" hidden></div>
+</div>
+
+<div class="modal" id="lineForm" hidden>
+  <form class="card" id="lineFormCard">
+    <h2 id="fTitle">פרטי הקו</h2>
+    <div class="frow">
+      <label class="fnum">מספר קו <input id="fNum" maxlength="4" required inputmode="numeric" placeholder="1"></label>
+      <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
+    </div>
+    <div class="fadv">
+    <label>שם <input id="fName" maxlength="40" placeholder="למשל: מרכז — שכונת רמז"></label>
+    <div class="frow hours"><span class="flabel">שעות פעילות</span>
+      <label>מ־<select id="fFrom" aria-label="שעת התחלה"></select></label><label>עד <select id="fTo" aria-label="שעת סיום"></select></label></div>
+    <div class="swatches" id="fColors" role="radiogroup" aria-label="צבע"></div>
+    </div>
+    <div class="nolease">
+    <div class="flabel">קנייה או ליסינג</div>
+    <div class="vmode" id="fMode" role="radiogroup" aria-label="קנייה או ליסינג">
+      <button type="button" data-m="buy" role="radio"><b>קנייה</b><span>משלמים פעם אחת, מכירה מחזירה 60%</span></button>
+      <button type="button" data-m="lease" role="radio"><b>ליסינג</b><span>משלמים כל יום, מחזירים מתי שרוצים</span></button>
+    </div>
+    </div>
+    <div class="flabel">סוג הרכב</div>
+    <div class="vtypes" id="fTypes" role="radiogroup" aria-label="סוג הרכב"></div>
+    <div class="fcount">
+      <span class="flabel">כמה רכבים</span>
+      <div class="stepper"><button type="button" id="fMinus" aria-label="פחות">−</button><b id="fN">0</b><button type="button" id="fPlus" aria-label="עוד">+</button></div>
+      <span id="fNeed" class="fneed"></span>
+    </div>
+    <div id="fCost" class="fcost"></div>
+    <div class="row"><button type="button" id="fBack">חזרה</button><button type="submit" id="fSave" class="primary">שמירה והפעלה</button></div>
+    <button type="button" id="fAdvBtn" class="fadv-btn" aria-expanded="false">מתקדם: שם, צבע ושעות פעילות</button>
+    <button type="button" id="fRev" class="frev" hidden>צור גם את הכיוון ההפוך</button>
+  </form>
+</div>
+
+<div class="modal" id="resetAsk" hidden>
+  <div class="card">
+    <h2>התחלה מחדש</h2>
+    <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון.</p>
+    <div class="modepick" role="radiogroup" aria-label="מצב משחק">
+      <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
+      <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
+    </div>
+    <p class="hint">לשמור את המשחק הנוכחי לפני?</p>
+    <div class="col-btns"><button type="button" id="resetSave" class="primary">שמור והתחל מחדש</button><button type="button" id="resetNoSave" class="del">התחל בלי לשמור</button><button type="button" id="resetCancel">ביטול</button></div>
+  </div>
+</div>
+<div class="modal" id="roleAsk" hidden>
+  <div class="card">
+    <h2>מי אתה רוצה להיות?</h2>
+    <div class="rolepick" role="group" aria-label="תפקיד">
+      <button type="button" data-role="driver"><i>🚌</i><b>נהג</b><span>נוהגים באוטובוס בקו מוכן: עצירות, דלתות, בזמן</span></button>
+      <button type="button" data-role="planner"><i>🗺️</i><b>מתכנן</b><span>בונים קווים ורשת לכל העיר, עם תקציב ומשימות</span></button>
+      <button type="button" data-role="dispatcher"><i>🎧</i><b>סדרן</b><span>הרשת כבר פועלת: מטפלים בתקלות ובצפיפות</span></button>
+      <button type="button" data-role="inspector"><i>🎫</i><b>פקח</b><span>עולים לאוטובוסים ובודקים כרטיסים</span></button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="lineAsk" hidden>
+  <div class="card">
+    <h2>באיזה קו נוהגים היום?</h2>
+    <p class="hint">הקווים העירוניים של קריית מלאכי.</p>
+    <div class="linepick" id="linePick"></div>
+  </div>
+</div>
+<div class="modal" id="dutyAsk" hidden>
+  <div class="card">
+    <h2>סידור העבודה שלך</h2>
+    <p class="hint">הסדרן שיבץ אותך לארבע נסיעות. צאו מהמסוף בזמן — כל יציאה בזמן שווה נקודות.</p>
+    <div id="dutyBody"></div>
+    <div class="row"><button type="button" id="dutyGo" class="primary">מתחילים</button></div>
+  </div>
+</div>
+<div class="qbox" id="qBox" hidden>
+  <div class="q-who">🧍 נוסע שואל:</div>
+  <b id="qText"></b>
+  <div class="q-btns" id="qBtns"></div>
+</div>
+<div class="modal" id="modeAsk" hidden>
+  <div class="card">
+    <h2>משחק חדש</h2>
+    <p class="hint">איך משחקים?</p>
+    <div class="modepick" role="radiogroup" aria-label="מצב משחק">
+      <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
+      <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
+    </div>
+    <div class="row"><button type="button" id="modeGo" class="primary">מתחילים</button></div>
+  </div>
+</div>
+<div class="modal" id="cloudAsk" hidden>
+  <div class="card">
+    <h2>שני משחקים שונים</h2>
+    <div id="cloudBody"></div>
+    <div class="col-btns"><button type="button" id="cloudRemote" class="primary">להמשיך את המשחק מהענן</button><button type="button" id="cloudLocal">להמשיך את המשחק מהמכשיר הזה</button></div>
+  </div>
+</div>
+<div class="modal" id="stageModal" hidden>
+  <div class="card">
+    <h2 id="stageTitle">שלב הושלם</h2>
+    <div id="stageBody"></div>
+    <div class="row"><button type="button" id="stageClose" class="primary">ממשיכים</button></div>
+  </div>
+</div>
+<div class="modal" id="daySum" hidden>
+  <div class="card">
+    <h2 id="dayTitle">סיכום היום</h2>
+    <div id="dayBody"></div>
+    <div class="row"><button type="button" id="dayClose" class="primary">ממשיכים</button></div>
+  </div>
+</div>
+
+<div class="modal" id="credits" hidden>
+  <div class="card">
+    <h2>קרדיטים</h2>
+    <ul class="credits">
+      <li>מפות, רחובות ובניינים: © תורמי <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, רישיון ODbL</li>
+      <li>מיקומי התחנות: GTFS של משרד התחבורה</li>
+      <li>גבולות שכונות: מפ"י / GovMap, באמצעות <a href="https://over.org.il/" target="_blank" rel="noopener">גרסאות לעם</a>, ספטמבר 2026</li>
+      <li>האוטובוס והאדם: נבנו ב-Blender; גוף האדם מ-MPFB / MakeHuman (נכסים ב-CC0)</li>
+      <li>תנועת ההליכה: CMU Graphics Lab Motion Capture Database (הקלטה 16_15)</li>
+      <li>מנוע התלת־ממד: three.js (MIT)</li>
+    </ul>
+    <div class="row"><button type="button" id="creditsClose" class="primary">סגירה</button></div>
+  </div>
+</div>
+
+<footer class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <button id="creditsBtn" class="link">קרדיטים</button><span id="fps" hidden></span></footer>
+<div class="drvhud slim" id="drvHud" hidden>
+  <button type="button" id="dhExit" class="x" aria-label="יציאה ממבט הנהג">✕</button>
+  <span class="num sm" id="dhNum">1</span>
+  <b class="dh-next" id="dhNext"></b>
+  <span class="dh-duty" id="dhDuty" hidden><span id="dhDutyTxt"></span><button type="button" id="dhSkip" hidden>דילוג</button></span>
+  <span class="dh-stop" id="dhStop" title="נוסע ביקש לעצור">עצירה</span>
+  <span class="dh-score" id="dhScore" title="ניקוד"></span>
+  <small id="dhPax" hidden></small>
+</div>
+<div class="drvhud insphud" id="inspHud" hidden>
+  <span class="num" id="ihNum">1</span>
+  <div class="dh-txt"><b id="ihTxt">פקח</b><small id="ihStat"></small></div>
+  <button type="button" id="ihCheck" class="primary">עלייה לאוטובוס</button>
+  <button type="button" id="ihNext">אוטובוס הבא</button>
+  <button type="button" id="ihExit" class="x" aria-label="החלפת תפקיד">✕</button>
+</div>
+<div class="ifp" id="ifp" hidden>
+  <div class="drvhud slim ifp-top" id="ifpTop">
+    <button type="button" id="ifpExit" class="x" aria-label="ירידה מהאוטובוס">✕</button>
+    <span class="num sm" id="ifpNum">1</span>
+    <b class="dh-next" id="ifpNext"></b>
+    <span class="dh-score" id="ifpStat"></span>
+  </div>
+  <div class="ifp-move"><button type="button" id="ifpUp" aria-label="קדימה">▲</button><button type="button" id="ifpDown" aria-label="אחורה">▼</button></div>
+  <div class="ifp-decide" id="ifpDecide" hidden>
+    <b>אין כרטיס תקף</b><span id="ifpHist"></span>
+    <div class="row"><button type="button" data-d="fine" class="del">קנס ₪60</button><button type="button" data-d="warn" class="primary">אזהרה</button></div>
+  </div>
+</div>
+<div class="modal" id="ifpSum" hidden>
+  <div class="card">
+    <h2>סיכום בדיקה</h2>
+    <div id="ifpSumBody"></div>
+    <div class="row"><button type="button" id="ifpLeave">לרדת בתחנה</button><button type="button" id="ifpStay" class="primary">להמשיך באוטובוס</button></div>
+  </div>
+</div>
+<div class="drvctl" id="drvCtl" hidden>
+  <div class="dc-btns" role="group" aria-label="מתגי הנהג">
+    <button type="button" data-c="front">דלת קדמית</button><button type="button" data-c="mid">דלת אחורית</button><button type="button" data-c="kneel">כריעה</button><button type="button" data-c="left">◀ איתות</button><button type="button" data-c="right">איתות ▶</button>
+    <button type="button" data-c="hazard">מהבהבים</button><button type="button" data-c="horn">צופר</button><button type="button" data-c="lights">פנסים</button><button type="button" data-c="wipers">מגבים</button><button type="button" data-c="announce">הודעת תחנה</button>
+  </div>
+  <button type="button" class="pedal brake" data-p="brake" aria-label="בלם">בלם</button>
+  <button type="button" class="pedal gas" data-p="gas" aria-label="גז">גז</button>
+</div>
+<div class="paxcard" id="paxCard" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
