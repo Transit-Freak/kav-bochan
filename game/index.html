@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<!-- גרסת בטא קפואה של משחק הקווים (גרסה 18), מאחורי כניסה עם שם משתמש וסיסמה (gate.js).
+<!-- גרסת בטא קפואה של משחק הקווים (גרסה 24 של המשחק, בטא 0.4), מאחורי כניסה עם שם משתמש וסיסמה (gate.js).
      הקבצים כאן לא משתנים — הפיתוח ממשיך בנפרד, והעותק הזה מתעדכן רק כששלמה מבקש. -->
 <title>משחק הקווים · גרסת בטא</title>
 <meta name="description" content="משחק הקווים — מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא לבודקים, בכניסה עם שם משתמש וסיסמה.">
@@ -19,11 +19,10 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://kavbochan.app/game/">
-<link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="game.css?v=18">
+<link rel="stylesheet" href="game.css">
 <link rel="stylesheet" href="gate.css?v=1">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
@@ -46,16 +45,18 @@
       <button data-s="1">×1</button><button data-s="5" class="on">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="200">×200</button>
     </div>
   </div>
+  <button type="button" id="barRestart" class="bar-restart" title="התחל מחדש — מוחק את ההתקדמות (אחרי אישור)"><i aria-hidden="true">⟲</i><span>התחל מחדש</span></button>
   <div class="cams" id="cams" role="group" aria-label="מצלמה"></div>
 </header>
 
 <aside class="panel" id="panel">
   <button class="grip" id="grip" aria-label="פתיחה / סגירה של הלוח"><span></span></button>
   <nav class="tabs">
-    <button data-tab="lines" class="on">הקווים שלי</button>
+    <button data-tab="lines" class="on">קווים</button>
     <button data-tab="missions">משימות</button>
+    <button data-tab="dispatch" class="adv">סדרן</button>
     <button data-tab="money">קופה</button>
-    <button data-tab="demand">ביקוש</button>
+    <button data-tab="demand" class="adv">ביקוש</button>
     <button data-tab="stop">תחנה</button>
     <button data-tab="help">עזרה</button>
   </nav>
@@ -68,20 +69,37 @@
     <div id="moneyBody"></div>
     <div class="game-box">
       <h4>משחק</h4>
-      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame" class="del">התחלה מחדש</button></div>
+      <div class="row game-btns"><button type="button" id="saveSlot" class="primary">שמירה</button><button type="button" id="resetGame">משחק חדש</button><button type="button" id="startOver" class="del">התחל מחדש</button><button type="button" id="switchRole">החלף תפקיד</button></div>
       <h4>המשחקים השמורים</h4>
       <div id="slotList"></div>
     </div>
+    <div class="game-box" id="accountBox"></div>
+    <div class="game-box" id="opsBox"></div>
   </section>
   <section data-pane="missions" class="pane" id="missionPane"><div id="missionBody"></div></section>
+  <section data-pane="dispatch" class="pane" id="dispPane"><div id="dispBody"></div></section>
   <section data-pane="demand" class="pane" id="demandPane"><div id="demandBody"></div></section>
   <section data-pane="stop" class="pane" id="stopPane">
     <p class="hint">הקישו על תחנה במפה כדי לראות כמה ממתינים בה, כמה עלו וכמה ירדו.</p>
   </section>
   <section data-pane="help" class="pane">
-    <ol class="help">
+    <ol class="help easy-help">
+      <li><b>המטרה:</b> להסיע אנשים ברחבי העיר ולהשלים את המשימות של משרד התחבורה (לשונית "משימות"). על כל שלב מקבלים פרס.</li>
+      <li><b>קו חדש:</b> "+ קו חדש", מקישים על תחנות במפה לפי הסדר, ו"המשך". בוחרים מספר, תדירות, סוג רכב וכמה רכבים — בטופס כתוב כמה צריך.</li>
+      <li><b>כיסוי:</b> מי שגר עד 500 מ' הליכה מתחנה עם קו "מכוסה". הכפתור "כיסוי" שעל המפה מראה בכחול את מה שמכוסה.</li>
+      <li><b>כסף:</b> כל נוסע משלם ₪6, והמדינה משלמת על כל ק"מ בקו. דלק ונהגים עולים כסף. בלשונית "קופה" רואים אם מרוויחים.</li>
+      <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" ו"מסלול". אוטובוס מלא? עוד רכבים, רכב גדול יותר או תדירות גבוהה יותר.</li>
+      <li><b>מפה ושעון:</b> גרירה מזיזה, שתי אצבעות מסובבות, צביטה מקרבת. ❚❚ עוצר, ×1 עד ×200 מאיצים.</li>
+      <li>רוצים עוד אתגר (תקלות, פקחים, סדרן, ליסינג)? "משחק חדש" בלשונית "קופה" ורמה "בינוני".</li>
+    </ol>
+    <ol class="help full-help">
       <li><b>המטרה:</b> להסיע כמה שיותר אנשים בלי לפשוט רגל. מתחילים עם ₪60,000 בקופה, ומרוויחים כדי לקנות עוד רכבים ולפתוח עוד קווים.</li>
-      <li><b>שני מצבים:</b> <b>קריירה</b> — הכלכלה הרגילה, ומשרד התחבורה נותן התחייבויות שירות בארבעה שלבים (לשונית "משימות"): בהתחלה שלוש שכונות, אחר כך חצי העיר, שירות לכל היום, ובסוף שירות מלא עם אוטובוס כל 20 דקות בשיא ובלי הפסד. על כל שלב יש פרס בכסף, ושלבים מסוימים פותחים סוגי רכבים (חשמלי, מפרקי). לכל שלב יש מועד בימי משחק: מי שמאחר — הסבסוד לק"מ מצטמצם (עד חצי), אבל המשחק ממשיך. תחנה שמתחילה לשרת קו בפעם הראשונה עולה ₪500. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים מצב ב"התחלה מחדש" (לשונית "קופה").</li>
+      <li><b>שלוש רמות:</b> <b>קל</b> — רק הבסיס: קווים, רכבים ומשימות. ₪150,000, רכבים זולים ב-30% וסבסוד ×1.5. אין תקלות, פקחים, מבקרים, סדרן, ליסינג ודמי תחנה, פי שניים זמן לכל שלב ויעדים נמוכים ב-10 נקודות. <b>בינוני</b> — ₪60,000 והכלכלה הרגילה, עם כל מה שמתואר כאן. בשתי הרמות משרד התחבורה נותן משימות בארבעה שלבים (לשונית "משימות"), עם פרס בכסף וסוגי רכבים שנפתחים. <b>יצירתי</b> — כסף בלי הגבלה, כל הרכבים, בלי משימות. בוחרים רמה ב"משחק חדש" (לשונית "קופה").</li>
+      <li><b>שמירה בענן:</b> בלשונית "קופה", תחת "חשבון". אפשר בלי חשבון (רק במכשיר הזה), או עם שם משתמש וסיסמה — ואז אפשר להמשיך את המשחק במכשיר אחר. המשחק נשמר תמיד גם במכשיר, ועובד גם בלי אינטרנט. השמירות שבענן מסומנות ב-☁. "מחיקת הנתונים שלי" מוחקת את כל השמירות בענן.</li>
+      <li><b>שביעות רצון:</b> כל נסיעה מקבלת ציון (0–100) לפי ההמתנה לעומת התדירות, הצפיפות, אוטובוס מלא שעבר בלי לעצור, איחור ומעברים. הממוצע — בכרטיס של כל קו ובלשונית "תחנה".</li>
+      <li><b>אירועים:</b> לפעמים אוטובוס מתקלקל (עומד עד שמגיע רכב חלופי), נהג מאחר ליציאה, יש פקק בקטע של קו, או נוסעים לא משלמים. הכל ביומן בלשונית "סדרן".</li>
+      <li><b>פקחים ומבקרים:</b> פקחים (בלשונית "קופה", בתשלום יומי) עולים לאוטובוסים באפוד צהוב, מורידים את ההתחמקות מתשלום וגובים קנסות. מבקרים סמויים של משרד התחבורה נוסעים בלי להודיע וכותבים "דוח ביקורת" (לשונית "משימות"): ניקיון, דיוק, התנהגות הנהג, צפיפות ועצירה בכל תחנה. בקריירה ציון טוב נותן בונוס וציון חלש — קנס. במצב יצירתי אפשר לכבות אירועים ודוחות ב"הגדרות".</li>
+      <li><b>סדרן:</b> בלשונית "סדרן" כל קו הוא רצועה: התחנות כקווים קטנים והאוטובוסים כנקודות (ירוק — בזמן, כתום — איחור, אדום — איחור גדול או תקלה). אדום בין אוטובוסים — צפיפות, כתום — פער גדול. הקשה על אוטובוס: "החזקה" בתחנה כדי לפזר אוטובוסים צפופים, "ישר למסוף" (רק מוריד נוסעים), או "רכב חלופי" לאוטובוס תקוע. "אוטובוס נוסף" שולח רכב מהמסוף אם יש פנוי.</li>
       <li><b>כיסוי:</b> מי שגר עד 500 מ' הליכה מתחנה עם קו "מכוסה". הכפתור "כיסוי" שעל המפה מראה בכחול את מה שמכוסה ובנקודות אדומות את מי שעוד לא. רחובות צרים לא חייבים קו.</li>
       <li><b>קו חדש:</b> הקישו על 2 תחנות או יותר לפי הסדר, ואז "המשך". בוחרים מספר, שם, תדירות, סוג רכב וכמה רכבים — בקנייה או בליסינג.</li>
       <li><b>כמה רכבים צריך:</b> אוטובוס נוסע עד התחנה האחרונה, חוזר ריק להתחלה ונח קצת — ורק אז יוצא שוב. בטופס כתוב כמה צריך לתדירות שבחרתם. עם פחות רכבים האוטובוסים יוצאים לאט יותר מהמתוכנן, וזה כתוב בכרטיס של הקו.</li>
@@ -96,7 +114,8 @@
       <li>הכי הרבה נוסעים בשעות השיא (בוקר ואחר הצהריים). בחצות מקבלים סיכום של היום.</li>
       <li><b>שינוי קו:</b> בכרטיס הקו — "רכבים ותדירות" (גם שעות פעילות), ו"מסלול": מקישים על תחנה בקו כדי להסיר או להזיז אותה, או על תחנה חדשה כדי להוסיף (היא נכנסת במקום הכי קצר). אוטובוסים שכבר בדרך מסיימים את המסלול הישן. <b>מחיקה:</b> לוחצים פעמיים (הרכבים נמכרים).</li>
       <li><b>מזיזים את המפה:</b> גרירה. <b>מסובבים:</b> שתי אצבעות או הכפתור הימני. <b>זום:</b> צביטה או גלגלת. השעון: ❚❚ עוצר, ×1 עד ×200 מאיצים. בלילה, כשאף קו לא פועל, השעון רץ ×200 לבד עד הבוקר.</li>
-      <li><b>מצלמה:</b> "חופשי" או "מעקב אחרי אוטובוס". נהג, פקח ונוסע — בשלב הבא.</li>
+      <li><b>מצלמה:</b> "חופשי", "מעקב אחרי אוטובוס" או "נהג". פקח ונוסע — בשלב הבא.</li>
+      <li><b>מבט נהג:</b> בלשונית "סדרן" בוחרים אוטובוס ו"מבט נהג". גז ובלם בפינות המסך (או החצים ורווח במקלדת); בלי לגעת — האוטובוס נוהג לבד. בתחנה אפשר לפתוח ולסגור כל דלת לחוד (עולים בדלת הקדמית), ונוסעים רק כשהדלתות סגורות. עוד: כריעה, איתות, מהבהבים, צופר, פנסים, מגבים והודעת תחנה — גם בלוח המתגים שבתא. "יציאה" חוזרת למפה.</li>
     </ol>
   </section>
 </aside>
@@ -131,14 +150,18 @@
       <label class="fnum">מספר קו <input id="fNum" maxlength="4" required inputmode="numeric" placeholder="1"></label>
       <label>תדירות <select id="fHead"><option value="5">כל 5 דקות</option><option value="10" selected>כל 10 דקות</option><option value="15">כל 15 דקות</option><option value="20">כל 20 דקות</option><option value="30">כל 30 דקות</option><option value="60">כל שעה</option></select></label>
     </div>
+    <div class="fadv">
     <label>שם <input id="fName" maxlength="40" placeholder="למשל: מרכז — שכונת רמז"></label>
     <div class="frow hours"><span class="flabel">שעות פעילות</span>
       <label>מ־<select id="fFrom" aria-label="שעת התחלה"></select></label><label>עד <select id="fTo" aria-label="שעת סיום"></select></label></div>
     <div class="swatches" id="fColors" role="radiogroup" aria-label="צבע"></div>
+    </div>
+    <div class="nolease">
     <div class="flabel">קנייה או ליסינג</div>
     <div class="vmode" id="fMode" role="radiogroup" aria-label="קנייה או ליסינג">
       <button type="button" data-m="buy" role="radio"><b>קנייה</b><span>משלמים פעם אחת, מכירה מחזירה 60%</span></button>
       <button type="button" data-m="lease" role="radio"><b>ליסינג</b><span>משלמים כל יום, מחזירים מתי שרוצים</span></button>
+    </div>
     </div>
     <div class="flabel">סוג הרכב</div>
     <div class="vtypes" id="fTypes" role="radiogroup" aria-label="סוג הרכב"></div>
@@ -149,13 +172,14 @@
     </div>
     <div id="fCost" class="fcost"></div>
     <div class="row"><button type="button" id="fBack">חזרה</button><button type="submit" id="fSave" class="primary">שמירה והפעלה</button></div>
+    <button type="button" id="fAdvBtn" class="fadv-btn" aria-expanded="false">מתקדם: שם, צבע ושעות פעילות</button>
     <button type="button" id="fRev" class="frev" hidden>צור גם את הכיוון ההפוך</button>
   </form>
 </div>
 
 <div class="modal" id="resetAsk" hidden>
   <div class="card">
-    <h2>התחלה מחדש</h2>
+    <h2>משחק חדש</h2>
     <p class="hint">כל הקווים, הרכבים והכסף יימחקו, והשעון יחזור ל-06:30 ביום הראשון.</p>
     <div class="modepick" role="radiogroup" aria-label="מצב משחק">
       <button type="button" data-mode="career" role="radio"><b>קריירה</b><span>מתחילים עם ₪60,000. משרד התחבורה נותן משימות בשלבים, ועל כל שלב מקבלים פרס.</span></button>
@@ -164,6 +188,56 @@
     <p class="hint">לשמור את המשחק הנוכחי לפני?</p>
     <div class="col-btns"><button type="button" id="resetSave" class="primary">שמור והתחל מחדש</button><button type="button" id="resetNoSave" class="del">התחל בלי לשמור</button><button type="button" id="resetCancel">ביטול</button></div>
   </div>
+</div>
+<div class="modal" id="roleAsk" hidden>
+  <div class="card">
+    <h2>מי אתה רוצה להיות?</h2>
+    <div class="rolepick" role="group" aria-label="תפקיד">
+      <button type="button" data-role="driver"><i>🚌</i><b>נהג</b><span>נוהגים באוטובוס בקו מוכן: עצירות, דלתות, בזמן</span></button>
+      <button type="button" data-role="planner"><i>🗺️</i><b>מתכנן</b><span>בונים קווים ורשת לכל העיר, עם תקציב ומשימות</span></button>
+      <button type="button" data-role="dispatcher"><i>🎧</i><b>סדרן</b><span>הרשת כבר פועלת: מטפלים בתקלות ובצפיפות</span></button>
+      <button type="button" data-role="inspector"><i>🎫</i><b>פקח</b><span>עולים לאוטובוסים ובודקים כרטיסים</span></button>
+    </div>
+    <button type="button" class="link-del" id="roleStartOver">התחל מחדש — למחוק את כל ההתקדמות</button>
+  </div>
+</div>
+<div class="modal" id="wipeAsk" hidden>
+  <div class="card">
+    <h2>להתחיל מחדש?</h2>
+    <p><b>הכל יימחק מהמכשיר הזה:</b> הקווים, הכסף, השלב בקריירה, המשמרת, השעה, הסטטיסטיקה והמשחקים השמורים. אי אפשר לבטל את זה.</p>
+    <div id="wipeCloudBox" hidden>
+      <label class="chk"><input type="checkbox" id="wipeCloud"> למחוק גם את השמירות בענן</label>
+      <p class="hint">בלי הסימון — המשחק שבענן נשאר שם, כשמירה בשם "לפני התחלה מחדש".</p>
+    </div>
+    <div class="col-btns"><button type="button" id="wipeGo" class="del">למחוק הכל ולהתחיל מחדש</button><button type="button" id="wipeCancel">ביטול</button></div>
+  </div>
+</div>
+<div class="modal" id="confirmAsk" hidden>
+  <div class="card">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmBody"></p>
+    <div class="row"><button type="button" id="confirmOk" class="primary"></button><button type="button" id="confirmNo">ביטול</button></div>
+  </div>
+</div>
+<div class="modal" id="lineAsk" hidden>
+  <div class="card">
+    <h2>באיזה קו נוהגים היום?</h2>
+    <p class="hint">הקווים העירוניים של קריית מלאכי.</p>
+    <div class="linepick" id="linePick"></div>
+  </div>
+</div>
+<div class="modal sheet" id="dutyAsk" hidden>
+  <div class="card">
+    <h2>סידור העבודה שלך</h2>
+    <p class="hint">הסדרן שיבץ אותך לארבע נסיעות. צאו מהמסוף בזמן — כל יציאה בזמן שווה נקודות. המסלול מסומן במפה.</p>
+    <div id="dutyBody"></div>
+    <div class="row"><button type="button" id="dutyGo" class="primary">מתחילים</button><button type="button" id="dutyOther">קו אחר</button></div>
+  </div>
+</div>
+<div class="qbox" id="qBox" hidden>
+  <div class="q-who">🧍 נוסע שואל:</div>
+  <b id="qText"></b>
+  <div class="q-btns" id="qBtns"></div>
 </div>
 <div class="modal" id="modeAsk" hidden>
   <div class="card">
@@ -174,6 +248,13 @@
       <button type="button" data-mode="creative" role="radio"><b>מצב יצירתי</b><span>כסף בלי הגבלה, כל סוגי הרכבים, בלי משימות ובלי כישלון.</span></button>
     </div>
     <div class="row"><button type="button" id="modeGo" class="primary">מתחילים</button></div>
+  </div>
+</div>
+<div class="modal" id="cloudAsk" hidden>
+  <div class="card">
+    <h2>שני משחקים שונים</h2>
+    <div id="cloudBody"></div>
+    <div class="col-btns"><button type="button" id="cloudRemote" class="primary">להמשיך את המשחק מהענן</button><button type="button" id="cloudLocal">להמשיך את המשחק מהמכשיר הזה</button></div>
   </div>
 </div>
 <div class="modal" id="stageModal" hidden>
@@ -207,6 +288,51 @@
 </div>
 
 <footer class="attr"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <button id="creditsBtn" class="link">קרדיטים</button><span id="fps" hidden></span></footer>
+<div class="drvhud slim" id="drvHud" hidden>
+  <button type="button" id="dhExit" class="x" aria-label="יציאה ממבט הנהג">✕</button>
+  <span class="num sm" id="dhNum">1</span>
+  <b class="dh-next" id="dhNext"></b>
+  <span class="dh-duty" id="dhDuty" hidden><span id="dhDutyTxt"></span><button type="button" id="dhSkip" hidden>דילוג</button></span>
+  <span class="dh-stop" id="dhStop" title="נוסע ביקש לעצור">עצירה</span>
+  <span class="dh-score" id="dhScore" title="ניקוד"></span>
+  <small id="dhPax" hidden></small>
+</div>
+<div class="drvhud insphud" id="inspHud" hidden>
+  <span class="num" id="ihNum">1</span>
+  <div class="dh-txt"><b id="ihTxt">פקח</b><small id="ihStat"></small></div>
+  <button type="button" id="ihCheck" class="primary">עלייה לאוטובוס</button>
+  <button type="button" id="ihNext">אוטובוס הבא</button>
+  <button type="button" id="ihExit" class="x" aria-label="החלפת תפקיד">✕</button>
+</div>
+<div class="ifp" id="ifp" hidden>
+  <div class="drvhud slim ifp-top" id="ifpTop">
+    <button type="button" id="ifpExit" class="x" aria-label="ירידה מהאוטובוס">✕</button>
+    <span class="num sm" id="ifpNum">1</span>
+    <b class="dh-next" id="ifpNext"></b>
+    <span class="dh-score" id="ifpStat"></span>
+  </div>
+  <div class="ifp-move"><button type="button" id="ifpUp" aria-label="קדימה">▲</button><button type="button" id="ifpDown" aria-label="אחורה">▼</button></div>
+  <div class="ifp-decide" id="ifpDecide" hidden>
+    <b>אין כרטיס תקף</b><span id="ifpHist"></span>
+    <div class="row"><button type="button" data-d="fine" class="del">קנס ₪60</button><button type="button" data-d="warn" class="primary">אזהרה</button></div>
+  </div>
+</div>
+<div class="modal" id="ifpSum" hidden>
+  <div class="card">
+    <h2>סיכום בדיקה</h2>
+    <div id="ifpSumBody"></div>
+    <div class="row"><button type="button" id="ifpLeave">לרדת בתחנה</button><button type="button" id="ifpStay" class="primary">להמשיך באוטובוס</button></div>
+  </div>
+</div>
+<div class="drvctl" id="drvCtl" hidden>
+  <div class="dc-btns" role="group" aria-label="מתגי הנהג">
+    <button type="button" data-c="front">דלת קדמית</button><button type="button" data-c="mid">דלת אחורית</button><button type="button" data-c="kneel">כריעה</button><button type="button" data-c="left">◀ איתות</button><button type="button" data-c="right">איתות ▶</button>
+    <button type="button" data-c="hazard">מהבהבים</button><button type="button" data-c="horn">צופר</button><button type="button" data-c="lights">פנסים</button><button type="button" data-c="wipers">מגבים</button><button type="button" data-c="announce">הודעת תחנה</button>
+  </div>
+  <button type="button" class="pedal brake" data-p="brake" aria-label="בלם"><i class="lv"></i><span>בלם</span><b class="pv"></b></button>
+  <button type="button" class="pedal gas" data-p="gas" aria-label="גז"><i class="lv"></i><span>גז</span><b class="pv"></b></button>
+</div>
+<div class="paxcard" id="paxCard" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>
 
@@ -252,5 +378,6 @@
 <script src="vendor/supabase/supabase.js?v=2.45.4"></script>
 <script src="gate.js?v=1"></script>
 <script src="../version.js" data-tool="game" defer></script>
+
 </body>
 </html>

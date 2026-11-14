@@ -67,7 +67,7 @@
       var v = document.getElementById('kb-ver'); if (v) row.appendChild(v);
       box.appendChild(row);
     }
-    import('./js/main.js?v=18').catch(function (e) {
+    import('./js/main.js?v=24').catch(function (e) {
       var lm = document.getElementById('loadMsg'); if (lm) lm.textContent = 'המשחק לא נטען: ' + (e && e.message || e);
     });
   }

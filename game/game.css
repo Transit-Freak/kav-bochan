@@ -330,3 +330,215 @@ button.link{border:0;background:none;padding:0;color:var(--brand-ink);text-decor
 .cams .cv.on{background:#2a78d6;color:#fff;border-color:#2a78d6}
 .cams button.dm.cv{border-color:#93c5fd;background:#eff6ff;color:#1e40af}
 .cams button.dm.cv.on{background:#2a78d6;border-color:#2a78d6;color:#fff}
+
+/* שבע לשוניות בטלפון בלי גלילה */
+@media (max-width:520px){ .tabs{gap:0;padding:4px 4px 6px;overflow:visible} .tabs button{flex:1 1 0;min-width:0;padding:6px 1px;font-size:12.5px;white-space:nowrap} }
+/* סדרן */
+.dline{border-bottom:1px solid var(--line);padding:8px 0}
+.dhead{display:flex;align-items:center;gap:8px;font-size:13px}
+.dhead .lmeta{flex:1}
+.dres{padding:5px 9px;font-size:12.5px}
+.dstrip{width:100%;height:44px;display:block}
+.dstrip .track{stroke:#c3c9d1;stroke-width:4;stroke-linecap:round}
+.dstrip line:not(.track){stroke:#5f6872;stroke-width:1.5}
+.dstrip .bunch{fill:rgba(208,59,59,.34)}
+.dstrip .gap{fill:rgba(237,161,0,.25)}
+.dstrip .jam{fill:repeating-linear-gradient(45deg,#f97316,#f97316 3px,transparent 3px,transparent 6px);fill:#f97316;opacity:.55}
+.dstrip .bus circle{stroke:#fff;stroke-width:2}
+.dstrip .bus.sel circle:first-child{stroke:#0f172a;stroke-width:2.5}
+.dstrip .bus text{fill:#fff;font:800 11px/1 var(--font)}
+.dstrip .hit{fill:transparent;stroke:none!important}
+.dsel{font-size:13px;margin-top:2px}
+.dbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.dbtns button{padding:6px 10px;font-size:13px}
+.dkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin:8px 0}
+.dkey i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:4px;vertical-align:-1px}
+.dkey i.kb{background:rgba(208,59,59,.35);border-radius:2px;width:16px}
+.dkey i.kg{background:rgba(237,161,0,.4);border-radius:2px;width:16px}
+.dkey i.kj{background:#f97316;opacity:.6;border-radius:2px;width:16px}
+.dlog{list-style:none;padding:0;margin:4px 0;font-size:13px}
+.dlog li{padding:4px 0;border-bottom:1px solid var(--line)}
+.warnt{color:#b45309}
+/* דוחות ופקחים */
+.report{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0;font-size:13px}
+.report .rhead{display:flex;align-items:center;gap:8px}
+.report .rhead .lmeta{flex:1}
+.report .grade{font-size:18px}
+.report ul{margin:4px 0 2px;padding-inline-start:18px}
+.tog{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin:6px 0}
+#opsBox .fcount{margin-top:4px}
+
+/* חשבון וענן */
+.accform{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.accform label{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.accform input{padding:9px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;text-align:left}
+.cnote{margin-top:8px;font-size:12.5px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:6px 9px}
+.privacy{font-size:12.5px}
+.slot .cl{color:#2a78d6}
+#accountBox .del.sure{background:#b91c1c;color:#fff;border-color:#b91c1c}
+
+/* רמה "קל" (body.simple): רק הבסיס — מסתירים לשוניות, כפתורים ופרטים מתקדמים */
+.fadv-btn{display:none;width:100%;margin-top:8px;background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline}
+body.simple .fadv-btn{display:block}
+body.simple #lineFormCard:not(.showadv) .fadv{display:none}
+body.simple .nolease,body.simple .adv,body.simple .cams .soon,body.simple #demandBtn,body.simple #opsBox,body.simple .full-help{display:none}
+body:not(.simple) .easy-help{display:none}
+
+/* מבט נהג: בלי הלוח, ותצוגה קטנה למעלה (מתחת לסרגל) — מספר הקו, התחנה הבאה, נוסעים, ויציאה */
+body.driving #panel,body.driving .attr{display:none}
+.drvhud{position:fixed;inset-inline:10px;top:110px;display:flex;align-items:center;gap:10px;
+  padding:6px 10px;background:rgba(15,23,42,.72);color:#fff;border-radius:16px;backdrop-filter:blur(6px);z-index:20;max-width:520px;margin-inline:auto}
+.drvhud[hidden]{display:none}
+.drvhud .dh-txt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.drvhud .dh-txt b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drvhud .dh-txt small{font-size:12.5px;color:#cbd5e1}
+.drvhud button{flex:none}
+body.driving .brand,body.driving .cams{display:none}
+.drvhud .dh-stop{flex:none;font-size:12px;font-weight:800;padding:3px 8px;border-radius:999px;background:#3f1d1d;color:#7f5a5a}
+.drvhud .dh-stop.on{background:#ef4444;color:#fff;box-shadow:0 0 10px #ef4444}
+/* מתגי הנהג ודוושות (מבט נהג) — הכפתורים למעלה, הדוושות בפינות למטה, ולוח השעונים באמצע נשאר גלוי */
+.drvctl{position:fixed;inset:0;pointer-events:none;z-index:19}
+.drvctl[hidden]{display:none}
+.drvctl .dc-btns{position:absolute;top:var(--dc-top,170px);inset-inline:10px;max-width:520px;margin-inline:auto;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;pointer-events:auto}
+.drvctl .dc-btns button{font-size:11.5px;font-weight:700;line-height:1.15;padding:7px 2px;min-height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.25);
+  background:rgba(15,23,42,.62);color:#fff;backdrop-filter:blur(4px)}
+.drvctl .dc-btns button.on{background:#f59e0b;color:#111;border-color:#fbbf24}
+.drvctl .dc-btns button.blink{background:#22c55e;color:#062;border-color:#4ade80}
+.drvctl .pedal{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));width:84px;height:118px;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;
+  border-radius:18px;border:2px solid rgba(255,255,255,.5);color:#fff;font-size:20px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.drvctl .pedal.brake{left:12px;background:rgba(185,28,28,.72)}
+.drvctl .pedal.gas{right:12px;background:rgba(21,128,61,.72)}
+.drvctl .pedal.on{transform:scale(.94);filter:brightness(1.35)}
+/* בחירת תפקיד: ארבעה כרטיסים גדולים */
+.rolepick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.rolepick button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:16px;text-align:center;min-height:132px}
+.rolepick i{font-style:normal;font-size:34px;line-height:1}
+.rolepick b{font-size:18px}
+.rolepick span{font-size:12.5px;color:var(--muted);line-height:1.35}
+.drvhud .dh-score{flex:none;font-size:12px;font-weight:800;padding:3px 8px;border-radius:999px;background:#1e3a5f;color:#bfdbfe}
+.drvhud .dh-score:empty{display:none}
+/* פקח: אותה תצוגה קטנה, עם כפתורי בדיקה */
+.insphud{flex-wrap:wrap}
+.insphud .dh-txt{flex:1 1 60%}
+.insphud button{font-size:13px;padding:7px 12px;flex:1 1 auto}
+.insphud #ihNext{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.insphud .x{flex:none;background:transparent;color:#fff;border:0;font-size:16px;padding:4px 6px;order:-1}
+body.role-inspector #newLine,body.role-driver #newLine{display:none}
+/* סדרן: בלי בניית קווים ועריכת מסלולים */
+body.role-dispatcher #newLine,body.role-dispatcher .lbtns [data-a="route"],body.role-dispatcher .lbtns [data-a="del"],body.role-dispatcher .lbtns [data-a="rev"],
+body.role-dispatcher #resetGame{display:none}
+/* נהג: בחירת קו, סידור עבודה, ושאלה של נוסע */
+.linepick{display:grid;gap:8px;max-height:60vh;overflow:auto}
+.linepick button{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;text-align:start}
+.linepick span:last-child{display:flex;flex-direction:column;font-weight:700}
+.linepick small{font-weight:400;color:var(--muted);font-size:12.5px}
+table.duty{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 10px}
+table.duty th{font-size:12px;color:var(--muted);text-align:start;padding:4px}
+table.duty td{padding:6px 4px;border-top:1px solid var(--line)}
+table.duty tr.brk td{color:var(--muted);font-size:12.5px;text-align:center;border-top:0;padding:2px}
+.drvhud .dh-duty{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#fde68a;border-top:1px solid rgba(255,255,255,.15);padding-top:4px;margin-top:2px}
+.drvhud .dh-duty[hidden]{display:none}
+.drvhud .dh-duty button{font-size:12px;padding:3px 8px;margin-inline-start:auto}
+.drvhud{flex-wrap:wrap}
+.qbox{position:fixed;inset-inline:14px;top:40%;z-index:40;background:#fff;border-radius:18px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.35);max-width:440px;margin-inline:auto;display:flex;flex-direction:column;gap:8px}
+.qbox[hidden]{display:none}
+.qbox .q-who{font-size:13px;color:var(--muted)}
+.qbox b{font-size:17px;line-height:1.35}
+.qbox .q-btns{display:grid;gap:6px}
+.qbox .q-btns button{padding:10px;border-radius:12px;font-size:15px;font-weight:700}
+
+/* מבט נהג: רצועה דקה אחת למעלה — השמשה נשארת פנויה */
+.drvhud.slim{flex-wrap:nowrap;gap:6px;padding:4px 6px;border-radius:12px;font-size:12.5px;min-height:34px}
+.drvhud.slim .x{background:transparent;color:#fff;border:0;font-size:15px;padding:2px 6px;flex:none}
+.drvhud.slim .dh-next{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.drvhud.slim .dh-duty{flex:none;flex-basis:auto;border:0;padding:0;margin:0;color:#fde68a;font-size:12px;white-space:nowrap;display:flex;gap:4px;align-items:center}
+.drvhud.slim .dh-duty button{font-size:11px;padding:2px 6px}
+.drvhud.slim .dh-stop,.drvhud.slim .dh-score{font-size:11px;padding:2px 6px}
+/* הדוושות: קטנות ושקופות למחצה, בשולי המסך — השעונים והידיים נראים */
+/* דוושה יחסית: גובה האצבע על הדוושה = עומק (למטה מעט, למעלה הרבה); המילוי מראה כמה לחוץ, עם קווים כל 25% */
+.drvctl .pedal{width:62px;height:min(178px,30vh);font-size:14px;bottom:auto;top:52vh;opacity:.72;border-radius:14px;overflow:hidden;padding:0;
+  background-image:repeating-linear-gradient(to top,transparent 0 calc(25% - 1px),rgba(255,255,255,.28) calc(25% - 1px) 25%)}
+.drvctl .pedal.brake{left:4px;background-color:rgba(127,29,29,.62)}.drvctl .pedal.gas{right:4px;background-color:rgba(20,83,45,.62)}
+.drvctl .pedal .lv{position:absolute;inset-inline:0;bottom:0;height:calc(var(--lvl,0) * 100%);pointer-events:none}
+.drvctl .pedal.brake .lv{background:linear-gradient(to top,#ef4444,#fca5a5)}.drvctl .pedal.gas .lv{background:linear-gradient(to top,#16a34a,#86efac)}
+.drvctl .pedal span{position:absolute;top:6px;inset-inline:0;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000}
+.drvctl .pedal .pv{position:absolute;bottom:6px;inset-inline:0;text-align:center;font-size:13px;pointer-events:none;text-shadow:0 1px 2px #000}
+.drvctl .pedal.on{opacity:.95;transform:none;filter:none}
+/* נהג (תפקיד): בלי הקופה ותג הרמה */
+body.role-driver #money,body.role-driver #modeBadge{display:none}
+/* מבט פקח: רצועה עליונה דקה, ▲▼ בצד, והחלטה על נוסע בלי כרטיס */
+body.fpview #panel,body.fpview .attr,body.fpview .cams,body.fpview .brand{display:none}
+body.role-inspector #money,body.role-inspector #modeBadge{display:none}
+.ifp{position:fixed;inset:0;pointer-events:none;z-index:19}
+.ifp[hidden]{display:none}
+.ifp-top{position:absolute;top:var(--ifp-top,92px);pointer-events:auto}
+.ifp-move{position:absolute;left:8px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.ifp-move button{width:46px;height:46px;border-radius:12px;font-size:17px;background:rgba(15,23,42,.35);color:#fff;border:1px solid rgba(255,255,255,.3);touch-action:none}
+/* ההחלטה (קנס / אזהרה): שורה קטנה בתחתית המסך, ליד כפתורי ההליכה — לא מכסה את הנוסע */
+.ifp-decide{position:absolute;left:62px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom));pointer-events:auto;background:rgba(255,255,255,.96);border-radius:14px;padding:6px 10px;
+  display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 8px;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:420px;margin-inline:auto}
+.ifp-decide .row{margin-inline-start:auto;gap:6px;flex-wrap:nowrap}
+.ifp-decide .row button{padding:7px 12px;font-size:14px;min-height:0}
+.ifp-decide[hidden]{display:none}
+.ifp-mark{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font:800 17px/1 Arial,sans-serif;font-style:normal;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff;box-sizing:border-box;pointer-events:none}
+.ifp-mark.ok{background:#16a34a}.ifp-mark.bad{background:#dc2626}.ifp-mark[hidden]{display:none}
+.ifp-decide b{color:#b91c1c;font-size:14px}
+.ifp-decide span{font-size:13px;font-weight:700}
+.ifp-decide span.repeat{color:#b45309}
+table.isum{width:100%;border-collapse:collapse;font-size:15px}
+table.isum td{padding:6px 4px;border-top:1px solid var(--line)}
+table.isum tr.tot td{font-size:17px;border-top:2px solid var(--line2)}
+.paxcard{position:fixed;z-index:30;width:236px;background:#fff;border-radius:12px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:3px;font-size:12.5px;line-height:1.3;pointer-events:none;border:2px solid #f59e0b}
+.paxcard .op{margin-top:2px;padding-top:4px;border-top:1px solid #eef1f5}.paxcard .tip{color:#0f766e;font-weight:700}
+.paxcard u{text-decoration:none;font-weight:700}.paxcard i{font-style:normal;font-weight:700}
+.paxcard button{pointer-events:auto;align-self:flex-start;margin-top:3px;padding:4px 9px;font-size:12px;border-radius:9px}
+.paxcard[hidden]{display:none}
+.paxcard b{font-size:14px}
+/* התחל מחדש (מחיקת הכל) ואישור כללי */
+.link-del{display:block;margin:12px auto 0;background:none;border:0;color:#b91c1c;font-size:13px;text-decoration:underline;padding:6px}
+#wipeAsk .chk{display:flex;gap:8px;align-items:center;font-weight:700;margin-top:6px}
+#wipeAsk .chk input{width:20px;height:20px}
+/* סידור העבודה (נהג): גיליון בתחתית, והמפה עם המסלול המסומן נשארת גלויה מעליו */
+.modal.sheet{place-items:end center;background:transparent;pointer-events:none;padding:0 8px calc(8px + env(safe-area-inset-bottom))}
+.modal.sheet .card{pointer-events:auto;max-height:40vh;overflow:auto;width:min(520px,100%);box-shadow:0 -6px 30px rgba(0,0,0,.3)}
+.modal.sheet .card h2{margin-bottom:4px}
+.duty-line{display:flex;align-items:center;gap:8px;font-weight:700;margin:4px 0}
+.duty-line .num{color:#fff;border-radius:8px;padding:2px 8px;font-weight:800}
+body:has(#dutyAsk:not([hidden])) #panel{visibility:hidden}
+/* סדרן: סידור רכבים ונהגים (גאנט). הזמן מימין לשמאל */
+.dsw{display:flex;gap:4px;background:#eef3f8;border-radius:999px;padding:3px;margin:2px 0 10px}
+.dsw button{flex:1;border:0;background:none;padding:7px 8px;font-size:13.5px;color:var(--muted)}
+.dsw button.on{background:#fff;color:var(--brand-ink);font-weight:700;box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.scell{border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px;min-width:0}
+.scell b{display:block;font:700 20px/1.1 "IBM Plex Sans Hebrew",var(--font);font-variant-numeric:tabular-nums}
+.scell span{display:block;font-size:12px;color:var(--ink2);line-height:1.35}
+.scell small{display:block;font-size:11px;color:var(--muted);line-height:1.35;margin-top:3px}
+.scell.sbad b{color:#c2410c}
+.swarn li{font-size:13px;color:#9a3412}
+.gantt{border:1px solid var(--line);background:#fff;border-radius:12px;padding:4px 6px 6px}
+.gax{position:relative;height:16px;margin-right:74px;font-size:10.5px;color:var(--faint);direction:ltr}
+.gax span{position:absolute;top:1px;transform:translateX(50%);font-variant-numeric:tabular-nums}
+.grow{display:flex;align-items:center;gap:4px;height:24px;border-top:1px solid var(--line)}
+.grow.gme{background:#fef9c3}
+.glab{flex:none;width:70px;font-size:11.5px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.glab small{display:block;font-size:9.5px;color:var(--muted)}
+.gtrk{position:relative;flex:1;height:16px;background:#f3f6fa;border-radius:4px;overflow:hidden}
+.gb{position:absolute;top:2px;height:12px;border-radius:2px;color:#fff;font:700 10px/12px var(--font);text-align:center;overflow:hidden;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.18)}
+.gb.gp{opacity:.55}
+.gb.gx{background:repeating-linear-gradient(45deg,#d03b3b 0 3px,#f6b4b4 3px 6px)!important;opacity:1}
+.gsh{position:absolute;top:0;height:16px;background:#dbe5ef;border-radius:3px}
+.gnow{position:absolute;top:0;bottom:0;width:2px;background:#0f172a;z-index:2;opacity:.7}
+@media (max-width:420px){.sgrid{grid-template-columns:1fr 1fr}.sgrid .scell:last-child{grid-column:1/-1}}
+.glegend{display:flex;flex-wrap:wrap;gap:4px 10px;margin:10px 0 0;font-size:12px;color:var(--ink2)}
+.glegend i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-inline-end:4px;vertical-align:-1px}
+.glegend i.gxk{background:repeating-linear-gradient(45deg,#d03b3b 0 3px,#f6b4b4 3px 6px)}
+.gb.gup{color:#0f172a;box-shadow:inset 0 3px 0 #0f172a;font-size:11px;line-height:14px}
+.glegend i.gupk{background:#cbd5e1;box-shadow:inset 0 3px 0 #0f172a;color:#0f172a;font:700 9px/11px var(--font);text-align:center;font-style:normal;height:12px}
+
+/* "התחל מחדש" בפס העליון — בכל תפקיד; פותח את חלון האישור הקיים (#wipeAsk) */
+.bar-restart{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px 8px;border-radius:12px;border:1px solid var(--line,#d8dee6);background:#fff;color:#334155;font:inherit;cursor:pointer;line-height:1;flex:none}
+.bar-restart i{font-style:normal;font-size:17px;line-height:1}
+.bar-restart span{font-size:10.5px;font-weight:700;white-space:nowrap}
+.bar-restart:hover{background:#fef2f2;border-color:#fca5a5;color:#b91c1c}
+@media (max-width:520px){.bar-restart{padding:2px 6px}.bar-restart span{font-size:9.5px}}
