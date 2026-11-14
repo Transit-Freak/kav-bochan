@@ -16,22 +16,22 @@
  },
  "merged": 8,
  "groups": 21,
- "gen": "2026-11-14T02:15+00:00",
+ "gen": "2026-11-14T16:34+00:00",
  "n": 134,
  "tpl": {
-  "turns": {
-   "ok": 12,
-   "no-match": 3
-  },
   "junction": {
    "ok": 63,
    "no-match": 7
   },
+  "stops": {
+   "no-text": 28
+  },
   "general": {
    "no-text": 3
   },
-  "stops": {
-   "no-text": 28
+  "turns": {
+   "ok": 12,
+   "no-match": 3
   },
   "skip": {
    "no-text": 1
