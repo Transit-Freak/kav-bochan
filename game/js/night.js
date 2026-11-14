@@ -1,7 +1,7 @@
 // הרצה מהירה בלילה: כשאין אף קו בשעות הפעילות שלו ואין אוטובוס בדרך — השעון רץ ×200 עד שהקו הראשון נפתח,
 // ואז חוזר למהירות שהייתה. מי שבוחר מהירות בעצמו בזמן הזה — הבחירה שלו נשארת עד שהקווים חוזרים לפעול.
 // הסימולציה עצמה מתקדמת בצעדים של רבע שנייה גם במהירות הזו (Sim.step), כך שהחשבון לא משתנה.
-import { inHours } from './demand.js?v=18';
+import { inHours } from './demand.js';
 
 export const FAST = 200;
 
@@ -13,7 +13,7 @@ export class NightFast {
   }
   // אין מה לראות: יש קווים עם רכבים, אף אחד מהם לא בשעות הפעילות, ואין אוטובוס בדרך
   quiet() {
-    const L = this.lines().filter(l => l.def.fleet > 0);
+    const L = this.lines().filter(l => this.sim.inService ? this.sim.inService(l) : l.def.fleet > 0);
     if (!L.length) return false;
     if (L.some(l => inHours(l.def, this.sim.time))) return false;
     return !this.sim.lines.some(l => l.buses.some(b => b.state === 'drive' || b.state === 'dwell'));

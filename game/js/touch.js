@@ -57,7 +57,7 @@ export function mapTouch(canvas, camera, controls, opts = {}) {
     vel.set(0, 0, 0); prev = start = snapshot(); mode = null;
   });
   canvas.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'touch' || !pts.has(e.pointerId)) return;
+    if (e.pointerType !== 'touch' || !pts.has(e.pointerId) || !controls.enabled) return;   // מבט נהג — בלי גרירה
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pts.size > 2) return;
     const cur = snapshot();
@@ -106,7 +106,7 @@ export function mapTouch(canvas, camera, controls, opts = {}) {
   return {
     // החלקה קטנה אחרי שמרימים את האצבע
     update(dt) {
-      if (pts.size || vel.lengthSq() < 1) return;
+      if (pts.size || vel.lengthSq() < 1 || !controls.enabled) return;
       shift(tmpA.copy(vel).multiplyScalar(dt));
       vel.multiplyScalar(Math.exp(-dt * 5));
     },

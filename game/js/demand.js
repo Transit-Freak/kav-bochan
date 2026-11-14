@@ -9,7 +9,7 @@
 //   נסיעות קצרות הולכים ברגל: עד 400 מ' — אין ביקוש, ומעבר לזה מוכפל ב-(1 − e^(−מרחק/700 מ')).
 //   שעות: עבודה יוצאים ב-7 וחוזרים ב-16:30; לימודים ב-7:30 וחזרה ב-13:30–15; קניות לאורך היום.
 // מי שיש לו מסלול בקווים — נוסע בסיכוי שתלוי בזמן הכולל (הליכה, המתנה, נסיעה ומעברים) לעומת המרחק.
-import { lineCycle } from './fleet.js?v=18';
+import { lineCycle } from './fleet.js';
 
 export const RATES = { work: 0.24, school: 0.12, other: 0.32 };
 const DECAY = { work: 1800, school: 1100, other: 1300 };      // מטרים
@@ -92,7 +92,9 @@ export class Demand {
     }
     // לכל שעה: נסיעות לשעה מכל תחנה לכל תחנה (הלוך + חזור), סכום, והתפלגות מצטברת להגרלה
     // zonePurp[h]: נסיעות לשעה בין אזורים לפי סוג היעד — [(מוצא*Z+יעד)*4 + סוג], סוג: 0 הביתה, 1 עבודה, 2 לימודים, 3 קניות
+    this.daily = daily;                   // לתושבים הקבועים (residents.js)
     this.hour = []; this.hourTot = new Float64Array(24); this.cdf = []; this.zoneHour = []; this.zonePurp = [];
+    this.cdfOther = []; this.hourTotOther = new Float64Array(24);
     const zo = this.zoneOf;
     for (let h = 0; h < 24; h++) {
       const R = new Float32Array(N * N), ZP = new Float32Array(Z * Z * 4);
@@ -112,6 +114,10 @@ export class Demand {
         if (R[k]) ZR[this.zoneOf[(k / N) | 0] * Z + this.zoneOf[k % N]] += R[k];
       }
       this.hour.push(R); this.cdf.push(C); this.hourTot[h] = acc; this.zoneHour.push(ZR);
+      // רק "קניות ושונות" (כשיש תושבים קבועים — עבודה ולימודים באים מהם)
+      const T = daily.other, ko = PROFILES.other.out[h], kb = PROFILES.other.back[h], CO = new Float64Array(N * N); let ao = 0;
+      for (let k = 0; k < N * N; k++) { const o = (k / N) | 0, d = k % N; ao += T[k] * ko + T[d * N + o] * kb; CO[k] = ao; }
+      this.cdfOther.push(CO); this.hourTotOther[h] = ao;
     }
     this.dayTot = this.hourTot.reduce((a, b) => a + b, 0);
   }
@@ -120,6 +126,17 @@ export class Demand {
     const x = ((t / 3600) % 24) - 0.5, h0 = Math.floor(x), f = x - h0;
     const a = this.hourTot[(h0 + 24) % 24], b = this.hourTot[(h0 + 1) % 24];
     return a + (b - a) * f;
+  }
+  rateAtOther(t) {
+    const x = ((t / 3600) % 24) - 0.5, h0 = Math.floor(x), f = x - h0;
+    const a = this.hourTotOther[(h0 + 24) % 24], b = this.hourTotOther[(h0 + 1) % 24];
+    return a + (b - a) * f;
+  }
+  sampleOther(t, rand) {
+    const h = Math.floor((t / 3600) % 24), C = this.cdfOther[h], r = rand() * C[C.length - 1];
+    let lo = 0, hi = C.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (C[m] < r) lo = m + 1; else hi = m; }
+    return lo;
   }
   // הגרלת זוג מוצא-יעד לפי השעה. מחזיר o*N+d
   sample(t, rand) {
@@ -229,13 +246,14 @@ export class Network {
   // תדירות "מורגשת" (דק'): המתוכננת, או מה שהצי מאפשר, או מה שקורה בפועל — הגרוע מביניהם
   hwOf(L) {
     const d = L.def, cyc = lineCycle(L).total / 60;
-    let hw = Math.max(d.headway, d.fleet ? cyc / d.fleet : Infinity);
+    // לפי הסידור (sched.js): הנסיעות שלא בוטלו סביב השעה הזו. בלי סידור — לפי מספר הרכבים של הקו
+    let hw = this.sim.roster?.managed(L) ? Math.max(d.headway * 0.5, this.sim.roster.hwOf(L, this.sim.time)) : Math.max(d.headway, d.fleet ? cyc / d.fleet : Infinity);
     const real = this.sim.realHeadway(L);
     if (real != null) hw = Math.max(hw, Math.min(real / 60, hw * 3));
     return Math.min(hw, 120);
   }
   active(at) {      // at: זמן (שנ'), או null = כל הקווים שיש להם רכבים, בלי קשר לשעות
-    return this.sim.lines.filter(L => !L.retired && L.def.fleet > 0 && (at == null || inHours(L.def, at)));
+    return this.sim.lines.filter(L => this.sim.inService(L) && (at == null || inHours(L.def, at)));
   }
   table(at = null) {
     const act = this.active(at), key = act.map(L => L.id).join(',') || '-';
