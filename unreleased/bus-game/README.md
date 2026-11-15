@@ -173,7 +173,8 @@
   קו כמעט ריק, או קו עם יותר מדי אוטובוסים, מפסיד.
 - שמירה מלפני השינוי (v1, מחירים פי 33): הקופה מחולקת ב-33 בטעינה.
 3. **דגמים**: ‏`.github/workflows/bus-game-assets.yml` מריץ Blender: בונה את האוטובוס ואת האדם בקוד של הענף
-   `claude/blender-test`, ומייצא עם `tools/export_bus.py` ו-`tools/export_person.py` ל-`assets/bus.glb` ול-`assets/people/person_<n>.glb`.
+   `claude/blender-test`, ומייצא עם `tools/export_bus.py` ו-`tools/export_person.py` ל-`tools/src/bus_blender.glb` ול-`assets/people/person_<n>.glb`.
+   מהייצוא של האוטובוס `node tools/build_bus_variants.mjs` בונה את `assets/bus.glb` ואת המיניבוס, המפרקי והחשמלי (מתקף מסוג אחד בכל אוטובוס).
    האנשים: כמה אנשים שונים (גברים ונשים, גילים, עור, שיער ובגדים — נכסי MakeHuman CC0 בלבד), מוגדרים ב-`tools/person_variants.py`.
    כל אחד עם הליכה (CMU 16_15) ועמידה, והטקסטורות המקוריות. רשימת הקבצים: `assets/people/people.json`.
    הרצה ידנית של חלק מהאנשים: workflow_dispatch עם `only` (למשל `0,3`), והאוטובוס עם `bus`.

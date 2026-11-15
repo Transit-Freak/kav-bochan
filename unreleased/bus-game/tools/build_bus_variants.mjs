@@ -1,6 +1,9 @@
-// שלושה סוגי אוטובוס נוספים מתוך assets/bus.glb (האוטובוס של Blender): מיניבוס, מפרקי וחשמלי.
+// כל דגמי האוטובוס של המשחק מתוך tools/src/bus_blender.glb (האוטובוס של Blender, כמו שיצא מ-export_bus.py): הרגיל, מיניבוס, מפרקי וחשמלי.
 // הרצה (מתיקיית unreleased/bus-game):  node tools/build_bus_variants.mjs
-// יוצא: assets/bus_mini.glb, assets/bus_artic.glb, assets/bus_elec.glb (+ assets/bus_variants.json — המידות והמקומות)
+// יוצא: assets/bus.glb (הרגיל), assets/bus_mini.glb, assets/bus_artic.glb, assets/bus_elec.glb (+ assets/bus_variants.json — המידות והמקומות)
+//
+// מתקפים: בדגם של Blender יש שני דגמי מתקף (עומד/portrait ושוכב/landscape) באותו אוטובוס. במציאות לכל אוטובוס דגם מתקף אחד,
+// ולכן כל אוטובוס כאן מקבל סוג אחד (VAL_KIND), והמתקף מהסוג השני מוחלף בהעתק של הנבחר על אותו עמוד.
 //
 // איך: Blender לא מותקן כאן, ולכן לא בונים מאפס אלא "חותכים ומדביקים" את האוטובוס הקיים לאורכו (ציר Z):
 // כל משולש שחוצה קו חיתוך נחתך בדיוק עליו, כך ששני קטעים שנחתכו באותו חתך רוחב מתחברים בלי חריץ.
@@ -11,12 +14,12 @@
 // מערכת הצירים כמו ב-bus.glb: חזית ב-‎+Z (פגוש ב-z ≈ 6.0), גג ב-‎+Y, הדלתות בצד ‎-X, הכביש ב-y = 0, רצפה פנימית y = 0.675.
 // בכל הדגמים החזית באותו מקום (z = 6) — תא הנהג של js/driver.js, הדלת הקדמית והמתקף הקדמי נשארים בדיוק במקומם.
 import { readGLB, worldMatrices, meshToPart, partBox, mapTris, triBox, transformPart, translate, mergeParts, clipSlab, cutSlab,
-  Builder, roundRect, writeGLB, triCount, M4 } from './glblib.mjs';
+  Builder, roundRect, writeGLB, replaceMeshesGLB, triCount, M4 } from './glblib.mjs';
 import path from 'path';
 import fs from 'fs';
 
 const DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const SRC = path.join(DIR, 'assets/bus.glb');
+const SRC = path.join(DIR, 'tools/src/bus_blender.glb');
 const g = readGLB(SRC), J = g.json, { W } = worldMatrices(J);
 const MN = J.materials.map(m => m.name), mat = n => { const i = MN.indexOf(n); if (i < 0) throw new Error('no material ' + n); return i; };
 const FLOOR = 0.675;
@@ -59,10 +62,28 @@ for (const ch of AN.channels) {
 // ---------- המקומות בדגם המקורי (נמדדו): שורות המושבים, הדלתות, הסרנים, המתקפים
 const DOORWAY = { Front: [4.565, 5.735], Mid: [-0.585, 0.635] };
 const AXLE = { F: 3.35, R: -2.6 };
-const VALIDATORS = [ // מרכז המסך
-  { name: 'Validator_Front', door: 'Front', p: [-0.42, 1.91, 4.56], kind: 'portrait' },
-  { name: 'Validator_Mid', door: 'Mid', p: [-0.42, 1.91, 0.81], kind: 'portrait' },
-  { name: 'Validator_Mid2', door: 'Mid', p: [-0.42, 1.88, -0.55], kind: 'landscape' }];
+// המתקפים בדגם המקורי. pole — ה-z של העמוד שהמתקף תלוי עליו; src — הסוג שיש שם בדגם של Blender
+const VAL_POS = { portrait: [-0.42, 1.91, 0.06], landscape: [-0.42, 1.88, 0.15] };   // מרכז המסך ביחס לעמוד
+const VAL_SLOTS = [
+  { name: 'Validator_Front', door: 'Front', pole: 4.50, src: 'portrait' },
+  { name: 'Validator_Mid', door: 'Mid', pole: 0.75, src: 'portrait' },
+  { name: 'Validator_Mid2', door: 'Mid', pole: -0.70, src: 'landscape' }];
+// סוג המתקף לכל אוטובוס — אחד לכל האוטובוס
+const VAL_KIND = { std: 'portrait', mini: 'portrait', artic: 'landscape', elec: 'landscape' };
+const VALIDATORS_OF = kind => VAL_SLOTS.map(v => ({ name: v.name, door: v.door, p: [VAL_POS[kind][0], VAL_POS[kind][1], +(v.pole + VAL_POS[kind][2]).toFixed(3)], kind }));
+// החומרים והתיבה של כל סוג (ביחס לעמוד); M_Lamp ו-M_Trim — נורית ה-NFC וחריץ הכרטיס שבתוך התיבה
+const VAL_MATS = { portrait: ['M_ValBody', 'M_ValNFC', 'M_ValScreen', 'M_Lamp'], landscape: ['M_ValGrey', 'M_ValPad', 'M_ValScreenLand', 'M_Lamp', 'M_Trim'] };
+const VAL_BOX = { portrait: [[-0.56, 1.6, -0.02], [-0.28, 2.1, 0.11]], landscape: [[-0.56, 1.57, 0.055], [-0.28, 2.01, 0.24]] };
+const inValBox = (kind, pole, m, tri) => { if (!VAL_MATS[kind].includes(MN[m])) return false; const b = triBox(tri), [mn, mx] = VAL_BOX[kind];
+  return [0, 1, 2].every(k => b.mn[k] >= mn[k] + (k === 2 ? pole : 0) && b.mx[k] <= mx[k] + (k === 2 ? pole : 0)); };
+// התבנית של כל סוג: המתקף מהדגם המקורי, z ביחס לעמוד
+const VAL_TPL = Object.fromEntries(['portrait', 'landscape'].map(kind => { const s = VAL_SLOTS.find(v => v.src === kind);
+  return [kind, translate(mapTris(BODY, (m, tri) => inValBox(kind, s.pole, m, tri) ? true : null), [0, 0, -s.pole])]; }));
+function unifyValidators(body, kind) {
+  const swap = VAL_SLOTS.filter(v => v.src !== kind);
+  const out = mapTris(body, (m, tri) => swap.some(v => inValBox(v.src, v.pole, m, tri)) ? null : true);
+  return mergeParts(body.name, out, ...swap.map(v => translate(VAL_TPL[kind], [0, 0, v.pole])));
+}
 
 const isM = (m, ...names) => names.some(n => MN[m] === n);
 // חיפוי הקיר התחתון בצד הדלתות (M_Panel) עובר גם לרוחב פתחי הדלתות — חותכים אותו בפתחים (ב-actors.js זה נעשה בזמן ריצה, cutDoorPanels)
@@ -74,11 +95,12 @@ function cutDoorways(body, ways) {
 // במיניבוס המושבים שם יצאו והצמיג נראה — מוסיפים קופסה כמו קופסאות הקשת האחרות, בכל הדגמים
 const ARCH_FX = (() => { const B = new Builder('arch'); B.box(mat('M_Panel'), [0.915, FLOOR + 0.265, AXLE.F - 0.14], [0.62, 0.53, 1.04]); return B.part; })();
 // השלטים 4 ו-6 (מקום שמור, עיוור עם כלב) על הקיר מעל הקופסה — מורמים כדי שלא ייכנסו בה
-const BASE_BODY = mergeParts('Bus_Body', mapTris(cutDoorways(BODY, Object.values(DOORWAY)), (m, tri) => {
-  if (!isM(m, 'M_Sign4', 'M_Sign6')) return true; const o = tri.slice(); for (let v = 0; v < 3; v++) o[v * 8 + 1] += 0.105; return [o]; }), ARCH_FX);
+const BASE_CACHE = {};
+const baseBody = kind => BASE_CACHE[kind] || (BASE_CACHE[kind] = mergeParts('Bus_Body', mapTris(cutDoorways(unifyValidators(BODY, kind), Object.values(DOORWAY)), (m, tri) => {
+  if (!isM(m, 'M_Sign4', 'M_Sign6')) return true; const o = tri.slice(); for (let v = 0; v < 3; v++) o[v * 8 + 1] += 0.105; return [o]; }), ARCH_FX));
 
 // קטעים: [zLo, zHi, shift] — לוקחים את מה שבין zLo ל-zHi ומזיזים ב-shift
-function splice(segs, { body = BASE_BODY, objs = OBJS, doors = DOORS } = {}) {
+function splice(segs, { body, objs = OBJS, doors = DOORS } = {}) {
   const parts = segs.map(([lo, hi, s]) => translate(clipSlab(body, 2, lo, hi), [0, 0, s]));
   const inSeg = z => segs.find(([lo, hi]) => z >= lo && z <= hi);
   const O = [];
@@ -161,6 +183,7 @@ const r3 = v => v.map(x => +x.toFixed(3));
 // =====================================================================================
 function buildMini() {
   // לפני החיתוך: מוציאים את שורות המושבים 2 ו-7 (אזור עמידה וכסא גלגלים), ואת השלט "תיקוף בסלולרי" שליד הדלת האמצעית מבחוץ
+  const BASE_BODY = baseBody(VAL_KIND.mini), VALIDATORS = VALIDATORS_OF(VAL_KIND.mini);
   let body = dropSeatRow(dropSeatRow(BASE_BODY, 2), 7);
   body = dropBox(body, [-1.4, 1.4, -0.95], [-1.2, 2.1, -0.6], ['M_Sign1']);
   const objs = OBJS.filter(o => !/^SM_Seat(2|7)_/.test(o.name));
@@ -187,14 +210,14 @@ function buildMini() {
   seats.forEach((s, i) => { s.name = `Seat_${String(i + 1).padStart(2, '0')}`; });
   sec.empties = [
     { name: 'Anchor_DoorFront', p: ANCH.Anchor_DoorFront },
-    { name: 'Validator_Front', p: VALIDATORS[0].p, extras: { door: 'Front', kind: 'portrait' } },
+    { name: 'Validator_Front', p: VALIDATORS[0].p, extras: { door: 'Front', kind: VALIDATORS[0].kind } },
     { name: 'Wheelchair_Area', p: [0.85, FLOOR, 0.025 + WC_DZ] },
     ...seats.map(s => ({ name: s.name, p: [s.x, FLOOR, s.z], extras: { back: s.back, cushionY: s.cushionY, side: s.side, pos: s.pos } }))];
   const S = sceneWriter(), { kids, doorNodes } = emitSection(S, sec);
   const extras = { type: 'mini', length: +(6.09 - rearZ + 0.09).toFixed(2), width: 2.55, roofY: 2.9, floorY: FLOOR, frontZ: 6, rearZ: +rearZ.toFixed(3),
     axles: axles.map(z => +z.toFixed(3)), wheelRadius: +(0.53 * WS).toFixed(3), roofLower: { from: Y0, scale: +YS.toFixed(4) },
     doors: [{ name: 'Front', z0: DOORWAY.Front[0], z1: DOORWAY.Front[1], anchor: 'Anchor_DoorFront' }],
-    validators: [{ name: 'Validator_Front', door: 'Front', p: VALIDATORS[0].p }],
+    validatorKind: VAL_KIND.mini, validators: [{ name: 'Validator_Front', door: 'Front', p: VALIDATORS[0].p, kind: VALIDATORS[0].kind }],
     wheelchair: { x: [0.6, 1.25], z: r3([-0.66 + WC_DZ, 0.76 + WC_DZ]) }, standArea: { x: [-1.0, 1.0], z: [0.75, 2.85] },
     seats, poles, strapRings: sec.objs.filter(o => /StrapRing/.test(o.name)).map(o => r3(partBox(o).c)) };
   const scenes = [{ name: 'Scene', nodes: kids }];
@@ -208,7 +231,8 @@ function buildMini() {
 function buildArtic() {
   const ZF = -3.70, GAP = 0.8, PIV = ZF - GAP / 2, ZR = ZF - GAP;      // קצה הקטע הקדמי, ציר הסיבוב, קצה הקטע האחורי
   const RCUT = 1.28, RSH = ZR - RCUT;                                  // הקטע האחורי = המקור [-6, 1.28], מוזז ב-RSH
-  const front = splice([[ZF, 7, 0]]);
+  const BASE_BODY = baseBody(VAL_KIND.artic), VALIDATORS = VALIDATORS_OF(VAL_KIND.artic);
+  const front = splice([[ZF, 7, 0]], { body: BASE_BODY });
   // העמוד שבמקור ב-z = 1.24 (שייך לשורת המושבים שלפניו) היה עומד צמוד למסגרת המעבר — בלעדיו, וגם בלי הבסיס והלחצן שלו
   const rear = splice([[-7, RCUT, RSH]], { body: dropBox(BASE_BODY, [-0.6, 0.6, 1.17], [0.6, 2.3, 1.3], ['M_Trim', 'M_StopBtn', 'M_StopFace']),
     objs: OBJS.filter(o => !/^SM_Pole6/.test(o.name)) });
@@ -244,13 +268,11 @@ function buildArtic() {
   sr.forEach(s => { s.zBus = +(s.z).toFixed(3); s.z = +(s.z - PIV).toFixed(3); s.back = +(s.back - PIV).toFixed(3); });
   const se = (s, section) => ({ name: s.name, p: [s.x, FLOOR, section === 'rear' ? s.z + PIV : s.z], extras: { back: s.back, cushionY: s.cushionY, side: s.side, pos: s.pos, section } });
   front.empties = [{ name: 'Anchor_DoorFront', p: ANCH.Anchor_DoorFront }, { name: 'Anchor_DoorMid', p: ANCH.Anchor_DoorMid },
-    { name: 'Validator_Front', p: VALIDATORS[0].p, extras: { door: 'Front', kind: 'portrait' } },
-    { name: 'Validator_Mid', p: VALIDATORS[1].p, extras: { door: 'Mid', kind: 'portrait' } },
-    { name: 'Validator_Mid2', p: VALIDATORS[2].p, extras: { door: 'Mid', kind: 'landscape' } }, ...sf.map(s => se(s, 'front'))];
+    ...VALIDATORS.map(v => ({ name: v.name, p: v.p, extras: { door: v.door, kind: v.kind } })), ...sf.map(s => se(s, 'front'))];
   const zr = z => z + RSH;   // מקור → קואורדינטות האוטובוס בקטע האחורי
   rear.empties = [{ name: 'Anchor_DoorRear', p: [ANCH.Anchor_DoorMid[0], 0, zr(ANCH.Anchor_DoorMid[2])] },
-    { name: 'Validator_Rear', p: [VALIDATORS[1].p[0], VALIDATORS[1].p[1], zr(VALIDATORS[1].p[2])], extras: { door: 'Rear', kind: 'portrait' } },
-    { name: 'Validator_Rear2', p: [VALIDATORS[2].p[0], VALIDATORS[2].p[1], zr(VALIDATORS[2].p[2])], extras: { door: 'Rear', kind: 'landscape' } }, ...sr.map(s => se(s, 'rear'))];
+    { name: 'Validator_Rear', p: [VALIDATORS[1].p[0], VALIDATORS[1].p[1], zr(VALIDATORS[1].p[2])], extras: { door: 'Rear', kind: VALIDATORS[1].kind } },
+    { name: 'Validator_Rear2', p: [VALIDATORS[2].p[0], VALIDATORS[2].p[1], zr(VALIDATORS[2].p[2])], extras: { door: 'Rear', kind: VALIDATORS[2].kind } }, ...sr.map(s => se(s, 'rear'))];
   rear.doors = rear.doors.filter(d => d.key === 'Mid');
   rear.objs = rear.objs.filter(o => !/^SM_Sign(Dest|Num)/.test(o.name));
 
@@ -268,9 +290,9 @@ function buildArtic() {
     doors: [{ name: 'Front', z0: DOORWAY.Front[0], z1: DOORWAY.Front[1], anchor: 'Anchor_DoorFront', section: 'front' },
       { name: 'Mid', z0: DOORWAY.Mid[0], z1: DOORWAY.Mid[1], anchor: 'Anchor_DoorMid', section: 'front' },
       { name: 'Rear', z0: +zr(DOORWAY.Mid[0]).toFixed(3), z1: +zr(DOORWAY.Mid[1]).toFixed(3), anchor: 'Anchor_DoorRear', section: 'rear', zLocal: r3([zr(DOORWAY.Mid[0]) - PIV, zr(DOORWAY.Mid[1]) - PIV]) }],
-    validators: [...VALIDATORS.map(v => ({ name: v.name, door: v.door, p: v.p, section: 'front' })),
-      { name: 'Validator_Rear', door: 'Rear', p: r3([VALIDATORS[1].p[0], VALIDATORS[1].p[1], zr(VALIDATORS[1].p[2])]), section: 'rear' },
-      { name: 'Validator_Rear2', door: 'Rear', p: r3([VALIDATORS[2].p[0], VALIDATORS[2].p[1], zr(VALIDATORS[2].p[2])]), section: 'rear' }],
+    validatorKind: VAL_KIND.artic, validators: [...VALIDATORS.map(v => ({ name: v.name, door: v.door, p: v.p, kind: v.kind, section: 'front' })),
+      { name: 'Validator_Rear', door: 'Rear', p: r3([VALIDATORS[1].p[0], VALIDATORS[1].p[1], zr(VALIDATORS[1].p[2])]), kind: VALIDATORS[1].kind, section: 'rear' },
+      { name: 'Validator_Rear2', door: 'Rear', p: r3([VALIDATORS[2].p[0], VALIDATORS[2].p[1], zr(VALIDATORS[2].p[2])]), kind: VALIDATORS[2].kind, section: 'rear' }],
     seats: [...sf, ...sr], poles: [...polesOf(front.objs, 'front', 0), ...polesOf(rear.objs, 'rear', 0).map(p => ({ ...p, zLocal: +(p.z - PIV).toFixed(3) }))],
     strapRings: [...front.objs, ...rear.objs].filter(o => /StrapRing/.test(o.name)).map(o => r3(partBox(o).c)),
     note: 'Section_Rear ו-Section_Front הם עצמות (Bone) של המפוח — לשכפל עם SkeletonUtils.clone ולא עם scene.clone' };
@@ -284,7 +306,8 @@ function buildArtic() {
 // 3. חשמלי 12 מ': אותו פנים ואותן דלתות; מארז סוללות אחד ארוך על הגג, חזית סגורה, מכסה שקע טעינה; בלי שלט סולר (28) ופליטת עשן (32)
 // =====================================================================================
 function buildElec() {
-  let body = BASE_BODY;
+  const VALIDATORS = VALIDATORS_OF(VAL_KIND.elec);
+  let body = baseBody(VAL_KIND.elec);
   // הגג: מוציאים את שני המארזים הלבנים ואת פתחי האוורור שעליהם
   body = mapTris(body, (m, tri) => { const b = triBox(tri); if (isM(m, 'M_RoofWhite') && b.mn[1] > 3.1) return null; if (isM(m, 'M_Trim') && b.mn[1] > 3.3) return null; return true; });
   body = mapTris(body, m => isM(m, 'M_Sign28', 'M_Sign32') ? null : true);
@@ -311,14 +334,26 @@ function buildElec() {
   const S = sceneWriter(), { kids, doorNodes } = emitSection(S, sec);
   const extras = { type: 'elec', length: 12.19, width: 2.55, roofY: 3.53, floorY: FLOOR, frontZ: 6, rearZ: -6, axles: [AXLE.F, AXLE.R],
     doors: [{ name: 'Front', z0: DOORWAY.Front[0], z1: DOORWAY.Front[1], anchor: 'Anchor_DoorFront' }, { name: 'Mid', z0: DOORWAY.Mid[0], z1: DOORWAY.Mid[1], anchor: 'Anchor_DoorMid' }],
-    validators: VALIDATORS.map(v => ({ name: v.name, door: v.door, p: v.p })), seats, poles,
+    validatorKind: VAL_KIND.elec, validators: VALIDATORS.map(v => ({ name: v.name, door: v.door, p: v.p, kind: v.kind })), seats, poles,
     strapRings: sec.objs.filter(o => /StrapRing/.test(o.name)).map(o => r3(partBox(o).c)) };
   const r = finish(path.join(DIR, 'assets/bus_elec.glb'), S, { animations: [doorAnim(doorNodes)], extras, scenes: [{ name: 'Scene', nodes: kids }] });
   return { extras, ...r };
 }
 
+// =====================================================================================
+// 0. הרגיל (assets/bus.glb): הדגם של Blender כמו שהוא, רק המתקפים מסוג אחד. מחליפים רק את הרשת של Bus_Body
+// =====================================================================================
+function buildStd() {
+  const n = J.nodes[bodyI], t = n.translation || [0, 0, 0];
+  if (n.rotation || n.scale || n.matrix) throw new Error('Bus_Body עם סיבוב/קנה מידה — צריך להפוך את המטריצה');
+  const local = translate(unifyValidators(BODY, VAL_KIND.std), t.map(v => -v));
+  const r = replaceMeshesGLB(g, path.join(DIR, 'assets/bus.glb'), new Map([[n.mesh, local]]));
+  console.log('bus.glb tris', triCount(local), 'bytes', r.bytes, 'validators', VAL_KIND.std);
+}
+
 const only = process.argv[2];
 const out = {};
 console.log('bus.glb tris', triCount(BODY) + OBJS.reduce((s, o) => s + triCount(o), 0) + DOORS.reduce((s, d) => s + triCount(d.leaf), 0));
+if (!only || only === 'std') buildStd();
 for (const [k, f] of [['mini', buildMini], ['artic', buildArtic], ['elec', buildElec]]) if (!only || only === k) { const r = f(); out[k] = { file: `bus_${k}.glb`, tris: r.tris, bytes: r.bytes, ...r.extras }; }
 if (!only) fs.writeFileSync(path.join(DIR, 'assets/bus_variants.json'), JSON.stringify(out, null, 1) + '\n');

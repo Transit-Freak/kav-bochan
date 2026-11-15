@@ -230,3 +230,59 @@ export function writeGLB(file, { src, materials, matRemap, nodes, scenes, meshes
   fs.writeFileSync(file, Buffer.concat([head, ch(js, 0x4E4F534A), ch(binPad, 0x004E4942)]));
   return { tris: gltfMeshes.reduce((s, m) => s + m.primitives.reduce((t, p) => t + accessors[p.indices].count / 3, 0), 0), bytes: fs.statSync(file).size };
 }
+
+// ---------- החלפת רשת אחת בתוך GLB קיים (כל השאר — צמתים, אנימציה, חומרים, טקסטורות — נשאר כמו שהוא)
+// parts: Map<meshIndex, part> — המשולשים כבר בקואורדינטות המקומיות של הרשת. חומר שלא מופיע ב-part יוצא מהרשת.
+export function replaceMeshesGLB(src, file, parts) {
+  const json = JSON.parse(JSON.stringify(src.json)), newViews = [];   // newViews[k] = Buffer, ה-bufferView שלה: -(k+1) עד הדחיסה
+  const accessor = (arr, type, compType, target, minmax = false) => {
+    const T = COMP[compType], typed = new T(arr);
+    newViews.push({ buf: Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength), target });
+    const a = { bufferView: -newViews.length, componentType: compType, count: arr.length / NCOMP[type], type };
+    if (minmax) { const n = NCOMP[type], mn = new Array(n).fill(Infinity), mx = new Array(n).fill(-Infinity); for (let i = 0; i < arr.length; i++) { const c = i % n; mn[c] = Math.min(mn[c], arr[i]); mx[c] = Math.max(mx[c], arr[i]); } a.min = mn; a.max = mx; }
+    json.accessors.push(a); return json.accessors.length - 1;
+  };
+  for (const [mi, part] of parts) {
+    const old = new Map(json.meshes[mi].primitives.map(p => [p.material, p])), prims = [];
+    for (const [m, a] of [...part.prims].sort((x, y) => x[0] - y[0])) {
+      if (!a.length) continue;
+      const key = new Map(), P = [], N = [], U = [], I = [];
+      for (let i = 0; i < a.length; i += 8) {
+        const k = Array.from(a.slice(i, i + 8), v => Math.round(v * 1e5)).join(',');
+        let idx = key.get(k);
+        if (idx == null) { idx = P.length / 3; key.set(k, idx); P.push(a[i], a[i + 1], a[i + 2]); const l = Math.hypot(a[i + 3], a[i + 4], a[i + 5]) || 1; N.push(a[i + 3] / l, a[i + 4] / l, a[i + 5] / l); U.push(a[i + 6], a[i + 7]); }
+        I.push(idx);
+      }
+      const { attributes: _a, indices: _i, ...rest } = old.get(m) || { mode: 4 };
+      prims.push({ ...rest, attributes: { POSITION: accessor(P, 'VEC3', 5126, 34962, true), NORMAL: accessor(N, 'VEC3', 5126, 34962), TEXCOORD_0: accessor(U, 'VEC2', 5126, 34962) },
+        indices: accessor(I, 'SCALAR', P.length / 3 > 65535 ? 5125 : 5123, 34963), material: m });
+    }
+    json.meshes[mi].primitives = prims;
+  }
+  // דחיסה: רק accessors ו-bufferViews שבשימוש
+  const usedAcc = new Set();
+  for (const me of json.meshes) for (const p of me.primitives) { Object.values(p.attributes).forEach(i => usedAcc.add(i)); if (p.indices != null) usedAcc.add(p.indices); (p.targets || []).forEach(t => Object.values(t).forEach(i => usedAcc.add(i))); }
+  for (const an of json.animations || []) for (const s of an.samplers) { usedAcc.add(s.input); usedAcc.add(s.output); }
+  for (const s of json.skins || []) if (s.inverseBindMatrices != null) usedAcc.add(s.inverseBindMatrices);
+  const accOrder = [...usedAcc].sort((a, b) => a - b), accMap = new Map(accOrder.map((a, i) => [a, i]));
+  const viewMap = new Map(), views = [], chunks = []; let len = 0;
+  const useView = v => { let ni = viewMap.get(v); if (ni != null) return ni;
+    const buf = v < 0 ? newViews[-v - 1].buf : src.view(v), target = v < 0 ? newViews[-v - 1].target : json.bufferViews[v].target;
+    const pad = (4 - (len % 4)) % 4; if (pad) { chunks.push(Buffer.alloc(pad)); len += pad; }
+    const bv = { buffer: 0, byteOffset: len, byteLength: buf.length }; if (target) bv.target = target; if (v >= 0 && json.bufferViews[v].byteStride) bv.byteStride = json.bufferViews[v].byteStride;
+    views.push(bv); chunks.push(buf); len += buf.length; ni = views.length - 1; viewMap.set(v, ni); return ni; };
+  const accessors = accOrder.map(i => { const a = { ...json.accessors[i] }; if (a.bufferView != null) a.bufferView = useView(a.bufferView); return a; });
+  for (const im of json.images || []) if (im.bufferView != null) im.bufferView = useView(im.bufferView);
+  const ra = i => accMap.get(i);
+  for (const me of json.meshes) for (const p of me.primitives) { for (const k in p.attributes) p.attributes[k] = ra(p.attributes[k]); if (p.indices != null) p.indices = ra(p.indices); (p.targets || []).forEach(t => { for (const k in t) t[k] = ra(t[k]); }); }
+  for (const an of json.animations || []) for (const s of an.samplers) { s.input = ra(s.input); s.output = ra(s.output); }
+  for (const s of json.skins || []) if (s.inverseBindMatrices != null) s.inverseBindMatrices = ra(s.inverseBindMatrices);
+  json.accessors = accessors; json.bufferViews = views;
+  const binBuf = Buffer.concat(chunks), binPad = Buffer.concat([binBuf, Buffer.alloc((4 - binBuf.length % 4) % 4)]);
+  json.buffers = [{ byteLength: binPad.length }];
+  let js = Buffer.from(JSON.stringify(json), 'utf8'); js = Buffer.concat([js, Buffer.alloc((4 - js.length % 4) % 4, 0x20)]);
+  const head = Buffer.alloc(12); head.writeUInt32LE(0x46546C67, 0); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + 8 + js.length + 8 + binPad.length, 8);
+  const ch = (buf, type) => { const h = Buffer.alloc(8); h.writeUInt32LE(buf.length, 0); h.writeUInt32LE(type, 4); return Buffer.concat([h, buf]); };
+  fs.writeFileSync(file, Buffer.concat([head, ch(js, 0x4E4F534A), ch(binPad, 0x004E4942)]));
+  return { bytes: fs.statSync(file).size };
+}
