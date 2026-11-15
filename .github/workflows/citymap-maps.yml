@@ -12,6 +12,7 @@ on:
       - '.github/workflows/citymap-maps.yml'
       - 'tools/citymap.py'
       - 'tools/citymap-render.py'
+      - 'tools/citymap-build.py'
   workflow_dispatch:
 
 permissions:
@@ -37,7 +38,11 @@ jobs:
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
           curl -fSL --connect-timeout 20 --max-time 1800 --retry 15 --retry-all-errors --retry-delay 60 -A "$UA" \
             -o gtfs.zip "https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip"
-          unzip -o gtfs.zip stops.txt stop_times.txt trips.txt routes.txt
+          # shapes.txt (המסלול האמיתי) ו-calendar.txt (נסיעות בשבוע). הכול יחד כ-1GB פרוס,
+          # מול כ-14GB פנויים ב-runner; ה-zip נמחק מיד אחרי החילוץ.
+          unzip -o gtfs.zip stops.txt stop_times.txt trips.txt routes.txt shapes.txt calendar.txt agency.txt
+          rm -f gtfs.zip
+          df -h . | tail -1
 
       - name: Fetch POI layer (osm-poi branch)
         run: |
@@ -53,12 +58,9 @@ jobs:
       - name: Render maps
         run: |
           set -euo pipefail
-          mkdir -p unreleased/citymap/maps
-          for f in /tmp/citydata/*.json; do
-            b="$(basename "$f")"
-            [ "$b" = "cities.json" ] && continue
-            POI=poi.json python3 tools/citymap-render.py "$f" "unreleased/citymap/maps/${b%.json}.html"
-          done
+          # כל עיר בכל רמות התצוגה (פנימיים / + מטרופוליניים / כל הקווים); דפים ישנים נמחקים
+          rm -rf unreleased/citymap/maps
+          POI=poi.json python3 tools/citymap-build.py /tmp/citydata unreleased/citymap/maps
           cp /tmp/citydata/cities.json unreleased/citymap/cities.json
           ls unreleased/citymap/maps | head -50
 
@@ -80,7 +82,7 @@ jobs:
       - name: Commit maps to main
         run: |
           set -euo pipefail
-          rm -f gtfs.zip stops.txt stop_times.txt trips.txt routes.txt poi.json
+          rm -f gtfs.zip stops.txt stop_times.txt trips.txt routes.txt shapes.txt calendar.txt agency.txt poi.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # main עלול לזוז בזמן הריצה — שומרים פלט, מתעדכנים, מחילים ודוחפים (עם ניסיונות חוזרים)

@@ -600,7 +600,7 @@ def rpath(pts,r=5.0):
     out.append(f'L{pts[-1][0]:.1f} {pts[-1][1]:.1f}')
     return ' '.join(out)
 
-svg=[]; chips=[]; strips=[]; gst={}; chains_all=[]
+svg=[]; chips=[]; strips=[]; gst={}; chains_all=[]; _ends={}
 _labcnt=Counter(L['label'] for L in lines if not L['br'])
 _grps=[L['grp'] for L in lines if not L['br']]
 _gcol={g:PAL[i%len(PAL)] for i,g in enumerate(_grps)}
@@ -705,7 +705,7 @@ for i,L in enumerate(lines):
     chain[0]=(chain[0][0]+ts0[0],chain[0][1]+ts0[1])
     chain[-1]=(chain[-1][0]+ts1[0],chain[-1][1]+ts1[1])
     dd=rpath(chain)
-    chains_all.append(chain)
+    chains_all.append(chain); _ends[num]=chain
     g=L['grp']; _dash=' stroke-dasharray="7 4"' if L['br'] else ''
     svg.append(f'<path class="lnw lnw-{g}" d="{dd}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
     svg.append(f'<path class="ln ln-{g}" data-k="{num}" d="{dd}" stroke="{col}"{_dash} fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
@@ -776,6 +776,30 @@ def _cover(bx,by,w,h):
 
 # ---- תחנות עוגן: עיגול + תווית, מוצג תמיד; בבחירת קו — מודגשות רק שלו ----
 gels=[]
+# ---- מספרי קווים: תג בצבע הקו ליד כל קצה של הקו ----
+# התג מחפש מקום פנוי בהמשך הקו או לצידו, מתרחק בהדרגה; תגים של קווים שנגמרים באותה
+# תחנה מסתדרים זה ליד זה. התגים נרשמים ב-occ, כך שתוויות התחנות והשכונות לא עולות עליהם.
+lbl_els=[]
+for L in lines:
+    if L['br'] or L['num'] not in _ends or len(_ends[L['num']])<2: continue
+    ch=_ends[L['num']]; lab=L['label']; w=len(lab)*6.6+9; h=14; done=[]
+    for a,b2 in ((ch[0],ch[1]),(ch[-1],ch[-2])):
+        if any(math.hypot(a[0]-q[0],a[1]-q[1])<26 for q in done): continue   # קו מעגלי — תג אחד
+        done.append(a)
+        dx,dy=a[0]-b2[0],a[1]-b2[1]; n_=math.hypot(dx,dy) or 1.0; ux,uy=dx/n_,dy/n_
+        best=None
+        for dist in (12,24,36,50,66,84):
+            for px,py in ((ux,uy),(ux-uy,uy+ux),(ux+uy,uy-ux),(-uy,ux),(uy,-ux)):
+                m_=math.hypot(px,py); px/=m_; py/=m_
+                cx_=a[0]+px*(dist+w/2*abs(px)); cy_=a[1]+py*(dist+h/2*abs(py))
+                if not (w/2+2<cx_<W-w/2-2 and h/2+2<cy_<H-h/2-2): continue
+                if not _box_free(cx_,cy_,w+3,h+3): continue
+                sc2=_cover(cx_,cy_,w-10,h-10)*8+dist
+                if best is None or sc2<best[0]: best=(sc2,cx_,cy_)
+            if best and best[0]<=dist: break
+        if not best: continue
+        _,cx_,cy_=best; occ.append((cx_,cy_,w+3,h+3))
+        lbl_els.append(f'<g class="lb lb-{L["grp"]}" data-l="{L["grp"]}"><rect x="{cx_-w/2:.1f}" y="{cy_-h/2:.1f}" width="{w:.1f}" height="{h}" rx="4" fill="{color[L["num"]]}" stroke="#fff" stroke-width="1.5"/><text x="{cx_:.1f}" y="{cy_+3.8:.1f}" text-anchor="middle" style="direction:ltr">{escape(lab)}</text></g>')
 for kk,e in sorted(gst.items(),key=lambda kv:-len(kv[1]['lines'])):
     x,y=P(e['pos'])
     nm=escape(e['name']); w=len(e['name'])*7.2+12
@@ -830,7 +854,7 @@ for seglen,stn,(x1,y1),(x2,y2),nl in sorted(cand,key=lambda t:-t[0]):
     named.add(stn)
     stlab.append(f'<text class="strt" x="{lx:.0f}" y="{ly:.0f}" transform="rotate({ang:.0f} {lx:.0f} {ly:.0f})" text-anchor="middle" style="direction:ltr">{escape(stn)}</text>')
 svg.append('<g>'+''.join(stlab)+'</g>')
-svg.append('<g>'+''.join(gels)+'</g>')
+svg.append('<g>'+''.join(gels)+''.join(lbl_els)+'</g>')
 
 # ---- שכבת רקע: שכונות ומקומות מרכזיים מ-OSM (poi.json, אופציונלי) ----
 # כל תווית מחפשת נקודה פנויה בסביבתה (בדיקה מול גאומטריית הקווים), מקבלת
@@ -873,8 +897,8 @@ if _poip and _os.path.exists(_poip):
         x,y=P((_interp(px,cols)*U,_interp(py,rows)*U))
         if not (PAD-20<x<W-PAD+20 and PAD-20<y<H-PAD+20): continue
         hood=(p['k']=='hood')
-        wbox=(len(p['n'])*11+12) if hood else (len(p['n'])*7+24)
-        hbox=26 if hood else 16
+        wbox=(len(p['n'][:22])*10.5+14) if hood else (len(p['n'][:22])*7.4+30)
+        hbox=22 if hood else 17
         best=None
         for ox,oy in _CAND:
             bx,by=x+ox,y+oy
@@ -884,12 +908,12 @@ if _poip and _os.path.exists(_poip):
             sc2=cv*100+abs(ox)+abs(oy)
             if best is None or sc2<best[0]: best=(sc2,bx,by)
             if cv==0: break
-        if best is None: continue
+        if best is None or best[0]>=(300 if hood else 200): continue   # אין מקום שאינו על הקווים — מוותרים על התווית
         _,bx,by=best
         occ.append((bx,by-6,wbox,hbox))
         nmx=escape(p['n'][:22])
         if hood:
-            bgels.append(f'<text x="{bx:.0f}" y="{by:.0f}" text-anchor="middle" font-size="19" font-weight="900" fill="#bcc7d4" letter-spacing="1" stroke="#fff" stroke-width="5" paint-order="stroke" style="direction:ltr">{nmx}</text>')
+            bgels.append(f'<text x="{bx:.0f}" y="{by:.0f}" text-anchor="middle" font-size="16" font-weight="900" fill="#c3ccd8" letter-spacing="1" stroke="#fff" stroke-width="5" paint-order="stroke" style="direction:ltr">{nmx}</text>')
         else:
             ic={'park':'🌳','mall':'🛍️','cemetery':'🕍'}.get(p['k'],'')
             col2={'park':'#8fb88f','mall':'#a99cc4','cemetery':'#a9b3a9'}.get(p['k'],'#b8c2cc')
@@ -945,6 +969,9 @@ body.sel .strip.on{{display:block}}
 .lnc,.lncw{{display:none;pointer-events:none}}
 .gst{{pointer-events:none;transition:opacity .2s}}
 .gst text{{font-size:12.5px;font-weight:900;fill:#1e3a8a;stroke:#fff;stroke-width:5;paint-order:stroke}}
+.lb{{cursor:pointer;transition:opacity .2s}}
+.lb text{{font-size:10.5px;font-weight:900;fill:#fff;pointer-events:none}}
+body.sel .lb{{opacity:.1}} body.sel .lb.on{{opacity:1}}
 .strt{{font-size:11px;font-weight:700;fill:#94a3b8;stroke:#fff;stroke-width:3.5;paint-order:stroke;pointer-events:none}}
 body.sel .ln{{opacity:.08}}
 body.sel .lnw{{opacity:0}}
@@ -968,16 +995,19 @@ const b=document.body;
 document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{{
   const l=c.dataset.l;
   document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
-  document.querySelectorAll('.ln,.lnc,.lncw,.gst,.strip').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.ln,.lnc,.lncw,.gst,.strip,.lb').forEach(x=>x.classList.remove('on'));
   if(!l){{b.classList.remove('sel');return}}
   c.classList.add('on'); b.classList.add('sel');
-  document.querySelectorAll('.ln-'+CSS.escape(l)+',.lnc-'+CSS.escape(l)+',.lncw-'+CSS.escape(l)+',.gst-'+CSS.escape(l)).forEach(x=>x.classList.add('on'));
+  document.querySelectorAll('.ln-'+CSS.escape(l)+',.lnc-'+CSS.escape(l)+',.lncw-'+CSS.escape(l)+',.gst-'+CSS.escape(l)+',.lb-'+CSS.escape(l)).forEach(x=>x.classList.add('on'));
   document.querySelectorAll('.strip-'+CSS.escape(l)).forEach(x=>x.classList.add('on'));
 }});
 document.querySelectorAll('.ln').forEach(p=>p.onclick=()=>{{
   const cls=[...p.classList].find(c=>c.startsWith('ln-'));
   document.querySelector('.chip[data-l="'+cls.slice(3)+'"]').click();
 }});
+document.querySelectorAll('.lb').forEach(g=>g.onclick=()=>document.querySelector('.chip[data-l="'+g.dataset.l+'"]').click());
+// בטלפון המפה רחבה מהמסך — פותחים אותה ממורכזת ולא בקצה
+const mb=document.querySelector('.mapbox'); if(mb.scrollWidth>mb.clientWidth) mb.scrollLeft=-(mb.scrollWidth-mb.clientWidth)/2;
 </script></body></html>'''
 open(OUT,'w',encoding='utf-8').write(html)
 print('נכתב',OUT)

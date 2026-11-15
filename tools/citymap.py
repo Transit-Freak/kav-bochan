@@ -22,7 +22,7 @@ MIN_LINES=int(os.environ.get('MIN_LINES','2'))
 MIN_STOPS=8          # קו עם פחות תחנות מזה לא תורם למפה
 CITY_MIN_STOPS=4     # קו נחשב שייך לעיר אם יש לו לפחות כך תחנות בתוכה
 MIN_WEEKLY=int(os.environ.get('MIN_WEEKLY','14'))   # פחות משתי נסיעות ביום בממוצע = קו נדיר
-GAP=3                # עד כך תחנות רצופות מחוץ לעיר לא שוברות את הרצף העירוני
+GAP=8                # עד כך תחנות רצופות מחוץ לעיר לא שוברות את הרצף (קו פנימי שחוצה לרגע עיר שכנה נשאר שלם)
 INT_PS=85; CIRC_PS=80; METRO_PS=50; METRO_PK=40; METRO_WEEKLY=50
 MIN_DEFAULT=5        # פחות מכך קווים פנימיים — ברירת המחדל של העיר עוברת ל"+ מטרופוליניים"
 BR_FAR=300; BR_NEAR=100; BR_MINLEN=250   # כיוון נגדי שמתרחק מעל 300 מ' מצויר כענף נפרד
@@ -223,7 +223,7 @@ for mk,(rm,ro) in picked.items():
             v1,v2,r1=vo,vm,ro
         else: v1,v2,r1=vm,vo,rm
         lo,hi=v1.clip(c)
-        if hi-lo+1<6: continue
+        if hi-lo+1<5: continue
         W=sum(wts)
         ps=sum(w*v.city.count(c)/len(v.sids) for v,w in zip(both,wts))/W
         def kmin(v):
