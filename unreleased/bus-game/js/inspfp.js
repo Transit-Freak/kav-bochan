@@ -273,6 +273,8 @@ export class InspectorFP {
       for (const p of armP) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'arm'); } } return n; };
     this.cur = this.cur || new THREE.Vector3(); const at = pull => this.cur.copy(base).addScaledVector(dir, -pull);
     let need = null; for (let pull = 0; pull <= 0.3001; pull += 0.02) if (!test(at(pull))) { need = pull; break; }
+    // אין מקום למכשיר אלא צמוד למצלמה (משיכה של יותר מ-20 ס"מ — שם הוא יוצא מהתמונה, למשל ליד עמוד כשבודקים עומד גבוה ליד הקיר השמאלי): מורידים אותו
+    if (need != null && need > 0.2) need = null;
     this.pullS = this.pullS || 0; this.drop = this.drop || 0;
     if (need != null) { const back = Math.max(need, this.pullS - 0.6 * dt); this.pullS = need >= this.pullS || test(at(back)) ? need : back; }
     this.drop = THREE.MathUtils.clamp(this.drop + (need == null ? 8 : -5) * dt, 0, 1);

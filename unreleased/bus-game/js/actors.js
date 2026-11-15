@@ -1102,7 +1102,7 @@ export class PeopleLayer {
     else if (win) { T.x = h0.x + (full.x - h0.x) * frac * frac; } else T.z = h0.z + (full.z - h0.z) * frac * frac;
     // בלי כרטיס (היד עולה רק מעט): המרפק נשאר בכיוון שלו במנוחה — מרפק שמחושב מחדש נכנס לצד הגוף
     const el0 = W(fore), restPole = el0.clone().sub(sh.clone().add(h0).multiplyScalar(0.5));
-    twoBone(arm, fore, hd, T, empty && slot.kind === 'seat' && restPole.lengthSq() > 1e-4 ? restPole : win ? new THREE.Vector3(-aisle * 0.2, -0.5, 1) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));
+    twoBone(arm, fore, hd, T, empty && slot.kind === 'seat' && restPole.lengthSq() > 1e-4 ? restPole : win ? new THREE.Vector3(-aisle * 0.15, -1, 0.15) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));   // ליד החלון: המרפק למטה, ליד הגוף (קודם פנה קדימה — הזרוע העליונה התרוממה אל מול החזה והאמה נתלתה ממנה, שלמה 15.11)
     // האצבעות אל המעבר ואל הפקח (הכרטיס ממשיך אותן), ובלי כרטיס — קדימה
     const fdir = empty ? new THREE.Vector3(aisle * 0.15, -0.1, 1) : slot.front ? new THREE.Vector3(aisle * 0.9, 0.1, -0.35) : /Strap/.test(slot.grip || '') ? new THREE.Vector3(aisle * 0.6, 0.15, 0.8) : slot.kind === 'stand' ? new THREE.Vector3(aisle * 0.5, 0.15, 0.85) : win ? new THREE.Vector3(aisle * 0.85, 0.2, 0.45) : new THREE.Vector3(aisle * 0.7, 0.15, 0.7);
     const dir = T.clone().sub(W(fore)).normalize().lerp(fdir.normalize(), frac).normalize();
@@ -1147,7 +1147,9 @@ export class PeopleLayer {
     }
     const us = unsinkHands(root, slot.kind === 'stand' ? hand : null);
     const pen = probe ? reachPen(root, hand) : null;
-    if (probe) { root.userData.fingerPose = fp0; for (const [b, q] of saved) b.quaternion.copy(q); root.updateMatrixWorld(true); return { pen, unsink: us }; }
+    // הזרוע בשלב הזה (לבדיקה): כמה הזרוע העליונה מורמת מהאנך (מעלות), והגובה של המרפק ושל פרק היד יחסית לכתף
+    const armM = (() => { const s = W(arm), e = W(fore), h = W(hd), u = e.clone().sub(s).normalize(); return { elev: Math.round(THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-u.y, -1, 1)))), elbowDy: +(e.y - s.y).toFixed(3), handDy: +(h.y - s.y).toFixed(3), flex: Math.round(THREE.MathUtils.radToDeg(s.clone().sub(e).angleTo(h.clone().sub(e)))) }; })();
+    if (probe) { root.userData.fingerPose = fp0; for (const [b, q] of saved) b.quaternion.copy(q); root.updateMatrixWorld(true); return { pen, unsink: us, arm: armM }; }
     const groups = bakeVariant(V.gltf, base, V.cache);
     // הכרטיס (8.5×5.4 ס"מ) זקוף בין האגודל לאצבעות, הפנים שלו אל הפקח שבמעבר
     const headP = B('Head') ? W(B('Head')).sub(o) : null;
@@ -1820,6 +1822,9 @@ reachPreview(pid, hasCard = true) {
       for (const [name, slot] of slots) for (const empty of [false, true]) for (const frac of REACH_FR) {
         const r = this.reachPose(vi, slot, frac, empty, 0, true); if (!r?.pen) continue;
         if (r.pen.torso.depth > tol.torso || r.pen.arm.depth > tol.arm) bad.push({ name: 'reach', vi, slot: name, empty, frac, torso: r.pen.torso, arm: r.pen.arm });
+        // יושב: הזרוע העליונה נשארת נמוכה בכל שלב — עד tol.elev מעלות מהאנך, והמרפק לפחות tol.elbow מתחת לכתף (היד עולה מכיפוף המרפק)
+        // (חוץ מהשורה הראשונה ליד החלון: שם מושיטים הצידה ואחורה מעל המשענת, אל הפקח שעומד מאחור — היד מעל הכתף)
+        if (slot.kind === 'seat' && !(slot.front && Math.abs(slot.x) > 0.7) && r.arm && (r.arm.elev > (tol.elev ?? 50) || r.arm.elbowDy > -(tol.elbow ?? 0.12))) bad.push({ name: 'reach-elbow', vi, slot: name, empty, frac, ...r.arm });
       }
     }
     return bad;
