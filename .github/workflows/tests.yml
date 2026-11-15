@@ -43,4 +43,4 @@ jobs:
       - name: בדיקות פייתון
         run: |
           python3 -m pip install -q pytest pymupdf lxml   # בדיקות המכרזים קוראות PDF (fitz)
-          python3 -m pytest tests -q
+          python3 -m pytest tests -q --deselect tests/test_alerts_regression.py::Invariants   # בדיקת הנתונים החיים רצה ב-alerts.yml, לא כאן
