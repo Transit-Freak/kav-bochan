@@ -12,14 +12,15 @@
 
 שימוש:
   # שליפת הקבצים לתיקייה (מתוך ריפו חלקי: git show בלבד)
-  python3 tools/build_real_lines.py --fetch SRC_DIR --date 2026-11-09
-  python3 tools/build_real_lines.py --src SRC_DIR
+  python3 tools/build_real_lines.py --fetch SRC_DIR --date 2026-11-09 [--city kiryat-gat]
+  python3 tools/build_real_lines.py --src SRC_DIR [--city kiryat-gat]
 """
 import argparse, csv, json, math, os, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-WORLD = os.path.join(HERE, '..', 'world')
-CITY = 'קרית מלאכי'          # כך בנתוני משרד התחבורה (בעיר במשחק: "קריית מלאכי")
+sys.path.insert(0, HERE)
+from citycfg import load_city
+WORLD = CITY = None          # נקבעים ב-main לפי --city: תיקיית העיר, ושם העיר כמו בנתוני משרד התחבורה (gtfs_name ב-world/cities.json)
 
 
 def git_show(path, out):
@@ -64,7 +65,10 @@ def main():
     ap.add_argument('--src', help='תיקייה עם routes.json, day.json וקבצי הקווים')
     ap.add_argument('--fetch', help='לשלוף את הקבצים מ-origin/main לתיקייה הזו')
     ap.add_argument('--date', default='2026-11-09')
+    ap.add_argument('--city', default=None, help='מזהה העיר ב-world/cities.json (ברירת מחדל: קריית מלאכי)')
     a = ap.parse_args()
+    global WORLD, CITY
+    cfg = load_city(a.city); WORLD = cfg['dir']; CITY = cfg['gtfs_name']
     src = a.src or a.fetch
     if not src:
         sys.exit('צריך --src או --fetch')
@@ -142,7 +146,7 @@ def main():
                cities={city['meta']['city']: dict(lines=lines)})
     with open(os.path.join(WORLD, 'real_lines.json'), 'w', encoding='utf-8') as fo:
         json.dump(out, fo, ensure_ascii=False, separators=(',', ':'))
-    print('נכתב world/real_lines.json:', len(lines), 'כיוונים')
+    print('נכתב', os.path.join(WORLD, 'real_lines.json') + ':', len(lines), 'כיוונים')
 
 
 if __name__ == '__main__':

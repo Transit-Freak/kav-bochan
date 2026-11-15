@@ -12,6 +12,7 @@ import { StopLayer, assignRoadWidths, frameV } from './stops.js';
 import { refreshAll } from './texkeep.js';
 import { INSPECTOR_DAY, FINE, RESERVE_COST } from './ops.js';
 import { Cloud, GOOGLE, userOk, hash } from './cloud.js';
+import { CITY_ID, DEFAULT_CITY, cityKey, legacyKey, cityInfo, loadCities, switchCity, backToDefault, ownKey } from './cityconf.js';
 import { Coverage, Career, CoverageLayer, STAGES, newCareer, COVER_M } from './career.js';
 import { MODES, MODE_ORDER, modeOf, normMode, HARD_GONE } from './difficulty.js';
 import { setupLook, updateLook } from './look.js';
@@ -75,12 +76,19 @@ controls.target.set(0, 0, 0);
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
 let residents, drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
+const FAR_LABELS = 1500;   // מרחק מצלמה שמעליו מסתירים את מספרי התחנות של הקווים
+let labelsFar = false;
 let planning = null, selectedStop = null, selectedLine = null;
 
 async function init() {
   const msg = $('#loadMsg');
-  const [c, dj] = await Promise.all([loadCity('world/city.json'), fetch('world/demand.json').then(r => r.json())]);
+  // העיר (cityconf.js): השם והתיקייה מ-world/cities.json. עיר שהקבצים שלה עוד לא נבנו — חוזרים לברירת המחדל
+  const ci = await loadCities(); showCityName(ci.name);
+  let c, dj;
+  try { [c, dj] = await Promise.all([loadCity(ci.dir + 'city.json'), fetch(ci.dir + 'demand.json').then(r => { if (!r.ok) throw new Error('demand.json ' + r.status); return r.json(); })]); }
+  catch (e) { if (CITY_ID !== DEFAULT_CITY) { msg.textContent = `${ci.name} עוד לא מוכנה. חוזרים ל${cityInfo.all[DEFAULT_CITY]?.name || 'עיר הראשונה'}…`; await new Promise(r => setTimeout(r, 1800)); if (backToDefault()) return new Promise(() => { }); } throw e; }
   city = c;
+  controls.maxDistance = 2600 * Math.max(1, Math.max(...city.meta.half) / 2300);   // עיר גדולה יותר: אפשר להתרחק עד שרואים את כולה
   msg.textContent = 'בונה רחובות ובניינים…';
   await new Promise(r => setTimeout(r, 20));
   buildWorld(scene, city);
@@ -142,7 +150,7 @@ async function init() {
     if (bank.legacy) career.tick(true);
   }
   // משחק ריק שעוד לא נבחר בו תפקיד (פעם ראשונה, או אחרי "התחל מחדש" ורענון) — מסך הפתיחה
-  let picked = false; try { picked = localStorage.getItem('busgame.rolePicked') === '1'; } catch { }
+  let picked = false; try { picked = localStorage.getItem(legacyKey('rolePicked')) === '1'; } catch { }
   if (!lineDefs.length && (!saved || !picked)) setTimeout(() => askRole(), 400);
   night = new NightFast(sim, () => lines, { setSpeed, toast, busy: () => !!planning || !$('#lineForm').hidden });
   bindUI(); applyModeUI(); renderLines(); renderMoney();
@@ -155,7 +163,9 @@ async function init() {
   // ענן: רק אם השחקן כבר בחר בזה במכשיר הזה (יש חיבור שמור). אחרת — אין גישה לרשת
   cloud = new Cloud(() => renderAccount());
   renderAccount();
-  cloud.resume().then(on => { if (on) cloudStart(); });
+  // הענן שומר משחק אחד לחשבון (של קריית מלאכי). בעיר אחרת — השמירה במכשיר בלבד, בלי ענן
+  if (CITY_ID === DEFAULT_CITY) cloud.resume().then(on => { if (on) cloudStart(); });
+  else { const ab = $('#accountBox'); if (ab) ab.hidden = true; }
   setInterval(() => { if (cloud.on && !cloud.busy) pushAuto(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (document.hidden && !wiping) bank.save(sim.time); else refreshGraphics('visible'); });
   Object.assign(G, { city, graph, sim, bank, people, buses, residents: () => residents, paxCardAt: (x, y) => paxCardAt(x, y), fp: () => fp, boardFP: () => boardFP(), shift: () => shift, drive: () => drive, lines: () => lines, stopsById, cams, planTap: id => tapStop(stopsById.get(id)), removeLine, startReverse, cloud: () => cloud, pushAuto, cloudStart, renderDispatch, renderOps, career: () => career, coverage: () => coverage, renderMissions, setCoverView, askMode, saveSlot, loadSlot, readSlots, resetGame, reverseStops, stopScreen, busScreen, startPlanning, finishPlanning, saveForm: saveLineFromForm, editLine: openEdit, TYPES, sched: () => sim.roster, hireDrivers, setDispView: v => { dispView = v; renderDispatch(true); },
@@ -622,7 +632,7 @@ function addLine(def, fresh) {
   if (L.error !== undefined) { console.warn('line route failed', def); return null; }
   sim.addLine(L); lines.push(L);
   const g = routeMesh(L.poly, def.color, L.stops.map(s => [s.world.x, -s.world.z]));
-  if (dview.on) g.children.forEach(c => { if (c.isSprite) c.visible = false; });
+  if (dview.on || labelsFar) g.children.forEach(c => { if (c.isSprite) c.visible = false; });
   lineGroups.set(def.id, g); scene.add(g);
   return L;
 }
@@ -1128,7 +1138,7 @@ const ROLE_INSP = p => p.role === 'insp';
 // הקווים העירוניים האמיתיים של העיר (world/real_lines.json, tools/build_real_lines.py): לכל כיוון — התחנות והתדירות בכל שעה
 let REAL = null;
 async function realLines() {
-  if (!REAL) { try { const d = await (await fetch('world/real_lines.json')).json(); REAL = Object.values(d.cities || {})[0]?.lines || []; } catch { REAL = []; } }
+  if (!REAL) { try { const d = await (await fetch(cityInfo.dir + 'real_lines.json')).json(); REAL = Object.values(d.cities || {})[0]?.lines || []; } catch { REAL = []; } }
   return REAL;
 }
 const HW_OPTS = [5, 10, 15, 20, 30, 60];
@@ -1137,11 +1147,23 @@ const realHw = (def, h) => { const m = def.real?.hw?.[h]; return m ? snapHw(m) :
 const LINE_COLOR = { 1: '#0ea5e9', 2: '#ef4444', 3: '#22c55e', 11: '#f59e0b' };
 const ROLE_OFF = new Set(['inspector']);
 const ROLE_NAME = { driver: 'נהג', planner: 'מתכנן', dispatcher: 'סדרן', inspector: 'פקח' };
-function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; $('#roleAsk').hidden = false; }
+function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; renderCityPick(); $('#roleAsk').hidden = false; }
+// ---------- בחירת עיר (במסך הפתיחה, מעל התפקידים): כל עיר — מפה נפרדת ושמירה נפרדת. מעבר עיר טוען את הדף מחדש
+function showCityName(name) {
+  document.title = 'משחק הקווים · ' + name;
+  for (const e of document.querySelectorAll('.cityName')) e.textContent = name;
+  $('#view')?.setAttribute('aria-label', 'מפה תלת־ממדית של ' + name);
+}
+function renderCityPick() {
+  const box = $('#cityPick'); if (!box) return;
+  const ids = Object.keys(cityInfo.all); box.hidden = ids.length < 2;
+  box.innerHTML = '<span>עיר:</span>' + ids.map(id => `<button type="button" data-city="${esc(id)}"${id === CITY_ID ? ' class="on" aria-pressed="true"' : ''}>${esc(cityInfo.all[id].name)}</button>`).join('');
+  box.onclick = e => { const b = e.target.closest('[data-city]'); if (!b || b.dataset.city === CITY_ID) return; bank.save(sim.time); switchCity(b.dataset.city); };
+}
 async function chooseRole(role) {
   if (ROLE_OFF.has(role)) return;
   $('#roleAsk').hidden = true;
-  try { localStorage.setItem('busgame.rolePicked', '1'); } catch { }
+  try { localStorage.setItem(legacyKey('rolePicked'), '1'); } catch { }
   if (role === 'planner') {
     // ממשיכים משחק של מתכנן; אחרת (רשת מוכנה או משחק ריק) — משחק חדש עם בחירת רמה
     if (bank.role === 'planner' && lineDefs.length) { applyRoleUI(false); return; }
@@ -1422,7 +1444,7 @@ function dispatchAction(e) {
   renderDispatch(true);
 }
 // ---------- משחק: התחלה מחדש, ושמירות בשם (נוסף לשמירה האוטומטית). הכל ב-localStorage בתוך try/catch
-const SLOTS_KEY = 'busgame.kiryat-malachi.slots.v1';
+const SLOTS_KEY = cityKey('slots.v1');     // לכל עיר שמירות משלה (קריית מלאכי: busgame.kiryat-malachi.slots.v1, כמו תמיד)
 function readSlots() { try { const a = JSON.parse(localStorage.getItem(SLOTS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
 function writeSlots(a) { try { localStorage.setItem(SLOTS_KEY, JSON.stringify(a)); return true; } catch { return false; } }
 const dayTime = t => `יום ${dayOf(t)}, ${clockText(t)}`;
@@ -1630,7 +1652,7 @@ async function startOver(delCloud) {
   try {
     hasAuth = Object.keys(localStorage).some(k => k.startsWith('busgame.auth'));
     const keep = k => k.startsWith('busgame.auth') || (hasAuth && k === CLOUD_META);
-    for (const k of Object.keys(localStorage)) if (k.startsWith('busgame.') && !keep(k)) localStorage.removeItem(k);
+    for (const k of Object.keys(localStorage)) if (ownKey(k) && !keep(k)) localStorage.removeItem(k);   // רק העיר הנוכחית; שמירות של ערים אחרות נשארות
     if (hasAuth && !delCloud) cloud.setMeta({ reset: Date.now() });
   } catch { }
   // מכאן לא נשמר כלום (השמירה האוטומטית, היציאה מהדף) — עד הטעינה מחדש
@@ -1765,7 +1787,7 @@ function setDemandView(on, hour, fit) {
     fitWide(core.map(z => dlayer.anchor[z.id]), 28, 0);
   }
   // מספרי התחנות ותוויות האוטובוסים מסתירים את קווי הביקוש — מסתירים אותם בזמן הזה
-  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on; });
+  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on && !labelsFar; });
   buses.hideLabels = on;
   if (!on) { controls.maxDistance = 2600; look.fogMin.near = 0; look.fogMin.far = 0; }
   if ($('[data-pane="demand"]').classList.contains('on')) renderDemand();
@@ -1960,6 +1982,13 @@ function flushToasts() { if (toastQ.length && !modalOpen() && $('#toast').hidden
 // ---------- לולאה
 const clock = new THREE.Clock();
 let acc = 0, fcount = 0, statT = 0, missionT = 0;
+// מרחוק (כל העיר על המסך) מספרי התחנות של הקווים נערמים זה על זה — מסתירים אותם עד שמתקרבים
+function farLabels() {
+  const far = camera.position.distanceTo(controls.target) > FAR_LABELS;
+  if (far === labelsFar || routeHi) return;
+  labelsFar = far;
+  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !far && !dview.on; });
+}
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.25);
@@ -1999,6 +2028,7 @@ function tick(dt) {
     t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));
     controls.update();
   }
+  farLabels();
   updateLook(look, camera, controls.target);
   renderer.render(scene, camera);
   if (dview.on && dlayer) dlayer.draw(camera);

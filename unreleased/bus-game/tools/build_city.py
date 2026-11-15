@@ -1,9 +1,11 @@
 """בונה את world/city.json של משחק האוטובוס מנתוני OpenStreetMap ומתחנות ה-GTFS.
 
 קלט:
-  world/osm_raw.json.gz — פלט Overpass (ה-workflow ‏bus-game-osm מוריד אותו)
-  world/gtfs_stops.csv  — התחנות הפעילות בתחום העיר, מתוך stops.txt בענף gtfs-data
-הרצה:  python3 tools/build_city.py   (מתוך unreleased/bus-game; צריך shapely)
+  world/cities.json     — הגדרות הערים: שם, מרכז, גבולות ותיקייה (tools/citycfg.py)
+  <תיקיית העיר>/osm_raw.json.gz — פלט Overpass (ה-workflow ‏bus-game-osm מוריד אותו, לפי העיר)
+  <תיקיית העיר>/gtfs_stops.csv  — התחנות בתחום המפה, מתוך stops.txt של ה-GTFS (tools/fetch_gtfs_stops.py)
+הרצה:  python3 tools/build_city.py [עיר]   (מתוך unreleased/bus-game; צריך shapely. בלי פרמטר — קריית מלאכי)
+       קריית מלאכי: world/ ; קרית גת: world/kiryat-gat/
 
 הפלט (מטרים, ראשית במרכז העיר, x מזרחה, y צפונה; ערכים שלמים בדצימטרים):
   buildings: [[h_dm, x0,y0,x1,y1,...], ...]           טבעת חיצונית, בלי חזרה על הנקודה הראשונה
@@ -22,6 +24,9 @@
                                                        הכביש נוסע האוטובוס בכל קשת (1.8 מ'; בחד-סטרי צר — פחות)
   stops:     [{id, code, name, x, y, e, t, w}]         e = קשת ברשת (אינדקס לזוג ב-edges), t = מיקום על הקשת 0..1,
                                                        w = משקל ביקוש (שטח הבנייה בסביבה, מנורמל)
+  rail:      [[x0,y0,x1,y1,...], ...]                  מסילות רכבת (railway=rail, בלי מנהרות), חתוכות לגבולות המפה
+  platforms: [[x0,y0,...], ...]                        רציפי רכבת (טבעת)
+  rail_stations: [{name, x, y}]                        תחנות רכבת (שם מ-OSM, ואם אין — "תחנת רכבת <העיר>"), מטרים
 
 כלל המקום לאוטובוס: כל רחוב דו-סטרי שהאוטובוס יכול לנסוע בו מצויר ברוחב 6.6 מ' לפחות (2 × (1.8 + 1.275) + 0.4),
 ובחד-סטרי האוטובוס נוסע קרוב יותר למרכז, כך שהוא נשאר על האספלט. בפניות — אספלט נוסף בצורת המעטפת של האוטובוס.
@@ -36,14 +41,17 @@ from shapely.prepared import prep
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-W = os.path.join(ROOT, 'world')
+sys.path.insert(0, HERE)
+from citycfg import load_city
+CFG = load_city(sys.argv[1] if len(sys.argv) > 1 else None)
+W = CFG['dir']
 raw = json.load(gzip.open(os.path.join(W, 'osm_raw.json.gz'), 'rt', encoding='utf-8'))
 EL = raw['elements']
 
-LAT0, LON0 = 31.7305, 34.7445          # מרכז קריית מלאכי (בערך)
+LAT0, LON0 = CFG['origin']             # מרכז העיר (בערך) — world/cities.json
 KX = 111320 * math.cos(math.radians(LAT0)); KY = 110574
 def P(lat, lon): return ((lon - LON0) * KX, (lat - LAT0) * KY)
-HALF_X, HALF_Y = 2300, 2000            # גבולות העולם במשחק (מטרים מהמרכז)
+HALF_X, HALF_Y = CFG['half']           # גבולות העולם במשחק (מטרים מהמרכז)
 def inside(x, y, m=0): return abs(x) <= HALF_X + m and abs(y) <= HALF_Y + m
 def dm(v): return int(round(v * 10))
 
@@ -665,9 +673,80 @@ def _bres(b):
     if b['t'] in RES_TAGS: return 1
     if b['t'] != 'yes' or b['a'] > 1500 or any(g.contains(Point(b['cx'], b['cy'])) for g in _nonres): return 0
     return 2
+# ---------- חיתוך לתחום העיר (clip ב-world/cities.json, במטרים; בלי ההגדרה — לא חותכים, כמו בקריית מלאכי):
+# התחום = כל מה שעד clip מטרים מתחנה של העיר או מבנייה עירונית. שטחים (שדות, חורש) נחתכים לתחום, ועצים מחוצה לו לא מוצבים.
+# כך שדות ענקיים מסביב לעיר לא מגדילים את המפה ולא מכבידים על המשחק. רחובות ורשת הנסיעה לא נחתכים.
+if CFG.get('clip'):
+    # בנייה עירונית = בניין שעד 600 מ' מתחנה של העיר. בניינים רחוקים יותר (יישובים מסביב) לא נכנסים למפה
+    _near = prep(unary_union([Point(st['x'], st['y']).buffer(600, 8) for st in stops]))
+    _b0 = len(buildings); buildings = [b for b in buildings if _near.contains(Point(b['cx'], b['cy']))]
+    _pts = [Point(b['cx'], b['cy']) for b in buildings] + [Point(st['x'], st['y']) for st in stops]
+    _u = unary_union([q.buffer(CFG['clip'], 8) for q in _pts]).intersection(shapely.geometry.box(-HALF_X, -HALF_Y, HALF_X, HALF_Y))
+    CLIP = unary_union([Polygon(g.exterior) for g in (_u.geoms if hasattr(_u, 'geoms') else [_u])]).simplify(5)
+    _cp = prep(CLIP); _a0, _t0, _new = len(areas), len(trees), []
+    for ar in areas:
+        try: g = Polygon([(ar[i] / 10, ar[i + 1] / 10) for i in range(1, len(ar), 2)]).buffer(0)
+        except Exception: continue
+        if _cp.contains(g): _new.append(ar); continue
+        g = g.intersection(CLIP)
+        for q in (g.geoms if hasattr(g, 'geoms') else [g]):
+            if q.geom_type == 'Polygon' and q.area >= 30: _new.append([ar[0]] + [dm(v) for xy in list(q.exterior.coords)[:-1] for v in xy])
+    areas = _new
+    trees = [t for t in trees if _cp.contains(Point(t[0], t[1]))]
+    solar = [t for t in solar if _near.contains(Point(t[0], t[1]))]
+    print('city bounds (m):', [round(v) for v in CLIP.bounds], '; buildings', _b0, '->', len(buildings))
+    print('clip', CFG['clip'], 'm: area', round(CLIP.area / 1e6, 2), 'km2; areas', _a0, '->', len(areas), '; trees', _t0, '->', len(trees))
 RES_TAGS = ('apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow')
+
+# ---------- מסילת הרכבת ותחנת הרכבת (רק railway=rail פעילה; בלי מתוכננת/נטושה/בבנייה, ובלי קטעים במנהרה).
+# המסילה נחתכת לגבולות המפה (ועוד 100 מ'), כמו שהקרקע מצוירת. רציף ב-OSM הוא לרוב קו באמצע רציף אי —
+# הופכים אותו למלבן: חצי הרוחב = המרחק למסילה הקרובה פחות 1.75 מ' (שפת הרציף), בין 1.5 ל-5 מ'.
+# התחנה: צומת או בניין עם railway=station/halt, public_transport=station או building=train_station; ואם אין — מרכז הרציפים
+from shapely.geometry import LineString, box as _box
+_frame = _box(-HALF_X - 100, -HALF_Y - 100, HALF_X + 100, HALF_Y + 100)
+rail_lines, plat_lines, stations_raw = [], [], []
+for e in EL:
+    t = e.get('tags', {})
+    st_tag = t.get('railway') in ('station', 'halt') or t.get('public_transport') == 'station' or t.get('building') == 'train_station'
+    if e['type'] == 'node':
+        if st_tag and t.get('railway') in ('station', 'halt', None) and 'lat' in e:
+            if t.get('station') in ('subway', 'light_rail') or t.get('light_rail') == 'yes' or t.get('bus') == 'yes' and 'railway' not in t: continue
+            stations_raw.append(((t.get('name:he') or t.get('name') or '').strip(), Point(P(e['lat'], e['lon']))))
+        continue
+    if e['type'] != 'way' or 'geometry' not in e: continue
+    g = [P(p['lat'], p['lon']) for p in e['geometry'] if p]
+    if len(g) < 2: continue
+    if t.get('railway') == 'rail' and t.get('tunnel') in (None, 'no'): rail_lines.append(LineString(g))
+    elif t.get('railway') == 'platform': plat_lines.append(LineString(g) if g[0] != g[-1] or len(g) < 4 else Polygon(g))
+    elif st_tag and len(g) >= 4 and g[0] == g[-1]: stations_raw.append(((t.get('name:he') or t.get('name') or '').strip(), Polygon(g).buffer(0)))
+rail = []
+for ln in rail_lines:
+    c = ln.intersection(_frame)
+    for q in (c.geoms if hasattr(c, 'geoms') else [c]):
+        if q.geom_type == 'LineString' and q.length > 1: rail.append([dm(v) for xy in q.simplify(0.3).coords for v in xy])
+platforms = []
+for pl in plat_lines:
+    if not pl.intersects(_frame): continue
+    if pl.geom_type == 'Polygon': g = pl
+    else:
+        dist = min((pl.distance(r) for r in rail_lines), default=4.0)
+        g = pl.buffer(max(1.5, min(5.0, dist - 1.75)), cap_style=2, join_style=2)
+    if not g.is_empty and g.geom_type == 'Polygon': platforms.append(g)
+rail_stations = []
+if stations_raw or platforms:
+    _u = unary_union([s.buffer(150) for _, s in stations_raw] + [p.buffer(150) for p in platforms])   # תחנה = כל מה שעד 150 מ' זה מזה
+    for grp in (_u.geoms if hasattr(_u, 'geoms') else [_u]):
+        mine = [(nm, s) for nm, s in stations_raw if grp.contains(s.centroid)]
+        pls = [p for p in platforms if grp.contains(p.centroid)]
+        c = (unary_union([s for _, s in mine]) if mine else unary_union(pls)).centroid
+        if not inside(c.x, c.y): continue
+        nm = next((n for n, _ in mine if n), '') or 'תחנת רכבת ' + CFG['name']
+        rail_stations.append({'name': nm, 'x': round(c.x, 1), 'y': round(c.y, 1)})
+print('rail', len(rail), 'pieces', round(sum(LineString([(a[i] / 10, a[i + 1] / 10) for i in range(0, len(a), 2)]).length for a in rail)), 'm;',
+      'platforms', len(platforms), '; stations', rail_stations)
+
 out = {
-    'meta': {'city': 'קריית מלאכי', 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
+    'meta': {'city': CFG['name'], 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
              'built': datetime.date.today().isoformat(), 'osm_timestamp': raw.get('osm3s', {}).get('timestamp_osm_base'),
              'attribution': '© OpenStreetMap contributors (ODbL); תחנות: GTFS משרד התחבורה'},
     'buildings': [[dm(b['h'])] + [dm(v) for p in b['ring'] for v in p] for b in buildings],
@@ -688,6 +767,10 @@ out = {
     'graph': {'nodes': [v for x, y in gnodes for v in (dm(x), dm(y))], 'edges': [v for e in gedges for v in e],
               'lane': [dm(v) for v in lane]},
     'stops': stops,
+    # מסילת הרכבת: [[x0,y0,x1,y1,...], ...] (קווים, דצימטרים); רציפים: [[x0,y0,...], ...] (טבעת); תחנות: שם ומרכז במטרים
+    'rail': rail,
+    'platforms': [[dm(v) for xy in list(g.exterior.coords)[:-1] for v in xy] for g in platforms],
+    'rail_stations': rail_stations,
 }
 p = os.path.join(W, 'city.json')
 json.dump(out, open(p, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

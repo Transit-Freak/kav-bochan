@@ -19,7 +19,7 @@
 <header class="bar">
   <div class="brand">
     <span class="dot"></span>
-    <div><b>משחק הקווים</b><small>קריית מלאכי · <em>אב-טיפוס</em></small></div>
+    <div><b>משחק הקווים</b><small><span class="cityName">קריית מלאכי</span> · <em>אב-טיפוס</em></small></div>
   </div>
   <span id="modeBadge" class="mode-badge"></span>
   <button id="money" class="money" title="הקופה" aria-label="הקופה">₪2,000,000</button>
@@ -176,6 +176,7 @@
 </div>
 <div class="modal" id="roleAsk" hidden>
   <div class="card">
+    <div class="citypick" id="cityPick" role="group" aria-label="עיר" hidden></div>
     <h2>מי אתה רוצה להיות?</h2>
     <div class="rolepick" role="group" aria-label="תפקיד">
       <button type="button" data-role="driver"><i>🚌</i><b>נהג</b><span>נוהגים באוטובוס בקו מוכן: עצירות, דלתות, בזמן</span></button>
@@ -207,7 +208,7 @@
 <div class="modal" id="lineAsk" hidden>
   <div class="card">
     <h2>באיזה קו נוהגים היום?</h2>
-    <p class="hint">הקווים העירוניים של קריית מלאכי.</p>
+    <p class="hint">הקווים העירוניים של <span class="cityName">קריית מלאכי</span>.</p>
     <div class="linepick" id="linePick"></div>
   </div>
 </div>
@@ -329,7 +330,7 @@
 </div>
 <div class="paxcard" id="paxCard" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את קריית מלאכי…</p></div>
+<div class="loading" id="loading"><div class="spin"></div><p id="loadMsg">טוען את <span class="cityName">העיר</span>…</p></div>
 
 <script type="module" src="js/main.js"></script>
 </body>

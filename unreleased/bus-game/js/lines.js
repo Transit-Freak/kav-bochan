@@ -5,7 +5,8 @@ import { dedupe, lanePath, offsetRight, Polyline, speedProfile } from './graph.j
 
 export const LANE_OFFSET = 1.8;           // מרכז הנתיב הימני, מטרים ממרכז הכביש (בחד-סטרי צר — פחות: graph.lane)
 export const COLORS = ['#0ea5e9', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'];
-const KEY = 'busgame.kiryat-malachi.lines.v1';
+import { cityKey } from './cityconf.js';
+const KEY = cityKey('lines.v1');           // לכל עיר שמירה משלה (קריית מלאכי: busgame.kiryat-malachi.lines.v1, כמו תמיד)
 
 export function loadLines() {
   try { const a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; }

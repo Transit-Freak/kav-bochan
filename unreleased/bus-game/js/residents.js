@@ -8,9 +8,11 @@
 // לפעמים (0.2% ליום) תושב עובר דירה או עבודה — ביומן "מה חדש בעיר".
 // הכל דטרמיניסטי מתוך seed שנשמר בשמירה: אחרי טעינה מקבלים בדיוק אותם תושבים ואותם מעברים.
 import { PROFILES, WALK } from './demand.js';
+import { cityInfo } from './cityconf.js';
 
+// נקודות הכניסה לעיר וערי המגורים של מי שבא מבחוץ — לכל עיר ב-world/cities.json (entries, towns); כאן ברירת המחדל, של קריית מלאכי
 const ENTRIES = [['41605', 0.5], ['27812', 0.3], ['28616', 0.2]];        // נקודות כניסה לעיר (תחנות בגבול המפה)
-const TOWNS = ['אשדוד', 'אשקלון', 'קריית גת', 'גדרה', 'יבנה', 'רחובות', 'באר שבע', 'שדרות', 'מושב בסביבה'];
+let TOWNS = ['אשדוד', 'אשקלון', 'קריית גת', 'גדרה', 'יבנה', 'רחובות', 'באר שבע', 'שדרות', 'מושב בסביבה'];
 const OUT_SHARE = 0.06, VIS_SHARE = 0.06, MOVE_P = 0.002;
 
 function rng(seed) { let a = seed >>> 0 || 1; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -42,7 +44,13 @@ export class Residents {
     // עובדים מבחוץ: קבועים — נקודת כניסה, עבודה בעיר (לפי מקומות העבודה), עיר מגורים
     const daily = D.dayTot || 1;
     const nOut = Math.round(daily * OUT_SHARE / 2);
-    this.ent = ENTRIES.map(([id, w]) => [D.idx.get(id), w]).filter(([i]) => i != null);
+    if (cityInfo.towns?.length) TOWNS = cityInfo.towns;
+    this.ent = (cityInfo.entries || ENTRIES).map(([id, w]) => [D.idx.get(id), w]).filter(([i]) => i != null);
+    // עיר שלא הוגדרו לה נקודות כניסה (או שהתחנות שלהן לא במפה): שלוש התחנות הרחוקות ביותר מהמרכז, רחוקות זו מזו
+    if (!this.ent.length) {
+      const far = stops.map((s, k) => [D.idx.get(s.id) ?? k, s]).sort((a, b) => Math.hypot(b[1].x, b[1].y) - Math.hypot(a[1].x, a[1].y)), got = [];
+      for (const [i, s] of far) { if (got.every(g => Math.hypot(g.x - s.x, g.y - s.y) > 800)) { got.push(s); this.ent.push([i, 1]); } if (got.length === 3) break; }
+    }
     const entC = cum(this.ent.map(e => e[1])), workC = cum(D.attr.work);
     this.oEntry = new Int16Array(nOut); this.oDest = new Int16Array(nOut); this.oOut = new Int16Array(nOut); this.oBack = new Int16Array(nOut); this.oTown = new Uint8Array(nOut);
     for (let i = 0; i < nOut; i++) {

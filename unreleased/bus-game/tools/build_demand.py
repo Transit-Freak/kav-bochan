@@ -5,7 +5,8 @@
   world/neighbourhoods.json  — גבולות השכונות של קריית מלאכי: שכבה 22 של GovMap (מפ"י), דרך "גרסאות לעם" (over.org.il),
                                תמונת מצב ספטמבר 2026 — אותם נתונים כמו בכלי "קו בזמן" (line-history/data/neighborhoods)
   world/city.json            — התחנות (אחרי build_city.py)
-הרצה:  python3 tools/build_demand.py   (מתוך unreleased/bus-game; צריך shapely: pip install shapely)
+הרצה:  python3 tools/build_demand.py [עיר]   (מתוך unreleased/bus-game; צריך shapely: pip install shapely)
+עיר בלי קובץ שכונות (למשל קרית גת — בלי GovMap): השכונות מ-OpenStreetMap בלבד, ראו "שכונות בלי קובץ" למטה.
 
 השיטה (פשוטה ושקופה):
   1. כל בניין מקבל שטח רצפה = שטח × מספר קומות (גובה ÷ 3, כמו ב-build_city.py), וסוג לפי OSM:
@@ -26,15 +27,17 @@ import gzip, json, math, os, hashlib, collections
 from shapely.geometry import Point, Polygon, MultiPolygon, box
 from shapely.ops import polylabel
 
+import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
-W = os.path.join(os.path.dirname(HERE), 'world')
+sys.path.insert(0, HERE)
+from citycfg import load_city
+CFG = load_city(sys.argv[1] if len(sys.argv) > 1 else None)
+W = CFG['dir']
 raw = json.load(gzip.open(os.path.join(W, 'osm_raw.json.gz'), 'rt', encoding='utf-8'))
 city = json.load(open(os.path.join(W, 'city.json'), encoding='utf-8'))
-NB = json.load(open(os.path.join(W, 'neighbourhoods.json'), encoding='utf-8'))
+NB = json.load(open(os.path.join(W, CFG['neighbourhoods']), encoding='utf-8')) if CFG.get('neighbourhoods') else {'rows': []}
 STOPS = city['stops']
-RESIDENTS = 23000          # תושבים בתחום המפה (קריית מלאכי ~ 23–25 אלף; המושבים מסביב קטנים)
-STOPS = city['stops']
-RESIDENTS = 23000          # תושבים בתחום המפה (קריית מלאכי ~ 23–25 אלף; המושבים מסביב קטנים)
+RESIDENTS = CFG['residents']          # תושבים בתחום המפה — world/cities.json (קריית מלאכי ~ 23–25 אלף; המושבים מסביב קטנים)
 K = 14
 
 LAT0, LON0 = city['meta']['origin']
@@ -153,18 +156,78 @@ def assign(s):
     dv = min(vill, key=lambda i: H[i]['geom'].distance(pt))
     if H[dv]['geom'].distance(pt) <= 400: return dv, 'near'
     return dh, 'far'
-lab0, how, hw = [], collections.Counter(), []
-for s in STOPS:
-    i, w = assign(s); lab0.append(i); hw.append(w); how[w] += 1
-# רחוק מהכל ← השכונה של התחנה הקרובה שכבר שויכה (כך שתי תחנות של אותו מקום נשארות יחד)
-for k, s in enumerate(STOPS):
-    if hw[k] == 'far':
-        j = min((j for j in range(len(STOPS)) if j != k and hw[j] != 'far'), key=lambda j: math.hypot(STOPS[j]['x'] - s['x'], STOPS[j]['y'] - s['y']))
-        lab0[k] = lab0[j]; hw[k] = 'far*'
-for k, s in enumerate(STOPS):
-    i, w = lab0[k], hw[k]
-    if w != 'in': print('  stop', s['id'], s['name'], '->', H[i]['name'], w, round(H[i]['geom'].distance(Point(s['x'], s['y']))), 'm')
-print('stops:', dict(how))
+def zones_from_file():
+    global lab0, how, hw
+    lab0, how, hw = [], collections.Counter(), []
+    for s in STOPS:
+        i, w = assign(s); lab0.append(i); hw.append(w); how[w] += 1
+    # רחוק מהכל ← השכונה של התחנה הקרובה שכבר שויכה (כך שתי תחנות של אותו מקום נשארות יחד)
+    for k, s in enumerate(STOPS):
+        if hw[k] == 'far':
+            j = min((j for j in range(len(STOPS)) if j != k and hw[j] != 'far'), key=lambda j: math.hypot(STOPS[j]['x'] - s['x'], STOPS[j]['y'] - s['y']))
+            lab0[k] = lab0[j]; hw[k] = 'far*'
+    for k, s in enumerate(STOPS):
+        i, w = lab0[k], hw[k]
+        if w != 'in': print('  stop', s['id'], s['name'], '->', H[i]['name'], w, round(H[i]['geom'].distance(Point(s['x'], s['y']))), 'm')
+    print('stops:', dict(how))
+
+# ---------- שכונות בלי קובץ (עיר שאין לה neighbourhoods.json): רק מ-OpenStreetMap
+#   1. "זרעים": מקומות עם שם (place=neighbourhood / suburb / quarter) ושטחי מגורים עם שם (landuse=residential; אלה היישובים מסביב).
+#      אין כאלה ← קבוצות של תחנות קרובות (k-means), והשם — הרחוב שחוזר הכי הרבה בשמות התחנות.
+#   2. כל תחנה שייכת לזרע הקרוב. נשארים עד MAX_ZONES אזורים (יש 22 סמלים), ובכל אזור 3 תחנות לפחות — הקטנים מתמזגים בשכנים.
+#   3. הגבול של אזור שאין לו שטח ב-OSM: המעטפת של התחנות שלו ועוד 150 מ', בלי חפיפה לאזורים שכבר נקבעו.
+MAX_ZONES = 20
+def zones_from_osm():
+    global H, lab0, hw, how
+    from shapely.geometry import MultiPoint
+    pts = [Point(s['x'], s['y']) for s in STOPS]
+    # שטח מגורים עם שם שמכיל יותר משליש מהתחנות הוא העיר כולה, לא שכונה — לא זרע
+    seeds = [{'name': h['name'], 'geom': h['geom'], 'area': True} for h in H if sum(h['geom'].contains(q) for q in pts) <= len(pts) / 3]
+    seen = {s['name'] for s in seeds}
+    for e in raw['elements']:
+        t = e.get('tags', {})
+        if e['type'] == 'node' and t.get('place') in ('neighbourhood', 'suburb', 'quarter') and t.get('name'):
+            x, y = P(e['lat'], e['lon']); nm = t.get('name:he') or t['name']
+            if abs(x) <= HALF_X and abs(y) <= HALF_Y and nm not in seen: seen.add(nm); seeds.append({'name': nm, 'geom': Point(x, y), 'area': False})
+    # אזורי תעשייה גדולים (landuse=industrial, מעל 0.3 קמ"ר אחרי איחוד) — אזור משלהם, "אזור תעשייה"
+    from shapely.ops import unary_union
+    ind = unary_union([Polygon(g).buffer(15) for k, g, _ in ZONES_OSM if k == 'work' and len(g) >= 4]).intersection(VIEW)
+    big = sorted([q for q in (ind.geoms if hasattr(ind, 'geoms') else [ind]) if q.area > 3e5], key=lambda q: -q.area)
+    for n, q in enumerate(big): seeds.append({'name': 'אזור תעשייה' + ('' if n == 0 else f' {n + 1}'), 'geom': q, 'area': True, 'ind': True})
+    if len(seeds) < 3:
+        k = max(3, min(MAX_ZONES, len(STOPS) // 14)); order = sorted(range(len(STOPS)), key=lambda i: STOPS[i]['id'])
+        cen = [(STOPS[order[j * len(order) // k]]['x'], STOPS[order[j * len(order) // k]]['y']) for j in range(k)]
+        for _ in range(40):
+            grp = [min(range(k), key=lambda c: math.hypot(s['x'] - cen[c][0], s['y'] - cen[c][1])) for s in STOPS]
+            cen = [(sum(STOPS[i]['x'] for i in range(len(STOPS)) if grp[i] == c) / max(1, grp.count(c)), sum(STOPS[i]['y'] for i in range(len(STOPS)) if grp[i] == c) / max(1, grp.count(c))) if grp.count(c) else cen[c] for c in range(k)]
+        seeds = []; taken = set()
+        for c in range(k):
+            mem = [STOPS[i] for i in range(len(STOPS)) if grp[i] == c]
+            if not mem: continue
+            words = collections.Counter(part.strip() for s in mem for part in s['name'].split('/') if part.strip())
+            nm = next((w for w, _ in words.most_common() if w not in taken), None) or f'אזור {c + 1}'
+            taken.add(nm); seeds.append({'name': nm, 'geom': Point(*cen[c]), 'area': False})
+        print('  no named places in OSM -> stop clusters:', len(seeds))
+    def nearest(pt, alive):
+        inside = [i for i in alive if seeds[i]['area'] and seeds[i]['geom'].contains(pt)]
+        if inside: return min(inside, key=lambda i: seeds[i]['geom'].area)
+        return min(alive, key=lambda i: seeds[i]['geom'].distance(pt))
+    alive = list(range(len(seeds)))
+    while True:
+        lab = [nearest(pt, alive) for pt in pts]; cnt = collections.Counter(lab)
+        small = min(alive, key=lambda i: cnt.get(i, 0))
+        if len(alive) > 1 and (len(alive) > MAX_ZONES or cnt.get(small, 0) < 3): alive.remove(small); continue
+        break
+    H = []; lab0 = [alive.index(i) for i in lab]; done = None
+    for z, i in enumerate(alive):
+        s = seeds[i]; hull = MultiPoint([pts[j] for j in range(len(pts)) if lab0[j] == z]).convex_hull.buffer(150)
+        g = s['geom'].union(hull) if s['area'] else hull
+        if done is not None and not g.difference(done).is_empty: g = g.difference(done)
+        g = g.buffer(0); done = g if done is None else done.union(g)
+        H.append({'name': s['name'], 'kind': 'village' if s['area'] and not s.get('ind') else 'hood', 'geom': g})
+    hw = ['in'] * len(STOPS); how = collections.Counter(hw)
+if NB['rows']: zones_from_file()
+else: zones_from_osm()
 used = [i for i in range(len(H)) if i in lab0]
 for i in range(len(H)):
     if i not in used: print('  no stops (not a zone):', H[i]['name'])
@@ -215,7 +278,7 @@ for i, s in enumerate(STOPS):
     work = a['work'] * 0.5 + a['shop'] * 0.6 + a['school'] * 0.4 + a['civic'] + a['worship'] * 0.2 + a['home'] * 0.04
     stops[s['id']] = [lab[i], round(pop, 1), round(work), round(a['school'] + a['home'] * 0.03), round(a['shop'] + a['civic'] * 0.3 + a['home'] * 0.01)]
 out = {'meta': {'residents': RESIDENTS, 'built_from': 'osm_raw.json.gz + neighbourhoods.json + city.json', 'tool': 'tools/build_demand.py',
-                'zones': 'שכונות קריית מלאכי: מפ"י / GovMap (שכבה 22), באמצעות גרסאות לעם, ספטמבר 2026; המושבים: OpenStreetMap'},
+                'zones': CFG['zones_note']},
        'zones': zones, 'stops': stops}
 p = os.path.join(W, 'demand.json')
 json.dump(out, open(p, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
