@@ -1,9 +1,11 @@
 """בונה את world/city.json של משחק האוטובוס מנתוני OpenStreetMap ומתחנות ה-GTFS.
 
 קלט:
-  world/osm_raw.json.gz — פלט Overpass (ה-workflow ‏bus-game-osm מוריד אותו)
-  world/gtfs_stops.csv  — התחנות הפעילות בתחום העיר, מתוך stops.txt בענף gtfs-data
-הרצה:  python3 tools/build_city.py   (מתוך unreleased/bus-game; צריך shapely)
+  world/cities.json     — הגדרות הערים: שם, מרכז, גבולות ותיקייה (tools/citycfg.py)
+  <תיקיית העיר>/osm_raw.json.gz — פלט Overpass (ה-workflow ‏bus-game-osm מוריד אותו, לפי העיר)
+  <תיקיית העיר>/gtfs_stops.csv  — התחנות בתחום המפה, מתוך stops.txt של ה-GTFS (tools/fetch_gtfs_stops.py)
+הרצה:  python3 tools/build_city.py [עיר]   (מתוך unreleased/bus-game; צריך shapely. בלי פרמטר — קריית מלאכי)
+       קריית מלאכי: world/ ; קרית גת: world/kiryat-gat/
 
 הפלט (מטרים, ראשית במרכז העיר, x מזרחה, y צפונה; ערכים שלמים בדצימטרים):
   buildings: [[h_dm, x0,y0,x1,y1,...], ...]           טבעת חיצונית, בלי חזרה על הנקודה הראשונה
@@ -36,14 +38,17 @@ from shapely.prepared import prep
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-W = os.path.join(ROOT, 'world')
+sys.path.insert(0, HERE)
+from citycfg import load_city
+CFG = load_city(sys.argv[1] if len(sys.argv) > 1 else None)
+W = CFG['dir']
 raw = json.load(gzip.open(os.path.join(W, 'osm_raw.json.gz'), 'rt', encoding='utf-8'))
 EL = raw['elements']
 
-LAT0, LON0 = 31.7305, 34.7445          # מרכז קריית מלאכי (בערך)
+LAT0, LON0 = CFG['origin']             # מרכז העיר (בערך) — world/cities.json
 KX = 111320 * math.cos(math.radians(LAT0)); KY = 110574
 def P(lat, lon): return ((lon - LON0) * KX, (lat - LAT0) * KY)
-HALF_X, HALF_Y = 2300, 2000            # גבולות העולם במשחק (מטרים מהמרכז)
+HALF_X, HALF_Y = CFG['half']           # גבולות העולם במשחק (מטרים מהמרכז)
 def inside(x, y, m=0): return abs(x) <= HALF_X + m and abs(y) <= HALF_Y + m
 def dm(v): return int(round(v * 10))
 
@@ -667,7 +672,7 @@ def _bres(b):
     return 2
 RES_TAGS = ('apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow')
 out = {
-    'meta': {'city': 'קריית מלאכי', 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
+    'meta': {'city': CFG['name'], 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
              'built': datetime.date.today().isoformat(), 'osm_timestamp': raw.get('osm3s', {}).get('timestamp_osm_base'),
              'attribution': '© OpenStreetMap contributors (ODbL); תחנות: GTFS משרד התחבורה'},
     'buildings': [[dm(b['h'])] + [dm(v) for p in b['ring'] for v in p] for b in buildings],

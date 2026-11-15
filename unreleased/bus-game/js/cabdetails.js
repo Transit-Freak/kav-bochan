@@ -5,6 +5,7 @@
 // מערכת הצירים של האוטובוס: ‎+Z קדימה, ‎+Y למעלה, הדלתות בצד ‎-X, הנהג בצד ‎+X.
 import * as THREE from 'three';
 import { keep } from './texkeep.js';
+import { cityInfo } from './cityconf.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const FONT = 'Heebo, "IBM Plex Sans Hebrew", Arial, sans-serif';
@@ -80,7 +81,7 @@ function atlas() {
     x.fillStyle = '#111'; x.font = `800 64px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.direction = 'ltr'; x.fillText('80', X + W / 2, Y + H / 2 + 4); }
   // רישיון קו (מודבק בפינת השמשה)
   { const [X, Y, W, H] = R.lic; x.fillStyle = '#e0f2fe'; x.fillRect(X, Y, W, H); x.strokeStyle = '#0369a1'; x.lineWidth = 6; x.strokeRect(X + 4, Y + 4, W - 8, H - 8);
-    text(x, 'רישיון קו — משרד התחבורה', X + W / 2, Y + 40, 26, '#0c4a6e'); text(x, 'קריית מלאכי · עירוני', X + W / 2, Y + 86, 26, '#0c4a6e', 500); }
+    text(x, 'רישיון קו — משרד התחבורה', X + W / 2, Y + 40, 26, '#0c4a6e'); text(x, `${cityInfo.name || 'קריית מלאכי'} · עירוני`, X + W / 2, Y + 86, 26, '#0c4a6e', 500); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return keep(t);
 }
 

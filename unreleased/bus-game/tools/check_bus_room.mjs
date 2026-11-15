@@ -2,7 +2,7 @@
 // כפי שהוא מצויר, לא נוגע בבניין או בנוף של עץ, ושני אוטובוסים בכיוונים מנוגדים ברחוב דו-סטרי לא חופפים.
 // משתמש בקוד של המשחק עצמו: parseCity ו-ribbon (js/world.js), RoadGraph (js/graph.js), computeRoute (js/lines.js),
 // busPose (js/actors.js — ואם אי אפשר לטעון אותו ב-Node, עותק של אותן שלוש מידות).
-// הרצה (מתוך unreleased/bus-game):  node tools/check_bus_room.mjs
+// הרצה (מתוך unreleased/bus-game):  node tools/check_bus_room.mjs [עיר]   (מזהה מ-world/cities.json; בלי פרמטר — קריית מלאכי)
 import { register } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -39,10 +39,14 @@ try { ({ busPose } = await import('../js/actors.js')); } catch (e) {
 }
 const BUS_L = 12, BUS_W = 2.55;
 
-const city = parseCity(JSON.parse(readFileSync(path.join(ROOT, 'world/city.json'), 'utf8')));
+const CITIES = JSON.parse(readFileSync(path.join(ROOT, 'world/cities.json'), 'utf8'));
+const CID = process.argv[2] || CITIES.default;
+if (!CITIES.cities[CID]) { console.error('אין עיר', CID, 'ב-world/cities.json'); process.exit(2); }
+const WDIR = path.join(ROOT, CITIES.cities[CID].dir);
+const city = parseCity(JSON.parse(readFileSync(path.join(WDIR, 'city.json'), 'utf8')));
 const graph = new RoadGraph(city);
 const stopsById = new Map(city.stops.map(s => [s.id, s]));
-const real = Object.values(JSON.parse(readFileSync(path.join(ROOT, 'world/real_lines.json'), 'utf8')).cities)[0].lines;
+const real = Object.values(JSON.parse(readFileSync(path.join(WDIR, 'real_lines.json'), 'utf8')).cities)[0].lines;
 
 // ---------- האספלט: אותם משולשים שהמשחק מצייר (ribbon לכל רחוב נסיעה + האספלט הנוסף בפניות)
 const tris = [];

@@ -134,6 +134,14 @@
 
 ## נתונים ונכסים — שלבים נפרדים, לא בזמן המשחק
 
+**ערים** (שלב 1: עיר נוספת כמפה נפרדת). הרשימה ב-`world/cities.json`: לכל עיר שם, מרכז (`origin`), גבולות (`half`, מטרים מהמרכז),
+תיקייה (`dir`), תושבים, השם בנתוני משרד התחבורה (`gtfs_name`), נקודות כניסה (`entries`) וקובץ שכונות אם יש.
+כל כלי בנייה מקבל את מזהה העיר: `python3 tools/build_city.py kiryat-gat` (בלי פרמטר: קריית מלאכי, ב-`world/` כמו תמיד).
+סדר הבנייה של עיר חדשה: להוסיף אותה ל-`world/cities.json` ← OSM (ה-workflow, עם העיר) ← `tools/fetch_gtfs_stops.py <עיר>`
+(תחנות מה-GTFS בארכיון S3) ← `build_city.py <עיר>` ← `build_demand.py <עיר>` (בלי קובץ שכונות: שכונות מ-OSM, ואם אין — קבוצות תחנות)
+← `build_real_lines.py --city <עיר> --fetch DIR` ← `node tools/check_bus_room.mjs <עיר>`.
+במשחק (`js/cityconf.js`): העיר נבחרת במסך הפתיחה (או `?city=`), ולכל עיר שמירה משלה (`busgame.<עיר>.*`). הענן פועל רק בקריית מלאכי.
+
 1. **OSM**: ‏`.github/workflows/bus-game-osm.yml` מוריד מ-Overpass את `world/osm_raw.json.gz` (Overpass חסום מסביבת העבודה).
 2. **העיר**: `python3 tools/build_city.py` ← `world/city.json` (בניינים, רחובות, רשת נסיעה, תחנות GTFS מ-`world/gtfs_stops.csv`,
    עצים ודודי שמש; צריך shapely). גובה בניין בלי תגית — לפי השטח (מעל 900 מ"ר: 7–12 מ', 330–900: 10–17, 120–330: 5.5–9, קטן: 3–6),

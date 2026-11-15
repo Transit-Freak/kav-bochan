@@ -1,43 +1,81 @@
 name: bus-game-osm
-# משחק האוטובוס (unreleased/bus-game): הורדת רחובות, בניינים ותחנות של קריית מלאכי מ-OpenStreetMap.
-# Overpass חסום מסביבת העבודה, לכן ההורדה רצה כאן והפלט נשמר בענף claude/bus-game.
+# משחק האוטובוס (unreleased/bus-game): הורדת רחובות, בניינים ותחנות של עיר מ-OpenStreetMap.
+# Overpass חסום מסביבת העבודה, לכן ההורדה רצה כאן והפלט נשמר בענף שממנו הופעל ה-workflow.
+# העיר — מזהה מתוך unreleased/bus-game/world/cities.json (שם נמצאים המרכז, הגבולות והתיקייה שלה).
+# הפעלה: workflow_dispatch עם העיר (ref = הענף), או — כי ה-workflow לא נמצא ב-main — דחיפה של
+# unreleased/bus-game/world/osm_request.txt לענף: שורה אחת, מזהה העיר, ואחריו "build" אם רוצים גם לבנות (למשל: kiryat-gat build).
 on:
   push:
-    branches: [claude/bus-game]
-    paths: [.github/workflows/bus-game-osm.yml]
+    branches: [claude/bus-game, claude/bus-game-cities]
+    paths: [unreleased/bus-game/world/osm_request.txt]
   workflow_dispatch:
+    inputs:
+      city:
+        description: 'מזהה העיר ב-world/cities.json (kiryat-malachi, kiryat-gat)'
+        default: kiryat-malachi
+      build:
+        description: 'לבנות אחרי ההורדה גם את קבצי העולם (תחנות, city.json, demand.json, real_lines.json)'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
-  group: bus-game-osm-${{ github.ref }}
+  group: bus-game-osm-${{ github.ref }}-${{ inputs.city }}
   cancel-in-progress: true
+env:
+  CITY: ${{ inputs.city }}
+  BUILD: ${{ inputs.build }}
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-        with: {sparse-checkout: unreleased/bus-game, fetch-depth: 0}
+        with: {sparse-checkout: unreleased/bus-game, filter: 'blob:none'}
       - name: Overpass
+        working-directory: unreleased/bus-game
         run: |
           set -euo pipefail
-          B='31.712,34.720,31.749,34.770'
-          Q="[out:json][timeout:300][bbox:$B];(way[highway];way[building];relation[building];way[landuse];way[leisure];way[natural];way[amenity];way[railway];node[highway=bus_stop];node[public_transport=platform];);out geom qt;"
+          if [ -z "$CITY" ]; then read -r CITY BUILD < world/osm_request.txt || true; [ "${BUILD:-}" = build ] && BUILD=true; fi
+          echo "CITY=$CITY" >> "$GITHUB_ENV"; echo "BUILD=${BUILD:-false}" >> "$GITHUB_ENV"
+          IFS='|' read -r B DIR NAME < <(python3 tools/citycfg.py "$CITY")
+          echo "city=$CITY bbox=$B dir=$DIR"
+          echo "DIR=$DIR" >> "$GITHUB_ENV"; echo "NAME=$NAME" >> "$GITHUB_ENV"
+          Q="[out:json][timeout:300][bbox:$B];(way[highway];way[building];relation[building];way[landuse];way[leisure];way[natural];way[amenity];way[railway];node[highway=bus_stop];node[public_transport=platform];node[place];);out geom qt;"
           ok=0
           for ep in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
             echo "== $ep"
-            if curl -fsS --max-time 400 -A "kav-bochan-bus-game/1.0 (https://kavbochan.app)" --data-urlencode "data=$Q" "$ep" -o raw.json; then ok=1; break; fi
+            if curl -fsS --max-time 400 -A "kav-bochan-bus-game/1.0 (https://kavbochan.app)" --data-urlencode "data=$Q" "$ep" -o "$RUNNER_TEMP/raw.json"; then ok=1; break; fi
             sleep 40
           done
           [ "$ok" = 1 ]
-          ls -la raw.json
-          python3 -c "import json;d=json.load(open('raw.json'));print(len(d['elements']),'elements')"
-          mkdir -p unreleased/bus-game/world
-          gzip -9 -c raw.json > unreleased/bus-game/world/osm_raw.json.gz
-          ls -la unreleased/bus-game/world
-      - name: Save
+          ls -la "$RUNNER_TEMP/raw.json"
+          python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(len(d['elements']),'elements')" "$RUNNER_TEMP/raw.json"
+          mkdir -p "$DIR"
+          gzip -9 -c "$RUNNER_TEMP/raw.json" > "$DIR/osm_raw.json.gz"
+          ls -la "$DIR"
+      - name: Save OSM
         run: |
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add unreleased/bus-game/world/osm_raw.json.gz
-          git commit -qm "משחק האוטובוס: נתוני OpenStreetMap של קריית מלאכי" || exit 0
-          for i in 1 2 3; do git pull -q --rebase origin claude/bus-game && git push -q origin HEAD:claude/bus-game && break; sleep 5; done
+          git add "unreleased/bus-game/$DIR/osm_raw.json.gz"
+          git commit -qm "משחק האוטובוס: נתוני OpenStreetMap של $NAME" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done
+      # בניית קבצי העולם (לא חובה): אם שלב נכשל, נתוני ה-OSM כבר נשמרו בשלב הקודם
+      - name: Build world
+        if: env.BUILD == 'true'
+        working-directory: unreleased/bus-game
+        run: |
+          set -euo pipefail
+          pip install -q shapely
+          python3 tools/fetch_gtfs_stops.py "$CITY"
+          python3 tools/build_city.py "$CITY"
+          python3 tools/build_demand.py "$CITY"
+          git fetch -q --depth 1 --filter=blob:none origin main
+          python3 tools/build_real_lines.py --city "$CITY" --fetch "$RUNNER_TEMP/src"
+          node tools/check_bus_room.mjs "$CITY" || true
+      - name: Save world
+        if: env.BUILD == 'true'
+        run: |
+          git add "unreleased/bus-game/$DIR"
+          git commit -qm "משחק האוטובוס: קבצי העולם של $NAME" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done

@@ -410,6 +410,9 @@ body.driving .brand,body.driving .cams{display:none}
 .drvctl .pedal.gas{right:12px;background:rgba(21,128,61,.72)}
 .drvctl .pedal.on{transform:scale(.94);filter:brightness(1.35)}
 /* בחירת תפקיד: ארבעה כרטיסים גדולים */
+.citypick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.citypick button{padding:7px 14px;border-radius:999px;font-size:14.5px;font-weight:600;min-height:38px}
+.citypick button.on{background:var(--accent,#0ea5e9);color:#fff;border-color:transparent}
 .rolepick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .rolepick button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:16px;text-align:center;min-height:132px}
 .rolepick i{font-style:normal;font-size:34px;line-height:1}

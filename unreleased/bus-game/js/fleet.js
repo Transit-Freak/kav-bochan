@@ -59,7 +59,8 @@ export const isLease = def => !!def?.lease;
 // כמה מקבלים על הרכבים של קו (מחיקה): קנויים — 60%, ליסינג — כלום
 export const fleetValue = def => isLease(def) || !def?.fleet ? 0 : Math.round(def.fleet * TYPES[typeOf(def)].price * SELL_BACK);
 
-const KEY = 'busgame.kiryat-malachi.money.v1';
+import { cityKey } from './cityconf.js';
+const KEY = cityKey('money.v1');           // לכל עיר קופה ושעון משלה (קריית מלאכי: busgame.kiryat-malachi.money.v1, כמו תמיד)
 export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, hire: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
 
 export class Bank {
