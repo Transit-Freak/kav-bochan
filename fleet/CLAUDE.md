@@ -30,7 +30,6 @@
 | `fleet-line-trips` | cron `10 4 * * *` | `fleet_line_trips.py`: שלושת החודשים האחרונים, מהיום החדש לישן, עם `MAX_MIN`. משרשר את עצמו |
 | `fleet-photos` | cron `25 * * * *` | מעביר תמונות מ-`photos-inbox` ל-`photos` ומעדכן את `fleet-photos.json` |
 | `fleet-cities` | dispatch בלבד | בנייה מחדש של ערים, ק"מ, מיגון ומעברים |
-| `fleet-probe` | dispatch בלבד | בדיקה, לא נבדק מה היא עושה |
 
 אין `workflow_run` בין ה-workflows של הצי. הסדר נשמר בתוך כל workflow, ובשעות ה-cron: months ב-00:15, scan ב-00:30, registry ב-02:15, line-trips ב-04:10. `pages-deploy` מפרסם את השינויים.
 
