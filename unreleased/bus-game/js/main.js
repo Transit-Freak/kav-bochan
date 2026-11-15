@@ -76,6 +76,8 @@ controls.target.set(0, 0, 0);
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
 let residents, drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
 const lineGroups = new Map();
+const FAR_LABELS = 1500;   // מרחק מצלמה שמעליו מסתירים את מספרי התחנות של הקווים
+let labelsFar = false;
 let planning = null, selectedStop = null, selectedLine = null;
 
 async function init() {
@@ -630,7 +632,7 @@ function addLine(def, fresh) {
   if (L.error !== undefined) { console.warn('line route failed', def); return null; }
   sim.addLine(L); lines.push(L);
   const g = routeMesh(L.poly, def.color, L.stops.map(s => [s.world.x, -s.world.z]));
-  if (dview.on) g.children.forEach(c => { if (c.isSprite) c.visible = false; });
+  if (dview.on || labelsFar) g.children.forEach(c => { if (c.isSprite) c.visible = false; });
   lineGroups.set(def.id, g); scene.add(g);
   return L;
 }
@@ -1785,7 +1787,7 @@ function setDemandView(on, hour, fit) {
     fitWide(core.map(z => dlayer.anchor[z.id]), 28, 0);
   }
   // מספרי התחנות ותוויות האוטובוסים מסתירים את קווי הביקוש — מסתירים אותם בזמן הזה
-  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on; });
+  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !on && !labelsFar; });
   buses.hideLabels = on;
   if (!on) { controls.maxDistance = 2600; look.fogMin.near = 0; look.fogMin.far = 0; }
   if ($('[data-pane="demand"]').classList.contains('on')) renderDemand();
@@ -1980,6 +1982,13 @@ function flushToasts() { if (toastQ.length && !modalOpen() && $('#toast').hidden
 // ---------- לולאה
 const clock = new THREE.Clock();
 let acc = 0, fcount = 0, statT = 0, missionT = 0;
+// מרחוק (כל העיר על המסך) מספרי התחנות של הקווים נערמים זה על זה — מסתירים אותם עד שמתקרבים
+function farLabels() {
+  const far = camera.position.distanceTo(controls.target) > FAR_LABELS;
+  if (far === labelsFar || routeHi) return;
+  labelsFar = far;
+  for (const g of lineGroups.values()) g.children.forEach(c => { if (c.isSprite) c.visible = !far && !dview.on; });
+}
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.25);
@@ -2019,6 +2028,7 @@ function tick(dt) {
     t.x += cx; t.z += cz; camera.position.x += cx; camera.position.z += cz; t.y = Math.max(0, Math.min(t.y, 20));
     controls.update();
   }
+  farLabels();
   updateLook(look, camera, controls.target);
   renderer.render(scene, camera);
   if (dview.on && dlayer) dlayer.draw(camera);
