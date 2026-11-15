@@ -389,10 +389,17 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
       for (let k = 0; k < 3; k++) { let found = false; for (let a = 0; a < MAX[k]; a += 2) { c[k] = a + 2; if (hit(k)) { c[k] = a; found = true; break; } }
         if (!found) { c[k] = f > 0 ? FPg.curl[f - 1][k] : pre[f][k]; while (c[k] > 0 && hit(k)) c[k] -= 2; } } });
     const thit = () => { for (let j = 3; j <= 8; j++) if (perp(thumbPoint(root, hand, j / 8)).length() < Rr + 0.0095 + GAP) return true; return false; };
-    for (let t = 0; t < 70; t += 2) { FPg.thumb = t + 2; if (thit()) { FPg.thumb = t; break; } }
-    if (FPg.thumb >= 70) FPg.thumb = 30;
+    // האגודל כוון לפני שכף היד הוזזה אל המוט, ואחרי ההזזה הוא נשאר בתוך המוט (ולכן לא התכופף בכלל, שלמה 15.11):
+    // מסובבים אותו סביב ציר המוט, בזווית הקטנה ביותר (לכאן או לכאן) שבה הוא כולו מחוץ למוט — ואז הוא נסגר עליו עד מגע
+    if (th && thit()) { const q0 = th.quaternion.clone(), pq = th.parent.getWorldQuaternion(new THREE.Quaternion()).invert(), wq0 = th.getWorldQuaternion(new THREE.Quaternion()); let ok = false;
+      for (let a = 3; a <= 90 && !ok; a += 3) for (const sg of [1, -1]) { th.quaternion.copy(pq).multiply(new THREE.Quaternion().setFromAxisAngle(ax, THREE.MathUtils.degToRad(sg * a)).multiply(wq0)); root.updateMatrixWorld(true); if (!thit()) { ok = true; break; } }
+      if (!ok) { th.quaternion.copy(q0); root.updateMatrixWorld(true); } }
+    if (thit()) FPg.thumb = 0; else { for (let t = 0; t < 70; t += 2) { FPg.thumb = t + 2; if (thit()) { FPg.thumb = t; break; } }
+      if (FPg.thumb >= 70) FPg.thumb = 30; }
     // לבדיקות: כמה כל אצבע מקיפה את המוט (מעלות סביב הציר, משורש האצבע עד הקצה) והמרחק של ציר האצבע ממרכז המוט
-    root.userData.grip = { curl: FPg.curl.map(c => [...c]), thumb: FPg.thumb, R: Rr, wrap: hi.fingers.map((Fg, f) => { const a = perp(fingerPoint(root, hand, f, 0)), b = perp(fingerPoint(root, hand, f, 1)); return [Math.round(Math.acos(THREE.MathUtils.clamp(a.clone().normalize().dot(b.clone().normalize()), -1, 1)) * 57.3), +a.length().toFixed(3), +b.length().toFixed(3)]; }) }; }
+    // thumbGap: המרווח הקטן ביותר בין האגודל (ציר האגודל פחות העובי שלו) לפני המוט — שלילי: האגודל בתוך המוט
+    const thumbGap = () => { let m = 9; for (let j = 3; j <= 8; j++) m = Math.min(m, perp(thumbPoint(root, hand, j / 8)).length() - Rr - 0.0095); return +m.toFixed(4); };
+    root.userData.grip = { curl: FPg.curl.map(c => [...c]), thumb: FPg.thumb, thumbGap: thumbGap(), R: Rr, wrap: hi.fingers.map((Fg, f) => { const a = perp(fingerPoint(root, hand, f, 0)), b = perp(fingerPoint(root, hand, f, 1)); return [Math.round(Math.acos(THREE.MathUtils.clamp(a.clone().normalize().dot(b.clone().normalize()), -1, 1)) * 57.3), +a.length().toFixed(3), +b.length().toFixed(3)]; }) }; }
   root.updateMatrixWorld(true);
   if (rail) shift.z += 0.1;   // ליד המחזיק של הרצועה, לא עליו
   return { root, origin, hip: W(hips).sub(origin), hand: W(hd).sub(origin), shift, rail };
@@ -410,6 +417,8 @@ export const STAND_POLE = { dx: 0.34, dxL: 0.24, dz: 0.12, dzL: 0.16 };   // ל�
 // הרצועה התלויה (straps.js): לולאה צהובה במישור y-z מתחת למוט שבתקרה (x = ±0.50), התחתית 1.83 מ' מעל הרצפה.
 // העומד לצידה, מחוץ למעבר (האגן 25 ס"מ ממנה ו-4 ס"מ מאחוריה), והיד שבצד המעבר סוגרת על הצד הקרוב של הלולאה,
 // 7 ס"מ מעל התחתית (side — חצי הרוחב שם), כמו על עמוד: אגרוף סביב הרצועה, האגודל למעלה
+// שלבי ההגשה של כרטיס לפקח (reachPose): כמה מהדרך בכל שלב. people.audit בודק את כולם
+export const REACH_FR = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1];
 export const STRAP = { dx: 0.25, dz: 0.04, pull: 0.03, h: 1.80, r: 0.009, side: 0.14 };
 export const RAIL_H = 2.0, RAIL_GRIP_R = 0.016;   // המוט האורכי שממנו תלויות הרצועות (straps.js): גבוהים מחזיקים בו, בזרוע כמעט ישרה   // h — הצלע התחתונה של הלולאה; pull — כמה היא נמשכת אל העומד (הרצועה מתוחה מעט)
 export const gripHand = g => (g === 'Right' || g === 'StrapR' ? 'Right' : 'Left');
@@ -809,6 +818,35 @@ export function handPen(root, verts = skinVerts(root)) {
   out.n = out.Left.n + out.Right.n;
   return out;
 }
+// היד המושיטה (אמה, כף יד, אצבעות) מול הגו והרגליים ומול היד השנייה של אותה דמות — לבדיקת ההגשה לפקח (reachPose, people.audit).
+// אותה שיטה של handPen: קודקודים מול משולשים, והכיוון החוצה מהנורמלים. מחזיר לכל אחד: כמה קודקודים בפנים, העומק, והמרווח הקטן ביותר
+export function reachPen(root, hand, verts = skinVerts(root)) {
+  const other = hand === 'Left' ? 'Right' : 'Left', C = 0.03, v3 = (P, i) => new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
+  const PT = new RegExp(`^${hand}(ForeArm|Hand|FingerBase|HandFinger1)$|^${hand[0]}Thumb$`), SETS = { torso: /^(Hips|LHipJoint|RHipJoint|LowerBack|Spine|Spine1|Neck|Neck1|Head|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg)$/, arm: new RegExp(`^${other}(Arm|ForeArm|Hand|FingerBase|HandFinger1)$|^${other[0]}Thumb$`) };
+  const pts = [], G = { torso: { grid: new Map(), tris: [] }, arm: { grid: new Map(), tris: [] } };
+  for (const { o, P, N, kind } of verts) {
+    if (!o.isSkinnedMesh || (kind !== 'skin' && kind !== 'cloth')) continue;
+    const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones, n = g.attributes.position.count, dom = new Array(n), fw = new Float32Array(n);
+    for (let i = 0; i < n; i++) { let bw = 0, bn = ''; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]?.name || ''; } } dom[i] = legacyBone(bn); fw[i] = bw; }
+    // האמה: רק קודקודים שהאמה שולטת בהם כמעט לבד (לא המרפק, שנוגע בצד הגוף גם במנוחה)
+    for (let i = 0; i < n; i++) if (PT.test(dom[i]) && (dom[i] !== hand + 'ForeArm' || fw[i] > 0.9)) { const q = v3(P, i); q.b = dom[i]; pts.push(q); }
+    const I = g.index, m = I ? I.count : n;
+    for (let t = 0; t < m; t += 3) { const a = I ? I.getX(t) : t, b = I ? I.getX(t + 1) : t + 1, c = I ? I.getX(t + 2) : t + 2;
+      for (const k in SETS) { const R = SETS[k]; if (!R.test(dom[a]) || !R.test(dom[b]) || !R.test(dom[c])) continue;
+        const tr = new THREE.Triangle(v3(P, a), v3(P, b), v3(P, c)), nf = tr.getNormal(new THREE.Vector3());
+        if (N) { const nv = v3(N, a).add(v3(N, b)).add(v3(N, c)); if (nv.dot(nf) < 0) nf.negate(); }
+        const id = G[k].tris.push({ tr, n: nf, b: dom[a] }) - 1, M = tr.getMidpoint(new THREE.Vector3()), key = `${Math.floor(M.x / C)},${Math.floor(M.y / C)},${Math.floor(M.z / C)}`;
+        (G[k].grid.get(key) || G[k].grid.set(key, []).get(key)).push(id); } }
+  }
+  const out = {}, cp = new THREE.Vector3();
+  for (const k in G) { const { grid, tris } = G[k], r = out[k] = { n: 0, depth: 0, gap: 1 };
+    for (const q of pts) { let best = null, bd = 0.06, bt = ''; const gx = Math.floor(q.x / C), gy = Math.floor(q.y / C), gz = Math.floor(q.z / C);
+      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) { const ids = grid.get(`${gx + dx},${gy + dy},${gz + dz}`); if (!ids) continue;
+        for (const id of ids) { tris[id].tr.closestPointToPoint(q, cp); const d = cp.distanceTo(q); if (d < bd) { bd = d; best = q.clone().sub(cp).dot(tris[id].n); bt = tris[id].b; } } }
+      if (best == null) continue; r.gap = Math.min(r.gap, best); if (best < -0.001) { r.n++; if (-best > r.depth) { r.depth = -best; r.who = q.b + '>' + bt; } } }
+    r.depth = +r.depth.toFixed(4); r.gap = +r.gap.toFixed(4); }
+  return out;
+}
 // אצבעות רפויות: מקרבים את עצמות האצבעות והאגודל אל תנוחת המנוחה של הדגם (k — כמה, 0..1), כדי שכף היד תונח שטוחה
 // על הירך ולא תיראה כמו טפרים
 export function relaxFingers(root, gltf, k = 0.6) {
@@ -1015,14 +1053,18 @@ export class PeopleLayer {
   // (זו שלא מחזיקה ברצועה או בעמוד) עוברת לפני הגוף אל המעבר. הכרטיס תפוס בין האגודל לאצבעות, והראש מסתובב אל הפקח. frac — כמה מהדרך (0.33 / 0.66 / 1, לתנועה של שלבים).
   // אותו IK של שתי עצמות כמו בשאר התנוחות, על השלד של תנוחת הישיבה/העמידה; כל תנוחה נבנית פעם אחת ונשמרת.
   // slot: { kind: 'seat' | 'stand', x: x של המקום באוטובוס, grip: היד שעל העמוד }
-  reachPose(vi, slot, frac, empty = false, look = 0) {   // look: 0 — מסתכל אל הפקח, 1 — אל הכרטיס והמכשיר
+  reachPose(vi, slot, fr0, empty = false, look = 0, probe = false) {   // look: 0 — מסתכל אל הפקח, 1 — אל הכרטיס והמכשיר
     const V = this.variants[vi]; if (!V) return null;
     const sx = Math.sign(slot.x) || 1, aisle = -sx, win = slot.kind === 'seat' && Math.abs(slot.x) > 0.7;
-    const key = `${slot.kind}|${sx}|${slot.grip || ''}|${win ? 1 : 0}|${slot.pole ? 1 : 0}|${slot.front ? 1 : 0}|${frac}|${empty ? 1 : 0}|${look}`;
-    V.reach = V.reach || {}; if (V.reach[key] !== undefined) return V.reach[key];
+    const key = `${slot.kind}|${sx}|${slot.grip || ''}|${win ? 1 : 0}|${slot.pole ? 1 : 0}|${slot.front ? 1 : 0}|${fr0}|${empty ? 1 : 0}|${look}`;
+    V.reach = V.reach || {}; if (!probe && V.reach[key] !== undefined) return V.reach[key];
     const base = slot.kind === 'seat' ? V.bus?.sit : V.stand?.[slot.grip]?.st;
     if (!base) return (V.reach[key] = null);
     const root = base.root, B = n => root.getObjectByName(n), W = o => o.getWorldPosition(new THREE.Vector3());
+    // יושב: בונים את התנוחה המלאה (frac = 1), ושלבי הביניים הם מעבר בין המפרקים של תנוחת המנוחה לאלה של התנוחה המלאה —
+    // הזרוע נפתחת בקשת קדימה מהירך (המרפק נשאר בצד הגוף ונפתח), ולא בקו ישר של כף היד עם מרפק שמחושב מחדש בכל שלב:
+    // כך המרפק קפץ אל מול החזה והאמה עברה דרך הבטן (שלמה 15.11). עומד: כמו קודם, מסלול של כף היד
+    const frac = slot.kind === 'seat' ? 1 : fr0;
     // ‎-x היא צד ימין של הדמות (פונה ל-‎+z)
     // עומד: ממשיך להחזיק בעמוד, ומושיט ביד השנייה — קודם קדימה (לפני העמוד) ורק אז אל המעבר
     const hand = slot.kind === 'seat' ? (aisle < 0 ? 'Right' : 'Left') : (gripHand(slot.grip) === 'Right' ? 'Left' : 'Right');
@@ -1056,7 +1098,9 @@ export class PeopleLayer {
     const T = h0.clone().lerp(full, frac);
     if (slot.kind === 'stand') { T.x = h0.x + (full.x - h0.x) * Math.pow(frac, 3) + aisle * 0.1 * Math.sin(Math.PI * frac); T.z = h0.z + (full.z - h0.z) * Math.sqrt(frac); }   // קודם מתרחקת מהקיר ומהמעקה   // עומד: היד יוצאת מהעמוד אחורה ולמעלה, ורק אז קדימה
     else if (win) { T.x = h0.x + (full.x - h0.x) * frac * frac; } else T.z = h0.z + (full.z - h0.z) * frac * frac;
-    twoBone(arm, fore, hd, T, win ? new THREE.Vector3(-aisle * 0.2, -0.5, 1) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));
+    // בלי כרטיס (היד עולה רק מעט): המרפק נשאר בכיוון שלו במנוחה — מרפק שמחושב מחדש נכנס לצד הגוף
+    const el0 = W(fore), restPole = el0.clone().sub(sh.clone().add(h0).multiplyScalar(0.5));
+    twoBone(arm, fore, hd, T, empty && slot.kind === 'seat' && restPole.lengthSq() > 1e-4 ? restPole : win ? new THREE.Vector3(-aisle * 0.2, -0.5, 1) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));
     // האצבעות אל המעבר ואל הפקח (הכרטיס ממשיך אותן), ובלי כרטיס — קדימה
     const fdir = empty ? new THREE.Vector3(aisle * 0.15, -0.1, 1) : slot.front ? new THREE.Vector3(aisle * 0.9, 0.1, -0.35) : /Strap/.test(slot.grip || '') ? new THREE.Vector3(aisle * 0.6, 0.15, 0.8) : slot.kind === 'stand' ? new THREE.Vector3(aisle * 0.5, 0.15, 0.85) : win ? new THREE.Vector3(aisle * 0.85, 0.2, 0.45) : new THREE.Vector3(aisle * 0.7, 0.15, 0.7);
     const dir = T.clone().sub(W(fore)).normalize().lerp(fdir.normalize(), frac).normalize();
@@ -1088,10 +1132,20 @@ export class PeopleLayer {
         const target = padAt(bc, 0.022), cur = th.localToWorld(tips.th.clone()).sub(tb).normalize(), want = target.clone().sub(tb).normalize();
         const q = new THREE.Quaternion().setFromUnitVectors(cur, want), wq = th.getWorldQuaternion(new THREE.Quaternion()), pq = th.parent.getWorldQuaternion(new THREE.Quaternion());
         th.quaternion.copy(pq.invert().multiply(q.multiply(wq))); root.updateMatrixWorld(true);
-        pinch = { c: padAt(bc, 0.011), ...fingerDirs(root, hand, 0) };
+        pinch = { c: padAt(bc, 0.011), ...fingerDirs(root, hand, 0), at: () => padAt(bc, 0.011) };
       }
     }
+    if (slot.kind === 'seat' && fr0 < 1) {
+      const sq = new Map(saved), k = fr0 * fr0 * (3 - 2 * fr0), inHand = new Set(); hd.traverse(b => { if (b !== hd) inHand.add(b); });
+      // האצבעות כבר אוחזות בכרטיס (או פתוחות) מהשלב הראשון; הכתף והמרפק מקדימים מעט את הגו והראש
+      root.traverse(b => { if (!b.isBone || inHand.has(b)) return; const f = b.quaternion.clone(), q0 = sq.get(b); if (!q0 || q0.angleTo(f) < 1e-5) return;
+        b.quaternion.copy(q0).slerp(f, b === arm || b === fore || b === hd ? fr0 : k); });
+      root.updateMatrixWorld(true);
+      if (pinch) pinch = { c: pinch.at(), ...fingerDirs(root, hand, 0) };
+    }
     const us = unsinkHands(root, slot.kind === 'stand' ? hand : null);
+    const pen = probe ? reachPen(root, hand) : null;
+    if (probe) { root.userData.fingerPose = fp0; for (const [b, q] of saved) b.quaternion.copy(q); root.updateMatrixWorld(true); return { pen, unsink: us }; }
     const groups = bakeVariant(V.gltf, base, V.cache);
     // הכרטיס (8.5×5.4 ס"מ) זקוף בין האגודל לאצבעות, הפנים שלו אל הפקח שבמעבר
     const headP = B('Head') ? W(B('Head')).sub(o) : null;
@@ -1106,7 +1160,7 @@ export class PeopleLayer {
     for (const [b, q] of saved) b.quaternion.copy(q);
     root.updateMatrixWorld(true);
     const meshes = groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 1); im.count = 0; im.visible = false; im.frustumCulled = false; im.name = `crowd-${vi}-reach-${gr.kind}`; im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
-    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), head: headP, acc: accM, seated: slot.kind === 'seat', unsink: us });
+    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), head: headP, acc: accM, seated: slot.kind === 'seat', unsink: us, pen });
   }
   // כף יד ימין של אחד הדגמים בשביל מבט הפקח (היד שמחזיקה את המכשיר): הקודקודים של כף היד, האצבעות, האגודל ו-6 ס"מ של
   // האמה, במערכת הצירים של היד — x: לרוחב (מהמורה אל הזרת), y: כיוון האצבעות, z: אל כף היד; הראשית — אמצע כף היד.
@@ -1606,12 +1660,29 @@ reachPreview(pid, hasCard = true) {
   }
 
   // בדיקה (לבדיקות ולקונסולה): כל מי שמצויר יושב או עומד בתחנה — נוסע שנמצא עכשיו בתור באותה תחנה. מחזיר את החריגים
-  audit(sim) {
+  audit(sim, reach = true) {
     const at = new Map();
     for (const L of sim.lines) L.queues.forEach((q, k) => { for (const p of q) at.set(p.id, L.stops[k].id); });
     const bad = [];
     for (const [name, M] of [['seat', this.seats], ['bench', this.benches]])
       for (const [sid, m] of M) for (const pid of m.keys()) if (at.get(pid) !== sid) bad.push({ name, sid, pid, at: at.get(pid) });
+    if (reach) bad.push(...this.auditReach());
+    return bad;
+  }
+  // ההגשה של כרטיס לפקח: בכל שלב (REACH_FR — בעלייה ובירידה אותן תנוחות), לכל דגם ולכל מקום (מעבר/חלון, שורה ראשונה, עם כרטיס ובלי,
+  // ועומדים בכל אחיזה) — היד המושיטה (אמה, כף יד, אצבעות) לא בתוך הגו או הרגליים ולא בתוך היד השנייה של אותה דמות (reachPen).
+  // רק לדגמים שתנוחות האוטובוס שלהם כבר נבנו (אחרי כניסה למבט הפקח). כבד (כמה דקות) — people.audit(sim, false) מדלג
+  auditReach(tol = { torso: 0.004, arm: 0.002 }) {
+    const bad = [];
+    for (const [vi, V] of this.variants.entries()) {
+      const slots = [];
+      if (V.bus?.sit) for (const sx of [1, -1]) for (const win of [false, true]) for (const front of [false, true]) slots.push([`seat ${sx > 0 ? 'R' : 'L'} ${win ? 'win' : 'aisle'}${front ? ' front' : ''}`, { kind: 'seat', x: sx * (win ? 0.9 : 0.45), front }]);
+      for (const grip of Object.keys(V.stand || {})) slots.push([`stand ${grip}`, { kind: 'stand', x: /R/.test(grip) ? 0.75 : -0.75, grip }]);
+      for (const [name, slot] of slots) for (const empty of [false, true]) for (const frac of REACH_FR) {
+        const r = this.reachPose(vi, slot, frac, empty, 0, true); if (!r?.pen) continue;
+        if (r.pen.torso.depth > tol.torso || r.pen.arm.depth > tol.arm) bad.push({ name: 'reach', vi, slot: name, empty, frac, torso: r.pen.torso, arm: r.pen.arm });
+      }
+    }
     return bad;
   }
   // מסלול הדלת, מבחוץ פנימה: מול הדלת על המדרכה ← עלייה למדרגה (0.34 מ') ← עלייה לרצפה (0.66 מ') ← פנימה.
