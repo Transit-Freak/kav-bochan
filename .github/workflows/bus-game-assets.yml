@@ -53,7 +53,9 @@ jobs:
           set -e
           pip install -q pillow && mkdir -p out tex && python3 screens.py tex
           $BL -b --factory-startup --python-exit-code 1 -P bus.py 2>&1 | grep -E 'BUS|Error|Traceback' | tail -5
-          $BL -b out/bus.blend --python-exit-code 1 -P $GITHUB_WORKSPACE/unreleased/bus-game/tools/export_bus.py -- $GITHUB_WORKSPACE/unreleased/bus-game/assets/bus.glb 2>&1 | grep -E 'EXPORT tris|BUS GLB|Error|Traceback'
+          $BL -b out/bus.blend --python-exit-code 1 -P $GITHUB_WORKSPACE/unreleased/bus-game/tools/export_bus.py -- $GITHUB_WORKSPACE/unreleased/bus-game/tools/src/bus_blender.glb 2>&1 | grep -E 'EXPORT tris|BUS GLB|Error|Traceback'
+          # הדגמים של המשחק (הרגיל, מיניבוס, מפרקי, חשמלי — מתקף מסוג אחד בכל אוטובוס) נבנים מהייצוא
+          (cd $GITHUB_WORKSPACE/unreleased/bus-game && node tools/build_bus_variants.mjs)
       - name: People (walk 16_15 + idle)
         working-directory: bt/tools/blender-test
         run: |
@@ -73,14 +75,14 @@ jobs:
           (cd $G/assets/people && ls person_*.glb | sort -V | python3 -c "import sys,json;print(json.dumps([l.strip() for l in sys.stdin]))" > people.json && cat people.json)
       - name: Save
         # הפלט נשמר בענף נפרד, bus-game-assets, שאין לו PR — כדי שכל ייצוא לא ישלח מייל על ה-PR של המשחק.
-        # מעבירים אותו למשחק ביד: git fetch --depth 1 origin bus-game-assets && git checkout FETCH_HEAD -- unreleased/bus-game/assets
+        # מעבירים אותו למשחק ביד: git fetch --depth 1 origin bus-game-assets && git checkout FETCH_HEAD -- unreleased/bus-game/assets unreleased/bus-game/tools/src
         run: |
           ls -la unreleased/bus-game/assets
           git config user.name github-actions[bot]; git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           PARENT=$(git ls-remote origin refs/heads/bus-game-assets | cut -f1)
           if [ -n "$PARENT" ]; then git fetch -q --depth 1 origin bus-game-assets; fi
           export GIT_INDEX_FILE=$RUNNER_TEMP/assets.index
-          git add -f unreleased/bus-game/assets
+          git add -f unreleased/bus-game/assets unreleased/bus-game/tools/src
           TREE=$(git write-tree)
           if [ -n "$PARENT" ] && [ "$(git rev-parse $PARENT^{tree})" = "$TREE" ]; then echo 'no change'; exit 0; fi
           C=$(git commit-tree $TREE ${PARENT:+-p $PARENT} -m "משחק האוטובוס: ייצוא האנשים והאוטובוס מ-Blender (מ-${GITHUB_SHA::9})")
