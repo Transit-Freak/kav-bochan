@@ -25,7 +25,8 @@ MIN_WEEKLY=int(os.environ.get('MIN_WEEKLY','14'))   # פחות משתי נסיע
 GAP=8                # עד כך תחנות רצופות מחוץ לעיר לא שוברות את הרצף (קו פנימי שחוצה לרגע עיר שכנה נשאר שלם)
 INT_PS=85; CIRC_PS=80; METRO_PS=50; METRO_PK=40; METRO_WEEKLY=50
 MIN_DEFAULT=5        # פחות מכך קווים פנימיים — ברירת המחדל של העיר עוברת ל"+ מטרופוליניים"
-BR_FAR=300; BR_NEAR=100; BR_MINLEN=250   # כיוון נגדי שמתרחק מעל 300 מ' מצויר כענף נפרד
+SIMPLIFY=float(os.environ.get('CM_SIMPLIFY','30'))   # פישוט המסלול (מ'): מסיר זיגזג של כיכרות ומפרצי תחנות
+BR_FAR=300; BR_NEAR=150; BR_MINLEN=500   # כיוון נגדי שמתרחק מעל 300 מ' מצויר כענף נפרד
 
 rows=json.load(open(MAIN,encoding='utf-8'))
 urban=set()
@@ -154,10 +155,15 @@ class Var:
             else: runs.append([i])
         r=max(runs,key=len)
         return max(0,r[0]-1),min(len(self.sids)-1,r[-1]+1)
+    def exact(self,lo,hi):
+        # המסלול המדויק (פישוט ל-8 מ' בלבד) — לתצוגת הקו הבודד
+        a=bisect.bisect_left(self.cum,self.sd[lo]); b=bisect.bisect_right(self.cum,self.sd[hi])
+        seg=simplify(self.pts[a:b],8) if b-a>=2 else self.sxy[lo:hi+1]
+        return [list(ll(x,y)) for x,y in seg]
     def path(self,lo,hi):
         # המסלול בין שתי תחנות: נקודות ה-shape (מפושט ל-10 מ', מרווח עד 70 מ') + התחנות לפי מרחק
         a=bisect.bisect_left(self.cum,self.sd[lo]); b=bisect.bisect_right(self.cum,self.sd[hi])
-        seg=simplify(self.pts[a:b],10) if b-a>=2 else []
+        seg=simplify(self.pts[a:b],SIMPLIFY) if b-a>=2 else []
         out=[]   # (מרחק, x, y, אינדקס תחנה או -1)
         if seg:
             dcur=self.cum[a]
@@ -239,13 +245,13 @@ for mk,(rm,ro) in picked.items():
         st=[[stops[s][0],stops[s][1],stops[s][2],stops[s][3]] for s in v1.sids[lo:hi+1]]
         L={'id':mk,'rid':r1,'mk':mk,'num':routes[r1]['num'],'long':routes[r1]['long'],'op':agency.get(info['ag'],''),
            'cls':cls,'weekly':weekly[mk],'ps':ps_,'pk':pk_,'ends':ends,'circ':circ,'stops':st,
-           'path':[[*ll(t[1],t[2]),t[3]] for t in P1],'opp':[],'branches':[]}
+           'path':[[*ll(t[1],t[2]),t[3]] for t in P1],'exact':v1.exact(lo,hi),'opp':[],'branches':[]}
         if v2 is not None and len(v2.sids)>=2:
             co=v2.clip(c)
             if co and co[1]>co[0]:
                 P2=v2.path(*co)
                 ost=[[stops[s][0]] for s in v2.sids[co[0]:co[1]+1]]
-                L['opp']=[list(ll(t[1],t[2])) for t in P2]
+                L['opp']=v2.exact(*co)
                 L['branches']=branches(P1,P2,ost)
         bycity[c].append(L)
 

@@ -1,0 +1,29 @@
+# הגדרות מפת LOOM: ברירת מחדל ועקיפות לכל עיר. עיר עם approved: true מקבלת מפת LOOM;
+# כל השאר (וגם עיר מאושרת שנכשלה בבדיקה האוטומטית) מקבלות את המפה של המנוע הישן.
+loom_commit: 1e4757838104d1e4d22186c9b77d5fc4b98681a0   # הגרסה של LOOM שנבדקה (ad-freiburg/loom)
+defaults:
+  approved: false
+  tiers: [internal, metro, all]   # הרמות שמרונדרות ב-LOOM
+  topo_d: 100                 # topo -d: מרחק מרבי (מ') לאיחוד קטעים מקבילים
+  no_infer_restrs: false      # topo --no-infer-restrs
+  fix_restrs: true            # fixrestr.py: הסרת איסורי פנייה שקוטעים קו
+  diag_pen: 3                 # octi --diag-pen: קנס אלכסון (מפה "מרובעת")
+  smoothing: 0                # transitmap --smoothing
+  hubs_only: true             # רק מסופים/מרכזית/רכבת/קצות קווים (ותחנות עוגן בלי סימון)
+  anchor: 700                 # מרחק (מ') בין תחנות עוגן
+  clean: true                 # ניקוי המסלול: בלי הלוך-וחזור ולולאות קצרות
+  merge_hubs: name            # איחוד רציפים: name | centroid | none
+  skip_lines: []              # מספרי קווים שלא מציירים
+  cut_boxes: []               # [דרום, מערב, צפון, מזרח]: כניסות שמוחקים מהמסלול
+  timeout: 900                # שניות לרמה אחת
+cities:
+  תל אביב יפו:
+    approved: true
+    # נבדק בעין 15.11: הפנימיים (17 קווים) קריאים. המטרופוליניים (48) צפופים במרכז ו-5 קווים נקטעים;
+    # "כל הקווים" (128) לא קריא. שתי הרמות האלה נשארות במנוע הישן.
+    tiers: [internal]
+  קרית גת:
+    approved: false
+    # לא אושר 15.11: בכל הניסיונות נשאר קשר בתחנה המרכזית (ראו README). ההגדרה הכי פחות גרועה:
+    merge_hubs: centroid
+    no_infer_restrs: true
