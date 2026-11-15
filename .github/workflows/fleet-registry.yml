@@ -32,6 +32,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             tools
+            tests
             fleet/data
       - name: בדיקת הגנות העדכון
         run: python3 -m unittest discover -s tests -p 'test_fleet_refresh_registry.py'
