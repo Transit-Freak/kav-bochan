@@ -24,6 +24,9 @@
                                                        הכביש נוסע האוטובוס בכל קשת (1.8 מ'; בחד-סטרי צר — פחות)
   stops:     [{id, code, name, x, y, e, t, w}]         e = קשת ברשת (אינדקס לזוג ב-edges), t = מיקום על הקשת 0..1,
                                                        w = משקל ביקוש (שטח הבנייה בסביבה, מנורמל)
+  rail:      [[x0,y0,x1,y1,...], ...]                  מסילות רכבת (railway=rail, בלי מנהרות), חתוכות לגבולות המפה
+  platforms: [[x0,y0,...], ...]                        רציפי רכבת (טבעת)
+  rail_stations: [{name, x, y}]                        תחנות רכבת (שם מ-OSM, ואם אין — "תחנת רכבת <העיר>"), מטרים
 
 כלל המקום לאוטובוס: כל רחוב דו-סטרי שהאוטובוס יכול לנסוע בו מצויר ברוחב 6.6 מ' לפחות (2 × (1.8 + 1.275) + 0.4),
 ובחד-סטרי האוטובוס נוסע קרוב יותר למרכז, כך שהוא נשאר על האספלט. בפניות — אספלט נוסף בצורת המעטפת של האוטובוס.
@@ -694,6 +697,54 @@ if CFG.get('clip'):
     print('city bounds (m):', [round(v) for v in CLIP.bounds], '; buildings', _b0, '->', len(buildings))
     print('clip', CFG['clip'], 'm: area', round(CLIP.area / 1e6, 2), 'km2; areas', _a0, '->', len(areas), '; trees', _t0, '->', len(trees))
 RES_TAGS = ('apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow')
+
+# ---------- מסילת הרכבת ותחנת הרכבת (רק railway=rail פעילה; בלי מתוכננת/נטושה/בבנייה, ובלי קטעים במנהרה).
+# המסילה נחתכת לגבולות המפה (ועוד 100 מ'), כמו שהקרקע מצוירת. רציף ב-OSM הוא לרוב קו באמצע רציף אי —
+# הופכים אותו למלבן: חצי הרוחב = המרחק למסילה הקרובה פחות 1.75 מ' (שפת הרציף), בין 1.5 ל-5 מ'.
+# התחנה: צומת או בניין עם railway=station/halt, public_transport=station או building=train_station; ואם אין — מרכז הרציפים
+from shapely.geometry import LineString, box as _box
+_frame = _box(-HALF_X - 100, -HALF_Y - 100, HALF_X + 100, HALF_Y + 100)
+rail_lines, plat_lines, stations_raw = [], [], []
+for e in EL:
+    t = e.get('tags', {})
+    st_tag = t.get('railway') in ('station', 'halt') or t.get('public_transport') == 'station' or t.get('building') == 'train_station'
+    if e['type'] == 'node':
+        if st_tag and t.get('railway') in ('station', 'halt', None) and 'lat' in e:
+            if t.get('station') in ('subway', 'light_rail') or t.get('light_rail') == 'yes' or t.get('bus') == 'yes' and 'railway' not in t: continue
+            stations_raw.append(((t.get('name:he') or t.get('name') or '').strip(), Point(P(e['lat'], e['lon']))))
+        continue
+    if e['type'] != 'way' or 'geometry' not in e: continue
+    g = [P(p['lat'], p['lon']) for p in e['geometry'] if p]
+    if len(g) < 2: continue
+    if t.get('railway') == 'rail' and t.get('tunnel') in (None, 'no'): rail_lines.append(LineString(g))
+    elif t.get('railway') == 'platform': plat_lines.append(LineString(g) if g[0] != g[-1] or len(g) < 4 else Polygon(g))
+    elif st_tag and len(g) >= 4 and g[0] == g[-1]: stations_raw.append(((t.get('name:he') or t.get('name') or '').strip(), Polygon(g).buffer(0)))
+rail = []
+for ln in rail_lines:
+    c = ln.intersection(_frame)
+    for q in (c.geoms if hasattr(c, 'geoms') else [c]):
+        if q.geom_type == 'LineString' and q.length > 1: rail.append([dm(v) for xy in q.simplify(0.3).coords for v in xy])
+platforms = []
+for pl in plat_lines:
+    if not pl.intersects(_frame): continue
+    if pl.geom_type == 'Polygon': g = pl
+    else:
+        dist = min((pl.distance(r) for r in rail_lines), default=4.0)
+        g = pl.buffer(max(1.5, min(5.0, dist - 1.75)), cap_style=2, join_style=2)
+    if not g.is_empty and g.geom_type == 'Polygon': platforms.append(g)
+rail_stations = []
+if stations_raw or platforms:
+    _u = unary_union([s.buffer(150) for _, s in stations_raw] + [p.buffer(150) for p in platforms])   # תחנה = כל מה שעד 150 מ' זה מזה
+    for grp in (_u.geoms if hasattr(_u, 'geoms') else [_u]):
+        mine = [(nm, s) for nm, s in stations_raw if grp.contains(s.centroid)]
+        pls = [p for p in platforms if grp.contains(p.centroid)]
+        c = (unary_union([s for _, s in mine]) if mine else unary_union(pls)).centroid
+        if not inside(c.x, c.y): continue
+        nm = next((n for n, _ in mine if n), '') or 'תחנת רכבת ' + CFG['name']
+        rail_stations.append({'name': nm, 'x': round(c.x, 1), 'y': round(c.y, 1)})
+print('rail', len(rail), 'pieces', round(sum(LineString([(a[i] / 10, a[i + 1] / 10) for i in range(0, len(a), 2)]).length for a in rail)), 'm;',
+      'platforms', len(platforms), '; stations', rail_stations)
+
 out = {
     'meta': {'city': CFG['name'], 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
              'built': datetime.date.today().isoformat(), 'osm_timestamp': raw.get('osm3s', {}).get('timestamp_osm_base'),
@@ -716,6 +767,10 @@ out = {
     'graph': {'nodes': [v for x, y in gnodes for v in (dm(x), dm(y))], 'edges': [v for e in gedges for v in e],
               'lane': [dm(v) for v in lane]},
     'stops': stops,
+    # מסילת הרכבת: [[x0,y0,x1,y1,...], ...] (קווים, דצימטרים); רציפים: [[x0,y0,...], ...] (טבעת); תחנות: שם ומרכז במטרים
+    'rail': rail,
+    'platforms': [[dm(v) for xy in list(g.exterior.coords)[:-1] for v in xy] for g in platforms],
+    'rail_stations': rail_stations,
 }
 p = os.path.join(W, 'city.json')
 json.dump(out, open(p, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
