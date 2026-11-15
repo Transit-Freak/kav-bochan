@@ -9,18 +9,42 @@ from collections import defaultdict, Counter
 
 SRC=sys.argv[1]
 OUT=sys.argv[2]
-CLUSTER_M=180
-AXIS_TOL=300     # צמתים שקואורדינטת ה-X/Y שלהם קרובה מזה — מיושרים לאותה עמודה/שורה
+import os
+# גאומטריה לפי shapes.txt (שדה 'path' בקובץ העיר): הספים הוקטנו כדי שהקו המצויר יישאר
+# על הרחוב האמיתי. הערכים הישנים (180/300/380), שכוילו לרצף תחנות בלבד, יצרו סטיות של
+# 350-650 מ' — קו ברחוב מקביל ולולאות שנמחקו. CM_SHAPE=0 מחזיר לרצף תחנות (להשוואה).
+SHAPE=os.environ.get('CM_SHAPE','1')=='1'
+BRANCH=os.environ.get('CM_BRANCH','1')=='1'
+CLUSTER_M=float(os.environ.get('CM_CLUSTER','180' if not SHAPE else '70'))
+AXIS_TOL=float(os.environ.get('CM_AXIS','300' if not SHAPE else '100'))     # צמתים שקואורדינטת ה-X/Y שלהם קרובה מזה — מיושרים לאותה עמודה/שורה
+DEV_BASE=float(os.environ.get('CM_DEV','380' if not SHAPE else '90'))
 PAL=['#c2185b','#00acc1','#2e7d32','#f9a825','#1565c0','#d32f2f','#7b1fa2','#00897b','#5d4037','#455a64','#e91e63']
 
 d=json.load(open(SRC,encoding='utf-8'))
-best={}
-for L in d['lines']:
-    k=L['num']
-    if k not in best or len(L['stops'])>len(best[k]['stops']): best[k]=L
 def numkey(n):
     m=re.match(r'(\d+)',n); return (int(m.group(1)) if m else 999,n)
-lines=[best[k] for k in sorted(best,key=numkey)]
+# שלוש רמות תצוגה: פנימיים / + מטרופוליניים / כל הקווים. לכל רמה דף משלה (הפריסה מחושבת
+# רק על הקווים שמוצגים), והמתג בראש הדף מקשר ביניהם.
+TIERS=[('internal','פנימיים'),('metro','+ מטרופוליניים'),('all','כל הקווים')]
+TIER=os.environ.get('TIER') or d.get('def','all')
+_keep={'internal':('internal',),'metro':('internal','metro'),'all':('internal','metro','pass')}[TIER]
+# מפתח הקו הוא המק"ט ('id') ולא מספר הקו: שני קווים שונים עם אותו מספר מצוירים שניהם.
+# 'num' משמש בהמשך כמפתח פנימי; 'label' הוא המספר שמוצג; 'grp' מקבץ קו עם הענפים שלו.
+lines=[]
+for L in sorted((L for L in d['lines'] if L.get('cls','pass') in _keep),key=lambda L:(numkey(L['num']),L['id'])):
+    L['label']=L['num']; L['grp']='m'+str(L['id']); L['num']=L['grp']; L['br']=False
+    if not SHAPE or not L.get('path'): L['path']=[[s[2],s[3],i] for i,s in enumerate(L['stops'])]
+    lines.append(L)
+    # כיוון נגדי שמתרחק מעל 300 מ' מהכיוון הראשי — ענף נפרד (מקווקו) באותו צבע
+    for bi,bp in enumerate(L.get('branches',[]) if BRANCH else []):
+        st=[]; pa=[]
+        for p in bp:
+            if p[2]: st.append([p[2],'',p[0],p[1]]); pa.append([p[0],p[1],len(st)-1])
+            else: pa.append([p[0],p[1],-1])
+        if not SHAPE: pa=[q for q in pa if q[2]>=0] if len(st)>=2 else [[bp[0][0],bp[0][1],-1],[bp[-1][0],bp[-1][1],-1]]
+        if not st: st=[['','',bp[0][0],bp[0][1]],['','',bp[-1][0],bp[-1][1]]]
+        lines.append({'num':f"{L['grp']}b{bi}",'grp':L['grp'],'label':L['label'],'br':True,'long':L['long'],'stops':st,'path':pa})
+
 la0=sum(s[2] for L in lines for s in L['stops'])/sum(len(L['stops']) for L in lines)
 cl=math.cos(math.radians(la0))
 def xy(la,lo): return (lo*111320*cl, la*110540)
@@ -43,8 +67,10 @@ clusters=[]
 def add_pt(x,y,nm):
     for i,c in enumerate(clusters):
         if math.hypot(c[3][0]-x,c[3][1]-y)<=CLUSTER_M:
-            n=len(c[2]); c[0]=(c[0]*n+x)/(n+1); c[1]=(c[1]*n+y)/(n+1); c[2].append(nm); return i
-    clusters.append([x,y,[nm],(x,y)]); return len(clusters)-1
+            n=c[4]; c[0]=(c[0]*n+x)/(n+1); c[1]=(c[1]*n+y)/(n+1); c[4]+=1
+            if nm: c[2].append(nm)
+            return i
+    clusters.append([x,y,[nm] if nm else [],(x,y),1]); return len(clusters)-1
 def find_pt(x,y):
     # איתור מקבץ קיים בלי לשנות כלום — לשימוש אחרי שלב הבנייה
     best=None
@@ -53,12 +79,23 @@ def find_pt(x,y):
         if dd<=CLUSTER_M and (best is None or dd<best[1]): best=(i,dd)
     return best[0] if best else None
 routes={}
+_ok=[]
 for L in lines:
     seq=[]
-    for s in L['stops']:
-        c=add_pt(*xy(s[2],s[3]),s[0])
+    for p in L['path']:
+        c=add_pt(*xy(p[0],p[1]),L['stops'][p[2]][0] if p[2]>=0 else None)
         if not seq or seq[-1]!=c: seq.append(c)
-    routes[L['num']]=seq
+    if len(seq)<2: continue
+    routes[L['num']]=seq; _ok.append(L)
+lines=_ok
+# רעש קיבוץ: מסלול שרץ על הגבול בין שני מקבצים "קופץ" A-B-A. אם ב-B אין תחנה — זו לא
+# שלוחה אמיתית אלא רעש, והיא מוסרת (אחרת כל קפיצה מצוירת כלולאה קטנה על הקו).
+for _k,seq in routes.items():
+    i=0
+    while i<len(seq)-2:
+        if seq[i]==seq[i+2] and not clusters[seq[i+1]][2] and len(seq)>3:
+            del seq[i+1:i+3]; i=max(0,i-1)
+        else: i+=1
 
 # ---- צמתים אמיתיים ----
 hopset=defaultdict(set)
@@ -77,7 +114,7 @@ for seq in routes.values(): junction.add(seq[0]); junction.add(seq[-1])
 # ריצה שתחנות הביניים שלה סוטות הרבה מהמיתר בין שני הצמתים (למשל צלילה של
 # 700מ' לתוך שכונה, כמו אבני החושן) — התחנה הסוטה ביותר הופכת לצומת, אחרת
 # הציור "חותך את הפינה" ומעלים את הצלילה.
-DEV_M=380*SCALE
+DEV_M=DEV_BASE*SCALE
 _changed=True
 while _changed:
     _changed=False
@@ -98,6 +135,13 @@ while _changed:
                 if worst is None or dev>worst[0]: worst=(dev,m)
             if worst and worst[0]>DEV_M:
                 junction.add(worst[1]); _changed=True
+            elif j-i>1:
+                # ריצה ארוכה ואלכסונית: הציור האוקטולינארי (אלכסון ואז ישר) מתרחק מהמיתר גם
+                # כשהתחנות עצמן עליו. מפצלים באמצע עד שפינת המרפק קרובה מ-DEV_M למסלול.
+                m_,M_=sorted((abs(bx-ax),abs(by-ay)))
+                if m_*(M_-m_)/(math.hypot(m_,M_) or 1.0)>DEV_M:
+                    mid=min(seq[i+1:j],key=lambda m:abs(((clusters[m][0]-ax)*(bx-ax)+(clusters[m][1]-ay)*(by-ay))/L2-0.5))
+                    if mid not in junction: junction.add(mid); _changed=True
             i=j
 
 # ---- יישור לעמודות/שורות: קיבוץ חד-ממדי של קואורדינטות הצמתים ----
@@ -557,7 +601,10 @@ def rpath(pts,r=5.0):
     return ' '.join(out)
 
 svg=[]; chips=[]; strips=[]; gst={}; chains_all=[]
-color={L['num']:PAL[i%len(PAL)] for i,L in enumerate(lines)}
+_labcnt=Counter(L['label'] for L in lines if not L['br'])
+_grps=[L['grp'] for L in lines if not L['br']]
+_gcol={g:PAL[i%len(PAL)] for i,g in enumerate(_grps)}
+color={L['num']:_gcol.get(L['grp'],'#64748b') for L in lines}
 for i,L in enumerate(lines):
     num=L['num']; col=color[num]
     lr=line_runs[num]
@@ -659,8 +706,9 @@ for i,L in enumerate(lines):
     chain[-1]=(chain[-1][0]+ts1[0],chain[-1][1]+ts1[1])
     dd=rpath(chain)
     chains_all.append(chain)
-    svg.append(f'<path class="lnw lnw-{num}" d="{dd}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
-    svg.append(f'<path class="ln ln-{num}" d="{dd}" stroke="{col}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+    g=L['grp']; _dash=' stroke-dasharray="7 4"' if L['br'] else ''
+    svg.append(f'<path class="lnw lnw-{g}" d="{dd}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+    svg.append(f'<path class="ln ln-{g}" data-k="{num}" d="{dd}" stroke="{col}"{_dash} fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
     # מסלול מרכז — מוצג רק כשהקו נבחר: על ציר הצומת, בלי היסטים ובלי החלפות נתיב
     cchain=[]
     for key,rev in line_runs[num]:
@@ -674,8 +722,9 @@ for i,L in enumerate(lines):
         cchain[0]=(cchain[0][0]+ts0[0],cchain[0][1]+ts0[1])
         cchain[-1]=(cchain[-1][0]+ts1[0],cchain[-1][1]+ts1[1])
     ddc=rpath(cchain,7.0)
-    svg.append(f'<path class="lncw lncw-{num}" d="{ddc}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
-    svg.append(f'<path class="lnc lnc-{num}" d="{ddc}" stroke="{col}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+    svg.append(f'<path class="lncw lncw-{g}" d="{ddc}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+    svg.append(f'<path class="lnc lnc-{g}" d="{ddc}" stroke="{col}"{_dash} fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+    if L['br']: continue   # ענף של כיוון נגדי: בלי תחנות עוגן, בלי כפתור ובלי רצועת תחנות משלו
     # תחנות עוגן של הקו — נאספות למאגר גלובלי ומצוירות פעם אחת אחרי כל הקווים
     KEY_RE=re.compile(r'מסוף|רכבת|מרכזית|ת\.מרכזית')
     n=len(L['stops'])
@@ -687,17 +736,20 @@ for i,L in enumerate(lines):
         pos=npos(nd) if nd is not None else (nearest(clusters[cid][0],cols)*U,nearest(clusters[cid][1],rows)*U)
         kk=('n',nd) if nd is not None else ('c',cid)
         e=gst.setdefault(kk,{'pos':pos,'name':re.sub(r"/.*$","",s[0])[:24],'lines':set()})
-        e['lines'].add(num)
+        e['lines'].add(g)
     dest=re.sub(r'-\d+#?$','',L['long']).replace('<->',' ↔ ')
     dest=re.sub(r'-'+re.escape(d['city']),'',dest)[:60]
-    chips.append(f'<button class="chip" data-l="{num}" style="--c:{col}"><b>{num}</b><span>{escape(dest)}</span></button>')
+    lab=escape(L['label'])
+    if _labcnt[L['label']]>1 and L.get('op'): dest=L['op']+' · '+dest   # אותו מספר לשני קווים שונים — מוסיפים מפעיל
+    chips.append(f'<button class="chip" data-l="{g}" style="--c:{col}"><b>{lab}</b><span>{escape(dest)}</span></button>')
     # רצועת התחנות של הקו — כל התחנות לפי סדר הנסיעה
     KEY2=re.compile(r'מסוף|רכבת|מרכזית|ת\.מרכזית')
     items=[]
     for j,st in enumerate(L['stops']):
         nm=escape(st[0][:34]); key='k' if (j==0 or j==len(L['stops'])-1 or KEY2.search(st[0])) else ''
         items.append(f'<div class="srow {key}"><i style="--c:{col}"></i><span>{nm}</span></div>')
-    strips.append(f'<div class="strip strip-{num}"><div class="strip-h" style="--c:{col}"><b>{num}</b> {escape(dest)}</div>{"".join(items)}</div>')
+    _note='<div class="snote">התחנות בכיוון אחד. קטע מקווקו במפה: הכיוון הנגדי, כשהוא עובר ברחוב אחר.</div>' if L.get('branches') and BRANCH else ''
+    strips.append(f'<div class="strip strip-{g}"><div class="strip-h" style="--c:{col}"><b>{lab}</b> {escape(dest)}</div>{_note}{"".join(items)}</div>')
 
 # ---- מניעת חפיפות תוויות (משותף לתחנות ולרחובות) ----
 occ=[]
@@ -844,7 +896,16 @@ if _poip and _os.path.exists(_poip):
             bgels.append(f'<text x="{bx:.0f}" y="{by:.0f}" text-anchor="middle" font-size="12" font-weight="800" fill="{col2}" stroke="#fff" stroke-width="4" paint-order="stroke" style="direction:ltr">{ic} {nmx}</text>')
     svg.insert(len(svg)-2,'<g class="bg">'+''.join(bgels)+'</g>')
 
-html=f'''<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+_n=d.get('n') or {'internal':0,'metro':0,'all':len(d['lines'])}
+_def=d.get('def','all'); _tg=[]; _prev=None
+for _t,_nm in TIERS:
+    _cnt=_n.get(_t,0)
+    _href=escape(d['city'])+('' if _t==_def else '.'+_t)+'.html'
+    if _t==TIER: _tg.append(f'<span class="tg on">{_nm} <i>{_cnt}</i></span>')
+    elif _cnt<2 or _cnt==_prev: _tg.append(f'<span class="tg off">{_nm} <i>{_cnt}</i></span>')
+    else: _tg.append(f'<a class="tg" href="{_href}">{_nm} <i>{_cnt}</i></a>')
+    _prev=_cnt
+html=f'''<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מפת רשת — {escape(d["city"])}</title>
 <style>
 body{{margin:0;font-family:'Assistant','Heebo',sans-serif;background:#eef1f5}}
@@ -856,7 +917,15 @@ body{{margin:0;font-family:'Assistant','Heebo',sans-serif;background:#eef1f5}}
 .chip b{{background:var(--c);color:#fff;border-radius:6px;padding:2px 9px;font-size:14px}}
 .chip span{{font-size:11.5px;font-weight:700;color:#475569;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .chip.on{{background:var(--c)}} .chip.on span{{color:#fff}}
+.tiers{{display:flex;flex-wrap:wrap;gap:6px;padding:9px 14px;background:#eff6ff;border-bottom:1px solid #dbeafe;align-items:center}}
+.tiers em{{font-style:normal;font-size:12px;font-weight:800;color:#475569;margin-left:4px}}
+.tg{{font-size:13px;font-weight:800;padding:5px 12px;border-radius:999px;border:2px solid #1e3a8a;color:#1e3a8a;background:#fff;text-decoration:none}}
+.tg i{{font-style:normal;font-weight:700;opacity:.7;font-size:11.5px}}
+.tg.on{{background:#1e3a8a;color:#fff}} .tg.off{{border-color:#cbd5e1;color:#94a3b8}}
+.snote{{font-size:11.5px;font-weight:700;color:#64748b;margin:-2px 0 8px}}
 .main{{display:flex;align-items:stretch}}
+@media(max-width:700px){{.wrap{{margin:0;border-radius:0}}.hdr{{font-size:16px;padding:10px 14px}}.hdr small{{display:block;margin:2px 0 0}}
+ .chips{{max-height:84px}}.main{{flex-direction:column}}body.sel .side{{width:auto;max-height:260px;border-top:1px solid #e2e8f0}}.side{{order:2}}}}
 .mapbox{{flex:1;overflow:auto}}
 .main svg{{display:block;margin:0 auto}}
 .side{{width:0;overflow:hidden;transition:width .25s;background:#f8fafc;border-right:1px solid #e2e8f0}}
@@ -887,6 +956,7 @@ body.sel .strt{{opacity:.3}}
 </style></head><body>
 <div class="wrap">
 <div class="hdr">מפת רשת הקווים — {escape(d["city"])} <small>סכמטי · נוצר אוטומטית מ-GTFS · לחצו על קו</small></div>
+<div class="tiers"><em>אילו קווים:</em>{''.join(_tg)}</div>
 <div class="chips"><button class="chip" data-l="" style="--c:#0f172a"><b>הכול</b></button>{''.join(chips)}</div>
 <div class="main">
 <div class="mapbox"><svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" xmlns="http://www.w3.org/2000/svg">{''.join(svg)}</svg></div>
