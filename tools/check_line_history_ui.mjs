@@ -14,11 +14,9 @@
 // דורש: npm i --no-save playwright-core, ודפדפן כרום — ברירת מחדל
 //   /opt/pw-browsers/chromium, או CHROMIUM_PATH (ב-CI: which google-chrome).
 import fs from 'fs';
-import http from 'http';
 import path from 'path';
-import { createRequire } from 'module';
+import { ROOT, serveStatic, launchChromium } from './lib/browser.mjs';
 
-const ROOT = process.cwd();
 const LH = path.join(ROOT, 'line-history');
 const fail = (msg) => { console.error('❌', msg); process.exit(1); };
 
@@ -78,35 +76,16 @@ console.log(`✓ נתונים: ${listed.size} חודשי תחנות (מ-${oldest
 }
 
 // ---- שלב ב': הממשק באמת מציג את החודש הכי ישן ----
-const require_ = createRequire(path.join(process.env.PW_MODULES || ROOT, 'noop.js'));
-const { chromium } = require_('playwright-core');
-
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
-  '.jsx': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
-const srv = http.createServer((req, res) => {
-  const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
-  // האתר קורא גם לנתוני 2012 שיושבים מחוץ לתיקייה שלו (‎../magihim-2012‎).
-  // בלי זה הבדיקה מחזירה 404 על מה שבדפדפן עובד.
-  const p = fs.existsSync(path.join(LH, rel)) ? path.join(LH, rel) : path.join(ROOT, rel);
-  try {
-    let body = fs.readFileSync(p);
-    if (p.endsWith('index.html')) {
-      // בלי רשת: מסירים חתימות SRI כדי שאפשר יהיה להגיש את הספריות מקומית
-      body = body.toString().replace(/\s(integrity|crossorigin)="[^"]*"/g, '');
-    }
-    res.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
-    res.end(body);
-  } catch { res.writeHead(404); res.end(); }
-});
-await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
-const port = srv.address().port;
-
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox'],
-});
+// האתר קורא גם לנתוני 2012 שיושבים מחוץ לתיקייה שלו (‎../magihim-2012‎).
+// בלי זה הבדיקה מחזירה 404 על מה שבדפדפן עובד. בלי רשת: מסירים חתימות SRI
+// כדי שאפשר יהיה להגיש את הספריות מקומית.
+const { srv, port } = await serveStatic(
+  (rel) => (fs.existsSync(path.join(LH, rel)) ? path.join(LH, rel) : path.join(ROOT, rel)),
+  { stripSri: true });
+const browser = await launchChromium();
 
 // הבדיקות הקיימות רצות על התצוגה הקודמת (המלאה), שנשארה זמינה מהתפריט ⋯; התצוגה החדשה נבדקת בנפרד
+const _rawNewPage = browser.newPage.bind(browser);   // לתצוגה החדשה (שלב ה')
 { const _np = browser.newPage.bind(browser);
   browser.newPage = async (...a) => { const p = await _np(...a); await p.addInitScript(() => { try { localStorage.lhLite = '0'; } catch (e) {} }); return p; }; }
 const page = await browser.newPage();
@@ -484,6 +463,101 @@ if (dem) {
   const f = await page.locator('.facts').first().textContent();
   if (!/לפי דרישה/.test(f || '')) fail(`שירות לפי דרישה: הקו ${dem.rd} אינו מסומן ככזה`);
   console.log('✓ שירות לפי דרישה: נשאר תחת קווים ומסומן בעמוד הקו');
+}
+
+// ---- שלב ה': בדיקות שהועברו מ-check_lh_ui.mjs (בדיקת העשן הישנה, 15.11.2026) ----
+// אותן בדיקות בדיוק; רק הבחירה בלשוניות עודכנה ללשוניות-קישורים (SITE_TAB) ולכפתור kathead.
+// הדפים כאן אוספים חריגות JS ונכשלים עליהן בסוף כל בלוק, כמו בבדיקה המקורית.
+const lhStub = `(function(){var P=new Proxy(function(){},{get:function(t,k){if(k===Symbol.toPrimitive||k==='toString')return function(){return ''};return P;},apply:function(){return P;},construct:function(){return P;}});window.L=P;})();`;
+const lhRoutes = async (p, { react = true } = {}) => {
+  await p.route('**://unpkg.com/**', (r) => {
+    const u = r.request().url();
+    if (u.endsWith('.css')) return r.fulfill({ contentType: 'text/css', body: '' });
+    if (react && u.includes('react-dom')) return r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'vendor/react-dom.development.js')) });
+    if (react && u.includes('react')) return r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'vendor/react.development.js')) });
+    if (u.includes('babel')) return r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'vendor/babel.min.js')) });
+    return r.fulfill({ contentType: 'text/javascript', body: lhStub });
+  });
+  await p.route('**://fonts.g**/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await p.route('**://*.tile.openstreetmap.org/**', (r) => r.fulfill({ body: Buffer.from([]) }));
+};
+{
+  const p1 = await browser.newPage();
+  const e1 = [];
+  p1.on('pageerror', (e) => e1.push(e.message.slice(0, 140)));
+  await lhRoutes(p1);
+  await p1.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p1.waitForSelector('.tabs', { timeout: 120000 }).catch(() => fail('הטאבים לא הופיעו — האתר עדיין חסום על האינדקס'));
+  await p1.waitForSelector('.recent .dayhead', { timeout: 120000 }).catch(() => fail('"מה השתנה לאחרונה" לא נטען'));
+  // חיפוש עם גרשיים (סעיף 3): בנתונים כתוב רשל''צ בשני גרשים
+  await p1.locator('.search').first().fill('רשל"צ');
+  await p1.waitForTimeout(1200);
+  const hits = await p1.locator('.llist .lrow').count();
+  if (!hits) fail('נירמול הגרשיים לא עובד — אפס תוצאות על רשל"צ');
+  console.log('✓ חיפוש רשל"צ (גרשיים):', hits, 'תוצאות');
+  await p1.locator('.search').first().fill('');
+  await p1.waitForTimeout(600);
+  // "שינויים לפי יום" נפתח על החודש הנוכחי ולא על מרץ 2017 (סעיף 1)
+  await p1.click(`${SITE_TAB}:has-text("קווים")`);
+  await p1.click('button.kathead:has-text("שינויים לפי יום")', { timeout: 30000 });
+  await p1.waitForSelector('.dayhead', { timeout: 60000 }).catch(() => fail('הפיד היומי לא נטען'));
+  const onChip = await p1.locator('.months .mchip.on').first().textContent();
+  if (onChip.includes('2017')) fail('הפיד היומי עדיין נפתח על 2017 (צ׳יפ פעיל: ' + onChip + ')');
+  console.log('✓ הפיד היומי נפתח על:', onChip.trim());
+  if (e1.length) fail('חריגות JS: ' + e1.slice(0, 3).join(' | '));
+  await p1.close();
+}
+// רגרסיה לבאג הדף הלבן: קישור ישיר לקו נפתח בזמן שהאינדקס הכבד עדיין בדרך
+{
+  const p2 = await browser.newPage();
+  const e2 = [];
+  p2.on('pageerror', (e) => e2.push(e.message.slice(0, 140)));
+  await lhRoutes(p2, { react: false });
+  await p2.route('**/data/lines.json*', async (r) => { await new Promise((res) => setTimeout(res, 3000)); r.continue(); });
+  await p2.goto(`http://127.0.0.1:${port}/index.html#82001-2-0`, { waitUntil: 'domcontentloaded' });
+  await p2.waitForSelector('.linehead .badge', { timeout: 60000 })
+    .catch(() => fail('קישור ישיר לקו לא נפתח בזמן שהאינדקס בדרך (רגרסיית הדף הלבן)'));
+  if (e2.length) fail('חריגות JS בקישור ישיר: ' + e2.slice(0, 3).join(' | '));
+  console.log('✓ קישור ישיר לקו עולה גם לפני שהאינדקס הגיע');
+  await p2.close();
+}
+// התצוגה החדשה (ברירת המחדל באתר; שלמה 08.10)
+{
+  const p3 = await _rawNewPage({ viewport: { width: 390, height: 844 } });   // טלפון
+  await lhRoutes(p3);
+  const e3 = [];
+  p3.on('pageerror', (e) => e3.push(e.message.slice(0, 140)));
+  await p3.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p3.waitForSelector('.lite-recent .dayhead', { timeout: 120000 }).catch(() => fail('תצוגה חדשה: סיכום היום לא הופיע'));
+  if (await p3.isVisible('header .stats')) fail('תצוגה חדשה: שורת המספרים עדיין מוצגת');
+  await p3.click('.dmore');
+  await p3.waitForSelector('.lmitem:has-text("לתצוגה הקודמת")', { timeout: 10000 }).catch(() => fail('תצוגה חדשה: אין מעבר לתצוגה הקודמת בתפריט'));
+  await p3.click('.lmx');
+  await p3.locator('.lite-recent .lrow').first().click();
+  await p3.waitForSelector('.linewrap .linehead', { timeout: 60000 }).catch(() => fail('תצוגה חדשה: עמוד הקו לא נפתח'));
+  if (await p3.locator('.linewrap.lt').count()) fail('תצוגה חדשה: עמוד הקו עדיין בעיצוב "הקל"');
+  await p3.waitForSelector('.tl .ev', { state: 'visible', timeout: 30000 }).catch(() => fail('תצוגה חדשה: רשימת השינויים ריקה'));
+  if (await p3.locator('.kfilter').count() && !(await p3.isVisible('.kfilter'))) fail('תצוגה חדשה: סרגל הקטגוריות מוסתר בעמוד הקו');
+  await p3.click('.dmore'); await p3.click('.lmitem:has-text("לתצוגה הקודמת")');
+  await p3.waitForSelector('header .stats', { state: 'visible', timeout: 10000 }).catch(() => fail('המעבר לתצוגה הקודמת לא החזיר את שורת המספרים'));
+  if (e3.length) fail('חריגות JS בתצוגה החדשה: ' + e3.slice(0, 3).join(' | '));
+  console.log('✓ תצוגה חדשה: סיכום היום, תפריט, עמוד קו בעיצוב הקודם ומעבר לתצוגה הקודמת');
+  await p3.close();
+}
+// "שינויים לפי יום" בתצוגה החדשה: אותו עיצוב שורה כמו בדף הראשי (שלמה 08.10)
+{
+  const p4 = await _rawNewPage();
+  await lhRoutes(p4);
+  await p4.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await p4.waitForSelector('.lite-recent .recmore', { timeout: 120000 }).catch(() => fail('תצוגה חדשה: אין כפתור לכל השינויים של היום'));
+  await p4.click('.lite-recent .recmore');
+  await p4.waitForSelector('.lrow.lite-row', { timeout: 60000 }).catch(() => fail('לפי יום: השורות לא בעיצוב של הדף הראשי'));
+  const t = await p4.locator('.lrow.lite-row .ldest').first().innerText();
+  if (t.includes('<->')) fail('לפי יום: הכותרת עדיין שם המסלול הגולמי: ' + t.slice(0, 80));
+  const kLast = await p4.locator('.lrow.lite-row').first().evaluate((a) => a.lastElementChild.classList.contains('k') || !!a.querySelector('.ldest + .k'));
+  if (!kLast) fail('לפי יום: סוג השינוי לא אחרי הכותרת');
+  console.log('✓ לפי יום בתצוגה החדשה: "' + t.split('\n')[0].slice(0, 40) + '"');
+  await p4.close();
 }
 
 await browser.close();

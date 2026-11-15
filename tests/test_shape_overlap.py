@@ -1,3 +1,4 @@
+import sys; from pathlib import Path as _P; sys.path.insert(0, str(_P(__file__).resolve().parent.parent / 'tools'))  # הקוד הנבדק ב-tools/
 import unittest
 from shape_overlap import Shape,compare
 

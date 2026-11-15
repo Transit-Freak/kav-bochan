@@ -107,7 +107,7 @@
 | `tools/check_line_history_ui.mjs` | כל חודש שיש לו קובץ מופיע ב-`months.json` ולהפך; בדפדפן: החודש הכי ישן נגיש מהממשק | `npm i --no-save playwright-core && CHROMIUM_PATH=... node tools/check_line_history_ui.mjs` (מהשורש) | `line-history-guard` (push ל-`line-history/**`, רק main) |
 | `tools/check_early_history_ui.mjs` | הארכיון ההיסטורי בדפדפן נייד | כמו למעלה | `line-history-guard`, `early-history`, `repair-archive-schedules` |
 | `tools/check_website_history_ui.mjs`, `check_history_claims.py`, `check_early_history.py` | ייבוא אתרי הנוסעים | — | `website-history` |
-| `tools/test_schedule_diff.py`, `test_early_history.py` | השוואת לו"ז וייבוא מוקדם | `python3 -m pytest tools/test_schedule_diff.py` | `repair-archive-schedules` מריץ את `test_schedule_diff.py`; `test_early_history.py` לא ברור (`tests.yml` מריץ pytest רק על `tests/`) |
+| `tests/test_schedule_diff.py`, `test_early_history.py` | השוואת לו"ז וייבוא מוקדם | `python3 -m pytest tests/test_schedule_diff.py` | `repair-archive-schedules` מריץ את `test_schedule_diff.py`; `test_early_history.py` לא ברור (`tests.yml` מריץ pytest רק על `tests/`) |
 | `tests/alternative-selector.cjs` | בוחר החלופות | לא ברור אם רץ ב-CI (`tests.yml` מריץ רק `tests/*.test.mjs` ו-pytest) | — |
 
 הבדיקות צריכות את `line-history/data/`, והוא לא נמצא בעותק המקומי החלקי. לכן מריצים אותן ב-GitHub, לא מקומית.

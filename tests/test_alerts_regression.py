@@ -3,8 +3,8 @@
 
 כל תיקון בקריאת הנוסח נבדק מול כל ההודעות, ולא רק מול ההודעה שבגללה תיקנו. בלי רשת ובלי OSM.
 
-  python3 tools/test_alerts_regression.py                    # בדיקה
-  python3 tools/test_alerts_regression.py --update-baseline  # אישור השינויים (באותו PR של התיקון)
+  python3 tests/test_alerts_regression.py                    # בדיקה
+  python3 tests/test_alerts_regression.py --update-baseline  # אישור השינויים (באותו PR של התיקון)
 
 שלושה חלקים:
   א. תמונת פירוק: לכל הודעה ב-testdata/alerts-corpus.json (עותק קפוא של alerts.json, כדי שרענון
@@ -25,7 +25,7 @@ import time
 import unittest
 from pathlib import Path
 
-TOOLS = Path(__file__).resolve().parent
+TOOLS = Path(__file__).resolve().parent.parent / 'tools'
 ROOT = TOOLS.parent
 sys.path.insert(0, str(TOOLS))
 import alerts_route as AR  # noqa: E402

@@ -1,19 +1,8 @@
-import fs from 'fs'; import http from 'http'; import path from 'path';
-import { createRequire } from 'module';
-const ROOT = process.cwd();
-const require_ = createRequire(path.join(process.env.PW_MODULES || ROOT, 'noop.js'));
-const { chromium } = require_('playwright-core');
-const MIME = { '.html':'text/html','.js':'text/javascript','.jsx':'text/javascript','.css':'text/css','.json':'application/json' };
-const srv = http.createServer((req,res)=>{
-  const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/,'')||'index.html';
-  try{ const p=(rel.startsWith('vendor/babel')||rel==='a11y.js')?path.join(ROOT,rel):path.join(ROOT,'skip-stops',rel); let b=fs.readFileSync(p);
-    if (p.endsWith('index.html')) b = Buffer.from(b.toString().replace(/\s(integrity|crossorigin)="[^"]*"/g, ''));
-    res.writeHead(200,{'content-type':MIME[path.extname(p)]||'application/octet-stream'}); res.end(b);
-  }catch{ res.writeHead(404); res.end(); }
-});
-await new Promise(ok=>srv.listen(0,'127.0.0.1',ok));
-const port = srv.address().port;
-const browser = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium', args:['--no-sandbox'] });
+import fs from 'fs'; import path from 'path';
+import { ROOT, loadChromium, serveStatic, launchChromium } from './lib/browser.mjs';
+const chromium = loadChromium();
+const { srv, port } = await serveStatic((rel) => (rel.startsWith('vendor/babel')||rel==='a11y.js')?path.join(ROOT,rel):path.join(ROOT,'skip-stops',rel), { stripSri: true, mime: { '.mjs': 'application/octet-stream' } });
+const browser = await launchChromium({ chromium });
 const page = await browser.newPage();
 const errs = [];
 page.on('pageerror', e=>errs.push(e.message.slice(0,120)));

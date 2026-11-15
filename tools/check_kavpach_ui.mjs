@@ -4,35 +4,13 @@
 // תג "הקו כבר בוטל" קיים ברשימה · אומדן השקלים מופיע · קישור עמוק
 // ‎#פח/קו/<מקט>‎ מסנן ומציג באנר · הקו המוזהב נטען עם כרטיסים.
 // הרצה הרמטית: הכל מוגש מקומית (vendor/), בלי רשת חיצונית.
-import fs from 'fs';
-import http from 'http';
-import path from 'path';
-import { createRequire } from 'module';
+import { loadChromium, serveStatic, launchChromium } from './lib/browser.mjs';
 
-const ROOT = process.cwd();
-const require_ = createRequire(path.join(process.env.PW_MODULES || ROOT, 'noop.js'));
-const { chromium } = require_('playwright-core');
+const chromium = loadChromium();
 const fail = (msg) => { console.error('❌', msg); process.exit(1); };
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
-  '.jsx': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
-
-const srv = http.createServer((req, res) => {
-  const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
-  try {
-    const p = path.join(ROOT, rel);
-    const body = fs.readFileSync(p);
-    res.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
-    res.end(body);
-  } catch { res.writeHead(404); res.end(); }
-});
-await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
-const port = srv.address().port;
-
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox'],
-});
+const { srv, port } = await serveStatic();
+const browser = await launchChromium({ chromium });
 const page = await browser.newPage();
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message.slice(0, 120)));

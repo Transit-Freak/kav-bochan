@@ -1,0 +1,42 @@
+name: ui-smoke
+
+# בדיקות עשן בדפדפן לקו פח ולדילוג על תחנות, שקודם לא רצו בשום מקום.
+# רצות כשמשנים את הקוד של הכלי או את הבדיקה עצמה — לא בעדכוני הנתונים הליליים.
+
+on:
+  push:
+    paths:
+      - 'KavPach.jsx'
+      - 'kavpach-core.js'
+      - 'index.html'
+      - 'skip-stops/**'
+      - '!skip-stops/*.json'
+      - '!skip-stops/data/**'
+      - 'tools/check_kavpach_ui.mjs'
+      - 'tools/check_skip_ui.mjs'
+      - 'tools/lib/browser.mjs'
+      - '.github/workflows/ui-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: התקנת playwright-core
+        run: npm i --no-save playwright-core
+      - name: קו פח
+        run: CHROMIUM_PATH="$(which google-chrome)" node tools/check_kavpach_ui.mjs
+      - name: דילוג על תחנות
+        if: success() || failure()
+        run: CHROMIUM_PATH="$(which google-chrome)" node tools/check_skip_ui.mjs

@@ -5,8 +5,9 @@ name: audit-archive-daily
 # רץ במחזורים מהעידן החדש אחורה עד תחילת הארכיון.
 
 on:
-  schedule:
-    - cron: '52 * * * *'
+  # הסריקה הסתיימה (15.11.2026) — רק הפעלה ידנית
+  # schedule:
+  #   - cron: '52 * * * *'
   workflow_dispatch:
     inputs:
       max_min:

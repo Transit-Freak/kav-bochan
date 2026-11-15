@@ -114,7 +114,7 @@ jobs:
       - name: בדיקת רגרסיה — הקו המודיע
         id: reg
         continue-on-error: true
-        run: python3 tools/test_alerts_regression.py ParseSnapshot Fixtures && python3 tests/test_alerts.py
+        run: python3 tests/test_alerts_regression.py ParseSnapshot Fixtures && python3 tests/test_alerts.py
 
       - name: משיכת ההתראות והמסלול המשוער
         # 40 דקות: אחרי שיפור בקריאת הנוסח כל ההודעות עם מפה מחושבות שוב (שלמה 19.10: 22 נשארו "עוד לא חושב")

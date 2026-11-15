@@ -1,3 +1,4 @@
+import sys; from pathlib import Path as _P; sys.path.insert(0, str(_P(__file__).resolve().parent.parent / 'tools'))  # הקוד הנבדק ב-tools/
 import unittest
 from nahagim_build import Polyline
 from nahagim_coverage import assess, merge_ranges

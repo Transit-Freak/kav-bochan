@@ -1,24 +1,14 @@
-import fs from 'node:fs';
-import http from 'node:http';
-import path from 'node:path';
-import {createRequire} from 'node:module';
-const require=createRequire(path.join(process.env.PW_MODULES||process.cwd(),'noop.js'));
-const {chromium}=require('playwright-core');
-const root=process.cwd();
-const srv=http.createServer((req,res)=>{
-  let rel=decodeURIComponent(req.url.split('?')[0]);if(rel.endsWith('/'))rel+='index.html';
-  const p=path.join(root,rel);try{const b=fs.readFileSync(p);res.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.jsx':'text/plain','.css':'text/css','.json':'application/json'}[path.extname(p)]||'application/octet-stream'});res.end(b)}catch{res.writeHead(404);res.end()}
-});
+import {serveStatic,launchChromium} from './lib/browser.mjs';
+const {srv}=await serveStatic(undefined,{mime:{'.jsx':'text/plain'}});
 // שינויים שגרתיים (תיעוד ראשון וכו') מקובצים בכפתור אחד ליום (שלמה 08.10) — פותחים אותו אם אין שורה גלויה
 async function firstRow(p){
  await p.locator('.lrow, .lowgrp').first().waitFor({timeout:60000});
  if(!(await p.locator('.lrow').count()))await p.locator('.lowgrp').first().click();
  const r=p.locator('.lrow').first();await r.waitFor({timeout:30000});return r;
 }
-await new Promise(ok=>srv.listen(0,'127.0.0.1',ok));
 let browser;
 try{
- browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']});
+ browser=await launchChromium({executablePath:process.env.CHROMIUM_PATH});
  const p=await browser.newPage({viewport:{width:390,height:844}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.route('**/OneSignalSDK.page.js',r=>r.fulfill({body:''}));
  await p.goto(`http://127.0.0.1:${srv.address().port}/line-history/#t=early`);

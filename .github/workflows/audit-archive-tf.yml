@@ -4,8 +4,9 @@ name: audit-archive-tf
 # בדיקה מחדש של כל השינויים, כמו הסריקה היומית של אופן באס.
 
 on:
-  schedule:
-    - cron: '49 */4 * * *'
+  # הסריקה הסתיימה (15.11.2026) — רק הפעלה ידנית
+  # schedule:
+  #   - cron: '49 */4 * * *'
   workflow_dispatch:
     inputs:
       max_min:

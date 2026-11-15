@@ -9,7 +9,7 @@ on:
     paths:
       - tools/overlap.py
       - tools/shape_overlap.py
-      - tools/test_shape_overlap.py
+      - tests/test_shape_overlap.py
       - .github/workflows/kavpach-overlap.yml
 permissions:
   contents: write
@@ -32,7 +32,7 @@ jobs:
         with:
           ref: main
       - name: Geometry overlap regression tests
-        run: python3 -m unittest discover -s tools -p test_shape_overlap.py -v
+        run: python3 -m unittest discover -s tests -p test_shape_overlap.py -v
       - name: Reuse daily GTFS or fetch current source
         env:
           GH_TOKEN: ${{ github.token }}

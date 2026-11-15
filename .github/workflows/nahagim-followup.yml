@@ -4,7 +4,7 @@ on:
     branches: [main]
     paths:
       - 'tools/nahagim_followup.py'
-      - 'tools/test_nahagim_followup.py'
+      - 'tests/test_nahagim_followup.py'
       - '.github/workflows/nahagim-followup.yml'
   workflow_dispatch:
   workflow_run:
@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Regression tests
-        run: python3 -m unittest discover -s tools -p 'test_nahagim*.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_nahagim*.py' -v
       - uses: actions/checkout@v4
         with:
           ref: nahagim-data
