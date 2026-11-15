@@ -412,6 +412,8 @@ function buildStander(gltf, hand, dx, dz, gripH, poleR = 0.036, axis = null, pal
 const AGE = { person_3: 'old', person_4: 'old', person_2: 'young', person_6: 'young' };
 const XFER_MAX = 40;                        // הולכים למעבר בבת אחת לכל היותר (השאר — כמו יורדים רגילים)
 const SIT_MAX = 256, SIT_GAP = 0.012;
+// רמת פירוט לאנשים (PeopleLayer.lodPick): דמות מלאה עד near מ' מהמצלמה (מי שכבר מלא — עד far), לכל היותר max; ?nolod — כולם מלאים (להשוואה)
+export const LOD = { on: !(typeof location !== 'undefined' && new URLSearchParams(location.search).has('nolod')), near: 190, far: 230, max: 60, stick: 12 };
 export const STAND_POLE = { dx: 0.34, dxL: 0.24, dz: 0.12, dzL: 0.16 };   // ליד העמוד (34 ס"מ לצד החלון, 12 מאחוריו): כך הפנים והכרטיס נראים מהמעבר דרך הרווח שבין העמודים
 // ידית תלויה: הטבעת (x = ±0.50, הצלע התחתונה בגובה 2.271 באוטובוס = 1.596 מעל הרצפה) — לצד המעבר של האגן ומעט לפניו
 // הרצועה התלויה (straps.js): לולאה צהובה במישור y-z מתחת למוט שבתקרה (x = ±0.50), התחתית 1.83 מ' מעל הרצפה.
@@ -1476,40 +1478,68 @@ reachPreview(pid, hasCard = true) {
     const M = this.tmpM, Q = this.tmpQ, C = this.tmpC, up = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(1, 1, 1);
     const B = new THREE.Matrix4(); let np = 0, nc = 0, nr = 0, nb = 0; const A = new THREE.Matrix4();
     this.accN = { kippah: 0, scarf: 0, box: 0, shop: 0 }; this.tmpA2 = this.tmpA2 || new THREE.Matrix4(); this.tmpC2 = this.tmpC2 || new THREE.Color();
+    // רמת פירוט (LOD): דמות מלאה רק קרוב למצלמה (LOD.near מ', עם מרווח — LOD.far — כדי שלא תתחלף הלוך ושוב) ורק ל-LOD.max
+    // הקרובים ביותר (הממתינים וההולכים יחד). כל השאר — דמות פשוטה וזולה (liteFor) בצבעי הבגדים שלהם
+    const lod = this.lodOn(), cand = this._cand || (this._cand = []), items = this._items || (this._items = []); let ni = 0; cand.length = 0;
+    const cw = lod ? this.camera.getWorldPosition(this._camW || (this._camW = new THREE.Vector3())) : null;
     for (const [stop, list] of per) {
       for (const p of list) {
-        if (n >= this.max) break;
-        const bk = this.benchOf(stop, p.id);
-        if (bk >= 0) {
-          const V = this.variants[this.variantOf(p.id)];
-          this.sitMatrix(stop, bk, p.id, M);
-          V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, this.hairM(p.id, V.sitGroups[g].kind, M)); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C, true)); });
-          V.sn++; this.waitPos.set(p.id, { p, pos: V.sit.hip.clone().applyMatrix4(M).add(new THREE.Vector3(0, 0.55, 0)) });
-          if (V.sit.root) this.emitAcc(p.id, this.accPose(V, 'bench', V.sit.root, V.sit.origin), M, true);
-          const insp = ROLE.get(p.id) === 'insp';
-          if (V.sit.phone && np < SIT_MAX && !insp) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
-          if (insp && V.capSit && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.capSit));
-          if (insp && V.bagSit && nb < 96) this.bags.setMatrixAt(nb++, A.multiplyMatrices(M, V.bagSit));
-          P.copy(V.sit.feet).lerp(V.sit.hip, 0.5).setY(0.015).applyMatrix4(M); B.makeTranslation(P.x, P.y, P.z); this.blobs.setMatrixAt(n, B);
-          n++; continue;
-        }
-        const i = this.seatOf(stop, p.id); if (i >= this.stopFrame(stop).slots.length) continue;
-        const [x, y] = this.slot(stop, i);
-        Q.setFromAxisAngle(up, this.personYaw(stop, i, p.id));
-        P.set(x, 0.12, -y); S.setScalar(this.personScale(p.id));
-        M.compose(P, Q, S);
-        const V = this.variants[this.variantOf(p.id)];
-        V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, this.hairM(p.id, V.groups[g].kind, M)); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
-        V.n++; this.waitPos.set(p.id, { p, pos: new THREE.Vector3(x, 1.45, -y) });
-        if (V.insp?.acc) { V.accStand = V.accStand || Object.fromEntries(Object.entries(V.insp.acc).map(([t, a]) => [t, a.stand])); this.emitAcc(p.id, V.accStand, M, false); }
-        if (ROLE.get(p.id) === 'insp' && V.insp) {
-          if (V.insp.capStand && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.insp.capStand));
-          if (V.insp.readerStand && nr < 96) this.readers.setMatrixAt(nr++, A.multiplyMatrices(M, V.insp.readerStand));
-          if (V.insp.bagStand && nb < 96) this.bags.setMatrixAt(nb++, A.multiplyMatrices(M, V.insp.bagStand));
-        }
-        B.makeTranslation(x, 0.135, -y); this.blobs.setMatrixAt(n, B);
-        n++;
+        if (ni >= this.max) break;
+        const bk = this.benchOf(stop, p.id), it = items[ni] || (items[ni] = { M: new THREE.Matrix4() });
+        if (bk >= 0) { this.sitMatrix(stop, bk, p.id, it.M); it.i = -1; }
+        else { const i = this.seatOf(stop, p.id); if (i >= this.stopFrame(stop).slots.length) continue; it.i = i; }
+        it.p = p; it.stop = stop; it.bk = bk; it.key = p.id; ni++;
+        if (!lod) continue;
+        const [x, y] = bk >= 0 ? [it.M.elements[12], -it.M.elements[14]] : this.slot(stop, it.i);
+        it.lodD = Math.hypot(x - cw.x, -y - cw.z, 1 - cw.y); cand.push(it);
       }
+    }
+    if (lod) for (const w of this.walkers) {
+      const wp = w.mode === 'ride' ? w.obj.getWorldPosition(P) : w.obj.position;
+      w.key = w.pid + 1e9; w.lodD = Math.hypot(wp.x - cw.x, wp.z - cw.z, 1 - cw.y); cand.push(w);
+    }
+    const full = lod ? this.lodPick(cand) : null;
+    const lite = full ? this.liteBegin() : null;
+    for (let j = 0; j < ni; j++) {
+      const { p, stop, bk } = items[j], V = this.variants[this.variantOf(p.id)], far = full && !full.has(p.id);
+      if (bk >= 0) {
+        M.copy(items[j].M);
+        this.waitPos.set(p.id, { p, pos: V.sit.hip.clone().applyMatrix4(M).add(new THREE.Vector3(0, 0.55, 0)) });
+        P.copy(V.sit.feet).lerp(V.sit.hip, 0.5).setY(0.015).applyMatrix4(M); B.makeTranslation(P.x, P.y, P.z); this.blobs.setMatrixAt(n, B);
+        n++;
+        if (far) { this.liteEmit(p.id, V, M, true); continue; }
+        V.sitMeshes.forEach((im, g) => { im.setMatrixAt(V.sn, this.hairM(p.id, V.sitGroups[g].kind, M)); im.setColorAt(V.sn, this.tint(p.id, V.sitGroups[g].kind, false, C, true)); });
+        V.sn++;
+        if (V.sit.root) this.emitAcc(p.id, this.accPose(V, 'bench', V.sit.root, V.sit.origin), M, true);
+        const insp = ROLE.get(p.id) === 'insp';
+        if (V.sit.phone && np < SIT_MAX && !insp) this.phones.setMatrixAt(np++, this.tmpP.multiplyMatrices(M, V.sit.phone));
+        if (insp && V.capSit && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.capSit));
+        if (insp && V.bagSit && nb < 96) this.bags.setMatrixAt(nb++, A.multiplyMatrices(M, V.bagSit));
+        continue;
+      }
+      const i = items[j].i, [x, y] = this.slot(stop, i);
+      Q.setFromAxisAngle(up, this.personYaw(stop, i, p.id));
+      P.set(x, 0.12, -y); S.setScalar(this.personScale(p.id));
+      M.compose(P, Q, S);
+      this.waitPos.set(p.id, { p, pos: new THREE.Vector3(x, 1.45, -y) });
+      B.makeTranslation(x, 0.135, -y); this.blobs.setMatrixAt(n, B);
+      n++;
+      if (far) { this.liteEmit(p.id, V, M, false); continue; }
+      V.meshes.forEach((im, g) => { im.setMatrixAt(V.n, this.hairM(p.id, V.groups[g].kind, M)); im.setColorAt(V.n, this.tint(p.id, V.groups[g].kind, V.groups[g].flat, C)); });
+      V.n++;
+      if (V.insp?.acc) { V.accStand = V.accStand || Object.fromEntries(Object.entries(V.insp.acc).map(([t, a]) => [t, a.stand])); this.emitAcc(p.id, V.accStand, M, false); }
+      if (ROLE.get(p.id) === 'insp' && V.insp) {
+        if (V.insp.capStand && nc < 96) this.caps.setMatrixAt(nc++, A.multiplyMatrices(M, V.insp.capStand));
+        if (V.insp.readerStand && nr < 96) this.readers.setMatrixAt(nr++, A.multiplyMatrices(M, V.insp.readerStand));
+        if (V.insp.bagStand && nb < 96) this.bags.setMatrixAt(nb++, A.multiplyMatrices(M, V.insp.bagStand));
+      }
+    }
+    // הולכים: רחוק — בלי השלד והאנימציה (הגוף מוסתר; הדמות הפשוטה מצוירת במקומו, למטה)
+    for (const w of this.walkers) {
+      const far = !!full && !full.has(w.key);
+      if (far === !!w.lodFar) continue;
+      w.lodFar = far; w.body.visible = !far;
+      if (!far && w.mixer && !w.rise) { w.mixer.update(0); this.centre(w); }
     }
     // נוסעים בתוך האוטובוס של הפקח (מבט פקח, js/inspfp.js): יושבים במושבים האמיתיים — הישבן על הכרית, הגב למשענת,
     // הרגליים על הרצפה (busSitters). מי שאין לו מושב עומד ליד הדלת האמצעית ומחזיק בעמוד
@@ -1593,7 +1623,7 @@ reachPreview(pid, hasCard = true) {
       const lastSeg = w.seg === w.pts.length - 2 && w.d >= w.lens[w.seg];
       // מעבר: הגיע לתחנה הבאה לפני שהסימולציה הכניסה אותו לתור — עומד ומחכה (עד 20 שנ')
       if (w.mode === 'xfer' && lastSeg && w.sim.pending.some(x => x.p === w.p) && (w.hold = (w.hold || 0) + simDt) < 20) {
-        if (w.mixer) { w.mixer.setTime(0.02); this.centre(w); }
+        if (w.mixer && !w.lodFar) { w.mixer.setTime(0.02); this.centre(w); }
         continue;
       }
       // ריצה לאוטובוס (sim.js: x.run): אותה הליכה, מהר יותר — צעדים מהירים יותר וגם תנועה מהירה יותר
@@ -1624,7 +1654,7 @@ reachPreview(pid, hasCard = true) {
       const want = Math.atan2(b.x - a.x, b.z - a.z);
       let dy = want - w.obj.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       if (!(w.mode === 'stroll' && w.pause > 0)) w.obj.rotation.y += dy * Math.min(1, simDt * 8);
-      if (w.mixer) { w.mixer.update(simDt); this.centre(w); if (w.door && w.legs) this.stairs(w, simDt); }
+      if (w.mixer) { if (!w.lodFar) { w.mixer.update(simDt); this.centre(w); if (w.door && w.legs) this.stairs(w, simDt); } }
       else w.body.position.y = Math.abs(Math.sin(w.d * 6.7)) * 0.05;
       const last = w.seg === w.pts.length - 2;
       // יורד משחרר את האוטובוס כשהגיע למדרכה, לא כשסיים ללכת
@@ -1635,6 +1665,115 @@ reachPreview(pid, hasCard = true) {
       if (last && k >= 1 && w.mode === 'board' && ROLE.get(w.pid) === 'insp' && this.ride(w, busLayer)) continue;
       if (last && k >= 1) this.finish(w, i);
     }
+    // הדמויות הפשוטות של ההולכים הרחוקים (לא מי שבתוך האוטובוס, ולא מי שכמעט נעלם)
+    if (lite) {
+      for (const w of this.walkers) {
+        if (!w.lodFar || w.mode === 'ride' || !w.obj.visible || (w.op ?? 1) < 0.35) continue;
+        Q.setFromAxisAngle(up, w.obj.rotation.y); S.setScalar(this.personScale(w.pid));
+        this.liteEmit(w.pid, this.variants[w.vi], M.compose(w.obj.position, Q, S), false);
+      }
+      this.liteEnd();
+    } else if (this.lite) for (const S of [this.lite.stand, this.lite.sit]) for (const im of Object.values(S.ims)) { im.count = 0; im.visible = false; }
+    this.lodStats = { full: full ? full.size : -1, lite: lite ? lite.stand.n + lite.sit.n : 0, skinned: this.walkers.filter(w => !w.lodFar).length };
+  }
+  // ---------- רמת פירוט (LOD) ----------
+  lodOn() { return LOD.on && !!this.camera && this.fromGlb; }
+  // מי מצויר מלא: מי שקרוב מ-LOD.near (מי שכבר מלא — עד LOD.far), רק LOD.max הקרובים; מי שכבר מלא מקבל עדיפות קטנה (LOD.stick),
+  // כדי שלא יתחלפו שניים שבאותו מרחק. מי שנבחר בכרטיס נוסע (promote) — תמיד מלא
+  lodPick(cand) {
+    const prev = this.lodFull || new Set(), pr = this.promote, out = new Set(), pool = this._pool || (this._pool = []); pool.length = 0;
+    for (const c of cand) {
+      const was = prev.has(c.key), pin = pr != null && (c.key === pr || c.key === pr + 1e9);
+      if (!pin && c.lodD > (was ? LOD.far : LOD.near)) continue;
+      c.rank = pin ? -1 : c.lodD - (was ? LOD.stick : 0); pool.push(c);
+    }
+    pool.sort((a, b) => a.rank - b.rank);
+    for (let i = 0; i < pool.length && i < LOD.max; i++) out.add(pool[i].key);
+    return (this.lodFull = out);
+  }
+  // הדמות הפשוטה: רגליים (צבע המכנסיים), גו וזרועות (החולצה), ראש (העור) ושיער (או מטפחת) — InstancedMesh אחד לכל חלק,
+  // בעמידה ובישיבה (הישיבה — לפי האגן וכפות הרגליים של תנוחת הספסל). בערך 200 משולשים במקום כ-15,000
+  liteMake() {
+    if (this.lite) return this.lite;
+    const mat = () => new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const cyl = (r0, r1, h, seg) => new THREE.CylinderGeometry(r0, r1, h, seg, 1, false);
+    const limb = (a, b, r0, r1, seg) => { const d = b.clone().sub(a), g = cyl(r0, r1, d.length(), seg);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), d.normalize())); return g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2); };
+    const head = (y, z = 0) => new THREE.SphereGeometry(0.105, 8, 6).scale(0.92, 1.12, 1).translate(0, y, z);
+    const hair = (y, z = 0) => new THREE.SphereGeometry(0.113, 8, 4, 0, Math.PI * 2, 0, Math.PI * 0.36).rotateX(-0.35).scale(0.95, 1.05, 1.02).translate(0, y + 0.02, z - 0.02);   // הקודקוד והעורף — הפנים גלויות
+    const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+    // עמידה: גובה 1.7 מ', כפות הרגליים על 0, פנים ל-‎+z
+    const stand = {
+      pants: mergeGeometries([limb(V3(-0.095, 0.9, 0), V3(-0.1, 0.02, 0), 0.085, 0.06, 6), limb(V3(0.095, 0.9, 0), V3(0.1, 0.02, 0), 0.085, 0.06, 6)]),
+      shirt: mergeGeometries([cyl(0.175, 0.16, 0.6, 8).scale(1, 1, 0.62).translate(0, 1.16, 0),
+        limb(V3(-0.225, 1.42, 0), V3(-0.25, 0.86, 0.02), 0.05, 0.04, 5), limb(V3(0.225, 1.42, 0), V3(0.25, 0.86, 0.02), 0.05, 0.04, 5)]),
+      skin: mergeGeometries([head(1.6), cyl(0.048, 0.05, 0.12, 5).translate(0, 1.47, 0)]),
+      hair: hair(1.6),
+    };
+    // ישיבה: לפי תנוחת הספסל של הדגם הראשון (האגן וכפות הרגליים, במערכת של sitMatrix)
+    const Vs = this.variants.find(V => V.sit?.hip && V.sit?.feet), sit = {};
+    if (Vs) {
+      const H = Vs.sit.hip.clone(), F = Vs.sit.feet.clone(), f = F.clone().sub(H).setY(0).normalize(), sd = new THREE.Vector3().crossVectors(f, V3(0, 1, 0)).normalize();
+      const K = H.clone().addScaledVector(f, 0.46), at = (o, k) => o.clone().addScaledVector(sd, k), hy = H.y;
+      sit.pants = mergeGeometries([-1, 1].flatMap(k => [limb(at(H, 0.1 * k), at(K, 0.1 * k), 0.085, 0.07, 6), limb(at(K, 0.1 * k), at(F, 0.1 * k).setY(0.02), 0.065, 0.055, 6)]));
+      const B0 = H.clone().addScaledVector(f, -0.04), sh = B0.clone().setY(hy + 0.52);
+      sit.shirt = mergeGeometries([limb(B0.clone().setY(hy + 0.56), B0.clone().setY(hy - 0.02), 0.175, 0.16, 8),
+        ...[-1, 1].map(k => limb(at(sh, 0.225 * k), at(H.clone().addScaledVector(f, 0.28).setY(hy + 0.1), 0.2 * k), 0.05, 0.04, 5))]);
+      sit.skin = mergeGeometries([head(0, 0).translate(B0.x, hy + 0.71, B0.z), cyl(0.048, 0.05, 0.12, 5).translate(B0.x, hy + 0.6, B0.z)]);
+      sit.hair = hair(0).translate(B0.x, hy + 0.71, B0.z);
+      // הגו בישיבה — שטוח בכיוון קדימה (כמו בעמידה)
+    }
+    const mk = (geos, cap, tag) => ({ n: 0, cap, ims: Object.fromEntries(Object.entries(geos).map(([k, g]) => {
+      const im = new THREE.InstancedMesh(g, mat(), cap); im.count = 0; im.frustumCulled = false; im.name = `crowd-lite-${tag}-${k}`;
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return [k, im]; })) });
+    return (this.lite = { stand: mk(stand, this.max, 'stand'), sit: mk(sit, this.max, 'sit'), m: new THREE.Matrix4(), v: new THREE.Vector3() });
+  }
+  liteBegin() { const L = this.liteMake(); L.stand.n = L.sit.n = 0; return L; }
+  liteEnd() { for (const S of [this.lite.stand, this.lite.sit]) for (const im of Object.values(S.ims)) { im.visible = S.n > 0; flushIM(im, S.n); } }
+  liteEmit(id, V, M, seated) {
+    const L = this.lite, S = seated ? L.sit : L.stand; if (S.n >= S.cap || !S.ims.skin) return;
+    const c = this.liteColors(id, V), h = V.liteH || 1;
+    const T = seated ? M : L.m.copy(M).scale(L.v.setScalar(h));   // בעמידה — בגובה של הדגם
+    for (const k in S.ims) { S.ims[k].setMatrixAt(S.n, T); S.ims[k].setColorAt(S.n, c[k]); }
+    S.n++;
+  }
+  // הצבעים של הדמות הפשוטה: חולצה ומכנסיים לפי המראה (LOOKS), אחרת — הצבע הממוצע של הבגד בטקסטורה של הדגם (בגוון שלו);
+  // פקח — חולצה תכלת ומכנסיים שחורים; מטפחת — בצבע שלה במקום השיער
+  liteColors(id, V) {
+    const cache = this._liteC || (this._liteC = new Map()); let c = cache.get(id); if (c) return c;
+    if (cache.size > 4000) cache.clear();
+    const base = this.liteBase(V), lk = ROLE.get(id) === 'insp' ? null : this.lookFor(id);
+    c = { shirt: base.shirt.clone(), pants: base.pants.clone(), skin: base.skin.clone(), hair: base.hair.clone() };
+    if (ROLE.get(id) === 'insp') { c.shirt.setHex(0xbcd4ee); c.pants.setHex(0x15171b); }
+    else if (lk && lk.shirt != null) { c.shirt.setHex(SHIRTS[lk.shirt]); c.pants.setHex(PANTS_P[lk.pants] ?? 0x2f3a4a); }
+    else { const t = CLOTH_TINT[Math.floor(hash(id + 3) * CLOTH_TINT.length)]; c.shirt.multiply(this.tmpC.setRGB(t[0], t[1], t[2])); c.pants.multiply(this.tmpC); }
+    if (lk?.hair != null) c.hair.setHex(lk.hair);
+    if (lk?.acc.includes('scarf')) c.hair.setHex(ACC_COLOR.scarf[Math.floor(hash(id + 41) * ACC_COLOR.scarf.length)]);
+    { const k = 0.94 + hash(id + 21) * 0.1; c.skin.multiplyScalar(k); }
+    cache.set(id, c); return c;
+  }
+  // לכל דגם: הגובה, וצבעי החולצה, המכנסיים והשיער — ממוצע הטקסטורה בקודקודים של כל אזור (פעם אחת)
+  liteBase(V) {
+    if (V.liteC) return V.liteC;
+    const out = { shirt: new THREE.Color(0x7a8494), pants: new THREE.Color(0x2f3a4a), hair: new THREE.Color(0x2a2018), skin: V.skin ? V.skin.clone() : new THREE.Color(0xd9ab8a) };
+    let top = 0; for (const g of V.groups) { g.geo.computeBoundingBox(); top = Math.max(top, g.geo.boundingBox.max.y); }
+    V.liteH = top > 1 ? top / 1.72 : 1;
+    try {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d', { willReadFrequently: true }), acc = {};
+      for (const g of V.groups) {
+        if (g.kind !== 'cloth' && g.kind !== 'hair') continue;
+        const map = g.mat.map, img = map?.image, mc = g.mat.color || new THREE.Color(1, 1, 1), U = g.geo.attributes.uv, Pp = g.geo.attributes.position; if (!img || !U) continue;
+        x.clearRect(0, 0, 64, 64); x.drawImage(img, 0, 0, 64, 64); const d = x.getImageData(0, 0, 64, 64).data;
+        for (let i = 0; i < Pp.count; i++) {
+          const y = Pp.getY(i) / (top || 1.7), part = g.kind === 'hair' ? 'hair' : y > 0.58 && y < 0.8 ? 'shirt' : y > 0.12 && y < 0.45 ? 'pants' : null; if (!part) continue;
+          let u = U.getX(i) % 1, v = U.getY(i) % 1; if (u < 0) u += 1; if (v < 0) v += 1;
+          const k = (Math.min(63, Math.floor((map.flipY ? 1 - v : v) * 64)) * 64 + Math.min(63, Math.floor(u * 64))) * 4; if (d[k + 3] < 128) continue;
+          const a = acc[part] || (acc[part] = [0, 0, 0, 0]); a[0] += d[k] * mc.r; a[1] += d[k + 1] * mc.g; a[2] += d[k + 2] * mc.b; a[3]++;
+        }
+      }
+      for (const [k, a] of Object.entries(acc)) if (a[3] > 20) out[k].setRGB(a[0] / a[3] / 255, a[1] / a[3] / 255, a[2] / a[3] / 255, THREE.SRGBColorSpace);
+    } catch (e) { console.warn('lite colors failed', e); }
+    return (V.liteC = out);
   }
   // פקח בתוך האוטובוס: נצמד לאוטובוס במקום שבו נגמרה העלייה (מעבר, ליד הדלת), עומד ומסתובב לאט אל הנוסעים
   ride(w, busLayer) {
@@ -1651,7 +1790,7 @@ reachPreview(pid, hasCard = true) {
     if (!v || w.obj.parent !== v.obj || w.bus.state === 'done' || w.bus.state === 'gone') { this.finish(w, i); return; }
     w.rideT += dt;
     w.obj.rotation.y = w.rideYaw + 0.55 * Math.sin(w.rideT * 0.45);
-    if (w.mixer) { w.mixer.update(dt); this.centre(w); }
+    if (w.mixer && !w.lodFar) { w.mixer.update(dt); this.centre(w); }
   }
   setIdle(w, on) {
     if (!w.mixer || !w.walkAct) return;

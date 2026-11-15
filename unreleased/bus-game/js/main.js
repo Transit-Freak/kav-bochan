@@ -98,7 +98,7 @@ async function init() {
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
   buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants); buses.camera = camera;
-  people = new PeopleLayer(scene, assets.people, graph);
+  people = new PeopleLayer(scene, assets.people, graph); people.camera = camera;   // רמת פירוט: דמויות מלאות רק קרוב למצלמה
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)
   const saved = Bank.load();
@@ -1088,14 +1088,14 @@ function paxSummaryHTML() {
   const top = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `<li><b>${v}</b> מבקשים: ${esc(k)}</li>`).join('');
   return `<h4>מה הנוסעים אומרים · עכשיו בתחנות</h4><p><b>${Math.round(100 * okN / n)}% מרוצים</b> · ${Math.round(100 * midN / n)}% בסדר · ${Math.round(100 * (n - okN - midN) / n)}% מתלוננים (${n} מחכים עכשיו)</p>${top ? `<ul class="dlist">${top}</ul>` : ''}<p class="hint">הקישו על נוסע בתחנה כדי לשמוע אותו.</p>`;
 }
-function paxClear() { paxSel = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
+function paxClear() { paxSel = null; if (people) people.promote = null; paxHomeT = 0; if (paxRing) paxRing.visible = false; $('#paxCard').hidden = true; }
 function paxCardAt(x, y) {
   const P = people.waitPos, r = canvas.getBoundingClientRect(); let best = null, bd = 28;
   // מי שהולך עכשיו לתחנה או ממנה (commute.js)
   let wk = null; for (const c of commuters?.act || []) { const v = c.w.obj.position.clone().setY(1.3).project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; wk = c; } }
   if (wk) { const p = { id: wk.id, who: wk.who, o: wk.o, d: wk.d, legs: wk.legs, leg: 0, t0: sim.time }, D = paxDetails(p), c = $('#paxCard');
     c.innerHTML = `<b>${esc(D.lives)}</b>${D.trip ? `<span>${D.trip}</span>` : ''}<span class="op">🚶 ${wk.from ? (D.shop ? 'ירד מהאוטובוס והולך לקניות' : 'ירד מהאוטובוס והולך הביתה') : `בדרך לתחנה ${esc(wk.stop.name)} · עוד <i data-eta>1</i> דק'`}</span>`;
-    c.onclick = null; c.hidden = false; paxSel = { walker: wk }; paxUpdate(); return true; }
+    c.onclick = null; c.hidden = false; paxSel = { walker: wk }; people.promote = wk.w.pid; paxUpdate(); return true; }
   if (!P?.size) { if (paxSel) paxClear(); return false; }
   for (const [, w] of P) { const v = w.pos.clone().project(camera); if (v.z > 1) continue; const d = Math.hypot(r.left + (v.x + 1) / 2 * r.width - x, r.top + (1 - v.y) / 2 * r.height - y); if (d < bd) { bd = d; best = w; } }
   if (!best) { if (paxSel) paxClear(); return false; }
@@ -1112,7 +1112,7 @@ function paxCardAt(x, y) {
     const h = 75; controls.target.set(H.x, 0, -H.y); camera.position.set(H.x + h * 0.25, h, -H.y + h * 0.8); camera.lookAt(controls.target); camera.updateMatrixWorld();
     paxMark(H.x, -H.y, Math.max(8, H.r / 0.5), H.h + 0.4); paxHomeT = performance.now() + 7000;
     toast(`${H.street ? inStreet(H.street).replace(/^ב/, '') + ' · ' : ''}${D.zoneName || ''}`.replace(/ · $/, '') || 'כאן הוא גר'); };
-  paxSel = { pid: p.id, t0: p.t0 }; paxUpdate();
+  paxSel = { pid: p.id, t0: p.t0 }; people.promote = p.id; paxUpdate();   // מי שנבחר — דמות מלאה גם מרחוק
   return true;
 }
 function paxMark(x, z, k, y = 0.08) {

@@ -675,7 +675,7 @@ def _bres(b):
     return 2
 # ---------- חיתוך לתחום העיר (clip ב-world/cities.json, במטרים; בלי ההגדרה — לא חותכים, כמו בקריית מלאכי):
 # התחום = כל מה שעד clip מטרים מתחנה של העיר או מבנייה עירונית. שטחים (שדות, חורש) נחתכים לתחום, ועצים מחוצה לו לא מוצבים.
-# כך שדות ענקיים מסביב לעיר לא מגדילים את המפה ולא מכבידים על המשחק. רחובות ורשת הנסיעה לא נחתכים.
+# כך שדות ענקיים מסביב לעיר לא מגדילים את המפה ולא מכבידים על המשחק. רשת הנסיעה לא נחתכת (הרחובות שמצוירים — למטה, לפני הפלט).
 if CFG.get('clip'):
     # בנייה עירונית = בניין שעד 600 מ' מתחנה של העיר. בניינים רחוקים יותר (יישובים מסביב) לא נכנסים למפה
     _near = prep(unary_union([Point(st['x'], st['y']).buffer(600, 8) for st in stops]))
@@ -744,6 +744,62 @@ if stations_raw or platforms:
         rail_stations.append({'name': nm, 'x': round(c.x, 1), 'y': round(c.y, 1)})
 print('rail', len(rail), 'pieces', round(sum(LineString([(a[i] / 10, a[i + 1] / 10) for i in range(0, len(a), 2)]).length for a in rail)), 'm;',
       'platforms', len(platforms), '; stations', rail_stations)
+
+# ---------- הרחובות שמצוירים: חתוכים לתחום העיר (CLIP), כמו השטחים — כבישים בין-עירוניים לא נמשכים קילומטרים מחוץ לעיר.
+# רחוב שקו עירוני אמיתי (real_lines.json) נוסע בו נשאר גם מחוץ לתחום (כל הקשתות במסלול של הקו, כמו RoadGraph.route ב-js/graph.js).
+# רשת הנסיעה (graph) והתחנות לא משתנות. רחוב שנחתך לכמה חלקים — כל חלק רחוב נפרד (עם אותו סוג ושם)
+if CFG.get('clip'):
+    import heapq
+    from shapely.geometry import LineString as _LS
+    def _route_edges():
+        rl = os.path.join(W, 'real_lines.json')
+        if not os.path.exists(rl): return set()
+        lines = [l for c in json.load(open(rl, encoding='utf-8')).get('cities', {}).values() for l in c.get('lines', [])]
+        byid = {s['id']: s for s in stops}
+        NN = len(gnodes); out_e = [[] for _ in range(NN)]; nb = [set() for _ in range(NN)]
+        L = lambda a, b: math.hypot(gnodes[b][0] - gnodes[a][0], gnodes[b][1] - gnodes[a][1])
+        for e, (a, b) in enumerate(gedges): out_e[a].append((b, L(a, b), e)); nb[a].add(b); nb[b].add(a)
+        # פרסה מותרת רק בצומת של 3 רחובות ומעלה שאחד מהם ראשי או רחב (findTurnarounds), וזנב קצר (stub)
+        at = {(round(x * 10), round(y * 10)): i for i, (x, y) in enumerate(gnodes)}; wide = set()
+        for r in rrec:
+            if r['cls'] == 'f' or not (r['cls'] == 'm' or round(r['w'] * 10) / 10 >= 9): continue
+            for x, y in r['pts']:
+                i = at.get((round(round(x * 10) / 10 * 10), round(round(y * 10) / 10 * 10)))
+                if i is not None: wide.add(i)
+        uturn = {i for i in range(NN) if len(nb[i]) >= 3 and i in wide}
+        stub = {i for i in range(NN) if len(nb[i]) == 1 and L(i, next(iter(nb[i]))) < 20}
+        used = set()
+        for ln in lines:
+            ss = [byid[i] for i in ln.get('stops', []) if i in byid]
+            for A, B in zip(ss, ss[1:]):
+                used.add(A['e']); used.add(B['e'])
+                if A['e'] == B['e'] and B['t'] >= A['t']: continue
+                dist = {}; prev = {}; h = []
+                def relax(frm, u, v, d):
+                    for w, l, e in out_e[v]:
+                        if w == u and v not in uturn and not (v in stub and (e == B['e'] or frm == -1)): continue
+                        if d + l < dist.get(e, math.inf): dist[e] = d + l; prev[e] = frm; heapq.heappush(h, (d + l, e))
+                a1, b1 = gedges[A['e']]; relax(-1, a1, b1, L(a1, b1) * (1 - A['t'])); ok = False
+                while h:
+                    d, e = heapq.heappop(h)
+                    if d > dist[e] + 1e-9: continue
+                    if e == B['e']: ok = True; break
+                    u, v = gedges[e]; relax(e, u, v, d)
+                if not ok: continue
+                e = B['e']
+                while e != -1: used.add(e); e = prev[e]
+        return used
+    _used = _route_edges()
+    _keep = unary_union([CLIP] + [_LS([gnodes[a], gnodes[b]]).buffer(0.5, 4) for e in _used for a, b in [gedges[e]]])
+    _kp = prep(_keep); _r0, _new = len(rrec), []
+    for r in rrec:
+        if _kp.contains(_LS(r['pts'])): _new.append(r); continue
+        g = _LS(r['pts']).intersection(_keep)
+        for q in (g.geoms if hasattr(g, 'geoms') else [g]):
+            if q.geom_type == 'LineString' and q.length > 1: _new.append(dict(r, pts=list(q.coords)))
+    rrec = _new
+    print('roads clipped:', _r0, '->', len(rrec), '; kept for real lines: edges', len(_used),
+          '; road length', round(sum(_LS(r['pts']).length for r in rrec) / 1000, 1), 'km')
 
 out = {
     'meta': {'city': CFG['name'], 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',
