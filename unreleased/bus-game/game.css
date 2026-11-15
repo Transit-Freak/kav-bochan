@@ -460,19 +460,20 @@ table.duty tr.brk td{color:var(--muted);font-size:12.5px;text-align:center;borde
 .drvctl .pedal .pv{position:absolute;bottom:6px;inset-inline:0;text-align:center;font-size:13px;pointer-events:none;text-shadow:0 1px 2px #000}
 .drvctl .pedal.on{opacity:.95;transform:none;filter:none}
 /* מסך נהג נקי: השמשה ריקה. בפינות התחתונות, מתחת לדוושות (על לוח המכוונים): דלתות מימין, "מתגים" ומהירות משמאל.
-   שאר המתגים (איתות, מהבהבים, צופר, פנסים, מגבים, כריעה, הודעת תחנה) בחלונית שנפתחת מ"מתגים" */
+   חצי האיתות קבועים ליד "מתגים" (לחיצה אחת). שאר המתגים (מהבהבים, צופר, פנסים, מגבים, כריעה, הודעת תחנה) בחלונית שנפתחת מ"מתגים" */
 .drvctl .dc-side{position:absolute;top:calc(52vh + min(178px,30vh) + 6px);display:flex;gap:5px;pointer-events:auto;direction:rtl}
 .drvctl .dc-side.r{right:4px}.drvctl .dc-side.l{left:4px}
 .drvctl .dc-side button,.drvctl .dc-spd{min-width:58px;min-height:46px;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(15,23,42,.74);color:#fff;
   font-size:12px;font-weight:700;line-height:1.15;padding:4px 6px;position:relative;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .drvctl .dc-side button.on{background:#f59e0b;color:#111;border-color:#fbbf24}
 .drvctl .dc-side button.blink{background:#22c55e;color:#052e16;border-color:#4ade80}
+.drvctl .dc-side .dc-arw{min-width:46px;font-size:17px;padding:4px 2px}
 .drvctl .dc-more{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:17px!important}
 .drvctl .dc-more small{font-size:10.5px}
 .drvctl .dc-more[aria-expanded="true"]{background:#fff;color:#0f172a}
 .drvctl .dc-spd{display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:rgba(15,23,42,.55);border-color:transparent}
 .drvctl .dc-spd b{font-size:18px;font-variant-numeric:tabular-nums}.drvctl .dc-spd small{font-size:9.5px;font-weight:500;color:#cbd5e1}
-.drvctl .dc-menu{position:absolute;top:calc(100% + 6px);left:0;display:grid;grid-template-columns:repeat(4,min(84px,calc((100vw - 35px) / 4)));gap:5px;padding:6px;border-radius:14px;background:rgba(15,23,42,.82)}
+.drvctl .dc-menu{position:absolute;top:calc(100% + 6px);left:0;display:grid;grid-template-columns:repeat(3,84px);gap:5px;padding:6px;border-radius:14px;background:rgba(15,23,42,.82)}
 .drvctl .dc-menu[hidden]{display:none}
 /* במחשב: ליד כל כפתור — המקש שלו */
 @media (hover:hover) and (pointer:fine){.drvctl [data-k]::after{content:attr(data-k);position:absolute;top:2px;left:4px;font-size:9.5px;font-weight:500;opacity:.7;direction:ltr}}

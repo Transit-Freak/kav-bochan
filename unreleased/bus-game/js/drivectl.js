@@ -185,8 +185,7 @@ export class DriveControls {
     ui.stop.classList.toggle('on', req);
     ui.root.querySelector('[data-c="left"]').classList.toggle('blink', L && blinkOn);
     ui.root.querySelector('[data-c="right"]').classList.toggle('blink', R && blinkOn);
-    // "מתגים" מהבהב בירוק כשאיתות פועל (גם כשהחלונית סגורה), והמהירות במספר
-    this.more.classList.toggle('blink', (L || R) && blinkOn);
+    // המהירות במספר
     const kmh = Math.round((b.v || 0) * 3.6); if (kmh !== this._kmh) { this._kmh = kmh; this.spd.textContent = kmh; }
     if (c.front !== this._fr || c.mid !== this._md || b.state !== this._st) this.sync();
     this.plate.draw({ front: (b.dF ?? 0) > 0.5, mid: (b.dM ?? 0) > 0.5, kneel: S.kneel, lights: S.lights, wipers: S.wipers, hazard: S.hazard && blinkOn });
@@ -199,7 +198,7 @@ export class DriveControls {
     set('front', c.front); set('mid', c.mid);
     set('kneel', S.kneel); set('hazard', S.hazard); set('lights', S.lights); set('wipers', S.wipers);
     set('left', S.blink === 1); set('right', S.blink === -1);
-    this.more.classList.toggle('on', S.kneel || S.lights || S.wipers);          // משהו דולק בחלונית הסגורה
+    this.more.classList.toggle('on', S.kneel || S.lights || S.wipers || S.hazard);          // משהו דולק בחלונית הסגורה
   }
 }
 
