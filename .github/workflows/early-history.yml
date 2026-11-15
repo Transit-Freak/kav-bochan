@@ -10,9 +10,8 @@ on:
       - 'tools/publish_early_history.py'
       - 'tools/test_publish_early_history.py'
       - '.github/workflows/early-history.yml'
+  # הייבוא ההיסטורי הסתיים ב-11.11.2026 — בלי ריצה כל שעה, רק הפעלה ידנית (15.11.2026)
   workflow_dispatch:
-  schedule:
-    - cron: '17 * * * *'
 permissions:
   contents: write
   pages: write
