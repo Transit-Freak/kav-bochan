@@ -1,0 +1,1 @@
+kiryat-gat build
