@@ -310,9 +310,19 @@
   </div>
 </div>
 <div class="drvctl" id="drvCtl" hidden>
-  <div class="dc-btns" role="group" aria-label="מתגי הנהג">
-    <button type="button" data-c="front">דלת קדמית</button><button type="button" data-c="mid">דלת אחורית</button><button type="button" data-c="kneel">כריעה</button><button type="button" data-c="left">◀ איתות</button><button type="button" data-c="right">איתות ▶</button>
-    <button type="button" data-c="hazard">מהבהבים</button><button type="button" data-c="horn">צופר</button><button type="button" data-c="lights">פנסים</button><button type="button" data-c="wipers">מגבים</button><button type="button" data-c="announce">הודעת תחנה</button>
+  <!-- תמיד על המסך: דלתות (מתחת לגז), "מתגים" ומהירות (מתחת לבלם) — בפינות, על לוח המכוונים ולא על השמשה -->
+  <div class="dc-side r" role="group" aria-label="דלתות">
+    <button type="button" data-c="front" data-k="F">דלת<br>קדמית</button><button type="button" data-c="mid" data-k="R">דלת<br>אחורית</button>
+  </div>
+  <div class="dc-side l">
+    <span class="dc-spd" aria-label="מהירות"><b id="dcSpd">0</b><small>קמ"ש</small></span>
+    <button type="button" class="dc-more" id="dcMore" aria-haspopup="true" aria-expanded="false" aria-controls="dcMenu">☰<small>מתגים</small></button>
+    <div class="dc-menu" id="dcMenu" role="group" aria-label="מתגי הנהג" hidden>
+      <button type="button" data-c="right" data-k="→">איתות ▶</button><button type="button" data-c="left" data-k="←">◀ איתות</button>
+      <button type="button" data-c="hazard" data-k="Z">מהבהבים</button><button type="button" data-c="horn" data-k="H">צופר</button>
+      <button type="button" data-c="lights" data-k="L">פנסים</button><button type="button" data-c="wipers" data-k="P">מגבים</button>
+      <button type="button" data-c="kneel" data-k="K">כריעה</button><button type="button" data-c="announce" data-k="N">הודעת תחנה</button>
+    </div>
   </div>
   <button type="button" class="pedal brake" data-p="brake" aria-label="בלם"><i class="lv"></i><span>בלם</span><b class="pv"></b></button>
   <button type="button" class="pedal gas" data-p="gas" aria-label="גז"><i class="lv"></i><span>גז</span><b class="pv"></b></button>

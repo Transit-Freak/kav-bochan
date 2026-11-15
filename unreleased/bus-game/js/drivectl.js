@@ -1,6 +1,6 @@
 // נהיגה במבט נהג: גז ובלם (האוטובוס נשאר במסלול ובנתיב — הנהג קובע מהירות ועצירות), דלת קדמית ואחורית לחוד,
 // כריעה, איתות שמאלה וימינה, מהבהבים, צופר, פנסים, מגבים, הודעת תחנה, ונורת "עצירה" כשנוסע לחץ.
-// במגע (כפתורים על המסך ודוושות), במקלדת, ובלחיצה על לוח המתגים שבתא. בלי לגעת — האוטובוס נוהג לבד, כרגיל.
+// במגע (דוושות ודלתות על המסך, והשאר בחלונית "מתגים"), במקלדת, ובלחיצה על לוח המתגים שבתא. בלי לגעת — האוטובוס נוהג לבד, כרגיל.
 // במשחק עצמו (sim.js) רק b.ctl: { drv, hands, gas, brake (0–1), front, mid, arrive, kneel, warn } — כל השאר תצוגה.
 // הדלתות נפתחות רק בלחיצה של הנהג; הדוושות יחסיות (גובה האצבע על הדוושה / החזקת מקש) ומשתנות בהדרגה.
 import * as THREE from 'three';
@@ -59,7 +59,7 @@ export class DriveControls {
     if (this.plateMesh) this.plateMesh.material = this.plate0;
     this.bus = this.obj = this.lamps = this.plateMesh = null;
     this.held.clear(); this.st.gas = this.st.brake = this.tgt.gas = this.tgt.brake = 0;
-    if (!keepUI) this.g.ui.root.hidden = true;
+    this.openMenu(false); if (!keepUI) this.g.ui.root.hidden = true;
   }
 
   // ---------- פעולות
@@ -104,7 +104,12 @@ export class DriveControls {
   // ---------- ממשק: כפתורים, דוושות, מקלדת, ולוח המתגים בתא
   bindUI() {
     const root = this.g.ui.root;
-    root.querySelectorAll('[data-c]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); this.act(b.dataset.c); }));
+    // "מתגים": חלונית קטנה שנפתחת בלחיצה, ונסגרת אחרי בחירה או בלחיצה מחוץ לה
+    const more = this.more = root.querySelector('#dcMore'), menu = this.menu = root.querySelector('#dcMenu'); this.spd = root.querySelector('#dcSpd');
+    this.openMenu = on => { menu.hidden = !on; more.setAttribute('aria-expanded', String(!!on)); };
+    more.addEventListener('click', e => { e.preventDefault(); this.openMenu(menu.hidden); });
+    addEventListener('pointerdown', e => { if (!menu.hidden && !menu.contains(e.target) && !more.contains(e.target)) this.openMenu(false); }, true);
+    root.querySelectorAll('[data-c]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); this.act(b.dataset.c); if (menu.contains(b)) this.openMenu(false); }));
     // דוושה: גובה האצבע = עומק (בתחתית 10%, למעלה 100%), ואפשר להחליק למעלה ולמטה בלי להרים
     root.querySelectorAll('[data-p]').forEach(b => {
       const p = b.dataset.p; let id = null;
@@ -180,6 +185,9 @@ export class DriveControls {
     ui.stop.classList.toggle('on', req);
     ui.root.querySelector('[data-c="left"]').classList.toggle('blink', L && blinkOn);
     ui.root.querySelector('[data-c="right"]').classList.toggle('blink', R && blinkOn);
+    // "מתגים" מהבהב בירוק כשאיתות פועל (גם כשהחלונית סגורה), והמהירות במספר
+    this.more.classList.toggle('blink', (L || R) && blinkOn);
+    const kmh = Math.round((b.v || 0) * 3.6); if (kmh !== this._kmh) { this._kmh = kmh; this.spd.textContent = kmh; }
     if (c.front !== this._fr || c.mid !== this._md || b.state !== this._st) this.sync();
     this.plate.draw({ front: (b.dF ?? 0) > 0.5, mid: (b.dM ?? 0) > 0.5, kneel: S.kneel, lights: S.lights, wipers: S.wipers, hazard: S.hazard && blinkOn });
   }
@@ -191,6 +199,7 @@ export class DriveControls {
     set('front', c.front); set('mid', c.mid);
     set('kneel', S.kneel); set('hazard', S.hazard); set('lights', S.lights); set('wipers', S.wipers);
     set('left', S.blink === 1); set('right', S.blink === -1);
+    this.more.classList.toggle('on', S.kneel || S.lights || S.wipers);          // משהו דולק בחלונית הסגורה
   }
 }
 
