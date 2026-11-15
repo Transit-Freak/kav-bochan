@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-08T12:21Z",
+ "updated": "2026-11-15T13:03Z",
  "source": "data.gov.il — משרד התחבורה",
  "topics": [
   "תחבורה ציבורית",
@@ -1256,8 +1256,73 @@
    "reason": "ההורדה נכשלה"
   },
   {
+   "dataset": "onboard_beit_shemesh_2021",
+   "title": "סקר און-בורד בית שמש 2021",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_beit_shemesh_env_2023",
+   "title": "סקר און-בורד בית שמש ועוטף ירושלים 2023",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_beitar_illit_2024",
+   "title": "סקר און-בורד ביתר עילית 2024",
+   "reason": "ההורדה נכשלה"
+  },
+  {
    "dataset": "onboard_bsh_2019",
    "title": "סקר נוסעים באוטובוסים במטרופולין באר-שבע 2019",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_jerusalem_metro_2014_2017",
+   "title": "סקר און-בורד מטרופלין ירושלים 2015-2017",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_judea_samaria_2018",
+   "title": "סקר און-בורד יהודה ושומרון 2018",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_maale_adumim_2023",
+   "title": "סקר און-בורד מעלה אדומים 2023",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_modiin_2023",
+   "title": "סקר און-בורד מודיעין 2023",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_modiin_illit_2022",
+   "title": "סקר און-בורד מודיעין עילית 2022",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_modiin_illit_bnei_brak_2024",
+   "title": "סקר און-בורד מודיעין עילית - בני ברק 2024",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_modiin_illit_jerusalem_2024",
+   "title": "סקר און-בורד מודיעין עילית - ירושלים 2024",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_tlvm_peima_2",
+   "title": "פעימה שנייה של סקר OB בגוש דן 2022-2023",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_tlvm_peima_3",
+   "title": "פעימה שלישית של סקר OB בגוש דן 2023-2024",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "onboard_tlvm_peima_4",
+   "title": "סקר און-בורד גוש דן 2024-2025",
    "reason": "ההורדה נכשלה"
   },
   {
@@ -1283,6 +1348,11 @@
   {
    "dataset": "private-and-commercial-vehicles",
    "title": "מספרי רישוי של כלי רכב פרטיים ומסחריים",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "rail_ayalon_2021_2025",
+   "title": "סקר נוסעים בתחנות רכבת - נתיבי איילון 2021-2025",
    "reason": "ההורדה נכשלה"
   },
   {
@@ -1363,6 +1433,11 @@
   {
    "dataset": "rechev_le_pail_without-degem",
    "title": "מספרי רישוי של כלי רכב לא פעילים וחסרי קוד דגם",
+   "reason": "ההורדה נכשלה"
+  },
+  {
+   "dataset": "redlinelrt2025",
+   "title": "סקר נוסעים בתחנות הרכבת הקלה – הקו האדום 2025",
    "reason": "ההורדה נכשלה"
   },
   {
