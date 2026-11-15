@@ -88,7 +88,7 @@
 |---|---|---|
 | `tests/fleet-moves.test.mjs` (`moves.js`) | `node --test tests/*.test.mjs` | `tests.yml` (push ל-`tools/**`, `tests/**`, `fleet/*.js`) |
 | `tests/test_fleet_tools.py`, `tests/test_fleet_changes.py`, `tests/test_fleet_day.py` (`fleet_day` ב-`bus_reliability.py`) | `python3 -m pytest tests -q` | `tests.yml` |
-| `tools/test_fleet_refresh_registry.py` | `python3 -m unittest discover -s tools -p 'test_fleet_refresh_registry.py'` | `fleet-registry` |
+| `tests/test_fleet_refresh_registry.py` | `python3 -m unittest discover -s tests -p 'test_fleet_refresh_registry.py'` | `fleet-registry` |
 
 הבדיקות לא מכסות את `index.html`. אחרי שינוי בדף צריך לבדוק אותו בעין.
 

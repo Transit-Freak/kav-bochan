@@ -1,23 +1,15 @@
 import fs from 'node:fs';
-import http from 'node:http';
-import path from 'node:path';
-import {createRequire} from 'node:module';
-const require=createRequire(path.join(process.env.PW_MODULES||process.cwd(),'noop.js'));
-const {chromium}=require('playwright-core');
-const root=process.cwd();
+import {serveStatic,launchChromium} from './lib/browser.mjs';
 const summary=JSON.parse(fs.readFileSync('line-history/data/website-archive-summary.json'));
 const files=fs.readdirSync('line-history/data/lines').filter(f=>f.startsWith('website'));
 const samples=files.map(f=>JSON.parse(fs.readFileSync('line-history/data/lines/'+f)));
 const examples=[samples.find(l=>l.line==='437'),samples.find(l=>l.line==='186'&&l.versions.some(v=>v.websitePartial))].filter(Boolean);
 if(examples.length!==2)throw Error('Verified 2003 route and 2010 map samples are missing');
-const server=http.createServer((req,res)=>{
- const rel=decodeURIComponent(req.url.split('?')[0]);const filename=path.join(root,rel.endsWith('/')?rel+'index.html':rel);
- try{const bytes=fs.readFileSync(filename);res.writeHead(200,{'content-type':{'.html':'text/html','.js':'text/javascript','.jsx':'text/plain','.css':'text/css','.json':'application/json'}[path.extname(filename)]||'application/octet-stream'});res.end(bytes);}catch{res.writeHead(404);res.end();}
-});
-await new Promise(ok=>server.listen(0,'127.0.0.1',ok));let browser;
+const {srv:server}=await serveStatic(undefined,{mime:{'.jsx':'text/plain'}});
+let browser;
 try{
- browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']});
- { const _np=browser.newPage.bind(browser); browser.newPage=async(...a)=>{const p=await _np(...a);await p.addInitScript(()=>{try{localStorage.lhLite='0';}catch(e){}});return p;}; }   // תצוגה מלאה; החדשה — check_lh_ui
+ browser=await launchChromium({executablePath:process.env.CHROMIUM_PATH});
+ { const _np=browser.newPage.bind(browser); browser.newPage=async(...a)=>{const p=await _np(...a);await p.addInitScript(()=>{try{localStorage.lhLite='0';}catch(e){}});return p;}; }   // תצוגה מלאה; החדשה — check_line_history_ui (שלב ה')
  const base=`http://127.0.0.1:${server.address().port}/line-history/`;
  for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
   const page=await browser.newPage({viewport});const errors=[];page.on('pageerror',e=>errors.push(e.message));

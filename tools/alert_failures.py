@@ -46,7 +46,7 @@ WATCHED = {
 # (pattern in the log, explanation). The first match wins, so specific causes come first.
 CAUSES = [
     (r'בדיקת הרגרסיה של הקו המודיע נכשלה',
-     'שינוי בקוד של קריאת הנוסח שינה הודעות שלא היו אמורות להשתנות (tools/test_alerts_regression.py). '
+     'שינוי בקוד של קריאת הנוסח שינה הודעות שלא היו אמורות להשתנות (tests/test_alerts_regression.py). '
      'התראות חדשות נמשכו כרגיל, אבל ההתראות הקיימות לא חושבו מחדש עד שהבדיקה תעבור.'),
     (r'Failed to connect to [\w.-]*gov\.il|Could not resolve host: [\w.-]*gov\.il|gov\.il.*(Timeout|timed out)',
      'אתר ממשלתי (gov.il) לא ענה לשרת של GitHub. זה קורה מדי פעם — אתרי הממשלה חוסמים או לא עונים לשרתים בחו"ל. '

@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-spec = importlib.util.spec_from_file_location('registry', Path(__file__).with_name('fleet_refresh_registry.py'))
+spec = importlib.util.spec_from_file_location('registry', Path(__file__).resolve().parent.parent / 'tools' / 'fleet_refresh_registry.py')
 registry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(registry)
 

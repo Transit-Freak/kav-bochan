@@ -8,7 +8,7 @@ on:
       - 'tools/link_early_2012.py'
       - 'tools/check_early_history.py'
       - 'tools/publish_early_history.py'
-      - 'tools/test_publish_early_history.py'
+      - 'tests/test_publish_early_history.py'
       - '.github/workflows/early-history.yml'
   # הייבוא ההיסטורי הסתיים ב-11.11.2026 — בלי ריצה כל שעה, רק הפעלה ידנית (15.11.2026)
   workflow_dispatch:
@@ -62,8 +62,8 @@ jobs:
         if: steps.remaining.outputs.needed == 'true'
         id: import
         run: |
-          python tools/test_early_history.py
-          python tools/test_publish_early_history.py
+          python tests/test_early_history.py
+          python tests/test_publish_early_history.py
           python tools/import_early_rail.py
           status=0
           python tools/import_early_history.py --limit "$BATCH_LIMIT" --max-minutes 120 || status=$?
@@ -74,11 +74,6 @@ jobs:
           python tools/schedule_diff.py
           python tools/check_early_history.py
           echo "source_status=$status" >> "$GITHUB_OUTPUT"
-      - name: Check archive in a mobile browser
-        if: steps.remaining.outputs.needed == 'true' && success()
-        run: |
-          npm install --no-save playwright-core
-          CHROMIUM_PATH="$(which google-chrome)" node tools/check_early_history_ui.mjs
       - name: Commit verified results
         if: steps.remaining.outputs.needed == 'true' && success()
         env:

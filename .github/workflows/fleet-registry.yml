@@ -34,7 +34,7 @@ jobs:
             tools
             fleet/data
       - name: בדיקת הגנות העדכון
-        run: python3 -m unittest discover -s tools -p 'test_fleet_refresh_registry.py'
+        run: python3 -m unittest discover -s tests -p 'test_fleet_refresh_registry.py'
       - name: הורדה ואימות של מאגר הרישוי הממשלתי
         run: python3 tools/fleet_refresh_registry.py
       - name: עדכון פרטי כלי הרכב
