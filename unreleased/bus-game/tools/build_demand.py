@@ -172,7 +172,7 @@ def zones_from_file():
     print('stops:', dict(how))
 
 # ---------- שכונות בלי קובץ (עיר שאין לה neighbourhoods.json): רק מ-OpenStreetMap
-#   1. "זרעים": מקומות עם שם (place=neighbourhood / suburb / quarter) ושטחי מגורים עם שם (landuse=residential).
+#   1. "זרעים": מקומות עם שם (place=neighbourhood / suburb / quarter) ושטחי מגורים עם שם (landuse=residential; אלה היישובים מסביב).
 #      אין כאלה ← קבוצות של תחנות קרובות (k-means), והשם — הרחוב שחוזר הכי הרבה בשמות התחנות.
 #   2. כל תחנה שייכת לזרע הקרוב. נשארים עד MAX_ZONES אזורים (יש 22 סמלים), ובכל אזור 3 תחנות לפחות — הקטנים מתמזגים בשכנים.
 #   3. הגבול של אזור שאין לו שטח ב-OSM: המעטפת של התחנות שלו ועוד 150 מ', בלי חפיפה לאזורים שכבר נקבעו.
@@ -180,14 +180,20 @@ MAX_ZONES = 20
 def zones_from_osm():
     global H, lab0, hw, how
     from shapely.geometry import MultiPoint
-    seeds = [{'name': h['name'], 'geom': h['geom'], 'area': True} for h in H]
+    pts = [Point(s['x'], s['y']) for s in STOPS]
+    # שטח מגורים עם שם שמכיל יותר משליש מהתחנות הוא העיר כולה, לא שכונה — לא זרע
+    seeds = [{'name': h['name'], 'geom': h['geom'], 'area': True} for h in H if sum(h['geom'].contains(q) for q in pts) <= len(pts) / 3]
     seen = {s['name'] for s in seeds}
     for e in raw['elements']:
         t = e.get('tags', {})
         if e['type'] == 'node' and t.get('place') in ('neighbourhood', 'suburb', 'quarter') and t.get('name'):
             x, y = P(e['lat'], e['lon']); nm = t.get('name:he') or t['name']
             if abs(x) <= HALF_X and abs(y) <= HALF_Y and nm not in seen: seen.add(nm); seeds.append({'name': nm, 'geom': Point(x, y), 'area': False})
-    pts = [Point(s['x'], s['y']) for s in STOPS]
+    # אזורי תעשייה גדולים (landuse=industrial, מעל 0.3 קמ"ר אחרי איחוד) — אזור משלהם, "אזור תעשייה"
+    from shapely.ops import unary_union
+    ind = unary_union([Polygon(g).buffer(15) for k, g, _ in ZONES_OSM if k == 'work' and len(g) >= 4]).intersection(VIEW)
+    big = sorted([q for q in (ind.geoms if hasattr(ind, 'geoms') else [ind]) if q.area > 3e5], key=lambda q: -q.area)
+    for n, q in enumerate(big): seeds.append({'name': 'אזור תעשייה' + ('' if n == 0 else f' {n + 1}'), 'geom': q, 'area': True, 'ind': True})
     if len(seeds) < 3:
         k = max(3, min(MAX_ZONES, len(STOPS) // 14)); order = sorted(range(len(STOPS)), key=lambda i: STOPS[i]['id'])
         cen = [(STOPS[order[j * len(order) // k]]['x'], STOPS[order[j * len(order) // k]]['y']) for j in range(k)]
@@ -218,7 +224,7 @@ def zones_from_osm():
         g = s['geom'].union(hull) if s['area'] else hull
         if done is not None and not g.difference(done).is_empty: g = g.difference(done)
         g = g.buffer(0); done = g if done is None else done.union(g)
-        H.append({'name': s['name'], 'kind': 'hood', 'geom': g})
+        H.append({'name': s['name'], 'kind': 'village' if s['area'] and not s.get('ind') else 'hood', 'geom': g})
     hw = ['in'] * len(STOPS); how = collections.Counter(hw)
 if NB['rows']: zones_from_file()
 else: zones_from_osm()

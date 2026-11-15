@@ -670,6 +670,29 @@ def _bres(b):
     if b['t'] in RES_TAGS: return 1
     if b['t'] != 'yes' or b['a'] > 1500 or any(g.contains(Point(b['cx'], b['cy'])) for g in _nonres): return 0
     return 2
+# ---------- חיתוך לתחום העיר (clip ב-world/cities.json, במטרים; בלי ההגדרה — לא חותכים, כמו בקריית מלאכי):
+# התחום = כל מה שעד clip מטרים מתחנה של העיר או מבנייה עירונית. שטחים (שדות, חורש) נחתכים לתחום, ועצים מחוצה לו לא מוצבים.
+# כך שדות ענקיים מסביב לעיר לא מגדילים את המפה ולא מכבידים על המשחק. רחובות ורשת הנסיעה לא נחתכים.
+if CFG.get('clip'):
+    # בנייה עירונית = בניין שעד 600 מ' מתחנה של העיר. בניינים רחוקים יותר (יישובים מסביב) לא נכנסים למפה
+    _near = prep(unary_union([Point(st['x'], st['y']).buffer(600, 8) for st in stops]))
+    _b0 = len(buildings); buildings = [b for b in buildings if _near.contains(Point(b['cx'], b['cy']))]
+    _pts = [Point(b['cx'], b['cy']) for b in buildings] + [Point(st['x'], st['y']) for st in stops]
+    _u = unary_union([q.buffer(CFG['clip'], 8) for q in _pts]).intersection(shapely.geometry.box(-HALF_X, -HALF_Y, HALF_X, HALF_Y))
+    CLIP = unary_union([Polygon(g.exterior) for g in (_u.geoms if hasattr(_u, 'geoms') else [_u])]).simplify(5)
+    _cp = prep(CLIP); _a0, _t0, _new = len(areas), len(trees), []
+    for ar in areas:
+        try: g = Polygon([(ar[i] / 10, ar[i + 1] / 10) for i in range(1, len(ar), 2)]).buffer(0)
+        except Exception: continue
+        if _cp.contains(g): _new.append(ar); continue
+        g = g.intersection(CLIP)
+        for q in (g.geoms if hasattr(g, 'geoms') else [g]):
+            if q.geom_type == 'Polygon' and q.area >= 30: _new.append([ar[0]] + [dm(v) for xy in list(q.exterior.coords)[:-1] for v in xy])
+    areas = _new
+    trees = [t for t in trees if _cp.contains(Point(t[0], t[1]))]
+    solar = [t for t in solar if _near.contains(Point(t[0], t[1]))]
+    print('city bounds (m):', [round(v) for v in CLIP.bounds], '; buildings', _b0, '->', len(buildings))
+    print('clip', CFG['clip'], 'm: area', round(CLIP.area / 1e6, 2), 'km2; areas', _a0, '->', len(areas), '; trees', _t0, '->', len(trees))
 RES_TAGS = ('apartments', 'residential', 'house', 'detached', 'semidetached_house', 'terrace', 'dormitory', 'bungalow')
 out = {
     'meta': {'city': CFG['name'], 'origin': [LAT0, LON0], 'half': [HALF_X, HALF_Y], 'units': 'dm',

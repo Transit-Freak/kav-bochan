@@ -44,15 +44,28 @@ def member(url, name):
     sys.exit(name + ' לא נמצא ב-zip')
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('city'); ap.add_argument('--date', default='2026-11-10')
+    ap = argparse.ArgumentParser(); ap.add_argument('city'); ap.add_argument('--date', default='2026-11-10'); ap.add_argument('--keep', default='')
     a = ap.parse_args()
     cfg = load_city(a.city); P = P_of(cfg); hx, hy = cfg['half']
     txt = member(S3.format(a.date.replace('-', '/')), 'stops.txt').decode('utf-8-sig')
-    rows = []
+    # city_stops ב-world/cities.json: רק תחנות שבעיר עצמה — לפי שדה העיר של התחנה ב-GTFS (stop_desc: "עיר: ..."),
+    # ואם אין שדה כזה — התחנה נשארת (המיקום ייבדק ב-build_city, מול תחום הבנייה). תחנות בצמתים וביישובים מסביב יוצאות.
+    # --keep: קודי תחנות שנשארות בכל מקרה (קצה של קו עירוני שנמצא מחוץ לעיר).
+    import re
+    only = cfg.get('city_stops'); norm = lambda t: re.sub(r'\s+', ' ', t.replace('קריית', 'קרית')).strip()
+    keep = set(filter(None, (a.keep or '').split(',')))
+    rows, gone = [], []
     for r in csv.DictReader(io.StringIO(txt)):
         x, y = P(float(r['stop_lat']), float(r['stop_lon']))
         if abs(x) <= hx and abs(y) <= hy and r.get('location_type', '0') in ('', '0'):
+            m = re.search(r'עיר:\s*(.*?)\s*(?:רציף:|קומה:|$)', r.get('stop_desc') or '')
+            town = norm(m.group(1)) if m else ''
+            if only and town and town != norm(cfg['gtfs_name']) and r['stop_code'] not in keep:
+                gone.append((r['stop_code'], r['stop_name'], town)); continue
             rows.append([r['stop_id'], r['stop_code'], r['stop_name'], r['stop_lat'], r['stop_lon']])
+    if only:
+        print('לא בעיר — הוסרו', len(gone), 'תחנות:')
+        for g in sorted(gone, key=lambda g: (g[2], g[1])): print('  ', g[0], g[1], '·', g[2])
     rows.sort(key=lambda r: int(r[0]))
     out = cfg['path']('gtfs_stops.csv')
     with open(out, 'w', encoding='utf-8', newline='') as f:

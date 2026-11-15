@@ -86,6 +86,7 @@ async function init() {
   try { [c, dj] = await Promise.all([loadCity(ci.dir + 'city.json'), fetch(ci.dir + 'demand.json').then(r => { if (!r.ok) throw new Error('demand.json ' + r.status); return r.json(); })]); }
   catch (e) { if (CITY_ID !== DEFAULT_CITY) { msg.textContent = `${ci.name} עוד לא מוכנה. חוזרים ל${cityInfo.all[DEFAULT_CITY]?.name || 'עיר הראשונה'}…`; await new Promise(r => setTimeout(r, 1800)); if (backToDefault()) return new Promise(() => { }); } throw e; }
   city = c;
+  controls.maxDistance = 2600 * Math.max(1, Math.max(...city.meta.half) / 2300);   // עיר גדולה יותר: אפשר להתרחק עד שרואים את כולה
   msg.textContent = 'בונה רחובות ובניינים…';
   await new Promise(r => setTimeout(r, 20));
   buildWorld(scene, city);
