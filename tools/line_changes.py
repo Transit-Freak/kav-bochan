@@ -596,13 +596,13 @@ def lines_index(feed, variants):
                 st = feed.stops.get(sid)
                 if st and st['city']:
                     e['cities'][st['city']] = e['cities'].get(st['city'], 0) + x['td']
-    ops, cities = [], []
+    ops, cities, op_ids = [], [], []   # op_ids: agency_id לכל חברה (לצבעי המפעיל במצגת)
     oi, ci = {}, {}
     out = []
     for (ag, makat), e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1])):
         op = feed.agency.get(ag, '')
         if op not in oi:
-            oi[op] = len(ops); ops.append(op)
+            oi[op] = len(ops); ops.append(op); op_ids.append(ag)
         cl = []
         for c, _ in sorted(e['cities'].items(), key=lambda kv: -kv[1]):
             if c not in ci:
@@ -611,7 +611,7 @@ def lines_index(feed, variants):
         out.append([makat, e['line'], oi[op], e['od'][0], e['od'][1], cl, sorted(e['rds']), e['ty']])
     print(f'{len(out)} קווים באינדקס', flush=True)
     places = places_index(feed, [e for _, e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1]))], cities, ci)
-    return {'ops': ops, 'cities': cities, 'lines': out, '_places': places}
+    return {'ops': ops, 'op_ids': op_ids, 'cities': cities, 'lines': out, '_places': places}
 
 
 def load_hoods(d):
@@ -745,6 +745,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         if p['rd'] not in seen and (keep_all or keep_from <= p['eff'] < t0):
             found.append(p)
             seen.add(p['rd'])
+    found = [f for f in found if f.get('ty') != '2' and f.get('line')]   # רכבת ישראל — לא בכלי הזה
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
     if lines is not None:
         places = lines.pop('_places', None)

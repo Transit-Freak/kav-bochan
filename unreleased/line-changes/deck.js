@@ -588,21 +588,34 @@ var LCDeck = (function () {
     });
     return { cover: cover, segs: segs, hasCover: pages.length <= 3 };
   }
-  /* צבעי המפעיל — גוון מקורב לצבע המוכר של החברה, בלי סמלים. חברה שלא ברשימה: אפור-כחול ניטרלי */
-  var OPC = { 'אגד': '#0a7d3e', 'דן': '#1d55a5', 'קווים': '#e07400', 'נתיב אקספרס': '#7a2f8f', 'מטרופולין': '#0b7f8c',
-    'אלקטרה אפיקים': '#0a5fb0', 'אפיקים': '#0a5fb0', 'סופרבוס': '#c3172e', 'אקסטרה': '#5f8f1b', 'גלים': '#0090b8', 'תנופה': '#d0161f',
-    'בית שמש אקספרס': '#5b2c8f', 'דן בדרום': '#1d55a5', 'דן באר שבע': '#1d55a5', 'אגד תעבורה': '#0a7d3e' };
+  /* צבעי המפעיל לפי מספר החברה ב-GTFS (agency_id). הראשון — הצבע העיקרי, השני — משני.
+     מקור: fleet/index.html COLORS — לעדכן ביחד */
+  var COLORS={3:['#009B4E'],4:['#8DB43A','#0C8454'],5:['#00539B'],6:['#C2B70C','#14A651'],7:['#E42424','#8A8F98'],8:['#A61E22','#3C3C3C'],10:['#E53935'],
+    14:['#E8590C','#9AA0A6'],15:['#F7840C'],16:['#0C546C','#12B5B0'],18:['#0C246C','#9CCB3B'],21:['#0C8484','#E42424'],23:['#129FD6','#C8C80C'],
+    24:['#6CB424','#E53935'],25:['#0C84CC'],31:['#2F6DB5'],32:['#6A9BD8'],33:['#0C6CB4','#8A8F98'],34:['#2BA88C','#1A8CB4'],35:['#E09A4F','#8A8F98'],
+    37:['#0C9CE4','#F28C28','#3C4A4A'],38:['#F28C28','#0C9CE4','#3C4A4A'],39:['#0B3A6E'],42:['#1E8A4C'],44:['#3C6CCC'],49:['#3BA56B'],50:['#5BB57F'],135:['#2E9467','#24549C','#8CB4DC']};
+  // חברות קטנות שאין להן צבע קבוע: גוונים אפורים שונים, כדי שלא ייראו כמו אחת הגדולות
+  // חברות בלי צבע קבוע — אפורים (גם מ-fleet/index.html)
+  var PALETTE=['#64748B','#7C6F64','#5B6B7F','#706A8A','#5F7563','#6B7280','#80646C','#4B5563'];
   function hex(c) { return [1, 3, 5].map(function (i) { return parseInt(c.slice(i, i + 2), 16); }); }
   function toHex(a) { return '#' + a.map(function (v) { return ('0' + Math.max(0, Math.min(255, Math.round(v))).toString(16)).slice(-2); }).join(''); }
   function lum(c) { var a = hex(c).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; }
+  function contrast(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function shade(c, k) { return toHex(hex(c).map(function (v) { return v * k; })); }
+  function tint(c, k) { return toHex(hex(c).map(function (v) { return v + (255 - v) * k; })); }
+  function agOf(p) { return p.ag || (p.dirs && p.dirs[0] && p.dirs[0].ag) || ''; }
+  /* "צבעי המפעיל": שלט הקו בצבע העיקרי, קו מתאר וקצה הכרטיסים בצבע המשני, פס הכותרת בגוון כהה של העיקרי.
+     טקסט על הצבע — לבן או כהה, מה שנותן ניגודיות של 4.5 לפחות */
   function lookVars(look, pages) {
     if (look !== 'op') return '';
-    var ops = []; pages.forEach(function (p) { if (ops.indexOf(p.op) < 0) ops.push(p.op); });
-    var c = ops.length === 1 && OPC[ops[0]] ? OPC[ops[0]] : '#3d5a6c';
-    var band = toHex(hex(c).map(function (v) { return v * 0.38; })), band2 = toHex(hex(c).map(function (v) { return v * 0.5; }));
-    var sub = toHex(hex(c).map(function (v) { return v + (255 - v) * 0.65; }));
-    return '--s-brand:' + c + ';--s-on-brand:' + (lum(c) > 0.35 ? '#14201b' : '#ffffff') + ';--s-band:' + band + ';--s-band2:' + band2 +
-      ';--s-band-fg:#ffffff;--s-band-sub:' + sub;
+    var ags = []; pages.forEach(function (p) { var a = String(agOf(p)); if (ags.indexOf(a) < 0) ags.push(a); });
+    var cs = ags.length === 1 && COLORS[ags[0]] ? COLORS[ags[0]] : [PALETTE[ags.length === 1 ? (parseInt(ags[0], 10) || 0) % PALETTE.length : 0]];
+    var c = cs[0], c2 = cs[1] || cs[0];
+    var on = contrast(c, '#ffffff') >= 4.5 ? '#ffffff' : '#14201b';
+    var band = shade(c, 0.42), k = 0.42;
+    while (contrast(band, '#ffffff') < 7 && k > 0.1) { k -= 0.04; band = shade(c, k); }
+    return '--s-brand:' + c + ';--s-on-brand:' + on + ';--s-brand2:' + c2 + ';--s-band:' + band + ';--s-band2:' + shade(c, Math.min(0.62, k + 0.14)) +
+      ';--s-band-fg:#ffffff;--s-band-sub:' + tint(c, 0.7);
   }
   return { lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();
