@@ -228,7 +228,10 @@
     $('linehead').innerHTML = '<span class="badge">' + E(l.line) + '</span><div class="t"><b>' + E(l.from) + ' ↔ ' + E(l.to) + '</b><span>' + E(l.op) + '</span></div>';
     $('compare').innerHTML = '';
     var up = l.up.slice().sort(function (a, b) { return (a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1; });
-    var html = up.map(function (c) { return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length }); }).join('');
+    var html = up.map(function (c) {
+      var t = c.tot || {}, sm = (c.dev || 0) < 1000 && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3;
+      return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length, size: sm });
+    }).join('');
     var pastEv = clusterPast(l.past);
     html += pastEv.map(function (g) {
       return card({ key: 'p-' + l.makat + '-' + g.d, date: g.d, past: true, kinds: g.kinds, dirs: g.rests.length });
@@ -246,6 +249,8 @@
       loadPick('p-' + l.makat + '-' + g.d).then(function (p) {
         var el = $('cards').querySelector('[data-key="p-' + l.makat + '-' + g.d + '"] .chips');
         if (el) el.innerHTML = p ? LC.chips(p.tot) : '<span class="chip mv">אין פרטים</span>';
+        var sz = $('cards').querySelector('[data-key="p-' + l.makat + '-' + g.d + '"] .size');
+        if (sz && p) sz.textContent = LCDeck.smallInfo(p).small ? 'שינוי קטן — עמוד אחד' : 'שינוי גדול — מצגת מלאה';
       });
     });
   }
@@ -265,7 +270,8 @@
     return '<button type="button" class="ccard' + (c.past ? ' past' : '') + '" data-key="' + E(c.key) + '">' +
       '<span class="when"><span class="l">' + lbl + '</span><b>' + E(LC.wd(c.date) + ' ' + LC.dmy(c.date)) + '</b>' +
       (c.past ? '' : '<span class="l">' + E(LC.rel(idx.gen, c.date)) + '</span>') + '</span>' +
-      '<span class="what"><span class="chips">' + chips + '</span><span class="meta">' + (kinds ? E(kinds) + ' · ' : '') +
+      '<span class="what"><span class="chips">' + chips + '</span>' +
+      '<span class="size">' + (c.size == null ? '' : c.size ? 'שינוי קטן — עמוד אחד' : 'שינוי גדול — מצגת מלאה') + '</span><span class="meta">' + (kinds ? E(kinds) + ' · ' : '') +
       (c.dirs > 1 ? 'הלוך וחזור' : 'רק בנסיעה לצד אחד') + (c.past ? ' · מהארכיון' : '') + '</span></span>' +
       '<span class="pick-arrow" aria-hidden="true">←</span></button>';
   }
@@ -428,7 +434,7 @@
   var editMode = false;
   function normEdits(e) {
     e = e && typeof e === 'object' ? e : {};
-    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {};
+    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {};
     return e;
   }
   function textSlide(x, pages) {
@@ -443,7 +449,8 @@
     maps = [];
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look });
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes });
+    drawKinds(pages);
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -479,6 +486,22 @@
     setEdit(editMode);
     number();
   }
+  /* שינוי קטן — עמוד אחד; שינוי גדול — מצגת מלאה. אפשר להחליף לכל קו */
+  function drawKinds(pages) {
+    $('kinds').innerHTML = pages.map(function (p) {
+      var info = LCDeck.smallInfo(p), m = edits.modes[p.id], one = m ? m === 'one' : info.small;
+      return '<div class="kind"><span class="badge">' + E(p.line) + '</span><span class="kt"><b>' + (info.small ? 'שינוי קטן' : 'שינוי גדול') + '</b> — ' +
+        (one ? 'עמוד אחד' : 'מצגת מלאה') + (m ? ' (לפי הבחירה שלכם)' : '') + '</span>' +
+        '<button type="button" class="lnk" data-kind="' + E(p.id) + '" data-to="' + (one ? 'full' : 'one') + '">' + (one ? 'להפוך למצגת מלאה' : 'לעמוד אחד') + '</button></div>';
+    }).join('');
+  }
+  $('kinds').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-kind]'); if (!b) return;
+    var id = b.getAttribute('data-kind'), to = b.getAttribute('data-to');
+    var p = curPages.filter(function (x) { return x.id === id; })[0];
+    if (p && (to === 'one') === LCDeck.smallInfo(p).small) delete edits.modes[id]; else edits.modes[id] = to;
+    saveEdits(); render(curPages);
+  });
   function frameOf(id) { return $('deck').querySelector('.sframe[data-id="' + CSS.escape(id) + '"]'); }
 
   /* עיר למצגת של כמה קווים: העיר שמשותפת לכל הקווים */
