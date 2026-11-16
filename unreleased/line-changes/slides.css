@@ -70,6 +70,8 @@
 .s-map .segs li{display:flex;gap:10px;align-items:flex-start;font-size:17.5px;line-height:1.38}
 .s-map .segs li b{font-weight:800}
 .slide .segn{font-style:normal;flex:none;width:26px;height:26px;border-radius:7px;background:var(--s-ink);color:#fff;border:2px solid #f2c14e;display:inline-flex;align-items:center;justify-content:center;font:800 13px 'Heebo',sans-serif;margin-top:1px}
+.slide .segb{flex:none;width:9px;height:9px;border-radius:50%;background:var(--s-fg);margin:9px 8px 0 9px}
+.slide .dot.mv{background:#55625c}
 .s-map .counts,.slide .counts{font-size:15px;color:var(--s-sub);margin:0}
 .s-stops li .nr{display:block;font-size:13px;color:var(--s-sub);line-height:1.2}
 .s-stops li.two-l{min-height:44px}
