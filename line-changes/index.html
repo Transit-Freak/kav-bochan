@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="../home-link.js"></script>
+<script src="../version.js" data-tool="line-changes" defer></script>
+<title>מצגת לשינוי בקו</title>
+<meta name="description" content="בוחרים קו ושינוי, ומורידים מצגת PDF לנוסעים: מה משתנה במילים, מפה של המסלול הישן והחדש, ואיפה התחנה הקרובה במקום תחנה שמבוטלת.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="הקו הבוחן">
+<meta property="og:title" content="מצגת לשינוי בקו">
+<meta property="og:description" content="מצגת PDF לנוסעים על שינוי בקו: מה משתנה, מפה של המסלול הישן והחדש, והתחנות.">
+<meta property="og:url" content="https://kavbochan.app/line-changes/">
+<link rel="canonical" href="https://kavbochan.app/line-changes/">
+<meta property="og:image" content="https://kavbochan.app/line-changes/og-image.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="he_IL">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="slides.css?v=6">
+</head>
+<body data-step="1">
+<header class="top noprint">
+  <div class="in topin">
+    <div class="toptxt">
+      <span class="eyebrow">הקו הבוחן · מצגות לנוסעים</span>
+      <h1>מצגת לשינוי בקו</h1>
+      <p>בוחרים קו ושינוי, מתקנים את הטקסט אם צריך, ומורידים מצגת PDF שמסבירה לנוסעים מה משתנה: במילים, במפה וברשימת התחנות.</p>
+    </div>
+    <!-- הסמל של הכלי: הקו הכחול ממשיך, והמסלול הישן (מקווקו אדום) סוטה ממנו -->
+    <svg class="topart" viewBox="0 0 220 110" aria-hidden="true">
+      <path d="M8 86 C40 86 52 40 92 40 S150 70 212 30" fill="none" stroke="var(--new-on-ink)" stroke-width="6" stroke-linecap="round"/>
+      <path d="M92 40 C110 40 112 92 150 92 S196 70 212 30" fill="none" stroke="var(--before-on-ink)" stroke-width="4" stroke-dasharray="9 7" stroke-linecap="round"/>
+      <circle cx="92" cy="40" r="8" fill="var(--ink)" stroke="var(--new-on-ink)" stroke-width="4"/>
+      <circle cx="150" cy="92" r="7" fill="var(--before-on-ink)" stroke="var(--ink)" stroke-width="2.5"/>
+      <circle cx="150" cy="57" r="7.5" fill="#0a5530" stroke="#ffffff" stroke-width="2.5"/>
+      <circle cx="212" cy="30" r="6" fill="var(--ink)" stroke="var(--new-on-ink)" stroke-width="3"/>
+    </svg>
+  </div>
+  <div class="in"><div class="seam" aria-hidden="true"><i></i></div></div>
+</header>
+
+<nav class="steps noprint" aria-label="שלבים">
+  <div class="in">
+    <button type="button" class="back" id="back" aria-label="חזרה לשלב הקודם"><span aria-hidden="true">→</span> חזרה</button>
+    <ol>
+      <li><button type="button" data-go="1"><i>1</i><span>איזה קו?</span></button></li>
+      <li><button type="button" data-go="2"><i>2</i><span>איזה שינוי?</span></button></li>
+      <li><button type="button" data-go="3"><i>3</i><span>המצגת</span></button></li>
+    </ol>
+  </div>
+</nav>
+
+<div class="in layout">
+  <aside class="desk noprint" aria-label="הכנת המצגת">
+
+    <!-- שלב 1: איזה קו -->
+    <section class="panel pane" data-pane="1">
+      <h2 class="ph">איזה קו?</h2>
+      <p class="hint">מספר קו, רחוב, שכונה, עיר או חברה.</p>
+      <div class="searchbox">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
+        <label for="q" class="vh">חיפוש קו</label>
+        <input id="q" class="big" type="search" placeholder="למשל 988, הרצל, קרית חב&quot;ד" autocomplete="off" enterkeyhint="search">
+      </div>
+      <div class="chiprow">
+        <span class="flabel">שינויים קרובים ב:</span>
+        <div class="seg" id="cities" role="group" aria-label="ערים עם שינויים קרובים"></div>
+      </div>
+      <div class="reshead" id="reshead"></div>
+      <div class="results" id="results" aria-live="polite">
+        <div class="skel" aria-label="טוען את רשימת הקווים"><i></i><i></i><i></i><i></i></div>
+      </div>
+    </section>
+
+    <!-- שלב 2: איזה שינוי -->
+    <section class="panel pane" data-pane="2">
+      <div class="linehead" id="linehead"></div>
+      <h2 class="ph">איזה שינוי?</h2>
+      <div class="cards" id="cards"></div>
+          </section>
+
+    <!-- שלב 3: המצגת -->
+    <section class="panel pane" data-pane="3">
+      <h2 class="ph">המצגת</h2>
+      <div class="group">
+        <span class="flabel">הקווים במצגת</span>
+        <div class="picked" id="picked"></div>
+        <button type="button" class="ghost" id="addline">+ להוסיף קו נוסף</button>
+      </div>
+      <div class="group" id="kindgrp">
+        <span class="flabel">גודל המצגת</span>
+        <div class="kinds" id="kinds"></div>
+      </div>
+      <div class="group">
+        <span class="flabel" id="lookslbl">עיצוב</span>
+        <div class="looks" id="looks" role="radiogroup" aria-labelledby="lookslbl">
+          <button type="button" role="radio" data-look="kav"><i class="sw-kav"></i><span>הקו הבוחן</span></button>
+          <button type="button" role="radio" data-look="light"><i class="sw-light"></i><span>בהיר ונקי</span></button>
+          <button type="button" role="radio" data-look="op"><i class="sw-op" id="swop"></i><span>צבעי המפעיל</span></button>
+          <button type="button" role="radio" data-look="large"><i class="sw-large"></i><span>אותיות גדולות</span></button>
+        </div>
+      </div>
+      <div class="group editgrp">
+        <span class="flabel">הטקסט</span>
+        <p class="hint">הטקסט נוצר אוטומטית מהנתונים. במצב עריכה לוחצים על כל טקסט בשקף כדי לשנות, למחוק או להוסיף שורה; אפשר גם להוסיף תיבת טקסט או שקף שלם.</p>
+        <div class="row2">
+          <button type="button" class="btn2" id="editbtn" aria-pressed="false">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+            <span>עריכת הטקסט</span>
+          </button>
+          <button type="button" class="lnk" id="resetall">שחזור הכול</button>
+        </div>
+      </div>
+      <details class="group" id="tgwrap">
+        <summary>השקפים במצגת <span id="tgcount"></span></summary>
+        <div class="toggles" id="toggles"></div>
+      </details>
+      <div class="go">
+        <button class="btn" id="dl" type="button">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M6 10l6 6 6-6M4 21h16"/></svg>
+          <span>הורדת PDF</span>
+        </button>
+        <p class="hint">בחלון ההדפסה בוחרים "שמירה כ-PDF".</p>
+      </div>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="stagehead noprint"><h2 id="stagetitle">תצוגה מקדימה</h2><span id="pcount"></span></div>
+    <p class="edithint noprint">מצב עריכה: לוחצים על טקסט בשקף כדי לשנות אותו. בטלפון אפשר להגדיל את השקף עם שתי אצבעות.</p>
+    <div class="deck" id="deck"></div>
+  </main>
+</div>
+
+<div class="dock noprint">
+  <div class="in">
+    <button class="btn2" id="editbtn2" type="button" aria-pressed="false">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
+      <span>עריכת הטקסט</span>
+    </button>
+    <button class="btn" id="dl2" type="button">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M6 10l6 6 6-6M4 21h16"/></svg>
+      <span>הורדת PDF</span>
+    </button>
+  </div>
+</div>
+
+<footer class="foot noprint">
+  <div class="in">
+    <div><b>מצגת לשינוי בקו</b> · הקו הבוחן</div>
+    <div>שינויים קרובים מזוהים כל לילה מנתוני משרד התחבורה<span id="feed"></span>, ושינויים שהתחילו בשבוע האחרון — מהארכיון של הקו הבוחן. זה לא פרסום רשמי.</div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="common.js?v=4"></script>
+<script src="deck.js?v=6"></script>
+<script src="editor.js?v=2"></script>
+<script src="app.js?v=6"></script>
+<script src="../a11y.js" defer></script>
+</body>
+</html>

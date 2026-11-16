@@ -1,9 +1,9 @@
 name: line-changes
 
-# מצגת לשינוי בקו (unreleased/line-changes) — כל לילה: השינויים במסלולים ובתחנות שיכנסו לתוקף
+# מצגת לשינוי בקו (line-changes) — כל לילה: השינויים במסלולים ובתחנות שיכנסו לתוקף
 # בשבועיים הקרובים, בכל הארץ, מהשוואת ה-GTFS של היום לשבוע שעבר (tools/line_changes.py).
 # הבונה קורא את ה-GTFS ישר מהארכיון היומי של דאטאבוס ב-S3 (קריאה בטווחים, בלי להוריד את כל ה-zip),
-# ומוסיף לכל קו את השינויים מהשנה האחרונה מתוך "הקו בזמן" (line-history/data/changes).
+# ומוסיף לכל קו את השינויים מהשבוע האחרון מתוך "הקו בזמן" (line-history/data/changes).
 # לחיפוש: רחובות (מתיאור התחנות) ושכונות (הפוליגונים הרשמיים ב-line-history/data/neighborhoods).
 # נשמרים רק קבצים קטנים: אינדקס הקווים, רשימת השינויים, וקובץ לכל שינוי (כ-2.5MB בסך הכול).
 
@@ -31,7 +31,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /tools/
-            /unreleased/line-changes/
+            /line-changes/
             /line-history/data/changes/
             /line-history/data/neighborhoods/
 
@@ -47,12 +47,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # כל הנתונים של הכלי נבנים בריצה הזו — שומרים עותק, עוברים ל-main העדכני ומעתיקים מעליו
-          rm -rf /tmp/out && mkdir -p /tmp/out && cp -a unreleased/line-changes/data unreleased/line-changes/l /tmp/out/
+          rm -rf /tmp/out && mkdir -p /tmp/out && cp -a line-changes/data line-changes/l /tmp/out/
           for i in 1 2 3 4 5 6; do
             git fetch -q --depth 1 --filter=blob:none origin main && git reset -q --hard origin/main
-            rsync -a --delete /tmp/out/data/ unreleased/line-changes/data/
-            rsync -a --delete /tmp/out/l/ unreleased/line-changes/l/
-            git add -A unreleased/line-changes/data unreleased/line-changes/l
+            rsync -a --delete /tmp/out/data/ line-changes/data/
+            rsync -a --delete /tmp/out/l/ line-changes/l/
+            git add -A line-changes/data line-changes/l
             git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
             git commit -q -m "data: מצגת לשינוי בקו — השינויים הקרובים"
             git push -q origin HEAD:main && exit 0

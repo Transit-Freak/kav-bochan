@@ -181,6 +181,20 @@ const ICON={
   <g stroke="#fff" stroke-linecap="round" opacity=".75"><path d="M14 30 h9" stroke-width="2.2"/><path d="M10 37.5 h12" stroke-width="2.2"/><path d="M16 45 h6" stroke-width="2.2"/></g>
   <g transform="translate(34 22) scale(.62) rotate(-6 42 24)">${busSide('sk',{stripe:'#ea580c',noShadow:true})}</g>`),
 
+/* מצגת לשינוי בקו — דף מצגת: הקו הישן (אדום מקווקו) סוטה מהחדש (ירוק), ותחנה חדשה */
+'line-changes':()=>tile('lc','#22c55e','#0b3d22',`
+  <ellipse cx="60" cy="104" rx="34" ry="3.4" fill="#000" opacity=".35" filter="url(#kb-blur)"/>
+  <g filter="url(#kb-drop)">
+    <rect x="22" y="24" width="76" height="76" rx="9" fill="#fff"/>
+    <path d="M22 33 a9 9 0 0 1 9 -9 h58 a9 9 0 0 1 9 9 v9 h-76z" fill="#13201b"/>
+    <rect x="66" y="29" width="24" height="9" rx="3" fill="#22c55e"/>
+    <path d="M30 86 C42 86 46 60 60 60 S80 72 90 52" stroke="#1f9152" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M60 60 C66 60 68 86 80 86 S88 66 90 52" stroke="#dc2626" stroke-width="3" stroke-dasharray="4.5 3.5" fill="none" stroke-linecap="round"/>
+    <circle cx="60" cy="60" r="4.2" fill="#fff" stroke="#1f9152" stroke-width="2.6"/>
+    <circle cx="76" cy="66" r="4.6" fill="#0a5530" stroke="#fff" stroke-width="1.8"/>
+    <circle cx="80" cy="86" r="4" fill="#dc2626" stroke="#fff" stroke-width="1.8"/>
+  </g>`),
+
 /* הקו בזמן — שעון שולחני עתיק */
 'line-history':()=>{let tk='';for(let i=0;i<12;i++){const a=i*30*Math.PI/180,q=i%3==0,r0=q?11.6:12.8,r1=14.4;tk+=`<path d="M${f(60+r0*Math.sin(a))} ${f(65-r0*Math.cos(a))} L${f(60+r1*Math.sin(a))} ${f(65-r1*Math.cos(a))}" stroke="#3b2410" stroke-width="${q?1.6:.9}" stroke-linecap="round"/>`}
   const hand=(a,L)=>{const t=a*Math.PI/180;return `${f(60+L*Math.sin(t))} ${f(65-L*Math.cos(t))}`};
@@ -432,7 +446,8 @@ const GROUPS = [
   {k:'kavbug',n:'קו באג',d:'תקלות גאומטריות במסלולי הקווים — עיקופים ובליטות מיותרים',h:'https://transit-freak.github.io/kav-bug/',ext:1,vk:'kavbug',a:'#6366f1'},
   {k:'next-station',n:'התחנה הבאה',d:'תחנות ששמן אינו תואם לרחוב שבכתובת',h:'next-station/',vk:'next-station',a:'#2563eb'},
   {k:'skip-stops',n:'הקו המדלג',d:'קווים שחולפים ליד תחנה פעילה — בלי לעצור בה',h:'skip-stops/',vk:'skip-stops',a:'#ea580c'},
-  {k:'line-history',n:'הקו בזמן',d:'היסטוריית קווים מ-2003 ועד היום — מסלול, שרטוט, תחנות, שמות ולוחות זמנים',h:'line-history/',vk:'line-history',a:'#7c3aed'}]},
+  {k:'line-history',n:'הקו בזמן',d:'היסטוריית קווים מ-2003 ועד היום — מסלול, שרטוט, תחנות, שמות ולוחות זמנים',h:'line-history/',vk:'line-history',a:'#7c3aed'},
+  {k:'line-changes',n:'מצגת לשינוי בקו',d:'בוחרים קו ושינוי שמתקרב, ומורידים מצגת PDF לנוסעים: מה משתנה, מפה של המסלול הישן והחדש, ואיפה לעלות במקום תחנה שמבוטלת',h:'line-changes/',vk:'line-changes',a:'#16a34a'}]},
  {id:'g-live',name:'ביצועים בשטח',tools:[
   {k:'bus',n:'מדד דיוק האוטובוסים',d:'כל אוטובוס בארץ מול הלו"ז, תחנה אחרי תחנה: כמה הגיעו בזמן, מי יצא מוקדם ומי איחר ואיפה לאורך הקו — לפי קו, מפעיל, עיר ושעה, יום אחרי יום, מנתוני דאטאבוס',h:'bus/',vk:'bus',a:'#059669'},
   {k:'bus-speed',n:'איפה האוטובוס נתקע',d:'המהירות של האוטובוסים בכל רחוב ובכל שעה, לפי המיקום שהם משדרים: איפה נתקעים, מתי, ואיזה יישוב הכי עמוס',h:'bus-speed/',vk:'bus-speed',a:'#dc2626'},
@@ -449,7 +464,7 @@ const GROUPS = [
   {k:'game',n:'🔒 משחק הקווים · בטא',on:'🔒 משחק הקווים · בבנייה',d:'מתכננים קווי אוטובוס בקריית מלאכי בתלת־ממד. גרסת בטא — בכל שבוע נפתחים 2 מקומות לבודקים',h:'game/',vk:'game',a:'#e11d48'}]}
 ];
 const PARKS = {k:'parks',n:'נגישות אזורי תעשייה',d:'ציון נגישות לתחבורה ציבורית ל-414 אזורי תעשייה ותעסוקה: תדירות בשעות השיא והליכה מהמפעל הרחוק לתחנה, מפה, דירוג ודו"ח · בשיתוף מחלקת קידום תחבורה ציבורית בהסתדרות',h:'parks/'};
-const COUNT = 'שישה-עשר';
+const COUNT = 'שבעה-עשר';
 const ALL = GROUPS.flatMap(g => g.tools).concat([PARKS]);
 
 /* ===== HTML ===== */

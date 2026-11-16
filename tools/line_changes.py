@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """מצגת לשינוי בקו — הנתונים: שינויי מסלול ותחנות שעומדים להיכנס לתוקף, לכל קו "לפני ← אחרי".
-הדף (unreleased/line-changes/) בונה מהם מצגת PDF.
+הדף (line-changes/) בונה מהם מצגת PDF.
 
 העיקרון: משווים בין מה שהקו עשה בשבוע האחרון (ה-GTFS מלפני REF_DAYS ימים, בתאריכים
 שכבר עברו) לבין מה שה-GTFS של היום כבר מכיל לימים הקרובים (HORIZON ימים).
@@ -13,20 +13,20 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
 שינוי בלוח הזמנים בלבד, שרטוט מחדש של כמה מטרים, שינוי שם של תחנה, החלפת מק"ט של
 תחנה באותו מקום ובאותו שם, הזזה קטנה של תחנה.
 
-שינוי שכבר נכנס לתוקף נשאר ברשימה KEEP_DAYS ימים (מהריצות הקודמות). שינוי עתידי
+שינוי שכבר נכנס לתוקף נשאר ברשימה KEEP_DAYS ימים (שבוע) (מהריצות הקודמות). שינוי עתידי
 שלא נמצא שוב בריצה של היום (המשרד ביטל אותו) — יורד.
 
 הקלט — ישר מהארכיון היומי של דאטאבוס ב-S3 (tools/gtfs_zip.py, קריאה בטווחים בלי להוריד
-את כל ה-zip ובלי לכתוב לדיסק). הפלט תחת OUTDIR (ברירת מחדל unreleased/line-changes):
+את כל ה-zip ובלי לכתוב לדיסק). הפלט תחת OUTDIR (ברירת מחדל line-changes):
   data/index.json        רשימת השינויים (לדף הראשי)
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
-  data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשנה האחרונה)
+  data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשבוע האחרון)
   data/places.json       רחובות (מתיאור התחנות) ושכונות (NBR_DIR, הפוליגונים הרשמיים) → אילו קווים עוצרים בהם
   l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
 רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
 235 כיוונים משתנים ב-184 קווים, 27 שינויים קטנים סוננו. עם LH_CHANGES (line-history/data/changes) נוספים
-לאינדקס השינויים מהשנה האחרונה של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
+לאינדקס השינויים מהשבוע האחרון של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
 פלט נוסף: data/lines.json — כל הקווים (לחיפוש בדף).
 
 משתנים: TODAY (YYYY-MM-DD, ברירת מחדל היום בשעון ישראל), REF_DAYS (7), HORIZON (14),
@@ -54,10 +54,10 @@ def _today():
 TODAY = datetime.date.fromisoformat(os.environ['TODAY']) if os.environ.get('TODAY') else _today()
 REF_DAYS = int(os.environ.get('REF_DAYS', '7'))
 HORIZON = int(os.environ.get('HORIZON', '14'))
-KEEP_DAYS = int(os.environ.get('KEEP_DAYS', '14'))
+KEEP_DAYS = int(os.environ.get('KEEP_DAYS', '7'))   # שינוי שהתחיל נשאר ברשימה שבוע, ואז יורד
 CITIES_RAW = os.environ.get('CITIES', '')
-OUTDIR = os.environ.get('OUTDIR', 'unreleased/line-changes')
-SITE = 'https://kavbochan.app/unreleased/line-changes'
+OUTDIR = os.environ.get('OUTDIR', 'line-changes')
+SITE = 'https://kavbochan.app/line-changes'
 
 GEO_DEV = 40     # מ' — נקודה במסלול רחוקה מהמסלול השני יותר מזה = סטייה
 GEO_LEN = 200    # מ' — אורך סטייה מינימלי כדי שייחשב שינוי מסלול
@@ -600,7 +600,7 @@ def run():
 def lines_index(feed, variants):
     """כל הקווים שפועלים בימים הקרובים — לחיפוש בדף (מספר, חברה, מוצא, יעד, ערים).
     פורמט דחוס: ops/cities הן רשימות, ובכל קו אינדקסים אליהן.
-    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשנה האחרונה — add_past)]"""
+    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשבוע האחרון — add_past)]"""
     by = {}
     for rd, vs in variants.items():
         rid = next(iter(vs.values()))['rid']
@@ -832,8 +832,8 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
 PAST_KINDS = {'route', 'stops', 'stops-add', 'stops-del', 'extend', 'shorten', 'terminal'}
 
 
-def add_past(lines_path, ch_dir, days=365):
-    """שינויי מסלול ותחנות מהשנה האחרונה, מ"הקו בזמן" (line-history/data/changes/YYYY-MM.json):
+def add_past(lines_path, ch_dir, days=7):
+    """שינויי מסלול ותחנות מהשבוע האחרון, מ"הקו בזמן" (line-history/data/changes/YYYY-MM.json):
     לכל קו באינדקס — [[תאריך, כיוון-חלופה, סוג], ...]. הגאומטריה והתחנות עצמן נטענות בדף
     מקובצי הקווים של "הקו בזמן" (line-history/data/lines/<rd>.json), רק לקו שנבחר."""
     li = json.load(open(lines_path, encoding='utf-8'))
@@ -853,7 +853,7 @@ def add_past(lines_path, ch_dir, days=365):
         ln[8:] = [[list(x) for x in ev]] if ev else []
     li['past_since'] = since
     json.dump(li, open(lines_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    print(f'שינויים מהשנה האחרונה: {n} אירועים · {sum(1 for ln in li["lines"] if len(ln) > 8)} קווים', flush=True)
+    print(f'שינויים מהשבוע האחרון: {n} אירועים · {sum(1 for ln in li["lines"] if len(ln) > 8)} קווים', flush=True)
 
 
 if __name__ == '__main__':
