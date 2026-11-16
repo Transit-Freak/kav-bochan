@@ -139,21 +139,25 @@ var LCDeck = (function () {
     return '<div class="s-map"><div class="smap"></div><div class="inset"></div><div class="side">' +
       '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(p.op) + '</span></div>' +
       '<h2 class="hd">' + E(trip(d)) + E(altTxt(d)) + '</h2>' +
-      (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ': ' + E(part.name) + '</p>' : '') +
+      (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ' (' + E(part.name) + ')</p>' : '') +
+      (rerouted(d) ? '' : '<p class="part">המסלול לא משתנה — רק ' + (r + a + d.moved.length === 1 ? 'התחנה' : 'התחנות') + '</p>') +
       segList(d) + when +
       (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(countsLine(d)) + '</p>') +
       '<div class="legend">' +
-        '<span><i class="sw old"></i>המסלול הישן (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' +
-        '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' +
+        (rerouted(d) ? '<span><i class="sw old"></i>המסלול הישן (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' +
+          '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
         (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש</span>' : '') +
-        (segments(d).length ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
+        (segments(d).some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
         (a ? '<span><i class="dot add">1</i>תחנה חדשה</span>' : '') +
+        (d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
         '<span><i class="dot same"></i>תחנה שנשארת</span></div>' +
       '<div style="font-size:13px;color:var(--s-sub)">הוכן על ידי אדם פרטי · לא פרסום רשמי</div>' +
       '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>';
   }
 
+  /* הקו נוסע בדרך אחרת (ולא רק תחנה שנוספה/בוטלה/זזה על אותה דרך) */
+  function rerouted(d) { return !!d.geo || segments(d).some(routeSeg); }
   /* שינוי קטן (עד 3 תחנות בכיוון): בלי שקף תחנות נפרד — הרשימה הקצרה ליד המפה, והמפה מתקרבת לתחנה */
   function small(d) { return d.added.length + d.removed.length + d.moved.length <= 3; }
   function smallList(d) {
@@ -175,10 +179,19 @@ var LCDeck = (function () {
     var ed = ED.seg && ED.seg[d._key];
     var html = '<ol class="segs">' + segs.slice(0, SEG_MAX).map(function (g, i) {
       var t = ed && typeof ed[i] === 'string' ? E(ed[i]) : g.html;
-      return '<li><i class="segn">' + (i + 1) + '</i><span data-seg="' + E(d._key) + '" data-i="' + i + '">' + t + '</span></li>';
+      // מספר רק לשינוי בדרך עצמה (יש לו סמן על המפה); שינוי של תחנה — נקודה, הסמן הממוספר של התחנה הוא ההפניה
+      var num = segNum(d, g);
+      return '<li>' + (num ? '<i class="segn">' + num + '</i>' : '<i class="segb"></i>') + '<span data-seg="' + E(d._key) + '" data-i="' + i + '">' + t + '</span></li>';
     }).join('') + '</ol>';
     if (segs.length > SEG_MAX) html += '<p class="counts">ועוד ' + (segs.length - SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
     return html;
+  }
+  function routeSeg(g) { return !g.kind; }
+  function segNum(d, g) {
+    if (!routeSeg(g)) return 0;
+    var n = 0, out = 0;
+    segments(d).slice(0, SEG_MAX).forEach(function (x) { if (routeSeg(x)) { n++; if (x === g) out = n; } });
+    return out;
   }
   function totLine(t) {
     var s = [];
@@ -386,13 +399,13 @@ var LCDeck = (function () {
       }
       if (!twin && g.kind && p.dirs.length > 1) {
         var twins = items.filter(function (o) { return o !== it && o.d !== it.d && used.indexOf(o) < 0 && o.g.kind === g.kind && sameSet(o.g.names || [], g.names || []); });
-        if (twins.length) { twins.forEach(function (o) { used.push(o); }); used.push(it); out.push('<b>הלוך וחזור:</b> ' + g.plain); return; }
+        if (twins.length) { twins.forEach(function (o) { used.push(o); }); used.push(it); out.push(bothText(g)); return; }
       }
       if (twin) {
         used.push(twin);
-        out.push('<b>הלוך וחזור:</b> הקו ' + (g.oS.length ? 'כבר לא ייסע ' + E(via(g.oS)) + (g.nS.length ? ', ובמקום זה ייסע ' + E(via(g.nS)) : '') : 'ייסע בדרך חדשה, ' + E(via(g.nS))) + '.');
+        out.push('<b>בשני הכיוונים</b> הקו ' + (g.oS.length ? 'כבר לא ייסע ' + E(via(g.oS)) + (g.nS.length ? ', ובמקום זה ייסע ' + E(via(g.nS)) : '') : 'ייסע בדרך חדשה, ' + E(via(g.nS))) + '.');
       } else {
-        out.push((p.dirs.length > 1 ? '<b>' + E(toward(it.d)) + ':</b> ' : '') + g.html);
+        out.push((p.dirs.length > 1 ? '<b>' + E(toward(it.d)) + '</b>, ' : '') + g.html);
       }
       used.push(it);
     });
@@ -415,6 +428,16 @@ var LCDeck = (function () {
     return (Array.isArray(edited) ? edited.map(E) : gen).map(function (t, i) { return '<li data-i="' + i + '">' + t + '</li>'; }).join('');
   }
   function plain(h) { return String(h).replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
+  /* אותו שינוי בשני הכיוונים — משפט אחד, בלי שני נקודתיים */
+  function bothText(g) {
+    var b = function (st) { return st ? '<b>' + E(st.name) + '</b>' : ''; };
+    var nm = function (arr) { return andList(arr.map(function (x) { return E(x.name); })); };
+    if (g.kind === 'add') return '<b>בשני הכיוונים</b> ' + (g.newS.length === 1 ? 'נוספה תחנה חדשה, ' : 'נוספו תחנות חדשות, ') + nm(g.newS) +
+      (g.A && g.B ? ', בין ' + b(g.A) + ' ל' + b(g.B) : '') + '.';
+    if (g.kind === 'rem') return '<b>בשני הכיוונים</b> הקו לא יעצור יותר ב' + (g.oldS.length === 1 ? 'תחנה ' : 'תחנות ') + nm(g.oldS) + '.';
+    if (g.kind === 'mv') return '<b>בשני הכיוונים</b> ' + g.html.replace(/^התחנה/, 'התחנה');
+    return '<b>בשני הכיוונים</b> ' + g.html;
+  }
   function sameSet(a, b) { return a.length === b.length && a.every(function (x) { return b.indexOf(x) >= 0; }); }
 
   /* כל השקפים לבחירה: [{id, label, html, map?}] */
@@ -553,9 +576,9 @@ var LCDeck = (function () {
     var mvN = d.moved.map(function (s, j) { return { s: s, n: j + 1, k: 'mv' }; });
     var marks = remN.concat(addN).filter(function (x) { return shown(x.s); }).concat(m.show ? [] : mvN);
     // מספרי המקטעים (①②…) — בנקודה שבה המסלולים נפרדים
-    segments(d).slice(0, SEG_MAX).forEach(function (g, i) {
-      var at = g.A || g.newS[0] || g.oldS[0];
-      if (at && (!m.show || marks.some(function (x) { return dist(x.s.ll, at.ll) < 1500; }))) marks.push({ s: { ll: at.ll }, n: i + 1, k: 'seg' });
+    segments(d).slice(0, SEG_MAX).forEach(function (g) {
+      var num = segNum(d, g), at = g.A || g.newS[0] || g.oldS[0];
+      if (num && at && (!m.show || marks.some(function (x) { return dist(x.s.ll, at.ll) < 1500; }))) marks.push({ s: { ll: at.ll }, n: num, k: 'seg' });
     });
 
     var all = L.latLngBounds([]), focus = L.latLngBounds([]);
@@ -569,9 +592,9 @@ var LCDeck = (function () {
         [g.A, g.B].concat(g.newS, g.oldS).forEach(function (st) { if (st && st.ll && st.name) labels.push(st); });
       });
       m.remS.forEach(function (st) { if (st._near && !st._near.none) labels.push(st._near); });
-      // רק מה שקרוב (עד 1.2 ק"מ מתחנה שמשתנה) נכנס לגבולות המפה — כדי שהמפה תתקרב לתחנה
+      // רק מה שקרוב (עד 2.5 ק"מ מתחנה שמשתנה) נכנס לגבולות המפה — כדי שהמפה תתקרב לתחנה
       var core = marks.filter(function (x) { return x.k !== 'seg'; }).map(function (x) { return x.s.ll; });
-      labels = labels.filter(function (st) { return !core.length || core.some(function (c) { return dist(c, st.ll) <= 1200; }); });
+      labels = labels.filter(function (st) { return !core.length || core.some(function (c) { return dist(c, st.ll) <= 2500; }); });
       labels.forEach(function (st) { focus.extend(st.ll); });
     }
     if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
