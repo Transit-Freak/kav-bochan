@@ -1,3 +1,5 @@
+// מוזיקת הרקע של משחק הקווים · שלמה הרטמן, 2026 · נוצרה בעזרת בינה מלאכותית
+//
 // מוזיקת רקע: שלושה קטעים שמנוגנים חי ב-Web Audio (בלי קבצי שמע) ועוברים בלולאה בלי הפסקה.
 //   morning — בוקר רגוע (80 bpm), rush — שעת שיא (112 bpm), night — לילה (72 bpm).
 // אותם תווים, כלים ומיקס כמו הגרסה שנבנתה ב-Python: פסנתר חשמלי ב-FM, פד, בס, פריטה (משור דרך מסנן), פעמון,
@@ -6,6 +8,7 @@
 // מעבר בין קטעים: נדיר ורגוע — רק אחרי שהקטע הרצוי יציב 20 שנ', אחרי שהקטע הנוכחי התנגן לולאה שלמה (או דקה),
 // בסוף משפט של 4 תיבות, עם מעבר הדרגתי של 3 שנ'. קטע שחוזרים אליו ממשיך מאיפה שהפסיק. הטמפו לא תלוי במהירות המשחק.
 // הרצה מהירה: "שכבת אנרגיה" בכל קטע (מצילה בשש-עשריות ופריטה באקורד) נכנסת ויוצאת בתחילת תיבה, בלי לשנות טמפו או קטע.
+// חתימה: פעם בלולאה, 2.5 שנ' שנגמרות חצי שנייה לפני סוף הלולאה, השם "שלומי" כתוב בספקטרוגרמה (9–16 קה"ץ, שקט מאוד).
 
 const LOOKAHEAD = 0.25, TICK_MS = 60, XFADE = 3, BARS = 16, PHRASE = 4;
 const hz = n => 440 * 2 ** ((n - 69) / 12);
@@ -37,7 +40,7 @@ function morning() {
     for (let s = 1; s < 16; s += 2) ev.push({ t: t0 + s * b / 4, k: 'hat', v: 0.03, p: -0.2, x: 1 });
     [0, 2, 1, 3, 2, 1, 3, 2].forEach((c, s) => ev.push({ t: t0 + s * b / 2, k: 'pluck', n: ch[c] + 12, d: b / 2, v: 0.08, p: s % 2 ? 0.3 : -0.3, x: 1 }));
   }
-  return { ev, len: BARS * 4 * b, bar: 4 * b, rev: 0.35 };
+  return { ev, len: BARS * 4 * b, bar: 4 * b, rev: 0.35, eg: 2.8 };
 }
 function rush() {
   const b = 60 / 112, ev = [];
@@ -60,7 +63,7 @@ function rush() {
     for (let q = 0; q < 4; q++) ev.push({ t: t0 + q * b + 3 * b / 4, k: 'hat', v: 0.03, p: -0.25, x: 1 });
     for (let s = 1; s < 16; s += 2) ev.push({ t: t0 + s * b / 4, k: 'pluck', n: ch[[2, 0, 1, 2][(s >> 1) % 4]] + 24, d: b / 4, v: 0.05, p: 0, x: 1 });
   }
-  return { ev, len: BARS * 4 * b, bar: 4 * b, rev: 0.2 };
+  return { ev, len: BARS * 4 * b, bar: 4 * b, rev: 0.2, eg: 4 };
 }
 function night() {
   const b = 60 / 72, ev = [];
@@ -84,13 +87,52 @@ function night() {
     for (let s = 0; s < 16; s++) ev.push({ t: t0 + s * b / 4, k: 'hat', v: s % 2 ? 0.016 : 0.024, p: -0.3, x: 1 });
     [0, 1, 2, 3, 2, 1, 2, 3].forEach((c, s) => ev.push({ t: t0 + s * b / 2, k: 'pluck', n: ch[c % ch.length], d: b / 2, v: 0.045, p: 0.3, x: 1 }));
   }
-  return { ev, len: BARS * 4 * b, bar: 4 * b, rev: 0.4 };
+  return { ev, len: BARS * 4 * b, bar: 4 * b, rev: 0.4, eg: 3.5 };
 }
 // עוצמה לכל קטע: שלושתם באותה עוצמה נשמעת (כ-16- LUFS לפני עוצמת המוזיקה במשחק), נמדד ברינדור offline
 const NORM = { morning: 1.096, rush: 0.989, night: 1.462 };
+const EGG_LEN = 2.5, EGG_END = 0.5, EGG_LEVEL = 0.015 / 0.85;   // כמו ב-egg.py: 0.015 ביחס למיקס ששיאו 0.85
 export const TRACKS = {};
 for (const [name, fn] of Object.entries({ morning, rush, night })) {
-  const T = fn(); T.ev.sort((a, b) => a.t - b.t); T.name = name; T.norm = NORM[name]; TRACKS[name] = T;
+  const T = fn();
+  T.ev.push({ t: T.len - EGG_END - EGG_LEN, k: 'egg', v: 0, p: 0 });   // העוצמה נקבעת לפי שיא הקטע (PEAK)
+  T.ev.sort((a, b) => a.t - b.t); T.name = name; T.norm = NORM[name]; TRACKS[name] = T;
+}
+// שיא כל קטע (אחרי NORM, בלי שכבת האנרגיה), נמדד ברינדור offline — כדי שהחתימה תהיה באותו יחס כמו במקור
+const PEAK = { morning: 0.88, rush: 0.81, night: 0.74 };
+for (const name in TRACKS) TRACKS[name].ev.find(e => e.k === 'egg').v = EGG_LEVEL * PEAK[name] / NORM[name];   // /NORM — הערוץ של הקטע מכפיל בו
+
+// החתימה: הטקסט מצויר ב-canvas (העברית מימין לשמאל — הדפדפן מסדר לבד), כל שורת פיקסלים היא גל סינוס
+// (השורה העליונה — התדר הגבוה), כל עמודה — רגע בזמן. נבנית פעם אחת כ-AudioBuffer, בשיא 1
+function eggBuffer(c, txt = 'שלומי') {
+  const H = 44, font = 'bold 34px "DejaVu Sans", Arial, "Noto Sans Hebrew", sans-serif';
+  const cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : document.createElement('canvas');
+  let g = cv.getContext('2d'); g.font = font;
+  const W = Math.ceil(g.measureText(txt).width) + 12;
+  cv.width = W; cv.height = H; g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.fillStyle = '#fff'; g.font = font; g.textBaseline = 'middle'; g.direction = 'rtl'; g.textAlign = 'right';
+  g.fillText(txt, W - 6, H / 2);
+  const px = g.getImageData(0, 0, W, H).data;
+  const sr = c.sampleRate, n = Math.round(EGG_LEN * sr), b = c.createBuffer(1, n, sr), out = b.getChannelData(0);
+  const amp = new Float32Array(n), R = rng(1);
+  for (let r = 0; r < H; r++) {
+    let any = false;
+    for (let x = 0; x < W; x++) if (px[(r * W + x) * 4] > 25) { any = true; break; }
+    if (!any) continue;
+    // עוצמה לאורך הזמן: מעבר ליניארי בין העמודות (בערך 15 מ"ש לעמודה — בלי קליקים)
+    for (let i = 0; i < n; i++) {
+      const u = i / n * W - 0.5, x0 = Math.max(0, Math.floor(u)), x1 = Math.min(W - 1, x0 + 1), f = Math.min(1, Math.max(0, u - x0));
+      amp[i] = (px[(r * W + x0) * 4] * (1 - f) + px[(r * W + x1) * 4] * f) / 255;
+    }
+    // סינוס בתדר השורה בסיבוב רקורסיבי (בלי Math.sin לכל דגימה)
+    const fr = 16000 - (16000 - 9000) * r / (H - 1), w = 2 * Math.PI * fr / sr, cw = Math.cos(w), sw = Math.sin(w), ph = R.u() * 6.28;
+    let s = Math.sin(ph), co = Math.cos(ph);
+    for (let i = 0; i < n; i++) { if (amp[i]) out[i] += amp[i] * s; const s2 = s * cw + co * sw; co = co * cw - s * sw; s = s2; }
+  }
+  let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(out[i]));
+  const fade = 0.3 * sr;
+  for (let i = 0; i < n; i++) out[i] *= Math.min(1, i / fade, (n - 1 - i) / fade) / (pk || 1);
+  return b;
 }
 
 // ---------- המנוע: כלים, הד, ניגון קטע בלולאה. משמש גם לניגון חי וגם לרינדור offline
@@ -142,6 +184,10 @@ class Engine {
     }
     this.verb = c.createConvolver(); this.verb.normalize = false; this.verb.buffer = ir; this.verb.connect(this.master);
     this.pluckA = Math.exp(-2 * Math.PI * 2500 / sr);
+    // החתימה נבנית כשנייה וחצי אחרי ההתחלה (לא ברגע הלחיצה — שלא תהיה גמגום); היא נדרשת רק כמה עשרות שניות אחר כך
+    this.eggB = null;
+    const mk = () => { try { this.eggB = eggBuffer(c); } catch { } };
+    if (typeof OfflineAudioContext !== 'undefined' && c instanceof OfflineAudioContext) mk(); else setTimeout(mk, 1500);
     this.tracks = {}; this.active = [];
   }
   // ערוץ לקטע: כל הקולות → (פאן) → out (עוצמה × מעבר) → master, ושליחה להד. שכבת האנרגיה → eout → out
@@ -183,7 +229,8 @@ class Engine {
   // שכבת האנרגיה: נכנסת ב-at (תחילת תיבה) ב-2 שנ', יוצאת ב-at ב-3 שנ'
   energy(p, on, at) {
     const g = p.tr.eout.gain; p.energy = on;
-    g.cancelScheduledValues(at); g.setValueAtTime(on ? 0 : 1, at); g.linearRampToValueAtTime(on ? 1 : 0, at + (on ? 2 : 3));
+    const v = p.tr.T.eg;   // eg: עוצמת השכבה בכל קטע — כ-14 dB מתחת למיקס, נשמעת אבל לא דוחפת
+    g.cancelScheduledValues(at); g.setValueAtTime(on ? 0 : v, at); g.linearRampToValueAtTime(on ? v : 0, at + (on ? 2 : 3));
     if (on) { p.eFrom = at; p.eTo = Infinity; } else p.eTo = at + 3;
   }
   nextBar(p, t, bars = 1) { const B = p.tr.T.bar * bars; return p.loop0 + Math.ceil((t - p.loop0) / B - 1e-9) * B; }
@@ -204,6 +251,11 @@ class Engine {
   voice(tr, e, t) {
     const c = this.ctx, bus = tr.buses.get(busKey(e)), R = this.r;
     const end = (src, last, ...nodes) => { src.onended = () => { for (const n of nodes) n.disconnect(); }; last.connect(bus); };
+    if (e.k === 'egg') {
+      if (!this.eggB) return;
+      const s = c.createBufferSource(), g = c.createGain();
+      s.buffer = this.eggB; g.gain.value = e.v / 0.7; s.connect(g); end(s, g, g); s.start(t); return;   // /0.7 — מבטל את הפאן
+    }
     if (e.k === 'kick' || e.k === 'hat' || e.k === 'snare') {
       const s = c.createBufferSource(), g = c.createGain();
       s.buffer = e.k === 'kick' ? this.kickB : e.k === 'hat' ? this.hatB[(R.u() * 6) | 0] : this.snareB[(R.u() * 4) | 0];
@@ -249,7 +301,7 @@ class Engine {
 export async function renderTrack(name, sec, { sr = 44100, energy = false, once = false } = {}) {
   const ctx = new OfflineAudioContext(2, Math.round(sec * sr), sr), eng = new Engine(ctx, ctx.destination);
   const p = eng.start(name, 0, 0);
-  if (energy) { p.eFrom = 0; p.tr.eout.gain.value = 1; }
+  if (energy) { p.eFrom = 0; p.tr.eout.gain.value = p.tr.T.eg; }
   if (once) p.stopAt = TRACKS[name].len;
   eng.schedule(sec);
   return ctx.startRendering();
