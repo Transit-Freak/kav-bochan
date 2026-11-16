@@ -11,12 +11,11 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
     steps:
-      - name: history
+      - name: weekly
         continue-on-error: true
         run: |
-          for id in 10006 10003 10010; do
-            for p in RidershipHistoryDL timeseriesDL; do
-              echo "=== $p $id"; curl -sSL -A "$UA" -D h -o o "https://markav.net/$p?q=$id"; grep -iE '^(HTTP|content-type|content-disposition)' h; head -c 1500 o; echo
-            done
+          for id in 10003 10010 10001 10002 10004 10005 10011 10012; do
+            curl -sSL -A "$UA" -o l.html "https://markav.net/line/$id/"
+            echo "$id $(python3 -c 'import re,sys;t=open("l.html").read();t=re.sub(r"<[^>]+>"," ",t);m=re.search(r"נוסעים בשבוע\s*:\s*([\d,\.]+)",t);print(m.group(1) if m else "-")')"
             sleep 2
           done
