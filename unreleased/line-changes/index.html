@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="../../home-link.js" data-home="../../"></script>
+<meta name="robots" content="noindex">
+<title>מה משתנה בקווים</title>
+<meta name="description" content="שינויי מסלול ותחנות בקווי האוטובוס שנכנסים לתוקף בשבועיים הקרובים: מפה של לפני ואחרי לכל קו, ורשימת התחנות שיורדות ושנוספות.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="הקו הבוחן">
+<meta property="og:title" content="מה משתנה בקווים">
+<meta property="og:description" content="שינויי מסלול ותחנות שנכנסים לתוקף בשבועיים הקרובים — לפני ואחרי, לכל קו.">
+<meta property="og:url" content="https://kavbochan.app/unreleased/line-changes/">
+<meta property="og:locale" content="he_IL">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="in">
+      <span class="eyebrow">הקו הבוחן</span>
+      <h1>מה משתנה בקווים</h1>
+      <p id="lead">שינויי מסלול ותחנות שנכנסים לתוקף בשבועיים הקרובים. לכל קו: מפה של לפני ואחרי, ואילו תחנות יורדות ונוספות.</p>
+      <div class="seam" aria-hidden="true"><i></i></div>
+    </div>
+  </header>
+  <main>
+    <div class="in">
+      <div class="ctl">
+        <div class="seg" id="cities" role="group" aria-label="סינון לפי עיר"></div>
+        <div class="search">
+          <label for="q" class="vh">מספר קו</label>
+          <input id="q" type="search" inputmode="numeric" placeholder="מספר קו, למשל 988" autocomplete="off">
+        </div>
+        <div class="count" id="count" aria-live="polite"></div>
+      </div>
+      <div id="list"></div>
+    </div>
+  </main>
+  <footer class="foot">
+    <div class="in">
+      <div><b>מה משתנה בקווים</b> · הקו הבוחן</div>
+      <div>הוכן אוטומטית על ידי אדם פרטי, על סמך קובץ הנתונים (GTFS) של משרד התחבורה<span id="feed"></span>. זה לא פרסום רשמי, ושינויים עלולים להשתנות או להתבטל.</div>
+      <div class="ver">ניסוי</div>
+    </div>
+  </footer>
+</div>
+<script src="common.js?v=1"></script>
+<script src="index.js?v=1"></script>
+<script src="../../a11y.js" defer></script>
+</body>
+</html>
