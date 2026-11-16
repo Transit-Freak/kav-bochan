@@ -14,8 +14,8 @@
 
   var LINES = [], OPS = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
   var cache = {}, lhCache = {}, picks = [], cur = null, step = 1, q = '';
-  var titleDirty = false, introDirty = false, off = {}, slides = [], maps = [], token = 0, curPages = [];
-  var edits = { seg: {} }, edSig = '';
+  var slides = [], maps = [], token = 0, curPages = [];
+  var edits = { t: {}, add: {}, boxes: {}, xslides: [], off: {} }, edSig = '';
 
   /* ---------- טעינה ---------- */
   Promise.all([LC.getJSON('data/lines.json'), LC.getJSON('data/index.json')]).then(function (r) {
@@ -72,7 +72,7 @@
   $('addline').addEventListener('click', function () { $('q').value = ''; q = ''; go(1); setTimeout(function () { $('q').focus(); }, 50); });
 
   function emptyStage() {
-    $('deck').innerHTML = '<div class="empty-state"><div class="seam" aria-hidden="true"><i></i></div>' +
+    $('deck').innerHTML = '<div class="empty-state"><div class="ghostslide" aria-hidden="true"><b></b><span><i></i><i></i><i></i></span></div>' +
       '<p>כאן תופיע המצגת: מה משתנה, מפה של המסלול הישן והחדש, התחנות שמבוטלות והתחנות החדשות, ושקף סיום.</p></div>';
     $('pcount').textContent = '';
   }
@@ -278,7 +278,7 @@
       if (!p) { b.querySelector('.meta').textContent = 'לא הצלחנו לטעון את הפרטים של השינוי הזה'; return; }
       picks = picks.filter(function (x) { return x.makat !== p.makat || x.op !== p.op; });
       picks.push(p);
-      titleDirty = introDirty = false;
+      
       go(3);
     });
   });
@@ -412,7 +412,7 @@
   }
   $('picked').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-rm]'); if (!b) return;
-    picks.splice(+b.getAttribute('data-rm'), 1); titleDirty = introDirty = false; rebuild();
+    picks.splice(+b.getAttribute('data-rm'), 1);  rebuild();
   });
 
   function rebuild() {
@@ -424,37 +424,62 @@
     if (my === token) render(pages);
   }
 
+  /* ---------- המצגת: בנייה, עריכות, תצוגה ---------- */
+  var editMode = false;
+  function normEdits(e) {
+    e = e && typeof e === 'object' ? e : {};
+    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {};
+    return e;
+  }
+  function textSlide(x, pages) {
+    return { id: x.id, label: 'שקף טקסט', custom: true,
+      html: '<div class="s-text"><div class="head">' + (pages.length === 1 ? '<span class="badge sm num">' + E(pages[0].line) + '</span>' : '') +
+        '<h2 class="hd">כותרת השקף</h2></div><div class="body"><p>כתבו כאן את הטקסט. אפשר להוסיף שורות, למחוק ולשנות הכול.</p></div>' +
+        '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי</span><span class="pg num"></span></div></div>' };
+  }
   function render(pages) {
     curPages = pages;
     maps.forEach(function (m) { m.map.remove(); });
     maps = [];
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
-    slides = LCDeck.build(pages, deckCity(pages), edits);
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look });
+    slides = [];
+    base.forEach(function (s) {
+      slides.push(s);
+      edits.xslides.filter(function (x) { return x.after === s.id; }).forEach(function (x) { slides.push(textSlide(x, pages)); });
+    });
+    edits.xslides.filter(function (x) { return !base.some(function (s) { return s.id === x.after; }); }).forEach(function (x) { slides.splice(slides.length - 1, 0, textSlide(x, pages)); });
     var deck = $('deck'), look = edits.look || 'kav';
     deck.setAttribute('data-look', look);
     deck.style.cssText = LCDeck.lookVars(look, pages);
     $('looks').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-look') === look ? 'true' : 'false'); });
     var opv = LCDeck.lookVars('op', pages).match(/--s-brand:([^;]+);.*--s-band:([^;]+)/);
     if (opv) $('swop').style.background = 'linear-gradient(to bottom,' + opv[2] + ' 0 45%,' + opv[1] + ' 45% 62%,#fff 62%)';
-    deck.innerHTML = slides.map(function (s) {
-      return '<div class="sframe" data-id="' + E(s.id) + '"' + (off[s.id] ? ' hidden' : '') + '><div class="slide" role="img" aria-label="' + E(s.label) + '">' + s.html + '</div></div>';
+    deck.innerHTML = slides.map(function (s, i) {
+      var off = !!edits.off[s.id];
+      return '<div class="sitem' + (off ? ' off' : '') + '" data-id="' + E(s.id) + '"' + (off && !editMode ? ' hidden' : '') + '>' +
+        '<div class="ebar noprint"><span class="ebar-n">' + E(s.label) + '</span>' +
+          '<button type="button" data-act="box">+ תיבת טקסט</button>' +
+          '<button type="button" data-act="' + (s.custom ? 'xdel' : 'off') + '">' + (s.custom ? 'מחיקת השקף' : off ? 'להחזיר את השקף' : 'לא לכלול את השקף') + '</button></div>' +
+        '<div class="sframe" data-id="' + E(s.id) + '"><div class="slide" aria-label="' + E(s.label) + '">' + s.html + '</div>' +
+          '<div class="toolong-msg noprint" role="status">הטקסט ארוך מדי לשקף — קצרו אותו</div>' +
+          (off ? '<div class="offmsg noprint">השקף הזה לא ייכלל במצגת</div>' : '') + '</div>' +
+        '<div class="addslide noprint"><button type="button" data-act="xadd">+ שקף טקסט כאן</button></div></div>';
     }).join('');
     $('toggles').innerHTML = slides.map(function (s) {
-      return '<label><input type="checkbox" value="' + E(s.id) + '"' + (off[s.id] ? '' : ' checked') + '><span>' + E(s.label) + '</span></label>';
+      return '<label><input type="checkbox" value="' + E(s.id) + '"' + (edits.off[s.id] ? '' : ' checked') + '><span>' + E(s.label) + '</span></label>';
     }).join('');
-    drawTexts(pages);
-    if (!titleDirty) $('title').value = LCDeck.autoTitle(pages, deckCity(pages));
-    if (!introDirty) $('intro').value = LCDeck.autoIntro(pages);
-    applyText();
     scale();
+    slides.forEach(function (s) { LCEdit.apply(frameOf(s.id), s.id, edits); });
     slides.forEach(function (s) {
       if (!s.map) return;
-      var fr = deck.querySelector('.sframe[data-id="' + CSS.escape(s.id) + '"]');
-      maps.push(Object.assign({ id: s.id }, LCDeck.drawMap(fr, s.map)));
+      maps.push(Object.assign({ id: s.id }, LCDeck.drawMap(frameOf(s.id), s.map)));
     });
+    setEdit(editMode);
     number();
   }
+  function frameOf(id) { return $('deck').querySelector('.sframe[data-id="' + CSS.escape(id) + '"]'); }
 
   /* עיר למצגת של כמה קווים: העיר שמשותפת לכל הקווים */
   function deckCity(pages) {
@@ -464,91 +489,164 @@
     return common[0] || '';
   }
 
-  function applyText() {
-    var t = $('title').value.trim() || LCDeck.autoTitle(curPages, deckCity(curPages));
-    document.querySelectorAll('[data-k="title"]').forEach(function (el) { el.textContent = t; });
-    document.querySelectorAll('[data-k="intro"]').forEach(function (el) { el.textContent = $('intro').value.trim(); });
-  }
-  $('title').addEventListener('input', function () { titleDirty = true; applyText(); });
-  $('intro').addEventListener('input', function () { introDirty = true; applyText(); });
-
   $('toggles').addEventListener('change', function (ev) {
-    var id = ev.target.value;
-    off[id] = !ev.target.checked;
-    var fr = document.querySelector('.sframe[data-id="' + CSS.escape(id) + '"]');
-    if (fr) fr.hidden = off[id];
-    if (!off[id]) { scale(); maps.forEach(function (m) { if (m.id === id) m.map.invalidateSize(); }); }
-    number();
+    edits.off[ev.target.value] = !ev.target.checked;
+    if (!edits.off[ev.target.value]) delete edits.off[ev.target.value];
+    saveEdits(); render(curPages);
   });
 
   function number() {
-    var vis = Array.prototype.filter.call(document.querySelectorAll('.sframe'), function (f) { return !f.hidden; });
-    vis.forEach(function (f, i) { f.querySelectorAll('.pg').forEach(function (p) { p.textContent = (i + 1) + ' / ' + vis.length; }); });
-    var t = vis.length === 1 ? 'שקף אחד' : vis.length + ' שקפים';
-    $('pcount').textContent = t;
+    var vis = Array.prototype.filter.call(document.querySelectorAll('.sitem'), function (f) { return !f.classList.contains('off'); });
+    vis.forEach(function (f, i) { f.classList.toggle('lastvis', i === vis.length - 1); f.querySelectorAll('.pg').forEach(function (p) { p.textContent = (i + 1) + ' / ' + vis.length; }); });
+    $('pcount').textContent = vis.length === 1 ? 'שקף אחד' : vis.length + ' שקפים';
     $('tgcount').textContent = '(' + vis.length + ' מתוך ' + slides.length + ')';
   }
 
-  /* ---------- עריכת הטקסט ("מה משתנה?" בשער, וההסבר ליד כל מפה) ----------
-     הטקסט שנוצר אוטומטית הוא טיוטה. העריכות נשמרות בדפדפן (localStorage) לכל מצגת בנפרד. */
+  /* ---------- עריכה במקום ---------- */
   function loadEdits(sig) {
-    try { var e = JSON.parse(localStorage.getItem('lc-ed:' + sig) || 'null'); if (e && typeof e === 'object') { e.seg = e.seg || {}; return e; } } catch (x) {}
-    return { seg: {} };
+    try { return normEdits(JSON.parse(localStorage.getItem('lc-ed2:' + sig) || 'null')); } catch (x) { return normEdits(null); }
   }
+  var saveT = 0;
   function saveEdits() {
-    try { localStorage.setItem('lc-ed:' + edSig, JSON.stringify(edits)); } catch (x) {}
+    clearTimeout(saveT);
+    saveT = setTimeout(function () { try { localStorage.setItem('lc-ed2:' + edSig, JSON.stringify(edits)); } catch (x) {} }, 250);
   }
-  function txRow(attr, i, val, num) {
-    return '<div class="txrow">' + (num ? '<i class="segn">' + num + '</i>' : '') +
-      '<textarea rows="2" ' + attr + ' data-i="' + i + '" aria-label="שורה ' + (i + 1) + '">' + E(val) + '</textarea>' +
-      (num ? '' : '<button type="button" class="rm" data-rmc="' + i + '" aria-label="למחוק את השורה">×</button>') + '</div>';
-  }
-  function drawTexts(pages) {
-    var dr = LCDeck.drafts(pages), h = '';
-    if (dr.hasCover) {
-      var cv = Array.isArray(edits.cover) ? edits.cover : dr.cover;
-      h += '<div class="tx"><div class="txh"><b>מה משתנה? (בשער)</b>' + (Array.isArray(edits.cover) ? '<button type="button" class="lnk" data-reset="cover">שחזור הטקסט המקורי</button>' : '') + '</div>' +
-        cv.map(function (t, i) { return txRow('data-c', i, t); }).join('') +
-        '<button type="button" class="ghost sm" data-addc="1">+ להוסיף שורה</button></div>';
-    }
-    dr.segs.forEach(function (g) {
-      var cur = edits.seg[g.key];
-      h += '<div class="tx"><div class="txh"><b>' + E(g.label) + '</b>' + (cur ? '<button type="button" class="lnk" data-reset="' + E(g.key) + '">שחזור הטקסט המקורי</button>' : '') + '</div>' +
-        g.items.map(function (t, i) { return txRow('data-s="' + E(g.key) + '"', i, cur && typeof cur[i] === 'string' ? cur[i] : t, i + 1); }).join('') + '</div>';
+  function setEdit(on) {
+    editMode = on;
+    document.body.classList.toggle('editing', on);
+    ['editbtn', 'editbtn2'].forEach(function (id) {
+      var b = $(id); if (!b) return;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.querySelector('span').textContent = on ? 'סיום העריכה' : 'עריכת הטקסט';
     });
-    $('texts').innerHTML = h ? '<p class="hint">הטקסט נוצר אוטומטית מהנתונים. אפשר לתקן אותו כאן — המצגת מתעדכנת מיד.</p>' + h : '';
-    $('texts').querySelectorAll('textarea').forEach(grow);
-  }
-  function grow(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }   // השדה גדל לפי הטקסט
-  function coverFromFields() {
-    return Array.prototype.map.call($('texts').querySelectorAll('textarea[data-c]'), function (t) { return t.value; });
-  }
-  function paintCover() {
-    document.querySelectorAll('[data-k="what"]').forEach(function (ul) {
-      ul.innerHTML = (edits.cover || []).filter(function (t) { return t.trim(); }).map(function (t) { return '<li>' + E(t) + '</li>'; }).join('');
+    $('deck').querySelectorAll('.edt,.tbox-t').forEach(function (el) {
+      if (on) { el.setAttribute('contenteditable', 'true'); el.setAttribute('spellcheck', 'false'); } else el.removeAttribute('contenteditable');
     });
+    $('deck').querySelectorAll('.sitem.off').forEach(function (it) { it.hidden = !on; });
+    if (!on) hideBar();
   }
-  $('texts').addEventListener('input', function (ev) {
-    var t = ev.target;
-    if (t.tagName === 'TEXTAREA') grow(t);
-    if (t.hasAttribute('data-c')) { edits.cover = coverFromFields(); paintCover(); }
-    else if (t.hasAttribute('data-s')) {
-      var key = t.getAttribute('data-s');
-      edits.seg[key] = Array.prototype.map.call($('texts').querySelectorAll('textarea[data-s="' + CSS.escape(key) + '"]'), function (x) { return x.value; });
-      document.querySelectorAll('[data-seg="' + CSS.escape(key) + '"][data-i="' + t.getAttribute('data-i') + '"]').forEach(function (el) { el.textContent = t.value; });
+  ['editbtn', 'editbtn2'].forEach(function (id) {
+    $(id).addEventListener('click', function () {
+      setEdit(!editMode);
+      if (editMode && id === 'editbtn2') { var f = $('deck'); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+
+  // סרגל קטן ליד הטקסט שעורכים
+  var bar = document.createElement('div');
+  bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
+  bar.innerHTML = '<button type="button" data-t="del">מחיקה</button><button type="button" data-t="add">+ שורה אחרי</button><button type="button" data-t="reset">שחזור</button>';
+  document.body.appendChild(bar);
+  var curEl = null;
+  function showBar(el) {
+    curEl = el;
+    var r = el.getBoundingClientRect(), isBox = el.classList.contains('tbox-t');
+    bar.querySelector('[data-t="add"]').hidden = isBox;
+    bar.querySelector('[data-t="reset"]').hidden = isBox || !(el.classList.contains('edited'));
+    bar.querySelector('[data-t="del"]').textContent = isBox ? 'מחיקת התיבה' : 'מחיקה';
+    bar.hidden = false;
+    var top = r.top - bar.offsetHeight - 6;
+    if (top < 60) top = r.bottom + 6;
+    bar.style.top = Math.max(8, top) + 'px';
+    bar.style.left = Math.max(8, Math.min(window.innerWidth - bar.offsetWidth - 8, r.left + r.width / 2 - bar.offsetWidth / 2)) + 'px';
+  }
+  function hideBar() { bar.hidden = true; curEl = null; }
+  $('deck').addEventListener('focusin', function (ev) {
+    var el = ev.target.closest('.edt,.tbox-t');
+    if (el && editMode) showBar(el);
+  });
+  document.addEventListener('mousedown', function (ev) {
+    if (!bar.hidden && !ev.target.closest('#etb') && !ev.target.closest('.edt,.tbox-t')) hideBar();
+  });
+  window.addEventListener('scroll', function () { if (curEl && !bar.hidden) showBar(curEl); }, { passive: true });
+  function sidOf(el) { return el.closest('.sframe').getAttribute('data-id'); }
+  function splitAdd(id) { var m = id.match(/^(.*)\+(\d+)$/); return m ? { base: m[1], i: +m[2] } : null; }
+  $('deck').addEventListener('input', function (ev) {
+    var el = ev.target;
+    if (el.classList.contains('tbox-t')) {
+      var sid = sidOf(el), id = el.getAttribute('data-boxt');
+      (edits.boxes[sid] || []).forEach(function (b) { if (b.id === id) b.text = el.innerText; });
+    } else if (el.classList.contains('edt')) {
+      var eid = el.getAttribute('data-eid'), ad = splitAdd(eid);
+      if (ad) { (edits.add[ad.base] = edits.add[ad.base] || [])[ad.i] = el.innerText; }
+      else { edits.t[eid] = el.innerText; el.classList.add('edited'); }
     } else return;
     saveEdits();
-    var box = t.closest('.tx'), h = box.querySelector('.txh');
-    if (!h.querySelector('.lnk')) h.insertAdjacentHTML('beforeend', '<button type="button" class="lnk" data-reset="' + (t.hasAttribute('data-c') ? 'cover' : E(t.getAttribute('data-s'))) + '">שחזור הטקסט המקורי</button>');
+    LCEdit.fit(el.closest('.sframe'));
+    showBar(el);
   });
-  $('texts').addEventListener('click', function (ev) {
-    var b = ev.target.closest('button'); if (!b) return;
-    if (b.hasAttribute('data-rmc')) { edits.cover = coverFromFields(); edits.cover.splice(+b.getAttribute('data-rmc'), 1); }
-    else if (b.hasAttribute('data-addc')) { edits.cover = coverFromFields().concat(['']); }
-    else if (b.hasAttribute('data-reset')) { var k = b.getAttribute('data-reset'); if (k === 'cover') delete edits.cover; else delete edits.seg[k]; saveEdits(); render(curPages); return; }
-    else return;
-    saveEdits(); paintCover(); drawTexts(curPages);
-    if (b.hasAttribute('data-addc')) { var all = $('texts').querySelectorAll('textarea[data-c]'); if (all.length) all[all.length - 1].focus(); }
+  bar.addEventListener('mousedown', function (ev) { ev.preventDefault(); });   // לא לאבד את הפוקוס בטקסט
+  bar.addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b || !curEl) return;
+    var t = b.getAttribute('data-t'), el = curEl, sid = sidOf(el);
+    if (el.classList.contains('tbox-t')) {
+      if (t === 'del') { var id = el.getAttribute('data-boxt'); edits.boxes[sid] = (edits.boxes[sid] || []).filter(function (x) { return x.id !== id; }); saveEdits(); el.closest('.tbox').remove(); hideBar(); }
+      return;
+    }
+    var eid = el.getAttribute('data-eid'), ad = splitAdd(eid), focusId = null;
+    if (t === 'del') {
+      if (ad) edits.add[ad.base].splice(ad.i, 1);
+      else edits.t[eid] = null;
+    } else if (t === 'add') {
+      if (ad) { edits.add[ad.base].splice(ad.i + 1, 0, 'טקסט חדש'); focusId = ad.base + '+' + (ad.i + 1); }
+      else { (edits.add[eid] = edits.add[eid] || []).unshift('טקסט חדש'); focusId = eid + '+0'; }
+    } else if (t === 'reset') { delete edits.t[eid]; }
+    saveEdits(); hideBar(); keepScroll(function () { render(curPages); });
+    if (focusId) {
+      var n = $('deck').querySelector('[data-eid="' + CSS.escape(focusId) + '"]');
+      if (n) { n.focus(); selectAll(n); }
+    }
+  });
+  function selectAll(el) { try { var r = document.createRange(); r.selectNodeContents(el); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+  function keepScroll(fn) { var y = window.scrollY; fn(); window.scrollTo(0, y); }
+
+  // פעולות על שקף: תיבת טקסט, לא לכלול / להחזיר, שקף טקסט חדש
+  $('deck').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var sid = b.closest('.sitem').getAttribute('data-id'), act = b.getAttribute('data-act');
+    if (act === 'box') {
+      var box = { id: 'b' + Date.now().toString(36), x: 80, y: 520, w: 520, text: 'טקסט חדש' };
+      (edits.boxes[sid] = edits.boxes[sid] || []).push(box);
+      saveEdits();
+      var el = LCEdit.boxEl(box);
+      frameOf(sid).querySelector('.slide').appendChild(el);
+      var t = el.querySelector('.tbox-t'); t.setAttribute('contenteditable', 'true'); t.focus(); selectAll(t);
+      return;
+    }
+    if (act === 'off') { if (edits.off[sid]) delete edits.off[sid]; else edits.off[sid] = true; }
+    else if (act === 'xdel') { edits.xslides = edits.xslides.filter(function (x) { return x.id !== sid; }); }
+    else if (act === 'xadd') {
+      var nid = 'x' + Date.now().toString(36);
+      edits.xslides.push({ id: nid, after: sid });
+      if (!editMode) setEdit(true);
+    }
+    saveEdits(); keepScroll(function () { render(curPages); });
+  });
+  // גרירת תיבת טקסט (בקואורדינטות של השקף, 1280×720)
+  $('deck').addEventListener('pointerdown', function (ev) {
+    var h = ev.target.closest('.tbox-h'); if (!h || !editMode) return;
+    ev.preventDefault();
+    var box = h.closest('.tbox'), sid = sidOf(box), id = box.getAttribute('data-box');
+    var k = box.closest('.slide').getBoundingClientRect().width / 1280;
+    var x0 = ev.clientX, y0 = ev.clientY, bx = parseFloat(box.style.left), by = parseFloat(box.style.top);
+    function mv(e) {
+      var nx = Math.max(0, Math.min(1280 - 60, bx - (x0 - e.clientX) / k)), ny = Math.max(0, Math.min(720 - 30, by + (e.clientY - y0) / k));
+      box.style.left = nx + 'px'; box.style.top = ny + 'px';
+    }
+    function up() {
+      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
+      (edits.boxes[sid] || []).forEach(function (b) { if (b.id === id) { b.x = parseFloat(box.style.left); b.y = parseFloat(box.style.top); } });
+      saveEdits();
+    }
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+  });
+  // שחזור הכול — לחיצה שנייה מאשרת (אין חלון אישור)
+  var resetArm = 0;
+  $('resetall').addEventListener('click', function () {
+    var b = $('resetall');
+    if (!resetArm) { resetArm = setTimeout(function () { resetArm = 0; b.textContent = 'שחזור הכול'; }, 4000); b.textContent = 'בטוח? לחצו שוב לשחזור'; return; }
+    clearTimeout(resetArm); resetArm = 0; b.textContent = 'שחזור הכול';
+    edits = normEdits({ look: edits.look }); saveEdits(); render(curPages);
   });
 
   /* עיצוב המצגת — נשמר עם המצגת (יחד עם העריכות) */
@@ -569,12 +667,14 @@
   function download() {
     var btns = [$('dl'), $('dl2')];
     if (!slides.length) return;
-    btns.forEach(function (b) { b.disabled = true; b.querySelector('span').textContent = 'מכין את המפות…'; });
-    var vis = maps.filter(function (m) { var f = document.querySelector('.sframe[data-id="' + CSS.escape(m.id) + '"]'); return f && !f.hidden; });
+    btns.forEach(function (b) { b.disabled = true; b.classList.add('busy'); b.querySelector('span').textContent = 'מכין את המפות…'; });
+    var vis = maps.filter(function (m) { return !edits.off[m.id]; });
     Promise.all(vis.map(function (m) { return m.ready; })).then(function () {
       var t0 = document.title;
-      document.title = $('title').value.trim() || 'מצגת';
-      btns.forEach(function (b) { b.disabled = false; b.querySelector('span').textContent = 'הורדת PDF'; });
+      var h1 = document.querySelector('.sframe .s-cover h1');
+      document.title = (h1 && h1.textContent.trim()) || 'מצגת';
+      if (editMode) setEdit(false);
+      btns.forEach(function (b) { b.disabled = false; b.classList.remove('busy'); b.querySelector('span').textContent = 'הורדת PDF'; });
       setTimeout(function () { window.print(); document.title = t0; }, 50);
     });
   }
