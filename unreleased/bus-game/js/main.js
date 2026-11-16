@@ -104,8 +104,9 @@ function musicMood() {
 let musicT = 0;
 function musicState(dt) {
   musicT += dt; if (musicT < 0.5 || music.disabled) return; musicT = 0;
-  // הרצה מהירה (×20 ומעלה, גם ההאצה של הלילה) — שכבת אנרגיה; עצירה או חלון פתוח — חצי עוצמה
-  music.update(musicMood(), !!G.ready && sim.speed > 5, !!G.ready && (!sim.speed || modalOpen()));
+  // מהירות המשחק — רמת השכבות (×1 בסיס … ×200 הכול; גם ההאצה של הלילה); עצירה או חלון פתוח — חצי עוצמה
+  const sp = sim.speed, lvl = !G.ready ? 2 : !sp ? null : sp < 3 ? 1 : sp < 12 ? 2 : sp < 40 ? 3 : sp < 120 ? 4 : 5;
+  music.update(musicMood(), lvl, !!G.ready && (!sp || modalOpen()));
 }
 const lineGroups = new Map();
 const FAR_LABELS = 1500;   // מרחק מצלמה שמעליו מסתירים את מספרי התחנות של הקווים

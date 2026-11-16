@@ -7,7 +7,7 @@
 // תזמון: התווים נקבעים כ-0.25 שנ' קדימה לפי השעון של AudioContext, והלולאה באורך מדויק של תיבות — בלי סחיפה ובלי רווח.
 // מעבר בין קטעים: נדיר ורגוע — רק אחרי שהקטע הרצוי יציב 20 שנ', אחרי שהקטע הנוכחי התנגן לולאה שלמה (או דקה),
 // בסוף משפט של 4 תיבות, עם מעבר הדרגתי של 3 שנ'. קטע שחוזרים אליו ממשיך מאיפה שהפסיק. הטמפו לא תלוי במהירות המשחק.
-// הרצה מהירה: "שכבת אנרגיה" בכל קטע (מצילה בשש-עשריות ופריטה באקורד) נכנסת ויוצאת בתחילת תיבה, בלי לשנות טמפו או קטע.
+// מהירות המשחק: שכבות נכנסות ויוצאות בתחילת תיבה — ×1 בסיס, ×5 תופים, ×20 מצילה מהירה, ×60 ארפג'ו, ×200 הכול; בלי לשנות טמפו או קטע.
 // חתימה: פעם בלולאה, 2.5 שנ' שנגמרות חצי שנייה לפני סוף הלולאה, השם "שלומי" כתוב בספקטרוגרמה (9–16 קה"ץ, שקט מאוד).
 
 const LOOKAHEAD = 0.25, TICK_MS = 60, XFADE = 3, BARS = 16, PHRASE = 4;
@@ -143,7 +143,13 @@ function rng(seed) {      // mulberry32 + Box-Muller: רעש גאוסי קבוע
 }
 const onepole = (x, cut, sr) => { const a = Math.exp(-2 * Math.PI * cut / sr); let p = 0; for (let i = 0; i < x.length; i++) { p = (1 - a) * x[i] + a * p; x[i] = p; } return x; };
 
-const busKey = e => (e.x ? 'x' : '') + e.p + (e.k === 'pluck' ? 'f' : '');
+// שכבות לפי מהירות המשחק: base (אקורדים, בס, מנגינה) תמיד; drm — תופים; hat — מצילה מהירה (שכבת האנרגיה); arp — ארפג'ו (שכבת האנרגיה)
+const layerOf = e => e.x ? (e.k === 'pluck' ? 'arp' : 'hat') : (e.k === 'kick' || e.k === 'snare' || e.k === 'hat') ? 'drm' : null;
+const LAYERS = ['drm', 'hat', 'arp'];
+// רמה לפי מהירות: 1 — ×1 בסיס בלבד, 2 — ×5 עם תופים (כמו הקטע הרגיל), 3 — ×20 + מצילה מהירה, 4 — ×60 + ארפג'ו, 5 — ×200 הכול במלוא העוצמה
+const LEVEL_GAIN = { drm: [0, 0, 1, 1, 1, 1], hat: [0, 0, 0, 1, 1, 1], arp: [0, 0, 0, 0, 0.6, 1] };
+const layerGain = (tr, L, lv) => LEVEL_GAIN[L][lv] * (L === 'drm' ? 1 : tr.T.eg);
+const busKey = e => (layerOf(e) || '') + e.p + (e.k === 'pluck' ? 'f' : '');
 
 class Engine {
   constructor(ctx, out) {
@@ -190,12 +196,12 @@ class Engine {
     if (typeof OfflineAudioContext !== 'undefined' && c instanceof OfflineAudioContext) mk(); else setTimeout(mk, 1500);
     this.tracks = {}; this.active = [];
   }
-  // ערוץ לקטע: כל הקולות → (פאן) → out (עוצמה × מעבר) → master, ושליחה להד. שכבת האנרגיה → eout → out
+  // ערוץ לקטע: כל הקולות → (פאן) → out (עוצמה × מעבר) → master, ושליחה להד. שכבות המהירות (drm/hat/arp) → lg[שכבה] → out
   track(name) {
     if (this.tracks[name]) return this.tracks[name];
     const c = this.ctx, T = TRACKS[name], tr = { T, buses: new Map(), pos: 0 };
     tr.out = c.createGain(); tr.out.gain.value = 0; tr.out.connect(this.master);
-    tr.eout = c.createGain(); tr.eout.gain.value = 0; tr.eout.connect(tr.out);
+    tr.lg = {}; for (const L of LAYERS) { const g = c.createGain(); g.gain.value = 0; g.connect(tr.out); tr.lg[L] = g; }
     tr.send = c.createGain(); tr.send.gain.value = T.rev; tr.out.connect(tr.send); tr.send.connect(this.verb);
     // פאן כמו במקור: שמאל ×(1-pan)·0.7, ימין ×(1+pan)·0.7. ערוץ אחד לכל ערך פאן (ולפריטה — עם מסנן חד-קוטבי)
     for (const e of T.ev) {
@@ -203,7 +209,7 @@ class Engine {
       if (tr.buses.has(key)) continue;
       const m = c.createChannelMerger(2), L = c.createGain(), Rg = c.createGain();
       L.gain.value = (1 - e.p) * 0.7; Rg.gain.value = (1 + e.p) * 0.7;
-      L.connect(m, 0, 0); Rg.connect(m, 0, 1); m.connect(e.x ? tr.eout : tr.out);
+      L.connect(m, 0, 0); Rg.connect(m, 0, 1); m.connect(layerOf(e) ? tr.lg[layerOf(e)] : tr.out);
       let inp = c.createGain();
       inp.connect(L); inp.connect(Rg);
       if (e.k === 'pluck') { const f = c.createIIRFilter([1 - this.pluckA], [1, -this.pluckA]); f.connect(inp); inp = f; }
@@ -212,11 +218,12 @@ class Engine {
     return (this.tracks[name] = tr);
   }
   // התחלת קטע בזמן at: ממשיך מהמקום שבו נעצר בפעם הקודמת (tr.pos), עם עלייה הדרגתית
-  start(name, at, fade = XFADE) {
+  start(name, at, fade = XFADE, lv = 2) {
     const tr = this.track(name), g = tr.out.gain, v = tr.T.norm, ev = tr.T.ev;
     g.cancelScheduledValues(at); g.setValueAtTime(fade ? 0 : v, at); if (fade) g.linearRampToValueAtTime(v, at + fade);
     let i = 0; while (i < ev.length && ev[i].t < tr.pos - 1e-6) i++;
-    const p = { tr, name, loop0: at - tr.pos, i: i % ev.length, stopAt: Infinity, started: at, eFrom: Infinity, eTo: Infinity, energy: false };
+    const p = { tr, name, loop0: at - tr.pos, i: i % ev.length, stopAt: Infinity, started: at, lv, win: {} };
+    for (const L of LAYERS) { const v = layerGain(tr, L, lv), g = tr.lg[L].gain; g.cancelScheduledValues(at); g.setValueAtTime(v, at); p.win[L] = v ? [-Infinity, Infinity] : [Infinity, Infinity]; }
     if (i >= ev.length) p.loop0 += tr.T.len;
     this.active = this.active.filter(a => a.tr !== tr); this.active.push(p);
     return p;
@@ -226,12 +233,16 @@ class Engine {
     const g = p.tr.out.gain; g.cancelScheduledValues(at); g.setValueAtTime(p.tr.T.norm, at); g.linearRampToValueAtTime(0, at + fade);
     p.stopAt = at + fade; p.tr.pos = ((at - p.loop0) % p.tr.T.len + p.tr.T.len) % p.tr.T.len;
   }
-  // שכבת האנרגיה: נכנסת ב-at (תחילת תיבה) ב-2 שנ', יוצאת ב-at ב-3 שנ'
-  energy(p, on, at) {
-    const g = p.tr.eout.gain; p.energy = on;
-    const v = p.tr.T.eg;   // eg: עוצמת השכבה בכל קטע — כ-14 dB מתחת למיקס, נשמעת אבל לא דוחפת
-    g.cancelScheduledValues(at); g.setValueAtTime(on ? 0 : v, at); g.linearRampToValueAtTime(on ? v : 0, at + (on ? 2 : 3));
-    if (on) { p.eFrom = at; p.eTo = Infinity; } else p.eTo = at + 3;
+  // רמת השכבות: כל שכבה שנכנסת — עלייה של 2 שנ' מ-at (תחילת תיבה); שכבה שיוצאת — ירידה של 3 שנ'
+  setLevel(p, lv, at) {
+    for (const L of LAYERS) {
+      const from = layerGain(p.tr, L, p.lv), to = layerGain(p.tr, L, lv); if (from === to) continue;
+      const g = p.tr.lg[L].gain, up = to > from;
+      g.cancelScheduledValues(at); g.setValueAtTime(from, at); g.linearRampToValueAtTime(to, at + (up ? 2 : 3));
+      if (up) { if (!(p.win[L][0] <= at && p.win[L][1] > at)) p.win[L] = [at, Infinity]; else p.win[L][1] = Infinity; }
+      else if (!to) p.win[L][1] = at + 3;
+    }
+    p.lv = lv;
   }
   nextBar(p, t, bars = 1) { const B = p.tr.T.bar * bars; return p.loop0 + Math.ceil((t - p.loop0) / B - 1e-9) * B; }
   // קביעת כל התווים שמתחילים לפני until (תווי שכבת האנרגיה — רק בזמן שהיא פעילה)
@@ -241,7 +252,8 @@ class Engine {
       for (;;) {
         const e = ev[p.i], t = p.loop0 + e.t;
         if (t >= until || t >= p.stopAt) break;
-        if (!e.x || (t >= p.eFrom && t < p.eTo)) this.voice(p.tr, e, t);
+        const L = layerOf(e);
+        if (!L || (t >= p.win[L][0] && t < p.win[L][1])) this.voice(p.tr, e, t);
         if (++p.i >= ev.length) { p.i = 0; p.loop0 += len; }
       }
     }
@@ -298,10 +310,10 @@ class Engine {
 
 // רינדור offline של קטע (לבדיקות): מתחילת הלולאה, sec שניות; energy — עם שכבת האנרגיה מההתחלה;
 // once — רק התווים של לולאה אחת (הזנב אחריה מתקפל להתחלה, כמו בגרסת ה-Python)
-export async function renderTrack(name, sec, { sr = 44100, energy = false, once = false } = {}) {
+export async function renderTrack(name, sec, { sr = 44100, energy = false, level, steps, once = false } = {}) {
   const ctx = new OfflineAudioContext(2, Math.round(sec * sr), sr), eng = new Engine(ctx, ctx.destination);
-  const p = eng.start(name, 0, 0);
-  if (energy) { p.eFrom = 0; p.tr.eout.gain.value = p.tr.T.eg; }
+  const p = eng.start(name, 0, 0, level ?? (energy ? 5 : 2));
+  for (const [t, lv] of steps || []) eng.setLevel(p, lv, eng.nextBar(p, t));   // steps: [[שנייה, רמה], …] — הדגמה של מעבר בין מהירויות
   if (once) p.stopAt = TRACKS[name].len;
   eng.schedule(sec);
   return ctx.startRendering();
@@ -310,14 +322,14 @@ export async function renderTrack(name, sec, { sr = 44100, energy = false, once 
 // ---------- הנגן במשחק: מתחיל אחרי מגע/לחיצה ראשונים, השתקה נשמרת במכשיר, נעצר כשהלשונית מוסתרת
 const KEY = 'busgame-music';          // לא busgame.* — כדי ש"התחל מחדש" לא ימחק את ההעדפה
 const VOL = 0.25, DUCK = 0.5;
-const HOLD_MOOD = 20, MIN_PLAY = 60, HOLD_FAST = 5;   // שניות אמיתיות
+const HOLD_MOOD = 20, MIN_PLAY = 60, HOLD_LEVEL = 4;   // שניות אמיתיות
 export class Music {
   constructor() {
     const q = new URLSearchParams(location.search);
     let off = false; try { off = localStorage.getItem(KEY) === 'off'; } catch { }
     this.disabled = q.has('nomusic') || !(window.AudioContext || window.webkitAudioContext);
     this.muted = off; this.want = null; this.cur = null; this.busyUntil = 0;
-    this.pend = null; this.pendT = 0; this.fast = false; this.fastPend = false; this.fastT = 0; this.duck = false;
+    this.pend = null; this.pendT = 0; this.lvl = 2; this.lvlPend = 2; this.lvlT = 0; this.duck = false;
     this.listeners = []; this.switches = [];
     if (q.has('musicdebug')) { this.dbg = document.createElement('div'); this.dbg.style.cssText = 'position:fixed;bottom:4px;left:4px;z-index:99;background:rgba(0,0,0,.7);color:#fff;font:11px/1.4 monospace;padding:3px 6px;border-radius:6px;direction:ltr;pointer-events:none'; document.body.appendChild(this.dbg); }
     if (this.disabled) return;
@@ -335,15 +347,16 @@ export class Music {
     if (!this.muted) { this.gesture = true; this.wake(); } else this.sync();
     for (const f of this.listeners) f(this);
   }
-  // המצב במשחק (נקרא כמה פעמים בשנייה): mood — הקטע המתאים, fast — הרצה מהירה, duck — עצירה או חלון פתוח (חצי עוצמה)
-  update(mood, fast, duck) {
+  // המצב במשחק (נקרא כמה פעמים בשנייה): mood — הקטע המתאים, lvl — רמת השכבות לפי המהירות (1–5; null — בלי שינוי),
+  // duck — עצירה או חלון פתוח (חצי עוצמה)
+  update(mood, lvl, duck) {
     if (this.disabled || !TRACKS[mood]) return;
     const now = performance.now() / 1000;
     if (mood !== this.pend) { this.pend = mood; this.pendT = now; }
     if (!this.want) this.want = mood;
     if (mood !== this.want && now - this.pendT >= HOLD_MOOD) this.want = mood;
-    if (fast !== this.fastPend) { this.fastPend = fast; this.fastT = now; }
-    if (fast !== this.fast && now - this.fastT >= HOLD_FAST) this.fast = fast;
+    if (lvl != null && lvl !== this.lvlPend) { this.lvlPend = lvl; this.lvlT = now; }
+    if (this.lvlPend !== this.lvl && now - this.lvlT >= HOLD_LEVEL) this.lvl = this.lvlPend;
     if (duck !== this.duck) { this.duck = duck; this.level(0.6); }
     if (this.playing) this.pump();
     if (this.dbg) this.debug(now);
@@ -352,7 +365,7 @@ export class Music {
     const c = this.cur, t = this.ctx?.currentTime ?? 0;
     const playLeft = c ? Math.max(0, Math.min(c.tr.T.len, MIN_PLAY) - (t - c.started)) : 0;
     const holdLeft = this.pend !== this.want ? Math.max(0, HOLD_MOOD - (now - this.pendT)) : 0;
-    this.dbg.textContent = `music ${this.muted ? 'muted' : this.ctx?.state || 'idle'} | track ${c?.name || '-'} | want ${this.want} (pending ${this.pend}) | switch in ${this.want !== c?.name ? Math.ceil(Math.max(playLeft, holdLeft)) : holdLeft ? Math.ceil(holdLeft) : '-'}s | energy ${c?.energy ? 'on' : 'off'} | duck ${this.duck ? 'on' : 'off'} | switches ${this.switches.length}`;
+    this.dbg.textContent = `music ${this.muted ? 'muted' : this.ctx?.state || 'idle'} | track ${c?.name || '-'} | want ${this.want} (pending ${this.pend}) | switch in ${this.want !== c?.name ? Math.ceil(Math.max(playLeft, holdLeft)) : holdLeft ? Math.ceil(holdLeft) : '-'}s | level ${c?.lv ?? '-'} (want ${this.lvl}) | duck ${this.duck ? 'on' : 'off'} | switches ${this.switches.length}`;
   }
   wake() {
     if (!this.ctx) {
@@ -391,17 +404,16 @@ export class Music {
   pump() {
     const c = this.ctx, eng = this.eng; if (!c || c.state !== 'running' || !this.want) return;
     const now = c.currentTime, ahead = now + LOOKAHEAD;
-    if (!this.cur) this.cur = eng.start(this.want, now + 0.1, 1.5);
+    if (!this.cur) this.cur = eng.start(this.want, now + 0.1, 1.5, this.lvl);
     else if (this.want !== this.cur.name && now >= this.busyUntil && now - this.cur.started >= Math.min(this.cur.tr.T.len, MIN_PLAY)) {
       // מעבר: בסוף משפט של 4 תיבות בקטע הנוכחי, 3 שנ' של מעבר הדרגתי. הקטע החדש ממשיך מאיפה שעצר בפעם הקודמת
-      const at = eng.nextBar(this.cur, ahead, PHRASE), from = this.cur.name, en = this.cur.energy;
-      eng.stop(this.cur, at); this.cur = eng.start(this.want, at);
-      if (en) eng.energy(this.cur, true, at);
+      const at = eng.nextBar(this.cur, ahead, PHRASE), from = this.cur.name, lv = this.cur.lv;
+      eng.stop(this.cur, at); this.cur = eng.start(this.want, at, XFADE, lv);
       this.busyUntil = at + XFADE + 0.1;
       this.switches.push({ at: performance.now() / 1000, from, to: this.want });
       for (const f of this.listeners) f(this);
     }
-    if (this.fast !== this.cur.energy && now >= this.busyUntil) eng.energy(this.cur, this.fast, eng.nextBar(this.cur, ahead));
+    if (this.lvl !== this.cur.lv && now >= this.busyUntil) eng.setLevel(this.cur, this.lvl, eng.nextBar(this.cur, ahead));
     eng.schedule(ahead);
   }
 }
