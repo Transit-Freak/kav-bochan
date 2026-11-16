@@ -8,12 +8,15 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      UA: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
     steps:
       - name: markav
+        continue-on-error: true
         run: |
-          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
           mkdir m && cd m
-          curl -sSL -A "$UA" -D h.txt -o i.html https://markav.net/ ; cat h.txt; wc -c i.html
+          curl -sSL -A "$UA" -D h.txt -o i.html https://markav.net/ || true
+          cat h.txt; wc -c i.html
           echo '--- html head'; head -c 3000 i.html; echo
           echo '--- links'; grep -oE '(src|href)="[^"]+"' i.html | sort -u | head -80
           for s in $(grep -oE 'src="[^"]+\.js[^"]*"' i.html | sed 's/src="//;s/"$//' | head -15); do
@@ -22,10 +25,10 @@ jobs:
             grep -oE '"[^"]*(api|/data|\.json|\.csv|quarter|rivon|ridership|firebase|supabase|gov\.il)[^"]*"' j.js | sort -u | head -60
           done
           for p in robots.txt sitemap.xml api api/ data.json; do echo "=== $p"; curl -sSL -A "$UA" -o x -w '%{http_code} %{content_type} %{size_download}\n' https://markav.net/$p; head -c 600 x; echo; done
-      - name: data.gov.il
+      - name: datagov
+        continue-on-error: true
         run: |
-          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
           A=https://data.gov.il/api/3/action
-          curl -sS -A "$UA" "$A/package_show?id=ridership" | python3 -c "import json,sys;r=json.load(sys.stdin)['result'];print('modified',r.get('metadata_modified'))
-[print(x['id'],x.get('name'),x.get('format'),x.get('datastore_active'),x.get('last_modified') or x.get('created')) for x in r['resources']]"
-          for q in 'נסועה' 'ridership' 'נוסעים קווים' 'תיקופים'; do echo "=== search $q"; curl -sS -G -A "$UA" "$A/package_search" --data-urlencode "q=$q" --data-urlencode rows=20 | python3 -c "import json,sys;r=json.load(sys.stdin)['result'];[print(p['name'],'|',p.get('title'),'|',p.get('metadata_modified')) for p in r['results']]"; done
+          curl -sS -A "$UA" "$A/package_show?id=ridership" > p.json; head -c 200 p.json; echo
+          python3 -c 'import json;r=json.load(open("p.json"))["result"];print("modified",r.get("metadata_modified"));[print(x["id"],x.get("name"),x.get("format"),x.get("datastore_active"),x.get("last_modified") or x.get("created")) for x in r["resources"]]'
+          for q in נסועה ridership תיקופים בקשה; do echo "=== search $q"; curl -sS -G -A "$UA" "$A/package_search" --data-urlencode "q=$q" --data-urlencode rows=20 > s.json; python3 -c 'import json;r=json.load(open("s.json"))["result"];[print(p["name"],"|",p.get("title"),"|",p.get("metadata_modified")) for p in r["results"]]'; done
