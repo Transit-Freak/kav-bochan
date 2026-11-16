@@ -61,7 +61,7 @@ export const fleetValue = def => isLease(def) || !def?.fleet ? 0 : Math.round(de
 
 import { cityKey } from './cityconf.js';
 const KEY = cityKey('money.v1');           // לכל עיר קופה ושעון משלה (קריית מלאכי: busgame.kiryat-malachi.money.v1, כמו תמיד)
-export const emptyDay = day => ({ day, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, hire: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
+export const emptyDay = day => ({ day, idle: 0, fares: 0, pax: 0, subsidy: 0, buy: 0, sell: 0, km: 0, drivers: 0, lease: 0, hire: 0, insp: 0, penalty: 0, fineIn: 0, bonus: 0, evaded: 0, caught: 0, byLine: {} });
 
 export class Bank {
   constructor(save, time) {
@@ -112,18 +112,21 @@ export class Bank {
     this.money += a; this.today.subsidy += a;
     const l = this.line(lineId); l.subsidy = (l.subsidy || 0) + a;
   }
-  // דמי ליסינג, ברציפות לפי זמן המשחק (גם בלילה וגם כשהקו לא פועל)
-  accrue(lines, sec) {
+  // דמי ליסינג: אותו סכום ליום, אבל נרשם על הקו רק בשעות הפעילות שלו (share(L): 0 מחוץ לשעות, ובשעות — 24 חלקי מספר
+  // שעות הפעילות), כדי שקו שלא פועל לא "יפסיד" בלילה. בלי share — ברציפות כל היממה
+  accrue(lines, sec, share = null) {
     for (const L of lines) {
       const d = L.def;
       if (L.retired || !d.lease || !d.fleet) continue;
-      this.spend('lease', d.fleet * TYPES[typeOf(d)].lease * sec / DAY, L.id);
+      const k = share ? share(L) : 1; if (!k) continue;
+      this.spend('lease', d.fleet * TYPES[typeOf(d)].lease * sec * k / DAY, L.id);
     }
   }
   // cat: km | drivers | lease | buy | hire (גיוס נהגים)
   spend(cat, amount, lineId) {
     this.money -= amount; this.today[cat] += amount;
     if (lineId && cat !== 'buy' && cat !== 'hire') this.line(lineId).cost += amount;
+    else if (cat === 'drivers') this.today.idle = (this.today.idle || 0) + amount;      // נהגים בין נסיעות, כשאף קו שלהם לא פועל
   }
   refund(amount) { this.money += amount; this.today.sell += amount; }
   get costToday() { const d = this.today; return d.km + d.drivers + d.lease; }

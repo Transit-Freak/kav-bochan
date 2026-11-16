@@ -842,8 +842,9 @@ function updateStats() {
     set('sat', L.stats.satN ? Math.round(L.stats.satSum / L.stats.satN) : '—');
     const need = vehiclesNeeded(L), n = L.def.fleet || 0, onRoad = L.buses.filter(b => b.state === 'drive' || b.state === 'dwell').length;
     const free = Math.max(0, n - onRoad - L.returning.length);
-    const cx = sim.roster.managed(L) ? (sim.roster.plan?.byLine.get(L.id) || []).filter(x => x.cancel).length : 0;
-    if (sim.roster.managed(L)) set('need', `בדרך: ${onRoad} · מהמאגר המשותף${cx ? ` · <span class="bad">${cx} נסיעות בוטלו היום</span>` : ''}`, true);
+    // ביטולים: מה שכבר בוטל היום, ובנפרד — נסיעות בהמשך היום שלא ייצאו (אין רכב או נהג פנוי בסידור), עם הסיבה
+    const cx = sim.roster.managed(L) ? sim.roster.cancelSplit(sim.roster.plan?.byLine.get(L.id)) : null, whyTxt = w => Object.keys(w).join(' / ');
+    if (sim.roster.managed(L)) set('need', `בדרך: ${onRoad} · מהמאגר המשותף${cx?.past ? ` · <span class="bad">${cx.past} נסיעות בוטלו היום</span>` : ''}${cx?.ahead ? ` · <span class="warnt">${cx.ahead} נסיעות לא ייצאו בהמשך היום — ${whyTxt(cx.whyAhead)}</span>` : ''}`, true);
     else set('need', `בדרך: ${onRoad} · חוזרים: ${L.returning.length} · במסוף: ${free}${n < need ? ` · <span class="bad">צריך ${need}</span>` : ''}`, true);
     const hw = L.def.headway, real = sim.realHeadway(L), [ha, hb] = hoursOf(L.def);
     const hrs = `<span class="lmeta">${span(ha, hb)}</span>${L.off ? ' <span class="offnow">לא פועל עכשיו</span>' : ''}<br>`;
@@ -907,7 +908,7 @@ function renderMoney() {
   const html = `<div class="bigmoney ${bank.money < 0 ? 'neg' : ''}"><span>בקופה</span><b>${money(bank.money)}</b>${bank.money < 0 ? '<small>החברה בחובות — אי אפשר לקנות רכבים</small>' : ''}</div>
     <h4>היום · יום ${d.day}</h4>${dayRows(d)}
     ${lines.length ? `<h4>לפי קו, היום <span class="lmeta">(בלי קניית רכבים)</span></h4>
-    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>כרטיסים</th><th>סבסוד</th><th>הוצאות</th><th>רווח</th></tr>${perLine}</table>` : ''}
+    <table class="perline"><tr><th>קו</th><th>נוסעים</th><th>כרטיסים</th><th>סבסוד</th><th>הוצאות</th><th>רווח</th></tr>${perLine}${d.idle >= 1 ? `<tr><td colspan="4" class="lmeta">נהגים בהמתנה, כשהקו שלהם לא פועל</td><td>${money(d.idle)}</td><td class="bad">−${money(d.idle)}</td></tr>` : ''}</table>` : ''}
     ${M.evade && lines.length ? `<h4>התחמקות מתשלום לפי קו</h4><table class="perline"><tr><th>קו</th><th>ביקורות (3 ימים)</th><th>מתחמקים</th></tr>${lines.filter(L => !L.retired).map(L => { const h = bank.inspHist?.[L.def.id] || [0, 0, 0];
       return `<tr><td><span class="num sm" style="background:${L.color}">${esc(L.def.number)}</span></td><td>${h[0] + h[1] + h[2]}</td><td>${(sim.ops.evadeRate(L) * 100).toFixed(1)}%</td></tr>`; }).join('')}</table>
     <p class="hint">בקו שיש בו הרבה ביקורות, פחות נוסעים מעזים לנסוע בלי לשלם.</p>` : ''}
@@ -1160,6 +1161,14 @@ function renderCityPick() {
   box.innerHTML = '<span>עיר:</span>' + ids.map(id => `<button type="button" data-city="${esc(id)}"${id === CITY_ID ? ' class="on" aria-pressed="true"' : ''}>${esc(cityInfo.all[id].name)}</button>`).join('');
   box.onclick = e => { const b = e.target.closest('[data-city]'); if (!b || b.dataset.city === CITY_ID) return; bank.save(sim.time); switchCity(b.dataset.city); };
 }
+// החלפת עיר גם מהלוח (לשונית "קופה", ליד כפתורי המשחק): "עיר: X" פותח רשימה קטנה של הערים. עיר אחת — בלי הכפתור
+function renderCityRow() {
+  const row = $('#cityRow'), box = $('#cityChoose'); if (!row || !box) return;
+  const ids = Object.keys(cityInfo.all || {}); row.hidden = ids.length < 2; if (row.hidden) { box.hidden = true; return; }
+  box.innerHTML = ids.map(id => `<button type="button" data-city="${esc(id)}"${id === CITY_ID ? ' class="on" aria-pressed="true"' : ''}>${esc(cityInfo.all[id].name)}</button>`).join('');
+  $('#cityBtn').onclick = () => { box.hidden = !box.hidden; $('#cityBtn').setAttribute('aria-expanded', String(!box.hidden)); };
+  box.onclick = e => { const b = e.target.closest('[data-city]'); if (!b) return; if (b.dataset.city === CITY_ID) { box.hidden = true; $('#cityBtn').setAttribute('aria-expanded', 'false'); return; } bank.save(sim.time); switchCity(b.dataset.city); };
+}
 async function chooseRole(role) {
   if (ROLE_OFF.has(role)) return;
   $('#roleAsk').hidden = true;
@@ -1406,9 +1415,9 @@ function renderSched() {
   const dRows = P.drivers.map(d => { const a = aud.get(d.id), h = a ? (a.shift / 3600).toFixed(1) : '0', mc = a ? (a.maxCont / 3600).toFixed(1) : '0';
     return `<div class="grow${me === d.id ? ' gme' : ''}"><span class="glab">נהג ${d.id}${me === d.id ? ' (אתם)' : ''}<small>${h} ש' · רצוף ${mc}</small></span><span class="gtrk">${now}<em class="gsh" style="right:${pos(d.start)}%;width:${w(d.start, d.end)}%"></em>${d.trips.map(blk).join('')}</span></div>`; }).join('');
   const cx = P.trips.filter(x => x.cancel);
-  const cRow = cx.length ? `<div class="grow"><span class="glab">בוטלו<small>${cx.length} נסיעות</small></span><span class="gtrk">${now}${cx.map(blk).join('')}</span></div>` : '';
+  const cRow = cx.length ? `<div class="grow"><span class="glab">${cx.some(x => x.status !== 'cancel' && x.dep > sim.time) ? 'בוטלו / לא ייצאו' : 'בוטלו'}<small>${cx.length} נסיעות</small></span><span class="gtrk">${now}${cx.map(blk).join('')}</span></div>` : '';
   const types = TYPE_ORDER.filter(t => P.pool[t] || P.used[t] || P.ideal.veh[t]).map(t => `${TYPES[t].name}: ${P.used[t]} בשימוש מתוך ${P.pool[t]}${P.ideal.veh[t] > P.pool[t] ? ` <span class="bad">(צריך ${P.ideal.veh[t]})</span>` : ''}`).join(' · ');
-  const why = Object.entries(c.why).map(([r, n]) => `${r}: ${n}`).join(' · ');
+  const whyOf = w => Object.entries(w).map(([r, n]) => `${r}: ${n}`).join(' · '), sp = c.split, why = whyOf(sp.whyPast), whyA = whyOf(sp.whyAhead);
   // אזהרה: הביקוש בשעת השיא גדול מהמקומות בסוג הרכב של הקו (הסידור לא מחליף לרכב גדול לבד)
   const warn = lines.filter(L => S.managed(L)).map(L => {
     const a = P.byLine.get(L.id) || []; let worst = null;
@@ -1419,7 +1428,7 @@ function renderSched() {
     <div class="sgrid">
       <div class="scell"><b>${c.vehUsed}</b><span>רכבים בסידור · ${c.owned} בצי</span><small>צריך ${c.vehNeed} לכל הנסיעות · בלי שיתוף בין קווים: ${c.alone}</small></div>
       <div class="scell"><b>${c.drvUsed}</b><span>נהגים בסידור · ${c.hired === Infinity ? '—' : c.hired} מגויסים</span><small>צריך ${P.ideal.drvPool} לרכבים שיש</small></div>
-      <div class="scell${c.cancel ? ' sbad' : ''}"><b>${c.cancel}</b><span>נסיעות בוטלו היום · מתוך ${c.trips}</span><small>${why || 'אין ביטולים'}</small></div>
+      <div class="scell${sp.past ? ' sbad' : ''}"><b>${sp.past}</b><span>נסיעות בוטלו היום · מתוך ${c.trips}</span><small>${why || 'אין ביטולים'}${sp.ahead ? `<br><span class="warnt">ועוד ${sp.ahead} בהמשך היום לא ייצאו — ${whyA}</span>` : ''}</small></div>
     </div>
     <p class="lmeta">${types}${c.up ? ` · ${c.up} נסיעות ברכב גדול מהקו (↑)` : ''}</p>
     <div class="dbtns"><button data-hire="1">גיוס נהג (${money(DRIVER_HIRE)})</button><button data-hire="-1" ${bank.drivers ? '' : 'disabled'}>שחרור נהג</button>${P.ideal.drvPool > (bank.drivers || 0) ? `<button class="primary" data-hire="0">גיוס החסרים (${P.ideal.drvPool - (bank.drivers || 0)})</button>` : ''}</div>
@@ -1623,6 +1632,7 @@ function bindReset() {
   $('#dhExit').onclick = () => { shift.trips = null; $('#dhDuty').hidden = true; cams.set('free'); if (bank.role === 'driver') askRole(); };
   $('#dhSkip').onclick = () => { shift.skip(); updateDriverHud(); };
   $('#switchRole').onclick = () => askRole();
+  renderCityRow();
   $('#roleAsk').onclick = e => { const b = e.target.closest('[data-role]'); if (b) chooseRole(b.dataset.role); };
   $('#ihCheck').onclick = () => boardFP();
   $('#ihNext').onclick = () => cams.modes.follow.next();

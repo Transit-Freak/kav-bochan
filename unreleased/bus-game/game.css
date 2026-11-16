@@ -407,6 +407,10 @@ body.driving .brand,body.driving .cams{display:none}
 /* בחירת תפקיד: ארבעה כרטיסים גדולים */
 .citypick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;color:var(--muted)}
 .citypick button{padding:7px 14px;border-radius:999px;font-size:14.5px;font-weight:600;min-height:38px}
+.city-row{margin-bottom:8px}
+.city-row button{flex:1;min-height:44px;padding:10px;font-size:15px}
+.citychoose{margin:0 0 10px}
+.citychoose button{min-height:44px}
 .citypick button.on{background:var(--accent,#0ea5e9);color:#fff;border-color:transparent}
 .rolepick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .rolepick button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:16px;text-align:center;min-height:132px}
