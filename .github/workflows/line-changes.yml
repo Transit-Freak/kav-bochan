@@ -4,6 +4,7 @@ name: line-changes
 # בשבועיים הקרובים, בכל הארץ, מהשוואת ה-GTFS של היום לשבוע שעבר (tools/line_changes.py).
 # הבונה קורא את ה-GTFS ישר מהארכיון היומי של דאטאבוס ב-S3 (קריאה בטווחים, בלי להוריד את כל ה-zip),
 # ומוסיף לכל קו את השינויים מהשנה האחרונה מתוך "הקו בזמן" (line-history/data/changes).
+# לחיפוש: רחובות (מתיאור התחנות) ושכונות (הפוליגונים הרשמיים ב-line-history/data/neighborhoods).
 # נשמרים רק קבצים קטנים: אינדקס הקווים, רשימת השינויים, וקובץ לכל שינוי (כ-2.5MB בסך הכול).
 
 on:
@@ -32,11 +33,13 @@ jobs:
             /tools/
             /unreleased/line-changes/
             /line-history/data/changes/
+            /line-history/data/neighborhoods/
 
       - name: השינויים בקווים
         env:
           TZ: Asia/Jerusalem
           LH_CHANGES: line-history/data/changes
+          NBR_DIR: line-history/data/neighborhoods
         run: python3 tools/line_changes.py
 
       - name: שמירה

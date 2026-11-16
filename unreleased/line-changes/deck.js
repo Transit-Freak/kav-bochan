@@ -190,7 +190,7 @@ var LCDeck = (function () {
     }).join('') + '</div>';
   }
 
-  var RR = 10, RA = 16;   // שורות בעמודה: תחנות שמבוטלות (שתי שורות לכל תחנה) / חדשות
+  var RR = 10, RA = 16;   // שורות בעמודה: תחנות שמבוטלות (שתי שורות לכל תחנה) / חדשות — "אותיות גדולות": פחות
   function stopsSlides(p, d, remS, addS) {
     var n = Math.max(1, Math.ceil(remS.length / (RR * 2)), Math.ceil(addS.length / (RA * 2)));
     var cnt = {};
@@ -381,9 +381,11 @@ var LCDeck = (function () {
   function sameSet(a, b) { return a.length === b.length && a.every(function (x) { return b.indexOf(x) >= 0; }); }
 
   /* כל השקפים לבחירה: [{id, label, html, map?}] */
-  var ED = {};   // עריכות של המשתמש: {cover: [..], seg: {key: [..]}}
+  var ED = {};   // עריכות של המשתמש: {cover: [..], seg: {key: [..]}, look}
   function build(pages, city, edits) {
     ED = edits || {};
+    var big = ED.look === 'large';
+    RR = big ? 6 : 10; RA = big ? 10 : 16; SEG_MAX = big ? 3 : 4; COVER_MAX = big ? 2 : 3;
     pages.forEach(function (p) { p.dirs.forEach(function (d, di) { d._key = p.id + '-' + di; }); });
     var slides = [{ id: 'cover', label: 'שער', html: cover(pages, city) }];
     if (pages.length > 1) {
@@ -586,5 +588,21 @@ var LCDeck = (function () {
     });
     return { cover: cover, segs: segs, hasCover: pages.length <= 3 };
   }
-  return { drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  /* צבעי המפעיל — גוון מקורב לצבע המוכר של החברה, בלי סמלים. חברה שלא ברשימה: אפור-כחול ניטרלי */
+  var OPC = { 'אגד': '#0a7d3e', 'דן': '#1d55a5', 'קווים': '#e07400', 'נתיב אקספרס': '#7a2f8f', 'מטרופולין': '#0b7f8c',
+    'אלקטרה אפיקים': '#0a5fb0', 'אפיקים': '#0a5fb0', 'סופרבוס': '#c3172e', 'אקסטרה': '#5f8f1b', 'גלים': '#0090b8', 'תנופה': '#d0161f',
+    'בית שמש אקספרס': '#5b2c8f', 'דן בדרום': '#1d55a5', 'דן באר שבע': '#1d55a5', 'אגד תעבורה': '#0a7d3e' };
+  function hex(c) { return [1, 3, 5].map(function (i) { return parseInt(c.slice(i, i + 2), 16); }); }
+  function toHex(a) { return '#' + a.map(function (v) { return ('0' + Math.max(0, Math.min(255, Math.round(v))).toString(16)).slice(-2); }).join(''); }
+  function lum(c) { var a = hex(c).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; }
+  function lookVars(look, pages) {
+    if (look !== 'op') return '';
+    var ops = []; pages.forEach(function (p) { if (ops.indexOf(p.op) < 0) ops.push(p.op); });
+    var c = ops.length === 1 && OPC[ops[0]] ? OPC[ops[0]] : '#3d5a6c';
+    var band = toHex(hex(c).map(function (v) { return v * 0.38; })), band2 = toHex(hex(c).map(function (v) { return v * 0.5; }));
+    var sub = toHex(hex(c).map(function (v) { return v + (255 - v) * 0.65; }));
+    return '--s-brand:' + c + ';--s-on-brand:' + (lum(c) > 0.35 ? '#14201b' : '#ffffff') + ';--s-band:' + band + ';--s-band2:' + band2 +
+      ';--s-band-fg:#ffffff;--s-band-sub:' + sub;
+  }
+  return { lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();

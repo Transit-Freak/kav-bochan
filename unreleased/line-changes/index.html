@@ -51,7 +51,7 @@
       <h2 class="ph">איזה קו?</h2>
       <div class="field">
         <label for="q" class="vh">חיפוש קו</label>
-        <input id="q" class="big" type="search" placeholder="מספר קו, עיר או חברה" autocomplete="off" enterkeyhint="search">
+        <input id="q" class="big" type="search" placeholder="מספר קו, רחוב, שכונה, עיר או חברה" autocomplete="off" enterkeyhint="search">
       </div>
       <div class="seg" id="cities" role="group" aria-label="ערים עם שינויים קרובים"></div>
       <div class="reshead" id="reshead"></div>
@@ -78,6 +78,15 @@
       <div class="field">
         <label for="intro">פסקת פתיחה</label>
         <textarea id="intro" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <span class="flabel" id="lookslbl">עיצוב</span>
+        <div class="looks" id="looks" role="radiogroup" aria-labelledby="lookslbl">
+          <button type="button" role="radio" data-look="kav"><i class="sw-kav"></i><span>הקו הבוחן</span></button>
+          <button type="button" role="radio" data-look="light"><i class="sw-light"></i><span>בהיר ונקי</span></button>
+          <button type="button" role="radio" data-look="op"><i class="sw-op" id="swop"></i><span>צבעי המפעיל</span></button>
+          <button type="button" role="radio" data-look="large"><i class="sw-large"></i><span>אותיות גדולות</span></button>
+        </div>
       </div>
       <div class="texts" id="texts" aria-label="הטקסט במצגת"></div>
       <details class="field" id="tgwrap">
