@@ -15,6 +15,7 @@
   var LINES = [], OPS = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
   var cache = {}, lhCache = {}, picks = [], cur = null, step = 1, q = '';
   var titleDirty = false, introDirty = false, off = {}, slides = [], maps = [], token = 0, curPages = [];
+  var edits = { seg: {} }, edSig = '';
 
   /* ---------- טעינה ---------- */
   Promise.all([LC.getJSON('data/lines.json'), LC.getJSON('data/index.json')]).then(function (r) {
@@ -344,7 +345,9 @@
     curPages = pages;
     maps.forEach(function (m) { m.map.remove(); });
     maps = [];
-    slides = LCDeck.build(pages, deckCity(pages));
+    var sig = pages.map(function (p) { return p.id; }).join(',');
+    if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
+    slides = LCDeck.build(pages, deckCity(pages), edits);
     var deck = $('deck');
     deck.innerHTML = slides.map(function (s) {
       return '<div class="sframe" data-id="' + E(s.id) + '"' + (off[s.id] ? ' hidden' : '') + '><div class="slide" role="img" aria-label="' + E(s.label) + '">' + s.html + '</div></div>';
@@ -352,6 +355,7 @@
     $('toggles').innerHTML = slides.map(function (s) {
       return '<label><input type="checkbox" value="' + E(s.id) + '"' + (off[s.id] ? '' : ' checked') + '><span>' + E(s.label) + '</span></label>';
     }).join('');
+    drawTexts(pages);
     if (!titleDirty) $('title').value = LCDeck.autoTitle(pages, deckCity(pages));
     if (!introDirty) $('intro').value = LCDeck.autoIntro(pages);
     applyText();
@@ -396,6 +400,68 @@
     $('pcount').textContent = t;
     $('tgcount').textContent = '(' + vis.length + ' מתוך ' + slides.length + ')';
   }
+
+  /* ---------- עריכת הטקסט ("מה משתנה?" בשער, וההסבר ליד כל מפה) ----------
+     הטקסט שנוצר אוטומטית הוא טיוטה. העריכות נשמרות בדפדפן (localStorage) לכל מצגת בנפרד. */
+  function loadEdits(sig) {
+    try { var e = JSON.parse(localStorage.getItem('lc-ed:' + sig) || 'null'); if (e && typeof e === 'object') { e.seg = e.seg || {}; return e; } } catch (x) {}
+    return { seg: {} };
+  }
+  function saveEdits() {
+    try { localStorage.setItem('lc-ed:' + edSig, JSON.stringify(edits)); } catch (x) {}
+  }
+  function txRow(attr, i, val, num) {
+    return '<div class="txrow">' + (num ? '<i class="segn">' + num + '</i>' : '') +
+      '<textarea rows="2" ' + attr + ' data-i="' + i + '" aria-label="שורה ' + (i + 1) + '">' + E(val) + '</textarea>' +
+      (num ? '' : '<button type="button" class="rm" data-rmc="' + i + '" aria-label="למחוק את השורה">×</button>') + '</div>';
+  }
+  function drawTexts(pages) {
+    var dr = LCDeck.drafts(pages), h = '';
+    if (dr.hasCover) {
+      var cv = Array.isArray(edits.cover) ? edits.cover : dr.cover;
+      h += '<div class="tx"><div class="txh"><b>מה משתנה? (בשער)</b>' + (Array.isArray(edits.cover) ? '<button type="button" class="lnk" data-reset="cover">שחזור הטקסט המקורי</button>' : '') + '</div>' +
+        cv.map(function (t, i) { return txRow('data-c', i, t); }).join('') +
+        '<button type="button" class="ghost sm" data-addc="1">+ להוסיף שורה</button></div>';
+    }
+    dr.segs.forEach(function (g) {
+      var cur = edits.seg[g.key];
+      h += '<div class="tx"><div class="txh"><b>' + E(g.label) + '</b>' + (cur ? '<button type="button" class="lnk" data-reset="' + E(g.key) + '">שחזור הטקסט המקורי</button>' : '') + '</div>' +
+        g.items.map(function (t, i) { return txRow('data-s="' + E(g.key) + '"', i, cur && typeof cur[i] === 'string' ? cur[i] : t, i + 1); }).join('') + '</div>';
+    });
+    $('texts').innerHTML = h ? '<p class="hint">הטקסט נוצר אוטומטית מהנתונים. אפשר לתקן אותו כאן — המצגת מתעדכנת מיד.</p>' + h : '';
+    $('texts').querySelectorAll('textarea').forEach(grow);
+  }
+  function grow(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }   // השדה גדל לפי הטקסט
+  function coverFromFields() {
+    return Array.prototype.map.call($('texts').querySelectorAll('textarea[data-c]'), function (t) { return t.value; });
+  }
+  function paintCover() {
+    document.querySelectorAll('[data-k="what"]').forEach(function (ul) {
+      ul.innerHTML = (edits.cover || []).filter(function (t) { return t.trim(); }).map(function (t) { return '<li>' + E(t) + '</li>'; }).join('');
+    });
+  }
+  $('texts').addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (t.tagName === 'TEXTAREA') grow(t);
+    if (t.hasAttribute('data-c')) { edits.cover = coverFromFields(); paintCover(); }
+    else if (t.hasAttribute('data-s')) {
+      var key = t.getAttribute('data-s');
+      edits.seg[key] = Array.prototype.map.call($('texts').querySelectorAll('textarea[data-s="' + CSS.escape(key) + '"]'), function (x) { return x.value; });
+      document.querySelectorAll('[data-seg="' + CSS.escape(key) + '"][data-i="' + t.getAttribute('data-i') + '"]').forEach(function (el) { el.textContent = t.value; });
+    } else return;
+    saveEdits();
+    var box = t.closest('.tx'), h = box.querySelector('.txh');
+    if (!h.querySelector('.lnk')) h.insertAdjacentHTML('beforeend', '<button type="button" class="lnk" data-reset="' + (t.hasAttribute('data-c') ? 'cover' : E(t.getAttribute('data-s'))) + '">שחזור הטקסט המקורי</button>');
+  });
+  $('texts').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-rmc')) { edits.cover = coverFromFields(); edits.cover.splice(+b.getAttribute('data-rmc'), 1); }
+    else if (b.hasAttribute('data-addc')) { edits.cover = coverFromFields().concat(['']); }
+    else if (b.hasAttribute('data-reset')) { var k = b.getAttribute('data-reset'); if (k === 'cover') delete edits.cover; else delete edits.seg[k]; saveEdits(); render(curPages); return; }
+    else return;
+    saveEdits(); paintCover(); drawTexts(curPages);
+    if (b.hasAttribute('data-addc')) { var all = $('texts').querySelectorAll('textarea[data-c]'); if (all.length) all[all.length - 1].focus(); }
+  });
 
   /* התצוגה המקדימה: השקף בגודל 1280×720 מוקטן לרוחב העמודה */
   function scale() {
