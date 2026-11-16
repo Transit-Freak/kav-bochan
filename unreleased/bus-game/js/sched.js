@@ -245,13 +245,15 @@ export class Scheduler {
     return d.length ? 120 : Infinity;
   }
   // "אוטובוס נוסף" של הסדרן: רכב מתאים שעומד עכשיו במאגר ולא צריך אותו בשעה הקרובה, ונהג שלא עובד היום
-  extra(L) {
+  // force (משמרת של הסדרן): אוטובוס רזרבה ונהג מחליף מחוץ לסידור, גם כשאין רכב פנוי במאגר
+  extra(L, force = false) {
     const P = this.plan; if (!P) return false;
     const t = this.sim.time, run = lineCycle(L).run, need = SIZE[typeOf(L.def)];
-    const v = P.vehicles.find(v => SIZE[v.type] >= need && !v.bus && (v.endAt == null || t >= v.endAt + this.dh(v.at, L.stops[0]) + MIN_TURN)
+    let v = force ? null : P.vehicles.find(v => SIZE[v.type] >= need && !v.bus && (v.endAt == null || t >= v.endAt + this.dh(v.at, L.stops[0]) + MIN_TURN)
       && !v.trips.some(x => x.status === 'plan' && x.dep < t + run + 600 && x.dep > t - 600));
     const spare = this.hired() - P.drivers.length;
-    if (!v || spare <= 0) return false;
+    if (force) { v = { id: P.vehicles.length + 1, type: typeOf(L.def), n: 'רזרבה', trips: [], readyAt: -Infinity, at: L.stops[0], reserve: true }; P.vehicles.push(v); }
+    else if (!v || spare <= 0) return false;
     const x = { key: `${L.id}@x${Math.round(t)}`, lid: L.id, L, dep: t, arr: t + run, from: L.stops[0], to: L.stops[L.stops.length - 1], type: typeOf(L.def), status: 'plan', veh: v, extra: true, up: SIZE[v.type] > need };
     const d = { id: P.drivers.length + 1, start: t - SIGN_ON, contStart: t, lastEnd: x.arr, end: x.arr + SIGN_OFF, at: x.to, veh: v, trips: [x], extra: true };
     x.drv = d; P.drivers.push(d); v.trips.push(x); v.trips.sort((a, b) => a.dep - b.dep);

@@ -4,6 +4,7 @@
 import { FARE, dayOf } from './fleet.js';
 import { lineTimes } from './demand.js';
 import { modeOf } from './difficulty.js';
+import { DispShift } from './dispshift.js';
 
 export const INSPECTOR_DAY = 350;          // ₪ ליום לפקח
 export const FINE = 60;                    // ₪ קנס למי שנתפס בלי כרטיס
@@ -19,7 +20,10 @@ const DAY = 86400;
 const mm = s => Math.round(s / 60);
 
 export class Ops {
-  constructor(sim) { this.sim = sim; this.log = []; this.jams = []; this.rand = mulberry(11); this.auditsDay = { day: 0, n: 0 }; this.inspT = 0; }
+  constructor(sim) { this.sim = sim; this.log = []; this.jams = []; this.rand = mulberry(11); this.auditsDay = { day: 0, n: 0 }; this.inspT = 0; this.shift = null; }
+  // משמרת של הסדרן (dispshift.js): אירועים מתוזמנים, משאבים מוגבלים וציון. בלי משמרת — הכל כמו תמיד
+  startShift(def) { this.shift = new DispShift(this, def, mulberry(Math.floor(this.sim.time) ^ 0x5eed)); return this.shift; }
+  get inShift() { return !!this.shift && !this.shift.done; }
   get bank() { return this.sim.bank; }
   get settings() { return this.bank?.settings || {}; }
   // במצב קריירה הכל פעיל; ביצירתי — לפי ההגדרות
@@ -39,6 +43,7 @@ export class Ops {
     const S = this.sim, t = S.time;
     if (this.inspectors && this.bank) this.bank.spend('insp', this.inspectors * INSPECTOR_DAY * h / DAY);
     if (this.jams.length) this.jams = this.jams.filter(j => j.until > t);
+    if (this.inShift) { this.shift.tick(h); return; }      // במשמרת: האירועים לפי התזמון של המשמרת
     if (!this.incidents) return;
     for (const L of S.lines) {
       if (L.retired || L.off || !L.buses.length) continue;
@@ -67,13 +72,15 @@ export class Ops {
   stalled(b) {
     if (!b.stall) return false;
     if (b.stall > this.sim.time) return true;
-    if (b.broken) { b.broken = false; this.note('fixed', b.line, 'רכב חלופי הגיע — האוטובוס ממשיך', b); }
+    if (b.broken) { b.broken = false; this.note('fixed', b.line, b.towed ? 'האוטובוס התקול תוקן — חוזר ריק למסוף' : 'רכב חלופי הגיע — האוטובוס ממשיך', b); b.towed = false; }
+    if (b.lateDrv) this.shift?.released(b);
     b.stall = 0; return false;
   }
   // יציאה מהמסוף: לפעמים הנהג מאחר; לפעמים מבקר סמוי עולה לנסיעה כולה
   onDispatch(L, b) {
     const t = this.sim.time;
-    if (this.incidents && this.rand() < LATE_P * this.M.lateK) { b.stall = t + 180 + this.rand() * 240; this.note('late', L, `הנהג מאחר — היציאה מתעכבת בכ-${mm(b.stall - t)} דק'`, b); }
+    if (this.inShift) { b.maxLoad = 0; this.shift.onDispatch(L, b); }
+    else if (this.incidents && this.rand() < LATE_P * this.M.lateK) { b.stall = t + 180 + this.rand() * 240; this.note('late', L, `הנהג מאחר — היציאה מתעכבת בכ-${mm(b.stall - t)} דק'`, b); }
     const d = dayOf(t); if (this.auditsDay.day !== d) this.auditsDay = { day: d, n: 0 };
     if (this.audits && this.auditsDay.n < 2 && this.rand() < 0.08) {
       this.auditsDay.n++;
@@ -88,7 +95,7 @@ export class Ops {
     if (b.audit) { b.audit.delays.push(b.delay); b.audit.stops++; }
   }
   onPass(L, b, k, waiting) { if (b.audit && waiting) b.audit.skipped++; }
-  onLoad(b) { if (b.audit) b.audit.maxLoad = Math.max(b.audit.maxLoad, b.pax.length / b.cap); if (b.broken && b.audit) b.audit.broke = true; }
+  onLoad(b) { if (this.inShift) this.shift.onLoad(b); if (b.audit) b.audit.maxLoad = Math.max(b.audit.maxLoad, b.pax.length / b.cap); if (b.broken && b.audit) b.audit.broke = true; }
   // כרטיס: מי שלא משלם — הכנסה שהולכת לאיבוד; פקחים תופסים חלק וגובים קנס
   // התחמקות "חכמה": לכל קו — איזה חלק מהנסיעות שלו נבדקו לאחרונה (היום, אתמול ושלשום במשקל יורד; bank.inspHist),
   // וככל שיותר — פחות מעזים לנסוע בלי לשלם. רצפה: 1.5%. (הפקחים שנשכרים משפיעים דרך הביקורות שהם עושים)
@@ -123,6 +130,7 @@ export class Ops {
   }
   // סוף הנסיעה: מבקר סמוי כותב דוח
   onDone(L, b) {
+    if (this.inShift) this.shift.onDone(L, b);
     if (!b.audit || !this.bank) return;
     const a = b.audit; b.audit = null;
     const md = a.delays.length ? a.delays.reduce((x, y) => x + Math.abs(y), 0) / a.delays.length : 0;
@@ -166,6 +174,10 @@ export class Ops {
   hold(b, sec = 60) { if (b.state === 'dwell') b.hold = Math.max(b.hold || 0, this.sim.time) + sec; else b.holdNext = (b.holdNext || 0) + sec; this.note('hold', b.line, `הסדרן: החזקה ${mm(sec)} דק' בתחנה`, b); }
   express(b) { b.express = true; this.note('express', b.line, 'הסדרן: ישר למסוף (רק הורדת נוסעים)', b); }
   reserve(L, b) {
+    const sh = this.inShift ? this.shift : null;
+    // במשמרת: תקלה — אוטובוס רזרבה מהמכסה; אוטובוס נוסף — רזרבה ונהג מחליף (רכב מחוץ לסידור)
+    if (sh && b?.broken) { const e = sh.inc.find(e => e.kind === 'break' && e.bus === b && !e.closed); if (!e || !sh.fixBreak(e)) return false; this.note('reserve', L, 'הסדרן: אוטובוס רזרבה בדרך לתקלה', b); return true; }
+    if (sh) { if (!sh.canExtra() || !this.sim.roster?.managed(L) || !this.sim.roster.extra(L, true)) return false; sh.useExtra(); L.nextDispatch = this.sim.time; this.note('reserve', L, 'הסדרן: אוטובוס רזרבה יוצא מהמסוף', null); return true; }
     if (b?.broken) {
       if (this.bank) this.bank.spend('penalty', RESERVE_COST);
       b.stall = Math.min(b.stall, this.sim.time + 120); this.note('reserve', L, `הסדרן: רכב חלופי בדרך (${RESERVE_COST} ₪)`, b); return true;
