@@ -10,6 +10,7 @@ import { FINE } from './ops.js';
 import { dayOf } from './fleet.js';
 import { STAND_POLE, STRAP, REACH_FR } from './actors.js';
 import { FINGERS } from './fingers.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // העיניים 1.57 מ' מעל רצפת האוטובוס (אדם בגובה ממוצע). אותה מערכת צירים של האוטובוס כמו במבט הנהג (הרצפה ב-0.675 מעל הכביש)
 const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
@@ -452,32 +453,70 @@ function buildReader() {
   // האירה את כף היד ואת האמה אחרת לפי הכיוון של האוטובוס, וכף היד יצאה כהה מהאמה. הצבע ב-emissive, והצללה לפי הנורמל
   // (הצללה חזקה, וקצוות כהים יותר — כדי שהאצבעות לא ייראו שטוחות וחיוורות מול רקע בצבע דומה, למשל היד של הנוסע)
   const SHADE = 'totalEmissiveRadiance *= (0.5 + 0.5 * clamp(dot(normalize(normal), normalize(vec3(-0.35, 0.6, 0.72))), 0.0, 1.0)) * (0.62 + 0.38 * abs(normalize(normal).z));';
-  const selfLit = (hex, extraV = '', extraF = '', uni = null) => { const m = new THREE.MeshLambertMaterial({ color: 0x000000, emissive: hex, transparent: false, opacity: 1, depthWrite: true, depthTest: true });   // אטום
+  // פלסטיק מבריק (המכשיר): ברק לפי כיוון המבט והנורמל — על הקצוות המעוגלים ועל בית המדפסת
+  const GLOSS = k => `{ vec3 nn = normalize(normal), vv = normalize(vViewPosition); totalEmissiveRadiance += vec3(${k.toFixed(2)}) * pow(clamp(dot(reflect(-vv, nn), normalize(vec3(-0.3, 0.75, 0.6))), 0.0, 1.0), 18.0); }`;
+  const selfLit = (hex, extraV = '', extraF = '', uni = null, gloss = 0) => { const m = new THREE.MeshLambertMaterial({ color: 0x000000, emissive: hex, transparent: false, opacity: 1, depthWrite: true, depthTest: true });   // אטום
     m.onBeforeCompile = sh => { if (uni) Object.assign(sh.uniforms, uni); if (extraV) sh.vertexShader = extraV[0] + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + extraV[1]);
-      sh.fragmentShader = (extraF ? extraF[0] : '') + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (extraF ? extraF[1] : '') + SHADE); }; return m; };
-  const skin = selfLit(0xc99a78), black = selfLit(0x0c0d10);
-  const c = document.createElement('canvas'); c.width = 256; c.height = 200; const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+      sh.fragmentShader = (extraF ? extraF[0] : '') + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (extraF ? extraF[1] : '') + SHADE + (gloss ? GLOSS(gloss) : '')); }; return m; };
+  const skin = selfLit(0xc99a78);
+  // המכשיר של הפקח (מסופון אנדרואיד כחול, כמו של הפקחים): גוף בצבע תכלת-כחול מבריק, 19.5 × 8 ס"מ ועובי 1.8 ס"מ; כמעט כל
+  // החזית — מסך מגע לאורך עם מסגרת שחורה דקה ומצלמה קטנה למעלה; בקצה העליון בית מדפסת עגול ועבה (מכסה כחול שקוף-למחצה,
+  // חריץ נייר וסרגל קריעה), ועל המכסה — סמל הקריאה בלי מגע (יד עם כרטיס וגלים): שם מצמידים את הרב-קו. בצד הימני — כפתור
+  // הדלקה, F1 וחריץ ארוך לכרטיס. במערכת המכשיר: x — לרוחב (ימינה), y — לאורך (אל המדפסת), z — אל החזית (המסך)
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const W = 0.08, L = 0.195, D = 0.018, Y0 = -L / 2, Y1 = L / 2, PY = 0.047, PR = 0.022, PCY = Y1 - PR, PCZ = -0.014, PF = D / 2 + 0.003;
+  const HY = -0.045;   // מרכז כף היד (מאחורי החצי התחתון של הגוף, מתחת למדפסת)
+  const dev = new THREE.Group(); dev.position.set(0.085, -0.15, -0.34); dev.rotation.set(-0.5, -0.18, 0.06); group.add(dev);
+  const blue = selfLit(0x2a9bd8, '', '', null, 0.32), cover = selfLit(0x3cb0ec, '', '', null, 0.45), coverEnd = selfLit(0x1f78b8, '', '', null, 0.3), dark = selfLit(0x15181d);
+  const rrect = (x0, y0, x1, y1, r) => { const s = new THREE.Shape(); s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1);
+    s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0); return s; };
+  const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z).toNonIndexed();
+  // הגוף: מלבן מעוגל עם שוליים מעוגלים (נכנס לתוך בית המדפסת), והכפתורים בצד הימני
+  const bv = 0.003, bodyG = new THREE.ExtrudeGeometry(rrect(-W / 2 + bv, Y0 + bv, W / 2 - bv, PY + 0.012, 0.009), { depth: D - 2 * bv, bevelEnabled: true, bevelThickness: bv, bevelSize: bv, bevelSegments: 3, curveSegments: 6 });
+  bodyG.translate(0, 0, -D / 2 + bv); bodyG.clearGroups();
+  const body = new THREE.Mesh(mergeGeometries([bodyG, box(0.003, 0.009, 0.007, W / 2, 0.026, 0), box(0.003, 0.012, 0.007, W / 2, 0.01, 0)].map(g => { g.deleteAttribute('uv'); return g; })), blue); dev.add(body);
+  // בית המדפסת: פרופיל (y, z) — חזית שטוחה מעט מעל המסך, פינה מעוגלת בקצה, גליל עבה מאחור ושיפוע אל גב הגוף — נמשך לרוחב המכשיר.
+  // הדפנות בצדדים (המכסה השקוף-למחצה) כהות יותר
+  { const s = new THREE.Shape(), rc = 0.008; s.moveTo(PY, PF); s.lineTo(Y1 - rc, PF); s.quadraticCurveTo(Y1, PF, Y1, PF - rc); s.lineTo(Y1, PCZ);
+    s.absarc(PCY, PCZ, PR, 0, -Math.PI, true); s.lineTo(0.025, -D / 2 + 0.001); s.lineTo(0.025, 0); s.lineTo(PY, 0); s.lineTo(PY, PF);
+    const g = new THREE.ExtrudeGeometry(s, { depth: W - 0.004, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.0015, bevelSegments: 2, curveSegments: 14 });
+    g.applyMatrix4(new THREE.Matrix4().makeBasis(V(0, 1, 0), V(0, 0, 1), V(1, 0, 0))).translate(-(W - 0.004) / 2, 0, 0);
+    const pm = new THREE.Mesh(g, [coverEnd, cover]); dev.add(pm); }
+  // חריץ הנייר וסרגל הקריעה בקצה, חריץ הכרטיס בצד הימני ושקע הטעינה למטה — חלק אחד כהה
+  dev.add(new THREE.Mesh(mergeGeometries([box(W - 0.014, 0.0012, 0.0022, 0, Y1 + 0.0024, 0), box(W - 0.014, 0.0016, 0.0012, 0, Y1 + 0.0026, -0.004),
+    box(0.0012, 0.058, 0.0022, W / 2 + 0.0001, -0.048, 0), box(0.009, 0.0012, 0.003, 0, Y0 + 0.0001, 0)]), dark));
+  // המסך: זכוכית שחורה עם המסך עצמו (הטקסטורה — גם המסגרת והמצלמה), מעט מעל החזית של הגוף
+  const GW = W - 0.006, GY0 = Y0 + 0.005, GY1 = PY - 0.001, GH = GY1 - GY0;
+  const c = document.createElement('canvas'); c.width = 320; c.height = Math.round(320 * GH / GW); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   const screen = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
-  // המכשיר: קטן מעט, בפינה הימנית התחתונה, נוטה אל העיניים
-  const dev = new THREE.Group(); dev.position.set(0.09, -0.135, -0.32); dev.rotation.set(-0.5, -0.18, 0.06); group.add(dev);
-  const W = 0.066, H = 0.118, D = 0.018;
-  dev.add(new THREE.Mesh(new THREE.BoxGeometry(W, H, D), black));
-  const scr = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.86, H * 0.38), screen); scr.position.set(0, H * 0.2, D / 2 + 0.0005); dev.add(scr);
-  const pad = new THREE.Mesh(new THREE.CircleGeometry(0.014, 20), new THREE.MeshBasicMaterial({ color: 0x1e3a8a })); pad.position.set(0, -H * 0.24, D / 2 + 0.0005); dev.add(pad);
-  // יד ימין (פשוטה, כמו של הנהג): כף מאחורי המכשיר, ארבע אצבעות שעוטפות את הצד השמאלי שלו (שלוש פרקים כל אחת), אגודל בצד הימני מלפנים
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(GW, GH), screen); scr.position.set(0, (GY0 + GY1) / 2, D / 2 + 0.0004); dev.add(scr);
+  // סמל הקריאה בלי מגע על המכסה של המדפסת (קווים בהירים, כמו חרוטים בפלסטיק) וסמל נייר קטן בפינה
+  { const n = document.createElement('canvas'); n.width = 256; n.height = 144; const x = n.getContext('2d'); x.strokeStyle = 'rgba(225,242,255,0.95)'; x.fillStyle = x.strokeStyle; x.lineWidth = 4; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.beginPath(); x.ellipse(128, 78, 46, 40, 0, 0, Math.PI * 2); x.stroke();
+    x.save(); x.translate(110, 60); x.rotate(-0.35); x.strokeRect(-4, -26, 30, 22); x.restore();   // הכרטיס
+    x.beginPath(); x.moveTo(96, 88); x.quadraticCurveTo(98, 66, 110, 58); x.lineTo(124, 52); x.moveTo(104, 70); x.lineTo(120, 74); x.stroke();   // היד
+    for (const r of [10, 18, 26]) { x.beginPath(); x.arc(128, 104, r, Math.PI * 1.2, Math.PI * 1.8); x.stroke(); }   // הגלים
+    x.lineWidth = 3; x.strokeRect(14, 14, 16, 12); x.beginPath(); x.moveTo(18, 30); x.lineTo(26, 30); x.stroke();   // סמל הנייר
+    const t = new THREE.CanvasTexture(n); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    const ic = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.008, (W - 0.008) * 144 / 256), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false }));
+    ic.position.set(0, (PY + Y1 - 0.007) / 2, PF + 0.0019); dev.add(ic); }   // מעל השוליים המעוגלים של המכסה (1.5 מ"מ)
+  // המרחק מנקודה (במערכת המכשיר) אל פני המכשיר — שלילי בפנים: הגוף (קופסה מעוגלת) ובית המדפסת (גליל וחזית). בשביל האצבעות
+  const devSdf = d => { const bc = (Y0 + PY + 0.012) / 2, q = [Math.abs(d.x) - W / 2 + 0.003, Math.abs(d.y - bc) - (PY + 0.012 - Y0) / 2 + 0.003, Math.abs(d.z) - D / 2 + 0.003];
+    const b = Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0)) + Math.min(Math.max(q[0], q[1], q[2]), 0) - 0.003;
+    const ex = Math.abs(d.x) - W / 2, cy = Math.hypot(d.y - PCY, d.z - PCZ) - PR, fr = Math.max(Math.abs(d.y - (PY + Y1) / 2) - (Y1 - PY) / 2, Math.abs(d.z - (PCZ + PF) / 2) - (PF - PCZ) / 2);
+    const p2 = Math.min(cy, fr), pr = Math.hypot(Math.max(ex, 0), Math.max(p2, 0)) + Math.min(Math.max(ex, p2), 0); return Math.min(b, pr); };
+  // יד ימין (פשוטה, כמו של הנהג): כף מאחורי המכשיר, ארבע אצבעות שעוטפות את הצד השמאלי שלו (שלוש פרקים כל אחת), אגודל על הצד הימני
   const blocks = [];   // היד הפשוטה (עד שהדגמים נטענים — אז מחליפים אותה ביד של אחד הדגמים, setHand)
   const seg = (a, b, r) => { const d = new THREE.Vector3().subVectors(b, a), m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.001, d.length() - 2 * r * 0.2), 4, 8), skin);
     m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); dev.add(m); blocks.push(m); return m; };
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  blocks.push(null); blocks.length = 0;
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.085, 0.028), skin); palm.position.set(0.006, -0.012, -D / 2 - 0.016); dev.add(palm); blocks.push(palm);
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.085, 0.028), skin); palm.position.set(0.006, HY + 0.006, -D / 2 - 0.016); dev.add(palm); blocks.push(palm);
   const pr = [0.0085, 0.009, 0.0085, 0.0075];
   for (let k = 0; k < 4; k++) {
-    const y = 0.022 - k * 0.019, r = pr[k];
-    const a = V(-0.012, y, -D / 2 - 0.018), b = V(-W / 2 - 0.004, y + 0.002, -D / 2 - 0.012), c = V(-W / 2 - 0.009, y + 0.003, 0.002), d = V(-W / 2 + 0.006, y + 0.003, D / 2 + 0.008);
+    const y = HY + 0.04 - k * 0.019, r = pr[k];
+    const a = V(-0.012, y, -D / 2 - 0.018), b = V(-W / 2 - 0.004, y + 0.002, -D / 2 - 0.012), c = V(-W / 2 - 0.009, y + 0.003, 0.002), d = V(-W / 2 - 0.004, y + 0.003, D / 2 + 0.004);
     seg(a, b, r); seg(b, c, r * 0.95); seg(c, d, r * 0.9);
   }
-  const t0 = V(W / 2 - 0.004, -0.04, -D / 2 - 0.006), t1 = V(W / 2 + 0.004, -0.012, D / 2 + 0.004), t2 = V(W / 2 - 0.012, 0.012, D / 2 + 0.009);
+  const t0 = V(W / 2 - 0.004, HY - 0.022, -D / 2 - 0.006), t1 = V(W / 2 + 0.008, HY + 0.004, -0.002), t2 = V(W / 2 + 0.009, HY + 0.028, 0.0);
   seg(t0, t1, 0.0105); seg(t1, t2, 0.0095);
   // שורש כף היד והאמה — יורדים אל מחוץ למסך
   // האמה והשרוול: מפרק היד אל הכתף של הפקח (מתחת למצלמה, מימין) — מתכוונים מחדש בכל פריים (aimArm), כך שכשהיד
@@ -485,7 +524,7 @@ function buildReader() {
   const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.024, 1, 4, 8), skin);
   const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.04, 1, 14, 1, false), selfLit(0xa9c6e6));
   group.add(fore, sleeve);
-  let WRIST = V(0.012, -0.055, -D / 2 - 0.02); const SHOULDER = V(0.18, -0.32, 0.1), up = V(0, 1, 0);
+  let WRIST = V(0.012, HY - 0.037, -D / 2 - 0.02); const SHOULDER = V(0.18, -0.32, 0.1), up = V(0, 1, 0);
   const aimArm = () => { const w = WRIST.clone().applyQuaternion(dev.quaternion).add(dev.position), sh = SHOULDER.clone().sub(group.position), d = sh.clone().sub(w), L = d.length(); d.normalize();
     // אמה עד 60 ס"מ מהפרק (יוצאת מהמסך), ואחריה שרוול (10 ס"מ); הבדיקה מול מכשולים — 40 ס"מ הראשונים
     const fl = Math.min(0.6, L), q = new THREE.Quaternion().setFromUnitVectors(up, d);   // אמה ארוכה — יוצאת מהמסך, בלי "גדם"
@@ -499,13 +538,43 @@ function buildReader() {
     return out; };
   for (const m of group.children) m.renderOrder = 10;
   group.traverse(m => { if (m.isMesh) { m.frustumCulled = false; m.renderOrder = 10; } });
+  // המסך: אפליקציית בדיקה כמו בטלפון — שורת מצב, כותרת, ובאמצע עיגול גדול לפי התוצאה (✓ ירוק, ✗ אדום, ! כתום, ובהמתנה —
+  // סמל ההצמדה), והטקסט מתחת. המסגרת השחורה והמצלמה הקדמית הן חלק מאותה טקסטורה
   const show = (a, b, kind) => {
-    const x = c.getContext('2d'); x.fillStyle = kind === 'ok' ? '#064e3b' : kind === 'bad' ? '#7f1d1d' : kind === 'warn' ? '#78350f' : '#0b1f3a'; x.fillRect(0, 0, 256, 200);
-    x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '700 30px Heebo, Arial'; x.fillText(a, 128, 70);
-    x.font = '500 22px Heebo, Arial'; x.fillStyle = '#e2e8f0'; x.fillText(b || '', 128, 128); tex.needsUpdate = true;
+    const x = c.getContext('2d'), CW = c.width, CH = c.height, m = Math.round(CW * 0.003 / GW), mt = Math.round(CW * 0.006 / GW), sx = m, sy = mt, sw = CW - 2 * m, sh = CH - mt - Math.round(CW * 0.005 / GW);
+    const rr = (x0, y0, w, h, r) => { x.beginPath(); x.roundRect(x0, y0, w, h, r); };
+    x.fillStyle = '#07080a'; x.fillRect(0, 0, CW, CH);
+    x.fillStyle = '#1a1d22'; x.beginPath(); x.arc(CW / 2, mt / 2, 5, 0, Math.PI * 2); x.fill(); x.fillStyle = '#2b3a55'; x.beginPath(); x.arc(CW / 2 - 1, mt / 2 - 1, 2, 0, Math.PI * 2); x.fill();   // המצלמה
+    x.save(); rr(sx, sy, sw, sh, 10); x.clip();
+    const col = kind === 'ok' ? ['#15803d', '#22c55e'] : kind === 'bad' ? ['#b91c1c', '#ef4444'] : kind === 'warn' ? ['#b45309', '#f59e0b'] : ['#f1f5f9', '#ffffff'];
+    const gr = x.createLinearGradient(0, sy, 0, sy + sh); gr.addColorStop(0, col[1]); gr.addColorStop(1, col[0]); x.fillStyle = gr; x.fillRect(sx, sy, sw, sh);
+    const light = !kind;
+    // שורת המצב והכותרת
+    x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(sx, sy, sw, 26); x.fillStyle = '#fff'; x.font = '600 17px Heebo, Arial'; x.direction = 'ltr'; x.textAlign = 'left'; x.fillText('08:42', sx + 10, sy + 19);
+    x.fillRect(sx + sw - 34, sy + 8, 22, 11); x.fillRect(sx + sw - 12, sy + 11, 3, 5); for (let k = 0; k < 4; k++) x.fillRect(sx + sw - 70 + k * 6, sy + 19 - k * 3 - 3, 4, k * 3 + 3);
+    x.fillStyle = light ? '#1565c0' : 'rgba(0,0,0,0.22)'; x.fillRect(sx, sy + 26, sw, 52);
+    x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '700 26px Heebo, Arial'; x.fillText('בדיקת כרטיסים', CW / 2, sy + 62);
+    // העיגול באמצע
+    const cx = CW / 2, cy = sy + 78 + (sh - 78) * 0.36, R = sw * 0.3;
+    x.fillStyle = light ? '#dbeafe' : '#ffffff'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = light ? '#1565c0' : col[0]; x.lineCap = 'round'; x.lineJoin = 'round'; x.lineWidth = R * 0.2;
+    if (kind === 'ok') { x.beginPath(); x.moveTo(cx - R * 0.45, cy + R * 0.02); x.lineTo(cx - R * 0.1, cy + R * 0.38); x.lineTo(cx + R * 0.5, cy - R * 0.36); x.stroke(); }
+    else if (kind === 'bad') { x.beginPath(); x.moveTo(cx - R * 0.38, cy - R * 0.38); x.lineTo(cx + R * 0.38, cy + R * 0.38); x.moveTo(cx + R * 0.38, cy - R * 0.38); x.lineTo(cx - R * 0.38, cy + R * 0.38); x.stroke(); }
+    else if (kind === 'warn') { x.beginPath(); x.moveTo(cx, cy - R * 0.5); x.lineTo(cx, cy + R * 0.12); x.stroke(); x.fillStyle = col[0]; x.beginPath(); x.arc(cx, cy + R * 0.45, R * 0.12, 0, Math.PI * 2); x.fill(); }
+    else { x.lineWidth = R * 0.09; x.save(); x.translate(cx - R * 0.08, cy - R * 0.12); x.rotate(-0.3); rr(-R * 0.42, -R * 0.28, R * 0.84, R * 0.54, R * 0.08); x.stroke(); x.restore();   // כרטיס וגלים
+      for (const k of [0.32, 0.5, 0.68]) { x.beginPath(); x.arc(cx, cy + R * 0.2, R * k, Math.PI * 0.18, Math.PI * 0.82); x.stroke(); } }
+    // הטקסט (עד שתי שורות לכל אחד)
+    const wrap = (t, font, y, lh, fill) => { x.font = font; x.fillStyle = fill; const w = t.split(' '), lines = []; let cur = '';
+      for (const s of w) { const n = cur ? cur + ' ' + s : s; if (x.measureText(n).width > sw - 24 && cur) { lines.push(cur); cur = s; } else cur = n; } if (cur) lines.push(cur);
+      lines.slice(0, 2).forEach((l, i) => x.fillText(l, CW / 2, y + i * lh)); return y + Math.min(2, lines.length) * lh; };
+    const y2 = wrap(String(a || '').replace(/^[✓✗]\s*/, ''), '800 34px Heebo, Arial', cy + R + 52, 40, light ? '#0f172a' : '#ffffff');
+    wrap(b || '', '500 23px Heebo, Arial', y2 + 6, 28, light ? '#334155' : 'rgba(255,255,255,0.92)');
+    x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(sx, sy + sh - 30, sw, 30); x.fillStyle = 'rgba(255,255,255,0.8)';   // שורת הניווט
+    x.fillRect(cx - 70, sy + sh - 19, 12, 9); x.beginPath(); x.arc(cx, sy + sh - 15, 6, 0, Math.PI * 2); x.fill(); x.beginPath(); x.moveTo(cx + 64, sy + sh - 15); x.lineTo(cx + 74, sy + sh - 21); x.lineTo(cx + 74, sy + sh - 9); x.fill();
+    x.restore(); tex.needsUpdate = true;
   };
-  // לבדיקת החסימה: הפינות של כל חלק (מכשיר, כף יד, אצבעות, אמה), ונקודת הפנים של המכשיר (לצפצוף)
-  const face = new THREE.Object3D(); face.position.set(0, H / 2 - 0.012, -D / 2); dev.add(face);   // הקצה העליון של גב המכשיר (מעל כף היד שמחזיקה אותו) — הצד שמתקרב לכרטיס
+  // לבדיקת החסימה: הפינות של כל חלק (מכשיר, כף יד, אצבעות, אמה), ונקודת ההצמדה (לצפצוף) — הסמל שעל המכסה של המדפסת, בקצה העליון: שם נוגע הרב-קו
+  const face = new THREE.Object3D(); face.position.set(0, 0.067, PF + 0.003); dev.add(face);
   group.updateMatrixWorld(true); const pts = [], q = new THREE.Vector3();
   dev.traverse(m => { if (!m.isMesh) return; const P = m.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 40));
     for (let i = 0; i < P.count; i += st) pts.push(q.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld).clone()); });
@@ -515,13 +584,12 @@ function buildReader() {
       const st = Math.max(1, Math.floor(P.count / 40)); for (let i = 0; i < P.count; i += st) pts.push(q.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld).applyMatrix4(gi).clone()); }); };
   // היד האמיתית: כף יד ימין של אחד הדגמים (אותו עור ואותה רשת כמו של הנוסעים), עוטפת את המכשיר — כף היד מאחוריו, ארבע
   // האצבעות סביב הצד השמאלי אל החזית, והאגודל על הצד הימני
-  const fDir = V(-0.7, 0.71, 0).normalize(), pDir = V(0, 0, 1), aDir = new THREE.Vector3().crossVectors(pDir, fDir), hO = V(0.004, -0.018, -D / 2 - 0.026);
+  const fDir = V(-0.7, 0.71, 0).normalize(), pDir = V(0, 0, 1), aDir = new THREE.Vector3().crossVectors(pDir, fDir), hO = V(0.004, HY, -D / 2 - 0.026);
   const toHand = d => { const r = d.clone().sub(hO); return V(r.dot(aDir), r.dot(fDir), r.dot(pDir)); };
-  const cfg = { curl: [50, 62, 15], thumb: V(W / 2 + 0.017, -0.012, D / 2 + 0.004) };
+  const cfg = { curl: [50, 62, 15], thumb: V(W / 2 + 0.013, HY + 0.012, -0.002) };   // האגודל על הצד הימני של הגוף — לא על המסך
   const handPose = () => ({ fingers: { ...FINGERS.phone, curl: [0, 1, 2, 3].map(k => [cfg.curl[0] + k * 2.5, cfg.curl[1] + (k === 1 || k === 2 ? 2 : 0), cfg.curl[2]]) }, thumbTo: toHand(cfg.thumb),
-    // המרחק מנקודה (במערכת היד) אל הקופסה של המכשיר — שלילי בפנים. האצבעות נסגרות עד שהן נוגעות (handMesh ב-actors.js)
-    sdf: p => { const d = hO.clone().addScaledVector(aDir, p.x).addScaledVector(fDir, p.y).addScaledVector(pDir, p.z), q = [Math.abs(d.x) - W / 2, Math.abs(d.y) - H / 2, Math.abs(d.z) - D / 2];
-      return Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0), Math.max(q[2], 0)) + Math.min(Math.max(q[0], q[1], q[2]), 0); } });
+    // המרחק מנקודה (במערכת היד) אל פני המכשיר (devSdf) — שלילי בפנים. האצבעות נסגרות עד שהן נוגעות (handMesh ב-actors.js)
+    sdf: p => devSdf(hO.clone().addScaledVector(aDir, p.x).addScaledVector(fDir, p.y).addScaledVector(pDir, p.z)) });
   let handM = null;
   const setHand = h => { for (const m of blocks) dev.remove(m); if (handM) dev.remove(handM);
     // ליד פרק היד הטקסטורה עוברת בהדרגה לצבע האחיד של האמה (blend מ-handMesh) — אותו צבע עור, בלי תפר
@@ -529,10 +597,12 @@ function buildReader() {
     const mat = selfLit(h.map ? 0xffffff : 0xc99a78, bl ? ['attribute float blend;\nvarying float vBlend;\n', '  vBlend = blend;'] : '', bl ? ['uniform vec3 uSkin;\nvarying float vBlend;\n', 'totalEmissiveRadiance = mix(uSkin, totalEmissiveRadiance, vBlend);\n'] : '', bl ? { uSkin: { value: skin.emissive } } : null);
     mat.emissiveMap = h.map || null;
     const hm = new THREE.Mesh(h.geo, mat); hm.matrixAutoUpdate = false; hm.matrix.makeBasis(aDir, fDir, pDir).setPosition(hO); hm.userData.hand = true; hm.frustumCulled = false; hm.renderOrder = 10; dev.add(hm); handM = hm;
-    // שום קודקוד של היד לא בתוך המכשיר: מה שנכנס לקופסה שלו (ועוד מ"מ) נדחף אל הדופן הקרובה
-    { const P = h.geo.attributes.position, inv = hm.matrix.clone().invert(), v = new THREE.Vector3(), ex = [W / 2 + 0.003, H / 2 + 0.003, D / 2 + 0.003];
-      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(hm.matrix); const d = [ex[0] - Math.abs(v.x), ex[1] - Math.abs(v.y), ex[2] - Math.abs(v.z)]; if (d[0] <= 0 || d[1] <= 0 || d[2] <= 0) continue;
-        const k = d[0] < d[1] && d[0] < d[2] ? 'x' : d[2] <= d[1] ? 'z' : 'y'; v[k] = Math.sign(v[k] || 1) * ex[k === 'x' ? 0 : k === 'y' ? 1 : 2]; v.applyMatrix4(inv); P.setXYZ(i, v.x, v.y, v.z); } P.needsUpdate = true; }
+    // שום קודקוד של היד לא בתוך המכשיר: מה שנכנס אליו (או קרוב מ-3 מ"מ) נדחף החוצה, בכיוון הדופן הקרובה
+    { const P = h.geo.attributes.position, inv = hm.matrix.clone().invert(), v = new THREE.Vector3(), g = new THREE.Vector3(), e = 0.0005;
+      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(hm.matrix); let d = devSdf(v); if (d >= 0.003) continue;
+        for (let it = 0; it < 4 && d < 0.003; it++) { g.set(devSdf(v.clone().setX(v.x + e)) - devSdf(v.clone().setX(v.x - e)), devSdf(v.clone().setY(v.y + e)) - devSdf(v.clone().setY(v.y - e)), devSdf(v.clone().setZ(v.z + e)) - devSdf(v.clone().setZ(v.z - e))).normalize();
+          v.addScaledVector(g, 0.003 - d); d = devSdf(v); }
+        v.applyMatrix4(inv); P.setXYZ(i, v.x, v.y, v.z); } P.needsUpdate = true; }
     if (h.color) skin.emissive.copy(h.color);
     WRIST = h.wrist.clone().applyMatrix4(hm.matrix); samplePts(); aimArm(); };
   aimArm();
