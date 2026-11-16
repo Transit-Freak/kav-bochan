@@ -9,8 +9,8 @@
   var E = LC.esc;
   var LH = '../../line-history/data/lines/';
   var PAST_KINDS = { route: 1, stops: 1, 'stops-add': 1, 'stops-del': 1, extend: 1, shorten: 1, terminal: 1 };
-  var KIND_TXT = { route: 'מסלול ותחנות', stops: 'תחנות', 'stops-add': 'תחנות נוספו', 'stops-del': 'תחנות ירדו',
-    extend: 'הקו הוארך', shorten: 'הקו קוצר', terminal: 'שינוי בקצה הקו' };
+  var KIND_TXT = { route: 'דרך אחרת ותחנות אחרות', stops: 'שינוי בתחנות', 'stops-add': 'נוספו תחנות', 'stops-del': 'בוטלו תחנות',
+    extend: 'הקו הוארך', shorten: 'הקו קוצר', terminal: 'שינוי בתחנה הראשונה או האחרונה' };
 
   var LINES = [], OPS = [], CITIES = [], idx = { changes: [] }, upByMakat = {};
   var cache = {}, lhCache = {}, picks = [], cur = null, step = 1, q = '';
@@ -141,7 +141,7 @@
   /* ---------- שלב 2: איזה שינוי ---------- */
   function drawChanges() {
     var l = cur;
-    $('linehead').innerHTML = '<span class="badge">' + E(l.line) + '</span><div class="t"><b>' + E(l.from) + ' ↔ ' + E(l.to) + '</b><span>' + E(l.op) + ' · מק"ט ' + E(l.makat) + '</span></div>';
+    $('linehead').innerHTML = '<span class="badge">' + E(l.line) + '</span><div class="t"><b>' + E(l.from) + ' ↔ ' + E(l.to) + '</b><span>' + E(l.op) + '</span></div>';
     $('compare').innerHTML = '';
     var up = l.up.slice().sort(function (a, b) { return (a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1; });
     var html = up.map(function (c) { return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length }); }).join('');
@@ -182,7 +182,7 @@
       '<span class="when"><span class="l">' + lbl + '</span><b>' + E(LC.wd(c.date) + ' ' + LC.dmy(c.date)) + '</b>' +
       (c.past ? '' : '<span class="l">' + E(LC.rel(idx.gen, c.date)) + '</span>') + '</span>' +
       '<span class="what"><span class="chips">' + chips + '</span><span class="meta">' + (kinds ? E(kinds) + ' · ' : '') +
-      (c.dirs > 1 ? c.dirs + ' כיוונים' : 'כיוון אחד') + (c.past ? ' · מ"הקו בזמן"' : '') + '</span></span>' +
+      (c.dirs > 1 ? 'הלוך וחזור' : 'רק בנסיעה לצד אחד') + (c.past ? ' · מהארכיון' : '') + '</span></span>' +
       '<span class="pick-arrow" aria-hidden="true">←</span></button>';
   }
   $('cards').addEventListener('click', function (ev) {
@@ -227,7 +227,9 @@
 
   /* ---------- טעינת שינוי (קרוב / שהיה / השוואה) ---------- */
   function stopObj(s) {   // בונה: [מק"ט, שם, lat, lon, עיר] · "הקו בזמן": [מק"ט, שם, lat, lon, ...]
-    return Array.isArray(s) ? { code: String(s[0]), name: s[1], ll: [s[2], s[3]], city: typeof s[4] === 'string' ? s[4] : '' } : s;
+    var o = Array.isArray(s) ? { code: String(s[0]), name: s[1], ll: [s[2], s[3]], city: typeof s[4] === 'string' ? s[4] : '' } : s;
+    o.name = String(o.name || '').replace(/''/g, '"').replace(/\s+/g, ' ').trim();   // צה''ל → צה"ל
+    return o;
   }
   function normPage(p) {
     p.dirs.forEach(function (d) {

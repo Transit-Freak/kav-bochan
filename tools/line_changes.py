@@ -623,15 +623,16 @@ def totals(dirs):
 
 
 def summary_line(t):
+    """סיכום קצר בשפה של נוסעים (לתצוגה המקדימה בווטסאפ)"""
     parts = []
     if t['geo']:
-        parts.append('המסלול משתנה')
+        parts.append('הקו נוסע בדרך אחרת')
     if t['rem']:
-        parts.append(f"{t['rem']} תחנות יורדות" if t['rem'] > 1 else 'תחנה אחת יורדת')
+        parts.append(f"{t['rem']} תחנות מבוטלות" if t['rem'] > 1 else 'תחנה אחת מבוטלת')
     if t['add']:
         parts.append(f"{t['add']} תחנות חדשות" if t['add'] > 1 else 'תחנה חדשה אחת')
     if t['mv']:
-        parts.append(f"{t['mv']} תחנות זזות" if t['mv'] > 1 else 'תחנה אחת זזה')
+        parts.append(f"{t['mv']} תחנות עוברות מקום" if t['mv'] > 1 else 'תחנה אחת עוברת מקום')
     return ' · '.join(parts)
 
 
@@ -693,7 +694,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         title = f'שינוי בקו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]} מ-{fmt_d(rec["formal"] or eff)}'
-        desc = f'{summ}. {f0["op"]}. מצגת עם מפה של לפני ואחרי לכל כיוון, והתחנות שיורדות ושנוספות.'
+        desc = f'{summ}. {f0["op"]}. מה משתנה, מפה של המסלול הישן והחדש, ואיפה התחנה הקרובה במקום תחנה שמבוטלת.'
         html = (tpl.replace('{{TITLE}}', esc(title)).replace('{{DESC}}', esc(desc))
                 .replace('{{URL}}', f'{SITE}/l/{pid}.html').replace('{{ID}}', pid))
         open(os.path.join(OUTDIR, 'l', pid + '.html'), 'w', encoding='utf-8').write(html)

@@ -27,14 +27,14 @@ var LC = (function () {
     });
   }
   function stopsWord(n, kind) {   // kind: 'rem' | 'add' | 'mv'
-    if (kind === 'rem') return n === 1 ? 'תחנה אחת יורדת' : n + ' תחנות יורדות';
+    if (kind === 'rem') return n === 1 ? 'תחנה אחת מבוטלת' : n + ' תחנות מבוטלות';
     if (kind === 'add') return n === 1 ? 'תחנה חדשה אחת' : n + ' תחנות חדשות';
-    return n === 1 ? 'תחנה אחת זזה' : n + ' תחנות זזות';
+    return n === 1 ? 'תחנה אחת עוברת מקום' : n + ' תחנות עוברות מקום';
   }
-  /* תגיות סיכום לכיוון או לקו (geo/add/rem/mv) */
+  /* תגיות סיכום (geo/add/rem/mv) — בשפה של נוסעים */
   function chips(c) {
     var h = '';
-    if (c.geo) h += '<span class="chip geo">המסלול משתנה</span>';
+    if (c.geo) h += '<span class="chip geo">הקו נוסע בדרך אחרת</span>';
     if (c.rem) h += '<span class="chip rem">' + stopsWord(c.rem, 'rem') + '</span>';
     if (c.add) h += '<span class="chip add">' + stopsWord(c.add, 'add') + '</span>';
     if (c.mv) h += '<span class="chip mv">' + stopsWord(c.mv, 'mv') + '</span>';
