@@ -14,9 +14,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // העיניים 1.57 מ' מעל רצפת האוטובוס (אדם בגובה ממוצע). אותה מערכת צירים של האוטובוס כמו במבט הנהג (הרצפה ב-0.675 מעל הכביש)
 const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
-// ההזזות של המכשיר כשמשהו בדרך (clearance, במערכת המצלמה): קודם בלי הזזה, אחר כך 3/6/9 ס"מ בשמונה כיוונים במישור המסך, ובסוף עד 6 ס"מ אל המצלמה
-const CLEAR_OFFS = (() => { const a = [[0, 0, 0]]; for (const r of [0.03, 0.06, 0.09]) for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) a.push([dx * r, dy * r, 0]);
-  for (const z of [0.03, 0.06]) for (const [dx, dy] of [[0, 0], [0, -0.05], [0, 0.05], [-0.05, 0], [0.05, 0]]) a.push([dx, dy, z]); return a.map(v => new THREE.Vector3(...v)); })();
+// ההזזות של המכשיר כשמשהו בדרך (clearance, במערכת המצלמה): קודם בלי הזזה, אחר כך 3/6/9/12 ס"מ בשמונה כיוונים במישור המסך.
+// אף פעם לא אל המצלמה (המכשיר נשאר בגודל של מכשיר ביד — שלמה 16.11)
+const CLEAR_OFFS = (() => { const a = [[0, 0, 0]]; for (const r of [0.03, 0.06, 0.09, 0.12]) for (const [dx, dy] of [[0, -1], [0, 1], [-0.7, -0.7], [0.7, -0.7], [1, 0], [-1, 0], [-0.7, 0.7], [0.7, 0.7]]) a.push([dx * r, dy * r, 0]);
+  return a.map(v => new THREE.Vector3(...v)); })();
 const REACH_MAX = 0.45;  // כמה המכשיר יוצא אל הכרטיס מהמקום שלו — המרפק נשאר כפוף (קודם 0.8: זרוע מתוחה עד הפנים של הנוסע)
 const AISLE_Z1 = 3.55;   // הקצה הקדמי של המעבר — מאחורי מחיצת הנהג ומכונת הכרטיסים; הפקח לא עובר אותו
 // המעבר: מהדלת הקדמית, ליד המתקף, ואז לאורך האמצע עד המושבים האחרונים
@@ -266,7 +267,7 @@ export class InspectorFP {
   }
   // היד והמכשיר של הפקח לא נכנסים בשום דבר — לא באוטובוס, לא בנוסעים, וגם לא ביד של מי שמגיש את הכרטיס (המכשיר עוצר
   // לפני הכרטיס): נקודות על פני המכשיר, כף היד והאמה (עם העובי שלה) — באף אחת מהן אין תא תפוס. אם יש, המכשיר זז מעט
-  // (עד 9 ס"מ) למטה, למעלה או הצידה — ועוקף את מה שבדרך (מתקף, עמוד) — וקרוב למצלמה רק עד 6 ס"מ. קודם הוא נמשך אל
+  // (עד 12 ס"מ) למטה, למעלה או הצידה — ועוקף את מה שבדרך (מתקף, עמוד), ולא מתקרב למצלמה. קודם הוא נמשך אל
   // המצלמה עד 20 ס"מ, ונראה ענק ליד המתקף (שלמה 16.11). אם אין מקום כזה — יורד בהדרגה אל מתחת למסך. התנועה רציפה (עד 60 ס"מ בשנייה)
   clearance(o, inv, dt = 1 / 30) {
     const g = this.reader.group, base = this.readerOff || new THREE.Vector3(), q = new THREE.Vector3();
@@ -280,7 +281,7 @@ export class InspectorFP {
       const why = (q, t) => { if (n === 1) { const i = this.occ.idx(q.x, q.y, q.z); this.hitDbg = `${t} st${i >= 0 ? this.occ.st[i] : -1} pp${i >= 0 ? this.occ.pp[i] : -1} @${q.toArray().map(v => v.toFixed(2))}`; } };
       for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'dev'); } }
       for (const p of armP) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'arm'); } } return n; };
-    // ההזזות האפשריות (במערכת המצלמה): בלי הזזה; 3/6/9 ס"מ בשמונה כיוונים במישור המסך; ועד 6 ס"מ אל המצלמה
+    // ההזזות האפשריות (במערכת המצלמה): בלי הזזה; 3–12 ס"מ בשמונה כיוונים במישור המסך
     const C = CLEAR_OFFS;
     this.clrT = this.clrT || new THREE.Vector3(); this.clrC = this.clrC || new THREE.Vector3(); this.cur = this.cur || new THREE.Vector3();
     const P = new THREE.Vector3(), at = off => P.copy(base).add(off);
@@ -381,7 +382,8 @@ export class InspectorFP {
       A.off.lerp(want, Math.min(1, dt * 7));
     } else if (A.down != null) A.off.multiplyScalar(Math.max(0, 1 - dt * 6));
     // המכשיר מגיע מהצד שבו הכרטיס (כרטיס משמאל — המכשיר עובר לשמאל המסך), לא מעל הראש של הנוסע
-    if (card) { const cl = c.worldToLocal(card.clone()); A.side = (A.side || 0) + ((cl.x < -0.02 ? -0.17 : 0) - (A.side || 0)) * Math.min(1, dt * 6); }
+    // אחרי התוצאה המכשיר חוזר למקומו גם מהצד (קודם נשאר בשמאל המסך עד סוף הבדיקה וקפץ אז בבת אחת — ליד המתקף, שלמה 16.11)
+    { const cl = card && c.worldToLocal(card.clone()), sd = A.down == null && cl && cl.x < -0.02 ? -0.17 : 0; A.side = (A.side || 0) + (sd - (A.side || 0)) * Math.min(1, dt * 6); }
     this.readerOff = A.off.clone().add(new THREE.Vector3(A.side || 0, 0, 0));
     // המכשיר נשאר בתוך התמונה (גם כשהכרטיס גבוה או רחוק בצד, למשל עומד גבוה ליד הקיר השמאלי): עד 78% מחצי הרוחב ו-85% מחצי הגובה
     { const P = this.reader.faceRest.clone().add(this.readerOff), ty = Math.tan(THREE.MathUtils.degToRad(c.fov / 2)) * Math.max(0.05, -P.z), mx = 0.78 * ty * c.aspect, my = 0.85 * ty;
@@ -396,7 +398,8 @@ export class InspectorFP {
           cam: f3(this.obj.worldToLocal(c.position.clone())), head: hh ? f3(this.obj.worldToLocal(hh.clone())) : null, card: f3(this.obj.worldToLocal(card.clone())) }); this.result(A.pid, true); A.down = t + 0.15; }
     }
     // בלי כרטיס: יד ריקה; התוצאה בלי צפצוף
-    if (!A.done && !R?.card && t > 1.2) { A.done = true; this.result(A.pid, false); A.down = t + 0.3; }
+    // (היד למעלה כשנייה, עם נענוע הראש — רואים את ה"אין לי" לפני שהיד יורדת)
+    if (!A.done && !R?.card && t > 1.7) { A.done = true; this.result(A.pid, false); A.down = t + 0.5; }
     // לא הגיע (רחוק מדי או חסום): מבטלים — צריך להתקרב
     // היד חסומה (עמוד או משענת בין המכשיר לכרטיס): הפקח זז מעט לאורך המעבר (קדימה, ואחר כך אחורה) ומנסה שוב
     if (!A.done && card && A.down == null && t > 1.5 && (this.lastPull || 0) > 0 && (A.tries || 0) < 2 && this.slideTo == null) {

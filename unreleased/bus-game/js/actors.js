@@ -422,7 +422,9 @@ export const STAND_POLE = { dx: 0.34, dxL: 0.24, dz: 0.12, dzL: 0.16 };   // ל�
 // שלבי ההגשה של כרטיס לפקח (reachPose): כמה מהדרך בכל שלב. people.audit בודק את כולם
 export const REACH_FR = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1];
 // בלי כרטיס: כמה כף היד עולה ויוצאת קדימה (יושב, עומד), משיכת הכתפיים ונענוע הראש (מעלות)
-export const EMPTY_UP = [0.1, 0.2], EMPTY_FWD = [0.1, 0.12], EMPTY_SHRUG = 6, EMPTY_SHAKE = 12;
+// יושב: המרפק נשאר ליד הגוף (הזרוע העליונה כמעט אנכית, EMPTY_ELBOW — כיוון: אל המעבר, למטה, קדימה) והאמה עולה קדימה, אל המעבר
+// (EMPTY_FORE) עד גובה החזה, כף היד פתוחה כלפי מעלה — "אין לי" שרואים מעל המשענת שלפניו
+export const EMPTY_UP = [0.2, 0.2], EMPTY_FWD = [0.16, 0.12], EMPTY_SHRUG = 10, EMPTY_SHAKE = 20, EMPTY_ELBOW = [0.3, -1, 0.25], EMPTY_FORE = [0.6, 0.75, 1];
 // עומד שמגיש כרטיס (reachPose): כמה הגו מסתובב אל המעבר (מעלות: גב תחתון, חזה), לאן כף היד יוצאת מהכתף (כיוון: אל המעבר,
 // למטה, קדימה; ואיזה חלק מאורך הזרוע), ולאן המרפק פונה (החוצה, לצד החלון, ולמטה) — הזרוע העליונה נמוכה והאמה לפני הגוף
 // הכרטיס יוצא אל המעבר (ולא רק קדימה): הפקח עומד במעבר, כמעט מול הפנים — כרטיס שרחוק קדימה נשאר בצד של התמונה, והמכשיר
@@ -1163,16 +1165,15 @@ export class PeopleLayer {
     const sh = W(arm), L = W(arm).distanceTo(W(fore)) + W(fore).distanceTo(W(hd));
     // בשורה הראשונה הפקח עומד מאחוריו (לא עובר את מחיצת הנהג): מושיטים הצידה ומעט אחורה, אל המעבר
     const dirF = (slot.front ? new THREE.Vector3(aisle * (win ? 0.55 : 0.7), win ? 0.5 : -0.2, win ? -0.15 : -0.3) : win ? new THREE.Vector3(aisle * 0.5, -0.3, 0.75) : slot.kind === 'seat' ? new THREE.Vector3(aisle * 0.6, -0.55, 0.77) : new THREE.Vector3(aisle * standReach(slot.grip).dir[0], standReach(slot.grip).dir[1], standReach(slot.grip).dir[2])).normalize();   // מחזיק בעמוד: היד הפנויה לפני החזה, בגובה הכתף, אל הרווח שבין העמודים   // עומד: קדימה, לפני העמוד, ומעט אל המעבר
-    // בלי כרטיס: היד עולה מעט מהירך וכף היד נפתחת כלפי מעלה ("אין לי") — בלי להושיט
-    // בלי כרטיס: כף היד עולה מהירך (או מהצד) ויוצאת קדימה, פתוחה כלפי מעלה, לגובה המותן — "אין לי" שרואים מהמעבר
-    const full = empty ? h0.clone().add(new THREE.Vector3(-aisle * (slot.kind === 'stand' ? 0.05 : 0.02), EMPTY_UP[slot.kind === 'stand' ? 1 : 0], EMPTY_FWD[slot.kind === 'stand' ? 1 : 0]))
+    // בלי כרטיס: כף היד עולה ויוצאת קדימה, פתוחה כלפי מעלה — "אין לי" שרואים מהמעבר. יושב: המרפק ליד הגוף והאמה קדימה (EMPTY_ELBOW, EMPTY_FORE)
+    const ua = W(arm).distanceTo(W(fore)), fa = W(fore).distanceTo(W(hd)), eE = sh.clone().addScaledVector(new THREE.Vector3(aisle * EMPTY_ELBOW[0], EMPTY_ELBOW[1], EMPTY_ELBOW[2]).normalize(), ua);
+    const full = empty ? (slot.kind === 'seat' ? eE.clone().addScaledVector(new THREE.Vector3(aisle * EMPTY_FORE[0], EMPTY_FORE[1], EMPTY_FORE[2]).normalize(), fa * 0.97)
+        : h0.clone().add(new THREE.Vector3(-aisle * 0.05, EMPTY_UP[1], EMPTY_FWD[1])))
       : sh.clone().addScaledVector(dirF, L * (slot.front ? 0.62 : slot.kind === 'stand' ? standReach(slot.grip).len : win ? 0.8 : 0.68));   // היד והכרטיס ממשיכים עוד כ-20 ס"מ מפרק היד — לא מושיטים עד הסוף
     // קודם למעלה ואל המעבר, ורק בסוף קדימה (כך היד לא עוברת דרך המשענת שלפניו); ליד החלון ובעמידה — קודם קדימה, ורק אז אל המעבר
     const T = h0.clone().lerp(full, frac);
     if (win) { T.x = h0.x + (full.x - h0.x) * frac * frac; } else T.z = h0.z + (full.z - h0.z) * frac * frac;
-    // בלי כרטיס (היד עולה רק מעט): המרפק נשאר בכיוון שלו במנוחה — מרפק שמחושב מחדש נכנס לצד הגוף
-    const el0 = W(fore), restPole = el0.clone().sub(sh.clone().add(h0).multiplyScalar(0.5));
-    twoBone(arm, fore, hd, T, empty && slot.kind === 'seat' && restPole.lengthSq() > 1e-4 ? restPole : win ? new THREE.Vector3(-aisle * 0.15, -1, 0.15) : slot.kind === 'stand' && !empty ? new THREE.Vector3(aisle * STAND_REACH.elbow[0], STAND_REACH.elbow[1], STAND_REACH.elbow[2]) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));   // ליד החלון: המרפק למטה, ליד הגוף (קודם פנה קדימה — הזרוע העליונה התרוממה אל מול החזה והאמה נתלתה ממנה, שלמה 15.11)
+    twoBone(arm, fore, hd, T, empty && slot.kind === 'seat' ? new THREE.Vector3(aisle * 0.3, -1, -0.2) : win ? new THREE.Vector3(-aisle * 0.15, -1, 0.15) : slot.kind === 'stand' && !empty ? new THREE.Vector3(aisle * STAND_REACH.elbow[0], STAND_REACH.elbow[1], STAND_REACH.elbow[2]) : new THREE.Vector3(-aisle * 0.4, -1, -0.1));   // ליד החלון: המרפק למטה, ליד הגוף (קודם פנה קדימה — הזרוע העליונה התרוממה אל מול החזה והאמה נתלתה ממנה, שלמה 15.11)
     // האצבעות אל המעבר ואל הפקח (הכרטיס ממשיך אותן), ובלי כרטיס — קדימה
     const fdir = empty ? new THREE.Vector3(aisle * 0.15, -0.1, 1) : slot.front ? new THREE.Vector3(aisle * 0.9, 0.1, -0.35) : /Strap/.test(slot.grip || '') ? new THREE.Vector3(aisle * 0.6, 0.15, 0.8) : slot.kind === 'stand' ? new THREE.Vector3(aisle * 0.5, 0.15, 0.85) : win ? new THREE.Vector3(aisle * 0.85, 0.2, 0.45) : new THREE.Vector3(aisle * 0.7, 0.15, 0.7);
     const dir = T.clone().sub(W(fore)).normalize().lerp(fdir.normalize(), frac).normalize();
