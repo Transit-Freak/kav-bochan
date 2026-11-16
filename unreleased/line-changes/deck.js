@@ -79,6 +79,8 @@ var LCDeck = (function () {
   }
 
   function autoIntro(pages) {
+    var t = pages.length === 1 ? (pages[0].tot || {}) : null;
+    if (t && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3 && !t.geo) return 'בעמודים הבאים: מפה קרובה של המקום שבו התחנה משתנה.';
     return 'בעמודים הבאים: מפה של המסלול הישן והחדש, ואיפה התחנה הקרובה במקום כל תחנה שמבוטלת.';
   }
   function autoTitle(pages, city) {
@@ -139,7 +141,7 @@ var LCDeck = (function () {
       '<h2 class="hd">' + E(trip(d)) + E(altTxt(d)) + '</h2>' +
       (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ': ' + E(part.name) + '</p>' : '') +
       segList(d) + when +
-      '<p class="counts">' + E(countsLine(d)) + '</p>' +
+      (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(countsLine(d)) + '</p>') +
       '<div class="legend">' +
         '<span><i class="sw old"></i>המסלול הישן (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' +
         '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' +
@@ -152,6 +154,20 @@ var LCDeck = (function () {
       '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>';
   }
 
+  /* שינוי קטן (עד 3 תחנות בכיוון): בלי שקף תחנות נפרד — הרשימה הקצרה ליד המפה, והמפה מתקרבת לתחנה */
+  function small(d) { return d.added.length + d.removed.length + d.moved.length <= 3; }
+  function smallList(d) {
+    var rows = [];
+    (d._rem || []).forEach(function (s, i) {
+      var nr = s._near;
+      rows.push('<li><i class="dot rem">' + (i + 1) + '</i><span>' + E(s.name) + ' — מבוטלת' +
+        (nr && !nr.none ? '<span class="nr">במקום: ' + E(nr.name) + ' (כ-' + nr.m + ' מ׳ הליכה)</span>' : '<span class="nr">אין תחנה קרובה במסלול החדש</span>') + '</span></li>');
+    });
+    d.new.stops.filter(function (s) { return d.added.indexOf(s.code) >= 0; }).forEach(function (s, i) {
+      rows.push('<li><i class="dot add">' + (i + 1) + '</i><span>' + E(s.name) + ' — חדשה</span></li>');
+    });
+    return rows.length ? '<ul class="small">' + rows.join('') + '</ul>' : '';
+  }
   var SEG_MAX = 4;
   function segList(d) {
     var segs = segments(d);
@@ -294,6 +310,11 @@ var LCDeck = (function () {
       if (seg.oldS.length || seg.newS.length) segs.push(seg);
     }
     segs.forEach(function (g) { g.html = segText(g, d); g.weight = g.oldS.length + g.newS.length + (g.route ? 3 : 0); });
+    // תחנה שעוברת מקום (אותה תחנה, מקום אחר)
+    d.moved.forEach(function (m) {
+      var t = 'התחנה <b>' + E(m.name) + '</b> עוברת למקום חדש, כ-' + m.m + ' מ׳ מהמקום הקודם.';
+      segs.push({ A: { ll: m.ll, name: m.name }, B: null, oldS: [], newS: [], html: t, plain: t, kind: 'mv', names: [skey(m.name)], weight: 1, moved: m });
+    });
     return (d._segs = segs);
   }
 
@@ -317,12 +338,24 @@ var LCDeck = (function () {
     }
     var sameRoadOld = nearLine(o, d.new.shape), sameRoadNew = nearLine(n, d.old.shape);
     if (o.length && !n.length) {
-      if (sameRoadOld || !oS.length) return 'בין ' + b(A) + ' ל' + b(B) + ' הקו ממשיך באותה דרך, אבל לא יעצור יותר ב' + (o.length === 1 ? 'תחנה ' : 'תחנות ') + names(o) + '.';
+      if (sameRoadOld || !oS.length) {
+        g.kind = 'rem'; g.names = o.map(function (x) { return skey(x.name); }).sort();
+        var nr = o.length <= 2 ? o.map(function (x) {
+          var t = nearest(x, d);
+          return !t || t.none ? 'ליד ' + E(x.name) + ' אין תחנה קרובה במסלול החדש.' : (o.length > 1 ? 'במקום ' + E(x.name) + ': ' : 'התחנה הקרובה: ') + '<b>' + E(t.name) + '</b>, כ-' + t.m + ' מ׳ הליכה.';
+        }).join(' ') : '';
+        g.plain = 'הקו לא יעצור יותר ב' + (o.length === 1 ? 'תחנה ' : 'תחנות ') + names(o) + '.';
+        return 'הקו לא יעצור יותר ב' + (o.length === 1 ? 'תחנה ' : 'תחנות ') + names(o) + ' (בין ' + b(A) + ' ל' + b(B) + ').' + (nr ? ' ' + nr : '');
+      }
       g.route = true;
       return 'אחרי ' + b(A) + ' הקו כבר לא ייסע ' + E(via(oS)) + '. הוא ייסע בדרך אחרת ויגיע ל' + b(B) + '.';
     }
     if (n.length && !o.length) {
-      if (sameRoadNew || !nS.length) return (n.length === 1 ? 'נוספה תחנה חדשה: ' : 'נוספו תחנות חדשות: ') + names(n) + ' (בין ' + b(A) + ' ל' + b(B) + ').';
+      if (sameRoadNew || !nS.length) {
+        g.kind = 'add'; g.names = n.map(function (x) { return skey(x.name); }).sort();
+        g.plain = (n.length === 1 ? 'נוספה תחנה חדשה: ' : 'נוספו תחנות חדשות: ') + names(n) + '.';
+        return (n.length === 1 ? 'נוספה תחנה חדשה: ' : 'נוספו תחנות חדשות: ') + names(n) + ' (בין ' + b(A) + ' ל' + b(B) + ').';
+      }
       g.route = true;
       return 'אחרי ' + b(A) + ' הקו ייסע בדרך חדשה, ' + E(via(nS)) + ', ויחזור למסלול הרגיל ב' + b(B) + '.';
     }
@@ -350,6 +383,10 @@ var LCDeck = (function () {
           return o !== it && o.d !== it.d && o.g.route && used.indexOf(o) < 0 &&
             sameSet(o.g.oS, g.oS) && sameSet(o.g.nS, g.nS);
         })[0];
+      }
+      if (!twin && g.kind && p.dirs.length > 1) {
+        var twins = items.filter(function (o) { return o !== it && o.d !== it.d && used.indexOf(o) < 0 && o.g.kind === g.kind && sameSet(o.g.names || [], g.names || []); });
+        if (twins.length) { twins.forEach(function (o) { used.push(o); }); used.push(it); out.push('<b>הלוך וחזור:</b> ' + g.plain); return; }
       }
       if (twin) {
         used.push(twin);
@@ -394,6 +431,8 @@ var LCDeck = (function () {
     }
     pages.forEach(function (p) {
       p.dirs.forEach(function (d, di) {
+        // חלופה (חלק מהנסיעות) עם בדיוק אותו שינוי כמו הקו הרגיל באותו כיוון — בלי שקפים כפולים
+        if (altTxt(d) && p.dirs.some(function (o) { return o !== d && o.dir === d.dir && !altTxt(o) && sameSet(o.added, d.added) && sameSet(o.removed, d.removed) && !o.geo === !d.geo; })) return;
         var remS = d.old.stops.filter(function (s) { return d.removed.indexOf(s.code) >= 0; }).map(function (s) { return Object.assign({ _k: 'rem', _near: nearest(s, d) }, s); });
         var addS = d.new.stops.filter(function (s) { return d.added.indexOf(s.code) >= 0; }).map(function (s) { return Object.assign({ _k: 'add' }, s); });
         d._rem = remS;
@@ -403,7 +442,7 @@ var LCDeck = (function () {
           slides.push({ id: p.id + '-m' + di + (k ? '-' + k : ''), label: pre + 'מפה · ' + trip(d) + (parts.length > 1 ? ' (' + pt.name + ')' : ''),
             html: mapSlide(p, d, pt, parts.length), map: { d: d, remS: remS, addS: addS, show: pt.show } });
         });
-        stopsSlides(p, d, remS, addS).forEach(function (s, k) {
+        if (!small(d) || parts.length > 1) stopsSlides(p, d, remS, addS).forEach(function (s, k) {
           slides.push({ id: p.id + '-s' + di + '-' + k, label: pre + s.label, html: s.html });
         });
       });
@@ -523,6 +562,18 @@ var LCDeck = (function () {
     d.old.shape.forEach(function (p) { all.extend(p); });
     d.new.shape.forEach(function (p) { all.extend(p); });
     marks.forEach(function (x) { focus.extend(x.s.ll); });
+    // שינוי קטן: גם התחנות שלפני ואחרי, והתחנה הקרובה — עם שמות על המפה, כדי שיהיה ברור איפה זה
+    var labels = [];
+    if (small(d) && !m.show) {
+      segments(d).forEach(function (g) {
+        [g.A, g.B].concat(g.newS, g.oldS).forEach(function (st) { if (st && st.ll && st.name) labels.push(st); });
+      });
+      m.remS.forEach(function (st) { if (st._near && !st._near.none) labels.push(st._near); });
+      // רק מה שקרוב (עד 1.2 ק"מ מתחנה שמשתנה) נכנס לגבולות המפה — כדי שהמפה תתקרב לתחנה
+      var core = marks.filter(function (x) { return x.k !== 'seg'; }).map(function (x) { return x.s.ll; });
+      labels = labels.filter(function (st) { return !core.length || core.some(function (c) { return dist(c, st.ll) <= 1200; }); });
+      labels.forEach(function (st) { focus.extend(st.ll); });
+    }
     if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
     if (!focus.isValid()) focus = all;
     map.fitBounds(focus, { paddingTopLeft: [PAD, inEl ? 110 : PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
@@ -538,6 +589,12 @@ var LCDeck = (function () {
     // מכל תחנה שמבוטלת — קו מנוקד דק אל התחנה הקרובה במסלול החדש
     m.remS.forEach(function (s) {
       if (shown(s) && s._near && !s._near.none) L.polyline([s.ll, s._near.ll], { color: '#13201b', weight: 2, dashArray: '2 5', opacity: .75, interactive: false }).addTo(map);
+    });
+    var seen = {};
+    labels.forEach(function (st) {
+      var k = st.name + st.ll.join(',');
+      if (seen[k]) return; seen[k] = 1;
+      L.tooltip({ permanent: true, direction: 'top', offset: [0, -14], className: 'lc-lbl', interactive: false }).setLatLng(st.ll).setContent(E(st.name)).addTo(map);
     });
     // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
     var size = map.getSize();
