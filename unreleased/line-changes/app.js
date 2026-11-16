@@ -21,8 +21,9 @@
   Promise.all([LC.getJSON('data/lines.json'), LC.getJSON('data/index.json')]).then(function (r) {
     var li = r[0]; idx = r[1];
     OPS = li.ops; CITIES = li.cities;
+    var OPIDS = li.op_ids || [];
     LINES = li.lines.map(function (a) {
-      return { makat: a[0], line: a[1], op: OPS[a[2]], from: a[3], to: a[4], cities: a[5].map(function (i) { return CITIES[i]; }),
+      return { makat: a[0], line: a[1], op: OPS[a[2]], ag: OPIDS[a[2]] || '', from: a[3], to: a[4], cities: a[5].map(function (i) { return CITIES[i]; }),
         rds: a[6], ty: a[7], past: (a[8] || []).slice().reverse() };
     });
     idx.changes.forEach(function (c) { (upByMakat[c.makat] = upByMakat[c.makat] || []).push(c); });
@@ -376,7 +377,7 @@
       var tot = { geo: dirs.some(function (x) { return x.geo; }), add: uniq(dirs, 'added'), rem: uniq(dirs, 'removed'), mv: 0 };
       var eff = dirs.map(function (x) { return x.eff; }).sort()[0];
       return { id: (before ? 'x-' + makat + '-' + before + '-' : 'p-' + makat + '-') + d, past: true, cmp: before || null,
-        line: l.line, op: l.op, makat: makat, od: [l.from, l.to], eff: eff, formal: null, gen: idx.gen, feed: null, tot: tot,
+        line: l.line, op: l.op, ag: l.ag, makat: makat, od: [l.from, l.to], eff: eff, formal: null, gen: idx.gen, feed: null, tot: tot,
         chcities: [], dirs: dirs };
     });
   }

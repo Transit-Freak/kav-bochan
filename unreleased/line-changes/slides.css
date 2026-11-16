@@ -160,7 +160,10 @@
 .deck[data-look="light"] .slide .seam i{width:14px;height:14px;border-width:3px}
 
 /* צבעי המפעיל: הצבע מגיע מהדף (style על .deck — --s-brand, --s-band...) */
-.deck[data-look="op"] .s-cover .fact{border-top-width:8px}
+.deck[data-look="op"] .s-cover .fact{border-top:8px solid var(--s-brand2)}
+.deck[data-look="op"] .slide .badge{box-shadow:0 0 0 4px var(--s-brand2)}
+.deck[data-look="op"] .s-close .ph{border-top-color:var(--s-brand2)}
+.deck[data-look="op"] .s-cover .what h3,.deck[data-look="op"] .s-map .part{color:var(--s-brand-text,var(--s-fg))}
 
 /* אותיות גדולות: ניגודיות גבוהה וכתב גדול לנוסעים מבוגרים. פחות תחנות בכל שקף */
 .deck[data-look="large"]{--s-paper:#ffffff;--s-card:#ffffff;--s-line:#9aa5a0;--s-fg:#000000;--s-sub:#2b3430;
