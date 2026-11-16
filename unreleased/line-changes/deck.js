@@ -102,7 +102,7 @@ var LCDeck = (function () {
     return '<div class="s-cover">' +
       '<div class="band"><div class="row">' +
         (single ? '<span class="badge num">' + E(p.line) + '</span>' : '<span class="badge word">' + E(city || 'קווים') + '</span>') +
-        '<div class="t"><h1 class="hd" data-k="title"></h1><p class="sub">' + E(sub) + '</p></div></div>' +
+        '<div class="t"><h1 class="hd" data-k="title">' + E(autoTitle(pages, city)) + '</h1><p class="sub">' + E(sub) + '</p></div></div>' +
         '<div class="seam"><i></i></div></div>' +
       '<div class="body">' +
         '<div class="facts">' +
@@ -112,7 +112,7 @@ var LCDeck = (function () {
             '<span class="x num">' + (opPhone ? 'מוקד: <span class="ltr">' + E(opPhone) + '</span>' : '') + '</span></div>' +
           '<div class="fact"><span class="l">משרד התחבורה</span><span class="v num"><span class="ltr">' + MOT + '</span></span><span class="x">מוקד המידע</span></div>' +
         '</div>' +
-        '<p class="intro" data-k="intro"></p>' +
+        '<p class="intro" data-k="intro">' + E(autoIntro(pages)) + '</p>' +
         (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">מה משתנה?<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
           '<ul data-k="what">' + listHtml(ED.cover, coverItems(pages)) + '</ul></div>' : '') +
         '<div class="note">המידע הוכן על ידי אדם פרטי, ואינו פרסום רשמי של משרד התחבורה או של ' + (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות. לפני הנסיעה בדקו במוקד או באפליקציה.</div>' +
