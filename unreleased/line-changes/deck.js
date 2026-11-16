@@ -115,12 +115,13 @@ var LCDeck = (function () {
     return '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי · מפה: © תורמי OpenStreetMap</span><span class="pg num"></span></div>';
   }
 
-  function mapSlide(p, d) {
+  function mapSlide(p, d, part, nparts) {
     var r = d.removed.length, a = d.added.length;
     var when = start(d) !== start(p) ? '<p class="lead">החל מ' + E(LC.wd(start(d)) + ' ' + LC.dmy(start(d))) + '.</p>' : '';
-    return '<div class="s-map"><div class="smap"></div><div class="side">' +
+    return '<div class="s-map"><div class="smap"></div><div class="inset"></div><div class="side">' +
       '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(p.op) + E(altTxt(d)) + '</span></div>' +
       '<h2 class="hd">' + E(LC.dirOd(d.od)) + '</h2>' +
+      (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ': ' + E(part.name) + '</p>' : '') +
       '<div class="chips">' + LC.chips({ geo: d.geo, rem: r, add: a, mv: d.moved.length }) + '</div>' +
       '<p class="lead">' + dirLead(d) + '</p>' + when +
       '<p class="lead" style="color:var(--s-sub);font-size:17px">' + (r || a ? 'המספרים במפה הם כמו ברשימת התחנות בעמוד הבא.' : '') + '</p>' +
@@ -200,7 +201,11 @@ var LCDeck = (function () {
         var remS = d.old.stops.filter(function (s) { return d.removed.indexOf(s.code) >= 0; }).map(function (s) { return Object.assign({ _k: 'rem' }, s); });
         var addS = d.new.stops.filter(function (s) { return d.added.indexOf(s.code) >= 0; }).map(function (s) { return Object.assign({ _k: 'add' }, s); });
         var pre = (pages.length > 1 ? p.line + ' · ' : '');
-        slides.push({ id: p.id + '-m' + di, label: pre + 'מפה · ' + LC.dirOd(d.od), html: mapSlide(p, d), map: { d: d, remS: remS, addS: addS } });
+        var parts = splitParts(remS, addS);
+        parts.forEach(function (pt, k) {
+          slides.push({ id: p.id + '-m' + di + (k ? '-' + k : ''), label: pre + 'מפה · ' + LC.dirOd(d.od) + (parts.length > 1 ? ' (' + pt.name + ')' : ''),
+            html: mapSlide(p, d, pt, parts.length), map: { d: d, remS: remS, addS: addS, show: pt.show } });
+        });
         stopsSlides(p, d, remS, addS).forEach(function (s, k) {
           slides.push({ id: p.id + '-s' + di + '-' + k, label: pre + s.label, html: s.html });
         });
@@ -230,25 +235,96 @@ var LCDeck = (function () {
     return a.filter(function (p) { return distToLine(xy(p, lat0), bxy) > 40; });
   }
 
-  /* מצייר מפה סטטית; מחזיר Promise שמתממש כשהאריחים נטענו (או אחרי זמן קצוב) */
-  function drawMap(el, m) {
-    var d = m.d;
-    var map = L.map(el, { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false,
-      doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0.25, fadeAnimation: false, zoomAnimation: false });
+  /* ---------- חלוקת מפה צפופה לשתיים ----------
+     מחשבים בהיטל של המפה (Web Mercator) באיזה זום ייכנסו כל התחנות שמשתנות לשטח המפה (760×720),
+     וכמה זוגות סמנים יעלו זה על זה. כשיש הרבה — שתי מפות: חצי צפוני/דרומי (או מערבי/מזרחי). */
+  var MW = 760, MH = 720, PAD = 56, MK = 27, MAXZ = 17;
+  function px(ll, z) {
+    var s = 256 * Math.pow(2, z), sin = Math.sin(ll[0] * Math.PI / 180);
+    return [s * (ll[1] + 180) / 360, s * (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI))];
+  }
+  function fitZ(lls) {
+    var a = lls.map(function (l) { return px(l, 0); });
+    var xs = a.map(function (p) { return p[0]; }), ys = a.map(function (p) { return p[1]; });
+    var dx = Math.max.apply(null, xs) - Math.min.apply(null, xs), dy = Math.max.apply(null, ys) - Math.min.apply(null, ys);
+    var z = Math.min(Math.log2((MW - 2 * PAD) / Math.max(dx, 1e-9)), Math.log2((MH - 2 * PAD) / Math.max(dy, 1e-9)));
+    return Math.min(MAXZ, Math.floor(z * 4) / 4);
+  }
+  function overlaps(lls) {
+    if (lls.length < 2) return 0;
+    var z = fitZ(lls), a = lls.map(function (l) { return px(l, z); }), n = 0;
+    for (var i = 0; i < a.length; i++) for (var j = i + 1; j < a.length; j++)
+      if (Math.hypot(a[i][0] - a[j][0], a[i][1] - a[j][1]) < MK) n++;
+    return n;
+  }
+  function splitParts(remS, addS) {
+    var all = remS.concat(addS);
+    var one = [{ i: 0, name: '', show: null }];
+    if (all.length < 10 || overlaps(all.map(function (s) { return s.ll; })) <= 4) return one;
+    var a = all.map(function (s) { return px(s.ll, 0); });
+    var xs = a.map(function (p) { return p[0]; }), ys = a.map(function (p) { return p[1]; });
+    var vert = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) >= (Math.max.apply(null, xs) - Math.min.apply(null, xs));
+    var key = function (s) { return vert ? -s.ll[0] : s.ll[1]; };   // צפון/מערב קודם
+    var sorted = all.slice().sort(function (x, y) { return key(x) - key(y); });
+    var half = Math.ceil(sorted.length / 2), A = {}, B = {};
+    sorted.forEach(function (s, i) { (i < half ? A : B)[s._k + s.code] = 1; });
+    return [{ i: 0, name: vert ? 'החלק הצפוני' : 'החלק המערבי', show: A },
+            { i: 1, name: vert ? 'החלק הדרומי' : 'החלק המזרחי', show: B }];
+  }
+
+  /* מרחיק סמנים שעולים זה על זה; מחזיר מיקום חדש בפיקסלים לכל סמן */
+  var INSET = { x: 16 + 236 + 14, y: 16 + 178 + 14 };   // הפינה של מפת ההתמצאות + מרווח
+  function declutter(pts, w, h, inset) {
+    for (var it = 0; it < 120; it++) {
+      var moved = false;
+      for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
+        var A = pts[i], B = pts[j], dx = B.x - A.x, dy = B.y - A.y, dd = Math.hypot(dx, dy);
+        if (dd < MK) {
+          if (dd < 0.01) { dx = Math.cos(i + j); dy = Math.sin(i + j); dd = 1; }
+          var push = (MK - dd) / 2 + 0.3;
+          A.x -= dx / dd * push; A.y -= dy / dd * push; B.x += dx / dd * push; B.y += dy / dd * push; moved = true;
+        }
+      }
+      pts.forEach(function (p) {
+        p.x += (p.x0 - p.x) * 0.03; p.y += (p.y0 - p.y) * 0.03;
+        p.x = Math.max(16, Math.min(w - 16, p.x)); p.y = Math.max(16, Math.min(h - 16, p.y));
+        // לא מתחת למפת ההתמצאות (בפינה השמאלית העליונה): יוצאים בכיוון הקרוב
+        if (inset && p.x < INSET.x && p.y < INSET.y) {
+          if (INSET.x - p.x < INSET.y - p.y) p.x = INSET.x; else p.y = INSET.y;
+        }
+      });
+      if (!moved && it > 10) break;
+    }
+    return pts;
+  }
+
+  /* מצייר את המפה של שקף (ומפת ההתמצאות הקטנה); מחזיר Promise שמתממש כשהאריחים נטענו או אחרי זמן קצוב */
+  function drawMap(slideEl, m) {
+    var d = m.d, el = slideEl.querySelector('.smap'), inEl = slideEl.querySelector('.inset');
+    var opts = { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+      boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0.25, fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false };
+    var map = L.map(el, opts);
     map.attributionControl.setPrefix(false);
-    var tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true });
-    var all = L.latLngBounds([]), ch = L.latLngBounds([]);
+    var waits = [];
+    function tiles(mp) {
+      var t = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true });
+      waits.push(new Promise(function (res) { var done = false, fin = function () { if (!done) { done = true; res(); } }; t.on('load', fin); setTimeout(fin, 12000); }));
+      return t;
+    }
+    var shown = function (s) { return !m.show || m.show[s._k + s.code]; };
+    var remN = m.remS.map(function (s, j) { return { s: s, n: j + 1, k: 'rem' }; });
+    var addN = m.addS.map(function (s, j) { return { s: s, n: j + 1, k: 'add' }; });
+    var mvN = d.moved.map(function (s, j) { return { s: s, n: j + 1, k: 'mv' }; });
+    var marks = remN.concat(addN).filter(function (x) { return shown(x.s); }).concat(m.show ? [] : mvN);
+
+    var all = L.latLngBounds([]), focus = L.latLngBounds([]);
     d.old.shape.forEach(function (p) { all.extend(p); });
     d.new.shape.forEach(function (p) { all.extend(p); });
-    m.remS.concat(m.addS).concat(d.moved).forEach(function (s) { ch.extend(s.ll); });
-    deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { ch.extend(p); });
-    map.fitBounds(ch.isValid() ? ch : all, { padding: [46, 46], maxZoom: 16 });
-    var ready = new Promise(function (res) {
-      var done = false, fin = function () { if (!done) { done = true; res(); } };
-      tiles.on('load', fin);
-      setTimeout(fin, 12000);
-    });
-    tiles.addTo(map);
+    marks.forEach(function (x) { focus.extend(x.s.ll); });
+    if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
+    if (!focus.isValid()) focus = all;
+    map.fitBounds(focus, { paddingTopLeft: [PAD, inEl ? 110 : PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
+    tiles(map).addTo(map);
     // הישן המקווקו מתחת לחדש: איפה שהמסלולים זהים רואים רק כחול, והאדום מופיע רק איפה שהקו כבר לא עובר
     if (d.old.shape.length > 1) L.polyline(d.old.shape, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map);
     if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: '#1f5fd1', weight: 6, opacity: .92, interactive: false }).addTo(map);
@@ -257,16 +333,39 @@ var LCDeck = (function () {
     d.new.stops.forEach(function (s) {
       if (!changed[s.code]) L.circleMarker(s.ll, { radius: 4.5, color: '#55625c', weight: 2.5, fillColor: '#fff', fillOpacity: 1, interactive: false }).addTo(map);
     });
-    function numbered(arr, kind, z) {
-      arr.forEach(function (s, j) {
-        L.marker(s.ll, { icon: L.divIcon({ className: '', html: '<div class="lc-mk ' + kind + '">' + (j + 1) + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }),
-          zIndexOffset: z, interactive: false, keyboard: false }).addTo(map);
-      });
+    // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
+    var size = map.getSize();
+    var pts = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return { x: c.x, y: c.y, x0: c.x, y0: c.y, m: x }; });
+    declutter(pts, size.x, size.y, !!inEl);
+    var col = { rem: '#b8361f', add: '#127a4f', mv: '#55625c' };
+    pts.forEach(function (p) {
+      var at = map.containerPointToLatLng([p.x, p.y]);
+      if (Math.hypot(p.x - p.x0, p.y - p.y0) > 5) {
+        L.polyline([p.m.s.ll, at], { color: '#13201b', weight: 1.5, opacity: .8, interactive: false }).addTo(map);
+        L.circleMarker(p.m.s.ll, { radius: 3.5, color: '#fff', weight: 1.5, fillColor: col[p.m.k], fillOpacity: 1, interactive: false }).addTo(map);
+      }
+    });
+    pts.forEach(function (p) {
+      var at = map.containerPointToLatLng([p.x, p.y]);
+      L.marker(at, { icon: L.divIcon({ className: '', html: '<div class="lc-mk ' + p.m.k + '">' + p.m.n + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }),
+        zIndexOffset: p.m.k === 'add' ? 1000 : 900, interactive: false, keyboard: false }).addTo(map);
+    });
+
+    // מפת התמצאות: כל המסלול, ומלבן סביב האזור שבמפה הגדולה
+    if (inEl && all.isValid()) {
+      var view = map.getBounds();
+      if (!all.contains(view) || all.getNorthEast().distanceTo(all.getSouthWest()) > 1.6 * view.getNorthEast().distanceTo(view.getSouthWest())) {
+        var mini = L.map(inEl, Object.assign({}, opts, { attributionControl: false }));
+        mini.fitBounds(all.extend(view), { padding: [10, 10] });
+        tiles(mini).addTo(mini);
+        if (d.old.shape.length > 1) L.polyline(d.old.shape, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini);
+        if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: '#1f5fd1', weight: 2.5, interactive: false }).addTo(mini);
+        L.rectangle(view, { color: '#13201b', weight: 2, fillColor: '#f2c14e', fillOpacity: .35, interactive: false }).addTo(mini);
+        // כשהמסלול ארוך המלבן קטן מאוד — עיגול צהוב סביבו כדי שיראו איפה זה
+        L.circleMarker(view.getCenter(), { radius: 9, color: '#13201b', weight: 2.5, fillColor: '#f2c14e', fillOpacity: .9, interactive: false }).addTo(mini);
+      } else inEl.remove();
     }
-    numbered(m.remS, 'rem', 900);
-    numbered(m.addS, 'add', 1000);
-    numbered(d.moved, 'mv', 800);
-    return { map: map, ready: ready };
+    return { map: map, ready: Promise.all(waits) };
   }
 
   return { build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle };

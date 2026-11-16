@@ -116,7 +116,7 @@
     slides.forEach(function (s) {
       if (!s.map) return;
       var fr = deck.querySelector('.sframe[data-id="' + CSS.escape(s.id) + '"]');
-      maps.push(Object.assign({ id: s.id }, LCDeck.drawMap(fr.querySelector('.smap'), s.map)));
+      maps.push(Object.assign({ id: s.id }, LCDeck.drawMap(fr, s.map)));
     });
     number();
   }
