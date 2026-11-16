@@ -169,7 +169,7 @@ var LCDeck = (function () {
     var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
     return '<div class="legend">' +
         (rerouted(d) ? '<span><i class="sw old"></i>המסלול הישן (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' +
-          '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw"></i>מסלול הקו (לא משתנה)</span>') +
+          '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
         (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש</span>' : '') +
         (segments(d).some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
@@ -305,7 +305,7 @@ var LCDeck = (function () {
   function nearLine(stops, shape) {
     if (!stops.length || shape.length < 2) return false;
     var lat0 = shape[0][0], sx = shape.map(function (p) { return xy(p, lat0); });
-    return stops.every(function (s) { return distToLine(xy(s.ll, lat0), sx) <= 40; });
+    return stops.every(function (s) { return distToLine(xy(s.ll, lat0), sx) <= 60; });
   }
 
   function segments(d) {
@@ -475,6 +475,29 @@ var LCDeck = (function () {
       }
     }
     return sum;
+  }
+  /* קטעים רצופים במסלול a שרחוקים מ-b יותר מ-thr מטרים — אורך כל קטע */
+  function devRuns(a, b, thr) {
+    var runs = [];
+    if (a.length < 2 || b.length < 2) return runs;
+    var lat0 = a[0][0], bxy = b.map(function (p) { return xy(p, lat0); }), axy = a.map(function (p) { return xy(p, lat0); }), cur = 0;
+    for (var i = 0; i + 1 < axy.length; i++) {
+      var A = axy[i], B = axy[i + 1], L = Math.hypot(B[0] - A[0], B[1] - A[1]), n = Math.max(1, Math.ceil(L / 25));
+      for (var k = 0; k < n; k++) {
+        var P = [A[0] + (B[0] - A[0]) * (k + .5) / n, A[1] + (B[1] - A[1]) * (k + .5) / n];
+        if (distToLine(P, bxy) > thr) cur += L / n; else if (cur) { runs.push(cur); cur = 0; }
+      }
+    }
+    if (cur) runs.push(cur);
+    return runs;
+  }
+  /* האם הדרך עצמה השתנתה (כמו בבונה): אותן תחנות — רק עקיפה של יותר מ-400 מ' במרחק של יותר מ-150 מ';
+     תחנות השתנו — קטע שנשאר עד 60 מ' מהמסלול הקודם הוא אותה דרך (ונדרשים 200 מ' לפחות מחוץ לזה) */
+  function geoChanged(os, ns, sameSeq) {
+    if (os.length < 2 || ns.length < 2) return false;
+    if (sameSeq) return devRuns(ns, os, 150).concat(devRuns(os, ns, 150)).some(function (r) { return r > 400; });
+    var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+    return Math.max(sum(devRuns(ns, os, 60)), sum(devRuns(os, ns, 60))) >= 200;
   }
   function routeLen(d) {
     if (typeof d.dev === 'number') return d.geo ? d.dev : Math.min(d.dev, 199);
@@ -706,7 +729,8 @@ var LCDeck = (function () {
     tiles(map).addTo(map);
     // הישן המקווקו מתחת לחדש: איפה שהמסלולים זהים רואים רק כחול, והאדום מופיע רק איפה שהקו כבר לא עובר
     if (d.old.shape.length > 1) L.polyline(d.old.shape, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map);
-    if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: '#1f5fd1', weight: 6, opacity: .92, interactive: false }).addTo(map);
+    // המסלול החדש בירוק; כשהדרך לא משתנה — כחול-אפור ניטרלי (רק התחנה משתנה)
+    if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: rerouted(d) ? '#1f9152' : '#5f7d96', weight: 6, opacity: .92, interactive: false }).addTo(map);
     var changed = {};
     d.added.concat(d.removed).forEach(function (c) { changed[c] = 1; });
     d.new.stops.forEach(function (s) {
@@ -726,7 +750,7 @@ var LCDeck = (function () {
     var size = map.getSize();
     var pts = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return { x: c.x, y: c.y, x0: c.x, y0: c.y, m: x }; });
     declutter(pts, size.x, size.y, !!inEl);
-    var col = { rem: '#b8361f', add: '#127a4f', mv: '#55625c', seg: '#13201b' };
+    var col = { rem: '#b8361f', add: '#0a5530', mv: '#55625c', seg: '#13201b' };
     pts.forEach(function (p) {
       var at = map.containerPointToLatLng([p.x, p.y]);
       if (Math.hypot(p.x - p.x0, p.y - p.y0) > 5) {
@@ -749,7 +773,7 @@ var LCDeck = (function () {
         mini.fitBounds(all.extend(view), { padding: [10, 10] });
         tiles(mini).addTo(mini);
         if (d.old.shape.length > 1) L.polyline(d.old.shape, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini);
-        if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: '#1f5fd1', weight: 2.5, interactive: false }).addTo(mini);
+        if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: rerouted(d) ? '#1f9152' : '#5f7d96', weight: 2.5, interactive: false }).addTo(mini);
         L.rectangle(view, { color: '#13201b', weight: 2, fillColor: '#f2c14e', fillOpacity: .35, interactive: false }).addTo(mini);
         // כשהמסלול ארוך המלבן קטן מאוד — עיגול צהוב סביבו כדי שיראו איפה זה
         L.circleMarker(view.getCenter(), { radius: 9, color: '#13201b', weight: 2.5, fillColor: '#f2c14e', fillOpacity: .9, interactive: false }).addTo(mini);
@@ -801,5 +825,5 @@ var LCDeck = (function () {
       ';--s-band-fg:#ffffff;--s-band-sub:' + tint(c, 0.7);
   }
   function smallOf(p) { prep(p); return smallInfo(p); }
-  return { smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();

@@ -377,7 +377,9 @@
           ov = f.vers.slice(0, ix).filter(function (v) { return v.d < nv.d; }).pop();
         }
         if (!nv || !ov || nv === ov) return;
-        dirs.push(diffDir(f, rests[i], ov, nv));
+        var dd = diffDir(f, rests[i], ov, nv);
+        // שרטוט מחדש של אותה דרך (בלי תחנות שהשתנו) — לא שינוי
+        if (dd.geo || dd.added.length || dd.removed.length || dd.moved.length) dirs.push(dd);
       });
       if (!dirs.length) return null;
       var tot = { geo: dirs.some(function (x) { return x.geo; }), add: uniq(dirs, 'added'), rem: uniq(dirs, 'removed'), mv: 0 };
@@ -402,7 +404,8 @@
     var moved = [];
     nv.stops.forEach(function (s) { var o = oc[s.code]; if (o && dist(o.ll, s.ll) > 40) moved.push({ code: s.code, name: s.name, ll: s.ll, from: o.ll, m: Math.round(dist(o.ll, s.ll)), city: '' }); });
     var os = LC.decodePoly(ov.shp), ns = LC.decodePoly(nv.shp);
-    var geo = os.length > 1 && ns.length > 1 && (LCDeck.deviating(os, ns).length >= 3 || LCDeck.deviating(ns, os).length >= 3);
+    var sameSeq = !added.length && !removed.length && !moved.length && ov.stops.map(function (x) { return x.code; }).join() === nv.stops.map(function (x) { return x.code; }).join();
+    var geo = LCDeck.geoChanged(os, ns, sameSeq);
     var od = LC.odOf(f.dest);
     return { rd: f.rd, dir: rest.split('-')[0], alt: rest.split('-')[1] || '#', od: od, eff: nv.d, formal: null, prevDate: ov.d,
       old: { stops: ov.stops, shape: os }, new: { stops: nv.stops, shape: ns },
