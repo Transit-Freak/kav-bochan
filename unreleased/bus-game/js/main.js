@@ -29,6 +29,7 @@ import { Bank, TYPES, TYPE_ORDER, FARE, SELL_BACK, SUBSIDY_KM, typeOf, lineCycle
 import { NightFast, FAST } from './night.js';
 import { Scheduler, DRIVER_HIRE, DRIVER_WAGE, SIZE, MAX_DRIVE, MAX_SHIFT, BREAK } from './sched.js';
 import { mapTouch } from './touch.js';
+import { Music } from './music.js';
 import { Demand, DEFAULT_HOURS, hoursOf, inHours } from './demand.js';
 import { DemandLayer, FLOW_COL, FLOW_ICON, FLOW_TXT, flowClass, ZTYPES, symSvg, statusSvg } from './demandview.js';
 
@@ -77,6 +78,35 @@ controls.target.set(0, 0, 0);
 const G = window.__game = { scene, camera, controls, renderer, lighting: look, fps: 0, frames: 0 };
 const PRESET_WARM = 1500 * 0.5;           // שנ' — הרשת המוכנה רצה קצת לפני שמתחילים, כדי שהאוטובוסים כבר בדרך
 let dispUI = null, residents, drive, shift, fp, cloud, career, coverage, covLayer, night, city, graph, sim, bank, buses, people, stopsById, lineDefs, lines = [], cams, demand, dlayer;
+// מוזיקת רקע (music.js): כפתור השתקה בפס העליון; הקטע לפי המצב במשחק — musicState
+const music = G.music = new Music();
+{
+  const btn = $('#musicBtn');
+  const ON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  const OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+  if (music.disabled) btn.hidden = true;
+  else {
+    btn.onclick = () => music.toggle();
+    music.onChange(m => { btn.innerHTML = `<i aria-hidden="true">${m.muted ? OFF : ON}</i><span>${m.muted ? 'בלי מוזיקה' : 'מוזיקה'}</span>`; btn.setAttribute('aria-pressed', String(!m.muted)); btn.classList.toggle('off', m.muted); });
+  }
+}
+// בוקר — נהג ומשחק רגיל; שעת שיא — סדרן במשמרת או עם תקלות, ושעות העומס (07–09, 16–18:30); לילה — 21:00–05:00 ומסכי הפתיחה והסיכום
+const SCREENS_NIGHT = ['#roleAsk', '#modeAsk', '#daySum', '#stageModal', '#ifpSum'];
+const brokenBus = L => L.buses.some(b => b.broken || b.lateDrv);
+function musicMood() {
+  if (!G.ready || SCREENS_NIGHT.some(id => !$(id).hidden)) return 'night';
+  const h = sim.time / 3600 % 24;
+  if (h >= 21 || h < 5) return 'night';
+  if (bank.role === 'driver') return 'morning';
+  if (bank.role === 'dispatcher' && (sim.ops.inShift || sim.ops.jams.length || sim.lines.some(brokenBus))) return 'rush';
+  return (h >= 7 && h < 9) || (h >= 16 && h < 18.5) ? 'rush' : 'morning';
+}
+let musicT = 0;
+function musicState(dt) {
+  musicT += dt; if (musicT < 0.5 || music.disabled) return; musicT = 0;
+  // הרצה מהירה (×20 ומעלה, גם ההאצה של הלילה) — שכבת אנרגיה; עצירה או חלון פתוח — חצי עוצמה
+  music.update(musicMood(), !!G.ready && sim.speed > 5, !!G.ready && (!sim.speed || modalOpen()));
+}
 const lineGroups = new Map();
 const FAR_LABELS = 1500;   // מרחק מצלמה שמעליו מסתירים את מספרי התחנות של הקווים
 let labelsFar = false;
@@ -2036,6 +2066,7 @@ function tick(dt) {
     updateMoneyChip();
     statT += dt; if (statT > 0.4) { statT = 0; updateStats(); updateDriverHud(); renderInsp(); realHeadways(); refreshDemandView(false); missionT++; if (missionT % 5 === 0) updateMissions(); dispUI?.update(); flushToasts(); if (modalOpen()) $('#toast').hidden = true; renderDispatch(); }
   }
+  musicState(dt);
   touch.update(dt);
   stepCamAnim(dt);
   // שומרים את המצלמה מעל העיר (במבט נהג המצלמה צמודה לאוטובוס — בלי OrbitControls)

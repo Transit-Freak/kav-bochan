@@ -616,3 +616,7 @@ body:has(#dutyAsk:not([hidden])) #panel{visibility:hidden}
 .dstable th{text-align:start;font-weight:500;color:var(--muted);padding:5px 0;border-bottom:1px solid var(--line)}
 .dstable td{text-align:end;font-weight:700;padding:5px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 .dstable tr.bad td{color:#b91c1c}.dstable tr.warn td{color:#b45309}
+/* כפתור המוזיקה בפס העליון (כמו "התחל מחדש") */
+.bar-music i{display:grid;place-items:center;height:18px}
+.bar-music:hover{background:#f0f9ff;border-color:#7dd3fc;color:#0369a1}
+.bar-music.off{color:#94a3b8}
