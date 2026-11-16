@@ -28,12 +28,16 @@ OUT = f'{OUTDIR}/tunnels.json'
 SRC_OUT = f'{OUTDIR}/antenna-sources.json'
 MIRRORS = [
     'https://overpass-api.de/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ]
 BBOX = '29.4,34.2,33.4,35.95'
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36',
       'Accept': 'application/json,text/csv,*/*'}
+# Overpass דוחה (406) כותרת שמתחזה לדפדפן — שם מזדהים בשם הפרויקט, כמו ב-bus-game-osm שעובד.
+# data.gov.il נשאר עם UA של דפדפן (UA למעלה).
+OVERPASS_UA = {'User-Agent': 'kav-bochan/1.0 (+https://github.com/Transit-Freak/kav-bochan)'}
 
 
 def hav(lat1, lon1, lat2, lon2):
@@ -48,7 +52,7 @@ def overpass(q):
     data = urllib.parse.urlencode({'data': q}).encode()
     for ep in MIRRORS:
         try:
-            req = urllib.request.Request(ep, data=data, headers=UA)
+            req = urllib.request.Request(ep, data=data, headers=OVERPASS_UA)
             with urllib.request.urlopen(req, timeout=350) as r:
                 return json.load(r)
         except Exception as ex:  # noqa: BLE001
