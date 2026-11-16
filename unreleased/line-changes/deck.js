@@ -247,9 +247,10 @@ var LCDeck = (function () {
     if (b && PLACE.test(a) && !PLACE.test(b) && !/^(רציפים|רציף|הורדה|איסוף|יציאה|כניסה)/.test(b)) a = b;
     return a.replace(/^דרך\s+/, '').replace(/\s+\d+[א-ת]?$/, '').replace(/\s+(א|ב|ג)'?$/, '').trim();
   }
+  function skey(t) { return t.replace(/["'״׳`]/g, ''); }   // צה"ל = צהל
   function streets(list, minus) {
-    var out = [];
-    list.forEach(function (s) { var t = streetOf(s.name); if (t && out.indexOf(t) < 0 && (!minus || minus.indexOf(t) < 0)) out.push(t); });
+    var out = [], keys = (minus || []).map(skey);
+    list.forEach(function (s) { var t = streetOf(s.name), k = skey(t); if (t && keys.indexOf(k) < 0) { keys.push(k); out.push(t); } });
     return out;
   }
   function andList(arr, max) {
