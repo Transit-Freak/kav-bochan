@@ -58,7 +58,11 @@ class OccGrid {
     for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { q.set(0, 0, 0).addScaledVector(a, i / n).addScaledVector(b, j / n).addScaledVector(c, 1 - (i + j) / n); const k = this.idx(q.x, q.y, q.z); if (k >= 0 && A[k] !== 1) A[k] = v; } }
   bus(o) {
     o.updateMatrixWorld(true); const inv = o.matrixWorld.clone().invert(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
-    o.traverse(m => { if (!m.isMesh || m.isInstancedMesh || m.isSkinnedMesh || /^Leaf_|Windshield/i.test(m.name)) return;
+    // רק מה שמצויר: בלי רשתות מוסתרות — הטבעות המקוריות של הדגם (SM_StrapRing, straps.js מחליף אותן ברצועות) והעותק הפשוט
+    // של האוטובוס לרחוק (Lite). קודם הן נכנסו לתפוסה: טבעת בלתי נראית ליד העמוד שליד הדלת "חסמה" את המבט אל הפנים של
+    // העומד שם, והפקח ויתר על הבדיקה שלו (שלמה 16.11)
+    const shown = m => { for (let x = m; x && x !== o.parent; x = x.parent) if (!x.visible) return false; return true; };
+    o.traverse(m => { if (!m.isMesh || m.isInstancedMesh || m.isSkinnedMesh || /^Leaf_|Windshield/i.test(m.name) || m.name === 'Lite' || !shown(m)) return;
       const g = m.geometry, P = g.attributes.position, I = g.index, M = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), n = I ? I.count : P.count;
       for (let t = 0; t < n; t += 3) { a.fromBufferAttribute(P, I ? I.getX(t) : t).applyMatrix4(M); b.fromBufferAttribute(P, I ? I.getX(t + 1) : t + 1).applyMatrix4(M); c.fromBufferAttribute(P, I ? I.getX(t + 2) : t + 2).applyMatrix4(M);
         // הרצפה והתקרה לא חוסמות (המצלמה והיד ביניהן)
@@ -596,6 +600,9 @@ function buildReader() {
     const bl = !!(h.geo.attributes.blend && h.color);
     const mat = selfLit(h.map ? 0xffffff : 0xc99a78, bl ? ['attribute float blend;\nvarying float vBlend;\n', '  vBlend = blend;'] : '', bl ? ['uniform vec3 uSkin;\nvarying float vBlend;\n', 'totalEmissiveRadiance = mix(uSkin, totalEmissiveRadiance, vBlend);\n'] : '', bl ? { uSkin: { value: skin.emissive } } : null);
     mat.emissiveMap = h.map || null;
+    // משני הצדדים: בקפלים של האצבעות הכפופות (ובקצה הגזור של כף היד) יש משולשים שהפנים שלהם הפוכים אל המצלמה — בצד אחד
+    // הם נעלמו, ונראו חורים ו"קרעים" בשולי כף היד (שלמה 16.11). החומר בהיר מעצמו (selfLit), כך שהצד ההפוך נראה אותו דבר
+    mat.side = THREE.DoubleSide;
     const hm = new THREE.Mesh(h.geo, mat); hm.matrixAutoUpdate = false; hm.matrix.makeBasis(aDir, fDir, pDir).setPosition(hO); hm.userData.hand = true; hm.frustumCulled = false; hm.renderOrder = 10; dev.add(hm); handM = hm;
     // שום קודקוד של היד לא בתוך המכשיר: מה שנכנס אליו (או קרוב מ-3 מ"מ) נדחף החוצה, בכיוון הדופן הקרובה
     { const P = h.geo.attributes.position, inv = hm.matrix.clone().invert(), v = new THREE.Vector3(), g = new THREE.Vector3(), e = 0.0005;
