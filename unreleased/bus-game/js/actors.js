@@ -865,6 +865,7 @@ export function reachPen(root, hand, verts = skinVerts(root)) {
 // בעמידה (התנוחה שהדגם תוכנן לה) זה לפעמים בכוונה (חולצה בתוך המכנסיים), לכן נחשבים רק קודקודים שבולטים בישיבה ולא
 // בעמידה (base). fix — מכניסים אותם אל מתחת לחולצה (3 מ"מ פנימה מהמקום שבו הקרן פוגשת אותה). מחזיר את מספר הקודקודים
 const NO_TUCK = typeof location !== 'undefined' && new URLSearchParams(location.search).has('notuck');   // ?notuck — בלי התיקון (להשוואה)
+let CLOTH_LOG = null;   // מערך בזמן people.auditClothPoses
 const LEG_B = /^(LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot)$/;
 function clothParts(o) {
   const g = o.geometry; if (g.userData.parts) return g.userData.parts;
@@ -888,10 +889,11 @@ export function clothPoke(verts, base = null, fix = false, cand = null) {   // c
   for (const { o, P, N } of cloth) { if (!N) continue; const parts = clothParts(o);
     for (let i = 0; i < parts.length; i++) { if (parts[i] !== 1 || (cand && !cand.has(o.name + ':' + i))) continue;
       const q = v3(P, i), nn = v3(N, i).normalize(); ray.origin.copy(q).addScaledVector(nn, 0.001); ray.direction.copy(nn).negate();
-      const gx = Math.floor(q.x / C), gy = Math.floor(q.y / C), gz = Math.floor(q.z / C); let best = Infinity;
-      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) { const ids = grid.get(`${gx + dx},${gy + dy},${gz + dz}`); if (!ids) continue;
+      const gx = Math.floor(q.x / C), gy = Math.floor(q.y / C), gz = Math.floor(q.z / C); let best = Infinity, close = false;
+      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) { const ids = grid.get(`${gx + dx},${gy + dy},${gz + dz}`); if (!ids) continue; close = true;
         for (const id of ids) { const [a, b, c] = tris[id]; if (ray.intersectTriangle(a, b, c, false, hit)) { const d = hit.distanceTo(ray.origin); if (d < best) best = d; } } }
-      if (best < 0.1) near.add(o.name + ':' + i);
+      // near: כל קודקוד שיש חולצה בסביבתו (כ-7 ס"מ), גם אם עכשיו אין חולצה מאחוריו — בהגשה הגו מסתובב והחולצה זזה אליו
+      if (close) near.add(o.name + ':' + i);
       if (best > 0.04) continue;
       const key = o.name + ':' + i; set.add(key); if (base && base.has(key)) continue; n++;
       if (fix) { const k = best + 0.003; P[i * 3] -= nn.x * k; P[i * 3 + 1] -= nn.y * k; P[i * 3 + 2] -= nn.z * k; } } }
@@ -958,6 +960,8 @@ function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים 
   // (בפעם הראשונה בכל תנוחת ישיבה — כל הקודקודים; אחר כך, בתנוחות הראש והיד של אותה ישיבה — רק אלה שקרובים לחולצה)
   if (posed?.tuck && !NO_TUCK) try { const r = clothPoke(verts, posed.tuck, true, posed.tuckNear); posed.tuckNear = posed.tuckNear || r.near; posed.tuckN = posed.tuckN ?? r.n;
     for (let k = 0; k < 2 && clothPoke(verts, posed.tuck, true, posed.tuckNear).n; k++); } catch (e) { console.warn('tuck failed', e); }
+  // בדיקה (people.auditClothPoses): אחרי התיקון — כל הקודקודים, לא רק הקרובים (הגו מסתובב בהגשה, ואולי קודקודים אחרים בולטים)
+  if (posed?.tuck && CLOTH_LOG) CLOTH_LOG.push({ key: posed.key, before: clothPoke(skinVerts(root), posed.tuck).n, after: clothPoke(verts, posed.tuck).n });
   let minY = Infinity;
   if (!posed) for (const { P } of verts) for (let i = 1; i < P.length; i += 3) minY = Math.min(minY, P[i]);
   const byMat = new Map();
@@ -1890,6 +1894,22 @@ reachPreview(pid, hasCard = true) {
       const base = S.tuck || pokeBase(V.gltf), t0 = performance.now(), verts = skinVerts(S.root), before = clothPoke(verts, base, true).n, ms = Math.round(performance.now() - t0);
       for (let k = 0; k < 2 && clothPoke(verts, base, true).n; k++);
       r[nm] = { before, after: clothPoke(verts, base).n, ms }; } return r; });
+  }
+  // בגדים בכל תנוחות הישיבה שנאפות (ישיבה בספסל ובאוטובוס, וכל שלבי ההגשה של יושב — עם כרטיס ובלי, מבט אל הפקח ואל הכרטיס):
+  // כמה קודקודים של המכנסיים בולטים מעל החולצה לפני התיקון ואחריו. אופה מחדש (התוצאות נזרקות) — כבד, רק לבדיקה
+  auditClothPoses() {
+    CLOTH_LOG = []; const out = [];
+    try {
+      for (const [vi, V] of this.variants.entries()) {
+        const at = CLOTH_LOG.length, keep = V.reach; V.reach = {};
+        for (const S of [V.sit, V.bus?.sit]) if (S) bakeVariant(V.gltf, S, V.cache);
+        if (V.bus?.sit) for (const sx of [1, -1]) for (const win of [false, true]) for (const front of [false, true]) for (const empty of [false, true]) for (const look of empty ? [0, 0.25, 0.75] : [0, 1]) for (const fr of REACH_FR)
+          this.reachPose(vi, { kind: 'seat', x: sx * (win ? 0.9 : 0.45), front }, fr, empty, look);
+        V.reach = keep;
+        const L = CLOTH_LOG.slice(at); out.push({ vi, poses: L.length, before: L.reduce((a, r) => a + r.before, 0), after: L.reduce((a, r) => a + r.after, 0), worst: Math.max(0, ...L.map(r => r.after)) });
+      }
+    } finally { CLOTH_LOG = null; }
+    return out;
   }
   // ההגשה של כרטיס לפקח: בכל שלב (REACH_FR — בעלייה ובירידה אותן תנוחות), לכל דגם ולכל מקום (מעבר/חלון, שורה ראשונה, עם כרטיס ובלי,
   // ועומדים בכל אחיזה) — היד המושיטה (אמה, כף יד, אצבעות) לא בתוך הגו או הרגליים ולא בתוך היד השנייה של אותה דמות (reachPen).
