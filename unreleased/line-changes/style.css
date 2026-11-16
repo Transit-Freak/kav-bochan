@@ -52,7 +52,7 @@ button,input,textarea{font-family:inherit}
 .layout{display:grid;grid-template-columns:1fr;gap:18px;padding-block:18px 28px}
 @media (min-width:980px){.layout{grid-template-columns:380px minmax(0,1fr);align-items:start}}
 .desk{display:flex;flex-direction:column;gap:14px;min-width:0}
-@media (min-width:980px){.desk{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;padding-left:4px}}
+@media (min-width:980px){.desk{position:sticky;top:64px;max-height:calc(100vh - 76px);overflow:auto;padding-left:4px}}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .step{display:flex;align-items:center;gap:8px;font-family:var(--f-head);font-weight:800;font-size:17px}
 .step i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--fg);color:var(--bg);display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
@@ -98,10 +98,94 @@ button,input,textarea{font-family:inherit}
 .stagehead span{font-size:14px;color:var(--sub)}
 .empty-state{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:28px 16px;text-align:center;color:var(--sub)}
 
+/* ---- אשף: שלבים ---- */
+.steps{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:700}
+.steps .in{display:flex;align-items:center;gap:10px;padding-block:8px}
+.steps ol{list-style:none;margin:0;padding:0;display:flex;gap:4px;flex:1;min-width:0}
+.steps li{flex:1;min-width:0}
+.steps ol button{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:none;border:none;border-bottom:3px dashed var(--line);
+  padding:6px 4px;font-weight:800;font-size:14.5px;color:var(--sub);cursor:pointer;white-space:nowrap}
+.steps ol button i{font-style:normal;width:22px;height:22px;border-radius:50%;border:2px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.steps ol button[aria-current="step"]{color:var(--after);border-bottom:3px solid var(--after)}
+.steps ol button[aria-current="step"] i{background:var(--after);border-color:var(--after);color:var(--on-after)}
+.steps ol button.done{color:var(--fg);border-bottom-style:solid;border-bottom-color:var(--fg)}
+.steps ol button:disabled{opacity:.45;cursor:default}
+.steps .back{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:6px 12px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;flex:none}
+@media (max-width:520px){.steps ol button span{font-size:13px}.steps ol button{gap:5px}}
+@media (max-width:400px){.steps ol button:not([aria-current="step"]) span{display:none}}
+
+.pane{display:none}
+body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"],body[data-step="3"] .pane[data-pane="3"]{display:flex}
+.ph{font-size:22px;font-weight:900}
+/* בטלפון: שלב אחד בכל פעם — התצוגה המקדימה רק בשלב 3 */
+@media (max-width:979px){
+  body:not([data-step="3"]) .stage,body:not([data-step="3"]) .dock{display:none}
+}
+@media (min-width:980px){.layout{grid-template-columns:420px minmax(0,1fr)}}
+
+/* שלב 1 */
+.big{font-size:19px!important;font-weight:700!important;padding:12px 14px!important;border-radius:12px!important;border:2px solid var(--fg)!important;background:var(--card)!important}
+.reshead{font-size:13.5px;font-weight:700;color:var(--sub)}
+.results{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+@media (min-width:980px){.results{max-height:calc(100vh - 330px);overflow:auto}}
+.res{display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;border-top:1px solid var(--line);background:var(--card);color:var(--fg);text-align:right;cursor:pointer;min-width:0;width:100%}
+.res:first-child{border-top:none}
+.res:hover{background:var(--bg)}
+.badge{font-family:var(--f-head);font-weight:900;background:var(--after);color:var(--on-after);border-radius:9px;padding:4px 8px;font-size:16px;min-width:46px;text-align:center;flex:none;font-variant-numeric:tabular-nums;line-height:1.2}
+.res .t,.linehead .t{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.3}
+.res .od{font-weight:800;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .meta{font-size:12.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{flex:none;font-size:12px;font-weight:800;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.tag.soon{background:var(--after-bg);color:var(--after)}
+.tag.was{background:var(--bg);color:var(--sub);border:1px solid var(--line)}
+.none{padding:16px 14px;color:var(--sub);font-size:14.5px;background:var(--card)}
+
+/* שלב 2 */
+.linehead{display:flex;align-items:center;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.linehead .badge{font-size:24px;padding:6px 12px}
+.linehead b{font-size:17px}
+.linehead .t span{font-size:13.5px;color:var(--sub)}
+.cards{display:flex;flex-direction:column;gap:8px}
+.ccard{display:flex;align-items:center;gap:12px;text-align:right;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;width:100%;position:relative;overflow:hidden}
+.ccard::before{content:"";position:absolute;inset:auto 0 0 0;height:3px;background:linear-gradient(to left,var(--before) 0 50%,var(--after) 50%)}
+.ccard.past::before{background:repeating-linear-gradient(to left,var(--sub) 0 8px,transparent 8px 13px)}
+.ccard:hover{border-color:var(--after)}
+.ccard.rec{border:2px solid var(--after)}
+.ccard.busy{opacity:.6;cursor:progress}
+.ccard .when{display:flex;flex-direction:column;flex:none;min-width:118px;line-height:1.3}
+.ccard .when b{font-family:var(--f-head);font-size:16px}
+.ccard .when .l{font-size:12.5px;color:var(--sub);font-weight:700}
+.ccard .what{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.ccard .meta{font-size:12.5px;color:var(--sub)}
+.ccard .pick-arrow{font-size:20px;color:var(--after);flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12.5px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.chip.geo{background:var(--after-bg);color:var(--after)}
+.chip.rem{background:var(--before-bg);color:var(--before)}
+.chip.add{background:var(--add-bg);color:var(--add)}
+.chip.mv{background:var(--bg);color:var(--sub)}
+.cmp{display:flex;flex-direction:column;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:12px}
+.cmp .row{display:flex;gap:10px;flex-wrap:wrap}
+.cmp label{display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:800;color:var(--sub)}
+.cmp select{font:600 15px var(--f-body);padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+
+/* שלב 3 */
+.picked{display:flex;flex-wrap:wrap;gap:6px}
+.pk{display:inline-flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:13.5px;font-weight:700}
+.pk .badge{font-size:13px;min-width:0;padding:2px 7px}
+.pk button{border:none;background:none;color:var(--sub);font-size:17px;cursor:pointer;padding:0 4px;line-height:1}
+.ghost{align-self:flex-start;background:none;border:1.5px dashed var(--after);color:var(--after);font-weight:800;font-size:14.5px;border-radius:10px;padding:7px 12px;cursor:pointer}
+details.field summary{cursor:pointer;font-size:13.5px;font-weight:800;color:var(--sub);padding:4px 0}
+details.field summary span{font-weight:600}
+.empty-state .seam{max-width:260px;margin:0 auto 12px}
+.empty-state .seam i{background:var(--card)}
+.empty-state p{margin:0 auto;max-width:46ch}
+
 /* פס הורדה צף בטלפון */
 .dock{position:sticky;bottom:0;z-index:600;background:var(--bg);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 @media (min-width:980px){.dock{display:none}}
 @media (max-width:979px){.desk .go{display:none}}
+.go{display:flex;flex-direction:column;gap:6px}
 
 /* ---- פוטר ---- */
 .foot{background:var(--ink);color:var(--ink-sub);font-size:14px}
@@ -109,6 +193,7 @@ button,input,textarea{font-family:inherit}
 .foot b{color:var(--ink-fg)}
 
 @media print{
-  .top,.desk,.dock,.foot,.stagehead{display:none!important}
+  .top,.steps,.desk,.dock,.foot,.stagehead{display:none!important}
+  body .stage{display:block!important}
   .layout,.in{display:block;padding:0!important;max-width:none}
 }

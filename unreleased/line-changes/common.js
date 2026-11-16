@@ -48,6 +48,37 @@ var LC = (function () {
       return r.json();
     });
   }
-  return { dm: dm, dmy: dmy, wd: wd, rel: rel, esc: esc, chips: chips, od: od, dirOd: dirOd,
+  /* polyline מקודד (דיוק 1e-5) → [[lat, lon], ...] — אותו פורמט כמו ב"הקו בזמן" */
+  function decodePoly(s) {
+    var pts = [], i = 0, la = 0, lo = 0;
+    if (!s || typeof s !== 'string') return pts;
+    while (i < s.length) {
+      for (var ref = 0; ref < 2; ref++) {
+        var sh = 0, res = 0, b;
+        do { b = s.charCodeAt(i++) - 63; res |= (b & 0x1f) << sh; sh += 5; } while (b >= 0x20 && i < s.length);
+        var d = (res & 1) ? ~(res >> 1) : (res >> 1);
+        if (ref === 0) la += d; else lo += d;
+      }
+      pts.push([la / 1e5, lo / 1e5]);
+    }
+    return pts;
+  }
+  /* "תחנה-עיר<->תחנה-עיר-1#" → [עיר מוצא, עיר יעד] (כמו od_of בבונה) */
+  function odOf(long) {
+    var out = (long || '').split('<->').map(function (side) {
+      side = side.replace(/(-\d+[א-ת]?#?\s*)+$/, '').trim();
+      if ((side.match(/-/g) || []).length > 1) side = side.replace(/-[0-9#א-ת]{1,3}$/, '');
+      var k = side.lastIndexOf('-');
+      return k >= 0 ? side.slice(k + 1).trim() : side;
+    });
+    return [out[0] || '', out[1] || ''];
+  }
+  /* השוואת טקסט בחיפוש: בלי גרשיים, י כפולה = י אחת */
+  function norm(s) { return String(s || '').replace(/["'״׳`]/g, '').replace(/יי/g, 'י').replace(/-/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  return { decodePoly: decodePoly, odOf: odOf, norm: norm, todayIso: todayIso, daysBetween: daysBetween, dm: dm, dmy: dmy, wd: wd, rel: rel, esc: esc, chips: chips, od: od, dirOd: dirOd,
            addDays: addDays, getJSON: getJSON, stopsWord: stopsWord };
 })();

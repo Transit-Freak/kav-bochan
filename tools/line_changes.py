@@ -20,15 +20,16 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
 את כל ה-zip ובלי לכתוב לדיסק). הפלט תחת OUTDIR (ברירת מחדל unreleased/line-changes):
   data/index.json        רשימת השינויים (לדף הראשי)
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
-  data/state.json        השינויים לפי כיוון — כדי לשמור שינויים שכבר נכנסו לתוקף
+  data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשנה האחרונה)
   l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
-מצב (16.11.2026): שלב ראשון, עדיין בלי ריצה לילית (אין workflow). הנתונים שב-data/ הם דוגמה:
-4 קווים (988, 522, 590, 356) מריצה ידנית על צפת וקרית מלאכי. ריצה מלאה לשתי הערים מצאה 39 כיוונים.
-ריצה ידנית: python3 tools/line_changes.py
+רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
+235 כיוונים משתנים ב-184 קווים, 27 שינויים קטנים סוננו. עם LH_CHANGES (line-history/data/changes) נוספים
+לאינדקס השינויים מהשנה האחרונה של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
+פלט נוסף: data/lines.json — כל הקווים (לחיפוש בדף).
 
 משתנים: TODAY (YYYY-MM-DD, ברירת מחדל היום בשעון ישראל), REF_DAYS (7), HORIZON (14),
-CITIES ("צפת,קרית מלאכי"; ריק = כל הארץ), KEEP_DAYS (14), OUTDIR.
+CITIES (רשימת ערים מופרדת בפסיקים לבדיקה מקומית; ריק = כל הארץ, ברירת המחדל), KEEP_DAYS (14), OUTDIR.
 """
 import datetime
 import json
@@ -53,7 +54,7 @@ TODAY = datetime.date.fromisoformat(os.environ['TODAY']) if os.environ.get('TODA
 REF_DAYS = int(os.environ.get('REF_DAYS', '7'))
 HORIZON = int(os.environ.get('HORIZON', '14'))
 KEEP_DAYS = int(os.environ.get('KEEP_DAYS', '14'))
-CITIES_RAW = os.environ.get('CITIES', 'צפת,קרית מלאכי')
+CITIES_RAW = os.environ.get('CITIES', '')
 OUTDIR = os.environ.get('OUTDIR', 'unreleased/line-changes')
 SITE = 'https://kavbochan.app/unreleased/line-changes'
 
@@ -376,6 +377,26 @@ def main_variant(vs):
     return max(vs.items(), key=lambda kv: (kv[1]['td'], -min(kv[1]['dates']).toordinal()))[0] if vs else None
 
 
+def stop_arr(st):
+    """תחנה בפלט: [מק"ט, שם, lat, lon, עיר]"""
+    return [st['code'], st['name'], round(st['ll'][0], 5), round(st['ll'][1], 5), st['city']]
+
+
+def encode_shape(pts):
+    """polyline מקודד (דיוק 1e-5) — אותו פורמט כמו ב"הקו בזמן" (linehistory.py)"""
+    out, pla, plo = [], 0, 0
+    for la, lo in pts:
+        ila, ilo = int(round(la * 1e5)), int(round(lo * 1e5))
+        for v in (ila - pla, ilo - plo):
+            v = ~(v << 1) if v < 0 else v << 1
+            while v >= 0x20:
+                out.append(chr((0x20 | (v & 0x1f)) + 63))
+                v >>= 5
+            out.append(chr(v + 63))
+        pla, plo = ila, ilo
+    return ''.join(out)
+
+
 def stop_rec(st):
     return {'code': st['code'], 'name': st['name'], 'll': [round(st['ll'][0], 5), round(st['ll'][1], 5)],
             'city': st['city']}
@@ -532,16 +553,51 @@ def run():
             long=r_new['long'], od=od_of(r_new['long']),
             eff=eff.isoformat(), formal=formal.isoformat() if formal else None,
             found=t0.isoformat(),
-            old=dict(stops=[stop_rec(s) for s in o_codes], shape=rnd(simplify(o_shape)),
-                     long=r_old['long']),
-            new=dict(stops=[stop_rec(s) for s in n_codes], shape=rnd(simplify(n_shape))),
+            old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(o_shape))),
+            new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(n_shape))),
             added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
             moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'],
-            trips_old=ov[om]['td'], trips_new=new_v[k][nm]['td'],
         ))
     stats['changed'] = len(found)
     print('סטטיסטיקה:', dict(stats), '· סוננו:', dict(filtered), flush=True)
-    return found, dict(stats), dict(filtered), new.day, old.day
+    return found, dict(stats), dict(filtered), new.day, old.day, lines_index(new, new_v)
+
+
+def lines_index(feed, variants):
+    """כל הקווים שפועלים בימים הקרובים — לחיפוש בדף (מספר, חברה, מוצא, יעד, ערים).
+    פורמט דחוס: ops/cities הן רשימות, ובכל קו אינדקסים אליהן.
+    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשנה האחרונה — add_past)]"""
+    by = {}
+    for rd, vs in variants.items():
+        rid = next(iter(vs.values()))['rid']
+        r = feed.routes[rid]
+        if not r['line'] or r['ty'] == '2':      # רכבת ישראל — לא כאן
+            continue
+        makat, _, rest = rd.partition('-')
+        e = by.setdefault((r['ag'], makat), {'line': r['line'], 'ag': r['ag'], 'od': None, 'cities': {}, 'rds': set(), 'ty': r['ty']})
+        e['rds'].add(rest)
+        if e['od'] is None or rest.startswith('1-'):
+            e['od'] = od_of(r['long'])
+        for (pid, _shp), x in vs.items():
+            for sid in feed.pat_list[pid]:
+                st = feed.stops.get(sid)
+                if st and st['city']:
+                    e['cities'][st['city']] = e['cities'].get(st['city'], 0) + x['td']
+    ops, cities = [], []
+    oi, ci = {}, {}
+    out = []
+    for (ag, makat), e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1])):
+        op = feed.agency.get(ag, '')
+        if op not in oi:
+            oi[op] = len(ops); ops.append(op)
+        cl = []
+        for c, _ in sorted(e['cities'].items(), key=lambda kv: -kv[1]):
+            if c not in ci:
+                ci[c] = len(cities); cities.append(c)
+            cl.append(ci[c])
+        out.append([makat, e['line'], oi[op], e['od'][0], e['od'][1], cl, sorted(e['rds']), e['ty']])
+    print(f'{len(out)} קווים באינדקס', flush=True)
+    return {'ops': ops, 'cities': cities, 'lines': out}
 
 
 # ---------------------------------------------------------------- פלט
@@ -579,24 +635,31 @@ def summary_line(t):
     return ' · '.join(parts)
 
 
-def write_out(found, stats, filtered, new_day, old_day):
+def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=False):
     data = os.path.join(OUTDIR, 'data')
     os.makedirs(os.path.join(data, 'l'), exist_ok=True)
-    state_p = os.path.join(data, 'state.json')
-    try:
-        prev = json.load(open(state_p, encoding='utf-8')).get('dirs', [])
-    except Exception:  # noqa: BLE001
-        prev = []
+    # השינויים מהריצות הקודמות — מקובצי הדפים עצמם (אין קובץ מצב נפרד)
+    prev = []
+    for fn in sorted(os.listdir(os.path.join(data, 'l'))):
+        if fn.endswith('.json'):
+            try:
+                prev += json.load(open(os.path.join(data, 'l', fn), encoding='utf-8')).get('dirs', [])
+            except Exception:  # noqa: BLE001
+                pass
+    if os.path.exists(os.path.join(data, 'state.json')):
+        os.remove(os.path.join(data, 'state.json'))
     t0 = TODAY.isoformat()
     keep_from = (TODAY - datetime.timedelta(days=KEEP_DAYS)).isoformat()
     seen = {f['rd'] for f in found}
     # שינוי שכבר נכנס לתוקף לא יימצא שוב (השבוע שעבר כבר כולל אותו) — נשמר מהריצות הקודמות
     for p in prev:
-        if p['rd'] not in seen and keep_from <= p['eff'] < t0:
+        if p['rd'] not in seen and (keep_all or keep_from <= p['eff'] < t0):
             found.append(p)
+            seen.add(p['rd'])
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
-    json.dump({'gen': t0, 'dirs': found}, open(state_p, 'w', encoding='utf-8'),
-              ensure_ascii=False, separators=(',', ':'))
+    if lines is not None:
+        json.dump(dict(gen=t0, feed=new_day.isoformat(), **lines), open(os.path.join(data, 'lines.json'), 'w', encoding='utf-8'),
+                  ensure_ascii=False, separators=(',', ':'))
 
     # דף לכל מק"ט (שני הכיוונים וכל החלופות)
     pages = defaultdict(list)
@@ -614,18 +677,19 @@ def write_out(found, stats, filtered, new_day, old_day):
         pid = f'{makat}-{(formal or eff).replace("-", "")}'
         want.add(pid)
         f0 = dirs[0]
-        cities = sorted({s['city'] for f in dirs for s in f['new']['stops'] + f['old']['stops'] if s['city']})
+        cities = sorted({s[4] for f in dirs for s in f['new']['stops'] + f['old']['stops'] if s[4]})
         ch_codes = {c for f in dirs for c in f['added'] + f['removed']} | {m['code'] for f in dirs for m in f['moved']}
-        ch_cities = sorted({s['city'] for f in dirs for s in f['new']['stops'] + f['old']['stops']
-                            if s['code'] in ch_codes and s['city']})
+        ch_cities = sorted({s[4] for f in dirs for s in f['new']['stops'] + f['old']['stops']
+                            if s[0] in ch_codes and s[4]})
         tot = totals(dirs)
         summ = summary_line(tot)
+        # בדף הראשי: רק הערים שבהן משהו משתנה (רשימת כל הערים של הקו נמצאת ב-lines.json)
         rec = dict(id=pid, line=f0['line'], op=f0['op'], makat=makat, od=f0['od'], eff=eff,
-                   formal=formal, tot=tot, summary=summ, cities=cities, chcities=ch_cities,
+                   formal=formal, tot=tot, summary=summ, chcities=ch_cities,
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
         index.append(rec)
-        json.dump(dict(rec, gen=t0, feed=new_day.isoformat(), dirs=dirs),
+        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=dirs),
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         title = f'שינוי בקו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]} מ-{fmt_d(rec["formal"] or eff)}'
@@ -647,11 +711,45 @@ def write_out(found, stats, filtered, new_day, old_day):
     print(f'{len(index)} דפים נכתבו ל-{OUTDIR}', flush=True)
 
 
+PAST_KINDS = {'route', 'stops', 'stops-add', 'stops-del', 'extend', 'shorten', 'terminal'}
+
+
+def add_past(lines_path, ch_dir, days=365):
+    """שינויי מסלול ותחנות מהשנה האחרונה, מ"הקו בזמן" (line-history/data/changes/YYYY-MM.json):
+    לכל קו באינדקס — [[תאריך, כיוון-חלופה, סוג], ...]. הגאומטריה והתחנות עצמן נטענות בדף
+    מקובצי הקווים של "הקו בזמן" (line-history/data/lines/<rd>.json), רק לקו שנבחר."""
+    li = json.load(open(lines_path, encoding='utf-8'))
+    since = (TODAY - datetime.timedelta(days=days)).isoformat()
+    past = defaultdict(list)
+    n = 0
+    for fn in sorted(os.listdir(ch_dir)):
+        if not re.match(r'^\d{4}-\d{2}\.json$', fn) or fn[:7] < since[:7]:
+            continue
+        for c in json.load(open(os.path.join(ch_dir, fn), encoding='utf-8')).get('changes', []):
+            if c.get('k') in PAST_KINDS and since <= c.get('d', '') <= TODAY.isoformat():
+                makat, _, rest = c['rd'].partition('-')
+                past[makat].append([c['d'], rest, c['k']])
+                n += 1
+    for ln in li['lines']:
+        ev = sorted({tuple(x) for x in past.get(ln[0], []) if x[1] in ln[6]})
+        ln[8:] = [[list(x) for x in ev]] if ev else []
+    li['past_since'] = since
+    json.dump(li, open(lines_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    print(f'שינויים מהשנה האחרונה: {n} אירועים · {sum(1 for ln in li["lines"] if len(ln) > 8)} קווים', flush=True)
+
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == 'pages':   # רק לבנות מחדש את הדפים מ-state.json
-        st = json.load(open(os.path.join(OUTDIR, 'data', 'state.json'), encoding='utf-8'))
+    LH = os.environ.get('LH_CHANGES')   # line-history/data/changes — לשינויים מהשנה האחרונה
+    if len(sys.argv) > 1 and sys.argv[1] == 'past':
+        add_past(os.path.join(OUTDIR, 'data', 'lines.json'), LH or 'line-history/data/changes')
+        sys.exit()
+    if len(sys.argv) > 1 and sys.argv[1] == 'pages':   # רק לבנות מחדש את הדפים מהקבצים הקיימים
         idx = json.load(open(os.path.join(OUTDIR, 'data', 'index.json'), encoding='utf-8'))
-        write_out(st.get('dirs', []), idx.get('stats', {}), idx.get('filtered', {}),
-                  datetime.date.fromisoformat(idx['feed']), datetime.date.fromisoformat(idx['ref']))
+        write_out([], idx.get('stats', {}), idx.get('filtered', {}),
+                  datetime.date.fromisoformat(idx['feed']), datetime.date.fromisoformat(idx['ref']), keep_all=True)
     else:
+        t = datetime.datetime.now()
         write_out(*run())
+        if LH and os.path.isdir(LH):
+            add_past(os.path.join(OUTDIR, 'data', 'lines.json'), LH)
+        print(f'זמן ריצה: {(datetime.datetime.now() - t).seconds} שניות', flush=True)

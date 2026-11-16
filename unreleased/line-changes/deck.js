@@ -53,8 +53,9 @@ var LCDeck = (function () {
   function autoIntro(pages) {
     if (pages.length === 1) {
       var p = pages[0], t = p.tot || {}, bits = [];
-      var both = p.dirs.length > 1 ? 'בשני הכיוונים' : 'בכיוון ' + LC.dirOd(p.dirs[0].od);
-      if (t.geo) bits.push('המסלול משתנה ' + both);
+      var o = p.dirs[0].od || [];
+      var both = p.dirs.length > 1 ? 'בשני הכיוונים' : (o[0] && o[0] === o[1] ? '' : 'בכיוון ' + LC.dirOd(o));
+      if (t.geo) bits.push(('המסלול משתנה ' + both).trim());
       if (t.rem || t.add) bits.push((t.rem ? plural(t.rem, 'תחנה אחת יורדת', 'תחנות יורדות') : '') +
         (t.rem && t.add ? ' ו-' : '') + (t.add ? plural(t.add, 'תחנה חדשה אחת', 'תחנות חדשות') : ''));
       return (bits.join(', ') + '. ').replace(/^\. $/, '') + 'המפות ורשימות התחנות בעמודים הבאים.';
@@ -186,7 +187,8 @@ var LCDeck = (function () {
       '<div class="phones">' + ph + '<div class="ph"><span class="l">משרד התחבורה</span><span class="v">' + MOT + '</span></div></div>' +
       '<div class="note">המידע הוכן על ידי אדם פרטי, על סמך נתוני משרד התחבורה, ואינו פרסום רשמי של משרד התחבורה או של ' +
         (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות בכל רגע. לפני הנסיעה בדקו במוקד או באפליקציה.</div>' +
-      '<p class="src">לפי קובץ הנתונים (GTFS) של משרד התחבורה' + (feed ? ' מ-' + E(LC.dmy(feed)) : '') + ' · מפות: © תורמי OpenStreetMap · הוכן בכלי של הקו הבוחן</p></div>';
+      '<p class="src">לפי קובץ הנתונים (GTFS) של משרד התחבורה' + (feed ? ' מ-' + E(LC.dmy(feed)) : '') +
+        (pages.some(function (x) { return x.past; }) ? ' ולפי הארכיון של "הקו בזמן"' : '') + ' · מפות: © תורמי OpenStreetMap · הוכן בכלי של הקו הבוחן</p></div>';
   }
 
   /* כל השקפים לבחירה: [{id, label, html, map?}] */
@@ -354,7 +356,8 @@ var LCDeck = (function () {
     // מפת התמצאות: כל המסלול, ומלבן סביב האזור שבמפה הגדולה
     if (inEl && all.isValid()) {
       var view = map.getBounds();
-      if (!all.contains(view) || all.getNorthEast().distanceTo(all.getSouthWest()) > 1.6 * view.getNorthEast().distanceTo(view.getSouthWest())) {
+      // רק כשהמפה הגדולה לא מראה את כל המסלול
+      if (!view.pad(0.03).contains(all)) {
         var mini = L.map(inEl, Object.assign({}, opts, { attributionControl: false }));
         mini.fitBounds(all.extend(view), { padding: [10, 10] });
         tiles(mini).addTo(mini);
@@ -368,5 +371,5 @@ var LCDeck = (function () {
     return { map: map, ready: Promise.all(waits) };
   }
 
-  return { build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle };
+  return { build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();
