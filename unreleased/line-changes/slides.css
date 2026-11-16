@@ -39,23 +39,37 @@
 
 /* ---- שער ---- */
 .s-cover{display:flex;flex-direction:column}
-.s-cover .band{background:var(--s-ink);color:var(--s-ink-fg);padding:44px 64px 26px;display:flex;flex-direction:column;gap:22px}
+.s-cover .band{background:var(--s-ink);color:var(--s-ink-fg);padding:34px 64px 22px;display:flex;flex-direction:column;gap:18px}
 .s-cover .row{display:flex;align-items:center;gap:30px}
 .s-cover .t{display:flex;flex-direction:column;gap:6px;min-width:0}
 .s-cover h1{font-size:54px;font-weight:900;line-height:1.1}
 .s-cover .sub{font-size:26px;color:var(--s-ink-sub);font-weight:600}
-.s-cover .body{padding:26px 64px 0;display:flex;flex-direction:column;gap:20px}
+.s-cover .body{padding:20px 64px 0;display:flex;flex-direction:column;gap:14px}
 .s-cover .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.s-cover .fact{background:var(--s-card);border-radius:14px;padding:16px 20px;display:flex;flex-direction:column;gap:2px;border-top:6px solid var(--s-after)}
+.s-cover .fact{background:var(--s-card);border-radius:14px;padding:10px 18px;display:flex;flex-direction:column;gap:2px;border-top:6px solid var(--s-after)}
 .s-cover .fact .l{font-size:17px;font-weight:700;color:var(--s-sub)}
-.s-cover .fact .v{font-family:'Heebo',Arial,sans-serif;font-size:28px;font-weight:800;line-height:1.2}
+.s-cover .fact .v{font-family:'Heebo',Arial,sans-serif;font-size:25px;font-weight:800;line-height:1.2}
 .s-cover .fact .x{font-size:19px;font-weight:600;color:var(--s-sub)}
 .s-cover .dirs{display:flex;flex-direction:column;background:var(--s-card);border-radius:14px;padding:4px 20px}
 .s-cover .dirs div{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid var(--s-line)}
 .s-cover .dirs div:first-child{border-top:none}
 .s-cover .dirs b{font-family:'Heebo',Arial,sans-serif;font-size:22px;font-weight:800}
 .slide .ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
-.s-cover .intro{font-size:23px;line-height:1.45;color:var(--s-fg);max-height:100px;overflow:hidden}
+.s-cover .what{background:var(--s-card);border-radius:14px;padding:12px 20px 14px;display:flex;flex-direction:column;gap:6px}
+.s-cover .what h3{font-size:20px;font-weight:900;color:var(--s-after);display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.s-cover .what h3 .counts{font-family:'Assistant',Arial,sans-serif;font-weight:600}
+.s-cover .what ul{margin:0;padding:0 22px 0 0;display:flex;flex-direction:column;gap:5px}
+.s-cover .what li{font-size:18.5px;line-height:1.38}
+.s-cover .what li b{font-weight:800}
+.s-map .segs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.s-map .segs li{display:flex;gap:10px;align-items:flex-start;font-size:17.5px;line-height:1.38}
+.s-map .segs li b{font-weight:800}
+.slide .segn{font-style:normal;flex:none;width:26px;height:26px;border-radius:7px;background:var(--s-ink);color:#fff;border:2px solid #f2c14e;display:inline-flex;align-items:center;justify-content:center;font:800 13px 'Heebo',sans-serif;margin-top:1px}
+.s-map .counts,.slide .counts{font-size:15px;color:var(--s-sub);margin:0}
+.s-stops li .nr{display:block;font-size:13px;color:var(--s-sub);line-height:1.2}
+.s-stops li.two-l{min-height:44px}
+.s-cover .intro{font-size:20px;line-height:1.4;color:var(--s-fg);max-height:56px;overflow:hidden}
+.s-cover .note{font-size:17px;padding:10px 18px}
 
 /* ---- סקירה (כמה קווים) ---- */
 .s-over{padding:44px 56px 56px;display:flex;flex-direction:column;gap:18px}
@@ -77,17 +91,18 @@
 
 /* ---- שקף מפה: מפה משמאל, הסבר מימין ---- */
 .s-map .smap{position:absolute;left:0;top:0;width:760px;height:720px;background:#dfe6e2}
-.s-map .side{position:absolute;right:0;top:0;width:520px;height:720px;padding:40px 40px 56px 32px;display:flex;flex-direction:column;gap:16px}
+.s-map .side{position:absolute;right:0;top:0;width:520px;height:720px;padding:32px 36px 40px 28px;display:flex;flex-direction:column;gap:12px}
 .s-map .side .row{display:flex;align-items:center;gap:14px}
-.s-map h2{font-size:34px;font-weight:900;line-height:1.15}
+.s-map h2{font-size:30px;font-weight:900;line-height:1.15}
 .s-map .lead{font-size:20px;line-height:1.45;color:var(--s-fg)}
 .s-map .lead b{font-weight:800}
-.s-map .legend{background:var(--s-card);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;font-size:17px;margin-top:auto}
+.s-map .legend{background:var(--s-card);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;font-size:14.5px;margin-top:auto}
 .s-map .legend span{display:flex;align-items:center;gap:10px}
 .slide .sw{display:inline-block;width:34px;height:0;border-top:5px solid var(--s-after);flex:none}
 .slide .sw.old{border-top:5px dashed var(--s-before)}
+.slide .sw.near{border-top:3px dotted var(--s-ink)}
 .slide .dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font:800 11px 'Heebo',sans-serif;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
-.slide .dot.rem{background:var(--s-before)}.slide .dot.add{background:var(--s-add)}.slide .dot.same{background:#fff;border:3px solid #55625c;box-shadow:none;width:16px;height:16px}
+.slide .dot.seg{background:var(--s-ink);border-radius:6px;border-color:#f2c14e}.slide .dot.rem{background:var(--s-before)}.slide .dot.add{background:var(--s-add)}.slide .dot.same{background:#fff;border:3px solid #55625c;box-shadow:none;width:16px;height:16px}
 .s-map .smap .leaflet-control-attribution{font-size:10px}
 .s-map .inset{position:absolute;left:16px;top:16px;width:230px;height:172px;border:3px solid #fff;border-radius:10px;overflow:hidden;
   box-shadow:0 2px 10px rgba(0,0,0,.3);background:#dfe6e2;z-index:600}
@@ -123,6 +138,7 @@
 /* סמני המפה */
 .lc-mk{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 12.5px 'Heebo',sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lc-mk.seg{background:#13201b;border-radius:7px;width:28px;height:28px;font-size:14px;border-color:#f2c14e}
 .lc-mk.rem{background:#b8361f}.lc-mk.add{background:#127a4f}.lc-mk.mv{background:#55625c}
 .leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
 
