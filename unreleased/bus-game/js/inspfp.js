@@ -19,6 +19,7 @@ const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
 const CLEAR_OFFS = (() => { const a = [[0, 0, 0]]; for (const r of [0.03, 0.06, 0.09, 0.12]) for (const [dx, dy] of [[0, -1], [0, 1], [-0.7, -0.7], [0.7, -0.7], [1, 0], [-1, 0], [-0.7, 0.7], [0.7, 0.7]]) a.push([dx * r, dy * r, 0]);
   return a.map(v => new THREE.Vector3(...v)); })();
 const REACH_MAX = 0.45;  // כמה המכשיר יוצא אל הכרטיס מהמקום שלו — המרפק נשאר כפוף (קודם 0.8: זרוע מתוחה עד הפנים של הנוסע)
+const CARD_CLEAR = 0.075;   // אחרי הקריאה: כמה ימינה מהכרטיס (בעומק של המכשיר) נמצא מרכז המכשיר — חצי המכשיר וחצי הכרטיס
 const AISLE_Z1 = 3.55;   // הקצה הקדמי של המעבר — מאחורי מחיצת הנהג ומכונת הכרטיסים; הפקח לא עובר אותו
 // המעבר: מהדלת הקדמית, ליד המתקף, ואז לאורך האמצע עד המושבים האחרונים
 const PATH = [[-0.95, 5.15], [-0.3, 4.98], [0, 4.3], [0, -4.9]];       // עוקף את העמוד המעוקל שליד הדלת (z ≈ 4.5) ואת המתקף
@@ -385,6 +386,10 @@ export class InspectorFP {
     // אחרי התוצאה המכשיר חוזר למקומו גם מהצד (קודם נשאר בשמאל המסך עד סוף הבדיקה וקפץ אז בבת אחת — ליד המתקף, שלמה 16.11)
     { const cl = card && c.worldToLocal(card.clone()), sd = A.down == null && cl && cl.x < -0.02 ? -0.17 : 0; A.side = (A.side || 0) + (sd - (A.side || 0)) * Math.min(1, dt * 6); }
     this.readerOff = A.off.clone().add(new THREE.Vector3(A.side || 0, 0, 0));
+    // יושב, אחרי הקריאה (המסך הירוק): המכשיר זז מעט ימינה, כך שהכרטיס נשאר גלוי משמאלו ולא מוסתר מאחוריו עד שהיד יורדת
+    { let w = 0; const cl = A.done && A.down != null && R?.card && card && PL.onboard?.seatOf(A.pid) >= 0 ? c.worldToLocal(card.clone()) : null;
+      if (cl && cl.z < 0) { const P = this.reader.faceRest.clone().add(this.readerOff); const cx = cl.x / -cl.z * -P.z; if (cx < P.x + 0.02) w = Math.max(0, cx + CARD_CLEAR - P.x); }   // (כרטיס מימין למכשיר — לא זזים)
+      A.clr = (A.clr || 0) + (w - (A.clr || 0)) * Math.min(1, dt * 10); this.readerOff.x += A.clr; }
     // המכשיר נשאר בתוך התמונה (גם כשהכרטיס גבוה או רחוק בצד, למשל עומד גבוה ליד הקיר השמאלי): עד 78% מחצי הרוחב ו-85% מחצי הגובה
     { const P = this.reader.faceRest.clone().add(this.readerOff), ty = Math.tan(THREE.MathUtils.degToRad(c.fov / 2)) * Math.max(0.05, -P.z), mx = 0.78 * ty * c.aspect, my = 0.85 * ty;
       this.readerOff.x += THREE.MathUtils.clamp(P.x, -mx, mx) - P.x; this.readerOff.y += THREE.MathUtils.clamp(P.y, -my, my) - P.y; }
