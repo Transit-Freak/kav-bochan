@@ -111,7 +111,7 @@
 .slide .dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font:800 11px 'Heebo',sans-serif;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 .slide .dot.seg{background:var(--s-ink);border-radius:6px;border-color:#f2c14e}.slide .dot.rem{background:var(--s-before)}.slide .dot.add{background:var(--s-add)}.slide .dot.same{background:#fff;border:3px solid #55625c;box-shadow:none;width:16px;height:16px}
 .s-map .smap .leaflet-control-attribution{font-size:10px}
-.s-map .inset{position:absolute;left:16px;top:16px;width:230px;height:172px;border:3px solid #fff;border-radius:10px;overflow:hidden;
+.s-map .inset,.s-one .inset{position:absolute;left:16px;top:16px;width:230px;height:172px;border:3px solid #fff;border-radius:10px;overflow:hidden;
   box-shadow:0 2px 10px rgba(0,0,0,.3);background:#dfe6e2;z-index:600}
 .s-map .part{font-size:19px;font-weight:800;color:var(--s-brand)}
 
@@ -196,6 +196,31 @@
 .deck[data-look="large"] .s-close h2{font-size:60px}
 .deck[data-look="large"] .s-close .note{font-size:24px}
 .deck[data-look="large"] .s-close .src{font-size:19px}
+
+/* ---- עמוד אחד לשינוי קטן: מפה משמאל, כל הטקסט מימין ---- */
+.s-one .smap{position:absolute;left:0;top:0;width:660px;height:720px;background:#dfe6e2}
+.s-one .side{position:absolute;right:0;top:0;width:620px;height:720px;padding:30px 36px 34px 30px;display:flex;flex-direction:column;gap:12px}
+.s-one .ohead{display:flex;align-items:center;gap:16px;background:var(--s-band);color:var(--s-band-fg);margin:-30px -36px 0 -30px;padding:24px 36px 20px 30px}
+.s-one .ohead .badge{font-size:46px;padding:10px 16px;border-radius:14px}
+.s-one .ohead .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.s-one .ohead h1{font-size:36px;font-weight:900;line-height:1.1}
+.s-one .ohead .sub{font-size:18px;color:var(--s-band-sub);font-weight:600}
+.s-one .owhen{font-size:18px;color:var(--s-fg)}
+.s-one .owhen b{font-family:'Heebo',Arial,sans-serif;font-weight:800;font-size:20px}
+.s-one .owhat{background:var(--s-card);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.s-one .owhat h3{font-size:19px;font-weight:900;color:var(--s-brand)}
+.s-one .owhat ul{margin:0;padding:0 20px 0 0;display:flex;flex-direction:column;gap:6px}
+.s-one .owhat li{font-size:18.5px;line-height:1.38}
+.s-one .legend{background:var(--s-card);border-radius:12px;padding:9px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13.5px;margin-top:auto}
+.s-one .legend span{display:flex;align-items:center;gap:8px}
+.s-one .ocontact{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:17px;color:var(--s-fg)}
+.s-one .ocontact b{font-family:'Heebo',Arial,sans-serif;font-size:21px;font-weight:900}
+.s-one .note{font-size:15px;padding:9px 14px;font-weight:700}
+.s-one .osrc{font-size:12.5px;color:var(--s-sub)}
+.s-one .part{font-size:16px;font-weight:800;color:var(--s-brand)}
+.deck[data-look="light"] .s-one .ohead{border-bottom:1px solid var(--s-line)}
+.deck[data-look="large"] .s-one .owhat li{font-size:21px}
+.deck[data-look="large"] .s-one .ohead h1{font-size:40px}
 
 /* ---- שקף טקסט (נוסף ביד) ---- */
 .s-text{padding:48px 64px 64px;display:flex;flex-direction:column;gap:22px}

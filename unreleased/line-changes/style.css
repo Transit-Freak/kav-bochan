@@ -155,6 +155,13 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .ccard .when .l{font-size:13px;color:var(--sub);font-weight:700}
 .ccard .what{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
 .ccard .meta{font-size:13px;color:var(--sub)}
+.ccard .size{font-size:13.5px;font-weight:800;color:var(--fg)}
+.ccard .size:empty{display:none}
+.kinds{display:flex;flex-direction:column;gap:var(--sp2)}
+.kind{display:flex;align-items:center;gap:var(--sp3);flex-wrap:wrap;background:var(--card2);border:1px solid var(--line);border-radius:var(--r2);padding:var(--sp2) var(--sp3)}
+.kind .badge{font-size:14px;min-width:0;padding:3px 8px}
+.kind .kt{flex:1;min-width:0;font-size:14.5px}
+.kind .lnk{min-height:40px}
 .ccard .pick-arrow{font-size:22px;color:var(--after);flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:13px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}

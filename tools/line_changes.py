@@ -781,6 +781,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         # בדף הראשי: רק הערים שבהן משהו משתנה (רשימת כל הערים של הקו נמצאת ב-lines.json)
         rec = dict(id=pid, line=f0['line'], op=f0['op'], makat=makat, od=f0['od'], eff=eff,
                    formal=formal, tot=tot, summary=summ, chcities=ch_cities,
+                   dev=max((f.get('dev', 0) for f in dirs if f.get('geo')), default=0),   # אורך הדרך שמשתנה (מ') — לשינוי קטן/גדול
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
         index.append(rec)
