@@ -1,0 +1,31 @@
+name: markav-probe
+# בדיקה זמנית — יימחק אחרי הבדיקה
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/markav-probe.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: markav
+        run: |
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
+          mkdir m && cd m
+          curl -sSL -A "$UA" -D h.txt -o i.html https://markav.net/ ; cat h.txt; wc -c i.html
+          echo '--- html head'; head -c 3000 i.html; echo
+          echo '--- links'; grep -oE '(src|href)="[^"]+"' i.html | sort -u | head -80
+          for s in $(grep -oE 'src="[^"]+\.js[^"]*"' i.html | sed 's/src="//;s/"$//' | head -15); do
+            case $s in http*) u=$s;; //*) u=https:$s;; /*) u=https://markav.net$s;; *) u=https://markav.net/$s;; esac
+            echo "=== JS $u"; curl -sSL -A "$UA" "$u" -o j.js; wc -c j.js
+            grep -oE '"[^"]*(api|/data|\.json|\.csv|quarter|rivon|ridership|firebase|supabase|gov\.il)[^"]*"' j.js | sort -u | head -60
+          done
+          for p in robots.txt sitemap.xml api api/ data.json; do echo "=== $p"; curl -sSL -A "$UA" -o x -w '%{http_code} %{content_type} %{size_download}\n' https://markav.net/$p; head -c 600 x; echo; done
+      - name: data.gov.il
+        run: |
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
+          A=https://data.gov.il/api/3/action
+          curl -sS -A "$UA" "$A/package_show?id=ridership" | python3 -c "import json,sys;r=json.load(sys.stdin)['result'];print('modified',r.get('metadata_modified'))
+[print(x['id'],x.get('name'),x.get('format'),x.get('datastore_active'),x.get('last_modified') or x.get('created')) for x in r['resources']]"
+          for q in 'נסועה' 'ridership' 'נוסעים קווים' 'תיקופים'; do echo "=== search $q"; curl -sS -G -A "$UA" "$A/package_search" --data-urlencode "q=$q" --data-urlencode rows=20 | python3 -c "import json,sys;r=json.load(sys.stdin)['result'];[print(p['name'],'|',p.get('title'),'|',p.get('metadata_modified')) for p in r['results']]"; done
