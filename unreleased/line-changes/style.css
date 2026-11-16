@@ -4,7 +4,7 @@
    בסמל שבכותרת, בפס המעבר שמתחתיה, ובשלבים.
    פריסה: בטלפון שלב אחד בכל פעם; במחשב עמודת "שולחן עבודה" דביקה ולידה רצועת השקפים. */
 :root{
-  --ink:#13201b; --ink-fg:#eef3f0; --ink-sub:#a9c2b8; --after-on-ink:#6b9bff; --before-on-ink:#f07b62;
+  --ink:#13201b; --ink-fg:#eef3f0; --ink-sub:#a9c2b8; --after-on-ink:#6b9bff; --new-on-ink:#45c97f; --before-on-ink:#f07b62; --new:#1f9152;
   --bg:#e9eeeb; --card:#ffffff; --card2:#f5f8f6; --line:#d3dcd7; --line2:#e4eae7;
   --fg:#16211d; --sub:#55645d;
   --before:#b8361f; --before-bg:#fbe9e5;
@@ -18,13 +18,13 @@
   --shadow:0 1px 2px rgba(19,32,27,.06),0 4px 14px rgba(19,32,27,.06);
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ink:#0b1310;--ink-fg:#e6eee9;--ink-sub:#8fa99e;--after-on-ink:#7aa7ff;--before-on-ink:#f07b62;
+  --ink:#0b1310;--ink-fg:#e6eee9;--ink-sub:#8fa99e;--after-on-ink:#7aa7ff;--new-on-ink:#45c97f;--before-on-ink:#f07b62;--new:#45c97f;
   --bg:#0f1714;--card:#17211d;--card2:#1c2823;--line:#2c3a35;--line2:#233029;--fg:#e3ebe7;--sub:#9aaba3;
   --before:#f07b62;--before-bg:#3a1f19;--after:#7aa7ff;--after-bg:#1a2742;--on-after:#0c1512;--add:#4fc48f;--add-bg:#163327;
   --warn:#f2c14e;--warn-bg:#3a2e0e;--shadow:0 1px 2px rgba(0,0,0,.3);
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --ink:#0b1310;--ink-fg:#e6eee9;--ink-sub:#8fa99e;--after-on-ink:#7aa7ff;--before-on-ink:#f07b62;
+  --ink:#0b1310;--ink-fg:#e6eee9;--ink-sub:#8fa99e;--after-on-ink:#7aa7ff;--new-on-ink:#45c97f;--before-on-ink:#f07b62;--new:#45c97f;
   --bg:#0f1714;--card:#17211d;--card2:#1c2823;--line:#2c3a35;--line2:#233029;--fg:#e3ebe7;--sub:#9aaba3;
   --before:#f07b62;--before-bg:#3a1f19;--after:#7aa7ff;--after-bg:#1a2742;--on-after:#0c1512;--add:#4fc48f;--add-bg:#163327;
   --warn:#f2c14e;--warn-bg:#3a2e0e;--shadow:0 1px 2px rgba(0,0,0,.3);
@@ -46,8 +46,8 @@ button,input,textarea,select{font-family:inherit}
 /* ---- החתימה: מקווקו אדום שהופך לכחול רציף ---- */
 .seam{display:flex;align-items:center;height:6px}
 .seam::before{content:"";flex:1;height:4px;background:repeating-linear-gradient(to left,var(--before-on-ink) 0 14px,transparent 14px 22px)}
-.seam::after{content:"";flex:1;height:6px;background:var(--after-on-ink);border-radius:0 3px 3px 0}
-.seam i{width:14px;height:14px;border-radius:50%;background:var(--ink);border:3px solid var(--after-on-ink);flex:none;margin:0 -2px}
+.seam::after{content:"";flex:1;height:6px;background:var(--new-on-ink);border-radius:0 3px 3px 0}
+.seam i{width:14px;height:14px;border-radius:50%;background:var(--ink);border:3px solid var(--new-on-ink);flex:none;margin:0 -2px}
 
 /* ---- כותרת ---- */
 .top{background:var(--ink);color:var(--ink-fg)}
@@ -145,7 +145,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .linehead .t span{font-size:14px;color:var(--sub)}
 .cards{display:flex;flex-direction:column;gap:var(--sp3)}
 .ccard{display:flex;align-items:center;gap:var(--sp3);text-align:right;background:var(--card);color:var(--fg);border:1.5px solid var(--line);border-radius:var(--r2);padding:var(--sp4) var(--sp4) calc(var(--sp4) + 3px);cursor:pointer;width:100%;position:relative;overflow:hidden;min-height:84px}
-.ccard::before{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:linear-gradient(to left,var(--before) 0 50%,var(--after) 50%)}
+.ccard::before{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:linear-gradient(to left,var(--before) 0 50%,var(--new) 50%)}
 .ccard.past::before{background:repeating-linear-gradient(to left,var(--sub) 0 8px,transparent 8px 13px)}
 .ccard:hover{border-color:var(--after);background:var(--card2)}
 .ccard.rec{border:2px solid var(--after)}
@@ -165,7 +165,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .ccard .pick-arrow{font-size:22px;color:var(--after);flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:13px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
-.chip.geo{background:var(--after-bg);color:var(--after)}
+.chip.geo{background:var(--add-bg);color:var(--add)}
 .chip.rem{background:var(--before-bg);color:var(--before)}
 .chip.add{background:var(--add-bg);color:var(--add)}
 .chip.mv{background:var(--card2);color:var(--sub)}
@@ -185,7 +185,7 @@ body[data-step="1"] .pane[data-pane="1"],body[data-step="2"] .pane[data-pane="2"
 .looks button{display:flex;flex-direction:column;align-items:stretch;gap:6px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r2);padding:7px;cursor:pointer;color:var(--fg);font:700 12.5px var(--f-body);text-align:center;min-height:44px}
 .looks button[aria-checked="true"]{border-color:var(--after);box-shadow:0 0 0 2px var(--after)}
 .looks i{display:block;aspect-ratio:16/9;border-radius:6px;border:1px solid var(--line)}
-.sw-kav{background:linear-gradient(to bottom,#13201b 0 45%,#1f5fd1 45% 52%,#f2f5f3 52%)}
+.sw-kav{background:linear-gradient(to bottom,#13201b 0 45%,#1f9152 45% 52%,#f2f5f3 52%)}
 .sw-light{background:linear-gradient(to bottom,#fff 0 44%,#14201b 44% 46%,#fff 46%)}
 .sw-op{background:linear-gradient(to bottom,#2b4a5a 0 45%,#3d5a6c 45% 62%,#fff 62%)}
 .sw-large{background:linear-gradient(to bottom,#000 0 45%,#ffe27a 45% 55%,#fff 55%)}

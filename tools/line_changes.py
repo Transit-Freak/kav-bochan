@@ -64,6 +64,9 @@ GEO_LEN = 200    # מ' — אורך סטייה מינימלי כדי שייחש�
 MOVE_M = 40      # מ' — הזזת תחנה (אותו מק"ט) מעל זה נחשבת שינוי
 SWAP_M = 60      # מ' — מק"ט שהוחלף באותו שם ובמרחק עד זה = החלפת מק"ט בלבד
 SIMPLIFY_M = 5   # מ' — דילול השרטוט לפלט
+REDRAW_DEV = 150  # מ' — כשהתחנות לא השתנו: מרחק מהמסלול הקודם שנחשב עקיפה
+REDRAW_LEN = 400  # מ' — ...לאורך קטע רצוף של יותר מזה; אחרת זה רק שרטוט מחדש
+SAME_ROAD = 60    # מ' — כשהתחנות השתנו: קטע שנשאר עד המרחק הזה מהמסלול הקודם — אותה דרך
 
 
 def norm_city(s):
@@ -340,17 +343,27 @@ class SegIndex:
         return best
 
 
-def deviation_len(a, b, lat0):
-    """כמה מטרים מהמסלול a רחוקים מהמסלול b יותר מ-GEO_DEV."""
+def deviation_len(a, b, lat0, thr=None):
+    """כמה מטרים מהמסלול a רחוקים מהמסלול b יותר מ-thr (ברירת מחדל GEO_DEV)."""
+    return sum(deviation_runs(a, b, lat0, thr))
+
+
+def deviation_runs(a, b, lat0, thr=None):
+    """אורכי הקטעים הרצופים במסלול a שרחוקים מהמסלול b יותר מ-thr מטרים"""
+    thr = thr or GEO_DEV
     if len(a) < 2 or len(b) < 2:
-        return 0
+        return []
     xa, xb = densify(to_xy(a, lat0)), to_xy(b, lat0)
     idx = SegIndex(xb)
-    dev = 0.0
+    runs, cur = [], 0.0
     for p, q in zip(xa, xa[1:]):
-        if idx.near(p, GEO_DEV * 2) > GEO_DEV:
-            dev += math.hypot(q[0] - p[0], q[1] - p[1])
-    return dev
+        if idx.near(p, thr * 2) > thr:
+            cur += math.hypot(q[0] - p[0], q[1] - p[1])
+        elif cur:
+            runs.append(cur); cur = 0.0
+    if cur:
+        runs.append(cur)
+    return runs
 
 
 def simplify(pts, tol=SIMPLIFY_M):
@@ -444,9 +457,18 @@ def compare(old_codes, new_codes, old_stops, new_stops, old_shape, new_shape):
         if norm_name(o['name']) != norm_name(n['name']):
             minor['rename'] += 1
     lat0 = (old_shape or new_shape or [(31.5, 35)])[0][0]
-    dev = max(deviation_len(new_shape, old_shape, lat0), deviation_len(old_shape, new_shape, lat0)) \
-        if old_shape and new_shape else 0
-    geo = dev >= GEO_LEN
+    same_seq = oc == nc and not any(dist_m(old_stops[c]['ll'], new_stops[c]['ll']) > MOVE_M for c in so & sn)
+    if old_shape and new_shape and same_seq:
+        # אותן תחנות באותו סדר: רק עקיפה אמיתית נחשבת — קטע רצוף של יותר מ-400 מ' שרחוק מהמסלול הקודם יותר מ-150 מ'.
+        # כל השאר הוא שרטוט מחדש של אותה דרך, ולא מדווח בכלל
+        runs = deviation_runs(new_shape, old_shape, lat0, REDRAW_DEV) + deviation_runs(old_shape, new_shape, lat0, REDRAW_DEV)
+        geo = any(r > REDRAW_LEN for r in runs)
+        dev = max(sum(deviation_runs(new_shape, old_shape, lat0, REDRAW_DEV)), sum(deviation_runs(old_shape, new_shape, lat0, REDRAW_DEV))) if geo else 0
+    else:
+        # תחנות השתנו: קטע שנשאר עד 60 מ' מהמסלול הקודם הוא אותה דרך
+        dev = max(deviation_len(new_shape, old_shape, lat0, SAME_ROAD), deviation_len(old_shape, new_shape, lat0, SAME_ROAD)) \
+            if old_shape and new_shape else 0
+        geo = dev >= GEO_LEN
     if not geo and dev > 0:
         minor['redraw'] += 1
     elif not geo and old_shape and new_shape and old_shape != new_shape:
