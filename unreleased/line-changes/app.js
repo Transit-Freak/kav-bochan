@@ -72,7 +72,7 @@
 
   function emptyStage() {
     $('deck').innerHTML = '<div class="empty-state"><div class="seam" aria-hidden="true"><i></i></div>' +
-      '<p>כאן תופיע המצגת: שער, מפה של לפני ואחרי לכל כיוון, רשימת התחנות שיורדות ושנוספות, ושקף סיום.</p></div>';
+      '<p>כאן תופיע המצגת: מה משתנה, מפה של המסלול הישן והחדש, התחנות שמבוטלות והתחנות החדשות, ושקף סיום.</p></div>';
     $('pcount').textContent = '';
   }
 
@@ -84,10 +84,10 @@
     $('cities').innerHTML = top.map(function (c) { return '<button type="button" data-c="' + E(c) + '">' + E(c) + '</button>'; }).join('');
     $('cities').addEventListener('click', function (ev) {
       var b = ev.target.closest('button'); if (!b) return;
-      $('q').value = q = b.getAttribute('data-c'); drawResults();
+      $('q').value = q = b.getAttribute('data-c'); placeSel = null; drawResults();
     });
   }
-  $('q').addEventListener('input', function () { q = this.value; drawResults(); });
+  $('q').addEventListener('input', function () { q = this.value; placeSel = null; drawResults(); });
 
   function upNext(l) {
     var u = l.up.slice().sort(function (a, b) { return (a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1; });
@@ -103,41 +103,116 @@
     return '';
   }
 
+  /* חיפוש: מספר קו → קווים. מילים → ארבע קבוצות: קווים · רחובות · שכונות · ערים.
+     רחובות ושכונות (data/places.json) נטענים רק בחיפוש המילים הראשון. */
+  var PL = null, plLoading = false, placeSel = null;
+  function loadPlaces() {
+    if (PL || plLoading) return;
+    plLoading = true;
+    LC.getJSON('data/places.json').then(function (p) {
+      var mk = function (kind) {   // שמות ערים ב-GTFS: כפר ביל''ו → כפר ביל"ו
+        return function (x) { var c = String(p.cities[x[1]]).replace(/''/g, '"'); return { kind: kind, name: x[0], city: c, lines: x[2], n: LC.norm(x[0]), nc: LC.norm(c) }; };
+      };
+      PL = { streets: p.streets.map(mk('s')), hoods: p.hoods.map(mk('h')) };
+      drawResults();
+    }).catch(function () { PL = { streets: [], hoods: [] }; });
+  }
+  function lineSort(a, b) {
+    var ua = a.up.length ? 0 : a.past.length ? 1 : 2, ub = b.up.length ? 0 : b.past.length ? 1 : 2;
+    if (ua !== ub) return ua - ub;
+    return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0) || (a.line < b.line ? -1 : 1);
+  }
+  function lineRow(l) {
+    return '<button type="button" class="res" data-i="' + LINES.indexOf(l) + '"><span class="badge">' + E(l.line) + '</span>' +
+      '<span class="t"><span class="od">' + E(l.from) + ' ↔ ' + E(l.to) + '</span><span class="meta">' + E(l.op) +
+      (l.cities.length ? ' · ' + E(l.cities.slice(0, 3).join(', ')) + (l.cities.length > 3 ? '…' : '') : '') + '</span></span>' + badge(l) + '</button>';
+  }
+  function placeRow(pl, key) {
+    var ic = pl.kind === 's' ? 'רחוב ' : pl.kind === 'h' ? 'שכונת ' : '';
+    var n = pl.lines.length, soon = pl.lines.filter(function (i) { return LINES[i] && LINES[i].up.length; }).length;
+    return '<button type="button" class="res place" data-pl="' + key + '"><span class="pin" aria-hidden="true">' + (pl.kind === 's' ? '⟋' : pl.kind === 'h' ? '◱' : '◉') + '</span>' +
+      '<span class="t"><span class="od">' + E(ic + pl.name) + (pl.city && pl.kind !== 'c' ? ', ' + E(pl.city) : '') + '</span>' +
+      '<span class="meta">' + (n === 1 ? 'קו אחד' : n + ' קווים') + '</span></span>' +
+      (soon ? '<span class="tag soon">' + (soon === 1 ? 'קו אחד משתנה' : soon + ' משתנים') + '</span>' : '') + '</button>';
+  }
+  var cityList = null;
+  function cities() {
+    if (cityList) return cityList;
+    var m = {};
+    LINES.forEach(function (l, i) { l.cities.forEach(function (c) { (m[c] = m[c] || []).push(i); }); });
+    return (cityList = Object.keys(m).map(function (c) { return { kind: 'c', name: c, city: '', lines: m[c], n: LC.norm(c) }; }));
+  }
+  function matchPlace(pl, words, nq) {
+    var hay = pl.n + ' ' + (pl.nc || '');
+    return words.every(function (w) { return hay.indexOf(w) >= 0; }) && (pl.n.indexOf(words[0]) >= 0 || pl.n.indexOf(nq) >= 0);
+  }
+  function placeSortFor(nq) {
+    return function (a, b) {
+      var sa = a.n.indexOf(nq) === 0 ? 0 : 1, sb = b.n.indexOf(nq) === 0 ? 0 : 1;
+      return sa - sb || b.lines.length - a.lines.length;
+    };
+  }
+  var lastGroups = {};
   function drawResults() {
-    var nq = LC.norm(q), rows, head;
+    var nq = LC.norm(q), html = '', head = '';
     $('cities').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', LC.norm(b.getAttribute('data-c')) === nq ? 'true' : 'false'); });
-    if (!nq) {
-      rows = LINES.filter(function (l) { return l.up.some(function (c) { return (c.formal || c.eff) >= idx.gen; }); });
-      rows.sort(function (a, b) { var x = upNext(a), y = upNext(b); return (x.formal || x.eff) < (y.formal || y.eff) ? -1 : (x.formal || x.eff) > (y.formal || y.eff) ? 1 : 0; });
-      head = 'קווים שמשתנים בשבועיים הקרובים (' + rows.length + ')';
-    } else {
-      var digits = /^\d+$/.test(nq), words = nq.split(' ');
-      rows = LINES.filter(function (l) {
-        if (digits) return l.line.indexOf(nq) === 0 || l.makat === nq;
-        return words.every(function (w) { return l.n.indexOf(w) >= 0 || l.line.indexOf(w) === 0; });
-      });
-      rows.sort(function (a, b) {
-        var ea = a.line === nq ? 0 : 1, eb = b.line === nq ? 0 : 1;
-        if (ea !== eb) return ea - eb;
-        // קודם קווים עם שינוי קרוב, אחר כך עם שינוי מהשנה האחרונה
-        var ua = a.up.length ? 0 : a.past.length ? 1 : 2, ub = b.up.length ? 0 : b.past.length ? 1 : 2;
-        if (ua !== ub) return ua - ub;
-        return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0) || (a.line < b.line ? -1 : 1);
-      });
-      head = rows.length ? (rows.length === 1 ? 'קו אחד' : rows.length + ' קווים') : '';
+    if (placeSel) {
+      var rows = placeSel.lines.map(function (i) { return LINES[i]; }).filter(Boolean).sort(lineSort);
+      $('reshead').innerHTML = '<button type="button" class="lnk" id="plback">→ לכל התוצאות</button> <b class="pltitle">' +
+        E((placeSel.kind === 's' ? 'רחוב ' : placeSel.kind === 'h' ? 'שכונת ' : '') + placeSel.name + (placeSel.city && placeSel.kind !== 'c' ? ', ' + placeSel.city : '')) +
+        '</b> · ' + (rows.length === 1 ? 'קו אחד עוצר כאן' : rows.length + ' קווים עוצרים כאן');
+      $('results').innerHTML = rows.map(lineRow).join('');
+      $('results').scrollTop = 0;
+      return;
     }
-    var max = 80;
-    $('reshead').textContent = head + (rows.length > max ? ' · מוצגים ' + max + ' הראשונים, אפשר לחדד את החיפוש' : '');
-    $('results').innerHTML = rows.length ? rows.slice(0, max).map(function (l, i) {
-      return '<button type="button" class="res" data-i="' + LINES.indexOf(l) + '"><span class="badge">' + E(l.line) + '</span>' +
-        '<span class="t"><span class="od">' + E(l.from) + ' ↔ ' + E(l.to) + '</span><span class="meta">' + E(l.op) +
-        (l.cities.length ? ' · ' + E(l.cities.slice(0, 3).join(', ')) + (l.cities.length > 3 ? '…' : '') : '') + '</span></span>' + badge(l) + '</button>';
-    }).join('') : '<div class="none">לא מצאנו קו כזה. נסו מספר קו, שם עיר או שם חברה.</div>';
+    if (!nq) {
+      var up = LINES.filter(function (l) { return l.up.some(function (c) { return (c.formal || c.eff) >= idx.gen; }); });
+      up.sort(function (a, b) { var x = upNext(a), y = upNext(b); return (x.formal || x.eff) < (y.formal || y.eff) ? -1 : (x.formal || x.eff) > (y.formal || y.eff) ? 1 : 0; });
+      $('reshead').textContent = 'קווים שמשתנים בשבועיים הקרובים (' + up.length + ')';
+      $('results').innerHTML = up.slice(0, 80).map(lineRow).join('');
+      return;
+    }
+    var digits = /^\d+$/.test(nq), words = nq.split(' ');
+    var lines = LINES.filter(function (l) {
+      if (digits) return l.line.indexOf(nq) === 0 || l.makat === nq;
+      var hay = LC.norm(l.line + ' ' + l.op + ' ' + l.from + ' ' + l.to);
+      return words.every(function (w) { return hay.indexOf(w) >= 0 || l.line.indexOf(w) === 0 || l.cities.some(function (c) { return LC.norm(c) === w; }); }) &&
+        words.some(function (w) { return !/^\d+$/.test(w) ? hay.indexOf(w) >= 0 || l.cities.some(function (c) { return LC.norm(c).indexOf(w) >= 0; }) : l.line.indexOf(w) === 0; });
+    });
+    lines.sort(function (a, b) { var ea = a.line === nq ? 0 : 1, eb = b.line === nq ? 0 : 1; return ea - eb || lineSort(a, b); });
+    var groups = [];
+    if (lines.length) groups.push(['קווים', lines.slice(0, digits ? 80 : 6).map(lineRow).join(''), lines.length]);
+    if (!digits) {
+      loadPlaces();
+      var srt = placeSortFor(nq);
+      var cs = cities().filter(function (c) { return c.n.indexOf(nq) >= 0; }).sort(srt).slice(0, 6);
+      if (PL) {
+        var st = PL.streets.filter(function (x) { return matchPlace(x, words, nq); }).sort(srt);
+        var hd = PL.hoods.filter(function (x) { return matchPlace(x, words, nq); }).sort(srt);
+        if (st.length) groups.push(['רחובות', st.slice(0, 8).map(function (x) { return placeRow(x, 's' + PL.streets.indexOf(x)); }).join(''), st.length]);
+        if (hd.length) groups.push(['שכונות', hd.slice(0, 8).map(function (x) { return placeRow(x, 'h' + PL.hoods.indexOf(x)); }).join(''), hd.length]);
+      } else groups.push(['רחובות ושכונות', '<div class="none">טוען רחובות ושכונות…</div>', 0]);
+      if (cs.length) groups.push(['ערים', cs.map(function (x) { return placeRow(x, 'c' + cityList.indexOf(x)); }).join(''), cs.length]);
+    }
+    // בחיפוש מילים — קודם מקומות (רחוב, שכונה, עיר), אחר כך קווים שהשם שלהם מתאים
+    if (!digits && groups.length > 1 && groups[0][0] === 'קווים') groups.push(groups.shift());
+    $('reshead').textContent = '';
+    $('results').scrollTop = 0;
+    $('results').innerHTML = groups.length ? groups.map(function (g) {
+      return '<div class="grp-h">' + g[0] + (g[2] ? ' <span>' + g[2] + '</span>' : '') + '</div>' + g[1];
+    }).join('') : '<div class="none">לא מצאנו. נסו מספר קו, רחוב, שכונה, עיר או חברה.</div>';
   }
   $('results').addEventListener('click', function (ev) {
     var b = ev.target.closest('.res'); if (!b) return;
+    var pk = b.getAttribute('data-pl');
+    if (pk) {
+      var k = pk[0], i = +pk.slice(1);
+      placeSel = k === 's' ? PL.streets[i] : k === 'h' ? PL.hoods[i] : cityList[i];
+      drawResults(); window.scrollTo(0, 0); return;
+    }
     cur = LINES[+b.getAttribute('data-i')]; go(2);
   });
+  $('reshead').addEventListener('click', function (ev) { if (ev.target.id === 'plback') { placeSel = null; drawResults(); } });
 
   /* ---------- שלב 2: איזה שינוי ---------- */
   function drawChanges() {
@@ -348,7 +423,12 @@
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     slides = LCDeck.build(pages, deckCity(pages), edits);
-    var deck = $('deck');
+    var deck = $('deck'), look = edits.look || 'kav';
+    deck.setAttribute('data-look', look);
+    deck.style.cssText = LCDeck.lookVars(look, pages);
+    $('looks').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-look') === look ? 'true' : 'false'); });
+    var opv = LCDeck.lookVars('op', pages).match(/--s-brand:([^;]+);.*--s-band:([^;]+)/);
+    if (opv) $('swop').style.background = 'linear-gradient(to bottom,' + opv[2] + ' 0 45%,' + opv[1] + ' 45% 62%,#fff 62%)';
     deck.innerHTML = slides.map(function (s) {
       return '<div class="sframe" data-id="' + E(s.id) + '"' + (off[s.id] ? ' hidden' : '') + '><div class="slide" role="img" aria-label="' + E(s.label) + '">' + s.html + '</div></div>';
     }).join('');
@@ -461,6 +541,12 @@
     else return;
     saveEdits(); paintCover(); drawTexts(curPages);
     if (b.hasAttribute('data-addc')) { var all = $('texts').querySelectorAll('textarea[data-c]'); if (all.length) all[all.length - 1].focus(); }
+  });
+
+  /* עיצוב המצגת — נשמר עם המצגת (יחד עם העריכות) */
+  $('looks').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-look]'); if (!b) return;
+    edits.look = b.getAttribute('data-look'); saveEdits(); render(curPages);
   });
 
   /* התצוגה המקדימה: השקף בגודל 1280×720 מוקטן לרוחב העמודה */

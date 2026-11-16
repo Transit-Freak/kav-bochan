@@ -21,6 +21,7 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
   data/index.json        רשימת השינויים (לדף הראשי)
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
   data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשנה האחרונה)
+  data/places.json       רחובות (מתיאור התחנות) ושכונות (NBR_DIR, הפוליגונים הרשמיים) → אילו קווים עוצרים בהם
   l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
 רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
@@ -79,6 +80,16 @@ def city_of(desc):
     return m.group(1).strip() if m else ''
 
 
+def street_of(desc):
+    """הרחוב מתיאור התחנה ("רחוב: הרצל 12 עיר: צפת ...") — בלי מספר בית, בלי "רח'", עם גרשיים אחידים"""
+    m = re.search(r'רחוב:\s*(.*?)\s*עיר:', desc or '')
+    t = (m.group(1) if m else '').replace("''", '"').replace('״', '"').strip()
+    t = re.sub(r"^(רח['׳]|רחוב)\s+", '', t)
+    t = re.sub(r"^שד['׳]\s+", 'שדרות ', t)
+    t = re.sub(r'\s+\d+[א-ת]?$', '', t).strip(' -,')
+    return '' if (not t or t.isdigit() or len(t) < 2) else t
+
+
 def norm_name(s):
     return re.sub(r'[\s"\'״׳`.\-/]', '', s or '')
 
@@ -129,7 +140,8 @@ class Feed:
             except ValueError:
                 continue
             self.stops[r[h['stop_id']]] = dict(
-                code=r[h['stop_code']], name=r[h['stop_name']], ll=ll, city=city_of(r[h['stop_desc']]))
+                code=r[h['stop_code']], name=r[h['stop_name']], ll=ll, city=city_of(r[h['stop_desc']]),
+                street=street_of(r[h['stop_desc']]))
         # תאריכי פעילות לכל שירות בתוך החלון
         h, rd = self.rows('calendar.txt')
         wd = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -574,11 +586,12 @@ def lines_index(feed, variants):
         if not r['line'] or r['ty'] == '2':      # רכבת ישראל — לא כאן
             continue
         makat, _, rest = rd.partition('-')
-        e = by.setdefault((r['ag'], makat), {'line': r['line'], 'ag': r['ag'], 'od': None, 'cities': {}, 'rds': set(), 'ty': r['ty']})
+        e = by.setdefault((r['ag'], makat), {'line': r['line'], 'ag': r['ag'], 'od': None, 'cities': {}, 'rds': set(), 'ty': r['ty'], 'sids': set()})
         e['rds'].add(rest)
         if e['od'] is None or rest.startswith('1-'):
             e['od'] = od_of(r['long'])
         for (pid, _shp), x in vs.items():
+            e['sids'].update(feed.pat_list[pid])
             for sid in feed.pat_list[pid]:
                 st = feed.stops.get(sid)
                 if st and st['city']:
@@ -597,7 +610,82 @@ def lines_index(feed, variants):
             cl.append(ci[c])
         out.append([makat, e['line'], oi[op], e['od'][0], e['od'][1], cl, sorted(e['rds']), e['ty']])
     print(f'{len(out)} קווים באינדקס', flush=True)
-    return {'ops': ops, 'cities': cities, 'lines': out}
+    places = places_index(feed, [e for _, e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1]))], cities, ci)
+    return {'ops': ops, 'cities': cities, 'lines': out, '_places': places}
+
+
+def load_hoods(d):
+    """שכונות: הפוליגונים הרשמיים (GovMap שכבה 22) שכבר שמורים ב-line-history/data/neighborhoods"""
+    import gzip
+    rows = []
+    if not d or not os.path.isdir(d):
+        return rows
+    for fn in sorted(os.listdir(d)):
+        if fn.endswith('.json.gz'):
+            rows += json.loads(gzip.decompress(open(os.path.join(d, fn), 'rb').read()))
+    return rows
+
+
+def _in_ring(x, y, ring):
+    inside = False
+    j = len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / ((yj - yi) or 1e-12) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def places_index(feed, entries, cities, ci):
+    """רחובות ושכונות → אילו קווים עוצרים בהם (אינדקס בתוך רשימת הקווים).
+    רחוב: מתיאור התחנה ב-GTFS. שכונה: הפוליגון הרשמי שהתחנה בתוכו (NBR_DIR)."""
+    hoods = load_hoods(os.environ.get('NBR_DIR', 'line-history/data/neighborhoods'))
+    grid = defaultdict(list)
+    for hi, h in enumerate(hoods):
+        x0, y0, x1, y1 = h[3]
+        for gx in range(int(x0 * 50), int(x1 * 50) + 1):
+            for gy in range(int(y0 * 50), int(y1 * 50) + 1):
+                grid[(gx, gy)].append(hi)
+    hood_of = {}
+
+    def hood(sid):
+        if sid in hood_of:
+            return hood_of[sid]
+        st = feed.stops.get(sid)
+        res = None
+        if st:
+            la, lo = st['ll']
+            for hi in grid.get((int(lo * 50), int(la * 50)), ()):
+                h = hoods[hi]
+                x0, y0, x1, y1 = h[3]
+                if x0 <= lo <= x1 and y0 <= la <= y1 and any(_in_ring(lo, la, poly[0]) and not any(_in_ring(lo, la, hole) for hole in poly[1:]) for poly in h[4]):
+                    res = hi
+                    break
+        hood_of[sid] = res
+        return res
+
+    streets, hds = defaultdict(set), defaultdict(set)
+    for li, e in enumerate(entries):
+        for sid in e['sids']:
+            st = feed.stops.get(sid)
+            if not st or not st['city']:
+                continue
+            if st['street']:
+                streets[(st['street'], st['city'])].add(li)
+            hi = hood(sid)
+            if hi is not None and hoods[hi][1].strip():
+                hds[(hoods[hi][1].strip(), st['city'])].add(li)
+
+    def cidx(c):
+        if c not in ci:
+            ci[c] = len(cities); cities.append(c)
+        return ci[c]
+    out_s = [[n, cidx(c), sorted(v)] for (n, c), v in sorted(streets.items())]
+    out_h = [[n, cidx(c), sorted(v)] for (n, c), v in sorted(hds.items())]
+    print(f'{len(out_s)} רחובות · {len(out_h)} שכונות ({len(hoods)} פוליגונים)', flush=True)
+    return {'streets': out_s, 'hoods': out_h}
 
 
 # ---------------------------------------------------------------- פלט
@@ -659,8 +747,13 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
             seen.add(p['rd'])
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
     if lines is not None:
+        places = lines.pop('_places', None)
         json.dump(dict(gen=t0, feed=new_day.isoformat(), **lines), open(os.path.join(data, 'lines.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
+        if places:
+            # רחובות ושכונות — קובץ נפרד שנטען רק כשמחפשים מילים (אינדקס הערים זהה לזה של lines.json)
+            json.dump(dict(gen=t0, cities=lines['cities'], **places), open(os.path.join(data, 'places.json'), 'w', encoding='utf-8'),
+                      ensure_ascii=False, separators=(',', ':'))
 
     # דף לכל מק"ט (שני הכיוונים וכל החלופות)
     pages = defaultdict(list)
