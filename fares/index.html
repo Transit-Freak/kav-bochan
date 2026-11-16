@@ -1067,7 +1067,9 @@ function loadRail(){
   return dfetch('../rail/data/stations.json').then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(d=>{
     // רק תחנות שיש להן מחיר במחירון הרשמי
     const have=new Set(Object.keys((FIX&&FIX.rail)||{}).flatMap(k=>k.split('|')));
-    RST=Object.entries(d).filter(([c])=>!have.size||have.has(c)).map(([c,v])=>[c,String(v[0]).replace(/''/g,'"'),v[1],v[2]])
+    // בנתוני הרכבת התחנה בעזריאלי נקראת רק "השלום", ולכן מוינה באות ה' ולא עם שאר תחנות תל אביב
+    const NAME={'השלום':'תל אביב השלום'};
+    RST=Object.entries(d).filter(([c])=>!have.size||have.has(c)).map(([c,v])=>{const n=String(v[0]).replace(/''/g,'"');return [c,NAME[n]||n,v[1],v[2]];})
       .sort((a,b)=>a[1].localeCompare(b[1],'he'));
     for (const id of ['rFrom','rTo']) $(id).insertAdjacentHTML('beforeend', RST.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join(''));
     return RST;
