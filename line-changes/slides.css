@@ -1,0 +1,266 @@
+/* השקפים של המצגת — קנבס קבוע 1280×720 (16:9), שהוא גם גודל עמוד ה-PDF (@page).
+   בתצוגה המקדימה השקף מוקטן ב-transform לרוחב העמודה; בהדפסה — בגודל מלא, שקף לכל עמוד.
+   הצבעים של השקפים קבועים (לא מצב כהה): המצגת מודפסת ונשלחת כמו שהיא.
+   אותה שפה כמו בכלי: מה שהיה = אדום מקווקו, מה שיהיה = כחול רציף, תחנה חדשה = ירוק. */
+.deck{
+  --s-ink:#13201b; --s-ink2:#1f2e28; --s-ink-fg:#eef3f0; --s-ink-sub:#a9c2b8;
+  --s-paper:#f2f5f3; --s-card:#ffffff; --s-line:#d9e1dd; --s-fg:#1b2420; --s-sub:#5b6a63;
+  --s-before:#b8361f; --s-before-bg:#fbe9e5; --s-after:#1f5fd1; --s-after-bg:#e6eefc;
+  --s-add:#127a4f; --s-add-bg:#e2f3ea; --s-note:#f2c14e; --s-note-fg:#211a04;
+  /* העיצוב (data-look): צבע מותג (שלט הקו, כותרות) ופס כותרת. צבעי לפני/אחרי במפה לא משתנים */
+  /* המסלול החדש — ירוק; תחנה חדשה — ירוק כהה יותר עם טבעת לבנה; קו בלי שינוי — כחול-אפור. הישן — אדום מקווקו */
+  --s-new:#1f9152; --s-new-stop:#0a5530; --s-same:#5f7d96;
+  --s-brand:#1f5fd1; --s-on-brand:#ffffff; --s-band:#13201b; --s-band2:#1f2e28; --s-band-fg:#eef3f0; --s-band-sub:#a9c2b8;
+  display:flex;flex-direction:column;gap:18px;
+}
+.sframe{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;overflow:hidden;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.12),0 6px 22px rgba(0,0,0,.10);background:var(--s-paper)}
+.sframe[hidden]{display:none!important}
+.slide{position:absolute;top:0;right:0;width:1280px;height:720px;transform-origin:top right;overflow:hidden;
+  background:var(--s-paper);color:var(--s-fg);font-family:'Assistant','Heebo',Arial,sans-serif;direction:rtl;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.slide *{box-sizing:border-box}
+.slide h1,.slide h2,.slide h3,.slide p{margin:0;font-family:inherit}
+.slide .hd{font-family:'Heebo','Assistant',Arial,sans-serif}
+.slide .num{font-variant-numeric:tabular-nums}
+
+/* החתימה: מקווקו אדום שהופך לכחול */
+.slide .seam{display:flex;align-items:center;height:8px}
+.slide .seam::before{content:"";flex:1;height:5px;background:repeating-linear-gradient(to left,var(--s-before) 0 16px,transparent 16px 26px)}
+.slide .seam::after{content:"";flex:1;height:7px;background:var(--s-new);border-radius:0 4px 4px 0}
+.slide .seam i{width:18px;height:18px;border-radius:50%;background:var(--s-band);border:4px solid var(--s-new);flex:none;margin:0 -2px}
+
+.slide .badge{font-family:'Heebo',Arial,sans-serif;font-weight:900;background:var(--s-brand);color:var(--s-on-brand);border-radius:18px;line-height:1;
+  padding:14px 26px;font-size:76px;text-align:center;flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.slide .badge.sm{font-size:30px;padding:8px 14px;border-radius:10px;min-width:62px}
+.slide .badge.word{font-size:62px}
+
+/* פס תחתון בשקפי התוכן */
+.slide .sfoot{position:absolute;right:48px;left:48px;bottom:18px;display:flex;justify-content:space-between;gap:16px;font-size:13px;color:var(--s-sub)}
+.slide .note{background:var(--s-note);color:var(--s-note-fg);border-radius:12px;padding:16px 22px;font-weight:800;font-size:21px;line-height:1.4}
+
+/* כל שקף ממלא את כל העמוד (גם הרקע של שקף הסיום) */
+.slide > div:first-child{width:1280px;height:720px}
+
+/* ---- שער ---- */
+.s-cover{display:flex;flex-direction:column}
+.s-cover .band{background:var(--s-band);color:var(--s-band-fg);padding:34px 64px 22px;display:flex;flex-direction:column;gap:18px}
+.s-cover .row{display:flex;align-items:center;gap:30px}
+.s-cover .t{display:flex;flex-direction:column;gap:6px;min-width:0}
+.s-cover h1{font-size:54px;font-weight:900;line-height:1.1}
+.s-cover .sub{font-size:26px;color:var(--s-band-sub);font-weight:600}
+.s-cover .body{padding:20px 64px 22px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0}
+.s-cover .body > *{flex:none}
+/* "מה משתנה?" מתכווץ (ונחתך) לפני שההבהרה יוצאת מהעמוד — טקסט ארוך מתקנים בעריכה */
+.s-cover .body > .what{flex:0 1 auto;min-height:0;overflow:hidden}
+.s-cover .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.s-cover .fact{background:var(--s-card);border-radius:14px;padding:10px 18px;display:flex;flex-direction:column;gap:2px;border-top:6px solid var(--s-brand)}
+.s-cover .fact .l{font-size:17px;font-weight:700;color:var(--s-sub)}
+.s-cover .fact .v{font-family:'Heebo',Arial,sans-serif;font-size:25px;font-weight:800;line-height:1.2}
+.s-cover .fact .x{font-size:19px;font-weight:600;color:var(--s-sub)}
+.s-cover .dirs{display:flex;flex-direction:column;background:var(--s-card);border-radius:14px;padding:4px 20px}
+.s-cover .dirs div{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid var(--s-line)}
+.s-cover .dirs div:first-child{border-top:none}
+.s-cover .dirs b{font-family:'Heebo',Arial,sans-serif;font-size:22px;font-weight:800}
+.slide .ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.s-cover .what{background:var(--s-card);border-radius:14px;padding:12px 20px 14px;display:flex;flex-direction:column;gap:6px}
+.s-cover .what h3{font-size:20px;font-weight:900;color:var(--s-brand);display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.s-cover .what h3 .counts{font-family:'Assistant',Arial,sans-serif;font-weight:600}
+.s-cover .what ul{margin:0;padding:0 22px 0 0;display:flex;flex-direction:column;gap:3px}
+.s-cover .what li{font-size:17.5px;line-height:1.33}
+.s-cover .what li b{font-weight:800}
+.s-map .segs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.s-map .segs li{display:flex;gap:10px;align-items:flex-start;font-size:17.5px;line-height:1.38}
+.s-map .segs li b{font-weight:800}
+.slide .segn{font-style:normal;flex:none;width:26px;height:26px;border-radius:7px;background:var(--s-ink);color:#fff;border:2px solid #f2c14e;display:inline-flex;align-items:center;justify-content:center;font:800 13px 'Heebo',sans-serif;margin-top:1px}
+.slide .segb{flex:none;width:9px;height:9px;border-radius:50%;background:var(--s-fg);margin:9px 8px 0 9px}
+.slide .dot.mv{background:#55625c}
+.s-map .counts,.slide .counts{font-size:15px;color:var(--s-sub);margin:0}
+.s-stops li .nr{display:block;font-size:13px;color:var(--s-sub);line-height:1.2}
+.s-stops li.two-l{min-height:44px}
+.s-cover .intro{font-size:20px;line-height:1.4;color:var(--s-fg);max-height:56px;overflow:hidden}
+.s-cover .note{font-size:17px;padding:10px 18px}
+
+/* ---- סקירה (כמה קווים) ---- */
+.s-over{padding:44px 56px 56px;display:flex;flex-direction:column;gap:18px}
+.s-over h2{font-size:38px;font-weight:900}
+.s-over table{width:100%;border-collapse:collapse;font-size:18px}
+.s-over th{background:var(--s-band);color:var(--s-band-fg);text-align:right;padding:9px 12px;font-weight:700}
+.s-over td{padding:9px 12px;border-bottom:1px solid var(--s-line);vertical-align:middle;background:var(--s-card)}
+.s-over tr:nth-child(odd) td{background:var(--s-paper)}
+.s-over td.ln{white-space:nowrap}
+.s-over td.ln b{font-family:'Heebo',Arial,sans-serif;font-size:22px;margin-left:8px}
+
+/* תגיות סיכום */
+.slide .chips{display:flex;flex-wrap:wrap;gap:6px}
+.slide .chip{font-size:16px;font-weight:800;padding:3px 11px;border-radius:999px;white-space:nowrap}
+.slide .chip.geo{background:var(--s-add-bg);color:var(--s-new-stop)}
+.slide .chip.rem{background:var(--s-before-bg);color:var(--s-before)}
+.slide .chip.add{background:var(--s-add-bg);color:var(--s-add)}
+.slide .chip.mv{background:var(--s-line);color:var(--s-fg)}
+
+/* ---- שקף מפה: מפה משמאל, הסבר מימין ---- */
+.s-map .smap{position:absolute;left:0;top:0;width:760px;height:720px;background:#dfe6e2}
+.s-map .side{position:absolute;right:0;top:0;width:520px;height:720px;padding:32px 36px 40px 28px;display:flex;flex-direction:column;gap:12px}
+.s-map .side .row{display:flex;align-items:center;gap:14px}
+.s-map h2{font-size:30px;font-weight:900;line-height:1.15}
+.s-map .lead{font-size:20px;line-height:1.45;color:var(--s-fg)}
+.s-map .lead b{font-weight:800}
+.s-map .legend{background:var(--s-card);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;font-size:14.5px;margin-top:auto}
+.s-map .legend span{display:flex;align-items:center;gap:10px}
+.slide .sw{display:inline-block;width:34px;height:0;border-top:5px solid var(--s-new);flex:none}
+.slide .sw.same{border-top-color:var(--s-same)}
+.slide .sw.old{border-top:5px dashed var(--s-before)}
+.slide .sw.near{border-top:3px dotted var(--s-ink)}
+.slide .dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font:800 11px 'Heebo',sans-serif;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.slide .dot.seg{background:var(--s-ink);border-radius:6px;border-color:#f2c14e}.slide .dot.rem{background:var(--s-before)}.slide .dot.add{background:var(--s-new-stop)}.slide .dot.same{background:#fff;border:3px solid #55625c;box-shadow:none;width:16px;height:16px}
+.s-map .smap .leaflet-control-attribution{font-size:10px}
+.s-map .inset,.s-one .inset{position:absolute;left:16px;top:16px;width:230px;height:172px;border:3px solid #fff;border-radius:10px;overflow:hidden;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);background:#dfe6e2;z-index:600}
+.s-map .part{font-size:19px;font-weight:800;color:var(--s-brand)}
+
+/* ---- שקף תחנות ---- */
+.s-stops{padding:36px 48px 60px;display:flex;flex-direction:column;gap:18px}
+.s-stops .head{display:flex;align-items:center;gap:14px}
+.s-stops h2{font-size:32px;font-weight:900;line-height:1.15}
+.s-stops .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;min-height:0}
+.s-stops .grp{display:flex;flex-direction:column;gap:8px;min-width:0}
+.s-stops .grp h3{font-size:22px;font-weight:900;display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:3px solid currentColor}
+.s-stops .grp.rem h3{color:var(--s-before);border-bottom-style:dashed}
+.s-stops .grp.add h3{color:var(--s-add)}
+.s-stops .two{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;align-content:start}
+.s-stops ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.s-stops li{display:flex;align-items:center;gap:8px;font-size:15.5px;line-height:1.2;padding:2px 0;border-bottom:1px solid var(--s-line);min-height:28px}
+.s-stops li .nm{flex:1;min-width:0}
+.s-stops li .cd{color:var(--s-sub);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.s-stops .empty{font-size:18px;color:var(--s-sub);padding-top:4px}
+.s-stops .extra{font-size:15px;color:var(--s-sub);margin-top:-8px}
+
+/* ---- סיום ---- */
+.s-close{background:var(--s-band);color:var(--s-band-fg);padding:64px 72px;display:flex;flex-direction:column;justify-content:center;gap:28px}
+.s-close h2{font-size:52px;font-weight:900}
+.s-close .phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.s-close .ph{background:var(--s-band2);border-radius:14px;padding:18px 22px;border-top:6px solid var(--s-brand);display:flex;flex-direction:column;gap:4px}
+.s-close .ph .l{font-size:19px;color:var(--s-band-sub);font-weight:600}
+.s-close .ph .v{font-family:'Heebo',Arial,sans-serif;font-size:40px;font-weight:900;color:var(--s-band-fg);direction:ltr;text-align:right}
+.s-close .src{font-size:17px;color:var(--s-band-sub)}
+
+
+/* ================= עיצובים למצגת (data-look על .deck) =================
+   אותו תוכן ואותו מבנה — רק המראה. בכל העיצובים: אדום מקווקו = המסלול הישן, כחול = החדש, ירוק = תחנה חדשה. */
+
+/* בהיר ונקי: לבן, קווים דקים, הרבה אוויר. שלט הקו במסגרת במקום מלא */
+.deck[data-look="light"]{--s-paper:#ffffff;--s-card:#ffffff;--s-line:#e4e9e6;--s-brand:#14201b;--s-on-brand:#14201b;
+  --s-band:#ffffff;--s-band2:#ffffff;--s-band-fg:#14201b;--s-band-sub:#66756e;--s-note:#fff4cf;--s-note-fg:#3a2f05}
+.deck[data-look="light"] .slide .badge{background:transparent;border:3px solid var(--s-brand)}
+.deck[data-look="light"] .s-cover .band{border-bottom:1px solid var(--s-line)}
+.deck[data-look="light"] .s-cover h1,.deck[data-look="light"] .s-map h2,.deck[data-look="light"] .s-stops h2,.deck[data-look="light"] .s-close h2{font-weight:700}
+.deck[data-look="light"] .s-cover .fact{border:1px solid var(--s-line);border-top:3px solid var(--s-brand)}
+.deck[data-look="light"] .s-cover .what{border:1px solid var(--s-line)}
+.deck[data-look="light"] .s-map .legend{border:1px solid var(--s-line)}
+.deck[data-look="light"] .note{border-right:5px solid #e0a400;font-weight:700}
+.deck[data-look="light"] .s-close .ph{border:1px solid var(--s-line);border-top:3px solid var(--s-brand)}
+.deck[data-look="light"] .s-over th{border-bottom:2px solid var(--s-brand)}
+.deck[data-look="light"] .slide .seam::before{height:3px}
+.deck[data-look="light"] .slide .seam::after{height:3px}
+.deck[data-look="light"] .slide .seam i{width:14px;height:14px;border-width:3px}
+
+/* צבעי המפעיל: הצבע מגיע מהדף (style על .deck — --s-brand, --s-band...) */
+.deck[data-look="op"] .s-cover .fact{border-top:8px solid var(--s-brand2)}
+.deck[data-look="op"] .slide .badge{box-shadow:0 0 0 4px var(--s-brand2)}
+.deck[data-look="op"] .s-close .ph{border-top-color:var(--s-brand2)}
+.deck[data-look="op"] .s-cover .what h3,.deck[data-look="op"] .s-map .part{color:var(--s-brand-text,var(--s-fg))}
+
+/* אותיות גדולות: ניגודיות גבוהה וכתב גדול לנוסעים מבוגרים. פחות תחנות בכל שקף */
+.deck[data-look="large"]{--s-paper:#ffffff;--s-card:#ffffff;--s-line:#9aa5a0;--s-fg:#000000;--s-sub:#2b3430;
+  --s-brand:#0b3d91;--s-on-brand:#ffffff;--s-band:#000000;--s-band2:#1d1d1d;--s-band-fg:#ffffff;--s-band-sub:#ffe27a;
+  --s-before:#a3220c;--s-add:#0b6b3f}
+.deck[data-look="large"] .s-cover .fact,.deck[data-look="large"] .s-cover .what,.deck[data-look="large"] .s-map .legend{border:2px solid #000}
+.deck[data-look="large"] .s-cover h1{font-size:62px}
+.deck[data-look="large"] .s-cover .sub{font-size:28px}
+.deck[data-look="large"] .s-cover .fact .l{font-size:19px;color:#000}
+.deck[data-look="large"] .s-cover .fact .v{font-size:28px}
+.deck[data-look="large"] .s-cover .fact .x{font-size:19px;color:#000}
+.deck[data-look="large"] .s-cover .intro{display:none}
+.deck[data-look="large"] .s-cover .what h3{font-size:24px}
+.deck[data-look="large"] .s-cover .what li{font-size:22px;line-height:1.35}
+.deck[data-look="large"] .s-cover .note{font-size:19px}
+.deck[data-look="large"] .s-map h2{font-size:34px}
+.deck[data-look="large"] .s-map .segs li{font-size:21px;line-height:1.35}
+.deck[data-look="large"] .s-map .legend{font-size:16.5px}
+.deck[data-look="large"] .s-map .counts{font-size:17px;color:#000}
+.deck[data-look="large"] .s-stops h2{font-size:36px}
+.deck[data-look="large"] .s-stops .grp h3{font-size:27px}
+.deck[data-look="large"] .s-stops li{font-size:21px;min-height:40px;border-bottom:1.5px solid #9aa5a0}
+.deck[data-look="large"] .s-stops li .nr{font-size:16.5px;color:#2b3430}
+.deck[data-look="large"] .s-stops li.two-l{min-height:60px}
+.deck[data-look="large"] .slide .dot{width:28px;height:28px;font-size:14px}
+.deck[data-look="large"] .s-stops .extra{font-size:17px;color:#000}
+.deck[data-look="large"] .slide .sfoot{font-size:15px;color:#000}
+.deck[data-look="large"] .s-close h2{font-size:60px}
+.deck[data-look="large"] .s-close .note{font-size:24px}
+.deck[data-look="large"] .s-close .src{font-size:19px}
+
+/* ---- עמוד אחד לשינוי קטן: מפה משמאל, כל הטקסט מימין ---- */
+.s-one .smap{position:absolute;left:0;top:0;width:660px;height:720px;background:#dfe6e2}
+.s-one .side{position:absolute;right:0;top:0;width:620px;height:720px;padding:30px 36px 34px 30px;display:flex;flex-direction:column;gap:12px}
+.s-one .ohead{display:flex;align-items:center;gap:16px;background:var(--s-band);color:var(--s-band-fg);margin:-30px -36px 0 -30px;padding:24px 36px 20px 30px}
+.s-one .ohead .badge{font-size:46px;padding:10px 16px;border-radius:14px}
+.s-one .ohead .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.s-one .ohead h1{font-size:36px;font-weight:900;line-height:1.1}
+.s-one .ohead .sub{font-size:18px;color:var(--s-band-sub);font-weight:600}
+.s-one .owhen{font-size:18px;color:var(--s-fg)}
+.s-one .owhen b{font-family:'Heebo',Arial,sans-serif;font-weight:800;font-size:20px}
+.s-one .owhat{background:var(--s-card);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.s-one .owhat h3{font-size:19px;font-weight:900;color:var(--s-brand)}
+.s-one .owhat ul{margin:0;padding:0 20px 0 0;display:flex;flex-direction:column;gap:6px}
+.s-one .owhat li{font-size:18.5px;line-height:1.38}
+.s-one .legend{background:var(--s-card);border-radius:12px;padding:9px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13.5px}
+.s-one .legend span{display:flex;align-items:center;gap:8px}
+.s-one .ocontact{margin-top:auto;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:17px;color:var(--s-fg)}
+.s-one .ocontact b{font-family:'Heebo',Arial,sans-serif;font-size:21px;font-weight:900}
+.s-one .note{font-size:15px;padding:9px 14px;font-weight:700}
+.s-one .osrc{font-size:12.5px;color:var(--s-sub)}
+.s-one .part{font-size:16px;font-weight:800;color:var(--s-brand)}
+.deck[data-look="light"] .s-one .ohead{border-bottom:1px solid var(--s-line)}
+.deck[data-look="large"] .s-one .owhat li{font-size:21px}
+.deck[data-look="large"] .s-one .ohead h1{font-size:40px}
+
+/* ---- שקף טקסט (נוסף ביד) ---- */
+.s-text{padding:48px 64px 64px;display:flex;flex-direction:column;gap:22px}
+.s-text .head{display:flex;align-items:center;gap:14px}
+.s-text h2{font-size:42px;font-weight:900;line-height:1.15}
+.s-text .body{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0}
+.s-text .body p{font-size:26px;line-height:1.45}
+
+/* ---- תיבת טקסט חופשית ---- */
+.tbox{position:absolute;z-index:700;background:rgba(255,255,255,.94);color:var(--s-fg);border-radius:10px;padding:10px 14px;font-size:22px;line-height:1.4;font-weight:700;
+  box-shadow:0 2px 10px rgba(0,0,0,.18);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.tbox-t{min-height:1.4em;outline:none}
+.tbox-h{position:absolute;top:-14px;left:-14px;width:28px;height:28px;border-radius:50%;background:#1f5fd1;color:#fff;font-size:16px;line-height:28px;text-align:center;cursor:grab;display:none;touch-action:none}
+.editing .tbox-h{display:block}
+
+/* סמני המפה */
+.lc-mk{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 12.5px 'Heebo',sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lc-mk.seg{background:#13201b;border-radius:7px;width:28px;height:28px;font-size:14px;border-color:#f2c14e}
+.lc-mk.rem{background:#b8361f}.lc-mk.add{background:#0a5530;border-width:2.5px;box-shadow:0 0 0 1.5px #0a5530,0 1px 4px rgba(0,0,0,.45)}.lc-mk.mv{background:#55625c}
+.leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
+.leaflet-tooltip.lc-lbl{font:700 13px 'Assistant','Heebo',sans-serif;color:#13201b;padding:2px 7px;border-radius:6px;border:1px solid #9aa5a0;box-shadow:0 1px 3px rgba(0,0,0,.2);white-space:nowrap}
+.s-map ul.small{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.s-map ul.small li{display:flex;gap:10px;align-items:flex-start;font-size:17px;line-height:1.3}
+.s-map ul.small .nr{display:block;font-size:14.5px;color:var(--s-sub)}
+
+/* ---- הדפסה / PDF: רק השקפים, שקף לכל עמוד ---- */
+@page{size:1280px 720px;margin:0}
+@media print{
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  .noprint{display:none!important}
+  .deck{gap:0;display:block;width:1280px}
+  .kb-home,.kb-copyright,#kb-a11y-btn,#kb-a11y-panel{display:none!important}
+  .sframe{width:1280px!important;height:720px!important;aspect-ratio:auto;border-radius:0;box-shadow:none;overflow:hidden;margin:0}
+  .sitem{break-after:page;page-break-after:always}
+  .sitem.lastvis{break-after:auto;page-break-after:auto}
+  .tbox-h{display:none!important}
+  .slide{transform:none!important}
+  .leaflet-control-zoom{display:none}
+}

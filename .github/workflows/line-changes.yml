@@ -1,0 +1,61 @@
+name: line-changes
+
+# מצגת לשינוי בקו (line-changes) — כל לילה: השינויים במסלולים ובתחנות שיכנסו לתוקף
+# בשבועיים הקרובים, בכל הארץ, מהשוואת ה-GTFS של היום לשבוע שעבר (tools/line_changes.py).
+# הבונה קורא את ה-GTFS ישר מהארכיון היומי של דאטאבוס ב-S3 (קריאה בטווחים, בלי להוריד את כל ה-zip),
+# ומוסיף לכל קו את השינויים מהשבוע האחרון מתוך "הקו בזמן" (line-history/data/changes).
+# לחיפוש: רחובות (מתיאור התחנות) ושכונות (הפוליגונים הרשמיים ב-line-history/data/neighborhoods).
+# נשמרים רק קבצים קטנים: אינדקס הקווים, רשימת השינויים, וקובץ לכל שינוי (כ-2.5MB בסך הכול).
+
+on:
+  schedule:
+    - cron: '47 2 * * *'   # 04:47/05:47 בישראל — אחרי שהארכיון היומי נשמר ב-S3 (00:01 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: line-changes
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tools/
+            /line-changes/
+            /line-history/data/changes/
+            /line-history/data/neighborhoods/
+
+      - name: השינויים בקווים
+        env:
+          TZ: Asia/Jerusalem
+          LH_CHANGES: line-history/data/changes
+          NBR_DIR: line-history/data/neighborhoods
+        run: python3 tools/line_changes.py
+
+      - name: שמירה
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # כל הנתונים של הכלי נבנים בריצה הזו — שומרים עותק, עוברים ל-main העדכני ומעתיקים מעליו
+          rm -rf /tmp/out && mkdir -p /tmp/out && cp -a line-changes/data line-changes/l /tmp/out/
+          for i in 1 2 3 4 5 6; do
+            git fetch -q --depth 1 --filter=blob:none origin main && git reset -q --hard origin/main
+            rsync -a --delete /tmp/out/data/ line-changes/data/
+            rsync -a --delete /tmp/out/l/ line-changes/l/
+            git add -A line-changes/data line-changes/l
+            git diff --cached --quiet && { echo "אין שינוי"; exit 0; }
+            git commit -q -m "data: מצגת לשינוי בקו — השינויים הקרובים"
+            git push -q origin HEAD:main && exit 0
+            echo "push rejected — retry $i"; sleep 15
+          done
+          echo "הדחיפה נכשלה"; exit 1
