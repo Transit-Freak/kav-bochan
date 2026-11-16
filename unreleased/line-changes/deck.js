@@ -523,7 +523,7 @@ var LCDeck = (function () {
     var s0 = start(p), opPhone = PHONES[p.op];
     var firstTrip = p.formal && p.formal !== p.eff ? ' · נסיעה ראשונה ' + LC.wd(p.eff) + ' ' + LC.dm(p.eff) : '';
     var items = whatChanges(p, dirs).filter(Boolean);
-    return '<div class="s-one"><div class="smap"></div><div class="inset"></div><div class="side">' +
+    return '<div class="s-one"><div class="smap"></div><div class="side">' +   // בלי מפת התמצאות — המפה הקרובה מספיקה
       '<div class="ohead"><span class="badge num">' + E(p.line) + '</span><div class="t"><h1 class="hd">שינוי בקו ' + E(p.line) + '</h1>' +
         '<p class="sub">' + E(LC.od(p.od)) + ' · ' + E(p.op) + '</p></div></div>' +
       '<p class="owhen"><b>' + (p.past ? 'מ' : 'החל מ') + E(LC.wd(s0) + ' ' + LC.dmy(s0)) + '</b> · ' + E(hebDate(s0)) + E(firstTrip) + '</p>' +
