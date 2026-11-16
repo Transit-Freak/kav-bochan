@@ -1,0 +1,134 @@
+/* השקפים של המצגת — קנבס קבוע 1280×720 (16:9), שהוא גם גודל עמוד ה-PDF (@page).
+   בתצוגה המקדימה השקף מוקטן ב-transform לרוחב העמודה; בהדפסה — בגודל מלא, שקף לכל עמוד.
+   הצבעים של השקפים קבועים (לא מצב כהה): המצגת מודפסת ונשלחת כמו שהיא.
+   אותה שפה כמו בכלי: מה שהיה = אדום מקווקו, מה שיהיה = כחול רציף, תחנה חדשה = ירוק. */
+.deck{
+  --s-ink:#13201b; --s-ink2:#1f2e28; --s-ink-fg:#eef3f0; --s-ink-sub:#a9c2b8;
+  --s-paper:#f2f5f3; --s-card:#ffffff; --s-line:#d9e1dd; --s-fg:#1b2420; --s-sub:#5b6a63;
+  --s-before:#b8361f; --s-before-bg:#fbe9e5; --s-after:#1f5fd1; --s-after-bg:#e6eefc;
+  --s-add:#127a4f; --s-add-bg:#e2f3ea; --s-note:#f2c14e; --s-note-fg:#211a04;
+  display:flex;flex-direction:column;gap:18px;
+}
+.sframe{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;overflow:hidden;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.12),0 6px 22px rgba(0,0,0,.10);background:var(--s-paper)}
+.sframe[hidden]{display:none!important}
+.slide{position:absolute;top:0;right:0;width:1280px;height:720px;transform-origin:top right;overflow:hidden;
+  background:var(--s-paper);color:var(--s-fg);font-family:'Assistant','Heebo',Arial,sans-serif;direction:rtl;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.slide *{box-sizing:border-box}
+.slide h1,.slide h2,.slide h3,.slide p{margin:0;font-family:inherit}
+.slide .hd{font-family:'Heebo','Assistant',Arial,sans-serif}
+.slide .num{font-variant-numeric:tabular-nums}
+
+/* החתימה: מקווקו אדום שהופך לכחול */
+.slide .seam{display:flex;align-items:center;height:8px}
+.slide .seam::before{content:"";flex:1;height:5px;background:repeating-linear-gradient(to left,var(--s-before) 0 16px,transparent 16px 26px)}
+.slide .seam::after{content:"";flex:1;height:7px;background:var(--s-after);border-radius:0 4px 4px 0}
+.slide .seam i{width:18px;height:18px;border-radius:50%;background:var(--s-ink);border:4px solid var(--s-after);flex:none;margin:0 -2px}
+
+.slide .badge{font-family:'Heebo',Arial,sans-serif;font-weight:900;background:var(--s-after);color:#fff;border-radius:18px;line-height:1;
+  padding:14px 26px;font-size:76px;text-align:center;flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.slide .badge.sm{font-size:30px;padding:8px 14px;border-radius:10px;min-width:62px}
+.slide .badge.word{font-size:62px}
+
+/* פס תחתון בשקפי התוכן */
+.slide .sfoot{position:absolute;right:48px;left:48px;bottom:18px;display:flex;justify-content:space-between;gap:16px;font-size:13px;color:var(--s-sub)}
+.slide .note{background:var(--s-note);color:var(--s-note-fg);border-radius:12px;padding:16px 22px;font-weight:800;font-size:21px;line-height:1.4}
+
+/* ---- שער ---- */
+.s-cover{display:flex;flex-direction:column}
+.s-cover .band{background:var(--s-ink);color:var(--s-ink-fg);padding:44px 64px 26px;display:flex;flex-direction:column;gap:22px}
+.s-cover .row{display:flex;align-items:center;gap:30px}
+.s-cover .t{display:flex;flex-direction:column;gap:6px;min-width:0}
+.s-cover h1{font-size:54px;font-weight:900;line-height:1.1}
+.s-cover .sub{font-size:26px;color:var(--s-ink-sub);font-weight:600}
+.s-cover .body{padding:26px 64px 0;display:flex;flex-direction:column;gap:20px}
+.s-cover .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.s-cover .fact{background:var(--s-card);border-radius:14px;padding:16px 20px;display:flex;flex-direction:column;gap:2px;border-top:6px solid var(--s-after)}
+.s-cover .fact .l{font-size:17px;font-weight:700;color:var(--s-sub)}
+.s-cover .fact .v{font-family:'Heebo',Arial,sans-serif;font-size:28px;font-weight:800;line-height:1.2}
+.s-cover .fact .x{font-size:19px;font-weight:600;color:var(--s-sub)}
+.s-cover .dirs{display:flex;flex-direction:column;background:var(--s-card);border-radius:14px;padding:4px 20px}
+.s-cover .dirs div{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid var(--s-line)}
+.s-cover .dirs div:first-child{border-top:none}
+.s-cover .dirs b{font-family:'Heebo',Arial,sans-serif;font-size:22px;font-weight:800}
+.slide .ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.s-cover .intro{font-size:23px;line-height:1.45;color:var(--s-fg);max-height:100px;overflow:hidden}
+
+/* ---- סקירה (כמה קווים) ---- */
+.s-over{padding:44px 56px 56px;display:flex;flex-direction:column;gap:18px}
+.s-over h2{font-size:38px;font-weight:900}
+.s-over table{width:100%;border-collapse:collapse;font-size:18px}
+.s-over th{background:var(--s-ink);color:var(--s-ink-fg);text-align:right;padding:9px 12px;font-weight:700}
+.s-over td{padding:9px 12px;border-bottom:1px solid var(--s-line);vertical-align:middle;background:var(--s-card)}
+.s-over tr:nth-child(odd) td{background:var(--s-paper)}
+.s-over td.ln{white-space:nowrap}
+.s-over td.ln b{font-family:'Heebo',Arial,sans-serif;font-size:22px;margin-left:8px}
+
+/* תגיות סיכום */
+.slide .chips{display:flex;flex-wrap:wrap;gap:6px}
+.slide .chip{font-size:16px;font-weight:800;padding:3px 11px;border-radius:999px;white-space:nowrap}
+.slide .chip.geo{background:var(--s-after-bg);color:var(--s-after)}
+.slide .chip.rem{background:var(--s-before-bg);color:var(--s-before)}
+.slide .chip.add{background:var(--s-add-bg);color:var(--s-add)}
+.slide .chip.mv{background:var(--s-line);color:var(--s-fg)}
+
+/* ---- שקף מפה: מפה משמאל, הסבר מימין ---- */
+.s-map .smap{position:absolute;left:0;top:0;width:760px;height:720px;background:#dfe6e2}
+.s-map .side{position:absolute;right:0;top:0;width:520px;height:720px;padding:40px 40px 56px 32px;display:flex;flex-direction:column;gap:16px}
+.s-map .side .row{display:flex;align-items:center;gap:14px}
+.s-map h2{font-size:34px;font-weight:900;line-height:1.15}
+.s-map .lead{font-size:20px;line-height:1.45;color:var(--s-fg)}
+.s-map .lead b{font-weight:800}
+.s-map .legend{background:var(--s-card);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;font-size:17px;margin-top:auto}
+.s-map .legend span{display:flex;align-items:center;gap:10px}
+.slide .sw{display:inline-block;width:34px;height:0;border-top:5px solid var(--s-after);flex:none}
+.slide .sw.old{border-top:5px dashed var(--s-before)}
+.slide .dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font:800 11px 'Heebo',sans-serif;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.slide .dot.rem{background:var(--s-before)}.slide .dot.add{background:var(--s-add)}.slide .dot.same{background:#fff;border:3px solid #55625c;box-shadow:none;width:16px;height:16px}
+.s-map .smap .leaflet-control-attribution{font-size:10px}
+
+/* ---- שקף תחנות ---- */
+.s-stops{padding:36px 48px 60px;display:flex;flex-direction:column;gap:18px}
+.s-stops .head{display:flex;align-items:center;gap:14px}
+.s-stops h2{font-size:32px;font-weight:900;line-height:1.15}
+.s-stops .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;min-height:0}
+.s-stops .grp{display:flex;flex-direction:column;gap:8px;min-width:0}
+.s-stops .grp h3{font-size:22px;font-weight:900;display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:3px solid currentColor}
+.s-stops .grp.rem h3{color:var(--s-before);border-bottom-style:dashed}
+.s-stops .grp.add h3{color:var(--s-add)}
+.s-stops .two{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;align-content:start}
+.s-stops ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.s-stops li{display:flex;align-items:center;gap:8px;font-size:15.5px;line-height:1.2;padding:2px 0;border-bottom:1px solid var(--s-line);min-height:28px}
+.s-stops li .nm{flex:1;min-width:0}
+.s-stops li .cd{color:var(--s-sub);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.s-stops .empty{font-size:18px;color:var(--s-sub);padding-top:4px}
+.s-stops .extra{font-size:15px;color:var(--s-sub);margin-top:-8px}
+
+/* ---- סיום ---- */
+.s-close{background:var(--s-ink);color:var(--s-ink-fg);padding:64px 72px;display:flex;flex-direction:column;justify-content:center;gap:28px}
+.s-close h2{font-size:52px;font-weight:900}
+.s-close .phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.s-close .ph{background:var(--s-ink2);border-radius:14px;padding:18px 22px;border-top:6px solid var(--s-after);display:flex;flex-direction:column;gap:4px}
+.s-close .ph .l{font-size:19px;color:var(--s-ink-sub);font-weight:600}
+.s-close .ph .v{font-family:'Heebo',Arial,sans-serif;font-size:40px;font-weight:900;color:#fff;direction:ltr;text-align:right}
+.s-close .src{font-size:17px;color:var(--s-ink-sub)}
+.s-close .seam i{background:var(--s-ink)}
+
+/* סמני המפה */
+.lc-mk{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 12.5px 'Heebo',sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lc-mk.rem{background:#b8361f}.lc-mk.add{background:#127a4f}.lc-mk.mv{background:#55625c}
+.leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
+
+/* ---- הדפסה / PDF: רק השקפים, שקף לכל עמוד ---- */
+@page{size:1280px 720px;margin:0}
+@media print{
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  .noprint{display:none!important}
+  .deck{gap:0;display:block;width:1280px}
+  .kb-home,.kb-copyright,#kb-a11y-btn,#kb-a11y-panel{display:none!important}
+  .sframe{width:1280px!important;height:720px!important;aspect-ratio:auto;border-radius:0;box-shadow:none;break-after:page;page-break-after:always;overflow:hidden;margin:0}
+  .sframe:last-child{break-after:auto;page-break-after:auto}
+  .slide{transform:none!important}
+  .leaflet-control-zoom{display:none}
+}

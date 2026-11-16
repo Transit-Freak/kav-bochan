@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""מה משתנה בקווים — דפי "לפני ← אחרי" אוטומטיים לשינויי מסלול ותחנות שעומדים להיכנס לתוקף.
+"""מצגת לשינוי בקו — הנתונים: שינויי מסלול ותחנות שעומדים להיכנס לתוקף, לכל קו "לפני ← אחרי".
+הדף (unreleased/line-changes/) בונה מהם מצגת PDF.
 
 העיקרון: משווים בין מה שהקו עשה בשבוע האחרון (ה-GTFS מלפני REF_DAYS ימים, בתאריכים
 שכבר עברו) לבין מה שה-GTFS של היום כבר מכיל לימים הקרובים (HORIZON ימים).
@@ -20,7 +21,7 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
   data/index.json        רשימת השינויים (לדף הראשי)
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
   data/state.json        השינויים לפי כיוון — כדי לשמור שינויים שכבר נכנסו לתוקף
-  l/<id>.html            דף סטטי לכל קו (לתצוגה המקדימה בווטסאפ), מהתבנית line-template.html
+  l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
 מצב (16.11.2026): שלב ראשון, עדיין בלי ריצה לילית (אין workflow). הנתונים שב-data/ הם דוגמה:
 4 קווים (988, 522, 590, 356) מריצה ידנית על צפת וקרית מלאכי. ריצה מלאה לשתי הערים מצאה 39 כיוונים.
@@ -627,8 +628,8 @@ def write_out(found, stats, filtered, new_day, old_day):
         json.dump(dict(rec, gen=t0, feed=new_day.isoformat(), dirs=dirs),
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
-        title = f'קו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]}: מה משתנה מ-{fmt_d(rec["formal"] or eff)}'
-        desc = f'{summ}. {f0["op"]}. מפה לכל כיוון ורשימת התחנות שיורדות ושנוספות.'
+        title = f'שינוי בקו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]} מ-{fmt_d(rec["formal"] or eff)}'
+        desc = f'{summ}. {f0["op"]}. מצגת עם מפה של לפני ואחרי לכל כיוון, והתחנות שיורדות ושנוספות.'
         html = (tpl.replace('{{TITLE}}', esc(title)).replace('{{DESC}}', esc(desc))
                 .replace('{{URL}}', f'{SITE}/l/{pid}.html').replace('{{ID}}', pid))
         open(os.path.join(OUTDIR, 'l', pid + '.html'), 'w', encoding='utf-8').write(html)
