@@ -11,14 +11,12 @@ jobs:
     env:
       UA: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36'
     steps:
-      - name: markav-line
+      - name: history
         continue-on-error: true
         run: |
-          strip() { python3 -c 'import sys,re,html;t=open(sys.argv[1]).read();t=re.sub(r"(?s)<(script|style).*?</\1>","",t);t=re.sub(r"<br\s*/?>|</(p|div|tr|h\d|li)>","\n",t);t=re.sub(r"</t[dh]>"," | ",t);t=re.sub(r"<[^>]+>","",t);t=html.unescape(t);print(re.sub(r"\n\s*\n+","\n",t)[:5000])' "$1"; }
-          curl -sSL -A "$UA" -o q.html -w '%{http_code} %{url_effective}\n' 'https://markav.net/lines_q?q=10006'
-          echo '--- links'; grep -oE 'href="[^"]+"' q.html | sort -u | head -40
-          strip q.html | head -60
-          L=$(grep -oE 'href="/line[^"]*"' q.html | head -1 | sed 's/href="//;s/"$//')
-          echo "=== line page $L"
-          [ -n "$L" ] && curl -sSL -A "$UA" -o l.html -w '%{http_code}\n' "https://markav.net$L" && { grep -oE '(href|src)="[^"]+"' l.html | sort -u | head -60; strip l.html | head -150; grep -oE "(fetch|ajax|url)\(?['\"][^'\"]+['\"]" l.html | head; }
-          echo '=== page 6'; curl -sSL -A "$UA" -o p6.html https://markav.net/page/6/; strip p6.html | head -60
+          for id in 10006 10003 10010; do
+            for p in RidershipHistoryDL timeseriesDL; do
+              echo "=== $p $id"; curl -sSL -A "$UA" -D h -o o "https://markav.net/$p?q=$id"; grep -iE '^(HTTP|content-type|content-disposition)' h; head -c 1500 o; echo
+            done
+            sleep 2
+          done
