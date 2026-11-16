@@ -14,6 +14,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // העיניים 1.57 מ' מעל רצפת האוטובוס (אדם בגובה ממוצע). אותה מערכת צירים של האוטובוס כמו במבט הנהג (הרצפה ב-0.675 מעל הכביש)
 const FLOOR = 0.675, EYE = FLOOR + 1.57, REACH = 1.2;
+// ההזזות של המכשיר כשמשהו בדרך (clearance, במערכת המצלמה): קודם בלי הזזה, אחר כך 3/6/9 ס"מ בשמונה כיוונים במישור המסך, ובסוף עד 6 ס"מ אל המצלמה
+const CLEAR_OFFS = (() => { const a = [[0, 0, 0]]; for (const r of [0.03, 0.06, 0.09]) for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) a.push([dx * r, dy * r, 0]);
+  for (const z of [0.03, 0.06]) for (const [dx, dy] of [[0, 0], [0, -0.05], [0, 0.05], [-0.05, 0], [0.05, 0]]) a.push([dx, dy, z]); return a.map(v => new THREE.Vector3(...v)); })();
 const REACH_MAX = 0.45;  // כמה המכשיר יוצא אל הכרטיס מהמקום שלו — המרפק נשאר כפוף (קודם 0.8: זרוע מתוחה עד הפנים של הנוסע)
 const AISLE_Z1 = 3.55;   // הקצה הקדמי של המעבר — מאחורי מחיצת הנהג ומכונת הכרטיסים; הפקח לא עובר אותו
 // המעבר: מהדלת הקדמית, ליד המתקף, ואז לאורך האמצע עד המושבים האחרונים
@@ -262,10 +265,11 @@ export class InspectorFP {
     return { readerOn, ringOcc, headMin: +hm.toFixed(2), camOcc: !!this.occ.has(e.x, e.y, e.z), walkerMin: +wmin.toFixed(2), readerHits: this.lastHits || 0, pull: +(this.lastPull || 0).toFixed(2), anim: this.anim ? +this.anim.t.toFixed(2) : null };
   }
   // היד והמכשיר של הפקח לא נכנסים בשום דבר — לא באוטובוס, לא בנוסעים, וגם לא ביד של מי שמגיש את הכרטיס (המכשיר עוצר
-  // לפני הכרטיס): נקודות על פני המכשיר, כף היד והאמה (עם העובי שלה) — באף אחת מהן אין תא תפוס. אם יש, היד נסוגה אל הגוף
-  // (עד 30 ס"מ, בצעדים של 2 ס"מ), ואם עדיין חסום — יורדת בהדרגה אל מתחת למסך. התנועה רציפה, בלי קפיצות
+  // לפני הכרטיס): נקודות על פני המכשיר, כף היד והאמה (עם העובי שלה) — באף אחת מהן אין תא תפוס. אם יש, המכשיר זז מעט
+  // (עד 9 ס"מ) למטה, למעלה או הצידה — ועוקף את מה שבדרך (מתקף, עמוד) — וקרוב למצלמה רק עד 6 ס"מ. קודם הוא נמשך אל
+  // המצלמה עד 20 ס"מ, ונראה ענק ליד המתקף (שלמה 16.11). אם אין מקום כזה — יורד בהדרגה אל מתחת למסך. התנועה רציפה (עד 60 ס"מ בשנייה)
   clearance(o, inv, dt = 1 / 30) {
-    const g = this.reader.group, base = this.readerOff || new THREE.Vector3(), dir = this.reader.rest.clone().normalize(), q = new THREE.Vector3();
+    const g = this.reader.group, base = this.readerOff || new THREE.Vector3(), q = new THREE.Vector3();
     // מי שמגיש: גם מרווח מהראש (11 ס"מ) ומהגו (16 ס"מ)
     const hw = this.anim && this.g.people.onboardPos?.get(this.anim.pid), head = hw ? o.worldToLocal(hw.clone()) : null;
     const seg = new THREE.Line3(), cp = new THREE.Vector3();
@@ -276,16 +280,22 @@ export class InspectorFP {
       const why = (q, t) => { if (n === 1) { const i = this.occ.idx(q.x, q.y, q.z); this.hitDbg = `${t} st${i >= 0 ? this.occ.st[i] : -1} pp${i >= 0 ? this.occ.pp[i] : -1} @${q.toArray().map(v => v.toFixed(2))}`; } };
       for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'dev'); } }
       for (const p of armP) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'arm'); } } return n; };
-    this.cur = this.cur || new THREE.Vector3(); const at = pull => this.cur.copy(base).addScaledVector(dir, -pull);
-    let need = null; for (let pull = 0; pull <= 0.3001; pull += 0.02) if (!test(at(pull))) { need = pull; break; }
-    // אין מקום למכשיר אלא צמוד למצלמה (משיכה של יותר מ-20 ס"מ — שם הוא יוצא מהתמונה, למשל ליד עמוד כשבודקים עומד גבוה ליד הקיר השמאלי): מורידים אותו
-    if (need != null && need > 0.2) need = null;
-    this.pullS = this.pullS || 0; this.drop = this.drop || 0;
-    if (need != null) { const back = Math.max(need, this.pullS - 0.6 * dt); this.pullS = need >= this.pullS || test(at(back)) ? need : back; }
-    this.drop = THREE.MathUtils.clamp(this.drop + (need == null ? 8 : -5) * dt, 0, 1);
-    at(this.pullS); if (this.drop > 0) this.cur.lerp(new THREE.Vector3(0, -0.5, 0), this.drop);
+    // ההזזות האפשריות (במערכת המצלמה): בלי הזזה; 3/6/9 ס"מ בשמונה כיוונים במישור המסך; ועד 6 ס"מ אל המצלמה
+    const C = CLEAR_OFFS;
+    this.clrT = this.clrT || new THREE.Vector3(); this.clrC = this.clrC || new THREE.Vector3(); this.cur = this.cur || new THREE.Vector3();
+    const P = new THREE.Vector3(), at = off => P.copy(base).add(off);
+    // נשארים עם ההזזה הנוכחית כל עוד היא פנויה; אחרת — הפנויה הקטנה ביותר, הקרובה להזזה הנוכחית
+    let tgt = null;
+    if (!test(at(this.clrT))) tgt = this.clrT.lengthSq() > 1e-6 && !test(at(C[0])) ? C[0] : this.clrT;
+    else { let bc = Infinity; for (const c of C) { const cost = c.length() + 0.5 * c.distanceTo(this.clrT); if (cost < bc && !test(at(c))) { bc = cost; tgt = c; } } }
+    this.drop = this.drop || 0;
+    if (tgt) this.clrT.copy(tgt);
+    { const d = this.clrT.clone().sub(this.clrC), mx = 0.6 * dt; if (d.length() > mx) d.setLength(mx); this.clrC.add(d); }
+    this.drop = THREE.MathUtils.clamp(this.drop + (tgt ? -5 : 8) * dt, 0, 1);
+    this.cur.copy(at(this.clrC)); if (this.drop > 0) this.cur.lerp(new THREE.Vector3(0, -0.5, 0), this.drop);
     g.position.copy(this.cur); g.updateMatrixWorld(true); this.reader.aimArm();
-    this.lastHits = need == null ? 1 : 0; this.lastPull = need == null ? 0.3 : this.pullS;
+    this.pullS = this.clrC.length();
+    this.lastHits = tgt ? 0 : 1; this.lastPull = tgt ? this.pullS : 0.3;
   }
   // הקשה על המסך: הנוסע הקרוב ביותר לנקודה (עד REACH — צריך להתקרב)
   tap(x, y) {
@@ -354,7 +364,9 @@ export class InspectorFP {
     // הכרטיס ביד בכל השלבים, ונעלם רק כשהיד חזרה למנוחה על הירך (לכיס)
     if (R) { if (A.down == null) R.frac = REACH_FR[Math.min(REACH_FR.length - 1, Math.floor(t / 0.08))]; else R.frac = t < A.down + 0.25 ? 1 : [...REACH_FR].reverse().concat(0)[Math.min(REACH_FR.length, 1 + Math.floor((t - A.down - 0.25) / 0.07))];
       // המבט של הנוסע: קודם אל הפקח, כשהיד למעלה — אל הכרטיס והמכשיר, ואחרי התוצאה שוב אל הפקח. הראש מסתובב בהדרגה
-      const lt = (A.down == null ? t > 0.65 : t < A.down + 0.1) ? 1 : 0; A.look = (A.look || 0) + THREE.MathUtils.clamp(lt - (A.look || 0), -dt * 3.5, dt * 3.5); R.look = Math.round(A.look * 4) / 4; }   // היד יורדת רק אחרי שהמכשיר התרחק ממנה
+      const lt = (A.down == null ? t > 0.65 : t < A.down + 0.1) ? 1 : 0; A.look = (A.look || 0) + THREE.MathUtils.clamp(lt - (A.look || 0), -dt * 3.5, dt * 3.5); R.look = Math.round(A.look * 4) / 4;
+      // בלי כרטיס: כשהיד למעלה — נענוע ראש קטן ("אין לי"), עד שהיד יורדת (reachPose: look של יד ריקה הוא הנענוע)
+      if (!R.card) R.look = R.frac >= 1 && t > 0.6 && (A.down == null || t < A.down) ? [0.25, 0.5, 0.75, 0.5][Math.floor((t - 0.6) / 0.13) % 4] : 0; }   // היד יורדת רק אחרי שהמכשיר התרחק ממנה
     // המכשיר יוצא אל הכרטיס (כשהיד למעלה), עד 80 ס"מ מהמקום שלו (יד מושטת); הגב של המכשיר עוצר 5 ס"מ לפני הכרטיס — לא נוגע באצבעות שמחזיקות אותו
     const card = PL.cardWorld, rest = this.reader.rest;
     if (!A.off) A.off = new THREE.Vector3();

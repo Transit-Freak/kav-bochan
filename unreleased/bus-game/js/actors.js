@@ -421,6 +421,8 @@ export const STAND_POLE = { dx: 0.34, dxL: 0.24, dz: 0.12, dzL: 0.16 };   // ל�
 // 7 ס"מ מעל התחתית (side — חצי הרוחב שם), כמו על עמוד: אגרוף סביב הרצועה, האגודל למעלה
 // שלבי ההגשה של כרטיס לפקח (reachPose): כמה מהדרך בכל שלב. people.audit בודק את כולם
 export const REACH_FR = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1];
+// בלי כרטיס: כמה כף היד עולה ויוצאת קדימה (יושב, עומד), משיכת הכתפיים ונענוע הראש (מעלות)
+export const EMPTY_UP = [0.1, 0.2], EMPTY_FWD = [0.1, 0.12], EMPTY_SHRUG = 6, EMPTY_SHAKE = 12;
 // עומד שמגיש כרטיס (reachPose): כמה הגו מסתובב אל המעבר (מעלות: גב תחתון, חזה), לאן כף היד יוצאת מהכתף (כיוון: אל המעבר,
 // למטה, קדימה; ואיזה חלק מאורך הזרוע), ולאן המרפק פונה (החוצה, לצד החלון, ולמטה) — הזרוע העליונה נמוכה והאמה לפני הגוף
 // הכרטיס יוצא אל המעבר (ולא רק קדימה): הפקח עומד במעבר, כמעט מול הפנים — כרטיס שרחוק קדימה נשאר בצד של התמונה, והמכשיר
@@ -855,6 +857,51 @@ export function reachPen(root, hand, verts = skinVerts(root)) {
     r.depth = +r.depth.toFixed(4); r.gap = +r.gap.toFixed(4); }
   return out;
 }
+// בגדים בישיבה: המכנסיים (או החצאית) לא יוצאים מעל החולצה. בכל רשת בגד מפרידים את החלקים המחוברים (כל חלק של
+// בגד בדגמים האלה הוא חלקים נפרדים באותה רשת): חלק שרוב הקודקודים שלו על הירכיים והרגליים — "תחתון" (מכנסיים, חצאית),
+// והשאר — "עליון" (חולצה, ז'קט). קודקוד תחתון "בולט" אם קרן ממנו פנימה (נגד הנורמל) פוגשת בגד עליון עד 4 ס"מ — כלומר הוא מעל החולצה.
+// בעמידה (התנוחה שהדגם תוכנן לה) זה לפעמים בכוונה (חולצה בתוך המכנסיים), לכן נחשבים רק קודקודים שבולטים בישיבה ולא
+// בעמידה (base). fix — מכניסים אותם אל מתחת לחולצה (3 מ"מ פנימה מהמקום שבו הקרן פוגשת אותה). מחזיר את מספר הקודקודים
+const NO_TUCK = typeof location !== 'undefined' && new URLSearchParams(location.search).has('notuck');   // ?notuck — בלי התיקון (להשוואה)
+const LEG_B = /^(LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot)$/;
+function clothParts(o) {
+  const g = o.geometry; if (g.userData.parts) return g.userData.parts;
+  const pos = g.attributes.position, n = pos.count, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bs = o.skeleton.bones;
+  const par = new Int32Array(n).map((_, i) => i), find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }, uni = (a, b) => { a = find(a); b = find(b); if (a !== b) par[a] = b; };
+  const I = g.index; if (I) for (let t = 0; t < I.count; t += 3) { uni(I.getX(t), I.getX(t + 1)); uni(I.getX(t), I.getX(t + 2)); }
+  const cnt = new Map(); for (let i = 0; i < n; i++) { let bw = 0, bn = ''; for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bw) { bw = w; bn = bs[si.getComponent(i, j)]?.name || ''; } }
+    const r = find(i), c = cnt.get(r) || [0, 0]; c[0]++; if (LEG_B.test(legacyBone(bn))) c[1]++; cnt.set(r, c); }
+  const out = new Uint8Array(n); for (let i = 0; i < n; i++) { const c = cnt.get(find(i)); out[i] = c[1] * 2 > c[0] ? 1 : 2; }
+  return (g.userData.parts = out);
+}
+export function clothPoke(verts, base = null, fix = false, cand = null) {   // cand — רק הקודקודים האלה (near של קריאה קודמת באותה תנוחה בערך)
+  const C = 0.03, grid = new Map(), tris = [], cloth = verts.filter(e => e.o.isSkinnedMesh && e.kind === 'cloth' && e.o.skeleton);
+  const v3 = (P, i) => new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
+  for (const { o, P } of cloth) { const parts = clothParts(o), I = o.geometry.index; if (!I) continue;
+    for (let t = 0; t < I.count; t += 3) { const a = I.getX(t), b = I.getX(t + 1), c = I.getX(t + 2); if (parts[a] !== 2 || parts[b] !== 2 || parts[c] !== 2) continue;
+      const tr = [v3(P, a), v3(P, b), v3(P, c)], M = tr[0].clone().add(tr[1]).add(tr[2]).multiplyScalar(1 / 3), id = tris.push(tr) - 1, k = `${Math.floor(M.x / C)},${Math.floor(M.y / C)},${Math.floor(M.z / C)}`;
+      (grid.get(k) || grid.set(k, []).get(k)).push(id); } }
+  const set = new Set(), near = new Set(), ray = new THREE.Ray(), hit = new THREE.Vector3(); let n = 0;
+  if (!tris.length) return { n, set, near };
+  for (const { o, P, N } of cloth) { if (!N) continue; const parts = clothParts(o);
+    for (let i = 0; i < parts.length; i++) { if (parts[i] !== 1 || (cand && !cand.has(o.name + ':' + i))) continue;
+      const q = v3(P, i), nn = v3(N, i).normalize(); ray.origin.copy(q).addScaledVector(nn, 0.001); ray.direction.copy(nn).negate();
+      const gx = Math.floor(q.x / C), gy = Math.floor(q.y / C), gz = Math.floor(q.z / C); let best = Infinity;
+      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) { const ids = grid.get(`${gx + dx},${gy + dy},${gz + dz}`); if (!ids) continue;
+        for (const id of ids) { const [a, b, c] = tris[id]; if (ray.intersectTriangle(a, b, c, false, hit)) { const d = hit.distanceTo(ray.origin); if (d < best) best = d; } } }
+      if (best < 0.1) near.add(o.name + ':' + i);
+      if (best > 0.04) continue;
+      const key = o.name + ':' + i; set.add(key); if (base && base.has(key)) continue; n++;
+      if (fix) { const k = best + 0.003; P[i * 3] -= nn.x * k; P[i * 3 + 1] -= nn.y * k; P[i * 3 + 2] -= nn.z * k; } } }
+  return { n, set, near };
+}
+// הבסיס לבדיקה: מה שמעל החולצה כבר בעמידה (תנוחת המנוחה של הדגם) — פעם אחת לכל דגם
+function pokeBase(gltf) {
+  if (gltf.userData.pokeBase) return gltf.userData.pokeBase;
+  const R = SkeletonUtils.clone(gltf.scene), idle = gltf.animations.find(a => /idle/i.test(a.name));
+  if (idle) { const mx = new THREE.AnimationMixer(R); mx.clipAction(idle).play(); mx.update(0); }
+  R.updateMatrixWorld(true); return (gltf.userData.pokeBase = clothPoke(skinVerts(R)).set);
+}
 // אצבעות רפויות: מקרבים את עצמות האצבעות והאגודל אל תנוחת המנוחה של הדגם (k — כמה, 0..1), כדי שכף היד תונח שטוחה
 // על הירך ולא תיראה כמו טפרים
 export function relaxFingers(root, gltf, k = 0.6) {
@@ -905,6 +952,10 @@ function bakeVariant(gltf, posed, cache = new Map()) {   // cache: חומרים 
     c0 = hips ? hips.getWorldPosition(new THREE.Vector3()).setY(0) : new THREE.Vector3();
   }
   const verts = skinVerts(root);
+  // בישיבה: המכנסיים אל מתחת לחולצה (clothPoke)
+  // (בפעם הראשונה בכל תנוחת ישיבה — כל הקודקודים; אחר כך, בתנוחות הראש והיד של אותה ישיבה — רק אלה שקרובים לחולצה)
+  if (posed?.tuck && !NO_TUCK) try { const r = clothPoke(verts, posed.tuck, true, posed.tuckNear); posed.tuckNear = posed.tuckNear || r.near; posed.tuckN = posed.tuckN ?? r.n;
+    for (let k = 0; k < 2 && clothPoke(verts, posed.tuck, true, posed.tuckNear).n; k++); } catch (e) { console.warn('tuck failed', e); }
   let minY = Infinity;
   if (!posed) for (const { P } of verts) for (let i = 1; i < P.length; i += 3) minY = Math.min(minY, P[i]);
   const byMat = new Map();
@@ -973,7 +1024,7 @@ export class PeopleLayer {
         // התוצאות של החיפוש שמורות מראש (js/sitpresets.js) — כך הטעינה מהירה; דגם חדש או שונה — מחפשים מחדש
         const key = `${g.userData.file}|${armPose}|${side}|${pushFore ? 1 : 0}`;
         const S = buildSitter(g, skinVerts, BENCH.h, BENCH.wall - SIT_GAP - BENCH.d0 - 0.03, armPose, side, pushFore, (!NO_PRESETS && SIT_PRESETS[key]) || null);
-        if (S) S.key = key;
+        if (S) { S.key = key; try { S.tuck = pokeBase(g); } catch (e) { console.warn(e); } }
         if (S) { const V = this.variants[this.variants.length - 1]; V.sit = S; try { relaxFingers(S.root, g, 0.6); (g.userData.unsink = g.userData.unsink || {}).bench = unsinkHands(S.root); } catch (e) { console.warn(e); } V.sitGroups = bakeVariant(g, S, cache);
           const hp = S.root.getObjectByName('Hips'); if (hp && IM?.bagLocal) { S.root.updateMatrixWorld(true); V.bagSit = hp.matrixWorld.clone().multiply(IM.bagSitLocal || IM.bagLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
           const hb = S.root.getObjectByName('Head'); if (hb && IM?.capLocal) { S.root.updateMatrixWorld(true); V.capSit = hb.matrixWorld.clone().multiply(IM.capLocal).premultiply(new THREE.Matrix4().makeTranslation(-S.origin.x, -S.origin.y, -S.origin.z)); }
@@ -1103,13 +1154,18 @@ export class PeopleLayer {
     // הנוסע מסתכל אל הפקח: הראש מסתובב אל המעבר (בשורה הראשונה — יותר, הפקח עומד מאחוריו)
     { const nk = B('Neck'), hb = B('Head'), Y = new THREE.Vector3(0, 1, 0), a = slot.front ? 28 : slot.kind === 'stand' ? 14 : win ? 20 : 17;
       // אל הפקח: הראש מסתובב אל המעבר (יושב — גם מעט למעלה); אל הכרטיס: פחות הצידה ומעט למטה
-      const yk = 1 - 0.45 * look, pitch = (look * 13 - (1 - look) * (slot.kind === 'seat' ? 5 : 0)) * frac, X = new THREE.Vector3(1, 0, 0);
-      if (nk) { turn(nk, Y, aisle * a * yk * frac); turn(nk, X, pitch * 0.5); } if (hb && hb !== nk) { turn(hb, Y, aisle * a * 1.2 * yk * frac); turn(hb, X, pitch * 0.5); } root.updateMatrixWorld(true); }
+      // בלי כרטיס ("אין לי"): המבט נשאר אל הפקח, ו-look הוא נענוע הראש — 0.25 ימינה, 0.75 שמאלה (inspfp.js מחליף ביניהם)
+      const lk = empty ? 0 : look, shake = empty ? [0, 1, 0, -1, 0][Math.round(look * 4)] * EMPTY_SHAKE : 0;
+      const yk = 1 - 0.45 * lk, pitch = (lk * 13 - (1 - lk) * (slot.kind === 'seat' ? 5 : 0)) * frac, X = new THREE.Vector3(1, 0, 0);
+      if (nk) { turn(nk, Y, aisle * a * yk * frac + shake * 0.4); turn(nk, X, pitch * 0.5); } if (hb && hb !== nk) { turn(hb, Y, aisle * a * 1.2 * yk * frac + shake * 0.6); turn(hb, X, pitch * 0.5); } root.updateMatrixWorld(true); }
+    // בלי כרטיס: משיכת כתפיים קטנה (שתי הכתפיים עולות מעט)
+    if (empty) { const Z = new THREE.Vector3(0, 0, 1), ls = B('LeftShoulder'), rs = B('RightShoulder'); if (ls) turn(ls, Z, EMPTY_SHRUG * frac); if (rs) turn(rs, Z, -EMPTY_SHRUG * frac); root.updateMatrixWorld(true); }
     const sh = W(arm), L = W(arm).distanceTo(W(fore)) + W(fore).distanceTo(W(hd));
     // בשורה הראשונה הפקח עומד מאחוריו (לא עובר את מחיצת הנהג): מושיטים הצידה ומעט אחורה, אל המעבר
     const dirF = (slot.front ? new THREE.Vector3(aisle * (win ? 0.55 : 0.7), win ? 0.5 : -0.2, win ? -0.15 : -0.3) : win ? new THREE.Vector3(aisle * 0.5, -0.3, 0.75) : slot.kind === 'seat' ? new THREE.Vector3(aisle * 0.6, -0.55, 0.77) : new THREE.Vector3(aisle * standReach(slot.grip).dir[0], standReach(slot.grip).dir[1], standReach(slot.grip).dir[2])).normalize();   // מחזיק בעמוד: היד הפנויה לפני החזה, בגובה הכתף, אל הרווח שבין העמודים   // עומד: קדימה, לפני העמוד, ומעט אל המעבר
     // בלי כרטיס: היד עולה מעט מהירך וכף היד נפתחת כלפי מעלה ("אין לי") — בלי להושיט
-    const full = empty ? h0.clone().add(new THREE.Vector3(-aisle * (slot.kind === 'stand' ? 0.05 : 0.02), 0.1, 0.06))
+    // בלי כרטיס: כף היד עולה מהירך (או מהצד) ויוצאת קדימה, פתוחה כלפי מעלה, לגובה המותן — "אין לי" שרואים מהמעבר
+    const full = empty ? h0.clone().add(new THREE.Vector3(-aisle * (slot.kind === 'stand' ? 0.05 : 0.02), EMPTY_UP[slot.kind === 'stand' ? 1 : 0], EMPTY_FWD[slot.kind === 'stand' ? 1 : 0]))
       : sh.clone().addScaledVector(dirF, L * (slot.front ? 0.62 : slot.kind === 'stand' ? standReach(slot.grip).len : win ? 0.8 : 0.68));   // היד והכרטיס ממשיכים עוד כ-20 ס"מ מפרק היד — לא מושיטים עד הסוף
     // קודם למעלה ואל המעבר, ורק בסוף קדימה (כך היד לא עוברת דרך המשענת שלפניו); ליד החלון ובעמידה — קודם קדימה, ורק אז אל המעבר
     const T = h0.clone().lerp(full, frac);
@@ -1158,7 +1214,7 @@ export class PeopleLayer {
       root.traverse(b => { if (!b.isBone || inHand.has(b)) return; const f = b.quaternion.clone(), q0 = sq.get(b); if (!q0 || q0.angleTo(f) < 1e-5) return;
         b.quaternion.copy(q0).slerp(f, b === arm || b === fore || b === hd ? ka : k); });
       // עומד: בדרך הזרוע נפתחת מעט הצידה (החוצה, לצד החלון) — כך האמה לא נגררת על הגו כשהיא יוצאת מהמנוחה
-      if (slot.kind === 'stand' && !empty) turn(arm, new THREE.Vector3(0, 0, 1), sx * STAND_REACH.abduct * Math.sin(Math.PI * fr0));
+      if (slot.kind === 'stand') turn(arm, new THREE.Vector3(0, 0, 1), sx * STAND_REACH.abduct * Math.sin(Math.PI * fr0));
       root.updateMatrixWorld(true); repin();
       if (pinch) pinch = { c: pinch.at(), ...fingerDirs(root, hand, 0) };
     }
@@ -1279,7 +1335,7 @@ reachPreview(pid, hasCard = true) {
         const [armPose, side, pushFore] = POSE_OF[vi % POSE_OF.length];
         const key = `bus|${V.gltf.userData.file}|${armPose === 'phone' ? 'thighs' : armPose}|${side}|${pushFore ? 1 : 0}`;
         const S = buildSitter(V.gltf, skinVerts, seatH, depth, armPose === 'phone' ? 'thighs' : armPose, side, pushFore, (!NO_PRESETS && SIT_PRESETS[key]) || null); if (!S) return;
-        S.key = key;
+        S.key = key; try { S.tuck = pokeBase(V.gltf); } catch (e) { console.warn(e); }
         // באוטובוס: הראש מורם (מסתכל קדימה, לא אל הברכיים) — כך הפנים רחוקות מהמשענת ומהידית של המושב שלפניו
         { const nk = S.root.getObjectByName('Neck') || S.root.getObjectByName('Head'), hd = S.root.getObjectByName('Head'), X = new THREE.Vector3(1, 0, 0);
           if (nk) turn(nk, X, -10); if (hd && hd !== nk) turn(hd, X, -8); S.root.updateMatrixWorld(true); }
@@ -1826,6 +1882,13 @@ reachPreview(pid, hasCard = true) {
       for (const [sid, m] of M) for (const pid of m.keys()) if (at.get(pid) !== sid) bad.push({ name, sid, pid, at: at.get(pid) });
     if (reach) bad.push(...this.auditReach());
     return bad;
+  }
+  // בגדים בישיבה (בספסל ובאוטובוס): כמה קודקודים של המכנסיים/החצאית יוצאים מעל החולצה — לפני התיקון ואחריו (clothPoke)
+  auditCloth() {
+    return this.variants.map((V, vi) => { const r = { vi }; for (const [nm, S] of [['bus', V.bus?.sit], ['bench', V.sit]]) { if (!S) continue;
+      const base = S.tuck || pokeBase(V.gltf), t0 = performance.now(), verts = skinVerts(S.root), before = clothPoke(verts, base, true).n, ms = Math.round(performance.now() - t0);
+      for (let k = 0; k < 2 && clothPoke(verts, base, true).n; k++);
+      r[nm] = { before, after: clothPoke(verts, base).n, ms }; } return r; });
   }
   // ההגשה של כרטיס לפקח: בכל שלב (REACH_FR — בעלייה ובירידה אותן תנוחות), לכל דגם ולכל מקום (מעבר/חלון, שורה ראשונה, עם כרטיס ובלי,
   // ועומדים בכל אחיזה) — היד המושיטה (אמה, כף יד, אצבעות) לא בתוך הגו או הרגליים ולא בתוך היד השנייה של אותה דמות (reachPen).
