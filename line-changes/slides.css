@@ -30,7 +30,12 @@
 .slide .seam i{width:18px;height:18px;border-radius:50%;background:var(--s-band);border:4px solid var(--s-new);flex:none;margin:0 -2px}
 
 .slide .badge{font-family:'Heebo',Arial,sans-serif;font-weight:900;background:var(--s-brand);color:var(--s-on-brand);border-radius:18px;line-height:1;
-  padding:14px 26px;font-size:76px;text-align:center;flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+  padding:14px 26px;font-size:76px;text-align:center;flex:none;font-variant-numeric:tabular-nums;white-space:nowrap;
+  display:inline-flex;align-items:center;justify-content:center}
+/* בגופן יש יותר מקום מתחת לספרות מאשר מעליהן — מורידים מעט את המספר כדי שייראה באמצע התיבה */
+.slide .badge>*,.slide .badge{text-indent:0}
+.slide .badge{padding-top:calc(14px + .07em);padding-bottom:calc(14px - .07em)}
+.slide .badge.sm{padding-top:calc(8px + .07em);padding-bottom:calc(8px - .07em)}
 .slide .badge.sm{font-size:30px;padding:8px 14px;border-radius:10px;min-width:62px}
 .slide .badge.word{font-size:62px}
 
@@ -204,7 +209,7 @@
 .s-one .smap{position:absolute;left:0;top:0;width:660px;height:720px;background:#dfe6e2}
 .s-one .side{position:absolute;right:0;top:0;width:620px;height:720px;padding:30px 36px 34px 30px;display:flex;flex-direction:column;gap:12px}
 .s-one .ohead{display:flex;align-items:center;gap:16px;background:var(--s-band);color:var(--s-band-fg);margin:-30px -36px 0 -30px;padding:24px 36px 20px 30px}
-.s-one .ohead .badge{font-size:46px;padding:10px 16px;border-radius:14px}
+.s-one .ohead .badge{font-size:46px;padding:calc(10px + .07em) 16px calc(10px - .07em);border-radius:14px}
 .s-one .ohead .t{display:flex;flex-direction:column;gap:2px;min-width:0}
 .s-one .ohead h1{font-size:36px;font-weight:900;line-height:1.1}
 .s-one .ohead .sub{font-size:18px;color:var(--s-band-sub);font-weight:600}
@@ -272,7 +277,7 @@
 .s-one .credit{font-size:12px;margin-top:2px}
 /* כמה קווים עם אותו שינוי — כמה תגיות מספר */
 .s-one .ohead.multi .badges{display:flex;flex-wrap:wrap;gap:6px;max-width:220px}
-.s-one .ohead.multi .badge{font-size:26px;min-width:52px;height:46px;padding:0 10px}
+.s-one .ohead.multi .badge{font-size:26px;min-width:52px;height:46px;padding:.12em 10px 0}
 /* סימנים שהוסתרו בעריכה */
 .slide .mkoff{display:none!important}
 body.editing .slide .mkoff{display:inline-flex!important;opacity:.25}

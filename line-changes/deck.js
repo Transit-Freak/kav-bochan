@@ -112,7 +112,9 @@ var LCDeck = (function () {
   }
   function autoTitle(pages, city) {
     if (pages.length === 1) return 'שינוי בקו ' + pages[0].line;
-    return city ? 'שינויים בקווים ב' + city : 'שינויים ב-' + pages.length + ' קווים';
+    // העיר כבר בתגית הגדולה — בכותרת מספרי הקווים (עד 5), בלי לחזור על העיר
+    if (pages.length <= 5) return 'שינויים בקווים ' + andList(pages.map(function (x) { return x.line; }), 5);
+    return city ? 'שינויים ב-' + pages.length + ' קווים' : 'שינויים ב-' + pages.length + ' קווים';
   }
 
   /* ---------- השקפים ---------- */
@@ -124,7 +126,7 @@ var LCDeck = (function () {
     var dates = {}; pages.forEach(function (x) { dates[start(x)] = 1; });
     var multiDate = Object.keys(dates).length > 1;
     var sub = single ? LC.od(p.od) + ' · החל מ-' + LC.dmy(s0)
-      : 'קווים ' + pages.map(function (x) { return x.line; }).join(', ') + (multiDate ? ' · מ-' + LC.dmy(s0) : ' · החל מ-' + LC.dmy(s0));
+      : (pages.length > 5 ? 'קווים ' + pages.map(function (x) { return x.line; }).join(', ') + ' · ' : '') + (multiDate ? 'מ-' + LC.dmy(s0) : 'החל מ-' + LC.dmy(s0));
     var opPhone = ops.length === 1 && PHONES[ops[0]];
     return '<div class="s-cover">' +
       '<div class="band"><div class="row">' +
@@ -523,6 +525,7 @@ var LCDeck = (function () {
       var r = rows.filter(function (y) { return y.w === w && w; })[0];
       if (r) r.lines.push(x.line); else rows.push({ w: w, lines: [x.line] });
     });
+    if (rows.length === 1) return [rows[0].w];   // כל הקווים — אותו שינוי: בלי לחזור על מספרי הקווים
     return rows.map(function (r) { return '<b>' + (r.lines.length > 1 ? 'קווים ' + E(andList(r.lines, 12)) : 'קו ' + E(r.lines[0])) + ':</b> ' + r.w; });
   }
   /* טקסט שהמשתמש ערך (מערך של מחרוזות) — או הטקסט שנוצר אוטומטית (HTML) */
@@ -656,7 +659,7 @@ var LCDeck = (function () {
     if (multi) items = items.map(function (t) { return t.replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, ''); }).filter(function (t, i, a) { return a.indexOf(t) === i; });
     return '<div class="s-one"><div class="smap"></div><div class="side">' +   // בלי מפת התמצאות — המפה הקרובה מספיקה
       (multi ? '<div class="ohead multi"><div class="badges">' + lines.map(function (l) { return '<span class="badge num">' + E(l) + '</span>'; }).join('') + '</div>' +
-          '<div class="t"><h1 class="hd">שינוי בקווים ' + E(andList(lines, 12)) + '</h1><p class="sub">' + E(ops.join(' · ')) + ' · אותו שינוי בכל הקווים</p></div></div>'
+          '<div class="t"><h1 class="hd">אותו שינוי ב-' + lines.length + ' קווים</h1><p class="sub">' + E(ops.join(' · ')) + '</p></div></div>'
         : '<div class="ohead"><span class="badge num">' + E(p.line) + '</span><div class="t"><h1 class="hd">שינוי בקו ' + E(p.line) + '</h1>' +
         '<p class="sub">' + E(LC.od(p.od)) + ' · ' + E(p.op) + '</p></div></div>') +
       '<p class="owhen"><b>' + (p.past ? 'מ' : 'החל מ') + E(LC.wd(s0) + ' ' + LC.dmy(s0)) + '</b> · ' + E(hebDate(s0)) + E(firstTrip) + '</p>' +
