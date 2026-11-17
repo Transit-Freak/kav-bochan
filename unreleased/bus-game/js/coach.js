@@ -224,17 +224,19 @@ function psuParts(P, stopP, M) {
     const xc = s * (SHELF.x0 + SHELF.x1) / 2, zc = z + 0.05, y = SHELF.y0 - 0.004;
     // הלוח: ‎u לאורך האוטובוס, ‎v מהקיר (למעלה בטקסטורה) אל המעבר
     P.add(M.psu, fixPlane(s).translate(xc, y, zc));
-    for (const dv of [-0.29, 0.29]) {   // פתחי המיזוג (בטקסטורה x = 74, 182 מתוך 256 → ‎±0.29 מהמרכז, לאורך)
-      const vz = zc + dv * PSU.d * 0.84 * s, vx = xc + s * 0.0;
-      P.add(M.vent, at(new THREE.CylinderGeometry(0.026, 0.03, 0.022, 12), vx - s * 0.005, y - 0.011, vz));
-      P.add(M.ventDark, at(new THREE.CylinderGeometry(0.012, 0.012, 0.004, 10), vx - s * 0.005, y - 0.023, vz));
+    // שורת הפתחים והכפתורים בטקסטורה: ‎y = 112 מתוך 192 (2.7 ס"מ מהמרכז אל המעבר); הפתחים ב-‎x = 74, 182 מתוך 256
+    const rx = xc - s * PSU.w * (112 / 192 - 0.5);
+    for (const du of [74 / 256 - 0.5, 182 / 256 - 0.5]) {
+      const vz = zc + du * PSU.d * (s > 0 ? 1 : -1);
+      P.add(M.vent, at(new THREE.CylinderGeometry(0.026, 0.03, 0.022, 12), rx, y - 0.011, vz));
+      P.add(M.ventDark, at(new THREE.CylinderGeometry(0.012, 0.012, 0.004, 10), rx, y - 0.023, vz));
     }
-    stopP.push(at(box(0.034, 0.006, 0.03), xc - s * 0.002, y - 0.003, zc));
+    stopP.push(at(box(0.03, 0.006, 0.024), rx, y - 0.003, zc));
   }
 }
 // משטח שפונה למטה: ‎u של הטקסטורה לאורך ‎z, ‎v (למעלה) אל הקיר (‎s·x)
 function fixPlane(s) {
-  const g = new THREE.BufferGeometry(), hw = PSU.w / 2, hd = PSU.d / 2;
+  const g = new THREE.BufferGeometry(), hw = PSU.w / 2;
   // ארבע פינות: (u,v) → (x,z). v=1 — ליד הקיר
   const pts = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => [s * (-hw + v * PSU.w) * 1, (u - 0.5) * PSU.d * (s > 0 ? 1 : -1), u, v]);
   const pos = [], uv = [];
