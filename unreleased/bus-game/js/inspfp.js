@@ -291,15 +291,21 @@ export class InspectorFP {
       const armP = this.reader.aimArm(), cm = g.parent.matrixWorld;
       const why = (q, t) => { if (n === 1) { const i = this.occ.idx(q.x, q.y, q.z); this.hitDbg = `${t} st${i >= 0 ? this.occ.st[i] : -1} pp${i >= 0 ? this.occ.pp[i] : -1} @${q.toArray().map(v => v.toFixed(2))}`; } };
       for (const p of this.reader.pts) { q.copy(p).applyMatrix4(g.matrixWorld).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'dev'); } }
-      for (const p of armP) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'arm'); } } return n; };
+      for (const p of armP) { q.copy(p).applyMatrix4(cm).applyMatrix4(inv); if (hit(q)) { n++; why(q, 'arm'); } }
+      return n; };
+    // בבדיקה: הזזה שמכסה במסך את הפנים של הנוסע (או את כפות הידיים שלו בלי כרטיס) — כמו חסומה (לא עוקפים עמוד דרך הפנים).
+    // אם אין הזזה אחרת — מוותרים על זה (עדיף מכשיר ליד הסנטר מאשר מכשיר שיורד מהמסך)
+    const face = pos => { if (!this.anim || !this.avD?.length) return 0; const b = this.devBox(pos); let n = 0; for (const d of this.avD) if (!(b.x1 < d.x - d.r || b.x0 > d.x + d.r || b.y1 < d.y - d.r || b.y0 > d.y + d.r)) n++; return n; };
     // ההזזות האפשריות (במערכת המצלמה): בלי הזזה; 3–12 ס"מ בשמונה כיוונים במישור המסך
     const C = CLEAR_OFFS;
     this.clrT = this.clrT || new THREE.Vector3(); this.clrC = this.clrC || new THREE.Vector3(); this.cur = this.cur || new THREE.Vector3();
     const P = new THREE.Vector3(), at = off => P.copy(base).add(off);
     // נשארים עם ההזזה הנוכחית כל עוד היא פנויה; אחרת — הפנויה הקטנה ביותר, הקרובה להזזה הנוכחית
     let tgt = null;
-    if (!test(at(this.clrT))) tgt = this.clrT.lengthSq() > 1e-6 && !test(at(C[0])) ? C[0] : this.clrT;
-    else { let bc = Infinity; for (const c of C) { const cost = c.length() + 0.5 * c.distanceTo(this.clrT); if (cost < bc && !test(at(c))) { bc = cost; tgt = c; } } }
+    for (const T of [p => test(p) + face(p), test]) {
+      if (!T(at(this.clrT))) tgt = this.clrT.lengthSq() > 1e-6 && !T(at(C[0])) ? C[0] : this.clrT;
+      else { let bc = Infinity; for (const c of C) { const cost = c.length() + 0.5 * c.distanceTo(this.clrT); if (cost < bc && !T(at(c))) { bc = cost; tgt = c; } } }
+      if (tgt) break; }
     this.drop = this.drop || 0;
     if (tgt) this.clrT.copy(tgt);
     { const d = this.clrT.clone().sub(this.clrC), mx = 0.6 * dt; if (d.length() > mx) d.setLength(mx); this.clrC.add(d); }
@@ -370,7 +376,7 @@ export class InspectorFP {
     this.reader.show('רב-קו · מחכה לכרטיס', '', null);
   }
   animate(dt) {
-    const A = this.anim; if (!A) { this.readerOff = null; return; }
+    const A = this.anim; if (!A) { this.readerOff = null; this.avD = null; return; }
     A.t += dt; const t = A.t, R = this.g.people.reach, PL = this.g.people, c = this.g.camera;
     // היד של הנוסע: עולה בנחת בשבעה שלבים (חצי שנייה), מחזיקה עד שהמכשיר חוזר, ויורדת אחרי התוצאה באותם שלבים.
     // הכרטיס ביד בכל השלבים, ונעלם רק כשהיד חזרה למנוחה על הירך (לכיס)
@@ -406,14 +412,16 @@ export class InspectorFP {
     // הפנים של הנוסע הנבדק (ובלי כרטיס — גם שתי כפות הידיים הפתוחות) נשארות גלויות: המכשיר והיד שמחזיקה אותו לא עוברים לפניהן
     // במסך. עם כרטיס — המכשיר עובר מתחת לסנטר (בגובה החזה) בדרך אל הכרטיס, שתמיד נמוך מהפנים; בלי כרטיס — ימינה או למטה
     // מהידיים (מה שקרוב יותר, ונשארים בו עד סוף הבדיקה). עד 14 ס"מ, ובחזרה בהדרגה
-    { const av = this.avoidDisks(A, R), sh = new THREE.Vector3();
+    { const av = this.avoidDisks(A, R), sh = new THREE.Vector3(); this.avD = av;
       if (av.length) { if (!A.avMode) A.avMode = R?.card ? 'down' : null;
         const need = mode => { const v = new THREE.Vector3(); for (let it = 0; it < 3; it++) { const b = this.devBox(this.readerOff.clone().add(v)); let ch = false;
             for (const d of av) { const m = d.r + 0.012; if (b.x1 < d.x - m || b.x0 > d.x + m || b.y1 < d.y - m || b.y0 > d.y + m) continue;
               if (mode === 'down') { v.y += (d.y - m - b.y1) * b.zt; ch = true; } else { v.x += (d.x + m - b.x0) * b.zl; ch = true; } }
             if (!ch) break; } return v; };
         if (!A.avMode) { const vd = need('down'), vr = need('right'); if (vd.lengthSq() + vr.lengthSq() > 0) A.avMode = vr.length() <= vd.length() ? 'right' : 'down'; }
-        if (A.avMode) sh.copy(need(A.avMode)); if (sh.length() > 0.14) sh.setLength(0.14); }
+        if (A.avMode) sh.copy(need(A.avMode)); if (sh.length() > 0.14) sh.setLength(0.14);
+        // ליד הכרטיס (פחות מ-20 ס"מ) ההזזה נעלמת בהדרגה: שם המכשיר כבר מתחת לפנים, ובלי זה הוא נדחק אל היד שמחזיקה את הכרטיס
+        if (card && R?.card) { const fd = this.reader.face.getWorldPosition(new THREE.Vector3()).distanceTo(card); sh.multiplyScalar(THREE.MathUtils.clamp((fd - 0.1) / 0.1, 0, 1)); } }
       A.av = A.av || new THREE.Vector3();
       // מתרחקים מיד (אין פריים שבו המכשיר מסתיר), וחוזרים בהדרגה
       for (const k of ['x', 'y']) { const tg = sh[k], cur = A.av[k]; A.av[k] = Math.abs(tg) >= Math.abs(cur) && Math.sign(tg) === Math.sign(cur || tg) ? tg : cur + (tg - cur) * Math.min(1, dt * 5); }
