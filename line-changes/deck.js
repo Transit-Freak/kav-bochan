@@ -35,7 +35,8 @@ var LCDeck = (function () {
   function dist(a, b) { var cl = Math.cos((a[0] + b[0]) / 2 * Math.PI / 180); return Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * cl); }
 
   /* שם לנסיעה בשפה של נוסעים: "מקרית גת לחצור הגלילית"; קו מעגלי — "הקו" */
-  function firstStreet(d) { var st = (d.new.stops[0] || d.old.stops[0]); return st ? streetOf(st.name) : ''; }
+  // "ת. מרכזית אשדוד" → "התחנה המרכזית אשדוד", כדי שייקרא "מהתחנה המרכזית" ולא "מת. מרכזית"
+  function firstStreet(d) { var st = (d.new.stops[0] || d.old.stops[0]); return st ? streetOf(st.name).replace(/^ת\.\s*מרכזית/, 'התחנה המרכזית').replace(/^תחנה מרכזית/, 'התחנה המרכזית') : ''; }
   function trip(d) {
     var o = d.od || [];
     if (!o[0] || !o[1] || o[0] === o[1]) return 'הקו' + (o[0] ? ' ב' + o[0] : '') + (firstStreet(d) ? ', מ' + firstStreet(d) : '');
@@ -308,9 +309,11 @@ var LCDeck = (function () {
     var a = parts[0], b = parts[1];
     // "בית כנסת חב"ד/זלמן שז"ר" → זלמן שז"ר; אבל "ת. מרכזית צפת/רציפים" נשאר התחנה המרכזית
     if (b && PLACE.test(a) && !PLACE.test(b) && !/^(רציפים|רציף|הורדה|איסוף|יציאה|כניסה)/.test(b)) a = b;
+    // קיצורים: "שד' ירושלים", "שד.ירושלים" ו"שדרות ירושלים" — אותו רחוב, כתוב תמיד "שדרות"; "רח' הרצל" — "הרצל"
+    a = a.replace(/^שד(?:רות\s+|['׳.]\s*)/, 'שדרות ').replace(/^(?:רח(?:וב)?['׳.]?\s+|רח['׳.]\s*)/, '');
     return a.replace(/^דרך\s+/, '').replace(/\s+\d+[א-ת]?$/, '').replace(/\s+(א|ב|ג)'?$/, '').trim();
   }
-  function skey(t) { return t.replace(/["'״׳`]/g, ''); }   // צה"ל = צהל
+  function skey(t) { return t.replace(/["'״׳`.]/g, '').replace(/\s+/g, ' ').trim(); }   // צה"ל = צהל
   function streets(list, minus) {
     var out = [], keys = (minus || []).map(skey);
     list.forEach(function (s) { var t = streetOf(s.name), k = skey(t); if (t && keys.indexOf(k) < 0) { keys.push(k); out.push(t); } });
