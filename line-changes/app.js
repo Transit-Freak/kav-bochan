@@ -557,10 +557,10 @@
   function formUi(form) {
     var t = FORM_TXT[form], d = LCDeck.FORMS[form];
     $('forms').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-form') === form ? 'true' : 'false'); });
-    $('kindgrp').hidden = form !== 'deck';
+    $('kindgrp').style.display = form === 'deck' ? '' : 'none';
     $('dlhint').textContent = t.hint;
     $('creditlbl').textContent = t.credit;
-    document.querySelectorAll('.printwrap').forEach(function (x) { x.hidden = form === 'status'; });
+    document.querySelectorAll('.printwrap,.dock .printbtn').forEach(function (x) { x.style.display = form === 'status' ? 'none' : ''; });
     if (!busy) [$('dl'), $('dl2')].forEach(function (b) { b.querySelector('span').textContent = t.dl; });
     document.querySelectorAll('.pngs').forEach(function (x) { if (x.getAttribute('data-form') !== form) { x.hidden = true; x.innerHTML = ''; } });
     // גודל העמוד בהדפסה רגילה
@@ -839,7 +839,7 @@
     if (busy || !slides.length) return;
     busy = true;
     var btns = [$('dl'), $('dl2')], wasEdit = editMode, t0 = performance.now();
-    var form = formOf(), D = dims(), W = D.w, H = D.h, png = form === 'status', pngs = [];
+    var form = formOf(), D = dims(), PW = D.w, PH = D.h, png = form === 'status', pngs = [];
     document.querySelectorAll('.pngs').forEach(function (x) { x.hidden = true; x.innerHTML = ''; });
     var label = function (t) { btns.forEach(function (b) { b.querySelector('span').textContent = t; }); };
     btns.forEach(function (b) { b.disabled = true; b.classList.add('busy'); });
@@ -862,11 +862,11 @@
       host = document.createElement('div');
       host.className = 'pdfhost';
       host.setAttribute('aria-hidden', 'true');
-      host.style.cssText = 'position:fixed;top:0;left:-' + (W + 1800) + 'px;width:' + W + 'px;height:' + H + 'px;overflow:hidden;pointer-events:none';
+      host.style.cssText = 'position:fixed;top:0;left:-' + (PW + 1800) + 'px;width:' + PW + 'px;height:' + PH + 'px;overflow:hidden;pointer-events:none';
       $('deck').appendChild(host);
       var H = window.htmlToImage;
       var opts = {
-        width: W, height: H, pixelRatio: png ? 1 : 2,
+        width: PW, height: PH, pixelRatio: png ? 1 : 2,
         imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
         // בלי ממשק העריכה, ובלי אריחי מפה שלא נטענו (אחרת הספרייה מנסה להוריד אותם שוב ויכולה להיתקע)
         filter: function (n) {
@@ -875,8 +875,8 @@
           return !(c.contains('noprint') || c.contains('tbox-h') || c.contains('mkoff') || c.contains('leaflet-control-zoom'));
         }
       };
-      var orient = W > H ? 'landscape' : 'portrait';
-      var pdf = png ? null : new window.jspdf.jsPDF({ orientation: orient, unit: 'px', format: [W, H], hotfixes: ['px_scaling'], compress: true });
+      var orient = PW > PH ? 'landscape' : 'portrait';
+      var pdf = png ? null : new window.jspdf.jsPDF({ orientation: orient, unit: 'px', format: [PW, PH], hotfixes: ['px_scaling'], compress: true });
       // הגופנים מוטמעים פעם אחת לכל המצגת (במקום בכל שקף מחדש)
       return timeout(H.getFontEmbedCSS($('deck'), opts), 10000).catch(function () { return ''; }).then(function (css) {
         if (css) opts.fontEmbedCSS = css;
@@ -900,8 +900,8 @@
                 return new Promise(function (r) { setTimeout(r, 0); }).then(next);
               });
             }
-            if (i > 0) pdf.addPage([W, H], orient);
-            pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, W, H, undefined, 'FAST');
+            if (i > 0) pdf.addPage([PW, PH], orient);
+            pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, PW, PH, undefined, 'FAST');
             cv.width = cv.height = 0;
             i++;
             return new Promise(function (r) { setTimeout(r, 0); }).then(next);   // לתת לדפדפן לצייר את ההתקדמות
