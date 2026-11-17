@@ -251,6 +251,7 @@
 .lc-mk.rem{background:#b8361f}.lc-mk.add{background:#0a5530;border-width:2.5px;box-shadow:0 0 0 1.5px #0a5530,0 1px 4px rgba(0,0,0,.45)}.lc-mk.mv{background:#55625c}
 .leaflet-tooltip-pane{direction:ltr}.leaflet-tooltip{direction:rtl}
 .leaflet-tooltip.lc-lbl small{display:block;font-size:12px;font-weight:800;color:#8a5a00}
+.leaflet-tooltip.lc-lbl small.cd{color:#55625c;font-weight:700}
 .leaflet-tooltip.lc-lbl.was{border:2px solid #d99a00;background:#fff8e1}
 .leaflet-tooltip.lc-lbl{font:700 13px 'Assistant','Heebo',sans-serif;color:#13201b;padding:2px 7px;border-radius:6px;border:1px solid #9aa5a0;box-shadow:0 1px 3px rgba(0,0,0,.2);white-space:nowrap}
 .s-map ul.small{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -283,3 +284,6 @@
 body.editing .slide .mkoff{display:inline-flex!important;opacity:.25}
 body.editing .slide .emark{cursor:pointer}
 body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
+
+/* מק"ט של תחנה שמשתנה */
+.slide .sc{font-size:.78em;color:var(--s-sub);font-weight:600;white-space:nowrap}
