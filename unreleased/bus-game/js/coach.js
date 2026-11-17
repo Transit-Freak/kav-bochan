@@ -191,8 +191,9 @@ function seatParts(P, M, x, z, aisle) {
   P.add(M.belt, B(box(0.035, 0.62, 0.012), 0.38, 0.05, -aisle * 0.165));                           // חגורת בטיחות (צד החלון)
   P.add(M.belt, T(at(box(0.05, 0.02, 0.07), aisle * 0.1, CUSH - FL + 0.005, -0.17)));              // האבזם
   // ידית אחיזה צהובה קצרה בפינה העליונה של המושב בצד המעבר
-  const h0 = new THREE.Vector3(aisle * 0.15, 0.92, -0.075), h1 = new THREE.Vector3(aisle * 0.205, 0.92, -0.075);
-  for (const g of [rod(h0, h0.clone().add(new THREE.Vector3(0, 0, -0.05)), 0.008), rod(h1, h1.clone().add(new THREE.Vector3(0, 0, -0.05)), 0.008), rod(h0.clone().add(new THREE.Vector3(0, 0, -0.05)), h1.clone().add(new THREE.Vector3(0, 0, -0.05)), 0.009)])
+  // על הקצה העליון של המעטפת, כלפי מעלה (לא בולטת אחורה אל הפנים של מי שיושב מאחור)
+  const h0 = new THREE.Vector3(aisle * 0.13, 0.915, -0.06), h1 = new THREE.Vector3(aisle * 0.2, 0.915, -0.06), up = new THREE.Vector3(0, 0.035, 0);
+  for (const g of [rod(h0, h0.clone().add(up), 0.008), rod(h1, h1.clone().add(up), 0.008), rod(h0.clone().add(up), h1.clone().add(up), 0.009)])
     { g.applyMatrix4(back); P.add(M.pole, T(g.translate(0, by, bz))); }
   // משענת יד בצד המעבר, ורגל המושב
   P.add(M.shell, T(at(rbox(0.05, 0.05, 0.36, 0.018), aisle * 0.235, CUSH - FL + 0.2, 0.0)));
@@ -218,7 +219,7 @@ function shelfParts(P, M) {
   }
 }
 // יחידת שירות מעל כל זוג מושבים: הלוח (טקסטורה), שני פתחי מיזוג בולטים, וכפתור העצירה (רשת נפרדת שנדלקת)
-const PSU = { w: 0.34, d: 0.26 };
+const PSU = { w: 0.29, d: 0.42 };          // ‎w — לרוחב (מהקיר אל המעבר), ‎d — לאורך האוטובוס (הציר הארוך של הלוח האובלי)
 function psuParts(P, stopP, M) {
   for (const [z, sides] of COACH_ROWS) for (const s of sides) {
     const xc = s * (SHELF.x0 + SHELF.x1) / 2, zc = z + 0.05, y = SHELF.y0 - 0.004;
@@ -314,9 +315,26 @@ function exteriorParts(P, M) {
       P.add(M.panel, at(box(0.01, 0.25, z1 - z0), s * 1.215, 1.445, (z0 + z1) / 2));
       P.add(M.trimDark, at(box(0.014, 0.02, z1 - z0), X + s * 0.001, 1.58, (z0 + z1) / 2));
     }
-    // קו חצאית כהה, ופנסי צד כתומים
-    P.add(M.trimDark, at(box(0.014, 0.05, 11.3), X, 0.62, 0));
-    for (const z of [4.2, 1.9, -1.3, -3.6, -5.6]) P.add(M.amber, at(rbox(0.02, 0.05, 0.1, 0.008), X + s * 0.006, 0.5, z));
+    // גוף עמוק: החצאית יורדת כמעט עד הכביש (הדגם נגמר ב-0.30), עם פס כהה בתחתית ופנסי צד כתומים
+    const skirt = [[-6.0, -3.35], [-1.85, 2.6], [4.1, 6.0]];
+    for (const [z0, z1] of skirt) {
+      if (s < 0 && z0 < MID.keep[1] && z1 > MID.keep[0]) { for (const [a, b] of [[z0, MID.keep[0]], [MID.keep[1], z1]]) P.add(M.body, at(box(0.02, 0.18, b - a), X, 0.22, (a + b) / 2)); }
+      else if (s < 0 && z1 > FRONT.keep[0]) { P.add(M.body, at(box(0.02, 0.18, FRONT.keep[0] - z0), X, 0.22, (z0 + FRONT.keep[0]) / 2)); P.add(M.body, at(box(0.02, 0.18, z1 - FRONT.keep[1]), X, 0.22, (z1 + FRONT.keep[1]) / 2)); }
+      else P.add(M.body, at(box(0.02, 0.18, z1 - z0), X, 0.22, (z0 + z1) / 2));
+    }
+    P.add(M.trimDark, at(box(0.03, 0.04, 12.0), X - s * 0.005, 0.15, 0));
+    for (const z of [4.3, -1.75, -3.6, -5.6]) P.add(M.amber, at(rbox(0.02, 0.05, 0.1, 0.008), X + s * 0.012, 0.3, z));
+    // תאי מטען בין הסרנים: דלתות שטוחות עם תפר דק וידית קטנה
+    const bays = s > 0 ? [[-1.95, -0.4], [-0.35, 1.2], [1.25, 2.72]] : [[-1.95, -0.66], [0.7, 1.7], [1.75, 2.72]];
+    for (const [z0, z1] of bays) {
+      const zc = (z0 + z1) / 2, L = z1 - z0;
+      P.add(M.body, at(rbox(0.03, 0.94, L - 0.03, 0.012), X + s * 0.012, 0.72, zc));
+      for (const y of [0.25, 1.19]) P.add(M.trimDark, at(box(0.012, 0.012, L), X + s * 0.03, y, zc));
+      for (const zz of [z0, z1]) P.add(M.trimDark, at(box(0.012, 0.95, 0.012), X + s * 0.03, 0.72, zz));
+      P.add(M.handle, at(rbox(0.02, 0.035, 0.16, 0.008), X + s * 0.03, 1.02, zc));
+    }
+    // קשתות הגלגלים נמוכות יותר: לוח בצבע הגוף עם חור עגול שמכסה את החלק העליון של הקשת המקורית
+    for (const az of [3.35, -2.6]) P.add(M.body, archPanel(s, X + s * 0.014, az));
     // שני חלונות חירום קטנים עם ציר עליון (מסגרת כהה בחלק העליון)
     for (const z of [2.0, -3.2]) { P.add(M.trimDark, at(box(0.016, 0.02, 0.9), X, 2.42, z)); P.add(M.trimDark, at(box(0.016, 0.3, 0.02), X, 2.57, z - 0.45)); P.add(M.trimDark, at(box(0.016, 0.3, 0.02), X, 2.57, z + 0.45)); }
   }
@@ -348,6 +366,34 @@ function exteriorParts(P, M) {
     P.add(M.glassDark, at(box(0.012, 1.12, dz - 0.04), -1.282, 2.07, zc));
     P.add(M.trimDark, at(box(0.03, 2.37, 0.04), -1.272, 1.535, z1));
     P.add(M.panel, at(box(0.02, 1.1, dz), -1.2, 1.2, zc)); }
+  // מדרגות בפתחי הדלתות (רצפה גבוהה): שתי מדרגות כהות עם פס צהוב בקצה
+  for (const [a, b] of [FRONT.keep, MID.keep]) { const zc = (a + b) / 2, L = b - a - 0.04;
+    for (const [x0, x1, y] of [[-1.27, -1.08, 0.45], [-1.08, -0.9, 0.56]]) {
+      P.add(M.steelDark, at(box(x1 - x0, y - 0.3, L), (x0 + x1) / 2, (y + 0.3) / 2, zc));
+      P.add(M.stepEdge, at(box(0.03, 0.006, L), x0 + 0.015, y + 0.003, zc)); } }
+  // חזית: אף בצבע הגוף עם פינות מעוגלות ופנסים בפינות התחתונות, פס שחור מתחת לשמשה, שמשה אחת גבוהה ומעט נטויה,
+  // עמודים מעוגלים בצדדים, קשת עגולה בקצה הגג וקופסת שלט הלד מעל השמשה
+  const FZ = 6.0;
+  P.add(M.body, at(rbox(2.56, 0.8, 0.2, 0.08), 0, 0.62, FZ + 0.04));
+  P.add(M.trimDark, at(box(2.3, 0.26, 0.02), 0, 1.14, FZ + 0.12));
+  for (const s of [1, -1]) {
+    P.add(M.trimDark, at(rbox(0.5, 0.2, 0.04, 0.06), s * 0.92, 0.66, FZ + 0.14));
+    for (const [dx, m, r] of [[-0.14, M.headlamp, 0.07], [0.0, M.headlamp, 0.07], [0.14, M.amberLamp, 0.045]]) P.add(m, at(new THREE.CylinderGeometry(r, r, 0.02, 16).rotateX(Math.PI / 2), s * (0.92 + dx), 0.66, FZ + 0.165));
+    P.add(M.body, at(new THREE.CylinderGeometry(0.08, 0.08, 2.95, 12), s * 1.21, 1.68, FZ + 0.02));       // עמוד פינה מעוגל
+  }
+  { const yb = 1.03, yt = 2.9, zb = FZ + 0.17, zt = FZ + 0.05, g = new THREE.PlaneGeometry(2.36, Math.hypot(yt - yb, zb - zt));
+    g.rotateX(-Math.atan2(zb - zt, yt - yb)); P.add(M.frontGlass, g.translate(0, (yb + yt) / 2, (zb + zt) / 2)); }
+  P.add(M.body, at(new THREE.CylinderGeometry(0.17, 0.17, 2.5, 16, 1, false, 0, Math.PI / 2).rotateZ(Math.PI / 2), 0, 3.0, FZ - 0.1));   // קשת הגג
+  P.add(M.trimDark, at(rbox(1.84, 0.22, 0.08, 0.02), -0.18, 3.0, FZ + 0.07));                          // קופסת שלט הלד
+}
+// לוח בצבע הגוף סביב קשת הגלגל, עם חור עגול (הקשת נראית נמוכה יותר, הגוף עמוק יותר)
+function archPanel(s, x, z) {
+  const W = 1.5, r = 0.6, cy = 0.5, sh = new THREE.Shape();
+  const a0 = Math.asin((0.14 - cy) / r);      // החור חותך את הקצה התחתון של הלוח
+  sh.moveTo(-W / 2, 0.14); sh.lineTo(-r * Math.cos(a0), 0.14); sh.absarc(0, cy, r, Math.PI - a0, a0, true);
+  sh.lineTo(W / 2, 0.14); sh.lineTo(W / 2, 1.2); sh.lineTo(-W / 2, 1.2); sh.closePath();
+  const g = new THREE.ShapeGeometry(sh, 16); g.rotateY(s * Math.PI / 2); g.translate(x, 0, z);
+  return g;
 }
 
 // ---------- הבנייה: פעם אחת לדגם (העותק של הבין-עירוני). tint — צבע הגוף
@@ -377,6 +423,11 @@ export function buildCoach(root, tint) {
     tailRed: new THREE.MeshBasicMaterial({ name: 'M_CoachDetTailR', color: 0xc8141c }),
     tailAmber: new THREE.MeshBasicMaterial({ name: 'M_CoachDetTailA', color: 0xff9a1a }),
     chevron: std('M_CoachChevron', { map: (t => (t.repeat.set(3, 1), t))(chevronTex()), roughness: 0.4 }),
+    handle: std('M_CoachHandle', { color: 0x9aa0a6, roughness: 0.3, metalness: 0.7 }),
+    stepEdge: std('M_CoachStepEdge', { color: 0xf0c000, roughness: 0.5 }),
+    headlamp: new THREE.MeshBasicMaterial({ name: 'M_CoachDetHead', color: 0xf4f6f8 }),
+    amberLamp: new THREE.MeshBasicMaterial({ name: 'M_CoachDetHeadA', color: 0xffa31a }),
+    frontGlass: std('M_CoachFrontGlass', { color: 0x0e151c, roughness: 0.05, metalness: 0.4, transparent: true, opacity: 0.22, depthWrite: false }),
     grille: std('M_CoachGrille', { map: (t => (t.repeat.set(4, 2), t))(grilleTex()), roughness: 0.6 }),
     glassDark: std('M_CoachGlass', { color: 0x0b0f14, roughness: 0.08, metalness: 0.3 }),
     steelDark: std('M_CoachStep', { color: 0x3a3d40, roughness: 0.5, metalness: 0.4 }),
@@ -400,7 +451,7 @@ export function buildCoach(root, tint) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.17), ledNumber('')); m.position.set(...p); m.rotation.y = ry; m.name = 'CoachNumSign'; num.add(m);
     const f = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.2, 0.02), M.trimDark); f.position.set(p[0] - (ry < 0 ? -0.012 : 0), p[1], p[2] + (ry > 0 ? 0.012 : 0)); f.rotation.y = ry; f.name = 'CoachInterior_NumFrame'; num.add(f);
   }
-  { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.16), frontSign('', '')); m.position.set(-0.18, 3.02, 5.965); m.name = 'CoachFrontSign'; num.add(m); }
+  { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.74, 0.17), frontSign('', '')); m.position.set(-0.18, 3.0, 6.112); m.name = 'CoachFrontSign'; num.add(m); }
   const mon = monitorMesh(new THREE.MeshBasicMaterial({ name: 'M_CoachDetMon', map: idleMonTex(), toneMapped: false })); grp.add(mon);
   // העוגן של הדלת האמצעית: אל החצי הפתוח
   const a = root.getObjectByName('Anchor_DoorMid'); if (a) a.position.z += (MID.keep[0] + MID.keep[1]) / 2 - (MID.z0 + MID.z1) / 2;
