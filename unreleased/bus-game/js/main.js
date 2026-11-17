@@ -131,7 +131,7 @@ async function init() {
         // (בזמן המעבר בלי המרחק המינימלי של OrbitControls — אחרת המצלמה נדחפת אחורה מהעיניים של הפקח בפריים הראשון)
         const p1 = camera.position.clone(), t1 = controls.target.clone(); camAnim = null;
         camera.position.copy(pose.p); controls.target.copy(pose.t);
-        camAnim = { t: 0, dur: 2, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1, rel, ctrl, minD: controls.minDistance }; controls.minDistance = 0;
+        camAnim = { t: 0, dur: 2, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1, rel, ctrl, minD: controls.minDistance, near: camera.near }; controls.minDistance = 0; camera.near = 0.05;   // (קרוב לקרקע: המדרכה לא נחתכת)
         if (rel) { camAnim.p1.copy(o.position).add(rel.p); camAnim.t1.copy(o.position).add(rel.t); } } } });
   drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   dispUI = new DispUI({ sim, toast, setSpeed: v => { night?.manual(); setSpeed(v); }, speed: () => sim.speed, started: () => { showTab('dispatch'); openPanel(); }, preset: t => presetNetwork(t), warm: PRESET_WARM, active: () => bank.role === 'dispatcher' && $('#roleAsk').hidden && cams.current !== 'driver' });
@@ -738,7 +738,7 @@ function bindUI() {
   $('#money').onclick = () => { showTab('money'); openPanel(); };
   $('#dayClose').onclick = () => { $('#daySum').hidden = true; };
   $('#stopPane').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeLook(selectedStop); });
-  canvas.addEventListener('pointerdown', () => { if (camAnim?.minD != null) controls.minDistance = camAnim.minD; camAnim = null; });
+  canvas.addEventListener('pointerdown', () => { if (camAnim?.minD != null) { controls.minDistance = camAnim.minD; camera.near = camAnim.near; camera.updateProjectionMatrix(); } camAnim = null; });
   canvas.addEventListener('wheel', () => { if (camAnim?.minD != null) controls.minDistance = camAnim.minD; camAnim = null; }, { passive: true });
   bindReset();
   $('#lineFormCard').onsubmit = e => { e.preventDefault(); saveLineFromForm({ check: true }); };
@@ -1728,7 +1728,7 @@ function stepCamAnim(dt) {
   if (A.rel) { A.p1.copy(A.rel.o.position).add(A.rel.p); A.t1.copy(A.rel.o.position).add(A.rel.t); }
   // קשת (בזייה) דרך נקודת ביניים, והמבט אל היעד בהדרגה — בלי הרמה נוספת
   if (A.ctrl) { const a = (1 - k) * (1 - k), b2 = 2 * k * (1 - k), c2 = k * k; camera.position.set(0, 0, 0).addScaledVector(A.p0, a).addScaledVector(A.ctrl, b2).addScaledVector(A.p1, c2);
-    controls.target.lerpVectors(A.t0, A.t1, k * k * (3 - 2 * k)); camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); if (k0 >= 1) { camAnim = null; controls.minDistance = A.minD; } return; }
+    controls.target.lerpVectors(A.t0, A.t1, k * k * (3 - 2 * k)); camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); if (k0 >= 1) { camAnim = null; controls.minDistance = A.minD; camera.near = A.near; camera.updateProjectionMatrix(); } else if (k > 0.5) { camera.near = Math.min(A.near, 0.05 + (A.near - 0.05) * (k - 0.5) * 2); } return; }
   // דרך קשת: באמצע המעבר המצלמה קצת גבוהה יותר, כדי שלא תעבור דרך בניינים
   const lift = Math.sin(Math.PI * k0) * Math.min(60, A.p0.distanceTo(A.p1) * 0.15);
   camera.position.lerpVectors(A.p0, A.p1, k); camera.position.y += lift;
