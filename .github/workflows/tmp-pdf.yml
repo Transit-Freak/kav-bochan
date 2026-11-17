@@ -88,6 +88,6 @@ jobs:
         run: |
           cd out
           git config user.name "Claude"; git config user.email "noreply@anthropic.com"
-          git add tmp-pdf
+          git add --sparse tmp-pdf
           git commit -m "בדיקה זמנית: PDF עם אריחים אמיתיים"
           git push
