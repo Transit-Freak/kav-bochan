@@ -274,3 +274,14 @@ details.group summary span{font-weight:600;color:var(--sub)}
   .tbox{outline:none!important}
   .sframe.toolong{box-shadow:none}
 }
+
+.credit-opt{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:15px;cursor:pointer}
+.credit-opt input{width:20px;height:20px;accent-color:currentColor}
+
+/* קבוצה של קווים עם אותו שינוי בדף הראשי */
+.res.grpres{flex-wrap:wrap;row-gap:6px}
+.res.grpres .badges{display:flex;flex-wrap:wrap;gap:4px;flex:1 1 100%;order:-1}
+.res.grpres .t{flex:1 1 0;min-width:0}
+.res.grpres .t .od{white-space:normal}
+.res.grpres .badges .badge{min-width:40px;font-size:15px;padding:4px 7px}
+.res.grpres .badges .more{font-size:13px;font-weight:800;align-self:center;opacity:.75}

@@ -123,6 +123,9 @@
       drawResults();
     }).catch(function () { PL = { streets: [], hoods: [] }; });
   }
+  /* קו עם שינוי: משתנה בשבועיים הקרובים או השתנה בשבוע האחרון — רק הם מוצגים בחיפוש לפי מקום */
+  function hasCh(l) { return !!(l && (l.up.length || recentPast(l).length)); }
+  function chCount(pl) { return pl.lines.filter(function (i) { return hasCh(LINES[i]); }).length; }
   function lineSort(a, b) {
     var ua = a.up.length ? 0 : a.past.length ? 1 : 2, ub = b.up.length ? 0 : b.past.length ? 1 : 2;
     if (ua !== ub) return ua - ub;
@@ -133,6 +136,18 @@
       '<span class="t"><span class="od">' + E(l.from) + ' ↔ ' + E(l.to) + '</span><span class="meta">' + E(l.op) +
       (l.cities.length ? ' · ' + E(l.cities.slice(0, 3).join(', ')) + (l.cities.length > 3 ? '…' : '') : '') + '</span></span>' + badge(l) + '</button>';
   }
+  var SIGS = {};
+  function groupRow(sig, ls) {
+    SIGS[sig] = ls;
+    var c = upNext(ls[0]), s = c.formal || c.eff, ops = [], cs = [];
+    ls.forEach(function (l) { if (ops.indexOf(l.op) < 0) ops.push(l.op); l.cities.forEach(function (x) { if (cs.indexOf(x) < 0) cs.push(x); }); });
+    var nums = ls.map(function (l) { return l.line; });
+    return '<button type="button" class="res grpres" data-sig="' + E(sig) + '"><span class="badges">' +
+      nums.slice(0, 6).map(function (n) { return '<span class="badge">' + E(n) + '</span>'; }).join('') + (nums.length > 6 ? '<span class="more">+' + (nums.length - 6) + '</span>' : '') +
+      '</span><span class="t"><span class="od">אותו שינוי ב-' + ls.length + ' קווים' + (c.summary ? ' · ' + E(c.summary) : '') + '</span>' +
+      '<span class="meta">' + E(ops.slice(0, 3).join(', ')) + (cs.length ? ' · ' + E(cs.slice(0, 3).join(', ')) + (cs.length > 3 ? '…' : '') : '') + '</span></span>' +
+      '<span class="tag ' + (s >= idx.gen ? 'soon' : 'was') + '">' + (s >= idx.gen ? 'משתנה מ-' : 'השתנה ב-') + LC.dm(s) + '</span></button>';
+  }
   /* סמלים קטנים (SVG בתוך הדף): שלט רחוב · גבול שכונה · בניינים לעיר */
   var SV = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
   var ICON = {
@@ -142,11 +157,11 @@
   };
   function placeRow(pl, key) {
     var ic = pl.kind === 's' ? 'רחוב ' : pl.kind === 'h' ? 'שכונת ' : '';
-    var n = pl.lines.length, soon = pl.lines.filter(function (i) { return LINES[i] && LINES[i].up.length; }).length;
+    var n = pl.lines.length, soon = chCount(pl);
     return '<button type="button" class="res place" data-pl="' + key + '"><span class="pin" aria-hidden="true">' + ICON[pl.kind] + '</span>' +
       '<span class="t"><span class="od">' + E(ic + pl.name) + (pl.city && pl.kind !== 'c' ? ', ' + E(pl.city) : '') + '</span>' +
       '<span class="meta">' + (n === 1 ? 'קו אחד' : n + ' קווים') + '</span></span>' +
-      (soon ? '<span class="tag soon">' + (soon === 1 ? 'קו אחד משתנה' : soon + ' משתנים') + '</span>' : '') + '</button>';
+      '<span class="tag soon">' + (soon === 1 ? 'קו אחד משתנה' : soon + ' משתנים') + '</span></button>';
   }
   var cityList = null;
   function cities() {
@@ -170,11 +185,11 @@
     var nq = LC.norm(q), html = '', head = '';
     $('cities').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', LC.norm(b.getAttribute('data-c')) === nq ? 'true' : 'false'); });
     if (placeSel) {
-      var rows = placeSel.lines.map(function (i) { return LINES[i]; }).filter(Boolean).sort(lineSort);
+      var all = placeSel.lines.map(function (i) { return LINES[i]; }).filter(Boolean), rows = all.filter(hasCh).sort(lineSort);
       $('reshead').innerHTML = '<button type="button" class="lnk" id="plback">→ לכל התוצאות</button> <b class="pltitle">' +
         E((placeSel.kind === 's' ? 'רחוב ' : placeSel.kind === 'h' ? 'שכונת ' : '') + placeSel.name + (placeSel.city && placeSel.kind !== 'c' ? ', ' + placeSel.city : '')) +
-        '</b> · ' + (rows.length === 1 ? 'קו אחד עוצר כאן' : rows.length + ' קווים עוצרים כאן');
-      $('results').innerHTML = rows.map(lineRow).join('');
+        '</b> · ' + (rows.length === 1 ? 'קו אחד משתנה' : rows.length + ' קווים משתנים') + ' (מתוך ' + all.length + ' שעוצרים כאן)';
+      $('results').innerHTML = rows.length ? rows.map(lineRow).join('') : '<div class="none">אין שינויים קרובים בקווים שעוצרים כאן.</div>';
       $('results').scrollTop = 0;
       return;
     }
@@ -182,12 +197,22 @@
       var up = LINES.filter(function (l) { return l.up.length; });
       up.sort(function (a, b) { var x = upNext(a), y = upNext(b); return (x.formal || x.eff) < (y.formal || y.eff) ? -1 : (x.formal || x.eff) > (y.formal || y.eff) ? 1 : 0; });
       $('reshead').textContent = 'קווים שמשתנים בשבועיים הקרובים או השתנו בשבוע האחרון (' + up.length + ')';
-      $('results').innerHTML = up.slice(0, 80).map(lineRow).join('');
+      // קווים עם בדיוק אותו שינוי (אותן תחנות, אותו יום) — קבוצה אחת, ובחירה בה מכינה מצגת אחת לכולם
+      var bySig = {};
+      up.forEach(function (l) { var c = upNext(l); if (c && c.sig) (bySig[c.sig] = bySig[c.sig] || []).push(l); });
+      var done = {}, rowsH = [];
+      up.forEach(function (l) {
+        var c = upNext(l), g = c && c.sig && bySig[c.sig];
+        if (g && g.length > 1) { if (!done[c.sig]) { done[c.sig] = 1; rowsH.push(groupRow(c.sig, g)); } }
+        else rowsH.push(lineRow(l));
+      });
+      $('results').innerHTML = rowsH.slice(0, 80).join('');
       return;
     }
     var digits = /^\d+$/.test(nq), words = nq.split(' ');
     var lines = LINES.filter(function (l) {
       if (digits) return l.line.indexOf(nq) === 0 || l.makat === nq;
+      if (!hasCh(l)) return false;   // חיפוש במילים (עיר, מקום, חברה) — רק קווים שמשתנים
       var hay = LC.norm(l.line + ' ' + l.op + ' ' + l.from + ' ' + l.to);
       return words.every(function (w) { return hay.indexOf(w) >= 0 || l.line.indexOf(w) === 0 || l.cities.some(function (c) { return LC.norm(c) === w; }); }) &&
         words.some(function (w) { return !/^\d+$/.test(w) ? hay.indexOf(w) >= 0 || l.cities.some(function (c) { return LC.norm(c).indexOf(w) >= 0; }) : l.line.indexOf(w) === 0; });
@@ -198,10 +223,11 @@
     if (!digits) {
       loadPlaces();
       var srt = placeSortFor(nq);
-      var cs = cities().filter(function (c) { return c.n.indexOf(nq) >= 0; }).sort(srt).slice(0, 6);
+      // רק מקומות שיש בהם קו שמשתנה
+      var cs = cities().filter(function (c) { return c.n.indexOf(nq) >= 0 && chCount(c); }).sort(srt).slice(0, 6);
       if (PL) {
-        var st = PL.streets.filter(function (x) { return matchPlace(x, words, nq); }).sort(srt);
-        var hd = PL.hoods.filter(function (x) { return matchPlace(x, words, nq); }).sort(srt);
+        var st = PL.streets.filter(function (x) { return matchPlace(x, words, nq) && chCount(x); }).sort(srt);
+        var hd = PL.hoods.filter(function (x) { return matchPlace(x, words, nq) && chCount(x); }).sort(srt);
         if (st.length) groups.push(['רחובות', st.slice(0, 8).map(function (x) { return placeRow(x, 's' + PL.streets.indexOf(x)); }).join(''), st.length]);
         if (hd.length) groups.push(['שכונות', hd.slice(0, 8).map(function (x) { return placeRow(x, 'h' + PL.hoods.indexOf(x)); }).join(''), hd.length]);
       } else groups.push(['רחובות ושכונות', '<div class="none">טוען רחובות ושכונות…</div>', 0]);
@@ -213,7 +239,7 @@
     $('results').scrollTop = 0;
     $('results').innerHTML = groups.length ? groups.map(function (g) {
       return '<div class="grp-h">' + g[0] + (g[2] ? ' <span>' + g[2] + '</span>' : '') + '</div>' + g[1];
-    }).join('') : '<div class="none">לא מצאנו. נסו מספר קו, רחוב, שכונה, עיר או חברה.</div>';
+    }).join('') : '<div class="none">' + (digits ? 'לא מצאנו. נסו מספר קו, רחוב, שכונה, עיר או חברה.' : 'אין שינויים קרובים בקווים במקום הזה. אפשר לחפש לפי מספר קו.') + '</div>';
   }
   $('results').addEventListener('click', function (ev) {
     var b = ev.target.closest('.res'); if (!b) return;
@@ -222,6 +248,15 @@
       var k = pk[0], i = +pk.slice(1);
       placeSel = k === 's' ? PL.streets[i] : k === 'h' ? PL.hoods[i] : cityList[i];
       drawResults(); window.scrollTo(0, 0); return;
+    }
+    var sg = b.getAttribute('data-sig');
+    if (sg && SIGS[sg]) {   // קבוצה: כל הקווים נכנסים למצגת אחת (בשלב 3 אפשר להוציא קו עם ×)
+      var ls = SIGS[sg];
+      Promise.all(ls.map(function (l) { return loadPick(upNext(l).id); })).then(function (ps) {
+        ps.filter(Boolean).forEach(function (p) { picks = picks.filter(function (x) { return x.makat !== p.makat || x.op !== p.op; }); picks.push(p); });
+        if (picks.length) { cur = ls[0]; go(3); }
+      });
+      return;
     }
     cur = LINES[+b.getAttribute('data-i')]; go(2);
   });
@@ -414,7 +449,7 @@
   var editMode = false;
   function normEdits(e) {
     e = e && typeof e === 'object' ? e : {};
-    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {};
+    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {};
     return e;
   }
   function textSlide(x, pages) {
@@ -429,7 +464,7 @@
     maps = [];
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes });
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn() });
     drawKinds(pages);
     slides = [];
     base.forEach(function (s) {
@@ -535,6 +570,22 @@
     });
   });
 
+  // קרדיט לקו הבוחן בסוף המצגת — בחירה של מי שמכין אותה (נשמרת בדפדפן, ברירת המחדל: כן)
+  function creditOn() { try { return localStorage.getItem('lc-credit') !== '0'; } catch (e) { return true; } }
+  var crEl = $('credit');
+  if (crEl) {
+    crEl.checked = creditOn();
+    crEl.addEventListener('change', function () { try { localStorage.setItem('lc-credit', crEl.checked ? '1' : '0'); } catch (e) {} if (curPages) keepScroll(function () { render(curPages); }); });
+  }
+  // סימן (מספר, נקודה, צבע במקרא): במצב עריכה לחיצה מסתירה אותו, ולחיצה נוספת מחזירה
+  $('deck').addEventListener('click', function (ev) {
+    var m = ev.target.closest('.emark'); if (!m || !editMode) return;
+    ev.preventDefault();
+    var id = m.getAttribute('data-mk'); edits.hide = edits.hide || {};
+    if (edits.hide[id]) delete edits.hide[id]; else edits.hide[id] = 1;
+    m.classList.toggle('mkoff', !!edits.hide[id]);
+    saveEdits();
+  });
   // סרגל קטן ליד הטקסט שעורכים
   var bar = document.createElement('div');
   bar.id = 'etb'; bar.className = 'etb noprint'; bar.hidden = true;
@@ -577,6 +628,12 @@
     saveEdits();
     LCEdit.fit(el.closest('.sframe'));
     showBar(el);
+  });
+  // מחקו את כל הטקסט בהקלדה: כשיוצאים מהשדה — השורה יורדת, יחד עם הסימן שלידה
+  $('deck').addEventListener('focusout', function (ev) {
+    var el = ev.target;
+    if (!editMode || !el.classList || !el.classList.contains('edt') || el.innerText.trim()) return;
+    setTimeout(function () { keepScroll(function () { render(curPages); }); }, 0);
   });
   bar.addEventListener('mousedown', function (ev) { ev.preventDefault(); });   // לא לאבד את הפוקוס בטקסט
   bar.addEventListener('click', function (ev) {
