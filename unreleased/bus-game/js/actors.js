@@ -425,6 +425,9 @@ export const REACH_FR = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1];
 // יושב: המרפק נשאר ליד הגוף (הזרוע העליונה כמעט אנכית, EMPTY_ELBOW — כיוון: אל המעבר, למטה, קדימה) והאמה עולה קדימה, אל המעבר
 // (EMPTY_FORE) עד גובה החזה, כף היד פתוחה כלפי מעלה — "אין לי" שרואים מעל המשענת שלפניו
 export const EMPTY_UP = [0.2, 0.2], EMPTY_FWD = [0.16, 0.12], EMPTY_SHRUG = 10, EMPTY_SHAKE = 20, EMPTY_ELBOW = [0.3, -1, 0.25], EMPTY_FORE = [0.6, 0.75, 1];
+// יושב: גם היד השנייה (שבצד החלון או השכן) עולה, פתוחה כלפי מעלה — שתי כפות ידיים בגובה החזה. פחות החוצה מהיד שבצד המעבר
+// (לא אל הקיר או אל השכן). EMPTY_ELBOW2/EMPTY_FORE2 — כמו EMPTY_ELBOW/EMPTY_FORE, ו-x החוצה (אל הצד הרחוק מהמעבר)
+export const EMPTY_ELBOW2 = [0.12, -1, 0.3], EMPTY_FORE2 = [0.25, 0.8, 1];
 // עומד שמגיש כרטיס (reachPose): כמה הגו מסתובב אל המעבר (מעלות: גב תחתון, חזה), לאן כף היד יוצאת מהכתף (כיוון: אל המעבר,
 // למטה, קדימה; ואיזה חלק מאורך הזרוע), ולאן המרפק פונה (החוצה, לצד החלון, ולמטה) — הזרוע העליונה נמוכה והאמה לפני הגוף
 // הכרטיס יוצא אל המעבר (ולא רק קדימה): הפקח עומד במעבר, כמעט מול הפנים — כרטיס שרחוק קדימה נשאר בצד של התמונה, והמכשיר
@@ -1188,6 +1191,17 @@ export class PeopleLayer {
     fb.traverse(b => { const r = V.idleRef.getObjectByName(b.name); if (r && b !== fb) b.quaternion.copy(r.quaternion); });
     { const th = B(hand === 'Left' ? 'LThumb' : 'RThumb'), r = th && V.idleRef.getObjectByName(th.name); if (r) th.quaternion.copy(r.quaternion); }
     root.updateMatrixWorld(true);
+    // בלי כרטיס, יושב: גם היד השנייה עולה מהירך, כף היד פתוחה כלפי מעלה (המרפק ליד הגוף) — שתי כפות ידיים ריקות בגובה החזה
+    const hand2 = hand === 'Right' ? 'Left' : 'Right';
+    if (empty && slot.kind === 'seat') { const a2 = B(hand2 + 'Arm'), f2 = B(hand2 + 'ForeArm'), d2 = B(hand2 + 'Hand'), b2 = B(hand2 + 'FingerBase');
+      if (a2 && f2 && d2 && b2) { const s2 = W(a2), u2 = s2.distanceTo(W(f2)), l2 = W(f2).distanceTo(W(d2)), out = -aisle;
+        const e2 = s2.clone().addScaledVector(new THREE.Vector3(out * EMPTY_ELBOW2[0], EMPTY_ELBOW2[1], EMPTY_ELBOW2[2]).normalize(), u2);
+        twoBone(a2, f2, d2, e2.addScaledVector(new THREE.Vector3(out * EMPTY_FORE2[0], EMPTY_FORE2[1], EMPTY_FORE2[2]).normalize(), l2 * 0.97), new THREE.Vector3(out * 0.3, -1, -0.2)); root.updateMatrixWorld(true);
+        aimBone(d2, b2, W(d2).add(new THREE.Vector3(out * 0.15, -0.1, 1).normalize())); root.updateMatrixWorld(true);
+        turn(d2, W(b2).sub(W(d2)).normalize(), (hand2 === 'Right' ? 1 : -1) * 150);
+        b2.traverse(b => { const r = V.idleRef.getObjectByName(b.name); if (r && b !== b2) b.quaternion.copy(r.quaternion); });
+        { const th = B(hand2 === 'Left' ? 'LThumb' : 'RThumb'), r = th && V.idleRef.getObjectByName(th.name); if (r) th.quaternion.copy(r.quaternion); }
+        root.updateMatrixWorld(true); } }
     // אחיזת הכרטיס: כף היד כלפי מעלה ואל הפקח, האצבעות (ישרות, מתקפלות במפרק) מתקפלות למעלה, והאגודל נסגר מולן מאחור —
     // הכרטיס תפוס בין כרית האגודל לכריות האצבעות, זקוף, הפנים אל הפקח, ורובו בולט מעל קצות האצבעות
     let pinch = null; const fp0 = root.userData.fingerPose;
@@ -1224,7 +1238,9 @@ export class PeopleLayer {
       if (pinch) pinch = { c: pinch.at(), ...fingerDirs(root, hand, 0) };
     }
     const us = unsinkHands(root, slot.kind === 'stand' ? hand : null);
-    const pen = probe ? reachPen(root, hand) : null;
+    let pen = probe ? reachPen(root, hand) : null;
+    // שתי הידיים עלו ("אין לי" ביושב): גם היד השנייה נבדקת — לא בתוך הגו ולא בתוך היד הראשונה (העמוק מבין השתיים)
+    if (pen && empty && slot.kind === 'seat') { const p2 = reachPen(root, hand2); for (const k of ['torso', 'arm']) if (p2[k].depth > pen[k].depth) pen[k] = p2[k]; }
     // הזרוע בשלב הזה (לבדיקה): כמה הזרוע העליונה מורמת מהאנך (מעלות), והגובה של המרפק ושל פרק היד יחסית לכתף
     const armM = (() => { const s = W(arm), e = W(fore), h = W(hd), u = e.clone().sub(s).normalize(); return { elev: Math.round(THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-u.y, -1, 1)))), elbowDy: +(e.y - s.y).toFixed(3), handDy: +(h.y - s.y).toFixed(3), flex: Math.round(THREE.MathUtils.radToDeg(s.clone().sub(e).angleTo(h.clone().sub(e)))) }; })();
     if (probe) { root.userData.fingerPose = fp0; for (const [b, q] of saved) b.quaternion.copy(q); root.updateMatrixWorld(true); return { pen, unsink: us, arm: armM, grip: pin ? +W(pin.gd).distanceTo(pin.p).toFixed(4) : null }; }
@@ -1232,7 +1248,7 @@ export class PeopleLayer {
     // הכרטיס (8.5×5.4 ס"מ) זקוף בין האגודל לאצבעות, הפנים שלו אל הפקח שבמעבר
     const headP = B('Head') ? W(B('Head')).sub(o) : null;
     const accM = {}; { const T0 = new THREE.Matrix4().makeTranslation(-o.x, -o.y, -o.z); for (const [t, a] of Object.entries(V.insp?.acc || {})) { const bb = B(a.bone); if (bb) accM[t] = bb.matrixWorld.clone().multiply(a.local).premultiply(T0); } }
-    const hp = W(hd), fp = W(fb), d = fp.clone().sub(hp).normalize();
+    const hp = W(hd), fp = W(fb), d = fp.clone().sub(hp).normalize(), hp2 = empty && slot.kind === 'seat' && B(hand2 + 'Hand') ? W(B(hand2 + 'Hand')).sub(o) : null;
     const Z = new THREE.Vector3(aisle * 0.8, 0.1, 0.6).normalize(), Y = new THREE.Vector3(0, 1, 0).addScaledVector(Z, -Z.y).normalize(), X = new THREE.Vector3().crossVectors(Y, Z);
     const card = new THREE.Matrix4().makeBasis(X, Y, Z).setPosition(fp.clone().addScaledVector(d, 0.03).addScaledVector(Y, 0.025).addScaledVector(Z, 0.03).sub(o));   // לפני האצבעות, אל הפקח
     if (pinch) {   // על הכריות של המורה והאמה (מישור הכרטיס — מישור הכריות), 1.8 ס"מ ממנו בתוך הצביטה והשאר ממשיך את האצבעות הלאה
@@ -1242,7 +1258,7 @@ export class PeopleLayer {
     for (const [b, q] of saved) b.quaternion.copy(q);
     root.updateMatrixWorld(true);
     const meshes = groups.map(gr => { const im = new THREE.InstancedMesh(gr.geo, gr.mat, 1); im.count = 0; im.visible = false; im.frustumCulled = false; im.name = `crowd-${vi}-reach-${gr.kind}`; im.setColorAt(0, new THREE.Color(1, 1, 1)); this.group.add(im); return im; });
-    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), head: headP, acc: accM, seated: slot.kind === 'seat', unsink: us, pen });
+    return (V.reach[key] = { groups, meshes, card: empty ? null : card, hand: hp.sub(o), hand2: hp2, head: headP, acc: accM, seated: slot.kind === 'seat', unsink: us, pen });
   }
   // כף יד ימין של אחד הדגמים בשביל מבט הפקח (היד שמחזיקה את המכשיר): הקודקודים של כף היד, האצבעות, האגודל ו-6 ס"מ של
   // האמה, במערכת הצירים של היד — x: לרוחב (מהמורה אל הזרת), y: כיוון האצבעות, z: אל כף היד; הראשית — אמצע כף היד.
@@ -1626,7 +1642,7 @@ reachPreview(pid, hasCard = true) {
     this.onboardPos = new Map();
     for (const im of this.reachShown || []) { im.count = 0; im.visible = false; }
     this.reachShown = new Set(); if (this.card) this.card.visible = false;
-    this.cardWorld = null; this.reachHandWorld = null; this.onboardShapes = [];
+    this.cardWorld = null; this.reachHandWorld = null; this.reachHand2World = null; this.onboardShapes = [];
     for (const V of this.variants) { if (V.bus) { V.bus.n = 0; for (const A of Object.values(V.bus.alt || {})) A.n = 0; } for (const S of Object.values(V.stand || {})) S.n = 0; }
     const ob = this.onboard;
     if (ob?.obj && ob.bus) {
@@ -1640,7 +1656,7 @@ reachPreview(pid, hasCard = true) {
         const show = (pose, x, y, z, sxN = 1) => { M.makeScale(sxN, 1, 1).setPosition(x, y, z).premultiply(OM);
           pose.meshes.forEach((im, g) => { im.setMatrixAt(0, this.hairM(p.id, pose.groups[g].kind, M)); im.setColorAt(0, this.tint(p.id, pose.groups[g].kind, false, C, pose.seated)); im.count = 1; im.visible = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; this.reachShown.add(im); });
           if (R.card && pose.card) { this.card.matrix.multiplyMatrices(M, pose.card); this.card.matrixWorldNeedsUpdate = true; this.card.visible = true; this.cardWorld = new THREE.Vector3(0.012, 0, 0).applyMatrix4(this.card.matrix); }   // החלק של הכרטיס שבולט מהאצבעות — אליו מגיע המכשיר
-          this.reachHandWorld = pose.hand.clone().applyMatrix4(M); this.onboardShapes.push({ pid: p.id, groups: pose.groups, M: M.clone(), key: 'r' + R.frac + (R.card ? 'c' : 'e') + (R.look || 0) }); };
+          this.reachHandWorld = pose.hand.clone().applyMatrix4(M); this.reachHand2World = pose.hand2 ? pose.hand2.clone().applyMatrix4(M) : null; this.onboardShapes.push({ pid: p.id, groups: pose.groups, M: M.clone(), key: 'r' + R.frac + (R.card ? 'c' : 'e') + (R.look || 0) }); };
         if (k < 0) {                          // אין מושב: עומד ליד הדלת האמצעית ומחזיק בעמוד
           const j = ob.standOf(p.id), sp0 = ob.stands[j], S = sp0 && V.stand?.[sp0[3]], sp = S ? [sp0[0] + S.st.shift.x, sp0[1], sp0[2] + S.st.shift.z, sp0[3]] : sp0;
           if (!S || S.n >= 24) continue;
