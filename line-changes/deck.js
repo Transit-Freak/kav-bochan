@@ -161,7 +161,22 @@ var LCDeck = (function () {
     return '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי · מפה: © תורמי OpenStreetMap</span><span class="pg num"></span></div>';
   }
 
-  function mapSlide(p, d, part, nparts) {
+  /* הכיוון ההפוך עובר באותם רחובות בשינוי (שינוי "מראה") — אז מפה אחת מספיקה לשני הכיוונים */
+  function routeStreets(d) {
+    var o = {};
+    segments(d).forEach(function (g) { if (g.route) (g.oS || []).concat(g.nS || []).forEach(function (s) { o[skey(s)] = 1; }); });
+    return Object.keys(o).sort();
+  }
+  function mirrorOf(d, o) {
+    if (d.dir === o.dir || !rerouted(d) || !rerouted(o)) return false;
+    var a = routeStreets(d), b = routeStreets(o);
+    // אותם רחובות (גם כשהשם קצת שונה: "מכבי אש" / "צומת מכבי אש") — לפחות 60% מהרשימה הקצרה
+    var hit = a.filter(function (x) { return b.some(function (y) { return x.indexOf(y) >= 0 || y.indexOf(x) >= 0; }); }).length;
+    if (!a.length || !b.length || hit < 2 && Math.min(a.length, b.length) > 1 || hit < 0.6 * Math.min(a.length, b.length)) return false;
+    var c1 = changeCenter(d), c2 = changeCenter(o);
+    return !c1 || !c2 || dist(c1, c2) < 3000;
+  }
+  function mapSlide(p, d, part, nparts, twin) {
     var r = d.removed.length, a = d.added.length;
     var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
     var when = start(d) !== start(p) ? '<p class="lead">החל מ' + E(LC.wd(start(d)) + ' ' + LC.dmy(start(d))) + '.</p>' : '';
@@ -171,6 +186,7 @@ var LCDeck = (function () {
       (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ' (' + E(part.name) + ')</p>' : '') +
       (extOf(d) ? '' : rerouted(d) ? '' : '<p class="part">המסלול לא משתנה — רק ' + (r + a + d.moved.length === 1 ? 'התחנה' : 'התחנות') + '</p>') +
       segList(d) + when +
+      (twin ? '<p class="part">' + E(toward(twin).replace(/^בנסיעה/, 'גם בנסיעה')) + ': אותו שינוי, בכיוון ההפוך. התחנות שלה בעמוד נפרד.</p>' : '') +
       (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(countsLine(d)) + '</p>') +
       legendHtml(d) +
       '<div style="font-size:13px;color:var(--s-sub)">הוכן על ידי אדם פרטי · לא פרסום רשמי</div>' +
@@ -706,16 +722,24 @@ var LCDeck = (function () {
   /* השקפים של שינוי גדול: לכל כיוון מפה (או שתיים) ושקף תחנות */
   function fullSlides(p, pre) {
     var out = [];
+    var ud = uniqDirs(p), mapped = [];
     p.dirs.forEach(function (d, di) {
-      if (uniqDirs(p).indexOf(d) < 0) return;
+      if (ud.indexOf(d) < 0) return;
       var remS = d._rem, addS = d._add;
       var parts = splitParts(remS, addS);
-      parts.forEach(function (pt, k) {
-        out.push({ id: p.id + '-m' + di + (k ? '-' + k : ''), label: pre + 'מפה · ' + trip(d) + (parts.length > 1 ? ' (' + pt.name + ')' : ''),
-          html: mapSlide(p, d, pt, parts.length), map: { d: d, remS: remS, addS: addS, show: pt.show } });
-      });
-      if (!small(d) || parts.length > 1) stopsSlides(p, d, remS, addS).forEach(function (s, k) {
-        out.push({ id: p.id + '-s' + di + '-' + k, label: pre + s.label, html: s.html });
+      // כיוון שהוא "מראה" של כיוון שכבר קיבל מפה — בלי מפה משלו (רק התחנות שלו)
+      var twinOf = mapped.filter(function (o) { return mirrorOf(o, d); })[0];
+      var twin = !twinOf && ud.filter(function (o) { return o !== d && mirrorOf(d, o); })[0];
+      if (!twinOf) {
+        mapped.push(d);
+        parts.forEach(function (pt, k) {
+          out.push({ id: p.id + '-m' + di + (k ? '-' + k : ''), label: pre + 'מפה · ' + trip(d) + (parts.length > 1 ? ' (' + pt.name + ')' : ''),
+            html: mapSlide(p, d, pt, parts.length, twin), map: { d: d, remS: remS, addS: addS, show: pt.show } });
+        });
+      }
+      if (twinOf || !small(d) || parts.length > 1) stopsSlides(p, d, remS, addS).forEach(function (s, k) {
+        // כיוון בלי מפה משלו: המספרים ברשימה לא מופיעים על מפה
+        out.push({ id: p.id + '-s' + di + '-' + k, label: pre + s.label, html: twinOf ? s.html.replace('המספרים כמו במפה · ', 'השינוי בדרך — במפה של הכיוון ההפוך · ') : s.html });
       });
     });
     return out;
