@@ -15,7 +15,7 @@ import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
 import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData, coachSeating } from './coach.js';
-import { addCitySigns, cityClone, cityDisplays } from './citysigns.js';
+import { addCitySigns, cityClone, cityDisplays, cityData } from './citysigns.js';
 import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
 export const KNEEL = { th: 0.0304, far: 1.25 };
@@ -348,8 +348,9 @@ export class BusLayer {
     if (monBus) { const c = monBus.coach, u = monBus.city; this.monOn = monBus;
       if (c) { this.mon = this.mon || monitorDisplay(); if (c.mon && c.mon.material !== this.mon.mat) c.mon.material = this.mon.mat; }
       if (u) { this.cityMon = this.cityMon || cityDisplays(); for (const m of u.scr) m.material = this.cityMon.scr.mat; if (u.led) u.led.material = this.cityMon.led.mat; }
-      if ((this.monT = (this.monT || 0) - (dt || 0.016)) <= 0) { this.monT = 0.5; try { const d = monitorData(monB, this.clock?.() || '');
-        if (c) this.mon.draw(d); if (u) { this.cityMon.scr.draw(d); this.cityMon.led.draw({ next: d.rows[1].name }); } } catch (e) { } } }
+      if ((this.monT = (this.monT || 0) - (dt || 0.016)) <= 0) { this.monT = c ? 0.5 : 1; try {   // העירוני — פעם בשנייה (קנבס גדול)
+        if (c) this.mon.draw(monitorData(monB, this.clock?.() || ''));
+        if (u) { const d = cityData(monB, lines, this.clock?.() || ''); this.cityMon.scr.draw(d); this.cityMon.led.draw({ next: d.stops[0]?.name || '' }); } } catch (e) { console.warn(e); } } }
   }
   doorWorld(bus, which) {
     const v = this.map.get(bus.id); if (!v) return null;
