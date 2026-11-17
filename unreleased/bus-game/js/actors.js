@@ -110,6 +110,46 @@ function tuneBusMaterials(root, env) {
   });
 }
 
+// רצפת האוטובוס (M_Vinyl — בדגם לבנה): ויניל נגד החלקה אפור עם נקודות זעירות בצבעים (אדום, כחול, בז'), במעבר עצמו — אפור
+// חלק כמעט בלי נקודות. הטקסטורה קטנה (קנבס 256, חוזרת כל 60 ס"מ), וה-UV לפי המקום ברצפה. ובשפת המעבר, לאורך שורות המושבים —
+// פס אלומיניום דק ופס צהוב (אזהרה) בצד המעבר (stripes: [x, z0, z1] במערכת האוטובוס)
+const FLOOR_UV = 0.6, AISLE_HALF = 0.36;
+let vinylTex = null;
+function vinylTexture() {
+  if (vinylTex) return vinylTex;
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), img = x.createImageData(256, 256), d = img.data;
+  let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 256 * 256; i++) { const v = 112 + (rnd() - 0.5) * 14; d[i * 4] = v; d[i * 4 + 1] = v + 2; d[i * 4 + 2] = v + 5; d[i * 4 + 3] = 255; }
+  x.putImageData(img, 0, 0);
+  const cols = ['#a84444', '#4565a8', '#cdb991', '#d8d8d8', '#3a3c40'];
+  for (let i = 0; i < 1400; i++) { x.fillStyle = cols[Math.floor(rnd() * cols.length)]; x.globalAlpha = 0.55 + rnd() * 0.4; const r = 0.6 + rnd() * 0.9; x.beginPath(); x.arc(rnd() * 256, rnd() * 256, r, 0, Math.PI * 2); x.fill(); }
+  vinylTex = new THREE.CanvasTexture(c); vinylTex.wrapS = vinylTex.wrapT = THREE.RepeatWrapping; vinylTex.colorSpace = THREE.SRGBColorSpace; vinylTex.anisotropy = 4;
+  return vinylTex;
+}
+function busFloor(root, stripes = []) {
+  root.updateMatrixWorld(true); const inv = root.matrixWorld.clone().invert(), q = new THREE.Vector3(); let top = -Infinity;
+  root.traverse(o => {
+    const m = o.isMesh && [].concat(o.material)[0]; if (!m || m.name !== 'M_Vinyl' || !m.isMeshStandardMaterial) return;
+    const P = o.geometry.attributes.position, uv = new Float32Array(P.count * 2), M = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    for (let i = 0; i < P.count; i++) { q.fromBufferAttribute(P, i).applyMatrix4(M); uv[i * 2] = q.x / FLOOR_UV; uv[i * 2 + 1] = q.z / FLOOR_UV; top = Math.max(top, q.y); }
+    o.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    if (m.userData.vinyl) return; m.userData.vinyl = true;
+    m.map = vinylTexture(); m.color.setRGB(1, 1, 1); m.roughness = 0.82; m.metalness = 0;
+    m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      { float ax = abs(vMapUv.x * ${FLOOR_UV.toFixed(2)}); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.165, 0.172, 0.185), (1.0 - smoothstep(${(AISLE_HALF - 0.03).toFixed(2)}, ${AISLE_HALF.toFixed(2)}, ax)) * 0.85); }`); };
+    m.needsUpdate = true;
+  });
+  if (!isFinite(top) || !stripes.length) return;
+  const al = new THREE.MeshStandardMaterial({ name: 'M_FloorNosing', color: 0xb9bdc3, metalness: 0.7, roughness: 0.35 }), ye = new THREE.MeshStandardMaterial({ name: 'M_FloorStripe', color: 0xf0c000, roughness: 0.6 });
+  const ga = [], gy = [];
+  for (const [x, z0, z1] of stripes) { const s = Math.sign(x), L = z1 - z0, zc = (z0 + z1) / 2;
+    ga.push(new THREE.BoxGeometry(0.025, 0.006, L).translate(x + s * 0.0125, top + 0.003, zc));
+    gy.push(new THREE.BoxGeometry(0.018, 0.0065, L).translate(x - s * 0.009, top + 0.003, zc)); }
+  const a = new THREE.Mesh(mergeGeometries(ga), al), y = new THREE.Mesh(mergeGeometries(gy), ye); a.name = 'FloorNosing'; y.name = 'FloorStripe'; root.add(a, y);
+}
+const FLOOR_STRIPES = [[-AISLE_HALF, 1.2, 4.3], [AISLE_HALF, 1.2, 2.7], [-AISLE_HALF, -5.3, -1.35], [AISLE_HALF, -5.3, -1.35]];
+const COACH_FLOOR_STRIPES = [[-AISLE_HALF, 1.2, 4.3], [AISLE_HALF, -5.3, 4.2], [-AISLE_HALF, -5.3, -1.35]];   // בין-עירוני (coach.js)
+
 // חיפוי הקיר התחתון בצד הדלתות (M_Panel, גובה 0.66–1.32) הוא קופסה אחת לכל אורך האוטובוס, גם לרוחב פתחי הדלתות —
 // והנוסעים "נכנסים" בו. מחליפים אותו בקטעים שבין הדלתות
 const DOORWAYS = [[4.565, 5.735], [-0.585, 0.635]];
@@ -203,6 +243,8 @@ export class BusLayer {
     if (this.variants.coach || !this.asset) return this.variants.coach;
     this.tune('std', this.asset);
     const scene = this.asset.scene.clone(true);
+    // הפסים בשפת המעבר: בבין-עירוני יש מושבים לכל האורך גם בצד הנהג (מול הדלת האמצעית)
+    try { for (const n of ['FloorNosing', 'FloorStripe']) { const o = scene.getObjectByName(n); if (o) o.parent.remove(o); } busFloor(scene, COACH_FLOOR_STRIPES); } catch (e) { console.warn('coach floor failed', e); }
     try { buildCoach(scene, TYPES.coach?.tint ?? 0x8fb3d9); } catch (e) { console.warn('coach failed', e); }
     return (this.variants.coach = { scene, animations: this.asset.animations, userData: {} });
   }
@@ -214,6 +256,7 @@ export class BusLayer {
       // רצועות האחיזה (js/straps.js) — בדגם הרגיל ובחשמלי (אותו פנים). במיניבוס הגג נמוך יותר ובמפרקי יש קטע אחורי: בלי רצועות
       if (kind === 'std' || kind === 'elec') try { addStraps(asset.scene); } catch (e) { console.warn('straps failed', e); }
       if (kind === 'std') cutDoorPanels(asset.scene);       // בדגמים החדשים החיפוי כבר חתוך בפתחי הדלתות
+      try { busFloor(asset.scene, kind === 'std' || kind === 'elec' ? FLOOR_STRIPES : []); } catch (e) { console.warn('floor failed', e); }
     }
     tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind);
     // הגרסה הממוזגת לאוטובוס רחוק (buildLite) — פעם אחת לדגם
