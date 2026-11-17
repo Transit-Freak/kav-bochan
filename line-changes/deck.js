@@ -187,8 +187,21 @@ var LCDeck = (function () {
       if (k < 0 || N.slice(k, k + O.length).join() !== O.join()) k = -1;
     }
     var e = '';
-    if (k >= 0 && !offRuns(d.old.shape, d.new.shape).length) e = k > 0 && k + O.length < N.length ? 'both' : k > 0 ? 'start' : 'end';
+    // המסלול הישן בתוך החדש — מלבד הבדלי שרטוט קטנים (עד 300 מ' בסך הכול; לפעמים השרטוט הישן לא מגיע בדיוק עד התחנה)
+    var off = offRuns(d.old.shape, d.new.shape).reduce(function (t, r) { return t + runLen(r); }, 0);
+    if (k >= 0 && off < 300) e = k > 0 && k + O.length < N.length ? 'both' : k > 0 ? 'start' : 'end';
     return (d._ext = e);
+  }
+  function runLen(r) { var m = 0; for (var i = 1; i < r.length; i++) m += dist(r[i - 1], r[i]); return m; }
+  /* הקטע החדש של קו שמתארך: מהתחנה שבה הקו הסתיים עד היום ועד הסוף (או מההתחלה עד התחנה שבה הקו התחיל) — חותכים את
+     המסלול החדש בנקודה הקרובה לתחנה, ולא לפי ההבדל בין השרטוטים (השרטוט הישן לא תמיד מגיע עד התחנה) */
+  function extPart(d) {
+    var e = extOf(d), S = d.new.shape, O = d.old.stops, out = [];
+    if (!e || S.length < 2 || !O.length) return out;
+    var near = function (ll) { var bi = 0, bd = Infinity; S.forEach(function (p, i) { var x = dist(p, ll); if (x < bd) { bd = x; bi = i; } }); return bi; };
+    if (e === 'end' || e === 'both') { var i = near(O[O.length - 1].ll); out.push([O[O.length - 1].ll].concat(S.slice(i + 1))); }
+    if (e === 'start' || e === 'both') { var j = near(O[0].ll); out.push(S.slice(0, j).concat([O[0].ll])); }
+    return out.filter(function (r) { return r.length > 1; });
   }
   /* קטעים במסלול a שרחוקים מ-b יותר מ-35 מ' (עם הנקודה שלפני ואחרי, כדי שהקטע יתחבר לקו) */
   function offRuns(a, b) {
@@ -805,11 +818,11 @@ var LCDeck = (function () {
     tiles(map).addTo(map);
     // הישן המקווקו מתחת לחדש: איפה שהמסלולים זהים רואים רק כחול, והאדום מופיע רק איפה שהקו כבר לא עובר
     // רק הקטעים שהקו כבר לא נוסע בהם — לא מתחת לקו החדש, כדי שלא ייראה כאילו משהו בוטל במקום שהקו ממשיך לנסוע בו
-    offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map); });
+    if (!extOf(d)) offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map); });
     // המסלול החדש בירוק; כשהדרך לא משתנה — כחול-אפור ניטרלי (רק התחנה משתנה). קו שמתארך: כל המסלול אפור, והקטע החדש בירוק
     var ext = extOf(d);
     if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: rerouted(d) && !ext ? '#1f9152' : '#5f7d96', weight: 6, opacity: .92, interactive: false }).addTo(map);
-    if (ext) offRuns(d.new.shape, d.old.shape).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
+    if (ext) extPart(d).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
     var changed = {};
     d.added.concat(d.removed).forEach(function (c) { changed[c] = 1; });
     d.new.stops.forEach(function (s) {
@@ -876,9 +889,9 @@ var LCDeck = (function () {
         var mini = L.map(inEl, Object.assign({}, opts, { attributionControl: false }));
         mini.fitBounds(all.extend(view), { padding: [10, 10] });
         tiles(mini).addTo(mini);
-        offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini); });
+        if (!ext) offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini); });
         if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: rerouted(d) && !ext ? '#1f9152' : '#5f7d96', weight: 2.5, interactive: false }).addTo(mini);
-        if (ext) offRuns(d.new.shape, d.old.shape).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
+        if (ext) extPart(d).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
         L.rectangle(view, { color: '#13201b', weight: 2, fillColor: '#f2c14e', fillOpacity: .35, interactive: false }).addTo(mini);
         // כשהמסלול ארוך המלבן קטן מאוד — עיגול צהוב סביבו כדי שיראו איפה זה
         L.circleMarker(view.getCenter(), { radius: 9, color: '#13201b', weight: 2.5, fillColor: '#f2c14e', fillOpacity: .9, interactive: false }).addTo(mini);
