@@ -18,9 +18,12 @@ export const TYPES = {
   mini:  { name: 'מיניבוס', cap: 20, price: 3_000, lease: 300, km: 2.0, hour: 90, tint: 0xf6c453 },
   std:   { name: 'אוטובוס רגיל', cap: 80, price: 6_000, lease: 600, km: 3.5, hour: 100, tint: null },
   artic: { name: 'מפרקי', cap: 120, price: 10_000, lease: 1_000, km: 5.0, hour: 110, tint: 0xf08a8a },
+  // בין-עירוני: אותו גוף של 12 מ', בפנים מושבי נוסעים גבוהים 2+2 לכל האורך (coach.js). כולם יושבים — אין עמידה,
+  // ולכן המקומות = מספר המושבים בפנים (COACH_SEATS ב-coach.js)
+  coach: { name: 'בין-עירוני', cap: 42, price: 8_000, lease: 800, km: 3.0, hour: 100, tint: 0x8fb3d9, seated: true, hint: 'מושבים נוחים, כולם יושבים — מתאים לקווים ארוכים' },
   elec:  { name: 'חשמלי', cap: 80, price: 7_500, lease: 750, km: 0.8, hour: 100, tint: 0x7fd99a },
 };
-export const TYPE_ORDER = ['mini', 'std', 'artic', 'elec'];
+export const TYPE_ORDER = ['mini', 'std', 'artic', 'coach', 'elec'];
 // מחירי הרכבים לפי רמת הקושי (קל ×0.7): משנים את TYPES במקום, מהמחירים הבסיסיים
 const BASE = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, { price: v.price, lease: v.lease }]));
 export function applyPrices(mode) {

@@ -490,11 +490,13 @@ function renderForm() {
     b.className = 'vtype' + (id === form.type ? ' on' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', id === form.type);
     const locked = !career.unlocked(id) && !(form.line && typeOf(form.line.def) === id);
     const at = STAGES.findIndex(S => S.unlock.includes(id));
-    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות</span><span class="vp">${locked ? `נפתח אחרי שלב ${at + 1}` : form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
+    b.innerHTML = `<b>${T.name}</b><span>${T.cap} מקומות${T.seated ? ' ישיבה' : ''}</span><span class="vp">${locked ? `נפתח אחרי שלב ${at + 1}` : form.lease ? `${money(T.lease)} ליום` : money(T.price)}</span>`;
     if (locked) { b.disabled = true; b.classList.add('locked'); }
     b.onclick = () => { if (locked) return; form.type = id; renderForm(); };
     box.appendChild(b);
   }
+  // הסבר קצר לסוג שנבחר (בין-עירוני)
+  const hint = TYPES[form.type]?.hint; if (hint) { const h = document.createElement('p'); h.className = 'vhint'; h.textContent = hint; box.appendChild(h); }
   $('#fMode').querySelectorAll('button').forEach(b => { const on = (b.dataset.m === 'lease') === form.lease; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
   const need = formNeed();
   if (!form.touched && !form.line) form.n = form.lease ? need : Math.max(0, Math.min(need, Math.floor(bank.money / TYPES[form.type].price)));
@@ -1380,7 +1382,7 @@ function renderDispatch(force) {
 }
 // ---------- סידור רכבים ונהגים (sched.js): סיכום, וגאנט לכל רכב ולכל נהג. הזמן מימין לשמאל, כמו הרצועות של הסדרן
 let dispView = 'live';
-const SHORT = { mini: 'מיניבוס', std: 'רגיל', artic: 'מפרקי', elec: 'חשמלי' };
+const SHORT = { mini: 'מיניבוס', std: 'רגיל', artic: 'מפרקי', coach: 'בין-עירוני', elec: 'חשמלי' };
 const dispSwitch = () => `<div class="dsw" role="tablist"><button type="button" data-dv="live" class="${dispView === 'live' ? 'on' : ''}">מצב הקווים</button><button type="button" data-dv="sched" class="${dispView === 'sched' ? 'on' : ''}">סידור רכבים ונהגים</button></div>`;
 // נהגים חסרים (קו חדש או שינוי): מגייסים אותם יחד עם השמירה, בדמי גיוס
 function autoHire() {

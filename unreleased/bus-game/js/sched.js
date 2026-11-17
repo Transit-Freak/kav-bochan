@@ -21,7 +21,7 @@ export const SIGN_ON = 10 * 60, SIGN_OFF = 5 * 60;   // התייצבות וסי�
 export const LATE_CANCEL = 20 * 60;      // רכב שלא חזר 20 דק' אחרי היציאה המתוכננת — הנסיעה מבוטלת
 export const DRIVER_HIRE = 1_000;        // ₪ גיוס נהג (פעם אחת)
 export const DRIVER_WAGE = 80;           // ₪ לשעת משמרת (גם הפסקות והמתנה במסוף). שאר "העלות לשעה" של הרכב (TYPES[].hour) — תחזוקה
-export const SIZE = { mini: 1, std: 2, elec: 2, artic: 3 };
+export const SIZE = { mini: 1, coach: 1.5, std: 2, elec: 2, artic: 3 };   // בין-עירוני: 42 מקומות — בין המיניבוס לרגיל
 export const REASON = { veh: 'אין רכב פנוי', fit: 'אין רכב מתאים', drv: 'אין נהג', late: 'הרכב לא חזר בזמן' };
 const HW_OPTS = [5, 10, 15, 20, 30, 60];
 const snapHw = m => HW_OPTS.reduce((a, b) => Math.abs(b - m) < Math.abs(a - m) ? b : a, 20);
@@ -56,7 +56,7 @@ export class Scheduler {
   lines() { return this.sim.lines.filter(L => this.managed(L)); }
   // המאגר: כל הרכבים שנקנו או נלקחו בליסינג, לפי סוג
   pool() {
-    const p = { mini: 0, std: 0, artic: 0, elec: 0 };
+    const p = { mini: 0, std: 0, artic: 0, coach: 0, elec: 0 };
     for (const L of this.lines()) p[typeOf(L.def)] += L.def.fleet || 0;
     return p;
   }
@@ -131,7 +131,7 @@ export class Scheduler {
   // הסידור עצמו. pool — כמה רכבים מכל סוג (null = בלי הגבלה), nDrv — כמה נהגים
   build(lines, day, pool, nDrv) {
     const trips = lines.flatMap(L => lineTrips(L, day)).sort((a, b) => a.dep - b.dep || (a.lid < b.lid ? -1 : 1));
-    const vehicles = [], drivers = [], used = { mini: 0, std: 0, artic: 0, elec: 0 };
+    const vehicles = [], drivers = [], used = { mini: 0, std: 0, artic: 0, coach: 0, elec: 0 };
     const left = t => pool ? pool[t] - used[t] : Infinity;
     const newVeh = (type, x) => { const v = { id: vehicles.length + 1, type, n: ++used[type], trips: [], readyAt: -Infinity, at: null }; vehicles.push(v); return v; };
     for (const x of trips) {
