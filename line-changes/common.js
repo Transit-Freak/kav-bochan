@@ -34,7 +34,8 @@ var LC = (function () {
   /* תגיות סיכום (geo/add/rem/mv) — בשפה של נוסעים */
   function chips(c) {
     var h = '';
-    if (c.geo) h += '<span class="chip geo">הקו נוסע בדרך אחרת</span>';
+    if (c.ext) h += '<span class="chip geo">' + (c.ext === 'end' ? 'הקו ממשיך יותר רחוק' : c.ext === 'start' ? 'הקו מתחיל מוקדם יותר' : 'הקו מתארך') + '</span>';
+    else if (c.geo) h += '<span class="chip geo">הקו נוסע בדרך אחרת</span>';
     if (c.rem) h += '<span class="chip rem">' + stopsWord(c.rem, 'rem') + '</span>';
     if (c.add) h += '<span class="chip add">' + stopsWord(c.add, 'add') + '</span>';
     if (c.mv) h += '<span class="chip mv">' + stopsWord(c.mv, 'mv') + '</span>';
