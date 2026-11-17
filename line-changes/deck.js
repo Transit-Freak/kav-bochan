@@ -226,7 +226,7 @@ var LCDeck = (function () {
           rerouted(d) ? (offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
           '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
-        (near ? ((d._rem || []).some(function (s) { return s._near && s._near.path; }) ? '<span><i class="sw near walk"></i>הדרך ברגל לתחנה הקרובה</span>' : '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש</span>') : '') +
+        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש' + ((d._rem || []).some(function (s) { return s._near && s._near.path; }) ? ' (זמן ההליכה ברשימה)' : '') + '</span>' : '') +
         (segments(d).some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
         (a ? '<span><i class="dot add">1</i>תחנה חדשה</span>' : '') +
         (d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
@@ -817,9 +817,8 @@ var LCDeck = (function () {
     });
     // מכל תחנה שמבוטלת — קו מנוקד דק אל התחנה הקרובה במסלול החדש
     m.remS.forEach(function (s) {
-      if (shown(s) && s._near && s._near.path) L.polyline([s.ll].concat(s._near.path, [s._near.ll]), { color: '#fff', weight: 7, opacity: .9, interactive: false }).addTo(map);
-      if (shown(s) && s._near && !s._near.none) L.polyline(s._near.path && s._near.path.length > 1 ? [s.ll].concat(s._near.path, [s._near.ll]) : [s.ll, s._near.ll],
-        s._near.path ? { color: '#1d4ed8', weight: 4, dashArray: '1 7', lineCap: 'round', opacity: 1, interactive: false } : { color: '#13201b', weight: 2, dashArray: '2 5', opacity: .75, interactive: false }).addTo(map);
+      // קו ישר (הדרך ברגל עוברת ברחובות של הקו ומתערבבת עם הירוק והאדום); זמן ההליכה האמיתי — ברשימה ובהסבר
+      if (shown(s) && s._near && !s._near.none) L.polyline([s.ll, s._near.ll], { color: '#13201b', weight: 2, dashArray: '2 5', opacity: .75, interactive: false }).addTo(map);
     });
     // קו שמתארך: איפה הקו התחיל או הסתיים עד היום
     var wasEnd = {};
