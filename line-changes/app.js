@@ -745,22 +745,146 @@
   if (window.ResizeObserver) new ResizeObserver(scale).observe($('deck'));
   window.addEventListener('resize', scale);
 
-  /* ---------- PDF ---------- */
+  /* ---------- PDF ----------
+     קובץ PDF אמיתי שנוצר בדפדפן: כל שקף שנכלל מצולם בגודל המלא (1280×720, בחדות כפולה) ונכנס לעמוד משלו
+     בגודל 1280×720 בדיוק. הספריות נטענות רק בלחיצה הראשונה. אם משהו נכשל — חלון ההדפסה, כמו קודם.
+     html-to-image ולא html2canvas: הוא מצלם דרך הדפדפן עצמו (SVG), כך שהעברית, הגופנים, הקווים המקווקווים
+     והקווים של Leaflet יוצאים בדיוק כמו במסך. אריחי המפה צריכים CORS — crossOrigin בשכבת האריחים (deck.js) */
+  var LIBS = [
+    { test: function () { return window.jspdf && window.jspdf.jsPDF; }, src: 'https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js',
+      sri: 'sha384-qovJwSBbRDPP5cEjCp8S0UP66wrvnjaa60XMOGzTNanrThcrGfXfnZkvgY8N1KT3' },
+    { test: function () { return window.htmlToImage; }, src: 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js',
+      sri: 'sha384-Tha/42qsYmpYmQ07pX+nJzkKumO0BzKJxK/uzVc7xyBQxVCUgQBhQIG8L7vXK+9C' }
+  ];
+  var libsP = null;
+  function loadLibs() {
+    if (!libsP) libsP = Promise.all(LIBS.map(function (l) {
+      if (l.test()) return true;
+      return new Promise(function (res, rej) {
+        var sc = document.createElement('script');
+        sc.src = l.src; sc.integrity = l.sri; sc.crossOrigin = 'anonymous';
+        sc.onload = function () { l.test() ? res() : rej(new Error('lib')); };
+        sc.onerror = function () { rej(new Error('lib ' + l.src)); };
+        document.head.appendChild(sc);
+      });
+    })).catch(function (e) { libsP = null; throw e; });
+    return libsP;
+  }
+  function timeout(p, ms) { return Promise.race([p, new Promise(function (res) { setTimeout(res, ms); })]); }
+  function pdfName() {
+    var ls = curPages.map(function (p) { return String(p.line); }).filter(function (x, i, a) { return a.indexOf(x) === i; });
+    var ds = curPages.map(function (p) { return p.formal || p.eff || ''; }).filter(Boolean).sort();
+    var base = ls.length === 1 ? 'שינוי-בקו-' + ls[0] : 'שינויים-בקווים-' + (ls.length <= 5 ? ls.join('-') : ls.slice(0, 5).join('-') + '-ועוד');
+    return (base + (ds[0] ? '-' + ds[0] : '')).replace(/[\\\/:*?"<>|\s]+/g, '-') + '.pdf';
+  }
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var SAFARI = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+  function save(blob, name, tab) {
+    var url = URL.createObjectURL(blob);
+    if (tab) { tab.location.href = url; }   // דפדפנים ב-iOS שלא מורידים קבצים מ-Blob: הקובץ נפתח בלשונית שנפתחה בלחיצה
+    else {
+      var a = document.createElement('a');
+      a.href = url; a.download = name; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  }
+  function dlMsg(t) { document.querySelectorAll('.dlmsg').forEach(function (m) { m.textContent = t; }); }
+  var busy = false;
   function download() {
-    var btns = [$('dl'), $('dl2')];
-    if (!slides.length) return;
-    btns.forEach(function (b) { b.disabled = true; b.classList.add('busy'); b.querySelector('span').textContent = 'מכין את המפות…'; });
+    if (busy || !slides.length) return;
+    busy = true;
+    var btns = [$('dl'), $('dl2')], wasEdit = editMode, t0 = performance.now();
+    var label = function (t) { btns.forEach(function (b) { b.querySelector('span').textContent = t; }); };
+    btns.forEach(function (b) { b.disabled = true; b.classList.add('busy'); });
+    label('מכין PDF…'); dlMsg('');
+    // iOS בלי תמיכה בהורדת Blob (Chrome, Firefox ב-iOS): פותחים לשונית עכשיו, בזמן הלחיצה, ושמים בה את הקובץ בסוף
+    var tab = IOS && !SAFARI ? window.open('', '_blank') : null;
+    var items = Array.prototype.filter.call($('deck').querySelectorAll('.sitem'), function (it) { return !it.classList.contains('off'); });
     var vis = maps.filter(function (m) { return !edits.off[m.id]; });
-    Promise.all(vis.map(function (m) { return m.ready; })).then(function () {
+    var host = null, cur = null;
+    loadLibs().then(function () {
+      label('מכין את המפות…');
+      // כל אריחי המפות (לכל מפה יש זמן קצוב משלה ב-deck.js), והגופנים — ועוד גבול עליון לכל ההמתנה
+      return timeout(Promise.all(vis.map(function (m) { return m.ready; }).concat(document.fonts ? [document.fonts.ready] : [])), 15000);
+    }).then(function () {
+      if (editMode) setEdit(false);
+      // מקום מחוץ למסך, בגודל המלא של שקף; השקף עובר לשם לרגע ומצולם בלי ההקטנה של התצוגה המקדימה.
+      // בתוך .deck — כדי שהצבעים והעיצוב (data-look) יחולו עליו
+      host = document.createElement('div');
+      host.className = 'pdfhost';
+      host.setAttribute('aria-hidden', 'true');
+      host.style.cssText = 'position:fixed;top:0;left:-3000px;width:1280px;height:720px;overflow:hidden;pointer-events:none';
+      $('deck').appendChild(host);
+      var H = window.htmlToImage;
+      var opts = {
+        width: 1280, height: 720, pixelRatio: 2,
+        imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+        // בלי ממשק העריכה, ובלי אריחי מפה שלא נטענו (אחרת הספרייה מנסה להוריד אותם שוב ויכולה להיתקע)
+        filter: function (n) {
+          var c = n.classList; if (!c) return true;
+          if (c.contains('leaflet-tile') && !c.contains('leaflet-tile-loaded')) return false;
+          return !(c.contains('noprint') || c.contains('tbox-h') || c.contains('mkoff') || c.contains('leaflet-control-zoom'));
+        }
+      };
+      var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'px', format: [1280, 720], hotfixes: ['px_scaling'], compress: true });
+      // הגופנים מוטמעים פעם אחת לכל המצגת (במקום בכל שקף מחדש)
+      return timeout(H.getFontEmbedCSS($('deck'), opts), 10000).catch(function () { return ''; }).then(function (css) {
+        if (css) opts.fontEmbedCSS = css;
+        var i = 0;
+        function next() {
+          if (i >= items.length) return pdf;
+          label('מכין PDF… ' + (i + 1) + '/' + items.length);
+          var s = items[i].querySelector('.slide'), home = s.parentNode, after = s.nextSibling;
+          cur = { s: s, home: home, after: after };
+          s.style.transform = 'none';
+          host.appendChild(s);
+          // Safari: הציור הראשון של SVG עם תמונות לפעמים יוצא בלי התמונות — מציירים פעמיים
+          var shot = function () {
+            return Promise.race([H.toCanvas(s, opts), new Promise(function (res, rej) { setTimeout(function () { rej(new Error('slide timeout')); }, 30000); })]);
+          };
+          return (SAFARI ? shot().then(shot) : shot()).then(function (cv) {
+            home.insertBefore(s, after); cur = null;
+            if (i > 0) pdf.addPage([1280, 720], 'landscape');
+            pdf.addImage(cv.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, 1280, 720, undefined, 'FAST');
+            cv.width = cv.height = 0;
+            i++;
+            return new Promise(function (r) { setTimeout(r, 0); }).then(next);   // לתת לדפדפן לצייר את ההתקדמות
+          });
+        }
+        return next();
+      });
+    }).then(function (pdf) {
+      save(pdf.output('blob'), pdfName(), tab);
+      if (window.LCApp) window.LCApp.lastPdf = { pages: items.length, ms: Math.round(performance.now() - t0) };
+    }).catch(function (e) {
+      if (window.console) console.error('PDF', e);
+      if (tab) try { tab.close(); } catch (x) {}
+      dlMsg('לא הצלחנו ליצור את קובץ ה-PDF. נפתח חלון ההדפסה — שם בוחרים "שמירה כ-PDF".');
+      setTimeout(printDeck, 300);
+    }).then(function () {
+      if (cur) { cur.home.insertBefore(cur.s, cur.after); cur = null; }
+      if (host) host.remove();
+      scale();
+      if (wasEdit && !editMode) setEdit(true);
+      btns.forEach(function (b) { b.disabled = false; b.classList.remove('busy'); });
+      label('הורדת PDF');
+      busy = false;
+    });
+  }
+  /* הדפסה רגילה (גם כגיבוי כשה-PDF לא נוצר) */
+  function printDeck() {
+    var vis = maps.filter(function (m) { return !edits.off[m.id]; });
+    timeout(Promise.all(vis.map(function (m) { return m.ready; })), 15000).then(function () {
       var t0 = document.title;
       var h1 = document.querySelector('.sframe .s-cover h1');
       document.title = (h1 && h1.textContent.trim()) || 'מצגת';
       if (editMode) setEdit(false);
-      btns.forEach(function (b) { b.disabled = false; b.classList.remove('busy'); b.querySelector('span').textContent = 'הורדת PDF'; });
       setTimeout(function () { window.print(); document.title = t0; }, 50);
     });
   }
   $('dl').addEventListener('click', download);
   $('dl2').addEventListener('click', download);
+  document.querySelectorAll('.printbtn').forEach(function (b) { b.addEventListener('click', printDeck); });
   window.LCApp = { ready: function () { return Promise.all(maps.map(function (m) { return m.ready; })); }, step: function () { return step; } };
 })();
