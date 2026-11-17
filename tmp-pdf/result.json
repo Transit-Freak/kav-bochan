@@ -1,0 +1,70 @@
+[
+ {
+  "id": "22029-20261117",
+  "mob": 0,
+  "slides": 4,
+  "file": "out/tmp-pdf/שינוי-בקו-29-2026-11-17.pdf",
+  "ms": 1020,
+  "size": 1007712,
+  "lp": {
+   "pages": 4,
+   "ms": 992
+  },
+  "msg": "",
+  "errs": [
+   "Error inlining remote css file SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js:1:15293\n    at Array.forEach (<anonymous>)\n    at https://cdn.jsdelivr.net/npm/html-to-image@",
+   "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11"
+  ]
+ },
+ {
+  "id": "13054-20261116,10784-20261116,10791-2026",
+  "mob": 0,
+  "slides": 4,
+  "file": "out/tmp-pdf/שינויים-בקווים-54-784-791-2026-11-16.pdf",
+  "ms": 860,
+  "size": 833715,
+  "lp": {
+   "pages": 4,
+   "ms": 826
+  },
+  "msg": "",
+  "errs": [
+   "Error inlining remote css file SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js:1:15293\n    at Array.forEach (<anonymous>)\n    at https://cdn.jsdelivr.net/npm/html-to-image@",
+   "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11"
+  ]
+ },
+ {
+  "id": "22029-20261117",
+  "mob": 1,
+  "slides": 4,
+  "file": "out/tmp-pdf/mob-שינוי-בקו-29-2026-11-17.pdf",
+  "ms": 975,
+  "size": 1007712,
+  "lp": {
+   "pages": 4,
+   "ms": 952
+  },
+  "msg": "",
+  "errs": [
+   "Error inlining remote css file SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js:1:15293\n    at Array.forEach (<anonymous>)\n    at https://cdn.jsdelivr.net/npm/html-to-image@",
+   "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11"
+  ]
+ },
+ {
+  "id": "21059-20261120,17069-20261117,27076-2026",
+  "mob": 0,
+  "slides": 67,
+  "file": "out/tmp-pdf/שינויים-בקווים-59-69-76-78-94-ועוד-2026-11-17.pdf",
+  "ms": 20409,
+  "size": 25026205,
+  "lp": {
+   "pages": 67,
+   "ms": 20316
+  },
+  "msg": "",
+  "errs": [
+   "Error inlining remote css file SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js:1:15293\n    at Array.forEach (<anonymous>)\n    at https://cdn.jsdelivr.net/npm/html-to-image@",
+   "Error while reading CSS rules from https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap SecurityError: Failed to read the 'cssRules' property from 'CSSStyleSheet': Cannot access rules\n    at https://cdn.jsdelivr.net/npm/html-to-image@1.11"
+  ]
+ }
+]
