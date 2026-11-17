@@ -827,11 +827,27 @@ var LCDeck = (function () {
       if (g.ext === 'end' && g.A) wasEnd[g.A.code] = 'עד היום הקו הסתיים כאן';
     });
     var seen = {};
-    labels.forEach(function (st) {
+    // תוויות בלי חפיפה: לכל תווית מנסים מעל, מתחת, ימינה ושמאלה מהתחנה; אם אין מקום פנוי — מוותרים עליה
+    // (גם לא על סמן ממוספר). התוויות של "עד היום הקו התחיל כאן" — קודם
+    var boxes = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return [c.x - 13, c.y - 13, c.x + 13, c.y + 13]; });
+    var hit = function (b) { return boxes.some(function (o) { return b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]; }); };
+    var msz = map.getSize();
+    if (inEl) boxes.push([0, 0, INSET.x, INSET.y]);   // מפת ההתמצאות בפינה
+    labels.slice().sort(function (a, b) { return (wasEnd[b.code] ? 1 : 0) - (wasEnd[a.code] ? 1 : 0); }).forEach(function (st) {
       var k = st.name + st.ll.join(',');
       if (seen[k]) return; seen[k] = 1;
-      var was = wasEnd[st.code];
-      L.tooltip({ permanent: true, direction: 'top', offset: [0, -14], className: 'lc-lbl' + (was ? ' was' : ''), interactive: false }).setLatLng(st.ll)
+      var was = wasEnd[st.code], c = map.latLngToContainerPoint(st.ll);
+      var w = Math.max(String(st.name).length, was ? 18 : 0) * 7 + 20, h = was ? 38 : 24, g = 15;
+      var opts2 = [
+        { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
+        { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
+        { dir: 'right', off: [g, 0], b: [c.x + g, c.y - h / 2, c.x + g + w, c.y + h / 2] },
+        { dir: 'left', off: [-g, 0], b: [c.x - g - w, c.y - h / 2, c.x - g, c.y + h / 2] }
+      ].filter(function (o) { return o.b[0] >= 2 && o.b[1] >= 2 && o.b[2] <= msz.x - 2 && o.b[3] <= msz.y - 2; });
+      var pick = opts2.filter(function (o) { return !hit(o.b); })[0];
+      if (!pick) return;
+      boxes.push(pick.b);
+      L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl' + (was ? ' was' : ''), interactive: false }).setLatLng(st.ll)
         .setContent(E(st.name) + (was ? '<small>' + was + '</small>' : '')).addTo(map);
     });
     // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
