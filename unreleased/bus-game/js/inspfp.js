@@ -296,7 +296,12 @@ export class InspectorFP {
       return n; };
     // בבדיקה: הזזה שמכסה במסך את הפנים של הנוסע (או את כפות הידיים שלו בלי כרטיס) — כמו חסומה (לא עוקפים עמוד דרך הפנים).
     // אם אין הזזה אחרת — מוותרים על זה (עדיף מכשיר ליד הסנטר מאשר מכשיר שיורד מהמסך)
-    const face = pos => { if (!this.anim || !this.avD?.length) return 0; const b = this.devBox(pos); let n = 0; for (const d of this.avD) if (!(b.x1 < d.x - d.r || b.x0 > d.x + d.r || b.y1 < d.y - d.r || b.y0 > d.y + d.r)) n++; return n; };
+    // ובבדיקה גם: עמוד (או חלק אחר של האוטובוס) בין המצלמה למכשיר — המכשיר לא עובר מאחורי עמוד שמסתיר אותו
+    const eye = this.g.camera.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv), sq = new THREE.Vector3(), sp = new THREE.Vector3();
+    const sight = () => { const P = this.reader.pts, st = Math.max(1, Math.floor(P.length / 12));
+      for (let i = 0; i < P.length; i += st) { sp.copy(P[i]).applyMatrix4(g.matrixWorld).applyMatrix4(inv); const L = eye.distanceTo(sp), n = Math.ceil(L / 0.015);
+        for (let k = 1; k < n; k++) { if (L * (1 - k / n) < 0.02) break; sq.lerpVectors(eye, sp, k / n); const j = this.occ.idx(sq.x, sq.y, sq.z); if (j >= 0 && this.occ.st[j]) return 1; } } return 0; };
+    const face = pos => { if (!this.anim) return 0; let n = sight(); if (!this.avD?.length) return n; const b = this.devBox(pos); for (const d of this.avD) if (!(b.x1 < d.x - d.r || b.x0 > d.x + d.r || b.y1 < d.y - d.r || b.y0 > d.y + d.r)) n++; return n; };
     // ההזזות האפשריות (במערכת המצלמה): בלי הזזה; 3–12 ס"מ בשמונה כיוונים במישור המסך
     const C = CLEAR_OFFS;
     this.clrT = this.clrT || new THREE.Vector3(); this.clrC = this.clrC || new THREE.Vector3(); this.cur = this.cur || new THREE.Vector3();
