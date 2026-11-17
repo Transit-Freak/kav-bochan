@@ -109,8 +109,8 @@ function tuneBusMaterials(root, env) {
   });
 }
 
-// רצפת האוטובוס (M_Vinyl — בדגם לבנה): ויניל נגד החלקה אפור עם נקודות זעירות בצבעים (אדום, כחול, בז'), במעבר עצמו — אפור
-// חלק כמעט בלי נקודות. הטקסטורה קטנה (קנבס 256, חוזרת כל 60 ס"מ), וה-UV לפי המקום ברצפה. ובשפת המעבר, לאורך שורות המושבים —
+// רצפת האוטובוס (M_Vinyl — בדגם לבנה): ויניל נגד החלקה אפור-פחם עם נקודות זעירות צפופות (לבן, אפור בהיר, מעט תכלת וכחול
+// כהה), במעבר עצמו — הנקודות מעט חלשות יותר. הטקסטורה קטנה (קנבס 256, חוזרת כל 60 ס"מ), וה-UV לפי המקום ברצפה. ובשפת המעבר, לאורך שורות המושבים —
 // פס אלומיניום דק ופס צהוב (אזהרה) בצד המעבר (stripes: [x, z0, z1] במערכת האוטובוס)
 const FLOOR_UV = 0.6, AISLE_HALF = 0.36;
 let vinylTex = null;
@@ -118,10 +118,12 @@ function vinylTexture() {
   if (vinylTex) return vinylTex;
   const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), img = x.createImageData(256, 256), d = img.data;
   let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 256 * 256; i++) { const v = 112 + (rnd() - 0.5) * 14; d[i * 4] = v; d[i * 4 + 1] = v + 2; d[i * 4 + 2] = v + 5; d[i * 4 + 3] = 255; }
+  for (let i = 0; i < 256 * 256; i++) { const v = 66 + (rnd() - 0.5) * 10; d[i * 4] = v; d[i * 4 + 1] = v + 2; d[i * 4 + 2] = v + 5; d[i * 4 + 3] = 255; }
   x.putImageData(img, 0, 0);
-  const cols = ['#a84444', '#4565a8', '#cdb991', '#d8d8d8', '#3a3c40'];
-  for (let i = 0; i < 1400; i++) { x.fillStyle = cols[Math.floor(rnd() * cols.length)]; x.globalAlpha = 0.55 + rnd() * 0.4; const r = 0.6 + rnd() * 0.9; x.beginPath(); x.arc(rnd() * 256, rnd() * 256, r, 0, Math.PI * 2); x.fill(); }
+  // נקודות צפופות: בעיקר לבן ואפור בהיר, מעט תכלת וכמה כחול כהה
+  const cols = [['#f2f3f5', 0.42], ['#b9bdc3', 0.3], ['#8fc3e6', 0.17], ['#24356b', 0.11]];
+  for (let i = 0; i < 3200; i++) { let r0 = rnd(), c = cols[0][0]; for (const [cc, w] of cols) { if (r0 < w) { c = cc; break; } r0 -= w; }
+    x.fillStyle = c; x.globalAlpha = 0.6 + rnd() * 0.35; const r = 0.5 + rnd() * 0.8; x.beginPath(); x.arc(rnd() * 256, rnd() * 256, r, 0, Math.PI * 2); x.fill(); }
   vinylTex = new THREE.CanvasTexture(c); vinylTex.wrapS = vinylTex.wrapT = THREE.RepeatWrapping; vinylTex.colorSpace = THREE.SRGBColorSpace; vinylTex.anisotropy = 4;
   return vinylTex;
 }
@@ -133,9 +135,9 @@ function busFloor(root, stripes = []) {
     for (let i = 0; i < P.count; i++) { q.fromBufferAttribute(P, i).applyMatrix4(M); uv[i * 2] = q.x / FLOOR_UV; uv[i * 2 + 1] = q.z / FLOOR_UV; top = Math.max(top, q.y); }
     o.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     if (m.userData.vinyl) return; m.userData.vinyl = true;
-    m.map = vinylTexture(); m.color.setRGB(1, 1, 1); m.roughness = 0.82; m.metalness = 0;
+    m.map = vinylTexture(); m.color.setRGB(0.5, 0.5, 0.52); m.roughness = 0.82;   // (הפנים מוארים חזק — הצבע מוחשך כדי שייראה פחם) m.metalness = 0;
     m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-      { float ax = abs(vMapUv.x * ${FLOOR_UV.toFixed(2)}); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.165, 0.172, 0.185), (1.0 - smoothstep(${(AISLE_HALF - 0.03).toFixed(2)}, ${AISLE_HALF.toFixed(2)}, ax)) * 0.85); }`); };
+      { float ax = abs(vMapUv.x * ${FLOOR_UV.toFixed(2)}); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.026, 0.028, 0.03), (1.0 - smoothstep(${(AISLE_HALF - 0.03).toFixed(2)}, ${AISLE_HALF.toFixed(2)}, ax)) * 0.2); }`); };
     m.needsUpdate = true;
   });
   if (!isFinite(top) || !stripes.length) return;
