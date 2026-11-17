@@ -771,7 +771,7 @@ WALK_URL = os.environ.get('WALK_URL', 'https://routing.openstreetmap.de/routed-f
 WALK_CANDS = 4
 WALK_AIR_MAX = 1000   # מ' — מועמדת רחוקה יותר בקו אווירי לא נבדקת
 WALK_MAX = 900        # מ' הליכה — מעבר לזה: "אין תחנה קרובה במסלול החדש"
-WALK_BUDGET = int(os.environ.get('WALK_BUDGET', '600'))   # שניות לכל הבקשות בריצה אחת; מה שלא הספיק — בלילה הבא
+WALK_BUDGET = int(os.environ.get('WALK_BUDGET', '1200'))   # שניות לכל הבקשות בריצה אחת (בקשה לוקחת כ-10 שניות); מה שלא הספיק — בלילה הבא
 
 
 def walk_key(a, b):
