@@ -15,6 +15,7 @@ import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
 import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData, coachSeating } from './coach.js';
+import { addCitySigns, cityClone, cityDisplays } from './citysigns.js';
 import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
 export const KNEEL = { th: 0.0304, far: 1.25 };
@@ -191,7 +192,7 @@ export function flushIM(im, n) {
 // בדגם של האוטובוס כ-150 חלקים (כל מושב, עמוד ושלט בנפרד), וכל אוטובוס צויר ב-150 קריאות ציור. לאוטובוס שרחוק מהמצלמה
 // מציירים במקומם גרסה ממוזגת: כל החלקים הקבועים של אותו חומר — חלק אחד, ובלי הפרטים הקטנים שבפנים (שלטים, מתקפים).
 // הדלתות, הרצועות והמפוח (שזזים) נשארים כמו שהם. החלקים המקוריים לא נמחקים — עוברים לשכבה 1, שהמצלמה לא מציירת.
-const LITE_SKIP = /^M_(Sign|Val|USB|QRSticker|StopBtn|StopFace|Plate|RedHammer|Screen|LCD|Vent|Plexi|Lamp|CeilPerf|CoachDet)/;
+const LITE_SKIP = /^M_(Sign|Val|USB|QRSticker|StopBtn|StopFace|Plate|RedHammer|Screen|LCD|Vent|Plexi|Lamp|CeilPerf|CoachDet|CityDet)/;
 const LITE_SHADOW = /^M_(Silver|BodyWhite|RoofWhite|Glass|GlossBlack|Rubber|EVAccent)/;
 const LITE_KEEP = /^(Door_|Leaf_|Mirror_|Wiper|Steer)|^(Straps|Cab_Windshield|CabSwitchPlate|Joint_Bellows)$/;
 const _camP = new THREE.Vector3();
@@ -257,6 +258,8 @@ export class BusLayer {
       if (kind === 'std' || kind === 'elec') try { addStraps(asset.scene); } catch (e) { console.warn('straps failed', e); }
       if (kind === 'std') cutDoorPanels(asset.scene);       // בדגמים החדשים החיפוי כבר חתוך בפתחי הדלתות
       try { busFloor(asset.scene, kind === 'std' || kind === 'elec' ? FLOOR_STRIPES : []); } catch (e) { console.warn('floor failed', e); }
+      // השלטים האלקטרוניים בפנים העירוני (citysigns.js): מסכי מידע בקיר מעל החלונות ופס לד מקדימה, במקום המסך התלוי
+      if (kind === 'std' || kind === 'elec') try { addCitySigns(asset.scene); } catch (e) { console.warn('city signs failed', e); }
     }
     tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind);
     // הגרסה הממוזגת לאוטובוס רחוק (buildLite) — פעם אחת לדגם
@@ -301,6 +304,7 @@ export class BusLayer {
     this.group.add(obj);
     const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null, lite: null, isLite: false };
     if (kind === 'coach') v.coach = coachClone(obj, bus);
+    else if (kind === 'std' || kind === 'elec') v.city = cityClone(obj);
     // הגרסה הממוזגת (לא לדגם הרגיל עם גג צבוע — שם החומרים שונים לכל אוטובוס)
     const LT = asset && !(T?.tint && kind === 'std') ? this.liteOf.get(kind) : null;
     if (LT) { const an = this.animOf.get(kind), statics = []; obj.traverse(o => { if (liteStatic(o, an)) statics.push(o); });
@@ -333,13 +337,19 @@ export class BusLayer {
       v.label.visible = L.visible !== false && !this.hideLabels;
       v.warn.visible = !!b.broken && L.visible !== false;
       if (dt && v.obj.visible && (v.kind === 'std' || v.kind === 'elec')) swayStraps(v, b, p.yaw, simDt, dt);
-      if (v.coach) { coachTick(v.coach, b); if (v.obj.visible && this.camera) { const d = this.camera.getWorldPosition(_camP).distanceTo(v.obj.position); if (d < 9 && (!monBus || d < monD)) { monBus = v; monD = d; monB = b; } } }
+      if (v.coach) coachTick(v.coach, b);
+      if ((v.coach || v.city) && v.obj.visible && this.camera) { const d = this.camera.getWorldPosition(_camP).distanceTo(v.obj.position); if (d < 9 && (!monBus || d < monD)) { monBus = v; monD = d; monB = b; } }
     }
     for (const [id, v] of this.map) if (!alive.has(id)) { this.group.remove(v.obj); this.map.delete(id); }
     // המסך התלוי בבין-עירוני שהמצלמה בתוכו (מבט נהג או פקח): מספר הקו, השעה והתחנות. האחרים — מסך כללי
-    if (this.monOn && this.monOn !== monBus) { const c = this.monOn.coach; if (c?.mon) c.mon.material = c.idle; this.monOn = null; }
-    if (monBus) { const c = monBus.coach; this.mon = this.mon || monitorDisplay(); if (c.mon && c.mon.material !== this.mon.mat) c.mon.material = this.mon.mat; this.monOn = monBus;
-      if ((this.monT = (this.monT || 0) - (dt || 0.016)) <= 0) { this.monT = 0.5; try { this.mon.draw(monitorData(monB, this.clock?.() || '')); } catch (e) { } } }
+    // עירוני (citysigns.js): שני מסכי הקיר ופס הלד — אותו דבר, רק באוטובוס שהמצלמה בתוכו
+    if (this.monOn && this.monOn !== monBus) { const c = this.monOn.coach, u = this.monOn.city; if (c?.mon) c.mon.material = c.idle;
+      if (u) { for (const m of u.scr) m.material = u.idle.scr; if (u.led) u.led.material = u.idle.led; } this.monOn = null; }
+    if (monBus) { const c = monBus.coach, u = monBus.city; this.monOn = monBus;
+      if (c) { this.mon = this.mon || monitorDisplay(); if (c.mon && c.mon.material !== this.mon.mat) c.mon.material = this.mon.mat; }
+      if (u) { this.cityMon = this.cityMon || cityDisplays(); for (const m of u.scr) m.material = this.cityMon.scr.mat; if (u.led) u.led.material = this.cityMon.led.mat; }
+      if ((this.monT = (this.monT || 0) - (dt || 0.016)) <= 0) { this.monT = 0.5; try { const d = monitorData(monB, this.clock?.() || '');
+        if (c) this.mon.draw(d); if (u) { this.cityMon.scr.draw(d); this.cityMon.led.draw({ next: d.rows[1].name }); } } catch (e) { } } }
   }
   doorWorld(bus, which) {
     const v = this.map.get(bus.id); if (!v) return null;

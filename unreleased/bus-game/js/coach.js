@@ -162,7 +162,7 @@ function stripCity(root) {
   const near = (c, list, r = 0.09) => list.some(([x, z]) => Math.abs(c.x - x) < r && Math.abs(c.z - z) < r);
   const list = []; root.traverse(o => list.push(o));
   for (const o of list) {
-    if (o.name === 'Straps' || /^SM_StrapRing/.test(o.name) || /^SM_Seat/.test(o.name)) { o.visible = false; continue; }
+    if (o.name === 'CitySigns' || o.name === 'Straps' || /^SM_StrapRing/.test(o.name) || /^SM_Seat/.test(o.name)) { o.visible = false; continue; }
     if (/^SM_Pole/.test(o.name)) { const p = new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3()); if (!near(p, KEEP_POLES, 0.12)) o.visible = false; continue; }
     if (!o.isMesh || Array.isArray(o.material)) continue;
     const n = o.material.name;
