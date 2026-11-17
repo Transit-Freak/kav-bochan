@@ -174,7 +174,7 @@ export class InspectorFP {
   doorsOf(o) {
     if (o.userData.doors) return o.userData.doors;
     // הכנפיים מונפשות (נפתחות בהחלקה): מודדים אותן במצב סגור — האנימציה בזמן 0 — ומחזירים אחר כך
-    const acts = this.bus && this.g.busDoorActs?.(this.bus), t0 = acts?.map(a => a.time);
+    const bus = o.userData.bus || this.bus, acts = bus && this.g.busDoorActs?.(bus), t0 = acts?.map(a => a.time);
     if (acts?.length) { for (const a of acts) a.time = 0; acts[0].getMixer().update(0); }
     o.updateMatrixWorld(true); const by = new Map(), inv = o.matrixWorld.clone().invert();
     // לכל כנף — חצי הרוחב שלה לפי הרשת (במקום הסגור); כך הפתח הוא בדיוק מה שהכנפיים סוגרות (באוטובוס הבין-עירוני — כנף אחת צרה,
@@ -240,7 +240,7 @@ export class InspectorFP {
   // על המדרכה: הקטע מ-a ל-b (במערכת האוטובוס) פנוי מסככה, עמוד, עץ או בניין — בגובה העיניים ובגובה המותניים, ו-40 ס"מ לצדדים
   // של b (המצלמה והיד לא צמודות לעמוד). רק מה שלא חלק מהאוטובוס, מהאנשים או מהיד של הפקח
   streetClear(o, a, b) {
-    const rc = this.rc || (this.rc = new THREE.Raycaster()), skip = m => { for (let x = m; x; x = x.parent) { if (x === o || x === this.reader.group || x === this.g.camera || x.isSkinnedMesh || /crowd|people|walker/i.test(x.name || '')) return true; } return false; };
+    const rc = this.rc || (this.rc = new THREE.Raycaster()); rc.camera = this.g.camera; const skip = m => { for (let x = m; x; x = x.parent) { if (x === o || x === this.reader.group || x === this.g.camera || x.isSkinnedMesh || /crowd|people|walker/i.test(x.name || '')) return true; } return false; };
     const objs = this.g.scene.children.filter(x => x !== o && x !== this.g.camera && x.visible), W = o.matrixWorld;
     const seg = (p, q) => { const pw = p.clone().applyMatrix4(W), qw = q.clone().applyMatrix4(W), d = qw.clone().sub(pw), L = d.length(); if (L < 1e-3) return true;
       rc.set(pw, d.normalize()); rc.far = L + 0.3; return !rc.intersectObjects(objs, true).some(h => !skip(h.object) && !h.object.isSprite && !h.object.isPoints && !h.object.isLine); };
