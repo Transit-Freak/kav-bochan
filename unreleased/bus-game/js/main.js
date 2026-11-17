@@ -125,7 +125,7 @@ async function init() {
     onExit: pose => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow');
       // מהמבט האחרון של הפקח (אחרי הירידה) אל המבט הרגיל — בתנועה רכה, לא בקפיצה
       if (pose && cams.current === 'follow') { const p1 = camera.position.clone(), t1 = controls.target.clone(), f1 = camera.fov; camera.position.copy(pose.p); controls.target.copy(pose.t);
-        camAnim = { t: 0, dur: 1.3, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1 }; } } });
+        camAnim = { t: 0, dur: 1.8, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1 }; } } });
   drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   dispUI = new DispUI({ sim, toast, setSpeed: v => { night?.manual(); setSpeed(v); }, speed: () => sim.speed, started: () => { showTab('dispatch'); openPanel(); }, preset: t => presetNetwork(t), warm: PRESET_WARM, active: () => bank.role === 'dispatcher' && $('#roleAsk').hidden && cams.current !== 'driver' });
   G.disp = dispUI;

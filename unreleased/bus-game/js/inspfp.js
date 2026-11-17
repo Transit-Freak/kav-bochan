@@ -21,7 +21,7 @@ const CLEAR_OFFS = (() => { const a = [[0, 0, 0]]; for (const r of [0.03, 0.06, 
 // הפנים של נוסע: מרכז 5 ס"מ מעל onboardPos (צוואר), רדיוס 13 ס"מ (מתחת לסנטר עד מעל המצח) — המכשיר לא מסתיר אותן בבדיקה
 export const FACE_DY = 0.05, FACE_R = 0.13;
 // עלייה וירידה (cine): העיניים על המדרכה (15 ס"מ מעל הכביש, ועוד 1.65 מ'); מהירות הליכה; כמה מחכים להולך שבדרך
-const EYE_OUT = 0.15 + 1.65, CINE_WALK = 1.5, CINE_WAIT = 5;
+const EYE_OUT = 0.15 + 1.65, CINE_WALK = 1.7, CINE_WAIT = 5;
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const END_CLEAR = 0.7;   // בסוף המעבר: המרחק (במישור) מכל ראש של נוסע במקום שבו המבט מסתובב
 const REACH_MAX = 0.45;  // כמה המכשיר יוצא אל הכרטיס מהמקום שלו — המרפק נשאר כפוף (קודם 0.8: זרוע מתוחה עד הפנים של הנוסע)
@@ -198,7 +198,8 @@ export class InspectorFP {
     if (reducedMotion()) return;
     const o = this.obj, b = this.bus, D = this.doorsOf(o), f = D.reduce((a, d) => (d.zc > a.zc ? d : a)), sx = Math.sign(f.x), out = b.state === 'dwell' && this.doorOpen(f);
     const P0 = this.pathAt(0), pts = [];
-    if (out) pts.push(new THREE.Vector3(f.x + sx * 1.25, EYE_OUT, f.zc), new THREE.Vector3(f.x + sx * 0.3, EYE_OUT, f.zc), new THREE.Vector3(f.x - sx * 0.12, EYE - 0.06, f.zc));
+    // (מתחילים 2.6 מ' מהדלת, מעט מאחוריה — רואים את צד האוטובוס ואת הדלת הפתוחה)
+    if (out) pts.push(new THREE.Vector3(f.x + sx * 2.6, EYE_OUT, f.zc - 1.1), new THREE.Vector3(f.x + sx * 0.4, EYE_OUT, f.zc), new THREE.Vector3(f.x - sx * 0.12, EYE - 0.06, f.zc));
     pts.push(P0.clone()); for (let t = 0.15; t < this.s; t += 0.15) pts.push(this.pathAt(t)); pts.push(this.pathAt(this.s));
     this.cineGo('board', pts, [this.pathAt(this.s + 0.6)]);
   }
@@ -220,14 +221,15 @@ export class InspectorFP {
       pts.push(new THREE.Vector3(d.x - sx * 0.1, EYE - 0.05, z));
       if (this.cinePathOK(pts.slice(1))) { best = { pts, z }; break; } if (!best) best = { pts, z, bad: true }; }
     const pts = best.pts, z = best.z; this.cineBad = !!best.bad;
-    pts.push(new THREE.Vector3(d.x + sx * 0.35, EYE_OUT, z), new THREE.Vector3(d.x + sx * 1.1, EYE_OUT, z + 0.15));
-    this.cineGo('alight', pts, [new THREE.Vector3(d.x + sx * 2.2, EYE_OUT, z + 0.9)], pts.length - 2);
+    // למדרכה, מתרחקים 1.6 מ' מהאוטובוס ומסתובבים מעט אליו (המבט לאורך הצד שלו, אל הכיוון שאליו ייסע)
+    pts.push(new THREE.Vector3(d.x + sx * 0.35, EYE_OUT, z), new THREE.Vector3(d.x + sx * 1.6, EYE_OUT, z - 0.4));
+    this.cineGo('alight', pts, [new THREE.Vector3(d.x + sx * 1.2, EYE_OUT - 0.5, z + 3)], pts.length - 2);
   }
   // pts — המסלול; look — נקודות להמשך המבט אחרי הסוף; off — מאיזו נקודה כבר על המדרכה (בירידה: מקפיאים את המקום בעולם)
   cineGo(kind, pts, look = [], off = -1) {
     const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + pts[i].distanceTo(pts[i - 1]));
     const all = pts.concat(look), LA = [0]; for (let i = 1; i < all.length; i++) LA.push(LA[i - 1] + all[i].distanceTo(all[i - 1]));
-    this.cine = { kind, pts, all, L, LA, len: L[L.length - 1], dur: Math.max(1, L[L.length - 1] / CINE_WALK), t: 0, wait: 0, off: off >= 0 ? L[off] : Infinity, M: null, watch: 0, hold0: this.bus.hold || 0 };
+    this.cine = { kind, pts, all, L, LA, len: L[L.length - 1], dur: THREE.MathUtils.clamp(L[L.length - 1] / CINE_WALK, 1, 3.2), t: 0, wait: 0, off: off >= 0 ? L[off] : Infinity, M: null, watch: 0, hold0: this.bus.hold || 0 };
     this.v = 0; this.hold = 0; this.slideTo = null; this.lat = 0; this.latTo = 0; this.yaw = 0; this.atEnd = false; this.endTurn = 0;
   }
   // נקודה על מסלול (לפי המרחק u מההתחלה)
@@ -260,9 +262,9 @@ export class InspectorFP {
     this.render();
     if (C.t < C.dur) return;
     if (C.kind === 'board') { const s = this.s; this.cine = null; this.s = s; this.slope = -0.28; this.yaw = 0; return; }
-    // מסתכלים על האוטובוס שיוצא — עד שזז 4 מ', לכל היותר 3 ש' (ולפחות שנייה)
+    // מסתכלים על האוטובוס שיוצא (הדלתות נסגרות והוא זז) — עד שזז 3 מ', לכל היותר 6 ש' (ולפחות שנייה)
     C.watch += dt; const moved = C.M ? o.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3().setFromMatrixPosition(C.M)) : 0;
-    if (C.watch > 3 || (C.watch > 1 && moved > 4)) this.exit();
+    if (C.watch > 6 || (C.watch > 1 && moved > 3)) this.exit();
   }
   // נקודה על המסלול (0 — הדלת, אורך המסלול — הסוף)
   pathAt(s, out = new THREE.Vector3()) {
