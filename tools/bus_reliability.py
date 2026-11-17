@@ -36,6 +36,7 @@ import math
 import os
 import re
 import statistics
+import zoneinfo
 import sys
 import zipfile
 from multiprocessing import Pool
@@ -374,7 +375,6 @@ def parse_minute(args):
     except Exception:  # noqa: BLE001
         return []
     out = []
-    base = datetime.datetime.fromisoformat(day + 'T00:00:00+03:00')
     for dlv in j.get('Siri', {}).get('ServiceDelivery', {}).get('StopMonitoringDelivery', []) or []:
         for v in dlv.get('MonitoredStopVisit', []) or []:
             m = v.get('MonitoredVehicleJourney') or {}
@@ -383,7 +383,7 @@ def parse_minute(args):
                 continue
             call = m.get('MonitoredCall') or {}
             try:
-                t = int((datetime.datetime.fromisoformat(v['RecordedAtTime']) - base).total_seconds())
+                t = il_sec(v['RecordedAtTime'], day)
                 order = int(call.get('Order') or 0)
                 dist = int(call.get('DistanceFromStop') or 0)
             except Exception:  # noqa: BLE001
@@ -394,11 +394,24 @@ def parse_minute(args):
     return out
 
 
+IL_TZ = zoneinfo.ZoneInfo('Asia/Jerusalem')
+
+
+def il_sec(ts, day):
+    """זמן ISO (עם אזור זמן) → שניות לפי השעון בישראל מחצות של יום השירות (כמו בלו"ז: 25:10 = 01:10 למחרת).
+    לפי השעון על הקיר — נכון גם בשעון חורף (+02:00) וגם ביום המעבר. (עד 11.2026 היה כאן +03:00 קבוע.)"""
+    t = datetime.datetime.fromisoformat(ts)
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=IL_TZ)
+    t = t.astimezone(IL_TZ)
+    d0 = datetime.date.fromisoformat(day)
+    return (t.date() - d0).days * 86400 + t.hour * 3600 + t.minute * 60 + t.second
+
+
 def dep_sec(dep, day):
     """OriginAimedDepartureTime → שניות מחצות של יום השירות."""
     try:
-        base = datetime.datetime.fromisoformat(day + 'T00:00:00+03:00')
-        return int((datetime.datetime.fromisoformat(dep) - base).total_seconds())
+        return il_sec(dep, day)
     except Exception:  # noqa: BLE001
         return None
 
