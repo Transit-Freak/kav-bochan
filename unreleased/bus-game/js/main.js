@@ -1150,7 +1150,7 @@ const HW_OPTS = [5, 10, 15, 20, 30, 60];
 const snapHw = m => HW_OPTS.reduce((a, b) => Math.abs(b - m) < Math.abs(a - m) ? b : a, 20);
 const realHw = (def, h) => { const m = def.real?.hw?.[h]; return m ? snapHw(m) : null; };
 const LINE_COLOR = { 1: '#0ea5e9', 2: '#ef4444', 3: '#22c55e', 11: '#f59e0b' };
-const ROLE_OFF = new Set(['inspector']);
+const ROLE_OFF = new Set([]);   // תפקידים שלא מוצעים עדיין (הפקח חזר לבטא 0.5)
 const ROLE_NAME = { driver: 'נהג', planner: 'מתכנן', dispatcher: 'סדרן', inspector: 'פקח' };
 function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; renderCityPick(); $('#roleAsk').hidden = false; }
 // ---------- בחירת עיר (במסך הפתיחה, מעל התפקידים): כל עיר — מפה נפרדת ושמירה נפרדת. מעבר עיר טוען את הדף מחדש
