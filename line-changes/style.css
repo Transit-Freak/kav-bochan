@@ -198,6 +198,9 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .lnk{background:none;border:none;color:var(--after);font-weight:700;font-size:14px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;min-height:44px}
 .go{display:flex;flex-direction:column;gap:var(--sp2);padding-top:var(--sp4);border-top:1px solid var(--line2)}
 .go .hint{text-align:center}
+.go .hint .lnk{min-height:0;font-size:inherit}
+.dlmsg{margin:0;font-size:14px;font-weight:700;color:var(--before,#b8361f)}
+.dlmsg:empty{display:none}
 .btn,.btn2{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp2);font-family:var(--f-head);font-weight:800;font-size:17px;border-radius:var(--r2);min-height:52px;padding:0 var(--sp5);cursor:pointer}
 .btn{border:none;background:var(--after);color:var(--on-after);width:100%}
 .btn2{border:2px solid var(--fg);background:var(--card);color:var(--fg)}
@@ -254,7 +257,8 @@ details.group summary span{font-weight:600;color:var(--sub)}
 
 /* פס פעולות צף בטלפון (שלב 3) */
 .dock{position:sticky;bottom:0;z-index:800;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(6px);padding-block:var(--sp3) calc(var(--sp3) + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(19,32,27,.08)}
-.dock .in{display:grid;grid-template-columns:auto 1fr;gap:var(--sp2)}
+.dock .in{display:grid;grid-template-columns:auto 1fr auto;gap:var(--sp2);align-items:center}
+.dock .dlmsg{grid-column:1/-1}
 .dock .btn2{padding:0 var(--sp4)}
 @media (min-width:980px){.dock{display:none}}
 @media (max-width:979px){body:not([data-step="3"]) .dock{display:none}}
