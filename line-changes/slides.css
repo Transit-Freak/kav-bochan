@@ -110,7 +110,7 @@
 .slide .sw{display:inline-block;width:34px;height:0;border-top:5px solid var(--s-new);flex:none}
 .slide .sw.same{border-top-color:var(--s-same)}
 .slide .sw.old{border-top:5px dashed var(--s-before)}
-.slide .sw.near{border-top:3px dotted var(--s-ink)}
+.slide .sw.near{border-top:3px dotted var(--s-ink)}.slide .sw.near.walk{border-top:4px dotted #1d4ed8}
 .slide .dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font:800 11px 'Heebo',sans-serif;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
 .slide .dot.seg{background:var(--s-ink);border-radius:6px;border-color:#f2c14e}.slide .dot.rem{background:var(--s-before)}.slide .dot.add{background:var(--s-new-stop)}.slide .dot.same{background:#fff;border:3px solid #55625c;box-shadow:none;width:16px;height:16px}
 .s-map .smap .leaflet-control-attribution{font-size:10px}
