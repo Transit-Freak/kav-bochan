@@ -14,7 +14,7 @@ import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
-import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData } from './coach.js';
+import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData, coachSeating } from './coach.js';
 import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
 export const KNEEL = { th: 0.0304, far: 1.25 };
@@ -1040,6 +1040,9 @@ function blobTexture() {
 }
 
 export class PeopleLayer {
+  // מבט מבפנים (inspfp.js קובע את onboard): בבין-עירוני — המושבים שלו (coach.js), בלי מקומות עמידה
+  get onboard() { return this._onboard; }
+  set onboard(v) { this._onboard = v && v.bus?.type === 'coach' && !v.coach ? coachSeating(v, id => this.lookOf ? this.lookOf(id) : this.variantOf(id)) : v; }
   constructor(scene, gltfs, graph, max = 1600) {
     this.scene = scene; this.graph = graph;
     if (gltfs && !Array.isArray(gltfs)) gltfs = [gltfs];

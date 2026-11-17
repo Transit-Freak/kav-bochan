@@ -16,7 +16,7 @@ export const COACH_ROWS = [[4.0, [1, -1]], [3.2, [1, -1]], [2.4, [1, -1]], [1.6,
   [-1.6, [1, -1]], [-2.4, [1, -1]], [-3.2, [1, -1]], [-4.0, [1, -1]], [-4.8, [1, -1]]];
 export const COACH_SEAT_X = [0.505, 0.945];          // מרכז המושב: מעבר, חלון (כמו בדגם הרגיל)
 // הדלת האמצעית צרה (כנף אחת): רק החצי האחורי של הפתח נשאר פתוח; העוגן שהנוסעים יורדים בו זז אליו
-const MID = { z0: -0.585, z1: 0.635, keep: [-0.585, 0.06] };
+const MID = { z0: -0.585, z1: 0.635, keep: [-0.585, 0.06] }, FRONT = { z0: 4.565, z1: 5.735, keep: [5.16, 5.735] };
 
 // ---------- גאומטריה
 function rbox(w, h, d, r, k = 2) {
@@ -120,6 +120,17 @@ function ledNumber(num) {
   const t = canvasTex(128, 64, (x, w, h) => { x.fillStyle = '#0b0b0b'; x.fillRect(0, 0, w, h); x.fillStyle = '#ff8a00'; x.font = `800 46px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(num, w / 2, h / 2 + 2);
     x.fillStyle = 'rgba(0,0,0,.35)'; for (let y = 0; y < h; y += 4) x.fillRect(0, y, w, 1); for (let X = 0; X < w; X += 4) x.fillRect(X, 0, 1, h); });
   numMats.set(num, m = new THREE.MeshBasicMaterial({ name: 'M_CoachDetNum', map: t, toneMapped: false })); return m;
+}
+// השלט הקדמי (מעל השמשה): מספר הקו ויעד בלד כתום — חומר אחד לכל קו
+const frontMats = new Map();
+function frontSign(num, dest) {
+  const k = num + '|' + dest; let m = frontMats.get(k); if (m) return m;
+  const t = canvasTex(512, 48, (x, w, h) => { x.fillStyle = '#080808'; x.fillRect(0, 0, w, h); x.fillStyle = '#ff8a00'; x.textBaseline = 'middle';
+    x.font = `800 38px ${FONT}`; x.textAlign = 'center'; x.fillText(num, 50, h / 2 + 2);
+    let p = 30; x.font = `700 ${p}px ${FONT}`; while (p > 14 && x.measureText(dest).width > w - 120) { p -= 2; x.font = `700 ${p}px ${FONT}`; }
+    x.direction = 'rtl'; x.textAlign = 'center'; x.fillText(dest, (w + 100) / 2, h / 2 + 2);
+    x.fillStyle = 'rgba(0,0,0,.4)'; for (let y = 0; y < h; y += 3) x.fillRect(0, y, w, 1); for (let X = 0; X < w; X += 3) x.fillRect(X, 0, 1, h); });
+  frontMats.set(k, m = new THREE.MeshBasicMaterial({ name: 'M_CoachDetFront', map: t, toneMapped: false })); return m;
 }
 // סורג המנוע (פסים אופקיים)
 function grilleTex() {
@@ -329,6 +340,12 @@ function exteriorParts(P, M) {
   P.add(M.trimDark, at(box(0.03, 2.37, 0.04), -1.272, 1.535, z0));
   P.add(M.panel, at(box(0.02, 1.1, dz), -1.2, 1.2, zc));
   P.add(M.steelDark, at(box(0.3, 0.08, dz), -1.06, FL - 0.02, zc));   // מדרגה סגורה
+  // גם הדלת הקדמית צרה: נשארת הכנף הקדמית (מתחת לחלון הקדמי), והחצי האחורי של הפתח סגור
+  { const z0 = FRONT.z0, z1 = FRONT.keep[0] - 0.01, zc = (z0 + z1) / 2, dz = z1 - z0;
+    P.add(M.body, at(box(0.02, 1.18, dz), -1.27, 0.89, zc));
+    P.add(M.glassDark, at(box(0.012, 1.12, dz - 0.04), -1.282, 2.07, zc));
+    P.add(M.trimDark, at(box(0.03, 2.37, 0.04), -1.272, 1.535, z1));
+    P.add(M.panel, at(box(0.02, 1.1, dz), -1.2, 1.2, zc)); }
 }
 
 // ---------- הבנייה: פעם אחת לדגם (העותק של הבין-עירוני). tint — צבע הגוף
@@ -381,16 +398,18 @@ export function buildCoach(root, tint) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.17), ledNumber('')); m.position.set(...p); m.rotation.y = ry; m.name = 'CoachNumSign'; num.add(m);
     const f = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.2, 0.02), M.trimDark); f.position.set(p[0] - (ry < 0 ? -0.012 : 0), p[1], p[2] + (ry > 0 ? 0.012 : 0)); f.rotation.y = ry; f.name = 'CoachInterior_NumFrame'; num.add(f);
   }
+  { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.16), frontSign('', '')); m.position.set(-0.18, 3.02, 5.965); m.name = 'CoachFrontSign'; num.add(m); }
   const mon = monitorMesh(new THREE.MeshBasicMaterial({ name: 'M_CoachDetMon', map: idleMonTex(), toneMapped: false })); grp.add(mon);
   // העוגן של הדלת האמצעית: אל החצי הפתוח
   const a = root.getObjectByName('Anchor_DoorMid'); if (a) a.position.z += (MID.keep[0] + MID.keep[1]) / 2 - (MID.z0 + MID.z1) / 2;
+  const af = root.getObjectByName('Anchor_DoorFront'); if (af) af.position.z += (FRONT.keep[0] + FRONT.keep[1]) / 2 - (FRONT.z0 + FRONT.z1) / 2;
+  for (const n of ['Leaf_Mid0', 'Leaf_Front1']) { const l = root.getObjectByName(n); if (l) l.visible = false; }   // הכנפיים שמאחורי הלוחות הסגורים
   root.userData.coach = true;
 }
-// הכנף הקדמית של הדלת האמצעית (מאחורי הלוח הסגור) — מוסתרת בכל שכפול
+// לכל שכפול: שלטי המספר לפי הקו, וחומר משלו לכפתורי העצירה
 export function coachClone(obj, bus) {
-  const n = String(bus?.line?.def?.number ?? ''); obj.traverse(o => { if (o.name === 'CoachNumSign') o.material = ledNumber(n); });
-  obj.traverse(o => { if (/^Leaf_Mid/.test(o.name)) { const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
-    if (c.z > (MID.keep[1] + MID.z0) / 2 + 0.25 || /Mid1$/.test(o.name) && c.z > MID.keep[1] - 0.1) o.visible = false; } });
+  const n = String(bus?.line?.def?.number ?? ''); const L = bus?.line, dest = L?.stops?.[L.stops.length - 1]?.name || '';
+  obj.traverse(o => { if (o.name === 'CoachNumSign') o.material = ledNumber(n); if (o.name === 'CoachFrontSign') o.material = frontSign(n, dest); });
   const stop = obj.getObjectByName('CoachInterior_Stop'); if (stop) stop.material = stop.material.clone();
   return { stop, mon: obj.getObjectByName('CoachInterior_Monitor'), idle: obj.getObjectByName('CoachInterior_Monitor')?.material, lit: false };
 }
@@ -399,4 +418,29 @@ export function coachTick(c, b) {
   if (!c?.stop) return;
   const L = b.line, on = b.state === 'drive' && b.next < L.stops.length - 1 && b.next > 0 && b.pax.some(p => p.to === b.next);
   if (on !== c.lit) { c.lit = on; c.stop.material.emissive.setHex(on ? 0xffb000 : 0x000000); c.stop.material.emissiveIntensity = on ? 1.4 : 0; }
+}
+
+// ---------- מקומות הנוסעים במבט מבפנים (פקח): PeopleLayer.onboard של הבין-עירוני מקבל את המושבים שלו (inspfp.js בונה את
+// הרשימה של האוטובוס הרגיל). [x, הרצפה, z של הגב בגובה האגן, עמוד לפני המושב] — אותו מבנה ואותם היסטים כמו שם. בלי עמידה
+const hash = i => { const x = Math.sin(i * 77.7 + 3.1) * 43758.5453; return x - Math.floor(x); };
+export const COACH_SEATS = COACH_ROWS.flatMap(([z, sides]) => [0.872, 0.578, -0.578, -0.872].filter(x => sides.includes(Math.sign(x)))
+  .map(x => [x + Math.sign(x) * (Math.abs(x) > 0.7 ? 0.05 : -0.1), FL, z - 0.3 + 0.137, 0]));
+const PAIR = COACH_SEATS.map(a => COACH_SEATS.findIndex(b => b !== a && b[2] === a[2] && Math.sign(b[0]) === Math.sign(a[0])));
+const NEAR = COACH_SEATS.map(a => COACH_SEATS.map((b, k) => k).filter(k => COACH_SEATS[k] !== a && Math.sign(COACH_SEATS[k][0]) === Math.sign(a[0]) && Math.abs(COACH_SEATS[k][2] - a[2]) < 0.9));
+export function coachSeating(ob, look) {
+  const S = COACH_SEATS, seat = new Map();
+  // מי שעולה בוחר כמו באמת: קודם זוג מושבים ריק, ולא ליד מי שנראה בדיוק כמוהו
+  const seatOf = id => {
+    if (seat.has(id)) return seat.get(id);
+    const who = new Map(); for (const [q, k] of seat) if (k >= 0) who.set(k, q);
+    if (who.size >= S.length) { seat.set(id, -1); return -1; }
+    const me = look(id), k0 = Math.floor(hash(id) * S.length); let best = -1, bs = Infinity;
+    for (let n = 0; n < S.length; n++) { const k = (k0 + n) % S.length; if (who.has(k)) continue;
+      const pr = PAIR[k] >= 0 && who.has(PAIR[k]);
+      const sc = (pr ? 10 : 0) + (pr && look(who.get(PAIR[k])) === me ? 50 : 0) + NEAR[k].reduce((a, j) => a + (who.has(j) && look(who.get(j)) === me ? 5 : 0), 0);
+      if (sc < bs) { bs = sc; best = k; } }
+    seat.set(id, best); return best; };
+  const shared = k => PAIR[k] >= 0 && [...seat.values()].includes(PAIR[k]);
+  const partner = k => { if (PAIR[k] < 0) return null; for (const [q, j] of seat) if (j === PAIR[k]) return q; return null; };
+  return Object.assign(ob, { seats: S, stands: [], seatOf, standOf: () => -1, shared, partner, coach: true });
 }
