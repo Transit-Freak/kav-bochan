@@ -20,6 +20,9 @@ const CLEAR_OFFS = (() => { const a = [[0, 0, 0]]; for (const r of [0.03, 0.06, 
   return a.map(v => new THREE.Vector3(...v)); })();
 // הפנים של נוסע: מרכז 5 ס"מ מעל onboardPos (צוואר), רדיוס 13 ס"מ (מתחת לסנטר עד מעל המצח) — המכשיר לא מסתיר אותן בבדיקה
 export const FACE_DY = 0.05, FACE_R = 0.13;
+// עלייה וירידה (cine): העיניים על המדרכה (15 ס"מ מעל הכביש, ועוד 1.65 מ'); מהירות הליכה; כמה מחכים להולך שבדרך
+const EYE_OUT = 0.15 + 1.65, CINE_WALK = 1.5, CINE_WAIT = 5;
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const END_CLEAR = 0.7;   // בסוף המעבר: המרחק (במישור) מכל ראש של נוסע במקום שבו המבט מסתובב
 const REACH_MAX = 0.45;  // כמה המכשיר יוצא אל הכרטיס מהמקום שלו — המרפק נשאר כפוף (קודם 0.8: זרוע מתוחה עד הפנים של הנוסע)
 const CARD_CLEAR = 0.075;   // אחרי הקריאה: כמה ימינה מהכרטיס (בעומק של המכשיר) נמצא מרכז המכשיר — חצי המכשיר וחצי הכרטיס
@@ -148,6 +151,7 @@ export class InspectorFP {
     // מתחילים במעבר עצמו (אחרי מחיצת הנהג ומכונת הכרטיסים), כדי שהיד והמכשיר לא יצוירו על המחיצה
     this.sMin = this.sOfZ(AISLE_Z1); this.s = Math.max(this.s, this.sMin);
     for (let t = this.sMin; t <= this.len; t += 0.1) { const P = this.pathAt(t); if (ws.every(w => Math.hypot(w.x - P.x, w.z - P.z) >= 0.5)) { this.s = t; break; } }
+    this.cine = null; this.startBoard();
     this.g.ui.root.hidden = false; this.render(); return true;
   }
   exit() {
@@ -156,11 +160,109 @@ export class InspectorFP {
     this.anim = null; this.g.people.reach = null; this.readerOff = null; this.reader.group.position.set(0, 0, 0); this.g.people.fpEye = null;
     if (this.speed0 > 1 && this.g.speed() === 1) this.g.setSpeed(this.speed0);
     this.g.people.onboard = null; this.reader.group.parent?.remove(this.reader.group);
-    const c = this.g.camera, s = this.saved; this.g.scene.remove(c);
+    const c = this.g.camera, s = this.saved;
+    // המבט האחרון של הפקח — המצלמה הרגילה יוצאת ממנו בתנועה רכה (main.js: onExit), בלי קפיצה
+    const pose = { p: c.getWorldPosition(new THREE.Vector3()), t: c.localToWorld(new THREE.Vector3(0, 0, -6)), fov: c.fov };
+    this.cine = null; this.g.scene.remove(c);
     if (s) { c.near = s.near; c.far = s.far; c.fov = s.fov; c.updateProjectionMatrix(); }
     this.g.useStd?.(this.bus, false);
     this.bus = null; this.obj = null; this.g.ui.root.hidden = true; this.g.ui.decide.hidden = true; this.g.ui.sum.hidden = true;
-    this.g.onExit?.();
+    this.g.onExit?.(pose);
+  }
+  // הדלתות — מתוך הדגם (הצמתים Door_<שם><מספר>, ובלעדיהם Leaf_...: כל כנף במקומה הסגור), לא ממספרים קבועים — כך גם באוטובוס
+  // בין-עירוני עם דלת צרה של כנף אחת. לכל דלת: השם, מרכז ה-z, הרוחב (z0–z1) וה-x של הקיר (במערכת האוטובוס)
+  doorsOf(o) {
+    if (o.userData.doors) return o.userData.doors;
+    o.updateMatrixWorld(true); const by = new Map(), inv = o.matrixWorld.clone().invert();
+    for (const pre of ['Door', 'Leaf']) { o.traverse(n => { const m = new RegExp(`^${pre}_([A-Za-z]+)\\d*$`).exec(n.name || ''); if (!m) return;
+        const p = n.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv), k = m[1]; (by.get(k) || by.set(k, []).get(k)).push(p); }); if (by.size) break; }
+    const out = [...by].map(([name, ps]) => { const zs = ps.map(p => p.z), half = ps.length > 1 ? 0.3 : 0.45, z0 = Math.min(...zs) - half, z1 = Math.max(...zs) + half;
+      return { name, z0, z1, zc: (z0 + z1) / 2, x: ps.reduce((a, p) => a + p.x, 0) / ps.length }; }).filter(d => Math.abs(d.x) > 0.8);
+    if (!out.length) out.push({ name: 'Front', z0: 4.57, z1: 5.73, zc: 5.15, x: -1.245 }, { name: 'Mid', z0: -0.58, z1: 0.63, zc: 0.03, x: -1.245 });
+    return (o.userData.doors = out);
+  }
+  doorOpen(d) { const b = this.bus, v = /front/i.test(d.name) ? b.dF : /mid/i.test(d.name) ? b.dM : null; return (v ?? b.door ?? 0) > 0.6; }
+  // מסלול של המצלמה (נקודות במערכת האוטובוס): בלי לעבור דרך עמוד, מושב, מחיצה או אדם — בעיניים ובגובה החזה, כל 5 ס"מ (בתוך האוטובוס)
+  cinePathOK(pts, pid = null) {
+    const heads = [...(this.g.people.onboardPos || new Map())].filter(([q]) => q !== pid).map(([, v]) => this.obj.worldToLocal(v.clone())), q = new THREE.Vector3();
+    for (let i = 0; i + 1 < pts.length; i++) { const L = pts[i].distanceTo(pts[i + 1]), n = Math.max(1, Math.ceil(L / 0.05));
+      for (let k = 0; k <= n; k++) { q.lerpVectors(pts[i], pts[i + 1], k / n); if (Math.abs(q.x) > 1.2) continue;
+        if (this.occ.has(q.x, q.y, q.z) || this.occ.has(q.x, q.y - 0.45, q.z)) return false;
+        if (heads.some(h => Math.hypot(h.x - q.x, h.z - q.z) < 0.3)) return false; } }
+    return true;
+  }
+  // עלייה (כ-2.5 ש'): עומדים על המדרכה מול הדלת הקדמית הפתוחה, הולכים אליה, עולים במדרגה, עוברים ליד מחיצת הנהג והמתקף —
+  // עד הנקודה במעבר שנבחרה ב-enter (לא בתוך מי שהולך). האוטובוס מחכה בתחנה עד הסוף (hold). נכנסו כשהאוטובוס נוסע (לא דרך
+  // הכפתור — רק בבדיקות): גרסה קצרה מתוך הדלת. prefers-reduced-motion — בלי אנימציה
+  startBoard() {
+    if (reducedMotion()) return;
+    const o = this.obj, b = this.bus, D = this.doorsOf(o), f = D.reduce((a, d) => (d.zc > a.zc ? d : a)), sx = Math.sign(f.x), out = b.state === 'dwell' && this.doorOpen(f);
+    const P0 = this.pathAt(0), pts = [];
+    if (out) pts.push(new THREE.Vector3(f.x + sx * 1.25, EYE_OUT, f.zc), new THREE.Vector3(f.x + sx * 0.3, EYE_OUT, f.zc), new THREE.Vector3(f.x - sx * 0.12, EYE - 0.06, f.zc));
+    pts.push(P0.clone()); for (let t = 0.15; t < this.s; t += 0.15) pts.push(this.pathAt(t)); pts.push(this.pathAt(this.s));
+    this.cineGo('board', pts, [this.pathAt(this.s + 0.6)]);
+  }
+  // ירידה: בתחנה, כשהדלת פתוחה — הולכים במעבר אל הדלת הפתוחה הקרובה (קדמית או אמצעית), יורדים למדרכה, מסתובבים מעט
+  // ומסתכלים על האוטובוס שיוצא; אחר כך המצלמה הרגילה (exit). בנסיעה, או בלי דלת פתוחה — יוצאים כמו קודם
+  leave() {
+    const b = this.bus; if (!b || this.cine) return;
+    const o = this.obj, D = this.doorsOf(o).filter(d => this.doorOpen(d));
+    if (reducedMotion() || b.state !== 'dwell' || !D.length) { this.exit(); return; }
+    this.anim = null; this.g.people.reach = null; this.g.ui.decide.hidden = true;
+    const c = this.g.camera, E = o.worldToLocal(c.getWorldPosition(new THREE.Vector3())), d = D.reduce((a, x) => (Math.abs(x.zc - E.z) < Math.abs(a.zc - E.z) ? x : a)), sx = Math.sign(d.x);
+    // איפה לעבור בדלת: מהמרכז החוצה בצעדים של 10 ס"מ, המקום הראשון שהדרך אליו פנויה
+    let best = null;
+    for (const dz of [0, 0.1, -0.1, 0.2, -0.2, 0.3, -0.3]) { const z = d.zc + dz; if (z < d.z0 + 0.25 || z > d.z1 - 0.25) continue;
+      const pts = [E.clone()];
+      if (d.zc > AISLE_Z1) { for (let t = this.s - 0.15; t > 0; t -= 0.15) pts.push(this.pathAt(t)); pts.push(this.pathAt(0)); }
+      else pts.push(new THREE.Vector3(0, EYE, z + Math.sign(E.z - z) * 0.35));
+      if (d.zc <= AISLE_Z1) pts.push(new THREE.Vector3(d.x - sx * 0.55, EYE, z));
+      pts.push(new THREE.Vector3(d.x - sx * 0.1, EYE - 0.05, z));
+      if (this.cinePathOK(pts.slice(1))) { best = { pts, z }; break; } if (!best) best = { pts, z, bad: true }; }
+    const pts = best.pts, z = best.z; this.cineBad = !!best.bad;
+    pts.push(new THREE.Vector3(d.x + sx * 0.35, EYE_OUT, z), new THREE.Vector3(d.x + sx * 1.1, EYE_OUT, z + 0.15));
+    this.cineGo('alight', pts, [new THREE.Vector3(d.x + sx * 2.2, EYE_OUT, z + 0.9)], pts.length - 2);
+  }
+  // pts — המסלול; look — נקודות להמשך המבט אחרי הסוף; off — מאיזו נקודה כבר על המדרכה (בירידה: מקפיאים את המקום בעולם)
+  cineGo(kind, pts, look = [], off = -1) {
+    const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + pts[i].distanceTo(pts[i - 1]));
+    const all = pts.concat(look), LA = [0]; for (let i = 1; i < all.length; i++) LA.push(LA[i - 1] + all[i].distanceTo(all[i - 1]));
+    this.cine = { kind, pts, all, L, LA, len: L[L.length - 1], dur: Math.max(1, L[L.length - 1] / CINE_WALK), t: 0, wait: 0, off: off >= 0 ? L[off] : Infinity, M: null, watch: 0, hold0: this.bus.hold || 0 };
+    this.v = 0; this.hold = 0; this.slideTo = null; this.lat = 0; this.latTo = 0; this.yaw = 0; this.atEnd = false; this.endTurn = 0;
+  }
+  // נקודה על מסלול (לפי המרחק u מההתחלה)
+  cineAt(pts, Ls, u, out = new THREE.Vector3()) { let i = 1; while (i < Ls.length - 1 && Ls[i] < u) i++; const k = Ls[i] > Ls[i - 1] ? THREE.MathUtils.clamp((u - Ls[i - 1]) / (Ls[i] - Ls[i - 1]), 0, 1) : 1; return out.lerpVectors(pts[i - 1], pts[i], k); }
+  cineStep(dt, o) {
+    const C = this.cine, b = this.bus, c = this.g.camera, PL = this.g.people, sim = this.g.sim;
+    o.updateMatrixWorld(true); const inv = o.matrixWorld.clone().invert();
+    this.prevState = b.state;
+    // האוטובוס מחכה בתחנה עד שהפקח עלה (או ירד)
+    const outside = C.kind === 'alight' && C.M;
+    if (!outside && b.state === 'dwell') b.hold = Math.max(b.hold || 0, sim.time + 1);
+    if (C.skip) { C.t = C.dur; C.watch = 99; }
+    // מחכים למי שהולך בדרך (עולה או יורד) — לא עוברים דרכו
+    const ease = k => k * k * (3 - 2 * k), u = C.len * ease(Math.min(1, C.t / C.dur)), ahead = this.cineAt(C.pts, C.L, Math.min(C.len, u + 0.3));
+    const near = !outside && C.t < C.dur && PL.walkers.some(w => w.obj.visible && w.mode !== 'ride' && (() => { const l = o.worldToLocal(w.obj.getWorldPosition(new THREE.Vector3())); return Math.hypot(l.x - ahead.x, l.z - ahead.z) < 0.45; })());
+    if (near && C.wait < CINE_WAIT) C.wait += dt; else C.t = Math.min(C.dur, C.t + dt);
+    const u2 = C.len * ease(Math.min(1, C.t / C.dur)), P = this.cineAt(C.pts, C.L, u2), T = this.cineAt(C.all, C.LA, u2 + 0.7);
+    // ירידה: על המדרכה — מקפיאים את המקום בעולם (האוטובוס יוצא), ומשחררים את האוטובוס
+    if (C.kind === 'alight' && !C.M && u2 >= C.off) { C.M = o.matrixWorld.clone(); b.hold = C.hold0; }
+    const W = C.M || o.matrixWorld, Pw = P.clone().applyMatrix4(W);
+    let Tw = T.clone().applyMatrix4(W);
+    // אחרי הירידה: המבט מסתובב מעט אל האוטובוס שיוצא
+    if (C.M) { const bw = o.getWorldPosition(new THREE.Vector3()).setY(Pw.y - 0.4), k = Math.min(1, (u2 - C.off) / Math.max(0.01, C.len - C.off)); Tw.lerp(bw, 0.6 * ease(k)); }
+    const dir = Tw.clone().sub(Pw); const h = Math.hypot(dir.x, dir.z) || 1; dir.y = (Pw.y > o.localToWorld(new THREE.Vector3(0, EYE - 0.2, 0)).y ? -0.28 : -0.14) * h;
+    c.position.copy(Pw); c.lookAt(Pw.clone().add(dir)); c.updateMatrixWorld(true); PL.fpEye = c.position.clone();
+    this.reader.group.visible = true; this.occ.people(PL.onboardShapes || [], inv, null);
+    this.clearance(o, inv, dt);
+    // על המדרכה: היד עם המכשיר יורדת בהדרגה אל מחוץ לתמונה
+    if (C.M) { C.low = Math.min(1, (C.low || 0) + dt * 1.5); this.reader.group.position.lerp(new THREE.Vector3(0, -0.5, 0), C.low); this.reader.group.updateMatrixWorld(true); }
+    this.render();
+    if (C.t < C.dur) return;
+    if (C.kind === 'board') { const s = this.s; this.cine = null; this.s = s; this.slope = -0.28; this.yaw = 0; return; }
+    // מסתכלים על האוטובוס שיוצא — עד שזז 4 מ', לכל היותר 3 ש' (ולפחות שנייה)
+    C.watch += dt; const moved = C.M ? o.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3().setFromMatrixPosition(C.M)) : 0;
+    if (C.watch > 3 || (C.watch > 1 && moved > 4)) this.exit();
   }
   // נקודה על המסלול (0 — הדלת, אורך המסלול — הסוף)
   pathAt(s, out = new THREE.Vector3()) {
@@ -180,6 +282,7 @@ export class InspectorFP {
     const o = this.g.busObject(b);
     if (!o || b.state === 'done' || b.state === 'gone') { this.summary(true); return; }
     this.obj = o; this.g.people.onboard.obj = o;
+    if (this.cine) { this.cineStep(dt, o); return; }
     // תנועה: ▲▼ (לחיצה ארוכה) או גרירה — חלק, עם תאוצה קטנה
     const want = (this.hold || 0) * 1.3;
     this.v += (want - this.v) * Math.min(1, dt * 6);
@@ -301,7 +404,9 @@ export class InspectorFP {
     const sight = () => { const P = this.reader.pts, st = Math.max(1, Math.floor(P.length / 12));
       for (let i = 0; i < P.length; i += st) { sp.copy(P[i]).applyMatrix4(g.matrixWorld).applyMatrix4(inv); const L = eye.distanceTo(sp), n = Math.ceil(L / 0.015);
         for (let k = 1; k < n; k++) { if (L * (1 - k / n) < 0.02) break; sq.lerpVectors(eye, sp, k / n); const j = this.occ.idx(sq.x, sq.y, sq.z); if (j >= 0 && this.occ.st[j]) return 1; } } return 0; };
-    const face = pos => { if (!this.anim) return 0; let n = sight(); if (!this.avD?.length) return n; const b = this.devBox(pos); for (const d of this.avD) if (!(b.x1 < d.x - d.r || b.x0 > d.x + d.r || b.y1 < d.y - d.r || b.y0 > d.y + d.r)) n++; return n; };
+    // (ליד הכרטיס — פחות מ-30 ס"מ — הפנים כבר לא בדרך: שם בודקים רק את העמוד, אחרת המכשיר נדחק אל היד שמחזיקה את הכרטיס)
+    const cw = this.g.people.cardWorld, nearCard = cw && this.reader.face.getWorldPosition(new THREE.Vector3()).distanceTo(cw) < 0.3;
+    const face = pos => { if (!this.anim) return 0; let n = sight(); if (!this.avD?.length || nearCard) return n; const b = this.devBox(pos); for (const d of this.avD) if (!(b.x1 < d.x - d.r || b.x0 > d.x + d.r || b.y1 < d.y - d.r || b.y0 > d.y + d.r)) n++; return n; };
     // ההזזות האפשריות (במערכת המצלמה): בלי הזזה; 3–12 ס"מ בשמונה כיוונים במישור המסך
     const C = CLEAR_OFFS;
     this.clrT = this.clrT || new THREE.Vector3(); this.clrC = this.clrC || new THREE.Vector3(); this.cur = this.cur || new THREE.Vector3();
@@ -323,7 +428,7 @@ export class InspectorFP {
   }
   // הקשה על המסך: הנוסע הקרוב ביותר לנקודה (עד REACH — צריך להתקרב)
   tap(x, y) {
-    if (!this.bus || this.anim || !this.g.ui.decide.hidden || !this.g.ui.sum.hidden) return;
+    if (!this.bus || this.anim || this.cine || performance.now() - (this.skipAt || 0) < 700 || !this.g.ui.decide.hidden || !this.g.ui.sum.hidden) return;
     const r = this.g.canvas.getBoundingClientRect(), c = this.g.camera, cam = c.position;
     let best = null, bd = 70;
     for (const [pid, h] of this.g.people.onboardPos || []) {
@@ -498,7 +603,7 @@ export class InspectorFP {
     ui.sumStay.hidden = ended; ui.sum.hidden = false;
     this.sp = this.g.speed(); if (!ended) this.g.setSpeed(0);
     ui.sumStay.onclick = () => { ui.sum.hidden = true; this.g.setSpeed(this.sp || 1); };
-    ui.sumLeave.onclick = () => { ui.sum.hidden = true; this.g.setSpeed(this.sp || 1); this.exit(); };
+    ui.sumLeave.onclick = () => { ui.sum.hidden = true; this.g.setSpeed(this.sp || 1); this.leave(); };
   }
   render() {
     const b = this.bus, ui = this.g.ui; if (!b) return;
@@ -513,7 +618,9 @@ export class InspectorFP {
       const on = e => { e.preventDefault(); this.hold = d; }, off = () => { this.hold = 0; };
       sel.addEventListener('pointerdown', on); sel.addEventListener('pointerup', off); sel.addEventListener('pointercancel', off); sel.addEventListener('pointerleave', off);
     }
-    ui.exit.onclick = () => this.exit();
+    ui.exit.onclick = () => this.leave();
+    // הקשה או לחיצה בכל מקום בזמן העלייה או הירידה — מדלגים לסוף
+    addEventListener('pointerdown', () => { if (this.cine) { this.cine.skip = true; this.skipAt = performance.now(); } }, true);
     // גרירה על המסך: למעלה/למטה — הליכה, לצדדים — מבט; הקשה קצרה — בדיקה
     const cv = this.g.canvas; let d = null;
     cv.addEventListener('pointerdown', e => { if (this.bus) d = { x: e.clientX, y: e.clientY, s: this.s, yaw: this.yaw, t: performance.now() }; });

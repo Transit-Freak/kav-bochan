@@ -122,7 +122,10 @@ async function init() {
   fp = new InspectorFP({ camera, scene, canvas, people, sim, bank, info: who => residents?.info(who), busObject: b => buses.objectOf(b), useStd: (b, on) => { buses.useStd(b, on); if (!buses.objectOf(b)) buses.update(sim.lines, 0, 0); }, toast, setSpeed, speed: () => sim.speed || G.lastSpeed || 1,
     ui: { root: $('#ifp'), top: $('#ifpTop'), num: $('#ifpNum'), next: $('#ifpNext'), stat: $('#ifpStat'), up: $('#ifpUp'), down: $('#ifpDown'), exit: $('#ifpExit'),
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
-    onExit: () => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow'); } });
+    onExit: pose => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow');
+      // מהמבט האחרון של הפקח (אחרי הירידה) אל המבט הרגיל — בתנועה רכה, לא בקפיצה
+      if (pose && cams.current === 'follow') { const p1 = camera.position.clone(), t1 = controls.target.clone(), f1 = camera.fov; camera.position.copy(pose.p); controls.target.copy(pose.t);
+        camAnim = { t: 0, dur: 1.3, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1 }; } } });
   drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   dispUI = new DispUI({ sim, toast, setSpeed: v => { night?.manual(); setSpeed(v); }, speed: () => sim.speed, started: () => { showTab('dispatch'); openPanel(); }, preset: t => presetNetwork(t), warm: PRESET_WARM, active: () => bank.role === 'dispatcher' && $('#roleAsk').hidden && cams.current !== 'driver' });
   G.disp = dispUI;
@@ -1152,7 +1155,7 @@ const HW_OPTS = [5, 10, 15, 20, 30, 60];
 const snapHw = m => HW_OPTS.reduce((a, b) => Math.abs(b - m) < Math.abs(a - m) ? b : a, 20);
 const realHw = (def, h) => { const m = def.real?.hw?.[h]; return m ? snapHw(m) : null; };
 const LINE_COLOR = { 1: '#0ea5e9', 2: '#ef4444', 3: '#22c55e', 11: '#f59e0b' };
-const ROLE_OFF = new Set(['inspector']);
+const ROLE_OFF = new Set([]);   // תפקידים שלא מוצעים עדיין (הפקח חזר לבטא 0.5)
 const ROLE_NAME = { driver: 'נהג', planner: 'מתכנן', dispatcher: 'סדרן', inspector: 'פקח' };
 function askRole() { if (cams.current !== 'free') cams.set('free'); $('#inspHud').hidden = true; renderCityPick(); $('#roleAsk').hidden = false; }
 // ---------- בחירת עיר (במסך הפתיחה, מעל התפקידים): כל עיר — מפה נפרדת ושמירה נפרדת. מעבר עיר טוען את הדף מחדש
@@ -1720,6 +1723,7 @@ function stepCamAnim(dt) {
   const lift = Math.sin(Math.PI * k0) * Math.min(60, A.p0.distanceTo(A.p1) * 0.15);
   camera.position.lerpVectors(A.p0, A.p1, k); camera.position.y += lift;
   controls.target.lerpVectors(A.t0, A.t1, k);
+  if (A.f0 != null) { camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); }
   if (k0 >= 1) camAnim = null;
 }
 G.closeLook = id => closeLook(stopsById.get(id));
