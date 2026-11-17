@@ -377,7 +377,9 @@ var LCDeck = (function () {
     if (!A) {   // תחילת הקו
       if (o.length && !n.length) return 'הקו לא יתחיל יותר ב' + b(o[0]) + '. התחנה הראשונה תהיה ' + b(B) + '.';
       if (n.length && !o.length) {
-        if (extOf(d)) { g.ext = 'start'; g.kind = 'ext'; g.names = ['start'].concat(n.map(function (x) { return skey(x.name); })); return 'הקו יתחיל ' + (n.length === 1 ? 'תחנה אחת' : n.length + ' תחנות') + ' קודם, ב' + b(n[0]) + ', ומשם ימשיך אל ' + b(B) + ', שבה הקו התחיל עד היום. שאר המסלול והתחנות לא משתנים.'; }
+        if (extOf(d)) { g.ext = 'start'; g.kind = 'ext'; g.names = ['start'].concat(n.map(function (x) { return skey(x.name); }));
+          return (n.length === 1 ? 'הקו יתחיל את הנסיעה בתחנה חדשה: ' + b(n[0]) : 'הקו יתחיל את הנסיעה ' + n.length + ' תחנות קודם, בתחנה ' + b(n[0])) +
+            '. משם הוא ייסע לתחנה ' + b(B) + ', שהייתה עד היום התחנה הראשונה, וימשיך במסלול הרגיל. כל שאר התחנות נשארות.'; }
         return 'הקו יתחיל את הנסיעה כבר ב' + b(n[0]) + ', לפני ' + b(B) + '.';
       }
       return 'הקו יתחיל את הנסיעה ב' + b(n[0]) + ' במקום ב' + b(o[0]) + '.';
@@ -385,7 +387,9 @@ var LCDeck = (function () {
     if (!B) {   // סוף הקו
       if (o.length && !n.length) return 'הקו לא יגיע יותר עד ' + b(o[o.length - 1]) + '. התחנה האחרונה תהיה ' + b(A) + '.';
       if (n.length && !o.length) {
-        if (extOf(d)) { g.ext = 'end'; g.kind = 'ext'; g.names = ['end'].concat(n.map(function (x) { return skey(x.name); })); return 'הקו לא יסיים יותר ב' + b(A) + '. הוא ימשיך ' + (n.length === 1 ? 'תחנה אחת נוספת' : n.length + ' תחנות נוספות') + ' עד ' + b(n[n.length - 1]) + '. שאר המסלול והתחנות לא משתנים.'; }
+        if (extOf(d)) { g.ext = 'end'; g.kind = 'ext'; g.names = ['end'].concat(n.map(function (x) { return skey(x.name); }));
+          return 'הקו לא יסיים יותר את הנסיעה בתחנה ' + b(A) + '. הוא ימשיך משם ' + (n.length === 1 ? 'לתחנה חדשה: ' : n.length + ' תחנות נוספות, עד ') + b(n[n.length - 1]) +
+            '. כל שאר המסלול והתחנות נשארים.'; }
         return 'הקו ימשיך אחרי ' + b(A) + ' עד ' + b(n[n.length - 1]) + '.';
       }
       return 'הקו יסיים את הנסיעה ב' + b(n[n.length - 1]) + ' במקום ב' + b(o[o.length - 1]) + '.';
