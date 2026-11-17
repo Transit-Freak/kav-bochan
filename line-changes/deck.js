@@ -194,6 +194,17 @@ var LCDeck = (function () {
     if (k >= 0 && off < 300) e = k > 0 && k + O.length < N.length ? 'both' : k > 0 ? 'start' : 'end';
     return (d._ext = e);
   }
+  /* איפה המסלול באמת נפרד מהישן אחרי התחנה A — הסמן של "כאן המסלול משתנה" שם, ולא בתחנה A עצמה
+     (בקו מהיר A יכולה להיות עשרות ק"מ לפני השינוי, והמפה הייתה מתרחקת כדי להראות אותה) */
+  function divergeAt(d, g) {
+    var S = d.new.shape, O = d.old.shape;
+    if (!g.route || S.length < 2 || O.length < 2) return g.A.ll;
+    var lat0 = S[0][0], oxy = O.map(function (p) { return xy(p, lat0); });
+    var bi = 0, bd = Infinity;
+    S.forEach(function (p, i) { var x = dist(p, g.A.ll); if (x < bd) { bd = x; bi = i; } });
+    for (var i = bi; i < S.length; i++) if (distToLine(xy(S[i], lat0), oxy) > 40) return S[Math.max(bi, i - 1)];
+    return g.A.ll;
+  }
   function runLen(r) { var m = 0; for (var i = 1; i < r.length; i++) m += dist(r[i - 1], r[i]); return m; }
   /* הקטע החדש של קו שמתארך: מהתחנה שבה הקו הסתיים עד היום ועד הסוף (או מההתחלה עד התחנה שבה הקו התחיל) — חותכים את
      המסלול החדש בנקודה הקרובה לתחנה, ולא לפי ההבדל בין השרטוטים (השרטוט הישן לא תמיד מגיע עד התחנה) */
@@ -839,7 +850,7 @@ var LCDeck = (function () {
     var marks = remN.concat(addN).filter(function (x) { return shown(x.s); }).concat(m.show ? [] : mvN);
     // מספרי המקטעים (①②…) — בנקודה שבה המסלולים נפרדים
     segments(d).slice(0, SEG_MAX).forEach(function (g) {
-      var num = segNum(d, g), at = g.A || g.newS[0] || g.oldS[0];
+      var num = segNum(d, g), at = g.A ? { ll: divergeAt(d, g) } : (g.newS[0] || g.oldS[0]);
       if (num && at && (!m.show || marks.some(function (x) { return dist(x.s.ll, at.ll) < 1500; }))) marks.push({ s: { ll: at.ll }, n: num, k: 'seg' });
     });
 

@@ -266,6 +266,8 @@ details.group summary span{font-weight:600;color:var(--sub)}
 
 @media print{
   .top,.steps,.desk,.dock,.foot,.stagehead,.ebar,.addslide,.offmsg,.toolong-msg,.etb{display:none!important}
+  /* רכיבים משותפים של האתר (גרסה, נגישות, חזרה לאתר, זכויות) — לא בהדפסה */
+  #kb-ver,#kb-ver-ov,#kb-a11y-btn,#kb-a11y-panel,.kb-copyright,.kb-home,[class^="kb-home"]{display:none!important}
   body .stage{display:block!important}
   .layout,.in{display:block;padding:0!important;max-width:none}
   .sitem{display:block;gap:0}
