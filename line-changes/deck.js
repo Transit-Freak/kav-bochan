@@ -812,6 +812,8 @@ var LCDeck = (function () {
       labels = labels.filter(function (st) { return !core.length || core.some(function (c) { return dist(c, st.ll) <= 2500; }); });
       labels.forEach(function (st) { focus.extend(st.ll); });
     }
+    // קו שמתארך: התחנה שבה הקו התחיל או הסתיים עד היום — תמיד עם שם (גם בשינוי גדול), אם היא בתוך המפה
+    if (extOf(d) && !m.show) segments(d).forEach(function (g) { var t = g.ext === 'start' ? g.B : g.ext === 'end' ? g.A : null; if (t && labels.indexOf(t) < 0) labels.push(t); });
     if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
     if (!focus.isValid()) focus = all;
     map.fitBounds(focus, { paddingTopLeft: [PAD, inEl ? 110 : PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });

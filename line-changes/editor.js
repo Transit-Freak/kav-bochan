@@ -7,6 +7,8 @@
    boxes — תיבות טקסט חופשיות לכל שקף · xslides — שקפי טקסט שנוספו · off — שקפים שלא ייכללו. */
 var LCEdit = (function () {
   var SKIP = '.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
+  // עד כאן מורידים אלמנטים ריקים אחרי מחיקה (לא את השקף, העמודות או הרשימה עצמה)
+  var STOP = '.slide,.side,.body,.cols,.grp,.two,ul,ol,.legend,.what,.owhat,.cards,.ocontact,.s-stops,.s-map,.s-one,.s-cover,.s-text,.s-close,.s-over';
   var FMT = { B: 1, STRONG: 1, EM: 1, U: 1, BR: 1, SUP: 1, SUB: 1, A: 1 };
 
   function hash(s) {
@@ -19,9 +21,16 @@ var LCEdit = (function () {
     if (el.tagName === 'SPAN' || el.tagName === 'I') return !el.className || /^(ltr|num)( |$)/.test(el.className);
     return false;
   }
+  // עלה = אלמנט שכל מה שבתוכו (לכל העומק) הוא טקסט והדגשות. אם יש בפנים סימן (נקודה, צבע במקרא, מספר) —
+  // כל טקסט בו נפרד, כדי שמחיקה תוריד גם את הסימן ששייך אליו
+  function deepFmt(el) {
+    if (!isFmt(el)) return false;
+    for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (!deepFmt(c)) return false;
+    return true;
+  }
   function isLeaf(el) {
     if (!el.textContent.trim()) return false;
-    for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (!isFmt(c)) return false;
+    for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (!deepFmt(c)) return false;
     return true;
   }
   /* מסמן את כל הטקסטים בשקף: אלמנט שכולו טקסט (עם הדגשות) — עלה; טקסט "חשוף" ליד אלמנטים אחרים נעטף ב-span */
@@ -58,6 +67,7 @@ var LCEdit = (function () {
       if (adds && adds.length) {
         var after = el;
         adds.forEach(function (t, i) {
+          if (!String(t || '').trim()) return;   // שורה שנוספה ונמחק כל הטקסט שלה
           var n = document.createElement(el.tagName === 'SPAN' ? 'div' : el.tagName);
           n.className = 'edt eadd' + (el.tagName === 'SPAN' ? ' ' + el.className.replace(/\bedt\b|\betxt\b/g, '') : '');
           n.setAttribute('data-eid', id + '+' + i);
@@ -67,10 +77,12 @@ var LCEdit = (function () {
         });
       }
       if (ed.t && Object.prototype.hasOwnProperty.call(ed.t, id)) {
-        if (ed.t[id] === null) {
-          // נמחק: אם נשארה שורת רשימה בלי טקסט (רק מספר או נקודה) — גם היא יורדת
-          var li = el.closest('li'); el.remove();
-          if (li && !li.textContent.replace(/\d+/g, '').trim()) li.remove();
+        if (ed.t[id] === null || !String(ed.t[id]).trim()) {
+          // נמחק (או נמחק כל הטקסט): גם הסימן שלידו יורד — מספר, נקודה, צבע במקרא — כל עוד לא נשאר שם טקסט אחר
+          var up = el.parentNode; el.remove();
+          while (up && up !== slide && !up.matches(STOP) && !up.textContent.replace(/[\d\s·•,.()\-–—]+/g, '')) {
+            var nx = up.parentNode; up.remove(); up = nx;
+          }
         }
         else { el.innerText = ed.t[id]; el.classList.add('edited'); }
       }
