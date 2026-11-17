@@ -739,6 +739,18 @@ def totals(dirs):
                 ext=ext_all(dirs))
 
 
+def same_sig(dirs, day):
+    """חתימה לשינוי קטן בלי שינוי בדרך (עד 3 תחנות): קווים עם אותה חתימה — אותו שינוי בדיוק. אחרת ''"""
+    if any(x['geo'] for x in dirs):
+        return ''
+    add = sorted({c for x in dirs for c in x['added']})
+    rem = sorted({c for x in dirs for c in x['removed']})
+    mv = sorted({m['code'] for x in dirs for m in x['moved']})
+    if not add + rem + mv or len(add) + len(rem) + len(mv) > 3:
+        return ''
+    return f"{day}|{','.join(add)}|{','.join(rem)}|{','.join(mv)}"
+
+
 def ext_all(dirs):
     """הקו רק מתארך (בכל הכיוונים שמשתנים): 'start' / 'end' / 'both', אחרת ''"""
     e = {x.get('ext') or '' for x in dirs}
@@ -898,6 +910,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         rec = dict(id=pid, line=f0['line'], op=f0['op'], makat=makat, od=f0['od'], eff=eff,
                    formal=formal, tot=tot, summary=summ, chcities=ch_cities,
                    dev=max((f.get('dev', 0) for f in dirs if f.get('geo')), default=0),   # אורך הדרך שמשתנה (מ') — לשינוי קטן/גדול
+                   sig=same_sig(dirs, formal or eff),   # אותו שינוי בכמה קווים (אותן תחנות, אותו יום) — מקובצים יחד באתר
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
         index.append(rec)

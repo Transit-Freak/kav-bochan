@@ -266,3 +266,15 @@
   .slide{transform:none!important}
   .leaflet-control-zoom{display:none}
 }
+
+/* קרדיט בסוף המצגת (אם נבחר) */
+.slide .credit{margin-top:6px;font-size:13px;color:var(--s-sub)}
+.s-one .credit{font-size:12px;margin-top:2px}
+/* כמה קווים עם אותו שינוי — כמה תגיות מספר */
+.s-one .ohead.multi .badges{display:flex;flex-wrap:wrap;gap:6px;max-width:220px}
+.s-one .ohead.multi .badge{font-size:26px;min-width:52px;height:46px;padding:0 10px}
+/* סימנים שהוסתרו בעריכה */
+.slide .mkoff{display:none!important}
+body.editing .slide .mkoff{display:inline-flex!important;opacity:.25}
+body.editing .slide .emark{cursor:pointer}
+body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
