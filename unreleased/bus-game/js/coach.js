@@ -457,6 +457,8 @@ export function buildCoach(root, tint) {
   const a = root.getObjectByName('Anchor_DoorMid'); if (a) a.position.z += (MID.keep[0] + MID.keep[1]) / 2 - (MID.z0 + MID.z1) / 2;
   const af = root.getObjectByName('Anchor_DoorFront'); if (af) af.position.z += (FRONT.keep[0] + FRONT.keep[1]) / 2 - (FRONT.z0 + FRONT.z1) / 2;
   for (const n of ['Leaf_Mid0', 'Leaf_Front1']) { const l = root.getObjectByName(n); if (l) l.visible = false; }   // הכנפיים שמאחורי הלוחות הסגורים
+  // והצמתים שלהן כבר לא "דלת" (inspfp.js מחשב את רוחב הדלת לפי הצמתים Door_*); האנימציה שלהן מסוננת ב-actors.js
+  for (const n of ['Door_Mid0', 'Door_Front1']) { const d = root.getObjectByName(n); if (d) d.name = 'Closed' + n.slice(4); }
   root.userData.coach = true;
 }
 // לכל שכפול: שלטי המספר לפי הקו, וחומר משלו לכפתורי העצירה

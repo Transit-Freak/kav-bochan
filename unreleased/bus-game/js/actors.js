@@ -275,7 +275,8 @@ export class BusLayer {
         // הדלתות לחוד (במבט נהג פותחים כל אחת בנפרד): הקליפ מתפצל לדלת הקדמית ולאחרות (אמצעית, ובמפרקי גם השלישית)
         mixer = new THREE.AnimationMixer(obj);
         let sp = this.clipsOf.get(kind);
-        if (!sp) this.clipsOf.set(kind, sp = [t => t.name.includes('Front'), t => !t.name.includes('Front')].map((f, i) => new THREE.AnimationClip('Doors' + i, clip.duration, clip.tracks.filter(f))));
+        const has = t => !!asset.scene.getObjectByName(t.name.split('.')[0]);   // בבין-עירוני — בלי הכנפיים שמאחורי הלוחות הסגורים
+        if (!sp) this.clipsOf.set(kind, sp = [t => t.name.includes('Front'), t => !t.name.includes('Front')].map((f, i) => new THREE.AnimationClip('Doors' + i, clip.duration, clip.tracks.filter(t => f(t) && has(t)))));
         action = sp.map(c => { const a = mixer.clipAction(c); a.play(); a.paused = true; return a; });
       }
     } else obj = placeholderBus();
