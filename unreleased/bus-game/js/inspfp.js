@@ -174,9 +174,12 @@ export class InspectorFP {
   doorsOf(o) {
     if (o.userData.doors) return o.userData.doors;
     o.updateMatrixWorld(true); const by = new Map(), inv = o.matrixWorld.clone().invert();
+    // לכל כנף — חצי הרוחב שלה לפי הרשת (במקום הסגור); כך הפתח הוא בדיוק מה שהכנפיים סוגרות (באוטובוס הבין-עירוני — כנף אחת צרה,
+    // והכנפיים שמאחורי לוחות סגורים נקראות Closed_* ולא נספרות)
+    const halfOf = n => { let h = 0; n.traverse(m => { if (!m.isMesh) return; m.geometry.computeBoundingBox(); const bb = m.geometry.boundingBox; h = Math.max(h, Math.min(0.5, (bb.max.z - bb.min.z) / 2)); }); return h || 0.3; };
     for (const pre of ['Door', 'Leaf']) { o.traverse(n => { const m = new RegExp(`^${pre}_([A-Za-z]+)\\d*$`).exec(n.name || ''); if (!m) return;
-        const p = n.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv), k = m[1]; (by.get(k) || by.set(k, []).get(k)).push(p); }); if (by.size) break; }
-    const out = [...by].map(([name, ps]) => { const zs = ps.map(p => p.z), half = ps.length > 1 ? 0.3 : 0.45, z0 = Math.min(...zs) - half, z1 = Math.max(...zs) + half;
+        const p = n.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv), k = m[1]; p.h = halfOf(n); (by.get(k) || by.set(k, []).get(k)).push(p); }); if (by.size) break; }
+    const out = [...by].map(([name, ps]) => { const z0 = Math.min(...ps.map(p => p.z - p.h)), z1 = Math.max(...ps.map(p => p.z + p.h));
       return { name, z0, z1, zc: (z0 + z1) / 2, x: ps.reduce((a, p) => a + p.x, 0) / ps.length }; }).filter(d => Math.abs(d.x) > 0.8);
     if (!out.length) out.push({ name: 'Front', z0: 4.57, z1: 5.73, zc: 5.15, x: -1.245 }, { name: 'Mid', z0: -0.58, z1: 0.63, zc: 0.03, x: -1.245 });
     return (o.userData.doors = out);
