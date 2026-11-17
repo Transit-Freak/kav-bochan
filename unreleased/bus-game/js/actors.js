@@ -256,7 +256,7 @@ export class BusLayer {
     obj.userData.bus = bus;
     this.group.add(obj);
     const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null, lite: null, isLite: false };
-    if (kind === 'coach') v.coach = coachClone(obj);
+    if (kind === 'coach') v.coach = coachClone(obj, bus);
     // הגרסה הממוזגת (לא לדגם הרגיל עם גג צבוע — שם החומרים שונים לכל אוטובוס)
     const LT = asset && !(T?.tint && kind === 'std') ? this.liteOf.get(kind) : null;
     if (LT) { const an = this.animOf.get(kind), statics = []; obj.traverse(o => { if (liteStatic(o, an)) statics.push(o); });
