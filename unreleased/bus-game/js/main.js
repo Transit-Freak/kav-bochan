@@ -124,8 +124,13 @@ async function init() {
       decide: $('#ifpDecide'), hist: $('#ifpHist'), sum: $('#ifpSum'), sumBody: $('#ifpSumBody'), sumStay: $('#ifpStay'), sumLeave: $('#ifpLeave') },
     onExit: pose => { document.body.classList.remove('fpview'); $('#inspHud').hidden = bank.role !== 'inspector'; if (bank.role === 'inspector') cams.set('follow');
       // מהמבט האחרון של הפקח (אחרי הירידה) אל המבט הרגיל — בתנועה רכה, לא בקפיצה
-      if (pose && cams.current === 'follow') { const p1 = camera.position.clone(), t1 = controls.target.clone(), f1 = camera.fov; camera.position.copy(pose.p); controls.target.copy(pose.t);
-        camAnim = { t: 0, dur: 1.8, p0: pose.p.clone(), t0: pose.t.clone(), p1, t1, f0: pose.fov, f1 }; } } });
+      // המצלמה עולה מאחורי הפקח ומעליו (קשת), והמבט עובר בהדרגה מהנקודה שלפניו אל האוטובוס — בלי סיבוב חד. היעד זז עם האוטובוס
+      if (pose && cams.current === 'follow') { const o = buses.objectOf(cams.modes.follow.bus), f1 = camera.fov;
+        const rel = o ? { o, p: camera.position.clone().sub(o.position), t: controls.target.clone().sub(o.position) } : null;
+        const fw = pose.t.clone().sub(pose.p).setY(0).normalize(), ctrl = pose.p.clone().addScaledVector(fw, -6).add(new THREE.Vector3(0, 10, 0));
+        camera.position.copy(pose.p); controls.target.copy(pose.t);
+        camAnim = { t: 0, dur: 2, p0: pose.p.clone(), t0: pose.t.clone(), p1: camera.position.clone(), t1: controls.target.clone(), f0: pose.fov, f1, rel, ctrl };
+        if (rel) { camAnim.p1.copy(o.position).add(rel.p); camAnim.t1.copy(o.position).add(rel.t); } } } });
   drive = new DriveControls({ canvas, camera, toast, setSpeed, speed: () => sim.speed, ui: { root: $('#drvCtl'), stop: $('#dhStop'), score: $('#dhScore') } });
   dispUI = new DispUI({ sim, toast, setSpeed: v => { night?.manual(); setSpeed(v); }, speed: () => sim.speed, started: () => { showTab('dispatch'); openPanel(); }, preset: t => presetNetwork(t), warm: PRESET_WARM, active: () => bank.role === 'dispatcher' && $('#roleAsk').hidden && cams.current !== 'driver' });
   G.disp = dispUI;
@@ -1717,6 +1722,10 @@ function stepCamAnim(dt) {
   if (!camAnim) return;
   const A = camAnim; A.t = Math.min(A.dur, A.t + dt);
   const k0 = A.t / A.dur, k = k0 * k0 * (3 - 2 * k0);
+  if (A.rel) { A.p1.copy(A.rel.o.position).add(A.rel.p); A.t1.copy(A.rel.o.position).add(A.rel.t); }
+  // קשת (בזייה) דרך נקודת ביניים, והמבט אל היעד בהדרגה — בלי הרמה נוספת
+  if (A.ctrl) { const a = (1 - k) * (1 - k), b2 = 2 * k * (1 - k), c2 = k * k; camera.position.set(0, 0, 0).addScaledVector(A.p0, a).addScaledVector(A.ctrl, b2).addScaledVector(A.p1, c2);
+    controls.target.lerpVectors(A.t0, A.t1, k * k * (3 - 2 * k)); camera.fov = A.f0 + (A.f1 - A.f0) * k; camera.updateProjectionMatrix(); if (k0 >= 1) camAnim = null; return; }
   // דרך קשת: באמצע המעבר המצלמה קצת גבוהה יותר, כדי שלא תעבור דרך בניינים
   const lift = Math.sin(Math.PI * k0) * Math.min(60, A.p0.distanceTo(A.p1) * 0.15);
   camera.position.lerpVectors(A.p0, A.p1, k); camera.position.y += lift;
