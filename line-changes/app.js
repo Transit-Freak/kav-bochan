@@ -89,7 +89,9 @@
     $('cities').innerHTML = top.map(function (c) { return '<button type="button" data-c="' + E(c) + '">' + E(c) + '</button>'; }).join('');
     $('cities').addEventListener('click', function (ev) {
       var b = ev.target.closest('button'); if (!b) return;
-      $('q').value = q = b.getAttribute('data-c'); placeSel = null; drawResults();
+      // עיר מהרשימה: ישר לקווים שמשתנים בה (עם "כל הקווים למצגת אחת")
+      $('q').value = q = b.getAttribute('data-c');
+      placeSel = cities().filter(function (c) { return c.name === q; })[0] || null; drawResults();
     });
   }
   $('q').addEventListener('input', function () { q = this.value; placeSel = null; drawResults(); });
@@ -188,7 +190,9 @@
       var all = placeSel.lines.map(function (i) { return LINES[i]; }).filter(Boolean), rows = all.filter(hasCh).sort(lineSort);
       $('reshead').innerHTML = '<button type="button" class="lnk" id="plback">→ לכל התוצאות</button> <b class="pltitle">' +
         E((placeSel.kind === 's' ? 'רחוב ' : placeSel.kind === 'h' ? 'שכונת ' : '') + placeSel.name + (placeSel.city && placeSel.kind !== 'c' ? ', ' + placeSel.city : '')) +
-        '</b> · ' + (rows.length === 1 ? 'קו אחד משתנה' : rows.length + ' קווים משתנים') + ' (מתוך ' + all.length + ' שעוצרים כאן)';
+        '</b> · ' + (rows.length === 1 ? 'קו אחד משתנה' : rows.length + ' קווים משתנים') + ' (מתוך ' + all.length + ' שעוצרים כאן)' +
+        (rows.length > 1 ? ' <button type="button" class="btn sm" id="plall">+ כל ' + rows.length + ' הקווים למצגת אחת</button>' : '');
+      PLROWS = rows;
       $('results').innerHTML = rows.length ? rows.map(lineRow).join('') : '<div class="none">אין שינויים קרובים בקווים שעוצרים כאן.</div>';
       $('results').scrollTop = 0;
       return;
@@ -260,7 +264,25 @@
     }
     cur = LINES[+b.getAttribute('data-i')]; go(2);
   });
-  $('reshead').addEventListener('click', function (ev) { if (ev.target.id === 'plback') { placeSel = null; drawResults(); } });
+  $('reshead').addEventListener('click', function (ev) {
+    if (ev.target.id === 'plback') { placeSel = null; drawResults(); }
+    if (ev.target.id === 'plall') addAll(PLROWS, ev.target);
+  });
+  /* כל הקווים שמשתנים במקום (עיר, רחוב או שכונה) — מצגת אחת; בשלב 3 אפשר להוציא קו עם × */
+  var PLROWS = [];
+  function pickKey(l) {
+    if (l.up.length) return upNext(l).id;
+    var g = clusterPast(recentPast(l))[0];
+    return g ? 'p-' + l.makat + '-' + g.d : null;
+  }
+  function addAll(ls, btn) {
+    if (!ls || !ls.length) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'טוען ' + ls.length + ' קווים…'; }
+    Promise.all(ls.map(function (l) { var k = pickKey(l); return k ? loadPick(k) : null; })).then(function (ps) {
+      ps.filter(Boolean).forEach(function (p) { picks = picks.filter(function (x) { return x.makat !== p.makat || x.op !== p.op; }); picks.push(p); });
+      if (picks.length) { cur = ls[0]; go(3); }
+    });
+  }
 
   /* ---------- שלב 2: איזה שינוי ---------- */
   function drawChanges() {
