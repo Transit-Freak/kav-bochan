@@ -235,7 +235,7 @@ async function waitTiles(page, ms = 20000) {
     await sleep(250);
     await p.keyboard.type(QUERY, { delay: 165 });
     await sleep(900);
-    await p.evaluate(() => __v.scrollEl('#reshead', 150, 900));
+    await p.evaluate(() => __v.scrollEl('#results', 175, 900));
     await sleep(700);
     const row = p.locator('#results .res', { has: p.locator('.badge', { hasText: new RegExp('^' + LINE + '$') }) }).first();
     await tap(p, row);
@@ -261,7 +261,7 @@ async function waitTiles(page, ms = 20000) {
     await p.evaluate(() => __v.cap('אפשר לשנות כל מילה ולבחור עיצוב', '3'));
     await tap(p, '#editbtn2');           // הכפתור גם גולל אל המצגת
     await sleep(900);
-    await p.evaluate(() => __v.zoom('#deck .sframe h1', 2.1, 330));
+    await p.evaluate(() => __v.zoom('#deck .sframe h1', 1.75, 330));
     await sleep(950);
     const h1 = p.locator('#deck .sframe').first().locator('h1').first();
     await tap(p, h1, { fx: 0.5 });
