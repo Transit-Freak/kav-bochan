@@ -474,7 +474,13 @@ def compare(old_codes, new_codes, old_stops, new_stops, old_shape, new_shape):
     elif not geo and old_shape and new_shape and old_shape != new_shape:
         minor['redraw'] += 1
     order = (not added and not removed and oc != nc and so == sn)
-    return dict(added=added, removed=removed, moved=moved, geo=geo, dev=int(dev), order=order,
+    # הקו רק מתארך: אותן תחנות באותו סדר ועוד תחנות לפני או אחרי, והמסלול הישן כולו בתוך החדש
+    ext = ''
+    if added and not removed and not moved and not swaps and oc and len(nc) > len(oc) and oc[0] in nc:
+        k = nc.index(oc[0])
+        if nc[k:k + len(oc)] == oc and (not old_shape or not new_shape or deviation_len(old_shape, new_shape, lat0, SAME_ROAD) < GEO_LEN):
+            ext = 'both' if k and k + len(oc) < len(nc) else 'start' if k else 'end'
+    return dict(added=added, removed=removed, moved=moved, geo=geo, dev=int(dev), order=order, ext=ext,
                 swaps=[{'old': r['code'], 'new': a['code'], 'name': a['name']} for r, a in swaps]), minor
 
 
@@ -590,7 +596,7 @@ def run():
             old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(o_shape))),
             new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(n_shape))),
             added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
-            moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'],
+            moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
         ))
     stats['changed'] = len(found)
     print('סטטיסטיקה:', dict(stats), '· סוננו:', dict(filtered), flush=True)
@@ -729,13 +735,24 @@ def totals(dirs):
     return dict(geo=any(x['geo'] for x in dirs),
                 add=len({c for x in dirs for c in x['added']}),
                 rem=len({c for x in dirs for c in x['removed']}),
-                mv=len({m['code'] for x in dirs for m in x['moved']}))
+                mv=len({m['code'] for x in dirs for m in x['moved']}),
+                ext=ext_all(dirs))
+
+
+def ext_all(dirs):
+    """הקו רק מתארך (בכל הכיוונים שמשתנים): 'start' / 'end' / 'both', אחרת ''"""
+    e = {x.get('ext') or '' for x in dirs}
+    if '' in e or not e:
+        return ''
+    return e.pop() if len(e) == 1 else 'both'
 
 
 def summary_line(t):
     """סיכום קצר בשפה של נוסעים (לתצוגה המקדימה בווטסאפ)"""
     parts = []
-    if t['geo']:
+    if t.get('ext'):
+        parts.append({'start': 'הקו מתחיל מוקדם יותר', 'end': 'הקו ממשיך יותר רחוק'}.get(t['ext'], 'הקו מתארך'))
+    elif t['geo']:
         parts.append('הקו נוסע בדרך אחרת')
     if t['rem']:
         parts.append(f"{t['rem']} תחנות מבוטלות" if t['rem'] > 1 else 'תחנה אחת מבוטלת')
