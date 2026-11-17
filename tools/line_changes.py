@@ -763,6 +763,82 @@ def summary_line(t):
     return ' · '.join(parts)
 
 
+# ---------- זמן הליכה לתחנה הקרובה ----------
+# לכל תחנה שמבוטלת: עד WALK_CANDS תחנות במסלול החדש שהכי קרובות בקו אווירי, ומהן — זו שהכי קצר להגיע אליה ברגל
+# לפי מפת הרחובות (OpenStreetMap, שירות המסלולים להולכי רגל של FOSSGIS). התוצאות נשמרות ב-data/walk.json
+# כדי שכל זוג תחנות יחושב פעם אחת בלבד. אם השירות לא זמין — אין שדה walk, והמצגת משתמשת בהערכה בקו אווירי.
+WALK_URL = os.environ.get('WALK_URL', 'https://routing.openstreetmap.de/routed-foot')
+WALK_CANDS = 4
+WALK_AIR_MAX = 1000   # מ' — מועמדת רחוקה יותר בקו אווירי לא נבדקת
+WALK_MAX = 900        # מ' הליכה — מעבר לזה: "אין תחנה קרובה במסלול החדש"
+WALK_BUDGET = int(os.environ.get('WALK_BUDGET', '600'))   # שניות לכל הבקשות בריצה אחת; מה שלא הספיק — בלילה הבא
+
+
+def walk_key(a, b):
+    return f"{a[0]}@{a[2]:.5f},{a[3]:.5f}>{b[0]}@{b[2]:.5f},{b[3]:.5f}"
+
+
+def walk_table(src, dests):
+    """מרחקי הליכה (מ') מתחנה אחת לכמה תחנות, בבקשה אחת. None כשאין מסלול."""
+    import urllib.request
+    pts = ';'.join(f'{s[3]},{s[2]}' for s in [src] + dests)
+    url = f'{WALK_URL}/table/v1/driving/{pts}?sources=0&annotations=distance'
+    req = urllib.request.Request(url, headers={'User-Agent': 'kavbochan-line-changes/1.0 (nightly, cached)'})
+    r = json.load(urllib.request.urlopen(req, timeout=20))
+    if r.get('code') != 'Ok':
+        raise RuntimeError(r.get('code'))
+    return [None if v is None else int(round(v)) for v in r['distances'][0][1:]]
+
+
+def add_walks(found, data):
+    if os.environ.get('WALK', '1') == '0':
+        return
+    import time
+    path = os.path.join(data, 'walk.json')
+    try:
+        cache = json.load(open(path, encoding='utf-8'))
+    except Exception:  # noqa: BLE001
+        cache = {}
+    used, t_end, calls, fails = {}, time.time() + WALK_BUDGET, 0, 0
+    for f in found:
+        old = {s[0]: s for s in f['old']['stops']}
+        news = f['new']['stops']
+        walk = {}
+        for code in f['removed']:
+            s = old.get(code)
+            if not s:
+                continue
+            cands = sorted((n for n in news if n[0] != code), key=lambda n: dist_m((s[2], s[3]), (n[2], n[3])))[:WALK_CANDS]
+            cands = [n for n in cands if dist_m((s[2], s[3]), (n[2], n[3])) <= WALK_AIR_MAX]
+            if not cands:
+                walk[code] = {'none': 1}
+                continue
+            keys = [walk_key(s, n) for n in cands]
+            miss = [n for n, k in zip(cands, keys) if k not in cache]
+            if miss and time.time() < t_end and fails < 5:
+                try:
+                    calls += 1
+                    for n, m in zip(miss, walk_table(s, miss)):
+                        cache[walk_key(s, n)] = -1 if m is None else m
+                    time.sleep(1)
+                except Exception as e:  # noqa: BLE001
+                    fails += 1
+                    print('הליכה: שגיאה', e, flush=True)
+            if any(k not in cache for k in keys):
+                continue   # לא חושב — בלי walk לתחנה הזו (המצגת משתמשת בהערכה)
+            for k in keys:
+                used[k] = cache[k]
+            best = min(((cache[k], n) for n, k in zip(cands, keys) if cache[k] >= 0), default=None, key=lambda x: x[0])
+            walk[code] = {'none': 1} if not best or best[0] > WALK_MAX else {'to': best[1][0], 'm': best[0]}
+        if walk:
+            f['walk'] = walk
+        else:
+            f.pop('walk', None)
+    # נשמרים רק הזוגות שבשימוש עכשיו — הקובץ לא גדל עם הזמן
+    json.dump(used, open(path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    print(f'הליכה: {calls} בקשות, {fails} שגיאות, {len(used)} זוגות', flush=True)
+
+
 def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=False):
     data = os.path.join(OUTDIR, 'data')
     os.makedirs(os.path.join(data, 'l'), exist_ok=True)
@@ -786,6 +862,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
             seen.add(p['rd'])
     found = [f for f in found if f.get('ty') != '2' and f.get('line')]   # רכבת ישראל — לא בכלי הזה
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
+    add_walks(found, data)
     if lines is not None:
         places = lines.pop('_places', None)
         json.dump(dict(gen=t0, feed=new_day.isoformat(), **lines), open(os.path.join(data, 'lines.json'), 'w', encoding='utf-8'),
