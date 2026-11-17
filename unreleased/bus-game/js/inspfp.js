@@ -533,44 +533,55 @@ function buildReader() {
     m.onBeforeCompile = sh => { if (uni) Object.assign(sh.uniforms, uni); if (extraV) sh.vertexShader = extraV[0] + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + extraV[1]);
       sh.fragmentShader = (extraF ? extraF[0] : '') + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (extraF ? extraF[1] : '') + SHADE + (gloss ? GLOSS(gloss) : '')); }; return m; };
   const skin = selfLit(0xc99a78);
-  // המכשיר של הפקח (מסופון אנדרואיד כחול, כמו של הפקחים): גוף בצבע תכלת-כחול מבריק, 19.5 × 8 ס"מ ועובי 1.8 ס"מ; כמעט כל
-  // החזית — מסך מגע לאורך עם מסגרת שחורה דקה ומצלמה קטנה למעלה; בקצה העליון בית מדפסת עגול ועבה (מכסה כחול שקוף-למחצה,
-  // חריץ נייר וסרגל קריעה), ועל המכסה — סמל הקריאה בלי מגע (יד עם כרטיס וגלים): שם מצמידים את הרב-קו. בצד הימני — כפתור
-  // הדלקה, F1 וחריץ ארוך לכרטיס. במערכת המכשיר: x — לרוחב (ימינה), y — לאורך (אל המדפסת), z — אל החזית (המסך)
+  // המכשיר של הפקח (מסופון קשיח, כמו של פקחי הרב-קו — בלי סמלים ושמות של יצרן): גוף פלסטיק שחור מט, 19.5 × 8 ס"מ ועובי 1.8 ס"מ,
+  // פינות מעוגלות ומסגרת עבה; בקצה העליון "גבנון" שחור מוגבה (קורא הכרטיסים בלי מגע) עם סמל כרטיס מובלט, ומתחתיו חריץ רמקול דק;
+  // מתחת למסך — שלושה מקשים רכים (תפריט, בית, חזרה) באפור ושורה של ארבעה מקשים קטנים עם פס צבע (כחול, אדום, צהוב, ירוק);
+  // בצד השמאלי — כפתור סריקה כתום, בימני — שני מקשים אפורים; מאחור — רצועת אחיזה מגומי.
+  // במערכת המכשיר: x — לרוחב (ימינה), y — לאורך (אל הקורא), z — אל החזית (המסך)
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const W = 0.08, L = 0.195, D = 0.018, Y0 = -L / 2, Y1 = L / 2, PY = 0.047, PR = 0.022, PCY = Y1 - PR, PCZ = -0.014, PF = D / 2 + 0.003;
   const HY = -0.045;   // מרכז כף היד (מאחורי החצי התחתון של הגוף, מתחת למדפסת)
   const dev = new THREE.Group(); dev.position.set(0.085, -0.15, -0.34); dev.rotation.set(-0.5, -0.18, 0.06); group.add(dev);
-  const blue = selfLit(0x2a9bd8, '', '', null, 0.32), cover = selfLit(0x3cb0ec, '', '', null, 0.45), coverEnd = selfLit(0x1f78b8, '', '', null, 0.3), dark = selfLit(0x15181d);
+  const blue = selfLit(0x2e3137, '', '', null, 0.08), cover = selfLit(0x26292e, '', '', null, 0.12), coverEnd = selfLit(0x1c1e22, '', '', null, 0.06), dark = selfLit(0x0b0c0e);   // (blue — הגוף, עכשיו שחור מט)
+  const grey = selfLit(0x80858e, '', '', null, 0.15), orange = selfLit(0xf07a14, '', '', null, 0.3), keyM = selfLit(0x3b3f46, '', '', null, 0.12), rubber = selfLit(0x121315);
   const rrect = (x0, y0, x1, y1, r) => { const s = new THREE.Shape(); s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r); s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1);
     s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0); return s; };
   const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z).toNonIndexed();
-  // הגוף: מלבן מעוגל עם שוליים מעוגלים (נכנס לתוך בית המדפסת), והכפתורים בצד הימני
+  // הגוף: מלבן מעוגל עם שוליים מעוגלים (נכנס לתוך הגבנון)
   const bv = 0.003, bodyG = new THREE.ExtrudeGeometry(rrect(-W / 2 + bv, Y0 + bv, W / 2 - bv, PY + 0.012, 0.009), { depth: D - 2 * bv, bevelEnabled: true, bevelThickness: bv, bevelSize: bv, bevelSegments: 3, curveSegments: 6 });
   bodyG.translate(0, 0, -D / 2 + bv); bodyG.clearGroups();
-  const body = new THREE.Mesh(mergeGeometries([bodyG, box(0.003, 0.009, 0.007, W / 2, 0.026, 0), box(0.003, 0.012, 0.007, W / 2, 0.01, 0)].map(g => { g.deleteAttribute('uv'); return g; })), blue); dev.add(body);
-  // בית המדפסת: פרופיל (y, z) — חזית שטוחה מעט מעל המסך, פינה מעוגלת בקצה, גליל עבה מאחור ושיפוע אל גב הגוף — נמשך לרוחב המכשיר.
-  // הדפנות בצדדים (המכסה השקוף-למחצה) כהות יותר
+  const body = new THREE.Mesh(bodyG, blue); bodyG.deleteAttribute('uv'); dev.add(body);
+  // המקשים שבצדדים: שניים אפורים בימין (מעל האגודל), כפתור הסריקה הכתום בשמאל (מעל האצבעות); ומאחור — רצועת גומי לרוחב
+  dev.add(new THREE.Mesh(mergeGeometries([box(0.003, 0.009, 0.007, W / 2, 0.026, 0), box(0.003, 0.012, 0.007, W / 2, 0.01, 0)]), grey));
+  dev.add(new THREE.Mesh(box(0.0035, 0.022, 0.008, -W / 2, 0.022, 0), orange));
+  dev.add(new THREE.Mesh(mergeGeometries([box(W + 0.002, 0.02, 0.0035, 0, 0.022, -D / 2 - 0.0012), box(0.004, 0.02, 0.006, -W / 2 - 0.0005, 0.022, -D / 2 + 0.001), box(0.004, 0.02, 0.006, W / 2 + 0.0005, 0.022, -D / 2 + 0.001)]), rubber));
+  // הגבנון (קורא הכרטיסים): פרופיל (y, z) — חזית שטוחה מעט מעל המסך, פינה מעוגלת בקצה, גליל עבה מאחור ושיפוע אל גב הגוף — נמשך לרוחב המכשיר
   { const s = new THREE.Shape(), rc = 0.008; s.moveTo(PY, PF); s.lineTo(Y1 - rc, PF); s.quadraticCurveTo(Y1, PF, Y1, PF - rc); s.lineTo(Y1, PCZ);
     s.absarc(PCY, PCZ, PR, 0, -Math.PI, true); s.lineTo(0.025, -D / 2 + 0.001); s.lineTo(0.025, 0); s.lineTo(PY, 0); s.lineTo(PY, PF);
     const g = new THREE.ExtrudeGeometry(s, { depth: W - 0.004, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.0015, bevelSegments: 2, curveSegments: 14 });
     g.applyMatrix4(new THREE.Matrix4().makeBasis(V(0, 1, 0), V(0, 0, 1), V(1, 0, 0))).translate(-(W - 0.004) / 2, 0, 0);
     const pm = new THREE.Mesh(g, [coverEnd, cover]); dev.add(pm); }
-  // חריץ הנייר וסרגל הקריעה בקצה, חריץ הכרטיס בצד הימני ושקע הטעינה למטה — חלק אחד כהה
-  dev.add(new THREE.Mesh(mergeGeometries([box(W - 0.014, 0.0012, 0.0022, 0, Y1 + 0.0024, 0), box(W - 0.014, 0.0016, 0.0012, 0, Y1 + 0.0026, -0.004),
-    box(0.0012, 0.058, 0.0022, W / 2 + 0.0001, -0.048, 0), box(0.009, 0.0012, 0.003, 0, Y0 + 0.0001, 0)]), dark));
-  // המסך: זכוכית שחורה עם המסך עצמו (הטקסטורה — גם המסגרת והמצלמה), מעט מעל החזית של הגוף
-  const GW = W - 0.006, GY0 = Y0 + 0.005, GY1 = PY - 0.001, GH = GY1 - GY0;
-  const c = document.createElement('canvas'); c.width = 320; c.height = Math.round(320 * GH / GW); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  // חריץ הרמקול מתחת לגבנון ושקע הטעינה למטה — כהים
+  dev.add(new THREE.Mesh(mergeGeometries([box(0.024, 0.0014, 0.0008, 0, PY - 0.0035, D / 2 + 0.0002), box(0.009, 0.0012, 0.003, 0, Y0 + 0.0001, 0)]), dark));
+  // המסך: מסגרת עבה (הגוף), מתחתיו המקשים
+  const GW = W - 0.012, GY0 = Y0 + 0.034, GY1 = PY - 0.0065, GH = GY1 - GY0;
+  // ארבעה מקשים קטנים, כל אחד עם פס צבע (כחול, אדום, צהוב, ירוק), ומעליהם שלושת המקשים הרכים (סמלים אפורים על המסגרת)
+  { const KY = Y0 + 0.012, KZ = D / 2 + 0.0008; dev.add(new THREE.Mesh(mergeGeometries([-0.0255, -0.0085, 0.0085, 0.0255].map(x => box(0.0145, 0.0068, 0.0016, x, KY, KZ))), keyM));
+    [0x2f7de1, 0xe23b3b, 0xf2c230, 0x2fb35a].forEach((col, k) => dev.add(new THREE.Mesh(box(0.0105, 0.0014, 0.0005, -0.0255 + k * 0.017, KY + 0.0016, KZ + 0.001), selfLit(col))));
+    const n = document.createElement('canvas'); n.width = 256; n.height = 40; const x = n.getContext('2d'); x.strokeStyle = x.fillStyle = '#9aa1ab'; x.lineWidth = 3.5; x.lineCap = 'round'; x.lineJoin = 'round';
+    for (const y of [12, 20, 28]) { x.beginPath(); x.moveTo(36, y); x.lineTo(60, y); x.stroke(); }   // תפריט
+    x.beginPath(); x.arc(128, 20, 9, 0, Math.PI * 2); x.stroke();   // בית
+    x.beginPath(); x.moveTo(206, 20); x.lineTo(222, 11); x.lineTo(222, 29); x.closePath(); x.stroke();   // חזרה
+    const t = new THREE.CanvasTexture(n); t.colorSpace = THREE.SRGBColorSpace;
+    const sk = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.016, (W - 0.016) * 40 / 256), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false }));
+    sk.position.set(0, GY0 - 0.0075, D / 2 + 0.0003); dev.add(sk); }
+  const c = document.createElement('canvas'); c.width = 480; c.height = Math.round(480 * GH / GW); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   const screen = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(GW, GH), screen); scr.position.set(0, (GY0 + GY1) / 2, D / 2 + 0.0004); dev.add(scr);
-  // סמל הקריאה בלי מגע על המכסה של המדפסת (קווים בהירים, כמו חרוטים בפלסטיק) וסמל נייר קטן בפינה
-  { const n = document.createElement('canvas'); n.width = 256; n.height = 144; const x = n.getContext('2d'); x.strokeStyle = 'rgba(225,242,255,0.95)'; x.fillStyle = x.strokeStyle; x.lineWidth = 4; x.lineCap = 'round'; x.lineJoin = 'round';
-    x.beginPath(); x.ellipse(128, 78, 46, 40, 0, 0, Math.PI * 2); x.stroke();
-    x.save(); x.translate(110, 60); x.rotate(-0.35); x.strokeRect(-4, -26, 30, 22); x.restore();   // הכרטיס
-    x.beginPath(); x.moveTo(96, 88); x.quadraticCurveTo(98, 66, 110, 58); x.lineTo(124, 52); x.moveTo(104, 70); x.lineTo(120, 74); x.stroke();   // היד
-    for (const r of [10, 18, 26]) { x.beginPath(); x.arc(128, 104, r, Math.PI * 1.2, Math.PI * 1.8); x.stroke(); }   // הגלים
-    x.lineWidth = 3; x.strokeRect(14, 14, 16, 12); x.beginPath(); x.moveTo(18, 30); x.lineTo(26, 30); x.stroke();   // סמל הנייר
+  // סמל כרטיס מובלט על הגבנון (קווים אפורים כהים, כמו חרוטים בפלסטיק): כרטיס וגלי הקריאה — שם מצמידים את הרב-קו
+  { const n = document.createElement('canvas'); n.width = 256; n.height = 144; const x = n.getContext('2d'); x.strokeStyle = 'rgba(120,126,136,0.95)'; x.fillStyle = x.strokeStyle; x.lineWidth = 5; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.beginPath(); x.roundRect(92, 44, 72, 48, 7); x.stroke(); x.fillRect(102, 56, 16, 12);   // הכרטיס והשבב
+    for (const r of [12, 22, 32]) { x.beginPath(); x.arc(128, 108, r, Math.PI * 0.2, Math.PI * 0.8); x.stroke(); }   // הגלים
     const t = new THREE.CanvasTexture(n); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
     const ic = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.008, (W - 0.008) * 144 / 256), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false }));
     ic.position.set(0, (PY + Y1 - 0.007) / 2, PF + 0.0019); dev.add(ic); }   // מעל השוליים המעוגלים של המכסה (1.5 מ"מ)
@@ -612,39 +623,51 @@ function buildReader() {
     return out; };
   for (const m of group.children) m.renderOrder = 10;
   group.traverse(m => { if (m.isMesh) { m.frustumCulled = false; m.renderOrder = 10; } });
-  // המסך: אפליקציית בדיקה כמו בטלפון — שורת מצב, כותרת, ובאמצע עיגול גדול לפי התוצאה (✓ ירוק, ✗ אדום, ! כתום, ובהמתנה —
-  // סמל ההצמדה), והטקסט מתחת. המסגרת השחורה והמצלמה הקדמית הן חלק מאותה טקסטורה
+  // המסך: אפליקציית בקרה (בלי שם או סמל של אפליקציה אמיתית) — שורת מצב של אנדרואיד (שעה, קליטה, סוללה), כותרת תכלת עם ☰
+  // ו"בקרה חדשה" (ומשמאל סמלי מצלמה ומיקרופון), ומתחת: בהמתנה — עיגול כחול עם אוטובוס לבן, "נא להציג כרטיס רב-קו", שני כפתורים
+  // אפורים ומתג "פיקוח / תיגבור"; בתוצאה — המסך כולו ירוק (✓) או אדום (✗) או כתום (!) עם הטקסט, מתחת לאותה כותרת
   const show = (a, b, kind) => {
-    const x = c.getContext('2d'), CW = c.width, CH = c.height, m = Math.round(CW * 0.003 / GW), mt = Math.round(CW * 0.006 / GW), sx = m, sy = mt, sw = CW - 2 * m, sh = CH - mt - Math.round(CW * 0.005 / GW);
+    const x = c.getContext('2d'), CW = c.width, CH = c.height, k = CW / 320;
     const rr = (x0, y0, w, h, r) => { x.beginPath(); x.roundRect(x0, y0, w, h, r); };
-    x.fillStyle = '#07080a'; x.fillRect(0, 0, CW, CH);
-    x.fillStyle = '#1a1d22'; x.beginPath(); x.arc(CW / 2, mt / 2, 5, 0, Math.PI * 2); x.fill(); x.fillStyle = '#2b3a55'; x.beginPath(); x.arc(CW / 2 - 1, mt / 2 - 1, 2, 0, Math.PI * 2); x.fill();   // המצלמה
-    x.save(); rr(sx, sy, sw, sh, 10); x.clip();
-    const col = kind === 'ok' ? ['#15803d', '#22c55e'] : kind === 'bad' ? ['#b91c1c', '#ef4444'] : kind === 'warn' ? ['#b45309', '#f59e0b'] : ['#f1f5f9', '#ffffff'];
-    const gr = x.createLinearGradient(0, sy, 0, sy + sh); gr.addColorStop(0, col[1]); gr.addColorStop(1, col[0]); x.fillStyle = gr; x.fillRect(sx, sy, sw, sh);
-    const light = !kind;
-    // שורת המצב והכותרת
-    x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(sx, sy, sw, 26); x.fillStyle = '#fff'; x.font = '600 17px Heebo, Arial'; x.direction = 'ltr'; x.textAlign = 'left'; x.fillText('08:42', sx + 10, sy + 19);
-    x.fillRect(sx + sw - 34, sy + 8, 22, 11); x.fillRect(sx + sw - 12, sy + 11, 3, 5); for (let k = 0; k < 4; k++) x.fillRect(sx + sw - 70 + k * 6, sy + 19 - k * 3 - 3, 4, k * 3 + 3);
-    x.fillStyle = light ? '#1565c0' : 'rgba(0,0,0,0.22)'; x.fillRect(sx, sy + 26, sw, 52);
-    x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '700 26px Heebo, Arial'; x.fillText('בדיקת כרטיסים', CW / 2, sy + 62);
-    // העיגול באמצע
-    const cx = CW / 2, cy = sy + 78 + (sh - 78) * 0.36, R = sw * 0.3;
-    x.fillStyle = light ? '#dbeafe' : '#ffffff'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
-    x.strokeStyle = light ? '#1565c0' : col[0]; x.lineCap = 'round'; x.lineJoin = 'round'; x.lineWidth = R * 0.2;
-    if (kind === 'ok') { x.beginPath(); x.moveTo(cx - R * 0.45, cy + R * 0.02); x.lineTo(cx - R * 0.1, cy + R * 0.38); x.lineTo(cx + R * 0.5, cy - R * 0.36); x.stroke(); }
-    else if (kind === 'bad') { x.beginPath(); x.moveTo(cx - R * 0.38, cy - R * 0.38); x.lineTo(cx + R * 0.38, cy + R * 0.38); x.moveTo(cx + R * 0.38, cy - R * 0.38); x.lineTo(cx - R * 0.38, cy + R * 0.38); x.stroke(); }
-    else if (kind === 'warn') { x.beginPath(); x.moveTo(cx, cy - R * 0.5); x.lineTo(cx, cy + R * 0.12); x.stroke(); x.fillStyle = col[0]; x.beginPath(); x.arc(cx, cy + R * 0.45, R * 0.12, 0, Math.PI * 2); x.fill(); }
-    else { x.lineWidth = R * 0.09; x.save(); x.translate(cx - R * 0.08, cy - R * 0.12); x.rotate(-0.3); rr(-R * 0.42, -R * 0.28, R * 0.84, R * 0.54, R * 0.08); x.stroke(); x.restore();   // כרטיס וגלים
-      for (const k of [0.32, 0.5, 0.68]) { x.beginPath(); x.arc(cx, cy + R * 0.2, R * k, Math.PI * 0.18, Math.PI * 0.82); x.stroke(); } }
-    // הטקסט (עד שתי שורות לכל אחד)
+    x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#07080a'; x.fillRect(0, 0, CW, CH); x.scale(k, k);
+    const W2 = 320, H2 = CH / k, m = 3; x.save(); rr(m, m, W2 - 2 * m, H2 - 2 * m, 6); x.clip();
+    const col = kind === 'ok' ? ['#15803d', '#22c55e'] : kind === 'bad' ? ['#b91c1c', '#ef4444'] : kind === 'warn' ? ['#b45309', '#f59e0b'] : null;
+    if (col) { const gr = x.createLinearGradient(0, 0, 0, H2); gr.addColorStop(0, col[1]); gr.addColorStop(1, col[0]); x.fillStyle = gr; } else x.fillStyle = '#e6edf5'; x.fillRect(0, 0, W2, H2);
+    // שורת המצב
+    x.fillStyle = '#1f2a37'; x.fillRect(0, 0, W2, 24); x.fillStyle = '#fff'; x.font = '600 15px Heebo, Arial'; x.direction = 'ltr'; x.textAlign = 'left'; x.fillText('08:42', 10, 17);
+    x.fillRect(W2 - 34, 7, 20, 10); x.fillRect(W2 - 14, 10, 2.5, 4); x.fillStyle = '#1f2a37'; x.fillRect(W2 - 32.5, 8.5, 4, 7); x.fillStyle = '#fff';   // סוללה
+    for (let i = 0; i < 4; i++) x.fillRect(W2 - 64 + i * 6, 17 - i * 3 - 3, 4, i * 3 + 3);   // קליטה
+    // הכותרת: ☰ ו"בקרה חדשה" מימין, מצלמה ומיקרופון משמאל
+    x.fillStyle = '#5aa9e6'; x.fillRect(0, 24, W2, 46); x.fillStyle = '#fff'; x.strokeStyle = '#fff'; x.lineWidth = 2.6; x.lineCap = 'round';
+    for (const y of [38, 47, 56]) { x.beginPath(); x.moveTo(W2 - 34, y); x.lineTo(W2 - 14, y); x.stroke(); }
+    x.direction = 'rtl'; x.textAlign = 'right'; x.font = '700 22px Heebo, Arial'; x.fillText('בקרה חדשה', W2 - 44, 55);
+    rr(12, 38, 22, 15, 3); x.stroke(); x.beginPath(); x.arc(23, 45.5, 4, 0, Math.PI * 2); x.stroke();   // מצלמה
+    rr(46, 35, 8, 14, 4); x.stroke(); x.beginPath(); x.arc(50, 47, 7, 0, Math.PI); x.stroke(); x.beginPath(); x.moveTo(50, 54); x.lineTo(50, 58); x.stroke();   // מיקרופון
+    const cx = W2 / 2, R = 52, cy = 70 + 22 + R;
+    x.textAlign = 'center';
     const wrap = (t, font, y, lh, fill) => { x.font = font; x.fillStyle = fill; const w = t.split(' '), lines = []; let cur = '';
-      for (const s of w) { const n = cur ? cur + ' ' + s : s; if (x.measureText(n).width > sw - 24 && cur) { lines.push(cur); cur = s; } else cur = n; } if (cur) lines.push(cur);
-      lines.slice(0, 2).forEach((l, i) => x.fillText(l, CW / 2, y + i * lh)); return y + Math.min(2, lines.length) * lh; };
-    const y2 = wrap(String(a || '').replace(/^[✓✗]\s*/, ''), '800 34px Heebo, Arial', cy + R + 52, 40, light ? '#0f172a' : '#ffffff');
-    wrap(b || '', '500 23px Heebo, Arial', y2 + 6, 28, light ? '#334155' : 'rgba(255,255,255,0.92)');
-    x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(sx, sy + sh - 30, sw, 30); x.fillStyle = 'rgba(255,255,255,0.8)';   // שורת הניווט
-    x.fillRect(cx - 70, sy + sh - 19, 12, 9); x.beginPath(); x.arc(cx, sy + sh - 15, 6, 0, Math.PI * 2); x.fill(); x.beginPath(); x.moveTo(cx + 64, sy + sh - 15); x.lineTo(cx + 74, sy + sh - 21); x.lineTo(cx + 74, sy + sh - 9); x.fill();
+      for (const s of w) { const n = cur ? cur + ' ' + s : s; if (x.measureText(n).width > W2 - 28 && cur) { lines.push(cur); cur = s; } else cur = n; } if (cur) lines.push(cur);
+      lines.slice(0, 2).forEach((l, i) => x.fillText(l, cx, y + i * lh)); return y + Math.min(2, lines.length) * lh; };
+    if (!col) {
+      // עיגול כחול עם אוטובוס לבן
+      x.fillStyle = '#1e6fd9'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#fff'; rr(cx - 27, cy - 26, 54, 46, 8); x.fill(); x.fillStyle = '#1e6fd9'; rr(cx - 21, cy - 19, 42, 17, 3); x.fill(); x.fillRect(cx - 21, cy + 3, 12, 5); x.fillRect(cx + 9, cy + 3, 12, 5);
+      x.fillStyle = '#fff'; for (const s of [-1, 1]) { rr(cx + s * 17 - 5, cy + 18, 10, 11, 3); x.fill(); }
+      const y2 = wrap('נא להציג כרטיס רב-קו', '800 23px Heebo, Arial', cy + R + 34, 28, '#0f172a');
+      wrap(String(a || '').replace(/^רב-קו · /, ''), '500 17px Heebo, Arial', y2 + 2, 22, '#475569');
+      // שני כפתורים אפורים ומתג
+      const by = H2 - 92; for (const [i, t] of [[0, 'סדרן'], [1, 'סריקת ברקוד']]) { const bx = i ? 18 : W2 / 2 + 6, bw = W2 / 2 - 24; x.fillStyle = '#d5dde7'; rr(bx, by, bw, 36, 18); x.fill(); x.fillStyle = '#334155'; x.font = '600 16px Heebo, Arial'; x.fillText(t, bx + bw / 2, by + 24); }
+      x.fillStyle = '#334155'; x.font = '500 15px Heebo, Arial'; x.textAlign = 'right'; x.fillText('פיקוח / תיגבור', W2 - 22, H2 - 26);
+      x.fillStyle = '#1e6fd9'; rr(24, H2 - 41, 38, 20, 10); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(52, H2 - 31, 7.5, 0, Math.PI * 2); x.fill();
+    } else {
+      x.fillStyle = '#ffffff'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
+      x.strokeStyle = col[0]; x.lineCap = 'round'; x.lineJoin = 'round'; x.lineWidth = R * 0.2;
+      if (kind === 'ok') { x.beginPath(); x.moveTo(cx - R * 0.45, cy + R * 0.02); x.lineTo(cx - R * 0.1, cy + R * 0.38); x.lineTo(cx + R * 0.5, cy - R * 0.36); x.stroke(); }
+      else if (kind === 'bad') { x.beginPath(); x.moveTo(cx - R * 0.38, cy - R * 0.38); x.lineTo(cx + R * 0.38, cy + R * 0.38); x.moveTo(cx + R * 0.38, cy - R * 0.38); x.lineTo(cx - R * 0.38, cy + R * 0.38); x.stroke(); }
+      else { x.beginPath(); x.moveTo(cx, cy - R * 0.5); x.lineTo(cx, cy + R * 0.12); x.stroke(); x.fillStyle = col[0]; x.beginPath(); x.arc(cx, cy + R * 0.45, R * 0.12, 0, Math.PI * 2); x.fill(); }
+      const y2 = wrap(String(a || '').replace(/^[✓✗]\s*/, ''), '800 28px Heebo, Arial', cy + R + 40, 34, '#ffffff');
+      wrap(b || '', '500 19px Heebo, Arial', y2 + 6, 24, 'rgba(255,255,255,0.93)');
+    }
     x.restore(); tex.needsUpdate = true;
   };
   // לבדיקת החסימה: הפינות של כל חלק (מכשיר, כף יד, אצבעות, אמה), ונקודת ההצמדה (לצפצוף) — הסמל שעל המכסה של המדפסת, בקצה העליון: שם נוגע הרב-קו
