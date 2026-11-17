@@ -35,16 +35,31 @@ var LCDeck = (function () {
   function dist(a, b) { var cl = Math.cos((a[0] + b[0]) / 2 * Math.PI / 180); return Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * cl); }
 
   /* שם לנסיעה בשפה של נוסעים: "מקרית גת לחצור הגלילית"; קו מעגלי — "הקו" */
-  function firstStreet(d) { var st = (d.new.stops[0] || d.old.stops[0]); return st ? streetOf(st.name) : ''; }
+  // "ת. מרכזית אשדוד" → "התחנה המרכזית אשדוד", כדי שייקרא "מהתחנה המרכזית" ולא "מת. מרכזית"
+  function firstStreet(d) { var st = (d.new.stops[0] || d.old.stops[0]); return st ? streetOf(st.name).replace(/^ת\.\s*מרכזית/, 'התחנה המרכזית').replace(/^תחנה מרכזית/, 'התחנה המרכזית') : ''; }
   function trip(d) {
-    var o = d.od || [];
-    if (!o[0] || !o[1] || o[0] === o[1]) return 'הקו' + (o[0] ? ' ב' + o[0] : '') + (firstStreet(d) ? ', מ' + firstStreet(d) : '');
+    var o = d.od || [], A = endName(d, 0), B = endName(d, 1);
+    if (!o[0] || !o[1] || o[0] === o[1]) {
+      // קו בתוך העיר: מאיפה לאן (התחנה הראשונה והאחרונה); קו מעגלי — רק מאיפה
+      if (A && B && skey(A) !== skey(B)) return 'הקו ב' + o[0] + ', מ' + A + ' ל' + B;
+      return 'הקו' + (o[0] ? ' ב' + o[0] : '') + (A ? ', מ' + A : '');
+    }
     return 'מ' + o[0] + ' ל' + o[1];
   }
   function toward(d) {
-    var o = d.od || [];
-    if (!o[0] || !o[1] || o[0] === o[1]) return firstStreet(d) ? 'בנסיעה מ' + firstStreet(d) : 'בקו';
+    var o = d.od || [], B = endName(d, 1);
+    if (!o[0] || !o[1] || o[0] === o[1]) return B && skey(B) !== skey(endName(d, 0)) ? 'בנסיעה ל' + B : (firstStreet(d) ? 'בנסיעה מ' + firstStreet(d) : 'בקו');
     return 'בנסיעה ל' + o[1];
+  }
+  /* שם קצר לתחנה הראשונה (0) או האחרונה (1) במסלול החדש: "ת. מרכזית אשדוד/רציפים" → "התחנה המרכזית אשדוד", "רכבת/מסוף" → "הרכבת" */
+  function endName(d, last) {
+    var S = d.new.stops.length ? d.new.stops : d.old.stops, st = last ? S[S.length - 1] : S[0];
+    if (!st) return '';
+    var t = String(st.name).split('/')[0].trim();
+    if (/^(ת\.\s*מרכזית|תחנה מרכזית)/.test(t)) return t.replace(/^(ת\.\s*מרכזית|תחנה מרכזית)/, 'התחנה המרכזית');
+    if (/^(רכבת|ת\. רכבת|תחנת רכבת)$/.test(t)) return 'תחנת הרכבת';
+    if (/^רכבת\s/.test(t)) return t.replace(/^רכבת\s/, 'תחנת הרכבת ');
+    return streetOf(st.name);
   }
   /* "הקו כבר לא יעצור ב-16 תחנות, ויעצור ב-5 תחנות חדשות" */
   function stopsSentence(r, a, geo) {
@@ -59,12 +74,22 @@ var LCDeck = (function () {
   /* התחנה הקרובה במסלול החדש לכל תחנה שמבוטלת. המרחק בקו אווירי × 1.25 (הערכה להליכה), מעוגל ל-50 מ' */
   var NEAR_MAX = 600;
   function nearest(s, d) {
+    // מסלול הליכה אמיתי (מהבנייה הלילית, לפי מפת הרחובות): התחנה שהכי מהר להגיע אליה ברגל
+    var w = d.walk && d.walk[s.code];
+    if (w) {
+      if (w.none) return { none: true };
+      var to = d.new.stops.filter(function (n) { return n.code === w.to; })[0];
+      if (to) return { name: to.name, ll: to.ll, m: Math.max(50, Math.round(w.m / 50) * 50), min: Math.max(1, Math.round(w.m / 75)), path: w.line };
+    }
     var best = null, bd = Infinity;
     d.new.stops.forEach(function (n) { if (n.code !== s.code) { var x = dist(s.ll, n.ll); if (x < bd) { bd = x; best = n; } } });
     if (!best) return null;
     var walk = Math.max(50, Math.round(bd * 1.25 / 50) * 50);
     return walk <= NEAR_MAX ? { name: best.name, ll: best.ll, m: walk } : { none: true };
   }
+
+  /* "כ-5 דק׳ הליכה (400 מ׳)" כשיש מסלול הליכה אמיתי, אחרת "כ-400 מ׳ הליכה" */
+  function walkTxt(nr) { return nr.min ? 'כ-' + nr.min + ' דק׳ הליכה, ' + nr.m + ' מ׳' : 'כ-' + nr.m + ' מ׳ הליכה'; }
 
   function dirLead(d) {
     var s = '<b>' + E(stopsSentence(d.removed.length, d.added.length, d.geo)) + '.</b>';
@@ -186,7 +211,7 @@ var LCDeck = (function () {
     (d._rem || []).forEach(function (s, i) {
       var nr = s._near;
       rows.push('<li><i class="dot rem">' + (i + 1) + '</i><span>' + E(s.name) + ' — מבוטלת' +
-        (nr && !nr.none ? '<span class="nr">במקום: ' + E(nr.name) + ' (כ-' + nr.m + ' מ׳ הליכה)</span>' : '<span class="nr">אין תחנה קרובה במסלול החדש</span>') + '</span></li>');
+        (nr && !nr.none ? '<span class="nr">במקום: ' + E(nr.name) + ' (' + walkTxt(nr) + ')</span>' : '<span class="nr">אין תחנה קרובה במסלול החדש</span>') + '</span></li>');
     });
     d.new.stops.filter(function (s) { return d.added.indexOf(s.code) >= 0; }).forEach(function (s, i) {
       rows.push('<li><i class="dot add">' + (i + 1) + '</i><span>' + E(s.name) + ' — חדשה</span></li>');
@@ -201,7 +226,7 @@ var LCDeck = (function () {
           rerouted(d) ? (offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
           '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
-        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש</span>' : '') +
+        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש' + ((d._rem || []).some(function (s) { return s._near && s._near.path; }) ? ' (זמן ההליכה ברשימה)' : '') + '</span>' : '') +
         (segments(d).some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
         (a ? '<span><i class="dot add">1</i>תחנה חדשה</span>' : '') +
         (d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
@@ -247,7 +272,7 @@ var LCDeck = (function () {
     return '<div class="two">' + cols.map(function (col, ci) {
       return '<ol>' + col.map(function (s, j) {
         var n = off + ci * rows + j + 1, nr = s._near;
-        var sub = s._k !== 'rem' ? '' : '<span class="nr">' + (!nr || nr.none ? 'אין תחנה קרובה במסלול החדש' : 'במקום: ' + E(nr.name) + ' (כ-' + nr.m + ' מ׳ הליכה)') + '</span>';
+        var sub = s._k !== 'rem' ? '' : '<span class="nr">' + (!nr || nr.none ? 'אין תחנה קרובה במסלול החדש' : 'במקום: ' + E(nr.name) + ' (' + walkTxt(nr) + ')') + '</span>';
         return '<li' + (sub ? ' class="two-l"' : '') + '><i class="dot ' + s._k + '">' + n + '</i><span class="nm">' + E(s.name) +
           (s.city && s.city !== mainCity ? ' <span class="cd">' + E(s.city) + '</span>' : '') + sub + '</span></li>';
       }).join('') + '</ol>';
@@ -279,7 +304,7 @@ var LCDeck = (function () {
             '<div class="grp add"><h3 class="hd">תחנות חדשות' + (addS.length ? ' (' + addS.length + ')' : '') + '</h3>' +
               (a.length ? stopList(a, i * RA * 2, RA, mainCity) : '<p class="empty">' + (i ? '' : 'אין תחנות חדשות בנסיעה הזו') + '</p>') + '</div>' +
           '</div>' + extra +
-          '<div class="sfoot"><span>המספרים כמו במפה · המרחק לתחנה הקרובה הוא הערכה · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div></div>'
+          '<div class="sfoot"><span>המספרים כמו במפה · ' + ((d._rem || []).some(function (x) { return x._near && x._near.path; }) ? 'זמן ההליכה לפי מפת הרחובות, בקצב רגיל' : 'המרחק לתחנה הקרובה הוא הערכה') + ' · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div></div>'
       });
     }
     return out;
@@ -308,9 +333,11 @@ var LCDeck = (function () {
     var a = parts[0], b = parts[1];
     // "בית כנסת חב"ד/זלמן שז"ר" → זלמן שז"ר; אבל "ת. מרכזית צפת/רציפים" נשאר התחנה המרכזית
     if (b && PLACE.test(a) && !PLACE.test(b) && !/^(רציפים|רציף|הורדה|איסוף|יציאה|כניסה)/.test(b)) a = b;
+    // קיצורים: "שד' ירושלים", "שד.ירושלים" ו"שדרות ירושלים" — אותו רחוב, כתוב תמיד "שדרות"; "רח' הרצל" — "הרצל"
+    a = a.replace(/^שד(?:רות\s+|['׳.]\s*)/, 'שדרות ').replace(/^(?:רח(?:וב)?['׳.]?\s+|רח['׳.]\s*)/, '');
     return a.replace(/^דרך\s+/, '').replace(/\s+\d+[א-ת]?$/, '').replace(/\s+(א|ב|ג)'?$/, '').trim();
   }
-  function skey(t) { return t.replace(/["'״׳`]/g, ''); }   // צה"ל = צהל
+  function skey(t) { return t.replace(/["'״׳`.]/g, '').replace(/\s+/g, ' ').trim(); }   // צה"ל = צהל
   function streets(list, minus) {
     var out = [], keys = (minus || []).map(skey);
     list.forEach(function (s) { var t = streetOf(s.name), k = skey(t); if (t && keys.indexOf(k) < 0) { keys.push(k); out.push(t); } });
@@ -400,7 +427,7 @@ var LCDeck = (function () {
         g.kind = 'rem'; g.names = o.map(function (x) { return skey(x.name); }).sort();
         var nr = o.length <= 2 ? o.map(function (x) {
           var t = nearest(x, d);
-          return !t || t.none ? 'ליד ' + E(x.name) + ' אין תחנה קרובה במסלול החדש.' : (o.length > 1 ? 'במקום ' + E(x.name) + ': ' : 'התחנה הקרובה: ') + '<b>' + E(t.name) + '</b>, כ-' + t.m + ' מ׳ הליכה.';
+          return !t || t.none ? 'ליד ' + E(x.name) + ' אין תחנה קרובה במסלול החדש.' : (o.length > 1 ? 'במקום ' + E(x.name) + ': ' : 'התחנה הקרובה: ') + '<b>' + E(t.name) + '</b>, ' + walkTxt(t) + '.';
         }).join(' ') : '';
         g.plain = 'הקו לא יעצור יותר ב' + (o.length === 1 ? 'תחנה ' : 'תחנות ') + names(o) + '.';
         return 'הקו לא יעצור יותר ב' + (o.length === 1 ? 'תחנה ' : 'תחנות ') + names(o) + ' (בין ' + b(A) + ' ל' + b(B) + ').' + (nr ? ' ' + nr : '');
@@ -416,6 +443,15 @@ var LCDeck = (function () {
       }
       g.route = true;
       return 'אחרי ' + b(A) + ' הקו ייסע בדרך חדשה, ' + E(via(nS)) + ', ויחזור למסלול הרגיל ב' + b(B) + '.';
+    }
+    // הדרך לא משתנה (לפי הבונה), רק תחנה מתחלפת בתחנה אחרת — לא "הקו ייסע דרך..."
+    if (!d.geo && o.length && n.length && nearLine(o, d.new.shape) && nearLine(n, d.old.shape)) {
+      g.kind = 'swap'; g.names = o.concat(n).map(function (x) { return skey(x.name); }).sort();
+      if (o.length === 1 && n.length === 1) {
+        var m = Math.max(50, Math.round(dist(o[0].ll, n[0].ll) / 50) * 50);
+        return 'המסלול לא משתנה. במקום התחנה ' + b(o[0]) + ' הקו יעצור בתחנה חדשה, ' + b(n[0]) + ', כ-' + m + ' מ׳ ממנה.';
+      }
+      return 'המסלול לא משתנה. בין ' + b(A) + ' ל' + b(B) + ' הקו יעצור בתחנות ' + names(n) + ' במקום ' + names(o) + '.';
     }
     if (oS.length || nS.length) {
       g.route = true;
@@ -781,6 +817,7 @@ var LCDeck = (function () {
     });
     // מכל תחנה שמבוטלת — קו מנוקד דק אל התחנה הקרובה במסלול החדש
     m.remS.forEach(function (s) {
+      // קו ישר (הדרך ברגל עוברת ברחובות של הקו ומתערבבת עם הירוק והאדום); זמן ההליכה האמיתי — ברשימה ובהסבר
       if (shown(s) && s._near && !s._near.none) L.polyline([s.ll, s._near.ll], { color: '#13201b', weight: 2, dashArray: '2 5', opacity: .75, interactive: false }).addTo(map);
     });
     // קו שמתארך: איפה הקו התחיל או הסתיים עד היום
@@ -790,11 +827,27 @@ var LCDeck = (function () {
       if (g.ext === 'end' && g.A) wasEnd[g.A.code] = 'עד היום הקו הסתיים כאן';
     });
     var seen = {};
-    labels.forEach(function (st) {
+    // תוויות בלי חפיפה: לכל תווית מנסים מעל, מתחת, ימינה ושמאלה מהתחנה; אם אין מקום פנוי — מוותרים עליה
+    // (גם לא על סמן ממוספר). התוויות של "עד היום הקו התחיל כאן" — קודם
+    var boxes = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return [c.x - 13, c.y - 13, c.x + 13, c.y + 13]; });
+    var hit = function (b) { return boxes.some(function (o) { return b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]; }); };
+    var msz = map.getSize();
+    if (inEl) boxes.push([0, 0, INSET.x, INSET.y]);   // מפת ההתמצאות בפינה
+    labels.slice().sort(function (a, b) { return (wasEnd[b.code] ? 1 : 0) - (wasEnd[a.code] ? 1 : 0); }).forEach(function (st) {
       var k = st.name + st.ll.join(',');
       if (seen[k]) return; seen[k] = 1;
-      var was = wasEnd[st.code];
-      L.tooltip({ permanent: true, direction: 'top', offset: [0, -14], className: 'lc-lbl' + (was ? ' was' : ''), interactive: false }).setLatLng(st.ll)
+      var was = wasEnd[st.code], c = map.latLngToContainerPoint(st.ll);
+      var w = Math.max(String(st.name).length, was ? 18 : 0) * 7 + 20, h = was ? 38 : 24, g = 15;
+      var opts2 = [
+        { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
+        { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
+        { dir: 'right', off: [g, 0], b: [c.x + g, c.y - h / 2, c.x + g + w, c.y + h / 2] },
+        { dir: 'left', off: [-g, 0], b: [c.x - g - w, c.y - h / 2, c.x - g, c.y + h / 2] }
+      ].filter(function (o) { return o.b[0] >= 2 && o.b[1] >= 2 && o.b[2] <= msz.x - 2 && o.b[3] <= msz.y - 2; });
+      var pick = opts2.filter(function (o) { return !hit(o.b); })[0];
+      if (!pick) return;
+      boxes.push(pick.b);
+      L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl' + (was ? ' was' : ''), interactive: false }).setLatLng(st.ll)
         .setContent(E(st.name) + (was ? '<small>' + was + '</small>' : '')).addTo(map);
     });
     // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
