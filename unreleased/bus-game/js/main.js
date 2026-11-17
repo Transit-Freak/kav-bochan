@@ -99,7 +99,7 @@ async function init() {
   stopsById = new Map(city.stops.map(s => [s.id, s]));
   msg.textContent = 'טוען את האוטובוס והנוסעים…';
   const assets = params.has('placeholders') ? { bus: null, person: null, people: [] } : await loadAssets('assets/');
-  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants); buses.camera = camera;
+  buses = new BusLayer(scene, assets.bus, assets.people, assets.busVariants); buses.camera = camera; buses.clock = () => clockText(sim.time);
   people = new PeopleLayer(scene, assets.people, graph); people.camera = camera;   // רמת פירוט: דמויות מלאות רק קרוב למצלמה
   G.assets = { bus: !!assets.bus, person: !!assets.person, peopleModels: assets.people.length, crowdFromGlb: people.fromGlb };
   // הקופה והשעון נשמרים; האוטובוסים שהיו בדרך — לא (הקווים מתחילים מחדש מהמסוף)

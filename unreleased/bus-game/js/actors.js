@@ -14,6 +14,7 @@ import { stopFrame, frameV, frameAD, BENCH } from './stops.js';
 import { buildSitter, PHONE } from './sitting.js';
 import { SIT_PRESETS } from './sitpresets.js';
 import { addStraps, swayStraps } from './straps.js';
+import { buildCoach, coachClone, coachTick, monitorDisplay, monitorData } from './coach.js';
 import { applyFingers, poseFingers, legacyBone, fingerPoint, thumbPoint, fingerDirs, handInfo, FINGERS } from './fingers.js';
 // כריעה: הצד של הדלתות יורד (סיבוב קטן סביב הציר האורכי, הצד השני ‎x = far‏ נשאר). bus.kneel — 0..1 (כפתור במבט נהג)
 export const KNEEL = { th: 0.0304, far: 1.25 };
@@ -150,7 +151,7 @@ export function flushIM(im, n) {
 // בדגם של האוטובוס כ-150 חלקים (כל מושב, עמוד ושלט בנפרד), וכל אוטובוס צויר ב-150 קריאות ציור. לאוטובוס שרחוק מהמצלמה
 // מציירים במקומם גרסה ממוזגת: כל החלקים הקבועים של אותו חומר — חלק אחד, ובלי הפרטים הקטנים שבפנים (שלטים, מתקפים).
 // הדלתות, הרצועות והמפוח (שזזים) נשארים כמו שהם. החלקים המקוריים לא נמחקים — עוברים לשכבה 1, שהמצלמה לא מציירת.
-const LITE_SKIP = /^M_(Sign|Val|USB|QRSticker|StopBtn|StopFace|Plate|RedHammer|Screen|LCD|Vent|Plexi|Lamp|CeilPerf)/;
+const LITE_SKIP = /^M_(Sign|Val|USB|QRSticker|StopBtn|StopFace|Plate|RedHammer|Screen|LCD|Vent|Plexi|Lamp|CeilPerf|CoachDet)/;
 const LITE_SHADOW = /^M_(Silver|BodyWhite|RoofWhite|Glass|GlossBlack|Rubber|EVAccent)/;
 const LITE_KEEP = /^(Door_|Leaf_|Mirror_|Wiper|Steer)|^(Straps|Cab_Windshield|CabSwitchPlate|Joint_Bellows)$/;
 const _camP = new THREE.Vector3();
@@ -165,6 +166,7 @@ function buildLite(scene, animated) {
   const rear = scene.getObjectByName('Section_Rear'), inv = rear ? rear.matrixWorld.clone().invert() : null, sets = { root: new Map(), rear: new Map() }, M = new THREE.Matrix4();
   scene.traverse(o => {
     if (!liteStatic(o, animated) || LITE_SKIP.test(o.material.name)) return;
+    for (let q = o; q && q !== scene; q = q.parent) if (!q.visible) return;      // מה שהוסתר בדגם (הבין-עירוני: המושבים העירוניים)
     let inRear = false; for (let q = o; q; q = q.parent) if (q === rear) inRear = true;
     let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
@@ -196,19 +198,33 @@ export class BusLayer {
     if (!t) { t = m.clone(); t.color = new THREE.Color(color); this.tints.set(key, t); }
     return t;
   }
+  // בין-עירוני (coach.js): עותק של הדגם הרגיל אחרי ההכנה שלו (תא הנהג, החיפוי), עם פנים וחוץ משלו. נבנה בפעם הראשונה שצריך
+  coachAsset() {
+    if (this.variants.coach || !this.asset) return this.variants.coach;
+    this.tune('std', this.asset);
+    const scene = this.asset.scene.clone(true);
+    try { buildCoach(scene, TYPES.coach?.tint ?? 0x8fb3d9); } catch (e) { console.warn('coach failed', e); }
+    return (this.variants.coach = { scene, animations: this.asset.animations, userData: {} });
+  }
+  tune(kind, asset) {
+    if (this.tunedSet.has(kind)) return;
+    if (kind !== 'coach') {   // הבין-עירוני — עותק של הרגיל אחרי ההכנה הזו (coachAsset)
+      // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
+      try { addCab(asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
+      // רצועות האחיזה (js/straps.js) — בדגם הרגיל ובחשמלי (אותו פנים). במיניבוס הגג נמוך יותר ובמפרקי יש קטע אחורי: בלי רצועות
+      if (kind === 'std' || kind === 'elec') try { addStraps(asset.scene); } catch (e) { console.warn('straps failed', e); }
+      if (kind === 'std') cutDoorPanels(asset.scene);       // בדגמים החדשים החיפוי כבר חתוך בפתחי הדלתות
+    }
+    tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind);
+    // הגרסה הממוזגת לאוטובוס רחוק (buildLite) — פעם אחת לדגם
+    try { const an = new Set(); for (const c of asset.animations) for (const t of c.tracks) an.add(t.name.replace(/\.[^.]*$/, '')); this.animOf.set(kind, an); this.liteOf.set(kind, buildLite(asset.scene, an)); } catch (e) { console.warn('lite bus failed', e); }
+  }
   make(bus) {
     let obj, mixer = null, action = null;
+    if (bus.type === 'coach') this.coachAsset();
     const kind = !this.stdOnly.has(bus.id) && this.variants[bus.type] ? bus.type : 'std', asset = kind === 'std' ? this.asset : this.variants[kind];
     if (asset) {
-      if (!this.tunedSet.has(kind)) {
-        // תא הנהג והנהג היושב (js/driver.js) — פעם אחת לדגם, וכל השכפולים חולקים אותם
-        try { addCab(asset.scene, this.people); } catch (e) { console.warn('cab failed', e); }
-        // רצועות האחיזה (js/straps.js) — בדגם הרגיל ובחשמלי (אותו פנים). במיניבוס הגג נמוך יותר ובמפרקי יש קטע אחורי: בלי רצועות
-        if (kind === 'std' || kind === 'elec') try { addStraps(asset.scene); } catch (e) { console.warn('straps failed', e); }
-        if (kind === 'std') cutDoorPanels(asset.scene);       // בדגמים החדשים החיפוי כבר חתוך בפתחי הדלתות
-        tuneBusMaterials(asset.scene, this.scene.userData.envMap); this.tunedSet.add(kind);
-        // הגרסה הממוזגת לאוטובוס רחוק (buildLite) — פעם אחת לדגם
-        try { const an = new Set(); for (const c of asset.animations) for (const t of c.tracks) an.add(t.name.replace(/\.[^.]*$/, '')); this.animOf.set(kind, an); this.liteOf.set(kind, buildLite(asset.scene, an)); } catch (e) { console.warn('lite bus failed', e); } }
+      if (!this.tunedSet.has(kind)) this.tune(kind, asset);
       // המפוח של המפרקי הוא SkinnedMesh — שכפול רגיל היה מכופף את אותו מפוח בכל האוטובוסים
       obj = kind === 'artic' ? SkeletonUtils.clone(asset.scene) : asset.scene.clone(true);
       const clip = asset.animations.find(a => /DoorsOpen/i.test(a.name)) || asset.animations[0];
@@ -240,6 +256,7 @@ export class BusLayer {
     obj.userData.bus = bus;
     this.group.add(obj);
     const v = { obj, mixer, action, doors, anchors, label, warn, kind, rear: kind === 'artic' ? obj.getObjectByName('Section_Rear') : null, lite: null, isLite: false };
+    if (kind === 'coach') v.coach = coachClone(obj);
     // הגרסה הממוזגת (לא לדגם הרגיל עם גג צבוע — שם החומרים שונים לכל אוטובוס)
     const LT = asset && !(T?.tint && kind === 'std') ? this.liteOf.get(kind) : null;
     if (LT) { const an = this.animOf.get(kind), statics = []; obj.traverse(o => { if (liteStatic(o, an)) statics.push(o); });
@@ -249,7 +266,7 @@ export class BusLayer {
   }
   // simDt — זמן המשחק שעבר, dt — זמן אמיתי (לנדנוד הרצועות)
   update(lines, simDt = 0, dt = 0) {
-    const alive = new Set();
+    const alive = new Set(); let monBus = null, monD = 0, monB = null;
     for (const L of lines) for (const b of L.buses) {
       alive.add(b.id);
       const v = this.map.get(b.id) || this.make(b);
@@ -272,8 +289,13 @@ export class BusLayer {
       v.label.visible = L.visible !== false && !this.hideLabels;
       v.warn.visible = !!b.broken && L.visible !== false;
       if (dt && v.obj.visible && (v.kind === 'std' || v.kind === 'elec')) swayStraps(v, b, p.yaw, simDt, dt);
+      if (v.coach) { coachTick(v.coach, b); if (v.obj.visible && this.camera) { const d = this.camera.getWorldPosition(_camP).distanceTo(v.obj.position); if (d < 9 && (!monBus || d < monD)) { monBus = v; monD = d; monB = b; } } }
     }
     for (const [id, v] of this.map) if (!alive.has(id)) { this.group.remove(v.obj); this.map.delete(id); }
+    // המסך התלוי בבין-עירוני שהמצלמה בתוכו (מבט נהג או פקח): מספר הקו, השעה והתחנות. האחרים — מסך כללי
+    if (this.monOn && this.monOn !== monBus) { const c = this.monOn.coach; if (c?.mon) c.mon.material = c.idle; this.monOn = null; }
+    if (monBus) { const c = monBus.coach; this.mon = this.mon || monitorDisplay(); if (c.mon && c.mon.material !== this.mon.mat) c.mon.material = this.mon.mat; this.monOn = monBus;
+      if ((this.monT = (this.monT || 0) - (dt || 0.016)) <= 0) { this.monT = 0.5; try { this.mon.draw(monitorData(monB, this.clock?.() || '')); } catch (e) { } } }
   }
   doorWorld(bus, which) {
     const v = this.map.get(bus.id); if (!v) return null;
