@@ -293,3 +293,24 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .res.grpres .badges .more{font-size:13px;font-weight:800;align-self:center;opacity:.75}
 
 #reshead .btn.sm{width:auto;display:inline-flex;margin-top:8px;padding:8px 14px;font-size:15px;min-height:auto}
+
+/* צורה: מצגת / שלט לתחנה / סטטוס — כל כפתור עם ציור קטן של העמוד בפרופורציות שלו */
+.forms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp2)}
+.forms button{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--r2);padding:8px 6px;cursor:pointer;color:var(--fg);font:800 13.5px var(--f-body);text-align:center;min-height:44px}
+.forms button[aria-checked="true"]{border-color:var(--after);box-shadow:0 0 0 2px var(--after)}
+.forms button span{display:flex;flex-direction:column;line-height:1.2}
+.forms small{font-weight:600;font-size:12px;color:var(--sub)}
+.forms .fm{height:44px;display:flex;align-items:center;justify-content:center}
+.forms .fm::before{content:"";display:block;border-radius:4px;border:1px solid var(--line);
+  background:linear-gradient(to bottom,#13201b 0 34%,#1f9152 34% 40%,#f2f5f3 40% 100%)}
+.forms .fm-deck::before{width:62px;height:35px;background:linear-gradient(to left,#dfe6e2 0 55%,#13201b 55% 100%)}
+.forms .fm-sign::before{width:31px;height:44px}
+.forms .fm-status::before{width:25px;height:44px;background:linear-gradient(to bottom,#13201b 0 30%,#1f9152 30% 34%,#dfe6e2 34% 70%,#f2f5f3 70%)}
+/* תמונות הסטטוס שהוכנו: אפשר לשמור או לשתף כל אחת */
+.pngs{display:flex;flex-wrap:wrap;gap:var(--sp2);justify-content:center}
+.pngs[hidden]{display:none}
+.dock .pngs{grid-column:1/-1}
+.pngs p{width:100%;margin:0;font-size:13.5px;color:var(--sub);text-align:center}
+.pngs a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;font-weight:800;color:var(--after);text-decoration:none}
+.pngs img{width:72px;height:128px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--card2)}
+.pngs .btn{width:100%}
