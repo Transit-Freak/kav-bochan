@@ -833,10 +833,10 @@
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     var form = formOf();
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper !== false, hol: idx.hol || [] });
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, hol: idx.hol || [] });
     pastTense(base, pages);
     drawKinds(pages);
-    ttUi(pages);
+    ttUi(pages); zmUi(pages);
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -901,6 +901,17 @@
   /* לוח הזמנים (קו חדש ושינוי בלו"ז): כללי / מפורט, טבלה / טקסט — נשמר עם המצגת, כמו העיצוב */
   // לו"ז עדכני — ברירת המחדל: מפורט (כל השעות); הודעה על שינוי — כללי
   function ttOpts() { var t = edits.tt || {}, v = t.v || (curPages && curPages.length && curPages.every(function (p) { return p.kind === 'current'; }) ? 'det' : 'gen'); return { v: v === 'det' ? 'det' : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
+  /* מפות מקורבות לתחנות — רק כשיש במצגת קו חדש או מבוטל. בלי בחירה: קו חדש — כן, קו מבוטל — לא (כמו ב-LCDeck) */
+  function zmUi(pages) {
+    var nk = pages.filter(function (p) { return p.kind === 'new' || p.kind === 'ended'; });
+    $('zmgrp').hidden = !nk.length;
+    var v = edits.zm || (nk.some(function (p) { return p.kind === 'new'; }) ? 'yes' : 'no');
+    $('zmgrp').querySelectorAll('[data-zm]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-zm') === v ? 'true' : 'false'); });
+  }
+  $('zmgrp').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-zm]'); if (!b) return;
+    edits.zm = b.getAttribute('data-zm'); saveEdits(); keepScroll(function () { render(curPages); });
+  });
   function ttUi(pages) {
     // שינוי קטן בלו"ז מוצג תמיד כטקסט — הבחירה מופיעה רק כשיש במצגת קו חדש או שינוי גדול יותר
     var cu = pages.some(function (p) { return p.kind === 'current'; }), o = ttOpts();
