@@ -21,21 +21,25 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
   timetable  שינוי בלוח הזמנים — אותו מסלול, שעות אחרות. משמעותי רק אם באחת מקבוצות הימים (ימים בשבוע שיש להם אותו לוח ישן ואותו לוח חדש, למשל א׳–ד׳ וחמישי לחוד) מספר הנסיעות השתנה,
              הנסיעה הראשונה/האחרונה זזה ב-10 דק' או יותר, או התדירות בשעות השיא/בשאר היום השתנתה ב-3 דק' או יותר,
              והלוח החדש נשאר גם בשבוע שאחריו (אחרת: שינוי זמני — tt_temp). הזזה קטנה של כל הנסיעות — tt_shift.
-שינוי שכבר נכנס לתוקף נשאר ברשימה KEEP_DAYS ימים (שבוע) (מהריצות הקודמות). שינוי עתידי
-שלא נמצא שוב בריצה של היום (המשרד ביטל אותו) — יורד.
+שינוי שכבר נכנס לתוקף נשאר ברשימה KEEP_DAYS ימים (שבועיים), עם הקובץ המלא שלו (data/l) — כך אפשר להכין
+מצגת גם לשינוי שכבר התחיל (מהריצות הקודמות; בדף: "כבר התחילו"). שינוי עתידי שלא נמצא שוב בריצה של היום
+(המשרד ביטל אותו) — יורד. כשה-GTFS של השבוע שעבר עוד לא ידע על שינוי שכבר התחיל, הוא "יימצא" שוב בכל לילה
+עם תאריך של היום — אז נשאר התאריך המקורי מהריצה הקודמת (keep_prev).
 
 הקלט — ישר מהארכיון היומי של דאטאבוס ב-S3 (tools/gtfs_zip.py, קריאה בטווחים בלי להוריד
 את כל ה-zip ובלי לכתוב לדיסק). הפלט תחת OUTDIR (ברירת מחדל line-changes):
   data/index.json        רשימת השינויים (לדף הראשי)
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
-  data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשבוע האחרון)
+  data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשבועיים האחרונים)
   data/places.json       רחובות (מתיאור התחנות) ושכונות (NBR_DIR, הפוליגונים הרשמיים) → אילו קווים עוצרים בהם
   data/tt/<NN>.json      לו"ז עדכני של כל קווי האוטובוס לשבוע הקרוב (מק"ט % 64; הדף טוען רק את הקובץ של הקו שנבחר) — current_tts
   l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
 רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
 235 כיוונים משתנים ב-184 קווים, 27 שינויים קטנים סוננו. עם LH_CHANGES (line-history/data/changes) נוספים
-לאינדקס השינויים מהשבוע האחרון של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
+לאינדקס השינויים מהשבועיים האחרונים של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
+חלופה שהוחלפה במק"ט-כיוון-חלופה אחר (find_renamed) — נבדקת כשינוי, גם כשההחלפה כבר הייתה בשבוע שעבר
+(ב-18.11.2026: 14 חלופות, למשל קו 970 של אגד ב-17.11).
 פלט נוסף: data/lines.json — כל הקווים (לחיפוש בדף).
 
 משתנים: TODAY (YYYY-MM-DD, ברירת מחדל היום בשעון ישראל), REF_DAYS (7), HORIZON (14),
@@ -64,7 +68,8 @@ def _today():
 TODAY = datetime.date.fromisoformat(os.environ['TODAY']) if os.environ.get('TODAY') else _today()
 REF_DAYS = int(os.environ.get('REF_DAYS', '7'))
 HORIZON = int(os.environ.get('HORIZON', '14'))
-KEEP_DAYS = int(os.environ.get('KEEP_DAYS', '7'))   # שינוי שהתחיל נשאר ברשימה שבוע, ואז יורד
+KEEP_DAYS = int(os.environ.get('KEEP_DAYS', '14'))   # שינוי שהתחיל נשאר ברשימה (עם המצגת המלאה) שבועיים, ואז יורד
+PAST_DAYS = KEEP_DAYS   # השינויים מ"הקו בזמן" (add_past) — אותו חלון
 CITIES_RAW = os.environ.get('CITIES', '')
 OUTDIR = os.environ.get('OUTDIR', 'line-changes')
 SITE = 'https://kavbochan.app/line-changes'
@@ -778,6 +783,71 @@ def find_alts(ended_codes, cand_index, exclude, max_n=ALT_MAX):
     return [(mk, cnt[mk], first[mk]) for mk in best[:max_n]]
 
 
+def find_renamed(keys, old_v, new_v, old, t0):
+    """חלופות שהוחלפו: {מק"ט-כיוון-חלופה חדש: (הישן, היום הראשון של החדש)}.
+    הישן — נסע בשבוע שעבר ולא נוסע מעכשיו; החדש — באותו מק"ט-כיוון, לא נסע בתחילת השבוע שעבר,
+    ומתחיל עד 4 ימים אחרי שהישן הפסיק. כמה ישנים לאותו חדש — זה שנסע אחרון (ובשוויון — זה עם הכי הרבה נסיעות)."""
+    dates = lambda vs: set().union(*[x['dates'] for x in vs.values()]) if vs else set()   # noqa: E731
+    by_dk = defaultdict(list)
+    for k in keys:
+        by_dk[dir_key(k)].append(k)
+    out = {}
+    for dk, ks in by_dk.items():
+        gone = [(max(dates(old_v[k])), sum(x['td'] for x in old_v[k].values()), k) for k in ks if old_v.get(k) and not new_v.get(k)]
+        if not gone:
+            continue
+        for k in ks:
+            if not new_v.get(k):
+                continue
+            od, nd = dates(old_v.get(k) or {}), dates(new_v[k])
+            F = min(od | nd)
+            # חלופה שנוסעת רק בחלק מימי השבוע (למשל רק בשישי) ופשוט עוד לא היה היום שלה — לא חדשה
+            wds = {d.weekday() for d in nd if d < t0 + datetime.timedelta(days=7)} or {F.weekday()}
+            if F <= old.d0 or not any((old.d0 + datetime.timedelta(days=i)).weekday() in wds for i in range((F - old.d0).days)):
+                continue
+            pre = [g for g in gone if g[0] < F <= g[0] + datetime.timedelta(days=4)]
+            if pre:
+                out[k] = (max(pre)[2], F)
+    return out
+
+
+def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats):
+    """חלופות שהוחלפו (find_renamed): רשומת שינוי מסלול רק כשהתחנות או הדרך באמת השתנו.
+    החלפת מספר בלבד (אותן תחנות, אותה דרך) — שום רשומה (stats['renamed_same']); אם השתנו רק השעות,
+    זה נמצא בנפרד כשינוי בלוח הזמנים (tt_change עובד לפי מק"ט-כיוון, בלי מספר החלופה)."""
+    DAY = datetime.timedelta(days=1)
+    found = []
+    for k, (ko, F) in renamed.items():
+        ov = old_v[ko]
+        om = main_variant(ov)
+        o_codes = [old.stops[s] for s in old.pat_list[om[0]] if s in old.stops]
+        D = max(F, t0)
+        win = {v: dict(x, td=sum(1 for d in x['dates'] if D <= d < D + 7 * DAY)) for v, x in new_v[k].items()}
+        nm = main_variant({v: x for v, x in win.items() if x['td']})
+        if nm is None:
+            continue
+        n_codes = [new.stops[s] for s in new.pat_list[nm[0]] if s in new.stops]
+        res, minor = compare(o_codes, n_codes, {s['code']: s for s in o_codes}, {s['code']: s for s in n_codes},
+                             shp_old.get(om[1], []), shp_new.get(nm[1], []))
+        if not (res['added'] or res['removed'] or res['moved'] or res['geo']):
+            stats['renamed_same'] = stats.get('renamed_same', 0) + 1
+            print(f'חלופה שהוחלפה: {ko} ← {k} ({F}) — רק המספר, לא שינוי', flush=True)
+            continue
+        print(f"חלופה שהוחלפה: {ko} ← {k} ({F}) — שינוי: +{len(res['added'])} -{len(res['removed'])} תחנות, דרך {res['dev']} מ'", flush=True)
+        r_new = new.routes[new_v[k][nm]['rid']]
+        found.append(dict(
+            rd=k, makat=k.split('-')[0], dir=(k.split('-') + ['', ''])[1], alt=(k.split('-') + ['', '', ''])[2],
+            line=r_new['line'], op=new.agency.get(r_new['ag'], ''), ag=r_new['ag'], ty=r_new['ty'],
+            long=r_new['long'], od=od_of(r_new['long']),
+            eff=F.isoformat(), formal=None, found=t0.isoformat(), was=ko,
+            old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(shp_old.get(om[1], [])))),
+            new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(shp_new.get(nm[1], [])))),
+            added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
+            moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
+        ))
+    return found
+
+
 def run():
     t0 = TODAY
     ref_day = t0 - datetime.timedelta(days=REF_DAYS)
@@ -811,6 +881,15 @@ def run():
             stats['same'] += 1
             continue
         cands[k] = firsts
+
+    # חלופה שהוחלפה במק"ט-כיוון-חלופה אחר (למשל 10970-1-# ← 10970-1-0, ב-17.11.2026): לכל אחד מהם לבד זה
+    # "וריאנט שנגמר" ו"וריאנט חדש", ושום שינוי לא נמצא. כשהחלופה החדשה מתחילה עד 4 ימים אחרי שהישנה הפסיקה
+    # (גם אם זה כבר קרה בשבוע שעבר) — משווים את הישנה (השבוע שעבר) לחדשה (מה שנוסע מעכשיו); התאריך — היום
+    # הראשון של החלופה החדשה. שינוי שכבר התחיל נשמר אחר כך עם השאר (keep_prev).
+    renamed = find_renamed(keys, old_v, new_v, old, t0)
+    for k in renamed:
+        cands.pop(k, None)
+    stats['renamed'] = len(renamed)
 
     # קו חדש / קו מבוטל — לפי מק"ט (כל הכיוונים והחלופות יחד)
     DAY = datetime.timedelta(days=1)
@@ -885,6 +964,9 @@ def run():
     for k in cands:
         need_old |= {s for _, s in old_v[k]}
         need_new |= {s for _, s in new_v[k]}
+    for k, (ko, F) in renamed.items():
+        need_old |= {s for _, s in old_v[ko]}
+        need_new |= {s for _, s in new_v[k]}
     for dm in new_main.values():
         need_new |= {m[1] for m, _ in dm.values()}
     for dm in ended_main.values():
@@ -942,6 +1024,7 @@ def run():
             added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
             moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
         ))
+    found += rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
     stats['changed'] = len(found)
 
     # ---- לוחות זמנים: יציאות מהתחנה הראשונה, לכל מק"ט-כיוון (כל החלופות יחד)
@@ -1186,7 +1269,7 @@ def lines_index(feed, variants, extra=None):
     """כל הקווים שפועלים בימים הקרובים — לחיפוש בדף (מספר, חברה, מוצא, יעד, ערים).
     extra = (GTFS של השבוע שעבר, הווריאנטים של הקווים שמבוטלים) — כדי שגם אותם אפשר למצוא.
     פורמט דחוס: ops/cities הן רשימות, ובכל קו אינדקסים אליהן.
-    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשבוע האחרון — add_past)]"""
+    קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשבועיים האחרונים — add_past)]"""
     by = {}
     for fd, vmap in [(feed, variants)] + ([extra] if extra else []):
       for rd, vs in vmap.items():
@@ -1464,28 +1547,92 @@ def kind_summary(kd, dirs):
     return 'שינוי בלוח הזמנים' + (': ' + ', '.join(parts[:2]) if parts else '')
 
 
+def keep_prev(found, prev, t0, keep_from, keep_all=False):
+    """השינויים מהריצות הקודמות (prev) שכבר נכנסו לתוקף, בחלון של KEEP_DAYS ימים, נשארים עם כל הפרטים.
+    שינוי שהתחיל לא יימצא שוב כשה-GTFS של השבוע שעבר כבר כולל אותו. אבל כשה-GTFS של השבוע שעבר
+    עוד לא ידע עליו (פורסם באיחור), הוא "יימצא" שוב בכל לילה עם התאריך של היום. אם המצב "אחרי" זהה
+    (אותן תחנות; בלו"ז — אותו לוח חדש) — זה אותו שינוי: נשאר הרישום הקודם, עם התאריך המקורי ומזהה הדף.
+    ואם היום נמצא אותו מצב "אחרי" עם תאריך מוקדם יותר — נשאר הרישום של היום.
+    שינוי אחר באותו כיוון (קרוב, או למצב אחר) — נשמר לצידו."""
+    kind = lambda f: f.get('kind') or 'route'   # noqa: E731
+    codes = lambda f: [s[0] for s in (f.get('new') or {}).get('stops', [])]   # noqa: E731
+    sn = lambda f: [e.get('sn') for e in f.get('tt', [])]   # noqa: E731
+    seen = {(f['rd'], kind(f), f['eff']) for f in found}
+    drop = set()
+    keep = []
+    for p in sorted(prev, key=lambda p: p['eff']):
+        key = (p['rd'], kind(p))
+        if (key + (p['eff'],)) in seen or not (keep_all or keep_from <= p['eff'] < t0):
+            continue
+        same = [i for i, f in enumerate(found) if (f['rd'], kind(f)) == key and f['eff'] <= t0 and f.get('found', t0) >= t0
+                and (kind(p) != 'route' or codes(f) == codes(p)) and (kind(p) != 'timetable' or sn(f) == sn(p))]
+        if any(found[i]['eff'] <= p['eff'] for i in same):
+            continue   # נמצא היום עם תאריך מוקדם יותר (למשל חלופה שהוחלפה) — הרישום של היום מחליף את הקודם
+        drop.update(same)
+        keep.append(p)
+        seen.add(key + (p['eff'],))
+    return [f for i, f in enumerate(found) if i not in drop] + keep
+
+
+ALIAS_DAYS = 30   # מזהה של דף שהשתנה או ירד — קישורים ישנים ממשיכים לעבוד 30 יום
+
+
+def make_alias(prev_pages, prev_alias, new_pages, index, t0):
+    """קישורים ישנים: {מזהה ישן: [מזהה חדש או None, תאריך]}. מזהה שהיה אתמול ואין היום (התאריך שלו
+    השתנה, או שהשינוי ירד) — המזהה החדש: באותו מק"ט ובאותו סוג, עם כיוון משותף (ואחרת — כל סוג עם כיוון משותף,
+    למשל שינוי בלו"ז שהתברר כשינוי מסלול). אין כזה — None, והדף מציג את הקו. נשמר ALIAS_DAYS ימים, עם הכינויים
+    מהריצות הקודמות; כינוי שהיעד שלו ירד היום — מצביע על היעד החדש של היעד."""
+    suf = lambda i: (re.match(r'^\d+-\d{8}(-[net])?$', i) or [None, None])[1] or ''   # noqa: E731
+    dk = lambda rds: {dir_key(r) for r in rds}   # noqa: E731
+    by_mk = defaultdict(list)
+    for r in index:
+        by_mk[r['makat']].append(r['id'])
+
+    def succ(old, info):
+        mk, sx = old.split('-')[0], suf(old)
+        cands = [i for i in by_mk.get(mk, []) if dk(new_pages[i]) & dk(info.get('rds', []))]
+        same = [i for i in cands if suf(i) == sx] or cands
+        if not same and not info.get('rds'):
+            same = [i for i in by_mk.get(mk, []) if suf(i) == sx]
+        e = info.get('eff') or ''
+        return min(same, key=lambda i: (abs(int(i.split('-')[1]) - int((e or '0').replace('-', '') or 0)), i)) if same else None
+
+    keep_from = (datetime.date.fromisoformat(t0) - datetime.timedelta(days=ALIAS_DAYS)).isoformat()
+    out = {}
+    for old, info in prev_pages.items():
+        if old not in new_pages:
+            out[old] = [succ(old, info), t0]
+    for old, (to, d) in prev_alias.items():
+        if old in new_pages or old in out or d < keep_from:
+            continue
+        if to and to not in new_pages:
+            to = out.get(to, [None])[0] or succ(to, prev_pages.get(to, {}))
+        out[old] = [to, d]
+    return out
+
+
 def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=False):
     data = os.path.join(OUTDIR, 'data')
     os.makedirs(os.path.join(data, 'l'), exist_ok=True)
     # השינויים מהריצות הקודמות — מקובצי הדפים עצמם (אין קובץ מצב נפרד)
-    prev = []
+    prev, prev_pages = [], {}
     for fn in sorted(os.listdir(os.path.join(data, 'l'))):
         if fn.endswith('.json'):
             try:
-                prev += json.load(open(os.path.join(data, 'l', fn), encoding='utf-8')).get('dirs', [])
+                dd = json.load(open(os.path.join(data, 'l', fn), encoding='utf-8'))
+                prev += dd.get('dirs', [])
+                prev_pages[fn[:-5]] = dict(eff=dd.get('eff', ''), rds=[x['rd'] for x in dd.get('dirs', [])])
             except Exception:  # noqa: BLE001
                 pass
+    try:
+        prev_alias = json.load(open(os.path.join(data, 'index.json'), encoding='utf-8')).get('alias', {})
+    except Exception:  # noqa: BLE001
+        prev_alias = {}
     if os.path.exists(os.path.join(data, 'state.json')):
         os.remove(os.path.join(data, 'state.json'))
     t0 = TODAY.isoformat()
     keep_from = (TODAY - datetime.timedelta(days=KEEP_DAYS)).isoformat()
-    kind = lambda f: f.get('kind') or 'route'   # noqa: E731
-    seen = {(f['rd'], kind(f)) for f in found}
-    # שינוי שכבר נכנס לתוקף לא יימצא שוב (השבוע שעבר כבר כולל אותו) — נשמר מהריצות הקודמות
-    for p in prev:
-        if (p['rd'], kind(p)) not in seen and (keep_all or keep_from <= p['eff'] < t0):
-            found.append(p)
-            seen.add((p['rd'], kind(p)))
+    found = keep_prev(found, prev, t0, keep_from, keep_all)
     found = [f for f in found if f.get('ty') != '2' and f.get('line')]   # רכבת ישראל — לא בכלי הזה
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
     add_walks(found, data)
@@ -1498,15 +1645,20 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
             json.dump(dict(gen=t0, cities=lines['cities'], **places), open(os.path.join(data, 'places.json'), 'w', encoding='utf-8'),
                       ensure_ascii=False, separators=(',', ':'))
 
-    # דף לכל מק"ט (שני הכיוונים וכל החלופות)
+    kind = lambda f: f.get('kind') or 'route'   # noqa: E731
+    # דף לכל מק"ט (שני הכיוונים וכל החלופות). כשבאותו כיוון יש שני שינויים (אחד שכבר התחיל ואחד קרוב) — דף לכל אחד
     pages = defaultdict(list)
-    for f in found:
-        pages[(f['ag'], f['makat'], kind(f))].append(f)
+    cnt = defaultdict(int)
+    for f in sorted(found, key=lambda f: f['eff']):
+        key = (f['ag'], f['makat'], kind(f))
+        pages[key + (cnt[key + (f['rd'],)],)].append(f)
+        cnt[key + (f['rd'],)] += 1
     index = []
     want = set()
+    pages_rds = {}
     tpl = open(os.path.join(OUTDIR, 'line-template.html'), encoding='utf-8').read()
     os.makedirs(os.path.join(OUTDIR, 'l'), exist_ok=True)
-    for (ag, makat, kd), dirs in pages.items():
+    for (ag, makat, kd, _n), dirs in pages.items():
         dirs.sort(key=lambda f: (f['dir'], f['alt']))
         eff = min(f['eff'] for f in dirs)
         formal = min((f['formal'] for f in dirs if f.get('formal')), default=None)
@@ -1514,6 +1666,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         # הסוגים החדשים: עם סיומת (n קו חדש · e קו מבוטל · t לוח זמנים)
         pid = f'{makat}-{(formal or eff).replace("-", "")}' + KIND_SUFFIX.get(kd, '')
         want.add(pid)
+        pages_rds[pid] = dirs
         f0 = dirs[0]
         cities = sorted({s[4] for f in dirs for s in f['new']['stops'] + f['old']['stops'] if s[4]})
         ch_codes = {c for f in dirs for c in f['added'] + f['removed']} | {m['code'] for f in dirs for m in f['moved']}
@@ -1534,6 +1687,8 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                    sig=same_sig(dirs, formal or eff) if kd == 'route' else '',   # אותו שינוי בכמה קווים (אותן תחנות, אותו יום) — מקובצים יחד באתר
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
+        if (formal or eff) < t0:
+            rec['started'] = 1   # כבר התחיל (נשמר מהריצות הקודמות, KEEP_DAYS). לא "past" — בדף זה שינוי מהארכיון
         if kd != 'route':
             rec['kind'] = kd
             rec['dirs'] = [dict(dir=f['dir'], eff=f['eff']) for f in dirs]
@@ -1545,7 +1700,18 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         od_t = f'{f0["od"][0]} ↔ {f0["od"][1]}' if f0['od'][0] != f0['od'][1] else f0['od'][0]
-        if kd == 'new':
+        was = rec.get('started')
+        if was and kd == 'ended':
+            title = f'קו {f0["line"]} {od_t} הפסיק לפעול — נסיעה אחרונה ב-{fmt_d(rec["last"])}'
+            desc = f'{f0["op"]}. מפה של המסלול, ואילו קווים עוצרים באותן תחנות.'
+        elif was:
+            title = {'new': f'קו חדש: {f0["line"]} {od_t} מאז {fmt_d(eff)}',
+                     'timetable': f'לוח זמנים חדש לקו {f0["line"]} {od_t} מאז {fmt_d(eff)}'}.get(
+                kd, f'שינוי בקו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]} מאז {fmt_d(rec["formal"] or eff)}')
+            desc = {'new': f'{f0["op"]}. מפה של המסלול, כל התחנות, ומתי הקו נוסע.',
+                    'timetable': f'{summ}. {f0["op"]}. מה השתנה בלוח הזמנים, ושעות היציאה הישנות והחדשות.'}.get(
+                kd, f'{summ}. {f0["op"]}. מה השתנה, מפה של המסלול הישן והחדש, ואיפה התחנה הקרובה במקום תחנה שבוטלה.')
+        elif kd == 'new':
             title = f'קו חדש: {f0["line"]} {od_t} מ-{fmt_d(eff)}'
             desc = f'{f0["op"]}. מפה של המסלול, כל התחנות, ומתי הקו נוסע.'
         elif kd == 'ended':
@@ -1560,15 +1726,17 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         html = (tpl.replace('{{TITLE}}', esc(title)).replace('{{DESC}}', esc(desc))
                 .replace('{{URL}}', f'{SITE}/l/{pid}.html').replace('{{ID}}', pid))
         open(os.path.join(OUTDIR, 'l', pid + '.html'), 'w', encoding='utf-8').write(html)
-    # ניקוי דפים שכבר לא ברשימה
+    alias = make_alias(prev_pages, prev_alias, {r['id']: [d['rd'] for d in pages_rds[r['id']]] for r in index}, index, t0)
+    # ניקוי דפים שכבר לא ברשימה. דף השיתוף (l/<id>.html) של מזהה ישן נשאר כל עוד יש לו כינוי (ALIAS_DAYS):
+    # הוא מעביר ל-?c=<המזהה הישן>, והדף מוצא את השינוי העדכני (או את הקו)
     for d, ext in ((os.path.join(data, 'l'), '.json'), (os.path.join(OUTDIR, 'l'), '.html')):
         for fn in os.listdir(d):
-            if fn.endswith(ext) and fn[:-len(ext)] not in want:
+            if fn.endswith(ext) and fn[:-len(ext)] not in want and not (ext == '.html' and fn[:-len(ext)] in alias):
                 os.remove(os.path.join(d, fn))
     index.sort(key=lambda r: (r['eff'], int(re.sub(r'\D', '', r['line']) or 0)))
     json.dump(dict(gen=t0, feed=new_day.isoformat(), ref=old_day.isoformat(), horizon=HORIZON,
                    scope=sorted(CITIES_RAW.split(',')) if CITIES else [], stats=stats, filtered=filtered, hol=hol_week(TODAY),
-                   changes=index),
+                   changes=index, alias=alias),
               open(os.path.join(data, 'index.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, separators=(',', ':'))
     print(f'{len(index)} דפים נכתבו ל-{OUTDIR}', flush=True)
@@ -1577,8 +1745,8 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
 PAST_KINDS = {'route', 'stops', 'stops-add', 'stops-del', 'extend', 'shorten', 'terminal'}
 
 
-def add_past(lines_path, ch_dir, days=7):
-    """שינויי מסלול ותחנות מהשבוע האחרון, מ"הקו בזמן" (line-history/data/changes/YYYY-MM.json):
+def add_past(lines_path, ch_dir, days=PAST_DAYS):
+    """שינויי מסלול ותחנות מהשבועיים האחרונים, מ"הקו בזמן" (line-history/data/changes/YYYY-MM.json):
     לכל קו באינדקס — [[תאריך, כיוון-חלופה, סוג], ...]. הגאומטריה והתחנות עצמן נטענות בדף
     מקובצי הקווים של "הקו בזמן" (line-history/data/lines/<rd>.json), רק לקו שנבחר."""
     li = json.load(open(lines_path, encoding='utf-8'))
@@ -1598,7 +1766,7 @@ def add_past(lines_path, ch_dir, days=7):
         ln[8:] = [[list(x) for x in ev]] if ev else []
     li['past_since'] = since
     json.dump(li, open(lines_path, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    print(f'שינויים מהשבוע האחרון: {n} אירועים · {sum(1 for ln in li["lines"] if len(ln) > 8)} קווים', flush=True)
+    print(f'שינויים מהשבועיים האחרונים: {n} אירועים · {sum(1 for ln in li["lines"] if len(ln) > 8)} קווים', flush=True)
 
 
 if __name__ == '__main__':
