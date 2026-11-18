@@ -103,15 +103,15 @@
   var N = {
   // לכל חג — כל כלי מקבל סמל אחר של החג, ואף מילה לא חוזרת בשני שמות
   // (שלמה 07.09: "חצי מהסמלים הם מסכות", "יש כבר אתר עם אושפיזין")
-    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך", recep: "קליטה בתקיעה" },
-    sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים", recep: "קליטה בסוכה" },
-    hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה", recep: "קליטת האור" },
-    tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק", recep: "קליטה בין העצים" },
-    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש", recep: "קליטה בשושן" },
-    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות", recep: "ארבע כוסות קליטה" },
-    atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על הטקס", fares: "מחיר הקבב", ratzif: "דגל כפול", fleet: "צי חיל הים", rail: "רכבת העצמאות", bus: "האוטובוס עם הפטיש", recep: "קליטה כחול-לבן" },
-    lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המרשמלו", fares: "מחיר תפוח האדמה", ratzif: "חץ כפול", fleet: "צי הזרדים", rail: "רכבת מירון", bus: "אוטובוס על האש", recep: "קליטה ליד המדורה" },
-    shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על התיקון", fares: "מחיר החלב", ratzif: "בלינצ'ס כפול", fleet: "צי הפרחים", rail: "רכבת הר סיני", bus: "אוטובוס מגילת רות", recep: "קליטה בהר" },
+    rosh:      { hub: "הקו המתוק", greet: "שנה טובה ומתוקה מהקו הבוחן", ico: "🍎", pach: "הרימון הרקוב", gold: "613 גרעינים", bug: "העיקוף של השנה", next: "תחנה טובה", time: "השנה שהייתה", skip: "הקו שמדלג לשנה הבאה", fares: "מחיר הדבש", ratzif: "תפוח כפול", fleet: "צי החלות", rail: "רכבת התקיעות", bus: "דיוק בתשליך", recep: "קליטה בתקיעה", slides: "מצגת התחלה חדשה", speed: "איפה הזנב נתקע", alerts: "הקו המבשר טובות", feeder: "קו הסימנים", game: "משחק התמרים" },
+    sukkot:    { hub: "הסוכה הבוחנת", greet: "חג סוכות שמח", ico: "🌿", pach: "הסוכה הרעועה", gold: "האתרוג המהודר", bug: "הלולב העקום", next: "תחנת אושפיזין", time: null, skip: "הקו שדילג על ההדס", fares: "מחיר הערבה", ratzif: "סכך כפול", fleet: "צי הקישוטים", rail: "רכבת שמחת תורה", bus: "אוטובוס ארבעת המינים", recep: "קליטה בסוכה", slides: "מצגת ההקפות", speed: "איפה האורח נתקע", alerts: "הקו המזמין", feeder: "הקו האוסף", game: "משחק ההושענות" },
+    hanukkah:  { hub: "הקו המאיר", greet: "חג אורים שמח", ico: "🕎", pach: "הסופגנייה השרופה", gold: "פך השמן", bug: "הסביבון שסטה", next: "נר תחנה", time: "שמונה ימים של שינויים", skip: "הקו שדילג על הלביבה", fares: "מחיר דמי החנוכה", ratzif: "חנוכייה כפולה", fleet: "צי המכבים", rail: "רכבת האורים", bus: "נס גדול היה פה", recep: "קליטת האור", slides: "מצגת הפתילות", speed: "איפה הריבה נתקעה", alerts: "השמש המודיע", feeder: "הקו המטוגן", game: "משחק החשמונאים" },
+    tubishvat: { hub: "הקו הפורח", greet: "ט\"ו בשבט שמח", ico: "🌳", pach: "העץ היבש", gold: "השקדייה הפורחת", bug: "השורש העקום", next: null, time: "טבעות העץ", skip: "הקו שדילג על השתילה", fares: "מחיר הצימוקים", ratzif: "זית כפול", fleet: "צי הפירות", rail: "רכבת שבעת המינים", bus: "האוטובוס הירוק", recep: "קליטה בין העצים", slides: "מצגת הנטיעות", speed: "איפה החרוב נתקע", alerts: "הקו המבשר אביב", feeder: "הקו המשקה", game: "משחק הגינה" },
+    purim:     { hub: "הקו המתחפש", greet: "פורים שמח", ico: "🎭", pach: "הרעשן", gold: "משלוח מנות", bug: "ונהפוך הוא", next: "התחפושת", time: "מגילת הקו", skip: "הקו שדילג על המשתה", fares: "מחיר אוזני המן", ratzif: "כתר כפול", fleet: "צי הליצנים", rail: "רכבת שושן הבירה", bus: "אוטובוס אחשוורוש", recep: "קליטה בשושן", slides: "מצגת הפור", speed: "איפה הסוס נתקע", alerts: "הקו הכרוז", feeder: "קו הסעודה", game: "משחק המסכות" },
+    pesach:    { hub: "הקו בודק חמץ", greet: "חג פסח שמח", ico: "🍷", pach: "החמץ", gold: "האפיקומן", bug: "ארבעים שנה במדבר", next: "מה נשתנה", time: "ההגדה של הקו", skip: "הקו שפסח", fares: "מחיר המרור", ratzif: "כוס כפולה", fleet: "צי המצות", rail: "רכבת יציאת מצרים", bus: "אוטובוס עשר המכות", recep: "ארבע כוסות קליטה", slides: "מצגת דיינו", speed: "איפה המרכבה נתקעה", alerts: "הקו המגיד", feeder: "קו החרוסת", game: "משחק החד גדיא" },
+    atzmaut:   { hub: "הקו הכחול-לבן", greet: "יום עצמאות שמח", ico: "🇮🇱", pach: "המנגל הכבוי", gold: "המטס", bug: "הזיקוק שסטה", next: null, time: years + " שנים של קווים", skip: "הקו שדילג על הטקס", fares: "מחיר הקבב", ratzif: "דגל כפול", fleet: "צי חיל הים", rail: "רכבת העצמאות", bus: "האוטובוס עם הפטיש", recep: "קליטה כחול-לבן", slides: "מצגת ההכרזה", speed: "איפה הפיקניק נתקע", alerts: "הקו המדליק משואה", feeder: "קו הפיתות", game: "חידון הקווים" },
+    lagbaomer: { hub: "הקו הבוער", greet: "ל\"ג בעומר שמח", ico: "🔥", pach: "המדורה שכבתה", gold: "המדורה הגדולה", bug: "הקשת שהתעקמה", next: null, time: null, skip: "הקו שדילג על המרשמלו", fares: "מחיר תפוח האדמה", ratzif: "חץ כפול", fleet: "צי הזרדים", rail: "רכבת מירון", bus: "אוטובוס על האש", recep: "קליטה ליד המדורה", slides: "מצגת הניצוצות", speed: "איפה העשן נתקע", alerts: "הקו המהבהב", feeder: "קו הקרשים", game: "משחק הלהבות" },
+    shavuot:   { hub: "הקו הלבן", greet: "חג שבועות שמח", ico: "🧀", pach: "הגבינה שהחמיצה", gold: "עוגת הגבינה", bug: "הביכורים שהלכו לאיבוד", next: null, time: null, skip: "הקו שדילג על התיקון", fares: "מחיר החלב", ratzif: "בלינצ'ס כפול", fleet: "צי הפרחים", rail: "רכבת הר סיני", bus: "אוטובוס מגילת רות", recep: "קליטה בהר", slides: "מצגת הלוחות", speed: "איפה הטרקטור נתקע", alerts: "הקו הקורא", feeder: "קו הפשטידה", game: "משחק הקציר" },
     yerushalayim: { greet: "יום ירושלים שמח", ico: "🏙️" },
     // ימים שקטים — בלי שמות, בלי אפקטים
     gedaliah: { quiet: true, greet: "צום קל ומועיל — צום גדליה", ico: "🕯️" },
@@ -234,41 +234,142 @@
   // כל כלי — סמל אחר של החג (שלמה 07.09: "חצי מהסמלים הם מסכות")
   var ART = {
     rosh:      { pach: pomRot, gold: pomGold, bug: shofar, next: em("🍎", "🍯"), time: honeyClock,
-                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: rail("📯"), bus: bus("🐟"), recep: recepRosh },
+                 skip: em("🗓️", "⏭️"), fares: em("🎫", "🍯"), ratzif: two("🍎"), fleet: three("🥯"), rail: rail("📯"), bus: bus("🐟"), recep: recepRosh,
+                 slides: em("📑", "🆕"), speed: em("🐌", "🍯"), alerts: em("📢", "✨"), feeder: em("🍽️", "🥕"), game: em("🎮", "🌴") },
     sukkot:    { pach: sukkah, gold: etrog, bug: lulav, next: em("🚏", "🛖"), time: em("🕰️", "🍂"),
-                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: rail("📜"), bus: bus("🍋"), recep: recepSukkot },
+                 skip: em("🌿", "⏭️"), fares: em("🎫", "🍃"), ratzif: two("🌴"), fleet: three("🏮"), rail: rail("📜"), bus: bus("🍋"), recep: recepSukkot,
+                 slides: em("📑", "🎶"), speed: em("🧳", "⏳"), alerts: em("💌", "🍂"), feeder: em("🧺", "🍇"), game: em("🎮", "🌾") },
     hanukkah:  { pach: sufg, gold: jug, bug: dreidel, next: em("🚏", "🕯️"), time: menorah(),
-                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: rail("✨"), bus: bus("🪔"), recep: recepHan },
+                 skip: em("🥞", "⏭️"), fares: em("🎫", "🪙"), ratzif: two("🕎"), fleet: three("🛡️"), rail: rail("✨"), bus: bus("🪔"), recep: recepHan,
+                 slides: em("📑", "🕯️"), speed: em("🍩", "🍓"), alerts: em("📢", "🕯️"), feeder: em("🍳", "🫒"), game: em("🎮", "🔥") },
     tubishvat: { pach: dryTree, gold: blossom, bug: root, next: em("🚏", "🌳"), time: rings,
-                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: rail("🌾"), bus: bus("🍃"), recep: recepTu },
+                 skip: em("🌱", "⏭️"), fares: em("🎫", "🍇"), ratzif: two("🫒"), fleet: "<span class='hag-em hag-three'>🍎🍐🍊</span>", rail: rail("🌾"), bus: bus("🍃"), recep: recepTu,
+                 slides: em("📑", "🪴"), speed: em("🫘", "🐌"), alerts: em("📢", "🌸"), feeder: em("🪣", "💧"), game: em("🎮", "🌼") },
     purim:     { pach: gragger, gold: basket, bug: flipped, next: em("🎭"), time: scroll,
-                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: rail("🏰"), bus: bus("🐎"), recep: recepPurim },
+                 skip: em("🎉", "⏭️"), fares: oznei, ratzif: two("👑"), fleet: three("🤡"), rail: rail("🏰"), bus: bus("🐎"), recep: recepPurim,
+                 slides: em("📑", "🎲"), speed: em("🐴", "🐌"), alerts: em("📢", "🎺"), feeder: em("🍲", "🍪"), game: em("🎮", "🪅") },
     pesach:    { pach: em("🍞"), gold: matzah, bug: desert, next: em("🚏", "❓"), time: em("📖", "🍷"),
-                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: rail("🌊"), bus: bus("🐸"), recep: recepPesach },
+                 skip: em("🐑", "⏭️"), fares: em("🎫", "🥬"), ratzif: two("🍷"), fleet: multi(matzah.replace(/<text[^>]*>✨<\/text>/, ""), 3), rail: rail("🌊"), bus: bus("🐸"), recep: recepPesach,
+                 slides: em("📑", "🎶"), speed: em("🛞", "🌊"), alerts: em("🗣️", "📖"), feeder: em("🥣", "🌰"), game: em("🎮", "🐐") },
     atzmaut:   { pach: grill, gold: flyover, bug: fwZig, next: em("🇮🇱"), time: em("🕰️", "🎂"),
-                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: rail("🎆"), bus: bus("🔨"), recep: recepAtz },
+                 skip: em("🏅", "⏭️"), fares: em("🎫", "🍢"), ratzif: two("🇮🇱"), fleet: three("⚓"), rail: rail("🎆"), bus: bus("🔨"), recep: recepAtz,
+                 slides: em("📑", "🎺"), speed: em("🧺", "🚗"), alerts: em("🔥", "✡️"), feeder: em("🥙"), game: em("🏆", "❓") },
     lagbaomer: { pach: fireOut, gold: fireBig, bug: bow, next: em("🔥"), time: em("🕰️", "🌙"),
-                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: rail("⛰️"), bus: bus("🍖"), recep: recepLag },
+                 skip: em("🍡", "⏭️"), fares: em("🎫", "🥔"), ratzif: two("🏹"), fleet: three("🪵"), rail: rail("⛰️"), bus: bus("🍖"), recep: recepLag,
+                 slides: em("📑", "✨"), speed: em("💨", "🐌"), alerts: em("📢", "💥"), feeder: em("📦", "🔨"), game: em("🎮", "🔥") },
     shavuot:   { pach: cheese, gold: em("🍰", "✨"), bug: bikkurim, next: em("🚏", "🌾"), time: em("🕰️", "🧀"),
-                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: rail("⛰️"), bus: bus("📜"), recep: recepShav }
+                 skip: em("🌙", "⏭️"), fares: em("🎫", "🥛"), ratzif: two("🥞"), fleet: three("💐"), rail: rail("⛰️"), bus: bus("📜"), recep: recepShav,
+                 slides: em("📑", "🪨"), speed: em("🚜", "🐌"), alerts: em("📢", "📖"), feeder: em("🥧"), game: em("🎮", "🌾") }
   };
-  // העין של "הקו הבוחן" בכל חג
-  function eye(pupil, extra, stroke) {
-    stroke = stroke || "#38bdf8";
-    return "<svg viewBox='0 0 120 120' class='hag-eye' aria-hidden='true'><rect width='120' height='120' rx='26' fill='#0f172a'/><path d='M14 60 Q60 20 106 60 Q60 100 14 60 Z' stroke='" + stroke + "' stroke-width='6' fill='none' stroke-linejoin='round'/>" + pupil + "<path d='M22 60 H34 M86 60 H98' stroke='" + stroke + "' stroke-width='4' stroke-linecap='round' stroke-dasharray='1 7'/>" + (extra || "") + "</svg>";
+  // העין של "הקו הבוחן" בכל חג — באותו עיצוב כמו העין בדף הבית (ריבוע בהיר, עין כחולה), עם קישוט החג סביבה.
+  // הקישוט: bg — בתוך הריבוע, מאחורי העין · fg — מעל העין, ויכול לצאת מהריבוע (תיבת התצוגה FVB).
+  // iris — צבעי הקשתית, line — צבע קו העין. משמש לעין הגדולה בדף הבית (העין החיה נשארת ומקבלת את הקישוט),
+  // לעין הקטנה ליד השם "הקו הבוחן" בכותרת ולפייביקון.
+  var FVB = [-24, -30, 168, 168];
+  var TILE = "<rect width='120' height='120' rx='26'/>";
+  function candles() {   // חנוכייה על גג הריבוע: שמונה נרות ושמש גבוה באמצע, כולם דולקים
+    var o = "<rect x='2' y='-7' width='116' height='8' rx='4' fill='url(#hgfGold)' stroke='#92400e' stroke-width='1.5'/>" +
+      "<rect x='54' y='-16' width='12' height='10' rx='2' fill='url(#hgfGold)' stroke='#92400e' stroke-width='1.2'/>";
+    [10, 23, 36, 49, 71, 84, 97, 110, 60].forEach(function (x, i) {
+      var sh = i === 8, bot = sh ? -15 : -6, top = bot - 13, c = i % 2 ? "#dbeafe" : "#fff";
+      o += "<rect x='" + (x - 3.5) + "' y='" + top + "' width='7' height='13' rx='1.5' fill='" + c + "' stroke='#1d4ed8' stroke-width='1'/>" +
+        "<ellipse class='hag-fl' cx='" + x + "' cy='" + (top - 6.5) + "' rx='4.4' ry='7' fill='#f97316'/><ellipse cx='" + x + "' cy='" + (top - 5) + "' rx='2.1' ry='3.8' fill='#fde68a'/>";
+    });
+    return o;
   }
-  var PUP = "<circle cx='60' cy='60' r='20' fill='#38bdf8'/><circle cx='60' cy='60' r='9.5' fill='#0f172a'/><circle cx='66' cy='54' r='3.5' fill='#fff'/>";
-  var EYES = {
-    rosh: eye("<circle cx='60' cy='62' r='19' fill='#ef4444'/><path d='M56 44 q4 -8 8 -2' stroke='#16a34a' stroke-width='4' fill='none' stroke-linecap='round'/><circle cx='66' cy='56' r='3.5' fill='#fff' opacity='.8'/>", "<path d='M70 96 q14 -6 22 4' stroke='#f59e0b' stroke-width='6' fill='none' stroke-linecap='round'/>"),
-    sukkot: eye(PUP, "<path d='M8 28 L112 22' stroke='#16a34a' stroke-width='7' stroke-linecap='round'/><path d='M14 20 L104 14 M20 12 L98 8' stroke='#22c55e' stroke-width='4' stroke-linecap='round' opacity='.8'/>"),
-    hanukkah: eye("<ellipse cx='60' cy='58' rx='12' ry='20' fill='#fb923c'/><ellipse cx='60' cy='63' rx='6' ry='11' fill='#fde68a'/><rect x='56' y='78' width='8' height='18' rx='2' fill='#fff'/>", "", "#fbbf24"),
-    tubishvat: eye("<circle cx='60' cy='60' r='20' fill='#16a34a'/><circle cx='52' cy='54' r='5' fill='#f9a8d4'/><circle cx='66' cy='66' r='5' fill='#f9a8d4'/><circle cx='66' cy='52' r='4' fill='#fbbf24'/>", "<path d='M60 96 V80' stroke='#92400e' stroke-width='5' stroke-linecap='round'/>", "#4ade80"),
-    purim: eye(PUP, "<path d='M18 50 Q60 30 102 50 Q104 72 80 78 Q60 84 40 78 Q16 72 18 50 Z' fill='#a855f7' opacity='.85'/><path d='M40 58 Q50 50 60 58 M60 58 Q70 50 80 58' stroke='#0f172a' stroke-width='4' fill='none' stroke-linecap='round'/><circle cx='50' cy='58' r='5' fill='#0f172a'/><circle cx='70' cy='58' r='5' fill='#0f172a'/><path d='M100 46 q14 -20 -2 -28' stroke='#fbbf24' stroke-width='5' fill='none' stroke-linecap='round'/>"),
-    pesach: eye(PUP, "<path d='M92 18 q-12 20 4 44' stroke='#fde68a' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M92 18 q-8 6 -14 4 q8 -2 10 -12 q4 6 12 6 q-8 2 -8 2' fill='#fde68a'/><rect x='18' y='86' width='26' height='12' rx='2' fill='#fbbf24'/><ellipse cx='31' cy='80' rx='4' ry='8' fill='#fb923c'/>"),
-    atzmaut: eye("<circle cx='60' cy='60' r='20' fill='#fff'/><path d='M50 52 L70 52 L60 70 Z M50 68 L70 68 L60 50 Z' fill='none' stroke='#1d4ed8' stroke-width='3'/>", "<path d='M14 26 H106 M14 94 H106' stroke='#1d4ed8' stroke-width='5'/>", "#93c5fd"),
-    lagbaomer: eye("<path d='M60 36 C 72 50, 82 60, 78 74 C 76 84, 68 88, 60 86 C 50 86, 42 78, 44 68 C 46 60, 52 56, 50 46 C 56 52, 58 56, 60 36 Z' fill='#f97316'/><path d='M60 56 C 66 64, 70 70, 68 78 C 66 82, 62 84, 60 83 C 55 83, 51 78, 52 73 C 53 68, 56 66, 60 56 Z' fill='#fde047'/>", "", "#fb923c"),
-    shavuot: eye("<circle cx='60' cy='60' r='20' fill='#fef3c7'/><circle cx='54' cy='56' r='4' fill='#fbbf24'/><circle cx='66' cy='64' r='3.5' fill='#fbbf24'/><circle cx='64' cy='52' r='2.5' fill='#fbbf24'/>", "<path d='M20 98 q10 -14 20 0 q10 -14 20 0' stroke='#fde68a' stroke-width='4' fill='none' stroke-linecap='round'/>", "#fde68a")
+  function blossoms(pts) { var o = ""; pts.forEach(function (p) { var x = p[0], y = p[1], r = p[2] || 5; for (var a = 0; a < 5; a++) { var t = a * 1.2566 - 1.5708; o += "<circle cx='" + (x + Math.cos(t) * r * .75).toFixed(1) + "' cy='" + (y + Math.sin(t) * r * .75).toFixed(1) + "' r='" + (r * .62).toFixed(1) + "' fill='#fbcfe8' stroke='#ec4899' stroke-width='.8'/>"; } o += "<circle cx='" + x + "' cy='" + y + "' r='" + (r * .35).toFixed(1) + "' fill='#f59e0b'/>"; }); return o; }
+  function flowers(pts) { var o = ""; pts.forEach(function (p) { var x = p[0], y = p[1], c = p[2]; for (var a = 0; a < 6; a++) { var t = a * 1.0472; o += "<circle cx='" + (x + Math.cos(t) * 4).toFixed(1) + "' cy='" + (y + Math.sin(t) * 4).toFixed(1) + "' r='3.2' fill='" + c + "'/>"; } o += "<circle cx='" + x + "' cy='" + y + "' r='2.6' fill='#facc15'/>"; }); return o; }
+  function leaf(x, y, rot, len, c) { return "<ellipse cx='" + x + "' cy='" + y + "' rx='" + len + "' ry='" + (len * .36).toFixed(1) + "' fill='" + c + "' transform='rotate(" + rot + " " + x + " " + y + ")'/>"; }
+  var FEYE = {
+    rosh: { vb: [-14, -30, 160, 160], iris: ["#fecaca", "#ef4444", "#991b1b"], line: "#dc2626",
+      fg: "<g clip-path='url(#hgfClip)'><path d='M0 0 H120 V7 q-7 0 -8 7 a5 5 0 0 1 -10 0 q-1 -7 -8 -7 H60 q-6 0 -6 10 a5 5 0 0 1 -10 0 q0 -10 -6 -10 H24 q-5 0 -5 5 a4 4 0 0 1 -8 0 q0 -5 -6 -5 H0 Z' fill='url(#hgfHoney)'/></g>" +
+        "<g transform='rotate(14 116 2)'><path d='M116 -6 q-2 -9 4 -14' stroke='#78350f' stroke-width='3' fill='none' stroke-linecap='round'/>" + leaf(126, -16, -30, 9, "#16a34a") +
+        "<path d='M116 -6 C 100 -14, 92 4, 98 16 C 104 28, 114 26, 116 22 C 118 26, 128 28, 134 16 C 140 4, 132 -14, 116 -6 Z' fill='url(#hgfApple)' stroke='#7f1d1d' stroke-width='1.5'/><ellipse cx='106' cy='2' rx='3' ry='6' fill='#fff' opacity='.45'/></g>" },
+    sukkot: { vb: [-22, -38, 164, 164], iris: ["#bbf7d0", "#16a34a", "#14532d"], line: "#15803d",
+      // הסוכה: העין מציצה מתוכה — פנים חם, דפנות בד פתוחות לצדדים, עמודי עץ וסכך ירוק מעל, ושני קישוטים תלויים
+      bg: "<rect width='120' height='120' fill='url(#hgfIn)'/><g fill='#fff' opacity='.35'><path d='M30 0 L18 120 H26 L40 0Z'/><path d='M74 0 L70 120 H78 L84 0Z'/></g>",
+      fg: "<rect x='-16' y='-8' width='13' height='134' rx='3' fill='url(#hgfWood)' stroke='#78350f' stroke-width='1.5'/><rect x='123' y='-8' width='13' height='134' rx='3' fill='url(#hgfWood)' stroke='#78350f' stroke-width='1.5'/>" +
+        "<path d='M-4 -4 H26 Q16 34 9 60 Q16 88 26 124 H-4 Z' fill='url(#hgfCloth)' stroke='#94a3b8' stroke-width='1.2'/><path d='M124 -4 H94 Q104 34 111 60 Q104 88 94 124 H124 Z' fill='url(#hgfCloth)' stroke='#94a3b8' stroke-width='1.2'/>" +
+        "<path d='M-2 52 q5 6 9 7 M122 52 q-5 6 -9 7' stroke='#b91c1c' stroke-width='4' fill='none' stroke-linecap='round'/>" +
+        "<rect x='-20' y='-12' width='160' height='9' rx='3' fill='url(#hgfWood)' stroke='#78350f' stroke-width='1.5'/>" +
+        "<path d='M34 -4 V16 M86 -4 V20' stroke='#a16207' stroke-width='1.2'/><circle cx='34' cy='20' r='5' fill='#ef4444' stroke='#7f1d1d' stroke-width='1'/><path d='M86 18 l2.4 4.8 5.3 .8 -3.8 3.7 .9 5.2 -4.8 -2.5 -4.8 2.5 .9 -5.2 -3.8 -3.7 5.3 -.8z' fill='#fbbf24' stroke='#b45309' stroke-width='1'/>" +
+        leaf(-14, -18, -10, 14, "#15803d") + leaf(6, -22, 8, 15, "#22c55e") + leaf(28, -17, -14, 15, "#16a34a") + leaf(50, -23, 6, 16, "#4ade80") + leaf(72, -17, -8, 15, "#15803d") +
+        leaf(94, -22, 12, 15, "#22c55e") + leaf(116, -17, -6, 15, "#16a34a") + leaf(134, -21, 10, 13, "#4ade80") +
+        leaf(16, -2, 50, 9, "#16a34a") + leaf(60, -1, -40, 9, "#22c55e") + leaf(104, -2, 46, 9, "#15803d") +
+        "<path d='M-18 -26 Q20 -36 60 -28 T140 -28' stroke='#166534' stroke-width='2.4' fill='none' stroke-linecap='round'/>" },
+    hanukkah: { vb: [-22, -44, 164, 164], iris: ["#fef08a", "#f59e0b", "#c2410c"], line: "#d97706", dash: "#f59e0b",
+      // אור הנרות נופל על העין: הילה חמה מלמעלה ונצנוצים
+      bg: "<rect width='120' height='120' fill='url(#hgfGlow)'/>" + "<g fill='#f59e0b' opacity='.7'><path d='M16 22 q0 5 5 5 q-5 0 -5 5 q0 -5 -5 -5 q5 0 5 -5z'/><path d='M104 18 q0 4 4 4 q-4 0 -4 4 q0 -4 -4 -4 q4 0 4 -4z'/><path d='M100 98 q0 4 4 4 q-4 0 -4 4 q0 -4 -4 -4 q4 0 4 -4z'/><path d='M18 96 q0 3 3 3 q-3 0 -3 3 q0 -3 -3 -3 q3 0 3 -3z'/></g>",
+      fg: candles() },
+    tubishvat: { vb: [-20, -38, 164, 164], iris: ["#bbf7d0", "#22c55e", "#166534"], line: "#16a34a",
+      fg: "<path d='M140 -24 C 110 -10, 80 -16, 50 -8 C 30 -3, 12 -6, -12 6' stroke='#78350f' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M96 -14 q-6 -10 -2 -18 M58 -10 q4 -10 -2 -18 M24 -5 q-8 6 -8 14' stroke='#78350f' stroke-width='3' fill='none' stroke-linecap='round'/>" +
+        leaf(118, -10, 30, 8, "#22c55e") + leaf(74, -6, -20, 7, "#16a34a") +
+        blossoms([[134, -22, 7], [104, -18, 7], [94, -30, 6], [56, -26, 6], [66, -10, 6], [36, -6, 7], [14, -8, 6], [16, 12, 6], [-8, 6, 7]]) },
+    purim: { vb: [-22, -34, 164, 164], iris: ["#e9d5ff", "#a855f7", "#6b21a8"], line: "#9333ea",
+      fg: "<g transform='rotate(18 104 -6)'><path d='M82 6 L80 -18 L92 -6 L104 -26 L116 -6 L128 -18 L126 6 Z' fill='url(#hgfGold)' stroke='#92400e' stroke-width='2' stroke-linejoin='round'/><rect x='81' y='2' width='46' height='7' rx='2' fill='#f59e0b' stroke='#92400e' stroke-width='1.5'/><circle cx='104' cy='-6' r='3.5' fill='#ef4444'/><circle cx='92' cy='4' r='2' fill='#2563eb'/><circle cx='116' cy='4' r='2' fill='#16a34a'/></g>" +
+        "<g><rect x='-14' y='-10' width='7' height='4' rx='1' fill='#ef4444' transform='rotate(30 -10 -8)'/><rect x='10' y='-22' width='7' height='4' rx='1' fill='#22c55e' transform='rotate(-25 13 -20)'/><rect x='40' y='-16' width='7' height='4' rx='1' fill='#3b82f6' transform='rotate(50 43 -14)'/><rect x='58' y='-26' width='7' height='4' rx='1' fill='#facc15' transform='rotate(-10 61 -24)'/>" +
+        "<circle cx='26' cy='-8' r='3' fill='#ec4899'/><circle cx='-18' cy='20' r='3' fill='#f97316'/><circle cx='138' cy='40' r='3' fill='#22c55e'/><rect x='130' y='70' width='7' height='4' rx='1' fill='#a855f7' transform='rotate(40 133 72)'/><circle cx='-16' cy='96' r='3' fill='#3b82f6'/><rect x='-20' y='60' width='7' height='4' rx='1' fill='#facc15' transform='rotate(-30 -17 62)'/></g>" +
+        "<path d='M-6 30 q-10 -8 -2 -16 q8 -8 -4 -18' stroke='#ec4899' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M128 96 q10 6 4 16 q-6 10 6 16' stroke='#f59e0b' stroke-width='2.5' fill='none' stroke-linecap='round'/>" },
+    pesach: { vb: [-26, -30, 166, 166], iris: ["#bae6fd", "#0284c7", "#0c4a6e"], line: "#0369a1",
+      fg: "<g transform='rotate(-14 4 -2)'><rect x='-18' y='-22' width='44' height='40' rx='3' fill='#fde68a' stroke='#b45309' stroke-width='2'/><path d='M-14 -12 H22 M-14 -2 H22 M-14 8 H22' stroke='#d97706' stroke-width='1.5' stroke-dasharray='2 3'/><path d='M-18 -22 l6 6 l-6 6 l6 6 l-6 6 l6 6 l-6 6 l6 6' fill='none' stroke='#b45309' stroke-width='1' opacity='.6'/></g>" +
+        "<g transform='rotate(10 126 112)'><path d='M110 92 h32 q0 22 -16 24 q-16 -2 -16 -24 Z' fill='#fff' fill-opacity='.4' stroke='#cbd5e1' stroke-width='2'/><path d='M111.5 98 h29 q-1.5 16 -14.5 17 q-13 -1 -14.5 -17 Z' fill='#b91c1c'/><path d='M126 116 V130 M116 132 h20' stroke='#cbd5e1' stroke-width='3.5' stroke-linecap='round'/><ellipse cx='117' cy='102' rx='2' ry='5' fill='#fff' opacity='.5'/></g>" },
+    atzmaut: { vb: [-14, -34, 168, 168], iris: ["#bfdbfe", "#2563eb", "#1e3a8a"], line: "#1d4ed8",
+      fg: "<path d='M-6 -28 V40' stroke='#64748b' stroke-width='3.5' stroke-linecap='round'/><circle cx='-6' cy='-29' r='3' fill='#fbbf24'/>" +
+        "<path d='M-4 -26 C 10 -32, 24 -20, 46 -26 V2 C 24 8, 10 -4, -4 2 Z' fill='#fff' stroke='#cbd5e1' stroke-width='1.2'/><path d='M-4 -22 C 10 -28, 24 -16, 46 -22 M-4 -2 C 10 -8, 24 4, 46 -2' stroke='#1d4ed8' stroke-width='3' fill='none'/>" +
+        "<g transform='translate(21 -12)' fill='none' stroke='#1d4ed8' stroke-width='1.6'><path d='M0 -6 L5.2 3 H-5.2 Z M0 6 L5.2 -3 H-5.2 Z'/></g>" +
+        "<g stroke-linecap='round' stroke-width='2.6'><g stroke='#3b82f6'><path d='M108 -14 v-10 M108 -4 v10 M98 -9 h-10 M118 -9 h10 M101 -16 l-6 -6 M115 -2 l6 6 M115 -16 l6 -6 M101 -2 l-6 6'/></g><g stroke='#f59e0b'><path d='M136 20 v-7 M136 32 v7 M129 26 h-7 M143 26 h7'/></g><g stroke='#ec4899'><path d='M70 -24 v-5 M70 -12 v5 M64 -18 h-5 M76 -18 h5'/></g></g>" },
+    lagbaomer: { vb: [-16, -8, 152, 152], iris: ["#fed7aa", "#f97316", "#9a3412"], line: "#ea580c",
+      fg: "<g stroke-linecap='round'><path d='M30 134 L90 118' stroke='#78350f' stroke-width='9'/><path d='M30 118 L90 134' stroke='#92400e' stroke-width='9'/></g>" +
+        "<path class='hag-fl' d='M60 84 C 76 98, 92 108, 86 124 C 82 132, 70 134, 60 132 C 46 134, 34 128, 34 118 C 34 106, 46 104, 46 92 C 52 98, 54 102, 60 84 Z' fill='#f97316'/><path d='M60 104 C 68 112, 74 118, 70 126 C 68 130, 64 131, 60 130 C 54 131, 50 127, 50 122 C 50 116, 56 114, 60 104 Z' fill='#fde047'/>" +
+        "<g fill='#fbbf24'><circle cx='40' cy='82' r='2'/><circle cx='82' cy='76' r='2.4'/><circle cx='70' cy='68' r='1.6'/><circle cx='28' cy='96' r='1.6'/></g>" },
+    shavuot: { vb: [-20, -34, 176, 176], iris: ["#d9f99d", "#65a30d", "#365314"], line: "#4d7c0f",
+      fg: "<path d='M-12 10 C 10 -18, 40 -24, 60 -22 C 80 -24, 110 -18, 132 10' stroke='#16a34a' stroke-width='4' fill='none' stroke-linecap='round'/>" +
+        leaf(4, -6, -50, 7, "#22c55e") + leaf(36, -22, -15, 7, "#4ade80") + leaf(84, -22, 15, 7, "#22c55e") + leaf(116, -6, 50, 7, "#4ade80") +
+        flowers([[-10, 8, "#fff"], [14, -14, "#f9a8d4"], [40, -24, "#fff"], [60, -26, "#fca5a5"], [80, -24, "#fff"], [106, -14, "#f9a8d4"], [130, 8, "#fff"]]) +
+        "<g stroke='#ca8a04' stroke-width='2' stroke-linecap='round'><path d='M134 128 V70 M128 128 Q128 92 120 76 M140 128 Q140 92 148 78'/></g>" +
+        "<g fill='#facc15'><ellipse cx='134' cy='66' rx='3.2' ry='7'/><ellipse cx='119' cy='72' rx='3' ry='6.5' transform='rotate(-25 119 72)'/><ellipse cx='149' cy='74' rx='3' ry='6.5' transform='rotate(25 149 74)'/></g>" }
   };
+  var FDEFS = "<defs><clipPath id='hgfClip'>" + TILE + "</clipPath>" +
+    "<linearGradient id='hgfGold' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fde68a'/><stop offset='.5' stop-color='#fbbf24'/><stop offset='1' stop-color='#d97706'/></linearGradient>" +
+    "<linearGradient id='hgfHoney' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fcd34d'/><stop offset='1' stop-color='#f59e0b'/></linearGradient>" +
+    "<radialGradient id='hgfApple' cx='.35' cy='.3' r='.8'><stop offset='0' stop-color='#fca5a5'/><stop offset='.5' stop-color='#ef4444'/><stop offset='1' stop-color='#991b1b'/></radialGradient>" +
+    "<linearGradient id='hgfWood' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='#d97706'/><stop offset='.5' stop-color='#b45309'/><stop offset='1' stop-color='#78350f'/></linearGradient>" +
+    "<linearGradient id='hgfCloth' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='#f8fafc'/><stop offset='1' stop-color='#e2e8f0'/></linearGradient>" +
+    "<radialGradient id='hgfGlow' cx='.5' cy='0' r='.95'><stop offset='0' stop-color='#fde68a' stop-opacity='.95'/><stop offset='.55' stop-color='#fef3c7' stop-opacity='.5'/><stop offset='1' stop-color='#fff' stop-opacity='0'/></radialGradient>" +
+    "<linearGradient id='hgfIn' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fef3c7'/><stop offset='1' stop-color='#fde68a'/></linearGradient></defs>";
+  // עין סטטית מלאה (כותרת ופייביקון)
+  var eyeN = 0;
+  function festEye(id, cls) {
+    var F = FEYE[id]; if (!F) return "";
+    var px = "hgf" + (++eyeN) + "_";
+    var ir = F.iris, ln = F.line || "#0ea5e9", E = "M14 60 Q60 20 106 60 Q60 100 14 60 Z";
+    return ("<svg xmlns='http://www.w3.org/2000/svg' viewBox='" + (F.vb || FVB).join(" ") + "'" + (cls ? " class='" + cls + "'" : "") + " aria-hidden='true'>" + FDEFS +
+      "<defs><linearGradient id='hgfBg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff'/><stop offset='1' stop-color='#e0f2fe'/></linearGradient><radialGradient id='hgfIr' cx='.4' cy='.35' r='.75'><stop offset='0' stop-color='" + ir[0] + "'/><stop offset='.6' stop-color='" + ir[1] + "'/><stop offset='1' stop-color='" + ir[2] + "'/></radialGradient></defs>" +
+      "<rect width='120' height='120' rx='26' fill='url(#hgfBg)' stroke='#bae6fd' stroke-width='1.5'/>" + (F.bg ? "<g clip-path='url(#hgfClip)'>" + F.bg + "</g>" : "") +
+      "<path d='" + E + "' fill='#fff'/><circle cx='60' cy='60' r='20' fill='url(#hgfIr)'/><circle cx='60' cy='60' r='9.5' fill='#0f172a'/><circle cx='66' cy='54' r='3.5' fill='#fff'/>" +
+      "<path d='" + E + "' stroke='" + ln + "' stroke-width='6' fill='none' stroke-linejoin='round'/><path d='M22 60 H34 M86 60 H98' stroke='" + (F.dash || ln) + "' stroke-width='4' stroke-linecap='round' stroke-dasharray='1 7' opacity='.8'/>" +
+      F.fg + "</svg>").replace(/hgf(?=[A-Z])/g, px);
+  }
+  // העין החיה בדף הבית (KBH): לא מחליפים אותה (היא מסתכלת על הכלים ומצמצת) — צובעים את הקשתית ומוסיפים את הקישוט
+  function decorateStage() {
+    var F = FEYE[active.id], stage = document.querySelector(".kbh .stage"), eyeEl = stage && stage.querySelector(".eye");
+    if (!F || !eyeEl || stage.querySelector(".hag-eyedeco")) return;
+    var V = F.vb || FVB;
+    var tileSvg = eyeEl.querySelector(":scope > svg");
+    if (F.bg && tileSvg) { var g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.innerHTML = F.bg.replace(/hgf(?=[A-Z])/g, "hgfB_") ; if (/hgfB_/.test(g.innerHTML)) g.insertAdjacentHTML("afterbegin", "<defs>" + FDEFS.replace(/hgf(?=[A-Z])/g, "hgfB_").replace(/^<defs>|<\/defs>$/g, "") + "</defs>"); tileSvg.appendChild(g); }
+    var d = el("div", { "class": "hag-eyedeco", "aria-hidden": "true" }, ("<svg viewBox='" + V.join(" ") + "' style='overflow:visible;width:100%;height:100%'>" + FDEFS + F.fg + "</svg>").replace(/hgf(?=[A-Z])/g, "hgfS_"));
+    // אותו מקום וקנה מידה כמו הריבוע של העין (באחוזים מהבמה — נשאר נכון גם כשהמסך משתנה)
+    var sw = stage.offsetWidth || 1, sh = stage.offsetHeight || 1, ew = eyeEl.offsetWidth || sw * .34, u = ew / 120;
+    var pc = function (v, w) { return (v / w * 100).toFixed(3) + "%"; };
+    d.style.cssText = "position:absolute;z-index:3;pointer-events:none;left:" + pc(eyeEl.offsetLeft + V[0] * u, sw) + ";top:" + pc(eyeEl.offsetTop + V[1] * u, sh) +
+      ";width:" + pc(V[2] * u, sw) + ";height:" + pc(V[3] * u, sh);
+    stage.appendChild(d);
+    var ir = F.iris, ln = F.line;
+    var st = "#kb-eye-ir-stage stop:nth-child(1){stop-color:" + ir[0] + "}#kb-eye-ir-stage stop:nth-child(2){stop-color:" + ir[1] + "}#kb-eye-ir-stage stop:nth-child(3){stop-color:" + ir[2] + "}" +
+      (ln ? ".kbh .stage .eye{box-shadow:0 26px 60px -18px color-mix(in srgb," + ln + " 55%,transparent),0 0 0 1px color-mix(in srgb," + ln + " 22%,transparent),0 0 0 12px color-mix(in srgb," + ir[0] + " 35%,transparent),0 0 70px 10px color-mix(in srgb," + ir[1] + " 30%,transparent)}" +
+        ".kbh .stage .eye path[stroke='#0ea5e9']{stroke:" + ln + "}.kbh .stage .eye path[stroke='#38bdf8']{stroke:" + (F.dash || ln) + "}" : "");
+    document.head.appendChild(el("style", null, st));
+  }
 
   // ---------- CSS ----------
   var css = [
@@ -285,17 +386,44 @@
     ".hag-flame{transform-origin:center 26px;animation:hag-flick 1.4s ease-in-out infinite alternate}@keyframes hag-flick{from{transform:scaleY(1)}to{transform:scaleY(.86) translateX(1px)}}",
     "html.a11y-nomotion .hag-drop,html.a11y-nomotion .hag-flame{animation:none}",
     ".glyph.hag-glyph{background:transparent!important;border:0!important;width:auto!important;height:auto!important}.glyph.hag-glyph .hag-svg{width:60px;height:60px}.glyph.hag-glyph .hag-em{font-size:44px}",
-    ".hag-eye{width:44px;height:44px;flex:none}@media (min-width:768px){.hag-eye{width:56px;height:56px}}",
+    ".hag-fl{transform-box:fill-box;transform-origin:50% 100%;animation:hag-flick 1.4s ease-in-out infinite alternate}",
+    "html.a11y-nomotion .hag-fl{animation:none}@media (prefers-reduced-motion:reduce){.hag-fl,.hag-flame,.hag-drop{animation:none}}",
+    // סמלי החג בדף הבית בעיצוב החדש: ריבוע מעוגל בצבע הכלי (כמו הסמלים הרגילים), והסמל בפנים — בקנה מידה של הריבוע
+    ".hag-tile{position:relative;display:block;width:100%;height:100%;border-radius:28%;overflow:hidden;container-type:size;" +
+      "background:radial-gradient(circle at 30% 18%,rgba(255,255,255,.38),rgba(255,255,255,0) 55%),linear-gradient(145deg,color-mix(in srgb,var(--hag-acc,#0ea5e9) 72%,#fff),color-mix(in srgb,var(--hag-acc,#0ea5e9) 70%,#0b1220));" +
+      "box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.25)}",
+    ".hag-tile .hag-art{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}",
+    ".hag-tile .hag-svg{width:76cqw;height:76cqw;filter:drop-shadow(0 2cqw 2.5cqw rgba(0,0,0,.35))}.hag-tile .hag-svg.wide{width:88cqw;height:auto}",
+    ".hag-tile .hag-em{font-size:52cqw;filter:drop-shadow(0 2cqw 2.5cqw rgba(0,0,0,.35))}.hag-tile .hag-two{font-size:38cqw;letter-spacing:-4cqw}.hag-tile .hag-three{font-size:28cqw;letter-spacing:-3cqw}",
+    ".hag-tile .hag-emwrap{margin-top:8cqw}.hag-tile .hag-badge{right:-12cqw;top:-12cqw;font-size:26cqw}.hag-tile .hag-emwrap.roof .hag-badge{right:auto;top:-22cqw;font-size:26cqw}",
+    ".hag-tile .hag-multi .hag-svg{width:42cqw;height:42cqw;margin-right:-10cqw}.hag-tile .hag-multi .hag-svg:last-child{margin-right:0}",
+    ".hag-tile .hag-honey{margin-top:10cqw}.hag-tile .hag-jar{right:-12cqw;top:-18cqw;font-size:24cqw}.hag-tile .hag-drop{right:9cqw;top:4cqw;width:6cqw;height:10cqw}.hag-tile .hag-drop.d2{right:20cqw}.hag-tile .hag-drop.d3{right:31cqw;top:8cqw}",
+    ".kbh .orb>span .hag-tile{box-shadow:none}",
+    // העין החגיגית ליד השם "הקו הבוחן"
+    ".hag-beye{width:50px;height:50px;flex:none;display:inline-block;vertical-align:middle;margin:-12px 0 -12px 2px;overflow:visible}.kbh .brand svg.hag-beye{width:54px;height:54px;border-radius:0;box-shadow:none}",
+    // בטלפון, בעמודי הכלים — בלי העין ליד השם, כדי שיישאר מקום לשם הכלי בסרגל
+    ".hag-home .hag-hasbeye{display:inline-flex!important;align-items:center;gap:4px}@media (min-width:601px){.hag-hasbeye{display:inline-flex!important;align-items:center;gap:4px}}",
+    "@media (max-width:600px){html:not(.hag-home) .hag-beye{display:none}}",
+    "@media (max-width:420px){.hag-beye{width:44px;height:44px;margin:-10px 0 -10px 0}.kbh .brand svg.hag-beye{width:48px;height:48px}}",
     "#hag-pill{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99996;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:999px;padding:6px 14px 6px 10px;font:800 13px/1.2 'Heebo',system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;align-items:center;gap:8px;direction:rtl;max-width:92vw}",
     "#hag-pill.quiet{background:#f1f5f9;color:#334155;border-color:#cbd5e1}",
+    "@media (prefers-color-scheme:dark){html:not([data-theme=light]) #hag-pill{background:#1e293b;color:#f1f5f9;border-color:#334155}html:not([data-theme=light]) #hag-pill.quiet{background:#0f172a;color:#cbd5e1}}",
+    "html[data-theme=dark] #hag-pill{background:#1e293b;color:#f1f5f9;border-color:#334155}",
     "#hag-pill button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:#64748b;padding:0 2px;font-family:inherit}"
   ].join("\n");
 
   function el(tag, attrs, html) { var e = document.createElement(tag); if (attrs) Object.keys(attrs).forEach(function (k2) { e.setAttribute(k2, attrs[k2]); }); if (html != null) e.innerHTML = html; return e; }
 
   // ---------- החלפות בדף ----------
+  // שם הכלי כפי שהוא מופיע באתר → מפתח בטבלאות למעלה
   var TOOLS = { "קו פח": "pach", "הקו המוזהב": "gold", "קו באג": "bug", "התחנה הבאה": "next", "הקו בזמן": "time",
-    "הקו המדלג": "skip", "המחירון": "fares", "רציף כפול": "ratzif", "צי הרכבים": "fleet", "מדד אמינות הרכבת": "rail", "מדד דיוק האוטובוסים": "bus", "קליטה ברכבת": "recep" };
+    "הקו המדלג": "skip", "המחירון": "fares", "רציף כפול": "ratzif", "צי הרכבים": "fleet", "מדד אמינות הרכבת": "rail", "מדד דיוק האוטובוסים": "bus", "קליטה ברכבת": "recep",
+    "מצגת לשינוי בקו": "slides", "איפה האוטובוס נתקע": "speed", "הקו המודיע": "alerts", "הקו המזין": "feeder", "משחק הקווים": "game" };
+  // הכרטיסים והסמלים בדף הבית מזוהים לפי data-k (home/home.js — GROUPS)
+  var DK = { kavpach: "pach", golden: "gold", kavbug: "bug", "next-station": "next", "skip-stops": "skip", "line-history": "time", "line-changes": "slides",
+    bus: "bus", "bus-speed": "speed", alerts: "alerts", fleet: "fleet", rail: "rail", reception: "recep", feeder: "feeder", fares: "fares", ratzif: "ratzif", game: "game" };
+  var ORIG = {}; Object.keys(TOOLS).forEach(function (n) { ORIG[TOOLS[n]] = n; });
+  var SITE = "הקו הבוחן";
   function renameHeading(h, name, orig) {
     if (h.getAttribute("data-hag") === "1") return;
     h.setAttribute("data-hag", "1");
@@ -304,46 +432,70 @@
     // בלי השם האמיתי מתחת (שלמה 07.09: "תמחק שמגיע החג את השם של האתרים") — נשאר רק כטולטיפ
     if (!h.getAttribute("title")) h.setAttribute("title", orig);
   }
+  // הצבע של כל כלי (כמו ב-home/home.js), לרקע של סמל החג בעמודי הכלים
+  var ACC = { pach: "#64748b", gold: "#d97706", bug: "#6366f1", next: "#2563eb", skip: "#ea580c", time: "#7c3aed", slides: "#16a34a", bus: "#059669", speed: "#dc2626",
+    alerts: "#c026d3", fleet: "#2563eb", rail: "#0284c7", recep: "#7c3aed", feeder: "#16a34a", fares: "#059669", ratzif: "#0891b2", game: "#e11d48" };
+  // הסמל שלצד הכותרת בעמוד הכלי: אלמנט שיש בו רק svg או תמונה, ממש לפני הכותרת או לפני העטיפה שלה
+  function onlyArt(x) { return Array.prototype.every.call(x.childNodes, function (n) { return n.nodeType === 1 ? /^(svg|img)$/i.test(n.tagName) : !(n.nodeValue || "").trim(); }); }
+  function pageIcon(h) {
+    var c = [h.previousElementSibling, h.parentElement && h.parentElement.previousElementSibling];
+    for (var i = 0; i < c.length; i++) {
+      var x = c[i];
+      if (x && /^(span|div)$/i.test(x.tagName) && x.querySelector("svg, img") && onlyArt(x) && x.getBoundingClientRect().width <= 160) return x;
+    }
+    return null;
+  }
+  function accOf(k, key) {
+    if (!k) return ACC[key] || "";
+    try { var A = window.KBH && window.KBH.ALL; for (var i = 0; A && i < A.length; i++) if (A[i].k === k) return A[i].a; } catch (e) { /* ignore */ }
+    return ACC[key] || "";
+  }
+  function tileOf(box, key, k) {
+    var art = ART[active.id] && ART[active.id][key];
+    if (!box || !art || box.querySelector(".hag-tile")) return;
+    var t = el("span", { "class": "hag-tile", "aria-hidden": "true" }, "<span class='hag-art'>" + art + "</span>");
+    var acc = accOf(k, key); if (acc) t.style.setProperty("--hag-acc", acc);
+    box.innerHTML = ""; box.appendChild(t);
+  }
   function apply() {
     try {
       if (H.quiet) return;
-      // "הקו הבוחן": שם + עין (דף הבית)
-      var SITE = "הקו הבוחן";
-      Array.prototype.forEach.call(document.querySelectorAll("h1"), function (h) {
+      // "הקו הבוחן": השם בכותרת הדף + העין החגיגית בקישור לשם האתר (בדף הבית ובסרגל העליון של הכלים)
+      Array.prototype.forEach.call(document.querySelectorAll("h1, a.brand, a.kb-brand"), function (h) {
         if (h.getAttribute("data-hag") === "1") return;
         var t = (h.textContent || "").trim();
         if (t === SITE && H.hub) {
           renameHeading(h, H.hub, SITE);
-          var s = h.previousElementSibling;
-          if (s && s.tagName.toLowerCase() === "svg" && EYES[active.id]) {
-            s.style.display = "none";
-            var wrap = el("span", { "class": "hag-eyewrap" }, EYES[active.id]);
-            s.parentNode.insertBefore(wrap, h);
-          }
+          if (h.tagName.toLowerCase() === "a" && FEYE[active.id]) { h.classList.add("hag-hasbeye"); h.insertAdjacentHTML("afterbegin", festEye(active.id, "hag-beye")); }
           return;
         }
+        if (h.tagName.toLowerCase() !== "h1") return;
         // כותרת של כלי בעמוד שלו ("🕰️ הקו בזמן", "קו פח", "הקו המוזהב", "התחנה הבאה")
         Object.keys(TOOLS).forEach(function (orig) {
           if (t.indexOf(orig) >= 0 && H[TOOLS[orig]]) {
             renameHeading(h, H[TOOLS[orig]], orig);
-            // עמוד עם גליף לצד הכותרת (קליטה ברכבת): אותו סמל חג כמו בכרטיס בדף הבית (שלמה 19.09)
-            var g = h.previousElementSibling, a2 = ART[active.id] && ART[active.id][TOOLS[orig]];
-            if (g && g.classList && g.classList.contains("glyph") && a2 && !g.classList.contains("hag-glyph")) { g.classList.add("hag-glyph"); g.innerHTML = a2; }
+            // הסמל של הכלי לצד הכותרת: אותו סמל חג כמו בכרטיס בדף הבית (שלמה 19.09)
+            var g = pageIcon(h);
+            if (g) tileOf(g, TOOLS[orig], "");
           }
         });
       });
-      // כרטיסי דף הבית: h2 עם שם הכלי, והסמל בקופסה שלפניו
-      Array.prototype.forEach.call(document.querySelectorAll("h2"), function (h) {
-        if (h.getAttribute("data-hag") === "1") return;
-        var t = (h.textContent || "").trim(), key = TOOLS[t];
-        if (!key) return;
-        if (H[key]) renameHeading(h, H[key], t); else h.setAttribute("data-hag", "1");
-        var box = h.previousElementSibling, art = ART[active.id] && ART[active.id][key];
-        if (box && art && box.tagName.toLowerCase() === "div" && !box.querySelector(".hag-art")) {
-          box.innerHTML = "";
-          box.appendChild(el("div", { "class": "hag-art", "aria-hidden": "true" }, art));
-        }
+      // שם הכלי בסרגל העליון של הכלים ("הקו הבוחן | הקו המודיע")
+      Array.prototype.forEach.call(document.querySelectorAll(".crumb, .kb-crumb"), function (c) {
+        if (c.getAttribute("data-hag") === "1") return;
+        var t = (c.textContent || "").trim(), key = TOOLS[t];
+        if (key && H[key]) renameHeading(c, H[key], t);
       });
+      // דף הבית: הכרטיסים (שם + סמל) והסמלים סביב העין
+      Array.prototype.forEach.call(document.querySelectorAll(".kbh .card[data-k], .kbh .orb[data-k]"), function (c) {
+        var k = c.getAttribute("data-k"), key = DK[k];
+        if (!key) return;
+        var isOrb = c.classList.contains("orb");
+        var nm = c.querySelector(isOrb ? "b" : "h2");
+        if (nm && H[key] && nm.getAttribute("data-hag") !== "1") renameHeading(nm, H[key], ORIG[key]);
+        tileOf(c.querySelector(isOrb ? ":scope > span" : ".ico"), key, k);
+      });
+      decorateStage();
     } catch (e) { /* ignore */ }
   }
 
@@ -361,7 +513,8 @@
   }
   function favicon() {
     try {
-      var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>" + H.ico + "</text></svg>";
+      // בחג — העין החגיגית של הקו הבוחן; ביום שקט — הסמל השקט (נר, יונה)
+      var svg = !H.quiet && FEYE[active.id] ? festEye(active.id) : "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>" + H.ico + "</text></svg>";
       var href = "data:image/svg+xml," + encodeURIComponent(svg);
       var links = document.querySelectorAll("link[rel~='icon']");
       if (!links.length) { var l = el("link", { rel: "icon" }); document.head.appendChild(l); links = [l]; }
@@ -373,6 +526,7 @@
   function init() {
     document.head.appendChild(el("style", null, css));
     document.documentElement.classList.add("hag-" + active.id, H.quiet ? "hag-quiet" : "hag-fest");
+    if (document.querySelector(".kbh, #static-choice")) document.documentElement.classList.add("hag-home");
     favicon();
     pill();
     apply();
