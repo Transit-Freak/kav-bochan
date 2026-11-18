@@ -219,8 +219,7 @@
     }
     // לעיסה: חיוך, פה נפתח, לועס עם פירורים, חיוך קל בעין — מתחיל ב-t0, נמשך כ-1.9 שניות
     function munch(g, t0, plain) {
-      var sm = face(g, "smile"), mo = face(g, "mouth");
-      show(sm, t0, 120); show(sm, t0 + 160, 100, 0);
+      var mo = face(g, "mouth");   // בלי חיוך לבד מתחת לעין — הוא נראה כמו צורה תלושה
       later(t0 + 150, function () { A(mo.el, [{ opacity: 0, transform: T(mo.r, ctr(mo.r), 1) + " scaleY(.1)" }, { opacity: 1, transform: T(mo.r, ctr(mo.r), 1) + " scaleY(1)" }], { duration: 260, easing: "cubic-bezier(.3,1.5,.5,1)" }); });
       // לעיסה
       later(t0 + 560, function () {
@@ -239,7 +238,6 @@
       });
       if (plain) return;
       happy(g, t0 + 600, t0 + 1620);
-      show(sm, t0 + 1440, 160); show(sm, t0 + 1760, 160, 0);
     }
     function backHome(t) { later(t, function () { var u = cur.undo.splice(0); u.forEach(function (f) { f(); }); }); }
     function finish() {
