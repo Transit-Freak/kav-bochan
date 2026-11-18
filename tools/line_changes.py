@@ -873,7 +873,7 @@ def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
 VAR_MIN = 3   # חלופה שבוטלה / חדשה: לפחות 3 נסיעות בשבוע (בשבוע שעבר / בשבוע הראשון שלה)
 
 
-def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0, stats, only=None):
+def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0, stats, only=None, fresh=()):
     """חלופה שבוטלה וחלופה חדשה בקו שממשיך לנסוע (קודם נספרו רק ב-stats ונעלמו).
     חלופה שבוטלה (end): נסעה בשבוע שעבר (VAR_MIN נסיעות לפחות), ואין לה אף נסיעה מעכשיו ועד סוף החלון, והקו
     ממשיך. חלופה חדשה (new): לא נסעה בשבוע שעבר, מתחילה בתוך HORIZON, עם VAR_MIN נסיעות לפחות בשבוע הראשון.
@@ -929,11 +929,12 @@ def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0,
             if F > hz_end or sum(x['td'] for x in wk.values()) < VAR_MIN:
                 stats['varnew_few'] += 1
                 continue
-            rest = [x for x in by_mk[mk] if x != k and old_v.get(x)]
+            # fresh — החלופות החדשות של הזוגות: גם אם התחילו כבר בשבוע שעבר, הן לא "מה שהיה"
+            rest = [x for x in by_mk[mk] if x != k and old_v.get(x) and x not in fresh]
             if not rest:
                 continue
             lost = codes(new, nv) - set().union(*[codes(old, old_v[x]) for x in rest])
-            same_dir = dir_main(old_v, [x for x in by_dk[dir_key(k)] if x != k], old.d0, t0)
+            same_dir = dir_main(old_v, [x for x in by_dk[dir_key(k)] if x != k and x not in fresh], old.d0, t0)
             if not lost or not same_dir:
                 stats['varnew_same'] += 1
                 continue
@@ -1093,7 +1094,7 @@ def run():
     for k, (ko, _F) in renamed.items():
         pair_of.setdefault(ko, k)
         pair_of[k] = k
-    split = find_variants(keys, old_v, new_v, old, new, {}, new_mks, ended_mks, t0, defaultdict(int), only=set(pair_of))
+    split = find_variants(keys, old_v, new_v, old, new, {}, new_mks, ended_mks, t0, defaultdict(int), only=set(pair_of), fresh=set(renamed))
     for v in split:
         v['split_of'] = pair_of[v['k']]
 
