@@ -334,13 +334,17 @@ export class InspectorFP {
     // ירידה: על המדרכה — מקפיאים את המקום בעולם (האוטובוס יוצא), ומשחררים את האוטובוס
     if (C.kind === 'alight' && !C.M && u2 >= C.off) { C.M = o.matrixWorld.clone(); b.hold = C.hold0; }
     // על המדרכה: מי שמתקרב (פחות מ-45 ס"מ) — הפקח זז הצידה ממנו (עד 1.5 מ' בשנייה), כך ששום הולך לא עובר דרך המצלמה
+    // ...אבל לא אל האוטובוס: הדחיפה לא מקרבת אליו יותר מהמקום שבמסלול (ועד מטר מהדופן), ולא פחות מ-45 ס"מ מהדופן
+    // (האוטובוס עוד יוצא לידנו). מה שנחסם לכיוון האוטובוס — זזים במקומו הצידה, לאורך האוטובוס (לא נדחקים אל הדלתות)
+    const sxB = Math.sign(C.pts[C.pts.length - 1].x) || -1, limB = Math.max(1.25 + 0.45, Math.min(1.25 + 1.0, sxB * P.x));
     if (C.M) { const Q = P.clone().add(C.push), mv = new THREE.Vector3();
       for (const l of ws) { const dx = Q.x - l.x, dz = Q.z - l.z, d = Math.hypot(dx, dz); if (d < 0.55) mv.add(new THREE.Vector3(dx, 0, dz).multiplyScalar((0.55 - d) / Math.max(0.05, d))); }
-      if (mv.lengthSq() > 0) { if (mv.length() > 1.5 * dt * 4) mv.setLength(1.5 * dt * 4); C.push.add(mv.multiplyScalar(0.5)); } }
+      if (mv.lengthSq() > 0) { if (mv.length() > 1.5 * dt * 4) mv.setLength(1.5 * dt * 4); mv.multiplyScalar(0.5);
+        const nx = sxB * (Q.x + mv.x); if (sxB * mv.x < 0 && nx < limB) { const cut = Math.min(-sxB * mv.x, limB - nx); mv.x += sxB * cut; mv.z += (Math.sign(mv.z) || Math.sign(C.push.z) || 1) * cut; }
+        C.push.add(mv); } }
     // לא חוזרים למצב רחוק מהאוטובוס יותר מדי: הדחיפה עד 1.2 מ'
     if (C.push.length() > 1.2) C.push.setLength(1.2);
-    // ...אבל לא אל האוטובוס: לפחות 45 ס"מ מהדופן שלו (האוטובוס עוד יוצא לידנו)
-    if (C.M) { const sx = Math.sign(C.pts[C.pts.length - 1].x) || -1, lim = 1.25 + 0.45; if (sx * (P.x + C.push.x) < lim) C.push.x = sx * lim - P.x; }
+    if (C.M && sxB * (P.x + C.push.x) < limB) C.push.x = sxB * limB - P.x;
     const Pw = P.clone().add(C.push).applyMatrix4(W);
     let Tw = T.clone().add(C.push).applyMatrix4(W);
     // אחרי הירידה: המבט מסתובב מעט אל האוטובוס שיוצא; ואם הוא לא זז אחרי 1.2 ש' — המבט פונה לאורך הרחוב (הלאה מהדלת)
