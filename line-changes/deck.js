@@ -185,18 +185,33 @@ var LCDeck = (function () {
     return '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי · מפה: © תורמי OpenStreetMap</span><span class="pg num"></span></div>';
   }
 
+  /* מפה של אזור אחד (כשהמפה מחולקת לאזורים): רק ההסברים, המספרים והשכבות של האזור הזה */
+  function areaOf(d, part, nparts) {
+    if (nparts < 2 || !part.show) return null;
+    var rem = (d._rem || []).filter(function (s) { return part.show[s._k + s.code]; });
+    var add = (d._add || []).filter(function (s) { return part.show[s._k + s.code]; });
+    var pts = rem.concat(add).map(function (s) { return s.ll; }), codes = {};
+    rem.concat(add).forEach(function (s) { codes[s.code] = 1; });
+    var segs = segments(d).slice(0, SEG_MAX).filter(function (g) {
+      if (g.oldS.concat(g.newS).some(function (s) { return codes[s.code]; })) return true;
+      var at = g.A ? divergeAt(d, g) : ((g.newS[0] || g.oldS[0] || {}).ll);
+      return at && pts.some(function (c) { return dist(c, at) < 1500; });
+    });
+    return { rem: rem, add: add, segs: segs };
+  }
   function mapSlide(p, d, part, nparts) {
-    var r = d.removed.length, a = d.added.length;
+    var r = d.removed.length, a = d.added.length, ar = areaOf(d, part, nparts);
     var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
     var when = start(d) !== start(p) ? '<p class="lead">החל מ' + E(LC.wd(start(d)) + ' ' + LC.dmy(start(d))) + '.</p>' : '';
+    var where = toward(d).replace(/^בנסיעה ל/, 'לכיוון ');
     return '<div class="s-map"><div class="smap"></div><div class="inset"></div><div class="side">' +
       '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(p.op) + '</span></div>' +
       '<h2 class="hd">' + E(trip(d)) + E(altTxt(d)) + '</h2>' +
-      (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ' (' + E(part.name) + ')</p>' : '') +
+      (nparts > 1 ? '<p class="part">' + E((/^לכיוון /.test(where) ? where + ' · ' : '') + part.name) + ' <small style="font-weight:600;color:var(--s-sub)">· מפה ' + (part.i + 1) + ' מתוך ' + nparts + '</small></p>' : '') +
       (extOf(d) ? '' : rerouted(d) ? '' : '<p class="part">המסלול לא משתנה — רק ' + (r + a + d.moved.length === 1 ? 'התחנה' : 'התחנות') + '</p>') +
-      segList(d) + when +
-      (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(countsLine(d)) + '</p>') +
-      legendHtml(d) +
+      segList(d, ar) + when +
+      (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(ar ? areaCounts(ar) : countsLine(d)) + '</p>') +
+      legendHtml(d, ar) +
       '<div style="font-size:13px;color:var(--s-sub)">הוכן על ידי אדם פרטי · לא פרסום רשמי</div>' +
       '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>';
   }
@@ -268,32 +283,44 @@ var LCDeck = (function () {
     });
     return rows.length ? '<ul class="small">' + rows.join('') + '</ul>' : '';
   }
-  function legendHtml(d) {
-    var r = d.removed.length, a = d.added.length;
-    var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
+  function legendHtml(d, ar) {
+    // מפה של אזור (ar): רק השכבות שיש באזור הזה
+    var r = ar ? ar.rem.length : d.removed.length, a = ar ? ar.add.length : d.added.length;
+    var remL = ar ? ar.rem : (d._rem || []);
+    var near = remL.some(function (s) { return s._near && !s._near.none; });
+    var segs = ar ? ar.segs : segments(d);
+    var oldSeg = !ar || r || segs.some(function (g) { return g.oldS.length && routeSeg(g); });
     return '<div class="legend">' +
         (extOf(d) ? '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span><span><i class="sw"></i>הקטע החדש (מ-' + E(LC.dm(start(d))) + ')</span>' :
-          rerouted(d) ? (offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
+          rerouted(d) ? (oldSeg && offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
           '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
-        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש' + ((d._rem || []).some(function (s) { return s._near && s._near.path; }) ? ' (זמן ההליכה ברשימה)' : '') + '</span>' : '') +
-        (segments(d).some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
+        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש' + (remL.some(function (s) { return s._near && s._near.path; }) ? ' (זמן ההליכה ברשימה)' : '') + '</span>' : '') +
+        (segs.some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
         (a ? '<span><i class="dot add">1</i>תחנה חדשה</span>' : '') +
-        (d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
+        (!ar && d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
         '<span><i class="dot same"></i>תחנה שנשארת</span></div>';
   }
+
   var SEG_MAX = 4;
-  function segList(d) {
+  function areaCounts(ar) {
+    var s = [];
+    if (ar.rem.length) s.push(plural(ar.rem.length, 'תחנה אחת מבוטלת', 'תחנות מבוטלות'));
+    if (ar.add.length) s.push(plural(ar.add.length, 'תחנה חדשה אחת', 'תחנות חדשות'));
+    return s.length ? s.join(' · ') + ' באזור הזה · המספרים במפה כמו ברשימה בעמוד הבא' : '';
+  }
+  function segList(d, ar) {
     var segs = segments(d);
     if (!segs.length) return '<p class="lead">' + dirLead(d) + '</p>';
     var ed = ED.seg && ED.seg[d._key];
     var html = '<ol class="segs">' + segs.slice(0, SEG_MAX).map(function (g, i) {
+      if (ar && ar.segs.indexOf(g) < 0) return '';   // מפה של אזור: רק ההסברים של האזור הזה (עם המספרים המקוריים)
       var t = ed && typeof ed[i] === 'string' ? E(ed[i]) : g.html;
       // מספר רק לשינוי בדרך עצמה (יש לו סמן על המפה); שינוי של תחנה — נקודה, הסמן הממוספר של התחנה הוא ההפניה
       var num = segNum(d, g);
       return '<li>' + (num ? '<i class="segn">' + num + '</i>' : '<i class="segb"></i>') + '<span data-seg="' + E(d._key) + '" data-i="' + i + '">' + t + '</span></li>';
     }).join('') + '</ol>';
-    if (segs.length > SEG_MAX) html += '<p class="counts">ועוד ' + (segs.length - SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
+    if (segs.length > SEG_MAX && !ar) html += '<p class="counts">ועוד ' + (segs.length - SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
     return html;
   }
   function routeSeg(g) { return !g.kind; }
@@ -1328,10 +1355,12 @@ var LCDeck = (function () {
   function ttPagesHtml(p, form, H) { return paginate(ttBlocks(p, form), H || TTM[form].H); }
 
   /* ---- מפה של כל המסלול (קו חדש: ירוק · קו מבוטל: אדום מקווקו) ---- */
-  function routeLegend(p) {
-    var al = p.kind === 'ended' && altsOf(p).length;
+  function routeLegend(p, g) {
+    // מפה קרובה (g): התחנות של האזור ממוספרות; בלי "הראשונה והאחרונה" ובלי "קווים אחרים" — הם לא מסומנים בה
+    var al = !g && p.kind === 'ended' && altsOf(p).length;
     return '<div class="legend">' + (p.kind === 'new' ? '<span><i class="sw"></i>המסלול של הקו החדש</span>' : '<span><i class="sw old"></i>המסלול של הקו (עד ' + E(LC.dm(lastOf(p))) + ')</span>') +
-      '<span><i class="dot same"></i>תחנה</span>' + '<span><i class="dot end"></i>התחנה הראשונה והאחרונה</span>' +
+      (g ? '<span><i class="dot ' + (p.kind === 'ended' ? 'rem' : 'add') + '">1</i>תחנה באזור הזה (כמו ברשימה)</span><span><i class="dot same"></i>תחנה אחרת של הקו</span>'
+        : '<span><i class="dot same"></i>תחנה</span><span><i class="dot end"></i>התחנה הראשונה והאחרונה</span>') +
       (al ? '<span><i class="dot alt"></i>תחנה שעוצרים בה קווים אחרים</span>' : '') + '</div>';
   }
   function routeMap(p) { return { route: true, kind: p.kind, dirs: kDirs(p), alts: p.kind === 'ended' ? altsOf(p) : [] }; }
@@ -1465,7 +1494,7 @@ var LCDeck = (function () {
           '<h2 class="hd">' + E((p.kind === 'new' ? 'הקו החדש ' : 'הקו שמבוטל ') + g.name) + '</h2>' +
           (gs.length > 1 ? '<p class="part">מפה קרובה ' + (i + 1) + ' מתוך ' + gs.length + '</p>' : '') +
           '<p class="kod">' + E(trip(g.d)) + ' · ' + g.ix.length + ' תחנות כאן (המספרים כמו ברשימת התחנות)</p>' +
-          zoomList(p, g, 16) + routeLegend(p) +
+          zoomList(p, g, 16) + routeLegend(p, g) +
           '<div style="font-size:13px;color:var(--s-sub)">הוכן על ידי אדם פרטי · לא פרסום רשמי</div>' +
           '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>' };
     });
@@ -1516,7 +1545,7 @@ var LCDeck = (function () {
         out.push({ id: 'sg-' + p.id + '-kz' + i, label: pre + 'שלט · מפה קרובה ' + g.name, map: zoomMap(p, g),
           html: '<div class="s-sign k-' + p.kind + '">' + signBand(p) + '<div class="sg-when"><b>' + E((p.kind === 'new' ? 'הקו החדש ' : 'הקו שמבוטל ') + g.name) + '</b><span>' +
             (gs.length > 1 ? 'מפה קרובה ' + (i + 1) + ' מתוך ' + gs.length : '') + '</span></div>' +
-            '<div class="sg-mapw"><div class="smap"></div></div>' + routeLegend(p) +
+            '<div class="sg-mapw"><div class="smap"></div></div>' + routeLegend(p, g) +
             '<div class="sg-what"><h2 class="hd">התחנות כאן</h2>' + zoomList(p, g, 6) + '</div>' + signFoot(feed, true) + '</div>' });
       });
     }
