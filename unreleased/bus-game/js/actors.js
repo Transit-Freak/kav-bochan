@@ -150,7 +150,7 @@ function busFloor(root, stripes = []) {
     for (let i = 0; i < P.count; i++) { q.fromBufferAttribute(P, i).applyMatrix4(M); uv[i * 2] = q.x / FLOOR_UV; uv[i * 2 + 1] = q.z / FLOOR_UV; top = Math.max(top, q.y); }
     o.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     if (m.userData.vinyl) return; m.userData.vinyl = true;
-    m.map = vinylTexture(); m.color.setRGB(0.5, 0.5, 0.52); m.roughness = 0.82;   // (הפנים מוארים חזק — הצבע מוחשך כדי שייראה פחם) m.metalness = 0;
+    m.map = vinylTexture(); m.color.setRGB(0.5, 0.5, 0.52); m.roughness = 0.82; m.metalness = 0;   // (הפנים מוארים חזק — הצבע מוחשך כדי שייראה פחם)
     m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       { float ax = abs(vMapUv.x * ${FLOOR_UV.toFixed(2)}); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.026, 0.028, 0.03), (1.0 - smoothstep(${(AISLE_HALF - 0.03).toFixed(2)}, ${AISLE_HALF.toFixed(2)}, ax)) * 0.2); }`); };
     m.needsUpdate = true;
