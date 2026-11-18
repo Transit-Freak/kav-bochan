@@ -394,14 +394,13 @@ details.group summary span{font-weight:600;color:var(--sub)}
 /* טקסט גדול (נגישות: a11y.js מגדיל את הדף) או מסך צר מאוד: שורת השלבים והפס התחתון מתכווצים בלי לגלוש מהמסך.
    לפי הרוחב האמיתי של הפס (container query), כי הגדלת הטקסט לא משנה את רוחב המסך שה-media query רואה */
 .steps .in{container-type:inline-size}
-.steps ol button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @container (max-width:340px){
   .steps .in{gap:6px}
   .steps .back{font-size:0;padding:0 10px;gap:0}
   .steps .back span{font-size:18px}
   .steps li + li::before{display:none}
   .steps ol button{gap:6px;padding:4px 6px}
-  .steps ol button span{font-size:15px}
+  .steps ol button span{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .steps li{flex:none}
   .steps li:has(button[aria-current="step"]){flex:0 1 auto;min-width:0}
   .steps ol button{flex:0 1 auto}

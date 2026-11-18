@@ -2195,7 +2195,7 @@ var LCDeck = (function () {
   function bdOff(kind, k) { var o = ED.bd && ED.bd[kind]; return !!(o && o[k]); }
   function bdK(k, cls) { return ' class="bdt' + (cls ? ' ' + cls : '') + '" data-bk="' + E(k) + '"'; }
   function bdQ(s) { return String(s || '').replace(/''/g, '"'); }   // כפר חב''ד (ב-GTFS) → כפר חב"ד
-  function bdModel(pages) {
+  function bdModel(pages, xo) {
     var home = bdHome(pages), ps = pages.slice().sort(function (a, b) { return bdNum(a.line) - bdNum(b.line) || (a.line < b.line ? -1 : 1); });
     var od = function (p) { var o = p.od || []; return [bdQ(o[0]), bdQ(o[1] || o[0])]; };
     home = bdQ(home);
@@ -2246,6 +2246,11 @@ var LCDeck = (function () {
       bands.forEach(function (b) { b.rows.filter(vis).forEach(function (r) { days.forEach(function (w) { var l = r.d.days[w] || []; if (l.length) any = true; l.forEach(function (m) { if (m < 16 * 60) eve = false; }); }); }); });
       if (any) cols.push({ days: days, label: days.length > 1 ? 'ימים א׳–ה׳' : days[0] === 5 ? 'יום שישי' : eve ? 'מוצאי שבת' : 'שבת' });
     });
+    // לאקסל: עמודה לחג בשבוע הקרוב — רק כשהשעות בו שונות מהיום הרגיל באחד הקווים (כמו ב"משולב")
+    if (xo && xo.hol) ((ED.hol && ED.hol.length ? ED.hol : (pages[0] || {}).hol) || []).forEach(function (h) {
+      if (bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.d.x && r.d.x[h[0]]; }); }))
+        cols.push({ days: [isoDow(h[0])], hol: h, label: h[2] + ' ' + LC.dm(h[0]) });
+    });
     bands.forEach(function (b) { b.rows.forEach(function (r) { r.cells = cols.map(function (c, i) { return bdCell(r, c, i); }); }); });
     var valid = pages.map(function (p) { return p.valid || p.eff; }).filter(Boolean).sort()[0] || '';
     var unt = pages.map(function (p) { return p.until || ''; }), until = unt.every(function (u) { return u && u === unt[0]; }) ? unt[0] : '';
@@ -2253,7 +2258,7 @@ var LCDeck = (function () {
     var vps = ps.filter(function (p) { return bands.some(function (b) { return b.rows.some(function (r) { return r.p === p && !r.off; }); }); });
     var ops = opsOf(vps), cities = [];
     if (home) cities.push(home);
-    var dflt = 'זמני נסיעות · ' + (ED.bplace || cities.join(', ') || linesTxt(ps));
+    var dflt = 'זמני נסיעות · ' + (ED.bplace || (ps.length <= 3 ? linesTxt(ps) : cities.join(', ')) || linesTxt(ps));
     var alts = bands.some(function (b) { return b.rows.some(function (r) { return !r.off && r.cells.some(function (x) { return x.notes.length && x.ntxt == null && x.txt == null; }); }); });
     var sub = [valid ? 'בתוקף מ-' + LC.dmy(valid) + (until ? ' עד ' + LC.dmy(until) : '') : '', vps.length ? linesTxt(vps) : ''].filter(Boolean).join(' · ');
     var contacts = ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]])
@@ -2277,7 +2282,7 @@ var LCDeck = (function () {
   }
   /* תא: היציאות של שורה אחת בקבוצת ימים; נסיעה שרק בחלק מהימים — part (למשל "ה׳"), חלופה — a, תגבור — n */
   function bdCell(r, c, i) {
-    var mg = cuMerge([{ p: r.p, d: r.d }], c.days), alts = {};
+    var mg = cuMerge([{ p: r.p, d: r.d }], c.days, c.hol ? function (it, w) { var x = it.d.x && it.d.x[c.hol[0]]; return x ? [x, (it.d.xa || {})[c.hol[0]], (it.d.xn || {})[c.hol[0]]] : cuDay(it, w); } : null), alts = {};
     var ents = mg.ents.map(function (e) {
       var part = '';
       if (e.part) { var miss = c.days.filter(function (w) { return e.days.indexOf(w) < 0; }); part = e.days.length <= miss.length ? dShort(e.days) : 'חוץ מ' + dShort(miss); }
@@ -3058,6 +3063,67 @@ var LCDeck = (function () {
     return pages && pages.length ? autoTitle(pages, '') : '';
   }
   /* המבנה של "טבלה לפי יעד" — לייצוא לאקסל (edits: btitle, bnote, bplace) */
-  function boardModel(pages, edits) { var keep = ED; ED = edits || {}; try { return bdModel(pages); } finally { ED = keep; } }
-  return { boardModel: boardModel, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  function boardModel(pages, edits, xo) { var keep = ED; ED = edits || {}; try { return bdModel(pages, xo); } finally { ED = keep; } }
+  /* לאקסל — לו"ז חדש בהודעה על שינוי (שינוי בלו"ז, קו חדש): אותו מבנה כמו "טבלה לפי יעד" (ראו xlsx.js).
+     old=false — הלוח החדש מיום השינוי (שעה חדשה או שזזה — בירוק); old=true — הלוח הקודם (שעה שמתבטלת או שזזה — באדום).
+     ימים עם אותו לוח בכל השורות — עמודה אחת; חג בשבוע של השינוי — עמודה משלו */
+  var MT_COL = ['#0f766e', '#c2410c', '#6d28d9', '#1d4ed8', '#a16207', '#be185d'];
+  function chgModel(pages, edits, old) {
+    var keep = ED; ED = edits || {};
+    try {
+      var ps = pages.filter(ttCap), groups = mtGroups(ps), all = [];
+      groups.forEach(function (g) { all = all.concat(g.rows); });
+      var day = function (r, w) {   // [רשימת שעות או null, סימונים] ליום w
+        var x = mtDay(r, w);
+        if (x.k === 'c') { var it = mergeSh(x.e.o || [], x.e.n || []); return { list: old ? x.e.o || [] : x.e.n || [], mk: it }; }
+        if (x.k === 'n' || x.k === 'k') return { list: x.e.n || [] };
+        if (x.k === 's') return { same: true };
+        return { list: [] };
+      };
+      var sig = {}, order = [];
+      for (var w = 0; w < 7; w++) {
+        var k = all.map(function (r) { var d = day(r, w); return d.same ? 's' : d.list.join(','); }).join('|');
+        if (all.every(function (r) { var d = day(r, w); return !d.same && !d.list.length; })) continue;
+        if (!sig[k]) { sig[k] = []; order.push(k); }
+        sig[k].push(w);
+      }
+      var cols = order.map(function (k) {
+        var ds = sig[k], kk = ds.join(',');
+        return { days: ds, label: kk === '0,1,2,3,4' ? 'ימים א׳–ה׳' : kk === '5' ? 'יום שישי' : kk === '6' ? 'מוצ״ש' : ds.length === 1 ? 'יום ' + dShort(ds) : dShort(ds) };
+      });
+      if (!old) (ED.hol || []).forEach(function (h) { if (all.some(function (r) { return r.d.hx && r.d.hx[h[0]]; })) cols.push({ days: [isoDow(h[0])], hol: h, label: h[2] + ' ' + LC.dm(h[0]) }); });
+      var cell = function (r, c) {
+        if (c.hol && r.d.hx && r.d.hx[c.hol[0]]) return { ents: r.d.hx[c.hol[0]].map(function (m) { return { t: hm2(m), n: 1 }; }), notes: [] };
+        var d = day(r, c.days[0]);
+        if (d.same) return { ents: [], notes: [], txt: 'ללא שינוי' };
+        var hl = {};
+        (d.mk || []).forEach(function (x) {
+          if (old) { if (x[1] === 'rm') hl[x[0]] = 1; else if (x[1] === 'sh') hl[x[2]] = 1; }
+          else if (x[1] === 'ad' || x[1] === 'sh') hl[x[0]] = 1;
+        });
+        var cnt = {}; d.list.forEach(function (m) { cnt[m] = (cnt[m] || 0) + 1; });
+        var seen = {};
+        return { ents: d.list.filter(function (m) { if (seen[m]) return false; seen[m] = 1; return true; }).map(function (m) { return { t: hm2(m), n: cnt[m], c: hl[m] ? (old ? 'C81E1E' : '1F9152') : '' }; }), notes: [] };
+      };
+      var first = function (d) { var st = (old ? d.old : d.new.stops.length ? d.new : d.old).stops; return st[0] || {}; };
+      var bands = groups.map(function (g) {
+        return { label: g.label, color: MT_COL[g.c % MT_COL.length], rows: g.rows.map(function (r) {
+          var o = r.d.od || [], to = o[1] && o[1] !== o[0] ? o[1] : streetOf(lastStop(r.d)), s0 = first(r.d);
+          return { p: r.p, off: false, line: r.p.line, op: r.p.op, origin: mtFrom(r.d), toward: to ? 'לכיוון ' + to : '',
+            comment: (to ? 'לכיוון ' + to + ': ' : '') + (s0.name || '') + ' (' + [s0.code, s0.city].filter(Boolean).join(' | ') + ')',
+            cells: cols.map(function (c) { return cell(r, c); }) };
+        }) };
+      });
+      var when = ps.map(start).sort()[0] || '', ops = opsOf(ps);
+      var title = (old ? 'לו״ז עד ' + (when ? LC.dmy(LC.addDays(when, -1)) : 'השינוי') : 'לו״ז חדש') + ' · ' + linesTxt(ps);
+      var sub = old ? 'לוח הזמנים הקודם — לפני השינוי' : when ? 'בתוקף מ-' + LC.dmy(when) : '';
+      return { title: title, sub: sub, subDflt: null, cols: cols, bands: bands, pages: ps, credit: ED.credit !== false,
+        note: old ? 'באדום — נסיעה שמתבטלת או שהשעה שלה משתנה' : ps.some(function (p) { return p.kind === 'timetable'; }) ? 'בירוק — נסיעה חדשה או בשעה חדשה' : '',
+        legend: 'השעות הן שעות היציאה מהתחנה הראשונה · ×2 — שני אוטובוסים · לפי נתוני משרד התחבורה · לא פרסום רשמי',
+        contacts: ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]]),
+        feed: ps.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '', when: when };
+    } finally { ED = keep; }
+  }
+  function hasOld(pages) { return pages.some(function (p) { return p.kind === 'timetable' && ttCap(p); }); }
+  return { boardModel: boardModel, chgModel: chgModel, hasOld: hasOld, ttCap: ttCap, signInfo: function () { return SIGN_INFO; }, ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();
