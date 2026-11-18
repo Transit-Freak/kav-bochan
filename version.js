@@ -60,6 +60,11 @@
         b.querySelector("small").textContent = fmtD(vs[+b.getAttribute("data-i")].d) + (on ? " ⌃" : " ⌄");
       });
     });
+    if (!document.getElementById("kb-ver-font")) {   // הגופן בכל המשקלים — בחלק מהדפים נטען רק Heebo עבה, והטקסט יצא מודגש
+      var lf = document.createElement("link"); lf.id = "kb-ver-font"; lf.rel = "stylesheet";
+      lf.href = "https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&display=swap";
+      document.head.appendChild(lf);
+    }
     document.body.appendChild(ov);
     document.addEventListener("keydown", onKey);
     ov.querySelector(".vx").focus();
