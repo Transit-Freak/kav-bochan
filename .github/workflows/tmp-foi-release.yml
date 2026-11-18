@@ -1,0 +1,32 @@
+name: tmp-foi-release
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: [.github/workflows/tmp-foi-release.yml]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: data/routes-by-year-2013-2017
+          sparse-checkout: line-history/data/routes-by-year
+      - name: create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd line-history/data/routes-by-year
+          ls -la
+          gzip -t *.csv.gz
+          sha256sum *.csv.gz
+          if gh release view data-foi-routes-2013-2017 >/dev/null 2>&1; then
+            gh release upload data-foi-routes-2013-2017 *.csv.gz --clobber
+          else
+            gh release create data-foi-routes-2013-2017 *.csv.gz --prerelease \
+              --target main --title "מסלול לפי שנים 2013–2017 (משרד התחבורה, חופש מידע)" \
+              --notes-file README.md
+          fi
+          gh release view data-foi-routes-2013-2017 --json assets --jq '.assets[] | "\(.name) \(.size)"'
