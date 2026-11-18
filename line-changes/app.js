@@ -31,14 +31,18 @@
     LINES.forEach(function (l) { l.n = LC.norm(l.line + ' ' + l.op + ' ' + l.from + ' ' + l.to + ' ' + l.cities.join(' ')); l.up = upByMakat[l.makat] || []; });
     if (idx.feed) $('feed').textContent = ' מ-' + LC.dmy(idx.feed);
     buildChips();
-    var want = (new URLSearchParams(location.search).get('c') || '').split(',').filter(Boolean);
-    if (want.length) {
-      Promise.all(want.map(loadPick)).then(function (ps) {
-        picks = ps.filter(Boolean);
-        if (picks.length) { cur = lineOf(picks[picks.length - 1].makat, picks[picks.length - 1].op); go(3); }
-        else go(1);
-      });
-    } else go(1);
+    // הכתובת מתארת את המסך: ?c=... — המצגת (שלב 3), ?l=<מק"ט> — שלב 2. בלי אחד מהם — שלב 1,
+    // והמצגת שכבר הוכנה בלשונית הזו חוזרת מ-sessionStorage (עם פס "המצגת שלך" בשלב 1)
+    var sp = new URLSearchParams(location.search);
+    var want = (sp.get('c') || '').split(',').filter(Boolean).map(resolveId).filter(Boolean), fromUrl = want.length > 0;
+    if (!fromUrl) want = sessGet();
+    Promise.all(want.map(loadPick)).then(function (ps) {
+      picks = ps.filter(Boolean);
+      var lm = sp.get('l'), ll = lm && lineOf(lm);
+      if (fromUrl && picks.length) { cur = lineOf(picks[picks.length - 1].makat, picks[picks.length - 1].op); go(3, 'replace'); }
+      else if (ll) { cur = ll; go(2, 'replace'); }
+      else go(1, 'replace');
+    });
   }).catch(function () {
     $('results').innerHTML = '<div class="none">לא הצלחנו לטעון את רשימת הקווים. נסו לרענן את הדף.</div>';
   });
@@ -51,10 +55,16 @@
   }
 
   /* ---------- מעבר בין שלבים ---------- */
-  function go(n) {
+  /* מעבר בין שלבים: pushState — כפתור "חזרה" של הדפדפן חוזר שלב אחד; replaceState — שינוי בתוך אותו שלב (how='replace'),
+     ובחזרה עם הדפדפן (how='pop') לא נוגעים בהיסטוריה */
+  function go(n, how) {
     if (n === 2 && !cur) n = 1;
     if (n === 3 && !picks.length) n = cur ? 2 : 1;
+    var moved = n !== step;
     step = n;
+    if (how !== 'pop') setUrl(how === 'replace' || !moved ? 'replace' : 'push');
+    $('reset').hidden = !(n > 1 || picks.length);
+    drawDeckbar();
     document.body.setAttribute('data-step', n);
     document.querySelectorAll('.steps [data-go]').forEach(function (b) {
       var k = +b.getAttribute('data-go');
@@ -73,6 +83,33 @@
     var b = ev.target.closest('[data-go]'); if (b && !b.disabled) go(+b.getAttribute('data-go'));
   });
   $('back').addEventListener('click', function () { go(Math.max(1, step - 1)); });
+  try { history.scrollRestoration = 'manual'; } catch (e) {}
+  window.addEventListener('popstate', function (ev) {
+    var st = ev.state || {};
+    if (st.l) cur = lineOf(st.l, st.op) || cur;
+    go(st.s || 1, 'pop');
+  });
+  /* שלב 1 כשכבר יש מצגת: פס קטן שחוזר אליה */
+  function drawDeckbar() {
+    var b = $('deckbar'), on = step === 1 && picks.length > 0;
+    b.hidden = !on;
+    if (!on) return;
+    b.innerHTML = '<span>המצגת שלך: ' + (picks.length === 1 ? 'קו אחד' : picks.length + ' קווים') + ' <span class="bl">' +
+      picks.slice(0, 4).map(function (p) { return '<span class="badge">' + E(p.line) + '</span>'; }).join('') + (picks.length > 4 ? '…' : '') + '</span></span><span aria-hidden="true">←</span>';
+  }
+  $('deckbar').addEventListener('click', function () { go(3); });
+  /* איפוס: אישור קטן בתוך הדף, ואז הכול מתחיל מההתחלה — בלי קווים, סינון, חיפוש, עריכות וכתובת */
+  $('reset').addEventListener('click', function () { $('rconfirm').hidden = false; $('ryes').focus(); });
+  $('rno').addEventListener('click', function () { $('rconfirm').hidden = true; $('reset').focus(); });
+  $('ryes').addEventListener('click', function () {
+    $('rconfirm').hidden = true;
+    try { if (edSig) localStorage.removeItem('lc-ed2:' + edSig); localStorage.removeItem('lc-kind'); } catch (e) {}
+    try { sessionStorage.removeItem('lc-picks'); } catch (e) {}
+    picks = []; cur = null; pkOpen = false; placeSel = null; q = ''; $('q').value = ''; kindF = 'all';
+    edSig = ''; edits = normEdits(null); editMode = false; document.body.classList.remove('editing');
+    try { history.replaceState({ s: 1 }, '', location.pathname); } catch (e) {}
+    step = 0; emptyStage(); go(1, 'replace');
+  });
   $('addline').addEventListener('click', function () { $('q').value = ''; q = ''; go(1); setTimeout(function () { $('q').focus(); }, 50); });
 
   function emptyStage() {
@@ -120,11 +157,34 @@
     var u = l.up.filter(function (c) { return kindOf(c) === kindF; });
     return u.length ? upNextOf(u) : null;
   }
-  function setUrl() {
+  /* הכתובת לפי המסך: שלב 3 — c=<הקווים>, שלב 2 — l=<מק"ט>, שלב 1 — רק הסינון. הבחירות נשמרות גם ב-sessionStorage */
+  function setUrl(how) {
     var sp = [];
-    if (picks.length) sp.push('c=' + picks.map(function (p) { return p.id; }).join(','));
+    if (step === 3 && picks.length) sp.push('c=' + picks.map(function (p) { return shortId(p.id); }).join(','));
+    if (step === 2 && cur) sp.push('l=' + cur.makat);
     if (kindF !== 'all') sp.push('k=' + KF_URL[kindF]);
-    try { history.replaceState(null, '', sp.length ? '?' + sp.join('&') : location.pathname); } catch (e) {}
+    var url = sp.length ? '?' + sp.join('&') : location.pathname;
+    try { history[how === 'push' ? 'pushState' : 'replaceState']({ s: step, l: cur && cur.makat, op: cur && cur.op }, '', url); } catch (e) {}
+    sessSet();
+  }
+  function sessSet() { try { sessionStorage.setItem('lc-picks', JSON.stringify(picks.map(function (p) { return p.id; }))); } catch (e) {} }
+  function sessGet() { try { var a = JSON.parse(sessionStorage.getItem('lc-picks') || '[]'); return Array.isArray(a) ? a.filter(function (x) { return typeof x === 'string'; }) : []; } catch (e) { return []; } }
+  /* כתובות קצרות: c=27018 כשלקו יש שינוי קרוב אחד; c=27018.1118 כשצריך את התאריך; c=27018.1118t כשגם זה לא מספיק.
+     (r שינוי מסלול · n קו חדש · e קו מבוטל · t לו"ז). מזהים ארוכים (27018-20261118-t, p-...) — עובדים כמו קודם */
+  var KL = { '': 'r', '-n': 'n', '-e': 'e', '-t': 't' };
+  function idParts(id) { var m = String(id).match(/^(\d+)-(\d{8})(-[net])?$/); return m ? { mk: m[1], md: m[2].slice(4), k: KL[m[3] || ''] } : null; }
+  function shortId(id) {
+    var a = idParts(id); if (!a) return id;
+    var same = idx.changes.map(function (c) { return idParts(c.id); }).filter(function (b) { return b && b.mk === a.mk; });
+    if (same.length <= 1) return a.mk;
+    var sd = same.filter(function (b) { return b.md === a.md; });
+    return a.mk + '.' + a.md + (sd.length > 1 ? a.k : '');
+  }
+  function resolveId(tok) {
+    var m = String(tok).match(/^(\d+)(?:\.(\d{4}))?([rnet])?$/);
+    if (!m) return tok;
+    var hit = idx.changes.filter(function (c) { var b = idParts(c.id); return b && b.mk === m[1] && (!m[2] || b.md === m[2]) && (!m[3] || b.k === m[3]); });
+    return hit.length ? hit[0].id : null;
   }
   /* כפתורי הסינון, עם מספר הקווים מכל סוג בתצוגה הנוכחית (החיפוש או המקום) */
   function drawKfil(ls) {
@@ -319,7 +379,7 @@
     var kf = ev.target.closest('[data-kf]'); if (!kf || kf.disabled) return;
     kindF = kf.getAttribute('data-kf');
     try { localStorage.setItem('lc-kind', kindF); } catch (e) {}
-    setUrl(); drawResults();
+    setUrl('replace'); drawResults();
   });
   /* כל הקווים שמשתנים במקום (עיר, רחוב או שכונה) — מצגת אחת; בשלב 3 אפשר להוציא קו עם × */
   var PLROWS = [];
@@ -519,8 +579,6 @@
   /* רשימת הקווים במצגת: עם הרבה קווים — 8 הראשונים, ו"ועוד N" פותח את כולם */
   var PK_MAX = 8, pkOpen = false;
   function drawPicked() {
-    $('clearall').hidden = picks.length < 2;
-    if (picks.length < 2) $('pkconfirm').hidden = true;
     var showN = pkOpen || picks.length <= PK_MAX + 2 ? picks.length : PK_MAX;
     $('picked').innerHTML = picks.slice(0, showN).map(function (p, i) {
       var when = p.kind === 'ended' ? 'עד ' + LC.dmy(p.last || p.eff) : (p.past ? 'היה ב-' : p.kind === 'new' ? 'קו חדש מ-' : p.kind === 'timetable' ? 'לו״ז מ-' : 'מ-') + LC.dmy(p.formal || p.eff);
@@ -533,19 +591,12 @@
     var b = ev.target.closest('[data-rm]'); if (!b) return;
     picks.splice(+b.getAttribute('data-rm'), 1);  rebuild();
   });
-  // מחיקת כל הקווים: אישור קטן בתוך הדף, ואז חזרה לשלב 1 עם מצגת ריקה
-  $('clearall').addEventListener('click', function () { $('pkconfirm').hidden = false; $('pkyes').focus(); });
-  $('pkno').addEventListener('click', function () { $('pkconfirm').hidden = true; $('clearall').focus(); });
-  $('pkyes').addEventListener('click', function () {
-    $('pkconfirm').hidden = true;
-    picks = []; cur = null; pkOpen = false; placeSel = null;
-    setUrl(); emptyStage(); go(1);
-  });
+
 
   function rebuild() {
     var my = ++token;
     drawPicked();
-    setUrl();
+    if (step === 3) setUrl('replace');
     if (!picks.length) { emptyStage(); return; }
     var pages = picks.slice().sort(function (a, b) { return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0); });
     if (my === token) render(pages);

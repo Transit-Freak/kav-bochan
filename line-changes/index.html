@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <link rel="stylesheet" href="slides.css?v=10">
 </head>
 <body data-step="1">
@@ -55,7 +55,9 @@
       <li><button type="button" data-go="2"><i>2</i><span>איזה שינוי?</span></button></li>
       <li><button type="button" data-go="3"><i>3</i><span>המצגת</span></button></li>
     </ol>
+    <button type="button" class="reset" id="reset" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span>איפוס</span></button>
   </div>
+  <div class="in"><div class="rconfirm" id="rconfirm" role="alertdialog" aria-labelledby="rcq" hidden><span id="rcq">להתחיל מחדש? כל הקווים והבחירות יימחקו</span><button type="button" class="btn danger" id="ryes">כן, לאפס</button><button type="button" class="lnk" id="rno">ביטול</button></div></div>
 </nav>
 
 <div class="in layout">
@@ -63,6 +65,7 @@
 
     <!-- שלב 1: איזה קו -->
     <section class="panel pane" data-pane="1">
+      <button type="button" class="deckbar" id="deckbar" hidden></button>
       <h2 class="ph">איזה קו?</h2>
       <p class="hint">מספר קו, רחוב, שכונה, עיר או חברה.</p>
       <div class="searchbox">
@@ -92,8 +95,7 @@
     <section class="panel pane" data-pane="3">
       <h2 class="ph">המצגת <span class="dtitle" id="decktitle"></span></h2>
       <div class="group">
-        <div class="pkhead"><span class="flabel">הקווים במצגת</span><button type="button" class="lnk" id="clearall" hidden>מחיקת הכול</button></div>
-        <div class="pkconfirm" id="pkconfirm" role="alertdialog" aria-labelledby="pkcq" hidden><span id="pkcq">למחוק את כל הקווים מהמצגת?</span><button type="button" class="btn sm danger" id="pkyes">כן, למחוק</button><button type="button" class="lnk" id="pkno">ביטול</button></div>
+        <span class="flabel">הקווים במצגת</span>
         <div class="picked" id="picked"></div>
         <button type="button" class="ghost" id="addline">+ להוסיף קו נוסף</button>
       </div>
@@ -193,7 +195,7 @@
 <script src="common.js?v=6"></script>
 <script src="deck.js?v=12"></script>
 <script src="editor.js?v=5"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>
