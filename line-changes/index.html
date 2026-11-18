@@ -24,8 +24,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=16">
-<link rel="stylesheet" href="slides.css?v=12">
+<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="slides.css?v=13">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -128,6 +128,24 @@
           <label class="credit-opt" id="ttperw" hidden><input type="checkbox" id="ttper"> <span>גם שקף נפרד לכל קו</span></label>
         </div>
       </div>
+      <div class="group" id="rcgrp" hidden>
+        <span class="flabel">צבעי המסלול במפה</span>
+        <div class="segs2">
+          <div class="seg2" role="radiogroup" aria-label="צבעי המסלול במפה">
+            <button type="button" role="radio" data-rc="chg"><b>רק מה שהשתנה</b><small>אפור למסלול שלא השתנה, ירוק לקטע החדש</small></button>
+            <button type="button" role="radio" data-rc="all"><b>כל המסלול החדש</b><small>כל המסלול החדש בירוק</small></button>
+          </div>
+        </div>
+      </div>
+      <div class="group" id="zmgrp" hidden>
+        <span class="flabel">מפות מקורבות לתחנות</span>
+        <div class="segs2">
+          <div class="seg2" role="radiogroup" aria-label="מפות מקורבות לתחנות">
+            <button type="button" role="radio" data-zm="yes"><b>כן</b><small>מפה קרובה לכל יישוב או שכונה שהקו נכנס אליהם</small></button>
+            <button type="button" role="radio" data-zm="no"><b>לא</b><small>רק מפה של כל המסלול</small></button>
+          </div>
+        </div>
+      </div>
       <div class="group">
         <span class="flabel" id="formslbl">צורה</span>
         <div class="forms" id="forms" role="radiogroup" aria-labelledby="formslbl">
@@ -206,9 +224,9 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="common.js?v=7"></script>
-<script src="deck.js?v=14"></script>
-<script src="editor.js?v=7"></script>
-<script src="app.js?v=16"></script>
+<script src="deck.js?v=16"></script>
+<script src="editor.js?v=8"></script>
+<script src="app.js?v=18"></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>

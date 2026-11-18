@@ -850,7 +850,7 @@
   var editMode = false;
   function normEdits(e) {
     e = e && typeof e === 'object' ? e : {};
-    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {};
+    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {}; e.inset = e.inset || {};
     return e;
   }
   function textSlide(x, pages) {
@@ -912,10 +912,10 @@
     var sig = pages.map(function (p) { return p.id; }).join(',');
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     var form = formOf();
-    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper !== false, hol: idx.hol || [] });
+    var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper, zm: edits.zm, rc: edits.rc, hol: idx.hol || [] });
     pastTense(base, pages);
     drawKinds(pages);
-    ttUi(pages);
+    ttUi(pages); zmUi(pages); rcUi(pages);
     slides = [];
     base.forEach(function (s) {
       slides.push(s);
@@ -980,6 +980,27 @@
   /* לוח הזמנים (קו חדש ושינוי בלו"ז): כללי / מפורט, טבלה / טקסט — נשמר עם המצגת, כמו העיצוב */
   // לו"ז עדכני — ברירת המחדל: מפורט (כל השעות); הודעה על שינוי — כללי
   function ttOpts() { var t = edits.tt || {}, v = t.v || (curPages && curPages.length && curPages.every(function (p) { return p.kind === 'current'; }) ? 'det' : 'gen'); return { v: v === 'det' ? 'det' : 'gen', f: t.f === 'text' ? 'text' : 'table' }; }
+  /* מפות מקורבות לתחנות — רק כשיש במצגת קו חדש או מבוטל. בלי בחירה: קו חדש — כן, קו מבוטל — לא (כמו ב-LCDeck) */
+  function zmUi(pages) {
+    var nk = pages.filter(function (p) { return p.kind === 'new' || p.kind === 'ended'; });
+    $('zmgrp').hidden = !nk.length;
+    var v = edits.zm || (nk.some(function (p) { return p.kind === 'new'; }) ? 'yes' : 'no');
+    $('zmgrp').querySelectorAll('[data-zm]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-zm') === v ? 'true' : 'false'); });
+  }
+  /* צבעי המסלול במפת השינוי — רק כשיש במצגת שינוי מסלול (לא קו חדש / מבוטל / לו"ז) */
+  function rcUi(pages) {
+    $('rcgrp').hidden = !pages.some(function (p) { return !p.kind; });
+    var v = edits.rc === 'all' ? 'all' : 'chg';
+    $('rcgrp').querySelectorAll('[data-rc]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-rc') === v ? 'true' : 'false'); });
+  }
+  $('rcgrp').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-rc]'); if (!b) return;
+    edits.rc = b.getAttribute('data-rc'); saveEdits(); keepScroll(function () { render(curPages); });
+  });
+  $('zmgrp').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-zm]'); if (!b) return;
+    edits.zm = b.getAttribute('data-zm'); saveEdits(); keepScroll(function () { render(curPages); });
+  });
   function ttUi(pages) {
     // שינוי קטן בלו"ז מוצג תמיד כטקסט — הבחירה מופיעה רק כשיש במצגת קו חדש או שינוי גדול יותר
     var cu = pages.some(function (p) { return p.kind === 'current'; }), o = ttOpts();
@@ -1098,6 +1119,37 @@
     crEl.checked = creditOn();
     crEl.addEventListener('change', function () { try { localStorage.setItem('lc-credit', crEl.checked ? '1' : '0'); } catch (e) {} if (curPages) keepScroll(function () { render(curPages); }); });
   }
+  /* מפת ההתמצאות: במצב עריכה גוררים אותה (עכבר או מגע) לכל מקום בתוך המפה (לא על הקרדיט של OpenStreetMap למטה) — נשמר לכל שקף באחוזים מגודל המפה
+     (edits.inset), גם להדפסה ול-PDF; ✕ מסתיר ומחזיר (edits.hide). "שחזור הכול" — חזרה לפינה האוטומטית */
+  $('deck').addEventListener('pointerdown', function (ev) {
+    var ins = ev.target.closest('.inset'); if (!ins || !editMode || ev.target.closest('.inset-x') || ev.button > 0) return;
+    var par = ins.parentNode, mapEl = par.querySelector('.smap'); if (!mapEl) return;
+    ev.preventDefault(); ev.stopPropagation();
+    var k = mapEl.getBoundingClientRect().width / mapEl.offsetWidth, W = mapEl.offsetWidth, H = mapEl.offsetHeight;
+    var x0 = ev.clientX, y0 = ev.clientY, bx = ins.offsetLeft, by = ins.offsetTop, moved = false;
+    function mv(e) {
+      moved = true;
+      ins.style.left = Math.max(0, Math.min(W - ins.offsetWidth, bx + (e.clientX - x0) / k)) + 'px';
+      ins.style.top = Math.max(0, Math.min(H - ins.offsetHeight - 22, by + (e.clientY - y0) / k)) + 'px';
+    }
+    function up() {
+      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+      if (!moved) return;
+      var sid = ins.getAttribute('data-ins').replace(/\|inset$/, '');
+      edits.inset[sid] = { x: +(ins.offsetLeft / W * 100).toFixed(2), y: +(ins.offsetTop / H * 100).toFixed(2) };
+      ins.setAttribute('data-fx', edits.inset[sid].x); ins.setAttribute('data-fy', edits.inset[sid].y);
+      saveEdits();
+    }
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+  $('deck').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.inset-x'); if (!b || !editMode) return;
+    ev.preventDefault();
+    var ins = b.closest('.inset'), id = ins.getAttribute('data-ins');
+    if (edits.hide[id]) delete edits.hide[id]; else edits.hide[id] = 1;
+    ins.classList.toggle('inoff', !!edits.hide[id]);
+    saveEdits();
+  });
   // סימן (מספר, נקודה, צבע במקרא): במצב עריכה לחיצה מסתירה אותו, ולחיצה נוספת מחזירה
   $('deck').addEventListener('click', function (ev) {
     var m = ev.target.closest('.emark'); if (!m || !editMode) return;
