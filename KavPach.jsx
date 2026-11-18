@@ -4457,7 +4457,8 @@ const DAYS_FILTER = [
                 
                 <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 mb-8 shadow-inner">
                   <div className={`grid grid-cols-1 ${operatorOptions.length > 0 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-6 mb-8`}>
-                    <div>
+                    {/* עם שדה החברה: קו + כיוון בשורה הראשונה, עיר + חברה מפעילה זו ליד זו בשנייה */}
+                    <div className={operatorOptions.length > 0 ? 'md:order-1' : ''}>
                       <label className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">מספר קו / מק&quot;ט</label>
                       <input
                         type="text"
@@ -4473,7 +4474,7 @@ const DAYS_FILTER = [
                         className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black text-sm outline-none focus:border-slate-900 shadow-sm transition-all"
                       />
                     </div>
-                    <div>
+                    <div className={operatorOptions.length > 0 ? 'md:order-3' : ''}>
                       <label className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">עיר (מוצא או יעד)</label>
                       <input 
                         type="text" 
@@ -4485,16 +4486,16 @@ const DAYS_FILTER = [
                       />
                     </div>
                     {operatorOptions.length > 0 && (
-                    <div>
-                      <label htmlFor="opt-operator" className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">חברה מפעילה</label>
+                    <div className="md:order-4">
+                      <label htmlFor="opt-operator" className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">חברה מפעילה <span className="font-bold normal-case tracking-normal">(מספר קווים)</span></label>
                       <select id="opt-operator" value={optOperator} onChange={e => setOptOperator(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black outline-none focus:border-slate-900 cursor-pointer text-right shadow-sm appearance-none">
                         <option value="all">כל החברות</option>
                         {optOperator !== "all" && !operatorOptions.some(o => o.name === optOperator) && <option value={optOperator}>{optOperator}</option>}
-                        {operatorOptions.map(o => <option key={`op-${o.name}`} value={o.name}>{o.name} ({o.lines} {o.lines === 1 ? 'קו' : 'קווים'})</option>)}
+                        {operatorOptions.map(o => <option key={`op-${o.name}`} value={o.name}>{o.name} ({o.lines})</option>)}
                       </select>
                     </div>
                     )}
-                    <div>
+                    <div className={operatorOptions.length > 0 ? 'md:order-2' : ''}>
                       <label className="block text-xs font-[900] text-slate-500 mb-3 pr-2 uppercase tracking-wider">כיוון נסיעה</label>
                       <select value={optDirection} onChange={e => setOptDirection(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3 font-black outline-none focus:border-slate-900 cursor-pointer text-right shadow-sm appearance-none">
                         <option value="all">כל הכיוונים</option>
