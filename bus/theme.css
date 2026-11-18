@@ -309,9 +309,6 @@ button:focus-visible,input:focus-visible,tr:focus-visible,a:focus-visible{outlin
   .lyrow .tri{grid-column:1 / -1}
   .lyrow .tri{grid-template-columns:auto 1fr}.lyrow .tri .rl{display:block}
   .modal{padding:16px;border-radius:18px}
-  /* כפתור הנגישות: קטן יותר ונמוך יותר, ומקום בתחתית כדי שלא יסתיר שדות ותוכן */
-  #kb-a11y-btn{width:40px !important;height:40px !important;bottom:12px !important;inset-inline-start:10px !important}
-  #kb-a11y-btn svg{width:24px !important;height:24px !important}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none !important}}
 
