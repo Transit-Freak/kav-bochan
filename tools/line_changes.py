@@ -30,6 +30,7 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
   data/l/<id>.json       דף לכל קו: מפה וגם רשימות לכל כיוון
   data/lines.json        כל הקווים שפועלים עכשיו, לחיפוש (ועם LH_CHANGES — השינויים מהשבוע האחרון)
   data/places.json       רחובות (מתיאור התחנות) ושכונות (NBR_DIR, הפוליגונים הרשמיים) → אילו קווים עוצרים בהם
+  data/tt/<NN>.json      לו"ז עדכני של כל קווי האוטובוס לשבוע הקרוב (מק"ט % 64; הדף טוען רק את הקובץ של הקו שנבחר) — current_tts
   l/<id>.html            דף קטן לכל שינוי (לתצוגה המקדימה בווטסאפ) שמעביר למצגת שלו, מהתבנית line-template.html
 
 רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
@@ -51,6 +52,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gtfs_zip  # noqa: E402
+import hebcal  # noqa: E402
 
 def _today():
     try:
@@ -199,6 +201,7 @@ class Feed:
         self.pat_list = []
         self.trip_pat = {}
         self.trip_dep = {}   # נסיעה → שעת היציאה מהתחנה הראשונה (דקות מחצות; אחרי חצות — 1440 ומעלה)
+        self.trip_end = {}   # נסיעה → השעה בתחנה האחרונה (למשך הנסיעה בלו"ז העדכני)
         partial = defaultdict(list)
         st = {'rest': b'', 'hdr': None, 'cur': None, 'buf': []}
 
@@ -219,6 +222,7 @@ class Feed:
                     self.pat_list.append(p)
                 self.trip_pat[tid] = pid
                 self.trip_dep[tid] = hm(buf[0][2])
+                self.trip_end[tid] = hm(buf[-1][2])
                 # שומרים גם את הרשימה הגולמית לנסיעה שאולי תופיע שוב (נדיר) — רק כמזהה
             st['cur'], st['buf'] = None, []
 
@@ -251,6 +255,7 @@ class Feed:
         for tid, buf in partial.items():   # נסיעות שהשורות שלהן מפוזרות בקובץ
             buf.sort()
             self.trip_dep[tid] = hm(buf[0][2])
+            self.trip_end[tid] = hm(buf[-1][2])
             p = tuple(x[1] for x in buf)
             pid = pats.get(p)
             if pid is None:
@@ -961,9 +966,10 @@ def run():
             x = vs[nm]
             r = new.routes[x['rid']]
             S_d = max(S, min(d for v in vs.values() for d in v['dates'])) if S >= t0 else S
+            wg = week_tt(new_deps.get(dk, {}), max(S_d, t0))
+            hx = hol_lists(new, new_deps.get(dk, {}), t0, max(S_d, t0), {w: n for ws, _o, n in wg for w in ws})
             found.append(kind_rec(dk, 'new', r, new.agency.get(r['ag'], ''), S_d, t0,
-                                  new=side_of(new, nm[0], shp_new, nm[1]),
-                                  tt=tt_entries(week_tt(new_deps.get(dk, {}), max(S_d, t0)))))
+                                  new=side_of(new, nm[0], shp_new, nm[1]), tt=tt_entries(wg), **({'hx': hx} if hx else {})))
     # קו מבוטל: קווים אחרים שעוצרים באותן תחנות (בשבוע השני — אחרי שהקו כבר לא נוסע)
     cand_index, mk_route = defaultdict(set), {}
     for k, vs in new_v.items():
@@ -1033,15 +1039,147 @@ def run():
         if len(changed) > 1 or any(len(g[0]) not in (1, 5) or (len(g[0]) == 1 and g[0][0] not in ('d5', 'd6')) for g in changed):
             stats['tt_split'] += 1
         omv = om.get(dk)
+        # לטבלת הלו"ז של כמה קווים: גם השעות בימים שלא משתנים (keep), ותאריכי חג בשבוע הקרוב עם שעות אחרות (hx)
+        keep = [dict(t=g[0], n=g[2]) for g in groups if g not in changed and g[2]]
+        hx = hol_lists(new, new_deps[dk], t0, eff, {w: g[2] for g in groups for w in g[0]})
         found.append(kind_rec(dk, 'timetable', r, new.agency.get(r['ag'], ''), eff, t0,
                               old=side_of(old, omv[0][0], {}, '', full=False) if omv else None,
-                              new=side_of(new, nmv[0], {}, '', full=False), tt=ent, same=same,
+                              new=side_of(new, nmv[0], {}, '', full=False), tt=ent, same=same, keep=keep, **({'hx': hx} if hx else {}),
                               cities=sorted({st['city'] for st in stops_of(new, nmv[0]) if st['city']})))
         tt_n += 1
     stats['timetable'] = tt_n
     print('סטטיסטיקה:', dict(stats), '· סוננו:', dict(filtered), flush=True)
+    current_tts(new, t0)
     ended_lines = {k: old_v[k] for mk, (ks, L, s) in ended_mks.items() for k in ks}
     return found, dict(stats), dict(filtered), new.day, old.day, lines_index(new, new_v, (old, ended_lines))
+
+
+# ---------------------------------------------------------------- לו"ז עדכני לכל קו (גם בלי שינוי)
+
+TT_SHARDS = 64      # הלו"ז של כל הקווים מחולק לקבצים לפי מק"ט % 64 — הדף טוען רק את הקובץ של הקו שנבחר
+NIGHT = 180         # נסיעה לפני 03:00 שייכת לערב הקודם ("בלילה"): נשמרת ברשימה של היום שלפני, ב-1440 ומעלה
+TT_DAYS = 7         # הלו"ז של השבוע הקרוב
+
+
+def tt_shard(makat):
+    m = re.sub(r'\D', '', makat)
+    return int(m) % TT_SHARDS if m else sum(map(ord, makat)) % TT_SHARDS
+
+
+def hol_week(t0, n=TT_DAYS):
+    """החגים בשבוע הקרוב: [[תאריך, סוג, שם העמודה]]"""
+    return [[h[0].isoformat(), h[1], hebcal.label(h[1], h[2])]
+            for h in hebcal.holidays(t0, t0 + datetime.timedelta(days=n - 1))]
+
+
+def hol_lists(feed, svcs, t0, eff, by_dow):
+    """תאריכי חג בשבוע הקרוב (מ-eff) שבהם היציאות שונות מהלו"ז הרגיל של אותו יום בשבוע → {תאריך: יציאות}"""
+    out = {}
+    for iso, _k, _n in hol_week(t0):
+        d = datetime.date.fromisoformat(iso)
+        if d < eff:
+            continue
+        lst = feed.day_deps(svcs, d)
+        if lst != by_dow.get(dow(d), []):
+            out[iso] = lst
+    return out
+
+
+def current_tts(feed, t0):
+    """הלו"ז העדכני של כל קווי האוטובוס, לשבוע הקרוב: לכל מק"ט ולכל כיוון — היציאות מהתחנה הראשונה לכל יום בשבוע
+    (יום רגיל: התאריך הקרוב שאינו חג או ערב חג), ובתאריכי חג בשבוע הקרוב — רק אם השעות שונות מהיום הרגיל.
+    נכתב ל-data/tt/NN.json (מק"ט % 64). קו = {l: מספר, a: agency_id, o: חברה, d: {כיוון: {...}}}
+    כיוון = {od: [מוצא, יעד], f/t: התחנה הראשונה/האחרונה, cs: הערים לאורך הדרך, du: משך נסיעה טיפוסי (דק'),
+             w: [7 אינדקסים ל-L, ראשון..שבת], x: {תאריך חג: אינדקס}, L: רשימות יציאות (דקות; בלילה — 1440+)}"""
+    DAY = datetime.timedelta(days=1)
+    hol = {h[0] for h in hebcal.holidays(t0 - DAY, feed.d1)}
+    week = [t0 + DAY * i for i in range(TT_DAYS)]
+    trips = defaultdict(lambda: defaultdict(list))   # (ag, מק"ט, כיוון) → service → [(יציאה, משך)]
+    pats = defaultdict(lambda: defaultdict(int))
+    for tid, (rid, sv, _shp) in feed.trips.items():
+        r = feed.routes[rid]
+        if r['ty'] not in ('3', '715') or not r['line']:    # רק אוטובוסים (715 — קו בהזמנה)
+            continue
+        dep = feed.trip_dep.get(tid)
+        if dep is None:
+            continue
+        end = feed.trip_end.get(tid)
+        mk, _, rest = (r['rd'] or rid).partition('-')
+        key = (r['ag'], mk, rest.split('-')[0])
+        trips[key][sv].append((dep, end - dep if end is not None and end >= dep else None))
+        pats[key][(feed.trip_pat.get(tid), rid)] += len(feed.svc_dates[sv])
+
+    def day_list(svcs, d):
+        """היציאות של יום שירות: מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+)"""
+        a, b = [], []
+        for sv, lst in svcs.items():
+            ss = feed.svc_set.get(sv, ())
+            if d in ss:
+                a += [x[0] for x in lst if x[0] >= NIGHT]
+            if d + DAY in ss:
+                b += [x[0] + 1440 for x in lst if x[0] < NIGHT]
+        return sorted(a + b)
+
+    shards = defaultdict(dict)
+    n_dirs = 0
+    for key in sorted(trips):
+        ag, mk, dr = key
+        svcs = trips[key]
+        usual = {}
+        for d in week:
+            alt = next((x for x in (d, d + 7 * DAY, d + 14 * DAY) if x not in hol and x + DAY <= feed.d1), d)
+            usual[dow(d)] = day_list(svcs, alt)
+        if not any(usual.values()):
+            continue
+        L, ix = [], {}
+
+        def idx(lst):
+            k = tuple(lst)
+            if k not in ix:
+                ix[k] = len(L)
+                L.append(lst)
+            return ix[k]
+        w = [idx(usual[x]) for x in DOWS]
+        x = {}
+        for d in week:
+            if d in hol:
+                lst = day_list(svcs, d)
+                if lst != usual[dow(d)]:
+                    x[d.isoformat()] = idx(lst)
+        (pid, rid), _n = max(pats[key].items(), key=lambda kv: kv[1])
+        r = feed.routes[rid]
+        st = stops_of(feed, pid) if pid is not None else []
+        cs = []
+        for s0 in st:
+            if s0['city'] and (not cs or cs[-1] != s0['city']):
+                cs.append(s0['city'])
+        durs = sorted(du for lst in svcs.values() for _d, du in lst if du)
+        rec = dict(od=od_of(r['long']), f=st[0]['name'] if st else '', t=st[-1]['name'] if st else '', cs=cs,
+                   du=durs[len(durs) // 2] if durs else None, w=w, L=L)
+        if x:
+            rec['x'] = x
+        sh = shards[tt_shard(mk)]
+        e = sh.get(mk)
+        if e and e['a'] != ag:     # אותו מק"ט בשתי חברות (נדיר) — נשאר הקו עם יותר נסיעות
+            if sum(map(len, e['d'].get(dr, {}).get('L', []))) >= sum(map(len, L)):
+                continue
+            e = None
+        if not e:
+            e = sh[mk] = dict(l=r['line'], a=ag, o=feed.agency.get(ag, ''), d={})
+        e['d'][dr] = rec
+        n_dirs += 1
+    out = os.path.join(OUTDIR, 'data', 'tt')
+    if os.path.isdir(out):
+        shutil.rmtree(out)
+    os.makedirs(out)
+    size = 0
+    hw = hol_week(t0)
+    for i in range(TT_SHARDS):
+        fn = os.path.join(out, f'{i}.json')
+        json.dump(dict(gen=TODAY.isoformat(), feed=feed.day.isoformat(), valid=t0.isoformat(), hol=hw, lines=shards.get(i, {})),
+                  open(fn, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        size += os.path.getsize(fn)
+    print(f'לו"ז עדכני: {sum(len(v) for v in shards.values())} קווים · {n_dirs} כיוונים · {size // 1024} KB ב-{TT_SHARDS} קבצים', flush=True)
 
 
 def lines_index(feed, variants, extra=None):
@@ -1429,7 +1567,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                 os.remove(os.path.join(d, fn))
     index.sort(key=lambda r: (r['eff'], int(re.sub(r'\D', '', r['line']) or 0)))
     json.dump(dict(gen=t0, feed=new_day.isoformat(), ref=old_day.isoformat(), horizon=HORIZON,
-                   scope=sorted(CITIES_RAW.split(',')) if CITIES else [], stats=stats, filtered=filtered,
+                   scope=sorted(CITIES_RAW.split(',')) if CITIES else [], stats=stats, filtered=filtered, hol=hol_week(TODAY),
                    changes=index),
               open(os.path.join(data, 'index.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, separators=(',', ':'))
@@ -1467,6 +1605,12 @@ if __name__ == '__main__':
     LH = os.environ.get('LH_CHANGES')   # line-history/data/changes — לשינויים מהשנה האחרונה
     if len(sys.argv) > 1 and sys.argv[1] == 'past':
         add_past(os.path.join(OUTDIR, 'data', 'lines.json'), LH or 'line-history/data/changes')
+        sys.exit()
+    if len(sys.argv) > 1 and sys.argv[1] == 'tt':   # רק הלו"ז העדכני של כל הקווים (data/tt) — לבדיקה
+        t = datetime.datetime.now()
+        fd = open_feed(TODAY, TODAY, TODAY + datetime.timedelta(days=HORIZON + 7))
+        current_tts(fd, min(TODAY, fd.day))
+        print(f'זמן ריצה: {(datetime.datetime.now() - t).seconds} שניות', flush=True)
         sys.exit()
     if len(sys.argv) > 1 and sys.argv[1] == 'pages':   # רק לבנות מחדש את הדפים מהקבצים הקיימים
         idx = json.load(open(os.path.join(OUTDIR, 'data', 'index.json'), encoding='utf-8'))

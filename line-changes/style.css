@@ -339,3 +339,23 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .kfil{margin-top:0}
 .kfil button:disabled{opacity:.45;cursor:default}
 .chip.kd{background:var(--ink);color:var(--ink-fg)}
+
+/* איפוס: כפתור בסרגל השלבים, ואישור קטן מתחתיו (לא חלון של הדפדפן) */
+.steps .reset{min-height:44px;display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--line);color:var(--sub);border-radius:999px;padding:0 var(--sp3);font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;flex:none}
+.steps .reset:hover{color:var(--before);border-color:var(--before)}
+.steps .reset[hidden]{display:none}
+@media (max-width:560px){.steps .reset span{display:none}.steps .reset{padding:0 10px}}
+.rconfirm{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp2) var(--sp3);background:var(--before-bg);border:1px solid var(--before);border-radius:var(--r2);padding:var(--sp2) var(--sp3);margin-bottom:var(--sp2);font-weight:800;font-size:15px;color:var(--fg)}
+.rconfirm[hidden]{display:none}
+.rconfirm span{flex:1 1 220px}
+.rconfirm .btn.danger{width:auto;min-height:44px;font-size:15px;padding:0 var(--sp4);background:var(--before);color:#fff}
+.rconfirm .lnk{min-height:44px}
+/* שלב 1 כשכבר יש מצגת: חזרה אליה */
+.deckbar{display:flex;align-items:center;justify-content:space-between;gap:var(--sp2);width:100%;min-height:48px;background:var(--after-bg);color:var(--after);border:1.5px solid var(--after);border-radius:var(--r2);padding:0 var(--sp4);font:800 15px var(--f-body);cursor:pointer;text-align:right}
+.deckbar[hidden]{display:none}
+.deckbar .badge{font-size:13px;padding:1px 7px;min-width:0}
+.deckbar .bl{display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center}
+.pk.pkmore{background:none;border-style:dashed;cursor:pointer;color:var(--after);padding:4px 12px;font:inherit;font-weight:800;font-size:14px}
+.seg2[hidden],.credit-opt[hidden]{display:none}
+.modes{margin-bottom:var(--sp1)}
+.modes button{min-height:58px}
