@@ -1,9 +1,10 @@
 /* מצגת לשינוי בקו — אשף בשלושה שלבים: איזה קו? · איזה שינוי? · המצגת (עריכה, תצוגה מקדימה, PDF).
    נתונים:
-   - data/lines.json   כל הקווים שפועלים עכשיו (לחיפוש), עם השינויים מהשבוע האחרון (תאריכים בלבד)
-   הכלי מציג רק שינויים שעוד לא התחילו, או שהתחילו בשבוע האחרון (שלמה 16.11).
-   - data/index.json   השינויים הקרובים שזוהו בלילה; data/l/<id>.json — הפרטים של כל אחד
-   - ../line-history/data/lines/<rd>.json — קובצי "הקו בזמן", לשינויים מהשבוע האחרון (נטען רק לקו שנבחר)
+   - data/lines.json   כל הקווים שפועלים עכשיו (לחיפוש), עם השינויים מהשבועיים האחרונים (תאריכים בלבד)
+   הכלי מציג רק שינויים שעוד לא התחילו, או שהתחילו בשבועיים האחרונים (שלמה 16.11; שבועיים — 18.11).
+   - data/index.json   השינויים הקרובים שזוהו בלילה, וגם אלה שזוהו בלילות הקודמים והתחילו בשבועיים האחרונים
+     (past: 1) — עם כל הפרטים ב-data/l/<id>.json, כך שגם להם יש מצגת מלאה
+   - ../line-history/data/lines/<rd>.json — קובצי "הקו בזמן", לשינויים מהשבועיים האחרונים שלא זוהו מראש (נטען רק לקו שנבחר)
    כתובת לשיתוף: ?c=<מזהה>[,<מזהה>...] — שינוי קרוב: 10988-20261117 · שינוי שהיה: p-10988-2026-05-01 */
 (function () {
   var $ = function (s) { return document.getElementById(s); };
@@ -52,8 +53,11 @@
     $('results').innerHTML = '<div class="none">לא הצלחנו לטעון את רשימת הקווים. נסו לרענן את הדף.</div>';
   });
 
-  /* שבוע אחורה מתאריך הנתונים — מה שהתחיל לפני כן כבר לא מוצג */
-  function recentFrom() { return LC.addDays(idx.gen, -7); }
+  /* שבועיים אחורה מתאריך הנתונים — מה שהתחיל לפני כן כבר לא מוצג */
+  var PAST_DAYS = 14;
+  function recentFrom() { return LC.addDays(idx.gen, -PAST_DAYS); }
+  /* שינוי שכבר התחיל (היום או לפני כן) */
+  function begun(c) { return !!c && (c.formal || c.eff) <= idx.gen; }
   function recentPast(l) { var f = recentFrom(); return l.past.filter(function (e) { return e[0] >= f; }); }
   function lineOf(makat, op) {
     return LINES.filter(function (l) { return l.makat === makat && (!op || l.op === op); })[0] || LINES.filter(function (l) { return l.makat === makat; })[0];
@@ -146,9 +150,9 @@
   }
   function upNext(l) { return upNextOf(l.up); }
   /* ---------- סינון לפי סוג השינוי — בכל שלב 1: רשימה, חיפוש, מקום, "כל הקווים", קבוצות ---------- */
-  var KF = [['all', 'הכול'], ['route', 'שינוי מסלול'], ['new', 'קו חדש'], ['ended', 'קו מבוטל'], ['timetable', 'שינוי בלו״ז']];
-  var KF_URL = { route: 'route', 'new': 'new', ended: 'ended', timetable: 'tt' };
-  var KF_ALL = { route: 'הקווים עם שינוי מסלול', 'new': 'הקווים החדשים', ended: 'הקווים שמבוטלים', timetable: 'הקווים עם שינוי בלו״ז' };
+  var KF = [['all', 'הכול'], ['route', 'שינוי מסלול'], ['new', 'קו חדש'], ['ended', 'קו מבוטל'], ['timetable', 'שינוי בלו״ז'], ['past', 'כבר התחילו']];
+  var KF_URL = { route: 'route', 'new': 'new', ended: 'ended', timetable: 'tt', past: 'past' };
+  var KF_ALL = { route: 'הקווים עם שינוי מסלול', 'new': 'הקווים החדשים', ended: 'הקווים שמבוטלים', timetable: 'הקווים עם שינוי בלו״ז', past: 'הקווים עם שינוי שכבר התחיל' };
   var kindF = (function () {
     var k = new URLSearchParams(location.search).get('k'), v = null;
     Object.keys(KF_URL).forEach(function (x) { if (KF_URL[x] === k) v = x; });
@@ -156,11 +160,17 @@
     return KF_URL[v] ? v : 'all';
   })();
   function kindOf(c) { return c.kind || 'route'; }
-  function kindsOf(l) { var o = {}; l.up.forEach(function (c) { o[kindOf(c)] = 1; }); if (recentPast(l).length) o.route = 1; return o; }
+  function kindsOf(l) {
+    var o = {};
+    l.up.forEach(function (c) { o[kindOf(c)] = 1; if (begun(c)) o.past = 1; });
+    if (recentPast(l).length) o.route = o.past = 1;
+    return o;
+  }
   function matchK(l) { return kindF === 'all' ? hasCh(l) : !!kindsOf(l)[kindF]; }
   /* השינוי שמוצג לקו (בתגית, ובבחירה): לפי הסינון */
   function upK(l) {
     if (kindF === 'all') return upNext(l);
+    if (kindF === 'past') { var b = l.up.filter(begun).sort(function (x, y) { return (x.formal || x.eff) < (y.formal || y.eff) ? 1 : -1; }); return b[0] || null; }
     var u = l.up.filter(function (c) { return kindOf(c) === kindF; });
     return u.length ? upNextOf(u) : null;
   }
@@ -214,7 +224,7 @@
   }
   /* התגית בתוצאות: לכל סוג שינוי — מילים משלו */
   function tagOf(c) {
-    var s = c.formal || c.eff, soon = s >= idx.gen;
+    var s = c.formal || c.eff, soon = !begun(c);
     if (c.kind === 'new') return '<span class="tag new">' + (soon ? 'קו חדש מ-' : 'קו חדש מ-') + LC.dm(s) + '</span>';
     if (c.kind === 'ended') return '<span class="tag end">' + (soon ? 'נוסע עד ' + LC.dm(c.last || LC.addDays(s, -1)) : 'בוטל ב-' + LC.dm(s)) + '</span>';
     if (c.kind === 'timetable') return '<span class="tag tt">' + (soon ? 'לו״ז חדש מ-' : 'לו״ז השתנה ב-') + LC.dm(s) + '</span>';
@@ -242,7 +252,7 @@
       drawResults();
     }).catch(function () { PL = { streets: [], hoods: [] }; });
   }
-  /* קו עם שינוי: משתנה בשבועיים הקרובים או השתנה בשבוע האחרון — רק הם מוצגים בחיפוש לפי מקום */
+  /* קו עם שינוי: משתנה בשבועיים הקרובים או השתנה בשבועיים האחרונים — רק הם מוצגים בחיפוש לפי מקום */
   function hasCh(l) { return !!(l && (l.up.length || recentPast(l).length)); }
   function chCount(pl) { return pl.lines.filter(function (i) { return LINES[i] && matchK(LINES[i]); }).length; }
   function lineSort(a, b) {
@@ -319,11 +329,18 @@
       return;
     }
     if (!nq) {
-      var up = LINES.filter(function (l) { return l.up.length; });
+      var up = LINES.filter(hasCh);
       drawKfil(up);
-      up = up.filter(function (l) { return upK(l); });
-      up.sort(function (a, b) { var x = upK(a), y = upK(b); return (x.formal || x.eff) < (y.formal || y.eff) ? -1 : (x.formal || x.eff) > (y.formal || y.eff) ? 1 : 0; });
-      $('reshead').textContent = kindF === 'all' ? 'קווים שמשתנים בשבועיים הקרובים או השתנו בשבוע האחרון' : KF_ALL[kindF].replace(/^הקווים/, 'קווים') + ' — בשבועיים הקרובים או בשבוע האחרון (' + up.length + ')';
+      up = up.filter(function (l) { return kindF === 'past' ? matchK(l) : upK(l); });
+      // קודם מה שעוד לא התחיל (הקרוב ראשון), ואחריו מה שכבר התחיל (האחרון ראשון)
+      up.sort(function (a, b) {
+        var x = whenOf(a), y = whenOf(b), px = x <= idx.gen, py = y <= idx.gen;
+        if (px !== py) return px ? 1 : -1;
+        return x === y ? 0 : (x < y) === !px ? -1 : 1;
+      });
+      $('reshead').textContent = kindF === 'all' ? 'קווים שמשתנים בשבועיים הקרובים או השתנו בשבועיים האחרונים'
+        : kindF === 'past' ? 'קווים שהשתנו בשבועיים האחרונים (' + up.length + ')'
+        : KF_ALL[kindF].replace(/^הקווים/, 'קווים') + ' — בשבועיים הקרובים או בשבועיים האחרונים (' + up.length + ')';
       // קווים עם בדיוק אותו שינוי (אותן תחנות, אותו יום) — קבוצה אחת, ובחירה בה מכינה מצגת אחת לכולם (רק שינויי מסלול)
       var bySig = {};
       up.forEach(function (l) { var c = upK(l); if (c && c.sig && !c.kind) (bySig[c.sig] = bySig[c.sig] || []).push(l); });
@@ -494,10 +511,17 @@
   });
   /* כל הקווים שמשתנים במקום (עיר, רחוב או שכונה) — מצגת אחת; בשלב 3 אפשר להוציא קו עם × */
   var PLROWS = [];
+  /* התאריך של השינוי שמוצג לקו: מהרשימה, או (שינוי שהיה רק בארכיון) מ"הקו בזמן" */
+  function whenOf(l) {
+    var u = upK(l);
+    if (u) return u.formal || u.eff;
+    var rp = recentPast(l);
+    return rp.length ? rp[0][0] : '9999';
+  }
   function pickKey(l) {
     var u = upK(l);
     if (u) return u.id;
-    if (kindF !== 'all' && kindF !== 'route') return null;
+    if (kindF !== 'all' && kindF !== 'route' && kindF !== 'past') return null;
     var g = clusterPast(recentPast(l))[0];
     return g ? 'p-' + l.makat + '-' + g.d : null;
   }
@@ -521,12 +545,15 @@
       return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length, size: c.kind ? null : sm,
         kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind });
     }).join('');
-    var pastEv = clusterPast(recentPast(l)).filter(function (g) { return !l.up.some(function (c) { return !c.kind && Math.abs(LC.daysBetween(c.formal || c.eff, g.d)) <= 3; }); });
+    // שינוי מהארכיון שכבר יש לו רישום מלא (גם לפי התאריך של כיוון אחד) — פעם אחת
+    var pastEv = clusterPast(recentPast(l)).filter(function (g) {
+      return !l.up.some(function (c) { return !c.kind && [c.formal || c.eff].concat(c.dirs.map(function (d) { return d.eff; })).some(function (x) { return x && Math.abs(LC.daysBetween(x, g.d)) <= 3; }); });
+    });
     html += pastEv.map(function (g) {
       return card({ key: 'p-' + l.makat + '-' + g.d, date: g.d, past: true, kinds: g.kinds, dirs: g.rests.length });
     }).join('');
     if (!up.length && !pastEv.length) {
-      $('cards').innerHTML = '<div class="none">אין שינוי בקו הזה בשבועיים הקרובים או בשבוע האחרון.</div>';
+      $('cards').innerHTML = '<div class="none">אין שינוי בקו הזה בשבועיים הקרובים או בשבועיים האחרונים.</div>';
       return;
     }
     $('cards').innerHTML = html;
@@ -727,6 +754,37 @@
         '<h2 class="hd">כותרת השקף</h2></div><div class="body"><p>כתבו כאן את הטקסט. אפשר להוסיף שורות, למחוק ולשנות הכול.</p></div>' +
         '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי</span><span class="pg num"></span></div></div>' };
   }
+  /* שינוי שכבר התחיל: הטקסטים במצגת בהווה או בעבר ("הקו כבר לא עוצר", "מה השתנה?", "מאז 17.11").
+     רק בשקפים של קו שהשינוי שלו כבר התחיל; שער, סיכום וסיום — כשכל השינויים במצגת כבר התחילו.
+     רק בטקסט שהמצגת יצרה — עריכות של המשתמש מוחלות אחר כך, ולא משתנות */
+  function pageBegun(p) { return p.kind !== 'current' && (p.past || begun(p)); }
+  function pastTense(slides, pages) {
+    var was = pages.filter(pageBegun);
+    if (!was.length) return;
+    var all = was.length === pages.length;
+    slides.forEach(function (s) {
+      if (!s.html) return;
+      var own = null;
+      pages.forEach(function (p) { if (String(s.id).indexOf(p.id) >= 0 && (!own || p.id.length > own.id.length)) own = p; });
+      if (own ? pageBegun(own) : all) s.html = pastHtml(s.html);
+    });
+  }
+  var FUT = { 'יעצור': 'עוצר', 'יעצרו': 'עוצרים', 'ייסע': 'נוסע', 'ייסעו': 'נוסעים', 'יתחיל': 'מתחיל', 'יתחילו': 'מתחילים', 'ימשיך': 'ממשיך', 'ימשיכו': 'ממשיכים',
+    'יסיים': 'מסיים', 'יסיימו': 'מסיימים', 'יגיע': 'מגיע', 'יגיעו': 'מגיעים', 'יחזור': 'חוזר', 'יחזרו': 'חוזרים' };
+  var NOW = { 'משנה': 'שינה', 'משנים': 'שינו', 'מבטל': 'ביטל', 'מבטלים': 'ביטלו', 'מוסיף': 'הוסיף', 'מוסיפים': 'הוסיפו', 'מאריך': 'האריך', 'מאריכים': 'האריכו', 'מעביר': 'העביר', 'מעבירים': 'העבירו' };
+  function pastText(t) {
+    return t
+      .replace(/(^|[^\u0590-\u05FF])(ו|ש)?(יעצור|יעצרו|ייסע|ייסעו|יתחיל|יתחילו|ימשיך|ימשיכו|יסיים|יסיימו|יגיע|יגיעו|יחזור|יחזרו)(?![\u0590-\u05FF])/g, function (m, a, pre, v) { return a + (pre || '') + FUT[v]; })
+      .replace(/(הקו|הקווים) (משנה|משנים|מבטל|מבטלים|מוסיף|מוסיפים|מאריך|מאריכים|מעביר|מעבירים)(?![\u0590-\u05FF])/g, function (m, w, v) { return w + ' ' + NOW[v]; })
+      .replace(/מה משתנה/g, 'מה השתנה').replace(/שמשתנים/g, 'שהשתנו').replace(/שמשתנות/g, 'שהשתנו')
+      .replace(/(המסלול|לא) משתנה(?![\u0590-\u05FF])/g, '$1 השתנה').replace(/לא משתנות/g, 'לא השתנו').replace(/לא משתנים/g, 'לא השתנו')
+      .replace(/(התחנה (?:הראשונה|האחרונה)) תהיה/g, '$1 היא')
+      .replace(/תחנה אחת עוברת/g, 'תחנה אחת עברה').replace(/תחנות עוברות/g, 'תחנות עברו')
+      .replace(/עד היום/g, 'לפני השינוי').replace(/מעכשיו/g, 'אחרי השינוי')
+      .replace(/החל מ-?/g, 'מאז ');
+  }
+  /* רק הטקסט שבין התגיות */
+  function pastHtml(h) { return String(h).replace(/>([^<]+)</g, function (m, t) { return '>' + pastText(t) + '<'; }); }
   function render(pages) {
     curPages = pages;
     maps.forEach(function (m) { m.map.remove(); });
@@ -735,6 +793,7 @@
     if (sig !== edSig) { edSig = sig; edits = loadEdits(sig); }
     var form = formOf();
     var base = LCDeck.build(pages, deckCity(pages), { look: edits.look, modes: edits.modes, credit: creditOn(), form: form, tt: ttOpts(), ttc: edits.ttc, ttper: edits.ttper !== false, hol: idx.hol || [] });
+    pastTense(base, pages);
     drawKinds(pages);
     ttUi(pages);
     slides = [];
