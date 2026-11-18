@@ -59,22 +59,24 @@
       var o = e.detail && e.detail.orb; if (!o) return;
       since++;
       var act = CFG.play[o.getAttribute("data-k")], forced = force === o; force = null;
-      if (cur || !act || still() || !stage.isConnected || (!CFG.daily && !o.querySelector(".hag-tile"))) return;
-      if (!forced) {
-        if (DBG) return;
-        // פעם אחת בכל כניסה לדף: במבט השני של העין, ואחר כך לא שוב (שלמה 18.11)
-        if (W.__hagPlayedOnce || since < 2 || o === last) return;
+      if (cur || !act || still() || !stage.isConnected || (!CFG.daily && !o.querySelector(".hag-tile"))) {
+        if (forced && !cur && W.__hagPlayNext && !W.__hagTourDone) setTimeout(W.__hagPlayNext, 300);   // הסמל לא מתאים — ממשיכים לבא
+        return;
       }
-      W.__hagPlayedOnce = 1;
+      // בכניסה לדף העין עוברת פעם אחת על כל הסמלים ומשחקת עם כל אחד, ואחר כך לא שוב (שלמה 18.11)
+      if (!forced) return;
       start(o, act);
     });
     function orbsFor(a) { return [].filter.call(stage.querySelectorAll(".orb[data-k]"), function (o) { var x = CFG.play[o.getAttribute("data-k")]; return x && (a === "all" || a.split(",").indexOf(x.split("@")[0]) >= 0) && (!ORB || ORB.indexOf(o.getAttribute("data-k")) >= 0); }); }
-    if (DBG) {
-      var n = 0;
+    // סבב אחד על כל הסמלים בכניסה לדף (במצב בדיקה ‎?eyeplay=‎ — בלולאה)
+    if (!W.__hagTourDone) {
+      var n = 0, tour = DBG || "all";
       var next = function () {
-        if (!stage.isConnected) return;
-        var L = orbsFor(DBG); if (!L.length || !stage.kbhLook) return;
+        if (!stage.isConnected || W.__hagTourDone) return;
+        if (still()) { W.__hagTourDone = 1; return; }
+        var L = orbsFor(tour); if (!L.length || !stage.kbhLook) return;
         if (cur) { setTimeout(next, 600); return; }
+        if (!DBG && n >= L.length) { W.__hagTourDone = 1; return; }
         force = L[n++ % L.length]; stage.kbhLook(force.getAttribute("data-k"));
       };
       W.__hagPlayNext = next;
@@ -83,7 +85,7 @@
     }
 
     // עצירה עדינה: מגע/ריחוף/פוקוס על סמל, החלפת לשונית, שינוי גודל
-    function onTouch(e) { if (cur && e.target.closest && e.target.closest(".orb")) abort(); }
+    function onTouch(e) { if (e.target.closest && e.target.closest(".orb")) { if (!DBG) W.__hagTourDone = 1; if (cur) abort(); } }   // המשתמש נוגע בסמל — מפסיקים את הסבב
     stage.addEventListener("pointerover", onTouch);
     stage.addEventListener("pointerdown", onTouch);
     stage.addEventListener("focusin", onTouch);
@@ -254,7 +256,7 @@
       c.anims.forEach(function (a) { try { a.cancel(); } catch (e) { /* ignore */ } });
       c.els.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
       cur = null; stage.kbhPlay = false; last = c.o; since = 0; gap = newGap();
-      if (DBG && W.__hagPlayNext) setTimeout(W.__hagPlayNext, 1400);
+      if (W.__hagPlayNext && !W.__hagTourDone) setTimeout(W.__hagPlayNext, DBG ? 1400 : 700);
     }
     function abort() {   // דהייה מהירה של מה שבאוויר, והסמל חוזר מיד
       var c = cur; if (!c) return;
