@@ -2123,7 +2123,7 @@ var LCDeck = (function () {
         var foot = '<div class="sfoot"><span>שעות היציאה מהתחנה הראשונה · לפי נתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div>';
         if (o.v === 'gen') {
           out.push({ id: 'cu' + gi + '-' + si, label: 'לו״ז · ' + s.title,
-            html: '<div class="s-cur f-deck v-gen"' + cuStyle(g) + '>' + head(lt + 'לוח זמנים עדכני · ' + cuValid(g)) + '<div class="cu-body">' + cuGenTable({ title: '' }, cols, g).replace('<h2 class="cu-sh hd"></h2>', '') + '</div>' + foot + '</div>' });
+            html: '<div class="s-cur f-deck v-gen"' + cuStyle(g) + '>' + head(lt + 'לוח זמנים עדכני · ' + cuValid(g)) + '<div class="cu-body">' + cuGenTable({ title: '', alts: s.alts }, cols, g).replace('<h2 class="cu-sh hd"></h2>', '') + '</div>' + foot + '</div>' });
           return;
         }
         cols.forEach(function (c, ci) {
