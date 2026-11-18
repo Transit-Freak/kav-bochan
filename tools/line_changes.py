@@ -849,6 +849,7 @@ def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
             line=r_new['line'], op=new.agency.get(r_new['ag'], ''), ag=r_new['ag'], ty=r_new['ty'],
             long=r_new['long'], od=od_of(r_new['long']),
             eff=F.isoformat(), formal=None, found=t0.isoformat(), was=ko,
+            was_last=max(d for x in ov.values() for d in x['dates']).isoformat(),
             # ההתאמה בין החלופות היא הסקה — כתובה בכרטיס ובמצגת
             basis=f'ההשוואה היא בין חלופה {ko} (עד {fmt_d(max(d for x in ov.values() for d in x["dates"]).isoformat())}) '
                   f'לחלופה {k} (מ-{fmt_d(F.isoformat())}) של אותו קו ובאותו כיוון, שהחליפה אותה.',
@@ -863,7 +864,7 @@ def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
 VAR_MIN = 3   # חלופה שבוטלה / חדשה: לפחות 3 נסיעות בשבוע (בשבוע שעבר / בשבוע הראשון שלה)
 
 
-def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0, stats):
+def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0, stats, only=None):
     """חלופה שבוטלה וחלופה חדשה בקו שממשיך לנסוע (קודם נספרו רק ב-stats ונעלמו).
     חלופה שבוטלה (end): נסעה בשבוע שעבר (VAR_MIN נסיעות לפחות), ואין לה אף נסיעה מעכשיו ועד סוף החלון, והקו
     ממשיך. חלופה חדשה (new): לא נסעה בשבוע שעבר, מתחילה בתוך HORIZON, עם VAR_MIN נסיעות לפחות בשבוע הראשון.
@@ -892,6 +893,8 @@ def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0,
 
     out = []
     for k in keys:
+        if only is not None and k not in only:   # only — רק החלופות האלה (ההצגה "בנפרד" של זוג), מול כל החלופות של הקו
+            continue
         mk, ov, nv = k.split('-')[0], old_v.get(k), new_v.get(k)
         if mk in new_mks or mk in ended_mks:
             continue
@@ -910,8 +913,9 @@ def find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0,
                 continue
             L = max(d for x in ov.values() for d in x['dates'])
             out.append(dict(k=k, var='end', ovs=ov, nvs=same_dir, lost=lost, eff=L + DAY, last=L))
-        elif nv and not ov and k not in renamed:
-            F = min(d for x in nv.values() for d in x['dates'])
+        elif nv and (not ov or only is not None) and k not in renamed:
+            # בהצגה "בנפרד" של זוג: החלופה החדשה יכלה להתחיל כבר בשבוע שעבר
+            F = min(d for x in list(nv.values()) + list((ov or {}).values()) for d in x['dates'])
             wk = dir_main(new_v, [k], F, F + 7 * DAY)
             if F > hz_end or sum(x['td'] for x in wk.values()) < VAR_MIN:
                 stats['varnew_few'] += 1
@@ -964,6 +968,8 @@ def variant_records(varis, old, new, shp_old, shp_new, t0, stats):
             old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(shp_old.get(om[1], [])))),
             new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(shp_new.get(nm[1], [])))),
             added=added, removed=removed, moved=[], geo=res['geo'], dev=res['dev'], swaps=[], ext='')
+        if v.get('split_of'):
+            rec['split_of'] = v['split_of']
         if v['var'] == 'end':
             rec['last'] = v['last'].isoformat()
             rec['basis'] = f"לפי לוח הזמנים: לחלופה {k} אין נסיעות מ-{fmt_d(v['eff'].isoformat())}."
@@ -1072,6 +1078,15 @@ def run():
     stats['ended_line'] = len(ended_mks)
     print(f'קווים חדשים: {len(new_mks)} · קווים שמבוטלים: {len(ended_mks)}', flush=True)
     varis = find_variants(keys, old_v, new_v, old, new, renamed, new_mks, ended_mks, t0, stats)
+    # ההתאמה בין חלופה שהופסקה לחלופה שהתחילה היא הסקה — מי שמכין את המצגת מחליט. לכן לכל זוג גם הצגה "בנפרד":
+    # החלופה הישנה כחלופה שבוטלה והחדשה כחלופה חדשה (split_of — מק"ט-כיוון-חלופה החדש של הזוג)
+    pair_of = {}
+    for k, (ko, _F) in renamed.items():
+        pair_of.setdefault(ko, k)
+        pair_of[k] = k
+    split = find_variants(keys, old_v, new_v, old, new, {}, new_mks, ended_mks, t0, defaultdict(int), only=set(pair_of))
+    for v in split:
+        v['split_of'] = pair_of[v['k']]
 
     def dir_main(vmap, ks, d0=None, d1=None):
         """לכל כיוון (מק"ט-כיוון): הדפוס הראשי מכל החלופות, בטווח התאריכים"""
@@ -1099,7 +1114,7 @@ def run():
         need_new |= {m[1] for m, _ in dm.values()}
     for dm in ended_main.values():
         need_old |= {m[1] for m, _ in dm.values()}
-    for v in varis:
+    for v in varis + split:
         need_old |= {s for _, s in v['ovs']}
         need_new |= {s for _, s in v['nvs']}
     print(f'{len(cands)} וריאנטים עם דפוס חדש · טוענים שרטוטים', flush=True)
@@ -1157,6 +1172,7 @@ def run():
         ))
     found += rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
     found += variant_records(varis, old, new, shp_old, shp_new, t0, stats)
+    found += variant_records(split, old, new, shp_old, shp_new, t0, defaultdict(int))
     stats['changed'] = len(found)
 
     # ---- לוחות זמנים: יציאות מהתחנה הראשונה, לכל מק"ט-כיוון (כל החלופות יחד)
@@ -1752,7 +1768,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         if fn.endswith('.json'):
             try:
                 dd = json.load(open(os.path.join(data, 'l', fn), encoding='utf-8'))
-                prev += dd.get('dirs', [])
+                prev += dd.get('dirs', []) + dd.get('split', [])
                 prev_pages[fn[:-5]] = dict(eff=dd.get('eff', ''), rds=[x['rd'] for x in dd.get('dirs', [])])
             except Exception:  # noqa: BLE001
                 pass
@@ -1765,9 +1781,12 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
     t0 = TODAY.isoformat()
     keep_from = (TODAY - datetime.timedelta(days=KEEP_DAYS)).isoformat()
     found = keep_prev(found, prev, t0, keep_from, keep_all)
+    # ההצגה "בנפרד" של זוג חלופות (split_of) — לא דף משלה, אלא חלק מהדף של הזוג (שדה split)
+    splits = [f for f in found if f.get('split_of')]
+    found = [f for f in found if not f.get('split_of')]
     found = [f for f in found if f.get('ty') != '2' and f.get('line')]   # רכבת ישראל — לא בכלי הזה
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
-    add_walks(found, data)
+    add_walks(found + splits, data)
     if lines is not None:
         places = lines.pop('_places', None)
         json.dump(dict(gen=t0, feed=new_day.isoformat(), **lines), open(os.path.join(data, 'lines.json'), 'w', encoding='utf-8'),
@@ -1822,6 +1841,8 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                    sig=same_sig(dirs, formal or eff) if kd == 'route' else '',   # אותו שינוי בכמה קווים (אותן תחנות, אותו יום) — מקובצים יחד באתר
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
+        if any(f.get('was') for f in dirs):
+            rec['inferred'] = 1   # השוואה משוערת: מי שמכין את המצגת בוחר אם זו אותה נסיעה (או להציג בנפרד — split)
         bs = [f['basis'] for f in dirs if f.get('basis')]
         if bs:
             rec['basis'] = list(dict.fromkeys(bs))   # על מה מבוססת ההשוואה (חלופה שהוחלפה / בוטלה / חדשה)
@@ -1841,7 +1862,9 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         if kd == 'ended':
             rec['last'] = max(f['last'] for f in dirs)
         index.append(rec)
-        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=dirs),
+        rds = {f['rd'] for f in dirs if f.get('was')}
+        sp = [x for x in splits if x['split_of'] in rds]
+        json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=dirs, **({'split': sp} if sp else {})),
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         od_t = f'{f0["od"][0]} ↔ {f0["od"][1]}' if f0['od'][0] != f0['od'][1] else f0['od'][0]

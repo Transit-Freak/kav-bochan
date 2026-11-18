@@ -542,7 +542,8 @@ var LCDeck = (function () {
   /* על מה מבוססת ההשוואה (חלופה שהוחלפה / בוטלה / חדשה) — שורה קטנה בשקף המפה */
   function basisHtml(dirs) {
     var seen = [];
-    dirs.forEach(function (d) { if (d.basis && seen.indexOf(d.basis) < 0) seen.push(d.basis); });
+    // התאמה בין חלופות (d.was) — מי שמכין את המצגת כבר בחר אם זו אותה נסיעה; אין צורך בהערה בשקף
+    dirs.forEach(function (d) { if (d.basis && !d.was && seen.indexOf(d.basis) < 0) seen.push(d.basis); });
     return seen.map(function (t) { return '<p class="basis" style="font-size:12.5px;color:var(--s-sub);margin:4px 0 0">' + E(t) + '</p>'; }).join('');
   }
 
