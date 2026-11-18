@@ -1,0 +1,70 @@
+name: foi-history
+
+# "הקו בזמן" — היסטוריית מסלולים 2013–2017 מקובץ "מסלול לפי שנים" של משרד התחבורה (חופש מידע).
+# הקבצים בשחרור data-foi-routes-2013-2017; הייבוא ב-tools/import_foi_routes.py (אידמפוטנטי).
+# רץ על ענף העבודה בלבד: ממזג את main, מייבא ודוחף את הנתונים לאותו ענף לבדיקה לפני מיזוג.
+
+on:
+  push:
+    branches: [claude/line-history-foi]
+    paths:
+      - '.github/workflows/foi-history.yml'
+      - 'tools/import_foi_routes.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: foi-history-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: מקום בדיסק
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h / | tail -1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /.github/
+            /tools/
+            /line-history/
+            !/line-history/data/early-rail/
+      - name: מיזוג main (הנתונים העדכניים)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch -q --shallow-since="$(date -u -d '-4 days' +%F)" origin main "$GITHUB_REF_NAME"
+          git merge -q --no-edit origin/main -m "מיזוג main לפני ייבוא נתוני משרד התחבורה (חופש מידע)"
+      - name: הורדת הקבצים
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/foi
+          gh release download data-foi-routes-2013-2017 -R "$GITHUB_REPOSITORY" -D /tmp/foi -p 'routes-by-year-*.csv.gz'
+          ls -la /tmp/foi
+          # תחנות 11.09.2015 (שמות ומיקומים מהתקופה) — מריפו הארכיון
+          curl -fsSL --retry 3 -o /tmp/foi/stops-2015-09-11.json.gz \
+            "https://raw.githubusercontent.com/Transit-Freak/kav-bochan-archive/HEAD/early-stops/obus-2015-09-11-f82792d5.json.gz"
+      - name: ייבוא
+        run: |
+          set -euo pipefail
+          python3 tools/import_foi_routes.py --foi-dir /tmp/foi --stops-ref /tmp/foi/stops-2015-09-11.json.gz
+          OUTDIR=line-history/data python3 tools/rebuild_lines_index.py
+          OUTDIR=line-history/data python3 tools/build_archive_months.py
+      - name: שמירה בענף
+        run: |
+          git add -A line-history/data
+          git commit -q -m "data: line-history — היסטוריית מסלולים 2013–2017 מנתוני משרד התחבורה (חופש מידע)" || echo "אין שינוי"
+          git push origin "HEAD:$GITHUB_REF_NAME"
