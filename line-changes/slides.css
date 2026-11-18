@@ -852,6 +852,8 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-cur .cu-key b{color:var(--s-sub);font-weight:800}
 .s-cur ul.cu-alts{margin:0;padding:0 1.1em 0 0;color:var(--s-fg);font-weight:600}
 .s-cur.f-sign .cu-key{font-size:12px;margin-top:5px}
+.s-cur.f-sign .tm .al{font-size:.72em;vertical-align:.1em}
+.s-cur.f-status .tm .al{font-size:.62em;vertical-align:.15em}
 .s-cur.f-sign ul.cu-alts{font-size:13px;margin-top:6px}
 .s-cur.f-deck .cu-key{font-size:19px;margin-top:10px}
 .s-cur.f-deck ul.cu-alts{font-size:20px;margin-top:14px}

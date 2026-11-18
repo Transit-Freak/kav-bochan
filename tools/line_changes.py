@@ -1357,7 +1357,7 @@ def alt_via(main, st):
         return out
 
     def two(arr):
-        arr = [a.replace("''", '"') for a in arr]
+        arr = [re.sub(r'^ת\.\s*רכבת', 'תחנת הרכבת', re.sub(r'^ת\.\s*מרכזית', 'התחנה המרכזית', a.replace("''", '"'))) for a in arr]
         return arr[0] if len(arr) == 1 else arr[0] + ' ו' + arr[1]
 
     def street(s):   # הרחוב מתיאור התחנה, ואם אין — החלק הראשון של השם ("עמק חפר/בקעת רימון")

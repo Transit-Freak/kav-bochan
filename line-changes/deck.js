@@ -1924,7 +1924,7 @@ var LCDeck = (function () {
     var its = (side.alts || []).filter(function (x) { return has[x.L]; }).map(function (x) {
       return '<span><i class="al">' + x.L + '</i>' + E((multi ? 'קו ' + x.p.line + ' ' : '') + x.txt) + '</span>';
     });
-    if (dbl) its.push('<span><b class="num">×2</b> שני אוטובוסים באותה שעה</span>');
+    if (dbl) its.push('<span><b class="num" dir="ltr">×2</b> שני אוטובוסים באותה שעה</span>');
     return its.length ? '<p class="cu-key">' + its.join('') + '</p>' : '';
   }
   /* כללי: "חלק מהנסיעות דרך X (בשעות …)" */
@@ -1994,14 +1994,16 @@ var LCDeck = (function () {
   };
   /* עמודות פיזיות: עמודה ארוכה מתפצלת להמשך; עמודה ארוכה מאוד (קו תדיר) — לפי שעה, ברוחב של שתי עמודות */
   function cuChunks(side, cols, M, form) {
-    var out = [];
+    // המקרא לסימנים (חלופות, ×2) תופס גובה מעל העמודות
+    var out = [], nk = (side.alts || []).length + (cols.some(function (c) { return c.ents.some(function (e) { return e.n > 1; }); }) ? 1 : 0);
+    var Hc = M.Hc - (nk ? Math.ceil(nk / (form === 'status' ? 2 : 3)) * (form === 'status' ? 36 : 18) + 6 : 0);
     cols.forEach(function (c) {
       var rows = c.ents.map(function (e) { var nt = e.part || e.m >= 1440; return { h: M.rowH + (nt ? M.noteH : 0), e: e }; });
       var tot = rows.reduce(function (t, r) { return t + r.h; }, 0), w = 1;
-      if (tot > M.Hc * 2.2) { rows = cuHourRows(c, M.perLine, M.lineH); w = 2; }
+      if (tot > Hc * 2.2) { rows = cuHourRows(c, M.perLine, M.lineH); w = 2; }
       var cur = null, used = 0, part = 0;
       rows.forEach(function (r) {
-        if (!cur || used + r.h > M.Hc) { out.push(cur = { c: c, w: w, rows: [], ents: [], cont: part++ > 0 }); used = 0; }
+        if (!cur || used + r.h > Hc) { out.push(cur = { c: c, w: w, rows: [], ents: [], cont: part++ > 0 }); used = 0; }
         cur.rows.push(r.hour ? r.html : cuRow(r.e, c, form)); used += r.h;
         if (r.es) cur.ents = cur.ents.concat(r.es); else if (r.e) cur.ents.push(r.e);
       });
