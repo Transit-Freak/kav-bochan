@@ -97,7 +97,22 @@ function placeholderBus() {
 // (RoomEnvironment, ב-main.js) — בהירה יותר מהרחוב של הרינדור, לכן בזכוכית ובשחור המבריק ההחזרה חלשה יותר,
 // אחרת החלונות נראים אפורים
 const BUS_ENV = { M_Glass: 0.25, M_GlossBlack: 0.4, M_Plexi: 0.4, M_Silver: 1.15, M_RoofWhite: 0.8 };
+// חלונות הצד והאחור (M_Glass): מבחוץ כהים, ומבפנים (המצלמה בתוך הגוף — הפקח, הנהג, נוסע) — זכוכית בהירה ושקופה
+// (כ-20% הכהיה, אפור-כחלחל), כדי שרואים את הרחוב. ההחלטה בשיידר: המצלמה (בערכי הרשת) בתוך תיבת החלונות של הרשת הזו
+function glassInside(root) {
+  const box = new Map();
+  root.traverse(o => { if (!o.isMesh) return; for (const m of [].concat(o.material)) if (m?.name === 'M_Glass') { o.geometry.computeBoundingBox(); const b = box.get(m) || new THREE.Box3(); b.union(o.geometry.boundingBox); box.set(m, b); } });
+  for (const [m, b] of box) { if (m.userData.inside) continue; m.userData.inside = true;
+    const lo = b.min.clone().addScalar(0.06), hi = b.max.clone().addScalar(-0.06), prev = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => { prev?.call(m, sh, r); sh.uniforms.gLo = { value: lo }; sh.uniforms.gHi = { value: hi };
+      sh.vertexShader = 'uniform vec3 gLo; uniform vec3 gHi; varying float vIn;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        { vec3 cl = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz; vIn = all(greaterThan(cl, gLo)) && all(lessThan(cl, gHi)) ? 1.0 : 0.0; }`);
+      sh.fragmentShader = 'varying float vIn;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        if (vIn > 0.5) gl_FragColor = vec4(mix(gl_FragColor.rgb, vec3(0.55, 0.6, 0.66), 0.6), 0.2);`); };
+    m.customProgramCacheKey = () => 'glassInside'; m.needsUpdate = true; }
+}
 function tuneBusMaterials(root, env) {
+  glassInside(root);
   root.traverse(o => {
     if (!o.isMesh) return;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {

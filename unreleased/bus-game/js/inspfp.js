@@ -270,7 +270,7 @@ export class InspectorFP {
   surfAt(o, x, z) {
     if (Math.abs(x) <= 0.88) return FLOOR;
     const C = o.userData.surf || (o.userData.surf = new Map()), k = Math.round(x * 50) + ',' + Math.round(z * 20); if (C.has(k)) return C.get(k);
-    const rc = this.rc2 || (this.rc2 = new THREE.Raycaster()); o.updateMatrixWorld(true); const inv = o.matrixWorld.clone().invert(), n = new THREE.Vector3();
+    const rc = this.rc2 || (this.rc2 = new THREE.Raycaster()); rc.camera = this.g.camera; o.updateMatrixWorld(true); const inv = o.matrixWorld.clone().invert(), n = new THREE.Vector3();
     rc.set(new THREE.Vector3(x, 1.3, z).applyMatrix4(o.matrixWorld), new THREE.Vector3(0, -1, 0).transformDirection(o.matrixWorld)); rc.far = 1.3;
     let h = SIDEWALK;
     for (const hit of rc.intersectObject(o, true)) { const m = hit.object; if (!m.isMesh || !m.visible || m.isSkinnedMesh || !hit.face) continue;
