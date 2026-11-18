@@ -62,8 +62,10 @@
       if (cur || !act || still() || !stage.isConnected || (!CFG.daily && !o.querySelector(".hag-tile"))) return;
       if (!forced) {
         if (DBG) return;
-        if (since < gap || o === last || Math.random() > (CFG.daily ? .6 : .75)) return;
+        // פעם אחת בכל כניסה לדף: במבט השני של העין, ואחר כך לא שוב (שלמה 18.11)
+        if (W.__hagPlayedOnce || since < 2 || o === last) return;
       }
+      W.__hagPlayedOnce = 1;
       start(o, act);
     });
     function orbsFor(a) { return [].filter.call(stage.querySelectorAll(".orb[data-k]"), function (o) { var x = CFG.play[o.getAttribute("data-k")]; return x && (a === "all" || a.split(",").indexOf(x.split("@")[0]) >= 0) && (!ORB || ORB.indexOf(o.getAttribute("data-k")) >= 0); }); }
