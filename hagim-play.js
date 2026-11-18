@@ -655,6 +655,14 @@
             add(d, dr); A(d, [{ transform: T(dr, ctr(dr), 1), opacity: 0 }, { transform: T(dr, ctr(dr), 1), opacity: 1, offset: .15 }, { transform: T(dr, { x: cx(dr), y: cy(dr) + 40 * g.u }, .7), opacity: 0 }], { duration: 420, easing: "ease-in" });
           });
         });
+        // פרחים קטנים פורחים על מה שצמח
+        [[-10, 70, 1250], [9, 64, 1360], [2, 78, 1470]].forEach(function (b) {
+          later(b[2], function () {
+            var fl = div("", "<svg viewBox='0 0 20 20'><g fill='#f9a8d4' stroke='#db2777' stroke-width='.8'><circle cx='10' cy='4.5' r='4'/><circle cx='15.2' cy='8.3' r='4'/><circle cx='13.2' cy='14.5' r='4'/><circle cx='6.8' cy='14.5' r='4'/><circle cx='4.8' cy='8.3' r='4'/></g><circle cx='10' cy='10' r='3' fill='#facc15'/></svg>"), r = g.box(px + b[0] - 6, b[1] - 6, 12, 12);
+            add(fl, r); A(fl, [{ transform: T(r, ctr(r), .1, " rotate(0deg)"), opacity: 0 }, { transform: T(r, ctr(r), 1.25, " rotate(40deg)"), opacity: 1, offset: .5 }, { transform: T(r, ctr(r), 1, " rotate(60deg)"), opacity: 1 }], { duration: 360, easing: "ease-out" });
+            later(1700 - b[2] + 300, function () { A(fl, [{ opacity: 1 }, { opacity: 0 }], { duration: 250 }); });
+          });
+        });
         spark(g, px - 16, 74, 1300); spark(g, px + 16, 80, 1420);
         irisTo([[.2, sd * 10, 4], [.45, sd * 10, 6], [.7, sd * 10, 2], [.85, sd * 9, 3]], 2200);
         happy(g, 1350, 1800);
@@ -734,8 +742,8 @@
 
       // מזיגה: הכד נוטה ומטפטף אל נר קטן שנדלק (lamp) או אל הפה (דבש)
       pour: function (o, intoMouth) {
-        var sd = spotSide(o).sd, jx = intoMouth ? 60 + sd * 42 : 60 + sd * 70;
-        var v = visit(o, intoMouth ? 40 : 32, { x: jx, y: intoMouth ? 92 : 88 }), g = v.g;
+        var sd = spotSide(o).sd, jx = intoMouth ? 60 + sd * 48 : 60 + sd * 70;
+        var v = visit(o, intoMouth ? 40 : 32, { x: jx, y: intoMouth ? 99 : 88 }), g = v.g;
         var tgt = intoMouth ? { x: 60, y: 103 } : { x: 60 + sd * 50, y: 114 }, lamp = null, flame = null;
         if (!intoMouth) {
           lamp = div("", "<svg viewBox='0 0 30 22'><path d='M2 12 Q15 24 28 12 Z' fill='#b45309' stroke='#78350f' stroke-width='2'/><path d='M24 12 L30 8' stroke='#78350f' stroke-width='3' stroke-linecap='round'/></svg>");
@@ -747,7 +755,7 @@
           later(1780, function () { A(flame, [{ opacity: 1 }, { opacity: 0 }], { duration: 250 }); A(lamp, [{ opacity: 1 }, { opacity: 0 }], { duration: 250 }); });
         }
         later(520, function () { A(v.inner, [{ transform: "rotate(0deg)" }, { transform: "rotate(" + (-sd * 55) + "deg)", offset: .25 }, { transform: "rotate(" + (-sd * 55) + "deg)", offset: .8 }, { transform: "rotate(0deg)" }], { duration: 1100 }); });
-        var lip = { x: jx - sd * 14, y: (intoMouth ? 92 : 88) - 6 };
+        var lip = { x: jx - sd * 14, y: (intoMouth ? 99 : 88) - 6 };
         [700, 830, 960, 1090].forEach(function (t) {
           later(t, function () {
             var d = div("", "<svg viewBox='0 0 10 14'><path d='M5 0 Q10 8 5 13 Q0 8 5 0Z' fill='" + (intoMouth ? "#f59e0b" : "#facc15") + "' stroke='#b45309' stroke-width='.8'/></svg>"), dr = g.box(lip.x - 3, lip.y - 4, 6, 8);
@@ -919,11 +927,11 @@
           var car = D.createElement("span"); car.textContent = main.textContent; d.appendChild(car);
           if (badge) {
             var bs = D.createElement("span"), bf = fs * .46; bs.textContent = badge.textContent;
-            bs.style.setProperty("font-size", bf + "px", "important"); bs.style.position = "absolute"; bs.style.left = (W0 / 2 - bf * .6) + "px"; bs.style.top = (-bf * .62) + "px";
+            bs.style.setProperty("font-size", bf + "px", "important"); bs.style.position = "absolute"; bs.style.left = (W0 / 2 - bf * .6) + "px"; bs.style.top = (-bf * .2) + "px";
             d.appendChild(bs);
           }
         }
-        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 127 : 122;
+        var fb = { l: 0, t: 0, w: W0, h: h }, sd = spotSide(o).sd, Y = slow ? 127 : 128;
         add(d, fb); hide(whole);
         var a = P(g, 60 + sd * (slow ? 66 : 82), Y), b = P(g, 60 - sd * (slow ? 6 : 82), Y), fl = sd < 0 ? " scaleX(-1)" : "", s0 = sr.w / W0, mid = around(g, ctr(sr), a);
         var pose = function (p, sc, r) { return T(fb, p, sc, " rotate(" + (r || 0) + "deg)" + fl); };
