@@ -7,8 +7,9 @@
   של הווריאנט הוא בדיוק ה-rd של הקו בזמן.
 - `max_date` = היום האחרון שבו גרסת המסלול נסעה (הצילום האחרון של קו שבוטל נופל עליו).
 - `freq` = מספר הנסיעות של הגרסה באותה שנה (קו של שתי נסיעות ביום חול: כ-2 × ימי החול שבין התאריכים).
-- שמות התחנות בקובץ הם השמות המאוחרים של המשרד, לא השמות שהיו אז. לכן שם ומיקום של תחנה נלקחים
-  קודם מהקו עצמו, אחר כך מצילום התחנות של 11.09.2015, ורק אם אין — מהקובץ.
+- שמות התחנות בקובץ הם השמות של היום (שם אחד לכל תחנה בכל השנים, זהה ל-GTFS של 11.2026), וכך גם המיקום
+  והסטטוס. לכן שם ומיקום של תחנה נלקחים קודם מהקו עצמו, אחר כך מצילום התחנות של 11.09.2015, ורק אם אין —
+  מהקובץ, ואז התחנה מסומנת (`foiNames`) והדף כותב "שם עדכני". הסטטוס לא נלקח.
 - קובץ 2013 מכסה רק את הימים האחרונים של דצמבר 2013.
 
 מה נכנס לקו (src "mot-foi"):
@@ -118,14 +119,14 @@ class Names:
     def stop(self, s, own):
         code, name, lat, lon, _ = s
         if code in own:
-            return [code, own[code][0], own[code][1], own[code][2]]
+            return [code, own[code][0], own[code][1], own[code][2]], False
         if code in self.ref:
             r = self.ref[code]
-            return [code, r[0], r[1], r[2]]
+            return [code, r[0], r[1], r[2]], False
         try:
-            return [code, name, float(lat), float(lon)]
+            return [code, name, float(lat), float(lon)], True
         except ValueError:
-            return [code, name or code, None, None]
+            return [code, name or code, None, None], True
 
 
 def strip_previous(lf):
@@ -170,7 +171,11 @@ def build(rd, foi_vs, lf, names, siblings, stats):
             own.setdefault(s[0], s[1:])
 
     def stops_of(g):
-        return [names.stop(s, own) for s in g['stops']]
+        return [names.stop(s, own)[0] for s in g['stops']]
+
+    def now_names(g):
+        # תחנות שהשם והמיקום שלהן באו רק מהקובץ — השם של היום, מסומן בדף "שם עדכני"
+        return sorted({s[0] for s in g['stops'] if names.stop(s, own)[1]})
 
     added = []
     earlier = [v for v in official if v['d'] < (groups[0]['start'] or DATA_START) and v.get('stops')]
@@ -189,6 +194,10 @@ def build(rd, foi_vs, lf, names, siblings, stats):
         v = {'d': d, 'src': SRC, 'stops': st, 'shp': '', 'ap': ap, 'foiVer': g['vids'], 'foiEnd': g['end']}
         if sd:
             v['sd'] = sd
+        nn = now_names(g)
+        if nn:
+            v['foiNames'] = nn
+            stats['versionsWithNowNames'] += 1
         if i == 0:
             if earlier:
                 base = earlier[-1]

@@ -897,7 +897,7 @@ const dedupCount = (arr) => {
   (arr || []).forEach((x) => { const k = typeof x === "string" ? x : x[0] + "|" + x[1]; const e = m.get(k); if (e) e.n += 1; else m.set(k, { x, n: 1 }); });
   return [...m.values()];
 };
-function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly }) {
+function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCodes, stops12, shape12, remPins, sg, planned, plats, pointsOnly, nowNames }) {
   // בצילומי אתרי המידע לנוסעים לתחנות אין מיקום ([קוד, שם, null, null]) — מפה עם נקודות null
   // קרסה (L.latLngBounds של רשימה ריקה / circleMarker([null,null])) והורידה את כל הדף
   const finite = (s) => Number.isFinite(s[2]) && Number.isFinite(s[3]);
@@ -1015,6 +1015,8 @@ function DiffMap({ cur, prev, approx, prevApprox, curStops, prevStops, addedCode
       (PD[s[4]] ? `<br><span class="pst">⛔ ${PD[s[4]]}</span>` : "") +
       // הרציף של הווריאנט בתחנה הזו היום (platforms.json) — רק במסופים עם רציפים
       (plats && plats[String(s[0])] ? `<br><span class="pst">🛤️ רציף ${esc(String(plats[String(s[0])]))}</span>` : "") +
+      // שם מנתוני משרד התחבורה (חופש מידע) — השם של היום, לא של התקופה
+      (nowNames && nowNames.has(String(s[0])) ? `<br><span class="pcode">שם עדכני — שם התחנה כפי שהוא רשום היום; השם בתקופה הזו לא ידוע</span>` : "") +
       `<br><span class="pcode">${String(s[0]).startsWith('website:')?'מזהה פנימי במקור':'מק״ט תחנה'} ${esc(s[0])}</span>`;
     (curStops || []).forEach((s) => {
       // הגרסה הקודמת עשויה להיות שינוי תדירות בלי רצף תחנות, ואז אין מול מה
@@ -2907,7 +2909,10 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
       if (!isAdd) { const f = remFix(i)[name]; if (f) return withPlat(`${name} (${f[0]})`, f[0]); }
       return name;
     });
-    return dedupCount(strs).map(({ x, n: c }) => x + (c > 1 ? ` ×${c}` : "")).join(", ");
+    // שם מנתוני משרד התחבורה (חופש מידע) — השם של היום (שלמה 18.11)
+    const now = new Set([...((vs[i] && vs[i].foiNames) || []), ...((vs[i - 1] && vs[i - 1].foiNames) || [])].map(String));
+    const strs2 = now.size ? strs.map((x) => { const m = /\((\d+)\)/.exec(x); return m && now.has(m[1]) ? x + " · שם עדכני" : x; }) : strs;
+    return dedupCount(strs2).map(({ x, n: c }) => x + (c > 1 ? ` ×${c}` : "")).join(", ");
   };
   // תחנה שירדה ותחנה שנוספה עם אותו שם ורק רציף שונה — זה מעבר רציף,
   // לא "תחנה חדשה": מזווגים אותן ומציגים שורת מעבר אחת ברורה
@@ -3281,6 +3286,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           stops12={onlyCur ? null : stops12} shape12={onlyCur ? null : shape12}
           sg={onlyCur || cmpOn || m12only ? null : (v.sg || null)}
           plats={m12only ? null : rdPlat}
+          nowNames={(gv.foiNames || (pgv && pgv.foiNames)) ? new Set([...(gv.foiNames || []), ...((pgv && pgv.foiNames) || [])].map(String)) : null}
           remPins={onlyCur || cmpOn || m12only ? null : remPinsOf(v, vi, gv).pins} />
         {/* תחנה שירדה ואין לה מיקום באף מקור — נאמרת במפורש, לא נעלמת */}
         {!cmpOn && !onlyCur && !m12only && (() => {
@@ -3316,6 +3322,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           : approx
           ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף {gv.src === "mot-foi" ? "התחנות בנתוני משרד התחבורה (חופש מידע); אין בהם שרטוט מסלול" : "מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו"}. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
+        {(gv.foiNames || []).length > 0 && <div className="mut"><TipTag cls="mut" tip="שם התחנה כפי שהוא רשום היום — השם בתקופה הזו לא ידוע">שם עדכני</TipTag>: ל-{gv.foiNames.length} מהתחנות בגרסה הזו לא נמצא שם מהתקופה, ומוצג השם שלהן היום (בלחיצה על התחנה במפה ובשמות התחנות שנוספו או ירדו).</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
       </div>
