@@ -12,12 +12,14 @@
    מגע או ריחוף על סמל באמצע — המשחק נעצר בעדינות והכול חוזר למקום. השכבה לא תופסת לחיצות (pointer-events:none).
    הכול transform/opacity (WAAPI) — בלי ספריות.
    בדיקה: ‎?hag=hanukkah&eyeplay=eat‎ (או כמה סוגים מופרדים בפסיק, או all; בלי hag — יום רגיל) — העין פונה מיד לסמל
-   וחוזרת על המשחקים בלולאה. */
+   וחוזרת על המשחקים בלולאה. ‎&eyeorb=<data-k>‎ (או כמה מופרדים בפסיק) — רק הסמל הזה, כדי לבדוק כל סמל לבד. */
 (function () {
   "use strict";
   var W = window, D = document, CFG = W.__hagPlay;
   if (!CFG || W.HagPlay || !Element.prototype.animate) return;
   var q = /[?&]eyeplay=([a-z,]+)/.exec(location.search), DBG = q ? q[1] : "";
+  var qo = /[?&]eyeorb=([a-z,-]+)/.exec(location.search), ORB = qo ? qo[1].split(",") : null;   // בדיקה של סמל אחד (או כמה): ‎&eyeorb=kavpach‎
+  if (ORB && !DBG) DBG = "all";
   var EYE = "M14 60 Q60 20 106 60 Q60 100 14 60 Z";
   var LETTERS = ["נ", "ג", "ה", "פ"];
 
@@ -63,7 +65,7 @@
       }
       start(o, act);
     });
-    function orbsFor(a) { return [].filter.call(stage.querySelectorAll(".orb[data-k]"), function (o) { var x = CFG.play[o.getAttribute("data-k")]; return x && (a === "all" || a.split(",").indexOf(x) >= 0); }); }
+    function orbsFor(a) { return [].filter.call(stage.querySelectorAll(".orb[data-k]"), function (o) { var x = CFG.play[o.getAttribute("data-k")]; return x && (a === "all" || a.split(",").indexOf(x) >= 0) && (!ORB || ORB.indexOf(o.getAttribute("data-k")) >= 0); }); }
     if (DBG) {
       var n = 0;
       var next = function () {
