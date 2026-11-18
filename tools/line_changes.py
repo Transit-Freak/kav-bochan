@@ -674,7 +674,9 @@ def tt_change(old, new, dk, o_svcs, n_svcs, ref_days, t0, last_day):
         if not changed:
             why = 'temp'
             continue
-        eff = next((x for x in w1 if dtype(x) in changed and tt_sig(sref[dtype(x)], tt_sum(new.day_deps(n_svcs, x)))), D)
+        # התאריך: היום הראשון שבו הלוח כבר כמו הלוח החדש (ולא סתם יום חריג באמצע)
+        eff = next((x for x in w1 if dtype(x) in changed and tt_sig(sref[dtype(x)], tt_sum(new.day_deps(n_svcs, x)))
+                    and not tt_sig(tt_sum(new.day_deps(n_svcs, x)), tt_sum(nw[dtype(x)]))), D)
         # השינוי התחיל כבר בשבוע שעבר (בימים האחרונים שלו)? אז זה התאריך
         if eff == D:
             for x in sorted(ref_days, reverse=True):
