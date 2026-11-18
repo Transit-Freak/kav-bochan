@@ -1,0 +1,67 @@
+name: tmp-kinds
+
+# בדיקה זמנית (ענף זמני בלבד): הבונה של "מצגת לשינוי בקו" מהענף claude/line-changes-kinds,
+# על הנתונים האמיתיים, והפלט נשמר תחת tmp-kinds/ בענף הזה. יימחק אחרי הבדיקה.
+on:
+  push:
+    branches: [claude/stoic-allen-3g21ru]
+    paths: ['.github/workflows/tmp-kinds.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/line-changes-kinds
+          path: src
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tools/
+            /line-changes/
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: mainrepo
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /line-history/data/changes/
+            /line-history/data/neighborhoods/
+            /line-changes/data/
+      - name: build
+        env:
+          TZ: Asia/Jerusalem
+          LH_CHANGES: mainrepo/line-history/data/changes
+          NBR_DIR: mainrepo/line-history/data/neighborhoods
+          OUTDIR: /tmp/lcout
+          WALK: '0'
+        run: |
+          mkdir -p /tmp/lcout
+          cp src/line-changes/line-template.html /tmp/lcout/
+          # walk.json מה-main — זמני ההליכה מהמטמון (בלי בקשות חדשות)
+          mkdir -p /tmp/lcout/data && cp mainrepo/line-changes/data/walk.json /tmp/lcout/data/ 2>/dev/null || true
+          python3 src/tools/line_changes.py 2>&1 | tee /tmp/lcout/build.log
+      - uses: actions/checkout@v4
+        with:
+          path: self
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/workflows/tmp-kinds.yml
+      - name: save
+        run: |
+          cd self
+          rm -rf tmp-kinds && mkdir -p tmp-kinds && cp -a /tmp/lcout/data /tmp/lcout/build.log tmp-kinds/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --sparse -A tmp-kinds
+          git commit -q -m "tmp: פלט הבונה של מצגת לשינוי בקו (בדיקה)"
+          git push -q origin HEAD:claude/stoic-allen-3g21ru
