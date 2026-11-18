@@ -44,17 +44,19 @@
     if (!D.getElementById("hag-play-css")) { var st = D.createElement("style"); st.id = "hag-play-css"; st.textContent = css; D.head.appendChild(st); }
     var layer = div("hag-play"); layer.setAttribute("aria-hidden", "true"); stage.appendChild(layer);
     var iris = stage.querySelector(".kb-iris-js"), eyeEl = stage.querySelector(".eye");
-    var cur = null, since = 0, last = null, force = null, gap = 3;
+    var cur = null, since = 0, last = null, force = null, gap = newGap();
+    // בחגים — בערך פעם בשלושה-ארבעה מבטים; בימים רגילים — נדיר ועדין יותר, בערך פעם בשישה-שמונה
+    function newGap() { return CFG.daily ? 6 + Math.floor(Math.random() * 3) : 3 + (Math.random() < .5 ? 1 : 0); }
 
     // ---------- מתי משחקים ----------
     stage.addEventListener("kbh:gaze", function (e) {
       var o = e.detail && e.detail.orb; if (!o) return;
       since++;
       var act = CFG.play[o.getAttribute("data-k")], forced = force === o; force = null;
-      if (cur || !act || still() || !stage.isConnected || !o.querySelector(".hag-tile")) return;
+      if (cur || !act || still() || !stage.isConnected || (!CFG.daily && !o.querySelector(".hag-tile"))) return;
       if (!forced) {
         if (DBG) return;
-        if (since < gap || o === last || Math.random() > .75) return;
+        if (since < gap || o === last || Math.random() > (CFG.daily ? .6 : .75)) return;
       }
       start(o, act);
     });
@@ -198,7 +200,7 @@
       c.undo.forEach(function (f) { f(); });
       c.anims.forEach(function (a) { try { a.cancel(); } catch (e) { /* ignore */ } });
       c.els.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
-      cur = null; stage.kbhPlay = false; last = c.o; since = 0; gap = 3 + (Math.random() < .5 ? 1 : 0);
+      cur = null; stage.kbhPlay = false; last = c.o; since = 0; gap = newGap();
       if (DBG && W.__hagPlayNext) setTimeout(W.__hagPlayNext, 1400);
     }
     function abort() {   // דהייה מהירה של מה שבאוויר, והסמל חוזר מיד
@@ -243,6 +245,22 @@
           });
           backHome(t + 480); end(Math.max(t + 520, endAt || 0));
         } };
+    }
+    // ימים רגילים: הסמל של הכלי (תמונה) נשאר במקומו, והמשחק מצויר לידו. at(k) — נקודה בכיוון העין (k בגדלי סמל),
+    // up(k) — מעל הסמל, look — האישון ממשיך להסתכל על הסמל עם תזוזות קטנות
+    function orbG(o) {
+      var g = geo(o), sp = o.querySelector("[data-icon]") || o.firstElementChild, r = rel(sp.getBoundingClientRect(), g.S), s = r.w, c = ctr(r), d = dirTo(g, o);
+      return { g: g, sp: sp.firstElementChild || sp, s: s, c: c, d: d, sd: d.x >= 0 ? 1 : -1,
+        at: function (k, side) { side = side || 0; return { x: c.x - d.x * k * s - d.y * side * s, y: c.y - d.y * k * s + d.x * side * s }; },
+        up: function (k) { return { x: c.x, y: c.y - k * s }; },
+        box: function (p, w, h) { w *= 1.3; h *= 1.3; return { l: p.x - w * s / 2, t: p.y - h * s / 2, w: w * s, h: h * s }; },
+        look: function (fr, dur) { var gx = 11 * d.x, gy = 7 * d.y; irisTo(fr.map(function (f) { return [f[0], +(gx + f[1]).toFixed(2), +(gy + f[2]).toFixed(2)]; }), dur); } };
+    }
+    function busSvg(col) {
+      return "<svg viewBox='0 0 30 20'><rect x='1' y='2' width='28' height='13' rx='3' fill='" + col + "' stroke='#0f172a' stroke-width='1.5'/><rect x='4' y='5' width='6' height='5' rx='1' fill='#e0f2fe'/><rect x='12' y='5' width='6' height='5' rx='1' fill='#e0f2fe'/><rect x='20' y='5' width='6' height='5' rx='1' fill='#e0f2fe'/><circle cx='8' cy='16' r='3' fill='#0f172a'/><circle cx='22' cy='16' r='3' fill='#0f172a'/></svg>";
+    }
+    function trainSvg(col) {
+      return "<svg viewBox='0 0 50 16'><path d='M10 1 H48 V13 H2 Q2 4 10 1 Z' fill='" + col + "' stroke='#0f172a' stroke-width='1.5' stroke-linejoin='round'/><rect x='14' y='4' width='7' height='4' rx='1' fill='#e0f2fe'/><rect x='24' y='4' width='7' height='4' rx='1' fill='#e0f2fe'/><rect x='34' y='4' width='7' height='4' rx='1' fill='#e0f2fe'/><path d='M6 5 L10 5' stroke='#e0f2fe' stroke-width='2'/><circle cx='12' cy='14' r='2' fill='#0f172a'/><circle cx='40' cy='14' r='2' fill='#0f172a'/></svg>";
     }
     function say(g, ch, x, y, t, hold) {   // בועה קטנה עם סימן
       var b = div("hp-bub", ch), r = g.box(x - 13, y - 13, 26, 26);
@@ -772,7 +790,193 @@
       wreath: function (o) { RUN.wear(o, true); },
       noise: function (o) { RUN.twirl(o, true); },
       shake: function (o) { RUN.wave(o, true); },
-      honey: function (o) { RUN.pour(o, true); }
+      honey: function (o) { RUN.pour(o, true); },
+
+      // ---------- ימים רגילים: משחק קטן ועדין לכל כלי (הסמל עצמו נשאר בכפתור) ----------
+      // קו פח: המכסה קופץ, זבובים מזמזמים, והעין מציצה פנימה
+      lid: function (o) {
+        var q = orbG(o), lid = div("", "<svg viewBox='0 0 40 14'><rect x='2' y='5' width='36' height='8' rx='3' fill='#64748b' stroke='#334155' stroke-width='2'/><rect x='15' y='1' width='10' height='6' rx='2' fill='#475569'/></svg>"), lr = q.box(q.up(.42), .7, .25);
+        add(lid, lr); lid.style.opacity = 0;
+        A(lid, [{ transform: T(lr, q.up(.42), 1, " rotate(0deg)"), opacity: 0 }, { transform: T(lr, q.up(.95), 1, " rotate(" + (-q.sd * 28) + "deg)"), opacity: 1, offset: .2 }, { transform: T(lr, q.up(.85), 1, " rotate(" + (-q.sd * 18) + "deg)"), opacity: 1, offset: .5 },
+          { transform: T(lr, q.up(.95), 1, " rotate(" + (-q.sd * 28) + "deg)"), opacity: 1, offset: .75 }, { transform: T(lr, q.up(.42), 1, " rotate(0deg)"), opacity: 0 }], { duration: 1700 });
+        [0, 1].forEach(function (i) {
+          var f = div("", "<svg viewBox='0 0 10 8'><ellipse cx='5' cy='5' rx='3' ry='2.5' fill='#0f172a'/><ellipse cx='3' cy='2' rx='2' ry='1.4' fill='#cbd5e1'/><ellipse cx='7' cy='2' rx='2' ry='1.4' fill='#cbd5e1'/></svg>"), fr = q.box(q.c, .16, .13), p = q.up(.7);
+          add(f, fr); f.style.opacity = 0;
+          later(300 + i * 200, function () { A(f, [{ transform: T(fr, p, 1), opacity: 0 }, { transform: T(fr, { x: p.x + (i ? .4 : -.4) * q.s, y: p.y - .3 * q.s }, 1), opacity: 1, offset: .25 }, { transform: T(fr, { x: p.x + (i ? -.3 : .3) * q.s, y: p.y - .6 * q.s }, 1), opacity: 1, offset: .5 }, { transform: T(fr, { x: p.x + (i ? .2 : -.2) * q.s, y: p.y - .4 * q.s }, 1), opacity: 1, offset: .75 }, { transform: T(fr, p, .6), opacity: 0 }], { duration: 1200 }); });
+        });
+        q.look([[.2, 0, -1], [.4, 0, -2.5], [.6, 0, -1], [.8, 0, -2]], 1900);
+        end(1900);
+      },
+      // הקו המוזהב: מטבע זהב קופץ מהסמל, מסתובב באוויר ונופל חזרה, עם נצנוץ
+      flip: function (o) {
+        var q = orbG(o), c = div("", "<svg viewBox='0 0 20 20'><circle cx='10' cy='10' r='9' fill='#facc15' stroke='#b45309' stroke-width='2'/><text x='10' y='14.5' text-anchor='middle' font-size='11' font-weight='900' fill='#b45309' font-family='Heebo,system-ui,sans-serif'>₪</text></svg>"), cr = q.box(q.c, .36, .36), p0 = q.up(.1), p1 = q.up(1.25);
+        add(c, cr);
+        var k = [], n = 8; for (var i = 0; i <= n; i++) { var t = i / n, y = p0.y + (p1.y - p0.y) * (1 - Math.pow(2 * t - 1, 2)); k.push({ transform: T(cr, { x: p0.x, y: y }, 1, " scaleX(" + Math.cos(t * Math.PI * 4).toFixed(2) + ")"), opacity: i === 0 || i === n ? 0 : 1, offset: t }); }
+        A(c, k, { duration: 1300, easing: "linear" });
+        later(1250, function () { var r = q.box(q.up(.5), .3, .3), sp = div("", "<svg viewBox='0 0 20 20'><path d='M10 0 Q11 9 20 10 Q11 11 10 20 Q9 11 0 10 Q9 9 10 0Z' fill='#facc15' stroke='#b45309' stroke-width='.8'/></svg>"); add(sp, r); A(sp, [{ transform: T(r, ctr(r), .1, " rotate(0deg)"), opacity: 0 }, { transform: T(r, ctr(r), 1.2, " rotate(45deg)"), opacity: 1, offset: .5 }, { transform: T(r, ctr(r), .2, " rotate(90deg)"), opacity: 0 }], { duration: 500 }); });
+        q.look([[.15, 0, 0], [.35, 0, -3], [.5, 0, -1], [.7, 0, 0]], 1900);
+        end(1800);
+      },
+      // קו באג: חרק קטן זוחל מהסמל לכיוון העין ומסתובב, והאישון עוקב אחריו
+      crawl: function (o) {
+        var q = orbG(o), b = div("", "<svg viewBox='0 0 20 20'><g stroke='#0f172a' stroke-width='1.6' stroke-linecap='round'><path d='M6 7 L2 4 M6 10 L1 10 M6 13 L2 16 M14 7 L18 4 M14 10 L19 10 M14 13 L18 16 M8 4 L6 1 M12 4 L14 1'/></g><ellipse cx='10' cy='11' rx='5' ry='6.5' fill='#dc2626'/><path d='M10 5 V17' stroke='#0f172a' stroke-width='1.2'/><circle cx='8' cy='9' r='1.2' fill='#0f172a'/><circle cx='12' cy='13' r='1.2' fill='#0f172a'/><circle cx='10' cy='4.6' r='2.6' fill='#0f172a'/></svg>"), br = q.box(q.c, .3, .3);
+        add(b, br);
+        var pts = [q.at(.15, 0), q.at(.7, .3), q.at(1, -.1), q.at(.75, -.5), q.at(.3, -.25), q.at(.15, 0)], k = [];
+        pts.forEach(function (p, i) {
+          var nx = pts[Math.min(i + 1, pts.length - 1)], pv = pts[Math.max(i - 1, 0)], a = Math.atan2(nx.y - pv.y, nx.x - pv.x) * 180 / Math.PI + 90;
+          k.push({ transform: T(br, p, 1, " rotate(" + a.toFixed(0) + "deg)"), opacity: i === 0 || i === pts.length - 1 ? 0 : 1, offset: i / (pts.length - 1) });
+        });
+        A(b, k, { duration: 1800, easing: "linear" });
+        var g = q.g, e = ctr(g.E), fr = [];
+        pts.forEach(function (p, i) { var dx = p.x - e.x, dy = p.y - e.y, l = Math.sqrt(dx * dx + dy * dy) || 1; fr.push([.05 + i / (pts.length - 1) * .85, 11 * dx / l, 7 * dy / l]); });
+        irisTo(fr, 2000);
+        end(1950);
+      },
+      // התחנה הבאה: השלט מתהפך (פעמיים) — שם חדש לתחנה
+      signflip: function (o) {
+        var q = orbG(o);
+        A(q.sp, [{ transform: "scaleX(1)" }, { transform: "scaleX(0)", offset: .2 }, { transform: "scaleX(-1)", offset: .4 }, { transform: "scaleX(-1)", offset: .55 }, { transform: "scaleX(0)", offset: .75 }, { transform: "scaleX(1)" }], { duration: 1400, fill: "none" });
+        say(q.g, "?", (q.up(.75).x - q.g.E.l) / q.g.u, (q.up(.75).y - q.g.E.t) / q.g.u, 500, 400);
+        q.look([[.3, 0, -1], [.6, 0, 1]], 1700);
+        end(1700);
+      },
+      // הקו המדלג: אוטובוס קטן קופץ מעל עמוד תחנה, בין הסמל לעין
+      hop: function (o) {
+        var q = orbG(o), pole = div("", "<svg viewBox='0 0 12 30'><rect x='5' y='8' width='2.4' height='22' fill='#64748b'/><rect x='0' y='0' width='12' height='10' rx='2' fill='#16a34a'/><text x='6' y='8' text-anchor='middle' font-size='8' fill='#fff' font-weight='900'>B</text></svg>"), pr = q.box(q.at(.62, 0), .16, .4);
+        add(pole, pr); A(pole, [{ transform: T(pr, ctr(pr), 1), opacity: 0 }, { transform: T(pr, ctr(pr), 1), opacity: 1, offset: .12 }, { transform: T(pr, ctr(pr), 1), opacity: 1, offset: .88 }, { transform: T(pr, ctr(pr), 1), opacity: 0 }], { duration: 1800 });
+        var bus = div("", busSvg("#2563eb")), br = q.box(q.c, .4, .26), a = q.at(.25, .32), b = q.at(1, .32), top = q.at(.62, .32);
+        add(bus, br); top = { x: top.x, y: top.y - .55 * q.s };
+        var fl = b.x < a.x ? " scaleX(-1)" : "";
+        later(200, function () { A(bus, [{ transform: T(br, a, 1, fl), opacity: 0 }, { transform: T(br, a, 1, fl), opacity: 1, offset: .1 }, { transform: T(br, top, 1, fl + " rotate(" + (b.x < a.x ? 10 : -10) + "deg)"), offset: .5, easing: "ease-in" }, { transform: T(br, b, 1, fl), opacity: 1, offset: .85 }, { transform: T(br, b, 1, fl), opacity: 0 }], { duration: 1400, easing: "ease-out" }); });
+        q.look([[.3, 0, 1], [.5, 0, -2], [.75, 0, 1]], 1800);
+        end(1800);
+      },
+      // הקו בזמן: שעון קטן ליד הסמל, המחוגים מסתובבים מהר אחורה בזמן
+      clock: function (o) {
+        var q = orbG(o), c = div("", "<svg viewBox='0 0 30 30'><circle cx='15' cy='15' r='13' fill='#fff' stroke='#0f172a' stroke-width='2.5'/><g class='hm'><path d='M15 15 V6' stroke='#0f172a' stroke-width='2.4' stroke-linecap='round'/></g><g class='hh'><path d='M15 15 H21' stroke='#dc2626' stroke-width='2.8' stroke-linecap='round'/></g><circle cx='15' cy='15' r='1.8' fill='#0f172a'/></svg>"), cr = q.box(q.at(.62, -.38), .46, .46);
+        add(c, cr);
+        A(c, [{ transform: T(cr, ctr(cr), .2), opacity: 0 }, { transform: T(cr, ctr(cr), 1), opacity: 1, offset: .12 }, { transform: T(cr, ctr(cr), 1), opacity: 1, offset: .88 }, { transform: T(cr, ctr(cr), .2), opacity: 0 }], { duration: 1800 });
+        [[".hm", -1080], [".hh", -90]].forEach(function (h) { var e = c.querySelector(h[0]); e.style.transformOrigin = "15px 15px"; A(e, [{ transform: "rotate(0deg)" }, { transform: "rotate(" + h[1] + "deg)" }], { duration: 1300, delay: 250, easing: "cubic-bezier(.3,0,.3,1)" }); });
+        q.look([[.25, 0, 0], [.45, 1, 1], [.6, -1, 0], [.8, 0, 0]], 1800);
+        end(1800);
+      },
+      // מצגת לשינוי בקו: שלוש שקופיות מתהפכות אחת אחרי השנייה
+      slides: function (o) {
+        var q = orbG(o), cols = ["#38bdf8", "#f59e0b", "#22c55e"];
+        cols.forEach(function (col, i) {
+          var s = div("", "<svg viewBox='0 0 32 22'><rect x='1' y='1' width='30' height='20' rx='2.5' fill='#fff' stroke='#334155' stroke-width='1.6'/><rect x='5' y='5' width='14' height='3' rx='1' fill='" + col + "'/><rect x='5' y='11' width='22' height='2' rx='1' fill='#cbd5e1'/><rect x='5' y='15' width='16' height='2' rx='1' fill='#cbd5e1'/></svg>"), r = q.box(q.at(.7, 0), .56, .38);
+          add(s, r); s.style.opacity = 0;
+          later(i * 380, function () { A(s, [{ transform: T(r, ctr(r), 1, " scaleX(0)"), opacity: 1 }, { transform: T(r, ctr(r), 1, " scaleX(1)"), opacity: 1, offset: .35 }, { transform: T(r, ctr(r), 1, " scaleX(1)"), opacity: 1, offset: .75 }, { transform: T(r, ctr(r), 1, " scaleX(0)"), opacity: i === 2 ? 0 : 1 }], { duration: i === 2 ? 900 : 420 }); });
+        });
+        q.look([[.2, -1, 0], [.4, 1, 0], [.6, -1, 0], [.8, 0, 0]], 1800);
+        end(1700);
+      },
+      // מדד דיוק: שעון מדידה קטן, המחוג מתנדנד ומתייצב באמצע (בזמן)
+      gauge: function (o, dip) {
+        var q = orbG(o), gg = div("", "<svg viewBox='0 0 40 24'><path d='M4 22 A16 16 0 0 1 36 22' fill='#fff' stroke='#334155' stroke-width='2.4'/><path d='M7 22 A13 13 0 0 1 13 11' stroke='#ef4444' stroke-width='3.5' fill='none'/><path d='M13 11 A13 13 0 0 1 27 11' stroke='#facc15' stroke-width='3.5' fill='none'/><path d='M27 11 A13 13 0 0 1 33 22' stroke='#22c55e' stroke-width='3.5' fill='none'/><g class='nd'><path d='M20 22 L20 9' stroke='#0f172a' stroke-width='2.4' stroke-linecap='round'/></g><circle cx='20' cy='22' r='2.6' fill='#0f172a'/></svg>"), r = q.box(q.at(.66, .36), .62, .37);
+        add(gg, r);
+        A(gg, [{ transform: T(r, ctr(r), .2), opacity: 0 }, { transform: T(r, ctr(r), 1), opacity: 1, offset: .12 }, { transform: T(r, ctr(r), 1), opacity: 1, offset: .88 }, { transform: T(r, ctr(r), .2), opacity: 0 }], { duration: 1900 });
+        var nd = gg.querySelector(".nd"); nd.style.transformOrigin = "20px 22px";
+        A(nd, dip ? [{ transform: "rotate(50deg)" }, { transform: "rotate(-62deg)", offset: .35 }, { transform: "rotate(-55deg)", offset: .5 }, { transform: "rotate(58deg)", offset: .85 }, { transform: "rotate(50deg)" }]
+          : [{ transform: "rotate(0deg)" }, { transform: "rotate(-55deg)", offset: .2 }, { transform: "rotate(48deg)", offset: .42 }, { transform: "rotate(-26deg)", offset: .6 }, { transform: "rotate(14deg)", offset: .75 }, { transform: "rotate(0deg)" }], { duration: 1400, delay: 200, easing: "ease-in-out" });
+        q.look([[.2, 0, 1], [.35, -1.5, 1], [.55, 1.5, 1], [.8, 0, 1]], 1900);
+        end(1900);
+      },
+      speedo: function (o) { RUN.gauge(o, true); },
+      // הקו המודיע: המגפון רוטט וגלי קול יוצאים ממנו (בלי קול)
+      ring: function (o) {
+        var q = orbG(o);
+        A(q.sp, [{ transform: "rotate(0deg)" }, { transform: "rotate(-9deg)", offset: .1 }, { transform: "rotate(9deg)", offset: .2 }, { transform: "rotate(-8deg)", offset: .3 }, { transform: "rotate(8deg)", offset: .4 }, { transform: "rotate(-5deg)", offset: .5 }, { transform: "rotate(0deg)", offset: .6 }, { transform: "rotate(0deg)" }], { duration: 1300, fill: "none" });
+        // גלי קול משני הצדדים של הסמל
+        [100, 380, 660].forEach(function (t) {
+          [-1, 1].forEach(function (sd) {
+            later(t, function () {
+              var w = div("", "<svg viewBox='0 0 20 40'><path d='M4 4 Q16 20 4 36' stroke='#f59e0b' stroke-width='3.5' fill='none' stroke-linecap='round'/></svg>"), p = { x: q.c.x + sd * .62 * q.s, y: q.c.y }, r = q.box(p, .16, .32), fl = sd < 0 ? " scaleX(-1)" : "";
+              add(w, r);
+              A(w, [{ transform: T(r, p, .6, fl), opacity: 0 }, { transform: T(r, { x: p.x + sd * .12 * q.s, y: p.y }, 1, fl), opacity: 1, offset: .3 }, { transform: T(r, { x: p.x + sd * .4 * q.s, y: p.y }, 1.5, fl), opacity: 0 }], { duration: 640, easing: "ease-out" });
+            });
+          });
+        });
+        q.look([[.2, 0, 0], [.5, .5, -.5], [.8, 0, 0]], 1700);
+        end(1600);
+      },
+      // צי הרכבים: שלושה אוטובוסים קטנים נוסעים בטור מהסמל וחוזרים
+      roll: function (o) {
+        var q = orbG(o), cols = ["#2563eb", "#16a34a", "#dc2626"], a = q.at(.1, .55), b = q.at(.1, -.55);
+        // נוסעים לאורך הכפתור, מתחת לו (בצד הרחוק מהעין)
+        a = { x: q.c.x - .9 * q.s, y: q.c.y + .62 * q.s }; b = { x: q.c.x + .9 * q.s, y: q.c.y + .62 * q.s };
+        cols.forEach(function (col, i) {
+          var bus = div("", busSvg(col)), r = q.box(a, .34, .22); add(bus, r); bus.style.opacity = 0;
+          later(i * 220, function () { A(bus, [{ transform: T(r, a, 1, " scaleX(-1)"), opacity: 0 }, { transform: T(r, { x: a.x + .3 * q.s, y: a.y }, 1, " scaleX(-1)"), opacity: 1, offset: .15 }, { transform: T(r, { x: b.x - .3 * q.s, y: b.y }, 1, " scaleX(-1)"), opacity: 1, offset: .85 }, { transform: T(r, b, 1, " scaleX(-1)"), opacity: 0 }], { duration: 1200, easing: "linear" }); });
+        });
+        q.look([[.2, -2, 1], [.5, 0, 1], [.8, 2, 1]], 1900);
+        end(1800);
+      },
+      // מדד אמינות הרכבת: רכבת קטנה חולפת על מסילה מתחת לסמל
+      train: function (o) {
+        var q = orbG(o), y = q.c.y + .66 * q.s, tr = div("", trainSvg("#0ea5e9")), r = q.box({ x: q.c.x, y: y }, .8, .24);
+        var rail = div("", "<svg viewBox='0 0 60 4'><rect width='60' height='2' y='1' fill='#94a3b8'/></svg>"), rr = q.box({ x: q.c.x, y: y + .13 * q.s }, 1.5, .06);
+        add(rail, rr); add(tr, r);
+        A(rail, [{ opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: 1600 });
+        A(tr, [{ transform: T(r, { x: q.c.x + .9 * q.s, y: y }, 1), opacity: 0 }, { transform: T(r, { x: q.c.x + .6 * q.s, y: y }, 1), opacity: 1, offset: .15 }, { transform: T(r, { x: q.c.x - .6 * q.s, y: y }, 1), opacity: 1, offset: .85 }, { transform: T(r, { x: q.c.x - .9 * q.s, y: y }, 1), opacity: 0 }], { duration: 1500, delay: 50, easing: "linear" });
+        q.look([[.2, 2, 1.5], [.5, 0, 1.5], [.8, -2, 1.5]], 1700);
+        end(1700);
+      },
+      // קליטה ברכבת: ארבעה פסי קליטה מתמלאים אחד אחרי השני
+      bars: function (o) {
+        var q = orbG(o), p = q.at(.7, 0);
+        [0, 1, 2, 3].forEach(function (i) {
+          var h = .12 + i * .1, b = div("", "<svg viewBox='0 0 10 10' preserveAspectRatio='none'><rect width='10' height='10' rx='2' fill='" + (i === 3 ? "#16a34a" : "#22c55e") + "'/></svg>"), r = q.box({ x: p.x + (i - 1.5) * .14 * q.s, y: p.y + .24 * q.s - h * q.s / 2 }, .1, h);
+          b.style.transformOrigin = "50% 100%"; add(b, r); b.style.opacity = 0;
+          later(i * 220, function () { A(b, [{ transform: T(r, ctr(r), 1) + " scaleY(0)", opacity: 1 }, { transform: T(r, ctr(r), 1) + " scaleY(1.15)", opacity: 1, offset: .2 }, { transform: T(r, ctr(r), 1) + " scaleY(1)", opacity: 1, offset: .3 }, { transform: T(r, ctr(r), 1) + " scaleY(1)", opacity: 1, offset: .85 }, { transform: T(r, ctr(r), 1) + " scaleY(1)", opacity: 0 }], { duration: 1500 - i * 220 }); });
+        });
+        q.look([[.2, 0, 1], [.5, 0, -.5], [.8, 0, 0]], 1700);
+        end(1650);
+      },
+      // הקו המזין: אוטובוס ורכבת נפגשים בין הסמל לעין, ונצנוץ
+      meet: function (o) {
+        var q = orbG(o), m = q.at(.72, 0), bus = div("", busSvg("#2563eb")), tr = div("", trainSvg("#0ea5e9")), br = q.box(m, .36, .24), tr2 = q.box(m, .5, .2);
+        add(bus, br); add(tr, tr2);
+        var L = { x: m.x - .55 * q.s, y: m.y + .02 * q.s }, R = { x: m.x + .62 * q.s, y: m.y }, mL = { x: m.x - .2 * q.s, y: m.y + .02 * q.s }, mR = { x: m.x + .26 * q.s, y: m.y };
+        A(bus, [{ transform: T(br, L, 1, " scaleX(-1)"), opacity: 0 }, { transform: T(br, mL, 1, " scaleX(-1)"), opacity: 1, offset: .4 }, { transform: T(br, mL, 1, " scaleX(-1)"), opacity: 1, offset: .8 }, { transform: T(br, mL, 1, " scaleX(-1)"), opacity: 0 }], { duration: 1600, easing: "ease-out" });
+        A(tr, [{ transform: T(tr2, R, 1), opacity: 0 }, { transform: T(tr2, mR, 1), opacity: 1, offset: .4 }, { transform: T(tr2, mR, 1), opacity: 1, offset: .8 }, { transform: T(tr2, mR, 1), opacity: 0 }], { duration: 1600, easing: "ease-out" });
+        later(700, function () { var r = q.box({ x: m.x + .03 * q.s, y: m.y - .3 * q.s }, .26, .26), sp = div("", "<svg viewBox='0 0 20 20'><path d='M10 0 Q11 9 20 10 Q11 11 10 20 Q9 11 0 10 Q9 9 10 0Z' fill='#facc15' stroke='#b45309' stroke-width='.8'/></svg>"); add(sp, r); A(sp, [{ transform: T(r, ctr(r), .1), opacity: 0 }, { transform: T(r, ctr(r), 1.2), opacity: 1, offset: .5 }, { transform: T(r, ctr(r), .2), opacity: 0 }], { duration: 500 }); });
+        q.look([[.2, -2, 0], [.45, 2, 0], [.7, 0, 0]], 1700);
+        end(1700);
+      },
+      // המחירון: מטבעות נופלים לתוך הסמל
+      drop: function (o) {
+        var q = orbG(o);
+        [-.2, .15, -.02].forEach(function (x, i) {
+          var c = div("", "<svg viewBox='0 0 20 20'><circle cx='10' cy='10' r='9' fill='#facc15' stroke='#b45309' stroke-width='2'/><circle cx='10' cy='10' r='5' fill='none' stroke='#b45309' stroke-width='1.2' opacity='.7'/></svg>"), r = q.box(q.c, .24, .24);
+          add(c, r); c.style.opacity = 0;
+          later(i * 260, function () { A(c, [{ transform: T(r, { x: q.c.x + x * q.s, y: q.c.y - 1.05 * q.s }, 1, " rotate(0deg)"), opacity: 0 }, { transform: T(r, { x: q.c.x + x * q.s, y: q.c.y - .8 * q.s }, 1, " rotate(90deg)"), opacity: 1, offset: .2 }, { transform: T(r, { x: q.c.x + x * q.s, y: q.c.y - .1 * q.s }, .8, " rotate(300deg)"), opacity: 1, offset: .85 }, { transform: T(r, { x: q.c.x + x * q.s, y: q.c.y }, .5, " rotate(360deg)"), opacity: 0 }], { duration: 560, easing: "ease-in" }); });
+          later(i * 260 + 500, function () { A(q.sp, [{ transform: "scale(1)" }, { transform: "scale(1.08,.92)", offset: .4 }, { transform: "scale(1)" }], { duration: 200, fill: "none" }); });
+        });
+        q.look([[.2, 0, -2.5], [.5, 0, 0], [.8, 0, 0]], 1600);
+        end(1500);
+      },
+      // רציף כפול: שתי רכבות מגיעות משני הצדדים ומתיישרות זו מעל זו
+      align: function (o) {
+        var q = orbG(o), p = q.at(.74, 0);
+        [[-1, -.14, "#0ea5e9"], [1, .14, "#a855f7"]].forEach(function (t) {
+          var tr = div("", trainSvg(t[2])), r = q.box(p, .56, .17), a = { x: p.x + t[0] * .8 * q.s, y: p.y + t[1] * q.s }, b = { x: p.x, y: p.y + t[1] * q.s };
+          add(tr, r);
+          A(tr, [{ transform: T(r, a, 1, t[0] < 0 ? " scaleX(-1)" : ""), opacity: 0 }, { transform: T(r, b, 1, t[0] < 0 ? " scaleX(-1)" : ""), opacity: 1, offset: .4, easing: "cubic-bezier(.3,1.3,.5,1)" }, { transform: T(r, b, 1, t[0] < 0 ? " scaleX(-1)" : ""), opacity: 1, offset: .85 }, { transform: T(r, b, 1, t[0] < 0 ? " scaleX(-1)" : ""), opacity: 0 }], { duration: 1700 });
+        });
+        later(750, function () { var r = q.box({ x: p.x + .34 * q.s, y: p.y - .3 * q.s }, .24, .24), sp = div("", "<svg viewBox='0 0 20 20'><path d='M10 0 Q11 9 20 10 Q11 11 10 20 Q9 11 0 10 Q9 9 10 0Z' fill='#facc15' stroke='#b45309' stroke-width='.8'/></svg>"); add(sp, r); A(sp, [{ transform: T(r, ctr(r), .1), opacity: 0 }, { transform: T(r, ctr(r), 1.2), opacity: 1, offset: .5 }, { transform: T(r, ctr(r), .2), opacity: 0 }], { duration: 500 }); });
+        q.look([[.2, -2, 0], [.4, 2, 0], [.7, 0, 0]], 1800);
+        end(1750);
+      },
+      // משחק הקווים: שלט משחק קטן, הכפתורים נלחצים ונדלקים
+      pad: function (o) {
+        var q = orbG(o), pd = div("", "<svg viewBox='0 0 44 26'><rect x='1' y='3' width='42' height='21' rx='10' fill='#334155' stroke='#0f172a' stroke-width='2'/><path d='M9 14 h8 M13 10 v8' stroke='#e2e8f0' stroke-width='3' stroke-linecap='round'/><circle class='b1' cx='30' cy='11' r='3' fill='#ef4444'/><circle class='b2' cx='35' cy='16' r='3' fill='#22c55e'/><circle class='b3' cx='25' cy='16' r='3' fill='#3b82f6'/></svg>"), r = q.box(q.at(.7, 0), .66, .4);
+        add(pd, r);
+        A(pd, [{ transform: T(r, ctr(r), .2), opacity: 0 }, { transform: T(r, ctr(r), 1), opacity: 1, offset: .12 }, { transform: T(r, ctr(r), 1, " rotate(-4deg)"), opacity: 1, offset: .4 }, { transform: T(r, ctr(r), 1, " rotate(4deg)"), opacity: 1, offset: .65 }, { transform: T(r, ctr(r), 1), opacity: 1, offset: .88 }, { transform: T(r, ctr(r), .2), opacity: 0 }], { duration: 1800 });
+        [".b1", ".b2", ".b3", ".b1"].forEach(function (s, i) { var b = pd.querySelector(s); b.style.transformBox = "fill-box"; b.style.transformOrigin = "50% 50%"; A(b, [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.6)", opacity: .5, offset: .5 }, { transform: "scale(1.2)", opacity: 1 }], { duration: 220, delay: 350 + i * 260, fill: "none" }); });
+        q.look([[.25, 1, 1], [.45, -1, 1], [.65, 1, 1], [.85, 0, 0]], 1800);
+        end(1800);
+      }
     };
   }
 

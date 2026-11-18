@@ -98,7 +98,7 @@
       if (s.quiet) { if (!qt) qt = s; } else if (!fest) fest = s;
     });
     active = fest || qt;
-    if (!active) return;
+    if (!active) { daily(); return; }
     if (fest && qt) alsoQuiet = qt;
   }
 
@@ -417,11 +417,26 @@
         // הרקע של ריבוע העין (עם קישוט החג) — לעפעף התחתון של העין המחייכת, כדי שיתמזג ברקע
         bg: F && F.bg ? ("<defs>" + FDEFS.replace(/^<defs>|<\/defs>$/g, "") + "</defs>" + F.bg).replace(/hgf(?=[A-Z])/g, "hgfP_") : "" };
     }
+    loadPlay(stage);
+  }
+  function loadPlay(stage) {
     if (window.HagPlay) { window.HagPlay.attach(stage); return; }
     if (document.getElementById("hag-play-js")) return;
-    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118") });
+    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118b") });
     s.onload = function () { if (window.HagPlay) window.HagPlay.attach(document.querySelector(".kbh .stage")); };
     document.head.appendChild(s);
+  }
+  // ימים רגילים (לא חג ולא יום עצוב): משחק קטן ועדין לכל כלי, נדיר יותר מבחגים (hagim-play.js — המשחקים בסוף הקובץ)
+  function daily() {
+    if (window.__hagPlay || !document.addEventListener) return;
+    try { if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) { return; }
+    var DAILY = { kavpach: "lid", golden: "flip", kavbug: "crawl", "next-station": "signflip", "skip-stops": "hop", "line-history": "clock", "line-changes": "slides",
+      bus: "gauge", "bus-speed": "speedo", alerts: "ring", fleet: "roll", rail: "train", reception: "bars", feeder: "meet", fares: "drop", ratzif: "align", game: "pad" };
+    window.__hagPlay = { id: "daily", daily: true, play: DAILY, line: "#0ea5e9", bg: "" };
+    // דף הבית יכול להיבנות מחדש (חזרה מכלי) — מחברים כל במה חדשה
+    var go = function () { var st = document.querySelector(".kbh .stage"); if (st && !st.__hagPlay && st.querySelector(".eye")) loadPlay(st); }, pend = 0;
+    go();
+    try { new MutationObserver(function () { if (!pend) { pend = 1; setTimeout(function () { pend = 0; go(); }, 300); } }).observe(document.body || document.documentElement, { childList: true, subtree: true }); } catch (e) { /* ignore */ }
   }
 
   // ---------- CSS ----------
