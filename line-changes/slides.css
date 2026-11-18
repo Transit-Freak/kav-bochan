@@ -718,7 +718,7 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-cur.f-deck .cu-leg{font-size:26px;gap:12px;margin-top:6px}
 .s-cur.f-deck .cu-leg .lb{font-size:22px;padding:2px 10px}
 .s-cur.f-deck .cu-grid{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:56px;align-content:start;padding-top:12px}
-.s-cur.f-deck .cu-grid li{flex-wrap:nowrap;column-gap:14px}
+.s-cur.f-deck .cu-grid li{flex-wrap:nowrap;column-gap:14px;min-height:0!important;overflow:hidden}
 .s-cur.f-deck .cu-grid.sz1 li{min-height:74px}
 .s-cur.f-deck .cu-grid.sz1 .tm{font-size:46px}
 .s-cur.f-deck .cu-grid.sz1 .lb{font-size:24px;padding:3px 10px}
@@ -842,6 +842,21 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-cur .cu-gt td.n small{display:flex;justify-content:center;gap:10px;margin-top:3px}
 .s-cur .cu-gt td.n .pl{display:inline-flex;align-items:center;gap:4px}
 .s-cur .cu-gt td.n small .lb{margin:0}
+/* סימנים ליד השעה: אות בעיגול — נסיעה בחלופה אחרת של המסלול; ×2 עדין (במצגת) — שני אוטובוסים באותה דקה. מקרא (.cu-key) */
+.s-cur .al{display:inline-grid;place-items:center;width:1.35em;height:1.35em;border:.09em solid currentColor;border-radius:50%;font-style:normal;font-weight:800;line-height:1;font-family:'Heebo',Arial,sans-serif;flex:none}
+.s-cur .tm .al,.s-cur .ms .al{font-size:.55em;margin-inline-start:.3em;vertical-align:.3em;font-variant-numeric:normal}
+.s-cur .tm .x2,.s-cur .ms .x2{font-size:.45em;color:var(--s-sub);font-weight:700;margin-inline-start:.15em;vertical-align:super;line-height:0}
+.s-cur .cu-key{display:flex;flex-wrap:wrap;column-gap:18px;row-gap:4px;color:var(--s-fg);font-weight:600;flex:none;margin:0}
+.s-cur .cu-key span{display:inline-flex;align-items:center;gap:6px}
+.s-cur .cu-key .al{font-size:.9em}
+.s-cur .cu-key b{color:var(--s-sub);font-weight:800}
+.s-cur ul.cu-alts{margin:0;padding:0 1.1em 0 0;color:var(--s-fg);font-weight:600}
+.s-cur.f-sign .cu-key{font-size:12px;margin-top:5px}
+.s-cur.f-sign ul.cu-alts{font-size:13px;margin-top:6px}
+.s-cur.f-deck .cu-key{font-size:19px;margin-top:10px}
+.s-cur.f-deck ul.cu-alts{font-size:20px;margin-top:14px}
+.s-cur.f-status .cu-key{font-size:24px;margin-top:10px}
+.s-cur.f-status ul.cu-alts{font-size:26px;margin-top:12px}
 /* מפת ההתמצאות במצב עריכה: גרירה, ו-✕ להסתרה (מוסתרת — שקופה בעריכה, לא מופיעה בהדפסה) */
 .slide .inset.inoff{display:none!important}
 body.editing .slide .inset{cursor:move;touch-action:none}

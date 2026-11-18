@@ -1776,8 +1776,10 @@ var LCDeck = (function () {
   }
 
   /* ================= לו"ז עדכני (p.kind === 'current') =================
-     לוח הזמנים הנוכחי של כל קו, גם בלי שינוי — להדפסה ולהפצה. קווים של אותה חברה לאותו יעד (אותו זוג ערים) —
+     לוח הזמנים הנוכחי של כל קו, גם בלי שינוי — להדפסה ולהפצה. קווים לאותו יעד (אותו זוג ערים, גם של חברות שונות) —
      בטבלה אחת ("משולב לפי יעד", ברירת המחדל), וליד כל שעה תגית קטנה בצבע של הקו; ED.ttc === 'sep' — כל קו לחוד.
+     צבע התגית: כשבטבלה יש קווים של כמה חברות, או בעיצוב "צבעי המפעיל" — הצבע של החברה של הקו (cuTagCol).
+     סימנים ליד השעה: אות (א, ב…) — נסיעה בחלופה אחרת של המסלול (d.v / d.da), ×2 — שני אוטובוסים באותה דקה.
      לכל כיוון: עמודה לכל קבוצת ימים (א׳–ה׳ · שישי · מוצאי שבת, או חלוקה דקה יותר כשהימים שונים מדי),
      ועמודה לתאריך חג בשבוע הקרוב — רק כשהשעות בו שונות מהיום הרגיל. נסיעה שיש רק בחלק מהימים — "ה׳ בלבד";
      אחרי חצות (עד 03:00) — בסוף הערב שלפני, "בלילה". מפורט = כל השעות; כללי = כמה נסיעות, ראשונה/אחרונה ותדירות. */
@@ -1793,17 +1795,20 @@ var LCDeck = (function () {
   }
   function dShort(ix) { return daysShort(ix.map(function (i) { return DOWS[i]; })); }
   function linesTxt(ps) { var l = ps.map(function (p) { return p.line; }); return l.length === 1 ? 'קו ' + l[0] : 'קווים ' + andList(l, 8); }
-  /* קבוצות: אותה חברה ואותו זוג ערים (בינעירוני) — טבלה אחת */
+  /* קבוצות: אותו זוג ערים (בינעירוני) — טבלה אחת, גם כשהקווים של חברות שונות */
   function cuGroups(pages) {
     var sep = ED.ttc === 'sep', out = [], by = {};
     pages.forEach(function (p) {
-      var o = p.od || [], k = !sep && o[0] && o[1] && o[0] !== o[1] ? p.op + '|' + [o[0], o[1]].sort().join('|') : p.id;
+      var o = p.od || [], k = !sep && o[0] && o[1] && o[0] !== o[1] ? [o[0], o[1]].sort().join('|') : p.id;
       if (!by[k]) out.push(by[k] = { pages: [] });
       by[k].pages.push(p);
     });
     out.forEach(function (g) {
-      var multi = g.pages.length > 1;
-      g.pages.forEach(function (p, i) { p._c = multi ? CU_COL[i % CU_COL.length] : ''; });
+      var multi = g.pages.length > 1, byOp = ED.look === 'op' || opsOf(g.pages).length > 1, seen = {};
+      g.pages.forEach(function (p, i) {
+        var a = String(agOf(p)); seen[a] = (seen[a] || 0) + 1;
+        p._c = !multi ? '' : byOp ? cuTagCol(a, seen[a] - 1) : CU_COL[i % CU_COL.length];
+      });
       g.od = g.pages[0].od || [];
       g.sides = cuSides(g);
       cuVia(g);
@@ -1848,23 +1853,25 @@ var LCDeck = (function () {
       p._du = du.length ? du.reduce(function (a, b) { return a + b; }, 0) / du.length : 0;
     });
   }
-  /* היציאות של כמה קווים בכמה ימים — רשימה אחת; לכל יציאה: באילו ימים יש אותה, וכמה אוטובוסים יוצאים באותה דקה */
+  /* היציאות של כמה קווים בכמה ימים — רשימה אחת; לכל יציאה: באילו ימים יש אותה, באיזו חלופה (a, 0 = הראשית)
+     וכמה אוטובוסים יוצאים באותה דקה (n). get(it, w) → [דקות, חלופות (מחרוזת, ספרה לכל יציאה) או 0] */
+  function cuDay(it, w) { return [it.d.days[w], it.d.da ? it.d.da[w] : 0]; }
   function cuMerge(items, days, get) {
-    get = get || function (it, w) { return it.d.days[w]; };
+    get = get || cuDay;
     var map = {}, ents = [];
     items.forEach(function (it, li) {
       days.forEach(function (w) {
-        var cnt = {};
-        (get(it, w) || []).forEach(function (m) { cnt[m] = (cnt[m] || 0) + 1; });
-        Object.keys(cnt).forEach(function (m) {
-          var k = li + ':' + m, e = map[k];
-          if (!e) { e = map[k] = { m: +m, p: it.p, li: li, n: 0, days: [] }; ents.push(e); }
-          e.n = Math.max(e.n, cnt[m]); e.days.push(w);
+        var cnt = {}, g = get(it, w), al = g[1] || '';
+        (g[0] || []).forEach(function (m, i) { var k = m + ':' + (+al.charAt(i) || 0); cnt[k] = (cnt[k] || 0) + 1; });
+        Object.keys(cnt).forEach(function (mk) {
+          var k = li + ':' + mk, e = map[k], ma = mk.split(':');
+          if (!e) { e = map[k] = { m: +ma[0], a: +ma[1], p: it.p, li: li, n: 0, days: [] }; ents.push(e); }
+          e.n = Math.max(e.n, cnt[mk]); e.days.push(w);
         });
       });
     });
     ents.forEach(function (e) { e.part = e.days.length < days.length; });
-    ents.sort(function (a, b) { return a.m - b.m || a.li - b.li; });
+    ents.sort(function (a, b) { return a.m - b.m || a.li - b.li || a.a - b.a; });
     return { days: days, ents: ents };
   }
   var CU_STD = [[0, 1, 2, 3, 4], [5], [6]];
@@ -1878,7 +1885,7 @@ var LCDeck = (function () {
       if (days.length > 1 && part > Math.max(2, c.ents.length * 0.15)) {
         var sg = {}, order = [];
         days.forEach(function (w) {
-          var k = side.items.map(function (it) { return (it.d.days[w] || []).join(','); }).join('|');
+          var k = side.items.map(function (it) { return (it.d.days[w] || []).join(',') + '/' + (it.d.da ? it.d.da[w] || '' : ''); }).join('|');
           if (!sg[k]) { sg[k] = []; order.push(k); }
           sg[k].push(w);
         });
@@ -1888,12 +1895,45 @@ var LCDeck = (function () {
     (hol || []).forEach(function (h) {
       if (!side.items.some(function (it) { return it.d.x && it.d.x[h[0]]; })) return;
       var w = isoDow(h[0]);
-      var c = cuMerge(side.items, [w], function (it) { return (it.d.x && it.d.x[h[0]]) || it.d.days[w]; });
+      var c = cuMerge(side.items, [w], function (it) { return it.d.x && it.d.x[h[0]] ? [it.d.x[h[0]], (it.d.xa || {})[h[0]]] : cuDay(it, w); });
       c.hol = h; c.ents.forEach(function (e) { e.part = false; });
       if (c.ents.length || cols.length) cols.push(c);
     });
     cols.forEach(function (c) { c.label = cuLabel(c); });
+    cuAlts(side, cols);
     return cols;
+  }
+  /* החלופות שמופיעות בצד הזה: אות לכל (קו, חלופה) — א, ב, ג… לפי הסדר; side.alts — למקרא */
+  var ALT_LET = 'אבגדהוזחטיכלמנ';
+  function cuAlts(side, cols) {
+    var used = {}, list = [];
+    cols.forEach(function (c) { c.ents.forEach(function (e) { if (e.a) { var k = e.li + ':' + e.a; if (!used[k]) list.push(used[k] = { li: e.li, a: e.a, ms: [] }); used[k].ms.push(e.m); } }); });
+    list.sort(function (x, y) { return x.li - y.li || x.a - y.a; });
+    list.forEach(function (x, i) { var it = side.items[x.li]; x.L = ALT_LET.charAt(i) || '*'; x.p = it.p; x.txt = (it.d.v || [])[x.a - 1] || 'במסלול אחר'; });
+    cols.forEach(function (c) { c.ents.forEach(function (e) { e.al = e.a ? used[e.li + ':' + e.a].L : ''; }); });
+    side.alts = list;
+  }
+  /* סימנים ליד השעה: אות החלופה, ו-×2 במצגת (עדין; בשלט ובסטטוס — .xn אחרי התגית) */
+  function cuMarks(e, form) {
+    return (e.al ? '<i class="al">' + e.al + '</i>' : '') + (e.n > 1 && form === 'deck' ? '<sup class="x2">×' + e.n + '</sup>' : '');
+  }
+  /* מקרא לסימנים: רק מה שמופיע ברשימה ents. multi — יש כמה קווים (אז גם מספר הקו ליד החלופה) */
+  function cuKey(side, ents, multi) {
+    var has = {}, dbl = false;
+    ents.forEach(function (e) { if (e.al) has[e.al] = 1; if (e.n > 1) dbl = true; });
+    var its = (side.alts || []).filter(function (x) { return has[x.L]; }).map(function (x) {
+      return '<span><i class="al">' + x.L + '</i>' + E((multi ? 'קו ' + x.p.line + ' ' : '') + x.txt) + '</span>';
+    });
+    if (dbl) its.push('<span><b class="num">×2</b> שני אוטובוסים באותה שעה</span>');
+    return its.length ? '<p class="cu-key">' + its.join('') + '</p>' : '';
+  }
+  /* כללי: "חלק מהנסיעות דרך X (בשעות …)" */
+  function cuAltLines(side, multi) {
+    return (side.alts || []).map(function (x) {
+      var ms = x.ms.filter(function (m, i, a) { return a.indexOf(m) === i; }).sort(function (a, b) { return a - b; });
+      var when = ms.length === 1 ? 'בשעה ' + hm2(ms[0]) : ms.length <= 3 ? 'בשעות ' + andList(ms.map(hm2), 3) : 'בשעות ' + hm2(ms[0]) + '–' + hm2(ms[ms.length - 1]);
+      return '<li>' + E((multi ? 'קו ' + x.p.line + ': ' : '') + 'חלק מהנסיעות ' + x.txt + ' (' + when + ')') + '</li>';
+    }).join('');
   }
   function cuLabel(c) {
     if (c.hol) return c.hol[2];
@@ -1912,11 +1952,22 @@ var LCDeck = (function () {
     }
     return '';
   }
+  /* צבע התגית של קו לפי החברה: הקו הראשון של החברה — הצבע העיקרי שלה, השני — המשני (או גוון כהה יותר).
+     צבע בהיר מדי (צהוב, ירוק בהיר) — מוכהה עד שהטקסט הלבן קריא */
+  function cuTagCol(ag, k) {
+    var cs = COLORS[ag] || [PALETTE[(parseInt(ag, 10) || 0) % PALETTE.length]], base = cs[k % cs.length], f = 1;
+    if (k >= cs.length) base = shade(base, Math.pow(0.72, Math.floor(k / cs.length)));
+    var c = base;
+    while (contrast(c, '#ffffff') < 4 && f > 0.3) { f -= 0.06; c = shade(base, f); }
+    return c;
+  }
+  /* הסגנון של שקף לו"ז ב"צבעי המפעיל": הצבעים של החברה של הקבוצה (ולא של הקו הראשון במצגת) */
+  function cuStyle(g) { return ED.look === 'op' ? ' style="' + lookVars('op', g.pages) + '"' : ''; }
   function cuLb(p) { return p._c ? '<span class="lb num" style="background:' + p._c + '">' + E(p.line) + '</span>' : ''; }
   /* שורה ברשימה: שעה · תגית הקו · ×2 (רק בשלט ובסטטוס) · הערה ("ה׳ בלבד", "בלילה") */
   function cuRow(e, c, form) {
     var nt = cuNote(e, c), night = e.m >= 1440;
-    return '<li' + (nt || night ? ' class="hn"' : '') + '><span class="tm num">' + hm2(e.m) + '</span>' + cuLb(e.p) +
+    return '<li' + (nt || night ? ' class="hn"' : '') + '><span class="tm num">' + hm2(e.m) + cuMarks(e, form) + '</span>' + cuLb(e.p) +
       (e.n > 1 && form !== 'deck' ? '<small class="xn num">×' + e.n + '</small>' : '') +
       (nt || night ? '<small class="nt">' + E([nt, night ? 'בלילה' : ''].filter(Boolean).join(' · ')) + '</small>' : '') + '</li>';
   }
@@ -1929,9 +1980,9 @@ var LCDeck = (function () {
       cur.es.push(e);
     });
     var out = by.map(function (r) {
-      return { h: Math.ceil(r.es.length / perLine) * lineH + 6, hour: true,
+      return { h: Math.ceil(r.es.length / perLine) * lineH + 6, hour: true, es: r.es,
         html: '<li class="hr"><b class="num">' + String(r.h % 24).padStart(2, '0') + '</b><span class="ms">' + r.es.map(function (e) {
-          return '<span class="num"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + String(e.m % 60).padStart(2, '0') + (e.part ? '*' : '') + '</span>';
+          return '<span class="num"' + (e.p._c ? ' style="color:' + e.p._c + '"' : '') + '>' + String(e.m % 60).padStart(2, '0') + (e.part ? '*' : '') + cuMarks(e, 'deck') + '</span>';
         }).join(' ') + '</span></li>' };
     });
     if (c.ents.some(function (e) { return e.part; })) out.push({ h: lineH + 6, hour: true, html: '<li class="hn"><small class="nt">* רק בחלק מהימים</small></li>' });
@@ -1950,17 +2001,19 @@ var LCDeck = (function () {
       if (tot > M.Hc * 2.2) { rows = cuHourRows(c, M.perLine, M.lineH); w = 2; }
       var cur = null, used = 0, part = 0;
       rows.forEach(function (r) {
-        if (!cur || used + r.h > M.Hc) { out.push(cur = { c: c, w: w, rows: [], cont: part++ > 0 }); used = 0; }
+        if (!cur || used + r.h > M.Hc) { out.push(cur = { c: c, w: w, rows: [], ents: [], cont: part++ > 0 }); used = 0; }
         cur.rows.push(r.hour ? r.html : cuRow(r.e, c, form)); used += r.h;
+        if (r.es) cur.ents = cur.ents.concat(r.es); else if (r.e) cur.ents.push(r.e);
       });
       if (!rows.length) out.push({ c: c, w: 1, rows: ['<li class="none">אין נסיעות</li>'], cont: false });
     });
     return out;
   }
   function cuSideHtml(side, chunks, cont) {
-    var slots = chunks.reduce(function (t, k) { return t + k.w; }, 0);
+    var slots = chunks.reduce(function (t, k) { return t + k.w; }, 0), ents = [];
+    chunks.forEach(function (k) { ents = ents.concat(k.ents || []); });
     return '<section class="cu-side"><h2 class="cu-sh hd">' + E(side.title) + (cont ? ' (המשך)' : '') + '</h2>' +
-      (side.sub ? '<p class="cu-ss">' + E(side.sub) + '</p>' : '') +
+      (side.sub ? '<p class="cu-ss">' + E(side.sub) + '</p>' : '') + cuKey(side, ents, side.items.length > 1 && side.items.some(function (it) { return it.p !== side.items[0].p; })) +
       '<div class="cu-cols' + (chunks.some(function (k) { return k.c.hol; }) ? ' hashol' : '') + '" style="grid-template-columns:repeat(' + slots + ',minmax(0,1fr))">' + chunks.map(function (k) {
         return '<div class="cu-col' + (k.w > 1 ? ' hrs' : '') + '" style="grid-column:span ' + k.w + '"><h3 class="cu-ch">' + E(k.c.label) + (k.cont ? ' (המשך)' : '') +
           (cuSub(k.c) ? '<small>' + E(cuSub(k.c)) + '</small>' : '') + '</h3><ol class="ttc">' + k.rows.join('') + '</ol></div>';
@@ -1968,8 +2021,9 @@ var LCDeck = (function () {
   }
   function cuLegend(g) {
     if (g.pages.length < 2) return '';
+    var many = opsOf(g.pages).length > 1;
     return '<div class="cu-leg">' + g.pages.map(function (p) {
-      return '<span>' + cuLb(p) + E([p._via, durTxt(p._du)].filter(Boolean).join(' · ')) + '</span>';
+      return '<span>' + cuLb(p) + E([many ? p.op : '', p._via, durTxt(p._du)].filter(Boolean).join(' · ')) + '</span>';
     }).join('') + '</div>';
   }
   function cuTitle(g) {
@@ -2009,7 +2063,9 @@ var LCDeck = (function () {
         '<td class="num">' + (ms.length ? hm2(ms[0]) : '—') + '</td><td class="num">' + (ms.length ? hm2(ms[ms.length - 1]) : '—') + '</td>' +
         bands.map(function (b) { return '<td>' + bandTxt(uniq.filter(function (m) { return m >= b[0] && m < b[1]; })) + '</td>'; }).join('') + '</tr>';
     });
-    return '<section class="cu-side"><h2 class="cu-sh hd">' + E(side.title) + '</h2><table class="cu-gt"><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table></section>';
+    var al = cuAltLines(side, g.pages.length > 1);
+    return '<section class="cu-side"><h2 class="cu-sh hd">' + E(side.title) + '</h2><table class="cu-gt"><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>' +
+      (al ? '<ul class="cu-alts">' + al + '</ul>' : '') + '</section>';
   }
   /* שלט (A4) ותמונה לסטטוס: כמה שפחות עמודים */
   function cuPaged(pages, form, hol) {
@@ -2018,7 +2074,7 @@ var LCDeck = (function () {
       var lbl = cuTitle(g), pre = 'לו״ז · ' + (g.pages.length === 1 && lbl.indexOf('קו ') !== 0 ? 'קו ' + g.pages[0].line + ' · ' : '') + lbl, sides = g.sides.map(function (s) { return { s: s, cols: cuCols(s, hol) }; }).filter(function (x) { return x.cols.length; });
       var wrap = function (body, i, n) {
         return { id: (form === 'sign' ? 'sg-' : 'st-') + 'cu' + gi + '-' + i, label: pre + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
-          html: '<div class="s-cur f-' + form + ' v-' + o.v + '">' + cuHead(g) + '<div class="cu-body">' + body + '</div>' + cuFoot(form) + '</div>' };
+          html: '<div class="s-cur f-' + form + ' v-' + o.v + '"' + cuStyle(g) + '>' + cuHead(g) + '<div class="cu-body">' + body + '</div>' + cuFoot(form) + '</div>' };
       };
       var bodies = [];
       if (o.v === 'gen') {
@@ -2053,7 +2109,8 @@ var LCDeck = (function () {
   function cuDeck(pages, hol) {
     var out = [], o = ttOpt();
     cuGroups(pages).forEach(function (g, gi) {
-      var lt = g.pages.length > 1 ? linesTxt(g.pages) + ' · ' : '';
+      // החברה: בקו אחד — בשורת המשנה; בכמה קווים של כמה חברות — במקרא, ליד כל קו
+      var lt = g.pages.length > 1 ? linesTxt(g.pages) + ' · ' + (opsOf(g.pages).length === 1 ? g.pages[0].op + ' · ' : '') : g.pages[0].op ? g.pages[0].op + ' · ' : '';
       g.sides.forEach(function (s, si) {
         var cols = cuCols(s, hol);
         if (!cols.length) return;
@@ -2064,11 +2121,13 @@ var LCDeck = (function () {
         var foot = '<div class="sfoot"><span>שעות היציאה מהתחנה הראשונה · לפי נתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div>';
         if (o.v === 'gen') {
           out.push({ id: 'cu' + gi + '-' + si, label: 'לו״ז · ' + s.title,
-            html: '<div class="s-cur f-deck v-gen">' + head(lt + 'לוח זמנים עדכני · ' + cuValid(g)) + '<div class="cu-body">' + cuGenTable({ title: '' }, cols, g).replace('<h2 class="cu-sh hd"></h2>', '') + '</div>' + foot + '</div>' });
+            html: '<div class="s-cur f-deck v-gen"' + cuStyle(g) + '>' + head(lt + 'לוח זמנים עדכני · ' + cuValid(g)) + '<div class="cu-body">' + cuGenTable({ title: '' }, cols, g).replace('<h2 class="cu-sh hd"></h2>', '') + '</div>' + foot + '</div>' });
           return;
         }
         cols.forEach(function (c, ci) {
-          var n = c.ents.length, L = n <= 21 ? [3, 7, 1] : n <= 32 ? [4, 8, 2] : n <= 50 ? [5, 10, 3] : null, parts = [];
+          // עם מקרא לסימנים (חלופה, ×2) — שורה אחת פחות בכל עמודה
+          var n = c.ents.length, ky = (c.ents.some(function (e) { return e.al || e.n > 1; }) ? 1 : 0) + (g.pages.length > 2 ? 1 : 0), parts = [];
+          var L = n <= 21 - 3 * ky ? [3, 7 - ky, 1] : n <= 32 - 4 * ky ? [4, 8 - ky, 2] : n <= 50 - 5 * ky ? [5, 10 - ky, 3] : null;
           if (L) { for (var i = 0; i < Math.max(1, n); i += L[0] * L[1]) parts.push(c.ents.slice(i, i + L[0] * L[1])); }
           var dayTxt = (c.hol ? c.label + ' · ' + cuSub(c) : (c.days.length > 1 ? 'ימים ' : '') + c.label);
           if (!L) {   // קו תדיר: לפי שעה, בשתי עמודות
@@ -2076,15 +2135,16 @@ var LCDeck = (function () {
             rows.forEach(function (r) { var cur = pg[pg.length - 1]; if (used + r.h > H * 2 && cur.length) { pg.push(cur = []); used = 0; } cur.push(r); used += r.h; });
             pg.forEach(function (rs, k) {
               out.push({ id: 'cu' + gi + '-' + si + '-' + ci + (k ? '-' + k : ''), label: 'לו״ז · ' + s.title + ' · ' + c.label + (pg.length > 1 ? ' (' + (k + 1) + ')' : ''),
-                html: '<div class="s-cur f-deck v-det">' + head(lt + dayTxt + ' · לוח זמנים עדכני · ' + cuValid(g) + (k ? ' (המשך)' : '')) +
+                html: '<div class="s-cur f-deck v-det"' + cuStyle(g) + '>' + head(lt + dayTxt + ' · לוח זמנים עדכני · ' + cuValid(g) + (k ? ' (המשך)' : '')) +
+                  cuKey(s, [].concat.apply([], rs.map(function (r) { return r.es || []; })), g.pages.length > 1) +
                   '<ol class="ttc cu-hrs">' + rs.map(function (r) { return r.html; }).join('') + '</ol>' + foot + '</div>' });
             });
             return;
           }
           parts.forEach(function (es, k) {
             out.push({ id: 'cu' + gi + '-' + si + '-' + ci + (k ? '-' + k : ''), label: 'לו״ז · ' + s.title + ' · ' + c.label + (parts.length > 1 ? ' (' + (k + 1) + ')' : ''),
-              html: '<div class="s-cur f-deck v-det">' + head(lt + dayTxt + ' · לוח זמנים עדכני · ' + cuValid(g) + (k ? ' (המשך)' : '')) +
-                '<ol class="ttc cu-grid sz' + L[2] + '" style="grid-template-rows:repeat(' + L[1] + ',auto)">' +
+              html: '<div class="s-cur f-deck v-det"' + cuStyle(g) + '>' + head(lt + dayTxt + ' · לוח זמנים עדכני · ' + cuValid(g) + (k ? ' (המשך)' : '')) +
+                cuKey(s, es, g.pages.length > 1) + '<ol class="ttc cu-grid sz' + L[2] + '" style="grid-template-rows:repeat(' + L[1] + ',minmax(0,1fr))">' +
                 (es.length ? es.map(function (e) { return cuRow(e, c, 'deck'); }).join('') : '<li class="none">אין נסיעות</li>') + '</ol>' + foot + '</div>' });
           });
         });
