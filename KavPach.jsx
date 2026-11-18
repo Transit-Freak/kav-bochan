@@ -2993,14 +2993,6 @@ const DAYS_FILTER = [
     const l = lineByMakat.get(cleanMk(mk));
     return l && l.totalKm > 0 ? (l.wastedKm || 0) : null;
   }, [lineByMakat]);
-  const wastedChip = (mk) => {
-    const w = wastedOfMakat(mk);
-    return (
-      <span className="text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 px-2 py-1 rounded-md" title='ק"מ בנסיעות עם מעט נוסעים, בכל הקו (שני הכיוונים)'>
-        ק&quot;מ מבוזבזים בקו: {w == null ? '—' : `${w.toLocaleString()} בשבוע`}
-      </span>
-    );
-  };
 
   const redLineVals = useMemo(() => redLine.split(',').map(cleanMk).filter(Boolean), [redLine]);
   const redShowAll = redAllOfOp && (redOperator !== "all" || redLineVals.length > 0);
@@ -4885,18 +4877,20 @@ const DAYS_FILTER = [
                               <tr className="bg-slate-50 text-slate-500 text-xs">
                                 <th className="text-right font-black px-1 sm:px-2 py-2">קו</th>
                                 <th className="text-right font-black px-1 sm:px-2 py-2">ק&quot;מ היום</th>
+                                <th className="text-right font-black px-1 sm:px-2 py-2">סרק היום</th>
                                 <th className="text-right font-black px-1 sm:px-2 py-2">נחסך</th>
-                                <th className="text-right font-black px-1 sm:px-2 py-2">ק&quot;מ אחרי</th>
+                                <th className="hidden sm:table-cell text-right font-black px-1 sm:px-2 py-2">ק&quot;מ אחרי</th>
                                 <th className="text-right font-black px-1 sm:px-2 py-2">סרק שנשאר</th>
                               </tr>
                             </thead>
                             <tbody>
                               {shown.map((l, i) => (
                                 <tr key={i} className="border-b border-slate-100 font-bold">
-                                  <td className="px-1 sm:px-2 py-2 min-w-[6rem]"><div className="font-black">{l.line}</div><div className="text-[11px] text-slate-500 leading-tight">{l.origin} – {l.dest}</div></td>
+                                  <td className="px-1 sm:px-2 py-2"><div className="font-black">{l.line}</div><div className="text-[11px] text-slate-500 leading-tight">{l.origin} – {l.dest}</div></td>
                                   <td className="px-1 sm:px-2 py-2 tabular-nums">{R(l.total)}</td>
+                                  <td className="px-1 sm:px-2 py-2 tabular-nums text-slate-500">{R(l.wasted)}</td>
                                   <td className="px-1 sm:px-2 py-2 tabular-nums text-rose-600"><span dir="ltr">{l.saved > 0 ? '−' + R(l.saved) : '0'}</span></td>
-                                  <td className="px-1 sm:px-2 py-2 tabular-nums">{R(l.total - l.saved)}</td>
+                                  <td className="hidden sm:table-cell px-1 sm:px-2 py-2 tabular-nums">{R(l.total - l.saved)}</td>
                                   <td className="px-1 sm:px-2 py-2 tabular-nums text-amber-700">{R(l.remain)}</td>
                                 </tr>
                               ))}
@@ -4910,7 +4904,6 @@ const DAYS_FILTER = [
                     </div>
                   );
                 })()}
-                )}
                 <div className="space-y-4">
                   {!simLoading && optimizations.length > 0 ? (() => {
                     const optsToRender = showAllTripsInSimulator
@@ -4943,7 +4936,6 @@ const DAYS_FILTER = [
                               {renderTransitChip(opt.origin, opt.dest)}
                               <span className="text-[11px] font-black bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md">מומלצת לאיחוד</span>
                               <span className="text-[11px] font-black bg-sky-100 text-sky-700 px-2 py-1 rounded-md">כיוון {opt.direction}</span>
-                              {wastedChip(opt.makat)}
                               <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{opt.busSize}</span>
                             </div>
                           </div>
@@ -4997,7 +4989,6 @@ const DAYS_FILTER = [
                                 חשד לנסיעה מיותרת
                               </span>
                               <span className="text-[11px] font-black bg-sky-100 text-sky-700 px-2 py-1 rounded-md">כיוון {opt.direction}</span>
-                              {wastedChip(opt.makat)}
                               <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{opt.busSize}</span>
                             </div>
                           </div>
@@ -5047,7 +5038,6 @@ const DAYS_FILTER = [
                               {renderTransitChip(opt.origin, opt.dest)}
                               <span className="text-[11px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md">נסיעה תקינה (ללא שינוי)</span>
                               <span className="text-[11px] font-black bg-sky-100 text-sky-700 px-2 py-1 rounded-md">כיוון {opt.direction}</span>
-                              {wastedChip(opt.makat)}
                               <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{opt.busSize}</span>
                             </div>
                           </div>
