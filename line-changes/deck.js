@@ -1694,7 +1694,7 @@ var LCDeck = (function () {
     return out;
   }
   var CUM = {
-    sign: { slots: 6, Hc: 820, rowH: 27, noteH: 13, perLine: 9, lineH: 21, twoSides: true },
+    sign: { slots: 7, Hc: 820, rowH: 27, noteH: 13, perLine: 9, lineH: 21, twoSides: true },
     status: { slots: 3, Hc: 1260, rowH: 58, noteH: 26, perLine: 10, lineH: 44, twoSides: false }
   };
   /* עמודות פיזיות: עמודה ארוכה מתפצלת להמשך; עמודה ארוכה מאוד (קו תדיר) — לפי שעה, ברוחב של שתי עמודות */
@@ -1717,7 +1717,7 @@ var LCDeck = (function () {
     var slots = chunks.reduce(function (t, k) { return t + k.w; }, 0);
     return '<section class="cu-side"><h2 class="cu-sh hd">' + E(side.title) + (cont ? ' (המשך)' : '') + '</h2>' +
       (side.sub ? '<p class="cu-ss">' + E(side.sub) + '</p>' : '') +
-      '<div class="cu-cols" style="grid-template-columns:repeat(' + slots + ',minmax(0,1fr))">' + chunks.map(function (k) {
+      '<div class="cu-cols' + (chunks.some(function (k) { return k.c.hol; }) ? ' hashol' : '') + '" style="grid-template-columns:repeat(' + slots + ',minmax(0,1fr))">' + chunks.map(function (k) {
         return '<div class="cu-col' + (k.w > 1 ? ' hrs' : '') + '" style="grid-column:span ' + k.w + '"><h3 class="cu-ch">' + E(k.c.label) + (k.cont ? ' (המשך)' : '') +
           (cuSub(k.c) ? '<small>' + E(cuSub(k.c)) + '</small>' : '') + '</h3><ol class="ttc">' + k.rows.join('') + '</ol></div>';
       }).join('') + '</div></section>';
