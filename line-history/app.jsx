@@ -3314,7 +3314,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
           : plannedV
           ? <div className="mut">ℹ️ {gv.shp ? "השרטוט המלא של המסלול שתוכנן, כפי שפורסם בפיד" : "המסלול שתוכנן מצויר כקו ישר בין התחנות — לתוכנית הזו לא נשמר שרטוט"}.</div>
           : approx
-          ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
+          ? <div className="mut">ℹ️ מסלול מקורב — קו ישר בין התחנות לפי רצף {gv.src === "mot-foi" ? "התחנות בנתוני משרד התחבורה (חופש מידע); אין בהם שרטוט מסלול" : "מארכיון אופן באס; הגאומטריה המלאה לא זמינה לתקופה זו"}. {(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>
           : <div className="mut">{(gv.stops || []).length} תחנות{borrowed ? " בגרסה המוצגת" : " בגרסה זו"}.</div>}
         </>)}
         {(v.tl || v.tn) && <TimesDiff tl={v.tl} tn={v.tn} />}
