@@ -829,6 +829,11 @@ def find_renamed(keys, old_v, new_v, old, t0, new=None):
     return out
 
 
+def ltr(s):
+    """מק"ט-כיוון-חלופה בתוך משפט בעברית — משמאל לימין (אחרת 10970-1-# מוצג כ-#-10970-1)"""
+    return '\u2066' + s + '\u2069'
+
+
 def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats):
     """חלופות שהוחלפו (find_renamed): רשומת שינוי מסלול רק כשהתחנות או הדרך באמת השתנו.
     החלפת מספר בלבד (אותן תחנות, אותה דרך) — שום רשומה (stats['renamed_same']); אם השתנו רק השעות,
@@ -860,8 +865,8 @@ def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
             eff=F.isoformat(), formal=None, found=t0.isoformat(), was=ko,
             was_last=max(d for x in ov.values() for d in x['dates']).isoformat(),
             # ההתאמה בין החלופות היא הסקה — כתובה בכרטיס ובמצגת
-            basis=f'ההשוואה היא בין חלופה {ko} (עד {fmt_d(max(d for x in ov.values() for d in x["dates"]).isoformat())}) '
-                  f'לחלופה {k} (מ-{fmt_d(F.isoformat())}) של אותו קו ובאותו כיוון, שהחליפה אותה.',
+            basis=f'ההשוואה היא בין חלופה {ltr(ko)} (עד {fmt_d(max(d for x in ov.values() for d in x["dates"]).isoformat())}) '
+                  f'לחלופה {ltr(k)} (מ-{fmt_d(F.isoformat())}) של אותו קו ובאותו כיוון, שהחליפה אותה.',
             old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(shp_old.get(om[1], [])))),
             new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(shp_new.get(nm[1], [])))),
             added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
@@ -982,10 +987,10 @@ def variant_records(varis, old, new, shp_old, shp_new, t0, stats):
             rec['split_of'] = v['split_of']
         if v['var'] == 'end':
             rec['last'] = v['last'].isoformat()
-            rec['basis'] = f"לפי לוח הזמנים: לחלופה {k} אין נסיעות מ-{fmt_d(v['eff'].isoformat())}."
+            rec['basis'] = f"לפי לוח הזמנים: לחלופה {ltr(k)} אין נסיעות מ-{fmt_d(v['eff'].isoformat())}."
         else:
             rec['freq'] = v['freq']
-            rec['basis'] = f"חלופה {k} מופיעה לראשונה ב-{fmt_d(v['eff'].isoformat())}." 
+            rec['basis'] = f"חלופה {ltr(k)} מופיעה לראשונה ב-{fmt_d(v['eff'].isoformat())}." 
         print(f"חלופה {'שבוטלה' if v['var'] == 'end' else 'חדשה'}: {k} ({v['eff']}) — {len(removed) or len(added)} תחנות", flush=True)
         found.append(rec)
     return found
