@@ -284,7 +284,7 @@
   function flowers(pts) { var o = ""; pts.forEach(function (p) { var x = p[0], y = p[1], c = p[2]; for (var a = 0; a < 6; a++) { var t = a * 1.0472; o += "<circle cx='" + (x + Math.cos(t) * 4).toFixed(1) + "' cy='" + (y + Math.sin(t) * 4).toFixed(1) + "' r='3.2' fill='" + c + "'/>"; } o += "<circle cx='" + x + "' cy='" + y + "' r='2.6' fill='#facc15'/>"; }); return o; }
   function leaf(x, y, rot, len, c) { return "<ellipse cx='" + x + "' cy='" + y + "' rx='" + len + "' ry='" + (len * .36).toFixed(1) + "' fill='" + c + "' transform='rotate(" + rot + " " + x + " " + y + ")'/>"; }
   var FEYE = {
-    rosh: { vb: [-14, -30, 160, 160], iris: ["#fecaca", "#ef4444", "#991b1b"], line: "#dc2626",
+    rosh: { vb: [-14, -30, 160, 160], iris: ["#fef3c7", "#f59e0b", "#b45309"], line: "#d97706", dash: "#f59e0b",
       fg: "<g clip-path='url(#hgfClip)'><path d='M0 0 H120 V7 q-7 0 -8 7 a5 5 0 0 1 -10 0 q-1 -7 -8 -7 H60 q-6 0 -6 10 a5 5 0 0 1 -10 0 q0 -10 -6 -10 H24 q-5 0 -5 5 a4 4 0 0 1 -8 0 q0 -5 -6 -5 H0 Z' fill='url(#hgfHoney)'/></g>" +
         "<g transform='rotate(14 116 2)'><path d='M116 -6 q-2 -9 4 -14' stroke='#78350f' stroke-width='3' fill='none' stroke-linecap='round'/>" + leaf(126, -16, -30, 9, "#16a34a") +
         "<path d='M116 -6 C 100 -14, 92 4, 98 16 C 104 28, 114 26, 116 22 C 118 26, 128 28, 134 16 C 140 4, 132 -14, 116 -6 Z' fill='url(#hgfApple)' stroke='#7f1d1d' stroke-width='1.5'/><ellipse cx='106' cy='2' rx='3' ry='6' fill='#fff' opacity='.45'/></g>" },
