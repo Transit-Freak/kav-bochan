@@ -38,6 +38,8 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
 רץ כל לילה (.github/workflows/line-changes.yml) על כל הארץ, כדקה וחצי. ב-16.11.2026: 2,849 קווים באינדקס,
 235 כיוונים משתנים ב-184 קווים, 27 שינויים קטנים סוננו. עם LH_CHANGES (line-history/data/changes) נוספים
 לאינדקס השינויים מהשבועיים האחרונים של כל קו (python3 tools/line_changes.py past — רק השלב הזה).
+חלופה שהוחלפה במק"ט-כיוון-חלופה אחר (find_renamed) — נבדקת כשינוי, גם כשההחלפה כבר הייתה בשבוע שעבר
+(ב-18.11.2026: 14 חלופות, למשל קו 970 של אגד ב-17.11).
 פלט נוסף: data/lines.json — כל הקווים (לחיפוש בדף).
 
 משתנים: TODAY (YYYY-MM-DD, ברירת מחדל היום בשעון ישראל), REF_DAYS (7), HORIZON (14),
@@ -781,6 +783,34 @@ def find_alts(ended_codes, cand_index, exclude, max_n=ALT_MAX):
     return [(mk, cnt[mk], first[mk]) for mk in best[:max_n]]
 
 
+def find_renamed(keys, old_v, new_v, old, t0):
+    """חלופות שהוחלפו: {מק"ט-כיוון-חלופה חדש: (הישן, היום הראשון של החדש)}.
+    הישן — נסע בשבוע שעבר ולא נוסע מעכשיו; החדש — באותו מק"ט-כיוון, לא נסע בתחילת השבוע שעבר,
+    ומתחיל עד 4 ימים אחרי שהישן הפסיק. כמה ישנים לאותו חדש — זה שנסע אחרון (ובשוויון — זה עם הכי הרבה נסיעות)."""
+    dates = lambda vs: set().union(*[x['dates'] for x in vs.values()]) if vs else set()   # noqa: E731
+    by_dk = defaultdict(list)
+    for k in keys:
+        by_dk[dir_key(k)].append(k)
+    out = {}
+    for dk, ks in by_dk.items():
+        gone = [(max(dates(old_v[k])), sum(x['td'] for x in old_v[k].values()), k) for k in ks if old_v.get(k) and not new_v.get(k)]
+        if not gone:
+            continue
+        for k in ks:
+            if not new_v.get(k):
+                continue
+            od, nd = dates(old_v.get(k) or {}), dates(new_v[k])
+            F = min(od | nd)
+            # חלופה שנוסעת רק בחלק מימי השבוע (למשל רק בשישי) ופשוט עוד לא היה היום שלה — לא חדשה
+            wds = {d.weekday() for d in nd if d < t0 + datetime.timedelta(days=7)} or {F.weekday()}
+            if F <= old.d0 or not any((old.d0 + datetime.timedelta(days=i)).weekday() in wds for i in range((F - old.d0).days)):
+                continue
+            pre = [g for g in gone if g[0] < F <= g[0] + datetime.timedelta(days=4)]
+            if pre:
+                out[k] = (max(pre)[2], F)
+    return out
+
+
 def run():
     t0 = TODAY
     ref_day = t0 - datetime.timedelta(days=REF_DAYS)
@@ -814,6 +844,15 @@ def run():
             stats['same'] += 1
             continue
         cands[k] = firsts
+
+    # חלופה שהוחלפה במק"ט-כיוון-חלופה אחר (למשל 10970-1-# ← 10970-1-0, ב-17.11.2026): לכל אחד מהם לבד זה
+    # "וריאנט שנגמר" ו"וריאנט חדש", ושום שינוי לא נמצא. כשהחלופה החדשה מתחילה עד 4 ימים אחרי שהישנה הפסיקה
+    # (גם אם זה כבר קרה בשבוע שעבר) — משווים את הישנה (השבוע שעבר) לחדשה (מה שנוסע מעכשיו); התאריך — היום
+    # הראשון של החלופה החדשה. שינוי שכבר התחיל נשמר אחר כך עם השאר (keep_prev).
+    renamed = find_renamed(keys, old_v, new_v, old, t0)
+    for k in renamed:
+        cands.pop(k, None)
+    stats['renamed'] = len(renamed)
 
     # קו חדש / קו מבוטל — לפי מק"ט (כל הכיוונים והחלופות יחד)
     DAY = datetime.timedelta(days=1)
@@ -888,6 +927,9 @@ def run():
     for k in cands:
         need_old |= {s for _, s in old_v[k]}
         need_new |= {s for _, s in new_v[k]}
+    for k, (ko, F) in renamed.items():
+        need_old |= {s for _, s in old_v[ko]}
+        need_new |= {s for _, s in new_v[k]}
     for dm in new_main.values():
         need_new |= {m[1] for m, _ in dm.values()}
     for dm in ended_main.values():
@@ -942,6 +984,32 @@ def run():
             found=t0.isoformat(),
             old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(o_shape))),
             new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(n_shape))),
+            added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
+            moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
+        ))
+    for k, (ko, F) in renamed.items():
+        ov = old_v[ko]
+        om = main_variant(ov)
+        o_codes = [old.stops[s] for s in old.pat_list[om[0]] if s in old.stops]
+        D = max(F, t0)
+        win = {v: dict(x, td=sum(1 for d in x['dates'] if D <= d < D + 7 * DAY)) for v, x in new_v[k].items()}
+        nm = main_variant({v: x for v, x in win.items() if x['td']})
+        if nm is None:
+            continue
+        n_codes = [new.stops[s] for s in new.pat_list[nm[0]] if s in new.stops]
+        res, minor = compare(o_codes, n_codes, {s['code']: s for s in o_codes}, {s['code']: s for s in n_codes},
+                             shp_old.get(om[1], []), shp_new.get(nm[1], []))
+        if not (res['added'] or res['removed'] or res['moved'] or res['geo']):
+            stats['renamed_same'] += 1
+            continue
+        r_new = new.routes[new_v[k][nm]['rid']]
+        found.append(dict(
+            rd=k, makat=k.split('-')[0], dir=(k.split('-') + ['', ''])[1], alt=(k.split('-') + ['', '', ''])[2],
+            line=r_new['line'], op=new.agency.get(r_new['ag'], ''), ag=r_new['ag'], ty=r_new['ty'],
+            long=r_new['long'], od=od_of(r_new['long']),
+            eff=F.isoformat(), formal=None, found=t0.isoformat(), was=ko,
+            old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(shp_old.get(om[1], [])))),
+            new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(shp_new.get(nm[1], [])))),
             added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
             moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
         ))
@@ -1470,31 +1538,28 @@ def kind_summary(kd, dirs):
 def keep_prev(found, prev, t0, keep_from, keep_all=False):
     """השינויים מהריצות הקודמות (prev) שכבר נכנסו לתוקף, בחלון של KEEP_DAYS ימים, נשארים עם כל הפרטים.
     שינוי שהתחיל לא יימצא שוב כשה-GTFS של השבוע שעבר כבר כולל אותו. אבל כשה-GTFS של השבוע שעבר
-    עוד לא ידע עליו (פורסם באיחור), הוא "יימצא" שוב בכל לילה עם התאריך של היום — אז זה אותו שינוי:
-    נשאר התאריך המקורי (ומזהה הדף לא משתנה). שינוי אחר באותו כיוון (קרוב, או מתאריך אחר) — נשמר לצידו."""
+    עוד לא ידע עליו (פורסם באיחור), הוא "יימצא" שוב בכל לילה עם התאריך של היום. אם המצב "אחרי" זהה
+    (אותן תחנות; בלו"ז — אותו לוח חדש) — זה אותו שינוי: נשאר הרישום הקודם, עם התאריך המקורי ומזהה הדף.
+    ואם היום נמצא אותו מצב "אחרי" עם תאריך מוקדם יותר — נשאר הרישום של היום.
+    שינוי אחר באותו כיוון (קרוב, או למצב אחר) — נשמר לצידו."""
     kind = lambda f: f.get('kind') or 'route'   # noqa: E731
-    codes = lambda f, k: [s[0] for s in (f.get(k) or {}).get('stops', [])]   # noqa: E731
-    by = defaultdict(list)
-    for f in found:
-        by[(f['rd'], kind(f))].append(f)
+    codes = lambda f: [s[0] for s in (f.get('new') or {}).get('stops', [])]   # noqa: E731
+    sn = lambda f: [e.get('sn') for e in f.get('tt', [])]   # noqa: E731
     seen = {(f['rd'], kind(f), f['eff']) for f in found}
+    drop = set()
+    keep = []
     for p in sorted(prev, key=lambda p: p['eff']):
         key = (p['rd'], kind(p))
         if (key + (p['eff'],)) in seen or not (keep_all or keep_from <= p['eff'] < t0):
             continue
-        same = [f for f in by.get(key, []) if p['eff'] < f['eff'] <= t0 and f.get('found', t0) >= t0
-                and (kind(p) != 'route' or (codes(f, 'new') == codes(p, 'new') and codes(f, 'old') == codes(p, 'old')))
-                and (kind(p) != 'timetable' or [e.get('sn') for e in f.get('tt', [])] == [e.get('sn') for e in p.get('tt', [])])]
-        if same:
-            for f in same:
-                f['eff'], f['formal'] = p['eff'], p.get('formal')
-                if p.get('found'):
-                    f['found'] = p['found']
-                seen.add(key + (f['eff'],))
-            continue
-        found.append(p)
+        same = [i for i, f in enumerate(found) if (f['rd'], kind(f)) == key and f['eff'] <= t0 and f.get('found', t0) >= t0
+                and (kind(p) != 'route' or codes(f) == codes(p)) and (kind(p) != 'timetable' or sn(f) == sn(p))]
+        if any(found[i]['eff'] <= p['eff'] for i in same):
+            continue   # נמצא היום עם תאריך מוקדם יותר (למשל חלופה שהוחלפה) — הרישום של היום מחליף את הקודם
+        drop.update(same)
+        keep.append(p)
         seen.add(key + (p['eff'],))
-    return found
+    return [f for i, f in enumerate(found) if i not in drop] + keep
 
 
 def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=False):
