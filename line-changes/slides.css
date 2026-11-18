@@ -848,3 +848,4 @@ body.editing .slide .inset{cursor:move;touch-action:none}
 body.editing .slide .inset.inoff{display:block!important;opacity:.3}
 .slide .inset-x{display:none;position:absolute;top:4px;right:4px;z-index:1000;width:26px;height:26px;border-radius:50%;border:0;background:#13201b;color:#fff;font-size:14px;line-height:26px;padding:0;cursor:pointer}
 body.editing .slide .inset-x{display:block}
+.s-sgsum .sm-rows p{-webkit-line-clamp:3;font-size:17px}
