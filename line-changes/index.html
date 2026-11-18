@@ -24,8 +24,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=13">
-<link rel="stylesheet" href="slides.css?v=10">
+<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="slides.css?v=14">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -56,7 +56,9 @@
       <li><button type="button" data-go="2"><i>2</i><span>איזה שינוי?</span></button></li>
       <li><button type="button" data-go="3"><i>3</i><span>המצגת</span></button></li>
     </ol>
+    <button type="button" class="reset" id="reset" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span>איפוס</span></button>
   </div>
+  <div class="in"><div class="rconfirm" id="rconfirm" role="alertdialog" aria-labelledby="rcq" hidden><span id="rcq">להתחיל מחדש? כל הקווים והבחירות יימחקו</span><button type="button" class="btn danger" id="ryes">כן, לאפס</button><button type="button" class="lnk" id="rno">ביטול</button></div></div>
 </nav>
 
 <div class="in layout">
@@ -64,14 +66,20 @@
 
     <!-- שלב 1: איזה קו -->
     <section class="panel pane" data-pane="1">
-      <h2 class="ph">איזה קו?</h2>
-      <p class="hint">מספר קו, רחוב, שכונה, עיר או חברה.</p>
+      <button type="button" class="deckbar" id="deckbar" hidden></button>
+      <h2 class="ph">מה מכינים?</h2>
+      <div class="seg2 modes" id="modes" role="radiogroup" aria-label="מה מכינים">
+        <button type="button" role="radio" data-mode="chg"><b>הודעה על שינוי</b><small>קו שמשנה מסלול או לו״ז, קו חדש או מבוטל</small></button>
+        <button type="button" role="radio" data-mode="tt"><b>לו״ז עדכני</b><small>כל קו, גם בלי שינוי — להדפסה ולהפצה</small></button>
+      </div>
+      <h2 class="ph" id="qhead">איזה קו?</h2>
+      <p class="hint" id="qhint">מספר קו, רחוב, שכונה, עיר או חברה.</p>
       <div class="searchbox">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
         <label for="q" class="vh">חיפוש קו</label>
         <input id="q" class="big" type="search" placeholder="למשל 988, הרצל, קרית חב&quot;ד" autocomplete="off" enterkeyhint="search">
       </div>
-      <div class="chiprow">
+      <div class="chiprow" id="chiprow">
         <span class="flabel">שינויים קרובים ב:</span>
         <div class="seg" id="cities" role="group" aria-label="ערים עם שינויים קרובים"></div>
       </div>
@@ -97,6 +105,7 @@
         <div class="picked" id="picked"></div>
         <button type="button" class="ghost" id="addline">+ להוסיף קו נוסף</button>
       </div>
+      <div class="group infq" id="infq" hidden></div>
       <div class="group" id="kindgrp">
         <span class="flabel">גודל המצגת</span>
         <div class="kinds" id="kinds"></div>
@@ -104,13 +113,36 @@
       <div class="group" id="ttgrp" hidden>
         <span class="flabel">לוח הזמנים</span>
         <div class="segs2">
+          <div class="seg2" id="ttcseg" role="radiogroup" aria-label="קווים לאותו יעד" hidden>
+            <button type="button" role="radio" data-ttc="comb"><b>משולב לפי יעד</b><small id="ttcsub">כל השעות לאותו יעד בטבלה אחת</small></button>
+            <button type="button" role="radio" data-ttc="sep"><b>כל קו לחוד</b><small>טבלה נפרדת לכל קו</small></button>
+          </div>
           <div class="seg2" role="radiogroup" aria-label="כמה פרטים">
             <button type="button" role="radio" data-ttv="gen"><b>כללי</b><small>כמה נסיעות, מתי ובאיזו תדירות</small></button>
             <button type="button" role="radio" data-ttv="det"><b>מפורט</b><small>כל שעות היציאה</small></button>
           </div>
-          <div class="seg2" role="radiogroup" aria-label="איך להציג">
+          <div class="seg2" id="ttfseg" role="radiogroup" aria-label="איך להציג">
             <button type="button" role="radio" data-ttf="table"><b>טבלה</b></button>
             <button type="button" role="radio" data-ttf="text"><b>טקסט</b></button>
+          </div>
+          <label class="credit-opt" id="ttperw" hidden><input type="checkbox" id="ttper"> <span>גם שקף נפרד לכל קו</span></label>
+        </div>
+      </div>
+      <div class="group" id="rcgrp" hidden>
+        <span class="flabel">צבעי המסלול במפה</span>
+        <div class="segs2">
+          <div class="seg2" role="radiogroup" aria-label="צבעי המסלול במפה">
+            <button type="button" role="radio" data-rc="chg"><b>רק מה שהשתנה</b><small>אפור למסלול שלא השתנה, ירוק לקטע החדש</small></button>
+            <button type="button" role="radio" data-rc="all"><b>כל המסלול החדש</b><small>כל המסלול החדש בירוק</small></button>
+          </div>
+        </div>
+      </div>
+      <div class="group" id="zmgrp" hidden>
+        <span class="flabel">מפות מקורבות לתחנות</span>
+        <div class="segs2">
+          <div class="seg2" role="radiogroup" aria-label="מפות מקורבות לתחנות">
+            <button type="button" role="radio" data-zm="yes"><b>כן</b><small>מפה קרובה לכל יישוב או שכונה שהקו נכנס אליהם</small></button>
+            <button type="button" role="radio" data-zm="no"><b>לא</b><small>רק מפה של כל המסלול</small></button>
           </div>
         </div>
       </div>
@@ -121,6 +153,7 @@
           <button type="button" role="radio" data-form="sign"><i class="fm fm-sign"></i><span>שלט להדפסה<small>A4 לאורך</small></span></button>
           <button type="button" role="radio" data-form="status"><i class="fm fm-status"></i><span>סטטוס<small>תמונה לווטסאפ</small></span></button>
         </div>
+        <p class="a4note" id="a4note" hidden></p>
       </div>
       <div class="group">
         <span class="flabel" id="lookslbl">עיצוב</span>
@@ -133,7 +166,7 @@
       </div>
       <div class="group editgrp">
         <span class="flabel">הטקסט</span>
-        <p class="hint">הטקסט נוצר אוטומטית מהנתונים. במצב עריכה לוחצים על כל טקסט בשקף כדי לשנות, למחוק או להוסיף שורה; אפשר גם להוסיף תיבת טקסט או שקף שלם.</p>
+        <p class="hint">הטקסט נוצר אוטומטית מהנתונים. במצב עריכה לוחצים על כל טקסט בשקף כדי לשנות, למחוק או להוסיף שורה; אפשר גם להוסיף תיבת טקסט, תמונה (מהקובץ, או הדבקה עם Ctrl+V) או שקף שלם. התמונות נשארות אצלכם ולא עולות לשום מקום.</p>
         <div class="row2">
           <button type="button" class="btn2" id="editbtn" aria-pressed="false">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
@@ -163,6 +196,7 @@
     <div class="stagehead noprint"><h2 id="stagetitle">תצוגה מקדימה</h2><span id="pcount"></span></div>
     <p class="edithint noprint">מצב עריכה: לוחצים על טקסט בשקף כדי לשנות אותו. בטלפון אפשר להגדיל את השקף עם שתי אצבעות.</p>
     <div class="deck" id="deck"></div>
+    <p class="imgmsg noprint" id="imgmsg" role="status" aria-live="polite"></p>
   </main>
 </div>
 
@@ -185,15 +219,15 @@
 <footer class="foot noprint">
   <div class="in">
     <div><b>מצגת לשינוי בקו</b> · הקו הבוחן</div>
-    <div>שינויים קרובים מזוהים כל לילה מנתוני משרד התחבורה<span id="feed"></span>, ושינויים שהתחילו בשבוע האחרון — מהארכיון של הקו הבוחן. זה לא פרסום רשמי.</div>
+    <div>שינויים קרובים מזוהים כל לילה מנתוני משרד התחבורה<span id="feed"></span>, ושינויים שהתחילו בשבועיים האחרונים — מהנתונים של הלילות הקודמים ומהארכיון של הקו הבוחן. זה לא פרסום רשמי.</div>
   </div>
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="common.js?v=6"></script>
-<script src="deck.js?v=12"></script>
-<script src="editor.js?v=5"></script>
-<script src="app.js?v=11"></script>
+<script src="common.js?v=7"></script>
+<script src="deck.js?v=17"></script>
+<script src="editor.js?v=8"></script>
+<script src="app.js?v=19"></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>

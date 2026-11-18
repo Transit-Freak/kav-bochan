@@ -36,7 +36,8 @@ var LC = (function () {
   function chips(c) {
     var h = '';
     if (c.kind && KIND_CHIP[c.kind]) return '<span class="chip ' + KIND_CHIP[c.kind][0] + '">' + KIND_CHIP[c.kind][1] + '</span>';
-    if (c.ext) h += '<span class="chip geo">' + (c.ext === 'end' ? 'הקו ממשיך יותר רחוק' : c.ext === 'start' ? 'הקו מתחיל מוקדם יותר' : 'הקו מתארך') + '</span>';
+    if (c.var) h += '<span class="chip ' + (c.var === 'end' ? 'rem' : 'add') + '">' + (c.var === 'end' ? 'חלופה בוטלה' : 'חלופה חדשה') + '</span>';
+    else if (c.ext) h += '<span class="chip geo">' + (c.ext === 'end' ? 'הקו ממשיך יותר רחוק' : c.ext === 'start' ? 'הקו מתחיל מוקדם יותר' : 'הקו מתארך') + '</span>';
     else if (c.geo) h += '<span class="chip geo">הקו נוסע בדרך אחרת</span>';
     if (c.rem) h += '<span class="chip rem">' + stopsWord(c.rem, 'rem') + '</span>';
     if (c.add) h += '<span class="chip add">' + stopsWord(c.add, 'add') + '</span>';

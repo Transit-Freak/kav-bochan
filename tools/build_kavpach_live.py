@@ -14,6 +14,10 @@
   newd  תאריך ההופעה אם הקו הופיע לראשונה בשנה האחרונה (הגנת הרצה)
   gap   השבתה-וחזרה בשנה האחרונה: [מתאריך, עד תאריך] הארוכה ביותר
 
+ובנוסף, ברמת המקט: החברה המפעילה הנוכחית (ops = רשימת השמות, opOf = מקט ← מספר
+ברשימה) — לסינון לפי חברה באלגוריתם הייעול. החברה של הווריאנט העדכני ביותר
+שאינו היסטורי-בלבד ואינו מבוטל (אם אין כזה — העדכני ביותר בכלל).
+
 הפלט קטן (מאות ק"ב) ונטען באתר בלי לחסום — אם אינו קיים, הכל עובד כרגיל.
 """
 import datetime
@@ -47,6 +51,17 @@ def main():
 
     per = defaultdict(lambda: {'variants': 0, 'removed': 0, 'rmd': '', 'ntr': 0,
                                'red': 0, 'first': '', 'gap': None})
+    # החברה המפעילה לכל מקט — הווריאנט העדכני: קודם פעיל ולא היסטורי-בלבד, ואז לפי תאריך
+    op_best = {}
+    for l in idx:
+        rd = l.get('rd') or ''
+        op = (l.get('op') or '').strip()
+        if not op or rd.count('-') < 2:
+            continue
+        mk = rd.split('-')[0]
+        rank = (0 if l.get('historicalOnly') else 1, 0 if l.get('lk') == 'removed' else 1, l.get('ld') or '')
+        if mk not in op_best or rank > op_best[mk][0]:
+            op_best[mk] = (rank, op)
     for l in idx:
         rd = l.get('rd') or ''
         if rd.count('-') < 2:
@@ -129,8 +144,11 @@ def main():
         if rec:
             out[k] = rec
 
+    # רק מקטים שיש להם וריאנט פעיל (לא היסטורי-בלבד ולא מבוטל) — קו מבוטל ממילא לא נכנס לסימולציה
+    ops = sorted({v[1] for v in op_best.values() if v[0][0] and v[0][1]})
+    op_ix = {o: i for i, o in enumerate(ops)}
     doc = {'gen': TODAY, 'archiveGen': json.load(open(f'{OUTDIR}/lines.json', encoding='utf-8')).get('gen', ''),
-           'lines': out}
+           'lines': out, 'ops': ops, 'opOf': {mk: op_ix[v[1]] for mk, v in sorted(op_best.items()) if v[0][0] and v[0][1]}}
     json.dump(doc, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     n_rm = sum(1 for v in out.values() if v.get('rm'))
     n_red = sum(1 for v in out.values() if v.get('red'))

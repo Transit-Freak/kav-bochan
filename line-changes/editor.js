@@ -4,9 +4,10 @@
    איך מזהים טקסט בין טעינות: מזהה = שקף | גיבוב של הטקסט המקורי | מספר ההופעה בשקף.
    כך העריכה נשארת במקומה גם כשהמצגת נבנית מחדש (עיצוב אחר, רענון הדף).
    העריכות (edits): t — טקסט שהשתנה (null = נמחק) · add — שורות שנוספו אחרי טקסט ·
-   boxes — תיבות טקסט חופשיות לכל שקף · xslides — שקפי טקסט שנוספו · off — שקפים שלא ייכללו. */
+   boxes — תיבות טקסט חופשיות לכל שקף · xslides — שקפי טקסט (ותמונה) שנוספו · off — שקפים שלא ייכללו ·
+   imgs — תמונות על שקף: מיקום ורוחב באחוזים מגודל השקף (כך הן נשארות במקום גם כשהשקף מוקטן). */
 var LCEdit = (function () {
-  var SKIP = 'table,.tt-run,.tt-key,.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
+  var SKIP = '.ibox,.s-img,table,.ttc,.tt-run,.tt-key,.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
   // עד כאן מורידים אלמנטים ריקים אחרי מחיקה (לא את השקף, העמודות או הרשימה עצמה)
   var STOP = '.slide,.tt-body,.tt-blk,.s-tt,.alts,.instead,.side,.body,.cols,.grp,.two,ul,ol,.legend,.what,.owhat,.cards,.ocontact,.s-stops,.s-map,.s-one,.s-cover,.s-text,.s-close,.s-over,.s-sign,.s-signstops,.s-status,.sg-what,.sg-near,.sg-cols,.col,.sg-contact,.st-what,.st-foot';
   var MARKS = '.alts .badge,.side .segn,.side .segb,.side .dot,.side .sw,.s-stops .dot,.legend .dot,.legend .sw,.ohead .badge,.s-map .badge,.sg-near .dot,.sg-cols .dot';
@@ -95,6 +96,20 @@ var LCEdit = (function () {
       m.setAttribute('data-mk', mid); m.classList.add('emark');
       if (ed.hide && ed.hide[mid]) m.classList.add('mkoff');
     });
+    // מפת ההתמצאות: אפשר לגרור (edits.inset — אחוזים מגודל המפה) ולהסתיר (✕, ב-hide כמו הסימנים)
+    var ins = slide.querySelector('.inset');
+    if (ins) {
+      var iid = sid + '|inset', pos = ed.inset && ed.inset[sid];
+      ins.setAttribute('data-ins', iid);
+      if (pos) { ins.setAttribute('data-fx', pos.x); ins.setAttribute('data-fy', pos.y); }
+      if (ed.hide && ed.hide[iid]) ins.classList.add('inoff');
+      if (!ins.querySelector('.inset-x')) {
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = 'inset-x noprint'; x.setAttribute('data-act', 'insetx');
+        x.setAttribute('aria-label', 'הסתרת מפת ההתמצאות'); x.title = 'הסתרה / החזרה'; x.textContent = '✕';
+        ins.appendChild(x);
+      }
+    }
     // תיבות טקסט חופשיות
     (ed.boxes && ed.boxes[sid] || []).forEach(function (b) { slide.appendChild(boxEl(b)); });
     fit(frame);
@@ -125,5 +140,24 @@ var LCEdit = (function () {
     frame.classList.toggle('toolong', bad);
   }
 
-  return { apply: apply, fit: fit, boxEl: boxEl };
+  /* תמונה על שקף: x, y, w — אחוזים מהשקף; r — רוחב/גובה של התמונה. W, H — גודל השקף בצורה הנוכחית.
+     אם התמונה גבוהה מהשקף (למשל אחרי מעבר מסטטוס למצגת) — מקטינים אותה כך שתיכנס */
+  function imgEl(b, src, W, H) {
+    var w = b.w, maxW = 100 * H * b.r / W;
+    if (w > maxW) w = maxW;
+    var hP = w * W / b.r / H;
+    var x = Math.max(0, Math.min(100 - w, b.x)), y = Math.max(0, Math.min(100 - hP, b.y));
+    var d = document.createElement('div');
+    d.className = 'ibox';
+    d.setAttribute('data-ibox', b.id);
+    d.setAttribute('role', 'group');
+    d.setAttribute('aria-label', 'תמונה בשקף. חיצים להזזה, פלוס ומינוס לשינוי גודל, Delete למחיקה');
+    d.style.left = x + '%'; d.style.top = y + '%'; d.style.width = w + '%'; d.style.aspectRatio = String(b.r);
+    d.innerHTML = '<img alt="" draggable="false"><button type="button" class="ibox-x noprint" data-act="imgdel" aria-label="מחיקת התמונה" title="מחיקת התמונה">✕</button>' +
+      '<span class="ibox-r noprint" aria-hidden="true" title="שינוי גודל"></span>';
+    d.querySelector('img').src = src;
+    return d;
+  }
+
+  return { apply: apply, fit: fit, boxEl: boxEl, imgEl: imgEl };
 })();
