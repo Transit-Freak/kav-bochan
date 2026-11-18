@@ -2482,7 +2482,7 @@ var LCDeck = (function () {
     // הקטעים שמשתנים (האדום שהקו כבר לא נוסע בו, והירוק החדש) — כולם בתוך המפה; כשהמפה מחולקת לאזורים —
     // רק הקטעים שעוברים ליד התחנות של האזור הזה
     var core0 = marks.map(function (x) { return x.s.ll; }), chgRuns = [];
-    offRuns(d.old.shape, d.new.shape).concat(extOf(d) ? extPart(d) : offRuns(d.new.shape, d.old.shape)).forEach(function (r) {
+    (d.var === 'new' ? [] : offRuns(d.old.shape, d.new.shape)).concat(extOf(d) ? extPart(d) : d.var === 'end' ? [] : offRuns(d.new.shape, d.old.shape)).forEach(function (r) {
       if (m.show && !r.some(function (p) { return core0.some(function (c) { return dist(c, p) <= 1500; }); })) return;
       chgRuns.push(r);
       r.forEach(function (p) { focus.extend(p); });
