@@ -113,6 +113,14 @@ var LCDeck = (function () {
     if (t && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3 && !t.geo) return 'בעמודים הבאים: מפה קרובה של המקום שבו התחנה משתנה.';
     var rem = pages.some(function (p) { return (p.tot || {}).rem; });
     if (pages.every(function (p) { return (p.tot || {}).ext; })) return 'בעמודים הבאים: מפה של הקטע החדש במסלול.';
+    // רק תחנות (הדרך לא משתנה באף קו)
+    if (pages.every(function (p) { return !p.kind && !(p.tot || {}).geo; })) {
+      var add = pages.some(function (p) { return (p.tot || {}).add; }), mv = pages.some(function (p) { return (p.tot || {}).mv; });
+      var many = pages.reduce(function (n, p) { return n + ((p.tot || {}).add || 0) + ((p.tot || {}).rem || 0); }, 0) > 1 && pages.length === 1;
+      if (add && !rem && !mv) return 'בעמודים הבאים: מפה עם ' + (many ? 'התחנות החדשות.' : 'התחנה החדשה.');
+      if (rem && !add && !mv) return 'בעמודים הבאים: מפה עם ' + (many ? 'התחנות שמבוטלות' : 'התחנה שמבוטלת') + ', ואיפה התחנה הקרובה.';
+      return 'בעמודים הבאים: מפה של התחנות שמשתנות.';
+    }
     return 'בעמודים הבאים: מפה של המסלול הישן והחדש' + (rem ? ', ואיפה התחנה הקרובה במקום כל תחנה שמבוטלת.' : '.');
   }
   /* שם המצגת: יחיד רק כשיש בדיוק קו אחד. כמה קווים: "שינויים בקווים 9, 18 ו-54" (עד 5), "שינויים ב-12 קווים" (יותר),
@@ -2226,10 +2234,28 @@ var LCDeck = (function () {
     });
   }
   /* "רק מה שהשתנה": שורה לכל קו — תגית, סוג השינוי ומשפט אחד */
+  /* שינוי בלו"ז בשורה אחת — מה השתנה בפועל, בלי מספרי נסיעות: שינוי קטן (עד 3 נסיעות) — השעות עצמן;
+     נסיעות לילה — "נוספו נסיעות לילה עד 2:00"; אחרת — "יותר נסיעות בימי חול" / "שעות אחרות בשישי" */
+  function ttPlain(p) {
+    var out = [];
+    ttDirs(p).forEach(function (d) {
+      d.tt.forEach(function (e) {
+        var x = ttDiff(e), n = x.ad.length + x.rm.length + x.sh.length, w = dtIn(e.t), t;
+        if (!n) return;
+        var late = function (m) { return m >= 1380; };
+        if (n <= 3) t = smallLine(e).replace(/<\/?b>/g, '').replace(/\.$/, '');
+        else if (x.ad.length && !x.rm.length && !x.sh.length && x.ad.every(late)) t = w + ' נוספו נסיעות לילה עד ' + hm(Math.max.apply(null, x.ad));
+        else if (x.rm.length && !x.ad.length && !x.sh.length && x.rm.every(late)) t = w + ' בוטלו נסיעות הלילה אחרי ' + hm(Math.min.apply(null, x.rm) - 1);
+        else t = (x.ad.length > x.rm.length ? 'יותר נסיעות ' : x.rm.length > x.ad.length ? 'פחות נסיעות ' : 'שעות אחרות ') + w;
+        if (out.indexOf(t) < 0) out.push(t);
+      });
+    });
+    return out.slice(0, 3).join(' · ') + (out.length > 3 ? ' ועוד' : '') + '.';
+  }
   function sumLine(p) {
+    if (p.kind === 'timetable') return E(ttPlain(p));
     var it = isKind(p) ? kindItems(p) : whatChanges(p);
     if (p.kind === 'new') return [it[0], it[2]].filter(Boolean).join(' ');
-    if (p.kind === 'timetable') return it.slice(0, 2).join(' ');
     if (p.kind === 'ended') return it[0] || '';
     return (it[0] || totLine(p.tot || {})) + '';
   }
@@ -2240,10 +2266,19 @@ var LCDeck = (function () {
   function signLimit(pages, full, feed) {
     SIGN_INFO = { full: full.length, limited: false, short: full.length };   // (נקרא רק בשלט של שינויים)
     if (pages.length < 2 || full.length <= SIGN_MAX) return full;
-    var lines = []; pages.forEach(function (p) { if (lines.indexOf(p.line) < 0) lines.push(p.line); });
+    // שינוי בלו"ז — רק בשורת הסיכום ובטבלת הלו"ז של כל הקווים (כללי / מפורט, לפי הבחירה), בלי שלט משלו.
+    // שלטים מפורטים (מפה ותחנות) — לשינויי מסלול, קווים חדשים ומבוטלים, עד SIGN_LINES קווים
+    var tts = pages.filter(function (p) { return p.kind === 'timetable' && ttCap(p); });
+    var det = pages.filter(function (p) { return p.kind !== 'timetable'; });
+    var lines = []; det.forEach(function (p) { if (lines.indexOf(p.line) < 0) lines.push(p.line); });
     var keep = lines.slice(0, SIGN_LINES), more = lines.length - keep.length;
-    var short = sumSign(pages, more).concat(signPages(pages.filter(function (p) { return keep.indexOf(p.line) >= 0; }), feed));
-    SIGN_INFO = { full: full.length, limited: ED.a4full !== true, short: short.length, more: more };
+    // שורה בעמוד "מה משתנה" — רק לקווים שאין להם שלט מפורט ואינם בטבלת הלו"ז
+    var rest = det.filter(function (p) { return keep.indexOf(p.line) < 0; });
+    var sum = rest.length ? sumSign(rest, 0) : [], tab = tts.length ? mtSlides(tts, 'sign') : [];
+    var dpages = signPages(det.filter(function (p) { return keep.indexOf(p.line) >= 0; }), feed);
+    var short = sum.concat(tab, dpages);
+    SIGN_INFO = { full: full.length, limited: ED.a4full !== true, short: short.length, more: more,
+      parts: { sum: sum.length, tt: tab.length, det: dpages.length, ttLines: tts.length, detLines: keep.length, sumLines: rest.length } };
     return ED.a4full === true ? full : short;
   }
   function sumSign(pages, more) {
@@ -2257,7 +2292,7 @@ var LCDeck = (function () {
             return '<li><span class="badge sm num">' + E(p.line) + '</span><div class="sm-t"><div class="sm-h">' + LC.chips(p.kind ? { kind: p.kind } : p.tot || {}).replace(/^(<span class="chip[^"]*">[^<]*<\/span>)[\s\S]*$/, '$1') +
               '<span class="sm-od">' + E(odTxt(p)) + '</span></div><p>' + sumLine(p) + '</p></div></li>';
           }).join('') + '</ul>' +
-          (i === n - 1 && more ? '<p style="margin:14px 40px 0;font-size:20px;font-weight:700">ועוד ' + more + ' קווים — הפרטים המלאים שלהם במצגת.</p>' : '') +
+          (i === n - 1 ? '<p style="margin:14px 40px 0;font-size:20px;font-weight:700">הפרטים המלאים של הקווים האלה — במצגת.</p>' : '') +
           signFoot(null, false) + '</div>' });
     }
     return out;

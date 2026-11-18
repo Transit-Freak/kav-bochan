@@ -364,3 +364,4 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .modes button{min-height:58px}
 .a4note{margin:var(--sp2) 0 0;padding:10px 12px;border-radius:var(--r2);background:var(--warn-bg);color:var(--fg);font-size:14px;line-height:1.45}
 .a4note[hidden]{display:none}
+.group[hidden]{display:none}

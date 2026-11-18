@@ -913,8 +913,13 @@
     var si = form === 'sign' && LCDeck.signInfo(), el = $('a4note');
     if (!si || si.full <= si.short && !si.limited && edits.a4full !== true) { el.hidden = true; return; }
     el.hidden = false;
+    var pt = si.parts || {};
     el.innerHTML = si.limited
-      ? 'השלט היה יוצא ארוך — ' + si.full + ' עמודים. הכנו גרסה מקוצרת של ' + si.short + ' עמודים: "מה משתנה" לכל הקווים, והשלטים המפורטים של 20 הקווים הראשונים' + (si.more ? ' (עוד ' + si.more + ' קווים — במצגת)' : '') + '. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
+      ? 'השלט היה יוצא ארוך — ' + si.full + ' עמודים. הכנו גרסה מקוצרת של ' + si.short + ' עמודים: ' +
+        [pt.ttLines ? 'טבלת לוח הזמנים של ' + pt.ttLines + ' קווים (' + pt.tt + ' עמ׳)' : '',
+         pt.detLines ? 'שלט מפורט ל-' + pt.detLines + ' קווים עם שינוי מסלול, קו חדש או מבוטל (' + pt.det + ' עמ׳)' : '',
+         pt.sumLines ? 'שורה קצרה לעוד ' + pt.sumLines + ' קווים (' + pt.sum + ' עמ׳; הפרטים — במצגת)' : ''].filter(Boolean).join(' · ') +
+        '. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
       : 'השלט ארוך — ' + si.full + ' עמודים. <button type="button" class="lnk" data-a4="short">לגרסה המקוצרת (' + si.short + ' עמודים)</button>';
   }
   $('a4note').addEventListener('click', function (ev) {
@@ -923,7 +928,8 @@
   });
   /* צבעי המסלול במפת השינוי — רק כשיש במצגת שינוי מסלול (לא קו חדש / מבוטל / לו"ז) */
   function rcUi(pages) {
-    $('rcgrp').hidden = !pages.some(function (p) { return !p.kind; });
+    // רק כשיש במצגת קו שהדרך שלו משתנה (לא רק תחנה שנוספה או בוטלה)
+    $('rcgrp').hidden = !pages.some(function (p) { return !p.kind && (p.tot && (p.tot.geo || p.tot.ext) || (p.dirs || []).some(function (d) { return d.geo || d.ext; })); });
     var v = edits.rc === 'all' ? 'all' : 'chg';
     $('rcgrp').querySelectorAll('[data-rc]').forEach(function (b) { b.setAttribute('aria-checked', b.getAttribute('data-rc') === v ? 'true' : 'false'); });
   }
