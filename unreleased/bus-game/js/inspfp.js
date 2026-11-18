@@ -242,14 +242,19 @@ export class InspectorFP {
     this.cineGo('alight', pts, [new THREE.Vector3(d.x + sx * 1.2, EYE_OUT - 0.5, z + 3)], pts.length - 2, pts.length - 3);
   }
   // על המדרכה: הקטע מ-a ל-b (במערכת האוטובוס) פנוי מסככה, עמוד, עץ או בניין — בגובה העיניים ובגובה המותניים, ו-40 ס"מ לצדדים
-  // של b (המצלמה והיד לא צמודות לעמוד). רק מה שלא חלק מהאוטובוס, מהאנשים או מהיד של הפקח
+  // של a ושל b (המצלמה והיד לא צמודות לעמוד). רק מה שלא חלק מהאוטובוס, מהאנשים או מהיד של הפקח
   streetClear(o, a, b) {
     const rc = this.rc || (this.rc = new THREE.Raycaster()); rc.camera = this.g.camera; const skip = m => { for (let x = m; x; x = x.parent) { if (x === o || x === this.reader.group || x === this.g.camera || x.isSkinnedMesh || /crowd|people|walker/i.test(x.name || '')) return true; } return false; };
     const objs = this.g.scene.children.filter(x => x !== o && x !== this.g.camera && x.visible), W = o.matrixWorld;
     const seg = (p, q) => { const pw = p.clone().applyMatrix4(W), qw = q.clone().applyMatrix4(W), d = qw.clone().sub(pw), L = d.length(); if (L < 1e-3) return true;
       rc.set(pw, d.normalize()); rc.far = L + 0.3; return !rc.intersectObjects(objs, true).some(h => !skip(h.object) && !h.object.isSprite && !h.object.isPoints && !h.object.isLine); };
+    // (גם קטעים מקבילים, 30 ס"מ לכל צד — המצלמה לא חולפת צמוד לעמוד או לדופן הזכוכית של הסככה; ו-40 ס"מ סביב שני הקצוות,
+    // כדי שנקודת ההתחלה לא תהיה צמודה לזכוכית)
+    const pr = new THREE.Vector3(b.z - a.z, 0, a.x - b.x); if (pr.lengthSq() > 1e-6) pr.setLength(0.3);
+    const R = [[0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4], [0.28, 0.28], [-0.28, 0.28], [0.28, -0.28], [-0.28, -0.28]];
     for (const dy of [0, -0.6]) { const A = a.clone(), B = b.clone(); A.y += dy; B.y += dy; if (!seg(A, B)) return false;
-      for (const [x, z] of [[0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]]) if (!seg(B, B.clone().add(new THREE.Vector3(x, 0, z)))) return false; }
+      if (pr.lengthSq() > 1e-6) for (const k of [1, -1]) if (!seg(A.clone().addScaledVector(pr, k), B.clone().addScaledVector(pr, k))) return false;
+      for (const E of [A, B]) for (const [x, z] of R) if (!seg(E, E.clone().add(new THREE.Vector3(x, 0, z)))) return false; }
     return true;
   }
   // pts — המסלול; look — נקודות להמשך המבט אחרי הסוף; off — מאיזו נקודה כבר על המדרכה (בירידה: מקפיאים את המקום בעולם)
