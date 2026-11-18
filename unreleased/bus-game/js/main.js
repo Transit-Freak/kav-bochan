@@ -127,7 +127,9 @@ async function init() {
       // המצלמה עולה מאחורי הפקח ומעליו (קשת), והמבט עובר בהדרגה מהנקודה שלפניו אל האוטובוס — בלי סיבוב חד. היעד זז עם האוטובוס
       if (pose && cams.current === 'follow') { const o = buses.objectOf(cams.modes.follow.bus), f1 = camera.fov;
         const rel = o ? { o, p: camera.position.clone().sub(o.position), t: controls.target.clone().sub(o.position) } : null;
-        const fw = pose.t.clone().sub(pose.p).setY(0).normalize(), ctrl = pose.p.clone().addScaledVector(fw, -6).add(new THREE.Vector3(0, 10, 0));
+        const fw = pose.t.clone().sub(pose.p).setY(0).normalize(), ctrl = pose.p.clone().addScaledVector(fw, -4).add(new THREE.Vector3(0, 12, 0));
+        // הקשת עוברת מעל הכביש (לצד האוטובוס), לא מעל המדרכה — כך היא לא חותכת את גג הסככה
+        if (o) { const tb = o.position.clone().sub(pose.p).setY(0); if (tb.lengthSq() > 1e-4) ctrl.addScaledVector(tb.normalize(), 2.5); }
         // (בזמן המעבר בלי המרחק המינימלי של OrbitControls — אחרת המצלמה נדחפת אחורה מהעיניים של הפקח בפריים הראשון)
         const p1 = camera.position.clone(), t1 = controls.target.clone(); camAnim = null;
         camera.position.copy(pose.p); controls.target.copy(pose.t);
