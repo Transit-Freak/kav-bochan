@@ -1631,7 +1631,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
         if (formal or eff) < t0:
-            rec['past'] = 1   # כבר התחיל (נשמר מהריצות הקודמות, KEEP_DAYS)
+            rec['started'] = 1   # כבר התחיל (נשמר מהריצות הקודמות, KEEP_DAYS). לא "past" — בדף זה שינוי מהארכיון
         if kd != 'route':
             rec['kind'] = kd
             rec['dirs'] = [dict(dir=f['dir'], eff=f['eff']) for f in dirs]
@@ -1643,7 +1643,7 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
         od_t = f'{f0["od"][0]} ↔ {f0["od"][1]}' if f0['od'][0] != f0['od'][1] else f0['od'][0]
-        was = rec.get('past')
+        was = rec.get('started')
         if was and kd == 'ended':
             title = f'קו {f0["line"]} {od_t} הפסיק לפעול — נסיעה אחרונה ב-{fmt_d(rec["last"])}'
             desc = f'{f0["op"]}. מפה של המסלול, ואילו קווים עוצרים באותן תחנות.'

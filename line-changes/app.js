@@ -3,7 +3,7 @@
    - data/lines.json   כל הקווים שפועלים עכשיו (לחיפוש), עם השינויים מהשבועיים האחרונים (תאריכים בלבד)
    הכלי מציג רק שינויים שעוד לא התחילו, או שהתחילו בשבועיים האחרונים (שלמה 16.11; שבועיים — 18.11).
    - data/index.json   השינויים הקרובים שזוהו בלילה, וגם אלה שזוהו בלילות הקודמים והתחילו בשבועיים האחרונים
-     (past: 1) — עם כל הפרטים ב-data/l/<id>.json, כך שגם להם יש מצגת מלאה
+     (started: 1) — עם כל הפרטים ב-data/l/<id>.json, כך שגם להם יש מצגת מלאה
    - ../line-history/data/lines/<rd>.json — קובצי "הקו בזמן", לשינויים מהשבועיים האחרונים שלא זוהו מראש (נטען רק לקו שנבחר)
    כתובת לשיתוף: ?c=<מזהה>[,<מזהה>...] — שינוי קרוב: 10988-20261117 · שינוי שהיה: p-10988-2026-05-01 */
 (function () {
@@ -538,7 +538,7 @@
   function drawChanges() {
     var l = cur;
     $('linehead').innerHTML = '<span class="badge">' + E(l.line) + '</span><div class="t"><b>' + E(l.from) + ' ↔ ' + E(l.to) + '</b><span>' + E(l.op) + '</span></div>';
-    var KO = { route: 0, 'new': 1, ended: 1, timetable: 2 }, many = Object.keys(kindsOf(l)).length > 1;
+    var KO = { route: 0, 'new': 1, ended: 1, timetable: 2 }, many = Object.keys(kindsOf(l)).filter(function (k) { return k !== 'past'; }).length > 1;
     var up = l.up.slice().sort(function (a, b) { return KO[kindOf(a)] - KO[kindOf(b)] || ((a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1); });
     var html = up.map(function (c) {
       var t = c.tot || {}, sm = (c.dev || 0) < 1000 && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3;
@@ -766,6 +766,9 @@
       if (!s.html) return;
       var own = null;
       pages.forEach(function (p) { if (String(s.id).indexOf(p.id) >= 0 && (!own || p.id.length > own.id.length)) own = p; });
+      // מפה ותחנות של כיוון אחד — לפי התאריך של הכיוון (בקו שהשתנה, כיוון אחד יכול להשתנות רק בעוד כמה ימים)
+      var m = own && String(s.id).slice(String(s.id).indexOf(own.id) + own.id.length).match(/^-[ms](\d+)/), d = m && own.dirs[+m[1]];
+      if (d && !d.formal && d.eff > idx.gen) return;
       if (own ? pageBegun(own) : all) s.html = pastHtml(s.html);
     });
   }
@@ -779,9 +782,13 @@
       .replace(/מה משתנה/g, 'מה השתנה').replace(/שמשתנים/g, 'שהשתנו').replace(/שמשתנות/g, 'שהשתנו')
       .replace(/(המסלול|לא) משתנה(?![\u0590-\u05FF])/g, '$1 השתנה').replace(/לא משתנות/g, 'לא השתנו').replace(/לא משתנים/g, 'לא השתנו')
       .replace(/(התחנה (?:הראשונה|האחרונה)) תהיה/g, '$1 היא')
+      .replace(/מפסיק לפעול/g, 'הפסיק לפעול').replace(/מפסיקים לפעול/g, 'הפסיקו לפעול')
       .replace(/תחנה אחת עוברת/g, 'תחנה אחת עברה').replace(/תחנות עוברות/g, 'תחנות עברו')
       .replace(/עד היום/g, 'לפני השינוי').replace(/מעכשיו/g, 'אחרי השינוי')
-      .replace(/החל מ-?/g, 'מאז ');
+      .replace(/החל מ-?((?:יום \S+ )?)(\d{1,2})\.(\d{1,2})(\.\d{4})?/g, function (m, w, d, mo, y) {   // רק תאריך שכבר עבר
+        var iso = (y ? y.slice(1) : idx.gen.slice(0, 4)) + '-' + ('0' + mo).slice(-2) + '-' + ('0' + d).slice(-2);
+        return iso <= idx.gen ? 'מאז ' + w + d + '.' + mo + (y || '') : m;
+      });
   }
   /* רק הטקסט שבין התגיות */
   function pastHtml(h) { return String(h).replace(/>([^<]+)</g, function (m, t) { return '>' + pastText(t) + '<'; }); }
