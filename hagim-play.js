@@ -6,7 +6,7 @@
    העין תמיד נשארת פתוחה עם הקשתית והאישון (לכל היותר חיוך קל או מצמוץ מהיר), וכל חפץ עף מסביב לעין ועומד לידה —
    מתחת, מעל או בצד — אף פעם לא מול האישון (around).
    סוגי המשחקים בחגים: eat, dip, seeds, sip, honey, read, light, spin, wear, wreath, blow, wave, shake, sniff, peek, plant,
-   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, burn, ride, slow, leap, tick, play, juggle, upside,
+   boom, smoke, toast, shoot, pour, coins, find, lift, twirl, noise, rot, burn, ride, slow, leap, tick, signal, play, juggle, upside,
    inspect, bounce (הפירוט ב-hagim.js, ליד PLAY). "סוג@b" — המשחק על התג הקטן של הסמל.
    בימים רגילים (הסמל הוא תמונה, אז המשחק מצויר לידו): lid, flip, crawl, signflip, hop, clock, slides, gauge, speedo, ring,
    roll, train, bars, meet, drop, align, pad.
@@ -156,8 +156,10 @@
         var full = txt.nodeValue; txt.nodeValue = full.slice(parts[0].length);
         cur.undo.push(function () { txt.nodeValue = full; });
         var one = D.createElement("span"); one.textContent = parts[0];
-        f = { el: div("hp-fly hp-em"), w: destW, h: destW * sr.h / sr.w };
-        f.el.style.fontSize = (parseFloat(getComputedStyle(src).fontSize) * destW / sr.w) + "px"; f.el.appendChild(one);
+        // אימוג'י אחד רוחבו בערך גובה האות — לא סומכים על רוחב הטווח (ריווח שלילי בין האותיות)
+        sr = { l: sr.l, t: sr.t, w: sr.h * .9, h: sr.h };
+        f = { el: div("hp-fly hp-em"), w: destW, h: destW };
+        f.el.style.fontSize = (destW * .86) + "px"; f.el.appendChild(one);
       } else { sr = rel(src.getBoundingClientRect(), g.S); f = flyer(src, sr, destW); hide(src); }
       f.sr = sr; return f;
     }
@@ -357,7 +359,7 @@
 
       // מגילה: עפה אל מול העין, נפתחת, האישון קורא מימין לשמאל, נגללת וחוזרת
       read: function (o) {
-        var g = geo(o), art = o.querySelector(".hag-art"), src = art.firstElementChild, sr = rel(src.getBoundingClientRect(), g.S);
+        var g = geo(o), src = pick(o), sr = rel(src.getBoundingClientRect(), g.S);
         var dest = g.box(-14, 80, 148, 50), at = ctr(dest), u = g.u;
         var f = flyer(src, sr, 46 * u), fb = { l: 0, t: 0, w: f.w, h: f.h };
         add(f.el, fb); hide(src);
@@ -816,7 +818,7 @@
         var sd = spotSide(o).sd, jx = 60 + sd * 64;
         var g0 = geo(o), jar = div("", "<svg viewBox='0 0 30 30'><path d='M5 8 h20 v16 q0 4 -4 4 h-12 q-4 0 -4 -4 Z' fill='#f59e0b' stroke='#92400e' stroke-width='2'/><rect x='3' y='4' width='24' height='6' rx='2' fill='#fbbf24' stroke='#92400e' stroke-width='2'/><path d='M9 14 q6 3 12 0' stroke='#fde68a' stroke-width='2' fill='none'/></svg>"), jr = g0.box(jx - 14, 102, 28, 28);
         add(jar, jr); A(jar, [{ transform: T(jr, ctr(jr), .2), opacity: 0 }, { transform: T(jr, ctr(jr), 1), opacity: 1 }], { duration: 280, easing: "cubic-bezier(.3,1.5,.5,1)" });
-        var v = visit(o, 26, { x: jx, y: 86 }), g = v.g, mouth = P(g, 60, 103), up = P(g, jx, 86), dn = P(g, jx, 100);
+        var v = visit(o, 32, { x: jx, y: 84 }), g = v.g, mouth = P(g, 60, 103), up = P(g, jx, 86), dn = P(g, jx, 100);
         later(560, function () { A(v.el, [{ transform: v.pose(up, 1, 0) }, { transform: v.pose(dn, 1, 0), offset: .3 }, { transform: v.pose(up, 1, -10), offset: .6 }, { transform: v.pose(dn, 1, 0), offset: .8 }, { transform: v.pose(up, 1, 0) }], { duration: 700 }); });
         later(1260, function () {
           var d = div("", "<svg viewBox='0 0 10 14'><path d='M5 0 Q10 8 5 13 Q0 8 5 0Z' fill='#f59e0b' stroke='#b45309' stroke-width='.8'/></svg>"), dr = g.box(jx - 3, 96, 6, 8);
@@ -1033,6 +1035,23 @@
         irisTo([[.2, sd * 10, 0], [.5, sd * 9, 3], [.8, sd * 10, 0]], 2400);
         happy(g, 1950, 2350);
         v.back(2000);
+      },
+
+      // קליטה: הכפתור פועם וגלי קליטה יוצאים ממנו אל העין, בזה אחר זה; העין מקבלת נצנוץ וחיוך
+      signal: function (o) {
+        var q = orbG(o), g = q.g, t = o.querySelector(".hag-tile") || q.sp, rot = Math.atan2(-q.d.y, -q.d.x) * 180 / Math.PI + 90;
+        A(t, [{ transform: "scale(1)" }, { transform: "scale(1.14)", offset: .15 }, { transform: "scale(1)", offset: .3 }, { transform: "scale(1.14)", offset: .45 }, { transform: "scale(1)", offset: .6 }, { transform: "scale(1.14)", offset: .75 }, { transform: "scale(1)" }], { duration: 1500, fill: "none" });
+        [0, 1, 2, 3, 4, 5].forEach(function (i) {
+          later(i * 200, function () {
+            var w = div("", "<svg viewBox='0 0 30 14'><path d='M3 12 Q15 -2 27 12' stroke='" + (i % 2 ? "#22c55e" : CFG.line) + "' stroke-width='3.6' fill='none' stroke-linecap='round'/></svg>"), r = q.box(q.at(.7), .5, .24);
+            add(w, r);
+            A(w, [{ transform: T(r, q.at(.6), .6, " rotate(" + rot + "deg)"), opacity: 0 }, { transform: T(r, q.at(.95), 1, " rotate(" + rot + "deg)"), opacity: 1, offset: .35 }, { transform: T(r, q.at(1.5), 1.5, " rotate(" + rot + "deg)"), opacity: 0 }], { duration: 700, easing: "ease-out" });
+          });
+        });
+        var e = spotSide(o, 30, 112); spark(g, e.x, 22, 1200); spark(g, 120 - e.x, 30, 1350);
+        q.look([[.2, 0, 0], [.5, 0, -1], [.8, 0, 0]], 1900);
+        happy(g, 1200, 1700);
+        end(1850);
       },
 
       // זר פרחים: זר עגול נחבש לראש העין (כמו הכתר)

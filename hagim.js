@@ -386,19 +386,19 @@
   //   pour מזיגת שמן לנר · coins מטבעות · find מציאת האפיקומן · lift הרמה בגאווה · twirl סיבוב · noise רעשן
   //   rot פרי רקוב/שרוף/חמוץ — נאכל ואז פרצוף "איכס" · burn שריפה (חמץ, עצים) · ride נסיעה מתחת לעין (אוטובוס, רכבת, סוס)
   //   slow זחילה לאט (שבלול, טרקטור) · leap קפיצה מעל העין · tick שעון מצלצל · play שלט משחק · juggle ג'אגלינג בשלושה
-  //   upside מתהפך (ונהפוך הוא) · inspect זכוכית מגדלת · bounce קפיצה במקום — לסמלים שאינם חפץ (גרפים)
+  //   upside מתהפך (ונהפוך הוא) · signal גלי קליטה מהכפתור אל העין · inspect זכוכית מגדלת · bounce קפיצה במקום — לסמלים שאינם חפץ (גרפים)
   //   "סוג@b" — המשחק על התג הקטן של הסמל (הגזר שעל הצלחת, צנצנת הדבש שעל השעון) במקום על הסמל הגדול
   // חג חדש = שורה כאן (מפתח הכלי כמו ב-ART → סוג המשחק). כל סמל שאין לו שורה — בלי משחק.
   // לא בימים עצובים (וגם לא בתענית אסתר שלפני פורים), ולא כשביקשו "בלי תנועה". בדיקה: ‎?hag=purim&eyeplay=read‎ (או all).
   var PLAY = {
     rosh:      { pach: "rot", gold: "seeds", bug: "blow", next: "dip", time: "honey@b", skip: "leap", fares: "coins", ratzif: "eat", fleet: "eat",
-                 rail: "ride", bus: "ride", recep: "bounce", slides: "read", speed: "slow", alerts: "blow", feeder: "eat@b", game: "play" },
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "slow", alerts: "blow", feeder: "eat@b", game: "play" },
     sukkot:    { pach: "peek", gold: "sniff", bug: "shake", next: "peek@b", time: "tick", skip: "leap", fares: "coins", ratzif: "shake", fleet: "twirl",
-                 rail: "ride", bus: "ride", recep: "bounce", slides: "read", speed: "ride", alerts: "read", feeder: "eat@b", game: "play" },
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "ride", alerts: "read", feeder: "eat@b", game: "play" },
     hanukkah:  { pach: "rot", gold: "pour", bug: "spin", next: "lift@b", time: "light", skip: "eat", fares: "coins", ratzif: "lift", fleet: "juggle",
                  rail: "ride", bus: "ride", recep: "light", slides: "read", speed: "eat", alerts: "blow", feeder: "eat", game: "play" },
     tubishvat: { pach: "plant", gold: "sniff", bug: "inspect", next: "plant@b", time: "inspect", skip: "plant", fares: "coins", ratzif: "eat", fleet: "eat",
-                 rail: "ride", bus: "ride", recep: "bounce", slides: "read", speed: "eat", alerts: "blow", feeder: "honey", game: "play" },
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "eat", alerts: "blow", feeder: "honey", game: "play" },
     purim:     { pach: "noise", gold: "lift", bug: "upside", next: "wear", time: "read", skip: "boom", fares: "eat", ratzif: "wear", fleet: "juggle",
                  rail: "ride", bus: "ride", recep: "eat", slides: "read", speed: "ride", alerts: "blow", feeder: "eat@b", game: "play" },
     pesach:    { pach: "burn", gold: "eat", bug: "slow", next: "inspect", time: "read", skip: "leap", fares: "rot@b", ratzif: "sip", fleet: "find",
@@ -406,9 +406,9 @@
     atzmaut:   { pach: "smoke", gold: "leap", bug: "boom", next: "wave", time: "eat@b", skip: "wear", fares: "eat@b", ratzif: "wave", fleet: "juggle",
                  rail: "ride", bus: "ride", recep: "wave", slides: "read", speed: "peek", alerts: "lift", feeder: "eat", game: "lift" },
     lagbaomer: { pach: "smoke", gold: "toast", bug: "shoot", next: "toast", time: "tick", skip: "eat", fares: "eat@b", ratzif: "shoot", fleet: "burn",
-                 rail: "ride", bus: "ride", recep: "bounce", slides: "read", speed: "smoke", alerts: "blow", feeder: "peek", game: "play" },
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "smoke", alerts: "blow", feeder: "peek", game: "play" },
     shavuot:   { pach: "rot", gold: "eat", bug: "lift", next: "wave@b", time: "eat@b", skip: "leap", fares: "sip@b", ratzif: "eat", fleet: "wreath",
-                 rail: "ride", bus: "ride", recep: "bounce", slides: "read", speed: "slow", alerts: "blow", feeder: "eat", game: "play" }
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "slow", alerts: "blow", feeder: "eat", game: "play" }
   };
   function startPlay(stage) {
     var P = PLAY[active.id], F = FEYE[active.id];
