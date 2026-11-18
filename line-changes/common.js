@@ -32,8 +32,10 @@ var LC = (function () {
     return n === 1 ? 'תחנה אחת עוברת מקום' : n + ' תחנות עוברות מקום';
   }
   /* תגיות סיכום (geo/add/rem/mv) — בשפה של נוסעים */
+  var KIND_CHIP = { 'new': ['add', 'קו חדש'], ended: ['rem', 'הקו מבוטל'], timetable: ['tt', 'שינוי בלו״ז'] };
   function chips(c) {
     var h = '';
+    if (c.kind && KIND_CHIP[c.kind]) return '<span class="chip ' + KIND_CHIP[c.kind][0] + '">' + KIND_CHIP[c.kind][1] + '</span>';
     if (c.ext) h += '<span class="chip geo">' + (c.ext === 'end' ? 'הקו ממשיך יותר רחוק' : c.ext === 'start' ? 'הקו מתחיל מוקדם יותר' : 'הקו מתארך') + '</span>';
     else if (c.geo) h += '<span class="chip geo">הקו נוסע בדרך אחרת</span>';
     if (c.rem) h += '<span class="chip rem">' + stopsWord(c.rem, 'rem') + '</span>';
@@ -41,6 +43,8 @@ var LC = (function () {
     if (c.mv) h += '<span class="chip mv">' + stopsWord(c.mv, 'mv') + '</span>';
     return h;
   }
+  /* דקות מחצות → "7:05" (אחרי חצות: 1500 → "1:00") */
+  function hm(m) { m = ((m % 1440) + 1440) % 1440; return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); }
   function od(o) { return (o && o[0] && o[1]) ? o[0] + ' ↔ ' + o[1] : ''; }
   function dirOd(o) { return (o && o[0] && o[1]) ? o[0] + ' ← ' + o[1] : ''; }
   function getJSON(url) {
@@ -81,5 +85,5 @@ var LC = (function () {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   return { decodePoly: decodePoly, odOf: odOf, norm: norm, todayIso: todayIso, daysBetween: daysBetween, dm: dm, dmy: dmy, wd: wd, rel: rel, esc: esc, chips: chips, od: od, dirOd: dirOd,
-           addDays: addDays, getJSON: getJSON, stopsWord: stopsWord };
+           addDays: addDays, getJSON: getJSON, stopsWord: stopsWord, hm: hm };
 })();

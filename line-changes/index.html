@@ -89,7 +89,7 @@
 
     <!-- שלב 3: המצגת -->
     <section class="panel pane" data-pane="3">
-      <h2 class="ph">המצגת</h2>
+      <h2 class="ph">המצגת <span class="dtitle" id="decktitle"></span></h2>
       <div class="group">
         <span class="flabel">הקווים במצגת</span>
         <div class="picked" id="picked"></div>
@@ -98,6 +98,19 @@
       <div class="group" id="kindgrp">
         <span class="flabel">גודל המצגת</span>
         <div class="kinds" id="kinds"></div>
+      </div>
+      <div class="group" id="ttgrp" hidden>
+        <span class="flabel">לוח הזמנים</span>
+        <div class="segs2">
+          <div class="seg2" role="radiogroup" aria-label="כמה פרטים">
+            <button type="button" role="radio" data-ttv="gen"><b>כללי</b><small>כמה נסיעות, מתי ובאיזו תדירות</small></button>
+            <button type="button" role="radio" data-ttv="det"><b>מפורט</b><small>כל שעות היציאה</small></button>
+          </div>
+          <div class="seg2" role="radiogroup" aria-label="איך להציג">
+            <button type="button" role="radio" data-ttf="table"><b>טבלה</b></button>
+            <button type="button" role="radio" data-ttf="text"><b>טקסט</b></button>
+          </div>
+        </div>
       </div>
       <div class="group">
         <span class="flabel" id="formslbl">צורה</span>

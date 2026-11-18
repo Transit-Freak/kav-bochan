@@ -6,10 +6,10 @@
    העריכות (edits): t — טקסט שהשתנה (null = נמחק) · add — שורות שנוספו אחרי טקסט ·
    boxes — תיבות טקסט חופשיות לכל שקף · xslides — שקפי טקסט שנוספו · off — שקפים שלא ייכללו. */
 var LCEdit = (function () {
-  var SKIP = '.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
+  var SKIP = 'table,.tt-run,.tt-key,.smap,.inset,.dot,.segn,.segb,.sw,.lc-mk,.pg,.seam,.leaflet-container,svg,.ebar,.tbox-h';
   // עד כאן מורידים אלמנטים ריקים אחרי מחיקה (לא את השקף, העמודות או הרשימה עצמה)
-  var STOP = '.slide,.side,.body,.cols,.grp,.two,ul,ol,.legend,.what,.owhat,.cards,.ocontact,.s-stops,.s-map,.s-one,.s-cover,.s-text,.s-close,.s-over,.s-sign,.s-signstops,.s-status,.sg-what,.sg-near,.sg-cols,.col,.sg-contact,.st-what,.st-foot';
-  var MARKS = '.side .segn,.side .segb,.side .dot,.side .sw,.s-stops .dot,.legend .dot,.legend .sw,.ohead .badge,.s-map .badge,.sg-near .dot,.sg-cols .dot';
+  var STOP = '.slide,.tt-body,.tt-blk,.s-tt,.alts,.instead,.side,.body,.cols,.grp,.two,ul,ol,.legend,.what,.owhat,.cards,.ocontact,.s-stops,.s-map,.s-one,.s-cover,.s-text,.s-close,.s-over,.s-sign,.s-signstops,.s-status,.sg-what,.sg-near,.sg-cols,.col,.sg-contact,.st-what,.st-foot';
+  var MARKS = '.alts .badge,.side .segn,.side .segb,.side .dot,.side .sw,.s-stops .dot,.legend .dot,.legend .sw,.ohead .badge,.s-map .badge,.sg-near .dot,.sg-cols .dot';
   var FMT = { B: 1, STRONG: 1, EM: 1, U: 1, BR: 1, SUP: 1, SUB: 1, A: 1 };
 
   function hash(s) {
@@ -110,7 +110,7 @@ var LCEdit = (function () {
   }
 
   /* טקסט ארוך: מקטינים את האזור עד 78%, ואם עדיין לא נכנס — אזהרה (לא מודפסת) */
-  var FIT = '.s-cover .body,.s-map .side,.s-one .side,.s-stops,.s-over,.s-close,.s-text,.sg-what,.sg-cols,.st-what';
+  var FIT = '.s-cover .body,.s-map .side,.s-one .side,.s-stops,.s-over,.s-close,.s-text,.sg-what,.sg-cols,.st-what,.tt-body';
   function over(el) { return el.scrollHeight > el.clientHeight + 2; }
   function fit(frame) {
     var slide = frame.querySelector('.slide'), bad = false;
