@@ -922,3 +922,23 @@ body.editing .slide .inset-x{display:block}
 /* הקרדיט לקו הבוחן בלוח לפי יעד: שורה משלו, מודגשת ובירוק של האתר */
 .s-bd .bd-cr{font-weight:800;color:var(--s-new);text-align:center;margin-top:.3em}
 .s-bd.f-sign .bd-cr{font-size:13px}.s-bd.f-deck .bd-cr{font-size:14px}.s-bd.f-status .bd-cr{font-size:22px}
+/* עריכה בלוח: ✕ בפינה של תא המוצא (שורה) ושל תא הקו (קו שלם); מה שהוסר — שורה אפורה דקה, רק במצב עריכה */
+.s-bd td.bo,.s-bd td.bl{position:relative}
+.s-bd .bdx{display:none;position:absolute;top:2px;left:2px;width:1.5em;height:1.5em;padding:0;border:0;border-radius:50%;background:#b42318;color:#fff;font:800 .8em/1.5em Arial,sans-serif;cursor:pointer;z-index:3}
+.s-bd td.bl .bdx{background:#13201b}
+body.editing .s-bd .bdx{display:block}
+.s-bd tr.boff{display:none}
+body.editing .s-bd tr.boff{display:table-row}
+body.editing .s-bd tr.boff td{background:repeating-linear-gradient(-45deg,#f1f3f2 0 6px,#e6eae8 6px 12px);color:#5b6b65;font-weight:700;font-size:.85em;padding:.2em .5em;text-align:right;opacity:.85}
+body.editing .s-bd tr.bband.boff td{background:#9aa5a0}
+.s-bd .bdr{border:1.5px solid #1f5fd1;background:#fff;color:#1f5fd1;font:800 1em Arial,sans-serif;border-radius:6px;padding:0 .5em;margin-inline-end:.4em;cursor:pointer}
+.s-bd .bd-t td.bo .bdt:empty{margin:0}
+/* בטלפון השלט מוקטן לרוחב המסך — ה-✕ ו"להחזיר" גדולים יותר, כדי שאפשר יהיה ללחוץ עליהם באצבע */
+@media (max-width:700px){
+  body.editing .deck[data-form="sign"] .s-bd .bdx{width:34px;height:34px;font-size:20px;line-height:34px;top:0;left:0}
+  body.editing .deck .s-bd td.bl .bdx{top:auto;bottom:2px;left:50%;transform:translateX(-50%)}
+  body.editing .deck[data-form="status"] .s-bd .bdx{width:56px;height:56px;font-size:32px;line-height:56px}
+  body.editing .deck[data-form="deck"] .s-bd .bdx{width:40px;height:40px;font-size:22px;line-height:40px}
+  body.editing .deck .s-bd .bdr{font-size:1.6em;padding:.1em .7em}
+  body.editing .deck .s-bd tr.boff td{font-size:1.15em;padding:.35em .5em}
+}
