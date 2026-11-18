@@ -4807,11 +4807,6 @@ const DAYS_FILTER = [
                       <p className="text-slate-500 text-sm font-bold">
                         נמצאו {optimizations.filter(o => o.type !== 'ok').length} המלצות לשינויים בלוח הזמנים
                       </p>
-                      {simSkipped > 0 && (
-                        <p className="text-red-500 text-xs font-bold mt-1">
-                          ✖ {simSkipped} קווים שכבר בוטלו (לפי ארכיון "הקו בזמן") הוחרגו מהסימולציה
-                        </p>
-                      )}
                     </div>
                     <label className="flex items-center gap-2 bg-slate-100 px-4 py-2.5 rounded-xl cursor-pointer hover:bg-slate-200 transition-colors">
                       <input 
@@ -4915,12 +4910,6 @@ const DAYS_FILTER = [
                     </div>
                   );
                 })()}
-
-                {!simLoading && optimizations.length === 0 && simSkipped > 0 && (
-                  <div className="text-center py-8 text-red-500 font-black text-sm bg-red-50 border border-red-200 rounded-2xl">
-                    ✖ {simSkipped === 1 ? 'הקו שחיפשת כבר בוטל (לפי ארכיון "הקו בזמן") — לכן אין תוצאות.'
-                      : simSkipped + ' קווים שתאמו את החיפוש כבר בוטלו (לפי ארכיון "הקו בזמן") — לכן אין תוצאות.'}
-                  </div>
                 )}
                 <div className="space-y-4">
                   {!simLoading && optimizations.length > 0 ? (() => {
