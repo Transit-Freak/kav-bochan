@@ -359,6 +359,8 @@ def gps_quality(ds, RI, cells, jumps, trip, nb):
     """אמינות השידורים (שלמה 02.11) → $SPEED_CACHE/D.gps.json.gz:
     "fake": אירועי זיוף GPS — [מפעיל, קו, רכב, יציאה, רוחב אמיתי, אורך אמיתי, [[רוחב, אורך, שעה, ק"מ מהאמיתי]…]].
     אירוע קצר (עד 3 ק"מ) שכל נקודותיו על רחובות שאוטובוסים עברו בהם היום — רעש GPS בעיר, לא זיוף.
+    אירוע שכל נקודותיו על המסלול של אותו קו (GTFS) נשמר כאן, ומסונן רק בבנייה (gps_files → line_routes) — כך
+    הסינון חל גם על ימים ישנים שכבר במטמון.
     "trips": לכל מפעיל [נסיעות, הופיעו יותר משעה אחרי היציאה, שידרו 4+ שעות].
     "tl": לכל מפעיל {קו: נסיעות בשעה אחרת}. "nb": שידורים תקינים לכל מפעיל."""
     def on(la, lo):
@@ -879,9 +881,72 @@ def city_export(names, tiles):
     print(f'אקסל לפי יישוב: {len(per)} יישובים')
 
 
+def line_routes(pairs, D=300):
+    """המסלולים של כל קו מה-GTFS (GTFS_ZIP): לכל (שם מפעיל, מספר קו) — כל הקטעים של כל ה-shapes של כל המסלולים
+    שלו (כל הכיוונים והחלופות), באינדקס של ריבועים של ~500 מ'. מחזיר פונקציה on(זוג, רוחב, אורך) — האם הנקודה
+    עד D מטרים מהמסלול של הקו. None אם אין GTFS."""
+    import csv
+    import io
+    import zipfile
+    zp = os.environ.get('GTFS_ZIP')
+    if not zp or not os.path.exists(zp):
+        return None
+    z = zipfile.ZipFile(zp)
+    rd = lambda n: csv.reader(io.TextIOWrapper(z.open(n), 'utf-8-sig'))  # noqa: E731
+    r = rd('agency.txt'); h = next(r)
+    agn = {x[h.index('agency_id')]: x[h.index('agency_name')] for x in r}
+    r = rd('routes.txt'); h = next(r)
+    i_r, i_a, i_s = h.index('route_id'), h.index('agency_id'), h.index('route_short_name')
+    rp = {}
+    for x in r:
+        k = (agn.get(x[i_a], x[i_a]), x[i_s])
+        if k in pairs:
+            rp[x[i_r]] = k
+    r = rd('trips.txt'); h = next(r)
+    i_r, i_sh = h.index('route_id'), h.index('shape_id')
+    sp = collections.defaultdict(set)   # shape_id → זוגות
+    for x in r:
+        k = rp.get(x[i_r])
+        if k and x[i_sh]:
+            sp[x[i_sh]].add(k)
+    want = {s.encode() for s in sp}
+    pts = collections.defaultdict(list)
+    with z.open('shapes.txt') as f:
+        h = f.readline().decode('utf-8-sig').strip().split(',')
+        i_id, i_la, i_lo, i_q = (h.index(c) for c in ('shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'))
+        mx = max(i_id, i_la, i_lo, i_q) + 1
+        for ln in f:
+            x = ln.split(b',', mx)
+            if x[i_id] in want:
+                pts[x[i_id].decode()].append((int(x[i_q]), float(x[i_la]), float(x[i_lo])))
+    G = 0.005
+    idx = collections.defaultdict(list)   # (זוג, ריבוע y, ריבוע x) → קטעים
+    for sid, pp in pts.items():
+        pp.sort()
+        segs = [(a[1], a[2], b[1], b[2]) for a, b in zip(pp, pp[1:])]
+        for k in sp[sid]:
+            for sg in segs:
+                for cy in range(round(min(sg[0], sg[2]) / G), round(max(sg[0], sg[2]) / G) + 1):
+                    for cx in range(round(min(sg[1], sg[3]) / G), round(max(sg[1], sg[3]) / G) + 1):
+                        idx[(k, cy, cx)].append(sg)
+
+    def dist(la, lo, s):
+        kx = 111320 * math.cos(math.radians(la))
+        ax, ay, bx, by = (s[1] - lo) * kx, (s[0] - la) * 111320, (s[3] - lo) * kx, (s[2] - la) * 111320
+        dx, dy = bx - ax, by - ay
+        t = max(0.0, min(1.0, -(ax * dx + ay * dy) / (dx * dx + dy * dy))) if dx or dy else 0.0
+        return math.hypot(ax + t * dx, ay + t * dy)
+
+    def on(k, la, lo):
+        cy, cx = round(la / G), round(lo / G)
+        return any(dist(la, lo, s) <= D for a in (-1, 0, 1) for b in (-1, 0, 1) for s in idx.get((k, cy + a, cx + b), ()))
+    print(f'מסלולי הקווים מה-GTFS: {len(pairs)} קווים, {len(pts)} מסלולים')
+    return on
+
+
 def gps_files(have, typ):
     """אמינות השידורים לאתר (שלמה 02.11) — מ-D.gps.json.gz:
-    OUT/gps/<תאריך>.json — אירועי הזיוף של היום למפה, כמו "fake" ב-gps_quality
+    OUT/gps/<תאריך>.json — אירועי הזיוף של היום למפה, כמו "fake" ב-gps_quality, בלי שיבוש קבוע ובלי אירועים על המסלול של הקו
     OUT/gpsq.json — למדד הדיוק (bus/), יום-יום, כדי שהדף יחבר כל תקופה שנבחרה (יום / 7 / 30):
     {"days": [[תאריך, סוג יום]…], "d": {תאריך: {"nb": {מפעיל: שידורים}, "trips": {מפעיל: [נסיעות, מאוחרות, 4+ שעות]},
      "fk": {מפעיל: זיופים}, "fl": {"קו|מפעיל": זיופים}, "fv": {"רכב|מפעיל": זיופים}, "tl": {"קו|מפעיל": נסיעות בשעה אחרת}}}}"""
@@ -906,10 +971,19 @@ def gps_files(have, typ):
             for q in x[6]:
                 cd[(round(q[0], 2), round(q[1], 2))].add(ds)
     jam = {k for k, v in cd.items() if len(v) >= 3}
-    days, per = [], {}
+    # אירוע שכל הנקודות שלו על המסלול של אותו קו (עד 300 מ' מ-shape של מסלול כלשהו של המפעיל והקו) — הפסקה או
+    # עיכוב בשידור, הרכב נסע במסלול שלו: לא זיוף, לא מוצג ולא נספר (שלמה 18.11). חל על כל הימים המוצגים
+    on = line_routes({(x[0], x[1]) for g in loaded.values() for x in g['fake']})
+    if on is None:
+        print('אין GTFS — בלי סינון אירועים על המסלול של הקו')
+    days, per, onr = [], {}, 0
     for ds, g in loaded.items():
         # אירוע שרוב הנקודות שלו במקום של שיבוש קבוע — לא מוצג ולא נספר
         g['fake'] = [x for x in g['fake'] if 2 * sum((round(q[0], 2), round(q[1], 2)) in jam for q in x[6]) < len(x[6])]
+        if on:
+            n = len(g['fake'])
+            g['fake'] = [x for x in g['fake'] if not all(on((x[0], x[1]), q[0], q[1]) for q in x[6])]
+            onr += n - len(g['fake'])
         days.append([ds, typ[ds]])
         os.makedirs(f'{OUT}/gps', exist_ok=True)
         with open(f'{OUT}/gps/{ds}.json', 'w', encoding='utf-8') as f:
@@ -924,7 +998,7 @@ def gps_files(have, typ):
                    'fv': dict(fv.most_common(40)), 'tl': dict(tl.most_common(40))}
     with open(f'{OUT}/gpsq.json', 'w', encoding='utf-8') as f:
         json.dump({'days': days, 'd': per}, f, ensure_ascii=False, separators=(',', ':'))
-    print(f'אמינות השידורים: {len(days)} ימים, {sum(sum(x["fk"].values()) for x in per.values()):,} זיופים · {len(jam)} מקומות שיבוש קבוע לא נספרו')
+    print(f'אמינות השידורים: {len(days)} ימים, {sum(sum(x["fk"].values()) for x in per.values()):,} זיופים · {len(jam)} מקומות שיבוש קבוע לא נספרו · {onr:,} אירועים על המסלול של הקו לא נספרו')
 
 
 def norm(c):
