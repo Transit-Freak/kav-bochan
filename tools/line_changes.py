@@ -309,11 +309,17 @@ class Feed:
         return out
 
     def day_deps(self, svcs, day):
-        """שעות היציאה ביום מסוים (ממוינות)"""
+        """שעות היציאה של יום שירות (ממוינות): מ-03:00, ועוד הנסיעות שלפני 03:00 של למחרת (בסוף, 1440+) —
+        כמו בלו"ז העדכני. ב-GTFS נסיעות לילה מופיעות לפעמים כ-00:30 של היום שאחרי (ולא 24:30), ובלי זה
+        "הנסיעה הראשונה" יוצאת 0:00 (קו 1 בבת ים, 24.11.2026)"""
+        nxt = day + datetime.timedelta(days=1)
         lst = []
         for sv, deps in svcs.items():
-            if day in self.svc_set.get(sv, ()):
-                lst += deps
+            ss = self.svc_set.get(sv, ())
+            if day in ss:
+                lst += [m for m in deps if m >= NIGHT]
+            if nxt in ss:
+                lst += [m + 1440 for m in deps if m < NIGHT]
         return sorted(lst)
 
     def variants(self, d0, d1):
