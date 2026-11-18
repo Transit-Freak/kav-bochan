@@ -96,9 +96,44 @@
   }
   $('q').addEventListener('input', function () { q = this.value; placeSel = null; drawResults(); });
 
-  function upNext(l) {
-    var u = l.up.slice().sort(function (a, b) { return (a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1; });
+  function upNextOf(list) {
+    var u = list.slice().sort(function (a, b) { return (a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1; });
     return u.filter(function (c) { return (c.formal || c.eff) >= idx.gen; })[0] || u[u.length - 1];
+  }
+  function upNext(l) { return upNextOf(l.up); }
+  /* ---------- סינון לפי סוג השינוי — בכל שלב 1: רשימה, חיפוש, מקום, "כל הקווים", קבוצות ---------- */
+  var KF = [['all', 'הכול'], ['route', 'שינוי מסלול'], ['new', 'קו חדש'], ['ended', 'קו מבוטל'], ['timetable', 'שינוי בלו״ז']];
+  var KF_URL = { route: 'route', 'new': 'new', ended: 'ended', timetable: 'tt' };
+  var KF_ALL = { route: 'הקווים עם שינוי מסלול', 'new': 'הקווים החדשים', ended: 'הקווים שמבוטלים', timetable: 'הקווים עם שינוי בלו״ז' };
+  var kindF = (function () {
+    var k = new URLSearchParams(location.search).get('k'), v = null;
+    Object.keys(KF_URL).forEach(function (x) { if (KF_URL[x] === k) v = x; });
+    if (!v) try { v = localStorage.getItem('lc-kind'); } catch (e) {}
+    return KF_URL[v] ? v : 'all';
+  })();
+  function kindOf(c) { return c.kind || 'route'; }
+  function kindsOf(l) { var o = {}; l.up.forEach(function (c) { o[kindOf(c)] = 1; }); if (recentPast(l).length) o.route = 1; return o; }
+  function matchK(l) { return kindF === 'all' ? hasCh(l) : !!kindsOf(l)[kindF]; }
+  /* השינוי שמוצג לקו (בתגית, ובבחירה): לפי הסינון */
+  function upK(l) {
+    if (kindF === 'all') return upNext(l);
+    var u = l.up.filter(function (c) { return kindOf(c) === kindF; });
+    return u.length ? upNextOf(u) : null;
+  }
+  function setUrl() {
+    var sp = [];
+    if (picks.length) sp.push('c=' + picks.map(function (p) { return p.id; }).join(','));
+    if (kindF !== 'all') sp.push('k=' + KF_URL[kindF]);
+    try { history.replaceState(null, '', sp.length ? '?' + sp.join('&') : location.pathname); } catch (e) {}
+  }
+  /* כפתורי הסינון, עם מספר הקווים מכל סוג בתצוגה הנוכחית (החיפוש או המקום) */
+  function drawKfil(ls) {
+    var kc = { all: 0 };
+    ls.forEach(function (l) { if (!hasCh(l)) return; kc.all++; var o = kindsOf(l); Object.keys(o).forEach(function (k) { kc[k] = (kc[k] || 0) + 1; }); });
+    $('kfil').innerHTML = KF.map(function (k) {
+      var n = kc[k[0]] || 0;
+      return '<button type="button" data-kf="' + k[0] + '" aria-pressed="' + (kindF === k[0]) + '"' + (!n && kindF !== k[0] ? ' disabled' : '') + '>' + k[1] + ' <span>' + n + '</span></button>';
+    }).join('');
   }
   /* התגית בתוצאות: לכל סוג שינוי — מילים משלו */
   function tagOf(c) {
@@ -109,7 +144,7 @@
     return '<span class="tag ' + (soon ? 'soon' : 'was') + '">' + (soon ? 'משתנה מ-' : 'השתנה ב-') + LC.dm(s) + '</span>';
   }
   function badge(l) {
-    var u = upNext(l);
+    var u = upK(l);
     if (u) return tagOf(u);
     var rp = recentPast(l);
     if (rp.length) { var d = rp[0][0]; return '<span class="tag was">השתנה ב-' + LC.dm(d) + '</span>'; }
@@ -132,7 +167,7 @@
   }
   /* קו עם שינוי: משתנה בשבועיים הקרובים או השתנה בשבוע האחרון — רק הם מוצגים בחיפוש לפי מקום */
   function hasCh(l) { return !!(l && (l.up.length || recentPast(l).length)); }
-  function chCount(pl) { return pl.lines.filter(function (i) { return hasCh(LINES[i]); }).length; }
+  function chCount(pl) { return pl.lines.filter(function (i) { return LINES[i] && matchK(LINES[i]); }).length; }
   function lineSort(a, b) {
     var ua = a.up.length ? 0 : a.past.length ? 1 : 2, ub = b.up.length ? 0 : b.past.length ? 1 : 2;
     if (ua !== ub) return ua - ub;
@@ -146,7 +181,7 @@
   var SIGS = {};
   function groupRow(sig, ls) {
     SIGS[sig] = ls;
-    var c = upNext(ls[0]), s = c.formal || c.eff, ops = [], cs = [];
+    var c = upK(ls[0]) || upNext(ls[0]), s = c.formal || c.eff, ops = [], cs = [];
     ls.forEach(function (l) { if (ops.indexOf(l.op) < 0) ops.push(l.op); l.cities.forEach(function (x) { if (cs.indexOf(x) < 0) cs.push(x); }); });
     var nums = ls.map(function (l) { return l.line; });
     return '<button type="button" class="res grpres" data-sig="' + E(sig) + '"><span class="badges">' +
@@ -187,40 +222,36 @@
       return sa - sb || b.lines.length - a.lines.length;
     };
   }
-  var lastGroups = {}, kindF = 'all';
-  var KF = [['all', 'הכול'], ['route', 'מסלול ותחנות'], ['new', 'קווים חדשים'], ['ended', 'קווים שמבוטלים'], ['timetable', 'לוח זמנים']];
+  var lastGroups = {};
   function drawResults() {
     var nq = LC.norm(q), html = '', head = '';
     $('cities').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', LC.norm(b.getAttribute('data-c')) === nq ? 'true' : 'false'); });
     if (placeSel) {
-      var all = placeSel.lines.map(function (i) { return LINES[i]; }).filter(Boolean), rows = all.filter(hasCh).sort(lineSort);
+      var all = placeSel.lines.map(function (i) { return LINES[i]; }).filter(Boolean);
+      drawKfil(all);
+      var rows = all.filter(matchK).sort(lineSort);
+      var what = kindF === 'all' ? (rows.length === 1 ? 'קו אחד משתנה' : rows.length + ' קווים משתנים') : rows.length + ' ' + KF_ALL[kindF].replace(/^הקווים/, 'קווים');
       $('reshead').innerHTML = '<button type="button" class="lnk" id="plback">→ לכל התוצאות</button> <b class="pltitle">' +
         E((placeSel.kind === 's' ? 'רחוב ' : placeSel.kind === 'h' ? 'שכונת ' : '') + placeSel.name + (placeSel.city && placeSel.kind !== 'c' ? ', ' + placeSel.city : '')) +
-        '</b> · ' + (rows.length === 1 ? 'קו אחד משתנה' : rows.length + ' קווים משתנים') + ' (מתוך ' + all.length + ' שעוצרים כאן)' +
-        (rows.length > 1 ? ' <button type="button" class="btn sm" id="plall">+ כל ' + rows.length + ' הקווים למצגת אחת</button>' : '');
+        '</b> · ' + E(what) + ' (מתוך ' + all.length + ' שעוצרים כאן)' +
+        (rows.length > 1 ? ' <button type="button" class="btn sm" id="plall">+ כל ' + rows.length + ' ' + (kindF === 'all' ? 'הקווים למצגת אחת' : KF_ALL[kindF]) + '</button>' : '');
       PLROWS = rows;
-      $('results').innerHTML = rows.length ? rows.map(lineRow).join('') : '<div class="none">אין שינויים קרובים בקווים שעוצרים כאן.</div>';
+      $('results').innerHTML = rows.length ? rows.map(lineRow).join('') : '<div class="none">' + (kindF === 'all' ? 'אין שינויים קרובים בקווים שעוצרים כאן.' : 'אין כאן ' + E(KF_ALL[kindF].replace(/^הקווים/, 'קווים')) + '. אפשר לבחור "הכול".') + '</div>';
       $('results').scrollTop = 0;
       return;
     }
     if (!nq) {
       var up = LINES.filter(function (l) { return l.up.length; });
-      up.sort(function (a, b) { var x = upNext(a), y = upNext(b); return (x.formal || x.eff) < (y.formal || y.eff) ? -1 : (x.formal || x.eff) > (y.formal || y.eff) ? 1 : 0; });
-      // סינון לפי סוג השינוי (מסלול ותחנות · קו חדש · קו מבוטל · לוח זמנים)
-      var kc = { all: up.length };
-      up.forEach(function (l) { var k = upNext(l).kind || 'route'; kc[k] = (kc[k] || 0) + 1; });
-      if (kindF !== 'all' && !kc[kindF]) kindF = 'all';
-      up = up.filter(function (l) { return kindF === 'all' || (upNext(l).kind || 'route') === kindF; });
-      $('reshead').innerHTML = '<span>קווים שמשתנים בשבועיים הקרובים או השתנו בשבוע האחרון</span><div class="kfil" role="group" aria-label="סוג השינוי">' +
-        KF.filter(function (k) { return kc[k[0]]; }).map(function (k) {
-          return '<button type="button" data-kf="' + k[0] + '" aria-pressed="' + (kindF === k[0]) + '">' + k[1] + ' <span>' + kc[k[0]] + '</span></button>';
-        }).join('') + '</div>';
-      // קווים עם בדיוק אותו שינוי (אותן תחנות, אותו יום) — קבוצה אחת, ובחירה בה מכינה מצגת אחת לכולם
+      drawKfil(up);
+      up = up.filter(function (l) { return upK(l); });
+      up.sort(function (a, b) { var x = upK(a), y = upK(b); return (x.formal || x.eff) < (y.formal || y.eff) ? -1 : (x.formal || x.eff) > (y.formal || y.eff) ? 1 : 0; });
+      $('reshead').textContent = kindF === 'all' ? 'קווים שמשתנים בשבועיים הקרובים או השתנו בשבוע האחרון' : KF_ALL[kindF].replace(/^הקווים/, 'קווים') + ' — בשבועיים הקרובים או בשבוע האחרון (' + up.length + ')';
+      // קווים עם בדיוק אותו שינוי (אותן תחנות, אותו יום) — קבוצה אחת, ובחירה בה מכינה מצגת אחת לכולם (רק שינויי מסלול)
       var bySig = {};
-      up.forEach(function (l) { var c = upNext(l); if (c && c.sig) (bySig[c.sig] = bySig[c.sig] || []).push(l); });
+      up.forEach(function (l) { var c = upK(l); if (c && c.sig && !c.kind) (bySig[c.sig] = bySig[c.sig] || []).push(l); });
       var done = {}, rowsH = [];
       up.forEach(function (l) {
-        var c = upNext(l), g = c && c.sig && bySig[c.sig];
+        var c = upK(l), g = c && c.sig && !c.kind && bySig[c.sig];
         if (g && g.length > 1) { if (!done[c.sig]) { done[c.sig] = 1; rowsH.push(groupRow(c.sig, g)); } }
         else rowsH.push(lineRow(l));
       });
@@ -235,6 +266,8 @@
       return words.every(function (w) { return hay.indexOf(w) >= 0 || l.line.indexOf(w) === 0 || l.cities.some(function (c) { return LC.norm(c) === w; }); }) &&
         words.some(function (w) { return !/^\d+$/.test(w) ? hay.indexOf(w) >= 0 || l.cities.some(function (c) { return LC.norm(c).indexOf(w) >= 0; }) : l.line.indexOf(w) === 0; });
     });
+    drawKfil(lines);
+    if (kindF !== 'all') lines = lines.filter(matchK);
     lines.sort(function (a, b) { var ea = a.line === nq ? 0 : 1, eb = b.line === nq ? 0 : 1; return ea - eb || lineSort(a, b); });
     var groups = [];
     if (lines.length) groups.push(['קווים', lines.slice(0, digits ? 80 : 6).map(lineRow).join(''), lines.length]);
@@ -257,7 +290,7 @@
     $('results').scrollTop = 0;
     $('results').innerHTML = groups.length ? groups.map(function (g) {
       return '<div class="grp-h">' + g[0] + (g[2] ? ' <span>' + g[2] + '</span>' : '') + '</div>' + g[1];
-    }).join('') : '<div class="none">' + (digits ? 'לא מצאנו. נסו מספר קו, רחוב, שכונה, עיר או חברה.' : 'אין שינויים קרובים בקווים במקום הזה. אפשר לחפש לפי מספר קו.') + '</div>';
+    }).join('') : '<div class="none">' + (kindF !== 'all' ? 'אין כאן ' + E(KF_ALL[kindF].replace(/^הקווים/, 'קווים')) + '. אפשר לבחור "הכול".' : digits ? 'לא מצאנו. נסו מספר קו, רחוב, שכונה, עיר או חברה.' : 'אין שינויים קרובים בקווים במקום הזה. אפשר לחפש לפי מספר קו.') + '</div>';
   }
   $('results').addEventListener('click', function (ev) {
     var b = ev.target.closest('.res'); if (!b) return;
@@ -270,7 +303,7 @@
     var sg = b.getAttribute('data-sig');
     if (sg && SIGS[sg]) {   // קבוצה: כל הקווים נכנסים למצגת אחת (בשלב 3 אפשר להוציא קו עם ×)
       var ls = SIGS[sg];
-      Promise.all(ls.map(function (l) { return loadPick(upNext(l).id); })).then(function (ps) {
+      Promise.all(ls.map(function (l) { return loadPick((upK(l) || upNext(l)).id); })).then(function (ps) {
         ps.filter(Boolean).forEach(function (p) { picks = picks.filter(function (x) { return x.makat !== p.makat || x.op !== p.op; }); picks.push(p); });
         if (picks.length) { cur = ls[0]; go(3); }
       });
@@ -281,13 +314,19 @@
   $('reshead').addEventListener('click', function (ev) {
     if (ev.target.id === 'plback') { placeSel = null; drawResults(); }
     if (ev.target.id === 'plall') addAll(PLROWS, ev.target);
-    var kf = ev.target.closest('[data-kf]');
-    if (kf) { kindF = kf.getAttribute('data-kf'); drawResults(); }
+  });
+  $('kfil').addEventListener('click', function (ev) {
+    var kf = ev.target.closest('[data-kf]'); if (!kf || kf.disabled) return;
+    kindF = kf.getAttribute('data-kf');
+    try { localStorage.setItem('lc-kind', kindF); } catch (e) {}
+    setUrl(); drawResults();
   });
   /* כל הקווים שמשתנים במקום (עיר, רחוב או שכונה) — מצגת אחת; בשלב 3 אפשר להוציא קו עם × */
   var PLROWS = [];
   function pickKey(l) {
-    if (l.up.length) return upNext(l).id;
+    var u = upK(l);
+    if (u) return u.id;
+    if (kindF !== 'all' && kindF !== 'route') return null;
     var g = clusterPast(recentPast(l))[0];
     return g ? 'p-' + l.makat + '-' + g.d : null;
   }
@@ -304,11 +343,12 @@
   function drawChanges() {
     var l = cur;
     $('linehead').innerHTML = '<span class="badge">' + E(l.line) + '</span><div class="t"><b>' + E(l.from) + ' ↔ ' + E(l.to) + '</b><span>' + E(l.op) + '</span></div>';
-    var up = l.up.slice().sort(function (a, b) { return (a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1; });
+    var KO = { route: 0, 'new': 1, ended: 1, timetable: 2 }, many = Object.keys(kindsOf(l)).length > 1;
+    var up = l.up.slice().sort(function (a, b) { return KO[kindOf(a)] - KO[kindOf(b)] || ((a.formal || a.eff) < (b.formal || b.eff) ? -1 : 1); });
     var html = up.map(function (c) {
       var t = c.tot || {}, sm = (c.dev || 0) < 1000 && (t.add || 0) + (t.rem || 0) + (t.mv || 0) <= 3;
       return card({ key: c.id, date: c.formal || c.eff, tot: c.tot, soon: (c.formal || c.eff) >= idx.gen, dirs: c.dirs.length, size: c.kind ? null : sm,
-        kind: c.kind, last: c.last, summary: c.summary });
+        kind: c.kind, last: c.last, summary: c.summary, kchip: many && !c.kind });
     }).join('');
     var pastEv = clusterPast(recentPast(l)).filter(function (g) { return !l.up.some(function (c) { return !c.kind && Math.abs(LC.daysBetween(c.formal || c.eff, g.d)) <= 3; }); });
     html += pastEv.map(function (g) {
@@ -354,7 +394,7 @@
         '<span class="pick-arrow" aria-hidden="true">←</span></button>';
     }
     var lbl = c.past ? 'היה ב' : (c.soon ? 'בקרוב' : 'נכנס לתוקף');
-    var chips = c.tot ? LC.chips(c.tot) : '<span class="chip mv">טוען…</span>';
+    var chips = (c.kchip ? '<span class="chip kd">שינוי מסלול</span>' : '') + (c.tot ? LC.chips(c.tot) : '<span class="chip mv">טוען…</span>');
     var kinds = c.kinds ? Object.keys(c.kinds).map(function (k) { return KIND_TXT[k] || k; }).join(' · ') : '';
     return '<button type="button" class="ccard' + (c.past ? ' past' : '') + '" data-key="' + E(c.key) + '">' +
       '<span class="when"><span class="l">' + lbl + '</span><b>' + E(LC.wd(c.date) + ' ' + LC.dmy(c.date)) + '</b>' +
@@ -491,7 +531,7 @@
   function rebuild() {
     var my = ++token;
     drawPicked();
-    try { history.replaceState(null, '', picks.length ? '?c=' + picks.map(function (p) { return p.id; }).join(',') : location.pathname); } catch (e) {}
+    setUrl();
     if (!picks.length) { emptyStage(); return; }
     var pages = picks.slice().sort(function (a, b) { return (parseInt(a.line, 10) || 0) - (parseInt(b.line, 10) || 0); });
     if (my === token) render(pages);

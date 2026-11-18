@@ -335,3 +335,7 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .kfil button[aria-pressed="true"] span{color:var(--ink-sub)}
 .ph .dtitle{display:block;font-size:15px;font-weight:700;color:var(--sub);margin-top:2px}
 .ph .dtitle:empty{display:none}
+.kfil:empty{display:none}
+.kfil{margin-top:0}
+.kfil button:disabled{opacity:.45;cursor:default}
+.chip.kd{background:var(--ink);color:var(--ink-fg)}
