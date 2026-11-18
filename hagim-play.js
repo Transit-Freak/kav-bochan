@@ -2,7 +2,7 @@
 
    מדי פעם (בערך פעם בשלושה-ארבעה מבטים, אף פעם לא פעמיים ברצף על אותו סמל), כשהעין הגדולה מסתכלת על סמל
    של החג, היא משחקת איתו לפי הסוג שלו, והסמל חוזר למקומו תוך כשתיים-שלוש שניות:
-     eat   — פה קטן נפתח מתחת לעין, הסמל עף לתוכו, העין לועסת בעיניים מחייכות, והסמל צומח מחדש בכפתור
+     eat   — פה קטן נפתח מתחת לעין, הסמל עף לתוכו מהצד, העין לועסת בחיוך קל (נשארת פתוחה), והסמל צומח מחדש בכפתור
      read  — המגילה נפתחת מול העין והאישון זז מימין לשמאל כמו בקריאה
      light — החנוכייה באה מול העין, הנרות כבים ונדלקים אחד אחרי השני (השמש קודם)
      spin  — העין מסובבת את הסביבון, הוא מאט, נוטה ומראה אות
@@ -133,11 +133,12 @@
         n = div("", "<svg viewBox='0 0 48 30'><path d='M11 6 Q24 18 37 6' stroke='" + ln + "' stroke-width='3.5' stroke-linecap='round' fill='none'/></svg>");
         r = g.box(36, 93, 48, 30);
       } else if (kind === "squint") {
-        // העפעף התחתון "עולה" והעין נראית כמו קשת מחייכת — באותו רקע של הריבוע, כך שרק העין מתכסה
+        // חיוך קל: העפעף התחתון עולה כרבע מגובה העין (העין נשארת פתוחה, עם הקשתית והאישון) —
+        // באותו רקע של הריבוע, כך שרק החלק התחתון של העין מתכסה
         n = div("", "<svg viewBox='0 0 120 120'><defs><linearGradient id='hpBg' x1='0' y1='0' x2='0' y2='120' gradientUnits='userSpaceOnUse'><stop offset='0' stop-color='#fff'/><stop offset='1' stop-color='#e0f2fe'/></linearGradient>" +
-          "<clipPath id='hpLid'><path d='M8 66 Q60 26 112 66 L112 90 L8 90 Z'/></clipPath><clipPath id='hpTile'><path d='" + EYE + "' transform='translate(60 60) scale(1.08) translate(-60 -60)'/></clipPath></defs>" +
+          "<clipPath id='hpLid'><path d='M8 60 Q60 80 112 60 L112 92 L8 92 Z'/></clipPath><clipPath id='hpTile'><path d='" + EYE + "' transform='translate(60 60) scale(1.08) translate(-60 -60)'/></clipPath></defs>" +
           "<g clip-path='url(#hpTile)'><g clip-path='url(#hpLid)'><rect width='120' height='120' fill='url(#hpBg)'/>" + (CFG.bg || "") + "</g></g>" +
-          "<path d='M17 63 Q60 29 103 63' stroke='" + ln + "' stroke-width='6' stroke-linecap='round' fill='none'/></svg>");
+          "<path d='M19 62 Q60 79 101 62' stroke='" + ln + "' stroke-width='4' stroke-linecap='round' fill='none'/></svg>");
         r = g.box(0, 0, 120, 120);
       } else {
         n = div("", "<svg viewBox='0 0 120 120'><ellipse cx='20' cy='92' rx='11' ry='6' fill='#fb7185' opacity='.55'/><ellipse cx='100' cy='92' rx='11' ry='6' fill='#fb7185' opacity='.55'/></svg>");
@@ -189,9 +190,11 @@
         var f = flyer(src, sr, sr.w, ""), box = { l: 0, t: 0, w: f.w, h: f.h };
         add(f.el, box); hide(src);
         var s1 = Math.min(1, 34 * g.u / sr.w), mid = { x: (cx(sr) + mouthAt.x) / 2 - 10 * g.u, y: (cy(sr) + mouthAt.y) / 2 - 16 * g.u };
+        // סמל שמעל הפה עף מסביב לצד של העין (לא מול האישון): דרך נקודה ליד הפינה התחתונה של הריבוע, בצד של הסמל
+        if (cy(sr) < g.E.t + 100 * g.u) mid = { x: g.E.l + (cx(sr) >= g.E.l + 60 * g.u ? 134 : -14) * g.u, y: g.E.t + 86 * g.u };
         A(f.el, [
           { transform: T(box, ctr(sr), 1), opacity: 1, offset: 0 },
-          { transform: T(box, mid, (1 + s1) / 2, " rotate(-14deg)"), opacity: 1, offset: .5, easing: "ease-in" },
+          { transform: T(box, mid, (1 + s1) / 2, " rotate(-14deg)"), opacity: 1, offset: .55, easing: "ease-in-out" },
           { transform: T(box, { x: mouthAt.x, y: mouthAt.y - 4 * g.u }, s1, " rotate(-24deg)"), opacity: 1, offset: .86 },
           { transform: T(box, { x: mouthAt.x, y: mouthAt.y + 2 * g.u }, s1 * .35, " rotate(-30deg)"), opacity: 0, offset: 1 }
         ], { duration: 560, easing: "ease-out" });
@@ -214,7 +217,7 @@
           });
         });
         happy(g, 600, 1620);
-        irisTo([[.25, 0, 5], [.7, 0, 3]], 1900);
+        irisTo([[.2, 0, 4], [.45, -2, 4.5], [.6, 2, 4.5], [.75, 0, 3]], 1900);
         show(sm, 1440, 160); show(sm, 1760, 160, 0);
         pop(o, 1360);
         end(1960);
