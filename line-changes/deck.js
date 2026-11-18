@@ -2298,31 +2298,34 @@ var LCDeck = (function () {
     }).join(' ') + '</span>' + nh + '</td>';
   }
   function bdLineCell(r, span) {
-    return '<td class="bl" rowspan="' + span + '"><button type="button" class="bdx noprint" data-bdx="L:' + E(r.p.makat) + '" aria-label="להסיר את קו ' + E(r.line) + ' מהלוח" title="להסיר את הקו">✕</button>' +
-      '<span class="badge sm num">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op') + '>' + E(r.op) + '</small>' +
-      (r.until ? '<small class="un">עד ' + E(LC.dm(r.until)) + '</small>' : '') + '</td>';
+    // במצב עריכה: ✕ להסרת הקו כולו — בשורה משלו מתחת למספר ולחברה (לא על הטקסט)
+    return '<td class="bl" rowspan="' + span + '"><span class="badge sm num">' + E(r.line) + '</span><small' + bdK('op:' + r.p.makat, 'op') + '>' + E(r.op) + '</small>' +
+      (r.until ? '<small class="un">עד ' + E(LC.dm(r.until)) + '</small>' : '') +
+      (ED.editing ? '<button type="button" class="bdx bdxl noprint" data-bdx="L:' + E(r.p.makat) + '" aria-label="להסיר את קו ' + E(r.line) + ' מהלוח" title="להסיר את הקו">✕</button>' : '') + '</td>';
   }
   function bdRowHtml(r, lineSpan) {
     return '<tr class="br' + (r.first ? ' lead' : '') + '">' + (lineSpan ? bdLineCell(r, lineSpan) : '') +
-      '<td class="bo"><button type="button" class="bdx noprint" data-bdx="R:' + E(r.key) + '" aria-label="להסיר את השורה של קו ' + E(r.line) + ' ' + E(r.origin) + '" title="להסיר את השורה">✕</button>' +
+      '<td class="bo">' +
       // טקסט שנמחק — נשאר כשדה ריק (במצב עריכה אפשר ללחוץ עליו ולשחזר; בהדפסה הוא לא תופס מקום)
       '<b' + bdK(r.key + '|o') + '>' + E(r.origin) + '</b><small' + bdK(r.key + '|s') + '>' + E(r.stop) + '</small>' +
       '<small' + bdK(r.key + '|w', 'tw') + '>' + E(r.toward) + '</small></td>' +
-      r.cells.map(bdCellHtml).join('') + '</tr>';
+      r.cells.map(bdCellHtml).join('') +
+      // במצב עריכה: עמודה צרה משלה בקצה הטבלה, עם ✕ להסרת השורה (קו וכיוון)
+      (ED.editing ? '<td class="bc noprint"><button type="button" class="bdx noprint" data-bdx="R:' + E(r.key) + '" aria-label="להסיר את השורה של קו ' + E(r.line) + ' ' + E(r.origin) + '" title="להסיר את השורה">✕</button></td>' : '') + '</tr>';
   }
   /* שורה או קו שהוסרו: במצב עריכה — שורה דקה ואפורה עם "להחזיר" (מחוץ לעריכה, בהדפסה ובקובץ — לא מופיעה) */
   function bdOffHtml(r, ncol, whole) {
-    return '<tr class="boff noprint"><td colspan="' + (ncol + 2) + '"><button type="button" class="bdr" data-bdx="' + (whole ? 'L:' + E(r.p.makat) : 'R:' + E(r.key)) + '">להחזיר</button> ' +
+    return '<tr class="boff noprint"><td colspan="' + (ncol + 2 + (ED.editing ? 1 : 0)) + '"><button type="button" class="bdr" data-bdx="' + (whole ? 'L:' + E(r.p.makat) : 'R:' + E(r.key)) + '">להחזיר</button> ' +
       E('קו ' + r.line + (whole ? '' : ' · ' + [r.origin, r.toward].filter(Boolean).join(' ')) + ' — הוסר מהלוח') + '</td></tr>';
   }
   function bdBandHtml(b, ncol, cont) {
-    return '<tr class="bband' + (b.off ? ' boff noprint' : '') + '" style="background:' + b.color + '"><td colspan="' + (ncol + 2) + '"><span' + bdK('band:' + b.k) + '>' + E(b.label) + '</span>' + (cont ? ' (המשך)' : '') + '</td></tr>';
+    return '<tr class="bband' + (b.off ? ' boff noprint' : '') + '" style="background:' + b.color + '"><td colspan="' + (ncol + 2 + (ED.editing ? 1 : 0)) + '"><span' + bdK('band:' + b.k) + '>' + E(b.label) + '</span>' + (cont ? ' (המשך)' : '') + '</td></tr>';
   }
   /* רוחב העמודות: לפי מספר השעות הגדול ביותר בכל עמודה */
   function bdColgroup(M) {
     var w = M.cols.map(function (c, i) { var mx = 0; M.bands.forEach(function (b) { b.rows.forEach(function (r) { if (!r.off) mx = Math.max(mx, r.cells[i].txt != null ? Math.ceil(r.cells[i].txt.length / 6) : r.cells[i].ents.length); }); }); return Math.max(6, Math.sqrt(mx) * 4 + mx * 0.3); });
     var tot = w.reduce(function (a, b) { return a + b; }, 0);
-    return '<colgroup><col class="cl"><col class="co">' + w.map(function (x) { return '<col style="width:' + (x / tot * 100).toFixed(2) + '%">'; }).join('') + '</colgroup>';
+    return '<colgroup><col class="cl"><col class="co">' + w.map(function (x) { return '<col style="width:' + (x / tot * 100).toFixed(2) + '%">'; }).join('') + (ED.editing ? '<col class="cc">' : '') + '</colgroup>';
   }
   function bdHead(M, form) {
     return '<div class="cu-head bd-head"><div class="t"><div>' + (M.title ? '<h1' + bdK('title', 'hd') + '>' + E(M.title) + '</h1>' : '') +
@@ -2338,7 +2341,7 @@ var LCDeck = (function () {
       (M.credit ? '<p class="bd-cr">הוכן בכלי ״מצגת לשינוי בקו״ של הקו הבוחן · <span class="ltr">kavbochan.app</span></p>' : '') + '</div>';
   }
   function bdTable(M, rows) {
-    return '<table class="bd-t">' + bdColgroup(M) + '<thead><tr><th>קו</th><th>מוצא</th>' + M.cols.map(function (c) { return '<th>' + E(c.label) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="bd-t">' + bdColgroup(M) + '<thead><tr><th>קו</th><th>מוצא</th>' + M.cols.map(function (c) { return '<th>' + E(c.label) + '</th>'; }).join('') + (ED.editing ? '<th class="bc noprint" aria-label="הסרה">✕</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
   function bdSlideHtml(M, form, sc, body) {
     return '<div class="s-cur s-bd f-' + form + '" style="--bd:' + sc + '">' + bdHead(M, form) + '<div class="cu-body">' + body + '</div>' + bdFoot(M) + '</div>';
