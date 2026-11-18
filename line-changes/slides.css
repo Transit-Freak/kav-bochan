@@ -917,3 +917,5 @@ body.editing .slide .inset-x{display:block}
 .s-bd.f-status .bd-t col.cl{width:96px}.s-bd.f-status .bd-t col.co{width:170px}
 .s-bd.f-status .bd-upd,.s-bd.f-status .bd-ph{font-size:21px}
 .s-bd.f-status .cu-foot{font-size:17px;padding-top:6px;margin-top:6px}
+.s-bd .t bdi{unicode-bidi:isolate}
+.s-bd .t .xn{font-size:.72em;color:var(--s-sub);font-weight:800;margin-inline-start:.1em}

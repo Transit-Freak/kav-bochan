@@ -86,17 +86,18 @@ var LCXlsx = (function () {
           r.cells.forEach(function (x, ci) {
             if (!x.ents.length) { cell(rr, 3 + ci, 'אינו פעיל', sOff); return; }
             // השעות בתא אחד, מופרדות ברווח; נסיעה בדרך אחרת — באדום (rich text)
-            var runs = x.ents.map(function (e) { return { t: e.t + (e.n > 1 ? '×' + e.n : '') + (e.part ? '(' + e.part + ')' : ''), red: !!e.a }; });
+            var runs = x.ents.map(function (e) { return { t: (e.n > 1 ? '\u202a' + e.t + '×' + e.n + '\u202c' : e.t) + (e.part ? '(' + e.part + ')' : ''), red: !!e.a }; });
             cell(rr, 3 + ci, { runs: runs }, sTm);
             var per = Math.max(1, Math.floor(W[3 + ci] / 6.6));
             lines = Math.max(lines, Math.ceil(runs.length / per));
-            x.notes.forEach(function (nt) { notes.push((M.cols.length > 1 ? M.cols[ci].label + ': ' : '') + nt.times.join(' ') + ' — ' + nt.txt + ' (חלופה)'); });
+            x.notes.forEach(function (nt) { notes.push((M.cols.length > 1 ? M.cols[ci].label + ': ' : '') + (nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt + ' (חלופה)'); });
             var pt = x.ents.filter(function (e) { return e.part; });
-            if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/לא ב([^ ]+) בלבד/g, 'חוץ מ$1'));
+            if (pt.length) notes.push(M.cols[ci].label + ': ' + pt.map(function (e) { return e.t + ' ' + e.part + ' בלבד'; }).join(', ').replace(/(חוץ מ[^ ,]+) בלבד/g, '$1'));
           });
           if (!k && r.until) notes.push('הלו״ז בתוקף עד ' + dmy(r.until));
           cell(rr, last, notes.join('\n'), sNt);
-          heights[rr] = Math.max(32, lines * 13.5 + 6, notes.length * 12.5 + 6);
+          var nl = notes.reduce(function (t, s) { return t + Math.ceil(s.length / (W[last] * 1.15)); }, 0);
+          heights[rr] = Math.max(32, lines * 13.5 + 6, nl * 12 + 6);
         }
         R += n; i += n;
       }
@@ -154,7 +155,7 @@ var LCXlsx = (function () {
         '<Override PartName="/xl/comments1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"/></Types>'],
       ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
       ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-        '<bookViews><workbookView rightToLeft="1"/></bookViews><sheets><sheet name="לוח זמנים" sheetId="1" r:id="rId1"/></sheets>' +
+        '<bookViews><workbookView/></bookViews><sheets><sheet name="לוח זמנים" sheetId="1" r:id="rId1"/></sheets>' +
         '<definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'לוח זמנים\'!$' + head + ':$' + head + '</definedName></definedNames></workbook>'],
       ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +

@@ -2189,9 +2189,11 @@ var LCDeck = (function () {
       p.dirs.forEach(function (d) { (d.cs || []).forEach(function (c) { cnt[c] = (cnt[c] || 0) + 0.5; }); }); });
     return Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; })[0] || '';
   }
+  function bdQ(s) { return String(s || '').replace(/''/g, '"'); }   // כפר חב''ד (ב-GTFS) → כפר חב"ד
   function bdModel(pages) {
     var home = bdHome(pages), ps = pages.slice().sort(function (a, b) { return bdNum(a.line) - bdNum(b.line) || (a.line < b.line ? -1 : 1); });
-    var od = function (p) { var o = p.od || []; return [o[0] || '', o[1] || o[0] || '']; };
+    var od = function (p) { var o = p.od || []; return [bdQ(o[0]), bdQ(o[1] || o[0])]; };
+    home = bdQ(home);
     // קווים עירוניים: אותה עיר בשני הקצוות, או שני קצוות שהם ערים של קווים עירוניים (לוד–רמלה)
     var U = {};
     ps.forEach(function (p) { var o = od(p); if (o[0] && o[0] === o[1]) U[o[0]] = 1; });
@@ -2213,7 +2215,7 @@ var LCDeck = (function () {
         b.label = (b.pages.length > 1 ? 'הקווים העירוניים · ' : 'קו עירוני · ') + cs.join(', ');
       } else {
         var a = o[1] === home ? [o[1], o[0]] : o;
-        var via = a[0] !== home && a[1] !== home && b.pages.some(function (p) { return p.dirs.some(function (d) { return (d.cs || []).indexOf(home) >= 0; }); });
+        var via = a[0] !== home && a[1] !== home && b.pages.some(function (p) { return p.dirs.some(function (d) { return (d.cs || []).map(bdQ).indexOf(home) >= 0; }); });
         b.label = a[0] + ' – ' + a[1] + (via && home ? ' (דרך ' + home + ')' : '');
       }
       var ags = opsOf(b.pages.map(function (p) { return { op: String(agOf(p)) }; }));
@@ -2245,15 +2247,15 @@ var LCDeck = (function () {
       feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '' };
   }
   function bdRow(p, d, i, n, b) {
-    var o = d.od || [], inter = !b.local && o[0] && o[1] && o[0] !== o[1];
-    var to = inter ? o[1] : d.t, city0 = (d.cs || [])[0] || o[0] || '';
+    var o = (d.od || []).map(bdQ), inter = !b.local && o[0] && o[1] && o[0] !== o[1], cs = (d.cs || []).map(bdQ);
+    var to = inter ? o[1] : d.t, city0 = cs[0] || o[0] || '';
     var stop = d.f + (d.fc ? ' (' + d.fc + ')' : '');
     return { p: p, d: d, first: i === 0, n: n, line: p.line, op: p.op,
       origin: inter ? 'מ' + o[0] : d.f,
       stop: inter ? stop : (d.fc ? 'תחנה ' + d.fc : ''),
       toward: to ? 'לכיוון ' + to : '',
       until: p.until && p.until !== '' ? p.until : '',
-      comment: (to ? 'לכיוון ' + to + ((d.cs || []).length && d.cs[d.cs.length - 1] !== to ? ', ' + d.cs[d.cs.length - 1] : '') + ': ' : '') +
+      comment: (to ? 'לכיוון ' + to + (cs.length && cs[cs.length - 1] !== to ? ', ' + cs[cs.length - 1] : '') + ': ' : '') +
         d.f + ' (' + [d.fc, city0].filter(Boolean).join(' | ') + ')' };
   }
   /* תא: היציאות של שורה אחת בקבוצת ימים; נסיעה שרק בחלק מהימים — part (למשל "ה׳"), חלופה — a, תגבור — n */
@@ -2261,18 +2263,18 @@ var LCDeck = (function () {
     var mg = cuMerge([{ p: r.p, d: r.d }], c.days), alts = {};
     var ents = mg.ents.map(function (e) {
       var part = '';
-      if (e.part) { var miss = c.days.filter(function (w) { return e.days.indexOf(w) < 0; }); part = e.days.length <= miss.length ? dShort(e.days) : 'לא ב' + dShort(miss); }
+      if (e.part) { var miss = c.days.filter(function (w) { return e.days.indexOf(w) < 0; }); part = e.days.length <= miss.length ? dShort(e.days) : 'חוץ מ' + dShort(miss); }
       if (e.a) (alts[e.a] = alts[e.a] || []).push(hm2(e.m));
       return { m: e.m, t: hm2(e.m), a: e.a, n: e.n, part: part };
     });
-    var notes = Object.keys(alts).map(function (a) { return { times: alts[a], txt: (r.d.v || [])[a - 1] || 'במסלול אחר' }; });
+    var notes = Object.keys(alts).map(function (a) { return { times: alts[a], all: alts[a].length === ents.length, txt: (r.d.v || [])[a - 1] || 'במסלול אחר' }; });
     return { ents: ents, notes: notes };
   }
   function bdCellHtml(x) {
     if (!x.ents.length) return '<td class="bt off">אינו פעיל</td>';
     return '<td class="bt"><span class="tl">' + x.ents.map(function (e) {
-      return '<span class="t num' + (e.a ? ' alt' : '') + '">' + e.t + (e.n > 1 ? '<small class="xn">×' + e.n + '</small>' : '') + (e.part ? '<sup>' + E(e.part) + '</sup>' : '') + '</span>';
-    }).join(' ') + '</span>' + x.notes.map(function (nt) { return '<span class="bnote">' + E(nt.times.join(' ') + ' — ' + nt.txt) + '</span>'; }).join('') + '</td>';
+      return '<span class="t num' + (e.a ? ' alt' : '') + '">' + e.t + (e.n > 1 ? '<bdi dir="ltr" class="xn">×' + e.n + '</bdi>' : '') + (e.part ? '<sup>' + E(e.part) + '</sup>' : '') + '</span>';
+    }).join(' ') + '</span>' + x.notes.map(function (nt) { return '<span class="bnote">' + E((nt.all ? 'כל הנסיעות' : nt.times.join(' ')) + ' — ' + nt.txt) + '</span>'; }).join('') + '</td>';
   }
   function bdLineCell(r, span) {
     return '<td class="bl" rowspan="' + span + '"><span class="badge sm num">' + E(r.line) + '</span><small class="op">' + E(r.op) + '</small>' +
@@ -2327,8 +2329,11 @@ var LCDeck = (function () {
       b.rows.forEach(function (r) { items.push({ b: b, r: r, html: bdRowHtml(r, 1) }); });
     });
     var ms = bdMeasure(M, form, sc, items), pgs = [], cur = [], used = 0, H = ms.avail;
+    // כמה צריך כדי להתחיל כאן: כל הכיוונים של הקו (שלא ייחתך באמצע), ופס — יחד עם הקו הראשון אחריו
+    var lineH = function (i) { var t = 0, p = items[i].r.p; for (var k = i; k < items.length && items[k].r && items[k].r.p === p; k++) t += ms.hs[k] || 0; return t; };
     items.forEach(function (it, i) {
-      var h = ms.hs[i] || 0, need = h + (it.band && items[i + 1] ? ms.hs[i + 1] : 0);
+      var h = ms.hs[i] || 0, first = it.r && !(items[i - 1] && items[i - 1].r && items[i - 1].r.p === it.r.p);
+      var need = it.band ? h + (items[i + 1] && items[i + 1].r ? Math.min(lineH(i + 1), H * 0.6) : 0) : first ? Math.min(lineH(i), H * 0.6) : h;
       if (cur.length && used + need > H) {
         pgs.push(cur); cur = []; used = 0;
         if (!it.band) { var bi = items.indexOf(items.filter(function (x) { return x.band === it.b; })[0]); cur.push({ cont: it.b }); used += ms.hs[bi]; }
