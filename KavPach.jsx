@@ -4841,18 +4841,18 @@ const DAYS_FILTER = [
                       <p className="text-slate-500 text-xs font-bold mb-4">
                         {head ? head + ' · ' : ''}{K.lines.length === 1 ? 'קו אחד' : `${K.lines.length} קווים`} · {cancels} נסיעות לביטול · {merges} איחודים
                       </p>
-                      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
-                        <div className="rounded-2xl border-2 border-slate-200 px-3 py-2">
-                          <div className="text-[11px] sm:text-xs font-bold text-slate-500">ק&quot;מ היום</div>
-                          <div className="text-lg sm:text-2xl font-black text-slate-900 tabular-nums">{R(K.total)}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+                        <div className="rounded-2xl border-2 border-slate-200 px-3 py-2 flex sm:block items-center justify-between gap-3">
+                          <div className="text-xs font-bold text-slate-500">ק&quot;מ היום</div>
+                          <div className="text-xl sm:text-2xl font-black whitespace-nowrap text-slate-900 tabular-nums">{R(K.total)}</div>
                         </div>
-                        <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-3 py-2">
-                          <div className="text-[11px] sm:text-xs font-bold text-slate-500">נחסך בהמלצות</div>
-                          <div className="text-lg sm:text-2xl font-black text-rose-600 tabular-nums text-right" dir="ltr">−{R(K.saved)}</div>
+                        <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-3 py-2 flex sm:block items-center justify-between gap-3">
+                          <div className="text-xs font-bold text-slate-500">נחסך בהמלצות</div>
+                          <div className="text-xl sm:text-2xl font-black whitespace-nowrap text-rose-600 tabular-nums sm:text-right" dir="ltr">−{R(K.saved)}</div>
                         </div>
-                        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-3 py-2">
-                          <div className="text-[11px] sm:text-xs font-bold text-slate-500">ק&quot;מ אחרי ההמלצות</div>
-                          <div className="text-lg sm:text-2xl font-black text-emerald-700 tabular-nums">{R(K.total - K.saved)}</div>
+                        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-3 py-2 flex sm:block items-center justify-between gap-3">
+                          <div className="text-xs font-bold text-slate-500">ק&quot;מ אחרי ההמלצות</div>
+                          <div className="text-xl sm:text-2xl font-black whitespace-nowrap text-emerald-700 tabular-nums">{R(K.total - K.saved)}</div>
                         </div>
                       </div>
                       <div className="text-sm font-black text-slate-900">ק&quot;מ סרק: {R(K.wasted)} היום ← {R(K.remain)} אחרי ההמלצות</div>
