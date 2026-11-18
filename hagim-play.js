@@ -302,8 +302,8 @@
       var g = geo(o), sp = o.querySelector("[data-icon]") || o.firstElementChild, r = rel(sp.getBoundingClientRect(), g.S), s = r.w, c = ctr(r), d = dirTo(g, o);
       return { g: g, sp: sp.firstElementChild || sp, s: s, c: c, d: d, sd: d.x >= 0 ? 1 : -1,
         at: function (k, side) { side = side || 0; return { x: c.x - d.x * k * s - d.y * side * s, y: c.y - d.y * k * s + d.x * side * s }; },
-        up: function (k) { return { x: c.x, y: c.y - k * s }; },
-        box: function (p, w, h) { w *= 1.3; h *= 1.3; return { l: p.x - w * s / 2, t: p.y - h * s / 2, w: w * s, h: h * s }; },
+        up: function (k) { return { x: c.x - d.x * k * s, y: c.y - d.y * k * s }; },   // "מעל" = לכיוון העין, כך שלא יוצא מהבמה
+        box: function (p, w, h) { w *= 1.75; h *= 1.75; return { l: p.x - w * s / 2, t: p.y - h * s / 2, w: w * s, h: h * s }; },
         look: function (fr, dur) { var gx = 11 * d.x, gy = 7 * d.y; irisTo(fr.map(function (f) { return [f[0], +(gx + f[1]).toFixed(2), +(gy + f[2]).toFixed(2)]; }), dur); } };
     }
     function busSvg(col) {
@@ -1168,7 +1168,7 @@
         [100, 380, 660].forEach(function (t) {
           [-1, 1].forEach(function (sd) {
             later(t, function () {
-              var w = div("", "<svg viewBox='0 0 20 40'><path d='M4 4 Q16 20 4 36' stroke='#f59e0b' stroke-width='3.5' fill='none' stroke-linecap='round'/></svg>"), p = { x: q.c.x + sd * .62 * q.s, y: q.c.y }, r = q.box(p, .16, .32), fl = sd < 0 ? " scaleX(-1)" : "";
+              var w = div("", "<svg viewBox='0 0 20 40'><path d='M4 4 Q16 20 4 36' stroke='#f59e0b' stroke-width='3.5' fill='none' stroke-linecap='round'/></svg>"), p = { x: q.c.x + sd * .7 * q.s, y: q.c.y - .2 * q.s }, r = q.box(p, .26, .5), fl = sd < 0 ? " scaleX(-1)" : "";
               add(w, r);
               A(w, [{ transform: T(r, p, .6, fl), opacity: 0 }, { transform: T(r, { x: p.x + sd * .12 * q.s, y: p.y }, 1, fl), opacity: 1, offset: .3 }, { transform: T(r, { x: p.x + sd * .4 * q.s, y: p.y }, 1.5, fl), opacity: 0 }], { duration: 640, easing: "ease-out" });
             });
@@ -1180,8 +1180,7 @@
       // צי הרכבים: שלושה אוטובוסים קטנים נוסעים בטור מהסמל וחוזרים
       roll: function (o) {
         var q = orbG(o), cols = ["#2563eb", "#16a34a", "#dc2626"], a = q.at(.1, .55), b = q.at(.1, -.55);
-        // נוסעים לאורך הכפתור, מתחת לו (בצד הרחוק מהעין)
-        a = { x: q.c.x - .9 * q.s, y: q.c.y + .62 * q.s }; b = { x: q.c.x + .9 * q.s, y: q.c.y + .62 * q.s };
+                var m0 = q.at(.95); a = { x: m0.x - 1.1 * q.s, y: m0.y }; b = { x: m0.x + 1.1 * q.s, y: m0.y };
         cols.forEach(function (col, i) {
           var bus = div("", busSvg(col)), r = q.box(a, .34, .22); add(bus, r); bus.style.opacity = 0;
           later(i * 220, function () { A(bus, [{ transform: T(r, a, 1, " scaleX(-1)"), opacity: 0 }, { transform: T(r, { x: a.x + .3 * q.s, y: a.y }, 1, " scaleX(-1)"), opacity: 1, offset: .15 }, { transform: T(r, { x: b.x - .3 * q.s, y: b.y }, 1, " scaleX(-1)"), opacity: 1, offset: .85 }, { transform: T(r, b, 1, " scaleX(-1)"), opacity: 0 }], { duration: 1200, easing: "linear" }); });

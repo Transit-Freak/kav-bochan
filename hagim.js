@@ -425,7 +425,7 @@
   function loadPlay(stage) {
     if (window.HagPlay) { window.HagPlay.attach(stage); return; }
     if (document.getElementById("hag-play-js")) return;
-    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118b") });
+    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118c") });
     s.onload = function () { if (window.HagPlay) window.HagPlay.attach(document.querySelector(".kbh .stage")); };
     document.head.appendChild(s);
   }
@@ -433,7 +433,7 @@
   function daily() {
     if (window.__hagPlay || !document.addEventListener) return;
     try { if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) { return; }
-    var DAILY = { kavpach: "lid", golden: "flip", kavbug: "crawl", "next-station": "signflip", "skip-stops": "leap", "line-history": "clock", "line-changes": "slides",
+    var DAILY = { kavpach: "lid", golden: "flip", kavbug: "crawl", "next-station": "signflip", "skip-stops": "hop", "line-history": "clock", "line-changes": "slides",
       bus: "gauge", "bus-speed": "speedo", alerts: "ring", fleet: "roll", rail: "train", reception: "bars", feeder: "meet", fares: "drop", ratzif: "align", game: "pad" };
     window.__hagPlay = { id: "daily", daily: true, play: DAILY, line: "#0ea5e9", bg: "" };
     // דף הבית יכול להיבנות מחדש (חזרה מכלי) — מחברים כל במה חדשה
