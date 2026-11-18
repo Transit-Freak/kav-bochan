@@ -787,7 +787,7 @@ def find_renamed(keys, old_v, new_v, old, t0, new=None):
     """חלופות שהוחלפו: {מק"ט-כיוון-חלופה חדש: (הישן, היום הראשון של החדש)}.
     הישן — נסע בשבוע שעבר ולא נוסע מעכשיו; החדש — באותו מק"ט-כיוון, לא נסע בתחילת השבוע שעבר,
     ומתחיל עד 4 ימים אחרי שהישן הפסיק (או עד 8, כשבינתיים אין בכיוון אף נסיעה), עם חצי מהתחנות משותפות לפחות.
-    כמה ישנים לאותו חדש — הדומה ביותר בתחנות (ובלי new — זה שנסע אחרון)."""
+    כמה ישנים לאותו חדש — זה עם הכי הרבה נסיעות בשבוע שעבר (ובשוויון — הדומה ביותר בתחנות)."""
     dates = lambda vs: set().union(*[x['dates'] for x in vs.values()]) if vs else set()   # noqa: E731
     by_dk = defaultdict(list)
     for k in keys:
@@ -811,7 +811,7 @@ def find_renamed(keys, old_v, new_v, old, t0, new=None):
             pre = [g for g in gone if g[0] < F <= g[0] + datetime.timedelta(days=4)
                    or (g[0] < F <= g[0] + datetime.timedelta(days=8) and not any(g[0] < d < F for d in busy))]
             if pre and new is not None:
-                # אותו קו? לפחות חצי מהתחנות משותפות (אחרת זה מסלול אחר, לא החלפה). כמה מועמדים — הדומה ביותר
+                # אותו קו? לפחות חצי מהתחנות משותפות (אחרת זה מסלול אחר, לא החלפה). כמה מועמדים — זו שנסעה הכי הרבה
                 # (בדיקה על 9 שבועות, ספטמבר–נובמבר 2026: 65 זוגות; בפחות מחצי תחנות משותפות — 3 זוגות, כולם חלופות של חג)
                 def st(feed, vs):
                     return {feed.stops[x]['code'] for pid, _ in vs for x in feed.pat_list[pid] if x in feed.stops}
@@ -820,7 +820,7 @@ def find_renamed(keys, old_v, new_v, old, t0, new=None):
                 for g in pre:
                     a = st(old, old_v[g[2]])
                     if len(a & b) * 2 >= min(len(a), len(b)):
-                        sim[g[2]] = (len(a & b) / len(a | b), g[0])
+                        sim[g[2]] = (g[1], len(a & b) / len(a | b))   # הישנה עם הכי הרבה נסיעות; בשוויון — הדומה ביותר
                 if sim:
                     out[k] = (max(sim, key=lambda x: sim[x]), F)
                 continue
