@@ -72,3 +72,43 @@ test('המרת מדד חודש לתאריכים', () => {
   assert.equal(FM.mLast(1), '2020-02-29');
   assert.equal(FM.mLast(80), '2026-09-30');
 });
+
+// לוחית אחת = רכב אחד (18.11): וולבו BZL 31688003 — דן, אגד ואז קווים
+const bzl = [
+  { op: 3, first: '2025-03-30', last: '2025-09-02', days: 100, r: 9.0, kd: 180, kt: 21992 },
+  { op: 5, first: '2024-12-29', last: '2025-01-12', days: 10, r: 6.4, kd: 149, kt: 1784 },
+  { op: 18, first: '2025-11-07', last: '2026-11-17', days: 290, r: 10.0, kd: 170, kt: 40533 },
+];
+const O = { updated: '2026-11-18', retireDays: 30 };
+
+test('רכב שעבר בין חברות — רכב אחד, פעיל, עם שרשרת החברות לפי הזמן', () => {
+  const p = FM.plate(bzl, O);
+  assert.equal(p.first, '2024-12-29');
+  assert.equal(p.last, '2026-11-17');
+  assert.equal(p.active, true);
+  assert.deepEqual(p.chain, [5, 3, 18]);
+  assert.equal(p.kt, 21992 + 1784 + 40533);
+  assert.ok(p.r > 9 && p.r < 10, String(p.r));
+  assert.equal(p.gaps, null);
+});
+
+test('ירד מהשירות רק כשהתקופה האחרונה בכלל נגמרה מזמן', () => {
+  const p = FM.plate(bzl.slice(0, 2), O);
+  assert.equal(p.active, false);
+});
+
+test('חודש בלי שידור אצל חברה אחת, כשהרכב שידר אצל אחרת — לא נפילה; חודש בלי שידור בכלל — נפילה', () => {
+  const r = [
+    { op: 3, first: '2024-01-01', last: '2026-11-10', gaps: [['2025-03', '2025-05'], ['2026-02', '2026-02']] },
+    { op: 14, first: '2025-03-02', last: '2025-05-20' },
+  ];
+  assert.deepEqual(FM.plate(r, O).gaps, [['2026-02', '2026-02']]);
+});
+
+test('נסיעות בודדות אצל חברה אחרת לא נכנסות לשרשרת', () => {
+  const r = [
+    { op: 3, first: '2024-01-01', last: '2026-11-10' },
+    { op: 34, first: '2025-01-01', last: '2025-01-02', occ: true },
+  ];
+  assert.deepEqual(FM.plate(r, O).chain, [3]);
+});
