@@ -811,6 +811,43 @@ def find_renamed(keys, old_v, new_v, old, t0):
     return out
 
 
+def rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats):
+    """חלופות שהוחלפו (find_renamed): רשומת שינוי מסלול רק כשהתחנות או הדרך באמת השתנו.
+    החלפת מספר בלבד (אותן תחנות, אותה דרך) — שום רשומה (stats['renamed_same']); אם השתנו רק השעות,
+    זה נמצא בנפרד כשינוי בלוח הזמנים (tt_change עובד לפי מק"ט-כיוון, בלי מספר החלופה)."""
+    DAY = datetime.timedelta(days=1)
+    found = []
+    for k, (ko, F) in renamed.items():
+        ov = old_v[ko]
+        om = main_variant(ov)
+        o_codes = [old.stops[s] for s in old.pat_list[om[0]] if s in old.stops]
+        D = max(F, t0)
+        win = {v: dict(x, td=sum(1 for d in x['dates'] if D <= d < D + 7 * DAY)) for v, x in new_v[k].items()}
+        nm = main_variant({v: x for v, x in win.items() if x['td']})
+        if nm is None:
+            continue
+        n_codes = [new.stops[s] for s in new.pat_list[nm[0]] if s in new.stops]
+        res, minor = compare(o_codes, n_codes, {s['code']: s for s in o_codes}, {s['code']: s for s in n_codes},
+                             shp_old.get(om[1], []), shp_new.get(nm[1], []))
+        if not (res['added'] or res['removed'] or res['moved'] or res['geo']):
+            stats['renamed_same'] = stats.get('renamed_same', 0) + 1
+            print(f'חלופה שהוחלפה: {ko} ← {k} ({F}) — רק המספר, לא שינוי', flush=True)
+            continue
+        print(f"חלופה שהוחלפה: {ko} ← {k} ({F}) — שינוי: +{len(res['added'])} -{len(res['removed'])} תחנות, דרך {res['dev']} מ'", flush=True)
+        r_new = new.routes[new_v[k][nm]['rid']]
+        found.append(dict(
+            rd=k, makat=k.split('-')[0], dir=(k.split('-') + ['', ''])[1], alt=(k.split('-') + ['', '', ''])[2],
+            line=r_new['line'], op=new.agency.get(r_new['ag'], ''), ag=r_new['ag'], ty=r_new['ty'],
+            long=r_new['long'], od=od_of(r_new['long']),
+            eff=F.isoformat(), formal=None, found=t0.isoformat(), was=ko,
+            old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(shp_old.get(om[1], [])))),
+            new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(shp_new.get(nm[1], [])))),
+            added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
+            moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
+        ))
+    return found
+
+
 def run():
     t0 = TODAY
     ref_day = t0 - datetime.timedelta(days=REF_DAYS)
@@ -987,32 +1024,7 @@ def run():
             added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
             moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
         ))
-    for k, (ko, F) in renamed.items():
-        ov = old_v[ko]
-        om = main_variant(ov)
-        o_codes = [old.stops[s] for s in old.pat_list[om[0]] if s in old.stops]
-        D = max(F, t0)
-        win = {v: dict(x, td=sum(1 for d in x['dates'] if D <= d < D + 7 * DAY)) for v, x in new_v[k].items()}
-        nm = main_variant({v: x for v, x in win.items() if x['td']})
-        if nm is None:
-            continue
-        n_codes = [new.stops[s] for s in new.pat_list[nm[0]] if s in new.stops]
-        res, minor = compare(o_codes, n_codes, {s['code']: s for s in o_codes}, {s['code']: s for s in n_codes},
-                             shp_old.get(om[1], []), shp_new.get(nm[1], []))
-        if not (res['added'] or res['removed'] or res['moved'] or res['geo']):
-            stats['renamed_same'] += 1
-            continue
-        r_new = new.routes[new_v[k][nm]['rid']]
-        found.append(dict(
-            rd=k, makat=k.split('-')[0], dir=(k.split('-') + ['', ''])[1], alt=(k.split('-') + ['', '', ''])[2],
-            line=r_new['line'], op=new.agency.get(r_new['ag'], ''), ag=r_new['ag'], ty=r_new['ty'],
-            long=r_new['long'], od=od_of(r_new['long']),
-            eff=F.isoformat(), formal=None, found=t0.isoformat(), was=ko,
-            old=dict(stops=[stop_arr(s) for s in o_codes], shp=encode_shape(simplify(shp_old.get(om[1], [])))),
-            new=dict(stops=[stop_arr(s) for s in n_codes], shp=encode_shape(simplify(shp_new.get(nm[1], [])))),
-            added=[s['code'] for s in res['added']], removed=[s['code'] for s in res['removed']],
-            moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
-        ))
+    found += rename_records(renamed, old_v, new_v, old, new, shp_old, shp_new, t0, stats)
     stats['changed'] = len(found)
 
     # ---- לוחות זמנים: יציאות מהתחנה הראשונה, לכל מק"ט-כיוון (כל החלופות יחד)
