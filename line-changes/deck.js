@@ -2243,7 +2243,8 @@ var LCDeck = (function () {
     if (home) cities.push(home);
     var dflt = 'זמני נסיעות · ' + (ED.bplace || cities.join(', ') || linesTxt(ps));
     return { title: (ED.btitle || '').trim() || dflt, dflt: dflt, valid: valid, until: until, home: home, cols: cols, bands: bands, pages: ps,
-      note: (ED.bnote || '').trim(), contacts: ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]]),
+      // "עדכונים": מה שהמשתמש כתב; בלי טקסט — משפט על הנסיעות באדום, רק כשיש כאלה בלוח (אחרת השורה לא מופיעה)
+      note: (ED.bnote || '').trim() || (bands.some(function (b) { return b.rows.some(function (r) { return r.cells.some(function (x) { return x.notes.length; }); }); }) ? 'נסיעות באדום עוברות בדרך אחרת' : ''), contacts: ops.map(function (o) { return [o, bdPhone(o)]; }).filter(function (x) { return x[1]; }).concat([['משרד התחבורה', MOT]]),
       feed: pages.map(function (p) { return p.feed; }).filter(Boolean).sort().pop() || '' };
   }
   function bdRow(p, d, i, n, b) {

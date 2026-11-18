@@ -37,7 +37,7 @@ var LCXlsx = (function () {
       var k = JSON.stringify(o); if (ix[k] != null) return ix[k];
       var fo = add(fonts, '<font>' + (o.b ? '<b/>' : '') + '<sz val="' + (o.sz || 11) + '"/><color rgb="FF' + (o.color || '14201B') + '"/><name val="Arial"/></font>');
       var fi = o.fill ? add(fills, '<fill><patternFill patternType="solid"><fgColor rgb="FF' + o.fill + '"/><bgColor indexed="64"/></patternFill></fill>') : 0;
-      var al = '<alignment horizontal="' + (o.h || 'right') + '" vertical="center"' + (o.wrap === false ? '' : ' wrapText="1"') + ' readingOrder="2"/>';
+      var al = '<alignment horizontal="' + (o.h || 'right') + '" vertical="center"' + (o.wrap === false ? '' : ' wrapText="1"') + ' readingOrder="' + (o.ltr ? 1 : 2) + '"/>';
       xfs.push('<xf numFmtId="49" fontId="' + fo + '" fillId="' + fi + '" borderId="' + (o.border === false ? 0 : 1) + '" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' + al + '</xf>');
       return (ix[k] = xfs.length - 1);
     };
@@ -103,14 +103,23 @@ var LCXlsx = (function () {
       }
     });
     // עדכונים, מוקדי מידע וקרדיט
-    var sL = st.get({ b: 1, sz: 10, fill: 'EEF2F0', h: 'center' }), sU = st.get({ b: 1, sz: 10, color: 'C81E1E' }), sP = st.get({ sz: 10 }), sPb = st.get({ b: 1, sz: 10, h: 'center' });
-    cell(R, 0, 'עדכונים', sL); cell(R, 1, M.note || '', sU); merges.push('B' + R + ':' + ref(last, R)); heights[R] = 30; R++;
-    cell(R, 0, 'מוקדי מידע', sL); cell(R, 1, 'מפעיל', sL); merges.push('B' + R + ':C' + R); cell(R, 3, 'טלפון', sL); R++;
+    var sL = st.get({ b: 1, sz: 10, fill: 'EEF2F0', h: 'center' }), sU = st.get({ b: 1, sz: 10, color: 'C81E1E' }), sP = st.get({ b: 1, sz: 10, fill: 'F7F9F8', h: 'center' }), sPb = st.get({ b: 1, sz: 10, fill: 'F7F9F8', h: 'center', ltr: 1 });   // טלפון (*2456) — משמאל לימין
+    if (M.note) { cell(R, 0, 'עדכונים', sL); cell(R, 1, M.note, sU); merges.push('B' + R + ':' + ref(last, R)); heights[R] = 30; R++; }
+    // מוקדי מידע: טבלה אחת — חברה | טלפון (המסגרת והרקע גם בתאים הממוזגים, ראו fillMerged)
+    var c0 = R;
+    cell(R, 0, 'מוקדי מידע', sL); cell(R, 1, 'חברה', sL); merges.push('B' + R + ':C' + R); cell(R, 3, 'טלפון', sL); R++;
     M.contacts.forEach(function (c) { cell(R, 1, c[0], sP); merges.push('B' + R + ':C' + R); cell(R, 3, c[1], sPb); R++; });
+    merges.push('A' + c0 + ':A' + (R - 1));
     var sC = st.get({ sz: 9, color: '5B6B65', border: false });
     cell(R, 0, 'השעות הן שעות היציאה מהתחנה הראשונה · באדום — נסיעה בדרך אחרת · ×2 — שני אוטובוסים · לא פרסום רשמי · הוכן בכלי "מצגת לשינוי בקו" של הקו הבוחן — kavbochan.app', sC);
     merges.push('A' + R + ':' + ref(last, R)); heights[R] = 28;
 
+    // תאים ריקים בתוך מיזוג — עם הסגנון של התא הראשון, כדי שהמסגרת והרקע יופיעו על כל השטח
+    merges.forEach(function (m) {
+      var a = m.split(':'), c1 = COLS.indexOf(a[0].charAt(0)), r1 = +a[0].slice(1), c2 = COLS.indexOf(a[1].charAt(0)), r2 = +a[1].slice(1), top = (rows[r1] || [])[c1];
+      if (!top) return;
+      for (var r = r1; r <= r2; r++) for (var c = c1; c <= c2; c++) { if (!(rows[r] = rows[r] || [])[c]) rows[r][c] = { v: '', s: top.s }; }
+    });
     // שורות XML
     var sd = rows.map(function (cs, r) {
       if (!cs) return '';

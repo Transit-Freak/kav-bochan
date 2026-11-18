@@ -1161,6 +1161,7 @@
         $('bdtitle').placeholder = M.dflt;
         if (document.activeElement !== $('bdtitle')) $('bdtitle').value = edits.btitle || M.dflt;
         if (document.activeElement !== $('bdnote')) $('bdnote').value = edits.bnote || '';
+        $('bdnote').placeholder = edits.bnote ? '' : M.note;
       }
     }
     var multi = !cu && formOf() === 'deck' && pages.filter(function (p) { return (p.kind === 'timetable' || p.kind === 'new') && p.dirs.some(function (d) { return d.tt && d.tt.length; }); }).length > 1;
@@ -1853,7 +1854,7 @@
     if (window.LCXlsx) return Promise.resolve();
     return xlP || (xlP = new Promise(function (res, rej) {
       var sc = document.createElement('script');
-      sc.src = 'xlsx.js?v=1'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
+      sc.src = 'xlsx.js?v=2'; sc.onload = res; sc.onerror = function () { xlP = null; rej(new Error('xlsx')); };
       document.head.appendChild(sc);
     }));
   }
