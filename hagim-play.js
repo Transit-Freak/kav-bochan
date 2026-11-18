@@ -413,7 +413,7 @@
           var fl = "", cols = ["#f472b6", "#facc15", "#fff", "#a78bfa", "#fb7185", "#facc15", "#fff"];
           for (var i = 0; i < 7; i++) { var a = Math.PI * (1.05 + i * .15), x = 31 + Math.cos(a) * 26, y = 22 + Math.sin(a) * 12; fl += "<circle cx='" + x.toFixed(1) + "' cy='" + y.toFixed(1) + "' r='4.2' fill='" + cols[i] + "' stroke='#9d174d' stroke-width='.8'/><circle cx='" + x.toFixed(1) + "' cy='" + y.toFixed(1) + "' r='1.5' fill='#f59e0b'/>"; }
           sr = rel(src.getBoundingClientRect(), g.S); hide(src);
-          f = { el: div("hp-fly", "<svg viewBox='0 0 62 30'><path d='M5 22 Q31 -6 57 22' stroke='#16a34a' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M5 22 Q31 34 57 22' stroke='#15803d' stroke-width='3' fill='none' stroke-linecap='round' opacity='.6'/>" + fl + "</svg>"), w: 66 * u, h: 32 * u };
+          f = { el: div("hp-fly", "<svg viewBox='0 0 62 30'><path d='M5 22 Q31 -6 57 22' stroke='#16a34a' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M5 22 Q31 34 57 22' stroke='#15803d' stroke-width='3' fill='none' stroke-linecap='round' opacity='.6'/>" + fl + "</svg>"), w: 84 * u, h: 40 * u };
         } else if (parts.length > 1) {
           // לוקחים כתר אחד מתוך שניים
           var rg = D.createRange(); rg.setStart(txt, 0); rg.setEnd(txt, parts[0].length);
@@ -633,19 +633,19 @@
 
       // קשת וחץ: החץ עף מעל העין אל מטרה בצד השני
       shoot: function (o) {
-        var v = visit(o, 40, spotSide(o, 8, 128)), g = v.g, sd = v.sd;
-        var tg = div("", "<svg viewBox='0 0 30 30'><circle cx='15' cy='15' r='13' fill='#fff' stroke='#dc2626' stroke-width='3'/><circle cx='15' cy='15' r='8' fill='#dc2626'/><circle cx='15' cy='15' r='3.5' fill='#fff'/></svg>"), tr = g.box(60 - sd * 70 - 13, -5, 26, 26);
+        var v = visit(o, 40, spotSide(o, 26, 134)), g = v.g, sd = v.sd;
+        var tg = div("", "<svg viewBox='0 0 30 30'><circle cx='15' cy='15' r='13' fill='#fff' stroke='#dc2626' stroke-width='3'/><circle cx='15' cy='15' r='8' fill='#dc2626'/><circle cx='15' cy='15' r='3.5' fill='#fff'/></svg>"), tr = g.box(60 - sd * 72 - 13, 13, 26, 26);
         add(tg, tr); tg.style.opacity = 0;
         later(400, function () { A(tg, [{ transform: T(tr, ctr(tr), .2), opacity: 0 }, { transform: T(tr, ctr(tr), 1), opacity: 1 }], { duration: 260 }); });
         var ar = div("", "<svg viewBox='0 0 40 10'><path d='M2 5 H32' stroke='#78350f' stroke-width='2.5'/><path d='M30 1 L39 5 L30 9 Z' fill='#64748b'/><path d='M2 5 l-2 -4 M2 5 l-2 4 M6 5 l-2 -4 M6 5 l-2 4' stroke='#dc2626' stroke-width='2'/></svg>"), arr = g.box(0, 0, 32, 8), fl = sd > 0 ? " scaleX(-1)" : "";
         add(ar, arr); ar.style.opacity = 0;
         later(560, function () { A(v.inner, [{ transform: "scale(1)" }, { transform: "scale(.9,1.05)", offset: .7 }, { transform: "scale(1.06,.96)", offset: .85 }, { transform: "scale(1)" }], { duration: 500 }); });
-        later(900, function () { A(ar, [{ transform: T(arr, P(g, v.atU.x - sd * 6, 8), 1, fl), opacity: 1 }, { transform: T(arr, P(g, 60 - sd * 70 + sd * 14, 8), 1, fl), opacity: 1 }], { duration: 380, easing: "ease-in" }); });
+        later(900, function () { A(ar, [{ transform: T(arr, P(g, v.atU.x - sd * 6, 26), 1, fl), opacity: 1 }, { transform: T(arr, P(g, 60 - sd * 72 + sd * 14, 26), 1, fl), opacity: 1 }], { duration: 380, easing: "ease-in" }); });
         later(1280, function () {
           A(tg, [{ transform: T(tr, ctr(tr), 1, " rotate(0deg)") }, { transform: T(tr, ctr(tr), 1.12, " rotate(" + (sd * 10) + "deg)"), offset: .3 }, { transform: T(tr, ctr(tr), 1, " rotate(" + (-sd * 6) + "deg)"), offset: .6 }, { transform: T(tr, ctr(tr), 1, " rotate(0deg)") }], { duration: 420 });
-          A(ar, [{ transform: T(arr, P(g, 60 - sd * 70 + sd * 14, 8), 1, fl + " rotate(0deg)") }, { transform: T(arr, P(g, 60 - sd * 70 + sd * 14, 8), 1, fl + " rotate(-6deg)"), offset: .3 }, { transform: T(arr, P(g, 60 - sd * 70 + sd * 14, 8), 1, fl + " rotate(0deg)") }], { duration: 300 });
+          A(ar, [{ transform: T(arr, P(g, 60 - sd * 72 + sd * 14, 26), 1, fl + " rotate(0deg)") }, { transform: T(arr, P(g, 60 - sd * 72 + sd * 14, 26), 1, fl + " rotate(-6deg)"), offset: .3 }, { transform: T(arr, P(g, 60 - sd * 72 + sd * 14, 26), 1, fl + " rotate(0deg)") }], { duration: 300 });
         });
-        spark(g, 60 - sd * 70, -18, 1320);
+        spark(g, 60 - sd * 72, 8, 1320);
         later(1800, function () { A(tg, [{ opacity: 1 }, { opacity: 0 }], { duration: 260 }); A(ar, [{ opacity: 1 }, { opacity: 0 }], { duration: 260 }); });
         irisTo([[.18, sd * 9, -5], [.36, sd * 9, -6], [.46, 0, -7], [.56, -sd * 10, -6], [.8, -sd * 9, -5]], 2200);
         happy(g, 1350, 1800);
