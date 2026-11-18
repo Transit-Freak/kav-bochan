@@ -356,3 +356,6 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .deckbar .badge{font-size:13px;padding:1px 7px;min-width:0}
 .deckbar .bl{display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center}
 .pk.pkmore{background:none;border-style:dashed;cursor:pointer;color:var(--after);padding:4px 12px;font:inherit;font-weight:800;font-size:14px}
+.seg2[hidden],.credit-opt[hidden]{display:none}
+.modes{margin-bottom:var(--sp1)}
+.modes button{min-height:58px}

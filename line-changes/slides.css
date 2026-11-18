@@ -626,3 +626,122 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-cover .what.crows .cs{color:var(--s-sub);font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s-cover .what.crows li.more{color:var(--s-sub);font-weight:700;justify-content:flex-start}
 .slide .chip.tt{background:#fff2cf;color:#8a5a00}
+
+/* ================= לו"ז עדכני (s-cur) =================
+   כותרת: יעד ↔ יעד, הקווים ותאריך התוקף; מקרא של הקווים (צבע, "דרך", משך). לכל כיוון — עמודה לכל קבוצת ימים.
+   התגית הקטנה ליד כל שעה (.lb) — בצבע של הקו בטבלה המשולבת (הצבע בא מהדף, style) */
+.s-cur{display:flex;flex-direction:column;background:var(--s-card);color:var(--s-fg)}
+.s-cur .cu-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:3px solid var(--s-band);flex:none}
+.s-cur .cu-head .t{display:flex;align-items:center;gap:16px;min-width:0}
+.s-cur .cu-head h1{font-weight:900;line-height:1.08}
+.s-cur .cu-head .sub{color:var(--s-sub);font-weight:600;line-height:1.3}
+.s-cur .cu-leg{display:grid;gap:6px;flex:none;color:var(--s-fg);font-weight:600}
+.s-cur .cu-leg span{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.s-cur .lb{display:inline-block;color:#fff;font-weight:800;border-radius:6px;line-height:1.25;flex:none;font-family:'Heebo',Arial,sans-serif}
+.s-cur .cu-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.s-cur .cu-sides{display:grid;gap:22px;align-items:start}
+.s-cur .cu-sh{background:var(--s-band);color:var(--s-band-fg);font-weight:800;border-radius:8px}
+.s-cur .cu-ss{color:var(--s-sub);font-weight:600}
+.s-cur .cu-cols{display:grid;gap:8px;align-items:start}
+.s-cur .cu-ch{font-weight:800;color:var(--s-fg);border-bottom:2px solid var(--s-line);display:flex;flex-direction:column}
+.s-cur .cu-ch small{font-weight:600;color:var(--s-sub)}
+.s-cur ol.ttc{list-style:none;margin:0;padding:0}
+.s-cur .ttc li{display:flex;align-items:center;flex-wrap:wrap;column-gap:7px;border-bottom:1px solid var(--s-line)}
+.s-cur .ttc .tm{font-weight:800;font-variant-numeric:tabular-nums}
+.s-cur .ttc .xn{color:var(--s-sub);font-weight:700}
+.s-cur .ttc .nt{flex-basis:100%;color:#b45309;font-weight:800;line-height:1.1}
+.s-cur .ttc li.none{color:var(--s-sub);font-weight:700;border:none}
+.s-cur .ttc li.hr{align-items:flex-start;flex-wrap:nowrap}
+.s-cur .ttc li.hr b{flex:none;font-weight:900}
+.s-cur .ttc li.hr .ms{display:flex;flex-wrap:wrap;column-gap:.45em;font-weight:700}
+.s-cur .cu-foot{flex:none;display:flex;justify-content:space-between;gap:16px;color:var(--s-sub);border-top:1px solid var(--s-line)}
+.s-cur .cu-foot .pg{white-space:nowrap}
+/* כללי */
+.s-cur table.cu-gt{width:100%;border-collapse:collapse}
+.s-cur .cu-gt th,.s-cur .cu-gt td{border-bottom:1px solid var(--s-line);text-align:center;vertical-align:middle}
+.s-cur .cu-gt thead th{color:var(--s-sub);font-weight:800;border-bottom:2px solid var(--s-band)}
+.s-cur .cu-gt th small,.s-cur .cu-gt td small{display:block;font-weight:600;color:var(--s-sub)}
+.s-cur .cu-gt tbody th{text-align:right;font-weight:800}
+.s-cur .cu-gt td.n b{font-size:1.25em}
+.s-cur .cu-gt td.n small .lb{margin-inline-start:6px}
+
+/* A4 */
+.s-cur.f-sign{padding:34px 36px 18px}
+.s-cur.f-sign .cu-head{padding-bottom:12px}
+.s-cur.f-sign .cu-head h1{font-size:36px}
+.s-cur.f-sign .cu-head .sub{font-size:14.5px;margin-top:4px}
+.s-cur.f-sign .badge.sm{font-size:34px;padding:calc(6px + .07em) 12px calc(6px - .07em);border-radius:10px;min-width:0}
+.s-cur.f-sign .cu-leg{font-size:13.5px;margin-top:6px}
+.s-cur.f-sign .lb{font-size:12px;padding:1px 6px}
+.s-cur.f-sign .cu-body{padding-top:16px}
+.s-cur.f-sign .cu-side + .cu-side{margin-top:18px}
+.s-cur.f-sign .cu-sides .cu-side + .cu-side{margin-top:0}
+.s-cur.f-sign .cu-sh{font-size:18px;padding:7px 12px}
+.s-cur.f-sign .cu-ss{font-size:12px;margin-top:3px}
+.s-cur.f-sign .cu-cols{margin-top:8px}
+.s-cur.f-sign .cu-ch{font-size:13.5px;padding:3px 2px;margin-bottom:2px}
+.s-cur.f-sign .cu-ch small{font-size:11px}
+.s-cur.f-sign .ttc li{min-height:27px;padding:2px}
+.s-cur.f-sign .ttc .tm{font-size:15.5px;min-width:44px}
+.s-cur.f-sign .ttc .xn{font-size:11px}
+.s-cur.f-sign .ttc .nt{font-size:10.5px}
+.s-cur.f-sign .ttc li.hr{font-size:13px;min-height:22px}
+.s-cur.f-sign .ttc li.hr b{width:26px}
+.s-cur.f-sign .cu-foot{font-size:10.5px;padding-top:6px;margin-top:8px}
+.s-cur.f-sign .cu-gt{font-size:14px;margin-top:8px}
+.s-cur.f-sign .cu-gt th,.s-cur.f-sign .cu-gt td{padding:7px 4px}
+.s-cur.f-sign .cu-gt small{font-size:10.5px}
+/* מצגת */
+.s-cur.f-deck{padding:44px 64px 50px}
+.s-cur.f-deck .cu-head{padding-bottom:14px}
+.s-cur.f-deck .cu-head h1{font-size:58px}
+.s-cur.f-deck .cu-head .sub{font-size:23px;margin-top:4px}
+.s-cur.f-deck .cu-leg{font-size:26px;gap:12px;margin-top:6px}
+.s-cur.f-deck .cu-leg .lb{font-size:22px;padding:2px 10px}
+.s-cur.f-deck .cu-grid{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:56px;align-content:start;padding-top:12px}
+.s-cur.f-deck .cu-grid li{flex-wrap:nowrap;column-gap:14px}
+.s-cur.f-deck .cu-grid.sz1 li{min-height:74px}
+.s-cur.f-deck .cu-grid.sz1 .tm{font-size:46px}
+.s-cur.f-deck .cu-grid.sz1 .lb{font-size:24px;padding:3px 10px}
+.s-cur.f-deck .cu-grid.sz2 li{min-height:62px}
+.s-cur.f-deck .cu-grid.sz2 .tm{font-size:38px}
+.s-cur.f-deck .cu-grid.sz2 .lb{font-size:20px;padding:2px 9px}
+.s-cur.f-deck .cu-grid.sz3 li{min-height:50px;column-gap:10px}
+.s-cur.f-deck .cu-grid.sz3 .tm{font-size:30px}
+.s-cur.f-deck .cu-grid.sz3 .lb{font-size:16px;padding:2px 7px}
+.s-cur.f-deck .cu-grid .nt{flex-basis:auto;font-size:17px}
+.s-cur.f-deck .cu-hrs{columns:2;column-gap:56px;padding-top:14px;flex:1;min-height:0}
+.s-cur.f-deck .cu-hrs li{break-inside:avoid;font-size:22px;min-height:34px;padding:3px 0}
+.s-cur.f-deck .cu-hrs li b{width:44px;font-size:24px}
+.s-cur.f-deck .cu-gt{font-size:22px;margin-top:22px}
+.s-cur.f-deck .cu-gt th,.s-cur.f-deck .cu-gt td{padding:12px 6px}
+.s-cur.f-deck .cu-gt small{font-size:15px}
+.s-cur.f-deck .cu-gt .lb{font-size:15px;padding:1px 6px}
+/* סטטוס */
+.s-cur.f-status{padding:110px 60px 70px}
+.s-cur.f-status .cu-head{flex-direction:column;align-items:stretch;padding-bottom:22px;gap:14px}
+.s-cur.f-status .cu-head h1{font-size:68px}
+.s-cur.f-status .cu-head .sub{font-size:28px;margin-top:6px}
+.s-cur.f-status .badge.sm{font-size:64px;padding:calc(10px + .07em) 22px calc(10px - .07em);border-radius:16px}
+.s-cur.f-status .cu-leg{font-size:28px;gap:10px}
+.s-cur.f-status .cu-leg .lb{font-size:26px;padding:2px 10px}
+.s-cur.f-status .cu-body{padding-top:26px}
+.s-cur.f-status .cu-sh{font-size:40px;padding:12px 20px}
+.s-cur.f-status .cu-ss{font-size:24px;margin-top:6px}
+.s-cur.f-status .cu-cols{margin-top:14px;gap:22px}
+.s-cur.f-status .cu-ch{font-size:30px;padding:6px 2px}
+.s-cur.f-status .cu-ch small{font-size:22px}
+.s-cur.f-status .ttc li{min-height:58px;padding:4px 2px;column-gap:12px}
+.s-cur.f-status .ttc .tm{font-size:38px}
+.s-cur.f-status .lb{font-size:24px;padding:2px 9px}
+.s-cur.f-status .ttc .xn{font-size:22px}
+.s-cur.f-status .ttc .nt{font-size:22px}
+.s-cur.f-status .ttc li.hr{font-size:30px;min-height:46px}
+.s-cur.f-status .ttc li.hr b{width:52px}
+.s-cur.f-status .cu-foot{font-size:22px;padding-top:14px;margin-top:16px;flex-direction:column;align-items:center;text-align:center}
+.s-cur.f-status .cu-side + .cu-side{margin-top:34px}
+.s-cur.f-status .cu-gt{font-size:28px;margin-top:14px}
+.s-cur.f-status .cu-gt th,.s-cur.f-status .cu-gt td{padding:14px 4px}
+.s-cur.f-status .cu-gt small{font-size:20px}
+.deck[data-look="large"] .s-cur .ttc .tm{font-weight:900}
+.deck[data-look="large"] .s-cur .cu-head .sub,.deck[data-look="large"] .s-cur .cu-foot{color:#000}

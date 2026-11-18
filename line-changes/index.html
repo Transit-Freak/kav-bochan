@@ -66,14 +66,19 @@
     <!-- שלב 1: איזה קו -->
     <section class="panel pane" data-pane="1">
       <button type="button" class="deckbar" id="deckbar" hidden></button>
-      <h2 class="ph">איזה קו?</h2>
-      <p class="hint">מספר קו, רחוב, שכונה, עיר או חברה.</p>
+      <h2 class="ph">מה מכינים?</h2>
+      <div class="seg2 modes" id="modes" role="radiogroup" aria-label="מה מכינים">
+        <button type="button" role="radio" data-mode="chg"><b>הודעה על שינוי</b><small>קו שמשנה מסלול או לו״ז, קו חדש או מבוטל</small></button>
+        <button type="button" role="radio" data-mode="tt"><b>לו״ז עדכני</b><small>כל קו, גם בלי שינוי — להדפסה ולהפצה</small></button>
+      </div>
+      <h2 class="ph" id="qhead">איזה קו?</h2>
+      <p class="hint" id="qhint">מספר קו, רחוב, שכונה, עיר או חברה.</p>
       <div class="searchbox">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>
         <label for="q" class="vh">חיפוש קו</label>
         <input id="q" class="big" type="search" placeholder="למשל 988, הרצל, קרית חב&quot;ד" autocomplete="off" enterkeyhint="search">
       </div>
-      <div class="chiprow">
+      <div class="chiprow" id="chiprow">
         <span class="flabel">שינויים קרובים ב:</span>
         <div class="seg" id="cities" role="group" aria-label="ערים עם שינויים קרובים"></div>
       </div>
@@ -106,14 +111,19 @@
       <div class="group" id="ttgrp" hidden>
         <span class="flabel">לוח הזמנים</span>
         <div class="segs2">
+          <div class="seg2" id="ttcseg" role="radiogroup" aria-label="קווים לאותו יעד" hidden>
+            <button type="button" role="radio" data-ttc="comb"><b>משולב לפי יעד</b><small id="ttcsub">כל השעות לאותו יעד בטבלה אחת</small></button>
+            <button type="button" role="radio" data-ttc="sep"><b>כל קו לחוד</b><small>טבלה נפרדת לכל קו</small></button>
+          </div>
           <div class="seg2" role="radiogroup" aria-label="כמה פרטים">
             <button type="button" role="radio" data-ttv="gen"><b>כללי</b><small>כמה נסיעות, מתי ובאיזו תדירות</small></button>
             <button type="button" role="radio" data-ttv="det"><b>מפורט</b><small>כל שעות היציאה</small></button>
           </div>
-          <div class="seg2" role="radiogroup" aria-label="איך להציג">
+          <div class="seg2" id="ttfseg" role="radiogroup" aria-label="איך להציג">
             <button type="button" role="radio" data-ttf="table"><b>טבלה</b></button>
             <button type="button" role="radio" data-ttf="text"><b>טקסט</b></button>
           </div>
+          <label class="credit-opt" id="ttperw" hidden><input type="checkbox" id="ttper"> <span>גם שקף נפרד לכל קו</span></label>
         </div>
       </div>
       <div class="group">
