@@ -90,7 +90,28 @@ function setBase() {
 }
 setBase();
 L.control.scale({ position: 'bottomright', imperial: false }).addTo(map);
-const rend = L.canvas({ padding: 0.3, tolerance: 6 });
+const TOUCH = matchMedia('(pointer: coarse)').matches;   // בטלפון — נקודה גדולה יותר, קל ללחוץ
+// בטלפון כמעט אי אפשר היה לפגוע באצבע בעיגולי העומס (שלמה 18.11): שטח לחיצה רחב יותר, וכשכמה דברים מתחת
+// לאצבע — העיגול הקרוב ביותר (עיגול קודם לקו הכביש שמתחתיו), ולא מה שצויר אחרון
+const Canvas = L.Canvas.extend({
+  _onClick(e) {
+    const p = this._map.mouseEventToLayerPoint(e), drag = e.type === 'click' || e.type === 'preclick';
+    let best = null, bd = Infinity;
+    for (let o = this._drawFirst; o; o = o.next) {
+      const l = o.layer;
+      if (!l.options.interactive || !l._containsPoint(p) || (drag && this._map._draggableMoved(l))) continue;
+      const d = l instanceof L.CircleMarker ? p.distanceTo(l._point) - l._radius - 1e4 : lineDist(l, p);
+      if (d <= bd) { bd = d; best = l; }
+    }
+    this._fireEvent(best ? [best] : false, e);
+  }
+});
+function lineDist(l, p) {
+  let d = Infinity;
+  for (const pt of l._parts || []) for (let i = 1; i < pt.length; i++) d = Math.min(d, L.LineUtil.pointToSegmentDistance(p, pt[i - 1], pt[i]));
+  return d - (l.options.weight || 0) / 2;
+}
+const rend = new Canvas({ padding: 0.3, tolerance: TOUCH ? 14 : 6 });
 const segG = L.layerGroup().addTo(map), cityG = L.layerGroup().addTo(map), hiG = L.layerGroup().addTo(map);
 const shown = new Map();   // רשומה → קו במפה
 
@@ -216,7 +237,7 @@ async function drawBunch(seq) {
 }
 function styleB(b, m) {
   const p = bpct(b, S.h), c = colBn(p);
-  m.setStyle({ fillColor: c || '#cbd5e1', fillOpacity: c ? .95 : .5, opacity: c ? 1 : .4, radius: c ? 6 : 4 });
+  m.setStyle({ fillColor: c || '#cbd5e1', fillOpacity: c ? .95 : .5, opacity: c ? 1 : .4, radius: c ? (TOUCH ? 7 : 6) : 4 });
 }
 function btip(b) {
   const p = bpct(b, S.h), [n, k] = bhours(b)[S.h];
@@ -288,7 +309,7 @@ async function drawLoad(seq) {
 }
 function styleQ(q, m) {
   const p = qpct(q, S.h), a = qavg(q, S.h), c = colQ(p);
-  m.setStyle({ fillColor: c || '#cbd5e1', fillOpacity: c ? .9 : .5, opacity: c ? 1 : .4, radius: c ? Math.min(14, 4 + 3 * (a || 0)) : 3 });
+  m.setStyle({ fillColor: c || '#cbd5e1', fillOpacity: c ? .9 : .5, opacity: c ? 1 : .4, radius: c ? Math.min(14, (TOUCH ? 5 : 4) + 3 * (a || 0)) : TOUCH ? 4 : 3 });
 }
 function qtip(q) {
   const p = qpct(q, S.h);
@@ -409,8 +430,7 @@ document.addEventListener('change', async e => {
 let GQ = null;
 // שכבה משלה מעל הקווים והעיגולים — אחרת הלחיצה נתפסה בקו הרחוב שמתחת (שלמה 03.11: "לוחץ על האדומים ולא נפתח")
 map.createPane('fake').style.zIndex = 450;
-const frend = L.canvas({ pane: 'fake', padding: 0.3, tolerance: 8 });
-const TOUCH = matchMedia('(pointer: coarse)').matches;   // בטלפון — נקודה גדולה יותר, קל ללחוץ
+const frend = new Canvas({ pane: 'fake', padding: 0.3, tolerance: TOUCH ? 14 : 8 });
 const gdays = new Map(), fakeG = L.layerGroup().addTo(map), fakeSel = L.layerGroup().addTo(map);
 let fakeSeq = 0;
 async function drawFake() {
