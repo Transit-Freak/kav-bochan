@@ -44,11 +44,11 @@
   function after() { return window.LC || document.readyState !== 'loading' ? Promise.resolve() : new Promise(function (res) { document.addEventListener('DOMContentLoaded', res); }); }
   window.LCDeckLoad = function () {
     return dp || (dp = after().then(function () {
-      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=16'), js('editor.js?v=9'), css('leafcss'), css('slidecss')]);
+      return Promise.all([js(LJS, LSRI).catch(function () {}), js('deck.js?v=17'), js('editor.js?v=9'), css('leafcss'), css('slidecss')]);
     }).catch(function (e) { dp = null; throw e; }));
   };
   if (c.length || sp.get('l')) {
-    [[LJS, LSRI], ['deck.js?v=16'], ['editor.js?v=9']].forEach(function (a) {
+    [[LJS, LSRI], ['deck.js?v=17'], ['editor.js?v=9']].forEach(function (a) {
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'script'; l.href = a[0];
       if (a[1]) { l.integrity = a[1]; l.crossOrigin = ''; }
@@ -79,7 +79,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" id="leafcss" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 <link rel="stylesheet" id="slidecss" href="slides.css?v=14" media="print" onload="this.media='all'">
 </head>
 <body data-step="1">
@@ -160,6 +160,7 @@
         <div class="picked" id="picked"></div>
         <button type="button" class="ghost" id="addline">+ להוסיף קו נוסף</button>
       </div>
+      <div class="group infq" id="infq" hidden></div>
       <div class="group" id="kindgrp">
         <span class="flabel">גודל המצגת</span>
         <div class="kinds" id="kinds"></div>
@@ -277,8 +278,8 @@
   </div>
 </footer>
 
-<script src="common.js?v=6"></script>
-<script src="app.js?v=19"></script>
+<script src="common.js?v=7"></script>
+<script src="app.js?v=20"></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>

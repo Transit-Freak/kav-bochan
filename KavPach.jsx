@@ -17,6 +17,8 @@ const { useState, useMemo, useEffect, useCallback, useRef } = React;
 // (Ctrl/אמצעית/לחיצה ארוכה בטלפון). לחיצה רגילה נשארת ניווט בתוך הדף.
 const plainClick = (e) => !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button);
 // לשוניות בקישור: ‎#פח/areas‎ · ‎#מוזהב/allTrips‎ (הלשונית הראשונה — בלי סיומת)
+// שדה סינון פעיל — מסגרת כחולה (סגנון home.css דורס את מחלקות המסגרת של Tailwind)
+const ACTIVE_FILTER_STYLE = { borderColor: '#2563eb', borderWidth: 2 };
 const KP_TABS = ['redundant', 'areas', 'allTrips', 'simulator', 'deadhead', 'about'];
 const GOLD_TABS = ['top', 'areas', 'expand', 'allTrips', 'about'];
 const tabHref = (base, tabs, t) => '#' + base + (t === tabs[0] ? '' : '/' + t);
@@ -2227,6 +2229,11 @@ function KavPach() {
   const [filterDistrict, setFilterDistrict] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [redundantSortBy, setRedundantSortBy] = useState("score");
+  // חיפוש לפי מספר קו / מק"ט (כמה בפסיקים) ולפי חברה מפעילה — לנציגי חברות ולמשרד (שלמה 18.11).
+  // "כל הקווים של החברה" מציג גם קווים יעילים (מתחת לסף הכניסה לרשימה), עם הציון שלהם
+  const [redLine, setRedLine] = useState("");
+  const [redOperator, setRedOperator] = useState("all");
+  const [redAllOfOp, setRedAllOfOp] = useState(true);
   // הגדרות הניקוד של המשתמש (שלמה 07.09: "לבחור מה זה קו טוב") + סינון מספרי
   const [pset, updPset, resetPset, psetDefault] = useStoredSettings('kb-pach-score', PACH_DEFAULTS);
   const [pFilt, setPFilt] = useState({ minScore: null, minWasted: null, maxRiders: null, minTrips: null });
@@ -2937,17 +2944,63 @@ const DAYS_FILTER = [
     if (!trips.length) return [];
     return aggregateLineGroups(trips, costBenchmarkTable);
   }, [trips, costBenchmarkTable, appMode, linesPre]);
-  const redundantLines = useMemo(() => {
+  const redundantLinesAll = useMemo(() => {
     if (appMode !== 'kavpach') return [];
     // הניקוד המוכן (ברירת מחדל, מהשרת) עד שהקבצים הנלווים נטענו; אחר כך — חישוב זהה
     // בדפדפן, שמעדכן אם קובץ נלווה התחדש מאז הבנייה או אם המשתמש שינה הגדרות
     const usePre = linesPre && linesPre.length && psetDefault && depsDone < 3 && lineRecords[0] && lineRecords[0].sc;
     const ctx = { pset, liveOf, overlapMap, dhObs };
-    return lineRecords.map(r => (usePre ? toLine(r, r.sc) : scoreGroup(r, ctx))).filter(l => l.score >= (Number(pset.minScore) || 0)).sort((a, b) => b.score - a.score);
+    return lineRecords.map(r => (usePre ? toLine(r, r.sc) : scoreGroup(r, ctx))).sort((a, b) => b.score - a.score);
   }, [lineRecords, liveOf, overlapMap, pset, appMode, dhObs, linesPre, psetDefault, depsDone]);
+  // allScoredLines — כל הקווים עם ציון; redundantLines — רק מה שעובר את סף הכניסה לרשימה
+  const allScoredLines = redundantLinesAll;
+  const redundantLines = useMemo(() => {
+    const th = Number(pset.minScore) || 0;
+    return allScoredLines.filter(l => l.score >= th);
+  }, [allScoredLines, pset.minScore]);
 
+  const cleanMk = (v) => String(v || '').replace(/^0+/, '').trim();
+  // החברות המפעילות של קו (בדרך כלל אחת) — מהמק"טים שלו
+  const lineOps = useCallback((l) => {
+    const mks = (l.makats && l.makats.length) ? l.makats : [l.makat];
+    return [...new Set(mks.map(mk => operatorOf(mk)).filter(Boolean))];
+  }, [operatorOf]);
+  // החברות לבחירה ברשימת הקווים, עם מספר הקווים של כל אחת
+  const redOperatorOptions = useMemo(() => {
+    if (!liveOps || !allScoredLines.length) return [];
+    const cnt = new Map();
+    allScoredLines.forEach(l => lineOps(l).forEach(op => cnt.set(op, (cnt.get(op) || 0) + 1)));
+    return [...cnt.entries()].map(([name, lines]) => ({ name, lines })).sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  }, [allScoredLines, liveOps, lineOps]);
+  // מק"ט ← הקו (ק"מ שבועי ומבוזבז) — לכרטיסים ולסיכום של אלגוריתם הייעול
+  const lineByMakat = useMemo(() => {
+    const m = new Map();
+    allScoredLines.forEach(l => ((l.makats && l.makats.length) ? l.makats : [l.makat]).forEach(mk => { const k = cleanMk(mk); if (k && !m.has(k)) m.set(k, l); }));
+    return m;
+  }, [allScoredLines]);
+  // ק"מ מבוזבזים בשבוע של הקו (כל הכיוונים) לפי מק"ט; null = אין נתוני ק"מ
+  const wastedOfMakat = useCallback((mk) => {
+    const l = lineByMakat.get(cleanMk(mk));
+    return l && l.totalKm > 0 ? (l.wastedKm || 0) : null;
+  }, [lineByMakat]);
+  const wastedChip = (mk) => {
+    const w = wastedOfMakat(mk);
+    return (
+      <span className="text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 px-2 py-1 rounded-md" title='ק"מ בנסיעות עם מעט נוסעים, בכל הקו (שני הכיוונים)'>
+        ק&quot;מ מבוזבזים בקו: {w == null ? '—' : `${w.toLocaleString()} בשבוע`}
+      </span>
+    );
+  };
+
+  const redLineVals = useMemo(() => redLine.split(',').map(cleanMk).filter(Boolean), [redLine]);
+  const redShowAll = redAllOfOp && (redOperator !== "all" || redLineVals.length > 0);
   const filteredRedundant = useMemo(() => {
-    let result = [...redundantLines];
+    let result = [...(redShowAll ? allScoredLines : redundantLines)];
+    if (redLineVals.length) {
+      result = result.filter(r => redLineVals.includes(cleanMk(r.lineNum)) ||
+        ((r.makats && r.makats.length) ? r.makats : [r.makat]).some(mk => redLineVals.includes(cleanMk(mk))));
+    }
+    if (redOperator !== "all") result = result.filter(r => lineOps(r).includes(redOperator));
     // קישור עמוק לקו בודד — מסנן אליו בלבד עד שהמשתמש מנקה
     if (focusMakat) {
       const fm = String(focusMakat).replace(/^0+/, '').trim();
@@ -2985,7 +3038,7 @@ const DAYS_FILTER = [
     });
 
     return result;
-  }, [redundantLines, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt]);
+  }, [redundantLines, allScoredLines, redShowAll, redLineVals, redOperator, lineOps, searchCity, filterDistrict, filterCategory, lineCitiesMap, redundantSortBy, focusMakat, pFilt]);
 
   useEffect(() => { setVisibleLineCount(30); }, [filteredRedundant]);
 
@@ -3057,6 +3110,49 @@ const DAYS_FILTER = [
     // מיון לפי ציון — הקווים שהכרטיס האזורי ספר (80+) מופיעים ראשונים
     setRedundantSortBy("score");
     setTab("redundant");
+  };
+
+  // סיכום הרשימה המסוננת: ק"מ שבועי וק"מ מבוזבז (רק קווים עם נתוני ק"מ)
+  const redSummary = useMemo(() => {
+    let km = 0, wasted = 0;
+    filteredRedundant.forEach(l => { if (l.totalKm > 0) { km += l.totalKm; wasted += l.wastedKm || 0; } });
+    return { lines: filteredRedundant.length, km, wasted, pct: km > 0 ? wasted / km * 100 : null };
+  }, [filteredRedundant]);
+  // כותרת הסיכום ושם הקובץ — לפי הסינון שנבחר
+  const redFilterParts = () => [
+    redOperator !== "all" ? redOperator : '',
+    searchCity || '',
+    filterDistrict !== "all" ? filterDistrict : '',
+    filterCategory !== "all" ? filterCategory : '',
+    redLineVals.length ? `קו ${redLineVals.join(', ')}` : '',
+  ].filter(Boolean);
+
+  const exportRedundantToExcel = async () => {
+    if (!filteredRedundant.length) return;
+    await loadXLSX();
+    const pctOf = (l) => (l.totalKm > 0 ? Math.round((l.wastedKm || 0) / l.totalKm * 1000) / 10 : '—');
+    const exportData = filteredRedundant.map(l => {
+      const mks = (l.makats && l.makats.length) ? l.makats : [l.makat];
+      return {
+        'מספר קו': l.lineNum,
+        'מק"ט': mks.map(cleanMk).filter(Boolean).join(', '),
+        'חברה מפעילה': lineOps(l).join(', ') || '—',
+        'מוצא – יעד': `${l.origin} – ${l.dest}`,
+        'מחוז': l.district,
+        'קטגוריה': l.category,
+        'ק"מ בשבוע': l.totalKm > 0 ? l.totalKm : '—',
+        'ק"מ מבוזבזים בשבוע': l.totalKm > 0 ? (l.wastedKm || 0) : '—',
+        'אחוז מבוזבז': pctOf(l),
+        'ציון אי-יעילות': l.score,
+      };
+    });
+    const ws = window.XLSX.utils.json_to_sheet(exportData);
+    if (!ws['!views']) ws['!views'] = [];
+    ws['!views'].push({ rightToLeft: true });
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, "קווים");
+    const parts = redFilterParts().map(v => String(v).replace(/,\s*/g, '-').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim());
+    window.XLSX.writeFile(wb, parts.length ? `קו_פח_${parts.join('_')}.xlsx` : 'קו_פח_קווים_לא_יעילים.xlsx');
   };
 
   const exportAreaToExcel = async (areaName, viewMode) => {
@@ -3434,6 +3530,12 @@ const DAYS_FILTER = [
     await loadXLSX();
     const dataToExport = showAllTripsInSimulator ? optimizations : optimizations.filter(o => o.type !== 'ok');
     const exportData = dataToExport.map(opt => {
+      const w = wastedOfMakat(opt.makat);
+      const row = exportOptRow(opt);
+      row['ק"מ מבוזבזים בקו בשבוע'] = w == null ? '—' : w;
+      return row;
+    });
+    function exportOptRow(opt) {
       const metricName = opt.usedMetric === 'peakLoad' ? 'עומס שיא' : 'נוסעים';
       if (opt.type === 'merge') {
         return { 'מספר קו': opt.line, 'סוג קו': opt.categoryLabel, 'סוג רכב': opt.busSize, 'מוצא': opt.origin, 'יעד': opt.dest, 'כיוון': opt.direction, 'ימי פעילות': opt.days, 'פעולה מומלצת': 'איחוד נסיעות', 'שעות מקוריות': `${opt.from}, ${opt.to}`, 'שעה מוצעת (חדשה)': opt.suggestedTime, 'מדד (נוסעים / עומס)': `סה"כ ${metricName}: ${opt.total} (נסיעה 1: ${opt.val1}, נסיעה 2: ${opt.val2})`, 'הערות': opt.gap === 0 ? 'שתי יציאות באותה דקה — איחוד לרכב אחד' : `איחוד 2 נסיעות בהפרש של ${opt.gap} דקות` };
@@ -3442,7 +3544,7 @@ const DAYS_FILTER = [
       } else {
          return { 'מספר קו': opt.line, 'סוג קו': opt.categoryLabel, 'סוג רכב': opt.busSize, 'מוצא': opt.origin, 'יעד': opt.dest, 'כיוון': opt.direction, 'ימי פעילות': opt.days, 'פעולה מומלצת': 'ללא שינוי (תקין)', 'שעות מקוריות': opt.time, 'שעה מוצעת (חדשה)': opt.time, 'מדד (נוסעים / עומס)': `${metricName}: ${opt.metricVal}`, 'הערות': 'נסיעה תקינה שעומדת בתנאי' };
       }
-    });
+    }
     const ws = window.XLSX.utils.json_to_sheet(exportData);
     if(!ws['!views']) ws['!views'] = [];
     ws['!views'].push({ rightToLeft: true });
@@ -3710,34 +3812,53 @@ const DAYS_FILTER = [
                     <h2 className="text-2xl font-black text-slate-900">הקווים הכי לא יעילים</h2>
                     <p className="text-slate-500 font-bold">דירוג המציג את הקווים החלשים ביותר במערכת, לצורך בחינה וייעול</p>
                   </div>
-                  <div className="flex flex-col md:flex-row gap-3 relative w-full xl:w-auto">
-                    <select aria-label="סינון לפי מחוז" 
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 relative w-full xl:w-[52rem] shrink-0 items-center">
+                    <select aria-label="מיון הרשימה"
                       value={redundantSortBy} 
                       onChange={e => setRedundantSortBy(e.target.value)} 
-                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-56 appearance-none cursor-pointer"
+                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full appearance-none cursor-pointer"
                     >
                       <option value="score">מיון: לפי אי-יעילות</option>
                       <option value="wastedKm">מיון: ק&quot;מ מבוזבז (גבוה לנמוך)</option>
                       <option value="cost">מיון: עלות לנוסע (גבוהה לנמוכה)</option>
                       <option value="count">מיון: כמות נסיעות בשבוע</option>
                     </select>
-                    <select aria-label="סינון לפי קטגוריה" 
+                    <input type="text" aria-label="מספר קו או מק״ט" title="אפשר כמה קווים או מק״טים, מופרדים בפסיקים"
+                      value={redLine}
+                      onChange={e => setRedLine(e.target.value)}
+                      placeholder="מספר קו / מק״ט"
+                      className="bg-slate-50 border-2 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full border-slate-200"
+                      style={redLine.trim() ? ACTIVE_FILTER_STYLE : undefined}
+                    />
+                    {redOperatorOptions.length > 0 && (
+                      <select aria-label="חברה מפעילה"
+                        value={redOperator}
+                        onChange={e => setRedOperator(e.target.value)}
+                        className="bg-slate-50 border-2 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full appearance-none cursor-pointer border-slate-200"
+                        style={redOperator !== "all" ? ACTIVE_FILTER_STYLE : undefined}
+                      >
+                        <option value="all">כל החברות המפעילות</option>
+                        {redOperator !== "all" && !redOperatorOptions.some(o => o.name === redOperator) && <option value={redOperator}>{redOperator}</option>}
+                        {redOperatorOptions.map(o => <option key={`rop-${o.name}`} value={o.name}>{o.name} ({o.lines})</option>)}
+                      </select>
+                    )}
+                    <select aria-label="סינון לפי מחוז"
                       value={filterDistrict} 
                       onChange={e => setFilterDistrict(e.target.value)} 
-                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-48 appearance-none cursor-pointer"
+                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full appearance-none cursor-pointer"
                     >
                       <option value="all">כל המחוזות</option>
                       {allDistricts.map(d => <option key={`dist-${d}`} value={d}>{d}</option>)}
                     </select>
-                    <select aria-label="מיון הרשימה"
+                    <select aria-label="סינון לפי קטגוריה"
                       value={filterCategory}
                       onChange={e => setFilterCategory(e.target.value)}
-                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full md:w-56 appearance-none cursor-pointer"
+                      className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full appearance-none cursor-pointer"
                     >
                       <option value="all">כל הקטגוריות</option>
                       {CATEGORIES.map(c => <option key={`cat-${c}`} value={c}>{c}</option>)}
                     </select>
-                    <div className="flex relative w-full xl:w-64">
+                    <div className="flex relative w-full">
                       <SearchInput
                         value={searchCity} 
                         onSubmit={setSearchCity} 
@@ -3745,8 +3866,41 @@ const DAYS_FILTER = [
                         className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-3 pl-12 font-black outline-none focus:border-slate-900 text-right shadow-sm w-full"
                       />
                     </div>
+                    {(redOperator !== "all" || redLineVals.length > 0) && (
+                      <label className="md:col-span-2 inline-flex items-center gap-2 text-sm font-black text-slate-700 cursor-pointer px-1">
+                        <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={redAllOfOp} onChange={e => setRedAllOfOp(e.target.checked)} />
+                        {redOperator !== "all" ? 'כל הקווים של החברה, גם יעילים' : 'גם אם הקו יעיל'}
+                      </label>
+                    )}
                   </div>
                 </div>
+
+                {/* סיכום הרשימה המסוננת וייצוא לאקסל — לנציגי חברות ולמשרד (שלמה 18.11) */}
+                {filteredRedundant.length > 0 && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-[2rem] px-6 py-4 flex flex-col lg:flex-row lg:items-center gap-4">
+                    <div className="text-base font-black text-slate-900 lg:max-w-xs">
+                      {(() => { const p = redFilterParts(); return p.length ? p.join(' · ') : 'כל הקווים ברשימה'; })()}
+                      {redShowAll && <span className="block text-xs font-bold text-slate-500 mt-0.5">כולל קווים יעילים</span>}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+                      {[
+                        { v: redSummary.lines.toLocaleString(), l: redSummary.lines === 1 ? 'קו' : 'קווים' },
+                        { v: redSummary.km > 0 ? Math.round(redSummary.km).toLocaleString() : '—', l: 'ק"מ בשבוע' },
+                        { v: redSummary.km > 0 ? Math.round(redSummary.wasted).toLocaleString() : '—', l: 'ק"מ מבוזבזים בשבוע' },
+                        { v: redSummary.pct != null ? `${redSummary.pct.toFixed(1)}%` : '—', l: 'מבוזבז' },
+                      ].map(c => (
+                        <div key={c.l} className="text-center">
+                          <div className="text-xl font-black text-rose-700 tabular-nums" dir="ltr">{c.v}</div>
+                          <div className="text-xs font-bold text-slate-500">{c.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <button type="button" onClick={exportRedundantToExcel}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-2xl px-5 py-3 shadow-sm self-stretch lg:self-auto">
+                      ייצוא לאקסל
+                    </button>
+                  </div>
+                )}
 
                 {/* מה נחשב קו לא יעיל — לבחירת המשתמש (שלמה 07.09) */}
                 <ScoreSettingsPanel
@@ -3985,11 +4139,11 @@ const DAYS_FILTER = [
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-slate-700 font-bold">ק&quot;מ לא מבוזבז (שימושי)</span>
-                            <span className="font-black text-emerald-700">{res.nonWastedKm.toLocaleString()} ק&quot;מ</span>
+                            <span className="font-black text-emerald-700">{res.totalKm > 0 ? `${res.nonWastedKm.toLocaleString()} ק"מ` : '—'}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-slate-600 font-bold">ק&quot;מ מבוזבז (נסיעות סרק)</span>
-                            <span className="font-black text-rose-600">{res.wastedKm.toLocaleString()} ק&quot;מ</span>
+                            <span className="font-black text-rose-600">{res.totalKm > 0 ? `${res.wastedKm.toLocaleString()} ק"מ` : '—'}</span>
                           </div>
                           {res.annualExcess > 0 && !(res.live && res.live.rm) && (
                             <div className="text-sm bg-rose-50 rounded-xl px-3 py-2 border border-rose-100">
@@ -4627,18 +4781,28 @@ const DAYS_FILTER = [
                   const cancels = optimizations.filter(o => o.type === 'cancel');
                   const merges = optimizations.filter(o => o.type === 'merge');
                   const km = Math.round([...cancels, ...merges].reduce((a, o) => a + (o.km || 0), 0));
+                  // ק"מ מבוזבזים בשבוע — כל קו פעם אחת (קו עם שני כיוונים = מק"ט אחד או שניים, אותו קו)
+                  const seenLines = new Set();
+                  let wasted = 0, hasWasted = false;
+                  optimizations.forEach(o => {
+                    const l = lineByMakat.get(cleanMk(o.makat));
+                    if (!l || seenLines.has(l.groupKey)) return;
+                    seenLines.add(l.groupKey);
+                    if (l.totalKm > 0) { wasted += l.wastedKm || 0; hasWasted = true; }
+                  });
                   const cells = [
                     { v: lines.toLocaleString(), l: lines === 1 ? 'קו נבדק' : 'קווים נבדקו' },
                     { v: cancels.length.toLocaleString(), l: 'נסיעות לביטול' },
                     { v: merges.length.toLocaleString(), l: 'איחודי נסיעות' },
                     { v: km.toLocaleString(), l: 'ק"מ בשבוע נחסכים' },
+                    { v: hasWasted ? Math.round(wasted).toLocaleString() : '—', l: 'ק"מ מבוזבזים בשבוע' },
                   ];
                   return (
                     <div className="mb-6 bg-teal-50 border border-teal-200 rounded-2xl p-4">
                       <div className="text-sm font-black text-teal-900 mb-3">
                         {optRunInfo.operator}{optRunInfo.city !== "all" ? ` · ${optRunInfo.city}` : ''}
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         {cells.map(c => (
                           <div key={c.l} className="bg-white rounded-xl px-3 py-2 border border-teal-100">
                             <div className="text-xl font-black text-slate-900 tabular-nums">{c.v}</div>
@@ -4688,6 +4852,7 @@ const DAYS_FILTER = [
                               {renderTransitChip(opt.origin, opt.dest)}
                               <span className="text-[11px] font-black bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md">מומלצת לאיחוד</span>
                               <span className="text-[11px] font-black bg-sky-100 text-sky-700 px-2 py-1 rounded-md">כיוון {opt.direction}</span>
+                              {wastedChip(opt.makat)}
                               <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{opt.busSize}</span>
                             </div>
                           </div>
@@ -4735,6 +4900,7 @@ const DAYS_FILTER = [
                                 חשד לנסיעה מיותרת
                               </span>
                               <span className="text-[11px] font-black bg-sky-100 text-sky-700 px-2 py-1 rounded-md">כיוון {opt.direction}</span>
+                              {wastedChip(opt.makat)}
                               <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{opt.busSize}</span>
                             </div>
                           </div>
@@ -4778,6 +4944,7 @@ const DAYS_FILTER = [
                               {renderTransitChip(opt.origin, opt.dest)}
                               <span className="text-[11px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md">נסיעה תקינה (ללא שינוי)</span>
                               <span className="text-[11px] font-black bg-sky-100 text-sky-700 px-2 py-1 rounded-md">כיוון {opt.direction}</span>
+                              {wastedChip(opt.makat)}
                               <span className="text-[11px] font-black bg-purple-100 text-purple-700 px-2 py-1 rounded-md">{opt.busSize}</span>
                             </div>
                           </div>
