@@ -272,6 +272,9 @@ details.group summary span{font-weight:600;color:var(--sub)}
 .foot .in{padding-block:var(--sp4) var(--sp5);display:flex;flex-direction:column;gap:6px}
 .foot b{color:var(--ink-fg)}
 
+.imgmsg{position:fixed;inset-inline:16px;bottom:88px;z-index:1200;margin:0 auto;max-width:420px;background:var(--ink);color:#fff;font-weight:700;font-size:15px;
+  border-radius:var(--r2);padding:var(--sp3) var(--sp4);text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.imgmsg:empty{display:none}
 @media print{
   .top,.steps,.desk,.dock,.foot,.stagehead,.ebar,.addslide,.offmsg,.toolong-msg,.etb{display:none!important}
   /* רכיבים משותפים של האתר (גרסה, נגישות, חזרה לאתר, זכויות) — לא בהדפסה */

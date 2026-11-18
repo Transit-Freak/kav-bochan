@@ -24,8 +24,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=15">
-<link rel="stylesheet" href="slides.css?v=11">
+<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="slides.css?v=12">
 </head>
 <body data-step="1">
 <header class="top noprint">
@@ -146,7 +146,7 @@
       </div>
       <div class="group editgrp">
         <span class="flabel">הטקסט</span>
-        <p class="hint">הטקסט נוצר אוטומטית מהנתונים. במצב עריכה לוחצים על כל טקסט בשקף כדי לשנות, למחוק או להוסיף שורה; אפשר גם להוסיף תיבת טקסט או שקף שלם.</p>
+        <p class="hint">הטקסט נוצר אוטומטית מהנתונים. במצב עריכה לוחצים על כל טקסט בשקף כדי לשנות, למחוק או להוסיף שורה; אפשר גם להוסיף תיבת טקסט, תמונה (מהקובץ, או הדבקה עם Ctrl+V) או שקף שלם. התמונות נשארות אצלכם ולא עולות לשום מקום.</p>
         <div class="row2">
           <button type="button" class="btn2" id="editbtn" aria-pressed="false">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
@@ -176,6 +176,7 @@
     <div class="stagehead noprint"><h2 id="stagetitle">תצוגה מקדימה</h2><span id="pcount"></span></div>
     <p class="edithint noprint">מצב עריכה: לוחצים על טקסט בשקף כדי לשנות אותו. בטלפון אפשר להגדיל את השקף עם שתי אצבעות.</p>
     <div class="deck" id="deck"></div>
+    <p class="imgmsg noprint" id="imgmsg" role="status" aria-live="polite"></p>
   </main>
 </div>
 
@@ -205,8 +206,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="common.js?v=6"></script>
 <script src="deck.js?v=13"></script>
-<script src="editor.js?v=6"></script>
-<script src="app.js?v=13"></script>
+<script src="editor.js?v=7"></script>
+<script src="app.js?v=14"></script>
 <script src="../a11y.js" defer></script>
 </body>
 </html>
