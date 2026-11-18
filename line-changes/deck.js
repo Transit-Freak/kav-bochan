@@ -242,6 +242,11 @@ var LCDeck = (function () {
     var bi = 0, bd = Infinity;
     S.forEach(function (p, i) { var x = dist(p, g.A.ll); if (x < bd) { bd = x; bi = i; } });
     for (var i = bi; i < S.length; i++) if (distToLine(xy(S[i], lat0), oxy) > 40) return S[Math.max(bi, i - 1)];
+    // המסלול החדש לא יוצא מהישן (למשל קו 999 ב-17.11: הישן נכנס לרכסים, והחדש פשוט נשאר על הכביש הראשי) —
+    // המקום שבו הישן נפרד מהחדש
+    var sxy = S.map(function (p) { return xy(p, lat0); }), oi = 0, od = Infinity;
+    O.forEach(function (p, j) { var x = dist(p, g.A.ll); if (x < od) { od = x; oi = j; } });
+    for (var j = oi; j < O.length; j++) if (distToLine(xy(O[j], lat0), sxy) > 40) return O[Math.max(oi, j - 1)];
     return g.A.ll;
   }
   function runLen(r) { var m = 0; for (var i = 1; i < r.length; i++) m += dist(r[i - 1], r[i]); return m; }
@@ -2430,7 +2435,9 @@ var LCDeck = (function () {
     var all = L.latLngBounds([]), focus = L.latLngBounds([]);
     d.old.shape.forEach(function (p) { all.extend(p); });
     d.new.shape.forEach(function (p) { all.extend(p); });
-    marks.forEach(function (x) { focus.extend(x.s.ll); });
+    // סמן של מקטע (①) נכנס לגבולות רק אם הוא ליד תחנה שמשתנה — סמן רחוק לא מרחיק את המפה מהשינוי
+    var stopLL = marks.filter(function (x) { return x.k !== 'seg'; }).map(function (x) { return x.s.ll; });
+    marks.forEach(function (x) { if (x.k !== 'seg' || !stopLL.length || stopLL.some(function (c) { return dist(c, x.s.ll) < 2500; })) focus.extend(x.s.ll); });
     // שינוי קטן: גם התחנות שלפני ואחרי, והתחנה הקרובה — עם שמות על המפה, כדי שיהיה ברור איפה זה
     var labels = [];
     if ((m.one || small(d)) && !m.show) {
