@@ -2270,27 +2270,33 @@ var LCDeck = (function () {
     // שלטים מפורטים (מפה ותחנות) — לשינויי מסלול, קווים חדשים ומבוטלים, עד SIGN_LINES קווים
     var tts = pages.filter(function (p) { return p.kind === 'timetable' && ttCap(p); });
     var det = pages.filter(function (p) { return p.kind !== 'timetable'; });
-    var lines = []; det.forEach(function (p) { if (lines.indexOf(p.line) < 0) lines.push(p.line); });
-    var keep = lines.slice(0, SIGN_LINES), more = lines.length - keep.length;
+    // אותו שינוי בכמה קווים (units) — שלט אחד, ונספר פעם אחת מתוך SIGN_LINES
+    var us = units(det), ku = us.slice(0, SIGN_LINES), keepIds = {};
+    ku.forEach(function (u) { u.all.forEach(function (p) { keepIds[p.id] = 1; }); });
+    var keep = ku, more = us.length - ku.length;
     // שורה בעמוד "מה משתנה" — רק לקווים שאין להם שלט מפורט ואינם בטבלת הלו"ז
-    var rest = det.filter(function (p) { return keep.indexOf(p.line) < 0; });
+    var rest = det.filter(function (p) { return !keepIds[p.id]; });
     var sum = rest.length ? sumSign(rest, 0) : [], tab = tts.length ? mtSlides(tts, 'sign') : [];
-    var dpages = signPages(det.filter(function (p) { return keep.indexOf(p.line) >= 0; }), feed);
+    var dpages = signPages(det.filter(function (p) { return keepIds[p.id]; }), feed);
     var short = sum.concat(tab, dpages);
     SIGN_INFO = { full: full.length, limited: ED.a4full !== true, short: short.length, more: more,
-      parts: { sum: sum.length, tt: tab.length, det: dpages.length, ttLines: tts.length, detLines: keep.length, sumLines: rest.length } };
+      parts: { sum: sum.length, tt: tab.length, det: dpages.length, ttLines: tts.length,
+        detLines: ku.reduce(function (n, u) { return n + u.all.length; }, 0), detUnits: ku.length, sumLines: rest.length } };
     return ED.a4full === true ? full : short;
   }
   function sumSign(pages, more) {
-    var per = 8, out = [], n = Math.ceil(pages.length / per);
+    // אותו שינוי בכמה קווים — שורה אחת עם כל מספרי הקווים
+    var us = units(pages), per = 8, out = [], n = Math.ceil(us.length / per);
     for (var i = 0; i < n; i++) {
-      var ps = pages.slice(i * per, (i + 1) * per);
+      var ps = us.slice(i * per, (i + 1) * per);
       out.push({ id: 'sg-sum' + i, label: 'שלט · מה משתנה' + (n > 1 ? ' (' + (i + 1) + '/' + n + ')' : ''),
         html: '<div class="s-sign s-sgsum"><div class="sg-band"><div class="sg-row" style="padding-top:14px"><div class="t"><h1 class="hd">מה משתנה בקווים</h1><p class="sub">' +
           E(linesTxt(pages) + ' · ' + mtWhen(pages)) + (n > 1 ? ' · ' + (i + 1) + '/' + n : '') + '</p></div></div><div class="seam"><i></i></div></div>' +
-          '<ul class="sm-rows" style="margin:12px 40px 0">' + ps.map(function (p) {
-            return '<li><span class="badge sm num">' + E(p.line) + '</span><div class="sm-t"><div class="sm-h">' + LC.chips(p.kind ? { kind: p.kind } : p.tot || {}).replace(/^(<span class="chip[^"]*">[^<]*<\/span>)[\s\S]*$/, '$1') +
-              '<span class="sm-od">' + E(odTxt(p)) + '</span></div><p>' + sumLine(p) + '</p></div></li>';
+          '<ul class="sm-rows" style="margin:12px 40px 0">' + ps.map(function (u) {
+            var p = u.p, many = u.all.length > 1;
+            return '<li><span class="badges" style="display:flex;flex-wrap:wrap;gap:4px;max-width:180px">' + u.all.map(function (x) { return '<span class="badge sm num">' + E(x.line) + '</span>'; }).join('') + '</span>' +
+              '<div class="sm-t"><div class="sm-h">' + LC.chips(p.kind ? { kind: p.kind } : p.tot || {}).replace(/^(<span class="chip[^"]*">[^<]*<\/span>)[\s\S]*$/, '$1') +
+              '<span class="sm-od">' + E(many ? 'אותו שינוי ב-' + u.all.length + ' קווים' : odTxt(p)) + '</span></div><p>' + (many ? plu(sumLine(p).replace(/^<b>(בנסיעה|בקו)[^<]*<\/b>, /, '')) : sumLine(p)) + '</p></div></li>';
           }).join('') + '</ul>' +
           (i === n - 1 ? '<p style="margin:14px 40px 0;font-size:20px;font-weight:700">הפרטים המלאים של הקווים האלה — במצגת.</p>' : '') +
           signFoot(null, false) + '</div>' });

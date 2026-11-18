@@ -917,7 +917,7 @@
     el.innerHTML = si.limited
       ? 'השלט היה יוצא ארוך — ' + si.full + ' עמודים. הכנו גרסה מקוצרת של ' + si.short + ' עמודים: ' +
         [pt.ttLines ? 'טבלת לוח הזמנים של ' + pt.ttLines + ' קווים (' + pt.tt + ' עמ׳)' : '',
-         pt.detLines ? 'שלט מפורט ל-' + pt.detLines + ' קווים עם שינוי מסלול, קו חדש או מבוטל (' + pt.det + ' עמ׳)' : '',
+         pt.detLines ? 'שלט מפורט ל-' + (pt.detUnits && pt.detUnits < pt.detLines ? pt.detUnits + ' שינויים ב-' + pt.detLines + ' קווים' : pt.detLines + ' קווים') + ' עם שינוי מסלול, קו חדש או מבוטל (' + pt.det + ' עמ׳)' : '',
          pt.sumLines ? 'שורה קצרה לעוד ' + pt.sumLines + ' קווים (' + pt.sum + ' עמ׳; הפרטים — במצגת)' : ''].filter(Boolean).join(' · ') +
         '. <button type="button" class="lnk" data-a4="full">להציג את כל ' + si.full + ' העמודים</button>'
       : 'השלט ארוך — ' + si.full + ' עמודים. <button type="button" class="lnk" data-a4="short">לגרסה המקוצרת (' + si.short + ' עמודים)</button>';
