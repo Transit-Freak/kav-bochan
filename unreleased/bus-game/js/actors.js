@@ -1779,6 +1779,13 @@ reachPreview(pid, hasCard = true) {
     for (let i = this.walkers.length - 1; i >= 0; i--) {
       const w = this.walkers[i];
       if (w.mode === 'ride') { this.riding(w, i, simDt, busLayer); continue; }
+      // במבט הפקח: מי שקם מהמושב לא קם אל המעבר כשהפקח צמוד אליו (פחות מ-75 ס"מ) — נשאר בישיבה עד שהפקח מתרחק, והפקח
+      // מפנה לו את הדרך (inspfp.js, fpBlock). קודם הוא קם לתוך המצלמה (בירידה של הפקח בבין-עירוני)
+      if (w.rise && w.rise.t < 0.05 && this.fpEye && this.onboard && w.bus === this.onboard.bus) {
+        const P = w.obj.getWorldPosition(new THREE.Vector3());
+        if (Math.hypot(this.fpEye.x - P.x, this.fpEye.z - P.z) < 0.75) { w.fpHold = true; w.waitFP = (w.waitFP || 0) + simDt; this.fpBlock = w; this.rising(w, 0); continue; }
+      }
+      w.fpHold = false;
       if (w.rise && this.rising(w, simDt)) continue;
       const lastSeg = w.seg === w.pts.length - 2 && w.d >= w.lens[w.seg];
       // מעבר: הגיע לתחנה הבאה לפני שהסימולציה הכניסה אותו לתור — עומד ומחכה (עד 20 שנ')
