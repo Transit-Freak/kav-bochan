@@ -599,6 +599,9 @@ const dfetch = async (p, tries = 2) => {
 // בארכיון של 2020 הצילומים יומיים והתאריך מדויק; ב-2017 הם במרחק שבועיים,
 // ואז יום מדויק הוא המצאה — במקרה כזה נכתב החודש בלבד. (בקשת המשתמש.)
 function evDate(v) {
+  // נתוני משרד התחבורה (חופש מידע): התאריך נגזר מהנסיעה האחרונה של המסלול הקודם — מוצג בדיוק של חודש, או שנה בלבד
+  if (v.ap === "y") return { txt: v.d.slice(0, 4), exact: false, tip: "לפי נתוני משרד התחבורה (חופש מידע) — ידועה רק השנה" };
+  if (v.ap === "m") return { txt: fmtM(v.d), exact: false, tip: (v.sd ? "בערך ב-" + fmtD(v.d) + ", יום אחרי הנסיעה האחרונה במסלול הקודם (" + fmtD(v.sd) + ")" : "בערך ב-" + fmtD(v.d)) + " — לפי נתוני משרד התחבורה (חופש מידע)" };
   const sd = v.sd || (/(\d{4}-\d{2}-\d{2}) ל-(\d{4}-\d{2}-\d{2})/.exec(v.note || "") || [])[1];
   if (!sd || sd === v.d) return { txt: fmtD(v.d), exact: true };
   const g = gapDays(sd, v.d);
@@ -3543,6 +3546,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              {x.foiD && <div className="evnote">לפי נתוני משרד התחבורה (חופש מידע) השינוי נכנס בערך ב-{fmtD(x.foiD)}.</div>}
               <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
@@ -3911,6 +3915,7 @@ function LinePage({ rd, lineGone, sibs, onSwitch, onBack, initDate, initCats, li
               </div>
               {/* מאיפה האירוע הזה הגיע. ההערות אמרו "מארכיון הפיד הארצי"
                   בלי לנקוב בשם, ואי אפשר היה לדעת מה נמדד ומי מדד. */}
+              {x.foiD && <div className="evnote">לפי נתוני משרד התחבורה (חופש מידע) השינוי נכנס בערך ב-{fmtD(x.foiD)}.</div>}
               <div className="evsrc">{x.k === "vehicle" ? SRC_LABEL.rishui : x.k === "ltype" ? SRC_LABEL.ctl : (SRC_LABEL[x.src] || SRC_LABEL._daily)}</div>
               {/* שינוי שתוכנן ולא נכנס לתוקף: מה קרה בסוף, שני התאריכים (מתי היה
                   אמור להיכנס, מתי ירד), ומה התוכנית הייתה משנה — במקום מספר
@@ -4583,7 +4588,7 @@ function DayFeed({ idx, openLine, open12, onBack, kats, embedded, mode = "lines"
                       <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                       <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
                     </>}
-                    {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
+                    {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note && withNote ? <span className="lnote">{noteFix(c.note)}</span> : null}
                   </a>
@@ -4747,7 +4752,7 @@ function RecentChanges({ idx, openLine, onAll, lite }) {
                 <span className="k" style={{ background: (KINDS[evKind(c)] || {}).color || "#64748b" }}>{(KINDS[evKind(c)] || { label: c.k }).label}</span>
                 <span className="ldest">{m.dest || (idx ? rdTxt(c.rd) : "…")}</span>
                 <span className="lmeta">{m.op || ""}{mkTag(c.rd)}</span>
-                {c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
+                {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <TipTag cls="approxd" tip={"אותר בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag> : null}
                     {c.k === "planned-dropped" && c.ps ? <span className="lnote">📅 תוכנן ל-{fmtD(c.ps)} · בוטל ב-{fmtD(c.pc || c.d)}</span> : null}
                     {c.note ? <span className="lnote">{noteFix(c.note)}</span> : null}
               </a>
@@ -5215,7 +5220,7 @@ function StopsTab({ sel, selN, idx, openLine }) {
                   <span className="meta">
                     {one && c.t ? c.t + " · " : ""}{c.b12 ? <span title="השוואה בין רישום התחנות של 2012 לרישום הראשון שיש לנו, ממרץ 2017 — המועד המדויק לא ידוע">בין 2012 ל-2017</span> : fmtD(c.d)}
                     {/* אירועי 2015–2017 מצילומי אופן באס (src=ob): בין צילומים רחוקים היום המדויק לא ידוע */}
-                    {c.sd && gapDays(c.sd, c.d) > 3 ? <> <TipTag cls="approxd" tip={"השתנה בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag></> : null}
+                    {c.ap ? <TipTag cls="approxd" tip={"בערך — לפי נתוני משרד התחבורה (חופש מידע)"}>≈ תאריך מקורב</TipTag> : c.sd && gapDays(c.sd, c.d) > 3 ? <> <TipTag cls="approxd" tip={"השתנה בין " + fmtD(c.sd) + " ל-" + fmtD(c.d) + " — היום המדויק אינו ידוע"}>≈ תאריך מקורב</TipTag></> : null}
                     {/* בלי המיקום הקודם השורה יצאה "הוזזה מ׳ · (, ) ← (…)" —
                         חצים ריקים משני הצדדים. כשהוא חסר מוצג היעד בלבד. */}
                     {/* dir=ltr על זוג הקואורדינטות: בטקסט עברי הפסיק והרווח
@@ -5671,6 +5676,7 @@ const SRC_LABEL = {
   websiteArchive: "מקור: אתר מידע לנוסעים שנשמר ב־Internet Archive. כיסוי חלקי; צילום אינו הודעת שינוי.",
   miu12: "מקור: ארכיון מרחב ו־Internet Archive.",
   obusOld: "מקור: ארכיון אוטובוס פתוח / הסדנא לידע ציבורי.",
+  "mot-foi": "מקור: משרד התחבורה (חופש מידע) — קובץ \"מסלול לפי שנים\" 2013–2017. התאריך משוער: יום אחרי הנסיעה האחרונה במסלול הקודם.",
   tf: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
   tf17: "מקור: ארכיון TransitFeeds / OpenMobilityData.",
   ob: "מקור: ארכיון הסדנא לידע ציבורי (Open Bus) — צילומים יומיים, 01.2022–07.2026",
@@ -5744,6 +5750,12 @@ const SOURCES = [
         "https://github.com/hasadna/OpenTrainCommunity/tree/8dd9ba7b3ebed022469723df6974b27bf2c5577d/data"
       ]
     ]
+  },
+  {
+    t: "משרד התחבורה (חופש מידע)",
+    d: "12.2013 – 2017",
+    b: "קובץ \"מסלול לפי שנים\" שמשרד התחבורה מסר בתשובה לבקשת חופש מידע: רצף התחנות של כל גרסת מסלול בכל מק\"ט, מספר הנסיעות שלה בכל שנה ויום הנסיעה האחרון שלה. ממנו נלקחה ההיסטוריה שלפני התיעוד הרשמי של כל קו (בעיקר 2014–2015), וקווים שהסתיימו לפני 2015. התאריכים משוערים: שינוי מסומן ביום שאחרי הנסיעה האחרונה במסלול הקודם. אין בקובץ שרטוט מסלול, מספר קו או מפעיל, ושמות התחנות בו הם השמות המאוחרים — לכן שם התחנה נלקח מהתיעוד של התקופה כשיש כזה.",
+    links: [["הקבצים המקוריים", "https://github.com/Transit-Freak/kav-bochan/releases/tag/data-foi-routes-2013-2017"], ["סיכום הייבוא", "data/foi-import.json"]],
   },
   {
     "t": "הארכיון הישן של אוטובוס פתוח",

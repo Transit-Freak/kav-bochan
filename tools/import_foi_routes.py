@@ -157,10 +157,9 @@ def line_meta(rd, groups, siblings):
     mk = rd.split('-')[0]
     sib = siblings.get(mk) or []
     lines = {s['line'] for s in sib if s.get('line')}
-    ops = collections.Counter(s.get('op') for s in sib if s.get('op'))
     first, last = groups[0]['stops'][0], groups[-1]['stops'][-1]
     meta = {'rd': rd, 'line': '', 'dest': f'{first[1]}-{first[4]}<->{last[1]}-{last[4]}',
-            'op': ops.most_common(1)[0][0] if ops else '', 'tt': None, 'ty': ''}
+            'op': '', 'tt': None, 'ty': ''}   # המפעיל של היום אינו בהכרח המפעיל של אז
     if len(lines) == 1:
         meta['line'] = lines.pop()
     elif mk.isdigit():
@@ -230,6 +229,9 @@ def build(rd, foi_vs, lf, names, siblings, stats):
             if rem: v['rem'] = rem
             v['note'] = f'{NOTE_BASE}: המסלול הקודם נסע לאחרונה ב-{fmt(p["end"])}.'
         added.append(v)
+    if added and lf.get('foiOnly'):
+        added[0]['note'] += (' הקו מוכר רק מהקובץ הזה: ' + ('מספר הקו משוער לפי המק״ט, ' if lf.get('lineGuess') else '')
+                             + 'המפעיל אינו ידוע, והמפה מחברת את התחנות בקווים ישרים.')
     # בלי תיעוד רשמי אחרי הקובץ — גם הסיום מהקובץ
     last = groups[-1]
     if not t0 and last['end'] < DATA_END and (not added or added[-1]['foiVer'] == last['vids']):
