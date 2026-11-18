@@ -594,9 +594,12 @@ function mount(root, opts) {
   const live = () => root.isConnected && !document.hidden;
   /* מצמוץ עדין כל 5–9 שניות — על שכבה נפרדת (eye-layer), בלי לצייר מחדש את ה-SVG */
   const blink = () => lid.animate([{ transform: 'scaleY(1)', easing: 'ease-in' }, { transform: 'scaleY(.08)', offset: .42 }, { transform: 'scaleY(.08)', offset: .5, easing: 'ease-out' }, { transform: 'scaleY(1)' }], { duration: 480 });
-  const blinkLoop = () => setTimeout(() => { if (live() && lid.animate) blink(); blinkLoop(); }, 5000 + Math.random() * 4000);
+  const blinkLoop = () => setTimeout(() => { if (live() && lid.animate && !stage.kbhPlay) blink(); blinkLoop(); }, 5000 + Math.random() * 4000);
   let idx = 0, hold = false;
-  const step = () => { if (!hold && live()) { lookAtOrb(orbs[idx]); idx = (idx + 1) % orbs.length; } };
+  /* בחגים העין משחקת מדי פעם עם סמל החג (hagim-play.js): אחרי כל מבט יוצא אירוע kbh:gaze,
+     וכל עוד stage.kbhPlay דלוק העין לא עוברת לסמל הבא ולא ממצמצת. stage.kbhLook(k) — להסתכל עכשיו על סמל מסוים */
+  const step = () => { if (!hold && live() && !stage.kbhPlay) { const o = orbs[idx]; lookAtOrb(o); idx = (idx + 1) % orbs.length; stage.dispatchEvent(new CustomEvent('kbh:gaze', { detail: { orb: o } })); } };
+  stage.kbhLook = k => { const i = orbs.findIndex(o => o.dataset.k === k); if (i >= 0 && !RM()) { idx = i; step(); } };
   if (!RM()) {
     beam.style.opacity = 0;
     /* מתחילים להסתכל רק אחרי שהדף נטען (תמונות, גופנים) — כך גם הסיבוב הראשון חלק */

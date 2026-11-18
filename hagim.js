@@ -23,6 +23,7 @@
 (function () {
   "use strict";
   var DAY = 864e5;
+  var SRC = (document.currentScript && document.currentScript.src) || "hagim.js";
   var q = /[?&]hag=([^&#]+)/.exec(location.search);
   var preview = q ? decodeURIComponent(q[1]) : "";
 
@@ -48,7 +49,7 @@
     if (dA >= DN(2026, 1, 1) && dB <= DN(2035, 12, 31) && !HAGDAYS.split(" ").some(function (r) {
       var a = DN(2000 + +r.slice(0, 2), +r.slice(2, 4), +r.slice(4, 6)), b = a + (+r.slice(7) || 0);
       return (dA >= a && dA <= b) || (dB >= a && dB <= b);
-    })) return;
+    })) { daily(); return; }
   }
 
   // ---------- לוח עברי ----------
@@ -118,7 +119,7 @@
     if (!SPECS.some(function (s) {
       var mm = function (h) { return (s.m === "Adar" && (h.m === "Adar" || h.m === "Adar II")) || h.m === s.m; };
       return lo.m === hi.m ? mm(lo) && s.d >= lo.d && s.d <= hi.d : (mm(lo) && s.d >= lo.d) || (mm(hi) && s.d <= hi.d);
-    })) return;
+    })) { daily(); return; }
     var fest = null, qt = null;
     SPECS.forEach(function (s) {
       var k0 = find(s.m, s.d);           // ימים עד היום הראשון של החג (0 = היום)
@@ -129,7 +130,7 @@
       if (s.quiet) { if (!qt) qt = s; } else if (!fest) fest = s;
     });
     active = fest || qt;
-    if (!active) return;
+    if (!active) { daily(); return; }
     if (fest && qt) alsoQuiet = qt;
   }
 
@@ -174,7 +175,7 @@
   var lulav = W + line + "<path d='M22 66 C 40 10, 70 6, 78 40 C 84 62, 108 74, 120 62' fill='none' stroke='#65a30d' stroke-width='12' stroke-linecap='round'/><path d='M40 30 l-10 -8 M52 18 l-8 -12 M66 20 l2 -14' stroke='#4d7c0f' stroke-width='5' stroke-linecap='round'/>" + dots + E;
   var sufg = S + "<ellipse cx='60' cy='72' rx='40' ry='28' fill='#3f1d0b'/><ellipse cx='60' cy='66' rx='40' ry='26' fill='#6b3410'/><ellipse cx='60' cy='66' rx='14' ry='9' fill='#1c0a02'/><ellipse cx='46' cy='58' rx='8' ry='4' fill='#111' opacity='.8'/><path d='M40 40 q4 -10 0 -18 M60 34 q4 -10 0 -18 M80 40 q4 -10 0 -18' stroke='#94a3b8' stroke-width='3' fill='none' stroke-linecap='round' opacity='.8'/>" + E;
   var jug = S + "<defs><linearGradient id='hgjg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fef3c7'/><stop offset='.5' stop-color='#f59e0b'/><stop offset='1' stop-color='#92400e'/></linearGradient></defs><path d='M44 30 h32 v10 q22 10 22 34 q0 34 -38 34 q-38 0 -38 -34 q0 -24 22 -34 Z' fill='url(#hgjg)' stroke='#78350f' stroke-width='3'/><rect x='40' y='18' width='40' height='14' rx='4' fill='#b45309' stroke='#78350f' stroke-width='3'/><path d='M96 56 q16 8 4 26' stroke='#78350f' stroke-width='7' fill='none' stroke-linecap='round'/><path d='M46 44 q-8 12 -6 24' stroke='#fff7ed' stroke-width='4' fill='none' stroke-linecap='round' opacity='.7'/><text x='10' y='112' font-size='22'>🕯️</text>" + E;
-  var dreidel = W + line + "<polyline points='18,64 44,30 70,64 96,30 122,64' fill='none' stroke='#ef8a17' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' opacity='.55'/><g transform='rotate(22 92 40)'><rect x='76' y='14' width='32' height='32' rx='4' fill='#2563eb' stroke='#0f172a' stroke-width='3'/><path d='M76 46 L108 46 L92 66 Z' fill='#1d4ed8' stroke='#0f172a' stroke-width='3'/><rect x='89' y='2' width='6' height='14' fill='#0f172a'/><text x='92' y='38' text-anchor='middle' font-size='20' font-weight='900' fill='#fff'>נ</text></g>" + dots + E;
+  var dreidel = W + line + "<polyline points='18,64 44,30 70,64 96,30 122,64' fill='none' stroke='#ef8a17' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' opacity='.55'/><g class='hag-dreidel' transform='rotate(22 92 40)'><rect x='76' y='14' width='32' height='32' rx='4' fill='#2563eb' stroke='#0f172a' stroke-width='3'/><path d='M76 46 L108 46 L92 66 Z' fill='#1d4ed8' stroke='#0f172a' stroke-width='3'/><rect x='89' y='2' width='6' height='14' fill='#0f172a'/><text x='92' y='38' text-anchor='middle' font-size='20' font-weight='900' fill='#fff'>נ</text></g>" + dots + E;
   function menorah() {   // כל תשעת הנרות דולקים (שלמה 07.09)
     var s = "<svg viewBox='0 0 160 110' class='hag-svg wide'><path d='M20 70 Q80 110 140 70' stroke='#fbbf24' stroke-width='7' fill='none'/><line x1='80' y1='40' x2='80' y2='104' stroke='#fbbf24' stroke-width='7'/><rect x='60' y='100' width='40' height='8' rx='3' fill='#fbbf24'/>";
     [20, 35, 50, 65, 95, 110, 125, 140].forEach(function (x) { s += "<line x1='" + x + "' y1='70' x2='" + x + "' y2='44' stroke='#fbbf24' stroke-width='7'/><rect x='" + (x - 4) + "' y='24' width='8' height='22' rx='2' fill='#fff'/><ellipse class='hag-flame' cx='" + x + "' cy='17' rx='5' ry='9' fill='#fb923c'/><ellipse cx='" + x + "' cy='19' rx='2.5' ry='5' fill='#fde68a'/>"; });
@@ -341,7 +342,7 @@
         leaf(118, -10, 30, 8, "#22c55e") + leaf(74, -6, -20, 7, "#16a34a") +
         blossoms([[134, -22, 7], [104, -18, 7], [94, -30, 6], [56, -26, 6], [66, -10, 6], [36, -6, 7], [14, -8, 6], [16, 12, 6], [-8, 6, 7]]) },
     purim: { vb: [-22, -34, 164, 164], iris: ["#e9d5ff", "#a855f7", "#6b21a8"], line: "#9333ea",
-      fg: "<g transform='rotate(18 104 -6)'><path d='M82 6 L80 -18 L92 -6 L104 -26 L116 -6 L128 -18 L126 6 Z' fill='url(#hgfGold)' stroke='#92400e' stroke-width='2' stroke-linejoin='round'/><rect x='81' y='2' width='46' height='7' rx='2' fill='#f59e0b' stroke='#92400e' stroke-width='1.5'/><circle cx='104' cy='-6' r='3.5' fill='#ef4444'/><circle cx='92' cy='4' r='2' fill='#2563eb'/><circle cx='116' cy='4' r='2' fill='#16a34a'/></g>" +
+      fg: "<g class='hag-hat' transform='rotate(18 104 -6)'><path d='M82 6 L80 -18 L92 -6 L104 -26 L116 -6 L128 -18 L126 6 Z' fill='url(#hgfGold)' stroke='#92400e' stroke-width='2' stroke-linejoin='round'/><rect x='81' y='2' width='46' height='7' rx='2' fill='#f59e0b' stroke='#92400e' stroke-width='1.5'/><circle cx='104' cy='-6' r='3.5' fill='#ef4444'/><circle cx='92' cy='4' r='2' fill='#2563eb'/><circle cx='116' cy='4' r='2' fill='#16a34a'/></g>" +
         "<g><rect x='-14' y='-10' width='7' height='4' rx='1' fill='#ef4444' transform='rotate(30 -10 -8)'/><rect x='10' y='-22' width='7' height='4' rx='1' fill='#22c55e' transform='rotate(-25 13 -20)'/><rect x='40' y='-16' width='7' height='4' rx='1' fill='#3b82f6' transform='rotate(50 43 -14)'/><rect x='58' y='-26' width='7' height='4' rx='1' fill='#facc15' transform='rotate(-10 61 -24)'/>" +
         "<circle cx='26' cy='-8' r='3' fill='#ec4899'/><circle cx='-18' cy='20' r='3' fill='#f97316'/><circle cx='138' cy='40' r='3' fill='#22c55e'/><rect x='130' y='70' width='7' height='4' rx='1' fill='#a855f7' transform='rotate(40 133 72)'/><circle cx='-16' cy='96' r='3' fill='#3b82f6'/><rect x='-20' y='60' width='7' height='4' rx='1' fill='#facc15' transform='rotate(-30 -17 62)'/></g>" +
         "<path d='M-6 30 q-10 -8 -2 -16 q8 -8 -4 -18' stroke='#ec4899' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M128 96 q10 6 4 16 q-6 10 6 16' stroke='#f59e0b' stroke-width='2.5' fill='none' stroke-linecap='round'/>" },
@@ -404,6 +405,73 @@
       (ln ? ".kbh .stage .eye{box-shadow:0 26px 60px -18px color-mix(in srgb," + ln + " 55%,transparent),0 0 0 1px color-mix(in srgb," + ln + " 22%,transparent),0 0 0 12px color-mix(in srgb," + ir[0] + " 35%,transparent),0 0 70px 10px color-mix(in srgb," + ir[1] + " 30%,transparent)}" +
         ".kbh .stage .eye path[stroke='#0ea5e9']{stroke:" + ln + "}.kbh .stage .eye path[stroke='#38bdf8']{stroke:" + (F.dash || ln) + "}" : "");
     document.head.appendChild(el("style", null, st));
+    startPlay(stage);
+  }
+
+  // ---------- העין משחקת עם סמלי החג (דף הבית) ----------
+  // מדי פעם, כשהעין הגדולה מסתכלת על סמל של החג, היא משחקת איתו לפי סוג הסמל (hagim-play.js, נטען רק בדף הבית).
+  // העין תמיד נשארת פתוחה, והסמל תמיד לידה (מתחת, מעל או בצד) — אף פעם לא מול האישון. הסוגים:
+  //   eat אוכל · dip טבילה בדבש ואכילה · seeds גרעיני רימון לפה · sip לגימה וסומק · honey דבש מטפטף לפה
+  //   read קריאה (מגילה/הגדה) · light הדלקת נרות (סמל עם להבות) · spin סביבון · wear חבישה (כתר/מסכה/מדליה) · wreath זר פרחים
+  //   blow תקיעה עם גלי קול (בלי קול) · wave נפנוף דגל · shake ניענוע לולב · sniff הרחה · peek הצצה פנימה
+  //   plant שתילה והשקיה · boom זיקוקים · smoke עשן מהמנגל · toast מרשמלו על המדורה · shoot קשת וחץ
+  //   pour מזיגת שמן לנר · coins מטבעות · find מציאת האפיקומן · lift הרמה בגאווה · twirl סיבוב · noise רעשן
+  //   yuck אוכל מקולקל — הרחה, "איכס" והדיפה (לא אוכלים) · rot (לא בשימוש) נאכל ואז "איכס" · burn שריפה (חמץ, עצים) · ride נסיעה מתחת לעין (אוטובוס, רכבת, סוס)
+  //   slow זחילה לאט (שבלול, טרקטור) · leap קפיצה מעל העין · tick שעון מצלצל · play שלט משחק · juggle ג'אגלינג בשלושה
+  //   upside מתהפך (ונהפוך הוא) · signal גלי קליטה מהכפתור אל העין · inspect זכוכית מגדלת · bounce קפיצה במקום — לסמלים שאינם חפץ (גרפים)
+  //   "סוג@b" — המשחק על התג הקטן של הסמל (הגזר שעל הצלחת, צנצנת הדבש שעל השעון) במקום על הסמל הגדול
+  // חג חדש = שורה כאן (מפתח הכלי כמו ב-ART → סוג המשחק). כל סמל שאין לו שורה — בלי משחק.
+  // לא בימים עצובים (וגם לא בתענית אסתר שלפני פורים), ולא כשביקשו "בלי תנועה". בדיקה: ‎?hag=purim&eyeplay=read‎ (או all).
+  var PLAY = {
+    rosh:      { pach: "yuck", gold: "eat", bug: "blow", next: "dip", time: "honey@b", skip: "leap", fares: "coins", ratzif: "eat", fleet: "eat",
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "slow", alerts: "blow", feeder: "eat@b", game: "play" },
+    sukkot:    { pach: "peek", gold: "sniff", bug: "shake", next: "peek@b", time: "tick", skip: "leap", fares: "coins", ratzif: "shake", fleet: "twirl",
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "ride", alerts: "read", feeder: "eat@b", game: "play" },
+    hanukkah:  { pach: "yuck", gold: "pour", bug: "spin", next: "lift@b", time: "light", skip: "eat", fares: "coins", ratzif: "lift", fleet: "juggle",
+                 rail: "ride", bus: "ride", recep: "light", slides: "read", speed: "eat", alerts: "blow", feeder: "eat", game: "play" },
+    tubishvat: { pach: "plant", gold: "sniff", bug: "inspect", next: "plant@b", time: "inspect", skip: "plant", fares: "coins", ratzif: "eat", fleet: "eat",
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "eat", alerts: "blow", feeder: "honey", game: "play" },
+    purim:     { pach: "noise", gold: "lift", bug: "upside", next: "wear", time: "read", skip: "boom", fares: "eat", ratzif: "wear", fleet: "juggle",
+                 rail: "ride", bus: "ride", recep: "eat", slides: "read", speed: "ride", alerts: "blow", feeder: "eat@b", game: "play" },
+    pesach:    { pach: "burn", gold: "eat", bug: "slow", next: "inspect", time: "read", skip: "leap", fares: "yuck@b", ratzif: "sip", fleet: "find",
+                 rail: "ride", bus: "ride", recep: "sip", slides: "read", speed: "twirl", alerts: "read", feeder: "eat", game: "play" },
+    atzmaut:   { pach: "smoke", gold: "leap", bug: "boom", next: "wave", time: "eat@b", skip: "wear", fares: "eat@b", ratzif: "wave", fleet: "juggle",
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "peek", alerts: "lift", feeder: "eat", game: "lift" },
+    lagbaomer: { pach: "smoke", gold: "toast", bug: "shoot", next: "toast", time: "tick", skip: "eat", fares: "eat@b", ratzif: "shoot", fleet: "burn",
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "smoke", alerts: "blow", feeder: "peek", game: "play" },
+    shavuot:   { pach: "yuck", gold: "eat", bug: "lift", next: "wave@b", time: "eat@b", skip: "leap", fares: "sip@b", ratzif: "eat", fleet: "wreath",
+                 rail: "ride", bus: "ride", recep: "signal", slides: "read", speed: "slow", alerts: "blow", feeder: "eat", game: "play" }
+  };
+  function startPlay(stage) {
+    var P = PLAY[active.id], F = FEYE[active.id];
+    if (!P || H.quiet || alsoQuiet || noMotion || !stage) return;
+    if (!window.__hagPlay) {
+      var map = {};
+      Object.keys(DK).forEach(function (k) { if (P[DK[k]]) map[k] = P[DK[k]]; });
+      window.__hagPlay = { id: active.id, play: map, line: (F && F.line) || "#0ea5e9",
+        // הרקע של ריבוע העין (עם קישוט החג) — לעפעף התחתון של העין המחייכת, כדי שיתמזג ברקע
+        bg: F && F.bg ? ("<defs>" + FDEFS.replace(/^<defs>|<\/defs>$/g, "") + "</defs>" + F.bg).replace(/hgf(?=[A-Z])/g, "hgfP_") : "" };
+    }
+    loadPlay(stage);
+  }
+  function loadPlay(stage) {
+    if (window.HagPlay) { window.HagPlay.attach(stage); return; }
+    if (document.getElementById("hag-play-js")) return;
+    var s = el("script", { id: "hag-play-js", src: SRC.replace(/hagim\.js(\?.*)?$/, "hagim-play.js?v=20261118e") });
+    s.onload = function () { if (window.HagPlay) window.HagPlay.attach(document.querySelector(".kbh .stage")); };
+    document.head.appendChild(s);
+  }
+  // ימים רגילים (לא חג ולא יום עצוב): משחק קטן ועדין לכל כלי, נדיר יותר מבחגים (hagim-play.js — המשחקים בסוף הקובץ), עם הילה קלה על הכפתור
+  function daily() {
+    if (window.__hagPlay || !document.addEventListener) return;
+    try { if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) { return; }
+    var DAILY = { kavpach: "lid", golden: "flip", kavbug: "crawl", "next-station": "signflip", "skip-stops": "hop", "line-history": "clock", "line-changes": "slides",
+      bus: "gauge", "bus-speed": "speedo", alerts: "ring", fleet: "roll", rail: "train", reception: "bars", feeder: "meet", fares: "drop", ratzif: "align", game: "pad" };
+    window.__hagPlay = { id: "daily", daily: true, play: DAILY, line: "#0ea5e9", bg: "" };
+    // דף הבית יכול להיבנות מחדש (חזרה מכלי) — מחברים כל במה חדשה
+    var go = function () { var st = document.querySelector(".kbh .stage"); if (st && !st.__hagPlay && st.querySelector(".eye")) loadPlay(st); }, pend = 0;
+    go();
+    try { new MutationObserver(function () { if (!pend) { pend = 1; setTimeout(function () { pend = 0; go(); }, 300); } }).observe(document.body || document.documentElement, { childList: true, subtree: true }); } catch (e) { /* ignore */ }
   }
 
   // ---------- CSS ----------
