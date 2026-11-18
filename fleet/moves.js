@@ -62,6 +62,37 @@
     return out;
   }
 
-  var api = { periods: periods, moves: moves, mFirst: mFirst, mLast: mLast };
+  /* לוחית אחת = רכב אחד (שלמה 18.11): רכב שעבר בין חברות רשום פעם בכל חברה, אבל הוא רכב אחד.
+     recs: [{op, first, last, days, r, kd, kt, gaps, occ}] — כל הרשומות של הלוחית.
+       days: ימי פעילות שנמדדו (אם אין — אורך התקופה) · r: נסיעות ליום · kd/kt: ק"מ ליום/סה"כ
+       gaps: [['YYYY-MM','YYYY-MM']...] חודשים בלי שידור אצל אותה חברה · occ: נסיעות בודדות אצל חברה אחרת
+     o: {updated, retireDays}
+     מחזיר: נצפה לראשונה/לאחרונה על פני כל החברות, פעיל (לפי התקופה האחרונה בכלל), שרשרת החברות
+     לפי סדר הזמן, ממוצעים משוקללים, ונפילות של ממש בלבד — חודשים שבהם הרכב לא שידר אצל אף חברה.
+     מעבר לחברה אחרת אינו נפילה. */
+  function plate(recs, o) {
+    var rs = recs.slice().sort(function (a, b) { return a.first < b.first ? -1 : a.first > b.first ? 1 : 0; });
+    var first = null, last = null, chain = [], rw = 0, rs_ = 0, kt = null, kdd = 0, gaps = [];
+    rs.forEach(function (r) {
+      if (first === null || r.first < first) first = r.first;
+      if (last === null || r.last > last) last = r.last;
+      if (!r.occ && chain[chain.length - 1] !== r.op) chain.push(r.op);
+      if (r.r != null) { var w = r.days != null ? r.days : days(r.last, r.first) + 1; if (w > 0) { rw += w; rs_ += r.r * w; } }
+      if (r.kt != null) { kt = (kt || 0) + r.kt; if (r.kd > 0) kdd += r.kt / r.kd; }
+      (r.gaps || []).forEach(function (g) {
+        var other = rs.some(function (q) { return q !== r && q.first.slice(0, 7) <= g[1] && q.last.slice(0, 7) >= g[0]; });
+        if (!other) gaps.push(g);
+      });
+    });
+    var u = o && o.updated, rd = o && o.retireDays != null ? o.retireDays : 30;
+    return {
+      first: first, last: last, active: u ? days(u, last) <= rd : null, chain: chain,
+      r: rw ? Math.round(rs_ / rw * 10) / 10 : null,
+      kd: kt != null && kdd > 0 ? Math.round(kt / kdd) : null, kt: kt,
+      gaps: gaps.length ? gaps : null
+    };
+  }
+
+  var api = { periods: periods, moves: moves, plate: plate, mFirst: mFirst, mLast: mLast };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FleetMoves = api;
 })(typeof window !== "undefined" ? window : globalThis);
