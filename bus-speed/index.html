@@ -13,6 +13,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <script src="../version.js" defer></script>
+<script src="../a11y.js?v=20261118h" defer></script>
 <script src="../hagim.js?v=20261118" defer></script>
 <title>איפה האוטובוס נתקע</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -40,6 +41,7 @@
     </div>
     <button id="q-btn" class="hbtn" title="חיפוש" aria-label="חיפוש"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
     <button id="theme" class="hbtn" title="ערכה כהה / בהירה" aria-label="החלפת ערכת צבעים"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+    <span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px"></span>
   </header>
 
   <main id="main">
@@ -98,7 +100,8 @@
     <span class="sc">תקופה <b id="s-per">—</b></span>
     <span id="s-msg" aria-live="polite"></span>
     <span id="kb-ver"></span>
-    <span class="src">מקורות: מיקומי האוטובוסים (SIRI) של משרד התחבורה דרך דאטאבוס, הסדנא לידע ציבורי · מספר התושבים: רשות האוכלוסין וההגירה (data.gov.il) · <a href="../">kavbochan.app</a> · <a href="../terms.html#copyright">© 2026 שלמה הרטמן</a></span>
+    <!-- data-copyright: דף במסך מלא — a11y.js לא מוסיף שורת זכויות יוצרים מתחת לאפליקציה -->
+    <span class="src" data-copyright>מקורות: מיקומי האוטובוסים (SIRI) של משרד התחבורה דרך דאטאבוס, הסדנא לידע ציבורי · מספר התושבים: רשות האוכלוסין וההגירה (data.gov.il) · <a href="../">kavbochan.app</a> · <a href="../terms.html#copyright">© 2026 שלמה הרטמן</a></span>
   </footer>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

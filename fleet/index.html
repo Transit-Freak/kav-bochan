@@ -293,6 +293,7 @@
     <div class="logo"><img src="favicon.svg" alt="" width="42" height="42" style="display:block;width:42px;height:42px"></div>
     <h1>צי הרכבים</h1>
     <button class="dmore" onclick="MENU()" aria-label="עוד אפשרויות" aria-haspopup="dialog">⋯</button>
+    <span data-a11y-slot style="display:inline-flex;flex:none;width:44px;height:44px;order:2"></span>
     <div class="searchrow">
       <div class="qbox"><input id="q" type="search" placeholder="חיפוש: חברה, עיר, דגם או מספר רכב" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg"><div id="sugg" class="sugg" role="listbox" aria-label="תוצאות חיפוש" hidden></div></div>
     </div>
@@ -2129,6 +2130,6 @@ fetch('data/fleet.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw {nd:r.status
 </script>
 <script src="../birthday.js" defer></script>
 <script src="../hagim.js?v=20261118" defer></script>
-<script src="../a11y.js" defer></script>
+<script src="../a11y.js?v=20261118h" defer></script>
 </body>
 </html>

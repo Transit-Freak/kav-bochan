@@ -568,3 +568,5 @@ a.tab, a.back { text-decoration: none; display: inline-block; line-height: norma
 a.tab { text-align: center; }
 a.sib.sibdir { color: #475569; }
 a.sib.sibdir.on { color: #fff; }
+/* "חזרה לקו הבוחן" (home-link.js) יושב מעל פינת הכותרת במחשב — מקום פנוי בשבילו, כדי שכפתור "עוד" וכפתור הנגישות לא יוסתרו */
+@media (min-width: 761px) and (max-width: 1420px) { .wrap > header { padding-inline-end: 140px; } }

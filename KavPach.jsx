@@ -625,6 +625,8 @@ const KbToolBar = ({ name, onHome }) => {
           <span className="kbt-slash" aria-hidden="true">/</span>
           <span className="kbt-tool">{name}</span>
         </span>
+        {/* כפתור הנגישות (a11y.js) נכנס לכאן — בתוך הפס, לא צף. React לא מצייר בו ילדים, אז הכפתור לא נמחק ברינדור */}
+        <span data-a11y-slot="" style={{ display: 'inline-flex', flex: 'none', width: 44, height: 44 }} />
         <a href="./" onClick={home} className="kb-home" title="חזרה לעמוד הראשי">← חזרה לקו הבוחן</a>
       </div>
     </header>

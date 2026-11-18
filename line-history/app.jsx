@@ -6465,6 +6465,8 @@ function App() {
       <header>
         <h1><img src="favicon.svg" alt="" width="34" height="34" style={{ width: "1.4em", height: "1.4em", verticalAlign: "-.38em" }} /> הקו בזמן</h1>
         <button className="dmore" aria-label="עוד אפשרויות" aria-haspopup="dialog" onClick={() => setMenu(true)}>⋯</button>
+        {/* כפתור הנגישות (a11y.js) נכנס לכאן — בפס העליון, לא צף */}
+        <span data-a11y-slot="" style={{ display: "inline-flex", flex: "none", width: 44, height: 44 }} />
         <p className="tag">היסטוריית מסלולים ותחנות: צילומי אתרי מידע לנוסעים מ־2003 בכיסוי חלקי, נתוני GTFS מ־2012 ותיעוד רציף ממרץ 2017. צילום בארכיון אינו הודעה על שינוי.</p>
         <div className="stats">
           {idx ? (<>
