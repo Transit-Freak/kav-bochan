@@ -13,6 +13,14 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
 שינוי בלוח הזמנים בלבד, שרטוט מחדש של כמה מטרים, שינוי שם של תחנה, החלפת מק"ט של
 תחנה באותו מקום ובאותו שם, הזזה קטנה של תחנה.
 
+שלושה סוגים נוספים (kind בכל רשומה; בלי kind = שינוי מסלול):
+  new        קו חדש — מק"ט שלא נסע בשבוע שעבר (או שהתחיל באמצע אותו שבוע) ונוסע מהשבוע הקרוב:
+             תחנות, מסלול, ושעות היציאה לכל סוג יום (א׳–ה׳, שישי, שבת).
+  ended      קו מבוטל — מק"ט שנסע בשבוע שעבר ואין לו אף נסיעה מעכשיו ועד סוף החלון (או שהנסיעה האחרונה
+             בשבוע הקרוב ואחריה אין כלום). עם תאריך הנסיעה האחרונה, וקווים אחרים שעוצרים ברוב התחנות שלו (alts).
+  timetable  שינוי בלוח הזמנים — אותו מסלול, שעות אחרות. משמעותי רק אם באחת מקבוצות הימים (ימים בשבוע שיש להם אותו לוח ישן ואותו לוח חדש, למשל א׳–ד׳ וחמישי לחוד) מספר הנסיעות השתנה,
+             הנסיעה הראשונה/האחרונה זזה ב-10 דק' או יותר, או התדירות בשעות השיא/בשאר היום השתנתה ב-3 דק' או יותר,
+             והלוח החדש נשאר גם בשבוע שאחריו (אחרת: שינוי זמני — tt_temp). הזזה קטנה של כל הנסיעות — tt_shift.
 שינוי שכבר נכנס לתוקף נשאר ברשימה KEEP_DAYS ימים (שבוע) (מהריצות הקודמות). שינוי עתידי
 שלא נמצא שוב בריצה של היום (המשרד ביטל אותו) — יורד.
 
@@ -97,6 +105,16 @@ def norm_name(s):
     return re.sub(r'[\s"\'״׳`.\-/]', '', s or '')
 
 
+def hm(b):
+    """'07:35:00' (bytes או str) → 455 דקות; ריק/שגוי → None"""
+    try:
+        t = b.decode() if isinstance(b, bytes) else b
+        h, m = t.strip().split(':')[:2]
+        return int(h) * 60 + int(m)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def d8(d):
     return d.strftime('%Y%m%d')
 
@@ -163,6 +181,7 @@ class Feed:
             if act:
                 self.svc_dates[r[h['service_id']]] = act
                 self.svc_start[r[h['service_id']]] = s
+        self.svc_set = {k: set(v) for k, v in self.svc_dates.items()}
         h, rd = self.rows('trips.txt')
         self.trips = {}
         for r in rd:
@@ -179,6 +198,7 @@ class Feed:
         pats = {}            # tuple(stop_id) -> pid
         self.pat_list = []
         self.trip_pat = {}
+        self.trip_dep = {}   # נסיעה → שעת היציאה מהתחנה הראשונה (דקות מחצות; אחרי חצות — 1440 ומעלה)
         partial = defaultdict(list)
         st = {'rest': b'', 'hdr': None, 'cur': None, 'buf': []}
 
@@ -192,12 +212,13 @@ class Feed:
                 self.trip_pat.pop(tid, None)
             else:
                 buf.sort()
-                p = tuple(s for _, s in buf)
+                p = tuple(x[1] for x in buf)
                 pid = pats.get(p)
                 if pid is None:
                     pid = pats[p] = len(self.pat_list)
                     self.pat_list.append(p)
                 self.trip_pat[tid] = pid
+                self.trip_dep[tid] = hm(buf[0][2])
                 # שומרים גם את הרשימה הגולמית לנסיעה שאולי תופיע שוב (נדיר) — רק כמזהה
             st['cur'], st['buf'] = None, []
 
@@ -209,7 +230,7 @@ class Feed:
             for ln in lines:
                 if hdr is None:
                     cols = ln.decode('utf-8-sig').strip().split(',')
-                    hdr = st['hdr'] = (cols.index('trip_id'), cols.index('stop_id'), cols.index('stop_sequence'))
+                    hdr = st['hdr'] = (cols.index('trip_id'), cols.index('stop_id'), cols.index('stop_sequence'), cols.index('departure_time'))
                     continue
                 f = ln.rstrip(b'\r').split(b',')
                 t = f[hdr[0]]
@@ -221,7 +242,7 @@ class Feed:
                     st['cur'] = t
                 elif st['cur'] is None:
                     continue
-                st['buf'].append((int(f[hdr[2]]), f[hdr[1]].decode()))
+                st['buf'].append((int(f[hdr[2]]), f[hdr[1]].decode(), f[hdr[3]]))
 
         gtfs_zip.stream_member(self.url, self.members, 'stop_times.txt', cb)
         if st['rest'].strip():
@@ -229,7 +250,8 @@ class Feed:
         close()
         for tid, buf in partial.items():   # נסיעות שהשורות שלהן מפוזרות בקובץ
             buf.sort()
-            p = tuple(s for _, s in buf)
+            self.trip_dep[tid] = hm(buf[0][2])
+            p = tuple(x[1] for x in buf)
             pid = pats.get(p)
             if pid is None:
                 pid = pats[p] = len(self.pat_list)
@@ -266,6 +288,23 @@ class Feed:
             v.sort()
             out[k] = [(la, lo) for _, la, lo in v]
         return out
+
+    def deps_by(self, key_of):
+        """מפתח (מק"ט-כיוון) → {service_id: [שעות היציאה של הנסיעות]} — ללוח הזמנים"""
+        out = defaultdict(lambda: defaultdict(list))
+        for tid, (rid, sv, _s) in self.trips.items():
+            dep = self.trip_dep.get(tid)
+            if dep is not None:
+                out[key_of(self.routes[rid]['rd'] or rid)][sv].append(dep)
+        return out
+
+    def day_deps(self, svcs, day):
+        """שעות היציאה ביום מסוים (ממוינות)"""
+        lst = []
+        for sv, deps in svcs.items():
+            if day in self.svc_set.get(sv, ()):
+                lst += deps
+        return sorted(lst)
 
     def variants(self, d0, d1):
         """route_desc -> {(pid, shape_id): {'td': נסיעות×ימים, 'dates': set, 'svc': set, 'rid': route_id}}"""
@@ -506,6 +545,234 @@ def od_of(long):
     return (parts + ['', ''])[:2]
 
 
+# ---------------------------------------------------------------- לוח זמנים, קו חדש, קו מבוטל
+
+# ימים בשבוע: d0 = ראשון ... d6 = שבת (כולל מוצאי שבת — אותו יום שירות). ימים עם בדיוק אותו לוח זמנים
+# (גם הישן וגם החדש) מתקבצים יחד: "א׳–ד׳", "ה׳", "שישי", "שבת"
+DOWS = ('d0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6')
+PEAK = ((420, 540), (960, 1140))   # 07–09, 16–19
+OFFPEAK = ((540, 960),)            # 09–16
+TT_COUNT, TT_EDGE, TT_HW = 1, 10, 3   # שינוי משמעותי: נסיעה אחת לפחות · ראשונה/אחרונה ב-10 דק' · תדירות ב-3 דק'
+ALT_MAX = 5
+DOW_FULL = ('ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי')
+DOW_LET = ('א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳')
+
+
+def dow(d):
+    """datetime.date → 'd0' (ראשון) ... 'd6' (שבת)"""
+    return DOWS[(d.weekday() + 1) % 7]
+
+
+def days_short(ts):
+    """['d0','d1','d2','d3'] → "א׳–ד׳" · ['d4'] → "ה׳" · ['d5'] → "שישי" · ['d0','d2'] → "א׳ ו-ג׳" """
+    ix = sorted(DOWS.index(t) for t in ts)
+    if ix == [5]:
+        return 'שישי'
+    if ix == [6]:
+        return 'שבת'
+    runs = []
+    for i in ix:
+        if runs and runs[-1][-1] == i - 1:
+            runs[-1].append(i)
+        else:
+            runs.append([i])
+    parts = [DOW_LET[r[0]] if len(r) == 1 else DOW_LET[r[0]] + '–' + DOW_LET[r[-1]] for r in runs]
+    return parts[0] if len(parts) == 1 else ', '.join(parts[:-1]) + ' ו-' + parts[-1]
+
+
+def day_in(ts):
+    """"בימי חול" · "ביום חמישי" · "בשישי" · "בשבת" · "בימים א׳–ד׳" """
+    ix = sorted(DOWS.index(t) for t in ts)
+    if ix == [0, 1, 2, 3, 4]:
+        return 'בימי חול'
+    if len(ix) == 1:
+        return 'ביום ' + DOW_FULL[ix[0]] if ix[0] < 5 else 'בשישי' if ix[0] == 5 else 'בשבת'
+    return 'בימים ' + days_short(ts)
+
+
+def dir_key(rd):
+    """מק"ט-כיוון (כל החלופות יחד) — לוח הזמנים של נוסע בכיוון הזה"""
+    p = rd.split('-')
+    return p[0] + '-' + (p[1] if len(p) > 1 else '')
+
+
+def headway(lst, wins):
+    """המרווח האופייני (חציון) בין יציאות בתוך חלונות השעות; None כשיש פחות משלוש יציאות"""
+    gaps = []
+    for a, b in wins:
+        xs = [m for m in lst if a <= m < b]
+        gaps += [y - x for x, y in zip(xs, xs[1:])]
+    if len(gaps) < 2:
+        return None
+    gaps.sort()
+    k = len(gaps) // 2
+    return int(round(gaps[k] if len(gaps) % 2 else (gaps[k - 1] + gaps[k]) / 2))
+
+
+def tt_sum(lst):
+    if not lst:
+        return {'n': 0}
+    return {'n': len(lst), 'f': lst[0], 'l': lst[-1], 'pk': headway(lst, PEAK), 'op': headway(lst, OFFPEAK)}
+
+
+def tt_sig(a, b):
+    """שינוי משמעותי בין שני סיכומים של אותו סוג יום"""
+    if abs(a['n'] - b['n']) >= TT_COUNT:
+        return True
+    if not a['n']:
+        return False
+    if abs(a['f'] - b['f']) >= TT_EDGE or abs(a['l'] - b['l']) >= TT_EDGE:
+        return True
+    return any(a.get(k) and b.get(k) and abs(a[k] - b[k]) >= TT_HW for k in ('pk', 'op'))
+
+
+def wk_typical(feed, svcs, days):
+    """לכל יום בשבוע: רשימת היציאות הנפוצה בתאריכים האלה (חג או יום חריג אחד לא קובע).
+    בשוויון — רשימה עם נסיעות, ואז של התאריך המאוחר"""
+    by = defaultdict(list)
+    for d in days:
+        by[dow(d)].append(tuple(feed.day_deps(svcs, d)))
+    out = {}
+    for w, lists in by.items():
+        cnt = defaultdict(int)
+        pos = {}
+        for i, x in enumerate(lists):
+            cnt[x] += 1
+            pos[x] = i
+        out[w] = list(max(lists, key=lambda x: (cnt[x], bool(x), pos[x])))
+    return out
+
+
+def day_groups(old, new):
+    """ימים בשבוע עם בדיוק אותו לוח ישן ואותו לוח חדש — קבוצה אחת: [(ימים, ישן, חדש)]. old=None לקו חדש"""
+    g = {}
+    for w in DOWS:
+        if w not in new and (old is None or w not in old):
+            continue
+        k = (tuple(old.get(w, [])) if old is not None else None, tuple(new.get(w, [])))
+        g.setdefault(k, []).append(w)
+    return [(ws, list(k[0]) if k[0] is not None else None, list(k[1])) for k, ws in g.items()]
+
+
+def tt_entries(groups):
+    """רשומות לוח הזמנים לפלט: [{t: [ימים], o/n: יציאות, so/sn: סיכום}] (o/so רק כשיש לוח ישן)"""
+    out = []
+    for ws, o, n in groups:
+        if not n and not o:
+            continue
+        e = {'t': ws, 'n': n, 'sn': tt_sum(n)}
+        if o is not None:
+            e['o'] = o
+            e['so'] = tt_sum(o)
+        out.append(e)
+    return out
+
+
+def tt_change(old, new, o_svcs, n_svcs, ref_days, t0, last_day):
+    """שינוי בלוח הזמנים של כיוון אחד (אותו מסלול). לכל יום בשבוע: מה היה בשבוע שעבר מול הלוח הנפוץ
+    בשלושת השבועות הבאים; ימים עם אותו לוח (ישן וחדש) מתקבצים, והסף נבדק לכל קבוצה.
+    מחזיר ((תאריך, קבוצות, קבוצות שהשתנו), '') או (None, סיבה)"""
+    day = datetime.timedelta(days=1)
+    ref = {dow(d): old.day_deps(o_svcs, d) for d in ref_days}
+    win = []
+    d = t0
+    while d <= last_day:
+        win.append(d)
+        d += day
+    nw = wk_typical(new, n_svcs, win)
+    # יום בלי נסיעות בשבוע שעבר, בתוך כמה ימים רצופים בלי נסיעות (השבתה זמנית) — לא יודעים מה היה; לא משווים
+    empty = {x for x in ref_days if not ref[dow(x)]}
+    for x in ref_days:
+        w = dow(x)
+        if x in empty and nw.get(w) and any(y in empty and nw.get(dow(y)) for y in (x - day, x + day)):
+            ref[w] = nw[w]
+    # בשבוע שעבר יש רק תאריך אחד לכל יום. בימים שהלוח החדש שלהם זהה (למשל א׳–ד׳), יום אחד שהיה שונה מכל השאר
+    # בשבוע שעבר (חג, ביטול חד-פעמי) — מקבל את הלוח של רוב הימים בקבוצה
+    by_new = defaultdict(list)
+    for w in DOWS:
+        if w in nw:
+            by_new[tuple(nw[w])].append(w)
+    for ws in by_new.values():
+        if len(ws) < 3:
+            continue
+        cnt = defaultdict(int)
+        for w in ws:
+            cnt[tuple(ref.get(w, []))] += 1
+        mode = max(cnt, key=lambda x: (cnt[x], bool(x)))
+        if cnt[mode] >= 2:
+            for w in ws:
+                if cnt[tuple(ref.get(w, []))] == 1:
+                    ref[w] = list(mode)
+    groups = day_groups(ref, nw)
+    changed = [g for g in groups if tt_sig(tt_sum(g[1]), tt_sum(g[2]))]
+    if not changed:
+        if any(g[1] != g[2] for g in groups):
+            return None, 'shift'
+        if any(new.day_deps(n_svcs, x) != nw.get(dow(x), []) for x in win[:8]):
+            return None, 'temp'
+        return None, 'same'
+    chw = {w for g in changed for w in g[0]}
+    # השינוי כבר התחיל באמצע השבוע שעבר: בימים שהלוח החדש שלהם זהה, הימים המוקדמים בשבוע שעבר עוד היו לפי הלוח הישן
+    # והמאוחרים כבר לפי החדש (למשל שינוי מיום ראשון, כשהשבוע שעבר התחיל ביום רביעי) — התאריך הוא היום שבו זה התחיל
+    past = None
+    for ws in by_new.values():
+        seq = [x for x in sorted(ref_days) if dow(x) in ws]
+        ok = [not tt_sig(tt_sum(old.day_deps(o_svcs, x)), tt_sum(nw[dow(x)])) for x in seq]
+        if True in ok and False in ok and all(ok[ok.index(True):]) and chw & set(ws):
+            x0 = seq[ok.index(True)]
+            past = x0 if past is None or x0 < past else past
+    if past is not None and all(any(w in ws and any(not tt_sig(tt_sum(old.day_deps(o_svcs, x)), tt_sum(nw[w])) for x in ref_days if dow(x) in ws)
+                                    for ws in by_new.values()) for w in chw):
+        return None, 'before'   # התחיל כבר בשבוע שעבר — הלילות הקודמים כבר מצאו אותו מראש
+    eff = next((x for x in win if dow(x) in chw and tt_sig(tt_sum(ref[dow(x)]), tt_sum(new.day_deps(n_svcs, x)))
+                and not tt_sig(tt_sum(new.day_deps(n_svcs, x)), tt_sum(nw[dow(x)]))), None)
+    if eff is None or eff > t0 + datetime.timedelta(days=HORIZON):
+        return None, 'later'
+    return (eff, groups, changed), ''
+
+
+def stops_of(feed, pid):
+    return [feed.stops[s] for s in feed.pat_list[pid] if s in feed.stops]
+
+
+def blank_side():
+    return dict(stops=[], shp='')
+
+
+def kind_rec(k, kind, r, op, eff, t0, old=None, new=None, **kw):
+    """רשומת כיוון לסוגים החדשים — אותם שדות כמו בשינוי מסלול, כדי שהדף יעבוד איתם כרגיל"""
+    makat, d = (k.split('-') + [''])[:2]
+    return dict(kind=kind, rd=k + '-#', makat=makat, dir=d, alt='#',
+                line=r['line'], op=op, ag=r['ag'], ty=r['ty'], long=r['long'], od=od_of(r['long']),
+                eff=eff.isoformat(), formal=None, found=t0.isoformat(),
+                old=old or blank_side(), new=new or blank_side(),
+                added=[], removed=[], moved=[], geo=False, dev=0, swaps=[], ext='', **kw)
+
+
+def side_of(feed, pid, shapes, shp_id, full=True):
+    st = stops_of(feed, pid)
+    if not full:   # לוח זמנים: רק התחנה הראשונה והאחרונה (לשם הנסיעה)
+        st = st[:1] + st[-1:] if len(st) > 1 else st
+        return dict(stops=[stop_arr(s) for s in st], shp='', n=len(stops_of(feed, pid)))
+    return dict(stops=[stop_arr(s) for s in st], shp=encode_shape(simplify(shapes.get(shp_id, []))))
+
+
+def find_alts(ended_codes, cand_index, exclude, max_n=ALT_MAX):
+    """קווים אחרים שעוצרים בהכי הרבה מהתחנות של קו שמבוטל (כמו "קו ממשיך — השערה" ב"הקו בזמן",
+    אבל בכל המסלול ולא רק בעיר המוצא)"""
+    cnt = defaultdict(int)
+    first = {}
+    for i, c in enumerate(ended_codes):
+        for mk in cand_index.get(c, ()):
+            if mk in exclude:
+                continue
+            cnt[mk] += 1
+            first.setdefault(mk, i)
+    need = max(2, int(math.ceil(len(ended_codes) * 0.15)))
+    best = sorted((mk for mk, n in cnt.items() if n >= need), key=lambda mk: (-cnt[mk], first[mk]))
+    return [(mk, cnt[mk], first[mk]) for mk in best[:max_n]]
+
+
 def run():
     t0 = TODAY
     ref_day = t0 - datetime.timedelta(days=REF_DAYS)
@@ -526,10 +793,10 @@ def run():
     for k in keys:
         ov, nv = old_v.get(k, {}), new_v.get(k, {})
         if not ov:
-            stats['new_line'] += 1
+            stats['new_variant'] += 1
             continue
         if not nv:
-            stats['ended_line'] += 1
+            stats['ended_variant'] += 1
             continue
         old_sigs = {(tuple(old.pat_list[p]), s) for p, s in ov}
         unknown = {v: x for v, x in nv.items() if (tuple(new.pat_list[v[0]]), v[1]) not in old_sigs}
@@ -540,11 +807,83 @@ def run():
             continue
         cands[k] = firsts
 
-    # שרטוטים — רק לווריאנטים שיש בהם דפוס חדש
+    # קו חדש / קו מבוטל — לפי מק"ט (כל הכיוונים והחלופות יחד)
+    DAY = datetime.timedelta(days=1)
+    week_end, hz_end = t0 + 7 * DAY, t0 + HORIZON * DAY
+    old_mk, new_mk = defaultdict(list), defaultdict(list)
+    for k in keys:
+        if k in old_v:
+            old_mk[k.split('-')[0]].append(k)
+        if k in new_v:
+            new_mk[k.split('-')[0]].append(k)
+
+    def route_of(feed, vs):
+        return feed.routes[next(iter(vs.values()))['rid']]
+
+    def mk_dates(vmap, ks):
+        out = set()
+        for k in ks:
+            for x in vmap[k].values():
+                out |= x['dates']
+        return out
+
+    new_mks, ended_mks = {}, {}
+    for mk, ks in new_mk.items():
+        r = route_of(new, new_v[ks[0]])
+        if r['ty'] == '2' or not r['line']:
+            continue
+        nd = mk_dates(new_v, ks)
+        if mk in old_mk:
+            # קו שהתחיל באמצע השבוע שעבר: בימים הראשונים של השבוע לא נסע, אף שבימים מהסוג הזה הוא נוסע עכשיו
+            F = min(mk_dates(old_v, old_mk[mk]))
+            runs = {d.weekday() for d in nd if d < week_end}
+            if sum(1 for i in range((F - old.d0).days) if (old.d0 + DAY * i).weekday() in runs) < 2:   # יום אחד בלי נסיעות — לא מספיק
+                continue
+            stats['new_started'] += 1
+            S = F
+        else:
+            S = min(nd)
+        if S > week_end:          # מתחיל רק בעוד יותר משבוע — ייכנס בריצה של שבוע הבא
+            stats['new_later'] += 1
+            continue
+        new_mks[mk] = (ks, S)
+    for mk, ks in old_mk.items():
+        r = route_of(old, old_v[ks[0]])
+        if r['ty'] == '2' or not r['line']:
+            continue
+        nd = mk_dates(new_v, new_mk[mk]) if mk in new_mk else set()
+        if nd and max(nd) >= week_end:
+            continue
+        # אין אף נסיעה מעכשיו ועד סוף החלון (שבועיים ועוד שבוע), או שהנסיעה האחרונה בשבוע הקרוב ואחריה אין כלום
+        L = max(nd) if nd else max(mk_dates(old_v, ks))
+        ended_mks[mk] = (ks, L, bool(nd))
+    stats['new_line'] = len(new_mks)
+    stats['ended_line'] = len(ended_mks)
+    print(f'קווים חדשים: {len(new_mks)} · קווים שמבוטלים: {len(ended_mks)}', flush=True)
+
+    def dir_main(vmap, ks, d0=None, d1=None):
+        """לכל כיוון (מק"ט-כיוון): הדפוס הראשי מכל החלופות, בטווח התאריכים"""
+        out = defaultdict(dict)
+        for k in ks:
+            for v, x in vmap[k].items():
+                td = sum(1 for d in x['dates'] if (d0 is None or d0 <= d) and (d1 is None or d < d1))
+                if td:
+                    y = out[dir_key(k)].setdefault(v, dict(x, td=0))
+                    y['td'] += td
+        return {dk: (main_variant(vs), vs) for dk, vs in out.items()}
+
+    new_main = {mk: dir_main(new_v, ks, max(S, t0), max(S, t0) + 7 * DAY) for mk, (ks, S) in new_mks.items()}
+    ended_main = {mk: dir_main(old_v, ks) for mk, (ks, L, _) in ended_mks.items()}
+
+    # שרטוטים — רק לווריאנטים שיש בהם דפוס חדש, ולקווים החדשים והמבוטלים
     need_old, need_new = set(), set()
     for k in cands:
         need_old |= {s for _, s in old_v[k]}
         need_new |= {s for _, s in new_v[k]}
+    for dm in new_main.values():
+        need_new |= {m[1] for m, _ in dm.values()}
+    for dm in ended_main.values():
+        need_old |= {m[1] for m, _ in dm.values()}
     print(f'{len(cands)} וריאנטים עם דפוס חדש · טוענים שרטוטים', flush=True)
     shp_old, shp_new = old.load_shapes(need_old), new.load_shapes(need_new)
 
@@ -599,36 +938,143 @@ def run():
             moved=res['moved'], geo=res['geo'], dev=res['dev'], swaps=res['swaps'], ext=res['ext'],
         ))
     stats['changed'] = len(found)
+
+    # ---- לוחות זמנים: יציאות מהתחנה הראשונה, לכל מק"ט-כיוון (כל החלופות יחד)
+    old_deps, new_deps = old.deps_by(dir_key), new.deps_by(dir_key)
+    ref_days = []
+    d = old.d0
+    while d <= old.d1:
+        ref_days.append(d)
+        d += DAY
+
+    def week_tt(svcs, S):
+        days = []
+        d = S
+        while d <= new.d1:
+            days.append(d)
+            d += DAY
+        return day_groups(None, wk_typical(new, svcs, days))
+
+    # קו חדש
+    for mk, (ks, S) in new_mks.items():
+        for dk, (nm, vs) in sorted(new_main[mk].items()):
+            x = vs[nm]
+            r = new.routes[x['rid']]
+            S_d = max(S, min(d for v in vs.values() for d in v['dates'])) if S >= t0 else S
+            found.append(kind_rec(dk, 'new', r, new.agency.get(r['ag'], ''), S_d, t0,
+                                  new=side_of(new, nm[0], shp_new, nm[1]),
+                                  tt=tt_entries(week_tt(new_deps.get(dk, {}), max(S_d, t0)))))
+    # קו מבוטל: קווים אחרים שעוצרים באותן תחנות (בשבוע השני — אחרי שהקו כבר לא נוסע)
+    cand_index, mk_route = defaultdict(set), {}
+    for k, vs in new_v.items():
+        mk = k.split('-')[0]
+        for (pid, _s), x in vs.items():
+            if not any(week_end <= d <= hz_end for d in x['dates']):
+                continue
+            r = new.routes[x['rid']]
+            if r['ty'] == '2' or not r['line']:
+                continue
+            if mk not in mk_route or k.split('-')[1:2] == ['1']:
+                mk_route[mk] = r
+            for sid in new.pat_list[pid]:
+                st = new.stops.get(sid)
+                if st:
+                    cand_index[st['code']].add(mk)
+    for mk, (ks, L, soon) in ended_mks.items():
+        codes, names = [], {}
+        for dk, (om, vs) in sorted(ended_main[mk].items()):
+            for st in stops_of(old, om[0]):
+                if st['code'] not in names:
+                    codes.append(st['code'])
+                    names[st['code']] = st['name']
+        alts = []
+        for amk, n, i in find_alts(codes, cand_index, {mk} | set(ended_mks)):
+            ar = mk_route[amk]
+            alts.append(dict(makat=amk, line=ar['line'], op=new.agency.get(ar['ag'], ''), od=od_of(ar['long']),
+                             n=n, tot=len(codes), s=names[codes[i]], code=codes[i]))
+        for dk, (om, vs) in sorted(ended_main[mk].items()):
+            r = old.routes[vs[om]['rid']]
+            found.append(kind_rec(dk, 'ended', r, old.agency.get(r['ag'], ''), L + DAY, t0,
+                                  old=side_of(old, om[0], shp_old, om[1]), last=L.isoformat(), soon=soon, alts=alts))
+
+    # שינוי בלוח הזמנים: אותו מסלול, לוח זמנים אחר (לא בקווים שיש בהם שינוי מסלול, חדשים או מבוטלים)
+    skip_dk = {dir_key(f['rd']) for f in found}
+    keys_of = defaultdict(list)
+    for k in keys:
+        if k in new_v:
+            keys_of[dir_key(k)].append(k)
+    tt_n = 0
+    for dk in sorted(set(old_deps) & set(new_deps)):
+        mk = dk.split('-')[0]
+        if dk in skip_dk or mk in new_mks or mk in ended_mks:
+            continue
+        ks = keys_of.get(dk)
+        if not ks:
+            continue
+        r = route_of(new, new_v[ks[0]])
+        if r['ty'] == '2' or not r['line']:
+            continue
+        res, why = tt_change(old, new, old_deps[dk], new_deps[dk], ref_days, t0, new.d1)
+        if not res:
+            if why != 'same':
+                filtered['tt_' + why] += 1
+            continue
+        eff, groups, changed = res
+        om = dir_main(old_v, [k for k in ks if k in old_v])
+        nm = dir_main(new_v, ks, eff, eff + 7 * DAY)
+        if dk not in nm:
+            continue
+        nmv, nvs = nm[dk]
+        r = new.routes[nvs[nmv]['rid']]
+        # קבוצות הימים שיש בהן שינוי משמעותי; "same" — ימים שהקו נוסע בהם בלי שינוי
+        ent = tt_entries(changed)
+        chw = {w for g in changed for w in g[0]}
+        same = [w for g in groups if g not in changed and (g[1] or g[2]) for w in g[0] if w not in chw]
+        if len(changed) > 1 or any(len(g[0]) not in (1, 5) or (len(g[0]) == 1 and g[0][0] not in ('d5', 'd6')) for g in changed):
+            stats['tt_split'] += 1
+        omv = om.get(dk)
+        found.append(kind_rec(dk, 'timetable', r, new.agency.get(r['ag'], ''), eff, t0,
+                              old=side_of(old, omv[0][0], {}, '', full=False) if omv else None,
+                              new=side_of(new, nmv[0], {}, '', full=False), tt=ent, same=same,
+                              cities=sorted({st['city'] for st in stops_of(new, nmv[0]) if st['city']})))
+        tt_n += 1
+    stats['timetable'] = tt_n
     print('סטטיסטיקה:', dict(stats), '· סוננו:', dict(filtered), flush=True)
-    return found, dict(stats), dict(filtered), new.day, old.day, lines_index(new, new_v)
+    ended_lines = {k: old_v[k] for mk, (ks, L, s) in ended_mks.items() for k in ks}
+    return found, dict(stats), dict(filtered), new.day, old.day, lines_index(new, new_v, (old, ended_lines))
 
 
-def lines_index(feed, variants):
+def lines_index(feed, variants, extra=None):
     """כל הקווים שפועלים בימים הקרובים — לחיפוש בדף (מספר, חברה, מוצא, יעד, ערים).
+    extra = (GTFS של השבוע שעבר, הווריאנטים של הקווים שמבוטלים) — כדי שגם אותם אפשר למצוא.
     פורמט דחוס: ops/cities הן רשימות, ובכל קו אינדקסים אליהן.
     קו = [מק"ט, מספר, חברה, מוצא, יעד, [ערים], [כיוון-חלופה...], סוג, (שינויים מהשבוע האחרון — add_past)]"""
     by = {}
-    for rd, vs in variants.items():
+    for fd, vmap in [(feed, variants)] + ([extra] if extra else []):
+      for rd, vs in vmap.items():
         rid = next(iter(vs.values()))['rid']
-        r = feed.routes[rid]
+        r = fd.routes[rid]
         if not r['line'] or r['ty'] == '2':      # רכבת ישראל — לא כאן
             continue
         makat, _, rest = rd.partition('-')
-        e = by.setdefault((r['ag'], makat), {'line': r['line'], 'ag': r['ag'], 'od': None, 'cities': {}, 'rds': set(), 'ty': r['ty'], 'sids': set()})
+        if fd is not feed and (r['ag'], makat) in by and not by[(r['ag'], makat)].get('x'):
+            continue
+        e = by.setdefault((r['ag'], makat), {'line': r['line'], 'ag': r['ag'], 'od': None, 'cities': {}, 'rds': set(), 'ty': r['ty'], 'sids': set(),
+                                             'opn': fd.agency.get(r['ag'], ''), 'x': fd is not feed})
         e['rds'].add(rest)
         if e['od'] is None or rest.startswith('1-'):
             e['od'] = od_of(r['long'])
         for (pid, _shp), x in vs.items():
-            e['sids'].update(feed.pat_list[pid])
-            for sid in feed.pat_list[pid]:
-                st = feed.stops.get(sid)
+            e['sids'].update(fd.pat_list[pid])
+            for sid in fd.pat_list[pid]:
+                st = fd.stops.get(sid)
                 if st and st['city']:
                     e['cities'][st['city']] = e['cities'].get(st['city'], 0) + x['td']
     ops, cities, op_ids = [], [], []   # op_ids: agency_id לכל חברה (לצבעי המפעיל במצגת)
     oi, ci = {}, {}
     out = []
     for (ag, makat), e in sorted(by.items(), key=lambda kv: (int(re.sub(r'\D', '', kv[1]['line']) or 0), kv[1]['line'], kv[0][1])):
-        op = feed.agency.get(ag, '')
+        op = feed.agency.get(ag, '') or e['opn']
         if op not in oi:
             oi[op] = len(ops); ops.append(op); op_ids.append(ag)
         cl = []
@@ -851,6 +1297,35 @@ def add_walks(found, data):
     print(f'הליכה: {calls} בקשות, {fails} שגיאות, {len(used)} זוגות', flush=True)
 
 
+KIND_SUFFIX = {'new': '-n', 'ended': '-e', 'timetable': '-t'}
+
+
+def kind_summary(kd, dirs):
+    """סיכום קצר בשפה של נוסעים לסוגים החדשים"""
+    if kd == 'new':
+        return 'קו חדש'
+    if kd == 'ended':
+        return 'הקו מבוטל'
+    words = {}
+    for w in DOWS:
+        dn = [0, 0]
+        for f in dirs:
+            for e in f.get('tt', []):
+                if w in e['t']:
+                    dn[0] += e['so']['n']
+                    dn[1] += e['sn']['n']
+        if dn == [0, 0]:
+            continue
+        x = 'יותר נסיעות' if dn[1] > dn[0] else 'פחות נסיעות' if dn[1] < dn[0] else 'שעות אחרות'
+        if not dn[0]:
+            x = 'נסיעות חדשות'
+        elif not dn[1]:
+            x = 'בלי נסיעות'
+        words.setdefault(x, []).append(w)
+    parts = [f'{x} {day_in(ws)}' for x, ws in sorted(words.items(), key=lambda kv: DOWS.index(kv[1][0]))]
+    return 'שינוי בלוח הזמנים' + (': ' + ', '.join(parts[:2]) if parts else '')
+
+
 def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=False):
     data = os.path.join(OUTDIR, 'data')
     os.makedirs(os.path.join(data, 'l'), exist_ok=True)
@@ -866,12 +1341,13 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
         os.remove(os.path.join(data, 'state.json'))
     t0 = TODAY.isoformat()
     keep_from = (TODAY - datetime.timedelta(days=KEEP_DAYS)).isoformat()
-    seen = {f['rd'] for f in found}
+    kind = lambda f: f.get('kind') or 'route'   # noqa: E731
+    seen = {(f['rd'], kind(f)) for f in found}
     # שינוי שכבר נכנס לתוקף לא יימצא שוב (השבוע שעבר כבר כולל אותו) — נשמר מהריצות הקודמות
     for p in prev:
-        if p['rd'] not in seen and (keep_all or keep_from <= p['eff'] < t0):
+        if (p['rd'], kind(p)) not in seen and (keep_all or keep_from <= p['eff'] < t0):
             found.append(p)
-            seen.add(p['rd'])
+            seen.add((p['rd'], kind(p)))
     found = [f for f in found if f.get('ty') != '2' and f.get('line')]   # רכבת ישראל — לא בכלי הזה
     found.sort(key=lambda f: (f['eff'], f['makat'], f['dir']))
     add_walks(found, data)
@@ -887,38 +1363,62 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
     # דף לכל מק"ט (שני הכיוונים וכל החלופות)
     pages = defaultdict(list)
     for f in found:
-        pages[(f['ag'], f['makat'])].append(f)
+        pages[(f['ag'], f['makat'], kind(f))].append(f)
     index = []
     want = set()
     tpl = open(os.path.join(OUTDIR, 'line-template.html'), encoding='utf-8').read()
     os.makedirs(os.path.join(OUTDIR, 'l'), exist_ok=True)
-    for (ag, makat), dirs in pages.items():
+    for (ag, makat, kd), dirs in pages.items():
         dirs.sort(key=lambda f: (f['dir'], f['alt']))
         eff = min(f['eff'] for f in dirs)
         formal = min((f['formal'] for f in dirs if f.get('formal')), default=None)
-        # הכתובת לפי התאריך הרשמי של השינוי (או הנסיעה הראשונה כשאין) — יציבה בין הריצות
-        pid = f'{makat}-{(formal or eff).replace("-", "")}'
+        # הכתובת לפי התאריך הרשמי של השינוי (או הנסיעה הראשונה כשאין) — יציבה בין הריצות.
+        # הסוגים החדשים: עם סיומת (n קו חדש · e קו מבוטל · t לוח זמנים)
+        pid = f'{makat}-{(formal or eff).replace("-", "")}' + KIND_SUFFIX.get(kd, '')
         want.add(pid)
         f0 = dirs[0]
         cities = sorted({s[4] for f in dirs for s in f['new']['stops'] + f['old']['stops'] if s[4]})
         ch_codes = {c for f in dirs for c in f['added'] + f['removed']} | {m['code'] for f in dirs for m in f['moved']}
         ch_cities = sorted({s[4] for f in dirs for s in f['new']['stops'] + f['old']['stops']
                             if s[0] in ch_codes and s[4]})
-        tot = totals(dirs)
-        summ = summary_line(tot)
+        if kd == 'route':
+            tot = totals(dirs)
+            summ = summary_line(tot)
+        else:
+            tot = {'kind': kd}
+            summ = kind_summary(kd, dirs)
+            # קו חדש / מבוטל: כל הערים במסלול; לוח זמנים — הערים של הקו (רק הראשונה והאחרונה שמורות בדף)
+            ch_cities = sorted({x for f in dirs for x in f.get('cities', [])} or set(cities))
         # בדף הראשי: רק הערים שבהן משהו משתנה (רשימת כל הערים של הקו נמצאת ב-lines.json)
         rec = dict(id=pid, line=f0['line'], op=f0['op'], makat=makat, od=f0['od'], eff=eff,
                    formal=formal, tot=tot, summary=summ, chcities=ch_cities,
                    dev=max((f.get('dev', 0) for f in dirs if f.get('geo')), default=0),   # אורך הדרך שמשתנה (מ') — לשינוי קטן/גדול
-                   sig=same_sig(dirs, formal or eff),   # אותו שינוי בכמה קווים (אותן תחנות, אותו יום) — מקובצים יחד באתר
+                   sig=same_sig(dirs, formal or eff) if kd == 'route' else '',   # אותו שינוי בכמה קווים (אותן תחנות, אותו יום) — מקובצים יחד באתר
                    dirs=[dict(dir=f['dir'], alt=f['alt'], od=f['od'], eff=f['eff'], add=len(f['added']),
                               rem=len(f['removed']), mv=len(f['moved']), geo=f['geo']) for f in dirs])
+        if kd != 'route':
+            rec['kind'] = kd
+            rec['dirs'] = [dict(dir=f['dir'], eff=f['eff']) for f in dirs]
+            del rec['dev']
+        if kd == 'ended':
+            rec['last'] = max(f['last'] for f in dirs)
         index.append(rec)
         json.dump(dict(rec, cities=cities, gen=t0, feed=new_day.isoformat(), dirs=dirs),
                   open(os.path.join(data, 'l', pid + '.json'), 'w', encoding='utf-8'),
                   ensure_ascii=False, separators=(',', ':'))
-        title = f'שינוי בקו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]} מ-{fmt_d(rec["formal"] or eff)}'
-        desc = f'{summ}. {f0["op"]}. מה משתנה, מפה של המסלול הישן והחדש, ואיפה התחנה הקרובה במקום תחנה שמבוטלת.'
+        od_t = f'{f0["od"][0]} ↔ {f0["od"][1]}' if f0['od'][0] != f0['od'][1] else f0['od'][0]
+        if kd == 'new':
+            title = f'קו חדש: {f0["line"]} {od_t} מ-{fmt_d(eff)}'
+            desc = f'{f0["op"]}. מפה של המסלול, כל התחנות, ומתי הקו נוסע.'
+        elif kd == 'ended':
+            title = f'קו {f0["line"]} {od_t} מפסיק לפעול — נסיעה אחרונה ב-{fmt_d(rec["last"])}'
+            desc = f'{f0["op"]}. מפה של המסלול, ואילו קווים עוצרים באותן תחנות.'
+        elif kd == 'timetable':
+            title = f'לוח זמנים חדש לקו {f0["line"]} {od_t} מ-{fmt_d(eff)}'
+            desc = f'{summ}. {f0["op"]}. מה משתנה בלוח הזמנים, ושעות היציאה הישנות והחדשות.'
+        else:
+            title = f'שינוי בקו {f0["line"]} {f0["od"][0]} ↔ {f0["od"][1]} מ-{fmt_d(rec["formal"] or eff)}'
+            desc = f'{summ}. {f0["op"]}. מה משתנה, מפה של המסלול הישן והחדש, ואיפה התחנה הקרובה במקום תחנה שמבוטלת.'
         html = (tpl.replace('{{TITLE}}', esc(title)).replace('{{DESC}}', esc(desc))
                 .replace('{{URL}}', f'{SITE}/l/{pid}.html').replace('{{ID}}', pid))
         open(os.path.join(OUTDIR, 'l', pid + '.html'), 'w', encoding='utf-8').write(html)

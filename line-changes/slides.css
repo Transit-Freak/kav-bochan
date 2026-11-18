@@ -289,7 +289,7 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .slide .sc{font-size:.78em;color:var(--s-sub);font-weight:600;white-space:nowrap}
 
 /* ================= צורות (data-form על .deck) =================
-   שלט לתחנה: A4 לאורך, 794×1123 (210×297 מ"מ ב-96dpi) — מודפס ונתלה בתחנה, כתב שנקרא ממטר וחצי.
+   שלט להדפסה: A4 לאורך, 794×1123 (210×297 מ"מ ב-96dpi) — מודפס ונתלה בתחנה, כתב שנקרא ממטר וחצי.
    סטטוס: 1080×1920 (9:16) — תמונה לסטטוס בווטסאפ. בשתיהן אותם צבעים (data-look) ואותה חתימה. */
 .deck[data-form="sign"] .sframe{aspect-ratio:794/1123}
 .deck[data-form="sign"] .slide,.deck[data-form="sign"] .slide > div:first-child{width:794px;height:1123px}
@@ -300,7 +300,7 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .deck[data-form="sign"] .addslide,.deck[data-form="status"] .addslide{display:none!important}
 .slide .badges{display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex:none}
 
-/* ---- שלט לתחנה ---- */
+/* ---- שלט להדפסה ---- */
 .s-sign{display:flex;flex-direction:column}
 .s-sign > *{flex:none}
 .sg-band{background:var(--s-band);color:var(--s-band-fg);padding:30px 44px 0;display:flex;flex-direction:column;gap:22px}
@@ -401,3 +401,228 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
   .deck[data-form="status"] .sframe{width:1080px!important;height:1920px!important}
   .deck[data-form] .sitem{max-width:none;margin:0}
 }
+
+/* ================= קו חדש · קו מבוטל · שינוי בלוח הזמנים ================= */
+.slide .dot.end{background:#13201b;border-color:#fff}
+.slide .dot.alt{background:#f2c14e;border-color:#13201b;box-shadow:none}
+.lc-mk.end{width:18px;height:18px;background:#13201b;border:3px solid #fff;box-shadow:0 0 0 1.5px #13201b,0 1px 3px rgba(0,0,0,.4)}
+.lc-mk.alt{width:18px;height:18px;background:#f2c14e;border:3px solid #13201b}
+.leaflet-tooltip.lc-lbl.alt{border:2px solid #d99a00;background:#fff8e1}
+.leaflet-tooltip.lc-lbl.alt small{color:#5a3d00}
+
+/* שקף מפה של קו חדש / מבוטל */
+.s-map.k-ended h2{color:var(--s-before)}
+.s-map .instead{background:var(--s-card);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;border-right:6px solid var(--s-new-stop)}
+.s-map .instead h3{font-size:19px;font-weight:900}
+.slide ul.alts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.slide ul.alts li{display:flex;align-items:center;gap:12px}
+.slide ul.alts .badge.sm{font-size:22px;min-width:58px;padding:calc(5px + .07em) 9px calc(5px - .07em);border-radius:8px}
+.slide ul.alts .at{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.slide ul.alts .at b{font-size:17px;font-weight:800}
+.slide ul.alts .at span{font-size:14.5px;color:var(--s-sub)}
+.slide .alt-none{font-size:17px;color:var(--s-sub);line-height:1.4}
+.slide ul.tt-list{margin:0;padding:0 22px 0 0;display:flex;flex-direction:column;gap:6px}
+.slide ul.tt-list li{font-size:20px;line-height:1.42}
+.slide ul.tt-list li b{font-weight:800}
+.s-map ul.tt-list.sm li{font-size:17px;line-height:1.38}
+
+/* כל התחנות של קו חדש */
+.s-rstops .rcols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 26px;align-content:start;flex:1;min-height:0}
+.s-rstops li .dot{width:24px;height:24px;font-size:11px}
+.s-rstops li .dot.end{background:#13201b}
+.deck[data-look="large"] .s-rstops li{font-size:19px;min-height:38px}
+
+/* במקום זה (קו מבוטל) */
+.s-alts{padding:36px 48px 60px;display:flex;flex-direction:column;gap:18px}
+.s-alts .head{display:flex;align-items:center;gap:14px}
+.s-alts h2{font-size:32px;font-weight:900;line-height:1.15}
+.s-alts .lead{font-size:20px;line-height:1.45;color:var(--s-fg);max-width:1050px}
+.slide ul.alts.big{gap:14px}
+.slide ul.alts.big li{background:var(--s-card);border-radius:14px;padding:12px 18px}
+.slide ul.alts.big .badge.sm{font-size:30px;min-width:76px}
+.slide ul.alts.big .at b{font-size:22px}
+.slide ul.alts.big .at span{font-size:18px}
+
+/* שקף לוח זמנים (מצגת) */
+.s-tt{padding:30px 48px 56px;display:flex;flex-direction:column;gap:14px}
+.s-tt .head{display:flex;align-items:center;gap:16px}
+.s-tt .head .t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.s-tt h2{font-size:32px;font-weight:900;line-height:1.12}
+.s-tt .head .sub{font-size:18px;font-weight:600;color:var(--s-sub)}
+.tt-body{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:14px}
+.tt-blk{display:flex;flex-direction:column;gap:8px;flex:none}
+.slide .tt-dir{font-size:22px;font-weight:900;color:var(--s-brand);padding-bottom:4px;border-bottom:2px solid var(--s-line)}
+.deck[data-look="op"] .slide .tt-dir{color:var(--s-fg)}
+.slide .tt-cap{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:19px}
+.slide .tt-cap b{font-family:'Heebo',Arial,sans-serif;font-weight:900;font-size:21px}
+.slide .tt-cap span{color:var(--s-sub);font-weight:700;font-size:16px}
+.slide .tt-note{font-size:17px;color:var(--s-sub)}
+.slide .tt-key{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--s-sub);flex:none;white-space:nowrap}
+.slide .tt-key .tm{margin-inline-start:8px}
+/* זמן: חדש — ירוק, מבוטל — אדום מחוק */
+.slide .tm{display:inline-block;font-variant-numeric:tabular-nums;padding:0 4px;border-radius:5px;line-height:1.35;direction:ltr;unicode-bidi:isolate}
+.slide .tm.ad{background:var(--s-add-bg);color:var(--s-add);font-weight:900;box-shadow:inset 0 0 0 1.5px var(--s-add)}
+.slide .tm.rm{color:var(--s-before);text-decoration:line-through;text-decoration-thickness:2px;background:var(--s-before-bg)}
+/* טבלה כללית */
+.slide table.tt-gen,.slide table.tt-det{border-collapse:collapse;width:100%;font-size:18px;background:var(--s-card);direction:rtl}
+.slide table.tt-gen th,.slide table.tt-gen td{padding:5px 12px;text-align:center;border-bottom:1px solid var(--s-line);white-space:nowrap}
+.slide table.tt-gen thead th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;font-size:16px}
+.slide table.tt-gen thead th.grp{font-size:18px;border-bottom:1px solid rgba(255,255,255,.25)}
+.slide table.tt-gen thead th.was,.slide table.tt-det thead th.was{color:var(--s-band-sub)}
+.slide table.tt-gen th.rl{text-align:right;font-weight:700;color:var(--s-fg);background:var(--s-paper);width:1%}
+.slide table.tt-gen td.was{color:var(--s-sub)}
+.slide table.tt-gen td.chg{background:var(--s-add-bg);color:var(--s-add);font-weight:900}
+.slide table.tt-gen td{font-variant-numeric:tabular-nums;font-weight:700}
+.slide table.tt-gen td:not(.was){border-left:2px solid var(--s-line)}
+/* טבלה מפורטת: שורה לכל שעה */
+.slide table.tt-det th,.slide table.tt-det td{padding:3px 10px;border-bottom:1px solid var(--s-line);text-align:right;vertical-align:top}
+.slide table.tt-det thead th{background:var(--s-band);color:var(--s-band-fg);font-size:16px;font-weight:800}
+.slide table.tt-det th.hr{width:62px;text-align:center;font-family:'Heebo',Arial,sans-serif;font-weight:900;background:var(--s-paper);color:var(--s-fg)}
+.slide table.tt-det thead th.hr{background:var(--s-band);color:var(--s-band-fg)}
+.slide table.tt-det td{font-size:17px;line-height:1.5}
+.slide table.tt-det td.was{background:#fafbfa;border-left:2px solid var(--s-line)}
+.slide table.tt-det td .tm{margin-left:5px}
+.slide table.tt-det.new td{border-left:2px solid var(--s-line)}
+.slide table.tt-det.new td:last-child{border-left:none}
+.slide p.tt-run{font-size:18px;line-height:1.72;margin:0;padding:2px 0;border-bottom:1px dashed var(--s-line)}
+.slide p.tt-run .tm{margin-left:4px}
+.deck[data-look="large"] .slide table.tt-gen{font-size:21px}
+.deck[data-look="large"] .slide table.tt-det td,.deck[data-look="large"] .slide p.tt-run{font-size:20px}
+.deck[data-look="large"] .slide ul.tt-list li{font-size:22px}
+
+/* שלט: עמוד לוח זמנים */
+.s-signtt{display:flex;flex-direction:column}
+.s-signtt > *{flex:none}
+.s-signtt > .seam{margin-top:-1px}
+.s-signtt .tt-key.sg{margin:14px 44px 0}
+.s-signtt .tt-body{flex:1 1 auto!important;margin:16px 40px 0;min-height:0}
+.s-sign .tt-dir{font-size:26px}
+.s-sign ul.tt-list li{font-size:24px;line-height:1.4}
+.s-sign table.tt-gen{font-size:20px}
+.s-sign table.tt-gen th,.s-sign table.tt-gen td{padding:6px 8px}
+.s-sign table.tt-gen thead th{font-size:17px}
+.s-sign table.tt-gen th.rl{white-space:normal;min-width:150px;font-size:18px}
+.s-sign table.tt-det td{font-size:19px}
+.s-sign p.tt-run{font-size:20px}
+.s-sign .tt-cap b{font-size:23px}
+.s-sign .sg-alts{border-right-color:var(--s-new-stop)}
+.s-sign .sg-alts ul.alts .at b{font-size:20px}
+.s-sign .sg-alts ul.alts .at span{font-size:17px}
+.s-sign.k-ended h1{line-height:1.08}
+.s-sign.k-new .sg-what li,.s-sign.k-ended .sg-what li{font-size:22px}
+
+/* סטטוס: לוח זמנים */
+.s-sttt .st-top.sm{padding-top:110px;gap:16px}
+.s-sttt .st-top.sm .badge{font-size:150px;min-width:220px;padding:calc(12px + .07em) 44px calc(12px - .07em);border-radius:32px}
+.s-sttt .st-top.sm h1{font-size:68px}
+.s-sttt .st-top.sm .sub{font-size:30px}
+.s-status .tt-key.st{justify-content:center;font-size:28px;margin:30px 0 0}
+.s-status .tt-key .tm{font-size:28px}
+.s-status .tt-body{margin:34px 56px 0;flex:1 1 auto!important;min-height:0;gap:26px}
+.s-status .tt-dir{font-size:38px;padding-bottom:8px}
+.s-status ul.tt-list{gap:18px;padding-right:34px}
+.s-status ul.tt-list li{font-size:38px;line-height:1.32}
+.s-status table.tt-gen{font-size:30px}
+.s-status table.tt-gen thead th{font-size:26px}
+.s-status table.tt-gen th,.s-status table.tt-gen td{padding:10px 10px}
+.s-status table.tt-gen th.rl{white-space:normal;min-width:240px;font-size:27px}
+.s-status table.tt-det td{font-size:30px}
+.s-status table.tt-det th.hr{width:90px;font-size:30px}
+.s-status table.tt-det thead th{font-size:26px}
+.s-status p.tt-run{font-size:32px}
+.s-status .tt-cap b{font-size:36px}
+.s-status .tt-cap span{font-size:26px}
+.s-status.k-ended .st-top h1{color:var(--s-band-fg)}
+.s-map .kod{font-size:21px;font-weight:700;color:var(--s-sub);margin-top:-6px}
+.slide table.tt-gen.cols1{width:auto;min-width:62%;align-self:flex-start}
+.slide table.tt-gen.one.cols1{min-width:46%}
+.s-status table.tt-gen.cols1{width:100%}
+.slide table.tt-gen.cols1 th.rl,.slide table.tt-gen.cols2 th.rl{width:auto}
+.slide table.tt-gen.cols2{width:auto;min-width:80%;align-self:flex-start}
+.slide table.tt-det.new.cols1{width:auto;min-width:55%;align-self:flex-start}
+.slide table.tt-det.new.cols1 th.hr{width:62px}
+
+/* ---- טבלאות לוח הזמנים (גרסה 2): כמו לוח זמנים מודפס ---- */
+.slide table.tt-g2,.slide table.tt-grid{border-collapse:separate;border-spacing:0;direction:rtl;background:var(--s-card);border:1.5px solid var(--s-line);border-radius:10px;overflow:hidden}
+.slide table.tt-g2{width:100%;font-size:18px}
+.slide table.tt-g2 th,.slide table.tt-g2 td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--s-line);font-variant-numeric:tabular-nums}
+.slide table.tt-g2 thead th{background:var(--s-band);color:var(--s-band-fg);font-weight:800;font-size:15px;line-height:1.2}
+.slide table.tt-g2 thead th.grp{font-size:15.5px;border-bottom:1px solid rgba(255,255,255,.22);border-right:2px solid rgba(255,255,255,.22)}
+.slide table.tt-g2 thead th.was{color:var(--s-band-sub);font-weight:700;font-size:13.5px;border-right:2px solid rgba(255,255,255,.22)}
+.slide table.tt-g2 thead th.now{font-size:13.5px}
+.slide table.tt-g2 th.dt{background:var(--s-band2);color:var(--s-band-fg);font-family:'Heebo',Arial,sans-serif;font-weight:900;font-size:19px;white-space:nowrap;width:1%;padding:7px 14px}
+.slide table.tt-g2 thead th.dt{background:var(--s-band)}
+.slide table.tt-g2 td.was{color:var(--s-sub);font-weight:600;border-right:2px solid var(--s-line)}
+.slide table.tt-g2 td.now{font-weight:800;color:var(--s-fg)}
+.slide table.tt-g2.one td.now{border-right:2px solid var(--s-line)}
+.slide table.tt-g2 td.chg{background:var(--s-add-bg);color:var(--s-add);font-weight:900;box-shadow:inset 0 0 0 2px var(--s-add)}
+.slide table.tt-g2 tbody tr:nth-child(even) td:not(.chg){background:#f4f7f5}
+.slide table.tt-g2 tr.same td{color:var(--s-sub);font-weight:700;background:#fafbfa!important}
+.slide .tt-day{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0;font-family:'Heebo',Arial,sans-serif;font-size:22px;font-weight:900}
+.slide .tt-day span{font-family:'Assistant',Arial,sans-serif;font-size:16px;font-weight:700;color:var(--s-sub)}
+.slide .tt-sum{font-size:18px;line-height:1.35;margin:0}
+.slide table.tt-grid{width:100%;table-layout:fixed}
+.slide table.tt-grid thead th{background:var(--s-paper);color:var(--s-sub);font-size:13.5px;font-weight:700;padding:3px 8px;text-align:right;border-bottom:1.5px solid var(--s-line)}
+.slide table.tt-grid thead th.hr{text-align:center}
+.slide table.tt-grid th.hr{width:92px;background:var(--s-band);color:var(--s-band-fg);font-family:'Heebo',Arial,sans-serif;font-weight:900;font-size:19px;text-align:center;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(255,255,255,.15);padding:0 4px}
+.slide table.tt-grid th.hr.cont{background:var(--s-band2)}
+.slide table.tt-grid td.m{height:40px;text-align:center;vertical-align:middle;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--s-line);border-left:1px solid #edf1ee;padding:0;line-height:1.05}
+.slide table.tt-grid tbody tr:nth-child(even) td.m{background:#f4f7f5}
+.slide table.tt-grid td.m small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.02em}
+.slide table.tt-grid td.m.ad{background:var(--s-add-bg)!important;color:var(--s-add);font-weight:900;box-shadow:inset 0 0 0 2px var(--s-add)}
+.slide table.tt-grid td.m.rm{background:var(--s-before-bg)!important;color:var(--s-before);text-decoration:line-through;text-decoration-thickness:2px}
+.slide table.tt-grid td.m.rm small{text-decoration:none;display:block}
+.slide table.tt-grid td.m.e{background:transparent}
+.slide table.tt-grid tr.fold th.hr{background:#dfe6e2;color:var(--s-sub);font-size:14px}
+.slide table.tt-grid tr.fold td{background:#fafbfa;color:var(--s-sub);font-weight:700;font-size:15px;padding:0 14px;height:32px;text-align:right;border-bottom:1px solid var(--s-line)}
+.slide .tt-key{gap:14px}
+.slide .tt-key span{display:inline-flex;align-items:center;gap:6px}
+.slide .tt-key i.m{font-style:normal;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:44px;height:34px;border:1px solid var(--s-line);border-radius:5px;background:#fff;color:var(--s-fg);font-weight:800;font-size:15px;line-height:1}
+.slide .tt-key i.m small{font-size:9.5px;font-weight:800}
+.slide .tt-key i.m.ad{background:var(--s-add-bg);color:var(--s-add);box-shadow:inset 0 0 0 2px var(--s-add)}
+.slide .tt-key i.m.rm{background:var(--s-before-bg);color:var(--s-before);text-decoration:line-through}
+/* שלט וסטטוס */
+.s-sign table.tt-g2{font-size:16px}
+.s-sign table.tt-g2 th,.s-sign table.tt-g2 td{padding:6px 3px}
+.s-sign table.tt-g2 thead th{font-size:12.5px}
+.s-sign table.tt-g2 thead th.was,.s-sign table.tt-g2 thead th.now{font-size:11.5px}
+.s-sign table.tt-g2 th.dt{font-size:16px;padding:6px 8px}
+.s-sign table.tt-grid th.hr{width:78px;font-size:18px}
+.s-sign table.tt-grid td.m{height:42px;font-size:19px}
+.s-sign .tt-day{font-size:23px}
+.s-sign .tt-sum{font-size:19px}
+.s-status table.tt-g2{font-size:24px}
+.s-status table.tt-g2 th,.s-status table.tt-g2 td{padding:10px 4px}
+.s-status table.tt-g2 thead th{font-size:19px}
+.s-status table.tt-g2 thead th.was,.s-status table.tt-g2 thead th.now{font-size:16px}
+.s-status table.tt-g2 th.dt{font-size:24px;padding:10px 10px}
+.s-status table.tt-grid th.hr{width:120px;font-size:28px}
+.s-status table.tt-grid td.m{height:62px;font-size:30px}
+.s-status table.tt-grid td.m small{font-size:15px}
+.s-status table.tt-grid thead th{font-size:20px}
+.s-status table.tt-grid tr.fold td{font-size:24px;height:48px}
+.s-status .tt-day{font-size:36px}
+.s-status .tt-day span{font-size:24px}
+.s-status .tt-sum{font-size:30px}
+.s-status .tt-key i.m{min-width:66px;height:52px;font-size:24px}
+.s-status .tt-key i.m small{font-size:13px}
+.deck[data-look="large"] .slide table.tt-grid td.m{font-size:22px}
+.deck[data-look="large"] .slide table.tt-g2{font-size:21px}
+.slide table.tt-grid{width:auto;max-width:100%;align-self:flex-start}
+.slide table.tt-grid td.m{width:78px}
+.s-sign table.tt-grid td.m{width:62px}
+.s-status table.tt-grid td.m{width:100px}
+.slide table.tt-grid td.m.sh{background:#fff3d6!important;color:#7a4f00;font-weight:900;box-shadow:inset 0 0 0 2px #d99a00}
+.slide table.tt-grid td.m.sh small{font-size:9.5px;font-weight:700;color:#7a4f00}
+.slide .tt-key i.m.sh{background:#fff3d6;color:#7a4f00;box-shadow:inset 0 0 0 2px #d99a00;min-width:58px}
+.slide .tm.sh{background:#fff3d6;color:#7a4f00;font-weight:900;box-shadow:inset 0 0 0 1.5px #d99a00}
+.s-cover .what.crows{padding:10px 18px}
+.s-cover .what.crows ul{list-style:none;padding:0;gap:0}
+.s-cover .what.crows li{display:flex;align-items:center;gap:12px;padding:3px 0;border-bottom:1px solid var(--s-line);font-size:16px;line-height:1.2}
+.s-cover .what.crows li:last-child{border-bottom:none}
+.s-cover .what.crows .badge.sm{font-size:18px;min-width:52px;padding:calc(3px + .07em) 8px calc(3px - .07em);border-radius:7px}
+.s-cover .what.crows .chips{flex:none}
+.s-cover .what.crows .chip{font-size:13px;padding:1px 9px}
+.s-cover .what.crows .cs{color:var(--s-sub);font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-cover .what.crows li.more{color:var(--s-sub);font-weight:700;justify-content:flex-start}
+.slide .chip.tt{background:#fff2cf;color:#8a5a00}
