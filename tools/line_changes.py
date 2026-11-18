@@ -1526,20 +1526,13 @@ def write_out(found, stats, filtered, new_day, old_day, lines=None, keep_all=Fal
                       ensure_ascii=False, separators=(',', ':'))
 
     kind = lambda f: f.get('kind') or 'route'   # noqa: E731
-    # דף לכל מק"ט (שני הכיוונים וכל החלופות) — ולכל שינוי בנפרד: שינוי שכבר התחיל ושינוי קרוב באותו קו
-    # (יותר מ-3 ימים ביניהם) — שני דפים
+    # דף לכל מק"ט (שני הכיוונים וכל החלופות). כשבאותו כיוון יש שני שינויים (אחד שכבר התחיל ואחד קרוב) — דף לכל אחד
     pages = defaultdict(list)
-    by_k = defaultdict(list)
-    for f in found:
-        by_k[(f['ag'], f['makat'], kind(f))].append(f)
-    for key, fs in by_k.items():
-        fs.sort(key=lambda f: f['eff'])
-        n, last = 0, None
-        for f in fs:
-            if last is not None and (datetime.date.fromisoformat(f['eff']) - datetime.date.fromisoformat(last)).days > 3:
-                n += 1
-            last = f['eff']
-            pages[key + (n,)].append(f)
+    cnt = defaultdict(int)
+    for f in sorted(found, key=lambda f: f['eff']):
+        key = (f['ag'], f['makat'], kind(f))
+        pages[key + (cnt[key + (f['rd'],)],)].append(f)
+        cnt[key + (f['rd'],)] += 1
     index = []
     want = set()
     tpl = open(os.path.join(OUTDIR, 'line-template.html'), encoding='utf-8').read()
