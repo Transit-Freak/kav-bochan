@@ -1854,15 +1854,18 @@ var LCDeck = (function () {
     });
   }
   /* היציאות של כמה קווים בכמה ימים — רשימה אחת; לכל יציאה: באילו ימים יש אותה, באיזו חלופה (a, 0 = הראשית)
-     וכמה אוטובוסים יוצאים באותה דקה (n). get(it, w) → [דקות, חלופות (מחרוזת, ספרה לכל יציאה) או 0] */
-  function cuDay(it, w) { return [it.d.days[w], it.d.da ? it.d.da[w] : 0]; }
+     וכמה אוטובוסים יוצאים באותה דקה (n: כמה נסיעות באותה דקה, או התגבור מהרישוי — הגדול מהשניים).
+     get(it, w) → [דקות, חלופות (מחרוזת, ספרה לכל יציאה) או 0, תגבורים [[מקום, כמה]] או 0] */
+  function cuDay(it, w) { return [it.d.days[w], it.d.da ? it.d.da[w] : 0, it.d.dn ? it.d.dn[w] : 0]; }
   function cuMerge(items, days, get) {
     get = get || cuDay;
     var map = {}, ents = [];
     items.forEach(function (it, li) {
       days.forEach(function (w) {
-        var cnt = {}, g = get(it, w), al = g[1] || '';
-        (g[0] || []).forEach(function (m, i) { var k = m + ':' + (+al.charAt(i) || 0); cnt[k] = (cnt[k] || 0) + 1; });
+        var cnt = {}, tb = {}, tbk = {}, g = get(it, w), al = g[1] || '';
+        (g[2] || []).forEach(function (x) { tb[x[0]] = x[1]; });
+        (g[0] || []).forEach(function (m, i) { var k = m + ':' + (+al.charAt(i) || 0); cnt[k] = (cnt[k] || 0) + 1; tbk[k] = Math.max(tbk[k] || 0, tb[i] || 0); });
+        Object.keys(cnt).forEach(function (k) { cnt[k] = Math.max(cnt[k], tbk[k]); });
         Object.keys(cnt).forEach(function (mk) {
           var k = li + ':' + mk, e = map[k], ma = mk.split(':');
           if (!e) { e = map[k] = { m: +ma[0], a: +ma[1], p: it.p, li: li, n: 0, days: [] }; ents.push(e); }
@@ -1895,7 +1898,7 @@ var LCDeck = (function () {
     (hol || []).forEach(function (h) {
       if (!side.items.some(function (it) { return it.d.x && it.d.x[h[0]]; })) return;
       var w = isoDow(h[0]);
-      var c = cuMerge(side.items, [w], function (it) { return it.d.x && it.d.x[h[0]] ? [it.d.x[h[0]], (it.d.xa || {})[h[0]]] : cuDay(it, w); });
+      var c = cuMerge(side.items, [w], function (it) { return it.d.x && it.d.x[h[0]] ? [it.d.x[h[0]], (it.d.xa || {})[h[0]], (it.d.xn || {})[h[0]]] : cuDay(it, w); });
       c.hol = h; c.ents.forEach(function (e) { e.part = false; });
       if (c.ents.length || cols.length) cols.push(c);
     });
@@ -1924,7 +1927,7 @@ var LCDeck = (function () {
     var its = (side.alts || []).filter(function (x) { return has[x.L]; }).map(function (x) {
       return '<span><i class="al">' + x.L + '</i>' + E((multi ? 'קו ' + x.p.line + ' ' : '') + x.txt) + '</span>';
     });
-    if (dbl) its.push('<span><b class="num" dir="ltr">×2</b> שני אוטובוסים באותה שעה</span>');
+    if (dbl) its.push('<span><b class="num" dir="ltr">×2</b> שני אוטובוסים באותה שעה (תגבור)</span>');
     return its.length ? '<p class="cu-key">' + its.join('') + '</p>' : '';
   }
   /* כללי: "חלק מהנסיעות דרך X (בשעות …)" */
@@ -2066,6 +2069,8 @@ var LCDeck = (function () {
         bands.map(function (b) { return '<td>' + bandTxt(uniq.filter(function (m) { return m >= b[0] && m < b[1]; })) + '</td>'; }).join('') + '</tr>';
     });
     var al = cuAltLines(side, g.pages.length > 1);
+    // תגבור (כמה אוטובוסים באותה שעה) נספר בעמודת הנסיעות
+    if (cols.some(function (c) { return c.ents.some(function (e) { return e.n > 1; }); })) al += '<li>מספר הנסיעות כולל תגבורים (כמה אוטובוסים שיוצאים באותה שעה)</li>';
     return '<section class="cu-side"><h2 class="cu-sh hd">' + E(side.title) + '</h2><table class="cu-gt"><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>' +
       (al ? '<ul class="cu-alts">' + al + '</ul>' : '') + '</section>';
   }
