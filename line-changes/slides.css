@@ -745,3 +745,77 @@ body.editing .slide .emark:hover{outline:2px dashed #2563eb;outline-offset:2px}
 .s-cur.f-status .cu-gt small{font-size:20px}
 .deck[data-look="large"] .s-cur .ttc .tm{font-weight:900}
 .deck[data-look="large"] .s-cur .cu-head .sub,.deck[data-look="large"] .s-cur .cu-foot{color:#000}
+
+/* ================= טבלת לו"ז לכמה קווים (s-mt) ושקף "רק מה שהשתנה" (s-sum) ================= */
+.s-mt .mt-key{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 14px;font-weight:700;color:var(--s-sub);align-self:flex-end;max-width:55%}
+.s-mt .mt-key > span{white-space:nowrap}
+.s-mt table.mt-t{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:12px}
+.s-mt .mt-t th{color:var(--s-sub);font-weight:800;text-align:right;border-bottom:2px solid var(--s-band);vertical-align:bottom}
+.s-mt .mt-t th small{display:block;font-weight:600}
+.s-mt .mt-t td{border-bottom:1px solid var(--s-line);vertical-align:top;text-align:right}
+.s-mt .mt-t tr.cont td{border-top:none}
+.s-mt .mt-t tr.lead td{border-top:1px solid var(--s-line)}
+.s-mt .mt-t td.ln .badge.sm{min-width:0}
+.s-mt .mt-t td.from{font-weight:800;color:var(--s-fg)}
+.s-mt .mt-t td.tms .tm{white-space:nowrap}
+.s-mt .mt-t td.tx{color:var(--s-sub);font-weight:700}
+.s-mt .mt-t td.tx.off{color:var(--s-before);font-weight:800}
+.s-mt .mt-t tr.band td{color:#fff;font-weight:900;font-family:'Heebo',Arial,sans-serif;border:none}
+.s-mt .mt-t tr.band.c0 td{background:#0f766e}.s-mt .mt-t tr.band.c1 td{background:#c2410c}.s-mt .mt-t tr.band.c2 td{background:#6d28d9}
+.s-mt .mt-t tr.band.c3 td{background:#1d4ed8}.s-mt .mt-t tr.band.c4 td{background:#a16207}.s-mt .mt-t tr.band.c5 td{background:#be185d}
+.s-mt .tm.sh,.s-mt .mt-key .tm.sh{background:#fdf0d5;color:#8a5a00;font-weight:900;box-shadow:inset 0 0 0 1.5px #c58a00}
+.s-mt .tm .xn{color:var(--s-sub);font-weight:700;margin-inline-start:2px}
+.s-mt .mt-t.gen td{vertical-align:middle}
+.s-mt .mt-t.gen td.num,.s-mt .mt-t.gen th:nth-child(4),.s-mt .mt-t.gen th:nth-child(5),.s-mt .mt-t.gen th:nth-child(6){text-align:center}
+.s-mt .mt-t.gen td s{color:var(--s-before)}
+.s-mt .mt-t.gen td.wt{font-weight:600;line-height:1.3}
+.s-mt .mt-t.gen td.dy{font-weight:800}
+/* מצגת */
+.s-mt.f-deck{padding:36px 48px 46px}
+.s-mt.f-deck .cu-head h1{font-size:40px}
+.s-mt.f-deck .cu-head .sub{font-size:19px}
+.s-mt.f-deck .mt-key{font-size:15px}
+.s-mt.f-deck .mt-t{font-size:18px}
+.s-mt.f-deck .mt-t th{font-size:16px;padding:4px 6px}
+.s-mt.f-deck .mt-t th.ln{width:74px}.s-mt.f-deck .mt-t th.from{width:150px}
+.s-mt.f-deck .mt-t td{padding:5px 6px;line-height:27px}
+.s-mt.f-deck .mt-t td.ln .badge.sm{font-size:22px;padding:calc(4px + .07em) 9px calc(4px - .07em);border-radius:8px}
+.s-mt.f-deck .mt-t tr.band td{font-size:19px;padding:5px 12px}
+.s-mt.f-deck .mt-t.gen th:nth-child(3){width:110px}.s-mt.f-deck .mt-t.gen th:nth-child(4){width:130px}
+.s-mt.f-deck .mt-t.gen th:nth-child(5),.s-mt.f-deck .mt-t.gen th:nth-child(6){width:150px}
+.s-mt.f-deck .mt-t.gen td.wt{font-size:16px}
+/* A4 */
+.s-mt.f-sign .cu-head h1{font-size:28px}
+.s-mt.f-sign .mt-key{font-size:11.5px;max-width:52%}
+.s-mt.f-sign .mt-t{font-size:13px}
+.s-mt.f-sign .mt-t th{font-size:12px;padding:3px 4px}
+.s-mt.f-sign .mt-t th.ln{width:50px}.s-mt.f-sign .mt-t th.from{width:96px}
+.s-mt.f-sign .mt-t td{padding:3px 4px;line-height:20px}
+.s-mt.f-sign .mt-t td.ln .badge.sm{font-size:16px;padding:calc(3px + .07em) 6px calc(3px - .07em);border-radius:6px}
+.s-mt.f-sign .mt-t tr.band td{font-size:14px;padding:4px 10px}
+.s-mt.f-sign .tm{padding:0 2px}
+.s-mt.f-sign .tm .xn{font-size:9.5px}
+.s-mt.f-sign .mt-t.gen th:nth-child(3){width:70px}.s-mt.f-sign .mt-t.gen th:nth-child(4){width:76px}
+.s-mt.f-sign .mt-t.gen th:nth-child(5),.s-mt.f-sign .mt-t.gen th:nth-child(6){width:96px}
+.s-mt.f-sign .mt-t.gen td.wt{font-size:11.5px}
+/* רק מה שהשתנה */
+.s-sum{padding:40px 64px 60px;display:flex;flex-direction:column;gap:18px}
+.s-sum h2{font-size:44px;font-weight:900}
+.slide .sm-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.slide .sm-rows li{display:flex;align-items:flex-start;gap:18px;padding:10px 0;border-bottom:1px solid var(--s-line)}
+.slide .sm-rows .badge.sm{font-size:28px;min-width:72px}
+.slide .sm-rows .sm-t{min-width:0;display:flex;flex-direction:column;gap:4px}
+.slide .sm-rows .sm-h{display:flex;align-items:center;gap:10px}
+.slide .sm-rows .sm-od{font-weight:700;color:var(--s-sub);font-size:17px}
+.slide .sm-rows p{font-size:19px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.slide .chip.tt{background:#fdf0d5;color:#8a5a00}
+.s-status.s-sum{padding:0;gap:0}
+.s-status.s-sum .st-top.sm{padding-top:110px;gap:16px}
+.s-status.s-sum .st-top.sm h1{font-size:72px}
+.s-status.s-sum .sm-rows{padding:30px 56px 0}
+.s-status.s-sum .sm-rows li{gap:26px;padding:22px 0}
+.s-status.s-sum .sm-rows .badge.sm{font-size:48px;min-width:110px;padding:calc(10px + .07em) 16px calc(10px - .07em)}
+.s-status.s-sum .sm-rows .chip{font-size:26px}
+.s-status.s-sum .sm-rows .sm-od{font-size:28px}
+.s-status.s-sum .sm-rows p{font-size:32px;-webkit-line-clamp:3}
+.s-mt .mt-t td.from small{display:block;font-weight:700;color:var(--s-sub);font-size:.8em}
