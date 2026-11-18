@@ -375,6 +375,7 @@ function toLine(r, sc) {
     costRatio: Number(r.costRatio.toFixed(2)),
     lowRiderTh: r.lowRiderTh,
     origin: r.origin, dest: r.dest, district: r.district, makat: r.makat,
+    makats: r.makats || [],   // כל המק"טים של הקו — לחברה המפעילה ולחיפוש לפי מק"ט
     status: tier.label,
     statusTier: tier,
     percentLow: Math.round(r.percentLow),
