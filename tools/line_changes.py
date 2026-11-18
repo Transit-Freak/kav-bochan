@@ -18,7 +18,7 @@ GEO_LEN מ' לפחות (במרחק של יותר מ-GEO_DEV מ'). לא נספר 
              תחנות, מסלול, ושעות היציאה לכל סוג יום (א׳–ה׳, שישי, שבת).
   ended      קו מבוטל — מק"ט שנסע בשבוע שעבר ואין לו אף נסיעה מעכשיו ועד סוף החלון (או שהנסיעה האחרונה
              בשבוע הקרוב ואחריה אין כלום). עם תאריך הנסיעה האחרונה, וקווים אחרים שעוצרים ברוב התחנות שלו (alts).
-  timetable  שינוי בלוח הזמנים — אותו מסלול, שעות אחרות. משמעותי רק אם באחד מסוגי הימים מספר הנסיעות השתנה,
+  timetable  שינוי בלוח הזמנים — אותו מסלול, שעות אחרות. משמעותי רק אם באחת מקבוצות הימים (ימים בשבוע שיש להם אותו לוח ישן ואותו לוח חדש, למשל א׳–ד׳ וחמישי לחוד) מספר הנסיעות השתנה,
              הנסיעה הראשונה/האחרונה זזה ב-10 דק' או יותר, או התדירות בשעות השיא/בשאר היום השתנתה ב-3 דק' או יותר,
              והלוח החדש נשאר גם בשבוע שאחריו (אחרת: שינוי זמני — tt_temp). הזזה קטנה של כל הנסיעות — tt_shift.
 שינוי שכבר נכנס לתוקף נשאר ברשימה KEEP_DAYS ימים (שבוע) (מהריצות הקודמות). שינוי עתידי
@@ -547,16 +547,47 @@ def od_of(long):
 
 # ---------------------------------------------------------------- לוח זמנים, קו חדש, קו מבוטל
 
-DAYTYPES = ('wd', 'fri', 'sat')    # א׳–ה׳ · שישי · שבת (כולל מוצאי שבת — אותו יום שירות)
+# ימים בשבוע: d0 = ראשון ... d6 = שבת (כולל מוצאי שבת — אותו יום שירות). ימים עם בדיוק אותו לוח זמנים
+# (גם הישן וגם החדש) מתקבצים יחד: "א׳–ד׳", "ה׳", "שישי", "שבת"
+DOWS = ('d0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6')
 PEAK = ((420, 540), (960, 1140))   # 07–09, 16–19
 OFFPEAK = ((540, 960),)            # 09–16
 TT_COUNT, TT_EDGE, TT_HW = 1, 10, 3   # שינוי משמעותי: נסיעה אחת לפחות · ראשונה/אחרונה ב-10 דק' · תדירות ב-3 דק'
 ALT_MAX = 5
+DOW_FULL = ('ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי')
+DOW_LET = ('א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳')
 
 
-def dtype(d):
-    w = d.weekday()
-    return 'fri' if w == 4 else 'sat' if w == 5 else 'wd'
+def dow(d):
+    """datetime.date → 'd0' (ראשון) ... 'd6' (שבת)"""
+    return DOWS[(d.weekday() + 1) % 7]
+
+
+def days_short(ts):
+    """['d0','d1','d2','d3'] → "א׳–ד׳" · ['d4'] → "ה׳" · ['d5'] → "שישי" · ['d0','d2'] → "א׳ ו-ג׳" """
+    ix = sorted(DOWS.index(t) for t in ts)
+    if ix == [5]:
+        return 'שישי'
+    if ix == [6]:
+        return 'שבת'
+    runs = []
+    for i in ix:
+        if runs and runs[-1][-1] == i - 1:
+            runs[-1].append(i)
+        else:
+            runs.append([i])
+    parts = [DOW_LET[r[0]] if len(r) == 1 else DOW_LET[r[0]] + '–' + DOW_LET[r[-1]] for r in runs]
+    return parts[0] if len(parts) == 1 else ', '.join(parts[:-1]) + ' ו-' + parts[-1]
+
+
+def day_in(ts):
+    """"בימי חול" · "ביום חמישי" · "בשישי" · "בשבת" · "בימים א׳–ד׳" """
+    ix = sorted(DOWS.index(t) for t in ts)
+    if ix == [0, 1, 2, 3, 4]:
+        return 'בימי חול'
+    if len(ix) == 1:
+        return 'ביום ' + DOW_FULL[ix[0]] if ix[0] < 5 else 'בשישי' if ix[0] == 5 else 'בשבת'
+    return 'בימים ' + days_short(ts)
 
 
 def dir_key(rd):
@@ -595,101 +626,109 @@ def tt_sig(a, b):
     return any(a.get(k) and b.get(k) and abs(a[k] - b[k]) >= TT_HW for k in ('pk', 'op'))
 
 
-def typical(feed, svcs, days, latest=False):
-    """לכל סוג יום: רשימת היציאות הנפוצה ביותר בימים האלה. בשוויון — של היום המוקדם,
-    או (latest, לשבוע שעבר) של היום המאוחר: לוח זמנים שהשתנה באמצע השבוע שעבר הוא כבר הבסיס"""
+def wk_typical(feed, svcs, days):
+    """לכל יום בשבוע: רשימת היציאות הנפוצה בתאריכים האלה (חג או יום חריג אחד לא קובע).
+    בשוויון — רשימה עם נסיעות, ואז של התאריך המאוחר"""
     by = defaultdict(list)
     for d in days:
-        by[dtype(d)].append(tuple(feed.day_deps(svcs, d)))
+        by[dow(d)].append(tuple(feed.day_deps(svcs, d)))
     out = {}
-    for t, lists in by.items():
-        # יום בלי אף נסיעה, כשבימים אחרים מאותו סוג הקו נוסע — השבתה או חג, לא לוח הזמנים הרגיל
-        if any(lists):
-            lists = [x for x in lists if x]
+    for w, lists in by.items():
         cnt = defaultdict(int)
-        for x in lists:
-            cnt[x] += 1
         pos = {}
         for i, x in enumerate(lists):
-            pos[x] = i if latest else pos.get(x, -i)
-        out[t] = list(max(lists, key=lambda x: (cnt[x], pos[x])))
+            cnt[x] += 1
+            pos[x] = i
+        out[w] = list(max(lists, key=lambda x: (cnt[x], bool(x), pos[x])))
     return out
 
 
-def tt_entries(old, new):
-    """רשומות לוח הזמנים לפלט: [{t: [סוגי ימים], o/n: יציאות, so/sn: סיכום}] — סוגי ימים זהים מאוחדים.
-    old=None לקו חדש (רק n)."""
-    out = []
-    for t in DAYTYPES:
-        n = new.get(t)
-        o = old.get(t) if old is not None else None
-        if n is None and o is None:
+def day_groups(old, new):
+    """ימים בשבוע עם בדיוק אותו לוח ישן ואותו לוח חדש — קבוצה אחת: [(ימים, ישן, חדש)]. old=None לקו חדש"""
+    g = {}
+    for w in DOWS:
+        if w not in new and (old is None or w not in old):
             continue
-        n = n or []
-        e = {'t': [t], 'n': n, 'sn': tt_sum(n)}
-        if old is not None:
-            o = o or []
-            e['o'] = o
-            e['so'] = tt_sum(o)
+        k = (tuple(old.get(w, [])) if old is not None else None, tuple(new.get(w, [])))
+        g.setdefault(k, []).append(w)
+    return [(ws, list(k[0]) if k[0] is not None else None, list(k[1])) for k, ws in g.items()]
+
+
+def tt_entries(groups):
+    """רשומות לוח הזמנים לפלט: [{t: [ימים], o/n: יציאות, so/sn: סיכום}] (o/so רק כשיש לוח ישן)"""
+    out = []
+    for ws, o, n in groups:
         if not n and not o:
             continue
-        same = next((x for x in out if x['n'] == e['n'] and x.get('o') == e.get('o')), None)
-        if same:
-            same['t'].append(t)
-        else:
-            out.append(e)
+        e = {'t': ws, 'n': n, 'sn': tt_sum(n)}
+        if o is not None:
+            e['o'] = o
+            e['so'] = tt_sum(o)
+        out.append(e)
     return out
 
 
-def tt_change(old, new, dk, o_svcs, n_svcs, ref_days, t0, last_day):
-    """שינוי בלוח הזמנים של כיוון אחד (אותו מסלול): מחזיר (תאריך, ישן, חדש, סוגי ימים שהשתנו) או סיבה לסינון"""
-    ref = typical(old, o_svcs, ref_days, latest=True)
-    ref_by_wd = {d.weekday(): old.day_deps(o_svcs, d) for d in ref_days}
-    sref = {t: tt_sum(v) for t, v in ref.items()}
+def tt_change(old, new, o_svcs, n_svcs, ref_days, t0, last_day):
+    """שינוי בלוח הזמנים של כיוון אחד (אותו מסלול). לכל יום בשבוע: מה היה בשבוע שעבר מול הלוח הנפוץ
+    בשלושת השבועות הבאים; ימים עם אותו לוח (ישן וחדש) מתקבצים, והסף נבדק לכל קבוצה.
+    מחזיר ((תאריך, קבוצות, קבוצות שהשתנו), '') או (None, סיבה)"""
     day = datetime.timedelta(days=1)
-    cands, d = [], t0
-    while d <= t0 + datetime.timedelta(days=7):
-        if d.weekday() in ref_by_wd and new.day_deps(n_svcs, d) != ref_by_wd[d.weekday()]:
-            cands.append(d)
+    ref = {dow(d): old.day_deps(o_svcs, d) for d in ref_days}
+    win = []
+    d = t0
+    while d <= last_day:
+        win.append(d)
         d += day
-    if not cands:
+    nw = wk_typical(new, n_svcs, win)
+    # יום בלי נסיעות בשבוע שעבר, בתוך כמה ימים רצופים בלי נסיעות (השבתה זמנית) — לא יודעים מה היה; לא משווים
+    empty = {x for x in ref_days if not ref[dow(x)]}
+    for x in ref_days:
+        w = dow(x)
+        if x in empty and nw.get(w) and any(y in empty and nw.get(dow(y)) for y in (x - day, x + day)):
+            ref[w] = nw[w]
+    # בשבוע שעבר יש רק תאריך אחד לכל יום. בימים שהלוח החדש שלהם זהה (למשל א׳–ד׳), יום אחד שהיה שונה מכל השאר
+    # בשבוע שעבר (חג, ביטול חד-פעמי) — מקבל את הלוח של רוב הימים בקבוצה
+    by_new = defaultdict(list)
+    for w in DOWS:
+        if w in nw:
+            by_new[tuple(nw[w])].append(w)
+    for ws in by_new.values():
+        if len(ws) < 3:
+            continue
+        cnt = defaultdict(int)
+        for w in ws:
+            cnt[tuple(ref.get(w, []))] += 1
+        mode = max(cnt, key=lambda x: (cnt[x], bool(x)))
+        if cnt[mode] >= 2:
+            for w in ws:
+                if cnt[tuple(ref.get(w, []))] == 1:
+                    ref[w] = list(mode)
+    groups = day_groups(ref, nw)
+    changed = [g for g in groups if tt_sig(tt_sum(g[1]), tt_sum(g[2]))]
+    if not changed:
+        if any(g[1] != g[2] for g in groups):
+            return None, 'shift'
+        if any(new.day_deps(n_svcs, x) != nw.get(dow(x), []) for x in win[:8]):
+            return None, 'temp'
         return None, 'same'
-    why = 'shift'
-    for D in cands:
-        w1 = [D + day * i for i in range(7) if D + day * i <= last_day]
-        nw = typical(new, n_svcs, w1)
-        changed = [t for t in DAYTYPES if t in nw and t in sref and tt_sig(sref[t], tt_sum(nw[t]))]
-        # סוג יום שבשבוע שעבר לא היו בו נסיעות בכלל, בתוך כמה ימים רצופים בלי נסיעות (השבתה זמנית) — לא יודעים מה היה, לא משווים
-        runs = {x.weekday() for x in w1 if new.day_deps(n_svcs, x)}
-        empty = {x for x in ref_days if not old.day_deps(o_svcs, x)}
-        changed = [t for t in changed if sref[t]['n'] or not any(
-            x in empty and any(y in empty and y.weekday() in runs for y in (x - day, x + day)) for x in ref_days if dtype(x) == t)]
-        if not changed:
-            continue
-        # שבוע אחרי — לוח הזמנים החדש צריך להישאר (בערך) אותו דבר. אם הוא חוזר לקודם או משתנה שוב,
-        # זה שינוי זמני (חג, עבודות, ביטול נסיעות לכמה ימים) ולא נספר
-        w2 = [D + day * i for i in range(7, 14) if D + day * i <= last_day]
-        nw2 = typical(new, n_svcs, w2) if w2 else {}
-        changed = [t for t in changed if t not in nw2 or not tt_sig(tt_sum(nw[t]), tt_sum(nw2[t]))]
-        if not changed:
-            why = 'temp'
-            continue
-        # התאריך: היום הראשון שבו הלוח כבר כמו הלוח החדש (ולא סתם יום חריג באמצע)
-        eff = next((x for x in w1 if dtype(x) in changed and tt_sig(sref[dtype(x)], tt_sum(new.day_deps(n_svcs, x)))
-                    and not tt_sig(tt_sum(new.day_deps(n_svcs, x)), tt_sum(nw[dtype(x)]))), D)
-        # השינוי התחיל כבר בשבוע שעבר (בימים האחרונים שלו)? אז זה התאריך
-        if eff == D:
-            for x in sorted(ref_days, reverse=True):
-                t = dtype(x)
-                if t not in changed:
-                    continue
-                s = tt_sum(old.day_deps(o_svcs, x))
-                if not tt_sig(s, tt_sum(nw[t])) and tt_sig(s, sref[t]):
-                    eff = x
-                else:
-                    break
-        return (eff, ref, nw, changed), ''
-    return None, why
+    chw = {w for g in changed for w in g[0]}
+    # השינוי כבר התחיל באמצע השבוע שעבר: בימים שהלוח החדש שלהם זהה, הימים המוקדמים בשבוע שעבר עוד היו לפי הלוח הישן
+    # והמאוחרים כבר לפי החדש (למשל שינוי מיום ראשון, כשהשבוע שעבר התחיל ביום רביעי) — התאריך הוא היום שבו זה התחיל
+    past = None
+    for ws in by_new.values():
+        seq = [x for x in sorted(ref_days) if dow(x) in ws]
+        ok = [not tt_sig(tt_sum(old.day_deps(o_svcs, x)), tt_sum(nw[dow(x)])) for x in seq]
+        if True in ok and False in ok and all(ok[ok.index(True):]) and chw & set(ws):
+            x0 = seq[ok.index(True)]
+            past = x0 if past is None or x0 < past else past
+    if past is not None and all(any(w in ws and any(not tt_sig(tt_sum(old.day_deps(o_svcs, x)), tt_sum(nw[w])) for x in ref_days if dow(x) in ws)
+                                    for ws in by_new.values()) for w in chw):
+        return None, 'before'   # התחיל כבר בשבוע שעבר — הלילות הקודמים כבר מצאו אותו מראש
+    eff = next((x for x in win if dow(x) in chw and tt_sig(tt_sum(ref[dow(x)]), tt_sum(new.day_deps(n_svcs, x)))
+                and not tt_sig(tt_sum(new.day_deps(n_svcs, x)), tt_sum(nw[dow(x)]))), None)
+    if eff is None or eff > t0 + datetime.timedelta(days=HORIZON):
+        return None, 'later'
+    return (eff, groups, changed), ''
 
 
 def stops_of(feed, pid):
@@ -909,7 +948,12 @@ def run():
         d += DAY
 
     def week_tt(svcs, S):
-        return typical(new, svcs, [S + DAY * i for i in range(7) if S + DAY * i <= new.d1])
+        days = []
+        d = S
+        while d <= new.d1:
+            days.append(d)
+            d += DAY
+        return day_groups(None, wk_typical(new, svcs, days))
 
     # קו חדש
     for mk, (ks, S) in new_mks.items():
@@ -919,7 +963,7 @@ def run():
             S_d = max(S, min(d for v in vs.values() for d in v['dates'])) if S >= t0 else S
             found.append(kind_rec(dk, 'new', r, new.agency.get(r['ag'], ''), S_d, t0,
                                   new=side_of(new, nm[0], shp_new, nm[1]),
-                                  tt=tt_entries(None, week_tt(new_deps.get(dk, {}), max(S_d, t0)))))
+                                  tt=tt_entries(week_tt(new_deps.get(dk, {}), max(S_d, t0)))))
     # קו מבוטל: קווים אחרים שעוצרים באותן תחנות (בשבוע השני — אחרי שהקו כבר לא נוסע)
     cand_index, mk_route = defaultdict(set), {}
     for k, vs in new_v.items():
@@ -970,21 +1014,24 @@ def run():
         r = route_of(new, new_v[ks[0]])
         if r['ty'] == '2' or not r['line']:
             continue
-        res, why = tt_change(old, new, dk, old_deps[dk], new_deps[dk], ref_days, t0, new.d1)
+        res, why = tt_change(old, new, old_deps[dk], new_deps[dk], ref_days, t0, new.d1)
         if not res:
             if why != 'same':
                 filtered['tt_' + why] += 1
             continue
-        eff, ref, nw, changed = res
+        eff, groups, changed = res
         om = dir_main(old_v, [k for k in ks if k in old_v])
         nm = dir_main(new_v, ks, eff, eff + 7 * DAY)
         if dk not in nm:
             continue
         nmv, nvs = nm[dk]
         r = new.routes[nvs[nmv]['rid']]
-        # כל סוגי הימים שיש בהם שינוי משמעותי; "same" — סוגי ימים שהקו נוסע בהם בלי שינוי
-        ent = tt_entries({t: ref.get(t, []) for t in changed}, {t: nw.get(t, []) for t in changed})
-        same = [t for t in DAYTYPES if t not in changed and (ref.get(t) or nw.get(t))]
+        # קבוצות הימים שיש בהן שינוי משמעותי; "same" — ימים שהקו נוסע בהם בלי שינוי
+        ent = tt_entries(changed)
+        chw = {w for g in changed for w in g[0]}
+        same = [w for g in groups if g not in changed and (g[1] or g[2]) for w in g[0] if w not in chw]
+        if len(changed) > 1 or any(len(g[0]) not in (1, 5) or (len(g[0]) == 1 and g[0][0] not in ('d5', 'd6')) for g in changed):
+            stats['tt_split'] += 1
         omv = om.get(dk)
         found.append(kind_rec(dk, 'timetable', r, new.agency.get(r['ag'], ''), eff, t0,
                               old=side_of(old, omv[0][0], {}, '', full=False) if omv else None,
@@ -1251,7 +1298,6 @@ def add_walks(found, data):
 
 
 KIND_SUFFIX = {'new': '-n', 'ended': '-e', 'timetable': '-t'}
-DT_NAME = {'wd': 'בימי חול', 'fri': 'בשישי', 'sat': 'בשבת'}
 
 
 def kind_summary(kd, dirs):
@@ -1260,22 +1306,23 @@ def kind_summary(kd, dirs):
         return 'קו חדש'
     if kd == 'ended':
         return 'הקו מבוטל'
-    parts = []
-    for t in DAYTYPES:
+    words = {}
+    for w in DOWS:
         dn = [0, 0]
         for f in dirs:
             for e in f.get('tt', []):
-                if t in e['t']:
+                if w in e['t']:
                     dn[0] += e['so']['n']
                     dn[1] += e['sn']['n']
         if dn == [0, 0]:
             continue
-        w = 'יותר נסיעות' if dn[1] > dn[0] else 'פחות נסיעות' if dn[1] < dn[0] else 'שעות אחרות'
+        x = 'יותר נסיעות' if dn[1] > dn[0] else 'פחות נסיעות' if dn[1] < dn[0] else 'שעות אחרות'
         if not dn[0]:
-            w = 'נסיעות חדשות'
+            x = 'נסיעות חדשות'
         elif not dn[1]:
-            w = 'בלי נסיעות'
-        parts.append(f'{w} {DT_NAME[t]}')
+            x = 'בלי נסיעות'
+        words.setdefault(x, []).append(w)
+    parts = [f'{x} {day_in(ws)}' for x, ws in sorted(words.items(), key=lambda kv: DOWS.index(kv[1][0]))]
     return 'שינוי בלוח הזמנים' + (': ' + ', '.join(parts[:2]) if parts else '')
 
 

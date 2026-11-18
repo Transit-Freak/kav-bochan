@@ -990,14 +990,31 @@ var LCDeck = (function () {
   /* ================= סוגים נוספים: קו חדש · קו מבוטל · שינוי בלוח הזמנים =================
      p.kind: 'new' / 'ended' / 'timetable' (שינוי מסלול — בלי kind). לכל סוג שקפים משלו, בשלוש הצורות.
      לוח הזמנים — לפי הבחירה בשלב 3 (ED.tt): v = 'gen' כללי / 'det' מפורט, f = 'table' טבלה / 'text' טקסט. */
-  var DT_IN = { wd: 'בימי חול', fri: 'בשישי', sat: 'בשבת ובמוצאי שבת' };
-  var DT_NAME = { wd: 'ימי חול (א׳–ה׳)', fri: 'שישי', sat: 'שבת ומוצאי שבת' };
-  var DT_SHORT = { wd: 'א׳–ה׳', fri: 'שישי', sat: 'שבת' };
-  function dtJoin(ts, map) {
-    var a = ts.map(function (t) { return map[t]; });
-    return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' ו' + a[a.length - 1].replace(/^ב/, 'ב');
+  /* ימים בשבוע: d0 = ראשון ... d6 = שבת. ימים עם אותו לוח זמנים מקובצים: "א׳–ד׳", "ה׳", "שישי", "שבת" */
+  var DOWS = ['d0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6'];
+  var DOW_LET = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'], DOW_FULL = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
+  function dix(ts) { return ts.map(function (t) { return DOWS.indexOf(t); }).filter(function (i) { return i >= 0; }).sort(); }
+  function daysShort(ts) {
+    var ix = dix(ts);
+    if (ix.join() === '5') return 'שישי';
+    if (ix.join() === '6') return 'שבת';
+    var runs = [];
+    ix.forEach(function (i) { var r = runs[runs.length - 1]; if (r && r[r.length - 1] === i - 1) r.push(i); else runs.push([i]); });
+    var parts = runs.map(function (r) { return r.length === 1 ? DOW_LET[r[0]] : DOW_LET[r[0]] + '–' + DOW_LET[r[r.length - 1]]; });
+    return parts.length === 1 ? parts[0] : parts.slice(0, -1).join(', ') + ' ו-' + parts[parts.length - 1];
   }
-  function dtIn(ts) { return ts.length === 1 ? DT_IN[ts[0]] : dtJoin(ts, DT_IN).replace(/ ובב/, ' וב'); }
+  function dtIn(ts) {   // "בימי חול" · "ביום חמישי" · "בשישי" · "בשבת ובמוצאי שבת" · "בימים א׳–ד׳"
+    var ix = dix(ts);
+    if (ix.join() === '0,1,2,3,4') return 'בימי חול';
+    if (ix.length === 1) return ix[0] < 5 ? 'ביום ' + DOW_FULL[ix[0]] : ix[0] === 5 ? 'בשישי' : 'בשבת ובמוצאי שבת';
+    return 'בימים ' + daysShort(ts);
+  }
+  function dayName(ts) {   // כותרת: "ימי חול (א׳–ה׳)" · "יום חמישי" · "שישי" · "שבת ומוצאי שבת" · "ימים א׳–ד׳"
+    var ix = dix(ts);
+    if (ix.join() === '0,1,2,3,4') return 'ימי חול (א׳–ה׳)';
+    if (ix.length === 1) return ix[0] < 5 ? 'יום ' + DOW_FULL[ix[0]] : ix[0] === 5 ? 'שישי' : 'שבת ומוצאי שבת';
+    return 'ימים ' + daysShort(ts);
+  }
   function trips(n) { return n === 1 ? 'נסיעה אחת' : n + ' נסיעות'; }
   function every(m) { return m === 60 ? 'כל שעה' : m === 120 ? 'כל שעתיים' : m === 30 ? 'כל חצי שעה' : 'כל ' + m + ' דק׳'; }
   var hm = LC.hm;
@@ -1043,8 +1060,8 @@ var LCDeck = (function () {
   }
   function noRun(p, d) {   // סוגי ימים שהקו החדש לא נוסע בהם
     var has = {}; (d.tt || []).forEach(function (e) { e.t.forEach(function (t) { has[t] = 1; }); });
-    var no = ['wd', 'fri', 'sat'].filter(function (t) { return !has[t]; });
-    return no.length && no.length < 3 ? '<b>' + E(dtIn(no)) + '</b> הקו לא נוסע.' : '';
+    var no = DOWS.filter(function (t) { return !has[t]; });
+    return no.length && no.length < 7 ? '<b>' + E(dtIn(no)) + '</b> הקו לא נוסע.' : '';
   }
   /* שינוי קטן בלו"ז: עד 6 נסיעות שנוספו או בוטלו בסך הכול, והנסיעה הראשונה/האחרונה לא זזה בחצי שעה או יותר.
      אז תמיד טקסט, ובו בדיוק אילו נסיעות */
@@ -1191,14 +1208,14 @@ var LCDeck = (function () {
     var head = '<tr><th class="dt" rowspan="' + (isNew ? 1 : 2) + '">ימים</th>' + METS.map(function (m) { return isNew ? '<th>' + m[0] + '</th>' : '<th colspan="2" class="grp">' + m[0] + '</th>'; }).join('') + '</tr>' +
       (isNew ? '' : '<tr>' + METS.map(function () { return '<th class="was">עד היום</th><th class="now">' + E(effTxt) + '</th>'; }).join('') + '</tr>');
     var rows = es.map(function (e) {
-      return '<tr><th class="dt">' + E(dtJoin(e.t, DT_SHORT)) + '</th>' + METS.map(function (m) {
+      return '<tr><th class="dt">' + E(daysShort(e.t)) + '</th>' + METS.map(function (m) {
         if (isNew) return '<td class="now">' + m[1](e.sn) + '</td>';
         return '<td class="was">' + m[1](e.so) + '</td><td class="now' + (m[2](e.so, e.sn) ? ' chg' : '') + '">' + m[1](e.sn) + '</td>';
       }).join('') + '</tr>';
     });
     // סוגי ימים בלי שינוי (או שהקו החדש לא נוסע בהם) — שורה בהירה אחת
-    var other = isNew ? ['wd', 'fri', 'sat'].filter(function (t) { return !es.some(function (e) { return e.t.indexOf(t) >= 0; }); }) : (d.same || []);
-    if (other.length) rows.push('<tr class="same"><th class="dt">' + E(dtJoin(other, DT_SHORT)) + '</th><td colspan="' + ncol + '">' + (isNew ? 'הקו לא נוסע' : 'ללא שינוי') + '</td></tr>');
+    var other = isNew ? DOWS.filter(function (t) { return !es.some(function (e) { return e.t.indexOf(t) >= 0; }); }) : (d.same || []);
+    if (other.length) rows.push('<tr class="same"><th class="dt">' + E(daysShort(other)) + '</th><td colspan="' + ncol + '">' + (isNew ? 'הקו לא נוסע' : 'ללא שינוי') + '</td></tr>');
     return { h: tH + M.th * (isNew ? 1 : 2) + rows.length * M.genH + M.gap,
       html: '<div class="tt-blk">' + title + '<table class="tt-g2' + (isNew ? ' one' : '') + '"><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table></div>' };
   }
@@ -1219,7 +1236,8 @@ var LCDeck = (function () {
   }
   function detTable(p, e, title, M) {
     var isNew = p.kind === 'new', items = isNew ? e.n.map(function (m) { return [m, '']; }) : mergeSh(e.o, e.n);
-    var hrs = byHour(items), K = Math.max(1, Math.min(M.cols, Math.max.apply(null, hrs.map(function (r) { return r.items.length; }))));
+    // לפחות 5 תאים בשורה — גם בקו עם נסיעה אחת בשעה, כדי שהטבלה לא תהיה עמודה צרה
+    var hrs = byHour(items), K = Math.max(5, Math.min(M.cols, Math.max.apply(null, hrs.map(function (r) { return r.items.length; }))));
     var chg = function (r) { return r.items.some(function (x) { return x[1]; }); };
     var nChg = hrs.filter(chg).length, fold = !isNew && nChg <= Math.max(2, hrs.length * 0.4);
     var cellOf = function (x) {
@@ -1242,7 +1260,7 @@ var LCDeck = (function () {
       }
     }
     var sum = isNew ? '' : diffSummary(e);
-    var cap = function (cont) { return '<h4 class="tt-day">' + E(dtJoin(e.t, DT_NAME)) + (cont ? ' (המשך)' : '') + '<span>' + (isNew ? trips(e.sn.n) : trips(e.so.n) + ' עד היום · ' + trips(e.sn.n) + ' מעכשיו') + '</span></h4>'; };
+    var cap = function (cont) { return '<h4 class="tt-day">' + E(dayName(e.t)) + (cont ? ' (המשך)' : '') + '<span>' + (isNew ? trips(e.sn.n) : trips(e.so.n) + ' עד היום · ' + trips(e.sn.n) + ' מעכשיו') + '</span></h4>'; };
     return { rows: rows, th: M.th + M.titleH + (sum ? M.lineH : 0) + (title ? M.titleH : 0), gap: M.gap,
       open: function (cont) {
         return '<div class="tt-blk">' + (cont ? '' : title) + cap(cont) + (sum && !cont ? '<p class="tt-sum">' + sum + '</p>' : '') +
@@ -1253,7 +1271,7 @@ var LCDeck = (function () {
   /* מפורט, טקסט: כל השעות ברצף — חדשות בירוק, שמבוטלות באדום מחוק */
   function detText(p, e, title, tH, M, effTxt) {
     var items = p.kind === 'new' ? e.n.map(function (m) { return [m, '']; }) : mergeSh(e.o, e.n);
-    var head = '<div class="tt-cap"><b>' + E(dtJoin(e.t, DT_NAME)) + '</b><span>' + (p.kind === 'new' ? trips(e.sn.n) : trips(e.so.n) + ' ← ' + trips(e.sn.n)) + '</span></div>';
+    var head = '<div class="tt-cap"><b>' + E(dayName(e.t)) + '</b><span>' + (p.kind === 'new' ? trips(e.sn.n) : trips(e.so.n) + ' ← ' + trips(e.sn.n)) + '</span></div>';
     // בטקסט ארוך — מחלקים לשורות של שעה-שעתיים, כדי שהעין תמצא את השעה
     var rows = [], cur = [], curH = -1;
     items.forEach(function (x) { var h = Math.floor(x[0] / 120); if (h !== curH && cur.length) { rows.push(cur); cur = []; } curH = h; cur.push(x); });
