@@ -771,7 +771,7 @@
   var editMode = false;
   function normEdits(e) {
     e = e && typeof e === 'object' ? e : {};
-    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {};
+    e.t = e.t || {}; e.add = e.add || {}; e.boxes = e.boxes || {}; e.xslides = e.xslides || []; e.off = e.off || {}; e.modes = e.modes || {}; e.hide = e.hide || {}; e.imgs = e.imgs || {}; e.inset = e.inset || {};
     return e;
   }
   function textSlide(x, pages) {
@@ -1019,6 +1019,37 @@
     crEl.checked = creditOn();
     crEl.addEventListener('change', function () { try { localStorage.setItem('lc-credit', crEl.checked ? '1' : '0'); } catch (e) {} if (curPages) keepScroll(function () { render(curPages); }); });
   }
+  /* מפת ההתמצאות: במצב עריכה גוררים אותה (עכבר או מגע) לכל מקום בתוך המפה (לא על הקרדיט של OpenStreetMap למטה) — נשמר לכל שקף באחוזים מגודל המפה
+     (edits.inset), גם להדפסה ול-PDF; ✕ מסתיר ומחזיר (edits.hide). "שחזור הכול" — חזרה לפינה האוטומטית */
+  $('deck').addEventListener('pointerdown', function (ev) {
+    var ins = ev.target.closest('.inset'); if (!ins || !editMode || ev.target.closest('.inset-x') || ev.button > 0) return;
+    var par = ins.parentNode, mapEl = par.querySelector('.smap'); if (!mapEl) return;
+    ev.preventDefault(); ev.stopPropagation();
+    var k = mapEl.getBoundingClientRect().width / mapEl.offsetWidth, W = mapEl.offsetWidth, H = mapEl.offsetHeight;
+    var x0 = ev.clientX, y0 = ev.clientY, bx = ins.offsetLeft, by = ins.offsetTop, moved = false;
+    function mv(e) {
+      moved = true;
+      ins.style.left = Math.max(0, Math.min(W - ins.offsetWidth, bx + (e.clientX - x0) / k)) + 'px';
+      ins.style.top = Math.max(0, Math.min(H - ins.offsetHeight - 22, by + (e.clientY - y0) / k)) + 'px';
+    }
+    function up() {
+      document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+      if (!moved) return;
+      var sid = ins.getAttribute('data-ins').replace(/\|inset$/, '');
+      edits.inset[sid] = { x: +(ins.offsetLeft / W * 100).toFixed(2), y: +(ins.offsetTop / H * 100).toFixed(2) };
+      ins.setAttribute('data-fx', edits.inset[sid].x); ins.setAttribute('data-fy', edits.inset[sid].y);
+      saveEdits();
+    }
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+  $('deck').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.inset-x'); if (!b || !editMode) return;
+    ev.preventDefault();
+    var ins = b.closest('.inset'), id = ins.getAttribute('data-ins');
+    if (edits.hide[id]) delete edits.hide[id]; else edits.hide[id] = 1;
+    ins.classList.toggle('inoff', !!edits.hide[id]);
+    saveEdits();
+  });
   // סימן (מספר, נקודה, צבע במקרא): במצב עריכה לחיצה מסתירה אותו, ולחיצה נוספת מחזירה
   $('deck').addEventListener('click', function (ev) {
     var m = ev.target.closest('.emark'); if (!m || !editMode) return;

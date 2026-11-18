@@ -2128,24 +2128,51 @@ var LCDeck = (function () {
       if (Math.hypot(a[i][0] - a[j][0], a[i][1] - a[j][1]) < MK) n++;
     return n;
   }
+  /* חלוקה למפות לפי אזורים: תחנות שמשתנות שרחוקות זו מזו יותר מ-PART_GAP — מפה לכל אזור (עד 4; יותר — מאחדים
+     את הקרובים). אזור אחד צפוף (10 תחנות ויותר שעולות זו על זו) — שתי מפות, חצי מהתחנות בכל אחת */
+  var PART_GAP = 4000;
+  function clusters(all, gap) {
+    var id = all.map(function (_, i) { return i; });
+    var root = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
+    for (var i = 0; i < all.length; i++) for (var j = i + 1; j < all.length; j++) {
+      if (dist(all[i].ll, all[j].ll) <= gap) id[root(i)] = root(j);
+    }
+    var g = {};
+    all.forEach(function (s, i) { (g[root(i)] = g[root(i)] || []).push(s); });
+    return Object.keys(g).map(function (k) { return g[k]; });
+  }
   function splitParts(remS, addS) {
     var all = remS.concat(addS);
     var one = [{ i: 0, name: '', show: null }];
-    if (all.length < 10 || overlaps(all.map(function (s) { return s.ll; })) <= 4) return one;
+    if (!all.length) return one;
+    var gap = PART_GAP, cl = clusters(all, gap);
+    while (cl.length > 4) { gap *= 2; cl = clusters(all, gap); }
     var a = all.map(function (s) { return px(s.ll, 0); });
     var xs = a.map(function (p) { return p[0]; }), ys = a.map(function (p) { return p[1]; });
     var vert = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) >= (Math.max.apply(null, xs) - Math.min.apply(null, xs));
     var key = function (s) { return vert ? -s.ll[0] : s.ll[1]; };   // צפון/מערב קודם
+    var mid = function (c) { return c.reduce(function (t, s) { return t + key(s); }, 0) / c.length; };
+    var mk = function (c) { var o = {}; c.forEach(function (s) { o[s._k + s.code] = 1; }); return o; };
+    if (cl.length > 1) {
+      cl.sort(function (x, y) { return mid(x) - mid(y); });
+      // שם לכל אזור: העיר (כשלכל אזור עיר אחרת), ואחרת צפוני/דרומי (מערבי/מזרחי)
+      var city = cl.map(function (c) {
+        var n = {}; c.forEach(function (s) { if (s.city) n[s.city] = (n[s.city] || 0) + 1; });
+        return Object.keys(n).sort(function (x, y) { return n[y] - n[x]; })[0] || '';
+      });
+      var byCity = city.every(function (c, i) { return c && city.indexOf(c) === i; });
+      var pos = cl.length === 2 ? (vert ? ['החלק הצפוני', 'החלק הדרומי'] : ['החלק המערבי', 'החלק המזרחי']) : null;
+      return cl.map(function (c, i) { return { i: i, name: byCity ? 'ב' + city[i] : pos ? pos[i] : 'אזור ' + (i + 1), show: mk(c) }; });
+    }
+    if (all.length < 10 || overlaps(all.map(function (s) { return s.ll; })) <= 4) return one;
     var sorted = all.slice().sort(function (x, y) { return key(x) - key(y); });
-    var half = Math.ceil(sorted.length / 2), A = {}, B = {};
-    sorted.forEach(function (s, i) { (i < half ? A : B)[s._k + s.code] = 1; });
-    return [{ i: 0, name: vert ? 'החלק הצפוני' : 'החלק המערבי', show: A },
-            { i: 1, name: vert ? 'החלק הדרומי' : 'החלק המזרחי', show: B }];
+    var half = Math.ceil(sorted.length / 2);
+    return [{ i: 0, name: vert ? 'החלק הצפוני' : 'החלק המערבי', show: mk(sorted.slice(0, half)) },
+            { i: 1, name: vert ? 'החלק הדרומי' : 'החלק המזרחי', show: mk(sorted.slice(half)) }];
   }
 
   /* מרחיק סמנים שעולים זה על זה; מחזיר מיקום חדש בפיקסלים לכל סמן */
-  var INSET = { x: 16 + 236 + 14, y: 16 + 178 + 14 };   // הפינה של מפת ההתמצאות + מרווח
-  function declutter(pts, w, h, inset) {
+  function declutter(pts, w, h, inset) {   // inset: [x0, y0, x1, y1] — מפת ההתמצאות (עם מרווח), או null
     for (var it = 0; it < 120; it++) {
       var moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
@@ -2160,8 +2187,11 @@ var LCDeck = (function () {
         p.x += (p.x0 - p.x) * 0.03; p.y += (p.y0 - p.y) * 0.03;
         p.x = Math.max(16, Math.min(w - 16, p.x)); p.y = Math.max(16, Math.min(h - 16, p.y));
         // לא מתחת למפת ההתמצאות (בפינה השמאלית העליונה): יוצאים בכיוון הקרוב
-        if (inset && p.x < INSET.x && p.y < INSET.y) {
-          if (INSET.x - p.x < INSET.y - p.y) p.x = INSET.x; else p.y = INSET.y;
+        if (inset && p.x > inset[0] && p.x < inset[2] && p.y > inset[1] && p.y < inset[3]) {
+          var mv = [[inset[0] - p.x, 0], [inset[2] - p.x, 0], [0, inset[1] - p.y], [0, inset[3] - p.y]].filter(function (v) {
+            var x = p.x + v[0], y = p.y + v[1]; return x >= 16 && x <= w - 16 && y >= 16 && y <= h - 16;
+          }).sort(function (a, b) { return Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]); })[0];
+          if (mv) { p.x += mv[0]; p.y += mv[1]; }
         }
       });
       if (!moved && it > 10) break;
@@ -2213,9 +2243,52 @@ var LCDeck = (function () {
     }
     // קו שמתארך: התחנה שבה הקו התחיל או הסתיים עד היום — תמיד עם שם (גם בשינוי גדול), אם היא בתוך המפה
     if (extOf(d) && !m.show) segments(d).forEach(function (g) { var t = g.ext === 'start' ? g.B : g.ext === 'end' ? g.A : null; if (t && labels.indexOf(t) < 0) labels.push(t); });
+    // הקטעים שמשתנים (האדום שהקו כבר לא נוסע בו, והירוק החדש) — כולם בתוך המפה; כשהמפה מחולקת לאזורים —
+    // רק הקטעים שעוברים ליד התחנות של האזור הזה
+    var core0 = marks.map(function (x) { return x.s.ll; }), chgRuns = [];
+    offRuns(d.old.shape, d.new.shape).concat(extOf(d) ? extPart(d) : offRuns(d.new.shape, d.old.shape)).forEach(function (r) {
+      if (m.show && !r.some(function (p) { return core0.some(function (c) { return dist(c, p) <= 1500; }); })) return;
+      chgRuns.push(r);
+      r.forEach(function (p) { focus.extend(p); });
+    });
     if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
     if (!focus.isValid()) focus = all;
-    map.fitBounds(focus, { paddingTopLeft: [PAD, inEl ? 110 : PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
+    map.fitBounds(focus, { paddingTopLeft: [PAD, PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
+    // מפת ההתמצאות: בפינה שבה היא מסתירה הכי מעט ממה שמשתנה (סמנים, הקטע האדום והירוק). אם בכל הפינות היא
+    // מסתירה משהו — קטנה יותר, ואם גם זה לא מספיק — מרחיקים את המפה הגדולה מהפינה (שוליים גדולים יותר בצד שלה)
+    var INSET = null;
+    if (inEl) {
+      var place = function () {
+        var sz = map.getSize(), pts0 = core0.map(function (ll) { return map.latLngToContainerPoint(ll); });
+        chgRuns.forEach(function (r) { r.forEach(function (p) { pts0.push(map.latLngToContainerPoint(p)); }); });
+        var best = null;
+        [[190, 142], [150, 112]].forEach(function (wh) {
+          if (best && !best.n) return;
+          var w = wh[0], h = wh[1];
+          [[14, 14], [sz.x - w - 14, 14], [14, sz.y - h - 44], [sz.x - w - 14, sz.y - h - 30]].forEach(function (c, ci) {
+            var r = [c[0] - 12, c[1] - 12, c[0] + w + 12, c[1] + h + 12];
+            var n = pts0.filter(function (p) { return p.x > r[0] && p.x < r[2] && p.y > r[1] && p.y < r[3]; }).length;
+            // בשוויון — הפינה שהכי רחוקה ממה שמשתנה
+            var gap = Math.min.apply(null, pts0.map(function (p) { return Math.hypot(Math.max(r[0] - p.x, 0, p.x - r[2]), Math.max(r[1] - p.y, 0, p.y - r[3])); }).concat([1e4]));
+            if (!best || n < best.n || (n === best.n && gap > best.gap + 20)) best = { n: n, gap: gap, x: c[0], y: c[1], w: w, h: h, top: ci < 2 };
+          });
+        });
+        return best;
+      };
+      var ip = place(), fx = parseFloat(inEl.getAttribute('data-fx')), fy = parseFloat(inEl.getAttribute('data-fy'));
+      if (!isNaN(fx) && !isNaN(fy)) {   // המשתמש גרר את מפת ההתמצאות (edits.inset, אחוזים מגודל המפה)
+        var msz0 = map.getSize();
+        ip.x = Math.max(0, Math.min(msz0.x - ip.w, fx * msz0.x / 100)); ip.y = Math.max(0, Math.min(msz0.y - ip.h - 22, fy * msz0.y / 100)); ip.n = 0;
+      }
+      if (ip.n) {
+        var extra = ip.h + 28;
+        map.fitBounds(focus, { paddingTopLeft: [PAD, ip.top ? extra : PAD], paddingBottomRight: [PAD, ip.top ? PAD : extra], maxZoom: MAXZ });
+        var ip2 = place();
+        if (ip2.n <= ip.n) ip = ip2;
+      }
+      inEl.style.left = ip.x + 'px'; inEl.style.top = ip.y + 'px'; inEl.style.width = ip.w + 'px'; inEl.style.height = ip.h + 'px';
+      if (!inEl.classList.contains('inoff')) INSET = [ip.x - 14, ip.y - 14, ip.x + ip.w + 14, ip.y + ip.h + 14];
+    }
     tiles(map).addTo(map);
     // הישן המקווקו מתחת לחדש: איפה שהמסלולים זהים רואים רק כחול, והאדום מופיע רק איפה שהקו כבר לא עובר
     // רק הקטעים שהקו כבר לא נוסע בהם — לא מתחת לקו החדש, כדי שלא ייראה כאילו משהו בוטל במקום שהקו ממשיך לנסוע בו
@@ -2247,7 +2320,7 @@ var LCDeck = (function () {
     var boxes = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return [c.x - 13, c.y - 13, c.x + 13, c.y + 13]; });
     var hit = function (b) { return boxes.some(function (o) { return b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]; }); };
     var msz = map.getSize();
-    if (inEl) boxes.push([0, 0, INSET.x, INSET.y]);   // מפת ההתמצאות בפינה
+    if (INSET) boxes.push(INSET);   // מפת ההתמצאות
     labels.slice().sort(function (a, b) { return (wasEnd[b.code] ? 1 : 0) - (wasEnd[a.code] ? 1 : 0); }).forEach(function (st) {
       var k = st.name + st.ll.join(',');
       if (seen[k]) return; seen[k] = 1;
@@ -2268,7 +2341,7 @@ var LCDeck = (function () {
     // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
     var size = map.getSize();
     var pts = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return { x: c.x, y: c.y, x0: c.x, y0: c.y, m: x }; });
-    declutter(pts, size.x, size.y, !!inEl);
+    declutter(pts, size.x, size.y, INSET);
     var col = { rem: '#b8361f', add: '#0a5530', mv: '#55625c', seg: '#13201b' };
     pts.forEach(function (p) {
       var at = map.containerPointToLatLng([p.x, p.y]);
