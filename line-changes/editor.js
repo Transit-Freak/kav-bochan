@@ -96,6 +96,20 @@ var LCEdit = (function () {
       m.setAttribute('data-mk', mid); m.classList.add('emark');
       if (ed.hide && ed.hide[mid]) m.classList.add('mkoff');
     });
+    // מפת ההתמצאות: אפשר לגרור (edits.inset — אחוזים מגודל המפה) ולהסתיר (✕, ב-hide כמו הסימנים)
+    var ins = slide.querySelector('.inset');
+    if (ins) {
+      var iid = sid + '|inset', pos = ed.inset && ed.inset[sid];
+      ins.setAttribute('data-ins', iid);
+      if (pos) { ins.setAttribute('data-fx', pos.x); ins.setAttribute('data-fy', pos.y); }
+      if (ed.hide && ed.hide[iid]) ins.classList.add('inoff');
+      if (!ins.querySelector('.inset-x')) {
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = 'inset-x noprint'; x.setAttribute('data-act', 'insetx');
+        x.setAttribute('aria-label', 'הסתרת מפת ההתמצאות'); x.title = 'הסתרה / החזרה'; x.textContent = '✕';
+        ins.appendChild(x);
+      }
+    }
     // תיבות טקסט חופשיות
     (ed.boxes && ed.boxes[sid] || []).forEach(function (b) { slide.appendChild(boxEl(b)); });
     fit(frame);

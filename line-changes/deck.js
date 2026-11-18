@@ -127,7 +127,7 @@ var LCDeck = (function () {
   }
 
   /* ---------- השקפים ---------- */
-  function cover(pages, city) {
+  function cover(pages, city, one) {
     var s0 = pages.map(start).sort()[0];
     var single = pages.length === 1, p = pages[0];
     var ops = []; pages.forEach(function (x) { if (ops.indexOf(x.op) < 0) ops.push(x.op); });
@@ -153,10 +153,11 @@ var LCDeck = (function () {
             '<span class="x num">' + (opPhone ? 'מוקד: <span class="ltr">' + E(opPhone) + '</span>' : '') + '</span></div>' +
           '<div class="fact"><span class="l">משרד התחבורה</span><span class="v num"><span class="ltr">' + MOT + '</span></span><span class="x">מוקד המידע</span></div>' +
         '</div>' +
-        '<p class="intro" data-k="intro">' + E(autoIntro(pages)) + '</p>' +
+        '<p class="intro" data-k="intro">' + E(one ? 'המסלול והתחנות לא משתנים — רק השעות של ' + (ttCount(pages[0]) === 1 ? 'נסיעה אחת' : ttCount(pages[0]) + ' נסיעות') + '.' : autoIntro(pages)) + '</p>' +
         (single || pages.length <= 3 ? '<div class="what"><h3 class="hd">' + (single && p.kind === 'new' ? 'מה חשוב לדעת?' : 'מה משתנה?') + '<span class="counts">' + (single ? E(totLine(p.tot || {})) : '') + '</span></h3>' +
           '<ul data-k="what">' + listHtml(ED.cover, coverItems(pages)) + '</ul></div>' : coverRows(pages)) +
         '<div class="note">המידע הוכן על ידי אדם פרטי, ואינו פרסום רשמי של משרד התחבורה או של ' + (ops.length === 1 ? E(ops[0]) : 'חברות האוטובוסים') + '. השינוי עלול להשתנות. לפני הנסיעה בדקו במוקד או באפליקציה.</div>' +
+        (one ? '<p class="osrc">לפי נתוני משרד התחבורה' + (one.feed ? ' מ-' + E(LC.dmy(one.feed)) : '') + '</p>' + creditHtml() : '') +
       '</div></div>';
   }
 
@@ -184,18 +185,33 @@ var LCDeck = (function () {
     return '<div class="sfoot"><span>הוכן על ידי אדם פרטי · לא פרסום רשמי · מפה: © תורמי OpenStreetMap</span><span class="pg num"></span></div>';
   }
 
+  /* מפה של אזור אחד (כשהמפה מחולקת לאזורים): רק ההסברים, המספרים והשכבות של האזור הזה */
+  function areaOf(d, part, nparts) {
+    if (nparts < 2 || !part.show) return null;
+    var rem = (d._rem || []).filter(function (s) { return part.show[s._k + s.code]; });
+    var add = (d._add || []).filter(function (s) { return part.show[s._k + s.code]; });
+    var pts = rem.concat(add).map(function (s) { return s.ll; }), codes = {};
+    rem.concat(add).forEach(function (s) { codes[s.code] = 1; });
+    var segs = segments(d).slice(0, SEG_MAX).filter(function (g) {
+      if (g.oldS.concat(g.newS).some(function (s) { return codes[s.code]; })) return true;
+      var at = g.A ? divergeAt(d, g) : ((g.newS[0] || g.oldS[0] || {}).ll);
+      return at && pts.some(function (c) { return dist(c, at) < 1500; });
+    });
+    return { rem: rem, add: add, segs: segs };
+  }
   function mapSlide(p, d, part, nparts) {
-    var r = d.removed.length, a = d.added.length;
+    var r = d.removed.length, a = d.added.length, ar = areaOf(d, part, nparts);
     var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
     var when = start(d) !== start(p) ? '<p class="lead">החל מ' + E(LC.wd(start(d)) + ' ' + LC.dmy(start(d))) + '.</p>' : '';
+    var where = toward(d).replace(/^בנסיעה ל/, 'לכיוון ');
     return '<div class="s-map"><div class="smap"></div><div class="inset"></div><div class="side">' +
       '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(p.op) + '</span></div>' +
       '<h2 class="hd">' + E(trip(d)) + E(altTxt(d)) + '</h2>' +
-      (nparts > 1 ? '<p class="part">מפה ' + (part.i + 1) + ' מתוך ' + nparts + ' (' + E(part.name) + ')</p>' : '') +
+      (nparts > 1 ? '<p class="part">' + E((/^לכיוון /.test(where) ? where + ' · ' : '') + part.name) + ' <small style="font-weight:600;color:var(--s-sub)">· מפה ' + (part.i + 1) + ' מתוך ' + nparts + '</small></p>' : '') +
       (extOf(d) ? '' : rerouted(d) ? '' : '<p class="part">המסלול לא משתנה — רק ' + (r + a + d.moved.length === 1 ? 'התחנה' : 'התחנות') + '</p>') +
-      segList(d) + when +
-      (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(countsLine(d)) + '</p>') +
-      legendHtml(d) +
+      segList(d, ar) + when +
+      (small(d) && nparts < 2 ? smallList(d) : '<p class="counts">' + E(ar ? areaCounts(ar) : countsLine(d)) + '</p>') +
+      legendHtml(d, ar) +
       '<div style="font-size:13px;color:var(--s-sub)">הוכן על ידי אדם פרטי · לא פרסום רשמי</div>' +
       '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>';
   }
@@ -267,32 +283,49 @@ var LCDeck = (function () {
     });
     return rows.length ? '<ul class="small">' + rows.join('') + '</ul>' : '';
   }
-  function legendHtml(d) {
-    var r = d.removed.length, a = d.added.length;
-    var near = (d._rem || []).some(function (s) { return s._near && !s._near.none; });
+  function allGreen(d) { return ED.rc === 'all' && rerouted(d) && !extOf(d); }
+  function legendHtml(d, ar) {
+    // מפה של אזור (ar): רק השכבות שיש באזור הזה
+    var r = ar ? ar.rem.length : d.removed.length, a = ar ? ar.add.length : d.added.length;
+    var remL = ar ? ar.rem : (d._rem || []);
+    var near = remL.some(function (s) { return s._near && !s._near.none; });
+    var segs = ar ? ar.segs : segments(d);
+    var oldSeg = !ar || r || segs.some(function (g) { return g.oldS.length && routeSeg(g); });
+    // קטע חדש בירוק — רק אם יש כזה (במפת אזור: ליד התחנות של האזור)
+    var apts = ar ? ar.rem.concat(ar.add).map(function (x) { return x.ll; }) : null;
+    var newSeg = offRuns(d.new.shape, d.old.shape).some(function (rn) { return !apts || rn.some(function (pt) { return apts.some(function (c) { return dist(c, pt) < 1500; }); }); });
     return '<div class="legend">' +
         (extOf(d) ? '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span><span><i class="sw"></i>הקטע החדש (מ-' + E(LC.dm(start(d))) + ')</span>' :
-          rerouted(d) ? (offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
-          '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
+          rerouted(d) ? (oldSeg && offRuns(d.old.shape, d.new.shape).length ? '<span><i class="sw old"></i>קטע שהקו כבר לא נוסע בו (עד ' + E(LC.dm(LC.addDays(start(d), -1))) + ')</span>' : '') +
+          (allGreen(d) ? '<span><i class="sw"></i>המסלול החדש (מ-' + E(LC.dm(start(d))) + ')</span>'
+            : '<span><i class="sw same"></i>המסלול שלא השתנה</span>' + (newSeg ? '<span><i class="sw"></i>קטע חדש (מ-' + E(LC.dm(start(d))) + ')</span>' : '')) : '<span><i class="sw same"></i>מסלול הקו (לא משתנה)</span>') +
         (r ? '<span><i class="dot rem">1</i>תחנה שמבוטלת</span>' : '') +
-        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש' + ((d._rem || []).some(function (s) { return s._near && s._near.path; }) ? ' (זמן ההליכה ברשימה)' : '') + '</span>' : '') +
-        (segments(d).some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
+        (near ? '<span><i class="sw near"></i>אל התחנה הקרובה במסלול החדש' + (remL.some(function (s) { return s._near && s._near.path; }) ? ' (זמן ההליכה ברשימה)' : '') + '</span>' : '') +
+        (segs.some(routeSeg) ? '<span><i class="dot seg">1</i>כאן המסלול משתנה (כמו בהסבר)</span>' : '') +
         (a ? '<span><i class="dot add">1</i>תחנה חדשה</span>' : '') +
-        (d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
+        (!ar && d.moved.length ? '<span><i class="dot mv">1</i>תחנה שעוברת מקום</span>' : '') +
         '<span><i class="dot same"></i>תחנה שנשארת</span></div>';
   }
+
   var SEG_MAX = 4;
-  function segList(d) {
+  function areaCounts(ar) {
+    var s = [];
+    if (ar.rem.length) s.push(plural(ar.rem.length, 'תחנה אחת מבוטלת', 'תחנות מבוטלות'));
+    if (ar.add.length) s.push(plural(ar.add.length, 'תחנה חדשה אחת', 'תחנות חדשות'));
+    return s.length ? s.join(' · ') + ' באזור הזה · המספרים במפה כמו ברשימה בעמוד הבא' : '';
+  }
+  function segList(d, ar) {
     var segs = segments(d);
     if (!segs.length) return '<p class="lead">' + dirLead(d) + '</p>';
     var ed = ED.seg && ED.seg[d._key];
     var html = '<ol class="segs">' + segs.slice(0, SEG_MAX).map(function (g, i) {
+      if (ar && ar.segs.indexOf(g) < 0) return '';   // מפה של אזור: רק ההסברים של האזור הזה (עם המספרים המקוריים)
       var t = ed && typeof ed[i] === 'string' ? E(ed[i]) : g.html;
       // מספר רק לשינוי בדרך עצמה (יש לו סמן על המפה); שינוי של תחנה — נקודה, הסמן הממוספר של התחנה הוא ההפניה
       var num = segNum(d, g);
       return '<li>' + (num ? '<i class="segn">' + num + '</i>' : '<i class="segb"></i>') + '<span data-seg="' + E(d._key) + '" data-i="' + i + '">' + t + '</span></li>';
     }).join('') + '</ol>';
-    if (segs.length > SEG_MAX) html += '<p class="counts">ועוד ' + (segs.length - SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
+    if (segs.length > SEG_MAX && !ar) html += '<p class="counts">ועוד ' + (segs.length - SEG_MAX === 1 ? 'שינוי קטן אחד' : (segs.length - SEG_MAX) + ' שינויים קטנים') + ' — ברשימת התחנות בעמוד הבא.</p>';
     return html;
   }
   function routeSeg(g) { return !g.kind; }
@@ -1087,6 +1120,19 @@ var LCDeck = (function () {
   function shWord(sh) {   // "בדקה–שתיים" / "בכמה דקות"
     return sh.every(function (z) { return Math.abs(z[1] - z[0]) <= 2; }) ? 'בדקה–שתיים' : 'בכמה דקות';
   }
+  /* כמה נסיעות השתנו בסך הכול (נוספו, בוטלו, הוזזו) — בכל הימים והכיוונים */
+  function ttCount(p) {
+    var n = 0;
+    ttDirs(p).forEach(function (d) { d.tt.forEach(function (e) {
+      var x = ttDiff(e);
+      // נסיעה שנוספה ונסיעה שבוטלה קרוב אליה — נסיעה אחת שזזה (כמו ב-smallLine)
+      n += !x.sh.length && x.ad.length === 1 && x.rm.length === 1 && Math.abs(x.ad[0] - x.rm[0]) <= 30 ? 1 : x.ad.length + x.rm.length + x.sh.length;
+    }); });
+    return n;
+  }
+  /* שינוי קטן מאוד בלו"ז (עד 3 נסיעות): עמוד אחד — כותרת, "מה השתנה?" עם השעות במילים, והבהרות. בלי שער ובלי טבלה */
+  var TT_ONE = 3;
+  function ttOne(p) { return ttSmall(p) && ttCount(p) <= TT_ONE; }
   function ttSmall(p) {
     if (p.kind !== 'timetable') return false;
     var n = 0, big = false;
@@ -1314,10 +1360,12 @@ var LCDeck = (function () {
   function ttPagesHtml(p, form, H) { return paginate(ttBlocks(p, form), H || TTM[form].H); }
 
   /* ---- מפה של כל המסלול (קו חדש: ירוק · קו מבוטל: אדום מקווקו) ---- */
-  function routeLegend(p) {
-    var al = p.kind === 'ended' && altsOf(p).length;
+  function routeLegend(p, g) {
+    // מפה קרובה (g): התחנות של האזור ממוספרות; בלי "הראשונה והאחרונה" ובלי "קווים אחרים" — הם לא מסומנים בה
+    var al = !g && p.kind === 'ended' && altsOf(p).length;
     return '<div class="legend">' + (p.kind === 'new' ? '<span><i class="sw"></i>המסלול של הקו החדש</span>' : '<span><i class="sw old"></i>המסלול של הקו (עד ' + E(LC.dm(lastOf(p))) + ')</span>') +
-      '<span><i class="dot same"></i>תחנה</span>' + '<span><i class="dot end"></i>התחנה הראשונה והאחרונה</span>' +
+      (g ? '<span><i class="dot ' + (p.kind === 'ended' ? 'rem' : 'add') + '">1</i>תחנה באזור הזה (כמו ברשימה)</span><span><i class="dot same"></i>תחנה אחרת של הקו</span>'
+        : '<span><i class="dot same"></i>תחנה</span><span><i class="dot end"></i>התחנה הראשונה והאחרונה</span>') +
       (al ? '<span><i class="dot alt"></i>תחנה שעוצרים בה קווים אחרים</span>' : '') + '</div>';
   }
   function routeMap(p) { return { route: true, kind: p.kind, dirs: kDirs(p), alts: p.kind === 'ended' ? altsOf(p) : [] }; }
@@ -1386,9 +1434,79 @@ var LCDeck = (function () {
           '<div class="sfoot"><span>שעת היציאה מהתחנה הראשונה · שעות השיא: 7:00–9:00 ו-16:00–19:00 · לפי נתוני משרד התחבורה · הוכן על ידי אדם פרטי, לא פרסום רשמי</span><span class="pg num"></span></div></div>' };
     });
   }
+  /* ---- מפות מקורבות לתחנות (קו חדש / מבוטל): אחרי מפת כל המסלול — מפה קרובה לכל מקום שבו הקו נכנס ליישוב
+     או לשכונה (מושב, קיבוץ, לולאה בעיר), כשבמפה הכללית התחנות שם צפופות מדי. בחירה של מי שמכין (ED.zm):
+     'yes' / 'no'; בלי בחירה — בקו חדש כן, בקו מבוטל לא ---- */
+  function zoomOn(p) { return ED.zm === 'yes' ? true : ED.zm === 'no' ? false : p.kind === 'new'; }
+  var ZM_GAP = 1500, ZM_MAX = 4;
+  function zoomGroups(p) {
+    var d = kDirs(p)[0]; if (!d) return [];
+    var S = kSide(d, p).stops; if (S.length < 6) return [];
+    var lats = S.map(function (x) { return x.ll[0]; }), lons = S.map(function (x) { return x.ll[1]; });
+    var diag = dist([Math.min.apply(null, lats), Math.min.apply(null, lons)], [Math.max.apply(null, lats), Math.max.apply(null, lons)]);
+    var mpp = diag / 950;   // מטרים לפיקסל בערך, במפה של כל המסלול (כ-700×680)
+    var gs = [], cur = null;
+    S.forEach(function (st, k) {
+      var prev = k ? S[k - 1] : null;
+      if (!cur || (st.city && prev.city && st.city !== prev.city) || dist(prev.ll, st.ll) > ZM_GAP) { cur = { ix: [] }; gs.push(cur); }
+      cur.ix.push(k);
+    });
+    var ext = function (g) {
+      var a = g.ix.map(function (k) { return S[k].ll; }), la = a.map(function (x) { return x[0]; }), lo = a.map(function (x) { return x[1]; });
+      return dist([Math.min.apply(null, la), Math.min.apply(null, lo)], [Math.max.apply(null, la), Math.max.apply(null, lo)]);
+    };
+    var spacing = function (g) {   // המרחק החציוני בין תחנות סמוכות באזור
+      var ds = []; for (var i = 1; i < g.ix.length; i++) ds.push(dist(S[g.ix[i - 1]].ll, S[g.ix[i]].ll));
+      ds.sort(function (a, b) { return a - b; }); return ds.length ? ds[Math.floor(ds.length / 2)] : 1e9;
+    };
+    // רק אזורים עם 3 תחנות לפחות, שבמפה הכללית צפופים (פחות מ-28 פיקסלים בין תחנות), ולא כמעט כל המסלול
+    gs = gs.filter(function (g) { return g.ix.length >= 3 && spacing(g) / mpp < 28 && ext(g) < diag * 0.5; });
+    while (gs.length > ZM_MAX) {   // יותר מדי — מאחדים את שני האזורים הסמוכים הקרובים ביותר
+      var bi = 0, bd = Infinity;
+      for (var i = 1; i < gs.length; i++) { var dd = dist(S[gs[i - 1].ix[gs[i - 1].ix.length - 1]].ll, S[gs[i].ix[0]].ll); if (dd < bd) { bd = dd; bi = i; } }
+      var a = gs[bi - 1].ix[0], b = gs[bi].ix[gs[bi].ix.length - 1];
+      gs.splice(bi - 1, 2, { ix: S.slice(a, b + 1).map(function (_, j) { return a + j; }) });
+    }
+    var names = gs.map(function (g) {
+      var n = {}; g.ix.forEach(function (k) { var c = S[k].city; if (c) n[c] = (n[c] || 0) + 1; });
+      var c = Object.keys(n).sort(function (x, y) { return n[y] - n[x]; })[0];
+      return c ? 'ב' + c : 'ליד ' + S[g.ix[0]].name;
+    });
+    return gs.map(function (g, i) {
+      var same = names.filter(function (x) { return x === names[i]; }).length > 1;
+      return { d: d, ix: g.ix, name: names[i] + (same ? ' (' + (names.slice(0, i + 1).filter(function (x) { return x === names[i]; }).length) + ')' : ''),
+        codes: g.ix.map(function (k) { return S[k].code; }) };
+    });
+  }
+  function zoomMap(p, g) {
+    var nums = {}, S = kSide(g.d, p).stops; g.ix.forEach(function (k) { nums[S[k].code] = k + 1; });
+    return { route: true, kind: p.kind, dirs: [g.d], alts: p.kind === 'ended' ? altsOf(p) : [], focus: g.codes, nums: nums };
+  }
+  function zoomList(p, g, max) {
+    var S = kSide(g.d, p).stops, ix = g.ix.slice(0, max || 16), two = ix.length > 8;
+    // הרבה תחנות — בשתי עמודות, כדי שהרשימה תיכנס לצד של השקף
+    return '<ol class="zm-list" style="list-style:none;margin:0;padding:0;' + (two ? 'columns:2;column-gap:14px;font-size:15px' : 'font-size:17px') + '">' + ix.map(function (k) {
+      return '<li style="display:flex;gap:6px;align-items:center;break-inside:avoid;margin-bottom:4px"><i class="dot ' + (p.kind === 'ended' ? 'rem' : 'add') + '">' + (k + 1) + '</i><span>' + E(S[k].name) + '</span></li>';
+    }).join('') + (g.ix.length > ix.length ? '<li>ועוד ' + (g.ix.length - ix.length) + ' תחנות</li>' : '') + '</ol>';
+  }
+  function zoomSlides(p, pre) {
+    if (!zoomOn(p)) return [];
+    var gs = zoomGroups(p);
+    return gs.map(function (g, i) {
+      return { id: p.id + '-kz' + i, label: pre + 'מפה קרובה · ' + g.name, map: zoomMap(p, g),
+        html: '<div class="s-map k-' + p.kind + '"><div class="smap"></div><div class="inset"></div><div class="side">' +
+          '<div class="row"><span class="badge sm num">' + E(p.line) + '</span><span style="font-size:18px;color:var(--s-sub);font-weight:700">' + E(p.op) + '</span></div>' +
+          '<h2 class="hd">' + E((p.kind === 'new' ? 'הקו החדש ' : 'הקו שמבוטל ') + g.name) + '</h2>' +
+          (gs.length > 1 ? '<p class="part">מפה קרובה ' + (i + 1) + ' מתוך ' + gs.length + '</p>' : '') +
+          '<p class="kod">' + E(trip(g.d)) + ' · ' + g.ix.length + ' תחנות כאן (המספרים כמו ברשימת התחנות)</p>' +
+          zoomList(p, g, 16) + routeLegend(p, g) +
+          '<div style="font-size:13px;color:var(--s-sub)">הוכן על ידי אדם פרטי · לא פרסום רשמי</div>' +
+          '</div><span class="pg num" style="position:absolute;left:14px;bottom:10px;font-size:13px;color:#5b6a63;z-index:500;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px"></span></div>' };
+    });
+  }
   function kindSlides(p, pre) {
     var out = [];
-    if (p.kind === 'new' || p.kind === 'ended') out.push(kindMapSlide(p, pre));
+    if (p.kind === 'new' || p.kind === 'ended') { out.push(kindMapSlide(p, pre)); zoomSlides(p, pre).forEach(function (s) { out.push(s); }); }
     if (p.kind === 'new') kDirs(p).forEach(function (d) { routeStopsSlides(p, d, pre, ED.look === 'large' ? 9 : 12).forEach(function (s) { out.push(s); }); });
     if (p.kind === 'ended' && altsOf(p).length > 3) out.push(altsSlide(p, pre));
     if (p.kind !== 'ended') ttSlides(p, pre).forEach(function (s) { out.push(s); });
@@ -1428,6 +1546,21 @@ var LCDeck = (function () {
           '<div class="sg-what"><h2 class="hd">' + (p.kind === 'new' ? 'הקו החדש' : 'מה זה אומר?') + '</h2><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
           (p.kind === 'ended' ? '<div class="sg-near sg-alts"><h3 class="hd">במקום זה</h3>' + altList(p, 3) + '</div>' : '') +
           contact + signFoot(feed, true) + '</div>' });
+      if (zoomOn(p)) zoomGroups(p).forEach(function (g, i, gs) {
+        out.push({ id: 'sg-' + p.id + '-kz' + i, label: pre + 'שלט · מפה קרובה ' + g.name, map: zoomMap(p, g),
+          html: '<div class="s-sign k-' + p.kind + '">' + signBand(p) + '<div class="sg-when"><b>' + E((p.kind === 'new' ? 'הקו החדש ' : 'הקו שמבוטל ') + g.name) + '</b><span>' +
+            (gs.length > 1 ? 'מפה קרובה ' + (i + 1) + ' מתוך ' + gs.length : '') + '</span></div>' +
+            '<div class="sg-mapw"><div class="smap"></div></div>' + routeLegend(p, g) +
+            '<div class="sg-what"><h2 class="hd">התחנות כאן</h2>' + zoomList(p, g, 6) + '</div>' + signFoot(feed, true) + '</div>' });
+      });
+    }
+    if (ttOne(p)) {   // שינוי קטן מאוד בלו"ז: שלט אחד — מה השתנה, בשעות, במילים
+      out.push({ id: 'sg-' + p.id + '-tt0', label: pre + 'שלט · לוח הזמנים',
+        html: '<div class="s-sign s-signtt">' + signBand(p) + '<div class="sg-when">' + kindWhen(p) + '</div>' +
+          '<div class="sg-what"><h2 class="hd">מה משתנה?</h2><p style="font-size:22px;margin:0 0 10px;color:var(--s-sub)">המסלול והתחנות לא משתנים — רק השעות של ' +
+          (ttCount(p) === 1 ? 'נסיעה אחת' : ttCount(p) + ' נסיעות') + '.</p><ul>' + kindItems(p).map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
+          contact + signFoot(feed, false) + '</div>' });
+      return out;
     }
     if (p.kind !== 'ended' && !(p.kind === 'new' && o.v === 'gen' && o.f === 'text')) {
       // השלט הראשון של שינוי בלו"ז: עם כותרת גדולה, מוקדים והבהרה — פחות מקום ללוח הזמנים
@@ -1462,6 +1595,11 @@ var LCDeck = (function () {
       out.push({ id: 'st-' + p.id, label: pre + 'תמונה לסטטוס', map: routeMap(p),
         html: '<div class="s-status k-' + p.kind + '">' + top(sub) + '<div class="st-mapw"><div class="smap"></div></div>' +
           '<div class="st-what"><ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' + foot + '</div>' });
+      if (zoomOn(p)) zoomGroups(p).forEach(function (g, i, gs) {
+        out.push({ id: 'st-' + p.id + '-kz' + i, label: pre + 'סטטוס · מפה קרובה ' + g.name, map: zoomMap(p, g),
+          html: '<div class="s-status k-' + p.kind + '">' + top(g.name + ' · ' + g.ix.length + ' תחנות' + (gs.length > 1 ? ' · ' + (i + 1) + '/' + gs.length : '')) +
+            '<div class="st-mapw"><div class="smap"></div></div>' + foot + '</div>' });
+      });
     }
     if (p.kind === 'timetable' || (p.kind === 'new' && o.v === 'det')) {
       var pages = ttPagesHtml(p, 'status');
@@ -1475,9 +1613,63 @@ var LCDeck = (function () {
   }
 
   /* ---- מפה של כל המסלול ---- */
+  function zoomDraw(map, m, stops, fset, all, slideEl, inEl, opts, waits) {
+    stops.forEach(function (s) { if (!fset[s.code]) L.circleMarker(s.ll, { radius: 4, color: '#55625c', weight: 2.2, fillColor: '#fff', fillOpacity: 1, interactive: false }).addTo(map); });
+    var msz = map.getSize(), boxes = [], pts = [];
+    stops.forEach(function (s) {
+      if (!fset[s.code]) return;
+      var c = map.latLngToContainerPoint(s.ll);
+      pts.push({ x: c.x, y: c.y, x0: c.x, y0: c.y, s: s });
+    });
+    // מפת ההתמצאות — בפינה שבה היא מסתירה הכי מעט (כמו במפות השינוי), או במקום שהמשתמש גרר אליו
+    var INSET = null;
+    if (inEl) {
+      var w = 170, h = 128, best = null;
+      [[14, 14], [msz.x - w - 14, 14], [14, msz.y - h - 44], [msz.x - w - 14, msz.y - h - 30]].forEach(function (c) {
+        var r = [c[0] - 12, c[1] - 12, c[0] + w + 12, c[1] + h + 12];
+        var n = pts.filter(function (p) { return p.x > r[0] && p.x < r[2] && p.y > r[1] && p.y < r[3]; }).length;
+        if (!best || n < best.n) best = { n: n, x: c[0], y: c[1] };
+      });
+      var fx = parseFloat(inEl.getAttribute('data-fx')), fy = parseFloat(inEl.getAttribute('data-fy'));
+      if (!isNaN(fx) && !isNaN(fy)) best = { x: Math.max(0, Math.min(msz.x - w, fx * msz.x / 100)), y: Math.max(0, Math.min(msz.y - h - 22, fy * msz.y / 100)) };
+      inEl.style.left = best.x + 'px'; inEl.style.top = best.y + 'px'; inEl.style.width = w + 'px'; inEl.style.height = h + 'px';
+      if (!inEl.classList.contains('inoff')) INSET = [best.x - 14, best.y - 14, best.x + w + 14, best.y + h + 14];
+      var mini = L.map(inEl, Object.assign({}, opts, { attributionControl: false }));
+      mini.fitBounds(all, { padding: [8, 8] });
+      var t2 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: true });
+      waits.push(new Promise(function (res) { var done = false, fin = function () { if (!done) { done = true; res(); } }; t2.on('load', fin); setTimeout(fin, 12000); }));
+      t2.addTo(mini);
+      m.dirs.forEach(function (d) { var S = m.kind === 'ended' ? d.old : d.new; if ((S.shape || []).length > 1) L.polyline(S.shape, { color: m.kind === 'ended' ? '#b8361f' : '#1f9152', weight: 2.5, interactive: false }).addTo(mini); });
+      var view = map.getBounds();
+      L.rectangle(view, { color: '#13201b', weight: 2, fillColor: '#f2c14e', fillOpacity: .35, interactive: false }).addTo(mini);
+      L.circleMarker(view.getCenter(), { radius: 7, color: '#13201b', weight: 2.5, fillColor: '#f2c14e', fillOpacity: .9, interactive: false }).addTo(mini);
+    }
+    declutter(pts, msz.x, msz.y, INSET);
+    if (INSET) boxes.push(INSET);
+    pts.forEach(function (p) {
+      var at = map.containerPointToLatLng([p.x, p.y]);
+      if (Math.hypot(p.x - p.x0, p.y - p.y0) > 5) L.polyline([p.s.ll, at], { color: '#13201b', weight: 1.5, opacity: .8, interactive: false }).addTo(map);
+      L.marker(at, { icon: L.divIcon({ className: '', html: '<div class="lc-mk ' + (m.kind === 'ended' ? 'rem' : 'add') + '">' + m.nums[p.s.code] + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] }), interactive: false, keyboard: false, zIndexOffset: 900 }).addTo(map);
+      boxes.push([p.x - 13, p.y - 13, p.x + 13, p.y + 13]);
+    });
+    // שמות התחנות — איפה שיש מקום
+    pts.forEach(function (p) {
+      var w = String(p.s.name).length * 7 + 20, h = 24, g = 15, c = p;
+      var pick = [
+        { dir: 'top', off: [0, -g], b: [c.x - w / 2, c.y - g - h, c.x + w / 2, c.y - g] },
+        { dir: 'bottom', off: [0, g], b: [c.x - w / 2, c.y + g, c.x + w / 2, c.y + g + h] },
+        { dir: 'right', off: [g, 0], b: [c.x + g, c.y - h / 2, c.x + g + w, c.y + h / 2] },
+        { dir: 'left', off: [-g, 0], b: [c.x - g - w, c.y - h / 2, c.x - g, c.y + h / 2] }
+      ].filter(function (o) { return o.b[0] >= 2 && o.b[1] >= 2 && o.b[2] <= msz.x - 2 && o.b[3] <= msz.y - 2 && !boxes.some(function (q) { return o.b[0] < q[2] && o.b[2] > q[0] && o.b[1] < q[3] && o.b[3] > q[1]; }); })[0];
+      if (!pick) return;
+      boxes.push(pick.b);
+      L.tooltip({ permanent: true, direction: pick.dir, offset: pick.off, className: 'lc-lbl', interactive: false }).setLatLng(map.containerPointToLatLng([p.x, p.y])).setContent(E(p.s.name)).addTo(map);
+    });
+    return { map: map, ready: Promise.all(waits) };
+  }
   function drawRouteMap(slideEl, m) {
     var el = slideEl.querySelector('.smap'), inEl = slideEl.querySelector('.inset');
-    if (inEl) inEl.remove();
+    if (inEl && !m.focus) { inEl.remove(); inEl = null; }
     var opts = { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
       boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0.25, fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false };
     var map = L.map(el, opts), waits = [];
@@ -1489,7 +1681,12 @@ var LCDeck = (function () {
       S.stops.forEach(function (s) { all.extend(s.ll); if (!seen[s.code]) { seen[s.code] = 1; stops.push(s); } });
     });
     if (!all.isValid()) all = L.latLngBounds([[31.5, 34.8], [32.1, 35.2]]);
-    map.fitBounds(all, { padding: [44, 44], maxZoom: 16 });
+    // מפה קרובה: רק התחנות של האזור (וקטע המסלול ביניהן), עם מספרים כמו ברשימה
+    var fset = {}, focusB = L.latLngBounds([]);
+    (m.focus || []).forEach(function (c) { fset[c] = 1; });
+    if (m.focus) stops.forEach(function (s) { if (fset[s.code]) focusB.extend(s.ll); });
+    if (m.focus && focusB.isValid()) map.fitBounds(focusB, { padding: [60, 60], maxZoom: 17 });
+    else map.fitBounds(all, { padding: [44, 44], maxZoom: 16 });
     var t = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap', crossOrigin: true });
     waits.push(new Promise(function (res) { var done = false, fin = function () { if (!done) { done = true; res(); } }; t.on('load', fin); setTimeout(fin, 12000); }));
     t.addTo(map);
@@ -1500,6 +1697,7 @@ var LCDeck = (function () {
     });
     var altAt = {};
     (m.alts || []).forEach(function (a) { (altAt[a.code] = altAt[a.code] || []).push(a.line); });
+    if (m.focus) return zoomDraw(map, m, stops, fset, all, slideEl, inEl, opts, waits);
     stops.forEach(function (s) {
       if (!altAt[s.code]) L.circleMarker(s.ll, { radius: 4, color: '#55625c', weight: 2.2, fillColor: '#fff', fillOpacity: 1, interactive: false }).addTo(map);
     });
@@ -2064,13 +2262,16 @@ var LCDeck = (function () {
     if (pages.length && pages.every(isCur)) { ED.hol = ED.hol || pages[0].hol || []; return curBuild(pages, feed); }
     pages.forEach(prep);
     // שניים או יותר עם לו"ז (שינוי בלו"ז, קו חדש): טבלה אחת לכל הקווים, ושורה קצרה לכל קו
-    var mt = pages.filter(ttCap).length > 1, rest = mt ? pages.filter(function (p) { return !ttCap(p); }) : pages;
-    if (ED.form === 'sign') return mt ? mtSlides(pages, 'sign').concat(rest.length ? signPages(rest, feed) : []) : signPages(pages, feed);
+    // שינוי קטן מאוד בלו"ז (ttOne) — לא נכנס לטבלת הלו"ז של כל הקווים, אלא אם ביקשו "גם שקף נפרד לכל קו"
+    var ttCapB = function (p) { return ttCap(p) && !(ttOne(p) && ED.ttper !== true && pages.length > 1); };
+    var mt = pages.filter(ttCapB).length > 1, rest = mt ? pages.filter(function (p) { return !ttCapB(p); }) : pages;
+    if (ED.form === 'sign') return mt ? mtSlides(pages.filter(ttCapB), 'sign').concat(rest.length ? signPages(rest, feed) : []) : signPages(pages, feed);
     if (ED.form === 'status') return mt ? sumSlides(pages, 'status').concat(rest.length ? statusPages(rest) : []) : statusPages(pages);
     // קו אחד עם שינוי קטן — עמוד אחד (או שניים), בלי שער ובלי שקף סיום
     if (pages.length === 1 && isOne(pages[0])) return onePages(pages[0], feed, '');
+    if (pages.length === 1 && ttOne(pages[0])) return [{ id: pages[0].id + '-one', label: 'עמוד אחד', html: cover(pages, city, { feed: feed }) }];
     var slides = [{ id: 'cover', label: 'שער', html: cover(pages, city) }];
-    if (mt) sumSlides(pages, 'deck').concat(mtSlides(pages, 'deck')).forEach(function (x) { slides.push(x); });
+    if (mt) sumSlides(pages, 'deck').concat(mtSlides(pages.filter(ttCapB), 'deck')).forEach(function (x) { slides.push(x); });
     else if (pages.length > 1) {
       var per = 9, n = Math.ceil(pages.length / per);
       for (var i = 0; i < n; i++) slides.push({ id: 'over' + i, label: 'כל הקווים' + (n > 1 ? ' (' + (i + 1) + ')' : ''), html: overview(pages.slice(i * per, (i + 1) * per), i, n) });
@@ -2078,6 +2279,8 @@ var LCDeck = (function () {
     var merged = {};
     pages.forEach(function (p, i) {
       if (merged[p.id] || (mt && ED.ttper === false && ttCap(p))) return;
+      // שינוי קטן מאוד בלו"ז במצגת של כמה קווים — רק שורה בסיכום, בלי שקפים משלו (אלא אם ביקשו "גם שקף נפרד לכל קו")
+      if (ttOne(p) && ED.ttper !== true) return;
       var sig = oneSig(p), others = sig ? pages.slice(i + 1).filter(function (o) { return !merged[o.id] && oneSig(o) === sig; }) : [];
       others.forEach(function (o) { merged[o.id] = 1; });
       var pre = pages.length > 1 ? [p].concat(others).map(function (x) { return x.line; }).join(', ') + ' · ' : '';
@@ -2128,24 +2331,51 @@ var LCDeck = (function () {
       if (Math.hypot(a[i][0] - a[j][0], a[i][1] - a[j][1]) < MK) n++;
     return n;
   }
+  /* חלוקה למפות לפי אזורים: תחנות שמשתנות שרחוקות זו מזו יותר מ-PART_GAP — מפה לכל אזור (עד 4; יותר — מאחדים
+     את הקרובים). אזור אחד צפוף (10 תחנות ויותר שעולות זו על זו) — שתי מפות, חצי מהתחנות בכל אחת */
+  var PART_GAP = 4000;
+  function clusters(all, gap) {
+    var id = all.map(function (_, i) { return i; });
+    var root = function (i) { while (id[i] !== i) i = id[i] = id[id[i]]; return i; };
+    for (var i = 0; i < all.length; i++) for (var j = i + 1; j < all.length; j++) {
+      if (dist(all[i].ll, all[j].ll) <= gap) id[root(i)] = root(j);
+    }
+    var g = {};
+    all.forEach(function (s, i) { (g[root(i)] = g[root(i)] || []).push(s); });
+    return Object.keys(g).map(function (k) { return g[k]; });
+  }
   function splitParts(remS, addS) {
     var all = remS.concat(addS);
     var one = [{ i: 0, name: '', show: null }];
-    if (all.length < 10 || overlaps(all.map(function (s) { return s.ll; })) <= 4) return one;
+    if (!all.length) return one;
+    var gap = PART_GAP, cl = clusters(all, gap);
+    while (cl.length > 4) { gap *= 2; cl = clusters(all, gap); }
     var a = all.map(function (s) { return px(s.ll, 0); });
     var xs = a.map(function (p) { return p[0]; }), ys = a.map(function (p) { return p[1]; });
     var vert = (Math.max.apply(null, ys) - Math.min.apply(null, ys)) >= (Math.max.apply(null, xs) - Math.min.apply(null, xs));
     var key = function (s) { return vert ? -s.ll[0] : s.ll[1]; };   // צפון/מערב קודם
+    var mid = function (c) { return c.reduce(function (t, s) { return t + key(s); }, 0) / c.length; };
+    var mk = function (c) { var o = {}; c.forEach(function (s) { o[s._k + s.code] = 1; }); return o; };
+    if (cl.length > 1) {
+      cl.sort(function (x, y) { return mid(x) - mid(y); });
+      // שם לכל אזור: העיר (כשלכל אזור עיר אחרת), ואחרת צפוני/דרומי (מערבי/מזרחי)
+      var city = cl.map(function (c) {
+        var n = {}; c.forEach(function (s) { if (s.city) n[s.city] = (n[s.city] || 0) + 1; });
+        return Object.keys(n).sort(function (x, y) { return n[y] - n[x]; })[0] || '';
+      });
+      var byCity = city.every(function (c, i) { return c && city.indexOf(c) === i; });
+      var pos = cl.length === 2 ? (vert ? ['החלק הצפוני', 'החלק הדרומי'] : ['החלק המערבי', 'החלק המזרחי']) : null;
+      return cl.map(function (c, i) { return { i: i, name: byCity ? 'ב' + city[i] : pos ? pos[i] : 'אזור ' + (i + 1), show: mk(c) }; });
+    }
+    if (all.length < 10 || overlaps(all.map(function (s) { return s.ll; })) <= 4) return one;
     var sorted = all.slice().sort(function (x, y) { return key(x) - key(y); });
-    var half = Math.ceil(sorted.length / 2), A = {}, B = {};
-    sorted.forEach(function (s, i) { (i < half ? A : B)[s._k + s.code] = 1; });
-    return [{ i: 0, name: vert ? 'החלק הצפוני' : 'החלק המערבי', show: A },
-            { i: 1, name: vert ? 'החלק הדרומי' : 'החלק המזרחי', show: B }];
+    var half = Math.ceil(sorted.length / 2);
+    return [{ i: 0, name: vert ? 'החלק הצפוני' : 'החלק המערבי', show: mk(sorted.slice(0, half)) },
+            { i: 1, name: vert ? 'החלק הדרומי' : 'החלק המזרחי', show: mk(sorted.slice(half)) }];
   }
 
   /* מרחיק סמנים שעולים זה על זה; מחזיר מיקום חדש בפיקסלים לכל סמן */
-  var INSET = { x: 16 + 236 + 14, y: 16 + 178 + 14 };   // הפינה של מפת ההתמצאות + מרווח
-  function declutter(pts, w, h, inset) {
+  function declutter(pts, w, h, inset) {   // inset: [x0, y0, x1, y1] — מפת ההתמצאות (עם מרווח), או null
     for (var it = 0; it < 120; it++) {
       var moved = false;
       for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) {
@@ -2160,8 +2390,11 @@ var LCDeck = (function () {
         p.x += (p.x0 - p.x) * 0.03; p.y += (p.y0 - p.y) * 0.03;
         p.x = Math.max(16, Math.min(w - 16, p.x)); p.y = Math.max(16, Math.min(h - 16, p.y));
         // לא מתחת למפת ההתמצאות (בפינה השמאלית העליונה): יוצאים בכיוון הקרוב
-        if (inset && p.x < INSET.x && p.y < INSET.y) {
-          if (INSET.x - p.x < INSET.y - p.y) p.x = INSET.x; else p.y = INSET.y;
+        if (inset && p.x > inset[0] && p.x < inset[2] && p.y > inset[1] && p.y < inset[3]) {
+          var mv = [[inset[0] - p.x, 0], [inset[2] - p.x, 0], [0, inset[1] - p.y], [0, inset[3] - p.y]].filter(function (v) {
+            var x = p.x + v[0], y = p.y + v[1]; return x >= 16 && x <= w - 16 && y >= 16 && y <= h - 16;
+          }).sort(function (a, b) { return Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]); })[0];
+          if (mv) { p.x += mv[0]; p.y += mv[1]; }
         }
       });
       if (!moved && it > 10) break;
@@ -2213,16 +2446,62 @@ var LCDeck = (function () {
     }
     // קו שמתארך: התחנה שבה הקו התחיל או הסתיים עד היום — תמיד עם שם (גם בשינוי גדול), אם היא בתוך המפה
     if (extOf(d) && !m.show) segments(d).forEach(function (g) { var t = g.ext === 'start' ? g.B : g.ext === 'end' ? g.A : null; if (t && labels.indexOf(t) < 0) labels.push(t); });
+    // הקטעים שמשתנים (האדום שהקו כבר לא נוסע בו, והירוק החדש) — כולם בתוך המפה; כשהמפה מחולקת לאזורים —
+    // רק הקטעים שעוברים ליד התחנות של האזור הזה
+    var core0 = marks.map(function (x) { return x.s.ll; }), chgRuns = [];
+    offRuns(d.old.shape, d.new.shape).concat(extOf(d) ? extPart(d) : offRuns(d.new.shape, d.old.shape)).forEach(function (r) {
+      if (m.show && !r.some(function (p) { return core0.some(function (c) { return dist(c, p) <= 1500; }); })) return;
+      chgRuns.push(r);
+      r.forEach(function (p) { focus.extend(p); });
+    });
     if (!focus.isValid()) deviating(d.old.shape, d.new.shape).concat(deviating(d.new.shape, d.old.shape)).forEach(function (p) { focus.extend(p); });
     if (!focus.isValid()) focus = all;
-    map.fitBounds(focus, { paddingTopLeft: [PAD, inEl ? 110 : PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
+    map.fitBounds(focus, { paddingTopLeft: [PAD, PAD], paddingBottomRight: [PAD, PAD], maxZoom: MAXZ });
+    // מפת ההתמצאות: בפינה שבה היא מסתירה הכי מעט ממה שמשתנה (סמנים, הקטע האדום והירוק). אם בכל הפינות היא
+    // מסתירה משהו — קטנה יותר, ואם גם זה לא מספיק — מרחיקים את המפה הגדולה מהפינה (שוליים גדולים יותר בצד שלה)
+    var INSET = null;
+    if (inEl) {
+      var place = function () {
+        var sz = map.getSize(), pts0 = core0.map(function (ll) { return map.latLngToContainerPoint(ll); });
+        chgRuns.forEach(function (r) { r.forEach(function (p) { pts0.push(map.latLngToContainerPoint(p)); }); });
+        var best = null;
+        [[190, 142], [150, 112]].forEach(function (wh) {
+          if (best && !best.n) return;
+          var w = wh[0], h = wh[1];
+          [[14, 14], [sz.x - w - 14, 14], [14, sz.y - h - 44], [sz.x - w - 14, sz.y - h - 30]].forEach(function (c, ci) {
+            var r = [c[0] - 12, c[1] - 12, c[0] + w + 12, c[1] + h + 12];
+            var n = pts0.filter(function (p) { return p.x > r[0] && p.x < r[2] && p.y > r[1] && p.y < r[3]; }).length;
+            // בשוויון — הפינה שהכי רחוקה ממה שמשתנה
+            var gap = Math.min.apply(null, pts0.map(function (p) { return Math.hypot(Math.max(r[0] - p.x, 0, p.x - r[2]), Math.max(r[1] - p.y, 0, p.y - r[3])); }).concat([1e4]));
+            if (!best || n < best.n || (n === best.n && gap > best.gap + 20)) best = { n: n, gap: gap, x: c[0], y: c[1], w: w, h: h, top: ci < 2 };
+          });
+        });
+        return best;
+      };
+      var ip = place(), fx = parseFloat(inEl.getAttribute('data-fx')), fy = parseFloat(inEl.getAttribute('data-fy'));
+      if (!isNaN(fx) && !isNaN(fy)) {   // המשתמש גרר את מפת ההתמצאות (edits.inset, אחוזים מגודל המפה)
+        var msz0 = map.getSize();
+        ip.x = Math.max(0, Math.min(msz0.x - ip.w, fx * msz0.x / 100)); ip.y = Math.max(0, Math.min(msz0.y - ip.h - 22, fy * msz0.y / 100)); ip.n = 0;
+      }
+      if (ip.n) {
+        var extra = ip.h + 28;
+        map.fitBounds(focus, { paddingTopLeft: [PAD, ip.top ? extra : PAD], paddingBottomRight: [PAD, ip.top ? PAD : extra], maxZoom: MAXZ });
+        var ip2 = place();
+        if (ip2.n <= ip.n) ip = ip2;
+      }
+      inEl.style.left = ip.x + 'px'; inEl.style.top = ip.y + 'px'; inEl.style.width = ip.w + 'px'; inEl.style.height = ip.h + 'px';
+      if (!inEl.classList.contains('inoff')) INSET = [ip.x - 14, ip.y - 14, ip.x + ip.w + 14, ip.y + ip.h + 14];
+    }
     tiles(map).addTo(map);
     // הישן המקווקו מתחת לחדש: איפה שהמסלולים זהים רואים רק כחול, והאדום מופיע רק איפה שהקו כבר לא עובר
     // רק הקטעים שהקו כבר לא נוסע בהם — לא מתחת לקו החדש, כדי שלא ייראה כאילו משהו בוטל במקום שהקו ממשיך לנסוע בו
     if (!extOf(d)) offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 5, dashArray: '9 8', opacity: 1, interactive: false }).addTo(map); });
     // המסלול החדש בירוק; כשהדרך לא משתנה — כחול-אפור ניטרלי (רק התחנה משתנה). קו שמתארך: כל המסלול אפור, והקטע החדש בירוק
     var ext = extOf(d);
-    if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: rerouted(d) && !ext ? '#1f9152' : '#5f7d96', weight: 6, opacity: .92, interactive: false }).addTo(map);
+    // צבעי המסלול (ED.rc): 'chg' (ברירת המחדל) — המסלול שלא השתנה אפור-כחול, ורק הקטעים החדשים באמת בירוק;
+    // 'all' — כל המסלול החדש בירוק (כמו קודם)
+    if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: allGreen(d) ? '#1f9152' : '#5f7d96', weight: 6, opacity: .92, interactive: false }).addTo(map);
+    if (rerouted(d) && !ext && !allGreen(d)) offRuns(d.new.shape, d.old.shape).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
     if (ext) extPart(d).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 7, opacity: 1, interactive: false }).addTo(map); });
     var changed = {};
     d.added.concat(d.removed).forEach(function (c) { changed[c] = 1; });
@@ -2247,7 +2526,7 @@ var LCDeck = (function () {
     var boxes = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return [c.x - 13, c.y - 13, c.x + 13, c.y + 13]; });
     var hit = function (b) { return boxes.some(function (o) { return b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]; }); };
     var msz = map.getSize();
-    if (inEl) boxes.push([0, 0, INSET.x, INSET.y]);   // מפת ההתמצאות בפינה
+    if (INSET) boxes.push(INSET);   // מפת ההתמצאות
     labels.slice().sort(function (a, b) { return (wasEnd[b.code] ? 1 : 0) - (wasEnd[a.code] ? 1 : 0); }).forEach(function (st) {
       var k = st.name + st.ll.join(',');
       if (seen[k]) return; seen[k] = 1;
@@ -2268,7 +2547,7 @@ var LCDeck = (function () {
     // סמנים ממוספרים: מרחיקים כאלה שעולים זה על זה, עם קו קצר אל המקום האמיתי
     var size = map.getSize();
     var pts = marks.map(function (x) { var c = map.latLngToContainerPoint(x.s.ll); return { x: c.x, y: c.y, x0: c.x, y0: c.y, m: x }; });
-    declutter(pts, size.x, size.y, !!inEl);
+    declutter(pts, size.x, size.y, INSET);
     var col = { rem: '#b8361f', add: '#0a5530', mv: '#55625c', seg: '#13201b' };
     pts.forEach(function (p) {
       var at = map.containerPointToLatLng([p.x, p.y]);
@@ -2292,7 +2571,8 @@ var LCDeck = (function () {
         mini.fitBounds(all.extend(view), { padding: [10, 10] });
         tiles(mini).addTo(mini);
         if (!ext) offRuns(d.old.shape, d.new.shape).forEach(function (r) { L.polyline(r, { color: '#b8361f', weight: 2, dashArray: '4 4', interactive: false }).addTo(mini); });
-        if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: rerouted(d) && !ext ? '#1f9152' : '#5f7d96', weight: 2.5, interactive: false }).addTo(mini);
+        if (d.new.shape.length > 1) L.polyline(d.new.shape, { color: allGreen(d) ? '#1f9152' : '#5f7d96', weight: 2.5, interactive: false }).addTo(mini);
+        if (rerouted(d) && !ext && !allGreen(d)) offRuns(d.new.shape, d.old.shape).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
         if (ext) extPart(d).forEach(function (r) { L.polyline(r, { color: '#1f9152', weight: 3, interactive: false }).addTo(mini); });
         L.rectangle(view, { color: '#13201b', weight: 2, fillColor: '#f2c14e', fillOpacity: .35, interactive: false }).addTo(mini);
         // כשהמסלול ארוך המלבן קטן מאוד — עיגול צהוב סביבו כדי שיראו איפה זה
@@ -2352,5 +2632,5 @@ var LCDeck = (function () {
     }
     return pages && pages.length ? autoTitle(pages, '') : '';
   }
-  return { ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
+  return { ttCount: ttCount, ttOne: ttOne, ttSmall: ttSmall, deckTitle: deckTitle, FORMS: FORMS, geoChanged: geoChanged, smallInfo: smallOf, lookVars: lookVars, drafts: drafts, build: build, drawMap: drawMap, autoIntro: autoIntro, autoTitle: autoTitle, deviating: deviating };
 })();
