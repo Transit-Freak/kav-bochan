@@ -83,7 +83,16 @@
   function start() {
     var st = document.createElement("style"); st.textContent = CSS; document.head.appendChild(st);
     fetch(base + "versions.json?v=" + Math.floor(Date.now() / 36e5)).then(function (r) { return r.json(); })
-      .then(function (d) { DATA = d; render(); window.addEventListener("hashchange", render); })
+      .then(function (d) {
+        DATA = d; render(); window.addEventListener("hashchange", render);
+        // קו פח והקו המוזהב מחליפים את דף הבית בלי לשנות את הכתובת — והשורה נמחקת יחד איתו.
+        // אם היא נעלמה מהדף, מחזירים אותה (שלמה 18.11: בקו פח לא היה איפה לראות את הגרסה)
+        var pend = 0;
+        new MutationObserver(function () {
+          if (pend || document.getElementById("kb-ver")) return;
+          pend = requestAnimationFrame(function () { pend = 0; if (!document.getElementById("kb-ver")) render(); });
+        }).observe(document.body, { childList: true, subtree: true });
+      })
       .catch(function () { /* בלי גרסה — לא מפריע לשום דבר אחר בדף */ });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();

@@ -36,7 +36,7 @@
 <!-- הפונט לא חוסם את הציור: נטען כ-preload והופך לגיליון פעיל כשהגיע -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
 <noscript><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Rubik:wght@500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
-<link rel="stylesheet" href="vendor/kavpach.css?v=1bc35f8f23" />
+<link rel="stylesheet" href="vendor/kavpach.css?v=8e0d52865a" />
 <!-- דף הבית החדש (העין הבוחנת) ומראה הכלים קו פח והקו המוזהב — home/ -->
 <link rel="stylesheet" href="home/home.css?v=4a28171aaa" />
 <link rel="preload" as="script" href="home/home.js?v=4a28171aaa" />
@@ -195,14 +195,14 @@
       };
       // הלב החישובי המשותף (kavpach-core.js) לפני האפליקציה
       var core = document.createElement('script');
-      core.src = 'kavpach-core.js?v=1bc35f8f23';
+      core.src = 'kavpach-core.js?v=8e0d52865a';
       // async=false: שני הקבצים רצים לפי הסדר (הליבה קודם) — סקריפט שנוסף בקוד הוא async כברירת מחדל,
       // ובכניסה ישירה ללשונית (#פח/deadhead) האפליקציה מחשבת מיד עם פונקציות מהליבה
       core.async = false;
       document.body.appendChild(core);
       var sc = document.createElement('script');
       sc.async = false;
-      sc.src = 'KavPach.js?v=1bc35f8f23';
+      sc.src = 'KavPach.js?v=8e0d52865a';
       sc.onload = mount;
       sc.onerror = fallback;
       document.body.appendChild(sc);
